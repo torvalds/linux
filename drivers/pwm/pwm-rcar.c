@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * R-Car PWM Timer driver
  *
  * Copyright (C) 2015 Renesas Electronics Corporation
- *
- * This is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>
@@ -261,8 +258,7 @@ MODULE_DEVICE_TABLE(of, rcar_pwm_of_table);
 #ifdef CONFIG_PM_SLEEP
 static struct pwm_device *rcar_pwm_dev_to_pwm_dev(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct rcar_pwm_chip *rcar_pwm = platform_get_drvdata(pdev);
+	struct rcar_pwm_chip *rcar_pwm = dev_get_drvdata(dev);
 	struct pwm_chip *chip = &rcar_pwm->chip;
 
 	return &chip->pwms[0];

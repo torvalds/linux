@@ -5,11 +5,12 @@
  * Handling for dynamically adding/removing IPMI devices through
  * a module parameter (and thus sysfs).
  */
+
+#define pr_fmt(fmt) "ipmi_hotmod: " fmt
+
 #include <linux/moduleparam.h>
 #include <linux/ipmi.h>
 #include "ipmi_si.h"
-
-#define PFX "ipmi_hotmod: "
 
 static int hotmod_handler(const char *val, const struct kernel_param *kp);
 
@@ -61,7 +62,7 @@ static int parse_str(const struct hotmod_vals *v, int *val, char *name,
 
 	s = strchr(*curr, ',');
 	if (!s) {
-		pr_warn(PFX "No hotmod %s given.\n", name);
+		pr_warn("No hotmod %s given\n", name);
 		return -EINVAL;
 	}
 	*s = '\0';
@@ -74,7 +75,7 @@ static int parse_str(const struct hotmod_vals *v, int *val, char *name,
 		}
 	}
 
-	pr_warn(PFX "Invalid hotmod %s '%s'\n", name, *curr);
+	pr_warn("Invalid hotmod %s '%s'\n", name, *curr);
 	return -EINVAL;
 }
 
@@ -85,12 +86,12 @@ static int check_hotmod_int_op(const char *curr, const char *option,
 
 	if (strcmp(curr, name) == 0) {
 		if (!option) {
-			pr_warn(PFX "No option given for '%s'\n", curr);
+			pr_warn("No option given for '%s'\n", curr);
 			return -EINVAL;
 		}
 		*val = simple_strtoul(option, &n, 0);
 		if ((*n != '\0') || (*option == '\0')) {
-			pr_warn(PFX "Bad option given for '%s'\n", curr);
+			pr_warn("Bad option given for '%s'\n", curr);
 			return -EINVAL;
 		}
 		return 1;
@@ -160,7 +161,7 @@ static int hotmod_handler(const char *val, const struct kernel_param *kp)
 		}
 		addr = simple_strtoul(curr, &n, 0);
 		if ((*n != '\0') || (*curr == '\0')) {
-			pr_warn(PFX "Invalid hotmod address '%s'\n", curr);
+			pr_warn("Invalid hotmod address '%s'\n", curr);
 			break;
 		}
 
@@ -203,7 +204,7 @@ static int hotmod_handler(const char *val, const struct kernel_param *kp)
 				continue;
 
 			rv = -EINVAL;
-			pr_warn(PFX "Invalid hotmod option '%s'\n", curr);
+			pr_warn("Invalid hotmod option '%s'\n", curr);
 			goto out;
 		}
 

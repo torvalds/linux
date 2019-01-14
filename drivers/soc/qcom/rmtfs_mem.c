@@ -184,6 +184,7 @@ static int qcom_rmtfs_mem_probe(struct platform_device *pdev)
 	device_initialize(&rmtfs_mem->dev);
 	rmtfs_mem->dev.parent = &pdev->dev;
 	rmtfs_mem->dev.groups = qcom_rmtfs_mem_groups;
+	rmtfs_mem->dev.release = qcom_rmtfs_mem_release_device;
 
 	rmtfs_mem->base = devm_memremap(&rmtfs_mem->dev, rmtfs_mem->addr,
 					rmtfs_mem->size, MEMREMAP_WC);
@@ -206,13 +207,16 @@ static int qcom_rmtfs_mem_probe(struct platform_device *pdev)
 		goto put_device;
 	}
 
-	rmtfs_mem->dev.release = qcom_rmtfs_mem_release_device;
-
 	ret = of_property_read_u32(node, "qcom,vmid", &vmid);
 	if (ret < 0 && ret != -EINVAL) {
 		dev_err(&pdev->dev, "failed to parse qcom,vmid\n");
 		goto remove_cdev;
 	} else if (!ret) {
+		if (!qcom_scm_is_available()) {
+			ret = -EPROBE_DEFER;
+			goto remove_cdev;
+		}
+
 		perms[0].vmid = QCOM_SCM_VMID_HLOS;
 		perms[0].perm = QCOM_SCM_PERM_RW;
 		perms[1].vmid = vmid;

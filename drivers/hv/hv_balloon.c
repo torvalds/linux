@@ -689,7 +689,7 @@ static void hv_page_online_one(struct hv_hotadd_state *has, struct page *pg)
 	__online_page_increment_counters(pg);
 	__online_page_free(pg);
 
-	WARN_ON_ONCE(!spin_is_locked(&dm_device.ha_lock));
+	lockdep_assert_held(&dm_device.ha_lock);
 	dm_device.num_pages_onlined++;
 }
 
@@ -1765,6 +1765,9 @@ static  struct hv_driver balloon_drv = {
 	.id_table = id_table,
 	.probe =  balloon_probe,
 	.remove =  balloon_remove,
+	.driver = {
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+	},
 };
 
 static int __init init_balloon_drv(void)

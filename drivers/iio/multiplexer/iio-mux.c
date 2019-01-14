@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * IIO multiplexer driver
  *
  * Copyright (C) 2017 Axentia Technologies AB
  *
  * Author: Peter Rosin <peda@axentia.se>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/err.h>
@@ -281,9 +278,10 @@ static int mux_configure_channel(struct device *dev, struct mux *mux,
 		if (!page)
 			return -ENOMEM;
 	}
-	child->ext_info_cache = devm_kzalloc(dev,
-					     sizeof(*child->ext_info_cache) *
-					     num_ext_info, GFP_KERNEL);
+	child->ext_info_cache = devm_kcalloc(dev,
+					     num_ext_info,
+					     sizeof(*child->ext_info_cache),
+					     GFP_KERNEL);
 	if (!child->ext_info_cache)
 		return -ENOMEM;
 

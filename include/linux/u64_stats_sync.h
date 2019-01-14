@@ -112,20 +112,6 @@ u64_stats_update_end_irqrestore(struct u64_stats_sync *syncp,
 #endif
 }
 
-static inline void u64_stats_update_begin_raw(struct u64_stats_sync *syncp)
-{
-#if BITS_PER_LONG==32 && defined(CONFIG_SMP)
-	raw_write_seqcount_begin(&syncp->seq);
-#endif
-}
-
-static inline void u64_stats_update_end_raw(struct u64_stats_sync *syncp)
-{
-#if BITS_PER_LONG==32 && defined(CONFIG_SMP)
-	raw_write_seqcount_end(&syncp->seq);
-#endif
-}
-
 static inline unsigned int __u64_stats_fetch_begin(const struct u64_stats_sync *syncp)
 {
 #if BITS_PER_LONG==32 && defined(CONFIG_SMP)

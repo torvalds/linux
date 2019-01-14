@@ -26,7 +26,6 @@
 #include <linux/seq_file.h>
 #include "amd_powerplay.h"
 #include "hardwaremanager.h"
-#include "pp_power_source.h"
 #include "hwmgr_ppt.h"
 #include "ppatomctrl.h"
 #include "hwmgr_ppt.h"
@@ -38,6 +37,8 @@ struct phm_fan_speed_info;
 struct pp_atomctrl_voltage_table;
 
 #define VOLTAGE_SCALE 4
+#define VOLTAGE_VID_OFFSET_SCALE1   625
+#define VOLTAGE_VID_OFFSET_SCALE2   100
 
 enum DISPLAY_GAP {
 	DISPLAY_GAP_VBLANK_OR_WM = 0,   /* Wait for vblank or MCHG watermark. */
@@ -63,24 +64,6 @@ struct vi_dpm_table {
 #define PCIE_PERF_REQ_GEN1         2
 #define PCIE_PERF_REQ_GEN2         3
 #define PCIE_PERF_REQ_GEN3         4
-
-enum PP_FEATURE_MASK {
-	PP_SCLK_DPM_MASK = 0x1,
-	PP_MCLK_DPM_MASK = 0x2,
-	PP_PCIE_DPM_MASK = 0x4,
-	PP_SCLK_DEEP_SLEEP_MASK = 0x8,
-	PP_POWER_CONTAINMENT_MASK = 0x10,
-	PP_UVD_HANDSHAKE_MASK = 0x20,
-	PP_SMC_VOLTAGE_CONTROL_MASK = 0x40,
-	PP_VBI_TIME_SUPPORT_MASK = 0x80,
-	PP_ULV_MASK = 0x100,
-	PP_ENABLE_GFX_CG_THRU_SMU = 0x200,
-	PP_CLOCK_STRETCH_MASK = 0x400,
-	PP_OD_FUZZY_FAN_CONTROL_MASK = 0x800,
-	PP_SOCCLK_DPM_MASK = 0x1000,
-	PP_DCEFCLK_DPM_MASK = 0x2000,
-	PP_OVERDRIVE_MASK = 0x4000,
-};
 
 enum PHM_BackEnd_Magic {
 	PHM_Dummy_Magic       = 0xAA5555AA,
@@ -211,7 +194,7 @@ struct pp_smumgr_func {
 	int (*request_smu_load_fw)(struct pp_hwmgr  *hwmgr);
 	int (*request_smu_load_specific_fw)(struct pp_hwmgr  *hwmgr,
 					    uint32_t firmware);
-	int (*get_argument)(struct pp_hwmgr  *hwmgr);
+	uint32_t (*get_argument)(struct pp_hwmgr  *hwmgr);
 	int (*send_msg_to_smc)(struct pp_hwmgr  *hwmgr, uint16_t msg);
 	int (*send_msg_to_smc_with_parameter)(struct pp_hwmgr  *hwmgr,
 					  uint16_t msg, uint32_t parameter);
@@ -245,6 +228,8 @@ struct pp_hwmgr_func {
 				struct pp_power_state  *prequest_ps,
 			const struct pp_power_state *pcurrent_ps);
 
+	int (*apply_clocks_adjust_rules)(struct pp_hwmgr *hwmgr);
+
 	int (*force_dpm_level)(struct pp_hwmgr *hw_mgr,
 					enum amd_dpm_forced_level level);
 
@@ -262,12 +247,14 @@ struct pp_hwmgr_func {
 	int (*powerdown_uvd)(struct pp_hwmgr *hwmgr);
 	void (*powergate_vce)(struct pp_hwmgr *hwmgr, bool bgate);
 	void (*powergate_uvd)(struct pp_hwmgr *hwmgr, bool bgate);
+	void (*powergate_acp)(struct pp_hwmgr *hwmgr, bool bgate);
 	uint32_t (*get_mclk)(struct pp_hwmgr *hwmgr, bool low);
 	uint32_t (*get_sclk)(struct pp_hwmgr *hwmgr, bool low);
 	int (*power_state_set)(struct pp_hwmgr *hwmgr,
 						const void *state);
 	int (*enable_clock_power_gating)(struct pp_hwmgr *hwmgr);
 	int (*notify_smc_display_config_after_ps_adjustment)(struct pp_hwmgr *hwmgr);
+	int (*pre_display_config_changed)(struct pp_hwmgr *hwmgr);
 	int (*display_config_changed)(struct pp_hwmgr *hwmgr);
 	int (*disable_clock_power_gating)(struct pp_hwmgr *hwmgr);
 	int (*update_clock_gatings)(struct pp_hwmgr *hwmgr,
@@ -307,15 +294,14 @@ struct pp_hwmgr_func {
 	int (*get_clock_by_type_with_voltage)(struct pp_hwmgr *hwmgr,
 			enum amd_pp_clock_type type,
 			struct pp_clock_levels_with_voltage *clocks);
-	int (*set_watermarks_for_clocks_ranges)(struct pp_hwmgr *hwmgr,
-			struct pp_wm_sets_with_clock_ranges_soc15 *wm_with_clock_ranges);
+	int (*set_watermarks_for_clocks_ranges)(struct pp_hwmgr *hwmgr, void *clock_ranges);
 	int (*display_clock_voltage_request)(struct pp_hwmgr *hwmgr,
 			struct pp_display_clock_request *clock);
 	int (*get_max_high_clocks)(struct pp_hwmgr *hwmgr, struct amd_pp_simple_clock_info *clocks);
 	int (*power_off_asic)(struct pp_hwmgr *hwmgr);
 	int (*force_clock_level)(struct pp_hwmgr *hwmgr, enum pp_clock_type type, uint32_t mask);
 	int (*print_clock_levels)(struct pp_hwmgr *hwmgr, enum pp_clock_type type, char *buf);
-	int (*enable_per_cu_power_gating)(struct pp_hwmgr *hwmgr, bool enable);
+	int (*powergate_gfx)(struct pp_hwmgr *hwmgr, bool enable);
 	int (*get_sclk_od)(struct pp_hwmgr *hwmgr);
 	int (*set_sclk_od)(struct pp_hwmgr *hwmgr, uint32_t value);
 	int (*get_mclk_od)(struct pp_hwmgr *hwmgr);
@@ -340,7 +326,10 @@ struct pp_hwmgr_func {
 					enum PP_OD_DPM_TABLE_COMMAND type,
 					long *input, uint32_t size);
 	int (*set_power_limit)(struct pp_hwmgr *hwmgr, uint32_t n);
-	int (*set_mmhub_powergating_by_smu)(struct pp_hwmgr *hwmgr);
+	int (*powergate_mmhub)(struct pp_hwmgr *hwmgr);
+	int (*smus_notify_pwe)(struct pp_hwmgr *hwmgr);
+	int (*powergate_sdma)(struct pp_hwmgr *hwmgr, bool bgate);
+	int (*enable_mgpu_fan_boost)(struct pp_hwmgr *hwmgr);
 };
 
 struct pp_table_func {
@@ -596,6 +585,7 @@ struct phm_ppt_v3_information
 	uint32_t *power_saving_clock_max;
 	uint32_t *power_saving_clock_min;
 
+	uint8_t *od_feature_capabilities;
 	uint32_t *od_settings_max;
 	uint32_t *od_settings_min;
 
@@ -718,6 +708,7 @@ struct pp_hwmgr {
 	uint32_t chip_family;
 	uint32_t chip_id;
 	uint32_t smu_version;
+	bool not_vf;
 	bool pm_en;
 	struct mutex smu_lock;
 
@@ -743,7 +734,6 @@ struct pp_hwmgr {
 	void *smu_backend;
 	const struct pp_smumgr_func *smumgr_funcs;
 	bool is_kicker;
-	bool reload_fw;
 
 	enum PP_DAL_POWERLEVEL dal_power_level;
 	struct phm_dynamic_state_info dyn_state;
@@ -751,7 +741,6 @@ struct pp_hwmgr {
 	const struct pp_table_func *pptable_func;
 
 	struct pp_power_state    *ps;
-	enum pp_power_source  power_source;
 	uint32_t num_ps;
 	struct pp_thermal_controller_info thermal_controller;
 	bool fan_ctrl_is_in_default_mode;
@@ -764,7 +753,7 @@ struct pp_hwmgr {
 	struct pp_power_state    *request_ps;
 	struct pp_power_state    *boot_ps;
 	struct pp_power_state    *uvd_ps;
-	struct amd_pp_display_configuration display_config;
+	const struct amd_pp_display_configuration *display_config;
 	uint32_t feature_mask;
 	bool avfs_supported;
 	/* UMD Pstate */
@@ -782,10 +771,13 @@ struct pp_hwmgr {
 };
 
 int hwmgr_early_init(struct pp_hwmgr *hwmgr);
+int hwmgr_sw_init(struct pp_hwmgr *hwmgr);
+int hwmgr_sw_fini(struct pp_hwmgr *hwmgr);
 int hwmgr_hw_init(struct pp_hwmgr *hwmgr);
 int hwmgr_hw_fini(struct pp_hwmgr *hwmgr);
-int hwmgr_hw_suspend(struct pp_hwmgr *hwmgr);
-int hwmgr_hw_resume(struct pp_hwmgr *hwmgr);
+int hwmgr_suspend(struct pp_hwmgr *hwmgr);
+int hwmgr_resume(struct pp_hwmgr *hwmgr);
+
 int hwmgr_handle_task(struct pp_hwmgr *hwmgr,
 				enum amd_pp_task task_id,
 				enum amd_pm_state_type *user_state);

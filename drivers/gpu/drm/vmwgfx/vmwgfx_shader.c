@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /**************************************************************************
  *
- * Copyright © 2009-2015 VMware, Inc., Palo Alto, CA., USA
- * All Rights Reserved.
+ * Copyright 2009-2015 VMware, Inc., Palo Alto, CA., USA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -159,7 +159,7 @@ static int vmw_gb_shader_init(struct vmw_private *dev_priv,
 			      SVGA3dShaderType type,
 			      uint8_t num_input_sig,
 			      uint8_t num_output_sig,
-			      struct vmw_dma_buffer *byte_code,
+			      struct vmw_buffer_object *byte_code,
 			      void (*res_free) (struct vmw_resource *res))
 {
 	struct vmw_shader *shader = vmw_res_to_shader(res);
@@ -178,7 +178,7 @@ static int vmw_gb_shader_init(struct vmw_private *dev_priv,
 
 	res->backup_size = size;
 	if (byte_code) {
-		res->backup = vmw_dmabuf_reference(byte_code);
+		res->backup = vmw_bo_reference(byte_code);
 		res->backup_offset = offset;
 	}
 	shader->size = size;
@@ -186,7 +186,7 @@ static int vmw_gb_shader_init(struct vmw_private *dev_priv,
 	shader->num_input_sig = num_input_sig;
 	shader->num_output_sig = num_output_sig;
 
-	vmw_resource_activate(res, vmw_hw_shader_destroy);
+	res->hw_destroy = vmw_hw_shader_destroy;
 	return 0;
 }
 
@@ -306,7 +306,7 @@ static int vmw_gb_shader_unbind(struct vmw_resource *res,
 	(void) vmw_execbuf_fence_commands(NULL, dev_priv,
 					  &fence, NULL);
 
-	vmw_fence_single_bo(val_buf->bo, fence);
+	vmw_bo_fence_single(val_buf->bo, fence);
 
 	if (likely(fence != NULL))
 		vmw_fence_obj_unreference(&fence);
@@ -537,7 +537,7 @@ static int vmw_dx_shader_unbind(struct vmw_resource *res,
 
 	(void) vmw_execbuf_fence_commands(NULL, dev_priv,
 					  &fence, NULL);
-	vmw_fence_single_bo(val_buf->bo, fence);
+	vmw_bo_fence_single(val_buf->bo, fence);
 
 	if (likely(fence != NULL))
 		vmw_fence_obj_unreference(&fence);
@@ -562,7 +562,7 @@ void vmw_dx_shader_cotable_list_scrub(struct vmw_private *dev_priv,
 {
 	struct vmw_dx_shader *entry, *next;
 
-	WARN_ON_ONCE(!mutex_is_locked(&dev_priv->binding_mutex));
+	lockdep_assert_held_once(&dev_priv->binding_mutex);
 
 	list_for_each_entry_safe(entry, next, list, cotable_head) {
 		WARN_ON(vmw_dx_shader_scrub(&entry->res));
@@ -636,7 +636,8 @@ int vmw_dx_shader_add(struct vmw_cmdbuf_res_manager *man,
 
 	res = &shader->res;
 	shader->ctx = ctx;
-	shader->cotable = vmw_context_cotable(ctx, SVGA_COTABLE_DXSHADER);
+	shader->cotable = vmw_resource_reference
+		(vmw_context_cotable(ctx, SVGA_COTABLE_DXSHADER));
 	shader->id = user_key;
 	shader->committed = false;
 	INIT_LIST_HEAD(&shader->cotable_head);
@@ -656,7 +657,7 @@ int vmw_dx_shader_add(struct vmw_cmdbuf_res_manager *man,
 		goto out_resource_init;
 
 	res->id = shader->id;
-	vmw_resource_activate(res, vmw_hw_shader_destroy);
+	res->hw_destroy = vmw_hw_shader_destroy;
 
 out_resource_init:
 	vmw_resource_unreference(&res);
@@ -723,7 +724,7 @@ int vmw_shader_destroy_ioctl(struct drm_device *dev, void *data,
 }
 
 static int vmw_user_shader_alloc(struct vmw_private *dev_priv,
-				 struct vmw_dma_buffer *buffer,
+				 struct vmw_buffer_object *buffer,
 				 size_t shader_size,
 				 size_t offset,
 				 SVGA3dShaderType shader_type,
@@ -740,13 +741,10 @@ static int vmw_user_shader_alloc(struct vmw_private *dev_priv,
 	};
 	int ret;
 
-	/*
-	 * Approximate idr memory usage with 128 bytes. It will be limited
-	 * by maximum number_of shaders anyway.
-	 */
 	if (unlikely(vmw_user_shader_size == 0))
 		vmw_user_shader_size =
-			ttm_round_pot(sizeof(struct vmw_user_shader)) + 128;
+			ttm_round_pot(sizeof(struct vmw_user_shader)) +
+			VMW_IDA_ACC_SIZE + TTM_OBJ_EXTRA_SIZE;
 
 	ret = ttm_mem_global_alloc(vmw_mem_glob(dev_priv),
 				   vmw_user_shader_size,
@@ -792,7 +790,7 @@ static int vmw_user_shader_alloc(struct vmw_private *dev_priv,
 	}
 
 	if (handle)
-		*handle = ushader->base.hash.key;
+		*handle = ushader->base.handle;
 out_err:
 	vmw_resource_unreference(&res);
 out:
@@ -801,7 +799,7 @@ out:
 
 
 static struct vmw_resource *vmw_shader_alloc(struct vmw_private *dev_priv,
-					     struct vmw_dma_buffer *buffer,
+					     struct vmw_buffer_object *buffer,
 					     size_t shader_size,
 					     size_t offset,
 					     SVGA3dShaderType shader_type)
@@ -814,13 +812,10 @@ static struct vmw_resource *vmw_shader_alloc(struct vmw_private *dev_priv,
 	};
 	int ret;
 
-	/*
-	 * Approximate idr memory usage with 128 bytes. It will be limited
-	 * by maximum number_of shaders anyway.
-	 */
 	if (unlikely(vmw_shader_size == 0))
 		vmw_shader_size =
-			ttm_round_pot(sizeof(struct vmw_shader)) + 128;
+			ttm_round_pot(sizeof(struct vmw_shader)) +
+			VMW_IDA_ACC_SIZE;
 
 	ret = ttm_mem_global_alloc(vmw_mem_glob(dev_priv),
 				   vmw_shader_size,
@@ -862,12 +857,12 @@ static int vmw_shader_define(struct drm_device *dev, struct drm_file *file_priv,
 {
 	struct vmw_private *dev_priv = vmw_priv(dev);
 	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
-	struct vmw_dma_buffer *buffer = NULL;
+	struct vmw_buffer_object *buffer = NULL;
 	SVGA3dShaderType shader_type;
 	int ret;
 
 	if (buffer_handle != SVGA3D_INVALID_ID) {
-		ret = vmw_user_dmabuf_lookup(tfile, buffer_handle,
+		ret = vmw_user_bo_lookup(tfile, buffer_handle,
 					     &buffer, NULL);
 		if (unlikely(ret != 0)) {
 			DRM_ERROR("Could not find buffer for shader "
@@ -906,7 +901,7 @@ static int vmw_shader_define(struct drm_device *dev, struct drm_file *file_priv,
 
 	ttm_read_unlock(&dev_priv->reservation_sem);
 out_bad_arg:
-	vmw_dmabuf_unreference(&buffer);
+	vmw_bo_unreference(&buffer);
 	return ret;
 }
 
@@ -983,7 +978,7 @@ int vmw_compat_shader_add(struct vmw_private *dev_priv,
 			  struct list_head *list)
 {
 	struct ttm_operation_ctx ctx = { false, true };
-	struct vmw_dma_buffer *buf;
+	struct vmw_buffer_object *buf;
 	struct ttm_bo_kmap_obj map;
 	bool is_iomem;
 	int ret;
@@ -997,8 +992,8 @@ int vmw_compat_shader_add(struct vmw_private *dev_priv,
 	if (unlikely(!buf))
 		return -ENOMEM;
 
-	ret = vmw_dmabuf_init(dev_priv, buf, size, &vmw_sys_ne_placement,
-			      true, vmw_dmabuf_bo_free);
+	ret = vmw_bo_init(dev_priv, buf, size, &vmw_sys_ne_placement,
+			      true, vmw_bo_bo_free);
 	if (unlikely(ret != 0))
 		goto out;
 
@@ -1031,7 +1026,7 @@ int vmw_compat_shader_add(struct vmw_private *dev_priv,
 				 res, list);
 	vmw_resource_unreference(&res);
 no_reserve:
-	vmw_dmabuf_unreference(&buf);
+	vmw_bo_unreference(&buf);
 out:
 	return ret;
 }

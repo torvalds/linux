@@ -91,11 +91,9 @@ enum {
 	IPOIB_STOP_REAPER	  = 7,
 	IPOIB_FLAG_ADMIN_CM	  = 9,
 	IPOIB_FLAG_UMCAST	  = 10,
-	IPOIB_STOP_NEIGH_GC	  = 11,
 	IPOIB_NEIGH_TBL_FLUSH	  = 12,
 	IPOIB_FLAG_DEV_ADDR_SET	  = 13,
 	IPOIB_FLAG_DEV_ADDR_CTRL  = 14,
-	IPOIB_FLAG_GOING_DOWN	  = 15,
 
 	IPOIB_MAX_BACKOFF_SECONDS = 16,
 
@@ -252,11 +250,11 @@ struct ipoib_cm_tx {
 	struct ipoib_neigh  *neigh;
 	struct ipoib_path   *path;
 	struct ipoib_tx_buf *tx_ring;
-	unsigned	     tx_head;
-	unsigned	     tx_tail;
+	unsigned int	     tx_head;
+	unsigned int	     tx_tail;
 	unsigned long	     flags;
 	u32		     mtu;
-	unsigned             max_send_sge;
+	unsigned int         max_send_sge;
 };
 
 struct ipoib_cm_rx_buf {
@@ -325,15 +323,22 @@ struct ipoib_dev_priv {
 	spinlock_t lock;
 
 	struct net_device *dev;
+	void (*next_priv_destructor)(struct net_device *dev);
 
 	struct napi_struct send_napi;
 	struct napi_struct recv_napi;
 
 	unsigned long flags;
 
+	/*
+	 * This protects access to the child_intfs list.
+	 * To READ from child_intfs the RTNL or vlan_rwsem read side must be
+	 * held.  To WRITE RTNL and the vlan_rwsem write side must be held (in
+	 * that order) This lock exists because we have a few contexts where
+	 * we need the child_intfs, but do not want to grab the RTNL.
+	 */
 	struct rw_semaphore vlan_rwsem;
 	struct mutex mcast_mutex;
-	struct mutex sysfs_mutex;
 
 	struct rb_root  path_tree;
 	struct list_head path_list;
@@ -373,8 +378,8 @@ struct ipoib_dev_priv {
 	struct ipoib_rx_buf *rx_ring;
 
 	struct ipoib_tx_buf *tx_ring;
-	unsigned	     tx_head;
-	unsigned	     tx_tail;
+	unsigned int	     tx_head;
+	unsigned int	     tx_tail;
 	struct ib_sge	     tx_sge[MAX_SKB_FRAGS + 1];
 	struct ib_ud_wr      tx_wr;
 	struct ib_wc	     send_wc[MAX_SEND_CQE];
@@ -404,7 +409,7 @@ struct ipoib_dev_priv {
 #endif
 	u64	hca_caps;
 	struct ipoib_ethtool_st ethtool;
-	unsigned max_send_sge;
+	unsigned int max_send_sge;
 	bool sm_fullmember_sendonly_support;
 	const struct net_device_ops	*rn_ops;
 };
@@ -414,7 +419,8 @@ struct ipoib_ah {
 	struct ib_ah	  *ah;
 	struct list_head   list;
 	struct kref	   ref;
-	unsigned	   last_send;
+	unsigned int	   last_send;
+	int  		   valid;
 };
 
 struct ipoib_path {
@@ -431,7 +437,6 @@ struct ipoib_path {
 
 	struct rb_node	      rb_node;
 	struct list_head      list;
-	int  		      valid;
 };
 
 struct ipoib_neigh {
@@ -483,6 +488,7 @@ static inline void ipoib_put_ah(struct ipoib_ah *ah)
 	kref_put(&ah->ref, ipoib_free_ah);
 }
 int ipoib_open(struct net_device *dev);
+void ipoib_intf_free(struct net_device *dev);
 int ipoib_add_pkey_attr(struct net_device *dev);
 int ipoib_add_umcast_attr(struct net_device *dev);
 
@@ -493,8 +499,10 @@ void ipoib_reap_ah(struct work_struct *work);
 struct ipoib_path *__path_find(struct net_device *dev, void *gid);
 void ipoib_mark_paths_invalid(struct net_device *dev);
 void ipoib_flush_paths(struct net_device *dev);
-struct ipoib_dev_priv *ipoib_intf_alloc(struct ib_device *hca, u8 port,
-					const char *format);
+struct net_device *ipoib_intf_alloc(struct ib_device *hca, u8 port,
+				    const char *format);
+int ipoib_intf_init(struct ib_device *hca, u8 port, const char *format,
+		    struct net_device *dev);
 void ipoib_ib_tx_timer_func(struct timer_list *t);
 void ipoib_ib_dev_flush_light(struct work_struct *work);
 void ipoib_ib_dev_flush_normal(struct work_struct *work);
@@ -510,9 +518,6 @@ void ipoib_ib_dev_down(struct net_device *dev);
 int ipoib_ib_dev_stop_default(struct net_device *dev);
 void ipoib_pkey_dev_check_presence(struct net_device *dev);
 
-int ipoib_dev_init(struct net_device *dev, struct ib_device *ca, int port);
-void ipoib_dev_cleanup(struct net_device *dev);
-
 void ipoib_mcast_join_task(struct work_struct *work);
 void ipoib_mcast_carrier_on_task(struct work_struct *work);
 void ipoib_mcast_send(struct net_device *dev, u8 *daddr, struct sk_buff *skb);
@@ -527,6 +532,8 @@ void ipoib_mcast_dev_flush(struct net_device *dev);
 int ipoib_dma_map_tx(struct ib_device *ca, struct ipoib_tx_buf *tx_req);
 void ipoib_dma_unmap_tx(struct ipoib_dev_priv *priv,
 			struct ipoib_tx_buf *tx_req);
+
+struct rtnl_link_ops *ipoib_get_link_ops(void);
 
 static inline void ipoib_build_sge(struct ipoib_dev_priv *priv,
 				   struct ipoib_tx_buf *tx_req)
@@ -600,7 +607,6 @@ void ipoib_pkey_open(struct ipoib_dev_priv *priv);
 void ipoib_drain_cq(struct net_device *dev);
 
 void ipoib_set_ethtool_ops(struct net_device *dev);
-void ipoib_set_dev_features(struct ipoib_dev_priv *priv, struct ib_device *hca);
 
 #define IPOIB_FLAGS_RC		0x80
 #define IPOIB_FLAGS_UC		0x40
@@ -729,7 +735,7 @@ void ipoib_cm_dev_stop(struct net_device *dev)
 static inline
 int ipoib_cm_dev_init(struct net_device *dev)
 {
-	return -ENOSYS;
+	return -EOPNOTSUPP;
 }
 
 static inline

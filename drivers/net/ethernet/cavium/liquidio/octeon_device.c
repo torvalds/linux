@@ -824,23 +824,18 @@ int octeon_deregister_device(struct octeon_device *oct)
 }
 
 int
-octeon_allocate_ioq_vector(struct octeon_device  *oct)
+octeon_allocate_ioq_vector(struct octeon_device *oct, u32 num_ioqs)
 {
-	int i, num_ioqs = 0;
 	struct octeon_ioq_vector *ioq_vector;
 	int cpu_num;
 	int size;
-
-	if (OCTEON_CN23XX_PF(oct))
-		num_ioqs = oct->sriov_info.num_pf_rings;
-	else if (OCTEON_CN23XX_VF(oct))
-		num_ioqs = oct->sriov_info.rings_per_vf;
+	int i;
 
 	size = sizeof(struct octeon_ioq_vector) * num_ioqs;
 
 	oct->ioq_vector = vzalloc(size);
 	if (!oct->ioq_vector)
-		return 1;
+		return -1;
 	for (i = 0; i < num_ioqs; i++) {
 		ioq_vector		= &oct->ioq_vector[i];
 		ioq_vector->oct_dev	= oct;
@@ -856,6 +851,7 @@ octeon_allocate_ioq_vector(struct octeon_device  *oct)
 		else
 			ioq_vector->ioq_num	= i;
 	}
+
 	return 0;
 }
 
@@ -1048,8 +1044,7 @@ void octeon_delete_dispatch_list(struct octeon_device *oct)
 		dispatch = &oct->dispatch.dlist[i].list;
 		while (dispatch->next != dispatch) {
 			temp = dispatch->next;
-			list_del(temp);
-			list_add_tail(temp, &freelist);
+			list_move_tail(temp, &freelist);
 		}
 
 		oct->dispatch.dlist[i].opcode = 0;
@@ -1444,18 +1439,15 @@ void lio_enable_irq(struct octeon_droq *droq, struct octeon_instr_queue *iq)
 	/* the whole thing needs to be atomic, ideally */
 	if (droq) {
 		pkts_pend = (u32)atomic_read(&droq->pkts_pending);
-		spin_lock_bh(&droq->lock);
 		writel(droq->pkt_count - pkts_pend, droq->pkts_sent_reg);
 		droq->pkt_count = pkts_pend;
-		/* this write needs to be flushed before we release the lock */
-		mmiowb();
-		spin_unlock_bh(&droq->lock);
 		oct = droq->oct_dev;
 	}
 	if (iq) {
 		spin_lock_bh(&iq->lock);
-		writel(iq->pkt_in_done, iq->inst_cnt_reg);
-		iq->pkt_in_done = 0;
+		writel(iq->pkts_processed, iq->inst_cnt_reg);
+		iq->pkt_in_done -= iq->pkts_processed;
+		iq->pkts_processed = 0;
 		/* this write needs to be flushed before we release the lock */
 		mmiowb();
 		spin_unlock_bh(&iq->lock);

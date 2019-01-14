@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2017 Etnaviv Project
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/kthread.h>
@@ -21,6 +10,7 @@
 #include "etnaviv_gem.h"
 #include "etnaviv_gpu.h"
 #include "etnaviv_sched.h"
+#include "state.xml.h"
 
 static int etnaviv_job_hang_limit = 0;
 module_param_named(job_hang_limit, etnaviv_job_hang_limit, int , 0444);
@@ -96,6 +86,29 @@ static void etnaviv_sched_timedout_job(struct drm_sched_job *sched_job)
 {
 	struct etnaviv_gem_submit *submit = to_etnaviv_submit(sched_job);
 	struct etnaviv_gpu *gpu = submit->gpu;
+	u32 dma_addr;
+	int change;
+
+	/*
+	 * If the GPU managed to complete this jobs fence, the timout is
+	 * spurious. Bail out.
+	 */
+	if (dma_fence_is_signaled(submit->out_fence))
+		return;
+
+	/*
+	 * If the GPU is still making forward progress on the front-end (which
+	 * should never loop) we shift out the timeout to give it a chance to
+	 * finish the job.
+	 */
+	dma_addr = gpu_read(gpu, VIVS_FE_DMA_ADDRESS);
+	change = dma_addr - gpu->hangcheck_dma_addr;
+	if (change < 0 || change > 16) {
+		gpu->hangcheck_dma_addr = dma_addr;
+		schedule_delayed_work(&sched_job->sched->work_tdr,
+				      sched_job->sched->timeout);
+		return;
+	}
 
 	/* block scheduler */
 	kthread_park(gpu->sched.thread);
@@ -127,28 +140,38 @@ static const struct drm_sched_backend_ops etnaviv_sched_ops = {
 int etnaviv_sched_push_job(struct drm_sched_entity *sched_entity,
 			   struct etnaviv_gem_submit *submit)
 {
-	int ret;
+	int ret = 0;
 
-	ret = drm_sched_job_init(&submit->sched_job, &submit->gpu->sched,
-				 sched_entity, submit->cmdbuf.ctx);
+	/*
+	 * Hold the fence lock across the whole operation to avoid jobs being
+	 * pushed out of order with regard to their sched fence seqnos as
+	 * allocated in drm_sched_job_init.
+	 */
+	mutex_lock(&submit->gpu->fence_lock);
+
+	ret = drm_sched_job_init(&submit->sched_job, sched_entity,
+				 submit->cmdbuf.ctx);
 	if (ret)
-		return ret;
+		goto out_unlock;
 
 	submit->out_fence = dma_fence_get(&submit->sched_job.s_fence->finished);
-	mutex_lock(&submit->gpu->fence_idr_lock);
 	submit->out_fence_id = idr_alloc_cyclic(&submit->gpu->fence_idr,
 						submit->out_fence, 0,
 						INT_MAX, GFP_KERNEL);
-	mutex_unlock(&submit->gpu->fence_idr_lock);
-	if (submit->out_fence_id < 0)
-		return -ENOMEM;
+	if (submit->out_fence_id < 0) {
+		ret = -ENOMEM;
+		goto out_unlock;
+	}
 
 	/* the scheduler holds on to the job now */
 	kref_get(&submit->refcount);
 
 	drm_sched_entity_push_job(&submit->sched_job, sched_entity);
 
-	return 0;
+out_unlock:
+	mutex_unlock(&submit->gpu->fence_lock);
+
+	return ret;
 }
 
 int etnaviv_sched_init(struct etnaviv_gpu *gpu)

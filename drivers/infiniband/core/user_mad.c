@@ -138,7 +138,7 @@ static const dev_t base_issm_dev = MKDEV(IB_UMAD_MAJOR, IB_UMAD_MINOR_BASE) +
 static dev_t dynamic_umad_dev;
 static dev_t dynamic_issm_dev;
 
-static DECLARE_BITMAP(dev_map, IB_UMAD_MAX_PORTS);
+static DEFINE_IDA(umad_ida);
 
 static void ib_umad_add_one(struct ib_device *device);
 static void ib_umad_remove_one(struct ib_device *device, void *client_data);
@@ -268,6 +268,7 @@ static void recv_handler(struct ib_mad_agent *agent,
 		packet->mad.hdr.traffic_class = grh->traffic_class;
 		memcpy(packet->mad.hdr.gid, &grh->dgid, 16);
 		packet->mad.hdr.flow_label = cpu_to_be32(grh->flow_label);
+		rdma_destroy_ah_attr(&ah_attr);
 	}
 
 	if (queue_packet(file, agent, packet))
@@ -1131,7 +1132,7 @@ static ssize_t show_ibdev(struct device *dev, struct device_attribute *attr,
 	if (!port)
 		return -ENODEV;
 
-	return sprintf(buf, "%s\n", port->ib_dev->name);
+	return sprintf(buf, "%s\n", dev_name(&port->ib_dev->dev));
 }
 static DEVICE_ATTR(ibdev, S_IRUGO, show_ibdev, NULL);
 
@@ -1158,11 +1159,10 @@ static int ib_umad_init_port(struct ib_device *device, int port_num,
 	dev_t base_umad;
 	dev_t base_issm;
 
-	devnum = find_first_zero_bit(dev_map, IB_UMAD_MAX_PORTS);
-	if (devnum >= IB_UMAD_MAX_PORTS)
+	devnum = ida_alloc_max(&umad_ida, IB_UMAD_MAX_PORTS - 1, GFP_KERNEL);
+	if (devnum < 0)
 		return -1;
 	port->dev_num = devnum;
-	set_bit(devnum, dev_map);
 	if (devnum >= IB_UMAD_NUM_FIXED_MINOR) {
 		base_umad = dynamic_umad_dev + devnum - IB_UMAD_NUM_FIXED_MINOR;
 		base_issm = dynamic_issm_dev + devnum - IB_UMAD_NUM_FIXED_MINOR;
@@ -1226,7 +1226,7 @@ err_dev:
 
 err_cdev:
 	cdev_del(&port->cdev);
-	clear_bit(devnum, dev_map);
+	ida_free(&umad_ida, devnum);
 
 	return -1;
 }
@@ -1260,7 +1260,7 @@ static void ib_umad_kill_port(struct ib_umad_port *port)
 	}
 
 	mutex_unlock(&port->file_mutex);
-	clear_bit(port->dev_num, dev_map);
+	ida_free(&umad_ida, port->dev_num);
 }
 
 static void ib_umad_add_one(struct ib_device *device)

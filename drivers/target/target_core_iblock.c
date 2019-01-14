@@ -94,8 +94,8 @@ static int iblock_configure_device(struct se_device *dev)
 		return -EINVAL;
 	}
 
-	ib_dev->ibd_bio_set = bioset_create(IBLOCK_BIO_POOL_SIZE, 0, BIOSET_NEED_BVECS);
-	if (!ib_dev->ibd_bio_set) {
+	ret = bioset_init(&ib_dev->ibd_bio_set, IBLOCK_BIO_POOL_SIZE, 0, BIOSET_NEED_BVECS);
+	if (ret) {
 		pr_err("IBLOCK: Unable to create bioset\n");
 		goto out;
 	}
@@ -141,7 +141,7 @@ static int iblock_configure_device(struct se_device *dev)
 
 	bi = bdev_get_integrity(bd);
 	if (bi) {
-		struct bio_set *bs = ib_dev->ibd_bio_set;
+		struct bio_set *bs = &ib_dev->ibd_bio_set;
 
 		if (!strcmp(bi->profile->name, "T10-DIF-TYPE3-IP") ||
 		    !strcmp(bi->profile->name, "T10-DIF-TYPE1-IP")) {
@@ -164,7 +164,7 @@ static int iblock_configure_device(struct se_device *dev)
 				goto out_blkdev_put;
 			}
 			pr_debug("IBLOCK setup BIP bs->bio_integrity_pool: %p\n",
-				 bs->bio_integrity_pool);
+				 &bs->bio_integrity_pool);
 		}
 		dev->dev_attrib.hw_pi_prot_type = dev->dev_attrib.pi_prot_type;
 	}
@@ -174,8 +174,7 @@ static int iblock_configure_device(struct se_device *dev)
 out_blkdev_put:
 	blkdev_put(ib_dev->ibd_bd, FMODE_WRITE|FMODE_READ|FMODE_EXCL);
 out_free_bioset:
-	bioset_free(ib_dev->ibd_bio_set);
-	ib_dev->ibd_bio_set = NULL;
+	bioset_exit(&ib_dev->ibd_bio_set);
 out:
 	return ret;
 }
@@ -199,8 +198,7 @@ static void iblock_destroy_device(struct se_device *dev)
 
 	if (ib_dev->ibd_bd != NULL)
 		blkdev_put(ib_dev->ibd_bd, FMODE_WRITE|FMODE_READ|FMODE_EXCL);
-	if (ib_dev->ibd_bio_set != NULL)
-		bioset_free(ib_dev->ibd_bio_set);
+	bioset_exit(&ib_dev->ibd_bio_set);
 }
 
 static unsigned long long iblock_emulate_read_cap_with_block_size(
@@ -332,7 +330,7 @@ iblock_get_bio(struct se_cmd *cmd, sector_t lba, u32 sg_num, int op,
 	if (sg_num > BIO_MAX_PAGES)
 		sg_num = BIO_MAX_PAGES;
 
-	bio = bio_alloc_bioset(GFP_NOIO, sg_num, ib_dev->ibd_bio_set);
+	bio = bio_alloc_bioset(GFP_NOIO, sg_num, &ib_dev->ibd_bio_set);
 	if (!bio) {
 		pr_err("Unable to allocate memory for bio\n");
 		return NULL;
@@ -516,7 +514,7 @@ iblock_execute_write_same(struct se_cmd *cmd)
 		}
 
 		/* Always in 512 byte units for Linux/Block */
-		block_lba += sg->length >> IBLOCK_LBA_SHIFT;
+		block_lba += sg->length >> SECTOR_SHIFT;
 		sectors -= 1;
 	}
 
@@ -637,14 +635,15 @@ static ssize_t iblock_show_configfs_dev_params(struct se_device *dev, char *b)
 }
 
 static int
-iblock_alloc_bip(struct se_cmd *cmd, struct bio *bio)
+iblock_alloc_bip(struct se_cmd *cmd, struct bio *bio,
+		 struct sg_mapping_iter *miter)
 {
 	struct se_device *dev = cmd->se_dev;
 	struct blk_integrity *bi;
 	struct bio_integrity_payload *bip;
 	struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
-	struct scatterlist *sg;
-	int i, rc;
+	int rc;
+	size_t resid, len;
 
 	bi = bdev_get_integrity(ib_dev->ibd_bd);
 	if (!bi) {
@@ -652,31 +651,39 @@ iblock_alloc_bip(struct se_cmd *cmd, struct bio *bio)
 		return -ENODEV;
 	}
 
-	bip = bio_integrity_alloc(bio, GFP_NOIO, cmd->t_prot_nents);
+	bip = bio_integrity_alloc(bio, GFP_NOIO,
+			min_t(unsigned int, cmd->t_prot_nents, BIO_MAX_PAGES));
 	if (IS_ERR(bip)) {
 		pr_err("Unable to allocate bio_integrity_payload\n");
 		return PTR_ERR(bip);
 	}
 
-	bip->bip_iter.bi_size = (cmd->data_length / dev->dev_attrib.block_size) *
-			 dev->prot_length;
-	bip->bip_iter.bi_sector = bio->bi_iter.bi_sector;
+	bip->bip_iter.bi_size = bio_integrity_bytes(bi, bio_sectors(bio));
+	bip_set_seed(bip, bio->bi_iter.bi_sector);
 
 	pr_debug("IBLOCK BIP Size: %u Sector: %llu\n", bip->bip_iter.bi_size,
 		 (unsigned long long)bip->bip_iter.bi_sector);
 
-	for_each_sg(cmd->t_prot_sg, sg, cmd->t_prot_nents, i) {
+	resid = bip->bip_iter.bi_size;
+	while (resid > 0 && sg_miter_next(miter)) {
 
-		rc = bio_integrity_add_page(bio, sg_page(sg), sg->length,
-					    sg->offset);
-		if (rc != sg->length) {
+		len = min_t(size_t, miter->length, resid);
+		rc = bio_integrity_add_page(bio, miter->page, len,
+					    offset_in_page(miter->addr));
+		if (rc != len) {
 			pr_err("bio_integrity_add_page() failed; %d\n", rc);
+			sg_miter_stop(miter);
 			return -ENOMEM;
 		}
 
-		pr_debug("Added bio integrity page: %p length: %d offset; %d\n",
-			 sg_page(sg), sg->length, sg->offset);
+		pr_debug("Added bio integrity page: %p length: %zu offset: %lu\n",
+			  miter->page, len, offset_in_page(miter->addr));
+
+		resid -= len;
+		if (len < miter->length)
+			miter->consumed -= miter->length - len;
 	}
+	sg_miter_stop(miter);
 
 	return 0;
 }
@@ -688,12 +695,13 @@ iblock_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 	struct se_device *dev = cmd->se_dev;
 	sector_t block_lba = target_to_linux_sector(dev, cmd->t_task_lba);
 	struct iblock_req *ibr;
-	struct bio *bio, *bio_start;
+	struct bio *bio;
 	struct bio_list list;
 	struct scatterlist *sg;
 	u32 sg_num = sgl_nents;
 	unsigned bio_cnt;
-	int i, op, op_flags = 0;
+	int i, rc, op, op_flags = 0;
+	struct sg_mapping_iter prot_miter;
 
 	if (data_direction == DMA_TO_DEVICE) {
 		struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
@@ -728,12 +736,16 @@ iblock_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 	if (!bio)
 		goto fail_free_ibr;
 
-	bio_start = bio;
 	bio_list_init(&list);
 	bio_list_add(&list, bio);
 
 	refcount_set(&ibr->pending, 2);
 	bio_cnt = 1;
+
+	if (cmd->prot_type && dev->dev_attrib.pi_prot_type)
+		sg_miter_start(&prot_miter, cmd->t_prot_sg, cmd->t_prot_nents,
+			       op == REQ_OP_READ ? SG_MITER_FROM_SG :
+						   SG_MITER_TO_SG);
 
 	for_each_sg(sgl, sg, sgl_nents, i) {
 		/*
@@ -743,6 +755,12 @@ iblock_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 		 */
 		while (bio_add_page(bio, sg_page(sg), sg->length, sg->offset)
 				!= sg->length) {
+			if (cmd->prot_type && dev->dev_attrib.pi_prot_type) {
+				rc = iblock_alloc_bip(cmd, bio, &prot_miter);
+				if (rc)
+					goto fail_put_bios;
+			}
+
 			if (bio_cnt >= IBLOCK_MAX_BIO_PER_TASK) {
 				iblock_submit_bios(&list);
 				bio_cnt = 0;
@@ -759,12 +777,12 @@ iblock_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 		}
 
 		/* Always in 512 byte units for Linux/Block */
-		block_lba += sg->length >> IBLOCK_LBA_SHIFT;
+		block_lba += sg->length >> SECTOR_SHIFT;
 		sg_num--;
 	}
 
 	if (cmd->prot_type && dev->dev_attrib.pi_prot_type) {
-		int rc = iblock_alloc_bip(cmd, bio_start);
+		rc = iblock_alloc_bip(cmd, bio, &prot_miter);
 		if (rc)
 			goto fail_put_bios;
 	}

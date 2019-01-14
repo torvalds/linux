@@ -207,7 +207,7 @@ struct sctp_chunk *sctp_make_datafrag_empty(const struct sctp_association *asoc,
 					    int len, __u8 flags, gfp_t gfp);
 struct sctp_chunk *sctp_make_ecne(const struct sctp_association *asoc,
 				  const __u32 lowest_tsn);
-struct sctp_chunk *sctp_make_sack(const struct sctp_association *asoc);
+struct sctp_chunk *sctp_make_sack(struct sctp_association *asoc);
 struct sctp_chunk *sctp_make_shutdown(const struct sctp_association *asoc,
 				      const struct sctp_chunk *chunk);
 struct sctp_chunk *sctp_make_shutdown_ack(const struct sctp_association *asoc,
@@ -215,7 +215,7 @@ struct sctp_chunk *sctp_make_shutdown_ack(const struct sctp_association *asoc,
 struct sctp_chunk *sctp_make_shutdown_complete(
 					const struct sctp_association *asoc,
 					const struct sctp_chunk *chunk);
-void sctp_init_cause(struct sctp_chunk *chunk, __be16 cause, size_t paylen);
+int sctp_init_cause(struct sctp_chunk *chunk, __be16 cause, size_t paylen);
 struct sctp_chunk *sctp_make_abort(const struct sctp_association *asoc,
 				   const struct sctp_chunk *chunk,
 				   const size_t hint);
@@ -347,7 +347,7 @@ static inline __u16 sctp_data_size(struct sctp_chunk *chunk)
 	__u16 size;
 
 	size = ntohs(chunk->chunk_hdr->length);
-	size -= sctp_datahdr_len(&chunk->asoc->stream);
+	size -= sctp_datachk_len(&chunk->asoc->stream);
 
 	return size;
 }

@@ -6,6 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -19,6 +20,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -55,57 +57,6 @@
 #include "internal.h"
 #include "iwl-prph.h"
 
-static int iwl_pcie_get_num_sections(const struct fw_img *fw,
-				     int start)
-{
-	int i = 0;
-
-	while (start < fw->num_sec &&
-	       fw->sec[start].offset != CPU1_CPU2_SEPARATOR_SECTION &&
-	       fw->sec[start].offset != PAGING_SEPARATOR_SECTION) {
-		start++;
-		i++;
-	}
-
-	return i;
-}
-
-static int iwl_pcie_ctxt_info_alloc_dma(struct iwl_trans *trans,
-					const struct fw_desc *sec,
-					struct iwl_dram_data *dram)
-{
-	dram->block = dma_alloc_coherent(trans->dev, sec->len,
-					 &dram->physical,
-					 GFP_KERNEL);
-	if (!dram->block)
-		return -ENOMEM;
-
-	dram->size = sec->len;
-	memcpy(dram->block, sec->data, sec->len);
-
-	return 0;
-}
-
-static void iwl_pcie_ctxt_info_free_fw_img(struct iwl_trans *trans)
-{
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_self_init_dram *dram = &trans_pcie->init_dram;
-	int i;
-
-	if (!dram->fw) {
-		WARN_ON(dram->fw_cnt);
-		return;
-	}
-
-	for (i = 0; i < dram->fw_cnt; i++)
-		dma_free_coherent(trans->dev, dram->fw[i].size,
-				  dram->fw[i].block, dram->fw[i].physical);
-
-	kfree(dram->fw);
-	dram->fw_cnt = 0;
-	dram->fw = NULL;
-}
-
 void iwl_pcie_ctxt_info_free_paging(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
@@ -128,13 +79,12 @@ void iwl_pcie_ctxt_info_free_paging(struct iwl_trans *trans)
 	dram->paging = NULL;
 }
 
-static int iwl_pcie_ctxt_info_init_fw_sec(struct iwl_trans *trans,
-					  const struct fw_img *fw,
-					  struct iwl_context_info *ctxt_info)
+int iwl_pcie_init_fw_sec(struct iwl_trans *trans,
+			 const struct fw_img *fw,
+			 struct iwl_context_info_dram *ctxt_dram)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_self_init_dram *dram = &trans_pcie->init_dram;
-	struct iwl_context_info_dram *ctxt_dram = &ctxt_info->dram;
 	int i, ret, lmac_cnt, umac_cnt, paging_cnt;
 
 	if (WARN(dram->paging,
@@ -212,7 +162,7 @@ int iwl_pcie_ctxt_info_init(struct iwl_trans *trans,
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_context_info *ctxt_info;
 	struct iwl_context_info_rbd_cfg *rx_cfg;
-	u32 control_flags = 0;
+	u32 control_flags = 0, rb_size;
 	int ret;
 
 	ctxt_info = dma_alloc_coherent(trans->dev, sizeof(*ctxt_info),
@@ -227,11 +177,29 @@ int iwl_pcie_ctxt_info_init(struct iwl_trans *trans,
 	/* size is in DWs */
 	ctxt_info->version.size = cpu_to_le16(sizeof(*ctxt_info) / 4);
 
+	switch (trans_pcie->rx_buf_size) {
+	case IWL_AMSDU_2K:
+		rb_size = IWL_CTXT_INFO_RB_SIZE_2K;
+		break;
+	case IWL_AMSDU_4K:
+		rb_size = IWL_CTXT_INFO_RB_SIZE_4K;
+		break;
+	case IWL_AMSDU_8K:
+		rb_size = IWL_CTXT_INFO_RB_SIZE_8K;
+		break;
+	case IWL_AMSDU_12K:
+		rb_size = IWL_CTXT_INFO_RB_SIZE_12K;
+		break;
+	default:
+		WARN_ON(1);
+		rb_size = IWL_CTXT_INFO_RB_SIZE_4K;
+	}
+
 	BUILD_BUG_ON(RX_QUEUE_CB_SIZE(MQ_RX_TABLE_SIZE) > 0xF);
-	control_flags = IWL_CTXT_INFO_RB_SIZE_4K |
-			IWL_CTXT_INFO_TFD_FORMAT_LONG |
-			RX_QUEUE_CB_SIZE(MQ_RX_TABLE_SIZE) <<
-			IWL_CTXT_INFO_RB_CB_SIZE_POS;
+	control_flags = IWL_CTXT_INFO_TFD_FORMAT_LONG |
+			(RX_QUEUE_CB_SIZE(MQ_RX_TABLE_SIZE) <<
+			 IWL_CTXT_INFO_RB_CB_SIZE_POS) |
+			(rb_size << IWL_CTXT_INFO_RB_SIZE_POS);
 	ctxt_info->control.control_flags = cpu_to_le32(control_flags);
 
 	/* initialize RX default queue */
@@ -244,10 +212,10 @@ int iwl_pcie_ctxt_info_init(struct iwl_trans *trans,
 	ctxt_info->hcmd_cfg.cmd_queue_addr =
 		cpu_to_le64(trans_pcie->txq[trans_pcie->cmd_queue]->dma_addr);
 	ctxt_info->hcmd_cfg.cmd_queue_size =
-		TFD_QUEUE_CB_SIZE(trans_pcie->tx_cmd_queue_size);
+		TFD_QUEUE_CB_SIZE(TFD_CMD_SLOTS);
 
 	/* allocate ucode sections in dram and set addresses */
-	ret = iwl_pcie_ctxt_info_init_fw_sec(trans, fw, ctxt_info);
+	ret = iwl_pcie_init_fw_sec(trans, fw, &ctxt_info->dram);
 	if (ret) {
 		dma_free_coherent(trans->dev, sizeof(*trans_pcie->ctxt_info),
 				  ctxt_info, trans_pcie->ctxt_info_dma_addr);

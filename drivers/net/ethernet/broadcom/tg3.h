@@ -7,6 +7,8 @@
  * Copyright (C) 2004 Sun Microsystems Inc.
  * Copyright (C) 2007-2016 Broadcom Corporation.
  * Copyright (C) 2016-2017 Broadcom Limited.
+ * Copyright (C) 2018 Broadcom. All Rights Reserved. The term "Broadcom"
+ * refers to Broadcom Inc. and/or its subsidiaries.
  */
 
 #ifndef _T3_H

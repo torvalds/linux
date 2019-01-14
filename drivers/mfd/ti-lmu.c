@@ -12,7 +12,7 @@
 
 #include <linux/delay.h>
 #include <linux/err.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/kernel.h>
 #include <linux/mfd/core.h>
@@ -21,28 +21,18 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/of_gpio.h>
 #include <linux/slab.h>
 
 struct ti_lmu_data {
-	struct mfd_cell *cells;
+	const struct mfd_cell *cells;
 	int num_cells;
 	unsigned int max_register;
 };
 
 static int ti_lmu_enable_hw(struct ti_lmu *lmu, enum ti_lmu_id id)
 {
-	int ret;
-
-	if (gpio_is_valid(lmu->en_gpio)) {
-		ret = devm_gpio_request_one(lmu->dev, lmu->en_gpio,
-					    GPIOF_OUT_INIT_HIGH, "lmu_hwen");
-		if (ret) {
-			dev_err(lmu->dev, "Can not request enable GPIO: %d\n",
-				ret);
-			return ret;
-		}
-	}
+	if (lmu->en_gpio)
+		gpiod_set_value(lmu->en_gpio, 1);
 
 	/* Delay about 1ms after HW enable pin control */
 	usleep_range(1000, 1500);
@@ -57,13 +47,14 @@ static int ti_lmu_enable_hw(struct ti_lmu *lmu, enum ti_lmu_id id)
 	return 0;
 }
 
-static void ti_lmu_disable_hw(struct ti_lmu *lmu)
+static void ti_lmu_disable_hw(void *data)
 {
-	if (gpio_is_valid(lmu->en_gpio))
-		gpio_set_value(lmu->en_gpio, 0);
+	struct ti_lmu *lmu = data;
+	if (lmu->en_gpio)
+		gpiod_set_value(lmu->en_gpio, 0);
 }
 
-static struct mfd_cell lm3532_devices[] = {
+static const struct mfd_cell lm3532_devices[] = {
 	{
 		.name          = "ti-lmu-backlight",
 		.id            = LM3532,
@@ -78,7 +69,7 @@ static struct mfd_cell lm3532_devices[] = {
 	.of_compatible = "ti,lm363x-regulator",	\
 }						\
 
-static struct mfd_cell lm3631_devices[] = {
+static const struct mfd_cell lm3631_devices[] = {
 	LM363X_REGULATOR(LM3631_BOOST),
 	LM363X_REGULATOR(LM3631_LDO_CONT),
 	LM363X_REGULATOR(LM3631_LDO_OREF),
@@ -91,7 +82,7 @@ static struct mfd_cell lm3631_devices[] = {
 	},
 };
 
-static struct mfd_cell lm3632_devices[] = {
+static const struct mfd_cell lm3632_devices[] = {
 	LM363X_REGULATOR(LM3632_BOOST),
 	LM363X_REGULATOR(LM3632_LDO_POS),
 	LM363X_REGULATOR(LM3632_LDO_NEG),
@@ -102,7 +93,7 @@ static struct mfd_cell lm3632_devices[] = {
 	},
 };
 
-static struct mfd_cell lm3633_devices[] = {
+static const struct mfd_cell lm3633_devices[] = {
 	{
 		.name          = "ti-lmu-backlight",
 		.id            = LM3633,
@@ -120,7 +111,7 @@ static struct mfd_cell lm3633_devices[] = {
 	},
 };
 
-static struct mfd_cell lm3695_devices[] = {
+static const struct mfd_cell lm3695_devices[] = {
 	{
 		.name          = "ti-lmu-backlight",
 		.id            = LM3695,
@@ -128,7 +119,7 @@ static struct mfd_cell lm3695_devices[] = {
 	},
 };
 
-static struct mfd_cell lm3697_devices[] = {
+static const struct mfd_cell lm3697_devices[] = {
 	{
 		.name          = "ti-lmu-backlight",
 		.id            = LM3697,
@@ -157,34 +148,21 @@ TI_LMU_DATA(lm3633, LM3633_MAX_REG);
 TI_LMU_DATA(lm3695, LM3695_MAX_REG);
 TI_LMU_DATA(lm3697, LM3697_MAX_REG);
 
-static const struct of_device_id ti_lmu_of_match[] = {
-	{ .compatible = "ti,lm3532", .data = &lm3532_data },
-	{ .compatible = "ti,lm3631", .data = &lm3631_data },
-	{ .compatible = "ti,lm3632", .data = &lm3632_data },
-	{ .compatible = "ti,lm3633", .data = &lm3633_data },
-	{ .compatible = "ti,lm3695", .data = &lm3695_data },
-	{ .compatible = "ti,lm3697", .data = &lm3697_data },
-	{ }
-};
-MODULE_DEVICE_TABLE(of, ti_lmu_of_match);
-
 static int ti_lmu_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 {
 	struct device *dev = &cl->dev;
-	const struct of_device_id *match;
 	const struct ti_lmu_data *data;
 	struct regmap_config regmap_cfg;
 	struct ti_lmu *lmu;
 	int ret;
 
-	match = of_match_device(ti_lmu_of_match, dev);
-	if (!match)
-		return -ENODEV;
 	/*
 	 * Get device specific data from of_match table.
 	 * This data is defined by using TI_LMU_DATA() macro.
 	 */
-	data = (struct ti_lmu_data *)match->data;
+	data = of_device_get_match_data(dev);
+	if (!data)
+		return -ENODEV;
 
 	lmu = devm_kzalloc(dev, sizeof(*lmu), GFP_KERNEL);
 	if (!lmu)
@@ -204,8 +182,18 @@ static int ti_lmu_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 		return PTR_ERR(lmu->regmap);
 
 	/* HW enable pin control and additional power up sequence if required */
-	lmu->en_gpio = of_get_named_gpio(dev->of_node, "enable-gpios", 0);
+	lmu->en_gpio = devm_gpiod_get_optional(dev, "enable", GPIOD_OUT_HIGH);
+	if (IS_ERR(lmu->en_gpio)) {
+		ret = PTR_ERR(lmu->en_gpio);
+		dev_err(dev, "Can not request enable GPIO: %d\n", ret);
+		return ret;
+	}
+
 	ret = ti_lmu_enable_hw(lmu, id->driver_data);
+	if (ret)
+		return ret;
+
+	ret = devm_add_action_or_reset(dev, ti_lmu_disable_hw, lmu);
 	if (ret)
 		return ret;
 
@@ -218,18 +206,20 @@ static int ti_lmu_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 
 	i2c_set_clientdata(cl, lmu);
 
-	return mfd_add_devices(lmu->dev, 0, data->cells,
-			       data->num_cells, NULL, 0, NULL);
+	return devm_mfd_add_devices(lmu->dev, 0, data->cells,
+				    data->num_cells, NULL, 0, NULL);
 }
 
-static int ti_lmu_remove(struct i2c_client *cl)
-{
-	struct ti_lmu *lmu = i2c_get_clientdata(cl);
-
-	ti_lmu_disable_hw(lmu);
-	mfd_remove_devices(lmu->dev);
-	return 0;
-}
+static const struct of_device_id ti_lmu_of_match[] = {
+	{ .compatible = "ti,lm3532", .data = &lm3532_data },
+	{ .compatible = "ti,lm3631", .data = &lm3631_data },
+	{ .compatible = "ti,lm3632", .data = &lm3632_data },
+	{ .compatible = "ti,lm3633", .data = &lm3633_data },
+	{ .compatible = "ti,lm3695", .data = &lm3695_data },
+	{ .compatible = "ti,lm3697", .data = &lm3697_data },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, ti_lmu_of_match);
 
 static const struct i2c_device_id ti_lmu_ids[] = {
 	{ "lm3532", LM3532 },
@@ -244,7 +234,6 @@ MODULE_DEVICE_TABLE(i2c, ti_lmu_ids);
 
 static struct i2c_driver ti_lmu_driver = {
 	.probe = ti_lmu_probe,
-	.remove = ti_lmu_remove,
 	.driver = {
 		.name = "ti-lmu",
 		.of_match_table = ti_lmu_of_match,

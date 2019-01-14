@@ -39,6 +39,7 @@
 #include "smu/smu_7_1_2_sh_mask.h"
 #include "gca/gfx_8_0_d.h"
 #include "gca/gfx_8_0_sh_mask.h"
+#include "ivsrcid/ivsrcid_vislands30.h"
 
 
 #define GRBM_GFX_INDEX__VCE_INSTANCE__SHIFT	0x04
@@ -86,9 +87,9 @@ static uint64_t vce_v3_0_ring_get_rptr(struct amdgpu_ring *ring)
 	else if (adev->vce.harvest_config == AMDGPU_VCE_HARVEST_VCE0)
 		WREG32(mmGRBM_GFX_INDEX, GET_VCE_INSTANCE(1));
 
-	if (ring == &adev->vce.ring[0])
+	if (ring->me == 0)
 		v = RREG32(mmVCE_RB_RPTR);
-	else if (ring == &adev->vce.ring[1])
+	else if (ring->me == 1)
 		v = RREG32(mmVCE_RB_RPTR2);
 	else
 		v = RREG32(mmVCE_RB_RPTR3);
@@ -118,9 +119,9 @@ static uint64_t vce_v3_0_ring_get_wptr(struct amdgpu_ring *ring)
 	else if (adev->vce.harvest_config == AMDGPU_VCE_HARVEST_VCE0)
 		WREG32(mmGRBM_GFX_INDEX, GET_VCE_INSTANCE(1));
 
-	if (ring == &adev->vce.ring[0])
+	if (ring->me == 0)
 		v = RREG32(mmVCE_RB_WPTR);
-	else if (ring == &adev->vce.ring[1])
+	else if (ring->me == 1)
 		v = RREG32(mmVCE_RB_WPTR2);
 	else
 		v = RREG32(mmVCE_RB_WPTR3);
@@ -149,9 +150,9 @@ static void vce_v3_0_ring_set_wptr(struct amdgpu_ring *ring)
 	else if (adev->vce.harvest_config == AMDGPU_VCE_HARVEST_VCE0)
 		WREG32(mmGRBM_GFX_INDEX, GET_VCE_INSTANCE(1));
 
-	if (ring == &adev->vce.ring[0])
+	if (ring->me == 0)
 		WREG32(mmVCE_RB_WPTR, lower_32_bits(ring->wptr));
-	else if (ring == &adev->vce.ring[1])
+	else if (ring->me == 1)
 		WREG32(mmVCE_RB_WPTR2, lower_32_bits(ring->wptr));
 	else
 		WREG32(mmVCE_RB_WPTR3, lower_32_bits(ring->wptr));
@@ -388,7 +389,8 @@ static unsigned vce_v3_0_get_harvest_config(struct amdgpu_device *adev)
 	default:
 		if ((adev->asic_type == CHIP_POLARIS10) ||
 		    (adev->asic_type == CHIP_POLARIS11) ||
-		    (adev->asic_type == CHIP_POLARIS12))
+		    (adev->asic_type == CHIP_POLARIS12) ||
+		    (adev->asic_type == CHIP_VEGAM))
 			return AMDGPU_VCE_HARVEST_VCE1;
 
 		return 0;
@@ -421,7 +423,7 @@ static int vce_v3_0_sw_init(void *handle)
 	int r, i;
 
 	/* VCE */
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 167, &adev->vce.irq);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, VISLANDS30_IV_SRCID_VCE_TRAP, &adev->vce.irq);
 	if (r)
 		return r;
 
@@ -446,6 +448,8 @@ static int vce_v3_0_sw_init(void *handle)
 			return r;
 	}
 
+	r = amdgpu_vce_entity_init(adev);
+
 	return r;
 }
 
@@ -467,8 +471,8 @@ static int vce_v3_0_hw_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	vce_v3_0_override_vce_clock_gating(adev, true);
-	if (!(adev->flags & AMD_IS_APU))
-		amdgpu_asic_set_vce_clocks(adev, 10000, 10000);
+
+	amdgpu_asic_set_vce_clocks(adev, 10000, 10000);
 
 	for (i = 0; i < adev->vce.num_rings; i++)
 		adev->vce.ring[i].ready = false;
@@ -899,7 +903,7 @@ static const struct amdgpu_ring_funcs vce_v3_0_ring_phys_funcs = {
 	.emit_frame_size =
 		4 + /* vce_v3_0_emit_pipeline_sync */
 		6, /* amdgpu_vce_ring_emit_fence x1 no user fence */
-	.emit_ib_size = 5, /* vce_v3_0_ring_emit_ib */
+	.emit_ib_size = 4, /* amdgpu_vce_ring_emit_ib */
 	.emit_ib = amdgpu_vce_ring_emit_ib,
 	.emit_fence = amdgpu_vce_ring_emit_fence,
 	.test_ring = amdgpu_vce_ring_test_ring,
@@ -923,7 +927,7 @@ static const struct amdgpu_ring_funcs vce_v3_0_ring_vm_funcs = {
 		6 + /* vce_v3_0_emit_vm_flush */
 		4 + /* vce_v3_0_emit_pipeline_sync */
 		6 + 6, /* amdgpu_vce_ring_emit_fence x2 vm fence */
-	.emit_ib_size = 4, /* amdgpu_vce_ring_emit_ib */
+	.emit_ib_size = 5, /* vce_v3_0_ring_emit_ib */
 	.emit_ib = vce_v3_0_ring_emit_ib,
 	.emit_vm_flush = vce_v3_0_emit_vm_flush,
 	.emit_pipeline_sync = vce_v3_0_emit_pipeline_sync,
@@ -941,12 +945,16 @@ static void vce_v3_0_set_ring_funcs(struct amdgpu_device *adev)
 	int i;
 
 	if (adev->asic_type >= CHIP_STONEY) {
-		for (i = 0; i < adev->vce.num_rings; i++)
+		for (i = 0; i < adev->vce.num_rings; i++) {
 			adev->vce.ring[i].funcs = &vce_v3_0_ring_vm_funcs;
+			adev->vce.ring[i].me = i;
+		}
 		DRM_INFO("VCE enabled in VM mode\n");
 	} else {
-		for (i = 0; i < adev->vce.num_rings; i++)
+		for (i = 0; i < adev->vce.num_rings; i++) {
 			adev->vce.ring[i].funcs = &vce_v3_0_ring_phys_funcs;
+			adev->vce.ring[i].me = i;
+		}
 		DRM_INFO("VCE enabled in physical mode\n");
 	}
 }

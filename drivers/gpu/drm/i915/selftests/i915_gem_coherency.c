@@ -33,7 +33,8 @@ static int cpu_set(struct drm_i915_gem_object *obj,
 {
 	unsigned int needs_clflush;
 	struct page *page;
-	u32 *map;
+	void *map;
+	u32 *cpu;
 	int err;
 
 	err = i915_gem_obj_prepare_shmem_write(obj, &needs_clflush);
@@ -42,14 +43,19 @@ static int cpu_set(struct drm_i915_gem_object *obj,
 
 	page = i915_gem_object_get_page(obj, offset >> PAGE_SHIFT);
 	map = kmap_atomic(page);
-	if (needs_clflush & CLFLUSH_BEFORE)
-		clflush(map+offset_in_page(offset) / sizeof(*map));
-	map[offset_in_page(offset) / sizeof(*map)] = v;
-	if (needs_clflush & CLFLUSH_AFTER)
-		clflush(map+offset_in_page(offset) / sizeof(*map));
-	kunmap_atomic(map);
+	cpu = map + offset_in_page(offset);
 
+	if (needs_clflush & CLFLUSH_BEFORE)
+		drm_clflush_virt_range(cpu, sizeof(*cpu));
+
+	*cpu = v;
+
+	if (needs_clflush & CLFLUSH_AFTER)
+		drm_clflush_virt_range(cpu, sizeof(*cpu));
+
+	kunmap_atomic(map);
 	i915_gem_obj_finish_shmem_access(obj);
+
 	return 0;
 }
 
@@ -59,7 +65,8 @@ static int cpu_get(struct drm_i915_gem_object *obj,
 {
 	unsigned int needs_clflush;
 	struct page *page;
-	u32 *map;
+	void *map;
+	u32 *cpu;
 	int err;
 
 	err = i915_gem_obj_prepare_shmem_read(obj, &needs_clflush);
@@ -68,12 +75,16 @@ static int cpu_get(struct drm_i915_gem_object *obj,
 
 	page = i915_gem_object_get_page(obj, offset >> PAGE_SHIFT);
 	map = kmap_atomic(page);
-	if (needs_clflush & CLFLUSH_BEFORE)
-		clflush(map+offset_in_page(offset) / sizeof(*map));
-	*v = map[offset_in_page(offset) / sizeof(*map)];
-	kunmap_atomic(map);
+	cpu = map + offset_in_page(offset);
 
+	if (needs_clflush & CLFLUSH_BEFORE)
+		drm_clflush_virt_range(cpu, sizeof(*cpu));
+
+	*v = *cpu;
+
+	kunmap_atomic(map);
 	i915_gem_obj_finish_shmem_access(obj);
+
 	return 0;
 }
 
@@ -199,7 +210,7 @@ static int gpu_set(struct drm_i915_gem_object *obj,
 
 	cs = intel_ring_begin(rq, 4);
 	if (IS_ERR(cs)) {
-		__i915_request_add(rq, false);
+		i915_request_add(rq);
 		i915_vma_unpin(vma);
 		return PTR_ERR(cs);
 	}
@@ -210,28 +221,24 @@ static int gpu_set(struct drm_i915_gem_object *obj,
 		*cs++ = upper_32_bits(i915_ggtt_offset(vma) + offset);
 		*cs++ = v;
 	} else if (INTEL_GEN(i915) >= 4) {
-		*cs++ = MI_STORE_DWORD_IMM_GEN4 | 1 << 22;
+		*cs++ = MI_STORE_DWORD_IMM_GEN4 | MI_USE_GGTT;
 		*cs++ = 0;
 		*cs++ = i915_ggtt_offset(vma) + offset;
 		*cs++ = v;
 	} else {
-		*cs++ = MI_STORE_DWORD_IMM | 1 << 22;
+		*cs++ = MI_STORE_DWORD_IMM | MI_MEM_VIRTUAL;
 		*cs++ = i915_ggtt_offset(vma) + offset;
 		*cs++ = v;
 		*cs++ = MI_NOOP;
 	}
 	intel_ring_advance(rq, cs);
 
-	i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
+	err = i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
 	i915_vma_unpin(vma);
 
-	reservation_object_lock(obj->resv, NULL);
-	reservation_object_add_excl_fence(obj->resv, &rq->fence);
-	reservation_object_unlock(obj->resv);
+	i915_request_add(rq);
 
-	__i915_request_add(rq, true);
-
-	return 0;
+	return err;
 }
 
 static bool always_valid(struct drm_i915_private *i915)
@@ -239,8 +246,16 @@ static bool always_valid(struct drm_i915_private *i915)
 	return true;
 }
 
+static bool needs_fence_registers(struct drm_i915_private *i915)
+{
+	return !i915_terminally_wedged(&i915->gpu_error);
+}
+
 static bool needs_mi_store_dword(struct drm_i915_private *i915)
 {
+	if (i915_terminally_wedged(&i915->gpu_error))
+		return false;
+
 	return intel_engine_can_store_dword(i915->engine[RCS]);
 }
 
@@ -251,7 +266,7 @@ static const struct igt_coherency_mode {
 	bool (*valid)(struct drm_i915_private *i915);
 } igt_coherency_mode[] = {
 	{ "cpu", cpu_set, cpu_get, always_valid },
-	{ "gtt", gtt_set, gtt_get, always_valid },
+	{ "gtt", gtt_set, gtt_get, needs_fence_registers },
 	{ "wc", wc_set, wc_get, always_valid },
 	{ "gpu", gpu_set, NULL, needs_mi_store_dword },
 	{ },
@@ -283,6 +298,7 @@ static int igt_gem_coherency(void *arg)
 	values = offsets + ncachelines;
 
 	mutex_lock(&i915->drm.struct_mutex);
+	intel_runtime_pm_get(i915);
 	for (over = igt_coherency_mode; over->name; over++) {
 		if (!over->set)
 			continue;
@@ -360,6 +376,7 @@ static int igt_gem_coherency(void *arg)
 		}
 	}
 unlock:
+	intel_runtime_pm_put(i915);
 	mutex_unlock(&i915->drm.struct_mutex);
 	kfree(offsets);
 	return err;

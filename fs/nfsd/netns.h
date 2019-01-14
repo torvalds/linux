@@ -102,6 +102,7 @@ struct nfsd_net {
 
 	time_t nfsd4_lease;
 	time_t nfsd4_grace;
+	bool somebody_reclaimed;
 
 	bool nfsd_net_up;
 	bool lockd_up;
@@ -122,6 +123,14 @@ struct nfsd_net {
 
 	wait_queue_head_t ntf_wq;
 	atomic_t ntf_refcnt;
+
+	/*
+	 * clientid and stateid data for construction of net unique COPY
+	 * stateids.
+	 */
+	u32		s2s_cp_cl_id;
+	struct idr	s2s_cp_stateids;
+	spinlock_t	s2s_cp_lock;
 };
 
 /* Simple check to find out if a given net was properly initialized */

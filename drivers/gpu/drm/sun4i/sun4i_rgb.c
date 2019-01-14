@@ -135,7 +135,7 @@ static void sun4i_rgb_encoder_enable(struct drm_encoder *encoder)
 
 	DRM_DEBUG_DRIVER("Enabling RGB output\n");
 
-	if (!IS_ERR(tcon->panel)) {
+	if (tcon->panel) {
 		drm_panel_prepare(tcon->panel);
 		drm_panel_enable(tcon->panel);
 	}
@@ -148,7 +148,7 @@ static void sun4i_rgb_encoder_disable(struct drm_encoder *encoder)
 
 	DRM_DEBUG_DRIVER("Disabling RGB output\n");
 
-	if (!IS_ERR(tcon->panel)) {
+	if (tcon->panel) {
 		drm_panel_disable(tcon->panel);
 		drm_panel_unprepare(tcon->panel);
 	}
@@ -202,7 +202,7 @@ int sun4i_rgb_init(struct drm_device *drm, struct sun4i_tcon *tcon)
 	}
 
 	/* The RGB encoder can only work with the TCON channel 0 */
-	rgb->encoder.possible_crtcs = BIT(drm_crtc_index(&tcon->crtc->crtc));
+	rgb->encoder.possible_crtcs = drm_crtc_mask(&tcon->crtc->crtc);
 
 	if (tcon->panel) {
 		drm_connector_helper_add(&rgb->connector,
@@ -215,7 +215,7 @@ int sun4i_rgb_init(struct drm_device *drm, struct sun4i_tcon *tcon)
 			goto err_cleanup_connector;
 		}
 
-		drm_mode_connector_attach_encoder(&rgb->connector,
+		drm_connector_attach_encoder(&rgb->connector,
 						  &rgb->encoder);
 
 		ret = drm_panel_attach(tcon->panel, &rgb->connector);

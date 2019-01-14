@@ -442,8 +442,8 @@ static int sti_mbox_probe(struct platform_device *pdev)
 	if (!mbox)
 		return -ENOMEM;
 
-	chans = devm_kzalloc(&pdev->dev,
-			     sizeof(*chans) * STI_MBOX_CHAN_MAX, GFP_KERNEL);
+	chans = devm_kcalloc(&pdev->dev,
+			     STI_MBOX_CHAN_MAX, sizeof(*chans), GFP_KERNEL);
 	if (!chans)
 		return -ENOMEM;
 

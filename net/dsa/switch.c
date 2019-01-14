@@ -136,21 +136,20 @@ static int dsa_switch_mdb_add(struct dsa_switch *ds,
 {
 	const struct switchdev_obj_port_mdb *mdb = info->mdb;
 	struct switchdev_trans *trans = info->trans;
-	DECLARE_BITMAP(group, ds->num_ports);
 	int port;
 
 	/* Build a mask of Multicast group members */
-	bitmap_zero(group, ds->num_ports);
+	bitmap_zero(ds->bitmap, ds->num_ports);
 	if (ds->index == info->sw_index)
-		set_bit(info->port, group);
+		set_bit(info->port, ds->bitmap);
 	for (port = 0; port < ds->num_ports; port++)
 		if (dsa_is_dsa_port(ds, port))
-			set_bit(port, group);
+			set_bit(port, ds->bitmap);
 
 	if (switchdev_trans_ph_prepare(trans))
-		return dsa_switch_mdb_prepare_bitmap(ds, mdb, group);
+		return dsa_switch_mdb_prepare_bitmap(ds, mdb, ds->bitmap);
 
-	dsa_switch_mdb_add_bitmap(ds, mdb, group);
+	dsa_switch_mdb_add_bitmap(ds, mdb, ds->bitmap);
 
 	return 0;
 }
@@ -204,21 +203,20 @@ static int dsa_switch_vlan_add(struct dsa_switch *ds,
 {
 	const struct switchdev_obj_port_vlan *vlan = info->vlan;
 	struct switchdev_trans *trans = info->trans;
-	DECLARE_BITMAP(members, ds->num_ports);
 	int port;
 
 	/* Build a mask of VLAN members */
-	bitmap_zero(members, ds->num_ports);
+	bitmap_zero(ds->bitmap, ds->num_ports);
 	if (ds->index == info->sw_index)
-		set_bit(info->port, members);
+		set_bit(info->port, ds->bitmap);
 	for (port = 0; port < ds->num_ports; port++)
 		if (dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port))
-			set_bit(port, members);
+			set_bit(port, ds->bitmap);
 
 	if (switchdev_trans_ph_prepare(trans))
-		return dsa_switch_vlan_prepare_bitmap(ds, vlan, members);
+		return dsa_switch_vlan_prepare_bitmap(ds, vlan, ds->bitmap);
 
-	dsa_switch_vlan_add_bitmap(ds, vlan, members);
+	dsa_switch_vlan_add_bitmap(ds, vlan, ds->bitmap);
 
 	return 0;
 }

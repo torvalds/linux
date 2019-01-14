@@ -13,6 +13,7 @@
 #include <asm/mmu.h>
 #include <asm/ptrace.h>
 #include <asm/sections.h>
+#include <asm/stacktrace.h>
 #include <asm/sysreg.h>
 #include <asm/vmap_stack.h>
 
@@ -88,23 +89,52 @@ static int init_sdei_stacks(void)
 	return err;
 }
 
-bool _on_sdei_stack(unsigned long sp)
+static bool on_sdei_normal_stack(unsigned long sp, struct stack_info *info)
 {
-	unsigned long low, high;
+	unsigned long low = (unsigned long)raw_cpu_read(sdei_stack_normal_ptr);
+	unsigned long high = low + SDEI_STACK_SIZE;
 
+	if (sp < low || sp >= high)
+		return false;
+
+	if (info) {
+		info->low = low;
+		info->high = high;
+		info->type = STACK_TYPE_SDEI_NORMAL;
+	}
+
+	return true;
+}
+
+static bool on_sdei_critical_stack(unsigned long sp, struct stack_info *info)
+{
+	unsigned long low = (unsigned long)raw_cpu_read(sdei_stack_critical_ptr);
+	unsigned long high = low + SDEI_STACK_SIZE;
+
+	if (sp < low || sp >= high)
+		return false;
+
+	if (info) {
+		info->low = low;
+		info->high = high;
+		info->type = STACK_TYPE_SDEI_CRITICAL;
+	}
+
+	return true;
+}
+
+bool _on_sdei_stack(unsigned long sp, struct stack_info *info)
+{
 	if (!IS_ENABLED(CONFIG_VMAP_STACK))
 		return false;
 
-	low = (unsigned long)raw_cpu_read(sdei_stack_critical_ptr);
-	high = low + SDEI_STACK_SIZE;
-
-	if (low <= sp && sp < high)
+	if (on_sdei_critical_stack(sp, info))
 		return true;
 
-	low = (unsigned long)raw_cpu_read(sdei_stack_normal_ptr);
-	high = low + SDEI_STACK_SIZE;
+	if (on_sdei_normal_stack(sp, info))
+		return true;
 
-	return (low <= sp && sp < high);
+	return false;
 }
 
 unsigned long sdei_arch_get_entry_point(int conduit)

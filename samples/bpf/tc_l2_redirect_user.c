@@ -13,7 +13,7 @@
 #include <string.h>
 #include <errno.h>
 
-#include "libbpf.h"
+#include <bpf/bpf.h>
 
 static void usage(void)
 {

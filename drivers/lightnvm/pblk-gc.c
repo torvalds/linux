@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2016 CNEX Labs
  * Initial release: Javier Gonzalez <javier@cnexlabs.com>
@@ -16,7 +17,9 @@
  */
 
 #include "pblk.h"
+#include "pblk-trace.h"
 #include <linux/delay.h>
+
 
 static void pblk_gc_free_gc_rq(struct pblk_gc_rq *gc_rq)
 {
@@ -64,6 +67,8 @@ static void pblk_put_line_back(struct pblk *pblk, struct pblk_line *line)
 	spin_lock(&line->lock);
 	WARN_ON(line->state != PBLK_LINESTATE_GC);
 	line->state = PBLK_LINESTATE_CLOSED;
+	trace_pblk_line_state(pblk_disk_name(pblk), line->id,
+					line->state);
 	move_list = pblk_line_gc_list(pblk, line);
 	spin_unlock(&line->lock);
 
@@ -88,9 +93,9 @@ static void pblk_gc_line_ws(struct work_struct *work)
 
 	up(&gc->gc_sem);
 
-	gc_rq->data = vmalloc(gc_rq->nr_secs * geo->csecs);
+	gc_rq->data = vmalloc(array_size(gc_rq->nr_secs, geo->csecs));
 	if (!gc_rq->data) {
-		pr_err("pblk: could not GC line:%d (%d/%d)\n",
+		pblk_err(pblk, "could not GC line:%d (%d/%d)\n",
 					line->id, *line->vsc, gc_rq->nr_secs);
 		goto out;
 	}
@@ -98,7 +103,7 @@ static void pblk_gc_line_ws(struct work_struct *work)
 	/* Read from GC victim block */
 	ret = pblk_submit_read_gc(pblk, gc_rq);
 	if (ret) {
-		pr_err("pblk: failed GC read in line:%d (err:%d)\n",
+		pblk_err(pblk, "failed GC read in line:%d (err:%d)\n",
 								line->id, ret);
 		goto out;
 	}
@@ -129,6 +134,53 @@ out:
 	kfree(gc_rq_ws);
 }
 
+static __le64 *get_lba_list_from_emeta(struct pblk *pblk,
+				       struct pblk_line *line)
+{
+	struct line_emeta *emeta_buf;
+	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
+	struct pblk_line_meta *lm = &pblk->lm;
+	unsigned int lba_list_size = lm->emeta_len[2];
+	__le64 *lba_list;
+	int ret;
+
+	emeta_buf = pblk_malloc(lm->emeta_len[0],
+				l_mg->emeta_alloc_type, GFP_KERNEL);
+	if (!emeta_buf)
+		return NULL;
+
+	ret = pblk_line_emeta_read(pblk, line, emeta_buf);
+	if (ret) {
+		pblk_err(pblk, "line %d read emeta failed (%d)\n",
+				line->id, ret);
+		pblk_mfree(emeta_buf, l_mg->emeta_alloc_type);
+		return NULL;
+	}
+
+	/* If this read fails, it means that emeta is corrupted.
+	 * For now, leave the line untouched.
+	 * TODO: Implement a recovery routine that scans and moves
+	 * all sectors on the line.
+	 */
+
+	ret = pblk_recov_check_emeta(pblk, emeta_buf);
+	if (ret) {
+		pblk_err(pblk, "inconsistent emeta (line %d)\n",
+				line->id);
+		pblk_mfree(emeta_buf, l_mg->emeta_alloc_type);
+		return NULL;
+	}
+
+	lba_list = pblk_malloc(lba_list_size,
+			       l_mg->emeta_alloc_type, GFP_KERNEL);
+	if (lba_list)
+		memcpy(lba_list, emeta_to_lbas(pblk, emeta_buf), lba_list_size);
+
+	pblk_mfree(emeta_buf, l_mg->emeta_alloc_type);
+
+	return lba_list;
+}
+
 static void pblk_gc_line_prepare_ws(struct work_struct *work)
 {
 	struct pblk_line_ws *line_ws = container_of(work, struct pblk_line_ws,
@@ -138,46 +190,26 @@ static void pblk_gc_line_prepare_ws(struct work_struct *work)
 	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
 	struct pblk_line_meta *lm = &pblk->lm;
 	struct pblk_gc *gc = &pblk->gc;
-	struct line_emeta *emeta_buf;
 	struct pblk_line_ws *gc_rq_ws;
 	struct pblk_gc_rq *gc_rq;
 	__le64 *lba_list;
 	unsigned long *invalid_bitmap;
 	int sec_left, nr_secs, bit;
-	int ret;
 
 	invalid_bitmap = kmalloc(lm->sec_bitmap_len, GFP_KERNEL);
 	if (!invalid_bitmap)
 		goto fail_free_ws;
 
-	emeta_buf = pblk_malloc(lm->emeta_len[0], l_mg->emeta_alloc_type,
-								GFP_KERNEL);
-	if (!emeta_buf) {
-		pr_err("pblk: cannot use GC emeta\n");
-		goto fail_free_bitmap;
-	}
-
-	ret = pblk_line_read_emeta(pblk, line, emeta_buf);
-	if (ret) {
-		pr_err("pblk: line %d read emeta failed (%d)\n", line->id, ret);
-		goto fail_free_emeta;
-	}
-
-	/* If this read fails, it means that emeta is corrupted. For now, leave
-	 * the line untouched. TODO: Implement a recovery routine that scans and
-	 * moves all sectors on the line.
-	 */
-
-	ret = pblk_recov_check_emeta(pblk, emeta_buf);
-	if (ret) {
-		pr_err("pblk: inconsistent emeta (line %d)\n", line->id);
-		goto fail_free_emeta;
-	}
-
-	lba_list = emeta_to_lbas(pblk, emeta_buf);
-	if (!lba_list) {
-		pr_err("pblk: could not interpret emeta (line %d)\n", line->id);
-		goto fail_free_emeta;
+	if (line->w_err_gc->has_write_err) {
+		lba_list = line->w_err_gc->lba_list;
+		line->w_err_gc->lba_list = NULL;
+	} else {
+		lba_list = get_lba_list_from_emeta(pblk, line);
+		if (!lba_list) {
+			pblk_err(pblk, "could not interpret emeta (line %d)\n",
+					line->id);
+			goto fail_free_invalid_bitmap;
+		}
 	}
 
 	spin_lock(&line->lock);
@@ -186,15 +218,15 @@ static void pblk_gc_line_prepare_ws(struct work_struct *work)
 	spin_unlock(&line->lock);
 
 	if (sec_left < 0) {
-		pr_err("pblk: corrupted GC line (%d)\n", line->id);
-		goto fail_free_emeta;
+		pblk_err(pblk, "corrupted GC line (%d)\n", line->id);
+		goto fail_free_lba_list;
 	}
 
 	bit = -1;
 next_rq:
 	gc_rq = kmalloc(sizeof(struct pblk_gc_rq), GFP_KERNEL);
 	if (!gc_rq)
-		goto fail_free_emeta;
+		goto fail_free_lba_list;
 
 	nr_secs = 0;
 	do {
@@ -240,7 +272,7 @@ next_rq:
 		goto next_rq;
 
 out:
-	pblk_mfree(emeta_buf, l_mg->emeta_alloc_type);
+	pblk_mfree(lba_list, l_mg->emeta_alloc_type);
 	kfree(line_ws);
 	kfree(invalid_bitmap);
 
@@ -251,9 +283,9 @@ out:
 
 fail_free_gc_rq:
 	kfree(gc_rq);
-fail_free_emeta:
-	pblk_mfree(emeta_buf, l_mg->emeta_alloc_type);
-fail_free_bitmap:
+fail_free_lba_list:
+	pblk_mfree(lba_list, l_mg->emeta_alloc_type);
+fail_free_invalid_bitmap:
 	kfree(invalid_bitmap);
 fail_free_ws:
 	kfree(line_ws);
@@ -262,7 +294,7 @@ fail_free_ws:
 	kref_put(&line->ref, pblk_line_put);
 	atomic_dec(&gc->read_inflight_gc);
 
-	pr_err("pblk: Failed to GC line %d\n", line->id);
+	pblk_err(pblk, "failed to GC line %d\n", line->id);
 }
 
 static int pblk_gc_line(struct pblk *pblk, struct pblk_line *line)
@@ -270,7 +302,7 @@ static int pblk_gc_line(struct pblk *pblk, struct pblk_line *line)
 	struct pblk_gc *gc = &pblk->gc;
 	struct pblk_line_ws *line_ws;
 
-	pr_debug("pblk: line '%d' being reclaimed for GC\n", line->id);
+	pblk_debug(pblk, "line '%d' being reclaimed for GC\n", line->id);
 
 	line_ws = kmalloc(sizeof(struct pblk_line_ws), GFP_KERNEL);
 	if (!line_ws)
@@ -324,7 +356,7 @@ static int pblk_gc_read(struct pblk *pblk)
 	pblk_gc_kick(pblk);
 
 	if (pblk_gc_line(pblk, line))
-		pr_err("pblk: failed to GC line %d\n", line->id);
+		pblk_err(pblk, "failed to GC line %d\n", line->id);
 
 	return 0;
 }
@@ -349,12 +381,14 @@ static struct pblk_line *pblk_gc_get_victim_line(struct pblk *pblk,
 static bool pblk_gc_should_run(struct pblk_gc *gc, struct pblk_rl *rl)
 {
 	unsigned int nr_blocks_free, nr_blocks_need;
+	unsigned int werr_lines = atomic_read(&rl->werr_lines);
 
 	nr_blocks_need = pblk_rl_high_thrs(rl);
 	nr_blocks_free = pblk_rl_nr_free_blks(rl);
 
 	/* This is not critical, no need to take lock here */
-	return ((gc->gc_active) && (nr_blocks_need > nr_blocks_free));
+	return ((werr_lines > 0) ||
+		((gc->gc_active) && (nr_blocks_need > nr_blocks_free)));
 }
 
 void pblk_gc_free_full_lines(struct pblk *pblk)
@@ -376,6 +410,8 @@ void pblk_gc_free_full_lines(struct pblk *pblk)
 		spin_lock(&line->lock);
 		WARN_ON(line->state != PBLK_LINESTATE_CLOSED);
 		line->state = PBLK_LINESTATE_GC;
+		trace_pblk_line_state(pblk_disk_name(pblk), line->id,
+					line->state);
 		spin_unlock(&line->lock);
 
 		list_del(&line->list);
@@ -422,6 +458,8 @@ next_gc_group:
 		spin_lock(&line->lock);
 		WARN_ON(line->state != PBLK_LINESTATE_CLOSED);
 		line->state = PBLK_LINESTATE_GC;
+		trace_pblk_line_state(pblk_disk_name(pblk), line->id,
+					line->state);
 		spin_unlock(&line->lock);
 
 		list_del(&line->list);
@@ -493,8 +531,8 @@ static int pblk_gc_reader_ts(void *data)
 		io_schedule();
 	}
 
-#ifdef CONFIG_NVM_DEBUG
-	pr_info("pblk: flushing gc pipeline, %d lines left\n",
+#ifdef CONFIG_NVM_PBLK_DEBUG
+	pblk_info(pblk, "flushing gc pipeline, %d lines left\n",
 		atomic_read(&gc->pipeline_gc));
 #endif
 
@@ -511,7 +549,7 @@ static int pblk_gc_reader_ts(void *data)
 static void pblk_gc_start(struct pblk *pblk)
 {
 	pblk->gc.gc_active = 1;
-	pr_debug("pblk: gc start\n");
+	pblk_debug(pblk, "gc start\n");
 }
 
 void pblk_gc_should_start(struct pblk *pblk)
@@ -576,14 +614,14 @@ int pblk_gc_init(struct pblk *pblk)
 
 	gc->gc_ts = kthread_create(pblk_gc_ts, pblk, "pblk-gc-ts");
 	if (IS_ERR(gc->gc_ts)) {
-		pr_err("pblk: could not allocate GC main kthread\n");
+		pblk_err(pblk, "could not allocate GC main kthread\n");
 		return PTR_ERR(gc->gc_ts);
 	}
 
 	gc->gc_writer_ts = kthread_create(pblk_gc_writer_ts, pblk,
 							"pblk-gc-writer-ts");
 	if (IS_ERR(gc->gc_writer_ts)) {
-		pr_err("pblk: could not allocate GC writer kthread\n");
+		pblk_err(pblk, "could not allocate GC writer kthread\n");
 		ret = PTR_ERR(gc->gc_writer_ts);
 		goto fail_free_main_kthread;
 	}
@@ -591,7 +629,7 @@ int pblk_gc_init(struct pblk *pblk)
 	gc->gc_reader_ts = kthread_create(pblk_gc_reader_ts, pblk,
 							"pblk-gc-reader-ts");
 	if (IS_ERR(gc->gc_reader_ts)) {
-		pr_err("pblk: could not allocate GC reader kthread\n");
+		pblk_err(pblk, "could not allocate GC reader kthread\n");
 		ret = PTR_ERR(gc->gc_reader_ts);
 		goto fail_free_writer_kthread;
 	}
@@ -612,7 +650,7 @@ int pblk_gc_init(struct pblk *pblk)
 	gc->gc_line_reader_wq = alloc_workqueue("pblk-gc-line-reader-wq",
 			WQ_MEM_RECLAIM | WQ_UNBOUND, PBLK_GC_MAX_READERS);
 	if (!gc->gc_line_reader_wq) {
-		pr_err("pblk: could not allocate GC line reader workqueue\n");
+		pblk_err(pblk, "could not allocate GC line reader workqueue\n");
 		ret = -ENOMEM;
 		goto fail_free_reader_kthread;
 	}
@@ -621,7 +659,7 @@ int pblk_gc_init(struct pblk *pblk)
 	gc->gc_reader_wq = alloc_workqueue("pblk-gc-line_wq",
 					WQ_MEM_RECLAIM | WQ_UNBOUND, 1);
 	if (!gc->gc_reader_wq) {
-		pr_err("pblk: could not allocate GC reader workqueue\n");
+		pblk_err(pblk, "could not allocate GC reader workqueue\n");
 		ret = -ENOMEM;
 		goto fail_free_reader_line_wq;
 	}
@@ -649,7 +687,7 @@ fail_free_main_kthread:
 	return ret;
 }
 
-void pblk_gc_exit(struct pblk *pblk)
+void pblk_gc_exit(struct pblk *pblk, bool graceful)
 {
 	struct pblk_gc *gc = &pblk->gc;
 
@@ -663,10 +701,12 @@ void pblk_gc_exit(struct pblk *pblk)
 	if (gc->gc_reader_ts)
 		kthread_stop(gc->gc_reader_ts);
 
-	flush_workqueue(gc->gc_reader_wq);
-	destroy_workqueue(gc->gc_reader_wq);
+	if (graceful) {
+		flush_workqueue(gc->gc_reader_wq);
+		flush_workqueue(gc->gc_line_reader_wq);
+	}
 
-	flush_workqueue(gc->gc_line_reader_wq);
+	destroy_workqueue(gc->gc_reader_wq);
 	destroy_workqueue(gc->gc_line_reader_wq);
 
 	if (gc->gc_writer_ts)

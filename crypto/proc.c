@@ -94,21 +94,9 @@ static const struct seq_operations crypto_seq_ops = {
 	.show		= c_show
 };
 
-static int crypto_info_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &crypto_seq_ops);
-}
-        
-static const struct file_operations proc_crypto_ops = {
-	.open		= crypto_info_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release
-};
-
 void __init crypto_init_proc(void)
 {
-	proc_create("crypto", 0, NULL, &proc_crypto_ops);
+	proc_create_seq("crypto", 0, NULL, &crypto_seq_ops);
 }
 
 void __exit crypto_exit_proc(void)

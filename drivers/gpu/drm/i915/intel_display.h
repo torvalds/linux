@@ -25,6 +25,24 @@
 #ifndef _INTEL_DISPLAY_H_
 #define _INTEL_DISPLAY_H_
 
+#include <drm/drm_util.h>
+
+enum i915_gpio {
+	GPIOA,
+	GPIOB,
+	GPIOC,
+	GPIOD,
+	GPIOE,
+	GPIOF,
+	GPIOG,
+	GPIOH,
+	__GPIOI_UNUSED,
+	GPIOJ,
+	GPIOK,
+	GPIOL,
+	GPIOM,
+};
+
 enum pipe {
 	INVALID_PIPE = -1,
 
@@ -126,6 +144,48 @@ enum port {
 
 #define port_name(p) ((p) + 'A')
 
+/*
+ * Ports identifier referenced from other drivers.
+ * Expected to remain stable over time
+ */
+static inline const char *port_identifier(enum port port)
+{
+	switch (port) {
+	case PORT_A:
+		return "Port A";
+	case PORT_B:
+		return "Port B";
+	case PORT_C:
+		return "Port C";
+	case PORT_D:
+		return "Port D";
+	case PORT_E:
+		return "Port E";
+	case PORT_F:
+		return "Port F";
+	default:
+		return "<invalid>";
+	}
+}
+
+enum tc_port {
+	PORT_TC_NONE = -1,
+
+	PORT_TC1 = 0,
+	PORT_TC2,
+	PORT_TC3,
+	PORT_TC4,
+
+	I915_MAX_TC_PORTS
+};
+
+enum tc_port_type {
+	TC_PORT_UNKNOWN = 0,
+	TC_PORT_TYPEC,
+	TC_PORT_TBT,
+	TC_PORT_LEGACY,
+};
+
 enum dpio_channel {
 	DPIO_CH0,
 	DPIO_CH1
@@ -144,7 +204,7 @@ enum aux_ch {
 	AUX_CH_B,
 	AUX_CH_C,
 	AUX_CH_D,
-	_AUX_CH_E, /* does not exist */
+	AUX_CH_E, /* ICL+ */
 	AUX_CH_F,
 };
 
@@ -185,8 +245,13 @@ enum intel_display_power_domain {
 	POWER_DOMAIN_AUX_B,
 	POWER_DOMAIN_AUX_C,
 	POWER_DOMAIN_AUX_D,
+	POWER_DOMAIN_AUX_E,
 	POWER_DOMAIN_AUX_F,
 	POWER_DOMAIN_AUX_IO_A,
+	POWER_DOMAIN_AUX_TBT1,
+	POWER_DOMAIN_AUX_TBT2,
+	POWER_DOMAIN_AUX_TBT3,
+	POWER_DOMAIN_AUX_TBT4,
 	POWER_DOMAIN_GMBUS,
 	POWER_DOMAIN_MODESET,
 	POWER_DOMAIN_GT_IRQ,
@@ -218,6 +283,10 @@ struct intel_link_m_n {
 	for ((__p) = 0; (__p) < INTEL_INFO(__dev_priv)->num_pipes; (__p)++) \
 		for_each_if((__mask) & BIT(__p))
 
+#define for_each_cpu_transcoder_masked(__dev_priv, __t, __mask) \
+	for ((__t) = 0; (__t) < I915_MAX_TRANSCODERS; (__t)++)	\
+		for_each_if ((__mask) & (1 << (__t)))
+
 #define for_each_universal_plane(__dev_priv, __pipe, __p)		\
 	for ((__p) = 0;							\
 	     (__p) < INTEL_INFO(__dev_priv)->num_sprites[(__pipe)] + 1;	\
@@ -245,7 +314,7 @@ struct intel_link_m_n {
 			    &(dev)->mode_config.plane_list,		\
 			    base.head)					\
 		for_each_if((plane_mask) &				\
-			    BIT(drm_plane_index(&intel_plane->base)))
+			    drm_plane_mask(&intel_plane->base)))
 
 #define for_each_intel_plane_on_crtc(dev, intel_crtc, intel_plane)	\
 	list_for_each_entry(intel_plane,				\
@@ -262,12 +331,16 @@ struct intel_link_m_n {
 	list_for_each_entry(intel_crtc,					\
 			    &(dev)->mode_config.crtc_list,		\
 			    base.head)					\
-		for_each_if((crtc_mask) & BIT(drm_crtc_index(&intel_crtc->base)))
+		for_each_if((crtc_mask) & drm_crtc_mask(&intel_crtc->base))
 
 #define for_each_intel_encoder(dev, intel_encoder)		\
 	list_for_each_entry(intel_encoder,			\
 			    &(dev)->mode_config.encoder_list,	\
 			    base.head)
+
+#define for_each_intel_dp(dev, intel_encoder)			\
+	for_each_intel_encoder(dev, intel_encoder)		\
+		for_each_if(intel_encoder_is_dp(intel_encoder))
 
 #define for_each_intel_connector_iter(intel_connector, iter) \
 	while ((intel_connector = to_intel_connector(drm_connector_list_iter_next(iter))))
@@ -298,11 +371,11 @@ struct intel_link_m_n {
 
 #define for_each_power_domain_well(__dev_priv, __power_well, __domain_mask)	\
 	for_each_power_well(__dev_priv, __power_well)				\
-		for_each_if((__power_well)->domains & (__domain_mask))
+		for_each_if((__power_well)->desc->domains & (__domain_mask))
 
 #define for_each_power_domain_well_rev(__dev_priv, __power_well, __domain_mask) \
 	for_each_power_well_rev(__dev_priv, __power_well)		        \
-		for_each_if((__power_well)->domains & (__domain_mask))
+		for_each_if((__power_well)->desc->domains & (__domain_mask))
 
 #define for_each_new_intel_plane_in_state(__state, plane, new_plane_state, __i) \
 	for ((__i) = 0; \
@@ -332,6 +405,7 @@ struct intel_link_m_n {
 void intel_link_compute_m_n(int bpp, int nlanes,
 			    int pixel_clock, int link_clock,
 			    struct intel_link_m_n *m_n,
-			    bool reduce_m_n);
+			    bool constant_n);
 
+bool is_ccs_modifier(u64 modifier);
 #endif

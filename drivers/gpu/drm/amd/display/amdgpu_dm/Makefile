@@ -28,11 +28,11 @@
 AMDGPUDM = amdgpu_dm.o amdgpu_dm_irq.o amdgpu_dm_mst_types.o amdgpu_dm_color.o
 
 ifneq ($(CONFIG_DRM_AMD_DC),)
-AMDGPUDM += amdgpu_dm_services.o amdgpu_dm_helpers.o
+AMDGPUDM += amdgpu_dm_services.o amdgpu_dm_helpers.o amdgpu_dm_pp_smu.o
 endif
 
 ifneq ($(CONFIG_DEBUG_FS),)
-AMDGPUDM += amdgpu_dm_crc.o
+AMDGPUDM += amdgpu_dm_crc.o amdgpu_dm_debugfs.o
 endif
 
 subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/dc

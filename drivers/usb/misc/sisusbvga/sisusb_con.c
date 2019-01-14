@@ -1243,7 +1243,7 @@ sisusbcon_font_set(struct vc_data *c, struct console_font *font,
 	}
 
 	if (!sisusb->font_backup)
-		sisusb->font_backup = vmalloc(charcount * 32);
+		sisusb->font_backup = vmalloc(array_size(charcount, 32));
 
 	if (sisusb->font_backup) {
 		memcpy(sisusb->font_backup, font->data, charcount * 32);

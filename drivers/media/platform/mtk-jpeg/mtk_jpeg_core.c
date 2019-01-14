@@ -94,8 +94,8 @@ static int mtk_jpeg_querycap(struct file *file, void *priv,
 {
 	struct mtk_jpeg_dev *jpeg = video_drvdata(file);
 
-	strlcpy(cap->driver, MTK_JPEG_NAME " decoder", sizeof(cap->driver));
-	strlcpy(cap->card, MTK_JPEG_NAME " decoder", sizeof(cap->card));
+	strscpy(cap->driver, MTK_JPEG_NAME " decoder", sizeof(cap->driver));
+	strscpy(cap->card, MTK_JPEG_NAME " decoder", sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
 		 dev_name(jpeg->dev));
 
@@ -861,14 +861,9 @@ static int mtk_jpeg_job_ready(void *priv)
 	return (ctx->state == MTK_JPEG_RUNNING) ? 1 : 0;
 }
 
-static void mtk_jpeg_job_abort(void *priv)
-{
-}
-
 static const struct v4l2_m2m_ops mtk_jpeg_m2m_ops = {
 	.device_run = mtk_jpeg_device_run,
 	.job_ready  = mtk_jpeg_job_ready,
-	.job_abort  = mtk_jpeg_job_abort,
 };
 
 static int mtk_jpeg_queue_init(void *priv, struct vb2_queue *src_vq,
@@ -1084,10 +1079,7 @@ static int mtk_jpeg_clk_init(struct mtk_jpeg_dev *jpeg)
 		return PTR_ERR(jpeg->clk_jdec);
 
 	jpeg->clk_jdec_smi = devm_clk_get(jpeg->dev, "jpgdec-smi");
-	if (IS_ERR(jpeg->clk_jdec_smi))
-		return PTR_ERR(jpeg->clk_jdec_smi);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(jpeg->clk_jdec_smi);
 }
 
 static int mtk_jpeg_probe(struct platform_device *pdev)

@@ -284,6 +284,8 @@ MODULE_DEVICE_TABLE(of, dw_dma_of_id_table);
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id dw_dma_acpi_id_table[] = {
 	{ "INTL9C60", 0 },
+	{ "80862286", 0 },
+	{ "808622C0", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, dw_dma_acpi_id_table);
@@ -293,8 +295,7 @@ MODULE_DEVICE_TABLE(acpi, dw_dma_acpi_id_table);
 
 static int dw_suspend_late(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct dw_dma_chip *chip = platform_get_drvdata(pdev);
+	struct dw_dma_chip *chip = dev_get_drvdata(dev);
 
 	dw_dma_disable(chip);
 	clk_disable_unprepare(chip->clk);
@@ -304,8 +305,7 @@ static int dw_suspend_late(struct device *dev)
 
 static int dw_resume_early(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct dw_dma_chip *chip = platform_get_drvdata(pdev);
+	struct dw_dma_chip *chip = dev_get_drvdata(dev);
 	int ret;
 
 	ret = clk_prepare_enable(chip->clk);

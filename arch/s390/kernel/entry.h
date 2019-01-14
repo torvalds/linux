@@ -58,6 +58,7 @@ void do_notify_resume(struct pt_regs *regs);
 void __init init_IRQ(void);
 void do_IRQ(struct pt_regs *regs, int irq);
 void do_restart(void);
+void __init startup_init_nobss(void);
 void __init startup_init(void);
 void die(struct pt_regs *regs, const char *str);
 int setup_profiling_timer(unsigned int multiplier);
@@ -82,8 +83,10 @@ long sys_s390_sthyi(unsigned long function_code, void __user *buffer, u64 __user
 
 DECLARE_PER_CPU(u64, mt_cycles[8]);
 
-void verify_facilities(void);
 void gs_load_bc_cb(struct pt_regs *regs);
 void set_fs_fixup(void);
+
+unsigned long stack_alloc(void);
+void stack_free(unsigned long stack);
 
 #endif /* _ENTRY_H */

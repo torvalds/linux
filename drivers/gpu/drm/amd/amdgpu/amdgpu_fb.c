@@ -33,6 +33,7 @@
 #include <drm/amdgpu_drm.h>
 #include "amdgpu.h"
 #include "cikd.h"
+#include "amdgpu_gem.h"
 
 #include <drm/drm_fb_helper.h>
 
@@ -137,7 +138,7 @@ static int amdgpufb_create_pinned_object(struct amdgpu_fbdev *rfbdev,
 	/* need to align pitch with crtc limits */
 	mode_cmd->pitches[0] = amdgpu_align_pitch(adev, mode_cmd->width, cpp,
 						  fb_tiled);
-	domain = amdgpu_display_framebuffer_domains(adev);
+	domain = amdgpu_display_supported_domains(adev);
 
 	height = ALIGN(mode_cmd->height, 8);
 	size = mode_cmd->pitches[0] * height;
@@ -146,7 +147,7 @@ static int amdgpufb_create_pinned_object(struct amdgpu_fbdev *rfbdev,
 				       AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
 				       AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS |
 				       AMDGPU_GEM_CREATE_VRAM_CLEARED,
-				       true, NULL, &gobj);
+				       ttm_bo_type_kernel, NULL, &gobj);
 	if (ret) {
 		pr_err("failed to allocate framebuffer (%d)\n", aligned_size);
 		return -ENOMEM;
@@ -168,11 +169,19 @@ static int amdgpufb_create_pinned_object(struct amdgpu_fbdev *rfbdev,
 	}
 
 
-	ret = amdgpu_bo_pin(abo, domain, NULL);
+	ret = amdgpu_bo_pin(abo, domain);
 	if (ret) {
 		amdgpu_bo_unreserve(abo);
 		goto out_unref;
 	}
+
+	ret = amdgpu_ttm_alloc_gart(&abo->tbo);
+	if (ret) {
+		amdgpu_bo_unreserve(abo);
+		dev_err(adev->dev, "%p bind failed\n", abo);
+		goto out_unref;
+	}
+
 	ret = amdgpu_bo_kmap(abo, NULL);
 	amdgpu_bo_unreserve(abo);
 	if (ret) {
@@ -292,9 +301,9 @@ static int amdgpu_fbdev_destroy(struct drm_device *dev, struct amdgpu_fbdev *rfb
 
 	drm_fb_helper_unregister_fbi(&rfbdev->helper);
 
-	if (rfb->obj) {
-		amdgpufb_destroy_pinned_object(rfb->obj);
-		rfb->obj = NULL;
+	if (rfb->base.obj[0]) {
+		amdgpufb_destroy_pinned_object(rfb->base.obj[0]);
+		rfb->base.obj[0] = NULL;
 		drm_framebuffer_unregister_private(&rfb->base);
 		drm_framebuffer_cleanup(&rfb->base);
 	}
@@ -365,8 +374,8 @@ void amdgpu_fbdev_fini(struct amdgpu_device *adev)
 void amdgpu_fbdev_set_suspend(struct amdgpu_device *adev, int state)
 {
 	if (adev->mode_info.rfbdev)
-		drm_fb_helper_set_suspend(&adev->mode_info.rfbdev->helper,
-			state);
+		drm_fb_helper_set_suspend_unlocked(&adev->mode_info.rfbdev->helper,
+						   state);
 }
 
 int amdgpu_fbdev_total_size(struct amdgpu_device *adev)
@@ -377,7 +386,7 @@ int amdgpu_fbdev_total_size(struct amdgpu_device *adev)
 	if (!adev->mode_info.rfbdev)
 		return 0;
 
-	robj = gem_to_amdgpu_bo(adev->mode_info.rfbdev->rfb.obj);
+	robj = gem_to_amdgpu_bo(adev->mode_info.rfbdev->rfb.base.obj[0]);
 	size += amdgpu_bo_size(robj);
 	return size;
 }
@@ -386,7 +395,7 @@ bool amdgpu_fbdev_robj_is_fb(struct amdgpu_device *adev, struct amdgpu_bo *robj)
 {
 	if (!adev->mode_info.rfbdev)
 		return false;
-	if (robj == gem_to_amdgpu_bo(adev->mode_info.rfbdev->rfb.obj))
+	if (robj == gem_to_amdgpu_bo(adev->mode_info.rfbdev->rfb.base.obj[0]))
 		return true;
 	return false;
 }

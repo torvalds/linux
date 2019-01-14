@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2006-2007 Silicon Graphics, Inc.
  * Copyright (c) 2014 Christoph Hellwig.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
 #include "xfs_format.h"
@@ -31,6 +19,8 @@
 #include "xfs_filestream.h"
 #include "xfs_trace.h"
 #include "xfs_ag_resv.h"
+#include "xfs_trans.h"
+#include "xfs_shared.h"
 
 struct xfs_fstrm_item {
 	struct xfs_mru_cache_elem	mru;
@@ -351,7 +341,7 @@ xfs_filestream_lookup_ag(
 	if (xfs_filestream_pick_ag(pip, startag, &ag, 0, 0))
 		ag = NULLAGNUMBER;
 out:
-	IRELE(pip);
+	xfs_irele(pip);
 	return ag;
 }
 
@@ -389,7 +379,7 @@ xfs_filestream_new_ag(
 
 	if (xfs_alloc_is_userdata(ap->datatype))
 		flags |= XFS_PICK_USERDATA;
-	if (ap->dfops->dop_low)
+	if (ap->tp->t_flags & XFS_TRANS_LOWMODE)
 		flags |= XFS_PICK_LOWSPACE;
 
 	err = xfs_filestream_pick_ag(pip, startag, agp, flags, minlen);
@@ -400,7 +390,7 @@ xfs_filestream_new_ag(
 	if (mru)
 		xfs_fstrm_free_func(mp, mru);
 
-	IRELE(pip);
+	xfs_irele(pip);
 exit:
 	if (*agp == NULLAGNUMBER)
 		*agp = 0;

@@ -1,0 +1,150 @@
+# SPDX-License-Identifier: GPL-2.0
+
+config EROFS_FS
+	tristate "EROFS filesystem support"
+	depends on BLOCK
+	help
+	  EROFS(Enhanced Read-Only File System) is a lightweight
+	  read-only file system with modern designs (eg. page-sized
+	  blocks, inline xattrs/data, etc.) for scenarios which need
+	  high-performance read-only requirements, eg. firmwares in
+	  mobile phone or LIVECDs.
+
+	  It also provides VLE compression support, focusing on
+	  random read improvements, keeping relatively lower
+	  compression ratios, which is useful for high-performance
+	  devices with limited memory and ROM space.
+
+	  If unsure, say N.
+
+config EROFS_FS_DEBUG
+	bool "EROFS debugging feature"
+	depends on EROFS_FS
+	help
+	  Print EROFS debugging messages and enable more BUG_ONs
+	  which check the filesystem consistency aggressively.
+
+	  For daily use, say N.
+
+config EROFS_FS_XATTR
+	bool "EROFS extended attributes"
+	depends on EROFS_FS
+	default y
+	help
+	  Extended attributes are name:value pairs associated with inodes by
+	  the kernel or by users (see the attr(5) manual page, or visit
+	  <http://acl.bestbits.at/> for details).
+
+	  If unsure, say N.
+
+config EROFS_FS_POSIX_ACL
+	bool "EROFS Access Control Lists"
+	depends on EROFS_FS_XATTR
+	select FS_POSIX_ACL
+	default y
+	help
+	  Posix Access Control Lists (ACLs) support permissions for users and
+	  groups beyond the owner/group/world scheme.
+
+	  To learn more about Access Control Lists, visit the POSIX ACLs for
+	  Linux website <http://acl.bestbits.at/>.
+
+	  If you don't know what Access Control Lists are, say N.
+
+config EROFS_FS_SECURITY
+	bool "EROFS Security Labels"
+	depends on EROFS_FS_XATTR
+	help
+	  Security labels provide an access control facility to support Linux
+	  Security Models (LSMs) accepted by AppArmor, SELinux, Smack and TOMOYO
+	  Linux. This option enables an extended attribute handler for file
+	  security labels in the erofs filesystem, so that it requires enabling
+	  the extended attribute support in advance.
+
+	  If you are not using a security module, say N.
+
+config EROFS_FS_USE_VM_MAP_RAM
+	bool "EROFS VM_MAP_RAM Support"
+	depends on EROFS_FS
+	help
+	  use vm_map_ram/vm_unmap_ram instead of vmap/vunmap.
+
+	  If you don't know what these are, say N.
+
+config EROFS_FAULT_INJECTION
+	bool "EROFS fault injection facility"
+	depends on EROFS_FS
+	help
+	  Test EROFS to inject faults such as ENOMEM, EIO, and so on.
+	  If unsure, say N.
+
+config EROFS_FS_IO_MAX_RETRIES
+	int "EROFS IO Maximum Retries"
+	depends on EROFS_FS
+	default "5"
+	help
+	  Maximum retry count of IO Errors.
+
+	  If unsure, leave the default value (5 retries, 6 IOs at most).
+
+config EROFS_FS_ZIP
+	bool "EROFS Data Compresssion Support"
+	depends on EROFS_FS
+	help
+	  Currently we support VLE Compression only.
+	  Play at your own risk.
+
+	  If you don't want to use compression feature, say N.
+
+config EROFS_FS_CLUSTER_PAGE_LIMIT
+	int "EROFS Cluster Pages Hard Limit"
+	depends on EROFS_FS_ZIP
+	range 1 256
+	default "1"
+	help
+	  Indicates VLE compressed pages hard limit of a
+	  compressed cluster.
+
+	  For example, if files of a image are compressed
+	  into 8k-unit, the hard limit should not be less
+	  than 2. Otherwise, the image cannot be mounted
+	  correctly on this kernel.
+
+choice
+	prompt "EROFS VLE Data Decompression mode"
+	depends on EROFS_FS_ZIP
+	default EROFS_FS_ZIP_CACHE_BIPOLAR
+	help
+	  EROFS supports three options for VLE decompression.
+	  "In-place Decompression Only" consumes the minimum memory
+	  with lowest random read.
+
+	  "Bipolar Cached Decompression" consumes the maximum memory
+	  with highest random read.
+
+	  If unsure, select "Bipolar Cached Decompression"
+
+config EROFS_FS_ZIP_NO_CACHE
+	bool "In-place Decompression Only"
+	help
+	  Read compressed data into page cache and do in-place
+	  decompression directly.
+
+config EROFS_FS_ZIP_CACHE_UNIPOLAR
+	bool "Unipolar Cached Decompression"
+	help
+	  For each request, it caches the last compressed page
+	  for further reading.
+	  It still decompresses in place for the rest compressed pages.
+
+config EROFS_FS_ZIP_CACHE_BIPOLAR
+	bool "Bipolar Cached Decompression"
+	help
+	  For each request, it caches the both end compressed pages
+	  for further reading.
+	  It still decompresses in place for the rest compressed pages.
+
+	  Recommended for performance priority.
+
+endchoice
+

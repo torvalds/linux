@@ -2,9 +2,8 @@
 // Copyright (C) 2005-2017 Andes Technology Corporation
 
 #include <linux/cpu.h>
-#include <linux/bootmem.h>
-#include <linux/seq_file.h>
 #include <linux/memblock.h>
+#include <linux/seq_file.h>
 #include <linux/console.h>
 #include <linux/screen_info.h>
 #include <linux/delay.h>
@@ -278,7 +277,8 @@ static void __init setup_memory(void)
 
 void __init setup_arch(char **cmdline_p)
 {
-	early_init_devtree( __dtb_start);
+	early_init_devtree(__atags_pointer ? \
+		phys_to_virt(__atags_pointer) : __dtb_start);
 
 	setup_cpuinfo();
 

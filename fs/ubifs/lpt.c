@@ -225,21 +225,22 @@ static int calc_dflt_lpt_geom(struct ubifs_info *c, int *main_lebs,
 
 /**
  * pack_bits - pack bit fields end-to-end.
+ * @c: UBIFS file-system description object
  * @addr: address at which to pack (passed and next address returned)
  * @pos: bit position at which to pack (passed and next position returned)
  * @val: value to pack
  * @nrbits: number of bits of value to pack (1-32)
  */
-static void pack_bits(uint8_t **addr, int *pos, uint32_t val, int nrbits)
+static void pack_bits(const struct ubifs_info *c, uint8_t **addr, int *pos, uint32_t val, int nrbits)
 {
 	uint8_t *p = *addr;
 	int b = *pos;
 
-	ubifs_assert(nrbits > 0);
-	ubifs_assert(nrbits <= 32);
-	ubifs_assert(*pos >= 0);
-	ubifs_assert(*pos < 8);
-	ubifs_assert((val >> nrbits) == 0 || nrbits == 32);
+	ubifs_assert(c, nrbits > 0);
+	ubifs_assert(c, nrbits <= 32);
+	ubifs_assert(c, *pos >= 0);
+	ubifs_assert(c, *pos < 8);
+	ubifs_assert(c, (val >> nrbits) == 0 || nrbits == 32);
 	if (b) {
 		*p |= ((uint8_t)val) << b;
 		nrbits += b;
@@ -274,13 +275,14 @@ static void pack_bits(uint8_t **addr, int *pos, uint32_t val, int nrbits)
 
 /**
  * ubifs_unpack_bits - unpack bit fields.
+ * @c: UBIFS file-system description object
  * @addr: address at which to unpack (passed and next address returned)
  * @pos: bit position at which to unpack (passed and next position returned)
  * @nrbits: number of bits of value to unpack (1-32)
  *
  * This functions returns the value unpacked.
  */
-uint32_t ubifs_unpack_bits(uint8_t **addr, int *pos, int nrbits)
+uint32_t ubifs_unpack_bits(const struct ubifs_info *c, uint8_t **addr, int *pos, int nrbits)
 {
 	const int k = 32 - nrbits;
 	uint8_t *p = *addr;
@@ -288,10 +290,10 @@ uint32_t ubifs_unpack_bits(uint8_t **addr, int *pos, int nrbits)
 	uint32_t uninitialized_var(val);
 	const int bytes = (nrbits + b + 7) >> 3;
 
-	ubifs_assert(nrbits > 0);
-	ubifs_assert(nrbits <= 32);
-	ubifs_assert(*pos >= 0);
-	ubifs_assert(*pos < 8);
+	ubifs_assert(c, nrbits > 0);
+	ubifs_assert(c, nrbits <= 32);
+	ubifs_assert(c, *pos >= 0);
+	ubifs_assert(c, *pos < 8);
 	if (b) {
 		switch (bytes) {
 		case 2:
@@ -337,7 +339,7 @@ uint32_t ubifs_unpack_bits(uint8_t **addr, int *pos, int nrbits)
 	p += nrbits >> 3;
 	*addr = p;
 	*pos = b;
-	ubifs_assert((val >> nrbits) == 0 || nrbits - b == 32);
+	ubifs_assert(c, (val >> nrbits) == 0 || nrbits - b == 32);
 	return val;
 }
 
@@ -354,24 +356,24 @@ void ubifs_pack_pnode(struct ubifs_info *c, void *buf,
 	int i, pos = 0;
 	uint16_t crc;
 
-	pack_bits(&addr, &pos, UBIFS_LPT_PNODE, UBIFS_LPT_TYPE_BITS);
+	pack_bits(c, &addr, &pos, UBIFS_LPT_PNODE, UBIFS_LPT_TYPE_BITS);
 	if (c->big_lpt)
-		pack_bits(&addr, &pos, pnode->num, c->pcnt_bits);
+		pack_bits(c, &addr, &pos, pnode->num, c->pcnt_bits);
 	for (i = 0; i < UBIFS_LPT_FANOUT; i++) {
-		pack_bits(&addr, &pos, pnode->lprops[i].free >> 3,
+		pack_bits(c, &addr, &pos, pnode->lprops[i].free >> 3,
 			  c->space_bits);
-		pack_bits(&addr, &pos, pnode->lprops[i].dirty >> 3,
+		pack_bits(c, &addr, &pos, pnode->lprops[i].dirty >> 3,
 			  c->space_bits);
 		if (pnode->lprops[i].flags & LPROPS_INDEX)
-			pack_bits(&addr, &pos, 1, 1);
+			pack_bits(c, &addr, &pos, 1, 1);
 		else
-			pack_bits(&addr, &pos, 0, 1);
+			pack_bits(c, &addr, &pos, 0, 1);
 	}
 	crc = crc16(-1, buf + UBIFS_LPT_CRC_BYTES,
 		    c->pnode_sz - UBIFS_LPT_CRC_BYTES);
 	addr = buf;
 	pos = 0;
-	pack_bits(&addr, &pos, crc, UBIFS_LPT_CRC_BITS);
+	pack_bits(c, &addr, &pos, crc, UBIFS_LPT_CRC_BITS);
 }
 
 /**
@@ -387,23 +389,23 @@ void ubifs_pack_nnode(struct ubifs_info *c, void *buf,
 	int i, pos = 0;
 	uint16_t crc;
 
-	pack_bits(&addr, &pos, UBIFS_LPT_NNODE, UBIFS_LPT_TYPE_BITS);
+	pack_bits(c, &addr, &pos, UBIFS_LPT_NNODE, UBIFS_LPT_TYPE_BITS);
 	if (c->big_lpt)
-		pack_bits(&addr, &pos, nnode->num, c->pcnt_bits);
+		pack_bits(c, &addr, &pos, nnode->num, c->pcnt_bits);
 	for (i = 0; i < UBIFS_LPT_FANOUT; i++) {
 		int lnum = nnode->nbranch[i].lnum;
 
 		if (lnum == 0)
 			lnum = c->lpt_last + 1;
-		pack_bits(&addr, &pos, lnum - c->lpt_first, c->lpt_lnum_bits);
-		pack_bits(&addr, &pos, nnode->nbranch[i].offs,
+		pack_bits(c, &addr, &pos, lnum - c->lpt_first, c->lpt_lnum_bits);
+		pack_bits(c, &addr, &pos, nnode->nbranch[i].offs,
 			  c->lpt_offs_bits);
 	}
 	crc = crc16(-1, buf + UBIFS_LPT_CRC_BYTES,
 		    c->nnode_sz - UBIFS_LPT_CRC_BYTES);
 	addr = buf;
 	pos = 0;
-	pack_bits(&addr, &pos, crc, UBIFS_LPT_CRC_BITS);
+	pack_bits(c, &addr, &pos, crc, UBIFS_LPT_CRC_BITS);
 }
 
 /**
@@ -419,16 +421,16 @@ void ubifs_pack_ltab(struct ubifs_info *c, void *buf,
 	int i, pos = 0;
 	uint16_t crc;
 
-	pack_bits(&addr, &pos, UBIFS_LPT_LTAB, UBIFS_LPT_TYPE_BITS);
+	pack_bits(c, &addr, &pos, UBIFS_LPT_LTAB, UBIFS_LPT_TYPE_BITS);
 	for (i = 0; i < c->lpt_lebs; i++) {
-		pack_bits(&addr, &pos, ltab[i].free, c->lpt_spc_bits);
-		pack_bits(&addr, &pos, ltab[i].dirty, c->lpt_spc_bits);
+		pack_bits(c, &addr, &pos, ltab[i].free, c->lpt_spc_bits);
+		pack_bits(c, &addr, &pos, ltab[i].dirty, c->lpt_spc_bits);
 	}
 	crc = crc16(-1, buf + UBIFS_LPT_CRC_BYTES,
 		    c->ltab_sz - UBIFS_LPT_CRC_BYTES);
 	addr = buf;
 	pos = 0;
-	pack_bits(&addr, &pos, crc, UBIFS_LPT_CRC_BITS);
+	pack_bits(c, &addr, &pos, crc, UBIFS_LPT_CRC_BITS);
 }
 
 /**
@@ -443,14 +445,14 @@ void ubifs_pack_lsave(struct ubifs_info *c, void *buf, int *lsave)
 	int i, pos = 0;
 	uint16_t crc;
 
-	pack_bits(&addr, &pos, UBIFS_LPT_LSAVE, UBIFS_LPT_TYPE_BITS);
+	pack_bits(c, &addr, &pos, UBIFS_LPT_LSAVE, UBIFS_LPT_TYPE_BITS);
 	for (i = 0; i < c->lsave_cnt; i++)
-		pack_bits(&addr, &pos, lsave[i], c->lnum_bits);
+		pack_bits(c, &addr, &pos, lsave[i], c->lnum_bits);
 	crc = crc16(-1, buf + UBIFS_LPT_CRC_BYTES,
 		    c->lsave_sz - UBIFS_LPT_CRC_BYTES);
 	addr = buf;
 	pos = 0;
-	pack_bits(&addr, &pos, crc, UBIFS_LPT_CRC_BITS);
+	pack_bits(c, &addr, &pos, crc, UBIFS_LPT_CRC_BITS);
 }
 
 /**
@@ -465,7 +467,7 @@ void ubifs_add_lpt_dirt(struct ubifs_info *c, int lnum, int dirty)
 		return;
 	dbg_lp("LEB %d add %d to %d",
 	       lnum, dirty, c->ltab[lnum - c->lpt_first].dirty);
-	ubifs_assert(lnum >= c->lpt_first && lnum <= c->lpt_last);
+	ubifs_assert(c, lnum >= c->lpt_first && lnum <= c->lpt_last);
 	c->ltab[lnum - c->lpt_first].dirty += dirty;
 }
 
@@ -481,7 +483,7 @@ static void set_ltab(struct ubifs_info *c, int lnum, int free, int dirty)
 	dbg_lp("LEB %d free %d dirty %d to %d %d",
 	       lnum, c->ltab[lnum - c->lpt_first].free,
 	       c->ltab[lnum - c->lpt_first].dirty, free, dirty);
-	ubifs_assert(lnum >= c->lpt_first && lnum <= c->lpt_last);
+	ubifs_assert(c, lnum >= c->lpt_first && lnum <= c->lpt_last);
 	c->ltab[lnum - c->lpt_first].free = free;
 	c->ltab[lnum - c->lpt_first].dirty = dirty;
 }
@@ -602,11 +604,12 @@ static int calc_pnode_num_from_parent(const struct ubifs_info *c,
  * @lpt_first: LEB number of first LPT LEB
  * @lpt_lebs: number of LEBs for LPT is passed and returned here
  * @big_lpt: use big LPT model is passed and returned here
+ * @hash: hash of the LPT is returned here
  *
  * This function returns %0 on success and a negative error code on failure.
  */
 int ubifs_create_dflt_lpt(struct ubifs_info *c, int *main_lebs, int lpt_first,
-			  int *lpt_lebs, int *big_lpt)
+			  int *lpt_lebs, int *big_lpt, u8 *hash)
 {
 	int lnum, err = 0, node_sz, iopos, i, j, cnt, len, alen, row;
 	int blnum, boffs, bsz, bcnt;
@@ -615,6 +618,7 @@ int ubifs_create_dflt_lpt(struct ubifs_info *c, int *main_lebs, int lpt_first,
 	void *buf = NULL, *p;
 	struct ubifs_lpt_lprops *ltab = NULL;
 	int *lsave = NULL;
+	struct shash_desc *desc;
 
 	err = calc_dflt_lpt_geom(c, main_lebs, big_lpt);
 	if (err)
@@ -628,17 +632,22 @@ int ubifs_create_dflt_lpt(struct ubifs_info *c, int *main_lebs, int lpt_first,
 	/* Needed by 'ubifs_pack_lsave()' */
 	c->main_first = c->leb_cnt - *main_lebs;
 
-	lsave = kmalloc(sizeof(int) * c->lsave_cnt, GFP_KERNEL);
+	desc = ubifs_hash_get_desc(c);
+	if (IS_ERR(desc))
+		return PTR_ERR(desc);
+
+	lsave = kmalloc_array(c->lsave_cnt, sizeof(int), GFP_KERNEL);
 	pnode = kzalloc(sizeof(struct ubifs_pnode), GFP_KERNEL);
 	nnode = kzalloc(sizeof(struct ubifs_nnode), GFP_KERNEL);
 	buf = vmalloc(c->leb_size);
-	ltab = vmalloc(sizeof(struct ubifs_lpt_lprops) * c->lpt_lebs);
+	ltab = vmalloc(array_size(sizeof(struct ubifs_lpt_lprops),
+				  c->lpt_lebs));
 	if (!pnode || !nnode || !buf || !ltab || !lsave) {
 		err = -ENOMEM;
 		goto out;
 	}
 
-	ubifs_assert(!c->ltab);
+	ubifs_assert(c, !c->ltab);
 	c->ltab = ltab; /* Needed by set_ltab */
 
 	/* Initialize LPT's own lprops */
@@ -674,6 +683,10 @@ int ubifs_create_dflt_lpt(struct ubifs_info *c, int *main_lebs, int lpt_first,
 
 	/* Add first pnode */
 	ubifs_pack_pnode(c, p, pnode);
+	err = ubifs_shash_update(c, desc, p, c->pnode_sz);
+	if (err)
+		goto out;
+
 	p += c->pnode_sz;
 	len = c->pnode_sz;
 	pnode->num += 1;
@@ -708,6 +721,10 @@ int ubifs_create_dflt_lpt(struct ubifs_info *c, int *main_lebs, int lpt_first,
 			len = 0;
 		}
 		ubifs_pack_pnode(c, p, pnode);
+		err = ubifs_shash_update(c, desc, p, c->pnode_sz);
+		if (err)
+			goto out;
+
 		p += c->pnode_sz;
 		len += c->pnode_sz;
 		/*
@@ -827,6 +844,10 @@ int ubifs_create_dflt_lpt(struct ubifs_info *c, int *main_lebs, int lpt_first,
 	if (err)
 		goto out;
 
+	err = ubifs_shash_final(c, desc, hash);
+	if (err)
+		goto out;
+
 	c->nhead_lnum = lnum;
 	c->nhead_offs = ALIGN(len, c->min_io_size);
 
@@ -850,6 +871,7 @@ int ubifs_create_dflt_lpt(struct ubifs_info *c, int *main_lebs, int lpt_first,
 		dbg_lp("LPT lsave is at %d:%d", c->lsave_lnum, c->lsave_offs);
 out:
 	c->ltab = NULL;
+	kfree(desc);
 	kfree(lsave);
 	vfree(ltab);
 	vfree(buf);
@@ -917,7 +939,7 @@ static int check_lpt_crc(const struct ubifs_info *c, void *buf, int len)
 	uint8_t *addr = buf;
 	uint16_t crc, calc_crc;
 
-	crc = ubifs_unpack_bits(&addr, &pos, UBIFS_LPT_CRC_BITS);
+	crc = ubifs_unpack_bits(c, &addr, &pos, UBIFS_LPT_CRC_BITS);
 	calc_crc = crc16(-1, buf + UBIFS_LPT_CRC_BYTES,
 			 len - UBIFS_LPT_CRC_BYTES);
 	if (crc != calc_crc) {
@@ -943,7 +965,7 @@ static int check_lpt_type(const struct ubifs_info *c, uint8_t **addr,
 {
 	int node_type;
 
-	node_type = ubifs_unpack_bits(addr, pos, UBIFS_LPT_TYPE_BITS);
+	node_type = ubifs_unpack_bits(c, addr, pos, UBIFS_LPT_TYPE_BITS);
 	if (node_type != type) {
 		ubifs_err(c, "invalid type (%d) in LPT node type %d",
 			  node_type, type);
@@ -971,16 +993,16 @@ static int unpack_pnode(const struct ubifs_info *c, void *buf,
 	if (err)
 		return err;
 	if (c->big_lpt)
-		pnode->num = ubifs_unpack_bits(&addr, &pos, c->pcnt_bits);
+		pnode->num = ubifs_unpack_bits(c, &addr, &pos, c->pcnt_bits);
 	for (i = 0; i < UBIFS_LPT_FANOUT; i++) {
 		struct ubifs_lprops * const lprops = &pnode->lprops[i];
 
-		lprops->free = ubifs_unpack_bits(&addr, &pos, c->space_bits);
+		lprops->free = ubifs_unpack_bits(c, &addr, &pos, c->space_bits);
 		lprops->free <<= 3;
-		lprops->dirty = ubifs_unpack_bits(&addr, &pos, c->space_bits);
+		lprops->dirty = ubifs_unpack_bits(c, &addr, &pos, c->space_bits);
 		lprops->dirty <<= 3;
 
-		if (ubifs_unpack_bits(&addr, &pos, 1))
+		if (ubifs_unpack_bits(c, &addr, &pos, 1))
 			lprops->flags = LPROPS_INDEX;
 		else
 			lprops->flags = 0;
@@ -1008,16 +1030,16 @@ int ubifs_unpack_nnode(const struct ubifs_info *c, void *buf,
 	if (err)
 		return err;
 	if (c->big_lpt)
-		nnode->num = ubifs_unpack_bits(&addr, &pos, c->pcnt_bits);
+		nnode->num = ubifs_unpack_bits(c, &addr, &pos, c->pcnt_bits);
 	for (i = 0; i < UBIFS_LPT_FANOUT; i++) {
 		int lnum;
 
-		lnum = ubifs_unpack_bits(&addr, &pos, c->lpt_lnum_bits) +
+		lnum = ubifs_unpack_bits(c, &addr, &pos, c->lpt_lnum_bits) +
 		       c->lpt_first;
 		if (lnum == c->lpt_last + 1)
 			lnum = 0;
 		nnode->nbranch[i].lnum = lnum;
-		nnode->nbranch[i].offs = ubifs_unpack_bits(&addr, &pos,
+		nnode->nbranch[i].offs = ubifs_unpack_bits(c, &addr, &pos,
 						     c->lpt_offs_bits);
 	}
 	err = check_lpt_crc(c, buf, c->nnode_sz);
@@ -1040,8 +1062,8 @@ static int unpack_ltab(const struct ubifs_info *c, void *buf)
 	if (err)
 		return err;
 	for (i = 0; i < c->lpt_lebs; i++) {
-		int free = ubifs_unpack_bits(&addr, &pos, c->lpt_spc_bits);
-		int dirty = ubifs_unpack_bits(&addr, &pos, c->lpt_spc_bits);
+		int free = ubifs_unpack_bits(c, &addr, &pos, c->lpt_spc_bits);
+		int dirty = ubifs_unpack_bits(c, &addr, &pos, c->lpt_spc_bits);
 
 		if (free < 0 || free > c->leb_size || dirty < 0 ||
 		    dirty > c->leb_size || free + dirty > c->leb_size)
@@ -1072,7 +1094,7 @@ static int unpack_lsave(const struct ubifs_info *c, void *buf)
 	if (err)
 		return err;
 	for (i = 0; i < c->lsave_cnt; i++) {
-		int lnum = ubifs_unpack_bits(&addr, &pos, c->lnum_bits);
+		int lnum = ubifs_unpack_bits(c, &addr, &pos, c->lnum_bits);
 
 		if (lnum < c->main_first || lnum >= c->leb_cnt)
 			return -EINVAL;
@@ -1436,26 +1458,25 @@ struct ubifs_pnode *ubifs_get_pnode(struct ubifs_info *c,
 }
 
 /**
- * ubifs_lpt_lookup - lookup LEB properties in the LPT.
+ * ubifs_pnode_lookup - lookup a pnode in the LPT.
  * @c: UBIFS file-system description object
- * @lnum: LEB number to lookup
+ * @i: pnode number (0 to (main_lebs - 1) / UBIFS_LPT_FANOUT)
  *
- * This function returns a pointer to the LEB properties on success or a
- * negative error code on failure.
+ * This function returns a pointer to the pnode on success or a negative
+ * error code on failure.
  */
-struct ubifs_lprops *ubifs_lpt_lookup(struct ubifs_info *c, int lnum)
+struct ubifs_pnode *ubifs_pnode_lookup(struct ubifs_info *c, int i)
 {
-	int err, i, h, iip, shft;
+	int err, h, iip, shft;
 	struct ubifs_nnode *nnode;
-	struct ubifs_pnode *pnode;
 
 	if (!c->nroot) {
 		err = ubifs_read_nnode(c, NULL, 0);
 		if (err)
 			return ERR_PTR(err);
 	}
+	i <<= UBIFS_LPT_FANOUT_SHIFT;
 	nnode = c->nroot;
-	i = lnum - c->main_first;
 	shft = c->lpt_hght * UBIFS_LPT_FANOUT_SHIFT;
 	for (h = 1; h < c->lpt_hght; h++) {
 		iip = ((i >> shft) & (UBIFS_LPT_FANOUT - 1));
@@ -1465,7 +1486,24 @@ struct ubifs_lprops *ubifs_lpt_lookup(struct ubifs_info *c, int lnum)
 			return ERR_CAST(nnode);
 	}
 	iip = ((i >> shft) & (UBIFS_LPT_FANOUT - 1));
-	pnode = ubifs_get_pnode(c, nnode, iip);
+	return ubifs_get_pnode(c, nnode, iip);
+}
+
+/**
+ * ubifs_lpt_lookup - lookup LEB properties in the LPT.
+ * @c: UBIFS file-system description object
+ * @lnum: LEB number to lookup
+ *
+ * This function returns a pointer to the LEB properties on success or a
+ * negative error code on failure.
+ */
+struct ubifs_lprops *ubifs_lpt_lookup(struct ubifs_info *c, int lnum)
+{
+	int i, iip;
+	struct ubifs_pnode *pnode;
+
+	i = lnum - c->main_first;
+	pnode = ubifs_pnode_lookup(c, i >> UBIFS_LPT_FANOUT_SHIFT);
 	if (IS_ERR(pnode))
 		return ERR_CAST(pnode);
 	iip = (i & (UBIFS_LPT_FANOUT - 1));
@@ -1514,7 +1552,7 @@ static struct ubifs_nnode *dirty_cow_nnode(struct ubifs_info *c,
 			branch->cnode->parent = n;
 	}
 
-	ubifs_assert(!test_bit(OBSOLETE_CNODE, &nnode->flags));
+	ubifs_assert(c, !test_bit(OBSOLETE_CNODE, &nnode->flags));
 	__set_bit(OBSOLETE_CNODE, &nnode->flags);
 
 	c->dirty_nn_cnt += 1;
@@ -1557,7 +1595,7 @@ static struct ubifs_pnode *dirty_cow_pnode(struct ubifs_info *c,
 	__clear_bit(COW_CNODE, &p->flags);
 	replace_cats(c, pnode, p);
 
-	ubifs_assert(!test_bit(OBSOLETE_CNODE, &pnode->flags));
+	ubifs_assert(c, !test_bit(OBSOLETE_CNODE, &pnode->flags));
 	__set_bit(OBSOLETE_CNODE, &pnode->flags);
 
 	c->dirty_pn_cnt += 1;
@@ -1612,8 +1650,133 @@ struct ubifs_lprops *ubifs_lpt_lookup_dirty(struct ubifs_info *c, int lnum)
 	dbg_lp("LEB %d, free %d, dirty %d, flags %d", lnum,
 	       pnode->lprops[iip].free, pnode->lprops[iip].dirty,
 	       pnode->lprops[iip].flags);
-	ubifs_assert(test_bit(DIRTY_CNODE, &pnode->flags));
+	ubifs_assert(c, test_bit(DIRTY_CNODE, &pnode->flags));
 	return &pnode->lprops[iip];
+}
+
+/**
+ * ubifs_lpt_calc_hash - Calculate hash of the LPT pnodes
+ * @c: UBIFS file-system description object
+ * @hash: the returned hash of the LPT pnodes
+ *
+ * This function iterates over the LPT pnodes and creates a hash over them.
+ * Returns 0 for success or a negative error code otherwise.
+ */
+int ubifs_lpt_calc_hash(struct ubifs_info *c, u8 *hash)
+{
+	struct ubifs_nnode *nnode, *nn;
+	struct ubifs_cnode *cnode;
+	struct shash_desc *desc;
+	int iip = 0, i;
+	int bufsiz = max_t(int, c->nnode_sz, c->pnode_sz);
+	void *buf;
+	int err;
+
+	if (!ubifs_authenticated(c))
+		return 0;
+
+	if (!c->nroot) {
+		err = ubifs_read_nnode(c, NULL, 0);
+		if (err)
+			return err;
+	}
+
+	desc = ubifs_hash_get_desc(c);
+	if (IS_ERR(desc))
+		return PTR_ERR(desc);
+
+	buf = kmalloc(bufsiz, GFP_NOFS);
+	if (!buf) {
+		err = -ENOMEM;
+		goto out;
+	}
+
+	cnode = (struct ubifs_cnode *)c->nroot;
+
+	while (cnode) {
+		nnode = cnode->parent;
+		nn = (struct ubifs_nnode *)cnode;
+		if (cnode->level > 1) {
+			while (iip < UBIFS_LPT_FANOUT) {
+				if (nn->nbranch[iip].lnum == 0) {
+					/* Go right */
+					iip++;
+					continue;
+				}
+
+				nnode = ubifs_get_nnode(c, nn, iip);
+				if (IS_ERR(nnode)) {
+					err = PTR_ERR(nnode);
+					goto out;
+				}
+
+				/* Go down */
+				iip = 0;
+				cnode = (struct ubifs_cnode *)nnode;
+				break;
+			}
+			if (iip < UBIFS_LPT_FANOUT)
+				continue;
+		} else {
+			struct ubifs_pnode *pnode;
+
+			for (i = 0; i < UBIFS_LPT_FANOUT; i++) {
+				if (nn->nbranch[i].lnum == 0)
+					continue;
+				pnode = ubifs_get_pnode(c, nn, i);
+				if (IS_ERR(pnode)) {
+					err = PTR_ERR(pnode);
+					goto out;
+				}
+
+				ubifs_pack_pnode(c, buf, pnode);
+				err = ubifs_shash_update(c, desc, buf,
+							 c->pnode_sz);
+				if (err)
+					goto out;
+			}
+		}
+		/* Go up and to the right */
+		iip = cnode->iip + 1;
+		cnode = (struct ubifs_cnode *)nnode;
+	}
+
+	err = ubifs_shash_final(c, desc, hash);
+out:
+	kfree(desc);
+	kfree(buf);
+
+	return err;
+}
+
+/**
+ * lpt_check_hash - check the hash of the LPT.
+ * @c: UBIFS file-system description object
+ *
+ * This function calculates a hash over all pnodes in the LPT and compares it with
+ * the hash stored in the master node. Returns %0 on success and a negative error
+ * code on failure.
+ */
+static int lpt_check_hash(struct ubifs_info *c)
+{
+	int err;
+	u8 hash[UBIFS_HASH_ARR_SZ];
+
+	if (!ubifs_authenticated(c))
+		return 0;
+
+	err = ubifs_lpt_calc_hash(c, hash);
+	if (err)
+		return err;
+
+	if (ubifs_check_hash(c, c->mst_node->hash_lpt, hash)) {
+		err = -EPERM;
+		ubifs_err(c, "Failed to authenticate LPT");
+	} else {
+		err = 0;
+	}
+
+	return err;
 }
 
 /**
@@ -1626,7 +1789,8 @@ static int lpt_init_rd(struct ubifs_info *c)
 {
 	int err, i;
 
-	c->ltab = vmalloc(sizeof(struct ubifs_lpt_lprops) * c->lpt_lebs);
+	c->ltab = vmalloc(array_size(sizeof(struct ubifs_lpt_lprops),
+				     c->lpt_lebs));
 	if (!c->ltab)
 		return -ENOMEM;
 
@@ -1636,21 +1800,27 @@ static int lpt_init_rd(struct ubifs_info *c)
 		return -ENOMEM;
 
 	for (i = 0; i < LPROPS_HEAP_CNT; i++) {
-		c->lpt_heap[i].arr = kmalloc(sizeof(void *) * LPT_HEAP_SZ,
-					     GFP_KERNEL);
+		c->lpt_heap[i].arr = kmalloc_array(LPT_HEAP_SZ,
+						   sizeof(void *),
+						   GFP_KERNEL);
 		if (!c->lpt_heap[i].arr)
 			return -ENOMEM;
 		c->lpt_heap[i].cnt = 0;
 		c->lpt_heap[i].max_cnt = LPT_HEAP_SZ;
 	}
 
-	c->dirty_idx.arr = kmalloc(sizeof(void *) * LPT_HEAP_SZ, GFP_KERNEL);
+	c->dirty_idx.arr = kmalloc_array(LPT_HEAP_SZ, sizeof(void *),
+					 GFP_KERNEL);
 	if (!c->dirty_idx.arr)
 		return -ENOMEM;
 	c->dirty_idx.cnt = 0;
 	c->dirty_idx.max_cnt = LPT_HEAP_SZ;
 
 	err = read_ltab(c);
+	if (err)
+		return err;
+
+	err = lpt_check_hash(c);
 	if (err)
 		return err;
 
@@ -1688,7 +1858,8 @@ static int lpt_init_wr(struct ubifs_info *c)
 {
 	int err, i;
 
-	c->ltab_cmt = vmalloc(sizeof(struct ubifs_lpt_lprops) * c->lpt_lebs);
+	c->ltab_cmt = vmalloc(array_size(sizeof(struct ubifs_lpt_lprops),
+					 c->lpt_lebs));
 	if (!c->ltab_cmt)
 		return -ENOMEM;
 
@@ -1697,7 +1868,7 @@ static int lpt_init_wr(struct ubifs_info *c)
 		return -ENOMEM;
 
 	if (c->big_lpt) {
-		c->lsave = kmalloc(sizeof(int) * c->lsave_cnt, GFP_NOFS);
+		c->lsave = kmalloc_array(c->lsave_cnt, sizeof(int), GFP_NOFS);
 		if (!c->lsave)
 			return -ENOMEM;
 		err = read_lsave(c);
@@ -1884,9 +2055,9 @@ static struct ubifs_pnode *scan_get_pnode(struct ubifs_info *c,
 			lprops->flags = ubifs_categorize_lprops(c, lprops);
 		}
 	} else {
-		ubifs_assert(branch->lnum >= c->lpt_first &&
+		ubifs_assert(c, branch->lnum >= c->lpt_first &&
 			     branch->lnum <= c->lpt_last);
-		ubifs_assert(branch->offs >= 0 && branch->offs < c->leb_size);
+		ubifs_assert(c, branch->offs >= 0 && branch->offs < c->leb_size);
 		err = ubifs_leb_read(c, branch->lnum, buf, branch->offs,
 				     c->pnode_sz, 1);
 		if (err)
@@ -1930,8 +2101,8 @@ int ubifs_lpt_scan_nolock(struct ubifs_info *c, int start_lnum, int end_lnum,
 			start_lnum = c->main_first;
 	}
 
-	ubifs_assert(start_lnum >= c->main_first && start_lnum < c->leb_cnt);
-	ubifs_assert(end_lnum >= c->main_first && end_lnum < c->leb_cnt);
+	ubifs_assert(c, start_lnum >= c->main_first && start_lnum < c->leb_cnt);
+	ubifs_assert(c, end_lnum >= c->main_first && end_lnum < c->leb_cnt);
 
 	if (!c->nroot) {
 		err = ubifs_read_nnode(c, NULL, 0);
@@ -1939,8 +2110,8 @@ int ubifs_lpt_scan_nolock(struct ubifs_info *c, int start_lnum, int end_lnum,
 			return err;
 	}
 
-	path = kmalloc(sizeof(struct lpt_scan_node) * (c->lpt_hght + 1),
-		       GFP_NOFS);
+	path = kmalloc_array(c->lpt_hght + 1, sizeof(struct lpt_scan_node),
+			     GFP_NOFS);
 	if (!path)
 		return -ENOMEM;
 
@@ -2050,7 +2221,7 @@ again:
 		iip = pnode->iip;
 		while (1) {
 			h -= 1;
-			ubifs_assert(h >= 0);
+			ubifs_assert(c, h >= 0);
 			nnode = path[h].ptr.nnode;
 			if (iip + 1 < UBIFS_LPT_FANOUT)
 				break;
@@ -2229,7 +2400,7 @@ int dbg_check_lpt_nodes(struct ubifs_info *c, struct ubifs_cnode *cnode,
 		return 0;
 
 	while (cnode) {
-		ubifs_assert(row >= 0);
+		ubifs_assert(c, row >= 0);
 		nnode = cnode->parent;
 		if (cnode->level) {
 			/* cnode is a nnode */

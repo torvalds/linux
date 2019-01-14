@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Marvell Berlin SoC pinctrl core driver
  *
  * Copyright (C) 2014 Marvell Technology Group Ltd.
  *
  * Antoine Ténart <antoine.tenart@free-electrons.com>
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2. This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 
 #include <linux/io.h>
@@ -67,16 +64,14 @@ static int berlin_pinctrl_dt_node_to_map(struct pinctrl_dev *pctrl_dev,
 	ret = of_property_read_string(node, "function", &function_name);
 	if (ret) {
 		dev_err(pctrl->dev,
-			"missing function property in node %s\n",
-			node->name);
+			"missing function property in node %pOFn\n", node);
 		return -EINVAL;
 	}
 
 	ngroups = of_property_count_strings(node, "groups");
 	if (ngroups < 0) {
 		dev_err(pctrl->dev,
-			"missing groups property in node %s\n",
-			node->name);
+			"missing groups property in node %pOFn\n", node);
 		return -EINVAL;
 	}
 
@@ -219,9 +214,8 @@ static int berlin_pinctrl_build_state(struct platform_device *pdev)
 	}
 
 	/* we will reallocate later */
-	pctrl->functions = devm_kzalloc(&pdev->dev,
-					max_functions * sizeof(*pctrl->functions),
-					GFP_KERNEL);
+	pctrl->functions = kcalloc(max_functions,
+				   sizeof(*pctrl->functions), GFP_KERNEL);
 	if (!pctrl->functions)
 		return -ENOMEM;
 
@@ -259,17 +253,22 @@ static int berlin_pinctrl_build_state(struct platform_device *pdev)
 				function++;
 			}
 
-			if (!found)
+			if (!found) {
+				kfree(pctrl->functions);
 				return -EINVAL;
+			}
 
 			if (!function->groups) {
 				function->groups =
-					devm_kzalloc(&pdev->dev,
-						     function->ngroups * sizeof(char *),
+					devm_kcalloc(&pdev->dev,
+						     function->ngroups,
+						     sizeof(char *),
 						     GFP_KERNEL);
 
-				if (!function->groups)
+				if (!function->groups) {
+					kfree(pctrl->functions);
 					return -ENOMEM;
+				}
 			}
 
 			groups = function->groups;

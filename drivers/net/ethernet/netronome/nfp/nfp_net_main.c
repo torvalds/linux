@@ -1,35 +1,5 @@
-/*
- * Copyright (C) 2015-2017 Netronome Systems, Inc.
- *
- * This software is dual licensed under the GNU General License Version 2,
- * June 1991 as shown in the file COPYING in the top-level directory of this
- * source tree or the BSD 2-Clause License provided below.  You have the
- * option to license this software under the complete terms of either license.
- *
- * The BSD 2-Clause License:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      1. Redistributions of source code must retain the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer.
- *
- *      2. Redistributions in binary form must reproduce the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer in the documentation and/or other materials
- *         provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/* Copyright (C) 2015-2018 Netronome Systems, Inc. */
 
 /*
  * nfp_net_main.c
@@ -101,48 +71,15 @@ nfp_net_find_port(struct nfp_eth_table *eth_tbl, unsigned int index)
 	return NULL;
 }
 
-static int
-nfp_net_pf_rtsym_read_optional(struct nfp_pf *pf, const char *format,
-			       unsigned int default_val)
-{
-	char name[256];
-	int err = 0;
-	u64 val;
-
-	snprintf(name, sizeof(name), format, nfp_cppcore_pcie_unit(pf->cpp));
-
-	val = nfp_rtsym_read_le(pf->rtbl, name, &err);
-	if (err) {
-		if (err == -ENOENT)
-			return default_val;
-		nfp_err(pf->cpp, "Unable to read symbol %s\n", name);
-		return err;
-	}
-
-	return val;
-}
-
 static int nfp_net_pf_get_num_ports(struct nfp_pf *pf)
 {
-	return nfp_net_pf_rtsym_read_optional(pf, "nfd_cfg_pf%u_num_ports", 1);
+	return nfp_pf_rtsym_read_optional(pf, "nfd_cfg_pf%u_num_ports", 1);
 }
 
 static int nfp_net_pf_get_app_id(struct nfp_pf *pf)
 {
-	return nfp_net_pf_rtsym_read_optional(pf, "_pf%u_net_app_id",
-					      NFP_APP_CORE_NIC);
-}
-
-static u8 __iomem *
-nfp_net_pf_map_rtsym(struct nfp_pf *pf, const char *name, const char *sym_fmt,
-		     unsigned int min_size, struct nfp_cpp_area **area)
-{
-	char pf_symbol[256];
-
-	snprintf(pf_symbol, sizeof(pf_symbol), sym_fmt,
-		 nfp_cppcore_pcie_unit(pf->cpp));
-
-	return nfp_rtsym_map(pf->rtbl, pf_symbol, name, min_size, area);
+	return nfp_pf_rtsym_read_optional(pf, "_pf%u_net_app_id",
+					  NFP_APP_CORE_NIC);
 }
 
 static void nfp_net_pf_free_vnic(struct nfp_pf *pf, struct nfp_net *nn)
@@ -211,11 +148,13 @@ nfp_net_pf_init_vnic(struct nfp_pf *pf, struct nfp_net *nn, unsigned int id)
 {
 	int err;
 
+	nn->id = id;
+
 	err = nfp_net_init(nn);
 	if (err)
 		return err;
 
-	nfp_net_debugfs_vnic_add(nn, pf->ddir, id);
+	nfp_net_debugfs_vnic_add(nn, pf->ddir);
 
 	if (nn->port) {
 		err = nfp_devlink_port_register(pf->app, nn->port);
@@ -379,9 +318,8 @@ nfp_net_pf_app_init(struct nfp_pf *pf, u8 __iomem *qc_bar, unsigned int stride)
 	if (!nfp_app_needs_ctrl_vnic(pf->app))
 		return 0;
 
-	ctrl_bar = nfp_net_pf_map_rtsym(pf, "net.ctrl", "_pf%u_net_ctrl_bar",
-					NFP_PF_CSR_SLICE_SIZE,
-					&pf->ctrl_vnic_bar);
+	ctrl_bar = nfp_pf_map_rtsym(pf, "net.ctrl", "_pf%u_net_ctrl_bar",
+				    NFP_PF_CSR_SLICE_SIZE, &pf->ctrl_vnic_bar);
 	if (IS_ERR(ctrl_bar)) {
 		nfp_err(pf->cpp, "Failed to find ctrl vNIC memory symbol\n");
 		err = PTR_ERR(ctrl_bar);
@@ -502,13 +440,13 @@ static void nfp_net_pci_unmap_mem(struct nfp_pf *pf)
 
 static int nfp_net_pci_map_mem(struct nfp_pf *pf)
 {
+	u32 min_size, cpp_id;
 	u8 __iomem *mem;
-	u32 min_size;
 	int err;
 
 	min_size = pf->max_data_vnics * NFP_PF_CSR_SLICE_SIZE;
-	mem = nfp_net_pf_map_rtsym(pf, "net.bar0", "_pf%d_net_bar0",
-				   min_size, &pf->data_vnic_bar);
+	mem = nfp_pf_map_rtsym(pf, "net.bar0", "_pf%d_net_bar0",
+			       min_size, &pf->data_vnic_bar);
 	if (IS_ERR(mem)) {
 		nfp_err(pf->cpp, "Failed to find data vNIC memory symbol\n");
 		return PTR_ERR(mem);
@@ -528,10 +466,9 @@ static int nfp_net_pci_map_mem(struct nfp_pf *pf)
 		}
 	}
 
-	pf->vf_cfg_mem = nfp_net_pf_map_rtsym(pf, "net.vfcfg",
-					      "_pf%d_net_vf_bar",
-					      NFP_NET_CFG_BAR_SZ *
-					      pf->limit_vfs, &pf->vf_cfg_bar);
+	pf->vf_cfg_mem = nfp_pf_map_rtsym(pf, "net.vfcfg", "_pf%d_net_vf_bar",
+					  NFP_NET_CFG_BAR_SZ * pf->limit_vfs,
+					  &pf->vf_cfg_bar);
 	if (IS_ERR(pf->vf_cfg_mem)) {
 		if (PTR_ERR(pf->vf_cfg_mem) != -ENOENT) {
 			err = PTR_ERR(pf->vf_cfg_mem);
@@ -541,9 +478,9 @@ static int nfp_net_pci_map_mem(struct nfp_pf *pf)
 	}
 
 	min_size = NFP_NET_VF_CFG_SZ * pf->limit_vfs + NFP_NET_VF_CFG_MB_SZ;
-	pf->vfcfg_tbl2 = nfp_net_pf_map_rtsym(pf, "net.vfcfg_tbl2",
-					      "_pf%d_net_vf_cfg2",
-					      min_size, &pf->vfcfg_tbl2_area);
+	pf->vfcfg_tbl2 = nfp_pf_map_rtsym(pf, "net.vfcfg_tbl2",
+					  "_pf%d_net_vf_cfg2",
+					  min_size, &pf->vfcfg_tbl2_area);
 	if (IS_ERR(pf->vfcfg_tbl2)) {
 		if (PTR_ERR(pf->vfcfg_tbl2) != -ENOENT) {
 			err = PTR_ERR(pf->vfcfg_tbl2);
@@ -552,9 +489,9 @@ static int nfp_net_pci_map_mem(struct nfp_pf *pf)
 		pf->vfcfg_tbl2 = NULL;
 	}
 
-	mem = nfp_cpp_map_area(pf->cpp, "net.qc", 0, 0,
-			       NFP_PCIE_QUEUE(0), NFP_QCP_QUEUE_AREA_SZ,
-			       &pf->qc_area);
+	cpp_id = NFP_CPP_ISLAND_ID(0, NFP_CPP_ACTION_RW, 0, 0);
+	mem = nfp_cpp_map_area(pf->cpp, "net.qc", cpp_id, NFP_PCIE_QUEUE(0),
+			       NFP_QCP_QUEUE_AREA_SZ, &pf->qc_area);
 	if (IS_ERR(mem)) {
 		nfp_err(pf->cpp, "Failed to map Queue Controller area.\n");
 		err = PTR_ERR(mem);
@@ -763,6 +700,10 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 	if (err)
 		goto err_app_clean;
 
+	err = nfp_shared_buf_register(pf);
+	if (err)
+		goto err_devlink_unreg;
+
 	mutex_lock(&pf->lock);
 	pf->ddir = nfp_net_debugfs_device_add(pf->pdev);
 
@@ -796,6 +737,8 @@ err_free_vnics:
 err_clean_ddir:
 	nfp_net_debugfs_dir_clean(&pf->ddir);
 	mutex_unlock(&pf->lock);
+	nfp_shared_buf_unregister(pf);
+err_devlink_unreg:
 	cancel_work_sync(&pf->port_refresh_work);
 	devlink_unregister(devlink);
 err_app_clean:
@@ -823,6 +766,7 @@ void nfp_net_pci_remove(struct nfp_pf *pf)
 
 	mutex_unlock(&pf->lock);
 
+	nfp_shared_buf_unregister(pf);
 	devlink_unregister(priv_to_devlink(pf));
 
 	nfp_net_pf_free_irqs(pf);

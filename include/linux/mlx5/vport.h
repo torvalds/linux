@@ -43,8 +43,6 @@ enum {
 };
 
 u8 mlx5_query_vport_state(struct mlx5_core_dev *mdev, u8 opmod, u16 vport);
-u8 mlx5_query_vport_admin_state(struct mlx5_core_dev *mdev, u8 opmod,
-				u16 vport);
 int mlx5_modify_vport_admin_state(struct mlx5_core_dev *mdev, u8 opmod,
 				  u16 vport, u8 state);
 int mlx5_query_nic_vport_mac_address(struct mlx5_core_dev *mdev,
@@ -123,4 +121,6 @@ int mlx5_nic_vport_query_local_lb(struct mlx5_core_dev *mdev, bool *status);
 int mlx5_nic_vport_affiliate_multiport(struct mlx5_core_dev *master_mdev,
 				       struct mlx5_core_dev *port_mdev);
 int mlx5_nic_vport_unaffiliate_multiport(struct mlx5_core_dev *port_mdev);
+
+u64 mlx5_query_nic_system_image_guid(struct mlx5_core_dev *mdev);
 #endif /* __MLX5_VPORT_H__ */

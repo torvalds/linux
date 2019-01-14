@@ -1,12 +1,8 @@
-/*
- * Copyright 2012 Steffen Trumtrar, Pengutronix
- *
- * based on imx27.dtsi
- *
- * This program is free software; you can redistribute it and/or modify it under
- * the terms of the GNU General Public License version 2 as published by the
- * Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright 2012 Steffen Trumtrar, Pengutronix
+//
+// based on imx27.dtsi
 
 #include "imx35-pinfunc.h"
 
@@ -137,7 +133,7 @@
 				status = "disabled";
 			};
 
-			spi1: cspi@43fa4000 {
+			spi1: spi@43fa4000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx35-cspi";
@@ -178,7 +174,7 @@
 				status = "disabled";
 			};
 
-			spi2: cspi@50010000 {
+			spi2: spi@50010000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx35-cspi";

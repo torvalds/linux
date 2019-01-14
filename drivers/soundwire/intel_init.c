@@ -111,6 +111,9 @@ static struct sdw_intel_ctx
 		link->res.shim = res->mmio_base + SDW_SHIM_BASE;
 		link->res.alh = res->mmio_base + SDW_ALH_BASE;
 
+		link->res.ops = res->ops;
+		link->res.arg = res->arg;
+
 		memset(&pdevinfo, 0, sizeof(pdevinfo));
 
 		pdevinfo.parent = res->parent;
@@ -148,7 +151,7 @@ static acpi_status sdw_intel_acpi_cb(acpi_handle handle, u32 level,
 	struct acpi_device *adev;
 
 	if (acpi_bus_get_device(handle, &adev)) {
-		dev_err(&adev->dev, "Couldn't find ACPI handle\n");
+		pr_err("%s: Couldn't find ACPI handle\n", __func__);
 		return AE_NOT_FOUND;
 	}
 

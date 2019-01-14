@@ -110,7 +110,7 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 		blocksize = 0x1000;
 
 	/* Alloc */
-	parts = kzalloc(sizeof(struct mtd_partition) * BCM47XXPART_MAX_PARTS,
+	parts = kcalloc(BCM47XXPART_MAX_PARTS, sizeof(struct mtd_partition),
 			GFP_KERNEL);
 	if (!parts)
 		return -ENOMEM;
@@ -186,6 +186,8 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 		/* TRX */
 		if (buf[0x000 / 4] == TRX_MAGIC) {
 			struct trx_header *trx;
+			uint32_t last_subpart;
+			uint32_t trx_size;
 
 			if (trx_num >= ARRAY_SIZE(trx_parts))
 				pr_warn("No enough space to store another TRX found at 0x%X\n",
@@ -195,11 +197,23 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 			bcm47xxpart_add_part(&parts[curr_part++], "firmware",
 					     offset, 0);
 
-			/* Jump to the end of TRX */
+			/*
+			 * Try to find TRX size. The "length" field isn't fully
+			 * reliable as it could be decreased to make CRC32 cover
+			 * only part of TRX data. It's commonly used as checksum
+			 * can't cover e.g. ever-changing rootfs partition.
+			 * Use offsets as helpers for assuming min TRX size.
+			 */
 			trx = (struct trx_header *)buf;
-			offset = roundup(offset + trx->length, blocksize);
-			/* Next loop iteration will increase the offset */
-			offset -= blocksize;
+			last_subpart = max3(trx->offset[0], trx->offset[1],
+					    trx->offset[2]);
+			trx_size = max(trx->length, last_subpart + blocksize);
+
+			/*
+			 * Skip the TRX data. Decrease offset by block size as
+			 * the next loop iteration will increase it.
+			 */
+			offset += roundup(trx_size, blocksize) - blocksize;
 			continue;
 		}
 
@@ -290,9 +304,16 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 	return curr_part;
 };
 
+static const struct of_device_id bcm47xxpart_of_match_table[] = {
+	{ .compatible = "brcm,bcm947xx-cfe-partitions" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, bcm47xxpart_of_match_table);
+
 static struct mtd_part_parser bcm47xxpart_mtd_parser = {
 	.parse_fn = bcm47xxpart_parse,
 	.name = "bcm47xxpart",
+	.of_match_table = bcm47xxpart_of_match_table,
 };
 module_mtd_part_parser(bcm47xxpart_mtd_parser);
 

@@ -190,21 +190,23 @@ static void sm4_do_crypt(const u32 *rk, u32 *out, const u32 *in)
 
 /* encrypt a block of text */
 
-static void sm4_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
+void crypto_sm4_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
 	const struct crypto_sm4_ctx *ctx = crypto_tfm_ctx(tfm);
 
 	sm4_do_crypt(ctx->rkey_enc, (u32 *)out, (u32 *)in);
 }
+EXPORT_SYMBOL_GPL(crypto_sm4_encrypt);
 
 /* decrypt a block of text */
 
-static void sm4_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
+void crypto_sm4_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
 	const struct crypto_sm4_ctx *ctx = crypto_tfm_ctx(tfm);
 
 	sm4_do_crypt(ctx->rkey_dec, (u32 *)out, (u32 *)in);
 }
+EXPORT_SYMBOL_GPL(crypto_sm4_decrypt);
 
 static struct crypto_alg sm4_alg = {
 	.cra_name		=	"sm4",
@@ -219,8 +221,8 @@ static struct crypto_alg sm4_alg = {
 			.cia_min_keysize	=	SM4_KEY_SIZE,
 			.cia_max_keysize	=	SM4_KEY_SIZE,
 			.cia_setkey		=	crypto_sm4_set_key,
-			.cia_encrypt		=	sm4_encrypt,
-			.cia_decrypt		=	sm4_decrypt
+			.cia_encrypt		=	crypto_sm4_encrypt,
+			.cia_decrypt		=	crypto_sm4_decrypt
 		}
 	}
 };

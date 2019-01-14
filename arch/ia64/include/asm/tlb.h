@@ -115,12 +115,11 @@ ia64_tlb_flush_mmu_tlbonly(struct mmu_gather *tlb, unsigned long start, unsigned
 		flush_tlb_all();
 	} else {
 		/*
-		 * XXX fix me: flush_tlb_range() should take an mm pointer instead of a
-		 * vma pointer.
+		 * flush_tlb_range() takes a vma instead of a mm pointer because
+		 * some architectures want the vm_flags for ITLB/DTLB flush.
 		 */
-		struct vm_area_struct vma;
+		struct vm_area_struct vma = TLB_FLUSH_VMA(tlb->mm, 0);
 
-		vma.vm_mm = tlb->mm;
 		/* flush the address range from the tlb: */
 		flush_tlb_range(&vma, start, end);
 		/* now flush the virt. page-table area mapping the address range: */

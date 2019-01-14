@@ -475,21 +475,37 @@ dwc3_ep_event_string(char *str, const struct dwc3_event_depevt *event,
 	if (ret < 0)
 		return "UNKNOWN";
 
+	status = event->status;
+
 	switch (event->endpoint_event) {
 	case DWC3_DEPEVT_XFERCOMPLETE:
-		strcat(str, "Transfer Complete");
+		len = strlen(str);
+		sprintf(str + len, "Transfer Complete (%c%c%c)",
+				status & DEPEVT_STATUS_SHORT ? 'S' : 's',
+				status & DEPEVT_STATUS_IOC ? 'I' : 'i',
+				status & DEPEVT_STATUS_LST ? 'L' : 'l');
+
 		len = strlen(str);
 
 		if (epnum <= 1)
 			sprintf(str + len, " [%s]", dwc3_ep0_state_string(ep0state));
 		break;
 	case DWC3_DEPEVT_XFERINPROGRESS:
-		strcat(str, "Transfer In-Progress");
+		len = strlen(str);
+
+		sprintf(str + len, "Transfer In Progress [%d] (%c%c%c)",
+				event->parameters,
+				status & DEPEVT_STATUS_SHORT ? 'S' : 's',
+				status & DEPEVT_STATUS_IOC ? 'I' : 'i',
+				status & DEPEVT_STATUS_LST ? 'M' : 'm');
 		break;
 	case DWC3_DEPEVT_XFERNOTREADY:
-		strcat(str, "Transfer Not Ready");
-		status = event->status & DEPEVT_STATUS_TRANSFER_ACTIVE;
-		strcat(str, status ? " (Active)" : " (Not Active)");
+		len = strlen(str);
+
+		sprintf(str + len, "Transfer Not Ready [%d]%s",
+				event->parameters,
+				status & DEPEVT_STATUS_TRANSFER_ACTIVE ?
+				" (Active)" : " (Not Active)");
 
 		/* Control Endpoints */
 		if (epnum <= 1) {

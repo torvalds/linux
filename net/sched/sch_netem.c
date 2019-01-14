@@ -68,6 +68,11 @@
 		 Fabio Ludovici <fabio.ludovici at yahoo.it>
 */
 
+struct disttable {
+	u32  size;
+	s16 table[0];
+};
+
 struct netem_sched_data {
 	/* internal t(ime)fifo qdisc uses t_root and sch->limit */
 	struct rb_root t_root;
@@ -99,10 +104,7 @@ struct netem_sched_data {
 		u32 rho;
 	} delay_cor, loss_cor, dup_cor, reorder_cor, corrupt_cor;
 
-	struct disttable {
-		u32  size;
-		s16 table[0];
-	} *delay_dist;
+	struct disttable *delay_dist;
 
 	enum  {
 		CLG_RANDOM,
@@ -142,6 +144,7 @@ struct netem_sched_data {
 		s32 bytes_left;
 	} slot;
 
+	struct disttable *slot_dist;
 };
 
 /* Time stamp put into socket buffer control block
@@ -180,7 +183,7 @@ static u32 get_crandom(struct crndstate *state)
 	u64 value, rho;
 	unsigned long answer;
 
-	if (state->rho == 0)	/* no correlation */
+	if (!state || state->rho == 0)	/* no correlation */
 		return prandom_u32();
 
 	value = prandom_u32();
@@ -409,16 +412,6 @@ static struct sk_buff *netem_segment(struct sk_buff *skb, struct Qdisc *sch,
 	return segs;
 }
 
-static void netem_enqueue_skb_head(struct qdisc_skb_head *qh, struct sk_buff *skb)
-{
-	skb->next = qh->head;
-
-	if (!qh->head)
-		qh->tail = skb;
-	qh->head = skb;
-	qh->qlen++;
-}
-
 /*
  * Insert one skb into qdisc.
  * Note: parent depends on return value to account for queue length.
@@ -437,6 +430,9 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	int nb = 0;
 	int count = 1;
 	int rc = NET_XMIT_SUCCESS;
+
+	/* Do not fool qdisc_drop_all() */
+	skb->prev = NULL;
 
 	/* Random duplication */
 	if (q->duplicate && q->duplicate >= get_crandom(&q->dup_cor))
@@ -567,7 +563,7 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 		cb->time_to_send = ktime_get_ns();
 		q->counter = 0;
 
-		netem_enqueue_skb_head(&sch->q, skb);
+		__qdisc_enqueue_head(skb, &sch->q);
 		sch->qstats.requeues++;
 	}
 
@@ -575,7 +571,7 @@ finish_segs:
 	if (segs) {
 		while (segs) {
 			skb2 = segs->next;
-			segs->next = NULL;
+			skb_mark_not_on_list(segs);
 			qdisc_skb_cb(segs)->pkt_len = segs->len;
 			last_len = segs->len;
 			rc = qdisc_enqueue(segs, sch, to_free);
@@ -601,10 +597,19 @@ finish_segs:
 
 static void get_slot_next(struct netem_sched_data *q, u64 now)
 {
-	q->slot.slot_next = now + q->slot_config.min_delay +
-		(prandom_u32() *
-			(q->slot_config.max_delay -
-				q->slot_config.min_delay) >> 32);
+	s64 next_delay;
+
+	if (!q->slot_dist)
+		next_delay = q->slot_config.min_delay +
+				(prandom_u32() *
+				 (q->slot_config.max_delay -
+				  q->slot_config.min_delay) >> 32);
+	else
+		next_delay = tabledist(q->slot_config.dist_delay,
+				       (s32)(q->slot_config.dist_jitter),
+				       NULL, q->slot_dist);
+
+	q->slot.slot_next = now + next_delay;
 	q->slot.packets_left = q->slot_config.max_packets;
 	q->slot.bytes_left = q->slot_config.max_bytes;
 }
@@ -645,15 +650,6 @@ deliver:
 			 * we need to restore its value.
 			 */
 			skb->dev = qdisc_dev(sch);
-
-#ifdef CONFIG_NET_CLS_ACT
-			/*
-			 * If it's at ingress let's pretend the delay is
-			 * from the network (tstamp will be updated).
-			 */
-			if (skb->tc_redirected && skb->tc_from_ingress)
-				skb->tstamp = 0;
-#endif
 
 			if (q->slot.slot_next) {
 				q->slot.packets_left--;
@@ -721,9 +717,9 @@ static void dist_free(struct disttable *d)
  * signed 16 bit values.
  */
 
-static int get_dist_table(struct Qdisc *sch, const struct nlattr *attr)
+static int get_dist_table(struct Qdisc *sch, struct disttable **tbl,
+			  const struct nlattr *attr)
 {
-	struct netem_sched_data *q = qdisc_priv(sch);
 	size_t n = nla_len(attr)/sizeof(__s16);
 	const __s16 *data = nla_data(attr);
 	spinlock_t *root_lock;
@@ -744,7 +740,7 @@ static int get_dist_table(struct Qdisc *sch, const struct nlattr *attr)
 	root_lock = qdisc_root_sleeping_lock(sch);
 
 	spin_lock_bh(root_lock);
-	swap(q->delay_dist, d);
+	swap(*tbl, d);
 	spin_unlock_bh(root_lock);
 
 	dist_free(d);
@@ -762,7 +758,8 @@ static void get_slot(struct netem_sched_data *q, const struct nlattr *attr)
 		q->slot_config.max_bytes = INT_MAX;
 	q->slot.packets_left = q->slot_config.max_packets;
 	q->slot.bytes_left = q->slot_config.max_bytes;
-	if (q->slot_config.min_delay | q->slot_config.max_delay)
+	if (q->slot_config.min_delay | q->slot_config.max_delay |
+	    q->slot_config.dist_jitter)
 		q->slot.slot_next = ktime_get_ns();
 	else
 		q->slot.slot_next = 0;
@@ -926,16 +923,17 @@ static int netem_change(struct Qdisc *sch, struct nlattr *opt,
 	}
 
 	if (tb[TCA_NETEM_DELAY_DIST]) {
-		ret = get_dist_table(sch, tb[TCA_NETEM_DELAY_DIST]);
-		if (ret) {
-			/* recover clg and loss_model, in case of
-			 * q->clg and q->loss_model were modified
-			 * in get_loss_clg()
-			 */
-			q->clg = old_clg;
-			q->loss_model = old_loss_model;
-			return ret;
-		}
+		ret = get_dist_table(sch, &q->delay_dist,
+				     tb[TCA_NETEM_DELAY_DIST]);
+		if (ret)
+			goto get_table_failure;
+	}
+
+	if (tb[TCA_NETEM_SLOT_DIST]) {
+		ret = get_dist_table(sch, &q->slot_dist,
+				     tb[TCA_NETEM_SLOT_DIST]);
+		if (ret)
+			goto get_table_failure;
 	}
 
 	sch->limit = qopt->limit;
@@ -983,6 +981,15 @@ static int netem_change(struct Qdisc *sch, struct nlattr *opt,
 		get_slot(q, tb[TCA_NETEM_SLOT]);
 
 	return ret;
+
+get_table_failure:
+	/* recover clg and loss_model, in case of
+	 * q->clg and q->loss_model were modified
+	 * in get_loss_clg()
+	 */
+	q->clg = old_clg;
+	q->loss_model = old_loss_model;
+	return ret;
 }
 
 static int netem_init(struct Qdisc *sch, struct nlattr *opt,
@@ -1009,8 +1016,9 @@ static void netem_destroy(struct Qdisc *sch)
 
 	qdisc_watchdog_cancel(&q->watchdog);
 	if (q->qdisc)
-		qdisc_destroy(q->qdisc);
+		qdisc_put(q->qdisc);
 	dist_free(q->delay_dist);
+	dist_free(q->slot_dist);
 }
 
 static int dump_loss_model(const struct netem_sched_data *q,
@@ -1127,7 +1135,8 @@ static int netem_dump(struct Qdisc *sch, struct sk_buff *skb)
 	if (dump_loss_model(q, skb) != 0)
 		goto nla_put_failure;
 
-	if (q->slot_config.min_delay | q->slot_config.max_delay) {
+	if (q->slot_config.min_delay | q->slot_config.max_delay |
+	    q->slot_config.dist_jitter) {
 		slot = q->slot_config;
 		if (slot.max_packets == INT_MAX)
 			slot.max_packets = 0;

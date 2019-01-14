@@ -613,7 +613,7 @@ static ssize_t calibrate_store(struct device *dev,
 	int tries = 20;
 	int retval;
 	int error;
-	u8 val[3];
+	u8 val[ETP_CALIBRATE_MAX_LEN];
 
 	retval = mutex_lock_interruptible(&data->sysfs_mutex);
 	if (retval)
@@ -1344,6 +1344,14 @@ static const struct acpi_device_id elan_acpi_id[] = {
 	{ "ELAN060B", 0 },
 	{ "ELAN060C", 0 },
 	{ "ELAN0611", 0 },
+	{ "ELAN0612", 0 },
+	{ "ELAN0618", 0 },
+	{ "ELAN061C", 0 },
+	{ "ELAN061D", 0 },
+	{ "ELAN061E", 0 },
+	{ "ELAN0620", 0 },
+	{ "ELAN0621", 0 },
+	{ "ELAN0622", 0 },
 	{ "ELAN1000", 0 },
 	{ }
 };

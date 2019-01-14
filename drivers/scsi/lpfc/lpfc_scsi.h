@@ -2,7 +2,7 @@
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
  * Copyright (C) 2017-2018 Broadcom. All Rights Reserved. The term *
- * “Broadcom” refers to Broadcom Limited and/or its subsidiaries.  *
+ * “Broadcom” refers to Broadcom Inc and/or its subsidiaries.  *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.broadcom.com                                                *
@@ -134,11 +134,13 @@ struct lpfc_scsi_buf {
 	struct list_head list;
 	struct scsi_cmnd *pCmd;
 	struct lpfc_rport_data *rdata;
+	struct lpfc_nodelist *ndlp;
 
 	uint32_t timeout;
 
 	uint16_t flags;  /* TBD convert exch_busy to flags */
 #define LPFC_SBUF_XBUSY         0x1     /* SLI4 hba reported XB on WCQE cmpl */
+#define LPFC_SBUF_BUMP_QDEPTH	0x8	/* bumped queue depth counter */
 	uint16_t exch_busy;     /* SLI4 hba reported XB on complete WCQE */
 	uint16_t status;	/* From IOCB Word 7- ulpStatus */
 	uint32_t result;	/* From IOCB Word 4. */

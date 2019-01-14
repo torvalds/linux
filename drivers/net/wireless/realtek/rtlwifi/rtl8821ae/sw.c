@@ -303,8 +303,7 @@ static struct rtl_hal_ops rtl8821ae_hal_ops = {
 	.set_rfreg = rtl8821ae_phy_set_rf_reg,
 	.fill_h2c_cmd = rtl8821ae_fill_h2c_cmd,
 	.get_btc_status = rtl8821ae_get_btc_status,
-	.rx_command_packet = rtl8821ae_rx_command_packet,
-	.c2h_content_parsing = rtl8821ae_c2h_content_parsing,
+	.c2h_ra_report_handler = rtl8821ae_c2h_ra_report_handler,
 	.add_wowlan_pattern = rtl8821ae_add_wowlan_pattern,
 };
 

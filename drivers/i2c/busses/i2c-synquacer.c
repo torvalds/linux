@@ -404,7 +404,7 @@ static irqreturn_t synquacer_i2c_isr(int irq, void *dev_id)
 		if (i2c->state == STATE_READ)
 			goto prepare_read;
 
-		/* fallthru */
+		/* fall through */
 
 	case STATE_WRITE:
 		if (bsr & SYNQUACER_I2C_BSR_LRB) {
@@ -509,7 +509,7 @@ static int synquacer_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 
 	dev_dbg(i2c->dev, "calculated timeout %d ms\n", i2c->timeout_ms);
 
-	for (retry = 0; retry < adap->retries; retry++) {
+	for (retry = 0; retry <= adap->retries; retry++) {
 		ret = synquacer_i2c_doxfer(i2c, msgs, num);
 		if (ret != -EAGAIN)
 			return ret;

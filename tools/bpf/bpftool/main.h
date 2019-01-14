@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Netronome Systems, Inc.
+ * Copyright (C) 2017-2018 Netronome Systems, Inc.
  *
  * This software is dual licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -31,8 +31,6 @@
  * SOFTWARE.
  */
 
-/* Author: Jakub Kicinski <kubakici@wp.pl> */
-
 #ifndef __BPF_TOOL_H
 #define __BPF_TOOL_H
 
@@ -44,6 +42,7 @@
 #include <linux/compiler.h>
 #include <linux/kernel.h>
 #include <linux/hashtable.h>
+#include <tools/libc_compat.h>
 
 #include "json_writer.h"
 
@@ -52,6 +51,21 @@
 #define NEXT_ARG()	({ argc--; argv++; if (argc < 0) usage(); })
 #define NEXT_ARGP()	({ (*argc)--; (*argv)++; if (*argc < 0) usage(); })
 #define BAD_ARG()	({ p_err("what is '%s'?", *argv); -1; })
+#define GET_ARG()	({ argc--; *argv++; })
+#define REQ_ARGS(cnt)							\
+	({								\
+		int _cnt = (cnt);					\
+		bool _res;						\
+									\
+		if (argc < _cnt) {					\
+			p_err("'%s' needs at least %d arguments, %d found", \
+			      argv[-1], _cnt, argc);			\
+			_res = false;					\
+		} else {						\
+			_res = true;					\
+		}							\
+		_res;							\
+	})
 
 #define ERR_MAX_LEN	1024
 
@@ -60,7 +74,9 @@
 #define HELP_SPEC_PROGRAM						\
 	"PROG := { id PROG_ID | pinned FILE | tag PROG_TAG }"
 #define HELP_SPEC_OPTIONS						\
-	"OPTIONS := { {-j|--json} [{-p|--pretty}] | {-f|--bpffs} }"
+	"OPTIONS := { {-j|--json} [{-p|--pretty}] | {-f|--bpffs} | {-m|--mapcompat}"
+#define HELP_SPEC_MAP							\
+	"MAP := { id MAP_ID | pinned FILE }"
 
 enum bpf_obj_type {
 	BPF_OBJ_UNKNOWN,
@@ -73,6 +89,7 @@ extern const char *bin_name;
 extern json_writer_t *json_wtr;
 extern bool json_output;
 extern bool show_pinned;
+extern int bpf_flags;
 extern struct pinned_obj_table prog_table;
 extern struct pinned_obj_table map_table;
 
@@ -110,21 +127,54 @@ int cmd_select(const struct cmd *cmds, int argc, char **argv,
 int get_fd_type(int fd);
 const char *get_fd_type_name(enum bpf_obj_type type);
 char *get_fdinfo(int fd, const char *key);
-int open_obj_pinned(char *path);
+int open_obj_pinned(char *path, bool quiet);
 int open_obj_pinned_any(char *path, enum bpf_obj_type exp_type);
 int do_pin_any(int argc, char **argv, int (*get_fd_by_id)(__u32));
 int do_pin_fd(int fd, const char *name);
 
 int do_prog(int argc, char **arg);
 int do_map(int argc, char **arg);
+int do_event_pipe(int argc, char **argv);
 int do_cgroup(int argc, char **arg);
+int do_perf(int argc, char **arg);
+int do_net(int argc, char **arg);
 
+int parse_u32_arg(int *argc, char ***argv, __u32 *val, const char *what);
 int prog_parse_fd(int *argc, char ***argv);
+int map_parse_fd(int *argc, char ***argv);
+int map_parse_fd_and_info(int *argc, char ***argv, void *info, __u32 *info_len);
 
 void disasm_print_insn(unsigned char *image, ssize_t len, int opcodes,
-		       const char *arch);
+		       const char *arch, const char *disassembler_options);
+void print_data_json(uint8_t *data, size_t len);
 void print_hex_data_json(uint8_t *data, size_t len);
 
-const char *ifindex_to_bfd_name_ns(__u32 ifindex, __u64 ns_dev, __u64 ns_ino);
+unsigned int get_page_size(void);
+unsigned int get_possible_cpus(void);
+const char *
+ifindex_to_bfd_params(__u32 ifindex, __u64 ns_dev, __u64 ns_ino,
+		      const char **opt);
 
+struct btf_dumper {
+	const struct btf *btf;
+	json_writer_t *jw;
+	bool is_plain_text;
+};
+
+/* btf_dumper_type - print data along with type information
+ * @d: an instance containing context for dumping types
+ * @type_id: index in btf->types array. this points to the type to be dumped
+ * @data: pointer the actual data, i.e. the values to be printed
+ *
+ * Returns zero on success and negative error code otherwise
+ */
+int btf_dumper_type(const struct btf_dumper *d, __u32 type_id,
+		    const void *data);
+
+struct nlattr;
+struct ifinfomsg;
+struct tcmsg;
+int do_xdp_dump(struct ifinfomsg *ifinfo, struct nlattr **tb);
+int do_filter_dump(struct tcmsg *ifinfo, struct nlattr **tb, const char *kind,
+		   const char *devname, int ifindex);
 #endif

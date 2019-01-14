@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * SuperH Pin Function Controller GPIO driver.
  *
  * Copyright (C) 2008 Magnus Damm
  * Copyright (C) 2009 - 2012 Paul Mundt
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 
 #include <linux/device.h>
@@ -107,7 +104,7 @@ static int gpio_setup_data_regs(struct sh_pfc_chip *chip)
 	for (i = 0; pfc->info->data_regs[i].reg_width; ++i)
 		;
 
-	chip->regs = devm_kzalloc(pfc->dev, i * sizeof(*chip->regs),
+	chip->regs = devm_kcalloc(pfc->dev, i, sizeof(*chip->regs),
 				  GFP_KERNEL);
 	if (chip->regs == NULL)
 		return -ENOMEM;
@@ -224,8 +221,9 @@ static int gpio_pin_setup(struct sh_pfc_chip *chip)
 	struct gpio_chip *gc = &chip->gpio_chip;
 	int ret;
 
-	chip->pins = devm_kzalloc(pfc->dev, pfc->info->nr_pins *
-				  sizeof(*chip->pins), GFP_KERNEL);
+	chip->pins = devm_kcalloc(pfc->dev,
+				  pfc->info->nr_pins, sizeof(*chip->pins),
+				  GFP_KERNEL);
 	if (chip->pins == NULL)
 		return -ENOMEM;
 

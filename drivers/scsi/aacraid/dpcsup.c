@@ -65,7 +65,7 @@ unsigned int aac_response_normal(struct aac_queue * q)
 	/*
 	 *	Keep pulling response QEs off the response queue and waking
 	 *	up the waiters until there are no more QEs. We then return
-	 *	back to the system. If no response was requesed we just
+	 *	back to the system. If no response was requested we just
 	 *	deallocate the Fib here and continue.
 	 */
 	while(aac_consumer_get(dev, q, &entry))

@@ -300,6 +300,11 @@ static ssize_t queue_zoned_show(struct request_queue *q, char *page)
 	}
 }
 
+static ssize_t queue_nr_zones_show(struct request_queue *q, char *page)
+{
+	return queue_var_show(blk_queue_nr_zones(q), page);
+}
+
 static ssize_t queue_nomerges_show(struct request_queue *q, char *page)
 {
 	return queue_var_show((blk_queue_nomerges(q) << 1) |
@@ -422,16 +427,16 @@ static ssize_t queue_poll_store(struct request_queue *q, const char *page,
 
 static ssize_t queue_wb_lat_show(struct request_queue *q, char *page)
 {
-	if (!q->rq_wb)
+	if (!wbt_rq_qos(q))
 		return -EINVAL;
 
-	return sprintf(page, "%llu\n", div_u64(q->rq_wb->min_lat_nsec, 1000));
+	return sprintf(page, "%llu\n", div_u64(wbt_get_min_lat(q), 1000));
 }
 
 static ssize_t queue_wb_lat_store(struct request_queue *q, const char *page,
 				  size_t count)
 {
-	struct rq_wb *rwb;
+	struct rq_qos *rqos;
 	ssize_t ret;
 	s64 val;
 
@@ -441,23 +446,38 @@ static ssize_t queue_wb_lat_store(struct request_queue *q, const char *page,
 	if (val < -1)
 		return -EINVAL;
 
-	rwb = q->rq_wb;
-	if (!rwb) {
+	rqos = wbt_rq_qos(q);
+	if (!rqos) {
 		ret = wbt_init(q);
 		if (ret)
 			return ret;
 	}
 
-	rwb = q->rq_wb;
 	if (val == -1)
-		rwb->min_lat_nsec = wbt_default_latency_nsec(q);
+		val = wbt_default_latency_nsec(q);
 	else if (val >= 0)
-		rwb->min_lat_nsec = val * 1000ULL;
+		val *= 1000ULL;
 
-	if (rwb->enable_state == WBT_STATE_ON_DEFAULT)
-		rwb->enable_state = WBT_STATE_ON_MANUAL;
+	/*
+	 * Ensure that the queue is idled, in case the latency update
+	 * ends up either enabling or disabling wbt completely. We can't
+	 * have IO inflight if that happens.
+	 */
+	if (q->mq_ops) {
+		blk_mq_freeze_queue(q);
+		blk_mq_quiesce_queue(q);
+	} else
+		blk_queue_bypass_start(q);
 
-	wbt_update_limits(rwb);
+	wbt_set_min_lat(q, val);
+	wbt_update_limits(q);
+
+	if (q->mq_ops) {
+		blk_mq_unquiesce_queue(q);
+		blk_mq_unfreeze_queue(q);
+	} else
+		blk_queue_bypass_end(q);
+
 	return count;
 }
 
@@ -491,188 +511,203 @@ static ssize_t queue_wc_store(struct request_queue *q, const char *page,
 	return count;
 }
 
+static ssize_t queue_fua_show(struct request_queue *q, char *page)
+{
+	return sprintf(page, "%u\n", test_bit(QUEUE_FLAG_FUA, &q->queue_flags));
+}
+
 static ssize_t queue_dax_show(struct request_queue *q, char *page)
 {
 	return queue_var_show(blk_queue_dax(q), page);
 }
 
 static struct queue_sysfs_entry queue_requests_entry = {
-	.attr = {.name = "nr_requests", .mode = S_IRUGO | S_IWUSR },
+	.attr = {.name = "nr_requests", .mode = 0644 },
 	.show = queue_requests_show,
 	.store = queue_requests_store,
 };
 
 static struct queue_sysfs_entry queue_ra_entry = {
-	.attr = {.name = "read_ahead_kb", .mode = S_IRUGO | S_IWUSR },
+	.attr = {.name = "read_ahead_kb", .mode = 0644 },
 	.show = queue_ra_show,
 	.store = queue_ra_store,
 };
 
 static struct queue_sysfs_entry queue_max_sectors_entry = {
-	.attr = {.name = "max_sectors_kb", .mode = S_IRUGO | S_IWUSR },
+	.attr = {.name = "max_sectors_kb", .mode = 0644 },
 	.show = queue_max_sectors_show,
 	.store = queue_max_sectors_store,
 };
 
 static struct queue_sysfs_entry queue_max_hw_sectors_entry = {
-	.attr = {.name = "max_hw_sectors_kb", .mode = S_IRUGO },
+	.attr = {.name = "max_hw_sectors_kb", .mode = 0444 },
 	.show = queue_max_hw_sectors_show,
 };
 
 static struct queue_sysfs_entry queue_max_segments_entry = {
-	.attr = {.name = "max_segments", .mode = S_IRUGO },
+	.attr = {.name = "max_segments", .mode = 0444 },
 	.show = queue_max_segments_show,
 };
 
 static struct queue_sysfs_entry queue_max_discard_segments_entry = {
-	.attr = {.name = "max_discard_segments", .mode = S_IRUGO },
+	.attr = {.name = "max_discard_segments", .mode = 0444 },
 	.show = queue_max_discard_segments_show,
 };
 
 static struct queue_sysfs_entry queue_max_integrity_segments_entry = {
-	.attr = {.name = "max_integrity_segments", .mode = S_IRUGO },
+	.attr = {.name = "max_integrity_segments", .mode = 0444 },
 	.show = queue_max_integrity_segments_show,
 };
 
 static struct queue_sysfs_entry queue_max_segment_size_entry = {
-	.attr = {.name = "max_segment_size", .mode = S_IRUGO },
+	.attr = {.name = "max_segment_size", .mode = 0444 },
 	.show = queue_max_segment_size_show,
 };
 
 static struct queue_sysfs_entry queue_iosched_entry = {
-	.attr = {.name = "scheduler", .mode = S_IRUGO | S_IWUSR },
+	.attr = {.name = "scheduler", .mode = 0644 },
 	.show = elv_iosched_show,
 	.store = elv_iosched_store,
 };
 
 static struct queue_sysfs_entry queue_hw_sector_size_entry = {
-	.attr = {.name = "hw_sector_size", .mode = S_IRUGO },
+	.attr = {.name = "hw_sector_size", .mode = 0444 },
 	.show = queue_logical_block_size_show,
 };
 
 static struct queue_sysfs_entry queue_logical_block_size_entry = {
-	.attr = {.name = "logical_block_size", .mode = S_IRUGO },
+	.attr = {.name = "logical_block_size", .mode = 0444 },
 	.show = queue_logical_block_size_show,
 };
 
 static struct queue_sysfs_entry queue_physical_block_size_entry = {
-	.attr = {.name = "physical_block_size", .mode = S_IRUGO },
+	.attr = {.name = "physical_block_size", .mode = 0444 },
 	.show = queue_physical_block_size_show,
 };
 
 static struct queue_sysfs_entry queue_chunk_sectors_entry = {
-	.attr = {.name = "chunk_sectors", .mode = S_IRUGO },
+	.attr = {.name = "chunk_sectors", .mode = 0444 },
 	.show = queue_chunk_sectors_show,
 };
 
 static struct queue_sysfs_entry queue_io_min_entry = {
-	.attr = {.name = "minimum_io_size", .mode = S_IRUGO },
+	.attr = {.name = "minimum_io_size", .mode = 0444 },
 	.show = queue_io_min_show,
 };
 
 static struct queue_sysfs_entry queue_io_opt_entry = {
-	.attr = {.name = "optimal_io_size", .mode = S_IRUGO },
+	.attr = {.name = "optimal_io_size", .mode = 0444 },
 	.show = queue_io_opt_show,
 };
 
 static struct queue_sysfs_entry queue_discard_granularity_entry = {
-	.attr = {.name = "discard_granularity", .mode = S_IRUGO },
+	.attr = {.name = "discard_granularity", .mode = 0444 },
 	.show = queue_discard_granularity_show,
 };
 
 static struct queue_sysfs_entry queue_discard_max_hw_entry = {
-	.attr = {.name = "discard_max_hw_bytes", .mode = S_IRUGO },
+	.attr = {.name = "discard_max_hw_bytes", .mode = 0444 },
 	.show = queue_discard_max_hw_show,
 };
 
 static struct queue_sysfs_entry queue_discard_max_entry = {
-	.attr = {.name = "discard_max_bytes", .mode = S_IRUGO | S_IWUSR },
+	.attr = {.name = "discard_max_bytes", .mode = 0644 },
 	.show = queue_discard_max_show,
 	.store = queue_discard_max_store,
 };
 
 static struct queue_sysfs_entry queue_discard_zeroes_data_entry = {
-	.attr = {.name = "discard_zeroes_data", .mode = S_IRUGO },
+	.attr = {.name = "discard_zeroes_data", .mode = 0444 },
 	.show = queue_discard_zeroes_data_show,
 };
 
 static struct queue_sysfs_entry queue_write_same_max_entry = {
-	.attr = {.name = "write_same_max_bytes", .mode = S_IRUGO },
+	.attr = {.name = "write_same_max_bytes", .mode = 0444 },
 	.show = queue_write_same_max_show,
 };
 
 static struct queue_sysfs_entry queue_write_zeroes_max_entry = {
-	.attr = {.name = "write_zeroes_max_bytes", .mode = S_IRUGO },
+	.attr = {.name = "write_zeroes_max_bytes", .mode = 0444 },
 	.show = queue_write_zeroes_max_show,
 };
 
 static struct queue_sysfs_entry queue_nonrot_entry = {
-	.attr = {.name = "rotational", .mode = S_IRUGO | S_IWUSR },
+	.attr = {.name = "rotational", .mode = 0644 },
 	.show = queue_show_nonrot,
 	.store = queue_store_nonrot,
 };
 
 static struct queue_sysfs_entry queue_zoned_entry = {
-	.attr = {.name = "zoned", .mode = S_IRUGO },
+	.attr = {.name = "zoned", .mode = 0444 },
 	.show = queue_zoned_show,
 };
 
+static struct queue_sysfs_entry queue_nr_zones_entry = {
+	.attr = {.name = "nr_zones", .mode = 0444 },
+	.show = queue_nr_zones_show,
+};
+
 static struct queue_sysfs_entry queue_nomerges_entry = {
-	.attr = {.name = "nomerges", .mode = S_IRUGO | S_IWUSR },
+	.attr = {.name = "nomerges", .mode = 0644 },
 	.show = queue_nomerges_show,
 	.store = queue_nomerges_store,
 };
 
 static struct queue_sysfs_entry queue_rq_affinity_entry = {
-	.attr = {.name = "rq_affinity", .mode = S_IRUGO | S_IWUSR },
+	.attr = {.name = "rq_affinity", .mode = 0644 },
 	.show = queue_rq_affinity_show,
 	.store = queue_rq_affinity_store,
 };
 
 static struct queue_sysfs_entry queue_iostats_entry = {
-	.attr = {.name = "iostats", .mode = S_IRUGO | S_IWUSR },
+	.attr = {.name = "iostats", .mode = 0644 },
 	.show = queue_show_iostats,
 	.store = queue_store_iostats,
 };
 
 static struct queue_sysfs_entry queue_random_entry = {
-	.attr = {.name = "add_random", .mode = S_IRUGO | S_IWUSR },
+	.attr = {.name = "add_random", .mode = 0644 },
 	.show = queue_show_random,
 	.store = queue_store_random,
 };
 
 static struct queue_sysfs_entry queue_poll_entry = {
-	.attr = {.name = "io_poll", .mode = S_IRUGO | S_IWUSR },
+	.attr = {.name = "io_poll", .mode = 0644 },
 	.show = queue_poll_show,
 	.store = queue_poll_store,
 };
 
 static struct queue_sysfs_entry queue_poll_delay_entry = {
-	.attr = {.name = "io_poll_delay", .mode = S_IRUGO | S_IWUSR },
+	.attr = {.name = "io_poll_delay", .mode = 0644 },
 	.show = queue_poll_delay_show,
 	.store = queue_poll_delay_store,
 };
 
 static struct queue_sysfs_entry queue_wc_entry = {
-	.attr = {.name = "write_cache", .mode = S_IRUGO | S_IWUSR },
+	.attr = {.name = "write_cache", .mode = 0644 },
 	.show = queue_wc_show,
 	.store = queue_wc_store,
 };
 
+static struct queue_sysfs_entry queue_fua_entry = {
+	.attr = {.name = "fua", .mode = 0444 },
+	.show = queue_fua_show,
+};
+
 static struct queue_sysfs_entry queue_dax_entry = {
-	.attr = {.name = "dax", .mode = S_IRUGO },
+	.attr = {.name = "dax", .mode = 0444 },
 	.show = queue_dax_show,
 };
 
 static struct queue_sysfs_entry queue_wb_lat_entry = {
-	.attr = {.name = "wbt_lat_usec", .mode = S_IRUGO | S_IWUSR },
+	.attr = {.name = "wbt_lat_usec", .mode = 0644 },
 	.show = queue_wb_lat_show,
 	.store = queue_wb_lat_store,
 };
 
 #ifdef CONFIG_BLK_DEV_THROTTLING_LOW
 static struct queue_sysfs_entry throtl_sample_time_entry = {
-	.attr = {.name = "throttle_sample_time", .mode = S_IRUGO | S_IWUSR },
+	.attr = {.name = "throttle_sample_time", .mode = 0644 },
 	.show = blk_throtl_sample_time_show,
 	.store = blk_throtl_sample_time_store,
 };
@@ -702,12 +737,14 @@ static struct attribute *default_attrs[] = {
 	&queue_write_zeroes_max_entry.attr,
 	&queue_nonrot_entry.attr,
 	&queue_zoned_entry.attr,
+	&queue_nr_zones_entry.attr,
 	&queue_nomerges_entry.attr,
 	&queue_rq_affinity_entry.attr,
 	&queue_iostats_entry.attr,
 	&queue_random_entry.attr,
 	&queue_poll_entry.attr,
 	&queue_wc_entry.attr,
+	&queue_fua_entry.attr,
 	&queue_dax_entry.attr,
 	&queue_wb_lat_entry.attr,
 	&queue_poll_delay_entry.attr,
@@ -793,12 +830,29 @@ static void __blk_release_queue(struct work_struct *work)
 		blk_stat_remove_callback(q, q->poll_cb);
 	blk_stat_free_callback(q->poll_cb);
 
+	if (!blk_queue_dead(q)) {
+		/*
+		 * Last reference was dropped without having called
+		 * blk_cleanup_queue().
+		 */
+		WARN_ONCE(blk_queue_init_done(q),
+			  "request queue %p has been registered but blk_cleanup_queue() has not been called for that queue\n",
+			  q);
+		blk_exit_queue(q);
+	}
+
+	WARN(blk_queue_root_blkg(q),
+	     "request queue %p is being released but it has not yet been removed from the blkcg controller\n",
+	     q);
+
 	blk_free_queue_stats(q->stats);
 
 	blk_exit_rl(q, &q->root_rl);
 
 	if (q->queue_tags)
 		__blk_queue_free_tags(q);
+
+	blk_queue_free_zone_bitmaps(q);
 
 	if (!q->mq_ops) {
 		if (q->exit_rq_fn)
@@ -813,8 +867,7 @@ static void __blk_release_queue(struct work_struct *work)
 	if (q->mq_ops)
 		blk_mq_debugfs_unregister(q);
 
-	if (q->bio_split)
-		bioset_free(q->bio_split);
+	bioset_exit(&q->bio_split);
 
 	ida_simple_remove(&blk_queue_ida, q->id);
 	call_rcu(&q->rcu_head, blk_free_queue_rcu);
@@ -953,8 +1006,6 @@ void blk_unregister_queue(struct gendisk *disk)
 	kobject_uevent(&q->kobj, KOBJ_REMOVE);
 	kobject_del(&q->kobj);
 	blk_trace_remove_sysfs(disk_to_dev(disk));
-
-	wbt_exit(q);
 
 	mutex_lock(&q->sysfs_lock);
 	if (q->request_fn || (q->mq_ops && q->elevator))

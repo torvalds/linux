@@ -45,6 +45,7 @@ struct i2caux *dal_i2caux_dce110_create(
 void dal_i2caux_dce110_construct(
 	struct i2caux_dce110 *i2caux_dce110,
 	struct dc_context *ctx,
+	unsigned int num_i2caux_inst,
 	const struct dce110_aux_registers *aux_regs,
 	const struct dce110_i2c_hw_engine_registers *i2c_hw_engine_regs,
 	const struct dce110_i2c_hw_engine_shift *i2c_shift,

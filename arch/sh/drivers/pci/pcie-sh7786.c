@@ -561,7 +561,7 @@ static int __init sh7786_pcie_init(void)
 	if (unlikely(nr_ports == 0))
 		return -ENODEV;
 
-	sh7786_pcie_ports = kzalloc(nr_ports * sizeof(struct sh7786_pcie_port),
+	sh7786_pcie_ports = kcalloc(nr_ports, sizeof(struct sh7786_pcie_port),
 				    GFP_KERNEL);
 	if (unlikely(!sh7786_pcie_ports))
 		return -ENOMEM;

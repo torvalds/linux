@@ -202,7 +202,7 @@ static void unlocked_usbctlx_complete(struct hfa384x *hw,
 				      struct hfa384x_usbctlx *ctlx);
 
 struct usbctlx_completor {
-	int (*complete)(struct usbctlx_completor *);
+	int (*complete)(struct usbctlx_completor *completor);
 };
 
 static int
@@ -1290,7 +1290,7 @@ cleanup:
  *	cmdcb		command-specific callback
  *	usercb		user callback for async calls, NULL for DOWAIT calls
  *	usercb_data	user supplied data pointer for async calls, NULL
- *			for DOASYNC calls
+ *			for DOWAIT calls
  *
  * Returns:
  *	0		success
@@ -3417,7 +3417,7 @@ static void hfa384x_usbin_rx(struct wlandevice *wlandev, struct sk_buff *skb)
 
 		/* Attach the rxmeta, set some stuff */
 		p80211skb_rxmeta_attach(wlandev, skb);
-		rxmeta = P80211SKB_RXMETA(skb);
+		rxmeta = p80211skb_rxmeta(skb);
 		rxmeta->mactime = usbin->rxfrm.desc.time;
 		rxmeta->rxrate = usbin->rxfrm.desc.rate;
 		rxmeta->signal = usbin->rxfrm.desc.signal - hw->dbmadjust;
@@ -3439,8 +3439,7 @@ static void hfa384x_usbin_rx(struct wlandevice *wlandev, struct sk_buff *skb)
 
 	default:
 		netdev_warn(hw->wlandev->netdev, "Received frame on unsupported port=%d\n",
-			    HFA384x_RXSTATUS_MACPORT_GET(
-				    usbin->rxfrm.desc.status));
+			    HFA384x_RXSTATUS_MACPORT_GET(usbin->rxfrm.desc.status));
 		break;
 	}
 }
@@ -3606,36 +3605,32 @@ static void hfa384x_usbout_callback(struct urb *urb)
 			prism2sta_ev_alloc(wlandev);
 			break;
 
-		case -EPIPE:
-			{
-				struct hfa384x *hw = wlandev->priv;
+		case -EPIPE: {
+			struct hfa384x *hw = wlandev->priv;
 
-				netdev_warn(hw->wlandev->netdev,
-					    "%s tx pipe stalled: requesting reset\n",
-					    wlandev->netdev->name);
-				if (!test_and_set_bit
-				    (WORK_TX_HALT, &hw->usb_flags))
-					schedule_work(&hw->usb_work);
-				wlandev->netdev->stats.tx_errors++;
-				break;
-			}
+			netdev_warn(hw->wlandev->netdev,
+				    "%s tx pipe stalled: requesting reset\n",
+				    wlandev->netdev->name);
+			if (!test_and_set_bit(WORK_TX_HALT, &hw->usb_flags))
+				schedule_work(&hw->usb_work);
+			wlandev->netdev->stats.tx_errors++;
+			break;
+		}
 
 		case -EPROTO:
 		case -ETIMEDOUT:
-		case -EILSEQ:
-			{
-				struct hfa384x *hw = wlandev->priv;
+		case -EILSEQ: {
+			struct hfa384x *hw = wlandev->priv;
 
-				if (!test_and_set_bit
-				    (THROTTLE_TX, &hw->usb_flags) &&
-				    !timer_pending(&hw->throttle)) {
-					mod_timer(&hw->throttle,
-						  jiffies + THROTTLE_JIFFIES);
-				}
-				wlandev->netdev->stats.tx_errors++;
-				netif_stop_queue(wlandev->netdev);
-				break;
+			if (!test_and_set_bit(THROTTLE_TX, &hw->usb_flags) &&
+			    !timer_pending(&hw->throttle)) {
+				mod_timer(&hw->throttle,
+					  jiffies + THROTTLE_JIFFIES);
 			}
+			wlandev->netdev->stats.tx_errors++;
+			netif_stop_queue(wlandev->netdev);
+			break;
+		}
 
 		case -ENOENT:
 		case -ESHUTDOWN:

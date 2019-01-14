@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2016 CNEX Labs
  * Initial release: Javier Gonzalez <javier@cnexlabs.com>
@@ -22,7 +23,7 @@
 
 static DECLARE_RWSEM(pblk_rb_lock);
 
-void pblk_rb_data_free(struct pblk_rb *rb)
+static void pblk_rb_data_free(struct pblk_rb *rb)
 {
 	struct pblk_rb_pages *p, *t;
 
@@ -35,25 +36,51 @@ void pblk_rb_data_free(struct pblk_rb *rb)
 	up_write(&pblk_rb_lock);
 }
 
+void pblk_rb_free(struct pblk_rb *rb)
+{
+	pblk_rb_data_free(rb);
+	vfree(rb->entries);
+}
+
+/*
+ * pblk_rb_calculate_size -- calculate the size of the write buffer
+ */
+static unsigned int pblk_rb_calculate_size(unsigned int nr_entries)
+{
+	/* Alloc a write buffer that can at least fit 128 entries */
+	return (1 << max(get_count_order(nr_entries), 7));
+}
+
 /*
  * Initialize ring buffer. The data and metadata buffers must be previously
  * allocated and their size must be a power of two
- * (Documentation/circular-buffers.txt)
+ * (Documentation/core-api/circular-buffers.rst)
  */
-int pblk_rb_init(struct pblk_rb *rb, struct pblk_rb_entry *rb_entry_base,
-		 unsigned int power_size, unsigned int power_seg_sz)
+int pblk_rb_init(struct pblk_rb *rb, unsigned int size, unsigned int threshold,
+		 unsigned int seg_size)
 {
 	struct pblk *pblk = container_of(rb, struct pblk, rwb);
+	struct pblk_rb_entry *entries;
 	unsigned int init_entry = 0;
-	unsigned int alloc_order = power_size;
 	unsigned int max_order = MAX_ORDER - 1;
-	unsigned int order, iter;
+	unsigned int power_size, power_seg_sz;
+	unsigned int alloc_order, order, iter;
+	unsigned int nr_entries;
+
+	nr_entries = pblk_rb_calculate_size(size);
+	entries = vzalloc(array_size(nr_entries, sizeof(struct pblk_rb_entry)));
+	if (!entries)
+		return -ENOMEM;
+
+	power_size = get_count_order(size);
+	power_seg_sz = get_count_order(seg_size);
 
 	down_write(&pblk_rb_lock);
-	rb->entries = rb_entry_base;
+	rb->entries = entries;
 	rb->seg_size = (1 << power_seg_sz);
 	rb->nr_entries = (1 << power_size);
 	rb->mem = rb->subm = rb->sync = rb->l2p_update = 0;
+	rb->back_thres = threshold;
 	rb->flush_point = EMPTY_ENTRY;
 
 	spin_lock_init(&rb->w_lock);
@@ -61,6 +88,7 @@ int pblk_rb_init(struct pblk_rb *rb, struct pblk_rb_entry *rb_entry_base,
 
 	INIT_LIST_HEAD(&rb->pages);
 
+	alloc_order = power_size;
 	if (alloc_order >= max_order) {
 		order = max_order;
 		iter = (1 << (alloc_order - max_order));
@@ -79,6 +107,7 @@ int pblk_rb_init(struct pblk_rb *rb, struct pblk_rb_entry *rb_entry_base,
 		page_set = kmalloc(sizeof(struct pblk_rb_pages), GFP_KERNEL);
 		if (!page_set) {
 			up_write(&pblk_rb_lock);
+			vfree(entries);
 			return -ENOMEM;
 		}
 
@@ -88,6 +117,7 @@ int pblk_rb_init(struct pblk_rb *rb, struct pblk_rb_entry *rb_entry_base,
 			kfree(page_set);
 			pblk_rb_data_free(rb);
 			up_write(&pblk_rb_lock);
+			vfree(entries);
 			return -ENOMEM;
 		}
 		kaddr = page_address(page_set->pages);
@@ -111,7 +141,7 @@ int pblk_rb_init(struct pblk_rb *rb, struct pblk_rb_entry *rb_entry_base,
 	} while (iter > 0);
 	up_write(&pblk_rb_lock);
 
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 	atomic_set(&rb->inflight_flush_point, 0);
 #endif
 
@@ -124,28 +154,13 @@ int pblk_rb_init(struct pblk_rb *rb, struct pblk_rb_entry *rb_entry_base,
 	return 0;
 }
 
-/*
- * pblk_rb_calculate_size -- calculate the size of the write buffer
- */
-unsigned int pblk_rb_calculate_size(unsigned int nr_entries)
-{
-	/* Alloc a write buffer that can at least fit 128 entries */
-	return (1 << max(get_count_order(nr_entries), 7));
-}
-
-void *pblk_rb_entries_ref(struct pblk_rb *rb)
-{
-	return rb->entries;
-}
-
 static void clean_wctx(struct pblk_w_ctx *w_ctx)
 {
 	int flags;
 
-try:
 	flags = READ_ONCE(w_ctx->flags);
-	if (!(flags & PBLK_SUBMITTED_ENTRY))
-		goto try;
+	WARN_ONCE(!(flags & PBLK_SUBMITTED_ENTRY),
+			"pblk: overwriting unsubmitted data\n");
 
 	/* Release flags on context. Protect from writes and reads */
 	smp_store_release(&w_ctx->flags, PBLK_WRITABLE_ENTRY);
@@ -167,6 +182,12 @@ static unsigned int pblk_rb_space(struct pblk_rb *rb)
 	unsigned int sync = READ_ONCE(rb->sync);
 
 	return pblk_rb_ring_space(rb, mem, sync, rb->nr_entries);
+}
+
+unsigned int pblk_rb_ptr_wrap(struct pblk_rb *rb, unsigned int p,
+			      unsigned int nr_entries)
+{
+	return (p + nr_entries) & (rb->nr_entries - 1);
 }
 
 /*
@@ -195,8 +216,7 @@ unsigned int pblk_rb_read_commit(struct pblk_rb *rb, unsigned int nr_entries)
 
 	subm = READ_ONCE(rb->subm);
 	/* Commit read means updating submission pointer */
-	smp_store_release(&rb->subm,
-				(subm + nr_entries) & (rb->nr_entries - 1));
+	smp_store_release(&rb->subm, pblk_rb_ptr_wrap(rb, subm, nr_entries));
 
 	return subm;
 }
@@ -226,10 +246,10 @@ static int __pblk_rb_update_l2p(struct pblk_rb *rb, unsigned int to_update)
 		pblk_update_map_dev(pblk, w_ctx->lba, w_ctx->ppa,
 							entry->cacheline);
 
-		line = &pblk->lines[pblk_ppa_to_line(w_ctx->ppa)];
+		line = pblk_ppa_to_line(pblk, w_ctx->ppa);
 		kref_put(&line->ref, pblk_line_put);
 		clean_wctx(w_ctx);
-		rb->l2p_update = (rb->l2p_update + 1) & (rb->nr_entries - 1);
+		rb->l2p_update = pblk_rb_ptr_wrap(rb, rb->l2p_update, 1);
 	}
 
 	pblk_rl_out(&pblk->rl, user_io, gc_io);
@@ -309,7 +329,7 @@ void pblk_rb_write_entry_user(struct pblk_rb *rb, void *data,
 
 	entry = &rb->entries[ring_pos];
 	flags = READ_ONCE(entry->w_ctx.flags);
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 	/* Caller must guarantee that the entry is free */
 	BUG_ON(!(flags & PBLK_WRITABLE_ENTRY));
 #endif
@@ -333,7 +353,7 @@ void pblk_rb_write_entry_gc(struct pblk_rb *rb, void *data,
 
 	entry = &rb->entries[ring_pos];
 	flags = READ_ONCE(entry->w_ctx.flags);
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 	/* Caller must guarantee that the entry is free */
 	BUG_ON(!(flags & PBLK_WRITABLE_ENTRY));
 #endif
@@ -350,7 +370,7 @@ void pblk_rb_write_entry_gc(struct pblk_rb *rb, void *data,
 }
 
 static int pblk_rb_flush_point_set(struct pblk_rb *rb, struct bio *bio,
-				  unsigned int pos)
+				   unsigned int pos)
 {
 	struct pblk_rb_entry *entry;
 	unsigned int sync, flush_point;
@@ -363,7 +383,7 @@ static int pblk_rb_flush_point_set(struct pblk_rb *rb, struct bio *bio,
 		return 0;
 	}
 
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 	atomic_inc(&rb->inflight_flush_point);
 #endif
 
@@ -386,11 +406,14 @@ static int __pblk_rb_may_write(struct pblk_rb *rb, unsigned int nr_entries,
 {
 	unsigned int mem;
 	unsigned int sync;
+	unsigned int threshold;
 
 	sync = READ_ONCE(rb->sync);
 	mem = READ_ONCE(rb->mem);
 
-	if (pblk_rb_ring_space(rb, mem, sync, rb->nr_entries) < nr_entries)
+	threshold = nr_entries + rb->back_thres;
+
+	if (pblk_rb_ring_space(rb, mem, sync, rb->nr_entries) < threshold)
 		return 0;
 
 	if (pblk_rb_update_l2p(rb, nr_entries, mem, sync))
@@ -408,7 +431,7 @@ static int pblk_rb_may_write(struct pblk_rb *rb, unsigned int nr_entries,
 		return 0;
 
 	/* Protect from read count */
-	smp_store_release(&rb->mem, (*pos + nr_entries) & (rb->nr_entries - 1));
+	smp_store_release(&rb->mem, pblk_rb_ptr_wrap(rb, *pos, nr_entries));
 	return 1;
 }
 
@@ -420,7 +443,7 @@ void pblk_rb_flush(struct pblk_rb *rb)
 	if (pblk_rb_flush_point_set(rb, NULL, mem))
 		return;
 
-	pblk_write_should_kick(pblk);
+	pblk_write_kick(pblk);
 }
 
 static int pblk_rb_may_write_flush(struct pblk_rb *rb, unsigned int nr_entries,
@@ -432,7 +455,7 @@ static int pblk_rb_may_write_flush(struct pblk_rb *rb, unsigned int nr_entries,
 	if (!__pblk_rb_may_write(rb, nr_entries, pos))
 		return 0;
 
-	mem = (*pos + nr_entries) & (rb->nr_entries - 1);
+	mem = pblk_rb_ptr_wrap(rb, *pos, nr_entries);
 	*io_ret = NVM_IO_DONE;
 
 	if (bio->bi_opf & REQ_PREFLUSH) {
@@ -504,45 +527,6 @@ int pblk_rb_may_write_gc(struct pblk_rb *rb, unsigned int nr_entries,
 }
 
 /*
- * The caller of this function must ensure that the backpointer will not
- * overwrite the entries passed on the list.
- */
-unsigned int pblk_rb_read_to_bio_list(struct pblk_rb *rb, struct bio *bio,
-				      struct list_head *list,
-				      unsigned int max)
-{
-	struct pblk_rb_entry *entry, *tentry;
-	struct page *page;
-	unsigned int read = 0;
-	int ret;
-
-	list_for_each_entry_safe(entry, tentry, list, index) {
-		if (read > max) {
-			pr_err("pblk: too many entries on list\n");
-			goto out;
-		}
-
-		page = virt_to_page(entry->data);
-		if (!page) {
-			pr_err("pblk: could not allocate write bio page\n");
-			goto out;
-		}
-
-		ret = bio_add_page(bio, page, rb->seg_size, 0);
-		if (ret != rb->seg_size) {
-			pr_err("pblk: could not add page to write bio\n");
-			goto out;
-		}
-
-		list_del(&entry->index);
-		read++;
-	}
-
-out:
-	return read;
-}
-
-/*
  * Read available entries on rb and add them to the given bio. To avoid a memory
  * copy, a page reference to the write buffer is used to be added to the bio.
  *
@@ -587,7 +571,7 @@ try:
 
 		page = virt_to_page(entry->data);
 		if (!page) {
-			pr_err("pblk: could not allocate write bio page\n");
+			pblk_err(pblk, "could not allocate write bio page\n");
 			flags &= ~PBLK_WRITTEN_DATA;
 			flags |= PBLK_SUBMITTED_ENTRY;
 			/* Release flags on context. Protect from writes */
@@ -597,7 +581,7 @@ try:
 
 		if (bio_add_pc_page(q, bio, page, rb->seg_size, 0) !=
 								rb->seg_size) {
-			pr_err("pblk: could not add page to write bio\n");
+			pblk_err(pblk, "could not add page to write bio\n");
 			flags &= ~PBLK_WRITTEN_DATA;
 			flags |= PBLK_SUBMITTED_ENTRY;
 			/* Release flags on context. Protect from writes */
@@ -611,24 +595,24 @@ try:
 		/* Release flags on context. Protect from writes */
 		smp_store_release(&entry->w_ctx.flags, flags);
 
-		pos = (pos + 1) & (rb->nr_entries - 1);
+		pos = pblk_rb_ptr_wrap(rb, pos, 1);
 	}
 
 	if (pad) {
 		if (pblk_bio_add_pages(pblk, bio, GFP_KERNEL, pad)) {
-			pr_err("pblk: could not pad page in write bio\n");
+			pblk_err(pblk, "could not pad page in write bio\n");
 			return NVM_IO_ERR;
 		}
 
 		if (pad < pblk->min_write_pgs)
 			atomic64_inc(&pblk->pad_dist[pad - 1]);
 		else
-			pr_warn("pblk: padding more than min. sectors\n");
+			pblk_warn(pblk, "padding more than min. sectors\n");
 
 		atomic64_add(pad, &pblk->pad_wa);
 	}
 
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 	atomic_long_add(pad, &pblk->padded_writes);
 #endif
 
@@ -653,7 +637,7 @@ int pblk_rb_copy_to_bio(struct pblk_rb *rb, struct bio *bio, sector_t lba,
 	int ret = 1;
 
 
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 	/* Caller must ensure that the access will not cause an overflow */
 	BUG_ON(pos >= rb->nr_entries);
 #endif
@@ -691,7 +675,7 @@ out:
 
 struct pblk_w_ctx *pblk_rb_w_ctx(struct pblk_rb *rb, unsigned int pos)
 {
-	unsigned int entry = pos & (rb->nr_entries - 1);
+	unsigned int entry = pblk_rb_ptr_wrap(rb, pos, 0);
 
 	return &rb->entries[entry].w_ctx;
 }
@@ -737,7 +721,7 @@ unsigned int pblk_rb_sync_advance(struct pblk_rb *rb, unsigned int nr_entries)
 		}
 	}
 
-	sync = (sync + nr_entries) & (rb->nr_entries - 1);
+	sync = pblk_rb_ptr_wrap(rb, sync, nr_entries);
 
 	/* Protect from counts */
 	smp_store_release(&rb->sync, sync);
@@ -766,32 +750,6 @@ unsigned int pblk_rb_flush_point_count(struct pblk_rb *rb)
 	to_flush = pblk_rb_ring_count(flush_point, sync, rb->nr_entries) + 1;
 
 	return (submitted < to_flush) ? (to_flush - submitted) : 0;
-}
-
-/*
- * Scan from the current position of the sync pointer to find the entry that
- * corresponds to the given ppa. This is necessary since write requests can be
- * completed out of order. The assumption is that the ppa is close to the sync
- * pointer thus the search will not take long.
- *
- * The caller of this function must guarantee that the sync pointer will no
- * reach the entry while it is using the metadata associated with it. With this
- * assumption in mind, there is no need to take the sync lock.
- */
-struct pblk_rb_entry *pblk_rb_sync_scan_entry(struct pblk_rb *rb,
-					      struct ppa_addr *ppa)
-{
-	unsigned int sync, subm, count;
-	unsigned int i;
-
-	sync = READ_ONCE(rb->sync);
-	subm = READ_ONCE(rb->subm);
-	count = pblk_rb_ring_count(subm, sync, rb->nr_entries);
-
-	for (i = 0; i < count; i++)
-		sync = (sync + 1) & (rb->nr_entries - 1);
-
-	return NULL;
 }
 
 int pblk_rb_tear_down_check(struct pblk_rb *rb)
@@ -860,7 +818,7 @@ ssize_t pblk_rb_sysfs(struct pblk_rb *rb, char *buf)
 			rb->subm,
 			rb->sync,
 			rb->l2p_update,
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 			atomic_read(&rb->inflight_flush_point),
 #else
 			0,
@@ -878,7 +836,7 @@ ssize_t pblk_rb_sysfs(struct pblk_rb *rb, char *buf)
 			rb->subm,
 			rb->sync,
 			rb->l2p_update,
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 			atomic_read(&rb->inflight_flush_point),
 #else
 			0,

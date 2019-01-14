@@ -96,10 +96,13 @@ struct qed_rdma_info {
 	u8 num_cnqs;
 	u32 num_qps;
 	u32 num_mrs;
+	u32 num_srqs;
+	u16 srq_id_offset;
 	u16 queue_zone_base;
 	u16 max_queue_zones;
 	enum protocol_type proto;
 	struct qed_iwarp_info iwarp;
+	u8 active:1;
 };
 
 struct qed_rdma_qp {
@@ -174,10 +177,14 @@ struct qed_rdma_qp {
 #if IS_ENABLED(CONFIG_QED_RDMA)
 void qed_rdma_dpm_bar(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
 void qed_rdma_dpm_conf(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
+int qed_rdma_info_alloc(struct qed_hwfn *p_hwfn);
+void qed_rdma_info_free(struct qed_hwfn *p_hwfn);
 #else
 static inline void qed_rdma_dpm_conf(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt) {}
 static inline void qed_rdma_dpm_bar(struct qed_hwfn *p_hwfn,
 				    struct qed_ptt *p_ptt) {}
+static inline int qed_rdma_info_alloc(struct qed_hwfn *p_hwfn) {return -EINVAL;}
+static inline void qed_rdma_info_free(struct qed_hwfn *p_hwfn) {}
 #endif
 
 int

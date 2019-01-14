@@ -308,7 +308,6 @@ struct amdgpu_display_funcs {
 
 struct amdgpu_framebuffer {
 	struct drm_framebuffer base;
-	struct drm_gem_object *obj;
 
 	/* caching for later use */
 	uint64_t address;
@@ -340,6 +339,8 @@ struct amdgpu_mode_info {
 	struct drm_property *audio_property;
 	/* FMT dithering */
 	struct drm_property *dither_property;
+	/* maximum number of bits per channel for monitor color */
+	struct drm_property *max_bpc_property;
 	/* hardcoded DFP edid from BIOS */
 	struct edid *bios_hardcoded_edid;
 	int bios_hardcoded_edid_size;

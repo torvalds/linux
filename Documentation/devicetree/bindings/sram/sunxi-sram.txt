@@ -10,8 +10,15 @@ Controller Node
 
 Required properties:
 - compatible : should be:
-    - "allwinner,sun4i-a10-sram-controller"
-    - "allwinner,sun50i-a64-sram-controller"
+    - "allwinner,sun4i-a10-sram-controller" (deprecated)
+    - "allwinner,sun4i-a10-system-control"
+    - "allwinner,sun5i-a13-system-control"
+    - "allwinner,sun7i-a20-system-control", "allwinner,sun4i-a10-system-control"
+    - "allwinner,sun8i-a23-system-control"
+    - "allwinner,sun8i-h3-system-control"
+    - "allwinner,sun50i-a64-sram-controller" (deprecated)
+    - "allwinner,sun50i-a64-system-control"
+    - "allwinner,sun50i-h6-system-control", "allwinner,sun50i-a64-system-control"
 - reg : sram controller register offset + length
 
 SRAM nodes
@@ -26,10 +33,30 @@ once again the representation described in the mmio-sram binding.
 
 The valid sections compatible for A10 are:
     - allwinner,sun4i-a10-sram-a3-a4
+    - allwinner,sun4i-a10-sram-c1
     - allwinner,sun4i-a10-sram-d
+
+The valid sections compatible for A13 are:
+    - allwinner,sun5i-a13-sram-a3-a4, allwinner,sun4i-a10-sram-a3-a4
+    - allwinner,sun5i-a13-sram-c1, allwinner,sun4i-a10-sram-c1
+    - allwinner,sun5i-a13-sram-d, allwinner,sun4i-a10-sram-d
+
+The valid sections compatible for A20 are:
+    - allwinner,sun7i-a20-sram-a3-a4, allwinner,sun4i-a10-sram-a3-a4
+    - allwinner,sun7i-a20-sram-c1, allwinner,sun4i-a10-sram-c1
+    - allwinner,sun7i-a20-sram-d, allwinner,sun4i-a10-sram-d
+
+The valid sections compatible for A23/A33 are:
+    - allwinner,sun8i-a23-sram-c1, allwinner,sun4i-a10-sram-c1
+
+The valid sections compatible for H3 are:
+    - allwinner,sun8i-h3-sram-c1, allwinner,sun4i-a10-sram-c1
 
 The valid sections compatible for A64 are:
     - allwinner,sun50i-a64-sram-c
+
+The valid sections compatible for H6 are:
+    - allwinner,sun50i-h6-sram-c, allwinner,sun50i-a64-sram-c
 
 Devices using SRAM sections
 ---------------------------
@@ -47,8 +74,8 @@ This valid values for this argument are:
 
 Example
 -------
-sram-controller@1c00000 {
-	compatible = "allwinner,sun4i-a10-sram-controller";
+system-control@1c00000 {
+	compatible = "allwinner,sun4i-a10-system-control";
 	reg = <0x01c00000 0x30>;
 	#address-cells = <1>;
 	#size-cells = <1>;

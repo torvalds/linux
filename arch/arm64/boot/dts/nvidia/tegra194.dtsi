@@ -18,6 +18,45 @@
 		#size-cells = <1>;
 		ranges = <0x0 0x0 0x0 0x40000000>;
 
+		gpio: gpio@2200000 {
+			compatible = "nvidia,tegra194-gpio";
+			reg-names = "security", "gpio";
+			reg = <0x2200000 0x10000>,
+			      <0x2210000 0x10000>;
+			interrupts = <GIC_SPI 288 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 296 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 304 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 312 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 320 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 328 IRQ_TYPE_LEVEL_HIGH>;
+			#interrupt-cells = <2>;
+			interrupt-controller;
+			#gpio-cells = <2>;
+			gpio-controller;
+		};
+
+		ethernet@2490000 {
+			compatible = "nvidia,tegra186-eqos",
+				     "snps,dwc-qos-ethernet-4.10";
+			reg = <0x02490000 0x10000>;
+			interrupts = <GIC_SPI 194 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&bpmp TEGRA194_CLK_AXI_CBB>,
+				 <&bpmp TEGRA194_CLK_EQOS_AXI>,
+				 <&bpmp TEGRA194_CLK_EQOS_RX>,
+				 <&bpmp TEGRA194_CLK_EQOS_TX>,
+				 <&bpmp TEGRA194_CLK_EQOS_PTP_REF>;
+			clock-names = "master_bus", "slave_bus", "rx", "tx", "ptp_ref";
+			resets = <&bpmp TEGRA194_RESET_EQOS>;
+			reset-names = "eqos";
+			status = "disabled";
+
+			snps,write-requests = <1>;
+			snps,read-requests = <3>;
+			snps,burst-map = <0x7>;
+			snps,txpbl = <16>;
+			snps,rxpbl = <8>;
+		};
+
 		uarta: serial@3100000 {
 			compatible = "nvidia,tegra194-uart", "nvidia,tegra20-uart";
 			reg = <0x03100000 0x40>;
@@ -79,7 +118,7 @@
 		};
 
 		gen1_i2c: i2c@3160000 {
-			compatible = "nvidia,tegra194-i2c", "nvidia,tegra114-i2c";
+			compatible = "nvidia,tegra194-i2c";
 			reg = <0x03160000 0x10000>;
 			interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -104,7 +143,7 @@
 		};
 
 		cam_i2c: i2c@3180000 {
-			compatible = "nvidia,tegra194-i2c", "nvidia,tegra114-i2c";
+			compatible = "nvidia,tegra194-i2c";
 			reg = <0x03180000 0x10000>;
 			interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -118,7 +157,7 @@
 
 		/* shares pads with dpaux1 */
 		dp_aux_ch1_i2c: i2c@3190000 {
-			compatible = "nvidia,tegra194-i2c", "nvidia,tegra114-i2c";
+			compatible = "nvidia,tegra194-i2c";
 			reg = <0x03190000 0x10000>;
 			interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -132,7 +171,7 @@
 
 		/* shares pads with dpaux0 */
 		dp_aux_ch0_i2c: i2c@31b0000 {
-			compatible = "nvidia,tegra194-i2c", "nvidia,tegra114-i2c";
+			compatible = "nvidia,tegra194-i2c";
 			reg = <0x031b0000 0x10000>;
 			interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -145,7 +184,7 @@
 		};
 
 		gen7_i2c: i2c@31c0000 {
-			compatible = "nvidia,tegra194-i2c", "nvidia,tegra114-i2c";
+			compatible = "nvidia,tegra194-i2c";
 			reg = <0x031c0000 0x10000>;
 			interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -158,7 +197,7 @@
 		};
 
 		gen9_i2c: i2c@31e0000 {
-			compatible = "nvidia,tegra194-i2c", "nvidia,tegra114-i2c";
+			compatible = "nvidia,tegra194-i2c";
 			reg = <0x031e0000 0x10000>;
 			interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -225,7 +264,7 @@
 		};
 
 		gen2_i2c: i2c@c240000 {
-			compatible = "nvidia,tegra194-i2c", "nvidia,tegra114-i2c";
+			compatible = "nvidia,tegra194-i2c";
 			reg = <0x0c240000 0x10000>;
 			interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -238,7 +277,7 @@
 		};
 
 		gen8_i2c: i2c@c250000 {
-			compatible = "nvidia,tegra194-i2c", "nvidia,tegra114-i2c";
+			compatible = "nvidia,tegra194-i2c";
 			reg = <0x0c250000 0x10000>;
 			interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -327,6 +366,73 @@
 			compatible = "nvidia,tegra186-bpmp-thermal";
 			#thermal-sensor-cells = <1>;
 		};
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			compatible = "nvidia,tegra194-carmel", "arm,armv8";
+			device_type = "cpu";
+			reg = <0x10000>;
+			enable-method = "psci";
+		};
+
+		cpu@1 {
+			compatible = "nvidia,tegra194-carmel", "arm,armv8";
+			device_type = "cpu";
+			reg = <0x10001>;
+			enable-method = "psci";
+		};
+
+		cpu@2 {
+			compatible = "nvidia,tegra194-carmel", "arm,armv8";
+			device_type = "cpu";
+			reg = <0x100>;
+			enable-method = "psci";
+		};
+
+		cpu@3 {
+			compatible = "nvidia,tegra194-carmel", "arm,armv8";
+			device_type = "cpu";
+			reg = <0x101>;
+			enable-method = "psci";
+		};
+
+		cpu@4 {
+			compatible = "nvidia,tegra194-carmel", "arm,armv8";
+			device_type = "cpu";
+			reg = <0x200>;
+			enable-method = "psci";
+		};
+
+		cpu@5 {
+			compatible = "nvidia,tegra194-carmel", "arm,armv8";
+			device_type = "cpu";
+			reg = <0x201>;
+			enable-method = "psci";
+		};
+
+		cpu@6 {
+			compatible = "nvidia,tegra194-carmel", "arm,armv8";
+			device_type = "cpu";
+			reg = <0x10300>;
+			enable-method = "psci";
+		};
+
+		cpu@7 {
+			compatible = "nvidia,tegra194-carmel", "arm,armv8";
+			device_type = "cpu";
+			reg = <0x10301>;
+			enable-method = "psci";
+		};
+	};
+
+	psci {
+		compatible = "arm,psci-1.0";
+		status = "okay";
+		method = "smc";
 	};
 
 	timer {

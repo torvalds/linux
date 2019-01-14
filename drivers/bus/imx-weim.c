@@ -45,6 +45,8 @@ static const struct imx_weim_devtype imx51_weim_devtype = {
 	.cs_stride	= 0x18,
 };
 
+#define MAX_CS_REGS_COUNT	6
+
 static const struct of_device_id weim_id_table[] = {
 	/* i.MX1/21 */
 	{ .compatible = "fsl,imx1-weim", .data = &imx1_weim_devtype, },
@@ -112,8 +114,11 @@ err:
 static int __init weim_timing_setup(struct device_node *np, void __iomem *base,
 				    const struct imx_weim_devtype *devtype)
 {
-	u32 cs_idx, value[devtype->cs_regs_count];
+	u32 cs_idx, value[MAX_CS_REGS_COUNT];
 	int i, ret;
+
+	if (WARN_ON(devtype->cs_regs_count > MAX_CS_REGS_COUNT))
+		return -EINVAL;
 
 	/* get the CS index from this child node's "reg" property. */
 	ret = of_property_read_u32(np, "reg", &cs_idx);
@@ -151,9 +156,6 @@ static int __init weim_parse_dt(struct platform_device *pdev,
 	}
 
 	for_each_available_child_of_node(pdev->dev.of_node, child) {
-		if (!child->name)
-			continue;
-
 		ret = weim_timing_setup(child, base, devtype);
 		if (ret)
 			dev_warn(&pdev->dev, "%pOF set timing failed.\n",

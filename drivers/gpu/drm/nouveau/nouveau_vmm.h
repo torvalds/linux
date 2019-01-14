@@ -11,6 +11,8 @@ struct nouveau_vma {
 	u64 addr;
 
 	struct nouveau_mem *mem;
+
+	struct nouveau_fence *fence;
 };
 
 struct nouveau_vma *nouveau_vma_find(struct nouveau_bo *, struct nouveau_vmm *);

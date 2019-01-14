@@ -45,6 +45,12 @@ config COMMON_CLK_MAX77686
 	  This driver supports Maxim 77620/77686/77802 crystal oscillator
 	  clock.
 
+config COMMON_CLK_MAX9485
+	tristate "Maxim 9485 Programmable Clock Generator"
+	depends on I2C
+	help
+	  This driver supports Maxim 9485 Programmable Audio Clock Generator
+
 config COMMON_CLK_RK808
 	tristate "Clock driver for RK805/RK808/RK818"
 	depends on MFD_RK808
@@ -277,9 +283,11 @@ config COMMON_CLK_STM32H7
 	---help---
 	  Support for stm32h7 SoC family clocks
 
+source "drivers/clk/actions/Kconfig"
 source "drivers/clk/bcm/Kconfig"
 source "drivers/clk/hisilicon/Kconfig"
 source "drivers/clk/imgtec/Kconfig"
+source "drivers/clk/ingenic/Kconfig"
 source "drivers/clk/keystone/Kconfig"
 source "drivers/clk/mediatek/Kconfig"
 source "drivers/clk/meson/Kconfig"
@@ -292,5 +300,6 @@ source "drivers/clk/sunxi-ng/Kconfig"
 source "drivers/clk/tegra/Kconfig"
 source "drivers/clk/ti/Kconfig"
 source "drivers/clk/uniphier/Kconfig"
+source "drivers/clk/zynqmp/Kconfig"
 
 endmenu

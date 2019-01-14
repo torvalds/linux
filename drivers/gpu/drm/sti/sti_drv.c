@@ -119,30 +119,9 @@ err:
 	return ret;
 }
 
-static int sti_atomic_check(struct drm_device *dev,
-			    struct drm_atomic_state *state)
-{
-	int ret;
-
-	ret = drm_atomic_helper_check_modeset(dev, state);
-	if (ret)
-		return ret;
-
-	ret = drm_atomic_normalize_zpos(dev, state);
-	if (ret)
-		return ret;
-
-	ret = drm_atomic_helper_check_planes(dev, state);
-	if (ret)
-		return ret;
-
-	return ret;
-}
-
 static const struct drm_mode_config_funcs sti_mode_config_funcs = {
 	.fb_create = drm_gem_fb_create,
-	.output_poll_changed = drm_fb_helper_output_poll_changed,
-	.atomic_check = sti_atomic_check,
+	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };
 
@@ -160,6 +139,8 @@ static void sti_mode_config_init(struct drm_device *dev)
 	dev->mode_config.max_height = STI_MAX_FB_HEIGHT;
 
 	dev->mode_config.funcs = &sti_mode_config_funcs;
+
+	dev->mode_config.normalize_zpos = true;
 }
 
 DEFINE_DRM_GEM_CMA_FOPS(sti_driver_fops);
@@ -224,7 +205,6 @@ static void sti_cleanup(struct drm_device *ddev)
 {
 	struct sti_private *private = ddev->dev_private;
 
-	drm_fb_cma_fbdev_fini(ddev);
 	drm_kms_helper_poll_fini(ddev);
 	component_unbind_all(ddev->dev, ddev);
 	kfree(private);
@@ -242,7 +222,7 @@ static int sti_bind(struct device *dev)
 
 	ret = sti_init(ddev);
 	if (ret)
-		goto err_drm_dev_unref;
+		goto err_drm_dev_put;
 
 	ret = component_bind_all(ddev->dev, ddev);
 	if (ret)
@@ -254,11 +234,7 @@ static int sti_bind(struct device *dev)
 
 	drm_mode_config_reset(ddev);
 
-	if (ddev->mode_config.num_connector) {
-		ret = drm_fb_cma_fbdev_init(ddev, 32, 0);
-		if (ret)
-			DRM_DEBUG_DRIVER("Warning: fails to create fbdev\n");
-	}
+	drm_fbdev_generic_setup(ddev, 32);
 
 	return 0;
 
@@ -266,8 +242,8 @@ err_register:
 	drm_mode_config_cleanup(ddev);
 err_cleanup:
 	sti_cleanup(ddev);
-err_drm_dev_unref:
-	drm_dev_unref(ddev);
+err_drm_dev_put:
+	drm_dev_put(ddev);
 	return ret;
 }
 
@@ -277,7 +253,7 @@ static void sti_unbind(struct device *dev)
 
 	drm_dev_unregister(ddev);
 	sti_cleanup(ddev);
-	drm_dev_unref(ddev);
+	drm_dev_put(ddev);
 }
 
 static const struct component_master_ops sti_ops = {

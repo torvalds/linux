@@ -70,8 +70,7 @@ static void nes_process_mac_intr(struct nes_device *nesdev, u32 mac_number);
 static unsigned int nes_reset_adapter_ne020(struct nes_device *nesdev, u8 *OneG_Mode);
 static void nes_terminate_start_timer(struct nes_qp *nesqp);
 
-#ifdef CONFIG_INFINIBAND_NES_DEBUG
-static unsigned char *nes_iwarp_state_str[] = {
+static const char *const nes_iwarp_state_str[] = {
 	"Non-Existent",
 	"Idle",
 	"RTS",
@@ -82,7 +81,7 @@ static unsigned char *nes_iwarp_state_str[] = {
 	"RSVD2",
 };
 
-static unsigned char *nes_tcp_state_str[] = {
+static const char *const nes_tcp_state_str[] = {
 	"Non-Existent",
 	"Closed",
 	"Listen",
@@ -100,7 +99,6 @@ static unsigned char *nes_tcp_state_str[] = {
 	"RSVD3",
 	"RSVD4",
 };
-#endif
 
 static inline void print_ip(struct nes_cm_node *cm_node)
 {
@@ -1445,7 +1443,7 @@ static int nes_init_2025_phy(struct nes_device *nesdev, u8 phy_type, u8 phy_inde
 		mdelay(1);
 		nes_read_10G_phy_reg(nesdev, phy_index, 0x3, 0xd7ee);
 		temp_phy_data2 = (u16)nes_read_indexed(nesdev, NES_IDX_MAC_MDIO_CONTROL);
-	} while ((temp_phy_data2 == temp_phy_data));
+	} while (temp_phy_data2 == temp_phy_data);
 
 	/* wait for tracking */
 	counter = 0;

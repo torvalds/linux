@@ -931,7 +931,7 @@ static int open_file_eeprom(struct inode *inode, struct file *file)
 
 	/* Create buffer and read in eeprom */
 
-	buf = vmalloc(eesize * 2);
+	buf = vmalloc(array_size(eesize, 2));
 	if (!buf) {
 		ret = -ENOMEM;
 		goto err;
@@ -1027,8 +1027,6 @@ ath5k_debug_dump_bands(struct ath5k_hw *ah)
 
 	if (likely(!(ah->debug.level & ATH5K_DEBUG_DUMPBANDS)))
 		return;
-
-	BUG_ON(!ah->sbands);
 
 	for (b = 0; b < NUM_NL80211_BANDS; b++) {
 		struct ieee80211_supported_band *band = &ah->sbands[b];

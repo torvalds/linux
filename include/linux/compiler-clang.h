@@ -6,11 +6,7 @@
 /* Some compiler specific definitions are overwritten here
  * for Clang compiler
  */
-
-#ifdef uninitialized_var
-#undef uninitialized_var
 #define uninitialized_var(x) x = *(&(x))
-#endif
 
 /* same as gcc, this was present in clang-2.6 so we can assume it works
  * with any version that can compile the kernel
@@ -25,10 +21,21 @@
 #define __SANITIZE_ADDRESS__
 #endif
 
-#undef __no_sanitize_address
-#define __no_sanitize_address __attribute__((no_sanitize("address")))
-
-/* Clang doesn't have a way to turn it off per-function, yet. */
-#ifdef __noretpoline
-#undef __noretpoline
+/*
+ * Not all versions of clang implement the the type-generic versions
+ * of the builtin overflow checkers. Fortunately, clang implements
+ * __has_builtin allowing us to avoid awkward version
+ * checks. Unfortunately, we don't know which version of gcc clang
+ * pretends to be, so the macro may or may not be defined.
+ */
+#if __has_builtin(__builtin_mul_overflow) && \
+    __has_builtin(__builtin_add_overflow) && \
+    __has_builtin(__builtin_sub_overflow)
+#define COMPILER_HAS_GENERIC_BUILTIN_OVERFLOW 1
 #endif
+
+/* The following are for compatibility with GCC, from compiler-gcc.h,
+ * and may be redefined here because they should not be shared with other
+ * compilers, like ICC.
+ */
+#define barrier() __asm__ __volatile__("" : : : "memory")

@@ -35,6 +35,8 @@
 #define SPRD_RTC_DAY_ALM_VALUE		0x4c
 #define SPRD_RTC_SPG_VALUE		0x50
 #define SPRD_RTC_SPG_UPD		0x54
+#define SPRD_RTC_PWR_CTRL		0x58
+#define SPRD_RTC_PWR_STS		0x5c
 #define SPRD_RTC_SEC_AUXALM_UPD		0x60
 #define SPRD_RTC_MIN_AUXALM_UPD		0x64
 #define SPRD_RTC_HOUR_AUXALM_UPD	0x68
@@ -86,7 +88,13 @@
 
 /* SPG values definition for SPRD_RTC_SPG_UPD register */
 #define SPRD_RTC_POWEROFF_ALM_FLAG	BIT(8)
-#define SPRD_RTC_POWER_RESET_FLAG	BIT(9)
+
+/* power control/status definition */
+#define SPRD_RTC_POWER_RESET_VALUE	0x96
+#define SPRD_RTC_POWER_STS_CLEAR	GENMASK(7, 0)
+#define SPRD_RTC_POWER_STS_SHIFT	8
+#define SPRD_RTC_POWER_STS_VALID	\
+	(~SPRD_RTC_POWER_RESET_VALUE << SPRD_RTC_POWER_STS_SHIFT)
 
 /* timeout of synchronizing time and alarm registers (us) */
 #define SPRD_RTC_POLL_TIMEOUT		200000
@@ -121,19 +129,6 @@ static int sprd_rtc_clear_alarm_ints(struct sprd_rtc *rtc)
 			    SPRD_RTC_ALM_INT_MASK);
 }
 
-static int sprd_rtc_disable_ints(struct sprd_rtc *rtc)
-{
-	int ret;
-
-	ret = regmap_update_bits(rtc->regmap, rtc->base + SPRD_RTC_INT_EN,
-				 SPRD_RTC_INT_MASK, 0);
-	if (ret)
-		return ret;
-
-	return regmap_write(rtc->regmap, rtc->base + SPRD_RTC_INT_CLR,
-			    SPRD_RTC_INT_MASK);
-}
-
 static int sprd_rtc_lock_alarm(struct sprd_rtc *rtc, bool lock)
 {
 	int ret;
@@ -164,7 +159,8 @@ static int sprd_rtc_lock_alarm(struct sprd_rtc *rtc, bool lock)
 		return ret;
 	}
 
-	return 0;
+	return regmap_write(rtc->regmap, rtc->base + SPRD_RTC_INT_CLR,
+			    SPRD_RTC_SPG_UPD_EN);
 }
 
 static int sprd_rtc_get_secs(struct sprd_rtc *rtc, enum sprd_rtc_reg_types type,
@@ -383,7 +379,6 @@ static int sprd_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	struct sprd_rtc *rtc = dev_get_drvdata(dev);
 	time64_t secs = rtc_tm_to_time64(tm);
-	u32 val;
 	int ret;
 
 	ret = sprd_rtc_set_secs(rtc, SPRD_RTC_TIME, secs);
@@ -391,27 +386,20 @@ static int sprd_rtc_set_time(struct device *dev, struct rtc_time *tm)
 		return ret;
 
 	if (!rtc->valid) {
-		/*
-		 * Set SPRD_RTC_POWER_RESET_FLAG to indicate now RTC has valid
-		 * time values.
-		 */
-		ret = regmap_update_bits(rtc->regmap,
-					 rtc->base + SPRD_RTC_SPG_UPD,
-					 SPRD_RTC_POWER_RESET_FLAG,
-					 SPRD_RTC_POWER_RESET_FLAG);
+		/* Clear RTC power status firstly */
+		ret = regmap_write(rtc->regmap, rtc->base + SPRD_RTC_PWR_CTRL,
+				   SPRD_RTC_POWER_STS_CLEAR);
 		if (ret)
 			return ret;
 
-		ret = regmap_read_poll_timeout(rtc->regmap,
-					       rtc->base + SPRD_RTC_INT_RAW_STS,
-					       val, (val & SPRD_RTC_SPG_UPD_EN),
-					       SPRD_RTC_POLL_DELAY_US,
-					       SPRD_RTC_POLL_TIMEOUT);
-		if (ret) {
-			dev_err(rtc->dev, "failed to update SPG value:%d\n",
-				ret);
+		/*
+		 * Set RTC power status to indicate now RTC has valid time
+		 * values.
+		 */
+		ret = regmap_write(rtc->regmap, rtc->base + SPRD_RTC_PWR_CTRL,
+				   SPRD_RTC_POWER_STS_VALID);
+		if (ret)
 			return ret;
-		}
 
 		rtc->valid = true;
 	}
@@ -427,10 +415,14 @@ static int sprd_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	u32 val;
 
 	/*
-	 * If aie_timer is enabled, we should get the normal alarm time.
+	 * Before RTC device is registered, it will check to see if there is an
+	 * alarm already set in RTC hardware, and we always read the normal
+	 * alarm at this time.
+	 *
+	 * Or if aie_timer is enabled, we should get the normal alarm time.
 	 * Otherwise we should get auxiliary alarm time.
 	 */
-	if (rtc->rtc && rtc->rtc->aie_timer.enabled == 0)
+	if (rtc->rtc && rtc->rtc->registered && rtc->rtc->aie_timer.enabled == 0)
 		return sprd_rtc_read_aux_alarm(dev, alrm);
 
 	ret = sprd_rtc_get_secs(rtc, SPRD_RTC_ALARM, &secs);
@@ -562,16 +554,43 @@ static int sprd_rtc_check_power_down(struct sprd_rtc *rtc)
 	u32 val;
 	int ret;
 
+	ret = regmap_read(rtc->regmap, rtc->base + SPRD_RTC_PWR_STS, &val);
+	if (ret)
+		return ret;
+
+	/*
+	 * If the RTC power status value is SPRD_RTC_POWER_RESET_VALUE, which
+	 * means the RTC has been powered down, so the RTC time values are
+	 * invalid.
+	 */
+	rtc->valid = val == SPRD_RTC_POWER_RESET_VALUE ? false : true;
+	return 0;
+}
+
+static int sprd_rtc_check_alarm_int(struct sprd_rtc *rtc)
+{
+	u32 val;
+	int ret;
+
 	ret = regmap_read(rtc->regmap, rtc->base + SPRD_RTC_SPG_VALUE, &val);
 	if (ret)
 		return ret;
 
 	/*
-	 * If the SPRD_RTC_POWER_RESET_FLAG was not set, which means the RTC has
-	 * been powered down, so the RTC time values are invalid.
+	 * The SPRD_RTC_INT_EN register is not put in always-power-on region
+	 * supplied by VDDRTC, so we should check if we need enable the alarm
+	 * interrupt when system booting.
+	 *
+	 * If we have set SPRD_RTC_POWEROFF_ALM_FLAG which is saved in
+	 * always-power-on region, that means we have set one alarm last time,
+	 * so we should enable the alarm interrupt to help RTC core to see if
+	 * there is an alarm already set in RTC hardware.
 	 */
-	rtc->valid = (val & SPRD_RTC_POWER_RESET_FLAG) ? true : false;
-	return 0;
+	if (!(val & SPRD_RTC_POWEROFF_ALM_FLAG))
+		return 0;
+
+	return regmap_update_bits(rtc->regmap, rtc->base + SPRD_RTC_INT_EN,
+				  SPRD_RTC_ALARM_EN, SPRD_RTC_ALARM_EN);
 }
 
 static int sprd_rtc_probe(struct platform_device *pdev)
@@ -600,13 +619,17 @@ static int sprd_rtc_probe(struct platform_device *pdev)
 		return rtc->irq;
 	}
 
+	rtc->rtc = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(rtc->rtc))
+		return PTR_ERR(rtc->rtc);
+
 	rtc->dev = &pdev->dev;
 	platform_set_drvdata(pdev, rtc);
 
-	/* clear all RTC interrupts and disable all RTC interrupts */
-	ret = sprd_rtc_disable_ints(rtc);
+	/* check if we need set the alarm interrupt */
+	ret = sprd_rtc_check_alarm_int(rtc);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to disable RTC interrupts\n");
+		dev_err(&pdev->dev, "failed to check RTC alarm interrupt\n");
 		return ret;
 	}
 
@@ -626,12 +649,18 @@ static int sprd_rtc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	rtc->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
-					    &sprd_rtc_ops, THIS_MODULE);
-	if (IS_ERR(rtc->rtc))
-		return PTR_ERR(rtc->rtc);
-
 	device_init_wakeup(&pdev->dev, 1);
+
+	rtc->rtc->ops = &sprd_rtc_ops;
+	rtc->rtc->range_min = 0;
+	rtc->rtc->range_max = 5662310399LL;
+	ret = rtc_register_device(rtc->rtc);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to register rtc device\n");
+		device_init_wakeup(&pdev->dev, 0);
+		return ret;
+	}
+
 	return 0;
 }
 

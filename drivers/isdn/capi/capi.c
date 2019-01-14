@@ -9,6 +9,7 @@
  *
  */
 
+#include <linux/compiler.h>
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
@@ -1154,12 +1155,6 @@ static int capinc_tty_chars_in_buffer(struct tty_struct *tty)
 	return mp->outbytes;
 }
 
-static int capinc_tty_ioctl(struct tty_struct *tty,
-			    unsigned int cmd, unsigned long arg)
-{
-	return -ENOIOCTLCMD;
-}
-
 static void capinc_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
 {
 	pr_debug("capinc_tty_set_termios\n");
@@ -1235,7 +1230,6 @@ static const struct tty_operations capinc_ops = {
 	.flush_chars = capinc_tty_flush_chars,
 	.write_room = capinc_tty_write_room,
 	.chars_in_buffer = capinc_tty_chars_in_buffer,
-	.ioctl = capinc_tty_ioctl,
 	.set_termios = capinc_tty_set_termios,
 	.throttle = capinc_tty_throttle,
 	.unthrottle = capinc_tty_unthrottle,
@@ -1260,7 +1254,7 @@ static int __init capinc_tty_init(void)
 	if (capi_ttyminors <= 0)
 		capi_ttyminors = CAPINC_NR_PORTS;
 
-	capiminors = kzalloc(sizeof(struct capiminor *) * capi_ttyminors,
+	capiminors = kcalloc(capi_ttyminors, sizeof(struct capiminor *),
 			     GFP_KERNEL);
 	if (!capiminors)
 		return -ENOMEM;
@@ -1321,7 +1315,7 @@ static inline void capinc_tty_exit(void) { }
  * /proc/capi/capi20:
  *  minor applid nrecvctlpkt nrecvdatapkt nsendctlpkt nsenddatapkt
  */
-static int capi20_proc_show(struct seq_file *m, void *v)
+static int __maybe_unused capi20_proc_show(struct seq_file *m, void *v)
 {
 	struct capidev *cdev;
 	struct list_head *l;
@@ -1340,24 +1334,11 @@ static int capi20_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int capi20_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, capi20_proc_show, NULL);
-}
-
-static const struct file_operations capi20_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= capi20_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 /*
  * /proc/capi/capi20ncci:
  *  applid ncci
  */
-static int capi20ncci_proc_show(struct seq_file *m, void *v)
+static int __maybe_unused capi20ncci_proc_show(struct seq_file *m, void *v)
 {
 	struct capidev *cdev;
 	struct capincci *np;
@@ -1373,23 +1354,10 @@ static int capi20ncci_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int capi20ncci_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, capi20ncci_proc_show, NULL);
-}
-
-static const struct file_operations capi20ncci_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= capi20ncci_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static void __init proc_init(void)
 {
-	proc_create("capi/capi20", 0, NULL, &capi20_proc_fops);
-	proc_create("capi/capi20ncci", 0, NULL, &capi20ncci_proc_fops);
+	proc_create_single("capi/capi20", 0, NULL, capi20_proc_show);
+	proc_create_single("capi/capi20ncci", 0, NULL, capi20ncci_proc_show);
 }
 
 static void __exit proc_exit(void)

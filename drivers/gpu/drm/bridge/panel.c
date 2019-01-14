@@ -79,7 +79,7 @@ static int panel_bridge_attach(struct drm_bridge *bridge)
 		return ret;
 	}
 
-	drm_mode_connector_attach_encoder(&panel_bridge->connector,
+	drm_connector_attach_encoder(&panel_bridge->connector,
 					  bridge->encoder);
 
 	ret = drm_panel_attach(panel_bridge->panel, &panel_bridge->connector);

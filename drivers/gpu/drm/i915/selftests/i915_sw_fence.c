@@ -611,17 +611,9 @@ static const char *mock_name(struct dma_fence *fence)
 	return "mock";
 }
 
-static bool mock_enable_signaling(struct dma_fence *fence)
-{
-	return true;
-}
-
 static const struct dma_fence_ops mock_fence_ops = {
 	.get_driver_name = mock_name,
 	.get_timeline_name = mock_name,
-	.enable_signaling = mock_enable_signaling,
-	.wait = dma_fence_default_wait,
-	.release = dma_fence_free,
 };
 
 static DEFINE_SPINLOCK(mock_fence_lock);

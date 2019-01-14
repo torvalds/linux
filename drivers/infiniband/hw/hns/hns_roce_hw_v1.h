@@ -260,7 +260,7 @@ struct hns_roce_cqe {
 	__le32 cqe_byte_4;
 	union {
 		__le32 r_key;
-		__be32 immediate_data;
+		__le32 immediate_data;
 	};
 	__le32 byte_cnt;
 	__le32 cqe_byte_16;

@@ -101,23 +101,10 @@ static int um_idi_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int um_idi_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, um_idi_proc_show, NULL);
-}
-
-static const struct file_operations um_idi_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= um_idi_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static int __init create_um_idi_proc(void)
 {
-	um_idi_proc_entry = proc_create(DRIVERLNAME, S_IRUGO, proc_net_eicon,
-					&um_idi_proc_fops);
+	um_idi_proc_entry = proc_create_single(DRIVERLNAME, S_IRUGO,
+			proc_net_eicon, um_idi_proc_show);
 	if (!um_idi_proc_entry)
 		return (0);
 	return (1);

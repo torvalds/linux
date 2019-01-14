@@ -561,6 +561,7 @@ static __be32 *xdr_decode_nfstime3(__be32 *p, struct timespec *timep)
  */
 static void encode_sattr3(struct xdr_stream *xdr, const struct iattr *attr)
 {
+	struct timespec ts;
 	u32 nbytes;
 	__be32 *p;
 
@@ -610,8 +611,10 @@ static void encode_sattr3(struct xdr_stream *xdr, const struct iattr *attr)
 		*p++ = xdr_zero;
 
 	if (attr->ia_valid & ATTR_ATIME_SET) {
+		struct timespec ts;
 		*p++ = xdr_two;
-		p = xdr_encode_nfstime3(p, &attr->ia_atime);
+		ts = timespec64_to_timespec(attr->ia_atime);
+		p = xdr_encode_nfstime3(p, &ts);
 	} else if (attr->ia_valid & ATTR_ATIME) {
 		*p++ = xdr_one;
 	} else
@@ -619,7 +622,8 @@ static void encode_sattr3(struct xdr_stream *xdr, const struct iattr *attr)
 
 	if (attr->ia_valid & ATTR_MTIME_SET) {
 		*p++ = xdr_two;
-		xdr_encode_nfstime3(p, &attr->ia_mtime);
+		ts = timespec64_to_timespec(attr->ia_mtime);
+		xdr_encode_nfstime3(p, &ts);
 	} else if (attr->ia_valid & ATTR_MTIME) {
 		*p = xdr_one;
 	} else
@@ -979,10 +983,11 @@ static void nfs3_xdr_enc_read3args(struct rpc_rqst *req,
 				   const void *data)
 {
 	const struct nfs_pgio_args *args = data;
+	unsigned int replen = args->replen ? args->replen : NFS3_readres_sz;
 
 	encode_read3args(xdr, args);
 	prepare_reply_buffer(req, args->pages, args->pgbase,
-					args->count, NFS3_readres_sz);
+					args->count, replen);
 	req->rq_rcv_buf.flags |= XDRBUF_READ;
 }
 
@@ -1360,10 +1365,12 @@ static void nfs3_xdr_enc_getacl3args(struct rpc_rqst *req,
 
 	encode_nfs_fh3(xdr, args->fh);
 	encode_uint32(xdr, args->mask);
-	if (args->mask & (NFS_ACL | NFS_DFACL))
+	if (args->mask & (NFS_ACL | NFS_DFACL)) {
 		prepare_reply_buffer(req, args->pages, 0,
 					NFSACL_MAXPAGES << PAGE_SHIFT,
 					ACL3_getaclres_sz);
+		req->rq_rcv_buf.flags |= XDRBUF_SPARSE_PAGES;
+	}
 }
 
 static void nfs3_xdr_enc_setacl3args(struct rpc_rqst *req,
@@ -1669,9 +1676,11 @@ static int nfs3_xdr_dec_read3res(struct rpc_rqst *req, struct xdr_stream *xdr,
 				 void *data)
 {
 	struct nfs_pgio_res *result = data;
+	unsigned int pos;
 	enum nfs_stat status;
 	int error;
 
+	pos = xdr_stream_pos(xdr);
 	error = decode_nfsstat3(xdr, &status);
 	if (unlikely(error))
 		goto out;
@@ -1681,6 +1690,7 @@ static int nfs3_xdr_dec_read3res(struct rpc_rqst *req, struct xdr_stream *xdr,
 	result->op_status = status;
 	if (status != NFS3_OK)
 		goto out_status;
+	result->replen = 3 + ((xdr_stream_pos(xdr) - pos) >> 2);
 	error = decode_read3resok(xdr, result);
 out:
 	return error;

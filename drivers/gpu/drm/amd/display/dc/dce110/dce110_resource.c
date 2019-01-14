@@ -49,14 +49,15 @@
 #include "dce/dce_clock_source.h"
 #include "dce/dce_hwseq.h"
 #include "dce110/dce110_hw_sequencer.h"
+#include "dce/dce_aux.h"
 #include "dce/dce_abm.h"
 #include "dce/dce_dmcu.h"
+#include "dce/dce_i2c.h"
 
 #define DC_LOGGER \
 		dc->ctx->logger
-#if defined(CONFIG_DRM_AMD_DC_FBC)
+
 #include "dce110/dce110_compressor.h"
-#endif
 
 #include "reg_helper.h"
 
@@ -147,15 +148,15 @@ static const struct dce110_timing_generator_offsets dce110_tg_offsets[] = {
 #define SRI(reg_name, block, id)\
 	.reg_name = mm ## block ## id ## _ ## reg_name
 
-static const struct dce_disp_clk_registers disp_clk_regs = {
+static const struct dccg_registers disp_clk_regs = {
 		CLK_COMMON_REG_LIST_DCE_BASE()
 };
 
-static const struct dce_disp_clk_shift disp_clk_shift = {
+static const struct dccg_shift disp_clk_shift = {
 		CLK_COMMON_MASK_SH_LIST_DCE_COMMON_BASE(__SHIFT)
 };
 
-static const struct dce_disp_clk_mask disp_clk_mask = {
+static const struct dccg_mask disp_clk_mask = {
 		CLK_COMMON_MASK_SH_LIST_DCE_COMMON_BASE(_MASK)
 };
 
@@ -307,6 +308,21 @@ static const struct dce_opp_mask opp_mask = {
 	OPP_COMMON_MASK_SH_LIST_DCE_110(_MASK)
 };
 
+#define aux_engine_regs(id)\
+[id] = {\
+	AUX_COMMON_REG_LIST(id), \
+	.AUX_RESET_MASK = 0 \
+}
+
+static const struct dce110_aux_registers aux_engine_regs[] = {
+		aux_engine_regs(0),
+		aux_engine_regs(1),
+		aux_engine_regs(2),
+		aux_engine_regs(3),
+		aux_engine_regs(4),
+		aux_engine_regs(5)
+};
+
 #define audio_regs(id)\
 [id] = {\
 	AUD_COMMON_REG_LIST(id)\
@@ -362,6 +378,7 @@ static const struct resource_caps carrizo_resource_cap = {
 		.num_audio = 3,
 		.num_stream_encoder = 3,
 		.num_pll = 2,
+		.num_ddc = 3,
 };
 
 static const struct resource_caps stoney_resource_cap = {
@@ -370,6 +387,7 @@ static const struct resource_caps stoney_resource_cap = {
 		.num_audio = 3,
 		.num_stream_encoder = 3,
 		.num_pll = 2,
+		.num_ddc = 3,
 };
 
 #define CTX  ctx
@@ -550,10 +568,9 @@ static struct input_pixel_processor *dce110_ipp_create(
 
 static const struct encoder_feature_support link_enc_feature = {
 		.max_hdmi_deep_color = COLOR_DEPTH_121212,
-		.max_hdmi_pixel_clock = 594000,
+		.max_hdmi_pixel_clock = 300000,
 		.flags.bits.IS_HBR2_CAPABLE = true,
-		.flags.bits.IS_TPS3_CAPABLE = true,
-		.flags.bits.IS_YCBCR_CAPABLE = true
+		.flags.bits.IS_TPS3_CAPABLE = true
 };
 
 static struct link_encoder *dce110_link_encoder_create(
@@ -589,6 +606,56 @@ static struct output_pixel_processor *dce110_opp_create(
 	return &opp->base;
 }
 
+struct aux_engine *dce110_aux_engine_create(
+	struct dc_context *ctx,
+	uint32_t inst)
+{
+	struct aux_engine_dce110 *aux_engine =
+		kzalloc(sizeof(struct aux_engine_dce110), GFP_KERNEL);
+
+	if (!aux_engine)
+		return NULL;
+
+	dce110_aux_engine_construct(aux_engine, ctx, inst,
+				    SW_AUX_TIMEOUT_PERIOD_MULTIPLIER * AUX_TIMEOUT_PERIOD,
+				    &aux_engine_regs[inst]);
+
+	return &aux_engine->base;
+}
+#define i2c_inst_regs(id) { I2C_HW_ENGINE_COMMON_REG_LIST(id) }
+
+static const struct dce_i2c_registers i2c_hw_regs[] = {
+		i2c_inst_regs(1),
+		i2c_inst_regs(2),
+		i2c_inst_regs(3),
+		i2c_inst_regs(4),
+		i2c_inst_regs(5),
+		i2c_inst_regs(6),
+};
+
+static const struct dce_i2c_shift i2c_shifts = {
+		I2C_COMMON_MASK_SH_LIST_DCE110(__SHIFT)
+};
+
+static const struct dce_i2c_mask i2c_masks = {
+		I2C_COMMON_MASK_SH_LIST_DCE110(_MASK)
+};
+
+struct dce_i2c_hw *dce110_i2c_hw_create(
+	struct dc_context *ctx,
+	uint32_t inst)
+{
+	struct dce_i2c_hw *dce_i2c_hw =
+		kzalloc(sizeof(struct dce_i2c_hw), GFP_KERNEL);
+
+	if (!dce_i2c_hw)
+		return NULL;
+
+	dce100_i2c_hw_construct(dce_i2c_hw, ctx, inst,
+				    &i2c_hw_regs[inst], &i2c_shifts, &i2c_masks);
+
+	return dce_i2c_hw;
+}
 struct clock_source *dce110_clock_source_create(
 	struct dc_context *ctx,
 	struct dc_bios *bios,
@@ -654,6 +721,19 @@ static void destruct(struct dce110_resource_pool *pool)
 		}
 	}
 
+	for (i = 0; i < pool->base.res_cap->num_ddc; i++) {
+		if (pool->base.engines[i] != NULL)
+			dce110_engine_destroy(&pool->base.engines[i]);
+		if (pool->base.hw_i2cs[i] != NULL) {
+			kfree(pool->base.hw_i2cs[i]);
+			pool->base.hw_i2cs[i] = NULL;
+		}
+		if (pool->base.sw_i2cs[i] != NULL) {
+			kfree(pool->base.sw_i2cs[i]);
+			pool->base.sw_i2cs[i] = NULL;
+		}
+	}
+
 	for (i = 0; i < pool->base.stream_enc_count; i++) {
 		if (pool->base.stream_enc[i] != NULL)
 			kfree(DCE110STRENC_FROM_STRENC(pool->base.stream_enc[i]));
@@ -680,8 +760,8 @@ static void destruct(struct dce110_resource_pool *pool)
 	if (pool->base.dmcu != NULL)
 		dce_dmcu_destroy(&pool->base.dmcu);
 
-	if (pool->base.display_clock != NULL)
-		dce_disp_clk_destroy(&pool->base.display_clock);
+	if (pool->base.dccg != NULL)
+		dce_dccg_destroy(&pool->base.dccg);
 
 	if (pool->base.irqs != NULL) {
 		dal_irq_service_destroy(&pool->base.irqs);
@@ -719,6 +799,9 @@ static void get_pixel_clock_parameters(
 	if (stream->timing.pixel_encoding == PIXEL_ENCODING_YCBCR420) {
 		pixel_clk_params->requested_pix_clk  = pixel_clk_params->requested_pix_clk / 2;
 	}
+	if (stream->timing.timing_3d_format == TIMING_3D_FORMAT_HW_FRAME_PACKING)
+		pixel_clk_params->requested_pix_clk *= 2;
+
 }
 
 void dce110_resource_build_pipe_hw_param(struct pipe_ctx *pipe_ctx)
@@ -795,43 +878,38 @@ static bool dce110_validate_bandwidth(
 
 	if (memcmp(&dc->current_state->bw.dce,
 			&context->bw.dce, sizeof(context->bw.dce))) {
-		struct log_entry log_entry;
-		dm_logger_open(
-			dc->ctx->logger,
-			&log_entry,
-			LOG_BANDWIDTH_CALCS);
-		dm_logger_append(&log_entry, "%s: finish,\n"
+
+		DC_LOG_BANDWIDTH_CALCS(
+			"%s: finish,\n"
 			"nbpMark_b: %d nbpMark_a: %d urgentMark_b: %d urgentMark_a: %d\n"
-			"stutMark_b: %d stutMark_a: %d\n",
+			"stutMark_b: %d stutMark_a: %d\n"
+			"nbpMark_b: %d nbpMark_a: %d urgentMark_b: %d urgentMark_a: %d\n"
+			"stutMark_b: %d stutMark_a: %d\n"
+			"nbpMark_b: %d nbpMark_a: %d urgentMark_b: %d urgentMark_a: %d\n"
+			"stutMark_b: %d stutMark_a: %d stutter_mode_enable: %d\n"
+			"cstate: %d pstate: %d nbpstate: %d sync: %d dispclk: %d\n"
+			"sclk: %d sclk_sleep: %d yclk: %d blackout_recovery_time_us: %d\n"
+			,
 			__func__,
 			context->bw.dce.nbp_state_change_wm_ns[0].b_mark,
 			context->bw.dce.nbp_state_change_wm_ns[0].a_mark,
 			context->bw.dce.urgent_wm_ns[0].b_mark,
 			context->bw.dce.urgent_wm_ns[0].a_mark,
 			context->bw.dce.stutter_exit_wm_ns[0].b_mark,
-			context->bw.dce.stutter_exit_wm_ns[0].a_mark);
-		dm_logger_append(&log_entry,
-			"nbpMark_b: %d nbpMark_a: %d urgentMark_b: %d urgentMark_a: %d\n"
-			"stutMark_b: %d stutMark_a: %d\n",
+			context->bw.dce.stutter_exit_wm_ns[0].a_mark,
 			context->bw.dce.nbp_state_change_wm_ns[1].b_mark,
 			context->bw.dce.nbp_state_change_wm_ns[1].a_mark,
 			context->bw.dce.urgent_wm_ns[1].b_mark,
 			context->bw.dce.urgent_wm_ns[1].a_mark,
 			context->bw.dce.stutter_exit_wm_ns[1].b_mark,
-			context->bw.dce.stutter_exit_wm_ns[1].a_mark);
-		dm_logger_append(&log_entry,
-			"nbpMark_b: %d nbpMark_a: %d urgentMark_b: %d urgentMark_a: %d\n"
-			"stutMark_b: %d stutMark_a: %d stutter_mode_enable: %d\n",
+			context->bw.dce.stutter_exit_wm_ns[1].a_mark,
 			context->bw.dce.nbp_state_change_wm_ns[2].b_mark,
 			context->bw.dce.nbp_state_change_wm_ns[2].a_mark,
 			context->bw.dce.urgent_wm_ns[2].b_mark,
 			context->bw.dce.urgent_wm_ns[2].a_mark,
 			context->bw.dce.stutter_exit_wm_ns[2].b_mark,
 			context->bw.dce.stutter_exit_wm_ns[2].a_mark,
-			context->bw.dce.stutter_mode_enable);
-		dm_logger_append(&log_entry,
-			"cstate: %d pstate: %d nbpstate: %d sync: %d dispclk: %d\n"
-			"sclk: %d sclk_sleep: %d yclk: %d blackout_recovery_time_us: %d\n",
+			context->bw.dce.stutter_mode_enable,
 			context->bw.dce.cpuc_state_change_enable,
 			context->bw.dce.cpup_state_change_enable,
 			context->bw.dce.nbp_state_change_enable,
@@ -841,7 +919,6 @@ static bool dce110_validate_bandwidth(
 			context->bw.dce.sclk_deep_sleep_khz,
 			context->bw.dce.yclk_khz,
 			context->bw.dce.blackout_recovery_time_us);
-		dm_logger_close(&log_entry);
 	}
 	return result;
 }
@@ -930,38 +1007,6 @@ static enum dc_status dce110_add_stream_to_ctx(
 	return result;
 }
 
-static enum dc_status dce110_validate_guaranteed(
-		struct dc *dc,
-		struct dc_stream_state *dc_stream,
-		struct dc_state *context)
-{
-	enum dc_status result = DC_ERROR_UNEXPECTED;
-
-	context->streams[0] = dc_stream;
-	dc_stream_retain(context->streams[0]);
-	context->stream_count++;
-
-	result = resource_map_pool_resources(dc, context, dc_stream);
-
-	if (result == DC_OK)
-		result = resource_map_clock_resources(dc, context, dc_stream);
-
-	if (result == DC_OK)
-		result = build_mapped_resource(dc, context, dc_stream);
-
-	if (result == DC_OK) {
-		validate_guaranteed_copy_streams(
-				context, dc->caps.max_streams);
-		result = resource_build_scaling_params_for_context(dc, context);
-	}
-
-	if (result == DC_OK)
-		if (!dce110_validate_bandwidth(dc, context))
-			result = DC_FAIL_BANDWIDTH_VALIDATE;
-
-	return result;
-}
-
 static struct pipe_ctx *dce110_acquire_underlay(
 		struct dc_state *context,
 		const struct resource_pool *pool,
@@ -1036,7 +1081,6 @@ static void dce110_destroy_resource_pool(struct resource_pool **pool)
 static const struct resource_funcs dce110_res_pool_funcs = {
 	.destroy = dce110_destroy_resource_pool,
 	.link_enc_create = dce110_link_encoder_create,
-	.validate_guaranteed = dce110_validate_guaranteed,
 	.validate_bandwidth = dce110_validate_bandwidth,
 	.validate_plane = dce110_validate_plane,
 	.acquire_idle_pipe_for_layer = dce110_acquire_underlay,
@@ -1213,11 +1257,11 @@ static bool construct(
 		}
 	}
 
-	pool->base.display_clock = dce110_disp_clk_create(ctx,
+	pool->base.dccg = dce110_dccg_create(ctx,
 			&disp_clk_regs,
 			&disp_clk_shift,
 			&disp_clk_mask);
-	if (pool->base.display_clock == NULL) {
+	if (pool->base.dccg == NULL) {
 		dm_error("DC: failed to create display clock!\n");
 		BREAK_TO_DEBUGGER();
 		goto res_create_fail;
@@ -1247,7 +1291,7 @@ static bool construct(
 	 * max_clock_state
 	 */
 	if (dm_pp_get_static_clocks(ctx, &static_clk_info))
-		pool->base.display_clock->max_clks_state =
+		pool->base.dccg->max_clks_state =
 				static_clk_info.max_clocks_state;
 
 	{
@@ -1300,12 +1344,27 @@ static bool construct(
 		}
 	}
 
-#if defined(CONFIG_DRM_AMD_DC_FBC)
-	dc->fbc_compressor = dce110_compressor_create(ctx);
+	for (i = 0; i < pool->base.res_cap->num_ddc; i++) {
+		pool->base.engines[i] = dce110_aux_engine_create(ctx, i);
+		if (pool->base.engines[i] == NULL) {
+			BREAK_TO_DEBUGGER();
+			dm_error(
+				"DC:failed to create aux engine!!\n");
+			goto res_create_fail;
+		}
+		pool->base.hw_i2cs[i] = dce110_i2c_hw_create(ctx, i);
+		if (pool->base.hw_i2cs[i] == NULL) {
+			BREAK_TO_DEBUGGER();
+			dm_error(
+				"DC:failed to create i2c engine!!\n");
+			goto res_create_fail;
+		}
+		pool->base.sw_i2cs[i] = NULL;
+	}
 
+	if (dc->config.fbc_support)
+		dc->fbc_compressor = dce110_compressor_create(ctx);
 
-
-#endif
 	if (!underlay_create(ctx, &pool->base))
 		goto res_create_fail;
 

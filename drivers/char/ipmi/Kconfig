@@ -22,14 +22,6 @@ config IPMI_DMI_DECODE
 
 if IPMI_HANDLER
 
-config IPMI_PROC_INTERFACE
-       bool 'Provide an interface for IPMI stats in /proc (deprecated)'
-       depends on PROC_FS
-       default y
-       help
-         Do not use this any more, use sysfs for this info.  It will be
-	 removed in future kernel versions.
-
 config IPMI_PANIC_EVENT
        bool 'Generate a panic event to all BMCs on a panic'
        help
@@ -110,6 +102,21 @@ config ASPEED_KCS_IPMI_BMC
 
 	  The driver implements the BMC side of the KCS contorller, it
 	  provides the access of KCS IO space for BMC side.
+
+config NPCM7XX_KCS_IPMI_BMC
+	depends on ARCH_NPCM7XX || COMPILE_TEST
+	select IPMI_KCS_BMC
+	select REGMAP_MMIO
+	tristate "NPCM7xx KCS IPMI BMC driver"
+	help
+	  Provides a driver for the KCS (Keyboard Controller Style) IPMI
+	  interface found on Nuvoton NPCM7xx SOCs.
+
+	  The driver implements the BMC side of the KCS contorller, it
+	  provides the access of KCS IO space for BMC side.
+
+	  This support is also available as a module.  If so, the module
+	  will be called kcs_bmc_npcm7xx.
 
 config ASPEED_BT_IPMI_BMC
 	depends on ARCH_ASPEED || COMPILE_TEST

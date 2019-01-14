@@ -18,11 +18,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
- * USA
- *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
  *
@@ -173,12 +168,13 @@ static void iwl_dealloc_ucode(struct iwl_drv *drv)
 {
 	int i;
 
-	kfree(drv->fw.dbg_dest_tlv);
-	for (i = 0; i < ARRAY_SIZE(drv->fw.dbg_conf_tlv); i++)
-		kfree(drv->fw.dbg_conf_tlv[i]);
-	for (i = 0; i < ARRAY_SIZE(drv->fw.dbg_trigger_tlv); i++)
-		kfree(drv->fw.dbg_trigger_tlv[i]);
-	kfree(drv->fw.dbg_mem_tlv);
+	kfree(drv->fw.dbg.dest_tlv);
+	for (i = 0; i < ARRAY_SIZE(drv->fw.dbg.conf_tlv); i++)
+		kfree(drv->fw.dbg.conf_tlv[i]);
+	for (i = 0; i < ARRAY_SIZE(drv->fw.dbg.trigger_tlv); i++)
+		kfree(drv->fw.dbg.trigger_tlv[i]);
+	kfree(drv->fw.dbg.mem_tlv);
+	kfree(drv->fw.iml);
 
 	for (i = 0; i < IWL_UCODE_TYPE_MAX; i++)
 		iwl_free_fw_img(drv, drv->fw.img + i);
@@ -307,7 +303,7 @@ struct iwl_firmware_pieces {
 	struct iwl_fw_dbg_trigger_tlv *dbg_trigger_tlv[FW_DBG_TRIGGER_MAX];
 	size_t dbg_trigger_tlv_len[FW_DBG_TRIGGER_MAX];
 	struct iwl_fw_dbg_mem_seg_tlv *dbg_mem_tlv;
-	size_t n_dbg_mem_tlv;
+	size_t n_mem_tlv;
 };
 
 /*
@@ -399,35 +395,6 @@ static int iwl_store_cscheme(struct iwl_fw *fw, const u8 *data, const u32 len)
 	}
 
 	return 0;
-}
-
-static void iwl_store_gscan_capa(struct iwl_fw *fw, const u8 *data,
-				 const u32 len)
-{
-	struct iwl_fw_gscan_capabilities *fw_capa = (void *)data;
-	struct iwl_gscan_capabilities *capa = &fw->gscan_capa;
-
-	capa->max_scan_cache_size = le32_to_cpu(fw_capa->max_scan_cache_size);
-	capa->max_scan_buckets = le32_to_cpu(fw_capa->max_scan_buckets);
-	capa->max_ap_cache_per_scan =
-		le32_to_cpu(fw_capa->max_ap_cache_per_scan);
-	capa->max_rssi_sample_size = le32_to_cpu(fw_capa->max_rssi_sample_size);
-	capa->max_scan_reporting_threshold =
-		le32_to_cpu(fw_capa->max_scan_reporting_threshold);
-	capa->max_hotlist_aps = le32_to_cpu(fw_capa->max_hotlist_aps);
-	capa->max_significant_change_aps =
-		le32_to_cpu(fw_capa->max_significant_change_aps);
-	capa->max_bssid_history_entries =
-		le32_to_cpu(fw_capa->max_bssid_history_entries);
-	capa->max_hotlist_ssids = le32_to_cpu(fw_capa->max_hotlist_ssids);
-	capa->max_number_epno_networks =
-		le32_to_cpu(fw_capa->max_number_epno_networks);
-	capa->max_number_epno_networks_by_ssid =
-		le32_to_cpu(fw_capa->max_number_epno_networks_by_ssid);
-	capa->max_number_of_white_listed_ssid =
-		le32_to_cpu(fw_capa->max_number_of_white_listed_ssid);
-	capa->max_number_of_black_listed_ssid =
-		le32_to_cpu(fw_capa->max_number_of_black_listed_ssid);
 }
 
 /*
@@ -643,7 +610,6 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 	u32 build, paging_mem_size;
 	int num_of_cpus;
 	bool usniffer_req = false;
-	bool gscan_capa = false;
 
 	if (len < sizeof(*ucode)) {
 		IWL_ERR(drv, "uCode has invalid length: %zd\n", len);
@@ -970,7 +936,7 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			IWL_INFO(drv, "Found debug destination: %s\n",
 				 get_fw_dbg_mode_string(mon_mode));
 
-			drv->fw.dbg_dest_reg_num = (dest_v1) ?
+			drv->fw.dbg.n_dest_reg = (dest_v1) ?
 				tlv_len -
 				offsetof(struct iwl_fw_dbg_dest_tlv_v1,
 					 reg_ops) :
@@ -978,8 +944,8 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 				offsetof(struct iwl_fw_dbg_dest_tlv,
 					 reg_ops);
 
-			drv->fw.dbg_dest_reg_num /=
-				sizeof(drv->fw.dbg_dest_tlv->reg_ops[0]);
+			drv->fw.dbg.n_dest_reg /=
+				sizeof(drv->fw.dbg.dest_tlv->reg_ops[0]);
 
 			break;
 			}
@@ -993,7 +959,7 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 				break;
 			}
 
-			if (conf->id >= ARRAY_SIZE(drv->fw.dbg_conf_tlv)) {
+			if (conf->id >= ARRAY_SIZE(drv->fw.dbg.conf_tlv)) {
 				IWL_ERR(drv,
 					"Skip unknown configuration: %d\n",
 					conf->id);
@@ -1022,7 +988,7 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 				(void *)tlv_data;
 			u32 trigger_id = le32_to_cpu(trigger->id);
 
-			if (trigger_id >= ARRAY_SIZE(drv->fw.dbg_trigger_tlv)) {
+			if (trigger_id >= ARRAY_SIZE(drv->fw.dbg.trigger_tlv)) {
 				IWL_ERR(drv,
 					"Skip unknown trigger: %u\n",
 					trigger->id);
@@ -1040,6 +1006,17 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 
 			pieces->dbg_trigger_tlv[trigger_id] = trigger;
 			pieces->dbg_trigger_tlv_len[trigger_id] = tlv_len;
+			break;
+			}
+		case IWL_UCODE_TLV_FW_DBG_DUMP_LST: {
+			if (tlv_len != sizeof(u32)) {
+				IWL_ERR(drv,
+					"dbg lst mask size incorrect, skip\n");
+				break;
+			}
+
+			drv->fw.dbg.dump_mask =
+				le32_to_cpup((__le32 *)tlv_data);
 			break;
 			}
 		case IWL_UCODE_TLV_SEC_RT_USNIFFER:
@@ -1078,52 +1055,35 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 				paging_mem_size;
 			break;
 		case IWL_UCODE_TLV_FW_GSCAN_CAPA:
-			/*
-			 * Don't return an error in case of a shorter tlv_len
-			 * to enable loading of FW that has an old format
-			 * of GSCAN capabilities TLV.
-			 */
-			if (tlv_len < sizeof(struct iwl_fw_gscan_capabilities))
-				break;
-
-			iwl_store_gscan_capa(&drv->fw, tlv_data, tlv_len);
-			gscan_capa = true;
+			/* ignored */
 			break;
 		case IWL_UCODE_TLV_FW_MEM_SEG: {
 			struct iwl_fw_dbg_mem_seg_tlv *dbg_mem =
 				(void *)tlv_data;
-			u32 type;
 			size_t size;
 			struct iwl_fw_dbg_mem_seg_tlv *n;
 
 			if (tlv_len != (sizeof(*dbg_mem)))
 				goto invalid_tlv_len;
 
-			type = le32_to_cpu(dbg_mem->data_type);
-
 			IWL_DEBUG_INFO(drv, "Found debug memory segment: %u\n",
 				       dbg_mem->data_type);
 
-			switch (type & FW_DBG_MEM_TYPE_MASK) {
-			case FW_DBG_MEM_TYPE_REGULAR:
-			case FW_DBG_MEM_TYPE_PRPH:
-				/* we know how to handle these */
-				break;
-			default:
-				IWL_ERR(drv,
-					"Found debug memory segment with invalid type: 0x%x\n",
-					type);
-				return -EINVAL;
-			}
-
 			size = sizeof(*pieces->dbg_mem_tlv) *
-			       (pieces->n_dbg_mem_tlv + 1);
+			       (pieces->n_mem_tlv + 1);
 			n = krealloc(pieces->dbg_mem_tlv, size, GFP_KERNEL);
 			if (!n)
 				return -ENOMEM;
 			pieces->dbg_mem_tlv = n;
-			pieces->dbg_mem_tlv[pieces->n_dbg_mem_tlv] = *dbg_mem;
-			pieces->n_dbg_mem_tlv++;
+			pieces->dbg_mem_tlv[pieces->n_mem_tlv] = *dbg_mem;
+			pieces->n_mem_tlv++;
+			break;
+			}
+		case IWL_UCODE_TLV_IML: {
+			drv->fw.iml_len = tlv_len;
+			drv->fw.iml = kmemdup(tlv_data, tlv_len, GFP_KERNEL);
+			if (!drv->fw.iml)
+				return -ENOMEM;
 			break;
 			}
 		default:
@@ -1143,19 +1103,6 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 		IWL_ERR(drv, "invalid TLV after parsing: %zd\n", len);
 		iwl_print_hex_dump(drv, IWL_DL_FW, (u8 *)data, len);
 		return -EINVAL;
-	}
-
-	/*
-	 * If ucode advertises that it supports GSCAN but GSCAN
-	 * capabilities TLV is not present, or if it has an old format,
-	 * warn and continue without GSCAN.
-	 */
-	if (fw_has_capa(capa, IWL_UCODE_TLV_CAPA_GSCAN_SUPPORT) &&
-	    !gscan_capa) {
-		IWL_DEBUG_INFO(drv,
-			       "GSCAN is supported but capabilities TLV is unavailable\n");
-		__clear_bit((__force long)IWL_UCODE_TLV_CAPA_GSCAN_SUPPORT,
-			    capa->_capa);
 	}
 
 	return 0;
@@ -1308,6 +1255,8 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	fw->ucode_capa.standard_phy_calibration_size =
 			IWL_DEFAULT_STANDARD_PHY_CALIBRATE_TBL_SIZE;
 	fw->ucode_capa.n_scan_channels = IWL_DEFAULT_SCAN_CHANNELS;
+	/* dump all fw memory areas by default except d3 debug data */
+	fw->dbg.dump_mask = 0xfffdffff;
 
 	pieces = kzalloc(sizeof(*pieces), GFP_KERNEL);
 	if (!pieces)
@@ -1374,21 +1323,21 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 			goto out_free_fw;
 
 	if (pieces->dbg_dest_tlv_init) {
-		size_t dbg_dest_size = sizeof(*drv->fw.dbg_dest_tlv) +
-			sizeof(drv->fw.dbg_dest_tlv->reg_ops[0]) *
-			drv->fw.dbg_dest_reg_num;
+		size_t dbg_dest_size = sizeof(*drv->fw.dbg.dest_tlv) +
+			sizeof(drv->fw.dbg.dest_tlv->reg_ops[0]) *
+			drv->fw.dbg.n_dest_reg;
 
-		drv->fw.dbg_dest_tlv = kmalloc(dbg_dest_size, GFP_KERNEL);
+		drv->fw.dbg.dest_tlv = kmalloc(dbg_dest_size, GFP_KERNEL);
 
-		if (!drv->fw.dbg_dest_tlv)
+		if (!drv->fw.dbg.dest_tlv)
 			goto out_free_fw;
 
 		if (*pieces->dbg_dest_ver == 0) {
-			memcpy(drv->fw.dbg_dest_tlv, pieces->dbg_dest_tlv_v1,
+			memcpy(drv->fw.dbg.dest_tlv, pieces->dbg_dest_tlv_v1,
 			       dbg_dest_size);
 		} else {
 			struct iwl_fw_dbg_dest_tlv_v1 *dest_tlv =
-				drv->fw.dbg_dest_tlv;
+				drv->fw.dbg.dest_tlv;
 
 			dest_tlv->version = pieces->dbg_dest_tlv->version;
 			dest_tlv->monitor_mode =
@@ -1403,8 +1352,8 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 				pieces->dbg_dest_tlv->base_shift;
 			memcpy(dest_tlv->reg_ops,
 			       pieces->dbg_dest_tlv->reg_ops,
-			       sizeof(drv->fw.dbg_dest_tlv->reg_ops[0]) *
-			       drv->fw.dbg_dest_reg_num);
+			       sizeof(drv->fw.dbg.dest_tlv->reg_ops[0]) *
+			       drv->fw.dbg.n_dest_reg);
 
 			/* In version 1 of the destination tlv, which is
 			 * relevant for internal buffer exclusively,
@@ -1420,15 +1369,13 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 		}
 	}
 
-	for (i = 0; i < ARRAY_SIZE(drv->fw.dbg_conf_tlv); i++) {
+	for (i = 0; i < ARRAY_SIZE(drv->fw.dbg.conf_tlv); i++) {
 		if (pieces->dbg_conf_tlv[i]) {
-			drv->fw.dbg_conf_tlv_len[i] =
-				pieces->dbg_conf_tlv_len[i];
-			drv->fw.dbg_conf_tlv[i] =
+			drv->fw.dbg.conf_tlv[i] =
 				kmemdup(pieces->dbg_conf_tlv[i],
-					drv->fw.dbg_conf_tlv_len[i],
+					pieces->dbg_conf_tlv_len[i],
 					GFP_KERNEL);
-			if (!drv->fw.dbg_conf_tlv[i])
+			if (!pieces->dbg_conf_tlv_len[i])
 				goto out_free_fw;
 		}
 	}
@@ -1455,7 +1402,7 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	trigger_tlv_sz[FW_DBG_TRIGGER_TDLS] =
 		sizeof(struct iwl_fw_dbg_trigger_tdls);
 
-	for (i = 0; i < ARRAY_SIZE(drv->fw.dbg_trigger_tlv); i++) {
+	for (i = 0; i < ARRAY_SIZE(drv->fw.dbg.trigger_tlv); i++) {
 		if (pieces->dbg_trigger_tlv[i]) {
 			/*
 			 * If the trigger isn't long enough, WARN and exit.
@@ -1468,22 +1415,22 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 				    (trigger_tlv_sz[i] +
 				     sizeof(struct iwl_fw_dbg_trigger_tlv))))
 				goto out_free_fw;
-			drv->fw.dbg_trigger_tlv_len[i] =
+			drv->fw.dbg.trigger_tlv_len[i] =
 				pieces->dbg_trigger_tlv_len[i];
-			drv->fw.dbg_trigger_tlv[i] =
+			drv->fw.dbg.trigger_tlv[i] =
 				kmemdup(pieces->dbg_trigger_tlv[i],
-					drv->fw.dbg_trigger_tlv_len[i],
+					drv->fw.dbg.trigger_tlv_len[i],
 					GFP_KERNEL);
-			if (!drv->fw.dbg_trigger_tlv[i])
+			if (!drv->fw.dbg.trigger_tlv[i])
 				goto out_free_fw;
 		}
 	}
 
 	/* Now that we can no longer fail, copy information */
 
-	drv->fw.dbg_mem_tlv = pieces->dbg_mem_tlv;
+	drv->fw.dbg.mem_tlv = pieces->dbg_mem_tlv;
 	pieces->dbg_mem_tlv = NULL;
-	drv->fw.n_dbg_mem_tlv = pieces->n_dbg_mem_tlv;
+	drv->fw.dbg.n_mem_tlv = pieces->n_mem_tlv;
 
 	/*
 	 * The (size - 16) / 12 formula is based on the information recorded
@@ -1524,6 +1471,7 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 		break;
 	default:
 		WARN(1, "Invalid fw type %d\n", fw->type);
+		/* fall through */
 	case IWL_FW_MVM:
 		op = &iwlwifi_opmode_table[MVM_OP_MODE];
 		break;
@@ -1779,7 +1727,8 @@ MODULE_PARM_DESC(11n_disable,
 	"disable 11n functionality, bitmap: 1: full, 2: disable agg TX, 4: disable agg RX, 8 enable agg TX");
 module_param_named(amsdu_size, iwlwifi_mod_params.amsdu_size, int, 0444);
 MODULE_PARM_DESC(amsdu_size,
-		 "amsdu size 0: 12K for multi Rx queue devices, 4K for other devices 1:4K 2:8K 3:12K (default 0)");
+		 "amsdu size 0: 12K for multi Rx queue devices, 2K for 22560 devices, "
+		 "4K for other devices 1:4K 2:8K 3:12K 4: 2K (default 0)");
 module_param_named(fw_restart, iwlwifi_mod_params.fw_restart, bool, 0444);
 MODULE_PARM_DESC(fw_restart, "restart firmware in case of error (default true)");
 
@@ -1842,3 +1791,13 @@ MODULE_PARM_DESC(d0i3_timeout, "Timeout to D0i3 entry when idle (ms)");
 
 module_param_named(disable_11ac, iwlwifi_mod_params.disable_11ac, bool, 0444);
 MODULE_PARM_DESC(disable_11ac, "Disable VHT capabilities (default: false)");
+
+module_param_named(remove_when_gone,
+		   iwlwifi_mod_params.remove_when_gone, bool,
+		   0444);
+MODULE_PARM_DESC(remove_when_gone,
+		 "Remove dev from PCIe bus if it is deemed inaccessible (default: false)");
+
+module_param_named(disable_11ax, iwlwifi_mod_params.disable_11ax, bool,
+		   S_IRUGO);
+MODULE_PARM_DESC(disable_11ax, "Disable HE capabilities (default: false)");

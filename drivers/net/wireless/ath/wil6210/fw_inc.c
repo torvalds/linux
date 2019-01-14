@@ -145,7 +145,7 @@ fw_handle_capabilities(struct wil6210_priv *wil, const void *data,
 				    capabilities);
 	bitmap_zero(wil->fw_capabilities, WMI_FW_CAPABILITY_MAX);
 	memcpy(wil->fw_capabilities, rec->capabilities,
-	       min(sizeof(wil->fw_capabilities), capa_size));
+	       min_t(size_t, sizeof(wil->fw_capabilities), capa_size));
 	wil_hex_dump_fw("CAPA", DUMP_PREFIX_OFFSET, 16, 1,
 			rec->capabilities, capa_size, false);
 	return 0;

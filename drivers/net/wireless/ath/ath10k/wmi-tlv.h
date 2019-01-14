@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
+ * Copyright (c) 2018, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -295,6 +296,7 @@ enum wmi_tlv_cmd_id {
 enum wmi_tlv_event_id {
 	WMI_TLV_SERVICE_READY_EVENTID = 0x1,
 	WMI_TLV_READY_EVENTID,
+	WMI_TLV_SERVICE_AVAILABLE_EVENTID,
 	WMI_TLV_SCAN_EVENTID = WMI_TLV_EV(WMI_TLV_GRP_SCAN),
 	WMI_TLV_PDEV_TPC_CONFIG_EVENTID = WMI_TLV_EV(WMI_TLV_GRP_PDEV),
 	WMI_TLV_CHAN_INFO_EVENTID,
@@ -318,6 +320,7 @@ enum wmi_tlv_event_id {
 	WMI_TLV_TBTTOFFSET_UPDATE_EVENTID,
 	WMI_TLV_OFFLOAD_BCN_TX_STATUS_EVENTID,
 	WMI_TLV_OFFLOAD_PROB_RESP_TX_STATUS_EVENTID,
+	WMI_TLV_MGMT_TX_COMPLETION_EVENTID,
 	WMI_TLV_TX_DELBA_COMPLETE_EVENTID = WMI_TLV_EV(WMI_TLV_GRP_BA_NEG),
 	WMI_TLV_TX_ADDBA_COMPLETE_EVENTID,
 	WMI_TLV_BA_RSP_SSN_EVENTID,
@@ -949,6 +952,275 @@ enum wmi_tlv_tag {
 	WMI_TLV_TAG_STRUCT_PACKET_FILTER_ENABLE,
 	WMI_TLV_TAG_STRUCT_SAP_SET_BLACKLIST_PARAM_CMD,
 	WMI_TLV_TAG_STRUCT_MGMT_TX_CMD,
+	WMI_TLV_TAG_STRUCT_MGMT_TX_COMPL_EVENT,
+	WMI_TLV_TAG_STRUCT_SOC_SET_ANTENNA_MODE_CMD,
+	WMI_TLV_TAG_STRUCT_WOW_UDP_SVC_OFLD_CMD,
+	WMI_TLV_TAG_STRUCT_LRO_INFO_CMD,
+	WMI_TLV_TAG_STRUCT_ROAM_EARLYSTOP_RSSI_THRES_PARAM,
+	WMI_TLV_TAG_STRUCT_SERVICE_READY_EXT_EVENT,
+	WMI_TLV_TAG_STRUCT_MAWC_SENSOR_REPORT_IND_CMD,
+	WMI_TLV_TAG_STRUCT_MAWC_ENABLE_SENSOR_EVENT,
+	WMI_TLV_TAG_STRUCT_ROAM_CONFIGURE_MAWC_CMD,
+	WMI_TLV_TAG_STRUCT_NLO_CONFIGURE_MAWC_CMD,
+	WMI_TLV_TAG_STRUCT_EXTSCAN_CONFIGURE_MAWC_CMD,
+	WMI_TLV_TAG_STRUCT_PEER_ASSOC_CONF_EVENT,
+	WMI_TLV_TAG_STRUCT_WOW_HOSTWAKEUP_GPIO_PIN_PATTERN_CONFIG_CMD,
+	WMI_TLV_TAG_STRUCT_AP_PS_EGAP_PARAM_CMD,
+	WMI_TLV_TAG_STRUCT_AP_PS_EGAP_INFO_EVENT,
+	WMI_TLV_TAG_STRUCT_PMF_OFFLOAD_SET_SA_QUERY_CMD,
+	WMI_TLV_TAG_STRUCT_TRANSFER_DATA_TO_FLASH_CMD,
+	WMI_TLV_TAG_STRUCT_TRANSFER_DATA_TO_FLASH_COMPLETE_EVENT,
+	WMI_TLV_TAG_STRUCT_SCPC_EVENT,
+	WMI_TLV_TAG_STRUCT_AP_PS_EGAP_INFO_CHAINMASK_LIST,
+	WMI_TLV_TAG_STRUCT_STA_SMPS_FORCE_MODE_COMPLETE_EVENT,
+	WMI_TLV_TAG_STRUCT_BPF_GET_CAPABILITY_CMD,
+	WMI_TLV_TAG_STRUCT_BPF_CAPABILITY_INFO_EVT,
+	WMI_TLV_TAG_STRUCT_BPF_GET_VDEV_STATS_CMD,
+	WMI_TLV_TAG_STRUCT_BPF_VDEV_STATS_INFO_EVT,
+	WMI_TLV_TAG_STRUCT_BPF_SET_VDEV_INSTRUCTIONS_CMD,
+	WMI_TLV_TAG_STRUCT_BPF_DEL_VDEV_INSTRUCTIONS_CMD,
+	WMI_TLV_TAG_STRUCT_VDEV_DELETE_RESP_EVENT,
+	WMI_TLV_TAG_STRUCT_PEER_DELETE_RESP_EVENT,
+	WMI_TLV_TAG_STRUCT_ROAM_DENSE_THRES_PARAM,
+	WMI_TLV_TAG_STRUCT_ENLO_CANDIDATE_SCORE_PARAM,
+	WMI_TLV_TAG_STRUCT_PEER_UPDATE_WDS_ENTRY_CMD,
+	WMI_TLV_TAG_STRUCT_VDEV_CONFIG_RATEMASK,
+	WMI_TLV_TAG_STRUCT_PDEV_FIPS_CMD,
+	WMI_TLV_TAG_STRUCT_PDEV_SMART_ANT_ENABLE_CMD,
+	WMI_TLV_TAG_STRUCT_PDEV_SMART_ANT_SET_RX_ANTENNA_CMD,
+	WMI_TLV_TAG_STRUCT_PEER_SMART_ANT_SET_TX_ANTENNA_CMD,
+	WMI_TLV_TAG_STRUCT_PEER_SMART_ANT_SET_TRAIN_ANTENNA_CMD,
+	WMI_TLV_TAG_STRUCT_PEER_SMART_ANT_SET_NODE_CONFIG_OPS_CMD,
+	WMI_TLV_TAG_STRUCT_PDEV_SET_ANT_SWITCH_TBL_CMD,
+	WMI_TLV_TAG_STRUCT_PDEV_SET_CTL_TABLE_CMD,
+	WMI_TLV_TAG_STRUCT_PDEV_SET_MIMOGAIN_TABLE_CMD,
+	WMI_TLV_TAG_STRUCT_FWTEST_SET_PARAM_CMD,
+	WMI_TLV_TAG_STRUCT_PEER_ATF_REQUEST,
+	WMI_TLV_TAG_STRUCT_VDEV_ATF_REQUEST,
+	WMI_TLV_TAG_STRUCT_PDEV_GET_ANI_CCK_CONFIG_CMD,
+	WMI_TLV_TAG_STRUCT_PDEV_GET_ANI_OFDM_CONFIG_CMD,
+	WMI_TLV_TAG_STRUCT_INST_RSSI_STATS_RESP,
+	WMI_TLV_TAG_STRUCT_MED_UTIL_REPORT_EVENT,
+	WMI_TLV_TAG_STRUCT_PEER_STA_PS_STATECHANGE_EVENT,
+	WMI_TLV_TAG_STRUCT_WDS_ADDR_EVENT,
+	WMI_TLV_TAG_STRUCT_PEER_RATECODE_LIST_EVENT,
+	WMI_TLV_TAG_STRUCT_PDEV_NFCAL_POWER_ALL_CHANNELS_EVENT,
+	WMI_TLV_TAG_STRUCT_PDEV_TPC_EVENT,
+	WMI_TLV_TAG_STRUCT_ANI_OFDM_EVENT,
+	WMI_TLV_TAG_STRUCT_ANI_CCK_EVENT,
+	WMI_TLV_TAG_STRUCT_PDEV_CHANNEL_HOPPING_EVENT,
+	WMI_TLV_TAG_STRUCT_PDEV_FIPS_EVENT,
+	WMI_TLV_TAG_STRUCT_ATF_PEER_INFO,
+	WMI_TLV_TAG_STRUCT_PDEV_GET_TPC_CMD,
+	WMI_TLV_TAG_STRUCT_VDEV_FILTER_NRP_CONFIG_CMD,
+	WMI_TLV_TAG_STRUCT_QBOOST_CFG_CMD,
+	WMI_TLV_TAG_STRUCT_PDEV_SMART_ANT_GPIO_HANDLE,
+	WMI_TLV_TAG_STRUCT_PEER_SMART_ANT_SET_TX_ANTENNA_SERIES,
+	WMI_TLV_TAG_STRUCT_PEER_SMART_ANT_SET_TRAIN_ANTENNA_PARAM,
+	WMI_TLV_TAG_STRUCT_PDEV_SET_ANT_CTRL_CHAIN,
+	WMI_TLV_TAG_STRUCT_PEER_CCK_OFDM_RATE_INFO,
+	WMI_TLV_TAG_STRUCT_PEER_MCS_RATE_INFO,
+	WMI_TLV_TAG_STRUCT_PDEV_NFCAL_POWER_ALL_CHANNELS_NFDBR,
+	WMI_TLV_TAG_STRUCT_PDEV_NFCAL_POWER_ALL_CHANNELS_NFDBM,
+	WMI_TLV_TAG_STRUCT_PDEV_NFCAL_POWER_ALL_CHANNELS_FREQNUM,
+	WMI_TLV_TAG_STRUCT_MU_REPORT_TOTAL_MU,
+	WMI_TLV_TAG_STRUCT_VDEV_SET_DSCP_TID_MAP_CMD,
+	WMI_TLV_TAG_STRUCT_ROAM_SET_MBO,
+	WMI_TLV_TAG_STRUCT_MIB_STATS_ENABLE_CMD,
+	WMI_TLV_TAG_STRUCT_NAN_DISC_IFACE_CREATED_EVENT,
+	WMI_TLV_TAG_STRUCT_NAN_DISC_IFACE_DELETED_EVENT,
+	WMI_TLV_TAG_STRUCT_NAN_STARTED_CLUSTER_EVENT,
+	WMI_TLV_TAG_STRUCT_NAN_JOINED_CLUSTER_EVENT,
+	WMI_TLV_TAG_STRUCT_NDI_GET_CAP_REQ,
+	WMI_TLV_TAG_STRUCT_NDP_INITIATOR_REQ,
+	WMI_TLV_TAG_STRUCT_NDP_RESPONDER_REQ,
+	WMI_TLV_TAG_STRUCT_NDP_END_REQ,
+	WMI_TLV_TAG_STRUCT_NDI_CAP_RSP_EVENT,
+	WMI_TLV_TAG_STRUCT_NDP_INITIATOR_RSP_EVENT,
+	WMI_TLV_TAG_STRUCT_NDP_RESPONDER_RSP_EVENT,
+	WMI_TLV_TAG_STRUCT_NDP_END_RSP_EVENT,
+	WMI_TLV_TAG_STRUCT_NDP_INDICATION_EVENT,
+	WMI_TLV_TAG_STRUCT_NDP_CONFIRM_EVENT,
+	WMI_TLV_TAG_STRUCT_NDP_END_INDICATION_EVENT,
+	WMI_TLV_TAG_STRUCT_VDEV_SET_QUIET_CMD,
+	WMI_TLV_TAG_STRUCT_PDEV_SET_PCL_CMD,
+	WMI_TLV_TAG_STRUCT_PDEV_SET_HW_MODE_CMD,
+	WMI_TLV_TAG_STRUCT_PDEV_SET_MAC_CONFIG_CMD,
+	WMI_TLV_TAG_STRUCT_PDEV_SET_ANTENNA_MODE_CMD,
+	WMI_TLV_TAG_STRUCT_PDEV_SET_HW_MODE_RESPONSE_EVENT,
+	WMI_TLV_TAG_STRUCT_PDEV_HW_MODE_TRANSITION_EVENT,
+	WMI_TLV_TAG_STRUCT_PDEV_SET_HW_MODE_RESPONSE_VDEV_MAC_ENTRY,
+	WMI_TLV_TAG_STRUCT_PDEV_SET_MAC_CONFIG_RESPONSE_EVENT,
+	WMI_TLV_TAG_STRUCT_COEX_CONFIG_CMD,
+	WMI_TLV_TAG_STRUCT_CONFIG_ENHANCED_MCAST_FILTER,
+	WMI_TLV_TAG_STRUCT_CHAN_AVOID_RPT_ALLOW_CMD,
+	WMI_TLV_TAG_STRUCT_SET_PERIODIC_CHANNEL_STATS_CONFIG,
+	WMI_TLV_TAG_STRUCT_VDEV_SET_CUSTOM_AGGR_SIZE_CMD,
+	WMI_TLV_TAG_STRUCT_PDEV_WAL_POWER_DEBUG_CMD,
+	WMI_TLV_TAG_STRUCT_MAC_PHY_CAPABILITIES,
+	WMI_TLV_TAG_STRUCT_HW_MODE_CAPABILITIES,
+	WMI_TLV_TAG_STRUCT_SOC_MAC_PHY_HW_MODE_CAPS,
+	WMI_TLV_TAG_STRUCT_HAL_REG_CAPABILITIES_EXT,
+	WMI_TLV_TAG_STRUCT_SOC_HAL_REG_CAPABILITIES,
+	WMI_TLV_TAG_STRUCT_VDEV_WISA_CMD,
+	WMI_TLV_TAG_STRUCT_TX_POWER_LEVEL_STATS_EVT,
+	WMI_TLV_TAG_STRUCT_SCAN_ADAPTIVE_DWELL_PARAMETERS_TLV,
+	WMI_TLV_TAG_STRUCT_SCAN_ADAPTIVE_DWELL_CONFIG,
+	WMI_TLV_TAG_STRUCT_WOW_SET_ACTION_WAKE_UP_CMD,
+	WMI_TLV_TAG_STRUCT_NDP_END_RSP_PER_NDI,
+	WMI_TLV_TAG_STRUCT_PEER_BWF_REQUEST,
+	WMI_TLV_TAG_STRUCT_BWF_PEER_INFO,
+	WMI_TLV_TAG_STRUCT_DBGLOG_TIME_STAMP_SYNC_CMD,
+	WMI_TLV_TAG_STRUCT_RMC_SET_LEADER_CMD,
+	WMI_TLV_TAG_STRUCT_RMC_MANUAL_LEADER_EVENT,
+	WMI_TLV_TAG_STRUCT_PER_CHAIN_RSSI_STATS,
+	WMI_TLV_TAG_STRUCT_RSSI_STATS,
+	WMI_TLV_TAG_STRUCT_P2P_LO_START_CMD,
+	WMI_TLV_TAG_STRUCT_P2P_LO_STOP_CMD,
+	WMI_TLV_TAG_STRUCT_P2P_LO_STOPPED_EVENT,
+	WMI_TLV_TAG_STRUCT_PEER_REORDER_QUEUE_SETUP_CMD,
+	WMI_TLV_TAG_STRUCT_PEER_REORDER_QUEUE_REMOVE_CMD,
+	WMI_TLV_TAG_STRUCT_SET_MULTIPLE_MCAST_FILTER_CMD,
+	WMI_TLV_TAG_STRUCT_MGMT_TX_COMPL_BUNDLE_EVENT,
+	WMI_TLV_TAG_STRUCT_READ_DATA_FROM_FLASH_CMD,
+	WMI_TLV_TAG_STRUCT_READ_DATA_FROM_FLASH_EVENT,
+	WMI_TLV_TAG_STRUCT_PDEV_SET_REORDER_TIMEOUT_VAL_CMD,
+	WMI_TLV_TAG_STRUCT_PEER_SET_RX_BLOCKSIZE_CMD,
+	WMI_TLV_TAG_STRUCT_PDEV_SET_WAKEUP_CONFIG_CMDID,
+	WMI_TLV_TAG_STRUCT_TLV_BUF_LEN_PARAM,
+	WMI_TLV_TAG_STRUCT_SERVICE_AVAILABLE_EVENT,
+	WMI_TLV_TAG_STRUCT_PEER_ANTDIV_INFO_REQ_CMD,
+	WMI_TLV_TAG_STRUCT_PEER_ANTDIV_INFO_EVENT,
+	WMI_TLV_TAG_STRUCT_PEER_ANTDIV_INFO,
+	WMI_TLV_TAG_STRUCT_PDEV_GET_ANTDIV_STATUS_CMD,
+	WMI_TLV_TAG_STRUCT_PDEV_ANTDIV_STATUS_EVENT,
+	WMI_TLV_TAG_STRUCT_MNT_FILTER_CMD,
+	WMI_TLV_TAG_STRUCT_GET_CHIP_POWER_STATS_CMD,
+	WMI_TLV_TAG_STRUCT_PDEV_CHIP_POWER_STATS_EVENT,
+	WMI_TLV_TAG_STRUCT_COEX_GET_ANTENNA_ISOLATION_CMD,
+	WMI_TLV_TAG_STRUCT_COEX_REPORT_ISOLATION_EVENT,
+	WMI_TLV_TAG_STRUCT_CHAN_CCA_STATS,
+	WMI_TLV_TAG_STRUCT_PEER_SIGNAL_STATS,
+	WMI_TLV_TAG_STRUCT_TX_STATS,
+	WMI_TLV_TAG_STRUCT_PEER_AC_TX_STATS,
+	WMI_TLV_TAG_STRUCT_RX_STATS,
+	WMI_TLV_TAG_STRUCT_PEER_AC_RX_STATS,
+	WMI_TLV_TAG_STRUCT_REPORT_STATS_EVENT,
+	WMI_TLV_TAG_STRUCT_CHAN_CCA_STATS_THRESH,
+	WMI_TLV_TAG_STRUCT_PEER_SIGNAL_STATS_THRESH,
+	WMI_TLV_TAG_STRUCT_TX_STATS_THRESH,
+	WMI_TLV_TAG_STRUCT_RX_STATS_THRESH,
+	WMI_TLV_TAG_STRUCT_PDEV_SET_STATS_THRESHOLD_CMD,
+	WMI_TLV_TAG_STRUCT_REQUEST_WLAN_STATS_CMD,
+	WMI_TLV_TAG_STRUCT_RX_AGGR_FAILURE_EVENT,
+	WMI_TLV_TAG_STRUCT_RX_AGGR_FAILURE_INFO,
+	WMI_TLV_TAG_STRUCT_VDEV_ENCRYPT_DECRYPT_DATA_REQ_CMD,
+	WMI_TLV_TAG_STRUCT_VDEV_ENCRYPT_DECRYPT_DATA_RESP_EVENT,
+	WMI_TLV_TAG_STRUCT_PDEV_BAND_TO_MAC,
+	WMI_TLV_TAG_STRUCT_TBTT_OFFSET_INFO,
+	WMI_TLV_TAG_STRUCT_TBTT_OFFSET_EXT_EVENT,
+	WMI_TLV_TAG_STRUCT_SAR_LIMITS_CMD,
+	WMI_TLV_TAG_STRUCT_SAR_LIMIT_CMD_ROW,
+	WMI_TLV_TAG_STRUCT_PDEV_DFS_PHYERR_OFFLOAD_ENABLE_CMD,
+	WMI_TLV_TAG_STRUCT_PDEV_DFS_PHYERR_OFFLOAD_DISABLE_CMD,
+	WMI_TLV_TAG_STRUCT_VDEV_ADFS_CH_CFG_CMD,
+	WMI_TLV_TAG_STRUCT_VDEV_ADFS_OCAC_ABORT_CMD,
+	WMI_TLV_TAG_STRUCT_PDEV_DFS_RADAR_DETECTION_EVENT,
+	WMI_TLV_TAG_STRUCT_VDEV_ADFS_OCAC_COMPLETE_EVENT,
+	WMI_TLV_TAG_STRUCT_VDEV_DFS_CAC_COMPLETE_EVENT,
+	WMI_TLV_TAG_STRUCT_VENDOR_OUI,
+	WMI_TLV_TAG_STRUCT_REQUEST_RCPI_CMD,
+	WMI_TLV_TAG_STRUCT_UPDATE_RCPI_EVENT,
+	WMI_TLV_TAG_STRUCT_REQUEST_PEER_STATS_INFO_CMD,
+	WMI_TLV_TAG_STRUCT_PEER_STATS_INFO,
+	WMI_TLV_TAG_STRUCT_PEER_STATS_INFO_EVENT,
+	WMI_TLV_TAG_STRUCT_PKGID_EVENT,
+	WMI_TLV_TAG_STRUCT_CONNECTED_NLO_RSSI_PARAMS,
+	WMI_TLV_TAG_STRUCT_SET_CURRENT_COUNTRY_CMD,
+	WMI_TLV_TAG_STRUCT_REGULATORY_RULE_STRUCT,
+	WMI_TLV_TAG_STRUCT_REG_CHAN_LIST_CC_EVENT,
+	WMI_TLV_TAG_STRUCT_11D_SCAN_START_CMD,
+	WMI_TLV_TAG_STRUCT_11D_SCAN_STOP_CMD,
+	WMI_TLV_TAG_STRUCT_11D_NEW_COUNTRY_EVENT,
+	WMI_TLV_TAG_STRUCT_REQUEST_RADIO_CHAN_STATS_CMD,
+	WMI_TLV_TAG_STRUCT_RADIO_CHAN_STATS,
+	WMI_TLV_TAG_STRUCT_RADIO_CHAN_STATS_EVENT,
+	WMI_TLV_TAG_STRUCT_ROAM_PER_CONFIG,
+	WMI_TLV_TAG_STRUCT_VDEV_ADD_MAC_ADDR_TO_RX_FILTER_CMD,
+	WMI_TLV_TAG_STRUCT_VDEV_ADD_MAC_ADDR_TO_RX_FILTER_STATUS_EVENT,
+	WMI_TLV_TAG_STRUCT_BPF_SET_VDEV_ACTIVE_MODE_CMD,
+	WMI_TLV_TAG_STRUCT_HW_DATA_FILTER_CMD,
+	WMI_TLV_TAG_STRUCT_CONNECTED_NLO_BSS_BAND_RSSI_PREF,
+	WMI_TLV_TAG_STRUCT_PEER_OPER_MODE_CHANGE_EVENT,
+	WMI_TLV_TAG_STRUCT_CHIP_POWER_SAVE_FAILURE_DETECTED,
+	WMI_TLV_TAG_STRUCT_PDEV_MULTIPLE_VDEV_RESTART_REQUEST_CMD,
+	WMI_TLV_TAG_STRUCT_PDEV_CSA_SWITCH_COUNT_STATUS_EVENT,
+	WMI_TLV_TAG_STRUCT_PDEV_UPDATE_PKT_ROUTING_CMD,
+	WMI_TLV_TAG_STRUCT_PDEV_CHECK_CAL_VERSION_CMD,
+	WMI_TLV_TAG_STRUCT_PDEV_CHECK_CAL_VERSION_EVENT,
+	WMI_TLV_TAG_STRUCT_PDEV_SET_DIVERSITY_GAIN_CMD,
+	WMI_TLV_TAG_STRUCT_MAC_PHY_CHAINMASK_COMBO,
+	WMI_TLV_TAG_STRUCT_MAC_PHY_CHAINMASK_CAPABILITY,
+	WMI_TLV_TAG_STRUCT_VDEV_SET_ARP_STATS_CMD,
+	WMI_TLV_TAG_STRUCT_VDEV_GET_ARP_STATS_CMD,
+	WMI_TLV_TAG_STRUCT_VDEV_GET_ARP_STATS_EVENT,
+	WMI_TLV_TAG_STRUCT_IFACE_OFFLOAD_STATS,
+	WMI_TLV_TAG_STRUCT_REQUEST_STATS_CMD_SUB_STRUCT_PARAM,
+	WMI_TLV_TAG_STRUCT_RSSI_CTL_EXT,
+	WMI_TLV_TAG_STRUCT_SINGLE_PHYERR_EXT_RX_HDR,
+	WMI_TLV_TAG_STRUCT_COEX_BT_ACTIVITY_EVENT,
+	WMI_TLV_TAG_STRUCT_VDEV_GET_TX_POWER_CMD,
+	WMI_TLV_TAG_STRUCT_VDEV_TX_POWER_EVENT,
+	WMI_TLV_TAG_STRUCT_OFFCHAN_DATA_TX_COMPL_EVENT,
+	WMI_TLV_TAG_STRUCT_OFFCHAN_DATA_TX_SEND_CMD,
+	WMI_TLV_TAG_STRUCT_TX_SEND_PARAMS,
+	WMI_TLV_TAG_STRUCT_HE_RATE_SET,
+	WMI_TLV_TAG_STRUCT_CONGESTION_STATS,
+	WMI_TLV_TAG_STRUCT_SET_INIT_COUNTRY_CMD,
+	WMI_TLV_TAG_STRUCT_SCAN_DBS_DUTY_CYCLE,
+	WMI_TLV_TAG_STRUCT_SCAN_DBS_DUTY_CYCLE_PARAM_TLV,
+	WMI_TLV_TAG_STRUCT_PDEV_DIV_GET_RSSI_ANTID,
+	WMI_TLV_TAG_STRUCT_THERM_THROT_CONFIG_REQUEST,
+	WMI_TLV_TAG_STRUCT_THERM_THROT_LEVEL_CONFIG_INFO,
+	WMI_TLV_TAG_STRUCT_THERM_THROT_STATS_EVENT,
+	WMI_TLV_TAG_STRUCT_THERM_THROT_LEVEL_STATS_INFO,
+	WMI_TLV_TAG_STRUCT_PDEV_DIV_RSSI_ANTID_EVENT,
+	WMI_TLV_TAG_STRUCT_OEM_DMA_RING_CAPABILITIES,
+	WMI_TLV_TAG_STRUCT_OEM_DMA_RING_CFG_REQ,
+	WMI_TLV_TAG_STRUCT_OEM_DMA_RING_CFG_RSP,
+	WMI_TLV_TAG_STRUCT_OEM_INDIRECT_DATA,
+	WMI_TLV_TAG_STRUCT_OEM_DMA_BUF_RELEASE,
+	WMI_TLV_TAG_STRUCT_OEM_DMA_BUF_RELEASE_ENTRY,
+	WMI_TLV_TAG_STRUCT_PDEV_BSS_CHAN_INFO_REQUEST,
+	WMI_TLV_TAG_STRUCT_PDEV_BSS_CHAN_INFO_EVENT,
+	WMI_TLV_TAG_STRUCT_ROAM_LCA_DISALLOW_CONFIG_TLV_PARAM,
+	WMI_TLV_TAG_STRUCT_VDEV_LIMIT_OFFCHAN_CMD,
+	WMI_TLV_TAG_STRUCT_ROAM_RSSI_REJECTION_OCE_CONFIG_PARAM,
+	WMI_TLV_TAG_STRUCT_UNIT_TEST_EVENT,
+	WMI_TLV_TAG_STRUCT_ROAM_FILS_OFFLOAD_TLV_PARAM,
+	WMI_TLV_TAG_STRUCT_PDEV_UPDATE_PMK_CACHE_CMD,
+	WMI_TLV_TAG_STRUCT_PMK_CACHE,
+	WMI_TLV_TAG_STRUCT_PDEV_UPDATE_FILS_HLP_PKT_CMD,
+	WMI_TLV_TAG_STRUCT_ROAM_FILS_SYNCH_TLV_PARAM,
+	WMI_TLV_TAG_STRUCT_GTK_OFFLOAD_EXTENDED_TLV_PARAM,
+	WMI_TLV_TAG_STRUCT_ROAM_BG_SCAN_ROAMING_PARAM,
+	WMI_TLV_TAG_STRUCT_OIC_PING_OFFLOAD_PARAMS_CMD,
+	WMI_TLV_TAG_STRUCT_OIC_PING_OFFLOAD_SET_ENABLE_CMD,
+	WMI_TLV_TAG_STRUCT_OIC_PING_HANDOFF_EVENT,
+	WMI_TLV_TAG_STRUCT_DHCP_LEASE_RENEW_OFFLOAD_CMD,
+	WMI_TLV_TAG_STRUCT_DHCP_LEASE_RENEW_EVENT,
+	WMI_TLV_TAG_STRUCT_BTM_CONFIG,
+	WMI_TLV_TAG_STRUCT_DEBUG_MESG_FW_DATA_STALL_PARAM,
+	WMI_TLV_TAG_STRUCT_WLM_CONFIG_CMD,
+	WMI_TLV_TAG_STRUCT_PDEV_UPDATE_CTLTABLE_REQUEST,
+	WMI_TLV_TAG_STRUCT_PDEV_UPDATE_CTLTABLE_EVENT,
+	WMI_TLV_TAG_STRUCT_ROAM_CND_SCORING_PARAM,
+	WMI_TLV_TAG_STRUCT_PDEV_CONFIG_VENDOR_OUI_ACTION,
+	WMI_TLV_TAG_STRUCT_VENDOR_OUI_EXT,
+	WMI_TLV_TAG_STRUCT_ROAM_SYNCH_FRAME_EVENT,
+	WMI_TLV_TAG_STRUCT_FD_SEND_FROM_HOST_CMD,
+	WMI_TLV_TAG_STRUCT_ENABLE_FILS_CMD,
+	WMI_TLV_TAG_STRUCT_HOST_SWFDA_EVENT,
 
 	WMI_TLV_TAG_MAX
 };
@@ -1068,16 +1340,74 @@ enum wmi_tlv_service {
 	WMI_TLV_SERVICE_WLAN_STATS_REPORT,
 	WMI_TLV_SERVICE_TX_MSDU_ID_NEW_PARTITION_SUPPORT,
 	WMI_TLV_SERVICE_DFS_PHYERR_OFFLOAD,
+	WMI_TLV_SERVICE_RCPI_SUPPORT,
+	WMI_TLV_SERVICE_FW_MEM_DUMP_SUPPORT,
+	WMI_TLV_SERVICE_PEER_STATS_INFO,
+	WMI_TLV_SERVICE_REGULATORY_DB,
+	WMI_TLV_SERVICE_11D_OFFLOAD,
+	WMI_TLV_SERVICE_HW_DATA_FILTERING,
+	WMI_TLV_SERVICE_MULTIPLE_VDEV_RESTART,
+	WMI_TLV_SERVICE_PKT_ROUTING,
+	WMI_TLV_SERVICE_CHECK_CAL_VERSION,
+	WMI_TLV_SERVICE_OFFCHAN_TX_WMI,
+	WMI_TLV_SERVICE_8SS_TX_BFEE,
+	WMI_TLV_SERVICE_EXTENDED_NSS_SUPPORT,
+	WMI_TLV_SERVICE_ACK_TIMEOUT,
+	WMI_TLV_SERVICE_PDEV_BSS_CHANNEL_INFO_64,
+	WMI_TLV_MAX_SERVICE = 128,
+
+/* NOTE:
+ * The above service flags are delivered in the wmi_service_bitmap field
+ * of the WMI_TLV_SERVICE_READY_EVENT message.
+ * The below service flags are delivered in a WMI_TLV_SERVICE_AVAILABLE_EVENT
+ * message rather than in the WMI_TLV_SERVICE_READY_EVENT message's
+ * wmi_service_bitmap field.
+ * The WMI_TLV_SERVICE_AVAILABLE_EVENT message immediately precedes the
+ * WMI_TLV_SERVICE_READY_EVENT message.
+ */
+
+	WMI_TLV_SERVICE_CHAN_LOAD_INFO = 128,
+	WMI_TLV_SERVICE_TX_PPDU_INFO_STATS_SUPPORT,
+	WMI_TLV_SERVICE_VDEV_LIMIT_OFFCHAN_SUPPORT,
+	WMI_TLV_SERVICE_FILS_SUPPORT,
+	WMI_TLV_SERVICE_WLAN_OIC_PING_OFFLOAD,
+	WMI_TLV_SERVICE_WLAN_DHCP_RENEW,
+	WMI_TLV_SERVICE_MAWC_SUPPORT,
+	WMI_TLV_SERVICE_VDEV_LATENCY_CONFIG,
+	WMI_TLV_SERVICE_PDEV_UPDATE_CTLTABLE_SUPPORT,
+	WMI_TLV_SERVICE_PKTLOG_SUPPORT_OVER_HTT,
+	WMI_TLV_SERVICE_VDEV_MULTI_GROUP_KEY_SUPPORT,
+	WMI_TLV_SERVICE_SCAN_PHYMODE_SUPPORT,
+	WMI_TLV_SERVICE_THERM_THROT,
+	WMI_TLV_SERVICE_BCN_OFFLOAD_START_STOP_SUPPORT,
+	WMI_TLV_SERVICE_WOW_WAKEUP_BY_TIMER_PATTERN,
+	WMI_TLV_SERVICE_PEER_MAP_UNMAP_V2_SUPPORT = 143,
+	WMI_TLV_SERVICE_OFFCHAN_DATA_TID_SUPPORT = 144,
+	WMI_TLV_SERVICE_RX_PROMISC_ENABLE_SUPPORT = 145,
+	WMI_TLV_SERVICE_SUPPORT_DIRECT_DMA = 146,
+	WMI_TLV_SERVICE_AP_OBSS_DETECTION_OFFLOAD = 147,
+	WMI_TLV_SERVICE_11K_NEIGHBOUR_REPORT_SUPPORT = 148,
+	WMI_TLV_SERVICE_LISTEN_INTERVAL_OFFLOAD_SUPPORT = 149,
+	WMI_TLV_SERVICE_BSS_COLOR_OFFLOAD = 150,
+	WMI_TLV_SERVICE_RUNTIME_DPD_RECAL = 151,
+	WMI_TLV_SERVICE_STA_TWT = 152,
+	WMI_TLV_SERVICE_AP_TWT = 153,
+	WMI_TLV_SERVICE_GMAC_OFFLOAD_SUPPORT = 154,
+	WMI_TLV_SERVICE_SPOOF_MAC_SUPPORT = 155,
+
+	WMI_TLV_MAX_EXT_SERVICE = 256,
 };
 
-#define WMI_SERVICE_IS_ENABLED(wmi_svc_bmap, svc_id, len) \
-	((svc_id) < (len) && \
-	 __le32_to_cpu((wmi_svc_bmap)[(svc_id) / (sizeof(u32))]) & \
-	 BIT((svc_id) % (sizeof(u32))))
+#define WMI_TLV_EXT_SERVICE_IS_ENABLED(wmi_svc_bmap, svc_id, len) \
+	((svc_id) < (WMI_TLV_MAX_EXT_SERVICE) && \
+	 (svc_id) >= (len) && \
+	__le32_to_cpu((wmi_svc_bmap)[((svc_id) - (len)) / 32]) & \
+	BIT(((((svc_id) - (len)) % 32) & 0x1f)))
 
 #define SVCMAP(x, y, len) \
 	do { \
-		if (WMI_SERVICE_IS_ENABLED((in), (x), (len))) \
+		if ((WMI_SERVICE_IS_ENABLED((in), (x), (len))) || \
+			(WMI_TLV_EXT_SERVICE_IS_ENABLED((in), (x), (len)))) \
 			__set_bit(y, out); \
 	} while (0)
 
@@ -1228,6 +1558,17 @@ wmi_tlv_svc_map(const __le32 *in, unsigned long *out, size_t len)
 	       WMI_SERVICE_MGMT_TX_WMI, len);
 }
 
+static inline void
+wmi_tlv_svc_map_ext(const __le32 *in, unsigned long *out, size_t len)
+{
+	SVCMAP(WMI_TLV_SERVICE_SPOOF_MAC_SUPPORT,
+	       WMI_SERVICE_SPOOF_MAC_SUPPORT,
+	       WMI_TLV_MAX_SERVICE);
+	SVCMAP(WMI_TLV_SERVICE_THERM_THROT,
+	       WMI_SERVICE_THERM_THROT,
+	       WMI_TLV_MAX_SERVICE);
+}
+
 #undef SVCMAP
 
 struct wmi_tlv {
@@ -1235,6 +1576,17 @@ struct wmi_tlv {
 	__le16 tag;
 	u8 value[0];
 } __packed;
+
+struct ath10k_mgmt_tx_pkt_addr {
+	void *vaddr;
+	dma_addr_t paddr;
+};
+
+struct wmi_tlv_mgmt_tx_compl_ev {
+	__le32 desc_id;
+	__le32 status;
+	__le32 pdev_id;
+};
 
 #define WMI_TLV_MGMT_RX_NUM_RSSI 4
 
@@ -1333,6 +1685,11 @@ struct wmi_tlv_resource_config {
 	__le32 keep_alive_pattern_size;
 	__le32 max_tdls_concurrent_sleep_sta;
 	__le32 max_tdls_concurrent_buffer_sta;
+	__le32 wmi_send_separate;
+	__le32 num_ocb_vdevs;
+	__le32 num_ocb_channels;
+	__le32 num_ocb_schedules;
+	__le32 host_capab;
 } __packed;
 
 struct wmi_tlv_init_cmd {
@@ -1370,6 +1727,15 @@ struct wmi_tlv_scan_chan_list_cmd {
 	__le32 num_scan_chans;
 } __packed;
 
+struct wmi_scan_prob_req_oui_cmd {
+/* OUI to be used in Probe Request frame when random MAC address is
+ * requested part of scan parameters. This is applied to both FW internal
+ * scans and host initiated scans. Host can request for random MAC address
+ * with WMI_SCAN_ADD_SPOOFED_MAC_IN_PROBE_REQ flag.
+ */
+	__le32 prob_req_oui;
+}  __packed;
+
 struct wmi_tlv_start_scan_cmd {
 	struct wmi_start_scan_common common;
 	__le32 burst_duration_ms;
@@ -1378,6 +1744,8 @@ struct wmi_tlv_start_scan_cmd {
 	__le32 num_ssids;
 	__le32 ie_len;
 	__le32 num_probes;
+	struct wmi_mac_addr mac_addr;
+	struct wmi_mac_addr mac_mask;
 } __packed;
 
 struct wmi_tlv_vdev_start_cmd {
@@ -1605,6 +1973,21 @@ struct wmi_tlv_wow_add_del_event_cmd {
 	__le32 event_bitmap;
 } __packed;
 
+/* Command to set/unset chip in quiet mode */
+struct wmi_tlv_set_quiet_cmd {
+	__le32 vdev_id;
+
+	/* in TUs */
+	__le32 period;
+
+	/* in TUs */
+	__le32 duration;
+
+	/* offset in TUs */
+	__le32 next_start;
+	__le32 enabled;
+} __packed;
+
 struct wmi_tlv_wow_enable_cmd {
 	__le32 enable;
 } __packed;
@@ -1765,6 +2148,260 @@ struct wmi_tlv_tdls_peer_event {
 } __packed;
 
 void ath10k_wmi_tlv_attach(struct ath10k *ar);
+
+enum wmi_nlo_auth_algorithm {
+	WMI_NLO_AUTH_ALGO_80211_OPEN        = 1,
+	WMI_NLO_AUTH_ALGO_80211_SHARED_KEY  = 2,
+	WMI_NLO_AUTH_ALGO_WPA               = 3,
+	WMI_NLO_AUTH_ALGO_WPA_PSK           = 4,
+	WMI_NLO_AUTH_ALGO_WPA_NONE          = 5,
+	WMI_NLO_AUTH_ALGO_RSNA              = 6,
+	WMI_NLO_AUTH_ALGO_RSNA_PSK          = 7,
+};
+
+enum wmi_nlo_cipher_algorithm {
+	WMI_NLO_CIPHER_ALGO_NONE           = 0x00,
+	WMI_NLO_CIPHER_ALGO_WEP40          = 0x01,
+	WMI_NLO_CIPHER_ALGO_TKIP           = 0x02,
+	WMI_NLO_CIPHER_ALGO_CCMP           = 0x04,
+	WMI_NLO_CIPHER_ALGO_WEP104         = 0x05,
+	WMI_NLO_CIPHER_ALGO_BIP            = 0x06,
+	WMI_NLO_CIPHER_ALGO_RSN_USE_GROUP  = 0x100,
+	WMI_NLO_CIPHER_ALGO_WEP            = 0x101,
+};
+
+/* SSID broadcast  type passed in NLO params */
+enum wmi_nlo_ssid_bcastnwtype {
+	WMI_NLO_BCAST_UNKNOWN      = 0,
+	WMI_NLO_BCAST_NORMAL       = 1,
+	WMI_NLO_BCAST_HIDDEN       = 2,
+};
+
+#define WMI_NLO_MAX_SSIDS    16
+#define WMI_NLO_MAX_CHAN     48
+
+#define WMI_NLO_CONFIG_STOP                             (0x1 << 0)
+#define WMI_NLO_CONFIG_START                            (0x1 << 1)
+#define WMI_NLO_CONFIG_RESET                            (0x1 << 2)
+#define WMI_NLO_CONFIG_SLOW_SCAN                        (0x1 << 4)
+#define WMI_NLO_CONFIG_FAST_SCAN                        (0x1 << 5)
+#define WMI_NLO_CONFIG_SSID_HIDE_EN                     (0x1 << 6)
+
+/* This bit is used to indicate if EPNO or supplicant PNO is enabled.
+ * Only one of them can be enabled at a given time
+ */
+#define WMI_NLO_CONFIG_ENLO                             (0x1 << 7)
+#define WMI_NLO_CONFIG_SCAN_PASSIVE                     (0x1 << 8)
+#define WMI_NLO_CONFIG_ENLO_RESET                       (0x1 << 9)
+#define WMI_NLO_CONFIG_SPOOFED_MAC_IN_PROBE_REQ         (0x1 << 10)
+#define WMI_NLO_CONFIG_RANDOM_SEQ_NO_IN_PROBE_REQ       (0x1 << 11)
+#define WMI_NLO_CONFIG_ENABLE_IE_WHITELIST_IN_PROBE_REQ (0x1 << 12)
+#define WMI_NLO_CONFIG_ENABLE_CNLO_RSSI_CONFIG          (0x1 << 13)
+
+/* Whether directed scan needs to be performed (for hidden SSIDs) */
+#define WMI_ENLO_FLAG_DIRECTED_SCAN      1
+
+/* Whether PNO event shall be triggered if the network is found on A band */
+#define WMI_ENLO_FLAG_A_BAND             2
+
+/* Whether PNO event shall be triggered if the network is found on G band */
+#define WMI_ENLO_FLAG_G_BAND             4
+
+/* Whether strict matching is required (i.e. firmware shall not
+ * match on the entire SSID)
+ */
+#define WMI_ENLO_FLAG_STRICT_MATCH       8
+
+/* Code for matching the beacon AUTH IE - additional codes TBD */
+/* open */
+#define WMI_ENLO_AUTH_CODE_OPEN  1
+
+/* WPA_PSK or WPA2PSK */
+#define WMI_ENLO_AUTH_CODE_PSK   2
+
+/* any EAPOL */
+#define WMI_ENLO_AUTH_CODE_EAPOL 4
+
+struct wmi_nlo_ssid_param {
+	__le32 valid;
+	struct wmi_ssid ssid;
+} __packed;
+
+struct wmi_nlo_enc_param {
+	__le32 valid;
+	__le32 enc_type;
+} __packed;
+
+struct wmi_nlo_auth_param {
+	__le32 valid;
+	__le32 auth_type;
+} __packed;
+
+struct wmi_nlo_bcast_nw_param {
+	__le32 valid;
+
+	/* If WMI_NLO_CONFIG_EPNO is not set. Supplicant PNO is enabled.
+	 * The value should be true/false. Otherwise EPNO is enabled.
+	 * bcast_nw_type would be used as a bit flag contains WMI_ENLO_FLAG_XXX
+	 */
+	__le32 bcast_nw_type;
+} __packed;
+
+struct wmi_nlo_rssi_param {
+	__le32 valid;
+	__le32 rssi;
+} __packed;
+
+struct nlo_configured_parameters {
+	/* TLV tag and len;*/
+	__le32 tlv_header;
+	struct wmi_nlo_ssid_param ssid;
+	struct wmi_nlo_enc_param enc_type;
+	struct wmi_nlo_auth_param auth_type;
+	struct wmi_nlo_rssi_param rssi_cond;
+
+	/* indicates if the SSID is hidden or not */
+	struct wmi_nlo_bcast_nw_param bcast_nw_type;
+} __packed;
+
+/* Support channel prediction for PNO scan after scanning top_k_num channels
+ * if stationary_threshold is met.
+ */
+struct nlo_channel_prediction_cfg {
+	__le32 tlv_header;
+
+	/* Enable or disable this feature. */
+	__le32 enable;
+
+	/* Top K channels will be scanned before deciding whether to further scan
+	 * or stop. Minimum value is 3 and maximum is 5.
+	 */
+	__le32 top_k_num;
+
+	/* Preconfigured stationary threshold.
+	 * Lesser value means more conservative. Bigger value means more aggressive.
+	 * Maximum is 100 and mininum is 0.
+	 */
+	__le32 stationary_threshold;
+
+	/* Periodic full channel scan in milliseconds unit.
+	 * After full_scan_period_ms since last full scan, channel prediction
+	 * scan is suppressed and will do full scan.
+	 * This is to help detecting sudden AP power-on or -off. Value 0 means no
+	 * full scan at all (not recommended).
+	 */
+	__le32 full_scan_period_ms;
+} __packed;
+
+struct enlo_candidate_score_params_t {
+	__le32 tlv_header;   /* TLV tag and len; */
+
+	/* minimum 5GHz RSSI for a BSSID to be considered (units = dBm) */
+	__le32 min_5ghz_rssi;
+
+	/* minimum 2.4GHz RSSI for a BSSID to be considered (units = dBm) */
+	__le32 min_24ghz_rssi;
+
+	/* the maximum score that a network can have before bonuses */
+	__le32 initial_score_max;
+
+	/* current_connection_bonus:
+	 * only report when there is a network's score this much higher
+	 * than the current connection
+	 */
+	__le32 current_connection_bonus;
+
+	/* score bonus for all networks with the same network flag */
+	__le32 same_network_bonus;
+
+	/* score bonus for networks that are not open */
+	__le32 secure_bonus;
+
+	/* 5GHz RSSI score bonus (applied to all 5GHz networks) */
+	__le32 band_5ghz_bonus;
+} __packed;
+
+struct connected_nlo_bss_band_rssi_pref_t {
+	__le32 tlv_header; /* TLV tag and len;*/
+
+	/* band which needs to get preference over other band
+	 * - see wmi_set_vdev_ie_band enum
+	 */
+	__le32 band;
+
+	/* Amount of RSSI preference (in dB) that can be given to a band */
+	__le32 rssi_pref;
+} __packed;
+
+struct connected_nlo_rssi_params_t {
+	__le32 tlv_header; /* TLV tag and len;*/
+
+	/* Relative rssi threshold (in dB) by which new BSS should have
+	 * better rssi than the current connected BSS.
+	 */
+	__le32 relative_rssi;
+
+	/* The amount of rssi preference (in dB) that can be given
+	 * to a 5G BSS over 2.4G BSS.
+	 */
+	__le32 relative_rssi_5g_pref;
+} __packed;
+
+struct wmi_tlv_wow_nlo_config_cmd {
+	__le32 flags;
+	__le32 vdev_id;
+	__le32 fast_scan_max_cycles;
+	__le32 active_dwell_time;
+	__le32 passive_dwell_time; /* PDT in msecs */
+	__le32 probe_bundle_size;
+
+	/* ART = IRT */
+	__le32 rest_time;
+
+	/* Max value that can be reached after SBM */
+	__le32 max_rest_time;
+
+	/* SBM */
+	__le32 scan_backoff_multiplier;
+
+	/* SCBM */
+	__le32 fast_scan_period;
+
+	/* specific to windows */
+	__le32 slow_scan_period;
+
+	__le32 no_of_ssids;
+
+	__le32 num_of_channels;
+
+	/* NLO scan start delay time in milliseconds */
+	__le32 delay_start_time;
+
+	/** MAC Address to use in Probe Req as SA **/
+	struct wmi_mac_addr mac_addr;
+
+	/** Mask on which MAC has to be randomized **/
+	struct wmi_mac_addr mac_mask;
+
+	/** IE bitmap to use in Probe Req **/
+	__le32 ie_bitmap[8];
+
+	/** Number of vendor OUIs. In the TLV vendor_oui[] **/
+	__le32 num_vendor_oui;
+
+	/** Number of connected NLO band preferences **/
+	__le32 num_cnlo_band_pref;
+
+	/* The TLVs will follow.
+	 * nlo_configured_parameters nlo_list[];
+	 * A_UINT32 channel_list[num_of_channels];
+	 * nlo_channel_prediction_cfg ch_prediction_cfg;
+	 * enlo_candidate_score_params candidate_score_params;
+	 * wmi_vendor_oui vendor_oui[num_vendor_oui];
+	 * connected_nlo_rssi_params cnlo_rssi_params;
+	 * connected_nlo_bss_band_rssi_pref cnlo_bss_band_rssi_pref[num_cnlo_band_pref];
+	 */
+} __packed;
 
 struct wmi_tlv_mgmt_tx_cmd {
 	__le32 vdev_id;

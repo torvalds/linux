@@ -1252,6 +1252,12 @@ static void si_invalidate_hdp(struct amdgpu_device *adev,
 	}
 }
 
+static bool si_need_full_reset(struct amdgpu_device *adev)
+{
+	/* change this when we support soft reset */
+	return true;
+}
+
 static int si_get_pcie_lanes(struct amdgpu_device *adev)
 {
 	u32 link_width_cntl;
@@ -1332,6 +1338,7 @@ static const struct amdgpu_asic_funcs si_asic_funcs =
 	.get_config_memsize = &si_get_config_memsize,
 	.flush_hdp = &si_flush_hdp,
 	.invalidate_hdp = &si_invalidate_hdp,
+	.need_full_reset = &si_need_full_reset,
 };
 
 static uint32_t si_get_rev_id(struct amdgpu_device *adev)
@@ -2050,13 +2057,13 @@ int si_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &si_common_ip_block);
 		amdgpu_device_ip_block_add(adev, &gmc_v6_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &si_ih_ip_block);
+		amdgpu_device_ip_block_add(adev, &gfx_v6_0_ip_block);
+		amdgpu_device_ip_block_add(adev, &si_dma_ip_block);
 		amdgpu_device_ip_block_add(adev, &si_smu_ip_block);
 		if (adev->enable_virtual_display)
 			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
 		else
 			amdgpu_device_ip_block_add(adev, &dce_v6_0_ip_block);
-		amdgpu_device_ip_block_add(adev, &gfx_v6_0_ip_block);
-		amdgpu_device_ip_block_add(adev, &si_dma_ip_block);
 		/* amdgpu_device_ip_block_add(adev, &uvd_v3_1_ip_block); */
 		/* amdgpu_device_ip_block_add(adev, &vce_v1_0_ip_block); */
 		break;
@@ -2064,13 +2071,14 @@ int si_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &si_common_ip_block);
 		amdgpu_device_ip_block_add(adev, &gmc_v6_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &si_ih_ip_block);
+		amdgpu_device_ip_block_add(adev, &gfx_v6_0_ip_block);
+		amdgpu_device_ip_block_add(adev, &si_dma_ip_block);
 		amdgpu_device_ip_block_add(adev, &si_smu_ip_block);
 		if (adev->enable_virtual_display)
 			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
 		else
 			amdgpu_device_ip_block_add(adev, &dce_v6_4_ip_block);
-		amdgpu_device_ip_block_add(adev, &gfx_v6_0_ip_block);
-		amdgpu_device_ip_block_add(adev, &si_dma_ip_block);
+
 		/* amdgpu_device_ip_block_add(adev, &uvd_v3_1_ip_block); */
 		/* amdgpu_device_ip_block_add(adev, &vce_v1_0_ip_block); */
 		break;
@@ -2078,11 +2086,11 @@ int si_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &si_common_ip_block);
 		amdgpu_device_ip_block_add(adev, &gmc_v6_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &si_ih_ip_block);
+		amdgpu_device_ip_block_add(adev, &gfx_v6_0_ip_block);
+		amdgpu_device_ip_block_add(adev, &si_dma_ip_block);
 		amdgpu_device_ip_block_add(adev, &si_smu_ip_block);
 		if (adev->enable_virtual_display)
 			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
-		amdgpu_device_ip_block_add(adev, &gfx_v6_0_ip_block);
-		amdgpu_device_ip_block_add(adev, &si_dma_ip_block);
 		break;
 	default:
 		BUG();

@@ -376,7 +376,7 @@ int i1480_usb_probe(struct usb_interface *iface, const struct usb_device_id *id)
 
 	i1480 = &i1480_usb->i1480;
 	i1480->buf_size = 512;
-	i1480->cmd_buf = kmalloc(2 * i1480->buf_size, GFP_KERNEL);
+	i1480->cmd_buf = kmalloc_array(2, i1480->buf_size, GFP_KERNEL);
 	if (i1480->cmd_buf == NULL) {
 		dev_err(dev, "Cannot allocate transfer buffers\n");
 		result = -ENOMEM;

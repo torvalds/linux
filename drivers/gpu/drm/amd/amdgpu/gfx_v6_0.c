@@ -44,30 +44,30 @@ static void gfx_v6_0_set_ring_funcs(struct amdgpu_device *adev);
 static void gfx_v6_0_set_irq_funcs(struct amdgpu_device *adev);
 static void gfx_v6_0_get_cu_info(struct amdgpu_device *adev);
 
-MODULE_FIRMWARE("radeon/tahiti_pfp.bin");
-MODULE_FIRMWARE("radeon/tahiti_me.bin");
-MODULE_FIRMWARE("radeon/tahiti_ce.bin");
-MODULE_FIRMWARE("radeon/tahiti_rlc.bin");
+MODULE_FIRMWARE("amdgpu/tahiti_pfp.bin");
+MODULE_FIRMWARE("amdgpu/tahiti_me.bin");
+MODULE_FIRMWARE("amdgpu/tahiti_ce.bin");
+MODULE_FIRMWARE("amdgpu/tahiti_rlc.bin");
 
-MODULE_FIRMWARE("radeon/pitcairn_pfp.bin");
-MODULE_FIRMWARE("radeon/pitcairn_me.bin");
-MODULE_FIRMWARE("radeon/pitcairn_ce.bin");
-MODULE_FIRMWARE("radeon/pitcairn_rlc.bin");
+MODULE_FIRMWARE("amdgpu/pitcairn_pfp.bin");
+MODULE_FIRMWARE("amdgpu/pitcairn_me.bin");
+MODULE_FIRMWARE("amdgpu/pitcairn_ce.bin");
+MODULE_FIRMWARE("amdgpu/pitcairn_rlc.bin");
 
-MODULE_FIRMWARE("radeon/verde_pfp.bin");
-MODULE_FIRMWARE("radeon/verde_me.bin");
-MODULE_FIRMWARE("radeon/verde_ce.bin");
-MODULE_FIRMWARE("radeon/verde_rlc.bin");
+MODULE_FIRMWARE("amdgpu/verde_pfp.bin");
+MODULE_FIRMWARE("amdgpu/verde_me.bin");
+MODULE_FIRMWARE("amdgpu/verde_ce.bin");
+MODULE_FIRMWARE("amdgpu/verde_rlc.bin");
 
-MODULE_FIRMWARE("radeon/oland_pfp.bin");
-MODULE_FIRMWARE("radeon/oland_me.bin");
-MODULE_FIRMWARE("radeon/oland_ce.bin");
-MODULE_FIRMWARE("radeon/oland_rlc.bin");
+MODULE_FIRMWARE("amdgpu/oland_pfp.bin");
+MODULE_FIRMWARE("amdgpu/oland_me.bin");
+MODULE_FIRMWARE("amdgpu/oland_ce.bin");
+MODULE_FIRMWARE("amdgpu/oland_rlc.bin");
 
-MODULE_FIRMWARE("radeon/hainan_pfp.bin");
-MODULE_FIRMWARE("radeon/hainan_me.bin");
-MODULE_FIRMWARE("radeon/hainan_ce.bin");
-MODULE_FIRMWARE("radeon/hainan_rlc.bin");
+MODULE_FIRMWARE("amdgpu/hainan_pfp.bin");
+MODULE_FIRMWARE("amdgpu/hainan_me.bin");
+MODULE_FIRMWARE("amdgpu/hainan_ce.bin");
+MODULE_FIRMWARE("amdgpu/hainan_rlc.bin");
 
 static u32 gfx_v6_0_get_csb_size(struct amdgpu_device *adev);
 static void gfx_v6_0_get_csb_buffer(struct amdgpu_device *adev, volatile u32 *buffer);
@@ -335,7 +335,7 @@ static int gfx_v6_0_init_microcode(struct amdgpu_device *adev)
 	default: BUG();
 	}
 
-	snprintf(fw_name, sizeof(fw_name), "radeon/%s_pfp.bin", chip_name);
+	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_pfp.bin", chip_name);
 	err = request_firmware(&adev->gfx.pfp_fw, fw_name, adev->dev);
 	if (err)
 		goto out;
@@ -346,7 +346,7 @@ static int gfx_v6_0_init_microcode(struct amdgpu_device *adev)
 	adev->gfx.pfp_fw_version = le32_to_cpu(cp_hdr->header.ucode_version);
 	adev->gfx.pfp_feature_version = le32_to_cpu(cp_hdr->ucode_feature_version);
 
-	snprintf(fw_name, sizeof(fw_name), "radeon/%s_me.bin", chip_name);
+	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_me.bin", chip_name);
 	err = request_firmware(&adev->gfx.me_fw, fw_name, adev->dev);
 	if (err)
 		goto out;
@@ -357,7 +357,7 @@ static int gfx_v6_0_init_microcode(struct amdgpu_device *adev)
 	adev->gfx.me_fw_version = le32_to_cpu(cp_hdr->header.ucode_version);
 	adev->gfx.me_feature_version = le32_to_cpu(cp_hdr->ucode_feature_version);
 
-	snprintf(fw_name, sizeof(fw_name), "radeon/%s_ce.bin", chip_name);
+	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_ce.bin", chip_name);
 	err = request_firmware(&adev->gfx.ce_fw, fw_name, adev->dev);
 	if (err)
 		goto out;
@@ -368,7 +368,7 @@ static int gfx_v6_0_init_microcode(struct amdgpu_device *adev)
 	adev->gfx.ce_fw_version = le32_to_cpu(cp_hdr->header.ucode_version);
 	adev->gfx.ce_feature_version = le32_to_cpu(cp_hdr->ucode_feature_version);
 
-	snprintf(fw_name, sizeof(fw_name), "radeon/%s_rlc.bin", chip_name);
+	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_rlc.bin", chip_name);
 	err = request_firmware(&adev->gfx.rlc_fw, fw_name, adev->dev);
 	if (err)
 		goto out;
@@ -1552,7 +1552,7 @@ static void gfx_v6_0_config_init(struct amdgpu_device *adev)
 	adev->gfx.config.double_offchip_lds_buf = 0;
 }
 
-static void gfx_v6_0_gpu_init(struct amdgpu_device *adev)
+static void gfx_v6_0_constants_init(struct amdgpu_device *adev)
 {
 	u32 gb_addr_config = 0;
 	u32 mc_shared_chmap, mc_arb_ramcfg;
@@ -3094,15 +3094,15 @@ static int gfx_v6_0_sw_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int i, r;
 
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 181, &adev->gfx.eop_irq);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, 181, &adev->gfx.eop_irq);
 	if (r)
 		return r;
 
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 184, &adev->gfx.priv_reg_irq);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, 184, &adev->gfx.priv_reg_irq);
 	if (r)
 		return r;
 
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 185, &adev->gfx.priv_inst_irq);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, 185, &adev->gfx.priv_inst_irq);
 	if (r)
 		return r;
 
@@ -3175,7 +3175,7 @@ static int gfx_v6_0_hw_init(void *handle)
 	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	gfx_v6_0_gpu_init(adev);
+	gfx_v6_0_constants_init(adev);
 
 	r = gfx_v6_0_rlc_resume(adev);
 	if (r)

@@ -1,4 +1,4 @@
-if ARCH_OMAP2PLUS
+if OF && (ARCH_OMAP2PLUS || COMPILE_TEST)
 
 source "drivers/video/fbdev/omap2/omapfb/Kconfig"
 

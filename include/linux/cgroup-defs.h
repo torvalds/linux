@@ -20,6 +20,7 @@
 #include <linux/u64_stats_sync.h>
 #include <linux/workqueue.h>
 #include <linux/bpf-cgroup.h>
+#include <linux/psi_types.h>
 
 #ifdef CONFIG_CGROUPS
 
@@ -105,6 +106,8 @@ enum {
 struct cgroup_file {
 	/* do not access any fields from outside cgroup core */
 	struct kernfs_node *kn;
+	unsigned long notified_at;
+	struct timer_list notify_timer;
 };
 
 /*
@@ -127,6 +130,9 @@ struct cgroup_subsys_state {
 	/* siblings list anchored at the parent's ->children */
 	struct list_head sibling;
 	struct list_head children;
+
+	/* flush target list anchored at cgrp->rstat_css_list */
+	struct list_head rstat_css_node;
 
 	/*
 	 * PI: Subsys-unique ID.  0 is unused and root is always 1.  The
@@ -256,12 +262,16 @@ struct css_set {
 	struct rcu_head rcu_head;
 };
 
+struct cgroup_base_stat {
+	struct task_cputime cputime;
+};
+
 /*
- * cgroup basic resource usage statistics.  Accounting is done per-cpu in
- * cgroup_cpu_stat which is then lazily propagated up the hierarchy on
- * reads.
+ * rstat - cgroup scalable recursive statistics.  Accounting is done
+ * per-cpu in cgroup_rstat_cpu which is then lazily propagated up the
+ * hierarchy on reads.
  *
- * When a stat gets updated, the cgroup_cpu_stat and its ancestors are
+ * When a stat gets updated, the cgroup_rstat_cpu and its ancestors are
  * linked into the updated tree.  On the following read, propagation only
  * considers and consumes the updated tree.  This makes reading O(the
  * number of descendants which have been active since last read) instead of
@@ -271,20 +281,24 @@ struct css_set {
  * aren't active and stat may be read frequently.  The combination can
  * become very expensive.  By propagating selectively, increasing reading
  * frequency decreases the cost of each read.
+ *
+ * This struct hosts both the fields which implement the above -
+ * updated_children and updated_next - and the fields which track basic
+ * resource statistics on top of it - bsync, bstat and last_bstat.
  */
-struct cgroup_cpu_stat {
+struct cgroup_rstat_cpu {
 	/*
-	 * ->sync protects all the current counters.  These are the only
-	 * fields which get updated in the hot path.
+	 * ->bsync protects ->bstat.  These are the only fields which get
+	 * updated in the hot path.
 	 */
-	struct u64_stats_sync sync;
-	struct task_cputime cputime;
+	struct u64_stats_sync bsync;
+	struct cgroup_base_stat bstat;
 
 	/*
 	 * Snapshots at the last reading.  These are used to calculate the
 	 * deltas to propagate to the global counters.
 	 */
-	struct task_cputime last_cputime;
+	struct cgroup_base_stat last_bstat;
 
 	/*
 	 * Child cgroups with stat updates on this cpu since the last read
@@ -295,16 +309,10 @@ struct cgroup_cpu_stat {
 	 * to the cgroup makes it unnecessary for each per-cpu struct to
 	 * point back to the associated cgroup.
 	 *
-	 * Protected by per-cpu cgroup_cpu_stat_lock.
+	 * Protected by per-cpu cgroup_rstat_cpu_lock.
 	 */
 	struct cgroup *updated_children;	/* terminated by self cgroup */
 	struct cgroup *updated_next;		/* NULL iff not on the list */
-};
-
-struct cgroup_stat {
-	/* per-cpu statistics are collected into the folowing global counters */
-	struct task_cputime cputime;
-	struct prev_cputime prev_cputime;
 };
 
 struct cgroup {
@@ -405,11 +413,16 @@ struct cgroup {
 	 * specific task are charged to the dom_cgrp.
 	 */
 	struct cgroup *dom_cgrp;
+	struct cgroup *old_dom_cgrp;		/* used while enabling threaded */
+
+	/* per-cpu recursive resource statistics */
+	struct cgroup_rstat_cpu __percpu *rstat_cpu;
+	struct list_head rstat_css_list;
 
 	/* cgroup basic resource statistics */
-	struct cgroup_cpu_stat __percpu *cpu_stat;
-	struct cgroup_stat pending_stat;	/* pending from children */
-	struct cgroup_stat stat;
+	struct cgroup_base_stat pending_bstat;	/* pending from children */
+	struct cgroup_base_stat bstat;
+	struct prev_cputime prev_cputime;	/* for printing out cputime */
 
 	/*
 	 * list of pidlists, up to two for each namespace (one for procs, one
@@ -424,8 +437,14 @@ struct cgroup {
 	/* used to schedule release agent */
 	struct work_struct release_agent_work;
 
+	/* used to track pressure stalls */
+	struct psi_group psi;
+
 	/* used to store eBPF programs */
 	struct cgroup_bpf bpf;
+
+	/* If there is block congestion on this cgroup. */
+	atomic_t congestion_count;
 
 	/* ids of the ancestors at each level including self */
 	int ancestor_ids[];
@@ -570,6 +589,7 @@ struct cgroup_subsys {
 	void (*css_released)(struct cgroup_subsys_state *css);
 	void (*css_free)(struct cgroup_subsys_state *css);
 	void (*css_reset)(struct cgroup_subsys_state *css);
+	void (*css_rstat_flush)(struct cgroup_subsys_state *css, int cpu);
 	int (*css_extra_stat_show)(struct seq_file *seq,
 				   struct cgroup_subsys_state *css);
 

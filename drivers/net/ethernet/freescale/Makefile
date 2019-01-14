@@ -14,7 +14,6 @@ obj-$(CONFIG_FS_ENET) += fs_enet/
 obj-$(CONFIG_FSL_PQ_MDIO) += fsl_pq_mdio.o
 obj-$(CONFIG_FSL_XGMAC_MDIO) += xgmac_mdio.o
 obj-$(CONFIG_GIANFAR) += gianfar_driver.o
-obj-$(CONFIG_PTP_1588_CLOCK_GIANFAR) += gianfar_ptp.o
 gianfar_driver-objs := gianfar.o \
 		gianfar_ethtool.o
 obj-$(CONFIG_UCC_GETH) += ucc_geth_driver.o
@@ -22,3 +21,5 @@ ucc_geth_driver-objs := ucc_geth.o ucc_geth_ethtool.o
 
 obj-$(CONFIG_FSL_FMAN) += fman/
 obj-$(CONFIG_FSL_DPAA_ETH) += dpaa/
+
+obj-$(CONFIG_FSL_DPAA2_ETH) += dpaa2/

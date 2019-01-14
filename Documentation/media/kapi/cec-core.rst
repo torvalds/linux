@@ -246,7 +246,10 @@ CEC_TX_STATUS_LOW_DRIVE:
 CEC_TX_STATUS_ERROR:
 	some unspecified error occurred: this can be one of ARB_LOST
 	or LOW_DRIVE if the hardware cannot differentiate or something
-	else entirely.
+	else entirely. Some hardware only supports OK and FAIL as the
+	result of a transmit, i.e. there is no way to differentiate
+	between the different possible errors. In that case map FAIL
+	to CEC_TX_STATUS_NACK and not to CEC_TX_STATUS_ERROR.
 
 CEC_TX_STATUS_MAX_RETRIES:
 	could not transmit the message after trying multiple times.
@@ -264,6 +267,10 @@ hardware retry can just set the counter corresponding to the transmit error
 to 1, if the hardware does support retry then either set these counters to
 0 if the hardware provides no feedback of which errors occurred and how many
 times, or fill in the correct values as reported by the hardware.
+
+Be aware that calling these functions can immediately start a new transmit
+if there is one pending in the queue. So make sure that the hardware is in
+a state where new transmits can be started *before* calling these functions.
 
 The cec_transmit_attempt_done() function is a helper for cases where the
 hardware never retries, so the transmit is always for just a single

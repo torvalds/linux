@@ -144,6 +144,11 @@
 #define XGBE_TX_DESC_MAX_PROC	(XGBE_TX_DESC_CNT >> 1)
 #define XGBE_RX_DESC_CNT	512
 
+#define XGBE_TX_DESC_CNT_MIN	64
+#define XGBE_TX_DESC_CNT_MAX	4096
+#define XGBE_RX_DESC_CNT_MIN	64
+#define XGBE_RX_DESC_CNT_MAX	4096
+
 #define XGBE_TX_MAX_BUF_SIZE	(0x3fff & ~(64 - 1))
 
 /* Descriptors required for maximum contiguous TSO/GSO packet */
@@ -835,6 +840,7 @@ struct xgbe_hw_if {
  *   Optional routines:
  *     an_pre, an_post
  *     kr_training_pre, kr_training_post
+ *     module_info, module_eeprom
  */
 struct xgbe_phy_impl_if {
 	/* Perform Setup/teardown actions */
@@ -883,6 +889,12 @@ struct xgbe_phy_impl_if {
 	/* Pre/Post KR training enablement support */
 	void (*kr_training_pre)(struct xgbe_prv_data *);
 	void (*kr_training_post)(struct xgbe_prv_data *);
+
+	/* SFP module related info */
+	int (*module_info)(struct xgbe_prv_data *pdata,
+			   struct ethtool_modinfo *modinfo);
+	int (*module_eeprom)(struct xgbe_prv_data *pdata,
+			     struct ethtool_eeprom *eeprom, u8 *data);
 };
 
 struct xgbe_phy_if {
@@ -904,6 +916,12 @@ struct xgbe_phy_if {
 
 	/* For single interrupt support */
 	irqreturn_t (*an_isr)(struct xgbe_prv_data *);
+
+	/* For ethtool PHY support */
+	int (*module_info)(struct xgbe_prv_data *pdata,
+			   struct ethtool_modinfo *modinfo);
+	int (*module_eeprom)(struct xgbe_prv_data *pdata,
+			     struct ethtool_eeprom *eeprom, u8 *data);
 
 	/* PHY implementation specific services */
 	struct xgbe_phy_impl_if phy_impl;
@@ -1027,6 +1045,13 @@ struct xgbe_prv_data {
 	void __iomem *xprop_regs;	/* XGBE property registers */
 	void __iomem *xi2c_regs;	/* XGBE I2C CSRs */
 
+	/* Port property registers */
+	unsigned int pp0;
+	unsigned int pp1;
+	unsigned int pp2;
+	unsigned int pp3;
+	unsigned int pp4;
+
 	/* Overall device lock */
 	spinlock_t lock;
 
@@ -1096,6 +1121,9 @@ struct xgbe_prv_data {
 	unsigned int tx_desc_count;
 	unsigned int rx_ring_count;
 	unsigned int rx_desc_count;
+
+	unsigned int new_tx_ring_count;
+	unsigned int new_rx_ring_count;
 
 	unsigned int tx_max_q_count;
 	unsigned int rx_max_q_count;
@@ -1233,6 +1261,7 @@ struct xgbe_prv_data {
 	enum xgbe_rx kr_state;
 	enum xgbe_rx kx_state;
 	struct work_struct an_work;
+	unsigned int an_again;
 	unsigned int an_supported;
 	unsigned int parallel_detect;
 	unsigned int fec_ability;
@@ -1310,6 +1339,8 @@ int xgbe_powerup(struct net_device *, unsigned int);
 int xgbe_powerdown(struct net_device *, unsigned int);
 void xgbe_init_rx_coalesce(struct xgbe_prv_data *);
 void xgbe_init_tx_coalesce(struct xgbe_prv_data *);
+void xgbe_restart_dev(struct xgbe_prv_data *pdata);
+void xgbe_full_restart_dev(struct xgbe_prv_data *pdata);
 
 #ifdef CONFIG_DEBUG_FS
 void xgbe_debugfs_init(struct xgbe_prv_data *);

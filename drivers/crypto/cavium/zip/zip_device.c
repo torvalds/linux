@@ -87,12 +87,12 @@ u32 zip_load_instr(union zip_inst_s *instr,
 	 * Distribute the instructions between the enabled queues based on
 	 * the CPU id.
 	 */
-	if (smp_processor_id() % 2 == 0)
+	if (raw_smp_processor_id() % 2 == 0)
 		queue = 0;
 	else
 		queue = 1;
 
-	zip_dbg("CPU Core: %d Queue number:%d", smp_processor_id(), queue);
+	zip_dbg("CPU Core: %d Queue number:%d", raw_smp_processor_id(), queue);
 
 	/* Take cmd buffer lock */
 	spin_lock(&zip_dev->iq[queue].lock);

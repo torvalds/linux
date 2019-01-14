@@ -876,85 +876,11 @@ void rtl92ee_set_p2p_ps_offload_cmd(struct ieee80211_hw *hw, u8 p2p_ps_state)
 			     (u8 *)p2p_ps_offload);
 }
 
-static void _rtl92ee_c2h_ra_report_handler(struct ieee80211_hw *hw,
-					   u8 *cmd_buf, u8 cmd_len)
+void rtl92ee_c2h_ra_report_handler(struct ieee80211_hw *hw,
+				   u8 *cmd_buf, u8 cmd_len)
 {
 	u8 rate = cmd_buf[0] & 0x3F;
 	bool collision_state = cmd_buf[3] & BIT(0);
 
 	rtl92ee_dm_dynamic_arfb_select(hw, rate, collision_state);
-}
-
-void rtl92ee_c2h_content_parsing(struct ieee80211_hw *hw, u8 c2h_cmd_id,
-				 u8 c2h_cmd_len, u8 *tmp_buf)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_btc_ops *btc_ops = rtlpriv->btcoexist.btc_ops;
-
-	switch (c2h_cmd_id) {
-	case C2H_8192E_DBG:
-		RT_TRACE(rtlpriv, COMP_FW, DBG_TRACE,
-			 "[C2H], C2H_8723BE_DBG!!\n");
-		break;
-	case C2H_8192E_TXBF:
-		RT_TRACE(rtlpriv, COMP_FW, DBG_TRACE,
-			 "[C2H], C2H_8192E_TXBF!!\n");
-		break;
-	case C2H_8192E_TX_REPORT:
-		RT_TRACE(rtlpriv, COMP_FW, DBG_TRACE ,
-			 "[C2H], C2H_8723BE_TX_REPORT!\n");
-		rtl_tx_report_handler(hw, tmp_buf, c2h_cmd_len);
-		break;
-	case C2H_8192E_BT_INFO:
-		RT_TRACE(rtlpriv, COMP_FW, DBG_TRACE,
-			 "[C2H], C2H_8723BE_BT_INFO!!\n");
-		if (rtlpriv->cfg->ops->get_btc_status())
-			btc_ops->btc_btinfo_notify(rtlpriv, tmp_buf,
-						   c2h_cmd_len);
-		break;
-	case C2H_8192E_BT_MP:
-		RT_TRACE(rtlpriv, COMP_FW, DBG_TRACE,
-			 "[C2H], C2H_8723BE_BT_MP!!\n");
-		if (rtlpriv->cfg->ops->get_btc_status())
-			btc_ops->btc_btmpinfo_notify(rtlpriv, tmp_buf,
-						     c2h_cmd_len);
-		break;
-	case C2H_8192E_RA_RPT:
-		_rtl92ee_c2h_ra_report_handler(hw, tmp_buf, c2h_cmd_len);
-		break;
-	default:
-		RT_TRACE(rtlpriv, COMP_FW, DBG_TRACE,
-			 "[C2H], Unknown packet!! CmdId(%#X)!\n", c2h_cmd_id);
-		break;
-	}
-}
-
-void rtl92ee_c2h_packet_handler(struct ieee80211_hw *hw, u8 *buffer, u8 len)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	u8 c2h_cmd_id = 0, c2h_cmd_seq = 0, c2h_cmd_len = 0;
-	u8 *tmp_buf = NULL;
-
-	c2h_cmd_id = buffer[0];
-	c2h_cmd_seq = buffer[1];
-	c2h_cmd_len = len - 2;
-	tmp_buf = buffer + 2;
-
-	RT_TRACE(rtlpriv, COMP_FW, DBG_TRACE,
-		 "[C2H packet], c2hCmdId=0x%x, c2hCmdSeq=0x%x, c2hCmdLen=%d\n",
-		 c2h_cmd_id, c2h_cmd_seq, c2h_cmd_len);
-
-	RT_PRINT_DATA(rtlpriv, COMP_FW, DBG_TRACE,
-		      "[C2H packet], Content Hex:\n", tmp_buf, c2h_cmd_len);
-
-	switch (c2h_cmd_id) {
-	case C2H_8192E_BT_INFO:
-	case C2H_8192E_BT_MP:
-		rtl_c2hcmd_enqueue(hw, c2h_cmd_id, c2h_cmd_len, tmp_buf);
-		break;
-	default:
-		rtl92ee_c2h_content_parsing(hw, c2h_cmd_id, c2h_cmd_len,
-					    tmp_buf);
-		break;
-	}
 }

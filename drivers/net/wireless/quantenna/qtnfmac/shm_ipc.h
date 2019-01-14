@@ -32,7 +32,7 @@ struct qtnf_shm_ipc_int {
 };
 
 struct qtnf_shm_ipc_rx_callback {
-	void (*fn)(void *arg, const u8 *buf, size_t len);
+	void (*fn)(void *arg, const u8 __iomem *buf, size_t len);
 	void *arg;
 };
 
@@ -50,8 +50,6 @@ struct qtnf_shm_ipc {
 	size_t tx_timeout_count;
 
 	u8 waiting_for_ack;
-
-	u8 rx_data[QTN_IPC_MAX_DATA_SZ] __aligned(sizeof(u32));
 
 	struct qtnf_shm_ipc_int interrupt;
 	struct qtnf_shm_ipc_rx_callback rx_callback;

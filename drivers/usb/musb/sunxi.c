@@ -105,13 +105,11 @@ static void sunxi_musb_work(struct work_struct *work)
 		devctl = readb(musb->mregs + SUNXI_MUSB_DEVCTL);
 		if (test_bit(SUNXI_MUSB_FL_HOSTMODE, &glue->flags)) {
 			set_bit(SUNXI_MUSB_FL_VBUS_ON, &glue->flags);
-			musb->xceiv->otg->default_a = 1;
 			musb->xceiv->otg->state = OTG_STATE_A_WAIT_VRISE;
 			MUSB_HST_MODE(musb);
 			devctl |= MUSB_DEVCTL_SESSION;
 		} else {
 			clear_bit(SUNXI_MUSB_FL_VBUS_ON, &glue->flags);
-			musb->xceiv->otg->default_a = 0;
 			musb->xceiv->otg->state = OTG_STATE_B_IDLE;
 			MUSB_DEV_MODE(musb);
 			devctl &= ~MUSB_DEVCTL_SESSION;
@@ -347,7 +345,7 @@ static int sunxi_musb_set_mode(struct musb *musb, u8 mode)
 	if (glue->phy_mode == new_mode)
 		return 0;
 
-	if (musb->port_mode != MUSB_PORT_MODE_DUAL_ROLE) {
+	if (musb->port_mode != MUSB_OTG) {
 		dev_err(musb->controller->parent,
 			"Error changing modes is only supported in dual role mode\n");
 		return -EINVAL;
@@ -651,10 +649,8 @@ static const struct musb_hdrc_config sunxi_musb_hdrc_config = {
 	.fifo_cfg_size  = ARRAY_SIZE(sunxi_musb_mode_cfg),
 	.multipoint	= true,
 	.dyn_fifo	= true,
-	.soft_con       = true,
 	.num_eps	= SUNXI_MUSB_MAX_EP_NUM,
 	.ram_bits	= SUNXI_MUSB_RAM_BITS,
-	.dma		= 0,
 };
 
 static struct musb_hdrc_config sunxi_musb_hdrc_config_h3 = {
@@ -662,10 +658,8 @@ static struct musb_hdrc_config sunxi_musb_hdrc_config_h3 = {
 	.fifo_cfg_size  = ARRAY_SIZE(sunxi_musb_mode_cfg_h3),
 	.multipoint	= true,
 	.dyn_fifo	= true,
-	.soft_con       = true,
 	.num_eps	= SUNXI_MUSB_MAX_EP_NUM_H3,
 	.ram_bits	= SUNXI_MUSB_RAM_BITS,
-	.dma		= 0,
 };
 
 
@@ -690,19 +684,19 @@ static int sunxi_musb_probe(struct platform_device *pdev)
 	switch (usb_get_dr_mode(&pdev->dev)) {
 #if defined CONFIG_USB_MUSB_DUAL_ROLE || defined CONFIG_USB_MUSB_HOST
 	case USB_DR_MODE_HOST:
-		pdata.mode = MUSB_PORT_MODE_HOST;
+		pdata.mode = MUSB_HOST;
 		glue->phy_mode = PHY_MODE_USB_HOST;
 		break;
 #endif
 #if defined CONFIG_USB_MUSB_DUAL_ROLE || defined CONFIG_USB_MUSB_GADGET
 	case USB_DR_MODE_PERIPHERAL:
-		pdata.mode = MUSB_PORT_MODE_GADGET;
+		pdata.mode = MUSB_PERIPHERAL;
 		glue->phy_mode = PHY_MODE_USB_DEVICE;
 		break;
 #endif
 #ifdef CONFIG_USB_MUSB_DUAL_ROLE
 	case USB_DR_MODE_OTG:
-		pdata.mode = MUSB_PORT_MODE_DUAL_ROLE;
+		pdata.mode = MUSB_OTG;
 		glue->phy_mode = PHY_MODE_USB_OTG;
 		break;
 #endif

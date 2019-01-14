@@ -122,6 +122,9 @@ static int kfd_open(struct inode *inode, struct file *filep)
 	if (IS_ERR(process))
 		return PTR_ERR(process);
 
+	if (kfd_is_locked())
+		return -EAGAIN;
+
 	dev_dbg(kfd_device, "process %d opened, compat mode (32 bit) - %d\n",
 		process->pasid, process->is_32bit_user_mode);
 
@@ -233,7 +236,7 @@ static int set_queue_properties_from_user(struct queue_properties *q_properties,
 	pr_debug("Queue Size: 0x%llX, %u\n",
 			q_properties->queue_size, args->ring_size);
 
-	pr_debug("Queue r/w Pointers: %p, %p\n",
+	pr_debug("Queue r/w Pointers: %px, %px\n",
 			q_properties->read_ptr,
 			q_properties->write_ptr);
 
@@ -292,8 +295,16 @@ static int kfd_ioctl_create_queue(struct file *filep, struct kfd_process *p,
 
 
 	/* Return gpu_id as doorbell offset for mmap usage */
-	args->doorbell_offset = (KFD_MMAP_DOORBELL_MASK | args->gpu_id);
+	args->doorbell_offset = KFD_MMAP_TYPE_DOORBELL;
+	args->doorbell_offset |= KFD_MMAP_GPU_ID(args->gpu_id);
 	args->doorbell_offset <<= PAGE_SHIFT;
+	if (KFD_IS_SOC15(dev->device_info->asic_family))
+		/* On SOC15 ASICs, doorbell allocation must be
+		 * per-device, and independent from the per-process
+		 * queue_id. Return the doorbell offset within the
+		 * doorbell aperture to user mode.
+		 */
+		args->doorbell_offset |= q_properties.doorbell_off;
 
 	mutex_unlock(&p->mutex);
 
@@ -379,6 +390,79 @@ static int kfd_ioctl_update_queue(struct file *filp, struct kfd_process *p,
 	mutex_unlock(&p->mutex);
 
 	return retval;
+}
+
+static int kfd_ioctl_set_cu_mask(struct file *filp, struct kfd_process *p,
+					void *data)
+{
+	int retval;
+	const int max_num_cus = 1024;
+	struct kfd_ioctl_set_cu_mask_args *args = data;
+	struct queue_properties properties;
+	uint32_t __user *cu_mask_ptr = (uint32_t __user *)args->cu_mask_ptr;
+	size_t cu_mask_size = sizeof(uint32_t) * (args->num_cu_mask / 32);
+
+	if ((args->num_cu_mask % 32) != 0) {
+		pr_debug("num_cu_mask 0x%x must be a multiple of 32",
+				args->num_cu_mask);
+		return -EINVAL;
+	}
+
+	properties.cu_mask_count = args->num_cu_mask;
+	if (properties.cu_mask_count == 0) {
+		pr_debug("CU mask cannot be 0");
+		return -EINVAL;
+	}
+
+	/* To prevent an unreasonably large CU mask size, set an arbitrary
+	 * limit of max_num_cus bits.  We can then just drop any CU mask bits
+	 * past max_num_cus bits and just use the first max_num_cus bits.
+	 */
+	if (properties.cu_mask_count > max_num_cus) {
+		pr_debug("CU mask cannot be greater than 1024 bits");
+		properties.cu_mask_count = max_num_cus;
+		cu_mask_size = sizeof(uint32_t) * (max_num_cus/32);
+	}
+
+	properties.cu_mask = kzalloc(cu_mask_size, GFP_KERNEL);
+	if (!properties.cu_mask)
+		return -ENOMEM;
+
+	retval = copy_from_user(properties.cu_mask, cu_mask_ptr, cu_mask_size);
+	if (retval) {
+		pr_debug("Could not copy CU mask from userspace");
+		kfree(properties.cu_mask);
+		return -EFAULT;
+	}
+
+	mutex_lock(&p->mutex);
+
+	retval = pqm_set_cu_mask(&p->pqm, args->queue_id, &properties);
+
+	mutex_unlock(&p->mutex);
+
+	if (retval)
+		kfree(properties.cu_mask);
+
+	return retval;
+}
+
+static int kfd_ioctl_get_queue_wave_state(struct file *filep,
+					  struct kfd_process *p, void *data)
+{
+	struct kfd_ioctl_get_queue_wave_state_args *args = data;
+	int r;
+
+	mutex_lock(&p->mutex);
+
+	r = pqm_get_wave_state(&p->pqm, args->queue_id,
+			       (void __user *)args->ctl_stack_address,
+			       &args->ctl_stack_used_size,
+			       &args->save_area_used_size);
+
+	mutex_unlock(&p->mutex);
+
+	return r;
 }
 
 static int kfd_ioctl_set_memory_policy(struct file *filep,
@@ -746,7 +830,6 @@ static int kfd_ioctl_get_clock_counters(struct file *filep,
 {
 	struct kfd_ioctl_get_clock_counters_args *args = data;
 	struct kfd_dev *dev;
-	struct timespec64 time;
 
 	dev = kfd_device_by_id(args->gpu_id);
 	if (dev)
@@ -758,11 +841,8 @@ static int kfd_ioctl_get_clock_counters(struct file *filep,
 		args->gpu_clock_counter = 0;
 
 	/* No access to rdtsc. Using raw monotonic time */
-	getrawmonotonic64(&time);
-	args->cpu_clock_counter = (uint64_t)timespec64_to_ns(&time);
-
-	get_monotonic_boottime64(&time);
-	args->system_clock_counter = (uint64_t)timespec64_to_ns(&time);
+	args->cpu_clock_counter = ktime_get_raw_ns();
+	args->system_clock_counter = ktime_get_boot_ns();
 
 	/* Since the counter is in nano-seconds we use 1GHz frequency */
 	args->system_clock_freq = 1000000000;
@@ -1148,7 +1228,7 @@ err_unlock:
 	return ret;
 }
 
-static bool kfd_dev_is_large_bar(struct kfd_dev *dev)
+bool kfd_dev_is_large_bar(struct kfd_dev *dev)
 {
 	struct kfd_local_mem_info mem_info;
 
@@ -1296,8 +1376,8 @@ static int kfd_ioctl_map_memory_to_gpu(struct file *filep,
 		return -EINVAL;
 	}
 
-	devices_arr = kmalloc(args->n_devices * sizeof(*devices_arr),
-			      GFP_KERNEL);
+	devices_arr = kmalloc_array(args->n_devices, sizeof(*devices_arr),
+				    GFP_KERNEL);
 	if (!devices_arr)
 		return -ENOMEM;
 
@@ -1405,8 +1485,8 @@ static int kfd_ioctl_unmap_memory_from_gpu(struct file *filep,
 		return -EINVAL;
 	}
 
-	devices_arr = kmalloc(args->n_devices * sizeof(*devices_arr),
-			      GFP_KERNEL);
+	devices_arr = kmalloc_array(args->n_devices, sizeof(*devices_arr),
+				    GFP_KERNEL);
 	if (!devices_arr)
 		return -ENOMEM;
 
@@ -1550,6 +1630,12 @@ static const struct amdkfd_ioctl_desc amdkfd_ioctls[] = {
 	AMDKFD_IOCTL_DEF(AMDKFD_IOC_UNMAP_MEMORY_FROM_GPU,
 			kfd_ioctl_unmap_memory_from_gpu, 0),
 
+	AMDKFD_IOCTL_DEF(AMDKFD_IOC_SET_CU_MASK,
+			kfd_ioctl_set_cu_mask, 0),
+
+	AMDKFD_IOCTL_DEF(AMDKFD_IOC_GET_QUEUE_WAVE_STATE,
+			kfd_ioctl_get_queue_wave_state, 0)
+
 };
 
 #define AMDKFD_CORE_IOCTL_COUNT	ARRAY_SIZE(amdkfd_ioctls)
@@ -1645,23 +1731,33 @@ err_i1:
 static int kfd_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	struct kfd_process *process;
+	struct kfd_dev *dev = NULL;
+	unsigned long vm_pgoff;
+	unsigned int gpu_id;
 
 	process = kfd_get_process(current);
 	if (IS_ERR(process))
 		return PTR_ERR(process);
 
-	if ((vma->vm_pgoff & KFD_MMAP_DOORBELL_MASK) ==
-			KFD_MMAP_DOORBELL_MASK) {
-		vma->vm_pgoff = vma->vm_pgoff ^ KFD_MMAP_DOORBELL_MASK;
-		return kfd_doorbell_mmap(process, vma);
-	} else if ((vma->vm_pgoff & KFD_MMAP_EVENTS_MASK) ==
-			KFD_MMAP_EVENTS_MASK) {
-		vma->vm_pgoff = vma->vm_pgoff ^ KFD_MMAP_EVENTS_MASK;
+	vm_pgoff = vma->vm_pgoff;
+	vma->vm_pgoff = KFD_MMAP_OFFSET_VALUE_GET(vm_pgoff);
+	gpu_id = KFD_MMAP_GPU_ID_GET(vm_pgoff);
+	if (gpu_id)
+		dev = kfd_device_by_id(gpu_id);
+
+	switch (vm_pgoff & KFD_MMAP_TYPE_MASK) {
+	case KFD_MMAP_TYPE_DOORBELL:
+		if (!dev)
+			return -ENODEV;
+		return kfd_doorbell_mmap(dev, process, vma);
+
+	case KFD_MMAP_TYPE_EVENTS:
 		return kfd_event_mmap(process, vma);
-	} else if ((vma->vm_pgoff & KFD_MMAP_RESERVED_MEM_MASK) ==
-			KFD_MMAP_RESERVED_MEM_MASK) {
-		vma->vm_pgoff = vma->vm_pgoff ^ KFD_MMAP_RESERVED_MEM_MASK;
-		return kfd_reserved_mem_mmap(process, vma);
+
+	case KFD_MMAP_TYPE_RESERVED_MEM:
+		if (!dev)
+			return -ENODEV;
+		return kfd_reserved_mem_mmap(dev, process, vma);
 	}
 
 	return -EFAULT;

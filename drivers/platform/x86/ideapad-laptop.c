@@ -43,6 +43,7 @@
 #define IDEAPAD_RFKILL_DEV_NUM	(3)
 
 #define BM_CONSERVATION_BIT (5)
+#define HA_FNLOCK_BIT       (10)
 
 #define CFG_BT_BIT	(16)
 #define CFG_3G_BIT	(17)
@@ -59,6 +60,8 @@ static const char *const ideapad_wmi_fnesc_events[] = {
 enum {
 	BMCMD_CONSERVATION_ON = 3,
 	BMCMD_CONSERVATION_OFF = 5,
+	HACMD_FNLOCK_ON = 0xe,
+	HACMD_FNLOCK_OFF = 0xf,
 };
 
 enum {
@@ -139,11 +142,11 @@ static int method_gbmd(acpi_handle handle, unsigned long *ret)
 	return result;
 }
 
-static int method_sbmc(acpi_handle handle, int cmd)
+static int method_int1(acpi_handle handle, char *method, int cmd)
 {
 	acpi_status status;
 
-	status = acpi_execute_simple_method(handle, "SBMC", cmd);
+	status = acpi_execute_simple_method(handle, method, cmd);
 	return ACPI_FAILURE(status) ? -1 : 0;
 }
 
@@ -209,7 +212,7 @@ static int read_ec_data(acpi_handle handle, int cmd, unsigned long *data)
 			return 0;
 		}
 	}
-	pr_err("timeout in read_ec_cmd\n");
+	pr_err("timeout in %s\n", __func__);
 	return -1;
 }
 
@@ -487,7 +490,7 @@ static ssize_t conservation_mode_store(struct device *dev,
 	if (ret)
 		return ret;
 
-	ret = method_sbmc(priv->adev->handle, state ?
+	ret = method_int1(priv->adev->handle, "SBMC", state ?
 					      BMCMD_CONSERVATION_ON :
 					      BMCMD_CONSERVATION_OFF);
 	if (ret < 0)
@@ -497,11 +500,51 @@ static ssize_t conservation_mode_store(struct device *dev,
 
 static DEVICE_ATTR_RW(conservation_mode);
 
+static ssize_t fn_lock_show(struct device *dev,
+			    struct device_attribute *attr,
+			    char *buf)
+{
+	struct ideapad_private *priv = dev_get_drvdata(dev);
+	unsigned long result;
+	int hals;
+	int fail = read_method_int(priv->adev->handle, "HALS", &hals);
+
+	if (fail)
+		return sprintf(buf, "-1\n");
+
+	result = hals;
+	return sprintf(buf, "%u\n", test_bit(HA_FNLOCK_BIT, &result));
+}
+
+static ssize_t fn_lock_store(struct device *dev,
+			     struct device_attribute *attr,
+			     const char *buf, size_t count)
+{
+	struct ideapad_private *priv = dev_get_drvdata(dev);
+	bool state;
+	int ret;
+
+	ret = kstrtobool(buf, &state);
+	if (ret)
+		return ret;
+
+	ret = method_int1(priv->adev->handle, "SALS", state ?
+			  HACMD_FNLOCK_ON :
+			  HACMD_FNLOCK_OFF);
+	if (ret < 0)
+		return -EIO;
+	return count;
+}
+
+static DEVICE_ATTR_RW(fn_lock);
+
+
 static struct attribute *ideapad_attributes[] = {
 	&dev_attr_camera_power.attr,
 	&dev_attr_fan_mode.attr,
 	&dev_attr_touchpad.attr,
 	&dev_attr_conservation_mode.attr,
+	&dev_attr_fn_lock.attr,
 	NULL
 };
 
@@ -522,6 +565,9 @@ static umode_t ideapad_is_visible(struct kobject *kobj,
 	} else if (attr == &dev_attr_conservation_mode.attr) {
 		supported = acpi_has_method(priv->adev->handle, "GBMD") &&
 			    acpi_has_method(priv->adev->handle, "SBMC");
+	} else if (attr == &dev_attr_fn_lock.attr) {
+		supported = acpi_has_method(priv->adev->handle, "HALS") &&
+			acpi_has_method(priv->adev->handle, "SALS");
 	} else
 		supported = true;
 
@@ -1080,10 +1126,31 @@ static const struct dmi_system_id no_hw_rfkill_list[] = {
 		},
 	},
 	{
-		.ident = "Lenovo Legion Y520-15IKBN",
+		.ident = "Lenovo ideapad MIIX 720-12IKB",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo Y520-15IKBN"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "MIIX 720-12IKB"),
+		},
+	},
+	{
+		.ident = "Lenovo Legion Y520-15IKB",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo Y520-15IKB"),
+		},
+	},
+	{
+		.ident = "Lenovo Y520-15IKBM",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo Y520-15IKBM"),
+		},
+	},
+	{
+		.ident = "Lenovo Legion Y530-15ICH",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo Legion Y530-15ICH"),
 		},
 	},
 	{
@@ -1098,6 +1165,13 @@ static const struct dmi_system_id no_hw_rfkill_list[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo Y720-15IKBN"),
+		},
+	},
+	{
+		.ident = "Lenovo Y720-15IKBM",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo Y720-15IKBM"),
 		},
 	},
 	{
@@ -1161,6 +1235,13 @@ static const struct dmi_system_id no_hw_rfkill_list[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo YOGA 920-13IKB"),
+		},
+	},
+	{
+		.ident = "Lenovo Zhaoyang E42-80",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "ZHAOYANG E42-80"),
 		},
 	},
 	{}

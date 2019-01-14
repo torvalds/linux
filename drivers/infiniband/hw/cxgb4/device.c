@@ -275,10 +275,11 @@ static int dump_qp(int id, void *p, void *data)
 
 			set_ep_sin_addrs(ep, &lsin, &rsin, &m_lsin, &m_rsin);
 			cc = snprintf(qpd->buf + qpd->pos, space,
-				      "rc qp sq id %u rq id %u state %u "
+				      "rc qp sq id %u %s id %u state %u "
 				      "onchip %u ep tid %u state %u "
 				      "%pI4:%u/%u->%pI4:%u/%u\n",
-				      qp->wq.sq.qid, qp->wq.rq.qid,
+				      qp->wq.sq.qid, qp->srq ? "srq" : "rq",
+				      qp->srq ? qp->srq->idx : qp->wq.rq.qid,
 				      (int)qp->attr.state,
 				      qp->wq.sq.flags & T4_SQ_ONCHIP,
 				      ep->hwtid, (int)ep->com.state,
@@ -480,6 +481,9 @@ static int stats_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "      QID: %10llu %10llu %10llu %10llu\n",
 			dev->rdev.stats.qid.total, dev->rdev.stats.qid.cur,
 			dev->rdev.stats.qid.max, dev->rdev.stats.qid.fail);
+	seq_printf(seq, "     SRQS: %10llu %10llu %10llu %10llu\n",
+		   dev->rdev.stats.srqt.total, dev->rdev.stats.srqt.cur,
+			dev->rdev.stats.srqt.max, dev->rdev.stats.srqt.fail);
 	seq_printf(seq, "   TPTMEM: %10llu %10llu %10llu %10llu\n",
 			dev->rdev.stats.stag.total, dev->rdev.stats.stag.cur,
 			dev->rdev.stats.stag.max, dev->rdev.stats.stag.fail);
@@ -528,6 +532,8 @@ static ssize_t stats_clear(struct file *file, const char __user *buf,
 	dev->rdev.stats.stag.fail = 0;
 	dev->rdev.stats.pbl.max = 0;
 	dev->rdev.stats.pbl.fail = 0;
+	dev->rdev.stats.rqt.max = 0;
+	dev->rdev.stats.rqt.fail = 0;
 	dev->rdev.stats.rqt.max = 0;
 	dev->rdev.stats.rqt.fail = 0;
 	dev->rdev.stats.ocqp.max = 0;
@@ -802,7 +808,7 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 
 	rdev->qpmask = rdev->lldi.udb_density - 1;
 	rdev->cqmask = rdev->lldi.ucq_density - 1;
-	pr_debug("dev %s stag start 0x%0x size 0x%0x num stags %d pbl start 0x%0x size 0x%0x rq start 0x%0x size 0x%0x qp qid start %u size %u cq qid start %u size %u\n",
+	pr_debug("dev %s stag start 0x%0x size 0x%0x num stags %d pbl start 0x%0x size 0x%0x rq start 0x%0x size 0x%0x qp qid start %u size %u cq qid start %u size %u srq size %u\n",
 		 pci_name(rdev->lldi.pdev), rdev->lldi.vr->stag.start,
 		 rdev->lldi.vr->stag.size, c4iw_num_stags(rdev),
 		 rdev->lldi.vr->pbl.start,
@@ -811,7 +817,8 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 		 rdev->lldi.vr->qp.start,
 		 rdev->lldi.vr->qp.size,
 		 rdev->lldi.vr->cq.start,
-		 rdev->lldi.vr->cq.size);
+		 rdev->lldi.vr->cq.size,
+		 rdev->lldi.vr->srq.size);
 	pr_debug("udb %pR db_reg %p gts_reg %p qpmask 0x%x cqmask 0x%x\n",
 		 &rdev->lldi.pdev->resource[2],
 		 rdev->lldi.db_reg, rdev->lldi.gts_reg,
@@ -824,10 +831,12 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 	rdev->stats.stag.total = rdev->lldi.vr->stag.size;
 	rdev->stats.pbl.total = rdev->lldi.vr->pbl.size;
 	rdev->stats.rqt.total = rdev->lldi.vr->rq.size;
+	rdev->stats.srqt.total = rdev->lldi.vr->srq.size;
 	rdev->stats.ocqp.total = rdev->lldi.vr->ocq.size;
 	rdev->stats.qid.total = rdev->lldi.vr->qp.size;
 
-	err = c4iw_init_resource(rdev, c4iw_num_stags(rdev), T4_MAX_NUM_PD);
+	err = c4iw_init_resource(rdev, c4iw_num_stags(rdev),
+				 T4_MAX_NUM_PD, rdev->lldi.vr->srq.size);
 	if (err) {
 		pr_err("error %d initializing resources\n", err);
 		return err;
@@ -857,10 +866,12 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 	rdev->status_page->qp_size = rdev->lldi.vr->qp.size;
 	rdev->status_page->cq_start = rdev->lldi.vr->cq.start;
 	rdev->status_page->cq_size = rdev->lldi.vr->cq.size;
+	rdev->status_page->write_cmpl_supported = rdev->lldi.write_cmpl_support;
 
 	if (c4iw_wr_log) {
-		rdev->wr_log = kzalloc((1 << c4iw_wr_log_size_order) *
-				       sizeof(*rdev->wr_log), GFP_KERNEL);
+		rdev->wr_log = kcalloc(1 << c4iw_wr_log_size_order,
+				       sizeof(*rdev->wr_log),
+				       GFP_KERNEL);
 		if (rdev->wr_log) {
 			rdev->wr_log_size = 1 << c4iw_wr_log_size_order;
 			atomic_set(&rdev->wr_log_idx, 0);
@@ -1445,7 +1456,7 @@ static void recover_queues(struct uld_ctx *ctx)
 	ctx->dev->db_state = RECOVERY;
 	idr_for_each(&ctx->dev->qpidr, count_qps, &count);
 
-	qp_list.qps = kzalloc(count * sizeof *qp_list.qps, GFP_ATOMIC);
+	qp_list.qps = kcalloc(count, sizeof(*qp_list.qps), GFP_ATOMIC);
 	if (!qp_list.qps) {
 		spin_unlock_irq(&ctx->dev->lock);
 		return;

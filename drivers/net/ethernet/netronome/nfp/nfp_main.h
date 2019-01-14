@@ -1,35 +1,5 @@
-/*
- * Copyright (C) 2015-2017 Netronome Systems, Inc.
- *
- * This software is dual licensed under the GNU General License Version 2,
- * June 1991 as shown in the file COPYING in the top-level directory of this
- * source tree or the BSD 2-Clause License provided below.  You have the
- * option to license this software under the complete terms of either license.
- *
- * The BSD 2-Clause License:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      1. Redistributions of source code must retain the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer.
- *
- *      2. Redistributions in binary form must reproduce the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer in the documentation and/or other materials
- *         provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
+/* Copyright (C) 2015-2018 Netronome Systems, Inc. */
 
 /*
  * nfp_main.h
@@ -46,10 +16,10 @@
 #include <linux/mutex.h>
 #include <linux/pci.h>
 #include <linux/workqueue.h>
+#include <net/devlink.h>
 
 struct dentry;
 struct device;
-struct devlink_ops;
 struct pci_dev;
 
 struct nfp_cpp;
@@ -60,7 +30,9 @@ struct nfp_mip;
 struct nfp_net;
 struct nfp_nsp_identify;
 struct nfp_port;
+struct nfp_rtsym;
 struct nfp_rtsym_table;
+struct nfp_shared_buf;
 
 /**
  * struct nfp_dumpspec - NFP FW dump specification structure
@@ -87,6 +59,7 @@ struct nfp_dumpspec {
  * @vf_cfg_mem:		Pointer to mapped VF configuration area
  * @vfcfg_tbl2_area:	Pointer to the CPP area for the VF config table
  * @vfcfg_tbl2:		Pointer to mapped VF config table
+ * @mbox:		RTSym of per-PCI PF mailbox (under devlink lock)
  * @irq_entries:	Array of MSI-X entries for all vNICs
  * @limit_vfs:		Number of VFs supported by firmware (~0 for PCI limit)
  * @num_vfs:		Number of SR-IOV VFs enabled
@@ -108,6 +81,8 @@ struct nfp_dumpspec {
  * @ports:		Linked list of port structures (struct nfp_port)
  * @wq:			Workqueue for running works which need to grab @lock
  * @port_refresh_work:	Work entry for taking netdevs out
+ * @shared_bufs:	Array of shared buffer structures if FW has any SBs
+ * @num_shared_bufs:	Number of elements in @shared_bufs
  * @lock:		Protects all fields which may change after probe
  */
 struct nfp_pf {
@@ -126,6 +101,8 @@ struct nfp_pf {
 	u8 __iomem *vf_cfg_mem;
 	struct nfp_cpp_area *vfcfg_tbl2_area;
 	u8 __iomem *vfcfg_tbl2;
+
+	const struct nfp_rtsym *mbox;
 
 	struct msix_entry *irq_entries;
 
@@ -158,6 +135,9 @@ struct nfp_pf {
 	struct workqueue_struct *wq;
 	struct work_struct port_refresh_work;
 
+	struct nfp_shared_buf *shared_bufs;
+	unsigned int num_shared_bufs;
+
 	struct mutex lock;
 };
 
@@ -177,6 +157,14 @@ nfp_net_get_mac_addr(struct nfp_pf *pf, struct net_device *netdev,
 
 bool nfp_ctrl_tx(struct nfp_net *nn, struct sk_buff *skb);
 
+int nfp_pf_rtsym_read_optional(struct nfp_pf *pf, const char *format,
+			       unsigned int default_val);
+u8 __iomem *
+nfp_pf_map_rtsym(struct nfp_pf *pf, const char *name, const char *sym_fmt,
+		 unsigned int min_size, struct nfp_cpp_area **area);
+int nfp_mbox_cmd(struct nfp_pf *pf, u32 cmd, void *in_data, u64 in_length,
+		 void *out_data, u64 out_length);
+
 enum nfp_dump_diag {
 	NFP_DUMP_NSP_DIAG = 0,
 };
@@ -188,4 +176,11 @@ s64 nfp_net_dump_calculate_size(struct nfp_pf *pf, struct nfp_dumpspec *spec,
 int nfp_net_dump_populate_buffer(struct nfp_pf *pf, struct nfp_dumpspec *spec,
 				 struct ethtool_dump *dump_param, void *dest);
 
+int nfp_shared_buf_register(struct nfp_pf *pf);
+void nfp_shared_buf_unregister(struct nfp_pf *pf);
+int nfp_shared_buf_pool_get(struct nfp_pf *pf, unsigned int sb, u16 pool_index,
+			    struct devlink_sb_pool_info *pool_info);
+int nfp_shared_buf_pool_set(struct nfp_pf *pf, unsigned int sb,
+			    u16 pool_index, u32 size,
+			    enum devlink_sb_threshold_type threshold_type);
 #endif /* NFP_MAIN_H */

@@ -109,8 +109,13 @@ nv50_dac = {
 int
 nv50_dac_new(struct nvkm_disp *disp, int id)
 {
-	struct nvkm_device *device = disp->engine.subdev.device;
-	if (!(nvkm_rd32(device, 0x610184) & (0x00100000 << id)))
-		return 0;
 	return nvkm_ior_new_(&nv50_dac, disp, DAC, id);
+}
+
+int
+nv50_dac_cnt(struct nvkm_disp *disp, unsigned long *pmask)
+{
+	struct nvkm_device *device = disp->engine.subdev.device;
+	*pmask = (nvkm_rd32(device, 0x610184) & 0x00700000) >> 20;
+	return 3;
 }

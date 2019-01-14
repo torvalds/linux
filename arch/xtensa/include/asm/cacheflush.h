@@ -88,7 +88,7 @@ static inline void __invalidate_icache_page_alias(unsigned long virt,
  *
  * Pages can get remapped. Because this might change the 'color' of that page,
  * we have to flush the cache before the PTE is changed.
- * (see also Documentation/cachetlb.txt)
+ * (see also Documentation/core-api/cachetlb.rst)
  */
 
 #if defined(CONFIG_MMU) && \
@@ -152,7 +152,7 @@ void local_flush_cache_page(struct vm_area_struct *vma,
 		__invalidate_icache_range(start,(end) - (start));	\
 	} while (0)
 
-/* This is not required, see Documentation/cachetlb.txt */
+/* This is not required, see Documentation/core-api/cachetlb.rst */
 #define	flush_icache_page(vma,page)			do { } while (0)
 
 #define flush_dcache_mmap_lock(mapping)			do { } while (0)

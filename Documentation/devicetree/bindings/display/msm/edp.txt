@@ -25,10 +25,6 @@ Required properties:
 - panel-hpd-gpios: GPIO pin used for eDP hpd.
 
 
-Optional properties:
-- interrupt-parent: phandle to the MDP block if the interrupt signal is routed
-  through MDP block
-
 Example:
 	mdss_edp: qcom,mdss_edp@fd923400 {
 			compatible = "qcom,mdss-edp";

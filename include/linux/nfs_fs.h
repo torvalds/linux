@@ -62,6 +62,7 @@ struct nfs_lock_context {
 	struct nfs_open_context *open_context;
 	fl_owner_t lockowner;
 	atomic_t io_count;
+	struct rcu_head	rcu_head;
 };
 
 struct nfs4_state;
@@ -82,6 +83,7 @@ struct nfs_open_context {
 
 	struct list_head list;
 	struct nfs4_threshold	*mdsthreshold;
+	struct rcu_head	rcu_head;
 };
 
 struct nfs_open_dir_context {
@@ -183,6 +185,17 @@ struct nfs_inode {
 	struct fscache_cookie	*fscache;
 #endif
 	struct inode		vfs_inode;
+};
+
+struct nfs4_copy_state {
+	struct list_head	copies;
+	nfs4_stateid		stateid;
+	struct completion	completion;
+	uint64_t		count;
+	struct nfs_writeverf	verf;
+	int			error;
+	int			flags;
+	struct nfs4_state	*parent_state;
 };
 
 /*

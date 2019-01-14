@@ -125,6 +125,8 @@ static void mdp4_complete_commit(struct msm_kms *kms, struct drm_atomic_state *s
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
 
+	drm_atomic_helper_wait_for_vblanks(mdp4_kms->dev, state);
+
 	/* see 119ecb7fd */
 	for_each_new_crtc_in_state(state, crtc, crtc_state, i)
 		drm_crtc_vblank_put(crtc);

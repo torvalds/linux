@@ -13,6 +13,7 @@
 #define _EXYNOS_DRM_GEM_H_
 
 #include <drm/drm_gem.h>
+#include <linux/mm_types.h>
 
 #define to_exynos_gem(x)	container_of(x, struct exynos_drm_gem, base)
 
@@ -76,31 +77,25 @@ int exynos_drm_gem_map_ioctl(struct drm_device *dev, void *data,
 			     struct drm_file *file_priv);
 
 /*
- * get dma address from gem handle and this function could be used for
+ * get exynos drm object from gem handle, this function could be used for
  * other drivers such as 2d/3d acceleration drivers.
  * with this function call, gem object reference count would be increased.
  */
-dma_addr_t *exynos_drm_gem_get_dma_addr(struct drm_device *dev,
-					unsigned int gem_handle,
-					struct drm_file *filp);
+struct exynos_drm_gem *exynos_drm_gem_get(struct drm_file *filp,
+					  unsigned int gem_handle);
 
 /*
- * put dma address from gem handle and this function could be used for
- * other drivers such as 2d/3d acceleration drivers.
- * with this function call, gem object reference count would be decreased.
+ * put exynos drm object acquired from exynos_drm_gem_get(),
+ * gem object reference count would be decreased.
  */
-void exynos_drm_gem_put_dma_addr(struct drm_device *dev,
-					unsigned int gem_handle,
-					struct drm_file *filp);
+static inline void exynos_drm_gem_put(struct exynos_drm_gem *exynos_gem)
+{
+	drm_gem_object_put_unlocked(&exynos_gem->base);
+}
 
 /* get buffer information to memory region allocated by gem. */
 int exynos_drm_gem_get_ioctl(struct drm_device *dev, void *data,
 				      struct drm_file *file_priv);
-
-/* get buffer size to gem handle. */
-unsigned long exynos_drm_gem_get_size(struct drm_device *dev,
-						unsigned int gem_handle,
-						struct drm_file *file_priv);
 
 /* free gem object. */
 void exynos_drm_gem_free_object(struct drm_gem_object *obj);
@@ -111,7 +106,7 @@ int exynos_drm_gem_dumb_create(struct drm_file *file_priv,
 			       struct drm_mode_create_dumb *args);
 
 /* page fault handler and mmap fault address(virtual) to physical memory. */
-int exynos_drm_gem_fault(struct vm_fault *vmf);
+vm_fault_t exynos_drm_gem_fault(struct vm_fault *vmf);
 
 /* set vm_flags and we can change the vm attribute to other one at here. */
 int exynos_drm_gem_mmap(struct file *filp, struct vm_area_struct *vma);

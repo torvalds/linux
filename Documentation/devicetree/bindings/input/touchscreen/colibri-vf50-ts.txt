@@ -7,7 +7,6 @@ Required Properties:
 - xm-gpios: FET gate driver for input of X-
 - yp-gpios: FET gate driver for input of Y+
 - ym-gpios: FET gate driver for input of Y-
-- interrupt-parent: phandle for the interrupt controller
 - interrupts: pen irq interrupt for touch detection
 - pinctrl-names: "idle", "default", "gpios"
 - pinctrl-0: pinctrl node for pen/touch detection state pinmux

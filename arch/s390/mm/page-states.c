@@ -271,7 +271,7 @@ void arch_set_page_states(int make_stable)
 			list_for_each(l, &zone->free_area[order].free_list[t]) {
 				page = list_entry(l, struct page, lru);
 				if (make_stable)
-					set_page_stable_dat(page, 0);
+					set_page_stable_dat(page, order);
 				else
 					set_page_unused(page, order);
 			}

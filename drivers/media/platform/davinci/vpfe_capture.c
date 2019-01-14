@@ -889,9 +889,9 @@ static int vpfe_querycap(struct file *file, void  *priv,
 
 	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
 	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
-	strlcpy(cap->driver, CAPTURE_DRV_NAME, sizeof(cap->driver));
-	strlcpy(cap->bus_info, "VPFE", sizeof(cap->bus_info));
-	strlcpy(cap->card, vpfe_dev->cfg->card_name, sizeof(cap->card));
+	strscpy(cap->driver, CAPTURE_DRV_NAME, sizeof(cap->driver));
+	strscpy(cap->bus_info, "VPFE", sizeof(cap->bus_info));
+	strscpy(cap->card, vpfe_dev->cfg->card_name, sizeof(cap->card));
 	return 0;
 }
 
@@ -1509,7 +1509,7 @@ static int vpfe_streamon(struct file *file, void *priv,
 unlock_out:
 	mutex_unlock(&vpfe_dev->lock);
 streamoff:
-	ret = videobuf_streamoff(&vpfe_dev->buffer_queue);
+	videobuf_streamoff(&vpfe_dev->buffer_queue);
 	return ret;
 }
 

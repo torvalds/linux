@@ -232,6 +232,8 @@ enum phm_platform_caps {
 	PHM_PlatformCaps_UVDClientMCTuning,
 	PHM_PlatformCaps_ODNinACSupport,
 	PHM_PlatformCaps_ODNinDCSupport,
+	PHM_PlatformCaps_OD8inACSupport,
+	PHM_PlatformCaps_OD8inDCSupport,
 	PHM_PlatformCaps_UMDPState,
 	PHM_PlatformCaps_AutoWattmanSupport,
 	PHM_PlatformCaps_AutoWattmanEnable_CCCState,
@@ -377,11 +379,7 @@ struct phm_clocks {
 #define DPMTABLE_UPDATE_SCLK        0x00000004
 #define DPMTABLE_UPDATE_MCLK        0x00000008
 #define DPMTABLE_OD_UPDATE_VDDC     0x00000010
-
-/* To determine if sclk and mclk are in overdrive state */
-#define SCLK_OVERDRIVE_ENABLED           0x00000001
-#define MCLK_OVERDRIVE_ENABLED           0x00000002
-#define VDDC_OVERDRIVE_ENABLED           0x00000010
+#define DPMTABLE_UPDATE_SOCCLK      0x00000020
 
 struct phm_odn_performance_level {
 	uint32_t clock;
@@ -414,7 +412,10 @@ extern int phm_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 				   struct pp_power_state *adjusted_ps,
 			     const struct pp_power_state *current_ps);
 
+extern int phm_apply_clock_adjust_rules(struct pp_hwmgr *hwmgr);
+
 extern int phm_force_dpm_levels(struct pp_hwmgr *hwmgr, enum amd_dpm_forced_level level);
+extern int phm_pre_display_configuration_changed(struct pp_hwmgr *hwmgr);
 extern int phm_display_configuration_changed(struct pp_hwmgr *hwmgr);
 extern int phm_notify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwmgr);
 extern int phm_register_irq_handlers(struct pp_hwmgr *hwmgr);
@@ -456,7 +457,7 @@ extern int phm_get_clock_by_type_with_voltage(struct pp_hwmgr *hwmgr,
 		enum amd_pp_clock_type type,
 		struct pp_clock_levels_with_voltage *clocks);
 extern int phm_set_watermarks_for_clocks_ranges(struct pp_hwmgr *hwmgr,
-		struct pp_wm_sets_with_clock_ranges_soc15 *wm_with_clock_ranges);
+						void *clock_ranges);
 extern int phm_display_clock_voltage_request(struct pp_hwmgr *hwmgr,
 		struct pp_display_clock_request *clock);
 

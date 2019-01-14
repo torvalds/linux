@@ -22,22 +22,19 @@
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
 #include "rootnv50.h"
-#include "dmacnv50.h"
+#include "channv50.h"
 
 #include <nvif/class.h>
 
 static const struct nv50_disp_root_func
 gp102_disp_root = {
-	.init = gf119_disp_root_init,
-	.fini = gf119_disp_root_fini,
-	.dmac = {
-		&gp102_disp_core_oclass,
-		&gp102_disp_base_oclass,
-		&gp102_disp_ovly_oclass,
-	},
-	.pioc = {
-		&gp102_disp_oimm_oclass,
-		&gp102_disp_curs_oclass,
+	.user = {
+		{{0,0,GK104_DISP_CURSOR             }, gp102_disp_curs_new },
+		{{0,0,GK104_DISP_OVERLAY            }, gp102_disp_oimm_new },
+		{{0,0,GK110_DISP_BASE_CHANNEL_DMA   }, gp102_disp_base_new },
+		{{0,0,GP102_DISP_CORE_CHANNEL_DMA   }, gp102_disp_core_new },
+		{{0,0,GK104_DISP_OVERLAY_CONTROL_DMA}, gp102_disp_ovly_new },
+		{}
 	},
 };
 

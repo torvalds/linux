@@ -57,7 +57,8 @@ struct symbol {
 	u64		start;
 	u64		end;
 	u16		namelen;
-	u8		binding;
+	u8		type:4;
+	u8		binding:4;
 	u8		idle:1;
 	u8		ignore:1;
 	u8		inlined:1;
@@ -89,7 +90,6 @@ struct intlist;
 
 struct symbol_conf {
 	unsigned short	priv_size;
-	unsigned short	nr_events;
 	bool		try_vmlinux_path,
 			init_annotation,
 			force,
@@ -108,8 +108,6 @@ struct symbol_conf {
 			show_cpu_utilization,
 			initialized,
 			kptr_restrict,
-			annotate_asm_raw,
-			annotate_src,
 			event_group,
 			demangle,
 			demangle_kernel,
@@ -125,7 +123,8 @@ struct symbol_conf {
 	const char	*vmlinux_name,
 			*kallsyms_name,
 			*source_prefix,
-			*field_sep;
+			*field_sep,
+			*graph_function;
 	const char	*default_guest_vmlinux_name,
 			*default_guest_kallsyms,
 			*default_guest_modules;
@@ -259,17 +258,16 @@ int __dso__load_kallsyms(struct dso *dso, const char *filename, struct map *map,
 			 bool no_kcore);
 int dso__load_kallsyms(struct dso *dso, const char *filename, struct map *map);
 
-void dso__insert_symbol(struct dso *dso, enum map_type type,
+void dso__insert_symbol(struct dso *dso,
 			struct symbol *sym);
 
-struct symbol *dso__find_symbol(struct dso *dso, enum map_type type,
-				u64 addr);
-struct symbol *dso__find_symbol_by_name(struct dso *dso, enum map_type type,
-					const char *name);
+struct symbol *dso__find_symbol(struct dso *dso, u64 addr);
+struct symbol *dso__find_symbol_by_name(struct dso *dso, const char *name);
+
 struct symbol *symbol__next_by_name(struct symbol *sym);
 
-struct symbol *dso__first_symbol(struct dso *dso, enum map_type type);
-struct symbol *dso__last_symbol(struct dso *dso, enum map_type type);
+struct symbol *dso__first_symbol(struct dso *dso);
+struct symbol *dso__last_symbol(struct dso *dso);
 struct symbol *dso__next_symbol(struct symbol *sym);
 
 enum dso_type dso__type_fd(int fd);
@@ -288,7 +286,7 @@ void symbol__exit(void);
 void symbol__elf_init(void);
 int symbol__annotation_init(void);
 
-struct symbol *symbol__new(u64 start, u64 len, u8 binding, const char *name);
+struct symbol *symbol__new(u64 start, u64 len, u8 binding, u8 type, const char *name);
 size_t __symbol__fprintf_symname_offs(const struct symbol *sym,
 				      const struct addr_location *al,
 				      bool unknown_as_addr,
@@ -300,7 +298,6 @@ size_t __symbol__fprintf_symname(const struct symbol *sym,
 				 bool unknown_as_addr, FILE *fp);
 size_t symbol__fprintf_symname(const struct symbol *sym, FILE *fp);
 size_t symbol__fprintf(struct symbol *sym, FILE *fp);
-bool symbol_type__is_a(char symbol_type, enum map_type map_type);
 bool symbol__restricted_filename(const char *filename,
 				 const char *restricted_filename);
 int symbol__config_symfs(const struct option *opt __maybe_unused,
@@ -308,8 +305,7 @@ int symbol__config_symfs(const struct option *opt __maybe_unused,
 
 int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 		  struct symsrc *runtime_ss, int kmodule);
-int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss,
-				struct map *map);
+int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss);
 
 char *dso__demangle_sym(struct dso *dso, int kmodule, const char *elf_name);
 
@@ -317,7 +313,7 @@ void __symbols__insert(struct rb_root *symbols, struct symbol *sym, bool kernel)
 void symbols__insert(struct rb_root *symbols, struct symbol *sym);
 void symbols__fixup_duplicate(struct rb_root *symbols);
 void symbols__fixup_end(struct rb_root *symbols);
-void __map_groups__fixup_end(struct map_groups *mg, enum map_type type);
+void map_groups__fixup_end(struct map_groups *mg);
 
 typedef int (*mapfn_t)(u64 start, u64 len, u64 pgoff, void *data);
 int file__read_maps(int fd, bool exe, mapfn_t mapfn, void *data,
@@ -384,11 +380,18 @@ int get_sdt_note_list(struct list_head *head, const char *target);
 int cleanup_sdt_note_list(struct list_head *sdt_notes);
 int sdt_notes__get_count(struct list_head *start);
 
+#define SDT_PROBES_SCN ".probes"
 #define SDT_BASE_SCN ".stapsdt.base"
 #define SDT_NOTE_SCN  ".note.stapsdt"
 #define SDT_NOTE_TYPE 3
 #define SDT_NOTE_NAME "stapsdt"
 #define NR_ADDR 3
+
+enum {
+	SDT_NOTE_IDX_LOC = 0,
+	SDT_NOTE_IDX_BASE,
+	SDT_NOTE_IDX_REFCTR,
+};
 
 struct mem_info *mem_info__new(void);
 struct mem_info *mem_info__get(struct mem_info *mi);

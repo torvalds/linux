@@ -62,6 +62,11 @@ static inline void
 fw_domain_reset(struct drm_i915_private *i915,
 		const struct intel_uncore_forcewake_domain *d)
 {
+	/*
+	 * We don't really know if the powerwell for the forcewake domain we are
+	 * trying to reset here does exist at this point (engines could be fused
+	 * off in ICL+), so no waiting for acks
+	 */
 	__raw_i915_write32(i915, d->reg_set, i915->uncore.fw_reset);
 }
 
@@ -134,7 +139,9 @@ fw_domain_wait_ack_with_fallback(const struct drm_i915_private *i915,
 	 * in the hope that the original ack will be delivered along with
 	 * the fallback ack.
 	 *
-	 * This workaround is described in HSDES #1604254524
+	 * This workaround is described in HSDES #1604254524 and it's known as:
+	 * WaRsForcewakeAddDelayForAck:skl,bxt,kbl,glk,cfl,cnl,icl
+	 * although the name is a bit misleading.
 	 */
 
 	pass = 1;
@@ -276,14 +283,24 @@ fw_domains_reset(struct drm_i915_private *i915,
 		fw_domain_reset(i915, d);
 }
 
+static inline u32 gt_thread_status(struct drm_i915_private *dev_priv)
+{
+	u32 val;
+
+	val = __raw_i915_read32(dev_priv, GEN6_GT_THREAD_STATUS_REG);
+	val &= GEN6_GT_THREAD_STATUS_CORE_MASK;
+
+	return val;
+}
+
 static void __gen6_gt_wait_for_thread_c0(struct drm_i915_private *dev_priv)
 {
-	/* w/a for a sporadic read returning 0 by waiting for the GT
+	/*
+	 * w/a for a sporadic read returning 0 by waiting for the GT
 	 * thread to wake up.
 	 */
-	if (wait_for_atomic_us((__raw_i915_read32(dev_priv, GEN6_GT_THREAD_STATUS_REG) &
-				GEN6_GT_THREAD_STATUS_CORE_MASK) == 0, 500))
-		DRM_ERROR("GT thread status wait timed out\n");
+	WARN_ONCE(wait_for_atomic_us(gt_thread_status(dev_priv) == 0, 5000),
+		  "GT thread status wait timed out\n");
 }
 
 static void fw_domains_get_with_thread_status(struct drm_i915_private *dev_priv,
@@ -352,8 +369,8 @@ intel_uncore_fw_release_timer(struct hrtimer *timer)
 }
 
 /* Note callers must have acquired the PUNIT->PMIC bus, before calling this. */
-static void intel_uncore_forcewake_reset(struct drm_i915_private *dev_priv,
-					 bool restore)
+static unsigned int
+intel_uncore_forcewake_reset(struct drm_i915_private *dev_priv)
 {
 	unsigned long irqflags;
 	struct intel_uncore_forcewake_domain *domain;
@@ -405,20 +422,11 @@ static void intel_uncore_forcewake_reset(struct drm_i915_private *dev_priv,
 		dev_priv->uncore.funcs.force_wake_put(dev_priv, fw);
 
 	fw_domains_reset(dev_priv, dev_priv->uncore.fw_domains);
-
-	if (restore) { /* If reset with a user forcewake, try to restore */
-		if (fw)
-			dev_priv->uncore.funcs.force_wake_get(dev_priv, fw);
-
-		if (IS_GEN6(dev_priv) || IS_GEN7(dev_priv))
-			dev_priv->uncore.fifo_count =
-				fifo_free_entries(dev_priv);
-	}
-
-	if (!restore)
-		assert_forcewakes_inactive(dev_priv);
+	assert_forcewakes_inactive(dev_priv);
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
+
+	return fw; /* track the lost user forcewake domains */
 }
 
 static u64 gen9_edram_size(struct drm_i915_private *dev_priv)
@@ -527,7 +535,7 @@ check_for_unclaimed_mmio(struct drm_i915_private *dev_priv)
 }
 
 static void __intel_uncore_early_sanitize(struct drm_i915_private *dev_priv,
-					  bool restore_forcewake)
+					  unsigned int restore_forcewake)
 {
 	/* clear out unclaimed reg detection bit */
 	if (check_for_unclaimed_mmio(dev_priv))
@@ -542,7 +550,17 @@ static void __intel_uncore_early_sanitize(struct drm_i915_private *dev_priv,
 	}
 
 	iosf_mbi_punit_acquire();
-	intel_uncore_forcewake_reset(dev_priv, restore_forcewake);
+	intel_uncore_forcewake_reset(dev_priv);
+	if (restore_forcewake) {
+		spin_lock_irq(&dev_priv->uncore.lock);
+		dev_priv->uncore.funcs.force_wake_get(dev_priv,
+						      restore_forcewake);
+
+		if (IS_GEN6(dev_priv) || IS_GEN7(dev_priv))
+			dev_priv->uncore.fifo_count =
+				fifo_free_entries(dev_priv);
+		spin_unlock_irq(&dev_priv->uncore.lock);
+	}
 	iosf_mbi_punit_release();
 }
 
@@ -551,13 +569,18 @@ void intel_uncore_suspend(struct drm_i915_private *dev_priv)
 	iosf_mbi_punit_acquire();
 	iosf_mbi_unregister_pmic_bus_access_notifier_unlocked(
 		&dev_priv->uncore.pmic_bus_access_nb);
-	intel_uncore_forcewake_reset(dev_priv, false);
+	dev_priv->uncore.fw_domains_saved =
+		intel_uncore_forcewake_reset(dev_priv);
 	iosf_mbi_punit_release();
 }
 
 void intel_uncore_resume_early(struct drm_i915_private *dev_priv)
 {
-	__intel_uncore_early_sanitize(dev_priv, true);
+	unsigned int restore_forcewake;
+
+	restore_forcewake = fetch_and_zero(&dev_priv->uncore.fw_domains_saved);
+	__intel_uncore_early_sanitize(dev_priv, restore_forcewake);
+
 	iosf_mbi_register_pmic_bus_access_notifier(
 		&dev_priv->uncore.pmic_bus_access_nb);
 	i915_check_and_clear_faults(dev_priv);
@@ -1353,6 +1376,23 @@ static void fw_domain_init(struct drm_i915_private *dev_priv,
 	fw_domain_reset(dev_priv, d);
 }
 
+static void fw_domain_fini(struct drm_i915_private *dev_priv,
+			   enum forcewake_domain_id domain_id)
+{
+	struct intel_uncore_forcewake_domain *d;
+
+	if (WARN_ON(domain_id >= FW_DOMAIN_ID_COUNT))
+		return;
+
+	d = &dev_priv->uncore.fw_domain[domain_id];
+
+	WARN_ON(d->wake_count);
+	WARN_ON(hrtimer_cancel(&d->timer));
+	memset(d, 0, sizeof(*d));
+
+	dev_priv->uncore.fw_domains &= ~BIT(domain_id);
+}
+
 static void intel_uncore_fw_domains_init(struct drm_i915_private *dev_priv)
 {
 	if (INTEL_GEN(dev_priv) <= 5 || intel_vgpu_active(dev_priv))
@@ -1372,7 +1412,8 @@ static void intel_uncore_fw_domains_init(struct drm_i915_private *dev_priv)
 	if (INTEL_GEN(dev_priv) >= 11) {
 		int i;
 
-		dev_priv->uncore.funcs.force_wake_get = fw_domains_get;
+		dev_priv->uncore.funcs.force_wake_get =
+			fw_domains_get_with_fallback;
 		dev_priv->uncore.funcs.force_wake_put = fw_domains_put;
 		fw_domain_init(dev_priv, FW_DOMAIN_ID_RENDER,
 			       FORCEWAKE_RENDER_GEN9,
@@ -1520,7 +1561,7 @@ void intel_uncore_init(struct drm_i915_private *dev_priv)
 
 	intel_uncore_edram_detect(dev_priv);
 	intel_uncore_fw_domains_init(dev_priv);
-	__intel_uncore_early_sanitize(dev_priv, false);
+	__intel_uncore_early_sanitize(dev_priv, 0);
 
 	dev_priv->uncore.unclaimed_mmio_check = 1;
 	dev_priv->uncore.pmic_bus_access_nb.notifier_call =
@@ -1565,6 +1606,40 @@ void intel_uncore_init(struct drm_i915_private *dev_priv)
 		&dev_priv->uncore.pmic_bus_access_nb);
 }
 
+/*
+ * We might have detected that some engines are fused off after we initialized
+ * the forcewake domains. Prune them, to make sure they only reference existing
+ * engines.
+ */
+void intel_uncore_prune(struct drm_i915_private *dev_priv)
+{
+	if (INTEL_GEN(dev_priv) >= 11) {
+		enum forcewake_domains fw_domains = dev_priv->uncore.fw_domains;
+		enum forcewake_domain_id domain_id;
+		int i;
+
+		for (i = 0; i < I915_MAX_VCS; i++) {
+			domain_id = FW_DOMAIN_ID_MEDIA_VDBOX0 + i;
+
+			if (HAS_ENGINE(dev_priv, _VCS(i)))
+				continue;
+
+			if (fw_domains & BIT(domain_id))
+				fw_domain_fini(dev_priv, domain_id);
+		}
+
+		for (i = 0; i < I915_MAX_VECS; i++) {
+			domain_id = FW_DOMAIN_ID_MEDIA_VEBOX0 + i;
+
+			if (HAS_ENGINE(dev_priv, _VECS(i)))
+				continue;
+
+			if (fw_domains & BIT(domain_id))
+				fw_domain_fini(dev_priv, domain_id);
+		}
+	}
+}
+
 void intel_uncore_fini(struct drm_i915_private *dev_priv)
 {
 	/* Paranoia: make sure we have disabled everything before we exit. */
@@ -1573,7 +1648,7 @@ void intel_uncore_fini(struct drm_i915_private *dev_priv)
 	iosf_mbi_punit_acquire();
 	iosf_mbi_unregister_pmic_bus_access_notifier_unlocked(
 		&dev_priv->uncore.pmic_bus_access_nb);
-	intel_uncore_forcewake_reset(dev_priv, false);
+	intel_uncore_forcewake_reset(dev_priv);
 	iosf_mbi_punit_release();
 }
 
@@ -1643,16 +1718,9 @@ static void gen3_stop_engine(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
 	const u32 base = engine->mmio_base;
-	const i915_reg_t mode = RING_MI_MODE(base);
 
-	I915_WRITE_FW(mode, _MASKED_BIT_ENABLE(STOP_RING));
-	if (intel_wait_for_register_fw(dev_priv,
-				       mode,
-				       MODE_IDLE,
-				       MODE_IDLE,
-				       500))
-		DRM_DEBUG_DRIVER("%s: timed out on STOP_RING\n",
-				 engine->name);
+	if (intel_engine_stop_cs(engine))
+		DRM_DEBUG_DRIVER("%s: timed out on STOP_RING\n", engine->name);
 
 	I915_WRITE_FW(RING_HEAD(base), I915_READ_FW(RING_TAIL(base)));
 	POSTING_READ_FW(RING_HEAD(base)); /* paranoia */
@@ -1671,7 +1739,7 @@ static void gen3_stop_engine(struct intel_engine_cs *engine)
 }
 
 static void i915_stop_engines(struct drm_i915_private *dev_priv,
-			      unsigned engine_mask)
+			      unsigned int engine_mask)
 {
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
@@ -1691,7 +1759,9 @@ static bool i915_in_reset(struct pci_dev *pdev)
 	return gdrst & GRDOM_RESET_STATUS;
 }
 
-static int i915_do_reset(struct drm_i915_private *dev_priv, unsigned engine_mask)
+static int i915_do_reset(struct drm_i915_private *dev_priv,
+			 unsigned int engine_mask,
+			 unsigned int retry)
 {
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 	int err;
@@ -1718,7 +1788,9 @@ static bool g4x_reset_complete(struct pci_dev *pdev)
 	return (gdrst & GRDOM_RESET_ENABLE) == 0;
 }
 
-static int g33_do_reset(struct drm_i915_private *dev_priv, unsigned engine_mask)
+static int g33_do_reset(struct drm_i915_private *dev_priv,
+			unsigned int engine_mask,
+			unsigned int retry)
 {
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 
@@ -1726,7 +1798,9 @@ static int g33_do_reset(struct drm_i915_private *dev_priv, unsigned engine_mask)
 	return wait_for(g4x_reset_complete(pdev), 500);
 }
 
-static int g4x_do_reset(struct drm_i915_private *dev_priv, unsigned engine_mask)
+static int g4x_do_reset(struct drm_i915_private *dev_priv,
+			unsigned int engine_mask,
+			unsigned int retry)
 {
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 	int ret;
@@ -1763,7 +1837,8 @@ out:
 }
 
 static int ironlake_do_reset(struct drm_i915_private *dev_priv,
-			     unsigned engine_mask)
+			     unsigned int engine_mask,
+			     unsigned int retry)
 {
 	int ret;
 
@@ -1804,9 +1879,10 @@ static int gen6_hw_domain_reset(struct drm_i915_private *dev_priv,
 	__raw_i915_write32(dev_priv, GEN6_GDRST, hw_domain_mask);
 
 	/* Wait for the device to ack the reset requests */
-	err = intel_wait_for_register_fw(dev_priv,
-					  GEN6_GDRST, hw_domain_mask, 0,
-					  500);
+	err = __intel_wait_for_register_fw(dev_priv,
+					   GEN6_GDRST, hw_domain_mask, 0,
+					   500, 0,
+					   NULL);
 	if (err)
 		DRM_DEBUG_DRIVER("Wait for 0x%08x engines reset failed\n",
 				 hw_domain_mask);
@@ -1818,6 +1894,7 @@ static int gen6_hw_domain_reset(struct drm_i915_private *dev_priv,
  * gen6_reset_engines - reset individual engines
  * @dev_priv: i915 device
  * @engine_mask: mask of intel_ring_flag() engines or ALL_ENGINES for full reset
+ * @retry: the count of of previous attempts to reset.
  *
  * This function will reset the individual engines that are set in engine_mask.
  * If you provide ALL_ENGINES as mask, full global domain reset will be issued.
@@ -1828,7 +1905,8 @@ static int gen6_hw_domain_reset(struct drm_i915_private *dev_priv,
  * Returns 0 on success, nonzero on error.
  */
 static int gen6_reset_engines(struct drm_i915_private *dev_priv,
-			      unsigned engine_mask)
+			      unsigned int engine_mask,
+			      unsigned int retry)
 {
 	struct intel_engine_cs *engine;
 	const u32 hw_engine_mask[I915_NUM_ENGINES] = {
@@ -1842,6 +1920,50 @@ static int gen6_reset_engines(struct drm_i915_private *dev_priv,
 
 	if (engine_mask == ALL_ENGINES) {
 		hw_mask = GEN6_GRDOM_FULL;
+	} else {
+		unsigned int tmp;
+
+		hw_mask = 0;
+		for_each_engine_masked(engine, dev_priv, engine_mask, tmp)
+			hw_mask |= hw_engine_mask[engine->id];
+	}
+
+	return gen6_hw_domain_reset(dev_priv, hw_mask);
+}
+
+/**
+ * gen11_reset_engines - reset individual engines
+ * @dev_priv: i915 device
+ * @engine_mask: mask of intel_ring_flag() engines or ALL_ENGINES for full reset
+ *
+ * This function will reset the individual engines that are set in engine_mask.
+ * If you provide ALL_ENGINES as mask, full global domain reset will be issued.
+ *
+ * Note: It is responsibility of the caller to handle the difference between
+ * asking full domain reset versus reset for all available individual engines.
+ *
+ * Returns 0 on success, nonzero on error.
+ */
+static int gen11_reset_engines(struct drm_i915_private *dev_priv,
+			       unsigned int engine_mask)
+{
+	struct intel_engine_cs *engine;
+	const u32 hw_engine_mask[I915_NUM_ENGINES] = {
+		[RCS] = GEN11_GRDOM_RENDER,
+		[BCS] = GEN11_GRDOM_BLT,
+		[VCS] = GEN11_GRDOM_MEDIA,
+		[VCS2] = GEN11_GRDOM_MEDIA2,
+		[VCS3] = GEN11_GRDOM_MEDIA3,
+		[VCS4] = GEN11_GRDOM_MEDIA4,
+		[VECS] = GEN11_GRDOM_VECS,
+		[VECS2] = GEN11_GRDOM_VECS2,
+	};
+	u32 hw_mask;
+
+	BUILD_BUG_ON(VECS2 + 1 != I915_NUM_ENGINES);
+
+	if (engine_mask == ALL_ENGINES) {
+		hw_mask = GEN11_GRDOM_FULL;
 	} else {
 		unsigned int tmp;
 
@@ -1940,7 +2062,7 @@ int __intel_wait_for_register(struct drm_i915_private *dev_priv,
 	u32 reg_value;
 	int ret;
 
-	might_sleep();
+	might_sleep_if(slow_timeout_ms);
 
 	spin_lock_irq(&dev_priv->uncore.lock);
 	intel_uncore_forcewake_get__locked(dev_priv, fw);
@@ -1952,7 +2074,7 @@ int __intel_wait_for_register(struct drm_i915_private *dev_priv,
 	intel_uncore_forcewake_put__locked(dev_priv, fw);
 	spin_unlock_irq(&dev_priv->uncore.lock);
 
-	if (ret)
+	if (ret && slow_timeout_ms)
 		ret = __wait_for(reg_value = I915_READ_NOTRACE(reg),
 				 (reg_value & mask) == value,
 				 slow_timeout_ms * 1000, 10, 1000);
@@ -1963,7 +2085,7 @@ int __intel_wait_for_register(struct drm_i915_private *dev_priv,
 	return ret;
 }
 
-static int gen8_reset_engine_start(struct intel_engine_cs *engine)
+static int gen8_engine_reset_prepare(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
 	int ret;
@@ -1971,18 +2093,19 @@ static int gen8_reset_engine_start(struct intel_engine_cs *engine)
 	I915_WRITE_FW(RING_RESET_CTL(engine->mmio_base),
 		      _MASKED_BIT_ENABLE(RESET_CTL_REQUEST_RESET));
 
-	ret = intel_wait_for_register_fw(dev_priv,
-					 RING_RESET_CTL(engine->mmio_base),
-					 RESET_CTL_READY_TO_RESET,
-					 RESET_CTL_READY_TO_RESET,
-					 700);
+	ret = __intel_wait_for_register_fw(dev_priv,
+					   RING_RESET_CTL(engine->mmio_base),
+					   RESET_CTL_READY_TO_RESET,
+					   RESET_CTL_READY_TO_RESET,
+					   700, 0,
+					   NULL);
 	if (ret)
 		DRM_ERROR("%s: reset request timeout\n", engine->name);
 
 	return ret;
 }
 
-static void gen8_reset_engine_cancel(struct intel_engine_cs *engine)
+static void gen8_engine_reset_cancel(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
 
@@ -1990,26 +2113,56 @@ static void gen8_reset_engine_cancel(struct intel_engine_cs *engine)
 		      _MASKED_BIT_DISABLE(RESET_CTL_REQUEST_RESET));
 }
 
-static int gen8_reset_engines(struct drm_i915_private *dev_priv,
-			      unsigned engine_mask)
+static int reset_engines(struct drm_i915_private *i915,
+			 unsigned int engine_mask,
+			 unsigned int retry)
 {
-	struct intel_engine_cs *engine;
-	unsigned int tmp;
-
-	for_each_engine_masked(engine, dev_priv, engine_mask, tmp)
-		if (gen8_reset_engine_start(engine))
-			goto not_ready;
-
-	return gen6_reset_engines(dev_priv, engine_mask);
-
-not_ready:
-	for_each_engine_masked(engine, dev_priv, engine_mask, tmp)
-		gen8_reset_engine_cancel(engine);
-
-	return -EIO;
+	if (INTEL_GEN(i915) >= 11)
+		return gen11_reset_engines(i915, engine_mask);
+	else
+		return gen6_reset_engines(i915, engine_mask, retry);
 }
 
-typedef int (*reset_func)(struct drm_i915_private *, unsigned engine_mask);
+static int gen8_reset_engines(struct drm_i915_private *dev_priv,
+			      unsigned int engine_mask,
+			      unsigned int retry)
+{
+	struct intel_engine_cs *engine;
+	const bool reset_non_ready = retry >= 1;
+	unsigned int tmp;
+	int ret;
+
+	for_each_engine_masked(engine, dev_priv, engine_mask, tmp) {
+		ret = gen8_engine_reset_prepare(engine);
+		if (ret && !reset_non_ready)
+			goto skip_reset;
+
+		/*
+		 * If this is not the first failed attempt to prepare,
+		 * we decide to proceed anyway.
+		 *
+		 * By doing so we risk context corruption and with
+		 * some gens (kbl), possible system hang if reset
+		 * happens during active bb execution.
+		 *
+		 * We rather take context corruption instead of
+		 * failed reset with a wedged driver/gpu. And
+		 * active bb execution case should be covered by
+		 * i915_stop_engines we have before the reset.
+		 */
+	}
+
+	ret = reset_engines(dev_priv, engine_mask, retry);
+
+skip_reset:
+	for_each_engine_masked(engine, dev_priv, engine_mask, tmp)
+		gen8_engine_reset_cancel(engine);
+
+	return ret;
+}
+
+typedef int (*reset_func)(struct drm_i915_private *,
+			  unsigned int engine_mask, unsigned int retry);
 
 static reset_func intel_get_gpu_reset(struct drm_i915_private *dev_priv)
 {
@@ -2032,26 +2185,47 @@ static reset_func intel_get_gpu_reset(struct drm_i915_private *dev_priv)
 		return NULL;
 }
 
-int intel_gpu_reset(struct drm_i915_private *dev_priv, unsigned engine_mask)
+int intel_gpu_reset(struct drm_i915_private *dev_priv,
+		    const unsigned int engine_mask)
 {
 	reset_func reset = intel_get_gpu_reset(dev_priv);
-	int retry;
+	unsigned int retry;
 	int ret;
 
-	might_sleep();
+	GEM_BUG_ON(!engine_mask);
 
-	/* If the power well sleeps during the reset, the reset
+	/*
+	 * We want to perform per-engine reset from atomic context (e.g.
+	 * softirq), which imposes the constraint that we cannot sleep.
+	 * However, experience suggests that spending a bit of time waiting
+	 * for a reset helps in various cases, so for a full-device reset
+	 * we apply the opposite rule and wait if we want to. As we should
+	 * always follow up a failed per-engine reset with a full device reset,
+	 * being a little faster, stricter and more error prone for the
+	 * atomic case seems an acceptable compromise.
+	 *
+	 * Unfortunately this leads to a bimodal routine, when the goal was
+	 * to have a single reset function that worked for resetting any
+	 * number of engines simultaneously.
+	 */
+	might_sleep_if(engine_mask == ALL_ENGINES);
+
+	/*
+	 * If the power well sleeps during the reset, the reset
 	 * request may be dropped and never completes (causing -EIO).
 	 */
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 	for (retry = 0; retry < 3; retry++) {
 
-		/* We stop engines, otherwise we might get failed reset and a
+		/*
+		 * We stop engines, otherwise we might get failed reset and a
 		 * dead gpu (on elk). Also as modern gpu as kbl can suffer
 		 * from system hang if batchbuffer is progressing when
 		 * the reset is issued, regardless of READY_TO_RESET ack.
 		 * Thus assume it is best to stop engines on all gens
 		 * where we have a gpu reset.
+		 *
+		 * WaKBLVECSSemaphoreWaitPoll:kbl (on ALL_ENGINES)
 		 *
 		 * WaMediaResetMainRingCleanup:ctg,elk (presumably)
 		 *
@@ -2060,9 +2234,12 @@ int intel_gpu_reset(struct drm_i915_private *dev_priv, unsigned engine_mask)
 		i915_stop_engines(dev_priv, engine_mask);
 
 		ret = -ENODEV;
-		if (reset)
-			ret = reset(dev_priv, engine_mask);
-		if (ret != -ETIMEDOUT)
+		if (reset) {
+			ret = reset(dev_priv, engine_mask, retry);
+			GEM_TRACE("engine_mask=%x, ret=%d, retry=%d\n",
+				  engine_mask, ret, retry);
+		}
+		if (ret != -ETIMEDOUT || engine_mask != ALL_ENGINES)
 			break;
 
 		cond_resched();
@@ -2085,12 +2262,14 @@ bool intel_has_reset_engine(struct drm_i915_private *dev_priv)
 
 int intel_reset_guc(struct drm_i915_private *dev_priv)
 {
+	u32 guc_domain = INTEL_GEN(dev_priv) >= 11 ? GEN11_GRDOM_GUC :
+						     GEN9_GRDOM_GUC;
 	int ret;
 
 	GEM_BUG_ON(!HAS_GUC(dev_priv));
 
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
-	ret = gen6_hw_domain_reset(dev_priv, GEN9_GRDOM_GUC);
+	ret = gen6_hw_domain_reset(dev_priv, guc_domain);
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 
 	return ret;
@@ -2104,20 +2283,28 @@ bool intel_uncore_unclaimed_mmio(struct drm_i915_private *dev_priv)
 bool
 intel_uncore_arm_unclaimed_mmio_detection(struct drm_i915_private *dev_priv)
 {
-	if (unlikely(i915_modparams.mmio_debug ||
-		     dev_priv->uncore.unclaimed_mmio_check <= 0))
-		return false;
+	bool ret = false;
+
+	spin_lock_irq(&dev_priv->uncore.lock);
+
+	if (unlikely(dev_priv->uncore.unclaimed_mmio_check <= 0))
+		goto out;
 
 	if (unlikely(intel_uncore_unclaimed_mmio(dev_priv))) {
-		DRM_DEBUG("Unclaimed register detected, "
-			  "enabling oneshot unclaimed register reporting. "
-			  "Please use i915.mmio_debug=N for more information.\n");
-		i915_modparams.mmio_debug++;
+		if (!i915_modparams.mmio_debug) {
+			DRM_DEBUG("Unclaimed register detected, "
+				  "enabling oneshot unclaimed register reporting. "
+				  "Please use i915.mmio_debug=N for more information.\n");
+			i915_modparams.mmio_debug++;
+		}
 		dev_priv->uncore.unclaimed_mmio_check--;
-		return true;
+		ret = true;
 	}
 
-	return false;
+out:
+	spin_unlock_irq(&dev_priv->uncore.lock);
+
+	return ret;
 }
 
 static enum forcewake_domains

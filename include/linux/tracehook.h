@@ -51,6 +51,7 @@
 #include <linux/security.h>
 #include <linux/task_work.h>
 #include <linux/memcontrol.h>
+#include <linux/blk-cgroup.h>
 struct linux_binprm;
 
 /*
@@ -82,8 +83,8 @@ static inline int ptrace_report_syscall(struct pt_regs *regs)
  * tracehook_report_syscall_entry - task is about to attempt a system call
  * @regs:		user register state of current task
  *
- * This will be called if %TIF_SYSCALL_TRACE has been set, when the
- * current task has just entered the kernel for a system call.
+ * This will be called if %TIF_SYSCALL_TRACE or %TIF_SYSCALL_EMU have been set,
+ * when the current task has just entered the kernel for a system call.
  * Full user register state is available here.  Changing the values
  * in @regs can affect the system call number and arguments to be tried.
  * It is safe to block here, preventing the system call from beginning.
@@ -122,14 +123,10 @@ static inline __must_check int tracehook_report_syscall_entry(
  */
 static inline void tracehook_report_syscall_exit(struct pt_regs *regs, int step)
 {
-	if (step) {
-		siginfo_t info;
-		user_single_step_siginfo(current, regs, &info);
-		force_sig_info(SIGTRAP, &info, current);
-		return;
-	}
-
-	ptrace_report_syscall(regs);
+	if (step)
+		user_single_step_report(regs);
+	else
+		ptrace_report_syscall(regs);
 }
 
 /**
@@ -191,6 +188,7 @@ static inline void tracehook_notify_resume(struct pt_regs *regs)
 		task_work_run();
 
 	mem_cgroup_handle_over_high();
+	blkcg_maybe_throttle_current();
 }
 
 #endif	/* <linux/tracehook.h> */

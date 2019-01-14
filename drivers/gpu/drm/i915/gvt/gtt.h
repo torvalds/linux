@@ -35,7 +35,6 @@
 #define _GVT_GTT_H_
 
 #define I915_GTT_PAGE_SHIFT         12
-#define I915_GTT_PAGE_MASK		(~(I915_GTT_PAGE_SIZE - 1))
 
 struct intel_vgpu_mm;
 
@@ -63,6 +62,12 @@ struct intel_gvt_gtt_pte_ops {
 	void (*clear_present)(struct intel_gvt_gtt_entry *e);
 	void (*set_present)(struct intel_gvt_gtt_entry *e);
 	bool (*test_pse)(struct intel_gvt_gtt_entry *e);
+	void (*clear_pse)(struct intel_gvt_gtt_entry *e);
+	bool (*test_ips)(struct intel_gvt_gtt_entry *e);
+	void (*clear_ips)(struct intel_gvt_gtt_entry *e);
+	bool (*test_64k_splited)(struct intel_gvt_gtt_entry *e);
+	void (*clear_64k_splited)(struct intel_gvt_gtt_entry *e);
+	void (*set_64k_splited)(struct intel_gvt_gtt_entry *e);
 	void (*set_pfn)(struct intel_gvt_gtt_entry *e, unsigned long pfn);
 	unsigned long (*get_pfn)(struct intel_gvt_gtt_entry *e);
 };
@@ -95,6 +100,7 @@ typedef enum {
 	GTT_TYPE_GGTT_PTE,
 
 	GTT_TYPE_PPGTT_PTE_4K_ENTRY,
+	GTT_TYPE_PPGTT_PTE_64K_ENTRY,
 	GTT_TYPE_PPGTT_PTE_2M_ENTRY,
 	GTT_TYPE_PPGTT_PTE_1G_ENTRY,
 
@@ -126,6 +132,12 @@ enum intel_gvt_mm_type {
 
 #define GVT_RING_CTX_NR_PDPS	GEN8_3LVL_PDPES
 
+struct intel_gvt_partial_pte {
+	unsigned long offset;
+	u64 data;
+	struct list_head list;
+};
+
 struct intel_vgpu_mm {
 	enum intel_gvt_mm_type type;
 	struct intel_vgpu *vgpu;
@@ -150,6 +162,7 @@ struct intel_vgpu_mm {
 		} ppgtt_mm;
 		struct {
 			void *virtual_ggtt;
+			struct list_head partial_pte_list;
 		} ggtt_mm;
 	};
 };
@@ -220,6 +233,7 @@ struct intel_vgpu_ppgtt_spt {
 
 	struct {
 		intel_gvt_gtt_type_t type;
+		bool pde_ips; /* for 64KB PTEs */
 		void *vaddr;
 		struct page *page;
 		unsigned long mfn;
@@ -227,6 +241,7 @@ struct intel_vgpu_ppgtt_spt {
 
 	struct {
 		intel_gvt_gtt_type_t type;
+		bool pde_ips; /* for 64KB PTEs */
 		unsigned long gfn;
 		unsigned long write_cnt;
 		struct intel_vgpu_oos_page *oos_page;

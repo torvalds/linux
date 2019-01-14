@@ -102,17 +102,6 @@ static int linear_map(struct dm_target *ti, struct bio *bio)
 	return DM_MAPIO_REMAPPED;
 }
 
-static int linear_end_io(struct dm_target *ti, struct bio *bio,
-			 blk_status_t *error)
-{
-	struct linear_c *lc = ti->private;
-
-	if (!*error && bio_op(bio) == REQ_OP_ZONE_REPORT)
-		dm_remap_zone_report(ti, bio, lc->start);
-
-	return DM_ENDIO_DONE;
-}
-
 static void linear_status(struct dm_target *ti, status_type_t type,
 			  unsigned status_flags, char *result, unsigned maxlen)
 {
@@ -145,6 +134,26 @@ static int linear_prepare_ioctl(struct dm_target *ti, struct block_device **bdev
 		return 1;
 	return 0;
 }
+
+#ifdef CONFIG_BLK_DEV_ZONED
+static int linear_report_zones(struct dm_target *ti, sector_t sector,
+			       struct blk_zone *zones, unsigned int *nr_zones,
+			       gfp_t gfp_mask)
+{
+	struct linear_c *lc = (struct linear_c *) ti->private;
+	int ret;
+
+	/* Do report and remap it */
+	ret = blkdev_report_zones(lc->dev->bdev, linear_map_sector(ti, sector),
+				  zones, nr_zones, gfp_mask);
+	if (ret != 0)
+		return ret;
+
+	if (*nr_zones)
+		dm_remap_zone_report(ti, lc->start, zones, nr_zones);
+	return 0;
+}
+#endif
 
 static int linear_iterate_devices(struct dm_target *ti,
 				  iterate_devices_callout_fn fn, void *data)
@@ -185,25 +194,45 @@ static size_t linear_dax_copy_from_iter(struct dm_target *ti, pgoff_t pgoff,
 	return dax_copy_from_iter(dax_dev, pgoff, addr, bytes, i);
 }
 
+static size_t linear_dax_copy_to_iter(struct dm_target *ti, pgoff_t pgoff,
+		void *addr, size_t bytes, struct iov_iter *i)
+{
+	struct linear_c *lc = ti->private;
+	struct block_device *bdev = lc->dev->bdev;
+	struct dax_device *dax_dev = lc->dev->dax_dev;
+	sector_t dev_sector, sector = pgoff * PAGE_SECTORS;
+
+	dev_sector = linear_map_sector(ti, sector);
+	if (bdev_dax_pgoff(bdev, dev_sector, ALIGN(bytes, PAGE_SIZE), &pgoff))
+		return 0;
+	return dax_copy_to_iter(dax_dev, pgoff, addr, bytes, i);
+}
+
 #else
 #define linear_dax_direct_access NULL
 #define linear_dax_copy_from_iter NULL
+#define linear_dax_copy_to_iter NULL
 #endif
 
 static struct target_type linear_target = {
 	.name   = "linear",
 	.version = {1, 4, 0},
+#ifdef CONFIG_BLK_DEV_ZONED
 	.features = DM_TARGET_PASSES_INTEGRITY | DM_TARGET_ZONED_HM,
+	.report_zones = linear_report_zones,
+#else
+	.features = DM_TARGET_PASSES_INTEGRITY,
+#endif
 	.module = THIS_MODULE,
 	.ctr    = linear_ctr,
 	.dtr    = linear_dtr,
 	.map    = linear_map,
-	.end_io = linear_end_io,
 	.status = linear_status,
 	.prepare_ioctl = linear_prepare_ioctl,
 	.iterate_devices = linear_iterate_devices,
 	.direct_access = linear_dax_direct_access,
 	.dax_copy_from_iter = linear_dax_copy_from_iter,
+	.dax_copy_to_iter = linear_dax_copy_to_iter,
 };
 
 int __init dm_linear_init(void)

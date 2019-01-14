@@ -1,39 +1,10 @@
-/*
- * Copyright (C) 2017 Netronome Systems, Inc.
- *
- * This software is dual licensed under the GNU General License Version 2,
- * June 1991 as shown in the file COPYING in the top-level directory of this
- * source tree or the BSD 2-Clause License provided below.  You have the
- * option to license this software under the complete terms of either license.
- *
- * The BSD 2-Clause License:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      1. Redistributions of source code must retain the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer.
- *
- *      2. Redistributions in binary form must reproduce the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer in the documentation and/or other materials
- *         provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
 
 #include <linux/etherdevice.h>
 #include <linux/inetdevice.h>
 #include <net/netevent.h>
+#include <net/vxlan.h>
 #include <linux/idr.h>
 #include <net/dst_metadata.h>
 #include <net/arp.h>
@@ -217,7 +188,7 @@ static bool nfp_tun_is_netdev_to_offload(struct net_device *netdev)
 		return false;
 	if (!strcmp(netdev->rtnl_link_ops->kind, "openvswitch"))
 		return true;
-	if (!strcmp(netdev->rtnl_link_ops->kind, "vxlan"))
+	if (netif_is_vxlan(netdev))
 		return true;
 
 	return false;
@@ -317,7 +288,7 @@ nfp_tun_write_neigh(struct net_device *netdev, struct nfp_app *app,
 	payload.dst_ipv4 = flow->daddr;
 
 	/* If entry has expired send dst IP with all other fields 0. */
-	if (!(neigh->nud_state & NUD_VALID)) {
+	if (!(neigh->nud_state & NUD_VALID) || neigh->dead) {
 		nfp_tun_del_route_from_cache(app, payload.dst_ipv4);
 		/* Trigger ARP to verify invalid neighbour state. */
 		neigh_event_send(neigh, NULL);
@@ -381,6 +352,8 @@ nfp_tun_neigh_event_handler(struct notifier_block *nb, unsigned long event,
 	err = PTR_ERR_OR_ZERO(rt);
 	if (err)
 		return NOTIFY_DONE;
+
+	ip_rt_put(rt);
 #else
 	return NOTIFY_DONE;
 #endif

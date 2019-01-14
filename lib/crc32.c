@@ -27,6 +27,7 @@
 /* see: Documentation/crc32.txt for a description of algorithms */
 
 #include <linux/crc32.h>
+#include <linux/crc32poly.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/sched.h>
@@ -182,21 +183,21 @@ static inline u32 __pure crc32_le_generic(u32 crc, unsigned char const *p,
 }
 
 #if CRC_LE_BITS == 1
-u32 __pure crc32_le(u32 crc, unsigned char const *p, size_t len)
+u32 __pure __weak crc32_le(u32 crc, unsigned char const *p, size_t len)
 {
-	return crc32_le_generic(crc, p, len, NULL, CRCPOLY_LE);
+	return crc32_le_generic(crc, p, len, NULL, CRC32_POLY_LE);
 }
-u32 __pure __crc32c_le(u32 crc, unsigned char const *p, size_t len)
+u32 __pure __weak __crc32c_le(u32 crc, unsigned char const *p, size_t len)
 {
 	return crc32_le_generic(crc, p, len, NULL, CRC32C_POLY_LE);
 }
 #else
-u32 __pure crc32_le(u32 crc, unsigned char const *p, size_t len)
+u32 __pure __weak crc32_le(u32 crc, unsigned char const *p, size_t len)
 {
 	return crc32_le_generic(crc, p, len,
-			(const u32 (*)[256])crc32table_le, CRCPOLY_LE);
+			(const u32 (*)[256])crc32table_le, CRC32_POLY_LE);
 }
-u32 __pure __crc32c_le(u32 crc, unsigned char const *p, size_t len)
+u32 __pure __weak __crc32c_le(u32 crc, unsigned char const *p, size_t len)
 {
 	return crc32_le_generic(crc, p, len,
 			(const u32 (*)[256])crc32ctable_le, CRC32C_POLY_LE);
@@ -204,6 +205,9 @@ u32 __pure __crc32c_le(u32 crc, unsigned char const *p, size_t len)
 #endif
 EXPORT_SYMBOL(crc32_le);
 EXPORT_SYMBOL(__crc32c_le);
+
+u32 crc32_le_base(u32, unsigned char const *, size_t) __alias(crc32_le);
+u32 __crc32c_le_base(u32, unsigned char const *, size_t) __alias(__crc32c_le);
 
 /*
  * This multiplies the polynomials x and y modulo the given modulus.
@@ -268,7 +272,7 @@ static u32 __attribute_const__ crc32_generic_shift(u32 crc, size_t len,
 
 u32 __attribute_const__ crc32_le_shift(u32 crc, size_t len)
 {
-	return crc32_generic_shift(crc, len, CRCPOLY_LE);
+	return crc32_generic_shift(crc, len, CRC32_POLY_LE);
 }
 
 u32 __attribute_const__ __crc32c_le_shift(u32 crc, size_t len)
@@ -330,13 +334,13 @@ static inline u32 __pure crc32_be_generic(u32 crc, unsigned char const *p,
 #if CRC_LE_BITS == 1
 u32 __pure crc32_be(u32 crc, unsigned char const *p, size_t len)
 {
-	return crc32_be_generic(crc, p, len, NULL, CRCPOLY_BE);
+	return crc32_be_generic(crc, p, len, NULL, CRC32_POLY_BE);
 }
 #else
 u32 __pure crc32_be(u32 crc, unsigned char const *p, size_t len)
 {
 	return crc32_be_generic(crc, p, len,
-			(const u32 (*)[256])crc32table_be, CRCPOLY_BE);
+			(const u32 (*)[256])crc32table_be, CRC32_POLY_BE);
 }
 #endif
 EXPORT_SYMBOL(crc32_be);

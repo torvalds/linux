@@ -141,7 +141,7 @@
 #include <linux/cpu.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 
 #include <linux/platform_data/ti-sysc.h>
 
@@ -188,16 +188,16 @@
 
 /**
  * struct clkctrl_provider - clkctrl provider mapping data
- * @addr: base address for the provider
- * @size: size of the provider address space
- * @offset: offset of the provider from PRCM instance base
+ * @num_addrs: number of base address ranges for the provider
+ * @addr: base address(es) for the provider
+ * @size: size(s) of the provider address space(s)
  * @node: device node associated with the provider
  * @link: list link
  */
 struct clkctrl_provider {
-	u32			addr;
-	u32			size;
-	u16			offset;
+	int			num_addrs;
+	u32			*addr;
+	u32			*size;
 	struct device_node	*node;
 	struct list_head	link;
 };
@@ -481,7 +481,7 @@ static int _wait_softreset_complete(struct omap_hwmod *oh)
 
 	sysc = oh->class->sysc;
 
-	if (sysc->sysc_flags & SYSS_HAS_RESET_STATUS)
+	if (sysc->sysc_flags & SYSS_HAS_RESET_STATUS && sysc->syss_offs > 0)
 		omap_test_timeout((omap_hwmod_read(oh, sysc->syss_offs)
 				   & SYSS_RESETDONE_MASK),
 				  MAX_MODULE_SOFTRESET_WAIT, c);
@@ -724,23 +724,36 @@ static int __init _setup_clkctrl_provider(struct device_node *np)
 	const __be32 *addrp;
 	struct clkctrl_provider *provider;
 	u64 size;
+	int i;
 
-	provider = memblock_virt_alloc(sizeof(*provider), 0);
+	provider = memblock_alloc(sizeof(*provider), SMP_CACHE_BYTES);
 	if (!provider)
 		return -ENOMEM;
 
-	addrp = of_get_address(np, 0, &size, NULL);
-	provider->addr = (u32)of_translate_address(np, addrp);
-	addrp = of_get_address(np->parent, 0, NULL, NULL);
-	provider->offset = provider->addr -
-			   (u32)of_translate_address(np->parent, addrp);
-	provider->addr &= ~0xff;
-	provider->size = size | 0xff;
 	provider->node = np;
 
-	pr_debug("%s: %s: %x...%x [+%x]\n", __func__, np->parent->name,
-		 provider->addr, provider->addr + provider->size,
-		 provider->offset);
+	provider->num_addrs =
+		of_property_count_elems_of_size(np, "reg", sizeof(u32)) / 2;
+
+	provider->addr =
+		memblock_alloc(sizeof(void *) * provider->num_addrs,
+			       SMP_CACHE_BYTES);
+	if (!provider->addr)
+		return -ENOMEM;
+
+	provider->size =
+		memblock_alloc(sizeof(u32) * provider->num_addrs,
+			       SMP_CACHE_BYTES);
+	if (!provider->size)
+		return -ENOMEM;
+
+	for (i = 0; i < provider->num_addrs; i++) {
+		addrp = of_get_address(np, i, &size, NULL);
+		provider->addr[i] = (u32)of_translate_address(np, addrp);
+		provider->size[i] = size;
+		pr_debug("%s: %pOF: %x...%x\n", __func__, np, provider->addr[i],
+			 provider->addr[i] + provider->size[i]);
+	}
 
 	list_add(&provider->link, &clkctrl_providers);
 
@@ -787,23 +800,26 @@ static struct clk *_lookup_clkctrl_clk(struct omap_hwmod *oh)
 	pr_debug("%s: %s: addr=%x\n", __func__, oh->name, addr);
 
 	list_for_each_entry(provider, &clkctrl_providers, link) {
-		if (provider->addr <= addr &&
-		    provider->addr + provider->size >= addr) {
-			struct of_phandle_args clkspec;
+		int i;
 
-			clkspec.np = provider->node;
-			clkspec.args_count = 2;
-			clkspec.args[0] = addr - provider->addr -
-					  provider->offset;
-			clkspec.args[1] = 0;
+		for (i = 0; i < provider->num_addrs; i++) {
+			if (provider->addr[i] <= addr &&
+			    provider->addr[i] + provider->size[i] > addr) {
+				struct of_phandle_args clkspec;
 
-			clk = of_clk_get_from_provider(&clkspec);
+				clkspec.np = provider->node;
+				clkspec.args_count = 2;
+				clkspec.args[0] = addr - provider->addr[0];
+				clkspec.args[1] = 0;
 
-			pr_debug("%s: %s got %p (offset=%x, provider=%s)\n",
-				 __func__, oh->name, clk, clkspec.args[0],
-				 provider->node->parent->name);
+				clk = of_clk_get_from_provider(&clkspec);
 
-			return clk;
+				pr_debug("%s: %s got %p (offset=%x, provider=%pOF)\n",
+					 __func__, oh->name, clk,
+					 clkspec.args[0], provider->node);
+
+				return clk;
+			}
 		}
 	}
 
@@ -2107,8 +2123,8 @@ static int of_dev_find_hwmod(struct device_node *np,
 		if (res)
 			continue;
 		if (!strcmp(p, oh->name)) {
-			pr_debug("omap_hwmod: dt %s[%i] uses hwmod %s\n",
-				 np->name, i, oh->name);
+			pr_debug("omap_hwmod: dt %pOFn[%i] uses hwmod %s\n",
+				 np, i, oh->name);
 			return i;
 		}
 	}
@@ -2161,6 +2177,37 @@ static int of_dev_hwmod_lookup(struct device_node *np,
 }
 
 /**
+ * omap_hwmod_fix_mpu_rt_idx - fix up mpu_rt_idx register offsets
+ *
+ * @oh: struct omap_hwmod *
+ * @np: struct device_node *
+ *
+ * Fix up module register offsets for modules with mpu_rt_idx.
+ * Only needed for cpsw with interconnect target module defined
+ * in device tree while still using legacy hwmod platform data
+ * for rev, sysc and syss registers.
+ *
+ * Can be removed when all cpsw hwmod platform data has been
+ * dropped.
+ */
+static void omap_hwmod_fix_mpu_rt_idx(struct omap_hwmod *oh,
+				      struct device_node *np,
+				      struct resource *res)
+{
+	struct device_node *child = NULL;
+	int error;
+
+	child = of_get_next_child(np, child);
+	if (!child)
+		return;
+
+	error = of_address_to_resource(child, oh->mpu_rt_idx, res);
+	if (error)
+		pr_err("%s: error mapping mpu_rt_idx: %i\n",
+		       __func__, error);
+}
+
+/**
  * omap_hwmod_parse_module_range - map module IO range from device tree
  * @oh: struct omap_hwmod *
  * @np: struct device_node *
@@ -2210,8 +2257,8 @@ int omap_hwmod_parse_module_range(struct omap_hwmod *oh,
 		return -ENOENT;
 
 	if (nr_addr != 1 || nr_size != 1) {
-		pr_err("%s: invalid range for %s->%s\n", __func__,
-		       oh->name, np->name);
+		pr_err("%s: invalid range for %s->%pOFn\n", __func__,
+		       oh->name, np);
 		return -EINVAL;
 	}
 
@@ -2219,8 +2266,14 @@ int omap_hwmod_parse_module_range(struct omap_hwmod *oh,
 	base = of_translate_address(np, ranges++);
 	size = be32_to_cpup(ranges);
 
-	pr_debug("omap_hwmod: %s %s at 0x%llx size 0x%llx\n",
-		 oh->name, np->name, base, size);
+	pr_debug("omap_hwmod: %s %pOFn at 0x%llx size 0x%llx\n",
+		 oh->name, np, base, size);
+
+	if (oh && oh->mpu_rt_idx) {
+		omap_hwmod_fix_mpu_rt_idx(oh, np, res);
+
+		return 0;
+	}
 
 	res->start = base;
 	res->end = base + size - 1;
@@ -2322,8 +2375,8 @@ static int __init _init(struct omap_hwmod *oh, void *data)
 	if (r)
 		pr_debug("omap_hwmod: %s missing dt data\n", oh->name);
 	else if (np && index)
-		pr_warn("omap_hwmod: %s using broken dt data from %s\n",
-			oh->name, np->name);
+		pr_warn("omap_hwmod: %s using broken dt data from %pOFn\n",
+			oh->name, np);
 
 	r = _init_mpu_rt_base(oh, NULL, index, np);
 	if (r < 0) {
@@ -3171,19 +3224,19 @@ static int omap_hwmod_init_regbits(struct device *dev,
  */
 int omap_hwmod_init_reg_offs(struct device *dev,
 			     const struct ti_sysc_module_data *data,
-			     u32 *rev_offs, u32 *sysc_offs, u32 *syss_offs)
+			     s32 *rev_offs, s32 *sysc_offs, s32 *syss_offs)
 {
-	*rev_offs = 0;
+	*rev_offs = -ENODEV;
 	*sysc_offs = 0;
 	*syss_offs = 0;
 
-	if (data->offsets[SYSC_REVISION] > 0)
+	if (data->offsets[SYSC_REVISION] >= 0)
 		*rev_offs = data->offsets[SYSC_REVISION];
 
-	if (data->offsets[SYSC_SYSCONFIG] > 0)
+	if (data->offsets[SYSC_SYSCONFIG] >= 0)
 		*sysc_offs = data->offsets[SYSC_SYSCONFIG];
 
-	if (data->offsets[SYSC_SYSSTATUS] > 0)
+	if (data->offsets[SYSC_SYSSTATUS] >= 0)
 		*syss_offs = data->offsets[SYSC_SYSSTATUS];
 
 	return 0;
@@ -3312,8 +3365,8 @@ static int omap_hwmod_check_module(struct device *dev,
 				   struct omap_hwmod *oh,
 				   const struct ti_sysc_module_data *data,
 				   struct sysc_regbits *sysc_fields,
-				   u32 rev_offs, u32 sysc_offs,
-				   u32 syss_offs, u32 sysc_flags,
+				   s32 rev_offs, s32 sysc_offs,
+				   s32 syss_offs, u32 sysc_flags,
 				   u32 idlemodes)
 {
 	if (!oh->class->sysc)
@@ -3365,7 +3418,7 @@ static int omap_hwmod_check_module(struct device *dev,
 int omap_hwmod_allocate_module(struct device *dev, struct omap_hwmod *oh,
 			       const struct ti_sysc_module_data *data,
 			       struct sysc_regbits *sysc_fields,
-			       u32 rev_offs, u32 sysc_offs, u32 syss_offs,
+			       s32 rev_offs, s32 sysc_offs, s32 syss_offs,
 			       u32 sysc_flags, u32 idlemodes)
 {
 	struct omap_hwmod_class_sysconfig *sysc;
@@ -3425,7 +3478,8 @@ int omap_hwmod_init_module(struct device *dev,
 {
 	struct omap_hwmod *oh;
 	struct sysc_regbits *sysc_fields;
-	u32 rev_offs, sysc_offs, syss_offs, sysc_flags, idlemodes;
+	s32 rev_offs, sysc_offs, syss_offs;
+	u32 sysc_flags, idlemodes;
 	int error;
 
 	if (!dev || !data)

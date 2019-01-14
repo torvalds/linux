@@ -89,7 +89,7 @@
 
 /* Maximum object reference count (detects object deletion issues) */
 
-#define ACPI_MAX_REFERENCE_COUNT        0x1000
+#define ACPI_MAX_REFERENCE_COUNT        0x4000
 
 /* Default page size for use in mapping memory for operation regions */
 
@@ -173,11 +173,20 @@
 #define ACPI_RSDP_CHECKSUM_LENGTH       20
 #define ACPI_RSDP_XCHECKSUM_LENGTH      36
 
-/* SMBus, GSBus and IPMI bidirectional buffer size */
+/*
+ * SMBus, GSBus and IPMI buffer sizes. All have a 2-byte header,
+ * containing both Status and Length.
+ */
+#define ACPI_SERIAL_HEADER_SIZE         2	/* Common for below. Status and Length fields */
 
-#define ACPI_SMBUS_BUFFER_SIZE          34
-#define ACPI_GSBUS_BUFFER_SIZE          34
-#define ACPI_IPMI_BUFFER_SIZE           66
+#define ACPI_SMBUS_DATA_SIZE            32
+#define ACPI_SMBUS_BUFFER_SIZE          ACPI_SERIAL_HEADER_SIZE + ACPI_SMBUS_DATA_SIZE
+
+#define ACPI_IPMI_DATA_SIZE             64
+#define ACPI_IPMI_BUFFER_SIZE           ACPI_SERIAL_HEADER_SIZE + ACPI_IPMI_DATA_SIZE
+
+#define ACPI_MAX_GSBUS_DATA_SIZE        255
+#define ACPI_MAX_GSBUS_BUFFER_SIZE      ACPI_SERIAL_HEADER_SIZE + ACPI_MAX_GSBUS_DATA_SIZE
 
 /* _sx_d and _sx_w control methods */
 

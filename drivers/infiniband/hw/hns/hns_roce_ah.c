@@ -44,13 +44,12 @@ struct ib_ah *hns_roce_create_ah(struct ib_pd *ibpd,
 				 struct ib_udata *udata)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibpd->device);
+	const struct ib_gid_attr *gid_attr;
 	struct device *dev = hr_dev->dev;
-	struct ib_gid_attr gid_attr;
 	struct hns_roce_ah *ah;
 	u16 vlan_tag = 0xffff;
 	const struct ib_global_route *grh = rdma_ah_read_grh(ah_attr);
-	union ib_gid sgid;
-	int ret;
+	bool vlan_en = false;
 
 	ah = kzalloc(sizeof(*ah), GFP_ATOMIC);
 	if (!ah)
@@ -59,18 +58,11 @@ struct ib_ah *hns_roce_create_ah(struct ib_pd *ibpd,
 	/* Get mac address */
 	memcpy(ah->av.mac, ah_attr->roce.dmac, ETH_ALEN);
 
-	/* Get source gid */
-	ret = ib_get_cached_gid(ibpd->device, rdma_ah_get_port_num(ah_attr),
-				grh->sgid_index, &sgid, &gid_attr);
-	if (ret) {
-		dev_err(dev, "get sgid failed! ret = %d\n", ret);
-		kfree(ah);
-		return ERR_PTR(ret);
+	gid_attr = ah_attr->grh.sgid_attr;
+	if (is_vlan_dev(gid_attr->ndev)) {
+		vlan_tag = vlan_dev_vlan_id(gid_attr->ndev);
+		vlan_en = true;
 	}
-
-	if (is_vlan_dev(gid_attr.ndev))
-		vlan_tag = vlan_dev_vlan_id(gid_attr.ndev);
-	dev_put(gid_attr.ndev);
 
 	if (vlan_tag < 0x1000)
 		vlan_tag |= (rdma_ah_get_sl(ah_attr) &
@@ -82,6 +74,7 @@ struct ib_ah *hns_roce_create_ah(struct ib_pd *ibpd,
 				     HNS_ROCE_PORT_NUM_SHIFT));
 	ah->av.gid_index = grh->sgid_index;
 	ah->av.vlan = cpu_to_le16(vlan_tag);
+	ah->av.vlan_en = vlan_en;
 	dev_dbg(dev, "gid_index = 0x%x,vlan = 0x%x\n", ah->av.gid_index,
 		ah->av.vlan);
 
@@ -108,7 +101,7 @@ int hns_roce_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr)
 	rdma_ah_set_static_rate(ah_attr, ah->av.stat_rate);
 	rdma_ah_set_grh(ah_attr, NULL,
 			(le32_to_cpu(ah->av.sl_tclass_flowlabel) &
-			 HNS_ROCE_FLOW_LABLE_MASK), ah->av.gid_index,
+			 HNS_ROCE_FLOW_LABEL_MASK), ah->av.gid_index,
 			ah->av.hop_limit,
 			(le32_to_cpu(ah->av.sl_tclass_flowlabel) >>
 			 HNS_ROCE_TCLASS_SHIFT));

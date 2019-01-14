@@ -15,18 +15,21 @@ SYNOPSIS
 	*OPTIONS* := { { **-j** | **--json** } [{ **-p** | **--pretty** }] | { **-f** | **--bpffs** } }
 
 	*COMMANDS* :=
-	{ **show** | **list** | **attach** | **detach** | **help** }
+	{ **show** | **list** | **tree** | **attach** | **detach** | **help** }
 
 MAP COMMANDS
 =============
 
 |	**bpftool** **cgroup { show | list }** *CGROUP*
+|	**bpftool** **cgroup tree** [*CGROUP_ROOT*]
 |	**bpftool** **cgroup attach** *CGROUP* *ATTACH_TYPE* *PROG* [*ATTACH_FLAGS*]
 |	**bpftool** **cgroup detach** *CGROUP* *ATTACH_TYPE* *PROG*
 |	**bpftool** **cgroup help**
 |
 |	*PROG* := { **id** *PROG_ID* | **pinned** *FILE* | **tag** *PROG_TAG* }
-|	*ATTACH_TYPE* := { **ingress** | **egress** | **sock_create** | **sock_ops** | **device** }
+|	*ATTACH_TYPE* := { **ingress** | **egress** | **sock_create** | **sock_ops** | **device** |
+|		**bind4** | **bind6** | **post_bind4** | **post_bind6** | **connect4** | **connect6** |
+|               **sendmsg4** | **sendmsg6** }
 |	*ATTACH_FLAGS* := { **multi** | **override** }
 
 DESCRIPTION
@@ -36,6 +39,15 @@ DESCRIPTION
 
 		  Output will start with program ID followed by attach type,
 		  attach flags and program name.
+
+	**bpftool cgroup tree** [*CGROUP_ROOT*]
+		  Iterate over all cgroups in *CGROUP_ROOT* and list all
+		  attached programs. If *CGROUP_ROOT* is not specified,
+		  bpftool uses cgroup v2 mountpoint.
+
+		  The output is similar to the output of cgroup show/list
+		  commands: it starts with absolute cgroup path, followed by
+		  program ID, attach type, attach flags and program name.
 
 	**bpftool cgroup attach** *CGROUP* *ATTACH_TYPE* *PROG* [*ATTACH_FLAGS*]
 		  Attach program *PROG* to the cgroup *CGROUP* with attach type
@@ -63,7 +75,17 @@ DESCRIPTION
 		  **egress** egress path of the inet socket (since 4.10);
 		  **sock_create** opening of an inet socket (since 4.10);
 		  **sock_ops** various socket operations (since 4.12);
-		  **device** device access (since 4.15).
+		  **device** device access (since 4.15);
+		  **bind4** call to bind(2) for an inet4 socket (since 4.17);
+		  **bind6** call to bind(2) for an inet6 socket (since 4.17);
+		  **post_bind4** return from bind(2) for an inet4 socket (since 4.17);
+		  **post_bind6** return from bind(2) for an inet6 socket (since 4.17);
+		  **connect4** call to connect(2) for an inet4 socket (since 4.17);
+		  **connect6** call to connect(2) for an inet6 socket (since 4.17);
+		  **sendmsg4** call to sendto(2), sendmsg(2), sendmmsg(2) for an
+		  unconnected udp4 socket (since 4.18);
+		  **sendmsg6** call to sendto(2), sendmsg(2), sendmmsg(2) for an
+		  unconnected udp6 socket (since 4.18).
 
 	**bpftool cgroup detach** *CGROUP* *ATTACH_TYPE* *PROG*
 		  Detach *PROG* from the cgroup *CGROUP* and attach type
@@ -115,4 +137,10 @@ EXAMPLES
 
 SEE ALSO
 ========
-	**bpftool**\ (8), **bpftool-prog**\ (8), **bpftool-map**\ (8)
+	**bpf**\ (2),
+	**bpf-helpers**\ (7),
+	**bpftool**\ (8),
+	**bpftool-prog**\ (8),
+	**bpftool-map**\ (8),
+	**bpftool-net**\ (8),
+	**bpftool-perf**\ (8)

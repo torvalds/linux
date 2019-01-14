@@ -22,9 +22,10 @@
  * Authors: AMD
  *
  */
-
+#include "amdgpu.h"
 #include "amdgpu_mode.h"
 #include "amdgpu_dm.h"
+#include "dc.h"
 #include "modules/color/color_gamma.h"
 
 #define MAX_DRM_LUT_VALUE 0xFFFF
@@ -87,9 +88,9 @@ static void __drm_lut_to_dc_gamma(struct drm_color_lut *lut,
 			g = drm_color_lut_extract(lut[i].green, 16);
 			b = drm_color_lut_extract(lut[i].blue, 16);
 
-			gamma->entries.red[i] = dal_fixed31_32_from_int(r);
-			gamma->entries.green[i] = dal_fixed31_32_from_int(g);
-			gamma->entries.blue[i] = dal_fixed31_32_from_int(b);
+			gamma->entries.red[i] = dc_fixpt_from_int(r);
+			gamma->entries.green[i] = dc_fixpt_from_int(g);
+			gamma->entries.blue[i] = dc_fixpt_from_int(b);
 		}
 		return;
 	}
@@ -100,9 +101,9 @@ static void __drm_lut_to_dc_gamma(struct drm_color_lut *lut,
 		g = drm_color_lut_extract(lut[i].green, 16);
 		b = drm_color_lut_extract(lut[i].blue, 16);
 
-		gamma->entries.red[i] = dal_fixed31_32_from_fraction(r, MAX_DRM_LUT_VALUE);
-		gamma->entries.green[i] = dal_fixed31_32_from_fraction(g, MAX_DRM_LUT_VALUE);
-		gamma->entries.blue[i] = dal_fixed31_32_from_fraction(b, MAX_DRM_LUT_VALUE);
+		gamma->entries.red[i] = dc_fixpt_from_fraction(r, MAX_DRM_LUT_VALUE);
+		gamma->entries.green[i] = dc_fixpt_from_fraction(g, MAX_DRM_LUT_VALUE);
+		gamma->entries.blue[i] = dc_fixpt_from_fraction(b, MAX_DRM_LUT_VALUE);
 	}
 }
 
@@ -121,6 +122,8 @@ int amdgpu_dm_set_regamma_lut(struct dm_crtc_state *crtc)
 {
 	struct drm_property_blob *blob = crtc->base.gamma_lut;
 	struct dc_stream_state *stream = crtc->stream;
+	struct amdgpu_device *adev = (struct amdgpu_device *)
+		crtc->base.state->dev->dev_private;
 	struct drm_color_lut *lut;
 	uint32_t lut_size;
 	struct dc_gamma *gamma;
@@ -161,7 +164,7 @@ int amdgpu_dm_set_regamma_lut(struct dm_crtc_state *crtc)
 	 */
 	stream->out_transfer_func->type = TF_TYPE_DISTRIBUTED_POINTS;
 	ret = mod_color_calculate_regamma_params(stream->out_transfer_func,
-						 gamma, true);
+						 gamma, true, adev->asic_type <= CHIP_RAVEN);
 	dc_gamma_release(&gamma);
 	if (!ret) {
 		stream->out_transfer_func->type = old_type;
@@ -207,7 +210,7 @@ void amdgpu_dm_set_ctm(struct dm_crtc_state *crtc)
 	for (i = 0; i < 12; i++) {
 		/* Skip 4th element */
 		if (i % 4 == 3) {
-			stream->gamut_remap_matrix.matrix[i] = dal_fixed31_32_zero;
+			stream->gamut_remap_matrix.matrix[i] = dc_fixpt_zero;
 			continue;
 		}
 
@@ -230,18 +233,21 @@ void amdgpu_dm_set_ctm(struct dm_crtc_state *crtc)
  * preparation for hardware commit. If no lut is specified by user, we default
  * to SRGB degamma.
  *
- * Currently, we only support degamma bypass, or preprogrammed SRGB degamma.
- * Programmable degamma is not supported, and an attempt to do so will return
- * -EINVAL.
+ * We support degamma bypass, predefined SRGB, and custom degamma
  *
  * RETURNS:
- * 0 on success, -EINVAL if custom degamma curve is given.
+ * 0 on success
+ * -EINVAL if crtc_state has a degamma_lut of invalid size
+ * -ENOMEM if gamma allocation fails
  */
 int amdgpu_dm_set_degamma_lut(struct drm_crtc_state *crtc_state,
 			      struct dc_plane_state *dc_plane_state)
 {
 	struct drm_property_blob *blob = crtc_state->degamma_lut;
 	struct drm_color_lut *lut;
+	uint32_t lut_size;
+	struct dc_gamma *gamma;
+	bool ret;
 
 	if (!blob) {
 		/* Default to SRGB */
@@ -257,11 +263,30 @@ int amdgpu_dm_set_degamma_lut(struct drm_crtc_state *crtc_state,
 		return 0;
 	}
 
-	/* Otherwise, assume SRGB, since programmable degamma is not
-	 * supported.
-	 */
-	dc_plane_state->in_transfer_func->type = TF_TYPE_PREDEFINED;
-	dc_plane_state->in_transfer_func->tf = TRANSFER_FUNCTION_SRGB;
-	return -EINVAL;
+	gamma = dc_create_gamma();
+	if (!gamma)
+		return -ENOMEM;
+
+	lut_size = blob->length / sizeof(struct drm_color_lut);
+	gamma->num_entries = lut_size;
+	if (gamma->num_entries == MAX_COLOR_LUT_ENTRIES)
+		gamma->type = GAMMA_CUSTOM;
+	else {
+		dc_gamma_release(&gamma);
+		return -EINVAL;
+	}
+
+	__drm_lut_to_dc_gamma(lut, gamma, false);
+
+	dc_plane_state->in_transfer_func->type = TF_TYPE_DISTRIBUTED_POINTS;
+	ret = mod_color_calculate_degamma_params(dc_plane_state->in_transfer_func, gamma, true);
+	dc_gamma_release(&gamma);
+	if (!ret) {
+		dc_plane_state->in_transfer_func->type = TF_TYPE_BYPASS;
+		DRM_ERROR("Out of memory when calculating degamma params\n");
+		return -ENOMEM;
+	}
+
+	return 0;
 }
 

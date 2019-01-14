@@ -13,11 +13,14 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
+ *
+ * Note, all properties are considered as u8 arrays.
+ * To get a value of any of them the caller must use device_property_read_u8_array().
  */
 
 #define pr_fmt(fmt) "apple-properties: " fmt
 
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/efi.h>
 #include <linux/io.h>
 #include <linux/platform_data/x86/apple.h>
@@ -96,12 +99,13 @@ static void __init unmarshal_key_value_pairs(struct dev_header *dev_header,
 		entry[i].name = key;
 		entry[i].length = val_len - sizeof(val_len);
 		entry[i].is_array = !!entry[i].length;
-		entry[i].pointer.raw_data = ptr + key_len + sizeof(val_len);
+		entry[i].type = DEV_PROP_U8;
+		entry[i].pointer.u8_data = ptr + key_len + sizeof(val_len);
 
 		if (dump_properties) {
 			dev_info(dev, "property: %s\n", entry[i].name);
 			print_hex_dump(KERN_INFO, pr_fmt(), DUMP_PREFIX_OFFSET,
-				16, 1, entry[i].pointer.raw_data,
+				16, 1, entry[i].pointer.u8_data,
 				entry[i].length, true);
 		}
 
@@ -231,7 +235,7 @@ static int __init map_properties(void)
 		 */
 		data->len = 0;
 		memunmap(data);
-		free_bootmem_late(pa_data + sizeof(*data), data_len);
+		memblock_free_late(pa_data + sizeof(*data), data_len);
 
 		return ret;
 	}

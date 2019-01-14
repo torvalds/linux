@@ -21,6 +21,7 @@
 
 #define pr_fmt(fmt) "ACPI: button: " fmt
 
+#include <linux/compiler.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -235,9 +236,6 @@ static int acpi_lid_notify_state(struct acpi_device *device, int state)
 		button->last_time = ktime_get();
 	}
 
-	if (state)
-		acpi_pm_wakeup_event(&device->dev);
-
 	ret = blocking_notifier_call_chain(&acpi_lid_notifier, state, device);
 	if (ret == NOTIFY_DONE)
 		ret = blocking_notifier_call_chain(&acpi_lid_notifier, state,
@@ -252,7 +250,8 @@ static int acpi_lid_notify_state(struct acpi_device *device, int state)
 	return ret;
 }
 
-static int acpi_button_state_seq_show(struct seq_file *seq, void *offset)
+static int __maybe_unused acpi_button_state_seq_show(struct seq_file *seq,
+						     void *offset)
 {
 	struct acpi_device *device = seq->private;
 	int state;
@@ -262,19 +261,6 @@ static int acpi_button_state_seq_show(struct seq_file *seq, void *offset)
 		   state < 0 ? "unsupported" : (state ? "open" : "closed"));
 	return 0;
 }
-
-static int acpi_button_state_open_fs(struct inode *inode, struct file *file)
-{
-	return single_open(file, acpi_button_state_seq_show, PDE_DATA(inode));
-}
-
-static const struct file_operations acpi_button_state_fops = {
-	.owner = THIS_MODULE,
-	.open = acpi_button_state_open_fs,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
 
 static int acpi_button_add_fs(struct acpi_device *device)
 {
@@ -311,9 +297,9 @@ static int acpi_button_add_fs(struct acpi_device *device)
 	}
 
 	/* create /proc/acpi/button/lid/LID/state */
-	entry = proc_create_data(ACPI_BUTTON_FILE_STATE,
-				 S_IRUGO, acpi_device_dir(device),
-				 &acpi_button_state_fops, device);
+	entry = proc_create_single_data(ACPI_BUTTON_FILE_STATE, S_IRUGO,
+			acpi_device_dir(device), acpi_button_state_seq_show,
+			device);
 	if (!entry) {
 		ret = -ENODEV;
 		goto remove_dev_dir;
@@ -379,13 +365,17 @@ int acpi_lid_open(void)
 }
 EXPORT_SYMBOL(acpi_lid_open);
 
-static int acpi_lid_update_state(struct acpi_device *device)
+static int acpi_lid_update_state(struct acpi_device *device,
+				 bool signal_wakeup)
 {
 	int state;
 
 	state = acpi_lid_evaluate_state(device);
 	if (state < 0)
 		return state;
+
+	if (state && signal_wakeup)
+		acpi_pm_wakeup_event(&device->dev);
 
 	return acpi_lid_notify_state(device, state);
 }
@@ -397,7 +387,7 @@ static void acpi_lid_initialize_state(struct acpi_device *device)
 		(void)acpi_lid_notify_state(device, 1);
 		break;
 	case ACPI_BUTTON_LID_INIT_METHOD:
-		(void)acpi_lid_update_state(device);
+		(void)acpi_lid_update_state(device, false);
 		break;
 	case ACPI_BUTTON_LID_INIT_IGNORE:
 	default:
@@ -422,7 +412,7 @@ static void acpi_button_notify(struct acpi_device *device, u32 event)
 			users = button->input->users;
 			mutex_unlock(&button->input->mutex);
 			if (users)
-				acpi_lid_update_state(device);
+				acpi_lid_update_state(device, true);
 		} else {
 			int keycode;
 

@@ -74,15 +74,14 @@ nouveau_fence_signal(struct nouveau_fence *fence)
 }
 
 static struct nouveau_fence *
-nouveau_local_fence(struct dma_fence *fence, struct nouveau_drm *drm) {
-	struct nouveau_fence_priv *priv = (void*)drm->fence;
-
+nouveau_local_fence(struct dma_fence *fence, struct nouveau_drm *drm)
+{
 	if (fence->ops != &nouveau_fence_ops_legacy &&
 	    fence->ops != &nouveau_fence_ops_uevent)
 		return NULL;
 
-	if (fence->context < priv->context_base ||
-	    fence->context >= priv->context_base + priv->contexts)
+	if (fence->context < drm->chan.context_base ||
+	    fence->context >= drm->chan.context_base + drm->chan.nr)
 		return NULL;
 
 	return from_fence(fence);
@@ -176,7 +175,7 @@ nouveau_fence_context_new(struct nouveau_channel *chan, struct nouveau_fence_cha
 	INIT_LIST_HEAD(&fctx->flip);
 	INIT_LIST_HEAD(&fctx->pending);
 	spin_lock_init(&fctx->lock);
-	fctx->context = priv->context_base + chan->chid;
+	fctx->context = chan->drm->chan.context_base + chan->chid;
 
 	if (chan == chan->drm->cechan)
 		strcpy(fctx->name, "copy engine channel");
@@ -527,6 +526,5 @@ static const struct dma_fence_ops nouveau_fence_ops_uevent = {
 	.get_timeline_name = nouveau_fence_get_timeline_name,
 	.enable_signaling = nouveau_fence_enable_signaling,
 	.signaled = nouveau_fence_is_signaled,
-	.wait = dma_fence_default_wait,
 	.release = nouveau_fence_release
 };

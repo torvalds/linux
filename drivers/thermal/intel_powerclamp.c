@@ -28,7 +28,7 @@
  *              case of external interrupts without need for ack, clamping down
  *              cpu in non-irq context does not reduce irq. for majority of the
  *              cases, clamping down cpu does help reduce irq as well, we should
- *              be able to differenciate the two cases and give a quantitative
+ *              be able to differentiate the two cases and give a quantitative
  *              solution for the irqs that we can control. perhaps based on
  *              get_cpu_iowait_time_us()
  *

@@ -263,15 +263,3 @@ int snd_opl4_create(struct snd_card *card,
 }
 
 EXPORT_SYMBOL(snd_opl4_create);
-
-static int __init alsa_opl4_init(void)
-{
-	return 0;
-}
-
-static void __exit alsa_opl4_exit(void)
-{
-}
-
-module_init(alsa_opl4_init)
-module_exit(alsa_opl4_exit)

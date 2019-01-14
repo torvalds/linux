@@ -13,9 +13,8 @@
 
 #include <linux/init.h>
 #include <linux/mm.h>
-#include <linux/bootmem.h>
-#include <linux/initrd.h>
 #include <linux/memblock.h>
+#include <linux/initrd.h>
 #include <linux/swap.h>
 #include <linux/sizes.h>
 
@@ -28,7 +27,9 @@ static void __init zone_sizes_init(void)
 {
 	unsigned long max_zone_pfns[MAX_NR_ZONES] = { 0, };
 
+#ifdef CONFIG_ZONE_DMA32
 	max_zone_pfns[ZONE_DMA32] = PFN_DOWN(min(4UL * SZ_1G, max_low_pfn));
+#endif
 	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
 
 	free_area_init_nodes(max_zone_pfns);
@@ -53,7 +54,7 @@ void __init mem_init(void)
 #endif /* CONFIG_FLATMEM */
 
 	high_memory = (void *)(__va(PFN_PHYS(max_low_pfn)));
-	free_all_bootmem();
+	memblock_free_all();
 
 	mem_init_print_info(NULL);
 }

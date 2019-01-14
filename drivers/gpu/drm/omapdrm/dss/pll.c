@@ -16,6 +16,7 @@
 
 #define DSS_SUBSYS_NAME "PLL"
 
+#include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
@@ -381,6 +382,22 @@ static int dss_wait_hsdiv_ack(struct dss_pll *pll, u32 hsdiv_ack_mask)
 	return -ETIMEDOUT;
 }
 
+static bool pll_is_locked(u32 stat)
+{
+	/*
+	 * Required value for each bitfield listed below
+	 *
+	 * PLL_STATUS[6] = 0  PLL_BYPASS
+	 * PLL_STATUS[5] = 0  PLL_HIGHJITTER
+	 *
+	 * PLL_STATUS[3] = 0  PLL_LOSSREF
+	 * PLL_STATUS[2] = 0  PLL_RECAL
+	 * PLL_STATUS[1] = 1  PLL_LOCK
+	 * PLL_STATUS[0] = 1  PLL_CTRL_RESET_DONE
+	 */
+	return ((stat & 0x6f) == 0x3);
+}
+
 int dss_pll_write_config_type_a(struct dss_pll *pll,
 		const struct dss_pll_clock_info *cinfo)
 {
@@ -436,18 +453,54 @@ int dss_pll_write_config_type_a(struct dss_pll *pll,
 	l = FLD_MOD(l, 0, 25, 25);		/* M7_CLOCK_EN */
 	writel_relaxed(l, base + PLL_CONFIGURATION2);
 
-	writel_relaxed(1, base + PLL_GO);	/* PLL_GO */
+	if (hw->errata_i932) {
+		int cnt = 0;
+		u32 sleep_time;
+		const u32 max_lock_retries = 20;
 
-	if (wait_for_bit_change(base + PLL_GO, 0, 0) != 0) {
-		DSSERR("DSS DPLL GO bit not going down.\n");
-		r = -EIO;
-		goto err;
-	}
+		/*
+		 * Calculate wait time for PLL LOCK
+		 * 1000 REFCLK cycles in us.
+		 */
+		sleep_time = DIV_ROUND_UP(1000*1000*1000, cinfo->fint);
 
-	if (wait_for_bit_change(base + PLL_STATUS, 1, 1) != 1) {
-		DSSERR("cannot lock DSS DPLL\n");
-		r = -EIO;
-		goto err;
+		for (cnt = 0; cnt < max_lock_retries; cnt++) {
+			writel_relaxed(1, base + PLL_GO);	/* PLL_GO */
+
+			/**
+			 * read the register back to ensure the write is
+			 * flushed
+			 */
+			readl_relaxed(base + PLL_GO);
+
+			usleep_range(sleep_time, sleep_time + 5);
+			l = readl_relaxed(base + PLL_STATUS);
+
+			if (pll_is_locked(l) &&
+			    !(readl_relaxed(base + PLL_GO) & 0x1))
+				break;
+
+		}
+
+		if (cnt == max_lock_retries) {
+			DSSERR("cannot lock PLL\n");
+			r = -EIO;
+			goto err;
+		}
+	} else {
+		writel_relaxed(1, base + PLL_GO);	/* PLL_GO */
+
+		if (wait_for_bit_change(base + PLL_GO, 0, 0) != 0) {
+			DSSERR("DSS DPLL GO bit not going down.\n");
+			r = -EIO;
+			goto err;
+		}
+
+		if (wait_for_bit_change(base + PLL_STATUS, 1, 1) != 1) {
+			DSSERR("cannot lock DSS DPLL\n");
+			r = -EIO;
+			goto err;
+		}
 	}
 
 	l = readl_relaxed(base + PLL_CONFIGURATION2);

@@ -4,12 +4,15 @@ config ALPHA
 	default y
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select ARCH_MIGHT_HAVE_PC_SERIO
+	select ARCH_NO_PREEMPT
 	select ARCH_USE_CMPXCHG_LOCKREF
 	select HAVE_AOUT
 	select HAVE_IDE
 	select HAVE_OPROFILE
 	select HAVE_PCSPKR_PLATFORM
 	select HAVE_PERF_EVENTS
+	select NEED_DMA_MAP_STATE
+	select NEED_SG_DMA_LENGTH
 	select VIRT_TO_BUS
 	select GENERIC_IRQ_PROBE
 	select AUTO_IRQ_AFFINITY if SMP
@@ -64,15 +67,6 @@ config ZONE_DMA
 	bool
 	default y
 
-config ARCH_DMA_ADDR_T_64BIT
-	def_bool y
-
-config NEED_DMA_MAP_STATE
-       def_bool y
-
-config NEED_SG_DMA_LENGTH
-	def_bool y
-
 config GENERIC_ISA_DMA
 	bool
 	default y
@@ -80,9 +74,6 @@ config GENERIC_ISA_DMA
 config PGTABLE_LEVELS
 	int
 	default 3
-
-source "init/Kconfig"
-source "kernel/Kconfig.freezer"
 
 config AUDIT_ARCH
 	bool
@@ -346,9 +337,6 @@ config PCI_DOMAINS
 config PCI_SYSCALL
 	def_bool PCI
 
-config IOMMU_HELPER
-	def_bool PCI
-
 config ALPHA_NONAME
 	bool
 	depends on ALPHA_BOOK1 || ALPHA_NONAME_CH
@@ -565,11 +553,6 @@ config SMP
 
 	  If you don't know what to do here, say N.
 
-config HAVE_DEC_LOCK
-	bool
-	depends on SMP
-	default y
-
 config NR_CPUS
 	int "Maximum number of CPUs (2-32)"
 	range 2 32
@@ -586,9 +569,7 @@ config ARCH_DISCONTIGMEM_ENABLE
 	  Say Y to support efficient handling of discontiguous physical memory,
 	  for architectures which are either NUMA (Non-Uniform Memory Access)
 	  or have huge holes in the physical address space for other reasons.
-	  See <file:Documentation/vm/numa> for more.
-
-source "mm/Kconfig"
+	  See <file:Documentation/vm/numa.rst> for more.
 
 config NUMA
 	bool "NUMA Support (EXPERIMENTAL)"
@@ -728,17 +709,7 @@ config SRM_ENV
 	  This driver is also available as a module and will be called
 	  srm_env then.
 
-source "fs/Kconfig.binfmt"
-
 endmenu
-
-source "net/Kconfig"
-
-source "drivers/Kconfig"
-
-source "fs/Kconfig"
-
-source "arch/alpha/Kconfig.debug"
 
 # DUMMY_CONSOLE may be defined in drivers/video/console/Kconfig
 # but we also need it if VGA_HOSE is set
@@ -746,10 +717,3 @@ config DUMMY_CONSOLE
 	bool
 	depends on VGA_HOSE
 	default y
-
-source "security/Kconfig"
-
-source "crypto/Kconfig"
-
-source "lib/Kconfig"
-

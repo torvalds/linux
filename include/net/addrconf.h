@@ -59,6 +59,19 @@ struct in6_validator_info {
 	struct netlink_ext_ack	*extack;
 };
 
+struct ifa6_config {
+	const struct in6_addr	*pfx;
+	unsigned int		plen;
+
+	const struct in6_addr	*peer_pfx;
+
+	u32			rt_priority;
+	u32			ifa_flags;
+	u32			preferred_lft;
+	u32			valid_lft;
+	u16			scope;
+};
+
 int addrconf_init(void);
 void addrconf_cleanup(void);
 
@@ -95,6 +108,7 @@ int ipv6_get_lladdr(struct net_device *dev, struct in6_addr *addr,
 		    u32 banned_flags);
 bool inet_rcv_saddr_equal(const struct sock *sk, const struct sock *sk2,
 			  bool match_wildcard);
+bool inet_rcv_saddr_any(const struct sock *sk);
 void addrconf_join_solict(struct net_device *dev, const struct in6_addr *addr);
 void addrconf_leave_solict(struct inet6_dev *idev, const struct in6_addr *addr);
 
@@ -223,6 +237,22 @@ struct ipv6_stub {
 				 const struct in6_addr *addr);
 	int (*ipv6_dst_lookup)(struct net *net, struct sock *sk,
 			       struct dst_entry **dst, struct flowi6 *fl6);
+
+	struct fib6_table *(*fib6_get_table)(struct net *net, u32 id);
+	struct fib6_info *(*fib6_lookup)(struct net *net, int oif,
+					 struct flowi6 *fl6, int flags);
+	struct fib6_info *(*fib6_table_lookup)(struct net *net,
+					      struct fib6_table *table,
+					      int oif, struct flowi6 *fl6,
+					      int flags);
+	struct fib6_info *(*fib6_multipath_select)(const struct net *net,
+						   struct fib6_info *f6i,
+						   struct flowi6 *fl6, int oif,
+						   const struct sk_buff *skb,
+						   int strict);
+	u32 (*ip6_mtu_from_fib6)(struct fib6_info *f6i, struct in6_addr *daddr,
+				 struct in6_addr *saddr);
+
 	void (*udpv6_encap_enable)(void);
 	void (*ndisc_send_na)(struct net_device *dev, const struct in6_addr *daddr,
 			      const struct in6_addr *solicited_addr,
@@ -235,6 +265,11 @@ extern const struct ipv6_stub *ipv6_stub __read_mostly;
 struct ipv6_bpf_stub {
 	int (*inet6_bind)(struct sock *sk, struct sockaddr *uaddr, int addr_len,
 			  bool force_bind_address_no_port, bool with_lock);
+	struct sock *(*udp6_lib_lookup)(struct net *net,
+					const struct in6_addr *saddr, __be16 sport,
+					const struct in6_addr *daddr, __be16 dport,
+					int dif, int sdif, struct udp_table *tbl,
+					struct sk_buff *skb);
 };
 extern const struct ipv6_bpf_stub *ipv6_bpf_stub __read_mostly;
 
@@ -282,6 +317,8 @@ bool ipv6_chk_acast_addr(struct net *net, struct net_device *dev,
 			 const struct in6_addr *addr);
 bool ipv6_chk_acast_addr_src(struct net *net, struct net_device *dev,
 			     const struct in6_addr *addr);
+int ipv6_anycast_init(void);
+void ipv6_anycast_cleanup(void);
 
 /* Device notifier */
 int register_inet6addr_notifier(struct notifier_block *nb);
@@ -305,6 +342,20 @@ void inet6_netconf_notify_devconf(struct net *net, int event, int type,
 static inline struct inet6_dev *__in6_dev_get(const struct net_device *dev)
 {
 	return rcu_dereference_rtnl(dev->ip6_ptr);
+}
+
+/**
+ * __in6_dev_get_safely - get inet6_dev pointer from netdevice
+ * @dev: network device
+ *
+ * This is a safer version of __in6_dev_get
+ */
+static inline struct inet6_dev *__in6_dev_get_safely(const struct net_device *dev)
+{
+	if (likely(dev))
+		return rcu_dereference_rtnl(dev->ip6_ptr);
+	else
+		return NULL;
 }
 
 /**

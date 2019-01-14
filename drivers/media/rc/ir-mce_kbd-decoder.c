@@ -119,17 +119,26 @@ static void mce_kbd_rx_timeout(struct timer_list *t)
 {
 	struct ir_raw_event_ctrl *raw = from_timer(raw, t, mce_kbd.rx_timeout);
 	unsigned char maskcode;
+	unsigned long flags;
 	int i;
 
 	dev_dbg(&raw->dev->dev, "timer callback clearing all keys\n");
 
-	for (i = 0; i < 7; i++) {
-		maskcode = kbd_keycodes[MCIR2_MASK_KEYS_START + i];
-		input_report_key(raw->mce_kbd.idev, maskcode, 0);
-	}
+	spin_lock_irqsave(&raw->mce_kbd.keylock, flags);
 
-	for (i = 0; i < MCIR2_MASK_KEYS_START; i++)
-		input_report_key(raw->mce_kbd.idev, kbd_keycodes[i], 0);
+	if (time_is_before_eq_jiffies(raw->mce_kbd.rx_timeout.expires)) {
+		for (i = 0; i < 7; i++) {
+			maskcode = kbd_keycodes[MCIR2_MASK_KEYS_START + i];
+			input_report_key(raw->dev->input_dev, maskcode, 0);
+		}
+
+		for (i = 0; i < MCIR2_MASK_KEYS_START; i++)
+			input_report_key(raw->dev->input_dev, kbd_keycodes[i],
+					 0);
+
+		input_sync(raw->dev->input_dev);
+	}
+	spin_unlock_irqrestore(&raw->mce_kbd.keylock, flags);
 }
 
 static enum mce_kbd_mode mce_kbd_mode(struct mce_kbd_dec *data)
@@ -146,14 +155,14 @@ static enum mce_kbd_mode mce_kbd_mode(struct mce_kbd_dec *data)
 
 static void ir_mce_kbd_process_keyboard_data(struct rc_dev *dev, u32 scancode)
 {
-	struct mce_kbd_dec *data = &dev->raw->mce_kbd;
-	u8 keydata   = (scancode >> 8) & 0xff;
+	u8 keydata1  = (scancode >> 8) & 0xff;
+	u8 keydata2  = (scancode >> 16) & 0xff;
 	u8 shiftmask = scancode & 0xff;
-	unsigned char keycode, maskcode;
+	unsigned char maskcode;
 	int i, keystate;
 
-	dev_dbg(&dev->dev, "keyboard: keydata = 0x%02x, shiftmask = 0x%02x\n",
-		keydata, shiftmask);
+	dev_dbg(&dev->dev, "keyboard: keydata2 = 0x%02x, keydata1 = 0x%02x, shiftmask = 0x%02x\n",
+		keydata2, keydata1, shiftmask);
 
 	for (i = 0; i < 7; i++) {
 		maskcode = kbd_keycodes[MCIR2_MASK_KEYS_START + i];
@@ -161,21 +170,22 @@ static void ir_mce_kbd_process_keyboard_data(struct rc_dev *dev, u32 scancode)
 			keystate = 1;
 		else
 			keystate = 0;
-		input_report_key(data->idev, maskcode, keystate);
+		input_report_key(dev->input_dev, maskcode, keystate);
 	}
 
-	if (keydata) {
-		keycode = kbd_keycodes[keydata];
-		input_report_key(data->idev, keycode, 1);
-	} else {
+	if (keydata1)
+		input_report_key(dev->input_dev, kbd_keycodes[keydata1], 1);
+	if (keydata2)
+		input_report_key(dev->input_dev, kbd_keycodes[keydata2], 1);
+
+	if (!keydata1 && !keydata2) {
 		for (i = 0; i < MCIR2_MASK_KEYS_START; i++)
-			input_report_key(data->idev, kbd_keycodes[i], 0);
+			input_report_key(dev->input_dev, kbd_keycodes[i], 0);
 	}
 }
 
 static void ir_mce_kbd_process_mouse_data(struct rc_dev *dev, u32 scancode)
 {
-	struct mce_kbd_dec *data = &dev->raw->mce_kbd;
 	/* raw mouse coordinates */
 	u8 xdata = (scancode >> 7) & 0x7f;
 	u8 ydata = (scancode >> 14) & 0x7f;
@@ -197,11 +207,11 @@ static void ir_mce_kbd_process_mouse_data(struct rc_dev *dev, u32 scancode)
 	dev_dbg(&dev->dev, "mouse: x = %d, y = %d, btns = %s%s\n",
 		x, y, left ? "L" : "", right ? "R" : "");
 
-	input_report_rel(data->idev, REL_X, x);
-	input_report_rel(data->idev, REL_Y, y);
+	input_report_rel(dev->input_dev, REL_X, x);
+	input_report_rel(dev->input_dev, REL_Y, y);
 
-	input_report_key(data->idev, BTN_LEFT, left);
-	input_report_key(data->idev, BTN_RIGHT, right);
+	input_report_key(dev->input_dev, BTN_LEFT, left);
+	input_report_key(dev->input_dev, BTN_RIGHT, right);
 }
 
 /**
@@ -263,9 +273,6 @@ again:
 		return 0;
 
 	case STATE_HEADER_BIT_END:
-		if (!is_transition(&ev, &dev->raw->prev_ev))
-			break;
-
 		decrease_duration(&ev, MCIR2_BIT_END);
 
 		if (data->count != MCIR2_HEADER_NBITS) {
@@ -302,9 +309,6 @@ again:
 		return 0;
 
 	case STATE_BODY_BIT_END:
-		if (!is_transition(&ev, &dev->raw->prev_ev))
-			break;
-
 		if (data->count == data->wanted_bits)
 			data->state = STATE_FINISHED;
 		else
@@ -319,16 +323,20 @@ again:
 
 		switch (data->wanted_bits) {
 		case MCIR2_KEYBOARD_NBITS:
-			scancode = data->body & 0xffff;
+			scancode = data->body & 0xffffff;
 			dev_dbg(&dev->dev, "keyboard data 0x%08x\n",
 				data->body);
-			if (dev->timeout)
-				delay = usecs_to_jiffies(dev->timeout / 1000);
-			else
-				delay = msecs_to_jiffies(100);
-			mod_timer(&data->rx_timeout, jiffies + delay);
+			spin_lock(&data->keylock);
+			if (scancode) {
+				delay = nsecs_to_jiffies(dev->timeout) +
+					msecs_to_jiffies(100);
+				mod_timer(&data->rx_timeout, jiffies + delay);
+			} else {
+				del_timer(&data->rx_timeout);
+			}
 			/* Pass data to keyboard buffer parser */
 			ir_mce_kbd_process_keyboard_data(dev, scancode);
+			spin_unlock(&data->keylock);
 			lsc.rc_proto = RC_PROTO_MCIR2_KBD;
 			break;
 		case MCIR2_MOUSE_NBITS:
@@ -346,8 +354,8 @@ again:
 		lsc.scancode = scancode;
 		ir_lirc_scancode_event(dev, &lsc);
 		data->state = STATE_INACTIVE;
-		input_event(data->idev, EV_MSC, MSC_SCAN, scancode);
-		input_sync(data->idev);
+		input_event(dev->input_dev, EV_MSC, MSC_SCAN, scancode);
+		input_sync(dev->input_dev);
 		return 0;
 	}
 
@@ -355,61 +363,15 @@ out:
 	dev_dbg(&dev->dev, "failed at state %i (%uus %s)\n",
 		data->state, TO_US(ev.duration), TO_STR(ev.pulse));
 	data->state = STATE_INACTIVE;
-	input_sync(data->idev);
 	return -EINVAL;
 }
 
 static int ir_mce_kbd_register(struct rc_dev *dev)
 {
 	struct mce_kbd_dec *mce_kbd = &dev->raw->mce_kbd;
-	struct input_dev *idev;
-	int i, ret;
-
-	idev = input_allocate_device();
-	if (!idev)
-		return -ENOMEM;
-
-	snprintf(mce_kbd->name, sizeof(mce_kbd->name),
-		 "MCE IR Keyboard/Mouse (%s)", dev->driver_name);
-	strlcat(mce_kbd->phys, "/input0", sizeof(mce_kbd->phys));
-
-	idev->name = mce_kbd->name;
-	idev->phys = mce_kbd->phys;
-
-	/* Keyboard bits */
-	set_bit(EV_KEY, idev->evbit);
-	set_bit(EV_REP, idev->evbit);
-	for (i = 0; i < sizeof(kbd_keycodes); i++)
-		set_bit(kbd_keycodes[i], idev->keybit);
-
-	/* Mouse bits */
-	set_bit(EV_REL, idev->evbit);
-	set_bit(REL_X, idev->relbit);
-	set_bit(REL_Y, idev->relbit);
-	set_bit(BTN_LEFT, idev->keybit);
-	set_bit(BTN_RIGHT, idev->keybit);
-
-	/* Report scancodes too */
-	set_bit(EV_MSC, idev->evbit);
-	set_bit(MSC_SCAN, idev->mscbit);
 
 	timer_setup(&mce_kbd->rx_timeout, mce_kbd_rx_timeout, 0);
-
-	input_set_drvdata(idev, mce_kbd);
-
-#if 0
-	/* Adding this reference means two input devices are associated with
-	 * this rc-core device, which ir-keytable doesn't cope with yet */
-	idev->dev.parent = &dev->dev;
-#endif
-
-	ret = input_register_device(idev);
-	if (ret < 0) {
-		input_free_device(idev);
-		return -EIO;
-	}
-
-	mce_kbd->idev = idev;
+	spin_lock_init(&mce_kbd->keylock);
 
 	return 0;
 }
@@ -417,10 +379,8 @@ static int ir_mce_kbd_register(struct rc_dev *dev)
 static int ir_mce_kbd_unregister(struct rc_dev *dev)
 {
 	struct mce_kbd_dec *mce_kbd = &dev->raw->mce_kbd;
-	struct input_dev *idev = mce_kbd->idev;
 
 	del_timer_sync(&mce_kbd->rx_timeout);
-	input_unregister_device(idev);
 
 	return 0;
 }
@@ -475,6 +435,7 @@ static struct ir_raw_handler mce_kbd_handler = {
 	.raw_register	= ir_mce_kbd_register,
 	.raw_unregister	= ir_mce_kbd_unregister,
 	.carrier	= 36000,
+	.min_timeout	= MCIR2_MAX_LEN + MCIR2_UNIT / 2,
 };
 
 static int __init ir_mce_kbd_decode_init(void)

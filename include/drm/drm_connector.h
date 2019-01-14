@@ -28,6 +28,7 @@
 #include <linux/ctype.h>
 #include <linux/hdmi.h>
 #include <drm/drm_mode_object.h>
+#include <drm/drm_util.h>
 
 #include <uapi/drm/drm_mode.h>
 
@@ -79,6 +80,53 @@ enum drm_connector_status {
 	 * there's not connector with @connector_status_connected.
 	 */
 	connector_status_unknown = 3,
+};
+
+/**
+ * enum drm_connector_registration_status - userspace registration status for
+ * a &drm_connector
+ *
+ * This enum is used to track the status of initializing a connector and
+ * registering it with userspace, so that DRM can prevent bogus modesets on
+ * connectors that no longer exist.
+ */
+enum drm_connector_registration_state {
+	/**
+	 * @DRM_CONNECTOR_INITIALIZING: The connector has just been created,
+	 * but has yet to be exposed to userspace. There should be no
+	 * additional restrictions to how the state of this connector may be
+	 * modified.
+	 */
+	DRM_CONNECTOR_INITIALIZING = 0,
+
+	/**
+	 * @DRM_CONNECTOR_REGISTERED: The connector has been fully initialized
+	 * and registered with sysfs, as such it has been exposed to
+	 * userspace. There should be no additional restrictions to how the
+	 * state of this connector may be modified.
+	 */
+	DRM_CONNECTOR_REGISTERED = 1,
+
+	/**
+	 * @DRM_CONNECTOR_UNREGISTERED: The connector has either been exposed
+	 * to userspace and has since been unregistered and removed from
+	 * userspace, or the connector was unregistered before it had a chance
+	 * to be exposed to userspace (e.g. still in the
+	 * @DRM_CONNECTOR_INITIALIZING state). When a connector is
+	 * unregistered, there are additional restrictions to how its state
+	 * may be modified:
+	 *
+	 * - An unregistered connector may only have its DPMS changed from
+	 *   On->Off. Once DPMS is changed to Off, it may not be switched back
+	 *   to On.
+	 * - Modesets are not allowed on unregistered connectors, unless they
+	 *   would result in disabling its assigned CRTCs. This means
+	 *   disabling a CRTC on an unregistered connector is OK, but enabling
+	 *   one is not.
+	 * - Removing a CRTC from an unregistered connector is OK, but new
+	 *   CRTCs may never be assigned to an unregistered connector.
+	 */
+	DRM_CONNECTOR_UNREGISTERED = 2,
 };
 
 enum subpixel_order {
@@ -290,6 +338,10 @@ struct drm_display_info {
 #define DRM_BUS_FLAG_DATA_MSB_TO_LSB	(1<<4)
 /* data is transmitted LSB to MSB on the bus */
 #define DRM_BUS_FLAG_DATA_LSB_TO_MSB	(1<<5)
+/* drive sync on pos. edge */
+#define DRM_BUS_FLAG_SYNC_POSEDGE	(1<<6)
+/* drive sync on neg. edge */
+#define DRM_BUS_FLAG_SYNC_NEGEDGE	(1<<7)
 
 	/**
 	 * @bus_flags: Additional information (like pixel signal polarity) for
@@ -374,12 +426,9 @@ struct drm_tv_connector_state {
 
 /**
  * struct drm_connector_state - mutable connector state
- * @connector: backpointer to the connector
- * @best_encoder: can be used by helpers and drivers to select the encoder
- * @state: backpointer to global drm_atomic_state
- * @tv: TV connector state
  */
 struct drm_connector_state {
+	/** @connector: backpointer to the connector */
 	struct drm_connector *connector;
 
 	/**
@@ -390,6 +439,13 @@ struct drm_connector_state {
 	 */
 	struct drm_crtc *crtc;
 
+	/**
+	 * @best_encoder:
+	 *
+	 * Used by the atomic helpers to select the encoder, through the
+	 * &drm_connector_helper_funcs.atomic_best_encoder or
+	 * &drm_connector_helper_funcs.best_encoder callbacks.
+	 */
 	struct drm_encoder *best_encoder;
 
 	/**
@@ -398,6 +454,7 @@ struct drm_connector_state {
 	 */
 	enum drm_link_status link_status;
 
+	/** @state: backpointer to global drm_atomic_state */
 	struct drm_atomic_state *state;
 
 	/**
@@ -407,6 +464,7 @@ struct drm_connector_state {
 	 */
 	struct drm_crtc_commit *commit;
 
+	/** @tv: TV connector state */
 	struct drm_tv_connector_state tv;
 
 	/**
@@ -419,6 +477,14 @@ struct drm_connector_state {
 	enum hdmi_picture_aspect picture_aspect_ratio;
 
 	/**
+	 * @content_type: Connector property to control the
+	 * HDMI infoframe content type setting.
+	 * The %DRM_MODE_CONTENT_TYPE_\* values much
+	 * match the values.
+	 */
+	unsigned int content_type;
+
+	/**
 	 * @scaling_mode: Connector property to control the
 	 * upscaling, mostly used for built-in panels.
 	 */
@@ -429,6 +495,19 @@ struct drm_connector_state {
 	 * protection. This is most commonly used for HDCP.
 	 */
 	unsigned int content_protection;
+
+	/**
+	 * @writeback_job: Writeback job for writeback connectors
+	 *
+	 * Holds the framebuffer and out-fence for a writeback connector. As
+	 * the writeback completion may be asynchronous to the normal commit
+	 * cycle, the writeback job lifetime is managed separately from the
+	 * normal atomic state by this object.
+	 *
+	 * See also: drm_writeback_queue_job() and
+	 * drm_writeback_signal_completion()
+	 */
+	struct drm_writeback_job *writeback_job;
 };
 
 /**
@@ -530,8 +609,7 @@ struct drm_connector_funcs {
 	 * received for this output connector->edid must be NULL.
 	 *
 	 * Drivers using the probe helpers should use
-	 * drm_helper_probe_single_connector_modes() or
-	 * drm_helper_probe_single_connector_modes_nomerge() to implement this
+	 * drm_helper_probe_single_connector_modes() to implement this
 	 * function.
 	 *
 	 * RETURNS:
@@ -608,6 +686,8 @@ struct drm_connector_funcs {
 	 * cleaned up by calling the @atomic_destroy_state hook in this
 	 * structure.
 	 *
+	 * This callback is mandatory for atomic drivers.
+	 *
 	 * Atomic drivers which don't subclass &struct drm_connector_state should use
 	 * drm_atomic_helper_connector_duplicate_state(). Drivers that subclass the
 	 * state structure to extend it with driver-private state should use
@@ -634,6 +714,8 @@ struct drm_connector_funcs {
 	 *
 	 * Destroy a state duplicated with @atomic_duplicate_state and release
 	 * or unreference all resources it references
+	 *
+	 * This callback is mandatory for atomic drivers.
 	 */
 	void (*atomic_destroy_state)(struct drm_connector *connector,
 				     struct drm_connector_state *state);
@@ -738,45 +820,6 @@ struct drm_cmdline_mode {
 
 /**
  * struct drm_connector - central DRM connector control structure
- * @dev: parent DRM device
- * @kdev: kernel device for sysfs attributes
- * @attr: sysfs attributes
- * @head: list management
- * @base: base KMS object
- * @name: human readable name, can be overwritten by the driver
- * @connector_type: one of the DRM_MODE_CONNECTOR_<foo> types from drm_mode.h
- * @connector_type_id: index into connector type enum
- * @interlace_allowed: can this connector handle interlaced modes?
- * @doublescan_allowed: can this connector handle doublescan?
- * @stereo_allowed: can this connector handle stereo modes?
- * @funcs: connector control functions
- * @edid_blob_ptr: DRM property containing EDID if present
- * @properties: property tracking for this connector
- * @dpms: current dpms state
- * @helper_private: mid-layer private data
- * @cmdline_mode: mode line parsed from the kernel cmdline for this connector
- * @force: a DRM_FORCE_<foo> state for forced mode sets
- * @override_edid: has the EDID been overwritten through debugfs for testing?
- * @encoder_ids: valid encoders for this connector
- * @eld: EDID-like data, if present
- * @latency_present: AV delay info from ELD, if found
- * @video_latency: video latency info from ELD, if found
- * @audio_latency: audio latency info from ELD, if found
- * @null_edid_counter: track sinks that give us all zeros for the EDID
- * @bad_edid_counter: track sinks that give us an EDID with invalid checksum
- * @edid_corrupt: indicates whether the last read EDID was corrupt
- * @debugfs_entry: debugfs directory for this connector
- * @has_tile: is this connector connected to a tiled monitor
- * @tile_group: tile group for the connected monitor
- * @tile_is_single_monitor: whether the tile is one monitor housing
- * @num_h_tile: number of horizontal tiles in the tile group
- * @num_v_tile: number of vertical tiles in the tile group
- * @tile_h_loc: horizontal location of this tile
- * @tile_v_loc: vertical location of this tile
- * @tile_h_size: horizontal size of this tile.
- * @tile_v_size: vertical size of this tile.
- * @scaling_mode_property:  Optional atomic property to control the upscaling.
- * @content_protection_property: Optional property to control content protection
  *
  * Each connector may be connected to one or more CRTCs, or may be clonable by
  * another connector if they can share a CRTC.  Each connector also has a specific
@@ -784,13 +827,27 @@ struct drm_cmdline_mode {
  * span multiple monitors).
  */
 struct drm_connector {
+	/** @dev: parent DRM device */
 	struct drm_device *dev;
+	/** @kdev: kernel device for sysfs attributes */
 	struct device *kdev;
+	/** @attr: sysfs attributes */
 	struct device_attribute *attr;
+
+	/**
+	 * @head:
+	 *
+	 * List of all connectors on a @dev, linked from
+	 * &drm_mode_config.connector_list. Protected by
+	 * &drm_mode_config.connector_list_lock, but please only use
+	 * &drm_connector_list_iter to walk this list.
+	 */
 	struct list_head head;
 
+	/** @base: base KMS object */
 	struct drm_mode_object base;
 
+	/** @name: human readable name, can be overwritten by the driver */
 	char *name;
 
 	/**
@@ -808,10 +865,30 @@ struct drm_connector {
 	 */
 	unsigned index;
 
+	/**
+	 * @connector_type:
+	 * one of the DRM_MODE_CONNECTOR_<foo> types from drm_mode.h
+	 */
 	int connector_type;
+	/** @connector_type_id: index into connector type enum */
 	int connector_type_id;
+	/**
+	 * @interlace_allowed:
+	 * Can this connector handle interlaced modes? Only used by
+	 * drm_helper_probe_single_connector_modes() for mode filtering.
+	 */
 	bool interlace_allowed;
+	/**
+	 * @doublescan_allowed:
+	 * Can this connector handle doublescan? Only used by
+	 * drm_helper_probe_single_connector_modes() for mode filtering.
+	 */
 	bool doublescan_allowed;
+	/**
+	 * @stereo_allowed:
+	 * Can this connector handle stereo modes? Only used by
+	 * drm_helper_probe_single_connector_modes() for mode filtering.
+	 */
 	bool stereo_allowed;
 
 	/**
@@ -823,10 +900,12 @@ struct drm_connector {
 	bool ycbcr_420_allowed;
 
 	/**
-	 * @registered: Is this connector exposed (registered) with userspace?
+	 * @registration_state: Is this connector initializing, exposed
+	 * (registered) with userspace, or unregistered?
+	 *
 	 * Protected by @mutex.
 	 */
-	bool registered;
+	enum drm_connector_registration_state registration_state;
 
 	/**
 	 * @modes:
@@ -860,45 +939,42 @@ struct drm_connector {
 	 * Protected by &drm_mode_config.mutex.
 	 */
 	struct drm_display_info display_info;
+
+	/** @funcs: connector control functions */
 	const struct drm_connector_funcs *funcs;
 
+	/**
+	 * @edid_blob_ptr: DRM property containing EDID if present. Protected by
+	 * &drm_mode_config.mutex. This should be updated only by calling
+	 * drm_connector_update_edid_property().
+	 */
 	struct drm_property_blob *edid_blob_ptr;
+
+	/** @properties: property tracking for this connector */
 	struct drm_object_properties properties;
 
+	/**
+	 * @scaling_mode_property: Optional atomic property to control the
+	 * upscaling. See drm_connector_attach_content_protection_property().
+	 */
 	struct drm_property *scaling_mode_property;
 
 	/**
 	 * @content_protection_property: DRM ENUM property for content
-	 * protection
+	 * protection. See drm_connector_attach_content_protection_property().
 	 */
 	struct drm_property *content_protection_property;
 
 	/**
 	 * @path_blob_ptr:
 	 *
-	 * DRM blob property data for the DP MST path property.
+	 * DRM blob property data for the DP MST path property. This should only
+	 * be updated by calling drm_connector_set_path_property().
 	 */
 	struct drm_property_blob *path_blob_ptr;
 
-	/**
-	 * @tile_blob_ptr:
-	 *
-	 * DRM blob property data for the tile property (used mostly by DP MST).
-	 * This is meant for screens which are driven through separate display
-	 * pipelines represented by &drm_crtc, which might not be running with
-	 * genlocked clocks. For tiled panels which are genlocked, like
-	 * dual-link LVDS or dual-link DSI, the driver should try to not expose
-	 * the tiling and virtualize both &drm_crtc and &drm_plane if needed.
-	 */
-	struct drm_property_blob *tile_blob_ptr;
-
-/* should we poll this connector for connects and disconnects */
-/* hot plug detectable */
 #define DRM_CONNECTOR_POLL_HPD (1 << 0)
-/* poll for connections */
 #define DRM_CONNECTOR_POLL_CONNECT (1 << 1)
-/* can cleanly poll for disconnections without flickering the screen */
-/* DACs should rarely do this without a lot of testing */
 #define DRM_CONNECTOR_POLL_DISCONNECT (1 << 2)
 
 	/**
@@ -915,25 +991,40 @@ struct drm_connector {
 	 *     Periodically poll the connector for connection.
 	 *
 	 * DRM_CONNECTOR_POLL_DISCONNECT
-	 *     Periodically poll the connector for disconnection.
+	 *     Periodically poll the connector for disconnection, without
+	 *     causing flickering even when the connector is in use. DACs should
+	 *     rarely do this without a lot of testing.
 	 *
 	 * Set to 0 for connectors that don't support connection status
 	 * discovery.
 	 */
 	uint8_t polled;
 
-	/* requested DPMS state */
+	/**
+	 * @dpms: Current dpms state. For legacy drivers the
+	 * &drm_connector_funcs.dpms callback must update this. For atomic
+	 * drivers, this is handled by the core atomic code, and drivers must
+	 * only take &drm_crtc_state.active into account.
+	 */
 	int dpms;
 
+	/** @helper_private: mid-layer private data */
 	const struct drm_connector_helper_funcs *helper_private;
 
-	/* forced on connector */
+	/** @cmdline_mode: mode line parsed from the kernel cmdline for this connector */
 	struct drm_cmdline_mode cmdline_mode;
+	/** @force: a DRM_FORCE_<foo> state for forced mode sets */
 	enum drm_connector_force force;
+	/** @override_edid: has the EDID been overwritten through debugfs for testing? */
 	bool override_edid;
 
 #define DRM_CONNECTOR_MAX_ENCODER 3
+	/**
+	 * @encoder_ids: Valid encoders for this connector. Please only use
+	 * drm_connector_for_each_possible_encoder() to enumerate these.
+	 */
 	uint32_t encoder_ids[DRM_CONNECTOR_MAX_ENCODER];
+
 	/**
 	 * @encoder: Currently bound encoder driving this connector, if any.
 	 * Only really meaningful for non-atomic drivers. Atomic drivers should
@@ -943,19 +1034,37 @@ struct drm_connector {
 	struct drm_encoder *encoder;
 
 #define MAX_ELD_BYTES	128
-	/* EDID bits */
+	/** @eld: EDID-like data, if present */
 	uint8_t eld[MAX_ELD_BYTES];
+	/** @latency_present: AV delay info from ELD, if found */
 	bool latency_present[2];
-	int video_latency[2];	/* [0]: progressive, [1]: interlaced */
+	/**
+	 * @video_latency: Video latency info from ELD, if found.
+	 * [0]: progressive, [1]: interlaced
+	 */
+	int video_latency[2];
+	/**
+	 * @audio_latency: audio latency info from ELD, if found
+	 * [0]: progressive, [1]: interlaced
+	 */
 	int audio_latency[2];
-	int null_edid_counter; /* needed to workaround some HW bugs where we get all 0s */
+	/**
+	 * @null_edid_counter: track sinks that give us all zeros for the EDID.
+	 * Needed to workaround some HW bugs where we get all 0s
+	 */
+	int null_edid_counter;
+
+	/** @bad_edid_counter: track sinks that give us an EDID with invalid checksum */
 	unsigned bad_edid_counter;
 
-	/* Flag for raw EDID header corruption - used in Displayport
-	 * compliance testing - * Displayport Link CTS Core 1.2 rev1.1 4.2.2.6
+	/**
+	 * @edid_corrupt: Indicates whether the last read EDID was corrupt. Used
+	 * in Displayport compliance testing - Displayport Link CTS Core 1.2
+	 * rev1.1 4.2.2.6
 	 */
 	bool edid_corrupt;
 
+	/** @debugfs_entry: debugfs directory for this connector */
 	struct dentry *debugfs_entry;
 
 	/**
@@ -963,7 +1072,7 @@ struct drm_connector {
 	 *
 	 * Current atomic state for this connector.
 	 *
-	 * This is protected by @drm_mode_config.connection_mutex. Note that
+	 * This is protected by &drm_mode_config.connection_mutex. Note that
 	 * nonblocking atomic commits access the current connector state without
 	 * taking locks. Either by going through the &struct drm_atomic_state
 	 * pointers, see for_each_oldnew_connector_in_state(),
@@ -974,19 +1083,44 @@ struct drm_connector {
 	 */
 	struct drm_connector_state *state;
 
-	/* DisplayID bits */
+	/* DisplayID bits. FIXME: Extract into a substruct? */
+
+	/**
+	 * @tile_blob_ptr:
+	 *
+	 * DRM blob property data for the tile property (used mostly by DP MST).
+	 * This is meant for screens which are driven through separate display
+	 * pipelines represented by &drm_crtc, which might not be running with
+	 * genlocked clocks. For tiled panels which are genlocked, like
+	 * dual-link LVDS or dual-link DSI, the driver should try to not expose
+	 * the tiling and virtualize both &drm_crtc and &drm_plane if needed.
+	 *
+	 * This should only be updated by calling
+	 * drm_connector_set_tile_property().
+	 */
+	struct drm_property_blob *tile_blob_ptr;
+
+	/** @has_tile: is this connector connected to a tiled monitor */
 	bool has_tile;
+	/** @tile_group: tile group for the connected monitor */
 	struct drm_tile_group *tile_group;
+	/** @tile_is_single_monitor: whether the tile is one monitor housing */
 	bool tile_is_single_monitor;
 
+	/** @num_h_tile: number of horizontal tiles in the tile group */
+	/** @num_v_tile: number of vertical tiles in the tile group */
 	uint8_t num_h_tile, num_v_tile;
+	/** @tile_h_loc: horizontal location of this tile */
+	/** @tile_v_loc: vertical location of this tile */
 	uint8_t tile_h_loc, tile_v_loc;
+	/** @tile_h_size: horizontal size of this tile. */
+	/** @tile_v_size: vertical size of this tile. */
 	uint16_t tile_h_size, tile_v_size;
 
 	/**
 	 * @free_node:
 	 *
-	 * List used only by &drm_connector_iter to be able to clean up a
+	 * List used only by &drm_connector_list_iter to be able to clean up a
 	 * connector from any context, in conjunction with
 	 * &drm_mode_config.connector_free_work.
 	 */
@@ -1001,13 +1135,19 @@ int drm_connector_init(struct drm_device *dev,
 		       int connector_type);
 int drm_connector_register(struct drm_connector *connector);
 void drm_connector_unregister(struct drm_connector *connector);
-int drm_mode_connector_attach_encoder(struct drm_connector *connector,
+int drm_connector_attach_encoder(struct drm_connector *connector,
 				      struct drm_encoder *encoder);
 
 void drm_connector_cleanup(struct drm_connector *connector);
-static inline unsigned drm_connector_index(struct drm_connector *connector)
+
+static inline unsigned int drm_connector_index(const struct drm_connector *connector)
 {
 	return connector->index;
+}
+
+static inline u32 drm_connector_mask(const struct drm_connector *connector)
+{
+	return 1 << connector->index;
 }
 
 /**
@@ -1075,6 +1215,24 @@ static inline void drm_connector_unreference(struct drm_connector *connector)
 	drm_connector_put(connector);
 }
 
+/**
+ * drm_connector_is_unregistered - has the connector been unregistered from
+ * userspace?
+ * @connector: DRM connector
+ *
+ * Checks whether or not @connector has been unregistered from userspace.
+ *
+ * Returns:
+ * True if the connector was unregistered, false if the connector is
+ * registered or has not yet been registered with userspace.
+ */
+static inline bool
+drm_connector_is_unregistered(struct drm_connector *connector)
+{
+	return READ_ONCE(connector->registration_state) ==
+		DRM_CONNECTOR_UNREGISTERED;
+}
+
 const char *drm_get_connector_status_name(enum drm_connector_status status);
 const char *drm_get_subpixel_order_name(enum subpixel_order order);
 const char *drm_get_dpms_name(int val);
@@ -1089,20 +1247,25 @@ int drm_mode_create_tv_properties(struct drm_device *dev,
 				  unsigned int num_modes,
 				  const char * const modes[]);
 int drm_mode_create_scaling_mode_property(struct drm_device *dev);
+int drm_connector_attach_content_type_property(struct drm_connector *dev);
 int drm_connector_attach_scaling_mode_property(struct drm_connector *connector,
 					       u32 scaling_mode_mask);
 int drm_connector_attach_content_protection_property(
 		struct drm_connector *connector);
 int drm_mode_create_aspect_ratio_property(struct drm_device *dev);
+int drm_mode_create_content_type_property(struct drm_device *dev);
+void drm_hdmi_avi_infoframe_content_type(struct hdmi_avi_infoframe *frame,
+					 const struct drm_connector_state *conn_state);
+
 int drm_mode_create_suggested_offset_properties(struct drm_device *dev);
 
-int drm_mode_connector_set_path_property(struct drm_connector *connector,
-					 const char *path);
-int drm_mode_connector_set_tile_property(struct drm_connector *connector);
-int drm_mode_connector_update_edid_property(struct drm_connector *connector,
-					    const struct edid *edid);
-void drm_mode_connector_set_link_status_property(struct drm_connector *connector,
-						 uint64_t link_status);
+int drm_connector_set_path_property(struct drm_connector *connector,
+				    const char *path);
+int drm_connector_set_tile_property(struct drm_connector *connector);
+int drm_connector_update_edid_property(struct drm_connector *connector,
+				       const struct edid *edid);
+void drm_connector_set_link_status_property(struct drm_connector *connector,
+					    uint64_t link_status);
 int drm_connector_init_panel_orientation_property(
 	struct drm_connector *connector, int width, int height);
 
@@ -1151,6 +1314,9 @@ struct drm_connector *
 drm_connector_list_iter_next(struct drm_connector_list_iter *iter);
 void drm_connector_list_iter_end(struct drm_connector_list_iter *iter);
 
+bool drm_connector_has_possible_encoder(struct drm_connector *connector,
+					struct drm_encoder *encoder);
+
 /**
  * drm_for_each_connector_iter - connector_list iterator macro
  * @connector: &struct drm_connector pointer used as cursor
@@ -1162,5 +1328,18 @@ void drm_connector_list_iter_end(struct drm_connector_list_iter *iter);
  */
 #define drm_for_each_connector_iter(connector, iter) \
 	while ((connector = drm_connector_list_iter_next(iter)))
+
+/**
+ * drm_connector_for_each_possible_encoder - iterate connector's possible encoders
+ * @connector: &struct drm_connector pointer
+ * @encoder: &struct drm_encoder pointer used as cursor
+ * @__i: int iteration cursor, for macro-internal use
+ */
+#define drm_connector_for_each_possible_encoder(connector, encoder, __i) \
+	for ((__i) = 0; (__i) < ARRAY_SIZE((connector)->encoder_ids) && \
+		     (connector)->encoder_ids[(__i)] != 0; (__i)++) \
+		for_each_if((encoder) = \
+			    drm_encoder_find((connector)->dev, NULL, \
+					     (connector)->encoder_ids[(__i)])) \
 
 #endif

@@ -1,15 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 #ifndef __HAL_COMMON_H__
@@ -147,18 +139,14 @@ void dump_chip_info(struct HAL_VERSION	ChipVersion);
 
 
 /* return the final channel plan decision */
-u8 hal_com_get_channel_plan(struct adapter *padapter,
-			    u8 hw_channel_plan,
-			    u8 sw_channel_plan,
-			    u8 def_channel_plan,
-			    bool AutoLoadFail
-);
+u8 hal_com_get_channel_plan(u8 hw_channel_plan, u8 sw_channel_plan,
+			    u8 def_channel_plan, bool load_fail);
 
 u8 MRateToHwRate(u8 rate);
 
-void HalSetBrateCfg(struct adapter *Adapter, u8 *mBratesOS, u16 *pBrateCfg);
+void hal_set_brate_cfg(u8 *brates, u16 *rate_cfg);
 
-bool Hal_MappingOutPipe(struct adapter *pAdapter, u8 NumOutPipe);
+bool hal_mapping_out_pipe(struct adapter *adapter, u8 numoutpipe);
 
 void hal_init_macaddr(struct adapter *adapter);
 #endif /* __HAL_COMMON_H__ */

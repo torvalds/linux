@@ -11,7 +11,10 @@
 #include <linux/kernel.h>
 #include <linux/err.h>
 #include <linux/export.h>
-#include <linux/mtd/rawnand.h>
+
+#include "internals.h"
+
+#define ONFI_DYN_TIMING_MAX U16_MAX
 
 static const struct nand_data_interface onfi_sdr_timings[] = {
 	/* Mode 0 */
@@ -269,20 +272,6 @@ static const struct nand_data_interface onfi_sdr_timings[] = {
 };
 
 /**
- * onfi_async_timing_mode_to_sdr_timings - [NAND Interface] Retrieve NAND
- * timings according to the given ONFI timing mode
- * @mode: ONFI timing mode
- */
-const struct nand_sdr_timings *onfi_async_timing_mode_to_sdr_timings(int mode)
-{
-	if (mode < 0 || mode >= ARRAY_SIZE(onfi_sdr_timings))
-		return ERR_PTR(-EINVAL);
-
-	return &onfi_sdr_timings[mode].timings.sdr;
-}
-EXPORT_SYMBOL(onfi_async_timing_mode_to_sdr_timings);
-
-/**
  * onfi_fill_data_interface - [NAND Interface] Initialize a data interface from
  * given ONFI mode
  * @mode: The ONFI timing mode
@@ -292,6 +281,7 @@ int onfi_fill_data_interface(struct nand_chip *chip,
 			     int timing_mode)
 {
 	struct nand_data_interface *iface = &chip->data_interface;
+	struct onfi_params *onfi = chip->parameters.onfi;
 
 	if (type != NAND_SDR_IFACE)
 		return -EINVAL;
@@ -303,22 +293,36 @@ int onfi_fill_data_interface(struct nand_chip *chip,
 
 	/*
 	 * Initialize timings that cannot be deduced from timing mode:
-	 * tR, tPROG, tCCS, ...
+	 * tPROG, tBERS, tR and tCCS.
 	 * These information are part of the ONFI parameter page.
 	 */
-	if (chip->parameters.onfi.version) {
-		struct nand_parameters *params = &chip->parameters;
+	if (onfi) {
 		struct nand_sdr_timings *timings = &iface->timings.sdr;
 
 		/* microseconds -> picoseconds */
-		timings->tPROG_max = 1000000ULL * params->onfi.tPROG;
-		timings->tBERS_max = 1000000ULL * params->onfi.tBERS;
-		timings->tR_max = 1000000ULL * params->onfi.tR;
+		timings->tPROG_max = 1000000ULL * onfi->tPROG;
+		timings->tBERS_max = 1000000ULL * onfi->tBERS;
+		timings->tR_max = 1000000ULL * onfi->tR;
 
 		/* nanoseconds -> picoseconds */
-		timings->tCCS_min = 1000UL * params->onfi.tCCS;
+		timings->tCCS_min = 1000UL * onfi->tCCS;
+	} else {
+		struct nand_sdr_timings *timings = &iface->timings.sdr;
+		/*
+		 * For non-ONFI chips we use the highest possible value for
+		 * tPROG and tBERS. tR and tCCS will take the default values
+		 * precised in the ONFI specification for timing mode 0,
+		 * respectively 200us and 500ns.
+		 */
+
+		/* microseconds -> picoseconds */
+		timings->tPROG_max = 1000000ULL * ONFI_DYN_TIMING_MAX;
+		timings->tBERS_max = 1000000ULL * ONFI_DYN_TIMING_MAX;
+		timings->tR_max = 1000000ULL * 200000000ULL;
+
+		/* nanoseconds -> picoseconds */
+		timings->tCCS_min = 1000UL * 500000;
 	}
 
 	return 0;
 }
-EXPORT_SYMBOL(onfi_fill_data_interface);

@@ -19,7 +19,7 @@
 
 #include "chip.h"
 
-/* Global PTP registers */
+/* Global 6352 PTP registers */
 /* Offset 0x00: PTP EtherType */
 #define MV88E6XXX_PTP_ETHERTYPE	0x00
 
@@ -34,6 +34,12 @@
 /* Offset 0x02: Timestamp Arrival Capture Pointers */
 #define MV88E6XXX_PTP_TS_ARRIVAL_PTR	0x02
 
+/* Offset 0x05: PTP Global Configuration */
+#define MV88E6165_PTP_CFG			0x05
+#define MV88E6165_PTP_CFG_TSPEC_MASK		0xf000
+#define MV88E6165_PTP_CFG_DISABLE_TS_OVERWRITE	BIT(1)
+#define MV88E6165_PTP_CFG_DISABLE_PTP		BIT(0)
+
 /* Offset 0x07: PTP Global Configuration */
 #define MV88E6341_PTP_CFG			0x07
 #define MV88E6341_PTP_CFG_UPDATE		0x8000
@@ -46,7 +52,7 @@
 /* Offset 0x08: PTP Interrupt Status */
 #define MV88E6XXX_PTP_IRQ_STATUS	0x08
 
-/* Per-Port PTP Registers */
+/* Per-Port 6352 PTP Registers */
 /* Offset 0x00: PTP Configuration 0 */
 #define MV88E6XXX_PORT_PTP_CFG0				0x00
 #define MV88E6XXX_PORT_PTP_CFG0_TSPEC_SHIFT		12
@@ -123,6 +129,10 @@ int mv88e6xxx_get_ts_info(struct dsa_switch *ds, int port,
 
 int mv88e6xxx_hwtstamp_setup(struct mv88e6xxx_chip *chip);
 void mv88e6xxx_hwtstamp_free(struct mv88e6xxx_chip *chip);
+int mv88e6352_hwtstamp_port_enable(struct mv88e6xxx_chip *chip, int port);
+int mv88e6352_hwtstamp_port_disable(struct mv88e6xxx_chip *chip, int port);
+int mv88e6165_global_enable(struct mv88e6xxx_chip *chip);
+int mv88e6165_global_disable(struct mv88e6xxx_chip *chip);
 
 #else /* !CONFIG_NET_DSA_MV88E6XXX_PTP */
 

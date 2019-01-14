@@ -194,6 +194,23 @@ static void cxgb4_process_flow_match(struct net_device *dev,
 		fs->mask.tos = mask->tos;
 	}
 
+	if (dissector_uses_key(cls->dissector, FLOW_DISSECTOR_KEY_ENC_KEYID)) {
+		struct flow_dissector_key_keyid *key, *mask;
+
+		key = skb_flow_dissector_target(cls->dissector,
+						FLOW_DISSECTOR_KEY_ENC_KEYID,
+						cls->key);
+		mask = skb_flow_dissector_target(cls->dissector,
+						 FLOW_DISSECTOR_KEY_ENC_KEYID,
+						 cls->mask);
+		fs->val.vni = be32_to_cpu(key->keyid);
+		fs->mask.vni = be32_to_cpu(mask->keyid);
+		if (fs->mask.vni) {
+			fs->val.encap_vld = 1;
+			fs->mask.encap_vld = 1;
+		}
+	}
+
 	if (dissector_uses_key(cls->dissector, FLOW_DISSECTOR_KEY_VLAN)) {
 		struct flow_dissector_key_vlan *key, *mask;
 		u16 vlan_tci, vlan_tci_mask;
@@ -247,6 +264,7 @@ static int cxgb4_validate_flow_match(struct net_device *dev,
 	      BIT(FLOW_DISSECTOR_KEY_IPV4_ADDRS) |
 	      BIT(FLOW_DISSECTOR_KEY_IPV6_ADDRS) |
 	      BIT(FLOW_DISSECTOR_KEY_PORTS) |
+	      BIT(FLOW_DISSECTOR_KEY_ENC_KEYID) |
 	      BIT(FLOW_DISSECTOR_KEY_VLAN) |
 	      BIT(FLOW_DISSECTOR_KEY_IP))) {
 		netdev_warn(dev, "Unsupported key used: 0x%x\n",
@@ -399,10 +417,9 @@ static void cxgb4_process_flow_actions(struct net_device *in,
 				       struct ch_filter_specification *fs)
 {
 	const struct tc_action *a;
-	LIST_HEAD(actions);
+	int i;
 
-	tcf_exts_to_list(cls->exts, &actions);
-	list_for_each_entry(a, &actions, list) {
+	tcf_exts_for_each_action(i, a, cls->exts) {
 		if (is_tcf_gact_ok(a)) {
 			fs->action = FILTER_PASS;
 		} else if (is_tcf_gact_shot(a)) {
@@ -573,10 +590,9 @@ static int cxgb4_validate_flow_actions(struct net_device *dev,
 	bool act_redir = false;
 	bool act_pedit = false;
 	bool act_vlan = false;
-	LIST_HEAD(actions);
+	int i;
 
-	tcf_exts_to_list(cls->exts, &actions);
-	list_for_each_entry(a, &actions, list) {
+	tcf_exts_for_each_action(i, a, cls->exts) {
 		if (is_tcf_gact_ok(a)) {
 			/* Do nothing */
 		} else if (is_tcf_gact_shot(a)) {
@@ -856,6 +872,9 @@ int cxgb4_init_tc_flower(struct adapter *adap)
 {
 	int ret;
 
+	if (adap->tc_flower_initialized)
+		return -EEXIST;
+
 	adap->flower_ht_params = cxgb4_tc_flower_ht_params;
 	ret = rhashtable_init(&adap->flower_tbl, &adap->flower_ht_params);
 	if (ret)
@@ -864,13 +883,18 @@ int cxgb4_init_tc_flower(struct adapter *adap)
 	INIT_WORK(&adap->flower_stats_work, ch_flower_stats_handler);
 	timer_setup(&adap->flower_stats_timer, ch_flower_stats_cb, 0);
 	mod_timer(&adap->flower_stats_timer, jiffies + STATS_CHECK_PERIOD);
+	adap->tc_flower_initialized = true;
 	return 0;
 }
 
 void cxgb4_cleanup_tc_flower(struct adapter *adap)
 {
+	if (!adap->tc_flower_initialized)
+		return;
+
 	if (adap->flower_stats_timer.function)
 		del_timer_sync(&adap->flower_stats_timer);
 	cancel_work_sync(&adap->flower_stats_work);
 	rhashtable_destroy(&adap->flower_tbl);
+	adap->tc_flower_initialized = false;
 }

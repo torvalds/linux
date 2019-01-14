@@ -617,19 +617,3 @@ free_device:
 }
 
 EXPORT_SYMBOL(snd_mpu401_uart_new);
-
-/*
- *  INIT part
- */
-
-static int __init alsa_mpu401_uart_init(void)
-{
-	return 0;
-}
-
-static void __exit alsa_mpu401_uart_exit(void)
-{
-}
-
-module_init(alsa_mpu401_uart_init)
-module_exit(alsa_mpu401_uart_exit)

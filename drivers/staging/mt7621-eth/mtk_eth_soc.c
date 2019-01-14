@@ -82,12 +82,12 @@ static const u16 mtk_reg_table_default[MTK_REG_COUNT] = {
 
 static const u16 *mtk_reg_table = mtk_reg_table_default;
 
-void mtk_w32(struct mtk_eth *eth, u32 val, unsigned reg)
+void mtk_w32(struct mtk_eth *eth, u32 val, unsigned int reg)
 {
 	__raw_writel(val, eth->base + reg);
 }
 
-u32 mtk_r32(struct mtk_eth *eth, unsigned reg)
+u32 mtk_r32(struct mtk_eth *eth, unsigned int reg)
 {
 	return __raw_readl(eth->base + reg);
 }
@@ -315,7 +315,7 @@ static int mtk_dma_rx_alloc(struct mtk_eth *eth, struct mtk_rx_ring *ring)
 	ring->rx_buf_size = mtk_max_buf_size(ring->frag_size);
 	ring->rx_ring_size = eth->soc->dma_ring_size;
 	ring->rx_data = kcalloc(ring->rx_ring_size, sizeof(*ring->rx_data),
-			GFP_KERNEL);
+				GFP_KERNEL);
 	if (!ring->rx_data)
 		goto no_rx_mem;
 
@@ -325,10 +325,10 @@ static int mtk_dma_rx_alloc(struct mtk_eth *eth, struct mtk_rx_ring *ring)
 			goto no_rx_mem;
 	}
 
-	ring->rx_dma = dma_alloc_coherent(eth->dev,
-			ring->rx_ring_size * sizeof(*ring->rx_dma),
-			&ring->rx_phys,
-			GFP_ATOMIC | __GFP_ZERO);
+	ring->rx_dma =
+		dma_alloc_coherent(eth->dev,
+				   ring->rx_ring_size * sizeof(*ring->rx_dma),
+				   &ring->rx_phys, GFP_ATOMIC | __GFP_ZERO);
 	if (!ring->rx_dma)
 		goto no_rx_mem;
 
@@ -768,9 +768,8 @@ err_dma:
 /* the qdma core needs scratch memory to be setup */
 static int mtk_init_fq_dma(struct mtk_eth *eth)
 {
-	unsigned int phy_ring_head, phy_ring_tail;
+	dma_addr_t dma_addr, phy_ring_head, phy_ring_tail;
 	int cnt = eth->soc->dma_ring_size;
-	dma_addr_t dma_addr;
 	int i;
 
 	eth->scratch_ring = dma_alloc_coherent(eth->dev,
@@ -1195,7 +1194,6 @@ static int mtk_qdma_tx_poll(struct mtk_eth *eth, int budget, bool *tx_again)
 	int total = 0, done[MTK_MAX_DEVS];
 	unsigned int bytes[MTK_MAX_DEVS];
 	u32 cpu, dma;
-	static int condition;
 	int i;
 
 	memset(done, 0, sizeof(done));
@@ -1220,10 +1218,8 @@ static int mtk_qdma_tx_poll(struct mtk_eth *eth, int budget, bool *tx_again)
 
 		tx_buf = mtk_desc_to_tx_buf(ring, desc);
 		skb = tx_buf->skb;
-		if (!skb) {
-			condition = 1;
+		if (!skb)
 			break;
-		}
 
 		if (skb != (struct sk_buff *)DMA_DUMMY_DESC) {
 			bytes[mac] += skb->len;
@@ -1352,14 +1348,14 @@ static int mtk_pdma_tx_alloc(struct mtk_eth *eth)
 			      MAX_SKB_FRAGS);
 
 	ring->tx_buf = kcalloc(ring->tx_ring_size, sizeof(*ring->tx_buf),
-			GFP_KERNEL);
+			       GFP_KERNEL);
 	if (!ring->tx_buf)
 		goto no_tx_mem;
 
-	ring->tx_dma = dma_alloc_coherent(eth->dev,
-			ring->tx_ring_size * sizeof(*ring->tx_dma),
-			&ring->tx_phys,
-			GFP_ATOMIC | __GFP_ZERO);
+	ring->tx_dma =
+		dma_alloc_coherent(eth->dev,
+				   ring->tx_ring_size * sizeof(*ring->tx_dma),
+				   &ring->tx_phys, GFP_ATOMIC | __GFP_ZERO);
 	if (!ring->tx_dma)
 		goto no_tx_mem;
 
@@ -1400,14 +1396,13 @@ static int mtk_qdma_tx_alloc_tx(struct mtk_eth *eth)
 	if (!ring->tx_buf)
 		goto no_tx_mem;
 
-	ring->tx_dma = dma_alloc_coherent(eth->dev,
+	ring->tx_dma = dma_zalloc_coherent(eth->dev,
 					  ring->tx_ring_size * sz,
 					  &ring->tx_phys,
 					  GFP_ATOMIC | __GFP_ZERO);
 	if (!ring->tx_dma)
 		goto no_tx_mem;
 
-	memset(ring->tx_dma, 0, ring->tx_ring_size * sz);
 	for (i = 0; i < ring->tx_ring_size; i++) {
 		int next = (i + 1) % ring->tx_ring_size;
 		u32 next_ptr = ring->tx_phys + next * sz;
@@ -1540,8 +1535,8 @@ static void mtk_tx_timeout(struct net_device *dev)
 	if (eth->soc->dma_type & MTK_PDMA) {
 		netif_info(eth, drv, dev, "pdma_cfg:%08x\n",
 			   mtk_reg_r32(eth, MTK_REG_PDMA_GLO_CFG));
-		netif_info(eth, drv, dev, "tx_ring=%d, "
-			   "base=%08x, max=%u, ctx=%u, dtx=%u, fdx=%hu, next=%hu\n",
+		netif_info(eth, drv, dev,
+			   "tx_ring=%d, base=%08x, max=%u, ctx=%u, dtx=%u, fdx=%hu, next=%hu\n",
 			   0, mtk_reg_r32(eth, MTK_REG_TX_BASE_PTR0),
 			   mtk_reg_r32(eth, MTK_REG_TX_MAX_CNT0),
 			   mtk_reg_r32(eth, MTK_REG_TX_CTX_IDX0),
@@ -1552,8 +1547,8 @@ static void mtk_tx_timeout(struct net_device *dev)
 	if (eth->soc->dma_type & MTK_QDMA) {
 		netif_info(eth, drv, dev, "qdma_cfg:%08x\n",
 			   mtk_r32(eth, MTK_QDMA_GLO_CFG));
-		netif_info(eth, drv, dev, "tx_ring=%d, "
-			   "ctx=%08x, dtx=%08x, crx=%08x, drx=%08x, free=%hu\n",
+		netif_info(eth, drv, dev,
+			   "tx_ring=%d, ctx=%08x, dtx=%08x, crx=%08x, drx=%08x, free=%hu\n",
 			   0, mtk_r32(eth, MTK_QTX_CTX_PTR),
 			   mtk_r32(eth, MTK_QTX_DTX_PTR),
 			   mtk_r32(eth, MTK_QTX_CRX_PTR),
@@ -1826,10 +1821,9 @@ static int __init mtk_init(struct net_device *dev)
 
 	/* If the mac address is invalid, use random mac address  */
 	if (!is_valid_ether_addr(dev->dev_addr)) {
-		random_ether_addr(dev->dev_addr);
+		eth_hw_addr_random(dev);
 		dev_err(eth->dev, "generated random MAC address %pM\n",
 			dev->dev_addr);
-		dev->addr_assign_type = NET_ADDR_RANDOM;
 	}
 	mac->hw->soc->set_mac(mac, dev->dev_addr);
 
@@ -2014,10 +2008,12 @@ static int mtk_add_mac(struct mtk_eth *eth, struct device_node *np)
 
 	if (mtk_reg_table[MTK_REG_MTK_COUNTER_BASE]) {
 		mac->hw_stats = devm_kzalloc(eth->dev,
-					      sizeof(*mac->hw_stats),
-					      GFP_KERNEL);
-		if (!mac->hw_stats)
-			return -ENOMEM;
+					     sizeof(*mac->hw_stats),
+					     GFP_KERNEL);
+		if (!mac->hw_stats) {
+			err = -ENOMEM;
+			goto free_netdev;
+		}
 		spin_lock_init(&mac->hw_stats->stats_lock);
 		mac->hw_stats->reg_offset = id * MTK_STAT_OFFSET;
 	}
@@ -2041,7 +2037,8 @@ static int mtk_add_mac(struct mtk_eth *eth, struct device_node *np)
 	err = register_netdev(eth->netdev[id]);
 	if (err) {
 		dev_err(eth->dev, "error bringing up device\n");
-		return err;
+		err = -ENOMEM;
+		goto free_netdev;
 	}
 	eth->netdev[id]->irq = eth->irq;
 	netif_info(eth, probe, eth->netdev[id],
@@ -2049,6 +2046,10 @@ static int mtk_add_mac(struct mtk_eth *eth, struct device_node *np)
 		   eth->netdev[id]->base_addr, eth->netdev[id]->irq);
 
 	return 0;
+
+free_netdev:
+	free_netdev(eth->netdev[id]);
+	return err;
 }
 
 static int mtk_probe(struct platform_device *pdev)
@@ -2166,7 +2167,6 @@ static struct platform_driver mtk_driver = {
 	.remove = mtk_remove,
 	.driver = {
 		.name = "mtk_soc_eth",
-		.owner = THIS_MODULE,
 		.of_match_table = of_mtk_match,
 	},
 };

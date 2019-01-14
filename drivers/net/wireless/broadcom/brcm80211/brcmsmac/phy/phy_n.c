@@ -16904,7 +16904,7 @@ static void wlc_phy_workarounds_nphy_rev3(struct brcms_phy *pi)
 	}
 }
 
-void wlc_phy_workarounds_nphy_rev1(struct brcms_phy *pi)
+static void wlc_phy_workarounds_nphy_rev1(struct brcms_phy *pi)
 {
 	static const u8 rfseq_rx2tx_events[] = {
 		NPHY_RFSEQ_CMD_NOP,
@@ -23032,7 +23032,7 @@ wlc_phy_loadsampletable_nphy(struct brcms_phy *pi, struct cordic_iq *tone_buf,
 	u16 t;
 	u32 *data_buf = NULL;
 
-	data_buf = kmalloc(sizeof(u32) * num_samps, GFP_ATOMIC);
+	data_buf = kmalloc_array(num_samps, sizeof(u32), GFP_ATOMIC);
 	if (data_buf == NULL)
 		return;
 
@@ -23074,7 +23074,8 @@ wlc_phy_gen_load_samples_nphy(struct brcms_phy *pi, u32 f_kHz, u16 max_val,
 		tbl_len = (phy_bw << 1);
 	}
 
-	tone_buf = kmalloc(sizeof(struct cordic_iq) * tbl_len, GFP_ATOMIC);
+	tone_buf = kmalloc_array(tbl_len, sizeof(struct cordic_iq),
+				 GFP_ATOMIC);
 	if (tone_buf == NULL)
 		return 0;
 
@@ -25452,12 +25453,12 @@ void wlc_phy_cal_perical_nphy_run(struct brcms_phy *pi, u8 caltype)
 			(pi->cal_type_override ==
 			 PHY_PERICAL_FULL) ? true : false;
 
-	if ((pi->mphase_cal_phase_id > MPHASE_CAL_STATE_INIT)) {
+	if (pi->mphase_cal_phase_id > MPHASE_CAL_STATE_INIT) {
 		if (pi->nphy_txiqlocal_chanspec != pi->radio_chanspec)
 			wlc_phy_cal_perical_mphase_restart(pi);
 	}
 
-	if ((pi->mphase_cal_phase_id == MPHASE_CAL_STATE_RXCAL))
+	if (pi->mphase_cal_phase_id == MPHASE_CAL_STATE_RXCAL)
 		wlapi_bmac_write_shm(pi->sh->physhim, M_CTS_DURATION, 10000);
 
 	wlapi_suspend_mac_and_wait(pi->sh->physhim);

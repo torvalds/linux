@@ -1,30 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/*******************************************************************************
-
-  Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 2017 Oracle and/or its affiliates. All rights reserved.
-
-  This program is free software; you can redistribute it and/or modify it
-  under the terms and conditions of the GNU General Public License,
-  version 2, as published by the Free Software Foundation.
-
-  This program is distributed in the hope it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program.  If not, see <http://www.gnu.org/licenses/>.
-
-  The full GNU General Public License is included in this distribution in
-  the file called "COPYING".
-
-  Contact Information:
-  Linux NICS <linux.nics@intel.com>
-  e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
-  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
-
-*******************************************************************************/
+/* Copyright(c) 2017 Oracle and/or its affiliates. All rights reserved. */
 
 #ifndef _IXGBE_IPSEC_H_
 #define _IXGBE_IPSEC_H_
@@ -51,6 +26,7 @@ enum ixgbe_ipsec_tbl_sel {
 #define IXGBE_RXMOD_PROTO_ESP		0x00000004
 #define IXGBE_RXMOD_DECRYPT		0x00000008
 #define IXGBE_RXMOD_IPV6		0x00000010
+#define IXGBE_RXTXMOD_VF		0x00000020
 
 struct rx_sa {
 	struct hlist_node hlist;
@@ -62,6 +38,7 @@ struct rx_sa {
 	u8  iptbl_ind;
 	bool used;
 	bool decrypt;
+	u32 vf;
 };
 
 struct rx_ip_sa {
@@ -74,8 +51,10 @@ struct tx_sa {
 	struct xfrm_state *xs;
 	u32 key[4];
 	u32 salt;
+	u32 mode;
 	bool encrypt;
 	bool used;
+	u32 vf;
 };
 
 struct ixgbe_ipsec_tx_data {
@@ -91,5 +70,14 @@ struct ixgbe_ipsec {
 	struct rx_sa *rx_tbl;
 	struct tx_sa *tx_tbl;
 	DECLARE_HASHTABLE(rx_sa_list, 10);
+};
+
+struct sa_mbx_msg {
+	__be32 spi;
+	u8 flags;
+	u8 proto;
+	u16 family;
+	__be32 addr[4];
+	u32 key[5];
 };
 #endif /* _IXGBE_IPSEC_H_ */

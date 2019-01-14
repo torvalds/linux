@@ -27,8 +27,6 @@
 #include "intel_ringbuffer.h"
 #include "i915_gem_context.h"
 
-#define GEN8_LR_CONTEXT_ALIGN I915_GTT_MIN_ALIGNMENT
-
 /* Execlists regs */
 #define RING_ELSP(engine)			_MMIO((engine)->mmio_base + 0x230)
 #define RING_EXECLIST_STATUS_LO(engine)		_MMIO((engine)->mmio_base + 0x234)
@@ -104,11 +102,6 @@ struct i915_gem_context;
 
 void intel_lr_context_resume(struct drm_i915_private *dev_priv);
 
-static inline uint64_t
-intel_lr_context_descriptor(struct i915_gem_context *ctx,
-			    struct intel_engine_cs *engine)
-{
-	return ctx->engine[engine->id].lrc_desc;
-}
+void intel_execlists_set_default_submission(struct intel_engine_cs *engine);
 
 #endif /* _INTEL_LRC_H_ */

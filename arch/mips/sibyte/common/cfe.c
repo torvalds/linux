@@ -21,12 +21,13 @@
 #include <linux/linkage.h>
 #include <linux/mm.h>
 #include <linux/blkdev.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/pm.h>
 #include <linux/smp.h>
 
 #include <asm/bootinfo.h>
 #include <asm/reboot.h>
+#include <asm/setup.h>
 #include <asm/sibyte/board.h>
 #include <asm/smp-ops.h>
 

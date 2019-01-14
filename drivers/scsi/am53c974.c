@@ -96,9 +96,7 @@ static void pci_esp_dma_drain(struct esp *esp);
 
 static inline struct pci_esp_priv *pci_esp_get_priv(struct esp *esp)
 {
-	struct pci_dev *pdev = esp->dev;
-
-	return pci_get_drvdata(pdev);
+	return dev_get_drvdata(esp->dev);
 }
 
 static void pci_esp_write8(struct esp *esp, u8 val, unsigned long reg)
@@ -114,30 +112,6 @@ static u8 pci_esp_read8(struct esp *esp, unsigned long reg)
 static void pci_esp_write32(struct esp *esp, u32 val, unsigned long reg)
 {
 	return iowrite32(val, esp->regs + (reg * 4UL));
-}
-
-static dma_addr_t pci_esp_map_single(struct esp *esp, void *buf,
-				     size_t sz, int dir)
-{
-	return pci_map_single(esp->dev, buf, sz, dir);
-}
-
-static int pci_esp_map_sg(struct esp *esp, struct scatterlist *sg,
-			  int num_sg, int dir)
-{
-	return pci_map_sg(esp->dev, sg, num_sg, dir);
-}
-
-static void pci_esp_unmap_single(struct esp *esp, dma_addr_t addr,
-				 size_t sz, int dir)
-{
-	pci_unmap_single(esp->dev, addr, sz, dir);
-}
-
-static void pci_esp_unmap_sg(struct esp *esp, struct scatterlist *sg,
-			     int num_sg, int dir)
-{
-	pci_unmap_sg(esp->dev, sg, num_sg, dir);
 }
 
 static int pci_esp_irq_pending(struct esp *esp)
@@ -295,10 +269,6 @@ static u32 pci_esp_dma_length_limit(struct esp *esp, u32 dma_addr, u32 dma_len)
 static const struct esp_driver_ops pci_esp_ops = {
 	.esp_write8	=	pci_esp_write8,
 	.esp_read8	=	pci_esp_read8,
-	.map_single	=	pci_esp_map_single,
-	.map_sg		=	pci_esp_map_sg,
-	.unmap_single	=	pci_esp_unmap_single,
-	.unmap_sg	=	pci_esp_unmap_sg,
 	.irq_pending	=	pci_esp_irq_pending,
 	.reset_dma	=	pci_esp_reset_dma,
 	.dma_drain	=	pci_esp_dma_drain,
@@ -375,18 +345,18 @@ static void dc390_read_eeprom(struct pci_dev *pdev, u16 *ptr)
 
 static void dc390_check_eeprom(struct esp *esp)
 {
+	struct pci_dev *pdev = to_pci_dev(esp->dev);
 	u8 EEbuf[128];
 	u16 *ptr = (u16 *)EEbuf, wval = 0;
 	int i;
 
-	dc390_read_eeprom((struct pci_dev *)esp->dev, ptr);
+	dc390_read_eeprom(pdev, ptr);
 
 	for (i = 0; i < DC390_EEPROM_LEN; i++, ptr++)
 		wval += *ptr;
 
 	/* no Tekram EEprom found */
 	if (wval != 0x1234) {
-		struct pci_dev *pdev = esp->dev;
 		dev_printk(KERN_INFO, &pdev->dev,
 			   "No valid Tekram EEprom found\n");
 		return;
@@ -411,7 +381,7 @@ static int pci_esp_probe_one(struct pci_dev *pdev,
 		return -ENODEV;
 	}
 
-	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
+	if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(32))) {
 		dev_printk(KERN_INFO, &pdev->dev,
 			   "failed to set 32bit DMA mask\n");
 		goto fail_disable_device;
@@ -435,7 +405,7 @@ static int pci_esp_probe_one(struct pci_dev *pdev,
 
 	esp = shost_priv(shost);
 	esp->host = shost;
-	esp->dev = pdev;
+	esp->dev = &pdev->dev;
 	esp->ops = &pci_esp_ops;
 	/*
 	 * The am53c974 HBA has a design flaw of generating
@@ -467,8 +437,8 @@ static int pci_esp_probe_one(struct pci_dev *pdev,
 
 	pci_set_master(pdev);
 
-	esp->command_block = pci_alloc_consistent(pdev, 16,
-						  &esp->command_block_dma);
+	esp->command_block = dma_alloc_coherent(&pdev->dev, 16,
+			&esp->command_block_dma, GFP_KERNEL);
 	if (!esp->command_block) {
 		dev_printk(KERN_ERR, &pdev->dev,
 			   "failed to allocate command block\n");
@@ -498,7 +468,7 @@ static int pci_esp_probe_one(struct pci_dev *pdev,
 	/* Assume 40MHz clock */
 	esp->cfreq = 40000000;
 
-	err = scsi_esp_register(esp, &pdev->dev);
+	err = scsi_esp_register(esp);
 	if (err)
 		goto fail_free_irq;
 
@@ -508,8 +478,8 @@ fail_free_irq:
 	free_irq(pdev->irq, esp);
 fail_unmap_command_block:
 	pci_set_drvdata(pdev, NULL);
-	pci_free_consistent(pdev, 16, esp->command_block,
-			    esp->command_block_dma);
+	dma_free_coherent(&pdev->dev, 16, esp->command_block,
+			  esp->command_block_dma);
 fail_unmap_regs:
 	pci_iounmap(pdev, esp->regs);
 fail_release_regions:
@@ -532,8 +502,8 @@ static void pci_esp_remove_one(struct pci_dev *pdev)
 	scsi_esp_unregister(esp);
 	free_irq(pdev->irq, esp);
 	pci_set_drvdata(pdev, NULL);
-	pci_free_consistent(pdev, 16, esp->command_block,
-			    esp->command_block_dma);
+	dma_free_coherent(&pdev->dev, 16, esp->command_block,
+			  esp->command_block_dma);
 	pci_iounmap(pdev, esp->regs);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
@@ -556,15 +526,7 @@ static struct pci_driver am53c974_driver = {
 	.remove         = pci_esp_remove_one,
 };
 
-static int __init am53c974_module_init(void)
-{
-	return pci_register_driver(&am53c974_driver);
-}
-
-static void __exit am53c974_module_exit(void)
-{
-	pci_unregister_driver(&am53c974_driver);
-}
+module_pci_driver(am53c974_driver);
 
 MODULE_DESCRIPTION("AM53C974 SCSI driver");
 MODULE_AUTHOR("Hannes Reinecke <hare@suse.de>");
@@ -577,6 +539,3 @@ MODULE_PARM_DESC(am53c974_debug, "Enable debugging");
 
 module_param(am53c974_fenab, bool, 0444);
 MODULE_PARM_DESC(am53c974_fenab, "Enable 24-bit DMA transfer sizes");
-
-module_init(am53c974_module_init);
-module_exit(am53c974_module_exit);

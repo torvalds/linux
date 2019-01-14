@@ -26,6 +26,7 @@
 #include <linux/memblock.h>
 #include <linux/slab.h>
 #include <linux/reboot.h>
+#include <linux/syscalls.h>
 
 #include <asm/prom.h>
 #include <asm/rtas.h>
@@ -980,7 +981,15 @@ int rtas_ibm_suspend_me(u64 handle)
 		goto out;
 	}
 
-	stop_topology_update();
+	cpu_hotplug_disable();
+
+	/* Check if we raced with a CPU-Offline Operation */
+	if (unlikely(!cpumask_equal(cpu_present_mask, cpu_online_mask))) {
+		pr_err("%s: Raced against a concurrent CPU-Offline\n",
+		       __func__);
+		atomic_set(&data.error, -EBUSY);
+		goto out_hotplug_enable;
+	}
 
 	/* Call function on all CPUs.  One of us will make the
 	 * rtas call
@@ -993,7 +1002,8 @@ int rtas_ibm_suspend_me(u64 handle)
 	if (atomic_read(&data.error) != 0)
 		printk(KERN_ERR "Error doing global join\n");
 
-	start_topology_update();
+out_hotplug_enable:
+	cpu_hotplug_enable();
 
 	/* Take down CPUs not online prior to suspend */
 	cpuret = rtas_offline_cpus_mask(offline_mask);
@@ -1050,7 +1060,7 @@ struct pseries_errorlog *get_pseries_errorlog(struct rtas_error_log *log,
 }
 
 /* We assume to be passed big endian arguments */
-asmlinkage int ppc_rtas(struct rtas_args __user *uargs)
+SYSCALL_DEFINE1(rtas, struct rtas_args __user *, uargs)
 {
 	struct rtas_args args;
 	unsigned long flags;

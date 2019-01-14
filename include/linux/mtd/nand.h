@@ -86,6 +86,7 @@ struct nand_pos {
  * @ooboffs: the OOB offset within the page
  * @ooblen: the number of OOB bytes to read from/write to this page
  * @oobbuf: buffer to store OOB data in or get OOB data from
+ * @mode: one of the %MTD_OPS_XXX mode
  *
  * This object is used to pass per-page I/O requests to NAND sub-layers. This
  * way all useful information are already formatted in a useful way and
@@ -106,6 +107,7 @@ struct nand_page_io_req {
 		const void *out;
 		void *in;
 	} oobbuf;
+	int mode;
 };
 
 /**
@@ -322,9 +324,8 @@ static inline unsigned int nanddev_ntargets(const struct nand_device *nand)
  */
 static inline unsigned int nanddev_neraseblocks(const struct nand_device *nand)
 {
-	return (u64)nand->memorg.luns_per_target *
-	       nand->memorg.eraseblocks_per_lun *
-	       nand->memorg.pages_per_eraseblock;
+	return nand->memorg.ntargets * nand->memorg.luns_per_target *
+	       nand->memorg.eraseblocks_per_lun;
 }
 
 /**
@@ -567,7 +568,7 @@ static inline void nanddev_pos_next_eraseblock(struct nand_device *nand,
 }
 
 /**
- * nanddev_pos_next_eraseblock() - Move a position to the next page
+ * nanddev_pos_next_page() - Move a position to the next page
  * @nand: NAND device
  * @pos: the position to update
  *
@@ -599,6 +600,7 @@ static inline void nanddev_io_iter_init(struct nand_device *nand,
 {
 	struct mtd_info *mtd = nanddev_to_mtd(nand);
 
+	iter->req.mode = req->mode;
 	iter->req.dataoffs = nanddev_offs_to_pos(nand, offs, &iter->req.pos);
 	iter->req.ooboffs = req->ooboffs;
 	iter->oobbytes_per_page = mtd_oobavail(mtd, req);

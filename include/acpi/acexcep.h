@@ -59,6 +59,12 @@ struct acpi_exception_info {
 
 #define AE_OK                           (acpi_status) 0x0000
 
+#define ACPI_ENV_EXCEPTION(status)      (status & AE_CODE_ENVIRONMENTAL)
+#define ACPI_AML_EXCEPTION(status)      (status & AE_CODE_AML)
+#define ACPI_PROG_EXCEPTION(status)     (status & AE_CODE_PROGRAMMER)
+#define ACPI_TABLE_EXCEPTION(status)    (status & AE_CODE_ACPI_TABLES)
+#define ACPI_CNTL_EXCEPTION(status)     (status & AE_CODE_CONTROL)
+
 /*
  * Environmental exceptions
  */
@@ -165,8 +171,10 @@ struct acpi_exception_info {
 #define AE_AML_LOOP_TIMEOUT             EXCEP_AML (0x0021)
 #define AE_AML_UNINITIALIZED_NODE       EXCEP_AML (0x0022)
 #define AE_AML_TARGET_TYPE              EXCEP_AML (0x0023)
+#define AE_AML_PROTOCOL                 EXCEP_AML (0x0024)
+#define AE_AML_BUFFER_LENGTH            EXCEP_AML (0x0025)
 
-#define AE_CODE_AML_MAX                 0x0023
+#define AE_CODE_AML_MAX                 0x0025
 
 /*
  * Internal exceptions used for control
@@ -341,7 +349,10 @@ static const struct acpi_exception_info acpi_gbl_exception_names_aml[] = {
 	EXCEP_TXT("AE_AML_UNINITIALIZED_NODE",
 		  "A namespace node is uninitialized or unresolved"),
 	EXCEP_TXT("AE_AML_TARGET_TYPE",
-		  "A target operand of an incorrect type was encountered")
+		  "A target operand of an incorrect type was encountered"),
+	EXCEP_TXT("AE_AML_PROTOCOL", "Violation of a fixed ACPI protocol"),
+	EXCEP_TXT("AE_AML_BUFFER_LENGTH",
+		  "The length of the buffer is invalid/incorrect")
 };
 
 static const struct acpi_exception_info acpi_gbl_exception_names_ctrl[] = {

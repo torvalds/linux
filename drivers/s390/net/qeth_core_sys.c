@@ -31,10 +31,9 @@ static ssize_t qeth_dev_state_show(struct device *dev,
 	case CARD_STATE_SOFTSETUP:
 		return sprintf(buf, "SOFTSETUP\n");
 	case CARD_STATE_UP:
-		if (card->lan_online)
-		return sprintf(buf, "UP (LAN ONLINE)\n");
-		else
-			return sprintf(buf, "UP (LAN OFFLINE)\n");
+		return sprintf(buf, "UP (LAN %s)\n",
+			       netif_carrier_ok(card->dev) ? "ONLINE" :
+							     "OFFLINE");
 	case CARD_STATE_RECOVER:
 		return sprintf(buf, "RECOVER\n");
 	default:
@@ -112,7 +111,7 @@ static ssize_t qeth_dev_portno_show(struct device *dev,
 	if (!card)
 		return -EINVAL;
 
-	return sprintf(buf, "%i\n", card->info.portno);
+	return sprintf(buf, "%i\n", card->dev->dev_port);
 }
 
 static ssize_t qeth_dev_portno_store(struct device *dev,
@@ -143,7 +142,7 @@ static ssize_t qeth_dev_portno_store(struct device *dev,
 		rc = -EINVAL;
 		goto out;
 	}
-	card->info.portno = portno;
+	card->dev->dev_port = portno;
 out:
 	mutex_unlock(&card->conf_mutex);
 	return rc ? rc : count;
@@ -228,7 +227,7 @@ static ssize_t qeth_dev_prioqing_store(struct device *dev,
 		card->qdio.do_prio_queueing = QETH_PRIO_Q_ING_TOS;
 		card->qdio.default_out_queue = QETH_DEFAULT_QUEUE;
 	} else if (sysfs_streq(buf, "prio_queueing_vlan")) {
-		if (!card->options.layer2) {
+		if (IS_LAYER3(card)) {
 			rc = -ENOTSUPP;
 			goto out;
 		}
@@ -379,13 +378,14 @@ static ssize_t qeth_dev_layer2_show(struct device *dev,
 	if (!card)
 		return -EINVAL;
 
-	return sprintf(buf, "%i\n", card->options.layer2);
+	return sprintf(buf, "%i\n", card->options.layer);
 }
 
 static ssize_t qeth_dev_layer2_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct qeth_card *card = dev_get_drvdata(dev);
+	struct net_device *ndev;
 	char *tmp;
 	int i, rc = 0;
 	enum qeth_discipline_id newdis;
@@ -412,7 +412,7 @@ static ssize_t qeth_dev_layer2_store(struct device *dev,
 		goto out;
 	}
 
-	if (card->options.layer2 == newdis)
+	if (card->options.layer == newdis)
 		goto out;
 	if (card->info.layer_enforced) {
 		/* fixed layer, can't switch */
@@ -422,8 +422,17 @@ static ssize_t qeth_dev_layer2_store(struct device *dev,
 
 	card->info.mac_bits = 0;
 	if (card->discipline) {
+		/* start with a new, pristine netdevice: */
+		ndev = qeth_clone_netdev(card->dev);
+		if (!ndev) {
+			rc = -ENOMEM;
+			goto out;
+		}
+
 		card->discipline->remove(card->gdev);
 		qeth_core_free_discipline(card);
+		free_netdev(card->dev);
+		card->dev = ndev;
 	}
 
 	rc = qeth_core_load_discipline(card, newdis);

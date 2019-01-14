@@ -80,14 +80,14 @@ static void ltq_pinctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 	int ret, i;
 
 	if (!pins && !groups) {
-		dev_err(pctldev->dev, "%s defines neither pins nor groups\n",
-			np->name);
+		dev_err(pctldev->dev, "%pOFn defines neither pins nor groups\n",
+			np);
 		return;
 	}
 
 	if (pins && groups) {
-		dev_err(pctldev->dev, "%s defines both pins and groups\n",
-			np->name);
+		dev_err(pctldev->dev, "%pOFn defines both pins and groups\n",
+			np);
 		return;
 	}
 
@@ -158,7 +158,8 @@ static int ltq_pinctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 
 	for_each_child_of_node(np_config, np)
 		max_maps += ltq_pinctrl_dt_subnode_size(np);
-	*map = kzalloc(max_maps * sizeof(struct pinctrl_map) * 2, GFP_KERNEL);
+	*map = kzalloc(array3_size(max_maps, sizeof(struct pinctrl_map), 2),
+		       GFP_KERNEL);
 	if (!*map)
 		return -ENOMEM;
 	tmp = *map;

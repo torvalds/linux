@@ -1,16 +1,17 @@
-/*
- * simple-card-utils.c
- *
- * Copyright (c) 2016 Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// simple-card-utils.c
+//
+// Copyright (c) 2016 Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+
 #include <linux/clk.h>
+#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_gpio.h>
 #include <linux/of_graph.h>
+#include <sound/jack.h>
 #include <sound/simple_card_utils.h>
 
 void asoc_simple_card_convert_fixup(struct asoc_simple_card_data *data,
@@ -172,10 +173,22 @@ int asoc_simple_card_parse_clk(struct device *dev,
 			       struct device_node *node,
 			       struct device_node *dai_of_node,
 			       struct asoc_simple_dai *simple_dai,
-			       const char *name)
+			       const char *dai_name,
+			       struct snd_soc_dai_link_component *dlc)
 {
 	struct clk *clk;
 	u32 val;
+
+	/*
+	 * Use snd_soc_dai_link_component instead of legacy style.
+	 * It is only for codec, but cpu will be supported in the future.
+	 * see
+	 *	soc-core.c :: snd_soc_init_multicodec()
+	 */
+	if (dlc) {
+		dai_of_node	= dlc->of_node;
+		dai_name	= dlc->dai_name;
+	}
 
 	/*
 	 * Parse dai->sysclk come from "clocks = <&xxx>"
@@ -199,7 +212,7 @@ int asoc_simple_card_parse_clk(struct device *dev,
 	if (of_property_read_bool(node, "system-clock-direction-out"))
 		simple_dai->clk_direction = SND_SOC_CLOCK_OUT;
 
-	dev_dbg(dev, "%s : sysclk = %d, direction %d\n", name,
+	dev_dbg(dev, "%s : sysclk = %d, direction %d\n", dai_name,
 		simple_dai->sysclk, simple_dai->clk_direction);
 
 	return 0;
@@ -207,6 +220,7 @@ int asoc_simple_card_parse_clk(struct device *dev,
 EXPORT_SYMBOL_GPL(asoc_simple_card_parse_clk);
 
 int asoc_simple_card_parse_dai(struct device_node *node,
+				    struct snd_soc_dai_link_component *dlc,
 				    struct device_node **dai_of_node,
 				    const char **dai_name,
 				    const char *list_name,
@@ -218,6 +232,17 @@ int asoc_simple_card_parse_dai(struct device_node *node,
 
 	if (!node)
 		return 0;
+
+	/*
+	 * Use snd_soc_dai_link_component instead of legacy style.
+	 * It is only for codec, but cpu will be supported in the future.
+	 * see
+	 *	soc-core.c :: snd_soc_init_multicodec()
+	 */
+	if (dlc) {
+		dai_name	= &dlc->dai_name;
+		dai_of_node	= &dlc->of_node;
+	}
 
 	/*
 	 * Get node via "sound-dai = <&phandle port>"
@@ -277,12 +302,24 @@ static int asoc_simple_card_get_dai_id(struct device_node *ep)
 }
 
 int asoc_simple_card_parse_graph_dai(struct device_node *ep,
+				     struct snd_soc_dai_link_component *dlc,
 				     struct device_node **dai_of_node,
 				     const char **dai_name)
 {
 	struct device_node *node;
 	struct of_phandle_args args;
 	int ret;
+
+	/*
+	 * Use snd_soc_dai_link_component instead of legacy style.
+	 * It is only for codec, but cpu will be supported in the future.
+	 * see
+	 *	soc-core.c :: snd_soc_init_multicodec()
+	 */
+	if (dlc) {
+		dai_name	= &dlc->dai_name;
+		dai_of_node	= &dlc->of_node;
+	}
 
 	if (!ep)
 		return 0;
@@ -339,10 +376,11 @@ EXPORT_SYMBOL_GPL(asoc_simple_card_init_dai);
 int asoc_simple_card_canonicalize_dailink(struct snd_soc_dai_link *dai_link)
 {
 	/* Assumes platform == cpu */
-	if (!dai_link->platform_of_node)
-		dai_link->platform_of_node = dai_link->cpu_of_node;
+	if (!dai_link->platform->of_node)
+		dai_link->platform->of_node = dai_link->cpu_of_node;
 
 	return 0;
+
 }
 EXPORT_SYMBOL_GPL(asoc_simple_card_canonicalize_dailink);
 
@@ -366,13 +404,11 @@ EXPORT_SYMBOL_GPL(asoc_simple_card_canonicalize_cpu);
 int asoc_simple_card_clean_reference(struct snd_soc_card *card)
 {
 	struct snd_soc_dai_link *dai_link;
-	int num_links;
+	int i;
 
-	for (num_links = 0, dai_link = card->dai_link;
-	     num_links < card->num_links;
-	     num_links++, dai_link++) {
+	for_each_card_prelinks(card, i, dai_link) {
 		of_node_put(dai_link->cpu_of_node);
-		of_node_put(dai_link->codec_of_node);
+		of_node_put(dai_link->codecs->of_node);
 	}
 	return 0;
 }
@@ -418,6 +454,61 @@ int asoc_simple_card_of_parse_widgets(struct snd_soc_card *card,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(asoc_simple_card_of_parse_widgets);
+
+int asoc_simple_card_init_jack(struct snd_soc_card *card,
+			       struct asoc_simple_jack *sjack,
+			       int is_hp, char *prefix)
+{
+	struct device *dev = card->dev;
+	enum of_gpio_flags flags;
+	char prop[128];
+	char *pin_name;
+	char *gpio_name;
+	int mask;
+	int det;
+
+	if (!prefix)
+		prefix = "";
+
+	sjack->gpio.gpio = -ENOENT;
+
+	if (is_hp) {
+		snprintf(prop, sizeof(prop), "%shp-det-gpio", prefix);
+		pin_name	= "Headphones";
+		gpio_name	= "Headphone detection";
+		mask		= SND_JACK_HEADPHONE;
+	} else {
+		snprintf(prop, sizeof(prop), "%smic-det-gpio", prefix);
+		pin_name	= "Mic Jack";
+		gpio_name	= "Mic detection";
+		mask		= SND_JACK_MICROPHONE;
+	}
+
+	det = of_get_named_gpio_flags(dev->of_node, prop, 0, &flags);
+	if (det == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
+
+	if (gpio_is_valid(det)) {
+		sjack->pin.pin		= pin_name;
+		sjack->pin.mask		= mask;
+
+		sjack->gpio.name	= gpio_name;
+		sjack->gpio.report	= mask;
+		sjack->gpio.gpio	= det;
+		sjack->gpio.invert	= !!(flags & OF_GPIO_ACTIVE_LOW);
+		sjack->gpio.debounce_time = 150;
+
+		snd_soc_card_jack_new(card, pin_name, mask,
+				      &sjack->jack,
+				      &sjack->pin, 1);
+
+		snd_soc_jack_add_gpios(&sjack->jack, 1,
+				       &sjack->gpio);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(asoc_simple_card_init_jack);
 
 /* Module information */
 MODULE_AUTHOR("Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>");

@@ -84,7 +84,9 @@ static int tipc_sock_diag_handler_dump(struct sk_buff *skb,
 
 	if (h->nlmsg_flags & NLM_F_DUMP) {
 		struct netlink_dump_control c = {
+			.start = tipc_dump_start,
 			.dump = tipc_diag_dump,
+			.done = tipc_dump_done,
 		};
 		netlink_dump_start(net->diag_nlsk, skb, h, &c);
 		return 0;

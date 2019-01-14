@@ -1,14 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * rcar_du_plane.h  --  R-Car Display Unit Planes
  *
  * Copyright (C) 2013-2014 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #ifndef __RCAR_DU_PLANE_H__
@@ -50,7 +46,6 @@ static inline struct rcar_du_plane *to_rcar_plane(struct drm_plane *plane)
  * @state: base DRM plane state
  * @format: information about the pixel format used by the plane
  * @hwindex: 0-based hardware plane index, -1 means unused
- * @alpha: value of the plane alpha property
  * @colorkey: value of the plane colorkey property
  */
 struct rcar_du_plane_state {
@@ -60,7 +55,6 @@ struct rcar_du_plane_state {
 	int hwindex;
 	enum rcar_du_plane_source source;
 
-	unsigned int alpha;
 	unsigned int colorkey;
 };
 

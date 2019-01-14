@@ -1,5 +1,5 @@
 NOTE:
-This is a version of Documentation/HOWTO translated into Japanese.
+This is a version of Documentation/process/howto.rst translated into Japanese.
 This document is maintained by Tsugikazu Shibata <tshibata@ab.jp.nec.com>
 If you find any difference between this document and the original file or
 a problem with the translation, please contact the maintainer of this file.
@@ -109,7 +109,7 @@ linux-api@vger.kernel.org に送ることを勧めます。
     ています。 カーネルに関して初めての人はここからスタートすると良い
     でしょう。
 
-  :ref:`Documentation/Process/changes.rst <changes>`
+  :ref:`Documentation/process/changes.rst <changes>`
     このファイルはカーネルをうまく生成(訳注 build )し、走らせるのに最
     小限のレベルで必要な数々のソフトウェアパッケージの一覧を示してい
     ます。

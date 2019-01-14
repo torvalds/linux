@@ -207,7 +207,7 @@ struct ishtp_device {
 	struct work_struct bh_hbm_work;
 
 	/* IPC write queue */
-	struct wr_msg_ctl_info wr_processing_list_head, wr_free_list_head;
+	struct list_head wr_processing_list, wr_free_list;
 	/* For both processing list  and free list */
 	spinlock_t wr_processing_spinlock;
 

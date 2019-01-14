@@ -3942,9 +3942,8 @@ static const struct dvb_frontend_ops cxd2841er_dvbs_s2_ops = {
 	.delsys = { SYS_DVBS, SYS_DVBS2 },
 	.info = {
 		.name		= "Sony CXD2841ER DVB-S/S2 demodulator",
-		.frequency_min	= 500000,
-		.frequency_max	= 2500000,
-		.frequency_stepsize	= 0,
+		.frequency_min_hz	=  500 * MHz,
+		.frequency_max_hz	= 2500 * MHz,
 		.symbol_rate_min = 1000000,
 		.symbol_rate_max = 45000000,
 		.symbol_rate_tolerance = 500,
@@ -3988,8 +3987,8 @@ static struct dvb_frontend_ops cxd2841er_t_c_ops = {
 			FE_CAN_HIERARCHY_AUTO |
 			FE_CAN_MUTE_TS |
 			FE_CAN_2G_MODULATION,
-		.frequency_min = 42000000,
-		.frequency_max = 1002000000,
+		.frequency_min_hz =   42 * MHz,
+		.frequency_max_hz = 1002 * MHz,
 		.symbol_rate_min = 870000,
 		.symbol_rate_max = 11700000
 	},

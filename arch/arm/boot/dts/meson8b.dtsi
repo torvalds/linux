@@ -55,7 +55,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		cpu@200 {
+		cpu0: cpu@200 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a5";
 			next-level-cache = <&L2>;
@@ -64,7 +64,7 @@
 			resets = <&clkc CLKC_RESET_CPU0_SOFT_RESET>;
 		};
 
-		cpu@201 {
+		cpu1: cpu@201 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a5";
 			next-level-cache = <&L2>;
@@ -73,7 +73,7 @@
 			resets = <&clkc CLKC_RESET_CPU1_SOFT_RESET>;
 		};
 
-		cpu@202 {
+		cpu2: cpu@202 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a5";
 			next-level-cache = <&L2>;
@@ -82,7 +82,7 @@
 			resets = <&clkc CLKC_RESET_CPU2_SOFT_RESET>;
 		};
 
-		cpu@203 {
+		cpu3: cpu@203 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a5";
 			next-level-cache = <&L2>;
@@ -90,6 +90,15 @@
 			enable-method = "amlogic,meson8b-smp";
 			resets = <&clkc CLKC_RESET_CPU3_SOFT_RESET>;
 		};
+	};
+
+	pmu {
+		compatible = "arm,cortex-a5-pmu";
+		interrupts = <GIC_SPI 137 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 138 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 153 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 154 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-affinity = <&cpu0>, <&cpu1>, <&cpu2>, <&cpu3>;
 	};
 
 	reserved-memory {
@@ -139,6 +148,13 @@
 				function = "uart_ao";
 			};
 		};
+
+		ir_recv_pins: remote {
+			mux {
+				groups = "remote_input";
+				function = "remote";
+			};
+		};
 	};
 };
 
@@ -147,7 +163,7 @@
 		#clock-cells = <1>;
 		#reset-cells = <1>;
 		compatible = "amlogic,meson8b-clkc";
-		reg = <0x8000 0x4>, <0x4000 0x460>;
+		reg = <0x8000 0x4>, <0x4000 0x400>;
 	};
 
 	reset: reset-controller@4404 {
@@ -207,11 +223,56 @@
 			};
 		};
 
+		eth_rmii_pins: eth-rmii {
+			mux {
+				groups = "eth_tx_en",
+					 "eth_txd1_0",
+					 "eth_txd0_0",
+					 "eth_rx_clk",
+					 "eth_rx_dv",
+					 "eth_rxd1",
+					 "eth_rxd0",
+					 "eth_mdio_en",
+					 "eth_mdc";
+				function = "ethernet";
+			};
+		};
+
+		i2c_a_pins: i2c-a {
+			mux {
+				groups = "i2c_sda_a", "i2c_sck_a";
+				function = "i2c_a";
+			};
+		};
+
 		sd_b_pins: sd-b {
 			mux {
 				groups = "sd_d0_b", "sd_d1_b", "sd_d2_b",
 					"sd_d3_b", "sd_clk_b", "sd_cmd_b";
 				function = "sd_b";
+			};
+		};
+
+		pwm_c1_pins: pwm-c1 {
+			mux {
+				groups = "pwm_c1";
+				function = "pwm_c";
+			};
+		};
+
+		uart_b0_pins: uart-b0 {
+			mux {
+				groups = "uart_tx_b0",
+				       "uart_rx_b0";
+				function = "uart_b";
+			};
+		};
+
+		uart_b0_cts_rts_pins: uart-b0-cts-rts {
+			mux {
+				groups = "uart_cts_b0",
+				       "uart_rts_b0";
+				function = "uart_b";
 			};
 		};
 	};

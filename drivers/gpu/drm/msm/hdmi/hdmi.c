@@ -157,8 +157,10 @@ static struct hdmi *msm_hdmi_init(struct platform_device *pdev)
 		hdmi->qfprom_mmio = NULL;
 	}
 
-	hdmi->hpd_regs = devm_kzalloc(&pdev->dev, sizeof(hdmi->hpd_regs[0]) *
-			config->hpd_reg_cnt, GFP_KERNEL);
+	hdmi->hpd_regs = devm_kcalloc(&pdev->dev,
+				      config->hpd_reg_cnt,
+				      sizeof(hdmi->hpd_regs[0]),
+				      GFP_KERNEL);
 	if (!hdmi->hpd_regs) {
 		ret = -ENOMEM;
 		goto fail;
@@ -178,8 +180,10 @@ static struct hdmi *msm_hdmi_init(struct platform_device *pdev)
 		hdmi->hpd_regs[i] = reg;
 	}
 
-	hdmi->pwr_regs = devm_kzalloc(&pdev->dev, sizeof(hdmi->pwr_regs[0]) *
-			config->pwr_reg_cnt, GFP_KERNEL);
+	hdmi->pwr_regs = devm_kcalloc(&pdev->dev,
+				      config->pwr_reg_cnt,
+				      sizeof(hdmi->pwr_regs[0]),
+				      GFP_KERNEL);
 	if (!hdmi->pwr_regs) {
 		ret = -ENOMEM;
 		goto fail;
@@ -199,8 +203,10 @@ static struct hdmi *msm_hdmi_init(struct platform_device *pdev)
 		hdmi->pwr_regs[i] = reg;
 	}
 
-	hdmi->hpd_clks = devm_kzalloc(&pdev->dev, sizeof(hdmi->hpd_clks[0]) *
-			config->hpd_clk_cnt, GFP_KERNEL);
+	hdmi->hpd_clks = devm_kcalloc(&pdev->dev,
+				      config->hpd_clk_cnt,
+				      sizeof(hdmi->hpd_clks[0]),
+				      GFP_KERNEL);
 	if (!hdmi->hpd_clks) {
 		ret = -ENOMEM;
 		goto fail;
@@ -219,8 +225,10 @@ static struct hdmi *msm_hdmi_init(struct platform_device *pdev)
 		hdmi->hpd_clks[i] = clk;
 	}
 
-	hdmi->pwr_clks = devm_kzalloc(&pdev->dev, sizeof(hdmi->pwr_clks[0]) *
-			config->pwr_clk_cnt, GFP_KERNEL);
+	hdmi->pwr_clks = devm_kcalloc(&pdev->dev,
+				      config->pwr_clk_cnt,
+				      sizeof(hdmi->pwr_clks[0]),
+				      GFP_KERNEL);
 	if (!hdmi->pwr_clks) {
 		ret = -ENOMEM;
 		goto fail;
@@ -321,6 +329,12 @@ int msm_hdmi_modeset_init(struct hdmi *hdmi,
 	if (ret < 0) {
 		dev_err(dev->dev, "failed to request IRQ%u: %d\n",
 				hdmi->irq, ret);
+		goto fail;
+	}
+
+	ret = msm_hdmi_hpd_enable(hdmi->connector);
+	if (ret < 0) {
+		DRM_DEV_ERROR(&hdmi->pdev->dev, "failed to enable HPD: %d\n", ret);
 		goto fail;
 	}
 
@@ -563,7 +577,7 @@ static int msm_hdmi_bind(struct device *dev, struct device *master, void *data)
 {
 	struct drm_device *drm = dev_get_drvdata(master);
 	struct msm_drm_private *priv = drm->dev_private;
-	static struct hdmi_platform_config *hdmi_cfg;
+	struct hdmi_platform_config *hdmi_cfg;
 	struct hdmi *hdmi;
 	struct device_node *of_node = dev->of_node;
 	int i, err;

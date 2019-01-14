@@ -121,3 +121,23 @@ compute the CLOCK_REALTIME for its clock, at the same instant.
 
 Returns KVM_EOPNOTSUPP if the host does not use TSC clocksource,
 or if clock type is different than KVM_CLOCK_PAIRING_WALLCLOCK.
+
+6. KVM_HC_SEND_IPI
+------------------------
+Architecture: x86
+Status: active
+Purpose: Send IPIs to multiple vCPUs.
+
+a0: lower part of the bitmap of destination APIC IDs
+a1: higher part of the bitmap of destination APIC IDs
+a2: the lowest APIC ID in bitmap
+a3: APIC ICR
+
+The hypercall lets a guest send multicast IPIs, with at most 128
+128 destinations per hypercall in 64-bit mode and 64 vCPUs per
+hypercall in 32-bit mode.  The destinations are represented by a
+bitmap contained in the first two arguments (a0 and a1). Bit 0 of
+a0 corresponds to the APIC ID in the third argument (a2), bit 1
+corresponds to the APIC ID a2+1, and so on.
+
+Returns the number of CPUs to which the IPIs were delivered successfully.

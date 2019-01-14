@@ -42,20 +42,6 @@ enum cgs_ind_reg {
 	CGS_IND_REG__AUDIO_ENDPT
 };
 
-/**
- * enum cgs_engine - Engines that can be statically power-gated
- */
-enum cgs_engine {
-	CGS_ENGINE__UVD,
-	CGS_ENGINE__VCE,
-	CGS_ENGINE__VP8,
-	CGS_ENGINE__ACP_DMA,
-	CGS_ENGINE__ACP_DSP0,
-	CGS_ENGINE__ACP_DSP1,
-	CGS_ENGINE__ISP,
-	/* ... */
-};
-
 /*
  * enum cgs_ucode_id - Firmware types for different IPs
  */
@@ -76,17 +62,6 @@ enum cgs_ucode_id {
 	CGS_UCODE_ID_MAXIMUM,
 };
 
-/*
- * enum cgs_resource_type - GPU resource type
- */
-enum cgs_resource_type {
-	CGS_RESOURCE_TYPE_MMIO = 0,
-	CGS_RESOURCE_TYPE_FB,
-	CGS_RESOURCE_TYPE_IO,
-	CGS_RESOURCE_TYPE_DOORBELL,
-	CGS_RESOURCE_TYPE_ROM,
-};
-
 /**
  * struct cgs_firmware_info - Firmware information
  */
@@ -102,17 +77,6 @@ struct cgs_firmware_info {
 
 	void			*kptr;
 	bool			is_kicker;
-};
-
-struct cgs_mode_info {
-	uint32_t		refresh_rate;
-	uint32_t		vblank_time_us;
-};
-
-struct cgs_display_info {
-	uint32_t		display_count;
-	uint32_t		active_display_mask;
-	struct cgs_mode_info *mode_info;
 };
 
 typedef unsigned long cgs_handle_t;
@@ -170,93 +134,9 @@ typedef void (*cgs_write_ind_register_t)(struct cgs_device *cgs_device, enum cgs
 #define CGS_WREG32_FIELD_IND(device, space, reg, field, val)	\
 	cgs_write_ind_register(device, space, ix##reg, (cgs_read_ind_register(device, space, ix##reg) & ~CGS_REG_FIELD_MASK(reg, field)) | (val) << CGS_REG_FIELD_SHIFT(reg, field))
 
-/**
- * cgs_get_pci_resource() - provide access to a device resource (PCI BAR)
- * @cgs_device:	opaque device handle
- * @resource_type:	Type of Resource (MMIO, IO, ROM, FB, DOORBELL)
- * @size:	size of the region
- * @offset:	offset from the start of the region
- * @resource_base:	base address (not including offset) returned
- *
- * Return: 0 on success, -errno otherwise
- */
-typedef int (*cgs_get_pci_resource_t)(struct cgs_device *cgs_device,
-				      enum cgs_resource_type resource_type,
-				      uint64_t size,
-				      uint64_t offset,
-				      uint64_t *resource_base);
-
-/**
- * cgs_atom_get_data_table() - Get a pointer to an ATOM BIOS data table
- * @cgs_device:	opaque device handle
- * @table:	data table index
- * @size:	size of the table (output, may be NULL)
- * @frev:	table format revision (output, may be NULL)
- * @crev:	table content revision (output, may be NULL)
- *
- * Return: Pointer to start of the table, or NULL on failure
- */
-typedef const void *(*cgs_atom_get_data_table_t)(
-	struct cgs_device *cgs_device, unsigned table,
-	uint16_t *size, uint8_t *frev, uint8_t *crev);
-
-/**
- * cgs_atom_get_cmd_table_revs() - Get ATOM BIOS command table revisions
- * @cgs_device:	opaque device handle
- * @table:	data table index
- * @frev:	table format revision (output, may be NULL)
- * @crev:	table content revision (output, may be NULL)
- *
- * Return: 0 on success, -errno otherwise
- */
-typedef int (*cgs_atom_get_cmd_table_revs_t)(struct cgs_device *cgs_device, unsigned table,
-					     uint8_t *frev, uint8_t *crev);
-
-/**
- * cgs_atom_exec_cmd_table() - Execute an ATOM BIOS command table
- * @cgs_device: opaque device handle
- * @table:	command table index
- * @args:	arguments
- *
- * Return: 0 on success, -errno otherwise
- */
-typedef int (*cgs_atom_exec_cmd_table_t)(struct cgs_device *cgs_device,
-					 unsigned table, void *args);
-
-/**
- * cgs_get_firmware_info - Get the firmware information from core driver
- * @cgs_device: opaque device handle
- * @type: the firmware type
- * @info: returend firmware information
- *
- * Return: 0 on success, -errno otherwise
- */
 typedef int (*cgs_get_firmware_info)(struct cgs_device *cgs_device,
 				     enum cgs_ucode_id type,
 				     struct cgs_firmware_info *info);
-
-typedef int (*cgs_rel_firmware)(struct cgs_device *cgs_device,
-					 enum cgs_ucode_id type);
-
-typedef int(*cgs_set_powergating_state)(struct cgs_device *cgs_device,
-				  enum amd_ip_block_type block_type,
-				  enum amd_powergating_state state);
-
-typedef int(*cgs_set_clockgating_state)(struct cgs_device *cgs_device,
-				  enum amd_ip_block_type block_type,
-				  enum amd_clockgating_state state);
-
-typedef int(*cgs_get_active_displays_info)(
-					struct cgs_device *cgs_device,
-					struct cgs_display_info *info);
-
-typedef int (*cgs_notify_dpm_enabled)(struct cgs_device *cgs_device, bool enabled);
-
-typedef int (*cgs_is_virtualization_enabled_t)(void *cgs_device);
-
-typedef int (*cgs_enter_safe_mode)(struct cgs_device *cgs_device, bool en);
-
-typedef void (*cgs_lock_grbm_idx)(struct cgs_device *cgs_device, bool lock);
 
 struct cgs_ops {
 	/* MMIO access */
@@ -264,25 +144,8 @@ struct cgs_ops {
 	cgs_write_register_t write_register;
 	cgs_read_ind_register_t read_ind_register;
 	cgs_write_ind_register_t write_ind_register;
-	/* PCI resources */
-	cgs_get_pci_resource_t get_pci_resource;
-	/* ATOM BIOS */
-	cgs_atom_get_data_table_t atom_get_data_table;
-	cgs_atom_get_cmd_table_revs_t atom_get_cmd_table_revs;
-	cgs_atom_exec_cmd_table_t atom_exec_cmd_table;
 	/* Firmware Info */
 	cgs_get_firmware_info get_firmware_info;
-	cgs_rel_firmware rel_firmware;
-	/* cg pg interface*/
-	cgs_set_powergating_state set_powergating_state;
-	cgs_set_clockgating_state set_clockgating_state;
-	/* display manager */
-	cgs_get_active_displays_info get_active_displays_info;
-	/* notify dpm enabled */
-	cgs_notify_dpm_enabled notify_dpm_enabled;
-	cgs_is_virtualization_enabled_t is_virtualization_enabled;
-	cgs_enter_safe_mode enter_safe_mode;
-	cgs_lock_grbm_idx lock_grbm_idx;
 };
 
 struct cgs_os_ops; /* To be define in OS-specific CGS header */
@@ -309,40 +172,7 @@ struct cgs_device
 #define cgs_write_ind_register(dev,space,index,value)		\
 	CGS_CALL(write_ind_register,dev,space,index,value)
 
-#define cgs_atom_get_data_table(dev,table,size,frev,crev)	\
-	CGS_CALL(atom_get_data_table,dev,table,size,frev,crev)
-#define cgs_atom_get_cmd_table_revs(dev,table,frev,crev)	\
-	CGS_CALL(atom_get_cmd_table_revs,dev,table,frev,crev)
-#define cgs_atom_exec_cmd_table(dev,table,args)		\
-	CGS_CALL(atom_exec_cmd_table,dev,table,args)
-
 #define cgs_get_firmware_info(dev, type, info)	\
 	CGS_CALL(get_firmware_info, dev, type, info)
-#define cgs_rel_firmware(dev, type)	\
-	CGS_CALL(rel_firmware, dev, type)
-#define cgs_set_powergating_state(dev, block_type, state)	\
-	CGS_CALL(set_powergating_state, dev, block_type, state)
-#define cgs_set_clockgating_state(dev, block_type, state)	\
-	CGS_CALL(set_clockgating_state, dev, block_type, state)
-#define cgs_notify_dpm_enabled(dev, enabled)	\
-	CGS_CALL(notify_dpm_enabled, dev, enabled)
-
-#define cgs_get_active_displays_info(dev, info)	\
-	CGS_CALL(get_active_displays_info, dev, info)
-
-#define cgs_get_pci_resource(cgs_device, resource_type, size, offset, \
-	resource_base) \
-	CGS_CALL(get_pci_resource, cgs_device, resource_type, size, offset, \
-	resource_base)
-
-#define cgs_is_virtualization_enabled(cgs_device) \
-		CGS_CALL(is_virtualization_enabled, cgs_device)
-
-#define cgs_enter_safe_mode(cgs_device, en) \
-		CGS_CALL(enter_safe_mode, cgs_device, en)
-
-#define cgs_lock_grbm_idx(cgs_device, lock) \
-		CGS_CALL(lock_grbm_idx, cgs_device, lock)
-
 
 #endif /* _CGS_COMMON_H */

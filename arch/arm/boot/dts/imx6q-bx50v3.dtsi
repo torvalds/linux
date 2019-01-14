@@ -43,13 +43,10 @@
 #include "imx6q-ba16.dtsi"
 
 / {
-	clocks {
-		mclk: clock@0 {
-			compatible = "fixed-clock";
-			reg = <0>;
-			#clock-cells = <0>;
-			clock-frequency = <22000000>;
-		};
+	mclk: clock-mclk {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <22000000>;
 	};
 
 	gpio-poweroff {
@@ -107,8 +104,6 @@
 
 		switch@0 {
 			compatible = "marvell,mv88e6085"; /* 88e6240*/
-			#address-cells = <1>;
-			#size-cells = <0>;
 			reg = <0>;
 
 			switch_ports: ports {

@@ -3,7 +3,7 @@
 #
 
 config QUICC_ENGINE
-	bool "Freescale QUICC Engine (QE) Support"
+	bool "QUICC Engine (QE) framework support"
 	depends on FSL_SOC && PPC32
 	select GENERIC_ALLOCATOR
 	select CRC32

@@ -1,16 +1,12 @@
-/*
- * Renesas R-Car SSIU/SSI support
- *
- * Copyright (C) 2013 Renesas Solutions Corp.
- * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
- *
- * Based on fsi.c
- * Kuninori Morimoto <morimoto.kuninori@renesas.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Renesas R-Car SSIU/SSI support
+//
+// Copyright (C) 2013 Renesas Solutions Corp.
+// Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+//
+// Based on fsi.c
+// Kuninori Morimoto <morimoto.kuninori@renesas.com>
 
 /*
  * you can enable below define if you don't need
@@ -37,6 +33,7 @@
 #define	CHNL_4		(1 << 22)	/* Channels */
 #define	CHNL_6		(2 << 22)	/* Channels */
 #define	CHNL_8		(3 << 22)	/* Channels */
+#define DWL_MASK	(7 << 19)	/* Data Word Length mask */
 #define	DWL_8		(0 << 19)	/* Data Word Length */
 #define	DWL_16		(1 << 19)	/* Data Word Length */
 #define	DWL_18		(2 << 19)	/* Data Word Length */
@@ -45,7 +42,13 @@
 #define	DWL_24		(5 << 19)	/* Data Word Length */
 #define	DWL_32		(6 << 19)	/* Data Word Length */
 
+/*
+ * System word length
+ */
+#define	SWL_16		(1 << 16)	/* R/W System Word Length */
+#define	SWL_24		(2 << 16)	/* R/W System Word Length */
 #define	SWL_32		(3 << 16)	/* R/W System Word Length */
+
 #define	SCKD		(1 << 15)	/* Serial Bit Clock Direction */
 #define	SWSD		(1 << 14)	/* Serial WS Direction */
 #define	SCKP		(1 << 13)	/* Serial Bit Clock Polarity */
@@ -75,7 +78,6 @@
 
 struct rsnd_ssi {
 	struct rsnd_mod mod;
-	struct rsnd_mod *dma;
 
 	u32 flags;
 	u32 cr_own;
@@ -148,6 +150,11 @@ int rsnd_ssi_use_busif(struct rsnd_dai_stream *io)
 	return use_busif;
 }
 
+int rsnd_ssi_get_busif(struct rsnd_dai_stream *io)
+{
+	return 0; /* BUSIF0 only for now */
+}
+
 static void rsnd_ssi_status_clear(struct rsnd_mod *mod)
 {
 	rsnd_mod_write(mod, SSISR, 0);
@@ -171,7 +178,7 @@ static void rsnd_ssi_status_check(struct rsnd_mod *mod,
 		if (status & bit)
 			return;
 
-		udelay(50);
+		udelay(5);
 	}
 
 	dev_warn(dev, "%s[%d] status check failed\n",
@@ -223,14 +230,32 @@ u32 rsnd_ssi_multi_slaves_runtime(struct rsnd_dai_stream *io)
 	return 0;
 }
 
-unsigned int rsnd_ssi_clk_query(struct rsnd_priv *priv,
+static u32 rsnd_rdai_width_to_swl(struct rsnd_dai *rdai)
+{
+	struct rsnd_priv *priv = rsnd_rdai_to_priv(rdai);
+	struct device *dev = rsnd_priv_to_dev(priv);
+	int width = rsnd_rdai_width_get(rdai);
+
+	switch (width) {
+	case 32: return SWL_32;
+	case 24: return SWL_24;
+	case 16: return SWL_16;
+	}
+
+	dev_err(dev, "unsupported slot width value: %d\n", width);
+	return 0;
+}
+
+unsigned int rsnd_ssi_clk_query(struct rsnd_dai *rdai,
 		       int param1, int param2, int *idx)
 {
+	struct rsnd_priv *priv = rsnd_rdai_to_priv(rdai);
 	int ssi_clk_mul_table[] = {
 		1, 2, 4, 8, 16, 6, 12,
 	};
 	int j, ret;
 	unsigned int main_rate;
+	int width = rsnd_rdai_width_get(rdai);
 
 	for (j = 0; j < ARRAY_SIZE(ssi_clk_mul_table); j++) {
 
@@ -243,12 +268,7 @@ unsigned int rsnd_ssi_clk_query(struct rsnd_priv *priv,
 		if (j == 0)
 			continue;
 
-		/*
-		 * this driver is assuming that
-		 * system word is 32bit x chan
-		 * see rsnd_ssi_init()
-		 */
-		main_rate = 32 * param1 * param2 * ssi_clk_mul_table[j];
+		main_rate = width * param1 * param2 * ssi_clk_mul_table[j];
 
 		ret = rsnd_adg_clk_query(priv, main_rate);
 		if (ret < 0)
@@ -292,10 +312,15 @@ static int rsnd_ssi_master_clk_start(struct rsnd_mod *mod,
 			return -EINVAL;
 		}
 
+		if (ssi->chan != chan) {
+			dev_err(dev, "SSI parent/child should use same chan\n");
+			return -EINVAL;
+		}
+
 		return 0;
 	}
 
-	main_rate = rsnd_ssi_clk_query(priv, rate, chan, &idx);
+	main_rate = rsnd_ssi_clk_query(rdai, rate, chan, &idx);
 	if (!main_rate) {
 		dev_err(dev, "unsupported clock rate\n");
 		return -EIO;
@@ -315,9 +340,11 @@ static int rsnd_ssi_master_clk_start(struct rsnd_mod *mod,
 	 * SSICR  : FORCE, SCKD, SWSD
 	 * SSIWSR : CONT
 	 */
-	ssi->cr_clk = FORCE | SWL_32 | SCKD | SWSD | CKDV(idx);
+	ssi->cr_clk = FORCE | rsnd_rdai_width_to_swl(rdai) |
+			SCKD | SWSD | CKDV(idx);
 	ssi->wsr = CONT;
 	ssi->rate = rate;
+	ssi->chan = chan;
 
 	dev_dbg(dev, "%s[%d] outputs %u Hz\n",
 		rsnd_mod_name(mod),
@@ -343,6 +370,7 @@ static void rsnd_ssi_master_clk_stop(struct rsnd_mod *mod,
 
 	ssi->cr_clk	= 0;
 	ssi->rate	= 0;
+	ssi->chan	= 0;
 
 	rsnd_adg_ssi_clk_stop(mod);
 }
@@ -353,34 +381,50 @@ static void rsnd_ssi_config_init(struct rsnd_mod *mod,
 	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
 	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
-	u32 cr_own;
-	u32 cr_mode;
-	u32 wsr;
+	u32 cr_own	= ssi->cr_own;
+	u32 cr_mode	= ssi->cr_mode;
+	u32 wsr		= ssi->wsr;
 	int is_tdm;
-
-	if (rsnd_ssi_is_parent(mod, io))
-		return;
 
 	is_tdm = rsnd_runtime_is_ssi_tdm(io);
 
-	/*
-	 * always use 32bit system word.
-	 * see also rsnd_ssi_master_clk_enable()
-	 */
-	cr_own = FORCE | SWL_32;
+	cr_own |= FORCE | rsnd_rdai_width_to_swl(rdai);
 
 	if (rdai->bit_clk_inv)
 		cr_own |= SCKP;
-	if (rdai->frm_clk_inv ^ is_tdm)
+	if (rdai->frm_clk_inv && !is_tdm)
 		cr_own |= SWSP;
 	if (rdai->data_alignment)
 		cr_own |= SDTA;
 	if (rdai->sys_delay)
 		cr_own |= DEL;
+
+	/*
+	 * TDM Mode
+	 * see
+	 *	rsnd_ssiu_init_gen2()
+	 */
+	wsr = ssi->wsr;
+	if (is_tdm) {
+		wsr	|= WS_MODE;
+		cr_own	|= CHNL_8;
+	}
+
+	/*
+	 * We shouldn't exchange SWSP after running.
+	 * This means, parent needs to care it.
+	 */
+	if (rsnd_ssi_is_parent(mod, io))
+		goto init_end;
+
 	if (rsnd_io_is_play(io))
 		cr_own |= TRMD;
 
+	cr_own &= ~DWL_MASK;
 	switch (snd_pcm_format_width(runtime->format)) {
+	case 8:
+		cr_own |= DWL_8;
+		break;
 	case 16:
 		cr_own |= DWL_16;
 		break;
@@ -396,17 +440,7 @@ static void rsnd_ssi_config_init(struct rsnd_mod *mod,
 		cr_mode = DIEN;		/* PIO : enable Data interrupt */
 	}
 
-	/*
-	 * TDM Extend Mode
-	 * see
-	 *	rsnd_ssiu_init_gen2()
-	 */
-	wsr = ssi->wsr;
-	if (is_tdm) {
-		wsr	|= WS_MODE;
-		cr_own	|= CHNL_8;
-	}
-
+init_end:
 	ssi->cr_own	= cr_own;
 	ssi->cr_mode	= cr_mode;
 	ssi->wsr	= wsr;
@@ -431,7 +465,6 @@ static int rsnd_ssi_init(struct rsnd_mod *mod,
 			 struct rsnd_priv *priv)
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
-	int ret;
 
 	if (!rsnd_ssi_is_run_mods(mod, io))
 		return 0;
@@ -439,10 +472,6 @@ static int rsnd_ssi_init(struct rsnd_mod *mod,
 	ssi->usrcnt++;
 
 	rsnd_mod_power_on(mod);
-
-	ret = rsnd_ssi_master_clk_start(mod, io);
-	if (ret < 0)
-		return ret;
 
 	rsnd_ssi_config_init(mod, io);
 
@@ -470,14 +499,17 @@ static int rsnd_ssi_quit(struct rsnd_mod *mod,
 		return -EIO;
 	}
 
-	if (!rsnd_ssi_is_parent(mod, io))
-		ssi->cr_own	= 0;
-
 	rsnd_ssi_master_clk_stop(mod, io);
 
 	rsnd_mod_power_off(mod);
 
 	ssi->usrcnt--;
+
+	if (!ssi->usrcnt) {
+		ssi->cr_own	= 0;
+		ssi->cr_mode	= 0;
+		ssi->wsr	= 0;
+	}
 
 	return 0;
 }
@@ -487,26 +519,16 @@ static int rsnd_ssi_hw_params(struct rsnd_mod *mod,
 			      struct snd_pcm_substream *substream,
 			      struct snd_pcm_hw_params *params)
 {
-	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
-	int chan = params_channels(params);
+	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
+	unsigned int fmt_width = snd_pcm_format_width(params_format(params));
 
-	/*
-	 * snd_pcm_ops::hw_params will be called *before*
-	 * snd_soc_dai_ops::trigger. Thus, ssi->usrcnt is 0
-	 * in 1st call.
-	 */
-	if (ssi->usrcnt) {
-		/*
-		 * Already working.
-		 * It will happen if SSI has parent/child connection.
-		 * it is error if child <-> parent SSI uses
-		 * different channels.
-		 */
-		if (ssi->chan != chan)
-			return -EIO;
+	if (fmt_width > rdai->chan_width) {
+		struct rsnd_priv *priv = rsnd_io_to_priv(io);
+		struct device *dev = rsnd_priv_to_dev(priv);
+
+		dev_err(dev, "invalid combination of slot-width and format-data-width\n");
+		return -EINVAL;
 	}
-
-	ssi->chan = chan;
 
 	return 0;
 }
@@ -846,6 +868,13 @@ static int rsnd_ssi_pio_pointer(struct rsnd_mod *mod,
 	return 0;
 }
 
+static int rsnd_ssi_prepare(struct rsnd_mod *mod,
+			    struct rsnd_dai_stream *io,
+			    struct rsnd_priv *priv)
+{
+	return rsnd_ssi_master_clk_start(mod, io);
+}
+
 static struct rsnd_mod_ops rsnd_ssi_pio_ops = {
 	.name	= SSI_NAME,
 	.probe	= rsnd_ssi_common_probe,
@@ -858,13 +887,13 @@ static struct rsnd_mod_ops rsnd_ssi_pio_ops = {
 	.pointer = rsnd_ssi_pio_pointer,
 	.pcm_new = rsnd_ssi_pcm_new,
 	.hw_params = rsnd_ssi_hw_params,
+	.prepare = rsnd_ssi_prepare,
 };
 
 static int rsnd_ssi_dma_probe(struct rsnd_mod *mod,
 			      struct rsnd_dai_stream *io,
 			      struct rsnd_priv *priv)
 {
-	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	int ret;
 
 	/*
@@ -879,7 +908,7 @@ static int rsnd_ssi_dma_probe(struct rsnd_mod *mod,
 		return ret;
 
 	/* SSI probe might be called many times in MUX multi path */
-	ret = rsnd_dma_attach(io, mod, &ssi->dma);
+	ret = rsnd_dma_attach(io, mod, &io->dma);
 
 	return ret;
 }
@@ -934,6 +963,7 @@ static struct rsnd_mod_ops rsnd_ssi_dma_ops = {
 	.pcm_new = rsnd_ssi_pcm_new,
 	.fallback = rsnd_ssi_fallback,
 	.hw_params = rsnd_ssi_hw_params,
+	.prepare = rsnd_ssi_prepare,
 };
 
 int rsnd_ssi_is_dma_mode(struct rsnd_mod *mod)
@@ -1004,19 +1034,26 @@ static void __rsnd_ssi_parse_hdmi_connection(struct rsnd_priv *priv,
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_mod *mod = rsnd_io_to_mod_ssi(io);
 	struct rsnd_ssi *ssi;
+	struct device_node *remote_node = of_graph_get_port_parent(remote_ep);
+
+	/* support Gen3 only */
+	if (!rsnd_is_gen3(priv))
+		return;
 
 	if (!mod)
 		return;
 
 	ssi  = rsnd_mod_to_ssi(mod);
 
-	if (strstr(remote_ep->full_name, "hdmi0")) {
+	/* HDMI0 */
+	if (strstr(remote_node->full_name, "hdmi@fead0000")) {
 		rsnd_flags_set(ssi, RSND_SSI_HDMI0);
 		dev_dbg(dev, "%s[%d] connected to HDMI0\n",
 			 rsnd_mod_name(mod), rsnd_mod_id(mod));
 	}
 
-	if (strstr(remote_ep->full_name, "hdmi1")) {
+	/* HDMI1 */
+	if (strstr(remote_node->full_name, "hdmi@feae0000")) {
 		rsnd_flags_set(ssi, RSND_SSI_HDMI1);
 		dev_dbg(dev, "%s[%d] connected to HDMI1\n",
 			rsnd_mod_name(mod), rsnd_mod_id(mod));
@@ -1048,9 +1085,10 @@ struct rsnd_mod *rsnd_ssi_mod_get(struct rsnd_priv *priv, int id)
 
 int __rsnd_ssi_is_pin_sharing(struct rsnd_mod *mod)
 {
-	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
+	if (!mod)
+		return 0;
 
-	return !!(rsnd_flags_has(ssi, RSND_SSI_CLK_PIN_SHARE));
+	return !!(rsnd_flags_has(rsnd_mod_to_ssi(mod), RSND_SSI_CLK_PIN_SHARE));
 }
 
 static u32 *rsnd_ssi_get_status(struct rsnd_dai_stream *io,
@@ -1109,7 +1147,7 @@ int rsnd_ssi_probe(struct rsnd_priv *priv)
 		goto rsnd_ssi_probe_done;
 	}
 
-	ssi	= devm_kzalloc(dev, sizeof(*ssi) * nr, GFP_KERNEL);
+	ssi	= devm_kcalloc(dev, nr, sizeof(*ssi), GFP_KERNEL);
 	if (!ssi) {
 		ret = -ENOMEM;
 		goto rsnd_ssi_probe_done;

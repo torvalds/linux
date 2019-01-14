@@ -5,10 +5,6 @@
 
 source "drivers/pci/pcie/Kconfig"
 
-config PCI_BUS_ADDR_T_64BIT
-	def_bool y if (ARCH_DMA_ADDR_T_64BIT || 64BIT)
-	depends on PCI
-
 config PCI_MSI
 	bool "Message Signaled Interrupts (MSI and MSI-X)"
 	depends on PCI
@@ -71,6 +67,18 @@ config PCI_STUB
 
 	  When in doubt, say N.
 
+config PCI_PF_STUB
+	tristate "PCI PF Stub driver"
+	depends on PCI
+	depends on PCI_IOV
+	help
+	  Say Y or M here if you want to enable support for devices that
+	  require SR-IOV support, while at the same time the PF itself is
+	  not providing any actual services on the host itself such as
+	  storage or networking.
+
+	  When in doubt, say N.
+
 config XEN_PCIDEV_FRONTEND
         tristate "Xen PCI Frontend"
         depends on PCI && X86 && XEN
@@ -88,6 +96,9 @@ config PCI_ECAM
 	bool
 
 config PCI_LOCKLESS_CONFIG
+	bool
+
+config PCI_BRIDGE_EMUL
 	bool
 
 config PCI_IOV
@@ -124,6 +135,23 @@ config PCI_PASID
 
 	  If unsure, say N.
 
+config PCI_P2PDMA
+	bool "PCI peer-to-peer transfer support"
+	depends on PCI && ZONE_DEVICE
+	select GENERIC_ALLOCATOR
+	help
+	  Enableѕ drivers to do PCI peer-to-peer transactions to and from
+	  BARs that are exposed in other devices that are the part of
+	  the hierarchy where peer-to-peer DMA is guaranteed by the PCI
+	  specification to work (ie. anything below a single PCI bridge).
+
+	  Many PCIe root complexes do not support P2P transactions and
+	  it's hard to tell which support it at all, so at this time,
+	  P2P DMA transations must be between devices behind the same root
+	  port.
+
+	  If unsure, say N.
+
 config PCI_LABEL
 	def_bool y if (DMI || ACPI)
 	depends on PCI
@@ -137,8 +165,6 @@ config PCI_HYPERV
           PCI devices from a PCI backend to support PCI driver domains.
 
 source "drivers/pci/hotplug/Kconfig"
-source "drivers/pci/cadence/Kconfig"
-source "drivers/pci/dwc/Kconfig"
-source "drivers/pci/host/Kconfig"
+source "drivers/pci/controller/Kconfig"
 source "drivers/pci/endpoint/Kconfig"
 source "drivers/pci/switch/Kconfig"

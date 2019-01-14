@@ -121,7 +121,7 @@ int get_UCSname(struct component_name * uniName, struct dentry *dentry)
 		return -ENAMETOOLONG;
 
 	uniName->name =
-	    kmalloc((length + 1) * sizeof(wchar_t), GFP_NOFS);
+	    kmalloc_array(length + 1, sizeof(wchar_t), GFP_NOFS);
 
 	if (uniName->name == NULL)
 		return -ENOMEM;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2016 CNEX Labs
  * Initial release: Javier Gonzalez <javier@cnexlabs.com>
@@ -73,6 +74,16 @@ void pblk_rl_user_in(struct pblk_rl *rl, int nr_entries)
 	pblk_rl_kick_u_timer(rl);
 }
 
+void pblk_rl_werr_line_in(struct pblk_rl *rl)
+{
+	atomic_inc(&rl->werr_lines);
+}
+
+void pblk_rl_werr_line_out(struct pblk_rl *rl)
+{
+	atomic_dec(&rl->werr_lines);
+}
+
 void pblk_rl_gc_in(struct pblk_rl *rl, int nr_entries)
 {
 	atomic_add(nr_entries, &rl->rb_gc_cnt);
@@ -99,15 +110,25 @@ static void __pblk_rl_update_rates(struct pblk_rl *rl,
 {
 	struct pblk *pblk = container_of(rl, struct pblk, rl);
 	int max = rl->rb_budget;
+	int werr_gc_needed = atomic_read(&rl->werr_lines);
 
 	if (free_blocks >= rl->high) {
-		rl->rb_user_max = max;
-		rl->rb_gc_max = 0;
-		rl->rb_state = PBLK_RL_HIGH;
+		if (werr_gc_needed) {
+			/* Allocate a small budget for recovering
+			 * lines with write errors
+			 */
+			rl->rb_gc_max = 1 << rl->rb_windows_pw;
+			rl->rb_user_max = max - rl->rb_gc_max;
+			rl->rb_state = PBLK_RL_WERR;
+		} else {
+			rl->rb_user_max = max;
+			rl->rb_gc_max = 0;
+			rl->rb_state = PBLK_RL_OFF;
+		}
 	} else if (free_blocks < rl->high) {
 		int shift = rl->high_pw - rl->rb_windows_pw;
 		int user_windows = free_blocks >> shift;
-		int user_max = user_windows << PBLK_MAX_REQ_ADDRS_PW;
+		int user_max = user_windows << ilog2(NVM_MAX_VLBA);
 
 		rl->rb_user_max = user_max;
 		rl->rb_gc_max = max - user_max;
@@ -124,7 +145,7 @@ static void __pblk_rl_update_rates(struct pblk_rl *rl,
 		rl->rb_state = PBLK_RL_LOW;
 	}
 
-	if (rl->rb_state == (PBLK_RL_MID | PBLK_RL_LOW))
+	if (rl->rb_state != PBLK_RL_OFF)
 		pblk_gc_should_start(pblk);
 	else
 		pblk_gc_should_stop(pblk);
@@ -208,7 +229,7 @@ void pblk_rl_init(struct pblk_rl *rl, int budget)
 	rl->rsv_blocks = min_blocks;
 
 	/* This will always be a power-of-2 */
-	rb_windows = budget / PBLK_MAX_REQ_ADDRS;
+	rb_windows = budget / NVM_MAX_VLBA;
 	rl->rb_windows_pw = get_count_order(rb_windows);
 
 	/* To start with, all buffer is available to user I/O writers */
@@ -221,6 +242,7 @@ void pblk_rl_init(struct pblk_rl *rl, int budget)
 	atomic_set(&rl->rb_user_cnt, 0);
 	atomic_set(&rl->rb_gc_cnt, 0);
 	atomic_set(&rl->rb_space, -1);
+	atomic_set(&rl->werr_lines, 0);
 
 	timer_setup(&rl->u_timer, pblk_rl_u_timer, 0);
 

@@ -80,6 +80,26 @@ After the instruction is single-stepped, Kprobes executes the
 "post_handler," if any, that is associated with the kprobe.
 Execution then continues with the instruction following the probepoint.
 
+Changing Execution Path
+-----------------------
+
+Since kprobes can probe into a running kernel code, it can change the
+register set, including instruction pointer. This operation requires
+maximum care, such as keeping the stack frame, recovering the execution
+path etc. Since it operates on a running kernel and needs deep knowledge
+of computer architecture and concurrent computing, you can easily shoot
+your foot.
+
+If you change the instruction pointer (and set up other related
+registers) in pre_handler, you must return !0 so that kprobes stops
+single stepping and just returns to the given address.
+This also means post_handler should not be called anymore.
+
+Note that this operation may be harder on some architectures which use
+TOC (Table of Contents) for function call, since you have to setup a new
+TOC for your function in your module, and recover the old one after
+returning from it.
+
 Return Probes
 -------------
 
@@ -262,7 +282,7 @@ is optimized, that modification is ignored.  Thus, if you want to
 tweak the kernel's execution path, you need to suppress optimization,
 using one of the following techniques:
 
-- Specify an empty function for the kprobe's post_handler or break_handler.
+- Specify an empty function for the kprobe's post_handler.
 
 or
 
@@ -474,7 +494,7 @@ error occurs during registration, all probes in the array, up to
 the bad probe, are safely unregistered before the register_*probes
 function returns.
 
-- kps/rps/jps: an array of pointers to ``*probe`` data structures
+- kps/rps: an array of pointers to ``*probe`` data structures
 - num: the number of the array entries.
 
 .. note::
@@ -566,12 +586,11 @@ the same handler) may run concurrently on different CPUs.
 Kprobes does not use mutexes or allocate memory except during
 registration and unregistration.
 
-Probe handlers are run with preemption disabled.  Depending on the
-architecture and optimization state, handlers may also run with
-interrupts disabled (e.g., kretprobe handlers and optimized kprobe
-handlers run without interrupt disabled on x86/x86-64).  In any case,
-your handler should not yield the CPU (e.g., by attempting to acquire
-a semaphore).
+Probe handlers are run with preemption disabled or interrupt disabled,
+which depends on the architecture and optimization state.  (e.g.,
+kretprobe handlers and optimized kprobe handlers run without interrupt
+disabled on x86/x86-64).  In any case, your handler should not yield
+the CPU (e.g., by attempting to acquire a semaphore, or waiting I/O).
 
 Since a return probe is implemented by replacing the return
 address with the trampoline's address, stack backtraces and calls
@@ -724,8 +743,8 @@ migrate your tool to one of the following options:
 
   See following documents:
 
-  - Documentation/trace/kprobetrace.txt
-  - Documentation/trace/events.txt
+  - Documentation/trace/kprobetrace.rst
+  - Documentation/trace/events.rst
   - tools/perf/Documentation/perf-probe.txt
 
 

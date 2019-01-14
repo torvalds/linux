@@ -116,11 +116,12 @@ out:
  * @buf: buffer to receive
  * @length: buffer length
  * @mode: io mode
+ * @timeout: recv timeout, 0 for infinite timeout
  *
  * Return: read size in bytes of < 0 on error
  */
 ssize_t __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length,
-		      unsigned int mode)
+		      unsigned int mode, unsigned long timeout)
 {
 	struct mei_device *bus;
 	struct mei_cl_cb *cb;
@@ -158,13 +159,28 @@ ssize_t __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length,
 
 		mutex_unlock(&bus->device_lock);
 
-		if (wait_event_interruptible(cl->rx_wait,
-				(!list_empty(&cl->rd_completed)) ||
-				(!mei_cl_is_connected(cl)))) {
-
-			if (signal_pending(current))
-				return -EINTR;
-			return -ERESTARTSYS;
+		if (timeout) {
+			rets = wait_event_interruptible_timeout
+					(cl->rx_wait,
+					(!list_empty(&cl->rd_completed)) ||
+					(!mei_cl_is_connected(cl)),
+					msecs_to_jiffies(timeout));
+			if (rets == 0)
+				return -ETIME;
+			if (rets < 0) {
+				if (signal_pending(current))
+					return -EINTR;
+				return -ERESTARTSYS;
+			}
+		} else {
+			if (wait_event_interruptible
+					(cl->rx_wait,
+					(!list_empty(&cl->rd_completed)) ||
+					(!mei_cl_is_connected(cl)))) {
+				if (signal_pending(current))
+					return -EINTR;
+				return -ERESTARTSYS;
+			}
 		}
 
 		mutex_lock(&bus->device_lock);
@@ -231,7 +247,7 @@ ssize_t mei_cldev_recv_nonblock(struct mei_cl_device *cldev, u8 *buf,
 {
 	struct mei_cl *cl = cldev->cl;
 
-	return __mei_cl_recv(cl, buf, length, MEI_CL_IO_RX_NONBLOCK);
+	return __mei_cl_recv(cl, buf, length, MEI_CL_IO_RX_NONBLOCK, 0);
 }
 EXPORT_SYMBOL_GPL(mei_cldev_recv_nonblock);
 
@@ -248,7 +264,7 @@ ssize_t mei_cldev_recv(struct mei_cl_device *cldev, u8 *buf, size_t length)
 {
 	struct mei_cl *cl = cldev->cl;
 
-	return __mei_cl_recv(cl, buf, length, 0);
+	return __mei_cl_recv(cl, buf, length, 0, 0);
 }
 EXPORT_SYMBOL_GPL(mei_cldev_recv);
 
@@ -505,17 +521,15 @@ int mei_cldev_enable(struct mei_cl_device *cldev)
 
 	cl = cldev->cl;
 
+	mutex_lock(&bus->device_lock);
 	if (cl->state == MEI_FILE_UNINITIALIZED) {
-		mutex_lock(&bus->device_lock);
 		ret = mei_cl_link(cl);
-		mutex_unlock(&bus->device_lock);
 		if (ret)
-			return ret;
+			goto out;
 		/* update pointers */
 		cl->cldev = cldev;
 	}
 
-	mutex_lock(&bus->device_lock);
 	if (mei_cl_is_connected(cl)) {
 		ret = 0;
 		goto out;
@@ -600,9 +614,8 @@ int mei_cldev_disable(struct mei_cl_device *cldev)
 	if (err < 0)
 		dev_err(bus->dev, "Could not disconnect from the ME client\n");
 
-out:
 	mei_cl_bus_module_put(cldev);
-
+out:
 	/* Flush queues and remove any pending read */
 	mei_cl_flush_queues(cl, NULL);
 	mei_cl_unlink(cl);
@@ -860,12 +873,13 @@ static void mei_cl_bus_dev_release(struct device *dev)
 
 	mei_me_cl_put(cldev->me_cl);
 	mei_dev_bus_put(cldev->bus);
+	mei_cl_unlink(cldev->cl);
 	kfree(cldev->cl);
 	kfree(cldev);
 }
 
 static const struct device_type mei_cl_device_type = {
-	.release	= mei_cl_bus_dev_release,
+	.release = mei_cl_bus_dev_release,
 };
 
 /**

@@ -25,6 +25,9 @@
  * @read_hpd:	read the HPD pin. Return true if high, false if low or
  *		an error if negative. If NULL or -ENOTTY is returned,
  *		then this is not supported.
+ * @read_5v:	read the 5V pin. Return true if high, false if low or
+ *		an error if negative. If NULL or -ENOTTY is returned,
+ *		then this is not supported.
  *
  * These operations are used by the cec pin framework to manipulate
  * the CEC pin.
@@ -38,6 +41,7 @@ struct cec_pin_ops {
 	void (*free)(struct cec_adapter *adap);
 	void (*status)(struct cec_adapter *adap, struct seq_file *file);
 	int  (*read_hpd)(struct cec_adapter *adap);
+	int  (*read_5v)(struct cec_adapter *adap);
 };
 
 /**

@@ -9,6 +9,7 @@
  */
 
 /dts-v1/;
+#include "vexpress-v2m.dtsi"
 
 / {
 	model = "V2P-CA9";
@@ -301,7 +302,7 @@
 		};
 	};
 
-	smb@4000000 {
+	smb: smb@4000000 {
 		compatible = "simple-bus";
 
 		#address-cells = <2>;
@@ -357,8 +358,6 @@
 				<0 0 40 &gic 0 40 4>,
 				<0 0 41 &gic 0 41 4>,
 				<0 0 42 &gic 0 42 4>;
-
-		/include/ "vexpress-v2m.dtsi"
 	};
 
 	site2: hsb@e0000000 {

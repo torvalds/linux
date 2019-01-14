@@ -15,7 +15,7 @@
 #include <linux/exportfs.h>
 
 #include "inotify/inotify.h"
-#include "../fs/mount.h"
+#include "fsnotify.h"
 
 #if defined(CONFIG_PROC_FS)
 
@@ -77,11 +77,11 @@ static void inotify_fdinfo(struct seq_file *m, struct fsnotify_mark *mark)
 	struct inotify_inode_mark *inode_mark;
 	struct inode *inode;
 
-	if (!(mark->connector->flags & FSNOTIFY_OBJ_TYPE_INODE))
+	if (mark->connector->type != FSNOTIFY_OBJ_TYPE_INODE)
 		return;
 
 	inode_mark = container_of(mark, struct inotify_inode_mark, fsn_mark);
-	inode = igrab(mark->connector->inode);
+	inode = igrab(fsnotify_conn_inode(mark->connector));
 	if (inode) {
 		/*
 		 * IN_ALL_EVENTS represents all of the mask bits
@@ -116,8 +116,8 @@ static void fanotify_fdinfo(struct seq_file *m, struct fsnotify_mark *mark)
 	if (mark->flags & FSNOTIFY_MARK_FLAG_IGNORED_SURV_MODIFY)
 		mflags |= FAN_MARK_IGNORED_SURV_MODIFY;
 
-	if (mark->connector->flags & FSNOTIFY_OBJ_TYPE_INODE) {
-		inode = igrab(mark->connector->inode);
+	if (mark->connector->type == FSNOTIFY_OBJ_TYPE_INODE) {
+		inode = igrab(fsnotify_conn_inode(mark->connector));
 		if (!inode)
 			return;
 		seq_printf(m, "fanotify ino:%lx sdev:%x mflags:%x mask:%x ignored_mask:%x ",
@@ -126,42 +126,25 @@ static void fanotify_fdinfo(struct seq_file *m, struct fsnotify_mark *mark)
 		show_mark_fhandle(m, inode);
 		seq_putc(m, '\n');
 		iput(inode);
-	} else if (mark->connector->flags & FSNOTIFY_OBJ_TYPE_VFSMOUNT) {
-		struct mount *mnt = real_mount(mark->connector->mnt);
+	} else if (mark->connector->type == FSNOTIFY_OBJ_TYPE_VFSMOUNT) {
+		struct mount *mnt = fsnotify_conn_mount(mark->connector);
 
 		seq_printf(m, "fanotify mnt_id:%x mflags:%x mask:%x ignored_mask:%x\n",
 			   mnt->mnt_id, mflags, mark->mask, mark->ignored_mask);
+	} else if (mark->connector->type == FSNOTIFY_OBJ_TYPE_SB) {
+		struct super_block *sb = fsnotify_conn_sb(mark->connector);
+
+		seq_printf(m, "fanotify sdev:%x mflags:%x mask:%x ignored_mask:%x\n",
+			   sb->s_dev, mflags, mark->mask, mark->ignored_mask);
 	}
 }
 
 void fanotify_show_fdinfo(struct seq_file *m, struct file *f)
 {
 	struct fsnotify_group *group = f->private_data;
-	unsigned int flags = 0;
-
-	switch (group->priority) {
-	case FS_PRIO_0:
-		flags |= FAN_CLASS_NOTIF;
-		break;
-	case FS_PRIO_1:
-		flags |= FAN_CLASS_CONTENT;
-		break;
-	case FS_PRIO_2:
-		flags |= FAN_CLASS_PRE_CONTENT;
-		break;
-	}
-
-	if (group->max_events == UINT_MAX)
-		flags |= FAN_UNLIMITED_QUEUE;
-
-	if (group->fanotify_data.max_marks == UINT_MAX)
-		flags |= FAN_UNLIMITED_MARKS;
-
-	if (group->fanotify_data.audit)
-		flags |= FAN_ENABLE_AUDIT;
 
 	seq_printf(m, "fanotify flags:%x event-flags:%x\n",
-		   flags, group->fanotify_data.f_flags);
+		   group->fanotify_data.flags, group->fanotify_data.f_flags);
 
 	show_fdinfo(m, f, fanotify_fdinfo);
 }

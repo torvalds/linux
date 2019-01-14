@@ -64,7 +64,7 @@ static ssize_t global_mmio_read(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
-static int global_mmio_fault(struct vm_fault *vmf)
+static vm_fault_t global_mmio_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
 	struct ocxl_afu *afu = vma->vm_private_data;
@@ -75,8 +75,7 @@ static int global_mmio_fault(struct vm_fault *vmf)
 
 	offset = vmf->pgoff;
 	offset += (afu->global_mmio_start >> PAGE_SHIFT);
-	vm_insert_pfn(vma, vmf->address, offset);
-	return VM_FAULT_NOPAGE;
+	return vmf_insert_pfn(vma, vmf->address, offset);
 }
 
 static const struct vm_operations_struct global_mmio_vmops = {

@@ -143,20 +143,13 @@ config DMA_JZ4740
 
 config DMA_JZ4780
 	tristate "JZ4780 DMA support"
-	depends on MACH_JZ4780 || COMPILE_TEST
+	depends on MIPS || COMPILE_TEST
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 	help
 	  This selects support for the DMA controller in Ingenic JZ4780 SoCs.
 	  If you have a board based on such a SoC and wish to use DMA for
 	  devices which can use the DMA controller, say Y or M here.
-
-config DMA_OMAP
-	tristate "OMAP DMA support"
-	depends on ARCH_OMAP || COMPILE_TEST
-	select DMA_ENGINE
-	select DMA_VIRTUAL_CHANNELS
-	select TI_DMA_CROSSBAR if (SOC_DRA7XX || COMPILE_TEST)
 
 config DMA_SA11X0
 	tristate "SA-11x0 DMA support"
@@ -257,6 +250,7 @@ config IMX_SDMA
 	tristate "i.MX SDMA support"
 	depends on ARCH_MXC
 	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
 	help
 	  Support the i.MX SDMA engine. This engine is integrated into
 	  Freescale i.MX25/31/35/51/53/6 chips.
@@ -326,6 +320,17 @@ config LPC18XX_DMAMUX
 	help
 	  Enable support for DMA on NXP LPC18xx/43xx platforms
 	  with PL080 and multiplexed DMA request lines.
+
+config MCF_EDMA
+	tristate "Freescale eDMA engine support, ColdFire mcf5441x SoCs"
+	depends on M5441x || COMPILE_TEST
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Support the Freescale ColdFire eDMA engine, 64-channel
+	  implementation that performs complex data transfers with
+	  minimal intervention from a host processor.
+	  This module can be found on Freescale ColdFire mcf5441x SoCs.
 
 config MMP_PDMA
 	bool "MMP PDMA support"
@@ -419,6 +424,14 @@ config NBPFAXI_DMA
 	depends on ARM || COMPILE_TEST
 	help
 	  Support for "Type-AXI" NBPF DMA IPs from Renesas
+
+config OWL_DMA
+	tristate "Actions Semi Owl SoCs DMA support"
+	depends on ARCH_ACTIONS
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Enable support for the Actions Semi Owl SoCs DMA controller.
 
 config PCH_DMA
 	tristate "Intel EG20T PCH / LAPIS Semicon IOH(ML7213/ML7223/ML7831) DMA"
@@ -574,28 +587,6 @@ config TIMB_DMA
 	help
 	  Enable support for the Timberdale FPGA DMA engine.
 
-config TI_CPPI41
-	tristate "CPPI 4.1 DMA support"
-	depends on (ARCH_OMAP || ARCH_DAVINCI_DA8XX)
-	select DMA_ENGINE
-	help
-	  The Communications Port Programming Interface (CPPI) 4.1 DMA engine
-	  is currently used by the USB driver on AM335x and DA8xx platforms.
-
-config TI_DMA_CROSSBAR
-	bool
-
-config TI_EDMA
-	bool "TI EDMA support"
-	depends on ARCH_DAVINCI || ARCH_OMAP || ARCH_KEYSTONE || COMPILE_TEST
-	select DMA_ENGINE
-	select DMA_VIRTUAL_CHANNELS
-	select TI_DMA_CROSSBAR if (ARCH_OMAP || COMPILE_TEST)
-	default n
-	help
-	  Enable support for the TI EDMA controller. This DMA
-	  engine is found on TI DaVinci and AM33xx parts.
-
 config XGENE_DMA
 	tristate "APM X-Gene DMA support"
 	depends on ARCH_XGENE || COMPILE_TEST
@@ -652,6 +643,8 @@ source "drivers/dma/dw/Kconfig"
 source "drivers/dma/hsu/Kconfig"
 
 source "drivers/dma/sh/Kconfig"
+
+source "drivers/dma/ti/Kconfig"
 
 # clients
 comment "DMA Clients"

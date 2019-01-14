@@ -36,6 +36,7 @@ Required standard properties:
 		"ti,sysc-omap-aes"
 		"ti,sysc-mcasp"
 		"ti,sysc-usb-host-fs"
+		"ti,sysc-dra7-mcan"
 
 - reg		shall have register areas implemented for the interconnect
 		target module in question such as revision, sysc and syss
@@ -79,7 +80,11 @@ Optional properties:
 		mode as for example omap4 L4_CFG_CLKCTRL
 
 - clock-names	should contain at least "fck", and optionally also "ick"
-		depending on the SoC and the interconnect target module
+		depending on the SoC and the interconnect target module,
+		some interconnect target modules also need additional
+		optional clocks that can be specified as listed in TRM
+		for the related CLKCTRL register bits 8 to 15 such as
+		"dbclk" or "clk32k" depending on their role
 
 - ti,hwmods	optional TI interconnect module name to use legacy
 		hwmod platform data

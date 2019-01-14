@@ -3,8 +3,16 @@
 # see Documentation/kbuild/kconfig-language.txt.
 #
 
+config 64BIT
+	bool
+
+config 32BIT
+	bool
+
 config RISCV
 	def_bool y
+	# even on 32-bit, physical (and DMA) addresses are > 32-bits
+	select PHYS_ADDR_T_64BIT
 	select OF
 	select OF_EARLY_FLATTREE
 	select OF_IRQ
@@ -20,13 +28,12 @@ config RISCV
 	select GENERIC_STRNLEN_USER
 	select GENERIC_SMP_IDLE_THREAD
 	select GENERIC_ATOMIC64 if !64BIT || !RISCV_ISA_A
-	select HAVE_MEMBLOCK
 	select HAVE_MEMBLOCK_NODE_MAP
-	select HAVE_DMA_API_DEBUG
 	select HAVE_DMA_CONTIGUOUS
+	select HAVE_FUTEX_CMPXCHG if FUTEX
 	select HAVE_GENERIC_DMA_COHERENT
+	select HAVE_PERF_EVENTS
 	select IRQ_DOMAIN
-	select NO_BOOTMEM
 	select RISCV_ISA_A if SMP
 	select SPARSE_IRQ
 	select SYSCTL_EXCEPTION_TRACE
@@ -35,20 +42,14 @@ config RISCV
 	select THREAD_INFO_IN_TASK
 	select RISCV_TIMER
 	select GENERIC_IRQ_MULTI_HANDLER
+	select ARCH_HAS_PTE_SPECIAL
 
 config MMU
 	def_bool y
 
-# even on 32-bit, physical (and DMA) addresses are > 32-bits
-config ARCH_PHYS_ADDR_T_64BIT
-	def_bool y
-
 config ZONE_DMA32
 	bool
-	default y
-
-config ARCH_DMA_ADDR_T_64BIT
-	def_bool y
+	default y if 64BIT
 
 config PAGE_OFFSET
 	hex
@@ -101,21 +102,22 @@ choice
 
 config ARCH_RV32I
 	bool "RV32I"
-	select CPU_SUPPORTS_32BIT_KERNEL
 	select 32BIT
-	select GENERIC_ASHLDI3
-	select GENERIC_ASHRDI3
-	select GENERIC_LSHRDI3
+	select GENERIC_LIB_ASHLDI3
+	select GENERIC_LIB_ASHRDI3
+	select GENERIC_LIB_LSHRDI3
+	select GENERIC_LIB_UCMPDI2
 
 config ARCH_RV64I
 	bool "RV64I"
-	select CPU_SUPPORTS_64BIT_KERNEL
 	select 64BIT
+	select ARCH_SUPPORTS_INT128 if GCC_VERSION >= 50000
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_DYNAMIC_FTRACE_WITH_REGS
+	select SWIOTLB
 
 endchoice
 
@@ -171,11 +173,6 @@ config NR_CPUS
 	depends on SMP
 	default "8"
 
-config CPU_SUPPORTS_32BIT_KERNEL
-	bool
-config CPU_SUPPORTS_64BIT_KERNEL
-	bool
-
 choice
 	prompt "CPU Tuning"
 	default TUNE_GENERIC
@@ -198,81 +195,37 @@ config RISCV_ISA_C
 config RISCV_ISA_A
 	def_bool y
 
+menu "supported PMU type"
+	depends on PERF_EVENTS
+
+config RISCV_BASE_PMU
+	bool "Base Performance Monitoring Unit"
+	def_bool y
+	help
+	  A base PMU that serves as a reference implementation and has limited
+	  feature of perf.  It can run on any RISC-V machines so serves as the
+	  fallback, but this option can also be disable to reduce kernel size.
+
 endmenu
 
-menu "Kernel type"
-
-choice
-	prompt "Kernel code model"
-	default 64BIT
-
-config 32BIT
-	bool "32-bit kernel"
-	depends on CPU_SUPPORTS_32BIT_KERNEL
+config FPU
+	bool "FPU support"
+	default y
 	help
-	  Select this option to build a 32-bit kernel.
+	  Say N here if you want to disable all floating-point related procedure
+	  in the kernel.
 
-config 64BIT
-	bool "64-bit kernel"
-	depends on CPU_SUPPORTS_64BIT_KERNEL
-	help
-	  Select this option to build a 64-bit kernel.
+	  If you don't know what to do here, say Y.
 
-endchoice
+endmenu
 
-source "mm/Kconfig"
-
-source "kernel/Kconfig.preempt"
+menu "Kernel features"
 
 source "kernel/Kconfig.hz"
 
 endmenu
 
-menu "Bus support"
-
-config PCI
-	bool "PCI support"
-	select PCI_MSI
-	help
-	  This feature enables support for PCI bus system. If you say Y
-	  here, the kernel will include drivers and infrastructure code
-	  to support PCI bus devices.
-
-	  If you don't know what to do here, say Y.
-
-config PCI_DOMAINS
-	def_bool PCI
-
-config PCI_DOMAINS_GENERIC
-	def_bool PCI
-
-source "drivers/pci/Kconfig"
-
-endmenu
-
-source "init/Kconfig"
-
-source "kernel/Kconfig.freezer"
-
-menu "Executable file formats"
-
-source "fs/Kconfig.binfmt"
-
-endmenu
-
-menu "Power management options"
-
-source kernel/power/Kconfig
-
-endmenu
-
-source "net/Kconfig"
-
-source "drivers/Kconfig"
-
-source "fs/Kconfig"
-
-menu "Kernel hacking"
+menu "Boot options"
 
 config CMDLINE_BOOL
 	bool "Built-in kernel command line"
@@ -308,17 +261,32 @@ config CMDLINE_FORCE
 
 	  If you don't know what to do here, say N.
 
-config EARLY_PRINTK
-	def_bool y
-
-source "lib/Kconfig.debug"
-
-config CMDLINE_BOOL
-	bool
 endmenu
 
-source "security/Kconfig"
+menu "Bus support"
 
-source "crypto/Kconfig"
+config PCI
+	bool "PCI support"
+	select PCI_MSI
+	help
+	  This feature enables support for PCI bus system. If you say Y
+	  here, the kernel will include drivers and infrastructure code
+	  to support PCI bus devices.
 
-source "lib/Kconfig"
+	  If you don't know what to do here, say Y.
+
+config PCI_DOMAINS
+	def_bool PCI
+
+config PCI_DOMAINS_GENERIC
+	def_bool PCI
+
+source "drivers/pci/Kconfig"
+
+endmenu
+
+menu "Power management options"
+
+source kernel/power/Kconfig
+
+endmenu

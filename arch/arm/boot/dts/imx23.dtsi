@@ -1,13 +1,6 @@
-/*
- * Copyright 2012 Freescale Semiconductor, Inc.
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// Copyright 2012 Freescale Semiconductor, Inc.
 
 #include "imx23-pinfunc.h"
 
@@ -100,7 +93,7 @@
 				status = "disabled";
 			};
 
-			ssp0: ssp@80010000 {
+			ssp0: spi@80010000 {
 				reg = <0x80010000 0x2000>;
 				interrupts = <15>;
 				clocks = <&clks 33>;
@@ -464,7 +457,7 @@
 				status = "disabled";
 			};
 
-			ssp1: ssp@80034000 {
+			ssp1: spi@80034000 {
 				reg = <0x80034000 0x2000>;
 				interrupts = <2>;
 				clocks = <&clks 33>;

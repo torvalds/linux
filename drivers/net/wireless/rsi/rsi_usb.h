@@ -22,10 +22,14 @@
 #include "rsi_main.h"
 #include "rsi_common.h"
 
+#define RSI_USB_VID_9113	0x1618
+#define RSI_USB_PID_9113	0x9113
+
 #define USB_INTERNAL_REG_1           0x25000
 #define RSI_USB_READY_MAGIC_NUM      0xab
 #define FW_STATUS_REG                0x41050012
 #define RSI_TA_HOLD_REG              0x22000844
+#define RSI_FW_WDT_DISABLE_REQ	     0x69
 
 #define USB_VENDOR_REGISTER_READ     0x15
 #define USB_VENDOR_REGISTER_WRITE    0x16

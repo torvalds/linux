@@ -58,8 +58,14 @@ nvbios_vpstate_parse(struct nvkm_bios *b, struct nvbios_vpstate_header *h)
 		h->ecount   = nvbios_rd08(b, h->offset + 0x5);
 
 		h->base_id  = nvbios_rd08(b, h->offset + 0x0f);
-		h->boost_id = nvbios_rd08(b, h->offset + 0x10);
-		h->tdp_id   = nvbios_rd08(b, h->offset + 0x11);
+		if (h->hlen > 0x10)
+			h->boost_id = nvbios_rd08(b, h->offset + 0x10);
+		else
+			h->boost_id = 0xff;
+		if (h->hlen > 0x11)
+			h->tdp_id = nvbios_rd08(b, h->offset + 0x11);
+		else
+			h->tdp_id = 0xff;
 		return 0;
 	default:
 		return -EINVAL;

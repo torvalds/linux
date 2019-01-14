@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * OF helpers for the GPIO API
  *
  * Copyright (c) 2007-2008  MontaVista Software, Inc.
  *
  * Author: Anton Vorontsov <avorontsov@ru.mvista.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/device.h>
@@ -31,6 +27,7 @@ static int of_gpiochip_match_node_and_xlate(struct gpio_chip *chip, void *data)
 	struct of_phandle_args *gpiospec = data;
 
 	return chip->gpiodev->dev.of_node == gpiospec->np &&
+				chip->of_xlate &&
 				chip->of_xlate(chip, gpiospec, NULL) >= 0;
 }
 
@@ -57,14 +54,16 @@ static struct gpio_desc *of_xlate_and_get_gpiod_flags(struct gpio_chip *chip,
 }
 
 static void of_gpio_flags_quirks(struct device_node *np,
-				 enum of_gpio_flags *flags)
+				 enum of_gpio_flags *flags,
+				 int index)
 {
 	/*
 	 * Some GPIO fixed regulator quirks.
 	 * Note that active low is the default.
 	 */
 	if (IS_ENABLED(CONFIG_REGULATOR) &&
-	    (of_device_is_compatible(np, "reg-fixed-voltage") ||
+	    (of_device_is_compatible(np, "regulator-fixed") ||
+	     of_device_is_compatible(np, "reg-fixed-voltage") ||
 	     of_device_is_compatible(np, "regulator-gpio"))) {
 		/*
 		 * The regulator GPIO handles are specified such that the
@@ -89,6 +88,51 @@ static void of_gpio_flags_quirks(struct device_node *np,
 		*flags |= (OF_GPIO_SINGLE_ENDED | OF_GPIO_OPEN_DRAIN);
 		pr_info("%s uses legacy open drain flag - update the DTS if you can\n",
 			of_node_full_name(np));
+	}
+
+	/*
+	 * Legacy handling of SPI active high chip select. If we have a
+	 * property named "cs-gpios" we need to inspect the child node
+	 * to determine if the flags should have inverted semantics.
+	 */
+	if (IS_ENABLED(CONFIG_SPI_MASTER) &&
+	    of_property_read_bool(np, "cs-gpios")) {
+		struct device_node *child;
+		u32 cs;
+		int ret;
+
+		for_each_child_of_node(np, child) {
+			ret = of_property_read_u32(child, "reg", &cs);
+			if (!ret)
+				continue;
+			if (cs == index) {
+				/*
+				 * SPI children have active low chip selects
+				 * by default. This can be specified negatively
+				 * by just omitting "spi-cs-high" in the
+				 * device node, or actively by tagging on
+				 * GPIO_ACTIVE_LOW as flag in the device
+				 * tree. If the line is simultaneously
+				 * tagged as active low in the device tree
+				 * and has the "spi-cs-high" set, we get a
+				 * conflict and the "spi-cs-high" flag will
+				 * take precedence.
+				 */
+				if (of_property_read_bool(np, "spi-cs-high")) {
+					if (*flags & OF_GPIO_ACTIVE_LOW) {
+						pr_warn("%s GPIO handle specifies active low - ignored\n",
+							of_node_full_name(np));
+						*flags &= ~OF_GPIO_ACTIVE_LOW;
+					}
+				} else {
+					if (!(*flags & OF_GPIO_ACTIVE_LOW))
+						pr_info("%s enforce active low on chipselect handle\n",
+							of_node_full_name(np));
+					*flags |= OF_GPIO_ACTIVE_LOW;
+				}
+				break;
+			}
+		}
 	}
 }
 
@@ -130,7 +174,7 @@ struct gpio_desc *of_get_named_gpiod_flags(struct device_node *np,
 		goto out;
 
 	if (flags)
-		of_gpio_flags_quirks(np, flags);
+		of_gpio_flags_quirks(np, flags, index);
 
 	pr_debug("%s: parsed '%s' property of node '%pOF[%d]' - status (%d)\n",
 		 __func__, propname, np, index,
@@ -210,11 +254,8 @@ static struct gpio_desc *of_find_regulator_gpio(struct device *dev, const char *
 	if (!con_id)
 		return ERR_PTR(-ENOENT);
 
-	for (i = 0; i < ARRAY_SIZE(whitelist); i++)
-		if (!strcmp(con_id, whitelist[i]))
-			break;
-
-	if (i == ARRAY_SIZE(whitelist))
+	i = match_string(whitelist, ARRAY_SIZE(whitelist), con_id);
+	if (i < 0)
 		return ERR_PTR(-ENOENT);
 
 	desc = of_get_named_gpiod_flags(np, con_id, 0, of_flags);
@@ -350,8 +391,8 @@ static struct gpio_desc *of_parse_own_gpio(struct device_node *np,
 	else if (of_property_read_bool(np, "output-high"))
 		*dflags |= GPIOD_OUT_HIGH;
 	else {
-		pr_warn("GPIO line %d (%s): no hogging state specified, bailing out\n",
-			desc_to_gpio(desc), np->name);
+		pr_warn("GPIO line %d (%pOFn): no hogging state specified, bailing out\n",
+			desc_to_gpio(desc), np);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -622,9 +663,6 @@ static int of_gpiochip_add_pin_range(struct gpio_chip *chip) { return 0; }
 int of_gpiochip_add(struct gpio_chip *chip)
 {
 	int status;
-
-	if ((!chip->of_node) && (chip->parent))
-		chip->of_node = chip->parent->of_node;
 
 	if (!chip->of_node)
 		return 0;

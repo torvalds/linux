@@ -22,7 +22,7 @@ static void nft_masq_ipv6_eval(const struct nft_expr *expr,
 			       const struct nft_pktinfo *pkt)
 {
 	struct nft_masq *priv = nft_expr_priv(expr);
-	struct nf_nat_range range;
+	struct nf_nat_range2 range;
 
 	memset(&range, 0, sizeof(range));
 	range.flags = priv->flags;
@@ -70,7 +70,9 @@ static int __init nft_masq_ipv6_module_init(void)
 	if (ret < 0)
 		return ret;
 
-	nf_nat_masquerade_ipv6_register_notifier();
+	ret = nf_nat_masquerade_ipv6_register_notifier();
+	if (ret)
+		nft_unregister_expr(&nft_masq_ipv6_type);
 
 	return ret;
 }

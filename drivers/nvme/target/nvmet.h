@@ -26,9 +26,24 @@
 #include <linux/configfs.h>
 #include <linux/rcupdate.h>
 #include <linux/blkdev.h>
+#include <linux/radix-tree.h>
 
 #define NVMET_ASYNC_EVENTS		4
 #define NVMET_ERROR_LOG_SLOTS		128
+
+/*
+ * Supported optional AENs:
+ */
+#define NVMET_AEN_CFG_OPTIONAL \
+	(NVME_AEN_CFG_NS_ATTR | NVME_AEN_CFG_ANA_CHANGE)
+
+/*
+ * Plus mandatory SMART AENs (we'll never send them, but allow enabling them):
+ */
+#define NVMET_AEN_CFG_ALL \
+	(NVME_SMART_CRIT_SPARE | NVME_SMART_CRIT_TEMPERATURE | \
+	 NVME_SMART_CRIT_RELIABILITY | NVME_SMART_CRIT_MEDIA | \
+	 NVME_SMART_CRIT_VOLATILE_MEMORY | NVMET_AEN_CFG_OPTIONAL)
 
 /* Helper Macros when NVMe error is NVME_SC_CONNECT_INVALID_PARAM
  * The 16 bit shift is to set IATTR bit to 1, which means offending
@@ -43,12 +58,16 @@ struct nvmet_ns {
 	struct list_head	dev_link;
 	struct percpu_ref	ref;
 	struct block_device	*bdev;
+	struct file		*file;
+	bool			readonly;
 	u32			nsid;
 	u32			blksize_shift;
 	loff_t			size;
 	u8			nguid[16];
 	uuid_t			uuid;
+	u32			anagrpid;
 
+	bool			buffered_io;
 	bool			enabled;
 	struct nvmet_subsys	*subsys;
 	const char		*device_path;
@@ -57,11 +76,21 @@ struct nvmet_ns {
 	struct config_group	group;
 
 	struct completion	disable_done;
+	mempool_t		*bvec_pool;
+	struct kmem_cache	*bvec_cache;
+
+	int			use_p2pmem;
+	struct pci_dev		*p2p_dev;
 };
 
 static inline struct nvmet_ns *to_nvmet_ns(struct config_item *item)
 {
 	return container_of(to_config_group(item), struct nvmet_ns, group);
+}
+
+static inline struct device *nvmet_ns_dev(struct nvmet_ns *ns)
+{
+	return ns->bdev ? disk_to_dev(ns->bdev->bd_disk) : NULL;
 }
 
 struct nvmet_cq {
@@ -79,10 +108,22 @@ struct nvmet_sq {
 	struct completion	confirm_done;
 };
 
+struct nvmet_ana_group {
+	struct config_group	group;
+	struct nvmet_port	*port;
+	u32			grpid;
+};
+
+static inline struct nvmet_ana_group *to_ana_group(struct config_item *item)
+{
+	return container_of(to_config_group(item), struct nvmet_ana_group,
+			group);
+}
+
 /**
  * struct nvmet_port -	Common structure to keep port
  *				information for the target.
- * @entry:		List head for holding a list of these elements.
+ * @entry:		Entry into referrals or transport list.
  * @disc_addr:		Address information is stored in a format defined
  *				for a discovery log page entry.
  * @group:		ConfigFS group for this element's folder.
@@ -96,14 +137,25 @@ struct nvmet_port {
 	struct list_head		subsystems;
 	struct config_group		referrals_group;
 	struct list_head		referrals;
+	struct config_group		ana_groups_group;
+	struct nvmet_ana_group		ana_default_group;
+	enum nvme_ana_state		*ana_state;
 	void				*priv;
 	bool				enabled;
+	int				inline_data_size;
 };
 
 static inline struct nvmet_port *to_nvmet_port(struct config_item *item)
 {
 	return container_of(to_config_group(item), struct nvmet_port,
 			group);
+}
+
+static inline struct nvmet_port *ana_groups_to_port(
+		struct config_item *item)
+{
+	return container_of(to_config_group(item), struct nvmet_port,
+			ana_groups_group);
 }
 
 struct nvmet_ctrl {
@@ -120,6 +172,10 @@ struct nvmet_ctrl {
 	u16			cntlid;
 	u32			kato;
 
+	struct nvmet_port	*port;
+
+	u32			aen_enabled;
+	unsigned long		aen_masked;
 	struct nvmet_req	*async_event_cmds[NVMET_ASYNC_EVENTS];
 	unsigned int		nr_async_event_cmds;
 	struct list_head	async_events;
@@ -132,8 +188,14 @@ struct nvmet_ctrl {
 
 	const struct nvmet_fabrics_ops *ops;
 
+	__le32			*changed_ns_list;
+	u32			nr_changed_ns;
+
 	char			subsysnqn[NVMF_NQN_FIELD_LEN];
 	char			hostnqn[NVMF_NQN_FIELD_LEN];
+
+	struct device *p2p_client;
+	struct radix_tree_root p2p_ns_map;
 };
 
 struct nvmet_subsys {
@@ -143,6 +205,7 @@ struct nvmet_subsys {
 	struct kref		ref;
 
 	struct list_head	namespaces;
+	unsigned int		nr_namespaces;
 	unsigned int		max_nsid;
 
 	struct list_head	ctrls;
@@ -202,7 +265,6 @@ struct nvmet_req;
 struct nvmet_fabrics_ops {
 	struct module *owner;
 	unsigned int type;
-	unsigned int sqe_inline_size;
 	unsigned int msdbd;
 	bool has_keyed_sgls : 1;
 	void (*queue_response)(struct nvmet_req *req);
@@ -214,6 +276,7 @@ struct nvmet_fabrics_ops {
 };
 
 #define NVMET_MAX_INLINE_BIOVEC	8
+#define NVMET_MAX_INLINE_DATA_LEN NVMET_MAX_INLINE_BIOVEC * PAGE_SIZE
 
 struct nvmet_req {
 	struct nvme_command	*cmd;
@@ -222,8 +285,18 @@ struct nvmet_req {
 	struct nvmet_cq		*cq;
 	struct nvmet_ns		*ns;
 	struct scatterlist	*sg;
-	struct bio		inline_bio;
 	struct bio_vec		inline_bvec[NVMET_MAX_INLINE_BIOVEC];
+	union {
+		struct {
+			struct bio      inline_bio;
+		} b;
+		struct {
+			bool			mpool_alloc;
+			struct kiocb            iocb;
+			struct bio_vec          *bvec;
+			struct work_struct      work;
+		} f;
+	};
 	int			sg_cnt;
 	/* data length as parsed from the command: */
 	size_t			data_len;
@@ -234,7 +307,12 @@ struct nvmet_req {
 
 	void (*execute)(struct nvmet_req *req);
 	const struct nvmet_fabrics_ops *ops;
+
+	struct pci_dev *p2p_dev;
+	struct device *p2p_client;
 };
+
+extern struct workqueue_struct *buffered_io_wq;
 
 static inline void nvmet_set_status(struct nvmet_req *req, u16 status)
 {
@@ -263,7 +341,8 @@ struct nvmet_async_event {
 };
 
 u16 nvmet_parse_connect_cmd(struct nvmet_req *req);
-u16 nvmet_parse_io_cmd(struct nvmet_req *req);
+u16 nvmet_bdev_parse_io_cmd(struct nvmet_req *req);
+u16 nvmet_file_parse_io_cmd(struct nvmet_req *req);
 u16 nvmet_parse_admin_cmd(struct nvmet_req *req);
 u16 nvmet_parse_discovery_cmd(struct nvmet_req *req);
 u16 nvmet_parse_fabrics_cmd(struct nvmet_req *req);
@@ -273,6 +352,8 @@ bool nvmet_req_init(struct nvmet_req *req, struct nvmet_cq *cq,
 void nvmet_req_uninit(struct nvmet_req *req);
 void nvmet_req_execute(struct nvmet_req *req);
 void nvmet_req_complete(struct nvmet_req *req, u16 status);
+int nvmet_req_alloc_sgl(struct nvmet_req *req);
+void nvmet_req_free_sgl(struct nvmet_req *req);
 
 void nvmet_cq_setup(struct nvmet_ctrl *ctrl, struct nvmet_cq *cq, u16 qid,
 		u16 size);
@@ -303,6 +384,10 @@ void nvmet_ns_disable(struct nvmet_ns *ns);
 struct nvmet_ns *nvmet_ns_alloc(struct nvmet_subsys *subsys, u32 nsid);
 void nvmet_ns_free(struct nvmet_ns *ns);
 
+void nvmet_send_ana_event(struct nvmet_subsys *subsys,
+		struct nvmet_port *port);
+void nvmet_port_send_ana_event(struct nvmet_port *port);
+
 int nvmet_register_transport(const struct nvmet_fabrics_ops *ops);
 void nvmet_unregister_transport(const struct nvmet_fabrics_ops *ops);
 
@@ -316,12 +401,29 @@ u16 nvmet_copy_to_sgl(struct nvmet_req *req, off_t off, const void *buf,
 		size_t len);
 u16 nvmet_copy_from_sgl(struct nvmet_req *req, off_t off, void *buf,
 		size_t len);
+u16 nvmet_zero_sgl(struct nvmet_req *req, off_t off, size_t len);
 
 u32 nvmet_get_log_page_len(struct nvme_command *cmd);
 
 #define NVMET_QUEUE_SIZE	1024
 #define NVMET_NR_QUEUES		128
 #define NVMET_MAX_CMD		NVMET_QUEUE_SIZE
+
+/*
+ * Nice round number that makes a list of nsids fit into a page.
+ * Should become tunable at some point in the future.
+ */
+#define NVMET_MAX_NAMESPACES	1024
+
+/*
+ * 0 is not a valid ANA group ID, so we start numbering at 1.
+ *
+ * ANA Group 1 exists without manual intervention, has namespaces assigned to it
+ * by default, and is available in an optimized state through all ports.
+ */
+#define NVMET_MAX_ANAGRPS	128
+#define NVMET_DEFAULT_ANA_GRPID	1
+
 #define NVMET_KAS		10
 #define NVMET_DISC_KATO		120
 
@@ -335,7 +437,24 @@ extern struct nvmet_subsys *nvmet_disc_subsys;
 extern u64 nvmet_genctr;
 extern struct rw_semaphore nvmet_config_sem;
 
+extern u32 nvmet_ana_group_enabled[NVMET_MAX_ANAGRPS + 1];
+extern u64 nvmet_ana_chgcnt;
+extern struct rw_semaphore nvmet_ana_sem;
+
 bool nvmet_host_allowed(struct nvmet_req *req, struct nvmet_subsys *subsys,
 		const char *hostnqn);
 
+int nvmet_bdev_ns_enable(struct nvmet_ns *ns);
+int nvmet_file_ns_enable(struct nvmet_ns *ns);
+void nvmet_bdev_ns_disable(struct nvmet_ns *ns);
+void nvmet_file_ns_disable(struct nvmet_ns *ns);
+u16 nvmet_bdev_flush(struct nvmet_req *req);
+u16 nvmet_file_flush(struct nvmet_req *req);
+void nvmet_ns_changed(struct nvmet_subsys *subsys, u32 nsid);
+
+static inline u32 nvmet_rw_len(struct nvmet_req *req)
+{
+	return ((u32)le16_to_cpu(req->cmd->rw.length) + 1) <<
+			req->ns->blksize_shift;
+}
 #endif /* _NVMET_H */

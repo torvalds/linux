@@ -11,6 +11,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/page.h>
 #include <asm/sigp.h>
+#include <asm/ptrace.h>
 
 /* The purgatory is the code running between two kernels. It's main purpose
  * is to verify that the next kernel was not corrupted after load and to
@@ -88,8 +89,7 @@ ENTRY(purgatory_start)
 .base_crash:
 
 	/* Setup stack */
-	larl	%r15,purgatory_end
-	aghi	%r15,-160
+	larl	%r15,purgatory_end-STACK_FRAME_OVERHEAD
 
 	/* If the next kernel is KEXEC_TYPE_CRASH the purgatory is called
 	 * directly with a flag passed in %r2 whether the purgatory shall do
@@ -243,33 +243,26 @@ gprregs:
 	.quad	0
 	.endr
 
-purgatory_sha256_digest:
-	.global purgatory_sha256_digest
-	.rept	32	/* SHA256_DIGEST_SIZE */
-	.byte	0
-	.endr
+/* Macro to define a global variable with name and size (in bytes) to be
+ * shared with C code.
+ *
+ * Add the .size and .type attribute to satisfy checks on the Elf_Sym during
+ * purgatory load.
+ */
+.macro GLOBAL_VARIABLE name,size
+\name:
+	.global \name
+	.size	\name,\size
+	.type	\name,object
+	.skip	\size,0
+.endm
 
-purgatory_sha_regions:
-	.global purgatory_sha_regions
-	.rept	16 * __KEXEC_SHA_REGION_SIZE	/* KEXEC_SEGMENTS_MAX */
-	.byte	0
-	.endr
-
-kernel_entry:
-	.global kernel_entry
-	.quad	0
-
-kernel_type:
-	.global kernel_type
-	.quad	0
-
-crash_start:
-	.global crash_start
-	.quad	0
-
-crash_size:
-	.global crash_size
-	.quad	0
+GLOBAL_VARIABLE purgatory_sha256_digest,32
+GLOBAL_VARIABLE purgatory_sha_regions,16*__KEXEC_SHA_REGION_SIZE
+GLOBAL_VARIABLE kernel_entry,8
+GLOBAL_VARIABLE kernel_type,8
+GLOBAL_VARIABLE crash_start,8
+GLOBAL_VARIABLE crash_size,8
 
 	.align	PAGE_SIZE
 stack:

@@ -2,10 +2,10 @@
  * Glue code for the SHA256 Secure Hash Algorithm assembly implementation
  * using NEON instructions.
  *
- * Copyright © 2015 Google Inc.
+ * Copyright Â© 2015 Google Inc.
  *
  * This file is based on sha512_neon_glue.c:
- *   Copyright © 2014 Jussi Kivilinna <jussi.kivilinna@iki.fi>
+ *   Copyright Â© 2014 Jussi Kivilinna <jussi.kivilinna@iki.fi>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -79,7 +79,6 @@ struct shash_alg sha256_neon_algs[] = { {
 		.cra_name	=	"sha256",
 		.cra_driver_name =	"sha256-neon",
 		.cra_priority	=	250,
-		.cra_flags	=	CRYPTO_ALG_TYPE_SHASH,
 		.cra_blocksize	=	SHA256_BLOCK_SIZE,
 		.cra_module	=	THIS_MODULE,
 	}
@@ -94,7 +93,6 @@ struct shash_alg sha256_neon_algs[] = { {
 		.cra_name	=	"sha224",
 		.cra_driver_name =	"sha224-neon",
 		.cra_priority	=	250,
-		.cra_flags	=	CRYPTO_ALG_TYPE_SHASH,
 		.cra_blocksize	=	SHA224_BLOCK_SIZE,
 		.cra_module	=	THIS_MODULE,
 	}

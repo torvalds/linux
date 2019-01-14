@@ -46,60 +46,56 @@
 		};
 	};
 
-	regulators {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
+	cam_io_reg: voltage-regulator-1 {
+		compatible = "regulator-fixed";
+		regulator-name = "CAM_SENSOR_A";
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+		enable-active-high;
+		status = "disabled";
+	};
 
-		cam_io_reg: voltage-regulator-1 {
-			compatible = "regulator-fixed";
-			regulator-name = "CAM_SENSOR_A";
-			regulator-min-microvolt = <2800000>;
-			regulator-max-microvolt = <2800000>;
-			enable-active-high;
-			status = "disabled";
-		};
+	cam_af_reg: voltage-regulator-2 {
+		compatible = "regulator-fixed";
+		regulator-name = "CAM_AF";
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+		enable-active-high;
+		status = "disabled";
+	};
 
-		cam_af_reg: voltage-regulator-3 {
-			compatible = "regulator-fixed";
-			regulator-name = "CAM_AF";
-			regulator-min-microvolt = <2800000>;
-			regulator-max-microvolt = <2800000>;
-			enable-active-high;
-			status = "disabled";
-		};
+	vsil12: voltage-regulator-3 {
+		compatible = "regulator-fixed";
+		regulator-name = "VSIL_1.2V";
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
+		gpio = <&gpl0 4 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		vin-supply = <&buck7_reg>;
+	};
 
-		vsil12: voltage-regulator-6 {
-			compatible = "regulator-fixed";
-			regulator-name = "VSIL_1.2V";
-			regulator-min-microvolt = <1200000>;
-			regulator-max-microvolt = <1200000>;
-			gpio = <&gpl0 4 GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-			vin-supply = <&buck7_reg>;
-		};
+	vcc33mhl: voltage-regulator-4 {
+		compatible = "regulator-fixed";
+		regulator-name = "VCC_3.3_MHL";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpl0 4 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
 
-		vcc33mhl: voltage-regulator-7 {
-			compatible = "regulator-fixed";
-			regulator-name = "VCC_3.3_MHL";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			gpio = <&gpl0 4 GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-		};
-
-		vcc18mhl: voltage-regulator-8 {
-			compatible = "regulator-fixed";
-			regulator-name = "VCC_1.8_MHL";
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
-			gpio = <&gpl0 4 GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-		};
+	vcc18mhl: voltage-regulator-5 {
+		compatible = "regulator-fixed";
+		regulator-name = "VCC_1.8_MHL";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		gpio = <&gpl0 4 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
 	};
 
 	gpio-keys {
 		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&gpio_keys>;
 
 		key-down {
 			gpios = <&gpx3 3 GPIO_ACTIVE_LOW>;
@@ -144,6 +140,8 @@
 			compatible = "maxim,max77693";
 			interrupt-parent = <&gpx1>;
 			interrupts = <5 IRQ_TYPE_EDGE_FALLING>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&max77693_irq>;
 			reg = <0x66>;
 
 			regulators {
@@ -190,6 +188,8 @@
 			compatible = "maxim,max17047";
 			interrupt-parent = <&gpx2>;
 			interrupts = <3 IRQ_TYPE_EDGE_FALLING>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&max77693_fuel_irq>;
 			reg = <0x36>;
 
 			maxim,over-heat-temp = <700>;
@@ -580,6 +580,8 @@
 		compatible = "maxim,max77686";
 		interrupt-parent = <&gpx0>;
 		interrupts = <7 IRQ_TYPE_NONE>;
+		pinctrl-0 = <&max77686_irq>;
+		pinctrl-names = "default";
 		reg = <0x09>;
 		#clock-cells = <1>;
 
@@ -1013,6 +1015,31 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&sleep1>;
 
+	gpio_keys: gpio-keys {
+		samsung,pins = "gpx0-1", "gpx2-2", "gpx2-7", "gpx3-3";
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	};
+
+	max77686_irq: max77686-irq {
+		samsung,pins = "gpx0-7";
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	};
+
+	max77693_irq: max77693-irq {
+		samsung,pins = "gpx1-5";
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	};
+
+	max77693_fuel_irq: max77693-fuel-irq {
+		samsung,pins = "gpx2-3";
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	};
+
+	sdhci2_cd: sdhci2-cd-irq {
+		samsung,pins = "gpx3-4";
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	};
+
 	hdmi_hpd: hdmi-hpd {
 		samsung,pins = "gpx3-7";
 		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
@@ -1242,9 +1269,8 @@
 
 &sdhci_2 {
 	bus-width = <4>;
-	cd-gpios = <&gpx3 4 GPIO_ACTIVE_HIGH>;
-	cd-inverted;
-	pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_bus4>;
+	cd-gpios = <&gpx3 4 GPIO_ACTIVE_LOW>;
+	pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_bus4 &sdhci2_cd>;
 	pinctrl-names = "default";
 	vmmc-supply = <&ldo21_reg>;
 	status = "okay";

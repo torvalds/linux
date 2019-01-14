@@ -286,7 +286,7 @@ config PWM_MTK_DISP
 
 config PWM_MEDIATEK
 	tristate "MediaTek PWM support"
-	depends on ARCH_MEDIATEK || COMPILE_TEST
+	depends on ARCH_MEDIATEK || RALINK || COMPILE_TEST
 	help
 	  Generic PWM framework driver for Mediatek ARM SoC.
 
@@ -401,7 +401,7 @@ config PWM_STI
 
 config PWM_STM32
 	tristate "STMicroelectronics STM32 PWM"
-	depends on MFD_STM32_TIMERS || COMPILE_TEST
+	depends on MFD_STM32_TIMERS
 	help
 	  Generic PWM framework driver for STM32 SoCs.
 
@@ -447,10 +447,9 @@ config PWM_TEGRA
 
 config  PWM_TIECAP
 	tristate "ECAP PWM support"
-	depends on ARCH_OMAP2PLUS || ARCH_DAVINCI_DA8XX || ARCH_KEYSTONE
+	depends on ARCH_OMAP2PLUS || ARCH_DAVINCI_DA8XX || ARCH_KEYSTONE || ARCH_K3
 	help
-	  PWM driver support for the ECAP APWM controller found on AM33XX
-	  TI SOC
+	  PWM driver support for the ECAP APWM controller found on TI SOCs
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-tiecap.

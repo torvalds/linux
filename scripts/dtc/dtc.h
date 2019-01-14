@@ -74,10 +74,17 @@ typedef uint32_t cell_t;
 
 /* Data blobs */
 enum markertype {
+	TYPE_NONE,
 	REF_PHANDLE,
 	REF_PATH,
 	LABEL,
+	TYPE_UINT8,
+	TYPE_UINT16,
+	TYPE_UINT32,
+	TYPE_UINT64,
+	TYPE_STRING,
 };
+extern const char *markername(enum markertype markertype);
 
 struct  marker {
 	enum markertype type;
@@ -100,6 +107,8 @@ struct data {
 #define for_each_marker_of_type(m, t) \
 	for_each_marker(m) \
 		if ((m)->type == (t))
+
+size_t type_marker_length(struct marker *m);
 
 void data_free(struct data d);
 
@@ -168,6 +177,8 @@ struct node {
 
 	struct label *labels;
 	const struct bus_type *bus;
+
+	bool omit_if_unused, is_referenced;
 };
 
 #define for_each_label_withdel(l0, l) \
@@ -202,6 +213,8 @@ struct property *reverse_properties(struct property *first);
 struct node *build_node(struct property *proplist, struct node *children);
 struct node *build_node_delete(void);
 struct node *name_node(struct node *node, char *name);
+struct node *omit_node_if_unused(struct node *node);
+struct node *reference_node(struct node *node);
 struct node *chain_node(struct node *first, struct node *list);
 struct node *merge_nodes(struct node *old_node, struct node *new_node);
 struct node *add_orphan_node(struct node *old_node, struct node *new_node, char *ref);
@@ -285,6 +298,10 @@ struct dt_info *dt_from_blob(const char *fname);
 
 void dt_to_source(FILE *f, struct dt_info *dti);
 struct dt_info *dt_from_source(const char *f);
+
+/* YAML source */
+
+void dt_to_yaml(FILE *f, struct dt_info *dti);
 
 /* FS trees */
 

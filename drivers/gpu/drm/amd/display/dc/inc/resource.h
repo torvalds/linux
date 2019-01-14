@@ -38,11 +38,13 @@ enum dce_version resource_parse_asic_id(
 
 struct resource_caps {
 	int num_timing_generator;
+	int num_opp;
 	int num_video_plane;
 	int num_audio;
 	int num_stream_encoder;
 	int num_pll;
 	int num_dwb;
+	int num_ddc;
 };
 
 struct resource_straps {
@@ -102,6 +104,11 @@ void resource_reference_clock_source(
 		const struct resource_pool *pool,
 		struct clock_source *clock_source);
 
+int resource_get_clock_source_reference(
+		struct resource_context *res_ctx,
+		const struct resource_pool *pool,
+		struct clock_source *clock_source);
+
 bool resource_are_streams_timing_synchronizable(
 		struct dc_stream_state *stream1,
 		struct dc_stream_state *stream2);
@@ -139,10 +146,6 @@ bool resource_validate_attach_surfaces(
 		struct dc_state *context,
 		const struct resource_pool *pool);
 
-void validate_guaranteed_copy_streams(
-		struct dc_state *context,
-		int max_streams);
-
 void resource_validate_ctx_update_pointer_after_copy(
 		const struct dc_state *src_ctx,
 		struct dc_state *dst_ctx);
@@ -169,4 +172,7 @@ void update_audio_usage(
 		const struct resource_pool *pool,
 		struct audio *audio,
 		bool acquired);
+
+unsigned int resource_pixel_format_to_bpp(enum surface_pixel_format format);
+
 #endif /* DRIVERS_GPU_DRM_AMD_DC_DEV_DC_INC_RESOURCE_H_ */

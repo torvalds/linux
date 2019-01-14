@@ -312,7 +312,7 @@ static struct dentry *ntfs_get_parent(struct dentry *child_dent)
 	/* Get the mft record of the inode belonging to the child dentry. */
 	mrec = map_mft_record(ni);
 	if (IS_ERR(mrec))
-		return (struct dentry *)mrec;
+		return ERR_CAST(mrec);
 	/* Find the first file name attribute in the mft record. */
 	ctx = ntfs_attr_get_search_ctx(ni, mrec);
 	if (unlikely(!ctx)) {

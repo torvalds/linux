@@ -205,18 +205,18 @@ static int knav_range_setup_acc_irq(struct knav_range_info *range,
 {
 	struct knav_device *kdev = range->kdev;
 	struct knav_acc_channel *acc;
-	unsigned long cpu_map;
+	struct cpumask *cpu_mask;
 	int ret = 0, irq;
 	u32 old, new;
 
 	if (range->flags & RANGE_MULTI_QUEUE) {
 		acc = range->acc;
 		irq = range->irqs[0].irq;
-		cpu_map = range->irqs[0].cpu_map;
+		cpu_mask = range->irqs[0].cpu_mask;
 	} else {
 		acc = range->acc + queue;
 		irq = range->irqs[queue].irq;
-		cpu_map = range->irqs[queue].cpu_map;
+		cpu_mask = range->irqs[queue].cpu_mask;
 	}
 
 	old = acc->open_mask;
@@ -239,8 +239,8 @@ static int knav_range_setup_acc_irq(struct knav_range_info *range,
 			acc->name, acc->name);
 		ret = request_irq(irq, knav_acc_int_handler, 0, acc->name,
 				  range);
-		if (!ret && cpu_map) {
-			ret = irq_set_affinity_hint(irq, to_cpumask(&cpu_map));
+		if (!ret && cpu_mask) {
+			ret = irq_set_affinity_hint(irq, cpu_mask);
 			if (ret) {
 				dev_warn(range->kdev->dev,
 					 "Failed to set IRQ affinity\n");
@@ -405,8 +405,8 @@ static int knav_acc_init_queue(struct knav_range_info *range,
 {
 	unsigned id = kq->id - range->queue_base;
 
-	kq->descs = devm_kzalloc(range->kdev->dev,
-				 ACC_DESCS_MAX * sizeof(u32), GFP_KERNEL);
+	kq->descs = devm_kcalloc(range->kdev->dev,
+				 ACC_DESCS_MAX, sizeof(u32), GFP_KERNEL);
 	if (!kq->descs)
 		return -ENOMEM;
 
@@ -552,7 +552,7 @@ int knav_init_acc_range(struct knav_device *kdev,
 	info->list_size = list_size;
 	mem_size   = PAGE_ALIGN(list_size * 2);
 	info->mem_size  = mem_size;
-	range->acc = devm_kzalloc(kdev->dev, channels * sizeof(*range->acc),
+	range->acc = devm_kcalloc(kdev->dev, channels, sizeof(*range->acc),
 				  GFP_KERNEL);
 	if (!range->acc)
 		return -ENOMEM;

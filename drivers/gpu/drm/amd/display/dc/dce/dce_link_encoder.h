@@ -225,6 +225,12 @@ void dce110_link_encoder_enable_dp_mst_output(
 	const struct dc_link_settings *link_settings,
 	enum clock_source_id clock_source);
 
+/* enables LVDS PHY output */
+void dce110_link_encoder_enable_lvds_output(
+	struct link_encoder *enc,
+	enum clock_source_id clock_source,
+	uint32_t pixel_clock);
+
 /* disable PHY output */
 void dce110_link_encoder_disable_output(
 	struct link_encoder *enc,
@@ -262,5 +268,7 @@ void dce110_psr_program_dp_dphy_fast_training(struct link_encoder *enc,
 
 void dce110_psr_program_secondary_packet(struct link_encoder *enc,
 			unsigned int sdp_transmit_line_num_deadline);
+
+bool dce110_is_dig_enabled(struct link_encoder *enc);
 
 #endif /* __DC_LINK_ENCODER__DCE110_H__ */

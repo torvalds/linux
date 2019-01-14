@@ -1,21 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2016 Oracle.  All Rights Reserved.
- *
  * Author: Darrick J. Wong <darrick.wong@oracle.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -56,7 +42,6 @@ int
 xfs_trans_log_finish_refcount_update(
 	struct xfs_trans		*tp,
 	struct xfs_cud_log_item		*cudp,
-	struct xfs_defer_ops		*dop,
 	enum xfs_refcount_intent_type	type,
 	xfs_fsblock_t			startblock,
 	xfs_extlen_t			blockcount,
@@ -66,7 +51,7 @@ xfs_trans_log_finish_refcount_update(
 {
 	int				error;
 
-	error = xfs_refcount_finish_one(tp, dop, type, startblock,
+	error = xfs_refcount_finish_one(tp, type, startblock,
 			blockcount, new_fsb, new_len, pcur);
 
 	/*
@@ -77,7 +62,7 @@ xfs_trans_log_finish_refcount_update(
 	 * 2.) shuts down the filesystem
 	 */
 	tp->t_flags |= XFS_TRANS_DIRTY;
-	cudp->cud_item.li_desc->lid_flags |= XFS_LID_DIRTY;
+	set_bit(XFS_LI_DIRTY, &cudp->cud_item.li_flags);
 
 	return error;
 }
@@ -154,7 +139,7 @@ xfs_refcount_update_log_item(
 	refc = container_of(item, struct xfs_refcount_intent, ri_list);
 
 	tp->t_flags |= XFS_TRANS_DIRTY;
-	cuip->cui_item.li_desc->lid_flags |= XFS_LID_DIRTY;
+	set_bit(XFS_LI_DIRTY, &cuip->cui_item.li_flags);
 
 	/*
 	 * atomic_inc_return gives us the value after the increment;
@@ -183,7 +168,6 @@ xfs_refcount_update_create_done(
 STATIC int
 xfs_refcount_update_finish_item(
 	struct xfs_trans		*tp,
-	struct xfs_defer_ops		*dop,
 	struct list_head		*item,
 	void				*done_item,
 	void				**state)
@@ -194,7 +178,7 @@ xfs_refcount_update_finish_item(
 	int				error;
 
 	refc = container_of(item, struct xfs_refcount_intent, ri_list);
-	error = xfs_trans_log_finish_refcount_update(tp, done_item, dop,
+	error = xfs_trans_log_finish_refcount_update(tp, done_item,
 			refc->ri_type,
 			refc->ri_startblock,
 			refc->ri_blockcount,

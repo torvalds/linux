@@ -120,22 +120,9 @@ static const struct seq_operations schedstat_sops = {
 	.show  = show_schedstat,
 };
 
-static int schedstat_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &schedstat_sops);
-}
-
-static const struct file_operations proc_schedstat_operations = {
-	.open    = schedstat_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = seq_release,
-};
-
 static int __init proc_schedstat_init(void)
 {
-	proc_create("schedstat", 0, NULL, &proc_schedstat_operations);
-
+	proc_create_seq("schedstat", 0, NULL, &schedstat_sops);
 	return 0;
 }
 subsys_initcall(proc_schedstat_init);

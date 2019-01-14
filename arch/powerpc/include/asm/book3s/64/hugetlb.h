@@ -32,31 +32,14 @@ static inline int hstate_get_psize(struct hstate *hstate)
 	}
 }
 
-#define arch_make_huge_pte arch_make_huge_pte
-static inline pte_t arch_make_huge_pte(pte_t entry, struct vm_area_struct *vma,
-				       struct page *page, int writable)
-{
-	unsigned long page_shift;
-
-	if (!cpu_has_feature(CPU_FTR_POWER9_DD1))
-		return entry;
-
-	page_shift = huge_page_shift(hstate_vma(vma));
-	/*
-	 * We don't support 1G hugetlb pages yet.
-	 */
-	VM_WARN_ON(page_shift == mmu_psize_defs[MMU_PAGE_1G].shift);
-	if (page_shift == mmu_psize_defs[MMU_PAGE_2M].shift)
-		return __pte(pte_val(entry) | R_PAGE_LARGE);
-	else
-		return entry;
-}
-
 #ifdef CONFIG_ARCH_HAS_GIGANTIC_PAGE
 static inline bool gigantic_page_supported(void)
 {
 	return true;
 }
 #endif
+
+/* hugepd entry valid bit */
+#define HUGEPD_VAL_BITS		(0x8000000000000000UL)
 
 #endif

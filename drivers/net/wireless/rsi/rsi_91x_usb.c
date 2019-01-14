@@ -266,15 +266,17 @@ static void rsi_rx_done_handler(struct urb *urb)
 	if (urb->status)
 		goto out;
 
-	if (urb->actual_length <= 0) {
-		rsi_dbg(INFO_ZONE, "%s: Zero length packet\n", __func__);
+	if (urb->actual_length <= 0 ||
+	    urb->actual_length > rx_cb->rx_skb->len) {
+		rsi_dbg(INFO_ZONE, "%s: Invalid packet length = %d\n",
+			__func__, urb->actual_length);
 		goto out;
 	}
 	if (skb_queue_len(&dev->rx_q) >= RSI_MAX_RX_PKTS) {
 		rsi_dbg(INFO_ZONE, "Max RX packets reached\n");
 		goto out;
 	}
-	skb_put(rx_cb->rx_skb, urb->actual_length);
+	skb_trim(rx_cb->rx_skb, urb->actual_length);
 	skb_queue_tail(&dev->rx_q, rx_cb->rx_skb);
 
 	rsi_set_event(&dev->rx_thread.event);
@@ -308,6 +310,7 @@ static int rsi_rx_urb_submit(struct rsi_hw *adapter, u8 ep_num)
 	if (!skb)
 		return -ENOMEM;
 	skb_reserve(skb, MAX_DWORD_ALIGN_BYTES);
+	skb_put(skb, RSI_MAX_RX_USB_PKT_SIZE - MAX_DWORD_ALIGN_BYTES);
 	dword_align_bytes = (unsigned long)skb->data & 0x3f;
 	if (dword_align_bytes > 0)
 		skb_push(skb, dword_align_bytes);
@@ -319,7 +322,7 @@ static int rsi_rx_urb_submit(struct rsi_hw *adapter, u8 ep_num)
 			  usb_rcvbulkpipe(dev->usbdev,
 			  dev->bulkin_endpoint_addr[ep_num - 1]),
 			  urb->transfer_buffer,
-			  RSI_MAX_RX_USB_PKT_SIZE,
+			  skb->len,
 			  rsi_rx_done_handler,
 			  rx_cb);
 
@@ -687,6 +690,14 @@ static int rsi_reset_card(struct rsi_hw *adapter)
 	 */
 	msleep(100);
 
+	ret = rsi_usb_master_reg_write(adapter, SWBL_REGOUT,
+				       RSI_FW_WDT_DISABLE_REQ,
+				       RSI_COMMON_REG_SIZE);
+	if (ret < 0) {
+		rsi_dbg(ERR_ZONE, "Disabling firmware watchdog timer failed\n");
+		goto fail;
+	}
+
 	ret = usb_ulp_read_write(adapter, RSI_WATCH_DOG_TIMER_1,
 				 RSI_ULP_WRITE_2, 32);
 	if (ret < 0)
@@ -827,11 +838,7 @@ static int rsi_resume(struct usb_interface *intf)
 #endif
 
 static const struct usb_device_id rsi_dev_table[] = {
-	{ USB_DEVICE(0x0303, 0x0100) },
-	{ USB_DEVICE(0x041B, 0x0301) },
-	{ USB_DEVICE(0x041B, 0x0201) },
-	{ USB_DEVICE(0x041B, 0x9330) },
-	{ USB_DEVICE(0x1618, 0x9113) },
+	{ USB_DEVICE(RSI_USB_VID_9113, RSI_USB_PID_9113) },
 	{ /* Blank */},
 };
 

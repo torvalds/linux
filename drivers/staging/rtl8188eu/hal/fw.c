@@ -1,18 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  *
  * Copyright(c) 2009-2013  Realtek Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
  *
  * Contact Information:
  * wlanfae <wlanfae@realtek.com>
@@ -109,9 +98,9 @@ static void rtl88e_firmware_selfreset(struct adapter *adapt)
 {
 	u8 u1b_tmp;
 
-	u1b_tmp = usb_read8(adapt, REG_SYS_FUNC_EN+1);
-	usb_write8(adapt, REG_SYS_FUNC_EN+1, (u1b_tmp & (~BIT(2))));
-	usb_write8(adapt, REG_SYS_FUNC_EN+1, (u1b_tmp | BIT(2)));
+	u1b_tmp = usb_read8(adapt, REG_SYS_FUNC_EN + 1);
+	usb_write8(adapt, REG_SYS_FUNC_EN + 1, (u1b_tmp & (~BIT(2))));
+	usb_write8(adapt, REG_SYS_FUNC_EN + 1, (u1b_tmp | BIT(2)));
 }
 
 static int _rtl88e_fw_free_to_go(struct adapter *adapt)

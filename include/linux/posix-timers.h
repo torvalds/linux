@@ -95,8 +95,8 @@ struct k_itimer {
 	clockid_t		it_clock;
 	timer_t			it_id;
 	int			it_active;
-	int			it_overrun;
-	int			it_overrun_last;
+	s64			it_overrun;
+	s64			it_overrun_last;
 	int			it_requeue_pending;
 	int			it_sigev_notify;
 	ktime_t			it_interval;
@@ -126,5 +126,5 @@ void set_process_cpu_timer(struct task_struct *task, unsigned int clock_idx,
 
 void update_rlimit_cpu(struct task_struct *task, unsigned long rlim_new);
 
-void posixtimer_rearm(struct siginfo *info);
+void posixtimer_rearm(struct kernel_siginfo *info);
 #endif

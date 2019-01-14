@@ -39,6 +39,7 @@ enum helene_xtal {
  * @set_tuner_callback:	Callback function that notifies the parent driver
  *			which tuner is active now
  * @xtal: Cristal frequency as described by &enum helene_xtal
+ * @fe: Frontend for which connects this tuner
  */
 struct helene_config {
 	u8	i2c_address;
@@ -46,6 +47,8 @@ struct helene_config {
 	void	*set_tuner_priv;
 	int	(*set_tuner_callback)(void *, int);
 	enum helene_xtal xtal;
+
+	struct dvb_frontend *fe;
 };
 
 #if IS_REACHABLE(CONFIG_DVB_HELENE)

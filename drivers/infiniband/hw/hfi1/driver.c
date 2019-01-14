@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015-2017 Intel Corporation.
+ * Copyright(c) 2015-2018 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -61,6 +61,7 @@
 #include "sdma.h"
 #include "debugfs.h"
 #include "vnic.h"
+#include "fault.h"
 
 #undef pr_fmt
 #define pr_fmt(fmt) DRIVER_NAME ": " fmt
@@ -207,25 +208,25 @@ static inline void *get_egrbuf(const struct hfi1_ctxtdata *rcd, u64 rhf,
 			(offset * RCV_BUF_BLOCK_SIZE));
 }
 
-static inline void *hfi1_get_header(struct hfi1_devdata *dd,
+static inline void *hfi1_get_header(struct hfi1_ctxtdata *rcd,
 				    __le32 *rhf_addr)
 {
 	u32 offset = rhf_hdrq_offset(rhf_to_cpu(rhf_addr));
 
-	return (void *)(rhf_addr - dd->rhf_offset + offset);
+	return (void *)(rhf_addr - rcd->rhf_offset + offset);
 }
 
-static inline struct ib_header *hfi1_get_msgheader(struct hfi1_devdata *dd,
+static inline struct ib_header *hfi1_get_msgheader(struct hfi1_ctxtdata *rcd,
 						   __le32 *rhf_addr)
 {
-	return (struct ib_header *)hfi1_get_header(dd, rhf_addr);
+	return (struct ib_header *)hfi1_get_header(rcd, rhf_addr);
 }
 
 static inline struct hfi1_16b_header
-		*hfi1_get_16B_header(struct hfi1_devdata *dd,
+		*hfi1_get_16B_header(struct hfi1_ctxtdata *rcd,
 				     __le32 *rhf_addr)
 {
-	return (struct hfi1_16b_header *)hfi1_get_header(dd, rhf_addr);
+	return (struct hfi1_16b_header *)hfi1_get_header(rcd, rhf_addr);
 }
 
 /*
@@ -590,13 +591,12 @@ static void __prescan_rxq(struct hfi1_packet *packet)
 	init_ps_mdata(&mdata, packet);
 
 	while (1) {
-		struct hfi1_devdata *dd = rcd->dd;
 		struct hfi1_ibport *ibp = rcd_to_iport(rcd);
 		__le32 *rhf_addr = (__le32 *)rcd->rcvhdrq + mdata.ps_head +
-					 dd->rhf_offset;
+					 packet->rcd->rhf_offset;
 		struct rvt_qp *qp;
 		struct ib_header *hdr;
-		struct rvt_dev_info *rdi = &dd->verbs_dev.rdi;
+		struct rvt_dev_info *rdi = &rcd->dd->verbs_dev.rdi;
 		u64 rhf = rhf_to_cpu(rhf_addr);
 		u32 etype = rhf_rcv_type(rhf), qpn, bth1;
 		int is_ecn = 0;
@@ -611,7 +611,7 @@ static void __prescan_rxq(struct hfi1_packet *packet)
 		if (etype != RHF_RCV_TYPE_IB)
 			goto next;
 
-		packet->hdr = hfi1_get_msgheader(dd, rhf_addr);
+		packet->hdr = hfi1_get_msgheader(packet->rcd, rhf_addr);
 		hdr = packet->hdr;
 		lnh = ib_get_lnh(hdr);
 
@@ -717,7 +717,7 @@ static noinline int skip_rcv_packet(struct hfi1_packet *packet, int thread)
 	ret = check_max_packet(packet, thread);
 
 	packet->rhf_addr = (__le32 *)packet->rcd->rcvhdrq + packet->rhqoff +
-				     packet->rcd->dd->rhf_offset;
+				     packet->rcd->rhf_offset;
 	packet->rhf = rhf_to_cpu(packet->rhf_addr);
 
 	return ret;
@@ -756,7 +756,7 @@ static inline int process_rcv_packet(struct hfi1_packet *packet, int thread)
 	 * crashing down. There is no need to eat another
 	 * comparison in this performance critical code.
 	 */
-	packet->rcd->dd->rhf_rcv_function_map[packet->etype](packet);
+	packet->rcd->rhf_rcv_function_map[packet->etype](packet);
 	packet->numpkt++;
 
 	/* Set up for the next packet */
@@ -767,7 +767,7 @@ static inline int process_rcv_packet(struct hfi1_packet *packet, int thread)
 	ret = check_max_packet(packet, thread);
 
 	packet->rhf_addr = (__le32 *)packet->rcd->rcvhdrq + packet->rhqoff +
-				      packet->rcd->dd->rhf_offset;
+				      packet->rcd->rhf_offset;
 	packet->rhf = rhf_to_cpu(packet->rhf_addr);
 
 	return ret;
@@ -948,12 +948,12 @@ static inline int set_armed_to_active(struct hfi1_ctxtdata *rcd,
 	u8 sc = SC15_PACKET;
 
 	if (etype == RHF_RCV_TYPE_IB) {
-		struct ib_header *hdr = hfi1_get_msgheader(packet->rcd->dd,
+		struct ib_header *hdr = hfi1_get_msgheader(packet->rcd,
 							   packet->rhf_addr);
 		sc = hfi1_9B_get_sc5(hdr, packet->rhf);
 	} else if (etype == RHF_RCV_TYPE_BYPASS) {
 		struct hfi1_16b_header *hdr = hfi1_get_16B_header(
-						packet->rcd->dd,
+						packet->rcd,
 						packet->rhf_addr);
 		sc = hfi1_16B_get_sc(hdr);
 	}
@@ -1033,7 +1033,7 @@ int handle_receive_interrupt(struct hfi1_ctxtdata *rcd, int thread)
 			packet.rhqoff += packet.rsize;
 			packet.rhf_addr = (__le32 *)rcd->rcvhdrq +
 					  packet.rhqoff +
-					  dd->rhf_offset;
+					  rcd->rhf_offset;
 			packet.rhf = rhf_to_cpu(packet.rhf_addr);
 
 		} else if (skip_pkt) {
@@ -1383,7 +1383,7 @@ bail:
 static inline void hfi1_setup_ib_header(struct hfi1_packet *packet)
 {
 	packet->hdr = (struct hfi1_ib_message_header *)
-			hfi1_get_msgheader(packet->rcd->dd,
+			hfi1_get_msgheader(packet->rcd,
 					   packet->rhf_addr);
 	packet->hlen = (u8 *)packet->rhf_addr - (u8 *)packet->hdr;
 }
@@ -1482,38 +1482,51 @@ static int hfi1_setup_bypass_packet(struct hfi1_packet *packet)
 	struct hfi1_pportdata *ppd = rcd->ppd;
 	struct hfi1_ibport *ibp = &ppd->ibport_data;
 	u8 l4;
-	u8 grh_len;
 
 	packet->hdr = (struct hfi1_16b_header *)
-			hfi1_get_16B_header(packet->rcd->dd,
+			hfi1_get_16B_header(packet->rcd,
 					    packet->rhf_addr);
-	packet->hlen = (u8 *)packet->rhf_addr - (u8 *)packet->hdr;
-
 	l4 = hfi1_16B_get_l4(packet->hdr);
 	if (l4 == OPA_16B_L4_IB_LOCAL) {
-		grh_len = 0;
 		packet->ohdr = packet->ebuf;
 		packet->grh = NULL;
+		packet->opcode = ib_bth_get_opcode(packet->ohdr);
+		packet->pad = hfi1_16B_bth_get_pad(packet->ohdr);
+		/* hdr_len_by_opcode already has an IB LRH factored in */
+		packet->hlen = hdr_len_by_opcode[packet->opcode] +
+			(LRH_16B_BYTES - LRH_9B_BYTES);
+		packet->migrated = opa_bth_is_migration(packet->ohdr);
 	} else if (l4 == OPA_16B_L4_IB_GLOBAL) {
 		u32 vtf;
+		u8 grh_len = sizeof(struct ib_grh);
 
-		grh_len = sizeof(struct ib_grh);
 		packet->ohdr = packet->ebuf + grh_len;
 		packet->grh = packet->ebuf;
+		packet->opcode = ib_bth_get_opcode(packet->ohdr);
+		packet->pad = hfi1_16B_bth_get_pad(packet->ohdr);
+		/* hdr_len_by_opcode already has an IB LRH factored in */
+		packet->hlen = hdr_len_by_opcode[packet->opcode] +
+			(LRH_16B_BYTES - LRH_9B_BYTES) + grh_len;
+		packet->migrated = opa_bth_is_migration(packet->ohdr);
+
 		if (packet->grh->next_hdr != IB_GRH_NEXT_HDR)
 			goto drop;
 		vtf = be32_to_cpu(packet->grh->version_tclass_flow);
 		if ((vtf >> IB_GRH_VERSION_SHIFT) != IB_GRH_VERSION)
 			goto drop;
+	} else if (l4 == OPA_16B_L4_FM) {
+		packet->mgmt = packet->ebuf;
+		packet->ohdr = NULL;
+		packet->grh = NULL;
+		packet->opcode = IB_OPCODE_UD_SEND_ONLY;
+		packet->pad = OPA_16B_L4_FM_PAD;
+		packet->hlen = OPA_16B_L4_FM_HLEN;
+		packet->migrated = false;
 	} else {
 		goto drop;
 	}
 
 	/* Query commonly used fields from packet header */
-	packet->opcode = ib_bth_get_opcode(packet->ohdr);
-	/* hdr_len_by_opcode already has an IB LRH factored in */
-	packet->hlen = hdr_len_by_opcode[packet->opcode] +
-		(LRH_16B_BYTES - LRH_9B_BYTES) + grh_len;
 	packet->payload = packet->ebuf + packet->hlen - LRH_16B_BYTES;
 	packet->slid = hfi1_16B_get_slid(packet->hdr);
 	packet->dlid = hfi1_16B_get_dlid(packet->hdr);
@@ -1523,10 +1536,8 @@ static int hfi1_setup_bypass_packet(struct hfi1_packet *packet)
 					    16B);
 	packet->sc = hfi1_16B_get_sc(packet->hdr);
 	packet->sl = ibp->sc_to_sl[packet->sc];
-	packet->pad = hfi1_16B_bth_get_pad(packet->ohdr);
 	packet->extra_byte = SIZE_OF_LT;
 	packet->pkey = hfi1_16B_get_pkey(packet->hdr);
-	packet->migrated = opa_bth_is_migration(packet->ohdr);
 
 	if (hfi1_bypass_ingress_pkt_check(packet))
 		goto drop;
@@ -1563,12 +1574,12 @@ void handle_eflags(struct hfi1_packet *packet)
  * The following functions are called by the interrupt handler. They are type
  * specific handlers for each packet type.
  */
-int process_receive_ib(struct hfi1_packet *packet)
+static int process_receive_ib(struct hfi1_packet *packet)
 {
-	if (unlikely(hfi1_dbg_fault_packet(packet)))
+	if (hfi1_setup_9B_packet(packet))
 		return RHF_RCV_CONTINUE;
 
-	if (hfi1_setup_9B_packet(packet))
+	if (unlikely(hfi1_dbg_should_fault_rx(packet)))
 		return RHF_RCV_CONTINUE;
 
 	trace_hfi1_rcvhdr(packet);
@@ -1595,7 +1606,7 @@ static inline bool hfi1_is_vnic_packet(struct hfi1_packet *packet)
 	return false;
 }
 
-int process_receive_bypass(struct hfi1_packet *packet)
+static int process_receive_bypass(struct hfi1_packet *packet)
 {
 	struct hfi1_devdata *dd = packet->rcd->dd;
 
@@ -1637,12 +1648,13 @@ int process_receive_bypass(struct hfi1_packet *packet)
 	return RHF_RCV_CONTINUE;
 }
 
-int process_receive_error(struct hfi1_packet *packet)
+static int process_receive_error(struct hfi1_packet *packet)
 {
 	/* KHdrHCRCErr -- KDETH packet with a bad HCRC */
 	if (unlikely(
 		 hfi1_dbg_fault_suppress_err(&packet->rcd->dd->verbs_dev) &&
-		 rhf_rcv_type_err(packet->rhf) == 3))
+		 (rhf_rcv_type_err(packet->rhf) == RHF_RCV_TYPE_ERROR ||
+		  packet->rhf & RHF_DC_ERR)))
 		return RHF_RCV_CONTINUE;
 
 	hfi1_setup_ib_header(packet);
@@ -1655,12 +1667,12 @@ int process_receive_error(struct hfi1_packet *packet)
 	return RHF_RCV_CONTINUE;
 }
 
-int kdeth_process_expected(struct hfi1_packet *packet)
+static int kdeth_process_expected(struct hfi1_packet *packet)
 {
-	if (unlikely(hfi1_dbg_fault_packet(packet)))
+	hfi1_setup_9B_packet(packet);
+	if (unlikely(hfi1_dbg_should_fault_rx(packet)))
 		return RHF_RCV_CONTINUE;
 
-	hfi1_setup_ib_header(packet);
 	if (unlikely(rhf_err_flags(packet->rhf)))
 		handle_eflags(packet);
 
@@ -1669,20 +1681,20 @@ int kdeth_process_expected(struct hfi1_packet *packet)
 	return RHF_RCV_CONTINUE;
 }
 
-int kdeth_process_eager(struct hfi1_packet *packet)
+static int kdeth_process_eager(struct hfi1_packet *packet)
 {
-	hfi1_setup_ib_header(packet);
+	hfi1_setup_9B_packet(packet);
+	if (unlikely(hfi1_dbg_should_fault_rx(packet)))
+		return RHF_RCV_CONTINUE;
 	if (unlikely(rhf_err_flags(packet->rhf)))
 		handle_eflags(packet);
-	if (unlikely(hfi1_dbg_fault_packet(packet)))
-		return RHF_RCV_CONTINUE;
 
 	dd_dev_err(packet->rcd->dd,
 		   "Unhandled eager packet received. Dropping.\n");
 	return RHF_RCV_CONTINUE;
 }
 
-int process_receive_invalid(struct hfi1_packet *packet)
+static int process_receive_invalid(struct hfi1_packet *packet)
 {
 	dd_dev_err(packet->rcd->dd, "Invalid packet type %d. Dropping\n",
 		   rhf_rcv_type(packet->rhf));
@@ -1706,9 +1718,8 @@ void seqfile_dump_rcd(struct seq_file *s, struct hfi1_ctxtdata *rcd)
 	init_ps_mdata(&mdata, &packet);
 
 	while (1) {
-		struct hfi1_devdata *dd = rcd->dd;
 		__le32 *rhf_addr = (__le32 *)rcd->rcvhdrq + mdata.ps_head +
-					 dd->rhf_offset;
+					 rcd->rhf_offset;
 		struct ib_header *hdr;
 		u64 rhf = rhf_to_cpu(rhf_addr);
 		u32 etype = rhf_rcv_type(rhf), qpn;
@@ -1725,7 +1736,7 @@ void seqfile_dump_rcd(struct seq_file *s, struct hfi1_ctxtdata *rcd)
 		if (etype > RHF_RCV_TYPE_IB)
 			goto next;
 
-		packet.hdr = hfi1_get_msgheader(dd, rhf_addr);
+		packet.hdr = hfi1_get_msgheader(rcd, rhf_addr);
 		hdr = packet.hdr;
 
 		lnh = be16_to_cpu(hdr->lrh[0]) & 3;
@@ -1747,3 +1758,14 @@ next:
 		update_ps_mdata(&mdata, rcd);
 	}
 }
+
+const rhf_rcv_function_ptr normal_rhf_rcv_functions[] = {
+	[RHF_RCV_TYPE_EXPECTED] = kdeth_process_expected,
+	[RHF_RCV_TYPE_EAGER] = kdeth_process_eager,
+	[RHF_RCV_TYPE_IB] = process_receive_ib,
+	[RHF_RCV_TYPE_ERROR] = process_receive_error,
+	[RHF_RCV_TYPE_BYPASS] = process_receive_bypass,
+	[RHF_RCV_TYPE_INVALID5] = process_receive_invalid,
+	[RHF_RCV_TYPE_INVALID6] = process_receive_invalid,
+	[RHF_RCV_TYPE_INVALID7] = process_receive_invalid,
+};

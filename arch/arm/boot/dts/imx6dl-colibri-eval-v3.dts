@@ -72,15 +72,12 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	clocks {
-		/* Fixed crystal dedicated to mcp251x */
-		clk16m: clk@1 {
-			compatible = "fixed-clock";
-			reg = <1>;
-			#clock-cells = <0>;
-			clock-frequency = <16000000>;
-			clock-output-names = "clk16m";
-		};
+	/* Fixed crystal dedicated to mcp251x */
+	clk16m: clock-16m {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <16000000>;
+		clock-output-names = "clk16m";
 	};
 
 	gpio-keys {
@@ -149,7 +146,7 @@
 &ecspi4 {
 	status = "okay";
 
-	mcp251x0: mcp251x@1 {
+	mcp251x0: mcp251x@0 {
 		compatible = "microchip,mcp2515";
 		reg = <0>;
 		clocks = <&clk16m>;
@@ -224,9 +221,6 @@
 
 /* Colibri MMC */
 &usdhc1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_mmc_cd>;
-	cd-gpios = <&gpio2 5 GPIO_ACTIVE_LOW>; /* MMCD */
 	status = "okay";
 };
 

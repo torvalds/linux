@@ -8,9 +8,6 @@ the SPI master node.
 Required properties:
 - compatible: Should be "microchip,enc28j60"
 - reg: Specify the SPI chip select the ENC28J60 is wired to
-- interrupt-parent: Specify the phandle of the source interrupt, see interrupt
-                    binding documentation for details. Usually this is the GPIO bank
-                    the interrupt line is wired to.
 - interrupts: Specify the interrupt index within the interrupt controller (referred
               to above in interrupt-parent) and interrupt type. The ENC28J60 natively
               generates falling edge interrupts, however, additional board logic

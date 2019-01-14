@@ -463,8 +463,8 @@ Getting information about your UIO device
 
 Information about all UIO devices is available in sysfs. The first thing
 you should do in your driver is check ``name`` and ``version`` to make
-sure your talking to the right device and that its kernel driver has the
-version you expect.
+sure you're talking to the right device and that its kernel driver has
+the version you expect.
 
 You should also make sure that the memory mapping you need exists and
 has the size you expect.
@@ -711,7 +711,8 @@ The vmbus device regions are mapped into uio device resources:
 
 If a subchannel is created by a request to host, then the uio_hv_generic
 device driver will create a sysfs binary file for the per-channel ring buffer.
-For example:
+For example::
+
 	/sys/bus/vmbus/devices/3811fe4d-0fa0-4b62-981a-74fc1084c757/channels/21/ring
 
 Further information

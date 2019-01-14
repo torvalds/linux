@@ -7,7 +7,7 @@ limitations.
 Current Binding
 ---------------
 
-Switches are true Linux devices and can be probes by any means. Once
+Switches are true Linux devices and can be probed by any means. Once
 probed, they register to the DSA framework, passing a node
 pointer. This node is expected to fulfil the following binding, and
 may contain additional properties as required by the device it is
@@ -82,8 +82,6 @@ linked into one DSA cluster.
 
 	switch0: switch0@0 {
 		compatible = "marvell,mv88e6085";
-		#address-cells = <1>;
-		#size-cells = <0>;
 		reg = <0>;
 
 		dsa,member = <0 0>;
@@ -135,8 +133,6 @@ linked into one DSA cluster.
 
 	switch1: switch1@0 {
 		compatible = "marvell,mv88e6085";
-		#address-cells = <1>;
-		#size-cells = <0>;
 		reg = <0>;
 
 		dsa,member = <0 1>;
@@ -204,8 +200,6 @@ linked into one DSA cluster.
 
 	switch2: switch2@0 {
 		compatible = "marvell,mv88e6085";
-		#address-cells = <1>;
-		#size-cells = <0>;
 		reg = <0>;
 
 		dsa,member = <0 2>;

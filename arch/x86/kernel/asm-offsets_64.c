@@ -21,10 +21,13 @@ static char syscalls_ia32[] = {
 int main(void)
 {
 #ifdef CONFIG_PARAVIRT
-	OFFSET(PV_CPU_usergs_sysret64, pv_cpu_ops, usergs_sysret64);
-	OFFSET(PV_CPU_swapgs, pv_cpu_ops, swapgs);
+#ifdef CONFIG_PARAVIRT_XXL
+	OFFSET(PV_CPU_usergs_sysret64, paravirt_patch_template,
+	       cpu.usergs_sysret64);
+	OFFSET(PV_CPU_swapgs, paravirt_patch_template, cpu.swapgs);
 #ifdef CONFIG_DEBUG_ENTRY
-	OFFSET(PV_IRQ_save_fl, pv_irq_ops, save_fl);
+	OFFSET(PV_IRQ_save_fl, paravirt_patch_template, irq.save_fl);
+#endif
 #endif
 	BLANK();
 #endif
@@ -65,11 +68,9 @@ int main(void)
 #undef ENTRY
 
 	OFFSET(TSS_ist, tss_struct, x86_tss.ist);
-	OFFSET(TSS_sp0, tss_struct, x86_tss.sp0);
-	OFFSET(TSS_sp1, tss_struct, x86_tss.sp1);
 	BLANK();
 
-#ifdef CONFIG_CC_STACKPROTECTOR
+#ifdef CONFIG_STACKPROTECTOR
 	DEFINE(stack_canary_offset, offsetof(union irq_stack_union, stack_canary));
 	BLANK();
 #endif

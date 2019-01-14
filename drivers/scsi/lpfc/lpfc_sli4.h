@@ -2,7 +2,7 @@
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
  * Copyright (C) 2017-2018 Broadcom. All Rights Reserved. The term *
- * “Broadcom” refers to Broadcom Limited and/or its subsidiaries.  *
+ * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2009-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.broadcom.com                                                *
@@ -490,6 +490,7 @@ struct lpfc_pc_sli4_params {
 	uint8_t eqav;
 	uint8_t cqav;
 	uint8_t wqsize;
+	uint8_t bv1s;
 #define LPFC_WQ_SZ64_SUPPORT	1
 #define LPFC_WQ_SZ128_SUPPORT	2
 	uint8_t wqpcnt;
@@ -774,7 +775,9 @@ struct lpfc_rdp_context {
 struct lpfc_lcb_context {
 	uint8_t  sub_command;
 	uint8_t  type;
+	uint8_t  capability;
 	uint8_t  frequency;
+	uint16_t  duration;
 	uint16_t ox_id;
 	uint16_t rx_id;
 	struct lpfc_nodelist *ndlp;
@@ -883,3 +886,4 @@ int lpfc_sli4_unregister_fcf(struct lpfc_hba *);
 int lpfc_sli4_post_status_check(struct lpfc_hba *);
 uint8_t lpfc_sli_config_mbox_subsys_get(struct lpfc_hba *, LPFC_MBOXQ_t *);
 uint8_t lpfc_sli_config_mbox_opcode_get(struct lpfc_hba *, LPFC_MBOXQ_t *);
+void lpfc_sli4_ras_dma_free(struct lpfc_hba *phba);

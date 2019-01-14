@@ -504,10 +504,10 @@ struct dcn_bw_internal_vars {
 	float prefetch_mode;
 	float dstx_after_scaler;
 	float dsty_after_scaler;
-	float v_update_offset_pix;
+	float v_update_offset_pix[number_of_planes_minus_one + 1];
 	float total_repeater_delay_time;
-	float v_update_width_pix;
-	float v_ready_offset_pix;
+	float v_update_width_pix[number_of_planes_minus_one + 1];
+	float v_ready_offset_pix[number_of_planes_minus_one + 1];
 	float t_setup;
 	float t_wait;
 	float bandwidth_available_for_immediate_flip;
@@ -625,7 +625,7 @@ bool dcn_validate_bandwidth(
 
 unsigned int dcn_find_dcfclk_suits_all(
 	const struct dc *dc,
-	struct clocks_value *clocks);
+	struct dc_clocks *clocks);
 
 void dcn_bw_update_from_pplib(struct dc *dc);
 void dcn_bw_notify_pplib_of_wm_ranges(struct dc *dc);

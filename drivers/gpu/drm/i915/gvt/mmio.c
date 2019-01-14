@@ -39,6 +39,7 @@
 /**
  * intel_vgpu_gpa_to_mmio_offset - translate a GPA to MMIO offset
  * @vgpu: a vGPU
+ * @gpa: guest physical address
  *
  * Returns:
  * Zero on success, negative error code if failed
@@ -67,7 +68,7 @@ static void failsafe_emulate_mmio_rw(struct intel_vgpu *vgpu, uint64_t pa,
 		return;
 
 	gvt = vgpu->gvt;
-	mutex_lock(&gvt->lock);
+	mutex_lock(&vgpu->vgpu_lock);
 	offset = intel_vgpu_gpa_to_mmio_offset(vgpu, pa);
 	if (reg_is_mmio(gvt, offset)) {
 		if (read)
@@ -85,7 +86,7 @@ static void failsafe_emulate_mmio_rw(struct intel_vgpu *vgpu, uint64_t pa,
 			memcpy(pt, p_data, bytes);
 
 	}
-	mutex_unlock(&gvt->lock);
+	mutex_unlock(&vgpu->vgpu_lock);
 }
 
 /**
@@ -109,7 +110,7 @@ int intel_vgpu_emulate_mmio_read(struct intel_vgpu *vgpu, uint64_t pa,
 		failsafe_emulate_mmio_rw(vgpu, pa, p_data, bytes, true);
 		return 0;
 	}
-	mutex_lock(&gvt->lock);
+	mutex_lock(&vgpu->vgpu_lock);
 
 	offset = intel_vgpu_gpa_to_mmio_offset(vgpu, pa);
 
@@ -156,7 +157,7 @@ err:
 	gvt_vgpu_err("fail to emulate MMIO read %08x len %d\n",
 			offset, bytes);
 out:
-	mutex_unlock(&gvt->lock);
+	mutex_unlock(&vgpu->vgpu_lock);
 	return ret;
 }
 
@@ -182,7 +183,7 @@ int intel_vgpu_emulate_mmio_write(struct intel_vgpu *vgpu, uint64_t pa,
 		return 0;
 	}
 
-	mutex_lock(&gvt->lock);
+	mutex_lock(&vgpu->vgpu_lock);
 
 	offset = intel_vgpu_gpa_to_mmio_offset(vgpu, pa);
 
@@ -220,7 +221,7 @@ err:
 	gvt_vgpu_err("fail to emulate MMIO write %08x len %d\n", offset,
 		     bytes);
 out:
-	mutex_unlock(&gvt->lock);
+	mutex_unlock(&vgpu->vgpu_lock);
 	return ret;
 }
 
@@ -228,7 +229,7 @@ out:
 /**
  * intel_vgpu_reset_mmio - reset virtual MMIO space
  * @vgpu: a vGPU
- *
+ * @dmlr: whether this is device model level reset
  */
 void intel_vgpu_reset_mmio(struct intel_vgpu *vgpu, bool dmlr)
 {
@@ -245,7 +246,33 @@ void intel_vgpu_reset_mmio(struct intel_vgpu *vgpu, bool dmlr)
 		/* set the bit 0:2(Core C-State ) to C0 */
 		vgpu_vreg_t(vgpu, GEN6_GT_CORE_STATUS) = 0;
 
-		vgpu->mmio.disable_warn_untrack = false;
+		if (IS_BROXTON(vgpu->gvt->dev_priv)) {
+			vgpu_vreg_t(vgpu, BXT_P_CR_GT_DISP_PWRON) &=
+				    ~(BIT(0) | BIT(1));
+			vgpu_vreg_t(vgpu, BXT_PORT_CL1CM_DW0(DPIO_PHY0)) &=
+				    ~PHY_POWER_GOOD;
+			vgpu_vreg_t(vgpu, BXT_PORT_CL1CM_DW0(DPIO_PHY1)) &=
+				    ~PHY_POWER_GOOD;
+			vgpu_vreg_t(vgpu, BXT_PHY_CTL_FAMILY(DPIO_PHY0)) &=
+				    ~BIT(30);
+			vgpu_vreg_t(vgpu, BXT_PHY_CTL_FAMILY(DPIO_PHY1)) &=
+				    ~BIT(30);
+			vgpu_vreg_t(vgpu, BXT_PHY_CTL(PORT_A)) &=
+				    ~BXT_PHY_LANE_ENABLED;
+			vgpu_vreg_t(vgpu, BXT_PHY_CTL(PORT_A)) |=
+				    BXT_PHY_CMNLANE_POWERDOWN_ACK |
+				    BXT_PHY_LANE_POWERDOWN_ACK;
+			vgpu_vreg_t(vgpu, BXT_PHY_CTL(PORT_B)) &=
+				    ~BXT_PHY_LANE_ENABLED;
+			vgpu_vreg_t(vgpu, BXT_PHY_CTL(PORT_B)) |=
+				    BXT_PHY_CMNLANE_POWERDOWN_ACK |
+				    BXT_PHY_LANE_POWERDOWN_ACK;
+			vgpu_vreg_t(vgpu, BXT_PHY_CTL(PORT_C)) &=
+				    ~BXT_PHY_LANE_ENABLED;
+			vgpu_vreg_t(vgpu, BXT_PHY_CTL(PORT_C)) |=
+				    BXT_PHY_CMNLANE_POWERDOWN_ACK |
+				    BXT_PHY_LANE_POWERDOWN_ACK;
+		}
 	} else {
 #define GVT_GEN8_MMIO_RESET_OFFSET		(0x44200)
 		/* only reset the engine related, so starting with 0x44200
@@ -269,7 +296,7 @@ int intel_vgpu_init_mmio(struct intel_vgpu *vgpu)
 {
 	const struct intel_gvt_device_info *info = &vgpu->gvt->device_info;
 
-	vgpu->mmio.vreg = vzalloc(info->mmio_size * 2);
+	vgpu->mmio.vreg = vzalloc(array_size(info->mmio_size, 2));
 	if (!vgpu->mmio.vreg)
 		return -ENOMEM;
 

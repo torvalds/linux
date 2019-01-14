@@ -2,6 +2,8 @@
 
 #include <linux/spinlock.h>
 #include <linux/percpu.h>
+#include <linux/kallsyms.h>
+#include <linux/kcore.h>
 
 #include <asm/cpu_entry_area.h>
 #include <asm/pgtable.h>
@@ -80,8 +82,6 @@ static void percpu_setup_debug_store(int cpu)
 static void __init setup_cpu_entry_area(int cpu)
 {
 #ifdef CONFIG_X86_64
-	extern char _entry_trampoline[];
-
 	/* On 64-bit systems, we use a read-only fixmap GDT and TSS. */
 	pgprot_t gdt_prot = PAGE_KERNEL_RO;
 	pgprot_t tss_prot = PAGE_KERNEL_RO;
@@ -143,9 +143,6 @@ static void __init setup_cpu_entry_area(int cpu)
 	cea_map_percpu_pages(&get_cpu_entry_area(cpu)->exception_stacks,
 			     &per_cpu(exception_stacks, cpu),
 			     sizeof(exception_stacks) / PAGE_SIZE, PAGE_KERNEL);
-
-	cea_set_pte(&get_cpu_entry_area(cpu)->entry_trampoline,
-		     __pa_symbol(_entry_trampoline), PAGE_KERNEL_RX);
 #endif
 	percpu_setup_debug_store(cpu);
 }

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # This test is for checking rtnetlink callpaths, and get as much coverage as possible.
 #
@@ -6,6 +6,9 @@
 
 devdummy="test-dummy0"
 ret=0
+
+# Kselftest framework requirement - SKIP code is 4.
+ksft_skip=4
 
 # set global exit status, but never reset nonzero one.
 check_err()
@@ -333,7 +336,7 @@ kci_test_vrf()
 	ip link show type vrf 2>/dev/null
 	if [ $? -ne 0 ]; then
 		echo "SKIP: vrf: iproute2 too old"
-		return 0
+		return $ksft_skip
 	fi
 
 	ip link add "$vrfname" type vrf table 10
@@ -409,7 +412,7 @@ kci_test_encap_fou()
 	ip fou help 2>&1 |grep -q 'Usage: ip fou'
 	if [ $? -ne 0 ];then
 		echo "SKIP: fou: iproute2 too old"
-		return 1
+		return $ksft_skip
 	fi
 
 	ip netns exec "$testns" ip fou add port 7777 ipproto 47 2>/dev/null
@@ -444,7 +447,7 @@ kci_test_encap()
 	ip netns add "$testns"
 	if [ $? -ne 0 ]; then
 		echo "SKIP encap tests: cannot add net namespace $testns"
-		return 1
+		return $ksft_skip
 	fi
 
 	ip netns exec "$testns" ip link set lo up
@@ -469,7 +472,7 @@ kci_test_macsec()
 	ip macsec help 2>&1 | grep -q "^Usage: ip macsec"
 	if [ $? -ne 0 ]; then
 		echo "SKIP: macsec: iproute2 too old"
-		return 0
+		return $ksft_skip
 	fi
 
 	ip link add link "$devdummy" "$msname" type macsec port 42 encrypt on
@@ -502,6 +505,225 @@ kci_test_macsec()
 	echo "PASS: macsec"
 }
 
+#-------------------------------------------------------------------
+# Example commands
+#   ip x s add proto esp src 14.0.0.52 dst 14.0.0.70 \
+#            spi 0x07 mode transport reqid 0x07 replay-window 32 \
+#            aead 'rfc4106(gcm(aes))' 1234567890123456dcba 128 \
+#            sel src 14.0.0.52/24 dst 14.0.0.70/24
+#   ip x p add dir out src 14.0.0.52/24 dst 14.0.0.70/24 \
+#            tmpl proto esp src 14.0.0.52 dst 14.0.0.70 \
+#            spi 0x07 mode transport reqid 0x07
+#
+# Subcommands not tested
+#    ip x s update
+#    ip x s allocspi
+#    ip x s deleteall
+#    ip x p update
+#    ip x p deleteall
+#    ip x p set
+#-------------------------------------------------------------------
+kci_test_ipsec()
+{
+	ret=0
+	algo="aead rfc4106(gcm(aes)) 0x3132333435363738393031323334353664636261 128"
+	srcip=192.168.123.1
+	dstip=192.168.123.2
+	spi=7
+
+	ip addr add $srcip dev $devdummy
+
+	# flush to be sure there's nothing configured
+	ip x s flush ; ip x p flush
+	check_err $?
+
+	# start the monitor in the background
+	tmpfile=`mktemp /var/run/ipsectestXXX`
+	mpid=`(ip x m > $tmpfile & echo $!) 2>/dev/null`
+	sleep 0.2
+
+	ipsecid="proto esp src $srcip dst $dstip spi 0x07"
+	ip x s add $ipsecid \
+            mode transport reqid 0x07 replay-window 32 \
+            $algo sel src $srcip/24 dst $dstip/24
+	check_err $?
+
+	lines=`ip x s list | grep $srcip | grep $dstip | wc -l`
+	test $lines -eq 2
+	check_err $?
+
+	ip x s count | grep -q "SAD count 1"
+	check_err $?
+
+	lines=`ip x s get $ipsecid | grep $srcip | grep $dstip | wc -l`
+	test $lines -eq 2
+	check_err $?
+
+	ip x s delete $ipsecid
+	check_err $?
+
+	lines=`ip x s list | wc -l`
+	test $lines -eq 0
+	check_err $?
+
+	ipsecsel="dir out src $srcip/24 dst $dstip/24"
+	ip x p add $ipsecsel \
+		    tmpl proto esp src $srcip dst $dstip \
+		    spi 0x07 mode transport reqid 0x07
+	check_err $?
+
+	lines=`ip x p list | grep $srcip | grep $dstip | wc -l`
+	test $lines -eq 2
+	check_err $?
+
+	ip x p count | grep -q "SPD IN  0 OUT 1 FWD 0"
+	check_err $?
+
+	lines=`ip x p get $ipsecsel | grep $srcip | grep $dstip | wc -l`
+	test $lines -eq 2
+	check_err $?
+
+	ip x p delete $ipsecsel
+	check_err $?
+
+	lines=`ip x p list | wc -l`
+	test $lines -eq 0
+	check_err $?
+
+	# check the monitor results
+	kill $mpid
+	lines=`wc -l $tmpfile | cut "-d " -f1`
+	test $lines -eq 20
+	check_err $?
+	rm -rf $tmpfile
+
+	# clean up any leftovers
+	ip x s flush
+	check_err $?
+	ip x p flush
+	check_err $?
+	ip addr del $srcip/32 dev $devdummy
+
+	if [ $ret -ne 0 ]; then
+		echo "FAIL: ipsec"
+		return 1
+	fi
+	echo "PASS: ipsec"
+}
+
+#-------------------------------------------------------------------
+# Example commands
+#   ip x s add proto esp src 14.0.0.52 dst 14.0.0.70 \
+#            spi 0x07 mode transport reqid 0x07 replay-window 32 \
+#            aead 'rfc4106(gcm(aes))' 1234567890123456dcba 128 \
+#            sel src 14.0.0.52/24 dst 14.0.0.70/24
+#            offload dev sim1 dir out
+#   ip x p add dir out src 14.0.0.52/24 dst 14.0.0.70/24 \
+#            tmpl proto esp src 14.0.0.52 dst 14.0.0.70 \
+#            spi 0x07 mode transport reqid 0x07
+#
+#-------------------------------------------------------------------
+kci_test_ipsec_offload()
+{
+	ret=0
+	algo="aead rfc4106(gcm(aes)) 0x3132333435363738393031323334353664636261 128"
+	srcip=192.168.123.3
+	dstip=192.168.123.4
+	dev=simx1
+	sysfsd=/sys/kernel/debug/netdevsim/$dev
+	sysfsf=$sysfsd/ipsec
+
+	# setup netdevsim since dummydev doesn't have offload support
+	modprobe netdevsim
+	check_err $?
+	if [ $ret -ne 0 ]; then
+		echo "FAIL: ipsec_offload can't load netdevsim"
+		return 1
+	fi
+
+	ip link add $dev type netdevsim
+	ip addr add $srcip dev $dev
+	ip link set $dev up
+	if [ ! -d $sysfsd ] ; then
+		echo "FAIL: ipsec_offload can't create device $dev"
+		return 1
+	fi
+	if [ ! -f $sysfsf ] ; then
+		echo "FAIL: ipsec_offload netdevsim doesn't support IPsec offload"
+		return 1
+	fi
+
+	# flush to be sure there's nothing configured
+	ip x s flush ; ip x p flush
+
+	# create offloaded SAs, both in and out
+	ip x p add dir out src $srcip/24 dst $dstip/24 \
+	    tmpl proto esp src $srcip dst $dstip spi 9 \
+	    mode transport reqid 42
+	check_err $?
+	ip x p add dir out src $dstip/24 dst $srcip/24 \
+	    tmpl proto esp src $dstip dst $srcip spi 9 \
+	    mode transport reqid 42
+	check_err $?
+
+	ip x s add proto esp src $srcip dst $dstip spi 9 \
+	    mode transport reqid 42 $algo sel src $srcip/24 dst $dstip/24 \
+	    offload dev $dev dir out
+	check_err $?
+	ip x s add proto esp src $dstip dst $srcip spi 9 \
+	    mode transport reqid 42 $algo sel src $dstip/24 dst $srcip/24 \
+	    offload dev $dev dir in
+	check_err $?
+	if [ $ret -ne 0 ]; then
+		echo "FAIL: ipsec_offload can't create SA"
+		return 1
+	fi
+
+	# does offload show up in ip output
+	lines=`ip x s list | grep -c "crypto offload parameters: dev $dev dir"`
+	if [ $lines -ne 2 ] ; then
+		echo "FAIL: ipsec_offload SA offload missing from list output"
+		check_err 1
+	fi
+
+	# use ping to exercise the Tx path
+	ping -I $dev -c 3 -W 1 -i 0 $dstip >/dev/null
+
+	# does driver have correct offload info
+	diff $sysfsf - << EOF
+SA count=2 tx=3
+sa[0] tx ipaddr=0x00000000 00000000 00000000 00000000
+sa[0]    spi=0x00000009 proto=0x32 salt=0x61626364 crypt=1
+sa[0]    key=0x34333231 38373635 32313039 36353433
+sa[1] rx ipaddr=0x00000000 00000000 00000000 037ba8c0
+sa[1]    spi=0x00000009 proto=0x32 salt=0x61626364 crypt=1
+sa[1]    key=0x34333231 38373635 32313039 36353433
+EOF
+	if [ $? -ne 0 ] ; then
+		echo "FAIL: ipsec_offload incorrect driver data"
+		check_err 1
+	fi
+
+	# does offload get removed from driver
+	ip x s flush
+	ip x p flush
+	lines=`grep -c "SA count=0" $sysfsf`
+	if [ $lines -ne 1 ] ; then
+		echo "FAIL: ipsec_offload SA not removed from driver"
+		check_err 1
+	fi
+
+	# clean up any leftovers
+	ip link del $dev
+	rmmod netdevsim
+
+	if [ $ret -ne 0 ]; then
+		echo "FAIL: ipsec_offload"
+		return 1
+	fi
+	echo "PASS: ipsec_offload"
+}
+
 kci_test_gretap()
 {
 	testns="testns"
@@ -511,14 +733,14 @@ kci_test_gretap()
 	ip netns add "$testns"
 	if [ $? -ne 0 ]; then
 		echo "SKIP gretap tests: cannot add net namespace $testns"
-		return 1
+		return $ksft_skip
 	fi
 
 	ip link help gretap 2>&1 | grep -q "^Usage:"
 	if [ $? -ne 0 ];then
 		echo "SKIP: gretap: iproute2 too old"
 		ip netns del "$testns"
-		return 1
+		return $ksft_skip
 	fi
 
 	# test native tunnel
@@ -561,14 +783,14 @@ kci_test_ip6gretap()
 	ip netns add "$testns"
 	if [ $? -ne 0 ]; then
 		echo "SKIP ip6gretap tests: cannot add net namespace $testns"
-		return 1
+		return $ksft_skip
 	fi
 
 	ip link help ip6gretap 2>&1 | grep -q "^Usage:"
 	if [ $? -ne 0 ];then
 		echo "SKIP: ip6gretap: iproute2 too old"
 		ip netns del "$testns"
-		return 1
+		return $ksft_skip
 	fi
 
 	# test native tunnel
@@ -611,13 +833,13 @@ kci_test_erspan()
 	ip link help erspan 2>&1 | grep -q "^Usage:"
 	if [ $? -ne 0 ];then
 		echo "SKIP: erspan: iproute2 too old"
-		return 1
+		return $ksft_skip
 	fi
 
 	ip netns add "$testns"
 	if [ $? -ne 0 ]; then
 		echo "SKIP erspan tests: cannot add net namespace $testns"
-		return 1
+		return $ksft_skip
 	fi
 
 	# test native tunnel erspan v1
@@ -676,13 +898,13 @@ kci_test_ip6erspan()
 	ip link help ip6erspan 2>&1 | grep -q "^Usage:"
 	if [ $? -ne 0 ];then
 		echo "SKIP: ip6erspan: iproute2 too old"
-		return 1
+		return $ksft_skip
 	fi
 
 	ip netns add "$testns"
 	if [ $? -ne 0 ]; then
 		echo "SKIP ip6erspan tests: cannot add net namespace $testns"
-		return 1
+		return $ksft_skip
 	fi
 
 	# test native tunnel ip6erspan v1
@@ -755,6 +977,8 @@ kci_test_rtnl()
 	kci_test_vrf
 	kci_test_encap
 	kci_test_macsec
+	kci_test_ipsec
+	kci_test_ipsec_offload
 
 	kci_del_dummy
 }
@@ -762,14 +986,14 @@ kci_test_rtnl()
 #check for needed privileges
 if [ "$(id -u)" -ne 0 ];then
 	echo "SKIP: Need root privileges"
-	exit 0
+	exit $ksft_skip
 fi
 
 for x in ip tc;do
 	$x -Version 2>/dev/null >/dev/null
 	if [ $? -ne 0 ];then
 		echo "SKIP: Could not run test without the $x tool"
-		exit 0
+		exit $ksft_skip
 	fi
 done
 

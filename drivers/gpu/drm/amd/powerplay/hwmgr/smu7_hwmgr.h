@@ -156,6 +156,7 @@ struct smu7_vbios_boot_state {
 struct smu7_display_timing {
 	uint32_t  min_clock_in_sr;
 	uint32_t  num_existing_displays;
+	uint32_t  vrefresh;
 };
 
 struct smu7_dpmlevel_enable_mask {
@@ -184,6 +185,8 @@ struct smu7_odn_dpm_table {
 	struct smu7_odn_clock_voltage_dependency_table	vdd_dependency_on_sclk;
 	struct smu7_odn_clock_voltage_dependency_table	vdd_dependency_on_mclk;
 	uint32_t					odn_mclk_min_limit;
+	uint32_t min_vddc;
+	uint32_t max_vddc;
 };
 
 struct profile_mode_setting {
@@ -308,7 +311,6 @@ struct smu7_hwmgr {
 	/* ---- Power Gating States ---- */
 	bool                           uvd_power_gated;
 	bool                           vce_power_gated;
-	bool                           samu_power_gated;
 	bool                           need_long_memory_training;
 
 	/* Application power optimization parameters */

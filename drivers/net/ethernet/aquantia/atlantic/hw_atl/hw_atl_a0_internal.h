@@ -62,12 +62,6 @@
 #define HW_ATL_A0_MPI_SPEED_MSK       0xFFFFU
 #define HW_ATL_A0_MPI_SPEED_SHIFT     16U
 
-#define HW_ATL_A0_RATE_10G            BIT(0)
-#define HW_ATL_A0_RATE_5G             BIT(1)
-#define HW_ATL_A0_RATE_2G5            BIT(3)
-#define HW_ATL_A0_RATE_1G             BIT(4)
-#define HW_ATL_A0_RATE_100M           BIT(5)
-
 #define HW_ATL_A0_TXBUF_MAX 160U
 #define HW_ATL_A0_RXBUF_MAX 320U
 
@@ -87,5 +81,13 @@
 #define HW_ATL_A0_UCP_0X370_REG  0x370U
 
 #define HW_ATL_A0_FW_VER_EXPECTED 0x01050006U
+
+#define HW_ATL_A0_MIN_RXD \
+	(ALIGN(AQ_CFG_SKB_FRAGS_MAX + 1U, AQ_HW_RXD_MULTIPLE))
+#define HW_ATL_A0_MIN_TXD \
+	(ALIGN(AQ_CFG_SKB_FRAGS_MAX + 1U, AQ_HW_TXD_MULTIPLE))
+
+#define HW_ATL_A0_MAX_RXD 8184U
+#define HW_ATL_A0_MAX_TXD 8184U
 
 #endif /* HW_ATL_A0_INTERNAL_H */

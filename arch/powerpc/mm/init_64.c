@@ -188,15 +188,20 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
 	pr_debug("vmemmap_populate %lx..%lx, node %d\n", start, end, node);
 
 	for (; start < end; start += page_size) {
-		void *p;
+		void *p = NULL;
 		int rc;
 
 		if (vmemmap_populated(start, page_size))
 			continue;
 
+		/*
+		 * Allocate from the altmap first if we have one. This may
+		 * fail due to alignment issues when using 16MB hugepages, so
+		 * fall back to system memory if the altmap allocation fail.
+		 */
 		if (altmap)
 			p = altmap_alloc_block_buf(page_size, altmap);
-		else
+		if (!p)
 			p = vmemmap_alloc_block_buf(page_size, node);
 		if (!p)
 			return -ENOMEM;
@@ -255,8 +260,15 @@ void __ref vmemmap_free(unsigned long start, unsigned long end,
 {
 	unsigned long page_size = 1 << mmu_psize_defs[mmu_vmemmap_psize].shift;
 	unsigned long page_order = get_order(page_size);
+	unsigned long alt_start = ~0, alt_end = ~0;
+	unsigned long base_pfn;
 
 	start = _ALIGN_DOWN(start, page_size);
+	if (altmap) {
+		alt_start = altmap->base_pfn;
+		alt_end = altmap->base_pfn + altmap->reserve +
+			  altmap->free + altmap->alloc + altmap->align;
+	}
 
 	pr_debug("vmemmap_free %lx...%lx\n", start, end);
 
@@ -280,8 +292,9 @@ void __ref vmemmap_free(unsigned long start, unsigned long end,
 		page = pfn_to_page(addr >> PAGE_SHIFT);
 		section_base = pfn_to_page(vmemmap_section_start(start));
 		nr_pages = 1 << page_order;
+		base_pfn = PHYS_PFN(addr);
 
-		if (altmap) {
+		if (base_pfn >= alt_start && base_pfn < alt_end) {
 			vmem_altmap_free(altmap, nr_pages);
 		} else if (PageReserved(page)) {
 			/* allocated from bootmem */
@@ -307,55 +320,6 @@ void register_page_bootmem_memmap(unsigned long section_nr,
 				  struct page *start_page, unsigned long size)
 {
 }
-
-/*
- * We do not have access to the sparsemem vmemmap, so we fallback to
- * walking the list of sparsemem blocks which we already maintain for
- * the sake of crashdump. In the long run, we might want to maintain
- * a tree if performance of that linear walk becomes a problem.
- *
- * realmode_pfn_to_page functions can fail due to:
- * 1) As real sparsemem blocks do not lay in RAM continously (they
- * are in virtual address space which is not available in the real mode),
- * the requested page struct can be split between blocks so get_page/put_page
- * may fail.
- * 2) When huge pages are used, the get_page/put_page API will fail
- * in real mode as the linked addresses in the page struct are virtual
- * too.
- */
-struct page *realmode_pfn_to_page(unsigned long pfn)
-{
-	struct vmemmap_backing *vmem_back;
-	struct page *page;
-	unsigned long page_size = 1 << mmu_psize_defs[mmu_vmemmap_psize].shift;
-	unsigned long pg_va = (unsigned long) pfn_to_page(pfn);
-
-	for (vmem_back = vmemmap_list; vmem_back; vmem_back = vmem_back->list) {
-		if (pg_va < vmem_back->virt_addr)
-			continue;
-
-		/* After vmemmap_list entry free is possible, need check all */
-		if ((pg_va + sizeof(struct page)) <=
-				(vmem_back->virt_addr + page_size)) {
-			page = (struct page *) (vmem_back->phys + pg_va -
-				vmem_back->virt_addr);
-			return page;
-		}
-	}
-
-	/* Probably that page struct is split between real pages */
-	return NULL;
-}
-EXPORT_SYMBOL_GPL(realmode_pfn_to_page);
-
-#else
-
-struct page *realmode_pfn_to_page(unsigned long pfn)
-{
-	struct page *page = pfn_to_page(pfn);
-	return page;
-}
-EXPORT_SYMBOL_GPL(realmode_pfn_to_page);
 
 #endif /* CONFIG_SPARSEMEM_VMEMMAP */
 

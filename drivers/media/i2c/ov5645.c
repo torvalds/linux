@@ -510,8 +510,8 @@ static const struct reg_value ov5645_setting_full[] = {
 };
 
 static const s64 link_freq[] = {
-	222880000,
-	334320000
+	224000000,
+	336000000
 };
 
 static const struct ov5645_mode_info ov5645_mode_info_data[] = {
@@ -520,7 +520,7 @@ static const struct ov5645_mode_info ov5645_mode_info_data[] = {
 		.height = 960,
 		.data = ov5645_setting_sxga,
 		.data_size = ARRAY_SIZE(ov5645_setting_sxga),
-		.pixel_clock = 111440000,
+		.pixel_clock = 112000000,
 		.link_freq = 0 /* an index in link_freq[] */
 	},
 	{
@@ -528,7 +528,7 @@ static const struct ov5645_mode_info ov5645_mode_info_data[] = {
 		.height = 1080,
 		.data = ov5645_setting_1080p,
 		.data_size = ARRAY_SIZE(ov5645_setting_1080p),
-		.pixel_clock = 167160000,
+		.pixel_clock = 168000000,
 		.link_freq = 1 /* an index in link_freq[] */
 	},
 	{
@@ -536,7 +536,7 @@ static const struct ov5645_mode_info ov5645_mode_info_data[] = {
 		.height = 1944,
 		.data = ov5645_setting_full,
 		.data_size = ARRAY_SIZE(ov5645_setting_full),
-		.pixel_clock = 167160000,
+		.pixel_clock = 168000000,
 		.link_freq = 1 /* an index in link_freq[] */
 	},
 };
@@ -600,11 +600,13 @@ static int ov5645_write_reg(struct ov5645 *ov5645, u16 reg, u8 val)
 	regbuf[2] = val;
 
 	ret = i2c_master_send(ov5645->i2c_client, regbuf, 3);
-	if (ret < 0)
+	if (ret < 0) {
 		dev_err(ov5645->dev, "%s: write reg error %d: reg=%x, val=%x\n",
 			__func__, ret, reg, val);
+		return ret;
+	}
 
-	return ret;
+	return 0;
 }
 
 static int ov5645_read_reg(struct ov5645 *ov5645, u16 reg, u8 *val)
@@ -1125,7 +1127,7 @@ static int ov5645_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	if (ov5645->ep.bus_type != V4L2_MBUS_CSI2) {
+	if (ov5645->ep.bus_type != V4L2_MBUS_CSI2_DPHY) {
 		dev_err(dev, "invalid bus type, must be CSI2\n");
 		return -EINVAL;
 	}
@@ -1143,7 +1145,8 @@ static int ov5645_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	if (xclk_freq != 23880000) {
+	/* external clock must be 24MHz, allow 1% tolerance */
+	if (xclk_freq < 23760000 || xclk_freq > 24240000) {
 		dev_err(dev, "external clock frequency %u is not supported\n",
 			xclk_freq);
 		return -EINVAL;

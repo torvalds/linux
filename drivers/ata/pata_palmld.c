@@ -44,7 +44,7 @@ static struct scsi_host_template palmld_sht = {
 
 static struct ata_port_operations palmld_port_ops = {
 	.inherits		= &ata_sff_port_ops,
-	.sff_data_xfer		= ata_sff_data_xfer_noirq,
+	.sff_data_xfer		= ata_sff_data_xfer32,
 	.cable_detect		= ata_cable_40wire,
 };
 

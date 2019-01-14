@@ -30,8 +30,6 @@
 #include <acpi/ghes.h>
 #include <ras/ras_event.h>
 
-#define INDENT_SP	" "
-
 static const char * const arm_reg_ctx_strs[] = {
 	"AArch32 general purpose registers",
 	"AArch32 EL1 context registers",
@@ -283,7 +281,7 @@ void cper_print_proc_arm(const char *pfx,
 			pfx, proc->psci_state);
 	}
 
-	snprintf(newpfx, sizeof(newpfx), "%s%s", pfx, INDENT_SP);
+	snprintf(newpfx, sizeof(newpfx), "%s ", pfx);
 
 	err_info = (struct cper_arm_err_info *)(proc + 1);
 	for (i = 0; i < proc->err_info_num; i++) {
@@ -310,7 +308,7 @@ void cper_print_proc_arm(const char *pfx,
 		if (err_info->validation_bits & CPER_ARM_INFO_VALID_ERR_INFO) {
 			printk("%serror_info: 0x%016llx\n", newpfx,
 			       err_info->error_info);
-			snprintf(infopfx, sizeof(infopfx), "%s%s", newpfx, INDENT_SP);
+			snprintf(infopfx, sizeof(infopfx), "%s ", newpfx);
 			cper_print_arm_err_info(infopfx, err_info->type,
 						err_info->error_info);
 		}

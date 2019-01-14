@@ -63,7 +63,7 @@ extern int mem_init_done;
 
 #include <asm-generic/4level-fixup.h>
 
-#define __PAGETABLE_PMD_FOLDED
+#define __PAGETABLE_PMD_FOLDED 1
 
 #ifdef __KERNEL__
 #ifndef __ASSEMBLY__
@@ -552,13 +552,6 @@ void __init *early_get_page(void);
 #include <asm-generic/pgtable.h>
 
 extern unsigned long ioremap_bot, ioremap_base;
-
-void *consistent_alloc(gfp_t gfp, size_t size, dma_addr_t *dma_handle);
-void consistent_free(size_t size, void *vaddr);
-void consistent_sync(void *vaddr, size_t size, int direction);
-void consistent_sync_page(struct page *page, unsigned long offset,
-	size_t size, int direction);
-unsigned long consistent_virt_to_pfn(void *vaddr);
 
 void setup_memory(void);
 #endif /* __ASSEMBLY__ */

@@ -45,6 +45,7 @@
 #define PHY_ID_BCM7445			0x600d8510
 
 #define PHY_ID_BCM_CYGNUS		0xae025200
+#define PHY_ID_BCM_OMEGA		0xae025100
 
 #define PHY_BCM_OUI_MASK		0xfffffc00
 #define PHY_BCM_OUI_1			0x00206000
@@ -85,6 +86,7 @@
 #define MII_BCM54XX_EXP_SEL	0x17	/* Expansion register select */
 #define MII_BCM54XX_EXP_SEL_SSD	0x0e00	/* Secondary SerDes select */
 #define MII_BCM54XX_EXP_SEL_ER	0x0f00	/* Expansion register select */
+#define MII_BCM54XX_EXP_SEL_ETC	0x0d00	/* Expansion register spare + 2k mem */
 
 #define MII_BCM54XX_AUX_CTL	0x18	/* Auxiliary control register */
 #define MII_BCM54XX_ISR		0x1a	/* BCM54xx interrupt status register */
@@ -219,6 +221,9 @@
 #define BCM54810_SHD_CLK_CTL			0x3
 #define BCM54810_SHD_CLK_CTL_GTXCLK_EN		(1 << 9)
 
+/* BCM54612E Registers */
+#define BCM54612E_EXP_SPARE0		(MII_BCM54XX_EXP_SEL_ETC + 0x34)
+#define BCM54612E_LED4_CLK125OUT_EN	(1 << 1)
 
 /*****************************************************************************/
 /* Fast Ethernet Transceiver definitions. */

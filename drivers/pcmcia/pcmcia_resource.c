@@ -284,7 +284,7 @@ int pcmcia_fixup_iowidth(struct pcmcia_device *p_dev)
 		io_on.stop = s->io[i].res->end;
 
 		s->ops->set_io_map(s, &io_off);
-		mdelay(40);
+		msleep(40);
 		s->ops->set_io_map(s, &io_on);
 	}
 unlock:
@@ -567,7 +567,7 @@ int pcmcia_enable_device(struct pcmcia_device *p_dev)
 			!(flags & CONF_ENABLE_PULSE_IRQ))
 			option |= COR_LEVEL_REQ;
 		pcmcia_write_cis_mem(s, 1, (base + CISREG_COR)>>1, 1, &option);
-		mdelay(40);
+		msleep(40);
 	}
 	if (p_dev->config_regs & PRESENT_STATUS)
 		pcmcia_write_cis_mem(s, 1, (base + CISREG_CCSR)>>1, 1, &status);
@@ -710,42 +710,6 @@ int __must_check pcmcia_request_irq(struct pcmcia_device *p_dev,
 	return ret;
 }
 EXPORT_SYMBOL(pcmcia_request_irq);
-
-
-/**
- * pcmcia_request_exclusive_irq() - attempt to request an exclusive IRQ first
- * @p_dev: the associated PCMCIA device
- * @handler: IRQ handler to register
- *
- * pcmcia_request_exclusive_irq() is a wrapper around request_irq() which
- * attempts first to request an exclusive IRQ. If it fails, it also accepts
- * a shared IRQ, but prints out a warning. PCMCIA drivers should allow for
- * IRQ sharing and either use request_irq directly (then they need to call
- * free_irq() themselves, too), or the pcmcia_request_irq() function.
- */
-int __must_check
-__pcmcia_request_exclusive_irq(struct pcmcia_device *p_dev,
-			irq_handler_t handler)
-{
-	int ret;
-
-	if (!p_dev->irq)
-		return -EINVAL;
-
-	ret = request_irq(p_dev->irq, handler, 0, p_dev->devname, p_dev->priv);
-	if (ret) {
-		ret = pcmcia_request_irq(p_dev, handler);
-		dev_warn(&p_dev->dev, "pcmcia: request for exclusive IRQ could not be fulfilled\n");
-		dev_warn(&p_dev->dev, "pcmcia: the driver needs updating to supported shared IRQ lines\n");
-	}
-	if (ret)
-		dev_info(&p_dev->dev, "request_irq() failed\n");
-	else
-		p_dev->_irq = 1;
-
-	return ret;
-} /* pcmcia_request_exclusive_irq */
-EXPORT_SYMBOL(__pcmcia_request_exclusive_irq);
 
 
 #ifdef CONFIG_PCMCIA_PROBE

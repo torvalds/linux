@@ -38,6 +38,12 @@
 static void construct(struct dc_context *ctx, struct dc_plane_state *plane_state)
 {
 	plane_state->ctx = ctx;
+
+	plane_state->gamma_correction = dc_create_gamma();
+	plane_state->gamma_correction->is_identity = true;
+
+	plane_state->in_transfer_func = dc_create_transfer_func();
+	plane_state->in_transfer_func->type = TF_TYPE_BYPASS;
 }
 
 static void destruct(struct dc_plane_state *plane_state)
@@ -78,6 +84,17 @@ struct dc_plane_state *dc_create_plane_state(struct dc *dc)
 	return plane_state;
 }
 
+/**
+ *****************************************************************************
+ *  Function: dc_plane_get_status
+ *
+ *  @brief
+ *     Looks up the pipe context of plane_state and updates the pending status
+ *     of the pipe context. Then returns plane_state->status
+ *
+ *  @param [in] plane_state: pointer to the plane_state to get the status of
+ *****************************************************************************
+ */
 const struct dc_plane_status *dc_plane_get_status(
 		const struct dc_plane_state *plane_state)
 {

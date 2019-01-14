@@ -44,7 +44,24 @@ struct dpp_grph_csc_adjustment {
 	enum graphics_gamut_adjust_type gamut_adjust_type;
 };
 
+struct dcn_dpp_state {
+	uint32_t is_enabled;
+	uint32_t igam_lut_mode;
+	uint32_t igam_input_format;
+	uint32_t dgam_lut_mode;
+	uint32_t rgam_lut_mode;
+	uint32_t gamut_remap_mode;
+	uint32_t gamut_remap_c11_c12;
+	uint32_t gamut_remap_c13_c14;
+	uint32_t gamut_remap_c21_c22;
+	uint32_t gamut_remap_c23_c24;
+	uint32_t gamut_remap_c31_c32;
+	uint32_t gamut_remap_c33_c34;
+};
+
 struct dpp_funcs {
+	void (*dpp_read_state)(struct dpp *dpp, struct dcn_dpp_state *s);
+
 	void (*dpp_reset)(struct dpp *dpp);
 
 	void (*dpp_set_scaler)(struct dpp *dpp,
@@ -117,7 +134,7 @@ struct dpp_funcs {
 			struct dpp *dpp_base,
 			enum surface_pixel_format format,
 			enum expansion_mode mode,
-			struct csc_transform input_csc_color_matrix,
+			struct dc_csc_transform input_csc_color_matrix,
 			enum dc_color_space input_color_space);
 
 	void (*dpp_full_bypass)(struct dpp *dpp_base);
@@ -130,11 +147,15 @@ struct dpp_funcs {
 			struct dpp *dpp_base,
 			const struct dc_cursor_position *pos,
 			const struct dc_cursor_mi_param *param,
-			uint32_t width
+			uint32_t width,
+			uint32_t height
 			);
 	void (*dpp_set_hdr_multiplier)(
 			struct dpp *dpp_base,
 			uint32_t multiplier);
+	void (*set_optional_cursor_attributes)(
+			struct dpp *dpp_base,
+			struct dpp_cursor_attributes *attr);
 
 	void (*dpp_dppclk_control)(
 			struct dpp *dpp_base,

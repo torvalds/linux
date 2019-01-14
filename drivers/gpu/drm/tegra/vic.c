@@ -25,6 +25,7 @@
 
 struct vic_config {
 	const char *firmware;
+	unsigned int version;
 };
 
 struct vic {
@@ -264,18 +265,21 @@ static const struct tegra_drm_client_ops vic_ops = {
 
 static const struct vic_config vic_t124_config = {
 	.firmware = NVIDIA_TEGRA_124_VIC_FIRMWARE,
+	.version = 0x40,
 };
 
 #define NVIDIA_TEGRA_210_VIC_FIRMWARE "nvidia/tegra210/vic04_ucode.bin"
 
 static const struct vic_config vic_t210_config = {
 	.firmware = NVIDIA_TEGRA_210_VIC_FIRMWARE,
+	.version = 0x21,
 };
 
 #define NVIDIA_TEGRA_186_VIC_FIRMWARE "nvidia/tegra186/vic04_ucode.bin"
 
 static const struct vic_config vic_t186_config = {
 	.firmware = NVIDIA_TEGRA_186_VIC_FIRMWARE,
+	.version = 0x18,
 };
 
 static const struct of_device_id vic_match[] = {
@@ -342,6 +346,7 @@ static int vic_probe(struct platform_device *pdev)
 	vic->dev = dev;
 
 	INIT_LIST_HEAD(&vic->client.list);
+	vic->client.version = vic->config->version;
 	vic->client.ops = &vic_ops;
 
 	err = host1x_client_register(&vic->client.base);

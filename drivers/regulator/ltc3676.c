@@ -52,6 +52,7 @@
 #define LTC3676_CLIRQ     0x1F
 
 #define LTC3676_DVBxA_REF_SELECT	BIT(5)
+#define LTC3676_DVBxB_PGOOD_MASK	BIT(5)
 
 #define LTC3676_IRQSTAT_PGOOD_TIMEOUT	BIT(3)
 #define LTC3676_IRQSTAT_UNDERVOLT_WARN	BIT(4)
@@ -123,6 +124,23 @@ static int ltc3676_set_suspend_mode(struct regulator_dev *rdev,
 				  mask, val);
 }
 
+static int ltc3676_set_voltage_sel(struct regulator_dev *rdev, unsigned selector)
+{
+	struct ltc3676 *ltc3676 = rdev_get_drvdata(rdev);
+	struct device *dev = ltc3676->dev;
+	int ret, dcdc = rdev_get_id(rdev);
+
+	dev_dbg(dev, "%s id=%d selector=%d\n", __func__, dcdc, selector);
+
+	ret = regmap_update_bits(ltc3676->regmap, rdev->desc->vsel_reg + 1,
+				 LTC3676_DVBxB_PGOOD_MASK,
+				 LTC3676_DVBxB_PGOOD_MASK);
+	if (ret)
+		return ret;
+
+	return regulator_set_voltage_sel_regmap(rdev, selector);
+}
+
 static inline unsigned int ltc3676_scale(unsigned int uV, u32 r1, u32 r2)
 {
 	uint64_t tmp;
@@ -166,7 +184,7 @@ static const struct regulator_ops ltc3676_linear_regulator_ops = {
 	.disable = regulator_disable_regmap,
 	.is_enabled = regulator_is_enabled_regmap,
 	.list_voltage = regulator_list_voltage_linear,
-	.set_voltage_sel = regulator_set_voltage_sel_regmap,
+	.set_voltage_sel = ltc3676_set_voltage_sel,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.set_suspend_voltage = ltc3676_set_suspend_voltage,
 	.set_suspend_mode = ltc3676_set_suspend_mode,
@@ -303,7 +321,8 @@ static const struct regmap_config ltc3676_regmap_config = {
 	.readable_reg = ltc3676_readable_reg,
 	.volatile_reg = ltc3676_volatile_reg,
 	.max_register = LTC3676_CLIRQ,
-	.use_single_rw = true,
+	.use_single_read = true,
+	.use_single_write = true,
 	.cache_type = REGCACHE_RBTREE,
 };
 

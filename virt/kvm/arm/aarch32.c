@@ -108,9 +108,9 @@ static void __hyp_text kvm_adjust_itstate(struct kvm_vcpu *vcpu)
 {
 	unsigned long itbits, cond;
 	unsigned long cpsr = *vcpu_cpsr(vcpu);
-	bool is_arm = !(cpsr & COMPAT_PSR_T_BIT);
+	bool is_arm = !(cpsr & PSR_AA32_T_BIT);
 
-	if (is_arm || !(cpsr & COMPAT_PSR_IT_MASK))
+	if (is_arm || !(cpsr & PSR_AA32_IT_MASK))
 		return;
 
 	cond = (cpsr & 0xe000) >> 13;
@@ -123,7 +123,7 @@ static void __hyp_text kvm_adjust_itstate(struct kvm_vcpu *vcpu)
 	else
 		itbits = (itbits << 1) & 0x1f;
 
-	cpsr &= ~COMPAT_PSR_IT_MASK;
+	cpsr &= ~PSR_AA32_IT_MASK;
 	cpsr |= cond << 13;
 	cpsr |= (itbits & 0x1c) << (10 - 2);
 	cpsr |= (itbits & 0x3) << 25;
@@ -138,7 +138,7 @@ void __hyp_text kvm_skip_instr32(struct kvm_vcpu *vcpu, bool is_wide_instr)
 {
 	bool is_thumb;
 
-	is_thumb = !!(*vcpu_cpsr(vcpu) & COMPAT_PSR_T_BIT);
+	is_thumb = !!(*vcpu_cpsr(vcpu) & PSR_AA32_T_BIT);
 	if (is_thumb && !is_wide_instr)
 		*vcpu_pc(vcpu) += 2;
 	else
@@ -164,16 +164,16 @@ static void prepare_fault32(struct kvm_vcpu *vcpu, u32 mode, u32 vect_offset)
 {
 	unsigned long cpsr;
 	unsigned long new_spsr_value = *vcpu_cpsr(vcpu);
-	bool is_thumb = (new_spsr_value & COMPAT_PSR_T_BIT);
+	bool is_thumb = (new_spsr_value & PSR_AA32_T_BIT);
 	u32 return_offset = return_offsets[vect_offset >> 2][is_thumb];
 	u32 sctlr = vcpu_cp15(vcpu, c1_SCTLR);
 
-	cpsr = mode | COMPAT_PSR_I_BIT;
+	cpsr = mode | PSR_AA32_I_BIT;
 
 	if (sctlr & (1 << 30))
-		cpsr |= COMPAT_PSR_T_BIT;
+		cpsr |= PSR_AA32_T_BIT;
 	if (sctlr & (1 << 25))
-		cpsr |= COMPAT_PSR_E_BIT;
+		cpsr |= PSR_AA32_E_BIT;
 
 	*vcpu_cpsr(vcpu) = cpsr;
 
@@ -192,7 +192,7 @@ static void prepare_fault32(struct kvm_vcpu *vcpu, u32 mode, u32 vect_offset)
 
 void kvm_inject_undef32(struct kvm_vcpu *vcpu)
 {
-	prepare_fault32(vcpu, COMPAT_PSR_MODE_UND, 4);
+	prepare_fault32(vcpu, PSR_AA32_MODE_UND, 4);
 }
 
 /*
@@ -216,7 +216,7 @@ static void inject_abt32(struct kvm_vcpu *vcpu, bool is_pabt,
 		fsr = &vcpu_cp15(vcpu, c5_DFSR);
 	}
 
-	prepare_fault32(vcpu, COMPAT_PSR_MODE_ABT | COMPAT_PSR_A_BIT, vect_offset);
+	prepare_fault32(vcpu, PSR_AA32_MODE_ABT | PSR_AA32_A_BIT, vect_offset);
 
 	*far = addr;
 

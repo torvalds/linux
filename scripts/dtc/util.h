@@ -98,16 +98,10 @@ char get_escape_char(const char *s, int *i);
  * stderr.
  *
  * @param filename	The filename to read, or - for stdin
+ * @param len		If non-NULL, the amount of data we managed to read
  * @return Pointer to allocated buffer containing fdt, or NULL on error
  */
-char *utilfdt_read(const char *filename);
-
-/**
- * Like utilfdt_read(), but also passes back the size of the file read.
- *
- * @param len		If non-NULL, the amount of data we managed to read
- */
-char *utilfdt_read_len(const char *filename, off_t *len);
+char *utilfdt_read(const char *filename, size_t *len);
 
 /**
  * Read a device tree file into a buffer. Does not report errors, but only
@@ -116,16 +110,10 @@ char *utilfdt_read_len(const char *filename, off_t *len);
  *
  * @param filename	The filename to read, or - for stdin
  * @param buffp		Returns pointer to buffer containing fdt
+ * @param len		If non-NULL, the amount of data we managed to read
  * @return 0 if ok, else an errno value representing the error
  */
-int utilfdt_read_err(const char *filename, char **buffp);
-
-/**
- * Like utilfdt_read_err(), but also passes back the size of the file read.
- *
- * @param len		If non-NULL, the amount of data we managed to read
- */
-int utilfdt_read_err_len(const char *filename, char **buffp, off_t *len);
+int utilfdt_read_err(const char *filename, char **buffp, size_t *len);
 
 /**
  * Write a device tree buffer to a file. This will report any errors on

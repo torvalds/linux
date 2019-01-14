@@ -31,7 +31,8 @@ static void of_get_regulation_constraints(struct device_node *np,
 	struct regulation_constraints *constraints = &(*init_data)->constraints;
 	struct regulator_state *suspend_state;
 	struct device_node *suspend_np;
-	int ret, i;
+	unsigned int mode;
+	int ret, i, len;
 	u32 pval;
 
 	constraints->name = of_get_property(np, "regulator-name", NULL);
@@ -94,8 +95,8 @@ static void of_get_regulation_constraints(struct device_node *np,
 	if (!ret)
 		constraints->settling_time_up = pval;
 	if (constraints->settling_time_up && constraints->settling_time) {
-		pr_warn("%s: ambiguous configuration for settling time, ignoring 'regulator-settling-time-up-us'\n",
-			np->name);
+		pr_warn("%pOFn: ambiguous configuration for settling time, ignoring 'regulator-settling-time-up-us'\n",
+			np);
 		constraints->settling_time_up = 0;
 	}
 
@@ -104,8 +105,8 @@ static void of_get_regulation_constraints(struct device_node *np,
 	if (!ret)
 		constraints->settling_time_down = pval;
 	if (constraints->settling_time_down && constraints->settling_time) {
-		pr_warn("%s: ambiguous configuration for settling time, ignoring 'regulator-settling-time-down-us'\n",
-			np->name);
+		pr_warn("%pOFn: ambiguous configuration for settling time, ignoring 'regulator-settling-time-down-us'\n",
+			np);
 		constraints->settling_time_down = 0;
 	}
 
@@ -124,19 +125,50 @@ static void of_get_regulation_constraints(struct device_node *np,
 
 	if (!of_property_read_u32(np, "regulator-initial-mode", &pval)) {
 		if (desc && desc->of_map_mode) {
-			ret = desc->of_map_mode(pval);
-			if (ret == -EINVAL)
-				pr_err("%s: invalid mode %u\n", np->name, pval);
+			mode = desc->of_map_mode(pval);
+			if (mode == REGULATOR_MODE_INVALID)
+				pr_err("%pOFn: invalid mode %u\n", np, pval);
 			else
-				constraints->initial_mode = ret;
+				constraints->initial_mode = mode;
 		} else {
-			pr_warn("%s: mapping for mode %d not defined\n",
-				np->name, pval);
+			pr_warn("%pOFn: mapping for mode %d not defined\n",
+				np, pval);
+		}
+	}
+
+	len = of_property_count_elems_of_size(np, "regulator-allowed-modes",
+						sizeof(u32));
+	if (len > 0) {
+		if (desc && desc->of_map_mode) {
+			for (i = 0; i < len; i++) {
+				ret = of_property_read_u32_index(np,
+					"regulator-allowed-modes", i, &pval);
+				if (ret) {
+					pr_err("%pOFn: couldn't read allowed modes index %d, ret=%d\n",
+						np, i, ret);
+					break;
+				}
+				mode = desc->of_map_mode(pval);
+				if (mode == REGULATOR_MODE_INVALID)
+					pr_err("%pOFn: invalid regulator-allowed-modes element %u\n",
+						np, pval);
+				else
+					constraints->valid_modes_mask |= mode;
+			}
+			if (constraints->valid_modes_mask)
+				constraints->valid_ops_mask
+					|= REGULATOR_CHANGE_MODE;
+		} else {
+			pr_warn("%pOFn: mode mapping not defined\n", np);
 		}
 	}
 
 	if (!of_property_read_u32(np, "regulator-system-load", &pval))
 		constraints->system_load = pval;
+
+	if (!of_property_read_u32(np, "regulator-coupled-max-spread",
+				  &pval))
+		constraints->max_spread = pval;
 
 	constraints->over_current_protection = of_property_read_bool(np,
 					"regulator-over-current-protection");
@@ -163,15 +195,15 @@ static void of_get_regulation_constraints(struct device_node *np,
 		if (!of_property_read_u32(suspend_np, "regulator-mode",
 					  &pval)) {
 			if (desc && desc->of_map_mode) {
-				ret = desc->of_map_mode(pval);
-				if (ret == -EINVAL)
-					pr_err("%s: invalid mode %u\n",
-					       np->name, pval);
+				mode = desc->of_map_mode(pval);
+				if (mode == REGULATOR_MODE_INVALID)
+					pr_err("%pOFn: invalid mode %u\n",
+					       np, pval);
 				else
-					suspend_state->mode = ret;
+					suspend_state->mode = mode;
 			} else {
-				pr_warn("%s: mapping for mode %d not defined\n",
-					np->name, pval);
+				pr_warn("%pOFn: mapping for mode %d not defined\n",
+					np, pval);
 			}
 		}
 
@@ -181,8 +213,6 @@ static void of_get_regulation_constraints(struct device_node *np,
 		else if (of_property_read_bool(suspend_np,
 					"regulator-off-in-suspend"))
 			suspend_state->enabled = DISABLE_IN_SUSPEND;
-		else
-			suspend_state->enabled = DO_NOTHING_IN_SUSPEND;
 
 		if (!of_property_read_u32(np, "regulator-suspend-min-microvolt",
 					  &pval))
@@ -319,8 +349,8 @@ int of_regulator_match(struct device *dev, struct device_node *node,
 							   match->desc);
 			if (!match->init_data) {
 				dev_err(dev,
-					"failed to parse DT for regulator %s\n",
-					child->name);
+					"failed to parse DT for regulator %pOFn\n",
+					child);
 				of_node_put(child);
 				return -EINVAL;
 			}
@@ -369,16 +399,16 @@ struct regulator_init_data *regulator_of_get_init_data(struct device *dev,
 		init_data = of_get_regulator_init_data(dev, child, desc);
 		if (!init_data) {
 			dev_err(dev,
-				"failed to parse DT for regulator %s\n",
-				child->name);
+				"failed to parse DT for regulator %pOFn\n",
+				child);
 			break;
 		}
 
 		if (desc->of_parse_cb) {
 			if (desc->of_parse_cb(child, desc, config)) {
 				dev_err(dev,
-					"driver callback failed to parse DT for regulator %s\n",
-					child->name);
+					"driver callback failed to parse DT for regulator %pOFn\n",
+					child);
 				init_data = NULL;
 				break;
 			}
@@ -406,4 +436,151 @@ struct regulator_dev *of_find_regulator_by_node(struct device_node *np)
 	dev = class_find_device(&regulator_class, NULL, np, of_node_match);
 
 	return dev ? dev_to_rdev(dev) : NULL;
+}
+
+/*
+ * Returns number of regulators coupled with rdev.
+ */
+int of_get_n_coupled(struct regulator_dev *rdev)
+{
+	struct device_node *node = rdev->dev.of_node;
+	int n_phandles;
+
+	n_phandles = of_count_phandle_with_args(node,
+						"regulator-coupled-with",
+						NULL);
+
+	return (n_phandles > 0) ? n_phandles : 0;
+}
+
+/* Looks for "to_find" device_node in src's "regulator-coupled-with" property */
+static bool of_coupling_find_node(struct device_node *src,
+				  struct device_node *to_find)
+{
+	int n_phandles, i;
+	bool found = false;
+
+	n_phandles = of_count_phandle_with_args(src,
+						"regulator-coupled-with",
+						NULL);
+
+	for (i = 0; i < n_phandles; i++) {
+		struct device_node *tmp = of_parse_phandle(src,
+					   "regulator-coupled-with", i);
+
+		if (!tmp)
+			break;
+
+		/* found */
+		if (tmp == to_find)
+			found = true;
+
+		of_node_put(tmp);
+
+		if (found)
+			break;
+	}
+
+	return found;
+}
+
+/**
+ * of_check_coupling_data - Parse rdev's coupling properties and check data
+ *			    consistency
+ * @rdev - pointer to regulator_dev whose data is checked
+ *
+ * Function checks if all the following conditions are met:
+ * - rdev's max_spread is greater than 0
+ * - all coupled regulators have the same max_spread
+ * - all coupled regulators have the same number of regulator_dev phandles
+ * - all regulators are linked to each other
+ *
+ * Returns true if all conditions are met.
+ */
+bool of_check_coupling_data(struct regulator_dev *rdev)
+{
+	int max_spread = rdev->constraints->max_spread;
+	struct device_node *node = rdev->dev.of_node;
+	int n_phandles = of_get_n_coupled(rdev);
+	struct device_node *c_node;
+	int i;
+	bool ret = true;
+
+	if (max_spread <= 0) {
+		dev_err(&rdev->dev, "max_spread value invalid\n");
+		return false;
+	}
+
+	/* iterate over rdev's phandles */
+	for (i = 0; i < n_phandles; i++) {
+		int c_max_spread, c_n_phandles;
+
+		c_node = of_parse_phandle(node,
+					  "regulator-coupled-with", i);
+
+		if (!c_node)
+			ret = false;
+
+		c_n_phandles = of_count_phandle_with_args(c_node,
+							  "regulator-coupled-with",
+							  NULL);
+
+		if (c_n_phandles != n_phandles) {
+			dev_err(&rdev->dev, "number of couped reg phandles mismatch\n");
+			ret = false;
+			goto clean;
+		}
+
+		if (of_property_read_u32(c_node, "regulator-coupled-max-spread",
+					 &c_max_spread)) {
+			ret = false;
+			goto clean;
+		}
+
+		if (c_max_spread != max_spread) {
+			dev_err(&rdev->dev,
+				"coupled regulators max_spread mismatch\n");
+			ret = false;
+			goto clean;
+		}
+
+		if (!of_coupling_find_node(c_node, node)) {
+			dev_err(&rdev->dev, "missing 2-way linking for coupled regulators\n");
+			ret = false;
+		}
+
+clean:
+		of_node_put(c_node);
+		if (!ret)
+			break;
+	}
+
+	return ret;
+}
+
+/**
+ * of_parse_coupled regulator - Get regulator_dev pointer from rdev's property
+ * @rdev: Pointer to regulator_dev, whose DTS is used as a source to parse
+ *	  "regulator-coupled-with" property
+ * @index: Index in phandles array
+ *
+ * Returns the regulator_dev pointer parsed from DTS. If it has not been yet
+ * registered, returns NULL
+ */
+struct regulator_dev *of_parse_coupled_regulator(struct regulator_dev *rdev,
+						 int index)
+{
+	struct device_node *node = rdev->dev.of_node;
+	struct device_node *c_node;
+	struct regulator_dev *c_rdev;
+
+	c_node = of_parse_phandle(node, "regulator-coupled-with", index);
+	if (!c_node)
+		return NULL;
+
+	c_rdev = of_find_regulator_by_node(c_node);
+
+	of_node_put(c_node);
+
+	return c_rdev;
 }

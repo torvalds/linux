@@ -31,6 +31,9 @@ struct ceph_connection_operations {
 	struct ceph_auth_handshake *(*get_authorizer) (
 				struct ceph_connection *con,
 			       int *proto, int force_new);
+	int (*add_authorizer_challenge)(struct ceph_connection *con,
+					void *challenge_buf,
+					int challenge_buf_len);
 	int (*verify_authorizer_reply) (struct ceph_connection *con);
 	int (*invalidate_authorizer)(struct ceph_connection *con);
 
@@ -78,22 +81,6 @@ enum ceph_msg_data_type {
 #endif /* CONFIG_BLOCK */
 	CEPH_MSG_DATA_BVECS,	/* data source/destination is a bio_vec array */
 };
-
-static __inline__ bool ceph_msg_data_type_valid(enum ceph_msg_data_type type)
-{
-	switch (type) {
-	case CEPH_MSG_DATA_NONE:
-	case CEPH_MSG_DATA_PAGES:
-	case CEPH_MSG_DATA_PAGELIST:
-#ifdef CONFIG_BLOCK
-	case CEPH_MSG_DATA_BIO:
-#endif /* CONFIG_BLOCK */
-	case CEPH_MSG_DATA_BVECS:
-		return true;
-	default:
-		return false;
-	}
-}
 
 #ifdef CONFIG_BLOCK
 
@@ -178,7 +165,6 @@ struct ceph_bvec_iter {
 } while (0)
 
 struct ceph_msg_data {
-	struct list_head		links;	/* ceph_msg->data */
 	enum ceph_msg_data_type		type;
 	union {
 #ifdef CONFIG_BLOCK
@@ -199,7 +185,6 @@ struct ceph_msg_data {
 
 struct ceph_msg_data_cursor {
 	size_t			total_resid;	/* across all data items */
-	struct list_head	*data_head;	/* = &ceph_msg->data */
 
 	struct ceph_msg_data	*data;		/* current data item */
 	size_t			resid;		/* bytes not yet consumed */
@@ -237,7 +222,9 @@ struct ceph_msg {
 	struct ceph_buffer *middle;
 
 	size_t				data_length;
-	struct list_head		data;
+	struct ceph_msg_data		*data;
+	int				num_data_items;
+	int				max_data_items;
 	struct ceph_msg_data_cursor	cursor;
 
 	struct ceph_connection *con;
@@ -286,9 +273,8 @@ struct ceph_connection {
 				 attempt for this connection, client */
 	u32 peer_global_seq;  /* peer's global seq for this connection */
 
+	struct ceph_auth_handshake *auth;
 	int auth_retry;       /* true if we need a newer authorizer */
-	void *auth_reply_buf;   /* where to put the authorizer reply */
-	int auth_reply_buf_len;
 
 	struct mutex mutex;
 
@@ -330,7 +316,7 @@ struct ceph_connection {
 	int in_base_pos;     /* bytes read */
 	__le64 in_temp_ack;  /* for reading an ack */
 
-	struct timespec last_keepalive_ack; /* keepalive2 ack stamp */
+	struct timespec64 last_keepalive_ack; /* keepalive2 ack stamp */
 
 	struct delayed_work work;	    /* send|recv work */
 	unsigned long       delay;          /* current delay interval */
@@ -379,6 +365,8 @@ void ceph_msg_data_add_bio(struct ceph_msg *msg, struct ceph_bio_iter *bio_pos,
 void ceph_msg_data_add_bvecs(struct ceph_msg *msg,
 			     struct ceph_bvec_iter *bvec_pos);
 
+struct ceph_msg *ceph_msg_new2(int type, int front_len, int max_data_items,
+			       gfp_t flags, bool can_fail);
 extern struct ceph_msg *ceph_msg_new(int type, int front_len, gfp_t flags,
 				     bool can_fail);
 

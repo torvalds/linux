@@ -29,6 +29,7 @@
 #include <linux/nls.h>
 #include <linux/vmalloc.h>
 #include <linux/rtnetlink.h>
+#include <linux/ucs2_string.h>
 
 #include "hyperv_net.h"
 #include "netvsc_trace.h"
@@ -341,7 +342,8 @@ static void rndis_filter_receive_response(struct net_device *ndev,
  * Get the Per-Packet-Info with the specified type
  * return NULL if not found.
  */
-static inline void *rndis_get_ppi(struct rndis_packet *rpkt, u32 type)
+static inline void *rndis_get_ppi(struct rndis_packet *rpkt,
+				  u32 type, u8 internal)
 {
 	struct rndis_per_packet_info *ppi;
 	int len;
@@ -354,7 +356,7 @@ static inline void *rndis_get_ppi(struct rndis_packet *rpkt, u32 type)
 	len = rpkt->per_pkt_info_len;
 
 	while (len > 0) {
-		if (ppi->type == type)
+		if (ppi->type == type && ppi->internal == internal)
 			return (void *)((ulong)ppi + ppi->ppi_offset);
 		len -= ppi->size;
 		ppi = (struct rndis_per_packet_info *)((ulong)ppi + ppi->size);
@@ -363,17 +365,41 @@ static inline void *rndis_get_ppi(struct rndis_packet *rpkt, u32 type)
 	return NULL;
 }
 
+static inline
+void rsc_add_data(struct netvsc_channel *nvchan,
+		  const struct ndis_pkt_8021q_info *vlan,
+		  const struct ndis_tcp_ip_checksum_info *csum_info,
+		  void *data, u32 len)
+{
+	u32 cnt = nvchan->rsc.cnt;
+
+	if (cnt) {
+		nvchan->rsc.pktlen += len;
+	} else {
+		nvchan->rsc.vlan = vlan;
+		nvchan->rsc.csum_info = csum_info;
+		nvchan->rsc.pktlen = len;
+	}
+
+	nvchan->rsc.data[cnt] = data;
+	nvchan->rsc.len[cnt] = len;
+	nvchan->rsc.cnt++;
+}
+
 static int rndis_filter_receive_data(struct net_device *ndev,
 				     struct netvsc_device *nvdev,
-				     struct vmbus_channel *channel,
+				     struct netvsc_channel *nvchan,
 				     struct rndis_message *msg,
 				     u32 data_buflen)
 {
 	struct rndis_packet *rndis_pkt = &msg->msg.pkt;
 	const struct ndis_tcp_ip_checksum_info *csum_info;
 	const struct ndis_pkt_8021q_info *vlan;
+	const struct rndis_pktinfo_id *pktinfo_id;
 	u32 data_offset;
 	void *data;
+	bool rsc_more = false;
+	int ret;
 
 	/* Remove the rndis header and pass it back up the stack */
 	data_offset = RNDIS_HEADER_SIZE + rndis_pkt->data_offset;
@@ -392,25 +418,59 @@ static int rndis_filter_receive_data(struct net_device *ndev,
 		return NVSP_STAT_FAIL;
 	}
 
-	vlan = rndis_get_ppi(rndis_pkt, IEEE_8021Q_INFO);
+	vlan = rndis_get_ppi(rndis_pkt, IEEE_8021Q_INFO, 0);
 
-	csum_info = rndis_get_ppi(rndis_pkt, TCPIP_CHKSUM_PKTINFO);
+	csum_info = rndis_get_ppi(rndis_pkt, TCPIP_CHKSUM_PKTINFO, 0);
+
+	pktinfo_id = rndis_get_ppi(rndis_pkt, RNDIS_PKTINFO_ID, 1);
 
 	data = (void *)msg + data_offset;
 
-	/*
-	 * Remove the rndis trailer padding from rndis packet message
+	/* Identify RSC frags, drop erroneous packets */
+	if (pktinfo_id && (pktinfo_id->flag & RNDIS_PKTINFO_SUBALLOC)) {
+		if (pktinfo_id->flag & RNDIS_PKTINFO_1ST_FRAG)
+			nvchan->rsc.cnt = 0;
+		else if (nvchan->rsc.cnt == 0)
+			goto drop;
+
+		rsc_more = true;
+
+		if (pktinfo_id->flag & RNDIS_PKTINFO_LAST_FRAG)
+			rsc_more = false;
+
+		if (rsc_more && nvchan->rsc.is_last)
+			goto drop;
+	} else {
+		nvchan->rsc.cnt = 0;
+	}
+
+	if (unlikely(nvchan->rsc.cnt >= NVSP_RSC_MAX))
+		goto drop;
+
+	/* Put data into per channel structure.
+	 * Also, remove the rndis trailer padding from rndis packet message
 	 * rndis_pkt->data_len tell us the real data length, we only copy
 	 * the data packet to the stack, without the rndis trailer padding
 	 */
-	return netvsc_recv_callback(ndev, nvdev, channel,
-				    data, rndis_pkt->data_len,
-				    csum_info, vlan);
+	rsc_add_data(nvchan, vlan, csum_info, data, rndis_pkt->data_len);
+
+	if (rsc_more)
+		return NVSP_STAT_SUCCESS;
+
+	ret = netvsc_recv_callback(ndev, nvdev, nvchan);
+	nvchan->rsc.cnt = 0;
+
+	return ret;
+
+drop:
+	/* Drop incomplete packet */
+	nvchan->rsc.cnt = 0;
+	return NVSP_STAT_FAIL;
 }
 
 int rndis_filter_receive(struct net_device *ndev,
 			 struct netvsc_device *net_dev,
-			 struct vmbus_channel *channel,
+			 struct netvsc_channel *nvchan,
 			 void *data, u32 buflen)
 {
 	struct net_device_context *net_device_ctx = netdev_priv(ndev);
@@ -421,7 +481,7 @@ int rndis_filter_receive(struct net_device *ndev,
 
 	switch (rndis_msg->ndis_msg_type) {
 	case RNDIS_MSG_PACKET:
-		return rndis_filter_receive_data(ndev, net_dev, channel,
+		return rndis_filter_receive_data(ndev, net_dev, nvchan,
 						 rndis_msg, buflen);
 	case RNDIS_MSG_INIT_C:
 	case RNDIS_MSG_QUERY_C:
@@ -656,7 +716,7 @@ cleanup:
 	return ret;
 }
 
-static int
+int
 rndis_filter_set_offload_params(struct net_device *ndev,
 				struct netvsc_device *nvdev,
 				struct ndis_offload_params *req_offloads)
@@ -751,7 +811,7 @@ int rndis_filter_set_rss_param(struct rndis_device *rdev,
 	rssp->indirect_tabsize = 4*ITAB_NUM;
 	rssp->indirect_taboffset = sizeof(struct ndis_recv_scale_param);
 	rssp->hashkey_size = NETVSC_HASH_KEYLEN;
-	rssp->kashkey_offset = rssp->indirect_taboffset +
+	rssp->hashkey_offset = rssp->indirect_taboffset +
 			       rssp->indirect_tabsize;
 
 	/* Set indirection table entries */
@@ -760,7 +820,7 @@ int rndis_filter_set_rss_param(struct rndis_device *rdev,
 		itab[i] = rdev->rx_table[i];
 
 	/* Set hask key values */
-	keyp = (u8 *)((unsigned long)rssp + rssp->kashkey_offset);
+	keyp = (u8 *)((unsigned long)rssp + rssp->hashkey_offset);
 	memcpy(keyp, rss_key, NETVSC_HASH_KEYLEN);
 
 	ret = rndis_filter_send_request(rdev, request);
@@ -1061,29 +1121,15 @@ static void netvsc_sc_open(struct vmbus_channel *new_sc)
  * This breaks overlap of processing the host message for the
  * new primary channel with the initialization of sub-channels.
  */
-void rndis_set_subchannel(struct work_struct *w)
+int rndis_set_subchannel(struct net_device *ndev, struct netvsc_device *nvdev)
 {
-	struct netvsc_device *nvdev
-		= container_of(w, struct netvsc_device, subchan_work);
 	struct nvsp_message *init_packet = &nvdev->channel_init_pkt;
-	struct net_device_context *ndev_ctx;
-	struct rndis_device *rdev;
-	struct net_device *ndev;
-	struct hv_device *hv_dev;
+	struct net_device_context *ndev_ctx = netdev_priv(ndev);
+	struct hv_device *hv_dev = ndev_ctx->device_ctx;
+	struct rndis_device *rdev = nvdev->extension;
 	int i, ret;
 
-	if (!rtnl_trylock()) {
-		schedule_work(w);
-		return;
-	}
-
-	rdev = nvdev->extension;
-	if (!rdev)
-		goto unlock;	/* device was removed */
-
-	ndev = rdev->ndev;
-	ndev_ctx = netdev_priv(ndev);
-	hv_dev = ndev_ctx->device_ctx;
+	ASSERT_RTNL();
 
 	memset(init_packet, 0, sizeof(struct nvsp_message));
 	init_packet->hdr.msg_type = NVSP_MSG5_TYPE_SUBCHANNEL;
@@ -1099,13 +1145,13 @@ void rndis_set_subchannel(struct work_struct *w)
 			       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 	if (ret) {
 		netdev_err(ndev, "sub channel allocate send failed: %d\n", ret);
-		goto failed;
+		return ret;
 	}
 
 	wait_for_completion(&nvdev->channel_init_wait);
 	if (init_packet->msg.v5_msg.subchn_comp.status != NVSP_STAT_SUCCESS) {
 		netdev_err(ndev, "sub channel request failed\n");
-		goto failed;
+		return -EIO;
 	}
 
 	nvdev->num_chn = 1 +
@@ -1124,21 +1170,7 @@ void rndis_set_subchannel(struct work_struct *w)
 	for (i = 0; i < VRSS_SEND_TAB_SIZE; i++)
 		ndev_ctx->tx_table[i] = i % nvdev->num_chn;
 
-	netif_device_attach(ndev);
-	rtnl_unlock();
-	return;
-
-failed:
-	/* fallback to only primary channel */
-	for (i = 1; i < nvdev->num_chn; i++)
-		netif_napi_del(&nvdev->chan_table[i].napi);
-
-	nvdev->max_chn = 1;
-	nvdev->num_chn = 1;
-
-	netif_device_attach(ndev);
-unlock:
-	rtnl_unlock();
+	return 0;
 }
 
 static int rndis_netdev_set_hwcaps(struct rndis_device *rndis_device,
@@ -1211,6 +1243,18 @@ static int rndis_netdev_set_hwcaps(struct rndis_device *rndis_device,
 		}
 	}
 
+	if (hwcaps.rsc.ip4 && hwcaps.rsc.ip6) {
+		net->hw_features |= NETIF_F_LRO;
+
+		if (net->features & NETIF_F_LRO) {
+			offloads.rsc_ip_v4 = NDIS_OFFLOAD_PARAMETERS_RSC_ENABLED;
+			offloads.rsc_ip_v6 = NDIS_OFFLOAD_PARAMETERS_RSC_ENABLED;
+		} else {
+			offloads.rsc_ip_v4 = NDIS_OFFLOAD_PARAMETERS_RSC_DISABLED;
+			offloads.rsc_ip_v6 = NDIS_OFFLOAD_PARAMETERS_RSC_DISABLED;
+		}
+	}
+
 	/* In case some hw_features disappeared we need to remove them from
 	 * net->features list as they're no longer supported.
 	 */
@@ -1221,6 +1265,32 @@ static int rndis_netdev_set_hwcaps(struct rndis_device *rndis_device,
 	ret = rndis_filter_set_offload_params(net, nvdev, &offloads);
 
 	return ret;
+}
+
+static void rndis_get_friendly_name(struct net_device *net,
+				    struct rndis_device *rndis_device,
+				    struct netvsc_device *net_device)
+{
+	ucs2_char_t wname[256];
+	unsigned long len;
+	u8 ifalias[256];
+	u32 size;
+
+	size = sizeof(wname);
+	if (rndis_filter_query_device(rndis_device, net_device,
+				      RNDIS_OID_GEN_FRIENDLY_NAME,
+				      wname, &size) != 0)
+		return;	/* ignore if host does not support */
+
+	if (size == 0)
+		return;	/* name not set */
+
+	/* Convert Windows Unicode string to UTF-8 */
+	len = ucs2_as_utf8(ifalias, wname, sizeof(ifalias));
+
+	/* ignore the default value from host */
+	if (strcmp(ifalias, "Network Adapter") != 0)
+		dev_set_alias(net, ifalias, len);
 }
 
 struct netvsc_device *rndis_filter_device_add(struct hv_device *dev,
@@ -1276,6 +1346,10 @@ struct netvsc_device *rndis_filter_device_add(struct hv_device *dev,
 
 	memcpy(device_info->mac_adr, rndis_device->hw_mac_adr, ETH_ALEN);
 
+	/* Get friendly name as ifalias*/
+	if (!net->ifalias)
+		rndis_get_friendly_name(net, rndis_device, net_device);
+
 	/* Query and set hardware capabilities */
 	ret = rndis_netdev_set_hwcaps(rndis_device, net_device);
 	if (ret != 0)
@@ -1329,20 +1403,12 @@ struct netvsc_device *rndis_filter_device_add(struct hv_device *dev,
 		netif_napi_add(net, &net_device->chan_table[i].napi,
 			       netvsc_poll, NAPI_POLL_WEIGHT);
 
-	if (net_device->num_chn > 1)
-		schedule_work(&net_device->subchan_work);
+	return net_device;
 
 out:
-	/* if unavailable, just proceed with one queue */
-	if (ret) {
-		net_device->max_chn = 1;
-		net_device->num_chn = 1;
-	}
-
-	/* No sub channels, device is ready */
-	if (net_device->num_chn == 1)
-		netif_device_attach(net);
-
+	/* setting up multiple channels failed */
+	net_device->max_chn = 1;
+	net_device->num_chn = 1;
 	return net_device;
 
 err_dev_remv:

@@ -354,7 +354,8 @@ void arch_crash_save_vmcoreinfo(void)
 {
 	VMCOREINFO_NUMBER(phys_base);
 	VMCOREINFO_SYMBOL(init_top_pgt);
-	VMCOREINFO_NUMBER(pgtable_l5_enabled);
+	vmcoreinfo_append_str("NUMBER(pgtable_l5_enabled)=%d\n",
+			pgtable_l5_enabled());
 
 #ifdef CONFIG_NUMA
 	VMCOREINFO_SYMBOL(node_data);

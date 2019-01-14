@@ -45,8 +45,9 @@
 #include "dcn10/dcn10_resource.h"
 #endif
 #include "dce120/dce120_resource.h"
-#define DC_LOGGER \
-	ctx->logger
+
+#define DC_LOGGER_INIT(logger)
+
 enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 {
 	enum dce_version dc_version = DCE_VERSION_UNKNOWN;
@@ -78,6 +79,8 @@ enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 				ASIC_REV_IS_POLARIS12_V(asic_id.hw_internal_rev)) {
 			dc_version = DCE_VERSION_11_2;
 		}
+		if (ASIC_REV_IS_VEGAM(asic_id.hw_internal_rev))
+			dc_version = DCE_VERSION_11_22;
 		break;
 	case FAMILY_AI:
 		dc_version = DCE_VERSION_12_0;
@@ -85,6 +88,10 @@ enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 	case FAMILY_RV:
 		dc_version = DCN_VERSION_1_0;
+#if defined(CONFIG_DRM_AMD_DC_DCN1_01)
+		if (ASICREV_IS_RAVEN2(asic_id.hw_internal_rev))
+			dc_version = DCN_VERSION_1_01;
+#endif
 		break;
 #endif
 	default:
@@ -124,6 +131,7 @@ struct resource_pool *dc_create_resource_pool(
 			num_virtual_links, dc, asic_id);
 		break;
 	case DCE_VERSION_11_2:
+	case DCE_VERSION_11_22:
 		res_pool = dce112_create_resource_pool(
 			num_virtual_links, dc);
 		break;
@@ -134,6 +142,9 @@ struct resource_pool *dc_create_resource_pool(
 
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 	case DCN_VERSION_1_0:
+#if defined(CONFIG_DRM_AMD_DC_DCN1_01)
+	case DCN_VERSION_1_01:
+#endif
 		res_pool = dcn10_create_resource_pool(
 				num_virtual_links, dc);
 		break;
@@ -264,23 +275,29 @@ bool resource_construct(
 
 	return true;
 }
+static int find_matching_clock_source(
+		const struct resource_pool *pool,
+		struct clock_source *clock_source)
+{
 
+	int i;
+
+	for (i = 0; i < pool->clk_src_count; i++) {
+		if (pool->clock_sources[i] == clock_source)
+			return i;
+	}
+	return -1;
+}
 
 void resource_unreference_clock_source(
 		struct resource_context *res_ctx,
 		const struct resource_pool *pool,
 		struct clock_source *clock_source)
 {
-	int i;
+	int i = find_matching_clock_source(pool, clock_source);
 
-	for (i = 0; i < pool->clk_src_count; i++) {
-		if (pool->clock_sources[i] != clock_source)
-			continue;
-
+	if (i > -1)
 		res_ctx->clock_source_ref_count[i]--;
-
-		break;
-	}
 
 	if (pool->dp_clock_source == clock_source)
 		res_ctx->dp_clock_source_ref_count--;
@@ -291,17 +308,29 @@ void resource_reference_clock_source(
 		const struct resource_pool *pool,
 		struct clock_source *clock_source)
 {
-	int i;
-	for (i = 0; i < pool->clk_src_count; i++) {
-		if (pool->clock_sources[i] != clock_source)
-			continue;
+	int i = find_matching_clock_source(pool, clock_source);
 
+	if (i > -1)
 		res_ctx->clock_source_ref_count[i]++;
-		break;
-	}
 
 	if (pool->dp_clock_source == clock_source)
 		res_ctx->dp_clock_source_ref_count++;
+}
+
+int resource_get_clock_source_reference(
+		struct resource_context *res_ctx,
+		const struct resource_pool *pool,
+		struct clock_source *clock_source)
+{
+	int i = find_matching_clock_source(pool, clock_source);
+
+	if (i > -1)
+		return res_ctx->clock_source_ref_count[i];
+
+	if (pool->dp_clock_source == clock_source)
+		return res_ctx->dp_clock_source_ref_count;
+
+	return -1;
 }
 
 bool resource_are_streams_timing_synchronizable(
@@ -326,12 +355,32 @@ bool resource_are_streams_timing_synchronizable(
 				!= stream2->timing.pix_clk_khz)
 		return false;
 
+	if (stream1->clamping.c_depth != stream2->clamping.c_depth)
+		return false;
+
 	if (stream1->phy_pix_clk != stream2->phy_pix_clk
 			&& (!dc_is_dp_signal(stream1->signal)
 			|| !dc_is_dp_signal(stream2->signal)))
 		return false;
 
+	if (stream1->view_format != stream2->view_format)
+		return false;
+
 	return true;
+}
+static bool is_dp_and_hdmi_sharable(
+		struct dc_stream_state *stream1,
+		struct dc_stream_state *stream2)
+{
+	if (stream1->ctx->dc->caps.disable_dp_clk_share)
+		return false;
+
+	if (stream1->clamping.c_depth != COLOR_DEPTH_888 ||
+		stream2->clamping.c_depth != COLOR_DEPTH_888)
+		return false;
+
+	return true;
+
 }
 
 static bool is_sharable_clk_src(
@@ -344,15 +393,18 @@ static bool is_sharable_clk_src(
 	if (pipe_with_clk_src->stream->signal == SIGNAL_TYPE_VIRTUAL)
 		return false;
 
-	if (dc_is_dp_signal(pipe_with_clk_src->stream->signal))
+	if (dc_is_dp_signal(pipe_with_clk_src->stream->signal) ||
+		(dc_is_dp_signal(pipe->stream->signal) &&
+		!is_dp_and_hdmi_sharable(pipe_with_clk_src->stream,
+				     pipe->stream)))
 		return false;
 
 	if (dc_is_hdmi_signal(pipe_with_clk_src->stream->signal)
-			&& dc_is_dvi_signal(pipe->stream->signal))
+			&& dc_is_dual_link_signal(pipe->stream->signal))
 		return false;
 
 	if (dc_is_hdmi_signal(pipe->stream->signal)
-			&& dc_is_dvi_signal(pipe_with_clk_src->stream->signal))
+			&& dc_is_dual_link_signal(pipe_with_clk_src->stream->signal))
 		return false;
 
 	if (!resource_are_streams_timing_synchronizable(
@@ -445,6 +497,18 @@ static void calculate_viewport(struct pipe_ctx *pipe_ctx)
 			pipe_ctx->bottom_pipe->plane_state == pipe_ctx->plane_state;
 	bool sec_split = pipe_ctx->top_pipe &&
 			pipe_ctx->top_pipe->plane_state == pipe_ctx->plane_state;
+	bool flip_vert_scan_dir = false, flip_horz_scan_dir = false;
+
+	/*
+	 * Need to calculate the scan direction for viewport to properly determine offset
+	 */
+	if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_180) {
+		flip_vert_scan_dir = true;
+		flip_horz_scan_dir = true;
+	} else if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_90)
+		flip_vert_scan_dir = true;
+	else if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_270)
+		flip_horz_scan_dir = true;
 
 	if (stream->view_format == VIEW_3D_FORMAT_SIDE_BY_SIDE ||
 		stream->view_format == VIEW_3D_FORMAT_TOP_AND_BOTTOM) {
@@ -488,13 +552,41 @@ static void calculate_viewport(struct pipe_ctx *pipe_ctx)
 	data->viewport.height = clip.height *
 			surf_src.height / plane_state->dst_rect.height;
 
+	/* To transfer the x, y to correct coordinate on mirror image (camera).
+	 * deg  0 : transfer x,
+	 * deg 90 : don't need to transfer,
+	 * deg180 : transfer y,
+	 * deg270 : transfer x and y.
+	 * To transfer the x, y to correct coordinate on non-mirror image (video).
+	 * deg  0 : don't need to transfer,
+	 * deg 90 : transfer y,
+	 * deg180 : transfer x and y,
+	 * deg270 : transfer x.
+	 */
+	if (pipe_ctx->plane_state->horizontal_mirror) {
+		if (flip_horz_scan_dir && !flip_vert_scan_dir) {
+			data->viewport.y = surf_src.height - data->viewport.y - data->viewport.height;
+			data->viewport.x = surf_src.width - data->viewport.x - data->viewport.width;
+		} else if (flip_horz_scan_dir && flip_vert_scan_dir)
+			data->viewport.y = surf_src.height - data->viewport.y - data->viewport.height;
+		else {
+			if (!flip_horz_scan_dir && !flip_vert_scan_dir)
+				data->viewport.x = surf_src.width - data->viewport.x - data->viewport.width;
+		}
+	} else {
+		if (flip_horz_scan_dir)
+			data->viewport.x = surf_src.width - data->viewport.x - data->viewport.width;
+		if (flip_vert_scan_dir)
+			data->viewport.y = surf_src.height - data->viewport.y - data->viewport.height;
+	}
+
 	/* Round down, compensate in init */
 	data->viewport_c.x = data->viewport.x / vpc_div;
 	data->viewport_c.y = data->viewport.y / vpc_div;
 	data->inits.h_c = (data->viewport.x % vpc_div) != 0 ?
-			dal_fixed31_32_half : dal_fixed31_32_zero;
+			dc_fixpt_half : dc_fixpt_zero;
 	data->inits.v_c = (data->viewport.y % vpc_div) != 0 ?
-			dal_fixed31_32_half : dal_fixed31_32_zero;
+			dc_fixpt_half : dc_fixpt_zero;
 	/* Round up, assume original video size always even dimensions */
 	data->viewport_c.width = (data->viewport.width + vpc_div - 1) / vpc_div;
 	data->viewport_c.height = (data->viewport.height + vpc_div - 1) / vpc_div;
@@ -507,8 +599,10 @@ static void calculate_viewport(struct pipe_ctx *pipe_ctx)
 		data->viewport.width = (data->viewport.width + 1) / 2;
 		data->viewport_c.width = (data->viewport_c.width + 1) / 2;
 	} else if (pri_split) {
-		data->viewport.width /= 2;
-		data->viewport_c.width /= 2;
+		if (data->viewport.width > 1)
+			data->viewport.width /= 2;
+		if (data->viewport_c.width > 1)
+			data->viewport_c.width /= 2;
 	}
 
 	if (plane_state->rotation == ROTATION_ANGLE_90 ||
@@ -518,13 +612,12 @@ static void calculate_viewport(struct pipe_ctx *pipe_ctx)
 	}
 }
 
-static void calculate_recout(struct pipe_ctx *pipe_ctx, struct view *recout_skip)
+static void calculate_recout(struct pipe_ctx *pipe_ctx, struct rect *recout_full)
 {
 	const struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 	const struct dc_stream_state *stream = pipe_ctx->stream;
 	struct rect surf_src = plane_state->src_rect;
 	struct rect surf_clip = plane_state->clip_rect;
-	int recout_full_x, recout_full_y;
 	bool pri_split = pipe_ctx->bottom_pipe &&
 			pipe_ctx->bottom_pipe->plane_state == pipe_ctx->plane_state;
 	bool sec_split = pipe_ctx->top_pipe &&
@@ -589,24 +682,27 @@ static void calculate_recout(struct pipe_ctx *pipe_ctx, struct view *recout_skip
 			pipe_ctx->plane_res.scl_data.recout.width =
 					(pipe_ctx->plane_res.scl_data.recout.width + 1) / 2;
 		} else {
-			pipe_ctx->plane_res.scl_data.recout.width /= 2;
+			if (pipe_ctx->plane_res.scl_data.recout.width > 1)
+				pipe_ctx->plane_res.scl_data.recout.width /= 2;
 		}
 	}
 	/* Unclipped recout offset = stream dst offset + ((surf dst offset - stream surf_src offset)
-	 * 				* 1/ stream scaling ratio) - (surf surf_src offset * 1/ full scl
-	 * 				ratio)
+	 *			* 1/ stream scaling ratio) - (surf surf_src offset * 1/ full scl
+	 *			ratio)
 	 */
-	recout_full_x = stream->dst.x + (plane_state->dst_rect.x - stream->src.x)
+	recout_full->x = stream->dst.x + (plane_state->dst_rect.x - stream->src.x)
 					* stream->dst.width / stream->src.width -
 			surf_src.x * plane_state->dst_rect.width / surf_src.width
 					* stream->dst.width / stream->src.width;
-	recout_full_y = stream->dst.y + (plane_state->dst_rect.y - stream->src.y)
+	recout_full->y = stream->dst.y + (plane_state->dst_rect.y - stream->src.y)
 					* stream->dst.height / stream->src.height -
 			surf_src.y * plane_state->dst_rect.height / surf_src.height
 					* stream->dst.height / stream->src.height;
 
-	recout_skip->width = pipe_ctx->plane_res.scl_data.recout.x - recout_full_x;
-	recout_skip->height = pipe_ctx->plane_res.scl_data.recout.y - recout_full_y;
+	recout_full->width = plane_state->dst_rect.width
+					* stream->dst.width / stream->src.width;
+	recout_full->height = plane_state->dst_rect.height
+					* stream->dst.height / stream->src.height;
 }
 
 static void calculate_scaling_ratios(struct pipe_ctx *pipe_ctx)
@@ -623,10 +719,10 @@ static void calculate_scaling_ratios(struct pipe_ctx *pipe_ctx)
 			pipe_ctx->plane_state->rotation == ROTATION_ANGLE_270)
 		rect_swap_helper(&surf_src);
 
-	pipe_ctx->plane_res.scl_data.ratios.horz = dal_fixed31_32_from_fraction(
+	pipe_ctx->plane_res.scl_data.ratios.horz = dc_fixpt_from_fraction(
 					surf_src.width,
 					plane_state->dst_rect.width);
-	pipe_ctx->plane_res.scl_data.ratios.vert = dal_fixed31_32_from_fraction(
+	pipe_ctx->plane_res.scl_data.ratios.vert = dc_fixpt_from_fraction(
 					surf_src.height,
 					plane_state->dst_rect.height);
 
@@ -648,9 +744,17 @@ static void calculate_scaling_ratios(struct pipe_ctx *pipe_ctx)
 		pipe_ctx->plane_res.scl_data.ratios.horz_c.value /= 2;
 		pipe_ctx->plane_res.scl_data.ratios.vert_c.value /= 2;
 	}
+	pipe_ctx->plane_res.scl_data.ratios.horz = dc_fixpt_truncate(
+			pipe_ctx->plane_res.scl_data.ratios.horz, 19);
+	pipe_ctx->plane_res.scl_data.ratios.vert = dc_fixpt_truncate(
+			pipe_ctx->plane_res.scl_data.ratios.vert, 19);
+	pipe_ctx->plane_res.scl_data.ratios.horz_c = dc_fixpt_truncate(
+			pipe_ctx->plane_res.scl_data.ratios.horz_c, 19);
+	pipe_ctx->plane_res.scl_data.ratios.vert_c = dc_fixpt_truncate(
+			pipe_ctx->plane_res.scl_data.ratios.vert_c, 19);
 }
 
-static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx, struct view *recout_skip)
+static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx, struct rect *recout_full)
 {
 	struct scaler_data *data = &pipe_ctx->plane_res.scl_data;
 	struct rect src = pipe_ctx->plane_state->src_rect;
@@ -668,15 +772,23 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx, struct view *r
 		flip_vert_scan_dir = true;
 	else if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_270)
 		flip_horz_scan_dir = true;
-	if (pipe_ctx->plane_state->horizontal_mirror)
-		flip_horz_scan_dir = !flip_horz_scan_dir;
 
 	if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_90 ||
 			pipe_ctx->plane_state->rotation == ROTATION_ANGLE_270) {
 		rect_swap_helper(&src);
 		rect_swap_helper(&data->viewport_c);
 		rect_swap_helper(&data->viewport);
-	}
+
+		if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_270 &&
+			pipe_ctx->plane_state->horizontal_mirror) {
+			flip_vert_scan_dir = true;
+		}
+		if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_90 &&
+			pipe_ctx->plane_state->horizontal_mirror) {
+			flip_vert_scan_dir = false;
+		}
+	} else if (pipe_ctx->plane_state->horizontal_mirror)
+			flip_horz_scan_dir = !flip_horz_scan_dir;
 
 	/*
 	 * Init calculated according to formula:
@@ -684,143 +796,303 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx, struct view *r
 	 * 	init_bot = init + scaling_ratio
 	 * 	init_c = init + truncated_vp_c_offset(from calculate viewport)
 	 */
-	data->inits.h = dal_fixed31_32_div_int(
-			dal_fixed31_32_add_int(data->ratios.horz, data->taps.h_taps + 1), 2);
+	data->inits.h = dc_fixpt_truncate(dc_fixpt_div_int(
+			dc_fixpt_add_int(data->ratios.horz, data->taps.h_taps + 1), 2), 19);
 
-	data->inits.h_c = dal_fixed31_32_add(data->inits.h_c, dal_fixed31_32_div_int(
-			dal_fixed31_32_add_int(data->ratios.horz_c, data->taps.h_taps_c + 1), 2));
+	data->inits.h_c = dc_fixpt_truncate(dc_fixpt_add(data->inits.h_c, dc_fixpt_div_int(
+			dc_fixpt_add_int(data->ratios.horz_c, data->taps.h_taps_c + 1), 2)), 19);
 
-	data->inits.v = dal_fixed31_32_div_int(
-			dal_fixed31_32_add_int(data->ratios.vert, data->taps.v_taps + 1), 2);
+	data->inits.v = dc_fixpt_truncate(dc_fixpt_div_int(
+			dc_fixpt_add_int(data->ratios.vert, data->taps.v_taps + 1), 2), 19);
 
-	data->inits.v_c = dal_fixed31_32_add(data->inits.v_c, dal_fixed31_32_div_int(
-			dal_fixed31_32_add_int(data->ratios.vert_c, data->taps.v_taps_c + 1), 2));
+	data->inits.v_c = dc_fixpt_truncate(dc_fixpt_add(data->inits.v_c, dc_fixpt_div_int(
+			dc_fixpt_add_int(data->ratios.vert_c, data->taps.v_taps_c + 1), 2)), 19);
 
+	if (!flip_horz_scan_dir) {
+		/* Adjust for viewport end clip-off */
+		if ((data->viewport.x + data->viewport.width) < (src.x + src.width)) {
+			int vp_clip = src.x + src.width - data->viewport.width - data->viewport.x;
+			int int_part = dc_fixpt_floor(
+					dc_fixpt_sub(data->inits.h, data->ratios.horz));
 
-	/* Adjust for viewport end clip-off */
-	if ((data->viewport.x + data->viewport.width) < (src.x + src.width) && !flip_horz_scan_dir) {
-		int vp_clip = src.x + src.width - data->viewport.width - data->viewport.x;
-		int int_part = dal_fixed31_32_floor(
-				dal_fixed31_32_sub(data->inits.h, data->ratios.horz));
-
-		int_part = int_part > 0 ? int_part : 0;
-		data->viewport.width += int_part < vp_clip ? int_part : vp_clip;
-	}
-	if ((data->viewport.y + data->viewport.height) < (src.y + src.height) && !flip_vert_scan_dir) {
-		int vp_clip = src.y + src.height - data->viewport.height - data->viewport.y;
-		int int_part = dal_fixed31_32_floor(
-				dal_fixed31_32_sub(data->inits.v, data->ratios.vert));
-
-		int_part = int_part > 0 ? int_part : 0;
-		data->viewport.height += int_part < vp_clip ? int_part : vp_clip;
-	}
-	if ((data->viewport_c.x + data->viewport_c.width) < (src.x + src.width) / vpc_div && !flip_horz_scan_dir) {
-		int vp_clip = (src.x + src.width) / vpc_div -
-				data->viewport_c.width - data->viewport_c.x;
-		int int_part = dal_fixed31_32_floor(
-				dal_fixed31_32_sub(data->inits.h_c, data->ratios.horz_c));
-
-		int_part = int_part > 0 ? int_part : 0;
-		data->viewport_c.width += int_part < vp_clip ? int_part : vp_clip;
-	}
-	if ((data->viewport_c.y + data->viewport_c.height) < (src.y + src.height) / vpc_div && !flip_vert_scan_dir) {
-		int vp_clip = (src.y + src.height) / vpc_div -
-				data->viewport_c.height - data->viewport_c.y;
-		int int_part = dal_fixed31_32_floor(
-				dal_fixed31_32_sub(data->inits.v_c, data->ratios.vert_c));
-
-		int_part = int_part > 0 ? int_part : 0;
-		data->viewport_c.height += int_part < vp_clip ? int_part : vp_clip;
-	}
-
-	/* Adjust for non-0 viewport offset */
-	if (data->viewport.x && !flip_horz_scan_dir) {
-		int int_part;
-
-		data->inits.h = dal_fixed31_32_add(data->inits.h, dal_fixed31_32_mul_int(
-				data->ratios.horz, recout_skip->width));
-		int_part = dal_fixed31_32_floor(data->inits.h) - data->viewport.x;
-		if (int_part < data->taps.h_taps) {
-			int int_adj = data->viewport.x >= (data->taps.h_taps - int_part) ?
-						(data->taps.h_taps - int_part) : data->viewport.x;
-			data->viewport.x -= int_adj;
-			data->viewport.width += int_adj;
-			int_part += int_adj;
-		} else if (int_part > data->taps.h_taps) {
-			data->viewport.x += int_part - data->taps.h_taps;
-			data->viewport.width -= int_part - data->taps.h_taps;
-			int_part = data->taps.h_taps;
+			int_part = int_part > 0 ? int_part : 0;
+			data->viewport.width += int_part < vp_clip ? int_part : vp_clip;
 		}
-		data->inits.h.value &= 0xffffffff;
-		data->inits.h = dal_fixed31_32_add_int(data->inits.h, int_part);
-	}
+		if ((data->viewport_c.x + data->viewport_c.width) < (src.x + src.width) / vpc_div) {
+			int vp_clip = (src.x + src.width) / vpc_div -
+					data->viewport_c.width - data->viewport_c.x;
+			int int_part = dc_fixpt_floor(
+					dc_fixpt_sub(data->inits.h_c, data->ratios.horz_c));
 
-	if (data->viewport_c.x && !flip_horz_scan_dir) {
-		int int_part;
-
-		data->inits.h_c = dal_fixed31_32_add(data->inits.h_c, dal_fixed31_32_mul_int(
-				data->ratios.horz_c, recout_skip->width));
-		int_part = dal_fixed31_32_floor(data->inits.h_c) - data->viewport_c.x;
-		if (int_part < data->taps.h_taps_c) {
-			int int_adj = data->viewport_c.x >= (data->taps.h_taps_c - int_part) ?
-					(data->taps.h_taps_c - int_part) : data->viewport_c.x;
-			data->viewport_c.x -= int_adj;
-			data->viewport_c.width += int_adj;
-			int_part += int_adj;
-		} else if (int_part > data->taps.h_taps_c) {
-			data->viewport_c.x += int_part - data->taps.h_taps_c;
-			data->viewport_c.width -= int_part - data->taps.h_taps_c;
-			int_part = data->taps.h_taps_c;
+			int_part = int_part > 0 ? int_part : 0;
+			data->viewport_c.width += int_part < vp_clip ? int_part : vp_clip;
 		}
-		data->inits.h_c.value &= 0xffffffff;
-		data->inits.h_c = dal_fixed31_32_add_int(data->inits.h_c, int_part);
-	}
 
-	if (data->viewport.y && !flip_vert_scan_dir) {
-		int int_part;
+		/* Adjust for non-0 viewport offset */
+		if (data->viewport.x) {
+			int int_part;
 
-		data->inits.v = dal_fixed31_32_add(data->inits.v, dal_fixed31_32_mul_int(
-				data->ratios.vert, recout_skip->height));
-		int_part = dal_fixed31_32_floor(data->inits.v) - data->viewport.y;
-		if (int_part < data->taps.v_taps) {
-			int int_adj = data->viewport.y >= (data->taps.v_taps - int_part) ?
-						(data->taps.v_taps - int_part) : data->viewport.y;
-			data->viewport.y -= int_adj;
-			data->viewport.height += int_adj;
-			int_part += int_adj;
-		} else if (int_part > data->taps.v_taps) {
-			data->viewport.y += int_part - data->taps.v_taps;
-			data->viewport.height -= int_part - data->taps.v_taps;
-			int_part = data->taps.v_taps;
+			data->inits.h = dc_fixpt_add(data->inits.h, dc_fixpt_mul_int(
+					data->ratios.horz, data->recout.x - recout_full->x));
+			int_part = dc_fixpt_floor(data->inits.h) - data->viewport.x;
+			if (int_part < data->taps.h_taps) {
+				int int_adj = data->viewport.x >= (data->taps.h_taps - int_part) ?
+							(data->taps.h_taps - int_part) : data->viewport.x;
+				data->viewport.x -= int_adj;
+				data->viewport.width += int_adj;
+				int_part += int_adj;
+			} else if (int_part > data->taps.h_taps) {
+				data->viewport.x += int_part - data->taps.h_taps;
+				data->viewport.width -= int_part - data->taps.h_taps;
+				int_part = data->taps.h_taps;
+			}
+			data->inits.h.value &= 0xffffffff;
+			data->inits.h = dc_fixpt_add_int(data->inits.h, int_part);
 		}
-		data->inits.v.value &= 0xffffffff;
-		data->inits.v = dal_fixed31_32_add_int(data->inits.v, int_part);
-	}
 
-	if (data->viewport_c.y && !flip_vert_scan_dir) {
-		int int_part;
+		if (data->viewport_c.x) {
+			int int_part;
 
-		data->inits.v_c = dal_fixed31_32_add(data->inits.v_c, dal_fixed31_32_mul_int(
-				data->ratios.vert_c, recout_skip->height));
-		int_part = dal_fixed31_32_floor(data->inits.v_c) - data->viewport_c.y;
-		if (int_part < data->taps.v_taps_c) {
-			int int_adj = data->viewport_c.y >= (data->taps.v_taps_c - int_part) ?
-					(data->taps.v_taps_c - int_part) : data->viewport_c.y;
-			data->viewport_c.y -= int_adj;
-			data->viewport_c.height += int_adj;
-			int_part += int_adj;
-		} else if (int_part > data->taps.v_taps_c) {
-			data->viewport_c.y += int_part - data->taps.v_taps_c;
-			data->viewport_c.height -= int_part - data->taps.v_taps_c;
-			int_part = data->taps.v_taps_c;
+			data->inits.h_c = dc_fixpt_add(data->inits.h_c, dc_fixpt_mul_int(
+					data->ratios.horz_c, data->recout.x - recout_full->x));
+			int_part = dc_fixpt_floor(data->inits.h_c) - data->viewport_c.x;
+			if (int_part < data->taps.h_taps_c) {
+				int int_adj = data->viewport_c.x >= (data->taps.h_taps_c - int_part) ?
+						(data->taps.h_taps_c - int_part) : data->viewport_c.x;
+				data->viewport_c.x -= int_adj;
+				data->viewport_c.width += int_adj;
+				int_part += int_adj;
+			} else if (int_part > data->taps.h_taps_c) {
+				data->viewport_c.x += int_part - data->taps.h_taps_c;
+				data->viewport_c.width -= int_part - data->taps.h_taps_c;
+				int_part = data->taps.h_taps_c;
+			}
+			data->inits.h_c.value &= 0xffffffff;
+			data->inits.h_c = dc_fixpt_add_int(data->inits.h_c, int_part);
 		}
-		data->inits.v_c.value &= 0xffffffff;
-		data->inits.v_c = dal_fixed31_32_add_int(data->inits.v_c, int_part);
+	} else {
+		/* Adjust for non-0 viewport offset */
+		if (data->viewport.x) {
+			int int_part = dc_fixpt_floor(
+					dc_fixpt_sub(data->inits.h, data->ratios.horz));
+
+			int_part = int_part > 0 ? int_part : 0;
+			data->viewport.width += int_part < data->viewport.x ? int_part : data->viewport.x;
+			data->viewport.x -= int_part < data->viewport.x ? int_part : data->viewport.x;
+		}
+		if (data->viewport_c.x) {
+			int int_part = dc_fixpt_floor(
+					dc_fixpt_sub(data->inits.h_c, data->ratios.horz_c));
+
+			int_part = int_part > 0 ? int_part : 0;
+			data->viewport_c.width += int_part < data->viewport_c.x ? int_part : data->viewport_c.x;
+			data->viewport_c.x -= int_part < data->viewport_c.x ? int_part : data->viewport_c.x;
+		}
+
+		/* Adjust for viewport end clip-off */
+		if ((data->viewport.x + data->viewport.width) < (src.x + src.width)) {
+			int int_part;
+			int end_offset = src.x + src.width
+					- data->viewport.x - data->viewport.width;
+
+			/*
+			 * this is init if vp had no offset, keep in mind this is from the
+			 * right side of vp due to scan direction
+			 */
+			data->inits.h = dc_fixpt_add(data->inits.h, dc_fixpt_mul_int(
+					data->ratios.horz, data->recout.x - recout_full->x));
+			/*
+			 * this is the difference between first pixel of viewport available to read
+			 * and init position, takning into account scan direction
+			 */
+			int_part = dc_fixpt_floor(data->inits.h) - end_offset;
+			if (int_part < data->taps.h_taps) {
+				int int_adj = end_offset >= (data->taps.h_taps - int_part) ?
+							(data->taps.h_taps - int_part) : end_offset;
+				data->viewport.width += int_adj;
+				int_part += int_adj;
+			} else if (int_part > data->taps.h_taps) {
+				data->viewport.width += int_part - data->taps.h_taps;
+				int_part = data->taps.h_taps;
+			}
+			data->inits.h.value &= 0xffffffff;
+			data->inits.h = dc_fixpt_add_int(data->inits.h, int_part);
+		}
+
+		if ((data->viewport_c.x + data->viewport_c.width) < (src.x + src.width) / vpc_div) {
+			int int_part;
+			int end_offset = (src.x + src.width) / vpc_div
+					- data->viewport_c.x - data->viewport_c.width;
+
+			/*
+			 * this is init if vp had no offset, keep in mind this is from the
+			 * right side of vp due to scan direction
+			 */
+			data->inits.h_c = dc_fixpt_add(data->inits.h_c, dc_fixpt_mul_int(
+					data->ratios.horz_c, data->recout.x - recout_full->x));
+			/*
+			 * this is the difference between first pixel of viewport available to read
+			 * and init position, takning into account scan direction
+			 */
+			int_part = dc_fixpt_floor(data->inits.h_c) - end_offset;
+			if (int_part < data->taps.h_taps_c) {
+				int int_adj = end_offset >= (data->taps.h_taps_c - int_part) ?
+							(data->taps.h_taps_c - int_part) : end_offset;
+				data->viewport_c.width += int_adj;
+				int_part += int_adj;
+			} else if (int_part > data->taps.h_taps_c) {
+				data->viewport_c.width += int_part - data->taps.h_taps_c;
+				int_part = data->taps.h_taps_c;
+			}
+			data->inits.h_c.value &= 0xffffffff;
+			data->inits.h_c = dc_fixpt_add_int(data->inits.h_c, int_part);
+		}
+
+	}
+	if (!flip_vert_scan_dir) {
+		/* Adjust for viewport end clip-off */
+		if ((data->viewport.y + data->viewport.height) < (src.y + src.height)) {
+			int vp_clip = src.y + src.height - data->viewport.height - data->viewport.y;
+			int int_part = dc_fixpt_floor(
+					dc_fixpt_sub(data->inits.v, data->ratios.vert));
+
+			int_part = int_part > 0 ? int_part : 0;
+			data->viewport.height += int_part < vp_clip ? int_part : vp_clip;
+		}
+		if ((data->viewport_c.y + data->viewport_c.height) < (src.y + src.height) / vpc_div) {
+			int vp_clip = (src.y + src.height) / vpc_div -
+					data->viewport_c.height - data->viewport_c.y;
+			int int_part = dc_fixpt_floor(
+					dc_fixpt_sub(data->inits.v_c, data->ratios.vert_c));
+
+			int_part = int_part > 0 ? int_part : 0;
+			data->viewport_c.height += int_part < vp_clip ? int_part : vp_clip;
+		}
+
+		/* Adjust for non-0 viewport offset */
+		if (data->viewport.y) {
+			int int_part;
+
+			data->inits.v = dc_fixpt_add(data->inits.v, dc_fixpt_mul_int(
+					data->ratios.vert, data->recout.y - recout_full->y));
+			int_part = dc_fixpt_floor(data->inits.v) - data->viewport.y;
+			if (int_part < data->taps.v_taps) {
+				int int_adj = data->viewport.y >= (data->taps.v_taps - int_part) ?
+							(data->taps.v_taps - int_part) : data->viewport.y;
+				data->viewport.y -= int_adj;
+				data->viewport.height += int_adj;
+				int_part += int_adj;
+			} else if (int_part > data->taps.v_taps) {
+				data->viewport.y += int_part - data->taps.v_taps;
+				data->viewport.height -= int_part - data->taps.v_taps;
+				int_part = data->taps.v_taps;
+			}
+			data->inits.v.value &= 0xffffffff;
+			data->inits.v = dc_fixpt_add_int(data->inits.v, int_part);
+		}
+
+		if (data->viewport_c.y) {
+			int int_part;
+
+			data->inits.v_c = dc_fixpt_add(data->inits.v_c, dc_fixpt_mul_int(
+					data->ratios.vert_c, data->recout.y - recout_full->y));
+			int_part = dc_fixpt_floor(data->inits.v_c) - data->viewport_c.y;
+			if (int_part < data->taps.v_taps_c) {
+				int int_adj = data->viewport_c.y >= (data->taps.v_taps_c - int_part) ?
+						(data->taps.v_taps_c - int_part) : data->viewport_c.y;
+				data->viewport_c.y -= int_adj;
+				data->viewport_c.height += int_adj;
+				int_part += int_adj;
+			} else if (int_part > data->taps.v_taps_c) {
+				data->viewport_c.y += int_part - data->taps.v_taps_c;
+				data->viewport_c.height -= int_part - data->taps.v_taps_c;
+				int_part = data->taps.v_taps_c;
+			}
+			data->inits.v_c.value &= 0xffffffff;
+			data->inits.v_c = dc_fixpt_add_int(data->inits.v_c, int_part);
+		}
+	} else {
+		/* Adjust for non-0 viewport offset */
+		if (data->viewport.y) {
+			int int_part = dc_fixpt_floor(
+					dc_fixpt_sub(data->inits.v, data->ratios.vert));
+
+			int_part = int_part > 0 ? int_part : 0;
+			data->viewport.height += int_part < data->viewport.y ? int_part : data->viewport.y;
+			data->viewport.y -= int_part < data->viewport.y ? int_part : data->viewport.y;
+		}
+		if (data->viewport_c.y) {
+			int int_part = dc_fixpt_floor(
+					dc_fixpt_sub(data->inits.v_c, data->ratios.vert_c));
+
+			int_part = int_part > 0 ? int_part : 0;
+			data->viewport_c.height += int_part < data->viewport_c.y ? int_part : data->viewport_c.y;
+			data->viewport_c.y -= int_part < data->viewport_c.y ? int_part : data->viewport_c.y;
+		}
+
+		/* Adjust for viewport end clip-off */
+		if ((data->viewport.y + data->viewport.height) < (src.y + src.height)) {
+			int int_part;
+			int end_offset = src.y + src.height
+					- data->viewport.y - data->viewport.height;
+
+			/*
+			 * this is init if vp had no offset, keep in mind this is from the
+			 * right side of vp due to scan direction
+			 */
+			data->inits.v = dc_fixpt_add(data->inits.v, dc_fixpt_mul_int(
+					data->ratios.vert, data->recout.y - recout_full->y));
+			/*
+			 * this is the difference between first pixel of viewport available to read
+			 * and init position, taking into account scan direction
+			 */
+			int_part = dc_fixpt_floor(data->inits.v) - end_offset;
+			if (int_part < data->taps.v_taps) {
+				int int_adj = end_offset >= (data->taps.v_taps - int_part) ?
+							(data->taps.v_taps - int_part) : end_offset;
+				data->viewport.height += int_adj;
+				int_part += int_adj;
+			} else if (int_part > data->taps.v_taps) {
+				data->viewport.height += int_part - data->taps.v_taps;
+				int_part = data->taps.v_taps;
+			}
+			data->inits.v.value &= 0xffffffff;
+			data->inits.v = dc_fixpt_add_int(data->inits.v, int_part);
+		}
+
+		if ((data->viewport_c.y + data->viewport_c.height) < (src.y + src.height) / vpc_div) {
+			int int_part;
+			int end_offset = (src.y + src.height) / vpc_div
+					- data->viewport_c.y - data->viewport_c.height;
+
+			/*
+			 * this is init if vp had no offset, keep in mind this is from the
+			 * right side of vp due to scan direction
+			 */
+			data->inits.v_c = dc_fixpt_add(data->inits.v_c, dc_fixpt_mul_int(
+					data->ratios.vert_c, data->recout.y - recout_full->y));
+			/*
+			 * this is the difference between first pixel of viewport available to read
+			 * and init position, taking into account scan direction
+			 */
+			int_part = dc_fixpt_floor(data->inits.v_c) - end_offset;
+			if (int_part < data->taps.v_taps_c) {
+				int int_adj = end_offset >= (data->taps.v_taps_c - int_part) ?
+							(data->taps.v_taps_c - int_part) : end_offset;
+				data->viewport_c.height += int_adj;
+				int_part += int_adj;
+			} else if (int_part > data->taps.v_taps_c) {
+				data->viewport_c.height += int_part - data->taps.v_taps_c;
+				int_part = data->taps.v_taps_c;
+			}
+			data->inits.v_c.value &= 0xffffffff;
+			data->inits.v_c = dc_fixpt_add_int(data->inits.v_c, int_part);
+		}
 	}
 
 	/* Interlaced inits based on final vert inits */
-	data->inits.v_bot = dal_fixed31_32_add(data->inits.v, data->ratios.vert);
-	data->inits.v_c_bot = dal_fixed31_32_add(data->inits.v_c, data->ratios.vert_c);
+	data->inits.v_bot = dc_fixpt_add(data->inits.v, data->ratios.vert);
+	data->inits.v_c_bot = dc_fixpt_add(data->inits.v_c, data->ratios.vert_c);
 
 	if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_90 ||
 			pipe_ctx->plane_state->rotation == ROTATION_ANGLE_270) {
@@ -833,15 +1105,18 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 {
 	const struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 	struct dc_crtc_timing *timing = &pipe_ctx->stream->timing;
-	struct view recout_skip = { 0 };
+	struct rect recout_full = { 0 };
 	bool res = false;
-	struct dc_context *ctx = pipe_ctx->stream->ctx;
+	DC_LOGGER_INIT(pipe_ctx->stream->ctx->logger);
 	/* Important: scaling ratio calculation requires pixel format,
 	 * lb depth calculation requires recout and taps require scaling ratios.
 	 * Inits require viewport, taps, ratios and recout of split pipe
 	 */
 	pipe_ctx->plane_res.scl_data.format = convert_pixel_format_to_dalsurface(
 			pipe_ctx->plane_state->format);
+
+	if (pipe_ctx->stream->timing.flags.INTERLACE)
+		pipe_ctx->stream->dst.height *= 2;
 
 	calculate_scaling_ratios(pipe_ctx);
 
@@ -850,7 +1125,7 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 	if (pipe_ctx->plane_res.scl_data.viewport.height < 16 || pipe_ctx->plane_res.scl_data.viewport.width < 16)
 		return false;
 
-	calculate_recout(pipe_ctx, &recout_skip);
+	calculate_recout(pipe_ctx, &recout_full);
 
 	/**
 	 * Setting line buffer pixel depth to 24bpp yields banding
@@ -863,6 +1138,8 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 
 	pipe_ctx->plane_res.scl_data.h_active = timing->h_addressable + timing->h_border_left + timing->h_border_right;
 	pipe_ctx->plane_res.scl_data.v_active = timing->v_addressable + timing->v_border_top + timing->v_border_bottom;
+	if (pipe_ctx->stream->timing.flags.INTERLACE)
+		pipe_ctx->plane_res.scl_data.v_active *= 2;
 
 
 	/* Taps calculations */
@@ -892,7 +1169,7 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 
 	if (res)
 		/* May need to re-check lb size after this in some obscure scenario */
-		calculate_inits_and_adj_vp(pipe_ctx, &recout_skip);
+		calculate_inits_and_adj_vp(pipe_ctx, &recout_full);
 
 	DC_LOG_SCALER(
 				"%s: Viewport:\nheight:%d width:%d x:%d "
@@ -907,6 +1184,9 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 				plane_state->dst_rect.width,
 				plane_state->dst_rect.x,
 				plane_state->dst_rect.y);
+
+	if (pipe_ctx->stream->timing.flags.INTERLACE)
+		pipe_ctx->stream->dst.height /= 2;
 
 	return res;
 }
@@ -1294,6 +1574,33 @@ bool dc_add_all_planes_for_stream(
 }
 
 
+static bool is_hdr_static_meta_changed(struct dc_stream_state *cur_stream,
+	struct dc_stream_state *new_stream)
+{
+	if (cur_stream == NULL)
+		return true;
+
+	if (memcmp(&cur_stream->hdr_static_metadata,
+			&new_stream->hdr_static_metadata,
+			sizeof(struct dc_info_packet)) != 0)
+		return true;
+
+	return false;
+}
+
+static bool is_vsc_info_packet_changed(struct dc_stream_state *cur_stream,
+		struct dc_stream_state *new_stream)
+{
+	if (cur_stream == NULL)
+		return true;
+
+	if (memcmp(&cur_stream->vsc_infopacket,
+			&new_stream->vsc_infopacket,
+			sizeof(struct dc_info_packet)) != 0)
+		return true;
+
+	return false;
+}
 
 static bool is_timing_changed(struct dc_stream_state *cur_stream,
 		struct dc_stream_state *new_stream)
@@ -1327,6 +1634,15 @@ static bool are_stream_backends_same(
 		return false;
 
 	if (is_timing_changed(stream_a, stream_b))
+		return false;
+
+	if (is_hdr_static_meta_changed(stream_a, stream_b))
+		return false;
+
+	if (stream_a->dpms_off != stream_b->dpms_off)
+		return false;
+
+	if (is_vsc_info_packet_changed(stream_a, stream_b))
 		return false;
 
 	return true;
@@ -1456,7 +1772,7 @@ static struct stream_encoder *find_first_free_match_stream_enc_for_link(
 	 * required for non DP connectors.
 	 */
 
-	if (j >= 0 && dc_is_dp_signal(stream->signal))
+	if (j >= 0 && link->connector_signal == SIGNAL_TYPE_DISPLAY_PORT)
 		return pool->stream_enc[j];
 
 	return NULL;
@@ -1509,8 +1825,8 @@ enum dc_status dc_add_stream_to_ctx(
 	struct dc_context *dc_ctx = dc->ctx;
 	enum dc_status res;
 
-	if (new_ctx->stream_count >= dc->res_pool->pipe_count) {
-		DC_ERROR("Max streams reached, can add stream %p !\n", stream);
+	if (new_ctx->stream_count >= dc->res_pool->timing_generator_count) {
+		DC_ERROR("Max streams reached, can't add stream %p !\n", stream);
 		return DC_ERROR_UNEXPECTED;
 	}
 
@@ -1599,18 +1915,6 @@ enum dc_status dc_remove_stream_from_ctx(
 	return DC_OK;
 }
 
-static void copy_pipe_ctx(
-	const struct pipe_ctx *from_pipe_ctx, struct pipe_ctx *to_pipe_ctx)
-{
-	struct dc_plane_state *plane_state = to_pipe_ctx->plane_state;
-	struct dc_stream_state *stream = to_pipe_ctx->stream;
-
-	*to_pipe_ctx = *from_pipe_ctx;
-	to_pipe_ctx->stream = stream;
-	if (plane_state != NULL)
-		to_pipe_ctx->plane_state = plane_state;
-}
-
 static struct dc_stream_state *find_pll_sharable_stream(
 		struct dc_stream_state *stream_needs_pll,
 		struct dc_state *context)
@@ -1671,6 +1975,9 @@ static void calculate_phy_pix_clks(struct dc_stream_state *stream)
 	else
 		stream->phy_pix_clk =
 			stream->timing.pix_clk_khz;
+
+	if (stream->timing.timing_3d_format == TIMING_3D_FORMAT_HW_FRAME_PACKING)
+		stream->phy_pix_clk *= 2;
 }
 
 enum dc_status resource_map_pool_resources(
@@ -1703,7 +2010,7 @@ enum dc_status resource_map_pool_resources(
 		pipe_idx = acquire_first_split_pipe(&context->res_ctx, pool, stream);
 #endif
 
-	if (pipe_idx < 0)
+	if (pipe_idx < 0 || context->res_ctx.pipe_ctx[pipe_idx].stream_res.tg == NULL)
 		return DC_NO_CONTROLLER_RESOURCE;
 
 	pipe_ctx = &context->res_ctx.pipe_ctx[pipe_idx];
@@ -1752,26 +2059,6 @@ enum dc_status resource_map_pool_resources(
 	return DC_ERROR_UNEXPECTED;
 }
 
-/* first stream in the context is used to populate the rest */
-void validate_guaranteed_copy_streams(
-		struct dc_state *context,
-		int max_streams)
-{
-	int i;
-
-	for (i = 1; i < max_streams; i++) {
-		context->streams[i] = context->streams[0];
-
-		copy_pipe_ctx(&context->res_ctx.pipe_ctx[0],
-			      &context->res_ctx.pipe_ctx[i]);
-		context->res_ctx.pipe_ctx[i].stream =
-				context->res_ctx.pipe_ctx[0].stream;
-
-		dc_stream_retain(context->streams[i]);
-		context->stream_count++;
-	}
-}
-
 void dc_resource_state_copy_construct_current(
 		const struct dc *dc,
 		struct dc_state *dst_ctx)
@@ -1784,7 +2071,7 @@ void dc_resource_state_construct(
 		const struct dc *dc,
 		struct dc_state *dst_ctx)
 {
-	dst_ctx->dis_clk = dc->res_pool->display_clock;
+	dst_ctx->dis_clk = dc->res_pool->dccg;
 }
 
 enum dc_status dc_validate_global_state(
@@ -1798,9 +2085,9 @@ enum dc_status dc_validate_global_state(
 		return DC_ERROR_UNEXPECTED;
 
 	if (dc->res_pool->funcs->validate_global) {
-			result = dc->res_pool->funcs->validate_global(dc, new_ctx);
-			if (result != DC_OK)
-				return result;
+		result = dc->res_pool->funcs->validate_global(dc, new_ctx);
+		if (result != DC_OK)
+			return result;
 	}
 
 	for (i = 0; i < new_ctx->stream_count; i++) {
@@ -1811,6 +2098,14 @@ enum dc_status dc_validate_global_state(
 
 			if (pipe_ctx->stream != stream)
 				continue;
+
+			if (dc->res_pool->funcs->get_default_swizzle_mode &&
+					pipe_ctx->plane_state &&
+					pipe_ctx->plane_state->tiling_info.gfx9.swizzle == DC_SW_UNKNOWN) {
+				result = dc->res_pool->funcs->get_default_swizzle_mode(pipe_ctx->plane_state);
+				if (result != DC_OK)
+					return result;
+			}
 
 			/* Switch to dp clock source only if there is
 			 * no non dp stream that shares the same timing
@@ -1843,7 +2138,7 @@ enum dc_status dc_validate_global_state(
 }
 
 static void patch_gamut_packet_checksum(
-		struct encoder_info_packet *gamut_packet)
+		struct dc_info_packet *gamut_packet)
 {
 	/* For gamut we recalc checksum */
 	if (gamut_packet->valid) {
@@ -1862,12 +2157,11 @@ static void patch_gamut_packet_checksum(
 }
 
 static void set_avi_info_frame(
-		struct encoder_info_packet *info_packet,
+		struct dc_info_packet *info_packet,
 		struct pipe_ctx *pipe_ctx)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	enum dc_color_space color_space = COLOR_SPACE_UNKNOWN;
-	struct info_frame info_frame = { {0} };
 	uint32_t pixel_encoding = 0;
 	enum scanning_type scan_type = SCANNING_TYPE_NODATA;
 	enum dc_aspect_ratio aspect = ASPECT_RATIO_NO_DATA;
@@ -1877,10 +2171,12 @@ static void set_avi_info_frame(
 	unsigned int cn0_cn1_value = 0;
 	uint8_t *check_sum = NULL;
 	uint8_t byte_index = 0;
-	union hdmi_info_packet *hdmi_info = &info_frame.avi_info_packet.info_packet_hdmi;
+	union hdmi_info_packet hdmi_info;
 	union display_content_support support = {0};
 	unsigned int vic = pipe_ctx->stream->timing.vic;
 	enum dc_timing_3d_format format;
+
+	memset(&hdmi_info, 0, sizeof(union hdmi_info_packet));
 
 	color_space = pipe_ctx->stream->output_color_space;
 	if (color_space == COLOR_SPACE_UNKNOWN)
@@ -1888,11 +2184,11 @@ static void set_avi_info_frame(
 			COLOR_SPACE_SRGB:COLOR_SPACE_YCBCR709;
 
 	/* Initialize header */
-	hdmi_info->bits.header.info_frame_type = HDMI_INFOFRAME_TYPE_AVI;
+	hdmi_info.bits.header.info_frame_type = HDMI_INFOFRAME_TYPE_AVI;
 	/* InfoFrameVersion_3 is defined by CEA861F (Section 6.4), but shall
 	* not be used in HDMI 2.0 (Section 10.1) */
-	hdmi_info->bits.header.version = 2;
-	hdmi_info->bits.header.length = HDMI_AVI_INFOFRAME_SIZE;
+	hdmi_info.bits.header.version = 2;
+	hdmi_info.bits.header.length = HDMI_AVI_INFOFRAME_SIZE;
 
 	/*
 	 * IDO-defined (Y2,Y1,Y0 = 1,1,1) shall not be used by devices built
@@ -1918,39 +2214,39 @@ static void set_avi_info_frame(
 
 	/* Y0_Y1_Y2 : The pixel encoding */
 	/* H14b AVI InfoFrame has extension on Y-field from 2 bits to 3 bits */
-	hdmi_info->bits.Y0_Y1_Y2 = pixel_encoding;
+	hdmi_info.bits.Y0_Y1_Y2 = pixel_encoding;
 
 	/* A0 = 1 Active Format Information valid */
-	hdmi_info->bits.A0 = ACTIVE_FORMAT_VALID;
+	hdmi_info.bits.A0 = ACTIVE_FORMAT_VALID;
 
 	/* B0, B1 = 3; Bar info data is valid */
-	hdmi_info->bits.B0_B1 = BAR_INFO_BOTH_VALID;
+	hdmi_info.bits.B0_B1 = BAR_INFO_BOTH_VALID;
 
-	hdmi_info->bits.SC0_SC1 = PICTURE_SCALING_UNIFORM;
+	hdmi_info.bits.SC0_SC1 = PICTURE_SCALING_UNIFORM;
 
 	/* S0, S1 : Underscan / Overscan */
 	/* TODO: un-hardcode scan type */
 	scan_type = SCANNING_TYPE_UNDERSCAN;
-	hdmi_info->bits.S0_S1 = scan_type;
+	hdmi_info.bits.S0_S1 = scan_type;
 
 	/* C0, C1 : Colorimetry */
 	if (color_space == COLOR_SPACE_YCBCR709 ||
 			color_space == COLOR_SPACE_YCBCR709_LIMITED)
-		hdmi_info->bits.C0_C1 = COLORIMETRY_ITU709;
+		hdmi_info.bits.C0_C1 = COLORIMETRY_ITU709;
 	else if (color_space == COLOR_SPACE_YCBCR601 ||
 			color_space == COLOR_SPACE_YCBCR601_LIMITED)
-		hdmi_info->bits.C0_C1 = COLORIMETRY_ITU601;
+		hdmi_info.bits.C0_C1 = COLORIMETRY_ITU601;
 	else {
-		hdmi_info->bits.C0_C1 = COLORIMETRY_NO_DATA;
+		hdmi_info.bits.C0_C1 = COLORIMETRY_NO_DATA;
 	}
 	if (color_space == COLOR_SPACE_2020_RGB_FULLRANGE ||
 			color_space == COLOR_SPACE_2020_RGB_LIMITEDRANGE ||
 			color_space == COLOR_SPACE_2020_YCBCR) {
-		hdmi_info->bits.EC0_EC2 = COLORIMETRYEX_BT2020RGBYCBCR;
-		hdmi_info->bits.C0_C1   = COLORIMETRY_EXTENDED;
+		hdmi_info.bits.EC0_EC2 = COLORIMETRYEX_BT2020RGBYCBCR;
+		hdmi_info.bits.C0_C1   = COLORIMETRY_EXTENDED;
 	} else if (color_space == COLOR_SPACE_ADOBERGB) {
-		hdmi_info->bits.EC0_EC2 = COLORIMETRYEX_ADOBERGB;
-		hdmi_info->bits.C0_C1   = COLORIMETRY_EXTENDED;
+		hdmi_info.bits.EC0_EC2 = COLORIMETRYEX_ADOBERGB;
+		hdmi_info.bits.C0_C1   = COLORIMETRY_EXTENDED;
 	}
 
 	/* TODO: un-hardcode aspect ratio */
@@ -1959,18 +2255,18 @@ static void set_avi_info_frame(
 	switch (aspect) {
 	case ASPECT_RATIO_4_3:
 	case ASPECT_RATIO_16_9:
-		hdmi_info->bits.M0_M1 = aspect;
+		hdmi_info.bits.M0_M1 = aspect;
 		break;
 
 	case ASPECT_RATIO_NO_DATA:
 	case ASPECT_RATIO_64_27:
 	case ASPECT_RATIO_256_135:
 	default:
-		hdmi_info->bits.M0_M1 = 0;
+		hdmi_info.bits.M0_M1 = 0;
 	}
 
 	/* Active Format Aspect ratio - same as Picture Aspect Ratio. */
-	hdmi_info->bits.R0_R3 = ACTIVE_FORMAT_ASPECT_RATIO_SAME_AS_PICTURE;
+	hdmi_info.bits.R0_R3 = ACTIVE_FORMAT_ASPECT_RATIO_SAME_AS_PICTURE;
 
 	/* TODO: un-hardcode cn0_cn1 and itc */
 
@@ -2013,8 +2309,8 @@ static void set_avi_info_frame(
 				}
 			}
 		}
-		hdmi_info->bits.CN0_CN1 = cn0_cn1_value;
-		hdmi_info->bits.ITC = itc_value;
+		hdmi_info.bits.CN0_CN1 = cn0_cn1_value;
+		hdmi_info.bits.ITC = itc_value;
 	}
 
 	/* TODO : We should handle YCC quantization */
@@ -2023,19 +2319,19 @@ static void set_avi_info_frame(
 			stream->sink->edid_caps.qy_bit == 1) {
 		if (color_space == COLOR_SPACE_SRGB ||
 			color_space == COLOR_SPACE_2020_RGB_FULLRANGE) {
-			hdmi_info->bits.Q0_Q1   = RGB_QUANTIZATION_FULL_RANGE;
-			hdmi_info->bits.YQ0_YQ1 = YYC_QUANTIZATION_FULL_RANGE;
+			hdmi_info.bits.Q0_Q1   = RGB_QUANTIZATION_FULL_RANGE;
+			hdmi_info.bits.YQ0_YQ1 = YYC_QUANTIZATION_FULL_RANGE;
 		} else if (color_space == COLOR_SPACE_SRGB_LIMITED ||
 					color_space == COLOR_SPACE_2020_RGB_LIMITEDRANGE) {
-			hdmi_info->bits.Q0_Q1   = RGB_QUANTIZATION_LIMITED_RANGE;
-			hdmi_info->bits.YQ0_YQ1 = YYC_QUANTIZATION_LIMITED_RANGE;
+			hdmi_info.bits.Q0_Q1   = RGB_QUANTIZATION_LIMITED_RANGE;
+			hdmi_info.bits.YQ0_YQ1 = YYC_QUANTIZATION_LIMITED_RANGE;
 		} else {
-			hdmi_info->bits.Q0_Q1   = RGB_QUANTIZATION_DEFAULT_RANGE;
-			hdmi_info->bits.YQ0_YQ1 = YYC_QUANTIZATION_LIMITED_RANGE;
+			hdmi_info.bits.Q0_Q1   = RGB_QUANTIZATION_DEFAULT_RANGE;
+			hdmi_info.bits.YQ0_YQ1 = YYC_QUANTIZATION_LIMITED_RANGE;
 		}
 	} else {
-		hdmi_info->bits.Q0_Q1   = RGB_QUANTIZATION_DEFAULT_RANGE;
-		hdmi_info->bits.YQ0_YQ1   = YYC_QUANTIZATION_LIMITED_RANGE;
+		hdmi_info.bits.Q0_Q1   = RGB_QUANTIZATION_DEFAULT_RANGE;
+		hdmi_info.bits.YQ0_YQ1   = YYC_QUANTIZATION_LIMITED_RANGE;
 	}
 
 	///VIC
@@ -2060,51 +2356,49 @@ static void set_avi_info_frame(
 			break;
 		}
 	}
-	hdmi_info->bits.VIC0_VIC7 = vic;
+	hdmi_info.bits.VIC0_VIC7 = vic;
 
 	/* pixel repetition
 	 * PR0 - PR3 start from 0 whereas pHwPathMode->mode.timing.flags.pixel
 	 * repetition start from 1 */
-	hdmi_info->bits.PR0_PR3 = 0;
+	hdmi_info.bits.PR0_PR3 = 0;
 
 	/* Bar Info
 	 * barTop:    Line Number of End of Top Bar.
 	 * barBottom: Line Number of Start of Bottom Bar.
 	 * barLeft:   Pixel Number of End of Left Bar.
 	 * barRight:  Pixel Number of Start of Right Bar. */
-	hdmi_info->bits.bar_top = stream->timing.v_border_top;
-	hdmi_info->bits.bar_bottom = (stream->timing.v_total
+	hdmi_info.bits.bar_top = stream->timing.v_border_top;
+	hdmi_info.bits.bar_bottom = (stream->timing.v_total
 			- stream->timing.v_border_bottom + 1);
-	hdmi_info->bits.bar_left  = stream->timing.h_border_left;
-	hdmi_info->bits.bar_right = (stream->timing.h_total
+	hdmi_info.bits.bar_left  = stream->timing.h_border_left;
+	hdmi_info.bits.bar_right = (stream->timing.h_total
 			- stream->timing.h_border_right + 1);
 
 	/* check_sum - Calculate AFMT_AVI_INFO0 ~ AFMT_AVI_INFO3 */
-	check_sum = &info_frame.avi_info_packet.info_packet_hdmi.packet_raw_data.sb[0];
+	check_sum = &hdmi_info.packet_raw_data.sb[0];
 
 	*check_sum = HDMI_INFOFRAME_TYPE_AVI + HDMI_AVI_INFOFRAME_SIZE + 2;
 
 	for (byte_index = 1; byte_index <= HDMI_AVI_INFOFRAME_SIZE; byte_index++)
-		*check_sum += hdmi_info->packet_raw_data.sb[byte_index];
+		*check_sum += hdmi_info.packet_raw_data.sb[byte_index];
 
 	/* one byte complement */
 	*check_sum = (uint8_t) (0x100 - *check_sum);
 
 	/* Store in hw_path_mode */
-	info_packet->hb0 = hdmi_info->packet_raw_data.hb0;
-	info_packet->hb1 = hdmi_info->packet_raw_data.hb1;
-	info_packet->hb2 = hdmi_info->packet_raw_data.hb2;
+	info_packet->hb0 = hdmi_info.packet_raw_data.hb0;
+	info_packet->hb1 = hdmi_info.packet_raw_data.hb1;
+	info_packet->hb2 = hdmi_info.packet_raw_data.hb2;
 
-	for (byte_index = 0; byte_index < sizeof(info_frame.avi_info_packet.
-				info_packet_hdmi.packet_raw_data.sb); byte_index++)
-		info_packet->sb[byte_index] = info_frame.avi_info_packet.
-				info_packet_hdmi.packet_raw_data.sb[byte_index];
+	for (byte_index = 0; byte_index < sizeof(hdmi_info.packet_raw_data.sb); byte_index++)
+		info_packet->sb[byte_index] = hdmi_info.packet_raw_data.sb[byte_index];
 
 	info_packet->valid = true;
 }
 
 static void set_vendor_info_packet(
-		struct encoder_info_packet *info_packet,
+		struct dc_info_packet *info_packet,
 		struct dc_stream_state *stream)
 {
 	uint32_t length = 0;
@@ -2217,264 +2511,41 @@ static void set_vendor_info_packet(
 }
 
 static void set_spd_info_packet(
-		struct encoder_info_packet *info_packet,
+		struct dc_info_packet *info_packet,
 		struct dc_stream_state *stream)
 {
 	/* SPD info packet for FreeSync */
 
-	unsigned char checksum = 0;
-	unsigned int idx, payload_size = 0;
-
 	/* Check if Freesync is supported. Return if false. If true,
 	 * set the corresponding bit in the info packet
 	 */
-	if (stream->freesync_ctx.supported == false)
+	if (!stream->vrr_infopacket.valid)
 		return;
 
-	if (dc_is_hdmi_signal(stream->signal)) {
-
-		/* HEADER */
-
-		/* HB0  = Packet Type = 0x83 (Source Product
-		 *	  Descriptor InfoFrame)
-		 */
-		info_packet->hb0 = HDMI_INFOFRAME_TYPE_SPD;
-
-		/* HB1  = Version = 0x01 */
-		info_packet->hb1 = 0x01;
-
-		/* HB2  = [Bits 7:5 = 0] [Bits 4:0 = Length = 0x08] */
-		info_packet->hb2 = 0x08;
-
-		payload_size = 0x08;
-
-	} else if (dc_is_dp_signal(stream->signal)) {
-
-		/* HEADER */
-
-		/* HB0  = Secondary-data Packet ID = 0 - Only non-zero
-		 *	  when used to associate audio related info packets
-		 */
-		info_packet->hb0 = 0x00;
-
-		/* HB1  = Packet Type = 0x83 (Source Product
-		 *	  Descriptor InfoFrame)
-		 */
-		info_packet->hb1 = HDMI_INFOFRAME_TYPE_SPD;
-
-		/* HB2  = [Bits 7:0 = Least significant eight bits -
-		 *	  For INFOFRAME, the value must be 1Bh]
-		 */
-		info_packet->hb2 = 0x1B;
-
-		/* HB3  = [Bits 7:2 = INFOFRAME SDP Version Number = 0x1]
-		 *	  [Bits 1:0 = Most significant two bits = 0x00]
-		 */
-		info_packet->hb3 = 0x04;
-
-		payload_size = 0x1B;
-	}
-
-	/* PB1 = 0x1A (24bit AMD IEEE OUI (0x00001A) - Byte 0) */
-	info_packet->sb[1] = 0x1A;
-
-	/* PB2 = 0x00 (24bit AMD IEEE OUI (0x00001A) - Byte 1) */
-	info_packet->sb[2] = 0x00;
-
-	/* PB3 = 0x00 (24bit AMD IEEE OUI (0x00001A) - Byte 2) */
-	info_packet->sb[3] = 0x00;
-
-	/* PB4 = Reserved */
-	info_packet->sb[4] = 0x00;
-
-	/* PB5 = Reserved */
-	info_packet->sb[5] = 0x00;
-
-	/* PB6 = [Bits 7:3 = Reserved] */
-	info_packet->sb[6] = 0x00;
-
-	if (stream->freesync_ctx.supported == true)
-		/* PB6 = [Bit 0 = FreeSync Supported] */
-		info_packet->sb[6] |= 0x01;
-
-	if (stream->freesync_ctx.enabled == true)
-		/* PB6 = [Bit 1 = FreeSync Enabled] */
-		info_packet->sb[6] |= 0x02;
-
-	if (stream->freesync_ctx.active == true)
-		/* PB6 = [Bit 2 = FreeSync Active] */
-		info_packet->sb[6] |= 0x04;
-
-	/* PB7 = FreeSync Minimum refresh rate (Hz) */
-	info_packet->sb[7] = (unsigned char) (stream->freesync_ctx.
-			min_refresh_in_micro_hz / 1000000);
-
-	/* PB8 = FreeSync Maximum refresh rate (Hz)
-	 *
-	 * Note: We do not use the maximum capable refresh rate
-	 * of the panel, because we should never go above the field
-	 * rate of the mode timing set.
-	 */
-	info_packet->sb[8] = (unsigned char) (stream->freesync_ctx.
-			nominal_refresh_in_micro_hz / 1000000);
-
-	/* PB9 - PB27  = Reserved */
-	for (idx = 9; idx <= 27; idx++)
-		info_packet->sb[idx] = 0x00;
-
-	/* Calculate checksum */
-	checksum += info_packet->hb0;
-	checksum += info_packet->hb1;
-	checksum += info_packet->hb2;
-	checksum += info_packet->hb3;
-
-	for (idx = 1; idx <= payload_size; idx++)
-		checksum += info_packet->sb[idx];
-
-	/* PB0 = Checksum (one byte complement) */
-	info_packet->sb[0] = (unsigned char) (0x100 - checksum);
-
-	info_packet->valid = true;
+	*info_packet = stream->vrr_infopacket;
 }
 
 static void set_hdr_static_info_packet(
-		struct encoder_info_packet *info_packet,
+		struct dc_info_packet *info_packet,
 		struct dc_stream_state *stream)
 {
-	uint16_t i = 0;
-	enum signal_type signal = stream->signal;
-	uint32_t data;
+	/* HDR Static Metadata info packet for HDR10 */
 
-	if (!stream->hdr_static_metadata.hdr_supported)
+	if (!stream->hdr_static_metadata.valid ||
+			stream->use_dynamic_meta)
 		return;
 
-	if (dc_is_hdmi_signal(signal)) {
-		info_packet->valid = true;
-
-		info_packet->hb0 = 0x87;
-		info_packet->hb1 = 0x01;
-		info_packet->hb2 = 0x1A;
-		i = 1;
-	} else if (dc_is_dp_signal(signal)) {
-		info_packet->valid = true;
-
-		info_packet->hb0 = 0x00;
-		info_packet->hb1 = 0x87;
-		info_packet->hb2 = 0x1D;
-		info_packet->hb3 = (0x13 << 2);
-		i = 2;
-	}
-
-	data = stream->hdr_static_metadata.is_hdr;
-	info_packet->sb[i++] = data ? 0x02 : 0x00;
-	info_packet->sb[i++] = 0x00;
-
-	data = stream->hdr_static_metadata.chromaticity_green_x / 2;
-	info_packet->sb[i++] = data & 0xFF;
-	info_packet->sb[i++] = (data & 0xFF00) >> 8;
-
-	data = stream->hdr_static_metadata.chromaticity_green_y / 2;
-	info_packet->sb[i++] = data & 0xFF;
-	info_packet->sb[i++] = (data & 0xFF00) >> 8;
-
-	data = stream->hdr_static_metadata.chromaticity_blue_x / 2;
-	info_packet->sb[i++] = data & 0xFF;
-	info_packet->sb[i++] = (data & 0xFF00) >> 8;
-
-	data = stream->hdr_static_metadata.chromaticity_blue_y / 2;
-	info_packet->sb[i++] = data & 0xFF;
-	info_packet->sb[i++] = (data & 0xFF00) >> 8;
-
-	data = stream->hdr_static_metadata.chromaticity_red_x / 2;
-	info_packet->sb[i++] = data & 0xFF;
-	info_packet->sb[i++] = (data & 0xFF00) >> 8;
-
-	data = stream->hdr_static_metadata.chromaticity_red_y / 2;
-	info_packet->sb[i++] = data & 0xFF;
-	info_packet->sb[i++] = (data & 0xFF00) >> 8;
-
-	data = stream->hdr_static_metadata.chromaticity_white_point_x / 2;
-	info_packet->sb[i++] = data & 0xFF;
-	info_packet->sb[i++] = (data & 0xFF00) >> 8;
-
-	data = stream->hdr_static_metadata.chromaticity_white_point_y / 2;
-	info_packet->sb[i++] = data & 0xFF;
-	info_packet->sb[i++] = (data & 0xFF00) >> 8;
-
-	data = stream->hdr_static_metadata.max_luminance;
-	info_packet->sb[i++] = data & 0xFF;
-	info_packet->sb[i++] = (data & 0xFF00) >> 8;
-
-	data = stream->hdr_static_metadata.min_luminance;
-	info_packet->sb[i++] = data & 0xFF;
-	info_packet->sb[i++] = (data & 0xFF00) >> 8;
-
-	data = stream->hdr_static_metadata.maximum_content_light_level;
-	info_packet->sb[i++] = data & 0xFF;
-	info_packet->sb[i++] = (data & 0xFF00) >> 8;
-
-	data = stream->hdr_static_metadata.maximum_frame_average_light_level;
-	info_packet->sb[i++] = data & 0xFF;
-	info_packet->sb[i++] = (data & 0xFF00) >> 8;
-
-	if (dc_is_hdmi_signal(signal)) {
-		uint32_t checksum = 0;
-
-		checksum += info_packet->hb0;
-		checksum += info_packet->hb1;
-		checksum += info_packet->hb2;
-
-		for (i = 1; i <= info_packet->hb2; i++)
-			checksum += info_packet->sb[i];
-
-		info_packet->sb[0] = 0x100 - checksum;
-	} else if (dc_is_dp_signal(signal)) {
-		info_packet->sb[0] = 0x01;
-		info_packet->sb[1] = 0x1A;
-	}
+	*info_packet = stream->hdr_static_metadata;
 }
 
 static void set_vsc_info_packet(
-		struct encoder_info_packet *info_packet,
+		struct dc_info_packet *info_packet,
 		struct dc_stream_state *stream)
 {
-	unsigned int vscPacketRevision = 0;
-	unsigned int i;
-
-	/*VSC packet set to 2 when DP revision >= 1.2*/
-	if (stream->psr_version != 0) {
-		vscPacketRevision = 2;
-	}
-
-	/* VSC packet not needed based on the features
-	 * supported by this DP display
-	 */
-	if (vscPacketRevision == 0)
+	if (!stream->vsc_infopacket.valid)
 		return;
 
-	if (vscPacketRevision == 0x2) {
-		/* Secondary-data Packet ID = 0*/
-		info_packet->hb0 = 0x00;
-		/* 07h - Packet Type Value indicating Video
-		 * Stream Configuration packet
-		 */
-		info_packet->hb1 = 0x07;
-		/* 02h = VSC SDP supporting 3D stereo and PSR
-		 * (applies to eDP v1.3 or higher).
-		 */
-		info_packet->hb2 = 0x02;
-		/* 08h = VSC packet supporting 3D stereo + PSR
-		 * (HB2 = 02h).
-		 */
-		info_packet->hb3 = 0x08;
-
-		for (i = 0; i < 28; i++)
-			info_packet->sb[i] = 0;
-
-		info_packet->valid = true;
-	}
-
-	/*TODO: stereo 3D support and extend pixel encoding colorimetry*/
+	*info_packet = stream->vsc_infopacket;
 }
 
 void dc_resource_state_destruct(struct dc_state *context)
@@ -2650,6 +2721,14 @@ bool pipe_need_reprogram(
 	if (is_timing_changed(pipe_ctx_old->stream, pipe_ctx->stream))
 		return true;
 
+	if (is_hdr_static_meta_changed(pipe_ctx_old->stream, pipe_ctx->stream))
+		return true;
+
+	if (pipe_ctx_old->stream->dpms_off != pipe_ctx->stream->dpms_off)
+		return true;
+
+	if (is_vsc_info_packet_changed(pipe_ctx_old->stream, pipe_ctx->stream))
+		return true;
 
 	return false;
 }
@@ -2816,4 +2895,33 @@ enum dc_status dc_validate_plane(struct dc *dc, const struct dc_plane_state *pla
 		return dc->res_pool->funcs->validate_plane(plane_state, &dc->caps);
 
 	return res;
+}
+
+unsigned int resource_pixel_format_to_bpp(enum surface_pixel_format format)
+{
+	switch (format) {
+	case SURFACE_PIXEL_FORMAT_GRPH_PALETA_256_COLORS:
+		return 8;
+	case SURFACE_PIXEL_FORMAT_VIDEO_420_YCbCr:
+	case SURFACE_PIXEL_FORMAT_VIDEO_420_YCrCb:
+		return 12;
+	case SURFACE_PIXEL_FORMAT_GRPH_ARGB1555:
+	case SURFACE_PIXEL_FORMAT_GRPH_RGB565:
+	case SURFACE_PIXEL_FORMAT_VIDEO_420_10bpc_YCbCr:
+	case SURFACE_PIXEL_FORMAT_VIDEO_420_10bpc_YCrCb:
+		return 16;
+	case SURFACE_PIXEL_FORMAT_GRPH_ARGB8888:
+	case SURFACE_PIXEL_FORMAT_GRPH_ABGR8888:
+	case SURFACE_PIXEL_FORMAT_GRPH_ARGB2101010:
+	case SURFACE_PIXEL_FORMAT_GRPH_ABGR2101010:
+	case SURFACE_PIXEL_FORMAT_GRPH_ABGR2101010_XR_BIAS:
+		return 32;
+	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616:
+	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616F:
+	case SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616F:
+		return 64;
+	default:
+		ASSERT_CRITICAL(false);
+		return -1;
+	}
 }

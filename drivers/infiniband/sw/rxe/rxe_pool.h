@@ -74,8 +74,8 @@ struct rxe_type_info {
 extern struct rxe_type_info rxe_type_info[];
 
 enum rxe_pool_state {
-	rxe_pool_invalid,
-	rxe_pool_valid,
+	RXE_POOL_STATE_INVALID,
+	RXE_POOL_STATE_VALID,
 };
 
 struct rxe_pool_entry {
@@ -90,7 +90,7 @@ struct rxe_pool_entry {
 
 struct rxe_pool {
 	struct rxe_dev		*rxe;
-	spinlock_t              pool_lock; /* pool spinlock */
+	rwlock_t		pool_lock; /* protects pool add/del/search */
 	size_t			elem_size;
 	struct kref		ref_cnt;
 	void			(*cleanup)(struct rxe_pool_entry *obj);

@@ -11,7 +11,7 @@
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
-#include <linux/i2c-gpio.h>
+#include <linux/platform_data/i2c-gpio.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -78,49 +78,43 @@ static struct dentry *i2c_gpio_debug_dir;
 #define getscl(bd)	((bd)->getscl((bd)->data))
 
 #define WIRE_ATTRIBUTE(wire) \
-static int fops_##wire##_get(void *data, u64 *val)	\
-{							\
-	struct i2c_gpio_private_data *priv = data;	\
-							\
-	i2c_lock_adapter(&priv->adap);			\
-	*val = get##wire(&priv->bit_data);		\
-	i2c_unlock_adapter(&priv->adap);		\
-	return 0;					\
-}							\
-static int fops_##wire##_set(void *data, u64 val)	\
-{							\
-	struct i2c_gpio_private_data *priv = data;	\
-							\
-	i2c_lock_adapter(&priv->adap);			\
-	set##wire(&priv->bit_data, val);		\
-	i2c_unlock_adapter(&priv->adap);		\
-	return 0;					\
-}							\
+static int fops_##wire##_get(void *data, u64 *val)		\
+{								\
+	struct i2c_gpio_private_data *priv = data;		\
+								\
+	i2c_lock_bus(&priv->adap, I2C_LOCK_ROOT_ADAPTER);	\
+	*val = get##wire(&priv->bit_data);			\
+	i2c_unlock_bus(&priv->adap, I2C_LOCK_ROOT_ADAPTER);	\
+	return 0;						\
+}								\
+static int fops_##wire##_set(void *data, u64 val)		\
+{								\
+	struct i2c_gpio_private_data *priv = data;		\
+								\
+	i2c_lock_bus(&priv->adap, I2C_LOCK_ROOT_ADAPTER);	\
+	set##wire(&priv->bit_data, val);			\
+	i2c_unlock_bus(&priv->adap, I2C_LOCK_ROOT_ADAPTER);	\
+	return 0;						\
+}								\
 DEFINE_DEBUGFS_ATTRIBUTE(fops_##wire, fops_##wire##_get, fops_##wire##_set, "%llu\n")
 
 WIRE_ATTRIBUTE(scl);
 WIRE_ATTRIBUTE(sda);
 
-static int fops_incomplete_transfer_set(void *data, u64 addr)
+static void i2c_gpio_incomplete_transfer(struct i2c_gpio_private_data *priv,
+					u32 pattern, u8 pattern_size)
 {
-	struct i2c_gpio_private_data *priv = data;
 	struct i2c_algo_bit_data *bit_data = &priv->bit_data;
-	int i, pattern;
+	int i;
 
-	if (addr > 0x7f)
-		return -EINVAL;
-
-	/* ADDR (7 bit) + RD (1 bit) + SDA hi (1 bit) */
-	pattern = (addr << 2) | 3;
-
-	i2c_lock_adapter(&priv->adap);
+	i2c_lock_bus(&priv->adap, I2C_LOCK_ROOT_ADAPTER);
 
 	/* START condition */
 	setsda(bit_data, 0);
 	udelay(bit_data->udelay);
 
-	/* Send ADDR+RD, request ACK, don't send STOP */
-	for (i = 8; i >= 0; i--) {
+	/* Send pattern, request ACK, don't send STOP */
+	for (i = pattern_size - 1; i >= 0; i--) {
 		setscl(bit_data, 0);
 		udelay(bit_data->udelay / 2);
 		setsda(bit_data, (pattern >> i) & 1);
@@ -129,11 +123,44 @@ static int fops_incomplete_transfer_set(void *data, u64 addr)
 		udelay(bit_data->udelay);
 	}
 
-	i2c_unlock_adapter(&priv->adap);
+	i2c_unlock_bus(&priv->adap, I2C_LOCK_ROOT_ADAPTER);
+}
+
+static int fops_incomplete_addr_phase_set(void *data, u64 addr)
+{
+	struct i2c_gpio_private_data *priv = data;
+	u32 pattern;
+
+	if (addr > 0x7f)
+		return -EINVAL;
+
+	/* ADDR (7 bit) + RD (1 bit) + Client ACK, keep SDA hi (1 bit) */
+	pattern = (addr << 2) | 3;
+
+	i2c_gpio_incomplete_transfer(priv, pattern, 9);
 
 	return 0;
 }
-DEFINE_DEBUGFS_ATTRIBUTE(fops_incomplete_transfer, NULL, fops_incomplete_transfer_set, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_incomplete_addr_phase, NULL, fops_incomplete_addr_phase_set, "%llu\n");
+
+static int fops_incomplete_write_byte_set(void *data, u64 addr)
+{
+	struct i2c_gpio_private_data *priv = data;
+	u32 pattern;
+
+	if (addr > 0x7f)
+		return -EINVAL;
+
+	/* ADDR (7 bit) + WR (1 bit) + Client ACK (1 bit) */
+	pattern = (addr << 2) | 1;
+	/* 0x00 (8 bit) + Client ACK, keep SDA hi (1 bit) */
+	pattern = (pattern << 9) | 1;
+
+	i2c_gpio_incomplete_transfer(priv, pattern, 18);
+
+	return 0;
+}
+DEFINE_DEBUGFS_ATTRIBUTE(fops_incomplete_write_byte, NULL, fops_incomplete_write_byte_set, "%llu\n");
 
 static void i2c_gpio_fault_injector_init(struct platform_device *pdev)
 {
@@ -156,8 +183,10 @@ static void i2c_gpio_fault_injector_init(struct platform_device *pdev)
 
 	debugfs_create_file_unsafe("scl", 0600, priv->debug_dir, priv, &fops_scl);
 	debugfs_create_file_unsafe("sda", 0600, priv->debug_dir, priv, &fops_sda);
-	debugfs_create_file_unsafe("incomplete_transfer", 0200, priv->debug_dir,
-				   priv, &fops_incomplete_transfer);
+	debugfs_create_file_unsafe("incomplete_address_phase", 0200, priv->debug_dir,
+				   priv, &fops_incomplete_addr_phase);
+	debugfs_create_file_unsafe("incomplete_write_byte", 0200, priv->debug_dir,
+				   priv, &fops_incomplete_write_byte);
 }
 
 static void i2c_gpio_fault_injector_exit(struct platform_device *pdev)
@@ -279,9 +308,9 @@ static int i2c_gpio_probe(struct platform_device *pdev)
 	 * required for an I2C bus.
 	 */
 	if (pdata->scl_is_open_drain)
-		gflags = GPIOD_OUT_LOW;
+		gflags = GPIOD_OUT_HIGH;
 	else
-		gflags = GPIOD_OUT_LOW_OPEN_DRAIN;
+		gflags = GPIOD_OUT_HIGH_OPEN_DRAIN;
 	priv->scl = i2c_gpio_get_desc(dev, "scl", 1, gflags);
 	if (IS_ERR(priv->scl))
 		return PTR_ERR(priv->scl);

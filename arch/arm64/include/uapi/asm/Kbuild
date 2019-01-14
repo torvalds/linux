@@ -19,3 +19,4 @@ generic-y += swab.h
 generic-y += termbits.h
 generic-y += termios.h
 generic-y += types.h
+generic-y += siginfo.h

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007 Oracle.  All rights reserved.
+ * Copyright (c) 2007, 2017 Oracle and/or its affiliates. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -101,7 +101,7 @@ static DEFINE_RWLOCK(rds_cong_monitor_lock);
 static DEFINE_SPINLOCK(rds_cong_lock);
 static struct rb_root rds_cong_tree = RB_ROOT;
 
-static struct rds_cong_map *rds_cong_tree_walk(__be32 addr,
+static struct rds_cong_map *rds_cong_tree_walk(const struct in6_addr *addr,
 					       struct rds_cong_map *insert)
 {
 	struct rb_node **p = &rds_cong_tree.rb_node;
@@ -109,12 +109,15 @@ static struct rds_cong_map *rds_cong_tree_walk(__be32 addr,
 	struct rds_cong_map *map;
 
 	while (*p) {
+		int diff;
+
 		parent = *p;
 		map = rb_entry(parent, struct rds_cong_map, m_rb_node);
 
-		if (addr < map->m_addr)
+		diff = rds_addr_cmp(addr, &map->m_addr);
+		if (diff < 0)
 			p = &(*p)->rb_left;
-		else if (addr > map->m_addr)
+		else if (diff > 0)
 			p = &(*p)->rb_right;
 		else
 			return map;
@@ -132,7 +135,7 @@ static struct rds_cong_map *rds_cong_tree_walk(__be32 addr,
  * these bitmaps in the process getting pointers to them.  The bitmaps are only
  * ever freed as the module is removed after all connections have been freed.
  */
-static struct rds_cong_map *rds_cong_from_addr(__be32 addr)
+static struct rds_cong_map *rds_cong_from_addr(const struct in6_addr *addr)
 {
 	struct rds_cong_map *map;
 	struct rds_cong_map *ret = NULL;
@@ -144,7 +147,7 @@ static struct rds_cong_map *rds_cong_from_addr(__be32 addr)
 	if (!map)
 		return NULL;
 
-	map->m_addr = addr;
+	map->m_addr = *addr;
 	init_waitqueue_head(&map->m_waitq);
 	INIT_LIST_HEAD(&map->m_conn_list);
 
@@ -171,7 +174,7 @@ out:
 		kfree(map);
 	}
 
-	rdsdebug("map %p for addr %x\n", ret, be32_to_cpu(addr));
+	rdsdebug("map %p for addr %pI6c\n", ret, addr);
 
 	return ret;
 }
@@ -202,8 +205,8 @@ void rds_cong_remove_conn(struct rds_connection *conn)
 
 int rds_cong_get_maps(struct rds_connection *conn)
 {
-	conn->c_lcong = rds_cong_from_addr(conn->c_laddr);
-	conn->c_fcong = rds_cong_from_addr(conn->c_faddr);
+	conn->c_lcong = rds_cong_from_addr(&conn->c_laddr);
+	conn->c_fcong = rds_cong_from_addr(&conn->c_faddr);
 
 	if (!(conn->c_lcong && conn->c_fcong))
 		return -ENOMEM;
@@ -353,7 +356,7 @@ void rds_cong_remove_socket(struct rds_sock *rs)
 
 	/* update congestion map for now-closed port */
 	spin_lock_irqsave(&rds_cong_lock, flags);
-	map = rds_cong_tree_walk(rs->rs_bound_addr, NULL);
+	map = rds_cong_tree_walk(&rs->rs_bound_addr, NULL);
 	spin_unlock_irqrestore(&rds_cong_lock, flags);
 
 	if (map && rds_cong_test_bit(map, rs->rs_bound_port)) {

@@ -575,10 +575,14 @@
 	pinctrl-0 = <&davinci_mdio_default>;
 	pinctrl-1 = <&davinci_mdio_sleep>;
 	status = "okay";
+
+	ethphy0: ethernet-phy@16 {
+		reg = <16>;
+	};
 };
 
 &cpsw_emac0 {
-	phy_id = <&davinci_mdio>, <16>;
+	phy-handle = <&ethphy0>;
 	phy-mode = "rmii";
 };
 
@@ -595,7 +599,7 @@
 	tps65218: tps65218@24 {
 		reg = <0x24>;
 		compatible = "ti,tps65218";
-		interrupts = <GIC_SPI 7 IRQ_TYPE_NONE>; /* NMIn */
+		interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>; /* NMIn */
 		interrupt-controller;
 		#interrupt-cells = <2>;
 

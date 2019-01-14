@@ -66,3 +66,7 @@ static struct platform_driver htcherald_panel_driver = {
 };
 
 module_platform_driver(htcherald_panel_driver);
+
+MODULE_AUTHOR("Cory Maccarrone");
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("LCD panel support for the HTC Herald");

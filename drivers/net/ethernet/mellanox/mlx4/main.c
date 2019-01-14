@@ -73,7 +73,7 @@ MODULE_PARM_DESC(debug_level, "Enable debug tracing if > 0");
 
 static int msi_x = 1;
 module_param(msi_x, int, 0444);
-MODULE_PARM_DESC(msi_x, "attempt to use MSI-X if nonzero");
+MODULE_PARM_DESC(msi_x, "0 - don't use MSI-X, 1 - use MSI-X, >1 - limit number of MSI-X irqs to msi_x");
 
 #else /* CONFIG_PCI_MSI */
 
@@ -159,9 +159,10 @@ static bool use_prio;
 module_param_named(use_prio, use_prio, bool, 0444);
 MODULE_PARM_DESC(use_prio, "Enable steering by VLAN priority on ETH ports (deprecated)");
 
-int log_mtts_per_seg = ilog2(MLX4_MTT_ENTRY_PER_SEG);
+int log_mtts_per_seg = ilog2(1);
 module_param_named(log_mtts_per_seg, log_mtts_per_seg, int, 0444);
-MODULE_PARM_DESC(log_mtts_per_seg, "Log2 number of MTT entries per segment (1-7)");
+MODULE_PARM_DESC(log_mtts_per_seg, "Log2 number of MTT entries per segment "
+		 "(0-7) (default: 0)");
 
 static int port_type_array[2] = {MLX4_PORT_TYPE_NONE, MLX4_PORT_TYPE_NONE};
 static int arr_argc = 2;
@@ -176,6 +177,118 @@ struct mlx4_port_config {
 };
 
 static atomic_t pf_loading = ATOMIC_INIT(0);
+
+static int mlx4_devlink_ierr_reset_get(struct devlink *devlink, u32 id,
+				       struct devlink_param_gset_ctx *ctx)
+{
+	ctx->val.vbool = !!mlx4_internal_err_reset;
+	return 0;
+}
+
+static int mlx4_devlink_ierr_reset_set(struct devlink *devlink, u32 id,
+				       struct devlink_param_gset_ctx *ctx)
+{
+	mlx4_internal_err_reset = ctx->val.vbool;
+	return 0;
+}
+
+static int mlx4_devlink_crdump_snapshot_get(struct devlink *devlink, u32 id,
+					    struct devlink_param_gset_ctx *ctx)
+{
+	struct mlx4_priv *priv = devlink_priv(devlink);
+	struct mlx4_dev *dev = &priv->dev;
+
+	ctx->val.vbool = dev->persist->crdump.snapshot_enable;
+	return 0;
+}
+
+static int mlx4_devlink_crdump_snapshot_set(struct devlink *devlink, u32 id,
+					    struct devlink_param_gset_ctx *ctx)
+{
+	struct mlx4_priv *priv = devlink_priv(devlink);
+	struct mlx4_dev *dev = &priv->dev;
+
+	dev->persist->crdump.snapshot_enable = ctx->val.vbool;
+	return 0;
+}
+
+static int
+mlx4_devlink_max_macs_validate(struct devlink *devlink, u32 id,
+			       union devlink_param_value val,
+			       struct netlink_ext_ack *extack)
+{
+	u32 value = val.vu32;
+
+	if (value < 1 || value > 128)
+		return -ERANGE;
+
+	if (!is_power_of_2(value)) {
+		NL_SET_ERR_MSG_MOD(extack, "max_macs supported must be power of 2");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+enum mlx4_devlink_param_id {
+	MLX4_DEVLINK_PARAM_ID_BASE = DEVLINK_PARAM_GENERIC_ID_MAX,
+	MLX4_DEVLINK_PARAM_ID_ENABLE_64B_CQE_EQE,
+	MLX4_DEVLINK_PARAM_ID_ENABLE_4K_UAR,
+};
+
+static const struct devlink_param mlx4_devlink_params[] = {
+	DEVLINK_PARAM_GENERIC(INT_ERR_RESET,
+			      BIT(DEVLINK_PARAM_CMODE_RUNTIME) |
+			      BIT(DEVLINK_PARAM_CMODE_DRIVERINIT),
+			      mlx4_devlink_ierr_reset_get,
+			      mlx4_devlink_ierr_reset_set, NULL),
+	DEVLINK_PARAM_GENERIC(MAX_MACS,
+			      BIT(DEVLINK_PARAM_CMODE_DRIVERINIT),
+			      NULL, NULL, mlx4_devlink_max_macs_validate),
+	DEVLINK_PARAM_GENERIC(REGION_SNAPSHOT,
+			      BIT(DEVLINK_PARAM_CMODE_RUNTIME) |
+			      BIT(DEVLINK_PARAM_CMODE_DRIVERINIT),
+			      mlx4_devlink_crdump_snapshot_get,
+			      mlx4_devlink_crdump_snapshot_set, NULL),
+	DEVLINK_PARAM_DRIVER(MLX4_DEVLINK_PARAM_ID_ENABLE_64B_CQE_EQE,
+			     "enable_64b_cqe_eqe", DEVLINK_PARAM_TYPE_BOOL,
+			     BIT(DEVLINK_PARAM_CMODE_DRIVERINIT),
+			     NULL, NULL, NULL),
+	DEVLINK_PARAM_DRIVER(MLX4_DEVLINK_PARAM_ID_ENABLE_4K_UAR,
+			     "enable_4k_uar", DEVLINK_PARAM_TYPE_BOOL,
+			     BIT(DEVLINK_PARAM_CMODE_DRIVERINIT),
+			     NULL, NULL, NULL),
+};
+
+static void mlx4_devlink_set_params_init_values(struct devlink *devlink)
+{
+	union devlink_param_value value;
+
+	value.vbool = !!mlx4_internal_err_reset;
+	devlink_param_driverinit_value_set(devlink,
+					   DEVLINK_PARAM_GENERIC_ID_INT_ERR_RESET,
+					   value);
+
+	value.vu32 = 1UL << log_num_mac;
+	devlink_param_driverinit_value_set(devlink,
+					   DEVLINK_PARAM_GENERIC_ID_MAX_MACS,
+					   value);
+
+	value.vbool = enable_64b_cqe_eqe;
+	devlink_param_driverinit_value_set(devlink,
+					   MLX4_DEVLINK_PARAM_ID_ENABLE_64B_CQE_EQE,
+					   value);
+
+	value.vbool = enable_4k_uar;
+	devlink_param_driverinit_value_set(devlink,
+					   MLX4_DEVLINK_PARAM_ID_ENABLE_4K_UAR,
+					   value);
+
+	value.vbool = false;
+	devlink_param_driverinit_value_set(devlink,
+					   DEVLINK_PARAM_GENERIC_ID_REGION_SNAPSHOT,
+					   value);
+}
 
 static inline void mlx4_set_num_reserved_uars(struct mlx4_dev *dev,
 					      struct mlx4_dev_cap *dev_cap)
@@ -428,6 +541,7 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	dev->caps.max_rss_tbl_sz     = dev_cap->max_rss_tbl_sz;
 	dev->caps.wol_port[1]          = dev_cap->wol_port[1];
 	dev->caps.wol_port[2]          = dev_cap->wol_port[2];
+	dev->caps.health_buffer_addrs  = dev_cap->health_buffer_addrs;
 
 	/* Save uar page shift */
 	if (!mlx4_is_slave(dev)) {
@@ -2815,6 +2929,9 @@ static void mlx4_enable_msi_x(struct mlx4_dev *dev)
 				dev->caps.num_eqs - dev->caps.reserved_eqs,
 				MAX_MSIX);
 
+		if (msi_x > 1)
+			nreq = min_t(int, nreq, msi_x);
+
 		entries = kcalloc(nreq, sizeof(*entries), GFP_KERNEL);
 		if (!entries)
 			goto no_msi;
@@ -2979,7 +3096,8 @@ static int mlx4_init_steering(struct mlx4_dev *dev)
 	int num_entries = dev->caps.num_ports;
 	int i, j;
 
-	priv->steer = kzalloc(sizeof(struct mlx4_steer) * num_entries, GFP_KERNEL);
+	priv->steer = kcalloc(num_entries, sizeof(struct mlx4_steer),
+			      GFP_KERNEL);
 	if (!priv->steer)
 		return -ENOMEM;
 
@@ -3100,7 +3218,7 @@ static u64 mlx4_enable_sriov(struct mlx4_dev *dev, struct pci_dev *pdev,
 		}
 	}
 
-	dev->dev_vfs = kzalloc(total_vfs * sizeof(*dev->dev_vfs), GFP_KERNEL);
+	dev->dev_vfs = kcalloc(total_vfs, sizeof(*dev->dev_vfs), GFP_KERNEL);
 	if (NULL == dev->dev_vfs) {
 		mlx4_err(dev, "Failed to allocate memory for VFs\n");
 		goto disable_sriov;
@@ -3707,9 +3825,13 @@ static int __mlx4_init_one(struct pci_dev *pdev, int pci_dev_data,
 		}
 	}
 
-	err = mlx4_catas_init(&priv->dev);
+	err = mlx4_crdump_init(&priv->dev);
 	if (err)
 		goto err_release_regions;
+
+	err = mlx4_catas_init(&priv->dev);
+	if (err)
+		goto err_crdump;
 
 	err = mlx4_load_one(pdev, pci_dev_data, total_vfs, nvfs, priv, 0);
 	if (err)
@@ -3719,6 +3841,9 @@ static int __mlx4_init_one(struct pci_dev *pdev, int pci_dev_data,
 
 err_catas:
 	mlx4_catas_end(&priv->dev);
+
+err_crdump:
+	mlx4_crdump_end(&priv->dev);
 
 err_release_regions:
 	pci_release_regions(pdev);
@@ -3753,8 +3878,68 @@ static int mlx4_devlink_port_type_set(struct devlink_port *devlink_port,
 	return __set_port_type(info, mlx4_port_type);
 }
 
+static void mlx4_devlink_param_load_driverinit_values(struct devlink *devlink)
+{
+	struct mlx4_priv *priv = devlink_priv(devlink);
+	struct mlx4_dev *dev = &priv->dev;
+	struct mlx4_fw_crdump *crdump = &dev->persist->crdump;
+	union devlink_param_value saved_value;
+	int err;
+
+	err = devlink_param_driverinit_value_get(devlink,
+						 DEVLINK_PARAM_GENERIC_ID_INT_ERR_RESET,
+						 &saved_value);
+	if (!err && mlx4_internal_err_reset != saved_value.vbool) {
+		mlx4_internal_err_reset = saved_value.vbool;
+		/* Notify on value changed on runtime configuration mode */
+		devlink_param_value_changed(devlink,
+					    DEVLINK_PARAM_GENERIC_ID_INT_ERR_RESET);
+	}
+	err = devlink_param_driverinit_value_get(devlink,
+						 DEVLINK_PARAM_GENERIC_ID_MAX_MACS,
+						 &saved_value);
+	if (!err)
+		log_num_mac = order_base_2(saved_value.vu32);
+	err = devlink_param_driverinit_value_get(devlink,
+						 MLX4_DEVLINK_PARAM_ID_ENABLE_64B_CQE_EQE,
+						 &saved_value);
+	if (!err)
+		enable_64b_cqe_eqe = saved_value.vbool;
+	err = devlink_param_driverinit_value_get(devlink,
+						 MLX4_DEVLINK_PARAM_ID_ENABLE_4K_UAR,
+						 &saved_value);
+	if (!err)
+		enable_4k_uar = saved_value.vbool;
+	err = devlink_param_driverinit_value_get(devlink,
+						 DEVLINK_PARAM_GENERIC_ID_REGION_SNAPSHOT,
+						 &saved_value);
+	if (!err && crdump->snapshot_enable != saved_value.vbool) {
+		crdump->snapshot_enable = saved_value.vbool;
+		devlink_param_value_changed(devlink,
+					    DEVLINK_PARAM_GENERIC_ID_REGION_SNAPSHOT);
+	}
+}
+
+static int mlx4_devlink_reload(struct devlink *devlink,
+			       struct netlink_ext_ack *extack)
+{
+	struct mlx4_priv *priv = devlink_priv(devlink);
+	struct mlx4_dev *dev = &priv->dev;
+	struct mlx4_dev_persistent *persist = dev->persist;
+	int err;
+
+	if (persist->num_vfs)
+		mlx4_warn(persist->dev, "Reload performed on PF, will cause reset on operating Virtual Functions\n");
+	err = mlx4_restart_one(persist->pdev, true, devlink);
+	if (err)
+		mlx4_err(persist->dev, "mlx4_restart_one failed, ret=%d\n", err);
+
+	return err;
+}
+
 static const struct devlink_ops mlx4_devlink_ops = {
 	.port_type_set	= mlx4_devlink_port_type_set,
+	.reload		= mlx4_devlink_reload,
 };
 
 static int mlx4_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
@@ -3788,14 +3973,21 @@ static int mlx4_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	ret = devlink_register(devlink, &pdev->dev);
 	if (ret)
 		goto err_persist_free;
-
-	ret =  __mlx4_init_one(pdev, id->driver_data, priv);
+	ret = devlink_params_register(devlink, mlx4_devlink_params,
+				      ARRAY_SIZE(mlx4_devlink_params));
 	if (ret)
 		goto err_devlink_unregister;
+	mlx4_devlink_set_params_init_values(devlink);
+	ret =  __mlx4_init_one(pdev, id->driver_data, priv);
+	if (ret)
+		goto err_params_unregister;
 
 	pci_save_state(pdev);
 	return 0;
 
+err_params_unregister:
+	devlink_params_unregister(devlink, mlx4_devlink_params,
+				  ARRAY_SIZE(mlx4_devlink_params));
 err_devlink_unregister:
 	devlink_unregister(devlink);
 err_persist_free:
@@ -3925,6 +4117,7 @@ static void mlx4_remove_one(struct pci_dev *pdev)
 	else
 		mlx4_info(dev, "%s: interface is down\n", __func__);
 	mlx4_catas_end(dev);
+	mlx4_crdump_end(dev);
 	if (dev->flags & MLX4_FLAG_SRIOV && !active_vfs) {
 		mlx4_warn(dev, "Disabling SR-IOV\n");
 		pci_disable_sriov(pdev);
@@ -3932,6 +4125,8 @@ static void mlx4_remove_one(struct pci_dev *pdev)
 
 	pci_release_regions(pdev);
 	mlx4_pci_disable_device(dev);
+	devlink_params_unregister(devlink, mlx4_devlink_params,
+				  ARRAY_SIZE(mlx4_devlink_params));
 	devlink_unregister(devlink);
 	kfree(dev->persist);
 	devlink_free(devlink);
@@ -3956,7 +4151,7 @@ static int restore_current_port_types(struct mlx4_dev *dev,
 	return err;
 }
 
-int mlx4_restart_one(struct pci_dev *pdev)
+int mlx4_restart_one(struct pci_dev *pdev, bool reload, struct devlink *devlink)
 {
 	struct mlx4_dev_persistent *persist = pci_get_drvdata(pdev);
 	struct mlx4_dev	 *dev  = persist->dev;
@@ -3969,6 +4164,8 @@ int mlx4_restart_one(struct pci_dev *pdev)
 	memcpy(nvfs, dev->persist->nvfs, sizeof(dev->persist->nvfs));
 
 	mlx4_unload_one(pdev);
+	if (reload)
+		mlx4_devlink_param_load_driverinit_values(devlink);
 	err = mlx4_load_one(pdev, pci_dev_data, total_vfs, nvfs, priv, 1);
 	if (err) {
 		mlx4_err(dev, "%s: ERROR: mlx4_load_one failed, pci_name=%s, err=%d\n",
@@ -4127,17 +4324,68 @@ static const struct pci_error_handlers mlx4_err_handler = {
 	.resume		= mlx4_pci_resume,
 };
 
+static int mlx4_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+	struct mlx4_dev_persistent *persist = pci_get_drvdata(pdev);
+	struct mlx4_dev	*dev = persist->dev;
+
+	mlx4_err(dev, "suspend was called\n");
+	mutex_lock(&persist->interface_state_mutex);
+	if (persist->interface_state & MLX4_INTERFACE_STATE_UP)
+		mlx4_unload_one(pdev);
+	mutex_unlock(&persist->interface_state_mutex);
+
+	return 0;
+}
+
+static int mlx4_resume(struct pci_dev *pdev)
+{
+	struct mlx4_dev_persistent *persist = pci_get_drvdata(pdev);
+	struct mlx4_dev	*dev = persist->dev;
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	int nvfs[MLX4_MAX_PORTS + 1] = {0, 0, 0};
+	int total_vfs;
+	int ret = 0;
+
+	mlx4_err(dev, "resume was called\n");
+	total_vfs = dev->persist->num_vfs;
+	memcpy(nvfs, dev->persist->nvfs, sizeof(dev->persist->nvfs));
+
+	mutex_lock(&persist->interface_state_mutex);
+	if (!(persist->interface_state & MLX4_INTERFACE_STATE_UP)) {
+		ret = mlx4_load_one(pdev, priv->pci_dev_data, total_vfs,
+				    nvfs, priv, 1);
+		if (!ret) {
+			ret = restore_current_port_types(dev,
+					dev->persist->curr_port_type,
+					dev->persist->curr_port_poss_type);
+			if (ret)
+				mlx4_err(dev, "resume: could not restore original port types (%d)\n", ret);
+		}
+	}
+	mutex_unlock(&persist->interface_state_mutex);
+
+	return ret;
+}
+
 static struct pci_driver mlx4_driver = {
 	.name		= DRV_NAME,
 	.id_table	= mlx4_pci_table,
 	.probe		= mlx4_init_one,
 	.shutdown	= mlx4_shutdown,
 	.remove		= mlx4_remove_one,
+	.suspend	= mlx4_suspend,
+	.resume		= mlx4_resume,
 	.err_handler    = &mlx4_err_handler,
 };
 
 static int __init mlx4_verify_params(void)
 {
+	if (msi_x < 0) {
+		pr_warn("mlx4_core: bad msi_x: %d\n", msi_x);
+		return -1;
+	}
+
 	if ((log_num_mac < 0) || (log_num_mac > 7)) {
 		pr_warn("mlx4_core: bad num_mac: %d\n", log_num_mac);
 		return -1;
@@ -4150,7 +4398,7 @@ static int __init mlx4_verify_params(void)
 	if (use_prio != 0)
 		pr_warn("mlx4_core: use_prio - obsolete module param, ignored\n");
 
-	if ((log_mtts_per_seg < 1) || (log_mtts_per_seg > 7)) {
+	if ((log_mtts_per_seg < 0) || (log_mtts_per_seg > 7)) {
 		pr_warn("mlx4_core: bad log_mtts_per_seg: %d\n",
 			log_mtts_per_seg);
 		return -1;

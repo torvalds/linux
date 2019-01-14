@@ -113,6 +113,13 @@ whatever headers there might be.
 NETIF_F_TSO_ECN means that hardware can properly split packets with CWR bit
 set, be it TCPv4 (when NETIF_F_TSO is enabled) or TCPv6 (NETIF_F_TSO6).
 
+ * Transmit UDP segmentation offload
+
+NETIF_F_GSO_UDP_GSO_L4 accepts a single UDP header with a payload that exceeds
+gso_size. On segmentation, it segments the payload on gso_size boundaries and
+replicates the network and UDP headers (fixing up the last one if less than
+gso_size).
+
  * Transmit DMA from high memory
 
 On platforms where this is relevant, NETIF_F_HIGHDMA signals that

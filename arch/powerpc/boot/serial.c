@@ -18,6 +18,7 @@
 #include "stdio.h"
 #include "io.h"
 #include "ops.h"
+#include "autoconf.h"
 
 static int serial_open(void)
 {
@@ -120,10 +121,6 @@ int serial_console_init(void)
 	if (dt_is_compatible(devp, "ns16550") ||
 	    dt_is_compatible(devp, "pnpPNP,501"))
 		rc = ns16550_console_init(devp, &serial_cd);
-#ifdef CONFIG_EMBEDDED6xx
-	else if (dt_is_compatible(devp, "marvell,mv64360-mpsc"))
-		rc = mpsc_console_init(devp, &serial_cd);
-#endif
 #ifdef CONFIG_CPM
 	else if (dt_is_compatible(devp, "fsl,cpm1-scc-uart") ||
 	         dt_is_compatible(devp, "fsl,cpm1-smc-uart") ||

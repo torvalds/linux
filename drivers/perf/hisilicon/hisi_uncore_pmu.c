@@ -350,19 +350,21 @@ void hisi_uncore_pmu_disable(struct pmu *pmu)
 
 /*
  * Read Super CPU cluster and CPU cluster ID from MPIDR_EL1.
- * If multi-threading is supported, SCCL_ID is in MPIDR[aff3] and CCL_ID
- * is in MPIDR[aff2]; if not, SCCL_ID is in MPIDR[aff2] and CCL_ID is
- * in MPIDR[aff1]. If this changes in future, this shall be updated.
+ * If multi-threading is supported, CCL_ID is the low 3-bits in MPIDR[Aff2]
+ * and SCCL_ID is the upper 5-bits of Aff2 field; if not, SCCL_ID
+ * is in MPIDR[Aff2] and CCL_ID is in MPIDR[Aff1].
  */
 static void hisi_read_sccl_and_ccl_id(int *sccl_id, int *ccl_id)
 {
 	u64 mpidr = read_cpuid_mpidr();
 
 	if (mpidr & MPIDR_MT_BITMASK) {
+		int aff2 = MPIDR_AFFINITY_LEVEL(mpidr, 2);
+
 		if (sccl_id)
-			*sccl_id = MPIDR_AFFINITY_LEVEL(mpidr, 3);
+			*sccl_id = aff2 >> 3;
 		if (ccl_id)
-			*ccl_id = MPIDR_AFFINITY_LEVEL(mpidr, 2);
+			*ccl_id = aff2 & 0x7;
 	} else {
 		if (sccl_id)
 			*sccl_id = MPIDR_AFFINITY_LEVEL(mpidr, 2);

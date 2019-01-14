@@ -22,6 +22,18 @@ menuconfig GPIOLIB
 
 if GPIOLIB
 
+config GPIOLIB_FASTPATH_LIMIT
+	int "Maximum number of GPIOs for fast path"
+	range 32 512
+	default 512
+	help
+	   This adjusts the point at which certain APIs will switch from
+	   using a stack allocated buffer to a dynamically allocated buffer.
+
+	   You shouldn't need to change this unless you really need to
+	   optimize either stack space or performance. Change this carefully
+	   since setting an incorrect value could cause stack corruption.
+
 config OF_GPIO
 	def_bool y
 	depends on OF
@@ -188,6 +200,7 @@ config GPIO_EP93XX
 	def_bool y
 	depends on ARCH_EP93XX
 	select GPIO_GENERIC
+	select GPIOLIB_IRQCHIP
 
 config GPIO_EXAR
 	tristate "Support for GPIO pins on XR17V352/354/358"
@@ -252,17 +265,6 @@ config GPIO_ICH
 	  ICH-based chipsets.  Currently supported devices: ICH6, ICH7, ICH8
 	  ICH9, ICH10, Series 5/3400 (eg Ibex Peak), Series 6/C200 (eg
 	  Cougar Point), NM10 (Tiger Point), and 3100 (Whitmore Lake).
-
-	  If unsure, say N.
-
-config GPIO_INGENIC
-	tristate "Ingenic JZ47xx SoCs GPIO support"
-	depends on OF
-	depends on MACH_INGENIC || COMPILE_TEST
-	select GPIOLIB_IRQCHIP
-	help
-	  Say yes here to support the GPIO functionality present on the
-	  JZ4740 and JZ4780 SoCs from Ingenic.
 
 	  If unsure, say N.
 
@@ -347,6 +349,15 @@ config GPIO_MPC8XXX
 	  Say Y here if you're going to use hardware that connects to the
 	  MPC512x/831x/834x/837x/8572/8610/QorIQ GPIOs.
 
+config GPIO_MT7621
+	bool "Mediatek MT7621 GPIO Support"
+	depends on SOC_MT7620 || SOC_MT7621 || COMPILE_TEST
+	depends on OF_GPIO
+	select GPIO_GENERIC
+	select GPIOLIB_IRQCHIP
+	help
+	  Say yes here to support the Mediatek MT7621 SoC GPIO device
+
 config GPIO_MVEBU
 	def_bool y
 	depends on PLAT_ORION || ARCH_MVEBU
@@ -418,6 +429,24 @@ config GPIO_REG
 	  A 32-bit single register GPIO fixed in/out implementation.  This
 	  can be used to represent any register as a set of GPIO signals.
 
+config GPIO_SIOX
+	tristate "SIOX GPIO support"
+	depends on SIOX
+	select GPIOLIB_IRQCHIP
+	help
+	  Say yes here to support SIOX I/O devices. These are units connected
+	  via a SIOX bus and have a number of fixed-direction I/O lines.
+
+config GPIO_SNPS_CREG
+	bool "Synopsys GPIO via CREG (Control REGisters) driver"
+	depends on ARC || COMPILE_TEST
+	depends on OF_GPIO
+	help
+	  This driver supports GPIOs via CREG on various Synopsys SoCs.
+	  This is a single-register MMIO GPIO driver for complex cases
+	  where only several fields in register belong to GPIO lines and
+	  each GPIO line owns a field with different length and on/off value.
+
 config GPIO_SPEAR_SPICS
 	bool "ST SPEAr13xx SPI Chip Select as GPIO support"
 	depends on PLAT_SPEAR
@@ -459,6 +488,7 @@ config GPIO_SYSCON
 
 config GPIO_TB10X
 	bool
+	select GPIO_GENERIC
 	select GENERIC_IRQ_CHIP
 	select OF_GPIO
 
@@ -672,7 +702,8 @@ config GPIO_IT87
 	  Say yes here to support GPIO functionality of IT87xx Super I/O chips.
 
 	  This driver is tested with ITE IT8728 and IT8732 Super I/O chips, and
-	  supports the IT8761E, IT8620E and IT8628E Super I/O chip as well.
+	  supports the IT8761E, IT8613, IT8620E, and IT8628E Super I/O chips as
+	  well.
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called gpio_it87
@@ -1026,6 +1057,12 @@ config GPIO_LP87565
 
 	  This driver can also be built as a module. If so, the module will be
 	  called gpio-lp87565.
+
+config GPIO_MADERA
+	tristate "Cirrus Logic Madera class codecs"
+	depends on PINCTRL_MADERA
+	help
+	  Support for GPIOs on Cirrus Logic Madera class codecs.
 
 config GPIO_MAX77620
 	tristate "GPIO support for PMIC MAX77620 and MAX20024"

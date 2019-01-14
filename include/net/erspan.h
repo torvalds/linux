@@ -219,6 +219,33 @@ static inline __be32 erspan_get_timestamp(void)
 	return htonl((u32)h_usecs);
 }
 
+/* ERSPAN BSO (Bad/Short/Oversized), see RFC1757
+ *   00b --> Good frame with no error, or unknown integrity
+ *   01b --> Payload is a Short Frame
+ *   10b --> Payload is an Oversized Frame
+ *   11b --> Payload is a Bad Frame with CRC or Alignment Error
+ */
+enum erspan_bso {
+	BSO_NOERROR = 0x0,
+	BSO_SHORT = 0x1,
+	BSO_OVERSIZED = 0x2,
+	BSO_BAD = 0x3,
+};
+
+static inline u8 erspan_detect_bso(struct sk_buff *skb)
+{
+	/* BSO_BAD is not handled because the frame CRC
+	 * or alignment error information is in FCS.
+	 */
+	if (skb->len < ETH_ZLEN)
+		return BSO_SHORT;
+
+	if (skb->len > ETH_FRAME_LEN)
+		return BSO_OVERSIZED;
+
+	return BSO_NOERROR;
+}
+
 static inline void erspan_build_header_v2(struct sk_buff *skb,
 					  u32 id, u8 direction, u16 hwid,
 					  bool truncate, bool is_ipv4)
@@ -248,6 +275,7 @@ static inline void erspan_build_header_v2(struct sk_buff *skb,
 		vlan_tci = ntohs(qp->tci);
 	}
 
+	bso = erspan_detect_bso(skb);
 	skb_push(skb, sizeof(*ershdr) + ERSPAN_V2_MDSIZE);
 	ershdr = (struct erspan_base_hdr *)skb->data;
 	memset(ershdr, 0, sizeof(*ershdr) + ERSPAN_V2_MDSIZE);

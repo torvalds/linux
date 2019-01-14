@@ -18,6 +18,7 @@
 #include <linux/cma.h>
 #include <linux/bitops.h>
 
+#include <asm/asm-prototypes.h>
 #include <asm/cputable.h>
 #include <asm/kvm_ppc.h>
 #include <asm/kvm_book3s.h>
@@ -76,7 +77,7 @@ struct page *kvm_alloc_hpt_cma(unsigned long nr_pages)
 	VM_BUG_ON(order_base_2(nr_pages) < KVM_CMA_CHUNK_ORDER - PAGE_SHIFT);
 
 	return cma_alloc(kvm_cma, nr_pages, order_base_2(HPT_ALIGN_PAGES),
-			 GFP_KERNEL);
+			 false);
 }
 EXPORT_SYMBOL_GPL(kvm_alloc_hpt_cma);
 
@@ -211,9 +212,9 @@ long kvmppc_h_random(struct kvm_vcpu *vcpu)
 
 	/* Only need to do the expensive mfmsr() on radix */
 	if (kvm_is_radix(vcpu->kvm) && (mfmsr() & MSR_IR))
-		r = powernv_get_random_long(&vcpu->arch.gpr[4]);
+		r = powernv_get_random_long(&vcpu->arch.regs.gpr[4]);
 	else
-		r = powernv_get_random_real_mode(&vcpu->arch.gpr[4]);
+		r = powernv_get_random_real_mode(&vcpu->arch.regs.gpr[4]);
 	if (r)
 		return H_SUCCESS;
 
@@ -229,6 +230,15 @@ void kvmhv_rm_send_ipi(int cpu)
 {
 	void __iomem *xics_phys;
 	unsigned long msg = PPC_DBELL_TYPE(PPC_DBELL_SERVER);
+
+	/* For a nested hypervisor, use the XICS via hcall */
+	if (kvmhv_on_pseries()) {
+		unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
+
+		plpar_hcall_raw(H_IPI, retbuf, get_hard_smp_processor_id(cpu),
+				IPI_PRIORITY);
+		return;
+	}
 
 	/* On POWER9 we can use msgsnd for any destination cpu. */
 	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
@@ -459,12 +469,19 @@ static long kvmppc_read_one_intr(bool *again)
 		return 1;
 
 	/* Now read the interrupt from the ICP */
-	xics_phys = local_paca->kvm_hstate.xics_phys;
-	rc = 0;
-	if (!xics_phys)
-		rc = opal_int_get_xirr(&xirr, false);
-	else
-		xirr = __raw_rm_readl(xics_phys + XICS_XIRR);
+	if (kvmhv_on_pseries()) {
+		unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
+
+		rc = plpar_hcall_raw(H_XIRR, retbuf, 0xFF);
+		xirr = cpu_to_be32(retbuf[0]);
+	} else {
+		xics_phys = local_paca->kvm_hstate.xics_phys;
+		rc = 0;
+		if (!xics_phys)
+			rc = opal_int_get_xirr(&xirr, false);
+		else
+			xirr = __raw_rm_readl(xics_phys + XICS_XIRR);
+	}
 	if (rc < 0)
 		return 1;
 
@@ -493,7 +510,13 @@ static long kvmppc_read_one_intr(bool *again)
 	 */
 	if (xisr == XICS_IPI) {
 		rc = 0;
-		if (xics_phys) {
+		if (kvmhv_on_pseries()) {
+			unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
+
+			plpar_hcall_raw(H_IPI, retbuf,
+					hard_smp_processor_id(), 0xff);
+			plpar_hcall_raw(H_EOI, retbuf, h_xirr);
+		} else if (xics_phys) {
 			__raw_rm_writeb(0xff, xics_phys + XICS_MFRR);
 			__raw_rm_writel(xirr, xics_phys + XICS_XIRR);
 		} else {
@@ -519,7 +542,13 @@ static long kvmppc_read_one_intr(bool *again)
 			/* We raced with the host,
 			 * we need to resend that IPI, bummer
 			 */
-			if (xics_phys)
+			if (kvmhv_on_pseries()) {
+				unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
+
+				plpar_hcall_raw(H_IPI, retbuf,
+						hard_smp_processor_id(),
+						IPI_PRIORITY);
+			} else if (xics_phys)
 				__raw_rm_writeb(IPI_PRIORITY,
 						xics_phys + XICS_MFRR);
 			else
@@ -562,7 +591,7 @@ unsigned long kvmppc_rm_h_xirr_x(struct kvm_vcpu *vcpu)
 {
 	if (!kvmppc_xics_enabled(vcpu))
 		return H_TOO_HARD;
-	vcpu->arch.gpr[5] = get_tb();
+	vcpu->arch.regs.gpr[5] = get_tb();
 	if (xive_enabled()) {
 		if (is_rm())
 			return xive_rm_h_xirr(vcpu);
@@ -633,7 +662,19 @@ int kvmppc_rm_h_eoi(struct kvm_vcpu *vcpu, unsigned long xirr)
 
 void kvmppc_bad_interrupt(struct pt_regs *regs)
 {
-	die("Bad interrupt in KVM entry/exit code", regs, SIGABRT);
+	/*
+	 * 100 could happen at any time, 200 can happen due to invalid real
+	 * address access for example (or any time due to a hardware problem).
+	 */
+	if (TRAP(regs) == 0x100) {
+		get_paca()->in_nmi++;
+		system_reset_exception(regs);
+		get_paca()->in_nmi--;
+	} else if (TRAP(regs) == 0x200) {
+		machine_check_exception(regs);
+	} else {
+		die("Bad interrupt in KVM entry/exit code", regs, SIGABRT);
+	}
 	panic("Bad KVM trap");
 }
 
@@ -715,4 +756,52 @@ void kvmhv_p9_restore_lpcr(struct kvm_split_mode *sip)
 	wait_for_sync(sip, PHASE_RESET_LPCR);
 	smp_mb();
 	local_paca->kvm_hstate.kvm_split_mode = NULL;
+}
+
+/*
+ * Is there a PRIV_DOORBELL pending for the guest (on POWER9)?
+ * Can we inject a Decrementer or a External interrupt?
+ */
+void kvmppc_guest_entry_inject_int(struct kvm_vcpu *vcpu)
+{
+	int ext;
+	unsigned long vec = 0;
+	unsigned long lpcr;
+
+	/* Insert EXTERNAL bit into LPCR at the MER bit position */
+	ext = (vcpu->arch.pending_exceptions >> BOOK3S_IRQPRIO_EXTERNAL) & 1;
+	lpcr = mfspr(SPRN_LPCR);
+	lpcr |= ext << LPCR_MER_SH;
+	mtspr(SPRN_LPCR, lpcr);
+	isync();
+
+	if (vcpu->arch.shregs.msr & MSR_EE) {
+		if (ext) {
+			vec = BOOK3S_INTERRUPT_EXTERNAL;
+		} else {
+			long int dec = mfspr(SPRN_DEC);
+			if (!(lpcr & LPCR_LD))
+				dec = (int) dec;
+			if (dec < 0)
+				vec = BOOK3S_INTERRUPT_DECREMENTER;
+		}
+	}
+	if (vec) {
+		unsigned long msr, old_msr = vcpu->arch.shregs.msr;
+
+		kvmppc_set_srr0(vcpu, kvmppc_get_pc(vcpu));
+		kvmppc_set_srr1(vcpu, old_msr);
+		kvmppc_set_pc(vcpu, vec);
+		msr = vcpu->arch.intr_msr;
+		if (MSR_TM_ACTIVE(old_msr))
+			msr |= MSR_TS_S;
+		vcpu->arch.shregs.msr = msr;
+	}
+
+	if (vcpu->arch.doorbell_request) {
+		mtspr(SPRN_DPDES, 1);
+		vcpu->arch.vcore->dpdes = 1;
+		smp_wmb();
+		vcpu->arch.doorbell_request = 0;
+	}
 }

@@ -68,6 +68,7 @@ void __init imx_aips_allow_unprivileged_access(
 
 	for_each_compatible_node(np, NULL, compat) {
 		aips_base_addr = of_iomap(np, 0);
+		WARN_ON(!aips_base_addr);
 		imx_set_aips(aips_base_addr);
 	}
 }
@@ -134,6 +135,9 @@ struct device * __init imx_soc_device_init(void)
 		break;
 	case MXC_CPU_IMX6ULL:
 		soc_id = "i.MX6ULL";
+		break;
+	case MXC_CPU_IMX6ULZ:
+		soc_id = "i.MX6ULZ";
 		break;
 	case MXC_CPU_IMX6SLL:
 		soc_id = "i.MX6SLL";

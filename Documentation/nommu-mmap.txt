@@ -47,7 +47,7 @@ and it's also much more restricted in the latter case:
            appropriate mapping protection capabilities. Ramfs, romfs, cramfs
            and mtd might all permit this.
 
-	 - If the backing device device can't or won't permit direct sharing,
+	 - If the backing device can't or won't permit direct sharing,
            but does have the NOMMU_MAP_COPY capability, then a copy of the
            appropriate bit of the file will be read into a contiguous bit of
            memory and any extraneous space beyond the EOF will be cleared

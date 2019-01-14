@@ -179,7 +179,7 @@ static void saa7164_histogram_reset(struct saa7164_histogram *hg, char *name)
 	int i;
 
 	memset(hg, 0, sizeof(struct saa7164_histogram));
-	strcpy(hg->name, name);
+	strscpy(hg->name, name, sizeof(hg->name));
 
 	/* First 30ms x 1ms */
 	for (i = 0; i < 30; i++)
@@ -1122,23 +1122,11 @@ static int saa7164_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int saa7164_proc_open(struct inode *inode, struct file *filp)
-{
-	return single_open(filp, saa7164_proc_show, NULL);
-}
-
-static const struct file_operations saa7164_proc_fops = {
-	.open		= saa7164_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static int saa7164_proc_create(void)
 {
 	struct proc_dir_entry *pe;
 
-	pe = proc_create("saa7164", S_IRUGO, NULL, &saa7164_proc_fops);
+	pe = proc_create_single("saa7164", S_IRUGO, NULL, saa7164_proc_show);
 	if (!pe)
 		return -ENOMEM;
 

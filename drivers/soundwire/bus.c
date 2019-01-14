@@ -17,6 +17,7 @@
  */
 int sdw_add_bus_master(struct sdw_bus *bus)
 {
+	struct sdw_master_prop *prop = NULL;
 	int ret;
 
 	if (!bus->dev) {
@@ -32,7 +33,13 @@ int sdw_add_bus_master(struct sdw_bus *bus)
 	mutex_init(&bus->msg_lock);
 	mutex_init(&bus->bus_lock);
 	INIT_LIST_HEAD(&bus->slaves);
+	INIT_LIST_HEAD(&bus->m_rt_list);
 
+	/*
+	 * Initialize multi_link flag
+	 * TODO: populate this flag by reading property from FW node
+	 */
+	bus->multi_link = false;
 	if (bus->ops->read_prop) {
 		ret = bus->ops->read_prop(bus);
 		if (ret < 0) {
@@ -76,6 +83,21 @@ int sdw_add_bus_master(struct sdw_bus *bus)
 		dev_err(bus->dev, "Finding slaves failed:%d\n", ret);
 		return ret;
 	}
+
+	/*
+	 * Initialize clock values based on Master properties. The max
+	 * frequency is read from max_freq property. Current assumption
+	 * is that the bus will start at highest clock frequency when
+	 * powered on.
+	 *
+	 * Default active bank will be 0 as out of reset the Slaves have
+	 * to start with bank 0 (Table 40 of Spec)
+	 */
+	prop = &bus->prop;
+	bus->params.max_dr_freq = prop->max_freq * SDW_DOUBLE_RATE_FACTOR;
+	bus->params.curr_dr_freq = bus->params.max_dr_freq;
+	bus->params.curr_bank = SDW_BANK0;
+	bus->params.next_bank = SDW_BANK1;
 
 	return 0;
 }
@@ -158,6 +180,7 @@ static inline int do_transfer_defer(struct sdw_bus *bus,
 
 	defer->msg = msg;
 	defer->length = msg->len;
+	init_completion(&defer->complete);
 
 	for (i = 0; i <= retry; i++) {
 		resp = bus->ops->xfer_msg_defer(bus, msg, defer);
@@ -574,6 +597,32 @@ static void sdw_modify_slave_status(struct sdw_slave *slave,
 	mutex_lock(&slave->bus->bus_lock);
 	slave->status = status;
 	mutex_unlock(&slave->bus->bus_lock);
+}
+
+int sdw_configure_dpn_intr(struct sdw_slave *slave,
+			int port, bool enable, int mask)
+{
+	u32 addr;
+	int ret;
+	u8 val = 0;
+
+	addr = SDW_DPN_INTMASK(port);
+
+	/* Set/Clear port ready interrupt mask */
+	if (enable) {
+		val |= mask;
+		val |= SDW_DPN_INT_PORT_READY;
+	} else {
+		val &= ~(mask);
+		val &= ~SDW_DPN_INT_PORT_READY;
+	}
+
+	ret = sdw_update(slave, addr, (mask | SDW_DPN_INT_PORT_READY), val);
+	if (ret < 0)
+		dev_err(slave->bus->dev,
+				"SDW_DPN_INTMASK write failed:%d", val);
+
+	return ret;
 }
 
 static int sdw_initialize_slave(struct sdw_slave *slave)

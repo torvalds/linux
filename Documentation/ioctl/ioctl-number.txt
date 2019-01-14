@@ -151,7 +151,7 @@ Code  Seq#(hex)	Include File		Comments
 'J'	00-1F	drivers/scsi/gdth_ioctl.h
 'K'	all	linux/kd.h
 'L'	00-1F	linux/loop.h		conflict!
-'L'	10-1F	drivers/scsi/mpt2sas/mpt2sas_ctl.h	conflict!
+'L'	10-1F	drivers/scsi/mpt3sas/mpt3sas_ctl.h	conflict!
 'L'	20-2F	linux/lightnvm.h
 'L'	E0-FF	linux/ppdd.h		encrypted disk device driver
 					<http://linux01.gwdg.de/~alatham/ppdd.html>
@@ -166,6 +166,7 @@ Code  Seq#(hex)	Include File		Comments
 'P'	all	linux/soundcard.h	conflict!
 'P'	60-6F	sound/sscape_ioctl.h	conflict!
 'P'	00-0F	drivers/usb/class/usblp.c	conflict!
+'P'	01-09	drivers/misc/pci_endpoint_test.c	conflict!
 'Q'	all	linux/soundcard.h
 'R'	00-1F	linux/random.h		conflict!
 'R'	01	linux/rfkill.h		conflict!
@@ -200,7 +201,7 @@ Code  Seq#(hex)	Include File		Comments
 'X'	01	linux/pktcdvd.h		conflict!
 'Y'	all	linux/cyclades.h
 'Z'	14-15	drivers/message/fusion/mptctl.h
-'['	00-07	linux/usb/tmc.h		USB Test and Measurement Devices
+'['	00-3F	linux/usb/tmc.h		USB Test and Measurement Devices
 					<mailto:gregkh@linuxfoundation.org>
 'a'	all	linux/atm*.h, linux/sonet.h	ATM on linux
 					<http://lrcwww.epfl.ch/>
@@ -271,9 +272,11 @@ Code  Seq#(hex)	Include File		Comments
 't'	90-91	linux/toshiba.h		toshiba and toshiba_acpi SMM
 'u'	00-1F	linux/smb_fs.h		gone
 'u'	20-3F	linux/uvcvideo.h	USB video class host driver
+'u'	40-4f	linux/udmabuf.h		userspace dma-buf misc device
 'v'	00-1F	linux/ext2_fs.h		conflict!
 'v'	00-1F	linux/fs.h		conflict!
 'v'	00-0F	linux/sonypi.h		conflict!
+'v'	00-0F	media/v4l2-subdev.h	conflict!
 'v'	C0-FF	linux/meye.h		conflict!
 'w'	all				CERN SCI driver
 'y'	00-1F				packet based user level communications
@@ -296,7 +299,8 @@ Code  Seq#(hex)	Include File		Comments
 0x90	00	drivers/cdrom/sbpcd.h
 0x92	00-0F	drivers/usb/mon/mon_bin.c
 0x93	60-7F	linux/auto_fs.h
-0x94	all	fs/btrfs/ioctl.h
+0x94	all	fs/btrfs/ioctl.h	Btrfs filesystem
+		and linux/fs.h		some lifted to vfs/generic
 0x97	00-7F	fs/ceph/ioctl.h		Ceph file system
 0x99	00-0F				537-Addinboard driver
 					<mailto:buk@buks.ipn.de>
@@ -321,12 +325,14 @@ Code  Seq#(hex)	Include File		Comments
 0xB3	00	linux/mmc/ioctl.h
 0xB4	00-0F	linux/gpio.h		<mailto:linux-gpio@vger.kernel.org>
 0xB5	00-0F	uapi/linux/rpmsg.h	<mailto:linux-remoteproc@vger.kernel.org>
+0xB6	all	linux/fpga-dfl.h
 0xC0	00-0F	linux/usb/iowarrior.h
 0xCA	00-0F	uapi/misc/cxl.h
 0xCA	10-2F	uapi/misc/ocxl.h
 0xCA	80-BF	uapi/scsi/cxlflash_ioctl.h
 0xCB	00-1F	CBM serial IEC bus	in development:
 					<mailto:michael.klein@puffin.lb.shuttle.de>
+0xCC	00-0F	drivers/misc/ibmvmc.h    pseries VMC driver
 0xCD	01	linux/reiserfs_fs.h
 0xCF	02	fs/cifs/ioctl.c
 0xDB	00-0F	drivers/char/mwave/mwavepub.h

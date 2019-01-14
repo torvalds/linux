@@ -231,33 +231,27 @@ struct exynos_mipi_video_phy {
 static int __set_phy_state(const struct exynos_mipi_phy_desc *data,
 			   struct exynos_mipi_video_phy *state, unsigned int on)
 {
-	u32 val;
+	struct regmap *enable_map = state->regmaps[data->enable_map];
+	struct regmap *resetn_map = state->regmaps[data->resetn_map];
 
 	spin_lock(&state->slock);
 
 	/* disable in PMU sysreg */
 	if (!on && data->coupled_phy_id >= 0 &&
-	    state->phys[data->coupled_phy_id].phy->power_count == 0) {
-		regmap_read(state->regmaps[data->enable_map], data->enable_reg,
-			    &val);
-		val &= ~data->enable_val;
-		regmap_write(state->regmaps[data->enable_map], data->enable_reg,
-			     val);
-	}
-
+	    state->phys[data->coupled_phy_id].phy->power_count == 0)
+		regmap_update_bits(enable_map, data->enable_reg,
+				   data->enable_val, 0);
 	/* PHY reset */
-	regmap_read(state->regmaps[data->resetn_map], data->resetn_reg, &val);
-	val = on ? (val | data->resetn_val) : (val & ~data->resetn_val);
-	regmap_write(state->regmaps[data->resetn_map], data->resetn_reg, val);
-
+	if (on)
+		regmap_update_bits(resetn_map, data->resetn_reg,
+				   data->resetn_val, data->resetn_val);
+	else
+		regmap_update_bits(resetn_map, data->resetn_reg,
+				   data->resetn_val, 0);
 	/* enable in PMU sysreg */
-	if (on) {
-		regmap_read(state->regmaps[data->enable_map], data->enable_reg,
-			    &val);
-		val |= data->enable_val;
-		regmap_write(state->regmaps[data->enable_map], data->enable_reg,
-			     val);
-	}
+	if (on)
+		regmap_update_bits(enable_map, data->enable_reg,
+				   data->enable_val, data->enable_val);
 
 	spin_unlock(&state->slock);
 

@@ -15,7 +15,6 @@
 #include <linux/clk-provider.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
-#include <linux/syscore_ops.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -149,8 +148,8 @@ static int exynos_audss_clk_probe(struct platform_device *pdev)
 	epll = ERR_PTR(-ENODEV);
 
 	clk_data = devm_kzalloc(dev,
-				sizeof(*clk_data) +
-				sizeof(*clk_data->hws) * EXYNOS_AUDSS_MAX_CLKS,
+				struct_size(clk_data, hws,
+					    EXYNOS_AUDSS_MAX_CLKS),
 				GFP_KERNEL);
 	if (!clk_data)
 		return -ENOMEM;

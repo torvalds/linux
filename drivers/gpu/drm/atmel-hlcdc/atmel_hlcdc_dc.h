@@ -299,7 +299,6 @@ struct atmel_hlcdc_layer {
 struct atmel_hlcdc_plane {
 	struct drm_plane base;
 	struct atmel_hlcdc_layer layer;
-	struct atmel_hlcdc_plane_properties *properties;
 };
 
 static inline struct atmel_hlcdc_plane *
@@ -343,18 +342,6 @@ struct atmel_hlcdc_dc_desc {
 	bool conflicting_output_formats;
 	const struct atmel_hlcdc_layer_desc *layers;
 	int nlayers;
-};
-
-/**
- * Atmel HLCDC Plane properties.
- *
- * This structure stores plane property definitions.
- *
- * @alpha: alpha blending (or transparency) property
- * @rotation: rotation property
- */
-struct atmel_hlcdc_plane_properties {
-	struct drm_property *alpha;
 };
 
 /**
@@ -454,5 +441,6 @@ void atmel_hlcdc_crtc_irq(struct drm_crtc *c);
 int atmel_hlcdc_crtc_create(struct drm_device *dev);
 
 int atmel_hlcdc_create_outputs(struct drm_device *dev);
+int atmel_hlcdc_encoder_get_bus_fmt(struct drm_encoder *encoder);
 
 #endif /* DRM_ATMEL_HLCDC_H */

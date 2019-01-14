@@ -31,6 +31,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_modeset_helper_vtables.h>
 #include <drm/drm_modeset_helper.h>
+#include <drm/drm_util.h>
 
 struct drm_atomic_state;
 struct drm_private_obj;
@@ -100,6 +101,7 @@ int __must_check drm_atomic_helper_swap_state(struct drm_atomic_state *state,
 int drm_atomic_helper_setup_commit(struct drm_atomic_state *state,
 				   bool nonblock);
 void drm_atomic_helper_wait_for_dependencies(struct drm_atomic_state *state);
+void drm_atomic_helper_fake_vblank(struct drm_atomic_state *state);
 void drm_atomic_helper_commit_hw_done(struct drm_atomic_state *state);
 void drm_atomic_helper_commit_cleanup_done(struct drm_atomic_state *state);
 
@@ -155,6 +157,8 @@ void __drm_atomic_helper_crtc_destroy_state(struct drm_crtc_state *state);
 void drm_atomic_helper_crtc_destroy_state(struct drm_crtc *crtc,
 					  struct drm_crtc_state *state);
 
+void __drm_atomic_helper_plane_reset(struct drm_plane *plane,
+				     struct drm_plane_state *state);
 void drm_atomic_helper_plane_reset(struct drm_plane *plane);
 void __drm_atomic_helper_plane_duplicate_state(struct drm_plane *plane,
 					       struct drm_plane_state *state);

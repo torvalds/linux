@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *   Driver for KeyStream 11b/g wireless LAN
  *
  *   Copyright (c) 2005-2008 KeyStream Corp.
  *   Copyright (C) 2009 Renesas Technology Corp.
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License version 2 as
- *   published by the Free Software Foundation.
  */
 
 #ifndef _KS_WLAN_IOCTL_H
@@ -19,11 +16,9 @@
 /* former KS_WLAN_GET_DRIVER_VERSION	(SIOCIWFIRSTPRIV + 1) */
 /*					(SIOCIWFIRSTPRIV + 2) */
 #define KS_WLAN_GET_FIRM_VERSION	(SIOCIWFIRSTPRIV + 3)
-#ifdef WPS
 #define KS_WLAN_SET_WPS_ENABLE		(SIOCIWFIRSTPRIV + 4)
 #define KS_WLAN_GET_WPS_ENABLE		(SIOCIWFIRSTPRIV + 5)
 #define KS_WLAN_SET_WPS_PROBE_REQ	(SIOCIWFIRSTPRIV + 6)
-#endif
 #define KS_WLAN_GET_EEPROM_CKSUM	(SIOCIWFIRSTPRIV + 7)
 #define KS_WLAN_SET_PREAMBLE		(SIOCIWFIRSTPRIV + 8)
 #define KS_WLAN_GET_PREAMBLE		(SIOCIWFIRSTPRIV + 9)

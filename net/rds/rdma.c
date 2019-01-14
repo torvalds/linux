@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007 Oracle.  All rights reserved.
+ * Copyright (c) 2007, 2017 Oracle and/or its affiliates. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -170,7 +170,8 @@ static int rds_pin_pages(unsigned long user_addr, unsigned int nr_pages,
 }
 
 static int __rds_rdma_map(struct rds_sock *rs, struct rds_get_mr_args *args,
-				u64 *cookie_ret, struct rds_mr **mr_ret)
+			  u64 *cookie_ret, struct rds_mr **mr_ret,
+			  struct rds_conn_path *cp)
 {
 	struct rds_mr *mr = NULL, *found;
 	unsigned int nr_pages;
@@ -183,7 +184,7 @@ static int __rds_rdma_map(struct rds_sock *rs, struct rds_get_mr_args *args,
 	long i;
 	int ret;
 
-	if (rs->rs_bound_addr == 0 || !rs->rs_transport) {
+	if (ipv6_addr_any(&rs->rs_bound_addr) || !rs->rs_transport) {
 		ret = -ENOTCONN; /* XXX not a great errno */
 		goto out;
 	}
@@ -269,7 +270,8 @@ static int __rds_rdma_map(struct rds_sock *rs, struct rds_get_mr_args *args,
 	 * Note that dma_map() implies that pending writes are
 	 * flushed to RAM, so no dma_sync is needed here. */
 	trans_private = rs->rs_transport->get_mr(sg, nents, rs,
-						 &mr->r_key);
+						 &mr->r_key,
+						 cp ? cp->cp_conn : NULL);
 
 	if (IS_ERR(trans_private)) {
 		for (i = 0 ; i < nents; i++)
@@ -330,7 +332,7 @@ int rds_get_mr(struct rds_sock *rs, char __user *optval, int optlen)
 			   sizeof(struct rds_get_mr_args)))
 		return -EFAULT;
 
-	return __rds_rdma_map(rs, &args, NULL, NULL);
+	return __rds_rdma_map(rs, &args, NULL, NULL, NULL);
 }
 
 int rds_get_mr_for_dest(struct rds_sock *rs, char __user *optval, int optlen)
@@ -354,7 +356,7 @@ int rds_get_mr_for_dest(struct rds_sock *rs, char __user *optval, int optlen)
 	new_args.cookie_addr = args.cookie_addr;
 	new_args.flags = args.flags;
 
-	return __rds_rdma_map(rs, &new_args, NULL, NULL);
+	return __rds_rdma_map(rs, &new_args, NULL, NULL, NULL);
 }
 
 /*
@@ -515,9 +517,10 @@ static int rds_rdma_pages(struct rds_iovec iov[], int nr_iovecs)
 	return tot_pages;
 }
 
-int rds_rdma_extra_size(struct rds_rdma_args *args)
+int rds_rdma_extra_size(struct rds_rdma_args *args,
+			struct rds_iov_vector *iov)
 {
-	struct rds_iovec vec;
+	struct rds_iovec *vec;
 	struct rds_iovec __user *local_vec;
 	int tot_pages = 0;
 	unsigned int nr_pages;
@@ -528,13 +531,23 @@ int rds_rdma_extra_size(struct rds_rdma_args *args)
 	if (args->nr_local == 0)
 		return -EINVAL;
 
-	/* figure out the number of pages in the vector */
-	for (i = 0; i < args->nr_local; i++) {
-		if (copy_from_user(&vec, &local_vec[i],
-				   sizeof(struct rds_iovec)))
-			return -EFAULT;
+	iov->iov = kcalloc(args->nr_local,
+			   sizeof(struct rds_iovec),
+			   GFP_KERNEL);
+	if (!iov->iov)
+		return -ENOMEM;
 
-		nr_pages = rds_pages_in_vec(&vec);
+	vec = &iov->iov[0];
+
+	if (copy_from_user(vec, local_vec, args->nr_local *
+			   sizeof(struct rds_iovec)))
+		return -EFAULT;
+	iov->len = args->nr_local;
+
+	/* figure out the number of pages in the vector */
+	for (i = 0; i < args->nr_local; i++, vec++) {
+
+		nr_pages = rds_pages_in_vec(vec);
 		if (nr_pages == 0)
 			return -EINVAL;
 
@@ -556,15 +569,15 @@ int rds_rdma_extra_size(struct rds_rdma_args *args)
  * Extract all arguments and set up the rdma_op
  */
 int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
-			  struct cmsghdr *cmsg)
+		       struct cmsghdr *cmsg,
+		       struct rds_iov_vector *vec)
 {
 	struct rds_rdma_args *args;
 	struct rm_rdma_op *op = &rm->rdma;
 	int nr_pages;
 	unsigned int nr_bytes;
 	struct page **pages = NULL;
-	struct rds_iovec iovstack[UIO_FASTIOV], *iovs = iovstack;
-	int iov_size;
+	struct rds_iovec *iovs;
 	unsigned int i, j;
 	int ret = 0;
 
@@ -574,7 +587,7 @@ int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 
 	args = CMSG_DATA(cmsg);
 
-	if (rs->rs_bound_addr == 0) {
+	if (ipv6_addr_any(&rs->rs_bound_addr)) {
 		ret = -ENOTCONN; /* XXX not a great errno */
 		goto out_ret;
 	}
@@ -584,31 +597,23 @@ int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 		goto out_ret;
 	}
 
-	/* Check whether to allocate the iovec area */
-	iov_size = args->nr_local * sizeof(struct rds_iovec);
-	if (args->nr_local > UIO_FASTIOV) {
-		iovs = sock_kmalloc(rds_rs_to_sk(rs), iov_size, GFP_KERNEL);
-		if (!iovs) {
-			ret = -ENOMEM;
-			goto out_ret;
-		}
+	if (vec->len != args->nr_local) {
+		ret = -EINVAL;
+		goto out_ret;
 	}
 
-	if (copy_from_user(iovs, (struct rds_iovec __user *)(unsigned long) args->local_vec_addr, iov_size)) {
-		ret = -EFAULT;
-		goto out;
-	}
+	iovs = vec->iov;
 
 	nr_pages = rds_rdma_pages(iovs, args->nr_local);
 	if (nr_pages < 0) {
 		ret = -EINVAL;
-		goto out;
+		goto out_ret;
 	}
 
 	pages = kcalloc(nr_pages, sizeof(struct page *), GFP_KERNEL);
 	if (!pages) {
 		ret = -ENOMEM;
-		goto out;
+		goto out_ret;
 	}
 
 	op->op_write = !!(args->flags & RDS_RDMA_READWRITE);
@@ -618,11 +623,9 @@ int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 	op->op_active = 1;
 	op->op_recverr = rs->rs_recverr;
 	WARN_ON(!nr_pages);
-	op->op_sg = rds_message_alloc_sgs(rm, nr_pages);
-	if (!op->op_sg) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	op->op_sg = rds_message_alloc_sgs(rm, nr_pages, &ret);
+	if (!op->op_sg)
+		goto out_pages;
 
 	if (op->op_notify || op->op_recverr) {
 		/* We allocate an uninitialized notifier here, because
@@ -633,7 +636,7 @@ int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 		op->op_notifier = kmalloc(sizeof(struct rds_notifier), GFP_KERNEL);
 		if (!op->op_notifier) {
 			ret = -ENOMEM;
-			goto out;
+			goto out_pages;
 		}
 		op->op_notifier->n_user_token = args->user_token;
 		op->op_notifier->n_status = RDS_RDMA_SUCCESS;
@@ -679,7 +682,7 @@ int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 		 */
 		ret = rds_pin_pages(iov->addr, nr, pages, !op->op_write);
 		if (ret < 0)
-			goto out;
+			goto out_pages;
 		else
 			ret = 0;
 
@@ -712,13 +715,11 @@ int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 				nr_bytes,
 				(unsigned int) args->remote_vec.bytes);
 		ret = -EINVAL;
-		goto out;
+		goto out_pages;
 	}
 	op->op_bytes = nr_bytes;
 
-out:
-	if (iovs != iovstack)
-		sock_kfree_s(rds_rs_to_sk(rs), iovs, iov_size);
+out_pages:
 	kfree(pages);
 out_ret:
 	if (ret)
@@ -782,7 +783,8 @@ int rds_cmsg_rdma_map(struct rds_sock *rs, struct rds_message *rm,
 	    rm->m_rdma_cookie != 0)
 		return -EINVAL;
 
-	return __rds_rdma_map(rs, CMSG_DATA(cmsg), &rm->m_rdma_cookie, &rm->rdma.op_rdma_mr);
+	return __rds_rdma_map(rs, CMSG_DATA(cmsg), &rm->m_rdma_cookie,
+			      &rm->rdma.op_rdma_mr, rm->m_conn_path);
 }
 
 /*
@@ -835,11 +837,9 @@ int rds_cmsg_atomic(struct rds_sock *rs, struct rds_message *rm,
 	rm->atomic.op_silent = !!(args->flags & RDS_RDMA_SILENT);
 	rm->atomic.op_active = 1;
 	rm->atomic.op_recverr = rs->rs_recverr;
-	rm->atomic.op_sg = rds_message_alloc_sgs(rm, 1);
-	if (!rm->atomic.op_sg) {
-		ret = -ENOMEM;
+	rm->atomic.op_sg = rds_message_alloc_sgs(rm, 1, &ret);
+	if (!rm->atomic.op_sg)
 		goto err;
-	}
 
 	/* verify 8 byte-aligned */
 	if (args->local_addr & 0x7) {

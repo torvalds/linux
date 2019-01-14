@@ -34,12 +34,13 @@ qtnf_event_handle_sta_assoc(struct qtnf_wmac *mac, struct qtnf_vif *vif,
 {
 	const u8 *sta_addr;
 	u16 frame_control;
-	struct station_info sinfo = { 0 };
+	struct station_info *sinfo;
 	size_t payload_len;
 	u16 tlv_type;
 	u16 tlv_value_len;
 	size_t tlv_full_len;
 	const struct qlink_tlv_hdr *tlv;
+	int ret = 0;
 
 	if (unlikely(len < sizeof(*sta_assoc))) {
 		pr_err("VIF%u.%u: payload is too short (%u < %zu)\n",
@@ -53,6 +54,10 @@ qtnf_event_handle_sta_assoc(struct qtnf_wmac *mac, struct qtnf_vif *vif,
 		return -EPROTO;
 	}
 
+	sinfo = kzalloc(sizeof(*sinfo), GFP_KERNEL);
+	if (!sinfo)
+		return -ENOMEM;
+
 	sta_addr = sta_assoc->sta_addr;
 	frame_control = le16_to_cpu(sta_assoc->frame_control);
 
@@ -61,9 +66,9 @@ qtnf_event_handle_sta_assoc(struct qtnf_wmac *mac, struct qtnf_vif *vif,
 
 	qtnf_sta_list_add(vif, sta_addr);
 
-	sinfo.assoc_req_ies = NULL;
-	sinfo.assoc_req_ies_len = 0;
-	sinfo.generation = vif->generation;
+	sinfo->assoc_req_ies = NULL;
+	sinfo->assoc_req_ies_len = 0;
+	sinfo->generation = vif->generation;
 
 	payload_len = len - sizeof(*sta_assoc);
 	tlv = (const struct qlink_tlv_hdr *)sta_assoc->ies;
@@ -73,23 +78,27 @@ qtnf_event_handle_sta_assoc(struct qtnf_wmac *mac, struct qtnf_vif *vif,
 		tlv_value_len = le16_to_cpu(tlv->len);
 		tlv_full_len = tlv_value_len + sizeof(struct qlink_tlv_hdr);
 
-		if (tlv_full_len > payload_len)
-			return -EINVAL;
+		if (tlv_full_len > payload_len) {
+			ret = -EINVAL;
+			goto out;
+		}
 
 		if (tlv_type == QTN_TLV_ID_IE_SET) {
 			const struct qlink_tlv_ie_set *ie_set;
 			unsigned int ie_len;
 
-			if (payload_len < sizeof(*ie_set))
-				return -EINVAL;
+			if (payload_len < sizeof(*ie_set)) {
+				ret = -EINVAL;
+				goto out;
+			}
 
 			ie_set = (const struct qlink_tlv_ie_set *)tlv;
 			ie_len = tlv_value_len -
 				(sizeof(*ie_set) - sizeof(ie_set->hdr));
 
 			if (ie_set->type == QLINK_IE_SET_ASSOC_REQ && ie_len) {
-				sinfo.assoc_req_ies = ie_set->ie_data;
-				sinfo.assoc_req_ies_len = ie_len;
+				sinfo->assoc_req_ies = ie_set->ie_data;
+				sinfo->assoc_req_ies_len = ie_len;
 			}
 		}
 
@@ -97,13 +106,17 @@ qtnf_event_handle_sta_assoc(struct qtnf_wmac *mac, struct qtnf_vif *vif,
 		tlv = (struct qlink_tlv_hdr *)(tlv->val + tlv_value_len);
 	}
 
-	if (payload_len)
-		return -EINVAL;
+	if (payload_len) {
+		ret = -EINVAL;
+		goto out;
+	}
 
-	cfg80211_new_sta(vif->netdev, sta_assoc->sta_addr, &sinfo,
+	cfg80211_new_sta(vif->netdev, sta_assoc->sta_addr, sinfo,
 			 GFP_KERNEL);
 
-	return 0;
+out:
+	kfree(sinfo);
+	return ret;
 }
 
 static int
@@ -158,24 +171,14 @@ qtnf_event_handle_bss_join(struct qtnf_vif *vif,
 		return -EPROTO;
 	}
 
-	if (vif->sta_state != QTNF_STA_CONNECTING) {
-		pr_err("VIF%u.%u: BSS_JOIN event when STA is not connecting\n",
-		       vif->mac->macid, vif->vifid);
-		return -EPROTO;
-	}
-
 	pr_debug("VIF%u.%u: BSSID:%pM\n", vif->mac->macid, vif->vifid,
 		 join_info->bssid);
 
 	cfg80211_connect_result(vif->netdev, join_info->bssid, NULL, 0, NULL,
 				0, le16_to_cpu(join_info->status), GFP_KERNEL);
 
-	if (le16_to_cpu(join_info->status) == WLAN_STATUS_SUCCESS) {
-		vif->sta_state = QTNF_STA_CONNECTED;
+	if (le16_to_cpu(join_info->status) == WLAN_STATUS_SUCCESS)
 		netif_carrier_on(vif->netdev);
-	} else {
-		vif->sta_state = QTNF_STA_DISCONNECTED;
-	}
 
 	return 0;
 }
@@ -198,18 +201,10 @@ qtnf_event_handle_bss_leave(struct qtnf_vif *vif,
 		return -EPROTO;
 	}
 
-	if (vif->sta_state != QTNF_STA_CONNECTED) {
-		pr_err("VIF%u.%u: BSS_LEAVE event when STA is not connected\n",
-		       vif->mac->macid, vif->vifid);
-		return -EPROTO;
-	}
-
 	pr_debug("VIF%u.%u: disconnected\n", vif->mac->macid, vif->vifid);
 
 	cfg80211_disconnected(vif->netdev, le16_to_cpu(leave_info->reason),
 			      NULL, 0, 0, GFP_KERNEL);
-
-	vif->sta_state = QTNF_STA_DISCONNECTED;
 	netif_carrier_off(vif->netdev);
 
 	return 0;
@@ -442,6 +437,17 @@ static int qtnf_event_handle_radar(struct qtnf_vif *vif,
 
 		cfg80211_cac_event(vif->netdev, &chandef,
 				   NL80211_RADAR_CAC_ABORTED, GFP_KERNEL);
+		break;
+	case QLINK_RADAR_CAC_STARTED:
+		if (vif->wdev.cac_started)
+			break;
+
+		if (!wiphy_ext_feature_isset(wiphy,
+					     NL80211_EXT_FEATURE_DFS_OFFLOAD))
+			break;
+
+		cfg80211_cac_event(vif->netdev, &chandef,
+				   NL80211_RADAR_CAC_STARTED, GFP_KERNEL);
 		break;
 	default:
 		pr_warn("%s: unhandled radar event %u\n",

@@ -63,7 +63,7 @@ void bnxt_tx_int_xdp(struct bnxt *bp, struct bnxt_napi *bnapi, int nr_pkts)
 		tx_buf = &txr->tx_buf_ring[last_tx_cons];
 		rx_prod = tx_buf->rx_prod;
 	}
-	bnxt_db_write(bp, rxr->rx_doorbell, DB_KEY_RX | rx_prod);
+	bnxt_db_write(bp, &rxr->rx_db, rx_prod);
 }
 
 /* returns the following:
@@ -113,10 +113,10 @@ bool bnxt_rx_xdp(struct bnxt *bp, struct bnxt_rx_ring_info *rxr, u16 cons,
 	if (tx_avail != bp->tx_ring_size)
 		*event &= ~BNXT_RX_EVENT;
 
+	*len = xdp.data_end - xdp.data;
 	if (orig_data != xdp.data) {
 		offset = xdp.data - xdp.data_hard_start;
 		*data_ptr = xdp.data_hard_start + offset;
-		*len = xdp.data_end - xdp.data;
 	}
 	switch (act) {
 	case XDP_PASS:
@@ -219,7 +219,6 @@ int bnxt_xdp(struct net_device *dev, struct netdev_bpf *xdp)
 		rc = bnxt_xdp_set(bp, xdp->prog);
 		break;
 	case XDP_QUERY_PROG:
-		xdp->prog_attached = !!bp->xdp_prog;
 		xdp->prog_id = bp->xdp_prog ? bp->xdp_prog->aux->id : 0;
 		rc = 0;
 		break;

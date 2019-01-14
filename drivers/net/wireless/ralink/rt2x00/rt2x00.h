@@ -665,6 +665,7 @@ enum rt2x00_state_flags {
 	DEVICE_STATE_STARTED,
 	DEVICE_STATE_ENABLED_RADIO,
 	DEVICE_STATE_SCANNING,
+	DEVICE_STATE_FLUSHING,
 
 	/*
 	 * Driver configuration
@@ -979,6 +980,8 @@ struct rt2x00_dev {
 	 * FIFO for storing tx status reports between isr and tasklet.
 	 */
 	DECLARE_KFIFO_PTR(txstatus_fifo, u32);
+
+	unsigned long last_nostatus_check;
 
 	/*
 	 * Timer to ensure tx status reports are read (rt2800usb).
@@ -1457,10 +1460,6 @@ int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 #else
 #define rt2x00mac_set_key	NULL
 #endif /* CONFIG_RT2X00_LIB_CRYPTO */
-int rt2x00mac_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		      struct ieee80211_sta *sta);
-int rt2x00mac_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			 struct ieee80211_sta *sta);
 void rt2x00mac_sw_scan_start(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif,
 			     const u8 *mac_addr);

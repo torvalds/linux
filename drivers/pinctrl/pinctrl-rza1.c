@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Combined GPIO and pin controller support for Renesas RZ/A1 (r7s72100) SoC
  *
  * Copyright (C) 2017 Jacopo Mondi
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2. This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 
 /*
@@ -930,8 +927,8 @@ static int rza1_parse_pinmux_node(struct rza1_pinctrl *rza1_pctl,
 					      &npin_configs);
 	if (ret) {
 		dev_err(rza1_pctl->dev,
-			"Unable to parse pin configuration options for %s\n",
-			np->name);
+			"Unable to parse pin configuration options for %pOFn\n",
+			np);
 		return ret;
 	}
 
@@ -1006,6 +1003,7 @@ static int rza1_dt_node_to_map(struct pinctrl_dev *pctldev,
 	const char *grpname;
 	const char **fngrps;
 	int ret, npins;
+	int gsel, fsel;
 
 	npins = rza1_dt_node_pin_count(np);
 	if (npins < 0) {
@@ -1055,18 +1053,19 @@ static int rza1_dt_node_to_map(struct pinctrl_dev *pctldev,
 	fngrps[0] = grpname;
 
 	mutex_lock(&rza1_pctl->mutex);
-	ret = pinctrl_generic_add_group(pctldev, grpname, grpins, npins,
-					NULL);
-	if (ret) {
+	gsel = pinctrl_generic_add_group(pctldev, grpname, grpins, npins,
+					 NULL);
+	if (gsel < 0) {
 		mutex_unlock(&rza1_pctl->mutex);
-		return ret;
+		return gsel;
 	}
 
-	ret = pinmux_generic_add_function(pctldev, grpname, fngrps, 1,
-					  mux_confs);
-	if (ret)
+	fsel = pinmux_generic_add_function(pctldev, grpname, fngrps, 1,
+					   mux_confs);
+	if (fsel < 0) {
+		ret = fsel;
 		goto remove_group;
-	mutex_unlock(&rza1_pctl->mutex);
+	}
 
 	dev_info(rza1_pctl->dev, "Parsed function and group %s with %d pins\n",
 				 grpname, npins);
@@ -1083,15 +1082,15 @@ static int rza1_dt_node_to_map(struct pinctrl_dev *pctldev,
 	(*map)->data.mux.group = np->name;
 	(*map)->data.mux.function = np->name;
 	*num_maps = 1;
+	mutex_unlock(&rza1_pctl->mutex);
 
 	return 0;
 
 remove_function:
-	mutex_lock(&rza1_pctl->mutex);
-	pinmux_generic_remove_last_function(pctldev);
+	pinmux_generic_remove_function(pctldev, fsel);
 
 remove_group:
-	pinctrl_generic_remove_last_group(pctldev);
+	pinctrl_generic_remove_group(pctldev, gsel);
 	mutex_unlock(&rza1_pctl->mutex);
 
 	dev_info(rza1_pctl->dev, "Unable to parse function and group %s\n",
@@ -1224,8 +1223,8 @@ static int rza1_parse_gpiochip(struct rza1_pinctrl *rza1_pctl,
 
 	*chip		= rza1_gpiochip_template;
 	chip->base	= -1;
-	chip->label	= devm_kasprintf(rza1_pctl->dev, GFP_KERNEL, "%s",
-					 np->name);
+	chip->label	= devm_kasprintf(rza1_pctl->dev, GFP_KERNEL, "%pOFn",
+					 np);
 	chip->ngpio	= of_args.args[2];
 	chip->of_node	= np;
 	chip->parent	= rza1_pctl->dev;
@@ -1285,7 +1284,7 @@ static int rza1_gpio_register(struct rza1_pinctrl *rza1_pctl)
 		ret = rza1_parse_gpiochip(rza1_pctl, child, &gpio_chips[i],
 					  &gpio_ranges[i]);
 		if (ret)
-			goto gpiochip_remove;
+			return ret;
 
 		++i;
 	}
@@ -1293,12 +1292,6 @@ static int rza1_gpio_register(struct rza1_pinctrl *rza1_pctl)
 	dev_info(rza1_pctl->dev, "Registered %u gpio controllers\n", i);
 
 	return 0;
-
-gpiochip_remove:
-	for (; i > 0; i--)
-		devm_gpiochip_remove(rza1_pctl->dev, &gpio_chips[i - 1]);
-
-	return ret;
 }
 
 /**

@@ -25,6 +25,10 @@ Boards with the Amlogic Meson8b SoC shall have the following properties:
   Required root node property:
     compatible: "amlogic,meson8b";
 
+Boards with the Amlogic Meson8m2 SoC shall have the following properties:
+  Required root node property:
+    compatible: "amlogic,meson8m2";
+
 Boards with the Amlogic Meson GXBaby SoC shall have the following properties:
   Required root node property:
     compatible: "amlogic,meson-gxbb";
@@ -37,6 +41,14 @@ Boards with the Amlogic Meson GXL S905D SoC shall have the following properties:
   Required root node property:
     compatible: "amlogic,s905d", "amlogic,meson-gxl";
 
+Boards with the Amlogic Meson GXL S805X SoC shall have the following properties:
+  Required root node property:
+    compatible: "amlogic,s805x", "amlogic,meson-gxl";
+
+Boards with the Amlogic Meson GXL S905W SoC shall have the following properties:
+  Required root node property:
+    compatible: "amlogic,s905w", "amlogic,meson-gxl";
+
 Boards with the Amlogic Meson GXM S912 SoC shall have the following properties:
   Required root node property:
     compatible: "amlogic,s912", "amlogic,meson-gxm";
@@ -45,14 +57,21 @@ Boards with the Amlogic Meson AXG A113D SoC shall have the following properties:
   Required root node property:
     compatible: "amlogic,a113d", "amlogic,meson-axg";
 
+Boards with the Amlogic Meson G12A S905D2 SoC shall have the following properties:
+  Required root node property:
+    compatible: "amlogic,g12a";
+
 Board compatible values (alphabetically, grouped by SoC):
 
   - "geniatech,atv1200" (Meson6)
 
   - "minix,neo-x8" (Meson8)
 
+  - "endless,ec100" (Meson8b)
   - "hardkernel,odroid-c1" (Meson8b)
   - "tronfy,mxq" (Meson8b)
+
+  - "tronsmart,mxiii-plus" (Meson8m2)
 
   - "amlogic,p200" (Meson gxbb)
   - "amlogic,p201" (Meson gxbb)
@@ -73,6 +92,11 @@ Board compatible values (alphabetically, grouped by SoC):
   - "amlogic,p230" (Meson gxl s905d)
   - "amlogic,p231" (Meson gxl s905d)
 
+  - "amlogic,p241" (Meson gxl s805x)
+
+  - "amlogic,p281" (Meson gxl s905w)
+  - "oranth,tx3-mini" (Meson gxl s905w)
+
   - "amlogic,q200" (Meson gxm s912)
   - "amlogic,q201" (Meson gxm s912)
   - "khadas,vim2" (Meson gxm s912)
@@ -81,6 +105,8 @@ Board compatible values (alphabetically, grouped by SoC):
   - "tronsmart,vega-s96" (Meson gxm s912)
 
   - "amlogic,s400" (Meson axg a113d)
+
+  - "amlogic,u200" (Meson g12a s905d2)
 
 Amlogic Meson Firmware registers Interface
 ------------------------------------------

@@ -1,35 +1,5 @@
-/*
- * Copyright (C) 2015-2017 Netronome Systems, Inc.
- *
- * This software is dual licensed under the GNU General License Version 2,
- * June 1991 as shown in the file COPYING in the top-level directory of this
- * source tree or the BSD 2-Clause License provided below.  You have the
- * option to license this software under the complete terms of either license.
- *
- * The BSD 2-Clause License:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      1. Redistributions of source code must retain the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer.
- *
- *      2. Redistributions in binary form must reproduce the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer in the documentation and/or other materials
- *         provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/* Copyright (C) 2015-2018 Netronome Systems, Inc. */
 
 /*
  * nfp_main.c
@@ -55,6 +25,7 @@
 
 #include "nfpcore/nfp6000_pcie.h"
 
+#include "nfp_abi.h"
 #include "nfp_app.h"
 #include "nfp_main.h"
 #include "nfp_net.h"
@@ -67,6 +38,10 @@ static const struct pci_device_id nfp_pci_device_ids[] = {
 	  PCI_VENDOR_ID_NETRONOME, PCI_ANY_ID,
 	  PCI_ANY_ID, 0,
 	},
+	{ PCI_VENDOR_ID_NETRONOME, PCI_DEVICE_ID_NETRONOME_NFP5000,
+	  PCI_VENDOR_ID_NETRONOME, PCI_ANY_ID,
+	  PCI_ANY_ID, 0,
+	},
 	{ PCI_VENDOR_ID_NETRONOME, PCI_DEVICE_ID_NETRONOME_NFP4000,
 	  PCI_VENDOR_ID_NETRONOME, PCI_ANY_ID,
 	  PCI_ANY_ID, 0,
@@ -74,6 +49,116 @@ static const struct pci_device_id nfp_pci_device_ids[] = {
 	{ 0, } /* Required last entry. */
 };
 MODULE_DEVICE_TABLE(pci, nfp_pci_device_ids);
+
+int nfp_pf_rtsym_read_optional(struct nfp_pf *pf, const char *format,
+			       unsigned int default_val)
+{
+	char name[256];
+	int err = 0;
+	u64 val;
+
+	snprintf(name, sizeof(name), format, nfp_cppcore_pcie_unit(pf->cpp));
+
+	val = nfp_rtsym_read_le(pf->rtbl, name, &err);
+	if (err) {
+		if (err == -ENOENT)
+			return default_val;
+		nfp_err(pf->cpp, "Unable to read symbol %s\n", name);
+		return err;
+	}
+
+	return val;
+}
+
+u8 __iomem *
+nfp_pf_map_rtsym(struct nfp_pf *pf, const char *name, const char *sym_fmt,
+		 unsigned int min_size, struct nfp_cpp_area **area)
+{
+	char pf_symbol[256];
+
+	snprintf(pf_symbol, sizeof(pf_symbol), sym_fmt,
+		 nfp_cppcore_pcie_unit(pf->cpp));
+
+	return nfp_rtsym_map(pf->rtbl, pf_symbol, name, min_size, area);
+}
+
+/* Callers should hold the devlink instance lock */
+int nfp_mbox_cmd(struct nfp_pf *pf, u32 cmd, void *in_data, u64 in_length,
+		 void *out_data, u64 out_length)
+{
+	unsigned long err_at;
+	u64 max_data_sz;
+	u32 val = 0;
+	int n, err;
+
+	if (!pf->mbox)
+		return -EOPNOTSUPP;
+
+	max_data_sz = nfp_rtsym_size(pf->mbox) - NFP_MBOX_SYM_MIN_SIZE;
+
+	/* Check if cmd field is clear */
+	err = nfp_rtsym_readl(pf->cpp, pf->mbox, NFP_MBOX_CMD, &val);
+	if (err || val) {
+		nfp_warn(pf->cpp, "failed to issue command (%u): %u, err: %d\n",
+			 cmd, val, err);
+		return err ?: -EBUSY;
+	}
+
+	in_length = min(in_length, max_data_sz);
+	n = nfp_rtsym_write(pf->cpp, pf->mbox, NFP_MBOX_DATA, in_data,
+			    in_length);
+	if (n != in_length)
+		return -EIO;
+	/* Write data_len and wipe reserved */
+	err = nfp_rtsym_writeq(pf->cpp, pf->mbox, NFP_MBOX_DATA_LEN, in_length);
+	if (err)
+		return err;
+
+	/* Read back for ordering */
+	err = nfp_rtsym_readl(pf->cpp, pf->mbox, NFP_MBOX_DATA_LEN, &val);
+	if (err)
+		return err;
+
+	/* Write cmd and wipe return value */
+	err = nfp_rtsym_writeq(pf->cpp, pf->mbox, NFP_MBOX_CMD, cmd);
+	if (err)
+		return err;
+
+	err_at = jiffies + 5 * HZ;
+	while (true) {
+		/* Wait for command to go to 0 (NFP_MBOX_NO_CMD) */
+		err = nfp_rtsym_readl(pf->cpp, pf->mbox, NFP_MBOX_CMD, &val);
+		if (err)
+			return err;
+		if (!val)
+			break;
+
+		if (time_is_before_eq_jiffies(err_at))
+			return -ETIMEDOUT;
+
+		msleep(5);
+	}
+
+	/* Copy output if any (could be error info, do it before reading ret) */
+	err = nfp_rtsym_readl(pf->cpp, pf->mbox, NFP_MBOX_DATA_LEN, &val);
+	if (err)
+		return err;
+
+	out_length = min_t(u32, val, min(out_length, max_data_sz));
+	n = nfp_rtsym_read(pf->cpp, pf->mbox, NFP_MBOX_DATA,
+			   out_data, out_length);
+	if (n != out_length)
+		return -EIO;
+
+	/* Check if there is an error */
+	err = nfp_rtsym_readl(pf->cpp, pf->mbox, NFP_MBOX_RET, &val);
+	if (err)
+		return err;
+	if (val)
+		return -val;
+
+	return out_length;
+}
 
 static bool nfp_board_ready(struct nfp_pf *pf)
 {
@@ -119,17 +204,20 @@ static int nfp_pcie_sriov_read_nfd_limit(struct nfp_pf *pf)
 	int err;
 
 	pf->limit_vfs = nfp_rtsym_read_le(pf->rtbl, "nfd_vf_cfg_max_vfs", &err);
-	if (!err)
-		return pci_sriov_set_totalvfs(pf->pdev, pf->limit_vfs);
+	if (err) {
+		/* For backwards compatibility if symbol not found allow all */
+		pf->limit_vfs = ~0;
+		if (err == -ENOENT)
+			return 0;
 
-	pf->limit_vfs = ~0;
-	pci_sriov_set_totalvfs(pf->pdev, 0); /* 0 is unset */
-	/* Allow any setting for backwards compatibility if symbol not found */
-	if (err == -ENOENT)
-		return 0;
+		nfp_warn(pf->cpp, "Warning: VF limit read failed: %d\n", err);
+		return err;
+	}
 
-	nfp_warn(pf->cpp, "Warning: VF limit read failed: %d\n", err);
-	return err;
+	err = pci_sriov_set_totalvfs(pf->pdev, pf->limit_vfs);
+	if (err)
+		nfp_warn(pf->cpp, "Failed to set VF count in sysfs: %d\n", err);
+	return 0;
 }
 
 static int nfp_pcie_sriov_enable(struct pci_dev *pdev, int num_vfs)
@@ -321,8 +409,11 @@ nfp_fw_load(struct pci_dev *pdev, struct nfp_pf *pf, struct nfp_nsp *nsp)
 	}
 
 	fw = nfp_net_fw_find(pdev, pf);
-	if (!fw)
+	if (!fw) {
+		if (nfp_nsp_has_stored_fw_load(nsp))
+			nfp_nsp_load_stored_fw(nsp);
 		return 0;
+	}
 
 	dev_info(&pdev->dev, "Soft-reset, loading FW image\n");
 	err = nfp_nsp_device_soft_reset(nsp);
@@ -333,7 +424,6 @@ nfp_fw_load(struct pci_dev *pdev, struct nfp_pf *pf, struct nfp_nsp *nsp)
 	}
 
 	err = nfp_nsp_load_fw(nsp, fw);
-
 	if (err < 0) {
 		dev_err(&pdev->dev, "FW loading failed: %d\n", err);
 		goto exit_release_fw;
@@ -436,6 +526,25 @@ static void nfp_fw_unload(struct nfp_pf *pf)
 	nfp_nsp_close(nsp);
 }
 
+static int nfp_pf_find_rtsyms(struct nfp_pf *pf)
+{
+	char pf_symbol[256];
+	unsigned int pf_id;
+
+	pf_id = nfp_cppcore_pcie_unit(pf->cpp);
+
+	/* Optional per-PCI PF mailbox */
+	snprintf(pf_symbol, sizeof(pf_symbol), NFP_MBOX_SYM_NAME, pf_id);
+	pf->mbox = nfp_rtsym_lookup(pf->rtbl, pf_symbol);
+	if (pf->mbox && nfp_rtsym_size(pf->mbox) < NFP_MBOX_SYM_MIN_SIZE) {
+		nfp_err(pf->cpp, "PF mailbox symbol too small: %llu < %d\n",
+			nfp_rtsym_size(pf->mbox), NFP_MBOX_SYM_MIN_SIZE);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int nfp_pci_probe(struct pci_dev *pdev,
 			 const struct pci_device_id *pci_id)
 {
@@ -486,6 +595,10 @@ static int nfp_pci_probe(struct pci_dev *pdev,
 		goto err_disable_msix;
 	}
 
+	err = nfp_resource_table_init(pf->cpp);
+	if (err)
+		goto err_cpp_free;
+
 	pf->hwinfo = nfp_hwinfo_read(pf->cpp);
 
 	dev_info(&pdev->dev, "Assembly: %s%s%s-%s CPLD: %s\n",
@@ -506,6 +619,10 @@ static int nfp_pci_probe(struct pci_dev *pdev,
 	pf->mip = nfp_mip_open(pf->cpp);
 	pf->rtbl = __nfp_rtsym_table_read(pf->cpp, pf->mip);
 
+	err = nfp_pf_find_rtsyms(pf);
+	if (err)
+		goto err_fw_unload;
+
 	pf->dump_flag = NFP_DUMP_NSP_DIAG;
 	pf->dumpspec = nfp_net_dump_load_dumpspec(pf->cpp, pf->rtbl);
 
@@ -524,7 +641,7 @@ static int nfp_pci_probe(struct pci_dev *pdev,
 
 	err = nfp_net_pci_probe(pf);
 	if (err)
-		goto err_sriov_unlimit;
+		goto err_fw_unload;
 
 	err = nfp_hwmon_register(pf);
 	if (err) {
@@ -536,8 +653,6 @@ static int nfp_pci_probe(struct pci_dev *pdev,
 
 err_net_remove:
 	nfp_net_pci_remove(pf);
-err_sriov_unlimit:
-	pci_sriov_set_totalvfs(pf->pdev, 0);
 err_fw_unload:
 	kfree(pf->rtbl);
 	nfp_mip_close(pf->mip);
@@ -548,6 +663,7 @@ err_fw_unload:
 	vfree(pf->dumpspec);
 err_hwinfo_free:
 	kfree(pf->hwinfo);
+err_cpp_free:
 	nfp_cpp_free(pf->cpp);
 err_disable_msix:
 	destroy_workqueue(pf->wq);
@@ -570,7 +686,6 @@ static void nfp_pci_remove(struct pci_dev *pdev)
 	nfp_hwmon_unregister(pf);
 
 	nfp_pcie_sriov_disable(pdev);
-	pci_sriov_set_totalvfs(pf->pdev, 0);
 
 	nfp_net_pci_remove(pf);
 

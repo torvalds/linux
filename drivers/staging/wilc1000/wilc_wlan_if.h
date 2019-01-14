@@ -1,12 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* ///////////////////////////////////////////////////////////////////////// */
-/*  */
-/* Copyright (c) Atmel Corporation.  All rights reserved. */
-/*  */
-/* Module Name:  wilc_wlan_if.h */
-/*  */
-/*  */
-/* ///////////////////////////////////////////////////////////////////////// */
+/*
+ * Copyright (c) 2012 - 2018 Microchip Technology Inc., and its subsidiaries.
+ * All rights reserved.
+ */
 
 #ifndef WILC_WLAN_IF_H
 #define WILC_WLAN_IF_H
@@ -21,7 +17,6 @@
 
 #define HIF_SDIO		(0)
 #define HIF_SPI			BIT(0)
-#define HIF_SDIO_GPIO_IRQ	BIT(2)
 
 /********************************************
  *
@@ -48,12 +43,9 @@ struct sdio_cmd53 {
 	u32 block_size;
 };
 
-#define WILC_MAC_INDICATE_STATUS	0x1
-#define WILC_MAC_STATUS_INIT		-1
-#define WILC_MAC_STATUS_READY		0
-#define WILC_MAC_STATUS_CONNECT		1
-
-#define WILC_MAC_INDICATE_SCAN		0x2
+#define MAC_STATUS_INIT			-1
+#define MAC_STATUS_CONNECTED		1
+#define MAC_STATUS_DISCONNECTED		0
 
 struct tx_complete_data {
 	int size;
@@ -75,36 +67,10 @@ typedef void (*wilc_tx_complete_func_t)(void *, int);
 #define MAX_SSID_LEN            33
 #define MAX_RATES_SUPPORTED     12
 
-enum {
-	SUPP_RATES_IE		= 1,
-	EXT_SUPP_RATES_IE	= 50,
-	HT_CAPABILITY_IE	= 45,
-	RSN_IE			= 48,
-	WPA_IE			= 221,
-	WMM_IE			= 221,
-	P2P_IE			= 221,
-};
-
 enum bss_types {
 	INFRASTRUCTURE		= 0,
 	INDEPENDENT,
 	AP,
-};
-
-enum {
-	RATE_AUTO		= 0,
-	RATE_1MB		= 1,
-	RATE_2MB		= 2,
-	RATE_5MB		= 5,
-	RATE_6MB		= 6,
-	RATE_9MB		= 9,
-	RATE_11MB		= 11,
-	RATE_12MB		= 12,
-	RATE_18MB		= 18,
-	RATE_24MB		= 24,
-	RATE_26MB		= 36,
-	RATE_48MB		= 48,
-	RATE_54MB		= 54
 };
 
 enum {
@@ -120,10 +86,6 @@ enum {
 	G_AUTO_PREAMBLE		= 2,	/* Auto Preamble Selection */
 };
 
-#define MAC_CONNECTED		1
-#define MAC_DISCONNECTED	0
-
-#define SCAN_DONE		TRUE
 enum {
 	PASSIVE_SCAN		= 0,
 	ACTIVE_SCAN		= 1,
@@ -165,14 +127,14 @@ enum {
 	WPA2_AES_TKIP		= 0x71,	/* Aes or Tkip */
 };
 
-enum AUTHTYPE {
+enum authtype {
 	OPEN_SYSTEM		= 1,
 	SHARED_KEY		= 2,
 	ANY			= 3,
 	IEEE8021		= 5
 };
 
-enum SITESURVEY {
+enum site_survey {
 	SITE_SURVEY_1CH		= 0,
 	SITE_SURVEY_ALL_CH	= 1,
 	SITE_SURVEY_OFF		= 2
@@ -181,12 +143,6 @@ enum SITESURVEY {
 enum {
 	NORMAL_ACK		= 0,
 	NO_ACK,
-};
-
-enum {
-	DONT_RESET		= 0,
-	DO_RESET		= 1,
-	NO_REQUEST		= 2,
 };
 
 enum {
@@ -200,17 +156,6 @@ enum {
 	FILTER_NO		= 0x00,
 	FILTER_AP_ONLY		= 0x01,
 	FILTER_STA_ONLY		= 0x02
-};
-
-enum {
-	PRI_HIGH_RSSI		= 0x00,
-	PRI_LOW_RSSI		= 0x04,
-	PRI_DETECT		= 0x08
-};
-
-enum {
-	CH_FILTER_OFF		= 0x00,
-	CH_FILTER_ON		= 0x10
 };
 
 enum {
@@ -252,15 +197,6 @@ enum {
 	MIMO_MODE		= 3,	/* power save disable */
 };
 
-enum {
-	DISABLE_SELF_CTS,
-	ENABLE_SELF_CTS,
-	DISABLE_TX_ABORT,
-	ENABLE_TX_ABORT,
-	HW_TRIGGER_ABORT,
-	SW_TRIGGER_ABORT,
-};
-
 enum wid_type {
 	WID_CHAR		= 0,
 	WID_SHORT		= 1,
@@ -268,10 +204,6 @@ enum wid_type {
 	WID_STR			= 3,
 	WID_BIN_DATA		= 4,
 	WID_BIN			= 5,
-	WID_IP			= 6,
-	WID_ADR			= 7,
-	WID_UNDEF		= 8,
-	WID_TYPE_FORCE_32BIT	= 0xFFFFFFFF
 };
 
 struct wid {
@@ -741,7 +673,7 @@ enum {
 
 	WID_DEL_BEACON			= 0x00CA,
 
-	WID_LOGTerminal_Switch		= 0x00CD,
+	WID_LOG_TERMINAL_SWITCH		= 0x00CD,
 	WID_TX_POWER			= 0x00CE,
 	/*  EMAC Short WID list */
 	/*  RTS Threshold */

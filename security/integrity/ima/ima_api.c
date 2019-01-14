@@ -51,7 +51,8 @@ int ima_alloc_init_template(struct ima_event_data *event_data,
 
 	(*entry)->template_desc = template_desc;
 	for (i = 0; i < template_desc->num_fields; i++) {
-		struct ima_template_field *field = template_desc->fields[i];
+		const struct ima_template_field *field =
+			template_desc->fields[i];
 		u32 len;
 
 		result = field->field_init(event_data,
@@ -326,7 +327,7 @@ void ima_audit_measurement(struct integrity_iint_cache *iint,
 		hex_byte_pack(hash + (i * 2), iint->ima_hash->digest[i]);
 	hash[i * 2] = '\0';
 
-	ab = audit_log_start(current->audit_context, GFP_KERNEL,
+	ab = audit_log_start(audit_context(), GFP_KERNEL,
 			     AUDIT_INTEGRITY_RULE);
 	if (!ab)
 		goto out;

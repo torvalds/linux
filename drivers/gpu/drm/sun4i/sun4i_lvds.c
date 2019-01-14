@@ -75,7 +75,7 @@ static void sun4i_lvds_encoder_enable(struct drm_encoder *encoder)
 
 	DRM_DEBUG_DRIVER("Enabling LVDS output\n");
 
-	if (!IS_ERR(tcon->panel)) {
+	if (tcon->panel) {
 		drm_panel_prepare(tcon->panel);
 		drm_panel_enable(tcon->panel);
 	}
@@ -88,7 +88,7 @@ static void sun4i_lvds_encoder_disable(struct drm_encoder *encoder)
 
 	DRM_DEBUG_DRIVER("Disabling LVDS output\n");
 
-	if (!IS_ERR(tcon->panel)) {
+	if (tcon->panel) {
 		drm_panel_disable(tcon->panel);
 		drm_panel_unprepare(tcon->panel);
 	}
@@ -136,7 +136,7 @@ int sun4i_lvds_init(struct drm_device *drm, struct sun4i_tcon *tcon)
 	}
 
 	/* The LVDS encoder can only work with the TCON channel 0 */
-	lvds->encoder.possible_crtcs = BIT(drm_crtc_index(&tcon->crtc->crtc));
+	lvds->encoder.possible_crtcs = drm_crtc_mask(&tcon->crtc->crtc);
 
 	if (tcon->panel) {
 		drm_connector_helper_add(&lvds->connector,
@@ -149,7 +149,7 @@ int sun4i_lvds_init(struct drm_device *drm, struct sun4i_tcon *tcon)
 			goto err_cleanup_connector;
 		}
 
-		drm_mode_connector_attach_encoder(&lvds->connector,
+		drm_connector_attach_encoder(&lvds->connector,
 						  &lvds->encoder);
 
 		ret = drm_panel_attach(tcon->panel, &lvds->connector);

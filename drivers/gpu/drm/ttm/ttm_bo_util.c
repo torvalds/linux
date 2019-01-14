@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /**************************************************************************
  *
  * Copyright (c) 2007-2009 VMware, Inc., Palo Alto, CA., USA
@@ -38,6 +39,11 @@
 #include <linux/vmalloc.h>
 #include <linux/module.h>
 #include <linux/reservation.h>
+
+struct ttm_transfer_obj {
+	struct ttm_buffer_object base;
+	struct ttm_buffer_object *bo;
+};
 
 void ttm_bo_free_old_node(struct ttm_buffer_object *bo)
 {
@@ -454,7 +460,11 @@ EXPORT_SYMBOL(ttm_bo_move_memcpy);
 
 static void ttm_transfered_destroy(struct ttm_buffer_object *bo)
 {
-	kfree(bo);
+	struct ttm_transfer_obj *fbo;
+
+	fbo = container_of(bo, struct ttm_transfer_obj, base);
+	ttm_bo_put(fbo->bo);
+	kfree(fbo);
 }
 
 /**
@@ -475,14 +485,18 @@ static void ttm_transfered_destroy(struct ttm_buffer_object *bo)
 static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 				      struct ttm_buffer_object **new_obj)
 {
-	struct ttm_buffer_object *fbo;
+	struct ttm_transfer_obj *fbo;
 	int ret;
 
 	fbo = kmalloc(sizeof(*fbo), GFP_KERNEL);
 	if (!fbo)
 		return -ENOMEM;
 
-	*fbo = *bo;
+	fbo->base = *bo;
+	fbo->base.mem.placement |= TTM_PL_FLAG_NO_EVICT;
+
+	ttm_bo_get(bo);
+	fbo->bo = bo;
 
 	/**
 	 * Fix up members that we shouldn't copy directly:
@@ -490,25 +504,25 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 	 */
 
 	atomic_inc(&bo->bdev->glob->bo_count);
-	INIT_LIST_HEAD(&fbo->ddestroy);
-	INIT_LIST_HEAD(&fbo->lru);
-	INIT_LIST_HEAD(&fbo->swap);
-	INIT_LIST_HEAD(&fbo->io_reserve_lru);
-	mutex_init(&fbo->wu_mutex);
-	fbo->moving = NULL;
-	drm_vma_node_reset(&fbo->vma_node);
-	atomic_set(&fbo->cpu_writers, 0);
+	INIT_LIST_HEAD(&fbo->base.ddestroy);
+	INIT_LIST_HEAD(&fbo->base.lru);
+	INIT_LIST_HEAD(&fbo->base.swap);
+	INIT_LIST_HEAD(&fbo->base.io_reserve_lru);
+	mutex_init(&fbo->base.wu_mutex);
+	fbo->base.moving = NULL;
+	drm_vma_node_reset(&fbo->base.vma_node);
+	atomic_set(&fbo->base.cpu_writers, 0);
 
-	kref_init(&fbo->list_kref);
-	kref_init(&fbo->kref);
-	fbo->destroy = &ttm_transfered_destroy;
-	fbo->acc_size = 0;
-	fbo->resv = &fbo->ttm_resv;
-	reservation_object_init(fbo->resv);
-	ret = reservation_object_trylock(fbo->resv);
+	kref_init(&fbo->base.list_kref);
+	kref_init(&fbo->base.kref);
+	fbo->base.destroy = &ttm_transfered_destroy;
+	fbo->base.acc_size = 0;
+	fbo->base.resv = &fbo->base.ttm_resv;
+	reservation_object_init(fbo->base.resv);
+	ret = reservation_object_trylock(fbo->base.resv);
 	WARN_ON(!ret);
 
-	*new_obj = fbo;
+	*new_obj = &fbo->base;
 	return 0;
 }
 
@@ -617,10 +631,7 @@ int ttm_bo_kmap(struct ttm_buffer_object *bo,
 		return -EINVAL;
 	if (start_page > bo->num_pages)
 		return -EINVAL;
-#if 0
-	if (num_pages > 1 && !capable(CAP_SYS_ADMIN))
-		return -EPERM;
-#endif
+
 	(void) ttm_mem_io_lock(man, false);
 	ret = ttm_mem_io_reserve(bo->bdev, &bo->mem);
 	ttm_mem_io_unlock(man);
@@ -719,7 +730,7 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 			bo->ttm = NULL;
 
 		ttm_bo_unreserve(ghost_obj);
-		ttm_bo_unref(&ghost_obj);
+		ttm_bo_put(ghost_obj);
 	}
 
 	*old_mem = *new_mem;
@@ -775,7 +786,7 @@ int ttm_bo_pipeline_move(struct ttm_buffer_object *bo,
 			bo->ttm = NULL;
 
 		ttm_bo_unreserve(ghost_obj);
-		ttm_bo_unref(&ghost_obj);
+		ttm_bo_put(ghost_obj);
 
 	} else if (from->flags & TTM_MEMTYPE_FLAG_FIXED) {
 
@@ -840,7 +851,7 @@ int ttm_bo_pipeline_gutting(struct ttm_buffer_object *bo)
 	bo->ttm = NULL;
 
 	ttm_bo_unreserve(ghost);
-	ttm_bo_unref(&ghost);
+	ttm_bo_put(ghost);
 
 	return 0;
 }

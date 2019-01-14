@@ -1,0 +1,46 @@
+* Omnivision OV2680 MIPI CSI-2 sensor
+
+Required Properties:
+- compatible: should be "ovti,ov2680".
+- clocks: reference to the xvclk input clock.
+- clock-names: should be "xvclk".
+- DOVDD-supply: Digital I/O voltage supply.
+- DVDD-supply: Digital core voltage supply.
+- AVDD-supply: Analog voltage supply.
+
+Optional Properties:
+- reset-gpios: reference to the GPIO connected to the powerdown/reset pin,
+               if any. This is an active low signal to the OV2680.
+
+The device node must contain one 'port' child node for its digital output
+video port, and this port must have a single endpoint in accordance with
+ the video interface bindings defined in
+Documentation/devicetree/bindings/media/video-interfaces.txt.
+
+Endpoint node required properties for CSI-2 connection are:
+- remote-endpoint: a phandle to the bus receiver's endpoint node.
+- clock-lanes: should be set to <0> (clock lane on hardware lane 0).
+- data-lanes: should be set to <1> (one CSI-2 lane supported).
+
+Example:
+
+&i2c2 {
+	ov2680: camera-sensor@36 {
+		compatible = "ovti,ov2680";
+		reg = <0x36>;
+		clocks = <&osc>;
+		clock-names = "xvclk";
+		reset-gpios = <&gpio1 3 GPIO_ACTIVE_LOW>;
+		DOVDD-supply = <&sw2_reg>;
+		DVDD-supply = <&sw2_reg>;
+		AVDD-supply = <&reg_peri_3p15v>;
+
+		port {
+			ov2680_to_mipi: endpoint {
+				remote-endpoint = <&mipi_from_sensor>;
+				clock-lanes = <0>;
+				data-lanes = <1>;
+			};
+		};
+	};
+};
