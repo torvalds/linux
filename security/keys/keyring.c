@@ -246,6 +246,7 @@ static unsigned long keyring_get_key_chunk(const void *data, int level)
 				    (ASSOC_ARRAY_KEY_CHUNK_SIZE - 8));
 		n--;
 		offset = 1;
+		/* fall through */
 	default:
 		offset += sizeof(chunk) - 1;
 		offset += (level - 3) * sizeof(chunk);
