@@ -539,6 +539,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3288-evb-act8846.dtb \
 	rk3288-evb-android-act8846-edp.dtb \
 	rk3288-evb-android-rk808-edp.dtb \
+	rk3288-evb-android-rk808-edp-avb.dtb \
 	rk3288-evb-android-rk818-edp.dtb \
 	rk3288-evb-android-rk818-hdmi.dtb \
 	rk3288-evb-android-rk818-lvds.dtb \
@@ -562,6 +563,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3288-r89.dtb \
 	rk3288-rock2-square.dtb \
 	rk3288-th804.dtb \
+	rk3288-th804-avb.dtb \
 	rk3288-veyron-jaq.dtb \
 	rk3288-veyron-jerry.dtb \
 	rk3288-veyron-minnie.dtb \
