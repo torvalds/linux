@@ -140,14 +140,19 @@ psp_cmd_submit_buf(struct psp_context *psp,
 	while (*((unsigned int *)psp->fence_buf) != index)
 		msleep(1);
 
-	/* the status field must be 0 after psp command completion */
+	/* In some cases, psp response status is not 0 even there is no
+	 * problem while the command is submitted. Some version of PSP FW
+	 * doesn't write 0 to that field.
+	 * So here we would like to only print a warning instead of an error
+	 * during psp initialization to avoid breaking hw_init and it doesn't
+	 * return -EINVAL.
+	 */
 	if (psp->cmd_buf_mem->resp.status) {
 		if (ucode)
-			DRM_ERROR("failed to load ucode id (%d) ",
+			DRM_WARN("failed to load ucode id (%d) ",
 				  ucode->ucode_id);
-		DRM_ERROR("psp command failed and response status is (%d)\n",
+		DRM_WARN("psp command failed and response status is (%d)\n",
 			  psp->cmd_buf_mem->resp.status);
-		return -EINVAL;
 	}
 
 	/* get xGMI session id from response buffer */
