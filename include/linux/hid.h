@@ -658,7 +658,6 @@ struct hid_parser {
 	unsigned int         *collection_stack;
 	unsigned int          collection_stack_ptr;
 	unsigned int          collection_stack_size;
-	int                   active_collection_idx; /* device->collection */
 	struct hid_device    *device;
 	unsigned int          scan_flags;
 };
