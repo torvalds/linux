@@ -1124,6 +1124,49 @@ static int smu_v11_0_read_sensor(struct smu_context *smu,
 	return ret;
 }
 
+static int
+smu_v11_0_display_clock_voltage_request(struct smu_context *smu,
+					struct pp_display_clock_request
+					*clock_req)
+{
+	enum amd_pp_clock_type clk_type = clock_req->clock_type;
+	int ret = 0;
+	PPCLK_e clk_select = 0;
+	uint32_t clk_freq = clock_req->clock_freq_in_khz / 1000;
+
+	mutex_lock(&smu->mutex);
+	if (smu_feature_is_enabled(smu, FEATURE_DPM_DCEFCLK_BIT)) {
+		switch (clk_type) {
+		case amd_pp_dcef_clock:
+			clk_select = PPCLK_DCEFCLK;
+			break;
+		case amd_pp_disp_clock:
+			clk_select = PPCLK_DISPCLK;
+			break;
+		case amd_pp_pixel_clock:
+			clk_select = PPCLK_PIXCLK;
+			break;
+		case amd_pp_phy_clock:
+			clk_select = PPCLK_PHYCLK;
+			break;
+		default:
+			pr_info("[%s] Invalid Clock Type!", __func__);
+			ret = -EINVAL;
+			break;
+		}
+
+		if (ret)
+			goto failed;
+
+		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetHardMinByFreq,
+						  (clk_select << 16) | clk_freq);
+	}
+
+failed:
+	mutex_unlock(&smu->mutex);
+	return ret;
+}
+
 static const struct smu_funcs smu_v11_0_funcs = {
 	.init_microcode = smu_v11_0_init_microcode,
 	.load_microcode = smu_v11_0_load_microcode,
@@ -1158,6 +1201,7 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.start_thermal_control = smu_v11_0_start_thermal_control,
 	.read_sensor = smu_v11_0_read_sensor,
 	.set_deep_sleep_dcefclk = smu_v11_0_set_deep_sleep_dcefclk,
+	.display_clock_voltage_request = smu_v11_0_display_clock_voltage_request,
 };
 
 void smu_v11_0_set_smu_funcs(struct smu_context *smu)

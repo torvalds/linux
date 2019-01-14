@@ -476,6 +476,10 @@ bool dm_pp_apply_clock_for_voltage_request(
 		ret = adev->powerplay.pp_funcs->display_clock_voltage_request(
 			adev->powerplay.pp_handle,
 			&pp_clock_request);
+	else if (adev->smu.funcs &&
+		 adev->smu.funcs->display_clock_voltage_request)
+		ret = smu_display_clock_voltage_request(&adev->smu,
+							&pp_clock_request);
 	if (ret)
 		return false;
 	return true;
@@ -512,16 +516,19 @@ void pp_rv_set_display_requirement(struct pp_smu *pp,
 	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
 	struct pp_display_clock_request clock = {0};
 
-	if (!pp_funcs || !pp_funcs->display_clock_voltage_request)
-		return;
-
 	clock.clock_type = amd_pp_dcf_clock;
 	clock.clock_freq_in_khz = req->hard_min_dcefclk_mhz * 1000;
-	pp_funcs->display_clock_voltage_request(pp_handle, &clock);
+	if (pp_funcs && pp_funcs->display_clock_voltage_request)
+		pp_funcs->display_clock_voltage_request(pp_handle, &clock);
+	else if (adev->smu.funcs && adev->smu.funcs->display_clock_voltage_request)
+		smu_display_clock_voltage_request(&adev->smu, &clock);
 
 	clock.clock_type = amd_pp_f_clock;
 	clock.clock_freq_in_khz = req->hard_min_fclk_mhz * 1000;
-	pp_funcs->display_clock_voltage_request(pp_handle, &clock);
+	if (pp_funcs && pp_funcs->display_clock_voltage_request)
+		pp_funcs->display_clock_voltage_request(pp_handle, &clock);
+	else if (adev->smu.funcs && adev->smu.funcs->display_clock_voltage_request)
+		smu_display_clock_voltage_request(&adev->smu, &clock);
 }
 
 void pp_rv_set_wm_ranges(struct pp_smu *pp,

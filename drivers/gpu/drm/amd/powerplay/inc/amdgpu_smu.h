@@ -284,6 +284,9 @@ struct smu_funcs
 				 struct amd_pp_clocks *clocks);
 	int (*get_max_high_clocks)(struct smu_context *smu,
 				   struct amd_pp_simple_clock_info *clocks);
+	int (*display_clock_voltage_request)(struct smu_context *smu, struct
+					     pp_display_clock_request
+					     *clock_req);
 };
 
 #define smu_init_microcode(smu) \
@@ -393,6 +396,8 @@ struct smu_funcs
 	((smu)->ppt_funcs->get_clock_by_type_with_latency ? (smu)->ppt_funcs->get_clock_by_type_with_latency((smu), (type), (clocks)) : 0)
 #define smu_get_clock_by_type_with_voltage(smu, type, clocks) \
 	((smu)->ppt_funcs->get_clock_by_type_with_voltage ? (smu)->ppt_funcs->get_clock_by_type_with_voltage((smu), (type), (clocks)) : 0)
+#define smu_display_clock_voltage_request(smu, clock_req) \
+	((smu)->funcs->display_clock_voltage_request ? (smu)->funcs->display_clock_voltage_request((smu), (clock_req)) : 0)
 
 
 extern int smu_get_atom_data_table(struct smu_context *smu, uint32_t table,
