@@ -824,6 +824,8 @@ static int tipc_nl_compat_name_table_dump_header(struct tipc_nl_compat_msg *msg)
 	};
 
 	ntq = (struct tipc_name_table_query *)TLV_DATA(msg->req);
+	if (TLV_GET_DATA_LEN(msg->req) < sizeof(struct tipc_name_table_query))
+		return -EINVAL;
 
 	depth = ntohl(ntq->depth);
 
