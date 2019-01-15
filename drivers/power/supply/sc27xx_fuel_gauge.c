@@ -171,10 +171,37 @@ static int sc27xx_fgu_save_boot_mode(struct sc27xx_fgu_data *data,
 	if (ret)
 		return ret;
 
+	/*
+	 * Since the user area registers are put on power always-on region,
+	 * then these registers changing time will be a little long. Thus
+	 * here we should delay 200us to wait until values are updated
+	 * successfully according to the datasheet.
+	 */
+	udelay(200);
+
+	ret = regmap_update_bits(data->regmap,
+				 data->base + SC27XX_FGU_USER_AREA_SET,
+				 SC27XX_FGU_MODE_AREA_MASK,
+				 boot_mode << SC27XX_FGU_MODE_AREA_SHIFT);
+	if (ret)
+		return ret;
+
+	/*
+	 * Since the user area registers are put on power always-on region,
+	 * then these registers changing time will be a little long. Thus
+	 * here we should delay 200us to wait until values are updated
+	 * successfully according to the datasheet.
+	 */
+	udelay(200);
+
+	/*
+	 * According to the datasheet, we should set the USER_AREA_CLEAR to 0 to
+	 * make the user area data available, otherwise we can not save the user
+	 * area data.
+	 */
 	return regmap_update_bits(data->regmap,
-				  data->base + SC27XX_FGU_USER_AREA_SET,
-				  SC27XX_FGU_MODE_AREA_MASK,
-				  boot_mode << SC27XX_FGU_MODE_AREA_SHIFT);
+				  data->base + SC27XX_FGU_USER_AREA_CLEAR,
+				  SC27XX_FGU_MODE_AREA_MASK, 0);
 }
 
 static int sc27xx_fgu_save_last_cap(struct sc27xx_fgu_data *data, int cap)
@@ -188,9 +215,36 @@ static int sc27xx_fgu_save_last_cap(struct sc27xx_fgu_data *data, int cap)
 	if (ret)
 		return ret;
 
+	/*
+	 * Since the user area registers are put on power always-on region,
+	 * then these registers changing time will be a little long. Thus
+	 * here we should delay 200us to wait until values are updated
+	 * successfully according to the datasheet.
+	 */
+	udelay(200);
+
+	ret = regmap_update_bits(data->regmap,
+				 data->base + SC27XX_FGU_USER_AREA_SET,
+				 SC27XX_FGU_CAP_AREA_MASK, cap);
+	if (ret)
+		return ret;
+
+	/*
+	 * Since the user area registers are put on power always-on region,
+	 * then these registers changing time will be a little long. Thus
+	 * here we should delay 200us to wait until values are updated
+	 * successfully according to the datasheet.
+	 */
+	udelay(200);
+
+	/*
+	 * According to the datasheet, we should set the USER_AREA_CLEAR to 0 to
+	 * make the user area data available, otherwise we can not save the user
+	 * area data.
+	 */
 	return regmap_update_bits(data->regmap,
-				  data->base + SC27XX_FGU_USER_AREA_SET,
-				  SC27XX_FGU_CAP_AREA_MASK, cap);
+				  data->base + SC27XX_FGU_USER_AREA_CLEAR,
+				  SC27XX_FGU_CAP_AREA_MASK, 0);
 }
 
 static int sc27xx_fgu_read_last_cap(struct sc27xx_fgu_data *data, int *cap)
