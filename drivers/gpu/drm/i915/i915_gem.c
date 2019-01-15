@@ -2303,8 +2303,8 @@ __i915_gem_object_unset_pages(struct drm_i915_gem_object *obj)
 	struct sg_table *pages;
 
 	pages = fetch_and_zero(&obj->mm.pages);
-	if (!pages)
-		return NULL;
+	if (IS_ERR_OR_NULL(pages))
+		return pages;
 
 	spin_lock(&i915->mm.obj_lock);
 	list_del(&obj->mm.link);
@@ -2328,22 +2328,23 @@ __i915_gem_object_unset_pages(struct drm_i915_gem_object *obj)
 	return pages;
 }
 
-void __i915_gem_object_put_pages(struct drm_i915_gem_object *obj,
-				 enum i915_mm_subclass subclass)
+int __i915_gem_object_put_pages(struct drm_i915_gem_object *obj,
+				enum i915_mm_subclass subclass)
 {
 	struct sg_table *pages;
+	int ret;
 
 	if (i915_gem_object_has_pinned_pages(obj))
-		return;
+		return -EBUSY;
 
 	GEM_BUG_ON(obj->bind_count);
-	if (!i915_gem_object_has_pages(obj))
-		return;
 
 	/* May be called by shrinker from within get_pages() (on another bo) */
 	mutex_lock_nested(&obj->mm.lock, subclass);
-	if (unlikely(atomic_read(&obj->mm.pages_pin_count)))
+	if (unlikely(atomic_read(&obj->mm.pages_pin_count))) {
+		ret = -EBUSY;
 		goto unlock;
+	}
 
 	/*
 	 * ->put_pages might need to allocate memory for the bit17 swizzle
@@ -2351,11 +2352,24 @@ void __i915_gem_object_put_pages(struct drm_i915_gem_object *obj,
 	 * lists early.
 	 */
 	pages = __i915_gem_object_unset_pages(obj);
+
+	/*
+	 * XXX Temporary hijinx to avoid updating all backends to handle
+	 * NULL pages. In the future, when we have more asynchronous
+	 * get_pages backends we should be better able to handle the
+	 * cancellation of the async task in a more uniform manner.
+	 */
+	if (!pages && !i915_gem_object_needs_async_cancel(obj))
+		pages = ERR_PTR(-EINVAL);
+
 	if (!IS_ERR(pages))
 		obj->ops->put_pages(obj, pages);
 
+	ret = 0;
 unlock:
 	mutex_unlock(&obj->mm.lock);
+
+	return ret;
 }
 
 bool i915_sg_trim(struct sg_table *orig_st)
