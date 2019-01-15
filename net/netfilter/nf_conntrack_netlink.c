@@ -134,7 +134,7 @@ static int ctnetlink_dump_tuples(struct sk_buff *skb,
 	ret = ctnetlink_dump_tuples_ip(skb, tuple);
 
 	if (ret >= 0) {
-		l4proto = __nf_ct_l4proto_find(tuple->dst.protonum);
+		l4proto = nf_ct_l4proto_find(tuple->dst.protonum);
 		ret = ctnetlink_dump_tuples_proto(skb, tuple, l4proto);
 	}
 	rcu_read_unlock();
@@ -182,7 +182,7 @@ static int ctnetlink_dump_protoinfo(struct sk_buff *skb, struct nf_conn *ct)
 	struct nlattr *nest_proto;
 	int ret;
 
-	l4proto = __nf_ct_l4proto_find(nf_ct_protonum(ct));
+	l4proto = nf_ct_l4proto_find(nf_ct_protonum(ct));
 	if (!l4proto->to_nlattr)
 		return 0;
 
@@ -590,7 +590,7 @@ static size_t ctnetlink_proto_size(const struct nf_conn *ct)
 	len = nla_policy_len(cta_ip_nla_policy, CTA_IP_MAX + 1);
 	len *= 3u; /* ORIG, REPLY, MASTER */
 
-	l4proto = __nf_ct_l4proto_find(nf_ct_protonum(ct));
+	l4proto = nf_ct_l4proto_find(nf_ct_protonum(ct));
 	len += l4proto->nlattr_size;
 	if (l4proto->nlattr_tuple_size) {
 		len4 = l4proto->nlattr_tuple_size();
@@ -1059,7 +1059,7 @@ static int ctnetlink_parse_tuple_proto(struct nlattr *attr,
 	tuple->dst.protonum = nla_get_u8(tb[CTA_PROTO_NUM]);
 
 	rcu_read_lock();
-	l4proto = __nf_ct_l4proto_find(tuple->dst.protonum);
+	l4proto = nf_ct_l4proto_find(tuple->dst.protonum);
 
 	if (likely(l4proto->nlattr_to_tuple)) {
 		ret = nla_validate_nested(attr, CTA_PROTO_MAX,
@@ -1722,11 +1722,9 @@ static int ctnetlink_change_protoinfo(struct nf_conn *ct,
 	if (err < 0)
 		return err;
 
-	rcu_read_lock();
-	l4proto = __nf_ct_l4proto_find(nf_ct_protonum(ct));
+	l4proto = nf_ct_l4proto_find(nf_ct_protonum(ct));
 	if (l4proto->from_nlattr)
 		err = l4proto->from_nlattr(tb, ct);
-	rcu_read_unlock();
 
 	return err;
 }
@@ -2676,7 +2674,7 @@ static int ctnetlink_exp_dump_mask(struct sk_buff *skb,
 	rcu_read_lock();
 	ret = ctnetlink_dump_tuples_ip(skb, &m);
 	if (ret >= 0) {
-		l4proto = __nf_ct_l4proto_find(tuple->dst.protonum);
+		l4proto = nf_ct_l4proto_find(tuple->dst.protonum);
 	ret = ctnetlink_dump_tuples_proto(skb, &m, l4proto);
 	}
 	rcu_read_unlock();

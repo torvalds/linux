@@ -122,7 +122,7 @@ static int cttimeout_new_timeout(struct net *net, struct sock *ctnl,
 		return -EBUSY;
 	}
 
-	l4proto = nf_ct_l4proto_find_get(l4num);
+	l4proto = nf_ct_l4proto_find(l4num);
 
 	/* This protocol is not supportted, skip. */
 	if (l4proto->l4proto != l4num) {
@@ -357,7 +357,7 @@ static int cttimeout_default_set(struct net *net, struct sock *ctnl,
 		return -EINVAL;
 
 	l4num = nla_get_u8(cda[CTA_TIMEOUT_L4PROTO]);
-	l4proto = nf_ct_l4proto_find_get(l4num);
+	l4proto = nf_ct_l4proto_find(l4num);
 
 	/* This protocol is not supported, skip. */
 	if (l4proto->l4proto != l4num) {
@@ -438,7 +438,7 @@ static int cttimeout_default_get(struct net *net, struct sock *ctnl,
 
 	l3num = ntohs(nla_get_be16(cda[CTA_TIMEOUT_L3PROTO]));
 	l4num = nla_get_u8(cda[CTA_TIMEOUT_L4PROTO]);
-	l4proto = nf_ct_l4proto_find_get(l4num);
+	l4proto = nf_ct_l4proto_find(l4num);
 
 	err = -EOPNOTSUPP;
 	if (l4proto->l4proto != l4num)

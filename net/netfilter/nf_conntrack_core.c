@@ -845,7 +845,7 @@ static int nf_ct_resolve_clash(struct net *net, struct sk_buff *skb,
 	enum ip_conntrack_info oldinfo;
 	struct nf_conn *loser_ct = nf_ct_get(skb, &oldinfo);
 
-	l4proto = __nf_ct_l4proto_find(nf_ct_protonum(ct));
+	l4proto = nf_ct_l4proto_find(nf_ct_protonum(ct));
 	if (l4proto->allow_clash &&
 	    !nf_ct_is_dying(ct) &&
 	    atomic_inc_not_zero(&ct->ct_general.use)) {
@@ -1117,7 +1117,7 @@ static bool gc_worker_can_early_drop(const struct nf_conn *ct)
 	if (!test_bit(IPS_ASSURED_BIT, &ct->status))
 		return true;
 
-	l4proto = __nf_ct_l4proto_find(nf_ct_protonum(ct));
+	l4proto = nf_ct_l4proto_find(nf_ct_protonum(ct));
 	if (l4proto->can_early_drop && l4proto->can_early_drop(ct))
 		return true;
 
@@ -2452,15 +2452,10 @@ int nf_conntrack_init_net(struct net *net)
 	nf_conntrack_tstamp_pernet_init(net);
 	nf_conntrack_ecache_pernet_init(net);
 	nf_conntrack_helper_pernet_init(net);
+	nf_conntrack_proto_pernet_init(net);
 
-	ret = nf_conntrack_proto_pernet_init(net);
-	if (ret < 0)
-		goto err_proto;
 	return 0;
 
-err_proto:
-	nf_conntrack_ecache_pernet_fini(net);
-	nf_conntrack_expect_pernet_fini(net);
 err_expect:
 	free_percpu(net->ct.stat);
 err_pcpu_lists:

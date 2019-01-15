@@ -310,8 +310,7 @@ static int ct_seq_show(struct seq_file *s, void *v)
 	if (!net_eq(nf_ct_net(ct), net))
 		goto release;
 
-	l4proto = __nf_ct_l4proto_find(nf_ct_protonum(ct));
-	WARN_ON(!l4proto);
+	l4proto = nf_ct_l4proto_find(nf_ct_protonum(ct));
 
 	ret = -ENOSPC;
 	seq_printf(s, "%-8s %u %-8s %u ",

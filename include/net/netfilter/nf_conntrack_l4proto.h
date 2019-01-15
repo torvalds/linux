@@ -140,13 +140,7 @@ extern const struct nf_conntrack_l4proto nf_conntrack_l4proto_generic;
 
 #define MAX_NF_CT_PROTO IPPROTO_UDPLITE
 
-const struct nf_conntrack_l4proto *__nf_ct_l4proto_find(u8 l4proto);
-
-const struct nf_conntrack_l4proto *nf_ct_l4proto_find_get(u8 l4proto);
-
-/* Protocol global registration. */
-int nf_ct_l4proto_register_one(const struct nf_conntrack_l4proto *proto);
-void nf_ct_l4proto_unregister_one(const struct nf_conntrack_l4proto *proto);
+const struct nf_conntrack_l4proto *nf_ct_l4proto_find(u8 l4proto);
 
 /* Generic netlink helpers */
 int nf_ct_port_tuple_to_nlattr(struct sk_buff *skb,
