@@ -37,7 +37,7 @@
 static void (*rom_reset)(void);
 
 #ifdef CONFIG_ADB_CUDA
-static __u8 cuda_read_pram(int offset)
+static unsigned char cuda_pram_read_byte(int offset)
 {
 	struct adb_request req;
 
@@ -49,7 +49,7 @@ static __u8 cuda_read_pram(int offset)
 	return req.reply[3];
 }
 
-static void cuda_write_pram(int offset, __u8 data)
+static void cuda_pram_write_byte(unsigned char data, int offset)
 {
 	struct adb_request req;
 
@@ -62,7 +62,7 @@ static void cuda_write_pram(int offset, __u8 data)
 #endif /* CONFIG_ADB_CUDA */
 
 #ifdef CONFIG_ADB_PMU
-static __u8 pmu_read_pram(int offset)
+static unsigned char pmu_pram_read_byte(int offset)
 {
 	struct adb_request req;
 
@@ -74,7 +74,7 @@ static __u8 pmu_read_pram(int offset)
 	return req.reply[3];
 }
 
-static void pmu_write_pram(int offset, __u8 data)
+static void pmu_pram_write_byte(unsigned char data, int offset)
 {
 	struct adb_request req;
 
@@ -93,7 +93,7 @@ static void pmu_write_pram(int offset, __u8 data)
  * the RTC should be enabled.
  */
 
-static __u8 via_pram_readbyte(void)
+static __u8 via_rtc_recv(void)
 {
 	int i, reg;
 	__u8 data;
@@ -120,7 +120,7 @@ static __u8 via_pram_readbyte(void)
 	return data;
 }
 
-static void via_pram_writebyte(__u8 data)
+static void via_rtc_send(__u8 data)
 {
 	int i, reg, bit;
 
@@ -157,17 +157,17 @@ static void via_pram_command(int command, __u8 *data)
 	via1[vBufB] = (via1[vBufB] | VIA1B_vRTCClk) & ~VIA1B_vRTCEnb;
 
 	if (command & 0xFF00) {		/* extended (two-byte) command */
-		via_pram_writebyte((command & 0xFF00) >> 8);
-		via_pram_writebyte(command & 0xFF);
+		via_rtc_send((command & 0xFF00) >> 8);
+		via_rtc_send(command & 0xFF);
 		is_read = command & 0x8000;
 	} else {			/* one-byte command */
-		via_pram_writebyte(command);
+		via_rtc_send(command);
 		is_read = command & 0x80;
 	}
 	if (is_read) {
-		*data = via_pram_readbyte();
+		*data = via_rtc_recv();
 	} else {
-		via_pram_writebyte(*data);
+		via_rtc_send(*data);
 	}
 
 	/* All done, disable the RTC */
@@ -177,12 +177,12 @@ static void via_pram_command(int command, __u8 *data)
 	local_irq_restore(flags);
 }
 
-static __u8 via_read_pram(int offset)
+static unsigned char via_pram_read_byte(int offset)
 {
 	return 0;
 }
 
-static void via_write_pram(int offset, __u8 data)
+static void via_pram_write_byte(unsigned char data, int offset)
 {
 }
 
@@ -326,63 +326,48 @@ static void cuda_shutdown(void)
  *-------------------------------------------------------------------
  */
 
-void mac_pram_read(int offset, __u8 *buffer, int len)
+unsigned char mac_pram_read_byte(int addr)
 {
-	__u8 (*func)(int);
-	int i;
-
 	switch (macintosh_config->adb_type) {
 	case MAC_ADB_IOP:
 	case MAC_ADB_II:
 	case MAC_ADB_PB1:
-		func = via_read_pram;
-		break;
+		return via_pram_read_byte(addr);
 #ifdef CONFIG_ADB_CUDA
 	case MAC_ADB_EGRET:
 	case MAC_ADB_CUDA:
-		func = cuda_read_pram;
-		break;
+		return cuda_pram_read_byte(addr);
 #endif
 #ifdef CONFIG_ADB_PMU
 	case MAC_ADB_PB2:
-		func = pmu_read_pram;
-		break;
+		return pmu_pram_read_byte(addr);
 #endif
 	default:
-		return;
-	}
-	for (i = 0 ; i < len ; i++) {
-		buffer[i] = (*func)(offset++);
+		return 0xFF;
 	}
 }
 
-void mac_pram_write(int offset, __u8 *buffer, int len)
+void mac_pram_write_byte(unsigned char val, int addr)
 {
-	void (*func)(int, __u8);
-	int i;
-
 	switch (macintosh_config->adb_type) {
 	case MAC_ADB_IOP:
 	case MAC_ADB_II:
 	case MAC_ADB_PB1:
-		func = via_write_pram;
+		via_pram_write_byte(val, addr);
 		break;
 #ifdef CONFIG_ADB_CUDA
 	case MAC_ADB_EGRET:
 	case MAC_ADB_CUDA:
-		func = cuda_write_pram;
+		cuda_pram_write_byte(val, addr);
 		break;
 #endif
 #ifdef CONFIG_ADB_PMU
 	case MAC_ADB_PB2:
-		func = pmu_write_pram;
+		pmu_pram_write_byte(val, addr);
 		break;
 #endif
 	default:
-		return;
-	}
-	for (i = 0 ; i < len ; i++) {
-		(*func)(offset++, buffer[i]);
+		break;
 	}
 }
 
