@@ -130,7 +130,6 @@ icmpv6_error_message(struct net *net, struct nf_conn *tmpl,
 {
 	struct nf_conntrack_tuple intuple, origtuple;
 	const struct nf_conntrack_tuple_hash *h;
-	const struct nf_conntrack_l4proto *inproto;
 	enum ip_conntrack_info ctinfo;
 	struct nf_conntrack_zone tmp;
 
@@ -146,12 +145,9 @@ icmpv6_error_message(struct net *net, struct nf_conn *tmpl,
 		return -NF_ACCEPT;
 	}
 
-	/* rcu_read_lock()ed by nf_hook_thresh */
-	inproto = __nf_ct_l4proto_find(origtuple.dst.protonum);
-
 	/* Ordinarily, we'd expect the inverted tupleproto, but it's
 	   been preserved inside the ICMP. */
-	if (!nf_ct_invert_tuple(&intuple, &origtuple, inproto)) {
+	if (!nf_ct_invert_tuple(&intuple, &origtuple)) {
 		pr_debug("icmpv6_error: Can't invert tuple\n");
 		return -NF_ACCEPT;
 	}

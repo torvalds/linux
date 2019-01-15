@@ -214,7 +214,7 @@ int nf_nat_icmp_reply_translation(struct sk_buff *skb,
 	}
 
 	/* Change outer to look like the reply to an incoming packet */
-	nf_ct_invert_tuplepr(&target, &ct->tuplehash[!dir].tuple);
+	nf_ct_invert_tuple(&target, &ct->tuplehash[!dir].tuple);
 	if (!nf_nat_ipv4_manip_pkt(skb, 0, &target, manip))
 		return 0;
 

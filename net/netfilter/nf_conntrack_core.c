@@ -229,8 +229,7 @@ nf_ct_get_tuple(const struct sk_buff *skb,
 		u_int16_t l3num,
 		u_int8_t protonum,
 		struct net *net,
-		struct nf_conntrack_tuple *tuple,
-		const struct nf_conntrack_l4proto *l4proto)
+		struct nf_conntrack_tuple *tuple)
 {
 	unsigned int size;
 	const __be32 *ap;
@@ -374,33 +373,20 @@ bool nf_ct_get_tuplepr(const struct sk_buff *skb, unsigned int nhoff,
 		       u_int16_t l3num,
 		       struct net *net, struct nf_conntrack_tuple *tuple)
 {
-	const struct nf_conntrack_l4proto *l4proto;
 	u8 protonum;
 	int protoff;
-	int ret;
-
-	rcu_read_lock();
 
 	protoff = get_l4proto(skb, nhoff, l3num, &protonum);
-	if (protoff <= 0) {
-		rcu_read_unlock();
+	if (protoff <= 0)
 		return false;
-	}
 
-	l4proto = __nf_ct_l4proto_find(protonum);
-
-	ret = nf_ct_get_tuple(skb, nhoff, protoff, l3num, protonum, net, tuple,
-			      l4proto);
-
-	rcu_read_unlock();
-	return ret;
+	return nf_ct_get_tuple(skb, nhoff, protoff, l3num, protonum, net, tuple);
 }
 EXPORT_SYMBOL_GPL(nf_ct_get_tuplepr);
 
 bool
 nf_ct_invert_tuple(struct nf_conntrack_tuple *inverse,
-		   const struct nf_conntrack_tuple *orig,
-		   const struct nf_conntrack_l4proto *l4proto)
+		   const struct nf_conntrack_tuple *orig)
 {
 	memset(inverse, 0, sizeof(*inverse));
 
@@ -1354,7 +1340,6 @@ EXPORT_SYMBOL_GPL(nf_conntrack_free);
 static noinline struct nf_conntrack_tuple_hash *
 init_conntrack(struct net *net, struct nf_conn *tmpl,
 	       const struct nf_conntrack_tuple *tuple,
-	       const struct nf_conntrack_l4proto *l4proto,
 	       struct sk_buff *skb,
 	       unsigned int dataoff, u32 hash)
 {
@@ -1367,7 +1352,7 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 	struct nf_conn_timeout *timeout_ext;
 	struct nf_conntrack_zone tmp;
 
-	if (!nf_ct_invert_tuple(&repl_tuple, tuple, l4proto)) {
+	if (!nf_ct_invert_tuple(&repl_tuple, tuple)) {
 		pr_debug("Can't invert tuple.\n");
 		return NULL;
 	}
@@ -1449,7 +1434,6 @@ resolve_normal_ct(struct nf_conn *tmpl,
 		  struct sk_buff *skb,
 		  unsigned int dataoff,
 		  u_int8_t protonum,
-		  const struct nf_conntrack_l4proto *l4proto,
 		  const struct nf_hook_state *state)
 {
 	const struct nf_conntrack_zone *zone;
@@ -1462,7 +1446,7 @@ resolve_normal_ct(struct nf_conn *tmpl,
 
 	if (!nf_ct_get_tuple(skb, skb_network_offset(skb),
 			     dataoff, state->pf, protonum, state->net,
-			     &tuple, l4proto)) {
+			     &tuple)) {
 		pr_debug("Can't get tuple\n");
 		return 0;
 	}
@@ -1472,7 +1456,7 @@ resolve_normal_ct(struct nf_conn *tmpl,
 	hash = hash_conntrack_raw(&tuple, state->net);
 	h = __nf_conntrack_find_get(state->net, zone, &tuple, hash);
 	if (!h) {
-		h = init_conntrack(state->net, tmpl, &tuple, l4proto,
+		h = init_conntrack(state->net, tmpl, &tuple,
 				   skb, dataoff, hash);
 		if (!h)
 			return 0;
@@ -1592,7 +1576,6 @@ static int nf_conntrack_handle_packet(struct nf_conn *ct,
 unsigned int
 nf_conntrack_in(struct sk_buff *skb, const struct nf_hook_state *state)
 {
-	const struct nf_conntrack_l4proto *l4proto;
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn *ct, *tmpl;
 	u_int8_t protonum;
@@ -1619,8 +1602,6 @@ nf_conntrack_in(struct sk_buff *skb, const struct nf_hook_state *state)
 		goto out;
 	}
 
-	l4proto = __nf_ct_l4proto_find(protonum);
-
 	if (protonum == IPPROTO_ICMP || protonum == IPPROTO_ICMPV6) {
 		ret = nf_conntrack_handle_icmp(tmpl, skb, dataoff,
 					       protonum, state);
@@ -1634,7 +1615,7 @@ nf_conntrack_in(struct sk_buff *skb, const struct nf_hook_state *state)
 	}
 repeat:
 	ret = resolve_normal_ct(tmpl, skb, dataoff,
-				protonum, l4proto, state);
+				protonum, state);
 	if (ret < 0) {
 		/* Too stressed to deal. */
 		NF_CT_STAT_INC_ATOMIC(state->net, drop);
@@ -1680,19 +1661,6 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_in);
-
-bool nf_ct_invert_tuplepr(struct nf_conntrack_tuple *inverse,
-			  const struct nf_conntrack_tuple *orig)
-{
-	bool ret;
-
-	rcu_read_lock();
-	ret = nf_ct_invert_tuple(inverse, orig,
-				 __nf_ct_l4proto_find(orig->dst.protonum));
-	rcu_read_unlock();
-	return ret;
-}
-EXPORT_SYMBOL_GPL(nf_ct_invert_tuplepr);
 
 /* Alter reply tuple (maybe alter helper).  This is for NAT, and is
    implicitly racy: see __nf_conntrack_confirm */
@@ -1824,7 +1792,6 @@ static void nf_conntrack_attach(struct sk_buff *nskb, const struct sk_buff *skb)
 
 static int nf_conntrack_update(struct net *net, struct sk_buff *skb)
 {
-	const struct nf_conntrack_l4proto *l4proto;
 	struct nf_conntrack_tuple_hash *h;
 	struct nf_conntrack_tuple tuple;
 	enum ip_conntrack_info ctinfo;
@@ -1845,10 +1812,8 @@ static int nf_conntrack_update(struct net *net, struct sk_buff *skb)
 	if (dataoff <= 0)
 		return -1;
 
-	l4proto = nf_ct_l4proto_find_get(l4num);
-
 	if (!nf_ct_get_tuple(skb, skb_network_offset(skb), dataoff, l3num,
-			     l4num, net, &tuple, l4proto))
+			     l4num, net, &tuple))
 		return -1;
 
 	if (ct->status & IPS_SRC_NAT) {

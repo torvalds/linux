@@ -109,7 +109,6 @@ icmp_error_message(struct nf_conn *tmpl, struct sk_buff *skb,
 		   const struct nf_hook_state *state)
 {
 	struct nf_conntrack_tuple innertuple, origtuple;
-	const struct nf_conntrack_l4proto *innerproto;
 	const struct nf_conntrack_tuple_hash *h;
 	const struct nf_conntrack_zone *zone;
 	enum ip_conntrack_info ctinfo;
@@ -127,12 +126,9 @@ icmp_error_message(struct nf_conn *tmpl, struct sk_buff *skb,
 		return -NF_ACCEPT;
 	}
 
-	/* rcu_read_lock()ed by nf_hook_thresh */
-	innerproto = __nf_ct_l4proto_find(origtuple.dst.protonum);
-
 	/* Ordinarily, we'd expect the inverted tupleproto, but it's
 	   been preserved inside the ICMP. */
-	if (!nf_ct_invert_tuple(&innertuple, &origtuple, innerproto)) {
+	if (!nf_ct_invert_tuple(&innertuple, &origtuple)) {
 		pr_debug("icmp_error_message: no match\n");
 		return -NF_ACCEPT;
 	}
