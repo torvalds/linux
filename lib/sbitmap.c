@@ -27,8 +27,9 @@ static inline bool sbitmap_deferred_clear(struct sbitmap *sb, int index)
 {
 	unsigned long mask, val;
 	bool ret = false;
+	unsigned long flags;
 
-	spin_lock_bh(&sb->map[index].swap_lock);
+	spin_lock_irqsave(&sb->map[index].swap_lock, flags);
 
 	if (!sb->map[index].cleared)
 		goto out_unlock;
@@ -49,7 +50,7 @@ static inline bool sbitmap_deferred_clear(struct sbitmap *sb, int index)
 
 	ret = true;
 out_unlock:
-	spin_unlock_bh(&sb->map[index].swap_lock);
+	spin_unlock_irqrestore(&sb->map[index].swap_lock, flags);
 	return ret;
 }
 
