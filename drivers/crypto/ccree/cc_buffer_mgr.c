@@ -156,8 +156,11 @@ static int cc_render_buff_to_mlli(struct device *dev, dma_addr_t buff_dma,
 
 	/* Verify there is no memory overflow*/
 	new_nents = (*curr_nents + buff_size / CC_MAX_MLLI_ENTRY_SIZE + 1);
-	if (new_nents > MAX_NUM_OF_TOTAL_MLLI_ENTRIES)
+	if (new_nents > MAX_NUM_OF_TOTAL_MLLI_ENTRIES) {
+		dev_err(dev, "Too many mlli entries. current %d max %d\n",
+			new_nents, MAX_NUM_OF_TOTAL_MLLI_ENTRIES);
 		return -ENOMEM;
+	}
 
 	/*handle buffer longer than 64 kbytes */
 	while (buff_size > CC_MAX_MLLI_ENTRY_SIZE) {
