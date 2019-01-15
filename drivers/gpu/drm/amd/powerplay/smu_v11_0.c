@@ -45,6 +45,8 @@ MODULE_FIRMWARE("amdgpu/vega20_smc.bin");
 #define SMU11_THERMAL_MINIMUM_ALERT_TEMP      0
 #define SMU11_THERMAL_MAXIMUM_ALERT_TEMP      255
 
+#define SMU11_TEMPERATURE_UNITS_PER_CENTIGRADES 1000
+
 static int smu_v11_0_send_msg_without_waiting(struct smu_context *smu,
 					      uint16_t msg)
 {
@@ -1010,6 +1012,26 @@ static int smu_v11_0_get_current_activity_percent(struct smu_context *smu,
 	return 0;
 }
 
+static int smu_v11_0_thermal_get_temperature(struct smu_context *smu, uint32_t *value)
+{
+	struct amdgpu_device *adev = smu->adev;
+	uint32_t temp = 0;
+
+	if (!value)
+		return -EINVAL;
+
+	temp = RREG32_SOC15(THM, 0, mmCG_MULT_THERMAL_STATUS);
+	temp = (temp & CG_MULT_THERMAL_STATUS__CTF_TEMP_MASK) >>
+			CG_MULT_THERMAL_STATUS__CTF_TEMP__SHIFT;
+
+	temp = temp & 0x1ff;
+	temp *= SMU11_TEMPERATURE_UNITS_PER_CENTIGRADES;
+
+	*value = temp;
+
+	return 0;
+}
+
 static int smu_v11_0_read_sensor(struct smu_context *smu,
 				 enum amd_pp_sensors sensor,
 				 void *data, uint32_t *size)
@@ -1027,6 +1049,10 @@ static int smu_v11_0_read_sensor(struct smu_context *smu,
 		break;
 	case AMDGPU_PP_SENSOR_GFX_SCLK:
 		ret = smu_get_current_clk_freq(smu, PPCLK_GFXCLK, (uint32_t *)data);
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_GPU_TEMP:
+		ret = smu_v11_0_thermal_get_temperature(smu, (uint32_t *)data);
 		*size = 4;
 		break;
 	default:

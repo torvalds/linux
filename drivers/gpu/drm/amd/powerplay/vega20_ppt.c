@@ -794,6 +794,7 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.populate_umd_state_clk = vega20_populate_umd_state_clk,
 	.print_clk_levels = vega20_print_clk_levels,
 	.force_clk_levels = vega20_force_clk_levels,
+
 };
 
 void vega20_set_ppt_funcs(struct smu_context *smu)
