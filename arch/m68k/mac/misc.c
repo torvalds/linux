@@ -36,6 +36,7 @@
 
 static void (*rom_reset)(void);
 
+#if IS_ENABLED(CONFIG_NVRAM)
 #ifdef CONFIG_ADB_CUDA
 static unsigned char cuda_pram_read_byte(int offset)
 {
@@ -84,6 +85,7 @@ static void pmu_pram_write_byte(unsigned char data, int offset)
 	pmu_wait_complete(&req);
 }
 #endif /* CONFIG_ADB_PMU */
+#endif /* CONFIG_NVRAM */
 
 /*
  * VIA PRAM/RTC access routines
@@ -205,6 +207,7 @@ static void via_rtc_command(int command, __u8 *data)
 	local_irq_restore(flags);
 }
 
+#if IS_ENABLED(CONFIG_NVRAM)
 static unsigned char via_pram_read_byte(int offset)
 {
 	unsigned char temp;
@@ -227,6 +230,7 @@ static void via_pram_write_byte(unsigned char data, int offset)
 	temp = 0x55 | RTC_FLG_WRITE_PROTECT;
 	via_rtc_command(RTC_CMD_WRITE(RTC_REG_WRITE_PROTECT), &temp);
 }
+#endif /* CONFIG_NVRAM */
 
 /*
  * Return the current time in seconds since January 1, 1904.
@@ -372,6 +376,7 @@ static void cuda_shutdown(void)
  *-------------------------------------------------------------------
  */
 
+#if IS_ENABLED(CONFIG_NVRAM)
 unsigned char mac_pram_read_byte(int addr)
 {
 	switch (macintosh_config->adb_type) {
@@ -416,6 +421,12 @@ void mac_pram_write_byte(unsigned char val, int addr)
 		break;
 	}
 }
+
+ssize_t mac_pram_get_size(void)
+{
+	return 256;
+}
+#endif /* CONFIG_NVRAM */
 
 void mac_poweroff(void)
 {
