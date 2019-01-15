@@ -558,7 +558,7 @@ static int traceprobe_parse_probe_arg_body(char *arg, ssize_t *size,
 			 parg->count);
 	}
 
-	code = tmp = kzalloc(sizeof(*code) * FETCH_INSN_MAX, GFP_KERNEL);
+	code = tmp = kcalloc(FETCH_INSN_MAX, sizeof(*code), GFP_KERNEL);
 	if (!code)
 		return -ENOMEM;
 	code[FETCH_INSN_MAX - 1].op = FETCH_OP_END;
@@ -637,7 +637,7 @@ static int traceprobe_parse_probe_arg_body(char *arg, ssize_t *size,
 	code->op = FETCH_OP_END;
 
 	/* Shrink down the code buffer */
-	parg->code = kzalloc(sizeof(*code) * (code - tmp + 1), GFP_KERNEL);
+	parg->code = kcalloc(code - tmp + 1, sizeof(*code), GFP_KERNEL);
 	if (!parg->code)
 		ret = -ENOMEM;
 	else
