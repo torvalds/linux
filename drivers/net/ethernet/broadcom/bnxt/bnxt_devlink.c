@@ -85,8 +85,8 @@ static int bnxt_hwrm_nvm_req(struct bnxt *bp, u32 param_id, void *msg,
 		return -EFAULT;
 	}
 
-	data_addr = dma_zalloc_coherent(&bp->pdev->dev, bytesize,
-					&data_dma_addr, GFP_KERNEL);
+	data_addr = dma_alloc_coherent(&bp->pdev->dev, bytesize,
+				       &data_dma_addr, GFP_KERNEL);
 	if (!data_addr)
 		return -ENOMEM;
 

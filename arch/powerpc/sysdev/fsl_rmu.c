@@ -756,9 +756,10 @@ fsl_open_outb_mbox(struct rio_mport *mport, void *dev_id, int mbox, int entries)
 	}
 
 	/* Initialize outbound message descriptor ring */
-	rmu->msg_tx_ring.virt = dma_zalloc_coherent(priv->dev,
-				rmu->msg_tx_ring.size * RIO_MSG_DESC_SIZE,
-				&rmu->msg_tx_ring.phys, GFP_KERNEL);
+	rmu->msg_tx_ring.virt = dma_alloc_coherent(priv->dev,
+						   rmu->msg_tx_ring.size * RIO_MSG_DESC_SIZE,
+						   &rmu->msg_tx_ring.phys,
+						   GFP_KERNEL);
 	if (!rmu->msg_tx_ring.virt) {
 		rc = -ENOMEM;
 		goto out_dma;

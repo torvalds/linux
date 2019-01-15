@@ -287,9 +287,9 @@ static int nixge_hw_dma_bd_init(struct net_device *ndev)
 	priv->rx_bd_ci = 0;
 
 	/* Allocate the Tx and Rx buffer descriptors. */
-	priv->tx_bd_v = dma_zalloc_coherent(ndev->dev.parent,
-					    sizeof(*priv->tx_bd_v) * TX_BD_NUM,
-					    &priv->tx_bd_p, GFP_KERNEL);
+	priv->tx_bd_v = dma_alloc_coherent(ndev->dev.parent,
+					   sizeof(*priv->tx_bd_v) * TX_BD_NUM,
+					   &priv->tx_bd_p, GFP_KERNEL);
 	if (!priv->tx_bd_v)
 		goto out;
 
@@ -299,9 +299,9 @@ static int nixge_hw_dma_bd_init(struct net_device *ndev)
 	if (!priv->tx_skb)
 		goto out;
 
-	priv->rx_bd_v = dma_zalloc_coherent(ndev->dev.parent,
-					    sizeof(*priv->rx_bd_v) * RX_BD_NUM,
-					    &priv->rx_bd_p, GFP_KERNEL);
+	priv->rx_bd_v = dma_alloc_coherent(ndev->dev.parent,
+					   sizeof(*priv->rx_bd_v) * RX_BD_NUM,
+					   &priv->rx_bd_p, GFP_KERNEL);
 	if (!priv->rx_bd_v)
 		goto out;
 

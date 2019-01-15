@@ -433,9 +433,10 @@ static void reconn_inval_dfs_target(struct TCP_Server_Info *server,
 	kfree(server->hostname);
 
 	server->hostname = extract_hostname(name);
-	if (!server->hostname) {
-		cifs_dbg(FYI, "%s: failed to extract hostname from target: %d\n",
-			 __func__, -ENOMEM);
+	if (IS_ERR(server->hostname)) {
+		cifs_dbg(FYI,
+			 "%s: failed to extract hostname from target: %ld\n",
+			 __func__, PTR_ERR(server->hostname));
 	}
 }
 

@@ -466,9 +466,9 @@ static int ring_desc_ring_alloc(struct pic32_sqi *sqi)
 	int i;
 
 	/* allocate coherent DMAable memory for hardware buffer descriptors. */
-	sqi->bd = dma_zalloc_coherent(&sqi->master->dev,
-				      sizeof(*bd) * PESQI_BD_COUNT,
-				      &sqi->bd_dma, GFP_KERNEL);
+	sqi->bd = dma_alloc_coherent(&sqi->master->dev,
+				     sizeof(*bd) * PESQI_BD_COUNT,
+				     &sqi->bd_dma, GFP_KERNEL);
 	if (!sqi->bd) {
 		dev_err(&sqi->master->dev, "failed allocating dma buffer\n");
 		return -ENOMEM;

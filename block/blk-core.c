@@ -661,7 +661,6 @@ no_merge:
  * blk_attempt_plug_merge - try to merge with %current's plugged list
  * @q: request_queue new bio is being queued at
  * @bio: new bio being queued
- * @request_count: out parameter for number of traversed plugged requests
  * @same_queue_rq: pointer to &struct request that gets filled in when
  * another request associated with @q is found on the plug list
  * (optional, may be %NULL)
@@ -1683,6 +1682,15 @@ EXPORT_SYMBOL(kblockd_mod_delayed_work_on);
  * @plug:	The &struct blk_plug that needs to be initialized
  *
  * Description:
+ *   blk_start_plug() indicates to the block layer an intent by the caller
+ *   to submit multiple I/O requests in a batch.  The block layer may use
+ *   this hint to defer submitting I/Os from the caller until blk_finish_plug()
+ *   is called.  However, the block layer may choose to submit requests
+ *   before a call to blk_finish_plug() if the number of queued I/Os
+ *   exceeds %BLK_MAX_REQUEST_COUNT, or if the size of the I/O is larger than
+ *   %BLK_PLUG_FLUSH_SIZE.  The queued I/Os may also be submitted early if
+ *   the task schedules (see below).
+ *
  *   Tracking blk_plug inside the task_struct will help with auto-flushing the
  *   pending I/O should the task end up blocking between blk_start_plug() and
  *   blk_finish_plug(). This is important from a performance perspective, but
@@ -1765,6 +1773,16 @@ void blk_flush_plug_list(struct blk_plug *plug, bool from_schedule)
 		blk_mq_flush_plug_list(plug, from_schedule);
 }
 
+/**
+ * blk_finish_plug - mark the end of a batch of submitted I/O
+ * @plug:	The &struct blk_plug passed to blk_start_plug()
+ *
+ * Description:
+ * Indicate that a batch of I/O submissions is complete.  This function
+ * must be paired with an initial call to blk_start_plug().  The intent
+ * is to allow the block layer to optimize I/O submission.  See the
+ * documentation for blk_start_plug() for more information.
+ */
 void blk_finish_plug(struct blk_plug *plug)
 {
 	if (plug != current->plug)
