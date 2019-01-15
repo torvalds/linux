@@ -1387,120 +1387,6 @@ static const struct nla_policy tcp_timeout_nla_policy[CTA_TIMEOUT_TCP_MAX+1] = {
 };
 #endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
 
-#ifdef CONFIG_SYSCTL
-static struct ctl_table tcp_sysctl_table[] = {
-	{
-		.procname	= "nf_conntrack_tcp_timeout_syn_sent",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{
-		.procname	= "nf_conntrack_tcp_timeout_syn_recv",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{
-		.procname	= "nf_conntrack_tcp_timeout_established",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{
-		.procname	= "nf_conntrack_tcp_timeout_fin_wait",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{
-		.procname	= "nf_conntrack_tcp_timeout_close_wait",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{
-		.procname	= "nf_conntrack_tcp_timeout_last_ack",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{
-		.procname	= "nf_conntrack_tcp_timeout_time_wait",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{
-		.procname	= "nf_conntrack_tcp_timeout_close",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{
-		.procname	= "nf_conntrack_tcp_timeout_max_retrans",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{
-		.procname	= "nf_conntrack_tcp_timeout_unacknowledged",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{
-		.procname	= "nf_conntrack_tcp_loose",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
-	},
-	{
-		.procname       = "nf_conntrack_tcp_be_liberal",
-		.maxlen         = sizeof(unsigned int),
-		.mode           = 0644,
-		.proc_handler   = proc_dointvec,
-	},
-	{
-		.procname	= "nf_conntrack_tcp_max_retrans",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
-	},
-	{ }
-};
-#endif /* CONFIG_SYSCTL */
-
-static int tcp_kmemdup_sysctl_table(struct nf_proto_net *pn,
-				    struct nf_tcp_net *tn)
-{
-#ifdef CONFIG_SYSCTL
-	if (pn->ctl_table)
-		return 0;
-
-	pn->ctl_table = kmemdup(tcp_sysctl_table,
-				sizeof(tcp_sysctl_table),
-				GFP_KERNEL);
-	if (!pn->ctl_table)
-		return -ENOMEM;
-
-	pn->ctl_table[0].data = &tn->timeouts[TCP_CONNTRACK_SYN_SENT];
-	pn->ctl_table[1].data = &tn->timeouts[TCP_CONNTRACK_SYN_RECV];
-	pn->ctl_table[2].data = &tn->timeouts[TCP_CONNTRACK_ESTABLISHED];
-	pn->ctl_table[3].data = &tn->timeouts[TCP_CONNTRACK_FIN_WAIT];
-	pn->ctl_table[4].data = &tn->timeouts[TCP_CONNTRACK_CLOSE_WAIT];
-	pn->ctl_table[5].data = &tn->timeouts[TCP_CONNTRACK_LAST_ACK];
-	pn->ctl_table[6].data = &tn->timeouts[TCP_CONNTRACK_TIME_WAIT];
-	pn->ctl_table[7].data = &tn->timeouts[TCP_CONNTRACK_CLOSE];
-	pn->ctl_table[8].data = &tn->timeouts[TCP_CONNTRACK_RETRANS];
-	pn->ctl_table[9].data = &tn->timeouts[TCP_CONNTRACK_UNACK];
-	pn->ctl_table[10].data = &tn->tcp_loose;
-	pn->ctl_table[11].data = &tn->tcp_be_liberal;
-	pn->ctl_table[12].data = &tn->tcp_max_retrans;
-#endif
-	return 0;
-}
-
 static int tcp_init_net(struct net *net)
 {
 	struct nf_tcp_net *tn = nf_tcp_pernet(net);
@@ -1521,7 +1407,7 @@ static int tcp_init_net(struct net *net)
 		tn->tcp_max_retrans = nf_ct_tcp_max_retrans;
 	}
 
-	return tcp_kmemdup_sysctl_table(pn, tn);
+	return 0;
 }
 
 static struct nf_proto_net *tcp_get_net_proto(struct net *net)

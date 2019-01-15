@@ -298,41 +298,14 @@ icmp_timeout_nla_policy[CTA_TIMEOUT_ICMP_MAX+1] = {
 };
 #endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
 
-#ifdef CONFIG_SYSCTL
-static struct ctl_table icmp_sysctl_table[] = {
-	{
-		.procname	= "nf_conntrack_icmp_timeout",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{ }
-};
-#endif /* CONFIG_SYSCTL */
-
-static int icmp_kmemdup_sysctl_table(struct nf_proto_net *pn,
-				     struct nf_icmp_net *in)
-{
-#ifdef CONFIG_SYSCTL
-	pn->ctl_table = kmemdup(icmp_sysctl_table,
-				sizeof(icmp_sysctl_table),
-				GFP_KERNEL);
-	if (!pn->ctl_table)
-		return -ENOMEM;
-
-	pn->ctl_table[0].data = &in->timeout;
-#endif
-	return 0;
-}
 
 static int icmp_init_net(struct net *net)
 {
 	struct nf_icmp_net *in = nf_icmp_pernet(net);
-	struct nf_proto_net *pn = &in->pn;
 
 	in->timeout = nf_ct_icmp_timeout;
 
-	return icmp_kmemdup_sysctl_table(pn, in);
+	return 0;
 }
 
 static struct nf_proto_net *icmp_get_net_proto(struct net *net)

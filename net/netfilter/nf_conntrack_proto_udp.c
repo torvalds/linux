@@ -260,40 +260,6 @@ udp_timeout_nla_policy[CTA_TIMEOUT_UDP_MAX+1] = {
 };
 #endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
 
-#ifdef CONFIG_SYSCTL
-static struct ctl_table udp_sysctl_table[] = {
-	{
-		.procname	= "nf_conntrack_udp_timeout",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{
-		.procname	= "nf_conntrack_udp_timeout_stream",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{ }
-};
-#endif /* CONFIG_SYSCTL */
-
-static int udp_kmemdup_sysctl_table(struct nf_proto_net *pn,
-				    struct nf_udp_net *un)
-{
-#ifdef CONFIG_SYSCTL
-	if (pn->ctl_table)
-		return 0;
-	pn->ctl_table = kmemdup(udp_sysctl_table,
-				sizeof(udp_sysctl_table),
-				GFP_KERNEL);
-	if (!pn->ctl_table)
-		return -ENOMEM;
-	pn->ctl_table[0].data = &un->timeouts[UDP_CT_UNREPLIED];
-	pn->ctl_table[1].data = &un->timeouts[UDP_CT_REPLIED];
-#endif
-	return 0;
-}
 
 static int udp_init_net(struct net *net)
 {
@@ -307,7 +273,7 @@ static int udp_init_net(struct net *net)
 			un->timeouts[i] = udp_timeouts[i];
 	}
 
-	return udp_kmemdup_sysctl_table(pn, un);
+	return 0;
 }
 
 static struct nf_proto_net *udp_get_net_proto(struct net *net)
