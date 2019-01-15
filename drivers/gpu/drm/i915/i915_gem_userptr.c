@@ -150,7 +150,7 @@ userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
 			switch (mutex_trylock_recursive(unlock)) {
 			default:
 			case MUTEX_TRYLOCK_FAILED:
-				if (!mutex_lock_killable_nested(unlock, I915_MM_SHRINKER)) {
+				if (mutex_lock_killable_nested(unlock, I915_MM_SHRINKER)) {
 					i915_gem_object_put(obj);
 					return -EINTR;
 				}
