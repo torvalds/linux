@@ -1070,8 +1070,8 @@ int bnx2i_alloc_qp_resc(struct bnx2i_hba *hba, struct bnx2i_endpoint *ep)
 
 	/* Allocate memory area for actual SQ element */
 	ep->qp.sq_virt =
-		dma_zalloc_coherent(&hba->pcidev->dev, ep->qp.sq_mem_size,
-					&ep->qp.sq_phys, GFP_KERNEL);
+		dma_alloc_coherent(&hba->pcidev->dev, ep->qp.sq_mem_size,
+				   &ep->qp.sq_phys, GFP_KERNEL);
 	if (!ep->qp.sq_virt) {
 		printk(KERN_ALERT "bnx2i: unable to alloc SQ BD memory %d\n",
 				  ep->qp.sq_mem_size);
@@ -1106,8 +1106,8 @@ int bnx2i_alloc_qp_resc(struct bnx2i_hba *hba, struct bnx2i_endpoint *ep)
 
 	/* Allocate memory area for actual CQ element */
 	ep->qp.cq_virt =
-		dma_zalloc_coherent(&hba->pcidev->dev, ep->qp.cq_mem_size,
-					&ep->qp.cq_phys, GFP_KERNEL);
+		dma_alloc_coherent(&hba->pcidev->dev, ep->qp.cq_mem_size,
+				   &ep->qp.cq_phys, GFP_KERNEL);
 	if (!ep->qp.cq_virt) {
 		printk(KERN_ALERT "bnx2i: unable to alloc CQ BD memory %d\n",
 				  ep->qp.cq_mem_size);

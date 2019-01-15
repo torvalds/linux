@@ -2244,6 +2244,8 @@ static int logical_ring_init(struct intel_engine_cs *engine)
 	if (ret)
 		return ret;
 
+	intel_engine_init_workarounds(engine);
+
 	if (HAS_LOGICAL_RING_ELSQ(i915)) {
 		execlists->submit_reg = i915->regs +
 			i915_mmio_reg_offset(RING_EXECLIST_SQ_CONTENTS(engine));
@@ -2310,7 +2312,6 @@ int logical_render_ring_init(struct intel_engine_cs *engine)
 	}
 
 	intel_engine_init_whitelist(engine);
-	intel_engine_init_workarounds(engine);
 
 	return 0;
 }

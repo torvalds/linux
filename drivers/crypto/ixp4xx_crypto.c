@@ -260,9 +260,9 @@ static int setup_crypt_desc(void)
 {
 	struct device *dev = &pdev->dev;
 	BUILD_BUG_ON(sizeof(struct crypt_ctl) != 64);
-	crypt_virt = dma_zalloc_coherent(dev,
-					 NPE_QLEN * sizeof(struct crypt_ctl),
-					 &crypt_phys, GFP_ATOMIC);
+	crypt_virt = dma_alloc_coherent(dev,
+					NPE_QLEN * sizeof(struct crypt_ctl),
+					&crypt_phys, GFP_ATOMIC);
 	if (!crypt_virt)
 		return -ENOMEM;
 	return 0;
