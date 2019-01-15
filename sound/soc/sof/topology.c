@@ -15,13 +15,17 @@
 #include "ops.h"
 
 #define COMP_ID_UNASSIGNED		0xffffffff
-/* Constants used in the computation of linear volume gain from dB gain */
-/* 20th root of 10 in Q1.16 fixed-point notation*/
+/*
+ * Constants used in the computation of linear volume gain
+ * from dB gain 20th root of 10 in Q1.16 fixed-point notation
+ */
 #define VOL_TWENTIETH_ROOT_OF_TEN	73533
 /* 40th root of 10 in Q1.16 fixed-point notation*/
 #define VOL_FORTIETH_ROOT_OF_TEN	69419
-/* Volume fractional word length */
-/* Define to 16 sets the volume linear gain value to use Qx.16 format */
+/*
+ * Volume fractional word length define to 16 sets
+ * the volume linear gain value to use Qx.16 format
+ */
 #define VOLUME_FWL	16
 /* 0.5 dB step value in topology TLV */
 #define VOL_HALF_DB_STEP	50
@@ -57,9 +61,10 @@ static inline int get_tlv_data(const int *p, int tlv[TLV_ITEMS])
 	return 0;
 }
 
-/* Function to truncate an unsigned 64-bit number
- * by x bits and return 32-bit unsigned number
- * This function also takes care of rounding while truncating
+/*
+ * Function to truncate an unsigned 64-bit number
+ * by x bits and return 32-bit unsigned number. This
+ * function also takes care of rounding while truncating
  */
 static inline u32 vol_shift_64(u64 i, u32 x)
 {
@@ -73,13 +78,14 @@ static inline u32 vol_shift_64(u64 i, u32 x)
 	return (u32)(((i >> (x - 1)) + 1) >> 1);
 }
 
-/* Function to compute a ^ exp where,
- * a is a fractional number represented by a fixed-point integer
- * with a fractional world length of "fwl"
+/*
+ * Function to compute a ^ exp where,
+ * a is a fractional number represented by a fixed-point
+ * integer with a fractional world length of "fwl"
  * exp is an integer
  * fwl is the fractional word length
- * Return value is a fractional number represented by a fixed-point
- * integer with a fractional word length of "fwl"
+ * Return value is a fractional number represented by a
+ * fixed-point integer with a fractional word length of "fwl"
  */
 static u32 vol_pow32(u32 a, int exp, u32 fwl)
 {
@@ -99,7 +105,8 @@ static u32 vol_pow32(u32 a, int exp, u32 fwl)
 
 	/* mutiply a "iter" times to compute power */
 	for (i = 0; i < iter; i++) {
-		/* Product of 2 Qx.fwl fixed-point numbers yields a Q2*x.2*fwl
+		/*
+		 * Product of 2 Qx.fwl fixed-point numbers yields a Q2*x.2*fwl
 		 * Truncate product back to fwl fractional bits with rounding
 		 */
 		power = vol_shift_64((u64)power * a, fwl);
@@ -117,7 +124,8 @@ static u32 vol_pow32(u32 a, int exp, u32 fwl)
 	return (u32)numerator;
 }
 
-/* Function to calculate volume gain from TLV data
+/*
+ * Function to calculate volume gain from TLV data.
  * This function can only handle gain steps that are multiples of 0.5 dB
  */
 static u32 vol_compute_gain(u32 value, int *tlv)
@@ -135,8 +143,9 @@ static u32 vol_compute_gain(u32 value, int *tlv)
 	 */
 	dB_gain = tlv[TLV_MIN] + (value * tlv[TLV_STEP]) / 100;
 
-	/* compute linear gain
-	 * represented by fixed-point int with VOLUME_FWL fractional bits
+	/*
+	 * compute linear gain represented by fixed-point
+	 * int with VOLUME_FWL fractional bits
 	 */
 	linear_gain = vol_pow32(VOL_TWENTIETH_ROOT_OF_TEN, dB_gain, VOLUME_FWL);
 
@@ -152,7 +161,8 @@ static u32 vol_compute_gain(u32 value, int *tlv)
 	return linear_gain;
 }
 
-/* Set up volume table for kcontrols from tlv data
+/*
+ * Set up volume table for kcontrols from tlv data
  * "size" specifies the number of entries in the table
  */
 static int set_up_volume_table(struct snd_sof_control *scontrol,
