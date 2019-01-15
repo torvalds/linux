@@ -520,20 +520,31 @@ struct clk *ti_clk_register(struct device *dev, struct clk_hw *hw,
 }
 
 /**
- * omap2_init_clk_hw_omap_clocks - initialize an OMAP clock
- * @hw: struct clk_hw * to initialize
+ * ti_clk_register_omap_hw - register a clk_hw_omap to the clock framework
+ * @dev: device for this clock
+ * @hw: hardware clock handle
+ * @con: connection ID for this clock
  *
- * Add an OMAP clock @clk to the internal list of OMAP clocks.  Used
- * temporarily for autoidle handling, until this support can be
- * integrated into the common clock framework code in some way.  No
- * return value.
+ * Registers a clk_hw_omap clock to the clock framewor, adds a clock alias
+ * for it, and adds the list to the available clk_hw_omap type clocks.
+ * Returns a handle to the registered clock if successful, ERR_PTR value
+ * in failure.
  */
-void omap2_init_clk_hw_omap_clocks(struct clk_hw *hw)
+struct clk *ti_clk_register_omap_hw(struct device *dev, struct clk_hw *hw,
+				    const char *con)
 {
-	struct clk_hw_omap *c;
+	struct clk *clk;
+	struct clk_hw_omap *oclk;
 
-	c = to_clk_hw_omap(hw);
-	list_add(&c->node, &clk_hw_omap_clocks);
+	clk = ti_clk_register(dev, hw, con);
+	if (IS_ERR(clk))
+		return clk;
+
+	oclk = to_clk_hw_omap(hw);
+
+	list_add(&oclk->node, &clk_hw_omap_clocks);
+
+	return clk;
 }
 
 /**
