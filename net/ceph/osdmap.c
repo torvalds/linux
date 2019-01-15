@@ -495,9 +495,8 @@ static struct crush_map *crush_decode(void *pbyval, void *end)
 			  / sizeof(struct crush_rule_step))
 			goto bad;
 #endif
-		r = c->rules[i] = kmalloc(sizeof(*r) +
-					  yes*sizeof(struct crush_rule_step),
-					  GFP_NOFS);
+		r = kmalloc(struct_size(r, steps, yes), GFP_NOFS);
+		c->rules[i] = r;
 		if (r == NULL)
 			goto badmem;
 		dout(" rule %d is at %p\n", i, r);
