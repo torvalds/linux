@@ -559,3 +559,22 @@ int omap2_clk_for_each(int (*fn)(struct clk_hw_omap *hw))
 
 	return ret;
 }
+
+/**
+ * omap2_clk_is_hw_omap - check if the provided clk_hw is OMAP clock
+ * @hw: clk_hw to check if it is an omap clock or not
+ *
+ * Checks if the provided clk_hw is OMAP clock or not. Returns true if
+ * it is, false otherwise.
+ */
+bool omap2_clk_is_hw_omap(struct clk_hw *hw)
+{
+	struct clk_hw_omap *oclk;
+
+	list_for_each_entry(oclk, &clk_hw_omap_clocks, node) {
+		if (&oclk->hw == hw)
+			return true;
+	}
+
+	return false;
+}

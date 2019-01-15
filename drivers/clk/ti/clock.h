@@ -302,6 +302,7 @@ long omap4_dpll_regm4xen_round_rate(struct clk_hw *hw,
 int omap4_dpll_regm4xen_determine_rate(struct clk_hw *hw,
 				       struct clk_rate_request *req);
 int omap2_clk_for_each(int (*fn)(struct clk_hw_omap *hw));
+bool omap2_clk_is_hw_omap(struct clk_hw *hw);
 
 extern struct ti_clk_ll_ops *ti_clk_ll_ops;
 
