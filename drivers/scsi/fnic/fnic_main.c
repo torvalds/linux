@@ -654,7 +654,7 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	err = fnic_dev_wait(fnic->vdev, vnic_dev_open,
-			    vnic_dev_open_done, 0);
+			    vnic_dev_open_done, CMD_OPENF_RQ_ENABLE_THEN_POST);
 	if (err) {
 		shost_printk(KERN_ERR, fnic->lport->host,
 			     "vNIC dev open failed, aborting.\n");
@@ -799,6 +799,7 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* allocate RQ buffers and post them to RQ*/
 	for (i = 0; i < fnic->rq_count; i++) {
+		vnic_rq_enable(&fnic->rq[i]);
 		err = vnic_rq_fill(&fnic->rq[i], fnic_alloc_rq_frame);
 		if (err) {
 			shost_printk(KERN_ERR, fnic->lport->host,
@@ -873,8 +874,6 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Enable all queues */
 	for (i = 0; i < fnic->raw_wq_count; i++)
 		vnic_wq_enable(&fnic->wq[i]);
-	for (i = 0; i < fnic->rq_count; i++)
-		vnic_rq_enable(&fnic->rq[i]);
 	for (i = 0; i < fnic->wq_copy_count; i++)
 		vnic_wq_copy_enable(&fnic->wq_copy[i]);
 

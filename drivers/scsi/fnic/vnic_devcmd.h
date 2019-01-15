@@ -268,6 +268,8 @@ enum vnic_devcmd_cmd {
 /* flags for CMD_OPEN */
 #define CMD_OPENF_OPROM		0x1	/* open coming from option rom */
 
+#define CMD_OPENF_RQ_ENABLE_THEN_POST   0x2
+
 /* flags for CMD_INIT */
 #define CMD_INITF_DEFAULT_MAC	0x1	/* init with default mac addr */
 
