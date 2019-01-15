@@ -440,12 +440,9 @@ static bool device_init_rings(struct vnt_private *priv)
 	void *vir_pool;
 
 	/*allocate all RD/TD rings a single pool*/
-	vir_pool = dma_zalloc_coherent(&priv->pcid->dev,
-				       priv->opts.rx_descs0 * sizeof(struct vnt_rx_desc) +
-				       priv->opts.rx_descs1 * sizeof(struct vnt_rx_desc) +
-				       priv->opts.tx_descs[0] * sizeof(struct vnt_tx_desc) +
-				       priv->opts.tx_descs[1] * sizeof(struct vnt_tx_desc),
-				       &priv->pool_dma, GFP_ATOMIC);
+	vir_pool = dma_alloc_coherent(&priv->pcid->dev,
+				      priv->opts.rx_descs0 * sizeof(struct vnt_rx_desc) + priv->opts.rx_descs1 * sizeof(struct vnt_rx_desc) + priv->opts.tx_descs[0] * sizeof(struct vnt_tx_desc) + priv->opts.tx_descs[1] * sizeof(struct vnt_tx_desc),
+				      &priv->pool_dma, GFP_ATOMIC);
 	if (!vir_pool) {
 		dev_err(&priv->pcid->dev, "allocate desc dma memory failed\n");
 		return false;
@@ -459,13 +456,9 @@ static bool device_init_rings(struct vnt_private *priv)
 	priv->rd1_pool_dma = priv->rd0_pool_dma +
 		priv->opts.rx_descs0 * sizeof(struct vnt_rx_desc);
 
-	priv->tx0_bufs = dma_zalloc_coherent(&priv->pcid->dev,
-					     priv->opts.tx_descs[0] * PKT_BUF_SZ +
-					     priv->opts.tx_descs[1] * PKT_BUF_SZ +
-					     CB_BEACON_BUF_SIZE +
-					     CB_MAX_BUF_SIZE,
-					     &priv->tx_bufs_dma0,
-					     GFP_ATOMIC);
+	priv->tx0_bufs = dma_alloc_coherent(&priv->pcid->dev,
+					    priv->opts.tx_descs[0] * PKT_BUF_SZ + priv->opts.tx_descs[1] * PKT_BUF_SZ + CB_BEACON_BUF_SIZE + CB_MAX_BUF_SIZE,
+					    &priv->tx_bufs_dma0, GFP_ATOMIC);
 	if (!priv->tx0_bufs) {
 		dev_err(&priv->pcid->dev, "allocate buf dma memory failed\n");
 

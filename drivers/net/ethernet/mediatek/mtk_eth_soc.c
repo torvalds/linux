@@ -598,10 +598,10 @@ static int mtk_init_fq_dma(struct mtk_eth *eth)
 	dma_addr_t dma_addr;
 	int i;
 
-	eth->scratch_ring = dma_zalloc_coherent(eth->dev,
-						cnt * sizeof(struct mtk_tx_dma),
-						&eth->phy_scratch_ring,
-						GFP_ATOMIC);
+	eth->scratch_ring = dma_alloc_coherent(eth->dev,
+					       cnt * sizeof(struct mtk_tx_dma),
+					       &eth->phy_scratch_ring,
+					       GFP_ATOMIC);
 	if (unlikely(!eth->scratch_ring))
 		return -ENOMEM;
 
@@ -1213,8 +1213,8 @@ static int mtk_tx_alloc(struct mtk_eth *eth)
 	if (!ring->buf)
 		goto no_tx_mem;
 
-	ring->dma = dma_zalloc_coherent(eth->dev, MTK_DMA_SIZE * sz,
-					&ring->phys, GFP_ATOMIC);
+	ring->dma = dma_alloc_coherent(eth->dev, MTK_DMA_SIZE * sz,
+				       &ring->phys, GFP_ATOMIC);
 	if (!ring->dma)
 		goto no_tx_mem;
 
@@ -1310,9 +1310,9 @@ static int mtk_rx_alloc(struct mtk_eth *eth, int ring_no, int rx_flag)
 			return -ENOMEM;
 	}
 
-	ring->dma = dma_zalloc_coherent(eth->dev,
-					rx_dma_size * sizeof(*ring->dma),
-					&ring->phys, GFP_ATOMIC);
+	ring->dma = dma_alloc_coherent(eth->dev,
+				       rx_dma_size * sizeof(*ring->dma),
+				       &ring->phys, GFP_ATOMIC);
 	if (!ring->dma)
 		return -ENOMEM;
 

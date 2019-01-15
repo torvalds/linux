@@ -1208,8 +1208,8 @@ static int xgene_dma_create_ring_one(struct xgene_dma_chan *chan,
 	ring->size = ret;
 
 	/* Allocate memory for DMA ring descriptor */
-	ring->desc_vaddr = dma_zalloc_coherent(chan->dev, ring->size,
-					       &ring->desc_paddr, GFP_KERNEL);
+	ring->desc_vaddr = dma_alloc_coherent(chan->dev, ring->size,
+					      &ring->desc_paddr, GFP_KERNEL);
 	if (!ring->desc_vaddr) {
 		chan_err(chan, "Failed to allocate ring desc\n");
 		return -ENOMEM;
