@@ -31,6 +31,7 @@
 #undef pr_fmt
 #define pr_fmt(fmt) "%s: " fmt, __func__
 
+static LIST_HEAD(clk_hw_omap_clocks);
 struct ti_clk_ll_ops *ti_clk_ll_ops;
 static struct device_node *clocks_node_ptr[CLK_MAX_MEMMAPS];
 
@@ -516,4 +517,45 @@ struct clk *ti_clk_register(struct device *dev, struct clk_hw *hw,
 	}
 
 	return clk;
+}
+
+/**
+ * omap2_init_clk_hw_omap_clocks - initialize an OMAP clock
+ * @hw: struct clk_hw * to initialize
+ *
+ * Add an OMAP clock @clk to the internal list of OMAP clocks.  Used
+ * temporarily for autoidle handling, until this support can be
+ * integrated into the common clock framework code in some way.  No
+ * return value.
+ */
+void omap2_init_clk_hw_omap_clocks(struct clk_hw *hw)
+{
+	struct clk_hw_omap *c;
+
+	c = to_clk_hw_omap(hw);
+	list_add(&c->node, &clk_hw_omap_clocks);
+}
+
+/**
+ * omap2_clk_for_each - call function for each registered clk_hw_omap
+ * @fn: pointer to a callback function
+ *
+ * Call @fn for each registered clk_hw_omap, passing @hw to each
+ * function.  @fn must return 0 for success or any other value for
+ * failure.  If @fn returns non-zero, the iteration across clocks
+ * will stop and the non-zero return value will be passed to the
+ * caller of omap2_clk_for_each().
+ */
+int omap2_clk_for_each(int (*fn)(struct clk_hw_omap *hw))
+{
+	int ret;
+	struct clk_hw_omap *hw;
+
+	list_for_each_entry(hw, &clk_hw_omap_clocks, node) {
+		ret = (*fn)(hw);
+		if (ret)
+			break;
+	}
+
+	return ret;
 }
