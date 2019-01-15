@@ -3278,18 +3278,19 @@ err:
 static void rk3308_codec_update_adcs_status(struct rk3308_codec_priv *rk3308,
 					    int state)
 {
-	int idx;
+	int idx, grp;
 
 	/* Update skip_grps flags if the ADCs need to be enabled always. */
 	if (state == PATH_BUSY) {
-		/* Clear all of skip_grps flags. */
-		for (idx = 0; idx < ADC_LR_GROUP_MAX; idx++)
-			rk3308->skip_grps[idx] = 0;
+		for (idx = 0; idx < rk3308->used_adc_grps; idx++) {
+			u32 mapped_grp = to_mapped_grp(rk3308, idx);
 
-		for (idx = 0; idx < rk3308->en_always_grps_num; idx++) {
-			u32 en_always_grp = rk3308->en_always_grps[idx];
+			for (grp = 0; grp < rk3308->en_always_grps_num; grp++) {
+				u32 en_always_grp = rk3308->en_always_grps[grp];
 
-			rk3308->skip_grps[en_always_grp] = 1;
+				if (mapped_grp == en_always_grp)
+					rk3308->skip_grps[en_always_grp] = 1;
+			}
 		}
 	}
 }
@@ -3604,6 +3605,10 @@ static int rk3308_codec_setup_en_always_adcs(struct rk3308_codec_priv *rk3308,
 			ret);
 		return ret;
 	}
+
+	/* Clear all of skip_grps flags. */
+	for (num = 0; num < ADC_LR_GROUP_MAX; num++)
+		rk3308->skip_grps[num] = 0;
 
 	/* The loopback grp should not be enabled always. */
 	for (num = 0; num < rk3308->en_always_grps_num; num++) {
