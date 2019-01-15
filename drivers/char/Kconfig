@@ -244,7 +244,7 @@ source "drivers/char/hw_random/Kconfig"
 
 config NVRAM
 	tristate "/dev/nvram support"
-	depends on ATARI || X86 || GENERIC_NVRAM
+	depends on X86 || GENERIC_NVRAM
 	---help---
 	  If you say Y here and create a character special file /dev/nvram
 	  with major number 10 and minor number 144 using mknod ("man mknod"),
@@ -261,9 +261,6 @@ config NVRAM
 	  however that most NVRAM space in a PC belongs to the BIOS and you
 	  should NEVER idly tamper with it. See Ralf Brown's interrupt list
 	  for a guide to the use of CMOS bytes by your BIOS.
-
-	  On Atari machines, /dev/nvram is always configured and does not need
-	  to be selected.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called nvram.

@@ -757,7 +757,7 @@ static int __init atari_scsi_probe(struct platform_device *pdev)
 
 	if (setup_hostid >= 0) {
 		atari_scsi_template.this_id = setup_hostid & 7;
-	} else {
+	} else if (IS_REACHABLE(CONFIG_NVRAM)) {
 		/* Test if a host id is set in the NVRam */
 		if (ATARIHW_PRESENT(TT_CLK) && nvram_check_checksum()) {
 			unsigned char b = nvram_read_byte(16);
