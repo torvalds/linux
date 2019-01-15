@@ -82,30 +82,6 @@ events for atomic commits correctly. But fixing these bugs is good anyway.
 
 Contact: Daniel Vetter, respective driver maintainers
 
-Better manual-upload support for atomic
----------------------------------------
-
-This would be especially useful for tinydrm:
-
-- Add a struct drm_rect dirty_clip to drm_crtc_state. When duplicating the
-  crtc state, clear that to the max values, x/y = 0 and w/h = MAX_INT, in
-  __drm_atomic_helper_crtc_duplicate_state().
-
-- Move tinydrm_merge_clips into drm_framebuffer.c, dropping the tinydrm\_
-  prefix ofc and using drm_fb\_. drm_framebuffer.c makes sense since this
-  is a function useful to implement the fb->dirty function.
-
-- Create a new drm_fb_dirty function which does essentially what e.g.
-  mipi_dbi_fb_dirty does. You can use e.g. drm_atomic_helper_update_plane as the
-  template. But instead of doing a simple full-screen plane update, this new
-  helper also sets crtc_state->dirty_clip to the right coordinates. And of
-  course it needs to check whether the fb is actually active (and maybe where),
-  so there's some book-keeping involved. There's also some good fun involved in
-  scaling things appropriately. For that case we might simply give up and
-  declare the entire area covered by the plane as dirty.
-
-Contact: Noralf Trønnes, Daniel Vetter
-
 Fallout from atomic KMS
 -----------------------
 
@@ -459,20 +435,9 @@ those drivers as simple as possible, so lots of room for refactoring:
   one of the ideas for having a shared dsi/dbi helper, abstracting away the
   transport details more.
 
-- tinydrm_gem_cma_prime_import_sg_table should probably go into the cma
-  helpers, as a _vmapped variant (since not every driver needs the vmap).
-  And tinydrm_gem_cma_free_object could the be merged into
-  drm_gem_cma_free_object().
-
-- tinydrm_fb_create we could move into drm_simple_pipe, only need to add
-  the fb_create hook to drm_simple_pipe_funcs, which would again simplify a
-  bunch of things (since it gives you a one-stop vfunc for simple drivers).
-
 - Quick aside: The unregister devm stuff is kinda getting the lifetimes of
   a drm_device wrong. Doesn't matter, since everyone else gets it wrong
   too :-)
-
-- also rework the drm_framebuffer_funcs->dirty hook wire-up, see above.
 
 Contact: Noralf Trønnes, Daniel Vetter
 
