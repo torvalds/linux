@@ -605,16 +605,17 @@ static int ov8856_read_reg(struct ov8856 *ov8856, u16 reg, u16 len, u32 *val)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&ov8856->sd);
 	struct i2c_msg msgs[2];
-	u8 addr_buf[2] = {reg >> 8, reg & 0xff};
-	u8 data_buf[4] = {0, };
+	u8 addr_buf[2];
+	u8 data_buf[4] = {0};
 	int ret;
 
 	if (len > 4)
 		return -EINVAL;
 
+	put_unaligned_be16(reg, addr_buf);
 	msgs[0].addr = client->addr;
 	msgs[0].flags = 0;
-	msgs[0].len = ARRAY_SIZE(addr_buf);
+	msgs[0].len = sizeof(addr_buf);
 	msgs[0].buf = addr_buf;
 	msgs[1].addr = client->addr;
 	msgs[1].flags = I2C_M_RD;
