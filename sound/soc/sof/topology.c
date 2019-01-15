@@ -2366,10 +2366,12 @@ static int sof_link_load(struct snd_soc_component *scomp, int index,
 	if (!link->no_pcm)
 		return 0;
 
-	/* usually we use 1 config, but for HDA it may be 0 ATM */
-	if (le32_to_cpu(cfg->num_hw_configs) != 1)
-		dev_warn(sdev->dev, "warn: unexpected DAI config count %d!\n",
-			 le32_to_cpu(cfg->num_hw_configs));
+	/* only support 1 config atm */
+	if (le32_to_cpu(cfg->num_hw_configs) != 1) {
+		dev_err(sdev->dev, "error: unexpected DAI config count %d\n",
+			le32_to_cpu(cfg->num_hw_configs));
+		return -EINVAL;
+	}
 
 	/* check we have some tokens - we need at least DAI type */
 	if (le32_to_cpu(private->size) == 0) {
