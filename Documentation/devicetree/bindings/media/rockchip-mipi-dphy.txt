@@ -6,6 +6,7 @@ Required properties:
 	"rockchip,rk1808-mipi-dphy-rx"
 	"rockchip,rk3288-mipi-dphy"
 	"rockchip,rk3326-mipi-dphy"
+	"rockchip,rk3368-mipi-dphy"
 	"rockchip,rk3399-mipi-dphy"
 - clocks : list of clock specifiers, corresponding to entries in
 	clock-names property;
