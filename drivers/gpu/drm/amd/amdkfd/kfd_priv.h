@@ -97,17 +97,18 @@
 #define KFD_CWSR_TBA_TMA_SIZE (PAGE_SIZE * 2)
 #define KFD_CWSR_TMA_OFFSET PAGE_SIZE
 
+#define KFD_MAX_NUM_OF_QUEUES_PER_DEVICE		\
+	(KFD_MAX_NUM_OF_PROCESSES *			\
+			KFD_MAX_NUM_OF_QUEUES_PER_PROCESS)
+
+#define KFD_KERNEL_QUEUE_SIZE 2048
+
 /*
  * Kernel module parameter to specify maximum number of supported queues per
  * device
  */
 extern int max_num_of_queues_per_device;
 
-#define KFD_MAX_NUM_OF_QUEUES_PER_DEVICE		\
-	(KFD_MAX_NUM_OF_PROCESSES *			\
-			KFD_MAX_NUM_OF_QUEUES_PER_PROCESS)
-
-#define KFD_KERNEL_QUEUE_SIZE 2048
 
 /* Kernel module parameter to specify the scheduling policy */
 extern int sched_policy;
