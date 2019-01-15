@@ -343,6 +343,9 @@ int pvcalls_front_socket(struct socket *sock)
 
 static void free_active_ring(struct sock_mapping *map)
 {
+	if (!map->active.ring)
+		return;
+
 	free_pages((unsigned long)map->active.data.in,
 			map->active.ring->ring_order);
 	free_page((unsigned long)map->active.ring);
