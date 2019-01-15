@@ -372,15 +372,21 @@ static int sof_remove(struct platform_device *pdev)
 	struct snd_sof_dev *sdev = dev_get_drvdata(&pdev->dev);
 	struct snd_sof_pdata *pdata = sdev->pdata;
 
-	if (pdata && !IS_ERR_OR_NULL(pdata->pdev_mach))
-		platform_device_unregister(pdata->pdev_mach);
-
 	snd_soc_unregister_component(&pdev->dev);
 	snd_sof_fw_unload(sdev);
 	snd_sof_ipc_free(sdev);
 	snd_sof_free_debug(sdev);
 	snd_sof_free_trace(sdev);
 	snd_sof_remove(sdev);
+
+	/*
+	 * platform_device_unregister() frees the card and its resources.
+	 * So it should be called after unregistering the comp driver
+	 * so that the card is valid while unregistering comp driver.
+	 */
+	if (pdata && !IS_ERR_OR_NULL(pdata->pdev_mach))
+		platform_device_unregister(pdata->pdev_mach);
+
 	return 0;
 }
 
