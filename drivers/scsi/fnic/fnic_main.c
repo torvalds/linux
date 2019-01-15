@@ -880,14 +880,14 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	fc_fabric_login(lp);
 
-	vnic_dev_enable(fnic->vdev);
-
 	err = fnic_request_intr(fnic);
 	if (err) {
 		shost_printk(KERN_ERR, fnic->lport->host,
 			     "Unable to request irq.\n");
 		goto err_out_free_exch_mgr;
 	}
+
+	vnic_dev_enable(fnic->vdev);
 
 	for (i = 0; i < fnic->intr_count; i++)
 		vnic_intr_unmask(&fnic->intr[i]);
