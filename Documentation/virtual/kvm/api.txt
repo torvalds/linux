@@ -1871,6 +1871,9 @@ Architectures: all
 Type: vcpu ioctl
 Parameters: struct kvm_one_reg (in)
 Returns: 0 on success, negative value on failure
+Errors:
+  ENOENT:   no such register
+  EINVAL:   other errors, such as bad size encoding for a known register
 
 struct kvm_one_reg {
        __u64 id;
@@ -2192,6 +2195,9 @@ Architectures: all
 Type: vcpu ioctl
 Parameters: struct kvm_one_reg (in and out)
 Returns: 0 on success, negative value on failure
+Errors:
+  ENOENT:   no such register
+  EINVAL:   other errors, such as bad size encoding for a known register
 
 This ioctl allows to receive the value of a single register implemented
 in a vcpu. The register to read is indicated by the "id" field of the
