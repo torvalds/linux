@@ -145,7 +145,7 @@ config ARCH_MVEBU
 config ARCH_MXC
 	bool "ARMv8 based NXP i.MX SoC family"
 	select ARM64_ERRATUM_843419
-	select ARM64_ERRATUM_845719
+	select ARM64_ERRATUM_845719 if COMPAT
 	help
 	  This enables support for the ARMv8 based SoCs in the
 	  NXP i.MX family.
