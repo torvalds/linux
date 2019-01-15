@@ -2188,20 +2188,10 @@ static int soc_probe(struct platform_device *pdev)
 static int soc_cleanup_card_resources(struct snd_soc_card *card)
 {
 	struct snd_soc_pcm_runtime *rtd;
-	struct snd_soc_component *component;
-	int ret;
 
 	/* make sure any delayed work runs */
 	for_each_card_rtds(card, rtd)
 		flush_delayed_work(&rtd->delayed_work);
-
-	/* remove dynamic controls for all component driver */
-	list_for_each_entry(component, &card->component_dev_list, card_list) {
-		ret = snd_soc_tplg_component_remove(component, SND_SOC_TPLG_INDEX_ALL);
-		if (ret < 0)
-			dev_err(component->dev,
-				"error: component free failed %d\n", ret);
-	}
 
 	/* free the ALSA card at first; this syncs with pending operations */
 	snd_card_free(card->snd_card);
