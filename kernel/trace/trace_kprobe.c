@@ -607,11 +607,17 @@ static int trace_kprobe_create(int argc, const char *argv[])
 	char buf[MAX_EVENT_NAME_LEN];
 	unsigned int flags = TPARG_FL_KERNEL;
 
-	/* argc must be >= 1 */
-	if (argv[0][0] == 'r') {
+	switch (argv[0][0]) {
+	case 'r':
 		is_return = true;
 		flags |= TPARG_FL_RETURN;
-	} else if (argv[0][0] != 'p' || argc < 2)
+		break;
+	case 'p':
+		break;
+	default:
+		return -ECANCELED;
+	}
+	if (argc < 2)
 		return -ECANCELED;
 
 	event = strchr(&argv[0][1], ':');
