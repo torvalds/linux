@@ -636,7 +636,7 @@ struct z_erofs_vle_frontend {
 	struct inode *const inode;
 
 	struct z_erofs_vle_work_builder builder;
-	struct erofs_map_blocks_iter m_iter;
+	struct erofs_map_blocks map;
 
 	z_erofs_vle_owned_workgrp_t owned_head;
 
@@ -647,8 +647,9 @@ struct z_erofs_vle_frontend {
 
 #define VLE_FRONTEND_INIT(__i) { \
 	.inode = __i, \
-	.m_iter = { \
-		{ .m_llen = 0, .m_plen = 0 }, \
+	.map = { \
+		.m_llen = 0, \
+		.m_plen = 0, \
 		.mpage = NULL \
 	}, \
 	.builder = VLE_WORK_BUILDER_INIT(), \
@@ -681,8 +682,7 @@ static int z_erofs_do_read_page(struct z_erofs_vle_frontend *fe,
 {
 	struct super_block *const sb = fe->inode->i_sb;
 	struct erofs_sb_info *const sbi __maybe_unused = EROFS_SB(sb);
-	struct erofs_map_blocks_iter *const m = &fe->m_iter;
-	struct erofs_map_blocks *const map = &m->map;
+	struct erofs_map_blocks *const map = &fe->map;
 	struct z_erofs_vle_work_builder *const builder = &fe->builder;
 	const loff_t offset = page_offset(page);
 
@@ -715,7 +715,7 @@ repeat:
 
 	map->m_la = offset + cur;
 	map->m_llen = 0;
-	err = erofs_map_blocks_iter(fe->inode, map, &m->mpage, 0);
+	err = z_erofs_map_blocks_iter(fe->inode, map, 0);
 	if (unlikely(err))
 		goto err_out;
 
@@ -1484,8 +1484,8 @@ static int z_erofs_vle_normalaccess_readpage(struct file *file,
 
 	z_erofs_submit_and_unzip(&f, &pagepool, true);
 out:
-	if (f.m_iter.mpage)
-		put_page(f.m_iter.mpage);
+	if (f.map.mpage)
+		put_page(f.map.mpage);
 
 	/* clean up the remaining free pages */
 	put_pages_list(&pagepool);
@@ -1555,8 +1555,8 @@ static int z_erofs_vle_normalaccess_readpages(struct file *filp,
 
 	z_erofs_submit_and_unzip(&f, &pagepool, sync);
 
-	if (f.m_iter.mpage)
-		put_page(f.m_iter.mpage);
+	if (f.map.mpage)
+		put_page(f.map.mpage);
 
 	/* clean up the remaining free pages */
 	put_pages_list(&pagepool);
@@ -1701,14 +1701,14 @@ vle_get_logical_extent_head(const struct vle_map_blocks_iter_ctx *ctx,
 
 int z_erofs_map_blocks_iter(struct inode *inode,
 	struct erofs_map_blocks *map,
-	struct page **mpage_ret, int flags)
+	int flags)
 {
 	void *kaddr;
 	const struct vle_map_blocks_iter_ctx ctx = {
 		.inode = inode,
 		.sb = inode->i_sb,
 		.clusterbits = EROFS_I_SB(inode)->clusterbits,
-		.mpage_ret = mpage_ret,
+		.mpage_ret = &map->mpage,
 		.kaddr_ret = &kaddr
 	};
 	const unsigned int clustersize = 1 << ctx.clusterbits;
@@ -1722,7 +1722,7 @@ int z_erofs_map_blocks_iter(struct inode *inode,
 
 	/* initialize `pblk' to keep gcc from printing foolish warnings */
 	erofs_blk_t mblk, pblk = 0;
-	struct page *mpage = *mpage_ret;
+	struct page *mpage = map->mpage;
 	struct z_erofs_vle_decompressed_index *di;
 	unsigned int cluster_type, logical_cluster_ofs;
 	int err = 0;
@@ -1758,7 +1758,7 @@ int z_erofs_map_blocks_iter(struct inode *inode,
 			err = PTR_ERR(mpage);
 			goto out;
 		}
-		*mpage_ret = mpage;
+		map->mpage = mpage;
 	} else {
 		lock_page(mpage);
 		DBG_BUGON(!PageUptodate(mpage));
@@ -1818,7 +1818,7 @@ int z_erofs_map_blocks_iter(struct inode *inode,
 		/* get the correspoinding first chunk */
 		err = vle_get_logical_extent_head(&ctx, lcn, &ofs,
 						  &pblk, &map->m_flags);
-		mpage = *mpage_ret;
+		mpage = map->mpage;
 
 		if (unlikely(err)) {
 			if (mpage)

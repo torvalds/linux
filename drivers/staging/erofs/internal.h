@@ -461,10 +461,25 @@ struct erofs_map_blocks {
 	u64 m_plen, m_llen;
 
 	unsigned int m_flags;
+
+	struct page *mpage;
 };
 
 /* Flags used by erofs_map_blocks() */
 #define EROFS_GET_BLOCKS_RAW    0x0001
+
+#ifdef CONFIG_EROFS_FS_ZIP
+int z_erofs_map_blocks_iter(struct inode *inode,
+			    struct erofs_map_blocks *map,
+			    int flags);
+#else
+static inline int z_erofs_map_blocks_iter(struct inode *inode,
+					  struct erofs_map_blocks *map,
+					  int flags)
+{
+	return -ENOTSUPP;
+}
+#endif
 
 /* data.c */
 static inline struct bio *
@@ -522,19 +537,6 @@ static inline struct page *erofs_get_meta_page_nofail(struct super_block *sb,
 }
 
 extern int erofs_map_blocks(struct inode *, struct erofs_map_blocks *, int);
-extern int erofs_map_blocks_iter(struct inode *, struct erofs_map_blocks *,
-	struct page **, int);
-
-struct erofs_map_blocks_iter {
-	struct erofs_map_blocks map;
-	struct page *mpage;
-};
-
-#ifdef CONFIG_EROFS_FS_ZIP
-extern int z_erofs_map_blocks_iter(struct inode *,
-				   struct erofs_map_blocks *,
-				   struct page **, int);
-#endif
 
 static inline struct page *
 erofs_get_inline_page(struct inode *inode,
