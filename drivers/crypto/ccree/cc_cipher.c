@@ -783,7 +783,8 @@ static int cc_cipher_decrypt(struct skcipher_request *req)
 
 	memset(req_ctx, 0, sizeof(*req_ctx));
 
-	if (ctx_p->cipher_mode == DRV_CIPHER_CBC) {
+	if ((ctx_p->cipher_mode == DRV_CIPHER_CBC) &&
+	    (req->cryptlen >= ivsize)) {
 
 		/* Allocate and save the last IV sized bytes of the source,
 		 * which will be lost in case of in-place decryption.
