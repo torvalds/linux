@@ -244,6 +244,7 @@ struct vm_region {
 	unsigned long	vm_top;		/* region allocated to here */
 	unsigned long	vm_pgoff;	/* the offset in vm_file corresponding to vm_start */
 	struct file	*vm_file;	/* the backing file or NULL */
+	struct file	*vm_prfile;	/* the virtual backing file or NULL */
 
 	int		vm_usage;	/* region usage count (access under nommu_region_sem) */
 	bool		vm_icache_flushed : 1; /* true if the icache has been flushed for
@@ -318,6 +319,7 @@ struct vm_area_struct {
 	unsigned long vm_pgoff;		/* Offset (within vm_file) in PAGE_SIZE
 					   units */
 	struct file * vm_file;		/* File we map to (can be NULL). */
+	struct file *vm_prfile;		/* shadow of vm_file */
 	void * vm_private_data;		/* was vm_pte (shared mem) */
 
 	atomic_long_t swap_readahead_info;

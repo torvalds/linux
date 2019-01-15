@@ -23,6 +23,7 @@
 #include <linux/rculist.h>
 #include <linux/wait.h>
 #include <linux/memcontrol.h>
+#include <linux/module.h>
 
 #include <linux/fsnotify_backend.h>
 #include "fsnotify.h"
@@ -112,6 +113,7 @@ void fsnotify_get_group(struct fsnotify_group *group)
 {
 	refcount_inc(&group->refcnt);
 }
+EXPORT_SYMBOL_GPL(fsnotify_get_group);
 
 /*
  * Drop a reference to a group.  Free it if it's through.
@@ -121,6 +123,7 @@ void fsnotify_put_group(struct fsnotify_group *group)
 	if (refcount_dec_and_test(&group->refcnt))
 		fsnotify_final_destroy_group(group);
 }
+EXPORT_SYMBOL_GPL(fsnotify_put_group);
 
 /*
  * Create a new fsnotify_group and hold a reference for the group returned.
@@ -150,6 +153,7 @@ struct fsnotify_group *fsnotify_alloc_group(const struct fsnotify_ops *ops)
 
 	return group;
 }
+EXPORT_SYMBOL_GPL(fsnotify_alloc_group);
 
 int fsnotify_fasync(int fd, struct file *file, int on)
 {

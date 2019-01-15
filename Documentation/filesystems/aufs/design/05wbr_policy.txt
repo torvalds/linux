@@ -1,0 +1,64 @@
+
+# Copyright (C) 2005-2018 Junjiro R. Okajima
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+Policies to Select One among Multiple Writable Branches
+----------------------------------------------------------------------
+When the number of writable branch is more than one, aufs has to decide
+the target branch for file creation or copy-up. By default, the highest
+writable branch which has the parent (or ancestor) dir of the target
+file is chosen (top-down-parent policy).
+By user's request, aufs implements some other policies to select the
+writable branch, for file creation several policies, round-robin,
+most-free-space, and other policies. For copy-up, top-down-parent,
+bottom-up-parent, bottom-up and others.
+
+As expected, the round-robin policy selects the branch in circular. When
+you have two writable branches and creates 10 new files, 5 files will be
+created for each branch. mkdir(2) systemcall is an exception. When you
+create 10 new directories, all will be created on the same branch.
+And the most-free-space policy selects the one which has most free
+space among the writable branches. The amount of free space will be
+checked by aufs internally, and users can specify its time interval.
+
+The policies for copy-up is more simple,
+top-down-parent is equivalent to the same named on in create policy,
+bottom-up-parent selects the writable branch where the parent dir
+exists and the nearest upper one from the copyup-source,
+bottom-up selects the nearest upper writable branch from the
+copyup-source, regardless the existence of the parent dir.
+
+There are some rules or exceptions to apply these policies.
+- If there is a readonly branch above the policy-selected branch and
+  the parent dir is marked as opaque (a variation of whiteout), or the
+  target (creating) file is whiteout-ed on the upper readonly branch,
+  then the result of the policy is ignored and the target file will be
+  created on the nearest upper writable branch than the readonly branch.
+- If there is a writable branch above the policy-selected branch and
+  the parent dir is marked as opaque or the target file is whiteouted
+  on the branch, then the result of the policy is ignored and the target
+  file will be created on the highest one among the upper writable
+  branches who has diropq or whiteout. In case of whiteout, aufs removes
+  it as usual.
+- link(2) and rename(2) systemcalls are exceptions in every policy.
+  They try selecting the branch where the source exists as possible
+  since copyup a large file will take long time. If it can't be,
+  ie. the branch where the source exists is readonly, then they will
+  follow the copyup policy.
+- There is an exception for rename(2) when the target exists.
+  If the rename target exists, aufs compares the index of the branches
+  where the source and the target exists and selects the higher
+  one. If the selected branch is readonly, then aufs follows the
+  copyup policy.

@@ -306,6 +306,8 @@ static inline int lockdep_match_key(struct lockdep_map *lock,
 	return lock->key == key;
 }
 
+struct lock_class *lockdep_hlock_class(struct held_lock *hlock);
+
 /*
  * Acquire a lock.
  *
@@ -432,6 +434,7 @@ struct lockdep_map { };
 
 #define lockdep_depth(tsk)	(0)
 
+#define lockdep_is_held(lock)			(1)
 #define lockdep_is_held_type(l, r)		(1)
 
 #define lockdep_assert_held(l)			do { (void)(l); } while (0)
