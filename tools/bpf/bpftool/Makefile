@@ -93,9 +93,16 @@ BFD_SRCS = jit_disasm.c
 SRCS = $(filter-out $(BFD_SRCS),$(wildcard *.c))
 
 ifeq ($(feature-libbfd),1)
+  LIBS += -lbfd -ldl -lopcodes
+else ifeq ($(feature-libbfd-liberty),1)
+  LIBS += -lbfd -ldl -lopcodes -liberty
+else ifeq ($(feature-libbfd-liberty-z),1)
+  LIBS += -lbfd -ldl -lopcodes -liberty -lz
+endif
+
+ifneq ($(filter -lbfd,$(LIBS)),)
 CFLAGS += -DHAVE_LIBBFD_SUPPORT
 SRCS += $(BFD_SRCS)
-LIBS += -lbfd -lopcodes
 endif
 
 OBJS = $(patsubst %.c,$(OUTPUT)%.o,$(SRCS)) $(OUTPUT)disasm.o
