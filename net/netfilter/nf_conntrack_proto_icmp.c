@@ -68,11 +68,10 @@ static bool icmp_invert_tuple(struct nf_conntrack_tuple *tuple,
 }
 
 /* Returns verdict for packet, or -1 for invalid. */
-static int icmp_packet(struct nf_conn *ct,
-		       struct sk_buff *skb,
-		       unsigned int dataoff,
-		       enum ip_conntrack_info ctinfo,
-		       const struct nf_hook_state *state)
+int nf_conntrack_icmp_packet(struct nf_conn *ct,
+			     struct sk_buff *skb,
+			     enum ip_conntrack_info ctinfo,
+			     const struct nf_hook_state *state)
 {
 	/* Do not immediately delete the connection after the first
 	   successful reply to avoid excessive conntrackd traffic
@@ -350,9 +349,6 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_icmp =
 	.l4proto		= IPPROTO_ICMP,
 	.pkt_to_tuple		= icmp_pkt_to_tuple,
 	.invert_tuple		= icmp_invert_tuple,
-	.packet			= icmp_packet,
-	.destroy		= NULL,
-	.me			= NULL,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.tuple_to_nlattr	= icmp_tuple_to_nlattr,
 	.nlattr_tuple_size	= icmp_nlattr_tuple_size,

@@ -85,11 +85,11 @@ static bool udp_error(struct sk_buff *skb,
 }
 
 /* Returns verdict for packet, and may modify conntracktype */
-static int udp_packet(struct nf_conn *ct,
-		      struct sk_buff *skb,
-		      unsigned int dataoff,
-		      enum ip_conntrack_info ctinfo,
-		      const struct nf_hook_state *state)
+int nf_conntrack_udp_packet(struct nf_conn *ct,
+			    struct sk_buff *skb,
+			    unsigned int dataoff,
+			    enum ip_conntrack_info ctinfo,
+			    const struct nf_hook_state *state)
 {
 	unsigned int *timeouts;
 
@@ -177,11 +177,11 @@ static bool udplite_error(struct sk_buff *skb,
 }
 
 /* Returns verdict for packet, and may modify conntracktype */
-static int udplite_packet(struct nf_conn *ct,
-			  struct sk_buff *skb,
-			  unsigned int dataoff,
-			  enum ip_conntrack_info ctinfo,
-			  const struct nf_hook_state *state)
+int nf_conntrack_udplite_packet(struct nf_conn *ct,
+				struct sk_buff *skb,
+				unsigned int dataoff,
+				enum ip_conntrack_info ctinfo,
+				const struct nf_hook_state *state)
 {
 	unsigned int *timeouts;
 
@@ -319,7 +319,6 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_udp =
 {
 	.l4proto		= IPPROTO_UDP,
 	.allow_clash		= true,
-	.packet			= udp_packet,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.tuple_to_nlattr	= nf_ct_port_tuple_to_nlattr,
 	.nlattr_to_tuple	= nf_ct_port_nlattr_to_tuple,
@@ -344,7 +343,6 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_udplite =
 {
 	.l4proto		= IPPROTO_UDPLITE,
 	.allow_clash		= true,
-	.packet			= udplite_packet,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.tuple_to_nlattr	= nf_ct_port_tuple_to_nlattr,
 	.nlattr_to_tuple	= nf_ct_port_nlattr_to_tuple,

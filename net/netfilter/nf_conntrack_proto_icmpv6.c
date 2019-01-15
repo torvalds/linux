@@ -86,11 +86,10 @@ static unsigned int *icmpv6_get_timeouts(struct net *net)
 }
 
 /* Returns verdict for packet, or -1 for invalid. */
-static int icmpv6_packet(struct nf_conn *ct,
-		         struct sk_buff *skb,
-		         unsigned int dataoff,
-		         enum ip_conntrack_info ctinfo,
-		         const struct nf_hook_state *state)
+int nf_conntrack_icmpv6_packet(struct nf_conn *ct,
+			       struct sk_buff *skb,
+			       enum ip_conntrack_info ctinfo,
+			       const struct nf_hook_state *state)
 {
 	unsigned int *timeout = nf_ct_timeout_lookup(ct);
 	static const u8 valid_new[] = {
@@ -361,7 +360,6 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_icmpv6 =
 	.l4proto		= IPPROTO_ICMPV6,
 	.pkt_to_tuple		= icmpv6_pkt_to_tuple,
 	.invert_tuple		= icmpv6_invert_tuple,
-	.packet			= icmpv6_packet,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.tuple_to_nlattr	= icmpv6_tuple_to_nlattr,
 	.nlattr_tuple_size	= icmpv6_nlattr_tuple_size,

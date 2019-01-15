@@ -1522,6 +1522,45 @@ nf_conntrack_handle_icmp(struct nf_conn *tmpl,
 	return ret;
 }
 
+/* Returns verdict for packet, or -1 for invalid. */
+static int nf_conntrack_handle_packet(struct nf_conn *ct,
+				      struct sk_buff *skb,
+				      unsigned int dataoff,
+				      enum ip_conntrack_info ctinfo,
+				      const struct nf_hook_state *state)
+{
+	switch (nf_ct_protonum(ct)) {
+	case IPPROTO_TCP:
+		return nf_conntrack_tcp_packet(ct, skb, dataoff,
+					       ctinfo, state);
+	case IPPROTO_UDP:
+		return nf_conntrack_udp_packet(ct, skb, dataoff,
+					       ctinfo, state);
+	case IPPROTO_ICMP:
+		return nf_conntrack_icmp_packet(ct, skb, ctinfo, state);
+	case IPPROTO_ICMPV6:
+		return nf_conntrack_icmpv6_packet(ct, skb, ctinfo, state);
+#ifdef CONFIG_NF_CT_PROTO_UDPLITE
+	case IPPROTO_UDPLITE:
+		return nf_conntrack_udplite_packet(ct, skb, dataoff,
+						   ctinfo, state);
+#endif
+#ifdef CONFIG_NF_CT_PROTO_SCTP
+	case IPPROTO_SCTP:
+		return nf_conntrack_sctp_packet(ct, skb, dataoff,
+						ctinfo, state);
+#endif
+#ifdef CONFIG_NF_CT_PROTO_DCCP
+	case IPPROTO_DCCP:
+		return nf_conntrack_dccp_packet(ct, skb, dataoff,
+						ctinfo, state);
+#endif
+	}
+
+	WARN_ON_ONCE(1);
+	return -NF_ACCEPT;
+}
+
 unsigned int
 nf_conntrack_in(struct sk_buff *skb, const struct nf_hook_state *state)
 {
@@ -1583,7 +1622,11 @@ repeat:
 		goto out;
 	}
 
-	ret = l4proto->packet(ct, skb, dataoff, ctinfo, state);
+	if (l4proto->packet)
+		ret = l4proto->packet(ct, skb, dataoff, ctinfo, state);
+	else
+		ret = nf_conntrack_handle_packet(ct, skb, dataoff, ctinfo, state);
+
 	if (ret <= 0) {
 		/* Invalid: inverse of the return code tells
 		 * the netfilter core what to do */

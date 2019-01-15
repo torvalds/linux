@@ -472,9 +472,10 @@ out_invalid:
 	return true;
 }
 
-static int dccp_packet(struct nf_conn *ct, struct sk_buff *skb,
-		       unsigned int dataoff, enum ip_conntrack_info ctinfo,
-		       const struct nf_hook_state *state)
+int nf_conntrack_dccp_packet(struct nf_conn *ct, struct sk_buff *skb,
+			     unsigned int dataoff,
+			     enum ip_conntrack_info ctinfo,
+			     const struct nf_hook_state *state)
 {
 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
 	struct dccp_hdr _dh, *dh;
@@ -839,7 +840,6 @@ static struct nf_proto_net *dccp_get_net_proto(struct net *net)
 
 const struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp = {
 	.l4proto		= IPPROTO_DCCP,
-	.packet			= dccp_packet,
 	.can_early_drop		= dccp_can_early_drop,
 #ifdef CONFIG_NF_CONNTRACK_PROCFS
 	.print_conntrack	= dccp_print_conntrack,

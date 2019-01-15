@@ -99,6 +99,43 @@ int nf_conntrack_icmpv6_error(struct nf_conn *tmpl,
 			      struct sk_buff *skb,
 			      unsigned int dataoff,
 			      const struct nf_hook_state *state);
+
+int nf_conntrack_icmp_packet(struct nf_conn *ct,
+			     struct sk_buff *skb,
+			     enum ip_conntrack_info ctinfo,
+			     const struct nf_hook_state *state);
+
+int nf_conntrack_icmpv6_packet(struct nf_conn *ct,
+			       struct sk_buff *skb,
+			       enum ip_conntrack_info ctinfo,
+			       const struct nf_hook_state *state);
+
+int nf_conntrack_udp_packet(struct nf_conn *ct,
+			    struct sk_buff *skb,
+			    unsigned int dataoff,
+			    enum ip_conntrack_info ctinfo,
+			    const struct nf_hook_state *state);
+int nf_conntrack_udplite_packet(struct nf_conn *ct,
+				struct sk_buff *skb,
+				unsigned int dataoff,
+				enum ip_conntrack_info ctinfo,
+				const struct nf_hook_state *state);
+int nf_conntrack_tcp_packet(struct nf_conn *ct,
+			    struct sk_buff *skb,
+			    unsigned int dataoff,
+			    enum ip_conntrack_info ctinfo,
+			    const struct nf_hook_state *state);
+int nf_conntrack_dccp_packet(struct nf_conn *ct,
+			     struct sk_buff *skb,
+			     unsigned int dataoff,
+			     enum ip_conntrack_info ctinfo,
+			     const struct nf_hook_state *state);
+int nf_conntrack_sctp_packet(struct nf_conn *ct,
+			     struct sk_buff *skb,
+			     unsigned int dataoff,
+			     enum ip_conntrack_info ctinfo,
+			     const struct nf_hook_state *state);
+
 /* Existing built-in generic protocol */
 extern const struct nf_conntrack_l4proto nf_conntrack_l4proto_generic;
 
