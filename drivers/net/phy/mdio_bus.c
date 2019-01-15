@@ -39,8 +39,6 @@
 #include <linux/io.h>
 #include <linux/uaccess.h>
 
-#include <asm/irq.h>
-
 #define CREATE_TRACE_POINTS
 #include <trace/events/mdio.h>
 
