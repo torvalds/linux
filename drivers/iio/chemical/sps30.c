@@ -5,9 +5,6 @@
  * Copyright (c) Tomasz Duszynski <tduszyns@gmail.com>
  *
  * I2C slave address: 0x69
- *
- * TODO:
- *  - support for reading/setting auto cleaning interval
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -21,6 +18,7 @@
 #include <linux/iio/sysfs.h>
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
 
 #define SPS30_CRC8_POLYNOMIAL 0x31
@@ -28,6 +26,9 @@
 #define SPS30_MAX_READ_SIZE 48
 /* sensor measures reliably up to 3000 ug / m3 */
 #define SPS30_MAX_PM 3000
+/* minimum and maximum self cleaning periods in seconds */
+#define SPS30_AUTO_CLEANING_PERIOD_MIN 0
+#define SPS30_AUTO_CLEANING_PERIOD_MAX 604800
 
 /* SPS30 commands */
 #define SPS30_START_MEAS 0x0010
@@ -37,12 +38,20 @@
 #define SPS30_READ_DATA 0x0300
 #define SPS30_READ_SERIAL 0xd033
 #define SPS30_START_FAN_CLEANING 0x5607
+#define SPS30_AUTO_CLEANING_PERIOD 0x8004
+/* not a sensor command per se, used only to distinguish write from read */
+#define SPS30_READ_AUTO_CLEANING_PERIOD 0x8005
 
 enum {
 	PM1,
 	PM2P5,
 	PM4,
 	PM10,
+};
+
+enum {
+	RESET,
+	MEASURING,
 };
 
 struct sps30_state {
@@ -52,6 +61,7 @@ struct sps30_state {
 	 * Must be held whenever sequence of commands is to be executed.
 	 */
 	struct mutex lock;
+	int state;
 };
 
 DECLARE_CRC8_TABLE(sps30_crc8_table);
@@ -107,12 +117,24 @@ static int sps30_do_cmd(struct sps30_state *state, u16 cmd, u8 *data, int size)
 	case SPS30_START_FAN_CLEANING:
 		ret = sps30_write_then_read(state, buf, 2, NULL, 0);
 		break;
+	case SPS30_READ_AUTO_CLEANING_PERIOD:
+		buf[0] = SPS30_AUTO_CLEANING_PERIOD >> 8;
+		buf[1] = (u8)SPS30_AUTO_CLEANING_PERIOD;
 	case SPS30_READ_DATA_READY_FLAG:
 	case SPS30_READ_DATA:
 	case SPS30_READ_SERIAL:
 		/* every two data bytes are checksummed */
 		size += size / 2;
 		ret = sps30_write_then_read(state, buf, 2, buf, size);
+		break;
+	case SPS30_AUTO_CLEANING_PERIOD:
+		buf[2] = data[0];
+		buf[3] = data[1];
+		buf[4] = crc8(sps30_crc8_table, &buf[2], 2, CRC8_INIT_VALUE);
+		buf[5] = data[2];
+		buf[6] = data[3];
+		buf[7] = crc8(sps30_crc8_table, &buf[5], 2, CRC8_INIT_VALUE);
+		ret = sps30_write_then_read(state, buf, 8, NULL, 0);
 		break;
 	}
 
@@ -169,6 +191,14 @@ static int sps30_do_meas(struct sps30_state *state, s32 *data, int size)
 {
 	int i, ret, tries = 5;
 	u8 tmp[16];
+
+	if (state->state == RESET) {
+		ret = sps30_do_cmd(state, SPS30_START_MEAS, NULL, 0);
+		if (ret)
+			return ret;
+
+		state->state = MEASURING;
+	}
 
 	while (tries--) {
 		ret = sps30_do_cmd(state, SPS30_READ_DATA_READY_FLAG, tmp, 2);
@@ -276,6 +306,24 @@ static int sps30_read_raw(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
+static int sps30_do_cmd_reset(struct sps30_state *state)
+{
+	int ret;
+
+	ret = sps30_do_cmd(state, SPS30_RESET, NULL, 0);
+	msleep(300);
+	/*
+	 * Power-on-reset causes sensor to produce some glitch on i2c bus and
+	 * some controllers end up in error state. Recover simply by placing
+	 * some data on the bus, for example STOP_MEAS command, which
+	 * is NOP in this case.
+	 */
+	sps30_do_cmd(state, SPS30_STOP_MEAS, NULL, 0);
+	state->state = RESET;
+
+	return ret;
+}
+
 static ssize_t start_cleaning_store(struct device *dev,
 				    struct device_attribute *attr,
 				    const char *buf, size_t len)
@@ -296,10 +344,82 @@ static ssize_t start_cleaning_store(struct device *dev,
 	return len;
 }
 
+static ssize_t cleaning_period_show(struct device *dev,
+				      struct device_attribute *attr,
+				      char *buf)
+{
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct sps30_state *state = iio_priv(indio_dev);
+	u8 tmp[4];
+	int ret;
+
+	mutex_lock(&state->lock);
+	ret = sps30_do_cmd(state, SPS30_READ_AUTO_CLEANING_PERIOD, tmp, 4);
+	mutex_unlock(&state->lock);
+	if (ret)
+		return ret;
+
+	return sprintf(buf, "%d\n", get_unaligned_be32(tmp));
+}
+
+static ssize_t cleaning_period_store(struct device *dev,
+				       struct device_attribute *attr,
+				       const char *buf, size_t len)
+{
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct sps30_state *state = iio_priv(indio_dev);
+	int val, ret;
+	u8 tmp[4];
+
+	if (kstrtoint(buf, 0, &val))
+		return -EINVAL;
+
+	if ((val < SPS30_AUTO_CLEANING_PERIOD_MIN) ||
+	    (val > SPS30_AUTO_CLEANING_PERIOD_MAX))
+		return -EINVAL;
+
+	put_unaligned_be32(val, tmp);
+
+	mutex_lock(&state->lock);
+	ret = sps30_do_cmd(state, SPS30_AUTO_CLEANING_PERIOD, tmp, 0);
+	if (ret) {
+		mutex_unlock(&state->lock);
+		return ret;
+	}
+
+	msleep(20);
+
+	/*
+	 * sensor requires reset in order to return up to date self cleaning
+	 * period
+	 */
+	ret = sps30_do_cmd_reset(state);
+	if (ret)
+		dev_warn(dev,
+			 "period changed but reads will return the old value\n");
+
+	mutex_unlock(&state->lock);
+
+	return len;
+}
+
+static ssize_t cleaning_period_available_show(struct device *dev,
+					      struct device_attribute *attr,
+					      char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "[%d %d %d]\n",
+			SPS30_AUTO_CLEANING_PERIOD_MIN, 1,
+			SPS30_AUTO_CLEANING_PERIOD_MAX);
+}
+
 static IIO_DEVICE_ATTR_WO(start_cleaning, 0);
+static IIO_DEVICE_ATTR_RW(cleaning_period, 0);
+static IIO_DEVICE_ATTR_RO(cleaning_period_available, 0);
 
 static struct attribute *sps30_attrs[] = {
 	&iio_dev_attr_start_cleaning.dev_attr.attr,
+	&iio_dev_attr_cleaning_period.dev_attr.attr,
+	&iio_dev_attr_cleaning_period_available.dev_attr.attr,
 	NULL
 };
 
@@ -362,6 +482,7 @@ static int sps30_probe(struct i2c_client *client)
 	state = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);
 	state->client = client;
+	state->state = RESET;
 	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &sps30_info;
 	indio_dev->name = client->name;
@@ -373,19 +494,11 @@ static int sps30_probe(struct i2c_client *client)
 	mutex_init(&state->lock);
 	crc8_populate_msb(sps30_crc8_table, SPS30_CRC8_POLYNOMIAL);
 
-	ret = sps30_do_cmd(state, SPS30_RESET, NULL, 0);
+	ret = sps30_do_cmd_reset(state);
 	if (ret) {
 		dev_err(&client->dev, "failed to reset device\n");
 		return ret;
 	}
-	msleep(300);
-	/*
-	 * Power-on-reset causes sensor to produce some glitch on i2c bus and
-	 * some controllers end up in error state. Recover simply by placing
-	 * some data on the bus, for example STOP_MEAS command, which
-	 * is NOP in this case.
-	 */
-	sps30_do_cmd(state, SPS30_STOP_MEAS, NULL, 0);
 
 	ret = sps30_do_cmd(state, SPS30_READ_SERIAL, buf, sizeof(buf));
 	if (ret) {
@@ -394,12 +507,6 @@ static int sps30_probe(struct i2c_client *client)
 	}
 	/* returned serial number is already NUL terminated */
 	dev_info(&client->dev, "serial number: %s\n", buf);
-
-	ret = sps30_do_cmd(state, SPS30_START_MEAS, NULL, 0);
-	if (ret) {
-		dev_err(&client->dev, "failed to start measurement\n");
-		return ret;
-	}
 
 	ret = devm_add_action_or_reset(&client->dev, sps30_stop_meas, state);
 	if (ret)
