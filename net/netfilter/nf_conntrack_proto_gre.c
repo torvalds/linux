@@ -162,8 +162,8 @@ EXPORT_SYMBOL_GPL(nf_ct_gre_keymap_destroy);
 /* PUBLIC CONNTRACK PROTO HELPER FUNCTIONS */
 
 /* gre hdr info to tuple */
-static bool gre_pkt_to_tuple(const struct sk_buff *skb, unsigned int dataoff,
-			     struct net *net, struct nf_conntrack_tuple *tuple)
+bool gre_pkt_to_tuple(const struct sk_buff *skb, unsigned int dataoff,
+		      struct net *net, struct nf_conntrack_tuple *tuple)
 {
 	const struct pptp_gre_header *pgrehdr;
 	struct pptp_gre_header _pgrehdr;
@@ -368,7 +368,6 @@ static int gre_init_net(struct net *net)
 /* protocol helper struct */
 const struct nf_conntrack_l4proto nf_conntrack_l4proto_gre = {
 	.l4proto	 = IPPROTO_GRE,
-	.pkt_to_tuple	 = gre_pkt_to_tuple,
 #ifdef CONFIG_NF_CONNTRACK_PROCFS
 	.print_conntrack = gre_print_conntrack,
 #endif

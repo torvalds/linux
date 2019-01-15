@@ -27,11 +27,6 @@ struct nf_conntrack_l4proto {
 	/* protoinfo nlattr size, closes a hole */
 	u16 nlattr_size;
 
-	/* Try to fill in the third arg: dataoff is offset past network protocol
-           hdr.  Return true if possible. */
-	bool (*pkt_to_tuple)(const struct sk_buff *skb, unsigned int dataoff,
-			     struct net *net, struct nf_conntrack_tuple *tuple);
-
 	/* Invert the per-proto part of the tuple: ie. turn xmit into reply.
 	 * Only used by icmp, most protocols use a generic version.
 	 */

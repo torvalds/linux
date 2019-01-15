@@ -27,16 +27,6 @@ static bool nf_generic_should_process(u8 proto)
 	}
 }
 
-static bool generic_pkt_to_tuple(const struct sk_buff *skb,
-				 unsigned int dataoff,
-				 struct net *net, struct nf_conntrack_tuple *tuple)
-{
-	tuple->src.u.all = 0;
-	tuple->dst.u.all = 0;
-
-	return true;
-}
-
 /* Returns verdict for packet, or -1 for invalid. */
 static int generic_packet(struct nf_conn *ct,
 			  struct sk_buff *skb,
@@ -149,7 +139,6 @@ static struct nf_proto_net *generic_get_net_proto(struct net *net)
 const struct nf_conntrack_l4proto nf_conntrack_l4proto_generic =
 {
 	.l4proto		= 255,
-	.pkt_to_tuple		= generic_pkt_to_tuple,
 	.packet			= generic_packet,
 #ifdef CONFIG_NF_CONNTRACK_TIMEOUT
 	.ctnl_timeout		= {

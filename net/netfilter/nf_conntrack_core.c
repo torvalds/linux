@@ -279,9 +279,11 @@ nf_ct_get_tuple(const struct sk_buff *skb,
 		return icmpv6_pkt_to_tuple(skb, dataoff, net, tuple);
 	case IPPROTO_ICMP:
 		return icmp_pkt_to_tuple(skb, dataoff, net, tuple);
+#ifdef CONFIG_NF_CT_PROTO_GRE
+	case IPPROTO_GRE:
+		return gre_pkt_to_tuple(skb, dataoff, net, tuple);
+#endif
 	}
-	if (unlikely(l4proto->pkt_to_tuple))
-		return l4proto->pkt_to_tuple(skb, dataoff, net, tuple);
 
 	/* Actually only need first 4 bytes to get ports. */
 	inet_hdr = skb_header_pointer(skb, dataoff, sizeof(_inet_hdr), &_inet_hdr);
