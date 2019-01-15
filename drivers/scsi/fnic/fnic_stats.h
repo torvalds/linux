@@ -113,6 +113,7 @@ struct misc_stats {
 	atomic64_t queue_fulls;
 	atomic64_t rport_not_ready;
 	atomic64_t frame_errors;
+	atomic64_t current_port_speed;
 };
 
 struct fnic_stats {

@@ -446,6 +446,11 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 		  (u64)atomic64_read(&stats->misc_stats.rport_not_ready),
 		  (u64)atomic64_read(&stats->misc_stats.frame_errors));
 
+	len += snprintf(debug->debug_buffer + len, buf_size - len,
+			"Firmware reported port seed: %llu\n",
+			(u64)atomic64_read(
+				&stats->misc_stats.current_port_speed));
+
 	return len;
 
 }
