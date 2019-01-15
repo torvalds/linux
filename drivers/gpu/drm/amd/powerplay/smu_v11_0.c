@@ -1021,6 +1021,14 @@ static int smu_v11_0_read_sensor(struct smu_context *smu,
 							     (uint32_t *)data);
 		*size = 4;
 		break;
+	case AMDGPU_PP_SENSOR_GFX_MCLK:
+		ret = smu_get_current_clk_freq(smu, PPCLK_UCLK, (uint32_t *)data);
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_GFX_SCLK:
+		ret = smu_get_current_clk_freq(smu, PPCLK_GFXCLK, (uint32_t *)data);
+		*size = 4;
+		break;
 	default:
 		ret = -EINVAL;
 		break;
