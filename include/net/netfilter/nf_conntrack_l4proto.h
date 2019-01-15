@@ -61,12 +61,6 @@ struct nf_conntrack_l4proto {
 	/* Print out the private part of the conntrack. */
 	void (*print_conntrack)(struct seq_file *s, struct nf_conn *);
 #endif
-
-	/* Init l4proto pernet data */
-	int (*init_net)(struct net *net);
-
-	/* Return the per-net protocol part. */
-	struct nf_proto_net *(*get_net_proto)(struct net *net);
 };
 
 bool icmp_pkt_to_tuple(const struct sk_buff *skb,
@@ -134,6 +128,15 @@ int nf_conntrack_gre_packet(struct nf_conn *ct,
 			    unsigned int dataoff,
 			    enum ip_conntrack_info ctinfo,
 			    const struct nf_hook_state *state);
+
+void nf_conntrack_generic_init_net(struct net *net);
+void nf_conntrack_tcp_init_net(struct net *net);
+void nf_conntrack_udp_init_net(struct net *net);
+void nf_conntrack_gre_init_net(struct net *net);
+void nf_conntrack_dccp_init_net(struct net *net);
+void nf_conntrack_sctp_init_net(struct net *net);
+void nf_conntrack_icmp_init_net(struct net *net);
+void nf_conntrack_icmpv6_init_net(struct net *net);
 
 /* Existing built-in generic protocol */
 extern const struct nf_conntrack_l4proto nf_conntrack_l4proto_generic;

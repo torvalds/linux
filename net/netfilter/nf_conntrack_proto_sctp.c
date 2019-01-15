@@ -642,29 +642,18 @@ sctp_timeout_nla_policy[CTA_TIMEOUT_SCTP_MAX+1] = {
 };
 #endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
 
-static int sctp_init_net(struct net *net)
+void nf_conntrack_sctp_init_net(struct net *net)
 {
 	struct nf_sctp_net *sn = nf_sctp_pernet(net);
-	struct nf_proto_net *pn = &sn->pn;
+	int i;
 
-	if (!pn->users) {
-		int i;
+	for (i = 0; i < SCTP_CONNTRACK_MAX; i++)
+		sn->timeouts[i] = sctp_timeouts[i];
 
-		for (i = 0; i < SCTP_CONNTRACK_MAX; i++)
-			sn->timeouts[i] = sctp_timeouts[i];
-
-		/* timeouts[0] is unused, init it so ->timeouts[0] contains
-		 * 'new' timeout, like udp or icmp.
-		 */
-		sn->timeouts[0] = sctp_timeouts[SCTP_CONNTRACK_CLOSED];
-	}
-
-	return 0;
-}
-
-static struct nf_proto_net *sctp_get_net_proto(struct net *net)
-{
-	return &net->ct.nf_ct_proto.sctp.pn;
+	/* timeouts[0] is unused, init it so ->timeouts[0] contains
+	 * 'new' timeout, like udp or icmp.
+	 */
+	sn->timeouts[0] = sctp_timeouts[SCTP_CONNTRACK_CLOSED];
 }
 
 const struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp = {
@@ -691,6 +680,4 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp = {
 		.nla_policy	= sctp_timeout_nla_policy,
 	},
 #endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
-	.init_net		= sctp_init_net,
-	.get_net_proto		= sctp_get_net_proto,
 };

@@ -18,17 +18,11 @@
 struct ctl_table_header;
 struct nf_conntrack_ecache;
 
-struct nf_proto_net {
-	unsigned int		users;
-};
-
 struct nf_generic_net {
-	struct nf_proto_net pn;
 	unsigned int timeout;
 };
 
 struct nf_tcp_net {
-	struct nf_proto_net pn;
 	unsigned int timeouts[TCP_CONNTRACK_TIMEOUT_MAX];
 	unsigned int tcp_loose;
 	unsigned int tcp_be_liberal;
@@ -42,18 +36,15 @@ enum udp_conntrack {
 };
 
 struct nf_udp_net {
-	struct nf_proto_net pn;
 	unsigned int timeouts[UDP_CT_MAX];
 };
 
 struct nf_icmp_net {
-	struct nf_proto_net pn;
 	unsigned int timeout;
 };
 
 #ifdef CONFIG_NF_CT_PROTO_DCCP
 struct nf_dccp_net {
-	struct nf_proto_net pn;
 	int dccp_loose;
 	unsigned int dccp_timeout[CT_DCCP_MAX + 1];
 };
@@ -61,7 +52,6 @@ struct nf_dccp_net {
 
 #ifdef CONFIG_NF_CT_PROTO_SCTP
 struct nf_sctp_net {
-	struct nf_proto_net pn;
 	unsigned int timeouts[SCTP_CONNTRACK_MAX];
 };
 #endif
@@ -74,7 +64,6 @@ enum gre_conntrack {
 };
 
 struct nf_gre_net {
-	struct nf_proto_net	nf;
 	struct list_head	keymap_list;
 	unsigned int		timeouts[GRE_CT_MAX];
 };

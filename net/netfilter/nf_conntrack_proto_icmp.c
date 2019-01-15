@@ -298,19 +298,11 @@ icmp_timeout_nla_policy[CTA_TIMEOUT_ICMP_MAX+1] = {
 };
 #endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
 
-
-static int icmp_init_net(struct net *net)
+void nf_conntrack_icmp_init_net(struct net *net)
 {
 	struct nf_icmp_net *in = nf_icmp_pernet(net);
 
 	in->timeout = nf_ct_icmp_timeout;
-
-	return 0;
-}
-
-static struct nf_proto_net *icmp_get_net_proto(struct net *net)
-{
-	return &net->ct.nf_ct_proto.icmp.pn;
 }
 
 const struct nf_conntrack_l4proto nf_conntrack_l4proto_icmp =
@@ -331,6 +323,4 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_icmp =
 		.nla_policy	= icmp_timeout_nla_policy,
 	},
 #endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
-	.init_net		= icmp_init_net,
-	.get_net_proto		= icmp_get_net_proto,
 };

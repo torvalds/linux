@@ -60,18 +60,11 @@ generic_timeout_nla_policy[CTA_TIMEOUT_GENERIC_MAX+1] = {
 };
 #endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
 
-static int generic_init_net(struct net *net)
+void nf_conntrack_generic_init_net(struct net *net)
 {
 	struct nf_generic_net *gn = nf_generic_pernet(net);
 
 	gn->timeout = nf_ct_generic_timeout;
-
-	return 0;
-}
-
-static struct nf_proto_net *generic_get_net_proto(struct net *net)
-{
-	return &net->ct.nf_ct_proto.generic.pn;
 }
 
 const struct nf_conntrack_l4proto nf_conntrack_l4proto_generic =
@@ -86,6 +79,4 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_generic =
 		.nla_policy	= generic_timeout_nla_policy,
 	},
 #endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
-	.init_net		= generic_init_net,
-	.get_net_proto		= generic_get_net_proto,
 };

@@ -313,7 +313,7 @@ gre_timeout_nla_policy[CTA_TIMEOUT_GRE_MAX+1] = {
 };
 #endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
 
-static int gre_init_net(struct net *net)
+void nf_conntrack_gre_init_net(struct net *net)
 {
 	struct nf_gre_net *net_gre = gre_pernet(net);
 	int i;
@@ -321,8 +321,6 @@ static int gre_init_net(struct net *net)
 	INIT_LIST_HEAD(&net_gre->keymap_list);
 	for (i = 0; i < GRE_CT_MAX; i++)
 		net_gre->timeouts[i] = gre_timeouts[i];
-
-	return 0;
 }
 
 /* protocol helper struct */
@@ -347,5 +345,4 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_gre = {
 		.nla_policy	= gre_timeout_nla_policy,
 	},
 #endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
-	.init_net	= gre_init_net,
 };

@@ -1387,32 +1387,21 @@ static const struct nla_policy tcp_timeout_nla_policy[CTA_TIMEOUT_TCP_MAX+1] = {
 };
 #endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
 
-static int tcp_init_net(struct net *net)
+void nf_conntrack_tcp_init_net(struct net *net)
 {
 	struct nf_tcp_net *tn = nf_tcp_pernet(net);
-	struct nf_proto_net *pn = &tn->pn;
+	int i;
 
-	if (!pn->users) {
-		int i;
+	for (i = 0; i < TCP_CONNTRACK_TIMEOUT_MAX; i++)
+		tn->timeouts[i] = tcp_timeouts[i];
 
-		for (i = 0; i < TCP_CONNTRACK_TIMEOUT_MAX; i++)
-			tn->timeouts[i] = tcp_timeouts[i];
-
-		/* timeouts[0] is unused, make it same as SYN_SENT so
-		 * ->timeouts[0] contains 'new' timeout, like udp or icmp.
-		 */
-		tn->timeouts[0] = tcp_timeouts[TCP_CONNTRACK_SYN_SENT];
-		tn->tcp_loose = nf_ct_tcp_loose;
-		tn->tcp_be_liberal = nf_ct_tcp_be_liberal;
-		tn->tcp_max_retrans = nf_ct_tcp_max_retrans;
-	}
-
-	return 0;
-}
-
-static struct nf_proto_net *tcp_get_net_proto(struct net *net)
-{
-	return &net->ct.nf_ct_proto.tcp.pn;
+	/* timeouts[0] is unused, make it same as SYN_SENT so
+	 * ->timeouts[0] contains 'new' timeout, like udp or icmp.
+	 */
+	tn->timeouts[0] = tcp_timeouts[TCP_CONNTRACK_SYN_SENT];
+	tn->tcp_loose = nf_ct_tcp_loose;
+	tn->tcp_be_liberal = nf_ct_tcp_be_liberal;
+	tn->tcp_max_retrans = nf_ct_tcp_max_retrans;
 }
 
 const struct nf_conntrack_l4proto nf_conntrack_l4proto_tcp =
@@ -1441,6 +1430,4 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_tcp =
 		.nla_policy	= tcp_timeout_nla_policy,
 	},
 #endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
-	.init_net		= tcp_init_net,
-	.get_net_proto		= tcp_get_net_proto,
 };

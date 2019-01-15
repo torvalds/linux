@@ -260,25 +260,13 @@ udp_timeout_nla_policy[CTA_TIMEOUT_UDP_MAX+1] = {
 };
 #endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
 
-
-static int udp_init_net(struct net *net)
+void nf_conntrack_udp_init_net(struct net *net)
 {
 	struct nf_udp_net *un = nf_udp_pernet(net);
-	struct nf_proto_net *pn = &un->pn;
+	int i;
 
-	if (!pn->users) {
-		int i;
-
-		for (i = 0; i < UDP_CT_MAX; i++)
-			un->timeouts[i] = udp_timeouts[i];
-	}
-
-	return 0;
-}
-
-static struct nf_proto_net *udp_get_net_proto(struct net *net)
-{
-	return &net->ct.nf_ct_proto.udp.pn;
+	for (i = 0; i < UDP_CT_MAX; i++)
+		un->timeouts[i] = udp_timeouts[i];
 }
 
 const struct nf_conntrack_l4proto nf_conntrack_l4proto_udp =
@@ -300,8 +288,6 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_udp =
 		.nla_policy	= udp_timeout_nla_policy,
 	},
 #endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
-	.init_net		= udp_init_net,
-	.get_net_proto		= udp_get_net_proto,
 };
 
 #ifdef CONFIG_NF_CT_PROTO_UDPLITE
@@ -324,7 +310,5 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_udplite =
 		.nla_policy	= udp_timeout_nla_policy,
 	},
 #endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
-	.init_net		= udp_init_net,
-	.get_net_proto		= udp_get_net_proto,
 };
 #endif

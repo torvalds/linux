@@ -123,15 +123,6 @@ static int kill_l4proto(struct nf_conn *i, void *data)
 	return nf_ct_protonum(i) == l4proto->l4proto;
 }
 
-static struct nf_proto_net *nf_ct_l4proto_net(struct net *net,
-				const struct nf_conntrack_l4proto *l4proto)
-{
-	if (l4proto->get_net_proto)
-		return l4proto->get_net_proto(net);
-
-	return NULL;
-}
-
 /* FIXME: Allow NULL functions and sub in pointers to generic for
    them. --RR */
 int nf_ct_l4proto_register_one(const struct nf_conntrack_l4proto *l4proto)
@@ -158,27 +149,6 @@ out_unlock:
 }
 EXPORT_SYMBOL_GPL(nf_ct_l4proto_register_one);
 
-static int nf_ct_l4proto_pernet_register_one(struct net *net,
-					     const struct nf_conntrack_l4proto *l4proto)
-{
-	int ret = 0;
-	struct nf_proto_net *pn = NULL;
-
-	if (l4proto->init_net) {
-		ret = l4proto->init_net(net);
-		if (ret < 0)
-			goto out;
-	}
-
-	pn = nf_ct_l4proto_net(net, l4proto);
-	if (pn == NULL)
-		goto out;
-
-	pn->users++;
-out:
-	return ret;
-}
-
 static void __nf_ct_l4proto_unregister_one(const struct nf_conntrack_l4proto *l4proto)
 
 {
@@ -203,17 +173,6 @@ void nf_ct_l4proto_unregister_one(const struct nf_conntrack_l4proto *l4proto)
 	nf_ct_iterate_destroy(kill_l4proto, (void *)l4proto);
 }
 EXPORT_SYMBOL_GPL(nf_ct_l4proto_unregister_one);
-
-static void nf_ct_l4proto_pernet_unregister_one(struct net *net,
-				const struct nf_conntrack_l4proto *l4proto)
-{
-	struct nf_proto_net *pn = nf_ct_l4proto_net(net, l4proto);
-
-	if (pn == NULL)
-		return;
-
-	pn->users--;
-}
 
 static void
 nf_ct_l4proto_unregister(const struct nf_conntrack_l4proto * const l4proto[],
@@ -248,34 +207,6 @@ nf_ct_l4proto_register(const struct nf_conntrack_l4proto * const l4proto[],
 		pr_err("nf_conntrack: can't register l4 %d proto.\n",
 		       l4proto[i]->l4proto);
 		nf_ct_l4proto_unregister(l4proto, i);
-	}
-	return ret;
-}
-
-static void nf_ct_l4proto_pernet_unregister(struct net *net,
-				const struct nf_conntrack_l4proto *const l4proto[],
-				unsigned int num_proto)
-{
-	while (num_proto-- != 0)
-		nf_ct_l4proto_pernet_unregister_one(net, l4proto[num_proto]);
-}
-
-static int nf_ct_l4proto_pernet_register(struct net *net,
-				  const struct nf_conntrack_l4proto *const l4proto[],
-				  unsigned int num_proto)
-{
-	int ret = -EINVAL;
-	unsigned int i;
-
-	for (i = 0; i < num_proto; i++) {
-		ret = nf_ct_l4proto_pernet_register_one(net, l4proto[i]);
-		if (ret < 0)
-			break;
-	}
-	if (i != num_proto) {
-		pr_err("nf_conntrack %d: pernet registration failed\n",
-		       l4proto[i]->l4proto);
-		nf_ct_l4proto_pernet_unregister(net, l4proto, i);
 	}
 	return ret;
 }
@@ -784,31 +715,25 @@ void nf_conntrack_proto_fini(void)
 
 int nf_conntrack_proto_pernet_init(struct net *net)
 {
-	int err;
-	struct nf_proto_net *pn = nf_ct_l4proto_net(net,
-					&nf_conntrack_l4proto_generic);
-
-	err = nf_conntrack_l4proto_generic.init_net(net);
-	if (err < 0)
-		return err;
-
-	err = nf_ct_l4proto_pernet_register(net, builtin_l4proto,
-					    ARRAY_SIZE(builtin_l4proto));
-	if (err < 0)
-		return err;
-
-	pn->users++;
+	nf_conntrack_generic_init_net(net);
+	nf_conntrack_udp_init_net(net);
+	nf_conntrack_tcp_init_net(net);
+	nf_conntrack_icmp_init_net(net);
+	nf_conntrack_icmpv6_init_net(net);
+#ifdef CONFIG_NF_CT_PROTO_DCCP
+	nf_conntrack_dccp_init_net(net);
+#endif
+#ifdef CONFIG_NF_CT_PROTO_SCTP
+	nf_conntrack_sctp_init_net(net);
+#endif
+#ifdef CONFIG_NF_CT_PROTO_GRE
+	nf_conntrack_gre_init_net(net);
+#endif
 	return 0;
 }
 
 void nf_conntrack_proto_pernet_fini(struct net *net)
 {
-	struct nf_proto_net *pn = nf_ct_l4proto_net(net,
-					&nf_conntrack_l4proto_generic);
-
-	nf_ct_l4proto_pernet_unregister(net, builtin_l4proto,
-					ARRAY_SIZE(builtin_l4proto));
-	pn->users--;
 #ifdef CONFIG_NF_CT_PROTO_GRE
 	nf_ct_gre_keymap_flush(net);
 #endif

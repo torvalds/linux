@@ -724,34 +724,24 @@ dccp_timeout_nla_policy[CTA_TIMEOUT_DCCP_MAX+1] = {
 };
 #endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
 
-static int dccp_init_net(struct net *net)
+void nf_conntrack_dccp_init_net(struct net *net)
 {
 	struct nf_dccp_net *dn = nf_dccp_pernet(net);
-	struct nf_proto_net *pn = &dn->pn;
 
-	if (!pn->users) {
-		/* default values */
-		dn->dccp_loose = 1;
-		dn->dccp_timeout[CT_DCCP_REQUEST]	= 2 * DCCP_MSL;
-		dn->dccp_timeout[CT_DCCP_RESPOND]	= 4 * DCCP_MSL;
-		dn->dccp_timeout[CT_DCCP_PARTOPEN]	= 4 * DCCP_MSL;
-		dn->dccp_timeout[CT_DCCP_OPEN]		= 12 * 3600 * HZ;
-		dn->dccp_timeout[CT_DCCP_CLOSEREQ]	= 64 * HZ;
-		dn->dccp_timeout[CT_DCCP_CLOSING]	= 64 * HZ;
-		dn->dccp_timeout[CT_DCCP_TIMEWAIT]	= 2 * DCCP_MSL;
+	/* default values */
+	dn->dccp_loose = 1;
+	dn->dccp_timeout[CT_DCCP_REQUEST]	= 2 * DCCP_MSL;
+	dn->dccp_timeout[CT_DCCP_RESPOND]	= 4 * DCCP_MSL;
+	dn->dccp_timeout[CT_DCCP_PARTOPEN]	= 4 * DCCP_MSL;
+	dn->dccp_timeout[CT_DCCP_OPEN]		= 12 * 3600 * HZ;
+	dn->dccp_timeout[CT_DCCP_CLOSEREQ]	= 64 * HZ;
+	dn->dccp_timeout[CT_DCCP_CLOSING]	= 64 * HZ;
+	dn->dccp_timeout[CT_DCCP_TIMEWAIT]	= 2 * DCCP_MSL;
 
-		/* timeouts[0] is unused, make it same as SYN_SENT so
-		 * ->timeouts[0] contains 'new' timeout, like udp or icmp.
-		 */
-		dn->dccp_timeout[CT_DCCP_NONE] = dn->dccp_timeout[CT_DCCP_REQUEST];
-	}
-
-	return 0;
-}
-
-static struct nf_proto_net *dccp_get_net_proto(struct net *net)
-{
-	return &net->ct.nf_ct_proto.dccp.pn;
+	/* timeouts[0] is unused, make it same as SYN_SENT so
+	 * ->timeouts[0] contains 'new' timeout, like udp or icmp.
+	 */
+	dn->dccp_timeout[CT_DCCP_NONE] = dn->dccp_timeout[CT_DCCP_REQUEST];
 }
 
 const struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp = {
@@ -778,6 +768,4 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp = {
 		.nla_policy	= dccp_timeout_nla_policy,
 	},
 #endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
-	.init_net		= dccp_init_net,
-	.get_net_proto		= dccp_get_net_proto,
 };

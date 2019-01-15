@@ -309,19 +309,11 @@ icmpv6_timeout_nla_policy[CTA_TIMEOUT_ICMPV6_MAX+1] = {
 };
 #endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
 
-
-static int icmpv6_init_net(struct net *net)
+void nf_conntrack_icmpv6_init_net(struct net *net)
 {
 	struct nf_icmp_net *in = nf_icmpv6_pernet(net);
 
 	in->timeout = nf_ct_icmpv6_timeout;
-
-	return 0;
-}
-
-static struct nf_proto_net *icmpv6_get_net_proto(struct net *net)
-{
-	return &net->ct.nf_ct_proto.icmpv6.pn;
 }
 
 const struct nf_conntrack_l4proto nf_conntrack_l4proto_icmpv6 =
@@ -342,6 +334,4 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_icmpv6 =
 		.nla_policy	= icmpv6_timeout_nla_policy,
 	},
 #endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
-	.init_net		= icmpv6_init_net,
-	.get_net_proto		= icmpv6_get_net_proto,
 };
