@@ -163,13 +163,9 @@ static int kill_l4proto(struct nf_conn *i, void *data)
 static struct nf_proto_net *nf_ct_l4proto_net(struct net *net,
 				const struct nf_conntrack_l4proto *l4proto)
 {
-	if (l4proto->get_net_proto) {
-		/* statically built-in protocols use static per-net */
+	if (l4proto->get_net_proto)
 		return l4proto->get_net_proto(net);
-	} else if (l4proto->net_id) {
-		/* ... and loadable protocols use dynamic per-net */
-		return net_generic(net, *l4proto->net_id);
-	}
+
 	return NULL;
 }
 

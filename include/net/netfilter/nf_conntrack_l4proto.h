@@ -79,7 +79,7 @@ struct nf_conntrack_l4proto {
 	/* Print out the private part of the conntrack. */
 	void (*print_conntrack)(struct seq_file *s, struct nf_conn *);
 #endif
-	unsigned int	*net_id;
+
 	/* Init l4proto pernet data */
 	int (*init_net)(struct net *net);
 
