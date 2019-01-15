@@ -757,6 +757,29 @@ static int smu_v11_0_get_power_limit(struct smu_context *smu)
 	return 0;
 }
 
+static int smu_v11_0_get_current_clk_freq(struct smu_context *smu, uint32_t clk_id, uint32_t *value)
+{
+	int ret = 0;
+	uint32_t freq;
+
+	if (clk_id >= PPCLK_COUNT || !value)
+		return -EINVAL;
+
+	ret = smu_send_smc_msg_with_param(smu,
+			SMU_MSG_GetDpmClockFreq, (clk_id << 16));
+	if (ret)
+		return ret;
+
+	ret = smu_read_smc_arg(smu, &freq);
+	if (ret)
+		return ret;
+
+	freq *= 100;
+	*value = freq;
+
+	return ret;
+}
+
 static const struct smu_funcs smu_v11_0_funcs = {
 	.init_microcode = smu_v11_0_init_microcode,
 	.load_microcode = smu_v11_0_load_microcode,
@@ -786,6 +809,7 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.disable_all_mask = smu_v11_0_disable_all_mask,
 	.notify_display_change = smu_v11_0_notify_display_change,
 	.get_power_limit = smu_v11_0_get_power_limit,
+	.get_current_clk_freq = smu_v11_0_get_current_clk_freq,
 };
 
 void smu_v11_0_set_smu_funcs(struct smu_context *smu)

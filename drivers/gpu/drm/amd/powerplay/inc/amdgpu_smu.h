@@ -251,6 +251,7 @@ struct smu_funcs
 	int (*disable_all_mask)(struct smu_context *smu);
 	int (*notify_display_change)(struct smu_context *smu);
 	int (*get_power_limit)(struct smu_context *smu);
+	int (*get_current_clk_freq)(struct smu_context *smu, uint32_t clk_id, uint32_t *value);
 };
 
 #define smu_init_microcode(smu) \
@@ -327,6 +328,8 @@ struct smu_funcs
 	((smu)->ppt_funcs->populate_umd_state_clk ? (smu)->ppt_funcs->populate_umd_state_clk((smu)) : 0)
 #define smu_get_power_limit(smu) \
 	((smu)->funcs->get_power_limit? (smu)->funcs->get_power_limit((smu)) : 0)
+#define smu_get_current_clk_freq(smu, clk_id, value) \
+	((smu)->funcs->get_current_clk_freq? (smu)->funcs->get_current_clk_freq((smu), (clk_id), (value)) : 0)
 
 #define smu_msg_get_index(smu, msg) \
 	((smu)->ppt_funcs? ((smu)->ppt_funcs->get_smu_msg_index? (smu)->ppt_funcs->get_smu_msg_index((smu), (msg)) : -EINVAL) : -EINVAL)
