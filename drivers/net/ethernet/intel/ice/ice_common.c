@@ -165,8 +165,10 @@ ice_aq_get_phy_caps(struct ice_port_info *pi, bool qual_mods, u8 report_mode,
 	cmd->param0 |= cpu_to_le16(report_mode);
 	status = ice_aq_send_cmd(pi->hw, &desc, pcaps, pcaps_size, cd);
 
-	if (!status && report_mode == ICE_AQC_REPORT_TOPO_CAP)
+	if (!status && report_mode == ICE_AQC_REPORT_TOPO_CAP) {
 		pi->phy.phy_type_low = le64_to_cpu(pcaps->phy_type_low);
+		pi->phy.phy_type_high = le64_to_cpu(pcaps->phy_type_high);
+	}
 
 	return status;
 }
@@ -183,6 +185,9 @@ static enum ice_media_type ice_get_media_type(struct ice_port_info *pi)
 		return ICE_MEDIA_UNKNOWN;
 
 	hw_link_info = &pi->phy.link_info;
+	if (hw_link_info->phy_type_low && hw_link_info->phy_type_high)
+		/* If more than one media type is selected, report unknown */
+		return ICE_MEDIA_UNKNOWN;
 
 	if (hw_link_info->phy_type_low) {
 		switch (hw_link_info->phy_type_low) {
@@ -196,6 +201,15 @@ static enum ice_media_type ice_get_media_type(struct ice_port_info *pi)
 		case ICE_PHY_TYPE_LOW_25G_AUI_C2C:
 		case ICE_PHY_TYPE_LOW_40GBASE_SR4:
 		case ICE_PHY_TYPE_LOW_40GBASE_LR4:
+		case ICE_PHY_TYPE_LOW_50GBASE_SR2:
+		case ICE_PHY_TYPE_LOW_50GBASE_LR2:
+		case ICE_PHY_TYPE_LOW_50GBASE_SR:
+		case ICE_PHY_TYPE_LOW_50GBASE_FR:
+		case ICE_PHY_TYPE_LOW_50GBASE_LR:
+		case ICE_PHY_TYPE_LOW_100GBASE_SR4:
+		case ICE_PHY_TYPE_LOW_100GBASE_LR4:
+		case ICE_PHY_TYPE_LOW_100GBASE_SR2:
+		case ICE_PHY_TYPE_LOW_100GBASE_DR:
 			return ICE_MEDIA_FIBER;
 		case ICE_PHY_TYPE_LOW_100BASE_TX:
 		case ICE_PHY_TYPE_LOW_1000BASE_T:
@@ -209,6 +223,11 @@ static enum ice_media_type ice_get_media_type(struct ice_port_info *pi)
 		case ICE_PHY_TYPE_LOW_25GBASE_CR_S:
 		case ICE_PHY_TYPE_LOW_25GBASE_CR1:
 		case ICE_PHY_TYPE_LOW_40GBASE_CR4:
+		case ICE_PHY_TYPE_LOW_50GBASE_CR2:
+		case ICE_PHY_TYPE_LOW_50GBASE_CP:
+		case ICE_PHY_TYPE_LOW_100GBASE_CR4:
+		case ICE_PHY_TYPE_LOW_100GBASE_CR_PAM4:
+		case ICE_PHY_TYPE_LOW_100GBASE_CP2:
 			return ICE_MEDIA_DA;
 		case ICE_PHY_TYPE_LOW_1000BASE_KX:
 		case ICE_PHY_TYPE_LOW_2500BASE_KX:
@@ -219,10 +238,18 @@ static enum ice_media_type ice_get_media_type(struct ice_port_info *pi)
 		case ICE_PHY_TYPE_LOW_25GBASE_KR1:
 		case ICE_PHY_TYPE_LOW_25GBASE_KR_S:
 		case ICE_PHY_TYPE_LOW_40GBASE_KR4:
+		case ICE_PHY_TYPE_LOW_50GBASE_KR_PAM4:
+		case ICE_PHY_TYPE_LOW_50GBASE_KR2:
+		case ICE_PHY_TYPE_LOW_100GBASE_KR4:
+		case ICE_PHY_TYPE_LOW_100GBASE_KR_PAM4:
+			return ICE_MEDIA_BACKPLANE;
+		}
+	} else {
+		switch (hw_link_info->phy_type_high) {
+		case ICE_PHY_TYPE_HIGH_100GBASE_KR2_PAM4:
 			return ICE_MEDIA_BACKPLANE;
 		}
 	}
-
 	return ICE_MEDIA_UNKNOWN;
 }
 
@@ -274,6 +301,7 @@ ice_aq_get_link_info(struct ice_port_info *pi, bool ena_lse,
 	/* update current link status information */
 	hw_link_info->link_speed = le16_to_cpu(link_data.link_speed);
 	hw_link_info->phy_type_low = le64_to_cpu(link_data.phy_type_low);
+	hw_link_info->phy_type_high = le64_to_cpu(link_data.phy_type_high);
 	*hw_media_type = ice_get_media_type(pi);
 	hw_link_info->link_info = link_data.link_info;
 	hw_link_info->an_info = link_data.an_info;
@@ -750,6 +778,7 @@ enum ice_status ice_init_hw(struct ice_hw *hw)
 		status = ICE_ERR_CFG;
 		goto err_unroll_sched;
 	}
+	INIT_LIST_HEAD(&hw->agg_list);
 
 	status = ice_init_fltr_mgmt_struct(hw);
 	if (status)
@@ -800,6 +829,7 @@ void ice_deinit_hw(struct ice_hw *hw)
 	ice_cleanup_fltr_mgmt_struct(hw);
 
 	ice_sched_cleanup_all(hw);
+	ice_sched_clear_agg(hw);
 
 	if (hw->port_info) {
 		devm_kfree(ice_hw_to_dev(hw), hw->port_info);
@@ -1655,7 +1685,7 @@ enum ice_status ice_get_caps(struct ice_hw *hw)
  * This function is used to write MAC address to the NVM (0x0108).
  */
 enum ice_status
-ice_aq_manage_mac_write(struct ice_hw *hw, u8 *mac_addr, u8 flags,
+ice_aq_manage_mac_write(struct ice_hw *hw, const u8 *mac_addr, u8 flags,
 			struct ice_sq_cd *cd)
 {
 	struct ice_aqc_manage_mac_write *cmd;
@@ -1667,8 +1697,8 @@ ice_aq_manage_mac_write(struct ice_hw *hw, u8 *mac_addr, u8 flags,
 	cmd->flags = flags;
 
 	/* Prep values for flags, sah, sal */
-	cmd->sah = htons(*((u16 *)mac_addr));
-	cmd->sal = htonl(*((u32 *)(mac_addr + 2)));
+	cmd->sah = htons(*((const u16 *)mac_addr));
+	cmd->sal = htonl(*((const u32 *)(mac_addr + 2)));
 
 	return ice_aq_send_cmd(hw, &desc, NULL, 0, cd);
 }
@@ -1705,16 +1735,20 @@ void ice_clear_pxe_mode(struct ice_hw *hw)
 /**
  * ice_get_link_speed_based_on_phy_type - returns link speed
  * @phy_type_low: lower part of phy_type
+ * @phy_type_high: higher part of phy_type
  *
- * This helper function will convert a phy_type_low to its corresponding link
+ * This helper function will convert an entry in phy type structure
+ * [phy_type_low, phy_type_high] to its corresponding link speed.
+ * Note: In the structure of [phy_type_low, phy_type_high], there should
+ * be one bit set, as this function will convert one phy type to its
  * speed.
- * Note: In the structure of phy_type_low, there should be one bit set, as
- * this function will convert one phy type to its speed.
  * If no bit gets set, ICE_LINK_SPEED_UNKNOWN will be returned
  * If more than one bit gets set, ICE_LINK_SPEED_UNKNOWN will be returned
  */
-static u16 ice_get_link_speed_based_on_phy_type(u64 phy_type_low)
+static u16
+ice_get_link_speed_based_on_phy_type(u64 phy_type_low, u64 phy_type_high)
 {
+	u16 speed_phy_type_high = ICE_AQ_LINK_SPEED_UNKNOWN;
 	u16 speed_phy_type_low = ICE_AQ_LINK_SPEED_UNKNOWN;
 
 	switch (phy_type_low) {
@@ -1768,40 +1802,109 @@ static u16 ice_get_link_speed_based_on_phy_type(u64 phy_type_low)
 	case ICE_PHY_TYPE_LOW_40G_XLAUI:
 		speed_phy_type_low = ICE_AQ_LINK_SPEED_40GB;
 		break;
+	case ICE_PHY_TYPE_LOW_50GBASE_CR2:
+	case ICE_PHY_TYPE_LOW_50GBASE_SR2:
+	case ICE_PHY_TYPE_LOW_50GBASE_LR2:
+	case ICE_PHY_TYPE_LOW_50GBASE_KR2:
+	case ICE_PHY_TYPE_LOW_50G_LAUI2_AOC_ACC:
+	case ICE_PHY_TYPE_LOW_50G_LAUI2:
+	case ICE_PHY_TYPE_LOW_50G_AUI2_AOC_ACC:
+	case ICE_PHY_TYPE_LOW_50G_AUI2:
+	case ICE_PHY_TYPE_LOW_50GBASE_CP:
+	case ICE_PHY_TYPE_LOW_50GBASE_SR:
+	case ICE_PHY_TYPE_LOW_50GBASE_FR:
+	case ICE_PHY_TYPE_LOW_50GBASE_LR:
+	case ICE_PHY_TYPE_LOW_50GBASE_KR_PAM4:
+	case ICE_PHY_TYPE_LOW_50G_AUI1_AOC_ACC:
+	case ICE_PHY_TYPE_LOW_50G_AUI1:
+		speed_phy_type_low = ICE_AQ_LINK_SPEED_50GB;
+		break;
+	case ICE_PHY_TYPE_LOW_100GBASE_CR4:
+	case ICE_PHY_TYPE_LOW_100GBASE_SR4:
+	case ICE_PHY_TYPE_LOW_100GBASE_LR4:
+	case ICE_PHY_TYPE_LOW_100GBASE_KR4:
+	case ICE_PHY_TYPE_LOW_100G_CAUI4_AOC_ACC:
+	case ICE_PHY_TYPE_LOW_100G_CAUI4:
+	case ICE_PHY_TYPE_LOW_100G_AUI4_AOC_ACC:
+	case ICE_PHY_TYPE_LOW_100G_AUI4:
+	case ICE_PHY_TYPE_LOW_100GBASE_CR_PAM4:
+	case ICE_PHY_TYPE_LOW_100GBASE_KR_PAM4:
+	case ICE_PHY_TYPE_LOW_100GBASE_CP2:
+	case ICE_PHY_TYPE_LOW_100GBASE_SR2:
+	case ICE_PHY_TYPE_LOW_100GBASE_DR:
+		speed_phy_type_low = ICE_AQ_LINK_SPEED_100GB;
+		break;
 	default:
 		speed_phy_type_low = ICE_AQ_LINK_SPEED_UNKNOWN;
 		break;
 	}
 
-	return speed_phy_type_low;
+	switch (phy_type_high) {
+	case ICE_PHY_TYPE_HIGH_100GBASE_KR2_PAM4:
+	case ICE_PHY_TYPE_HIGH_100G_CAUI2_AOC_ACC:
+	case ICE_PHY_TYPE_HIGH_100G_CAUI2:
+	case ICE_PHY_TYPE_HIGH_100G_AUI2_AOC_ACC:
+	case ICE_PHY_TYPE_HIGH_100G_AUI2:
+		speed_phy_type_high = ICE_AQ_LINK_SPEED_100GB;
+		break;
+	default:
+		speed_phy_type_high = ICE_AQ_LINK_SPEED_UNKNOWN;
+		break;
+	}
+
+	if (speed_phy_type_low == ICE_AQ_LINK_SPEED_UNKNOWN &&
+	    speed_phy_type_high == ICE_AQ_LINK_SPEED_UNKNOWN)
+		return ICE_AQ_LINK_SPEED_UNKNOWN;
+	else if (speed_phy_type_low != ICE_AQ_LINK_SPEED_UNKNOWN &&
+		 speed_phy_type_high != ICE_AQ_LINK_SPEED_UNKNOWN)
+		return ICE_AQ_LINK_SPEED_UNKNOWN;
+	else if (speed_phy_type_low != ICE_AQ_LINK_SPEED_UNKNOWN &&
+		 speed_phy_type_high == ICE_AQ_LINK_SPEED_UNKNOWN)
+		return speed_phy_type_low;
+	else
+		return speed_phy_type_high;
 }
 
 /**
  * ice_update_phy_type
  * @phy_type_low: pointer to the lower part of phy_type
+ * @phy_type_high: pointer to the higher part of phy_type
  * @link_speeds_bitmap: targeted link speeds bitmap
  *
  * Note: For the link_speeds_bitmap structure, you can check it at
  * [ice_aqc_get_link_status->link_speed]. Caller can pass in
  * link_speeds_bitmap include multiple speeds.
  *
- * The value of phy_type_low will present a certain link speed. This helper
- * function will turn on bits in the phy_type_low based on the value of
+ * Each entry in this [phy_type_low, phy_type_high] structure will
+ * present a certain link speed. This helper function will turn on bits
+ * in [phy_type_low, phy_type_high] structure based on the value of
  * link_speeds_bitmap input parameter.
  */
-void ice_update_phy_type(u64 *phy_type_low, u16 link_speeds_bitmap)
+void
+ice_update_phy_type(u64 *phy_type_low, u64 *phy_type_high,
+		    u16 link_speeds_bitmap)
 {
 	u16 speed = ICE_AQ_LINK_SPEED_UNKNOWN;
+	u64 pt_high;
 	u64 pt_low;
 	int index;
 
 	/* We first check with low part of phy_type */
 	for (index = 0; index <= ICE_PHY_TYPE_LOW_MAX_INDEX; index++) {
 		pt_low = BIT_ULL(index);
-		speed = ice_get_link_speed_based_on_phy_type(pt_low);
+		speed = ice_get_link_speed_based_on_phy_type(pt_low, 0);
 
 		if (link_speeds_bitmap & speed)
 			*phy_type_low |= BIT_ULL(index);
+	}
+
+	/* We then check with high part of phy_type */
+	for (index = 0; index <= ICE_PHY_TYPE_HIGH_MAX_INDEX; index++) {
+		pt_high = BIT_ULL(index);
+		speed = ice_get_link_speed_based_on_phy_type(0, pt_high);
+
+		if (link_speeds_bitmap & speed)
+			*phy_type_high |= BIT_ULL(index);
 	}
 }
 
@@ -1934,6 +2037,7 @@ ice_set_fc(struct ice_port_info *pi, u8 *aq_failures, bool ena_auto_link_update)
 		if (ena_auto_link_update)
 			cfg.caps |= ICE_AQ_PHY_ENA_AUTO_LINK_UPDT;
 		/* Copy over all the old settings */
+		cfg.phy_type_high = pcaps->phy_type_high;
 		cfg.phy_type_low = pcaps->phy_type_low;
 		cfg.low_power_ctrl = pcaps->low_power_ctrl;
 		cfg.eee_cap = pcaps->eee_cap;
@@ -2029,6 +2133,34 @@ ice_aq_set_link_restart_an(struct ice_port_info *pi, bool ena_link,
 		cmd->cmd_flags &= ~ICE_AQC_RESTART_AN_LINK_ENABLE;
 
 	return ice_aq_send_cmd(pi->hw, &desc, NULL, 0, cd);
+}
+
+/**
+ * ice_aq_set_port_id_led
+ * @pi: pointer to the port information
+ * @is_orig_mode: is this LED set to original mode (by the net-list)
+ * @cd: pointer to command details structure or NULL
+ *
+ * Set LED value for the given port (0x06e9)
+ */
+enum ice_status
+ice_aq_set_port_id_led(struct ice_port_info *pi, bool is_orig_mode,
+		       struct ice_sq_cd *cd)
+{
+	struct ice_aqc_set_port_id_led *cmd;
+	struct ice_hw *hw = pi->hw;
+	struct ice_aq_desc desc;
+
+	cmd = &desc.params.set_port_id_led;
+
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_set_port_id_led);
+
+	if (is_orig_mode)
+		cmd->ident_mode = ICE_AQC_PORT_IDENT_LED_ORIG;
+	else
+		cmd->ident_mode = ICE_AQC_PORT_IDENT_LED_BLINK;
+
+	return ice_aq_send_cmd(hw, &desc, NULL, 0, cd);
 }
 
 /**

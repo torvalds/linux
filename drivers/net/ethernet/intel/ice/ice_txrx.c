@@ -1053,6 +1053,69 @@ static int ice_clean_rx_irq(struct ice_ring *rx_ring, int budget)
 }
 
 /**
+ * ice_buildreg_itr - build value for writing to the GLINT_DYN_CTL register
+ * @itr_idx: interrupt throttling index
+ * @reg_itr: interrupt throttling value adjusted based on ITR granularity
+ */
+static u32 ice_buildreg_itr(int itr_idx, u16 reg_itr)
+{
+	return GLINT_DYN_CTL_INTENA_M | GLINT_DYN_CTL_CLEARPBA_M |
+		(itr_idx << GLINT_DYN_CTL_ITR_INDX_S) |
+		(reg_itr << GLINT_DYN_CTL_INTERVAL_S);
+}
+
+/**
+ * ice_update_ena_itr - Update ITR and re-enable MSIX interrupt
+ * @vsi: the VSI associated with the q_vector
+ * @q_vector: q_vector for which ITR is being updated and interrupt enabled
+ */
+static void
+ice_update_ena_itr(struct ice_vsi *vsi, struct ice_q_vector *q_vector)
+{
+	struct ice_hw *hw = &vsi->back->hw;
+	struct ice_ring_container *rc;
+	u32 itr_val;
+
+	/* This block of logic allows us to get away with only updating
+	 * one ITR value with each interrupt. The idea is to perform a
+	 * pseudo-lazy update with the following criteria.
+	 *
+	 * 1. Rx is given higher priority than Tx if both are in same state
+	 * 2. If we must reduce an ITR that is given highest priority.
+	 * 3. We then give priority to increasing ITR based on amount.
+	 */
+	if (q_vector->rx.target_itr < q_vector->rx.current_itr) {
+		rc = &q_vector->rx;
+		/* Rx ITR needs to be reduced, this is highest priority */
+		itr_val = ice_buildreg_itr(rc->itr_idx, rc->target_itr);
+		rc->current_itr = rc->target_itr;
+	} else if ((q_vector->tx.target_itr < q_vector->tx.current_itr) ||
+		   ((q_vector->rx.target_itr - q_vector->rx.current_itr) <
+		    (q_vector->tx.target_itr - q_vector->tx.current_itr))) {
+		rc = &q_vector->tx;
+		/* Tx ITR needs to be reduced, this is second priority
+		 * Tx ITR needs to be increased more than Rx, fourth priority
+		 */
+		itr_val = ice_buildreg_itr(rc->itr_idx, rc->target_itr);
+		rc->current_itr = rc->target_itr;
+	} else if (q_vector->rx.current_itr != q_vector->rx.target_itr) {
+		rc = &q_vector->rx;
+		/* Rx ITR needs to be increased, third priority */
+		itr_val = ice_buildreg_itr(rc->itr_idx, rc->target_itr);
+		rc->current_itr = rc->target_itr;
+	} else {
+		/* Still have to re-enable the interrupts */
+		itr_val = ice_buildreg_itr(ICE_ITR_NONE, 0);
+	}
+
+	if (!test_bit(__ICE_DOWN, vsi->state)) {
+		int vector = vsi->hw_base_vector + q_vector->v_idx;
+
+		wr32(hw, GLINT_DYN_CTL(vector), itr_val);
+	}
+}
+
+/**
  * ice_napi_poll - NAPI polling Rx/Tx cleanup routine
  * @napi: napi struct with our devices info in it
  * @budget: amount of work driver is allowed to do this pass, in packets
@@ -1108,7 +1171,7 @@ int ice_napi_poll(struct napi_struct *napi, int budget)
 	 */
 	if (likely(napi_complete_done(napi, work_done)))
 		if (test_bit(ICE_FLAG_MSIX_ENA, pf->flags))
-			ice_irq_dynamic_ena(&vsi->back->hw, vsi, q_vector);
+			ice_update_ena_itr(vsi, q_vector);
 
 	return min(work_done, budget - 1);
 }
@@ -1402,6 +1465,12 @@ int ice_tx_csum(struct ice_tx_buf *first, struct ice_tx_offload_params *off)
 		offset |= l4_len << ICE_TX_DESC_LEN_L4_LEN_S;
 		break;
 	case IPPROTO_SCTP:
+		/* enable SCTP checksum offload */
+		cmd |= ICE_TX_DESC_CMD_L4T_EOFT_SCTP;
+		l4_len = sizeof(struct sctphdr) >> 2;
+		offset |= l4_len << ICE_TX_DESC_LEN_L4_LEN_S;
+		break;
+
 	default:
 		if (first->tx_flags & ICE_TX_FLAGS_TSO)
 			return -1;

@@ -1389,7 +1389,6 @@ static int ice_req_irq_msix_misc(struct ice_pf *pf)
 {
 	struct ice_hw *hw = &pf->hw;
 	int oicr_idx, err = 0;
-	u8 itr_gran;
 	u32 val;
 
 	if (!pf->int_name[0])
@@ -1453,10 +1452,8 @@ skip_req_irq:
 	       PFINT_MBX_CTL_CAUSE_ENA_M);
 	wr32(hw, PFINT_MBX_CTL, val);
 
-	itr_gran = hw->itr_gran;
-
 	wr32(hw, GLINT_ITR(ICE_RX_ITR, pf->hw_oicr_idx),
-	     ITR_TO_REG(ICE_ITR_8K, itr_gran));
+	     ITR_REG_ALIGN(ICE_ITR_8K) >> ICE_ITR_GRAN_S);
 
 	ice_flush(hw);
 	ice_irq_dynamic_ena(hw, NULL, NULL);
@@ -1531,6 +1528,7 @@ static int ice_cfg_netdev(struct ice_vsi *vsi)
 
 	csumo_features = NETIF_F_RXCSUM	  |
 			 NETIF_F_IP_CSUM  |
+			 NETIF_F_SCTP_CRC |
 			 NETIF_F_IPV6_CSUM;
 
 	vlano_features = NETIF_F_HW_VLAN_CTAG_FILTER |
@@ -1998,6 +1996,23 @@ static int ice_init_interrupt_scheme(struct ice_pf *pf)
 }
 
 /**
+ * ice_verify_itr_gran - verify driver's assumption of ITR granularity
+ * @pf: pointer to the PF structure
+ *
+ * There is no error returned here because the driver will be able to handle a
+ * different ITR granularity, but interrupt moderation will not be accurate if
+ * the driver's assumptions are not verified. This assumption is made so we can
+ * use constants in the hot path instead of accessing structure members.
+ */
+static void ice_verify_itr_gran(struct ice_pf *pf)
+{
+	if (pf->hw.itr_gran != (ICE_ITR_GRAN_S << 1))
+		dev_warn(&pf->pdev->dev,
+			 "%d ITR granularity assumption is invalid, actual ITR granularity is %d. Interrupt moderation will be inaccurate!\n",
+			 (ICE_ITR_GRAN_S << 1), pf->hw.itr_gran);
+}
+
+/**
  * ice_verify_cacheline_size - verify driver's assumption of 64 Byte cache lines
  * @pf: pointer to the PF structure
  *
@@ -2163,6 +2178,7 @@ static int ice_probe(struct pci_dev *pdev,
 	mod_timer(&pf->serv_tmr, round_jiffies(jiffies + pf->serv_tmr_period));
 
 	ice_verify_cacheline_size(pf);
+	ice_verify_itr_gran(pf);
 
 	return 0;
 
@@ -2546,7 +2562,8 @@ static int ice_vsi_cfg(struct ice_vsi *vsi)
 		if (err)
 			return err;
 	}
-	err = ice_vsi_cfg_txqs(vsi);
+
+	err = ice_vsi_cfg_lan_txqs(vsi);
 	if (!err)
 		err = ice_vsi_cfg_rxqs(vsi);
 
@@ -2945,12 +2962,91 @@ static void ice_napi_disable_all(struct ice_vsi *vsi)
 }
 
 /**
+ * ice_force_phys_link_state - Force the physical link state
+ * @vsi: VSI to force the physical link state to up/down
+ * @link_up: true/false indicates to set the physical link to up/down
+ *
+ * Force the physical link state by getting the current PHY capabilities from
+ * hardware and setting the PHY config based on the determined capabilities. If
+ * link changes a link event will be triggered because both the Enable Automatic
+ * Link Update and LESM Enable bits are set when setting the PHY capabilities.
+ *
+ * Returns 0 on success, negative on failure
+ */
+static int ice_force_phys_link_state(struct ice_vsi *vsi, bool link_up)
+{
+	struct ice_aqc_get_phy_caps_data *pcaps;
+	struct ice_aqc_set_phy_cfg_data *cfg;
+	struct ice_port_info *pi;
+	struct device *dev;
+	int retcode;
+
+	if (!vsi || !vsi->port_info || !vsi->back)
+		return -EINVAL;
+	if (vsi->type != ICE_VSI_PF)
+		return 0;
+
+	dev = &vsi->back->pdev->dev;
+
+	pi = vsi->port_info;
+
+	pcaps = devm_kzalloc(dev, sizeof(*pcaps), GFP_KERNEL);
+	if (!pcaps)
+		return -ENOMEM;
+
+	retcode = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_SW_CFG, pcaps,
+				      NULL);
+	if (retcode) {
+		dev_err(dev,
+			"Failed to get phy capabilities, VSI %d error %d\n",
+			vsi->vsi_num, retcode);
+		retcode = -EIO;
+		goto out;
+	}
+
+	/* No change in link */
+	if (link_up == !!(pcaps->caps & ICE_AQC_PHY_EN_LINK) &&
+	    link_up == !!(pi->phy.link_info.link_info & ICE_AQ_LINK_UP))
+		goto out;
+
+	cfg = devm_kzalloc(dev, sizeof(*cfg), GFP_KERNEL);
+	if (!cfg) {
+		retcode = -ENOMEM;
+		goto out;
+	}
+
+	cfg->phy_type_low = pcaps->phy_type_low;
+	cfg->phy_type_high = pcaps->phy_type_high;
+	cfg->caps = pcaps->caps | ICE_AQ_PHY_ENA_AUTO_LINK_UPDT;
+	cfg->low_power_ctrl = pcaps->low_power_ctrl;
+	cfg->eee_cap = pcaps->eee_cap;
+	cfg->eeer_value = pcaps->eeer_value;
+	cfg->link_fec_opt = pcaps->link_fec_options;
+	if (link_up)
+		cfg->caps |= ICE_AQ_PHY_ENA_LINK;
+	else
+		cfg->caps &= ~ICE_AQ_PHY_ENA_LINK;
+
+	retcode = ice_aq_set_phy_cfg(&vsi->back->hw, pi->lport, cfg, NULL);
+	if (retcode) {
+		dev_err(dev, "Failed to set phy config, VSI %d error %d\n",
+			vsi->vsi_num, retcode);
+		retcode = -EIO;
+	}
+
+	devm_kfree(dev, cfg);
+out:
+	devm_kfree(dev, pcaps);
+	return retcode;
+}
+
+/**
  * ice_down - Shutdown the connection
  * @vsi: The VSI being stopped
  */
 int ice_down(struct ice_vsi *vsi)
 {
-	int i, tx_err, rx_err;
+	int i, tx_err, rx_err, link_err = 0;
 
 	/* Caller of this function is expected to set the
 	 * vsi->state __ICE_DOWN bit
@@ -2961,7 +3057,8 @@ int ice_down(struct ice_vsi *vsi)
 	}
 
 	ice_vsi_dis_irq(vsi);
-	tx_err = ice_vsi_stop_tx_rings(vsi, ICE_NO_RESET, 0);
+
+	tx_err = ice_vsi_stop_lan_tx_rings(vsi, ICE_NO_RESET, 0);
 	if (tx_err)
 		netdev_err(vsi->netdev,
 			   "Failed stop Tx rings, VSI %d error %d\n",
@@ -2975,13 +3072,21 @@ int ice_down(struct ice_vsi *vsi)
 
 	ice_napi_disable_all(vsi);
 
+	if (test_bit(ICE_FLAG_LINK_DOWN_ON_CLOSE_ENA, vsi->back->flags)) {
+		link_err = ice_force_phys_link_state(vsi, false);
+		if (link_err)
+			netdev_err(vsi->netdev,
+				   "Failed to set physical link down, VSI %d error %d\n",
+				   vsi->vsi_num, link_err);
+	}
+
 	ice_for_each_txq(vsi, i)
 		ice_clean_tx_ring(vsi->tx_rings[i]);
 
 	ice_for_each_rxq(vsi, i)
 		ice_clean_rx_ring(vsi->rx_rings[i]);
 
-	if (tx_err || rx_err) {
+	if (tx_err || rx_err || link_err) {
 		netdev_err(vsi->netdev,
 			   "Failed to close VSI 0x%04X on switch 0x%04X\n",
 			   vsi->vsi_num, vsi->vsw->sw_id);
@@ -3641,7 +3746,8 @@ static int ice_vsi_update_bridge_mode(struct ice_vsi *vsi, u16 bmode)
  */
 static int
 ice_bridge_setlink(struct net_device *dev, struct nlmsghdr *nlh,
-		   u16 __always_unused flags, struct netlink_ext_ack *extack)
+		   u16 __always_unused flags,
+		   struct netlink_ext_ack __always_unused *extack)
 {
 	struct ice_netdev_priv *np = netdev_priv(dev);
 	struct ice_pf *pf = np->vsi->back;
@@ -3814,8 +3920,14 @@ static int ice_open(struct net_device *netdev)
 
 	netif_carrier_off(netdev);
 
-	err = ice_vsi_open(vsi);
+	err = ice_force_phys_link_state(vsi, true);
+	if (err) {
+		netdev_err(netdev,
+			   "Failed to set physical link up, error %d\n", err);
+		return err;
+	}
 
+	err = ice_vsi_open(vsi);
 	if (err)
 		netdev_err(netdev, "Failed to open VSI 0x%04X on switch 0x%04X\n",
 			   vsi->vsi_num, vsi->vsw->sw_id);

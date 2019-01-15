@@ -26,6 +26,7 @@
 #include <linux/bitmap.h>
 #include <linux/log2.h>
 #include <linux/ip.h>
+#include <linux/sctp.h>
 #include <linux/ipv6.h>
 #include <linux/if_bridge.h>
 #include <linux/avf/virtchnl.h>
@@ -110,6 +111,9 @@ extern const char ice_drv_ver[];
 #define ice_for_each_alloc_rxq(vsi, i) \
 	for ((i) = 0; (i) < (vsi)->alloc_rxq; (i)++)
 
+#define ice_for_each_q_vector(vsi, i) \
+	for ((i) = 0; (i) < (vsi)->num_q_vectors; (i)++)
+
 struct ice_tc_info {
 	u16 qoffset;
 	u16 qcount_tx;
@@ -127,6 +131,17 @@ struct ice_res_tracker {
 	u16 num_entries;
 	u16 search_hint;
 	u16 list[1];
+};
+
+struct ice_qs_cfg {
+	struct mutex *qs_mutex;  /* will be assgined to &pf->avail_q_mutex */
+	unsigned long *pf_map;
+	unsigned long pf_map_size;
+	unsigned int q_count;
+	unsigned int scatter_count;
+	u16 *vsi_map;
+	u16 vsi_map_offset;
+	u8 mapping_mode;
 };
 
 struct ice_sw {
@@ -270,6 +285,7 @@ enum ice_pf_flags {
 	ICE_FLAG_RSS_ENA,
 	ICE_FLAG_SRIOV_ENA,
 	ICE_FLAG_SRIOV_CAPABLE,
+	ICE_FLAG_LINK_DOWN_ON_CLOSE_ENA,
 	ICE_PF_FLAGS_NBITS		/* must be last */
 };
 

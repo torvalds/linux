@@ -224,13 +224,15 @@ void ice_free_vfs(struct ice_pf *pf)
 
 	/* Avoid wait time by stopping all VFs at the same time */
 	for (i = 0; i < pf->num_alloc_vfs; i++) {
+		struct ice_vsi *vsi;
+
 		if (!test_bit(ICE_VF_STATE_ENA, pf->vf[i].vf_states))
 			continue;
 
+		vsi = pf->vsi[pf->vf[i].lan_vsi_idx];
 		/* stop rings without wait time */
-		ice_vsi_stop_tx_rings(pf->vsi[pf->vf[i].lan_vsi_idx],
-				      ICE_NO_RESET, i);
-		ice_vsi_stop_rx_rings(pf->vsi[pf->vf[i].lan_vsi_idx]);
+		ice_vsi_stop_lan_tx_rings(vsi, ICE_NO_RESET, i);
+		ice_vsi_stop_rx_rings(vsi);
 
 		clear_bit(ICE_VF_STATE_ENA, pf->vf[i].vf_states);
 	}
@@ -831,6 +833,7 @@ static bool ice_reset_vf(struct ice_vf *vf, bool is_vflr)
 {
 	struct ice_pf *pf = vf->pf;
 	struct ice_hw *hw = &pf->hw;
+	struct ice_vsi *vsi;
 	bool rsd = false;
 	u32 reg;
 	int i;
@@ -843,17 +846,18 @@ static bool ice_reset_vf(struct ice_vf *vf, bool is_vflr)
 
 	ice_trigger_vf_reset(vf, is_vflr);
 
+	vsi = pf->vsi[vf->lan_vsi_idx];
+
 	if (test_bit(ICE_VF_STATE_ENA, vf->vf_states)) {
-		ice_vsi_stop_tx_rings(pf->vsi[vf->lan_vsi_idx], ICE_VF_RESET,
-				      vf->vf_id);
-		ice_vsi_stop_rx_rings(pf->vsi[vf->lan_vsi_idx]);
+		ice_vsi_stop_lan_tx_rings(vsi, ICE_VF_RESET, vf->vf_id);
+		ice_vsi_stop_rx_rings(vsi);
 		clear_bit(ICE_VF_STATE_ENA, vf->vf_states);
 	} else {
 		/* Call Disable LAN Tx queue AQ call even when queues are not
 		 * enabled. This is needed for successful completiom of VFR
 		 */
-		ice_dis_vsi_txq(pf->vsi[vf->lan_vsi_idx]->port_info, 0,
-				NULL, NULL, ICE_VF_RESET, vf->vf_id, NULL);
+		ice_dis_vsi_txq(vsi->port_info, 0, NULL, NULL, ICE_VF_RESET,
+				vf->vf_id, NULL);
 	}
 
 	/* poll VPGEN_VFRSTAT reg to make sure
@@ -1614,7 +1618,7 @@ static int ice_vc_dis_qs_msg(struct ice_vf *vf, u8 *msg)
 		goto error_param;
 	}
 
-	if (ice_vsi_stop_tx_rings(vsi, ICE_NO_RESET, vf->vf_id)) {
+	if (ice_vsi_stop_lan_tx_rings(vsi, ICE_NO_RESET, vf->vf_id)) {
 		dev_err(&vsi->back->pdev->dev,
 			"Failed to stop tx rings on VSI %d\n",
 			vsi->vsi_num);
@@ -1784,7 +1788,7 @@ static int ice_vc_cfg_qs_msg(struct ice_vf *vf, u8 *msg)
 	vsi->num_txq = qci->num_queue_pairs;
 	vsi->num_rxq = qci->num_queue_pairs;
 
-	if (!ice_vsi_cfg_txqs(vsi) && !ice_vsi_cfg_rxqs(vsi))
+	if (!ice_vsi_cfg_lan_txqs(vsi) && !ice_vsi_cfg_rxqs(vsi))
 		aq_ret = 0;
 	else
 		aq_ret = ICE_ERR_PARAM;
