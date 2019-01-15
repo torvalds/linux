@@ -2415,8 +2415,8 @@ qla2x00_get_fc_host_stats(struct Scsi_Host *shost)
 	if (qla2x00_chip_is_down(vha))
 		goto done;
 
-	stats = dma_zalloc_coherent(&ha->pdev->dev, sizeof(*stats),
-				    &stats_dma, GFP_KERNEL);
+	stats = dma_alloc_coherent(&ha->pdev->dev, sizeof(*stats), &stats_dma,
+				   GFP_KERNEL);
 	if (!stats) {
 		ql_log(ql_log_warn, vha, 0x707d,
 		    "Failed to allocate memory for stats.\n");

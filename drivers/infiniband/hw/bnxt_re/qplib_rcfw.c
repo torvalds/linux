@@ -766,8 +766,8 @@ struct bnxt_qplib_rcfw_sbuf *bnxt_qplib_rcfw_alloc_sbuf(
 		return NULL;
 
 	sbuf->size = size;
-	sbuf->sb = dma_zalloc_coherent(&rcfw->pdev->dev, sbuf->size,
-				       &sbuf->dma_addr, GFP_ATOMIC);
+	sbuf->sb = dma_alloc_coherent(&rcfw->pdev->dev, sbuf->size,
+				      &sbuf->dma_addr, GFP_ATOMIC);
 	if (!sbuf->sb)
 		goto bail;
 

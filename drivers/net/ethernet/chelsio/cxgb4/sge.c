@@ -694,7 +694,7 @@ static void *alloc_ring(struct device *dev, size_t nelem, size_t elem_size,
 {
 	size_t len = nelem * elem_size + stat_size;
 	void *s = NULL;
-	void *p = dma_zalloc_coherent(dev, len, phys, GFP_KERNEL);
+	void *p = dma_alloc_coherent(dev, len, phys, GFP_KERNEL);
 
 	if (!p)
 		return NULL;
