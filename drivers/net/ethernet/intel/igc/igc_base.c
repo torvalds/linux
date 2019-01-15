@@ -108,22 +108,6 @@ static s32 igc_reset_hw_base(struct igc_hw *hw)
 }
 
 /**
- * igc_get_phy_id_base - Retrieve PHY addr and id
- * @hw: pointer to the HW structure
- *
- * Retrieves the PHY address and ID for both PHY's which do and do not use
- * sgmi interface.
- */
-static s32 igc_get_phy_id_base(struct igc_hw *hw)
-{
-	s32  ret_val = 0;
-
-	ret_val = igc_get_phy_id(hw);
-
-	return ret_val;
-}
-
-/**
  * igc_init_nvm_params_base - Init NVM func ptrs.
  * @hw: pointer to the HW structure
  */
@@ -245,7 +229,7 @@ static s32 igc_init_phy_params_base(struct igc_hw *hw)
 		goto out;
 	}
 
-	ret_val = igc_get_phy_id_base(hw);
+	ret_val = igc_get_phy_id(hw);
 	if (ret_val)
 		return ret_val;
 
