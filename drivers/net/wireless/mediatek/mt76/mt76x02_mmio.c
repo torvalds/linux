@@ -116,6 +116,11 @@ static void mt76x02_pre_tbtt_tasklet(unsigned long arg)
 		IEEE80211_IFACE_ITER_RESUME_ALL,
 		mt76x02_update_beacon_iter, dev);
 
+	mt76_csa_check(&dev->mt76);
+
+	if (dev->mt76.csa_complete)
+		return;
+
 	do {
 		nframes = skb_queue_len(&data.q);
 		ieee80211_iterate_active_interfaces_atomic(mt76_hw(dev),
@@ -309,8 +314,12 @@ irqreturn_t mt76x02_irq_handler(int irq, void *dev_instance)
 		tasklet_schedule(&dev->pre_tbtt_tasklet);
 
 	/* send buffered multicast frames now */
-	if (intr & MT_INT_TBTT)
-		mt76_queue_kick(dev, &dev->mt76.q_tx[MT_TXQ_PSD]);
+	if (intr & MT_INT_TBTT) {
+		if (dev->mt76.csa_complete)
+			mt76_csa_finish(&dev->mt76);
+		else
+			mt76_queue_kick(dev, &dev->mt76.q_tx[MT_TXQ_PSD]);
+	}
 
 	if (intr & MT_INT_TX_STAT) {
 		mt76x02_mac_poll_tx_status(dev, true);

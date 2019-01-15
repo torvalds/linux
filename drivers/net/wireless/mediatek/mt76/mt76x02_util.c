@@ -160,6 +160,8 @@ void mt76x02_init_device(struct mt76x02_dev *dev)
 #endif
 			BIT(NL80211_IFTYPE_ADHOC);
 
+		wiphy->flags |= WIPHY_FLAG_HAS_CHANNEL_SWITCH;
+
 		wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_VHT_IBSS);
 
 		/* init led callbacks */

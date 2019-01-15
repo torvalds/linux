@@ -463,6 +463,8 @@ struct mt76_dev {
 	bool led_al;
 	u8 led_pin;
 
+	u8 csa_complete;
+
 	u32 rxfilter;
 
 	union {
@@ -690,6 +692,9 @@ int mt76_get_min_avg_rssi(struct mt76_dev *dev);
 
 int mt76_get_txpower(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		     int *dbm);
+
+void mt76_csa_check(struct mt76_dev *dev);
+void mt76_csa_finish(struct mt76_dev *dev);
 
 /* internal */
 void mt76_tx_free(struct mt76_dev *dev);
