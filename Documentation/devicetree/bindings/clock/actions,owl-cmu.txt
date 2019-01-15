@@ -2,13 +2,14 @@
 
 The Actions Semi Owl Clock Management Unit generates and supplies clock
 to various controllers within the SoC. The clock binding described here is
-applicable to S900 and S700 SoC's.
+applicable to S900, S700 and S500 SoC's.
 
 Required Properties:
 
 - compatible: should be one of the following,
 	"actions,s900-cmu"
 	"actions,s700-cmu"
+	"actions,s500-cmu"
 - reg: physical base address of the controller and length of memory mapped
   region.
 - clocks: Reference to the parent clocks ("hosc", "losc")
@@ -19,8 +20,8 @@ Each clock is assigned an identifier, and client nodes can use this identifier
 to specify the clock which they consume.
 
 All available clocks are defined as preprocessor macros in corresponding
-dt-bindings/clock/actions,s900-cmu.h or actions,s700-cmu.h header and can be
-used in device tree sources.
+dt-bindings/clock/actions,s900-cmu.h or actions,s700-cmu.h or
+actions,s500-cmu.h header and can be used in device tree sources.
 
 External clocks:
 
