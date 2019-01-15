@@ -54,7 +54,8 @@
 struct rk618_scaler {
 	struct drm_bridge base;
 	struct drm_bridge *bridge;
-	struct drm_display_mode mode;
+	struct drm_display_mode src;
+	struct drm_display_mode dst;
 	struct device *dev;
 	struct regmap *regmap;
 	struct clk *vif_clk;
@@ -239,46 +240,17 @@ static void rk618_scaler_init(struct rk618_scaler *scl,
 static void rk618_scaler_bridge_enable(struct drm_bridge *bridge)
 {
 	struct rk618_scaler *scl = bridge_to_scaler(bridge);
-	struct drm_connector *connector;
-	const struct drm_display_mode *src = &scl->mode;
-	const struct drm_display_mode *mode;
-	struct drm_display_mode dst;
-	unsigned long dclk_rate = src->clock * 1000;
-	u64 sclk_rate;
+	struct drm_display_mode *src = &scl->src;
+	struct drm_display_mode *dst = &scl->dst;
 	long rate;
-
-	memset(&dst, 0, sizeof(dst));
-
-	drm_for_each_connector(connector, bridge->dev) {
-		if (connector->connector_type == DRM_MODE_CONNECTOR_HDMIA)
-			continue;
-
-		if (connector->encoder_ids[0] != bridge->encoder->base.id)
-			continue;
-
-		list_for_each_entry(mode, &connector->modes, head) {
-			if (mode->type & DRM_MODE_TYPE_PREFERRED) {
-				drm_mode_copy(&dst, mode);
-				break;
-			}
-		}
-	}
-
-	sclk_rate = (u64)dclk_rate * dst.vdisplay * dst.htotal;
-	do_div(sclk_rate, src->vdisplay * src->htotal);
-
-	dev_info(scl->dev, "src=%s, dst=%s\n", src->name, dst.name);
-	dev_info(scl->dev, "dclk rate: %ld, sclk rate: %lld\n",
-		 dclk_rate, sclk_rate);
 
 	clk_set_parent(scl->dither_clk, scl->scaler_clk);
 
-	rate = clk_round_rate(scl->scaler_clk, sclk_rate);
+	rate = clk_round_rate(scl->scaler_clk, dst->clock * 1000);
 	clk_set_rate(scl->scaler_clk, rate);
-	dst.clock = rate / 1000;
 	clk_prepare_enable(scl->scaler_clk);
 
-	rk618_scaler_init(scl, src, &dst);
+	rk618_scaler_init(scl, src, dst);
 	rk618_scaler_enable(scl);
 }
 
@@ -292,12 +264,45 @@ static void rk618_scaler_bridge_disable(struct drm_bridge *bridge)
 }
 
 static void rk618_scaler_bridge_mode_set(struct drm_bridge *bridge,
-				      struct drm_display_mode *mode,
-				      struct drm_display_mode *adjusted)
+					 struct drm_display_mode *mode,
+					 struct drm_display_mode *adjusted)
 {
 	struct rk618_scaler *scl = bridge_to_scaler(bridge);
+	struct drm_connector *connector;
+	struct drm_display_mode *src = &scl->src;
+	struct drm_display_mode *dst = &scl->dst;
+	unsigned long dclk_rate;
+	u64 sclk_rate;
 
-	drm_mode_copy(&scl->mode, adjusted);
+	drm_mode_copy(&scl->src, adjusted);
+
+	drm_for_each_connector(connector, bridge->dev) {
+		const struct drm_display_mode *mode;
+
+		if (connector->connector_type == DRM_MODE_CONNECTOR_HDMIA)
+			continue;
+
+		if (connector->encoder_ids[0] != bridge->encoder->base.id)
+			continue;
+
+		list_for_each_entry(mode, &connector->modes, head) {
+			if (mode->type & DRM_MODE_TYPE_PREFERRED) {
+				drm_mode_copy(&scl->dst, mode);
+				break;
+			}
+		}
+	}
+
+	dclk_rate = src->clock * 1000;
+	sclk_rate = (u64)dclk_rate * dst->vdisplay * dst->htotal;
+	do_div(sclk_rate, src->vdisplay * src->htotal);
+	sclk_rate = sclk_rate / 1000 * 1000;
+	dst->clock = sclk_rate / 1000;
+	scl->bridge->driver_private = dst;
+
+	DRM_DEV_INFO(scl->dev, "src=%s, dst=%s\n", src->name, dst->name);
+	DRM_DEV_INFO(scl->dev, "dclk rate: %ld, sclk rate: %lld\n",
+		     dclk_rate, sclk_rate);
 }
 
 static int rk618_scaler_bridge_attach(struct drm_bridge *bridge)

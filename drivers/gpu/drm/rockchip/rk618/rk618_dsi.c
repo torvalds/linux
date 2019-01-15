@@ -795,7 +795,10 @@ static void rk618_dsi_bridge_mode_set(struct drm_bridge *bridge,
 {
 	struct rk618_dsi *dsi = bridge_to_dsi(bridge);
 
-	drm_mode_copy(&dsi->mode, adj);
+	if (bridge->driver_private)
+		drm_mode_copy(&dsi->mode, bridge->driver_private);
+	else
+		drm_mode_copy(&dsi->mode, adj);
 }
 
 static int rk618_dsi_bridge_attach(struct drm_bridge *bridge)
