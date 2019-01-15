@@ -848,14 +848,14 @@ void dcn10_clock_source_destroy(struct clock_source **clk_src)
 	*clk_src = NULL;
 }
 
-static struct pp_smu_funcs_rv *dcn10_pp_smu_create(struct dc_context *ctx)
+static struct pp_smu_funcs *dcn10_pp_smu_create(struct dc_context *ctx)
 {
-	struct pp_smu_funcs_rv *pp_smu = kzalloc(sizeof(*pp_smu), GFP_KERNEL);
+	struct pp_smu_funcs *pp_smu = kzalloc(sizeof(*pp_smu), GFP_KERNEL);
 
 	if (!pp_smu)
 		return pp_smu;
 
-	dm_pp_get_funcs_rv(ctx, pp_smu);
+	dm_pp_get_funcs(ctx, pp_smu);
 	return pp_smu;
 }
 

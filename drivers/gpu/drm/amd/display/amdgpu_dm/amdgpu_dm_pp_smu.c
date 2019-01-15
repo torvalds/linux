@@ -611,17 +611,17 @@ void pp_rv_set_hard_min_fclk_by_freq(struct pp_smu *pp, int mhz)
 	pp_funcs->set_hard_min_fclk_by_freq(pp_handle, mhz);
 }
 
-void dm_pp_get_funcs_rv(
+void dm_pp_get_funcs(
 		struct dc_context *ctx,
-		struct pp_smu_funcs_rv *funcs)
+		struct pp_smu_funcs *funcs)
 {
-	funcs->pp_smu.dm = ctx;
-	funcs->set_display_requirement = pp_rv_set_display_requirement;
-	funcs->set_wm_ranges = pp_rv_set_wm_ranges;
-	funcs->set_pme_wa_enable = pp_rv_set_pme_wa_enable;
-	funcs->set_display_count = pp_rv_set_active_display_count;
-	funcs->set_min_deep_sleep_dcfclk = pp_rv_set_min_deep_sleep_dcfclk;
-	funcs->set_hard_min_dcfclk_by_freq = pp_rv_set_hard_min_dcefclk_by_freq;
-	funcs->set_hard_min_fclk_by_freq = pp_rv_set_hard_min_fclk_by_freq;
+	funcs->rv_funcs.pp_smu.dm = ctx;
+	funcs->rv_funcs.set_display_requirement = pp_rv_set_display_requirement;
+	funcs->rv_funcs.set_wm_ranges = pp_rv_set_wm_ranges;
+	funcs->rv_funcs.set_pme_wa_enable = pp_rv_set_pme_wa_enable;
+	funcs->rv_funcs.set_display_count = pp_rv_set_active_display_count;
+	funcs->rv_funcs.set_min_deep_sleep_dcfclk = pp_rv_set_min_deep_sleep_dcfclk;
+	funcs->rv_funcs.set_hard_min_dcfclk_by_freq = pp_rv_set_hard_min_dcefclk_by_freq;
+	funcs->rv_funcs.set_hard_min_fclk_by_freq = pp_rv_set_hard_min_fclk_by_freq;
 }
 

@@ -171,7 +171,7 @@ static void dcn1_update_clocks(struct clk_mgr *clk_mgr,
 	struct pp_smu_display_requirement_rv *smu_req_cur =
 			&dc->res_pool->pp_smu_req;
 	struct pp_smu_display_requirement_rv smu_req = *smu_req_cur;
-	struct pp_smu_funcs_rv *pp_smu = dc->res_pool->pp_smu;
+	struct pp_smu_funcs_rv *pp_smu = &dc->res_pool->pp_smu->rv_funcs;
 	bool send_request_to_increase = false;
 	bool send_request_to_lower = false;
 	int display_count;

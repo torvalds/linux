@@ -144,7 +144,7 @@ struct resource_pool {
 	struct stream_encoder *stream_enc[MAX_PIPES * 2];
 	struct hubbub *hubbub;
 	struct mpc *mpc;
-	struct pp_smu_funcs_rv *pp_smu;
+	struct pp_smu_funcs *pp_smu;
 	struct pp_smu_display_requirement_rv pp_smu_req;
 	struct dce_aux *engines[MAX_PIPES];
 	struct dce_i2c_hw *hw_i2cs[MAX_PIPES];

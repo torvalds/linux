@@ -223,8 +223,8 @@ bool dm_pp_notify_wm_clock_changes(
 	const struct dc_context *ctx,
 	struct dm_pp_wm_sets_with_clock_ranges *wm_with_clock_ranges);
 
-void dm_pp_get_funcs_rv(struct dc_context *ctx,
-		struct pp_smu_funcs_rv *funcs);
+void dm_pp_get_funcs(struct dc_context *ctx,
+		struct pp_smu_funcs *funcs);
 
 /* DAL calls this function to notify PP about completion of Mode Set.
  * For PP it means that current DCE clocks are those which were returned

@@ -29,6 +29,12 @@
 extern const struct _vcs_dpi_ip_params_st dcn1_0_ip;
 extern const struct _vcs_dpi_soc_bounding_box_st dcn1_0_soc;
 
+static void set_soc_bounding_box_v2(struct display_mode_lib *lib,
+	const struct _vcs_dpi_soc_bounding_box_st *soc_bb)
+{
+	lib->soc =  *soc_bb;
+}
+
 static void set_soc_bounding_box(struct _vcs_dpi_soc_bounding_box_st *soc, enum dml_project project)
 {
 	switch (project) {
@@ -39,6 +45,12 @@ static void set_soc_bounding_box(struct _vcs_dpi_soc_bounding_box_st *soc, enum 
 		ASSERT(0);
 		break;
 	}
+}
+
+static void set_ip_params_v2(struct display_mode_lib *lib,
+	const struct _vcs_dpi_ip_params_st *ip_params)
+{
+	lib->ip =  *ip_params;
 }
 
 static void set_ip_params(struct _vcs_dpi_ip_params_st *ip, enum dml_project project)
@@ -58,6 +70,18 @@ void dml_init_instance(struct display_mode_lib *lib, enum dml_project project)
 	if (lib->project != project) {
 		set_soc_bounding_box(&lib->soc, project);
 		set_ip_params(&lib->ip, project);
+		lib->project = project;
+	}
+}
+
+void dml_init_instance_v2(struct display_mode_lib *lib,
+		const struct _vcs_dpi_soc_bounding_box_st *soc_bb,
+		const struct _vcs_dpi_ip_params_st *ip_params,
+		enum dml_project project)
+{
+	if (lib->project != project) {
+		set_soc_bounding_box_v2(lib, soc_bb);
+		set_ip_params_v2(lib, ip_params);
 		lib->project = project;
 	}
 }

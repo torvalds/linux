@@ -43,6 +43,11 @@ struct display_mode_lib {
 
 void dml_init_instance(struct display_mode_lib *lib, enum dml_project project);
 
+void dml_init_instance_v2(struct display_mode_lib *lib,
+		const struct _vcs_dpi_soc_bounding_box_st *soc_bb,
+		const struct _vcs_dpi_ip_params_st *ip_params,
+		enum dml_project project);
+
 const char *dml_get_status_message(enum dm_validation_status status);
 
 #endif

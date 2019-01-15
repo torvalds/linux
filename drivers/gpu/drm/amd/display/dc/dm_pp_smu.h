@@ -30,6 +30,8 @@
  * interface to PPLIB/SMU to setup clocks and pstate requirements on SoC
  */
 
+typedef bool BOOLEAN;
+
 enum pp_smu_ver {
 	/*
 	 * PP_SMU_INTERFACE_X should be interpreted as the interface defined

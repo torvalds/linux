@@ -935,12 +935,30 @@ void hwss_edp_backlight_control(
 		edp_receiver_ready_T9(link);
 }
 
+// Static helper function which calls the correct function
+// based on pp_smu version
+static void set_pme_wa_enable_by_version(struct dc *dc)
+{
+	struct pp_smu_funcs *pp_smu = NULL;
+
+	if (dc->res_pool->pp_smu)
+		pp_smu = dc->res_pool->pp_smu;
+
+	if (pp_smu) {
+		if (pp_smu->ctx.ver == PP_SMU_VER_RV && pp_smu->rv_funcs.set_pme_wa_enable)
+			pp_smu->rv_funcs.set_pme_wa_enable(&(pp_smu->ctx));
+	}
+}
+
 void dce110_enable_audio_stream(struct pipe_ctx *pipe_ctx)
 {
-	struct dc *core_dc = pipe_ctx->stream->ctx->dc;
 	/* notify audio driver for audio modes of monitor */
-	struct pp_smu_funcs_rv *pp_smu = core_dc->res_pool->pp_smu;
+	struct dc *core_dc = pipe_ctx->stream->ctx->dc;
+	struct pp_smu_funcs *pp_smu = NULL;
 	unsigned int i, num_audio = 1;
+
+	if (core_dc->res_pool->pp_smu)
+		pp_smu = core_dc->res_pool->pp_smu;
 
 	if (pipe_ctx->stream_res.audio) {
 		for (i = 0; i < MAX_PIPES; i++) {
@@ -951,9 +969,9 @@ void dce110_enable_audio_stream(struct pipe_ctx *pipe_ctx)
 
 		pipe_ctx->stream_res.audio->funcs->az_enable(pipe_ctx->stream_res.audio);
 
-		if (num_audio >= 1 && pp_smu != NULL && pp_smu->set_pme_wa_enable != NULL)
+		if (num_audio >= 1 && pp_smu != NULL)
 			/*this is the first audio. apply the PME w/a in order to wake AZ from D3*/
-			pp_smu->set_pme_wa_enable(&pp_smu->pp_smu);
+			set_pme_wa_enable_by_version(core_dc);
 		/* un-mute audio */
 		/* TODO: audio should be per stream rather than per link */
 		pipe_ctx->stream_res.stream_enc->funcs->audio_mute_control(
@@ -964,17 +982,18 @@ void dce110_enable_audio_stream(struct pipe_ctx *pipe_ctx)
 void dce110_disable_audio_stream(struct pipe_ctx *pipe_ctx, int option)
 {
 	struct dc *dc = pipe_ctx->stream->ctx->dc;
+	struct pp_smu_funcs *pp_smu = NULL;
 
 	pipe_ctx->stream_res.stream_enc->funcs->audio_mute_control(
 			pipe_ctx->stream_res.stream_enc, true);
 	if (pipe_ctx->stream_res.audio) {
-		struct pp_smu_funcs_rv *pp_smu = dc->res_pool->pp_smu;
+		if (dc->res_pool->pp_smu)
+			pp_smu = dc->res_pool->pp_smu;
 
 		if (option != KEEP_ACQUIRED_RESOURCE ||
-				!dc->debug.az_endpoint_mute_only) {
+				!dc->debug.az_endpoint_mute_only)
 			/*only disalbe az_endpoint if power down or free*/
 			pipe_ctx->stream_res.audio->funcs->az_disable(pipe_ctx->stream_res.audio);
-		}
 
 		if (dc_is_dp_signal(pipe_ctx->stream->signal))
 			pipe_ctx->stream_res.stream_enc->funcs->dp_audio_disable(
@@ -989,9 +1008,9 @@ void dce110_disable_audio_stream(struct pipe_ctx *pipe_ctx, int option)
 			update_audio_usage(&dc->current_state->res_ctx, dc->res_pool, pipe_ctx->stream_res.audio, false);
 			pipe_ctx->stream_res.audio = NULL;
 		}
-		if (pp_smu != NULL && pp_smu->set_pme_wa_enable != NULL)
+		if (pp_smu != NULL)
 			/*this is the first audio. apply the PME w/a in order to wake AZ from D3*/
-			pp_smu->set_pme_wa_enable(&pp_smu->pp_smu);
+			set_pme_wa_enable_by_version(dc);
 
 		/* TODO: notify audio driver for if audio modes list changed
 		 * add audio mode list change flag */
