@@ -74,9 +74,6 @@ struct nf_conntrack_l4proto {
 
 	/* Return the per-net protocol part. */
 	struct nf_proto_net *(*get_net_proto)(struct net *net);
-
-	/* Module (if any) which this is connected to. */
-	struct module *me;
 };
 
 bool icmp_pkt_to_tuple(const struct sk_buff *skb,
@@ -148,7 +145,6 @@ extern const struct nf_conntrack_l4proto nf_conntrack_l4proto_generic;
 const struct nf_conntrack_l4proto *__nf_ct_l4proto_find(u8 l4proto);
 
 const struct nf_conntrack_l4proto *nf_ct_l4proto_find_get(u8 l4proto);
-void nf_ct_l4proto_put(const struct nf_conntrack_l4proto *p);
 
 /* Protocol pernet registration. */
 int nf_ct_l4proto_pernet_register_one(struct net *net,

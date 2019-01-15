@@ -139,19 +139,11 @@ const struct nf_conntrack_l4proto *nf_ct_l4proto_find_get(u8 l4num)
 
 	rcu_read_lock();
 	p = __nf_ct_l4proto_find(l4num);
-	if (!try_module_get(p->me))
-		p = &nf_conntrack_l4proto_generic;
 	rcu_read_unlock();
 
 	return p;
 }
 EXPORT_SYMBOL_GPL(nf_ct_l4proto_find_get);
-
-void nf_ct_l4proto_put(const struct nf_conntrack_l4proto *p)
-{
-	module_put(p->me);
-}
-EXPORT_SYMBOL_GPL(nf_ct_l4proto_put);
 
 static int kill_l4proto(struct nf_conn *i, void *data)
 {

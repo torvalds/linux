@@ -152,7 +152,6 @@ static int cttimeout_new_timeout(struct net *net, struct sock *ctnl,
 err:
 	kfree(timeout);
 err_proto_put:
-	nf_ct_l4proto_put(l4proto);
 	return ret;
 }
 
@@ -302,7 +301,6 @@ static int ctnl_timeout_try_del(struct net *net, struct ctnl_timeout *timeout)
 	if (refcount_dec_if_one(&timeout->refcnt)) {
 		/* We are protected by nfnl mutex. */
 		list_del_rcu(&timeout->head);
-		nf_ct_l4proto_put(timeout->timeout.l4proto);
 		nf_ct_untimeout(net, &timeout->timeout);
 		kfree_rcu(timeout, rcu_head);
 	} else {
@@ -372,10 +370,8 @@ static int cttimeout_default_set(struct net *net, struct sock *ctnl,
 	if (ret < 0)
 		goto err;
 
-	nf_ct_l4proto_put(l4proto);
 	return 0;
 err:
-	nf_ct_l4proto_put(l4proto);
 	return ret;
 }
 
@@ -511,7 +507,6 @@ static int cttimeout_default_get(struct net *net, struct sock *ctnl,
 	/* this avoids a loop in nfnetlink. */
 	return ret == -EAGAIN ? -ENOBUFS : ret;
 err:
-	nf_ct_l4proto_put(l4proto);
 	return err;
 }
 
@@ -592,7 +587,6 @@ static void __net_exit cttimeout_net_exit(struct net *net)
 
 	list_for_each_entry_safe(cur, tmp, &net->nfct_timeout_list, head) {
 		list_del_rcu(&cur->head);
-		nf_ct_l4proto_put(cur->timeout.l4proto);
 
 		if (refcount_dec_and_test(&cur->refcnt))
 			kfree_rcu(cur, rcu_head);

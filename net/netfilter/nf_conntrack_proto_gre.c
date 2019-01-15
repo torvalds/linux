@@ -373,7 +373,6 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_gre = {
 #endif
 	.packet		 = gre_packet,
 	.destroy	 = gre_destroy,
-	.me 		 = THIS_MODULE,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.tuple_to_nlattr = nf_ct_port_tuple_to_nlattr,
 	.nlattr_tuple_size = nf_ct_port_nlattr_tuple_size,
