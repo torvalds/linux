@@ -249,19 +249,6 @@ int nf_conntrack_gre_packet(struct nf_conn *ct,
 	return NF_ACCEPT;
 }
 
-/* Called when a conntrack entry has already been removed from the hashes
- * and is about to be deleted from memory */
-static void gre_destroy(struct nf_conn *ct)
-{
-	struct nf_conn *master = ct->master;
-	pr_debug(" entering\n");
-
-	if (!master)
-		pr_debug("no master !?!\n");
-	else
-		nf_ct_gre_keymap_destroy(master);
-}
-
 #ifdef CONFIG_NF_CONNTRACK_TIMEOUT
 
 #include <linux/netfilter/nfnetlink.h>
@@ -329,7 +316,6 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_gre = {
 #ifdef CONFIG_NF_CONNTRACK_PROCFS
 	.print_conntrack = gre_print_conntrack,
 #endif
-	.destroy	 = gre_destroy,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.tuple_to_nlattr = nf_ct_port_tuple_to_nlattr,
 	.nlattr_tuple_size = nf_ct_port_nlattr_tuple_size,

@@ -524,11 +524,18 @@ void nf_ct_tmpl_free(struct nf_conn *tmpl)
 }
 EXPORT_SYMBOL_GPL(nf_ct_tmpl_free);
 
+static void destroy_gre_conntrack(struct nf_conn *ct)
+{
+	struct nf_conn *master = ct->master;
+
+	if (master)
+		nf_ct_gre_keymap_destroy(master);
+}
+
 static void
 destroy_conntrack(struct nf_conntrack *nfct)
 {
 	struct nf_conn *ct = (struct nf_conn *)nfct;
-	const struct nf_conntrack_l4proto *l4proto;
 
 	pr_debug("destroy_conntrack(%p)\n", ct);
 	WARN_ON(atomic_read(&nfct->use) != 0);
@@ -537,9 +544,9 @@ destroy_conntrack(struct nf_conntrack *nfct)
 		nf_ct_tmpl_free(ct);
 		return;
 	}
-	l4proto = __nf_ct_l4proto_find(nf_ct_protonum(ct));
-	if (l4proto->destroy)
-		l4proto->destroy(ct);
+
+	if (unlikely(nf_ct_protonum(ct) == IPPROTO_GRE))
+		destroy_gre_conntrack(ct);
 
 	local_bh_disable();
 	/* Expectations will have been removed in clean_from_lists,
