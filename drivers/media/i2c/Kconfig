@@ -820,6 +820,18 @@ config VIDEO_OV7740
 	  This is a Video4Linux2 sensor driver for the OmniVision
 	  OV7740 VGA camera sensor.
 
+config VIDEO_OV8856
+	tristate "OmniVision OV8856 sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the OmniVision
+	  OV8856 camera sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ov8856.
+
 config VIDEO_OV9640
 	tristate "OmniVision OV9640 sensor support"
 	depends on I2C && VIDEO_V4L2
