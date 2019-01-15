@@ -263,9 +263,9 @@ static int ti_iodelay_pinconf_set(struct ti_iodelay_device *iod,
 	reg_val |= reg->unlock_val << __ffs(reg->lock_mask);
 	r = regmap_update_bits(iod->regmap, cfg->offset, reg_mask, reg_val);
 
-	dev_info(dev, "Set reg 0x%x Delay(a: %d g: %d), Elements(C=%d F=%d)0x%x\n",
-		 cfg->offset, cfg->a_delay, cfg->g_delay, c_elements,
-		 f_elements, reg_val);
+	dev_dbg(dev, "Set reg 0x%x Delay(a: %d g: %d), Elements(C=%d F=%d)0x%x\n",
+		cfg->offset, cfg->a_delay, cfg->g_delay, c_elements,
+		f_elements, reg_val);
 
 	return r;
 }
