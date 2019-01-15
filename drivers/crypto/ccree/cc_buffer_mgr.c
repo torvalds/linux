@@ -614,10 +614,10 @@ void cc_unmap_aead_request(struct device *dev, struct aead_request *req)
 				 hw_iv_size, DMA_BIDIRECTIONAL);
 	}
 
-	/*In case a pool was set, a table was
-	 *allocated and should be released
-	 */
-	if (areq_ctx->mlli_params.curr_pool) {
+	/* Release pool */
+	if ((areq_ctx->assoc_buff_type == CC_DMA_BUF_MLLI ||
+	     areq_ctx->data_buff_type == CC_DMA_BUF_MLLI) &&
+	    (areq_ctx->mlli_params.mlli_virt_addr)) {
 		dev_dbg(dev, "free MLLI buffer: dma=%pad virt=%pK\n",
 			&areq_ctx->mlli_params.mlli_dma_addr,
 			areq_ctx->mlli_params.mlli_virt_addr);
