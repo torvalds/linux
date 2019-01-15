@@ -18,6 +18,7 @@
 #include <drm/drm_drv.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_print.h>
+#include <drm/drm_rect.h>
 #include <drm/tinydrm/tinydrm.h>
 #include <drm/tinydrm/tinydrm-helpers.h>
 #include <uapi/drm/drm.h>
@@ -41,7 +42,7 @@ MODULE_PARM_DESC(spi_max, "Set a lower SPI max transfer size");
  * Returns:
  * true if it's a full clip, false otherwise
  */
-bool tinydrm_merge_clips(struct drm_clip_rect *dst,
+bool tinydrm_merge_clips(struct drm_rect *dst,
 			 struct drm_clip_rect *src, unsigned int num_clips,
 			 unsigned int flags, u32 max_width, u32 max_height)
 {
@@ -63,10 +64,10 @@ bool tinydrm_merge_clips(struct drm_clip_rect *dst,
 	for (i = 0; i < num_clips; i++) {
 		if (flags & DRM_MODE_FB_DIRTY_ANNOTATE_COPY)
 			i++;
-		dst->x1 = min(dst->x1, src[i].x1);
-		dst->x2 = max(dst->x2, src[i].x2);
-		dst->y1 = min(dst->y1, src[i].y1);
-		dst->y2 = max(dst->y2, src[i].y2);
+		dst->x1 = min_t(int, dst->x1, src[i].x1);
+		dst->x2 = max_t(int, dst->x2, src[i].x2);
+		dst->y1 = min_t(int, dst->y1, src[i].y1);
+		dst->y2 = max_t(int, dst->y2, src[i].y2);
 	}
 
 	if (dst->x2 > max_width || dst->y2 > max_height ||
@@ -122,7 +123,7 @@ EXPORT_SYMBOL(tinydrm_fb_dirty);
  * @clip: Clip rectangle area to copy
  */
 void tinydrm_memcpy(void *dst, void *vaddr, struct drm_framebuffer *fb,
-		    struct drm_clip_rect *clip)
+		    struct drm_rect *clip)
 {
 	unsigned int cpp = drm_format_plane_cpp(fb->format->format, 0);
 	unsigned int pitch = fb->pitches[0];
@@ -146,7 +147,7 @@ EXPORT_SYMBOL(tinydrm_memcpy);
  * @clip: Clip rectangle area to copy
  */
 void tinydrm_swab16(u16 *dst, void *vaddr, struct drm_framebuffer *fb,
-		    struct drm_clip_rect *clip)
+		    struct drm_rect *clip)
 {
 	size_t len = (clip->x2 - clip->x1) * sizeof(u16);
 	unsigned int x, y;
@@ -186,7 +187,7 @@ EXPORT_SYMBOL(tinydrm_swab16);
  */
 void tinydrm_xrgb8888_to_rgb565(u16 *dst, void *vaddr,
 				struct drm_framebuffer *fb,
-				struct drm_clip_rect *clip, bool swap)
+				struct drm_rect *clip, bool swap)
 {
 	size_t len = (clip->x2 - clip->x1) * sizeof(u32);
 	unsigned int x, y;
@@ -235,7 +236,7 @@ EXPORT_SYMBOL(tinydrm_xrgb8888_to_rgb565);
  * ITU BT.601 is used for the RGB -> luma (brightness) conversion.
  */
 void tinydrm_xrgb8888_to_gray8(u8 *dst, void *vaddr, struct drm_framebuffer *fb,
-			       struct drm_clip_rect *clip)
+			       struct drm_rect *clip)
 {
 	unsigned int len = (clip->x2 - clip->x1) * sizeof(u32);
 	unsigned int x, y;

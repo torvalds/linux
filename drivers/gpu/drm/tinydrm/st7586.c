@@ -21,6 +21,7 @@
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_rect.h>
 #include <drm/tinydrm/mipi-dbi.h>
 #include <drm/tinydrm/tinydrm-helpers.h>
 
@@ -62,7 +63,7 @@ static const u8 st7586_lookup[] = { 0x7, 0x4, 0x2, 0x0 };
 
 static void st7586_xrgb8888_to_gray332(u8 *dst, void *vaddr,
 				       struct drm_framebuffer *fb,
-				       struct drm_clip_rect *clip)
+				       struct drm_rect *clip)
 {
 	size_t len = (clip->x2 - clip->x1) * (clip->y2 - clip->y1);
 	unsigned int x, y;
@@ -88,7 +89,7 @@ static void st7586_xrgb8888_to_gray332(u8 *dst, void *vaddr,
 }
 
 static int st7586_buf_copy(void *dst, struct drm_framebuffer *fb,
-			   struct drm_clip_rect *clip)
+			   struct drm_rect *clip)
 {
 	struct drm_gem_cma_object *cma_obj = drm_fb_cma_get_gem_obj(fb, 0);
 	struct dma_buf_attachment *import_attach = cma_obj->base.import_attach;
@@ -118,7 +119,8 @@ static int st7586_fb_dirty(struct drm_framebuffer *fb,
 {
 	struct tinydrm_device *tdev = fb->dev->dev_private;
 	struct mipi_dbi *mipi = mipi_dbi_from_tinydrm(tdev);
-	struct drm_clip_rect clip;
+	struct drm_rect clip;
+	struct drm_rect *rect = &clip;
 	int start, end;
 	int ret = 0;
 
@@ -129,30 +131,29 @@ static int st7586_fb_dirty(struct drm_framebuffer *fb,
 			    fb->height);
 
 	/* 3 pixels per byte, so grow clip to nearest multiple of 3 */
-	clip.x1 = rounddown(clip.x1, 3);
-	clip.x2 = roundup(clip.x2, 3);
+	rect->x1 = rounddown(rect->x1, 3);
+	rect->x2 = roundup(rect->x2, 3);
 
-	DRM_DEBUG("Flushing [FB:%d] x1=%u, x2=%u, y1=%u, y2=%u\n", fb->base.id,
-		  clip.x1, clip.x2, clip.y1, clip.y2);
+	DRM_DEBUG_KMS("Flushing [FB:%d] " DRM_RECT_FMT "\n", fb->base.id, DRM_RECT_ARG(rect));
 
-	ret = st7586_buf_copy(mipi->tx_buf, fb, &clip);
+	ret = st7586_buf_copy(mipi->tx_buf, fb, rect);
 	if (ret)
 		return ret;
 
 	/* Pixels are packed 3 per byte */
-	start = clip.x1 / 3;
-	end = clip.x2 / 3;
+	start = rect->x1 / 3;
+	end = rect->x2 / 3;
 
 	mipi_dbi_command(mipi, MIPI_DCS_SET_COLUMN_ADDRESS,
 			 (start >> 8) & 0xFF, start & 0xFF,
 			 (end >> 8) & 0xFF, (end - 1) & 0xFF);
 	mipi_dbi_command(mipi, MIPI_DCS_SET_PAGE_ADDRESS,
-			 (clip.y1 >> 8) & 0xFF, clip.y1 & 0xFF,
-			 (clip.y2 >> 8) & 0xFF, (clip.y2 - 1) & 0xFF);
+			 (rect->y1 >> 8) & 0xFF, rect->y1 & 0xFF,
+			 (rect->y2 >> 8) & 0xFF, (rect->y2 - 1) & 0xFF);
 
 	ret = mipi_dbi_command_buf(mipi, MIPI_DCS_WRITE_MEMORY_START,
 				   (u8 *)mipi->tx_buf,
-				   (end - start) * (clip.y2 - clip.y1));
+				   (end - start) * (rect->y2 - rect->y1));
 
 	return ret;
 }

@@ -30,6 +30,7 @@
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_rect.h>
 #include <drm/tinydrm/tinydrm.h>
 #include <drm/tinydrm/tinydrm-helpers.h>
 
@@ -532,7 +533,7 @@ static int repaper_fb_dirty(struct drm_framebuffer *fb,
 	struct dma_buf_attachment *import_attach = cma_obj->base.import_attach;
 	struct tinydrm_device *tdev = fb->dev->dev_private;
 	struct repaper_epd *epd = epd_from_tinydrm(tdev);
-	struct drm_clip_rect clip;
+	struct drm_rect clip;
 	u8 *buf = NULL;
 	int ret = 0;
 

@@ -22,6 +22,7 @@
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_rect.h>
 #include <drm/tinydrm/mipi-dbi.h>
 #include <drm/tinydrm/tinydrm-helpers.h>
 #include <uapi/drm/drm.h>
@@ -172,7 +173,7 @@ EXPORT_SYMBOL(mipi_dbi_command_buf);
  * Zero on success, negative error code on failure.
  */
 int mipi_dbi_buf_copy(void *dst, struct drm_framebuffer *fb,
-		      struct drm_clip_rect *clip, bool swap)
+		      struct drm_rect *clip, bool swap)
 {
 	struct drm_gem_cma_object *cma_obj = drm_fb_cma_get_gem_obj(fb, 0);
 	struct dma_buf_attachment *import_attach = cma_obj->base.import_attach;
@@ -221,7 +222,8 @@ static int mipi_dbi_fb_dirty(struct drm_framebuffer *fb,
 	struct tinydrm_device *tdev = fb->dev->dev_private;
 	struct mipi_dbi *mipi = mipi_dbi_from_tinydrm(tdev);
 	bool swap = mipi->swap_bytes;
-	struct drm_clip_rect clip;
+	struct drm_rect clip;
+	struct drm_rect *rect = &clip;
 	int ret = 0;
 	bool full;
 	void *tr;
@@ -232,13 +234,12 @@ static int mipi_dbi_fb_dirty(struct drm_framebuffer *fb,
 	full = tinydrm_merge_clips(&clip, clips, num_clips, flags,
 				   fb->width, fb->height);
 
-	DRM_DEBUG("Flushing [FB:%d] x1=%u, x2=%u, y1=%u, y2=%u\n", fb->base.id,
-		  clip.x1, clip.x2, clip.y1, clip.y2);
+	DRM_DEBUG_KMS("Flushing [FB:%d] " DRM_RECT_FMT "\n", fb->base.id, DRM_RECT_ARG(rect));
 
 	if (!mipi->dc || !full || swap ||
 	    fb->format->format == DRM_FORMAT_XRGB8888) {
 		tr = mipi->tx_buf;
-		ret = mipi_dbi_buf_copy(mipi->tx_buf, fb, &clip, swap);
+		ret = mipi_dbi_buf_copy(mipi->tx_buf, fb, rect, swap);
 		if (ret)
 			return ret;
 	} else {
@@ -246,14 +247,14 @@ static int mipi_dbi_fb_dirty(struct drm_framebuffer *fb,
 	}
 
 	mipi_dbi_command(mipi, MIPI_DCS_SET_COLUMN_ADDRESS,
-			 (clip.x1 >> 8) & 0xFF, clip.x1 & 0xFF,
-			 ((clip.x2 - 1) >> 8) & 0xFF, (clip.x2 - 1) & 0xFF);
+			 (rect->x1 >> 8) & 0xff, rect->x1 & 0xff,
+			 ((rect->x2 - 1) >> 8) & 0xff, (rect->x2 - 1) & 0xff);
 	mipi_dbi_command(mipi, MIPI_DCS_SET_PAGE_ADDRESS,
-			 (clip.y1 >> 8) & 0xFF, clip.y1 & 0xFF,
-			 ((clip.y2 - 1) >> 8) & 0xFF, (clip.y2 - 1) & 0xFF);
+			 (rect->y1 >> 8) & 0xff, rect->y1 & 0xff,
+			 ((rect->y2 - 1) >> 8) & 0xff, (rect->y2 - 1) & 0xff);
 
 	ret = mipi_dbi_command_buf(mipi, MIPI_DCS_WRITE_MEMORY_START, tr,
-				(clip.x2 - clip.x1) * (clip.y2 - clip.y1) * 2);
+				   (rect->x2 - rect->x1) * (rect->y2 - rect->y1) * 2);
 
 	return ret;
 }

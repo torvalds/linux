@@ -25,6 +25,7 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_rect.h>
 #include <drm/tinydrm/mipi-dbi.h>
 #include <drm/tinydrm/tinydrm-helpers.h>
 
@@ -84,7 +85,8 @@ static int ili9225_fb_dirty(struct drm_framebuffer *fb,
 	struct tinydrm_device *tdev = fb->dev->dev_private;
 	struct mipi_dbi *mipi = mipi_dbi_from_tinydrm(tdev);
 	bool swap = mipi->swap_bytes;
-	struct drm_clip_rect clip;
+	struct drm_rect clip;
+	struct drm_rect *rect = &clip;
 	u16 x_start, y_start;
 	u16 x1, x2, y1, y2;
 	int ret = 0;
@@ -97,13 +99,12 @@ static int ili9225_fb_dirty(struct drm_framebuffer *fb,
 	full = tinydrm_merge_clips(&clip, clips, num_clips, flags,
 				   fb->width, fb->height);
 
-	DRM_DEBUG("Flushing [FB:%d] x1=%u, x2=%u, y1=%u, y2=%u\n", fb->base.id,
-		  clip.x1, clip.x2, clip.y1, clip.y2);
+	DRM_DEBUG_KMS("Flushing [FB:%d] " DRM_RECT_FMT "\n", fb->base.id, DRM_RECT_ARG(rect));
 
 	if (!mipi->dc || !full || swap ||
 	    fb->format->format == DRM_FORMAT_XRGB8888) {
 		tr = mipi->tx_buf;
-		ret = mipi_dbi_buf_copy(mipi->tx_buf, fb, &clip, swap);
+		ret = mipi_dbi_buf_copy(mipi->tx_buf, fb, rect, swap);
 		if (ret)
 			return ret;
 	} else {
@@ -112,34 +113,34 @@ static int ili9225_fb_dirty(struct drm_framebuffer *fb,
 
 	switch (mipi->rotation) {
 	default:
-		x1 = clip.x1;
-		x2 = clip.x2 - 1;
-		y1 = clip.y1;
-		y2 = clip.y2 - 1;
+		x1 = rect->x1;
+		x2 = rect->x2 - 1;
+		y1 = rect->y1;
+		y2 = rect->y2 - 1;
 		x_start = x1;
 		y_start = y1;
 		break;
 	case 90:
-		x1 = clip.y1;
-		x2 = clip.y2 - 1;
-		y1 = fb->width - clip.x2;
-		y2 = fb->width - clip.x1 - 1;
+		x1 = rect->y1;
+		x2 = rect->y2 - 1;
+		y1 = fb->width - rect->x2;
+		y2 = fb->width - rect->x1 - 1;
 		x_start = x1;
 		y_start = y2;
 		break;
 	case 180:
-		x1 = fb->width - clip.x2;
-		x2 = fb->width - clip.x1 - 1;
-		y1 = fb->height - clip.y2;
-		y2 = fb->height - clip.y1 - 1;
+		x1 = fb->width - rect->x2;
+		x2 = fb->width - rect->x1 - 1;
+		y1 = fb->height - rect->y2;
+		y2 = fb->height - rect->y1 - 1;
 		x_start = x2;
 		y_start = y2;
 		break;
 	case 270:
-		x1 = fb->height - clip.y2;
-		x2 = fb->height - clip.y1 - 1;
-		y1 = clip.x1;
-		y2 = clip.x2 - 1;
+		x1 = fb->height - rect->y2;
+		x2 = fb->height - rect->y1 - 1;
+		y1 = rect->x1;
+		y2 = rect->x2 - 1;
 		x_start = x2;
 		y_start = y1;
 		break;
@@ -154,7 +155,7 @@ static int ili9225_fb_dirty(struct drm_framebuffer *fb,
 	ili9225_command(mipi, ILI9225_RAM_ADDRESS_SET_2, y_start);
 
 	ret = mipi_dbi_command_buf(mipi, ILI9225_WRITE_DATA_TO_GRAM, tr,
-				(clip.x2 - clip.x1) * (clip.y2 - clip.y1) * 2);
+				   (rect->x2 - rect->x1) * (rect->y2 - rect->y1) * 2);
 
 	return ret;
 }
