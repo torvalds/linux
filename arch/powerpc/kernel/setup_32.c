@@ -148,17 +148,6 @@ static int __init ppc_setup_l3cr(char *str)
 }
 __setup("l3cr=", ppc_setup_l3cr);
 
-#ifdef CONFIG_GENERIC_NVRAM
-
-void nvram_sync(void)
-{
-	if (ppc_md.nvram_sync)
-		ppc_md.nvram_sync();
-}
-EXPORT_SYMBOL(nvram_sync);
-
-#endif /* CONFIG_NVRAM */
-
 static int __init ppc_init(void)
 {
 	/* clear the progress line */

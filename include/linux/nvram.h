@@ -5,6 +5,10 @@
 #include <linux/errno.h>
 #include <uapi/linux/nvram.h>
 
+#ifdef CONFIG_PPC
+#include <asm/machdep.h>
+#endif
+
 /**
  * struct nvram_ops - NVRAM functionality made available to drivers
  * @read: validate checksum (if any) then load a range of bytes from NVRAM
@@ -42,6 +46,8 @@ extern const struct nvram_ops arch_nvram_ops;
 static inline ssize_t nvram_get_size(void)
 {
 #ifdef CONFIG_PPC
+	if (ppc_md.nvram_size)
+		return ppc_md.nvram_size();
 #else
 	if (arch_nvram_ops.get_size)
 		return arch_nvram_ops.get_size();
@@ -52,6 +58,8 @@ static inline ssize_t nvram_get_size(void)
 static inline unsigned char nvram_read_byte(int addr)
 {
 #ifdef CONFIG_PPC
+	if (ppc_md.nvram_read_val)
+		return ppc_md.nvram_read_val(addr);
 #else
 	if (arch_nvram_ops.read_byte)
 		return arch_nvram_ops.read_byte(addr);
@@ -62,6 +70,8 @@ static inline unsigned char nvram_read_byte(int addr)
 static inline void nvram_write_byte(unsigned char val, int addr)
 {
 #ifdef CONFIG_PPC
+	if (ppc_md.nvram_write_val)
+		ppc_md.nvram_write_val(addr, val);
 #else
 	if (arch_nvram_ops.write_byte)
 		arch_nvram_ops.write_byte(val, addr);
@@ -98,15 +108,25 @@ static inline ssize_t nvram_write_bytes(char *buf, size_t count, loff_t *ppos)
 
 static inline ssize_t nvram_read(char *buf, size_t count, loff_t *ppos)
 {
+#ifdef CONFIG_PPC
+	if (ppc_md.nvram_read)
+		return ppc_md.nvram_read(buf, count, ppos);
+#else
 	if (arch_nvram_ops.read)
 		return arch_nvram_ops.read(buf, count, ppos);
+#endif
 	return nvram_read_bytes(buf, count, ppos);
 }
 
 static inline ssize_t nvram_write(char *buf, size_t count, loff_t *ppos)
 {
+#ifdef CONFIG_PPC
+	if (ppc_md.nvram_write)
+		return ppc_md.nvram_write(buf, count, ppos);
+#else
 	if (arch_nvram_ops.write)
 		return arch_nvram_ops.write(buf, count, ppos);
+#endif
 	return nvram_write_bytes(buf, count, ppos);
 }
 

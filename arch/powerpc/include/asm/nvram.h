@@ -78,9 +78,6 @@ extern int	pmac_get_partition(int partition);
 extern u8	pmac_xpram_read(int xpaddr);
 extern void	pmac_xpram_write(int xpaddr, u8 data);
 
-/* Synchronize NVRAM */
-extern void	nvram_sync(void);
-
 /* Initialize NVRAM OS partition */
 extern int __init nvram_init_os_partition(struct nvram_os_partition *part);
 
