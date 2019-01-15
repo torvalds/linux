@@ -582,13 +582,8 @@ int snd_pcm_stop(struct snd_pcm_substream *substream, snd_pcm_state_t status);
 int snd_pcm_drain_done(struct snd_pcm_substream *substream);
 int snd_pcm_stop_xrun(struct snd_pcm_substream *substream);
 #ifdef CONFIG_PM
-int snd_pcm_suspend(struct snd_pcm_substream *substream);
 int snd_pcm_suspend_all(struct snd_pcm *pcm);
 #else
-static inline int snd_pcm_suspend(struct snd_pcm_substream *substream)
-{
-	return 0;
-}
 static inline int snd_pcm_suspend_all(struct snd_pcm *pcm)
 {
 	return 0;
