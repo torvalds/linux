@@ -60,6 +60,8 @@
 		m25p,fast-read;
 		spi-max-frequency = <50000000>;
 		reg = <0>;
+		spi-rx-bus-width = <8>;
+		spi-tx-bus-width = <8>;
 	};
 
 	mt35xu512aba1: flash@1 {
@@ -69,6 +71,8 @@
 		m25p,fast-read;
 		spi-max-frequency = <50000000>;
 		reg = <1>;
+		spi-rx-bus-width = <8>;
+		spi-tx-bus-width = <8>;
 	};
 };
 
