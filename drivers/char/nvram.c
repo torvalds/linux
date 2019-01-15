@@ -48,6 +48,9 @@
 #include <linux/mutex.h>
 #include <linux/pagemap.h>
 
+#ifdef CONFIG_PPC
+#include <asm/nvram.h>
+#endif
 
 static DEFINE_MUTEX(nvram_mutex);
 static DEFINE_SPINLOCK(nvram_state_lock);
@@ -283,6 +286,38 @@ static long nvram_misc_ioctl(struct file *file, unsigned int cmd,
 	long ret = -ENOTTY;
 
 	switch (cmd) {
+#ifdef CONFIG_PPC
+	case OBSOLETE_PMAC_NVRAM_GET_OFFSET:
+		pr_warn("nvram: Using obsolete PMAC_NVRAM_GET_OFFSET ioctl\n");
+		/* fall through */
+	case IOC_NVRAM_GET_OFFSET:
+		ret = -EINVAL;
+#ifdef CONFIG_PPC_PMAC
+		if (machine_is(powermac)) {
+			int part, offset;
+
+			if (copy_from_user(&part, (void __user *)arg,
+					   sizeof(part)) != 0)
+				return -EFAULT;
+			if (part < pmac_nvram_OF || part > pmac_nvram_NR)
+				return -EINVAL;
+			offset = pmac_get_partition(part);
+			if (copy_to_user((void __user *)arg,
+					 &offset, sizeof(offset)) != 0)
+				return -EFAULT;
+			ret = 0;
+		}
+#endif
+		break;
+	case IOC_NVRAM_SYNC:
+		if (ppc_md.nvram_sync != NULL) {
+			mutex_lock(&nvram_mutex);
+			ppc_md.nvram_sync();
+			mutex_unlock(&nvram_mutex);
+		}
+		ret = 0;
+		break;
+#elif defined(CONFIG_X86) || defined(CONFIG_M68K)
 	case NVRAM_INIT:
 		/* initialize NVRAM contents and checksum */
 		if (!capable(CAP_SYS_ADMIN))
@@ -306,6 +341,7 @@ static long nvram_misc_ioctl(struct file *file, unsigned int cmd,
 			mutex_unlock(&nvram_mutex);
 		}
 		break;
+#endif /* CONFIG_X86 || CONFIG_M68K */
 	}
 	return ret;
 }
@@ -321,12 +357,14 @@ static int nvram_misc_open(struct inode *inode, struct file *file)
 		return -EBUSY;
 	}
 
+#if defined(CONFIG_X86) || defined(CONFIG_M68K)
 	/* Prevent multiple writers if the set_checksum ioctl is implemented. */
 	if ((arch_nvram_ops.set_checksum != NULL) &&
 	    (file->f_mode & FMODE_WRITE) && (nvram_open_mode & NVRAM_WRITE)) {
 		spin_unlock(&nvram_state_lock);
 		return -EBUSY;
 	}
+#endif
 
 	if (file->f_flags & O_EXCL)
 		nvram_open_mode |= NVRAM_EXCL;

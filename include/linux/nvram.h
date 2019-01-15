@@ -31,8 +31,10 @@ struct nvram_ops {
 	void            (*write_byte)(unsigned char, int);
 	ssize_t         (*read)(char *, size_t, loff_t *);
 	ssize_t         (*write)(char *, size_t, loff_t *);
+#if defined(CONFIG_X86) || defined(CONFIG_M68K)
 	long            (*initialize)(void);
 	long            (*set_checksum)(void);
+#endif
 };
 
 extern const struct nvram_ops arch_nvram_ops;
