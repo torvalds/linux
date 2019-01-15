@@ -235,9 +235,10 @@ struct kfd_dev {
 					 * KFD. It is aligned for mapping
 					 * into user mode
 					 */
-	size_t doorbell_id_offset;	/* Doorbell offset (from KFD doorbell
-					 * to HW doorbell, GFX reserved some
-					 * at the start)
+	size_t doorbell_base_dw_offset;	/* Offset from the start of the PCI
+					 * doorbell BAR to the first KFD
+					 * doorbell in dwords. GFX reserves
+					 * the segment before this offset.
 					 */
 	u32 __iomem *doorbell_kernel_ptr; /* This is a pointer for a doorbells
 					   * page used by kernel queue
@@ -815,7 +816,7 @@ void kfd_release_kernel_doorbell(struct kfd_dev *kfd, u32 __iomem *db_addr);
 u32 read_kernel_doorbell(u32 __iomem *db);
 void write_kernel_doorbell(void __iomem *db, u32 value);
 void write_kernel_doorbell64(void __iomem *db, u64 value);
-unsigned int kfd_doorbell_id_to_offset(struct kfd_dev *kfd,
+unsigned int kfd_get_doorbell_dw_offset_in_bar(struct kfd_dev *kfd,
 					struct kfd_process *process,
 					unsigned int doorbell_id);
 phys_addr_t kfd_get_process_doorbells(struct kfd_dev *dev,
