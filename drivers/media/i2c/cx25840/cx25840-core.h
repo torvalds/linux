@@ -40,7 +40,6 @@ enum cx25840_model {
 enum cx25840_media_pads {
 	CX25840_PAD_INPUT,
 	CX25840_PAD_VID_OUT,
-	CX25840_PAD_VBI_OUT,
 
 	CX25840_NUM_PADS
 };
