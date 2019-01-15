@@ -104,6 +104,8 @@
 #define SO_TXTIME		0x003f
 #define SCM_TXTIME		SO_TXTIME
 
+#define SO_BINDTOIFINDEX	0x0041
+
 /* Security levels - as per NRL IPv6 - don't actually do anything */
 #define SO_SECURITY_AUTHENTICATION		0x5001
 #define SO_SECURITY_ENCRYPTION_TRANSPORT	0x5002

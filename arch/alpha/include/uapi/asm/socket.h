@@ -115,4 +115,6 @@
 #define SO_TXTIME		61
 #define SCM_TXTIME		SO_TXTIME
 
+#define SO_BINDTOIFINDEX	62
+
 #endif /* _UAPI_ASM_SOCKET_H */
