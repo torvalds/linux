@@ -377,4 +377,18 @@ config SND_SOC_INTEL_SKL_HDA_DSP_GENERIC_MACH
 
 endif ## SND_SOC_INTEL_SKYLAKE_HDAUDIO_CODEC || SND_SOC_SOF_HDA_AUDIO_CODEC
 
+if SND_SOC_SOF_HDA_COMMON
+config SND_SOC_INTEL_SOF_RT5682_MACH
+	tristate "SOF with rt5682 codec in I2S Mode"
+	depends on MFD_INTEL_LPSS && I2C && ACPI
+	select SND_SOC_RT5682
+	select SND_SOC_DMIC
+	select SND_SOC_HDAC_HDMI
+	help
+	   This adds support for ASoC machine driver for SOF platforms
+	   with rt5682 codec.
+	   Say Y if you have such a device.
+	   If unsure select "N".
+endif ## SND_SOC_SOF_HDA_COMMON
+
 endif ## SND_SOC_INTEL_MACH

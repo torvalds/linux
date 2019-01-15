@@ -33,6 +33,13 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_cnl_machines[] = {
 		.sof_tplg_filename = "intel/sof-cnl.tplg",
 		.asoc_plat_name = "0000:00:0e.0",
 	},
+	{
+		.id = "10EC5682",
+		.drv_name = "sof_rt5682",
+		.sof_fw_filename = "intel/sof-cnl.ri",
+		.sof_tplg_filename = "intel/sof-cml-rt5682.tplg",
+		.asoc_plat_name = "0000:00:0e.0",
+	},
 	{},
 };
 EXPORT_SYMBOL_GPL(snd_soc_acpi_intel_cnl_machines);
