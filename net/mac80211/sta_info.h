@@ -353,6 +353,7 @@ struct ieee80211_fast_rx {
 
 /* we use only values in the range 0-100, so pick a large precision */
 DECLARE_EWMA(mesh_fail_avg, 20, 8)
+DECLARE_EWMA(mesh_tx_rate_avg, 8, 16)
 
 /**
  * struct mesh_sta - mesh STA information
@@ -376,6 +377,7 @@ DECLARE_EWMA(mesh_fail_avg, 20, 8)
  *	processed
  * @connected_to_gate: true if mesh STA has a path to a mesh gate
  * @fail_avg: moving percentage of failed MSDUs
+ * @tx_rate_avg: moving average of tx bitrate
  */
 struct mesh_sta {
 	struct timer_list plink_timer;
@@ -404,6 +406,8 @@ struct mesh_sta {
 
 	/* moving percentage of failed MSDUs */
 	struct ewma_mesh_fail_avg fail_avg;
+	/* moving average of tx bitrate */
+	struct ewma_mesh_tx_rate_avg tx_rate_avg;
 };
 
 DECLARE_EWMA(signal, 10, 8)
