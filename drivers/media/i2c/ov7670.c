@@ -241,6 +241,7 @@ struct ov7670_info {
 	};
 	struct v4l2_mbus_framefmt format;
 	struct ov7670_format_struct *fmt;  /* Current format */
+	struct ov7670_win_size *wsize;
 	struct clk *clk;
 	struct gpio_desc *resetb_gpio;
 	struct gpio_desc *pwdn_gpio;
@@ -1000,48 +1001,20 @@ static int ov7670_try_fmt_internal(struct v4l2_subdev *sd,
 	return 0;
 }
 
-/*
- * Set a format.
- */
-static int ov7670_set_fmt(struct v4l2_subdev *sd,
-		struct v4l2_subdev_pad_config *cfg,
-		struct v4l2_subdev_format *format)
+static int ov7670_apply_fmt(struct v4l2_subdev *sd)
 {
-	struct ov7670_format_struct *ovfmt;
-	struct ov7670_win_size *wsize;
 	struct ov7670_info *info = to_state(sd);
-#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-	struct v4l2_mbus_framefmt *mbus_fmt;
-#endif
+	struct ov7670_win_size *wsize = info->wsize;
 	unsigned char com7, com10 = 0;
 	int ret;
 
-	if (format->pad)
-		return -EINVAL;
-
-	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-		ret = ov7670_try_fmt_internal(sd, &format->format, NULL, NULL);
-		if (ret)
-			return ret;
-#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		mbus_fmt = v4l2_subdev_get_try_format(sd, cfg, format->pad);
-		*mbus_fmt = format->format;
-		return 0;
-#else
-		return -ENOTTY;
-#endif
-	}
-
-	ret = ov7670_try_fmt_internal(sd, &format->format, &ovfmt, &wsize);
-	if (ret)
-		return ret;
 	/*
 	 * COM7 is a pain in the ass, it doesn't like to be read then
 	 * quickly written afterward.  But we have everything we need
 	 * to set it absolutely here, as long as the format-specific
 	 * register sets list it first.
 	 */
-	com7 = ovfmt->regs[0].value;
+	com7 = info->fmt->regs[0].value;
 	com7 |= wsize->com7_bit;
 	ret = ov7670_write(sd, REG_COM7, com7);
 	if (ret)
@@ -1063,7 +1036,7 @@ static int ov7670_set_fmt(struct v4l2_subdev *sd,
 	/*
 	 * Now write the rest of the array.  Also store start/stops
 	 */
-	ret = ov7670_write_array(sd, ovfmt->regs + 1);
+	ret = ov7670_write_array(sd, info->fmt->regs + 1);
 	if (ret)
 		return ret;
 
@@ -1078,8 +1051,6 @@ static int ov7670_set_fmt(struct v4l2_subdev *sd,
 			return ret;
 	}
 
-	info->fmt = ovfmt;
-
 	/*
 	 * If we're running RGB565, we must rewrite clkrc after setting
 	 * the other parameters or the image looks poor.  If we're *not*
@@ -1091,6 +1062,46 @@ static int ov7670_set_fmt(struct v4l2_subdev *sd,
 	 * rate persistent too.
 	 */
 	ret = ov7670_write(sd, REG_CLKRC, info->clkrc);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+/*
+ * Set a format.
+ */
+static int ov7670_set_fmt(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_format *format)
+{
+	struct ov7670_info *info = to_state(sd);
+#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
+	struct v4l2_mbus_framefmt *mbus_fmt;
+#endif
+	int ret;
+
+	if (format->pad)
+		return -EINVAL;
+
+	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
+		ret = ov7670_try_fmt_internal(sd, &format->format, NULL, NULL);
+		if (ret)
+			return ret;
+#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
+		mbus_fmt = v4l2_subdev_get_try_format(sd, cfg, format->pad);
+		*mbus_fmt = format->format;
+		return 0;
+#else
+		return -ENOTTY;
+#endif
+	}
+
+	ret = ov7670_try_fmt_internal(sd, &format->format, &info->fmt, &info->wsize);
+	if (ret)
+		return ret;
+
+	ret = ov7670_apply_fmt(sd);
 	if (ret)
 		return ret;
 
@@ -1843,6 +1854,7 @@ static int ov7670_probe(struct i2c_client *client,
 
 	info->devtype = &ov7670_devdata[id->driver_data];
 	info->fmt = &ov7670_formats[0];
+	info->wsize = &info->devtype->win_sizes[0];
 
 	ov7670_get_default_format(sd, &info->format);
 
