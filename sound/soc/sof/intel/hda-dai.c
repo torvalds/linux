@@ -32,16 +32,16 @@ struct hda_pipe_params {
 	unsigned int link_bps;
 };
 
-/* Unlike GP dma, there is a set of stream registers in hda controller to
- * control the link dma channels. Each register controls one link dma
- * channel and the relation is fixed. To make sure FW uses the correct
- * link dma channel, host allocates stream register and sends the
- * corresponding link dma channel to FW to allocate link dma channel
+/*
+ * Unlike GP dma, there is a set of stream registers in hda controller
+ * to control the link dma channels. Each register controls one link
+ * dma channel and the relation is fixed. To make sure FW uses correct
+ * link dma channels, host allocates stream registers and sends the
+ * corresponding link dma channels to FW to allocate link dma channel
  *
  * FIXME: this API is abused in the sense that tx_num and rx_num are
  * passed as arguments, not returned. We need to find a better way to
  * retrieve the stream tag allocated for the link DMA
- *
  */
 static int hda_link_dma_get_channels(struct snd_soc_dai *dai,
 				     unsigned int *tx_num,
