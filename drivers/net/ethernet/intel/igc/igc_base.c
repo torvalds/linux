@@ -372,19 +372,6 @@ static s32 igc_init_hw_base(struct igc_hw *hw)
 }
 
 /**
- * igc_read_mac_addr_base - Read device MAC address
- * @hw: pointer to the HW structure
- */
-static s32 igc_read_mac_addr_base(struct igc_hw *hw)
-{
-	s32 ret_val = 0;
-
-	ret_val = igc_read_mac_addr(hw);
-
-	return ret_val;
-}
-
-/**
  * igc_power_down_phy_copper_base - Remove link during PHY power down
  * @hw: pointer to the HW structure
  *
@@ -478,7 +465,7 @@ static struct igc_mac_operations igc_mac_ops_base = {
 	.init_hw		= igc_init_hw_base,
 	.check_for_link		= igc_check_for_copper_link,
 	.rar_set		= igc_rar_set,
-	.read_mac_addr		= igc_read_mac_addr_base,
+	.read_mac_addr		= igc_read_mac_addr,
 	.get_speed_and_duplex	= igc_get_speed_and_duplex_copper,
 };
 
