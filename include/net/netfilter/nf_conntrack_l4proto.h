@@ -239,4 +239,11 @@ static inline struct nf_sctp_net *nf_sctp_pernet(struct net *net)
 }
 #endif
 
+#ifdef CONFIG_NF_CT_PROTO_GRE
+static inline struct nf_gre_net *nf_gre_pernet(struct net *net)
+{
+	return &net->ct.nf_ct_proto.gre;
+}
+#endif
+
 #endif /*_NF_CONNTRACK_PROTOCOL_H*/

@@ -817,6 +817,9 @@ static const struct nf_conntrack_l4proto * const builtin_l4proto[] = {
 #ifdef CONFIG_NF_CT_PROTO_UDPLITE
 	&nf_conntrack_l4proto_udplite,
 #endif
+#ifdef CONFIG_NF_CT_PROTO_GRE
+	&nf_conntrack_l4proto_gre,
+#endif
 #if IS_ENABLED(CONFIG_IPV6)
 	&nf_conntrack_l4proto_icmpv6,
 #endif /* CONFIG_IPV6 */
@@ -897,8 +900,10 @@ void nf_conntrack_proto_pernet_fini(struct net *net)
 					ARRAY_SIZE(builtin_l4proto));
 	pn->users--;
 	nf_ct_l4proto_unregister_sysctl(pn);
+#ifdef CONFIG_NF_CT_PROTO_GRE
+	nf_ct_gre_keymap_flush(net);
+#endif
 }
-
 
 module_param_call(hashsize, nf_conntrack_set_hashsize, param_get_uint,
 		  &nf_conntrack_htable_size, 0600);

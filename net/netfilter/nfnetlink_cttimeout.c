@@ -474,12 +474,7 @@ static int cttimeout_default_get(struct net *net, struct sock *ctnl,
 		break;
 	case IPPROTO_GRE:
 #ifdef CONFIG_NF_CT_PROTO_GRE
-		if (l4proto->net_id) {
-			struct netns_proto_gre *net_gre;
-
-			net_gre = net_generic(net, *l4proto->net_id);
-			timeouts = net_gre->gre_timeouts;
-		}
+		timeouts = nf_gre_pernet(net)->timeouts;
 #endif
 		break;
 	case 255:

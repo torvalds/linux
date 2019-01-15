@@ -70,6 +70,20 @@ struct nf_sctp_net {
 };
 #endif
 
+#ifdef CONFIG_NF_CT_PROTO_GRE
+enum gre_conntrack {
+	GRE_CT_UNREPLIED,
+	GRE_CT_REPLIED,
+	GRE_CT_MAX
+};
+
+struct nf_gre_net {
+	struct nf_proto_net	nf;
+	struct list_head	keymap_list;
+	unsigned int		timeouts[GRE_CT_MAX];
+};
+#endif
+
 struct nf_ip_net {
 	struct nf_generic_net   generic;
 	struct nf_tcp_net	tcp;
@@ -81,6 +95,9 @@ struct nf_ip_net {
 #endif
 #ifdef CONFIG_NF_CT_PROTO_SCTP
 	struct nf_sctp_net	sctp;
+#endif
+#ifdef CONFIG_NF_CT_PROTO_GRE
+	struct nf_gre_net	gre;
 #endif
 };
 
