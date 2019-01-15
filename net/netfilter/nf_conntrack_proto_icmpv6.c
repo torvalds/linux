@@ -30,10 +30,10 @@
 
 static const unsigned int nf_ct_icmpv6_timeout = 30*HZ;
 
-static bool icmpv6_pkt_to_tuple(const struct sk_buff *skb,
-				unsigned int dataoff,
-				struct net *net,
-				struct nf_conntrack_tuple *tuple)
+bool icmpv6_pkt_to_tuple(const struct sk_buff *skb,
+			 unsigned int dataoff,
+			 struct net *net,
+			 struct nf_conntrack_tuple *tuple)
 {
 	const struct icmp6hdr *hp;
 	struct icmp6hdr _hdr;
@@ -358,7 +358,6 @@ static struct nf_proto_net *icmpv6_get_net_proto(struct net *net)
 const struct nf_conntrack_l4proto nf_conntrack_l4proto_icmpv6 =
 {
 	.l4proto		= IPPROTO_ICMPV6,
-	.pkt_to_tuple		= icmpv6_pkt_to_tuple,
 	.invert_tuple		= icmpv6_invert_tuple,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.tuple_to_nlattr	= icmpv6_tuple_to_nlattr,

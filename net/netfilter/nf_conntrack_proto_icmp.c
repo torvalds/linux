@@ -25,8 +25,8 @@
 
 static const unsigned int nf_ct_icmp_timeout = 30*HZ;
 
-static bool icmp_pkt_to_tuple(const struct sk_buff *skb, unsigned int dataoff,
-			      struct net *net, struct nf_conntrack_tuple *tuple)
+bool icmp_pkt_to_tuple(const struct sk_buff *skb, unsigned int dataoff,
+		       struct net *net, struct nf_conntrack_tuple *tuple)
 {
 	const struct icmphdr *hp;
 	struct icmphdr _hdr;
@@ -347,7 +347,6 @@ static struct nf_proto_net *icmp_get_net_proto(struct net *net)
 const struct nf_conntrack_l4proto nf_conntrack_l4proto_icmp =
 {
 	.l4proto		= IPPROTO_ICMP,
-	.pkt_to_tuple		= icmp_pkt_to_tuple,
 	.invert_tuple		= icmp_invert_tuple,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.tuple_to_nlattr	= icmp_tuple_to_nlattr,

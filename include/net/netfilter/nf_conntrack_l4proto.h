@@ -90,6 +90,16 @@ struct nf_conntrack_l4proto {
 	struct module *me;
 };
 
+bool icmp_pkt_to_tuple(const struct sk_buff *skb,
+		       unsigned int dataoff,
+		       struct net *net,
+		       struct nf_conntrack_tuple *tuple);
+
+bool icmpv6_pkt_to_tuple(const struct sk_buff *skb,
+			 unsigned int dataoff,
+			 struct net *net,
+			 struct nf_conntrack_tuple *tuple);
+
 int nf_conntrack_icmpv4_error(struct nf_conn *tmpl,
 			      struct sk_buff *skb,
 			      unsigned int dataoff,

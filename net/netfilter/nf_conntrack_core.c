@@ -274,6 +274,12 @@ nf_ct_get_tuple(const struct sk_buff *skb,
 	tuple->dst.protonum = protonum;
 	tuple->dst.dir = IP_CT_DIR_ORIGINAL;
 
+	switch (protonum) {
+	case IPPROTO_ICMPV6:
+		return icmpv6_pkt_to_tuple(skb, dataoff, net, tuple);
+	case IPPROTO_ICMP:
+		return icmp_pkt_to_tuple(skb, dataoff, net, tuple);
+	}
 	if (unlikely(l4proto->pkt_to_tuple))
 		return l4proto->pkt_to_tuple(skb, dataoff, net, tuple);
 
