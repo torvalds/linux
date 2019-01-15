@@ -54,8 +54,8 @@ static const u_int8_t invmap[] = {
 	[ICMP_ADDRESSREPLY] = ICMP_ADDRESS + 1
 };
 
-static bool icmp_invert_tuple(struct nf_conntrack_tuple *tuple,
-			      const struct nf_conntrack_tuple *orig)
+bool nf_conntrack_invert_icmp_tuple(struct nf_conntrack_tuple *tuple,
+				    const struct nf_conntrack_tuple *orig)
 {
 	if (orig->dst.u.icmp.type >= sizeof(invmap) ||
 	    !invmap[orig->dst.u.icmp.type])
@@ -347,7 +347,6 @@ static struct nf_proto_net *icmp_get_net_proto(struct net *net)
 const struct nf_conntrack_l4proto nf_conntrack_l4proto_icmp =
 {
 	.l4proto		= IPPROTO_ICMP,
-	.invert_tuple		= icmp_invert_tuple,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.tuple_to_nlattr	= icmp_tuple_to_nlattr,
 	.nlattr_tuple_size	= icmp_nlattr_tuple_size,

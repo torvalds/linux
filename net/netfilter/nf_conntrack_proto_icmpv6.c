@@ -67,8 +67,8 @@ static const u_int8_t noct_valid_new[] = {
 	[ICMPV6_MLD2_REPORT - 130] = 1
 };
 
-static bool icmpv6_invert_tuple(struct nf_conntrack_tuple *tuple,
-				const struct nf_conntrack_tuple *orig)
+bool nf_conntrack_invert_icmpv6_tuple(struct nf_conntrack_tuple *tuple,
+				      const struct nf_conntrack_tuple *orig)
 {
 	int type = orig->dst.u.icmp.type - 128;
 	if (type < 0 || type >= sizeof(invmap) || !invmap[type])
@@ -358,7 +358,6 @@ static struct nf_proto_net *icmpv6_get_net_proto(struct net *net)
 const struct nf_conntrack_l4proto nf_conntrack_l4proto_icmpv6 =
 {
 	.l4proto		= IPPROTO_ICMPV6,
-	.invert_tuple		= icmpv6_invert_tuple,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.tuple_to_nlattr	= icmpv6_tuple_to_nlattr,
 	.nlattr_tuple_size	= icmpv6_nlattr_tuple_size,

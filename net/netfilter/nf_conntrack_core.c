@@ -423,8 +423,12 @@ nf_ct_invert_tuple(struct nf_conntrack_tuple *inverse,
 
 	inverse->dst.protonum = orig->dst.protonum;
 
-	if (unlikely(l4proto->invert_tuple))
-		return l4proto->invert_tuple(inverse, orig);
+	switch (orig->dst.protonum) {
+	case IPPROTO_ICMP:
+		return nf_conntrack_invert_icmp_tuple(inverse, orig);
+	case IPPROTO_ICMPV6:
+		return nf_conntrack_invert_icmpv6_tuple(inverse, orig);
+	}
 
 	inverse->src.u.all = orig->dst.u.all;
 	inverse->dst.u.all = orig->src.u.all;

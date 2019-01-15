@@ -27,12 +27,6 @@ struct nf_conntrack_l4proto {
 	/* protoinfo nlattr size, closes a hole */
 	u16 nlattr_size;
 
-	/* Invert the per-proto part of the tuple: ie. turn xmit into reply.
-	 * Only used by icmp, most protocols use a generic version.
-	 */
-	bool (*invert_tuple)(struct nf_conntrack_tuple *inverse,
-			     const struct nf_conntrack_tuple *orig);
-
 	/* Returns verdict for packet, or -1 for invalid. */
 	int (*packet)(struct nf_conn *ct,
 		      struct sk_buff *skb,
@@ -94,6 +88,11 @@ bool icmpv6_pkt_to_tuple(const struct sk_buff *skb,
 			 unsigned int dataoff,
 			 struct net *net,
 			 struct nf_conntrack_tuple *tuple);
+
+bool nf_conntrack_invert_icmp_tuple(struct nf_conntrack_tuple *tuple,
+				    const struct nf_conntrack_tuple *orig);
+bool nf_conntrack_invert_icmpv6_tuple(struct nf_conntrack_tuple *tuple,
+				      const struct nf_conntrack_tuple *orig);
 
 int nf_conntrack_icmpv4_error(struct nf_conn *tmpl,
 			      struct sk_buff *skb,
