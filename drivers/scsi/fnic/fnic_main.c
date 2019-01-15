@@ -178,6 +178,9 @@ static void fnic_get_host_speed(struct Scsi_Host *shost)
 	case DCEM_PORTSPEED_10G:
 		fc_host_speed(shost) = FC_PORTSPEED_10GBIT;
 		break;
+	case DCEM_PORTSPEED_20G:
+		fc_host_speed(shost) = FC_PORTSPEED_20GBIT;
+		break;
 	case DCEM_PORTSPEED_25G:
 		fc_host_speed(shost) = FC_PORTSPEED_25GBIT;
 		break;

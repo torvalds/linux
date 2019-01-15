@@ -70,6 +70,10 @@ void fnic_handle_link(struct work_struct *work)
 		fc_host_speed(fnic->lport->host)   = FC_PORTSPEED_10GBIT;
 		fnic->lport->link_supported_speeds = FC_PORTSPEED_10GBIT;
 		break;
+	case DCEM_PORTSPEED_20G:
+		fc_host_speed(fnic->lport->host)   = FC_PORTSPEED_20GBIT;
+		fnic->lport->link_supported_speeds = FC_PORTSPEED_20GBIT;
+		break;
 	case DCEM_PORTSPEED_25G:
 		fc_host_speed(fnic->lport->host)   = FC_PORTSPEED_25GBIT;
 		fnic->lport->link_supported_speeds = FC_PORTSPEED_25GBIT;
