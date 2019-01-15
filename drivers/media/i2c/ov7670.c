@@ -859,11 +859,7 @@ static int ov7675_set_framerate(struct v4l2_subdev *sd,
 	/* Recalculate frame rate */
 	ov7675_get_framerate(sd, tpf);
 
-	ret = ov7670_write(sd, REG_CLKRC, info->clkrc);
-	if (ret < 0)
-		return ret;
-
-	return 0;
+	return ov7670_write(sd, REG_CLKRC, info->clkrc);
 }
 
 static void ov7670_get_framerate_legacy(struct v4l2_subdev *sd,
