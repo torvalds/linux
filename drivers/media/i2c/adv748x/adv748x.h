@@ -39,7 +39,6 @@ enum adv748x_page {
 	ADV748X_PAGE_MAX,
 
 	/* Fake pages for register sequences */
-	ADV748X_PAGE_WAIT,		/* Wait x msec */
 	ADV748X_PAGE_EOR,		/* End Mark */
 };
 

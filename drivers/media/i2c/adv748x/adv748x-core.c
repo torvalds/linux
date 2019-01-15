@@ -218,20 +218,13 @@ static int adv748x_write_regs(struct adv748x_state *state,
 {
 	int ret;
 
-	while (regs->page != ADV748X_PAGE_EOR) {
-		if (regs->page == ADV748X_PAGE_WAIT) {
-			msleep(regs->value);
-		} else {
-			ret = adv748x_write(state, regs->page, regs->reg,
-				      regs->value);
-			if (ret < 0) {
-				adv_err(state,
-					"Error regs page: 0x%02x reg: 0x%02x\n",
-					regs->page, regs->reg);
-				return ret;
-			}
+	for (; regs->page != ADV748X_PAGE_EOR; regs++) {
+		ret = adv748x_write(state, regs->page, regs->reg, regs->value);
+		if (ret < 0) {
+			adv_err(state, "Error regs page: 0x%02x reg: 0x%02x\n",
+				regs->page, regs->reg);
+			return ret;
 		}
-		regs++;
 	}
 
 	return 0;
