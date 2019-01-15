@@ -302,6 +302,8 @@ static long nvram_misc_ioctl(struct file *file, unsigned int cmd,
 			if (part < pmac_nvram_OF || part > pmac_nvram_NR)
 				return -EINVAL;
 			offset = pmac_get_partition(part);
+			if (offset < 0)
+				return -EINVAL;
 			if (copy_to_user((void __user *)arg,
 					 &offset, sizeof(offset)) != 0)
 				return -EFAULT;
@@ -309,6 +311,7 @@ static long nvram_misc_ioctl(struct file *file, unsigned int cmd,
 		}
 #endif
 		break;
+#ifdef CONFIG_PPC32
 	case IOC_NVRAM_SYNC:
 		if (ppc_md.nvram_sync != NULL) {
 			mutex_lock(&nvram_mutex);
@@ -317,6 +320,7 @@ static long nvram_misc_ioctl(struct file *file, unsigned int cmd,
 		}
 		ret = 0;
 		break;
+#endif
 #elif defined(CONFIG_X86) || defined(CONFIG_M68K)
 	case NVRAM_INIT:
 		/* initialize NVRAM contents and checksum */
