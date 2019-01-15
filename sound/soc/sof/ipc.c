@@ -270,11 +270,11 @@ int sof_ipc_tx_message(struct snd_sof_ipc *ipc, u32 header,
 	/* add message to transmit list */
 	list_add_tail(&msg->list, &ipc->tx_list);
 
+	spin_unlock_irq(&sdev->ipc_lock);
+
 	/* schedule the message if not busy */
 	if (snd_sof_dsp_is_ipc_ready(sdev))
 		snd_sof_ipc_msgs_tx(sdev);
-
-	spin_unlock_irq(&sdev->ipc_lock);
 
 	/* now wait for completion */
 	return tx_wait_done(ipc, msg, reply_data);
