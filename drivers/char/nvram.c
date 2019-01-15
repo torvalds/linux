@@ -21,13 +21,6 @@
  * ioctl(NVRAM_SETCKS) (doesn't change contents, just makes checksum valid
  * again; use with care!)
  *
- * This file also provides some functions for other parts of the kernel that
- * want to access the NVRAM: nvram_{read,write,check_checksum,set_checksum}.
- * Obviously this can be used only if this driver is always configured into
- * the kernel and is not a module. Since the functions are used by some Atari
- * drivers, this is the case on the Atari.
- *
- *
  * 	1.1	Cesar Barros: SMP locking fixes
  * 		added changelog
  * 	1.2	Erik Gilling: Cobalt Networks support
@@ -39,64 +32,6 @@
 
 #include <linux/module.h>
 #include <linux/nvram.h>
-
-#define PC		1
-#define ATARI		2
-
-/* select machine configuration */
-#if defined(CONFIG_ATARI)
-#  define MACH ATARI
-#elif defined(__i386__) || defined(__x86_64__) || defined(__arm__)  /* and ?? */
-#  define MACH PC
-#else
-#  error Cannot build nvram driver for this machine configuration.
-#endif
-
-#if MACH == PC
-
-/* RTC in a PC */
-#define CHECK_DRIVER_INIT()	1
-
-/* On PCs, the checksum is built only over bytes 2..31 */
-#define PC_CKS_RANGE_START	2
-#define PC_CKS_RANGE_END	31
-#define PC_CKS_LOC		32
-#define NVRAM_BYTES		(128-NVRAM_FIRST_BYTE)
-
-#define mach_check_checksum	pc_check_checksum
-#define mach_set_checksum	pc_set_checksum
-#define mach_proc_infos		pc_proc_infos
-
-#endif
-
-#if MACH == ATARI
-
-/* Special parameters for RTC in Atari machines */
-#include <asm/atarihw.h>
-#include <asm/atariints.h>
-#define RTC_PORT(x)		(TT_RTC_BAS + 2*(x))
-#define CHECK_DRIVER_INIT()	(MACH_IS_ATARI && ATARIHW_PRESENT(TT_CLK))
-
-#define NVRAM_BYTES		50
-
-/* On Ataris, the checksum is over all bytes except the checksum bytes
- * themselves; these are at the very end */
-#define ATARI_CKS_RANGE_START	0
-#define ATARI_CKS_RANGE_END	47
-#define ATARI_CKS_LOC		48
-
-#define mach_check_checksum	atari_check_checksum
-#define mach_set_checksum	atari_set_checksum
-#define mach_proc_infos		atari_proc_infos
-
-#endif
-
-/* Note that *all* calls to CMOS_READ and CMOS_WRITE must be done with
- * rtc_lock held. Due to the index-port/data-port design of the RTC, we
- * don't want two different things trying to get to it at once. (e.g. the
- * periodic 11 min sync from kernel/time/ntp.c vs. this driver.)
- */
-
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/miscdevice.h>
@@ -120,12 +55,9 @@ static int nvram_open_mode;	/* special open modes */
 #define NVRAM_WRITE		1 /* opened for writing (exclusive) */
 #define NVRAM_EXCL		2 /* opened with O_EXCL */
 
-static int mach_check_checksum(void);
-static void mach_set_checksum(void);
-
 #ifdef CONFIG_PROC_FS
-static void mach_proc_infos(unsigned char *contents, struct seq_file *seq,
-								void *offset);
+static void pc_nvram_proc_read(unsigned char *contents, struct seq_file *seq,
+			       void *offset);
 #endif
 
 /*
@@ -137,6 +69,14 @@ static void mach_proc_infos(unsigned char *contents, struct seq_file *seq,
  * purpose memory in the NVRAM - that is to say, they all add the
  * NVRAM_FIRST_BYTE offset.  Pass them offsets into NVRAM as if you did not
  * know about the RTC cruft.
+ */
+
+#define NVRAM_BYTES		(128 - NVRAM_FIRST_BYTE)
+
+/* Note that *all* calls to CMOS_READ and CMOS_WRITE must be done with
+ * rtc_lock held. Due to the index-port/data-port design of the RTC, we
+ * don't want two different things trying to get to it at once. (e.g. the
+ * periodic 11 min sync from kernel/time/ntp.c vs. this driver.)
  */
 
 unsigned char __nvram_read_byte(int i)
@@ -174,9 +114,22 @@ void nvram_write_byte(unsigned char c, int i)
 }
 EXPORT_SYMBOL(nvram_write_byte);
 
+/* On PCs, the checksum is built only over bytes 2..31 */
+#define PC_CKS_RANGE_START	2
+#define PC_CKS_RANGE_END	31
+#define PC_CKS_LOC		32
+
 int __nvram_check_checksum(void)
 {
-	return mach_check_checksum();
+	int i;
+	unsigned short sum = 0;
+	unsigned short expect;
+
+	for (i = PC_CKS_RANGE_START; i <= PC_CKS_RANGE_END; ++i)
+		sum += __nvram_read_byte(i);
+	expect = __nvram_read_byte(PC_CKS_LOC)<<8 |
+	    __nvram_read_byte(PC_CKS_LOC+1);
+	return (sum & 0xffff) == expect;
 }
 EXPORT_SYMBOL(__nvram_check_checksum);
 
@@ -194,7 +147,13 @@ EXPORT_SYMBOL(nvram_check_checksum);
 
 static void __nvram_set_checksum(void)
 {
-	mach_set_checksum();
+	int i;
+	unsigned short sum = 0;
+
+	for (i = PC_CKS_RANGE_START; i <= PC_CKS_RANGE_END; ++i)
+		sum += __nvram_read_byte(i);
+	__nvram_write_byte(sum >> 8, PC_CKS_LOC);
+	__nvram_write_byte(sum & 0xff, PC_CKS_LOC + 1);
 }
 
 #if 0
@@ -384,7 +343,7 @@ static int nvram_proc_read(struct seq_file *seq, void *offset)
 		contents[i] = __nvram_read_byte(i);
 	spin_unlock_irq(&rtc_lock);
 
-	mach_proc_infos(contents, seq, offset);
+	pc_nvram_proc_read(contents, seq, offset);
 
 	return 0;
 }
@@ -418,10 +377,6 @@ static int __init nvram_init(void)
 {
 	int ret;
 
-	/* First test whether the driver should init at all */
-	if (!CHECK_DRIVER_INIT())
-		return -ENODEV;
-
 	ret = misc_register(&nvram_dev);
 	if (ret) {
 		printk(KERN_ERR "nvram: can't misc_register on minor=%d\n",
@@ -451,36 +406,6 @@ static void __exit nvram_cleanup_module(void)
 module_init(nvram_init);
 module_exit(nvram_cleanup_module);
 
-/*
- * Machine specific functions
- */
-
-#if MACH == PC
-
-static int pc_check_checksum(void)
-{
-	int i;
-	unsigned short sum = 0;
-	unsigned short expect;
-
-	for (i = PC_CKS_RANGE_START; i <= PC_CKS_RANGE_END; ++i)
-		sum += __nvram_read_byte(i);
-	expect = __nvram_read_byte(PC_CKS_LOC)<<8 |
-	    __nvram_read_byte(PC_CKS_LOC+1);
-	return (sum & 0xffff) == expect;
-}
-
-static void pc_set_checksum(void)
-{
-	int i;
-	unsigned short sum = 0;
-
-	for (i = PC_CKS_RANGE_START; i <= PC_CKS_RANGE_END; ++i)
-		sum += __nvram_read_byte(i);
-	__nvram_write_byte(sum >> 8, PC_CKS_LOC);
-	__nvram_write_byte(sum & 0xff, PC_CKS_LOC + 1);
-}
-
 #ifdef CONFIG_PROC_FS
 
 static const char * const floppy_types[] = {
@@ -495,8 +420,8 @@ static const char * const gfx_types[] = {
 	"monochrome",
 };
 
-static void pc_proc_infos(unsigned char *nvram, struct seq_file *seq,
-								void *offset)
+static void pc_nvram_proc_read(unsigned char *nvram, struct seq_file *seq,
+			       void *offset)
 {
 	int checksum;
 	int type;
@@ -557,143 +482,8 @@ static void pc_proc_infos(unsigned char *nvram, struct seq_file *seq,
 
 	return;
 }
-#endif
 
-#endif /* MACH == PC */
-
-#if MACH == ATARI
-
-static int atari_check_checksum(void)
-{
-	int i;
-	unsigned char sum = 0;
-
-	for (i = ATARI_CKS_RANGE_START; i <= ATARI_CKS_RANGE_END; ++i)
-		sum += __nvram_read_byte(i);
-	return (__nvram_read_byte(ATARI_CKS_LOC) == (~sum & 0xff)) &&
-	    (__nvram_read_byte(ATARI_CKS_LOC + 1) == (sum & 0xff));
-}
-
-static void atari_set_checksum(void)
-{
-	int i;
-	unsigned char sum = 0;
-
-	for (i = ATARI_CKS_RANGE_START; i <= ATARI_CKS_RANGE_END; ++i)
-		sum += __nvram_read_byte(i);
-	__nvram_write_byte(~sum, ATARI_CKS_LOC);
-	__nvram_write_byte(sum, ATARI_CKS_LOC + 1);
-}
-
-#ifdef CONFIG_PROC_FS
-
-static struct {
-	unsigned char val;
-	const char *name;
-} boot_prefs[] = {
-	{ 0x80, "TOS" },
-	{ 0x40, "ASV" },
-	{ 0x20, "NetBSD (?)" },
-	{ 0x10, "Linux" },
-	{ 0x00, "unspecified" }
-};
-
-static const char * const languages[] = {
-	"English (US)",
-	"German",
-	"French",
-	"English (UK)",
-	"Spanish",
-	"Italian",
-	"6 (undefined)",
-	"Swiss (French)",
-	"Swiss (German)"
-};
-
-static const char * const dateformat[] = {
-	"MM%cDD%cYY",
-	"DD%cMM%cYY",
-	"YY%cMM%cDD",
-	"YY%cDD%cMM",
-	"4 (undefined)",
-	"5 (undefined)",
-	"6 (undefined)",
-	"7 (undefined)"
-};
-
-static const char * const colors[] = {
-	"2", "4", "16", "256", "65536", "??", "??", "??"
-};
-
-static void atari_proc_infos(unsigned char *nvram, struct seq_file *seq,
-								void *offset)
-{
-	int checksum = nvram_check_checksum();
-	int i;
-	unsigned vmode;
-
-	seq_printf(seq, "Checksum status  : %svalid\n", checksum ? "" : "not ");
-
-	seq_printf(seq, "Boot preference  : ");
-	for (i = ARRAY_SIZE(boot_prefs) - 1; i >= 0; --i) {
-		if (nvram[1] == boot_prefs[i].val) {
-			seq_printf(seq, "%s\n", boot_prefs[i].name);
-			break;
-		}
-	}
-	if (i < 0)
-		seq_printf(seq, "0x%02x (undefined)\n", nvram[1]);
-
-	seq_printf(seq, "SCSI arbitration : %s\n",
-	    (nvram[16] & 0x80) ? "on" : "off");
-	seq_printf(seq, "SCSI host ID     : ");
-	if (nvram[16] & 0x80)
-		seq_printf(seq, "%d\n", nvram[16] & 7);
-	else
-		seq_printf(seq, "n/a\n");
-
-	/* the following entries are defined only for the Falcon */
-	if ((atari_mch_cookie >> 16) != ATARI_MCH_FALCON)
-		return;
-
-	seq_printf(seq, "OS language      : ");
-	if (nvram[6] < ARRAY_SIZE(languages))
-		seq_printf(seq, "%s\n", languages[nvram[6]]);
-	else
-		seq_printf(seq, "%u (undefined)\n", nvram[6]);
-	seq_printf(seq, "Keyboard language: ");
-	if (nvram[7] < ARRAY_SIZE(languages))
-		seq_printf(seq, "%s\n", languages[nvram[7]]);
-	else
-		seq_printf(seq, "%u (undefined)\n", nvram[7]);
-	seq_printf(seq, "Date format      : ");
-	seq_printf(seq, dateformat[nvram[8] & 7],
-	    nvram[9] ? nvram[9] : '/', nvram[9] ? nvram[9] : '/');
-	seq_printf(seq, ", %dh clock\n", nvram[8] & 16 ? 24 : 12);
-	seq_printf(seq, "Boot delay       : ");
-	if (nvram[10] == 0)
-		seq_printf(seq, "default");
-	else
-		seq_printf(seq, "%ds%s\n", nvram[10],
-		    nvram[10] < 8 ? ", no memory test" : "");
-
-	vmode = (nvram[14] << 8) | nvram[15];
-	seq_printf(seq,
-	    "Video mode       : %s colors, %d columns, %s %s monitor\n",
-	    colors[vmode & 7],
-	    vmode & 8 ? 80 : 40,
-	    vmode & 16 ? "VGA" : "TV", vmode & 32 ? "PAL" : "NTSC");
-	seq_printf(seq, "                   %soverscan, compat. mode %s%s\n",
-	    vmode & 64 ? "" : "no ",
-	    vmode & 128 ? "on" : "off",
-	    vmode & 256 ?
-	    (vmode & 16 ? ", line doubling" : ", half screen") : "");
-
-	return;
-}
-#endif
-
-#endif /* MACH == ATARI */
+#endif /* CONFIG_PROC_FS */
 
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_MISCDEV(NVRAM_MINOR);
