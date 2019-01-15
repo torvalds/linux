@@ -244,6 +244,16 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 		strncpy((char *)dest, p->br->dev->name, IFNAMSIZ);
 		return;
 #endif
+	case NFT_META_IIFKIND:
+		if (in == NULL || in->rtnl_link_ops == NULL)
+			goto err;
+		strncpy((char *)dest, in->rtnl_link_ops->kind, IFNAMSIZ);
+		break;
+	case NFT_META_OIFKIND:
+		if (out == NULL || out->rtnl_link_ops == NULL)
+			goto err;
+		strncpy((char *)dest, out->rtnl_link_ops->kind, IFNAMSIZ);
+		break;
 	default:
 		WARN_ON(1);
 		goto err;
@@ -340,6 +350,8 @@ static int nft_meta_get_init(const struct nft_ctx *ctx,
 		break;
 	case NFT_META_IIFNAME:
 	case NFT_META_OIFNAME:
+	case NFT_META_IIFKIND:
+	case NFT_META_OIFKIND:
 		len = IFNAMSIZ;
 		break;
 	case NFT_META_PRANDOM:

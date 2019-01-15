@@ -791,6 +791,8 @@ enum nft_exthdr_attributes {
  * @NFT_META_CGROUP: socket control group (skb->sk->sk_classid)
  * @NFT_META_PRANDOM: a 32bit pseudo-random number
  * @NFT_META_SECPATH: boolean, secpath_exists (!!skb->sp)
+ * @NFT_META_IIFKIND: packet input interface kind name (dev->rtnl_link_ops->kind)
+ * @NFT_META_OIFKIND: packet output interface kind name (dev->rtnl_link_ops->kind)
  */
 enum nft_meta_keys {
 	NFT_META_LEN,
@@ -819,6 +821,8 @@ enum nft_meta_keys {
 	NFT_META_CGROUP,
 	NFT_META_PRANDOM,
 	NFT_META_SECPATH,
+	NFT_META_IIFKIND,
+	NFT_META_OIFKIND,
 };
 
 /**
