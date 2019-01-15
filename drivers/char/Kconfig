@@ -244,7 +244,8 @@ source "drivers/char/hw_random/Kconfig"
 
 config NVRAM
 	tristate "/dev/nvram support"
-	depends on X86 || GENERIC_NVRAM
+	depends on X86 || GENERIC_NVRAM || HAVE_ARCH_NVRAM_OPS
+	default M68K
 	---help---
 	  If you say Y here and create a character special file /dev/nvram
 	  with major number 10 and minor number 144 using mknod ("man mknod"),

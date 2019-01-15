@@ -74,6 +74,26 @@ static void __nvram_set_checksum(void)
 	__nvram_write_byte(sum, ATARI_CKS_LOC + 1);
 }
 
+static long atari_nvram_set_checksum(void)
+{
+	spin_lock_irq(&rtc_lock);
+	__nvram_set_checksum();
+	spin_unlock_irq(&rtc_lock);
+	return 0;
+}
+
+static long atari_nvram_initialize(void)
+{
+	loff_t i;
+
+	spin_lock_irq(&rtc_lock);
+	for (i = 0; i < NVRAM_BYTES; ++i)
+		__nvram_write_byte(0, i);
+	__nvram_set_checksum();
+	spin_unlock_irq(&rtc_lock);
+	return 0;
+}
+
 static ssize_t atari_nvram_read(char *buf, size_t count, loff_t *ppos)
 {
 	char *p = buf;
@@ -113,6 +133,8 @@ static ssize_t atari_nvram_write(char *buf, size_t count, loff_t *ppos)
 
 static ssize_t atari_nvram_get_size(void)
 {
+	if (!MACH_IS_ATARI)
+		return -ENODEV;
 	return NVRAM_BYTES;
 }
 
@@ -120,6 +142,8 @@ const struct nvram_ops arch_nvram_ops = {
 	.read           = atari_nvram_read,
 	.write          = atari_nvram_write,
 	.get_size       = atari_nvram_get_size,
+	.set_checksum   = atari_nvram_set_checksum,
+	.initialize     = atari_nvram_initialize,
 };
 EXPORT_SYMBOL(arch_nvram_ops);
 
