@@ -536,3 +536,174 @@ static void check_cpu_stall(struct rcu_data *rdp)
 		print_other_cpu_stall(gs2);
 	}
 }
+
+//////////////////////////////////////////////////////////////////////////////
+//
+// RCU forward-progress mechanisms, including of callback invocation.
+
+
+/*
+ * Show the state of the grace-period kthreads.
+ */
+void show_rcu_gp_kthreads(void)
+{
+	int cpu;
+	unsigned long j;
+	unsigned long ja;
+	unsigned long jr;
+	unsigned long jw;
+	struct rcu_data *rdp;
+	struct rcu_node *rnp;
+
+	j = jiffies;
+	ja = j - READ_ONCE(rcu_state.gp_activity);
+	jr = j - READ_ONCE(rcu_state.gp_req_activity);
+	jw = j - READ_ONCE(rcu_state.gp_wake_time);
+	pr_info("%s: wait state: %s(%d) ->state: %#lx delta ->gp_activity %lu ->gp_req_activity %lu ->gp_wake_time %lu ->gp_wake_seq %ld ->gp_seq %ld ->gp_seq_needed %ld ->gp_flags %#x\n",
+		rcu_state.name, gp_state_getname(rcu_state.gp_state),
+		rcu_state.gp_state,
+		rcu_state.gp_kthread ? rcu_state.gp_kthread->state : 0x1ffffL,
+		ja, jr, jw, (long)READ_ONCE(rcu_state.gp_wake_seq),
+		(long)READ_ONCE(rcu_state.gp_seq),
+		(long)READ_ONCE(rcu_get_root()->gp_seq_needed),
+		READ_ONCE(rcu_state.gp_flags));
+	rcu_for_each_node_breadth_first(rnp) {
+		if (ULONG_CMP_GE(rcu_state.gp_seq, rnp->gp_seq_needed))
+			continue;
+		pr_info("\trcu_node %d:%d ->gp_seq %ld ->gp_seq_needed %ld\n",
+			rnp->grplo, rnp->grphi, (long)rnp->gp_seq,
+			(long)rnp->gp_seq_needed);
+		if (!rcu_is_leaf_node(rnp))
+			continue;
+		for_each_leaf_node_possible_cpu(rnp, cpu) {
+			rdp = per_cpu_ptr(&rcu_data, cpu);
+			if (rdp->gpwrap ||
+			    ULONG_CMP_GE(rcu_state.gp_seq,
+					 rdp->gp_seq_needed))
+				continue;
+			pr_info("\tcpu %d ->gp_seq_needed %ld\n",
+				cpu, (long)rdp->gp_seq_needed);
+		}
+	}
+	/* sched_show_task(rcu_state.gp_kthread); */
+}
+EXPORT_SYMBOL_GPL(show_rcu_gp_kthreads);
+
+/*
+ * This function checks for grace-period requests that fail to motivate
+ * RCU to come out of its idle mode.
+ */
+static void rcu_check_gp_start_stall(struct rcu_node *rnp, struct rcu_data *rdp,
+				     const unsigned long gpssdelay)
+{
+	unsigned long flags;
+	unsigned long j;
+	struct rcu_node *rnp_root = rcu_get_root();
+	static atomic_t warned = ATOMIC_INIT(0);
+
+	if (!IS_ENABLED(CONFIG_PROVE_RCU) || rcu_gp_in_progress() ||
+	    ULONG_CMP_GE(rnp_root->gp_seq, rnp_root->gp_seq_needed))
+		return;
+	j = jiffies; /* Expensive access, and in common case don't get here. */
+	if (time_before(j, READ_ONCE(rcu_state.gp_req_activity) + gpssdelay) ||
+	    time_before(j, READ_ONCE(rcu_state.gp_activity) + gpssdelay) ||
+	    atomic_read(&warned))
+		return;
+
+	raw_spin_lock_irqsave_rcu_node(rnp, flags);
+	j = jiffies;
+	if (rcu_gp_in_progress() ||
+	    ULONG_CMP_GE(rnp_root->gp_seq, rnp_root->gp_seq_needed) ||
+	    time_before(j, READ_ONCE(rcu_state.gp_req_activity) + gpssdelay) ||
+	    time_before(j, READ_ONCE(rcu_state.gp_activity) + gpssdelay) ||
+	    atomic_read(&warned)) {
+		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
+		return;
+	}
+	/* Hold onto the leaf lock to make others see warned==1. */
+
+	if (rnp_root != rnp)
+		raw_spin_lock_rcu_node(rnp_root); /* irqs already disabled. */
+	j = jiffies;
+	if (rcu_gp_in_progress() ||
+	    ULONG_CMP_GE(rnp_root->gp_seq, rnp_root->gp_seq_needed) ||
+	    time_before(j, rcu_state.gp_req_activity + gpssdelay) ||
+	    time_before(j, rcu_state.gp_activity + gpssdelay) ||
+	    atomic_xchg(&warned, 1)) {
+		raw_spin_unlock_rcu_node(rnp_root); /* irqs remain disabled. */
+		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
+		return;
+	}
+	WARN_ON(1);
+	if (rnp_root != rnp)
+		raw_spin_unlock_rcu_node(rnp_root);
+	raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
+	show_rcu_gp_kthreads();
+}
+
+/*
+ * Do a forward-progress check for rcutorture.  This is normally invoked
+ * due to an OOM event.  The argument "j" gives the time period during
+ * which rcutorture would like progress to have been made.
+ */
+void rcu_fwd_progress_check(unsigned long j)
+{
+	unsigned long cbs;
+	int cpu;
+	unsigned long max_cbs = 0;
+	int max_cpu = -1;
+	struct rcu_data *rdp;
+
+	if (rcu_gp_in_progress()) {
+		pr_info("%s: GP age %lu jiffies\n",
+			__func__, jiffies - rcu_state.gp_start);
+		show_rcu_gp_kthreads();
+	} else {
+		pr_info("%s: Last GP end %lu jiffies ago\n",
+			__func__, jiffies - rcu_state.gp_end);
+		preempt_disable();
+		rdp = this_cpu_ptr(&rcu_data);
+		rcu_check_gp_start_stall(rdp->mynode, rdp, j);
+		preempt_enable();
+	}
+	for_each_possible_cpu(cpu) {
+		cbs = rcu_get_n_cbs_cpu(cpu);
+		if (!cbs)
+			continue;
+		if (max_cpu < 0)
+			pr_info("%s: callbacks", __func__);
+		pr_cont(" %d: %lu", cpu, cbs);
+		if (cbs <= max_cbs)
+			continue;
+		max_cbs = cbs;
+		max_cpu = cpu;
+	}
+	if (max_cpu >= 0)
+		pr_cont("\n");
+}
+EXPORT_SYMBOL_GPL(rcu_fwd_progress_check);
+
+/* Commandeer a sysrq key to dump RCU's tree. */
+static bool sysrq_rcu;
+module_param(sysrq_rcu, bool, 0444);
+
+/* Dump grace-period-request information due to commandeered sysrq. */
+static void sysrq_show_rcu(int key)
+{
+	show_rcu_gp_kthreads();
+}
+
+static struct sysrq_key_op sysrq_rcudump_op = {
+	.handler = sysrq_show_rcu,
+	.help_msg = "show-rcu(y)",
+	.action_msg = "Show RCU tree",
+	.enable_mask = SYSRQ_ENABLE_DUMP,
+};
+
+static int __init rcu_sysrq_init(void)
+{
+	if (sysrq_rcu)
+		return register_sysrq_key('y', &sysrq_rcudump_op);
+	return 0;
+}
+early_initcall(rcu_sysrq_init);
