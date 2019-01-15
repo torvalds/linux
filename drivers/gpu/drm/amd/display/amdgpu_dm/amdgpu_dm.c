@@ -4923,10 +4923,13 @@ static int amdgpu_dm_atomic_commit(struct drm_device *dev,
 		if (drm_atomic_crtc_needs_modeset(new_crtc_state)
 		    && dm_old_crtc_state->stream) {
 			/*
-			 * CRC capture was enabled but not disabled.
-			 * Release the vblank reference.
+			 * If the stream is removed and CRC capture was
+			 * enabled on the CRTC the extra vblank reference
+			 * needs to be dropped since CRC capture will be
+			 * disabled.
 			 */
-			if (dm_new_crtc_state->crc_enabled) {
+			if (!dm_new_crtc_state->stream
+			    && dm_new_crtc_state->crc_enabled) {
 				drm_crtc_vblank_put(crtc);
 				dm_new_crtc_state->crc_enabled = false;
 			}
@@ -5164,6 +5167,10 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 			continue;
 
 		manage_dm_interrupts(adev, acrtc, true);
+
+		/* The stream has changed so CRC capture needs to re-enabled. */
+		if (dm_new_crtc_state->crc_enabled)
+			amdgpu_dm_crtc_set_crc_source(crtc, "auto");
 	}
 
 	/* update planes when needed per crtc*/
