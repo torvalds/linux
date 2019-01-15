@@ -171,7 +171,7 @@ void vnic_rq_clean(struct vnic_rq *rq,
 	struct vnic_rq_buf *buf;
 	u32 fetch_index;
 
-	BUG_ON(ioread32(&rq->ctrl->enable));
+	WARN_ON(ioread32(&rq->ctrl->enable));
 
 	buf = rq->to_clean;
 
