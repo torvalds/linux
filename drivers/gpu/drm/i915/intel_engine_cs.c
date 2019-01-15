@@ -1422,15 +1422,12 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 		       struct drm_printer *m,
 		       const char *header, ...)
 {
-	const int MAX_REQUESTS_TO_SHOW = 8;
 	struct intel_breadcrumbs * const b = &engine->breadcrumbs;
-	const struct intel_engine_execlists * const execlists = &engine->execlists;
 	struct i915_gpu_error * const error = &engine->i915->gpu_error;
-	struct i915_request *rq, *last;
+	struct i915_request *rq;
 	intel_wakeref_t wakeref;
 	unsigned long flags;
 	struct rb_node *rb;
-	int count;
 
 	if (header) {
 		va_list ap;
@@ -1494,52 +1491,9 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 		drm_printf(m, "\tDevice is asleep; skipping register dump\n");
 	}
 
-	local_irq_save(flags);
-	spin_lock(&engine->timeline.lock);
+	intel_execlists_show_requests(engine, m, print_request, 8);
 
-	last = NULL;
-	count = 0;
-	list_for_each_entry(rq, &engine->timeline.requests, link) {
-		if (count++ < MAX_REQUESTS_TO_SHOW - 1)
-			print_request(m, rq, "\t\tE ");
-		else
-			last = rq;
-	}
-	if (last) {
-		if (count > MAX_REQUESTS_TO_SHOW) {
-			drm_printf(m,
-				   "\t\t...skipping %d executing requests...\n",
-				   count - MAX_REQUESTS_TO_SHOW);
-		}
-		print_request(m, last, "\t\tE ");
-	}
-
-	last = NULL;
-	count = 0;
-	drm_printf(m, "\t\tQueue priority: %d\n", execlists->queue_priority);
-	for (rb = rb_first_cached(&execlists->queue); rb; rb = rb_next(rb)) {
-		struct i915_priolist *p = rb_entry(rb, typeof(*p), node);
-		int i;
-
-		priolist_for_each_request(rq, p, i) {
-			if (count++ < MAX_REQUESTS_TO_SHOW - 1)
-				print_request(m, rq, "\t\tQ ");
-			else
-				last = rq;
-		}
-	}
-	if (last) {
-		if (count > MAX_REQUESTS_TO_SHOW) {
-			drm_printf(m,
-				   "\t\t...skipping %d queued requests...\n",
-				   count - MAX_REQUESTS_TO_SHOW);
-		}
-		print_request(m, last, "\t\tQ ");
-	}
-
-	spin_unlock(&engine->timeline.lock);
-
-	spin_lock(&b->rb_lock);
+	spin_lock_irqsave(&b->rb_lock, flags);
 	for (rb = rb_first(&b->waiters); rb; rb = rb_next(rb)) {
 		struct intel_wait *w = rb_entry(rb, typeof(*w), node);
 
@@ -1548,8 +1502,7 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 			   task_state_to_char(w->tsk),
 			   w->seqno);
 	}
-	spin_unlock(&b->rb_lock);
-	local_irq_restore(flags);
+	spin_unlock_irqrestore(&b->rb_lock, flags);
 
 	drm_printf(m, "HWSP:\n");
 	hexdump(m, engine->status_page.page_addr, PAGE_SIZE);
