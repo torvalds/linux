@@ -221,8 +221,8 @@ out_unlock:
 }
 EXPORT_SYMBOL_GPL(nf_ct_l4proto_register_one);
 
-int nf_ct_l4proto_pernet_register_one(struct net *net,
-				const struct nf_conntrack_l4proto *l4proto)
+static int nf_ct_l4proto_pernet_register_one(struct net *net,
+					     const struct nf_conntrack_l4proto *l4proto)
 {
 	int ret = 0;
 	struct nf_proto_net *pn = NULL;
@@ -245,7 +245,6 @@ int nf_ct_l4proto_pernet_register_one(struct net *net,
 out:
 	return ret;
 }
-EXPORT_SYMBOL_GPL(nf_ct_l4proto_pernet_register_one);
 
 static void __nf_ct_l4proto_unregister_one(const struct nf_conntrack_l4proto *l4proto)
 
@@ -272,7 +271,7 @@ void nf_ct_l4proto_unregister_one(const struct nf_conntrack_l4proto *l4proto)
 }
 EXPORT_SYMBOL_GPL(nf_ct_l4proto_unregister_one);
 
-void nf_ct_l4proto_pernet_unregister_one(struct net *net,
+static void nf_ct_l4proto_pernet_unregister_one(struct net *net,
 				const struct nf_conntrack_l4proto *l4proto)
 {
 	struct nf_proto_net *pn = nf_ct_l4proto_net(net, l4proto);
@@ -283,7 +282,6 @@ void nf_ct_l4proto_pernet_unregister_one(struct net *net,
 	pn->users--;
 	nf_ct_l4proto_unregister_sysctl(pn);
 }
-EXPORT_SYMBOL_GPL(nf_ct_l4proto_pernet_unregister_one);
 
 static void
 nf_ct_l4proto_unregister(const struct nf_conntrack_l4proto * const l4proto[],
@@ -322,7 +320,15 @@ nf_ct_l4proto_register(const struct nf_conntrack_l4proto * const l4proto[],
 	return ret;
 }
 
-int nf_ct_l4proto_pernet_register(struct net *net,
+static void nf_ct_l4proto_pernet_unregister(struct net *net,
+				const struct nf_conntrack_l4proto *const l4proto[],
+				unsigned int num_proto)
+{
+	while (num_proto-- != 0)
+		nf_ct_l4proto_pernet_unregister_one(net, l4proto[num_proto]);
+}
+
+static int nf_ct_l4proto_pernet_register(struct net *net,
 				  const struct nf_conntrack_l4proto *const l4proto[],
 				  unsigned int num_proto)
 {
@@ -341,16 +347,6 @@ int nf_ct_l4proto_pernet_register(struct net *net,
 	}
 	return ret;
 }
-EXPORT_SYMBOL_GPL(nf_ct_l4proto_pernet_register);
-
-void nf_ct_l4proto_pernet_unregister(struct net *net,
-				const struct nf_conntrack_l4proto *const l4proto[],
-				unsigned int num_proto)
-{
-	while (num_proto-- != 0)
-		nf_ct_l4proto_pernet_unregister_one(net, l4proto[num_proto]);
-}
-EXPORT_SYMBOL_GPL(nf_ct_l4proto_pernet_unregister);
 
 static unsigned int nf_confirm(struct sk_buff *skb,
 			       unsigned int protoff,

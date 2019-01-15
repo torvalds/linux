@@ -144,18 +144,6 @@ const struct nf_conntrack_l4proto *__nf_ct_l4proto_find(u8 l4proto);
 
 const struct nf_conntrack_l4proto *nf_ct_l4proto_find_get(u8 l4proto);
 
-/* Protocol pernet registration. */
-int nf_ct_l4proto_pernet_register_one(struct net *net,
-				const struct nf_conntrack_l4proto *proto);
-void nf_ct_l4proto_pernet_unregister_one(struct net *net,
-				const struct nf_conntrack_l4proto *proto);
-int nf_ct_l4proto_pernet_register(struct net *net,
-				  const struct nf_conntrack_l4proto *const proto[],
-				  unsigned int num_proto);
-void nf_ct_l4proto_pernet_unregister(struct net *net,
-				const struct nf_conntrack_l4proto *const proto[],
-				unsigned int num_proto);
-
 /* Protocol global registration. */
 int nf_ct_l4proto_register_one(const struct nf_conntrack_l4proto *proto);
 void nf_ct_l4proto_unregister_one(const struct nf_conntrack_l4proto *proto);
