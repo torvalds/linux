@@ -11553,10 +11553,13 @@ encoder_retry:
 			continue;
 
 		encoder = to_intel_encoder(connector_state->best_encoder);
-
-		if (!(encoder->compute_config(encoder, pipe_config, connector_state))) {
-			DRM_DEBUG_KMS("Encoder config failure\n");
-			return -EINVAL;
+		ret = encoder->compute_config(encoder, pipe_config,
+					      connector_state);
+		if (ret < 0) {
+			if (ret != -EDEADLK)
+				DRM_DEBUG_KMS("Encoder config failure: %d\n",
+					      ret);
+			return ret;
 		}
 	}
 

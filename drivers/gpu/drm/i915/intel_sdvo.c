@@ -1107,9 +1107,9 @@ static void i9xx_adjust_sdvo_tv_clock(struct intel_crtc_state *pipe_config)
 	pipe_config->clock_set = true;
 }
 
-static bool intel_sdvo_compute_config(struct intel_encoder *encoder,
-				      struct intel_crtc_state *pipe_config,
-				      struct drm_connector_state *conn_state)
+static int intel_sdvo_compute_config(struct intel_encoder *encoder,
+				     struct intel_crtc_state *pipe_config,
+				     struct drm_connector_state *conn_state)
 {
 	struct intel_sdvo *intel_sdvo = to_sdvo(encoder);
 	struct intel_sdvo_connector_state *intel_sdvo_state =
@@ -1134,7 +1134,7 @@ static bool intel_sdvo_compute_config(struct intel_encoder *encoder,
 	 */
 	if (IS_TV(intel_sdvo_connector)) {
 		if (!intel_sdvo_set_output_timings_from_mode(intel_sdvo, mode))
-			return false;
+			return -EINVAL;
 
 		(void) intel_sdvo_get_preferred_input_mode(intel_sdvo,
 							   intel_sdvo_connector,
@@ -1144,7 +1144,7 @@ static bool intel_sdvo_compute_config(struct intel_encoder *encoder,
 	} else if (IS_LVDS(intel_sdvo_connector)) {
 		if (!intel_sdvo_set_output_timings_from_mode(intel_sdvo,
 							     intel_sdvo_connector->base.panel.fixed_mode))
-			return false;
+			return -EINVAL;
 
 		(void) intel_sdvo_get_preferred_input_mode(intel_sdvo,
 							   intel_sdvo_connector,
@@ -1153,7 +1153,7 @@ static bool intel_sdvo_compute_config(struct intel_encoder *encoder,
 	}
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
-		return false;
+		return -EINVAL;
 
 	/*
 	 * Make the CRTC code factor in the SDVO pixel multiplier.  The
@@ -1193,7 +1193,7 @@ static bool intel_sdvo_compute_config(struct intel_encoder *encoder,
 	if (intel_sdvo_connector->is_hdmi)
 		adjusted_mode->picture_aspect_ratio = conn_state->picture_aspect_ratio;
 
-	return true;
+	return 0;
 }
 
 #define UPDATE_PROPERTY(input, NAME) \

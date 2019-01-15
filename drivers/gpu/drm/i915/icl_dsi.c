@@ -1188,9 +1188,9 @@ static void gen11_dsi_get_config(struct intel_encoder *encoder,
 	pipe_config->output_types |= BIT(INTEL_OUTPUT_DSI);
 }
 
-static bool gen11_dsi_compute_config(struct intel_encoder *encoder,
-				     struct intel_crtc_state *pipe_config,
-				     struct drm_connector_state *conn_state)
+static int gen11_dsi_compute_config(struct intel_encoder *encoder,
+				    struct intel_crtc_state *pipe_config,
+				    struct drm_connector_state *conn_state)
 {
 	struct intel_dsi *intel_dsi = container_of(encoder, struct intel_dsi,
 						   base);
@@ -1215,7 +1215,7 @@ static bool gen11_dsi_compute_config(struct intel_encoder *encoder,
 	pipe_config->clock_set = true;
 	pipe_config->port_clock = intel_dsi_bitrate(intel_dsi) / 5;
 
-	return true;
+	return 0;
 }
 
 static u64 gen11_dsi_get_power_domains(struct intel_encoder *encoder,

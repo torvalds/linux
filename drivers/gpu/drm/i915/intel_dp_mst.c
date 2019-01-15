@@ -29,9 +29,9 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
 
-static bool intel_dp_mst_compute_config(struct intel_encoder *encoder,
-					struct intel_crtc_state *pipe_config,
-					struct drm_connector_state *conn_state)
+static int intel_dp_mst_compute_config(struct intel_encoder *encoder,
+				       struct intel_crtc_state *pipe_config,
+				       struct drm_connector_state *conn_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dp_mst_encoder *intel_mst = enc_to_mst(&encoder->base);
@@ -48,7 +48,7 @@ static bool intel_dp_mst_compute_config(struct intel_encoder *encoder,
 					   DP_DPCD_QUIRK_CONSTANT_N);
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
-		return false;
+		return -EINVAL;
 
 	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
 	pipe_config->has_pch_encoder = false;
@@ -85,7 +85,7 @@ static bool intel_dp_mst_compute_config(struct intel_encoder *encoder,
 		if (slots < 0) {
 			DRM_DEBUG_KMS("failed finding vcpi slots:%d\n",
 				      slots);
-			return false;
+			return slots;
 		}
 	}
 
@@ -103,7 +103,7 @@ static bool intel_dp_mst_compute_config(struct intel_encoder *encoder,
 
 	intel_ddi_compute_min_voltage_level(dev_priv, pipe_config);
 
-	return true;
+	return 0;
 }
 
 static int intel_dp_mst_atomic_check(struct drm_connector *connector,

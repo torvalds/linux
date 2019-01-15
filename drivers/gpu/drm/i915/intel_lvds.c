@@ -380,9 +380,9 @@ intel_lvds_mode_valid(struct drm_connector *connector,
 	return MODE_OK;
 }
 
-static bool intel_lvds_compute_config(struct intel_encoder *intel_encoder,
-				      struct intel_crtc_state *pipe_config,
-				      struct drm_connector_state *conn_state)
+static int intel_lvds_compute_config(struct intel_encoder *intel_encoder,
+				     struct intel_crtc_state *pipe_config,
+				     struct drm_connector_state *conn_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(intel_encoder->base.dev);
 	struct intel_lvds_encoder *lvds_encoder =
@@ -396,7 +396,7 @@ static bool intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 	/* Should never happen!! */
 	if (INTEL_GEN(dev_priv) < 4 && intel_crtc->pipe == 0) {
 		DRM_ERROR("Can't support LVDS on pipe A\n");
-		return false;
+		return -EINVAL;
 	}
 
 	if (lvds_encoder->a3_power == LVDS_A3_POWER_UP)
@@ -422,7 +422,7 @@ static bool intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 			       adjusted_mode);
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
-		return false;
+		return -EINVAL;
 
 	if (HAS_PCH_SPLIT(dev_priv)) {
 		pipe_config->has_pch_encoder = true;
@@ -441,7 +441,7 @@ static bool intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 	 * user's requested refresh rate.
 	 */
 
-	return true;
+	return 0;
 }
 
 static enum drm_connector_status

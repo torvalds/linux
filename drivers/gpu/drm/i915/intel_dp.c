@@ -1819,7 +1819,7 @@ intel_dp_adjust_compliance_config(struct intel_dp *intel_dp,
 }
 
 /* Optimize link config in order: max bpp, min clock, min lanes */
-static bool
+static int
 intel_dp_compute_link_config_wide(struct intel_dp *intel_dp,
 				  struct intel_crtc_state *pipe_config,
 				  const struct link_config_limits *limits)
@@ -1845,17 +1845,17 @@ intel_dp_compute_link_config_wide(struct intel_dp *intel_dp,
 					pipe_config->pipe_bpp = bpp;
 					pipe_config->port_clock = link_clock;
 
-					return true;
+					return 0;
 				}
 			}
 		}
 	}
 
-	return false;
+	return -EINVAL;
 }
 
 /* Optimize link config in order: max bpp, min lanes, min clock */
-static bool
+static int
 intel_dp_compute_link_config_fast(struct intel_dp *intel_dp,
 				  struct intel_crtc_state *pipe_config,
 				  const struct link_config_limits *limits)
@@ -1881,13 +1881,13 @@ intel_dp_compute_link_config_fast(struct intel_dp *intel_dp,
 					pipe_config->pipe_bpp = bpp;
 					pipe_config->port_clock = link_clock;
 
-					return true;
+					return 0;
 				}
 			}
 		}
 	}
 
-	return false;
+	return -EINVAL;
 }
 
 static int intel_dp_dsc_compute_bpp(struct intel_dp *intel_dp, u8 dsc_max_bpc)
@@ -1905,19 +1905,20 @@ static int intel_dp_dsc_compute_bpp(struct intel_dp *intel_dp, u8 dsc_max_bpc)
 	return 0;
 }
 
-static bool intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
-					struct intel_crtc_state *pipe_config,
-					struct drm_connector_state *conn_state,
-					struct link_config_limits *limits)
+static int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
+				       struct intel_crtc_state *pipe_config,
+				       struct drm_connector_state *conn_state,
+				       struct link_config_limits *limits)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
 	struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
 	u8 dsc_max_bpc;
 	int pipe_bpp;
+	int ret;
 
 	if (!intel_dp_supports_dsc(intel_dp, pipe_config))
-		return false;
+		return -EINVAL;
 
 	dsc_max_bpc = min_t(u8, DP_DSC_MAX_SUPPORTED_BPC,
 			    conn_state->max_requested_bpc);
@@ -1925,7 +1926,7 @@ static bool intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 	pipe_bpp = intel_dp_dsc_compute_bpp(intel_dp, dsc_max_bpc);
 	if (pipe_bpp < DP_DSC_MIN_SUPPORTED_BPC * 3) {
 		DRM_DEBUG_KMS("No DSC support for less than 8bpc\n");
-		return false;
+		return -EINVAL;
 	}
 
 	/*
@@ -1959,7 +1960,7 @@ static bool intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 						     adjusted_mode->crtc_hdisplay);
 		if (!dsc_max_output_bpp || !dsc_dp_slice_count) {
 			DRM_DEBUG_KMS("Compressed BPP/Slice Count not supported\n");
-			return false;
+			return -EINVAL;
 		}
 		pipe_config->dsc_params.compressed_bpp = min_t(u16,
 							       dsc_max_output_bpp >> 4,
@@ -1976,16 +1977,19 @@ static bool intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 			pipe_config->dsc_params.dsc_split = true;
 		} else {
 			DRM_DEBUG_KMS("Cannot split stream to use 2 VDSC instances\n");
-			return false;
+			return -EINVAL;
 		}
 	}
-	if (intel_dp_compute_dsc_params(intel_dp, pipe_config) < 0) {
+
+	ret = intel_dp_compute_dsc_params(intel_dp, pipe_config);
+	if (ret < 0) {
 		DRM_DEBUG_KMS("Cannot compute valid DSC parameters for Input Bpp = %d "
 			      "Compressed BPP = %d\n",
 			      pipe_config->pipe_bpp,
 			      pipe_config->dsc_params.compressed_bpp);
-		return false;
+		return ret;
 	}
+
 	pipe_config->dsc_params.compression_enable = true;
 	DRM_DEBUG_KMS("DP DSC computed with Input Bpp = %d "
 		      "Compressed Bpp = %d Slice Count = %d\n",
@@ -1993,10 +1997,10 @@ static bool intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 		      pipe_config->dsc_params.compressed_bpp,
 		      pipe_config->dsc_params.slice_count);
 
-	return true;
+	return 0;
 }
 
-static bool
+static int
 intel_dp_compute_link_config(struct intel_encoder *encoder,
 			     struct intel_crtc_state *pipe_config,
 			     struct drm_connector_state *conn_state)
@@ -2005,7 +2009,7 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 	struct link_config_limits limits;
 	int common_len;
-	bool ret;
+	int ret;
 
 	common_len = intel_dp_common_len_rate_limit(intel_dp,
 						    intel_dp->max_link_rate);
@@ -2063,10 +2067,11 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 
 	/* enable compression if the mode doesn't fit available BW */
 	DRM_DEBUG_KMS("Force DSC en = %d\n", intel_dp->force_dsc_en);
-	if (!ret || intel_dp->force_dsc_en) {
-		if (!intel_dp_dsc_compute_config(intel_dp, pipe_config,
-						 conn_state, &limits))
-			return false;
+	if (ret || intel_dp->force_dsc_en) {
+		ret = intel_dp_dsc_compute_config(intel_dp, pipe_config,
+						  conn_state, &limits);
+		if (ret < 0)
+			return ret;
 	}
 
 	if (pipe_config->dsc_params.compression_enable) {
@@ -2091,10 +2096,10 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 			      intel_dp_max_data_rate(pipe_config->port_clock,
 						     pipe_config->lane_count));
 	}
-	return true;
+	return 0;
 }
 
-bool
+int
 intel_dp_compute_config(struct intel_encoder *encoder,
 			struct intel_crtc_state *pipe_config,
 			struct drm_connector_state *conn_state)
@@ -2110,6 +2115,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 		to_intel_digital_connector_state(conn_state);
 	bool constant_n = drm_dp_has_quirk(&intel_dp->desc,
 					   DP_DPCD_QUIRK_CONSTANT_N);
+	int ret;
 
 	if (HAS_PCH_SPLIT(dev_priv) && !HAS_DDI(dev_priv) && port != PORT_A)
 		pipe_config->has_pch_encoder = true;
@@ -2131,8 +2137,6 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 				       adjusted_mode);
 
 		if (INTEL_GEN(dev_priv) >= 9) {
-			int ret;
-
 			ret = skl_update_scaler_crtc(pipe_config);
 			if (ret)
 				return ret;
@@ -2147,20 +2151,21 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	}
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
-		return false;
+		return -EINVAL;
 
 	if (HAS_GMCH_DISPLAY(dev_priv) &&
 	    adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)
-		return false;
+		return -EINVAL;
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLCLK)
-		return false;
+		return -EINVAL;
 
 	pipe_config->fec_enable = !intel_dp_is_edp(intel_dp) &&
 				  intel_dp_supports_fec(intel_dp, pipe_config);
 
-	if (!intel_dp_compute_link_config(encoder, pipe_config, conn_state))
-		return false;
+	ret = intel_dp_compute_link_config(encoder, pipe_config, conn_state);
+	if (ret < 0)
+		return ret;
 
 	if (intel_conn_state->broadcast_rgb == INTEL_BROADCAST_RGB_AUTO) {
 		/*
@@ -2208,7 +2213,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 
 	intel_psr_compute_config(intel_dp, pipe_config);
 
-	return true;
+	return 0;
 }
 
 void intel_dp_set_link_params(struct intel_dp *intel_dp,
