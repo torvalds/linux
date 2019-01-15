@@ -81,9 +81,6 @@ struct komeda_dev {
 	/** @mck: HW main engine clk */
 	struct clk *mclk;
 
-	/** @irq: irq number */
-	u32 irq;
-
 	int n_pipelines;
 	struct komeda_pipeline *pipelines[KOMEDA_MAX_PIPELINES];
 

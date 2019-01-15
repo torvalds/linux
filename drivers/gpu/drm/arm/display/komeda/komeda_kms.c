@@ -142,12 +142,10 @@ struct komeda_kms_dev *komeda_kms_attach(struct komeda_dev *mdev)
 
 	err = drm_dev_register(drm, 0);
 	if (err)
-		goto uninstall_irq;
+		goto cleanup_mode_config;
 
 	return kms;
 
-uninstall_irq:
-	drm_irq_uninstall(drm);
 cleanup_mode_config:
 	drm_mode_config_cleanup(drm);
 free_kms:
