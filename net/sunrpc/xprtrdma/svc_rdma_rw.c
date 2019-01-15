@@ -64,8 +64,7 @@ svc_rdma_get_rw_ctxt(struct svcxprt_rdma *rdma, unsigned int sges)
 		spin_unlock(&rdma->sc_rw_ctxt_lock);
 	} else {
 		spin_unlock(&rdma->sc_rw_ctxt_lock);
-		ctxt = kmalloc(sizeof(*ctxt) +
-			       SG_CHUNK_SIZE * sizeof(struct scatterlist),
+		ctxt = kmalloc(struct_size(ctxt, rw_first_sgl, SG_CHUNK_SIZE),
 			       GFP_KERNEL);
 		if (!ctxt)
 			goto out;
