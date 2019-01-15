@@ -222,9 +222,9 @@ struct intel_encoder {
 	enum intel_output_type (*compute_output_type)(struct intel_encoder *,
 						      struct intel_crtc_state *,
 						      struct drm_connector_state *);
-	bool (*compute_config)(struct intel_encoder *,
-			       struct intel_crtc_state *,
-			       struct drm_connector_state *);
+	int (*compute_config)(struct intel_encoder *,
+			      struct intel_crtc_state *,
+			      struct drm_connector_state *);
 	void (*pre_pll_enable)(struct intel_encoder *,
 			       const struct intel_crtc_state *,
 			       const struct drm_connector_state *);
@@ -1806,9 +1806,9 @@ void intel_dp_sink_set_decompression_state(struct intel_dp *intel_dp,
 void intel_dp_encoder_reset(struct drm_encoder *encoder);
 void intel_dp_encoder_suspend(struct intel_encoder *intel_encoder);
 void intel_dp_encoder_destroy(struct drm_encoder *encoder);
-bool intel_dp_compute_config(struct intel_encoder *encoder,
-			     struct intel_crtc_state *pipe_config,
-			     struct drm_connector_state *conn_state);
+int intel_dp_compute_config(struct intel_encoder *encoder,
+			    struct intel_crtc_state *pipe_config,
+			    struct drm_connector_state *conn_state);
 bool intel_dp_is_edp(struct intel_dp *intel_dp);
 bool intel_dp_is_port_edp(struct drm_i915_private *dev_priv, enum port port);
 enum irqreturn intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port,
@@ -1966,9 +1966,9 @@ void intel_hdmi_init(struct drm_i915_private *dev_priv, i915_reg_t hdmi_reg,
 void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 			       struct intel_connector *intel_connector);
 struct intel_hdmi *enc_to_intel_hdmi(struct drm_encoder *encoder);
-bool intel_hdmi_compute_config(struct intel_encoder *encoder,
-			       struct intel_crtc_state *pipe_config,
-			       struct drm_connector_state *conn_state);
+int intel_hdmi_compute_config(struct intel_encoder *encoder,
+			      struct intel_crtc_state *pipe_config,
+			      struct drm_connector_state *conn_state);
 bool intel_hdmi_handle_sink_scrambling(struct intel_encoder *encoder,
 				       struct drm_connector *connector,
 				       bool high_tmds_clock_ratio,
