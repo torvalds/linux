@@ -5835,10 +5835,13 @@ dm_determine_update_type_for_commit(struct dc *dc,
 	struct dm_crtc_state *new_dm_crtc_state, *old_dm_crtc_state;
 	struct dc_stream_status *status = NULL;
 
-	struct dc_surface_update *updates = kzalloc(MAX_SURFACES * sizeof(struct dc_surface_update), GFP_KERNEL);
-	struct dc_plane_state *surface = kzalloc(MAX_SURFACES * sizeof(struct dc_plane_state), GFP_KERNEL);
+	struct dc_surface_update *updates;
+	struct dc_plane_state *surface;
 	struct dc_stream_update stream_update;
 	enum surface_update_type update_type = UPDATE_TYPE_FAST;
+
+	updates = kcalloc(MAX_SURFACES, sizeof(*updates), GFP_KERNEL);
+	surface = kcalloc(MAX_SURFACES, sizeof(*surface), GFP_KERNEL);
 
 	if (!updates || !surface) {
 		DRM_ERROR("Plane or surface update failed to allocate");
