@@ -34,36 +34,15 @@
  * periodic 11 min sync from kernel/time/ntp.c vs. this driver.)
  */
 
-unsigned char __nvram_read_byte(int i)
+static unsigned char __nvram_read_byte(int i)
 {
 	return CMOS_READ(NVRAM_FIRST_BYTE + i);
 }
 
-unsigned char nvram_read_byte(int i)
-{
-	unsigned long flags;
-	unsigned char c;
-
-	spin_lock_irqsave(&rtc_lock, flags);
-	c = __nvram_read_byte(i);
-	spin_unlock_irqrestore(&rtc_lock, flags);
-	return c;
-}
-EXPORT_SYMBOL(nvram_read_byte);
-
 /* This races nicely with trying to read with checksum checking */
-void __nvram_write_byte(unsigned char c, int i)
+static void __nvram_write_byte(unsigned char c, int i)
 {
 	CMOS_WRITE(c, NVRAM_FIRST_BYTE + i);
-}
-
-void nvram_write_byte(unsigned char c, int i)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&rtc_lock, flags);
-	__nvram_write_byte(c, i);
-	spin_unlock_irqrestore(&rtc_lock, flags);
 }
 
 /* On Ataris, the checksum is over all bytes except the checksum bytes
@@ -73,7 +52,7 @@ void nvram_write_byte(unsigned char c, int i)
 #define ATARI_CKS_RANGE_END	47
 #define ATARI_CKS_LOC		48
 
-int __nvram_check_checksum(void)
+static int __nvram_check_checksum(void)
 {
 	int i;
 	unsigned char sum = 0;
@@ -83,18 +62,6 @@ int __nvram_check_checksum(void)
 	return (__nvram_read_byte(ATARI_CKS_LOC) == (~sum & 0xff)) &&
 	       (__nvram_read_byte(ATARI_CKS_LOC + 1) == (sum & 0xff));
 }
-
-int nvram_check_checksum(void)
-{
-	unsigned long flags;
-	int rv;
-
-	spin_lock_irqsave(&rtc_lock, flags);
-	rv = __nvram_check_checksum();
-	spin_unlock_irqrestore(&rtc_lock, flags);
-	return rv;
-}
-EXPORT_SYMBOL(nvram_check_checksum);
 
 static void __nvram_set_checksum(void)
 {

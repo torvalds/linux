@@ -2,13 +2,31 @@
 #ifndef _LINUX_NVRAM_H
 #define _LINUX_NVRAM_H
 
+#include <linux/errno.h>
 #include <uapi/linux/nvram.h>
 
-/* __foo is foo without grabbing the rtc_lock - get it yourself */
-extern unsigned char __nvram_read_byte(int i);
-extern unsigned char nvram_read_byte(int i);
-extern void __nvram_write_byte(unsigned char c, int i);
-extern void nvram_write_byte(unsigned char c, int i);
-extern int __nvram_check_checksum(void);
-extern int nvram_check_checksum(void);
+static inline ssize_t nvram_get_size(void)
+{
+	return -ENODEV;
+}
+
+static inline unsigned char nvram_read_byte(int addr)
+{
+	return 0xFF;
+}
+
+static inline void nvram_write_byte(unsigned char val, int addr)
+{
+}
+
+static inline ssize_t nvram_read(char *buf, size_t count, loff_t *ppos)
+{
+	return -ENODEV;
+}
+
+static inline ssize_t nvram_write(char *buf, size_t count, loff_t *ppos)
+{
+	return -ENODEV;
+}
+
 #endif  /* _LINUX_NVRAM_H */

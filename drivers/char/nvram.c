@@ -74,13 +74,12 @@ static int nvram_open_mode;	/* special open modes */
  * periodic 11 min sync from kernel/time/ntp.c vs. this driver.)
  */
 
-unsigned char __nvram_read_byte(int i)
+static unsigned char __nvram_read_byte(int i)
 {
 	return CMOS_READ(NVRAM_FIRST_BYTE + i);
 }
-EXPORT_SYMBOL(__nvram_read_byte);
 
-unsigned char nvram_read_byte(int i)
+static unsigned char pc_nvram_read_byte(int i)
 {
 	unsigned long flags;
 	unsigned char c;
@@ -90,16 +89,14 @@ unsigned char nvram_read_byte(int i)
 	spin_unlock_irqrestore(&rtc_lock, flags);
 	return c;
 }
-EXPORT_SYMBOL(nvram_read_byte);
 
 /* This races nicely with trying to read with checksum checking (nvram_read) */
-void __nvram_write_byte(unsigned char c, int i)
+static void __nvram_write_byte(unsigned char c, int i)
 {
 	CMOS_WRITE(c, NVRAM_FIRST_BYTE + i);
 }
-EXPORT_SYMBOL(__nvram_write_byte);
 
-void nvram_write_byte(unsigned char c, int i)
+static void pc_nvram_write_byte(unsigned char c, int i)
 {
 	unsigned long flags;
 
@@ -107,14 +104,13 @@ void nvram_write_byte(unsigned char c, int i)
 	__nvram_write_byte(c, i);
 	spin_unlock_irqrestore(&rtc_lock, flags);
 }
-EXPORT_SYMBOL(nvram_write_byte);
 
 /* On PCs, the checksum is built only over bytes 2..31 */
 #define PC_CKS_RANGE_START	2
 #define PC_CKS_RANGE_END	31
 #define PC_CKS_LOC		32
 
-int __nvram_check_checksum(void)
+static int __nvram_check_checksum(void)
 {
 	int i;
 	unsigned short sum = 0;
@@ -126,19 +122,6 @@ int __nvram_check_checksum(void)
 	    __nvram_read_byte(PC_CKS_LOC+1);
 	return (sum & 0xffff) == expect;
 }
-EXPORT_SYMBOL(__nvram_check_checksum);
-
-int nvram_check_checksum(void)
-{
-	unsigned long flags;
-	int rv;
-
-	spin_lock_irqsave(&rtc_lock, flags);
-	rv = __nvram_check_checksum();
-	spin_unlock_irqrestore(&rtc_lock, flags);
-	return rv;
-}
-EXPORT_SYMBOL(nvram_check_checksum);
 
 static void __nvram_set_checksum(void)
 {
