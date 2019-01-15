@@ -811,13 +811,25 @@ static void ov7675_get_framerate(struct v4l2_subdev *sd,
 			(4 * clkrc);
 }
 
+static int ov7675_apply_framerate(struct v4l2_subdev *sd)
+{
+	struct ov7670_info *info = to_state(sd);
+	int ret;
+
+	ret = ov7670_write(sd, REG_CLKRC, info->clkrc);
+	if (ret < 0)
+		return ret;
+
+	return ov7670_write(sd, REG_DBLV,
+			    info->pll_bypass ? DBLV_BYPASS : DBLV_X4);
+}
+
 static int ov7675_set_framerate(struct v4l2_subdev *sd,
 				 struct v4l2_fract *tpf)
 {
 	struct ov7670_info *info = to_state(sd);
 	u32 clkrc;
 	int pll_factor;
-	int ret;
 
 	/*
 	 * The formula is fps = 5/4*pixclk for YUV/RGB and
@@ -826,19 +838,10 @@ static int ov7675_set_framerate(struct v4l2_subdev *sd,
 	 * pixclk = clock_speed / (clkrc + 1) * PLLfactor
 	 *
 	 */
-	if (info->pll_bypass) {
-		pll_factor = 1;
-		ret = ov7670_write(sd, REG_DBLV, DBLV_BYPASS);
-	} else {
-		pll_factor = PLL_FACTOR;
-		ret = ov7670_write(sd, REG_DBLV, DBLV_X4);
-	}
-	if (ret < 0)
-		return ret;
-
 	if (tpf->numerator == 0 || tpf->denominator == 0) {
 		clkrc = 0;
 	} else {
+		pll_factor = info->pll_bypass ? 1 : PLL_FACTOR;
 		clkrc = (5 * pll_factor * info->clock_speed * tpf->numerator) /
 			(4 * tpf->denominator);
 		if (info->fmt->mbus_code == MEDIA_BUS_FMT_SBGGR8_1X8)
@@ -860,7 +863,7 @@ static int ov7675_set_framerate(struct v4l2_subdev *sd,
 	/* Recalculate frame rate */
 	ov7675_get_framerate(sd, tpf);
 
-	return ov7670_write(sd, REG_CLKRC, info->clkrc);
+	return ov7675_apply_framerate(sd);
 }
 
 static void ov7670_get_framerate_legacy(struct v4l2_subdev *sd,
