@@ -52,9 +52,11 @@ static DEFINE_MUTEX(nvram_mutex);
 static DEFINE_SPINLOCK(nvram_state_lock);
 static int nvram_open_cnt;	/* #times opened */
 static int nvram_open_mode;	/* special open modes */
+static ssize_t nvram_size;
 #define NVRAM_WRITE		1 /* opened for writing (exclusive) */
 #define NVRAM_EXCL		2 /* opened with O_EXCL */
 
+#ifdef CONFIG_X86
 /*
  * These functions are provided to be called internally or by other parts of
  * the kernel. It's up to the caller to ensure correct checksum before reading
@@ -145,6 +147,19 @@ void nvram_set_checksum(void)
 }
 #endif  /*  0  */
 
+static ssize_t pc_nvram_get_size(void)
+{
+	return NVRAM_BYTES;
+}
+
+const struct nvram_ops arch_nvram_ops = {
+	.read_byte      = pc_nvram_read_byte,
+	.write_byte     = pc_nvram_write_byte,
+	.get_size       = pc_nvram_get_size,
+};
+EXPORT_SYMBOL(arch_nvram_ops);
+#endif /* CONFIG_X86 */
+
 /*
  * The are the file operation function for user access to /dev/nvram
  */
@@ -152,7 +167,7 @@ void nvram_set_checksum(void)
 static loff_t nvram_misc_llseek(struct file *file, loff_t offset, int origin)
 {
 	return generic_file_llseek_size(file, offset, origin, MAX_LFS_FILESIZE,
-					NVRAM_BYTES);
+					nvram_size);
 }
 
 static ssize_t nvram_misc_read(struct file *file, char __user *buf,
@@ -303,8 +318,7 @@ static int nvram_misc_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-#ifdef CONFIG_PROC_FS
-
+#if defined(CONFIG_X86) && defined(CONFIG_PROC_FS)
 static const char * const floppy_types[] = {
 	"none", "5.25'' 360k", "5.25'' 1.2M", "3.5'' 720k", "3.5'' 1.44M",
 	"3.5'' 2.88M", "3.5'' 2.88M"
@@ -394,7 +408,7 @@ static int nvram_proc_read(struct seq_file *seq, void *offset)
 
 	return 0;
 }
-#endif /* CONFIG_PROC_FS */
+#endif /* CONFIG_X86 && CONFIG_PROC_FS */
 
 static const struct file_operations nvram_misc_fops = {
 	.owner		= THIS_MODULE,
@@ -416,13 +430,17 @@ static int __init nvram_module_init(void)
 {
 	int ret;
 
+	nvram_size = nvram_get_size();
+	if (nvram_size < 0)
+		return nvram_size;
+
 	ret = misc_register(&nvram_misc);
 	if (ret) {
 		pr_err("nvram: can't misc_register on minor=%d\n", NVRAM_MINOR);
 		return ret;
 	}
 
-#ifdef CONFIG_PROC_FS
+#if defined(CONFIG_X86) && defined(CONFIG_PROC_FS)
 	if (!proc_create_single("driver/nvram", 0, NULL, nvram_proc_read)) {
 		pr_err("nvram: can't create /proc/driver/nvram\n");
 		misc_deregister(&nvram_misc);
@@ -436,7 +454,7 @@ static int __init nvram_module_init(void)
 
 static void __exit nvram_module_exit(void)
 {
-#ifdef CONFIG_PROC_FS
+#if defined(CONFIG_X86) && defined(CONFIG_PROC_FS)
 	remove_proc_entry("driver/nvram", NULL);
 #endif
 	misc_deregister(&nvram_misc);

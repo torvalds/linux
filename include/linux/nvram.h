@@ -5,8 +5,30 @@
 #include <linux/errno.h>
 #include <uapi/linux/nvram.h>
 
+/**
+ * struct nvram_ops - NVRAM functionality made available to drivers
+ * @read: validate checksum (if any) then load a range of bytes from NVRAM
+ * @write: store a range of bytes to NVRAM then update checksum (if any)
+ * @read_byte: load a single byte from NVRAM
+ * @write_byte: store a single byte to NVRAM
+ * @get_size: return the fixed number of bytes in the NVRAM
+ *
+ * Architectures which provide an nvram ops struct need not implement all
+ * of these methods. If the NVRAM hardware can be accessed only one byte
+ * at a time then it may be sufficient to provide .read_byte and .write_byte.
+ * If the NVRAM has a checksum (and it is to be checked) the .read and
+ * .write methods can be used to implement that efficiently.
+ *
+ * Portable drivers may use the wrapper functions defined here.
+ * The nvram_read() and nvram_write() functions call the .read and .write
+ * methods when available and fall back on the .read_byte and .write_byte
+ * methods otherwise.
+ */
+
 struct nvram_ops {
 	ssize_t         (*get_size)(void);
+	unsigned char   (*read_byte)(int);
+	void            (*write_byte)(unsigned char, int);
 	ssize_t         (*read)(char *, size_t, loff_t *);
 	ssize_t         (*write)(char *, size_t, loff_t *);
 };
@@ -25,11 +47,21 @@ static inline ssize_t nvram_get_size(void)
 
 static inline unsigned char nvram_read_byte(int addr)
 {
+#ifdef CONFIG_PPC
+#else
+	if (arch_nvram_ops.read_byte)
+		return arch_nvram_ops.read_byte(addr);
+#endif
 	return 0xFF;
 }
 
 static inline void nvram_write_byte(unsigned char val, int addr)
 {
+#ifdef CONFIG_PPC
+#else
+	if (arch_nvram_ops.write_byte)
+		arch_nvram_ops.write_byte(val, addr);
+#endif
 }
 
 static inline ssize_t nvram_read(char *buf, size_t count, loff_t *ppos)
