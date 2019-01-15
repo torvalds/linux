@@ -54,12 +54,12 @@ struct nvdimm {
 };
 
 static inline enum nvdimm_security_state nvdimm_security_state(
-		struct nvdimm *nvdimm, bool master)
+		struct nvdimm *nvdimm, enum nvdimm_passphrase_type ptype)
 {
 	if (!nvdimm->sec.ops)
 		return -ENXIO;
 
-	return nvdimm->sec.ops->state(nvdimm, master);
+	return nvdimm->sec.ops->state(nvdimm, ptype);
 }
 int nvdimm_security_freeze(struct nvdimm *nvdimm);
 #if IS_ENABLED(CONFIG_NVDIMM_KEYS)
