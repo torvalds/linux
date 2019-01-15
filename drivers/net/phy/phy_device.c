@@ -819,13 +819,13 @@ int phy_device_register(struct phy_device *phydev)
 	/* Run all of the fixups for this PHY */
 	err = phy_scan_fixups(phydev);
 	if (err) {
-		pr_err("PHY %d failed to initialize\n", phydev->mdio.addr);
+		phydev_err(phydev, "failed to initialize\n");
 		goto out;
 	}
 
 	err = device_add(&phydev->mdio.dev);
 	if (err) {
-		pr_err("PHY %d failed to add\n", phydev->mdio.addr);
+		phydev_err(phydev, "failed to add\n");
 		goto out;
 	}
 
