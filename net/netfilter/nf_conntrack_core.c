@@ -1534,6 +1534,18 @@ nf_conntrack_handle_icmp(struct nf_conn *tmpl,
 	return ret;
 }
 
+static int generic_packet(struct nf_conn *ct, struct sk_buff *skb,
+			  enum ip_conntrack_info ctinfo)
+{
+	const unsigned int *timeout = nf_ct_timeout_lookup(ct);
+
+	if (!timeout)
+		timeout = &nf_generic_pernet(nf_ct_net(ct))->timeout;
+
+	nf_ct_refresh_acct(ct, ctinfo, skb, *timeout);
+	return NF_ACCEPT;
+}
+
 /* Returns verdict for packet, or -1 for invalid. */
 static int nf_conntrack_handle_packet(struct nf_conn *ct,
 				      struct sk_buff *skb,
@@ -1567,10 +1579,14 @@ static int nf_conntrack_handle_packet(struct nf_conn *ct,
 		return nf_conntrack_dccp_packet(ct, skb, dataoff,
 						ctinfo, state);
 #endif
+#ifdef CONFIG_NF_CT_PROTO_GRE
+	case IPPROTO_GRE:
+		return nf_conntrack_gre_packet(ct, skb, dataoff,
+					       ctinfo, state);
+#endif
 	}
 
-	WARN_ON_ONCE(1);
-	return -NF_ACCEPT;
+	return generic_packet(ct, skb, ctinfo);
 }
 
 unsigned int
@@ -1634,11 +1650,7 @@ repeat:
 		goto out;
 	}
 
-	if (l4proto->packet)
-		ret = l4proto->packet(ct, skb, dataoff, ctinfo, state);
-	else
-		ret = nf_conntrack_handle_packet(ct, skb, dataoff, ctinfo, state);
-
+	ret = nf_conntrack_handle_packet(ct, skb, dataoff, ctinfo, state);
 	if (ret <= 0) {
 		/* Invalid: inverse of the return code tells
 		 * the netfilter core what to do */

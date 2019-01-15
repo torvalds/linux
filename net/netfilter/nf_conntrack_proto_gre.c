@@ -213,11 +213,11 @@ static unsigned int *gre_get_timeouts(struct net *net)
 }
 
 /* Returns verdict for packet, and may modify conntrack */
-static int gre_packet(struct nf_conn *ct,
-		      struct sk_buff *skb,
-		      unsigned int dataoff,
-		      enum ip_conntrack_info ctinfo,
-		      const struct nf_hook_state *state)
+int nf_conntrack_gre_packet(struct nf_conn *ct,
+			    struct sk_buff *skb,
+			    unsigned int dataoff,
+			    enum ip_conntrack_info ctinfo,
+			    const struct nf_hook_state *state)
 {
 	if (state->pf != NFPROTO_IPV4)
 		return -NF_ACCEPT;
@@ -371,7 +371,6 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_gre = {
 #ifdef CONFIG_NF_CONNTRACK_PROCFS
 	.print_conntrack = gre_print_conntrack,
 #endif
-	.packet		 = gre_packet,
 	.destroy	 = gre_destroy,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.tuple_to_nlattr = nf_ct_port_tuple_to_nlattr,

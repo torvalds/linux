@@ -15,40 +15,6 @@
 
 static const unsigned int nf_ct_generic_timeout = 600*HZ;
 
-static bool nf_generic_should_process(u8 proto)
-{
-	switch (proto) {
-#ifdef CONFIG_NF_CT_PROTO_GRE_MODULE
-	case IPPROTO_GRE:
-		return false;
-#endif
-	default:
-		return true;
-	}
-}
-
-/* Returns verdict for packet, or -1 for invalid. */
-static int generic_packet(struct nf_conn *ct,
-			  struct sk_buff *skb,
-			  unsigned int dataoff,
-			  enum ip_conntrack_info ctinfo,
-			  const struct nf_hook_state *state)
-{
-	const unsigned int *timeout = nf_ct_timeout_lookup(ct);
-
-	if (!nf_generic_should_process(nf_ct_protonum(ct))) {
-		pr_warn_once("conntrack: generic helper won't handle protocol %d. Please consider loading the specific helper module.\n",
-			     nf_ct_protonum(ct));
-		return -NF_ACCEPT;
-	}
-
-	if (!timeout)
-		timeout = &nf_generic_pernet(nf_ct_net(ct))->timeout;
-
-	nf_ct_refresh_acct(ct, ctinfo, skb, *timeout);
-	return NF_ACCEPT;
-}
-
 #ifdef CONFIG_NF_CONNTRACK_TIMEOUT
 
 #include <linux/netfilter/nfnetlink.h>
@@ -139,7 +105,6 @@ static struct nf_proto_net *generic_get_net_proto(struct net *net)
 const struct nf_conntrack_l4proto nf_conntrack_l4proto_generic =
 {
 	.l4proto		= 255,
-	.packet			= generic_packet,
 #ifdef CONFIG_NF_CONNTRACK_TIMEOUT
 	.ctnl_timeout		= {
 		.nlattr_to_obj	= generic_timeout_nlattr_to_obj,
