@@ -163,7 +163,8 @@ patched state. This may be harmful to the system though.
 Writing 1 to the attribute sends a fake signal to all remaining blocking
 tasks. No proper signal is actually delivered (there is no data in signal
 pending structures). Tasks are interrupted or woken up, and forced to change
-their patched state.
+their patched state. Despite the sysfs attribute the fake signal is also sent
+every 15 seconds automatically.
 
 Administrator can also affect a transition through
 /sys/kernel/livepatch/<patch>/force attribute. Writing 1 there clears
