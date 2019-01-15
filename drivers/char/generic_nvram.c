@@ -20,6 +20,7 @@
 #include <linux/fcntl.h>
 #include <linux/init.h>
 #include <linux/mutex.h>
+#include <linux/nvram.h>
 #include <linux/pagemap.h>
 #include <linux/uaccess.h>
 #include <asm/nvram.h>

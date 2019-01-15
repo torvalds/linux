@@ -15,8 +15,11 @@ extern const struct nvram_ops arch_nvram_ops;
 
 static inline ssize_t nvram_get_size(void)
 {
+#ifdef CONFIG_PPC
+#else
 	if (arch_nvram_ops.get_size)
 		return arch_nvram_ops.get_size();
+#endif
 	return -ENODEV;
 }
 
