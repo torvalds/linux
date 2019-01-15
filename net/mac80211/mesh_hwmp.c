@@ -479,6 +479,8 @@ static u32 hwmp_route_info_get(struct ieee80211_sub_if_data *sdata,
 		}
 
 		if (fresh_info) {
+			if (rcu_access_pointer(mpath->next_hop) != sta)
+				mpath->path_change_count++;
 			mesh_path_assign_nexthop(mpath, sta);
 			mpath->flags |= MESH_PATH_SN_VALID;
 			mpath->metric = new_metric;
@@ -523,6 +525,8 @@ static u32 hwmp_route_info_get(struct ieee80211_sub_if_data *sdata,
 		}
 
 		if (fresh_info) {
+			if (rcu_access_pointer(mpath->next_hop) != sta)
+				mpath->path_change_count++;
 			mesh_path_assign_nexthop(mpath, sta);
 			mpath->metric = last_hop_metric;
 			mpath->exp_time = time_after(mpath->exp_time, exp_time)

@@ -5830,7 +5830,10 @@ static int nl80211_send_mpath(struct sk_buff *msg, u32 portid, u32 seq,
 			pinfo->discovery_retries)) ||
 	    ((pinfo->filled & MPATH_INFO_HOP_COUNT) &&
 	     nla_put_u8(msg, NL80211_MPATH_INFO_HOP_COUNT,
-			pinfo->hop_count)))
+			pinfo->hop_count)) ||
+	    ((pinfo->filled & MPATH_INFO_PATH_CHANGE) &&
+	     nla_put_u32(msg, NL80211_MPATH_INFO_PATH_CHANGE,
+			 pinfo->path_change_count)))
 		goto nla_put_failure;
 
 	nla_nest_end(msg, pinfoattr);

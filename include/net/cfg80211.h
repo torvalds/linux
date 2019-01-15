@@ -1439,7 +1439,8 @@ enum mpath_info_flags {
 	MPATH_INFO_DISCOVERY_TIMEOUT	= BIT(4),
 	MPATH_INFO_DISCOVERY_RETRIES	= BIT(5),
 	MPATH_INFO_FLAGS		= BIT(6),
-	MPATH_INFO_HOP_COUNT		= BIT(7)
+	MPATH_INFO_HOP_COUNT		= BIT(7),
+	MPATH_INFO_PATH_CHANGE		= BIT(8),
 };
 
 /**
@@ -1460,6 +1461,7 @@ enum mpath_info_flags {
  *	changes, i.e. when a station is added or removed, so that
  *	userspace can tell whether it got a consistent snapshot.
  * @hop_count: hops to destination
+ * @path_change_count: total number of path changes to destination
  */
 struct mpath_info {
 	u32 filled;
@@ -1471,6 +1473,7 @@ struct mpath_info {
 	u8 discovery_retries;
 	u8 flags;
 	u8 hop_count;
+	u32 path_change_count;
 
 	int generation;
 };

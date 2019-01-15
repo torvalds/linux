@@ -1746,7 +1746,8 @@ static void mpath_set_pinfo(struct mesh_path *mpath, u8 *next_hop,
 			MPATH_INFO_DISCOVERY_TIMEOUT |
 			MPATH_INFO_DISCOVERY_RETRIES |
 			MPATH_INFO_FLAGS |
-			MPATH_INFO_HOP_COUNT;
+			MPATH_INFO_HOP_COUNT |
+			MPATH_INFO_PATH_CHANGE;
 
 	pinfo->frame_qlen = mpath->frame_queue.qlen;
 	pinfo->sn = mpath->sn;
@@ -1767,6 +1768,7 @@ static void mpath_set_pinfo(struct mesh_path *mpath, u8 *next_hop,
 	if (mpath->flags & MESH_PATH_RESOLVED)
 		pinfo->flags |= NL80211_MPATH_FLAG_RESOLVED;
 	pinfo->hop_count = mpath->hop_count;
+	pinfo->path_change_count = mpath->path_change_count;
 }
 
 static int ieee80211_get_mpath(struct wiphy *wiphy, struct net_device *dev,
