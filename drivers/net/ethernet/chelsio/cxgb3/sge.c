@@ -2381,7 +2381,7 @@ no_mem:
 					lro_add_page(adap, qs, fl,
 						     G_RSPD_LEN(len),
 						     flags & F_RSPD_EOP);
-					 goto next_fl;
+					goto next_fl;
 				}
 
 				skb = get_packet_pg(adap, fl, q,
@@ -3214,11 +3214,13 @@ void t3_start_sge_timers(struct adapter *adap)
 	for (i = 0; i < SGE_QSETS; ++i) {
 		struct sge_qset *q = &adap->sge.qs[i];
 
-	if (q->tx_reclaim_timer.function)
-		mod_timer(&q->tx_reclaim_timer, jiffies + TX_RECLAIM_PERIOD);
+		if (q->tx_reclaim_timer.function)
+			mod_timer(&q->tx_reclaim_timer,
+				  jiffies + TX_RECLAIM_PERIOD);
 
-	if (q->rx_reclaim_timer.function)
-		mod_timer(&q->rx_reclaim_timer, jiffies + RX_RECLAIM_PERIOD);
+		if (q->rx_reclaim_timer.function)
+			mod_timer(&q->rx_reclaim_timer,
+				  jiffies + RX_RECLAIM_PERIOD);
 	}
 }
 

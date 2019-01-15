@@ -82,6 +82,7 @@ config PHY_TI_GMII_SEL
 	default y if TI_CPSW=y
 	depends on TI_CPSW || COMPILE_TEST
 	select GENERIC_PHY
+	select REGMAP
 	default m
 	help
 	  This driver supports configuring of the TI CPSW Port mode depending on
