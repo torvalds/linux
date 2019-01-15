@@ -128,6 +128,7 @@
 	__fnic_set_state_flags(fnicp, st_flags, 1)
 
 extern unsigned int fnic_log_level;
+extern unsigned int io_completions;
 
 #define FNIC_MAIN_LOGGING 0x01
 #define FNIC_FCS_LOGGING 0x02
@@ -196,6 +197,7 @@ enum fnic_state {
 #define FNIC_WQ_MAX 1
 #define FNIC_RQ_MAX 1
 #define FNIC_CQ_MAX (FNIC_WQ_COPY_MAX + FNIC_WQ_MAX + FNIC_RQ_MAX)
+#define FNIC_DFLT_IO_COMPLETIONS 256
 
 struct mempool;
 

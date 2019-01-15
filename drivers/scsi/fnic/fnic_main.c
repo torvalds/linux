@@ -69,6 +69,11 @@ unsigned int fnic_log_level;
 module_param(fnic_log_level, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(fnic_log_level, "bit mask of fnic logging levels");
 
+
+unsigned int io_completions = FNIC_DFLT_IO_COMPLETIONS;
+module_param(io_completions, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(io_completions, "Max CQ entries to process at a time");
+
 unsigned int fnic_trace_max_pages = 16;
 module_param(fnic_trace_max_pages, uint, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(fnic_trace_max_pages, "Total allocated memory pages "
@@ -503,7 +508,7 @@ static int fnic_cleanup(struct fnic *fnic)
 	}
 
 	/* Clean up completed IOs and FCS frames */
-	fnic_wq_copy_cmpl_handler(fnic, -1);
+	fnic_wq_copy_cmpl_handler(fnic, io_completions);
 	fnic_wq_cmpl_handler(fnic, -1);
 	fnic_rq_cmpl_handler(fnic, -1);
 
