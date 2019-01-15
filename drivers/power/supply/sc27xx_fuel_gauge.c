@@ -72,6 +72,7 @@
  * @lock: protect the structure
  * @gpiod: GPIO for battery detection
  * @channel: IIO channel to get battery temperature
+ * @charge_chan: IIO channel to get charge voltage
  * @internal_resist: the battery internal resistance in mOhm
  * @total_cap: the total capacity of the battery in mAh
  * @init_cap: the initial capacity of the battery in mAh
@@ -92,6 +93,7 @@ struct sc27xx_fgu_data {
 	struct mutex lock;
 	struct gpio_desc *gpiod;
 	struct iio_channel *channel;
+	struct iio_channel *charge_chan;
 	bool bat_present;
 	int internal_resist;
 	int total_cap;
@@ -391,6 +393,18 @@ static int sc27xx_fgu_get_vbat_ocv(struct sc27xx_fgu_data *data, int *val)
 	return 0;
 }
 
+static int sc27xx_fgu_get_charge_vol(struct sc27xx_fgu_data *data, int *val)
+{
+	int ret, vol;
+
+	ret = iio_read_channel_processed(data->charge_chan, &vol);
+	if (ret < 0)
+		return ret;
+
+	*val = vol * 1000;
+	return 0;
+}
+
 static int sc27xx_fgu_get_temp(struct sc27xx_fgu_data *data, int *temp)
 {
 	return iio_read_channel_processed(data->channel, temp);
@@ -502,6 +516,14 @@ static int sc27xx_fgu_get_property(struct power_supply *psy,
 		val->intval = value;
 		break;
 
+	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE:
+		ret = sc27xx_fgu_get_charge_vol(data, &value);
+		if (ret)
+			goto error;
+
+		val->intval = value;
+		break;
+
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
 	case POWER_SUPPLY_PROP_CURRENT_AVG:
 		ret = sc27xx_fgu_get_current(data, &value);
@@ -567,6 +589,7 @@ static enum power_supply_property sc27xx_fgu_props[] = {
 	POWER_SUPPLY_PROP_VOLTAGE_OCV,
 	POWER_SUPPLY_PROP_CURRENT_NOW,
 	POWER_SUPPLY_PROP_CURRENT_AVG,
+	POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE,
 };
 
 static const struct power_supply_desc sc27xx_fgu_desc = {
@@ -905,6 +928,12 @@ static int sc27xx_fgu_probe(struct platform_device *pdev)
 	if (IS_ERR(data->channel)) {
 		dev_err(&pdev->dev, "failed to get IIO channel\n");
 		return PTR_ERR(data->channel);
+	}
+
+	data->charge_chan = devm_iio_channel_get(&pdev->dev, "charge-vol");
+	if (IS_ERR(data->charge_chan)) {
+		dev_err(&pdev->dev, "failed to get charge IIO channel\n");
+		return PTR_ERR(data->charge_chan);
 	}
 
 	data->gpiod = devm_gpiod_get(&pdev->dev, "bat-detect", GPIOD_IN);
