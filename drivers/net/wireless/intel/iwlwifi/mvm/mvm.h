@@ -1176,6 +1176,7 @@ struct iwl_mvm {
 
 	/* sniffer data to include in radiotap */
 	__le16 cur_aid;
+	u8 cur_bssid[ETH_ALEN];
 
 #ifdef CONFIG_ACPI
 	struct iwl_mvm_sar_profile sar_profiles[ACPI_SAR_PROFILE_NUM];
