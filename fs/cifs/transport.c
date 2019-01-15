@@ -607,7 +607,8 @@ cifs_setup_async_request(struct TCP_Server_Info *server, struct smb_rqst *rqst)
 int
 cifs_call_async(struct TCP_Server_Info *server, struct smb_rqst *rqst,
 		mid_receive_t *receive, mid_callback_t *callback,
-		mid_handle_t *handle, void *cbdata, const int flags)
+		mid_handle_t *handle, void *cbdata, const int flags,
+		const struct cifs_credits *exist_credits)
 {
 	int rc, timeout, optype;
 	struct mid_q_entry *mid;
@@ -623,9 +624,22 @@ cifs_call_async(struct TCP_Server_Info *server, struct smb_rqst *rqst,
 			return rc;
 		credits.value = 1;
 		credits.instance = instance;
-	}
+	} else
+		instance = exist_credits->instance;
 
 	mutex_lock(&server->srv_mutex);
+
+	/*
+	 * We can't use credits obtained from the previous session to send this
+	 * request. Check if there were reconnects after we obtained credits and
+	 * return -EAGAIN in such cases to let callers handle it.
+	 */
+	if (instance != server->reconnect_instance) {
+		mutex_unlock(&server->srv_mutex);
+		add_credits_and_wake_if(server, &credits, optype);
+		return -EAGAIN;
+	}
+
 	mid = server->ops->setup_async_request(server, rqst);
 	if (IS_ERR(mid)) {
 		mutex_unlock(&server->srv_mutex);

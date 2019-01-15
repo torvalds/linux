@@ -3034,7 +3034,7 @@ SMB2_echo(struct TCP_Server_Info *server)
 	iov[0].iov_base = (char *)req;
 
 	rc = cifs_call_async(server, &rqst, NULL, smb2_echo_callback, NULL,
-			     server, CIFS_ECHO_OP);
+			     server, CIFS_ECHO_OP, NULL);
 	if (rc)
 		cifs_dbg(FYI, "Echo request failed: %d\n", rc);
 
@@ -3343,7 +3343,8 @@ smb2_async_readv(struct cifs_readdata *rdata)
 	kref_get(&rdata->refcount);
 	rc = cifs_call_async(io_parms.tcon->ses->server, &rqst,
 			     cifs_readv_receive, smb2_readv_callback,
-			     smb3_handle_read_data, rdata, flags);
+			     smb3_handle_read_data, rdata, flags,
+			     &rdata->credits);
 	if (rc) {
 		kref_put(&rdata->refcount, cifs_readdata_release);
 		cifs_stats_fail_inc(io_parms.tcon, SMB2_READ_HE);
@@ -3645,7 +3646,7 @@ smb2_async_writev(struct cifs_writedata *wdata,
 
 	kref_get(&wdata->refcount);
 	rc = cifs_call_async(server, &rqst, NULL, smb2_writev_callback, NULL,
-			     wdata, flags);
+			     wdata, flags, &wdata->credits);
 
 	if (rc) {
 		trace_smb3_write_err(0 /* no xid */, req->PersistentFileId,
