@@ -118,6 +118,31 @@ int usb_choose_configuration(struct usb_device *udev)
 			continue;
 		}
 
+		/*
+		 * Select first configuration as default for audio so that
+		 * devices that don't comply with UAC3 protocol are supported.
+		 * But, still iterate through other configurations and
+		 * select UAC3 compliant config if present.
+		 */
+		if (desc && is_audio(desc)) {
+			/* Always prefer the first found UAC3 config */
+			if (is_uac3_config(desc)) {
+				best = c;
+				break;
+			}
+
+			/* If there is no UAC3 config, prefer the first config */
+			else if (i == 0)
+				best = c;
+
+			/* Unconditional continue, because the rest of the code
+			 * in the loop is irrelevant for audio devices, and
+			 * because it can reassign best, which for audio devices
+			 * we don't want.
+			 */
+			continue;
+		}
+
 		/* When the first config's first interface is one of Microsoft's
 		 * pet nonstandard Ethernet-over-USB protocols, ignore it unless
 		 * this kernel has enabled the necessary host side driver.
@@ -130,25 +155,6 @@ int usb_choose_configuration(struct usb_device *udev)
 #else
 			best = c;
 #endif
-		}
-
-		/*
-		 * Select first configuration as default for audio so that
-		 * devices that don't comply with UAC3 protocol are supported.
-		 * But, still iterate through other configurations and
-		 * select UAC3 compliant config if present.
-		 */
-		if (i == 0 && num_configs > 1 && desc && is_audio(desc)) {
-			best = c;
-			continue;
-		}
-
-		if (i > 0 && desc && is_audio(desc)) {
-			if (is_uac3_config(desc)) {
-				best = c;
-				break;
-			}
-			continue;
 		}
 
 		/* From the remaining configs, choose the first one whose
