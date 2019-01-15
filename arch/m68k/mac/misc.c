@@ -66,23 +66,22 @@ static unsigned char pmu_pram_read_byte(int offset)
 {
 	struct adb_request req;
 
-	if (pmu_request(&req, NULL, 3, PMU_READ_NVRAM,
-			(offset >> 8) & 0xFF, offset & 0xFF) < 0)
+	if (pmu_request(&req, NULL, 3, PMU_READ_XPRAM,
+	                offset & 0xFF, 1) < 0)
 		return 0;
-	while (!req.complete)
-		pmu_poll();
-	return req.reply[3];
+	pmu_wait_complete(&req);
+
+	return req.reply[0];
 }
 
 static void pmu_pram_write_byte(unsigned char data, int offset)
 {
 	struct adb_request req;
 
-	if (pmu_request(&req, NULL, 4, PMU_WRITE_NVRAM,
-			(offset >> 8) & 0xFF, offset & 0xFF, data) < 0)
+	if (pmu_request(&req, NULL, 4, PMU_WRITE_XPRAM,
+	                offset & 0xFF, 1, data) < 0)
 		return;
-	while (!req.complete)
-		pmu_poll();
+	pmu_wait_complete(&req);
 }
 #endif /* CONFIG_ADB_PMU */
 
@@ -152,6 +151,16 @@ static void via_rtc_send(__u8 data)
 #define RTC_REG_WRITE_PROTECT   13
 
 /*
+ * Inside Mac has no information about two-byte RTC commands but
+ * the MAME/MESS source code has the essentials.
+ */
+
+#define RTC_REG_XPRAM           14
+#define RTC_CMD_XPRAM_READ      (RTC_CMD_READ(RTC_REG_XPRAM) << 8)
+#define RTC_CMD_XPRAM_WRITE     (RTC_CMD_WRITE(RTC_REG_XPRAM) << 8)
+#define RTC_CMD_XPRAM_ARG(a)    (((a & 0xE0) << 3) | ((a & 0x1F) << 2))
+
+/*
  * Execute a VIA PRAM/RTC command. For read commands
  * data should point to a one-byte buffer for the
  * resulting data. For write commands it should point
@@ -198,11 +207,25 @@ static void via_rtc_command(int command, __u8 *data)
 
 static unsigned char via_pram_read_byte(int offset)
 {
-	return 0;
+	unsigned char temp;
+
+	via_rtc_command(RTC_CMD_XPRAM_READ | RTC_CMD_XPRAM_ARG(offset), &temp);
+
+	return temp;
 }
 
 static void via_pram_write_byte(unsigned char data, int offset)
 {
+	unsigned char temp;
+
+	temp = 0x55;
+	via_rtc_command(RTC_CMD_WRITE(RTC_REG_WRITE_PROTECT), &temp);
+
+	temp = data;
+	via_rtc_command(RTC_CMD_XPRAM_WRITE | RTC_CMD_XPRAM_ARG(offset), &temp);
+
+	temp = 0x55 | RTC_FLG_WRITE_PROTECT;
+	via_rtc_command(RTC_CMD_WRITE(RTC_REG_WRITE_PROTECT), &temp);
 }
 
 /*
