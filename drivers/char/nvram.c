@@ -41,6 +41,7 @@
 #include <linux/init.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
@@ -161,7 +162,46 @@ static ssize_t pc_nvram_get_size(void)
 	return NVRAM_BYTES;
 }
 
+static ssize_t pc_nvram_read(char *buf, size_t count, loff_t *ppos)
+{
+	char *p = buf;
+	loff_t i;
+
+	spin_lock_irq(&rtc_lock);
+	if (!__nvram_check_checksum()) {
+		spin_unlock_irq(&rtc_lock);
+		return -EIO;
+	}
+	for (i = *ppos; count > 0 && i < NVRAM_BYTES; --count, ++i, ++p)
+		*p = __nvram_read_byte(i);
+	spin_unlock_irq(&rtc_lock);
+
+	*ppos = i;
+	return p - buf;
+}
+
+static ssize_t pc_nvram_write(char *buf, size_t count, loff_t *ppos)
+{
+	char *p = buf;
+	loff_t i;
+
+	spin_lock_irq(&rtc_lock);
+	if (!__nvram_check_checksum()) {
+		spin_unlock_irq(&rtc_lock);
+		return -EIO;
+	}
+	for (i = *ppos; count > 0 && i < NVRAM_BYTES; --count, ++i, ++p)
+		__nvram_write_byte(*p, i);
+	__nvram_set_checksum();
+	spin_unlock_irq(&rtc_lock);
+
+	*ppos = i;
+	return p - buf;
+}
+
 const struct nvram_ops arch_nvram_ops = {
+	.read           = pc_nvram_read,
+	.write          = pc_nvram_write,
 	.read_byte      = pc_nvram_read_byte,
 	.write_byte     = pc_nvram_write_byte,
 	.get_size       = pc_nvram_get_size,
@@ -184,69 +224,57 @@ static loff_t nvram_misc_llseek(struct file *file, loff_t offset, int origin)
 static ssize_t nvram_misc_read(struct file *file, char __user *buf,
 			       size_t count, loff_t *ppos)
 {
-	unsigned char contents[NVRAM_BYTES];
-	unsigned i = *ppos;
-	unsigned char *tmp;
+	char *tmp;
+	ssize_t ret;
 
-	spin_lock_irq(&rtc_lock);
 
-	if (!__nvram_check_checksum())
-		goto checksum_err;
-
-	for (tmp = contents; count-- > 0 && i < NVRAM_BYTES; ++i, ++tmp)
-		*tmp = __nvram_read_byte(i);
-
-	spin_unlock_irq(&rtc_lock);
-
-	if (copy_to_user(buf, contents, tmp - contents))
+	if (!access_ok(buf, count))
 		return -EFAULT;
+	if (*ppos >= nvram_size)
+		return 0;
 
-	*ppos = i;
+	count = min_t(size_t, count, nvram_size - *ppos);
+	count = min_t(size_t, count, PAGE_SIZE);
 
-	return tmp - contents;
+	tmp = kmalloc(count, GFP_KERNEL);
+	if (!tmp)
+		return -ENOMEM;
 
-checksum_err:
-	spin_unlock_irq(&rtc_lock);
-	return -EIO;
+	ret = nvram_read(tmp, count, ppos);
+	if (ret <= 0)
+		goto out;
+
+	if (copy_to_user(buf, tmp, ret)) {
+		*ppos -= ret;
+		ret = -EFAULT;
+	}
+
+out:
+	kfree(tmp);
+	return ret;
 }
 
 static ssize_t nvram_misc_write(struct file *file, const char __user *buf,
 				size_t count, loff_t *ppos)
 {
-	unsigned char contents[NVRAM_BYTES];
-	unsigned i = *ppos;
-	unsigned char *tmp;
+	char *tmp;
+	ssize_t ret;
 
-	if (i >= NVRAM_BYTES)
-		return 0;	/* Past EOF */
-
-	if (count > NVRAM_BYTES - i)
-		count = NVRAM_BYTES - i;
-	if (count > NVRAM_BYTES)
-		return -EFAULT;	/* Can't happen, but prove it to gcc */
-
-	if (copy_from_user(contents, buf, count))
+	if (!access_ok(buf, count))
 		return -EFAULT;
+	if (*ppos >= nvram_size)
+		return 0;
 
-	spin_lock_irq(&rtc_lock);
+	count = min_t(size_t, count, nvram_size - *ppos);
+	count = min_t(size_t, count, PAGE_SIZE);
 
-	if (!__nvram_check_checksum())
-		goto checksum_err;
+	tmp = memdup_user(buf, count);
+	if (IS_ERR(tmp))
+		return PTR_ERR(tmp);
 
-	for (tmp = contents; count--; ++i, ++tmp)
-		__nvram_write_byte(*tmp, i);
-
-	__nvram_set_checksum();
-
-	spin_unlock_irq(&rtc_lock);
-
-	*ppos = i;
-
-	return tmp - contents;
-
-checksum_err:
-	spin_unlock_irq(&rtc_lock);
-	return -EIO;
+	ret = nvram_write(tmp, count, ppos);
+	kfree(tmp);
+	return ret;
 }
 
 static long nvram_misc_ioctl(struct file *file, unsigned int cmd,

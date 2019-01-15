@@ -66,18 +66,46 @@ static inline void nvram_write_byte(unsigned char val, int addr)
 #endif
 }
 
+static inline ssize_t nvram_read_bytes(char *buf, size_t count, loff_t *ppos)
+{
+	ssize_t nvram_size = nvram_get_size();
+	loff_t i;
+	char *p = buf;
+
+	if (nvram_size < 0)
+		return nvram_size;
+	for (i = *ppos; count > 0 && i < nvram_size; ++i, ++p, --count)
+		*p = nvram_read_byte(i);
+	*ppos = i;
+	return p - buf;
+}
+
+static inline ssize_t nvram_write_bytes(char *buf, size_t count, loff_t *ppos)
+{
+	ssize_t nvram_size = nvram_get_size();
+	loff_t i;
+	char *p = buf;
+
+	if (nvram_size < 0)
+		return nvram_size;
+	for (i = *ppos; count > 0 && i < nvram_size; ++i, ++p, --count)
+		nvram_write_byte(*p, i);
+	*ppos = i;
+	return p - buf;
+}
+
 static inline ssize_t nvram_read(char *buf, size_t count, loff_t *ppos)
 {
 	if (arch_nvram_ops.read)
 		return arch_nvram_ops.read(buf, count, ppos);
-	return -ENODEV;
+	return nvram_read_bytes(buf, count, ppos);
 }
 
 static inline ssize_t nvram_write(char *buf, size_t count, loff_t *ppos)
 {
 	if (arch_nvram_ops.write)
 		return arch_nvram_ops.write(buf, count, ppos);
-	return -ENODEV;
+	return nvram_write_bytes(buf, count, ppos);
 }
 
 #endif  /* _LINUX_NVRAM_H */
