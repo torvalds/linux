@@ -2366,13 +2366,6 @@ static int sof_link_load(struct snd_soc_component *scomp, int index,
 	if (!link->no_pcm)
 		return 0;
 
-	/* only support 1 config atm */
-	if (le32_to_cpu(cfg->num_hw_configs) != 1) {
-		dev_err(sdev->dev, "error: unexpected DAI config count %d\n",
-			le32_to_cpu(cfg->num_hw_configs));
-		return -EINVAL;
-	}
-
 	/* check we have some tokens - we need at least DAI type */
 	if (le32_to_cpu(private->size) == 0) {
 		dev_err(sdev->dev, "error: expected tokens for DAI, none found\n");
@@ -2389,6 +2382,17 @@ static int sof_link_load(struct snd_soc_component *scomp, int index,
 		dev_err(sdev->dev, "error: parse link tokens failed %d\n",
 			le32_to_cpu(private->size));
 		return ret;
+	}
+
+	/*
+	 * DAI links are expected to have at least 1 hw_config.
+	 * But some older topologies might have no hw_config for HDA dai links.
+	 */
+	if (!le32_to_cpu(cfg->num_hw_configs) &&
+	    config.type != SOF_DAI_INTEL_HDA) {
+		dev_err(sdev->dev, "error: unexpected DAI config count %d!\n",
+			le32_to_cpu(cfg->num_hw_configs));
+		return -EINVAL;
 	}
 
 	/* configure dai IPC message */
