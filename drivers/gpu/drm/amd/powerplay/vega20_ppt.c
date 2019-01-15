@@ -552,6 +552,84 @@ static int vega20_populate_umd_state_clk(struct smu_context *smu)
 	return 0;
 }
 
+static int vega20_get_clk_table(struct smu_context *smu,
+			struct pp_clock_levels_with_latency *clocks,
+			struct vega20_single_dpm_table *dpm_table)
+{
+	int i, count;
+
+	count = (dpm_table->count > MAX_NUM_CLOCKS) ? MAX_NUM_CLOCKS : dpm_table->count;
+	clocks->num_levels = count;
+
+	for (i = 0; i < count; i++) {
+		clocks->data[i].clocks_in_khz =
+			dpm_table->dpm_levels[i].value * 1000;
+		clocks->data[i].latency_in_us = 0;
+	}
+
+	return 0;
+}
+
+static int vega20_print_clk_levels(struct smu_context *smu,
+			enum pp_clock_type type, char *buf)
+{
+	int i, now, size = 0;
+	int ret = 0;
+	struct pp_clock_levels_with_latency clocks;
+	struct vega20_single_dpm_table *single_dpm_table;
+	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
+	struct vega20_dpm_table *dpm_table = NULL;
+
+	dpm_table = smu_dpm->dpm_context;
+
+	switch (type) {
+	case PP_SCLK:
+		ret = smu_get_current_clk_freq(smu, PPCLK_GFXCLK, &now);
+		if (ret) {
+			pr_err("Attempt to get current gfx clk Failed!");
+			return ret;
+		}
+
+		single_dpm_table = &(dpm_table->gfx_table);
+		ret = vega20_get_clk_table(smu, &clocks, single_dpm_table);
+		if (ret) {
+			pr_err("Attempt to get gfx clk levels Failed!");
+			return ret;
+		}
+
+		for (i = 0; i < clocks.num_levels; i++)
+			size += sprintf(buf + size, "%d: %uMhz %s\n", i,
+					clocks.data[i].clocks_in_khz / 1000,
+					(clocks.data[i].clocks_in_khz == now * 10)
+					? "*" : "");
+		break;
+
+	case PP_MCLK:
+		ret = smu_get_current_clk_freq(smu, PPCLK_UCLK, &now);
+		if (ret) {
+			pr_err("Attempt to get current mclk Failed!");
+			return ret;
+		}
+
+		single_dpm_table = &(dpm_table->mem_table);
+		ret = vega20_get_clk_table(smu, &clocks, single_dpm_table);
+		if (ret) {
+			pr_err("Attempt to get memory clk levels Failed!");
+			return ret;
+		}
+
+		for (i = 0; i < clocks.num_levels; i++)
+			size += sprintf(buf + size, "%d: %uMhz %s\n",
+				i, clocks.data[i].clocks_in_khz / 1000,
+				(clocks.data[i].clocks_in_khz == now * 10)
+				? "*" : "");
+		break;
+	default:
+		break;
+	}
+	return size;
+}
+
 static const struct pptable_funcs vega20_ppt_funcs = {
 	.alloc_dpm_context = vega20_allocate_dpm_context,
 	.store_powerplay_table = vega20_store_powerplay_table,
@@ -562,6 +640,7 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.get_unallowed_feature_mask = vega20_get_unallowed_feature_mask,
 	.set_default_dpm_table = vega20_set_default_dpm_table,
 	.populate_umd_state_clk = vega20_populate_umd_state_clk,
+	.print_clk_levels = vega20_print_clk_levels,
 };
 
 void vega20_set_ppt_funcs(struct smu_context *smu)

@@ -216,6 +216,7 @@ struct pptable_funcs {
 	int (*get_unallowed_feature_mask)(struct smu_context *smu, uint32_t *feature_mask, uint32_t num);
 	int (*set_default_dpm_table)(struct smu_context *smu);
 	int (*populate_umd_state_clk)(struct smu_context *smu);
+	int (*print_clk_levels)(struct smu_context *smu, enum pp_clock_type type, char *buf);
 };
 
 struct smu_funcs
@@ -330,6 +331,8 @@ struct smu_funcs
 	((smu)->funcs->get_power_limit? (smu)->funcs->get_power_limit((smu)) : 0)
 #define smu_get_current_clk_freq(smu, clk_id, value) \
 	((smu)->funcs->get_current_clk_freq? (smu)->funcs->get_current_clk_freq((smu), (clk_id), (value)) : 0)
+#define smu_print_clk_levels(smu, type, buf) \
+	((smu)->ppt_funcs->print_clk_levels ? (smu)->ppt_funcs->print_clk_levels((smu), (type), (buf)) : 0)
 
 #define smu_msg_get_index(smu, msg) \
 	((smu)->ppt_funcs? ((smu)->ppt_funcs->get_smu_msg_index? (smu)->ppt_funcs->get_smu_msg_index((smu), (msg)) : -EINVAL) : -EINVAL)

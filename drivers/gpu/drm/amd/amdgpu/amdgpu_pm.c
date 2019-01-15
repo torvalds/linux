@@ -28,6 +28,7 @@
 #include "amdgpu_pm.h"
 #include "amdgpu_dpm.h"
 #include "amdgpu_display.h"
+#include "amdgpu_smu.h"
 #include "atom.h"
 #include <linux/power_supply.h>
 #include <linux/hwmon.h>
@@ -711,7 +712,9 @@ static ssize_t amdgpu_get_pp_dpm_sclk(struct device *dev,
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = ddev->dev_private;
 
-	if (adev->powerplay.pp_funcs->print_clock_levels)
+	if (adev->smu.ppt_funcs)
+		return smu_print_clk_levels(&adev->smu, PP_SCLK, buf);
+	else if (adev->powerplay.pp_funcs->print_clock_levels)
 		return amdgpu_dpm_print_clock_levels(adev, PP_SCLK, buf);
 	else
 		return snprintf(buf, PAGE_SIZE, "\n");
@@ -783,7 +786,9 @@ static ssize_t amdgpu_get_pp_dpm_mclk(struct device *dev,
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = ddev->dev_private;
 
-	if (adev->powerplay.pp_funcs->print_clock_levels)
+	if (adev->smu.ppt_funcs)
+		return smu_print_clk_levels(&adev->smu, PP_MCLK, buf);
+	else if (adev->powerplay.pp_funcs->print_clock_levels)
 		return amdgpu_dpm_print_clock_levels(adev, PP_MCLK, buf);
 	else
 		return snprintf(buf, PAGE_SIZE, "\n");
