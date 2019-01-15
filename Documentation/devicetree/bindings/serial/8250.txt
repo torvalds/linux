@@ -43,6 +43,7 @@ Optional properties:
 - auto-flow-control: one way to enable automatic flow control support. The
   driver is allowed to detect support for the capability even without this
   property.
+- wakeup-source: wake up the system when UART receives data.
 
 Note:
 * fsl,ns16550:
