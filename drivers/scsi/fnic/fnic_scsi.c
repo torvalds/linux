@@ -1415,8 +1415,9 @@ static void fnic_cleanup_io(struct fnic *fnic, int exclude_id)
 cleanup_scsi_cmd:
 		sc->result = DID_TRANSPORT_DISRUPTED << 16;
 		FNIC_SCSI_DBG(KERN_DEBUG, fnic->lport->host,
-			      "%s: sc duration = %lu DID_TRANSPORT_DISRUPTED\n",
-			      __func__, (jiffies - start_time));
+			      "%s: tag:0x%x : sc:0x%p duration = %lu DID_TRANSPORT_DISRUPTED\n",
+			      __func__, sc->request->tag, sc,
+			      (jiffies - start_time));
 
 		if (atomic64_read(&fnic->io_cmpl_skip))
 			atomic64_dec(&fnic->io_cmpl_skip);
@@ -1425,6 +1426,11 @@ cleanup_scsi_cmd:
 
 		/* Complete the command to SCSI */
 		if (sc->scsi_done) {
+			if (!(CMD_FLAGS(sc) & FNIC_IO_ISSUED))
+				shost_printk(KERN_ERR, fnic->lport->host,
+				"Calling done for IO not issued to fw: tag:0x%x sc:0x%p\n",
+				 sc->request->tag, sc);
+
 			FNIC_TRACE(fnic_cleanup_io,
 				  sc->device->host->host_no, i, sc,
 				  jiffies_to_msecs(jiffies - start_time),
