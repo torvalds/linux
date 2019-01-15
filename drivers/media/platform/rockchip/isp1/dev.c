@@ -699,6 +699,13 @@ static const char * const rk3326_isp_clks[] = {
 	"pclk_isp",
 };
 
+static const char * const rk3368_isp_clks[] = {
+	"clk_isp",
+	"aclk_isp",
+	"hclk_isp",
+	"pclk_isp",
+};
+
 static const char * const rk3399_isp_clks[] = {
 	"clk_isp",
 	"aclk_isp",
@@ -724,6 +731,11 @@ static const unsigned int rk3326_isp_clk_rate[] = {
 };
 
 /* isp clock adjustment table (MHz) */
+static const unsigned int rk3368_isp_clk_rate[] = {
+	300, 400, 600
+};
+
+/* isp clock adjustment table (MHz) */
 static const unsigned int rk3399_isp_clk_rate[] = {
 	300, 400, 600
 };
@@ -742,6 +754,10 @@ static struct isp_irqs_data rk3326_isp_irqs[] = {
 	{"isp_irq", rkisp1_isp_irq_hdl},
 	{"mi_irq", rkisp1_mi_irq_hdl},
 	{"mipi_irq", rkisp1_mipi_irq_hdl}
+};
+
+static struct isp_irqs_data rk3368_isp_irqs[] = {
+	{"isp_irq", rkisp1_irq_handler}
 };
 
 static struct isp_irqs_data rk3399_isp_irqs[] = {
@@ -778,6 +794,16 @@ static const struct isp_match_data rk3326_isp_match_data = {
 	.num_irqs = ARRAY_SIZE(rk3326_isp_irqs)
 };
 
+static const struct isp_match_data rk3368_isp_match_data = {
+	.clks = rk3368_isp_clks,
+	.num_clks = ARRAY_SIZE(rk3368_isp_clks),
+	.isp_ver = ISP_V10,
+	.clk_rate_tbl = rk3368_isp_clk_rate,
+	.num_clk_rate_tbl = ARRAY_SIZE(rk3368_isp_clk_rate),
+	.irqs = rk3368_isp_irqs,
+	.num_irqs = ARRAY_SIZE(rk3368_isp_irqs)
+};
+
 static const struct isp_match_data rk3399_isp_match_data = {
 	.clks = rk3399_isp_clks,
 	.num_clks = ARRAY_SIZE(rk3399_isp_clks),
@@ -798,6 +824,9 @@ static const struct of_device_id rkisp1_plat_of_match[] = {
 	}, {
 		.compatible = "rockchip,rk3326-rkisp1",
 		.data = &rk3326_isp_match_data,
+	}, {
+		.compatible = "rockchip,rk3368-rkisp1",
+		.data = &rk3368_isp_match_data,
 	}, {
 		.compatible = "rockchip,rk3399-rkisp1",
 		.data = &rk3399_isp_match_data,
