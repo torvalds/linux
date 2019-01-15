@@ -409,6 +409,9 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 	len += snprintf(debug->debug_buffer + len, buf_size - len,
 		  "Last ISR time: %llu (%8llu.%09lu)\n"
 		  "Last ACK time: %llu (%8llu.%09lu)\n"
+		  "Max ISR jiffies: %llu\n"
+		  "Max ISR time (ms) (0 denotes < 1 ms): %llu\n"
+		  "Corr. work done: %llu\n"
 		  "Number of ISRs: %lld\n"
 		  "Maximum CQ Entries: %lld\n"
 		  "Number of ACK index out of range: %lld\n"
@@ -428,6 +431,9 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 		  (s64)val1.tv_sec, val1.tv_nsec,
 		  (u64)stats->misc_stats.last_ack_time,
 		  (s64)val2.tv_sec, val2.tv_nsec,
+		  (u64)atomic64_read(&stats->misc_stats.max_isr_jiffies),
+		  (u64)atomic64_read(&stats->misc_stats.max_isr_time_ms),
+		  (u64)atomic64_read(&stats->misc_stats.corr_work_done),
 		  (u64)atomic64_read(&stats->misc_stats.isr_count),
 		  (u64)atomic64_read(&stats->misc_stats.max_cq_entries),
 		  (u64)atomic64_read(&stats->misc_stats.ack_index_out_of_range),

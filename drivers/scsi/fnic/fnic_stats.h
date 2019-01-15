@@ -97,6 +97,9 @@ struct vlan_stats {
 struct misc_stats {
 	u64 last_isr_time;
 	u64 last_ack_time;
+	atomic64_t max_isr_jiffies;
+	atomic64_t max_isr_time_ms;
+	atomic64_t corr_work_done;
 	atomic64_t isr_count;
 	atomic64_t max_cq_entries;
 	atomic64_t ack_index_out_of_range;
