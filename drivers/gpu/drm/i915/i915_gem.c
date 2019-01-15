@@ -3178,7 +3178,7 @@ void i915_gem_set_wedged(struct drm_i915_private *i915)
 
 	GEM_TRACE("start\n");
 
-	if (GEM_SHOW_DEBUG()) {
+	if (GEM_SHOW_DEBUG() && !intel_engines_are_idle(i915)) {
 		struct drm_printer p = drm_debug_printer(__func__);
 
 		for_each_engine(engine, i915, id)
