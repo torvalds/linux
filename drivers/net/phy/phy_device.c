@@ -1277,6 +1277,36 @@ struct phy_device *phy_attach(struct net_device *dev, const char *bus_id,
 }
 EXPORT_SYMBOL(phy_attach);
 
+static bool phy_driver_is_genphy_kind(struct phy_device *phydev,
+				      struct device_driver *driver)
+{
+	struct device *d = &phydev->mdio.dev;
+	bool ret = false;
+
+	if (!phydev->drv)
+		return ret;
+
+	get_device(d);
+	ret = d->driver == driver;
+	put_device(d);
+
+	return ret;
+}
+
+bool phy_driver_is_genphy(struct phy_device *phydev)
+{
+	return phy_driver_is_genphy_kind(phydev,
+					 &genphy_driver.mdiodrv.driver);
+}
+EXPORT_SYMBOL_GPL(phy_driver_is_genphy);
+
+bool phy_driver_is_genphy_10g(struct phy_device *phydev)
+{
+	return phy_driver_is_genphy_kind(phydev,
+					 &genphy_10g_driver.mdiodrv.driver);
+}
+EXPORT_SYMBOL_GPL(phy_driver_is_genphy_10g);
+
 /**
  * phy_detach - detach a PHY device from its network device
  * @phydev: target phy_device struct
@@ -1308,8 +1338,8 @@ void phy_detach(struct phy_device *phydev)
 	 * from the generic driver so that there's a chance a
 	 * real driver could be loaded
 	 */
-	if (phydev->mdio.dev.driver == &genphy_10g_driver.mdiodrv.driver ||
-	    phydev->mdio.dev.driver == &genphy_driver.mdiodrv.driver)
+	if (phy_driver_is_genphy(phydev) ||
+	    phy_driver_is_genphy_10g(phydev))
 		device_release_driver(&phydev->mdio.dev);
 
 	/*
