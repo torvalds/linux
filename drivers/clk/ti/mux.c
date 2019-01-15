@@ -143,7 +143,7 @@ static struct clk *_register_mux(struct device *dev, const char *name,
 
 	init.name = name;
 	init.ops = &ti_clk_mux_ops;
-	init.flags = flags | CLK_IS_BASIC;
+	init.flags = flags;
 	init.parent_names = parent_names;
 	init.num_parents = num_parents;
 

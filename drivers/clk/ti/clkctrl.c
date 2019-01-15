@@ -276,7 +276,7 @@ _ti_clkctrl_clk_register(struct omap_clkctrl_provider *provider,
 	init.parent_names = parents;
 	init.num_parents = num_parents;
 	init.ops = ops;
-	init.flags = CLK_IS_BASIC;
+	init.flags = 0;
 
 	clk = ti_clk_register(NULL, clk_hw, init.name);
 	if (IS_ERR_OR_NULL(clk)) {
