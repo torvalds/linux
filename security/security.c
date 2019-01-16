@@ -530,7 +530,7 @@ int lsm_inode_alloc(struct inode *inode)
  *
  * Returns 0, or -ENOMEM if memory can't be allocated.
  */
-int lsm_task_alloc(struct task_struct *task)
+static int lsm_task_alloc(struct task_struct *task)
 {
 	if (blob_sizes.lbs_task == 0) {
 		task->security = NULL;
@@ -551,7 +551,7 @@ int lsm_task_alloc(struct task_struct *task)
  *
  * Returns 0, or -ENOMEM if memory can't be allocated.
  */
-int lsm_ipc_alloc(struct kern_ipc_perm *kip)
+static int lsm_ipc_alloc(struct kern_ipc_perm *kip)
 {
 	if (blob_sizes.lbs_ipc == 0) {
 		kip->security = NULL;
@@ -572,7 +572,7 @@ int lsm_ipc_alloc(struct kern_ipc_perm *kip)
  *
  * Returns 0, or -ENOMEM if memory can't be allocated.
  */
-int lsm_msg_msg_alloc(struct msg_msg *mp)
+static int lsm_msg_msg_alloc(struct msg_msg *mp)
 {
 	if (blob_sizes.lbs_msg_msg == 0) {
 		mp->security = NULL;
