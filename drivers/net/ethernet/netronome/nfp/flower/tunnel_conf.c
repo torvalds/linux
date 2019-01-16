@@ -205,15 +205,15 @@ static bool nfp_tun_has_route(struct nfp_app *app, __be32 ipv4_addr)
 	struct nfp_ipv4_route_entry *entry;
 	struct list_head *ptr, *storage;
 
-	spin_lock_bh(&priv->nfp_neigh_off_lock);
-	list_for_each_safe(ptr, storage, &priv->nfp_neigh_off_list) {
+	spin_lock_bh(&priv->tun.neigh_off_lock);
+	list_for_each_safe(ptr, storage, &priv->tun.neigh_off_list) {
 		entry = list_entry(ptr, struct nfp_ipv4_route_entry, list);
 		if (entry->ipv4_addr == ipv4_addr) {
-			spin_unlock_bh(&priv->nfp_neigh_off_lock);
+			spin_unlock_bh(&priv->tun.neigh_off_lock);
 			return true;
 		}
 	}
-	spin_unlock_bh(&priv->nfp_neigh_off_lock);
+	spin_unlock_bh(&priv->tun.neigh_off_lock);
 	return false;
 }
 
@@ -223,24 +223,24 @@ static void nfp_tun_add_route_to_cache(struct nfp_app *app, __be32 ipv4_addr)
 	struct nfp_ipv4_route_entry *entry;
 	struct list_head *ptr, *storage;
 
-	spin_lock_bh(&priv->nfp_neigh_off_lock);
-	list_for_each_safe(ptr, storage, &priv->nfp_neigh_off_list) {
+	spin_lock_bh(&priv->tun.neigh_off_lock);
+	list_for_each_safe(ptr, storage, &priv->tun.neigh_off_list) {
 		entry = list_entry(ptr, struct nfp_ipv4_route_entry, list);
 		if (entry->ipv4_addr == ipv4_addr) {
-			spin_unlock_bh(&priv->nfp_neigh_off_lock);
+			spin_unlock_bh(&priv->tun.neigh_off_lock);
 			return;
 		}
 	}
 	entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
 	if (!entry) {
-		spin_unlock_bh(&priv->nfp_neigh_off_lock);
+		spin_unlock_bh(&priv->tun.neigh_off_lock);
 		nfp_flower_cmsg_warn(app, "Mem error when storing new route.\n");
 		return;
 	}
 
 	entry->ipv4_addr = ipv4_addr;
-	list_add_tail(&entry->list, &priv->nfp_neigh_off_list);
-	spin_unlock_bh(&priv->nfp_neigh_off_lock);
+	list_add_tail(&entry->list, &priv->tun.neigh_off_list);
+	spin_unlock_bh(&priv->tun.neigh_off_lock);
 }
 
 static void nfp_tun_del_route_from_cache(struct nfp_app *app, __be32 ipv4_addr)
@@ -249,8 +249,8 @@ static void nfp_tun_del_route_from_cache(struct nfp_app *app, __be32 ipv4_addr)
 	struct nfp_ipv4_route_entry *entry;
 	struct list_head *ptr, *storage;
 
-	spin_lock_bh(&priv->nfp_neigh_off_lock);
-	list_for_each_safe(ptr, storage, &priv->nfp_neigh_off_list) {
+	spin_lock_bh(&priv->tun.neigh_off_lock);
+	list_for_each_safe(ptr, storage, &priv->tun.neigh_off_list) {
 		entry = list_entry(ptr, struct nfp_ipv4_route_entry, list);
 		if (entry->ipv4_addr == ipv4_addr) {
 			list_del(&entry->list);
@@ -258,7 +258,7 @@ static void nfp_tun_del_route_from_cache(struct nfp_app *app, __be32 ipv4_addr)
 			break;
 		}
 	}
-	spin_unlock_bh(&priv->nfp_neigh_off_lock);
+	spin_unlock_bh(&priv->tun.neigh_off_lock);
 }
 
 static void
@@ -326,7 +326,7 @@ nfp_tun_neigh_event_handler(struct notifier_block *nb, unsigned long event,
 	if (!nfp_netdev_is_nfp_repr(n->dev))
 		return NOTIFY_DONE;
 
-	app_priv = container_of(nb, struct nfp_flower_priv, nfp_tun_neigh_nb);
+	app_priv = container_of(nb, struct nfp_flower_priv, tun.neigh_nb);
 	app = app_priv->app;
 
 	/* Only concerned with changes to routes already added to NFP. */
@@ -401,11 +401,11 @@ static void nfp_tun_write_ipv4_list(struct nfp_app *app)
 	int count;
 
 	memset(&payload, 0, sizeof(struct nfp_tun_ipv4_addr));
-	mutex_lock(&priv->nfp_ipv4_off_lock);
+	mutex_lock(&priv->tun.ipv4_off_lock);
 	count = 0;
-	list_for_each_safe(ptr, storage, &priv->nfp_ipv4_off_list) {
+	list_for_each_safe(ptr, storage, &priv->tun.ipv4_off_list) {
 		if (count >= NFP_FL_IPV4_ADDRS_MAX) {
-			mutex_unlock(&priv->nfp_ipv4_off_lock);
+			mutex_unlock(&priv->tun.ipv4_off_lock);
 			nfp_flower_cmsg_warn(app, "IPv4 offload exceeds limit.\n");
 			return;
 		}
@@ -413,7 +413,7 @@ static void nfp_tun_write_ipv4_list(struct nfp_app *app)
 		payload.ipv4_addr[count++] = entry->ipv4_addr;
 	}
 	payload.count = cpu_to_be32(count);
-	mutex_unlock(&priv->nfp_ipv4_off_lock);
+	mutex_unlock(&priv->tun.ipv4_off_lock);
 
 	nfp_flower_xmit_tun_conf(app, NFP_FLOWER_CMSG_TYPE_TUN_IPS,
 				 sizeof(struct nfp_tun_ipv4_addr),
@@ -426,26 +426,26 @@ void nfp_tunnel_add_ipv4_off(struct nfp_app *app, __be32 ipv4)
 	struct nfp_ipv4_addr_entry *entry;
 	struct list_head *ptr, *storage;
 
-	mutex_lock(&priv->nfp_ipv4_off_lock);
-	list_for_each_safe(ptr, storage, &priv->nfp_ipv4_off_list) {
+	mutex_lock(&priv->tun.ipv4_off_lock);
+	list_for_each_safe(ptr, storage, &priv->tun.ipv4_off_list) {
 		entry = list_entry(ptr, struct nfp_ipv4_addr_entry, list);
 		if (entry->ipv4_addr == ipv4) {
 			entry->ref_count++;
-			mutex_unlock(&priv->nfp_ipv4_off_lock);
+			mutex_unlock(&priv->tun.ipv4_off_lock);
 			return;
 		}
 	}
 
 	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry) {
-		mutex_unlock(&priv->nfp_ipv4_off_lock);
+		mutex_unlock(&priv->tun.ipv4_off_lock);
 		nfp_flower_cmsg_warn(app, "Mem error when offloading IP address.\n");
 		return;
 	}
 	entry->ipv4_addr = ipv4;
 	entry->ref_count = 1;
-	list_add_tail(&entry->list, &priv->nfp_ipv4_off_list);
-	mutex_unlock(&priv->nfp_ipv4_off_lock);
+	list_add_tail(&entry->list, &priv->tun.ipv4_off_list);
+	mutex_unlock(&priv->tun.ipv4_off_lock);
 
 	nfp_tun_write_ipv4_list(app);
 }
@@ -456,8 +456,8 @@ void nfp_tunnel_del_ipv4_off(struct nfp_app *app, __be32 ipv4)
 	struct nfp_ipv4_addr_entry *entry;
 	struct list_head *ptr, *storage;
 
-	mutex_lock(&priv->nfp_ipv4_off_lock);
-	list_for_each_safe(ptr, storage, &priv->nfp_ipv4_off_list) {
+	mutex_lock(&priv->tun.ipv4_off_lock);
+	list_for_each_safe(ptr, storage, &priv->tun.ipv4_off_list) {
 		entry = list_entry(ptr, struct nfp_ipv4_addr_entry, list);
 		if (entry->ipv4_addr == ipv4) {
 			entry->ref_count--;
@@ -468,7 +468,7 @@ void nfp_tunnel_del_ipv4_off(struct nfp_app *app, __be32 ipv4)
 			break;
 		}
 	}
-	mutex_unlock(&priv->nfp_ipv4_off_lock);
+	mutex_unlock(&priv->tun.ipv4_off_lock);
 
 	nfp_tun_write_ipv4_list(app);
 }
@@ -481,25 +481,25 @@ void nfp_tunnel_write_macs(struct nfp_app *app)
 	struct list_head *ptr, *storage;
 	int mac_count, err, pay_size;
 
-	mutex_lock(&priv->nfp_mac_off_lock);
-	if (!priv->nfp_mac_off_count) {
-		mutex_unlock(&priv->nfp_mac_off_lock);
+	mutex_lock(&priv->tun.mac_off_lock);
+	if (!priv->tun.mac_off_count) {
+		mutex_unlock(&priv->tun.mac_off_lock);
 		return;
 	}
 
 	pay_size = sizeof(struct nfp_tun_mac_addr) +
-		   sizeof(struct index_mac_addr) * priv->nfp_mac_off_count;
+		   sizeof(struct index_mac_addr) * priv->tun.mac_off_count;
 
 	payload = kzalloc(pay_size, GFP_KERNEL);
 	if (!payload) {
-		mutex_unlock(&priv->nfp_mac_off_lock);
+		mutex_unlock(&priv->tun.mac_off_lock);
 		return;
 	}
 
-	payload->count = cpu_to_be16(priv->nfp_mac_off_count);
+	payload->count = cpu_to_be16(priv->tun.mac_off_count);
 
 	mac_count = 0;
-	list_for_each_safe(ptr, storage, &priv->nfp_mac_off_list) {
+	list_for_each_safe(ptr, storage, &priv->tun.mac_off_list) {
 		entry = list_entry(ptr, struct nfp_tun_mac_offload_entry,
 				   list);
 		payload->addresses[mac_count].index = entry->index;
@@ -514,21 +514,21 @@ void nfp_tunnel_write_macs(struct nfp_app *app)
 	kfree(payload);
 
 	if (err) {
-		mutex_unlock(&priv->nfp_mac_off_lock);
+		mutex_unlock(&priv->tun.mac_off_lock);
 		/* Write failed so retain list for future retry. */
 		return;
 	}
 
 	/* If list was successfully offloaded, flush it. */
-	list_for_each_safe(ptr, storage, &priv->nfp_mac_off_list) {
+	list_for_each_safe(ptr, storage, &priv->tun.mac_off_list) {
 		entry = list_entry(ptr, struct nfp_tun_mac_offload_entry,
 				   list);
 		list_del(&entry->list);
 		kfree(entry);
 	}
 
-	priv->nfp_mac_off_count = 0;
-	mutex_unlock(&priv->nfp_mac_off_lock);
+	priv->tun.mac_off_count = 0;
+	mutex_unlock(&priv->tun.mac_off_lock);
 }
 
 static int nfp_tun_get_mac_idx(struct nfp_app *app, int ifindex)
@@ -538,32 +538,32 @@ static int nfp_tun_get_mac_idx(struct nfp_app *app, int ifindex)
 	struct list_head *ptr, *storage;
 	int idx;
 
-	mutex_lock(&priv->nfp_mac_index_lock);
-	list_for_each_safe(ptr, storage, &priv->nfp_mac_index_list) {
+	mutex_lock(&priv->tun.mac_index_lock);
+	list_for_each_safe(ptr, storage, &priv->tun.mac_index_list) {
 		entry = list_entry(ptr, struct nfp_tun_mac_non_nfp_idx, list);
 		if (entry->ifindex == ifindex) {
 			idx = entry->index;
-			mutex_unlock(&priv->nfp_mac_index_lock);
+			mutex_unlock(&priv->tun.mac_index_lock);
 			return idx;
 		}
 	}
 
-	idx = ida_simple_get(&priv->nfp_mac_off_ids, 0,
+	idx = ida_simple_get(&priv->tun.mac_off_ids, 0,
 			     NFP_MAX_MAC_INDEX, GFP_KERNEL);
 	if (idx < 0) {
-		mutex_unlock(&priv->nfp_mac_index_lock);
+		mutex_unlock(&priv->tun.mac_index_lock);
 		return idx;
 	}
 
 	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry) {
-		mutex_unlock(&priv->nfp_mac_index_lock);
+		mutex_unlock(&priv->tun.mac_index_lock);
 		return -ENOMEM;
 	}
 	entry->ifindex = ifindex;
 	entry->index = idx;
-	list_add_tail(&entry->list, &priv->nfp_mac_index_list);
-	mutex_unlock(&priv->nfp_mac_index_lock);
+	list_add_tail(&entry->list, &priv->tun.mac_index_list);
+	mutex_unlock(&priv->tun.mac_index_lock);
 
 	return idx;
 }
@@ -574,18 +574,18 @@ static void nfp_tun_del_mac_idx(struct nfp_app *app, int ifindex)
 	struct nfp_tun_mac_non_nfp_idx *entry;
 	struct list_head *ptr, *storage;
 
-	mutex_lock(&priv->nfp_mac_index_lock);
-	list_for_each_safe(ptr, storage, &priv->nfp_mac_index_list) {
+	mutex_lock(&priv->tun.mac_index_lock);
+	list_for_each_safe(ptr, storage, &priv->tun.mac_index_list) {
 		entry = list_entry(ptr, struct nfp_tun_mac_non_nfp_idx, list);
 		if (entry->ifindex == ifindex) {
-			ida_simple_remove(&priv->nfp_mac_off_ids,
+			ida_simple_remove(&priv->tun.mac_off_ids,
 					  entry->index);
 			list_del(&entry->list);
 			kfree(entry);
 			break;
 		}
 	}
-	mutex_unlock(&priv->nfp_mac_index_lock);
+	mutex_unlock(&priv->tun.mac_index_lock);
 }
 
 static void nfp_tun_add_to_mac_offload_list(struct net_device *netdev,
@@ -633,10 +633,10 @@ static void nfp_tun_add_to_mac_offload_list(struct net_device *netdev,
 	entry->index = cpu_to_be16(nfp_mac_idx);
 	ether_addr_copy(entry->addr, netdev->dev_addr);
 
-	mutex_lock(&priv->nfp_mac_off_lock);
-	priv->nfp_mac_off_count++;
-	list_add_tail(&entry->list, &priv->nfp_mac_off_list);
-	mutex_unlock(&priv->nfp_mac_off_lock);
+	mutex_lock(&priv->tun.mac_off_lock);
+	priv->tun.mac_off_count++;
+	list_add_tail(&entry->list, &priv->tun.mac_off_list);
+	mutex_unlock(&priv->tun.mac_off_lock);
 }
 
 int nfp_tunnel_mac_event_handler(struct nfp_app *app,
@@ -662,23 +662,23 @@ int nfp_tunnel_config_start(struct nfp_app *app)
 	struct nfp_flower_priv *priv = app->priv;
 
 	/* Initialise priv data for MAC offloading. */
-	priv->nfp_mac_off_count = 0;
-	mutex_init(&priv->nfp_mac_off_lock);
-	INIT_LIST_HEAD(&priv->nfp_mac_off_list);
-	mutex_init(&priv->nfp_mac_index_lock);
-	INIT_LIST_HEAD(&priv->nfp_mac_index_list);
-	ida_init(&priv->nfp_mac_off_ids);
+	priv->tun.mac_off_count = 0;
+	mutex_init(&priv->tun.mac_off_lock);
+	INIT_LIST_HEAD(&priv->tun.mac_off_list);
+	mutex_init(&priv->tun.mac_index_lock);
+	INIT_LIST_HEAD(&priv->tun.mac_index_list);
+	ida_init(&priv->tun.mac_off_ids);
 
 	/* Initialise priv data for IPv4 offloading. */
-	mutex_init(&priv->nfp_ipv4_off_lock);
-	INIT_LIST_HEAD(&priv->nfp_ipv4_off_list);
+	mutex_init(&priv->tun.ipv4_off_lock);
+	INIT_LIST_HEAD(&priv->tun.ipv4_off_list);
 
 	/* Initialise priv data for neighbour offloading. */
-	spin_lock_init(&priv->nfp_neigh_off_lock);
-	INIT_LIST_HEAD(&priv->nfp_neigh_off_list);
-	priv->nfp_tun_neigh_nb.notifier_call = nfp_tun_neigh_event_handler;
+	spin_lock_init(&priv->tun.neigh_off_lock);
+	INIT_LIST_HEAD(&priv->tun.neigh_off_list);
+	priv->tun.neigh_nb.notifier_call = nfp_tun_neigh_event_handler;
 
-	return register_netevent_notifier(&priv->nfp_tun_neigh_nb);
+	return register_netevent_notifier(&priv->tun.neigh_nb);
 }
 
 void nfp_tunnel_config_stop(struct nfp_app *app)
@@ -690,10 +690,10 @@ void nfp_tunnel_config_stop(struct nfp_app *app)
 	struct nfp_ipv4_addr_entry *ip_entry;
 	struct list_head *ptr, *storage;
 
-	unregister_netevent_notifier(&priv->nfp_tun_neigh_nb);
+	unregister_netevent_notifier(&priv->tun.neigh_nb);
 
 	/* Free any memory that may be occupied by MAC list. */
-	list_for_each_safe(ptr, storage, &priv->nfp_mac_off_list) {
+	list_for_each_safe(ptr, storage, &priv->tun.mac_off_list) {
 		mac_entry = list_entry(ptr, struct nfp_tun_mac_offload_entry,
 				       list);
 		list_del(&mac_entry->list);
@@ -701,24 +701,24 @@ void nfp_tunnel_config_stop(struct nfp_app *app)
 	}
 
 	/* Free any memory that may be occupied by MAC index list. */
-	list_for_each_safe(ptr, storage, &priv->nfp_mac_index_list) {
+	list_for_each_safe(ptr, storage, &priv->tun.mac_index_list) {
 		mac_idx = list_entry(ptr, struct nfp_tun_mac_non_nfp_idx,
 				     list);
 		list_del(&mac_idx->list);
 		kfree(mac_idx);
 	}
 
-	ida_destroy(&priv->nfp_mac_off_ids);
+	ida_destroy(&priv->tun.mac_off_ids);
 
 	/* Free any memory that may be occupied by ipv4 list. */
-	list_for_each_safe(ptr, storage, &priv->nfp_ipv4_off_list) {
+	list_for_each_safe(ptr, storage, &priv->tun.ipv4_off_list) {
 		ip_entry = list_entry(ptr, struct nfp_ipv4_addr_entry, list);
 		list_del(&ip_entry->list);
 		kfree(ip_entry);
 	}
 
 	/* Free any memory that may be occupied by the route list. */
-	list_for_each_safe(ptr, storage, &priv->nfp_neigh_off_list) {
+	list_for_each_safe(ptr, storage, &priv->tun.neigh_off_list) {
 		route_entry = list_entry(ptr, struct nfp_ipv4_route_entry,
 					 list);
 		list_del(&route_entry->list);
