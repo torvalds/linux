@@ -743,6 +743,7 @@ static irqreturn_t jz_mmc_irq_worker(int irq, void *devid)
 			break;
 
 		jz_mmc_prepare_data_transfer(host);
+		/* fall through */
 
 	case JZ4740_MMC_STATE_TRANSFER_DATA:
 		if (host->use_dma) {
@@ -777,6 +778,7 @@ static irqreturn_t jz_mmc_irq_worker(int irq, void *devid)
 			break;
 		}
 		jz4740_mmc_write_irq_reg(host, JZ_MMC_IRQ_DATA_TRAN_DONE);
+		/* fall through */
 
 	case JZ4740_MMC_STATE_SEND_STOP:
 		if (!req->stop)
