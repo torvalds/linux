@@ -5128,6 +5128,29 @@ cfg80211_inform_bss_frame(struct wiphy *wiphy,
 }
 
 /**
+ * cfg80211_gen_new_bssid - generate a nontransmitted BSSID for multi-BSSID
+ * @bssid: transmitter BSSID
+ * @max_bssid: max BSSID indicator, taken from Multiple BSSID element
+ * @mbssid_index: BSSID index, taken from Multiple BSSID index element
+ * @new_bssid_addr: address of the resulting BSSID
+ */
+static inline void cfg80211_gen_new_bssid(const u8 *bssid, u8 max_bssid,
+					  u8 mbssid_index, u8 *new_bssid_addr)
+{
+	u64 bssid_tmp, new_bssid;
+	u64 lsb_n;
+
+	bssid_tmp = ether_addr_to_u64(bssid);
+
+	lsb_n = bssid_tmp & ((1 << max_bssid) - 1);
+	new_bssid = bssid_tmp;
+	new_bssid &= ~((1 << max_bssid) - 1);
+	new_bssid |= (lsb_n + mbssid_index) % (1 << max_bssid);
+
+	u64_to_ether_addr(new_bssid, new_bssid_addr);
+}
+
+/**
  * enum cfg80211_bss_frame_type - frame type that the BSS data came from
  * @CFG80211_BSS_FTYPE_UNKNOWN: driver doesn't know whether the data is
  *	from a beacon or probe response
