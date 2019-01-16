@@ -146,7 +146,7 @@ hash_by_src(const struct net *n, const struct nf_conntrack_tuple *tuple)
 }
 
 /* Is this tuple already taken? (not by us) */
-int
+static int
 nf_nat_used_tuple(const struct nf_conntrack_tuple *tuple,
 		  const struct nf_conn *ignored_conntrack)
 {
@@ -161,7 +161,6 @@ nf_nat_used_tuple(const struct nf_conntrack_tuple *tuple,
 	nf_ct_invert_tuple(&reply, tuple);
 	return nf_conntrack_tuple_taken(&reply, ignored_conntrack);
 }
-EXPORT_SYMBOL(nf_nat_used_tuple);
 
 static bool nf_nat_inet_in_range(const struct nf_conntrack_tuple *t,
 				 const struct nf_nat_range2 *range)
