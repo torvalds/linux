@@ -150,6 +150,7 @@ struct pca953x_chip {
 	u8 irq_stat[MAX_BANK];
 	u8 irq_trig_raise[MAX_BANK];
 	u8 irq_trig_fall[MAX_BANK];
+	struct irq_chip irq_chip;
 #endif
 
 	struct i2c_client *client;
@@ -594,16 +595,6 @@ static void pca953x_irq_shutdown(struct irq_data *d)
 	chip->irq_trig_fall[d->hwirq / BANK_SZ] &= ~mask;
 }
 
-static struct irq_chip pca953x_irq_chip = {
-	.name			= "pca953x",
-	.irq_mask		= pca953x_irq_mask,
-	.irq_unmask		= pca953x_irq_unmask,
-	.irq_bus_lock		= pca953x_irq_bus_lock,
-	.irq_bus_sync_unlock	= pca953x_irq_bus_sync_unlock,
-	.irq_set_type		= pca953x_irq_set_type,
-	.irq_shutdown		= pca953x_irq_shutdown,
-};
-
 static bool pca953x_irq_pending(struct pca953x_chip *chip, u8 *pending)
 {
 	u8 cur_stat[MAX_BANK];
@@ -699,6 +690,7 @@ static int pca953x_irq_setup(struct pca953x_chip *chip,
 			     int irq_base)
 {
 	struct i2c_client *client = chip->client;
+	struct irq_chip *irq_chip = &chip->irq_chip;
 	int reg_direction[MAX_BANK];
 	int ret, i;
 
@@ -737,7 +729,15 @@ static int pca953x_irq_setup(struct pca953x_chip *chip,
 		return ret;
 	}
 
-	ret =  gpiochip_irqchip_add_nested(&chip->gpio_chip, &pca953x_irq_chip,
+	irq_chip->name = dev_name(&chip->client->dev);
+	irq_chip->irq_mask = pca953x_irq_mask;
+	irq_chip->irq_unmask = pca953x_irq_unmask;
+	irq_chip->irq_bus_lock = pca953x_irq_bus_lock;
+	irq_chip->irq_bus_sync_unlock = pca953x_irq_bus_sync_unlock;
+	irq_chip->irq_set_type = pca953x_irq_set_type;
+	irq_chip->irq_shutdown = pca953x_irq_shutdown;
+
+	ret =  gpiochip_irqchip_add_nested(&chip->gpio_chip, irq_chip,
 					   irq_base, handle_simple_irq,
 					   IRQ_TYPE_NONE);
 	if (ret) {
@@ -746,8 +746,7 @@ static int pca953x_irq_setup(struct pca953x_chip *chip,
 		return ret;
 	}
 
-	gpiochip_set_nested_irqchip(&chip->gpio_chip, &pca953x_irq_chip,
-				    client->irq);
+	gpiochip_set_nested_irqchip(&chip->gpio_chip, irq_chip, client->irq);
 
 	return 0;
 }
