@@ -143,7 +143,7 @@ static
 #endif
 struct lock_class lock_classes[MAX_LOCKDEP_KEYS];
 
-inline struct lock_class *lockdep_hlock_class(struct held_lock *hlock)
+static inline struct lock_class *hlock_class(struct held_lock *hlock)
 {
 	if (!hlock->class_idx) {
 		/*
@@ -154,8 +154,6 @@ inline struct lock_class *lockdep_hlock_class(struct held_lock *hlock)
 	}
 	return lock_classes + hlock->class_idx - 1;
 }
-EXPORT_SYMBOL_GPL(lockdep_hlock_class);
-#define hlock_class(hlock) lockdep_hlock_class(hlock)
 
 #ifdef CONFIG_LOCK_STAT
 static DEFINE_PER_CPU(struct lock_class_stats[MAX_LOCKDEP_KEYS], cpu_lock_stats);
