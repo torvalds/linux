@@ -321,8 +321,8 @@ skl_program_scaler(struct intel_plane *plane,
 		&crtc_state->scaler_state.scalers[scaler_id];
 	int crtc_x = plane_state->base.dst.x1;
 	int crtc_y = plane_state->base.dst.y1;
-	uint32_t crtc_w = drm_rect_width(&plane_state->base.dst);
-	uint32_t crtc_h = drm_rect_height(&plane_state->base.dst);
+	u32 crtc_w = drm_rect_width(&plane_state->base.dst);
+	u32 crtc_h = drm_rect_height(&plane_state->base.dst);
 	u16 y_hphase, uv_rgb_hphase;
 	u16 y_vphase, uv_rgb_vphase;
 	int hscale, vscale;
@@ -477,10 +477,10 @@ skl_program_plane(struct intel_plane *plane,
 	u32 aux_stride = skl_plane_stride(plane_state, 1);
 	int crtc_x = plane_state->base.dst.x1;
 	int crtc_y = plane_state->base.dst.y1;
-	uint32_t x = plane_state->color_plane[color_plane].x;
-	uint32_t y = plane_state->color_plane[color_plane].y;
-	uint32_t src_w = drm_rect_width(&plane_state->base.src) >> 16;
-	uint32_t src_h = drm_rect_height(&plane_state->base.src) >> 16;
+	u32 x = plane_state->color_plane[color_plane].x;
+	u32 y = plane_state->color_plane[color_plane].y;
+	u32 src_w = drm_rect_width(&plane_state->base.src) >> 16;
+	u32 src_h = drm_rect_height(&plane_state->base.src) >> 16;
 	struct intel_plane *linked = plane_state->linked_plane;
 	const struct drm_framebuffer *fb = plane_state->base.fb;
 	u8 alpha = plane_state->base.alpha >> 8;
@@ -814,10 +814,10 @@ vlv_update_plane(struct intel_plane *plane,
 	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
 	int crtc_x = plane_state->base.dst.x1;
 	int crtc_y = plane_state->base.dst.y1;
-	uint32_t crtc_w = drm_rect_width(&plane_state->base.dst);
-	uint32_t crtc_h = drm_rect_height(&plane_state->base.dst);
-	uint32_t x = plane_state->color_plane[0].x;
-	uint32_t y = plane_state->color_plane[0].y;
+	u32 crtc_w = drm_rect_width(&plane_state->base.dst);
+	u32 crtc_h = drm_rect_height(&plane_state->base.dst);
+	u32 x = plane_state->color_plane[0].x;
+	u32 y = plane_state->color_plane[0].y;
 	unsigned long irqflags;
 
 	/* Sizes are 0 based */
@@ -976,12 +976,12 @@ ivb_update_plane(struct intel_plane *plane,
 	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
 	int crtc_x = plane_state->base.dst.x1;
 	int crtc_y = plane_state->base.dst.y1;
-	uint32_t crtc_w = drm_rect_width(&plane_state->base.dst);
-	uint32_t crtc_h = drm_rect_height(&plane_state->base.dst);
-	uint32_t x = plane_state->color_plane[0].x;
-	uint32_t y = plane_state->color_plane[0].y;
-	uint32_t src_w = drm_rect_width(&plane_state->base.src) >> 16;
-	uint32_t src_h = drm_rect_height(&plane_state->base.src) >> 16;
+	u32 crtc_w = drm_rect_width(&plane_state->base.dst);
+	u32 crtc_h = drm_rect_height(&plane_state->base.dst);
+	u32 x = plane_state->color_plane[0].x;
+	u32 y = plane_state->color_plane[0].y;
+	u32 src_w = drm_rect_width(&plane_state->base.src) >> 16;
+	u32 src_h = drm_rect_height(&plane_state->base.src) >> 16;
 	unsigned long irqflags;
 
 	/* Sizes are 0 based */
@@ -1152,12 +1152,12 @@ g4x_update_plane(struct intel_plane *plane,
 	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
 	int crtc_x = plane_state->base.dst.x1;
 	int crtc_y = plane_state->base.dst.y1;
-	uint32_t crtc_w = drm_rect_width(&plane_state->base.dst);
-	uint32_t crtc_h = drm_rect_height(&plane_state->base.dst);
-	uint32_t x = plane_state->color_plane[0].x;
-	uint32_t y = plane_state->color_plane[0].y;
-	uint32_t src_w = drm_rect_width(&plane_state->base.src) >> 16;
-	uint32_t src_h = drm_rect_height(&plane_state->base.src) >> 16;
+	u32 crtc_w = drm_rect_width(&plane_state->base.dst);
+	u32 crtc_h = drm_rect_height(&plane_state->base.dst);
+	u32 x = plane_state->color_plane[0].x;
+	u32 y = plane_state->color_plane[0].y;
+	u32 src_w = drm_rect_width(&plane_state->base.src) >> 16;
+	u32 src_h = drm_rect_height(&plane_state->base.src) >> 16;
 	unsigned long irqflags;
 
 	/* Sizes are 0 based */
@@ -1706,7 +1706,7 @@ out:
 	return ret;
 }
 
-static const uint32_t g4x_plane_formats[] = {
+static const u32 g4x_plane_formats[] = {
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_YUYV,
 	DRM_FORMAT_YVYU,
@@ -1714,13 +1714,13 @@ static const uint32_t g4x_plane_formats[] = {
 	DRM_FORMAT_VYUY,
 };
 
-static const uint64_t i9xx_plane_format_modifiers[] = {
+static const u64 i9xx_plane_format_modifiers[] = {
 	I915_FORMAT_MOD_X_TILED,
 	DRM_FORMAT_MOD_LINEAR,
 	DRM_FORMAT_MOD_INVALID
 };
 
-static const uint32_t snb_plane_formats[] = {
+static const u32 snb_plane_formats[] = {
 	DRM_FORMAT_XBGR8888,
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_YUYV,
@@ -1729,7 +1729,7 @@ static const uint32_t snb_plane_formats[] = {
 	DRM_FORMAT_VYUY,
 };
 
-static const uint32_t vlv_plane_formats[] = {
+static const u32 vlv_plane_formats[] = {
 	DRM_FORMAT_RGB565,
 	DRM_FORMAT_ABGR8888,
 	DRM_FORMAT_ARGB8888,
@@ -1743,7 +1743,7 @@ static const uint32_t vlv_plane_formats[] = {
 	DRM_FORMAT_VYUY,
 };
 
-static const uint32_t skl_plane_formats[] = {
+static const u32 skl_plane_formats[] = {
 	DRM_FORMAT_C8,
 	DRM_FORMAT_RGB565,
 	DRM_FORMAT_XRGB8888,
@@ -1758,7 +1758,7 @@ static const uint32_t skl_plane_formats[] = {
 	DRM_FORMAT_VYUY,
 };
 
-static const uint32_t skl_planar_formats[] = {
+static const u32 skl_planar_formats[] = {
 	DRM_FORMAT_C8,
 	DRM_FORMAT_RGB565,
 	DRM_FORMAT_XRGB8888,
@@ -1774,7 +1774,7 @@ static const uint32_t skl_planar_formats[] = {
 	DRM_FORMAT_NV12,
 };
 
-static const uint64_t skl_plane_format_modifiers_noccs[] = {
+static const u64 skl_plane_format_modifiers_noccs[] = {
 	I915_FORMAT_MOD_Yf_TILED,
 	I915_FORMAT_MOD_Y_TILED,
 	I915_FORMAT_MOD_X_TILED,
@@ -1782,7 +1782,7 @@ static const uint64_t skl_plane_format_modifiers_noccs[] = {
 	DRM_FORMAT_MOD_INVALID
 };
 
-static const uint64_t skl_plane_format_modifiers_ccs[] = {
+static const u64 skl_plane_format_modifiers_ccs[] = {
 	I915_FORMAT_MOD_Yf_TILED_CCS,
 	I915_FORMAT_MOD_Y_TILED_CCS,
 	I915_FORMAT_MOD_Yf_TILED,
