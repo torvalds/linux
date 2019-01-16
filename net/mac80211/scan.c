@@ -8,6 +8,7 @@
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
  * Copyright 2013-2015  Intel Mobile Communications GmbH
  * Copyright 2016-2017  Intel Deutschland GmbH
+ * Copyright (C) 2018-2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -61,7 +62,6 @@ struct ieee80211_bss *
 ieee80211_bss_info_update(struct ieee80211_local *local,
 			  struct ieee80211_rx_status *rx_status,
 			  struct ieee80211_mgmt *mgmt, size_t len,
-			  struct ieee802_11_elems *elems,
 			  struct ieee80211_channel *channel)
 {
 	bool beacon = ieee80211_is_beacon(mgmt->frame_control);
@@ -73,6 +73,9 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 	};
 	bool signal_valid;
 	struct ieee80211_sub_if_data *scan_sdata;
+	struct ieee802_11_elems elems;
+	size_t baselen;
+	u8 *elements;
 
 	if (rx_status->flag & RX_FLAG_NO_SIGNAL_VAL)
 		bss_meta.signal = 0; /* invalid signal indication */
@@ -106,6 +109,22 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 					      mgmt, len, GFP_ATOMIC);
 	if (!cbss)
 		return NULL;
+
+	if (ieee80211_is_probe_resp(mgmt->frame_control)) {
+		elements = mgmt->u.probe_resp.variable;
+		baselen = offsetof(struct ieee80211_mgmt,
+				   u.probe_resp.variable);
+	} else {
+		baselen = offsetof(struct ieee80211_mgmt, u.beacon.variable);
+		elements = mgmt->u.beacon.variable;
+	}
+
+	if (baselen > len)
+		return NULL;
+
+	ieee802_11_parse_elems(elements, len - baselen, false, &elems,
+			       mgmt->bssid, cbss->bssid);
+
 	/* In case the signal is invalid update the status */
 	signal_valid = abs(channel->center_freq - cbss->channel->center_freq)
 		<= local->hw.wiphy->max_adj_channel_rssi_comp;
@@ -119,7 +138,7 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 	else
 		bss->device_ts_presp = rx_status->device_timestamp;
 
-	if (elems->parse_error) {
+	if (elems.parse_error) {
 		if (beacon)
 			bss->corrupt_data |= IEEE80211_BSS_CORRUPT_BEACON;
 		else
@@ -132,45 +151,45 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 	}
 
 	/* save the ERP value so that it is available at association time */
-	if (elems->erp_info && (!elems->parse_error ||
-				!(bss->valid_data & IEEE80211_BSS_VALID_ERP))) {
-		bss->erp_value = elems->erp_info[0];
+	if (elems.erp_info && (!elems.parse_error ||
+			       !(bss->valid_data & IEEE80211_BSS_VALID_ERP))) {
+		bss->erp_value = elems.erp_info[0];
 		bss->has_erp_value = true;
-		if (!elems->parse_error)
+		if (!elems.parse_error)
 			bss->valid_data |= IEEE80211_BSS_VALID_ERP;
 	}
 
 	/* replace old supported rates if we get new values */
-	if (!elems->parse_error ||
+	if (!elems.parse_error ||
 	    !(bss->valid_data & IEEE80211_BSS_VALID_RATES)) {
 		srlen = 0;
-		if (elems->supp_rates) {
+		if (elems.supp_rates) {
 			clen = IEEE80211_MAX_SUPP_RATES;
-			if (clen > elems->supp_rates_len)
-				clen = elems->supp_rates_len;
-			memcpy(bss->supp_rates, elems->supp_rates, clen);
+			if (clen > elems.supp_rates_len)
+				clen = elems.supp_rates_len;
+			memcpy(bss->supp_rates, elems.supp_rates, clen);
 			srlen += clen;
 		}
-		if (elems->ext_supp_rates) {
+		if (elems.ext_supp_rates) {
 			clen = IEEE80211_MAX_SUPP_RATES - srlen;
-			if (clen > elems->ext_supp_rates_len)
-				clen = elems->ext_supp_rates_len;
-			memcpy(bss->supp_rates + srlen, elems->ext_supp_rates,
+			if (clen > elems.ext_supp_rates_len)
+				clen = elems.ext_supp_rates_len;
+			memcpy(bss->supp_rates + srlen, elems.ext_supp_rates,
 			       clen);
 			srlen += clen;
 		}
 		if (srlen) {
 			bss->supp_rates_len = srlen;
-			if (!elems->parse_error)
+			if (!elems.parse_error)
 				bss->valid_data |= IEEE80211_BSS_VALID_RATES;
 		}
 	}
 
-	if (!elems->parse_error ||
+	if (!elems.parse_error ||
 	    !(bss->valid_data & IEEE80211_BSS_VALID_WMM)) {
-		bss->wmm_used = elems->wmm_param || elems->wmm_info;
-		bss->uapsd_supported = is_uapsd_supported(elems);
-		if (!elems->parse_error)
+		bss->wmm_used = elems.wmm_param || elems.wmm_info;
+		bss->uapsd_supported = is_uapsd_supported(&elems);
+		if (!elems.parse_error)
 			bss->valid_data |= IEEE80211_BSS_VALID_WMM;
 	}
 
@@ -206,10 +225,7 @@ void ieee80211_scan_rx(struct ieee80211_local *local, struct sk_buff *skb)
 	struct ieee80211_sub_if_data *sdata1, *sdata2;
 	struct ieee80211_mgmt *mgmt = (void *)skb->data;
 	struct ieee80211_bss *bss;
-	u8 *elements;
 	struct ieee80211_channel *channel;
-	size_t baselen;
-	struct ieee802_11_elems elems;
 
 	if (skb->len < 24 ||
 	    (!ieee80211_is_probe_resp(mgmt->frame_control) &&
@@ -244,18 +260,7 @@ void ieee80211_scan_rx(struct ieee80211_local *local, struct sk_buff *skb)
 		    !ieee80211_scan_accept_presp(sdata2, sched_scan_req_flags,
 						 mgmt->da))
 			return;
-
-		elements = mgmt->u.probe_resp.variable;
-		baselen = offsetof(struct ieee80211_mgmt, u.probe_resp.variable);
-	} else {
-		baselen = offsetof(struct ieee80211_mgmt, u.beacon.variable);
-		elements = mgmt->u.beacon.variable;
 	}
-
-	if (baselen > skb->len)
-		return;
-
-	ieee802_11_parse_elems(elements, skb->len - baselen, false, &elems);
 
 	channel = ieee80211_get_channel(local->hw.wiphy, rx_status->freq);
 
@@ -263,7 +268,7 @@ void ieee80211_scan_rx(struct ieee80211_local *local, struct sk_buff *skb)
 		return;
 
 	bss = ieee80211_bss_info_update(local, rx_status,
-					mgmt, skb->len, &elems,
+					mgmt, skb->len,
 					channel);
 	if (bss)
 		ieee80211_rx_bss_put(local, bss);

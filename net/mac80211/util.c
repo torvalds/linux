@@ -893,7 +893,8 @@ EXPORT_SYMBOL(ieee80211_queue_delayed_work);
 
 u32 ieee802_11_parse_elems_crc(const u8 *start, size_t len, bool action,
 			       struct ieee802_11_elems *elems,
-			       u64 filter, u32 crc)
+			       u64 filter, u32 crc, u8 *transmitter_bssid,
+			       u8 *bss_bssid)
 {
 	struct element *elem;
 	bool calc_crc = filter != 0;
