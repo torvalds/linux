@@ -117,7 +117,7 @@ _vop_total_desc_size(struct mic_device_desc __iomem *desc)
 static u64 vop_get_features(struct virtio_device *vdev)
 {
 	unsigned int i, bits;
-	u32 features = 0;
+	u64 features = 0;
 	struct mic_device_desc __iomem *desc = to_vopvdev(vdev)->desc;
 	u8 __iomem *in_features = _vop_vq_features(desc);
 	int feature_len = ioread8(&desc->feature_len);
@@ -125,7 +125,7 @@ static u64 vop_get_features(struct virtio_device *vdev)
 	bits = min_t(unsigned, feature_len, sizeof(vdev->features)) * 8;
 	for (i = 0; i < bits; i++)
 		if (ioread8(&in_features[i / 8]) & (BIT(i % 8)))
-			features |= BIT(i);
+			features |= BIT_ULL(i);
 
 	return features;
 }
