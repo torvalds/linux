@@ -8,3 +8,8 @@ menuconfig INTERCONNECT
 
 	  If unsure, say no.
 
+if INTERCONNECT
+
+source "drivers/interconnect/qcom/Kconfig"
+
+endif
