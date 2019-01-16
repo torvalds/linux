@@ -565,7 +565,7 @@ static long restore_tm_sigcontexts(struct task_struct *tsk,
 	preempt_disable();
 
 	/* pull in MSR TS bits from user context */
-	regs->msr = (regs->msr & ~MSR_TS_MASK) | (msr & MSR_TS_MASK);
+	regs->msr |= msr & MSR_TS_MASK;
 
 	/*
 	 * Ensure that TM is enabled in regs->msr before we leave the signal
@@ -744,6 +744,31 @@ SYSCALL_DEFINE0(rt_sigreturn)
 	 */
 	if (MSR_TM_SUSPENDED(mfmsr()))
 		tm_reclaim_current(0);
+
+	/*
+	 * Disable MSR[TS] bit also, so, if there is an exception in the
+	 * code below (as a page fault in copy_ckvsx_to_user()), it does
+	 * not recheckpoint this task if there was a context switch inside
+	 * the exception.
+	 *
+	 * A major page fault can indirectly call schedule(). A reschedule
+	 * process in the middle of an exception can have a side effect
+	 * (Changing the CPU MSR[TS] state), since schedule() is called
+	 * with the CPU MSR[TS] disable and returns with MSR[TS]=Suspended
+	 * (switch_to() calls tm_recheckpoint() for the 'new' process). In
+	 * this case, the process continues to be the same in the CPU, but
+	 * the CPU state just changed.
+	 *
+	 * This can cause a TM Bad Thing, since the MSR in the stack will
+	 * have the MSR[TS]=0, and this is what will be used to RFID.
+	 *
+	 * Clearing MSR[TS] state here will avoid a recheckpoint if there
+	 * is any process reschedule in kernel space. The MSR[TS] state
+	 * does not need to be saved also, since it will be replaced with
+	 * the MSR[TS] that came from user context later, at
+	 * restore_tm_sigcontexts.
+	 */
+	regs->msr &= ~MSR_TS_MASK;
 
 	if (__get_user(msr, &uc->uc_mcontext.gp_regs[PT_MSR]))
 		goto badframe;
