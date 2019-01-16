@@ -58,6 +58,85 @@ static bool is_uapsd_supported(struct ieee802_11_elems *elems)
 	return qos_info & IEEE80211_WMM_IE_AP_QOSINFO_UAPSD;
 }
 
+static void
+ieee80211_update_bss_from_elems(struct ieee80211_local *local,
+				struct ieee80211_bss *bss,
+				struct ieee802_11_elems *elems,
+				struct ieee80211_rx_status *rx_status,
+				bool beacon)
+{
+	int clen, srlen;
+
+	if (beacon)
+		bss->device_ts_beacon = rx_status->device_timestamp;
+	else
+		bss->device_ts_presp = rx_status->device_timestamp;
+
+	if (elems->parse_error) {
+		if (beacon)
+			bss->corrupt_data |= IEEE80211_BSS_CORRUPT_BEACON;
+		else
+			bss->corrupt_data |= IEEE80211_BSS_CORRUPT_PROBE_RESP;
+	} else {
+		if (beacon)
+			bss->corrupt_data &= ~IEEE80211_BSS_CORRUPT_BEACON;
+		else
+			bss->corrupt_data &= ~IEEE80211_BSS_CORRUPT_PROBE_RESP;
+	}
+
+	/* save the ERP value so that it is available at association time */
+	if (elems->erp_info && (!elems->parse_error ||
+				!(bss->valid_data & IEEE80211_BSS_VALID_ERP))) {
+		bss->erp_value = elems->erp_info[0];
+		bss->has_erp_value = true;
+		if (!elems->parse_error)
+			bss->valid_data |= IEEE80211_BSS_VALID_ERP;
+	}
+
+	/* replace old supported rates if we get new values */
+	if (!elems->parse_error ||
+	    !(bss->valid_data & IEEE80211_BSS_VALID_RATES)) {
+		srlen = 0;
+		if (elems->supp_rates) {
+			clen = IEEE80211_MAX_SUPP_RATES;
+			if (clen > elems->supp_rates_len)
+				clen = elems->supp_rates_len;
+			memcpy(bss->supp_rates, elems->supp_rates, clen);
+			srlen += clen;
+		}
+		if (elems->ext_supp_rates) {
+			clen = IEEE80211_MAX_SUPP_RATES - srlen;
+			if (clen > elems->ext_supp_rates_len)
+				clen = elems->ext_supp_rates_len;
+			memcpy(bss->supp_rates + srlen, elems->ext_supp_rates,
+			       clen);
+			srlen += clen;
+		}
+		if (srlen) {
+			bss->supp_rates_len = srlen;
+			if (!elems->parse_error)
+				bss->valid_data |= IEEE80211_BSS_VALID_RATES;
+		}
+	}
+
+	if (!elems->parse_error ||
+	    !(bss->valid_data & IEEE80211_BSS_VALID_WMM)) {
+		bss->wmm_used = elems->wmm_param || elems->wmm_info;
+		bss->uapsd_supported = is_uapsd_supported(elems);
+		if (!elems->parse_error)
+			bss->valid_data |= IEEE80211_BSS_VALID_WMM;
+	}
+
+	if (beacon) {
+		struct ieee80211_supported_band *sband =
+			local->hw.wiphy->bands[rx_status->band];
+		if (!(rx_status->encoding == RX_ENC_HT) &&
+		    !(rx_status->encoding == RX_ENC_VHT))
+			bss->beacon_rate =
+				&sband->bitrates[rx_status->rate_idx];
+	}
+}
+
 struct ieee80211_bss *
 ieee80211_bss_info_update(struct ieee80211_local *local,
 			  struct ieee80211_rx_status *rx_status,
@@ -67,7 +146,6 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 	bool beacon = ieee80211_is_beacon(mgmt->frame_control);
 	struct cfg80211_bss *cbss;
 	struct ieee80211_bss *bss;
-	int clen, srlen;
 	struct cfg80211_inform_bss bss_meta = {
 		.boottime_ns = rx_status->boottime_ns,
 	};
@@ -132,75 +210,7 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 		rx_status->flag |= RX_FLAG_NO_SIGNAL_VAL;
 
 	bss = (void *)cbss->priv;
-
-	if (beacon)
-		bss->device_ts_beacon = rx_status->device_timestamp;
-	else
-		bss->device_ts_presp = rx_status->device_timestamp;
-
-	if (elems.parse_error) {
-		if (beacon)
-			bss->corrupt_data |= IEEE80211_BSS_CORRUPT_BEACON;
-		else
-			bss->corrupt_data |= IEEE80211_BSS_CORRUPT_PROBE_RESP;
-	} else {
-		if (beacon)
-			bss->corrupt_data &= ~IEEE80211_BSS_CORRUPT_BEACON;
-		else
-			bss->corrupt_data &= ~IEEE80211_BSS_CORRUPT_PROBE_RESP;
-	}
-
-	/* save the ERP value so that it is available at association time */
-	if (elems.erp_info && (!elems.parse_error ||
-			       !(bss->valid_data & IEEE80211_BSS_VALID_ERP))) {
-		bss->erp_value = elems.erp_info[0];
-		bss->has_erp_value = true;
-		if (!elems.parse_error)
-			bss->valid_data |= IEEE80211_BSS_VALID_ERP;
-	}
-
-	/* replace old supported rates if we get new values */
-	if (!elems.parse_error ||
-	    !(bss->valid_data & IEEE80211_BSS_VALID_RATES)) {
-		srlen = 0;
-		if (elems.supp_rates) {
-			clen = IEEE80211_MAX_SUPP_RATES;
-			if (clen > elems.supp_rates_len)
-				clen = elems.supp_rates_len;
-			memcpy(bss->supp_rates, elems.supp_rates, clen);
-			srlen += clen;
-		}
-		if (elems.ext_supp_rates) {
-			clen = IEEE80211_MAX_SUPP_RATES - srlen;
-			if (clen > elems.ext_supp_rates_len)
-				clen = elems.ext_supp_rates_len;
-			memcpy(bss->supp_rates + srlen, elems.ext_supp_rates,
-			       clen);
-			srlen += clen;
-		}
-		if (srlen) {
-			bss->supp_rates_len = srlen;
-			if (!elems.parse_error)
-				bss->valid_data |= IEEE80211_BSS_VALID_RATES;
-		}
-	}
-
-	if (!elems.parse_error ||
-	    !(bss->valid_data & IEEE80211_BSS_VALID_WMM)) {
-		bss->wmm_used = elems.wmm_param || elems.wmm_info;
-		bss->uapsd_supported = is_uapsd_supported(&elems);
-		if (!elems.parse_error)
-			bss->valid_data |= IEEE80211_BSS_VALID_WMM;
-	}
-
-	if (beacon) {
-		struct ieee80211_supported_band *sband =
-			local->hw.wiphy->bands[rx_status->band];
-		if (!(rx_status->encoding == RX_ENC_HT) &&
-		    !(rx_status->encoding == RX_ENC_VHT))
-			bss->beacon_rate =
-				&sband->bitrates[rx_status->rate_idx];
-	}
+	ieee80211_update_bss_from_elems(local, bss, &elems, rx_status, beacon);
 
 	return bss;
 }
