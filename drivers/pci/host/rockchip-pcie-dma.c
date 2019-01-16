@@ -221,7 +221,7 @@ static void rk_pcie_prepare_dma(struct dma_trx_obj *obj,
 	} else {
 		table->wr_enb.enb = 0x1;
 		table->ctx_reg.ctrllo.lie = 0x1;
-		table->ctx_reg.ctrllo.rie = 0x1;
+		table->ctx_reg.ctrllo.rie = 0x0;
 		table->ctx_reg.ctrllo.td = 0x1;
 		table->ctx_reg.ctrlhi.asdword = 0x0;
 		table->ctx_reg.xfersize = buf_size;
