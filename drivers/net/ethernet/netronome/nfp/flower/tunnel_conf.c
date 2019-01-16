@@ -98,18 +98,25 @@ struct nfp_ipv4_addr_entry {
 	struct list_head list;
 };
 
+#define NFP_TUN_MAC_OFFLOAD_DEL_FLAG	0x2
+
 /**
  * struct nfp_tun_mac_addr_offload - configure MAC address of tunnel EP on NFP
- * @reserved:	reserved for future use
+ * @flags:	MAC address offload options
  * @count:	number of MAC addresses in the message (should be 1)
  * @index:	index of MAC address in the lookup table
  * @addr:	interface MAC address
  */
 struct nfp_tun_mac_addr_offload {
-	__be16 reserved;
+	__be16 flags;
 	__be16 count;
 	__be16 index;
 	u8 addr[ETH_ALEN];
+};
+
+enum nfp_flower_mac_offload_cmd {
+	NFP_TUNNEL_MAC_OFFLOAD_ADD =		0,
+	NFP_TUNNEL_MAC_OFFLOAD_DEL =		1,
 };
 
 #define NFP_MAX_MAC_INDEX       0xff
@@ -515,11 +522,15 @@ static void nfp_tun_del_mac_idx(struct nfp_app *app, int ifindex)
 	mutex_unlock(&priv->tun.mac_index_lock);
 }
 
-static int __nfp_tunnel_offload_mac(struct nfp_app *app, u8 *mac, u16 idx)
+static int
+__nfp_tunnel_offload_mac(struct nfp_app *app, u8 *mac, u16 idx, bool del)
 {
 	struct nfp_tun_mac_addr_offload payload;
 
 	memset(&payload, 0, sizeof(payload));
+
+	if (del)
+		payload.flags = cpu_to_be16(NFP_TUN_MAC_OFFLOAD_DEL_FLAG);
 
 	/* FW supports multiple MACs per cmsg but restrict to single. */
 	payload.count = cpu_to_be16(1);
@@ -532,22 +543,12 @@ static int __nfp_tunnel_offload_mac(struct nfp_app *app, u8 *mac, u16 idx)
 }
 
 static int
-nfp_tunnel_offload_mac(struct nfp_app *app, struct net_device *netdev)
+nfp_tunnel_get_mac_idx_from_port(struct nfp_app *app, struct net_device *netdev,
+				 int port, u16 *nfp_mac_idx)
 {
-	u16 nfp_mac_idx;
-	int port = 0;
-
-	if (nfp_netdev_is_nfp_repr(netdev))
-		port = nfp_repr_get_port_id(netdev);
-	else if (!nfp_fl_is_netdev_to_offload(netdev))
-		return 0;
-
-	if (!is_valid_ether_addr(netdev->dev_addr))
-		return -EINVAL;
-
 	if (FIELD_GET(NFP_FLOWER_CMSG_PORT_TYPE, port) ==
 	    NFP_FLOWER_CMSG_PORT_TYPE_PHYS_PORT) {
-		nfp_mac_idx = port << 8 | NFP_FLOWER_CMSG_PORT_TYPE_PHYS_PORT;
+		*nfp_mac_idx = port << 8 | NFP_FLOWER_CMSG_PORT_TYPE_PHYS_PORT;
 	} else if (!port) {
 		/* Must assign our own unique 8-bit index. */
 		int idx = nfp_tun_get_mac_idx(app, netdev->ifindex);
@@ -555,12 +556,58 @@ nfp_tunnel_offload_mac(struct nfp_app *app, struct net_device *netdev)
 		if (idx < 0)
 			return idx;
 
-		nfp_mac_idx = idx << 8 | NFP_FLOWER_CMSG_PORT_TYPE_OTHER_PORT;
+		*nfp_mac_idx = idx << 8 | NFP_FLOWER_CMSG_PORT_TYPE_OTHER_PORT;
+	} else {
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+static int
+nfp_tunnel_offload_mac(struct nfp_app *app, struct net_device *netdev,
+		       enum nfp_flower_mac_offload_cmd cmd)
+{
+	bool non_repr = false;
+	int err, port = 0;
+	u16 nfp_mac_idx;
+
+	if (nfp_netdev_is_nfp_repr(netdev)) {
+		struct nfp_repr *repr;
+
+		repr = netdev_priv(netdev);
+		if (repr->app != app)
+			return 0;
+
+		port = nfp_repr_get_port_id(netdev);
+	} else if (nfp_fl_is_netdev_to_offload(netdev)) {
+		non_repr = true;
 	} else {
 		return 0;
 	}
 
-	return __nfp_tunnel_offload_mac(app, netdev->dev_addr, nfp_mac_idx);
+	if (!is_valid_ether_addr(netdev->dev_addr))
+		return -EINVAL;
+
+	switch (cmd) {
+	case NFP_TUNNEL_MAC_OFFLOAD_ADD:
+		err = nfp_tunnel_get_mac_idx_from_port(app, netdev, port,
+						       &nfp_mac_idx);
+		if (err)
+			return err;
+
+		return __nfp_tunnel_offload_mac(app, netdev->dev_addr,
+						nfp_mac_idx, false);
+	case NFP_TUNNEL_MAC_OFFLOAD_DEL:
+		if (non_repr)
+			nfp_tun_del_mac_idx(app, netdev->ifindex);
+
+		return __nfp_tunnel_offload_mac(app, netdev->dev_addr, 0, true);
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 int nfp_tunnel_mac_event_handler(struct nfp_app *app,
@@ -569,13 +616,15 @@ int nfp_tunnel_mac_event_handler(struct nfp_app *app,
 {
 	int err;
 
-	if (event == NETDEV_DOWN || event == NETDEV_UNREGISTER) {
-		/* If non-nfp netdev then free its offload index. */
-		if (nfp_fl_is_netdev_to_offload(netdev))
-			nfp_tun_del_mac_idx(app, netdev->ifindex);
-	} else if (event == NETDEV_UP || event == NETDEV_CHANGEADDR ||
-		   event == NETDEV_REGISTER) {
-		err = nfp_tunnel_offload_mac(app, netdev);
+	if (event == NETDEV_DOWN) {
+		err = nfp_tunnel_offload_mac(app, netdev,
+					     NFP_TUNNEL_MAC_OFFLOAD_DEL);
+		if (err)
+			nfp_flower_cmsg_warn(app, "Failed to delete offload MAC on %s.\n",
+					     netdev_name(netdev));
+	} else if (event == NETDEV_UP || event == NETDEV_CHANGEADDR) {
+		err = nfp_tunnel_offload_mac(app, netdev,
+					     NFP_TUNNEL_MAC_OFFLOAD_ADD);
 		if (err)
 			nfp_flower_cmsg_warn(app, "Failed to offload MAC on %s.\n",
 					     netdev_name(netdev));
