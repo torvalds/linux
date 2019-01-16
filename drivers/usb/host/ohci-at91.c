@@ -141,8 +141,11 @@ static struct regmap *at91_dt_syscon_sfr(void)
 	struct regmap *regmap;
 
 	regmap = syscon_regmap_lookup_by_compatible("atmel,sama5d2-sfr");
-	if (IS_ERR(regmap))
-		regmap = NULL;
+	if (IS_ERR(regmap)) {
+		regmap = syscon_regmap_lookup_by_compatible("microchip,sam9x60-sfr");
+		if (IS_ERR(regmap))
+			regmap = NULL;
+	}
 
 	return regmap;
 }
