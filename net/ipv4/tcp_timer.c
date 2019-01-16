@@ -333,7 +333,6 @@ static void tcp_probe_timer(struct sock *sk)
 	struct sk_buff *skb = tcp_send_head(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 	int max_probes;
-	u32 start_ts;
 
 	if (tp->packets_out || !skb) {
 		icsk->icsk_probes_out = 0;
@@ -348,12 +347,13 @@ static void tcp_probe_timer(struct sock *sk)
 	 * corresponding system limit. We also implement similar policy when
 	 * we use RTO to probe window in tcp_retransmit_timer().
 	 */
-	start_ts = tcp_skb_timestamp(skb);
-	if (!start_ts)
-		skb->skb_mstamp_ns = tp->tcp_clock_cache;
-	else if (icsk->icsk_user_timeout &&
-		 (s32)(tcp_time_stamp(tp) - start_ts) > icsk->icsk_user_timeout)
-		goto abort;
+	if (icsk->icsk_user_timeout) {
+		u32 elapsed = tcp_model_timeout(sk, icsk->icsk_probes_out,
+						tcp_probe0_base(sk));
+
+		if (elapsed >= icsk->icsk_user_timeout)
+			goto abort;
+	}
 
 	max_probes = sock_net(sk)->ipv4.sysctl_tcp_retries2;
 	if (sock_flag(sk, SOCK_DEAD)) {
