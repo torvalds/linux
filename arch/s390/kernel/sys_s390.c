@@ -79,12 +79,15 @@ SYSCALL_DEFINE5(s390_ipc, uint, call, int, first, unsigned long, second,
 
 SYSCALL_DEFINE1(s390_personality, unsigned int, personality)
 {
-	unsigned int ret;
+	unsigned int ret = current->personality;
 
 	if (personality(current->personality) == PER_LINUX32 &&
 	    personality(personality) == PER_LINUX)
 		personality |= PER_LINUX32;
-	ret = sys_personality(personality);
+
+	if (personality != 0xffffffff)
+		set_personality(personality);
+
 	if (personality(ret) == PER_LINUX32)
 		ret &= ~PER_LINUX32;
 
