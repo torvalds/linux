@@ -5,8 +5,7 @@
 #include <linux/types.h>
 
 enum {
-	RDMA_NL_RDMA_CM = 1,
-	RDMA_NL_IWCM,
+	RDMA_NL_IWCM = 2,
 	RDMA_NL_RSVD,
 	RDMA_NL_LS,	/* RDMA Local Services */
 	RDMA_NL_NLDEV,	/* RDMA device interface */
@@ -14,8 +13,7 @@ enum {
 };
 
 enum {
-	RDMA_NL_GROUP_CM = 1,
-	RDMA_NL_GROUP_IWPM,
+	RDMA_NL_GROUP_IWPM = 2,
 	RDMA_NL_GROUP_LS,
 	RDMA_NL_NUM_GROUPS
 };
@@ -23,17 +21,6 @@ enum {
 #define RDMA_NL_GET_CLIENT(type) ((type & (((1 << 6) - 1) << 10)) >> 10)
 #define RDMA_NL_GET_OP(type) (type & ((1 << 10) - 1))
 #define RDMA_NL_GET_TYPE(client, op) ((client << 10) + op)
-
-enum {
-	RDMA_NL_RDMA_CM_ID_STATS = 0,
-	RDMA_NL_RDMA_CM_NUM_OPS
-};
-
-enum {
-	RDMA_NL_RDMA_CM_ATTR_SRC_ADDR = 1,
-	RDMA_NL_RDMA_CM_ATTR_DST_ADDR,
-	RDMA_NL_RDMA_CM_NUM_ATTR,
-};
 
 /* The minimum version that the iwpm kernel supports */
 #define IWPM_UABI_VERSION_MIN	3
