@@ -2,8 +2,7 @@
 /*
  * SuperH Mobile I2C Controller
  *
- * Copyright (C) 2014 Wolfram Sang <wsa@sang-engineering.com>
- *
+ * Copyright (C) 2014-19 Wolfram Sang <wsa@sang-engineering.com>
  * Copyright (C) 2008 Magnus Damm
  *
  * Portions of the code based on out-of-tree driver i2c-sh7343.c
@@ -373,6 +372,7 @@ static int sh_mobile_i2c_isr_rx(struct sh_mobile_i2c_data *pd)
 	unsigned char data;
 	int real_pos;
 
+	/* switch from TX (address) to RX (data) adds two interrupts */
 	real_pos = pd->pos - 2;
 
 	if (pd->pos == -1) {
@@ -717,8 +717,7 @@ static const struct i2c_adapter_quirks sh_mobile_i2c_quirks = {
 };
 
 /*
- * r8a7740 chip has lasting errata on I2C I/O pad reset.
- * this is work-around for it.
+ * r8a7740 has an errata regarding I2C I/O pad reset needing this workaround.
  */
 static int sh_mobile_i2c_r8a7740_workaround(struct sh_mobile_i2c_data *pd)
 {
