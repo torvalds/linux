@@ -497,6 +497,8 @@ bool dm_pp_get_static_clocks(
 		ret = adev->powerplay.pp_funcs->get_current_clocks(
 			adev->powerplay.pp_handle,
 			&pp_clk_info);
+	else if (adev->smu.funcs)
+		ret = smu_get_current_clocks(&adev->smu, &pp_clk_info);
 	if (ret)
 		return false;
 

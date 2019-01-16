@@ -233,6 +233,8 @@ struct smu_context
 
 	uint32_t power_limit;
 	uint32_t default_power_limit;
+
+	bool support_power_containment;
 };
 
 struct pptable_funcs {
@@ -465,5 +467,7 @@ enum amd_pm_state_type smu_get_current_power_state(struct smu_context *smu);
 extern int smu_display_configuration_change(struct smu_context *smu, const
 					    struct amd_pp_display_configuration
 					    *display_config);
+extern int smu_get_current_clocks(struct smu_context *smu,
+				  struct amd_pp_clock_info *clocks);
 
 #endif
