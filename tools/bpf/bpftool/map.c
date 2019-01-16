@@ -857,12 +857,51 @@ exit_free:
 	return err;
 }
 
+static void print_key_value(struct bpf_map_info *info, void *key,
+			    void *value)
+{
+	json_writer_t *btf_wtr;
+	struct btf *btf = NULL;
+	int err;
+
+	err = btf__get_from_id(info->btf_id, &btf);
+	if (err) {
+		p_err("failed to get btf");
+		return;
+	}
+
+	if (json_output) {
+		print_entry_json(info, key, value, btf);
+	} else if (btf) {
+		/* if here json_wtr wouldn't have been initialised,
+		 * so let's create separate writer for btf
+		 */
+		btf_wtr = get_btf_writer();
+		if (!btf_wtr) {
+			p_info("failed to create json writer for btf. falling back to plain output");
+			btf__free(btf);
+			btf = NULL;
+			print_entry_plain(info, key, value);
+		} else {
+			struct btf_dumper d = {
+				.btf = btf,
+				.jw = btf_wtr,
+				.is_plain_text = true,
+			};
+
+			do_dump_btf(&d, info, key, value);
+			jsonw_destroy(&btf_wtr);
+		}
+	} else {
+		print_entry_plain(info, key, value);
+	}
+	btf__free(btf);
+}
+
 static int do_lookup(int argc, char **argv)
 {
 	struct bpf_map_info info = {};
 	__u32 len = sizeof(info);
-	json_writer_t *btf_wtr;
-	struct btf *btf = NULL;
 	void *key, *value;
 	int err;
 	int fd;
@@ -900,43 +939,12 @@ static int do_lookup(int argc, char **argv)
 	}
 
 	/* here means bpf_map_lookup_elem() succeeded */
-	err = btf__get_from_id(info.btf_id, &btf);
-	if (err) {
-		p_err("failed to get btf");
-		goto exit_free;
-	}
-
-	if (json_output) {
-		print_entry_json(&info, key, value, btf);
-	} else if (btf) {
-		/* if here json_wtr wouldn't have been initialised,
-		 * so let's create separate writer for btf
-		 */
-		btf_wtr = get_btf_writer();
-		if (!btf_wtr) {
-			p_info("failed to create json writer for btf. falling back to plain output");
-			btf__free(btf);
-			btf = NULL;
-			print_entry_plain(&info, key, value);
-		} else {
-			struct btf_dumper d = {
-				.btf = btf,
-				.jw = btf_wtr,
-				.is_plain_text = true,
-			};
-
-			do_dump_btf(&d, &info, key, value);
-			jsonw_destroy(&btf_wtr);
-		}
-	} else {
-		print_entry_plain(&info, key, value);
-	}
+	print_key_value(&info, key, value);
 
 exit_free:
 	free(key);
 	free(value);
 	close(fd);
-	btf__free(btf);
 
 	return err;
 }
@@ -1149,6 +1157,49 @@ static int do_create(int argc, char **argv)
 	return 0;
 }
 
+static int do_pop_dequeue(int argc, char **argv)
+{
+	struct bpf_map_info info = {};
+	__u32 len = sizeof(info);
+	void *key, *value;
+	int err;
+	int fd;
+
+	if (argc < 2)
+		usage();
+
+	fd = map_parse_fd_and_info(&argc, &argv, &info, &len);
+	if (fd < 0)
+		return -1;
+
+	err = alloc_key_value(&info, &key, &value);
+	if (err)
+		goto exit_free;
+
+	err = bpf_map_lookup_and_delete_elem(fd, key, value);
+	if (err) {
+		if (errno == ENOENT) {
+			if (json_output)
+				jsonw_null(json_wtr);
+			else
+				printf("Error: empty map\n");
+		} else {
+			p_err("pop failed: %s", strerror(errno));
+		}
+
+		goto exit_free;
+	}
+
+	print_key_value(&info, key, value);
+
+exit_free:
+	free(key);
+	free(value);
+	close(fd);
+
+	return err;
+}
+
 static int do_help(int argc, char **argv)
 {
 	if (json_output) {
@@ -1170,7 +1221,9 @@ static int do_help(int argc, char **argv)
 		"       %s %s event_pipe MAP [cpu N index M]\n"
 		"       %s %s peek       MAP\n"
 		"       %s %s push       MAP value VALUE\n"
+		"       %s %s pop        MAP\n"
 		"       %s %s enqueue    MAP value VALUE\n"
+		"       %s %s dequeue    MAP\n"
 		"       %s %s help\n"
 		"\n"
 		"       " HELP_SPEC_MAP "\n"
@@ -1189,7 +1242,7 @@ static int do_help(int argc, char **argv)
 		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
 		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
 		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
-		bin_name, argv[-2]);
+		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2]);
 
 	return 0;
 }
@@ -1209,6 +1262,8 @@ static const struct cmd cmds[] = {
 	{ "peek",	do_lookup },
 	{ "push",	do_update },
 	{ "enqueue",	do_update },
+	{ "pop",	do_pop_dequeue },
+	{ "dequeue",	do_pop_dequeue },
 	{ 0 }
 };
 

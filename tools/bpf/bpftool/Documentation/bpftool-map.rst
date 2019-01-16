@@ -33,7 +33,9 @@ MAP COMMANDS
 |	**bpftool** **map event_pipe** *MAP* [**cpu** *N* **index** *M*]
 |	**bpftool** **map peek**       *MAP*
 |	**bpftool** **map push**       *MAP* **value** *VALUE*
+|	**bpftool** **map pop**        *MAP*
 |	**bpftool** **map enqueue**    *MAP* **value** *VALUE*
+|	**bpftool** **map dequeue**    *MAP*
 |	**bpftool** **map help**
 |
 |	*MAP* := { **id** *MAP_ID* | **pinned** *FILE* }
@@ -116,8 +118,14 @@ DESCRIPTION
 	**bpftool map push**  *MAP* **value** *VALUE*
 		  Push **value** onto the stack.
 
+	**bpftool map pop**  *MAP*
+		  Pop and print **value** from the stack.
+
 	**bpftool map enqueue**  *MAP* **value** *VALUE*
 		  Enqueue **value** into the queue.
+
+	**bpftool map dequeue**  *MAP*
+		  Dequeue and print **value** from the queue.
 
 	**bpftool map help**
 		  Print short help message.
