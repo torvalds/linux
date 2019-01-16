@@ -2251,7 +2251,7 @@ static void i915_guc_client_info(struct seq_file *m,
 {
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
-	uint64_t tot = 0;
+	u64 tot = 0;
 
 	seq_printf(m, "\tPriority %d, GuC stage index: %u, PD offset 0x%x\n",
 		client->priority, client->stage_id, client->proc_desc_offset);
@@ -3646,7 +3646,7 @@ static int i915_displayport_test_type_show(struct seq_file *m, void *data)
 }
 DEFINE_SHOW_ATTRIBUTE(i915_displayport_test_type);
 
-static void wm_latency_show(struct seq_file *m, const uint16_t wm[8])
+static void wm_latency_show(struct seq_file *m, const u16 wm[8])
 {
 	struct drm_i915_private *dev_priv = m->private;
 	struct drm_device *dev = &dev_priv->drm;
@@ -3689,7 +3689,7 @@ static void wm_latency_show(struct seq_file *m, const uint16_t wm[8])
 static int pri_wm_latency_show(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = m->private;
-	const uint16_t *latencies;
+	const u16 *latencies;
 
 	if (INTEL_GEN(dev_priv) >= 9)
 		latencies = dev_priv->wm.skl_latency;
@@ -3704,7 +3704,7 @@ static int pri_wm_latency_show(struct seq_file *m, void *data)
 static int spr_wm_latency_show(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = m->private;
-	const uint16_t *latencies;
+	const u16 *latencies;
 
 	if (INTEL_GEN(dev_priv) >= 9)
 		latencies = dev_priv->wm.skl_latency;
@@ -3719,7 +3719,7 @@ static int spr_wm_latency_show(struct seq_file *m, void *data)
 static int cur_wm_latency_show(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = m->private;
-	const uint16_t *latencies;
+	const u16 *latencies;
 
 	if (INTEL_GEN(dev_priv) >= 9)
 		latencies = dev_priv->wm.skl_latency;
@@ -3762,12 +3762,12 @@ static int cur_wm_latency_open(struct inode *inode, struct file *file)
 }
 
 static ssize_t wm_latency_write(struct file *file, const char __user *ubuf,
-				size_t len, loff_t *offp, uint16_t wm[8])
+				size_t len, loff_t *offp, u16 wm[8])
 {
 	struct seq_file *m = file->private_data;
 	struct drm_i915_private *dev_priv = m->private;
 	struct drm_device *dev = &dev_priv->drm;
-	uint16_t new[8] = { 0 };
+	u16 new[8] = { 0 };
 	int num_levels;
 	int level;
 	int ret;
@@ -3812,7 +3812,7 @@ static ssize_t pri_wm_latency_write(struct file *file, const char __user *ubuf,
 {
 	struct seq_file *m = file->private_data;
 	struct drm_i915_private *dev_priv = m->private;
-	uint16_t *latencies;
+	u16 *latencies;
 
 	if (INTEL_GEN(dev_priv) >= 9)
 		latencies = dev_priv->wm.skl_latency;
@@ -3827,7 +3827,7 @@ static ssize_t spr_wm_latency_write(struct file *file, const char __user *ubuf,
 {
 	struct seq_file *m = file->private_data;
 	struct drm_i915_private *dev_priv = m->private;
-	uint16_t *latencies;
+	u16 *latencies;
 
 	if (INTEL_GEN(dev_priv) >= 9)
 		latencies = dev_priv->wm.skl_latency;
@@ -3842,7 +3842,7 @@ static ssize_t cur_wm_latency_write(struct file *file, const char __user *ubuf,
 {
 	struct seq_file *m = file->private_data;
 	struct drm_i915_private *dev_priv = m->private;
-	uint16_t *latencies;
+	u16 *latencies;
 
 	if (INTEL_GEN(dev_priv) >= 9)
 		latencies = dev_priv->wm.skl_latency;
@@ -4860,7 +4860,7 @@ static int i915_dpcd_show(struct seq_file *m, void *data)
 	struct drm_connector *connector = m->private;
 	struct intel_dp *intel_dp =
 		enc_to_intel_dp(&intel_attached_encoder(connector)->base);
-	uint8_t buf[16];
+	u8 buf[16];
 	ssize_t err;
 	int i;
 
