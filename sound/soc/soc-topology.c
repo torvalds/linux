@@ -382,10 +382,10 @@ static void remove_mixer(struct snd_soc_component *comp,
 	if (dobj->ops && dobj->ops->control_unload)
 		dobj->ops->control_unload(comp, dobj);
 
-	if (sm->dobj.control.kcontrol->tlv.p)
-		p = sm->dobj.control.kcontrol->tlv.p;
-	snd_ctl_remove(card, sm->dobj.control.kcontrol);
-	list_del(&sm->dobj.list);
+	if (dobj->control.kcontrol->tlv.p)
+		p = dobj->control.kcontrol->tlv.p;
+	snd_ctl_remove(card, dobj->control.kcontrol);
+	list_del(&dobj->list);
 	kfree(sm);
 	kfree(p);
 }
@@ -404,12 +404,12 @@ static void remove_enum(struct snd_soc_component *comp,
 	if (dobj->ops && dobj->ops->control_unload)
 		dobj->ops->control_unload(comp, dobj);
 
-	snd_ctl_remove(card, se->dobj.control.kcontrol);
-	list_del(&se->dobj.list);
+	snd_ctl_remove(card, dobj->control.kcontrol);
+	list_del(&dobj->list);
 
-	kfree(se->dobj.control.dvalues);
+	kfree(dobj->control.dvalues);
 	for (i = 0; i < se->items; i++)
-		kfree(se->dobj.control.dtexts[i]);
+		kfree(dobj->control.dtexts[i]);
 	kfree(se);
 }
 
@@ -427,8 +427,8 @@ static void remove_bytes(struct snd_soc_component *comp,
 	if (dobj->ops && dobj->ops->control_unload)
 		dobj->ops->control_unload(comp, dobj);
 
-	snd_ctl_remove(card, sb->dobj.control.kcontrol);
-	list_del(&sb->dobj.list);
+	snd_ctl_remove(card, dobj->control.kcontrol);
+	list_del(&dobj->list);
 	kfree(sb);
 }
 
@@ -481,9 +481,9 @@ static void remove_widget(struct snd_soc_component *comp,
 
 			snd_ctl_remove(card, kcontrol);
 
-			kfree(se->dobj.control.dvalues);
+			kfree(dobj->control.dvalues);
 			for (j = 0; j < se->items; j++)
-				kfree(se->dobj.control.dtexts[j]);
+				kfree(dobj->control.dtexts[j]);
 
 			kfree(se);
 			kfree(w->kcontrol_news[i].name);
