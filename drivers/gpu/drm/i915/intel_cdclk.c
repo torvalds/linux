@@ -218,7 +218,7 @@ static unsigned int intel_hpll_vco(struct drm_i915_private *dev_priv)
 	};
 	const unsigned int *vco_table;
 	unsigned int vco;
-	uint8_t tmp = 0;
+	u8 tmp = 0;
 
 	/* FIXME other chipsets? */
 	if (IS_GM45(dev_priv))
@@ -249,13 +249,13 @@ static void g33_get_cdclk(struct drm_i915_private *dev_priv,
 			  struct intel_cdclk_state *cdclk_state)
 {
 	struct pci_dev *pdev = dev_priv->drm.pdev;
-	static const uint8_t div_3200[] = { 12, 10,  8,  7, 5, 16 };
-	static const uint8_t div_4000[] = { 14, 12, 10,  8, 6, 20 };
-	static const uint8_t div_4800[] = { 20, 14, 12, 10, 8, 24 };
-	static const uint8_t div_5333[] = { 20, 16, 12, 12, 8, 28 };
-	const uint8_t *div_table;
+	static const u8 div_3200[] = { 12, 10,  8,  7, 5, 16 };
+	static const u8 div_4000[] = { 14, 12, 10,  8, 6, 20 };
+	static const u8 div_4800[] = { 20, 14, 12, 10, 8, 24 };
+	static const u8 div_5333[] = { 20, 16, 12, 12, 8, 28 };
+	const u8 *div_table;
 	unsigned int cdclk_sel;
-	uint16_t tmp = 0;
+	u16 tmp = 0;
 
 	cdclk_state->vco = intel_hpll_vco(dev_priv);
 
@@ -330,12 +330,12 @@ static void i965gm_get_cdclk(struct drm_i915_private *dev_priv,
 			     struct intel_cdclk_state *cdclk_state)
 {
 	struct pci_dev *pdev = dev_priv->drm.pdev;
-	static const uint8_t div_3200[] = { 16, 10,  8 };
-	static const uint8_t div_4000[] = { 20, 12, 10 };
-	static const uint8_t div_5333[] = { 24, 16, 14 };
-	const uint8_t *div_table;
+	static const u8 div_3200[] = { 16, 10,  8 };
+	static const u8 div_4000[] = { 20, 12, 10 };
+	static const u8 div_5333[] = { 24, 16, 14 };
+	const u8 *div_table;
 	unsigned int cdclk_sel;
-	uint16_t tmp = 0;
+	u16 tmp = 0;
 
 	cdclk_state->vco = intel_hpll_vco(dev_priv);
 
@@ -375,7 +375,7 @@ static void gm45_get_cdclk(struct drm_i915_private *dev_priv,
 {
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 	unsigned int cdclk_sel;
-	uint16_t tmp = 0;
+	u16 tmp = 0;
 
 	cdclk_state->vco = intel_hpll_vco(dev_priv);
 
@@ -403,8 +403,8 @@ static void gm45_get_cdclk(struct drm_i915_private *dev_priv,
 static void hsw_get_cdclk(struct drm_i915_private *dev_priv,
 			  struct intel_cdclk_state *cdclk_state)
 {
-	uint32_t lcpll = I915_READ(LCPLL_CTL);
-	uint32_t freq = lcpll & LCPLL_CLK_FREQ_MASK;
+	u32 lcpll = I915_READ(LCPLL_CTL);
+	u32 freq = lcpll & LCPLL_CLK_FREQ_MASK;
 
 	if (lcpll & LCPLL_CD_SOURCE_FCLK)
 		cdclk_state->cdclk = 800000;
@@ -672,8 +672,8 @@ static u8 bdw_calc_voltage_level(int cdclk)
 static void bdw_get_cdclk(struct drm_i915_private *dev_priv,
 			  struct intel_cdclk_state *cdclk_state)
 {
-	uint32_t lcpll = I915_READ(LCPLL_CTL);
-	uint32_t freq = lcpll & LCPLL_CLK_FREQ_MASK;
+	u32 lcpll = I915_READ(LCPLL_CTL);
+	u32 freq = lcpll & LCPLL_CLK_FREQ_MASK;
 
 	if (lcpll & LCPLL_CD_SOURCE_FCLK)
 		cdclk_state->cdclk = 800000;
@@ -700,7 +700,7 @@ static void bdw_set_cdclk(struct drm_i915_private *dev_priv,
 			  const struct intel_cdclk_state *cdclk_state)
 {
 	int cdclk = cdclk_state->cdclk;
-	uint32_t val;
+	u32 val;
 	int ret;
 
 	if (WARN((I915_READ(LCPLL_CTL) &
@@ -1083,7 +1083,7 @@ static void skl_set_cdclk(struct drm_i915_private *dev_priv,
 
 static void skl_sanitize_cdclk(struct drm_i915_private *dev_priv)
 {
-	uint32_t cdctl, expected;
+	u32 cdctl, expected;
 
 	/*
 	 * check if the pre-os initialized the display
@@ -2690,7 +2690,7 @@ static int vlv_hrawclk(struct drm_i915_private *dev_priv)
 
 static int g4x_hrawclk(struct drm_i915_private *dev_priv)
 {
-	uint32_t clkcfg;
+	u32 clkcfg;
 
 	/* hrawclock is 1/4 the FSB frequency */
 	clkcfg = I915_READ(CLKCFG);
