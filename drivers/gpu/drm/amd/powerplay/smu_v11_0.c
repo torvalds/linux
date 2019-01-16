@@ -1032,6 +1032,23 @@ static int smu_v11_0_thermal_get_temperature(struct smu_context *smu, uint32_t *
 	return 0;
 }
 
+static int smu_v11_0_get_gpu_power(struct smu_context *smu, uint32_t *value)
+{
+	int ret = 0;
+	SmuMetrics_t metrics;
+
+	if (!value)
+		return -EINVAL;
+
+	ret = smu_update_table(smu, TABLE_SMU_METRICS, (void *)&metrics, false);
+	if (ret)
+		return ret;
+
+	*value = metrics.CurrSocketPower << 8;
+
+	return 0;
+}
+
 static int smu_v11_0_read_sensor(struct smu_context *smu,
 				 enum amd_pp_sensors sensor,
 				 void *data, uint32_t *size)
@@ -1053,6 +1070,10 @@ static int smu_v11_0_read_sensor(struct smu_context *smu,
 		break;
 	case AMDGPU_PP_SENSOR_GPU_TEMP:
 		ret = smu_v11_0_thermal_get_temperature(smu, (uint32_t *)data);
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_GPU_POWER:
+		ret = smu_v11_0_get_gpu_power(smu, (uint32_t *)data);
 		*size = 4;
 		break;
 	default:
