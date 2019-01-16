@@ -1243,34 +1243,36 @@ enable_err:
 	return err;
 }
 
-/* The DPIO store must be empty when we call this,
- * at the end of every NAPI cycle.
- */
-static u32 drain_channel(struct dpaa2_eth_channel *ch)
+/* Total number of in-flight frames on ingress queues */
+static u32 ingress_fq_count(struct dpaa2_eth_priv *priv)
 {
-	u32 drained = 0, total = 0;
+	struct dpaa2_eth_fq *fq;
+	u32 fcnt = 0, bcnt = 0, total = 0;
+	int i, err;
 
-	do {
-		pull_channel(ch);
-		drained = consume_frames(ch, NULL);
-		total += drained;
-	} while (drained);
+	for (i = 0; i < priv->num_fqs; i++) {
+		fq = &priv->fq[i];
+		err = dpaa2_io_query_fq_count(NULL, fq->fqid, &fcnt, &bcnt);
+		if (err) {
+			netdev_warn(priv->net_dev, "query_fq_count failed");
+			break;
+		}
+		total += fcnt;
+	}
 
 	return total;
 }
 
-static u32 drain_ingress_frames(struct dpaa2_eth_priv *priv)
+static void wait_for_fq_empty(struct dpaa2_eth_priv *priv)
 {
-	struct dpaa2_eth_channel *ch;
-	int i;
-	u32 drained = 0;
+	int retries = 10;
+	u32 pending;
 
-	for (i = 0; i < priv->num_channels; i++) {
-		ch = priv->channel[i];
-		drained += drain_channel(ch);
-	}
-
-	return drained;
+	do {
+		pending = ingress_fq_count(priv);
+		if (pending)
+			msleep(100);
+	} while (pending && --retries);
 }
 
 static int dpaa2_eth_stop(struct net_device *net_dev)
@@ -1278,14 +1280,22 @@ static int dpaa2_eth_stop(struct net_device *net_dev)
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
 	int dpni_enabled = 0;
 	int retries = 10;
-	u32 drained;
 
 	netif_tx_stop_all_queues(net_dev);
 	netif_carrier_off(net_dev);
 
-	/* Loop while dpni_disable() attempts to drain the egress FQs
-	 * and confirm them back to us.
+	/* On dpni_disable(), the MC firmware will:
+	 * - stop MAC Rx and wait for all Rx frames to be enqueued to software
+	 * - cut off WRIOP dequeues from egress FQs and wait until transmission
+	 * of all in flight Tx frames is finished (and corresponding Tx conf
+	 * frames are enqueued back to software)
+	 *
+	 * Before calling dpni_disable(), we wait for all Tx frames to arrive
+	 * on WRIOP. After it finishes, wait until all remaining frames on Rx
+	 * and Tx conf queues are consumed on NAPI poll.
 	 */
+	msleep(500);
+
 	do {
 		dpni_disable(priv->mc_io, 0, priv->mc_token);
 		dpni_is_enabled(priv->mc_io, 0, priv->mc_token, &dpni_enabled);
@@ -1300,18 +1310,8 @@ static int dpaa2_eth_stop(struct net_device *net_dev)
 		 */
 	}
 
-	/* Wait for NAPI to complete on every core and disable it.
-	 * In particular, this will also prevent NAPI from being rescheduled if
-	 * a new CDAN is serviced, effectively discarding the CDAN. We therefore
-	 * don't even need to disarm the channels, except perhaps for the case
-	 * of a huge coalescing value.
-	 */
+	wait_for_fq_empty(priv);
 	disable_ch_napi(priv);
-
-	 /* Manually drain the Rx and TxConf queues */
-	drained = drain_ingress_frames(priv);
-	if (drained)
-		netdev_dbg(net_dev, "Drained %d frames.\n", drained);
 
 	/* Empty the buffer pool */
 	drain_pool(priv);
