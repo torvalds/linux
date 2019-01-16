@@ -14,39 +14,6 @@
 #include <sound/sof.h>
 #include "sof-priv.h"
 
-int sof_bes_setup(struct device *dev, const struct snd_sof_dsp_ops *ops,
-		  struct snd_soc_dai_link *links, int link_num,
-		  struct snd_soc_card *card)
-{
-	int i;
-
-	if (!ops || !links || !card)
-		return -EINVAL;
-
-	/* set up BE dai_links */
-	for (i = 0; i < link_num; i++) {
-		links[i].name = devm_kasprintf(dev, GFP_KERNEL,
-					       "NoCodec-%d", i);
-		if (!links[i].name)
-			return -ENOMEM;
-
-		links[i].id = i;
-		links[i].no_pcm = 1;
-		links[i].cpu_dai_name = ops->drv[i].name;
-		links[i].platform_name = "sof-audio";
-		links[i].codec_dai_name = "snd-soc-dummy-dai";
-		links[i].codec_name = "snd-soc-dummy";
-		links[i].dpcm_playback = 1;
-		links[i].dpcm_capture = 1;
-	}
-
-	card->dai_link = links;
-	card->num_links = link_num;
-
-	return 0;
-}
-EXPORT_SYMBOL(sof_bes_setup);
-
 /* register sof platform device */
 int sof_create_platform_device(struct sof_platform_priv *priv)
 {
