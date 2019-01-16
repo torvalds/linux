@@ -58,29 +58,23 @@ struct nfp_fl_stats_id {
 
 /**
  * struct nfp_fl_tunnel_offloads - priv data for tunnel offloads
- * @mac_off_list:	List of MAC addresses to offload
  * @mac_index_list:	List of unique 8-bit indexes for non NFP netdevs
  * @ipv4_off_list:	List of IPv4 addresses to offload
  * @neigh_off_list:	List of neighbour offloads
- * @mac_off_lock:	Lock for the MAC address list
  * @mac_index_lock:	Lock for the MAC index list
  * @ipv4_off_lock:	Lock for the IPv4 address list
  * @neigh_off_lock:	Lock for the neighbour address list
  * @mac_off_ids:	IDA to manage id assignment for offloaded MACs
- * @mac_off_count:	Number of MACs in address list
  * @neigh_nb:		Notifier to monitor neighbour state
  */
 struct nfp_fl_tunnel_offloads {
-	struct list_head mac_off_list;
 	struct list_head mac_index_list;
 	struct list_head ipv4_off_list;
 	struct list_head neigh_off_list;
-	struct mutex mac_off_lock;
 	struct mutex mac_index_lock;
 	struct mutex ipv4_off_lock;
 	spinlock_t neigh_off_lock;
 	struct ida mac_off_ids;
-	int mac_off_count;
 	struct notifier_block neigh_nb;
 };
 
@@ -268,7 +262,6 @@ void nfp_tunnel_config_stop(struct nfp_app *app);
 int nfp_tunnel_mac_event_handler(struct nfp_app *app,
 				 struct net_device *netdev,
 				 unsigned long event, void *ptr);
-void nfp_tunnel_write_macs(struct nfp_app *app);
 void nfp_tunnel_del_ipv4_off(struct nfp_app *app, __be32 ipv4);
 void nfp_tunnel_add_ipv4_off(struct nfp_app *app, __be32 ipv4);
 void nfp_tunnel_request_route(struct nfp_app *app, struct sk_buff *skb);

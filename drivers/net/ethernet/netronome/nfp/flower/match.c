@@ -403,9 +403,6 @@ int nfp_flower_compile_flow_match(struct nfp_app *app,
 		ext += sizeof(struct nfp_flower_ipv4_udp_tun);
 		msk += sizeof(struct nfp_flower_ipv4_udp_tun);
 
-		/* Configure tunnel end point MAC. */
-		nfp_tunnel_write_macs(app);
-
 		/* Store the tunnel destination in the rule data.
 		 * This must be present and be an exact match.
 		 */
