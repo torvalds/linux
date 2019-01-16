@@ -179,22 +179,6 @@ static bool __cfg80211_unlink_bss(struct cfg80211_registered_device *rdev,
 	return true;
 }
 
-static void cfg80211_gen_new_bssid(const u8 *bssid, u8 max_bssid,
-				   u8 mbssid_index, u8 *new_bssid_addr)
-{
-	u64 bssid_tmp, new_bssid = 0;
-	u64 lsb_n;
-
-	bssid_tmp = ether_addr_to_u64(bssid);
-
-	lsb_n = bssid_tmp & ((1 << max_bssid) - 1);
-	new_bssid = bssid_tmp;
-	new_bssid &= ~((1 << max_bssid) - 1);
-	new_bssid |= (lsb_n + mbssid_index) % (1 << max_bssid);
-
-	u64_to_ether_addr(new_bssid, new_bssid_addr);
-}
-
 static size_t cfg80211_gen_new_ie(const u8 *ie, size_t ielen,
 				  const u8 *subelement, size_t subie_len,
 				  u8 *new_ie, gfp_t gfp)
