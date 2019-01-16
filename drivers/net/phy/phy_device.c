@@ -773,15 +773,8 @@ static int get_phy_id(struct mii_bus *bus, int addr, u32 *phy_id,
 	/* Grab the bits from PHYIR1, and put them in the upper half */
 	phy_reg = mdiobus_read(bus, addr, MII_PHYSID1);
 	if (phy_reg < 0) {
-		/* if there is no device, return without an error so scanning
-		 * the bus works properly
-		 */
-		if (phy_reg == -EIO || phy_reg == -ENODEV) {
-			*phy_id = 0xffffffff;
-			return 0;
-		}
-
-		return -EIO;
+		/* returning -ENODEV doesn't stop bus scanning */
+		return (phy_reg == -EIO || phy_reg == -ENODEV) ? -ENODEV : -EIO;
 	}
 
 	*phy_id = (phy_reg & 0xffff) << 16;
