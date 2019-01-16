@@ -196,7 +196,7 @@ The switch device will learn/forget source MAC address/VLAN on ingress packets
 and notify the switch driver of the mac/vlan/port tuples.  The switch driver,
 in turn, will notify the bridge driver using the switchdev notifier call:
 
-	err = call_switchdev_notifiers(val, dev, info);
+	err = call_switchdev_notifiers(val, dev, info, extack);
 
 Where val is SWITCHDEV_FDB_ADD when learning and SWITCHDEV_FDB_DEL when
 forgetting, and info points to a struct switchdev_notifier_fdb_info.  On

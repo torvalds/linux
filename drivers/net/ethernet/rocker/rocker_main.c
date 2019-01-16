@@ -2725,7 +2725,7 @@ rocker_fdb_offload_notify(struct rocker_port *rocker_port,
 	info.vid = recv_info->vid;
 	info.offloaded = true;
 	call_switchdev_notifiers(SWITCHDEV_FDB_OFFLOADED,
-				 rocker_port->dev, &info.info);
+				 rocker_port->dev, &info.info, NULL);
 }
 
 static void rocker_switchdev_event_work(struct work_struct *work)

@@ -393,7 +393,7 @@ static int vxlan_fdb_switchdev_call_notifiers(struct vxlan_dev *vxlan,
 			       : SWITCHDEV_VXLAN_FDB_DEL_TO_DEVICE;
 	vxlan_fdb_switchdev_notifier_info(vxlan, fdb, rd, NULL, &info);
 	ret = call_switchdev_notifiers(notifier_type, vxlan->dev,
-				       &info.info);
+				       &info.info, extack);
 	return notifier_to_errno(ret);
 }
 

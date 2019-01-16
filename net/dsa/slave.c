@@ -1451,7 +1451,7 @@ static void dsa_slave_switchdev_event_work(struct work_struct *work)
 		}
 		fdb_info->offloaded = true;
 		call_switchdev_notifiers(SWITCHDEV_FDB_OFFLOADED, dev,
-					 &fdb_info->info);
+					 &fdb_info->info, NULL);
 		break;
 
 	case SWITCHDEV_FDB_DEL_TO_DEVICE:

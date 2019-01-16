@@ -2443,7 +2443,7 @@ static void mlxsw_sp_fdb_vxlan_call_notifiers(struct net_device *dev,
 	ether_addr_copy(info.eth_addr, mac);
 	info.vni = vni;
 	info.offloaded = adding;
-	call_switchdev_notifiers(type, dev, &info.info);
+	call_switchdev_notifiers(type, dev, &info.info, NULL);
 }
 
 static void mlxsw_sp_fdb_nve_call_notifiers(struct net_device *dev,
@@ -2468,7 +2468,7 @@ mlxsw_sp_fdb_call_notifiers(enum switchdev_notifier_type type,
 	info.addr = mac;
 	info.vid = vid;
 	info.offloaded = offloaded;
-	call_switchdev_notifiers(type, dev, &info.info);
+	call_switchdev_notifiers(type, dev, &info.info, NULL);
 }
 
 static void mlxsw_sp_fdb_notify_mac_process(struct mlxsw_sp *mlxsw_sp,
@@ -2819,7 +2819,7 @@ mlxsw_sp_switchdev_bridge_vxlan_fdb_event(struct mlxsw_sp *mlxsw_sp,
 			return;
 		vxlan_fdb_info.offloaded = true;
 		call_switchdev_notifiers(SWITCHDEV_VXLAN_FDB_OFFLOADED, dev,
-					 &vxlan_fdb_info.info);
+					 &vxlan_fdb_info.info, NULL);
 		mlxsw_sp_fdb_call_notifiers(SWITCHDEV_FDB_OFFLOADED,
 					    vxlan_fdb_info.eth_addr,
 					    fdb_info->vid, dev, true);
@@ -2832,7 +2832,7 @@ mlxsw_sp_switchdev_bridge_vxlan_fdb_event(struct mlxsw_sp *mlxsw_sp,
 						     false);
 		vxlan_fdb_info.offloaded = false;
 		call_switchdev_notifiers(SWITCHDEV_VXLAN_FDB_OFFLOADED, dev,
-					 &vxlan_fdb_info.info);
+					 &vxlan_fdb_info.info, NULL);
 		break;
 	}
 }
@@ -2977,7 +2977,7 @@ mlxsw_sp_switchdev_vxlan_fdb_add(struct mlxsw_sp *mlxsw_sp,
 		}
 		vxlan_fdb_info->offloaded = true;
 		call_switchdev_notifiers(SWITCHDEV_VXLAN_FDB_OFFLOADED, dev,
-					 &vxlan_fdb_info->info);
+					 &vxlan_fdb_info->info, NULL);
 		mlxsw_sp_fid_put(fid);
 		return;
 	}
@@ -2998,7 +2998,7 @@ mlxsw_sp_switchdev_vxlan_fdb_add(struct mlxsw_sp *mlxsw_sp,
 		goto err_fdb_tunnel_uc_op;
 	vxlan_fdb_info->offloaded = true;
 	call_switchdev_notifiers(SWITCHDEV_VXLAN_FDB_OFFLOADED, dev,
-				 &vxlan_fdb_info->info);
+				 &vxlan_fdb_info->info, NULL);
 	mlxsw_sp_fdb_call_notifiers(SWITCHDEV_FDB_OFFLOADED,
 				    vxlan_fdb_info->eth_addr, vid, dev, true);
 
