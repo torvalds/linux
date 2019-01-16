@@ -288,12 +288,12 @@ static bool lspcon_parade_fw_ready(struct drm_dp_aux *aux)
 }
 
 static bool _lspcon_parade_write_infoframe_blocks(struct drm_dp_aux *aux,
-						  uint8_t *avi_buf)
+						  u8 *avi_buf)
 {
 	u8 avi_if_ctrl;
 	u8 block_count = 0;
 	u8 *data;
-	uint16_t reg;
+	u16 reg;
 	ssize_t ret;
 
 	while (block_count < 4) {
@@ -335,10 +335,10 @@ static bool _lspcon_parade_write_infoframe_blocks(struct drm_dp_aux *aux,
 }
 
 static bool _lspcon_write_avi_infoframe_parade(struct drm_dp_aux *aux,
-					       const uint8_t *frame,
+					       const u8 *frame,
 					       ssize_t len)
 {
-	uint8_t avi_if[LSPCON_PARADE_AVI_IF_DATA_SIZE] = {1, };
+	u8 avi_if[LSPCON_PARADE_AVI_IF_DATA_SIZE] = {1, };
 
 	/*
 	 * Parade's frames contains 32 bytes of data, divided
@@ -367,13 +367,13 @@ static bool _lspcon_write_avi_infoframe_parade(struct drm_dp_aux *aux,
 }
 
 static bool _lspcon_write_avi_infoframe_mca(struct drm_dp_aux *aux,
-					    const uint8_t *buffer, ssize_t len)
+					    const u8 *buffer, ssize_t len)
 {
 	int ret;
-	uint32_t val = 0;
-	uint32_t retry;
-	uint16_t reg;
-	const uint8_t *data = buffer;
+	u32 val = 0;
+	u32 retry;
+	u16 reg;
+	const u8 *data = buffer;
 
 	reg = LSPCON_MCA_AVI_IF_WRITE_OFFSET;
 	while (val < len) {
@@ -459,7 +459,7 @@ void lspcon_set_infoframes(struct intel_encoder *encoder,
 {
 	ssize_t ret;
 	union hdmi_infoframe frame;
-	uint8_t buf[VIDEO_DIP_DATA_SIZE];
+	u8 buf[VIDEO_DIP_DATA_SIZE];
 	struct intel_digital_port *dig_port = enc_to_dig_port(&encoder->base);
 	struct intel_lspcon *lspcon = &dig_port->lspcon;
 	struct intel_dp *intel_dp = &dig_port->dp;
