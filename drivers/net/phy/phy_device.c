@@ -546,12 +546,31 @@ static const struct device_type mdio_bus_phy_type = {
 	.pm = MDIO_BUS_PHY_PM_OPS,
 };
 
+static int phy_request_driver_module(struct phy_device *dev, int phy_id)
+{
+	int ret;
+
+	ret = request_module(MDIO_MODULE_PREFIX MDIO_ID_FMT,
+			     MDIO_ID_ARGS(phy_id));
+	/* we only check for failures in executing the usermode binary,
+	 * not whether a PHY driver module exists for the PHY ID
+	 */
+	if (IS_ENABLED(CONFIG_MODULES) && ret < 0) {
+		phydev_err(dev, "error %d loading PHY driver module for ID 0x%08x\n",
+			   ret, phy_id);
+		return ret;
+	}
+
+	return 0;
+}
+
 struct phy_device *phy_device_create(struct mii_bus *bus, int addr, int phy_id,
 				     bool is_c45,
 				     struct phy_c45_device_ids *c45_ids)
 {
 	struct phy_device *dev;
 	struct mdio_device *mdiodev;
+	int ret = 0;
 
 	/* We allocate the device, and initialize the default values */
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
@@ -608,15 +627,21 @@ struct phy_device *phy_device_create(struct mii_bus *bus, int addr, int phy_id,
 			if (!(c45_ids->devices_in_package & (1 << i)))
 				continue;
 
-			request_module(MDIO_MODULE_PREFIX MDIO_ID_FMT,
-				       MDIO_ID_ARGS(c45_ids->device_ids[i]));
+			ret = phy_request_driver_module(dev,
+						c45_ids->device_ids[i]);
+			if (ret)
+				break;
 		}
 	} else {
-		request_module(MDIO_MODULE_PREFIX MDIO_ID_FMT,
-			       MDIO_ID_ARGS(phy_id));
+		ret = phy_request_driver_module(dev, phy_id);
 	}
 
-	device_initialize(&mdiodev->dev);
+	if (!ret) {
+		device_initialize(&mdiodev->dev);
+	} else {
+		kfree(dev);
+		dev = ERR_PTR(ret);
+	}
 
 	return dev;
 }
