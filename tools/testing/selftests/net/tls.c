@@ -452,10 +452,12 @@ TEST_F(tls, recv_partial)
 
 	memset(recv_mem, 0, sizeof(recv_mem));
 	EXPECT_EQ(send(self->fd, test_str, send_len, 0), send_len);
-	EXPECT_NE(recv(self->cfd, recv_mem, strlen(test_str_first), 0), -1);
+	EXPECT_NE(recv(self->cfd, recv_mem, strlen(test_str_first),
+		       MSG_WAITALL), -1);
 	EXPECT_EQ(memcmp(test_str_first, recv_mem, strlen(test_str_first)), 0);
 	memset(recv_mem, 0, sizeof(recv_mem));
-	EXPECT_NE(recv(self->cfd, recv_mem, strlen(test_str_second), 0), -1);
+	EXPECT_NE(recv(self->cfd, recv_mem, strlen(test_str_second),
+		       MSG_WAITALL), -1);
 	EXPECT_EQ(memcmp(test_str_second, recv_mem, strlen(test_str_second)),
 		  0);
 }
@@ -565,10 +567,10 @@ TEST_F(tls, recv_peek_large_buf_mult_recs)
 	len = strlen(test_str_second) + 1;
 	EXPECT_EQ(send(self->fd, test_str_second, len, 0), len);
 
-	len = sizeof(buf);
+	len = strlen(test_str) + 1;
 	memset(buf, 0, len);
-	EXPECT_NE(recv(self->cfd, buf, len, MSG_PEEK), -1);
-
+	EXPECT_NE((len = recv(self->cfd, buf, len,
+			      MSG_PEEK | MSG_WAITALL)), -1);
 	len = strlen(test_str) + 1;
 	EXPECT_EQ(memcmp(test_str, buf, len), 0);
 }
