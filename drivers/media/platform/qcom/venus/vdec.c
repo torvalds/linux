@@ -133,6 +133,7 @@ vdec_try_fmt_common(struct venus_inst *inst, struct v4l2_format *f)
 	struct v4l2_pix_format_mplane *pixmp = &f->fmt.pix_mp;
 	struct v4l2_plane_pix_format *pfmt = pixmp->plane_fmt;
 	const struct venus_format *fmt;
+	u32 szimage;
 
 	memset(pfmt[0].reserved, 0, sizeof(pfmt[0].reserved));
 	memset(pixmp->reserved, 0, sizeof(pixmp->reserved));
@@ -161,14 +162,17 @@ vdec_try_fmt_common(struct venus_inst *inst, struct v4l2_format *f)
 	pixmp->num_planes = fmt->num_planes;
 	pixmp->flags = 0;
 
-	pfmt[0].sizeimage = venus_helper_get_framesz(pixmp->pixelformat,
-						     pixmp->width,
-						     pixmp->height);
+	szimage = venus_helper_get_framesz(pixmp->pixelformat, pixmp->width,
+					   pixmp->height);
 
-	if (f->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
+	if (f->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
+		pfmt[0].sizeimage = szimage;
 		pfmt[0].bytesperline = ALIGN(pixmp->width, 128);
-	else
+	} else {
+		pfmt[0].sizeimage = clamp_t(u32, pfmt[0].sizeimage, 0, SZ_8M);
+		pfmt[0].sizeimage = max(pfmt[0].sizeimage, szimage);
 		pfmt[0].bytesperline = 0;
+	}
 
 	return fmt;
 }
@@ -266,6 +270,7 @@ static int vdec_s_fmt(struct file *file, void *fh, struct v4l2_format *f)
 		inst->ycbcr_enc = pixmp->ycbcr_enc;
 		inst->quantization = pixmp->quantization;
 		inst->xfer_func = pixmp->xfer_func;
+		inst->input_buf_size = pixmp->plane_fmt[0].sizeimage;
 	}
 
 	memset(&format, 0, sizeof(format));
@@ -728,6 +733,7 @@ static int vdec_queue_setup(struct vb2_queue *q,
 		sizes[0] = venus_helper_get_framesz(inst->fmt_out->pixfmt,
 						    inst->out_width,
 						    inst->out_height);
+		sizes[0] = max(sizes[0], inst->input_buf_size);
 		inst->input_buf_size = sizes[0];
 		*num_buffers = max(*num_buffers, in_num);
 		inst->num_input_bufs = *num_buffers;
