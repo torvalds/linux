@@ -352,11 +352,6 @@ static unsigned char i2c_op(struct sh_mobile_i2c_data *pd, enum sh_mobile_i2c_op
 	return ret;
 }
 
-static bool sh_mobile_i2c_is_first_byte(struct sh_mobile_i2c_data *pd)
-{
-	return pd->pos == -1;
-}
-
 static int sh_mobile_i2c_isr_tx(struct sh_mobile_i2c_data *pd)
 {
 	if (pd->pos == pd->msg->len) {
@@ -364,7 +359,7 @@ static int sh_mobile_i2c_isr_tx(struct sh_mobile_i2c_data *pd)
 		return 1;
 	}
 
-	if (sh_mobile_i2c_is_first_byte(pd))
+	if (pd->pos == -1)
 		i2c_op(pd, OP_TX_FIRST);
 	else
 		i2c_op(pd, OP_TX);
@@ -379,7 +374,7 @@ static int sh_mobile_i2c_isr_rx(struct sh_mobile_i2c_data *pd)
 	int real_pos;
 
 	do {
-		if (sh_mobile_i2c_is_first_byte(pd)) {
+		if (pd->pos == -1) {
 			i2c_op(pd, OP_TX_FIRST);
 			break;
 		}
