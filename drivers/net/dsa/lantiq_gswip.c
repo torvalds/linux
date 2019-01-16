@@ -1099,7 +1099,7 @@ static int gswip_probe(struct platform_device *pdev)
 		dev_err(dev, "wrong CPU port defined, HW only supports port: %i",
 			priv->hw_info->cpu_port);
 		err = -EINVAL;
-		goto mdio_bus;
+		goto disable_switch;
 	}
 
 	platform_set_drvdata(pdev, priv);
@@ -1109,6 +1109,9 @@ static int gswip_probe(struct platform_device *pdev)
 		 (version & GSWIP_VERSION_MOD_MASK) >> GSWIP_VERSION_MOD_SHIFT);
 	return 0;
 
+disable_switch:
+	gswip_mdio_mask(priv, GSWIP_MDIO_GLOB_ENABLE, 0, GSWIP_MDIO_GLOB);
+	dsa_unregister_switch(priv->ds);
 mdio_bus:
 	if (mdio_np)
 		mdiobus_unregister(priv->ds->slave_mii_bus);
