@@ -20,6 +20,9 @@ struct nfp_fl_pre_lag;
 struct net_device;
 struct nfp_app;
 
+#define NFP_FL_STAT_ID_MU_NUM		GENMASK(31, 22)
+#define NFP_FL_STAT_ID_STAT		GENMASK(21, 0)
+
 #define NFP_FL_STATS_ELEM_RS		FIELD_SIZEOF(struct nfp_fl_stats_id, \
 						     init_unalloc)
 #define NFP_FLOWER_MASK_ENTRY_RS	256
@@ -130,6 +133,8 @@ struct nfp_fl_lag {
  * @mtu_conf:		Configuration of repr MTU value
  * @nfp_lag:		Link aggregation data block
  * @indr_block_cb_priv:	List of priv data passed to indirect block cbs
+ * @active_mem_unit:	Current active memory unit for flower rules
+ * @total_mem_units:	Total number of available memory units for flower rules
  */
 struct nfp_flower_priv {
 	struct nfp_app *app;
@@ -163,6 +168,8 @@ struct nfp_flower_priv {
 	struct nfp_mtu_conf mtu_conf;
 	struct nfp_fl_lag nfp_lag;
 	struct list_head indr_block_cb_priv;
+	unsigned int active_mem_unit;
+	unsigned int total_mem_units;
 };
 
 /**
@@ -217,7 +224,8 @@ struct nfp_fl_stats_frame {
 	__be64 stats_cookie;
 };
 
-int nfp_flower_metadata_init(struct nfp_app *app, u64 host_ctx_count);
+int nfp_flower_metadata_init(struct nfp_app *app, u64 host_ctx_count,
+			     unsigned int host_ctx_split);
 void nfp_flower_metadata_cleanup(struct nfp_app *app);
 
 int nfp_flower_setup_tc(struct nfp_app *app, struct net_device *netdev,

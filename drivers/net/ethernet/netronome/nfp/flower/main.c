@@ -474,8 +474,8 @@ err_clear_nn:
 
 static int nfp_flower_init(struct nfp_app *app)
 {
+	u64 version, features, ctx_count, num_mems;
 	const struct nfp_pf *pf = app->pf;
-	u64 version, features, ctx_count;
 	struct nfp_flower_priv *app_priv;
 	int err;
 
@@ -500,6 +500,23 @@ static int nfp_flower_init(struct nfp_app *app)
 		return err;
 	}
 
+	num_mems = nfp_rtsym_read_le(app->pf->rtbl, "CONFIG_FC_HOST_CTX_SPLIT",
+				     &err);
+	if (err) {
+		nfp_warn(app->cpp,
+			 "FlowerNIC: unsupported host context memory: %d\n",
+			 err);
+		err = 0;
+		num_mems = 1;
+	}
+
+	if (!FIELD_FIT(NFP_FL_STAT_ID_MU_NUM, num_mems) || !num_mems) {
+		nfp_warn(app->cpp,
+			 "FlowerNIC: invalid host context memory: %llu\n",
+			 num_mems);
+		return -EINVAL;
+	}
+
 	ctx_count = nfp_rtsym_read_le(app->pf->rtbl, "CONFIG_FC_HOST_CTX_COUNT",
 				      &err);
 	if (err) {
@@ -520,6 +537,8 @@ static int nfp_flower_init(struct nfp_app *app)
 	if (!app_priv)
 		return -ENOMEM;
 
+	app_priv->total_mem_units = num_mems;
+	app_priv->active_mem_unit = 0;
 	app_priv->stats_ring_size = roundup_pow_of_two(ctx_count);
 	app->priv = app_priv;
 	app_priv->app = app;
@@ -531,7 +550,7 @@ static int nfp_flower_init(struct nfp_app *app)
 	init_waitqueue_head(&app_priv->mtu_conf.wait_q);
 	spin_lock_init(&app_priv->mtu_conf.lock);
 
-	err = nfp_flower_metadata_init(app, ctx_count);
+	err = nfp_flower_metadata_init(app, ctx_count, num_mems);
 	if (err)
 		goto err_free_app_priv;
 

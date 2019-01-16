@@ -4,6 +4,7 @@
 #include <linux/hash.h>
 #include <linux/hashtable.h>
 #include <linux/jhash.h>
+#include <linux/math64.h>
 #include <linux/vmalloc.h>
 #include <net/pkt_cls.h>
 
@@ -52,8 +53,17 @@ static int nfp_get_stats_entry(struct nfp_app *app, u32 *stats_context_id)
 	freed_stats_id = priv->stats_ring_size;
 	/* Check for unallocated entries first. */
 	if (priv->stats_ids.init_unalloc > 0) {
-		*stats_context_id = priv->stats_ids.init_unalloc - 1;
-		priv->stats_ids.init_unalloc--;
+		if (priv->active_mem_unit == priv->total_mem_units) {
+			priv->stats_ids.init_unalloc--;
+			priv->active_mem_unit = 0;
+		}
+
+		*stats_context_id =
+			FIELD_PREP(NFP_FL_STAT_ID_STAT,
+				   priv->stats_ids.init_unalloc - 1) |
+			FIELD_PREP(NFP_FL_STAT_ID_MU_NUM,
+				   priv->active_mem_unit);
+		priv->active_mem_unit++;
 		return 0;
 	}
 
@@ -381,10 +391,11 @@ const struct rhashtable_params nfp_flower_table_params = {
 	.automatic_shrinking	= true,
 };
 
-int nfp_flower_metadata_init(struct nfp_app *app, u64 host_ctx_count)
+int nfp_flower_metadata_init(struct nfp_app *app, u64 host_ctx_count,
+			     unsigned int host_num_mems)
 {
 	struct nfp_flower_priv *priv = app->priv;
-	int err;
+	int err, stats_size;
 
 	hash_init(priv->mask_table);
 
@@ -417,10 +428,12 @@ int nfp_flower_metadata_init(struct nfp_app *app, u64 host_ctx_count)
 	if (!priv->stats_ids.free_list.buf)
 		goto err_free_last_used;
 
-	priv->stats_ids.init_unalloc = host_ctx_count;
+	priv->stats_ids.init_unalloc = div_u64(host_ctx_count, host_num_mems);
 
-	priv->stats = kvmalloc_array(priv->stats_ring_size,
-				     sizeof(struct nfp_fl_stats), GFP_KERNEL);
+	stats_size = FIELD_PREP(NFP_FL_STAT_ID_STAT, host_ctx_count) |
+		     FIELD_PREP(NFP_FL_STAT_ID_MU_NUM, host_num_mems - 1);
+	priv->stats = kvmalloc_array(stats_size, sizeof(struct nfp_fl_stats),
+				     GFP_KERNEL);
 	if (!priv->stats)
 		goto err_free_ring_buf;
 
