@@ -614,11 +614,7 @@ static void nfp_tun_add_to_mac_offload_list(struct net_device *netdev,
 	if (FIELD_GET(NFP_FLOWER_CMSG_PORT_TYPE, port) ==
 	    NFP_FLOWER_CMSG_PORT_TYPE_PHYS_PORT) {
 		nfp_mac_idx = port << 8 | NFP_FLOWER_CMSG_PORT_TYPE_PHYS_PORT;
-	} else if (FIELD_GET(NFP_FLOWER_CMSG_PORT_TYPE, port) ==
-		   NFP_FLOWER_CMSG_PORT_TYPE_PCIE_PORT) {
-		port = FIELD_GET(NFP_FLOWER_CMSG_PORT_VNIC, port);
-		nfp_mac_idx = port << 8 | NFP_FLOWER_CMSG_PORT_TYPE_PCIE_PORT;
-	} else {
+	} else if (!port) {
 		/* Must assign our own unique 8-bit index. */
 		int idx = nfp_tun_get_mac_idx(app, netdev->ifindex);
 
@@ -628,6 +624,9 @@ static void nfp_tun_add_to_mac_offload_list(struct net_device *netdev,
 			return;
 		}
 		nfp_mac_idx = idx << 8 | NFP_FLOWER_CMSG_PORT_TYPE_OTHER_PORT;
+	} else {
+		kfree(entry);
+		return;
 	}
 
 	entry->index = cpu_to_be16(nfp_mac_idx);
