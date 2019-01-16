@@ -518,6 +518,7 @@ static int binderfs_fill_super(struct super_block *sb, void *data, int silent)
 
 	sb->s_fs_info = info;
 
+	ret = -ENOMEM;
 	inode = new_inode(sb);
 	if (!inode)
 		goto err_without_dentry;
