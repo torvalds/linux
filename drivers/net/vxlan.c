@@ -855,6 +855,97 @@ static void vxlan_fdb_destroy(struct vxlan_dev *vxlan, struct vxlan_fdb *f,
 	call_rcu(&f->rcu, vxlan_fdb_free);
 }
 
+static int vxlan_fdb_update_existing(struct vxlan_dev *vxlan,
+				     union vxlan_addr *ip,
+				     __u16 state, __u16 flags,
+				     __be16 port, __be32 vni,
+				     __u32 ifindex, __u16 ndm_flags,
+				     struct vxlan_fdb *f,
+				     bool swdev_notify)
+{
+	__u16 fdb_flags = (ndm_flags & ~NTF_USE);
+	struct vxlan_rdst *rd = NULL;
+	int notify = 0;
+	int rc;
+
+	/* Do not allow an externally learned entry to take over an entry added
+	 * by the user.
+	 */
+	if (!(fdb_flags & NTF_EXT_LEARNED) ||
+	    !(f->flags & NTF_VXLAN_ADDED_BY_USER)) {
+		if (f->state != state) {
+			f->state = state;
+			f->updated = jiffies;
+			notify = 1;
+		}
+		if (f->flags != fdb_flags) {
+			f->flags = fdb_flags;
+			f->updated = jiffies;
+			notify = 1;
+		}
+	}
+
+	if ((flags & NLM_F_REPLACE)) {
+		/* Only change unicasts */
+		if (!(is_multicast_ether_addr(f->eth_addr) ||
+		      is_zero_ether_addr(f->eth_addr))) {
+			rc = vxlan_fdb_replace(f, ip, port, vni,
+					       ifindex);
+			notify |= rc;
+		} else {
+			return -EOPNOTSUPP;
+		}
+	}
+	if ((flags & NLM_F_APPEND) &&
+	    (is_multicast_ether_addr(f->eth_addr) ||
+	     is_zero_ether_addr(f->eth_addr))) {
+		rc = vxlan_fdb_append(f, ip, port, vni, ifindex, &rd);
+
+		if (rc < 0)
+			return rc;
+		notify |= rc;
+	}
+
+	if (ndm_flags & NTF_USE)
+		f->used = jiffies;
+
+	if (notify) {
+		if (rd == NULL)
+			rd = first_remote_rtnl(f);
+
+		vxlan_fdb_notify(vxlan, f, rd, RTM_NEWNEIGH, swdev_notify);
+	}
+
+	return 0;
+}
+
+static int vxlan_fdb_update_create(struct vxlan_dev *vxlan,
+				   const u8 *mac, union vxlan_addr *ip,
+				   __u16 state, __u16 flags,
+				   __be16 port, __be32 src_vni, __be32 vni,
+				   __u32 ifindex, __u16 ndm_flags,
+				   bool swdev_notify)
+{
+	__u16 fdb_flags = (ndm_flags & ~NTF_USE);
+	struct vxlan_fdb *f;
+	int rc;
+
+	/* Disallow replace to add a multicast entry */
+	if ((flags & NLM_F_REPLACE) &&
+	    (is_multicast_ether_addr(mac) || is_zero_ether_addr(mac)))
+		return -EOPNOTSUPP;
+
+	netdev_dbg(vxlan->dev, "add %pM -> %pIS\n", mac, ip);
+	rc = vxlan_fdb_create(vxlan, mac, ip, state, port, src_vni,
+			      vni, ifindex, fdb_flags, &f);
+	if (rc < 0)
+		return rc;
+
+	vxlan_fdb_notify(vxlan, f, first_remote_rtnl(f), RTM_NEWNEIGH,
+			 swdev_notify);
+	return 0;
+}
+
 /* Add new entry to forwarding table -- assumes lock held */
 static int vxlan_fdb_update(struct vxlan_dev *vxlan,
 			    const u8 *mac, union vxlan_addr *ip,
@@ -863,11 +954,7 @@ static int vxlan_fdb_update(struct vxlan_dev *vxlan,
 			    __u32 ifindex, __u16 ndm_flags,
 			    bool swdev_notify)
 {
-	__u16 fdb_flags = (ndm_flags & ~NTF_USE);
-	struct vxlan_rdst *rd = NULL;
 	struct vxlan_fdb *f;
-	int notify = 0;
-	int rc;
 
 	f = __vxlan_find_mac(vxlan, mac, src_vni);
 	if (f) {
@@ -877,68 +964,17 @@ static int vxlan_fdb_update(struct vxlan_dev *vxlan,
 			return -EEXIST;
 		}
 
-		/* Do not allow an externally learned entry to take over an
-		 * entry added by the user.
-		 */
-		if (!(fdb_flags & NTF_EXT_LEARNED) ||
-		    !(f->flags & NTF_VXLAN_ADDED_BY_USER)) {
-			if (f->state != state) {
-				f->state = state;
-				f->updated = jiffies;
-				notify = 1;
-			}
-			if (f->flags != fdb_flags) {
-				f->flags = fdb_flags;
-				f->updated = jiffies;
-				notify = 1;
-			}
-		}
-
-		if ((flags & NLM_F_REPLACE)) {
-			/* Only change unicasts */
-			if (!(is_multicast_ether_addr(f->eth_addr) ||
-			     is_zero_ether_addr(f->eth_addr))) {
-				notify |= vxlan_fdb_replace(f, ip, port, vni,
-							   ifindex);
-			} else
-				return -EOPNOTSUPP;
-		}
-		if ((flags & NLM_F_APPEND) &&
-		    (is_multicast_ether_addr(f->eth_addr) ||
-		     is_zero_ether_addr(f->eth_addr))) {
-			rc = vxlan_fdb_append(f, ip, port, vni, ifindex, &rd);
-
-			if (rc < 0)
-				return rc;
-			notify |= rc;
-		}
-
-		if (ndm_flags & NTF_USE)
-			f->used = jiffies;
+		return vxlan_fdb_update_existing(vxlan, ip, state, flags, port,
+						 vni, ifindex, ndm_flags, f,
+						 swdev_notify);
 	} else {
 		if (!(flags & NLM_F_CREATE))
 			return -ENOENT;
 
-		/* Disallow replace to add a multicast entry */
-		if ((flags & NLM_F_REPLACE) &&
-		    (is_multicast_ether_addr(mac) || is_zero_ether_addr(mac)))
-			return -EOPNOTSUPP;
-
-		netdev_dbg(vxlan->dev, "add %pM -> %pIS\n", mac, ip);
-		rc = vxlan_fdb_create(vxlan, mac, ip, state, port, src_vni,
-				      vni, ifindex, fdb_flags, &f);
-		if (rc < 0)
-			return rc;
-		notify = 1;
+		return vxlan_fdb_update_create(vxlan, mac, ip, state, flags,
+					       port, src_vni, vni, ifindex,
+					       ndm_flags, swdev_notify);
 	}
-
-	if (notify) {
-		if (rd == NULL)
-			rd = first_remote_rtnl(f);
-		vxlan_fdb_notify(vxlan, f, rd, RTM_NEWNEIGH, swdev_notify);
-	}
-
-	return 0;
 }
 
 static void vxlan_dst_free(struct rcu_head *head)
