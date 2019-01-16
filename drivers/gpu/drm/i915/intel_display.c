@@ -9526,7 +9526,9 @@ static bool hsw_get_transcoder_state(struct intel_crtc *crtc,
 	 * XXX: Do intel_display_power_get_if_enabled before reading this (for
 	 * consistency and less surprising code; it's in always on power).
 	 */
-	for_each_set_bit(panel_transcoder, &panel_transcoder_mask, 32) {
+	for_each_set_bit(panel_transcoder,
+			 &panel_transcoder_mask,
+			 ARRAY_SIZE(INTEL_INFO(dev_priv)->trans_offsets)) {
 		enum pipe trans_pipe;
 
 		tmp = I915_READ(TRANS_DDI_FUNC_CTL(panel_transcoder));
