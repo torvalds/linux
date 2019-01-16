@@ -252,28 +252,7 @@ static inline int erofs_wait_on_workgroup_freezed(struct erofs_workgroup *grp)
 }
 #endif
 
-static inline int erofs_workgroup_get(struct erofs_workgroup *grp, int *ocnt)
-{
-	int o;
-
-repeat:
-	o = erofs_wait_on_workgroup_freezed(grp);
-
-	if (unlikely(o <= 0))
-		return -1;
-
-	if (unlikely(atomic_cmpxchg(&grp->refcount, o, o + 1) != o))
-		goto repeat;
-
-	*ocnt = o;
-	return 0;
-}
-
-#define __erofs_workgroup_get(grp)	atomic_inc(&(grp)->refcount)
-#define __erofs_workgroup_put(grp)	atomic_dec(&(grp)->refcount)
-
 extern int erofs_workgroup_put(struct erofs_workgroup *grp);
-
 extern struct erofs_workgroup *erofs_find_workgroup(
 	struct super_block *sb, pgoff_t index, bool *tag);
 
