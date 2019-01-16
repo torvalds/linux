@@ -545,7 +545,10 @@ static int rcar_lvds_attach(struct drm_bridge *bridge)
 		return drm_bridge_attach(bridge->encoder, lvds->next_bridge,
 					 bridge);
 
-	/* Otherwise we have a panel, create a connector. */
+	/* Otherwise if we have a panel, create a connector. */
+	if (!lvds->panel)
+		return 0;
+
 	ret = drm_connector_init(bridge->dev, connector, &rcar_lvds_conn_funcs,
 				 DRM_MODE_CONNECTOR_LVDS);
 	if (ret < 0)
@@ -593,7 +596,8 @@ static int rcar_lvds_parse_dt(struct rcar_lvds *lvds)
 	local_output = of_graph_get_endpoint_by_regs(lvds->dev->of_node, 1, 0);
 	if (!local_output) {
 		dev_dbg(lvds->dev, "unconnected port@1\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto done;
 	}
 
 	/*
@@ -642,6 +646,15 @@ done:
 	of_node_put(local_output);
 	of_node_put(remote_input);
 	of_node_put(remote);
+
+	/*
+	 * On D3/E3 the LVDS encoder provides a clock to the DU, which can be
+	 * used for the DPAD output even when the LVDS output is not connected.
+	 * Don't fail probe in that case as the DU will need the bridge to
+	 * control the clock.
+	 */
+	if (lvds->info->quirks & RCAR_LVDS_QUIRK_EXT_PLL)
+		return ret == -ENODEV ? 0 : ret;
 
 	return ret;
 }
