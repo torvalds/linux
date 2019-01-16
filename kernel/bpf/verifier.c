@@ -4997,13 +4997,14 @@ static int check_btf_func(struct bpf_verifier_env *env,
 			  const union bpf_attr *attr,
 			  union bpf_attr __user *uattr)
 {
-	u32 i, nfuncs, urec_size, min_size, prev_offset;
+	u32 i, nfuncs, urec_size, min_size;
 	u32 krec_size = sizeof(struct bpf_func_info);
 	struct bpf_func_info *krecord;
 	const struct btf_type *type;
 	struct bpf_prog *prog;
 	const struct btf *btf;
 	void __user *urecord;
+	u32 prev_offset = 0;
 	int ret = 0;
 
 	nfuncs = attr->func_info_cnt;
