@@ -108,6 +108,14 @@ properties:
 
       - description: RZ/G2E (R8A774C0)
         items:
+          - enum:
+              - si-linux,cat874 # Silicon Linux RZ/G2E 96board platform (CAT874)
+          - const: renesas,r8a774c0
+
+      - items:
+          - enum:
+              - si-linux,cat875 # Silicon Linux sub board for CAT874 (CAT875)
+          - const: si-linux,cat874
           - const: renesas,r8a774c0
 
       - description: R-Car M1A (R8A77781)
