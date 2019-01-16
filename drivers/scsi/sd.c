@@ -1072,6 +1072,83 @@ static blk_status_t sd_setup_flush_cmnd(struct scsi_cmnd *cmd)
 	return BLK_STS_OK;
 }
 
+static blk_status_t sd_setup_rw32_cmnd(struct scsi_cmnd *cmd, bool write,
+				       sector_t lba, unsigned int nr_blocks,
+				       unsigned char flags)
+{
+	cmd->cmnd = mempool_alloc(sd_cdb_pool, GFP_ATOMIC);
+	if (unlikely(cmd->cmnd == NULL))
+		return BLK_STS_RESOURCE;
+
+	cmd->cmd_len = SD_EXT_CDB_SIZE;
+	memset(cmd->cmnd, 0, cmd->cmd_len);
+
+	cmd->cmnd[0]  = VARIABLE_LENGTH_CMD;
+	cmd->cmnd[7]  = 0x18; /* Additional CDB len */
+	cmd->cmnd[9]  = write ? WRITE_32 : READ_32;
+	cmd->cmnd[10] = flags;
+	put_unaligned_be64(lba, &cmd->cmnd[12]);
+	put_unaligned_be32(lba, &cmd->cmnd[20]); /* Expected Indirect LBA */
+	put_unaligned_be32(nr_blocks, &cmd->cmnd[28]);
+
+	return BLK_STS_OK;
+}
+
+static blk_status_t sd_setup_rw16_cmnd(struct scsi_cmnd *cmd, bool write,
+				       sector_t lba, unsigned int nr_blocks,
+				       unsigned char flags)
+{
+	cmd->cmd_len  = 16;
+	cmd->cmnd[0]  = write ? WRITE_16 : READ_16;
+	cmd->cmnd[1]  = flags;
+	cmd->cmnd[14] = 0;
+	cmd->cmnd[15] = 0;
+	put_unaligned_be64(lba, &cmd->cmnd[2]);
+	put_unaligned_be32(nr_blocks, &cmd->cmnd[10]);
+
+	return BLK_STS_OK;
+}
+
+static blk_status_t sd_setup_rw10_cmnd(struct scsi_cmnd *cmd, bool write,
+				       sector_t lba, unsigned int nr_blocks,
+				       unsigned char flags)
+{
+	cmd->cmd_len = 10;
+	cmd->cmnd[0] = write ? WRITE_10 : READ_10;
+	cmd->cmnd[1] = flags;
+	cmd->cmnd[6] = 0;
+	cmd->cmnd[9] = 0;
+	put_unaligned_be32(lba, &cmd->cmnd[2]);
+	put_unaligned_be16(nr_blocks, &cmd->cmnd[7]);
+
+	return BLK_STS_OK;
+}
+
+static blk_status_t sd_setup_rw6_cmnd(struct scsi_cmnd *cmd, bool write,
+				      sector_t lba, unsigned int nr_blocks,
+				      unsigned char flags)
+{
+	if (unlikely(flags & 0x8)) {
+		/*
+		 * This happens only if this drive failed 10byte rw
+		 * command with ILLEGAL_REQUEST during operation and
+		 * thus turned off use_10_for_rw.
+		 */
+		scmd_printk(KERN_ERR, cmd, "FUA write on READ/WRITE(6) drive\n");
+		return BLK_STS_IOERR;
+	}
+
+	cmd->cmd_len = 6;
+	cmd->cmnd[0] = write ? WRITE_6 : READ_6;
+	cmd->cmnd[1] = (lba >> 16) & 0x1f;
+	cmd->cmnd[2] = (lba >> 8) & 0xff;
+	cmd->cmnd[3] = lba & 0xff;
+	cmd->cmnd[4] = nr_blocks;
+	cmd->cmnd[5] = 0;
+
+	return BLK_STS_OK;
+}
+
 static blk_status_t sd_setup_read_write_cmnd(struct scsi_cmnd *SCpnt)
 {
 	struct request *rq = SCpnt->request;
@@ -1083,7 +1160,8 @@ static blk_status_t sd_setup_read_write_cmnd(struct scsi_cmnd *SCpnt)
 	unsigned int nr_blocks = sectors_to_logical(sdp, blk_rq_sectors(rq));
 	unsigned int dif, dix;
 	unsigned int mask = logical_to_sectors(sdp, 1) - 1;
-	unsigned char protect;
+	bool write = rq_data_dir(rq) == WRITE;
+	unsigned char protect, fua;
 	blk_status_t ret;
 
 	ret = scsi_init_io(SCpnt);
@@ -1158,6 +1236,7 @@ static blk_status_t sd_setup_read_write_cmnd(struct scsi_cmnd *SCpnt)
 					"writing" : "reading", nr_blocks,
 					blk_rq_sectors(rq)));
 
+	fua = rq->cmd_flags & REQ_FUA ? 0x8 : 0;
 	dix = scsi_prot_sg_count(SCpnt);
 	dif = scsi_host_dif_capable(SCpnt->device->host, sdkp->protection_type);
 
@@ -1167,86 +1246,24 @@ static blk_status_t sd_setup_read_write_cmnd(struct scsi_cmnd *SCpnt)
 		protect = 0;
 
 	if (protect && sdkp->protection_type == T10_PI_TYPE2_PROTECTION) {
-		SCpnt->cmnd = mempool_alloc(sd_cdb_pool, GFP_ATOMIC);
-
-		if (unlikely(!SCpnt->cmnd))
-			return BLK_STS_RESOURCE;
-
-		SCpnt->cmd_len = SD_EXT_CDB_SIZE;
-		memset(SCpnt->cmnd, 0, SCpnt->cmd_len);
-		SCpnt->cmnd[0] = VARIABLE_LENGTH_CMD;
-		SCpnt->cmnd[7] = 0x18;
-		SCpnt->cmnd[9] = (rq_data_dir(rq) == READ) ? READ_32 : WRITE_32;
-		SCpnt->cmnd[10] = protect | ((rq->cmd_flags & REQ_FUA) ? 0x8 : 0);
-
-		/* LBA */
-		SCpnt->cmnd[12] = sizeof(lba) > 4 ? (unsigned char) (lba >> 56) & 0xff : 0;
-		SCpnt->cmnd[13] = sizeof(lba) > 4 ? (unsigned char) (lba >> 48) & 0xff : 0;
-		SCpnt->cmnd[14] = sizeof(lba) > 4 ? (unsigned char) (lba >> 40) & 0xff : 0;
-		SCpnt->cmnd[15] = sizeof(lba) > 4 ? (unsigned char) (lba >> 32) & 0xff : 0;
-		SCpnt->cmnd[16] = (unsigned char) (lba >> 24) & 0xff;
-		SCpnt->cmnd[17] = (unsigned char) (lba >> 16) & 0xff;
-		SCpnt->cmnd[18] = (unsigned char) (lba >> 8) & 0xff;
-		SCpnt->cmnd[19] = (unsigned char) lba & 0xff;
-
-		/* Expected Indirect LBA */
-		SCpnt->cmnd[20] = (unsigned char) (lba >> 24) & 0xff;
-		SCpnt->cmnd[21] = (unsigned char) (lba >> 16) & 0xff;
-		SCpnt->cmnd[22] = (unsigned char) (lba >> 8) & 0xff;
-		SCpnt->cmnd[23] = (unsigned char) lba & 0xff;
-
-		/* Transfer length */
-		SCpnt->cmnd[28] = (unsigned char) (nr_blocks >> 24) & 0xff;
-		SCpnt->cmnd[29] = (unsigned char) (nr_blocks >> 16) & 0xff;
-		SCpnt->cmnd[30] = (unsigned char) (nr_blocks >> 8) & 0xff;
-		SCpnt->cmnd[31] = (unsigned char) nr_blocks & 0xff;
+		ret = sd_setup_rw32_cmnd(SCpnt, write, lba, nr_blocks,
+					 protect | fua);
 	} else if (sdp->use_16_for_rw || (nr_blocks > 0xffff)) {
-		SCpnt->cmnd[0] += READ_16 - READ_6;
-		SCpnt->cmnd[1] = protect | ((rq->cmd_flags & REQ_FUA) ? 0x8 : 0);
-		SCpnt->cmnd[2] = sizeof(lba) > 4 ? (unsigned char) (lba >> 56) & 0xff : 0;
-		SCpnt->cmnd[3] = sizeof(lba) > 4 ? (unsigned char) (lba >> 48) & 0xff : 0;
-		SCpnt->cmnd[4] = sizeof(lba) > 4 ? (unsigned char) (lba >> 40) & 0xff : 0;
-		SCpnt->cmnd[5] = sizeof(lba) > 4 ? (unsigned char) (lba >> 32) & 0xff : 0;
-		SCpnt->cmnd[6] = (unsigned char) (lba >> 24) & 0xff;
-		SCpnt->cmnd[7] = (unsigned char) (lba >> 16) & 0xff;
-		SCpnt->cmnd[8] = (unsigned char) (lba >> 8) & 0xff;
-		SCpnt->cmnd[9] = (unsigned char) lba & 0xff;
-		SCpnt->cmnd[10] = (unsigned char) (nr_blocks >> 24) & 0xff;
-		SCpnt->cmnd[11] = (unsigned char) (nr_blocks >> 16) & 0xff;
-		SCpnt->cmnd[12] = (unsigned char) (nr_blocks >> 8) & 0xff;
-		SCpnt->cmnd[13] = (unsigned char) nr_blocks & 0xff;
-		SCpnt->cmnd[14] = SCpnt->cmnd[15] = 0;
+		ret = sd_setup_rw16_cmnd(SCpnt, write, lba, nr_blocks,
+					 protect | fua);
 	} else if ((nr_blocks > 0xff) || (lba > 0x1fffff) ||
 		   scsi_device_protection(SCpnt->device) ||
 		   SCpnt->device->use_10_for_rw) {
-		SCpnt->cmnd[0] += READ_10 - READ_6;
-		SCpnt->cmnd[1] = protect | ((rq->cmd_flags & REQ_FUA) ? 0x8 : 0);
-		SCpnt->cmnd[2] = (unsigned char) (lba >> 24) & 0xff;
-		SCpnt->cmnd[3] = (unsigned char) (lba >> 16) & 0xff;
-		SCpnt->cmnd[4] = (unsigned char) (lba >> 8) & 0xff;
-		SCpnt->cmnd[5] = (unsigned char) lba & 0xff;
-		SCpnt->cmnd[6] = SCpnt->cmnd[9] = 0;
-		SCpnt->cmnd[7] = (unsigned char) (nr_blocks >> 8) & 0xff;
-		SCpnt->cmnd[8] = (unsigned char) nr_blocks & 0xff;
+		ret = sd_setup_rw10_cmnd(SCpnt, write, lba, nr_blocks,
+					 protect | fua);
 	} else {
-		if (unlikely(rq->cmd_flags & REQ_FUA)) {
-			/*
-			 * This happens only if this drive failed
-			 * 10byte rw command with ILLEGAL_REQUEST
-			 * during operation and thus turned off
-			 * use_10_for_rw.
-			 */
-			scmd_printk(KERN_ERR, SCpnt,
-				    "FUA write on READ/WRITE(6) drive\n");
-			return BLK_STS_IOERR;
-		}
-
-		SCpnt->cmnd[1] |= (unsigned char) ((lba >> 16) & 0x1f);
-		SCpnt->cmnd[2] = (unsigned char) ((lba >> 8) & 0xff);
-		SCpnt->cmnd[3] = (unsigned char) lba & 0xff;
-		SCpnt->cmnd[4] = (unsigned char) nr_blocks;
-		SCpnt->cmnd[5] = 0;
+		ret = sd_setup_rw6_cmnd(SCpnt, write, lba, nr_blocks,
+					protect | fua);
 	}
+
+	if (unlikely(ret != BLK_STS_OK))
+		return ret;
+
 	SCpnt->sdb.length = nr_blocks * sdp->sector_size;
 
 	/*
