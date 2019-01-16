@@ -215,7 +215,7 @@ static const struct of_device_id rtc_dt_match[] = {
 };
 MODULE_DEVICE_TABLE(of, rtc_dt_match);
 
-struct i2c_driver sd3078_driver = {
+static struct i2c_driver sd3078_driver = {
 	.driver     = {
 		.name   = "sd3078",
 		.owner  = THIS_MODULE,
