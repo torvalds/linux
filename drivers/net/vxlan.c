@@ -3809,15 +3809,6 @@ static int vxlan_changelink(struct net_device *dev, struct nlattr *tb[],
 	/* handle default dst entry */
 	if (!vxlan_addr_equal(&conf.remote_ip, &dst->remote_ip)) {
 		spin_lock_bh(&vxlan->hash_lock);
-		if (!vxlan_addr_any(&dst->remote_ip))
-			__vxlan_fdb_delete(vxlan, all_zeros_mac,
-					   dst->remote_ip,
-					   vxlan->cfg.dst_port,
-					   dst->remote_vni,
-					   dst->remote_vni,
-					   dst->remote_ifindex,
-					   true);
-
 		if (!vxlan_addr_any(&conf.remote_ip)) {
 			err = vxlan_fdb_update(vxlan, all_zeros_mac,
 					       &conf.remote_ip,
@@ -3832,6 +3823,14 @@ static int vxlan_changelink(struct net_device *dev, struct nlattr *tb[],
 				return err;
 			}
 		}
+		if (!vxlan_addr_any(&dst->remote_ip))
+			__vxlan_fdb_delete(vxlan, all_zeros_mac,
+					   dst->remote_ip,
+					   vxlan->cfg.dst_port,
+					   dst->remote_vni,
+					   dst->remote_vni,
+					   dst->remote_ifindex,
+					   true);
 		spin_unlock_bh(&vxlan->hash_lock);
 	}
 
