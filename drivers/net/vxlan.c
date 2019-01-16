@@ -3793,6 +3793,7 @@ static int vxlan_changelink(struct net_device *dev, struct nlattr *tb[],
 	struct vxlan_dev *vxlan = netdev_priv(dev);
 	struct vxlan_rdst *dst = &vxlan->default_dst;
 	unsigned long old_age_interval;
+	struct net_device *lowerdev;
 	struct vxlan_rdst old_dst;
 	struct vxlan_config conf;
 	int err;
@@ -3805,9 +3806,12 @@ static int vxlan_changelink(struct net_device *dev, struct nlattr *tb[],
 	old_age_interval = vxlan->cfg.age_interval;
 	memcpy(&old_dst, dst, sizeof(struct vxlan_rdst));
 
-	err = vxlan_dev_configure(vxlan->net, dev, &conf, true, extack);
+	err = vxlan_config_validate(vxlan->net, &conf, &lowerdev,
+				    vxlan, extack);
 	if (err)
 		return err;
+
+	vxlan_config_apply(dev, &conf, lowerdev, vxlan->net, true);
 
 	if (old_age_interval != vxlan->cfg.age_interval)
 		mod_timer(&vxlan->age_timer, jiffies);
