@@ -184,3 +184,18 @@ COMPAT_SYSCALL_WRAP5(statx, int, dfd, const char __user *, path, unsigned, flags
 COMPAT_SYSCALL_WRAP4(s390_sthyi, unsigned long, code, void __user *, info, u64 __user *, rc, unsigned long, flags);
 COMPAT_SYSCALL_WRAP5(kexec_file_load, int, kernel_fd, int, initrd_fd, unsigned long, cmdline_len, const char __user *, cmdline_ptr, unsigned long, flags)
 COMPAT_SYSCALL_WRAP4(rseq, struct rseq __user *, rseq, u32, rseq_len, int, flags, u32, sig)
+COMPAT_SYSCALL_WRAP3(chown16, const char __user *, filename, u16, user, u16, group);
+COMPAT_SYSCALL_WRAP3(lchown16, const char __user *, filename, u16, user, u16, group);
+COMPAT_SYSCALL_WRAP3(fchown16, unsigned int, fd, u16, user, u16, group);
+COMPAT_SYSCALL_WRAP2(setregid16, u16, rgid, u16, egid);
+COMPAT_SYSCALL_WRAP1(setgid16, u16, gid);
+COMPAT_SYSCALL_WRAP2(setreuid16, u16, ruid, u16, euid);
+COMPAT_SYSCALL_WRAP1(setuid16, u16, uid);
+COMPAT_SYSCALL_WRAP3(setresuid16, u16, ruid, u16, euid, u16, suid);
+COMPAT_SYSCALL_WRAP3(getresuid16, u16 __user *, ruidp, u16 __user *, euidp, u16 __user *, suidp);
+COMPAT_SYSCALL_WRAP3(setresgid16, u16, rgid, u16, egid, u16, sgid);
+COMPAT_SYSCALL_WRAP3(getresgid16, u16 __user *, rgidp, u16 __user *, egidp, u16 __user *, sgidp);
+COMPAT_SYSCALL_WRAP1(setfsuid16, u16, uid);
+COMPAT_SYSCALL_WRAP1(setfsgid16, u16, gid);
+COMPAT_SYSCALL_WRAP2(getgroups16, int, gidsetsize, u16 __user *, grouplist);
+COMPAT_SYSCALL_WRAP2(setgroups16, int, gidsetsize, u16 __user *, grouplist);
