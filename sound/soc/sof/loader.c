@@ -239,8 +239,8 @@ int snd_sof_load_firmware_memcpy(struct snd_sof_dev *sdev)
 	ret = request_firmware(&plat_data->fw, fw_filename, sdev->dev);
 
 	if (ret < 0) {
-		dev_err(sdev->dev, "error: request firmware failed err: %d\n",
-			ret);
+		dev_err(sdev->dev, "error: request firmware %s failed err: %d\n",
+			fw_filename, ret);
 		return ret;
 	}
 

@@ -2781,7 +2781,7 @@ int snd_sof_load_topology(struct snd_sof_dev *sdev, const char *file)
 
 	ret = request_firmware(&fw, file, sdev->dev);
 	if (ret < 0) {
-		dev_err(sdev->dev, "error: tplg %s load failed with %d\n",
+		dev_err(sdev->dev, "error: tplg request firmware %s failed err: %d\n",
 			file, ret);
 		return ret;
 	}
