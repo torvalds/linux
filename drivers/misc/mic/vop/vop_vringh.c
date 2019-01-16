@@ -587,7 +587,7 @@ static int vop_virtio_copy_to_user(struct vop_vdev *vdev, void __user *ubuf,
 err:
 	vpdev->hw_ops->iounmap(vpdev, dbuf);
 	dev_dbg(vop_dev(vdev),
-		"%s: ubuf %p dbuf %p len 0x%lx vr_idx 0x%x\n",
+		"%s: ubuf %p dbuf %p len 0x%zx vr_idx 0x%x\n",
 		__func__, ubuf, dbuf, len, vr_idx);
 	return err;
 }
@@ -670,7 +670,7 @@ memcpy:
 err:
 	vpdev->hw_ops->iounmap(vpdev, dbuf);
 	dev_dbg(vop_dev(vdev),
-		"%s: ubuf %p dbuf %p len 0x%lx vr_idx 0x%x\n",
+		"%s: ubuf %p dbuf %p len 0x%zx vr_idx 0x%x\n",
 		__func__, ubuf, dbuf, len, vr_idx);
 	return err;
 }
