@@ -145,6 +145,7 @@ struct nfp_fl_lag {
  * @mtu_conf:		Configuration of repr MTU value
  * @nfp_lag:		Link aggregation data block
  * @indr_block_cb_priv:	List of priv data passed to indirect block cbs
+ * @non_repr_priv:	List of offloaded non-repr ports and their priv data
  * @active_mem_unit:	Current active memory unit for flower rules
  * @total_mem_units:	Total number of available memory units for flower rules
  */
@@ -170,6 +171,7 @@ struct nfp_flower_priv {
 	struct nfp_mtu_conf mtu_conf;
 	struct nfp_fl_lag nfp_lag;
 	struct list_head indr_block_cb_priv;
+	struct list_head non_repr_priv;
 	unsigned int active_mem_unit;
 	unsigned int total_mem_units;
 };
@@ -180,6 +182,18 @@ struct nfp_flower_priv {
  */
 struct nfp_flower_repr_priv {
 	unsigned long lag_port_flags;
+};
+
+/**
+ * struct nfp_flower_non_repr_priv - Priv data for non-repr offloaded ports
+ * @list:		List entry of offloaded reprs
+ * @netdev:		Pointer to non-repr net_device
+ * @ref_count:		Number of references held for this priv data
+ */
+struct nfp_flower_non_repr_priv {
+	struct list_head list;
+	struct net_device *netdev;
+	int ref_count;
 };
 
 struct nfp_fl_key_ls {
@@ -282,4 +296,12 @@ int nfp_flower_reg_indir_block_handler(struct nfp_app *app,
 				       struct net_device *netdev,
 				       unsigned long event);
 
+void
+__nfp_flower_non_repr_priv_get(struct nfp_flower_non_repr_priv *non_repr_priv);
+struct nfp_flower_non_repr_priv *
+nfp_flower_non_repr_priv_get(struct nfp_app *app, struct net_device *netdev);
+void
+__nfp_flower_non_repr_priv_put(struct nfp_flower_non_repr_priv *non_repr_priv);
+void
+nfp_flower_non_repr_priv_put(struct nfp_app *app, struct net_device *netdev);
 #endif

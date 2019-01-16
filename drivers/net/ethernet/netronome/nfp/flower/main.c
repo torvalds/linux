@@ -32,6 +32,71 @@ static enum devlink_eswitch_mode eswitch_mode_get(struct nfp_app *app)
 	return DEVLINK_ESWITCH_MODE_SWITCHDEV;
 }
 
+static struct nfp_flower_non_repr_priv *
+nfp_flower_non_repr_priv_lookup(struct nfp_app *app, struct net_device *netdev)
+{
+	struct nfp_flower_priv *priv = app->priv;
+	struct nfp_flower_non_repr_priv *entry;
+
+	ASSERT_RTNL();
+
+	list_for_each_entry(entry, &priv->non_repr_priv, list)
+		if (entry->netdev == netdev)
+			return entry;
+
+	return NULL;
+}
+
+void
+__nfp_flower_non_repr_priv_get(struct nfp_flower_non_repr_priv *non_repr_priv)
+{
+	non_repr_priv->ref_count++;
+}
+
+struct nfp_flower_non_repr_priv *
+nfp_flower_non_repr_priv_get(struct nfp_app *app, struct net_device *netdev)
+{
+	struct nfp_flower_priv *priv = app->priv;
+	struct nfp_flower_non_repr_priv *entry;
+
+	entry = nfp_flower_non_repr_priv_lookup(app, netdev);
+	if (entry)
+		goto inc_ref;
+
+	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	if (!entry)
+		return NULL;
+
+	entry->netdev = netdev;
+	list_add(&entry->list, &priv->non_repr_priv);
+
+inc_ref:
+	__nfp_flower_non_repr_priv_get(entry);
+	return entry;
+}
+
+void
+__nfp_flower_non_repr_priv_put(struct nfp_flower_non_repr_priv *non_repr_priv)
+{
+	if (--non_repr_priv->ref_count)
+		return;
+
+	list_del(&non_repr_priv->list);
+	kfree(non_repr_priv);
+}
+
+void
+nfp_flower_non_repr_priv_put(struct nfp_app *app, struct net_device *netdev)
+{
+	struct nfp_flower_non_repr_priv *entry;
+
+	entry = nfp_flower_non_repr_priv_lookup(app, netdev);
+	if (!entry)
+		return;
+
+	__nfp_flower_non_repr_priv_put(entry);
+}
+
 static enum nfp_repr_type
 nfp_flower_repr_get_type_and_port(struct nfp_app *app, u32 port_id, u8 *port)
 {
@@ -575,6 +640,7 @@ static int nfp_flower_init(struct nfp_app *app)
 	}
 
 	INIT_LIST_HEAD(&app_priv->indr_block_cb_priv);
+	INIT_LIST_HEAD(&app_priv->non_repr_priv);
 
 	return 0;
 
