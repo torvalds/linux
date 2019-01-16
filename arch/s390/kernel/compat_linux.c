@@ -296,7 +296,7 @@ COMPAT_SYSCALL_DEFINE5(s390_ipc, uint, call, int, first, compat_ulong_t, second,
 {
 	if (call >> 16)		/* hack for backward compatibility */
 		return -EINVAL;
-	return compat_sys_ipc(call, first, second, third, ptr, third);
+	return compat_ksys_ipc(call, first, second, third, ptr, third);
 }
 #endif
 
