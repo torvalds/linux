@@ -106,7 +106,7 @@ int snd_sof_debugfs_io_create_item(struct snd_sof_dev *sdev,
 
 	return 0;
 }
-EXPORT_SYMBOL(snd_sof_debugfs_io_create_item);
+EXPORT_SYMBOL_GPL(snd_sof_debugfs_io_create_item);
 
 /* create FS entry for debug files to expose kernel memory */
 int snd_sof_debugfs_buf_create_item(struct snd_sof_dev *sdev,
@@ -136,7 +136,7 @@ int snd_sof_debugfs_buf_create_item(struct snd_sof_dev *sdev,
 
 	return 0;
 }
-EXPORT_SYMBOL(snd_sof_debugfs_buf_create_item);
+EXPORT_SYMBOL_GPL(snd_sof_debugfs_buf_create_item);
 
 int snd_sof_dbg_init(struct snd_sof_dev *sdev)
 {
@@ -165,10 +165,10 @@ int snd_sof_dbg_init(struct snd_sof_dev *sdev)
 
 	return 0;
 }
-EXPORT_SYMBOL(snd_sof_dbg_init);
+EXPORT_SYMBOL_GPL(snd_sof_dbg_init);
 
 void snd_sof_free_debug(struct snd_sof_dev *sdev)
 {
 	debugfs_remove_recursive(sdev->debugfs_root);
 }
-EXPORT_SYMBOL(snd_sof_free_debug);
+EXPORT_SYMBOL_GPL(snd_sof_free_debug);
