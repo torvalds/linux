@@ -145,12 +145,13 @@ struct tls_sw_context_tx {
 struct tls_sw_context_rx {
 	struct crypto_aead *aead_recv;
 	struct crypto_wait async_wait;
-
 	struct strparser strp;
+	struct sk_buff_head rx_list;	/* list of decrypted 'data' records */
 	void (*saved_data_ready)(struct sock *sk);
 
 	struct sk_buff *recv_pkt;
 	u8 control;
+	int async_capable;
 	bool decrypted;
 	atomic_t decrypt_pending;
 	bool async_notify;
