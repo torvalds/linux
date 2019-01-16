@@ -218,6 +218,7 @@ static const char *hw_flag_names[] = {
 	FLAG(BUFF_MMPDU_TXQ),
 	FLAG(SUPPORTS_VHT_EXT_NSS_BW),
 	FLAG(STA_MMPDU_TXQ),
+	FLAG(TX_STATUS_NO_AMPDU_LEN),
 #undef FLAG
 };
 
