@@ -179,9 +179,13 @@ struct nfp_flower_priv {
 /**
  * struct nfp_flower_repr_priv - Flower APP per-repr priv data
  * @lag_port_flags:	Extended port flags to record lag state of repr
+ * @mac_offloaded:	Flag indicating a MAC address is offloaded for repr
+ * @offloaded_mac_addr:	MAC address that has been offloaded for repr
  */
 struct nfp_flower_repr_priv {
 	unsigned long lag_port_flags;
+	bool mac_offloaded;
+	u8 offloaded_mac_addr[ETH_ALEN];
 };
 
 /**
@@ -189,11 +193,15 @@ struct nfp_flower_repr_priv {
  * @list:		List entry of offloaded reprs
  * @netdev:		Pointer to non-repr net_device
  * @ref_count:		Number of references held for this priv data
+ * @mac_offloaded:	Flag indicating a MAC address is offloaded for device
+ * @offloaded_mac_addr:	MAC address that has been offloaded for dev
  */
 struct nfp_flower_non_repr_priv {
 	struct list_head list;
 	struct net_device *netdev;
 	int ref_count;
+	bool mac_offloaded;
+	u8 offloaded_mac_addr[ETH_ALEN];
 };
 
 struct nfp_fl_key_ls {
