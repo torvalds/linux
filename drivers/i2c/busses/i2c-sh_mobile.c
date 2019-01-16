@@ -358,18 +358,6 @@ static bool sh_mobile_i2c_is_first_byte(struct sh_mobile_i2c_data *pd)
 	return pd->pos == -1;
 }
 
-static void sh_mobile_i2c_get_data(struct sh_mobile_i2c_data *pd,
-				   unsigned char *buf)
-{
-	switch (pd->pos) {
-	case -1:
-		*buf = i2c_8bit_addr_from_msg(pd->msg);
-		break;
-	default:
-		*buf = pd->msg->buf[pd->pos];
-	}
-}
-
 static int sh_mobile_i2c_isr_tx(struct sh_mobile_i2c_data *pd)
 {
 	unsigned char data;
@@ -379,8 +367,13 @@ static int sh_mobile_i2c_isr_tx(struct sh_mobile_i2c_data *pd)
 		return 1;
 	}
 
-	sh_mobile_i2c_get_data(pd, &data);
-	i2c_op(pd, sh_mobile_i2c_is_first_byte(pd) ? OP_TX_FIRST : OP_TX, data);
+	if (sh_mobile_i2c_is_first_byte(pd)) {
+		data = i2c_8bit_addr_from_msg(pd->msg);
+		i2c_op(pd, OP_TX_FIRST, data);
+	} else {
+		data = pd->msg->buf[pd->pos];
+		i2c_op(pd, OP_TX, data);
+	}
 
 	pd->pos++;
 	return 0;
@@ -393,7 +386,7 @@ static int sh_mobile_i2c_isr_rx(struct sh_mobile_i2c_data *pd)
 
 	do {
 		if (sh_mobile_i2c_is_first_byte(pd)) {
-			sh_mobile_i2c_get_data(pd, &data);
+			data = i2c_8bit_addr_from_msg(pd->msg);
 			i2c_op(pd, OP_TX_FIRST, data);
 			break;
 		}
