@@ -2553,7 +2553,7 @@ static int vxge_add_isr(struct vxgedev *vdev)
 			vxge_debug_init(VXGE_ERR,
 				"%s: Defaulting to INTA",
 				vdev->ndev->name);
-				goto INTA_MODE;
+			goto INTA_MODE;
 		}
 
 		msix_idx = (vdev->vpaths[0].handle->vpath->vp_id *
