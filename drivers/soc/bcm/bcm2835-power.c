@@ -553,7 +553,7 @@ static int bcm2835_reset_status(struct reset_controller_dev *rcdev,
 	}
 }
 
-const struct reset_control_ops bcm2835_reset_ops = {
+static const struct reset_control_ops bcm2835_reset_ops = {
 	.reset = bcm2835_reset_reset,
 	.status = bcm2835_reset_status,
 };
