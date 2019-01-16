@@ -3099,23 +3099,34 @@ mlxsw_sp_switchdev_vxlan_work_prepare(struct mlxsw_sp_switchdev_event_work *
 	struct vxlan_dev *vxlan = netdev_priv(switchdev_work->dev);
 	struct switchdev_notifier_vxlan_fdb_info *vxlan_fdb_info;
 	struct vxlan_config *cfg = &vxlan->cfg;
+	struct netlink_ext_ack *extack;
 
+	extack = switchdev_notifier_info_to_extack(info);
 	vxlan_fdb_info = container_of(info,
 				      struct switchdev_notifier_vxlan_fdb_info,
 				      info);
 
-	if (vxlan_fdb_info->remote_port != cfg->dst_port)
+	if (vxlan_fdb_info->remote_port != cfg->dst_port) {
+		NL_SET_ERR_MSG_MOD(extack, "VxLAN: FDB: Non-default remote port is not supported");
 		return -EOPNOTSUPP;
-	if (vxlan_fdb_info->remote_vni != cfg->vni)
+	}
+	if (vxlan_fdb_info->remote_vni != cfg->vni ||
+	    vxlan_fdb_info->vni != cfg->vni) {
+		NL_SET_ERR_MSG_MOD(extack, "VxLAN: FDB: Non-default VNI is not supported");
 		return -EOPNOTSUPP;
-	if (vxlan_fdb_info->vni != cfg->vni)
+	}
+	if (vxlan_fdb_info->remote_ifindex) {
+		NL_SET_ERR_MSG_MOD(extack, "VxLAN: FDB: Local interface is not supported");
 		return -EOPNOTSUPP;
-	if (vxlan_fdb_info->remote_ifindex)
+	}
+	if (is_multicast_ether_addr(vxlan_fdb_info->eth_addr)) {
+		NL_SET_ERR_MSG_MOD(extack, "VxLAN: FDB: Multicast MAC addresses not supported");
 		return -EOPNOTSUPP;
-	if (is_multicast_ether_addr(vxlan_fdb_info->eth_addr))
+	}
+	if (vxlan_addr_multicast(&vxlan_fdb_info->remote_ip)) {
+		NL_SET_ERR_MSG_MOD(extack, "VxLAN: FDB: Multicast destination IP is not supported");
 		return -EOPNOTSUPP;
-	if (vxlan_addr_multicast(&vxlan_fdb_info->remote_ip))
-		return -EOPNOTSUPP;
+	}
 
 	switchdev_work->vxlan_fdb_info = *vxlan_fdb_info;
 
