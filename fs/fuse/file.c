@@ -1746,9 +1746,9 @@ static void fuse_writepages_send(struct fuse_fill_wb_data *data)
 
 /*
  * First recheck under fi->lock if the offending offset is still under
- * writeback.  If yes, then iterate write requests, to see if there's one
- * already added for a page at this offset.  If there's none, then insert this
- * new request onto the auxiliary list, otherwise reuse the existing one by
+ * writeback.  If yes, then iterate auxiliary write requests, to see if there's
+ * one already added for a page at this offset.  If there's none, then insert
+ * this new request onto the auxiliary list, otherwise reuse the existing one by
  * copying the new page contents over to the old temporary page.
  */
 static bool fuse_writepage_in_flight(struct fuse_req *new_req,
@@ -1771,13 +1771,14 @@ static bool fuse_writepage_in_flight(struct fuse_req *new_req,
 	}
 
 	new_req->num_pages = 1;
-	for (tmp = old_req; tmp != NULL; tmp = tmp->misc.write.next) {
+	for (tmp = old_req->misc.write.next; tmp; tmp = tmp->misc.write.next) {
 		pgoff_t curr_index;
 
 		WARN_ON(tmp->inode != new_req->inode);
 		curr_index = tmp->misc.write.in.offset >> PAGE_SHIFT;
-		if (tmp->num_pages == 1 && curr_index == page->index &&
-		    test_bit(FR_PENDING, &tmp->flags)) {
+		if (curr_index == page->index) {
+			WARN_ON(tmp->num_pages != 1);
+			WARN_ON(!test_bit(FR_PENDING, &tmp->flags));
 			copy_highpage(tmp->pages[0], page);
 			break;
 		}
