@@ -29,6 +29,7 @@
 #include <linux/sched/signal.h>
 
 #include "i915_drv.h"
+#include "i915_reset.h"
 
 static const char *i915_fence_get_driver_name(struct dma_fence *fence)
 {

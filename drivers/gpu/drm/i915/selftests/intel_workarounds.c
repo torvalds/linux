@@ -5,6 +5,7 @@
  */
 
 #include "../i915_selftest.h"
+#include "../i915_reset.h"
 
 #include "igt_flush_test.h"
 #include "igt_reset.h"

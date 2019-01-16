@@ -2615,19 +2615,7 @@ extern const struct dev_pm_ops i915_pm_ops;
 extern int i915_driver_load(struct pci_dev *pdev,
 			    const struct pci_device_id *ent);
 extern void i915_driver_unload(struct drm_device *dev);
-extern int intel_gpu_reset(struct drm_i915_private *dev_priv, u32 engine_mask);
-extern bool intel_has_gpu_reset(struct drm_i915_private *dev_priv);
 
-extern void i915_reset(struct drm_i915_private *i915,
-		       unsigned int stalled_mask,
-		       const char *reason);
-extern int i915_reset_engine(struct intel_engine_cs *engine,
-			     const char *reason);
-
-extern bool intel_has_reset_engine(struct drm_i915_private *dev_priv);
-extern int intel_reset_guc(struct drm_i915_private *dev_priv);
-extern int intel_guc_reset_engine(struct intel_guc *guc,
-				  struct intel_engine_cs *engine);
 extern void intel_engine_init_hangcheck(struct intel_engine_cs *engine);
 extern void intel_hangcheck_init(struct drm_i915_private *dev_priv);
 extern unsigned long i915_chipset_val(struct drm_i915_private *dev_priv);
@@ -2670,19 +2658,10 @@ static inline void i915_queue_hangcheck(struct drm_i915_private *dev_priv)
 			   &dev_priv->gpu_error.hangcheck_work, delay);
 }
 
-__printf(4, 5)
-void i915_handle_error(struct drm_i915_private *dev_priv,
-		       u32 engine_mask,
-		       unsigned long flags,
-		       const char *fmt, ...);
-#define I915_ERROR_CAPTURE BIT(0)
-
 extern void intel_irq_init(struct drm_i915_private *dev_priv);
 extern void intel_irq_fini(struct drm_i915_private *dev_priv);
 int intel_irq_install(struct drm_i915_private *dev_priv);
 void intel_irq_uninstall(struct drm_i915_private *dev_priv);
-
-void i915_clear_error_registers(struct drm_i915_private *dev_priv);
 
 static inline bool intel_gvt_active(struct drm_i915_private *dev_priv)
 {
@@ -3048,18 +3027,8 @@ static inline u32 i915_reset_engine_count(struct i915_gpu_error *error,
 	return READ_ONCE(error->reset_engine_count[engine->id]);
 }
 
-struct i915_request *
-i915_gem_reset_prepare_engine(struct intel_engine_cs *engine);
-int i915_gem_reset_prepare(struct drm_i915_private *dev_priv);
-void i915_gem_reset(struct drm_i915_private *dev_priv,
-		    unsigned int stalled_mask);
-void i915_gem_reset_finish_engine(struct intel_engine_cs *engine);
-void i915_gem_reset_finish(struct drm_i915_private *dev_priv);
 void i915_gem_set_wedged(struct drm_i915_private *dev_priv);
 bool i915_gem_unset_wedged(struct drm_i915_private *dev_priv);
-void i915_gem_reset_engine(struct intel_engine_cs *engine,
-			   struct i915_request *request,
-			   bool stalled);
 
 void i915_gem_init_mmio(struct drm_i915_private *i915);
 int __must_check i915_gem_init(struct drm_i915_private *dev_priv);

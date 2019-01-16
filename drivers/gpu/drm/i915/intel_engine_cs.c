@@ -25,6 +25,7 @@
 #include <drm/drm_print.h>
 
 #include "i915_drv.h"
+#include "i915_reset.h"
 #include "intel_ringbuffer.h"
 #include "intel_lrc.h"
 

@@ -23,6 +23,7 @@
  */
 
 #include "i915_drv.h"
+#include "i915_reset.h"
 
 static bool instdone_unchanged(u32 current_instdone, u32 *old_instdone)
 {

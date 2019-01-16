@@ -4,6 +4,8 @@
  * Copyright © 2018 Intel Corporation
  */
 
+#include "../i915_reset.h"
+
 #include "../i915_selftest.h"
 #include "igt_flush_test.h"
 #include "igt_spinner.h"

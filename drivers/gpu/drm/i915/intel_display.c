@@ -31,13 +31,7 @@
 #include <linux/slab.h>
 #include <linux/vgaarb.h>
 #include <drm/drm_edid.h>
-#include "intel_drv.h"
-#include "intel_frontbuffer.h"
 #include <drm/i915_drm.h>
-#include "i915_drv.h"
-#include "i915_gem_clflush.h"
-#include "intel_dsi.h"
-#include "i915_trace.h"
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_dp_helper.h>
@@ -47,6 +41,15 @@
 #include <drm/drm_atomic_uapi.h>
 #include <linux/intel-iommu.h>
 #include <linux/reservation.h>
+
+#include "intel_drv.h"
+#include "intel_dsi.h"
+#include "intel_frontbuffer.h"
+
+#include "i915_drv.h"
+#include "i915_gem_clflush.h"
+#include "i915_reset.h"
+#include "i915_trace.h"
 
 /* Primary plane formats for gen <= 3 */
 static const uint32_t i8xx_primary_formats[] = {
