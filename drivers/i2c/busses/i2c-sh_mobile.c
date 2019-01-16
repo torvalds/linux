@@ -303,13 +303,12 @@ static int sh_mobile_i2c_v2_init(struct sh_mobile_i2c_data *pd)
 	return sh_mobile_i2c_check_timing(pd);
 }
 
-static unsigned char i2c_op(struct sh_mobile_i2c_data *pd,
-			    enum sh_mobile_i2c_op op, unsigned char data)
+static unsigned char i2c_op(struct sh_mobile_i2c_data *pd, enum sh_mobile_i2c_op op)
 {
 	unsigned char ret = 0;
 	unsigned long flags;
 
-	dev_dbg(pd->dev, "op %d, data in 0x%02x\n", op, data);
+	dev_dbg(pd->dev, "op %d\n", op);
 
 	spin_lock_irqsave(&pd->lock, flags);
 
@@ -317,12 +316,12 @@ static unsigned char i2c_op(struct sh_mobile_i2c_data *pd,
 	case OP_START: /* issue start and trigger DTE interrupt */
 		iic_wr(pd, ICCR, ICCR_ICE | ICCR_TRS | ICCR_BBSY);
 		break;
-	case OP_TX_FIRST: /* disable DTE interrupt and write data */
+	case OP_TX_FIRST: /* disable DTE interrupt and write client address */
 		iic_wr(pd, ICIC, ICIC_WAITE | ICIC_ALE | ICIC_TACKE);
-		iic_wr(pd, ICDR, data);
+		iic_wr(pd, ICDR, i2c_8bit_addr_from_msg(pd->msg));
 		break;
 	case OP_TX: /* write data */
-		iic_wr(pd, ICDR, data);
+		iic_wr(pd, ICDR, pd->msg->buf[pd->pos]);
 		break;
 	case OP_TX_STOP: /* issue a stop (or rep_start) */
 		iic_wr(pd, ICCR, pd->send_stop ? ICCR_ICE | ICCR_TRS
@@ -360,20 +359,15 @@ static bool sh_mobile_i2c_is_first_byte(struct sh_mobile_i2c_data *pd)
 
 static int sh_mobile_i2c_isr_tx(struct sh_mobile_i2c_data *pd)
 {
-	unsigned char data;
-
 	if (pd->pos == pd->msg->len) {
-		i2c_op(pd, OP_TX_STOP, 0);
+		i2c_op(pd, OP_TX_STOP);
 		return 1;
 	}
 
-	if (sh_mobile_i2c_is_first_byte(pd)) {
-		data = i2c_8bit_addr_from_msg(pd->msg);
-		i2c_op(pd, OP_TX_FIRST, data);
-	} else {
-		data = pd->msg->buf[pd->pos];
-		i2c_op(pd, OP_TX, data);
-	}
+	if (sh_mobile_i2c_is_first_byte(pd))
+		i2c_op(pd, OP_TX_FIRST);
+	else
+		i2c_op(pd, OP_TX);
 
 	pd->pos++;
 	return 0;
@@ -386,13 +380,12 @@ static int sh_mobile_i2c_isr_rx(struct sh_mobile_i2c_data *pd)
 
 	do {
 		if (sh_mobile_i2c_is_first_byte(pd)) {
-			data = i2c_8bit_addr_from_msg(pd->msg);
-			i2c_op(pd, OP_TX_FIRST, data);
+			i2c_op(pd, OP_TX_FIRST);
 			break;
 		}
 
 		if (pd->pos == 0) {
-			i2c_op(pd, OP_TX_TO_RX, 0);
+			i2c_op(pd, OP_TX_TO_RX);
 			break;
 		}
 
@@ -401,18 +394,18 @@ static int sh_mobile_i2c_isr_rx(struct sh_mobile_i2c_data *pd)
 		if (pd->pos == pd->msg->len) {
 			if (pd->stop_after_dma) {
 				/* Simulate PIO end condition after DMA transfer */
-				i2c_op(pd, OP_RX_STOP, 0);
+				i2c_op(pd, OP_RX_STOP);
 				pd->pos++;
 				break;
 			}
 
 			if (real_pos < 0) {
-				i2c_op(pd, OP_RX_STOP, 0);
+				i2c_op(pd, OP_RX_STOP);
 				break;
 			}
-			data = i2c_op(pd, OP_RX_STOP_DATA, 0);
+			data = i2c_op(pd, OP_RX_STOP_DATA);
 		} else if (real_pos >= 0) {
-			data = i2c_op(pd, OP_RX, 0);
+			data = i2c_op(pd, OP_RX);
 		}
 
 		if (real_pos >= 0)
@@ -687,7 +680,7 @@ static int sh_mobile_i2c_xfer(struct i2c_adapter *adapter,
 		start_ch(pd, msg, do_start);
 
 		if (do_start)
-			i2c_op(pd, OP_START, 0);
+			i2c_op(pd, OP_START);
 
 		/* The interrupt handler takes care of the rest... */
 		timeout = wait_event_timeout(pd->wait,
