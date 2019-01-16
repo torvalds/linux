@@ -24,6 +24,10 @@
 #include <net/netfilter/nf_conntrack_timestamp.h>
 #include <linux/rculist_nulls.h>
 
+static bool enable_hooks __read_mostly;
+MODULE_PARM_DESC(enable_hooks, "Always enable conntrack hooks");
+module_param(enable_hooks, bool, 0000);
+
 unsigned int nf_conntrack_net_id __read_mostly;
 
 #ifdef CONFIG_NF_CONNTRACK_PROCFS
@@ -1075,6 +1079,15 @@ static void nf_conntrack_standalone_fini_sysctl(struct net *net)
 }
 #endif /* CONFIG_SYSCTL */
 
+static void nf_conntrack_fini_net(struct net *net)
+{
+	if (enable_hooks)
+		nf_ct_netns_put(net, NFPROTO_INET);
+
+	nf_conntrack_standalone_fini_proc(net);
+	nf_conntrack_standalone_fini_sysctl(net);
+}
+
 static int nf_conntrack_pernet_init(struct net *net)
 {
 	int ret;
@@ -1093,8 +1106,16 @@ static int nf_conntrack_pernet_init(struct net *net)
 	if (ret < 0)
 		goto out_init_net;
 
+	if (enable_hooks) {
+		ret = nf_ct_netns_get(net, NFPROTO_INET);
+		if (ret < 0)
+			goto out_hooks;
+	}
+
 	return 0;
 
+out_hooks:
+	nf_conntrack_fini_net(net);
 out_init_net:
 	nf_conntrack_standalone_fini_proc(net);
 out_proc:
@@ -1106,10 +1127,9 @@ static void nf_conntrack_pernet_exit(struct list_head *net_exit_list)
 {
 	struct net *net;
 
-	list_for_each_entry(net, net_exit_list, exit_list) {
-		nf_conntrack_standalone_fini_sysctl(net);
-		nf_conntrack_standalone_fini_proc(net);
-	}
+	list_for_each_entry(net, net_exit_list, exit_list)
+		nf_conntrack_fini_net(net);
+
 	nf_conntrack_cleanup_net_list(net_exit_list);
 }
 
