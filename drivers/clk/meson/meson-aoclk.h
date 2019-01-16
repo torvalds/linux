@@ -13,14 +13,22 @@
 
 #include <linux/platform_device.h>
 #include <linux/reset-controller.h>
-#include "clk-regmap.h"
+#include "clkc.h"
+
+struct meson_aoclk_input {
+	const char *name;
+	bool required;
+};
 
 struct meson_aoclk_data {
 	const unsigned int			reset_reg;
 	const int				num_reset;
 	const unsigned int			*reset;
-	int					num_clks;
+	const int				num_clks;
 	struct clk_regmap			**clks;
+	const int				num_inputs;
+	const struct meson_aoclk_input		*inputs;
+	const char				*input_prefix;
 	const struct clk_hw_onecell_data	*hw_data;
 };
 
