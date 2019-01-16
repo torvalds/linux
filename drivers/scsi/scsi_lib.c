@@ -1712,13 +1712,13 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 	if (!scsi_host_queue_ready(q, shost, sdev))
 		goto out_dec_target_busy;
 
-	clear_bit(SCMD_STATE_COMPLETE, &cmd->state);
 	if (!(req->rq_flags & RQF_DONTPREP)) {
 		ret = scsi_mq_prep_fn(req);
 		if (ret != BLK_STS_OK)
 			goto out_dec_host_busy;
 		req->rq_flags |= RQF_DONTPREP;
 	} else {
+		clear_bit(SCMD_STATE_COMPLETE, &cmd->state);
 		blk_mq_start_request(req);
 	}
 
