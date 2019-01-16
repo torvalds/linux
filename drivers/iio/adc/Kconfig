@@ -603,6 +603,16 @@ config NAU7802
 	  To compile this driver as a module, choose M here: the
 	  module will be called nau7802.
 
+config NPCM_ADC
+	tristate "Nuvoton NPCM ADC driver"
+	depends on ARCH_NPCM || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  Say yes here to build support for Nuvoton NPCM ADC.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called npcm_adc.
+
 config PALMAS_GPADC
 	tristate "TI Palmas General Purpose ADC"
 	depends on MFD_PALMAS
