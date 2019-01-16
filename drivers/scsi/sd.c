@@ -1078,10 +1078,11 @@ static blk_status_t sd_setup_read_write_cmnd(struct scsi_cmnd *SCpnt)
 	struct scsi_device *sdp = SCpnt->device;
 	struct gendisk *disk = rq->rq_disk;
 	struct scsi_disk *sdkp = scsi_disk(disk);
-	sector_t lba = blk_rq_pos(rq);
+	sector_t lba = sectors_to_logical(sdp, blk_rq_pos(rq));
 	sector_t threshold;
-	unsigned int nr_blocks = blk_rq_sectors(rq);
+	unsigned int nr_blocks = sectors_to_logical(sdp, blk_rq_sectors(rq));
 	unsigned int dif, dix;
+	unsigned int mask = logical_to_sectors(sdp, 1) - 1;
 	unsigned char protect;
 	blk_status_t ret;
 
@@ -1115,63 +1116,29 @@ static blk_status_t sd_setup_read_write_cmnd(struct scsi_cmnd *SCpnt)
 	}
 
 	/*
-	 * Some SD card readers can't handle multi-sector accesses which touch
-	 * the last one or two hardware sectors.  Split accesses as needed.
+	 * Some SD card readers can't handle accesses which touch the
+	 * last one or two logical blocks. Split accesses as needed.
 	 */
-	threshold = get_capacity(disk) - SD_LAST_BUGGY_SECTORS *
-		(sdp->sector_size / 512);
+	threshold = sdkp->capacity - SD_LAST_BUGGY_SECTORS;
 
 	if (unlikely(sdp->last_sector_bug && lba + nr_blocks > threshold)) {
 		if (lba < threshold) {
 			/* Access up to the threshold but not beyond */
 			nr_blocks = threshold - lba;
 		} else {
-			/* Access only a single hardware sector */
-			nr_blocks = sdp->sector_size / 512;
+			/* Access only a single logical block */
+			nr_blocks = 1;
 		}
 	}
 
 	SCSI_LOG_HLQUEUE(2, scmd_printk(KERN_INFO, SCpnt, "block=%llu\n",
 					(unsigned long long)lba));
 
-	/*
-	 * If we have a 1K hardware sectorsize, prevent access to single
-	 * 512 byte sectors.  In theory we could handle this - in fact
-	 * the scsi cdrom driver must be able to handle this because
-	 * we typically use 1K blocksizes, and cdroms typically have
-	 * 2K hardware sectorsizes.  Of course, things are simpler
-	 * with the cdrom, since it is read-only.  For performance
-	 * reasons, the filesystems should be able to handle this
-	 * and not force the scsi disk driver to use bounce buffers
-	 * for this.
-	 */
-	if (sdp->sector_size == 1024) {
-		if ((lba & 1) || (blk_rq_sectors(rq) & 1)) {
-			scmd_printk(KERN_ERR, SCpnt,
-				    "Bad block number requested\n");
-			return BLK_STS_IOERR;
-		}
-		lba = lba >> 1;
-		nr_blocks = nr_blocks >> 1;
+	if ((blk_rq_pos(rq) & mask) || (blk_rq_sectors(rq) & mask)) {
+		scmd_printk(KERN_ERR, SCpnt, "request not aligned to the logical block size\n");
+		return BLK_STS_IOERR;
 	}
-	if (sdp->sector_size == 2048) {
-		if ((lba & 3) || (blk_rq_sectors(rq) & 3)) {
-			scmd_printk(KERN_ERR, SCpnt,
-				    "Bad block number requested\n");
-			return BLK_STS_IOERR;
-		}
-		lba = lba >> 2;
-		nr_blocks = nr_blocks >> 2;
-	}
-	if (sdp->sector_size == 4096) {
-		if ((lba & 7) || (blk_rq_sectors(rq) & 7)) {
-			scmd_printk(KERN_ERR, SCpnt,
-				    "Bad block number requested\n");
-			return BLK_STS_IOERR;
-		}
-		lba = lba >> 3;
-		nr_blocks = nr_blocks >> 3;
-	}
+
 	if (rq_data_dir(rq) == WRITE) {
 		SCpnt->cmnd[0] = WRITE_6;
 
