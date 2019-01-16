@@ -140,6 +140,20 @@ struct smu_table {
 	struct amdgpu_bo *bo;
 };
 
+enum smu_perf_level_designation {
+	PERF_LEVEL_ACTIVITY,
+	PERF_LEVEL_POWER_CONTAINMENT,
+};
+
+struct smu_performance_level {
+	uint32_t core_clock;
+	uint32_t memory_clock;
+	uint32_t vddc;
+	uint32_t vddci;
+	uint32_t non_local_mem_freq;
+	uint32_t non_local_mem_width;
+};
+
 struct smu_bios_boot_up_values
 {
 	uint32_t			revision;
@@ -289,6 +303,9 @@ struct smu_funcs
 					     *clock_req);
 	int (*get_dal_power_level)(struct smu_context *smu,
 				   struct amd_pp_simple_clock_info *clocks);
+	int (*get_perf_level)(struct smu_context *smu,
+			      enum smu_perf_level_designation designation,
+			      struct smu_performance_level *level);
 };
 
 #define smu_init_microcode(smu) \
@@ -402,6 +419,8 @@ struct smu_funcs
 	((smu)->funcs->display_clock_voltage_request ? (smu)->funcs->display_clock_voltage_request((smu), (clock_req)) : 0)
 #define smu_get_dal_power_level(smu, clocks) \
 	((smu)->funcs->get_dal_power_level ? (smu)->funcs->get_dal_power_level((smu), (clocks)) : 0)
+#define smu_get_perf_level(smu, designation, level) \
+	((smu)->funcs->get_perf_level ? (smu)->funcs->get_perf_level((smu), (designation), (level)) : 0)
 
 
 extern int smu_get_atom_data_table(struct smu_context *smu, uint32_t table,
