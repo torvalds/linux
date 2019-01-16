@@ -813,6 +813,21 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 		}
 	}
 
+	/* Set MBSSID support for HE AP if needed */
+	if (ieee80211_hw_check(&local->hw, SUPPORTS_ONLY_HE_MULTI_BSSID) &&
+	    !(ifmgd->flags & IEEE80211_STA_DISABLE_HE) && assoc_data->ie_len) {
+		struct element *elem;
+
+		/* we know it's writable, cast away the const */
+		elem = (void *)cfg80211_find_elem(WLAN_EID_EXT_CAPABILITY,
+						  assoc_data->ie,
+						  assoc_data->ie_len);
+
+		/* We can probably assume both always true */
+		if (elem && elem->datalen >= 3)
+			elem->data[2] |= WLAN_EXT_CAPA3_MULTI_BSSID_SUPPORT;
+	}
+
 	/* if present, add any custom IEs that go before HT */
 	if (assoc_data->ie_len) {
 		static const u8 before_ht[] = {
