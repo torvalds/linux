@@ -268,7 +268,7 @@ int ath10k_htt_setup(struct ath10k_htt *htt)
 		return status;
 	}
 
-	status = ath10k_htt_h2t_aggr_cfg_msg(htt,
+	status = htt->tx_ops->htt_h2t_aggr_cfg_msg(htt,
 					     htt->max_num_ampdu,
 					     htt->max_num_amsdu);
 	if (status) {

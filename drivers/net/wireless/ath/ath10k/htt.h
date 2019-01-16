@@ -357,6 +357,13 @@ struct htt_aggr_conf {
 	u8 max_num_amsdu_subframes;
 } __packed;
 
+struct htt_aggr_conf_v2 {
+	u8 max_num_ampdu_subframes;
+	/* amsdu_subframes is limited by 0x1F mask */
+	u8 max_num_amsdu_subframes;
+	u8 reserved;
+} __packed;
+
 #define HTT_MGMT_FRM_HDR_DOWNLOAD_LEN 32
 struct htt_mgmt_tx_desc_qca99x0 {
 	__le32 rate;
@@ -1650,6 +1657,7 @@ struct htt_cmd {
 		struct htt_stats_req stats_req;
 		struct htt_oob_sync_req oob_sync_req;
 		struct htt_aggr_conf aggr_conf;
+		struct htt_aggr_conf_v2 aggr_conf_v2;
 		struct htt_frag_desc_bank_cfg32 frag_desc_bank_cfg32;
 		struct htt_frag_desc_bank_cfg64 frag_desc_bank_cfg64;
 		struct htt_tx_fetch_resp tx_fetch_resp;
@@ -1890,6 +1898,9 @@ struct ath10k_htt_tx_ops {
 		      struct sk_buff *msdu);
 	int (*htt_alloc_txbuff)(struct ath10k_htt *htt);
 	void (*htt_free_txbuff)(struct ath10k_htt *htt);
+	int (*htt_h2t_aggr_cfg_msg)(struct ath10k_htt *htt,
+				    u8 max_subfrms_ampdu,
+				    u8 max_subfrms_amsdu);
 };
 
 static inline int ath10k_htt_send_rx_ring_cfg(struct ath10k_htt *htt)
