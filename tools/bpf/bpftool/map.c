@@ -779,6 +779,32 @@ exit_free:
 	return err;
 }
 
+static int alloc_key_value(struct bpf_map_info *info, void **key, void **value)
+{
+	*key = NULL;
+	*value = NULL;
+
+	if (info->key_size) {
+		*key = malloc(info->key_size);
+		if (!*key) {
+			p_err("key mem alloc failed");
+			return -1;
+		}
+	}
+
+	if (info->value_size) {
+		*value = alloc_value(info);
+		if (!*value) {
+			p_err("value mem alloc failed");
+			free(*key);
+			*key = NULL;
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
 static int do_update(int argc, char **argv)
 {
 	struct bpf_map_info info = {};
@@ -795,13 +821,9 @@ static int do_update(int argc, char **argv)
 	if (fd < 0)
 		return -1;
 
-	key = malloc(info.key_size);
-	value = alloc_value(&info);
-	if (!key || !value) {
-		p_err("mem alloc failed");
-		err = -1;
+	err = alloc_key_value(&info, &key, &value);
+	if (err)
 		goto exit_free;
-	}
 
 	err = parse_elem(argv, &info, key, value, info.key_size,
 			 info.value_size, &flags, &value_fd);
@@ -1135,7 +1157,7 @@ static int do_help(int argc, char **argv)
 		"                              entries MAX_ENTRIES name NAME [flags FLAGS] \\\n"
 		"                              [dev NAME]\n"
 		"       %s %s dump       MAP\n"
-		"       %s %s update     MAP  key DATA value VALUE [UPDATE_FLAGS]\n"
+		"       %s %s update     MAP [key DATA] [value VALUE] [UPDATE_FLAGS]\n"
 		"       %s %s lookup     MAP  key DATA\n"
 		"       %s %s getnext    MAP [key DATA]\n"
 		"       %s %s delete     MAP  key DATA\n"

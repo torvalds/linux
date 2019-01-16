@@ -25,7 +25,7 @@ MAP COMMANDS
 |	**bpftool** **map create**     *FILE* **type** *TYPE* **key** *KEY_SIZE* **value** *VALUE_SIZE* \
 |		**entries** *MAX_ENTRIES* **name** *NAME* [**flags** *FLAGS*] [**dev** *NAME*]
 |	**bpftool** **map dump**       *MAP*
-|	**bpftool** **map update**     *MAP*  **key** *DATA*   **value** *VALUE* [*UPDATE_FLAGS*]
+|	**bpftool** **map update**     *MAP* [**key** *DATA*] [**value** *VALUE*] [*UPDATE_FLAGS*]
 |	**bpftool** **map lookup**     *MAP*  **key** *DATA*
 |	**bpftool** **map getnext**    *MAP* [**key** *DATA*]
 |	**bpftool** **map delete**     *MAP*  **key** *DATA*
@@ -62,7 +62,7 @@ DESCRIPTION
 	**bpftool map dump**    *MAP*
 		  Dump all entries in a given *MAP*.
 
-	**bpftool map update**  *MAP*  **key** *DATA*   **value** *VALUE* [*UPDATE_FLAGS*]
+	**bpftool map update**  *MAP* [**key** *DATA*] [**value** *VALUE*] [*UPDATE_FLAGS*]
 		  Update map entry for a given *KEY*.
 
 		  *UPDATE_FLAGS* can be one of: **any** update existing entry
