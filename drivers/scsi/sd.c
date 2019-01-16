@@ -1149,10 +1149,10 @@ static blk_status_t sd_setup_rw6_cmnd(struct scsi_cmnd *cmd, bool write,
 	return BLK_STS_OK;
 }
 
-static blk_status_t sd_setup_read_write_cmnd(struct scsi_cmnd *SCpnt)
+static blk_status_t sd_setup_read_write_cmnd(struct scsi_cmnd *cmd)
 {
-	struct request *rq = SCpnt->request;
-	struct scsi_device *sdp = SCpnt->device;
+	struct request *rq = cmd->request;
+	struct scsi_device *sdp = cmd->device;
 	struct scsi_disk *sdkp = scsi_disk(rq->rq_disk);
 	sector_t lba = sectors_to_logical(sdp, blk_rq_pos(rq));
 	sector_t threshold;
@@ -1163,24 +1163,24 @@ static blk_status_t sd_setup_read_write_cmnd(struct scsi_cmnd *SCpnt)
 	unsigned char protect, fua;
 	blk_status_t ret;
 
-	ret = scsi_init_io(SCpnt);
+	ret = scsi_init_io(cmd);
 	if (ret != BLK_STS_OK)
 		return ret;
 
-	WARN_ON_ONCE(SCpnt != rq->special);
+	WARN_ON_ONCE(cmd != rq->special);
 
 	if (!scsi_device_online(sdp) || sdp->changed) {
-		scmd_printk(KERN_ERR, SCpnt, "device offline or changed\n");
+		scmd_printk(KERN_ERR, cmd, "device offline or changed\n");
 		return BLK_STS_IOERR;
 	}
 
 	if (blk_rq_pos(rq) + blk_rq_sectors(rq) > get_capacity(rq->rq_disk)) {
-		scmd_printk(KERN_ERR, SCpnt, "access beyond end of device\n");
+		scmd_printk(KERN_ERR, cmd, "access beyond end of device\n");
 		return BLK_STS_IOERR;
 	}
 
 	if ((blk_rq_pos(rq) & mask) || (blk_rq_sectors(rq) & mask)) {
-		scmd_printk(KERN_ERR, SCpnt, "request not aligned to the logical block size\n");
+		scmd_printk(KERN_ERR, cmd, "request not aligned to the logical block size\n");
 		return BLK_STS_IOERR;
 	}
 
@@ -1201,29 +1201,29 @@ static blk_status_t sd_setup_read_write_cmnd(struct scsi_cmnd *SCpnt)
 	}
 
 	fua = rq->cmd_flags & REQ_FUA ? 0x8 : 0;
-	dix = scsi_prot_sg_count(SCpnt);
-	dif = scsi_host_dif_capable(SCpnt->device->host, sdkp->protection_type);
+	dix = scsi_prot_sg_count(cmd);
+	dif = scsi_host_dif_capable(cmd->device->host, sdkp->protection_type);
 
 	if (write && dix)
-		t10_pi_prepare(SCpnt->request, sdkp->protection_type);
+		t10_pi_prepare(cmd->request, sdkp->protection_type);
 
 	if (dif || dix)
-		protect = sd_setup_protect_cmnd(SCpnt, dix, dif);
+		protect = sd_setup_protect_cmnd(cmd, dix, dif);
 	else
 		protect = 0;
 
 	if (protect && sdkp->protection_type == T10_PI_TYPE2_PROTECTION) {
-		ret = sd_setup_rw32_cmnd(SCpnt, write, lba, nr_blocks,
+		ret = sd_setup_rw32_cmnd(cmd, write, lba, nr_blocks,
 					 protect | fua);
 	} else if (sdp->use_16_for_rw || (nr_blocks > 0xffff)) {
-		ret = sd_setup_rw16_cmnd(SCpnt, write, lba, nr_blocks,
+		ret = sd_setup_rw16_cmnd(cmd, write, lba, nr_blocks,
 					 protect | fua);
 	} else if ((nr_blocks > 0xff) || (lba > 0x1fffff) ||
 		   sdp->use_10_for_rw || protect) {
-		ret = sd_setup_rw10_cmnd(SCpnt, write, lba, nr_blocks,
+		ret = sd_setup_rw10_cmnd(cmd, write, lba, nr_blocks,
 					 protect | fua);
 	} else {
-		ret = sd_setup_rw6_cmnd(SCpnt, write, lba, nr_blocks,
+		ret = sd_setup_rw6_cmnd(cmd, write, lba, nr_blocks,
 					protect | fua);
 	}
 
@@ -1235,18 +1235,18 @@ static blk_status_t sd_setup_read_write_cmnd(struct scsi_cmnd *SCpnt)
 	 * host adapter, it's safe to assume that we can at least transfer
 	 * this many bytes between each connect / disconnect.
 	 */
-	SCpnt->transfersize = sdp->sector_size;
-	SCpnt->underflow = nr_blocks << 9;
-	SCpnt->allowed = SD_MAX_RETRIES;
-	SCpnt->sdb.length = nr_blocks * sdp->sector_size;
+	cmd->transfersize = sdp->sector_size;
+	cmd->underflow = nr_blocks << 9;
+	cmd->allowed = SD_MAX_RETRIES;
+	cmd->sdb.length = nr_blocks * sdp->sector_size;
 
 	SCSI_LOG_HLQUEUE(1,
-			 scmd_printk(KERN_INFO, SCpnt,
+			 scmd_printk(KERN_INFO, cmd,
 				     "%s: block=%llu, count=%d\n", __func__,
 				     (unsigned long long)blk_rq_pos(rq),
 				     blk_rq_sectors(rq)));
 	SCSI_LOG_HLQUEUE(2,
-			 scmd_printk(KERN_INFO, SCpnt,
+			 scmd_printk(KERN_INFO, cmd,
 				     "%s %d/%u 512 byte blocks.\n",
 				     write ? "writing" : "reading", nr_blocks,
 				     blk_rq_sectors(rq)));
