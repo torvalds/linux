@@ -1020,8 +1020,8 @@ send_end:
 	return copied ? copied : ret;
 }
 
-int tls_sw_do_sendpage(struct sock *sk, struct page *page,
-		       int offset, size_t size, int flags)
+static int tls_sw_do_sendpage(struct sock *sk, struct page *page,
+			      int offset, size_t size, int flags)
 {
 	long timeo = sock_sndtimeo(sk, flags & MSG_DONTWAIT);
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
