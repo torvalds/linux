@@ -826,6 +826,35 @@ static int vxlan_fdb_create(struct vxlan_dev *vxlan,
 	return 0;
 }
 
+static void vxlan_fdb_free(struct rcu_head *head)
+{
+	struct vxlan_fdb *f = container_of(head, struct vxlan_fdb, rcu);
+	struct vxlan_rdst *rd, *nd;
+
+	list_for_each_entry_safe(rd, nd, &f->remotes, list) {
+		dst_cache_destroy(&rd->dst_cache);
+		kfree(rd);
+	}
+	kfree(f);
+}
+
+static void vxlan_fdb_destroy(struct vxlan_dev *vxlan, struct vxlan_fdb *f,
+			      bool do_notify, bool swdev_notify)
+{
+	struct vxlan_rdst *rd;
+
+	netdev_dbg(vxlan->dev, "delete %pM\n", f->eth_addr);
+
+	--vxlan->addrcnt;
+	if (do_notify)
+		list_for_each_entry(rd, &f->remotes, list)
+			vxlan_fdb_notify(vxlan, f, rd, RTM_DELNEIGH,
+					 swdev_notify);
+
+	hlist_del_rcu(&f->hlist);
+	call_rcu(&f->rcu, vxlan_fdb_free);
+}
+
 /* Add new entry to forwarding table -- assumes lock held */
 static int vxlan_fdb_update(struct vxlan_dev *vxlan,
 			    const u8 *mac, union vxlan_addr *ip,
@@ -910,36 +939,6 @@ static int vxlan_fdb_update(struct vxlan_dev *vxlan,
 	}
 
 	return 0;
-}
-
-static void vxlan_fdb_free(struct rcu_head *head)
-{
-	struct vxlan_fdb *f = container_of(head, struct vxlan_fdb, rcu);
-	struct vxlan_rdst *rd, *nd;
-
-	list_for_each_entry_safe(rd, nd, &f->remotes, list) {
-		dst_cache_destroy(&rd->dst_cache);
-		kfree(rd);
-	}
-	kfree(f);
-}
-
-static void vxlan_fdb_destroy(struct vxlan_dev *vxlan, struct vxlan_fdb *f,
-			      bool do_notify, bool swdev_notify)
-{
-	struct vxlan_rdst *rd;
-
-	netdev_dbg(vxlan->dev,
-		    "delete %pM\n", f->eth_addr);
-
-	--vxlan->addrcnt;
-	if (do_notify)
-		list_for_each_entry(rd, &f->remotes, list)
-			vxlan_fdb_notify(vxlan, f, rd, RTM_DELNEIGH,
-					 swdev_notify);
-
-	hlist_del_rcu(&f->hlist);
-	call_rcu(&f->rcu, vxlan_fdb_free);
 }
 
 static void vxlan_dst_free(struct rcu_head *head)
