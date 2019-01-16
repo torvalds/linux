@@ -107,16 +107,14 @@ static int
 nfp_flower_wait_repr_reify(struct nfp_app *app, atomic_t *replies, int tot_repl)
 {
 	struct nfp_flower_priv *priv = app->priv;
-	int err;
 
 	if (!tot_repl)
 		return 0;
 
 	lockdep_assert_held(&app->pf->lock);
-	err = wait_event_interruptible_timeout(priv->reify_wait_queue,
-					       atomic_read(replies) >= tot_repl,
-					       msecs_to_jiffies(10));
-	if (err <= 0) {
+	if (!wait_event_timeout(priv->reify_wait_queue,
+				atomic_read(replies) >= tot_repl,
+				NFP_FL_REPLY_TIMEOUT)) {
 		nfp_warn(app->cpp, "Not all reprs responded to reify\n");
 		return -EIO;
 	}
@@ -601,7 +599,7 @@ nfp_flower_repr_change_mtu(struct nfp_app *app, struct net_device *netdev,
 {
 	struct nfp_flower_priv *app_priv = app->priv;
 	struct nfp_repr *repr = netdev_priv(netdev);
-	int err, ack;
+	int err;
 
 	/* Only need to config FW for physical port MTU change. */
 	if (repr->port->type != NFP_PORT_PHYS_PORT)
@@ -628,11 +626,9 @@ nfp_flower_repr_change_mtu(struct nfp_app *app, struct net_device *netdev,
 	}
 
 	/* Wait for fw to ack the change. */
-	ack = wait_event_timeout(app_priv->mtu_conf.wait_q,
-				 nfp_flower_check_ack(app_priv),
-				 msecs_to_jiffies(10));
-
-	if (!ack) {
+	if (!wait_event_timeout(app_priv->mtu_conf.wait_q,
+				nfp_flower_check_ack(app_priv),
+				NFP_FL_REPLY_TIMEOUT)) {
 		spin_lock_bh(&app_priv->mtu_conf.lock);
 		app_priv->mtu_conf.requested_val = 0;
 		spin_unlock_bh(&app_priv->mtu_conf.lock);
