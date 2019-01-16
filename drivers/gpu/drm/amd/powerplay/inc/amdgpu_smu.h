@@ -319,6 +319,7 @@ struct smu_funcs
 			      struct smu_performance_level *level);
 	int (*get_current_shallow_sleep_clocks)(struct smu_context *smu,
 						struct smu_clock_info *clocks);
+	int (*notify_smu_enable_pwe)(struct smu_context *smu);
 };
 
 #define smu_init_microcode(smu) \
@@ -436,6 +437,8 @@ struct smu_funcs
 	((smu)->funcs->get_perf_level ? (smu)->funcs->get_perf_level((smu), (designation), (level)) : 0)
 #define smu_get_current_shallow_sleep_clocks(smu, clocks) \
 	((smu)->funcs->get_current_shallow_sleep_clocks ? (smu)->funcs->get_current_shallow_sleep_clocks((smu), (clocks)) : 0)
+#define smu_notify_smu_enable_pwe(smu) \
+	((smu)->funcs->notify_smu_enable_pwe ? (smu)->funcs->notify_smu_enable_pwe((smu)) : 0)
 
 
 extern int smu_get_atom_data_table(struct smu_context *smu, uint32_t table,

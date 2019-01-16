@@ -593,10 +593,10 @@ void pp_rv_set_pme_wa_enable(struct pp_smu *pp)
 	void *pp_handle = adev->powerplay.pp_handle;
 	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
 
-	if (!pp_funcs || !pp_funcs->notify_smu_enable_pwe)
-		return;
-
-	pp_funcs->notify_smu_enable_pwe(pp_handle);
+	if (pp_funcs && pp_funcs->notify_smu_enable_pwe)
+		pp_funcs->notify_smu_enable_pwe(pp_handle);
+	else if (adev->smu.funcs)
+		smu_notify_smu_enable_pwe(&adev->smu);
 }
 
 void pp_rv_set_active_display_count(struct pp_smu *pp, int count)
