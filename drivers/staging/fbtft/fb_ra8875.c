@@ -9,7 +9,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include "fbtft.h"
 
 #define DRVNAME "fb_ra8875"
@@ -39,7 +39,7 @@ static int write_spi(struct fbtft_par *par, void *buf, size_t len)
 
 static int init_display(struct fbtft_par *par)
 {
-	gpio_set_value(par->gpio.dc, 1);
+	gpiod_set_value(par->gpio.dc, 1);
 
 	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par,
 		      "%s()\n", __func__);
