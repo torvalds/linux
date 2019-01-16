@@ -865,13 +865,9 @@ static int do_lookup(int argc, char **argv)
 	if (fd < 0)
 		return -1;
 
-	key = malloc(info.key_size);
-	value = alloc_value(&info);
-	if (!key || !value) {
-		p_err("mem alloc failed");
-		err = -1;
+	err = alloc_key_value(&info, &key, &value);
+	if (err)
 		goto exit_free;
-	}
 
 	err = parse_elem(argv, &info, key, NULL, info.key_size, 0, NULL, NULL);
 	if (err)
@@ -1158,7 +1154,7 @@ static int do_help(int argc, char **argv)
 		"                              [dev NAME]\n"
 		"       %s %s dump       MAP\n"
 		"       %s %s update     MAP [key DATA] [value VALUE] [UPDATE_FLAGS]\n"
-		"       %s %s lookup     MAP  key DATA\n"
+		"       %s %s lookup     MAP [key DATA]\n"
 		"       %s %s getnext    MAP [key DATA]\n"
 		"       %s %s delete     MAP  key DATA\n"
 		"       %s %s pin        MAP  FILE\n"

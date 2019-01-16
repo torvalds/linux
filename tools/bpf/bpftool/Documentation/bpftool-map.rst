@@ -26,7 +26,7 @@ MAP COMMANDS
 |		**entries** *MAX_ENTRIES* **name** *NAME* [**flags** *FLAGS*] [**dev** *NAME*]
 |	**bpftool** **map dump**       *MAP*
 |	**bpftool** **map update**     *MAP* [**key** *DATA*] [**value** *VALUE*] [*UPDATE_FLAGS*]
-|	**bpftool** **map lookup**     *MAP*  **key** *DATA*
+|	**bpftool** **map lookup**     *MAP* [**key** *DATA*]
 |	**bpftool** **map getnext**    *MAP* [**key** *DATA*]
 |	**bpftool** **map delete**     *MAP*  **key** *DATA*
 |	**bpftool** **map pin**        *MAP*  *FILE*
@@ -75,7 +75,7 @@ DESCRIPTION
 		  the bytes are parsed as decimal values, unless a "0x" prefix
 		  (for hexadecimal) or a "0" prefix (for octal) is provided.
 
-	**bpftool map lookup**  *MAP*  **key** *DATA*
+	**bpftool map lookup**  *MAP* [**key** *DATA*]
 		  Lookup **key** in the map.
 
 	**bpftool map getnext** *MAP* [**key** *DATA*]
