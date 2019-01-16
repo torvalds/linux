@@ -28,6 +28,7 @@
 
 #define MAX_REGULAR_DPM_NUMBER 16
 #define MAX_PCIE_CONF 2
+
 struct vega20_dpm_level {
         bool            enabled;
         uint32_t        value;

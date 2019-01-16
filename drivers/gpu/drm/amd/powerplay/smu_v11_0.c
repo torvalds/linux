@@ -38,6 +38,8 @@
 #include "asic_reg/mp/mp_9_0_offset.h"
 #include "asic_reg/mp/mp_9_0_sh_mask.h"
 #include "asic_reg/nbio/nbio_7_4_offset.h"
+#include "asic_reg/smuio/smuio_9_0_offset.h"
+#include "asic_reg/smuio/smuio_9_0_sh_mask.h"
 
 MODULE_FIRMWARE("amdgpu/vega20_smc.bin");
 
@@ -46,6 +48,7 @@ MODULE_FIRMWARE("amdgpu/vega20_smc.bin");
 #define SMU11_THERMAL_MAXIMUM_ALERT_TEMP      255
 
 #define SMU11_TEMPERATURE_UNITS_PER_CENTIGRADES 1000
+#define SMU11_VOLTAGE_SCALE 4
 
 static int smu_v11_0_send_msg_without_waiting(struct smu_context *smu,
 					      uint16_t msg)
@@ -1049,6 +1052,30 @@ static int smu_v11_0_get_gpu_power(struct smu_context *smu, uint32_t *value)
 	return 0;
 }
 
+static uint16_t convert_to_vddc(uint8_t vid)
+{
+	return (uint16_t) ((6200 - (vid * 25)) / SMU11_VOLTAGE_SCALE);
+}
+
+static int smu_v11_0_get_gfx_vdd(struct smu_context *smu, uint32_t *value)
+{
+	struct amdgpu_device *adev = smu->adev;
+	uint32_t vdd = 0, val_vid = 0;
+
+	if (!value)
+		return -EINVAL;
+	val_vid = (RREG32_SOC15(SMUIO, 0, mmSMUSVI0_TEL_PLANE0) &
+		SMUSVI0_TEL_PLANE0__SVI0_PLANE0_VDDCOR_MASK) >>
+		SMUSVI0_TEL_PLANE0__SVI0_PLANE0_VDDCOR__SHIFT;
+
+	vdd = (uint32_t)convert_to_vddc((uint8_t)val_vid);
+
+	*value = vdd;
+
+	return 0;
+
+}
+
 static int smu_v11_0_read_sensor(struct smu_context *smu,
 				 enum amd_pp_sensors sensor,
 				 void *data, uint32_t *size)
@@ -1074,6 +1101,10 @@ static int smu_v11_0_read_sensor(struct smu_context *smu,
 		break;
 	case AMDGPU_PP_SENSOR_GPU_POWER:
 		ret = smu_v11_0_get_gpu_power(smu, (uint32_t *)data);
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_VDDGFX:
+		ret = smu_v11_0_get_gfx_vdd(smu, (uint32_t *)data);
 		*size = 4;
 		break;
 	default:
