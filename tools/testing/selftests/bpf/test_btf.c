@@ -138,6 +138,7 @@ static struct btf_header hdr_tmpl = {
 /* several different mapv kinds(types) supported by pprint */
 enum pprint_mapv_kind_t {
 	PPRINT_MAPV_KIND_BASIC = 0,
+	PPRINT_MAPV_KIND_INT128,
 };
 
 struct btf_raw_test {
@@ -3630,6 +3631,16 @@ struct pprint_mapv {
 	uint32_t bits2c:2;
 };
 
+#ifdef __SIZEOF_INT128__
+struct pprint_mapv_int128 {
+	__int128 si128a;
+	__int128 si128b;
+	unsigned __int128 bits3:3;
+	unsigned __int128 bits80:80;
+	unsigned __int128 ui128;
+};
+#endif
+
 static struct btf_raw_test pprint_test_template[] = {
 {
 	.raw_types = {
@@ -3821,6 +3832,35 @@ static struct btf_raw_test pprint_test_template[] = {
 	.max_entries = 128 * 1024,
 },
 
+#ifdef __SIZEOF_INT128__
+{
+	/* test int128 */
+	.raw_types = {
+		/* unsigned int */				/* [1] */
+		BTF_TYPE_INT_ENC(NAME_TBD, 0, 0, 32, 4),
+		/* __int128 */					/* [2] */
+		BTF_TYPE_INT_ENC(NAME_TBD, BTF_INT_SIGNED, 0, 128, 16),
+		/* unsigned __int128 */				/* [3] */
+		BTF_TYPE_INT_ENC(NAME_TBD, 0, 0, 128, 16),
+		/* struct pprint_mapv_int128 */			/* [4] */
+		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_STRUCT, 1, 5), 64),
+		BTF_MEMBER_ENC(NAME_TBD, 2, BTF_MEMBER_OFFSET(0, 0)),		/* si128a */
+		BTF_MEMBER_ENC(NAME_TBD, 2, BTF_MEMBER_OFFSET(0, 128)),		/* si128b */
+		BTF_MEMBER_ENC(NAME_TBD, 3, BTF_MEMBER_OFFSET(3, 256)),		/* bits3 */
+		BTF_MEMBER_ENC(NAME_TBD, 3, BTF_MEMBER_OFFSET(80, 259)),	/* bits80 */
+		BTF_MEMBER_ENC(NAME_TBD, 3, BTF_MEMBER_OFFSET(0, 384)),		/* ui128 */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0unsigned int\0__int128\0unsigned __int128\0pprint_mapv_int128\0si128a\0si128b\0bits3\0bits80\0ui128"),
+	.key_size = sizeof(unsigned int),
+	.value_size = sizeof(struct pprint_mapv_int128),
+	.key_type_id = 1,
+	.value_type_id = 4,
+	.max_entries = 128 * 1024,
+	.mapv_kind = PPRINT_MAPV_KIND_INT128,
+},
+#endif
+
 };
 
 static struct btf_pprint_test_meta {
@@ -3892,6 +3932,11 @@ static size_t get_pprint_mapv_size(enum pprint_mapv_kind_t mapv_kind)
 	if (mapv_kind == PPRINT_MAPV_KIND_BASIC)
 		return sizeof(struct pprint_mapv);
 
+#ifdef __SIZEOF_INT128__
+	if (mapv_kind == PPRINT_MAPV_KIND_INT128)
+		return sizeof(struct pprint_mapv_int128);
+#endif
+
 	assert(0);
 }
 
@@ -3917,6 +3962,21 @@ static void set_pprint_mapv(enum pprint_mapv_kind_t mapv_kind,
 			v = (void *)v + rounded_value_size;
 		}
 	}
+
+#ifdef __SIZEOF_INT128__
+	if (mapv_kind == PPRINT_MAPV_KIND_INT128) {
+		struct pprint_mapv_int128 *v = mapv;
+
+		for (cpu = 0; cpu < num_cpus; cpu++) {
+			v->si128a = i;
+			v->si128b = -i;
+			v->bits3 = i & 0x07;
+			v->bits80 = (((unsigned __int128)1) << 64) + i;
+			v->ui128 = (((unsigned __int128)2) << 64) + i;
+			v = (void *)v + rounded_value_size;
+		}
+	}
+#endif
 }
 
 ssize_t get_pprint_expected_line(enum pprint_mapv_kind_t mapv_kind,
@@ -3948,6 +4008,25 @@ ssize_t get_pprint_expected_line(enum pprint_mapv_kind_t mapv_kind,
 					  v->ui32b,
 					  v->bits2c);
 	}
+
+#ifdef __SIZEOF_INT128__
+	if (mapv_kind == PPRINT_MAPV_KIND_INT128) {
+		struct pprint_mapv_int128 *v = mapv;
+
+		nexpected_line = snprintf(expected_line, line_size,
+					  "%s%u: {0x%lx,0x%lx,0x%lx,"
+					  "0x%lx%016lx,0x%lx%016lx}\n",
+					  percpu_map ? "\tcpu" : "",
+					  percpu_map ? cpu : next_key,
+					  (uint64_t)v->si128a,
+					  (uint64_t)v->si128b,
+					  (uint64_t)v->bits3,
+					  (uint64_t)(v->bits80 >> 64),
+					  (uint64_t)v->bits80,
+					  (uint64_t)(v->ui128 >> 64),
+					  (uint64_t)v->ui128);
+	}
+#endif
 
 	return nexpected_line;
 }
