@@ -957,14 +957,16 @@ static int rk618_hdmi_connector_get_modes(struct drm_connector *connector)
 	struct drm_display_mode *mode;
 	struct drm_display_info *info = &connector->display_info;
 	const u8 def_modes[6] = {4, 16, 31, 19, 17, 2};
-	struct edid *edid;
+	struct edid *edid = NULL;
 	int ret = 0;
 	u8 i;
 
 	if (!hdmi->ddc)
 		return 0;
 
-	edid = drm_get_edid(connector, hdmi->ddc);
+	if ((hdmi_readb(hdmi, HDMI_STATUS) & m_HOTPLUG))
+		edid = drm_get_edid(connector, hdmi->ddc);
+
 	if (edid) {
 		hdmi->hdmi_data.sink_is_hdmi = drm_detect_hdmi_monitor(edid);
 		hdmi->hdmi_data.sink_has_audio = drm_detect_monitor_audio(edid);
