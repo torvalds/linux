@@ -285,16 +285,21 @@ static void print_entry_plain(struct bpf_map_info *info, unsigned char *key,
 		single_line = info->key_size + info->value_size <= 24 &&
 			!break_names;
 
-		printf("key:%c", break_names ? '\n' : ' ');
-		fprint_hex(stdout, key, info->key_size, " ");
+		if (info->key_size) {
+			printf("key:%c", break_names ? '\n' : ' ');
+			fprint_hex(stdout, key, info->key_size, " ");
 
-		printf(single_line ? "  " : "\n");
+			printf(single_line ? "  " : "\n");
+		}
 
-		printf("value:%c", break_names ? '\n' : ' ');
-		if (value)
-			fprint_hex(stdout, value, info->value_size, " ");
-		else
-			printf("<no entry>");
+		if (info->value_size) {
+			printf("value:%c", break_names ? '\n' : ' ');
+			if (value)
+				fprint_hex(stdout, value, info->value_size,
+					   " ");
+			else
+				printf("<no entry>");
+		}
 
 		printf("\n");
 	} else {
@@ -303,18 +308,22 @@ static void print_entry_plain(struct bpf_map_info *info, unsigned char *key,
 		n = get_possible_cpus();
 		step = round_up(info->value_size, 8);
 
-		printf("key:\n");
-		fprint_hex(stdout, key, info->key_size, " ");
-		printf("\n");
-		for (i = 0; i < n; i++) {
-			printf("value (CPU %02d):%c",
-			       i, info->value_size > 16 ? '\n' : ' ');
-			if (value)
-				fprint_hex(stdout, value + i * step,
-					   info->value_size, " ");
-			else
-				printf("<no entry>");
+		if (info->key_size) {
+			printf("key:\n");
+			fprint_hex(stdout, key, info->key_size, " ");
 			printf("\n");
+		}
+		if (info->value_size) {
+			for (i = 0; i < n; i++) {
+				printf("value (CPU %02d):%c",
+				       i, info->value_size > 16 ? '\n' : ' ');
+				if (value)
+					fprint_hex(stdout, value + i * step,
+						   info->value_size, " ");
+				else
+					printf("<no entry>");
+				printf("\n");
+			}
 		}
 	}
 }
