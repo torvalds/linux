@@ -46,3 +46,4 @@ subdirectories.
    Smack
    tomoyo
    Yama
+   SafeSetID
