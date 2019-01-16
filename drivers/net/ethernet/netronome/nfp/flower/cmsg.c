@@ -203,7 +203,7 @@ nfp_flower_cmsg_portreify_rx(struct nfp_app *app, struct sk_buff *skb)
 	}
 
 	atomic_inc(&priv->reify_replies);
-	wake_up_interruptible(&priv->reify_wait_queue);
+	wake_up(&priv->reify_wait_queue);
 }
 
 static void

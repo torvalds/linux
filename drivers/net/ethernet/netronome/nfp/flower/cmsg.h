@@ -97,6 +97,9 @@
 
 #define NFP_FLOWER_WORKQ_MAX_SKBS	30000
 
+/* Cmesg reply (empirical) timeout*/
+#define NFP_FL_REPLY_TIMEOUT		msecs_to_jiffies(40)
+
 #define nfp_flower_cmsg_warn(app, fmt, args...)                         \
 	do {                                                            \
 		if (net_ratelimit())                                    \
