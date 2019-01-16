@@ -82,9 +82,15 @@ static int _omap2_clk_allow_idle(struct clk_hw_omap *clk)
  */
 int omap2_clk_deny_idle(struct clk *clk)
 {
-	struct clk_hw_omap *c = to_clk_hw_omap(__clk_get_hw(clk));
+	struct clk_hw *hw = __clk_get_hw(clk);
 
-	return _omap2_clk_deny_idle(c);
+	if (omap2_clk_is_hw_omap(hw)) {
+		struct clk_hw_omap *c = to_clk_hw_omap(hw);
+
+		return _omap2_clk_deny_idle(c);
+	}
+
+	return -EINVAL;
 }
 
 /**
@@ -95,9 +101,15 @@ int omap2_clk_deny_idle(struct clk *clk)
  */
 int omap2_clk_allow_idle(struct clk *clk)
 {
-	struct clk_hw_omap *c = to_clk_hw_omap(__clk_get_hw(clk));
+	struct clk_hw *hw = __clk_get_hw(clk);
 
-	return _omap2_clk_allow_idle(c);
+	if (omap2_clk_is_hw_omap(hw)) {
+		struct clk_hw_omap *c = to_clk_hw_omap(hw);
+
+		return _omap2_clk_allow_idle(c);
+	}
+
+	return -EINVAL;
 }
 
 static void _allow_autoidle(struct clk_ti_autoidle *clk)
