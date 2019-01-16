@@ -3021,7 +3021,7 @@ static bool chv_is_valid_mux_addr(struct drm_i915_private *dev_priv, u32 addr)
 		(addr >= 0x182300 && addr <= 0x1823A4);
 }
 
-static uint32_t mask_reg_value(u32 reg, u32 val)
+static u32 mask_reg_value(u32 reg, u32 val)
 {
 	/* HALF_SLICE_CHICKEN2 is programmed with a the
 	 * WaDisableSTUnitPowerOptimization workaround. Make sure the value

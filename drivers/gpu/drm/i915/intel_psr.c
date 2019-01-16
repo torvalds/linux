@@ -230,7 +230,7 @@ void intel_psr_irq_handler(struct drm_i915_private *dev_priv, u32 psr_iir)
 
 static bool intel_dp_get_colorimetry_status(struct intel_dp *intel_dp)
 {
-	uint8_t dprx = 0;
+	u8 dprx = 0;
 
 	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_DPRX_FEATURE_ENUMERATION_LIST,
 			      &dprx) != 1)
@@ -240,7 +240,7 @@ static bool intel_dp_get_colorimetry_status(struct intel_dp *intel_dp)
 
 static bool intel_dp_get_alpm_status(struct intel_dp *intel_dp)
 {
-	uint8_t alpm_caps = 0;
+	u8 alpm_caps = 0;
 
 	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_RECEIVER_ALPM_CAP,
 			      &alpm_caps) != 1)
@@ -384,7 +384,7 @@ static void hsw_psr_setup_aux(struct intel_dp *intel_dp)
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	u32 aux_clock_divider, aux_ctl;
 	int i;
-	static const uint8_t aux_msg[] = {
+	static const u8 aux_msg[] = {
 		[0] = DP_AUX_NATIVE_WRITE << 4,
 		[1] = DP_SET_POWER >> 8,
 		[2] = DP_SET_POWER & 0xff,

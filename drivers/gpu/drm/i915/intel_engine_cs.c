@@ -800,15 +800,15 @@ u32 intel_calculate_mcr_s_ss_select(struct drm_i915_private *dev_priv)
 	return mcr_s_ss_select;
 }
 
-static inline uint32_t
+static inline u32
 read_subslice_reg(struct drm_i915_private *dev_priv, int slice,
 		  int subslice, i915_reg_t reg)
 {
-	uint32_t mcr_slice_subslice_mask;
-	uint32_t mcr_slice_subslice_select;
-	uint32_t default_mcr_s_ss_select;
-	uint32_t mcr;
-	uint32_t ret;
+	u32 mcr_slice_subslice_mask;
+	u32 mcr_slice_subslice_select;
+	u32 default_mcr_s_ss_select;
+	u32 mcr;
+	u32 ret;
 	enum forcewake_domains fw_domains;
 
 	if (INTEL_GEN(dev_priv) >= 11) {

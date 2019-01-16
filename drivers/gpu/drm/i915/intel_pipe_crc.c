@@ -44,7 +44,7 @@ static const char * const pipe_crc_sources[] = {
 };
 
 static int i8xx_pipe_crc_ctl_reg(enum intel_pipe_crc_source *source,
-				 uint32_t *val)
+				 u32 *val)
 {
 	if (*source == INTEL_PIPE_CRC_SOURCE_AUTO)
 		*source = INTEL_PIPE_CRC_SOURCE_PIPE;
@@ -120,7 +120,7 @@ static int i9xx_pipe_crc_auto_source(struct drm_i915_private *dev_priv,
 static int vlv_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
 				enum pipe pipe,
 				enum intel_pipe_crc_source *source,
-				uint32_t *val)
+				u32 *val)
 {
 	bool need_stable_symbols = false;
 
@@ -165,7 +165,7 @@ static int vlv_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
 	 *   - DisplayPort scrambling: used for EMI reduction
 	 */
 	if (need_stable_symbols) {
-		uint32_t tmp = I915_READ(PORT_DFT2_G4X);
+		u32 tmp = I915_READ(PORT_DFT2_G4X);
 
 		tmp |= DC_BALANCE_RESET_VLV;
 		switch (pipe) {
@@ -190,7 +190,7 @@ static int vlv_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
 static int i9xx_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
 				 enum pipe pipe,
 				 enum intel_pipe_crc_source *source,
-				 uint32_t *val)
+				 u32 *val)
 {
 	bool need_stable_symbols = false;
 
@@ -244,7 +244,7 @@ static int i9xx_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
 	 *   - DisplayPort scrambling: used for EMI reduction
 	 */
 	if (need_stable_symbols) {
-		uint32_t tmp = I915_READ(PORT_DFT2_G4X);
+		u32 tmp = I915_READ(PORT_DFT2_G4X);
 
 		WARN_ON(!IS_G4X(dev_priv));
 
@@ -265,7 +265,7 @@ static int i9xx_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
 static void vlv_undo_pipe_scramble_reset(struct drm_i915_private *dev_priv,
 					 enum pipe pipe)
 {
-	uint32_t tmp = I915_READ(PORT_DFT2_G4X);
+	u32 tmp = I915_READ(PORT_DFT2_G4X);
 
 	switch (pipe) {
 	case PIPE_A:
@@ -289,7 +289,7 @@ static void vlv_undo_pipe_scramble_reset(struct drm_i915_private *dev_priv,
 static void g4x_undo_pipe_scramble_reset(struct drm_i915_private *dev_priv,
 					 enum pipe pipe)
 {
-	uint32_t tmp = I915_READ(PORT_DFT2_G4X);
+	u32 tmp = I915_READ(PORT_DFT2_G4X);
 
 	if (pipe == PIPE_A)
 		tmp &= ~PIPE_A_SCRAMBLE_RESET;
@@ -304,7 +304,7 @@ static void g4x_undo_pipe_scramble_reset(struct drm_i915_private *dev_priv,
 }
 
 static int ilk_pipe_crc_ctl_reg(enum intel_pipe_crc_source *source,
-				uint32_t *val)
+				u32 *val)
 {
 	if (*source == INTEL_PIPE_CRC_SOURCE_AUTO)
 		*source = INTEL_PIPE_CRC_SOURCE_PIPE;
@@ -392,7 +392,7 @@ unlock:
 static int ivb_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
 				enum pipe pipe,
 				enum intel_pipe_crc_source *source,
-				uint32_t *val,
+				u32 *val,
 				bool set_wa)
 {
 	if (*source == INTEL_PIPE_CRC_SOURCE_AUTO)

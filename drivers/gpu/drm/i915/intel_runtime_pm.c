@@ -903,10 +903,10 @@ void gen9_sanitize_dc_state(struct drm_i915_private *dev_priv)
  * back on and register state is restored. This is guaranteed by the MMIO write
  * to DC_STATE_EN blocking until the state is restored.
  */
-static void gen9_set_dc_state(struct drm_i915_private *dev_priv, uint32_t state)
+static void gen9_set_dc_state(struct drm_i915_private *dev_priv, u32 state)
 {
-	uint32_t val;
-	uint32_t mask;
+	u32 val;
+	u32 mask;
 
 	if (WARN_ON_ONCE(state & ~dev_priv->csr.allowed_dc_mask))
 		state &= dev_priv->csr.allowed_dc_mask;
@@ -1538,7 +1538,7 @@ static void chv_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
 {
 	enum dpio_phy phy;
 	enum pipe pipe;
-	uint32_t tmp;
+	u32 tmp;
 
 	WARN_ON_ONCE(power_well->desc->id != VLV_DISP_PW_DPIO_CMN_BC &&
 		     power_well->desc->id != CHV_DISP_PW_DPIO_CMN_D);
@@ -3328,10 +3328,10 @@ sanitize_disable_power_well_option(const struct drm_i915_private *dev_priv,
 	return 1;
 }
 
-static uint32_t get_allowed_dc_mask(const struct drm_i915_private *dev_priv,
-				    int enable_dc)
+static u32 get_allowed_dc_mask(const struct drm_i915_private *dev_priv,
+			       int enable_dc)
 {
-	uint32_t mask;
+	u32 mask;
 	int requested_dc;
 	int max_dc;
 
@@ -3596,7 +3596,7 @@ static void icl_dbuf_disable(struct drm_i915_private *dev_priv)
 
 static void icl_mbus_init(struct drm_i915_private *dev_priv)
 {
-	uint32_t val;
+	u32 val;
 
 	val = MBUS_ABOX_BT_CREDIT_POOL1(16) |
 	      MBUS_ABOX_BT_CREDIT_POOL2(16) |
@@ -3907,7 +3907,7 @@ static void chv_phy_control_init(struct drm_i915_private *dev_priv)
 	 * current lane status.
 	 */
 	if (cmn_bc->desc->ops->is_enabled(dev_priv, cmn_bc)) {
-		uint32_t status = I915_READ(DPLL(PIPE_A));
+		u32 status = I915_READ(DPLL(PIPE_A));
 		unsigned int mask;
 
 		mask = status & DPLL_PORTB_READY_MASK;
@@ -3938,7 +3938,7 @@ static void chv_phy_control_init(struct drm_i915_private *dev_priv)
 	}
 
 	if (cmn_d->desc->ops->is_enabled(dev_priv, cmn_d)) {
-		uint32_t status = I915_READ(DPIO_PHY_STATUS);
+		u32 status = I915_READ(DPIO_PHY_STATUS);
 		unsigned int mask;
 
 		mask = status & DPLL_PORTD_READY_MASK;

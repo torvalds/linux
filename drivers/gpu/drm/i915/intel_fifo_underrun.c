@@ -127,8 +127,8 @@ static void ironlake_set_fifo_underrun_reporting(struct drm_device *dev,
 						 enum pipe pipe, bool enable)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	uint32_t bit = (pipe == PIPE_A) ? DE_PIPEA_FIFO_UNDERRUN :
-					  DE_PIPEB_FIFO_UNDERRUN;
+	u32 bit = (pipe == PIPE_A) ?
+		DE_PIPEA_FIFO_UNDERRUN : DE_PIPEB_FIFO_UNDERRUN;
 
 	if (enable)
 		ilk_enable_display_irq(dev_priv, bit);
@@ -140,7 +140,7 @@ static void ivybridge_check_fifo_underruns(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
-	uint32_t err_int = I915_READ(GEN7_ERR_INT);
+	u32 err_int = I915_READ(GEN7_ERR_INT);
 
 	lockdep_assert_held(&dev_priv->irq_lock);
 
@@ -193,8 +193,8 @@ static void ibx_set_fifo_underrun_reporting(struct drm_device *dev,
 					    bool enable)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	uint32_t bit = (pch_transcoder == PIPE_A) ?
-		       SDE_TRANSA_FIFO_UNDER : SDE_TRANSB_FIFO_UNDER;
+	u32 bit = (pch_transcoder == PIPE_A) ?
+		SDE_TRANSA_FIFO_UNDER : SDE_TRANSB_FIFO_UNDER;
 
 	if (enable)
 		ibx_enable_display_interrupt(dev_priv, bit);
@@ -206,7 +206,7 @@ static void cpt_check_pch_fifo_underruns(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pch_transcoder = crtc->pipe;
-	uint32_t serr_int = I915_READ(SERR_INT);
+	u32 serr_int = I915_READ(SERR_INT);
 
 	lockdep_assert_held(&dev_priv->irq_lock);
 

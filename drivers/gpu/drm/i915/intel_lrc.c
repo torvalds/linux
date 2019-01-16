@@ -2608,7 +2608,7 @@ static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
 {
 	struct drm_i915_gem_object *ctx_obj;
 	struct i915_vma *vma;
-	uint32_t context_size;
+	u32 context_size;
 	struct intel_ring *ring;
 	struct i915_timeline *timeline;
 	int ret;

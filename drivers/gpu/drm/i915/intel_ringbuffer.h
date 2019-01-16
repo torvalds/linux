@@ -28,7 +28,7 @@ struct i915_sched_attr;
  * workarounds!
  */
 #define CACHELINE_BYTES 64
-#define CACHELINE_DWORDS (CACHELINE_BYTES / sizeof(uint32_t))
+#define CACHELINE_DWORDS (CACHELINE_BYTES / sizeof(u32))
 
 struct intel_hw_status_page {
 	struct i915_vma *vma;

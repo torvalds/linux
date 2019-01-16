@@ -713,8 +713,8 @@ void i915_gem_object_free(struct drm_i915_gem_object *obj)
 static int
 i915_gem_create(struct drm_file *file,
 		struct drm_i915_private *dev_priv,
-		uint64_t size,
-		uint32_t *handle_p)
+		u64 size,
+		u32 *handle_p)
 {
 	struct drm_i915_gem_object *obj;
 	int ret;
@@ -1573,8 +1573,8 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_i915_gem_set_domain *args = data;
 	struct drm_i915_gem_object *obj;
-	uint32_t read_domains = args->read_domains;
-	uint32_t write_domain = args->write_domain;
+	u32 read_domains = args->read_domains;
+	u32 write_domain = args->write_domain;
 	int err;
 
 	/* Only handle setting domains to types used by the CPU. */
@@ -1756,7 +1756,7 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 	if (IS_ERR((void *)addr))
 		return addr;
 
-	args->addr_ptr = (uint64_t) addr;
+	args->addr_ptr = (u64)addr;
 
 	return 0;
 }
@@ -2158,8 +2158,8 @@ static void i915_gem_object_free_mmap_offset(struct drm_i915_gem_object *obj)
 int
 i915_gem_mmap_gtt(struct drm_file *file,
 		  struct drm_device *dev,
-		  uint32_t handle,
-		  uint64_t *offset)
+		  u32 handle,
+		  u64 *offset)
 {
 	struct drm_i915_gem_object *obj;
 	int ret;

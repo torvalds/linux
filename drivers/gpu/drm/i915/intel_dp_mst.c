@@ -239,7 +239,7 @@ static void intel_mst_pre_enable_dp(struct intel_encoder *encoder,
 	struct intel_connector *connector =
 		to_intel_connector(conn_state->connector);
 	int ret;
-	uint32_t temp;
+	u32 temp;
 
 	/* MST encoders are bound to a crtc, not to a connector,
 	 * force the mapping here for get_hw_state.

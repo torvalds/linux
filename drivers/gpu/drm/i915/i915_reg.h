@@ -117,14 +117,14 @@
  */
 
 typedef struct {
-	uint32_t reg;
+	u32 reg;
 } i915_reg_t;
 
 #define _MMIO(r) ((const i915_reg_t){ .reg = (r) })
 
 #define INVALID_MMIO_REG _MMIO(0)
 
-static inline uint32_t i915_mmio_reg_offset(i915_reg_t reg)
+static inline u32 i915_mmio_reg_offset(i915_reg_t reg)
 {
 	return reg.reg;
 }
