@@ -296,6 +296,7 @@ struct vb2_buffer {
 	u32		cnt_mem_num_users;
 	u32		cnt_mem_mmap;
 
+	u32		cnt_buf_out_validate;
 	u32		cnt_buf_init;
 	u32		cnt_buf_prepare;
 	u32		cnt_buf_finish;
@@ -342,6 +343,9 @@ struct vb2_buffer {
  * @wait_finish:	reacquire all locks released in the previous callback;
  *			required to continue operation after sleeping while
  *			waiting for a new buffer to arrive.
+ * @buf_out_validate:	called when the output buffer is prepared or queued
+ *			to a request; drivers can use this to validate
+ *			userspace-provided information; optional.
  * @buf_init:		called once after allocating a buffer (in MMAP case)
  *			or after acquiring a new USERPTR buffer; drivers may
  *			perform additional buffer-related initialization;
@@ -409,6 +413,7 @@ struct vb2_ops {
 	void (*wait_prepare)(struct vb2_queue *q);
 	void (*wait_finish)(struct vb2_queue *q);
 
+	int (*buf_out_validate)(struct vb2_buffer *vb);
 	int (*buf_init)(struct vb2_buffer *vb);
 	int (*buf_prepare)(struct vb2_buffer *vb);
 	void (*buf_finish)(struct vb2_buffer *vb);
