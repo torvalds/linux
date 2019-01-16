@@ -8,7 +8,7 @@
  * Copyright (c) 2006, Michael Wu <flamingice@sourmilk.net>
  * Copyright (c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright (c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright (c) 2018        Intel Corporation
+ * Copyright (c) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -2475,6 +2475,7 @@ enum ieee80211_eid_ext {
 	WLAN_EID_EXT_HE_OPERATION = 36,
 	WLAN_EID_EXT_UORA = 37,
 	WLAN_EID_EXT_HE_MU_EDCA = 38,
+	WLAN_EID_EXT_MULTIPLE_BSSID_CONFIGURATION = 55,
 };
 
 /* Action category code */
@@ -2691,6 +2692,9 @@ enum ieee80211_tdls_actioncode {
 #define WLAN_EXT_CAPA10_TWT_REQUESTER_SUPPORT	BIT(5)
 #define WLAN_EXT_CAPA10_TWT_RESPONDER_SUPPORT	BIT(6)
 
+/* Defines support for enhanced multi-bssid advertisement*/
+#define WLAN_EXT_CAPA11_EMA_SUPPORT	BIT(1)
+
 /* TDLS specific payload type in the LLC/SNAP header */
 #define WLAN_TDLS_SNAP_RFTYPE	0x2
 
@@ -2882,6 +2886,34 @@ enum ieee80211_sa_query_action {
 	WLAN_ACTION_SA_QUERY_RESPONSE = 1,
 };
 
+/**
+ * struct ieee80211_bssid_index
+ *
+ * This structure refers to "Multiple BSSID-index element"
+ *
+ * @bssid_index: BSSID index
+ * @dtim_period: optional, overrides transmitted BSS dtim period
+ * @dtim_count: optional, overrides transmitted BSS dtim count
+ */
+struct ieee80211_bssid_index {
+	u8 bssid_index;
+	u8 dtim_period;
+	u8 dtim_count;
+};
+
+/**
+ * struct ieee80211_multiple_bssid_configuration
+ *
+ * This structure refers to "Multiple BSSID Configuration element"
+ *
+ * @bssid_count: total number of active BSSIDs in the set
+ * @profile_periodicity: the least number of beacon frames need to be received
+ *	in order to discover all the nontransmitted BSSIDs in the set.
+ */
+struct ieee80211_multiple_bssid_configuration {
+	u8 bssid_count;
+	u8 profile_periodicity;
+};
 
 #define SUITE(oui, id)	(((oui) << 8) | (id))
 

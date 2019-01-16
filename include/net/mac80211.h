@@ -591,6 +591,14 @@ struct ieee80211_ftm_responder_params {
  * @ftm_responder: whether to enable or disable fine timing measurement FTM
  *	responder functionality.
  * @ftmr_params: configurable lci/civic parameter when enabling FTM responder.
+ * @nontransmitted: this BSS is a nontransmitted BSS profile
+ * @transmitter_bssid: the address of transmitter AP
+ * @bssid_index: index inside the multiple BSSID set
+ * @bssid_indicator: 2^bssid_indicator is the maximum number of APs in set
+ * @ema_ap: AP supports enhancements of discovery and advertisement of
+ *	nontransmitted BSSIDs
+ * @profile_periodicity: the least number of beacon frames need to be received
+ *	in order to discover all the nontransmitted BSSIDs in the set.
  */
 struct ieee80211_bss_conf {
 	const u8 *bssid;
@@ -644,6 +652,13 @@ struct ieee80211_bss_conf {
 	bool protected_keep_alive;
 	bool ftm_responder;
 	struct ieee80211_ftm_responder_params *ftmr_params;
+	/* Multiple BSSID data */
+	bool nontransmitted;
+	u8 transmitter_bssid[ETH_ALEN];
+	u8 bssid_index;
+	u8 bssid_indicator;
+	bool ema_ap;
+	u8 profile_periodicity;
 };
 
 /**

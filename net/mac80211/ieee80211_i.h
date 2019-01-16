@@ -1495,6 +1495,12 @@ struct ieee802_11_elems {
 	const struct ieee80211_sec_chan_offs_ie *sec_chan_offs;
 	struct ieee80211_mesh_chansw_params_ie *mesh_chansw_params_ie;
 	const struct ieee80211_bss_max_idle_period_ie *max_idle_period_ie;
+	const struct ieee80211_multiple_bssid_configuration *mbssid_config_ie;
+	const struct ieee80211_bssid_index *bssid_index;
+	const u8 *nontransmitted_bssid_profile;
+	u8 max_bssid_indicator;
+	u8 dtim_count;
+	u8 dtim_period;
 
 	/* length of them, respectively */
 	u8 ext_capab_len;
@@ -1513,6 +1519,7 @@ struct ieee802_11_elems {
 	u8 prep_len;
 	u8 perr_len;
 	u8 country_elem_len;
+	u8 bssid_index_len;
 
 	/* whether a parse error occurred while retrieving these elements */
 	bool parse_error;

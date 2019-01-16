@@ -144,8 +144,8 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 			  struct ieee80211_channel *channel)
 {
 	bool beacon = ieee80211_is_beacon(mgmt->frame_control);
-	struct cfg80211_bss *cbss;
-	struct ieee80211_bss *bss;
+	struct cfg80211_bss *cbss, *non_tx_cbss;
+	struct ieee80211_bss *bss, *non_tx_bss;
 	struct cfg80211_inform_bss bss_meta = {
 		.boottime_ns = rx_status->boottime_ns,
 	};
@@ -211,6 +211,13 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 
 	bss = (void *)cbss->priv;
 	ieee80211_update_bss_from_elems(local, bss, &elems, rx_status, beacon);
+
+	list_for_each_entry(non_tx_cbss, &cbss->nontrans_list, nontrans_list) {
+		non_tx_bss = (void *)non_tx_cbss->priv;
+
+		ieee80211_update_bss_from_elems(local, non_tx_bss, &elems,
+						rx_status, beacon);
+	}
 
 	return bss;
 }
