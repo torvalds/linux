@@ -152,6 +152,23 @@ void put_ipc_ns(struct ipc_namespace *ns)
 		free_ipc_ns(ns);
 	}
 }
+EXPORT_SYMBOL(put_ipc_ns);
+
+struct ipc_namespace *get_ipc_ns_exported(struct ipc_namespace *ns)
+{
+	return get_ipc_ns(ns);
+}
+EXPORT_SYMBOL(get_ipc_ns_exported);
+
+struct ipc_namespace *show_init_ipc_ns(void)
+{
+#if defined(CONFIG_IPC_NS)
+	return &init_ipc_ns;
+#else
+	return NULL;
+#endif
+}
+EXPORT_SYMBOL(show_init_ipc_ns);
 
 static inline struct ipc_namespace *to_ipc_ns(struct ns_common *ns)
 {

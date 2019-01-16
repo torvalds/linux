@@ -9,7 +9,7 @@ config ANDROID
 if ANDROID
 
 config ANDROID_BINDER_IPC
-	bool "Android Binder IPC Driver"
+	tristate "Android Binder IPC Driver"
 	depends on MMU && !CPU_CACHE_VIVT
 	default n
 	---help---
@@ -21,8 +21,8 @@ config ANDROID_BINDER_IPC
 	  between said processes.
 
 config ANDROID_BINDERFS
-	bool "Android Binderfs filesystem"
-	depends on ANDROID_BINDER_IPC
+	tristate "Android Binderfs filesystem"
+	depends on (ANDROID_BINDER_IPC=y) || (ANDROID_BINDER_IPC=m && m)
 	default n
 	---help---
 	  Binderfs is a pseudo-filesystem for the Android Binder IPC driver

@@ -15,6 +15,7 @@
 #ifndef _LINUX_BINDER_ALLOC_H
 #define _LINUX_BINDER_ALLOC_H
 
+#include <linux/kconfig.h>
 #include <linux/rbtree.h>
 #include <linux/list.h>
 #include <linux/mm.h>
@@ -115,7 +116,7 @@ struct binder_alloc {
 	size_t pages_high;
 };
 
-#ifdef CONFIG_ANDROID_BINDER_IPC_SELFTEST
+#if IS_ENABLED(CONFIG_ANDROID_BINDER_IPC_SELFTEST)
 void binder_selftest_alloc(struct binder_alloc *alloc);
 #else
 static inline void binder_selftest_alloc(struct binder_alloc *alloc) {}

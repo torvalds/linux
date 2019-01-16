@@ -668,6 +668,7 @@ out_unlock:
 	*res = NULL;
 	return -ENOENT;
 }
+EXPORT_SYMBOL(__close_fd_get_file);
 
 void do_close_on_exec(struct files_struct *files)
 {
