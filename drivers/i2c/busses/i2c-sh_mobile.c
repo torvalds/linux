@@ -392,13 +392,9 @@ static int sh_mobile_i2c_isr_rx(struct sh_mobile_i2c_data *pd)
 	int real_pos;
 
 	do {
-		if (pd->pos <= -1) {
+		if (sh_mobile_i2c_is_first_byte(pd)) {
 			sh_mobile_i2c_get_data(pd, &data);
-
-			if (sh_mobile_i2c_is_first_byte(pd))
-				i2c_op(pd, OP_TX_FIRST, data);
-			else
-				i2c_op(pd, OP_TX, data);
+			i2c_op(pd, OP_TX_FIRST, data);
 			break;
 		}
 
