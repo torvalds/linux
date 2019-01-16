@@ -9,5 +9,8 @@ TODO:
 - remove useless/wrong/unused code...
 - get rid of non-linux related stuff
 
+This needs to become a drm driver, the fbdev subsystem doesn't take new drivers
+anymore.
+
 Please send patches to:
 Arnaud Patard <arnaud.patard@rtp-net.org>
