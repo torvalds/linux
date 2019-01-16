@@ -625,7 +625,7 @@ EXPORT_SYMBOL_GPL(vxlan_fdb_clear_offload);
 /* Replace destination of unicast mac */
 static int vxlan_fdb_replace(struct vxlan_fdb *f,
 			     union vxlan_addr *ip, __be16 port, __be32 vni,
-			     __u32 ifindex)
+			     __u32 ifindex, struct vxlan_rdst *oldrd)
 {
 	struct vxlan_rdst *rd;
 
@@ -637,6 +637,7 @@ static int vxlan_fdb_replace(struct vxlan_fdb *f,
 	if (!rd)
 		return 0;
 
+	*oldrd = *rd;
 	dst_cache_reset(&rd->dst_cache);
 	rd->remote_ip = *ip;
 	rd->remote_port = port;
@@ -865,6 +866,7 @@ static int vxlan_fdb_update_existing(struct vxlan_dev *vxlan,
 {
 	__u16 fdb_flags = (ndm_flags & ~NTF_USE);
 	struct vxlan_rdst *rd = NULL;
+	struct vxlan_rdst oldrd;
 	int notify = 0;
 	int rc;
 
@@ -890,7 +892,7 @@ static int vxlan_fdb_update_existing(struct vxlan_dev *vxlan,
 		if (!(is_multicast_ether_addr(f->eth_addr) ||
 		      is_zero_ether_addr(f->eth_addr))) {
 			rc = vxlan_fdb_replace(f, ip, port, vni,
-					       ifindex);
+					       ifindex, &oldrd);
 			notify |= rc;
 		} else {
 			return -EOPNOTSUPP;
