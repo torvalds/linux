@@ -500,14 +500,13 @@ void tcp_retransmit_timer(struct sock *sk)
 
 	tcp_enter_loss(sk);
 
+	icsk->icsk_retransmits++;
 	if (tcp_retransmit_skb(sk, tcp_rtx_queue_head(sk), 1) > 0) {
 		/* Retransmission failed because of local congestion,
-		 * do not backoff.
+		 * Let senders fight for local resources conservatively.
 		 */
-		if (!icsk->icsk_retransmits)
-			icsk->icsk_retransmits = 1;
 		inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
-					  min(icsk->icsk_rto, TCP_RESOURCE_PROBE_INTERVAL),
+					  TCP_RESOURCE_PROBE_INTERVAL,
 					  TCP_RTO_MAX);
 		goto out;
 	}
@@ -528,7 +527,6 @@ void tcp_retransmit_timer(struct sock *sk)
 	 * the 120 second clamps though!
 	 */
 	icsk->icsk_backoff++;
-	icsk->icsk_retransmits++;
 
 out_reset_timer:
 	/* If stream is thin, use linear timeouts. Since 'icsk_backoff' is
