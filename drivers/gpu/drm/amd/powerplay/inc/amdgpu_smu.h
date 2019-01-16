@@ -154,6 +154,15 @@ struct smu_performance_level {
 	uint32_t non_local_mem_width;
 };
 
+struct smu_clock_info {
+	uint32_t min_mem_clk;
+	uint32_t max_mem_clk;
+	uint32_t min_eng_clk;
+	uint32_t max_eng_clk;
+	uint32_t min_bus_bandwidth;
+	uint32_t max_bus_bandwidth;
+};
+
 struct smu_bios_boot_up_values
 {
 	uint32_t			revision;
@@ -306,6 +315,8 @@ struct smu_funcs
 	int (*get_perf_level)(struct smu_context *smu,
 			      enum smu_perf_level_designation designation,
 			      struct smu_performance_level *level);
+	int (*get_current_shallow_sleep_clocks)(struct smu_context *smu,
+						struct smu_clock_info *clocks);
 };
 
 #define smu_init_microcode(smu) \
@@ -421,6 +432,8 @@ struct smu_funcs
 	((smu)->funcs->get_dal_power_level ? (smu)->funcs->get_dal_power_level((smu), (clocks)) : 0)
 #define smu_get_perf_level(smu, designation, level) \
 	((smu)->funcs->get_perf_level ? (smu)->funcs->get_perf_level((smu), (designation), (level)) : 0)
+#define smu_get_current_shallow_sleep_clocks(smu, clocks) \
+	((smu)->funcs->get_current_shallow_sleep_clocks ? (smu)->funcs->get_current_shallow_sleep_clocks((smu), (clocks)) : 0)
 
 
 extern int smu_get_atom_data_table(struct smu_context *smu, uint32_t table,
