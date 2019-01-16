@@ -36,17 +36,41 @@ struct clk_ti_autoidle {
 
 static LIST_HEAD(autoidle_clks);
 
+/*
+ * we have some non-atomic read/write
+ * operations behind it, so lets
+ * take one lock for handling autoidle
+ * of all clocks
+ */
+static DEFINE_SPINLOCK(autoidle_spinlock);
+
 static int _omap2_clk_deny_idle(struct clk_hw_omap *clk)
 {
-	if (clk->ops && clk->ops->deny_idle)
-		clk->ops->deny_idle(clk);
+	if (clk->ops && clk->ops->deny_idle) {
+		unsigned long irqflags;
+
+		spin_lock_irqsave(&autoidle_spinlock, irqflags);
+		clk->autoidle_count++;
+		if (clk->autoidle_count == 1)
+			clk->ops->deny_idle(clk);
+
+		spin_unlock_irqrestore(&autoidle_spinlock, irqflags);
+	}
 	return 0;
 }
 
 static int _omap2_clk_allow_idle(struct clk_hw_omap *clk)
 {
-	if (clk->ops && clk->ops->allow_idle)
-		clk->ops->allow_idle(clk);
+	if (clk->ops && clk->ops->allow_idle) {
+		unsigned long irqflags;
+
+		spin_lock_irqsave(&autoidle_spinlock, irqflags);
+		clk->autoidle_count--;
+		if (clk->autoidle_count == 0)
+			clk->ops->allow_idle(clk);
+
+		spin_unlock_irqrestore(&autoidle_spinlock, irqflags);
+	}
 	return 0;
 }
 
