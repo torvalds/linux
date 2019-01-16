@@ -276,6 +276,7 @@ int hfi_session_start(struct venus_inst *inst)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(hfi_session_start);
 
 int hfi_session_stop(struct venus_inst *inst)
 {
@@ -299,6 +300,7 @@ int hfi_session_stop(struct venus_inst *inst)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(hfi_session_stop);
 
 int hfi_session_continue(struct venus_inst *inst)
 {
@@ -328,6 +330,7 @@ int hfi_session_abort(struct venus_inst *inst)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(hfi_session_abort);
 
 int hfi_session_load_res(struct venus_inst *inst)
 {
@@ -374,6 +377,7 @@ int hfi_session_unload_res(struct venus_inst *inst)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(hfi_session_unload_res);
 
 int hfi_session_flush(struct venus_inst *inst, u32 type)
 {
