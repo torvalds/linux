@@ -216,6 +216,7 @@ struct cifs_io_parms;
 struct cifs_search_info;
 struct cifsInodeInfo;
 struct cifs_open_parms;
+struct cifs_credits;
 
 struct smb_version_operations {
 	int (*send_cancel)(struct TCP_Server_Info *, struct smb_rqst *,
@@ -230,8 +231,9 @@ struct smb_version_operations {
 	/* check response: verify signature, map error */
 	int (*check_receive)(struct mid_q_entry *, struct TCP_Server_Info *,
 			     bool);
-	void (*add_credits)(struct TCP_Server_Info *, const unsigned int,
-			    const int);
+	void (*add_credits)(struct TCP_Server_Info *server,
+			    const struct cifs_credits *credits,
+			    const int optype);
 	void (*set_credits)(struct TCP_Server_Info *, const int);
 	int * (*get_credits_field)(struct TCP_Server_Info *, const int);
 	unsigned int (*get_credits)(struct mid_q_entry *);
@@ -454,7 +456,7 @@ struct smb_version_operations {
 	unsigned int (*wp_retry_size)(struct inode *);
 	/* get mtu credits */
 	int (*wait_mtu_credits)(struct TCP_Server_Info *, unsigned int,
-				unsigned int *, unsigned int *);
+				unsigned int *, struct cifs_credits *);
 	/* check if we need to issue closedir */
 	bool (*dir_needs_close)(struct cifsFileInfo *);
 	long (*fallocate)(struct file *, struct cifs_tcon *, int, loff_t,
@@ -713,6 +715,11 @@ struct TCP_Server_Info {
 	int nr_targets;
 };
 
+struct cifs_credits {
+	unsigned int value;
+	unsigned int instance;
+};
+
 static inline unsigned int
 in_flight(struct TCP_Server_Info *server)
 {
@@ -737,15 +744,17 @@ static inline void
 add_credits(struct TCP_Server_Info *server, const unsigned int add,
 	    const int optype)
 {
-	server->ops->add_credits(server, add, optype);
+	struct cifs_credits credits = { .value = add, .instance = 0 };
+
+	server->ops->add_credits(server, &credits, optype);
 }
 
 static inline void
-add_credits_and_wake_if(struct TCP_Server_Info *server, const unsigned int add,
-			const int optype)
+add_credits_and_wake_if(struct TCP_Server_Info *server,
+			const struct cifs_credits *credits, const int optype)
 {
-	if (add) {
-		server->ops->add_credits(server, add, optype);
+	if (credits->value) {
+		server->ops->add_credits(server, credits, optype);
 		wake_up(&server->request_q);
 	}
 }
@@ -1253,7 +1262,7 @@ struct cifs_readdata {
 	unsigned int			pagesz;
 	unsigned int			page_offset;
 	unsigned int			tailsz;
-	unsigned int			credits;
+	struct cifs_credits		credits;
 	unsigned int			nr_pages;
 	struct page			**pages;
 };
@@ -1279,7 +1288,7 @@ struct cifs_writedata {
 	unsigned int			pagesz;
 	unsigned int			page_offset;
 	unsigned int			tailsz;
-	unsigned int			credits;
+	struct cifs_credits		credits;
 	unsigned int			nr_pages;
 	struct page			**pages;
 };

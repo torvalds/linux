@@ -2143,11 +2143,13 @@ static int cifs_writepages(struct address_space *mapping,
 	server = cifs_sb_master_tcon(cifs_sb)->ses->server;
 retry:
 	while (!done && index <= end) {
-		unsigned int i, nr_pages, found_pages, wsize, credits;
+		unsigned int i, nr_pages, found_pages, wsize;
 		pgoff_t next = 0, tofind, saved_index = index;
+		struct cifs_credits credits_on_stack;
+		struct cifs_credits *credits = &credits_on_stack;
 
 		rc = server->ops->wait_mtu_credits(server, cifs_sb->wsize,
-						   &wsize, &credits);
+						   &wsize, credits);
 		if (rc != 0) {
 			done = true;
 			break;
@@ -2180,13 +2182,13 @@ retry:
 			continue;
 		}
 
-		wdata->credits = credits;
+		wdata->credits = credits_on_stack;
 
 		rc = wdata_send_pages(wdata, nr_pages, mapping, wbc);
 
 		/* send failure -- clean up the mess */
 		if (rc != 0) {
-			add_credits_and_wake_if(server, wdata->credits, 0);
+			add_credits_and_wake_if(server, &wdata->credits, 0);
 			for (i = 0; i < nr_pages; ++i) {
 				if (is_retryable_error(rc))
 					redirty_page_for_writepage(wbc,
@@ -2567,7 +2569,8 @@ static int
 cifs_resend_wdata(struct cifs_writedata *wdata, struct list_head *wdata_list,
 	struct cifs_aio_ctx *ctx)
 {
-	unsigned int wsize, credits;
+	unsigned int wsize;
+	struct cifs_credits credits;
 	int rc;
 	struct TCP_Server_Info *server =
 		tlink_tcon(wdata->cfile->tlink)->ses->server;
@@ -2577,18 +2580,19 @@ cifs_resend_wdata(struct cifs_writedata *wdata, struct list_head *wdata_list,
 	 * Note: we are attempting to resend the whole wdata not in segments
 	 */
 	do {
-		rc = server->ops->wait_mtu_credits(
-			server, wdata->bytes, &wsize, &credits);
+		rc = server->ops->wait_mtu_credits(server, wdata->bytes, &wsize,
+						   &credits);
 
 		if (rc)
 			goto out;
 
 		if (wsize < wdata->bytes) {
-			add_credits_and_wake_if(server, credits, 0);
+			add_credits_and_wake_if(server, &credits, 0);
 			msleep(1000);
 		}
 	} while (wsize < wdata->bytes);
 
+	wdata->credits = credits;
 	rc = -EAGAIN;
 	while (rc == -EAGAIN) {
 		rc = 0;
@@ -2604,7 +2608,7 @@ cifs_resend_wdata(struct cifs_writedata *wdata, struct list_head *wdata_list,
 		return 0;
 	}
 
-	add_credits_and_wake_if(server, wdata->credits, 0);
+	add_credits_and_wake_if(server, &wdata->credits, 0);
 out:
 	kref_put(&wdata->refcount, cifs_uncached_writedata_release);
 
@@ -2627,6 +2631,7 @@ cifs_write_from_iter(loff_t offset, size_t len, struct iov_iter *from,
 	struct TCP_Server_Info *server;
 	struct page **pagevec;
 	size_t start;
+	unsigned int xid;
 
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_RWPIDFORWARD)
 		pid = open_file->pid;
@@ -2634,12 +2639,15 @@ cifs_write_from_iter(loff_t offset, size_t len, struct iov_iter *from,
 		pid = current->tgid;
 
 	server = tlink_tcon(open_file->tlink)->ses->server;
+	xid = get_xid();
 
 	do {
-		unsigned int wsize, credits;
+		unsigned int wsize;
+		struct cifs_credits credits_on_stack;
+		struct cifs_credits *credits = &credits_on_stack;
 
 		rc = server->ops->wait_mtu_credits(server, cifs_sb->wsize,
-						   &wsize, &credits);
+						   &wsize, credits);
 		if (rc)
 			break;
 
@@ -2731,7 +2739,7 @@ cifs_write_from_iter(loff_t offset, size_t len, struct iov_iter *from,
 		wdata->pid = pid;
 		wdata->bytes = cur_len;
 		wdata->pagesz = PAGE_SIZE;
-		wdata->credits = credits;
+		wdata->credits = credits_on_stack;
 		wdata->ctx = ctx;
 		kref_get(&ctx->refcount);
 
@@ -2740,7 +2748,7 @@ cifs_write_from_iter(loff_t offset, size_t len, struct iov_iter *from,
 			rc = server->ops->async_writev(wdata,
 					cifs_uncached_writedata_release);
 		if (rc) {
-			add_credits_and_wake_if(server, wdata->credits, 0);
+			add_credits_and_wake_if(server, &wdata->credits, 0);
 			kref_put(&wdata->refcount,
 				 cifs_uncached_writedata_release);
 			if (rc == -EAGAIN) {
@@ -2756,6 +2764,7 @@ cifs_write_from_iter(loff_t offset, size_t len, struct iov_iter *from,
 		len -= cur_len;
 	} while (len > 0);
 
+	free_xid(xid);
 	return rc;
 }
 
@@ -3260,7 +3269,8 @@ static int cifs_resend_rdata(struct cifs_readdata *rdata,
 			struct list_head *rdata_list,
 			struct cifs_aio_ctx *ctx)
 {
-	unsigned int rsize, credits;
+	unsigned int rsize;
+	struct cifs_credits credits;
 	int rc;
 	struct TCP_Server_Info *server =
 		tlink_tcon(rdata->cfile->tlink)->ses->server;
@@ -3277,11 +3287,12 @@ static int cifs_resend_rdata(struct cifs_readdata *rdata,
 			goto out;
 
 		if (rsize < rdata->bytes) {
-			add_credits_and_wake_if(server, credits, 0);
+			add_credits_and_wake_if(server, &credits, 0);
 			msleep(1000);
 		}
 	} while (rsize < rdata->bytes);
 
+	rdata->credits = credits;
 	rc = -EAGAIN;
 	while (rc == -EAGAIN) {
 		rc = 0;
@@ -3297,7 +3308,7 @@ static int cifs_resend_rdata(struct cifs_readdata *rdata,
 		return 0;
 	}
 
-	add_credits_and_wake_if(server, rdata->credits, 0);
+	add_credits_and_wake_if(server, &rdata->credits, 0);
 out:
 	kref_put(&rdata->refcount,
 		cifs_uncached_readdata_release);
@@ -3311,7 +3322,9 @@ cifs_send_async_read(loff_t offset, size_t len, struct cifsFileInfo *open_file,
 		     struct cifs_aio_ctx *ctx)
 {
 	struct cifs_readdata *rdata;
-	unsigned int npages, rsize, credits;
+	unsigned int npages, rsize;
+	struct cifs_credits credits_on_stack;
+	struct cifs_credits *credits = &credits_on_stack;
 	size_t cur_len;
 	int rc;
 	pid_t pid;
@@ -3332,7 +3345,7 @@ cifs_send_async_read(loff_t offset, size_t len, struct cifsFileInfo *open_file,
 
 	do {
 		rc = server->ops->wait_mtu_credits(server, cifs_sb->rsize,
-						   &rsize, &credits);
+						   &rsize, credits);
 		if (rc)
 			break;
 
@@ -3406,7 +3419,7 @@ cifs_send_async_read(loff_t offset, size_t len, struct cifsFileInfo *open_file,
 		rdata->pagesz = PAGE_SIZE;
 		rdata->read_into_pages = cifs_uncached_read_into_pages;
 		rdata->copy_into_pages = cifs_uncached_copy_into_pages;
-		rdata->credits = credits;
+		rdata->credits = credits_on_stack;
 		rdata->ctx = ctx;
 		kref_get(&ctx->refcount);
 
@@ -3414,7 +3427,7 @@ cifs_send_async_read(loff_t offset, size_t len, struct cifsFileInfo *open_file,
 		    !(rc = cifs_reopen_file(rdata->cfile, true)))
 			rc = server->ops->async_readv(rdata);
 		if (rc) {
-			add_credits_and_wake_if(server, rdata->credits, 0);
+			add_credits_and_wake_if(server, &rdata->credits, 0);
 			kref_put(&rdata->refcount,
 				cifs_uncached_readdata_release);
 			if (rc == -EAGAIN) {
@@ -4093,10 +4106,11 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 		loff_t offset;
 		struct page *page, *tpage;
 		struct cifs_readdata *rdata;
-		unsigned credits;
+		struct cifs_credits credits_on_stack;
+		struct cifs_credits *credits = &credits_on_stack;
 
 		rc = server->ops->wait_mtu_credits(server, cifs_sb->rsize,
-						   &rsize, &credits);
+						   &rsize, credits);
 		if (rc)
 			break;
 
@@ -4142,7 +4156,7 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 		rdata->tailsz = PAGE_SIZE;
 		rdata->read_into_pages = cifs_readpages_read_into_pages;
 		rdata->copy_into_pages = cifs_readpages_copy_into_pages;
-		rdata->credits = credits;
+		rdata->credits = credits_on_stack;
 
 		list_for_each_entry_safe(page, tpage, &tmplist, lru) {
 			list_del(&page->lru);
@@ -4153,7 +4167,7 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 		    !(rc = cifs_reopen_file(rdata->cfile, true)))
 			rc = server->ops->async_readv(rdata);
 		if (rc) {
-			add_credits_and_wake_if(server, rdata->credits, 0);
+			add_credits_and_wake_if(server, &rdata->credits, 0);
 			for (i = 0; i < rdata->nr_pages; i++) {
 				page = rdata->pages[i];
 				lru_cache_add_file(page);

@@ -3294,9 +3294,9 @@ smb2_async_readv(struct cifs_readdata *rdata)
 	rc = smb2_new_read_req(
 		(void **) &buf, &total_len, &io_parms, rdata, 0, 0);
 	if (rc) {
-		if (rc == -EAGAIN && rdata->credits) {
+		if (rc == -EAGAIN && rdata->credits.value) {
 			/* credits was reset by reconnect */
-			rdata->credits = 0;
+			rdata->credits.value = 0;
 			/* reduce in_flight value since we won't send the req */
 			spin_lock(&server->req_lock);
 			server->in_flight--;
@@ -3313,17 +3313,26 @@ smb2_async_readv(struct cifs_readdata *rdata)
 
 	shdr = (struct smb2_sync_hdr *)buf;
 
-	if (rdata->credits) {
+	if (rdata->credits.value > 0) {
 		shdr->CreditCharge = cpu_to_le16(DIV_ROUND_UP(rdata->bytes,
 						SMB2_MAX_BUFFER_SIZE));
 		shdr->CreditRequest =
 			cpu_to_le16(le16_to_cpu(shdr->CreditCharge) + 1);
 		spin_lock(&server->req_lock);
-		server->credits += rdata->credits -
+		if (server->reconnect_instance == rdata->credits.instance)
+			server->credits += rdata->credits.value -
 						le16_to_cpu(shdr->CreditCharge);
+		else {
+			spin_unlock(&server->req_lock);
+			cifs_dbg(VFS, "trying to return %u credits to old session\n",
+				 rdata->credits.value
+				 - le16_to_cpu(shdr->CreditCharge));
+			rc = -EAGAIN;
+			goto async_readv_out;
+		}
 		spin_unlock(&server->req_lock);
 		wake_up(&server->request_q);
-		rdata->credits = le16_to_cpu(shdr->CreditCharge);
+		rdata->credits.value = le16_to_cpu(shdr->CreditCharge);
 		flags |= CIFS_HAS_CREDITS;
 	}
 
@@ -3340,6 +3349,7 @@ smb2_async_readv(struct cifs_readdata *rdata)
 				    io_parms.offset, io_parms.length, rc);
 	}
 
+async_readv_out:
 	cifs_small_buf_release(buf);
 	return rc;
 }
@@ -3508,9 +3518,9 @@ smb2_async_writev(struct cifs_writedata *wdata,
 
 	rc = smb2_plain_req_init(SMB2_WRITE, tcon, (void **) &req, &total_len);
 	if (rc) {
-		if (rc == -EAGAIN && wdata->credits) {
+		if (rc == -EAGAIN && wdata->credits.value) {
 			/* credits was reset by reconnect */
-			wdata->credits = 0;
+			wdata->credits.value = 0;
 			/* reduce in_flight value since we won't send the req */
 			spin_lock(&server->req_lock);
 			server->in_flight--;
@@ -3603,17 +3613,26 @@ smb2_async_writev(struct cifs_writedata *wdata,
 	req->Length = cpu_to_le32(wdata->bytes);
 #endif
 
-	if (wdata->credits) {
+	if (wdata->credits.value > 0) {
 		shdr->CreditCharge = cpu_to_le16(DIV_ROUND_UP(wdata->bytes,
 						    SMB2_MAX_BUFFER_SIZE));
 		shdr->CreditRequest =
 			cpu_to_le16(le16_to_cpu(shdr->CreditCharge) + 1);
 		spin_lock(&server->req_lock);
-		server->credits += wdata->credits -
+		if (server->reconnect_instance == wdata->credits.instance)
+			server->credits += wdata->credits.value -
 						le16_to_cpu(shdr->CreditCharge);
+		else {
+			spin_unlock(&server->req_lock);
+			cifs_dbg(VFS, "trying to return %d credits to old session\n",
+				 wdata->credits.value
+				 - le16_to_cpu(shdr->CreditCharge));
+			rc = -EAGAIN;
+			goto async_writev_out;
+		}
 		spin_unlock(&server->req_lock);
 		wake_up(&server->request_q);
-		wdata->credits = le16_to_cpu(shdr->CreditCharge);
+		wdata->credits.value = le16_to_cpu(shdr->CreditCharge);
 		flags |= CIFS_HAS_CREDITS;
 	}
 

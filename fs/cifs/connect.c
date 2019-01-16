@@ -593,6 +593,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 			msleep(3000);
 		} else {
 			atomic_inc(&tcpSesReconnectCount);
+			set_credits(server, 1);
 			spin_lock(&GlobalMid_Lock);
 			if (server->tcpStatus != CifsExiting)
 				server->tcpStatus = CifsNeedNegotiate;
@@ -4950,8 +4951,6 @@ cifs_negotiate_protocol(const unsigned int xid, struct cifs_ses *ses)
 	/* only send once per connect */
 	if (!server->ops->need_neg(server))
 		return 0;
-
-	set_credits(server, 1);
 
 	rc = server->ops->negotiate(xid, ses);
 	if (rc == 0) {
