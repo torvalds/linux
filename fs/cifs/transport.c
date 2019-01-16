@@ -843,6 +843,7 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 		{ .value = 0, .instance = 0 }
 	};
 	unsigned int instance;
+	unsigned int first_instance = 0;
 	char *buf;
 
 	timeout = flags & CIFS_TIMEOUT_MASK;
@@ -870,6 +871,25 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 	for (i = 0; i < num_rqst; i++) {
 		rc = wait_for_free_request(ses->server, timeout, optype,
 					   &instance);
+
+		if (rc == 0) {
+			credits[i].value = 1;
+			credits[i].instance = instance;
+			/*
+			 * All parts of the compound chain must get credits from
+			 * the same session, otherwise we may end up using more
+			 * credits than the server granted. If there were
+			 * reconnects in between, return -EAGAIN and let callers
+			 * handle it.
+			 */
+			if (i == 0)
+				first_instance = instance;
+			else if (first_instance != instance) {
+				i++;
+				rc = -EAGAIN;
+			}
+		}
+
 		if (rc) {
 			/*
 			 * We haven't sent an SMB packet to the server yet but
@@ -884,8 +904,6 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 				add_credits(ses->server, &credits[j], optype);
 			return rc;
 		}
-		credits[i].value = 1;
-		credits[i].instance = instance;
 	}
 
 	/*
@@ -895,6 +913,22 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 	 */
 
 	mutex_lock(&ses->server->srv_mutex);
+
+	/*
+	 * All the parts of the compound chain belong obtained credits from the
+	 * same session (see the appropriate checks above). In the same time
+	 * there might be reconnects after those checks but before we acquired
+	 * the srv_mutex. We can not use credits obtained from the previous
+	 * session to send this request. Check if there were reconnects after
+	 * we obtained credits and return -EAGAIN in such cases to let callers
+	 * handle it.
+	 */
+	if (first_instance != ses->server->reconnect_instance) {
+		mutex_unlock(&ses->server->srv_mutex);
+		for (j = 0; j < num_rqst; j++)
+			add_credits(ses->server, &credits[j], optype);
+		return -EAGAIN;
+	}
 
 	for (i = 0; i < num_rqst; i++) {
 		midQ[i] = ses->server->ops->setup_request(ses, &rqst[i]);
