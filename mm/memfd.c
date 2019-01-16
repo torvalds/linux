@@ -220,6 +220,25 @@ static int memfd_add_seals(struct file *file, unsigned int seals)
 		}
 	}
 
+	if ((seals & F_SEAL_FUTURE_WRITE) &&
+	    !(*file_seals & F_SEAL_FUTURE_WRITE)) {
+		/*
+		 * The FUTURE_WRITE seal also prevents growing and shrinking
+		 * so we need them to be already set, or requested now.
+		 */
+		int test_seals = (seals | *file_seals) &
+				 (F_SEAL_GROW | F_SEAL_SHRINK);
+
+		if (test_seals != (F_SEAL_GROW | F_SEAL_SHRINK)) {
+			error = -EINVAL;
+			goto unlock;
+		}
+
+		spin_lock(&file->f_lock);
+		file->f_mode &= ~(FMODE_WRITE | FMODE_PWRITE);
+		spin_unlock(&file->f_lock);
+	}
+
 	*file_seals |= seals;
 	error = 0;
 
