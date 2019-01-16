@@ -1069,10 +1069,10 @@ static int gswip_probe(struct platform_device *pdev)
 	version = gswip_switch_r(priv, GSWIP_VERSION);
 
 	/* bring up the mdio bus */
-	gphy_fw_np = of_find_compatible_node(pdev->dev.of_node, NULL,
-					     "lantiq,gphy-fw");
+	gphy_fw_np = of_get_compatible_child(dev->of_node, "lantiq,gphy-fw");
 	if (gphy_fw_np) {
 		err = gswip_gphy_fw_list(priv, gphy_fw_np, version);
+		of_node_put(gphy_fw_np);
 		if (err) {
 			dev_err(dev, "gphy fw probe failed\n");
 			return err;
@@ -1080,13 +1080,12 @@ static int gswip_probe(struct platform_device *pdev)
 	}
 
 	/* bring up the mdio bus */
-	mdio_np = of_find_compatible_node(pdev->dev.of_node, NULL,
-					  "lantiq,xrx200-mdio");
+	mdio_np = of_get_compatible_child(dev->of_node, "lantiq,xrx200-mdio");
 	if (mdio_np) {
 		err = gswip_mdio(priv, mdio_np);
 		if (err) {
 			dev_err(dev, "mdio probe failed\n");
-			goto gphy_fw;
+			goto put_mdio_node;
 		}
 	}
 
@@ -1115,7 +1114,8 @@ disable_switch:
 mdio_bus:
 	if (mdio_np)
 		mdiobus_unregister(priv->ds->slave_mii_bus);
-gphy_fw:
+put_mdio_node:
+	of_node_put(mdio_np);
 	for (i = 0; i < priv->num_gphy_fw; i++)
 		gswip_gphy_fw_remove(priv, &priv->gphy_fw[i]);
 	return err;
@@ -1134,8 +1134,10 @@ static int gswip_remove(struct platform_device *pdev)
 
 	dsa_unregister_switch(priv->ds);
 
-	if (priv->ds->slave_mii_bus)
+	if (priv->ds->slave_mii_bus) {
 		mdiobus_unregister(priv->ds->slave_mii_bus);
+		of_node_put(priv->ds->slave_mii_bus->dev.of_node);
+	}
 
 	for (i = 0; i < priv->num_gphy_fw; i++)
 		gswip_gphy_fw_remove(priv, &priv->gphy_fw[i]);
