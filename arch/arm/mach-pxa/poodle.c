@@ -196,7 +196,7 @@ struct platform_device poodle_locomo_device = {
 EXPORT_SYMBOL(poodle_locomo_device);
 
 #if defined(CONFIG_SPI_PXA2XX) || defined(CONFIG_SPI_PXA2XX_MODULE)
-static struct pxa2xx_spi_master poodle_spi_info = {
+static struct pxa2xx_spi_controller poodle_spi_info = {
 	.num_chipselect	= 1,
 };
 

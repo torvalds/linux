@@ -337,15 +337,15 @@ static struct platform_device stargate2_flash_device = {
 	.num_resources = 1,
 };
 
-static struct pxa2xx_spi_master pxa_ssp_master_0_info = {
+static struct pxa2xx_spi_controller pxa_ssp_master_0_info = {
 	.num_chipselect = 1,
 };
 
-static struct pxa2xx_spi_master pxa_ssp_master_1_info = {
+static struct pxa2xx_spi_controller pxa_ssp_master_1_info = {
 	.num_chipselect = 1,
 };
 
-static struct pxa2xx_spi_master pxa_ssp_master_2_info = {
+static struct pxa2xx_spi_controller pxa_ssp_master_2_info = {
 	.num_chipselect = 1,
 };
 
