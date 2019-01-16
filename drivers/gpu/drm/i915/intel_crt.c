@@ -631,19 +631,19 @@ static bool intel_crt_detect_ddc(struct drm_connector *connector)
 }
 
 static enum drm_connector_status
-intel_crt_load_detect(struct intel_crt *crt, uint32_t pipe)
+intel_crt_load_detect(struct intel_crt *crt, u32 pipe)
 {
 	struct drm_device *dev = crt->base.base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	uint32_t save_bclrpat;
-	uint32_t save_vtotal;
-	uint32_t vtotal, vactive;
-	uint32_t vsample;
-	uint32_t vblank, vblank_start, vblank_end;
-	uint32_t dsl;
+	u32 save_bclrpat;
+	u32 save_vtotal;
+	u32 vtotal, vactive;
+	u32 vsample;
+	u32 vblank, vblank_start, vblank_end;
+	u32 dsl;
 	i915_reg_t bclrpat_reg, vtotal_reg,
 		vblank_reg, vsync_reg, pipeconf_reg, pipe_dsl_reg;
-	uint8_t	st00;
+	u8 st00;
 	enum drm_connector_status status;
 
 	DRM_DEBUG_KMS("starting load-detect on CRT\n");
@@ -669,7 +669,7 @@ intel_crt_load_detect(struct intel_crt *crt, uint32_t pipe)
 	I915_WRITE(bclrpat_reg, 0x500050);
 
 	if (!IS_GEN(dev_priv, 2)) {
-		uint32_t pipeconf = I915_READ(pipeconf_reg);
+		u32 pipeconf = I915_READ(pipeconf_reg);
 		I915_WRITE(pipeconf_reg, pipeconf | PIPECONF_FORCE_BORDER);
 		POSTING_READ(pipeconf_reg);
 		/* Wait for next Vblank to substitue
@@ -690,8 +690,8 @@ intel_crt_load_detect(struct intel_crt *crt, uint32_t pipe)
 		* Yes, this will flicker
 		*/
 		if (vblank_start <= vactive && vblank_end >= vtotal) {
-			uint32_t vsync = I915_READ(vsync_reg);
-			uint32_t vsync_start = (vsync & 0xffff) + 1;
+			u32 vsync = I915_READ(vsync_reg);
+			u32 vsync_start = (vsync & 0xffff) + 1;
 
 			vblank_start = vsync_start;
 			I915_WRITE(vblank_reg,
