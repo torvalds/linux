@@ -414,13 +414,17 @@ EXPORT_SYMBOL_GPL(of_icc_get);
 int icc_set_bw(struct icc_path *path, u32 avg_bw, u32 peak_bw)
 {
 	struct icc_node *node;
+	u32 old_avg, old_peak;
 	size_t i;
 	int ret;
 
-	if (!path)
+	if (!path || !path->num_nodes)
 		return 0;
 
 	mutex_lock(&icc_lock);
+
+	old_avg = path->reqs[0].avg_bw;
+	old_peak = path->reqs[0].peak_bw;
 
 	for (i = 0; i < path->num_nodes; i++) {
 		node = path->reqs[i].node;
@@ -434,9 +438,18 @@ int icc_set_bw(struct icc_path *path, u32 avg_bw, u32 peak_bw)
 	}
 
 	ret = apply_constraints(path);
-	if (ret)
+	if (ret) {
 		pr_debug("interconnect: error applying constraints (%d)\n",
 			 ret);
+
+		for (i = 0; i < path->num_nodes; i++) {
+			node = path->reqs[i].node;
+			path->reqs[i].avg_bw = old_avg;
+			path->reqs[i].peak_bw = old_peak;
+			aggregate_requests(node);
+		}
+		apply_constraints(path);
+	}
 
 	mutex_unlock(&icc_lock);
 
