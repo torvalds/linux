@@ -3749,7 +3749,7 @@ void tcp_send_probe0(struct sock *sk)
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct net *net = sock_net(sk);
-	unsigned long probe_max;
+	unsigned long timeout;
 	int err;
 
 	err = tcp_write_wakeup(sk, LINUX_MIB_TCPWINPROBE);
@@ -3761,26 +3761,18 @@ void tcp_send_probe0(struct sock *sk)
 		return;
 	}
 
+	icsk->icsk_probes_out++;
 	if (err <= 0) {
 		if (icsk->icsk_backoff < net->ipv4.sysctl_tcp_retries2)
 			icsk->icsk_backoff++;
-		icsk->icsk_probes_out++;
-		probe_max = TCP_RTO_MAX;
+		timeout = tcp_probe0_when(sk, TCP_RTO_MAX);
 	} else {
 		/* If packet was not sent due to local congestion,
-		 * do not backoff and do not remember icsk_probes_out.
-		 * Let local senders to fight for local resources.
-		 *
-		 * Use accumulated backoff yet.
+		 * Let senders fight for local resources conservatively.
 		 */
-		if (!icsk->icsk_probes_out)
-			icsk->icsk_probes_out = 1;
-		probe_max = TCP_RESOURCE_PROBE_INTERVAL;
+		timeout = TCP_RESOURCE_PROBE_INTERVAL;
 	}
-	tcp_reset_xmit_timer(sk, ICSK_TIME_PROBE0,
-			     tcp_probe0_when(sk, probe_max),
-			     TCP_RTO_MAX,
-			     NULL);
+	tcp_reset_xmit_timer(sk, ICSK_TIME_PROBE0, timeout, TCP_RTO_MAX, NULL);
 }
 
 int tcp_rtx_synack(const struct sock *sk, struct request_sock *req)
