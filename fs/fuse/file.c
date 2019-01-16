@@ -329,6 +329,24 @@ u64 fuse_lock_owner_id(struct fuse_conn *fc, fl_owner_t id)
 	return (u64) v0 + ((u64) v1 << 32);
 }
 
+static struct fuse_req *fuse_find_writeback(struct fuse_inode *fi,
+					    pgoff_t idx_from, pgoff_t idx_to)
+{
+	struct fuse_req *req;
+
+	list_for_each_entry(req, &fi->writepages, writepages_entry) {
+		pgoff_t curr_index;
+
+		WARN_ON(get_fuse_inode(req->inode) != fi);
+		curr_index = req->misc.write.in.offset >> PAGE_SHIFT;
+		if (idx_from < curr_index + req->num_pages &&
+		    curr_index <= idx_to) {
+			return req;
+		}
+	}
+	return NULL;
+}
+
 /*
  * Check if any page in a range is under writeback
  *
@@ -340,21 +358,10 @@ static bool fuse_range_is_writeback(struct inode *inode, pgoff_t idx_from,
 {
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	struct fuse_inode *fi = get_fuse_inode(inode);
-	struct fuse_req *req;
-	bool found = false;
+	bool found;
 
 	spin_lock(&fc->lock);
-	list_for_each_entry(req, &fi->writepages, writepages_entry) {
-		pgoff_t curr_index;
-
-		BUG_ON(req->inode != inode);
-		curr_index = req->misc.write.in.offset >> PAGE_SHIFT;
-		if (idx_from < curr_index + req->num_pages &&
-		    curr_index <= idx_to) {
-			found = true;
-			break;
-		}
-	}
+	found = fuse_find_writeback(fi, idx_from, idx_to);
 	spin_unlock(&fc->lock);
 
 	return found;
@@ -1744,25 +1751,17 @@ static bool fuse_writepage_in_flight(struct fuse_req *new_req,
 	struct fuse_inode *fi = get_fuse_inode(new_req->inode);
 	struct fuse_req *tmp;
 	struct fuse_req *old_req;
-	bool found = false;
 	pgoff_t curr_index;
 
 	BUG_ON(new_req->num_pages != 0);
 
 	spin_lock(&fc->lock);
 	list_del(&new_req->writepages_entry);
-	list_for_each_entry(old_req, &fi->writepages, writepages_entry) {
-		BUG_ON(old_req->inode != new_req->inode);
-		curr_index = old_req->misc.write.in.offset >> PAGE_SHIFT;
-		if (curr_index <= page->index &&
-		    page->index < curr_index + old_req->num_pages) {
-			found = true;
-			break;
-		}
-	}
-	if (!found) {
+	old_req = fuse_find_writeback(fi, page->index, page->index);
+	if (!old_req) {
 		list_add(&new_req->writepages_entry, &fi->writepages);
-		goto out_unlock;
+		spin_unlock(&fc->lock);
+		return false;
 	}
 
 	new_req->num_pages = 1;
@@ -1791,10 +1790,9 @@ static bool fuse_writepage_in_flight(struct fuse_req *new_req,
 		new_req->misc.write.next = old_req->misc.write.next;
 		old_req->misc.write.next = new_req;
 	}
-out_unlock:
 	spin_unlock(&fc->lock);
 out:
-	return found;
+	return true;
 }
 
 static int fuse_writepages_fill(struct page *page,
