@@ -526,8 +526,8 @@ CONFIG_SYSTEM_BLACKLIST_HASH_LIST               policy<{'amd64': '""', 'arm64': 
 CONFIG_EFI_SIGNATURE_LIST_PARSER                policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y'}>
 CONFIG_LOAD_UEFI_KEYS                           policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y'}>
 #
-CONFIG_EFI_SIGNATURE_LIST_PARSER                mark<ENFORCED>
-CONFIG_LOAD_UEFI_KEYS                           mark<ENFORCED>
+#CONFIG_EFI_SIGNATURE_LIST_PARSER                mark<ENFORCED>
+#CONFIG_LOAD_UEFI_KEYS                           mark<ENFORCED>
 CONFIG_SYSTEM_BLACKLIST_KEYRING                 mark<ENFORCED>
 
 # Menu: Cryptographic API >> Certificates for signature checking >> Provide system-wide ring of trusted keys
@@ -10215,7 +10215,7 @@ CONFIG_XZ_DEC                                   note<boot essential -- initramfs
 # Menu: Memory Management options
 CONFIG_SPARSEMEM_VMEMMAP                        policy<{'amd64': 'y', 'arm64': 'y', 'ppc64el': 'y', 's390x': 'y'}>
 CONFIG_MEMORY_HOTPLUG                           policy<{'amd64': 'y', 'i386': 'y', 'ppc64el': 'y', 's390x': 'y'}>
-CONFIG_MEMORY_HOTPLUG_DEFAULT_ONLINE            policy<{'amd64': 'y', 'i386': 'y', 'ppc64el': 'n', 's390x': 'y'}>
+CONFIG_MEMORY_HOTPLUG_DEFAULT_ONLINE            policy<{'amd64': 'y', 'arm64': 'y', 'i386': 'y', 'ppc64el': 'n', 's390x': 'y'}>
 CONFIG_MEMORY_HOTREMOVE                         policy<{'amd64': 'y', 'i386': 'y', 'ppc64el': 'y', 's390x': 'y'}>
 CONFIG_BALLOON_COMPACTION                       policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y', 's390x': 'y'}>
 CONFIG_COMPACTION                               policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y', 's390x': 'y'}>
@@ -11944,9 +11944,9 @@ CONFIG_LOCK_DOWN_MANDATORY                      policy<{'amd64': 'n', 'arm64': '
 CONFIG_ALLOW_LOCKDOWN_LIFT_BY_SYSRQ             policy<{'amd64': 'y', 'i386': 'y'}>
 CONFIG_LOCK_DOWN_IN_EFI_SECURE_BOOT             policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y'}>
 #
-CONFIG_ALLOW_LOCKDOWN_LIFT_BY_SYSRQ             mark<ENFORCED>
-CONFIG_LOCK_DOWN_IN_EFI_SECURE_BOOT             mark<ENFORCED>
-CONFIG_LOCK_DOWN_KERNEL                         mark<ENFORCED> flag<REVIEW>
+#CONFIG_ALLOW_LOCKDOWN_LIFT_BY_SYSRQ             mark<ENFORCED>
+#CONFIG_LOCK_DOWN_IN_EFI_SECURE_BOOT             mark<ENFORCED>
+#CONFIG_LOCK_DOWN_KERNEL                         mark<ENFORCED> flag<REVIEW>
 
 # Menu: Security options >> Default security module
 CONFIG_DEFAULT_SECURITY_SELINUX                 policy<{'amd64': 'n', 'arm64': 'n', 'armhf': 'n', 'i386': 'n', 'ppc64el': 'n', 's390x': 'n'}>
