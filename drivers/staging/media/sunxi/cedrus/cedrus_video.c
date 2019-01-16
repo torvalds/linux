@@ -416,6 +416,14 @@ static void cedrus_buf_cleanup(struct vb2_buffer *vb)
 		ctx->dst_bufs[vb->index] = NULL;
 }
 
+static int cedrus_buf_out_validate(struct vb2_buffer *vb)
+{
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+
+	vbuf->field = V4L2_FIELD_NONE;
+	return 0;
+}
+
 static int cedrus_buf_prepare(struct vb2_buffer *vb)
 {
 	struct vb2_queue *vq = vb->vb2_queue;
@@ -493,6 +501,7 @@ static struct vb2_ops cedrus_qops = {
 	.buf_init		= cedrus_buf_init,
 	.buf_cleanup		= cedrus_buf_cleanup,
 	.buf_queue		= cedrus_buf_queue,
+	.buf_out_validate	= cedrus_buf_out_validate,
 	.buf_request_complete	= cedrus_buf_request_complete,
 	.start_streaming	= cedrus_start_streaming,
 	.stop_streaming		= cedrus_stop_streaming,
