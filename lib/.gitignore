@@ -5,4 +5,3 @@ gen_crc32table
 gen_crc64table
 crc32table.h
 crc64table.h
-oid_registry_data.c
