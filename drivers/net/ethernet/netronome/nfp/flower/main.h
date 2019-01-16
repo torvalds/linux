@@ -58,20 +58,18 @@ struct nfp_fl_stats_id {
 
 /**
  * struct nfp_fl_tunnel_offloads - priv data for tunnel offloads
- * @mac_index_list:	List of unique 8-bit indexes for non NFP netdevs
+ * @offloaded_macs:	Hashtable of the offloaded MAC addresses
  * @ipv4_off_list:	List of IPv4 addresses to offload
  * @neigh_off_list:	List of neighbour offloads
- * @mac_index_lock:	Lock for the MAC index list
  * @ipv4_off_lock:	Lock for the IPv4 address list
  * @neigh_off_lock:	Lock for the neighbour address list
  * @mac_off_ids:	IDA to manage id assignment for offloaded MACs
  * @neigh_nb:		Notifier to monitor neighbour state
  */
 struct nfp_fl_tunnel_offloads {
-	struct list_head mac_index_list;
+	struct rhashtable offloaded_macs;
 	struct list_head ipv4_off_list;
 	struct list_head neigh_off_list;
-	struct mutex mac_index_lock;
 	struct mutex ipv4_off_lock;
 	spinlock_t neigh_off_lock;
 	struct ida mac_off_ids;
@@ -178,14 +176,18 @@ struct nfp_flower_priv {
 
 /**
  * struct nfp_flower_repr_priv - Flower APP per-repr priv data
+ * @nfp_repr:		Back pointer to nfp_repr
  * @lag_port_flags:	Extended port flags to record lag state of repr
  * @mac_offloaded:	Flag indicating a MAC address is offloaded for repr
  * @offloaded_mac_addr:	MAC address that has been offloaded for repr
+ * @mac_list:		List entry of reprs that share the same offloaded MAC
  */
 struct nfp_flower_repr_priv {
+	struct nfp_repr *nfp_repr;
 	unsigned long lag_port_flags;
 	bool mac_offloaded;
 	u8 offloaded_mac_addr[ETH_ALEN];
+	struct list_head mac_list;
 };
 
 /**
