@@ -741,12 +741,10 @@ has_credits(struct TCP_Server_Info *server, int *credits)
 }
 
 static inline void
-add_credits(struct TCP_Server_Info *server, const unsigned int add,
+add_credits(struct TCP_Server_Info *server, const struct cifs_credits *credits,
 	    const int optype)
 {
-	struct cifs_credits credits = { .value = add, .instance = 0 };
-
-	server->ops->add_credits(server, &credits, optype);
+	server->ops->add_credits(server, credits, optype);
 }
 
 static inline void
