@@ -160,6 +160,13 @@ fetch_store_string(unsigned long addr, void *dest, void *base)
 	if (ret >= 0) {
 		if (ret == maxlen)
 			dst[ret - 1] = '\0';
+		else
+			/*
+			 * Include the terminating null byte. In this case it
+			 * was copied by strncpy_from_user but not accounted
+			 * for in ret.
+			 */
+			ret++;
 		*(u32 *)dest = make_data_loc(ret, (void *)dst - base);
 	}
 
