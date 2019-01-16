@@ -287,6 +287,8 @@ struct smu_funcs
 	int (*display_clock_voltage_request)(struct smu_context *smu, struct
 					     pp_display_clock_request
 					     *clock_req);
+	int (*get_dal_power_level)(struct smu_context *smu,
+				   struct amd_pp_simple_clock_info *clocks);
 };
 
 #define smu_init_microcode(smu) \
@@ -398,6 +400,8 @@ struct smu_funcs
 	((smu)->ppt_funcs->get_clock_by_type_with_voltage ? (smu)->ppt_funcs->get_clock_by_type_with_voltage((smu), (type), (clocks)) : 0)
 #define smu_display_clock_voltage_request(smu, clock_req) \
 	((smu)->funcs->display_clock_voltage_request ? (smu)->funcs->display_clock_voltage_request((smu), (clock_req)) : 0)
+#define smu_get_dal_power_level(smu, clocks) \
+	((smu)->funcs->get_dal_power_level ? (smu)->funcs->get_dal_power_level((smu), (clocks)) : 0)
 
 
 extern int smu_get_atom_data_table(struct smu_context *smu, uint32_t table,
