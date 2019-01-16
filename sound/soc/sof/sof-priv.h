@@ -351,7 +351,6 @@ struct snd_sof_dev {
 	struct list_head dai_list;
 	struct list_head route_list;
 	struct snd_soc_component *component;
-	int tplg_loaded; /* keep track of topology load success */
 
 	/* FW configuration */
 	struct sof_ipc_dma_buffer_data *info_buffer;
@@ -464,11 +463,12 @@ int snd_sof_ipc_get_comp_data(struct snd_sof_ipc *ipc,
 
 /*
  * Topology.
+ * There is no snd_sof_free_topology since topology components will
+ * be freed by snd_soc_unregister_component,
  */
 int snd_sof_init_topology(struct snd_sof_dev *sdev,
 			  struct snd_soc_tplg_ops *ops);
 int snd_sof_load_topology(struct snd_sof_dev *sdev, const char *file);
-void snd_sof_free_topology(struct snd_sof_dev *sdev);
 int snd_sof_complete_pipeline(struct snd_sof_dev *sdev,
 			      struct snd_sof_widget *swidget);
 

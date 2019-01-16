@@ -668,12 +668,7 @@ err:
 
 static void sof_pcm_remove(struct snd_soc_component *component)
 {
-	struct snd_sof_dev *sdev =
-		snd_soc_component_get_drvdata(component);
-
 	pm_runtime_disable(component->dev);
-	snd_sof_free_topology(sdev);
-
 }
 
 void snd_sof_new_platform_drv(struct snd_sof_dev *sdev)
