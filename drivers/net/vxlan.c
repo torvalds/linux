@@ -375,32 +375,38 @@ static void vxlan_fdb_switchdev_notifier_info(const struct vxlan_dev *vxlan,
 	fdb_info->added_by_user = fdb->flags & NTF_VXLAN_ADDED_BY_USER;
 }
 
-static void vxlan_fdb_switchdev_call_notifiers(struct vxlan_dev *vxlan,
-					       struct vxlan_fdb *fdb,
-					       struct vxlan_rdst *rd,
-					       bool adding)
+static int vxlan_fdb_switchdev_call_notifiers(struct vxlan_dev *vxlan,
+					      struct vxlan_fdb *fdb,
+					      struct vxlan_rdst *rd,
+					      bool adding)
 {
 	struct switchdev_notifier_vxlan_fdb_info info;
 	enum switchdev_notifier_type notifier_type;
+	int ret;
 
 	if (WARN_ON(!rd))
-		return;
+		return 0;
 
 	notifier_type = adding ? SWITCHDEV_VXLAN_FDB_ADD_TO_DEVICE
 			       : SWITCHDEV_VXLAN_FDB_DEL_TO_DEVICE;
 	vxlan_fdb_switchdev_notifier_info(vxlan, fdb, rd, &info);
-	call_switchdev_notifiers(notifier_type, vxlan->dev,
-				 &info.info);
+	ret = call_switchdev_notifiers(notifier_type, vxlan->dev,
+				       &info.info);
+	return notifier_to_errno(ret);
 }
 
-static void vxlan_fdb_notify(struct vxlan_dev *vxlan, struct vxlan_fdb *fdb,
-			     struct vxlan_rdst *rd, int type, bool swdev_notify)
+static int vxlan_fdb_notify(struct vxlan_dev *vxlan, struct vxlan_fdb *fdb,
+			    struct vxlan_rdst *rd, int type, bool swdev_notify)
 {
+	int err;
+
 	if (swdev_notify) {
 		switch (type) {
 		case RTM_NEWNEIGH:
-			vxlan_fdb_switchdev_call_notifiers(vxlan, fdb, rd,
-							   true);
+			err = vxlan_fdb_switchdev_call_notifiers(vxlan, fdb, rd,
+								 true);
+			if (err)
+				return err;
 			break;
 		case RTM_DELNEIGH:
 			vxlan_fdb_switchdev_call_notifiers(vxlan, fdb, rd,
@@ -410,6 +416,7 @@ static void vxlan_fdb_notify(struct vxlan_dev *vxlan, struct vxlan_fdb *fdb,
 	}
 
 	__vxlan_fdb_notify(vxlan, fdb, rd, type);
+	return 0;
 }
 
 static void vxlan_ip_miss(struct net_device *dev, union vxlan_addr *ipa)
@@ -868,7 +875,8 @@ static int vxlan_fdb_update_existing(struct vxlan_dev *vxlan,
 	struct vxlan_rdst *rd = NULL;
 	struct vxlan_rdst oldrd;
 	int notify = 0;
-	int rc;
+	int rc = 0;
+	int err;
 
 	/* Do not allow an externally learned entry to take over an entry added
 	 * by the user.
@@ -915,10 +923,20 @@ static int vxlan_fdb_update_existing(struct vxlan_dev *vxlan,
 		if (rd == NULL)
 			rd = first_remote_rtnl(f);
 
-		vxlan_fdb_notify(vxlan, f, rd, RTM_NEWNEIGH, swdev_notify);
+		err = vxlan_fdb_notify(vxlan, f, rd, RTM_NEWNEIGH,
+				       swdev_notify);
+		if (err)
+			goto err_notify;
 	}
 
 	return 0;
+
+err_notify:
+	if ((flags & NLM_F_REPLACE) && rc)
+		*rd = oldrd;
+	else if ((flags & NLM_F_APPEND) && rc)
+		list_del_rcu(&rd->list);
+	return err;
 }
 
 static int vxlan_fdb_update_create(struct vxlan_dev *vxlan,
@@ -943,9 +961,16 @@ static int vxlan_fdb_update_create(struct vxlan_dev *vxlan,
 	if (rc < 0)
 		return rc;
 
-	vxlan_fdb_notify(vxlan, f, first_remote_rtnl(f), RTM_NEWNEIGH,
-			 swdev_notify);
+	rc = vxlan_fdb_notify(vxlan, f, first_remote_rtnl(f), RTM_NEWNEIGH,
+			      swdev_notify);
+	if (rc)
+		goto err_notify;
+
 	return 0;
+
+err_notify:
+	vxlan_fdb_destroy(vxlan, f, false, false);
+	return rc;
 }
 
 /* Add new entry to forwarding table -- assumes lock held */
@@ -3515,9 +3540,12 @@ static int __vxlan_dev_create(struct net *net, struct net_device *dev,
 		goto errout;
 
 	/* notify default fdb entry */
-	if (f)
-		vxlan_fdb_notify(vxlan, f, first_remote_rtnl(f), RTM_NEWNEIGH,
-				 true);
+	if (f) {
+		err = vxlan_fdb_notify(vxlan, f, first_remote_rtnl(f),
+				       RTM_NEWNEIGH, true);
+		if (err)
+			goto errout;
+	}
 
 	list_add(&vxlan->next, &vn->vxlan_list);
 	return 0;
