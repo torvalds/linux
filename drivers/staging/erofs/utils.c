@@ -270,14 +270,14 @@ void erofs_unregister_super(struct super_block *sb)
 	spin_unlock(&erofs_sb_list_lock);
 }
 
-unsigned long erofs_shrink_count(struct shrinker *shrink,
-				 struct shrink_control *sc)
+static unsigned long erofs_shrink_count(struct shrinker *shrink,
+					struct shrink_control *sc)
 {
 	return atomic_long_read(&erofs_global_shrink_cnt);
 }
 
-unsigned long erofs_shrink_scan(struct shrinker *shrink,
-				struct shrink_control *sc)
+static unsigned long erofs_shrink_scan(struct shrinker *shrink,
+				       struct shrink_control *sc)
 {
 	struct erofs_sb_info *sbi;
 	struct list_head *p;
@@ -332,4 +332,10 @@ unsigned long erofs_shrink_scan(struct shrinker *shrink,
 	spin_unlock(&erofs_sb_list_lock);
 	return freed;
 }
+
+struct shrinker erofs_shrinker_info = {
+	.scan_objects = erofs_shrink_scan,
+	.count_objects = erofs_shrink_count,
+	.seeks = DEFAULT_SEEKS,
+};
 

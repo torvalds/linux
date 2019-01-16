@@ -589,10 +589,7 @@ extern struct page *erofs_allocpage(struct list_head *pool, gfp_t gfp);
 extern void erofs_register_super(struct super_block *sb);
 extern void erofs_unregister_super(struct super_block *sb);
 
-extern unsigned long erofs_shrink_count(struct shrinker *shrink,
-	struct shrink_control *sc);
-extern unsigned long erofs_shrink_scan(struct shrinker *shrink,
-	struct shrink_control *sc);
+extern struct shrinker erofs_shrinker_info;
 
 #ifndef lru_to_page
 #define lru_to_page(head) (list_entry((head)->prev, struct page, lru))
