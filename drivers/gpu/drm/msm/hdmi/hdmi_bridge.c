@@ -207,8 +207,8 @@ static void msm_hdmi_bridge_post_disable(struct drm_bridge *bridge)
 }
 
 static void msm_hdmi_bridge_mode_set(struct drm_bridge *bridge,
-		 struct drm_display_mode *mode,
-		 struct drm_display_mode *adjusted_mode)
+		 const struct drm_display_mode *mode,
+		 const struct drm_display_mode *adjusted_mode)
 {
 	struct hdmi_bridge *hdmi_bridge = to_hdmi_bridge(bridge);
 	struct hdmi *hdmi = hdmi_bridge->hdmi;

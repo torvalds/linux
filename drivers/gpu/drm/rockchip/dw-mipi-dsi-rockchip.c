@@ -467,7 +467,7 @@ static int dw_mipi_dsi_phy_init(void *priv_data)
 }
 
 static int
-dw_mipi_dsi_get_lane_mbps(void *priv_data, struct drm_display_mode *mode,
+dw_mipi_dsi_get_lane_mbps(void *priv_data, const struct drm_display_mode *mode,
 			  unsigned long mode_flags, u32 lanes, u32 format,
 			  unsigned int *lane_mbps)
 {

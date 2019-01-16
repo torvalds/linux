@@ -520,8 +520,8 @@ static void rcar_lvds_get_lvds_mode(struct rcar_lvds *lvds)
 }
 
 static void rcar_lvds_mode_set(struct drm_bridge *bridge,
-			       struct drm_display_mode *mode,
-			       struct drm_display_mode *adjusted_mode)
+			       const struct drm_display_mode *mode,
+			       const struct drm_display_mode *adjusted_mode)
 {
 	struct rcar_lvds *lvds = bridge_to_rcar_lvds(bridge);
 
@@ -785,6 +785,7 @@ static const struct rcar_lvds_device_info rcar_lvds_r8a77995_info = {
 
 static const struct of_device_id rcar_lvds_of_table[] = {
 	{ .compatible = "renesas,r8a7743-lvds", .data = &rcar_lvds_gen2_info },
+	{ .compatible = "renesas,r8a774c0-lvds", .data = &rcar_lvds_r8a77990_info },
 	{ .compatible = "renesas,r8a7790-lvds", .data = &rcar_lvds_r8a7790_info },
 	{ .compatible = "renesas,r8a7791-lvds", .data = &rcar_lvds_gen2_info },
 	{ .compatible = "renesas,r8a7793-lvds", .data = &rcar_lvds_gen2_info },
