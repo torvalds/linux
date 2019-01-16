@@ -350,7 +350,7 @@
 		lsio_mu4: mailbox@5d1f0000 {
 			compatible = "fsl,imx8qxp-mu", "fsl,imx6sx-mu";
 			reg = <0x5d1f0000 0x10000>;
-			interrupts = <GIC_SPI 179 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 180 IRQ_TYPE_LEVEL_HIGH>;
 			#mbox-cells = <0>;
 			status = "disabled";
 		};
