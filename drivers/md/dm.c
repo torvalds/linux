@@ -1320,7 +1320,7 @@ static int clone_bio(struct dm_target_io *tio, struct bio *bio,
 
 	__bio_clone_fast(clone, bio);
 
-	if (unlikely(bio_integrity(bio) != NULL)) {
+	if (bio_integrity(bio)) {
 		int r;
 
 		if (unlikely(!dm_target_has_integrity(tio->ti->type) &&
@@ -1336,11 +1336,7 @@ static int clone_bio(struct dm_target_io *tio, struct bio *bio,
 			return r;
 	}
 
-	bio_advance(clone, to_bytes(sector - clone->bi_iter.bi_sector));
-	clone->bi_iter.bi_size = to_bytes(len);
-
-	if (unlikely(bio_integrity(bio) != NULL))
-		bio_integrity_trim(clone);
+	bio_trim(clone, sector - clone->bi_iter.bi_sector, len);
 
 	return 0;
 }
