@@ -31,6 +31,7 @@ MAP COMMANDS
 |	**bpftool** **map delete**     *MAP*  **key** *DATA*
 |	**bpftool** **map pin**        *MAP*  *FILE*
 |	**bpftool** **map event_pipe** *MAP* [**cpu** *N* **index** *M*]
+|	**bpftool** **map peek**       *MAP*
 |	**bpftool** **map help**
 |
 |	*MAP* := { **id** *MAP_ID* | **pinned** *FILE* }
@@ -106,6 +107,9 @@ DESCRIPTION
 		  Note that installing a perf ring into an array will silently
 		  replace any existing ring.  Any other application will stop
 		  receiving events if it installed its rings earlier.
+
+	**bpftool map peek**  *MAP*
+		  Peek next **value** in the queue or stack.
 
 	**bpftool map help**
 		  Print short help message.
