@@ -29,6 +29,27 @@
 #include "smu_v11_0.h"
 #include "atom.h"
 
+int smu_common_read_sensor(struct smu_context *smu, enum amd_pp_sensors sensor,
+			   void *data, uint32_t *size)
+{
+	int ret = 0;
+
+	switch (sensor) {
+	case AMDGPU_PP_SENSOR_ENABLED_SMC_FEATURES_MASK:
+		ret = smu_feature_get_enabled_mask(smu, (uint32_t *)data, 2);
+		*size = 8;
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	if (ret)
+		*size = 0;
+
+	return ret;
+}
+
 int smu_update_table(struct smu_context *smu, uint32_t table_id,
 		     void *table_data, bool drv2smu)
 {
