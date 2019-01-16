@@ -22,7 +22,8 @@
 #include "sof-priv.h"
 #include "ops.h"
 
-/* BE driver
+/*
+ * BE driver
  *
  * This driver will create IO Queues for communition from FE drivers.
  * The FE driver will send real IPC structures over the queue and then

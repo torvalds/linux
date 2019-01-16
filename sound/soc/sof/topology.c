@@ -138,8 +138,9 @@ static u32 vol_compute_gain(u32 value, int *tlv)
 	if (value == 0 && tlv[TLV_MUTE])
 		return 0;
 
-	/* compute dB gain from tlv
-	 * tlv_step in topology is multiplied by 100
+	/*
+	 * compute dB gain from tlv. tlv_step
+	 * in topology is multiplied by 100
 	 */
 	dB_gain = tlv[TLV_MIN] + (value * tlv[TLV_STEP]) / 100;
 
@@ -2602,7 +2603,8 @@ static int sof_route_load(struct snd_soc_component *scomp, int index,
 
 	connect->sink_id = sink_swidget->comp_id;
 
-	/* Some virtual routes and widgets may been added in topology for
+	/*
+	 * Some virtual routes and widgets may been added in topology for
 	 * compatibility. For virtual routes, both sink and source are not
 	 * buffer. Since only buffer linked to component is supported by
 	 * FW, others are reported as error, add check in route function,

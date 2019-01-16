@@ -315,7 +315,8 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 		goto cleanup;
 	}
 
-	/* at this point DSP ROM has been initialized and
+	/*
+	 * at this point DSP ROM has been initialized and
 	 * should be ready for code loading and firmware boot
 	 */
 	ret = cl_copy_fw(sdev, stream);

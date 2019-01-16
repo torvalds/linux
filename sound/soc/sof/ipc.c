@@ -203,7 +203,8 @@ static int tx_wait_done(struct snd_sof_ipc *ipc, struct snd_sof_ipc_msg *msg,
 	ret = wait_event_timeout(msg->waitq, msg->ipc_complete,
 				 msecs_to_jiffies(IPC_TIMEOUT_MS));
 
-	/* ipc_lock is used to protect ipc message list shared by user
+	/*
+	 * ipc_lock is used to protect ipc message list shared by user
 	 * contexts and a workqueue. There is no need to save interrupt
 	 * status with spin_lock_irqsave.
 	 */

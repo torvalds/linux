@@ -169,7 +169,8 @@ static void cl_skl_cldma_stream_clear(struct snd_sof_dev *sdev)
 	/* make sure Run bit is cleared before setting stream register */
 	cl_skl_cldma_stream_run(sdev, 0);
 
-	/* Disable the Interrupt On Completion, FIFO Error Interrupt,
+	/*
+	 * Disable the Interrupt On Completion, FIFO Error Interrupt,
 	 * Descriptor Error Interrupt and set the cldma stream number to 0.
 	 */
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR,
@@ -254,7 +255,8 @@ static void cl_skl_cldma_setup_controller(struct snd_sof_dev *sdev,
 	snd_sof_dsp_write(sdev, HDA_DSP_BAR,
 			  sd_offset + SOF_HDA_ADSP_REG_CL_SD_LVI, count - 1);
 
-	/* Set the Interrupt On Completion, FIFO Error Interrupt,
+	/*
+	 * Set the Interrupt On Completion, FIFO Error Interrupt,
 	 * Descriptor Error Interrupt and the cldma stream number.
 	 */
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR,
@@ -310,8 +312,9 @@ static int cl_dsp_init_skl(struct snd_sof_dev *sdev)
 {
 	int ret;
 
-	/* check if the core is already enabled, if yes, reset and make it run,
-	 * if not, powerdown and enable it again.
+	/*
+	 * check if the core is already enabled, if yes, reset and
+	 * make it run. If not, powerdown and enable it again.
 	 */
 	if (hda_dsp_core_is_enabled(sdev, HDA_DSP_CORE_MASK(0))) {
 
@@ -327,8 +330,9 @@ static int cl_dsp_init_skl(struct snd_sof_dev *sdev)
 			goto err;
 		}
 	} else {
-		/* if not enabled, power down it first and then powerup and run
-		 * the core.
+		/*
+		 * if not enabled, power down it first and
+		 * then powerup and runthe core.
 		 */
 		ret = hda_dsp_core_reset_power_down(sdev, HDA_DSP_CORE_MASK(0));
 		if (ret < 0) {
@@ -494,8 +498,9 @@ int hda_dsp_cl_boot_firmware_skl(struct snd_sof_dev *sdev)
 	init_waitqueue_head(&sdev->boot_wait);
 	sdev->boot_complete = false;
 
-	/* at this point DSP ROM has been initialized and should be ready for
-	 * code loading and firmware boot
+	/*
+	 * at this point DSP ROM has been initialized and should
+	 * be ready for code loading and firmware boot
 	 */
 	ret = cl_copy_fw_skl(sdev);
 	if (ret < 0) {

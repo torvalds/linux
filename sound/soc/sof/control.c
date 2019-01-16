@@ -219,14 +219,16 @@ int snd_sof_bytes_ext_put(struct snd_kcontrol *kcontrol,
 	int max_size = SOF_IPC_MSG_MAX_SIZE -
 		sizeof(const struct sof_ipc_ctrl_data);
 
-	/* The beginning of bytes data contains a header from where
+	/*
+	 * The beginning of bytes data contains a header from where
 	 * the length (as bytes) is needed to know the correct copy
 	 * length of data from tlvd->tlv.
 	 */
 	if (copy_from_user(&header, tlvd, sizeof(const struct snd_ctl_tlv)))
 		return -EFAULT;
 
-	/* The maximum length that can be copied is limited by IPC max
+	/*
+	 * The maximum length that can be copied is limited by IPC max
 	 * length and topology defined length for ext bytes control.
 	 */
 	if (be->max < max_size) /* min() not used to avoid sparse warnings */
@@ -309,8 +311,9 @@ int snd_sof_bytes_ext_get(struct snd_kcontrol *kcontrol,
 		return ret;
 	}
 
-	/* Decrement the limit by ext bytes header size to ensure
-	 * the user space buffer is not exceeded.
+	/*
+	 * Decrement the limit by ext bytes header size to
+	 * ensure the user space buffer is not exceeded.
 	 */
 	size -= sizeof(const struct snd_ctl_tlv);
 

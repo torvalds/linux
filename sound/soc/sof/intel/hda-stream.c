@@ -352,8 +352,7 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 		return ret;
 	}
 
-	/* set up stream descriptor for DMA */
-	/* program stream tag */
+	/* program stream tag to set up stream descriptor for DMA */
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, sd_offset,
 				SOF_HDA_CL_SD_CTL_STREAM_TAG_MASK,
 				hstream->stream_tag <<
@@ -510,8 +509,10 @@ int hda_dsp_stream_init(struct snd_sof_dev *sdev)
 		return -EINVAL;
 	}
 
-	/* mem alloc for the position buffer */
-	/* TODO: check position buffer update */
+	/*
+	 * mem alloc for the position buffer
+	 * TODO: check position buffer update
+	 */
 	ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, &pci->dev,
 				  SOF_HDA_DPIB_ENTRY_SIZE * num_total,
 				  &bus->posbuf);

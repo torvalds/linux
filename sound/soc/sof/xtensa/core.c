@@ -19,8 +19,9 @@ struct xtensa_exception_cause {
 	const char *description;
 };
 
-/* From 4.4.1.5 table 4-64 Exception Causes of
- * Xtensa Instruction Set Architecture (ISA) Reference Manual
+/*
+ * From 4.4.1.5 table 4-64 Exception Causes of Xtensa
+ * Instruction Set Architecture (ISA) Reference Manual
  */
 static const struct xtensa_exception_cause xtensa_exception_causes[] = {
 	{0, "IllegalInstructionCause", "Illegal instruction"},
@@ -116,7 +117,8 @@ static void xtensa_stack(struct snd_sof_dev *sdev, void *oops, u32 *stack,
 
 	dev_err(sdev->dev, "stack dump from 0x%8.8x\n", stack_ptr);
 
-	/* example output:
+	/*
+	 * example output:
 	 * 0x0049fbb0: 8000f2d0 0049fc00 6f6c6c61 00632e63
 	 */
 	for (i = 0; i < stack_words; i += 4) {
