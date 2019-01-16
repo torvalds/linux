@@ -95,3 +95,8 @@ SYSCALL_DEFINE1(s390_personality, unsigned int, personality)
 
 	return ret;
 }
+
+SYSCALL_DEFINE0(ni_syscall)
+{
+	return -ENOSYS;
+}

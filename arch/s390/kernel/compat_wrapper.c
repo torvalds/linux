@@ -25,21 +25,6 @@
 #define __SC_COMPAT_TYPE(t, a) \
 	__typeof(__builtin_choose_expr(sizeof(t) > 4, 0L, (t)0)) a
 
-#define __SC_COMPAT_CAST(t, a)						\
-({									\
-	long __ReS = a;							\
-									\
-	BUILD_BUG_ON((sizeof(t) > 4) && !__TYPE_IS_L(t) &&		\
-		     !__TYPE_IS_UL(t) && !__TYPE_IS_PTR(t));		\
-	if (__TYPE_IS_L(t))						\
-		__ReS = (s32)a;						\
-	if (__TYPE_IS_UL(t))						\
-		__ReS = (u32)a;						\
-	if (__TYPE_IS_PTR(t))						\
-		__ReS = a & 0x7fffffff;					\
-	(t)__ReS;							\
-})
-
 /*
  * The COMPAT_SYSCALL_WRAP macro generates system call wrappers to be used by
  * compat tasks. These wrappers will only be used for system calls where only
@@ -53,11 +38,11 @@
  * the regular system call wrappers.
  */
 #define COMPAT_SYSCALL_WRAPx(x, name, ...)					\
-asmlinkage long sys##name(__MAP(x,__SC_DECL,__VA_ARGS__));			\
-asmlinkage long notrace compat_sys##name(__MAP(x,__SC_COMPAT_TYPE,__VA_ARGS__));\
-asmlinkage long notrace compat_sys##name(__MAP(x,__SC_COMPAT_TYPE,__VA_ARGS__))	\
+asmlinkage long __s390_sys##name(__MAP(x,__SC_DECL,__VA_ARGS__));		\
+asmlinkage long notrace __s390_compat_sys##name(__MAP(x,__SC_DECL,__VA_ARGS__));\
+asmlinkage long notrace __s390_compat_sys##name(__MAP(x,__SC_DECL,__VA_ARGS__))	\
 {										\
-	return sys##name(__MAP(x,__SC_COMPAT_CAST,__VA_ARGS__));		\
+	return __s390_sys##name(__MAP(x,__SC_ARGS,__VA_ARGS__));		\
 }
 
 COMPAT_SYSCALL_WRAP2(creat, const char __user *, pathname, umode_t, mode);
