@@ -409,6 +409,15 @@ static int vb2_queue_or_prepare_buf(struct vb2_queue *q, struct media_device *md
 	 */
 	if (WARN_ON(!q->ops->buf_request_complete))
 		return -EINVAL;
+	/*
+	 * Make sure this op is implemented by the driver for the output queue.
+	 * It's easy to forget this callback, but is it important to correctly
+	 * validate the 'field' value at QBUF time.
+	 */
+	if (WARN_ON((q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT ||
+		     q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) &&
+		    !q->ops->buf_out_validate))
+		return -EINVAL;
 
 	if (vb->state != VB2_BUF_STATE_DEQUEUED) {
 		dprintk(1, "%s: buffer is not in dequeued state\n", opname);
