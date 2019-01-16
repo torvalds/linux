@@ -223,10 +223,10 @@ static void gen9_guc_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir);
 /* For display hotplug interrupt */
 static inline void
 i915_hotplug_interrupt_update_locked(struct drm_i915_private *dev_priv,
-				     uint32_t mask,
-				     uint32_t bits)
+				     u32 mask,
+				     u32 bits)
 {
-	uint32_t val;
+	u32 val;
 
 	lockdep_assert_held(&dev_priv->irq_lock);
 	WARN_ON(bits & ~mask);
@@ -250,8 +250,8 @@ i915_hotplug_interrupt_update_locked(struct drm_i915_private *dev_priv,
  * version is also available.
  */
 void i915_hotplug_interrupt_update(struct drm_i915_private *dev_priv,
-				   uint32_t mask,
-				   uint32_t bits)
+				   u32 mask,
+				   u32 bits)
 {
 	spin_lock_irq(&dev_priv->irq_lock);
 	i915_hotplug_interrupt_update_locked(dev_priv, mask, bits);
@@ -300,10 +300,10 @@ static bool gen11_reset_one_iir(struct drm_i915_private * const i915,
  * @enabled_irq_mask: mask of interrupt bits to enable
  */
 void ilk_update_display_irq(struct drm_i915_private *dev_priv,
-			    uint32_t interrupt_mask,
-			    uint32_t enabled_irq_mask)
+			    u32 interrupt_mask,
+			    u32 enabled_irq_mask)
 {
-	uint32_t new_val;
+	u32 new_val;
 
 	lockdep_assert_held(&dev_priv->irq_lock);
 
@@ -330,8 +330,8 @@ void ilk_update_display_irq(struct drm_i915_private *dev_priv,
  * @enabled_irq_mask: mask of interrupt bits to enable
  */
 static void ilk_update_gt_irq(struct drm_i915_private *dev_priv,
-			      uint32_t interrupt_mask,
-			      uint32_t enabled_irq_mask)
+			      u32 interrupt_mask,
+			      u32 enabled_irq_mask)
 {
 	lockdep_assert_held(&dev_priv->irq_lock);
 
@@ -345,13 +345,13 @@ static void ilk_update_gt_irq(struct drm_i915_private *dev_priv,
 	I915_WRITE(GTIMR, dev_priv->gt_irq_mask);
 }
 
-void gen5_enable_gt_irq(struct drm_i915_private *dev_priv, uint32_t mask)
+void gen5_enable_gt_irq(struct drm_i915_private *dev_priv, u32 mask)
 {
 	ilk_update_gt_irq(dev_priv, mask, mask);
 	POSTING_READ_FW(GTIMR);
 }
 
-void gen5_disable_gt_irq(struct drm_i915_private *dev_priv, uint32_t mask)
+void gen5_disable_gt_irq(struct drm_i915_private *dev_priv, u32 mask)
 {
 	ilk_update_gt_irq(dev_priv, mask, 0);
 }
@@ -390,10 +390,10 @@ static i915_reg_t gen6_pm_ier(struct drm_i915_private *dev_priv)
  * @enabled_irq_mask: mask of interrupt bits to enable
  */
 static void snb_update_pm_irq(struct drm_i915_private *dev_priv,
-			      uint32_t interrupt_mask,
-			      uint32_t enabled_irq_mask)
+			      u32 interrupt_mask,
+			      u32 enabled_irq_mask)
 {
-	uint32_t new_val;
+	u32 new_val;
 
 	WARN_ON(enabled_irq_mask & ~interrupt_mask);
 
@@ -577,11 +577,11 @@ void gen9_disable_guc_interrupts(struct drm_i915_private *dev_priv)
  * @enabled_irq_mask: mask of interrupt bits to enable
  */
 static void bdw_update_port_irq(struct drm_i915_private *dev_priv,
-				uint32_t interrupt_mask,
-				uint32_t enabled_irq_mask)
+				u32 interrupt_mask,
+				u32 enabled_irq_mask)
 {
-	uint32_t new_val;
-	uint32_t old_val;
+	u32 new_val;
+	u32 old_val;
 
 	lockdep_assert_held(&dev_priv->irq_lock);
 
@@ -611,10 +611,10 @@ static void bdw_update_port_irq(struct drm_i915_private *dev_priv,
  */
 void bdw_update_pipe_irq(struct drm_i915_private *dev_priv,
 			 enum pipe pipe,
-			 uint32_t interrupt_mask,
-			 uint32_t enabled_irq_mask)
+			 u32 interrupt_mask,
+			 u32 enabled_irq_mask)
 {
-	uint32_t new_val;
+	u32 new_val;
 
 	lockdep_assert_held(&dev_priv->irq_lock);
 
@@ -641,10 +641,10 @@ void bdw_update_pipe_irq(struct drm_i915_private *dev_priv,
  * @enabled_irq_mask: mask of interrupt bits to enable
  */
 void ibx_display_interrupt_update(struct drm_i915_private *dev_priv,
-				  uint32_t interrupt_mask,
-				  uint32_t enabled_irq_mask)
+				  u32 interrupt_mask,
+				  u32 enabled_irq_mask)
 {
-	uint32_t sdeimr = I915_READ(SDEIMR);
+	u32 sdeimr = I915_READ(SDEIMR);
 	sdeimr &= ~interrupt_mask;
 	sdeimr |= (~enabled_irq_mask & interrupt_mask);
 
@@ -1368,8 +1368,8 @@ static void ivybridge_parity_work(struct work_struct *work)
 		container_of(work, typeof(*dev_priv), l3_parity.error_work);
 	u32 error_status, row, bank, subbank;
 	char *parity_event[6];
-	uint32_t misccpctl;
-	uint8_t slice = 0;
+	u32 misccpctl;
+	u8 slice = 0;
 
 	/* We must turn off DOP level clock gating to access the L3 registers.
 	 * In order to prevent a get/put style interface, acquire struct mutex
@@ -1730,13 +1730,13 @@ static void dp_aux_irq_handler(struct drm_i915_private *dev_priv)
 #if defined(CONFIG_DEBUG_FS)
 static void display_pipe_crc_irq_handler(struct drm_i915_private *dev_priv,
 					 enum pipe pipe,
-					 uint32_t crc0, uint32_t crc1,
-					 uint32_t crc2, uint32_t crc3,
-					 uint32_t crc4)
+					 u32 crc0, u32 crc1,
+					 u32 crc2, u32 crc3,
+					 u32 crc4)
 {
 	struct intel_pipe_crc *pipe_crc = &dev_priv->pipe_crc[pipe];
 	struct intel_crtc *crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
-	uint32_t crcs[5];
+	u32 crcs[5];
 
 	spin_lock(&pipe_crc->lock);
 	/*
@@ -1768,9 +1768,9 @@ static void display_pipe_crc_irq_handler(struct drm_i915_private *dev_priv,
 static inline void
 display_pipe_crc_irq_handler(struct drm_i915_private *dev_priv,
 			     enum pipe pipe,
-			     uint32_t crc0, uint32_t crc1,
-			     uint32_t crc2, uint32_t crc3,
-			     uint32_t crc4) {}
+			     u32 crc0, u32 crc1,
+			     u32 crc2, u32 crc3,
+			     u32 crc4) {}
 #endif
 
 
@@ -1796,7 +1796,7 @@ static void ivb_pipe_crc_irq_handler(struct drm_i915_private *dev_priv,
 static void i9xx_pipe_crc_irq_handler(struct drm_i915_private *dev_priv,
 				      enum pipe pipe)
 {
-	uint32_t res1, res2;
+	u32 res1, res2;
 
 	if (INTEL_GEN(dev_priv) >= 3)
 		res1 = I915_READ(PIPE_CRC_RES_RES1_I915(pipe));
@@ -3172,7 +3172,7 @@ static int ironlake_enable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	unsigned long irqflags;
-	uint32_t bit = INTEL_GEN(dev_priv) >= 7 ?
+	u32 bit = INTEL_GEN(dev_priv) >= 7 ?
 		DE_PIPE_VBLANK_IVB(pipe) : DE_PIPE_VBLANK(pipe);
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
@@ -3234,7 +3234,7 @@ static void ironlake_disable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	unsigned long irqflags;
-	uint32_t bit = INTEL_GEN(dev_priv) >= 7 ?
+	u32 bit = INTEL_GEN(dev_priv) >= 7 ?
 		DE_PIPE_VBLANK_IVB(pipe) : DE_PIPE_VBLANK(pipe);
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
@@ -3452,7 +3452,7 @@ static void gen11_irq_reset(struct drm_device *dev)
 void gen8_irq_power_well_post_enable(struct drm_i915_private *dev_priv,
 				     u8 pipe_mask)
 {
-	uint32_t extra_ier = GEN8_PIPE_VBLANK | GEN8_PIPE_FIFO_UNDERRUN;
+	u32 extra_ier = GEN8_PIPE_VBLANK | GEN8_PIPE_FIFO_UNDERRUN;
 	enum pipe pipe;
 
 	spin_lock_irq(&dev_priv->irq_lock);
@@ -3921,7 +3921,7 @@ static int valleyview_irq_postinstall(struct drm_device *dev)
 static void gen8_gt_irq_postinstall(struct drm_i915_private *dev_priv)
 {
 	/* These are interrupts we'll toggle with the ring mask register */
-	uint32_t gt_interrupts[] = {
+	u32 gt_interrupts[] = {
 		GT_RENDER_USER_INTERRUPT << GEN8_RCS_IRQ_SHIFT |
 			GT_CONTEXT_SWITCH_INTERRUPT << GEN8_RCS_IRQ_SHIFT |
 			GT_RENDER_USER_INTERRUPT << GEN8_BCS_IRQ_SHIFT |
@@ -3949,8 +3949,8 @@ static void gen8_gt_irq_postinstall(struct drm_i915_private *dev_priv)
 
 static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 {
-	uint32_t de_pipe_masked = GEN8_PIPE_CDCLK_CRC_DONE;
-	uint32_t de_pipe_enables;
+	u32 de_pipe_masked = GEN8_PIPE_CDCLK_CRC_DONE;
+	u32 de_pipe_enables;
 	u32 de_port_masked = GEN8_AUX_CHANNEL_A;
 	u32 de_port_enables;
 	u32 de_misc_masked = GEN8_DE_EDP_PSR;
