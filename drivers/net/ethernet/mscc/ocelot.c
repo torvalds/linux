@@ -721,7 +721,8 @@ static void ocelot_get_stats64(struct net_device *dev,
 
 static int ocelot_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 			  struct net_device *dev, const unsigned char *addr,
-			  u16 vid, u16 flags)
+			  u16 vid, u16 flags,
+			  struct netlink_ext_ack *extack)
 {
 	struct ocelot_port *port = netdev_priv(dev);
 	struct ocelot *ocelot = port->ocelot;

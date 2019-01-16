@@ -2438,7 +2438,8 @@ static void ice_set_rx_mode(struct net_device *netdev)
  */
 static int ice_fdb_add(struct ndmsg *ndm, struct nlattr __always_unused *tb[],
 		       struct net_device *dev, const unsigned char *addr,
-		       u16 vid, u16 flags)
+		       u16 vid, u16 flags,
+		       struct netlink_ext_ack *extack)
 {
 	int err;
 

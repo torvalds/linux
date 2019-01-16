@@ -1009,7 +1009,8 @@ static const struct ethtool_ops dsa_slave_ethtool_ops = {
 int dsa_legacy_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 		       struct net_device *dev,
 		       const unsigned char *addr, u16 vid,
-		       u16 flags)
+		       u16 flags,
+		       struct netlink_ext_ack *extack)
 {
 	struct dsa_port *dp = dsa_slave_to_port(dev);
 
