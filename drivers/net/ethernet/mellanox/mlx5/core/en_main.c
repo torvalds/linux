@@ -2674,22 +2674,6 @@ free_in:
 	return err;
 }
 
-static void mlx5e_build_inner_indir_tir_ctx(struct mlx5e_priv *priv,
-					    enum mlx5e_traffic_types tt,
-					    u32 *tirc)
-{
-	MLX5_SET(tirc, tirc, transport_domain, priv->mdev->mlx5e_res.td.tdn);
-
-	mlx5e_build_tir_ctx_lro(&priv->channels.params, tirc);
-
-	MLX5_SET(tirc, tirc, disp_type, MLX5_TIRC_DISP_TYPE_INDIRECT);
-	MLX5_SET(tirc, tirc, indirect_table, priv->indir_rqt.rqtn);
-	MLX5_SET(tirc, tirc, tunneled_offload_en, 0x1);
-
-	mlx5e_build_indir_tir_ctx_hash(&priv->rss_params,
-				       &tirc_default_config[tt], tirc, true);
-}
-
 static int mlx5e_set_mtu(struct mlx5_core_dev *mdev,
 			 struct mlx5e_params *params, u16 mtu)
 {
@@ -3110,30 +3094,39 @@ static void mlx5e_cleanup_nic_tx(struct mlx5e_priv *priv)
 		mlx5e_destroy_tis(priv->mdev, priv->tisn[tc]);
 }
 
+static void mlx5e_build_indir_tir_ctx_common(struct mlx5e_priv *priv,
+					     u32 rqtn, u32 *tirc)
+{
+	MLX5_SET(tirc, tirc, transport_domain, priv->mdev->mlx5e_res.td.tdn);
+	MLX5_SET(tirc, tirc, disp_type, MLX5_TIRC_DISP_TYPE_INDIRECT);
+	MLX5_SET(tirc, tirc, indirect_table, rqtn);
+
+	mlx5e_build_tir_ctx_lro(&priv->channels.params, tirc);
+}
+
 static void mlx5e_build_indir_tir_ctx(struct mlx5e_priv *priv,
 				      enum mlx5e_traffic_types tt,
 				      u32 *tirc)
 {
-	MLX5_SET(tirc, tirc, transport_domain, priv->mdev->mlx5e_res.td.tdn);
-
-	mlx5e_build_tir_ctx_lro(&priv->channels.params, tirc);
-
-	MLX5_SET(tirc, tirc, disp_type, MLX5_TIRC_DISP_TYPE_INDIRECT);
-	MLX5_SET(tirc, tirc, indirect_table, priv->indir_rqt.rqtn);
-
+	mlx5e_build_indir_tir_ctx_common(priv, priv->indir_rqt.rqtn, tirc);
 	mlx5e_build_indir_tir_ctx_hash(&priv->rss_params,
 				       &tirc_default_config[tt], tirc, false);
 }
 
 static void mlx5e_build_direct_tir_ctx(struct mlx5e_priv *priv, u32 rqtn, u32 *tirc)
 {
-	MLX5_SET(tirc, tirc, transport_domain, priv->mdev->mlx5e_res.td.tdn);
-
-	mlx5e_build_tir_ctx_lro(&priv->channels.params, tirc);
-
-	MLX5_SET(tirc, tirc, disp_type, MLX5_TIRC_DISP_TYPE_INDIRECT);
-	MLX5_SET(tirc, tirc, indirect_table, rqtn);
+	mlx5e_build_indir_tir_ctx_common(priv, rqtn, tirc);
 	MLX5_SET(tirc, tirc, rx_hash_fn, MLX5_RX_HASH_FN_INVERTED_XOR8);
+}
+
+static void mlx5e_build_inner_indir_tir_ctx(struct mlx5e_priv *priv,
+					    enum mlx5e_traffic_types tt,
+					    u32 *tirc)
+{
+	mlx5e_build_indir_tir_ctx_common(priv, priv->indir_rqt.rqtn, tirc);
+	mlx5e_build_indir_tir_ctx_hash(&priv->rss_params,
+				       &tirc_default_config[tt], tirc, true);
+	MLX5_SET(tirc, tirc, tunneled_offload_en, 0x1);
 }
 
 int mlx5e_create_indirect_tirs(struct mlx5e_priv *priv, bool inner_ttc)
