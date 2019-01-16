@@ -11,8 +11,6 @@ staging directory.
 - Prefix imgu for all public APIs, i.e. change ipu3_v4l2_register() to
   imgu_v4l2_register(). (Sakari)
 
-- Use V4L2_CTRL_TYPE_MENU for dual-pipe mode control. (Sakari)
-
 - IPU3 driver documentation (Laurent)
   Add diagram in driver rst to describe output capability.
   Comments on configuring v4l2 subdevs for CIO2 and ImgU.

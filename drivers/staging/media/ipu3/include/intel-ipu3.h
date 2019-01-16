@@ -16,12 +16,6 @@
 #define V4L2_CID_INTEL_IPU3_BASE	(V4L2_CID_USER_BASE + 0x10c0)
 #define V4L2_CID_INTEL_IPU3_MODE	(V4L2_CID_INTEL_IPU3_BASE + 1)
 
-/* custom ctrl to set pipe mode */
-enum ipu3_running_mode {
-	IPU3_RUNNING_MODE_VIDEO = 0,
-	IPU3_RUNNING_MODE_STILL = 1,
-};
-
 /******************* ipu3_uapi_stats_3a *******************/
 
 #define IPU3_UAPI_MAX_STRIPES				2

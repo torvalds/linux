@@ -12,6 +12,9 @@
 
 /******************** v4l2_subdev_ops ********************/
 
+#define IPU3_RUNNING_MODE_VIDEO		0
+#define IPU3_RUNNING_MODE_STILL		1
+
 static int ipu3_subdev_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct imgu_v4l2_subdev *imgu_sd = container_of(sd,
@@ -1035,15 +1038,19 @@ static const struct v4l2_ctrl_ops ipu3_subdev_ctrl_ops = {
 	.s_ctrl = ipu3_sd_s_ctrl,
 };
 
+static const char * const ipu3_ctrl_mode_strings[] = {
+	"Video mode",
+	"Still mode",
+};
+
 static const struct v4l2_ctrl_config ipu3_subdev_ctrl_mode = {
 	.ops = &ipu3_subdev_ctrl_ops,
 	.id = V4L2_CID_INTEL_IPU3_MODE,
 	.name = "IPU3 Pipe Mode",
-	.type = V4L2_CTRL_TYPE_INTEGER,
-	.min = IPU3_RUNNING_MODE_VIDEO,
-	.max = IPU3_RUNNING_MODE_STILL,
-	.step = 1,
+	.type = V4L2_CTRL_TYPE_MENU,
+	.max = ARRAY_SIZE(ipu3_ctrl_mode_strings) - 1,
 	.def = IPU3_RUNNING_MODE_VIDEO,
+	.qmenu = ipu3_ctrl_mode_strings,
 };
 
 /******************** Framework registration ********************/
