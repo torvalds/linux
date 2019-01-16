@@ -494,7 +494,8 @@ static void erofs_put_super(struct super_block *sb)
 	mutex_lock(&sbi->umount_mutex);
 
 #ifdef CONFIG_EROFS_FS_ZIP
-	erofs_workstation_cleanup_all(sb);
+	/* clean up the compression space of this sb */
+	erofs_shrink_workstation(EROFS_SB(sb), ~0UL, true);
 #endif
 
 	erofs_unregister_super(sb);

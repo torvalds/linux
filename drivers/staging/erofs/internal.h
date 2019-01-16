@@ -283,11 +283,6 @@ extern int erofs_register_workgroup(struct super_block *sb,
 extern unsigned long erofs_shrink_workstation(struct erofs_sb_info *sbi,
 	unsigned long nr_shrink, bool cleanup);
 
-static inline void erofs_workstation_cleanup_all(struct super_block *sb)
-{
-	erofs_shrink_workstation(EROFS_SB(sb), ~0UL, true);
-}
-
 extern void erofs_workgroup_free_rcu(struct erofs_workgroup *grp);
 
 #ifdef EROFS_FS_HAS_MANAGED_CACHE
