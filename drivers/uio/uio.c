@@ -491,7 +491,7 @@ static int uio_open(struct inode *inode, struct file *filep)
 	if (!idev->info) {
 		mutex_unlock(&idev->info_lock);
 		ret = -EINVAL;
-		goto err_alloc_listener;
+		goto err_infoopen;
 	}
 
 	if (idev->info && idev->info->open)
