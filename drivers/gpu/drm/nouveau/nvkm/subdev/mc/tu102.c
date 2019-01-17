@@ -22,7 +22,7 @@
 #include "priv.h"
 
 static void
-tu104_mc_intr_hack(struct nvkm_mc *mc, bool *handled)
+tu102_mc_intr_hack(struct nvkm_mc *mc, bool *handled)
 {
 	struct nvkm_device *device = mc->subdev.device;
 	u32 stat = nvkm_rd32(device, 0xb81010);
@@ -37,19 +37,19 @@ tu104_mc_intr_hack(struct nvkm_mc *mc, bool *handled)
 }
 
 static const struct nvkm_mc_func
-tu104_mc = {
+tu102_mc = {
 	.init = nv50_mc_init,
 	.intr = gp100_mc_intr,
 	.intr_unarm = gp100_mc_intr_unarm,
 	.intr_rearm = gp100_mc_intr_rearm,
 	.intr_mask = gp100_mc_intr_mask,
 	.intr_stat = gf100_mc_intr_stat,
-	.intr_hack = tu104_mc_intr_hack,
+	.intr_hack = tu102_mc_intr_hack,
 	.reset = gk104_mc_reset,
 };
 
 int
-tu104_mc_new(struct nvkm_device *device, int index, struct nvkm_mc **pmc)
+tu102_mc_new(struct nvkm_device *device, int index, struct nvkm_mc **pmc)
 {
-	return gp100_mc_new_(&tu104_mc, device, index, pmc);
+	return gp100_mc_new_(&tu102_mc, device, index, pmc);
 }
