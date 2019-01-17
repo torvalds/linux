@@ -9551,15 +9551,8 @@ static void kick_ilb(unsigned int flags)
 }
 
 /*
- * Current heuristic for kicking the idle load balancer in the presence
- * of an idle cpu in the system.
- *   - This rq has more than one task.
- *   - This rq has at least one CFS task and the capacity of the CPU is
- *     significantly reduced because of RT tasks or IRQs.
- *   - At parent of LLC scheduler domain level, this cpu's scheduler group has
- *     multiple busy cpu.
- *   - For SD_ASYM_PACKING, if the lower numbered cpu's in the scheduler
- *     domain span are idle.
+ * Current decision point for kicking the idle load balancer in the presence
+ * of idle CPUs in the system.
  */
 static void nohz_balancer_kick(struct rq *rq)
 {
