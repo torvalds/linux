@@ -3,3 +3,21 @@ reverted or disabled for DD:
 
 tools/hv/lsvmbus -- convert to python3 (mostly upstream now)
 bpf, arm32: fix stack var offset in jit
+UBUNTU: SAUCE: (snapdragon) camss: vfe: Skip first four frames from sensor
+UBUNTU: SAUCE: (snapdragon) arm64: dts: Add CPR DT node for msm8916
+UBUNTU: SAUCE: (snapdragon) arm64: dts: add spmi-regulator nodes
+UBUNTU: SAUCE: (snapdragon) arm64: dts: msm8916: Add cpufreq support
+UBUNTU: SAUCE: (snapdragon) arm64: dts: msm8916: Add cpu cooling maps
+UBUNTU: SAUCE: (snapdragon) arm64: dts: pm8916: Mark the s2 regulator as always-on
+UBUNTU: SAUCE: (snapdragon) arm64: dts: qcom: msm8996: Add mpp and lpg blocks
+UBUNTU: SAUCE: (snapdragon) arm64: dts: qcom: Add pwm node for pm8916
+UBUNTU: SAUCE: (snapdragon) arm64: dts: qcom: Add user LEDs on db820c
+UBUNTU: SAUCE: (snapdragon) arm64: dts: qcom: Add WiFI/BT LEDs on db820c
+UBUNTU: SAUCE: (snapdragon) ARM: dts: qcom: Add LPG node to pm8941
+UBUNTU: SAUCE: (snapdragon) ARM: dts: qcom: honami: Add LPG node and RGB LED
+UBUNTU: SAUCE: (snapdragon) arm64: dts: qcom: Add Camera Control Interface support
+UBUNTU: SAUCE: (snapdragon) arm64: dts: qcom: Add camss device node
+UBUNTU: SAUCE: (snapdragon) arm64: dts: qcom: Add ov5645 device nodes
+UBUNTU: SAUCE: (snapdragon) arm64: dts: msm8916: Fix camera sensors I2C addresses
+UBUNTU: SAUCE: (snapdragon) arm: dts: qcom: db410c: Enable PWM signal on MPP4
+UBUNTU: SAUCE: arm64: dts: msm8916: camms: fix gic_irq_domain_translate warnings
