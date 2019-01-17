@@ -127,6 +127,7 @@ LIBBPF_0.0.1 {
 
 LIBBPF_0.0.2 {
 	global:
+		bpf_probe_helper;
 		bpf_probe_map_type;
 		bpf_probe_prog_type;
 } LIBBPF_0.0.1;

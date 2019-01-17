@@ -25,6 +25,13 @@ enum probe_component {
 	COMPONENT_KERNEL,
 };
 
+#define BPF_HELPER_MAKE_ENTRY(name)	[BPF_FUNC_ ## name] = "bpf_" # name
+static const char * const helper_name[] = {
+	__BPF_FUNC_MAPPER(BPF_HELPER_MAKE_ENTRY)
+};
+
+#undef BPF_HELPER_MAKE_ENTRY
+
 /* Miscellaneous utility functions */
 
 static bool check_procfs(void)
@@ -458,6 +465,44 @@ static void probe_map_type(enum bpf_map_type map_type)
 	print_bool_feature(feat_name, plain_desc, res);
 }
 
+static void
+probe_helpers_for_progtype(enum bpf_prog_type prog_type, bool supported_type)
+{
+	const char *ptype_name = prog_type_name[prog_type];
+	char feat_name[128];
+	unsigned int id;
+	bool res;
+
+	if (json_output) {
+		sprintf(feat_name, "%s_available_helpers", ptype_name);
+		jsonw_name(json_wtr, feat_name);
+		jsonw_start_array(json_wtr);
+	} else {
+		printf("eBPF helpers supported for program type %s:",
+		       ptype_name);
+	}
+
+	for (id = 1; id < ARRAY_SIZE(helper_name); id++) {
+		if (!supported_type)
+			res = false;
+		else
+			res = bpf_probe_helper(id, prog_type, 0);
+
+		if (json_output) {
+			if (res)
+				jsonw_string(json_wtr, helper_name[id]);
+		} else {
+			if (res)
+				printf("\n\t- %s", helper_name[id]);
+		}
+	}
+
+	if (json_output)
+		jsonw_end_array(json_wtr);
+	else
+		printf("\n");
+}
+
 static int do_probe(int argc, char **argv)
 {
 	enum probe_component target = COMPONENT_UNSPEC;
@@ -532,6 +577,12 @@ static int do_probe(int argc, char **argv)
 
 	for (i = BPF_MAP_TYPE_UNSPEC + 1; i < map_type_name_size; i++)
 		probe_map_type(i);
+
+	print_end_then_start_section("helpers",
+				     "Scanning eBPF helper functions...");
+
+	for (i = BPF_PROG_TYPE_UNSPEC + 1; i < ARRAY_SIZE(prog_type_name); i++)
+		probe_helpers_for_progtype(i, supported_types[i]);
 
 exit_close_json:
 	if (json_output) {
