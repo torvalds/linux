@@ -1000,8 +1000,7 @@ static int edp_notify_handler(struct notifier_block *this, unsigned long code,
 
 			/* 0x1F write to PP_DIV_REG sets max cycle delay */
 			I915_WRITE(pp_div_reg, pp_div | 0x1F);
-			I915_WRITE(pp_ctrl_reg,
-				   PANEL_UNLOCK_REGS | PANEL_POWER_OFF);
+			I915_WRITE(pp_ctrl_reg, PANEL_UNLOCK_REGS);
 			msleep(intel_dp->panel_power_cycle_delay);
 		}
 	}
