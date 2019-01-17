@@ -29,14 +29,14 @@
 #include <nvif/unpack.h>
 
 static u32
-tu104_fifo_gpfifo_submit_token(struct nvkm_fifo_chan *base)
+tu102_fifo_gpfifo_submit_token(struct nvkm_fifo_chan *base)
 {
 	struct gk104_fifo_chan *chan = gk104_fifo_chan(base);
 	return (chan->runl << 16) | chan->base.chid;
 }
 
 static const struct nvkm_fifo_chan_func
-tu104_fifo_gpfifo = {
+tu102_fifo_gpfifo = {
 	.dtor = gk104_fifo_gpfifo_dtor,
 	.init = gk104_fifo_gpfifo_init,
 	.fini = gk104_fifo_gpfifo_fini,
@@ -45,11 +45,11 @@ tu104_fifo_gpfifo = {
 	.engine_dtor = gk104_fifo_gpfifo_engine_dtor,
 	.engine_init = gv100_fifo_gpfifo_engine_init,
 	.engine_fini = gv100_fifo_gpfifo_engine_fini,
-	.submit_token = tu104_fifo_gpfifo_submit_token,
+	.submit_token = tu102_fifo_gpfifo_submit_token,
 };
 
 int
-tu104_fifo_gpfifo_new(struct gk104_fifo *fifo, const struct nvkm_oclass *oclass,
+tu102_fifo_gpfifo_new(struct gk104_fifo *fifo, const struct nvkm_oclass *oclass,
 		      void *data, u32 size, struct nvkm_object **pobject)
 {
 	struct nvkm_object *parent = oclass->parent;
@@ -67,7 +67,7 @@ tu104_fifo_gpfifo_new(struct gk104_fifo *fifo, const struct nvkm_oclass *oclass,
 			   args->v0.ilength, args->v0.runlist, args->v0.priv);
 		if (args->v0.priv && !oclass->client->super)
 			return -EINVAL;
-		return gv100_fifo_gpfifo_new_(&tu104_fifo_gpfifo, fifo,
+		return gv100_fifo_gpfifo_new_(&tu102_fifo_gpfifo, fifo,
 					      &args->v0.runlist,
 					      &args->v0.chid,
 					       args->v0.vmm,

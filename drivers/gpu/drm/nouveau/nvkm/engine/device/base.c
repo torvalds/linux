@@ -2463,7 +2463,7 @@ nv162_chipset = {
 	.ce[4] = tu104_ce_new,
 	.disp = tu102_disp_new,
 	.dma = gv100_dma_new,
-	.fifo = tu104_fifo_new,
+	.fifo = tu102_fifo_new,
 };
 
 static const struct nvkm_device_chip
@@ -2495,7 +2495,7 @@ nv164_chipset = {
 	.ce[4] = tu104_ce_new,
 	.disp = tu102_disp_new,
 	.dma = gv100_dma_new,
-	.fifo = tu104_fifo_new,
+	.fifo = tu102_fifo_new,
 };
 
 static const struct nvkm_device_chip
@@ -2527,7 +2527,7 @@ nv166_chipset = {
 	.ce[4] = tu104_ce_new,
 	.disp = tu102_disp_new,
 	.dma = gv100_dma_new,
-	.fifo = tu104_fifo_new,
+	.fifo = tu102_fifo_new,
 };
 
 static int

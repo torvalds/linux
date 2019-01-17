@@ -22,7 +22,7 @@
 #include "user.h"
 
 static int
-tu104_fifo_user_map(struct nvkm_object *object, void *argv, u32 argc,
+tu102_fifo_user_map(struct nvkm_object *object, void *argv, u32 argc,
 		    enum nvkm_object_map *type, u64 *addr, u64 *size)
 {
 	struct nvkm_device *device = object->engine->subdev.device;
@@ -33,13 +33,13 @@ tu104_fifo_user_map(struct nvkm_object *object, void *argv, u32 argc,
 }
 
 static const struct nvkm_object_func
-tu104_fifo_user = {
-	.map = tu104_fifo_user_map,
+tu102_fifo_user = {
+	.map = tu102_fifo_user_map,
 };
 
 int
-tu104_fifo_user_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
+tu102_fifo_user_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 		    struct nvkm_object **pobject)
 {
-	return nvkm_object_new_(&tu104_fifo_user, oclass, argv, argc, pobject);
+	return nvkm_object_new_(&tu102_fifo_user, oclass, argv, argc, pobject);
 }
