@@ -26,6 +26,7 @@
  **************************************************************************/
 #include <linux/module.h>
 #include <linux/console.h>
+#include <linux/dma-mapping.h>
 
 #include <drm/drmP.h>
 #include "vmwgfx_drv.h"
@@ -34,7 +35,6 @@
 #include <drm/ttm/ttm_placement.h>
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_module.h>
-#include <linux/intel-iommu.h>
 
 #define VMWGFX_DRIVER_DESC "Linux drm driver for VMware graphics devices"
 #define VMWGFX_CHIP_SVGAII 0
@@ -546,6 +546,21 @@ static void vmw_get_initial_size(struct vmw_private *dev_priv)
 }
 
 /**
+ * vmw_assume_iommu - Figure out whether coherent dma-remapping might be
+ * taking place.
+ * @dev: Pointer to the struct drm_device.
+ *
+ * Return: true if iommu present, false otherwise.
+ */
+static bool vmw_assume_iommu(struct drm_device *dev)
+{
+	const struct dma_map_ops *ops = get_dma_ops(dev->dev);
+
+	return !dma_is_direct(ops) && ops &&
+		ops->map_page != dma_direct_map_page;
+}
+
+/**
  * vmw_dma_select_mode - Determine how DMA mappings should be set up for this
  * system.
  *
@@ -568,7 +583,7 @@ static int vmw_dma_select_mode(struct vmw_private *dev_priv)
 
 	if (vmw_force_coherent)
 		dev_priv->map_mode = vmw_dma_alloc_coherent;
-	else if (intel_iommu_enabled)
+	else if (vmw_assume_iommu(dev_priv->dev))
 		dev_priv->map_mode = vmw_dma_map_populate;
 	else if (!vmw_force_iommu)
 		dev_priv->map_mode = vmw_dma_phys;
