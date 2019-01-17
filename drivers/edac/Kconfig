@@ -475,4 +475,13 @@ config EDAC_QCOM
 	  For debugging issues having to do with stability and overall system
 	  health, you should probably say 'Y' here.
 
+config EDAC_ASPEED
+	tristate "Aspeed AST 2500 SoC"
+	depends on MACH_ASPEED_G5
+	help
+	  Support for error detection and correction on the Aspeed AST 2500 SoC.
+
+	  First, ECC must be configured in the bootloader. Then, this driver
+	  will expose error counters via the EDAC kernel framework.
+
 endif # EDAC
