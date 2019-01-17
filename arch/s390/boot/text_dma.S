@@ -41,6 +41,7 @@ ENTRY(_diag14_dma)
 	lgfr	%r2,%r5
 	BR_EX_DMA_r14
 	EX_TABLE_DMA(.Ldiag14_ex, .Ldiag14_fault)
+ENDPROC(_diag14_dma)
 
 /*
  * int _diag210_dma(struct diag210 *addr)
@@ -58,6 +59,7 @@ ENTRY(_diag210_dma)
 	lgfr	%r2,%r2
 	BR_EX_DMA_r14
 	EX_TABLE_DMA(.Ldiag210_ex, .Ldiag210_fault)
+ENDPROC(_diag210_dma)
 
 /*
  * int _diag26c_dma(void *req, void *resp, enum diag26c_sc subcode)
@@ -71,6 +73,7 @@ ENTRY(_diag26c_dma)
 	lgfr	%r2,%r5
 	BR_EX_DMA_r14
 	EX_TABLE_DMA(.Ldiag26c_ex, .Ldiag26c_ex)
+ENDPROC(_diag26c_dma)
 
 /*
  * void _diag0c_dma(struct hypfs_diag0c_entry *entry)
@@ -80,6 +83,7 @@ ENTRY(_diag0c_dma)
 	diag	%r2,%r2,0x0c
 	sam64
 	BR_EX_DMA_r14
+ENDPROC(_diag0c_dma)
 
 /*
  * void _swsusp_reset_dma(void)
@@ -96,6 +100,7 @@ restart_entry:
 	sigp	%r1,%r0,SIGP_SET_ARCHITECTURE
 	sam64
 	BR_EX_DMA_r14
+ENDPROC(_swsusp_reset_dma)
 
 /*
  * void _diag308_reset_dma(void)
@@ -142,6 +147,7 @@ restart_part2:
 	lpswe	0(%r4)
 .Lcontinue:
 	BR_EX_DMA_r14
+ENDPROC(_diag308_reset_dma)
 
 	.section .dma.data,"aw",@progbits
 .align	8
