@@ -490,14 +490,6 @@ struct sock *tcp_create_openreq_child(const struct sock *sk,
 	newtp->last_oow_ack_time = 0;
 	newtp->total_retrans = req->num_retrans;
 
-	/* So many TCP implementations out there (incorrectly) count the
-	 * initial SYN frame in their delayed-ACK and congestion control
-	 * algorithms that we must have the following bandaid to talk
-	 * efficiently to them.  -DaveM
-	 */
-	newtp->snd_cwnd = TCP_INIT_CWND;
-	newtp->snd_cwnd_cnt = 0;
-
 	/* There's a bubble in the pipe until at least the first ACK. */
 	newtp->app_limited = ~0U;
 
