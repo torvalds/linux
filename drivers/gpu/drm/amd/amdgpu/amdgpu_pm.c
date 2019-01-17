@@ -429,6 +429,8 @@ static ssize_t amdgpu_set_pp_force_state(struct device *dev,
 
 	if (strlen(buf) == 1)
 		adev->pp_force_state_enabled = false;
+	else if (is_support_sw_smu(adev))
+		adev->pp_force_state_enabled = false;
 	else if (adev->powerplay.pp_funcs->dispatch_tasks &&
 			adev->powerplay.pp_funcs->get_pp_num_states) {
 		struct pp_states_info data;
