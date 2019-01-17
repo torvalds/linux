@@ -558,6 +558,12 @@ static int smu_v11_0_write_pptable(struct smu_context *smu)
 	return ret;
 }
 
+static int smu_v11_0_write_watermarks_table(struct smu_context *smu)
+{
+	return smu_update_table(smu, TABLE_WATERMARKS,
+				smu->smu_table.tables[TABLE_WATERMARKS].cpu_addr, true);
+}
+
 static int smu_v11_0_set_deep_sleep_dcefclk(struct smu_context *smu, uint32_t clk)
 {
 	int ret;
@@ -1253,6 +1259,7 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.parse_pptable = smu_v11_0_parse_pptable,
 	.populate_smc_pptable = smu_v11_0_populate_smc_pptable,
 	.write_pptable = smu_v11_0_write_pptable,
+	.write_watermarks_table = smu_v11_0_write_watermarks_table,
 	.set_min_dcef_deep_sleep = smu_v11_0_set_min_dcef_deep_sleep,
 	.set_tool_table_location = smu_v11_0_set_tool_table_location,
 	.init_display = smu_v11_0_init_display,
