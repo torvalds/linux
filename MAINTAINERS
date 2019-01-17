@@ -16536,6 +16536,11 @@ M:	David Härdeman <david@hardeman.nu>
 S:	Maintained
 F:	drivers/media/rc/winbond-cir.c
 
+RCMM REMOTE CONTROLS DECODER
+M:	Patrick Lerda <patrick9876@free.fr>
+S:	Maintained
+F:	drivers/media/rc/ir-rcmm-decoder.c
+
 WINSYSTEMS EBC-C384 WATCHDOG DRIVER
 M:	William Breathitt Gray <vilhelm.gray@gmail.com>
 L:	linux-watchdog@vger.kernel.org
