@@ -4098,6 +4098,132 @@ nla_put_failure:
 	return err;
 }
 
+struct devlink_health_reporter {
+	struct list_head list;
+	struct devlink_health_buffer **dump_buffers_array;
+	struct mutex dump_lock; /* lock parallel read/write from dump buffers */
+	struct devlink_health_buffer **diagnose_buffers_array;
+	struct mutex diagnose_lock; /* lock parallel read/write from diagnose buffers */
+	void *priv;
+	const struct devlink_health_reporter_ops *ops;
+	struct devlink *devlink;
+	u64 graceful_period;
+	bool auto_recover;
+	u8 health_state;
+};
+
+void *
+devlink_health_reporter_priv(struct devlink_health_reporter *reporter)
+{
+	return reporter->priv;
+}
+EXPORT_SYMBOL_GPL(devlink_health_reporter_priv);
+
+static struct devlink_health_reporter *
+devlink_health_reporter_find_by_name(struct devlink *devlink,
+				     const char *reporter_name)
+{
+	struct devlink_health_reporter *reporter;
+
+	list_for_each_entry(reporter, &devlink->reporter_list, list)
+		if (!strcmp(reporter->ops->name, reporter_name))
+			return reporter;
+	return NULL;
+}
+
+/**
+ *	devlink_health_reporter_create - create devlink health reporter
+ *
+ *	@devlink: devlink
+ *	@ops: ops
+ *	@graceful_period: to avoid recovery loops, in msecs
+ *	@auto_recover: auto recover when error occurs
+ *	@priv: priv
+ */
+struct devlink_health_reporter *
+devlink_health_reporter_create(struct devlink *devlink,
+			       const struct devlink_health_reporter_ops *ops,
+			       u64 graceful_period, bool auto_recover,
+			       void *priv)
+{
+	struct devlink_health_reporter *reporter;
+
+	mutex_lock(&devlink->lock);
+	if (devlink_health_reporter_find_by_name(devlink, ops->name)) {
+		reporter = ERR_PTR(-EEXIST);
+		goto unlock;
+	}
+
+	if (WARN_ON(ops->dump && !ops->dump_size) ||
+	    WARN_ON(ops->diagnose && !ops->diagnose_size) ||
+	    WARN_ON(auto_recover && !ops->recover) ||
+	    WARN_ON(graceful_period && !ops->recover)) {
+		reporter = ERR_PTR(-EINVAL);
+		goto unlock;
+	}
+
+	reporter = kzalloc(sizeof(*reporter), GFP_KERNEL);
+	if (!reporter) {
+		reporter = ERR_PTR(-ENOMEM);
+		goto unlock;
+	}
+
+	if (ops->dump) {
+		reporter->dump_buffers_array =
+			devlink_health_buffers_create(ops->dump_size);
+		if (!reporter->dump_buffers_array) {
+			kfree(reporter);
+			reporter = ERR_PTR(-ENOMEM);
+			goto unlock;
+		}
+	}
+
+	if (ops->diagnose) {
+		reporter->diagnose_buffers_array =
+			devlink_health_buffers_create(ops->diagnose_size);
+		if (!reporter->diagnose_buffers_array) {
+			devlink_health_buffers_destroy(reporter->dump_buffers_array,
+						       DEVLINK_HEALTH_SIZE_TO_BUFFERS(ops->dump_size));
+			kfree(reporter);
+			reporter = ERR_PTR(-ENOMEM);
+			goto unlock;
+		}
+	}
+
+	list_add_tail(&reporter->list, &devlink->reporter_list);
+	mutex_init(&reporter->dump_lock);
+	mutex_init(&reporter->diagnose_lock);
+
+	reporter->priv = priv;
+	reporter->ops = ops;
+	reporter->devlink = devlink;
+	reporter->graceful_period = graceful_period;
+	reporter->auto_recover = auto_recover;
+unlock:
+	mutex_unlock(&devlink->lock);
+	return reporter;
+}
+EXPORT_SYMBOL_GPL(devlink_health_reporter_create);
+
+/**
+ *	devlink_health_reporter_destroy - destroy devlink health reporter
+ *
+ *	@reporter: devlink health reporter to destroy
+ */
+void
+devlink_health_reporter_destroy(struct devlink_health_reporter *reporter)
+{
+	mutex_lock(&reporter->devlink->lock);
+	list_del(&reporter->list);
+	devlink_health_buffers_destroy(reporter->dump_buffers_array,
+				       DEVLINK_HEALTH_SIZE_TO_BUFFERS(reporter->ops->dump_size));
+	devlink_health_buffers_destroy(reporter->diagnose_buffers_array,
+				       DEVLINK_HEALTH_SIZE_TO_BUFFERS(reporter->ops->diagnose_size));
+	kfree(reporter);
+	mutex_unlock(&reporter->devlink->lock);
+}
+EXPORT_SYMBOL_GPL(devlink_health_reporter_destroy);
+
 static const struct nla_policy devlink_nl_policy[DEVLINK_ATTR_MAX + 1] = {
 	[DEVLINK_ATTR_BUS_NAME] = { .type = NLA_NUL_STRING },
 	[DEVLINK_ATTR_DEV_NAME] = { .type = NLA_NUL_STRING },
@@ -4383,6 +4509,7 @@ struct devlink *devlink_alloc(const struct devlink_ops *ops, size_t priv_size)
 	INIT_LIST_HEAD(&devlink->resource_list);
 	INIT_LIST_HEAD(&devlink->param_list);
 	INIT_LIST_HEAD(&devlink->region_list);
+	INIT_LIST_HEAD(&devlink->reporter_list);
 	mutex_init(&devlink->lock);
 	return devlink;
 }
