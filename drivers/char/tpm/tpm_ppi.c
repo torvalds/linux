@@ -28,7 +28,7 @@
 #define TPM_PPI_FN_GETRSP	5
 #define TPM_PPI_FN_SUBREQ2	7
 #define TPM_PPI_FN_GETOPR	8
-#define PPI_TPM_REQ_MAX		22
+#define PPI_TPM_REQ_MAX		101 /* PPI 1.3 for TPM 2 */
 #define PPI_VS_REQ_START	128
 #define PPI_VS_REQ_END		255
 
