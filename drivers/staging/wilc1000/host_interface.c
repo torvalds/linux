@@ -15,8 +15,8 @@ struct wilc_rcvd_mac_info {
 	u8 status;
 };
 
-struct set_multicast {
-	bool enabled;
+struct wilc_set_multicast {
+	u32 enabled;
 	u32 cnt;
 	u8 *mc_list;
 };
@@ -71,7 +71,7 @@ struct wilc_gtk_key {
 union message_body {
 	struct wilc_rcvd_net_info net_info;
 	struct wilc_rcvd_mac_info mac_info;
-	struct set_multicast multicast_info;
+	struct wilc_set_multicast mc_info;
 	struct remain_ch remain_on_ch;
 	char *data;
 };
@@ -1067,32 +1067,27 @@ static void handle_set_mcast_filter(struct work_struct *work)
 {
 	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
 	struct wilc_vif *vif = msg->vif;
-	struct set_multicast *hif_set_mc = &msg->body.multicast_info;
+	struct wilc_set_multicast *set_mc = &msg->body.mc_info;
 	int result;
 	struct wid wid;
 	u8 *cur_byte;
 
 	wid.id = WID_SETUP_MULTICAST_FILTER;
 	wid.type = WID_BIN;
-	wid.size = sizeof(struct set_multicast) + (hif_set_mc->cnt * ETH_ALEN);
+	wid.size = sizeof(struct wilc_set_multicast) + (set_mc->cnt * ETH_ALEN);
 	wid.val = kmalloc(wid.size, GFP_KERNEL);
 	if (!wid.val)
 		goto error;
 
 	cur_byte = wid.val;
-	*cur_byte++ = (hif_set_mc->enabled & 0xFF);
-	*cur_byte++ = 0;
-	*cur_byte++ = 0;
-	*cur_byte++ = 0;
+	put_unaligned_le32(set_mc->enabled, cur_byte);
+	cur_byte += 4;
 
-	*cur_byte++ = (hif_set_mc->cnt & 0xFF);
-	*cur_byte++ = ((hif_set_mc->cnt >> 8) & 0xFF);
-	*cur_byte++ = ((hif_set_mc->cnt >> 16) & 0xFF);
-	*cur_byte++ = ((hif_set_mc->cnt >> 24) & 0xFF);
+	put_unaligned_le32(set_mc->cnt, cur_byte);
+	cur_byte += 4;
 
-	if (hif_set_mc->cnt > 0 && hif_set_mc->mc_list)
-		memcpy(cur_byte, hif_set_mc->mc_list,
-		       ((hif_set_mc->cnt) * ETH_ALEN));
+	if (set_mc->cnt > 0 && set_mc->mc_list)
+		memcpy(cur_byte, set_mc->mc_list, set_mc->cnt * ETH_ALEN);
 
 	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
@@ -1100,7 +1095,7 @@ static void handle_set_mcast_filter(struct work_struct *work)
 		netdev_err(vif->ndev, "Failed to send setup multicast\n");
 
 error:
-	kfree(hif_set_mc->mc_list);
+	kfree(set_mc->mc_list);
 	kfree(wid.val);
 	kfree(msg);
 }
@@ -2150,7 +2145,7 @@ int wilc_set_power_mgmt(struct wilc_vif *vif, bool enabled, u32 timeout)
 	return result;
 }
 
-int wilc_setup_multicast_filter(struct wilc_vif *vif, bool enabled, u32 count,
+int wilc_setup_multicast_filter(struct wilc_vif *vif, u32 enabled, u32 count,
 				u8 *mc_list)
 {
 	int result;
@@ -2160,9 +2155,9 @@ int wilc_setup_multicast_filter(struct wilc_vif *vif, bool enabled, u32 count,
 	if (IS_ERR(msg))
 		return PTR_ERR(msg);
 
-	msg->body.multicast_info.enabled = enabled;
-	msg->body.multicast_info.cnt = count;
-	msg->body.multicast_info.mc_list = mc_list;
+	msg->body.mc_info.enabled = enabled;
+	msg->body.mc_info.cnt = count;
+	msg->body.mc_info.mc_list = mc_list;
 
 	result = wilc_enqueue_work(msg);
 	if (result) {

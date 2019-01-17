@@ -811,12 +811,12 @@ static void wilc_set_multicast_list(struct net_device *dev)
 
 	if (dev->flags & IFF_ALLMULTI ||
 	    dev->mc.count > WILC_MULTICAST_TABLE_SIZE) {
-		wilc_setup_multicast_filter(vif, false, 0, NULL);
+		wilc_setup_multicast_filter(vif, 0, 0, NULL);
 		return;
 	}
 
 	if (dev->mc.count == 0) {
-		wilc_setup_multicast_filter(vif, true, 0, NULL);
+		wilc_setup_multicast_filter(vif, 1, 0, NULL);
 		return;
 	}
 
@@ -833,7 +833,7 @@ static void wilc_set_multicast_list(struct net_device *dev)
 		cur_mc += ETH_ALEN;
 	}
 
-	if (wilc_setup_multicast_filter(vif, true, dev->mc.count, mc_list))
+	if (wilc_setup_multicast_filter(vif, 1, dev->mc.count, mc_list))
 		kfree(mc_list);
 }
 
