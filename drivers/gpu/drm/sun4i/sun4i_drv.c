@@ -16,11 +16,11 @@
 #include <linux/of_reserved_mem.h>
 
 #include <drm/drmP.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_cma_helper.h>
-#include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_of.h>
+#include <drm/drm_probe_helper.h>
 
 #include "sun4i_drv.h"
 #include "sun4i_frontend.h"

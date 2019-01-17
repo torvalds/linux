@@ -26,6 +26,7 @@
  */
 
 #include <drm/drm_vma_manager.h>
+#include <drm/drm_pci.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 #include "i915_gem_clflush.h"
@@ -45,6 +46,7 @@
 #include <linux/swap.h>
 #include <linux/pci.h>
 #include <linux/dma-buf.h>
+#include <linux/mman.h>
 
 static void i915_gem_flush_free_objects(struct drm_i915_private *i915);
 

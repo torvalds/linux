@@ -32,12 +32,13 @@
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_dp_dual_mode_helper.h>
 #include <drm/drm_dp_mst_helper.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/drm_rect.h>
+#include <drm/drm_vblank.h>
 #include <drm/drm_atomic.h>
 #include <media/cec-notifier.h>
 

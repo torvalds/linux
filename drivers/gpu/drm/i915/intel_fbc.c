@@ -38,6 +38,8 @@
  * forcibly disable it to allow proper screen updates.
  */
 
+#include <drm/drm_fourcc.h>
+
 #include "intel_drv.h"
 #include "i915_drv.h"
 

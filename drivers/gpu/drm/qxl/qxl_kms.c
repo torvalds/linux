@@ -26,7 +26,7 @@
 #include "qxl_drv.h"
 #include "qxl_object.h"
 
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_probe_helper.h>
 #include <linux/io-mapping.h>
 
 int qxl_log_level;

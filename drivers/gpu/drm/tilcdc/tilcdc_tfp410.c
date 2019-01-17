@@ -21,6 +21,7 @@
 #include <linux/pinctrl/pinmux.h>
 #include <linux/pinctrl/consumer.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_probe_helper.h>
 
 #include "tilcdc_drv.h"
 #include "tilcdc_tfp410.h"

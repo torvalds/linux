@@ -17,8 +17,8 @@
 #include <drm/drmP.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_fb_helper.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_probe_helper.h>
 
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_fb.h"

@@ -11,9 +11,9 @@
 #include "xen_drm_front_gem.h"
 
 #include <drm/drmP.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_gem.h>
+#include <drm/drm_probe_helper.h>
 
 #include <linux/dma-buf.h>
 #include <linux/scatterlist.h>
