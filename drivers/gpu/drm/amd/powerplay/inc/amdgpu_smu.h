@@ -318,6 +318,7 @@ struct smu_dpm_context {
 	void *golden_dpm_context;
 	struct smu_power_state *dpm_request_power_state;
 	struct smu_power_state *dpm_current_power_state;
+	struct mclock_latency_table *mclk_latency_table;
 };
 
 struct smu_power_context {
@@ -333,6 +334,25 @@ struct smu_feature
 	DECLARE_BITMAP(supported, SMU_FEATURE_MAX);
 	DECLARE_BITMAP(allowed, SMU_FEATURE_MAX);
 	DECLARE_BITMAP(enabled, SMU_FEATURE_MAX);
+};
+
+struct smu_clocks {
+	uint32_t engine_clock;
+	uint32_t memory_clock;
+	uint32_t bus_bandwidth;
+	uint32_t engine_clock_in_sr;
+	uint32_t dcef_clock;
+	uint32_t dcef_clock_in_sr;
+};
+
+#define MAX_REGULAR_DPM_NUM 16
+struct mclk_latency_entries {
+	uint32_t  frequency;
+	uint32_t  latency;
+};
+struct mclock_latency_table {
+	uint32_t  count;
+	struct mclk_latency_entries  entries[MAX_REGULAR_DPM_NUM];
 };
 
 #define WORKLOAD_POLICY_MAX 7
