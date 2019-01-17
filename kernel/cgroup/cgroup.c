@@ -2117,25 +2117,6 @@ static int cgroup_get_tree(struct fs_context *fc)
 	return 0;
 }
 
-static int cgroup1_get_tree(struct fs_context *fc)
-{
-	struct cgroup_namespace *ns = current->nsproxy->cgroup_ns;
-	struct cgroup_fs_context *ctx = cgroup_fc2context(fc);
-	struct dentry *root;
-
-	/* Check if the caller has permission to mount. */
-	if (!ns_capable(ns->user_ns, CAP_SYS_ADMIN))
-		return -EPERM;
-
-	root = cgroup1_mount(&cgroup_fs_type, fc->sb_flags, ctx->data,
-				       CGROUP_SUPER_MAGIC, ns);
-	if (IS_ERR(root))
-		return PTR_ERR(root);
-
-	fc->root = root;
-	return 0;
-}
-
 static const struct fs_context_operations cgroup_fs_context_ops = {
 	.free		= cgroup_fs_context_free,
 	.parse_monolithic = cgroup_parse_monolithic,

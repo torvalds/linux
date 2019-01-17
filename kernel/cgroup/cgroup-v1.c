@@ -1113,20 +1113,24 @@ struct kernfs_syscall_ops cgroup1_kf_syscall_ops = {
 	.show_path		= cgroup_show_path,
 };
 
-struct dentry *cgroup1_mount(struct file_system_type *fs_type, int flags,
-			     void *data, unsigned long magic,
-			     struct cgroup_namespace *ns)
+int cgroup1_get_tree(struct fs_context *fc)
 {
+	struct cgroup_namespace *ns = current->nsproxy->cgroup_ns;
+	struct cgroup_fs_context *ctx = cgroup_fc2context(fc);
 	struct cgroup_sb_opts opts;
 	struct cgroup_root *root;
 	struct cgroup_subsys *ss;
 	struct dentry *dentry;
 	int i, ret;
 
+	/* Check if the caller has permission to mount. */
+	if (!ns_capable(ns->user_ns, CAP_SYS_ADMIN))
+		return -EPERM;
+
 	cgroup_lock_and_drain_offline(&cgrp_dfl_root.cgrp);
 
 	/* First find the desired set of subsystems */
-	ret = parse_cgroupfs_options(data, &opts);
+	ret = parse_cgroupfs_options(ctx->data, &opts);
 	if (ret)
 		goto out_unlock;
 
@@ -1228,19 +1232,23 @@ out_free:
 	kfree(opts.name);
 
 	if (ret)
-		return ERR_PTR(ret);
+		return ret;
 
-	dentry = cgroup_do_mount(&cgroup_fs_type, flags, root,
+	dentry = cgroup_do_mount(&cgroup_fs_type, fc->sb_flags, root,
 				 CGROUP_SUPER_MAGIC, ns);
+	if (IS_ERR(dentry))
+		return PTR_ERR(dentry);
 
-	if (!IS_ERR(dentry) && percpu_ref_is_dying(&root->cgrp.self.refcnt)) {
+	if (percpu_ref_is_dying(&root->cgrp.self.refcnt)) {
 		struct super_block *sb = dentry->d_sb;
 		dput(dentry);
 		deactivate_locked_super(sb);
 		msleep(10);
-		dentry = ERR_PTR(restart_syscall());
+		return restart_syscall();
 	}
-	return dentry;
+
+	fc->root = dentry;
+	return 0;
 }
 
 static int __init cgroup1_wq_init(void)
