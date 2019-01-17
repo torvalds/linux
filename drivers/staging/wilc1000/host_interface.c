@@ -210,7 +210,7 @@ static int handle_scan_done(struct wilc_vif *vif, enum scan_event evt)
 
 	scan_req = &hif_drv->usr_scan_req;
 	if (scan_req->scan_result) {
-		scan_req->scan_result(evt, NULL, scan_req->arg, NULL);
+		scan_req->scan_result(evt, NULL, scan_req->arg);
 		scan_req->scan_result = NULL;
 	}
 
@@ -564,10 +564,10 @@ out:
 	kfree(msg);
 }
 
-static void host_int_fill_join_bss_param(struct join_bss_param *param, u8 *ies,
-					 u16 *out_index, u8 *pcipher_tc,
-					 u8 *auth_total_cnt, u32 tsf_lo,
-					 u8 *rates_no)
+static void host_int_fill_join_bss_param(struct join_bss_param *param,
+					 const u8 *ies, u16 *out_index,
+					 u8 *pcipher_tc, u8 *auth_total_cnt,
+					 u32 tsf_lo, u8 *rates_no)
 {
 	u8 ext_rates_no;
 	u16 offset;
@@ -700,31 +700,44 @@ static void host_int_fill_join_bss_param(struct join_bss_param *param, u8 *ies,
 	*out_index = index;
 }
 
-static void *host_int_parse_join_bss_param(struct network_info *info)
+void *wilc_parse_join_bss_param(struct cfg80211_bss *bss)
 {
 	struct join_bss_param *param;
 	u16 index = 0;
 	u8 rates_no = 0;
 	u8 pcipher_total_cnt = 0;
 	u8 auth_total_cnt = 0;
+	const u8 *tim_elm, *ssid_elm;
+	const struct cfg80211_bss_ies *ies = bss->ies;
 
 	param = kzalloc(sizeof(*param), GFP_KERNEL);
 	if (!param)
 		return NULL;
 
-	param->dtim_period = info->dtim_period;
-	param->beacon_period = info->beacon_period;
-	param->cap_info = info->cap_info;
-	memcpy(param->bssid, info->bssid, 6);
-	memcpy((u8 *)param->ssid, info->ssid, info->ssid_len + 1);
-	param->ssid_len = info->ssid_len;
+	param->beacon_period = bss->beacon_interval;
+	param->cap_info = bss->capability;
+	ether_addr_copy(param->bssid, bss->bssid);
+
+	ssid_elm = cfg80211_find_ie(WLAN_EID_SSID, ies->data, ies->len);
+	if (ssid_elm) {
+		param->ssid_len = ssid_elm[1];
+		if (param->ssid_len <= IEEE80211_MAX_SSID_LEN)
+			memcpy(param->ssid, ssid_elm + 2, param->ssid_len);
+		else
+			param->ssid_len = 0;
+	}
+
+	tim_elm = cfg80211_find_ie(WLAN_EID_TIM, ies->data, ies->len);
+	if (tim_elm && tim_elm[1] >= 2)
+		param->dtim_period = tim_elm[3];
+
 	memset(param->rsn_pcip_policy, 0xFF, 3);
 	memset(param->rsn_auth_policy, 0xFF, 3);
 
-	while (index < info->ies_len)
-		host_int_fill_join_bss_param(param, info->ies, &index,
+	while (index < ies->len)
+		host_int_fill_join_bss_param(param, ies->data, &index,
 					     &pcipher_total_cnt,
-					     &auth_total_cnt, info->tsf_lo,
+					     &auth_total_cnt, ies->tsf,
 					     &rates_no);
 
 	return (void *)param;
@@ -829,57 +842,20 @@ static void handle_rcvd_ntwrk_info(struct work_struct *work)
 	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
 	struct wilc_vif *vif = msg->vif;
 	struct rcvd_net_info *rcvd_info = &msg->body.net_info;
-	u32 i;
-	bool found;
 	struct network_info *info = NULL;
-	void *params;
-	struct host_if_drv *hif_drv = vif->hif_drv;
-	struct user_scan_req *scan_req = &hif_drv->usr_scan_req;
-
-	found = true;
+	struct user_scan_req *scan_req = &vif->hif_drv->usr_scan_req;
 
 	if (!scan_req->scan_result)
 		goto done;
 
 	wilc_parse_network_info(rcvd_info->buffer, &info);
-	if (!info || !scan_req->scan_result) {
-		netdev_err(vif->ndev, "%s: info or scan result NULL\n",
+	if (!info) {
+		netdev_err(vif->ndev, "%s: info is NULL\n",
 			   __func__);
 		goto done;
 	}
 
-	for (i = 0; i < scan_req->ch_cnt; i++) {
-		if (memcmp(scan_req->net_info[i].bssid, info->bssid, 6) == 0) {
-			if (info->rssi <= scan_req->net_info[i].rssi) {
-				goto done;
-			} else {
-				scan_req->net_info[i].rssi = info->rssi;
-				found = false;
-				break;
-			}
-		}
-	}
-
-	if (found) {
-		if (scan_req->ch_cnt < MAX_NUM_SCANNED_NETWORKS) {
-			scan_req->net_info[scan_req->ch_cnt].rssi = info->rssi;
-
-			memcpy(scan_req->net_info[scan_req->ch_cnt].bssid,
-			       info->bssid, 6);
-
-			scan_req->ch_cnt++;
-
-			info->new_network = true;
-			params = host_int_parse_join_bss_param(info);
-
-			scan_req->scan_result(SCAN_EVENT_NETWORK_FOUND, info,
-					       scan_req->arg, params);
-		}
-	} else {
-		info->new_network = false;
-		scan_req->scan_result(SCAN_EVENT_NETWORK_FOUND, info,
-				      scan_req->arg, NULL);
-	}
+	scan_req->scan_result(SCAN_EVENT_NETWORK_FOUND, info, scan_req->arg);
 
 done:
 	kfree(rcvd_info->buffer);
@@ -1150,8 +1126,7 @@ int wilc_disconnect(struct wilc_vif *vif)
 
 	if (scan_req->scan_result) {
 		del_timer(&hif_drv->scan_timer);
-		scan_req->scan_result(SCAN_EVENT_ABORTED, NULL, scan_req->arg,
-				      NULL);
+		scan_req->scan_result(SCAN_EVENT_ABORTED, NULL, scan_req->arg);
 		scan_req->scan_result = NULL;
 	}
 
@@ -2131,8 +2106,7 @@ int wilc_deinit(struct wilc_vif *vif)
 
 	if (hif_drv->usr_scan_req.scan_result) {
 		hif_drv->usr_scan_req.scan_result(SCAN_EVENT_ABORTED, NULL,
-						  hif_drv->usr_scan_req.arg,
-						  NULL);
+						  hif_drv->usr_scan_req.arg);
 		hif_drv->usr_scan_req.scan_result = NULL;
 	}
 

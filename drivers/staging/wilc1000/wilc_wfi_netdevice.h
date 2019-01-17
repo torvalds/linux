@@ -137,7 +137,6 @@ struct wilc_priv {
 	u64 tx_cookie;
 
 	bool cfg_scanning;
-	u32 rcvd_ch_cnt;
 
 	u8 associated_bss[ETH_ALEN];
 	struct sta_info assoc_stainfo;
@@ -155,8 +154,6 @@ struct wilc_priv {
 	/* mutexes */
 	struct mutex scan_req_lock;
 	bool p2p_listen_state;
-	struct timer_list aging_timer;
-	struct network_info scanned_shadow[MAX_NUM_SCANNED_NETWORKS_SHADOW];
 	int scanned_cnt;
 	struct wilc_p2p_var p2p;
 
