@@ -14,7 +14,6 @@
  *      Mac eth header length
  *
  ********************************************/
-#define DRIVER_HANDLER_SIZE		4
 #define MAX_MAC_HDR_LEN			26 /* QOS_MAC_HDR_LEN */
 #define SUB_MSDU_HEADER_LENGTH		14
 #define SNAP_HDR_LEN			8
@@ -251,14 +250,21 @@ struct wilc_hif_func {
 
 #define MAX_CFG_FRAME_SIZE	1468
 
+struct wilc_cfg_cmd_hdr {
+	u8 cmd_type;
+	u8 seq_no;
+	__le16 total_len;
+	__le32 driver_handler;
+};
+
 struct wilc_cfg_frame {
-	u8 wid_header[8];
+	struct wilc_cfg_cmd_hdr hdr;
 	u8 frame[MAX_CFG_FRAME_SIZE];
 };
 
 struct wilc_cfg_rsp {
-	int type;
-	u32 seq_no;
+	u8 type;
+	u8 seq_no;
 };
 
 struct wilc;
