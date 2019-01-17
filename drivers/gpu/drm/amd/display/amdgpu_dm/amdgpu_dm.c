@@ -3030,9 +3030,6 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 
 	update_stream_signal(stream, sink);
 
-	if (dm_state && dm_state->freesync_capable)
-		stream->ignore_msa_timing_param = true;
-
 finish:
 	if (sink && sink->sink_signal == SIGNAL_TYPE_VIRTUAL && aconnector->base.force != DRM_FORCE_ON)
 		dc_sink_release(sink);
@@ -5356,10 +5353,13 @@ static void get_freesync_config_for_crtc(
 	struct mod_freesync_config config = {0};
 	struct amdgpu_dm_connector *aconnector =
 			to_amdgpu_dm_connector(new_con_state->base.connector);
+	struct drm_display_mode *mode = &new_crtc_state->base.mode;
 
-	new_crtc_state->vrr_supported = new_con_state->freesync_capable;
+	new_crtc_state->vrr_supported = new_con_state->freesync_capable &&
+		aconnector->min_vfreq <= drm_mode_vrefresh(mode);
 
-	if (new_con_state->freesync_capable) {
+	if (new_crtc_state->vrr_supported) {
+		new_crtc_state->stream->ignore_msa_timing_param = true;
 		config.state = new_crtc_state->base.vrr_enabled ?
 				VRR_STATE_ACTIVE_VARIABLE :
 				VRR_STATE_INACTIVE;
