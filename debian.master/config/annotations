@@ -11944,9 +11944,9 @@ CONFIG_LOCK_DOWN_MANDATORY                      policy<{'amd64': 'n', 'arm64': '
 CONFIG_ALLOW_LOCKDOWN_LIFT_BY_SYSRQ             policy<{'amd64': 'y', 'i386': 'y'}>
 CONFIG_LOCK_DOWN_IN_EFI_SECURE_BOOT             policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y'}>
 #
-#CONFIG_ALLOW_LOCKDOWN_LIFT_BY_SYSRQ             mark<ENFORCED>
-#CONFIG_LOCK_DOWN_IN_EFI_SECURE_BOOT             mark<ENFORCED>
-#CONFIG_LOCK_DOWN_KERNEL                         mark<ENFORCED> flag<REVIEW>
+CONFIG_ALLOW_LOCKDOWN_LIFT_BY_SYSRQ             mark<ENFORCED>
+CONFIG_LOCK_DOWN_IN_EFI_SECURE_BOOT             mark<ENFORCED>
+CONFIG_LOCK_DOWN_KERNEL                         mark<ENFORCED> flag<REVIEW>
 
 # Menu: Security options >> Default security module
 CONFIG_DEFAULT_SECURITY_SELINUX                 policy<{'amd64': 'n', 'arm64': 'n', 'armhf': 'n', 'i386': 'n', 'ppc64el': 'n', 's390x': 'n'}>
