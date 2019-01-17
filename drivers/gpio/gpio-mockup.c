@@ -234,7 +234,7 @@ static void gpio_mockup_debugfs_setup(struct device *dev,
 				      struct gpio_mockup_chip *chip)
 {
 	struct gpio_mockup_dbgfs_private *priv;
-	struct dentry *evfile, *link;
+	struct dentry *evfile;
 	struct gpio_chip *gc;
 	const char *devname;
 	char *name;
@@ -245,10 +245,6 @@ static void gpio_mockup_debugfs_setup(struct device *dev,
 
 	chip->dbg_dir = debugfs_create_dir(devname, gpio_mockup_dbg_dir);
 	if (IS_ERR_OR_NULL(chip->dbg_dir))
-		goto err;
-
-	link = debugfs_create_symlink(gc->label, gpio_mockup_dbg_dir, devname);
-	if (IS_ERR_OR_NULL(link))
 		goto err;
 
 	for (i = 0; i < gc->ngpio; i++) {
