@@ -1814,14 +1814,8 @@ static int cgroup_show_options(struct seq_file *seq, struct kernfs_root *kf_root
 static int cgroup_reconfigure(struct fs_context *fc)
 {
 	struct cgroup_fs_context *ctx = cgroup_fc2context(fc);
-	unsigned int root_flags;
-	int ret;
 
-	ret = parse_cgroup_root_flags(ctx->data, &root_flags);
-	if (ret)
-		return ret;
-
-	apply_cgroup_root_flags(root_flags);
+	apply_cgroup_root_flags(ctx->flags);
 	return 0;
 }
 
@@ -1909,7 +1903,7 @@ static void init_cgroup_housekeeping(struct cgroup *cgrp)
 	INIT_WORK(&cgrp->release_agent_work, cgroup1_release_agent);
 }
 
-void init_cgroup_root(struct cgroup_root *root, struct cgroup_sb_opts *opts)
+void init_cgroup_root(struct cgroup_root *root, struct cgroup_fs_context *ctx)
 {
 	struct cgroup *cgrp = &root->cgrp;
 
@@ -1919,12 +1913,12 @@ void init_cgroup_root(struct cgroup_root *root, struct cgroup_sb_opts *opts)
 	init_cgroup_housekeeping(cgrp);
 	idr_init(&root->cgroup_idr);
 
-	root->flags = opts->flags;
-	if (opts->release_agent)
-		strscpy(root->release_agent_path, opts->release_agent, PATH_MAX);
-	if (opts->name)
-		strscpy(root->name, opts->name, MAX_CGROUP_ROOT_NAMELEN);
-	if (opts->cpuset_clone_children)
+	root->flags = ctx->flags;
+	if (ctx->release_agent)
+		strscpy(root->release_agent_path, ctx->release_agent, PATH_MAX);
+	if (ctx->name)
+		strscpy(root->name, ctx->name, MAX_CGROUP_ROOT_NAMELEN);
+	if (ctx->cpuset_clone_children)
 		set_bit(CGRP_CPUSET_CLONE_CHILDREN, &root->cgrp.flags);
 }
 
@@ -2075,6 +2069,8 @@ static void cgroup_fs_context_free(struct fs_context *fc)
 {
 	struct cgroup_fs_context *ctx = cgroup_fc2context(fc);
 
+	kfree(ctx->name);
+	kfree(ctx->release_agent);
 	kfree(ctx);
 }
 
@@ -2082,27 +2078,29 @@ static int cgroup_parse_monolithic(struct fs_context *fc, void *data)
 {
 	struct cgroup_fs_context *ctx = cgroup_fc2context(fc);
 
-	ctx->data = data;
-	if (ctx->data)
-		security_sb_eat_lsm_opts(ctx->data, &fc->security);
-	return 0;
+	if (data)
+		security_sb_eat_lsm_opts(data, &fc->security);
+	return parse_cgroup_root_flags(data, &ctx->flags);
+}
+
+static int cgroup1_parse_monolithic(struct fs_context *fc, void *data)
+{
+	struct cgroup_fs_context *ctx = cgroup_fc2context(fc);
+
+	if (data)
+		security_sb_eat_lsm_opts(data, &fc->security);
+	return parse_cgroup1_options(data, ctx);
 }
 
 static int cgroup_get_tree(struct fs_context *fc)
 {
 	struct cgroup_namespace *ns = current->nsproxy->cgroup_ns;
 	struct cgroup_fs_context *ctx = cgroup_fc2context(fc);
-	unsigned int root_flags;
 	struct dentry *root;
-	int ret;
 
 	/* Check if the caller has permission to mount. */
 	if (!ns_capable(ns->user_ns, CAP_SYS_ADMIN))
 		return -EPERM;
-
-	ret = parse_cgroup_root_flags(ctx->data, &root_flags);
-	if (ret)
-		return ret;
 
 	cgrp_dfl_visible = true;
 	cgroup_get_live(&cgrp_dfl_root.cgrp);
@@ -2112,7 +2110,7 @@ static int cgroup_get_tree(struct fs_context *fc)
 	if (IS_ERR(root))
 		return PTR_ERR(root);
 
-	apply_cgroup_root_flags(root_flags);
+	apply_cgroup_root_flags(ctx->flags);
 	fc->root = root;
 	return 0;
 }
@@ -2126,7 +2124,7 @@ static const struct fs_context_operations cgroup_fs_context_ops = {
 
 static const struct fs_context_operations cgroup1_fs_context_ops = {
 	.free		= cgroup_fs_context_free,
-	.parse_monolithic = cgroup_parse_monolithic,
+	.parse_monolithic = cgroup1_parse_monolithic,
 	.get_tree	= cgroup1_get_tree,
 	.reconfigure	= cgroup1_reconfigure,
 };
@@ -5376,11 +5374,11 @@ static void __init cgroup_init_subsys(struct cgroup_subsys *ss, bool early)
  */
 int __init cgroup_init_early(void)
 {
-	static struct cgroup_sb_opts __initdata opts;
+	static struct cgroup_fs_context __initdata ctx;
 	struct cgroup_subsys *ss;
 	int i;
 
-	init_cgroup_root(&cgrp_dfl_root, &opts);
+	init_cgroup_root(&cgrp_dfl_root, &ctx);
 	cgrp_dfl_root.cgrp.self.flags |= CSS_NO_REF;
 
 	RCU_INIT_POINTER(init_task.cgroups, &init_css_set);

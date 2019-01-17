@@ -906,61 +906,47 @@ static int cgroup1_show_options(struct seq_file *seq, struct kernfs_root *kf_roo
 	return 0;
 }
 
-static int parse_cgroupfs_options(char *data, struct cgroup_sb_opts *opts)
+int parse_cgroup1_options(char *data, struct cgroup_fs_context *ctx)
 {
 	char *token, *o = data;
-	bool all_ss = false, one_ss = false;
-	u16 mask = U16_MAX;
 	struct cgroup_subsys *ss;
-	int nr_opts = 0;
 	int i;
 
-#ifdef CONFIG_CPUSETS
-	mask = ~((u16)1 << cpuset_cgrp_id);
-#endif
-
-	memset(opts, 0, sizeof(*opts));
-
 	while ((token = strsep(&o, ",")) != NULL) {
-		nr_opts++;
-
 		if (!*token)
 			return -EINVAL;
 		if (!strcmp(token, "none")) {
 			/* Explicitly have no subsystems */
-			opts->none = true;
+			ctx->none = true;
 			continue;
 		}
 		if (!strcmp(token, "all")) {
-			/* Mutually exclusive option 'all' + subsystem name */
-			if (one_ss)
-				return -EINVAL;
-			all_ss = true;
+			ctx->all_ss = true;
 			continue;
 		}
 		if (!strcmp(token, "noprefix")) {
-			opts->flags |= CGRP_ROOT_NOPREFIX;
+			ctx->flags |= CGRP_ROOT_NOPREFIX;
 			continue;
 		}
 		if (!strcmp(token, "clone_children")) {
-			opts->cpuset_clone_children = true;
+			ctx->cpuset_clone_children = true;
 			continue;
 		}
 		if (!strcmp(token, "cpuset_v2_mode")) {
-			opts->flags |= CGRP_ROOT_CPUSET_V2_MODE;
+			ctx->flags |= CGRP_ROOT_CPUSET_V2_MODE;
 			continue;
 		}
 		if (!strcmp(token, "xattr")) {
-			opts->flags |= CGRP_ROOT_XATTR;
+			ctx->flags |= CGRP_ROOT_XATTR;
 			continue;
 		}
 		if (!strncmp(token, "release_agent=", 14)) {
 			/* Specifying two release agents is forbidden */
-			if (opts->release_agent)
+			if (ctx->release_agent)
 				return -EINVAL;
-			opts->release_agent =
+			ctx->release_agent =
 				kstrndup(token + 14, PATH_MAX - 1, GFP_KERNEL);
-			if (!opts->release_agent)
+			if (!ctx->release_agent)
 				return -ENOMEM;
 			continue;
 		}
@@ -983,12 +969,12 @@ static int parse_cgroupfs_options(char *data, struct cgroup_sb_opts *opts)
 				return -EINVAL;
 			}
 			/* Specifying two names is forbidden */
-			if (opts->name)
+			if (ctx->name)
 				return -EINVAL;
-			opts->name = kstrndup(name,
+			ctx->name = kstrndup(name,
 					      MAX_CGROUP_ROOT_NAMELEN - 1,
 					      GFP_KERNEL);
-			if (!opts->name)
+			if (!ctx->name)
 				return -ENOMEM;
 
 			continue;
@@ -997,38 +983,51 @@ static int parse_cgroupfs_options(char *data, struct cgroup_sb_opts *opts)
 		for_each_subsys(ss, i) {
 			if (strcmp(token, ss->legacy_name))
 				continue;
-			if (!cgroup_ssid_enabled(i))
-				continue;
-			if (cgroup1_ssid_disabled(i))
-				continue;
-
-			/* Mutually exclusive option 'all' + subsystem name */
-			if (all_ss)
-				return -EINVAL;
-			opts->subsys_mask |= (1 << i);
-			one_ss = true;
-
+			ctx->subsys_mask |= (1 << i);
 			break;
 		}
 		if (i == CGROUP_SUBSYS_COUNT)
 			return -ENOENT;
 	}
+	return 0;
+}
+
+static int check_cgroupfs_options(struct cgroup_fs_context *ctx)
+{
+	u16 mask = U16_MAX;
+	u16 enabled = 0;
+	struct cgroup_subsys *ss;
+	int i;
+
+#ifdef CONFIG_CPUSETS
+	mask = ~((u16)1 << cpuset_cgrp_id);
+#endif
+	for_each_subsys(ss, i)
+		if (cgroup_ssid_enabled(i) && !cgroup1_ssid_disabled(i))
+			enabled |= 1 << i;
+
+	ctx->subsys_mask &= enabled;
 
 	/*
-	 * If the 'all' option was specified select all the subsystems,
-	 * otherwise if 'none', 'name=' and a subsystem name options were
-	 * not specified, let's default to 'all'
+	 * In absense of 'none', 'name=' or subsystem name options,
+	 * let's default to 'all'.
 	 */
-	if (all_ss || (!one_ss && !opts->none && !opts->name))
-		for_each_subsys(ss, i)
-			if (cgroup_ssid_enabled(i) && !cgroup1_ssid_disabled(i))
-				opts->subsys_mask |= (1 << i);
+	if (!ctx->subsys_mask && !ctx->none && !ctx->name)
+		ctx->all_ss = true;
+
+	if (ctx->all_ss) {
+		/* Mutually exclusive option 'all' + subsystem name */
+		if (ctx->subsys_mask)
+			return -EINVAL;
+		/* 'all' => select all the subsystems */
+		ctx->subsys_mask = enabled;
+	}
 
 	/*
 	 * We either have to specify by name or by subsystems. (So all
 	 * empty hierarchies must have a name).
 	 */
-	if (!opts->subsys_mask && !opts->name)
+	if (!ctx->subsys_mask && !ctx->name)
 		return -EINVAL;
 
 	/*
@@ -1036,11 +1035,11 @@ static int parse_cgroupfs_options(char *data, struct cgroup_sb_opts *opts)
 	 * with the old cpuset, so we allow noprefix only if mounting just
 	 * the cpuset subsystem.
 	 */
-	if ((opts->flags & CGRP_ROOT_NOPREFIX) && (opts->subsys_mask & mask))
+	if ((ctx->flags & CGRP_ROOT_NOPREFIX) && (ctx->subsys_mask & mask))
 		return -EINVAL;
 
 	/* Can't specify "none" and some subsystems */
-	if (opts->subsys_mask && opts->none)
+	if (ctx->subsys_mask && ctx->none)
 		return -EINVAL;
 
 	return 0;
@@ -1052,28 +1051,27 @@ int cgroup1_reconfigure(struct fs_context *fc)
 	struct kernfs_root *kf_root = kernfs_root_from_sb(fc->root->d_sb);
 	struct cgroup_root *root = cgroup_root_from_kf(kf_root);
 	int ret = 0;
-	struct cgroup_sb_opts opts;
 	u16 added_mask, removed_mask;
 
 	cgroup_lock_and_drain_offline(&cgrp_dfl_root.cgrp);
 
 	/* See what subsystems are wanted */
-	ret = parse_cgroupfs_options(ctx->data, &opts);
+	ret = check_cgroupfs_options(ctx);
 	if (ret)
 		goto out_unlock;
 
-	if (opts.subsys_mask != root->subsys_mask || opts.release_agent)
+	if (ctx->subsys_mask != root->subsys_mask || ctx->release_agent)
 		pr_warn("option changes via remount are deprecated (pid=%d comm=%s)\n",
 			task_tgid_nr(current), current->comm);
 
-	added_mask = opts.subsys_mask & ~root->subsys_mask;
-	removed_mask = root->subsys_mask & ~opts.subsys_mask;
+	added_mask = ctx->subsys_mask & ~root->subsys_mask;
+	removed_mask = root->subsys_mask & ~ctx->subsys_mask;
 
 	/* Don't allow flags or name to change at remount */
-	if ((opts.flags ^ root->flags) ||
-	    (opts.name && strcmp(opts.name, root->name))) {
+	if ((ctx->flags ^ root->flags) ||
+	    (ctx->name && strcmp(ctx->name, root->name))) {
 		pr_err("option or name mismatch, new: 0x%x \"%s\", old: 0x%x \"%s\"\n",
-		       opts.flags, opts.name ?: "", root->flags, root->name);
+		       ctx->flags, ctx->name ?: "", root->flags, root->name);
 		ret = -EINVAL;
 		goto out_unlock;
 	}
@@ -1090,17 +1088,15 @@ int cgroup1_reconfigure(struct fs_context *fc)
 
 	WARN_ON(rebind_subsystems(&cgrp_dfl_root, removed_mask));
 
-	if (opts.release_agent) {
+	if (ctx->release_agent) {
 		spin_lock(&release_agent_path_lock);
-		strcpy(root->release_agent_path, opts.release_agent);
+		strcpy(root->release_agent_path, ctx->release_agent);
 		spin_unlock(&release_agent_path_lock);
 	}
 
 	trace_cgroup_remount(root);
 
  out_unlock:
-	kfree(opts.release_agent);
-	kfree(opts.name);
 	mutex_unlock(&cgroup_mutex);
 	return ret;
 }
@@ -1117,7 +1113,6 @@ int cgroup1_get_tree(struct fs_context *fc)
 {
 	struct cgroup_namespace *ns = current->nsproxy->cgroup_ns;
 	struct cgroup_fs_context *ctx = cgroup_fc2context(fc);
-	struct cgroup_sb_opts opts;
 	struct cgroup_root *root;
 	struct cgroup_subsys *ss;
 	struct dentry *dentry;
@@ -1130,7 +1125,7 @@ int cgroup1_get_tree(struct fs_context *fc)
 	cgroup_lock_and_drain_offline(&cgrp_dfl_root.cgrp);
 
 	/* First find the desired set of subsystems */
-	ret = parse_cgroupfs_options(ctx->data, &opts);
+	ret = check_cgroupfs_options(ctx);
 	if (ret)
 		goto out_unlock;
 
@@ -1142,7 +1137,7 @@ int cgroup1_get_tree(struct fs_context *fc)
 	 * starting.  Testing ref liveliness is good enough.
 	 */
 	for_each_subsys(ss, i) {
-		if (!(opts.subsys_mask & (1 << i)) ||
+		if (!(ctx->subsys_mask & (1 << i)) ||
 		    ss->root == &cgrp_dfl_root)
 			continue;
 
@@ -1166,8 +1161,8 @@ int cgroup1_get_tree(struct fs_context *fc)
 		 * name matches but sybsys_mask doesn't, we should fail.
 		 * Remember whether name matched.
 		 */
-		if (opts.name) {
-			if (strcmp(opts.name, root->name))
+		if (ctx->name) {
+			if (strcmp(ctx->name, root->name))
 				continue;
 			name_match = true;
 		}
@@ -1176,15 +1171,15 @@ int cgroup1_get_tree(struct fs_context *fc)
 		 * If we asked for subsystems (or explicitly for no
 		 * subsystems) then they must match.
 		 */
-		if ((opts.subsys_mask || opts.none) &&
-		    (opts.subsys_mask != root->subsys_mask)) {
+		if ((ctx->subsys_mask || ctx->none) &&
+		    (ctx->subsys_mask != root->subsys_mask)) {
 			if (!name_match)
 				continue;
 			ret = -EBUSY;
 			goto out_unlock;
 		}
 
-		if (root->flags ^ opts.flags)
+		if (root->flags ^ ctx->flags)
 			pr_warn("new mount options do not match the existing superblock, will be ignored\n");
 
 		ret = 0;
@@ -1196,7 +1191,7 @@ int cgroup1_get_tree(struct fs_context *fc)
 	 * specification is allowed for already existing hierarchies but we
 	 * can't create new one without subsys specification.
 	 */
-	if (!opts.subsys_mask && !opts.none) {
+	if (!ctx->subsys_mask && !ctx->none) {
 		ret = -EINVAL;
 		goto out_unlock;
 	}
@@ -1213,9 +1208,9 @@ int cgroup1_get_tree(struct fs_context *fc)
 		goto out_unlock;
 	}
 
-	init_cgroup_root(root, &opts);
+	init_cgroup_root(root, ctx);
 
-	ret = cgroup_setup_root(root, opts.subsys_mask);
+	ret = cgroup_setup_root(root, ctx->subsys_mask);
 	if (ret)
 		cgroup_free_root(root);
 
@@ -1223,14 +1218,10 @@ out_unlock:
 	if (!ret && !percpu_ref_tryget_live(&root->cgrp.self.refcnt)) {
 		mutex_unlock(&cgroup_mutex);
 		msleep(10);
-		ret = restart_syscall();
-		goto out_free;
+		return restart_syscall();
 	}
 	mutex_unlock(&cgroup_mutex);
 out_free:
-	kfree(opts.release_agent);
-	kfree(opts.name);
-
 	if (ret)
 		return ret;
 
