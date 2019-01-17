@@ -17,12 +17,6 @@ config SOC_CAMERA_MT9M111
 	  This is the legacy configuration which shouldn't be used anymore,
 	  while VIDEO_MT9M111 should be used instead.
 
-config SOC_CAMERA_MT9T112
-	tristate "mt9t112 support"
-	depends on SOC_CAMERA && I2C
-	help
-	  This driver supports MT9T112 cameras from Aptina.
-
 config SOC_CAMERA_MT9V022
 	tristate "mt9v022 and mt9v024 support"
 	depends on SOC_CAMERA && I2C
