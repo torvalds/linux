@@ -90,6 +90,7 @@ enum devlink_command {
 	DEVLINK_CMD_REGION_READ,
 
 	DEVLINK_CMD_HEALTH_REPORTER_GET,
+	DEVLINK_CMD_HEALTH_REPORTER_SET,
 
 	/* add new commands above here */
 	__DEVLINK_CMD_MAX,
