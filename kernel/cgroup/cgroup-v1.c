@@ -1135,7 +1135,15 @@ struct kernfs_syscall_ops cgroup1_kf_syscall_ops = {
 	.show_path		= cgroup_show_path,
 };
 
-int cgroup1_get_tree(struct fs_context *fc)
+/*
+ * The guts of cgroup1 mount - find or create cgroup_root to use.
+ * Called with cgroup_mutex held; returns 0 on success, -E... on
+ * error and positive - in case when the candidate is busy dying.
+ * On success it stashes a reference to cgroup_root into given
+ * cgroup_fs_context; that reference is *NOT* counting towards the
+ * cgroup_root refcount.
+ */
+static int cgroup1_root_to_use(struct fs_context *fc)
 {
 	struct cgroup_namespace *ns = current->nsproxy->cgroup_ns;
 	struct cgroup_fs_context *ctx = cgroup_fc2context(fc);
@@ -1143,16 +1151,10 @@ int cgroup1_get_tree(struct fs_context *fc)
 	struct cgroup_subsys *ss;
 	int i, ret;
 
-	/* Check if the caller has permission to mount. */
-	if (!ns_capable(ns->user_ns, CAP_SYS_ADMIN))
-		return -EPERM;
-
-	cgroup_lock_and_drain_offline(&cgrp_dfl_root.cgrp);
-
 	/* First find the desired set of subsystems */
 	ret = check_cgroupfs_options(fc);
 	if (ret)
-		goto out_unlock;
+		return ret;
 
 	/*
 	 * Destruction of cgroup root is asynchronous, so subsystems may
@@ -1166,12 +1168,8 @@ int cgroup1_get_tree(struct fs_context *fc)
 		    ss->root == &cgrp_dfl_root)
 			continue;
 
-		if (!percpu_ref_tryget_live(&ss->root->cgrp.self.refcnt)) {
-			mutex_unlock(&cgroup_mutex);
-			msleep(10);
-			ret = restart_syscall();
-			goto out_free;
-		}
+		if (!percpu_ref_tryget_live(&ss->root->cgrp.self.refcnt))
+			return 1;	/* restart */
 		cgroup_put(&ss->root->cgrp);
 	}
 
@@ -1200,16 +1198,14 @@ int cgroup1_get_tree(struct fs_context *fc)
 		    (ctx->subsys_mask != root->subsys_mask)) {
 			if (!name_match)
 				continue;
-			ret = -EBUSY;
-			goto out_unlock;
+			return -EBUSY;
 		}
 
 		if (root->flags ^ ctx->flags)
 			pr_warn("new mount options do not match the existing superblock, will be ignored\n");
 
 		ctx->root = root;
-		ret = 0;
-		goto out_unlock;
+		return 0;
 	}
 
 	/*
@@ -1217,22 +1213,16 @@ int cgroup1_get_tree(struct fs_context *fc)
 	 * specification is allowed for already existing hierarchies but we
 	 * can't create new one without subsys specification.
 	 */
-	if (!ctx->subsys_mask && !ctx->none) {
-		ret = cg_invalf(fc, "cgroup1: No subsys list or none specified");
-		goto out_unlock;
-	}
+	if (!ctx->subsys_mask && !ctx->none)
+		return cg_invalf(fc, "cgroup1: No subsys list or none specified");
 
 	/* Hierarchies may only be created in the initial cgroup namespace. */
-	if (ns != &init_cgroup_ns) {
-		ret = -EPERM;
-		goto out_unlock;
-	}
+	if (ns != &init_cgroup_ns)
+		return -EPERM;
 
 	root = kzalloc(sizeof(*root), GFP_KERNEL);
-	if (!root) {
-		ret = -ENOMEM;
-		goto out_unlock;
-	}
+	if (!root)
+		return -ENOMEM;
 
 	ctx->root = root;
 	init_cgroup_root(ctx);
@@ -1240,23 +1230,38 @@ int cgroup1_get_tree(struct fs_context *fc)
 	ret = cgroup_setup_root(root, ctx->subsys_mask);
 	if (ret)
 		cgroup_free_root(root);
+	return ret;
+}
 
-out_unlock:
-	if (!ret && !percpu_ref_tryget_live(&root->cgrp.self.refcnt)) {
-		mutex_unlock(&cgroup_mutex);
-		msleep(10);
-		return restart_syscall();
-	}
+int cgroup1_get_tree(struct fs_context *fc)
+{
+	struct cgroup_namespace *ns = current->nsproxy->cgroup_ns;
+	struct cgroup_fs_context *ctx = cgroup_fc2context(fc);
+	int ret;
+
+	/* Check if the caller has permission to mount. */
+	if (!ns_capable(ns->user_ns, CAP_SYS_ADMIN))
+		return -EPERM;
+
+	cgroup_lock_and_drain_offline(&cgrp_dfl_root.cgrp);
+
+	ret = cgroup1_root_to_use(fc);
+	if (!ret && !percpu_ref_tryget_live(&ctx->root->cgrp.self.refcnt))
+		ret = 1;	/* restart */
+
 	mutex_unlock(&cgroup_mutex);
-out_free:
-	if (ret)
-		return ret;
 
-	ret = cgroup_do_mount(fc, CGROUP_SUPER_MAGIC, ns);
-	if (!ret && percpu_ref_is_dying(&root->cgrp.self.refcnt)) {
+	if (!ret)
+		ret = cgroup_do_mount(fc, CGROUP_SUPER_MAGIC, ns);
+
+	if (!ret && percpu_ref_is_dying(&ctx->root->cgrp.self.refcnt)) {
 		struct super_block *sb = fc->root->d_sb;
 		dput(fc->root);
 		deactivate_locked_super(sb);
+		ret = 1;
+	}
+
+	if (unlikely(ret > 0)) {
 		msleep(10);
 		return restart_syscall();
 	}
