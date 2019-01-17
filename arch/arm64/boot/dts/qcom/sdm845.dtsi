@@ -354,7 +354,8 @@
 	soc: soc {
 		#address-cells = <2>;
 		#size-cells = <2>;
-		ranges = <0 0 0 0 0 0xffffffff>;
+		ranges = <0 0 0 0 0x10 0>;
+		dma-ranges = <0 0 0 0 0x10 0>;
 		compatible = "simple-bus";
 
 		gcc: clock-controller@100000 {
