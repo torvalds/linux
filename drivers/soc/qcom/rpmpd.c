@@ -6,14 +6,12 @@
 #include <linux/kernel.h>
 #include <linux/mutex.h>
 #include <linux/pm_domain.h>
-#include <linux/mfd/qcom_rpm.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_opp.h>
 #include <linux/soc/qcom/smd-rpm.h>
 
-#include <dt-bindings/mfd/qcom-rpm.h>
 #include <dt-bindings/power/qcom-rpmpd.h>
 
 #define domain_to_rpmpd(domain) container_of(domain, struct rpmpd, pd)
@@ -131,8 +129,8 @@ static int rpmpd_send_enable(struct rpmpd *pd, bool enable)
 		.value = cpu_to_le32(enable),
 	};
 
-	return qcom_rpm_smd_write(pd->rpm, QCOM_RPM_ACTIVE_STATE, pd->res_type,
-				  pd->res_id, &req, sizeof(req));
+	return qcom_rpm_smd_write(pd->rpm, QCOM_SMD_RPM_ACTIVE_STATE,
+				  pd->res_type, pd->res_id, &req, sizeof(req));
 }
 
 static int rpmpd_send_corner(struct rpmpd *pd, int state, unsigned int corner)
@@ -174,13 +172,13 @@ static int rpmpd_aggregate_corner(struct rpmpd *pd)
 
 	active_corner = max(this_active_corner, peer_active_corner);
 
-	ret = rpmpd_send_corner(pd, QCOM_RPM_ACTIVE_STATE, active_corner);
+	ret = rpmpd_send_corner(pd, QCOM_SMD_RPM_ACTIVE_STATE, active_corner);
 	if (ret)
 		return ret;
 
 	sleep_corner = max(this_sleep_corner, peer_sleep_corner);
 
-	return rpmpd_send_corner(pd, QCOM_RPM_SLEEP_STATE, sleep_corner);
+	return rpmpd_send_corner(pd, QCOM_SMD_RPM_SLEEP_STATE, sleep_corner);
 }
 
 static int rpmpd_power_on(struct generic_pm_domain *domain)
