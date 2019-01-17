@@ -1110,12 +1110,15 @@ int sof_load_pipeline_ipc(struct snd_sof_dev *sdev,
 		return ret;
 	}
 
+	/* update enabled cores mask */
+	sdev->enabled_cores_mask |= 1 << pipeline->core;
+
 	/*
 	 * Now notify DSP that the core that this pipeline is scheduled on
 	 * has been powered up
 	 */
 	memset(&pm_core_config, 0, sizeof(pm_core_config));
-	pm_core_config.enable_mask = 1 << pipeline->core;
+	pm_core_config.enable_mask = sdev->enabled_cores_mask;
 
 	/* configure CORE_ENABLE ipc message */
 	pm_core_config.hdr.size = sizeof(pm_core_config);
@@ -1842,6 +1845,10 @@ static int sof_widget_unload(struct snd_soc_component *scomp,
 		if (ret < 0)
 			dev_err(sdev->dev, "error: powering down pipeline schedule core %d\n",
 				pipeline->core);
+
+		/* update enabled cores mask */
+		sdev->enabled_cores_mask &= ~(1 << pipeline->core);
+
 		break;
 	case snd_soc_dapm_pga:
 
