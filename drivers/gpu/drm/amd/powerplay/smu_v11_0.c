@@ -338,7 +338,6 @@ static int smu_v11_0_fini_smc_tables(struct smu_context *smu)
 	if (ret)
 		return ret;
 	return 0;
-
 }
 
 static int smu_v11_0_init_power(struct smu_context *smu)

@@ -349,6 +349,7 @@ struct smu_context
 	struct smu_dpm_context		smu_dpm;
 	struct smu_power_context	smu_power;
 	struct smu_feature		smu_feature;
+	struct amd_pp_display_configuration  *display_config;
 
 	uint32_t pstate_sclk;
 	uint32_t pstate_mclk;

@@ -349,6 +349,7 @@ static int smu_sw_init(void *handle)
 	smu->workload_setting[4] = PP_SMC_POWER_PROFILE_VR;
 	smu->workload_setting[5] = PP_SMC_POWER_PROFILE_COMPUTE;
 	smu->workload_setting[6] = PP_SMC_POWER_PROFILE_CUSTOM;
+	smu->display_config = &adev->pm.pm_display_cfg;
 
 	ret = smu_init_microcode(smu);
 	if (ret) {
