@@ -21,6 +21,7 @@
 #include "tpm.h"
 
 #define TPM_PPI_REVISION_ID_1	1
+#define TPM_PPI_REVISION_ID_2	2
 #define TPM_PPI_FN_VERSION	1
 #define TPM_PPI_FN_SUBREQ	2
 #define TPM_PPI_FN_GETREQ	3
@@ -35,6 +36,11 @@
 static const guid_t tpm_ppi_guid =
 	GUID_INIT(0x3DDDFAA6, 0x361B, 0x4EB4,
 		  0xA4, 0x24, 0x8D, 0x10, 0x08, 0x9D, 0x16, 0x53);
+
+static bool tpm_ppi_req_has_parameter(u64 req)
+{
+	return req == 23;
+}
 
 static inline union acpi_object *
 tpm_eval_dsm(acpi_handle ppi_handle, int func, acpi_object_type type,
@@ -59,9 +65,14 @@ static ssize_t tpm_show_ppi_request(struct device *dev,
 	ssize_t size = -EINVAL;
 	union acpi_object *obj;
 	struct tpm_chip *chip = to_tpm_chip(dev);
+	u64 rev = TPM_PPI_REVISION_ID_2;
+	u64 req;
+
+	if (strcmp(chip->ppi_version, "1.2") < 0)
+		rev = TPM_PPI_REVISION_ID_1;
 
 	obj = tpm_eval_dsm(chip->acpi_dev_handle, TPM_PPI_FN_GETREQ,
-			   ACPI_TYPE_PACKAGE, NULL, TPM_PPI_REVISION_ID_1);
+			   ACPI_TYPE_PACKAGE, NULL, rev);
 	if (!obj)
 		return -ENXIO;
 
@@ -71,7 +82,23 @@ static ssize_t tpm_show_ppi_request(struct device *dev,
 	 * error. The second is pending TPM operation requested by the OS, 0
 	 * means none and >0 means operation value.
 	 */
-	if (obj->package.count == 2 &&
+	if (obj->package.count == 3 &&
+	    obj->package.elements[0].type == ACPI_TYPE_INTEGER &&
+	    obj->package.elements[1].type == ACPI_TYPE_INTEGER &&
+	    obj->package.elements[2].type == ACPI_TYPE_INTEGER) {
+		if (obj->package.elements[0].integer.value)
+			size = -EFAULT;
+		else {
+			req = obj->package.elements[1].integer.value;
+			if (tpm_ppi_req_has_parameter(req))
+				size = scnprintf(buf, PAGE_SIZE,
+				    "%llu %llu\n", req,
+				    obj->package.elements[2].integer.value);
+			else
+				size = scnprintf(buf, PAGE_SIZE,
+						"%llu\n", req);
+		}
+	} else if (obj->package.count == 2 &&
 	    obj->package.elements[0].type == ACPI_TYPE_INTEGER &&
 	    obj->package.elements[1].type == ACPI_TYPE_INTEGER) {
 		if (obj->package.elements[0].integer.value)
