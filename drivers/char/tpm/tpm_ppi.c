@@ -38,12 +38,11 @@ static const guid_t tpm_ppi_guid =
 
 static inline union acpi_object *
 tpm_eval_dsm(acpi_handle ppi_handle, int func, acpi_object_type type,
-	     union acpi_object *argv4)
+	     union acpi_object *argv4, u64 rev)
 {
 	BUG_ON(!ppi_handle);
 	return acpi_evaluate_dsm_typed(ppi_handle, &tpm_ppi_guid,
-				       TPM_PPI_REVISION_ID,
-				       func, argv4, type);
+				       rev, func, argv4, type);
 }
 
 static ssize_t tpm_show_ppi_version(struct device *dev,
@@ -62,7 +61,7 @@ static ssize_t tpm_show_ppi_request(struct device *dev,
 	struct tpm_chip *chip = to_tpm_chip(dev);
 
 	obj = tpm_eval_dsm(chip->acpi_dev_handle, TPM_PPI_FN_GETREQ,
-			   ACPI_TYPE_PACKAGE, NULL);
+			   ACPI_TYPE_PACKAGE, NULL, TPM_PPI_REVISION_ID);
 	if (!obj)
 		return -ENXIO;
 
@@ -126,7 +125,7 @@ static ssize_t tpm_store_ppi_request(struct device *dev,
 	}
 
 	obj = tpm_eval_dsm(chip->acpi_dev_handle, func, ACPI_TYPE_INTEGER,
-			   &argv4);
+			   &argv4, TPM_PPI_REVISION_ID);
 	if (!obj) {
 		return -ENXIO;
 	} else {
@@ -170,7 +169,7 @@ static ssize_t tpm_show_ppi_transition_action(struct device *dev,
 	if (strcmp(chip->ppi_version, "1.2") < 0)
 		obj = &tmp;
 	obj = tpm_eval_dsm(chip->acpi_dev_handle, TPM_PPI_FN_GETACT,
-			   ACPI_TYPE_INTEGER, obj);
+			   ACPI_TYPE_INTEGER, obj, TPM_PPI_REVISION_ID);
 	if (!obj) {
 		return -ENXIO;
 	} else {
@@ -196,7 +195,7 @@ static ssize_t tpm_show_ppi_response(struct device *dev,
 	struct tpm_chip *chip = to_tpm_chip(dev);
 
 	obj = tpm_eval_dsm(chip->acpi_dev_handle, TPM_PPI_FN_GETRSP,
-			   ACPI_TYPE_PACKAGE, NULL);
+			   ACPI_TYPE_PACKAGE, NULL, TPM_PPI_REVISION_ID);
 	if (!obj)
 		return -ENXIO;
 
@@ -272,7 +271,8 @@ static ssize_t show_ppi_operations(acpi_handle dev_handle, char *buf, u32 start,
 	for (i = start; i <= end; i++) {
 		tmp.integer.value = i;
 		obj = tpm_eval_dsm(dev_handle, TPM_PPI_FN_GETOPR,
-				   ACPI_TYPE_INTEGER, &argv);
+				   ACPI_TYPE_INTEGER, &argv,
+				   TPM_PPI_REVISION_ID);
 		if (!obj) {
 			return -ENOMEM;
 		} else {
