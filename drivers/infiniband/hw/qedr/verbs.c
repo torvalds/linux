@@ -1433,7 +1433,6 @@ struct ib_srq *qedr_create_srq(struct ib_pd *ibpd,
 	struct qedr_pd *pd = get_qedr_pd(ibpd);
 	struct qedr_create_srq_ureq ureq = {};
 	u64 pbl_base_addr, phy_prod_pair_addr;
-	struct ib_ucontext *ib_ctx = NULL;
 	struct qedr_srq_hwq_info *hw_srq;
 	u32 page_cnt, page_size;
 	struct qedr_srq *srq;
@@ -1459,8 +1458,6 @@ struct ib_srq *qedr_create_srq(struct ib_pd *ibpd,
 	hw_srq->max_sges = init_attr->attr.max_sge;
 
 	if (udata && ibpd->uobject && ibpd->uobject->context) {
-		ib_ctx = ibpd->uobject->context;
-
 		if (ib_copy_from_udata(&ureq, udata, sizeof(ureq))) {
 			DP_ERR(dev,
 			       "create srq: problem copying data from user space\n");
@@ -1698,12 +1695,9 @@ static int qedr_create_user_qp(struct qedr_dev *dev,
 	struct qed_rdma_create_qp_in_params in_params;
 	struct qed_rdma_create_qp_out_params out_params;
 	struct qedr_pd *pd = get_qedr_pd(ibpd);
-	struct ib_ucontext *ib_ctx = NULL;
 	struct qedr_create_qp_ureq ureq;
 	int alloc_and_init = rdma_protocol_roce(&dev->ibdev, 1);
 	int rc = -EINVAL;
-
-	ib_ctx = ibpd->uobject->context;
 
 	memset(&ureq, 0, sizeof(ureq));
 	rc = ib_copy_from_udata(&ureq, udata, sizeof(ureq));
