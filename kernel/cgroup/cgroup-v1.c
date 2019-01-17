@@ -1145,7 +1145,6 @@ struct kernfs_syscall_ops cgroup1_kf_syscall_ops = {
  */
 static int cgroup1_root_to_use(struct fs_context *fc)
 {
-	struct cgroup_namespace *ns = current->nsproxy->cgroup_ns;
 	struct cgroup_fs_context *ctx = cgroup_fc2context(fc);
 	struct cgroup_root *root;
 	struct cgroup_subsys *ss;
@@ -1217,7 +1216,7 @@ static int cgroup1_root_to_use(struct fs_context *fc)
 		return cg_invalf(fc, "cgroup1: No subsys list or none specified");
 
 	/* Hierarchies may only be created in the initial cgroup namespace. */
-	if (ns != &init_cgroup_ns)
+	if (ctx->ns != &init_cgroup_ns)
 		return -EPERM;
 
 	root = kzalloc(sizeof(*root), GFP_KERNEL);
@@ -1235,12 +1234,11 @@ static int cgroup1_root_to_use(struct fs_context *fc)
 
 int cgroup1_get_tree(struct fs_context *fc)
 {
-	struct cgroup_namespace *ns = current->nsproxy->cgroup_ns;
 	struct cgroup_fs_context *ctx = cgroup_fc2context(fc);
 	int ret;
 
 	/* Check if the caller has permission to mount. */
-	if (!ns_capable(ns->user_ns, CAP_SYS_ADMIN))
+	if (!ns_capable(ctx->ns->user_ns, CAP_SYS_ADMIN))
 		return -EPERM;
 
 	cgroup_lock_and_drain_offline(&cgrp_dfl_root.cgrp);
@@ -1252,7 +1250,7 @@ int cgroup1_get_tree(struct fs_context *fc)
 	mutex_unlock(&cgroup_mutex);
 
 	if (!ret)
-		ret = cgroup_do_mount(fc, CGROUP_SUPER_MAGIC, ns);
+		ret = cgroup_do_get_tree(fc);
 
 	if (!ret && percpu_ref_is_dying(&ctx->root->cgrp.self.refcnt)) {
 		struct super_block *sb = fc->root->d_sb;
