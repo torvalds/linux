@@ -1449,7 +1449,7 @@ static int igt_ppgtt_pin_update(void *arg)
 	 * huge-gtt-pages.
 	 */
 
-	if (!HAS_FULL_48BIT_PPGTT(dev_priv)) {
+	if (!ppgtt || !i915_vm_is_48bit(&ppgtt->vm)) {
 		pr_info("48b PPGTT not supported, skipping\n");
 		return 0;
 	}
