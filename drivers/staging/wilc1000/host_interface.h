@@ -35,12 +35,6 @@ enum {
 
 #define WILC_MAX_ASSOC_RESP_FRAME_SIZE   256
 
-struct disconnect_info {
-	u16 reason;
-	u8 *ie;
-	size_t ie_len;
-};
-
 struct assoc_resp {
 	__le16 capab_info;
 	__le16 status_code;
@@ -143,8 +137,7 @@ struct wilc_conn_info {
 	u8 *resp_ies;
 	u16 resp_ies_len;
 	u16 status;
-	void (*conn_result)(enum conn_event evt, u8 status,
-			    struct disconnect_info *info, void *priv_data);
+	void (*conn_result)(enum conn_event evt, u8 status, void *priv_data);
 	void *arg;
 	void *param;
 };

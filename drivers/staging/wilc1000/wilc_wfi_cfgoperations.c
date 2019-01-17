@@ -140,7 +140,6 @@ static void cfg_scan_result(enum scan_event scan_event,
 }
 
 static void cfg_connect_result(enum conn_event conn_disconn_evt, u8 mac_status,
-			       struct disconnect_info *disconn_info,
 			       void *priv_data)
 {
 	struct wilc_priv *priv = priv_data;
@@ -177,6 +176,8 @@ static void cfg_connect_result(enum conn_event conn_disconn_evt, u8 mac_status,
 					conn_info->resp_ies_len, connect_status,
 					GFP_KERNEL);
 	} else if (conn_disconn_evt == CONN_DISCONN_EVENT_DISCONN_NOTIF) {
+		u16 reason = 0;
+
 		vif->obtaining_ip = false;
 		priv->p2p.local_random = 0x01;
 		priv->p2p.recv_random = 0x00;
@@ -186,14 +187,13 @@ static void cfg_connect_result(enum conn_event conn_disconn_evt, u8 mac_status,
 
 		if (!wfi_drv->p2p_connect)
 			wlan_channel = INVALID_CHANNEL;
-		if (wfi_drv->ifc_up && dev == wl->vif[1]->ndev)
-			disconn_info->reason = 3;
-		else if (!wfi_drv->ifc_up && dev == wl->vif[1]->ndev)
-			disconn_info->reason = 1;
 
-		cfg80211_disconnected(dev, disconn_info->reason,
-				      disconn_info->ie, disconn_info->ie_len,
-				      false, GFP_KERNEL);
+		if (wfi_drv->ifc_up && dev == wl->vif[1]->ndev)
+			reason = 3;
+		else if (!wfi_drv->ifc_up && dev == wl->vif[1]->ndev)
+			reason = 1;
+
+		cfg80211_disconnected(dev, reason, NULL, 0, false, GFP_KERNEL);
 	}
 }
 

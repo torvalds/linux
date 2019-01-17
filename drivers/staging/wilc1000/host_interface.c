@@ -427,7 +427,7 @@ static void handle_connect_timeout(struct work_struct *work)
 	if (hif_drv->conn_info.conn_result) {
 		hif_drv->conn_info.conn_result(CONN_DISCONN_EVENT_CONN_RESP,
 					       WILC_MAC_STATUS_DISCONNECTED,
-					       NULL, hif_drv->conn_info.arg);
+					       hif_drv->conn_info.arg);
 
 	} else {
 		netdev_err(vif->ndev, "%s: conn_result is NULL\n", __func__);
@@ -689,7 +689,7 @@ static inline void host_int_parse_assoc_resp_info(struct wilc_vif *vif,
 	}
 
 	del_timer(&hif_drv->connect_timer);
-	conn_info->conn_result(CONN_DISCONN_EVENT_CONN_RESP, mac_status, NULL,
+	conn_info->conn_result(CONN_DISCONN_EVENT_CONN_RESP, mac_status,
 			       hif_drv->conn_info.arg);
 
 	if (mac_status == WILC_MAC_STATUS_CONNECTED &&
@@ -717,27 +717,19 @@ static inline void host_int_parse_assoc_resp_info(struct wilc_vif *vif,
 
 static inline void host_int_handle_disconnect(struct wilc_vif *vif)
 {
-	struct disconnect_info disconn_info;
 	struct host_if_drv *hif_drv = vif->hif_drv;
-
-	memset(&disconn_info, 0, sizeof(struct disconnect_info));
 
 	if (hif_drv->usr_scan_req.scan_result) {
 		del_timer(&hif_drv->scan_timer);
 		handle_scan_done(vif, SCAN_EVENT_ABORTED);
 	}
 
-	disconn_info.reason = 0;
-	disconn_info.ie = NULL;
-	disconn_info.ie_len = 0;
-
 	if (hif_drv->conn_info.conn_result) {
 		vif->obtaining_ip = false;
 		wilc_set_power_mgmt(vif, 0, 0);
 
 		hif_drv->conn_info.conn_result(CONN_DISCONN_EVENT_DISCONN_NOTIF,
-					       0, &disconn_info,
-					       hif_drv->conn_info.arg);
+					       0, hif_drv->conn_info.arg);
 	} else {
 		netdev_err(vif->ndev, "%s: conn_result is NULL\n", __func__);
 	}
@@ -786,7 +778,6 @@ int wilc_disconnect(struct wilc_vif *vif)
 {
 	struct wid wid;
 	struct host_if_drv *hif_drv = vif->hif_drv;
-	struct disconnect_info disconn_info;
 	struct user_scan_req *scan_req;
 	struct wilc_conn_info *conn_info;
 	int result;
@@ -807,11 +798,6 @@ int wilc_disconnect(struct wilc_vif *vif)
 		return result;
 	}
 
-	memset(&disconn_info, 0, sizeof(struct disconnect_info));
-
-	disconn_info.reason = 0;
-	disconn_info.ie = NULL;
-	disconn_info.ie_len = 0;
 	scan_req = &hif_drv->usr_scan_req;
 	conn_info = &hif_drv->conn_info;
 
@@ -825,8 +811,8 @@ int wilc_disconnect(struct wilc_vif *vif)
 		if (hif_drv->hif_state == HOST_IF_WAITING_CONN_RESP)
 			del_timer(&hif_drv->connect_timer);
 
-		conn_info->conn_result(CONN_DISCONN_EVENT_DISCONN_NOTIF,
-				       0, &disconn_info, conn_info->arg);
+		conn_info->conn_result(CONN_DISCONN_EVENT_DISCONN_NOTIF, 0,
+				       conn_info->arg);
 	} else {
 		netdev_err(vif->ndev, "%s: conn_result is NULL\n", __func__);
 	}
