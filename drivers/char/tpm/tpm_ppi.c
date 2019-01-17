@@ -20,7 +20,7 @@
 #include <linux/acpi.h>
 #include "tpm.h"
 
-#define TPM_PPI_REVISION_ID	1
+#define TPM_PPI_REVISION_ID_1	1
 #define TPM_PPI_FN_VERSION	1
 #define TPM_PPI_FN_SUBREQ	2
 #define TPM_PPI_FN_GETREQ	3
@@ -61,7 +61,7 @@ static ssize_t tpm_show_ppi_request(struct device *dev,
 	struct tpm_chip *chip = to_tpm_chip(dev);
 
 	obj = tpm_eval_dsm(chip->acpi_dev_handle, TPM_PPI_FN_GETREQ,
-			   ACPI_TYPE_PACKAGE, NULL, TPM_PPI_REVISION_ID);
+			   ACPI_TYPE_PACKAGE, NULL, TPM_PPI_REVISION_ID_1);
 	if (!obj)
 		return -ENXIO;
 
@@ -103,7 +103,7 @@ static ssize_t tpm_store_ppi_request(struct device *dev,
 	 * version 1.1
 	 */
 	if (acpi_check_dsm(chip->acpi_dev_handle, &tpm_ppi_guid,
-			   TPM_PPI_REVISION_ID, 1 << TPM_PPI_FN_SUBREQ2))
+			   TPM_PPI_REVISION_ID_1, 1 << TPM_PPI_FN_SUBREQ2))
 		func = TPM_PPI_FN_SUBREQ2;
 
 	/*
@@ -125,7 +125,7 @@ static ssize_t tpm_store_ppi_request(struct device *dev,
 	}
 
 	obj = tpm_eval_dsm(chip->acpi_dev_handle, func, ACPI_TYPE_INTEGER,
-			   &argv4, TPM_PPI_REVISION_ID);
+			   &argv4, TPM_PPI_REVISION_ID_1);
 	if (!obj) {
 		return -ENXIO;
 	} else {
@@ -169,7 +169,7 @@ static ssize_t tpm_show_ppi_transition_action(struct device *dev,
 	if (strcmp(chip->ppi_version, "1.2") < 0)
 		obj = &tmp;
 	obj = tpm_eval_dsm(chip->acpi_dev_handle, TPM_PPI_FN_GETACT,
-			   ACPI_TYPE_INTEGER, obj, TPM_PPI_REVISION_ID);
+			   ACPI_TYPE_INTEGER, obj, TPM_PPI_REVISION_ID_1);
 	if (!obj) {
 		return -ENXIO;
 	} else {
@@ -195,7 +195,7 @@ static ssize_t tpm_show_ppi_response(struct device *dev,
 	struct tpm_chip *chip = to_tpm_chip(dev);
 
 	obj = tpm_eval_dsm(chip->acpi_dev_handle, TPM_PPI_FN_GETRSP,
-			   ACPI_TYPE_PACKAGE, NULL, TPM_PPI_REVISION_ID);
+			   ACPI_TYPE_PACKAGE, NULL, TPM_PPI_REVISION_ID_1);
 	if (!obj)
 		return -ENXIO;
 
@@ -263,7 +263,7 @@ static ssize_t show_ppi_operations(acpi_handle dev_handle, char *buf, u32 start,
 		"User not required",
 	};
 
-	if (!acpi_check_dsm(dev_handle, &tpm_ppi_guid, TPM_PPI_REVISION_ID,
+	if (!acpi_check_dsm(dev_handle, &tpm_ppi_guid, TPM_PPI_REVISION_ID_1,
 			    1 << TPM_PPI_FN_GETOPR))
 		return -EPERM;
 
@@ -272,7 +272,7 @@ static ssize_t show_ppi_operations(acpi_handle dev_handle, char *buf, u32 start,
 		tmp.integer.value = i;
 		obj = tpm_eval_dsm(dev_handle, TPM_PPI_FN_GETOPR,
 				   ACPI_TYPE_INTEGER, &argv,
-				   TPM_PPI_REVISION_ID);
+				   TPM_PPI_REVISION_ID_1);
 		if (!obj) {
 			return -ENOMEM;
 		} else {
@@ -338,12 +338,13 @@ void tpm_add_ppi(struct tpm_chip *chip)
 		return;
 
 	if (!acpi_check_dsm(chip->acpi_dev_handle, &tpm_ppi_guid,
-			    TPM_PPI_REVISION_ID, 1 << TPM_PPI_FN_VERSION))
+			    TPM_PPI_REVISION_ID_1, 1 << TPM_PPI_FN_VERSION))
 		return;
 
 	/* Cache PPI version string. */
 	obj = acpi_evaluate_dsm_typed(chip->acpi_dev_handle, &tpm_ppi_guid,
-				      TPM_PPI_REVISION_ID, TPM_PPI_FN_VERSION,
+				      TPM_PPI_REVISION_ID_1,
+				      TPM_PPI_FN_VERSION,
 				      NULL, ACPI_TYPE_STRING);
 	if (obj) {
 		strlcpy(chip->ppi_version, obj->string.pointer,
