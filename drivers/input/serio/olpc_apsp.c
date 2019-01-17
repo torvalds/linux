@@ -195,6 +195,8 @@ static int olpc_apsp_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
+	priv->dev = &pdev->dev;
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	priv->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(priv->base)) {
@@ -248,7 +250,6 @@ static int olpc_apsp_probe(struct platform_device *pdev)
 		goto err_irq;
 	}
 
-	priv->dev = &pdev->dev;
 	device_init_wakeup(priv->dev, 1);
 	platform_set_drvdata(pdev, priv);
 
