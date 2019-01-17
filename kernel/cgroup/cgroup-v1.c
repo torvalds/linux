@@ -1141,7 +1141,6 @@ int cgroup1_get_tree(struct fs_context *fc)
 	struct cgroup_fs_context *ctx = cgroup_fc2context(fc);
 	struct cgroup_root *root;
 	struct cgroup_subsys *ss;
-	struct dentry *dentry;
 	int i, ret;
 
 	/* Check if the caller has permission to mount. */
@@ -1253,21 +1252,15 @@ out_free:
 	if (ret)
 		return ret;
 
-	dentry = cgroup_do_mount(&cgroup_fs_type, fc->sb_flags, root,
-				 CGROUP_SUPER_MAGIC, ns);
-	if (IS_ERR(dentry))
-		return PTR_ERR(dentry);
-
-	if (percpu_ref_is_dying(&root->cgrp.self.refcnt)) {
-		struct super_block *sb = dentry->d_sb;
-		dput(dentry);
+	ret = cgroup_do_mount(fc, CGROUP_SUPER_MAGIC, ns);
+	if (!ret && percpu_ref_is_dying(&root->cgrp.self.refcnt)) {
+		struct super_block *sb = fc->root->d_sb;
+		dput(fc->root);
 		deactivate_locked_super(sb);
 		msleep(10);
 		return restart_syscall();
 	}
-
-	fc->root = dentry;
-	return 0;
+	return ret;
 }
 
 static int __init cgroup1_wq_init(void)

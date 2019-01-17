@@ -2036,43 +2036,48 @@ out:
 	return ret;
 }
 
-struct dentry *cgroup_do_mount(struct file_system_type *fs_type, int flags,
-			       struct cgroup_root *root, unsigned long magic,
-			       struct cgroup_namespace *ns)
+int cgroup_do_mount(struct fs_context *fc, unsigned long magic,
+		    struct cgroup_namespace *ns)
 {
-	struct dentry *dentry;
+	struct cgroup_fs_context *ctx = cgroup_fc2context(fc);
 	bool new_sb = false;
+	int ret = 0;
 
-	dentry = kernfs_mount(fs_type, flags, root->kf_root, magic, &new_sb);
+	fc->root = kernfs_mount(fc->fs_type, fc->sb_flags, ctx->root->kf_root,
+				magic, &new_sb);
+	if (IS_ERR(fc->root))
+		ret = PTR_ERR(fc->root);
 
 	/*
 	 * In non-init cgroup namespace, instead of root cgroup's dentry,
 	 * we return the dentry corresponding to the cgroupns->root_cgrp.
 	 */
-	if (!IS_ERR(dentry) && ns != &init_cgroup_ns) {
+	if (!ret && ns != &init_cgroup_ns) {
 		struct dentry *nsdentry;
-		struct super_block *sb = dentry->d_sb;
+		struct super_block *sb = fc->root->d_sb;
 		struct cgroup *cgrp;
 
 		mutex_lock(&cgroup_mutex);
 		spin_lock_irq(&css_set_lock);
 
-		cgrp = cset_cgroup_from_root(ns->root_cset, root);
+		cgrp = cset_cgroup_from_root(ns->root_cset, ctx->root);
 
 		spin_unlock_irq(&css_set_lock);
 		mutex_unlock(&cgroup_mutex);
 
 		nsdentry = kernfs_node_dentry(cgrp->kn, sb);
-		dput(dentry);
-		if (IS_ERR(nsdentry))
+		dput(fc->root);
+		fc->root = nsdentry;
+		if (IS_ERR(nsdentry)) {
+			ret = PTR_ERR(nsdentry);
 			deactivate_locked_super(sb);
-		dentry = nsdentry;
+		}
 	}
 
 	if (!new_sb)
-		cgroup_put(&root->cgrp);
+		cgroup_put(&ctx->root->cgrp);
 
-	return dentry;
+	return ret;
 }
 
 /*
@@ -2091,7 +2096,7 @@ static int cgroup_get_tree(struct fs_context *fc)
 {
 	struct cgroup_namespace *ns = current->nsproxy->cgroup_ns;
 	struct cgroup_fs_context *ctx = cgroup_fc2context(fc);
-	struct dentry *root;
+	int ret;
 
 	/* Check if the caller has permission to mount. */
 	if (!ns_capable(ns->user_ns, CAP_SYS_ADMIN))
@@ -2101,14 +2106,10 @@ static int cgroup_get_tree(struct fs_context *fc)
 	cgroup_get_live(&cgrp_dfl_root.cgrp);
 	ctx->root = &cgrp_dfl_root;
 
-	root = cgroup_do_mount(&cgroup2_fs_type, fc->sb_flags, &cgrp_dfl_root,
-					 CGROUP2_SUPER_MAGIC, ns);
-	if (IS_ERR(root))
-		return PTR_ERR(root);
-
-	apply_cgroup_root_flags(ctx->flags);
-	fc->root = root;
-	return 0;
+	ret = cgroup_do_mount(fc, CGROUP2_SUPER_MAGIC, ns);
+	if (!ret)
+		apply_cgroup_root_flags(ctx->flags);
+	return ret;
 }
 
 static const struct fs_context_operations cgroup_fs_context_ops = {

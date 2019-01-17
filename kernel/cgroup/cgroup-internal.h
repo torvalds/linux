@@ -212,8 +212,7 @@ void cgroup_free_root(struct cgroup_root *root);
 void init_cgroup_root(struct cgroup_fs_context *ctx);
 int cgroup_setup_root(struct cgroup_root *root, u16 ss_mask);
 int rebind_subsystems(struct cgroup_root *dst_root, u16 ss_mask);
-struct dentry *cgroup_do_mount(struct file_system_type *fs_type, int flags,
-			       struct cgroup_root *root, unsigned long magic,
+int cgroup_do_mount(struct fs_context *fc, unsigned long magic,
 			       struct cgroup_namespace *ns);
 
 int cgroup_migrate_vet_dst(struct cgroup *dst_cgrp);
