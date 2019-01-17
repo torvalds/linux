@@ -599,12 +599,7 @@ int ib_register_device(struct ib_device *device, const char *name)
 
 	device->index = __dev_new_index();
 
-	ret = ib_device_register_rdmacg(device);
-	if (ret) {
-		dev_warn(&device->dev,
-			 "Couldn't register device with rdma cgroup\n");
-		goto dev_cleanup;
-	}
+	ib_device_register_rdmacg(device);
 
 	ret = ib_device_register_sysfs(device);
 	if (ret) {
@@ -627,7 +622,6 @@ int ib_register_device(struct ib_device *device, const char *name)
 
 cg_cleanup:
 	ib_device_unregister_rdmacg(device);
-dev_cleanup:
 	cleanup_device(device);
 out:
 	mutex_unlock(&device_mutex);
