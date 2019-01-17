@@ -46,13 +46,25 @@ static bool check_procfs(void)
 	return true;
 }
 
+static void uppercase(char *str, size_t len)
+{
+	size_t i;
+
+	for (i = 0; i < len && str[i] != '\0'; i++)
+		str[i] = toupper(str[i]);
+}
+
 /* Printing utility functions */
 
 static void
-print_bool_feature(const char *feat_name, const char *plain_name, bool res)
+print_bool_feature(const char *feat_name, const char *plain_name,
+		   const char *define_name, bool res, const char *define_prefix)
 {
 	if (json_output)
 		jsonw_bool_field(json_wtr, feat_name, res);
+	else if (define_prefix)
+		printf("#define %s%sHAVE_%s\n", define_prefix,
+		       res ? "" : "NO_", define_name);
 	else
 		printf("%s is %savailable\n", plain_name, res ? "" : "NOT ");
 }
@@ -61,6 +73,8 @@ static void print_kernel_option(const char *name, const char *value)
 {
 	char *endptr;
 	int res;
+
+	/* No support for C-style ouptut */
 
 	if (json_output) {
 		if (!value) {
@@ -82,25 +96,31 @@ static void print_kernel_option(const char *name, const char *value)
 }
 
 static void
-print_start_section(const char *json_title, const char *plain_title)
+print_start_section(const char *json_title, const char *plain_title,
+		    const char *define_comment, const char *define_prefix)
 {
 	if (json_output) {
 		jsonw_name(json_wtr, json_title);
 		jsonw_start_object(json_wtr);
+	} else if (define_prefix) {
+		printf("%s\n", define_comment);
 	} else {
 		printf("%s\n", plain_title);
 	}
 }
 
 static void
-print_end_then_start_section(const char *json_title, const char *plain_title)
+print_end_then_start_section(const char *json_title, const char *plain_title,
+			     const char *define_comment,
+			     const char *define_prefix)
 {
 	if (json_output)
 		jsonw_end_object(json_wtr);
 	else
 		printf("\n");
 
-	print_start_section(json_title, plain_title);
+	print_start_section(json_title, plain_title, define_comment,
+			    define_prefix);
 }
 
 /* Probing functions */
@@ -134,6 +154,8 @@ static void probe_unprivileged_disabled(void)
 {
 	int res;
 
+	/* No support for C-style ouptut */
+
 	res = read_procfs("/proc/sys/kernel/unprivileged_bpf_disabled");
 	if (json_output) {
 		jsonw_int_field(json_wtr, "unprivileged_bpf_disabled", res);
@@ -157,6 +179,8 @@ static void probe_unprivileged_disabled(void)
 static void probe_jit_enable(void)
 {
 	int res;
+
+	/* No support for C-style ouptut */
 
 	res = read_procfs("/proc/sys/net/core/bpf_jit_enable");
 	if (json_output) {
@@ -186,6 +210,8 @@ static void probe_jit_harden(void)
 {
 	int res;
 
+	/* No support for C-style ouptut */
+
 	res = read_procfs("/proc/sys/net/core/bpf_jit_harden");
 	if (json_output) {
 		jsonw_int_field(json_wtr, "bpf_jit_harden", res);
@@ -214,6 +240,8 @@ static void probe_jit_kallsyms(void)
 {
 	int res;
 
+	/* No support for C-style ouptut */
+
 	res = read_procfs("/proc/sys/net/core/bpf_jit_kallsyms");
 	if (json_output) {
 		jsonw_int_field(json_wtr, "bpf_jit_kallsyms", res);
@@ -237,6 +265,8 @@ static void probe_jit_kallsyms(void)
 static void probe_jit_limit(void)
 {
 	int res;
+
+	/* No support for C-style ouptut */
 
 	res = read_procfs("/proc/sys/net/core/bpf_jit_limit");
 	if (json_output) {
@@ -409,7 +439,7 @@ no_config:
 		print_kernel_option(options[i], NULL);
 }
 
-static bool probe_bpf_syscall(void)
+static bool probe_bpf_syscall(const char *define_prefix)
 {
 	bool res;
 
@@ -418,15 +448,18 @@ static bool probe_bpf_syscall(void)
 
 	print_bool_feature("have_bpf_syscall",
 			   "bpf() syscall",
-			   res);
+			   "BPF_SYSCALL",
+			   res, define_prefix);
 
 	return res;
 }
 
-static void probe_prog_type(enum bpf_prog_type prog_type, bool *supported_types)
+static void
+probe_prog_type(enum bpf_prog_type prog_type, bool *supported_types,
+		const char *define_prefix)
 {
+	char feat_name[128], plain_desc[128], define_name[128];
 	const char *plain_comment = "eBPF program_type ";
-	char feat_name[128], plain_desc[128];
 	size_t maxlen;
 	bool res;
 
@@ -441,14 +474,18 @@ static void probe_prog_type(enum bpf_prog_type prog_type, bool *supported_types)
 	}
 
 	sprintf(feat_name, "have_%s_prog_type", prog_type_name[prog_type]);
+	sprintf(define_name, "%s_prog_type", prog_type_name[prog_type]);
+	uppercase(define_name, sizeof(define_name));
 	sprintf(plain_desc, "%s%s", plain_comment, prog_type_name[prog_type]);
-	print_bool_feature(feat_name, plain_desc, res);
+	print_bool_feature(feat_name, plain_desc, define_name, res,
+			   define_prefix);
 }
 
-static void probe_map_type(enum bpf_map_type map_type)
+static void
+probe_map_type(enum bpf_map_type map_type, const char *define_prefix)
 {
+	char feat_name[128], plain_desc[128], define_name[128];
 	const char *plain_comment = "eBPF map_type ";
-	char feat_name[128], plain_desc[128];
 	size_t maxlen;
 	bool res;
 
@@ -461,12 +498,16 @@ static void probe_map_type(enum bpf_map_type map_type)
 	}
 
 	sprintf(feat_name, "have_%s_map_type", map_type_name[map_type]);
+	sprintf(define_name, "%s_map_type", map_type_name[map_type]);
+	uppercase(define_name, sizeof(define_name));
 	sprintf(plain_desc, "%s%s", plain_comment, map_type_name[map_type]);
-	print_bool_feature(feat_name, plain_desc, res);
+	print_bool_feature(feat_name, plain_desc, define_name, res,
+			   define_prefix);
 }
 
 static void
-probe_helpers_for_progtype(enum bpf_prog_type prog_type, bool supported_type)
+probe_helpers_for_progtype(enum bpf_prog_type prog_type, bool supported_type,
+			   const char *define_prefix)
 {
 	const char *ptype_name = prog_type_name[prog_type];
 	char feat_name[128];
@@ -477,7 +518,7 @@ probe_helpers_for_progtype(enum bpf_prog_type prog_type, bool supported_type)
 		sprintf(feat_name, "%s_available_helpers", ptype_name);
 		jsonw_name(json_wtr, feat_name);
 		jsonw_start_array(json_wtr);
-	} else {
+	} else if (!define_prefix) {
 		printf("eBPF helpers supported for program type %s:",
 		       ptype_name);
 	}
@@ -491,6 +532,10 @@ probe_helpers_for_progtype(enum bpf_prog_type prog_type, bool supported_type)
 		if (json_output) {
 			if (res)
 				jsonw_string(json_wtr, helper_name[id]);
+		} else if (define_prefix) {
+			printf("#define %sBPF__PROG_TYPE_%s__HELPER_%s %s\n",
+			       define_prefix, ptype_name, helper_name[id],
+			       res ? "1" : "0");
 		} else {
 			if (res)
 				printf("\n\t- %s", helper_name[id]);
@@ -499,13 +544,14 @@ probe_helpers_for_progtype(enum bpf_prog_type prog_type, bool supported_type)
 
 	if (json_output)
 		jsonw_end_array(json_wtr);
-	else
+	else if (!define_prefix)
 		printf("\n");
 }
 
 static int do_probe(int argc, char **argv)
 {
 	enum probe_component target = COMPONENT_UNSPEC;
+	const char *define_prefix = NULL;
 	bool supported_types[128] = {};
 	unsigned int i;
 
@@ -527,21 +573,45 @@ static int do_probe(int argc, char **argv)
 			}
 			target = COMPONENT_KERNEL;
 			NEXT_ARG();
+		} else if (is_prefix(*argv, "macros") && !define_prefix) {
+			define_prefix = "";
+			NEXT_ARG();
+		} else if (is_prefix(*argv, "prefix")) {
+			if (!define_prefix) {
+				p_err("'prefix' argument can only be use after 'macros'");
+				return -1;
+			}
+			if (strcmp(define_prefix, "")) {
+				p_err("'prefix' already defined");
+				return -1;
+			}
+			NEXT_ARG();
+
+			if (!REQ_ARGS(1))
+				return -1;
+			define_prefix = GET_ARG();
 		} else {
-			p_err("expected no more arguments, 'kernel', got: '%s'?",
+			p_err("expected no more arguments, 'kernel', 'macros' or 'prefix', got: '%s'?",
 			      *argv);
 			return -1;
 		}
 	}
 
-	if (json_output)
+	if (json_output) {
+		define_prefix = NULL;
 		jsonw_start_object(json_wtr);
+	}
 
 	switch (target) {
 	case COMPONENT_KERNEL:
 	case COMPONENT_UNSPEC:
+		if (define_prefix)
+			break;
+
 		print_start_section("system_config",
-				    "Scanning system configuration...");
+				    "Scanning system configuration...",
+				    NULL, /* define_comment never used here */
+				    NULL); /* define_prefix always NULL here */
 		if (check_procfs()) {
 			probe_unprivileged_disabled();
 			probe_jit_enable();
@@ -560,29 +630,53 @@ static int do_probe(int argc, char **argv)
 	}
 
 	print_start_section("syscall_config",
-			    "Scanning system call availability...");
+			    "Scanning system call availability...",
+			    "/*** System call availability ***/",
+			    define_prefix);
 
-	if (!probe_bpf_syscall())
+	if (!probe_bpf_syscall(define_prefix))
 		/* bpf() syscall unavailable, don't probe other BPF features */
 		goto exit_close_json;
 
 	print_end_then_start_section("program_types",
-				     "Scanning eBPF program types...");
+				     "Scanning eBPF program types...",
+				     "/*** eBPF program types ***/",
+				     define_prefix);
 
 	for (i = BPF_PROG_TYPE_UNSPEC + 1; i < ARRAY_SIZE(prog_type_name); i++)
-		probe_prog_type(i, supported_types);
+		probe_prog_type(i, supported_types, define_prefix);
 
 	print_end_then_start_section("map_types",
-				     "Scanning eBPF map types...");
+				     "Scanning eBPF map types...",
+				     "/*** eBPF map types ***/",
+				     define_prefix);
 
 	for (i = BPF_MAP_TYPE_UNSPEC + 1; i < map_type_name_size; i++)
-		probe_map_type(i);
+		probe_map_type(i, define_prefix);
 
 	print_end_then_start_section("helpers",
-				     "Scanning eBPF helper functions...");
+				     "Scanning eBPF helper functions...",
+				     "/*** eBPF helper functions ***/",
+				     define_prefix);
 
+	if (define_prefix)
+		printf("/*\n"
+		       " * Use %sHAVE_PROG_TYPE_HELPER(prog_type_name, helper_name)\n"
+		       " * to determine if <helper_name> is available for <prog_type_name>,\n"
+		       " * e.g.\n"
+		       " *	#if %sHAVE_PROG_TYPE_HELPER(xdp, bpf_redirect)\n"
+		       " *		// do stuff with this helper\n"
+		       " *	#elif\n"
+		       " *		// use a workaround\n"
+		       " *	#endif\n"
+		       " */\n"
+		       "#define %sHAVE_PROG_TYPE_HELPER(prog_type, helper)	\\\n"
+		       "	%sBPF__PROG_TYPE_ ## prog_type ## __HELPER_ ## helper\n",
+		       define_prefix, define_prefix, define_prefix,
+		       define_prefix);
 	for (i = BPF_PROG_TYPE_UNSPEC + 1; i < ARRAY_SIZE(prog_type_name); i++)
-		probe_helpers_for_progtype(i, supported_types[i]);
+		probe_helpers_for_progtype(i, supported_types[i],
+					   define_prefix);
 
 exit_close_json:
 	if (json_output) {
@@ -603,7 +697,7 @@ static int do_help(int argc, char **argv)
 	}
 
 	fprintf(stderr,
-		"Usage: %s %s probe [kernel]\n"
+		"Usage: %s %s probe [kernel] [macros [prefix PREFIX]]\n"
 		"       %s %s help\n"
 		"",
 		bin_name, argv[-2], bin_name, argv[-2]);

@@ -19,14 +19,23 @@ SYNOPSIS
 MAP COMMANDS
 =============
 
-|	**bpftool** **feature probe** [**kernel**]
+|	**bpftool** **feature probe** [**kernel**] [**macros** [**prefix** *PREFIX*]]
 |	**bpftool** **feature help**
 
 DESCRIPTION
 ===========
-	**bpftool feature probe** [**kernel**]
+	**bpftool feature probe** [**kernel**] [**macros** [**prefix** *PREFIX*]]
 		  Probe the running kernel and dump a number of eBPF-related
 		  parameters, such as availability of the **bpf()** system call.
+
+		  If the **macros** keyword (but not the **-j** option) is
+		  passed, a subset of the output is dumped as a list of
+		  **#define** macros that are ready to be included in a C
+		  header file, for example. If, additionally, **prefix** is
+		  used to define a *PREFIX*, the provided string will be used
+		  as a prefix to the names of the macros: this can be used to
+		  avoid conflicts on macro names when including the output of
+		  this command as a header file.
 
 		  Keyword **kernel** can be omitted.
 
