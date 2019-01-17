@@ -177,7 +177,7 @@ static inline bool xa_is_internal(const void *entry)
 static inline bool xa_is_err(const void *entry)
 {
 	return unlikely(xa_is_internal(entry) &&
-			(unsigned long)entry >= -((MAX_ERRNO << 2) + 2));
+			entry >= xa_mk_internal(-MAX_ERRNO));
 }
 
 /**
