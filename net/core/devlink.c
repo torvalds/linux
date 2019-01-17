@@ -4500,6 +4500,50 @@ static int devlink_nl_cmd_health_reporter_recover_doit(struct sk_buff *skb,
 	return devlink_health_reporter_recover(reporter, NULL);
 }
 
+static int devlink_nl_cmd_health_reporter_diagnose_doit(struct sk_buff *skb,
+							struct genl_info *info)
+{
+	struct devlink *devlink = info->user_ptr[0];
+	struct devlink_health_reporter *reporter;
+	u64 num_of_buffers;
+	int err;
+
+	reporter = devlink_health_reporter_get_from_info(devlink, info);
+	if (!reporter)
+		return -EINVAL;
+
+	if (!reporter->ops->diagnose)
+		return -EOPNOTSUPP;
+
+	num_of_buffers =
+		DEVLINK_HEALTH_SIZE_TO_BUFFERS(reporter->ops->diagnose_size);
+
+	mutex_lock(&reporter->diagnose_lock);
+	devlink_health_buffers_reset(reporter->diagnose_buffers_array,
+				     num_of_buffers);
+
+	err = reporter->ops->diagnose(reporter,
+				      reporter->diagnose_buffers_array,
+				      DEVLINK_HEALTH_BUFFER_SIZE,
+				      num_of_buffers);
+	if (err)
+		goto out;
+
+	err = devlink_health_buffer_snd(info,
+					DEVLINK_CMD_HEALTH_REPORTER_DIAGNOSE,
+					0, reporter->diagnose_buffers_array,
+					num_of_buffers);
+	if (err)
+		goto out;
+
+	mutex_unlock(&reporter->diagnose_lock);
+	return 0;
+
+out:
+	mutex_unlock(&reporter->diagnose_lock);
+	return err;
+}
+
 static const struct nla_policy devlink_nl_policy[DEVLINK_ATTR_MAX + 1] = {
 	[DEVLINK_ATTR_BUS_NAME] = { .type = NLA_NUL_STRING },
 	[DEVLINK_ATTR_DEV_NAME] = { .type = NLA_NUL_STRING },
@@ -4766,6 +4810,13 @@ static const struct genl_ops devlink_nl_ops[] = {
 	{
 		.cmd = DEVLINK_CMD_HEALTH_REPORTER_RECOVER,
 		.doit = devlink_nl_cmd_health_reporter_recover_doit,
+		.policy = devlink_nl_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = DEVLINK_NL_FLAG_NEED_DEVLINK,
+	},
+	{
+		.cmd = DEVLINK_CMD_HEALTH_REPORTER_DIAGNOSE,
+		.doit = devlink_nl_cmd_health_reporter_diagnose_doit,
 		.policy = devlink_nl_policy,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = DEVLINK_NL_FLAG_NEED_DEVLINK,
