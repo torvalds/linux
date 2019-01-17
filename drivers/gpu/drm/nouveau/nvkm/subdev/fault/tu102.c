@@ -28,7 +28,7 @@
 #include <nvif/class.h>
 
 static void
-tu104_fault_buffer_intr(struct nvkm_fault_buffer *buffer, bool enable)
+tu102_fault_buffer_intr(struct nvkm_fault_buffer *buffer, bool enable)
 {
 	/*XXX: Earlier versions of RM touched the old regs on Turing,
 	 *     which don't appear to actually work anymore, but newer
@@ -37,7 +37,7 @@ tu104_fault_buffer_intr(struct nvkm_fault_buffer *buffer, bool enable)
 }
 
 static void
-tu104_fault_buffer_fini(struct nvkm_fault_buffer *buffer)
+tu102_fault_buffer_fini(struct nvkm_fault_buffer *buffer)
 {
 	struct nvkm_device *device = buffer->fault->subdev.device;
 	const u32 foff = buffer->id * 0x20;
@@ -45,7 +45,7 @@ tu104_fault_buffer_fini(struct nvkm_fault_buffer *buffer)
 }
 
 static void
-tu104_fault_buffer_init(struct nvkm_fault_buffer *buffer)
+tu102_fault_buffer_init(struct nvkm_fault_buffer *buffer)
 {
 	struct nvkm_device *device = buffer->fault->subdev.device;
 	const u32 foff = buffer->id * 0x20;
@@ -57,7 +57,7 @@ tu104_fault_buffer_init(struct nvkm_fault_buffer *buffer)
 }
 
 static void
-tu104_fault_buffer_info(struct nvkm_fault_buffer *buffer)
+tu102_fault_buffer_info(struct nvkm_fault_buffer *buffer)
 {
 	struct nvkm_device *device = buffer->fault->subdev.device;
 	const u32 foff = buffer->id * 0x20;
@@ -70,7 +70,7 @@ tu104_fault_buffer_info(struct nvkm_fault_buffer *buffer)
 }
 
 static void
-tu104_fault_intr_fault(struct nvkm_fault *fault)
+tu102_fault_intr_fault(struct nvkm_fault *fault)
 {
 	struct nvkm_subdev *subdev = &fault->subdev;
 	struct nvkm_device *device = subdev->device;
@@ -96,14 +96,14 @@ tu104_fault_intr_fault(struct nvkm_fault *fault)
 }
 
 static void
-tu104_fault_intr(struct nvkm_fault *fault)
+tu102_fault_intr(struct nvkm_fault *fault)
 {
 	struct nvkm_subdev *subdev = &fault->subdev;
 	struct nvkm_device *device = subdev->device;
 	u32 stat = nvkm_rd32(device, 0xb83094);
 
 	if (stat & 0x80000000) {
-		tu104_fault_intr_fault(fault);
+		tu102_fault_intr_fault(fault);
 		nvkm_wr32(device, 0xb83094, 0x80000000);
 		stat &= ~0x80000000;
 	}
@@ -129,7 +129,7 @@ tu104_fault_intr(struct nvkm_fault *fault)
 }
 
 static void
-tu104_fault_fini(struct nvkm_fault *fault)
+tu102_fault_fini(struct nvkm_fault *fault)
 {
 	nvkm_notify_put(&fault->nrpfb);
 	if (fault->buffer[0])
@@ -138,7 +138,7 @@ tu104_fault_fini(struct nvkm_fault *fault)
 }
 
 static void
-tu104_fault_init(struct nvkm_fault *fault)
+tu102_fault_init(struct nvkm_fault *fault)
 {
 	/*XXX: enable priv faults */
 	fault->func->buffer.init(fault->buffer[0]);
@@ -146,22 +146,22 @@ tu104_fault_init(struct nvkm_fault *fault)
 }
 
 static const struct nvkm_fault_func
-tu104_fault = {
+tu102_fault = {
 	.oneinit = gv100_fault_oneinit,
-	.init = tu104_fault_init,
-	.fini = tu104_fault_fini,
-	.intr = tu104_fault_intr,
+	.init = tu102_fault_init,
+	.fini = tu102_fault_fini,
+	.intr = tu102_fault_intr,
 	.buffer.nr = 2,
 	.buffer.entry_size = 32,
-	.buffer.info = tu104_fault_buffer_info,
-	.buffer.init = tu104_fault_buffer_init,
-	.buffer.fini = tu104_fault_buffer_fini,
-	.buffer.intr = tu104_fault_buffer_intr,
+	.buffer.info = tu102_fault_buffer_info,
+	.buffer.init = tu102_fault_buffer_init,
+	.buffer.fini = tu102_fault_buffer_fini,
+	.buffer.intr = tu102_fault_buffer_intr,
 };
 
 int
-tu104_fault_new(struct nvkm_device *device, int index,
+tu102_fault_new(struct nvkm_device *device, int index,
 		struct nvkm_fault **pfault)
 {
-	return nvkm_fault_new_(&tu104_fault, device, index, pfault);
+	return nvkm_fault_new_(&tu102_fault, device, index, pfault);
 }
