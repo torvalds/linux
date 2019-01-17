@@ -29,6 +29,19 @@
 #include "smu_v11_0.h"
 #include "atom.h"
 
+int smu_get_power_num_states(struct smu_context *smu,
+			     struct pp_states_info *state_info)
+{
+	if (!state_info)
+		return -EINVAL;
+
+	/* not support power state */
+	memset(state_info, 0, sizeof(struct pp_states_info));
+	state_info->nums = 0;
+
+	return 0;
+}
+
 int smu_common_read_sensor(struct smu_context *smu, enum amd_pp_sensors sensor,
 			   void *data, uint32_t *size)
 {

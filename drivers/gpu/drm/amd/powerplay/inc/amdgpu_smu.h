@@ -381,5 +381,6 @@ int smu_common_read_sensor(struct smu_context *smu, enum amd_pp_sensors sensor,
 			   void *data, uint32_t *size);
 int smu_sys_get_pp_table(struct smu_context *smu, void **table);
 int smu_sys_set_pp_table(struct smu_context *smu,  void *buf, size_t size);
+int smu_get_power_num_states(struct smu_context *smu, struct pp_states_info *state_info);
 
 #endif

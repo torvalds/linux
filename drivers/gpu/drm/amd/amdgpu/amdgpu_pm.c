@@ -350,9 +350,13 @@ static ssize_t amdgpu_get_pp_num_states(struct device *dev,
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = ddev->dev_private;
 	struct pp_states_info data;
-	int i, buf_len;
+	int i, buf_len, ret;
 
-	if (adev->powerplay.pp_funcs->get_pp_num_states)
+	if (is_support_sw_smu(adev)) {
+		ret = smu_get_power_num_states(&adev->smu, &data);
+		if (ret)
+			return ret;
+	} else if (adev->powerplay.pp_funcs->get_pp_num_states)
 		amdgpu_dpm_get_pp_num_states(adev, &data);
 
 	buf_len = snprintf(buf, PAGE_SIZE, "states: %d\n", data.nums);
