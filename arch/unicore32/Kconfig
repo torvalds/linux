@@ -195,7 +195,6 @@ config I2C_EEPROM_AT24
 
 config LCD_BACKLIGHT
 	tristate "LCD Backlight support"
-	select BACKLIGHT_LCD_SUPPORT
 	select BACKLIGHT_PWM
 
 endmenu
