@@ -35,21 +35,6 @@ enum {
 
 #define WILC_MAX_ASSOC_RESP_FRAME_SIZE   256
 
-struct network_info {
-	s8 rssi;
-	u16 cap_info;
-	u8 ssid[MAX_SSID_LEN];
-	u8 ssid_len;
-	u8 bssid[6];
-	u16 beacon_period;
-	u8 dtim_period;
-	u8 ch;
-	u32 tsf_lo;
-	u8 *ies;
-	u16 ies_len;
-	u64 tsf;
-};
-
 struct connect_info {
 	u8 bssid[6];
 	u8 *req_ies;
@@ -288,5 +273,6 @@ int wilc_get_tx_power(struct wilc_vif *vif, u8 *tx_power);
 void wilc_scan_complete_received(struct wilc *wilc, u8 *buffer, u32 length);
 void wilc_network_info_received(struct wilc *wilc, u8 *buffer, u32 length);
 void wilc_gnrl_async_info_received(struct wilc *wilc, u8 *buffer, u32 length);
-void *wilc_parse_join_bss_param(struct cfg80211_bss *bss);
+void *wilc_parse_join_bss_param(struct cfg80211_bss *bss,
+				struct cfg80211_crypto_settings *crypto);
 #endif

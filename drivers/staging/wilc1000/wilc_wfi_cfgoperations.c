@@ -422,7 +422,7 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 		goto out_put_bss;
 	}
 
-	join_params = wilc_parse_join_bss_param(bss);
+	join_params = wilc_parse_join_bss_param(bss, &sme->crypto);
 	if (!join_params) {
 		netdev_err(dev, "%s: failed to construct join param\n",
 			   __func__);
