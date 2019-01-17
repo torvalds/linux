@@ -423,6 +423,8 @@ struct devlink_region;
 
 typedef void devlink_snapshot_data_dest_t(const void *data);
 
+struct devlink_health_buffer;
+
 struct devlink_ops {
 	int (*reload)(struct devlink *devlink, struct netlink_ext_ack *extack);
 	int (*port_type_set)(struct devlink_port *devlink_port,
@@ -584,6 +586,22 @@ int devlink_region_snapshot_create(struct devlink_region *region, u64 data_len,
 				   u8 *data, u32 snapshot_id,
 				   devlink_snapshot_data_dest_t *data_destructor);
 
+int devlink_health_buffer_nest_start(struct devlink_health_buffer *buffer,
+				     int attrtype);
+void devlink_health_buffer_nest_end(struct devlink_health_buffer *buffer);
+void devlink_health_buffer_nest_cancel(struct devlink_health_buffer *buffer);
+int devlink_health_buffer_put_object_name(struct devlink_health_buffer *buffer,
+					  char *name);
+int devlink_health_buffer_put_value_u8(struct devlink_health_buffer *buffer,
+				       u8 value);
+int devlink_health_buffer_put_value_u32(struct devlink_health_buffer *buffer,
+					u32 value);
+int devlink_health_buffer_put_value_u64(struct devlink_health_buffer *buffer,
+					u64 value);
+int devlink_health_buffer_put_value_string(struct devlink_health_buffer *buffer,
+					   char *name);
+int devlink_health_buffer_put_value_data(struct devlink_health_buffer *buffer,
+					 void *data, int len);
 #else
 
 static inline struct devlink *devlink_alloc(const struct devlink_ops *ops,
@@ -844,6 +862,64 @@ devlink_region_snapshot_create(struct devlink_region *region, u64 data_len,
 	return 0;
 }
 
+static inline int
+devlink_health_buffer_nest_start(struct devlink_health_buffer *buffer,
+				 int attrtype)
+{
+	return 0;
+}
+
+static inline void
+devlink_health_buffer_nest_end(struct devlink_health_buffer *buffer)
+{
+}
+
+static inline void
+devlink_health_buffer_nest_cancel(struct devlink_health_buffer *buffer)
+{
+}
+
+static inline int
+devlink_health_buffer_put_object_name(struct devlink_health_buffer *buffer,
+				      char *name)
+{
+	return 0;
+}
+
+static inline int
+devlink_health_buffer_put_value_u8(struct devlink_health_buffer *buffer,
+				   u8 value)
+{
+	return 0;
+}
+
+static inline int
+devlink_health_buffer_put_value_u32(struct devlink_health_buffer *buffer,
+				    u32 value)
+{
+	return 0;
+}
+
+static inline int
+devlink_health_buffer_put_value_u64(struct devlink_health_buffer *buffer,
+				    u64 value)
+{
+	return 0;
+}
+
+static inline int
+devlink_health_buffer_put_value_string(struct devlink_health_buffer *buffer,
+				       char *name)
+{
+	return 0;
+}
+
+static inline int
+devlink_health_buffer_put_value_data(struct devlink_health_buffer *buffer,
+				     void *data, int len)
+{
+	return 0;
+}
 #endif
 
 #endif /* _NET_DEVLINK_H_ */

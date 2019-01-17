@@ -3597,6 +3597,507 @@ out:
 	return 0;
 }
 
+#define DEVLINK_HEALTH_BUFFER_SIZE (4096 - GENL_HDRLEN)
+#define DEVLINK_HEALTH_BUFFER_DATA_SIZE (DEVLINK_HEALTH_BUFFER_SIZE / 2)
+#define DEVLINK_HEALTH_SIZE_TO_BUFFERS(size) DIV_ROUND_UP(size, DEVLINK_HEALTH_BUFFER_DATA_SIZE)
+#define DEVLINK_HEALTH_BUFFER_MAX_CHUNK 1024
+
+struct devlink_health_buffer {
+	void *data;
+	u64 offset;
+	u64 bytes_left;
+	u64 bytes_left_metadata;
+	u64 max_nested_depth;
+	u64 curr_nest;
+};
+
+struct devlink_health_buffer_desc {
+	int attrtype;
+	u16 len;
+	u8 nla_type;
+	u8 nest_end;
+	int value[0];
+};
+
+static void
+devlink_health_buffers_reset(struct devlink_health_buffer **buffers_list,
+			     u64 num_of_buffers)
+{
+	u64 i;
+
+	for (i = 0; i < num_of_buffers; i++) {
+		memset(buffers_list[i]->data, 0, DEVLINK_HEALTH_BUFFER_SIZE);
+		buffers_list[i]->offset = 0;
+		buffers_list[i]->bytes_left = DEVLINK_HEALTH_BUFFER_DATA_SIZE;
+		buffers_list[i]->bytes_left_metadata =
+			DEVLINK_HEALTH_BUFFER_DATA_SIZE;
+		buffers_list[i]->max_nested_depth = 0;
+		buffers_list[i]->curr_nest = 0;
+	}
+}
+
+static void
+devlink_health_buffers_destroy(struct devlink_health_buffer **buffers_list,
+			       u64 size);
+
+static struct devlink_health_buffer **
+devlink_health_buffers_create(u64 size)
+{
+	struct devlink_health_buffer **buffers_list;
+	u64 num_of_buffers = DEVLINK_HEALTH_SIZE_TO_BUFFERS(size);
+	u64 i;
+
+	buffers_list = kcalloc(num_of_buffers,
+			       sizeof(struct devlink_health_buffer *),
+			       GFP_KERNEL);
+	if (!buffers_list)
+		return NULL;
+
+	for (i = 0; i < num_of_buffers; i++) {
+		struct devlink_health_buffer *buffer;
+		void *data;
+
+		buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
+		data = kzalloc(DEVLINK_HEALTH_BUFFER_SIZE, GFP_KERNEL);
+		if (!buffer || !data) {
+			kfree(buffer);
+			kfree(data);
+			goto buffers_cleanup;
+		}
+		buffers_list[i] = buffer;
+		buffer->data = data;
+	}
+	devlink_health_buffers_reset(buffers_list, num_of_buffers);
+
+	return buffers_list;
+
+buffers_cleanup:
+	devlink_health_buffers_destroy(buffers_list, --i);
+	kfree(buffers_list);
+	return NULL;
+}
+
+static void
+devlink_health_buffers_destroy(struct devlink_health_buffer **buffers_list,
+			       u64 num_of_buffers)
+{
+	u64 i;
+
+	for (i = 0; i < num_of_buffers; i++) {
+		kfree(buffers_list[i]->data);
+		kfree(buffers_list[i]);
+	}
+}
+
+void
+devlink_health_buffer_offset_inc(struct devlink_health_buffer *buffer,
+				 int len)
+{
+	buffer->offset += len;
+}
+
+/* In order to store a nest, need two descriptors, for start and end */
+#define DEVLINK_HEALTH_BUFFER_NEST_SIZE (sizeof(struct devlink_health_buffer_desc) * 2)
+
+int devlink_health_buffer_verify_len(struct devlink_health_buffer *buffer,
+				     int len, int metadata_len)
+{
+	if (len > DEVLINK_HEALTH_BUFFER_DATA_SIZE)
+		return -EINVAL;
+
+	if (buffer->bytes_left < len ||
+	    buffer->bytes_left_metadata < metadata_len)
+		return -ENOMEM;
+
+	return 0;
+}
+
+static struct devlink_health_buffer_desc *
+devlink_health_buffer_get_desc_from_offset(struct devlink_health_buffer *buffer)
+{
+	return buffer->data + buffer->offset;
+}
+
+int
+devlink_health_buffer_nest_start(struct devlink_health_buffer *buffer,
+				 int attrtype)
+{
+	struct devlink_health_buffer_desc *desc;
+	int err;
+
+	err = devlink_health_buffer_verify_len(buffer, 0,
+					       DEVLINK_HEALTH_BUFFER_NEST_SIZE);
+	if (err)
+		return err;
+
+	if (attrtype != DEVLINK_ATTR_HEALTH_BUFFER_OBJECT &&
+	    attrtype != DEVLINK_ATTR_HEALTH_BUFFER_OBJECT_PAIR &&
+	    attrtype != DEVLINK_ATTR_HEALTH_BUFFER_OBJECT_VALUE &&
+	    attrtype != DEVLINK_ATTR_HEALTH_BUFFER_OBJECT_VALUE_ARRAY)
+		return -EINVAL;
+
+	desc = devlink_health_buffer_get_desc_from_offset(buffer);
+
+	desc->attrtype = attrtype;
+	buffer->bytes_left_metadata -= DEVLINK_HEALTH_BUFFER_NEST_SIZE;
+	devlink_health_buffer_offset_inc(buffer, sizeof(*desc));
+
+	buffer->curr_nest++;
+	buffer->max_nested_depth = max(buffer->max_nested_depth,
+				       buffer->curr_nest);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(devlink_health_buffer_nest_start);
+
+enum devlink_health_buffer_nest_end_cancel {
+	DEVLINK_HEALTH_BUFFER_NEST_END = 1,
+	DEVLINK_HEALTH_BUFFER_NEST_CANCEL,
+};
+
+static void
+devlink_health_buffer_nest_end_cancel(struct devlink_health_buffer *buffer,
+				      enum devlink_health_buffer_nest_end_cancel nest)
+{
+	struct devlink_health_buffer_desc *desc;
+
+	WARN_ON(!buffer->curr_nest);
+	buffer->curr_nest--;
+
+	desc = devlink_health_buffer_get_desc_from_offset(buffer);
+	desc->nest_end = nest;
+	devlink_health_buffer_offset_inc(buffer, sizeof(*desc));
+}
+
+void devlink_health_buffer_nest_end(struct devlink_health_buffer *buffer)
+{
+	devlink_health_buffer_nest_end_cancel(buffer,
+					      DEVLINK_HEALTH_BUFFER_NEST_END);
+}
+EXPORT_SYMBOL_GPL(devlink_health_buffer_nest_end);
+
+void devlink_health_buffer_nest_cancel(struct devlink_health_buffer *buffer)
+{
+	devlink_health_buffer_nest_end_cancel(buffer,
+					      DEVLINK_HEALTH_BUFFER_NEST_CANCEL);
+}
+EXPORT_SYMBOL_GPL(devlink_health_buffer_nest_cancel);
+
+int
+devlink_health_buffer_put_object_name(struct devlink_health_buffer *buffer,
+				      char *name)
+{
+	struct devlink_health_buffer_desc *desc;
+	int err;
+
+	err = devlink_health_buffer_verify_len(buffer, strlen(name) + 1,
+					       sizeof(*desc));
+	if (err)
+		return err;
+
+	desc = devlink_health_buffer_get_desc_from_offset(buffer);
+	desc->attrtype = DEVLINK_ATTR_HEALTH_BUFFER_OBJECT_NAME;
+	desc->nla_type = NLA_NUL_STRING;
+	desc->len = strlen(name) + 1;
+	memcpy(&desc->value, name, desc->len);
+	devlink_health_buffer_offset_inc(buffer, sizeof(*desc) + desc->len);
+
+	buffer->bytes_left_metadata -= sizeof(*desc);
+	buffer->bytes_left -= (strlen(name) + 1);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(devlink_health_buffer_put_object_name);
+
+static int
+devlink_health_buffer_put_value(struct devlink_health_buffer *buffer,
+				u8 nla_type, void *value, int len)
+{
+	struct devlink_health_buffer_desc *desc;
+	int err;
+
+	err = devlink_health_buffer_verify_len(buffer, len, sizeof(*desc));
+	if (err)
+		return err;
+
+	desc = devlink_health_buffer_get_desc_from_offset(buffer);
+	desc->attrtype = DEVLINK_ATTR_HEALTH_BUFFER_OBJECT_VALUE_DATA;
+	desc->nla_type = nla_type;
+	desc->len = len;
+	memcpy(&desc->value, value, len);
+	devlink_health_buffer_offset_inc(buffer, sizeof(*desc) + desc->len);
+
+	buffer->bytes_left_metadata -= sizeof(*desc);
+	buffer->bytes_left -= len;
+
+	return 0;
+}
+
+int
+devlink_health_buffer_put_value_u8(struct devlink_health_buffer *buffer,
+				   u8 value)
+{
+	int err;
+
+	err = devlink_health_buffer_put_value(buffer, NLA_U8, &value,
+					      sizeof(value));
+	if (err)
+		return err;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(devlink_health_buffer_put_value_u8);
+
+int
+devlink_health_buffer_put_value_u32(struct devlink_health_buffer *buffer,
+				    u32 value)
+{
+	int err;
+
+	err = devlink_health_buffer_put_value(buffer, NLA_U32, &value,
+					      sizeof(value));
+	if (err)
+		return err;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(devlink_health_buffer_put_value_u32);
+
+int
+devlink_health_buffer_put_value_u64(struct devlink_health_buffer *buffer,
+				    u64 value)
+{
+	int err;
+
+	err = devlink_health_buffer_put_value(buffer, NLA_U64, &value,
+					      sizeof(value));
+	if (err)
+		return err;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(devlink_health_buffer_put_value_u64);
+
+int
+devlink_health_buffer_put_value_string(struct devlink_health_buffer *buffer,
+				       char *name)
+{
+	int err;
+
+	if (strlen(name) + 1 > DEVLINK_HEALTH_BUFFER_MAX_CHUNK)
+		return -EINVAL;
+
+	err = devlink_health_buffer_put_value(buffer, NLA_NUL_STRING, name,
+					      strlen(name) + 1);
+	if (err)
+		return err;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(devlink_health_buffer_put_value_string);
+
+int
+devlink_health_buffer_put_value_data(struct devlink_health_buffer *buffer,
+				     void *data, int len)
+{
+	int err;
+
+	if (len > DEVLINK_HEALTH_BUFFER_MAX_CHUNK)
+		return -EINVAL;
+
+	err = devlink_health_buffer_put_value(buffer, NLA_BINARY, data, len);
+	if (err)
+		return err;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(devlink_health_buffer_put_value_data);
+
+static int
+devlink_health_buffer_fill_data(struct sk_buff *skb,
+				struct devlink_health_buffer_desc *desc)
+{
+	int err = -EINVAL;
+
+	switch (desc->nla_type) {
+	case NLA_U8:
+		err = nla_put_u8(skb, DEVLINK_ATTR_HEALTH_BUFFER_OBJECT_VALUE_DATA,
+				 *(u8 *)desc->value);
+		break;
+	case NLA_U32:
+		err = nla_put_u32(skb, DEVLINK_ATTR_HEALTH_BUFFER_OBJECT_VALUE_DATA,
+				  *(u32 *)desc->value);
+		break;
+	case NLA_U64:
+		err = nla_put_u64_64bit(skb,
+					DEVLINK_ATTR_HEALTH_BUFFER_OBJECT_VALUE_DATA,
+					*(u64 *)desc->value, DEVLINK_ATTR_PAD);
+		break;
+	case NLA_NUL_STRING:
+		err = nla_put_string(skb,
+				     DEVLINK_ATTR_HEALTH_BUFFER_OBJECT_VALUE_DATA,
+				     (char *)&desc->value);
+		break;
+	case NLA_BINARY:
+		err = nla_put(skb, DEVLINK_ATTR_HEALTH_BUFFER_OBJECT_VALUE_DATA,
+			      desc->len, (void *)&desc->value);
+		break;
+	}
+
+	return err;
+}
+
+static int
+devlink_health_buffer_fill_type(struct sk_buff *skb,
+				struct devlink_health_buffer_desc *desc)
+{
+	int err = -EINVAL;
+
+	switch (desc->nla_type) {
+	case NLA_U8:
+		err = nla_put_u8(skb, DEVLINK_ATTR_HEALTH_BUFFER_OBJECT_VALUE_TYPE,
+				 NLA_U8);
+		break;
+	case NLA_U32:
+		err = nla_put_u8(skb, DEVLINK_ATTR_HEALTH_BUFFER_OBJECT_VALUE_TYPE,
+				 NLA_U32);
+		break;
+	case NLA_U64:
+		err = nla_put_u8(skb, DEVLINK_ATTR_HEALTH_BUFFER_OBJECT_VALUE_TYPE,
+				 NLA_U64);
+		break;
+	case NLA_NUL_STRING:
+		err = nla_put_u8(skb, DEVLINK_ATTR_HEALTH_BUFFER_OBJECT_VALUE_TYPE,
+				 NLA_NUL_STRING);
+		break;
+	case NLA_BINARY:
+		err = nla_put_u8(skb, DEVLINK_ATTR_HEALTH_BUFFER_OBJECT_VALUE_TYPE,
+				 NLA_BINARY);
+		break;
+	}
+
+	return err;
+}
+
+static inline struct devlink_health_buffer_desc *
+devlink_health_buffer_get_next_desc(struct devlink_health_buffer_desc *desc)
+{
+	return (void *)&desc->value + desc->len;
+}
+
+static int
+devlink_health_buffer_prepare_skb(struct sk_buff *skb,
+				  struct devlink_health_buffer *buffer)
+{
+	struct devlink_health_buffer_desc *last_desc, *desc;
+	struct nlattr **buffer_nlattr;
+	int err;
+	int i = 0;
+
+	buffer_nlattr = kcalloc(buffer->max_nested_depth,
+				sizeof(*buffer_nlattr), GFP_KERNEL);
+	if (!buffer_nlattr)
+		return -EINVAL;
+
+	last_desc = devlink_health_buffer_get_desc_from_offset(buffer);
+	desc = buffer->data;
+	while (desc != last_desc) {
+		switch (desc->attrtype) {
+		case DEVLINK_ATTR_HEALTH_BUFFER_OBJECT:
+		case DEVLINK_ATTR_HEALTH_BUFFER_OBJECT_PAIR:
+		case DEVLINK_ATTR_HEALTH_BUFFER_OBJECT_VALUE:
+		case DEVLINK_ATTR_HEALTH_BUFFER_OBJECT_VALUE_ARRAY:
+			buffer_nlattr[i] = nla_nest_start(skb, desc->attrtype);
+			if (!buffer_nlattr[i])
+				goto nla_put_failure;
+			i++;
+			break;
+		case DEVLINK_ATTR_HEALTH_BUFFER_OBJECT_VALUE_DATA:
+			err = devlink_health_buffer_fill_data(skb, desc);
+			if (err)
+				goto nla_put_failure;
+			err = devlink_health_buffer_fill_type(skb, desc);
+			if (err)
+				goto nla_put_failure;
+			break;
+		case DEVLINK_ATTR_HEALTH_BUFFER_OBJECT_NAME:
+			err = nla_put_string(skb, desc->attrtype,
+					     (char *)&desc->value);
+			if (err)
+				goto nla_put_failure;
+			break;
+		default:
+			WARN_ON(!desc->nest_end);
+			WARN_ON(i <= 0);
+			if (desc->nest_end == DEVLINK_HEALTH_BUFFER_NEST_END)
+				nla_nest_end(skb, buffer_nlattr[--i]);
+			else
+				nla_nest_cancel(skb, buffer_nlattr[--i]);
+			break;
+		}
+		desc = devlink_health_buffer_get_next_desc(desc);
+	}
+
+	return 0;
+
+nla_put_failure:
+	kfree(buffer_nlattr);
+	return err;
+}
+
+static int
+devlink_health_buffer_snd(struct genl_info *info,
+			  enum devlink_command cmd, int flags,
+			  struct devlink_health_buffer **buffers_array,
+			  u64 num_of_buffers)
+{
+	struct sk_buff *skb;
+	struct nlmsghdr *nlh;
+	void *hdr;
+	int err;
+	u64 i;
+
+	for (i = 0; i < num_of_buffers; i++) {
+		/* Skip buffer if driver did not fill it up with any data */
+		if (!buffers_array[i]->offset)
+			continue;
+
+		skb = genlmsg_new(GENLMSG_DEFAULT_SIZE, GFP_KERNEL);
+		if (!skb)
+			return -ENOMEM;
+
+		hdr = genlmsg_put(skb, info->snd_portid, info->snd_seq,
+				  &devlink_nl_family, NLM_F_MULTI, cmd);
+		if (!hdr)
+			goto nla_put_failure;
+
+		err = devlink_health_buffer_prepare_skb(skb, buffers_array[i]);
+		if (err)
+			goto nla_put_failure;
+
+		genlmsg_end(skb, hdr);
+		err = genlmsg_reply(skb, info);
+		if (err)
+			return err;
+	}
+
+	skb = genlmsg_new(GENLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!skb)
+		return -ENOMEM;
+	nlh = nlmsg_put(skb, info->snd_portid, info->snd_seq,
+			NLMSG_DONE, 0, flags | NLM_F_MULTI);
+	err = genlmsg_reply(skb, info);
+	if (err)
+		return err;
+
+	return 0;
+
+nla_put_failure:
+	err = -EIO;
+	nlmsg_free(skb);
+	return err;
+}
+
 static const struct nla_policy devlink_nl_policy[DEVLINK_ATTR_MAX + 1] = {
 	[DEVLINK_ATTR_BUS_NAME] = { .type = NLA_NUL_STRING },
 	[DEVLINK_ATTR_DEV_NAME] = { .type = NLA_NUL_STRING },
