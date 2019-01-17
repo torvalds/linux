@@ -2609,6 +2609,9 @@ int tcp_disconnect(struct sock *sk, int flags)
 	tp->sacked_out = 0;
 	tp->tlp_high_seq = 0;
 	tp->last_oow_ack_time = 0;
+	/* There's a bubble in the pipe until at least the first ACK. */
+	tp->app_limited = ~0U;
+
 
 	/* Clean up fastopen related fields */
 	tcp_free_fastopen_req(tp);
