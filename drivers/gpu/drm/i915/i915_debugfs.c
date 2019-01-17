@@ -2506,7 +2506,8 @@ DEFINE_SHOW_ATTRIBUTE(i915_psr_sink_status);
 static void
 psr_source_status(struct drm_i915_private *dev_priv, struct seq_file *m)
 {
-	u32 val, psr_status;
+	u32 val, status_val;
+	const char *status = "unknown";
 
 	if (dev_priv->psr.psr2_enabled) {
 		static const char * const live_status[] = {
@@ -2522,14 +2523,11 @@ psr_source_status(struct drm_i915_private *dev_priv, struct seq_file *m)
 			"BUF_ON",
 			"TG_ON"
 		};
-		psr_status = I915_READ(EDP_PSR2_STATUS);
-		val = (psr_status & EDP_PSR2_STATUS_STATE_MASK) >>
-			EDP_PSR2_STATUS_STATE_SHIFT;
-		if (val < ARRAY_SIZE(live_status)) {
-			seq_printf(m, "Source PSR status: 0x%x [%s]\n",
-				   psr_status, live_status[val]);
-			return;
-		}
+		val = I915_READ(EDP_PSR2_STATUS);
+		status_val = (val & EDP_PSR2_STATUS_STATE_MASK) >>
+			      EDP_PSR2_STATUS_STATE_SHIFT;
+		if (status_val < ARRAY_SIZE(live_status))
+			status = live_status[status_val];
 	} else {
 		static const char * const live_status[] = {
 			"IDLE",
@@ -2541,75 +2539,79 @@ psr_source_status(struct drm_i915_private *dev_priv, struct seq_file *m)
 			"SRDOFFACK",
 			"SRDENT_ON",
 		};
-		psr_status = I915_READ(EDP_PSR_STATUS);
-		val = (psr_status & EDP_PSR_STATUS_STATE_MASK) >>
-			EDP_PSR_STATUS_STATE_SHIFT;
-		if (val < ARRAY_SIZE(live_status)) {
-			seq_printf(m, "Source PSR status: 0x%x [%s]\n",
-				   psr_status, live_status[val]);
-			return;
-		}
+		val = I915_READ(EDP_PSR_STATUS);
+		status_val = (val & EDP_PSR_STATUS_STATE_MASK) >>
+			      EDP_PSR_STATUS_STATE_SHIFT;
+		if (status_val < ARRAY_SIZE(live_status))
+			status = live_status[status_val];
 	}
 
-	seq_printf(m, "Source PSR status: 0x%x [%s]\n", psr_status, "unknown");
+	seq_printf(m, "Source PSR status: %s [0x%08x]\n", status, val);
 }
 
 static int i915_edp_psr_status(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
+	struct i915_psr *psr = &dev_priv->psr;
 	intel_wakeref_t wakeref;
-	u32 psrperf = 0;
-	bool enabled = false;
-	bool sink_support;
+	const char *status;
+	bool enabled;
+	u32 val;
 
 	if (!HAS_PSR(dev_priv))
 		return -ENODEV;
 
-	sink_support = dev_priv->psr.sink_support;
-	seq_printf(m, "Sink_Support: %s\n", yesno(sink_support));
-	if (!sink_support)
+	seq_printf(m, "Sink support: %s", yesno(psr->sink_support));
+	if (psr->dp)
+		seq_printf(m, " [0x%02x]", psr->dp->psr_dpcd[0]);
+	seq_puts(m, "\n");
+
+	if (!psr->sink_support)
 		return 0;
 
 	wakeref = intel_runtime_pm_get(dev_priv);
+	mutex_lock(&psr->lock);
 
-	mutex_lock(&dev_priv->psr.lock);
-	seq_printf(m, "PSR mode: %s\n",
-		   dev_priv->psr.psr2_enabled ? "PSR2" : "PSR1");
-	seq_printf(m, "Enabled: %s\n", yesno(dev_priv->psr.enabled));
-	seq_printf(m, "Busy frontbuffer bits: 0x%03x\n",
-		   dev_priv->psr.busy_frontbuffer_bits);
-
-	if (dev_priv->psr.psr2_enabled)
-		enabled = I915_READ(EDP_PSR2_CTL) & EDP_PSR2_ENABLE;
+	if (psr->enabled)
+		status = psr->psr2_enabled ? "PSR2 enabled" : "PSR1 enabled";
 	else
-		enabled = I915_READ(EDP_PSR_CTL) & EDP_PSR_ENABLE;
+		status = "disabled";
+	seq_printf(m, "PSR mode: %s\n", status);
 
-	seq_printf(m, "Main link in standby mode: %s\n",
-		   yesno(dev_priv->psr.link_standby));
+	if (!psr->enabled)
+		goto unlock;
 
-	seq_printf(m, "HW Enabled & Active bit: %s\n", yesno(enabled));
+	if (psr->psr2_enabled) {
+		val = I915_READ(EDP_PSR2_CTL);
+		enabled = val & EDP_PSR2_ENABLE;
+	} else {
+		val = I915_READ(EDP_PSR_CTL);
+		enabled = val & EDP_PSR_ENABLE;
+	}
+	seq_printf(m, "Source PSR ctl: %s [0x%08x]\n",
+		   enableddisabled(enabled), val);
+	psr_source_status(dev_priv, m);
+	seq_printf(m, "Busy frontbuffer bits: 0x%08x\n",
+		   psr->busy_frontbuffer_bits);
 
 	/*
 	 * SKL+ Perf counter is reset to 0 everytime DC state is entered
 	 */
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
-		psrperf = I915_READ(EDP_PSR_PERF_CNT) &
-			EDP_PSR_PERF_CNT_MASK;
-
-		seq_printf(m, "Performance_Counter: %u\n", psrperf);
+		val = I915_READ(EDP_PSR_PERF_CNT) & EDP_PSR_PERF_CNT_MASK;
+		seq_printf(m, "Performance counter: %u\n", val);
 	}
 
-	psr_source_status(dev_priv, m);
-	mutex_unlock(&dev_priv->psr.lock);
-
-	if (READ_ONCE(dev_priv->psr.debug) & I915_PSR_DEBUG_IRQ) {
+	if (psr->debug & I915_PSR_DEBUG_IRQ) {
 		seq_printf(m, "Last attempted entry at: %lld\n",
-			   dev_priv->psr.last_entry_attempt);
-		seq_printf(m, "Last exit at: %lld\n",
-			   dev_priv->psr.last_exit);
+			   psr->last_entry_attempt);
+		seq_printf(m, "Last exit at: %lld\n", psr->last_exit);
 	}
 
+unlock:
+	mutex_unlock(&psr->lock);
 	intel_runtime_pm_put(dev_priv, wakeref);
+
 	return 0;
 }
 
