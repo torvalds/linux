@@ -1299,6 +1299,46 @@ static int vega20_get_od_percentage(struct smu_context *smu,
 	return value;
 }
 
+static int
+vega20_get_profiling_clk_mask(struct smu_context *smu,
+			      enum amd_dpm_forced_level level,
+			      uint32_t *sclk_mask,
+			      uint32_t *mclk_mask,
+			      uint32_t *soc_mask)
+{
+	struct vega20_dpm_table *dpm_table = (struct vega20_dpm_table *)smu->smu_dpm.dpm_context;
+	if (!smu->smu_dpm.dpm_context)
+		return -EINVAL;
+
+	struct vega20_single_dpm_table *gfx_dpm_table = &(dpm_table->gfx_table);
+	struct vega20_single_dpm_table *mem_dpm_table = &(dpm_table->mem_table);
+	struct vega20_single_dpm_table *soc_dpm_table = &(dpm_table->soc_table);
+
+	*sclk_mask = 0;
+	*mclk_mask = 0;
+	*soc_mask  = 0;
+
+	if (gfx_dpm_table->count > VEGA20_UMD_PSTATE_GFXCLK_LEVEL &&
+	    mem_dpm_table->count > VEGA20_UMD_PSTATE_MCLK_LEVEL &&
+	    soc_dpm_table->count > VEGA20_UMD_PSTATE_SOCCLK_LEVEL) {
+		*sclk_mask = VEGA20_UMD_PSTATE_GFXCLK_LEVEL;
+		*mclk_mask = VEGA20_UMD_PSTATE_MCLK_LEVEL;
+		*soc_mask  = VEGA20_UMD_PSTATE_SOCCLK_LEVEL;
+	}
+
+	if (level == AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK) {
+		*sclk_mask = 0;
+	} else if (level == AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK) {
+		*mclk_mask = 0;
+	} else if (level == AMD_DPM_FORCED_LEVEL_PROFILE_PEAK) {
+		*sclk_mask = gfx_dpm_table->count - 1;
+		*mclk_mask = mem_dpm_table->count - 1;
+		*soc_mask  = soc_dpm_table->count - 1;
+	}
+
+	return 0;
+}
+
 static const struct pptable_funcs vega20_ppt_funcs = {
 	.alloc_dpm_context = vega20_allocate_dpm_context,
 	.store_powerplay_table = vega20_store_powerplay_table,
