@@ -144,6 +144,14 @@ config SND_SOC_SOF
 	  module dependencies but since the module or built-in type is decided
 	  at the top level it doesn't matter.
 
+config SND_SOC_SOF_PROBE_WORK_QUEUE
+	bool
+	help
+          This option is not user-selectable but automagically handled by
+	  'select' statements at a higher level
+	  When selected, the probe is handled in two steps, for example to
+	  avoid lockdeps if request_module is used in the probe.
+
 source "sound/soc/sof/intel/Kconfig"
 source "sound/soc/sof/xtensa/Kconfig"
 

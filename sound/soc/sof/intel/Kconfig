@@ -215,6 +215,7 @@ if SND_SOC_SOF_HDA_COMMON
 
 config SND_SOC_SOF_HDA_LINK
 	bool "SOF support for HDA Links(HDA/HDMI)"
+	select SND_SOC_SOF_PROBE_WORK_QUEUE
 	help
           This adds support for HDA links(HDA/HDMI) with Sound Open Firmware
 		  for Intel(R) platforms.
