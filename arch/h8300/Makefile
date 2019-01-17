@@ -37,8 +37,6 @@ libs-y	+= arch/$(ARCH)/lib/
 
 boot := arch/h8300/boot
 
-archmrproper:
-
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
 
