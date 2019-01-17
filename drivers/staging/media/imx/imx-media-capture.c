@@ -203,21 +203,13 @@ static int capture_g_fmt_vid_cap(struct file *file, void *fh,
 	return 0;
 }
 
-static int capture_try_fmt_vid_cap(struct file *file, void *fh,
-				   struct v4l2_format *f)
+static int __capture_try_fmt_vid_cap(struct capture_priv *priv,
+				     struct v4l2_subdev_format *fmt_src,
+				     struct v4l2_format *f)
 {
-	struct capture_priv *priv = video_drvdata(file);
-	struct v4l2_subdev_format fmt_src;
 	const struct imx_media_pixfmt *cc, *cc_src;
-	int ret;
 
-	fmt_src.pad = priv->src_sd_pad;
-	fmt_src.which = V4L2_SUBDEV_FORMAT_ACTIVE;
-	ret = v4l2_subdev_call(priv->src_sd, pad, get_fmt, NULL, &fmt_src);
-	if (ret)
-		return ret;
-
-	cc_src = imx_media_find_ipu_format(fmt_src.format.code, CS_SEL_ANY);
+	cc_src = imx_media_find_ipu_format(fmt_src->format.code, CS_SEL_ANY);
 	if (cc_src) {
 		u32 fourcc, cs_sel;
 
@@ -231,7 +223,7 @@ static int capture_try_fmt_vid_cap(struct file *file, void *fh,
 			cc = imx_media_find_format(fourcc, cs_sel, false);
 		}
 	} else {
-		cc_src = imx_media_find_mbus_format(fmt_src.format.code,
+		cc_src = imx_media_find_mbus_format(fmt_src->format.code,
 						    CS_SEL_ANY, true);
 		if (WARN_ON(!cc_src))
 			return -EINVAL;
@@ -241,27 +233,44 @@ static int capture_try_fmt_vid_cap(struct file *file, void *fh,
 
 	/* allow IDMAC interweave but enforce field order from source */
 	if (V4L2_FIELD_IS_INTERLACED(f->fmt.pix.field)) {
-		switch (fmt_src.format.field) {
+		switch (fmt_src->format.field) {
 		case V4L2_FIELD_SEQ_TB:
-			fmt_src.format.field = V4L2_FIELD_INTERLACED_TB;
+			fmt_src->format.field = V4L2_FIELD_INTERLACED_TB;
 			break;
 		case V4L2_FIELD_SEQ_BT:
-			fmt_src.format.field = V4L2_FIELD_INTERLACED_BT;
+			fmt_src->format.field = V4L2_FIELD_INTERLACED_BT;
 			break;
 		default:
 			break;
 		}
 	}
 
-	imx_media_mbus_fmt_to_pix_fmt(&f->fmt.pix, &fmt_src.format, cc);
+	imx_media_mbus_fmt_to_pix_fmt(&f->fmt.pix, &fmt_src->format, cc);
 
 	return 0;
+}
+
+static int capture_try_fmt_vid_cap(struct file *file, void *fh,
+				   struct v4l2_format *f)
+{
+	struct capture_priv *priv = video_drvdata(file);
+	struct v4l2_subdev_format fmt_src;
+	int ret;
+
+	fmt_src.pad = priv->src_sd_pad;
+	fmt_src.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+	ret = v4l2_subdev_call(priv->src_sd, pad, get_fmt, NULL, &fmt_src);
+	if (ret)
+		return ret;
+
+	return __capture_try_fmt_vid_cap(priv, &fmt_src, f);
 }
 
 static int capture_s_fmt_vid_cap(struct file *file, void *fh,
 				 struct v4l2_format *f)
 {
 	struct capture_priv *priv = video_drvdata(file);
+	struct v4l2_subdev_format fmt_src;
 	int ret;
 
 	if (vb2_is_busy(&priv->q)) {
@@ -269,7 +278,13 @@ static int capture_s_fmt_vid_cap(struct file *file, void *fh,
 		return -EBUSY;
 	}
 
-	ret = capture_try_fmt_vid_cap(file, priv, f);
+	fmt_src.pad = priv->src_sd_pad;
+	fmt_src.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+	ret = v4l2_subdev_call(priv->src_sd, pad, get_fmt, NULL, &fmt_src);
+	if (ret)
+		return ret;
+
+	ret = __capture_try_fmt_vid_cap(priv, &fmt_src, f);
 	if (ret)
 		return ret;
 
@@ -278,8 +293,8 @@ static int capture_s_fmt_vid_cap(struct file *file, void *fh,
 					      CS_SEL_ANY, true);
 	priv->vdev.compose.left = 0;
 	priv->vdev.compose.top = 0;
-	priv->vdev.compose.width = f->fmt.pix.width;
-	priv->vdev.compose.height = f->fmt.pix.height;
+	priv->vdev.compose.width = fmt_src.format.width;
+	priv->vdev.compose.height = fmt_src.format.height;
 
 	return 0;
 }
@@ -317,8 +332,19 @@ static int capture_g_selection(struct file *file, void *fh,
 	case V4L2_SEL_TGT_COMPOSE:
 	case V4L2_SEL_TGT_COMPOSE_DEFAULT:
 	case V4L2_SEL_TGT_COMPOSE_BOUNDS:
-	case V4L2_SEL_TGT_COMPOSE_PADDED:
+		/* The compose rectangle is fixed to the source format. */
 		s->r = priv->vdev.compose;
+		break;
+	case V4L2_SEL_TGT_COMPOSE_PADDED:
+		/*
+		 * The hardware writes with a configurable but fixed DMA burst
+		 * size. If the source format width is not burst size aligned,
+		 * the written frame contains padding to the right.
+		 */
+		s->r.left = 0;
+		s->r.top = 0;
+		s->r.width = priv->vdev.fmt.fmt.pix.width;
+		s->r.height = priv->vdev.fmt.fmt.pix.height;
 		break;
 	default:
 		return -EINVAL;
