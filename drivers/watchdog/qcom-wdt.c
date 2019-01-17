@@ -245,6 +245,28 @@ static int qcom_wdt_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int __maybe_unused qcom_wdt_suspend(struct device *dev)
+{
+	struct qcom_wdt *wdt = dev_get_drvdata(dev);
+
+	if (watchdog_active(&wdt->wdd))
+		qcom_wdt_stop(&wdt->wdd);
+
+	return 0;
+}
+
+static int __maybe_unused qcom_wdt_resume(struct device *dev)
+{
+	struct qcom_wdt *wdt = dev_get_drvdata(dev);
+
+	if (watchdog_active(&wdt->wdd))
+		qcom_wdt_start(&wdt->wdd);
+
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(qcom_wdt_pm_ops, qcom_wdt_suspend, qcom_wdt_resume);
+
 static const struct of_device_id qcom_wdt_of_table[] = {
 	{ .compatible = "qcom,kpss-timer", .data = reg_offset_data_apcs_tmr },
 	{ .compatible = "qcom,scss-timer", .data = reg_offset_data_apcs_tmr },
@@ -259,6 +281,7 @@ static struct platform_driver qcom_watchdog_driver = {
 	.driver	= {
 		.name		= KBUILD_MODNAME,
 		.of_match_table	= qcom_wdt_of_table,
+		.pm		= &qcom_wdt_pm_ops,
 	},
 };
 module_platform_driver(qcom_watchdog_driver);
