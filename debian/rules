@@ -43,6 +43,7 @@ ifneq ($(DEB_HOST_ARCH),$(DEB_BUILD_ARCH))
 	do_tools=false
 	disable_d_i=true
 	do_zfs=false
+	do_dkms_nvidia=false
 endif
 
 # Are any of the kernel signing options enabled.
@@ -74,6 +75,7 @@ ifeq ($(do_mainline_build),true)
 	do_tools=false
 	no_dumpfile=1
 	do_zfs=false
+	do_dkms_nvidia=false
 	skipabi=true
 	skipmodule=true
 	skipretpoline=true
