@@ -41,14 +41,6 @@ config SOC_CAMERA_OV772X
 	help
 	  This is a ov772x camera driver
 
-config SOC_CAMERA_OV9640
-	tristate "ov9640 camera support (OBSOLETE)"
-	default n
-	depends on SOC_CAMERA && I2C
-	help
-	  This is an obsoleted version of ov9640 camera driver. Please use
-	  the v4l2 standalone one (VIDEO_OV9640).
-
 config SOC_CAMERA_OV9740
 	tristate "ov9740 camera support"
 	depends on SOC_CAMERA && I2C
