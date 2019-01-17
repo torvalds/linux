@@ -2605,6 +2605,10 @@ int tcp_disconnect(struct sock *sk, int flags)
 	tp->duplicate_sack[0].end_seq = 0;
 	tp->dsack_dups = 0;
 	tp->reord_seen = 0;
+	tp->retrans_out = 0;
+	tp->sacked_out = 0;
+	tp->tlp_high_seq = 0;
+	tp->last_oow_ack_time = 0;
 
 	/* Clean up fastopen related fields */
 	tcp_free_fastopen_req(tp);

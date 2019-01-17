@@ -482,12 +482,8 @@ struct sock *tcp_create_openreq_child(const struct sock *sk,
 	minmax_reset(&newtp->rtt_min, tcp_jiffies32, ~0U);
 	newicsk->icsk_ack.lrcvtime = tcp_jiffies32;
 
-	newtp->retrans_out = 0;
-	newtp->sacked_out = 0;
-	newtp->tlp_high_seq = 0;
 	newtp->lsndtime = tcp_jiffies32;
 	newsk->sk_txhash = treq->txhash;
-	newtp->last_oow_ack_time = 0;
 	newtp->total_retrans = req->num_retrans;
 
 	/* There's a bubble in the pipe until at least the first ACK. */
