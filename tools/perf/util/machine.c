@@ -21,6 +21,7 @@
 #include "unwind.h"
 #include "linux/hash.h"
 #include "asm/bug.h"
+#include "bpf-event.h"
 
 #include "sane_ctype.h"
 #include <symbol/kallsyms.h>
@@ -1867,6 +1868,8 @@ int machine__process_event(struct machine *machine, union perf_event *event,
 		ret = machine__process_switch_event(machine, event); break;
 	case PERF_RECORD_KSYMBOL:
 		ret = machine__process_ksymbol(machine, event, sample); break;
+	case PERF_RECORD_BPF_EVENT:
+		ret = machine__process_bpf_event(machine, event, sample); break;
 	default:
 		ret = -1;
 		break;

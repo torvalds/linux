@@ -154,6 +154,8 @@ endif
 
 libperf-y += perf-hooks.o
 
+libperf-$(CONFIG_LIBBPF) += bpf-event.o
+
 libperf-$(CONFIG_CXX) += c++/
 
 CFLAGS_config.o   += -DETC_PERFCONFIG="BUILD_STR($(ETC_PERFCONFIG_SQ))"

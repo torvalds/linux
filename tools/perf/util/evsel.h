@@ -169,6 +169,7 @@ struct perf_missing_features {
 	bool write_backward;
 	bool group_read;
 	bool ksymbol;
+	bool bpf_event;
 };
 
 extern struct perf_missing_features perf_missing_features;

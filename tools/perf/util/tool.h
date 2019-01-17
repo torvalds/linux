@@ -54,7 +54,8 @@ struct perf_tool {
 			context_switch,
 			throttle,
 			unthrottle,
-			ksymbol;
+			ksymbol,
+			bpf_event;
 
 	event_attr_op	attr;
 	event_attr_op	event_update;
