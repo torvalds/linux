@@ -4110,6 +4110,16 @@ struct devlink_health_reporter {
 	u64 graceful_period;
 	bool auto_recover;
 	u8 health_state;
+	u8 dump_avail;
+	u64 dump_ts;
+	u64 error_count;
+	u64 recovery_count;
+	u64 last_recovery_ts;
+};
+
+enum devlink_health_reporter_state {
+	DEVLINK_HEALTH_REPORTER_STATE_HEALTHY,
+	DEVLINK_HEALTH_REPORTER_STATE_ERROR,
 };
 
 void *
@@ -4223,6 +4233,89 @@ devlink_health_reporter_destroy(struct devlink_health_reporter *reporter)
 	mutex_unlock(&reporter->devlink->lock);
 }
 EXPORT_SYMBOL_GPL(devlink_health_reporter_destroy);
+
+static int
+devlink_health_reporter_recover(struct devlink_health_reporter *reporter,
+				void *priv_ctx)
+{
+	int err;
+
+	if (!reporter->ops->recover)
+		return -EOPNOTSUPP;
+
+	err = reporter->ops->recover(reporter, priv_ctx);
+	if (err)
+		return err;
+
+	reporter->recovery_count++;
+	reporter->health_state = DEVLINK_HEALTH_REPORTER_STATE_HEALTHY;
+	reporter->last_recovery_ts = jiffies;
+
+	return 0;
+}
+
+static int devlink_health_do_dump(struct devlink_health_reporter *reporter,
+				  void *priv_ctx)
+{
+	int err;
+
+	if (!reporter->ops->dump)
+		return 0;
+
+	if (reporter->dump_avail)
+		return 0;
+
+	devlink_health_buffers_reset(reporter->dump_buffers_array,
+				     DEVLINK_HEALTH_SIZE_TO_BUFFERS(reporter->ops->dump_size));
+	err = reporter->ops->dump(reporter, reporter->dump_buffers_array,
+				     DEVLINK_HEALTH_BUFFER_SIZE,
+				     DEVLINK_HEALTH_SIZE_TO_BUFFERS(reporter->ops->dump_size),
+				     priv_ctx);
+	if (!err) {
+		reporter->dump_avail = true;
+		reporter->dump_ts = jiffies;
+	}
+
+	return err;
+}
+
+int devlink_health_report(struct devlink_health_reporter *reporter,
+			  const char *msg, void *priv_ctx)
+{
+	struct devlink *devlink = reporter->devlink;
+	int err = 0;
+
+	/* write a log message of the current error */
+	WARN_ON(!msg);
+	trace_devlink_health_report(devlink, reporter->ops->name, msg);
+	reporter->error_count++;
+
+	/* abort if the previous error wasn't recovered */
+	if (reporter->auto_recover &&
+	    (reporter->health_state != DEVLINK_HEALTH_REPORTER_STATE_HEALTHY ||
+	     jiffies - reporter->last_recovery_ts <
+	     msecs_to_jiffies(reporter->graceful_period))) {
+		trace_devlink_health_recover_aborted(devlink,
+						     reporter->ops->name,
+						     reporter->health_state,
+						     jiffies -
+						     reporter->last_recovery_ts);
+		return -ECANCELED;
+	}
+
+	reporter->health_state = DEVLINK_HEALTH_REPORTER_STATE_ERROR;
+
+	mutex_lock(&reporter->dump_lock);
+	/* store current dump of current error, for later analysis */
+	devlink_health_do_dump(reporter, priv_ctx);
+	mutex_unlock(&reporter->dump_lock);
+
+	if (reporter->auto_recover)
+		err = devlink_health_reporter_recover(reporter, priv_ctx);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(devlink_health_report);
 
 static const struct nla_policy devlink_nl_policy[DEVLINK_ATTR_MAX + 1] = {
 	[DEVLINK_ATTR_BUS_NAME] = { .type = NLA_NUL_STRING },
