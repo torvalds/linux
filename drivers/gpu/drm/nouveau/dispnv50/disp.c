@@ -561,7 +561,7 @@ nv50_hdmi_enable(struct drm_encoder *encoder, struct drm_display_mode *mode)
 	u32 max_ac_packet;
 	union hdmi_infoframe avi_frame;
 	union hdmi_infoframe vendor_frame;
-	bool scdc_supported, high_tmds_clock_ratio = false, scrambling = false;
+	bool high_tmds_clock_ratio = false, scrambling = false;
 	u8 config;
 	int ret;
 	int size;
@@ -571,10 +571,9 @@ nv50_hdmi_enable(struct drm_encoder *encoder, struct drm_display_mode *mode)
 		return;
 
 	hdmi = &nv_connector->base.display_info.hdmi;
-	scdc_supported = hdmi->scdc.supported;
 
-	ret = drm_hdmi_avi_infoframe_from_display_mode(&avi_frame.avi, mode,
-						       scdc_supported);
+	ret = drm_hdmi_avi_infoframe_from_display_mode(&avi_frame.avi,
+						       &nv_connector->base, mode);
 	if (!ret) {
 		/* We have an AVI InfoFrame, populate it to the display */
 		args.pwr.avi_infoframe_length
@@ -680,6 +679,8 @@ nv50_msto_payload(struct nv50_msto *msto)
 	struct nv50_mstm *mstm = mstc->mstm;
 	int vcpi = mstc->port->vcpi.vcpi, i;
 
+	WARN_ON(!mutex_is_locked(&mstm->mgr.payload_lock));
+
 	NV_ATOMIC(drm, "%s: vcpi %d\n", msto->encoder.name, vcpi);
 	for (i = 0; i < mstm->mgr.max_payloads; i++) {
 		struct drm_dp_payload *payload = &mstm->mgr.payloads[i];
@@ -704,14 +705,16 @@ nv50_msto_cleanup(struct nv50_msto *msto)
 	struct nv50_mstc *mstc = msto->mstc;
 	struct nv50_mstm *mstm = mstc->mstm;
 
+	if (!msto->disabled)
+		return;
+
 	NV_ATOMIC(drm, "%s: msto cleanup\n", msto->encoder.name);
-	if (mstc->port && mstc->port->vcpi.vcpi > 0 && !nv50_msto_payload(msto))
-		drm_dp_mst_deallocate_vcpi(&mstm->mgr, mstc->port);
-	if (msto->disabled) {
-		msto->mstc = NULL;
-		msto->head = NULL;
-		msto->disabled = false;
-	}
+
+	drm_dp_mst_deallocate_vcpi(&mstm->mgr, mstc->port);
+
+	msto->mstc = NULL;
+	msto->head = NULL;
+	msto->disabled = false;
 }
 
 static void
@@ -731,8 +734,10 @@ nv50_msto_prepare(struct nv50_msto *msto)
 			       (0x0100 << msto->head->base.index),
 	};
 
+	mutex_lock(&mstm->mgr.payload_lock);
+
 	NV_ATOMIC(drm, "%s: msto prepare\n", msto->encoder.name);
-	if (mstc->port && mstc->port->vcpi.vcpi > 0) {
+	if (mstc->port->vcpi.vcpi > 0) {
 		struct drm_dp_payload *payload = nv50_msto_payload(msto);
 		if (payload) {
 			args.vcpi.start_slot = payload->start_slot;
@@ -746,7 +751,9 @@ nv50_msto_prepare(struct nv50_msto *msto)
 		  msto->encoder.name, msto->head->base.base.name,
 		  args.vcpi.start_slot, args.vcpi.num_slots,
 		  args.vcpi.pbn, args.vcpi.aligned_pbn);
+
 	nvif_mthd(&drm->display->disp.object, 0, &args, sizeof(args));
+	mutex_unlock(&mstm->mgr.payload_lock);
 }
 
 static int
@@ -754,16 +761,23 @@ nv50_msto_atomic_check(struct drm_encoder *encoder,
 		       struct drm_crtc_state *crtc_state,
 		       struct drm_connector_state *conn_state)
 {
-	struct nv50_mstc *mstc = nv50_mstc(conn_state->connector);
+	struct drm_atomic_state *state = crtc_state->state;
+	struct drm_connector *connector = conn_state->connector;
+	struct nv50_mstc *mstc = nv50_mstc(connector);
 	struct nv50_mstm *mstm = mstc->mstm;
-	int bpp = conn_state->connector->display_info.bpc * 3;
+	int bpp = connector->display_info.bpc * 3;
 	int slots;
 
-	mstc->pbn = drm_dp_calc_pbn_mode(crtc_state->adjusted_mode.clock, bpp);
+	mstc->pbn = drm_dp_calc_pbn_mode(crtc_state->adjusted_mode.clock,
+					 bpp);
 
-	slots = drm_dp_find_vcpi_slots(&mstm->mgr, mstc->pbn);
-	if (slots < 0)
-		return slots;
+	if (drm_atomic_crtc_needs_modeset(crtc_state) &&
+	    !drm_connector_is_unregistered(connector)) {
+		slots = drm_dp_atomic_find_vcpi_slots(state, &mstm->mgr,
+						      mstc->port, mstc->pbn);
+		if (slots < 0)
+			return slots;
+	}
 
 	return nv50_outp_atomic_check_view(encoder, crtc_state, conn_state,
 					   mstc->native);
@@ -829,8 +843,7 @@ nv50_msto_disable(struct drm_encoder *encoder)
 	struct nv50_mstc *mstc = msto->mstc;
 	struct nv50_mstm *mstm = mstc->mstm;
 
-	if (mstc->port)
-		drm_dp_mst_reset_vcpi_slots(&mstm->mgr, mstc->port);
+	drm_dp_mst_reset_vcpi_slots(&mstm->mgr, mstc->port);
 
 	mstm->outp->update(mstm->outp, msto->head->base.index, NULL, 0, 0);
 	mstm->modified = true;
@@ -927,12 +940,43 @@ nv50_mstc_get_modes(struct drm_connector *connector)
 	return ret;
 }
 
+static int
+nv50_mstc_atomic_check(struct drm_connector *connector,
+		       struct drm_connector_state *new_conn_state)
+{
+	struct drm_atomic_state *state = new_conn_state->state;
+	struct nv50_mstc *mstc = nv50_mstc(connector);
+	struct drm_dp_mst_topology_mgr *mgr = &mstc->mstm->mgr;
+	struct drm_connector_state *old_conn_state =
+		drm_atomic_get_old_connector_state(state, connector);
+	struct drm_crtc_state *crtc_state;
+	struct drm_crtc *new_crtc = new_conn_state->crtc;
+
+	if (!old_conn_state->crtc)
+		return 0;
+
+	/* We only want to free VCPI if this state disables the CRTC on this
+	 * connector
+	 */
+	if (new_crtc) {
+		crtc_state = drm_atomic_get_new_crtc_state(state, new_crtc);
+
+		if (!crtc_state ||
+		    !drm_atomic_crtc_needs_modeset(crtc_state) ||
+		    crtc_state->enable)
+			return 0;
+	}
+
+	return drm_dp_atomic_release_vcpi_slots(state, mgr, mstc->port);
+}
+
 static const struct drm_connector_helper_funcs
 nv50_mstc_help = {
 	.get_modes = nv50_mstc_get_modes,
 	.mode_valid = nv50_mstc_mode_valid,
 	.best_encoder = nv50_mstc_best_encoder,
 	.atomic_best_encoder = nv50_mstc_atomic_best_encoder,
+	.atomic_check = nv50_mstc_atomic_check,
 };
 
 static enum drm_connector_status
@@ -942,7 +986,7 @@ nv50_mstc_detect(struct drm_connector *connector, bool force)
 	enum drm_connector_status conn_status;
 	int ret;
 
-	if (!mstc->port)
+	if (drm_connector_is_unregistered(connector))
 		return connector_status_disconnected;
 
 	ret = pm_runtime_get_sync(connector->dev->dev);
@@ -961,7 +1005,10 @@ static void
 nv50_mstc_destroy(struct drm_connector *connector)
 {
 	struct nv50_mstc *mstc = nv50_mstc(connector);
+
 	drm_connector_cleanup(&mstc->connector);
+	drm_dp_mst_put_port_malloc(mstc->port);
+
 	kfree(mstc);
 }
 
@@ -1009,6 +1056,7 @@ nv50_mstc_new(struct nv50_mstm *mstm, struct drm_dp_mst_port *port,
 	drm_object_attach_property(&mstc->connector.base, dev->mode_config.path_property, 0);
 	drm_object_attach_property(&mstc->connector.base, dev->mode_config.tile_property, 0);
 	drm_connector_set_path_property(&mstc->connector, path);
+	drm_dp_mst_get_port_malloc(port);
 	return 0;
 }
 
@@ -1073,10 +1121,6 @@ nv50_mstm_destroy_connector(struct drm_dp_mst_topology_mgr *mgr,
 
 	drm_fb_helper_remove_one_connector(&drm->fbcon->helper, &mstc->connector);
 
-	drm_modeset_lock(&drm->dev->mode_config.connection_mutex, NULL);
-	mstc->port = NULL;
-	drm_modeset_unlock(&drm->dev->mode_config.connection_mutex);
-
 	drm_connector_put(&mstc->connector);
 }
 
@@ -1099,11 +1143,8 @@ nv50_mstm_add_connector(struct drm_dp_mst_topology_mgr *mgr,
 	int ret;
 
 	ret = nv50_mstc_new(mstm, port, path, &mstc);
-	if (ret) {
-		if (mstc)
-			mstc->connector.funcs->destroy(&mstc->connector);
+	if (ret)
 		return NULL;
-	}
 
 	return &mstc->connector;
 }
@@ -2116,6 +2157,10 @@ nv50_disp_atomic_check(struct drm_device *dev, struct drm_atomic_state *state)
 		if (ret)
 			return ret;
 	}
+
+	ret = drm_dp_mst_atomic_check(state);
+	if (ret)
+		return ret;
 
 	return 0;
 }

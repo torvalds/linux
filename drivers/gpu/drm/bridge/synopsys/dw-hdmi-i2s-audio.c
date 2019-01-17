@@ -5,6 +5,10 @@
  * Copyright (c) 2017 Renesas Solutions Corp.
  * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
  */
+
+#include <linux/dma-mapping.h>
+#include <linux/module.h>
+
 #include <drm/bridge/dw_hdmi.h>
 
 #include <sound/hdmi-codec.h>

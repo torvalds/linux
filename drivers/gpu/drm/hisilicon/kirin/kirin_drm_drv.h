@@ -19,10 +19,6 @@ struct kirin_dc_ops {
 	void (*cleanup)(struct platform_device *pdev);
 };
 
-struct kirin_drm_private {
-	struct drm_fbdev_cma *fbdev;
-};
-
 extern const struct kirin_dc_ops ade_dc_ops;
 
 #endif /* __KIRIN_DRM_DRV_H__ */

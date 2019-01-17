@@ -479,18 +479,14 @@ static void intel_hdmi_set_avi_infoframe(struct intel_encoder *encoder,
 					 const struct intel_crtc_state *crtc_state,
 					 const struct drm_connector_state *conn_state)
 {
-	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
 	const struct drm_display_mode *adjusted_mode =
 		&crtc_state->base.adjusted_mode;
-	struct drm_connector *connector = &intel_hdmi->attached_connector->base;
-	bool is_hdmi2_sink = connector->display_info.hdmi.scdc.supported ||
-	   connector->display_info.color_formats & DRM_COLOR_FORMAT_YCRCB420;
 	union hdmi_infoframe frame;
 	int ret;
 
 	ret = drm_hdmi_avi_infoframe_from_display_mode(&frame.avi,
-						       adjusted_mode,
-						       is_hdmi2_sink);
+						       conn_state->connector,
+						       adjusted_mode);
 	if (ret < 0) {
 		DRM_ERROR("couldn't fill AVI infoframe\n");
 		return;
@@ -503,12 +499,12 @@ static void intel_hdmi_set_avi_infoframe(struct intel_encoder *encoder,
 	else
 		frame.avi.colorspace = HDMI_COLORSPACE_RGB;
 
-	drm_hdmi_avi_infoframe_quant_range(&frame.avi, adjusted_mode,
+	drm_hdmi_avi_infoframe_quant_range(&frame.avi,
+					   conn_state->connector,
+					   adjusted_mode,
 					   crtc_state->limited_color_range ?
 					   HDMI_QUANTIZATION_RANGE_LIMITED :
-					   HDMI_QUANTIZATION_RANGE_FULL,
-					   intel_hdmi->rgb_quant_range_selectable,
-					   is_hdmi2_sink);
+					   HDMI_QUANTIZATION_RANGE_FULL);
 
 	drm_hdmi_avi_infoframe_content_type(&frame.avi,
 					    conn_state);
@@ -1707,9 +1703,9 @@ intel_hdmi_ycbcr420_config(struct drm_connector *connector,
 	return true;
 }
 
-bool intel_hdmi_compute_config(struct intel_encoder *encoder,
-			       struct intel_crtc_state *pipe_config,
-			       struct drm_connector_state *conn_state)
+int intel_hdmi_compute_config(struct intel_encoder *encoder,
+			      struct intel_crtc_state *pipe_config,
+			      struct drm_connector_state *conn_state)
 {
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
@@ -1725,7 +1721,7 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 	bool force_dvi = intel_conn_state->force_audio == HDMI_AUDIO_OFF_DVI;
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
-		return false;
+		return -EINVAL;
 
 	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
 	pipe_config->has_hdmi_sink = !force_dvi && intel_hdmi->has_hdmi_sink;
@@ -1756,7 +1752,7 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 						&clock_12bpc, &clock_10bpc,
 						&clock_8bpc)) {
 			DRM_ERROR("Can't support YCBCR420 output\n");
-			return false;
+			return -EINVAL;
 		}
 	}
 
@@ -1806,7 +1802,7 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 	if (hdmi_port_clock_valid(intel_hdmi, pipe_config->port_clock,
 				  false, force_dvi) != MODE_OK) {
 		DRM_DEBUG_KMS("unsupported HDMI clock, rejecting mode\n");
-		return false;
+		return -EINVAL;
 	}
 
 	/* Set user selected PAR to incoming mode's member */
@@ -1825,7 +1821,7 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 		}
 	}
 
-	return true;
+	return 0;
 }
 
 static void
@@ -1835,7 +1831,6 @@ intel_hdmi_unset_edid(struct drm_connector *connector)
 
 	intel_hdmi->has_hdmi_sink = false;
 	intel_hdmi->has_audio = false;
-	intel_hdmi->rgb_quant_range_selectable = false;
 
 	intel_hdmi->dp_dual_mode.type = DRM_DP_DUAL_MODE_NONE;
 	intel_hdmi->dp_dual_mode.max_tmds_clock = 0;
@@ -1919,9 +1914,6 @@ intel_hdmi_set_edid(struct drm_connector *connector)
 
 	to_intel_connector(connector)->detect_edid = edid;
 	if (edid && edid->input & DRM_EDID_INPUT_DIGITAL) {
-		intel_hdmi->rgb_quant_range_selectable =
-			drm_rgb_quant_range_selectable(edid);
-
 		intel_hdmi->has_audio = drm_detect_monitor_audio(edid);
 		intel_hdmi->has_hdmi_sink = drm_detect_hdmi_monitor(edid);
 

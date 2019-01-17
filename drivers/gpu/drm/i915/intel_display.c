@@ -11517,10 +11517,13 @@ encoder_retry:
 			continue;
 
 		encoder = to_intel_encoder(connector_state->best_encoder);
-
-		if (!(encoder->compute_config(encoder, pipe_config, connector_state))) {
-			DRM_DEBUG_KMS("Encoder config failure\n");
-			return -EINVAL;
+		ret = encoder->compute_config(encoder, pipe_config,
+					      connector_state);
+		if (ret < 0) {
+			if (ret != -EDEADLK)
+				DRM_DEBUG_KMS("Encoder config failure: %d\n",
+					      ret);
+			return ret;
 		}
 	}
 
@@ -12694,6 +12697,10 @@ static int intel_atomic_check(struct drm_device *dev,
 				       needs_modeset(crtc_state) ?
 				       "[modeset]" : "[fastset]");
 	}
+
+	ret = drm_dp_mst_atomic_check(state);
+	if (ret)
+		return ret;
 
 	if (any_ms) {
 		ret = intel_modeset_checks(state);

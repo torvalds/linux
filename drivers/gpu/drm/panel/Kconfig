@@ -204,6 +204,15 @@ config DRM_PANEL_SITRONIX_ST7789V
 	  Say Y here if you want to enable support for the Sitronix
 	  ST7789V controller for 240x320 LCD panels
 
+config DRM_PANEL_TPO_TPG110
+	tristate "TPO TPG 800x400 panel"
+	depends on OF && SPI && GPIOLIB
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for TPO TPG110
+	  400CH LTPS TFT LCD Single Chip Digital Driver for up to
+	  800x400 LCD panels.
+
 config DRM_PANEL_TRULY_NT35597_WQXGA
 	tristate "Truly WQXGA"
 	depends on OF

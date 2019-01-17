@@ -143,6 +143,9 @@ Device Instance and Driver Handling
 .. kernel-doc:: drivers/gpu/drm/drm_drv.c
    :doc: driver instance overview
 
+.. kernel-doc:: include/drm/drm_device.h
+   :internal:
+
 .. kernel-doc:: include/drm/drm_drv.h
    :internal:
 
@@ -229,6 +232,15 @@ Printer
 
 .. kernel-doc:: drivers/gpu/drm/drm_print.c
    :export:
+
+Utilities
+---------
+
+.. kernel-doc:: include/drm/drm_util.h
+   :doc: drm utils
+
+.. kernel-doc:: include/drm/drm_util.h
+   :internal:
 
 
 Legacy Support Code

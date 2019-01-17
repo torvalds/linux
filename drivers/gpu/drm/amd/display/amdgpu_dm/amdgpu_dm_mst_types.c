@@ -191,6 +191,7 @@ dm_dp_mst_connector_destroy(struct drm_connector *connector)
 	drm_encoder_cleanup(&amdgpu_encoder->base);
 	kfree(amdgpu_encoder);
 	drm_connector_cleanup(connector);
+	drm_dp_mst_put_port_malloc(amdgpu_dm_connector->port);
 	kfree(amdgpu_dm_connector);
 }
 
@@ -363,7 +364,9 @@ dm_dp_add_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
 	amdgpu_dm_connector_funcs_reset(connector);
 
 	DRM_INFO("DM_MST: added connector: %p [id: %d] [master: %p]\n",
-			aconnector, connector->base.id, aconnector->mst_port);
+		 aconnector, connector->base.id, aconnector->mst_port);
+
+	drm_dp_mst_get_port_malloc(port);
 
 	DRM_DEBUG_KMS(":%d\n", connector->base.id);
 
@@ -379,12 +382,12 @@ static void dm_dp_destroy_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
 	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
 
 	DRM_INFO("DM_MST: Disabling connector: %p [id: %d] [master: %p]\n",
-				aconnector, connector->base.id, aconnector->mst_port);
+		 aconnector, connector->base.id, aconnector->mst_port);
 
-	aconnector->port = NULL;
 	if (aconnector->dc_sink) {
 		amdgpu_dm_update_freesync_caps(connector, NULL);
-		dc_link_remove_remote_sink(aconnector->dc_link, aconnector->dc_sink);
+		dc_link_remove_remote_sink(aconnector->dc_link,
+					   aconnector->dc_sink);
 		dc_sink_release(aconnector->dc_sink);
 		aconnector->dc_sink = NULL;
 	}

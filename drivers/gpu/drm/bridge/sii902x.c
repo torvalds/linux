@@ -258,7 +258,8 @@ static void sii902x_bridge_mode_set(struct drm_bridge *bridge,
 	if (ret)
 		return;
 
-	ret = drm_hdmi_avi_infoframe_from_display_mode(&frame, adj, false);
+	ret = drm_hdmi_avi_infoframe_from_display_mode(&frame,
+						       &sii902x->connector, adj);
 	if (ret < 0) {
 		DRM_ERROR("couldn't fill AVI infoframe\n");
 		return;

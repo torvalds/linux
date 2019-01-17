@@ -10,9 +10,11 @@
 #ifndef __DW_HDMI__
 #define __DW_HDMI__
 
-#include <drm/drmP.h>
-
+struct drm_connector;
+struct drm_display_mode;
+struct drm_encoder;
 struct dw_hdmi;
+struct platform_device;
 
 /**
  * DOC: Supported input formats and encodings

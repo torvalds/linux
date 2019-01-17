@@ -39,7 +39,9 @@
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_util.h>
 #include <drm/drm_crtc_helper.h>
+
 #include "ast_drv.h"
 
 static void ast_dirty_update(struct ast_fbdev *afbdev,
@@ -261,7 +263,7 @@ static void ast_fbdev_destroy(struct drm_device *dev,
 {
 	struct ast_framebuffer *afb = &afbdev->afb;
 
-	drm_crtc_force_disable_all(dev);
+	drm_helper_force_disable_all(dev);
 	drm_fb_helper_unregister_fbi(&afbdev->helper);
 
 	if (afb->obj) {

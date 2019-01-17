@@ -130,11 +130,12 @@ static void virtio_gpu_primary_plane_update(struct drm_plane *plane,
 				   plane->state->src_h >> 16,
 				   plane->state->src_x >> 16,
 				   plane->state->src_y >> 16);
-	virtio_gpu_cmd_resource_flush(vgdev, handle,
-				      plane->state->src_x >> 16,
-				      plane->state->src_y >> 16,
-				      plane->state->src_w >> 16,
-				      plane->state->src_h >> 16);
+	if (handle)
+		virtio_gpu_cmd_resource_flush(vgdev, handle,
+					      plane->state->src_x >> 16,
+					      plane->state->src_y >> 16,
+					      plane->state->src_w >> 16,
+					      plane->state->src_h >> 16);
 }
 
 static int virtio_gpu_cursor_prepare_fb(struct drm_plane *plane,
@@ -168,8 +169,10 @@ static void virtio_gpu_cursor_cleanup_fb(struct drm_plane *plane,
 		return;
 
 	vgfb = to_virtio_gpu_framebuffer(plane->state->fb);
-	if (vgfb->fence)
-		virtio_gpu_fence_cleanup(vgfb->fence);
+	if (vgfb->fence) {
+		dma_fence_put(&vgfb->fence->f);
+		vgfb->fence = NULL;
+	}
 }
 
 static void virtio_gpu_cursor_plane_update(struct drm_plane *plane,

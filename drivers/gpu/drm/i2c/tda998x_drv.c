@@ -849,7 +849,8 @@ tda998x_write_avi(struct tda998x_priv *priv, const struct drm_display_mode *mode
 {
 	union hdmi_infoframe frame;
 
-	drm_hdmi_avi_infoframe_from_display_mode(&frame.avi, mode, false);
+	drm_hdmi_avi_infoframe_from_display_mode(&frame.avi,
+						 &priv->connector, mode);
 	frame.avi.quantization_range = HDMI_QUANTIZATION_RANGE_FULL;
 
 	tda998x_write_if(priv, DIP_IF_FLAGS_IF2, REG_IF2_HB0, &frame);
@@ -1122,7 +1123,6 @@ static void tda998x_connector_destroy(struct drm_connector *connector)
 }
 
 static const struct drm_connector_funcs tda998x_connector_funcs = {
-	.dpms = drm_helper_connector_dpms,
 	.reset = drm_atomic_helper_connector_reset,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = tda998x_connector_detect,

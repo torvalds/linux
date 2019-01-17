@@ -257,9 +257,9 @@ static void band_gap_reset(struct drm_i915_private *dev_priv)
 	mutex_unlock(&dev_priv->sb_lock);
 }
 
-static bool intel_dsi_compute_config(struct intel_encoder *encoder,
-				     struct intel_crtc_state *pipe_config,
-				     struct drm_connector_state *conn_state)
+static int intel_dsi_compute_config(struct intel_encoder *encoder,
+				    struct intel_crtc_state *pipe_config,
+				    struct drm_connector_state *conn_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = container_of(encoder, struct intel_dsi,
@@ -285,7 +285,7 @@ static bool intel_dsi_compute_config(struct intel_encoder *encoder,
 	}
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
-		return false;
+		return -EINVAL;
 
 	/* DSI uses short packets for sync events, so clear mode flags for DSI */
 	adjusted_mode->flags = 0;
@@ -303,16 +303,16 @@ static bool intel_dsi_compute_config(struct intel_encoder *encoder,
 
 		ret = bxt_dsi_pll_compute(encoder, pipe_config);
 		if (ret)
-			return false;
+			return -EINVAL;
 	} else {
 		ret = vlv_dsi_pll_compute(encoder, pipe_config);
 		if (ret)
-			return false;
+			return -EINVAL;
 	}
 
 	pipe_config->clock_set = true;
 
-	return true;
+	return 0;
 }
 
 static bool glk_dsi_enable_io(struct intel_encoder *encoder)

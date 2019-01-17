@@ -1094,8 +1094,9 @@ static void anx78xx_bridge_mode_set(struct drm_bridge *bridge,
 
 	mutex_lock(&anx78xx->lock);
 
-	err = drm_hdmi_avi_infoframe_from_display_mode(&frame, adjusted_mode,
-						       false);
+	err = drm_hdmi_avi_infoframe_from_display_mode(&frame,
+						       &anx78xx->connector,
+						       adjusted_mode);
 	if (err) {
 		DRM_ERROR("Failed to setup AVI infoframe: %d\n", err);
 		goto unlock;
