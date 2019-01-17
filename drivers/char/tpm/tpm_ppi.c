@@ -120,9 +120,10 @@ static ssize_t tpm_store_ppi_request(struct device *dev,
 	u32 req;
 	u64 ret;
 	int func = TPM_PPI_FN_SUBREQ;
-	union acpi_object *obj, tmp;
-	union acpi_object argv4 = ACPI_INIT_DSM_ARGV4(1, &tmp);
+	union acpi_object *obj, tmp[2];
+	union acpi_object argv4 = ACPI_INIT_DSM_ARGV4(2, tmp);
 	struct tpm_chip *chip = to_tpm_chip(dev);
+	u64 rev = TPM_PPI_REVISION_ID_1;
 
 	/*
 	 * the function to submit TPM operation request to pre-os environment
@@ -139,20 +140,29 @@ static ssize_t tpm_store_ppi_request(struct device *dev,
 	 * string/package type. For PPI version 1.0 and 1.1, use buffer type
 	 * for compatibility, and use package type since 1.2 according to spec.
 	 */
-	if (strcmp(chip->ppi_version, "1.2") < 0) {
+	if (strcmp(chip->ppi_version, "1.3") == 0) {
+		if (sscanf(buf, "%llu %llu", &tmp[0].integer.value,
+			   &tmp[1].integer.value) != 2)
+			goto ppi12;
+		rev = TPM_PPI_REVISION_ID_2;
+		tmp[0].type = ACPI_TYPE_INTEGER;
+		tmp[1].type = ACPI_TYPE_INTEGER;
+	} else if (strcmp(chip->ppi_version, "1.2") < 0) {
 		if (sscanf(buf, "%d", &req) != 1)
 			return -EINVAL;
 		argv4.type = ACPI_TYPE_BUFFER;
 		argv4.buffer.length = sizeof(req);
 		argv4.buffer.pointer = (u8 *)&req;
 	} else {
-		tmp.type = ACPI_TYPE_INTEGER;
-		if (sscanf(buf, "%llu", &tmp.integer.value) != 1)
+ppi12:
+		argv4.package.count = 1;
+		tmp[0].type = ACPI_TYPE_INTEGER;
+		if (sscanf(buf, "%llu", &tmp[0].integer.value) != 1)
 			return -EINVAL;
 	}
 
 	obj = tpm_eval_dsm(chip->acpi_dev_handle, func, ACPI_TYPE_INTEGER,
-			   &argv4, TPM_PPI_REVISION_ID_1);
+			   &argv4, rev);
 	if (!obj) {
 		return -ENXIO;
 	} else {
