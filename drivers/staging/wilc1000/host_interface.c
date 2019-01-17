@@ -234,7 +234,7 @@ static int handle_scan_done(struct wilc_vif *vif, enum scan_event evt)
 int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
 	      u8 *ch_freq_list, u8 ch_list_len, const u8 *ies,
 	      size_t ies_len, wilc_scan_result scan_result, void *user_arg,
-	      struct hidden_network *hidden_net)
+	      struct wilc_probe_ssid *search)
 {
 	int result = 0;
 	struct wid wid_list[5];
@@ -242,7 +242,7 @@ int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
 	u32 i;
 	u8 *buffer;
 	u8 valuesize = 0;
-	u8 *hdn_ntwk_wid_val = NULL;
+	u8 *search_ssid_vals = NULL;
 	struct host_if_drv *hif_drv = vif->hif_drv;
 
 	if (hif_drv->hif_state >= HOST_IF_SCANNING &&
@@ -260,26 +260,24 @@ int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
 
 	hif_drv->usr_scan_req.ch_cnt = 0;
 
-	if (hidden_net) {
-		wid_list[index].id = WID_SSID_PROBE_REQ;
-		wid_list[index].type = WID_STR;
-
-		for (i = 0; i < hidden_net->n_ssids; i++)
-			valuesize += ((hidden_net->net_info[i].ssid_len) + 1);
-		hdn_ntwk_wid_val = kmalloc(valuesize + 1, GFP_KERNEL);
-		wid_list[index].val = hdn_ntwk_wid_val;
-		if (wid_list[index].val) {
+	if (search) {
+		for (i = 0; i < search->n_ssids; i++)
+			valuesize += ((search->ssid_info[i].ssid_len) + 1);
+		search_ssid_vals = kmalloc(valuesize + 1, GFP_KERNEL);
+		if (search_ssid_vals) {
+			wid_list[index].id = WID_SSID_PROBE_REQ;
+			wid_list[index].type = WID_STR;
+			wid_list[index].val = search_ssid_vals;
 			buffer = wid_list[index].val;
 
-			*buffer++ = hidden_net->n_ssids;
+			*buffer++ = search->n_ssids;
 
-			for (i = 0; i < hidden_net->n_ssids; i++) {
-				*buffer++ = hidden_net->net_info[i].ssid_len;
-				memcpy(buffer, hidden_net->net_info[i].ssid,
-				       hidden_net->net_info[i].ssid_len);
-				buffer += hidden_net->net_info[i].ssid_len;
+			for (i = 0; i < search->n_ssids; i++) {
+				*buffer++ = search->ssid_info[i].ssid_len;
+				memcpy(buffer, search->ssid_info[i].ssid,
+				       search->ssid_info[i].ssid_len);
+				buffer += search->ssid_info[i].ssid_len;
 			}
-
 			wid_list[index].size = (s32)(valuesize + 1);
 			index++;
 		}
@@ -332,9 +330,9 @@ int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
 		  jiffies + msecs_to_jiffies(HOST_IF_SCAN_TIMEOUT));
 
 error:
-	if (hidden_net) {
-		kfree(hidden_net->net_info);
-		kfree(hdn_ntwk_wid_val);
+	if (search) {
+		kfree(search->ssid_info);
+		kfree(search_ssid_vals);
 	}
 
 	return result;

@@ -131,14 +131,15 @@ typedef void (*wilc_connect_result)(enum conn_event,
 typedef void (*wilc_remain_on_chan_expired)(void *, u32);
 typedef void (*wilc_remain_on_chan_ready)(void *);
 
-struct hidden_net_info {
-	u8  *ssid;
+struct wilc_probe_ssid_info {
 	u8 ssid_len;
+	u8 *ssid;
 };
 
-struct hidden_network {
-	struct hidden_net_info *net_info;
+struct wilc_probe_ssid {
+	struct wilc_probe_ssid_info *ssid_info;
 	u8 n_ssids;
+	u32 size;
 };
 
 struct user_scan_req {
@@ -238,7 +239,7 @@ int wilc_get_rssi(struct wilc_vif *vif, s8 *rssi_level);
 int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
 	      u8 *ch_freq_list, u8 ch_list_len, const u8 *ies,
 	      size_t ies_len, wilc_scan_result scan_result, void *user_arg,
-	      struct hidden_network *hidden_network);
+	      struct wilc_probe_ssid *search);
 int wilc_hif_set_cfg(struct wilc_vif *vif,
 		     struct cfg_param_attr *cfg_param);
 int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler);

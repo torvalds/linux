@@ -221,22 +221,23 @@ static int set_channel(struct wiphy *wiphy,
 
 static inline int
 wilc_wfi_cfg_alloc_fill_ssid(struct cfg80211_scan_request *request,
-			     struct hidden_network *ntwk)
+			     struct wilc_probe_ssid *search)
 {
 	int i;
 	int slot_id = 0;
 
-	ntwk->net_info = kcalloc(request->n_ssids, sizeof(*ntwk->net_info),
-				 GFP_KERNEL);
-	if (!ntwk->net_info)
+	search->ssid_info = kcalloc(request->n_ssids,
+				    sizeof(*search->ssid_info), GFP_KERNEL);
+	if (!search->ssid_info)
 		goto out;
 
-	ntwk->n_ssids = request->n_ssids;
+	search->n_ssids = request->n_ssids;
 
 	for (i = 0; i < request->n_ssids; i++) {
 		if (request->ssids[i].ssid_len > 0) {
-			struct hidden_net_info *info = &ntwk->net_info[slot_id];
+			struct wilc_probe_ssid_info *info;
 
+			info = &search->ssid_info[slot_id];
 			info->ssid = kmemdup(request->ssids[i].ssid,
 					     request->ssids[i].ssid_len,
 					     GFP_KERNEL);
@@ -246,7 +247,7 @@ wilc_wfi_cfg_alloc_fill_ssid(struct cfg80211_scan_request *request,
 			info->ssid_len = request->ssids[i].ssid_len;
 			slot_id++;
 		} else {
-			ntwk->n_ssids -= 1;
+			search->n_ssids -= 1;
 		}
 	}
 	return 0;
@@ -254,9 +255,9 @@ wilc_wfi_cfg_alloc_fill_ssid(struct cfg80211_scan_request *request,
 out_free:
 
 	for (i = 0; i < slot_id; i++)
-		kfree(ntwk->net_info[i].ssid);
+		kfree(search->ssid_info[i].ssid);
 
-	kfree(ntwk->net_info);
+	kfree(search->ssid_info);
 out:
 
 	return -ENOMEM;
@@ -269,7 +270,7 @@ static int scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
 	u32 i;
 	int ret = 0;
 	u8 scan_ch_list[MAX_NUM_SCANNED_NETWORKS];
-	struct hidden_network hidden_ntwk;
+	struct wilc_probe_ssid probe_ssid;
 
 	priv->scan_req = request;
 
@@ -283,7 +284,7 @@ static int scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
 
 		if (request->n_ssids >= 1) {
 			if (wilc_wfi_cfg_alloc_fill_ssid(request,
-							 &hidden_ntwk)) {
+							 &probe_ssid)) {
 				ret = -ENOMEM;
 				goto out;
 			}
@@ -293,7 +294,7 @@ static int scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
 					request->n_channels,
 					(const u8 *)request->ie,
 					request->ie_len, cfg_scan_result,
-					(void *)priv, &hidden_ntwk);
+					(void *)priv, &probe_ssid);
 		} else {
 			ret = wilc_scan(vif, WILC_FW_USER_SCAN,
 					WILC_FW_ACTIVE_SCAN, scan_ch_list,
