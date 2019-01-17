@@ -4413,7 +4413,7 @@ static int i915_forcewake_open(struct inode *inode, struct file *file)
 	if (INTEL_GEN(i915) < 6)
 		return 0;
 
-	intel_runtime_pm_get(i915);
+	file->private_data = (void *)(uintptr_t)intel_runtime_pm_get(i915);
 	intel_uncore_forcewake_user_get(i915);
 
 	return 0;
@@ -4427,7 +4427,8 @@ static int i915_forcewake_release(struct inode *inode, struct file *file)
 		return 0;
 
 	intel_uncore_forcewake_user_put(i915);
-	intel_runtime_pm_put_unchecked(i915);
+	intel_runtime_pm_put(i915,
+			     (intel_wakeref_t)(uintptr_t)file->private_data);
 
 	return 0;
 }
