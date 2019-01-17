@@ -168,7 +168,7 @@ static void wilc_wlan_parse_response_frame(struct wilc *wl, u8 *info, int size)
 
 	while (size > 0) {
 		i = 0;
-		wid = info[0] | (info[1] << 8);
+		wid = get_unaligned_le16(info);
 
 		switch (GET_WID_TYPE(wid)) {
 		case WID_CHAR:
@@ -187,12 +187,13 @@ static void wilc_wlan_parse_response_frame(struct wilc *wl, u8 *info, int size)
 
 		case WID_SHORT:
 			do {
-				if (wl->cfg.hw[i].id == WID_NIL)
+				struct wilc_cfg_hword *hw = &wl->cfg.hw[i];
+
+				if (hw->id == WID_NIL)
 					break;
 
-				if (wl->cfg.hw[i].id == wid) {
-					wl->cfg.hw[i].val = (info[4] |
-							     (info[5] << 8));
+				if (hw->id == wid) {
+					hw->val = get_unaligned_le16(&info[4]);
 					break;
 				}
 				i++;
@@ -202,14 +203,13 @@ static void wilc_wlan_parse_response_frame(struct wilc *wl, u8 *info, int size)
 
 		case WID_INT:
 			do {
-				if (wl->cfg.w[i].id == WID_NIL)
+				struct wilc_cfg_word *w = &wl->cfg.w[i];
+
+				if (w->id == WID_NIL)
 					break;
 
-				if (wl->cfg.w[i].id == wid) {
-					wl->cfg.w[i].val = (info[4] |
-							    (info[5] << 8) |
-							    (info[6] << 16) |
-							    (info[7] << 24));
+				if (w->id == wid) {
+					w->val = get_unaligned_le32(&info[4]);
 					break;
 				}
 				i++;
@@ -244,7 +244,7 @@ static void wilc_wlan_parse_info_frame(struct wilc *wl, u8 *info)
 {
 	u32 wid, len;
 
-	wid = info[0] | (info[1] << 8);
+	wid = get_unaligned_le16(info);
 
 	len = info[2];
 
@@ -371,8 +371,7 @@ int wilc_wlan_cfg_get_wid_value(struct wilc *wl, u16 wid, u8 *buffer,
 				break;
 
 			if (id == wid) {
-				u32 size = (wl->cfg.s[i].str[0] |
-					    (wl->cfg.s[i].str[1] << 8));
+				u16 size = get_unaligned_le16(wl->cfg.s[i].str);
 
 				if (buffer_size >= size) {
 					memcpy(buffer, &wl->cfg.s[i].str[2],

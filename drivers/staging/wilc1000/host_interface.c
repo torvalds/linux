@@ -2154,10 +2154,7 @@ void wilc_network_info_received(struct wilc *wilc, u8 *buffer, u32 length)
 	struct host_if_drv *hif_drv;
 	struct wilc_vif *vif;
 
-	id = buffer[length - 4];
-	id |= (buffer[length - 3] << 8);
-	id |= (buffer[length - 2] << 16);
-	id |= (buffer[length - 1] << 24);
+	id = get_unaligned_le32(&buffer[length - 4]);
 	vif = wilc_get_vif_from_idx(wilc, id);
 	if (!vif)
 		return;
@@ -2197,10 +2194,7 @@ void wilc_gnrl_async_info_received(struct wilc *wilc, u8 *buffer, u32 length)
 
 	mutex_lock(&hif_deinit_lock);
 
-	id = buffer[length - 4];
-	id |= (buffer[length - 3] << 8);
-	id |= (buffer[length - 2] << 16);
-	id |= (buffer[length - 1] << 24);
+	id = get_unaligned_le32(&buffer[length - 4]);
 	vif = wilc_get_vif_from_idx(wilc, id);
 	if (!vif) {
 		mutex_unlock(&hif_deinit_lock);
@@ -2251,10 +2245,7 @@ void wilc_scan_complete_received(struct wilc *wilc, u8 *buffer, u32 length)
 	struct host_if_drv *hif_drv;
 	struct wilc_vif *vif;
 
-	id = buffer[length - 4];
-	id |= buffer[length - 3] << 8;
-	id |= buffer[length - 2] << 16;
-	id |= buffer[length - 1] << 24;
+	id = get_unaligned_le32(&buffer[length - 4]);
 	vif = wilc_get_vif_from_idx(wilc, id);
 	if (!vif)
 		return;
