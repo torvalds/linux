@@ -139,9 +139,7 @@ static void cfg_scan_result(enum scan_event scan_event,
 	}
 }
 
-static void cfg_connect_result(enum conn_event conn_disconn_evt,
-			       struct connect_info *conn_info,
-			       u8 mac_status,
+static void cfg_connect_result(enum conn_event conn_disconn_evt, u8 mac_status,
 			       struct disconnect_info *disconn_info,
 			       void *priv_data)
 {
@@ -150,16 +148,15 @@ static void cfg_connect_result(enum conn_event conn_disconn_evt,
 	struct wilc_vif *vif = netdev_priv(dev);
 	struct wilc *wl = vif->wilc;
 	struct host_if_drv *wfi_drv = priv->hif_drv;
+	struct wilc_conn_info *conn_info = &wfi_drv->conn_info;
 
 	vif->connecting = false;
 
 	if (conn_disconn_evt == CONN_DISCONN_EVENT_CONN_RESP) {
-		u16 connect_status;
-
-		connect_status = conn_info->status;
+		u16 connect_status = conn_info->status;
 
 		if (mac_status == WILC_MAC_STATUS_DISCONNECTED &&
-		    conn_info->status == WLAN_STATUS_SUCCESS) {
+		    connect_status == WLAN_STATUS_SUCCESS) {
 			connect_status = WLAN_STATUS_UNSPECIFIED_FAILURE;
 			wilc_wlan_set_bssid(priv->dev, NULL, WILC_STATION_MODE);
 
@@ -410,6 +407,12 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 			auth_type = WILC_FW_AUTH_IEEE8021;
 	}
 
+	if (wfi_drv->usr_scan_req.scan_result) {
+		netdev_err(vif->ndev, "%s: Scan in progress\n", __func__);
+		ret = -EBUSY;
+		goto out_error;
+	}
+
 	bss = cfg80211_get_bss(wiphy, sme->channel, sme->bssid, sme->ssid,
 			       sme->ssid_len, IEEE80211_BSS_TYPE_ANY,
 			       IEEE80211_PRIVACY(sme->privacy));
@@ -438,16 +441,21 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 
 	wilc_wlan_set_bssid(dev, bss->bssid, WILC_STATION_MODE);
 
-	ret = wilc_set_join_req(vif, bss->bssid, sme->ssid,
-				sme->ssid_len, sme->ie, sme->ie_len,
-				cfg_connect_result, (void *)priv,
-				security, auth_type, curr_channel, join_params);
+	wfi_drv->conn_info.security = security;
+	wfi_drv->conn_info.auth_type = auth_type;
+	wfi_drv->conn_info.ch = curr_channel;
+	wfi_drv->conn_info.conn_result = cfg_connect_result;
+	wfi_drv->conn_info.arg = priv;
+	wfi_drv->conn_info.param = join_params;
+
+	ret = wilc_set_join_req(vif, bss->bssid, sme->ie, sme->ie_len);
 	if (ret) {
 		netdev_err(dev, "wilc_set_join_req(): Error\n");
 		ret = -ENOENT;
 		if (!wfi_drv->p2p_connect)
 			wlan_channel = INVALID_CHANNEL;
 		wilc_wlan_set_bssid(dev, NULL, WILC_STATION_MODE);
+		wfi_drv->conn_info.conn_result = NULL;
 		kfree(join_params);
 		goto out_put_bss;
 	}

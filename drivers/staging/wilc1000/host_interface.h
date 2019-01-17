@@ -35,15 +35,6 @@ enum {
 
 #define WILC_MAX_ASSOC_RESP_FRAME_SIZE   256
 
-struct connect_info {
-	u8 bssid[6];
-	u8 *req_ies;
-	size_t req_ies_len;
-	u8 *resp_ies;
-	u16 resp_ies_len;
-	u16 status;
-};
-
 struct disconnect_info {
 	u16 reason;
 	u8 *ie;
@@ -122,12 +113,6 @@ struct wilc_rcvd_net_info {
 typedef void (*wilc_scan_result)(enum scan_event, struct wilc_rcvd_net_info *,
 				 void *);
 
-typedef void (*wilc_connect_result)(enum conn_event,
-				     struct connect_info *,
-				     u8,
-				     struct disconnect_info *,
-				     void *);
-
 typedef void (*wilc_remain_on_chan_expired)(void *, u32);
 typedef void (*wilc_remain_on_chan_ready)(void *);
 
@@ -148,17 +133,18 @@ struct user_scan_req {
 	u32 ch_cnt;
 };
 
-struct user_conn_req {
-	u8 *bssid;
-	u8 *ssid;
+struct wilc_conn_info {
+	u8 bssid[ETH_ALEN];
 	u8 security;
 	enum authtype auth_type;
-	size_t ssid_len;
-	u8 *ies;
-	size_t ies_len;
-	wilc_connect_result conn_result;
-	bool ht_capable;
 	u8 ch;
+	u8 *req_ies;
+	size_t req_ies_len;
+	u8 *resp_ies;
+	u16 resp_ies_len;
+	u16 status;
+	void (*conn_result)(enum conn_event evt, u8 status,
+			    struct disconnect_info *info, void *priv_data);
 	void *arg;
 	void *param;
 };
@@ -175,7 +161,7 @@ struct remain_ch {
 struct wilc;
 struct host_if_drv {
 	struct user_scan_req usr_scan_req;
-	struct user_conn_req usr_conn_req;
+	struct wilc_conn_info conn_info;
 	struct remain_ch remain_on_ch;
 	u8 remain_on_ch_pending;
 	u64 p2p_timeout;
@@ -228,11 +214,8 @@ int wilc_add_rx_gtk(struct wilc_vif *vif, const u8 *rx_gtk, u8 gtk_key_len,
 		    u8 cipher_mode);
 int wilc_set_pmkid_info(struct wilc_vif *vif, struct wilc_pmkid_attr *pmkid);
 int wilc_get_mac_address(struct wilc_vif *vif, u8 *mac_addr);
-int wilc_set_join_req(struct wilc_vif *vif, u8 *bssid, const u8 *ssid,
-		      size_t ssid_len, const u8 *ies, size_t ies_len,
-		      wilc_connect_result connect_result, void *user_arg,
-		      u8 security, enum authtype auth_type,
-		      u8 channel, void *join_params);
+int wilc_set_join_req(struct wilc_vif *vif, u8 *bssid, const u8 *ies,
+		      size_t ies_len);
 int wilc_disconnect(struct wilc_vif *vif);
 int wilc_set_mac_chnl_num(struct wilc_vif *vif, u8 channel);
 int wilc_get_rssi(struct wilc_vif *vif, s8 *rssi_level);
