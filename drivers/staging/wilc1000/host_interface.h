@@ -104,12 +104,6 @@ struct wilc_rcvd_net_info {
 	struct ieee80211_mgmt *mgmt;
 };
 
-typedef void (*wilc_scan_result)(enum scan_event, struct wilc_rcvd_net_info *,
-				 void *);
-
-typedef void (*wilc_remain_on_chan_expired)(void *, u32);
-typedef void (*wilc_remain_on_chan_ready)(void *);
-
 struct wilc_probe_ssid_info {
 	u8 ssid_len;
 	u8 *ssid;
@@ -122,7 +116,8 @@ struct wilc_probe_ssid {
 };
 
 struct user_scan_req {
-	wilc_scan_result scan_result;
+	void (*scan_result)(enum scan_event evt,
+			    struct wilc_rcvd_net_info *info, void *priv);
 	void *arg;
 	u32 ch_cnt;
 };
@@ -145,8 +140,8 @@ struct wilc_conn_info {
 struct remain_ch {
 	u16 ch;
 	u32 duration;
-	wilc_remain_on_chan_expired expired;
-	wilc_remain_on_chan_ready ready;
+	void (*expired)(void *priv, u32 session_id);
+	void (*ready)(void *priv);
 	void *arg;
 	u32 id;
 };
@@ -213,9 +208,10 @@ int wilc_disconnect(struct wilc_vif *vif);
 int wilc_set_mac_chnl_num(struct wilc_vif *vif, u8 channel);
 int wilc_get_rssi(struct wilc_vif *vif, s8 *rssi_level);
 int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
-	      u8 *ch_freq_list, u8 ch_list_len, const u8 *ies,
-	      size_t ies_len, wilc_scan_result scan_result, void *user_arg,
-	      struct wilc_probe_ssid *search);
+	      u8 *ch_freq_list, u8 ch_list_len, const u8 *ies, size_t ies_len,
+	      void (*scan_result_fn)(enum scan_event,
+				     struct wilc_rcvd_net_info *, void *),
+	      void *user_arg, struct wilc_probe_ssid *search);
 int wilc_hif_set_cfg(struct wilc_vif *vif,
 		     struct cfg_param_attr *cfg_param);
 int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler);
@@ -234,8 +230,8 @@ int wilc_setup_multicast_filter(struct wilc_vif *vif, u32 enabled, u32 count,
 				u8 *mc_list);
 int wilc_remain_on_channel(struct wilc_vif *vif, u32 session_id,
 			   u32 duration, u16 chan,
-			   wilc_remain_on_chan_expired expired,
-			   wilc_remain_on_chan_ready ready,
+			   void (*expired)(void *, u32),
+			   void (*ready)(void *),
 			   void *user_arg);
 int wilc_listen_state_expired(struct wilc_vif *vif, u32 session_id);
 void wilc_frame_register(struct wilc_vif *vif, u16 frame_type, bool reg);

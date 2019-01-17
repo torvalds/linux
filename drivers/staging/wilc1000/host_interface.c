@@ -231,9 +231,10 @@ static int handle_scan_done(struct wilc_vif *vif, enum scan_event evt)
 }
 
 int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
-	      u8 *ch_freq_list, u8 ch_list_len, const u8 *ies,
-	      size_t ies_len, wilc_scan_result scan_result, void *user_arg,
-	      struct wilc_probe_ssid *search)
+	      u8 *ch_freq_list, u8 ch_list_len, const u8 *ies, size_t ies_len,
+	      void (*scan_result_fn)(enum scan_event,
+				     struct wilc_rcvd_net_info *, void *),
+	      void *user_arg, struct wilc_probe_ssid *search)
 {
 	int result = 0;
 	struct wid wid_list[5];
@@ -322,7 +323,7 @@ int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
 		goto error;
 	}
 
-	hif_drv->usr_scan_req.scan_result = scan_result;
+	hif_drv->usr_scan_req.scan_result = scan_result_fn;
 	hif_drv->usr_scan_req.arg = user_arg;
 	hif_drv->scan_timer_vif = vif;
 	mod_timer(&hif_drv->scan_timer,
@@ -1863,8 +1864,8 @@ void wilc_scan_complete_received(struct wilc *wilc, u8 *buffer, u32 length)
 
 int wilc_remain_on_channel(struct wilc_vif *vif, u32 session_id,
 			   u32 duration, u16 chan,
-			   wilc_remain_on_chan_expired expired,
-			   wilc_remain_on_chan_ready ready,
+			   void (*expired)(void *, u32),
+			   void (*ready)(void *),
 			   void *user_arg)
 {
 	struct remain_ch roc;

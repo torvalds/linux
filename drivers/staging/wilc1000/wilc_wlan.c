@@ -274,7 +274,8 @@ static int wilc_wlan_txq_add_cfg_pkt(struct wilc_vif *vif, u8 *buffer,
 }
 
 int wilc_wlan_txq_add_net_pkt(struct net_device *dev, void *priv, u8 *buffer,
-			      u32 buffer_size, wilc_tx_complete_func_t func)
+			      u32 buffer_size,
+			      void (*tx_complete_fn)(void *, int))
 {
 	struct txq_entry_t *tqe;
 	struct wilc_vif *vif = netdev_priv(dev);
@@ -292,7 +293,7 @@ int wilc_wlan_txq_add_net_pkt(struct net_device *dev, void *priv, u8 *buffer,
 	tqe->type = WILC_NET_PKT;
 	tqe->buffer = buffer;
 	tqe->buffer_size = buffer_size;
-	tqe->tx_complete_func = func;
+	tqe->tx_complete_func = tx_complete_fn;
 	tqe->priv = priv;
 
 	tqe->ack_idx = NOT_TCP_ACK;
@@ -303,7 +304,8 @@ int wilc_wlan_txq_add_net_pkt(struct net_device *dev, void *priv, u8 *buffer,
 }
 
 int wilc_wlan_txq_add_mgmt_pkt(struct net_device *dev, void *priv, u8 *buffer,
-			       u32 buffer_size, wilc_tx_complete_func_t func)
+			       u32 buffer_size,
+			       void (*tx_complete_fn)(void *, int))
 {
 	struct txq_entry_t *tqe;
 	struct wilc_vif *vif = netdev_priv(dev);
@@ -321,7 +323,7 @@ int wilc_wlan_txq_add_mgmt_pkt(struct net_device *dev, void *priv, u8 *buffer,
 	tqe->type = WILC_MGMT_PKT;
 	tqe->buffer = buffer;
 	tqe->buffer_size = buffer_size;
-	tqe->tx_complete_func = func;
+	tqe->tx_complete_func = tx_complete_fn;
 	tqe->priv = priv;
 	tqe->ack_idx = NOT_TCP_ACK;
 	wilc_wlan_txq_add_to_tail(dev, tqe);

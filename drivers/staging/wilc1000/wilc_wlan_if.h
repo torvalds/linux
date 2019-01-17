@@ -39,8 +39,6 @@ struct tx_complete_data {
 	struct sk_buff *skb;
 };
 
-typedef void (*wilc_tx_complete_func_t)(void *, int);
-
 /********************************************
  *
  *      Wlan Configuration ID
