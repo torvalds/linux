@@ -204,7 +204,6 @@ static u16 mlx5e_get_rq_headroom(struct mlx5_core_dev *mdev,
 void mlx5e_init_rq_type_params(struct mlx5_core_dev *mdev,
 			       struct mlx5e_params *params)
 {
-	params->lro_wqe_sz = MLX5E_PARAMS_DEFAULT_LRO_WQE_SZ;
 	params->log_rq_mtu_frames = is_kdump_kernel() ?
 		MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE :
 		MLX5E_PARAMS_DEFAULT_LOG_RQ_SIZE;
@@ -2637,7 +2636,7 @@ static void mlx5e_build_tir_ctx_lro(struct mlx5e_params *params, void *tirc)
 		 MLX5_TIRC_LRO_ENABLE_MASK_IPV4_LRO |
 		 MLX5_TIRC_LRO_ENABLE_MASK_IPV6_LRO);
 	MLX5_SET(tirc, tirc, lro_max_ip_payload_size,
-		 (params->lro_wqe_sz - ROUGH_MAX_L2_L3_HDR_SZ) >> 8);
+		 (MLX5E_PARAMS_DEFAULT_LRO_WQE_SZ - ROUGH_MAX_L2_L3_HDR_SZ) >> 8);
 	MLX5_SET(tirc, tirc, lro_timeout_period_usecs, params->lro_timeout);
 }
 

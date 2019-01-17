@@ -241,7 +241,6 @@ struct mlx5e_params {
 	struct net_dim_cq_moder rx_cq_moderation;
 	struct net_dim_cq_moder tx_cq_moderation;
 	bool lro_en;
-	u32 lro_wqe_sz;
 	u8  tx_min_inline_mode;
 	bool vlan_strip_disable;
 	bool scatter_fcs_en;
