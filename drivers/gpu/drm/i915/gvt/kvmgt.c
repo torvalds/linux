@@ -996,7 +996,7 @@ static int intel_vgpu_mmap(struct mdev_device *mdev, struct vm_area_struct *vma)
 {
 	unsigned int index;
 	u64 virtaddr;
-	unsigned long req_size, pgoff = 0;
+	unsigned long req_size, pgoff, req_start;
 	pgprot_t pg_prot;
 	struct intel_vgpu *vgpu = mdev_get_drvdata(mdev);
 
@@ -1014,7 +1014,17 @@ static int intel_vgpu_mmap(struct mdev_device *mdev, struct vm_area_struct *vma)
 	pg_prot = vma->vm_page_prot;
 	virtaddr = vma->vm_start;
 	req_size = vma->vm_end - vma->vm_start;
-	pgoff = vgpu_aperture_pa_base(vgpu) >> PAGE_SHIFT;
+	pgoff = vma->vm_pgoff &
+		((1U << (VFIO_PCI_OFFSET_SHIFT - PAGE_SHIFT)) - 1);
+	req_start = pgoff << PAGE_SHIFT;
+
+	if (!intel_vgpu_in_aperture(vgpu, req_start))
+		return -EINVAL;
+	if (req_start + req_size >
+	    vgpu_aperture_offset(vgpu) + vgpu_aperture_sz(vgpu))
+		return -EINVAL;
+
+	pgoff = (gvt_aperture_pa_base(vgpu->gvt) >> PAGE_SHIFT) + pgoff;
 
 	return remap_pfn_range(vma, virtaddr, pgoff, req_size, pg_prot);
 }
@@ -1662,9 +1672,21 @@ static int kvmgt_attach_vgpu(void *vgpu, unsigned long *handle)
 	return 0;
 }
 
-static void kvmgt_detach_vgpu(unsigned long handle)
+static void kvmgt_detach_vgpu(void *p_vgpu)
 {
-	/* nothing to do here */
+	int i;
+	struct intel_vgpu *vgpu = (struct intel_vgpu *)p_vgpu;
+
+	if (!vgpu->vdev.region)
+		return;
+
+	for (i = 0; i < vgpu->vdev.num_regions; i++)
+		if (vgpu->vdev.region[i].ops->release)
+			vgpu->vdev.region[i].ops->release(vgpu,
+					&vgpu->vdev.region[i]);
+	vgpu->vdev.num_regions = 0;
+	kfree(vgpu->vdev.region);
+	vgpu->vdev.region = NULL;
 }
 
 static int kvmgt_inject_msi(unsigned long handle, u32 addr, u16 data)
