@@ -10576,6 +10576,7 @@ F:	Documentation/devicetree/bindings/net/dsa/
 F:	net/dsa/
 F:	include/net/dsa.h
 F:	include/linux/dsa/
+F:	include/linux/platform_data/dsa.h
 F:	drivers/net/dsa/
 
 NETWORKING [GENERAL]
