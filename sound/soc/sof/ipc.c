@@ -627,8 +627,8 @@ int snd_sof_ipc_set_comp_data(struct snd_sof_ipc *ipc,
 	/* read firmware volume */
 	if (scontrol->readback_offset != 0) {
 		/* we can read value header via mmaped region */
-		snd_sof_dsp_block_write(sdev, scontrol->readback_offset,
-					cdata->chanv,
+		snd_sof_dsp_block_write(sdev, sdev->mmio_bar,
+					scontrol->readback_offset, cdata->chanv,
 					sizeof(struct sof_ipc_ctrl_value_chan) *
 					cdata->num_elems);
 
@@ -669,8 +669,8 @@ int snd_sof_ipc_get_comp_data(struct snd_sof_ipc *ipc,
 	/* read firmware byte counters */
 	if (scontrol->readback_offset != 0) {
 		/* we can read values via mmaped region */
-		snd_sof_dsp_block_read(sdev, scontrol->readback_offset,
-				       cdata->chanv,
+		snd_sof_dsp_block_read(sdev, sdev->mmio_bar,
+				       scontrol->readback_offset, cdata->chanv,
 				       sizeof(struct sof_ipc_ctrl_value_chan) *
 				       cdata->num_elems);
 

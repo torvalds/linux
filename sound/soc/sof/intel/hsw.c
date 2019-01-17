@@ -424,7 +424,8 @@ static int hsw_fw_ready(struct snd_sof_dev *sdev, u32 msg_id)
 		return 0;
 
 	/* copy data from the DSP FW ready offset */
-	sof_block_read(sdev, offset, fw_ready, sizeof(*fw_ready));
+	sof_block_read(sdev, sdev->mmio_bar, offset, fw_ready,
+		       sizeof(*fw_ready));
 
 	snd_sof_dsp_mailbox_init(sdev, fw_ready->dspbox_offset,
 				 fw_ready->dspbox_size,

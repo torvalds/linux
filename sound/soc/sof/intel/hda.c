@@ -105,15 +105,16 @@ static void hda_dsp_get_registers(struct snd_sof_dev *sdev,
 				  u32 *stack, size_t stack_words)
 {
 	/* first read registers */
-	sof_block_read(sdev, sdev->dsp_oops_offset, xoops, sizeof(*xoops));
+	sof_block_read(sdev, sdev->mmio_bar, sdev->dsp_oops_offset, xoops,
+		       sizeof(*xoops));
 
 	/* then get panic info */
-	sof_block_read(sdev, sdev->dsp_oops_offset + sizeof(*xoops),
-		       panic_info, sizeof(*panic_info));
+	sof_block_read(sdev, sdev->mmio_bar, sdev->dsp_oops_offset +
+		       sizeof(*xoops), panic_info, sizeof(*panic_info));
 
 	/* then get the stack */
-	sof_block_read(sdev, sdev->dsp_oops_offset + sizeof(*xoops) +
-		       sizeof(*panic_info), stack,
+	sof_block_read(sdev, sdev->mmio_bar, sdev->dsp_oops_offset +
+		       sizeof(*xoops) + sizeof(*panic_info), stack,
 		       stack_words * sizeof(u32));
 }
 

@@ -121,10 +121,10 @@ EXPORT_SYMBOL(sof_mailbox_read);
  * Memory copy.
  */
 
-void sof_block_write(struct snd_sof_dev *sdev, u32 offset, void *src,
+void sof_block_write(struct snd_sof_dev *sdev, u32 bar, u32 offset, void *src,
 		     size_t size)
 {
-	void __iomem *dest = sdev->bar[sdev->mmio_bar] + offset;
+	void __iomem *dest = sdev->bar[bar] + offset;
 	const u8 *src_byte = src;
 	u32 affected_mask;
 	u32 tmp = 0;
@@ -152,10 +152,10 @@ void sof_block_write(struct snd_sof_dev *sdev, u32 offset, void *src,
 }
 EXPORT_SYMBOL(sof_block_write);
 
-void sof_block_read(struct snd_sof_dev *sdev, u32 offset, void *dest,
+void sof_block_read(struct snd_sof_dev *sdev, u32 bar, u32 offset, void *dest,
 		    size_t size)
 {
-	void __iomem *src = sdev->bar[sdev->mmio_bar] + offset;
+	void __iomem *src = sdev->bar[bar] + offset;
 
 	memcpy_fromio(dest, src, size);
 }

@@ -370,7 +370,8 @@ int hda_dsp_ipc_fw_ready(struct snd_sof_dev *sdev, u32 msg_id)
 		return 0;
 
 	/* copy data from the DSP FW ready offset */
-	sof_block_read(sdev, offset, fw_ready,	sizeof(*fw_ready));
+	sof_block_read(sdev, sdev->mmio_bar, offset, fw_ready,
+		       sizeof(*fw_ready));
 
 	/* make sure ABI version is compatible */
 	ret = snd_sof_ipc_valid(sdev);
