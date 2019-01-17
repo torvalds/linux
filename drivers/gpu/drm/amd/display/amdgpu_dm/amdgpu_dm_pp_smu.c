@@ -548,9 +548,6 @@ void pp_rv_set_wm_ranges(struct pp_smu *pp,
 	wm_with_clock_ranges.num_wm_dmif_sets = ranges->num_reader_wm_sets;
 	wm_with_clock_ranges.num_wm_mcif_sets = ranges->num_writer_wm_sets;
 
-	if (!pp_funcs || !pp_funcs->set_watermarks_for_clocks_ranges)
-		return;
-
 	for (i = 0; i < wm_with_clock_ranges.num_wm_dmif_sets; i++) {
 		if (ranges->reader_wm_sets[i].wm_inst > 3)
 			wm_dce_clocks[i].wm_set_id = WM_SET_A;
@@ -583,7 +580,13 @@ void pp_rv_set_wm_ranges(struct pp_smu *pp,
 				ranges->writer_wm_sets[i].min_drain_clk_mhz * 1000;
 	}
 
-	pp_funcs->set_watermarks_for_clocks_ranges(pp_handle, &wm_with_clock_ranges);
+	if (pp_funcs && pp_funcs->set_watermarks_for_clocks_ranges)
+		pp_funcs->set_watermarks_for_clocks_ranges(pp_handle,
+							   &wm_with_clock_ranges);
+	else if (adev->smu.funcs &&
+		 adev->smu.funcs->set_watermarks_for_clock_ranges)
+		smu_set_watermarks_for_clock_ranges(&adev->smu,
+						    &wm_with_clock_ranges);
 }
 
 void pp_rv_set_pme_wa_enable(struct pp_smu *pp)

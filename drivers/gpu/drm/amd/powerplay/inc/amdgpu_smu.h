@@ -235,6 +235,11 @@ struct smu_context
 	uint32_t default_power_limit;
 
 	bool support_power_containment;
+	bool disable_watermark;
+
+#define WATERMARKS_EXIST	(1 << 0)
+#define WATERMARKS_LOADED	(1 << 1)
+	uint32_t watermarks_bitmap;
 };
 
 struct pptable_funcs {
@@ -320,6 +325,8 @@ struct smu_funcs
 	int (*get_current_shallow_sleep_clocks)(struct smu_context *smu,
 						struct smu_clock_info *clocks);
 	int (*notify_smu_enable_pwe)(struct smu_context *smu);
+	int (*set_watermarks_for_clock_ranges)(struct smu_context *smu,
+					       struct dm_pp_wm_sets_with_clock_ranges_soc15 *clock_ranges);
 };
 
 #define smu_init_microcode(smu) \
@@ -439,6 +446,8 @@ struct smu_funcs
 	((smu)->funcs->get_current_shallow_sleep_clocks ? (smu)->funcs->get_current_shallow_sleep_clocks((smu), (clocks)) : 0)
 #define smu_notify_smu_enable_pwe(smu) \
 	((smu)->funcs->notify_smu_enable_pwe ? (smu)->funcs->notify_smu_enable_pwe((smu)) : 0)
+#define smu_set_watermarks_for_clock_ranges(smu, clock_ranges) \
+	((smu)->funcs->set_watermarks_for_clock_ranges ? (smu)->funcs->set_watermarks_for_clock_ranges((smu), (clock_ranges)) : 0)
 
 
 extern int smu_get_atom_data_table(struct smu_context *smu, uint32_t table,
