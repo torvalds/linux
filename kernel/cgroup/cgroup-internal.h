@@ -257,14 +257,15 @@ extern const struct proc_ns_operations cgroupns_operations;
  */
 extern struct cftype cgroup1_base_files[];
 extern struct kernfs_syscall_ops cgroup1_kf_syscall_ops;
+extern const struct fs_parameter_description cgroup1_fs_parameters;
 
 int proc_cgroupstats_show(struct seq_file *m, void *v);
 bool cgroup1_ssid_disabled(int ssid);
 void cgroup1_pidlist_destroy_all(struct cgroup *cgrp);
 void cgroup1_release_agent(struct work_struct *work);
 void cgroup1_check_for_release(struct cgroup *cgrp);
+int cgroup1_parse_param(struct fs_context *fc, struct fs_parameter *param);
 int cgroup1_get_tree(struct fs_context *fc);
-int parse_cgroup1_options(char *data, struct cgroup_fs_context *ctx);
 int cgroup1_reconfigure(struct fs_context *ctx);
 
 #endif /* __CGROUP_INTERNAL_H */

@@ -2083,15 +2083,6 @@ static int cgroup_parse_monolithic(struct fs_context *fc, void *data)
 	return parse_cgroup_root_flags(data, &ctx->flags);
 }
 
-static int cgroup1_parse_monolithic(struct fs_context *fc, void *data)
-{
-	struct cgroup_fs_context *ctx = cgroup_fc2context(fc);
-
-	if (data)
-		security_sb_eat_lsm_opts(data, &fc->security);
-	return parse_cgroup1_options(data, ctx);
-}
-
 static int cgroup_get_tree(struct fs_context *fc)
 {
 	struct cgroup_namespace *ns = current->nsproxy->cgroup_ns;
@@ -2124,7 +2115,7 @@ static const struct fs_context_operations cgroup_fs_context_ops = {
 
 static const struct fs_context_operations cgroup1_fs_context_ops = {
 	.free		= cgroup_fs_context_free,
-	.parse_monolithic = cgroup1_parse_monolithic,
+	.parse_param	= cgroup1_parse_param,
 	.get_tree	= cgroup1_get_tree,
 	.reconfigure	= cgroup1_reconfigure,
 };
@@ -2175,10 +2166,11 @@ static void cgroup_kill_sb(struct super_block *sb)
 }
 
 struct file_system_type cgroup_fs_type = {
-	.name = "cgroup",
-	.init_fs_context = cgroup_init_fs_context,
-	.kill_sb = cgroup_kill_sb,
-	.fs_flags = FS_USERNS_MOUNT,
+	.name			= "cgroup",
+	.init_fs_context	= cgroup_init_fs_context,
+	.parameters		= &cgroup1_fs_parameters,
+	.kill_sb		= cgroup_kill_sb,
+	.fs_flags		= FS_USERNS_MOUNT,
 };
 
 static struct file_system_type cgroup2_fs_type = {

@@ -13,8 +13,11 @@
 #include <linux/delayacct.h>
 #include <linux/pid_namespace.h>
 #include <linux/cgroupstats.h>
+#include <linux/fs_parser.h>
 
 #include <trace/events/cgroup.h>
+
+#define cg_invalf(fc, fmt, ...) ({ pr_err(fmt, ## __VA_ARGS__); -EINVAL; })
 
 /*
  * pidlists linger the following amount before being destroyed.  The goal
@@ -906,94 +909,117 @@ static int cgroup1_show_options(struct seq_file *seq, struct kernfs_root *kf_roo
 	return 0;
 }
 
-int parse_cgroup1_options(char *data, struct cgroup_fs_context *ctx)
+enum cgroup1_param {
+	Opt_all,
+	Opt_clone_children,
+	Opt_cpuset_v2_mode,
+	Opt_name,
+	Opt_none,
+	Opt_noprefix,
+	Opt_release_agent,
+	Opt_xattr,
+};
+
+static const struct fs_parameter_spec cgroup1_param_specs[] = {
+	fsparam_flag  ("all",		Opt_all),
+	fsparam_flag  ("clone_children", Opt_clone_children),
+	fsparam_flag  ("cpuset_v2_mode", Opt_cpuset_v2_mode),
+	fsparam_string("name",		Opt_name),
+	fsparam_flag  ("none",		Opt_none),
+	fsparam_flag  ("noprefix",	Opt_noprefix),
+	fsparam_string("release_agent",	Opt_release_agent),
+	fsparam_flag  ("xattr",		Opt_xattr),
+	{}
+};
+
+const struct fs_parameter_description cgroup1_fs_parameters = {
+	.name		= "cgroup1",
+	.specs		= cgroup1_param_specs,
+};
+
+int cgroup1_parse_param(struct fs_context *fc, struct fs_parameter *param)
 {
-	char *token, *o = data;
+	struct cgroup_fs_context *ctx = cgroup_fc2context(fc);
 	struct cgroup_subsys *ss;
-	int i;
+	struct fs_parse_result result;
+	int opt, i;
 
-	while ((token = strsep(&o, ",")) != NULL) {
-		if (!*token)
-			return -EINVAL;
-		if (!strcmp(token, "none")) {
-			/* Explicitly have no subsystems */
-			ctx->none = true;
-			continue;
+	opt = fs_parse(fc, &cgroup1_fs_parameters, param, &result);
+	if (opt == -ENOPARAM) {
+		if (strcmp(param->key, "source") == 0) {
+			fc->source = param->string;
+			param->string = NULL;
+			return 0;
 		}
-		if (!strcmp(token, "all")) {
-			ctx->all_ss = true;
-			continue;
-		}
-		if (!strcmp(token, "noprefix")) {
-			ctx->flags |= CGRP_ROOT_NOPREFIX;
-			continue;
-		}
-		if (!strcmp(token, "clone_children")) {
-			ctx->cpuset_clone_children = true;
-			continue;
-		}
-		if (!strcmp(token, "cpuset_v2_mode")) {
-			ctx->flags |= CGRP_ROOT_CPUSET_V2_MODE;
-			continue;
-		}
-		if (!strcmp(token, "xattr")) {
-			ctx->flags |= CGRP_ROOT_XATTR;
-			continue;
-		}
-		if (!strncmp(token, "release_agent=", 14)) {
-			/* Specifying two release agents is forbidden */
-			if (ctx->release_agent)
-				return -EINVAL;
-			ctx->release_agent =
-				kstrndup(token + 14, PATH_MAX - 1, GFP_KERNEL);
-			if (!ctx->release_agent)
-				return -ENOMEM;
-			continue;
-		}
-		if (!strncmp(token, "name=", 5)) {
-			const char *name = token + 5;
-
-			/* blocked by boot param? */
-			if (cgroup_no_v1_named)
-				return -ENOENT;
-			/* Can't specify an empty name */
-			if (!strlen(name))
-				return -EINVAL;
-			/* Must match [\w.-]+ */
-			for (i = 0; i < strlen(name); i++) {
-				char c = name[i];
-				if (isalnum(c))
-					continue;
-				if ((c == '.') || (c == '-') || (c == '_'))
-					continue;
-				return -EINVAL;
-			}
-			/* Specifying two names is forbidden */
-			if (ctx->name)
-				return -EINVAL;
-			ctx->name = kstrndup(name,
-					      MAX_CGROUP_ROOT_NAMELEN - 1,
-					      GFP_KERNEL);
-			if (!ctx->name)
-				return -ENOMEM;
-
-			continue;
-		}
-
 		for_each_subsys(ss, i) {
-			if (strcmp(token, ss->legacy_name))
+			if (strcmp(param->key, ss->legacy_name))
 				continue;
 			ctx->subsys_mask |= (1 << i);
-			break;
+			return 0;
 		}
-		if (i == CGROUP_SUBSYS_COUNT)
+		return cg_invalf(fc, "cgroup1: Unknown subsys name '%s'", param->key);
+	}
+	if (opt < 0)
+		return opt;
+
+	switch (opt) {
+	case Opt_none:
+		/* Explicitly have no subsystems */
+		ctx->none = true;
+		break;
+	case Opt_all:
+		ctx->all_ss = true;
+		break;
+	case Opt_noprefix:
+		ctx->flags |= CGRP_ROOT_NOPREFIX;
+		break;
+	case Opt_clone_children:
+		ctx->cpuset_clone_children = true;
+		break;
+	case Opt_cpuset_v2_mode:
+		ctx->flags |= CGRP_ROOT_CPUSET_V2_MODE;
+		break;
+	case Opt_xattr:
+		ctx->flags |= CGRP_ROOT_XATTR;
+		break;
+	case Opt_release_agent:
+		/* Specifying two release agents is forbidden */
+		if (ctx->release_agent)
+			return cg_invalf(fc, "cgroup1: release_agent respecified");
+		ctx->release_agent = param->string;
+		param->string = NULL;
+		break;
+	case Opt_name:
+		/* blocked by boot param? */
+		if (cgroup_no_v1_named)
 			return -ENOENT;
+		/* Can't specify an empty name */
+		if (!param->size)
+			return cg_invalf(fc, "cgroup1: Empty name");
+		if (param->size > MAX_CGROUP_ROOT_NAMELEN - 1)
+			return cg_invalf(fc, "cgroup1: Name too long");
+		/* Must match [\w.-]+ */
+		for (i = 0; i < param->size; i++) {
+			char c = param->string[i];
+			if (isalnum(c))
+				continue;
+			if ((c == '.') || (c == '-') || (c == '_'))
+				continue;
+			return cg_invalf(fc, "cgroup1: Invalid name");
+		}
+		/* Specifying two names is forbidden */
+		if (ctx->name)
+			return cg_invalf(fc, "cgroup1: name respecified");
+		ctx->name = param->string;
+		param->string = NULL;
+		break;
 	}
 	return 0;
 }
 
-static int check_cgroupfs_options(struct cgroup_fs_context *ctx)
+static int check_cgroupfs_options(struct fs_context *fc)
 {
+	struct cgroup_fs_context *ctx = cgroup_fc2context(fc);
 	u16 mask = U16_MAX;
 	u16 enabled = 0;
 	struct cgroup_subsys *ss;
@@ -1018,7 +1044,7 @@ static int check_cgroupfs_options(struct cgroup_fs_context *ctx)
 	if (ctx->all_ss) {
 		/* Mutually exclusive option 'all' + subsystem name */
 		if (ctx->subsys_mask)
-			return -EINVAL;
+			return cg_invalf(fc, "cgroup1: subsys name conflicts with all");
 		/* 'all' => select all the subsystems */
 		ctx->subsys_mask = enabled;
 	}
@@ -1028,7 +1054,7 @@ static int check_cgroupfs_options(struct cgroup_fs_context *ctx)
 	 * empty hierarchies must have a name).
 	 */
 	if (!ctx->subsys_mask && !ctx->name)
-		return -EINVAL;
+		return cg_invalf(fc, "cgroup1: Need name or subsystem set");
 
 	/*
 	 * Option noprefix was introduced just for backward compatibility
@@ -1036,11 +1062,11 @@ static int check_cgroupfs_options(struct cgroup_fs_context *ctx)
 	 * the cpuset subsystem.
 	 */
 	if ((ctx->flags & CGRP_ROOT_NOPREFIX) && (ctx->subsys_mask & mask))
-		return -EINVAL;
+		return cg_invalf(fc, "cgroup1: noprefix used incorrectly");
 
 	/* Can't specify "none" and some subsystems */
 	if (ctx->subsys_mask && ctx->none)
-		return -EINVAL;
+		return cg_invalf(fc, "cgroup1: none used incorrectly");
 
 	return 0;
 }
@@ -1056,7 +1082,7 @@ int cgroup1_reconfigure(struct fs_context *fc)
 	cgroup_lock_and_drain_offline(&cgrp_dfl_root.cgrp);
 
 	/* See what subsystems are wanted */
-	ret = check_cgroupfs_options(ctx);
+	ret = check_cgroupfs_options(fc);
 	if (ret)
 		goto out_unlock;
 
@@ -1070,7 +1096,7 @@ int cgroup1_reconfigure(struct fs_context *fc)
 	/* Don't allow flags or name to change at remount */
 	if ((ctx->flags ^ root->flags) ||
 	    (ctx->name && strcmp(ctx->name, root->name))) {
-		pr_err("option or name mismatch, new: 0x%x \"%s\", old: 0x%x \"%s\"\n",
+		cg_invalf(fc, "option or name mismatch, new: 0x%x \"%s\", old: 0x%x \"%s\"",
 		       ctx->flags, ctx->name ?: "", root->flags, root->name);
 		ret = -EINVAL;
 		goto out_unlock;
@@ -1125,7 +1151,7 @@ int cgroup1_get_tree(struct fs_context *fc)
 	cgroup_lock_and_drain_offline(&cgrp_dfl_root.cgrp);
 
 	/* First find the desired set of subsystems */
-	ret = check_cgroupfs_options(ctx);
+	ret = check_cgroupfs_options(fc);
 	if (ret)
 		goto out_unlock;
 
@@ -1192,7 +1218,7 @@ int cgroup1_get_tree(struct fs_context *fc)
 	 * can't create new one without subsys specification.
 	 */
 	if (!ctx->subsys_mask && !ctx->none) {
-		ret = -EINVAL;
+		ret = cg_invalf(fc, "cgroup1: No subsys list or none specified");
 		goto out_unlock;
 	}
 
