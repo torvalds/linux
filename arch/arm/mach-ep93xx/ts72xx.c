@@ -26,7 +26,6 @@
 #include <mach/gpio-ep93xx.h>
 #include <mach/hardware.h>
 #include <mach/irqs.h>
-#include <mach/gpio-ep93xx.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
