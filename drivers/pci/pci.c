@@ -6195,7 +6195,8 @@ static int __init pci_setup(char *str)
 			} else if (!strncmp(str, "pcie_scan_all", 13)) {
 				pci_add_flags(PCI_SCAN_ALL_PCIE_DEVS);
 			} else if (!strncmp(str, "disable_acs_redir=", 18)) {
-				disable_acs_redir_param = str + 18;
+				disable_acs_redir_param =
+					kstrdup(str + 18, GFP_KERNEL);
 			} else {
 				printk(KERN_ERR "PCI: Unknown option `%s'\n",
 						str);
