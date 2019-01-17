@@ -5,6 +5,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/utsname.h>
+#include <sys/vfs.h>
 
 #include <linux/filter.h>
 #include <linux/limits.h>
@@ -13,10 +14,28 @@
 
 #include "main.h"
 
+#ifndef PROC_SUPER_MAGIC
+# define PROC_SUPER_MAGIC	0x9fa0
+#endif
+
 enum probe_component {
 	COMPONENT_UNSPEC,
 	COMPONENT_KERNEL,
 };
+
+/* Miscellaneous utility functions */
+
+static bool check_procfs(void)
+{
+	struct statfs st_fs;
+
+	if (statfs("/proc", &st_fs) < 0)
+		return false;
+	if ((unsigned long)st_fs.f_type != PROC_SUPER_MAGIC)
+		return false;
+
+	return true;
+}
 
 /* Printing utility functions */
 
@@ -41,6 +60,153 @@ print_start_section(const char *json_title, const char *plain_title)
 }
 
 /* Probing functions */
+
+static int read_procfs(const char *path)
+{
+	char *endptr, *line = NULL;
+	size_t len = 0;
+	FILE *fd;
+	int res;
+
+	fd = fopen(path, "r");
+	if (!fd)
+		return -1;
+
+	res = getline(&line, &len, fd);
+	fclose(fd);
+	if (res < 0)
+		return -1;
+
+	errno = 0;
+	res = strtol(line, &endptr, 10);
+	if (errno || *line == '\0' || *endptr != '\n')
+		res = -1;
+	free(line);
+
+	return res;
+}
+
+static void probe_unprivileged_disabled(void)
+{
+	int res;
+
+	res = read_procfs("/proc/sys/kernel/unprivileged_bpf_disabled");
+	if (json_output) {
+		jsonw_int_field(json_wtr, "unprivileged_bpf_disabled", res);
+	} else {
+		switch (res) {
+		case 0:
+			printf("bpf() syscall for unprivileged users is enabled\n");
+			break;
+		case 1:
+			printf("bpf() syscall restricted to privileged users\n");
+			break;
+		case -1:
+			printf("Unable to retrieve required privileges for bpf() syscall\n");
+			break;
+		default:
+			printf("bpf() syscall restriction has unknown value %d\n", res);
+		}
+	}
+}
+
+static void probe_jit_enable(void)
+{
+	int res;
+
+	res = read_procfs("/proc/sys/net/core/bpf_jit_enable");
+	if (json_output) {
+		jsonw_int_field(json_wtr, "bpf_jit_enable", res);
+	} else {
+		switch (res) {
+		case 0:
+			printf("JIT compiler is disabled\n");
+			break;
+		case 1:
+			printf("JIT compiler is enabled\n");
+			break;
+		case 2:
+			printf("JIT compiler is enabled with debugging traces in kernel logs\n");
+			break;
+		case -1:
+			printf("Unable to retrieve JIT-compiler status\n");
+			break;
+		default:
+			printf("JIT-compiler status has unknown value %d\n",
+			       res);
+		}
+	}
+}
+
+static void probe_jit_harden(void)
+{
+	int res;
+
+	res = read_procfs("/proc/sys/net/core/bpf_jit_harden");
+	if (json_output) {
+		jsonw_int_field(json_wtr, "bpf_jit_harden", res);
+	} else {
+		switch (res) {
+		case 0:
+			printf("JIT compiler hardening is disabled\n");
+			break;
+		case 1:
+			printf("JIT compiler hardening is enabled for unprivileged users\n");
+			break;
+		case 2:
+			printf("JIT compiler hardening is enabled for all users\n");
+			break;
+		case -1:
+			printf("Unable to retrieve JIT hardening status\n");
+			break;
+		default:
+			printf("JIT hardening status has unknown value %d\n",
+			       res);
+		}
+	}
+}
+
+static void probe_jit_kallsyms(void)
+{
+	int res;
+
+	res = read_procfs("/proc/sys/net/core/bpf_jit_kallsyms");
+	if (json_output) {
+		jsonw_int_field(json_wtr, "bpf_jit_kallsyms", res);
+	} else {
+		switch (res) {
+		case 0:
+			printf("JIT compiler kallsyms exports are disabled\n");
+			break;
+		case 1:
+			printf("JIT compiler kallsyms exports are enabled for root\n");
+			break;
+		case -1:
+			printf("Unable to retrieve JIT kallsyms export status\n");
+			break;
+		default:
+			printf("JIT kallsyms exports status has unknown value %d\n", res);
+		}
+	}
+}
+
+static void probe_jit_limit(void)
+{
+	int res;
+
+	res = read_procfs("/proc/sys/net/core/bpf_jit_limit");
+	if (json_output) {
+		jsonw_int_field(json_wtr, "bpf_jit_limit", res);
+	} else {
+		switch (res) {
+		case -1:
+			printf("Unable to retrieve global memory limit for JIT compiler for unprivileged users\n");
+			break;
+		default:
+			printf("Global memory limit for JIT compiler for unprivileged users is %d bytes\n", res);
+		}
+	}
+}
 
 static bool probe_bpf_syscall(void)
 {
@@ -87,6 +253,27 @@ static int do_probe(int argc, char **argv)
 
 	if (json_output)
 		jsonw_start_object(json_wtr);
+
+	switch (target) {
+	case COMPONENT_KERNEL:
+	case COMPONENT_UNSPEC:
+		print_start_section("system_config",
+				    "Scanning system configuration...");
+		if (check_procfs()) {
+			probe_unprivileged_disabled();
+			probe_jit_enable();
+			probe_jit_harden();
+			probe_jit_kallsyms();
+			probe_jit_limit();
+		} else {
+			p_info("/* procfs not mounted, skipping related probes */");
+		}
+		if (json_output)
+			jsonw_end_object(json_wtr);
+		else
+			printf("\n");
+		break;
+	}
 
 	print_start_section("syscall_config",
 			    "Scanning system call availability...");
