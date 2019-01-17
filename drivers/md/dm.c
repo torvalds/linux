@@ -1725,6 +1725,15 @@ out:
 	return ret;
 }
 
+static blk_qc_t dm_process_bio(struct mapped_device *md,
+			       struct dm_table *map, struct bio *bio)
+{
+	if (dm_get_md_type(md) == DM_TYPE_NVME_BIO_BASED)
+		return __process_bio(md, map, bio);
+	else
+		return __split_and_process_bio(md, map, bio);
+}
+
 static blk_qc_t dm_make_request(struct request_queue *q, struct bio *bio)
 {
 	struct mapped_device *md = q->queuedata;
@@ -1745,10 +1754,7 @@ static blk_qc_t dm_make_request(struct request_queue *q, struct bio *bio)
 		return ret;
 	}
 
-	if (dm_get_md_type(md) == DM_TYPE_NVME_BIO_BASED)
-		ret = __process_bio(md, map, bio);
-	else
-		ret = __split_and_process_bio(md, map, bio);
+	ret = dm_process_bio(md, map, bio);
 
 	dm_put_live_table(md, srcu_idx);
 	return ret;
@@ -2427,9 +2433,9 @@ static void dm_wq_work(struct work_struct *work)
 			break;
 
 		if (dm_request_based(md))
-			generic_make_request(c);
+			(void) generic_make_request(c);
 		else
-			__split_and_process_bio(md, map, c);
+			(void) dm_process_bio(md, map, c);
 	}
 
 	dm_put_live_table(md, srcu_idx);
