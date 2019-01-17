@@ -419,8 +419,7 @@ static int csi_idmac_setup_channel(struct csi_priv *priv)
 
 	memset(&image, 0, sizeof(image));
 	image.pix = vdev->fmt.fmt.pix;
-	image.rect.width = image.pix.width;
-	image.rect.height = image.pix.height;
+	image.rect = vdev->compose;
 
 	csi_idmac_setup_vb2_buf(priv, phys);
 

@@ -255,10 +255,10 @@ static int setup_vdi_channel(struct vdic_priv *priv,
 
 	memset(&image, 0, sizeof(image));
 	image.pix = vdev->fmt.fmt.pix;
+	image.rect = vdev->compose;
 	/* one field to VDIC channels */
 	image.pix.height /= 2;
-	image.rect.width = image.pix.width;
-	image.rect.height = image.pix.height;
+	image.rect.height /= 2;
 	image.phys0 = phys0;
 	image.phys1 = phys1;
 

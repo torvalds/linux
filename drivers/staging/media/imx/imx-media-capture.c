@@ -276,6 +276,10 @@ static int capture_s_fmt_vid_cap(struct file *file, void *fh,
 	priv->vdev.fmt.fmt.pix = f->fmt.pix;
 	priv->vdev.cc = imx_media_find_format(f->fmt.pix.pixelformat,
 					      CS_SEL_ANY, true);
+	priv->vdev.compose.left = 0;
+	priv->vdev.compose.top = 0;
+	priv->vdev.compose.width = f->fmt.pix.width;
+	priv->vdev.compose.height = f->fmt.pix.height;
 
 	return 0;
 }
@@ -302,6 +306,25 @@ static int capture_s_std(struct file *file, void *fh, v4l2_std_id std)
 		return -EBUSY;
 
 	return v4l2_subdev_call(priv->src_sd, video, s_std, std);
+}
+
+static int capture_g_selection(struct file *file, void *fh,
+			       struct v4l2_selection *s)
+{
+	struct capture_priv *priv = video_drvdata(file);
+
+	switch (s->target) {
+	case V4L2_SEL_TGT_COMPOSE:
+	case V4L2_SEL_TGT_COMPOSE_DEFAULT:
+	case V4L2_SEL_TGT_COMPOSE_BOUNDS:
+	case V4L2_SEL_TGT_COMPOSE_PADDED:
+		s->r = priv->vdev.compose;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static int capture_g_parm(struct file *file, void *fh,
@@ -363,6 +386,8 @@ static const struct v4l2_ioctl_ops capture_ioctl_ops = {
 	.vidioc_querystd        = capture_querystd,
 	.vidioc_g_std           = capture_g_std,
 	.vidioc_s_std           = capture_s_std,
+
+	.vidioc_g_selection	= capture_g_selection,
 
 	.vidioc_g_parm          = capture_g_parm,
 	.vidioc_s_parm          = capture_s_parm,
@@ -701,6 +726,8 @@ int imx_media_capture_device_register(struct imx_media_video_dev *vdev)
 	vdev->fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	imx_media_mbus_fmt_to_pix_fmt(&vdev->fmt.fmt.pix,
 				      &fmt_src.format, NULL);
+	vdev->compose.width = fmt_src.format.width;
+	vdev->compose.height = fmt_src.format.height;
 	vdev->cc = imx_media_find_format(vdev->fmt.fmt.pix.pixelformat,
 					 CS_SEL_ANY, false);
 
