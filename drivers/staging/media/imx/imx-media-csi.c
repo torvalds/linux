@@ -41,7 +41,7 @@
 #define MIN_H       144
 #define MAX_W      4096
 #define MAX_H      4096
-#define W_ALIGN    4 /* multiple of 16 pixels */
+#define W_ALIGN    1 /* multiple of 2 pixels */
 #define H_ALIGN    1 /* multiple of 2 lines */
 #define S_ALIGN    1 /* multiple of 2 */
 
@@ -1029,6 +1029,8 @@ static int csi_link_setup(struct media_entity *entity,
 		v4l2_ctrl_handler_free(&priv->ctrl_hdlr);
 		v4l2_ctrl_handler_init(&priv->ctrl_hdlr, 0);
 		priv->sink = NULL;
+		/* do not apply IC burst alignment in csi_try_crop */
+		priv->active_output_pad = CSI_SRC_PAD_IDMAC;
 		goto out;
 	}
 
@@ -1172,7 +1174,10 @@ static void csi_try_crop(struct csi_priv *priv,
 		crop->left = infmt->width - crop->width;
 	/* adjust crop left/width to h/w alignment restrictions */
 	crop->left &= ~0x3;
-	crop->width &= ~0x7;
+	if (priv->active_output_pad == CSI_SRC_PAD_DIRECT)
+		crop->width &= ~0x7; /* multiple of 8 pixels (IC burst) */
+	else
+		crop->width &= ~0x1; /* multiple of 2 pixels */
 
 	in_height = infmt->height;
 	if (infmt->field == V4L2_FIELD_ALTERNATE)
@@ -1936,6 +1941,8 @@ static int imx_csi_probe(struct platform_device *pdev)
 	pdata = priv->dev->platform_data;
 	priv->csi_id = pdata->csi;
 	priv->smfc_id = (priv->csi_id == 0) ? 0 : 2;
+
+	priv->active_output_pad = CSI_SRC_PAD_IDMAC;
 
 	timer_setup(&priv->eof_timeout_timer, csi_idmac_eof_timeout, 0);
 	spin_lock_init(&priv->irqlock);

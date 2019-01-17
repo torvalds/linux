@@ -48,7 +48,7 @@
 
 #define MAX_W_SRC  1024
 #define MAX_H_SRC  1024
-#define W_ALIGN_SRC   4 /* multiple of 16 pixels */
+#define W_ALIGN_SRC   1 /* multiple of 2 pixels */
 #define H_ALIGN_SRC   1 /* multiple of 2 lines */
 
 #define S_ALIGN       1 /* multiple of 2 */
