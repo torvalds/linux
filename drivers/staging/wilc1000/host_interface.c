@@ -11,9 +11,8 @@
 
 #define FALSE_FRMWR_CHANNEL			100
 
-struct rcvd_async_info {
-	u8 *buffer;
-	u32 len;
+struct wilc_rcvd_mac_info {
+	u8 status;
 };
 
 struct set_multicast {
@@ -71,7 +70,7 @@ struct wilc_gtk_key {
 
 union message_body {
 	struct wilc_rcvd_net_info net_info;
-	struct rcvd_async_info async_info;
+	struct wilc_rcvd_mac_info mac_info;
 	struct set_multicast multicast_info;
 	struct remain_ch remain_on_ch;
 	char *data;
@@ -755,54 +754,29 @@ static void handle_rcvd_gnrl_async_info(struct work_struct *work)
 {
 	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
 	struct wilc_vif *vif = msg->vif;
-	struct rcvd_async_info *rcvd_info = &msg->body.async_info;
-	u8 msg_type;
-	u8 mac_status;
+	struct wilc_rcvd_mac_info *mac_info = &msg->body.mac_info;
 	struct host_if_drv *hif_drv = vif->hif_drv;
-
-	if (!rcvd_info->buffer) {
-		netdev_err(vif->ndev, "%s: buffer is NULL\n", __func__);
-		goto free_msg;
-	}
 
 	if (!hif_drv) {
 		netdev_err(vif->ndev, "%s: hif driver is NULL\n", __func__);
-		goto free_rcvd_info;
+		goto free_msg;
 	}
 
-	if (hif_drv->hif_state == HOST_IF_WAITING_CONN_RESP ||
-	    hif_drv->hif_state == HOST_IF_CONNECTED ||
-	    hif_drv->usr_scan_req.scan_result) {
-		if (!hif_drv->conn_info.conn_result) {
-			netdev_err(vif->ndev, "%s: conn_result is NULL\n",
-				   __func__);
-			goto free_rcvd_info;
-		}
+	if (!hif_drv->conn_info.conn_result) {
+		netdev_err(vif->ndev, "%s: conn_result is NULL\n", __func__);
+		goto free_msg;
+	}
 
-		msg_type = rcvd_info->buffer[0];
-
-		if ('I' != msg_type) {
-			netdev_err(vif->ndev, "Received Message incorrect.\n");
-			goto free_rcvd_info;
-		}
-
-		mac_status  = rcvd_info->buffer[7];
-		if (hif_drv->hif_state == HOST_IF_WAITING_CONN_RESP) {
-			host_int_parse_assoc_resp_info(vif, mac_status);
-		} else if ((mac_status == WILC_MAC_STATUS_DISCONNECTED) &&
-			   (hif_drv->hif_state == HOST_IF_CONNECTED)) {
+	if (hif_drv->hif_state == HOST_IF_WAITING_CONN_RESP) {
+		host_int_parse_assoc_resp_info(vif, mac_info->status);
+	} else if (mac_info->status == WILC_MAC_STATUS_DISCONNECTED) {
+		if (hif_drv->hif_state == HOST_IF_CONNECTED) {
 			host_int_handle_disconnect(vif);
-		} else if ((mac_status == WILC_MAC_STATUS_DISCONNECTED) &&
-			   (hif_drv->usr_scan_req.scan_result)) {
+		} else if (hif_drv->usr_scan_req.scan_result) {
 			del_timer(&hif_drv->scan_timer);
-			if (hif_drv->usr_scan_req.scan_result)
-				handle_scan_done(vif, SCAN_EVENT_ABORTED);
+			handle_scan_done(vif, SCAN_EVENT_ABORTED);
 		}
 	}
-
-free_rcvd_info:
-	kfree(rcvd_info->buffer);
-	rcvd_info->buffer = NULL;
 
 free_msg:
 	kfree(msg);
@@ -1864,18 +1838,10 @@ void wilc_gnrl_async_info_received(struct wilc *wilc, u8 *buffer, u32 length)
 		return;
 	}
 
-	msg->body.async_info.len = length;
-	msg->body.async_info.buffer = kmemdup(buffer, length, GFP_KERNEL);
-	if (!msg->body.async_info.buffer) {
-		kfree(msg);
-		mutex_unlock(&hif_deinit_lock);
-		return;
-	}
-
+	msg->body.mac_info.status = buffer[7];
 	result = wilc_enqueue_work(msg);
 	if (result) {
 		netdev_err(vif->ndev, "%s: enqueue work failed\n", __func__);
-		kfree(msg->body.async_info.buffer);
 		kfree(msg);
 	}
 
