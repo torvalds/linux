@@ -489,11 +489,6 @@ struct sock *tcp_create_openreq_child(const struct sock *sk,
 	tcp_init_xmit_timers(newsk);
 	newtp->write_seq = newtp->pushed_seq = treq->snt_isn + 1;
 
-	newtp->rx_opt.saw_tstamp = 0;
-
-	newtp->rx_opt.dsack = 0;
-	newtp->rx_opt.num_sacks = 0;
-
 	if (sock_flag(newsk, SOCK_KEEPOPEN))
 		inet_csk_reset_keepalive_timer(newsk,
 					       keepalive_time_when(newtp));
@@ -534,7 +529,6 @@ struct sock *tcp_create_openreq_child(const struct sock *sk,
 	tcp_ecn_openreq_child(newtp, req);
 	newtp->fastopen_req = NULL;
 	newtp->fastopen_rsk = NULL;
-	newtp->syn_data_acked = 0;
 
 	__TCP_INC_STATS(sock_net(sk), TCP_MIB_PASSIVEOPENS);
 
