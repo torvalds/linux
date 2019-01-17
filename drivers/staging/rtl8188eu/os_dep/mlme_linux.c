@@ -99,13 +99,13 @@ void rtw_report_sec_ie(struct adapter *adapter, u8 authmode, u8 *sec_ie)
 		memset(buff, 0, IW_CUSTOM_MAX);
 		p = buff;
 		p += sprintf(p, "ASSOCINFO(ReqIEs =");
-		len = sec_ie[1]+2;
+		len = sec_ie[1] + 2;
 		len =  min_t(uint, len, IW_CUSTOM_MAX);
 		for (i = 0; i < len; i++)
 			p += sprintf(p, "%02x", sec_ie[i]);
 		p += sprintf(p, ")");
 		memset(&wrqu, 0, sizeof(wrqu));
-		wrqu.data.length = p-buff;
+		wrqu.data.length = p - buff;
 		wrqu.data.length = min_t(__u16, wrqu.data.length, IW_CUSTOM_MAX);
 		wireless_send_event(adapter->pnetdev, IWEVCUSTOM, &wrqu, buff);
 		kfree(buff);
