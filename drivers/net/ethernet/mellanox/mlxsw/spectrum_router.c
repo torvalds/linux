@@ -7294,7 +7294,8 @@ static void mlxsw_sp_rif_vlan_fdb_del(struct mlxsw_sp_rif *rif, const char *mac)
 
 	info.addr = mac;
 	info.vid = vid;
-	call_switchdev_notifiers(SWITCHDEV_FDB_DEL_TO_BRIDGE, dev, &info.info);
+	call_switchdev_notifiers(SWITCHDEV_FDB_DEL_TO_BRIDGE, dev, &info.info,
+				 NULL);
 }
 
 static const struct mlxsw_sp_rif_ops mlxsw_sp_rif_vlan_ops = {
@@ -7381,7 +7382,8 @@ static void mlxsw_sp_rif_fid_fdb_del(struct mlxsw_sp_rif *rif, const char *mac)
 
 	info.addr = mac;
 	info.vid = 0;
-	call_switchdev_notifiers(SWITCHDEV_FDB_DEL_TO_BRIDGE, dev, &info.info);
+	call_switchdev_notifiers(SWITCHDEV_FDB_DEL_TO_BRIDGE, dev, &info.info,
+				 NULL);
 }
 
 static const struct mlxsw_sp_rif_ops mlxsw_sp_rif_fid_ops = {

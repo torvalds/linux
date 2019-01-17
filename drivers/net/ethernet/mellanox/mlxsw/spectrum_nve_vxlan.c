@@ -212,11 +212,13 @@ static void mlxsw_sp1_nve_vxlan_fini(struct mlxsw_sp_nve *nve)
 }
 
 static int
-mlxsw_sp_nve_vxlan_fdb_replay(const struct net_device *nve_dev, __be32 vni)
+mlxsw_sp_nve_vxlan_fdb_replay(const struct net_device *nve_dev, __be32 vni,
+			      struct netlink_ext_ack *extack)
 {
 	if (WARN_ON(!netif_is_vxlan(nve_dev)))
 		return -EINVAL;
-	return vxlan_fdb_replay(nve_dev, vni, &mlxsw_sp_switchdev_notifier);
+	return vxlan_fdb_replay(nve_dev, vni, &mlxsw_sp_switchdev_notifier,
+				extack);
 }
 
 static void

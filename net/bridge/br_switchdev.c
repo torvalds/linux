@@ -113,7 +113,7 @@ br_switchdev_fdb_call_notifiers(bool adding, const unsigned char *mac,
 	info.added_by_user = added_by_user;
 	info.offloaded = offloaded;
 	notifier_type = adding ? SWITCHDEV_FDB_ADD_TO_DEVICE : SWITCHDEV_FDB_DEL_TO_DEVICE;
-	call_switchdev_notifiers(notifier_type, dev, &info.info);
+	call_switchdev_notifiers(notifier_type, dev, &info.info, NULL);
 }
 
 void

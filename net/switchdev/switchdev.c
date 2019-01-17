@@ -556,10 +556,11 @@ EXPORT_SYMBOL_GPL(unregister_switchdev_notifier);
  *	Call all network notifier blocks.
  */
 int call_switchdev_notifiers(unsigned long val, struct net_device *dev,
-			     struct switchdev_notifier_info *info)
+			     struct switchdev_notifier_info *info,
+			     struct netlink_ext_ack *extack)
 {
 	info->dev = dev;
-	info->extack = NULL;
+	info->extack = extack;
 	return atomic_notifier_call_chain(&switchdev_notif_chain, val, info);
 }
 EXPORT_SYMBOL_GPL(call_switchdev_notifiers);

@@ -195,7 +195,8 @@ int switchdev_port_obj_del(struct net_device *dev,
 int register_switchdev_notifier(struct notifier_block *nb);
 int unregister_switchdev_notifier(struct notifier_block *nb);
 int call_switchdev_notifiers(unsigned long val, struct net_device *dev,
-			     struct switchdev_notifier_info *info);
+			     struct switchdev_notifier_info *info,
+			     struct netlink_ext_ack *extack);
 
 int register_switchdev_blocking_notifier(struct notifier_block *nb);
 int unregister_switchdev_blocking_notifier(struct notifier_block *nb);
@@ -267,7 +268,8 @@ static inline int unregister_switchdev_notifier(struct notifier_block *nb)
 
 static inline int call_switchdev_notifiers(unsigned long val,
 					   struct net_device *dev,
-					   struct switchdev_notifier_info *info)
+					   struct switchdev_notifier_info *info,
+					   struct netlink_ext_ack *extack)
 {
 	return NOTIFY_DONE;
 }

@@ -841,11 +841,9 @@ int mlxsw_sp_nve_fid_enable(struct mlxsw_sp *mlxsw_sp, struct mlxsw_sp_fid *fid,
 
 	nve->config = config;
 
-	err = ops->fdb_replay(params->dev, params->vni);
-	if (err) {
-		NL_SET_ERR_MSG_MOD(extack, "Failed to offload the FDB");
+	err = ops->fdb_replay(params->dev, params->vni, extack);
+	if (err)
 		goto err_fdb_replay;
-	}
 
 	return 0;
 
