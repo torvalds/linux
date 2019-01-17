@@ -72,7 +72,7 @@ struct wilc_gtk_key {
 } __packed;
 
 union message_body {
-	struct rcvd_net_info net_info;
+	struct wilc_rcvd_net_info net_info;
 	struct rcvd_async_info async_info;
 	struct set_multicast multicast_info;
 	struct remain_ch remain_on_ch;
@@ -743,129 +743,38 @@ void *wilc_parse_join_bss_param(struct cfg80211_bss *bss)
 	return (void *)param;
 }
 
-static inline u8 *get_bssid(struct ieee80211_mgmt *mgmt)
-{
-	if (ieee80211_has_fromds(mgmt->frame_control))
-		return mgmt->sa;
-	else if (ieee80211_has_tods(mgmt->frame_control))
-		return mgmt->da;
-	else
-		return mgmt->bssid;
-}
-
-static s32 wilc_parse_network_info(u8 *msg_buffer,
-				   struct network_info **ret_network_info)
-{
-	struct network_info *info;
-	struct ieee80211_mgmt *mgt;
-	u8 *wid_val, *ies;
-	u16 wid_len, rx_len, ies_len;
-	u8 msg_type;
-	size_t offset;
-	const u8 *ch_elm, *tim_elm, *ssid_elm;
-
-	msg_type = msg_buffer[0];
-	if ('N' != msg_type)
-		return -EFAULT;
-
-	wid_len = get_unaligned_le16(&msg_buffer[6]);
-	wid_val = &msg_buffer[8];
-
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
-	if (!info)
-		return -ENOMEM;
-
-	info->rssi = wid_val[0];
-
-	mgt = (struct ieee80211_mgmt *)&wid_val[1];
-	rx_len = wid_len - 1;
-
-	if (ieee80211_is_probe_resp(mgt->frame_control)) {
-		info->cap_info = le16_to_cpu(mgt->u.probe_resp.capab_info);
-		info->beacon_period = le16_to_cpu(mgt->u.probe_resp.beacon_int);
-		info->tsf = le64_to_cpu(mgt->u.probe_resp.timestamp);
-		info->tsf_lo = (u32)info->tsf;
-		offset = offsetof(struct ieee80211_mgmt, u.probe_resp.variable);
-	} else if (ieee80211_is_beacon(mgt->frame_control)) {
-		info->cap_info = le16_to_cpu(mgt->u.beacon.capab_info);
-		info->beacon_period = le16_to_cpu(mgt->u.beacon.beacon_int);
-		info->tsf = le64_to_cpu(mgt->u.beacon.timestamp);
-		info->tsf_lo = (u32)info->tsf;
-		offset = offsetof(struct ieee80211_mgmt, u.beacon.variable);
-	} else {
-		/* only process probe response and beacon frame */
-		kfree(info);
-		return -EIO;
-	}
-
-	ether_addr_copy(info->bssid, get_bssid(mgt));
-
-	ies = mgt->u.beacon.variable;
-	ies_len = rx_len - offset;
-	if (ies_len <= 0) {
-		kfree(info);
-		return -EIO;
-	}
-
-	info->ies = kmemdup(ies, ies_len, GFP_KERNEL);
-	if (!info->ies) {
-		kfree(info);
-		return -ENOMEM;
-	}
-
-	info->ies_len = ies_len;
-
-	ssid_elm = cfg80211_find_ie(WLAN_EID_SSID, ies, ies_len);
-	if (ssid_elm) {
-		info->ssid_len = ssid_elm[1];
-		if (info->ssid_len <= IEEE80211_MAX_SSID_LEN)
-			memcpy(info->ssid, ssid_elm + 2, info->ssid_len);
-		else
-			info->ssid_len = 0;
-	}
-
-	ch_elm = cfg80211_find_ie(WLAN_EID_DS_PARAMS, ies, ies_len);
-	if (ch_elm && ch_elm[1] > 0)
-		info->ch = ch_elm[2];
-
-	tim_elm = cfg80211_find_ie(WLAN_EID_TIM, ies, ies_len);
-	if (tim_elm && tim_elm[1] >= 2)
-		info->dtim_period = tim_elm[3];
-
-	*ret_network_info = info;
-
-	return 0;
-}
-
 static void handle_rcvd_ntwrk_info(struct work_struct *work)
 {
 	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
-	struct wilc_vif *vif = msg->vif;
-	struct rcvd_net_info *rcvd_info = &msg->body.net_info;
-	struct network_info *info = NULL;
-	struct user_scan_req *scan_req = &vif->hif_drv->usr_scan_req;
+	struct wilc_rcvd_net_info *rcvd_info = &msg->body.net_info;
+	struct user_scan_req *scan_req = &msg->vif->hif_drv->usr_scan_req;
+	const u8 *ch_elm;
+	u8 *ies;
+	int ies_len;
+	size_t offset;
 
-	if (!scan_req->scan_result)
+	if (ieee80211_is_probe_resp(rcvd_info->mgmt->frame_control))
+		offset = offsetof(struct ieee80211_mgmt, u.probe_resp.variable);
+	else if (ieee80211_is_beacon(rcvd_info->mgmt->frame_control))
+		offset = offsetof(struct ieee80211_mgmt, u.beacon.variable);
+	else
 		goto done;
 
-	wilc_parse_network_info(rcvd_info->buffer, &info);
-	if (!info) {
-		netdev_err(vif->ndev, "%s: info is NULL\n",
-			   __func__);
+	ies = rcvd_info->mgmt->u.beacon.variable;
+	ies_len = rcvd_info->frame_len - offset;
+	if (ies_len <= 0)
 		goto done;
-	}
 
-	scan_req->scan_result(SCAN_EVENT_NETWORK_FOUND, info, scan_req->arg);
+	ch_elm = cfg80211_find_ie(WLAN_EID_DS_PARAMS, ies, ies_len);
+	if (ch_elm && ch_elm[1] > 0)
+		rcvd_info->ch = ch_elm[2];
+
+	if (scan_req->scan_result)
+		scan_req->scan_result(SCAN_EVENT_NETWORK_FOUND, rcvd_info,
+				      scan_req->arg);
 
 done:
-	kfree(rcvd_info->buffer);
-	rcvd_info->buffer = NULL;
-
-	if (info) {
-		kfree(info->ies);
-		kfree(info);
-	}
-
+	kfree(rcvd_info->mgmt);
 	kfree(msg);
 }
 
@@ -2143,9 +2052,12 @@ void wilc_network_info_received(struct wilc *wilc, u8 *buffer, u32 length)
 	if (IS_ERR(msg))
 		return;
 
-	msg->body.net_info.len = length;
-	msg->body.net_info.buffer = kmemdup(buffer, length, GFP_KERNEL);
-	if (!msg->body.net_info.buffer) {
+	msg->body.net_info.frame_len = get_unaligned_le16(&buffer[6]) - 1;
+	msg->body.net_info.rssi = buffer[8];
+	msg->body.net_info.mgmt = kmemdup(&buffer[9],
+					  msg->body.net_info.frame_len,
+					  GFP_KERNEL);
+	if (!msg->body.net_info.mgmt) {
 		kfree(msg);
 		return;
 	}
@@ -2153,7 +2065,7 @@ void wilc_network_info_received(struct wilc *wilc, u8 *buffer, u32 length)
 	result = wilc_enqueue_work(msg);
 	if (result) {
 		netdev_err(vif->ndev, "%s: enqueue work failed\n", __func__);
-		kfree(msg->body.net_info.buffer);
+		kfree(msg->body.net_info.mgmt);
 		kfree(msg);
 	}
 }

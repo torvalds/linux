@@ -82,48 +82,34 @@ static void clear_during_ip(struct timer_list *t)
 }
 
 static void cfg_scan_result(enum scan_event scan_event,
-			    struct network_info *network_info,
-			    void *user_void)
+			    struct wilc_rcvd_net_info *info, void *user_void)
 {
-	struct wilc_priv *priv;
-	struct wiphy *wiphy;
-	s32 freq;
-	struct ieee80211_channel *channel;
-	struct cfg80211_bss *bss;
+	struct wilc_priv *priv = user_void;
 
-	priv = user_void;
 	if (!priv->cfg_scanning)
 		return;
 
 	if (scan_event == SCAN_EVENT_NETWORK_FOUND) {
-		wiphy = priv->dev->ieee80211_ptr->wiphy;
+		s32 freq;
+		struct ieee80211_channel *channel;
+		struct cfg80211_bss *bss;
+		struct wiphy *wiphy = priv->dev->ieee80211_ptr->wiphy;
 
-		if (!wiphy || !network_info)
+		if (!wiphy || !info)
 			return;
 
-		if (wiphy->signal_type == CFG80211_SIGNAL_TYPE_UNSPEC &&
-		    (((s32)network_info->rssi * 100) < 0 ||
-		    ((s32)network_info->rssi * 100) > 100))
-			return;
-
-		freq = ieee80211_channel_to_frequency((s32)network_info->ch,
+		freq = ieee80211_channel_to_frequency((s32)info->ch,
 						      NL80211_BAND_2GHZ);
 		channel = ieee80211_get_channel(wiphy, freq);
 		if (!channel)
 			return;
 
-		bss = cfg80211_inform_bss(wiphy,
-					  channel,
-					  CFG80211_BSS_FTYPE_UNKNOWN,
-					  network_info->bssid,
-					  network_info->tsf,
-					  network_info->cap_info,
-					  network_info->beacon_period,
-					  (const u8 *)network_info->ies,
-					  (size_t)network_info->ies_len,
-					  (s32)network_info->rssi * 100,
-					  GFP_KERNEL);
-		cfg80211_put_bss(wiphy, bss);
+		bss = cfg80211_inform_bss_frame(wiphy, channel, info->mgmt,
+						info->frame_len,
+						(s32)info->rssi * 100,
+						GFP_KERNEL);
+		if (!bss)
+			cfg80211_put_bss(wiphy, bss);
 	} else if (scan_event == SCAN_EVENT_DONE) {
 		mutex_lock(&priv->scan_req_lock);
 

@@ -127,7 +127,14 @@ enum conn_event {
 	CONN_DISCONN_EVENT_FORCE_32BIT		= 0xFFFFFFFF
 };
 
-typedef void (*wilc_scan_result)(enum scan_event, struct network_info *,
+struct wilc_rcvd_net_info {
+	s8 rssi;
+	u8 ch;
+	u16 frame_len;
+	struct ieee80211_mgmt *mgmt;
+};
+
+typedef void (*wilc_scan_result)(enum scan_event, struct wilc_rcvd_net_info *,
 				 void *);
 
 typedef void (*wilc_connect_result)(enum conn_event,
@@ -138,11 +145,6 @@ typedef void (*wilc_connect_result)(enum conn_event,
 
 typedef void (*wilc_remain_on_chan_expired)(void *, u32);
 typedef void (*wilc_remain_on_chan_ready)(void *);
-
-struct rcvd_net_info {
-	u8 *buffer;
-	u32 len;
-};
 
 struct hidden_net_info {
 	u8  *ssid;
