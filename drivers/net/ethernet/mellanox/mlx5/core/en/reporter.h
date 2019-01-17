@@ -10,5 +10,6 @@
 int mlx5e_tx_reporter_create(struct mlx5e_priv *priv);
 void mlx5e_tx_reporter_destroy(struct mlx5e_priv *priv);
 void mlx5e_tx_reporter_err_cqe(struct mlx5e_txqsq *sq);
+void mlx5e_tx_reporter_timeout(struct mlx5e_txqsq *sq);
 
 #endif

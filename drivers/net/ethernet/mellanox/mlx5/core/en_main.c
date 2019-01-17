@@ -4074,31 +4074,14 @@ netdev_features_t mlx5e_features_check(struct sk_buff *skb,
 	return features;
 }
 
-static bool mlx5e_tx_timeout_eq_recover(struct net_device *dev,
-					struct mlx5e_txqsq *sq)
-{
-	struct mlx5_eq_comp *eq = sq->cq.mcq.eq;
-	u32 eqe_count;
-
-	netdev_err(dev, "EQ 0x%x: Cons = 0x%x, irqn = 0x%x\n",
-		   eq->core.eqn, eq->core.cons_index, eq->core.irqn);
-
-	eqe_count = mlx5_eq_poll_irq_disabled(eq);
-	if (!eqe_count)
-		return false;
-
-	netdev_err(dev, "Recover %d eqes on EQ 0x%x\n", eqe_count, eq->core.eqn);
-	sq->channel->stats->eq_rearm++;
-	return true;
-}
-
 static void mlx5e_tx_timeout_work(struct work_struct *work)
 {
 	struct mlx5e_priv *priv = container_of(work, struct mlx5e_priv,
 					       tx_timeout_work);
-	struct net_device *dev = priv->netdev;
-	bool reopen_channels = false;
-	int i, err;
+	int i;
+
+	if (!priv->tx_reporter)
+		return;
 
 	rtnl_lock();
 	mutex_lock(&priv->state_lock);
@@ -4107,35 +4090,15 @@ static void mlx5e_tx_timeout_work(struct work_struct *work)
 		goto unlock;
 
 	for (i = 0; i < priv->channels.num * priv->channels.params.num_tc; i++) {
-		struct netdev_queue *dev_queue = netdev_get_tx_queue(dev, i);
+		struct netdev_queue *dev_queue =
+			netdev_get_tx_queue(priv->netdev, i);
 		struct mlx5e_txqsq *sq = priv->txq2sq[i];
 
 		if (!netif_xmit_stopped(dev_queue))
 			continue;
 
-		netdev_err(dev,
-			   "TX timeout on queue: %d, SQ: 0x%x, CQ: 0x%x, SQ Cons: 0x%x SQ Prod: 0x%x, usecs since last trans: %u\n",
-			   i, sq->sqn, sq->cq.mcq.cqn, sq->cc, sq->pc,
-			   jiffies_to_usecs(jiffies - dev_queue->trans_start));
-
-		/* If we recover a lost interrupt, most likely TX timeout will
-		 * be resolved, skip reopening channels
-		 */
-		if (!mlx5e_tx_timeout_eq_recover(dev, sq)) {
-			clear_bit(MLX5E_SQ_STATE_ENABLED, &sq->state);
-			reopen_channels = true;
-		}
+		mlx5e_tx_reporter_timeout(sq);
 	}
-
-	if (!reopen_channels)
-		goto unlock;
-
-	mlx5e_close_locked(dev);
-	err = mlx5e_open_locked(dev);
-	if (err)
-		netdev_err(priv->netdev,
-			   "mlx5e_open_locked failed recovering from a tx_timeout, err(%d).\n",
-			   err);
 
 unlock:
 	mutex_unlock(&priv->state_lock);

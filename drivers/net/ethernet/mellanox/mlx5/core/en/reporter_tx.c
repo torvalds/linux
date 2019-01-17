@@ -126,6 +126,41 @@ void mlx5e_tx_reporter_err_cqe(struct mlx5e_txqsq *sq)
 			      &err_ctx);
 }
 
+static int mlx5e_tx_reporter_timeout_recover(struct mlx5e_txqsq *sq)
+{
+	struct mlx5_eq_comp *eq = sq->cq.mcq.eq;
+	u32 eqe_count;
+
+	netdev_err(sq->channel->netdev, "EQ 0x%x: Cons = 0x%x, irqn = 0x%x\n",
+		   eq->core.eqn, eq->core.cons_index, eq->core.irqn);
+
+	eqe_count = mlx5_eq_poll_irq_disabled(eq);
+	if (!eqe_count) {
+		clear_bit(MLX5E_SQ_STATE_ENABLED, &sq->state);
+		return 1;
+	}
+
+	netdev_err(sq->channel->netdev, "Recover %d eqes on EQ 0x%x\n",
+		   eqe_count, eq->core.eqn);
+	sq->channel->stats->eq_rearm++;
+	return 0;
+}
+
+void mlx5e_tx_reporter_timeout(struct mlx5e_txqsq *sq)
+{
+	struct mlx5e_tx_err_ctx err_ctx;
+	char err_str[MLX5E_TX_REPORTER_PER_SQ_MAX_LEN];
+
+	err_ctx.sq       = sq;
+	err_ctx.recover  = mlx5e_tx_reporter_timeout_recover;
+	sprintf(err_str,
+		"TX timeout on queue: %d, SQ: 0x%x, CQ: 0x%x, SQ Cons: 0x%x SQ Prod: 0x%x, usecs since last trans: %u\n",
+		sq->channel->ix, sq->sqn, sq->cq.mcq.cqn, sq->cc, sq->pc,
+		jiffies_to_usecs(jiffies - sq->txq->trans_start));
+	devlink_health_report(sq->channel->priv->tx_reporter, err_str,
+			      &err_ctx);
+}
+
 /* state lock cannot be grabbed within this function.
  * It can cause a dead lock or a read-after-free.
  */
