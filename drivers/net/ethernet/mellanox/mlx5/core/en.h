@@ -388,10 +388,7 @@ struct mlx5e_txqsq {
 	struct mlx5e_channel      *channel;
 	int                        txq_ix;
 	u32                        rate_limit;
-	struct mlx5e_txqsq_recover {
-		struct work_struct         recover_work;
-		u64                        last_recover;
-	} recover;
+	struct work_struct         recover_work;
 } ____cacheline_aligned_in_smp;
 
 struct mlx5e_dma_info {
@@ -682,6 +679,13 @@ struct mlx5e_rss_params {
 	u8	hfunc;
 };
 
+struct mlx5e_modify_sq_param {
+	int curr_state;
+	int next_state;
+	int rl_update;
+	int rl_index;
+};
+
 struct mlx5e_priv {
 	/* priv data path fields - start */
 	struct mlx5e_txqsq *txq2sq[MLX5E_MAX_NUM_CHANNELS * MLX5E_MAX_NUM_TC];
@@ -737,6 +741,7 @@ struct mlx5e_priv {
 #ifdef CONFIG_MLX5_EN_TLS
 	struct mlx5e_tls          *tls;
 #endif
+	struct devlink_health_reporter *tx_reporter;
 };
 
 struct mlx5e_profile {
@@ -865,6 +870,11 @@ void mlx5e_set_rx_cq_mode_params(struct mlx5e_params *params,
 void mlx5e_set_rq_type(struct mlx5_core_dev *mdev, struct mlx5e_params *params);
 void mlx5e_init_rq_type_params(struct mlx5_core_dev *mdev,
 			       struct mlx5e_params *params);
+
+int mlx5e_modify_sq(struct mlx5_core_dev *mdev, u32 sqn,
+		    struct mlx5e_modify_sq_param *p);
+void mlx5e_activate_txqsq(struct mlx5e_txqsq *sq);
+void mlx5e_tx_disable_queue(struct netdev_queue *txq);
 
 static inline bool mlx5e_tunnel_inner_ft_supported(struct mlx5_core_dev *mdev)
 {
