@@ -168,6 +168,7 @@ struct perf_missing_features {
 	bool lbr_flags;
 	bool write_backward;
 	bool group_read;
+	bool ksymbol;
 };
 
 extern struct perf_missing_features perf_missing_features;
