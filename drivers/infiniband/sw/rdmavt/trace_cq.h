@@ -105,7 +105,7 @@ DEFINE_EVENT(rvt_cq_template, rvt_create_cq,
 	     TP_ARGS(cq, attr));
 
 #define CQ_PRN \
-"[%s] idx %u wr_id %llx status %u opcode %u,%s length %u qpn %x"
+"[%s] idx %u wr_id %llx status %u opcode %u,%s length %u qpn %x flags %x imm %x"
 
 DECLARE_EVENT_CLASS(
 	rvt_cq_entry_template,
@@ -119,6 +119,8 @@ DECLARE_EVENT_CLASS(
 		__field(u32, qpn)
 		__field(u32, length)
 		__field(u32, idx)
+		__field(u32, flags)
+		__field(u32, imm)
 	),
 	TP_fast_assign(
 		RDI_DEV_ASSIGN(cq->rdi)
@@ -128,6 +130,8 @@ DECLARE_EVENT_CLASS(
 		__entry->length = wc->byte_len;
 		__entry->qpn = wc->qp->qp_num;
 		__entry->idx = idx;
+		__entry->flags = wc->wc_flags;
+		__entry->imm = be32_to_cpu(wc->ex.imm_data);
 	),
 	TP_printk(
 		CQ_PRN,
@@ -137,7 +141,9 @@ DECLARE_EVENT_CLASS(
 		__entry->status,
 		__entry->opcode, show_wc_opcode(__entry->opcode),
 		__entry->length,
-		__entry->qpn
+		__entry->qpn,
+		__entry->flags,
+		__entry->imm
 	)
 );
 
