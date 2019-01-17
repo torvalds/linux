@@ -14,6 +14,7 @@
 #include "codec_mpeg4.h"
 #include "codec_mjpeg.h"
 #include "codec_hevc.h"
+#include "codec_vp9.h"
 
 static const struct amvdec_format vdec_formats_gxbb[] = {
 	{
@@ -103,6 +104,17 @@ static const struct amvdec_format vdec_formats_gxbb[] = {
 
 static const struct amvdec_format vdec_formats_gxl[] = {
 	{
+		.pixfmt = V4L2_PIX_FMT_VP9,
+		.min_buffers = 16,
+		.max_buffers = 24,
+		.max_width = 3840,
+		.max_height = 2160,
+		.vdec_ops = &vdec_hevc_ops,
+		.codec_ops = &codec_vp9_ops,
+		.firmware_path = "meson/gx/vvp9_mc",
+		.pixfmts_cap = { V4L2_PIX_FMT_NV12M, V4L2_PIX_FMT_AM21C, 0 },
+	},
+	{
 		.pixfmt = V4L2_PIX_FMT_HEVC,
 		.min_buffers = 16,
 		.max_buffers = 24,
@@ -188,6 +200,17 @@ static const struct amvdec_format vdec_formats_gxl[] = {
 };
 
 static const struct amvdec_format vdec_formats_gxm[] = {
+	{
+		.pixfmt = V4L2_PIX_FMT_VP9,
+		.min_buffers = 16,
+		.max_buffers = 24,
+		.max_width = 3840,
+		.max_height = 2160,
+		.vdec_ops = &vdec_hevc_ops,
+		.codec_ops = &codec_vp9_ops,
+		.firmware_path = "meson/gx/vvp9_mc",
+		.pixfmts_cap = { V4L2_PIX_FMT_NV12M, V4L2_PIX_FMT_AM21C, 0 },
+	},
 	{
 		.pixfmt = V4L2_PIX_FMT_HEVC,
 		.min_buffers = 16,
