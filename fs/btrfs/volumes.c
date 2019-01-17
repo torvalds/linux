@@ -2398,32 +2398,6 @@ static struct btrfs_device *btrfs_find_device_by_path(
 	return device;
 }
 
-static struct btrfs_device *btrfs_find_device_missing_or_by_path(
-		struct btrfs_fs_info *fs_info, const char *device_path)
-{
-	struct btrfs_device *device = NULL;
-	if (strcmp(device_path, "missing") == 0) {
-		struct list_head *devices;
-		struct btrfs_device *tmp;
-
-		devices = &fs_info->fs_devices->devices;
-		list_for_each_entry(tmp, devices, dev_list) {
-			if (test_bit(BTRFS_DEV_STATE_IN_FS_METADATA,
-					&tmp->dev_state) && !tmp->bdev) {
-				device = tmp;
-				break;
-			}
-		}
-
-		if (!device)
-			return ERR_PTR(-ENOENT);
-	} else {
-		device = btrfs_find_device_by_path(fs_info, device_path);
-	}
-
-	return device;
-}
-
 /*
  * Lookup a device given by device id, or the path if the id is 0.
  */
@@ -2439,7 +2413,19 @@ struct btrfs_device *btrfs_find_device_by_devspec(
 	} else {
 		if (!devpath || !devpath[0])
 			return ERR_PTR(-EINVAL);
-		device = btrfs_find_device_missing_or_by_path(fs_info, devpath);
+
+		if (strcmp(devpath, "missing") == 0) {
+			list_for_each_entry(device, &fs_info->fs_devices->devices,
+					    dev_list) {
+				if (test_bit(BTRFS_DEV_STATE_IN_FS_METADATA,
+					     &device->dev_state) &&
+					     !device->bdev)
+					return device;
+			}
+			return ERR_PTR(-ENOENT);
+		} else {
+			device = btrfs_find_device_by_path(fs_info, devpath);
+		}
 	}
 	return device;
 }
