@@ -15,12 +15,3 @@ config SOC_CAMERA_PLATFORM
 	depends on SOC_CAMERA
 	help
 	  This is a generic SoC camera platform driver, useful for testing
-
-config VIDEO_SH_MOBILE_CEU
-	tristate "SuperH Mobile CEU Interface driver"
-	depends on VIDEO_DEV && SOC_CAMERA && HAVE_CLK
-	depends on ARCH_SHMOBILE || COMPILE_TEST
-	select VIDEOBUF2_DMA_CONTIG
-	select SOC_CAMERA_SCALE_CROP
-	---help---
-	  This is a v4l2 driver for the SuperH Mobile CEU Interface
