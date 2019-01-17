@@ -242,7 +242,7 @@ int gp10b_vmm_new(struct nvkm_mmu *, u64, u64, void *, u32,
 int gv100_vmm_new(struct nvkm_mmu *, u64, u64, void *, u32,
 		  struct lock_class_key *, const char *,
 		  struct nvkm_vmm **);
-int tu104_vmm_new(struct nvkm_mmu *, u64, u64, void *, u32,
+int tu102_vmm_new(struct nvkm_mmu *, u64, u64, void *, u32,
 		  struct lock_class_key *, const char *,
 		  struct nvkm_vmm **);
 

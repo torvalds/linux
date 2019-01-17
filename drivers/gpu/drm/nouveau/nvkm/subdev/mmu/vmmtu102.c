@@ -24,7 +24,7 @@
 #include <subdev/timer.h>
 
 static void
-tu104_vmm_flush(struct nvkm_vmm *vmm, int depth)
+tu102_vmm_flush(struct nvkm_vmm *vmm, int depth)
 {
 	struct nvkm_subdev *subdev = &vmm->mmu->subdev;
 	struct nvkm_device *device = subdev->device;
@@ -50,12 +50,12 @@ tu104_vmm_flush(struct nvkm_vmm *vmm, int depth)
 }
 
 static const struct nvkm_vmm_func
-tu104_vmm = {
+tu102_vmm = {
 	.join = gv100_vmm_join,
 	.part = gf100_vmm_part,
 	.aper = gf100_vmm_aper,
 	.valid = gp100_vmm_valid,
-	.flush = tu104_vmm_flush,
+	.flush = tu102_vmm_flush,
 	.page = {
 		{ 47, &gp100_vmm_desc_16[4], NVKM_VMM_PAGE_Sxxx },
 		{ 38, &gp100_vmm_desc_16[3], NVKM_VMM_PAGE_Sxxx },
@@ -68,10 +68,10 @@ tu104_vmm = {
 };
 
 int
-tu104_vmm_new(struct nvkm_mmu *mmu, u64 addr, u64 size,
+tu102_vmm_new(struct nvkm_mmu *mmu, u64 addr, u64 size,
 	      void *argv, u32 argc, struct lock_class_key *key,
 	      const char *name, struct nvkm_vmm **pvmm)
 {
-	return nv04_vmm_new_(&tu104_vmm, mmu, 0, addr, size,
+	return nv04_vmm_new_(&tu102_vmm, mmu, 0, addr, size,
 			     argv, argc, key, name, pvmm);
 }
