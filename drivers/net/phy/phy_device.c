@@ -999,6 +999,9 @@ EXPORT_SYMBOL(phy_connect);
  */
 void phy_disconnect(struct phy_device *phydev)
 {
+	if (phy_is_started(phydev))
+		phy_stop(phydev);
+
 	if (phydev->irq > 0)
 		phy_stop_interrupts(phydev);
 
