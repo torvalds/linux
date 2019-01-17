@@ -1074,16 +1074,16 @@ static void iwl_mvm_decode_he_phy_data(struct iwl_mvm *mvm,
 					 IEEE80211_RADIOTAP_HE_DATA1_SPTL_REUSE2_KNOWN |
 					 IEEE80211_RADIOTAP_HE_DATA1_SPTL_REUSE3_KNOWN |
 					 IEEE80211_RADIOTAP_HE_DATA1_SPTL_REUSE4_KNOWN);
-		he->data4 |= le16_encode_bits(le32_get_bits(phy_data->d0,
+		he->data4 |= le16_encode_bits(le32_get_bits(phy_data->d2,
 							    IWL_RX_PHY_DATA2_HE_TB_EXT_SPTL_REUSE1),
 					      IEEE80211_RADIOTAP_HE_DATA4_TB_SPTL_REUSE1);
-		he->data4 |= le16_encode_bits(le32_get_bits(phy_data->d0,
+		he->data4 |= le16_encode_bits(le32_get_bits(phy_data->d2,
 							    IWL_RX_PHY_DATA2_HE_TB_EXT_SPTL_REUSE2),
 					      IEEE80211_RADIOTAP_HE_DATA4_TB_SPTL_REUSE2);
-		he->data4 |= le16_encode_bits(le32_get_bits(phy_data->d0,
+		he->data4 |= le16_encode_bits(le32_get_bits(phy_data->d2,
 							    IWL_RX_PHY_DATA2_HE_TB_EXT_SPTL_REUSE3),
 					      IEEE80211_RADIOTAP_HE_DATA4_TB_SPTL_REUSE3);
-		he->data4 |= le16_encode_bits(le32_get_bits(phy_data->d0,
+		he->data4 |= le16_encode_bits(le32_get_bits(phy_data->d2,
 							    IWL_RX_PHY_DATA2_HE_TB_EXT_SPTL_REUSE4),
 					      IEEE80211_RADIOTAP_HE_DATA4_TB_SPTL_REUSE4);
 		/* fall through */
