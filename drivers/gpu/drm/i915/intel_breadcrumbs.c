@@ -158,30 +158,24 @@ static void intel_breadcrumbs_fake_irq(struct timer_list *t)
 
 static void irq_enable(struct intel_engine_cs *engine)
 {
-	/*
-	 * FIXME: Ideally we want this on the API boundary, but for the
-	 * sake of testing with mock breadcrumbs (no HW so unable to
-	 * enable irqs) we place it deep within the bowels, at the point
-	 * of no return.
-	 */
-	GEM_BUG_ON(!intel_irqs_enabled(engine->i915));
+	if (!engine->irq_enable)
+		return;
 
 	/* Caller disables interrupts */
-	if (engine->irq_enable) {
-		spin_lock(&engine->i915->irq_lock);
-		engine->irq_enable(engine);
-		spin_unlock(&engine->i915->irq_lock);
-	}
+	spin_lock(&engine->i915->irq_lock);
+	engine->irq_enable(engine);
+	spin_unlock(&engine->i915->irq_lock);
 }
 
 static void irq_disable(struct intel_engine_cs *engine)
 {
+	if (!engine->irq_disable)
+		return;
+
 	/* Caller disables interrupts */
-	if (engine->irq_disable) {
-		spin_lock(&engine->i915->irq_lock);
-		engine->irq_disable(engine);
-		spin_unlock(&engine->i915->irq_lock);
-	}
+	spin_lock(&engine->i915->irq_lock);
+	engine->irq_disable(engine);
+	spin_unlock(&engine->i915->irq_lock);
 }
 
 void __intel_engine_disarm_breadcrumbs(struct intel_engine_cs *engine)
