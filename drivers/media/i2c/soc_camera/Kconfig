@@ -40,9 +40,3 @@ config SOC_CAMERA_RJ54N1
 	depends on SOC_CAMERA && I2C
 	help
 	  This is a rj54n1cb0c video driver
-
-config SOC_CAMERA_TW9910
-	tristate "tw9910 support"
-	depends on SOC_CAMERA && I2C
-	help
-	  This is a tw9910 video driver
