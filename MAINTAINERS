@@ -3471,10 +3471,9 @@ F:	drivers/i2c/busses/i2c-octeon*
 F:	drivers/i2c/busses/i2c-thunderx*
 
 CAVIUM LIQUIDIO NETWORK DRIVER
-M:	Derek Chickles <derek.chickles@caviumnetworks.com>
-M:	Satanand Burla <satananda.burla@caviumnetworks.com>
-M:	Felix Manlunas <felix.manlunas@caviumnetworks.com>
-M:	Raghu Vatsavayi <raghu.vatsavayi@caviumnetworks.com>
+M:	Derek Chickles <dchickles@marvell.com>
+M:	Satanand Burla <sburla@marvell.com>
+M:	Felix Manlunas <fmanlunas@marvell.com>
 L:	netdev@vger.kernel.org
 W:	http://www.cavium.com
 S:	Supported
