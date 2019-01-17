@@ -1307,12 +1307,16 @@ vega20_get_profiling_clk_mask(struct smu_context *smu,
 			      uint32_t *soc_mask)
 {
 	struct vega20_dpm_table *dpm_table = (struct vega20_dpm_table *)smu->smu_dpm.dpm_context;
+	struct vega20_single_dpm_table *gfx_dpm_table;
+	struct vega20_single_dpm_table *mem_dpm_table;
+	struct vega20_single_dpm_table *soc_dpm_table;
+
 	if (!smu->smu_dpm.dpm_context)
 		return -EINVAL;
 
-	struct vega20_single_dpm_table *gfx_dpm_table = &(dpm_table->gfx_table);
-	struct vega20_single_dpm_table *mem_dpm_table = &(dpm_table->mem_table);
-	struct vega20_single_dpm_table *soc_dpm_table = &(dpm_table->soc_table);
+	gfx_dpm_table = &dpm_table->gfx_table;
+	mem_dpm_table = &dpm_table->mem_table;
+	soc_dpm_table = &dpm_table->soc_table;
 
 	*sclk_mask = 0;
 	*mclk_mask = 0;
@@ -1337,6 +1341,39 @@ vega20_get_profiling_clk_mask(struct smu_context *smu,
 	}
 
 	return 0;
+}
+
+static int
+vega20_set_uclk_to_highest_dpm_level(struct smu_context *smu,
+				     struct vega20_single_dpm_table *dpm_table)
+{
+	int ret = 0;
+	struct smu_dpm_context *smu_dpm_ctx = &(smu->smu_dpm);
+	if (!smu_dpm_ctx->dpm_context)
+		return -EINVAL;
+
+	if (smu_feature_is_enabled(smu, FEATURE_DPM_UCLK_BIT)) {
+		if (dpm_table->count <= 0) {
+			pr_err("[%s] Dpm table has no entry!", __func__);
+				return -EINVAL;
+		}
+
+		if (dpm_table->count > NUM_UCLK_DPM_LEVELS) {
+			pr_err("[%s] Dpm table has too many entries!", __func__);
+				return -EINVAL;
+		}
+
+		dpm_table->dpm_state.hard_min_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+		ret = smu_send_smc_msg_with_param(smu,
+				SMU_MSG_SetHardMinByFreq,
+				(PPCLK_UCLK << 16) | dpm_table->dpm_state.hard_min_level);
+		if (ret) {
+			pr_err("[%s] Set hard min uclk failed!", __func__);
+				return ret;
+		}
+	}
+
+	return ret;
 }
 
 static const struct pptable_funcs vega20_ppt_funcs = {
