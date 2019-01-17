@@ -507,6 +507,12 @@ static int meson_pinctrl_parse_dt(struct meson_pinctrl *pc,
 	if (IS_ERR(pc->reg_pullen))
 		pc->reg_pullen = pc->reg_pull;
 
+	pc->reg_ds = meson_map_resource(pc, gpio_np, "ds");
+	if (IS_ERR(pc->reg_ds)) {
+		dev_dbg(pc->dev, "ds registers not found - skipping\n");
+		pc->reg_ds = NULL;
+	}
+
 	return 0;
 }
 
