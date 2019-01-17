@@ -1021,16 +1021,19 @@ void venus_helper_vb2_buf_queue(struct vb2_buffer *vb)
 
 	v4l2_m2m_buf_queue(m2m_ctx, vbuf);
 
-	if (!(inst->streamon_out & inst->streamon_cap))
+	if (inst->session_type == VIDC_SESSION_TYPE_ENC &&
+	    !(inst->streamon_out && inst->streamon_cap))
 		goto unlock;
 
-	ret = is_buf_refed(inst, vbuf);
-	if (ret)
-		goto unlock;
+	if (vb2_start_streaming_called(vb->vb2_queue)) {
+		ret = is_buf_refed(inst, vbuf);
+		if (ret)
+			goto unlock;
 
-	ret = session_process_buf(inst, vbuf);
-	if (ret)
-		return_buf_error(inst, vbuf);
+		ret = session_process_buf(inst, vbuf);
+		if (ret)
+			return_buf_error(inst, vbuf);
+	}
 
 unlock:
 	mutex_unlock(&inst->lock);
@@ -1146,14 +1149,8 @@ int venus_helper_vb2_start_streaming(struct venus_inst *inst)
 	if (ret)
 		goto err_unload_res;
 
-	ret = venus_helper_queue_dpb_bufs(inst);
-	if (ret)
-		goto err_session_stop;
-
 	return 0;
 
-err_session_stop:
-	hfi_session_stop(inst);
 err_unload_res:
 	hfi_session_unload_res(inst);
 err_unreg_bufs:
