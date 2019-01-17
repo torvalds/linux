@@ -2041,7 +2041,7 @@
 
 		lpasscc: clock-controller@17014000 {
 			compatible = "qcom,sdm845-lpasscc";
-			reg = <0x17014000 0x1f004>, <0x17300000 0x200>;
+			reg = <0 0x17014000 0 0x1f004>, <0 0x17300000 0 0x200>;
 			reg-names = "cc", "qdsp6ss";
 			#clock-cells = <1>;
 			status = "disabled";
