@@ -209,6 +209,7 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	skip_preamble = ring->current_ctx == fence_ctx;
 	if (job && ring->funcs->emit_cntxcntl) {
 		status |= job->preamble_status;
+		status |= job->preemption_status;
 		amdgpu_ring_emit_cntxcntl(ring, status);
 	}
 
