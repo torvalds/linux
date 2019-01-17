@@ -12,6 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/percpu.h>
 
 #include <net/sch_generic.h>
 #include <net/pkt_cls.h>
@@ -22,6 +23,7 @@ struct cls_mall_head {
 	u32 handle;
 	u32 flags;
 	unsigned int in_hw_count;
+	struct tc_matchall_pcnt __percpu *pf;
 	struct rcu_work rwork;
 };
 
@@ -34,6 +36,7 @@ static int mall_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 		return -1;
 
 	*res = head->res;
+	__this_cpu_inc(head->pf->rhit);
 	return tcf_exts_exec(skb, &head->exts, res);
 }
 
@@ -46,6 +49,7 @@ static void __mall_destroy(struct cls_mall_head *head)
 {
 	tcf_exts_destroy(&head->exts);
 	tcf_exts_put_net(&head->exts);
+	free_percpu(head->pf);
 	kfree(head);
 }
 
@@ -192,6 +196,11 @@ static int mall_change(struct net *net, struct sk_buff *in_skb,
 		handle = 1;
 	new->handle = handle;
 	new->flags = flags;
+	new->pf = alloc_percpu(struct tc_matchall_pcnt);
+	if (!new->pf) {
+		err = -ENOMEM;
+		goto err_alloc_percpu;
+	}
 
 	err = mall_set_parms(net, tp, new, base, tb, tca[TCA_RATE], ovr,
 			     extack);
@@ -214,6 +223,8 @@ static int mall_change(struct net *net, struct sk_buff *in_skb,
 
 err_replace_hw_filter:
 err_set_parms:
+	free_percpu(new->pf);
+err_alloc_percpu:
 	tcf_exts_destroy(&new->exts);
 err_exts_init:
 	kfree(new);
@@ -270,8 +281,10 @@ static int mall_reoffload(struct tcf_proto *tp, bool add, tc_setup_cb_t *cb,
 static int mall_dump(struct net *net, struct tcf_proto *tp, void *fh,
 		     struct sk_buff *skb, struct tcmsg *t)
 {
+	struct tc_matchall_pcnt gpf = {};
 	struct cls_mall_head *head = fh;
 	struct nlattr *nest;
+	int cpu;
 
 	if (!head)
 		return skb->len;
@@ -287,6 +300,17 @@ static int mall_dump(struct net *net, struct tcf_proto *tp, void *fh,
 		goto nla_put_failure;
 
 	if (head->flags && nla_put_u32(skb, TCA_MATCHALL_FLAGS, head->flags))
+		goto nla_put_failure;
+
+	for_each_possible_cpu(cpu) {
+		struct tc_matchall_pcnt *pf = per_cpu_ptr(head->pf, cpu);
+
+		gpf.rhit += pf->rhit;
+	}
+
+	if (nla_put_64bit(skb, TCA_MATCHALL_PCNT,
+			  sizeof(struct tc_matchall_pcnt),
+			  &gpf, TCA_MATCHALL_PAD))
 		goto nla_put_failure;
 
 	if (tcf_exts_dump(skb, &head->exts))
