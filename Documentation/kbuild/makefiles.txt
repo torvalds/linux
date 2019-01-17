@@ -154,13 +154,8 @@ more details, with real examples.
 
 	Kbuild compiles all the $(obj-y) files.  It then calls
 	"$(AR) rcSTP" to merge these files into one built-in.a file.
-	This is a thin archive without a symbol table, which makes it
-	unsuitable as a linker input.
-
-	The scripts/link-vmlinux.sh script later makes an aggregate
-	built-in.a with "${AR} rcsTP", which creates the thin archive
-	with a symbol table and an index, making it a valid input for
-	the final vmlinux link passes.
+	This is a thin archive without a symbol table. It will be later
+	linked into vmlinux by scripts/link-vmlinux.sh
 
 	The order of files in $(obj-y) is significant.  Duplicates in
 	the lists are allowed: the first instance will be linked into

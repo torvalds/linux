@@ -394,14 +394,10 @@ $(obj)/%.asn1.c $(obj)/%.asn1.h: $(src)/%.asn1 $(objtree)/scripts/asn1_compiler
 $(sort $(subdir-obj-y)): $(subdir-ym) ;
 
 #
-# Rule to compile a set of .o files into one .o file
+# Rule to compile a set of .o files into one .a file (without symbol table)
 #
 ifdef builtin-target
 
-# built-in.a archives are made with no symbol table or index which
-# makes them small and fast, but unable to be used by the linker.
-# scripts/link-vmlinux.sh builds an aggregate built-in.a with a symbol
-# table and index.
 quiet_cmd_ar_builtin = AR      $@
       cmd_ar_builtin = rm -f $@; \
                      $(AR) rcSTP$(KBUILD_ARFLAGS) $@ $(filter $(real-obj-y), $^)
@@ -426,7 +422,7 @@ $(modorder-target): $(subdir-ym) FORCE
 	$(Q)(cat /dev/null; $(modorder-cmds)) > $@
 
 #
-# Rule to compile a set of .o files into one .a file
+# Rule to compile a set of .o files into one .a file (with symbol table)
 #
 ifdef lib-target
 quiet_cmd_link_l_target = AR      $@
