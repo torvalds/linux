@@ -29,6 +29,12 @@
 #include "smu_v11_0.h"
 #include "atom.h"
 
+enum amd_pm_state_type smu_get_current_power_state(struct smu_context *smu)
+{
+	/* not support power state */
+	return POWER_STATE_TYPE_DEFAULT;
+}
+
 int smu_get_power_num_states(struct smu_context *smu,
 			     struct pp_states_info *state_info)
 {

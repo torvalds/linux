@@ -377,22 +377,28 @@ static ssize_t amdgpu_get_pp_cur_state(struct device *dev,
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = ddev->dev_private;
 	struct pp_states_info data;
+	struct smu_context *smu = &adev->smu;
 	enum amd_pm_state_type pm = 0;
-	int i = 0;
+	int i = 0, ret = 0;
 
-	if (adev->powerplay.pp_funcs->get_current_power_state
+	if (is_support_sw_smu(adev)) {
+		pm = smu_get_current_power_state(smu);
+		ret = smu_get_power_num_states(smu, &data);
+		if (ret)
+			return ret;
+	} else if (adev->powerplay.pp_funcs->get_current_power_state
 		 && adev->powerplay.pp_funcs->get_pp_num_states) {
 		pm = amdgpu_dpm_get_current_power_state(adev);
 		amdgpu_dpm_get_pp_num_states(adev, &data);
-
-		for (i = 0; i < data.nums; i++) {
-			if (pm == data.states[i])
-				break;
-		}
-
-		if (i == data.nums)
-			i = -EINVAL;
 	}
+
+	for (i = 0; i < data.nums; i++) {
+		if (pm == data.states[i])
+			break;
+	}
+
+	if (i == data.nums)
+		i = -EINVAL;
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", i);
 }
