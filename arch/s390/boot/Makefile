@@ -67,6 +67,6 @@ install: $(CONFIGURE) $(obj)/bzImage
 	sh -x  $(srctree)/$(obj)/install.sh $(KERNELRELEASE) $(obj)/bzImage \
 	      System.map "$(INSTALL_PATH)"
 
-chkbss := $(OBJECTS)
-chkbss-target := $(obj)/startup.a
+chkbss := $(obj-y)
+chkbss-target := startup.a
 include $(srctree)/arch/s390/scripts/Makefile.chkbss

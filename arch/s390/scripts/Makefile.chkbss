@@ -1,23 +1,20 @@
 # SPDX-License-Identifier: GPL-2.0
 
+chkbss-target ?= built-in.a
+$(obj)/$(chkbss-target): chkbss
+
+chkbss-files := $(addsuffix .chkbss, $(chkbss))
+clean-files += $(chkbss-files)
+
+PHONY += chkbss
+chkbss: $(addprefix $(obj)/, $(chkbss-files))
+
 quiet_cmd_chkbss = CHKBSS  $<
-define cmd_chkbss
-	rm -f $@; \
+      cmd_chkbss = \
 	if ! $(OBJDUMP) -j .bss -w -h $< | awk 'END { if ($$3) exit 1 }'; then \
 		echo "error: $< .bss section is not empty" >&2; exit 1; \
 	fi; \
 	touch $@;
-endef
 
-chkbss-target ?= $(obj)/built-in.a
-ifneq (,$(findstring /,$(chkbss)))
-chkbss-files := $(patsubst %, %.chkbss, $(chkbss))
-else
-chkbss-files := $(patsubst %, $(obj)/%.chkbss, $(chkbss))
-endif
-
-$(chkbss-target): $(chkbss-files)
-targets += $(notdir $(chkbss-files))
-
-%.o.chkbss: %.o
+$(obj)/%.o.chkbss: $(obj)/%.o
 	$(call cmd,chkbss)
