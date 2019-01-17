@@ -501,8 +501,6 @@ struct sock *tcp_create_openreq_child(const struct sock *sk,
 	newtp->rx_opt.dsack = 0;
 	newtp->rx_opt.num_sacks = 0;
 
-	newtp->urg_data = 0;
-
 	if (sock_flag(newsk, SOCK_KEEPOPEN))
 		inet_csk_reset_keepalive_timer(newsk,
 					       keepalive_time_when(newtp));
