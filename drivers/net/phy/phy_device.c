@@ -2255,6 +2255,11 @@ int phy_driver_register(struct phy_driver *new_driver, struct module *owner)
 {
 	int retval;
 
+	if (WARN_ON(!new_driver->features)) {
+		pr_err("%s: Driver features are missing\n", new_driver->name);
+		return -EINVAL;
+	}
+
 	new_driver->mdiodrv.flags |= MDIO_DEVICE_IS_PHY;
 	new_driver->mdiodrv.driver.name = new_driver->name;
 	new_driver->mdiodrv.driver.bus = &mdio_bus_type;

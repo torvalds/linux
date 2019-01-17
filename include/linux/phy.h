@@ -469,8 +469,8 @@ struct phy_device {
  *   only works for PHYs with IDs which match this field
  * name: The friendly name of this PHY type
  * phy_id_mask: Defines the important bits of the phy_id
- * features: A list of features (speed, duplex, etc) supported
- *   by this PHY
+ * features: A mandatory list of features (speed, duplex, etc)
+ *   supported by this PHY
  * flags: A bitfield defining certain other features this PHY
  *   supports (like interrupts)
  *
