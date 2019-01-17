@@ -1915,8 +1915,9 @@ static void init_cgroup_housekeeping(struct cgroup *cgrp)
 	INIT_WORK(&cgrp->release_agent_work, cgroup1_release_agent);
 }
 
-void init_cgroup_root(struct cgroup_root *root, struct cgroup_fs_context *ctx)
+void init_cgroup_root(struct cgroup_fs_context *ctx)
 {
+	struct cgroup_root *root = ctx->root;
 	struct cgroup *cgrp = &root->cgrp;
 
 	INIT_LIST_HEAD(&root->root_list);
@@ -2098,6 +2099,7 @@ static int cgroup_get_tree(struct fs_context *fc)
 
 	cgrp_dfl_visible = true;
 	cgroup_get_live(&cgrp_dfl_root.cgrp);
+	ctx->root = &cgrp_dfl_root;
 
 	root = cgroup_do_mount(&cgroup2_fs_type, fc->sb_flags, &cgrp_dfl_root,
 					 CGROUP2_SUPER_MAGIC, ns);
@@ -5374,7 +5376,8 @@ int __init cgroup_init_early(void)
 	struct cgroup_subsys *ss;
 	int i;
 
-	init_cgroup_root(&cgrp_dfl_root, &ctx);
+	ctx.root = &cgrp_dfl_root;
+	init_cgroup_root(&ctx);
 	cgrp_dfl_root.cgrp.self.flags |= CSS_NO_REF;
 
 	RCU_INIT_POINTER(init_task.cgroups, &init_css_set);

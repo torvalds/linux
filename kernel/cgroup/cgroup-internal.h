@@ -41,6 +41,7 @@ extern void __init enable_debug_cgroup(void);
  * The cgroup filesystem superblock creation/mount context.
  */
 struct cgroup_fs_context {
+	struct cgroup_root	*root;
 	unsigned int	flags;			/* CGRP_ROOT_* flags */
 
 	/* cgroup1 bits */
@@ -208,7 +209,7 @@ int cgroup_path_ns_locked(struct cgroup *cgrp, char *buf, size_t buflen,
 			  struct cgroup_namespace *ns);
 
 void cgroup_free_root(struct cgroup_root *root);
-void init_cgroup_root(struct cgroup_root *root, struct cgroup_fs_context *ctx);
+void init_cgroup_root(struct cgroup_fs_context *ctx);
 int cgroup_setup_root(struct cgroup_root *root, u16 ss_mask);
 int rebind_subsystems(struct cgroup_root *dst_root, u16 ss_mask);
 struct dentry *cgroup_do_mount(struct file_system_type *fs_type, int flags,
