@@ -1376,6 +1376,48 @@ vega20_set_uclk_to_highest_dpm_level(struct smu_context *smu,
 	return ret;
 }
 
+static int vega20_display_config_changed(struct smu_context *smu)
+{
+	int ret = 0;
+	struct vega20_dpm_table *dpm_table = smu->smu_dpm.dpm_context;
+
+	if (!smu->funcs)
+		return -EINVAL;
+
+	if (!smu->smu_dpm.dpm_context ||
+	    !smu->smu_table.tables ||
+	    !smu->smu_table.tables[TABLE_WATERMARKS].cpu_addr)
+		return -EINVAL;
+
+	smu_send_smc_msg_with_param(smu, SMU_MSG_NumOfDisplays, 0);
+	ret = vega20_set_uclk_to_highest_dpm_level(smu,
+						   &dpm_table->mem_table);
+	if (ret) {
+		pr_err("Failed to set uclk to highest dpm level");
+		return ret;
+	}
+
+	if ((smu->watermarks_bitmap & WATERMARKS_EXIST) &&
+	    !(smu->watermarks_bitmap & WATERMARKS_LOADED)) {
+		ret = smu->funcs->write_watermarks_table(smu);
+		if (ret) {
+			pr_err("Failed to update WMTABLE!");
+			return ret;
+		}
+		smu->watermarks_bitmap |= WATERMARKS_LOADED;
+	}
+
+	if ((smu->watermarks_bitmap & WATERMARKS_EXIST) &&
+	    smu_feature_is_supported(smu, FEATURE_DPM_DCEFCLK_BIT) &&
+	    smu_feature_is_supported(smu, FEATURE_DPM_SOCCLK_BIT)) {
+		smu_send_smc_msg_with_param(smu,
+					    SMU_MSG_NumOfDisplays,
+					    smu->display_config->num_display);
+	}
+
+	return ret;
+}
+
 static const struct pptable_funcs vega20_ppt_funcs = {
 	.alloc_dpm_context = vega20_allocate_dpm_context,
 	.store_powerplay_table = vega20_store_powerplay_table,
