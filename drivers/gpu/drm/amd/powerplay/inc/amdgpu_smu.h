@@ -316,6 +316,10 @@ struct smu_dpm_context {
 	uint32_t dpm_context_size;
 	void *dpm_context;
 	void *golden_dpm_context;
+	bool enable_umd_pstate;
+	enum amd_dpm_forced_level dpm_level;
+	enum amd_dpm_forced_level saved_dpm_level;
+	enum amd_dpm_forced_level requested_dpm_level;
 	struct smu_power_state *dpm_request_power_state;
 	struct smu_power_state *dpm_current_power_state;
 	struct mclock_latency_table *mclk_latency_table;

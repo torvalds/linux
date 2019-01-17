@@ -940,6 +940,49 @@ static int smu_set_powergating_state(void *handle,
 	return 0;
 }
 
+static int smu_enable_umd_pstate(void *handle,
+		      enum amd_dpm_forced_level *level)
+{
+	uint32_t profile_mode_mask = AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD |
+					AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK |
+					AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK |
+					AMD_DPM_FORCED_LEVEL_PROFILE_PEAK;
+
+	struct smu_context *smu = (struct smu_context*)(handle);
+	struct smu_dpm_context *smu_dpm_ctx = &(smu->smu_dpm);
+	if (!smu_dpm_ctx->dpm_context)
+		return -EINVAL;
+
+	if (!(smu_dpm_ctx->dpm_level & profile_mode_mask)) {
+		/* enter umd pstate, save current level, disable gfx cg*/
+		if (*level & profile_mode_mask) {
+			smu_dpm_ctx->saved_dpm_level = smu_dpm_ctx->dpm_level;
+			smu_dpm_ctx->enable_umd_pstate = true;
+			amdgpu_device_ip_set_clockgating_state(smu->adev,
+							       AMD_IP_BLOCK_TYPE_GFX,
+							       AMD_CG_STATE_UNGATE);
+			amdgpu_device_ip_set_powergating_state(smu->adev,
+							       AMD_IP_BLOCK_TYPE_GFX,
+							       AMD_PG_STATE_UNGATE);
+		}
+	} else {
+		/* exit umd pstate, restore level, enable gfx cg*/
+		if (!(*level & profile_mode_mask)) {
+			if (*level == AMD_DPM_FORCED_LEVEL_PROFILE_EXIT)
+				*level = smu_dpm_ctx->saved_dpm_level;
+			smu_dpm_ctx->enable_umd_pstate = false;
+			amdgpu_device_ip_set_clockgating_state(smu->adev,
+							       AMD_IP_BLOCK_TYPE_GFX,
+							       AMD_CG_STATE_GATE);
+			amdgpu_device_ip_set_powergating_state(smu->adev,
+							       AMD_IP_BLOCK_TYPE_GFX,
+							       AMD_PG_STATE_GATE);
+		}
+	}
+
+	return 0;
+}
+
 const struct amd_ip_funcs smu_ip_funcs = {
 	.name = "smu",
 	.early_init = smu_early_init,
@@ -956,6 +999,7 @@ const struct amd_ip_funcs smu_ip_funcs = {
 	.soft_reset = NULL,
 	.set_clockgating_state = smu_set_clockgating_state,
 	.set_powergating_state = smu_set_powergating_state,
+	.enable_umd_pstate = smu_enable_umd_pstate,
 };
 
 const struct amdgpu_ip_block_version smu_v11_0_ip_block =
