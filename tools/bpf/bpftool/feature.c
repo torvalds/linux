@@ -438,6 +438,26 @@ static void probe_prog_type(enum bpf_prog_type prog_type, bool *supported_types)
 	print_bool_feature(feat_name, plain_desc, res);
 }
 
+static void probe_map_type(enum bpf_map_type map_type)
+{
+	const char *plain_comment = "eBPF map_type ";
+	char feat_name[128], plain_desc[128];
+	size_t maxlen;
+	bool res;
+
+	res = bpf_probe_map_type(map_type, 0);
+
+	maxlen = sizeof(plain_desc) - strlen(plain_comment) - 1;
+	if (strlen(map_type_name[map_type]) > maxlen) {
+		p_info("map type name too long");
+		return;
+	}
+
+	sprintf(feat_name, "have_%s_map_type", map_type_name[map_type]);
+	sprintf(plain_desc, "%s%s", plain_comment, map_type_name[map_type]);
+	print_bool_feature(feat_name, plain_desc, res);
+}
+
 static int do_probe(int argc, char **argv)
 {
 	enum probe_component target = COMPONENT_UNSPEC;
@@ -506,6 +526,12 @@ static int do_probe(int argc, char **argv)
 
 	for (i = BPF_PROG_TYPE_UNSPEC + 1; i < ARRAY_SIZE(prog_type_name); i++)
 		probe_prog_type(i, supported_types);
+
+	print_end_then_start_section("map_types",
+				     "Scanning eBPF map types...");
+
+	for (i = BPF_MAP_TYPE_UNSPEC + 1; i < map_type_name_size; i++)
+		probe_map_type(i);
 
 exit_close_json:
 	if (json_output) {

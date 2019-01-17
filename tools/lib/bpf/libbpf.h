@@ -365,6 +365,7 @@ bpf_prog_linfo__lfind(const struct bpf_prog_linfo *prog_linfo,
  */
 LIBBPF_API bool bpf_probe_prog_type(enum bpf_prog_type prog_type,
 				    __u32 ifindex);
+LIBBPF_API bool bpf_probe_map_type(enum bpf_map_type map_type, __u32 ifindex);
 
 #ifdef __cplusplus
 } /* extern "C" */
