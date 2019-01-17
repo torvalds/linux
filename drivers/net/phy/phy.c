@@ -819,23 +819,6 @@ int phy_start_interrupts(struct phy_device *phydev)
 EXPORT_SYMBOL(phy_start_interrupts);
 
 /**
- * phy_stop_interrupts - disable interrupts from a PHY device
- * @phydev: target phy_device struct
- */
-int phy_stop_interrupts(struct phy_device *phydev)
-{
-	int err = phy_disable_interrupts(phydev);
-
-	if (err)
-		phy_error(phydev);
-
-	free_irq(phydev->irq, phydev);
-
-	return err;
-}
-EXPORT_SYMBOL(phy_stop_interrupts);
-
-/**
  * phy_stop - Bring down the PHY link, and stop checking the status
  * @phydev: target phy_device struct
  */
