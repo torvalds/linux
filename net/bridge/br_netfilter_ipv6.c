@@ -131,6 +131,7 @@ int br_validate_ipv6(struct net *net, struct sk_buff *skb)
 					IPSTATS_MIB_INDISCARDS);
 			goto drop;
 		}
+		hdr = ipv6_hdr(skb);
 	}
 	if (hdr->nexthdr == NEXTHDR_HOP && br_nf_check_hbh_len(skb))
 		goto drop;
