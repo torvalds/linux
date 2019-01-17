@@ -11,8 +11,6 @@
 
 #define FALSE_FRMWR_CHANNEL			100
 
-#define REAL_JOIN_REQ				0
-
 struct rcvd_async_info {
 	u8 *buffer;
 	u32 len;
@@ -436,15 +434,14 @@ static int wilc_send_connect_wid(struct wilc_vif *vif)
 	memcpy(cur_byte, bss_param->rsn_cap, sizeof(bss_param->rsn_cap));
 	cur_byte += sizeof(bss_param->rsn_cap);
 
-	*(cur_byte++) = REAL_JOIN_REQ;
 	*(cur_byte++) = bss_param->noa_enabled;
 
 	if (bss_param->noa_enabled) {
 		put_unaligned_le32(bss_param->tsf, cur_byte);
 		cur_byte += 4;
 
-		*(cur_byte++) = bss_param->opp_enabled;
 		*(cur_byte++) = bss_param->idx;
+		*(cur_byte++) = bss_param->opp_enabled;
 
 		if (bss_param->opp_enabled)
 			*(cur_byte++) = bss_param->ct_window;
