@@ -128,7 +128,6 @@ ramoops_get_next_prz(struct persistent_ram_zone *przs[], int id,
 		     struct pstore_record *record)
 {
 	struct persistent_ram_zone *prz;
-	bool update = (record->type == PSTORE_TYPE_DMESG);
 
 	/* Give up if we never existed or have hit the end. */
 	if (!przs)
@@ -139,7 +138,7 @@ ramoops_get_next_prz(struct persistent_ram_zone *przs[], int id,
 		return NULL;
 
 	/* Update old/shadowed buffer. */
-	if (update)
+	if (prz->type == PSTORE_TYPE_DMESG)
 		persistent_ram_save_old(prz);
 
 	if (!persistent_ram_old_size(prz))
