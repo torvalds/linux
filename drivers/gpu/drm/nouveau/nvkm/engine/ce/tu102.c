@@ -24,7 +24,7 @@
 #include <nvif/class.h>
 
 static const struct nvkm_engine_func
-tu104_ce = {
+tu102_ce = {
 	.intr = gp100_ce_intr,
 	.sclass = {
 		{ -1, -1, TURING_DMA_COPY_A },
@@ -33,8 +33,8 @@ tu104_ce = {
 };
 
 int
-tu104_ce_new(struct nvkm_device *device, int index,
+tu102_ce_new(struct nvkm_device *device, int index,
 	     struct nvkm_engine **pengine)
 {
-	return nvkm_engine_new_(&tu104_ce, device, index, true, pengine);
+	return nvkm_engine_new_(&tu102_ce, device, index, true, pengine);
 }
