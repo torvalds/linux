@@ -48,6 +48,30 @@ print_bool_feature(const char *feat_name, const char *plain_name, bool res)
 		printf("%s is %savailable\n", plain_name, res ? "" : "NOT ");
 }
 
+static void print_kernel_option(const char *name, const char *value)
+{
+	char *endptr;
+	int res;
+
+	if (json_output) {
+		if (!value) {
+			jsonw_null_field(json_wtr, name);
+			return;
+		}
+		errno = 0;
+		res = strtol(value, &endptr, 0);
+		if (!errno && *endptr == '\n')
+			jsonw_int_field(json_wtr, name, res);
+		else
+			jsonw_string_field(json_wtr, name, value);
+	} else {
+		if (value)
+			printf("%s is set to %s\n", name, value);
+		else
+			printf("%s is not set\n", name);
+	}
+}
+
 static void
 print_start_section(const char *json_title, const char *plain_title)
 {
@@ -208,6 +232,163 @@ static void probe_jit_limit(void)
 	}
 }
 
+static char *get_kernel_config_option(FILE *fd, const char *option)
+{
+	size_t line_n = 0, optlen = strlen(option);
+	char *res, *strval, *line = NULL;
+	ssize_t n;
+
+	rewind(fd);
+	while ((n = getline(&line, &line_n, fd)) > 0) {
+		if (strncmp(line, option, optlen))
+			continue;
+		/* Check we have at least '=', value, and '\n' */
+		if (strlen(line) < optlen + 3)
+			continue;
+		if (*(line + optlen) != '=')
+			continue;
+
+		/* Trim ending '\n' */
+		line[strlen(line) - 1] = '\0';
+
+		/* Copy and return config option value */
+		strval = line + optlen + 1;
+		res = strdup(strval);
+		free(line);
+		return res;
+	}
+	free(line);
+
+	return NULL;
+}
+
+static void probe_kernel_image_config(void)
+{
+	static const char * const options[] = {
+		/* Enable BPF */
+		"CONFIG_BPF",
+		/* Enable bpf() syscall */
+		"CONFIG_BPF_SYSCALL",
+		/* Does selected architecture support eBPF JIT compiler */
+		"CONFIG_HAVE_EBPF_JIT",
+		/* Compile eBPF JIT compiler */
+		"CONFIG_BPF_JIT",
+		/* Avoid compiling eBPF interpreter (use JIT only) */
+		"CONFIG_BPF_JIT_ALWAYS_ON",
+
+		/* cgroups */
+		"CONFIG_CGROUPS",
+		/* BPF programs attached to cgroups */
+		"CONFIG_CGROUP_BPF",
+		/* bpf_get_cgroup_classid() helper */
+		"CONFIG_CGROUP_NET_CLASSID",
+		/* bpf_skb_{,ancestor_}cgroup_id() helpers */
+		"CONFIG_SOCK_CGROUP_DATA",
+
+		/* Tracing: attach BPF to kprobes, tracepoints, etc. */
+		"CONFIG_BPF_EVENTS",
+		/* Kprobes */
+		"CONFIG_KPROBE_EVENTS",
+		/* Uprobes */
+		"CONFIG_UPROBE_EVENTS",
+		/* Tracepoints */
+		"CONFIG_TRACING",
+		/* Syscall tracepoints */
+		"CONFIG_FTRACE_SYSCALLS",
+		/* bpf_override_return() helper support for selected arch */
+		"CONFIG_FUNCTION_ERROR_INJECTION",
+		/* bpf_override_return() helper */
+		"CONFIG_BPF_KPROBE_OVERRIDE",
+
+		/* Network */
+		"CONFIG_NET",
+		/* AF_XDP sockets */
+		"CONFIG_XDP_SOCKETS",
+		/* BPF_PROG_TYPE_LWT_* and related helpers */
+		"CONFIG_LWTUNNEL_BPF",
+		/* BPF_PROG_TYPE_SCHED_ACT, TC (traffic control) actions */
+		"CONFIG_NET_ACT_BPF",
+		/* BPF_PROG_TYPE_SCHED_CLS, TC filters */
+		"CONFIG_NET_CLS_BPF",
+		/* TC clsact qdisc */
+		"CONFIG_NET_CLS_ACT",
+		/* Ingress filtering with TC */
+		"CONFIG_NET_SCH_INGRESS",
+		/* bpf_skb_get_xfrm_state() helper */
+		"CONFIG_XFRM",
+		/* bpf_get_route_realm() helper */
+		"CONFIG_IP_ROUTE_CLASSID",
+		/* BPF_PROG_TYPE_LWT_SEG6_LOCAL and related helpers */
+		"CONFIG_IPV6_SEG6_BPF",
+		/* BPF_PROG_TYPE_LIRC_MODE2 and related helpers */
+		"CONFIG_BPF_LIRC_MODE2",
+		/* BPF stream parser and BPF socket maps */
+		"CONFIG_BPF_STREAM_PARSER",
+		/* xt_bpf module for passing BPF programs to netfilter  */
+		"CONFIG_NETFILTER_XT_MATCH_BPF",
+		/* bpfilter back-end for iptables */
+		"CONFIG_BPFILTER",
+		/* bpftilter module with "user mode helper" */
+		"CONFIG_BPFILTER_UMH",
+
+		/* test_bpf module for BPF tests */
+		"CONFIG_TEST_BPF",
+	};
+	char *value, *buf = NULL;
+	struct utsname utsn;
+	char path[PATH_MAX];
+	size_t i, n;
+	ssize_t ret;
+	FILE *fd;
+
+	if (uname(&utsn))
+		goto no_config;
+
+	snprintf(path, sizeof(path), "/boot/config-%s", utsn.release);
+
+	fd = fopen(path, "r");
+	if (!fd && errno == ENOENT) {
+		/* Some distributions put the config file at /proc/config, give
+		 * it a try.
+		 * Sometimes it is also at /proc/config.gz but we do not try
+		 * this one for now, it would require linking against libz.
+		 */
+		fd = fopen("/proc/config", "r");
+	}
+	if (!fd) {
+		p_info("skipping kernel config, can't open file: %s",
+		       strerror(errno));
+		goto no_config;
+	}
+	/* Sanity checks */
+	ret = getline(&buf, &n, fd);
+	ret = getline(&buf, &n, fd);
+	if (!buf || !ret) {
+		p_info("skipping kernel config, can't read from file: %s",
+		       strerror(errno));
+		free(buf);
+		goto no_config;
+	}
+	if (strcmp(buf, "# Automatically generated file; DO NOT EDIT.\n")) {
+		p_info("skipping kernel config, can't find correct file");
+		free(buf);
+		goto no_config;
+	}
+	free(buf);
+
+	for (i = 0; i < ARRAY_SIZE(options); i++) {
+		value = get_kernel_config_option(fd, options[i]);
+		print_kernel_option(options[i], value);
+		free(value);
+	}
+	fclose(fd);
+	return;
+
+no_config:
+	for (i = 0; i < ARRAY_SIZE(options); i++)
+		print_kernel_option(options[i], NULL);
+}
+
 static bool probe_bpf_syscall(void)
 {
 	bool res;
@@ -268,6 +449,7 @@ static int do_probe(int argc, char **argv)
 		} else {
 			p_info("/* procfs not mounted, skipping related probes */");
 		}
+		probe_kernel_image_config();
 		if (json_output)
 			jsonw_end_object(json_wtr);
 		else
