@@ -2553,7 +2553,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	/* check if we need to reset the asic
 	 *  E.g., driver was not cleanly unloaded previously, etc.
 	 */
-	if (amdgpu_asic_need_reset_on_init(adev)) {
+	if (!amdgpu_sriov_vf(adev) && amdgpu_asic_need_reset_on_init(adev)) {
 		r = amdgpu_asic_reset(adev);
 		if (r) {
 			dev_err(adev->dev, "asic reset on init failed\n");
