@@ -170,10 +170,12 @@ static int sof_restore_pipelines(struct snd_sof_dev *sdev)
 	}
 
 	/* restore pipeline kcontrols */
-	if (sdev->restore_kcontrols)
-		return sof_restore_kcontrols(sdev);
+	ret = sof_restore_kcontrols(sdev);
+	if (ret < 0)
+		dev_err(sdev->dev,
+			"error: restoring kcontrols after resume\n");
 
-	return 0;
+	return ret;
 }
 
 static int sof_send_pm_ipc(struct snd_sof_dev *sdev, int cmd)
@@ -344,9 +346,6 @@ static int sof_suspend(struct device *dev, bool runtime_suspend)
 			"error: failed to power down DSP during suspend %d\n",
 			ret);
 
-	/* set flag for restoring kcontrols upon resuming */
-	sdev->restore_kcontrols = true;
-
 	return ret;
 }
 
@@ -373,19 +372,3 @@ int snd_sof_suspend(struct device *dev)
 	return sof_suspend(dev, false);
 }
 EXPORT_SYMBOL(snd_sof_suspend);
-
-int snd_sof_prepare(struct device *dev)
-{
-	struct sof_platform_priv *priv = dev_get_drvdata(dev);
-	struct snd_sof_dev *sdev = dev_get_drvdata(&priv->pdev_pcm->dev);
-
-	/*
-	 * PCI devices are brought back to full power before system suspend.
-	 * Setting this flag will prevent restoring kcontrols
-	 * when resuming before system suspend
-	 */
-	sdev->restore_kcontrols = false;
-
-	return 0;
-}
-EXPORT_SYMBOL(snd_sof_prepare);

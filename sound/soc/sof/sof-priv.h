@@ -375,9 +375,6 @@ struct snd_sof_dev {
 	u32 dtrace_error;
 	u32 msi_enabled;
 
-	/* PM */
-	u32 restore_kcontrols; /* restore kcontrols upon resume */
-
 	void *private;			/* core does not touch this */
 };
 
@@ -397,7 +394,6 @@ int snd_sof_runtime_suspend(struct device *dev);
 int snd_sof_runtime_resume(struct device *dev);
 int snd_sof_resume(struct device *dev);
 int snd_sof_suspend(struct device *dev);
-int snd_sof_prepare(struct device *dev);
 int snd_sof_suspend_late(struct device *dev);
 
 void snd_sof_new_platform_drv(struct snd_sof_dev *sdev);
