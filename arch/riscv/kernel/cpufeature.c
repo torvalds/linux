@@ -50,12 +50,12 @@ void riscv_fill_hwcap(void)
 		if (riscv_of_processor_hartid(node) >= 0)
 			break;
 	if (!node) {
-		pr_warning("Unable to find \"cpu\" devicetree entry");
+		pr_warn("Unable to find \"cpu\" devicetree entry\n");
 		return;
 	}
 
 	if (of_property_read_string(node, "riscv,isa", &isa)) {
-		pr_warning("Unable to find \"riscv,isa\" devicetree entry");
+		pr_warn("Unable to find \"riscv,isa\" devicetree entry\n");
 		of_node_put(node);
 		return;
 	}
@@ -67,11 +67,11 @@ void riscv_fill_hwcap(void)
 	/* We don't support systems with F but without D, so mask those out
 	 * here. */
 	if ((elf_hwcap & COMPAT_HWCAP_ISA_F) && !(elf_hwcap & COMPAT_HWCAP_ISA_D)) {
-		pr_info("This kernel does not support systems with F but not D");
+		pr_info("This kernel does not support systems with F but not D\n");
 		elf_hwcap &= ~COMPAT_HWCAP_ISA_F;
 	}
 
-	pr_info("elf_hwcap is 0x%lx", elf_hwcap);
+	pr_info("elf_hwcap is 0x%lx\n", elf_hwcap);
 
 #ifdef CONFIG_FPU
 	if (elf_hwcap & (COMPAT_HWCAP_ISA_F | COMPAT_HWCAP_ISA_D))

@@ -106,7 +106,7 @@ static void print_isa(struct seq_file *f, const char *orig_isa)
 	 * a bit of info describing what went wrong.
 	 */
 	if (isa[0] != '\0')
-		pr_info("unsupported ISA \"%s\" in device tree", orig_isa);
+		pr_info("unsupported ISA \"%s\" in device tree\n", orig_isa);
 }
 
 static void print_mmu(struct seq_file *f, const char *mmu_type)
