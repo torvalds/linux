@@ -164,7 +164,7 @@ config XTENSA_FAKE_NMI
 	  If unsure, say N.
 
 config XTENSA_UNALIGNED_USER
-	bool "Unaligned memory access in use space"
+	bool "Unaligned memory access in user space"
 	help
 	  The Xtensa architecture currently does not handle unaligned
 	  memory accesses in hardware but through an exception handler.
