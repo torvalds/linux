@@ -4902,6 +4902,36 @@ static size_t if_nlmsg_stats_size(const struct net_device *dev,
 	return size;
 }
 
+static int rtnl_valid_stats_req(const struct nlmsghdr *nlh, bool strict_check,
+				bool is_dump, struct netlink_ext_ack *extack)
+{
+	struct if_stats_msg *ifsm;
+
+	if (nlh->nlmsg_len < sizeof(*ifsm)) {
+		NL_SET_ERR_MSG(extack, "Invalid header for stats dump");
+		return -EINVAL;
+	}
+
+	if (!strict_check)
+		return 0;
+
+	ifsm = nlmsg_data(nlh);
+
+	/* only requests using strict checks can pass data to influence
+	 * the dump. The legacy exception is filter_mask.
+	 */
+	if (ifsm->pad1 || ifsm->pad2 || (is_dump && ifsm->ifindex)) {
+		NL_SET_ERR_MSG(extack, "Invalid values in header for stats dump request");
+		return -EINVAL;
+	}
+	if (nlmsg_attrlen(nlh, sizeof(*ifsm))) {
+		NL_SET_ERR_MSG(extack, "Invalid attributes after stats header");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int rtnl_stats_get(struct sk_buff *skb, struct nlmsghdr *nlh,
 			  struct netlink_ext_ack *extack)
 {
@@ -4913,8 +4943,10 @@ static int rtnl_stats_get(struct sk_buff *skb, struct nlmsghdr *nlh,
 	u32 filter_mask;
 	int err;
 
-	if (nlmsg_len(nlh) < sizeof(*ifsm))
-		return -EINVAL;
+	err = rtnl_valid_stats_req(nlh, netlink_strict_get_check(skb),
+				   false, extack);
+	if (err)
+		return err;
 
 	ifsm = nlmsg_data(nlh);
 	if (ifsm->ifindex > 0)
@@ -4966,27 +4998,11 @@ static int rtnl_stats_dump(struct sk_buff *skb, struct netlink_callback *cb)
 
 	cb->seq = net->dev_base_seq;
 
-	if (nlmsg_len(cb->nlh) < sizeof(*ifsm)) {
-		NL_SET_ERR_MSG(extack, "Invalid header for stats dump");
-		return -EINVAL;
-	}
+	err = rtnl_valid_stats_req(cb->nlh, cb->strict_check, true, extack);
+	if (err)
+		return err;
 
 	ifsm = nlmsg_data(cb->nlh);
-
-	/* only requests using strict checks can pass data to influence
-	 * the dump. The legacy exception is filter_mask.
-	 */
-	if (cb->strict_check) {
-		if (ifsm->pad1 || ifsm->pad2 || ifsm->ifindex) {
-			NL_SET_ERR_MSG(extack, "Invalid values in header for stats dump request");
-			return -EINVAL;
-		}
-		if (nlmsg_attrlen(cb->nlh, sizeof(*ifsm))) {
-			NL_SET_ERR_MSG(extack, "Invalid attributes after stats header");
-			return -EINVAL;
-		}
-	}
-
 	filter_mask = ifsm->filter_mask;
 	if (!filter_mask) {
 		NL_SET_ERR_MSG(extack, "Filter mask must be set for stats dump");
