@@ -5948,6 +5948,42 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 			goto fail;
 	}
 
+	/*
+	 * Add all primary and overlay planes on the CRTC to the state
+	 * whenever a plane is enabled to maintain correct z-ordering
+	 * and to enable fast surface updates.
+	 */
+	drm_for_each_crtc(crtc, dev) {
+		bool modified = false;
+
+		for_each_oldnew_plane_in_state(state, plane, old_plane_state, new_plane_state, i) {
+			if (plane->type == DRM_PLANE_TYPE_CURSOR)
+				continue;
+
+			if (new_plane_state->crtc == crtc ||
+			    old_plane_state->crtc == crtc) {
+				modified = true;
+				break;
+			}
+		}
+
+		if (!modified)
+			continue;
+
+		drm_for_each_plane_mask(plane, state->dev, crtc->state->plane_mask) {
+			if (plane->type == DRM_PLANE_TYPE_CURSOR)
+				continue;
+
+			new_plane_state =
+				drm_atomic_get_plane_state(state, plane);
+
+			if (IS_ERR(new_plane_state)) {
+				ret = PTR_ERR(new_plane_state);
+				goto fail;
+			}
+		}
+	}
+
 	/* Remove exiting planes if they are modified */
 	for_each_oldnew_plane_in_state_reverse(state, plane, old_plane_state, new_plane_state, i) {
 		ret = dm_update_plane_state(dc, state, plane,
