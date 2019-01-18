@@ -44,8 +44,8 @@
  * nct6796d    14      7       7       2+6    0xd420 0xc1    0x5ca3
  * nct6797d    14      7       7       2+6    0xd450 0xc1    0x5ca3
  *                                           (0xd451)
- * nct6798d    14      7       7       2+6    0xd458 0xc1    0x5ca3
- *                                           (0xd459)
+ * nct6798d    14      7       7       2+6    0xd428 0xc1    0x5ca3
+ *                                           (0xd429)
  *
  * #temp lists the number of monitored temperature sources (first value) plus
  * the number of directly connectable temperature sensors (second value).
@@ -138,7 +138,7 @@ MODULE_PARM_DESC(fan_debounce, "Enable debouncing for fan RPM signal");
 #define SIO_NCT6795_ID		0xd350
 #define SIO_NCT6796_ID		0xd420
 #define SIO_NCT6797_ID		0xd450
-#define SIO_NCT6798_ID		0xd458
+#define SIO_NCT6798_ID		0xd428
 #define SIO_ID_MASK		0xFFF8
 
 enum pwm_enable { off, manual, thermal_cruise, speed_cruise, sf3, sf4 };
@@ -4508,7 +4508,8 @@ static int __maybe_unused nct6775_resume(struct device *dev)
 
 	if (data->kind == nct6791 || data->kind == nct6792 ||
 	    data->kind == nct6793 || data->kind == nct6795 ||
-	    data->kind == nct6796)
+	    data->kind == nct6796 || data->kind == nct6797 ||
+	    data->kind == nct6798)
 		nct6791_enable_io_mapping(sioreg);
 
 	superio_exit(sioreg);
@@ -4644,7 +4645,8 @@ static int __init nct6775_find(int sioaddr, struct nct6775_sio_data *sio_data)
 
 	if (sio_data->kind == nct6791 || sio_data->kind == nct6792 ||
 	    sio_data->kind == nct6793 || sio_data->kind == nct6795 ||
-	    sio_data->kind == nct6796)
+	    sio_data->kind == nct6796 || sio_data->kind == nct6797 ||
+	    sio_data->kind == nct6798)
 		nct6791_enable_io_mapping(sioaddr);
 
 	superio_exit(sioaddr);
