@@ -30,6 +30,36 @@ struct mock_ring {
 	struct i915_timeline timeline;
 };
 
+static struct intel_ring *mock_ring(struct intel_engine_cs *engine)
+{
+	const unsigned long sz = PAGE_SIZE / 2;
+	struct mock_ring *ring;
+
+	ring = kzalloc(sizeof(*ring) + sz, GFP_KERNEL);
+	if (!ring)
+		return NULL;
+
+	i915_timeline_init(engine->i915, &ring->timeline, engine->name);
+
+	ring->base.size = sz;
+	ring->base.effective_size = sz;
+	ring->base.vaddr = (void *)(ring + 1);
+	ring->base.timeline = &ring->timeline;
+
+	INIT_LIST_HEAD(&ring->base.request_list);
+	intel_ring_update_space(&ring->base);
+
+	return &ring->base;
+}
+
+static void mock_ring_free(struct intel_ring *base)
+{
+	struct mock_ring *ring = container_of(base, typeof(*ring), base);
+
+	i915_timeline_fini(&ring->timeline);
+	kfree(ring);
+}
+
 static struct mock_request *first_request(struct mock_engine *engine)
 {
 	return list_first_entry_or_null(&engine->hw_queue,
@@ -80,6 +110,9 @@ static void mock_context_unpin(struct intel_context *ce)
 static void mock_context_destroy(struct intel_context *ce)
 {
 	GEM_BUG_ON(ce->pin_count);
+
+	if (ce->ring)
+		mock_ring_free(ce->ring);
 }
 
 static const struct intel_context_ops mock_context_ops = {
@@ -93,13 +126,22 @@ mock_context_pin(struct intel_engine_cs *engine,
 {
 	struct intel_context *ce = to_intel_context(ctx, engine);
 
-	if (!ce->pin_count++) {
-		i915_gem_context_get(ctx);
-		ce->ring = engine->buffer;
-		ce->ops = &mock_context_ops;
+	if (ce->pin_count++)
+		return ce;
+
+	if (!ce->ring) {
+		ce->ring = mock_ring(engine);
+		if (!ce->ring)
+			goto err;
 	}
 
+	ce->ops = &mock_context_ops;
+	i915_gem_context_get(ctx);
 	return ce;
+
+err:
+	ce->pin_count = 0;
+	return ERR_PTR(-ENOMEM);
 }
 
 static int mock_request_alloc(struct i915_request *request)
@@ -143,36 +185,6 @@ static void mock_submit_request(struct i915_request *request)
 	spin_unlock_irq(&engine->hw_lock);
 }
 
-static struct intel_ring *mock_ring(struct intel_engine_cs *engine)
-{
-	const unsigned long sz = PAGE_SIZE / 2;
-	struct mock_ring *ring;
-
-	ring = kzalloc(sizeof(*ring) + sz, GFP_KERNEL);
-	if (!ring)
-		return NULL;
-
-	i915_timeline_init(engine->i915, &ring->timeline, engine->name);
-
-	ring->base.size = sz;
-	ring->base.effective_size = sz;
-	ring->base.vaddr = (void *)(ring + 1);
-	ring->base.timeline = &ring->timeline;
-
-	INIT_LIST_HEAD(&ring->base.request_list);
-	intel_ring_update_space(&ring->base);
-
-	return &ring->base;
-}
-
-static void mock_ring_free(struct intel_ring *base)
-{
-	struct mock_ring *ring = container_of(base, typeof(*ring), base);
-
-	i915_timeline_fini(&ring->timeline);
-	kfree(ring);
-}
-
 struct intel_engine_cs *mock_engine(struct drm_i915_private *i915,
 				    const char *name,
 				    int id)
@@ -207,17 +219,11 @@ struct intel_engine_cs *mock_engine(struct drm_i915_private *i915,
 	timer_setup(&engine->hw_delay, hw_delay_complete, 0);
 	INIT_LIST_HEAD(&engine->hw_queue);
 
-	engine->base.buffer = mock_ring(&engine->base);
-	if (!engine->base.buffer)
-		goto err_breadcrumbs;
-
 	if (IS_ERR(intel_context_pin(i915->kernel_context, &engine->base)))
-		goto err_ring;
+		goto err_breadcrumbs;
 
 	return &engine->base;
 
-err_ring:
-	mock_ring_free(engine->base.buffer);
 err_breadcrumbs:
 	intel_engine_fini_breadcrumbs(&engine->base);
 	i915_timeline_fini(&engine->base.timeline);
@@ -259,8 +265,6 @@ void mock_engine_free(struct intel_engine_cs *engine)
 		intel_context_unpin(ce);
 
 	__intel_context_unpin(engine->i915->kernel_context, engine);
-
-	mock_ring_free(engine->buffer);
 
 	intel_engine_fini_breadcrumbs(engine);
 	i915_timeline_fini(&engine->timeline);
