@@ -1569,6 +1569,51 @@ static int vega20_apply_clocks_adjust_rules(struct smu_context *smu)
 	return 0;
 }
 
+static int
+vega20_notify_smc_dispaly_config(struct smu_context *smu)
+{
+	struct vega20_dpm_table *dpm_table = smu->smu_dpm.dpm_context;
+	struct vega20_single_dpm_table *memtable = &dpm_table->mem_table;
+	struct smu_clocks min_clocks = {0};
+	struct pp_display_clock_request clock_req;
+	int ret = 0;
+
+	min_clocks.dcef_clock = smu->display_config->min_dcef_set_clk;
+	min_clocks.dcef_clock_in_sr = smu->display_config->min_dcef_deep_sleep_set_clk;
+	min_clocks.memory_clock = smu->display_config->min_mem_set_clock;
+
+	if (smu_feature_is_supported(smu, FEATURE_DPM_DCEFCLK_BIT)) {
+		clock_req.clock_type = amd_pp_dcef_clock;
+		clock_req.clock_freq_in_khz = min_clocks.dcef_clock * 10;
+		if (!smu->funcs->display_clock_voltage_request(smu, &clock_req)) {
+			if (smu_feature_is_supported(smu, FEATURE_DS_DCEFCLK_BIT)) {
+				ret = smu_send_smc_msg_with_param(smu,
+								  SMU_MSG_SetMinDeepSleepDcefclk,
+								  min_clocks.dcef_clock_in_sr/100);
+				if (ret) {
+					pr_err("Attempt to set divider for DCEFCLK Failed!");
+					return ret;
+				}
+			}
+		} else {
+			pr_info("Attempt to set Hard Min for DCEFCLK Failed!");
+		}
+	}
+
+	if (smu_feature_is_enabled(smu, FEATURE_DPM_UCLK_BIT)) {
+		memtable->dpm_state.hard_min_level = min_clocks.memory_clock/100;
+		ret = smu_send_smc_msg_with_param(smu,
+						  SMU_MSG_SetHardMinByFreq,
+						  (PPCLK_UCLK << 16) | memtable->dpm_state.hard_min_level);
+		if (ret) {
+			pr_err("[%s] Set hard min uclk failed!", __func__);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 static const struct pptable_funcs vega20_ppt_funcs = {
 	.alloc_dpm_context = vega20_allocate_dpm_context,
 	.store_powerplay_table = vega20_store_powerplay_table,
