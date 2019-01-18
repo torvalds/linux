@@ -232,9 +232,6 @@ struct qxl_device {
 
 	struct qxl_memslot main_slot;
 	struct qxl_memslot surfaces_slot;
-	uint8_t		slot_id_bits;
-	uint8_t		slot_gen_bits;
-	uint64_t	va_slot_mask;
 
 	spinlock_t	release_lock;
 	struct idr	release_idr;
