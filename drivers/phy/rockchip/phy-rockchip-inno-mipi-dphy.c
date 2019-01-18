@@ -371,7 +371,11 @@ static void mipi_dphy_timing_get_default(struct mipi_dphy_timing *timing,
 {
 	/* Global Operation Timing Parameters */
 	timing->clkmiss = 0;
-	timing->clkpost = 70 + 52 * period / PSEC_PER_NSEC;
+	/*
+	 * The D-PHY spec define the clk post min time is 60ns + 52UI and
+	 * no define max time, so we set 200 + 52UI leave move margin.
+	 */
+	timing->clkpost = 200 + 52 * period / PSEC_PER_NSEC;
 	timing->clkpre = 8 * period / PSEC_PER_NSEC;
 	timing->clkprepare = 65;
 	timing->clksettle = 95;
