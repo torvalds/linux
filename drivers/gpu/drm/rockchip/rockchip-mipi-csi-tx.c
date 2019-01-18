@@ -340,24 +340,10 @@ static void rockchip_mipi_csi_tx_en(struct rockchip_mipi_csi *csi)
 	csi_mask_write(csi, CSITX_ENABLE, mask, val, true);
 }
 
-static void rockchip_mipi_csi_tx_reset(struct rockchip_mipi_csi *csi)
-{
-	u32 mask, val;
-
-	mask = m_SOFT_RESET;
-	val = v_SOFT_RESET(1);
-	csi_mask_write(csi, CSITX_SYS_CTRL0, mask, val, true);
-	usleep_range(50, 100);
-	mask = m_SOFT_RESET;
-	val = v_SOFT_RESET(0);
-	csi_mask_write(csi, CSITX_SYS_CTRL0, mask, val, true);
-}
-
 static void rockchip_mipi_csi_host_power_on(struct rockchip_mipi_csi *csi)
 {
 	u32 mask, val;
 
-	rockchip_mipi_csi_tx_reset(csi);
 	rockchip_mipi_csi_tx_en(csi);
 	rockchip_mipi_csi_irq_init(csi);
 
@@ -858,18 +844,23 @@ static int rockchip_mipi_csi_calibration(struct rockchip_mipi_csi *csi)
 
 static int rockchip_mipi_csi_pre_enable(struct rockchip_mipi_csi *csi)
 {
+	int i = 0;
+
 	rockchip_mipi_csi_pre_init(csi);
 	clk_prepare_enable(csi->dphy.ref_clk);
 	clk_prepare_enable(csi->dphy.hs_clk);
 	clk_prepare_enable(csi->pclk);
 	pm_runtime_get_sync(csi->dev);
 
-	/* MIPI CSI APB software reset request. */
-	if (csi->rst) {
-		reset_control_assert(csi->rst);
-		udelay(10);
-		reset_control_deassert(csi->rst);
-		udelay(10);
+	/* MIPI CSI TX software reset request. */
+	for (i = 0; i < csi->pdata->rsts_num; i++) {
+		if (csi->tx_rsts[i])
+			reset_control_assert(csi->tx_rsts[i]);
+	}
+	usleep_range(20, 100);
+	for (i = 0; i < csi->pdata->rsts_num; i++) {
+		if (csi->tx_rsts[i])
+			reset_control_deassert(csi->tx_rsts[i]);
 	}
 
 	if (!csi->regsbak) {
@@ -1268,7 +1259,7 @@ static int rockchip_mipi_csi_probe(struct platform_device *pdev)
 	struct rockchip_mipi_csi *csi;
 	struct device_node *np = dev->of_node;
 	struct resource *res;
-	int ret, val;
+	int ret, val, i;
 
 	csi = devm_kzalloc(dev, sizeof(*csi), GFP_KERNEL);
 	if (!csi)
@@ -1318,10 +1309,14 @@ static int rockchip_mipi_csi_probe(struct platform_device *pdev)
 		csi->grf = NULL;
 	}
 
-	csi->rst = devm_reset_control_get(dev, "apb");
-	if (IS_ERR(csi->rst)) {
-		dev_err(dev, "failed to get reset control\n");
-		csi->rst = NULL;
+	for (i = 0; i < csi->pdata->rsts_num; i++) {
+		struct reset_control *rst =
+			devm_reset_control_get(dev, csi->pdata->rsts[i]);
+		if (IS_ERR(rst)) {
+			dev_err(dev, "failed to get %s\n", csi->pdata->rsts[i]);
+			return PTR_ERR(rst);
+		}
+		csi->tx_rsts[i] = rst;
 	}
 
 	ret = rockchip_mipi_dphy_attach(csi);
@@ -1370,10 +1365,20 @@ static const u32 rk1808_csi_grf_reg_fields[MAX_FIELDS] = {
 	[TURNDISABLE]		= GRF_REG_FIELD(0x0444,  5,  5),
 };
 
+static const char * const rk1808_csi_tx_rsts[] = {
+	"tx_apb",
+	"tx_bytehs",
+	"tx_esc",
+	"tx_cam",
+	"tx_i",
+};
+
 static const struct rockchip_mipi_csi_plat_data rk1808_socdata = {
 	.csi0_grf_reg_fields = rk1808_csi_grf_reg_fields,
 	.max_bit_rate_per_lane = 2000000000UL,
 	.soc_type = RK1808,
+	.rsts = rk1808_csi_tx_rsts,
+	.rsts_num = ARRAY_SIZE(rk1808_csi_tx_rsts),
 };
 
 static const struct of_device_id rockchip_mipi_csi_dt_ids[] = {
