@@ -1029,9 +1029,14 @@ static int snd_soc_init_platform(struct snd_soc_card *card,
 	struct snd_soc_dai_link_component *platform = dai_link->platform;
 
 	/*
-	 * FIXME
+	 * REMOVE ME
 	 *
-	 * this function should be removed in the future
+	 * This is glue code for Legacy vs Modern dai_link.
+	 * This function will be removed if all derivers are switched to
+	 * modern style dai_link.
+	 * Driver shouldn't use both legacy and modern style in the same time.
+	 * see
+	 *	soc.h :: struct snd_soc_dai_link
 	 */
 	/* convert Legacy platform link */
 	if (!platform || dai_link->legacy_platform) {
@@ -1059,6 +1064,17 @@ static int snd_soc_init_platform(struct snd_soc_card *card,
 static int snd_soc_init_multicodec(struct snd_soc_card *card,
 				   struct snd_soc_dai_link *dai_link)
 {
+	/*
+	 * REMOVE ME
+	 *
+	 * This is glue code for Legacy vs Modern dai_link.
+	 * This function will be removed if all derivers are switched to
+	 * modern style dai_link.
+	 * Driver shouldn't use both legacy and modern style in the same time.
+	 * see
+	 *	soc.h :: struct snd_soc_dai_link
+	 */
+
 	/* Legacy codec/codec_dai link is a single entry in multicodec */
 	if (dai_link->codec_name || dai_link->codec_of_node ||
 	    dai_link->codec_dai_name) {

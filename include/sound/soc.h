@@ -891,6 +891,18 @@ struct snd_soc_dai_link {
 	/* config - must be set by machine driver */
 	const char *name;			/* Codec name */
 	const char *stream_name;		/* Stream name */
+
+	/*
+	 *	cpu_name
+	 *	cpu_of_node
+	 *	cpu_dai_name
+	 *
+	 * These are legacy style, and will be replaced to
+	 * modern style (= snd_soc_dai_link_component) in the future,
+	 * but, not yet supported so far.
+	 * If modern style was supported for CPU, all driver will switch
+	 * to use it, and, legacy style code will be removed from ALSA SoC.
+	 */
 	/*
 	 * You MAY specify the link's CPU-side device, either by device name,
 	 * or by DT/OF node, but not both. If this information is omitted,
@@ -906,6 +918,19 @@ struct snd_soc_dai_link {
 	 * only, which only works well when that device exposes a single DAI.
 	 */
 	const char *cpu_dai_name;
+
+	/*
+	 *	codec_name
+	 *	codec_of_node
+	 *	codec_dai_name
+	 *
+	 * These are legacy style, it will be converted to modern style
+	 * (= snd_soc_dai_link_component) automatically in soc-core
+	 * if driver is using legacy style.
+	 * Driver shouldn't use both legacy and modern style in the same time.
+	 * If modern style was supported for CPU, all driver will switch
+	 * to use it, and, legacy style code will be removed from ALSA SoC.
+	 */
 	/*
 	 * You MUST specify the link's codec, either by device name, or by
 	 * DT/OF node, but not both.
@@ -918,6 +943,17 @@ struct snd_soc_dai_link {
 	struct snd_soc_dai_link_component *codecs;
 	unsigned int num_codecs;
 
+	/*
+	 *	platform_name
+	 *	platform_of_node
+	 *
+	 * These are legacy style, it will be converted to modern style
+	 * (= snd_soc_dai_link_component) automatically in soc-core
+	 * if driver is using legacy style.
+	 * Driver shouldn't use both legacy and modern style in the same time.
+	 * If modern style was supported for CPU, all driver will switch
+	 * to use it, and, legacy style code will be removed from ALSA SoC.
+	 */
 	/*
 	 * You MAY specify the link's platform/PCM/DMA driver, either by
 	 * device name, or by DT/OF node, but not both. Some forms of link
