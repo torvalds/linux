@@ -1370,8 +1370,12 @@
 		interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru PCLK_CSI_TX>, <&mipi_dphy>;
 		clock-names = "pclk", "hs_clk";
-		resets = <&cru SRST_CSITX_P>;
-		reset-names = "apb";
+		resets = <&cru SRST_CSITX_P>,
+			 <&cru SRST_CSITX_TXBYTEHS>,
+			 <&cru SRST_CSITX_TXESC>,
+			 <&cru SRST_CSITX_CAM>,
+			 <&cru SRST_CSITX_I>;
+		reset-names = "tx_apb", "tx_bytehs", "tx_esc", "tx_cam", "tx_i";
 		phys = <&mipi_dphy>;
 		phy-names = "mipi_dphy";
 		power-domains = <&power RK1808_PD_VIO>;
