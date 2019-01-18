@@ -300,13 +300,12 @@ struct intel_panel {
 
 		/* Connector and platform specific backlight functions */
 		int (*setup)(struct intel_connector *connector, enum pipe pipe);
-		uint32_t (*get)(struct intel_connector *connector);
-		void (*set)(const struct drm_connector_state *conn_state, uint32_t level);
+		u32 (*get)(struct intel_connector *connector);
+		void (*set)(const struct drm_connector_state *conn_state, u32 level);
 		void (*disable)(const struct drm_connector_state *conn_state);
 		void (*enable)(const struct intel_crtc_state *crtc_state,
 			       const struct drm_connector_state *conn_state);
-		uint32_t (*hz_to_pwm)(struct intel_connector *connector,
-				      uint32_t hz);
+		u32 (*hz_to_pwm)(struct intel_connector *connector, u32 hz);
 		void (*power)(struct intel_connector *, bool enable);
 	} backlight;
 };
@@ -598,7 +597,7 @@ struct intel_initial_plane_config {
 
 struct intel_scaler {
 	int in_use;
-	uint32_t mode;
+	u32 mode;
 };
 
 struct intel_crtc_scaler_state {
@@ -636,7 +635,7 @@ struct intel_crtc_scaler_state {
 
 struct intel_pipe_wm {
 	struct intel_wm_level wm[5];
-	uint32_t linetime;
+	u32 linetime;
 	bool fbc_wm_enabled;
 	bool pipe_enabled;
 	bool sprites_enabled;
@@ -652,7 +651,7 @@ struct skl_plane_wm {
 
 struct skl_pipe_wm {
 	struct skl_plane_wm planes[I915_MAX_PLANES];
-	uint32_t linetime;
+	u32 linetime;
 };
 
 enum vlv_wm_level {
@@ -665,7 +664,7 @@ enum vlv_wm_level {
 struct vlv_wm_state {
 	struct g4x_pipe_wm wm[NUM_VLV_WM_LEVELS];
 	struct g4x_sr_wm sr[NUM_VLV_WM_LEVELS];
-	uint8_t num_levels;
+	u8 num_levels;
 	bool cxsr;
 };
 
@@ -878,13 +877,13 @@ struct intel_crtc_state {
 	/* Used by SDVO (and if we ever fix it, HDMI). */
 	unsigned pixel_multiplier;
 
-	uint8_t lane_count;
+	u8 lane_count;
 
 	/*
 	 * Used by platforms having DP/HDMI PHY with programmable lane
 	 * latency optimization.
 	 */
-	uint8_t lane_lat_optim_mask;
+	u8 lane_lat_optim_mask;
 
 	/* minimum acceptable voltage level */
 	u8 min_voltage_level;
@@ -928,7 +927,7 @@ struct intel_crtc_state {
 	struct intel_crtc_wm_state wm;
 
 	/* Gamma mode programmed on the pipe */
-	uint32_t gamma_mode;
+	u32 gamma_mode;
 
 	/* bitmask of visible planes (enum plane_id) */
 	u8 active_planes;
@@ -1014,7 +1013,7 @@ struct intel_plane {
 	enum pipe pipe;
 	bool has_fbc;
 	bool has_ccs;
-	uint32_t frontbuffer_bit;
+	u32 frontbuffer_bit;
 
 	struct {
 		u32 base, cntl, size;
@@ -1110,9 +1109,9 @@ enum link_m_n_set {
 
 struct intel_dp_compliance_data {
 	unsigned long edid;
-	uint8_t video_pattern;
-	uint16_t hdisplay, vdisplay;
-	uint8_t bpc;
+	u8 video_pattern;
+	u16 hdisplay, vdisplay;
+	u8 bpc;
 };
 
 struct intel_dp_compliance {
@@ -1125,18 +1124,18 @@ struct intel_dp_compliance {
 
 struct intel_dp {
 	i915_reg_t output_reg;
-	uint32_t DP;
+	u32 DP;
 	int link_rate;
-	uint8_t lane_count;
-	uint8_t sink_count;
+	u8 lane_count;
+	u8 sink_count;
 	bool link_mst;
 	bool link_trained;
 	bool has_audio;
 	bool reset_link_params;
-	uint8_t dpcd[DP_RECEIVER_CAP_SIZE];
-	uint8_t psr_dpcd[EDP_PSR_RECEIVER_CAP_SIZE];
-	uint8_t downstream_ports[DP_MAX_DOWNSTREAM_PORTS];
-	uint8_t edp_dpcd[EDP_DISPLAY_CTL_CAP_SIZE];
+	u8 dpcd[DP_RECEIVER_CAP_SIZE];
+	u8 psr_dpcd[EDP_PSR_RECEIVER_CAP_SIZE];
+	u8 downstream_ports[DP_MAX_DOWNSTREAM_PORTS];
+	u8 edp_dpcd[EDP_DISPLAY_CTL_CAP_SIZE];
 	u8 dsc_dpcd[DP_DSC_RECEIVER_CAP_SIZE];
 	u8 fec_capable;
 	/* source rates */
@@ -1156,7 +1155,7 @@ struct intel_dp {
 	/* sink or branch descriptor */
 	struct drm_dp_desc desc;
 	struct drm_dp_aux aux;
-	uint8_t train_set[4];
+	u8 train_set[4];
 	int panel_power_up_delay;
 	int panel_power_down_delay;
 	int panel_power_cycle_delay;
@@ -1198,14 +1197,13 @@ struct intel_dp {
 	struct intel_dp_mst_encoder *mst_encoders[I915_MAX_PIPES];
 	struct drm_dp_mst_topology_mgr mst_mgr;
 
-	uint32_t (*get_aux_clock_divider)(struct intel_dp *dp, int index);
+	u32 (*get_aux_clock_divider)(struct intel_dp *dp, int index);
 	/*
 	 * This function returns the value we have to program the AUX_CTL
 	 * register with to kick off an AUX transaction.
 	 */
-	uint32_t (*get_aux_send_ctl)(struct intel_dp *dp,
-				     int send_bytes,
-				     uint32_t aux_clock_divider);
+	u32 (*get_aux_send_ctl)(struct intel_dp *dp, int send_bytes,
+				u32 aux_clock_divider);
 
 	i915_reg_t (*aux_ch_ctl_reg)(struct intel_dp *dp);
 	i915_reg_t (*aux_ch_data_reg)(struct intel_dp *dp, int index);
@@ -1239,7 +1237,7 @@ struct intel_digital_port {
 	struct intel_lspcon lspcon;
 	enum irqreturn (*hpd_pulse)(struct intel_digital_port *, bool);
 	bool release_cl2_override;
-	uint8_t max_lanes;
+	u8 max_lanes;
 	/* Used for DP and ICL+ TypeC/DP and TypeC/HDMI ports. */
 	enum aux_ch aux_ch;
 	enum intel_display_power_domain ddi_io_power_domain;
@@ -1474,8 +1472,8 @@ void intel_check_cpu_fifo_underruns(struct drm_i915_private *dev_priv);
 void intel_check_pch_fifo_underruns(struct drm_i915_private *dev_priv);
 
 /* i915_irq.c */
-void gen5_enable_gt_irq(struct drm_i915_private *dev_priv, uint32_t mask);
-void gen5_disable_gt_irq(struct drm_i915_private *dev_priv, uint32_t mask);
+void gen5_enable_gt_irq(struct drm_i915_private *dev_priv, u32 mask);
+void gen5_disable_gt_irq(struct drm_i915_private *dev_priv, u32 mask);
 void gen6_mask_pm_irq(struct drm_i915_private *dev_priv, u32 mask);
 void gen6_unmask_pm_irq(struct drm_i915_private *dev_priv, u32 mask);
 void gen11_reset_rps_interrupts(struct drm_i915_private *dev_priv);
@@ -1538,7 +1536,7 @@ void intel_ddi_set_vc_payload_alloc(const struct intel_crtc_state *crtc_state,
 void intel_ddi_compute_min_voltage_level(struct drm_i915_private *dev_priv,
 					 struct intel_crtc_state *crtc_state);
 u32 bxt_signal_levels(struct intel_dp *intel_dp);
-uint32_t ddi_signal_levels(struct intel_dp *intel_dp);
+u32 ddi_signal_levels(struct intel_dp *intel_dp);
 u8 intel_ddi_dp_voltage_max(struct intel_encoder *encoder);
 u8 intel_ddi_dp_pre_emphasis_max(struct intel_encoder *encoder,
 				 u8 voltage_swing);
@@ -1678,11 +1676,11 @@ void intel_cleanup_plane_fb(struct drm_plane *plane,
 int intel_plane_atomic_get_property(struct drm_plane *plane,
 				    const struct drm_plane_state *state,
 				    struct drm_property *property,
-				    uint64_t *val);
+				    u64 *val);
 int intel_plane_atomic_set_property(struct drm_plane *plane,
 				    struct drm_plane_state *state,
 				    struct drm_property *property,
-				    uint64_t val);
+				    u64 val);
 int intel_plane_atomic_calc_changes(const struct intel_crtc_state *old_crtc_state,
 				    struct drm_crtc_state *crtc_state,
 				    const struct intel_plane_state *old_plane_state,
@@ -1802,10 +1800,10 @@ bool intel_dp_init(struct drm_i915_private *dev_priv, i915_reg_t output_reg,
 bool intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 			     struct intel_connector *intel_connector);
 void intel_dp_set_link_params(struct intel_dp *intel_dp,
-			      int link_rate, uint8_t lane_count,
+			      int link_rate, u8 lane_count,
 			      bool link_mst);
 int intel_dp_get_link_train_fallback_values(struct intel_dp *intel_dp,
-					    int link_rate, uint8_t lane_count);
+					    int link_rate, u8 lane_count);
 void intel_dp_start_link_train(struct intel_dp *intel_dp);
 void intel_dp_stop_link_train(struct intel_dp *intel_dp);
 int intel_dp_retrain_link(struct intel_encoder *encoder,
@@ -1837,7 +1835,7 @@ int intel_dp_max_lane_count(struct intel_dp *intel_dp);
 int intel_dp_rate_select(struct intel_dp *intel_dp, int rate);
 void intel_dp_hot_plug(struct intel_encoder *intel_encoder);
 void intel_power_sequencer_reset(struct drm_i915_private *dev_priv);
-uint32_t intel_dp_pack_aux(const uint8_t *src, int src_bytes);
+u32 intel_dp_pack_aux(const u8 *src, int src_bytes);
 void intel_plane_destroy(struct drm_plane *plane);
 void intel_edp_drrs_enable(struct intel_dp *intel_dp,
 			   const struct intel_crtc_state *crtc_state);
@@ -1850,24 +1848,24 @@ void intel_edp_drrs_flush(struct drm_i915_private *dev_priv,
 
 void
 intel_dp_program_link_training_pattern(struct intel_dp *intel_dp,
-				       uint8_t dp_train_pat);
+				       u8 dp_train_pat);
 void
 intel_dp_set_signal_levels(struct intel_dp *intel_dp);
 void intel_dp_set_idle_link_train(struct intel_dp *intel_dp);
-uint8_t
+u8
 intel_dp_voltage_max(struct intel_dp *intel_dp);
-uint8_t
-intel_dp_pre_emphasis_max(struct intel_dp *intel_dp, uint8_t voltage_swing);
+u8
+intel_dp_pre_emphasis_max(struct intel_dp *intel_dp, u8 voltage_swing);
 void intel_dp_compute_rate(struct intel_dp *intel_dp, int port_clock,
-			   uint8_t *link_bw, uint8_t *rate_select);
+			   u8 *link_bw, u8 *rate_select);
 bool intel_dp_source_supports_hbr2(struct intel_dp *intel_dp);
 bool intel_dp_source_supports_hbr3(struct intel_dp *intel_dp);
 bool
-intel_dp_get_link_status(struct intel_dp *intel_dp, uint8_t link_status[DP_LINK_STATUS_SIZE]);
-uint16_t intel_dp_dsc_get_output_bpp(int link_clock, uint8_t lane_count,
-				     int mode_clock, int mode_hdisplay);
-uint8_t intel_dp_dsc_get_slice_count(struct intel_dp *intel_dp, int mode_clock,
-				     int mode_hdisplay);
+intel_dp_get_link_status(struct intel_dp *intel_dp, u8 link_status[DP_LINK_STATUS_SIZE]);
+u16 intel_dp_dsc_get_output_bpp(int link_clock, u8 lane_count,
+				int mode_clock, int mode_hdisplay);
+u8 intel_dp_dsc_get_slice_count(struct intel_dp *intel_dp, int mode_clock,
+				int mode_hdisplay);
 
 /* intel_vdsc.c */
 int intel_dp_compute_dsc_params(struct intel_dp *intel_dp,
@@ -2325,11 +2323,11 @@ void intel_tv_init(struct drm_i915_private *dev_priv);
 int intel_digital_connector_atomic_get_property(struct drm_connector *connector,
 						const struct drm_connector_state *state,
 						struct drm_property *property,
-						uint64_t *val);
+						u64 *val);
 int intel_digital_connector_atomic_set_property(struct drm_connector *connector,
 						struct drm_connector_state *state,
 						struct drm_property *property,
-						uint64_t val);
+						u64 val);
 int intel_digital_connector_atomic_check(struct drm_connector *conn,
 					 struct drm_connector_state *new_state);
 struct drm_connector_state *
