@@ -1069,14 +1069,19 @@ static ssize_t amdgpu_set_pp_sclk_od(struct device *dev,
 		count = -EINVAL;
 		goto fail;
 	}
-	if (adev->powerplay.pp_funcs->set_sclk_od)
-		amdgpu_dpm_set_sclk_od(adev, (uint32_t)value);
 
-	if (adev->powerplay.pp_funcs->dispatch_tasks) {
-		amdgpu_dpm_dispatch_task(adev, AMD_PP_TASK_READJUST_POWER_STATE, NULL);
+	if (is_support_sw_smu(adev)) {
+		value = smu_set_od_percentage(&(adev->smu), OD_SCLK, (uint32_t)value);
 	} else {
-		adev->pm.dpm.current_ps = adev->pm.dpm.boot_ps;
-		amdgpu_pm_compute_clocks(adev);
+		if (adev->powerplay.pp_funcs->set_sclk_od)
+			amdgpu_dpm_set_sclk_od(adev, (uint32_t)value);
+
+		if (adev->powerplay.pp_funcs->dispatch_tasks) {
+			amdgpu_dpm_dispatch_task(adev, AMD_PP_TASK_READJUST_POWER_STATE, NULL);
+		} else {
+			adev->pm.dpm.current_ps = adev->pm.dpm.boot_ps;
+			amdgpu_pm_compute_clocks(adev);
+		}
 	}
 
 fail:
@@ -1115,14 +1120,19 @@ static ssize_t amdgpu_set_pp_mclk_od(struct device *dev,
 		count = -EINVAL;
 		goto fail;
 	}
-	if (adev->powerplay.pp_funcs->set_mclk_od)
-		amdgpu_dpm_set_mclk_od(adev, (uint32_t)value);
 
-	if (adev->powerplay.pp_funcs->dispatch_tasks) {
-		amdgpu_dpm_dispatch_task(adev, AMD_PP_TASK_READJUST_POWER_STATE, NULL);
+	if (is_support_sw_smu(adev)) {
+		value = smu_set_od_percentage(&(adev->smu), OD_MCLK, (uint32_t)value);
 	} else {
-		adev->pm.dpm.current_ps = adev->pm.dpm.boot_ps;
-		amdgpu_pm_compute_clocks(adev);
+		if (adev->powerplay.pp_funcs->set_mclk_od)
+			amdgpu_dpm_set_mclk_od(adev, (uint32_t)value);
+
+		if (adev->powerplay.pp_funcs->dispatch_tasks) {
+			amdgpu_dpm_dispatch_task(adev, AMD_PP_TASK_READJUST_POWER_STATE, NULL);
+		} else {
+			adev->pm.dpm.current_ps = adev->pm.dpm.boot_ps;
+			amdgpu_pm_compute_clocks(adev);
+		}
 	}
 
 fail:

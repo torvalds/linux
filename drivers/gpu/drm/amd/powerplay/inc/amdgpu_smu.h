@@ -414,6 +414,9 @@ struct pptable_funcs {
 					  uint32_t index,
 					  uint32_t value);
 	int (*get_od_percentage)(struct smu_context *smu, enum pp_clock_type type);
+	int (*set_od_percentage)(struct smu_context *smu,
+				 enum pp_clock_type type,
+				 uint32_t value);
 	int (*get_clock_by_type_with_latency)(struct smu_context *smu,
 					      enum amd_pp_clock_type type,
 					      struct
@@ -598,6 +601,8 @@ struct smu_funcs
 	((smu)->ppt_funcs->force_clk_levels ? (smu)->ppt_funcs->force_clk_levels((smu), (type), (level)) : 0)
 #define smu_get_od_percentage(smu, type) \
 	((smu)->ppt_funcs->get_od_percentage ? (smu)->ppt_funcs->get_od_percentage((smu), (type)) : 0)
+#define smu_set_od_percentage(smu, type, value) \
+	((smu)->ppt_funcs->set_od_percentage ? (smu)->ppt_funcs->set_od_percentage((smu), (type), (value)) : 0)
 #define smu_start_thermal_control(smu) \
 	((smu)->funcs->start_thermal_control? (smu)->funcs->start_thermal_control((smu)) : 0)
 #define smu_read_sensor(smu, sensor, data, size) \

@@ -1924,6 +1924,67 @@ static int vega20_update_specified_od8_value(struct smu_context *smu,
 	return 0;
 }
 
+static int vega20_set_od_percentage(struct smu_context *smu,
+				    enum pp_clock_type type,
+				    uint32_t value)
+{
+	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
+	struct vega20_dpm_table *dpm_table = NULL;
+	struct vega20_dpm_table *golden_table = NULL;
+	struct vega20_single_dpm_table *single_dpm_table;
+	struct vega20_single_dpm_table *golden_dpm_table;
+	uint32_t od_clk, index;
+	int ret, feature_enabled;
+	PPCLK_e clk_id;
+
+	dpm_table = smu_dpm->dpm_context;
+	golden_table = smu_dpm->golden_dpm_context;
+
+	switch (type) {
+	case OD_SCLK:
+		single_dpm_table = &(dpm_table->gfx_table);
+		golden_dpm_table = &(golden_table->gfx_table);
+		feature_enabled = smu_feature_is_enabled(smu, FEATURE_DPM_GFXCLK_BIT);
+		clk_id = PPCLK_GFXCLK;
+		index = OD8_SETTING_GFXCLK_FMAX;
+		break;
+	case OD_MCLK:
+		single_dpm_table = &(dpm_table->mem_table);
+		golden_dpm_table = &(golden_table->mem_table);
+		feature_enabled = smu_feature_is_enabled(smu, FEATURE_DPM_UCLK_BIT);
+		clk_id = PPCLK_UCLK;
+		index = OD8_SETTING_UCLK_FMAX;
+		break;
+	default:
+		return -EINVAL;
+		break;
+	}
+
+	od_clk = golden_dpm_table->dpm_levels[golden_dpm_table->count - 1].value * value;
+	od_clk /= 100;
+	od_clk += golden_dpm_table->dpm_levels[golden_dpm_table->count - 1].value;
+
+	ret = smu_update_od8_settings(smu, index, od_clk);
+	if (ret) {
+		pr_err("[Setoverdrive] failed to set od clk!\n");
+		return ret;
+	}
+
+	if (feature_enabled) {
+		ret = vega20_set_single_dpm_table(smu, single_dpm_table,
+						  clk_id);
+		if (ret) {
+			pr_err("[Setoverdrive] failed to refresh dpm table!\n");
+			return ret;
+		}
+	} else {
+		single_dpm_table->count = 1;
+		single_dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.gfxclk / 100;
+	}
+
+	return 0;
+}
+
 static const struct pptable_funcs vega20_ppt_funcs = {
 	.alloc_dpm_context = vega20_allocate_dpm_context,
 	.store_powerplay_table = vega20_store_powerplay_table,
@@ -1944,6 +2005,7 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.get_performance_level = vega20_get_performance_level,
 	.force_performance_level = vega20_force_performance_level,
 	.update_specified_od8_value = vega20_update_specified_od8_value,
+	.set_od_percentage = vega20_set_od_percentage,
 };
 
 void vega20_set_ppt_funcs(struct smu_context *smu)
