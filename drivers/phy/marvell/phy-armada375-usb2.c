@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * USB cluster support for Armada 375 platform.
  *
  * Copyright (C) 2014 Marvell
  *
  * Gregory CLEMENT <gregory.clement@free-electrons.com>
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2 or later. This program is licensed "as is"
- * without any warranty of any kind, whether express or implied.
  *
  * Armada 375 comes with an USB2 host and device controller and an
  * USB3 controller. The USB cluster control register allows to manage
