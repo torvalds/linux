@@ -533,7 +533,6 @@ static void qxl_primary_atomic_update(struct drm_plane *plane,
 	    .x2 = plane->state->fb->width,
 	    .y2 = plane->state->fb->height
 	};
-	int ret;
 	bool same_shadow = false;
 
 	if (old_state->fb) {
@@ -554,16 +553,13 @@ static void qxl_primary_atomic_update(struct drm_plane *plane,
 		if (!same_shadow)
 			qxl_io_destroy_primary(qdev);
 		bo_old->is_primary = false;
-
-		ret = qxl_primary_apply_cursor(plane);
-		if (ret)
-			DRM_ERROR(
-			"could not set cursor after creating primary");
 	}
 
 	if (!bo->is_primary) {
-		if (!same_shadow)
+		if (!same_shadow) {
 			qxl_io_create_primary(qdev, 0, bo);
+			qxl_primary_apply_cursor(plane);
+		}
 		bo->is_primary = true;
 	}
 
