@@ -3242,6 +3242,53 @@ static int rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 	return ret;
 }
 
+static int rtnl_valid_getlink_req(struct sk_buff *skb,
+				  const struct nlmsghdr *nlh,
+				  struct nlattr **tb,
+				  struct netlink_ext_ack *extack)
+{
+	struct ifinfomsg *ifm;
+	int i, err;
+
+	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*ifm))) {
+		NL_SET_ERR_MSG(extack, "Invalid header for get link");
+		return -EINVAL;
+	}
+
+	if (!netlink_strict_get_check(skb))
+		return nlmsg_parse(nlh, sizeof(*ifm), tb, IFLA_MAX, ifla_policy,
+				   extack);
+
+	ifm = nlmsg_data(nlh);
+	if (ifm->__ifi_pad || ifm->ifi_type || ifm->ifi_flags ||
+	    ifm->ifi_change) {
+		NL_SET_ERR_MSG(extack, "Invalid values in header for get link request");
+		return -EINVAL;
+	}
+
+	err = nlmsg_parse_strict(nlh, sizeof(*ifm), tb, IFLA_MAX, ifla_policy,
+				 extack);
+	if (err)
+		return err;
+
+	for (i = 0; i <= IFLA_MAX; i++) {
+		if (!tb[i])
+			continue;
+
+		switch (i) {
+		case IFLA_IFNAME:
+		case IFLA_EXT_MASK:
+		case IFLA_TARGET_NETNSID:
+			break;
+		default:
+			NL_SET_ERR_MSG(extack, "Unsupported attribute in get link request");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static int rtnl_getlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 			struct netlink_ext_ack *extack)
 {
@@ -3256,7 +3303,7 @@ static int rtnl_getlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 	int err;
 	u32 ext_filter_mask = 0;
 
-	err = nlmsg_parse(nlh, sizeof(*ifm), tb, IFLA_MAX, ifla_policy, extack);
+	err = rtnl_valid_getlink_req(skb, nlh, tb, extack);
 	if (err < 0)
 		return err;
 
