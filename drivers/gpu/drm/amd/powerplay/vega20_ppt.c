@@ -1614,6 +1614,117 @@ vega20_notify_smc_dispaly_config(struct smu_context *smu)
 	return 0;
 }
 
+static uint32_t vega20_find_lowest_dpm_level(struct vega20_single_dpm_table *table)
+{
+	uint32_t i;
+
+	for (i = 0; i < table->count; i++) {
+		if (table->dpm_levels[i].enabled)
+			break;
+	}
+	if (i >= table->count) {
+		i = 0;
+		table->dpm_levels[i].enabled = true;
+	}
+
+	return i;
+}
+
+static uint32_t vega20_find_highest_dpm_level(struct vega20_single_dpm_table *table)
+{
+	int i = 0;
+
+	if (!table) {
+		pr_err("[%s] DPM Table does not exist!", __func__);
+		return 0;
+	}
+	if (table->count <= 0) {
+		pr_err("[%s] DPM Table has no entry!", __func__);
+		return 0;
+	}
+	if (table->count > MAX_REGULAR_DPM_NUMBER) {
+		pr_err("[%s] DPM Table has too many entries!", __func__);
+		return MAX_REGULAR_DPM_NUMBER - 1;
+	}
+
+	for (i = table->count - 1; i >= 0; i--) {
+		if (table->dpm_levels[i].enabled)
+			break;
+	}
+	if (i < 0) {
+		i = 0;
+		table->dpm_levels[i].enabled = true;
+	}
+
+	return i;
+}
+
+static int vega20_force_dpm_highest(struct smu_context *smu)
+{
+	uint32_t soft_level;
+	int ret = 0;
+	struct vega20_dpm_table *dpm_table = (struct vega20_dpm_table *)smu->smu_dpm.dpm_context;
+
+	soft_level = vega20_find_highest_dpm_level(&(dpm_table->gfx_table));
+
+	dpm_table->gfx_table.dpm_state.soft_min_level =
+		dpm_table->gfx_table.dpm_state.soft_max_level =
+		dpm_table->gfx_table.dpm_levels[soft_level].value;
+
+	soft_level = vega20_find_highest_dpm_level(&(dpm_table->mem_table));
+
+	dpm_table->mem_table.dpm_state.soft_min_level =
+		dpm_table->mem_table.dpm_state.soft_max_level =
+		dpm_table->mem_table.dpm_levels[soft_level].value;
+
+	ret = vega20_upload_dpm_min_level(smu);
+	if (ret) {
+		pr_err("Failed to upload boot level to highest!");
+		return ret;
+	}
+
+	ret = vega20_upload_dpm_max_level(smu);
+	if (ret) {
+		pr_err("Failed to upload dpm max level to highest!");
+		return ret;
+	}
+
+	return ret;
+}
+
+static int vega20_force_dpm_lowest(struct smu_context *smu)
+{
+	uint32_t soft_level;
+	int ret = 0;
+	struct vega20_dpm_table *dpm_table = (struct vega20_dpm_table *)smu->smu_dpm.dpm_context;
+
+	soft_level = vega20_find_lowest_dpm_level(&(dpm_table->gfx_table));
+
+	dpm_table->gfx_table.dpm_state.soft_min_level =
+		dpm_table->gfx_table.dpm_state.soft_max_level =
+		dpm_table->gfx_table.dpm_levels[soft_level].value;
+
+	soft_level = vega20_find_lowest_dpm_level(&(dpm_table->mem_table));
+
+	dpm_table->mem_table.dpm_state.soft_min_level =
+		dpm_table->mem_table.dpm_state.soft_max_level =
+		dpm_table->mem_table.dpm_levels[soft_level].value;
+
+	ret = vega20_upload_dpm_min_level(smu);
+	if (ret) {
+		pr_err("Failed to upload boot level to lowest!");
+		return ret;
+	}
+
+	ret = vega20_upload_dpm_max_level(smu);
+	if (ret) {
+		pr_err("Failed to upload dpm max level to lowest!");
+		return ret;
+	}
+
+	return ret;
+}
+
 static const struct pptable_funcs vega20_ppt_funcs = {
 	.alloc_dpm_context = vega20_allocate_dpm_context,
 	.store_powerplay_table = vega20_store_powerplay_table,
