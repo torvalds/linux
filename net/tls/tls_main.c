@@ -266,8 +266,10 @@ static void tls_sk_proto_close(struct sock *sk, long timeout)
 	lock_sock(sk);
 	sk_proto_close = ctx->sk_proto_close;
 
-	if ((ctx->tx_conf == TLS_HW_RECORD && ctx->rx_conf == TLS_HW_RECORD) ||
-	    (ctx->tx_conf == TLS_BASE && ctx->rx_conf == TLS_BASE)) {
+	if (ctx->tx_conf == TLS_HW_RECORD && ctx->rx_conf == TLS_HW_RECORD)
+		goto skip_tx_cleanup;
+
+	if (ctx->tx_conf == TLS_BASE && ctx->rx_conf == TLS_BASE) {
 		free_ctx = true;
 		goto skip_tx_cleanup;
 	}
@@ -579,6 +581,17 @@ static void tls_build_proto(struct sock *sk)
 	}
 }
 
+static void tls_hw_sk_destruct(struct sock *sk)
+{
+	struct tls_context *ctx = tls_get_ctx(sk);
+	struct inet_connection_sock *icsk = inet_csk(sk);
+
+	ctx->sk_destruct(sk);
+	/* Free ctx */
+	kfree(ctx);
+	icsk->icsk_ulp_data = NULL;
+}
+
 static int tls_hw_prot(struct sock *sk)
 {
 	struct tls_context *ctx;
@@ -597,6 +610,8 @@ static int tls_hw_prot(struct sock *sk)
 			ctx->hash = sk->sk_prot->hash;
 			ctx->unhash = sk->sk_prot->unhash;
 			ctx->sk_proto_close = sk->sk_prot->close;
+			ctx->sk_destruct = sk->sk_destruct;
+			sk->sk_destruct = tls_hw_sk_destruct;
 			ctx->rx_conf = TLS_HW_RECORD;
 			ctx->tx_conf = TLS_HW_RECORD;
 			update_sk_prot(sk, ctx);
