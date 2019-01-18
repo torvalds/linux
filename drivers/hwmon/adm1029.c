@@ -108,7 +108,7 @@ static const u8 ADM1029_REG_FAN_DIV[] = {
 
 struct adm1029_data {
 	struct i2c_client *client;
-	struct mutex update_lock;
+	struct mutex update_lock; /* protect register access */
 	char valid;		/* zero until following fields are valid */
 	unsigned long last_updated;	/* in jiffies */
 
