@@ -4671,8 +4671,6 @@ static __init int smack_init(void)
 	if (!smack_inode_cache)
 		return -ENOMEM;
 
-	lsm_early_cred(cred);
-
 	/*
 	 * Set the security state for the initial task.
 	 */

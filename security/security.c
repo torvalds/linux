@@ -278,6 +278,9 @@ static void __init ordered_lsm_parse(const char *order, const char *origin)
 	kfree(sep);
 }
 
+static void __init lsm_early_cred(struct cred *cred);
+static void __init lsm_early_task(struct task_struct *task);
+
 static void __init ordered_lsm_init(void)
 {
 	struct lsm_info **lsm;
@@ -312,6 +315,8 @@ static void __init ordered_lsm_init(void)
 						    blob_sizes.lbs_inode, 0,
 						    SLAB_PANIC, NULL);
 
+	lsm_early_cred((struct cred *) current->cred);
+	lsm_early_task(current);
 	for (lsm = ordered_lsms; *lsm; lsm++)
 		initialize_lsm(*lsm);
 
@@ -465,17 +470,12 @@ static int lsm_cred_alloc(struct cred *cred, gfp_t gfp)
  * lsm_early_cred - during initialization allocate a composite cred blob
  * @cred: the cred that needs a blob
  *
- * Allocate the cred blob for all the modules if it's not already there
+ * Allocate the cred blob for all the modules
  */
-void __init lsm_early_cred(struct cred *cred)
+static void __init lsm_early_cred(struct cred *cred)
 {
-	int rc;
+	int rc = lsm_cred_alloc(cred, GFP_KERNEL);
 
-	if (cred == NULL)
-		panic("%s: NULL cred.\n", __func__);
-	if (cred->security != NULL)
-		return;
-	rc = lsm_cred_alloc(cred, GFP_KERNEL);
 	if (rc)
 		panic("%s: Early cred alloc failed.\n", __func__);
 }
@@ -589,17 +589,12 @@ int lsm_msg_msg_alloc(struct msg_msg *mp)
  * lsm_early_task - during initialization allocate a composite task blob
  * @task: the task that needs a blob
  *
- * Allocate the task blob for all the modules if it's not already there
+ * Allocate the task blob for all the modules
  */
-void __init lsm_early_task(struct task_struct *task)
+static void __init lsm_early_task(struct task_struct *task)
 {
-	int rc;
+	int rc = lsm_task_alloc(task);
 
-	if (task == NULL)
-		panic("%s: task cred.\n", __func__);
-	if (task->security != NULL)
-		return;
-	rc = lsm_task_alloc(task);
 	if (rc)
 		panic("%s: Early task alloc failed.\n", __func__);
 }
