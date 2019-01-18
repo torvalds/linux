@@ -5340,6 +5340,9 @@ enum nl80211_feature_flags {
  *	fairness for transmitted packets and has enabled airtime fairness
  *	scheduling.
  *
+ * @NL80211_EXT_FEATURE_AP_PMKSA_CACHING: Driver/device supports PMKSA caching
+ *	(set/del PMKSA operations) in AP mode.
+ *
  * @NUM_NL80211_EXT_FEATURES: number of extended features.
  * @MAX_NL80211_EXT_FEATURES: highest extended feature index.
  */
@@ -5380,6 +5383,7 @@ enum nl80211_ext_feature_index {
 	NL80211_EXT_FEATURE_CAN_REPLACE_PTK0,
 	NL80211_EXT_FEATURE_ENABLE_FTM_RESPONDER,
 	NL80211_EXT_FEATURE_AIRTIME_FAIRNESS,
+	NL80211_EXT_FEATURE_AP_PMKSA_CACHING,
 
 	/* add new features before the definition below */
 	NUM_NL80211_EXT_FEATURES,
