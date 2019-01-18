@@ -250,32 +250,27 @@ static ssize_t set_fan_div(struct device *dev,
 	return count;
 }
 
-/*
- * Access rights on sysfs. S_IRUGO: Is Readable by User, Group and Others
- *			   S_IWUSR: Is Writable by User.
- */
-static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, show_temp, NULL, 0);
-static SENSOR_DEVICE_ATTR(temp2_input, S_IRUGO, show_temp, NULL, 1);
-static SENSOR_DEVICE_ATTR(temp3_input, S_IRUGO, show_temp, NULL, 2);
+/* Access rights on sysfs. */
+static SENSOR_DEVICE_ATTR(temp1_input, 0444, show_temp, NULL, 0);
+static SENSOR_DEVICE_ATTR(temp2_input, 0444, show_temp, NULL, 1);
+static SENSOR_DEVICE_ATTR(temp3_input, 0444, show_temp, NULL, 2);
 
-static SENSOR_DEVICE_ATTR(temp1_max, S_IRUGO, show_temp, NULL, 3);
-static SENSOR_DEVICE_ATTR(temp2_max, S_IRUGO, show_temp, NULL, 4);
-static SENSOR_DEVICE_ATTR(temp3_max, S_IRUGO, show_temp, NULL, 5);
+static SENSOR_DEVICE_ATTR(temp1_max, 0444, show_temp, NULL, 3);
+static SENSOR_DEVICE_ATTR(temp2_max, 0444, show_temp, NULL, 4);
+static SENSOR_DEVICE_ATTR(temp3_max, 0444, show_temp, NULL, 5);
 
-static SENSOR_DEVICE_ATTR(temp1_min, S_IRUGO, show_temp, NULL, 6);
-static SENSOR_DEVICE_ATTR(temp2_min, S_IRUGO, show_temp, NULL, 7);
-static SENSOR_DEVICE_ATTR(temp3_min, S_IRUGO, show_temp, NULL, 8);
+static SENSOR_DEVICE_ATTR(temp1_min, 0444, show_temp, NULL, 6);
+static SENSOR_DEVICE_ATTR(temp2_min, 0444, show_temp, NULL, 7);
+static SENSOR_DEVICE_ATTR(temp3_min, 0444, show_temp, NULL, 8);
 
-static SENSOR_DEVICE_ATTR(fan1_input, S_IRUGO, show_fan, NULL, 0);
-static SENSOR_DEVICE_ATTR(fan2_input, S_IRUGO, show_fan, NULL, 1);
+static SENSOR_DEVICE_ATTR(fan1_input, 0444, show_fan, NULL, 0);
+static SENSOR_DEVICE_ATTR(fan2_input, 0444, show_fan, NULL, 1);
 
-static SENSOR_DEVICE_ATTR(fan1_min, S_IRUGO, show_fan, NULL, 2);
-static SENSOR_DEVICE_ATTR(fan2_min, S_IRUGO, show_fan, NULL, 3);
+static SENSOR_DEVICE_ATTR(fan1_min, 0444, show_fan, NULL, 2);
+static SENSOR_DEVICE_ATTR(fan2_min, 0444, show_fan, NULL, 3);
 
-static SENSOR_DEVICE_ATTR(fan1_div, S_IRUGO | S_IWUSR,
-			  show_fan_div, set_fan_div, 0);
-static SENSOR_DEVICE_ATTR(fan2_div, S_IRUGO | S_IWUSR,
-			  show_fan_div, set_fan_div, 1);
+static SENSOR_DEVICE_ATTR(fan1_div, 0644, show_fan_div, set_fan_div, 0);
+static SENSOR_DEVICE_ATTR(fan2_div, 0644, show_fan_div, set_fan_div, 1);
 
 static struct attribute *adm1029_attrs[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
