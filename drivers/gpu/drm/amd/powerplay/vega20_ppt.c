@@ -1847,6 +1847,83 @@ failed:
 	return ret;
 }
 
+static int vega20_update_specified_od8_value(struct smu_context *smu,
+					     uint32_t index,
+					     uint32_t value)
+{
+	struct smu_table_context *table_context = &smu->smu_table;
+	OverDriveTable_t *od_table =
+		(OverDriveTable_t *)(table_context->overdrive_table);
+	struct vega20_od8_settings *od8_settings =
+		(struct vega20_od8_settings *)table_context->od8_settings;
+
+	switch (index) {
+	case OD8_SETTING_GFXCLK_FMIN:
+		od_table->GfxclkFmin = (uint16_t)value;
+		break;
+
+	case OD8_SETTING_GFXCLK_FMAX:
+		if (value < od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FMAX].min_value ||
+		    value > od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FMAX].max_value)
+			return -EINVAL;
+		od_table->GfxclkFmax = (uint16_t)value;
+		break;
+
+	case OD8_SETTING_GFXCLK_FREQ1:
+		od_table->GfxclkFreq1 = (uint16_t)value;
+		break;
+
+	case OD8_SETTING_GFXCLK_VOLTAGE1:
+		od_table->GfxclkVolt1 = (uint16_t)value;
+		break;
+
+	case OD8_SETTING_GFXCLK_FREQ2:
+		od_table->GfxclkFreq2 = (uint16_t)value;
+		break;
+
+	case OD8_SETTING_GFXCLK_VOLTAGE2:
+		od_table->GfxclkVolt2 = (uint16_t)value;
+		break;
+
+	case OD8_SETTING_GFXCLK_FREQ3:
+		od_table->GfxclkFreq3 = (uint16_t)value;
+		break;
+
+	case OD8_SETTING_GFXCLK_VOLTAGE3:
+		od_table->GfxclkVolt3 = (uint16_t)value;
+		break;
+
+	case OD8_SETTING_UCLK_FMAX:
+		if (value < od8_settings->od8_settings_array[OD8_SETTING_UCLK_FMAX].min_value ||
+		    value > od8_settings->od8_settings_array[OD8_SETTING_UCLK_FMAX].max_value)
+			return -EINVAL;
+		od_table->UclkFmax = (uint16_t)value;
+		break;
+
+	case OD8_SETTING_POWER_PERCENTAGE:
+		od_table->OverDrivePct = (int16_t)value;
+		break;
+
+	case OD8_SETTING_FAN_ACOUSTIC_LIMIT:
+		od_table->FanMaximumRpm = (uint16_t)value;
+		break;
+
+	case OD8_SETTING_FAN_MIN_SPEED:
+		od_table->FanMinimumPwm = (uint16_t)value;
+		break;
+
+	case OD8_SETTING_FAN_TARGET_TEMP:
+		od_table->FanTargetTemperature = (uint16_t)value;
+		break;
+
+	case OD8_SETTING_OPERATING_TEMP_MAX:
+		od_table->MaxOpTemp = (uint16_t)value;
+		break;
+	}
+
+	return 0;
+}
+
 static const struct pptable_funcs vega20_ppt_funcs = {
 	.alloc_dpm_context = vega20_allocate_dpm_context,
 	.store_powerplay_table = vega20_store_powerplay_table,
@@ -1866,6 +1943,7 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.get_od_percentage = vega20_get_od_percentage,
 	.get_performance_level = vega20_get_performance_level,
 	.force_performance_level = vega20_force_performance_level,
+	.update_specified_od8_value = vega20_update_specified_od8_value,
 };
 
 void vega20_set_ppt_funcs(struct smu_context *smu)

@@ -1524,6 +1524,32 @@ static int smu_v11_0_set_power_profile_mode(struct smu_context *smu, long *input
 	return ret;
 }
 
+static int smu_v11_0_update_od8_settings(struct smu_context *smu,
+					uint32_t index,
+					uint32_t value)
+{
+	struct smu_table_context *table_context = &smu->smu_table;
+	int ret;
+
+	ret = smu_update_table(smu, TABLE_OVERDRIVE,
+			       table_context->overdrive_table, false);
+	if (ret) {
+		pr_err("Failed to export over drive table!\n");
+		return ret;
+	}
+
+	smu_update_specified_od8_value(smu, index, value);
+
+	ret = smu_update_table(smu, TABLE_OVERDRIVE,
+			       table_context->overdrive_table, true);
+	if (ret) {
+		pr_err("Failed to import over drive table!\n");
+		return ret;
+	}
+
+	return 0;
+}
+
 static const struct smu_funcs smu_v11_0_funcs = {
 	.init_microcode = smu_v11_0_init_microcode,
 	.load_microcode = smu_v11_0_load_microcode,
@@ -1567,6 +1593,7 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.conv_power_profile_to_pplib_workload = smu_v11_0_conv_power_profile_to_pplib_workload,
 	.get_power_profile_mode = smu_v11_0_get_power_profile_mode,
 	.set_power_profile_mode = smu_v11_0_set_power_profile_mode,
+	.update_od8_settings = smu_v11_0_update_od8_settings,
 };
 
 void smu_v11_0_set_smu_funcs(struct smu_context *smu)

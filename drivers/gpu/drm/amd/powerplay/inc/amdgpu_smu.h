@@ -410,6 +410,9 @@ struct pptable_funcs {
 	int (*print_clk_levels)(struct smu_context *smu, enum pp_clock_type type, char *buf);
 	int (*force_clk_levels)(struct smu_context *smu, enum pp_clock_type type, uint32_t mask);
 	int (*set_default_od8_settings)(struct smu_context *smu);
+	int (*update_specified_od8_value)(struct smu_context *smu,
+					  uint32_t index,
+					  uint32_t value);
 	int (*get_od_percentage)(struct smu_context *smu, enum pp_clock_type type);
 	int (*get_clock_by_type_with_latency)(struct smu_context *smu,
 					      enum amd_pp_clock_type type,
@@ -498,6 +501,9 @@ struct smu_funcs
 	int (*conv_power_profile_to_pplib_workload)(int power_profile);
 	int (*get_power_profile_mode)(struct smu_context *smu, char *buf);
 	int (*set_power_profile_mode)(struct smu_context *smu, long *input, uint32_t size);
+	int (*update_od8_settings)(struct smu_context *smu,
+				   uint32_t index,
+				   uint32_t value);
 };
 
 #define smu_init_microcode(smu) \
@@ -546,6 +552,8 @@ struct smu_funcs
 	((smu)->funcs->init_max_sustainable_clocks ? (smu)->funcs->init_max_sustainable_clocks((smu)) : 0)
 #define smu_set_od8_default_settings(smu) \
 	((smu)->funcs->set_od8_default_settings ? (smu)->funcs->set_od8_default_settings((smu)) : 0)
+#define smu_update_od8_settings(smu, index, value) \
+	((smu)->funcs->update_od8_settings ? (smu)->funcs->update_od8_settings((smu), (index), (value)) : 0)
 #define smu_send_smc_msg(smu, msg) \
 	((smu)->funcs->send_smc_msg? (smu)->funcs->send_smc_msg((smu), (msg)) : 0)
 #define smu_send_smc_msg_with_param(smu, msg, param) \
@@ -578,6 +586,8 @@ struct smu_funcs
 	((smu)->ppt_funcs->populate_umd_state_clk ? (smu)->ppt_funcs->populate_umd_state_clk((smu)) : 0)
 #define smu_set_default_od8_settings(smu) \
 	((smu)->ppt_funcs->set_default_od8_settings ? (smu)->ppt_funcs->set_default_od8_settings((smu)) : 0)
+#define smu_update_specified_od8_value(smu, index, value) \
+	((smu)->ppt_funcs->update_specified_od8_value ? (smu)->ppt_funcs->update_specified_od8_value((smu), (index), (value)) : 0)
 #define smu_get_power_limit(smu) \
 	((smu)->funcs->get_power_limit? (smu)->funcs->get_power_limit((smu)) : 0)
 #define smu_get_current_clk_freq(smu, clk_id, value) \
