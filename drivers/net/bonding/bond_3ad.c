@@ -2357,57 +2357,54 @@ re_arm:
 static int bond_3ad_rx_indication(struct lacpdu *lacpdu, struct slave *slave,
 				  u16 length)
 {
-	struct port *port;
 	int ret = RX_HANDLER_ANOTHER;
+	struct bond_marker *marker;
+	struct port *port;
 
-	if (length >= sizeof(struct lacpdu)) {
+	if (length < sizeof(struct lacpdu))
+		return ret;
 
-		port = &(SLAVE_AD_INFO(slave)->port);
+	port = &(SLAVE_AD_INFO(slave)->port);
+	if (!port->slave) {
+		net_warn_ratelimited("%s: Warning: port of slave %s is uninitialized\n",
+				     slave->dev->name, slave->bond->dev->name);
+		return ret;
+	}
 
-		if (!port->slave) {
-			net_warn_ratelimited("%s: Warning: port of slave %s is uninitialized\n",
-					     slave->dev->name, slave->bond->dev->name);
-			return ret;
-		}
-
-		switch (lacpdu->subtype) {
-		case AD_TYPE_LACPDU:
-			ret = RX_HANDLER_CONSUMED;
-			netdev_dbg(slave->bond->dev,
-				   "Received LACPDU on port %d slave %s\n",
-				   port->actor_port_number,
-				   slave->dev->name);
-			/* Protect against concurrent state machines */
-			spin_lock(&slave->bond->mode_lock);
-			ad_rx_machine(lacpdu, port);
-			spin_unlock(&slave->bond->mode_lock);
+	switch (lacpdu->subtype) {
+	case AD_TYPE_LACPDU:
+		ret = RX_HANDLER_CONSUMED;
+		netdev_dbg(slave->bond->dev,
+			   "Received LACPDU on port %d slave %s\n",
+			   port->actor_port_number, slave->dev->name);
+		/* Protect against concurrent state machines */
+		spin_lock(&slave->bond->mode_lock);
+		ad_rx_machine(lacpdu, port);
+		spin_unlock(&slave->bond->mode_lock);
+		break;
+	case AD_TYPE_MARKER:
+		ret = RX_HANDLER_CONSUMED;
+		/* No need to convert fields to Little Endian since we
+		 * don't use the marker's fields.
+		 */
+		marker = (struct bond_marker *)lacpdu;
+		switch (marker->tlv_type) {
+		case AD_MARKER_INFORMATION_SUBTYPE:
+			netdev_dbg(slave->bond->dev, "Received Marker Information on port %d\n",
+				   port->actor_port_number);
+			ad_marker_info_received(marker, port);
 			break;
-
-		case AD_TYPE_MARKER:
-			ret = RX_HANDLER_CONSUMED;
-			/* No need to convert fields to Little Endian since we
-			 * don't use the marker's fields.
-			 */
-
-			switch (((struct bond_marker *)lacpdu)->tlv_type) {
-			case AD_MARKER_INFORMATION_SUBTYPE:
-				netdev_dbg(slave->bond->dev, "Received Marker Information on port %d\n",
-					   port->actor_port_number);
-				ad_marker_info_received((struct bond_marker *)lacpdu, port);
-				break;
-
-			case AD_MARKER_RESPONSE_SUBTYPE:
-				netdev_dbg(slave->bond->dev, "Received Marker Response on port %d\n",
-					   port->actor_port_number);
-				ad_marker_response_received((struct bond_marker *)lacpdu, port);
-				break;
-
-			default:
-				netdev_dbg(slave->bond->dev, "Received an unknown Marker subtype on slot %d\n",
-					   port->actor_port_number);
-			}
+		case AD_MARKER_RESPONSE_SUBTYPE:
+			netdev_dbg(slave->bond->dev, "Received Marker Response on port %d\n",
+				   port->actor_port_number);
+			ad_marker_response_received(marker, port);
+			break;
+		default:
+			netdev_dbg(slave->bond->dev, "Received an unknown Marker subtype on slot %d\n",
+				   port->actor_port_number);
 		}
 	}
+
 	return ret;
 }
 
