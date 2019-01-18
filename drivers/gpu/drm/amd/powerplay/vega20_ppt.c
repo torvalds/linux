@@ -1725,6 +1725,25 @@ static int vega20_force_dpm_lowest(struct smu_context *smu)
 	return ret;
 }
 
+static int vega20_unforce_dpm_levels(struct smu_context *smu)
+{
+	int ret = 0;
+
+	ret = vega20_upload_dpm_min_level(smu);
+	if (ret) {
+		pr_err("Failed to upload DPM Bootup Levels!");
+		return ret;
+	}
+
+	ret = vega20_upload_dpm_max_level(smu);
+	if (ret) {
+		pr_err("Failed to upload DPM Max Levels!");
+		return ret;
+	}
+
+	return ret;
+}
+
 static const struct pptable_funcs vega20_ppt_funcs = {
 	.alloc_dpm_context = vega20_allocate_dpm_context,
 	.store_powerplay_table = vega20_store_powerplay_table,
