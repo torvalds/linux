@@ -1100,7 +1100,6 @@ smu_v11_0_display_clock_voltage_request(struct smu_context *smu,
 	PPCLK_e clk_select = 0;
 	uint32_t clk_freq = clock_req->clock_freq_in_khz / 1000;
 
-	mutex_lock(&smu->mutex);
 	if (smu_feature_is_enabled(smu, FEATURE_DPM_DCEFCLK_BIT)) {
 		switch (clk_type) {
 		case amd_pp_dcef_clock:
@@ -1129,7 +1128,6 @@ smu_v11_0_display_clock_voltage_request(struct smu_context *smu,
 	}
 
 failed:
-	mutex_unlock(&smu->mutex);
 	return ret;
 }
 

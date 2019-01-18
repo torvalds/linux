@@ -423,6 +423,8 @@ struct pptable_funcs {
 					      *clocks);
 	int (*get_power_profile_mode)(struct smu_context *smu, char *buf);
 	int (*set_power_profile_mode)(struct smu_context *smu, long *input, uint32_t size);
+	enum amd_dpm_forced_level (*get_performance_level)(struct smu_context *smu);
+	int (*force_performance_level)(struct smu_context *smu, enum amd_dpm_forced_level level);
 };
 
 struct smu_funcs
@@ -594,6 +596,10 @@ struct smu_funcs
 	((smu)->funcs->get_power_profile_mode ? (smu)->funcs->get_power_profile_mode((smu), buf) : 0)
 #define smu_set_power_profile_mode(smu, param, param_size) \
 	((smu)->funcs->set_power_profile_mode ? (smu)->funcs->set_power_profile_mode((smu), (param), (param_size)) : 0)
+#define smu_get_performance_level(smu) \
+	((smu)->ppt_funcs->get_performance_level ? (smu)->ppt_funcs->get_performance_level((smu)) : 0)
+#define smu_force_performance_level(smu, level) \
+	((smu)->ppt_funcs->force_performance_level ? (smu)->ppt_funcs->force_performance_level((smu), (level)) : 0)
 
 #define smu_msg_get_index(smu, msg) \
 	((smu)->ppt_funcs? ((smu)->ppt_funcs->get_smu_msg_index? (smu)->ppt_funcs->get_smu_msg_index((smu), (msg)) : -EINVAL) : -EINVAL)

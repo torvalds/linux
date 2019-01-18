@@ -351,6 +351,8 @@ static int smu_sw_init(void *handle)
 	smu->workload_setting[6] = PP_SMC_POWER_PROFILE_CUSTOM;
 	smu->display_config = &adev->pm.pm_display_cfg;
 
+	smu->smu_dpm.dpm_level = AMD_DPM_FORCED_LEVEL_AUTO;
+	smu->smu_dpm.requested_dpm_level = AMD_DPM_FORCED_LEVEL_AUTO;
 	ret = smu_init_microcode(smu);
 	if (ret) {
 		pr_err("Failed to load smu firmware!\n");

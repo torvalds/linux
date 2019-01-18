@@ -264,7 +264,9 @@ static ssize_t amdgpu_get_dpm_forced_performance_level(struct device *dev,
 	     (ddev->switch_power_state != DRM_SWITCH_POWER_ON))
 		return snprintf(buf, PAGE_SIZE, "off\n");
 
-	if (adev->powerplay.pp_funcs->get_performance_level)
+	if (is_support_sw_smu(adev))
+		level = smu_get_performance_level(&adev->smu);
+	else if (adev->powerplay.pp_funcs->get_performance_level)
 		level = amdgpu_dpm_get_performance_level(adev);
 	else
 		level = adev->pm.dpm.forced_level;
@@ -297,7 +299,9 @@ static ssize_t amdgpu_set_dpm_forced_performance_level(struct device *dev,
 	     (ddev->switch_power_state != DRM_SWITCH_POWER_ON))
 		return -EINVAL;
 
-	if (adev->powerplay.pp_funcs->get_performance_level)
+	if (is_support_sw_smu(adev))
+		current_level = smu_get_performance_level(&adev->smu);
+	else if (adev->powerplay.pp_funcs->get_performance_level)
 		current_level = amdgpu_dpm_get_performance_level(adev);
 
 	if (strncmp("low", buf, strlen("low")) == 0) {
@@ -326,7 +330,20 @@ static ssize_t amdgpu_set_dpm_forced_performance_level(struct device *dev,
 	if (current_level == level)
 		return count;
 
-	if (adev->powerplay.pp_funcs->force_performance_level) {
+	if (is_support_sw_smu(adev)) {
+		mutex_lock(&adev->pm.mutex);
+		if (adev->pm.dpm.thermal_active) {
+			count = -EINVAL;
+			mutex_unlock(&adev->pm.mutex);
+			goto fail;
+		}
+		ret = smu_force_performance_level(&adev->smu, level);
+		if (ret)
+			count = -EINVAL;
+		else
+			adev->pm.dpm.forced_level = level;
+		mutex_unlock(&adev->pm.mutex);
+	} else if (adev->powerplay.pp_funcs->force_performance_level) {
 		mutex_lock(&adev->pm.mutex);
 		if (adev->pm.dpm.thermal_active) {
 			count = -EINVAL;

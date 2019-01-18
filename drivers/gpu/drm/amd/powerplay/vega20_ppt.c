@@ -1744,6 +1744,103 @@ static int vega20_unforce_dpm_levels(struct smu_context *smu)
 	return ret;
 }
 
+static enum amd_dpm_forced_level vega20_get_performance_level(struct smu_context *smu)
+{
+	struct smu_dpm_context *smu_dpm_ctx = &(smu->smu_dpm);
+	if (!smu_dpm_ctx->dpm_context)
+		return -EINVAL;
+
+	if (smu_dpm_ctx->dpm_level != smu_dpm_ctx->saved_dpm_level) {
+		mutex_lock(&(smu->mutex));
+		smu_dpm_ctx->saved_dpm_level = smu_dpm_ctx->dpm_level;
+		mutex_unlock(&(smu->mutex));
+	}
+	return smu_dpm_ctx->dpm_level;
+}
+
+static int
+vega20_force_performance_level(struct smu_context *smu, enum amd_dpm_forced_level level)
+{
+	int ret = 0;
+	int index = 0;
+	int i = 0;
+	uint32_t sclk_mask, mclk_mask, soc_mask;
+	long workload;
+	struct smu_dpm_context *smu_dpm_ctx = &(smu->smu_dpm);
+	if (!smu_dpm_ctx->dpm_context)
+		return -EINVAL;
+
+	for (i = 0; i < smu->adev->num_ip_blocks; i++) {
+		if (smu->adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_SMC)
+			break;
+	}
+	mutex_lock(&smu->mutex);
+	smu->adev->ip_blocks[i].version->funcs->enable_umd_pstate(smu, &level);
+	ret = vega20_display_config_changed(smu);
+	if (ret) {
+		pr_err("Failed to change display config!");
+		goto failed;
+	}
+	ret = vega20_apply_clocks_adjust_rules(smu);
+	if (ret) {
+		pr_err("Failed to apply clocks adjust rules!");
+		goto failed;
+	}
+	ret = vega20_notify_smc_dispaly_config(smu);
+	if (ret) {
+		pr_err("Failed to notify smc display config!");
+		goto failed;
+	}
+	switch (level) {
+	case AMD_DPM_FORCED_LEVEL_HIGH:
+		ret = vega20_force_dpm_highest(smu);
+		break;
+
+	case AMD_DPM_FORCED_LEVEL_LOW:
+		ret = vega20_force_dpm_lowest(smu);
+		break;
+
+	case AMD_DPM_FORCED_LEVEL_AUTO:
+		ret = vega20_unforce_dpm_levels(smu);
+		break;
+
+	case AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD:
+	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK:
+	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK:
+	case AMD_DPM_FORCED_LEVEL_PROFILE_PEAK:
+		ret = vega20_get_profiling_clk_mask(smu, level,
+						    &sclk_mask,
+						    &mclk_mask,
+						    &soc_mask);
+		if (ret)
+			goto failed;
+		vega20_force_clk_levels(smu, PP_SCLK, 1 << sclk_mask);
+		vega20_force_clk_levels(smu, PP_MCLK, 1 << mclk_mask);
+		break;
+
+	case AMD_DPM_FORCED_LEVEL_MANUAL:
+	case AMD_DPM_FORCED_LEVEL_PROFILE_EXIT:
+	default:
+		break;
+	}
+
+	if (!ret)
+		smu_dpm_ctx->dpm_level = level;
+
+	if (smu_dpm_ctx->dpm_level != AMD_DPM_FORCED_LEVEL_MANUAL) {
+		index = fls(smu->workload_mask);
+		index = index > 0 && index <= WORKLOAD_POLICY_MAX ? index - 1 : 0;
+		workload = smu->workload_setting[index];
+
+		if (smu->power_profile_mode != workload)
+			smu->funcs->set_power_profile_mode(smu, &workload, 0);
+	}
+
+failed:
+	mutex_unlock(&smu->mutex);
+	return ret;
+}
+
 static const struct pptable_funcs vega20_ppt_funcs = {
 	.alloc_dpm_context = vega20_allocate_dpm_context,
 	.store_powerplay_table = vega20_store_powerplay_table,
@@ -1761,6 +1858,8 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.get_clock_by_type_with_latency = vega20_get_clock_by_type_with_latency,
 	.set_default_od8_settings = vega20_set_default_od8_setttings,
 	.get_od_percentage = vega20_get_od_percentage,
+	.get_performance_level = vega20_get_performance_level,
+	.force_performance_level = vega20_force_performance_level,
 };
 
 void vega20_set_ppt_funcs(struct smu_context *smu)
