@@ -2446,10 +2446,30 @@ static const char * const test_pattern_menu[] = {
 	"Color bars",
 };
 
+#define OV5640_TEST_ENABLE		BIT(7)
+#define OV5640_TEST_ROLLING		BIT(6)	/* rolling horizontal bar */
+#define OV5640_TEST_TRANSPARENT		BIT(5)
+#define OV5640_TEST_SQUARE_BW		BIT(4)	/* black & white squares */
+#define OV5640_TEST_BAR_STANDARD	(0 << 2)
+#define OV5640_TEST_BAR_VERT_CHANGE_1	(1 << 2)
+#define OV5640_TEST_BAR_HOR_CHANGE	(2 << 2)
+#define OV5640_TEST_BAR_VERT_CHANGE_2	(3 << 2)
+#define OV5640_TEST_BAR			(0 << 0)
+#define OV5640_TEST_RANDOM		(1 << 0)
+#define OV5640_TEST_SQUARE		(2 << 0)
+#define OV5640_TEST_BLACK		(3 << 0)
+
+static const u8 test_pattern_val[] = {
+	0,
+	OV5640_TEST_ENABLE | OV5640_TEST_TRANSPARENT |
+		OV5640_TEST_BAR_VERT_CHANGE_1 |
+		OV5640_TEST_BAR,
+};
+
 static int ov5640_set_ctrl_test_pattern(struct ov5640_dev *sensor, int value)
 {
-	return ov5640_mod_reg(sensor, OV5640_REG_PRE_ISP_TEST_SET1,
-			      0xa4, value ? 0xa4 : 0);
+	return ov5640_write_reg(sensor, OV5640_REG_PRE_ISP_TEST_SET1,
+				test_pattern_val[value]);
 }
 
 static int ov5640_set_ctrl_light_freq(struct ov5640_dev *sensor, int value)
