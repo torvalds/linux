@@ -696,6 +696,9 @@ dma-api/disabled		This read-only file contains the character 'Y'
 				happen when it runs out of memory or if it was
 				disabled at boot time
 
+dma-api/dump			This read-only file contains current DMA
+				mappings.
+
 dma-api/error_count		This file is read-only and shows the total
 				numbers of errors found.
 
