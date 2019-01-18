@@ -616,7 +616,7 @@ the remote via /dev/input/event devices.
 
     -  .. row 78
 
-       -  ``KEY_SCREEN``
+       -  ``KEY_ASPECT_RATIO``
 
        -  Select screen aspect ratio
 
@@ -624,7 +624,7 @@ the remote via /dev/input/event devices.
 
     -  .. row 79
 
-       -  ``KEY_ZOOM``
+       -  ``KEY_FULL_SCREEN``
 
        -  Put device into zoom/full screen mode
 
