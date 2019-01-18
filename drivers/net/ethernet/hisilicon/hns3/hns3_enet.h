@@ -412,7 +412,6 @@ struct hns3_enet_ring {
 	unsigned char *va; /* first buffer address for current packet */
 
 	u32 flag;          /* ring attribute */
-	int irq_init_flag;
 
 	int numa_node;
 	cpumask_t affinity_mask;

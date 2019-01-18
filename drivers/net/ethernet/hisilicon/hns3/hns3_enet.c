@@ -3208,7 +3208,6 @@ static int hns3_nic_uninit_vector_data(struct hns3_nic_priv *priv)
 			tqp_vector->irq_init_flag = HNS3_VECTOR_NOT_INITED;
 		}
 
-		priv->ring_data[i].ring->irq_init_flag = HNS3_VECTOR_NOT_INITED;
 		hns3_clear_ring_group(&tqp_vector->rx_group);
 		hns3_clear_ring_group(&tqp_vector->tx_group);
 		netif_napi_del(&priv->tqp_vector[i].napi);
