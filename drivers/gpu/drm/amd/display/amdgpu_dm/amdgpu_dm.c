@@ -1891,7 +1891,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 	struct amdgpu_encoder *aencoder = NULL;
 	struct amdgpu_mode_info *mode_info = &adev->mode_info;
 	uint32_t link_cnt;
-	int32_t primary_planes;
+	int32_t overlay_planes, primary_planes, total_planes;
 	enum dc_connection_type new_connection_type = dc_connection_none;
 
 	link_cnt = dm->dc->caps.max_links;
@@ -1900,9 +1900,29 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 		return -EINVAL;
 	}
 
+	/*
+	 * Determine the number of overlay planes supported.
+	 * Only support DCN for now, and cap so we don't encourage
+	 * userspace to use up all the planes.
+	 */
+	overlay_planes = 0;
+
+	for (i = 0; i < dm->dc->caps.max_planes; ++i) {
+		struct dc_plane_cap *plane = &dm->dc->caps.planes[i];
+
+		if (plane->type == DC_PLANE_TYPE_DCN_UNIVERSAL &&
+		    plane->blends_with_above && plane->blends_with_below &&
+		    plane->supports_argb8888)
+			overlay_planes += 1;
+	}
+
+	overlay_planes = min(overlay_planes, 1);
+
 	/* There is one primary plane per CRTC */
 	primary_planes = dm->dc->caps.max_streams;
-	ASSERT(primary_planes < AMDGPU_MAX_PLANES);
+
+	total_planes = primary_planes + overlay_planes;
+	ASSERT(total_planes < AMDGPU_MAX_PLANES);
 
 	/*
 	 * Initialize primary planes, implicit planes for legacy IOCTLS.
@@ -1912,6 +1932,20 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 		if (initialize_plane(dm, mode_info, i,
 				     DRM_PLANE_TYPE_PRIMARY)) {
 			DRM_ERROR("KMS: Failed to initialize primary plane\n");
+			goto fail;
+		}
+	}
+
+	/*
+	 * Initialize overlay planes, index starting after primary planes.
+	 * These planes have a higher DRM index than the primary planes since
+	 * they should be considered as having a higher z-order.
+	 * Order is reversed to match iteration order in atomic check.
+	 */
+	for (i = (overlay_planes - 1); i >= 0; i--) {
+		if (initialize_plane(dm, mode_info, primary_planes + i,
+				     DRM_PLANE_TYPE_OVERLAY)) {
+			DRM_ERROR("KMS: Failed to initialize overlay plane\n");
 			goto fail;
 		}
 	}
@@ -3789,9 +3823,12 @@ static const uint32_t rgb_formats[] = {
 	DRM_FORMAT_ABGR8888,
 };
 
-static const uint32_t yuv_formats[] = {
-	DRM_FORMAT_NV12,
-	DRM_FORMAT_NV21,
+static const uint32_t overlay_formats[] = {
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_RGBA8888,
+	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_ABGR8888,
 };
 
 static const u32 cursor_formats[] = {
@@ -3821,8 +3858,8 @@ static int amdgpu_dm_plane_init(struct amdgpu_display_manager *dm,
 				plane,
 				possible_crtcs,
 				&dm_plane_funcs,
-				yuv_formats,
-				ARRAY_SIZE(yuv_formats),
+				overlay_formats,
+				ARRAY_SIZE(overlay_formats),
 				NULL, plane->type, NULL);
 		break;
 	case DRM_PLANE_TYPE_CURSOR:
