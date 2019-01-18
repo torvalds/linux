@@ -1166,6 +1166,7 @@ struct rockchip_dmcfreq {
 	u64 touchboostpulse_endtime;
 
 	int (*set_auto_self_refresh)(u32 en);
+	int (*set_msch_readlatency)(unsigned int rl);
 };
 
 static struct thermal_opp_device_data dmc_devdata = {
@@ -2533,6 +2534,17 @@ static __maybe_unused int rk3368_dmc_init(struct platform_device *pdev,
 	return 0;
 }
 
+static int rk3399_set_msch_readlatency(unsigned int readlatency)
+{
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(ROCKCHIP_SIP_DRAM_FREQ, readlatency, 0,
+		      ROCKCHIP_SIP_CONFIG_DRAM_SET_MSCH_RL,
+		      0, 0, 0, 0, &res);
+
+	return res.a0;
+}
+
 static __maybe_unused int rk3399_dmc_init(struct platform_device *pdev,
 					  struct rockchip_dmcfreq *dmcfreq)
 {
@@ -2567,6 +2579,8 @@ static __maybe_unused int rk3399_dmc_init(struct platform_device *pdev,
 	arm_smccc_smc(ROCKCHIP_SIP_DRAM_FREQ, 0, 0,
 		      ROCKCHIP_SIP_CONFIG_DRAM_INIT,
 		      0, 0, 0, 0, &res);
+
+	dmcfreq->set_msch_readlatency = rk3399_set_msch_readlatency;
 
 	return 0;
 }
