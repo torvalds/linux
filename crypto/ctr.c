@@ -171,12 +171,6 @@ out_put_alg:
 	return err;
 }
 
-static struct crypto_template crypto_ctr_tmpl = {
-	.name = "ctr",
-	.create = crypto_ctr_create,
-	.module = THIS_MODULE,
-};
-
 static int crypto_rfc3686_setkey(struct crypto_skcipher *parent,
 				 const u8 *key, unsigned int keylen)
 {
@@ -366,36 +360,28 @@ err_free_inst:
 	goto out;
 }
 
-static struct crypto_template crypto_rfc3686_tmpl = {
-	.name = "rfc3686",
-	.create = crypto_rfc3686_create,
-	.module = THIS_MODULE,
+static struct crypto_template crypto_ctr_tmpls[] = {
+	{
+		.name = "ctr",
+		.create = crypto_ctr_create,
+		.module = THIS_MODULE,
+	}, {
+		.name = "rfc3686",
+		.create = crypto_rfc3686_create,
+		.module = THIS_MODULE,
+	},
 };
 
 static int __init crypto_ctr_module_init(void)
 {
-	int err;
-
-	err = crypto_register_template(&crypto_ctr_tmpl);
-	if (err)
-		goto out;
-
-	err = crypto_register_template(&crypto_rfc3686_tmpl);
-	if (err)
-		goto out_drop_ctr;
-
-out:
-	return err;
-
-out_drop_ctr:
-	crypto_unregister_template(&crypto_ctr_tmpl);
-	goto out;
+	return crypto_register_templates(crypto_ctr_tmpls,
+					 ARRAY_SIZE(crypto_ctr_tmpls));
 }
 
 static void __exit crypto_ctr_module_exit(void)
 {
-	crypto_unregister_template(&crypto_rfc3686_tmpl);
-	crypto_unregister_template(&crypto_ctr_tmpl);
+	crypto_unregister_templates(crypto_ctr_tmpls,
+				    ARRAY_SIZE(crypto_ctr_tmpls));
 }
 
 module_init(crypto_ctr_module_init);
