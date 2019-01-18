@@ -84,6 +84,7 @@ struct qxl_bo {
 	struct ttm_bo_kmap_obj		kmap;
 	unsigned int pin_count;
 	void				*kptr;
+	unsigned int                    map_count;
 	int                             type;
 
 	/* Constant after initialization */
