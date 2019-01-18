@@ -119,10 +119,20 @@ static const struct output_mode supported_modes[] = {
 		.hts_def = 4300,
 		.vts_def = 2400,
 	}, {
+		.width = 4096,
+		.height = 2048,
+		.hts_def = 4300,
+		.vts_def = 2400,
+	}, {
 		.width = 5120,
 		.height = 2880,
 		.hts_def = 5800,
 		.vts_def = 3100,
+	}, {
+		.width = 5760,
+		.height = 1080,
+		.hts_def = 6400,
+		.vts_def = 1300,
 	},
 };
 
