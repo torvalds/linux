@@ -2348,21 +2348,16 @@ re_arm:
  * bond_3ad_rx_indication - handle a received frame
  * @lacpdu: received lacpdu
  * @slave: slave struct to work on
- * @length: length of the data received
  *
  * It is assumed that frames that were sent on this NIC don't returned as new
  * received frames (loopback). Since only the payload is given to this
  * function, it check for loopback.
  */
-static int bond_3ad_rx_indication(struct lacpdu *lacpdu, struct slave *slave,
-				  u16 length)
+static int bond_3ad_rx_indication(struct lacpdu *lacpdu, struct slave *slave)
 {
 	int ret = RX_HANDLER_ANOTHER;
 	struct bond_marker *marker;
 	struct port *port;
-
-	if (length < sizeof(struct lacpdu))
-		return ret;
 
 	port = &(SLAVE_AD_INFO(slave)->port);
 	if (!port->slave) {
@@ -2643,7 +2638,7 @@ int bond_3ad_lacpdu_recv(const struct sk_buff *skb, struct bonding *bond,
 	if (!lacpdu)
 		return RX_HANDLER_ANOTHER;
 
-	return bond_3ad_rx_indication(lacpdu, slave, skb->len);
+	return bond_3ad_rx_indication(lacpdu, slave);
 }
 
 /**
