@@ -398,7 +398,6 @@ struct intel_engine_cs {
 		unsigned int irq_count;
 
 		bool irq_armed : 1;
-		I915_SELFTEST_DECLARE(bool mock : 1);
 	} breadcrumbs;
 
 	struct {

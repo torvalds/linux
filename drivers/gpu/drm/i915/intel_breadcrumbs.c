@@ -287,25 +287,16 @@ static bool __intel_breadcrumbs_enable_irq(struct intel_breadcrumbs *b)
 	if (b->irq_armed)
 		return false;
 
-	/* The breadcrumb irq will be disarmed on the interrupt after the
+	/*
+	 * The breadcrumb irq will be disarmed on the interrupt after the
 	 * waiters are signaled. This gives us a single interrupt window in
 	 * which we can add a new waiter and avoid the cost of re-enabling
 	 * the irq.
 	 */
 	b->irq_armed = true;
 
-	if (I915_SELFTEST_ONLY(b->mock)) {
-		/* For our mock objects we want to avoid interaction
-		 * with the real hardware (which is not set up). So
-		 * we simply pretend we have enabled the powerwell
-		 * and the irq, and leave it up to the mock
-		 * implementation to call intel_engine_wakeup()
-		 * itself when it wants to simulate a user interrupt,
-		 */
-		return true;
-	}
-
-	/* Since we are waiting on a request, the GPU should be busy
+	/*
+	 * Since we are waiting on a request, the GPU should be busy
 	 * and should have its own rpm reference. This is tracked
 	 * by i915->gt.awake, we can forgo holding our own wakref
 	 * for the interrupt as before i915->gt.awake is released (when

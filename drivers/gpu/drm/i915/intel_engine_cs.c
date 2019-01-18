@@ -917,6 +917,9 @@ static bool ring_is_idle(struct intel_engine_cs *engine)
 	intel_wakeref_t wakeref;
 	bool idle = true;
 
+	if (I915_SELFTEST_ONLY(!engine->mmio_base))
+		return true;
+
 	/* If the whole device is asleep, the engine must be idle */
 	wakeref = intel_runtime_pm_get_if_in_use(dev_priv);
 	if (!wakeref)
@@ -955,9 +958,6 @@ bool intel_engine_is_idle(struct intel_engine_cs *engine)
 	if (!intel_engine_signaled(engine, intel_engine_last_submit(engine)))
 		return false;
 
-	if (I915_SELFTEST_ONLY(engine->breadcrumbs.mock))
-		return true;
-
 	/* Waiting to drain ELSP? */
 	if (READ_ONCE(engine->execlists.active)) {
 		struct tasklet_struct *t = &engine->execlists.tasklet;
@@ -983,10 +983,7 @@ bool intel_engine_is_idle(struct intel_engine_cs *engine)
 		return false;
 
 	/* Ring stopped? */
-	if (!ring_is_idle(engine))
-		return false;
-
-	return true;
+	return ring_is_idle(engine);
 }
 
 bool intel_engines_are_idle(struct drm_i915_private *dev_priv)
