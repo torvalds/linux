@@ -70,50 +70,50 @@ MODULE_FIRMWARE(BXT_CSR_PATH);
 
 struct intel_css_header {
 	/* 0x09 for DMC */
-	uint32_t module_type;
+	u32 module_type;
 
 	/* Includes the DMC specific header in dwords */
-	uint32_t header_len;
+	u32 header_len;
 
 	/* always value would be 0x10000 */
-	uint32_t header_ver;
+	u32 header_ver;
 
 	/* Not used */
-	uint32_t module_id;
+	u32 module_id;
 
 	/* Not used */
-	uint32_t module_vendor;
+	u32 module_vendor;
 
 	/* in YYYYMMDD format */
-	uint32_t date;
+	u32 date;
 
 	/* Size in dwords (CSS_Headerlen + PackageHeaderLen + dmc FWsLen)/4 */
-	uint32_t size;
+	u32 size;
 
 	/* Not used */
-	uint32_t key_size;
+	u32 key_size;
 
 	/* Not used */
-	uint32_t modulus_size;
+	u32 modulus_size;
 
 	/* Not used */
-	uint32_t exponent_size;
+	u32 exponent_size;
 
 	/* Not used */
-	uint32_t reserved1[12];
+	u32 reserved1[12];
 
 	/* Major Minor */
-	uint32_t version;
+	u32 version;
 
 	/* Not used */
-	uint32_t reserved2[8];
+	u32 reserved2[8];
 
 	/* Not used */
-	uint32_t kernel_header_info;
+	u32 kernel_header_info;
 } __packed;
 
 struct intel_fw_info {
-	uint16_t reserved1;
+	u16 reserved1;
 
 	/* Stepping (A, B, C, ..., *). * is a wildcard */
 	char stepping;
@@ -121,8 +121,8 @@ struct intel_fw_info {
 	/* Sub-stepping (0, 1, ..., *). * is a wildcard */
 	char substepping;
 
-	uint32_t offset;
-	uint32_t reserved2;
+	u32 offset;
+	u32 reserved2;
 } __packed;
 
 struct intel_package_header {
@@ -135,14 +135,14 @@ struct intel_package_header {
 	unsigned char reserved[10];
 
 	/* Number of valid entries in the FWInfo array below */
-	uint32_t num_entries;
+	u32 num_entries;
 
 	struct intel_fw_info fw_info[20];
 } __packed;
 
 struct intel_dmc_header {
 	/* always value would be 0x40403E3E */
-	uint32_t signature;
+	u32 signature;
 
 	/* DMC binary header length */
 	unsigned char header_len;
@@ -151,30 +151,30 @@ struct intel_dmc_header {
 	unsigned char header_ver;
 
 	/* Reserved */
-	uint16_t dmcc_ver;
+	u16 dmcc_ver;
 
 	/* Major, Minor */
-	uint32_t	project;
+	u32 project;
 
 	/* Firmware program size (excluding header) in dwords */
-	uint32_t	fw_size;
+	u32 fw_size;
 
 	/* Major Minor version */
-	uint32_t fw_version;
+	u32 fw_version;
 
 	/* Number of valid MMIO cycles present. */
-	uint32_t mmio_count;
+	u32 mmio_count;
 
 	/* MMIO address */
-	uint32_t mmioaddr[8];
+	u32 mmioaddr[8];
 
 	/* MMIO data */
-	uint32_t mmiodata[8];
+	u32 mmiodata[8];
 
 	/* FW filename  */
 	unsigned char dfile[32];
 
-	uint32_t reserved1[2];
+	u32 reserved1[2];
 } __packed;
 
 struct stepping_info {
@@ -230,7 +230,7 @@ intel_get_stepping_info(struct drm_i915_private *dev_priv)
 
 static void gen9_set_dc_state_debugmask(struct drm_i915_private *dev_priv)
 {
-	uint32_t val, mask;
+	u32 val, mask;
 
 	mask = DC_STATE_DEBUG_MASK_MEMORY_UP;
 
@@ -257,7 +257,7 @@ static void gen9_set_dc_state_debugmask(struct drm_i915_private *dev_priv)
 void intel_csr_load_program(struct drm_i915_private *dev_priv)
 {
 	u32 *payload = dev_priv->csr.dmc_payload;
-	uint32_t i, fw_size;
+	u32 i, fw_size;
 
 	if (!HAS_CSR(dev_priv)) {
 		DRM_ERROR("No CSR support available for this platform\n");
@@ -289,17 +289,17 @@ void intel_csr_load_program(struct drm_i915_private *dev_priv)
 	gen9_set_dc_state_debugmask(dev_priv);
 }
 
-static uint32_t *parse_csr_fw(struct drm_i915_private *dev_priv,
-			      const struct firmware *fw)
+static u32 *parse_csr_fw(struct drm_i915_private *dev_priv,
+			 const struct firmware *fw)
 {
 	struct intel_css_header *css_header;
 	struct intel_package_header *package_header;
 	struct intel_dmc_header *dmc_header;
 	struct intel_csr *csr = &dev_priv->csr;
 	const struct stepping_info *si = intel_get_stepping_info(dev_priv);
-	uint32_t dmc_offset = CSR_DEFAULT_FW_OFFSET, readcount = 0, nbytes;
-	uint32_t i;
-	uint32_t *dmc_payload;
+	u32 dmc_offset = CSR_DEFAULT_FW_OFFSET, readcount = 0, nbytes;
+	u32 i;
+	u32 *dmc_payload;
 
 	if (!fw)
 		return NULL;
