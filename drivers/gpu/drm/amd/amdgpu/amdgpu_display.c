@@ -531,17 +531,6 @@ amdgpu_display_user_framebuffer_create(struct drm_device *dev,
 	struct drm_gem_object *obj;
 	struct amdgpu_framebuffer *amdgpu_fb;
 	int ret;
-	int height;
-	struct amdgpu_device *adev = dev->dev_private;
-	int cpp = drm_format_plane_cpp(mode_cmd->pixel_format, 0);
-	int pitch = mode_cmd->pitches[0] / cpp;
-
-	pitch = amdgpu_align_pitch(adev, pitch, cpp, false);
-	if (mode_cmd->pitches[0] != pitch) {
-		DRM_DEBUG_KMS("Invalid pitch: expecting %d but got %d\n",
-			      pitch, mode_cmd->pitches[0]);
-		return ERR_PTR(-EINVAL);
-	}
 
 	obj = drm_gem_object_lookup(file_priv, mode_cmd->handles[0]);
 	if (obj ==  NULL) {
@@ -553,13 +542,6 @@ amdgpu_display_user_framebuffer_create(struct drm_device *dev,
 	/* Handle is imported dma-buf, so cannot be migrated to VRAM for scanout */
 	if (obj->import_attach) {
 		DRM_DEBUG_KMS("Cannot create framebuffer from imported dma_buf\n");
-		return ERR_PTR(-EINVAL);
-	}
-
-	height = ALIGN(mode_cmd->height, 8);
-	if (obj->size < pitch * height) {
-		DRM_DEBUG_KMS("Invalid GEM size: expecting >= %d but got %zu\n",
-			      pitch * height, obj->size);
 		return ERR_PTR(-EINVAL);
 	}
 
