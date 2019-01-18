@@ -937,17 +937,13 @@ static int sh_msiof_transfer_one(struct spi_master *master,
 		unsigned int l = 0;
 
 		if (tx_buf)
-			l = min(len, p->tx_fifo_size * 4);
+			l = min(round_down(len, 4), p->tx_fifo_size * 4);
 		if (rx_buf)
-			l = min(len, p->rx_fifo_size * 4);
+			l = min(round_down(len, 4), p->rx_fifo_size * 4);
 
 		if (bits <= 8) {
-			if (l & 3)
-				break;
 			copy32 = copy_bswap32;
 		} else if (bits <= 16) {
-			if (l & 3)
-				break;
 			copy32 = copy_wswap32;
 		} else {
 			copy32 = copy_plain32;
