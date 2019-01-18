@@ -3185,6 +3185,9 @@ static int hns3_nic_uninit_vector_data(struct hns3_nic_priv *priv)
 	for (i = 0; i < priv->vector_num; i++) {
 		tqp_vector = &priv->tqp_vector[i];
 
+		if (!tqp_vector->rx_group.ring && !tqp_vector->tx_group.ring)
+			continue;
+
 		ret = hns3_get_vector_ring_chain(tqp_vector,
 						 &vector_ring_chain);
 		if (ret)
@@ -3238,6 +3241,7 @@ static int hns3_ring_get_cfg(struct hnae3_queue *q, struct hns3_nic_priv *priv,
 {
 	struct hns3_nic_ring_data *ring_data = priv->ring_data;
 	int queue_num = priv->ae_handle->kinfo.num_tqps;
+	int desc_num = priv->ae_handle->kinfo.num_desc;
 	struct pci_dev *pdev = priv->ae_handle->pdev;
 	struct hns3_enet_ring *ring;
 
@@ -3263,7 +3267,7 @@ static int hns3_ring_get_cfg(struct hnae3_queue *q, struct hns3_nic_priv *priv,
 	ring->dev = priv->dev;
 	ring->desc_dma_addr = 0;
 	ring->buf_size = q->buf_size;
-	ring->desc_num = q->desc_num;
+	ring->desc_num = desc_num;
 	ring->next_to_use = 0;
 	ring->next_to_clean = 0;
 
@@ -4045,9 +4049,13 @@ static int hns3_reset_notify_init_enet(struct hnae3_handle *handle)
 	/* Carrier off reporting is important to ethtool even BEFORE open */
 	netif_carrier_off(netdev);
 
-	ret = hns3_nic_alloc_vector_data(priv);
+	ret = hns3_get_ring_config(priv);
 	if (ret)
 		return ret;
+
+	ret = hns3_nic_alloc_vector_data(priv);
+	if (ret)
+		goto err_put_ring;
 
 	hns3_restore_coal(priv);
 
@@ -4068,6 +4076,9 @@ err_uninit_vector:
 	priv->ring_data = NULL;
 err_dealloc_vector:
 	hns3_nic_dealloc_vector_data(priv);
+err_put_ring:
+	hns3_put_ring_config(priv);
+	priv->ring_data = NULL;
 
 	return ret;
 }
@@ -4100,6 +4111,9 @@ static int hns3_reset_notify_uninit_enet(struct hnae3_handle *handle)
 	ret = hns3_uninit_all_ring(priv);
 	if (ret)
 		netdev_err(netdev, "uninit ring error\n");
+
+	hns3_put_ring_config(priv);
+	priv->ring_data = NULL;
 
 	clear_bit(HNS3_NIC_STATE_INITED, &priv->state);
 
