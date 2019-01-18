@@ -60,6 +60,7 @@ struct driver_private {
  * @knode_parent - node in sibling list
  * @knode_driver - node in driver list
  * @knode_bus - node in bus list
+ * @knode_class - node in class list
  * @deferred_probe - entry in deferred_probe_list which is used to retry the
  *	binding of drivers which were unable to get all the resources needed by
  *	the device; typically because it depends on another driver getting
@@ -74,6 +75,7 @@ struct device_private {
 	struct klist_node knode_parent;
 	struct klist_node knode_driver;
 	struct klist_node knode_bus;
+	struct klist_node knode_class;
 	struct list_head deferred_probe;
 	struct device *device;
 };
@@ -83,6 +85,8 @@ struct device_private {
 	container_of(obj, struct device_private, knode_driver)
 #define to_device_private_bus(obj)	\
 	container_of(obj, struct device_private, knode_bus)
+#define to_device_private_class(obj)	\
+	container_of(obj, struct device_private, knode_class)
 
 /* initialisation functions */
 extern int devices_init(void);
