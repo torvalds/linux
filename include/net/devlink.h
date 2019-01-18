@@ -30,6 +30,7 @@ struct devlink {
 	struct list_head param_list;
 	struct list_head region_list;
 	u32 snapshot_id;
+	struct list_head reporter_list;
 	struct devlink_dpipe_headers *dpipe_headers;
 	const struct devlink_ops *ops;
 	struct device *dev;
@@ -423,6 +424,36 @@ struct devlink_region;
 
 typedef void devlink_snapshot_data_dest_t(const void *data);
 
+struct devlink_health_buffer;
+struct devlink_health_reporter;
+
+/**
+ * struct devlink_health_reporter_ops - Reporter operations
+ * @name: reporter name
+ * dump_size: dump buffer size allocated by the devlink
+ * diagnose_size: diagnose buffer size allocated by the devlink
+ * recover: callback to recover from reported error
+ *          if priv_ctx is NULL, run a full recover
+ * dump: callback to dump an object
+ *       if priv_ctx is NULL, run a full dump
+ * diagnose: callback to diagnose the current status
+ */
+
+struct devlink_health_reporter_ops {
+	char *name;
+	unsigned int dump_size;
+	unsigned int diagnose_size;
+	int (*recover)(struct devlink_health_reporter *reporter,
+		       void *priv_ctx);
+	int (*dump)(struct devlink_health_reporter *reporter,
+		    struct devlink_health_buffer **buffers_array,
+		    unsigned int buffer_size, unsigned int num_buffers,
+		    void *priv_ctx);
+	int (*diagnose)(struct devlink_health_reporter *reporter,
+			struct devlink_health_buffer **buffers_array,
+			unsigned int buffer_size, unsigned int num_buffers);
+};
+
 struct devlink_ops {
 	int (*reload)(struct devlink *devlink, struct netlink_ext_ack *extack);
 	int (*port_type_set)(struct devlink_port *devlink_port,
@@ -584,6 +615,34 @@ int devlink_region_snapshot_create(struct devlink_region *region, u64 data_len,
 				   u8 *data, u32 snapshot_id,
 				   devlink_snapshot_data_dest_t *data_destructor);
 
+int devlink_health_buffer_nest_start(struct devlink_health_buffer *buffer,
+				     int attrtype);
+void devlink_health_buffer_nest_end(struct devlink_health_buffer *buffer);
+void devlink_health_buffer_nest_cancel(struct devlink_health_buffer *buffer);
+int devlink_health_buffer_put_object_name(struct devlink_health_buffer *buffer,
+					  char *name);
+int devlink_health_buffer_put_value_u8(struct devlink_health_buffer *buffer,
+				       u8 value);
+int devlink_health_buffer_put_value_u32(struct devlink_health_buffer *buffer,
+					u32 value);
+int devlink_health_buffer_put_value_u64(struct devlink_health_buffer *buffer,
+					u64 value);
+int devlink_health_buffer_put_value_string(struct devlink_health_buffer *buffer,
+					   char *name);
+int devlink_health_buffer_put_value_data(struct devlink_health_buffer *buffer,
+					 void *data, int len);
+struct devlink_health_reporter *
+devlink_health_reporter_create(struct devlink *devlink,
+			       const struct devlink_health_reporter_ops *ops,
+			       u64 graceful_period, bool auto_recover,
+			       void *priv);
+void
+devlink_health_reporter_destroy(struct devlink_health_reporter *reporter);
+
+void *
+devlink_health_reporter_priv(struct devlink_health_reporter *reporter);
+int devlink_health_report(struct devlink_health_reporter *reporter,
+			  const char *msg, void *priv_ctx);
 #else
 
 static inline struct devlink *devlink_alloc(const struct devlink_ops *ops,
@@ -844,6 +903,91 @@ devlink_region_snapshot_create(struct devlink_region *region, u64 data_len,
 	return 0;
 }
 
+static inline int
+devlink_health_buffer_nest_start(struct devlink_health_buffer *buffer,
+				 int attrtype)
+{
+	return 0;
+}
+
+static inline void
+devlink_health_buffer_nest_end(struct devlink_health_buffer *buffer)
+{
+}
+
+static inline void
+devlink_health_buffer_nest_cancel(struct devlink_health_buffer *buffer)
+{
+}
+
+static inline int
+devlink_health_buffer_put_object_name(struct devlink_health_buffer *buffer,
+				      char *name)
+{
+	return 0;
+}
+
+static inline int
+devlink_health_buffer_put_value_u8(struct devlink_health_buffer *buffer,
+				   u8 value)
+{
+	return 0;
+}
+
+static inline int
+devlink_health_buffer_put_value_u32(struct devlink_health_buffer *buffer,
+				    u32 value)
+{
+	return 0;
+}
+
+static inline int
+devlink_health_buffer_put_value_u64(struct devlink_health_buffer *buffer,
+				    u64 value)
+{
+	return 0;
+}
+
+static inline int
+devlink_health_buffer_put_value_string(struct devlink_health_buffer *buffer,
+				       char *name)
+{
+	return 0;
+}
+
+static inline int
+devlink_health_buffer_put_value_data(struct devlink_health_buffer *buffer,
+				     void *data, int len)
+{
+	return 0;
+}
+
+static inline struct devlink_health_reporter *
+devlink_health_reporter_create(struct devlink *devlink,
+			       const struct devlink_health_reporter_ops *ops,
+			       u64 graceful_period, bool auto_recover,
+			       void *priv)
+{
+	return NULL;
+}
+
+static inline void
+devlink_health_reporter_destroy(struct devlink_health_reporter *reporter)
+{
+}
+
+static inline void *
+devlink_health_reporter_priv(struct devlink_health_reporter *reporter)
+{
+	return NULL;
+}
+
+static inline int
+devlink_health_report(struct devlink_health_reporter *reporter,
+		      const char *msg, void *priv_ctx)
+{
+	return 0;
+}
 #endif
 
 #endif /* _NET_DEVLINK_H_ */
