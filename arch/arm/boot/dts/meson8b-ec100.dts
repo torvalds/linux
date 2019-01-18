@@ -64,6 +64,11 @@
 		timeout-ms = <20000>;
 	};
 
+	iio-hwmon {
+		compatible = "iio-hwmon";
+		io-channels = <&saradc 8>;
+	};
+
 	leds {
 		compatible = "gpio-leds";
 
