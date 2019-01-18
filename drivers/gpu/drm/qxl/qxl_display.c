@@ -323,6 +323,8 @@ static void qxl_crtc_update_monitors_config(struct drm_crtc *crtc,
 		head.y = crtc->y;
 		if (qdev->monitors_config->count < i + 1)
 			qdev->monitors_config->count = i + 1;
+		if (qdev->primary_bo == qdev->dumb_shadow_bo)
+			head.x += qdev->dumb_heads[i].x;
 	} else if (i > 0) {
 		head.width = 0;
 		head.height = 0;
@@ -426,7 +428,7 @@ static int qxl_framebuffer_surface_dirty(struct drm_framebuffer *fb,
 	}
 
 	qxl_draw_dirty_fb(qdev, fb, qobj, flags, color,
-			  clips, num_clips, inc);
+			  clips, num_clips, inc, 0);
 
 	drm_modeset_unlock_all(fb->dev);
 
@@ -535,6 +537,7 @@ static void qxl_primary_atomic_update(struct drm_plane *plane,
 	    .x2 = plane->state->fb->width,
 	    .y2 = plane->state->fb->height
 	};
+	uint32_t dumb_shadow_offset = 0;
 
 	if (old_state->fb) {
 		bo_old = gem_to_qxl_bo(old_state->fb->obj[0]);
@@ -551,7 +554,12 @@ static void qxl_primary_atomic_update(struct drm_plane *plane,
 		qxl_primary_apply_cursor(plane);
 	}
 
-	qxl_draw_dirty_fb(qdev, plane->state->fb, bo, 0, 0, &norect, 1, 1);
+	if (bo->is_dumb)
+		dumb_shadow_offset =
+			qdev->dumb_heads[plane->state->crtc->index].x;
+
+	qxl_draw_dirty_fb(qdev, plane->state->fb, bo, 0, 0, &norect, 1, 1,
+			  dumb_shadow_offset);
 }
 
 static void qxl_primary_atomic_disable(struct drm_plane *plane,
@@ -707,12 +715,68 @@ static void qxl_cursor_atomic_disable(struct drm_plane *plane,
 	qxl_release_fence_buffer_objects(release);
 }
 
+static void qxl_update_dumb_head(struct qxl_device *qdev,
+				 int index, struct qxl_bo *bo)
+{
+	uint32_t width, height;
+
+	if (index >= qdev->monitors_config->max_allowed)
+		return;
+
+	if (bo && bo->is_dumb) {
+		width = bo->surf.width;
+		height = bo->surf.height;
+	} else {
+		width = 0;
+		height = 0;
+	}
+
+	if (qdev->dumb_heads[index].width == width &&
+	    qdev->dumb_heads[index].height == height)
+		return;
+
+	DRM_DEBUG("#%d: %dx%d -> %dx%d\n", index,
+		  qdev->dumb_heads[index].width,
+		  qdev->dumb_heads[index].height,
+		  width, height);
+	qdev->dumb_heads[index].width = width;
+	qdev->dumb_heads[index].height = height;
+}
+
+static void qxl_calc_dumb_shadow(struct qxl_device *qdev,
+				 struct qxl_surface *surf)
+{
+	struct qxl_head *head;
+	int i;
+
+	memset(surf, 0, sizeof(*surf));
+	for (i = 0; i < qdev->monitors_config->max_allowed; i++) {
+		head = qdev->dumb_heads + i;
+		head->x = surf->width;
+		surf->width += head->width;
+		if (surf->height < head->height)
+			surf->height = head->height;
+	}
+	if (surf->width < 64)
+		surf->width = 64;
+	if (surf->height < 64)
+		surf->height = 64;
+	surf->format = SPICE_SURFACE_FMT_32_xRGB;
+	surf->stride = surf->width * 4;
+
+	if (!qdev->dumb_shadow_bo ||
+	    qdev->dumb_shadow_bo->surf.width != surf->width ||
+	    qdev->dumb_shadow_bo->surf.height != surf->height)
+		DRM_DEBUG("%dx%d\n", surf->width, surf->height);
+}
+
 static int qxl_plane_prepare_fb(struct drm_plane *plane,
 				struct drm_plane_state *new_state)
 {
 	struct qxl_device *qdev = plane->dev->dev_private;
 	struct drm_gem_object *obj;
-	struct qxl_bo *user_bo, *old_bo = NULL;
+	struct qxl_bo *user_bo;
+	struct qxl_surface surf;
 	int ret;
 
 	if (!new_state->fb)
@@ -722,29 +786,30 @@ static int qxl_plane_prepare_fb(struct drm_plane *plane,
 	user_bo = gem_to_qxl_bo(obj);
 
 	if (plane->type == DRM_PLANE_TYPE_PRIMARY &&
-	    user_bo->is_dumb && !user_bo->shadow) {
-		if (plane->state->fb) {
-			obj = plane->state->fb->obj[0];
-			old_bo = gem_to_qxl_bo(obj);
+	    user_bo->is_dumb) {
+		qxl_update_dumb_head(qdev, new_state->crtc->index,
+				     user_bo);
+		qxl_calc_dumb_shadow(qdev, &surf);
+		if (!qdev->dumb_shadow_bo ||
+		    qdev->dumb_shadow_bo->surf.width  != surf.width ||
+		    qdev->dumb_shadow_bo->surf.height != surf.height) {
+			if (qdev->dumb_shadow_bo) {
+				drm_gem_object_put_unlocked
+					(&qdev->dumb_shadow_bo->gem_base);
+				qdev->dumb_shadow_bo = NULL;
+			}
+			qxl_bo_create(qdev, surf.height * surf.stride,
+				      true, true, QXL_GEM_DOMAIN_SURFACE, &surf,
+				      &qdev->dumb_shadow_bo);
 		}
-		if (old_bo && old_bo->shadow &&
-		    user_bo->gem_base.size == old_bo->gem_base.size &&
-		    plane->state->crtc     == new_state->crtc &&
-		    plane->state->crtc_w   == new_state->crtc_w &&
-		    plane->state->crtc_h   == new_state->crtc_h &&
-		    plane->state->src_x    == new_state->src_x &&
-		    plane->state->src_y    == new_state->src_y &&
-		    plane->state->src_w    == new_state->src_w &&
-		    plane->state->src_h    == new_state->src_h &&
-		    plane->state->rotation == new_state->rotation &&
-		    plane->state->zpos     == new_state->zpos) {
-			drm_gem_object_get(&old_bo->shadow->gem_base);
-			user_bo->shadow = old_bo->shadow;
-		} else {
-			qxl_bo_create(qdev, user_bo->gem_base.size,
-				      true, true, QXL_GEM_DOMAIN_SURFACE, NULL,
-				      &user_bo->shadow);
-			user_bo->shadow->surf = user_bo->surf;
+		if (user_bo->shadow != qdev->dumb_shadow_bo) {
+			if (user_bo->shadow) {
+				drm_gem_object_put_unlocked
+					(&user_bo->shadow->gem_base);
+				user_bo->shadow = NULL;
+			}
+			drm_gem_object_get(&qdev->dumb_shadow_bo->gem_base);
+			user_bo->shadow = qdev->dumb_shadow_bo;
 		}
 	}
 
@@ -773,7 +838,7 @@ static void qxl_plane_cleanup_fb(struct drm_plane *plane,
 	user_bo = gem_to_qxl_bo(obj);
 	qxl_bo_unpin(user_bo);
 
-	if (user_bo->shadow && !user_bo->shadow->is_primary) {
+	if (old_state->fb != plane->state->fb && user_bo->shadow) {
 		drm_gem_object_put_unlocked(&user_bo->shadow->gem_base);
 		user_bo->shadow = NULL;
 	}
@@ -1106,6 +1171,12 @@ int qxl_create_monitors_object(struct qxl_device *qdev)
 
 	memset(qdev->monitors_config, 0, monitors_config_size);
 	qdev->monitors_config->max_allowed = max_allowed;
+
+	qdev->dumb_heads = kcalloc(max_allowed, sizeof(qdev->dumb_heads[0]), GFP_KERNEL);
+	if (!qdev->dumb_heads) {
+		qxl_destroy_monitors_object(qdev);
+		return -ENOMEM;
+	}
 	return 0;
 }
 

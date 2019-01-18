@@ -267,7 +267,8 @@ void qxl_draw_dirty_fb(struct qxl_device *qdev,
 		       struct qxl_bo *bo,
 		       unsigned int flags, unsigned int color,
 		       struct drm_clip_rect *clips,
-		       unsigned int num_clips, int inc)
+		       unsigned int num_clips, int inc,
+		       uint32_t dumb_shadow_offset)
 {
 	/*
 	 * TODO: if flags & DRM_MODE_FB_DIRTY_ANNOTATE_FILL then we should
@@ -294,6 +295,9 @@ void qxl_draw_dirty_fb(struct qxl_device *qdev,
 	ret = alloc_drawable(qdev, &release);
 	if (ret)
 		return;
+
+	clips->x1 += dumb_shadow_offset;
+	clips->x2 += dumb_shadow_offset;
 
 	left = clips->x1;
 	right = clips->x2;
@@ -342,7 +346,8 @@ void qxl_draw_dirty_fb(struct qxl_device *qdev,
 		goto out_release_backoff;
 
 	ret = qxl_image_init(qdev, release, dimage, surface_base,
-			     left, top, width, height, depth, stride);
+			     left - dumb_shadow_offset,
+			     top, width, height, depth, stride);
 	qxl_bo_kunmap(bo);
 	if (ret)
 		goto out_release_backoff;
