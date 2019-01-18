@@ -34,6 +34,7 @@ Contents:
    snmp_counter
    checksum-offloads
    segmentation-offloads
+   scaling
 
 .. only::  subproject
 
