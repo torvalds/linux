@@ -131,8 +131,7 @@ static struct adm1029_data *adm1029_update_device(struct device *dev)
 	 * Use the "cache" Luke, don't recheck values
 	 * if there are already checked not a long time later
 	 */
-	if (time_after(jiffies, data->last_updated + HZ * 2)
-	 || !data->valid) {
+	if (time_after(jiffies, data->last_updated + HZ * 2) || !data->valid) {
 		int nr;
 
 		dev_dbg(&client->dev, "Updating adm1029 data\n");
@@ -182,9 +181,9 @@ show_fan(struct device *dev, struct device_attribute *devattr, char *buf)
 	struct adm1029_data *data = adm1029_update_device(dev);
 	u16 val;
 
-	if (data->fan[attr->index] == 0
-	    || (data->fan_div[attr->index] & 0xC0) == 0
-	    || data->fan[attr->index] == 255) {
+	if (data->fan[attr->index] == 0 ||
+	    (data->fan_div[attr->index] & 0xC0) == 0 ||
+	    data->fan[attr->index] == 255) {
 		return sprintf(buf, "0\n");
 	}
 
@@ -325,8 +324,8 @@ static int adm1029_detect(struct i2c_client *client,
 	nb_fan_support = i2c_smbus_read_byte_data(client,
 						ADM1029_REG_NB_FAN_SUPPORT);
 	/* 0x41 is Analog Devices */
-	if (man_id != 0x41 || (temp_devices_installed & 0xf9) != 0x01
-	    || nb_fan_support != 0x03)
+	if (man_id != 0x41 || (temp_devices_installed & 0xf9) != 0x01 ||
+	    nb_fan_support != 0x03)
 		return -ENODEV;
 
 	if ((chip_id & 0xF0) != 0x00) {
