@@ -2444,6 +2444,9 @@ static int ov5640_set_ctrl_gain(struct ov5640_dev *sensor, bool auto_gain)
 static const char * const test_pattern_menu[] = {
 	"Disabled",
 	"Color bars",
+	"Color bars w/ rolling bar",
+	"Color squares",
+	"Color squares w/ rolling bar",
 };
 
 #define OV5640_TEST_ENABLE		BIT(7)
@@ -2463,6 +2466,10 @@ static const u8 test_pattern_val[] = {
 	0,
 	OV5640_TEST_ENABLE | OV5640_TEST_BAR_VERT_CHANGE_1 |
 		OV5640_TEST_BAR,
+	OV5640_TEST_ENABLE | OV5640_TEST_ROLLING |
+		OV5640_TEST_BAR_VERT_CHANGE_1 | OV5640_TEST_BAR,
+	OV5640_TEST_ENABLE | OV5640_TEST_SQUARE,
+	OV5640_TEST_ENABLE | OV5640_TEST_ROLLING | OV5640_TEST_SQUARE,
 };
 
 static int ov5640_set_ctrl_test_pattern(struct ov5640_dev *sensor, int value)
