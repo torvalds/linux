@@ -4144,52 +4144,11 @@ static int hns3_reset_notify(struct hnae3_handle *handle,
 	return ret;
 }
 
-static int hns3_modify_tqp_num(struct net_device *netdev, u16 new_tqp_num)
-{
-	struct hns3_nic_priv *priv = netdev_priv(netdev);
-	struct hnae3_handle *h = hns3_get_handle(netdev);
-	int ret;
-
-	ret = h->ae_algo->ops->set_channels(h, new_tqp_num);
-	if (ret)
-		return ret;
-
-	ret = hns3_get_ring_config(priv);
-	if (ret)
-		return ret;
-
-	ret = hns3_nic_alloc_vector_data(priv);
-	if (ret)
-		goto err_alloc_vector;
-
-	hns3_restore_coal(priv);
-
-	ret = hns3_nic_init_vector_data(priv);
-	if (ret)
-		goto err_uninit_vector;
-
-	ret = hns3_init_all_ring(priv);
-	if (ret)
-		goto err_put_ring;
-
-	return 0;
-
-err_put_ring:
-	hns3_put_ring_config(priv);
-err_uninit_vector:
-	hns3_nic_uninit_vector_data(priv);
-err_alloc_vector:
-	hns3_nic_dealloc_vector_data(priv);
-	return ret;
-}
-
 int hns3_set_channels(struct net_device *netdev,
 		      struct ethtool_channels *ch)
 {
-	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	struct hnae3_handle *h = hns3_get_handle(netdev);
 	struct hnae3_knic_private_info *kinfo = &h->kinfo;
-	bool if_running = netif_running(netdev);
 	u32 new_tqp_num = ch->combined_count;
 	u16 org_tqp_num;
 	int ret;
@@ -4209,27 +4168,18 @@ int hns3_set_channels(struct net_device *netdev,
 	if (kinfo->num_tqps == new_tqp_num)
 		return 0;
 
-	if (if_running)
-		hns3_nic_net_stop(netdev);
+	ret = hns3_reset_notify(h, HNAE3_DOWN_CLIENT);
+	if (ret)
+		return ret;
 
-	ret = hns3_nic_uninit_vector_data(priv);
-	if (ret) {
-		dev_err(&netdev->dev,
-			"Unbind vector with tqp fail, nothing is changed");
-		goto open_netdev;
-	}
-
-	hns3_store_coal(priv);
-
-	hns3_nic_dealloc_vector_data(priv);
-
-	hns3_uninit_all_ring(priv);
-	hns3_put_ring_config(priv);
+	ret = hns3_reset_notify(h, HNAE3_UNINIT_CLIENT);
+	if (ret)
+		return ret;
 
 	org_tqp_num = h->kinfo.num_tqps;
-	ret = hns3_modify_tqp_num(netdev, new_tqp_num);
+	ret = h->ae_algo->ops->set_channels(h, new_tqp_num);
 	if (ret) {
-		ret = hns3_modify_tqp_num(netdev, org_tqp_num);
+		ret = h->ae_algo->ops->set_channels(h, org_tqp_num);
 		if (ret) {
 			/* If revert to old tqp failed, fatal error occurred */
 			dev_err(&netdev->dev,
@@ -4239,12 +4189,11 @@ int hns3_set_channels(struct net_device *netdev,
 		dev_info(&netdev->dev,
 			 "Change tqp num fail, Revert to old tqp num");
 	}
+	ret = hns3_reset_notify(h, HNAE3_INIT_CLIENT);
+	if (ret)
+		return ret;
 
-open_netdev:
-	if (if_running)
-		hns3_nic_net_open(netdev);
-
-	return ret;
+	return hns3_reset_notify(h, HNAE3_UP_CLIENT);
 }
 
 static const struct hnae3_client_ops client_ops = {
