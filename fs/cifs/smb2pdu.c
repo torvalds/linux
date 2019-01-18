@@ -3241,7 +3241,7 @@ smb2_readv_callback(struct mid_q_entry *mid)
 		rdata->mr = NULL;
 	}
 #endif
-	if (rdata->result) {
+	if (rdata->result && rdata->result != -ENODATA) {
 		cifs_stats_fail_inc(tcon, SMB2_READ_HE);
 		trace_smb3_read_err(0 /* xid */,
 				    rdata->cfile->fid.persistent_fid,
