@@ -1484,8 +1484,6 @@ static int __init set_init_ctx(void)
 {
 	struct cred *cred = (struct cred *)current->real_cred;
 
-	lsm_early_cred(cred);
-	lsm_early_task(current);
 	set_cred_label(cred, aa_get_label(ns_unconfined(root_ns)));
 
 	return 0;
