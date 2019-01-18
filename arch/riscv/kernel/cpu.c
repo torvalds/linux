@@ -17,8 +17,8 @@
 #include <asm/smp.h>
 
 /*
- * Returns the hart ID of the given device tree node, or -1 if the device tree
- * node isn't a RISC-V hart.
+ * Returns the hart ID of the given device tree node, or -ENODEV if the node
+ * isn't an enabled and valid RISC-V hart node.
  */
 int riscv_of_processor_hartid(struct device_node *node)
 {
@@ -27,34 +27,34 @@ int riscv_of_processor_hartid(struct device_node *node)
 
 	if (!of_device_is_compatible(node, "riscv")) {
 		pr_warn("Found incompatible CPU\n");
-		return -(ENODEV);
+		return -ENODEV;
 	}
 
 	if (of_property_read_u32(node, "reg", &hart)) {
 		pr_warn("Found CPU without hart ID\n");
-		return -(ENODEV);
+		return -ENODEV;
 	}
 	if (hart >= NR_CPUS) {
 		pr_info("Found hart ID %d, which is above NR_CPUs.  Disabling this hart\n", hart);
-		return -(ENODEV);
+		return -ENODEV;
 	}
 
 	if (of_property_read_string(node, "status", &status)) {
 		pr_warn("CPU with hartid=%d has no \"status\" property\n", hart);
-		return -(ENODEV);
+		return -ENODEV;
 	}
 	if (strcmp(status, "okay")) {
 		pr_info("CPU with hartid=%d has a non-okay status of \"%s\"\n", hart, status);
-		return -(ENODEV);
+		return -ENODEV;
 	}
 
 	if (of_property_read_string(node, "riscv,isa", &isa)) {
 		pr_warn("CPU with hartid=%d has no \"riscv,isa\" property\n", hart);
-		return -(ENODEV);
+		return -ENODEV;
 	}
 	if (isa[0] != 'r' || isa[1] != 'v') {
 		pr_warn("CPU with hartid=%d has an invalid ISA of \"%s\"\n", hart, isa);
-		return -(ENODEV);
+		return -ENODEV;
 	}
 
 	return hart;
