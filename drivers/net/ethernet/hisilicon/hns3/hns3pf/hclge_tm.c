@@ -1228,10 +1228,23 @@ static int hclge_mac_pause_setup_hw(struct hclge_dev *hdev)
 	return hclge_mac_pause_en_cfg(hdev, tx_en, rx_en);
 }
 
+static int hclge_tm_bp_setup(struct hclge_dev *hdev)
+{
+	int ret = 0;
+	int i;
+
+	for (i = 0; i < hdev->tm_info.num_tc; i++) {
+		ret = hclge_bp_setup_hw(hdev, i);
+		if (ret)
+			return ret;
+	}
+
+	return ret;
+}
+
 int hclge_pause_setup_hw(struct hclge_dev *hdev)
 {
 	int ret;
-	u8 i;
 
 	ret = hclge_pause_param_setup_hw(hdev);
 	if (ret)
@@ -1250,13 +1263,7 @@ int hclge_pause_setup_hw(struct hclge_dev *hdev)
 	if (ret)
 		dev_warn(&hdev->pdev->dev, "set pfc pause failed:%d\n", ret);
 
-	for (i = 0; i < hdev->tm_info.num_tc; i++) {
-		ret = hclge_bp_setup_hw(hdev, i);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
+	return hclge_tm_bp_setup(hdev);
 }
 
 void hclge_tm_prio_tc_info_update(struct hclge_dev *hdev, u8 *prio_tc)
