@@ -529,7 +529,7 @@ static void hclge_tm_vport_tc_info_update(struct hclge_vport *vport)
 	vport->dwrr = 100;  /* 100 percent as init */
 	vport->alloc_rss_size = kinfo->rss_size;
 
-	for (i = 0; i < kinfo->num_tc; i++) {
+	for (i = 0; i < HNAE3_MAX_TC; i++) {
 		if (hdev->hw_tc_map & BIT(i)) {
 			kinfo->tc_info[i].enable = true;
 			kinfo->tc_info[i].tqp_offset = i * kinfo->rss_size;
