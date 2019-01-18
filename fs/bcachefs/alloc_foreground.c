@@ -838,15 +838,17 @@ struct write_point *bch2_alloc_sectors_start(struct bch_fs *c,
 {
 	struct write_point *wp;
 	struct open_bucket *ob;
-	unsigned nr_effective = 0;
-	struct open_buckets ptrs = { .nr = 0 };
-	bool have_cache = false;
-	unsigned write_points_nr;
-	int ret = 0, i;
+	struct open_buckets ptrs;
+	unsigned nr_effective, write_points_nr;
+	bool have_cache;
+	int ret, i;
 
 	BUG_ON(!nr_replicas || !nr_replicas_required);
 retry:
+	ptrs.nr		= 0;
+	nr_effective	= 0;
 	write_points_nr = c->write_points_nr;
+	have_cache	= false;
 
 	wp = writepoint_find(c, write_point.v);
 
