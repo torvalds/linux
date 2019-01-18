@@ -53,6 +53,19 @@ static unsigned int arm_pertask_ssp_rtl_execute(void)
 #define NO_GATE
 #include "gcc-generate-rtl-pass.h"
 
+#if BUILDING_GCC_VERSION >= 9000
+static bool no(void)
+{
+	return false;
+}
+
+static void arm_pertask_ssp_start_unit(void *gcc_data, void *user_data)
+{
+	targetm.have_stack_protect_combined_set = no;
+	targetm.have_stack_protect_combined_test = no;
+}
+#endif
+
 __visible int plugin_init(struct plugin_name_args *plugin_info,
 			  struct plugin_gcc_version *version)
 {
@@ -99,6 +112,11 @@ __visible int plugin_init(struct plugin_name_args *plugin_info,
 
 	register_callback(plugin_info->base_name, PLUGIN_PASS_MANAGER_SETUP,
 			  NULL, &arm_pertask_ssp_rtl_pass_info);
+
+#if BUILDING_GCC_VERSION >= 9000
+	register_callback(plugin_info->base_name, PLUGIN_START_UNIT,
+			  arm_pertask_ssp_start_unit, NULL);
+#endif
 
 	return 0;
 }
