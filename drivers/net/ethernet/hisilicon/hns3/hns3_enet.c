@@ -4157,15 +4157,14 @@ int hns3_set_channels(struct net_device *netdev,
 		return -EINVAL;
 
 	if (new_tqp_num > hns3_get_max_available_channels(h) ||
-	    new_tqp_num < kinfo->num_tc) {
+	    new_tqp_num < 1) {
 		dev_err(&netdev->dev,
-			"Change tqps fail, the tqp range is from %d to %d",
-			kinfo->num_tc,
+			"Change tqps fail, the tqp range is from 1 to %d",
 			hns3_get_max_available_channels(h));
 		return -EINVAL;
 	}
 
-	if (kinfo->num_tqps == new_tqp_num)
+	if (kinfo->rss_size == new_tqp_num)
 		return 0;
 
 	ret = hns3_reset_notify(h, HNAE3_DOWN_CLIENT);
