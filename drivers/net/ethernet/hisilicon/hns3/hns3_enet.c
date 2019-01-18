@@ -4183,11 +4183,6 @@ err_alloc_vector:
 	return ret;
 }
 
-static int hns3_adjust_tqps_num(u8 num_tc, u32 new_tqp_num)
-{
-	return (new_tqp_num / num_tc) * num_tc;
-}
-
 int hns3_set_channels(struct net_device *netdev,
 		      struct ethtool_channels *ch)
 {
@@ -4211,7 +4206,6 @@ int hns3_set_channels(struct net_device *netdev,
 		return -EINVAL;
 	}
 
-	new_tqp_num = hns3_adjust_tqps_num(kinfo->num_tc, new_tqp_num);
 	if (kinfo->num_tqps == new_tqp_num)
 		return 0;
 
