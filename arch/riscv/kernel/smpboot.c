@@ -50,12 +50,12 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 
 void __init setup_smp(void)
 {
-	struct device_node *dn = NULL;
+	struct device_node *dn;
 	int hart;
 	bool found_boot_cpu = false;
 	int cpuid = 1;
 
-	while ((dn = of_find_node_by_type(dn, "cpu"))) {
+	for_each_of_cpu_node(dn) {
 		hart = riscv_of_processor_hartid(dn);
 		if (hart < 0)
 			continue;

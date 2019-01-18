@@ -28,7 +28,7 @@ bool has_fpu __read_mostly;
 
 void riscv_fill_hwcap(void)
 {
-	struct device_node *node = NULL;
+	struct device_node *node;
 	const char *isa;
 	size_t i;
 	static unsigned long isa2hwcap[256] = {0};
@@ -46,9 +46,10 @@ void riscv_fill_hwcap(void)
 	 * We don't support running Linux on hertergenous ISA systems.  For
 	 * now, we just check the ISA of the first "okay" processor.
 	 */
-	while ((node = of_find_node_by_type(node, "cpu")))
+	for_each_of_cpu_node(node) {
 		if (riscv_of_processor_hartid(node) >= 0)
 			break;
+	}
 	if (!node) {
 		pr_warn("Unable to find \"cpu\" devicetree entry\n");
 		return;
