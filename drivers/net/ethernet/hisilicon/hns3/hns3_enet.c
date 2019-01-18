@@ -4004,34 +4004,7 @@ static int hns3_reset_notify_init_enet(struct hnae3_handle *handle)
 {
 	struct net_device *netdev = handle->kinfo.netdev;
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
-	bool vlan_filter_enable;
 	int ret;
-
-	ret = hns3_init_mac_addr(netdev, false);
-	if (ret)
-		return ret;
-
-	ret = hns3_recover_hw_addr(netdev);
-	if (ret)
-		return ret;
-
-	ret = hns3_update_promisc_mode(netdev, handle->netdev_flags);
-	if (ret)
-		return ret;
-
-	vlan_filter_enable = netdev->flags & IFF_PROMISC ? false : true;
-	hns3_enable_vlan_filter(netdev, vlan_filter_enable);
-
-	/* Hardware table is only clear when pf resets */
-	if (!(handle->flags & HNAE3_SUPPORT_VF)) {
-		ret = hns3_restore_vlan(netdev);
-		if (ret)
-			return ret;
-	}
-
-	ret = hns3_restore_fd_rules(netdev);
-	if (ret)
-		return ret;
 
 	/* Carrier off reporting is important to ethtool even BEFORE open */
 	netif_carrier_off(netdev);
@@ -4068,6 +4041,37 @@ err_put_ring:
 	priv->ring_data = NULL;
 
 	return ret;
+}
+
+static int hns3_reset_notify_restore_enet(struct hnae3_handle *handle)
+{
+	struct net_device *netdev = handle->kinfo.netdev;
+	bool vlan_filter_enable;
+	int ret;
+
+	ret = hns3_init_mac_addr(netdev, false);
+	if (ret)
+		return ret;
+
+	ret = hns3_recover_hw_addr(netdev);
+	if (ret)
+		return ret;
+
+	ret = hns3_update_promisc_mode(netdev, handle->netdev_flags);
+	if (ret)
+		return ret;
+
+	vlan_filter_enable = netdev->flags & IFF_PROMISC ? false : true;
+	hns3_enable_vlan_filter(netdev, vlan_filter_enable);
+
+	/* Hardware table is only clear when pf resets */
+	if (!(handle->flags & HNAE3_SUPPORT_VF)) {
+		ret = hns3_restore_vlan(netdev);
+		if (ret)
+			return ret;
+	}
+
+	return hns3_restore_fd_rules(netdev);
 }
 
 static int hns3_reset_notify_uninit_enet(struct hnae3_handle *handle)
@@ -4124,6 +4128,9 @@ static int hns3_reset_notify(struct hnae3_handle *handle,
 		break;
 	case HNAE3_UNINIT_CLIENT:
 		ret = hns3_reset_notify_uninit_enet(handle);
+		break;
+	case HNAE3_RESTORE_CLIENT:
+		ret = hns3_reset_notify_restore_enet(handle);
 		break;
 	default:
 		break;

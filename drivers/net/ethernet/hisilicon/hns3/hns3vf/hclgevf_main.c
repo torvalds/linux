@@ -1264,7 +1264,7 @@ static int hclgevf_reset_stack(struct hclgevf_dev *hdev)
 	if (ret)
 		return ret;
 
-	return 0;
+	return hclgevf_notify_client(hdev, HNAE3_RESTORE_CLIENT);
 }
 
 static int hclgevf_reset_prepare_wait(struct hclgevf_dev *hdev)
