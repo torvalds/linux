@@ -3728,7 +3728,6 @@ static int hns3_client_setup_tc(struct hnae3_handle *handle, u8 tc)
 {
 	struct hnae3_knic_private_info *kinfo = &handle->kinfo;
 	struct net_device *ndev = kinfo->netdev;
-	bool if_running;
 	int ret;
 
 	if (tc > HNAE3_MAX_TC)
@@ -3737,23 +3736,12 @@ static int hns3_client_setup_tc(struct hnae3_handle *handle, u8 tc)
 	if (!ndev)
 		return -ENODEV;
 
-	if_running = netif_running(ndev);
-
-	if (if_running) {
-		(void)hns3_nic_net_stop(ndev);
-		msleep(100);
-	}
-
 	ret = (kinfo->dcb_ops && kinfo->dcb_ops->map_update) ?
 		kinfo->dcb_ops->map_update(handle) : -EOPNOTSUPP;
 	if (ret)
-		goto err_out;
+		return ret;
 
 	ret = hns3_nic_set_real_num_queue(ndev);
-
-err_out:
-	if (if_running)
-		(void)hns3_nic_net_open(ndev);
 
 	return ret;
 }
