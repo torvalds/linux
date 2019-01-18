@@ -180,6 +180,19 @@ struct port;
 #pragma pack(8)
 #endif
 
+struct bond_3ad_stats {
+	atomic64_t lacpdu_rx;
+	atomic64_t lacpdu_tx;
+	atomic64_t lacpdu_unknown_rx;
+	atomic64_t lacpdu_illegal_rx;
+
+	atomic64_t marker_rx;
+	atomic64_t marker_tx;
+	atomic64_t marker_resp_rx;
+	atomic64_t marker_resp_tx;
+	atomic64_t marker_unknown_rx;
+};
+
 /* aggregator structure(43.4.5 in the 802.3ad standard) */
 typedef struct aggregator {
 	struct mac_addr aggregator_mac_address;
@@ -272,6 +285,7 @@ struct ad_bond_info {
 struct ad_slave_info {
 	struct aggregator aggregator;	/* 802.3ad aggregator structure */
 	struct port port;		/* 802.3ad port structure */
+	struct bond_3ad_stats stats;
 	u16 id;
 };
 

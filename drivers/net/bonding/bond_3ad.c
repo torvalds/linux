@@ -851,6 +851,8 @@ static int ad_lacpdu_send(struct port *port)
 	if (!skb)
 		return -ENOMEM;
 
+	atomic64_inc(&SLAVE_AD_INFO(slave)->stats.lacpdu_tx);
+
 	skb->dev = slave->dev;
 	skb_reset_mac_header(skb);
 	skb->network_header = skb->mac_header + ETH_HLEN;
@@ -891,6 +893,15 @@ static int ad_marker_send(struct port *port, struct bond_marker *marker)
 	skb = dev_alloc_skb(length + 16);
 	if (!skb)
 		return -ENOMEM;
+
+	switch (marker->tlv_type) {
+	case AD_MARKER_INFORMATION_SUBTYPE:
+		atomic64_inc(&SLAVE_AD_INFO(slave)->stats.marker_tx);
+		break;
+	case AD_MARKER_RESPONSE_SUBTYPE:
+		atomic64_inc(&SLAVE_AD_INFO(slave)->stats.marker_resp_tx);
+		break;
+	}
 
 	skb_reserve(skb, 16);
 
@@ -1085,6 +1096,9 @@ static void ad_rx_machine(struct lacpdu *lacpdu, struct port *port)
 	 * changed
 	 */
 	last_state = port->sm_rx_state;
+
+	if (lacpdu)
+		atomic64_inc(&SLAVE_AD_INFO(port->slave)->stats.lacpdu_rx);
 
 	/* check if state machine should change state */
 
@@ -1922,6 +1936,8 @@ static void ad_marker_info_received(struct bond_marker *marker_info,
 {
 	struct bond_marker marker;
 
+	atomic64_inc(&SLAVE_AD_INFO(port->slave)->stats.marker_rx);
+
 	/* copy the received marker data to the response marker */
 	memcpy(&marker, marker_info, sizeof(struct bond_marker));
 	/* change the marker subtype to marker response */
@@ -1946,6 +1962,8 @@ static void ad_marker_info_received(struct bond_marker *marker_info,
 static void ad_marker_response_received(struct bond_marker *marker,
 					struct port *port)
 {
+	atomic64_inc(&SLAVE_AD_INFO(port->slave)->stats.marker_resp_rx);
+
 	/* DO NOTHING, SINCE WE DECIDED NOT TO IMPLEMENT THIS FEATURE FOR NOW */
 }
 
@@ -2358,6 +2376,7 @@ static int bond_3ad_rx_indication(struct lacpdu *lacpdu, struct slave *slave)
 	int ret = RX_HANDLER_ANOTHER;
 	struct bond_marker *marker;
 	struct port *port;
+	atomic64_t *stat;
 
 	port = &(SLAVE_AD_INFO(slave)->port);
 	if (!port->slave) {
@@ -2397,7 +2416,12 @@ static int bond_3ad_rx_indication(struct lacpdu *lacpdu, struct slave *slave)
 		default:
 			netdev_dbg(slave->bond->dev, "Received an unknown Marker subtype on slot %d\n",
 				   port->actor_port_number);
+			stat = &SLAVE_AD_INFO(slave)->stats.marker_unknown_rx;
+			atomic64_inc(stat);
 		}
+		break;
+	default:
+		atomic64_inc(&SLAVE_AD_INFO(slave)->stats.lacpdu_unknown_rx);
 	}
 
 	return ret;
@@ -2635,8 +2659,10 @@ int bond_3ad_lacpdu_recv(const struct sk_buff *skb, struct bonding *bond,
 		return RX_HANDLER_ANOTHER;
 
 	lacpdu = skb_header_pointer(skb, 0, sizeof(_lacpdu), &_lacpdu);
-	if (!lacpdu)
+	if (!lacpdu) {
+		atomic64_inc(&SLAVE_AD_INFO(slave)->stats.lacpdu_illegal_rx);
 		return RX_HANDLER_ANOTHER;
+	}
 
 	return bond_3ad_rx_indication(lacpdu, slave);
 }
