@@ -171,6 +171,7 @@ show_temp(struct device *dev, struct device_attribute *devattr, char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct adm1029_data *data = adm1029_update_device(dev);
+
 	return sprintf(buf, "%d\n", TEMP_FROM_REG(data->temp[attr->index]));
 }
 
@@ -180,6 +181,7 @@ show_fan(struct device *dev, struct device_attribute *devattr, char *buf)
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct adm1029_data *data = adm1029_update_device(dev);
 	u16 val;
+
 	if (data->fan[attr->index] == 0
 	    || (data->fan_div[attr->index] & 0xC0) == 0
 	    || data->fan[attr->index] == 255) {
@@ -196,6 +198,7 @@ show_fan_div(struct device *dev, struct device_attribute *devattr, char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct adm1029_data *data = adm1029_update_device(dev);
+
 	if ((data->fan_div[attr->index] & 0xC0) == 0)
 		return sprintf(buf, "0\n");
 	return sprintf(buf, "%d\n", DIV_FROM_REG(data->fan_div[attr->index]));
@@ -210,6 +213,7 @@ static ssize_t set_fan_div(struct device *dev,
 	u8 reg;
 	long val;
 	int ret = kstrtol(buf, 10, &val);
+
 	if (ret < 0)
 		return ret;
 
