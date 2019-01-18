@@ -171,8 +171,7 @@ is also a rough job.
 
 Simple, get your kernel driver into the main kernel tree (remember we
 are talking about GPL released drivers here, if your code doesn't fall
-under this category, good luck, you are on your own here, you leech
-<insert link to leech comment from Andrew and Linus here>.)  If your
+under this category, good luck, you are on your own here, you leech).  If your
 driver is in the tree, and a kernel interface changes, it will be fixed
 up by the person who did the kernel change in the first place.  This
 ensures that your driver is always buildable, and works over time, with
