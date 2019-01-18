@@ -517,14 +517,27 @@ static void hclge_tm_vport_tc_info_update(struct hclge_vport *vport)
 {
 	struct hnae3_knic_private_info *kinfo = &vport->nic.kinfo;
 	struct hclge_dev *hdev = vport->back;
+	u16 max_rss_size;
 	u8 i;
 
 	vport->bw_limit = hdev->tm_info.pg_info[0].bw_limit;
-	kinfo->num_tc =
-		min_t(u16, kinfo->num_tqps, hdev->tm_info.num_tc);
-	kinfo->rss_size
-		= min_t(u16, hdev->rss_size_max,
-			kinfo->num_tqps / kinfo->num_tc);
+	kinfo->num_tc = min_t(u16, vport->alloc_tqps, hdev->tm_info.num_tc);
+	max_rss_size = min_t(u16, hdev->rss_size_max,
+			     vport->alloc_tqps / kinfo->num_tc);
+
+	if (kinfo->req_rss_size != kinfo->rss_size && kinfo->req_rss_size &&
+	    kinfo->req_rss_size <= max_rss_size) {
+		dev_info(&hdev->pdev->dev, "rss changes from %d to %d\n",
+			 kinfo->rss_size, kinfo->req_rss_size);
+		kinfo->rss_size = kinfo->req_rss_size;
+	} else if (kinfo->rss_size > max_rss_size ||
+		   (!kinfo->req_rss_size && kinfo->rss_size < max_rss_size)) {
+		dev_info(&hdev->pdev->dev, "rss changes from %d to %d\n",
+			 kinfo->rss_size, max_rss_size);
+		kinfo->rss_size = max_rss_size;
+	}
+
+	kinfo->num_tqps = kinfo->num_tc * kinfo->rss_size;
 	vport->qs_offset = hdev->tm_info.num_tc * vport->vport_id;
 	vport->dwrr = 100;  /* 100 percent as init */
 	vport->alloc_rss_size = kinfo->rss_size;
@@ -1333,4 +1346,21 @@ int hclge_tm_schd_init(struct hclge_dev *hdev)
 		return ret;
 
 	return hclge_tm_init_hw(hdev);
+}
+
+int hclge_tm_vport_map_update(struct hclge_dev *hdev)
+{
+	struct hclge_vport *vport = hdev->vport;
+	int ret;
+
+	hclge_tm_vport_tc_info_update(vport);
+
+	ret = hclge_vport_q_to_qs_map(hdev, vport);
+	if (ret)
+		return ret;
+
+	if (!(hdev->flag & HCLGE_FLAG_DCB_ENABLE))
+		return 0;
+
+	return hclge_tm_bp_setup(hdev);
 }
