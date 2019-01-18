@@ -2401,8 +2401,8 @@ static void hclge_misc_irq_uninit(struct hclge_dev *hdev)
 	hclge_free_vector(hdev, 0);
 }
 
-static int hclge_notify_client(struct hclge_dev *hdev,
-			       enum hnae3_reset_notify_type type)
+int hclge_notify_client(struct hclge_dev *hdev,
+			enum hnae3_reset_notify_type type)
 {
 	struct hnae3_client *client = hdev->nic_client;
 	u16 i;
