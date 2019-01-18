@@ -22,7 +22,7 @@
  */
 int riscv_of_processor_hartid(struct device_node *node)
 {
-	const char *isa, *status;
+	const char *isa;
 	u32 hart;
 
 	if (!of_device_is_compatible(node, "riscv")) {
@@ -39,12 +39,8 @@ int riscv_of_processor_hartid(struct device_node *node)
 		return -ENODEV;
 	}
 
-	if (of_property_read_string(node, "status", &status)) {
-		pr_warn("CPU with hartid=%d has no \"status\" property\n", hart);
-		return -ENODEV;
-	}
-	if (strcmp(status, "okay")) {
-		pr_info("CPU with hartid=%d has a non-okay status of \"%s\"\n", hart, status);
+	if (!of_device_is_available(node)) {
+		pr_info("CPU with hartid=%d is not available\n", hart);
 		return -ENODEV;
 	}
 
