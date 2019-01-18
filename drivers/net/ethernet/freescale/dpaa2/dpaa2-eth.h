@@ -405,6 +405,10 @@ static inline int dpaa2_eth_cmp_dpni_ver(struct dpaa2_eth_priv *priv,
 #define dpaa2_eth_fs_count(priv)        \
 	((priv)->dpni_attrs.fs_entries)
 
+/* We have exactly one {Rx, Tx conf} queue per channel */
+#define dpaa2_eth_queue_count(priv)     \
+	((priv)->num_channels)
+
 enum dpaa2_eth_rx_dist {
 	DPAA2_ETH_RX_DIST_HASH,
 	DPAA2_ETH_RX_DIST_CLS
@@ -445,12 +449,6 @@ static inline unsigned int dpaa2_eth_rx_head_room(struct dpaa2_eth_priv *priv)
 {
 	return priv->tx_data_offset + DPAA2_ETH_TX_BUF_ALIGN -
 	       DPAA2_ETH_RX_HWA_SIZE;
-}
-
-/* We have exactly one {Rx, Tx conf} queue per channel */
-static int dpaa2_eth_queue_count(struct dpaa2_eth_priv *priv)
-{
-	return priv->num_channels;
 }
 
 int dpaa2_eth_set_hash(struct net_device *net_dev, u64 flags);
