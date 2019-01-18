@@ -2866,6 +2866,10 @@ static void hclge_reset(struct hclge_dev *hdev)
 	if (ret)
 		goto err_reset_lock;
 
+	ret = hclge_notify_client(hdev, HNAE3_RESTORE_CLIENT);
+	if (ret)
+		goto err_reset_lock;
+
 	hclge_clear_reset_cause(hdev);
 
 	ret = hclge_reset_prepare_up(hdev);
