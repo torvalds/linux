@@ -86,6 +86,7 @@ struct sun4i_frontend {
 };
 
 extern const struct of_device_id sun4i_frontend_of_table[];
+extern const u32 sunxi_bt601_yuv2rgb_coef[12];
 
 int sun4i_frontend_init(struct sun4i_frontend *frontend);
 void sun4i_frontend_exit(struct sun4i_frontend *frontend);
