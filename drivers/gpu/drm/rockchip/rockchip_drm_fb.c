@@ -265,6 +265,7 @@ rockchip_atomic_commit_complete(struct rockchip_atomic_commit *commit)
 	struct drm_device *dev = commit->dev;
 	struct rockchip_drm_private *prv = dev->dev_private;
 	size_t bandwidth = commit->bandwidth;
+	unsigned int plane_num = commit->plane_num;
 
 	/*
 	 * TODO: do fence wait here.
@@ -299,7 +300,8 @@ rockchip_atomic_commit_complete(struct rockchip_atomic_commit *commit)
 			prv->devfreq = NULL;
 	}
 	if (prv->devfreq)
-		rockchip_dmcfreq_vop_bandwidth_update(prv->devfreq, bandwidth);
+		rockchip_dmcfreq_vop_bandwidth_update(prv->devfreq, bandwidth,
+						      plane_num);
 
 	drm_atomic_helper_commit_planes(dev, state, true);
 

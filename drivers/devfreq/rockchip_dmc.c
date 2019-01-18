@@ -63,6 +63,9 @@
 					   reboot_nb)
 #define boost_to_dmcfreq(work) container_of(work, struct rockchip_dmcfreq, \
 					    boost_work)
+#define msch_rl_to_dmcfreq(work) container_of(to_delayed_work(work), \
+					      struct rockchip_dmcfreq, \
+					      msch_rl_work)
 #define input_hd_to_dmcfreq(hd) container_of(hd, struct rockchip_dmcfreq, \
 					     input_handler)
 
@@ -71,6 +74,7 @@
 #define FIQ_CPU_TGT_BOOT	(0x0) /* to booting cpu */
 #define FIQ_NUM_FOR_DCF		(143) /* NA irq map to fiq for dcf */
 #define DTS_PAR_OFFSET		(4096)
+#define MSCH_RL_DELAY_TIME	50 /* ms */
 
 #define FALLBACK_STATIC_TEMPERATURE 55000
 
@@ -78,6 +82,11 @@ struct freq_map_table {
 	unsigned int min;
 	unsigned int max;
 	unsigned long freq;
+};
+
+struct rl_map_table {
+	unsigned int pn; /* panel number */
+	unsigned int rl; /* readlatency */
 };
 
 struct video_info {
@@ -1123,6 +1132,8 @@ struct rockchip_dmcfreq {
 	struct work_struct boost_work;
 	struct input_handler input_handler;
 	struct thermal_opp_info *opp_info;
+	struct rl_map_table *vop_pn_rl_tbl;
+	struct delayed_work msch_rl_work;
 
 	unsigned long *nocp_bw;
 	unsigned long rate, target_rate;
@@ -1152,10 +1163,12 @@ struct rockchip_dmcfreq {
 	unsigned int system_status_en;
 	unsigned int refresh;
 	unsigned int last_refresh;
+	unsigned int read_latency;
 	int edev_count;
 	int dfi_id;
 
 	bool is_fixed;
+	bool is_msch_rl_work_started;
 
 	struct thermal_cooling_device *devfreq_cooling;
 	u32 static_coefficient;
@@ -2661,6 +2674,45 @@ static int rockchip_get_freq_map_talbe(struct device_node *np, char *porp_name,
 	return 0;
 }
 
+static int rockchip_get_rl_map_talbe(struct device_node *np, char *porp_name,
+				     struct rl_map_table **table)
+{
+	struct rl_map_table *tbl;
+	const struct property *prop;
+	int count, i;
+
+	prop = of_find_property(np, porp_name, NULL);
+	if (!prop)
+		return -EINVAL;
+
+	if (!prop->value)
+		return -ENODATA;
+
+	count = of_property_count_u32_elems(np, porp_name);
+	if (count < 0)
+		return -EINVAL;
+
+	if (count % 2)
+		return -EINVAL;
+
+	tbl = kzalloc(sizeof(*tbl) * (count / 2 + 1), GFP_KERNEL);
+	if (!tbl)
+		return -ENOMEM;
+
+	for (i = 0; i < count / 2; i++) {
+		of_property_read_u32_index(np, porp_name, 2 * i, &tbl[i].pn);
+		of_property_read_u32_index(np, porp_name, 2 * i + 1,
+					   &tbl[i].rl);
+	}
+
+	tbl[i].pn = 0;
+	tbl[i].rl = CPUFREQ_TABLE_END;
+
+	*table = tbl;
+
+	return 0;
+}
+
 static int rockchip_get_system_status_rate(struct device_node *np,
 					   char *porp_name,
 					   struct rockchip_dmcfreq *dmcfreq)
@@ -3077,12 +3129,44 @@ static ssize_t rockchip_dmcfreq_status_store(struct device *dev,
 static DEVICE_ATTR(system_status, 0644, rockchip_dmcfreq_status_show,
 		   rockchip_dmcfreq_status_store);
 
+static void rockchip_dmcfreq_set_msch_rl(struct rockchip_dmcfreq *dmcfreq,
+					 unsigned int readlatency)
+
+{
+	down_read(&rockchip_dmcfreq_sem);
+	dev_dbg(dmcfreq->dev, "rl 0x%x -> 0x%x\n",
+		dmcfreq->read_latency, readlatency);
+	if (!dmcfreq->set_msch_readlatency(readlatency))
+		dmcfreq->read_latency = readlatency;
+	else
+		dev_err(dmcfreq->dev, "failed to set msch rl\n");
+	up_read(&rockchip_dmcfreq_sem);
+}
+
+static void rockchip_dmcfreq_set_msch_rl_work(struct work_struct *work)
+{
+	struct rockchip_dmcfreq *dmcfreq = msch_rl_to_dmcfreq(work);
+
+	rockchip_dmcfreq_set_msch_rl(dmcfreq, 0);
+	dmcfreq->is_msch_rl_work_started = false;
+}
+
+static void rockchip_dmcfreq_msch_rl_init(struct rockchip_dmcfreq *dmcfreq)
+{
+	if (!dmcfreq->set_msch_readlatency)
+		return;
+	INIT_DELAYED_WORK(&dmcfreq->msch_rl_work,
+			  rockchip_dmcfreq_set_msch_rl_work);
+}
+
 void rockchip_dmcfreq_vop_bandwidth_update(struct devfreq *devfreq,
-					   unsigned int bw_mbyte)
+					   unsigned int bw_mbyte,
+					   unsigned int plane_num)
 {
 	struct device *dev;
 	struct rockchip_dmcfreq *dmcfreq;
 	unsigned long vop_last_rate, target = 0;
+	unsigned int readlatency = 0;
 	int i;
 
 	if (!devfreq)
@@ -3090,7 +3174,30 @@ void rockchip_dmcfreq_vop_bandwidth_update(struct devfreq *devfreq,
 
 	dev = devfreq->dev.parent;
 	dmcfreq = dev_get_drvdata(dev);
-	if (!dmcfreq || !dmcfreq->auto_freq_en || !dmcfreq->vop_bw_tbl)
+	if (!dmcfreq)
+		return;
+
+	if (!dmcfreq->vop_pn_rl_tbl || !dmcfreq->set_msch_readlatency)
+		goto vop_bw_tbl;
+	for (i = 0; dmcfreq->vop_pn_rl_tbl[i].rl != CPUFREQ_TABLE_END; i++) {
+		if (plane_num >= dmcfreq->vop_pn_rl_tbl[i].pn)
+			readlatency = dmcfreq->vop_pn_rl_tbl[i].rl;
+	}
+	dev_dbg(dmcfreq->dev, "pn=%u\n", plane_num);
+	if (readlatency) {
+		cancel_delayed_work_sync(&dmcfreq->msch_rl_work);
+		dmcfreq->is_msch_rl_work_started = false;
+		if (dmcfreq->read_latency != readlatency)
+			rockchip_dmcfreq_set_msch_rl(dmcfreq, readlatency);
+	} else if (dmcfreq->read_latency &&
+		   !dmcfreq->is_msch_rl_work_started) {
+		dmcfreq->is_msch_rl_work_started = true;
+		schedule_delayed_work(&dmcfreq->msch_rl_work,
+				      msecs_to_jiffies(MSCH_RL_DELAY_TIME));
+	}
+
+vop_bw_tbl:
+	if (!dmcfreq->auto_freq_en || !dmcfreq->vop_bw_tbl)
 		return;
 
 	for (i = 0; dmcfreq->vop_bw_tbl[i].freq != CPUFREQ_TABLE_END; i++) {
@@ -3463,6 +3570,9 @@ static void rockchip_dmcfreq_parse_dt(struct rockchip_dmcfreq *dmcfreq)
 	if (rockchip_get_freq_map_talbe(np, "vop-bw-dmc-freq",
 					&dmcfreq->vop_bw_tbl))
 		dev_err(dev, "failed to get vop bandwidth to dmc rate\n");
+	if (rockchip_get_rl_map_talbe(np, "vop-pn-msch-readlatency",
+				      &dmcfreq->vop_pn_rl_tbl))
+		dev_err(dev, "failed to get vop pn to msch rl\n");
 
 	of_property_read_u32(np, "touchboost_duration",
 			     (u32 *)&dmcfreq->touchboostpulse_duration_val);
@@ -3858,6 +3968,7 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 	rockchip_dmcfreq_register_notifier(data);
 	rockchip_dmcfreq_add_interface(data);
 	rockchip_dmcfreq_boost_init(data);
+	rockchip_dmcfreq_msch_rl_init(data);
 	rockchip_dmcfreq_register_cooling_device(data);
 
 	rockchip_set_system_status(SYS_STATUS_NORMAL);
