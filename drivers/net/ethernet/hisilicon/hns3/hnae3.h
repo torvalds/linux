@@ -500,6 +500,7 @@ struct hnae3_tc_info {
 struct hnae3_knic_private_info {
 	struct net_device *netdev; /* Set by KNIC client when init instance */
 	u16 rss_size;		   /* Allocated RSS queues */
+	u16 req_rss_size;
 	u16 rx_buf_len;
 	u16 num_desc;
 

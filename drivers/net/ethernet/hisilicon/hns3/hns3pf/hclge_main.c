@@ -1068,14 +1068,14 @@ static int hclge_map_tqps_to_func(struct hclge_dev *hdev, u16 func_id,
 	return ret;
 }
 
-static int  hclge_assign_tqp(struct hclge_vport *vport)
+static int  hclge_assign_tqp(struct hclge_vport *vport, u16 num_tqps)
 {
 	struct hnae3_knic_private_info *kinfo = &vport->nic.kinfo;
 	struct hclge_dev *hdev = vport->back;
 	int i, alloced;
 
 	for (i = 0, alloced = 0; i < hdev->num_tqps &&
-	     alloced < kinfo->num_tqps; i++) {
+	     alloced < num_tqps; i++) {
 		if (!hdev->htqp[i].alloced) {
 			hdev->htqp[i].q.handle = &vport->nic;
 			hdev->htqp[i].q.tqp_index = alloced;
@@ -1085,7 +1085,9 @@ static int  hclge_assign_tqp(struct hclge_vport *vport)
 			alloced++;
 		}
 	}
-	vport->alloc_tqps = kinfo->num_tqps;
+	vport->alloc_tqps = alloced;
+	kinfo->rss_size = min_t(u16, hdev->rss_size_max,
+				vport->alloc_tqps / hdev->tm_info.num_tc);
 
 	return 0;
 }
@@ -1100,17 +1102,13 @@ static int hclge_knic_setup(struct hclge_vport *vport,
 
 	kinfo->num_desc = num_desc;
 	kinfo->rx_buf_len = hdev->rx_buf_len;
-	kinfo->num_tc = min_t(u16, num_tqps, hdev->tm_info.num_tc);
-	kinfo->rss_size
-		= min_t(u16, hdev->rss_size_max, num_tqps / kinfo->num_tc);
-	kinfo->num_tqps = kinfo->rss_size * kinfo->num_tc;
 
-	kinfo->tqp = devm_kcalloc(&hdev->pdev->dev, kinfo->num_tqps,
+	kinfo->tqp = devm_kcalloc(&hdev->pdev->dev, num_tqps,
 				  sizeof(struct hnae3_queue *), GFP_KERNEL);
 	if (!kinfo->tqp)
 		return -ENOMEM;
 
-	ret = hclge_assign_tqp(vport);
+	ret = hclge_assign_tqp(vport, num_tqps);
 	if (ret)
 		dev_err(&hdev->pdev->dev, "fail to assign TQPs %d.\n", ret);
 
@@ -7532,25 +7530,6 @@ static void hclge_get_tqps_and_rss_info(struct hnae3_handle *handle,
 	*max_rss_size = hdev->rss_size_max;
 }
 
-static void hclge_release_tqp(struct hclge_vport *vport)
-{
-	struct hnae3_knic_private_info *kinfo = &vport->nic.kinfo;
-	struct hclge_dev *hdev = vport->back;
-	int i;
-
-	for (i = 0; i < kinfo->num_tqps; i++) {
-		struct hclge_tqp *tqp =
-			container_of(kinfo->tqp[i], struct hclge_tqp, q);
-
-		tqp->q.handle = NULL;
-		tqp->q.tqp_index = 0;
-		tqp->alloced = false;
-	}
-
-	devm_kfree(&hdev->pdev->dev, kinfo->tqp);
-	kinfo->tqp = NULL;
-}
-
 static int hclge_set_channels(struct hnae3_handle *handle, u32 new_tqps_num)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
@@ -7565,24 +7544,11 @@ static int hclge_set_channels(struct hnae3_handle *handle, u32 new_tqps_num)
 	u32 *rss_indir;
 	int ret, i;
 
-	/* Free old tqps, and reallocate with new tqp number when nic setup */
-	hclge_release_tqp(vport);
+	kinfo->req_rss_size = new_tqps_num;
 
-	ret = hclge_knic_setup(vport, new_tqps_num, kinfo->num_desc);
+	ret = hclge_tm_vport_map_update(hdev);
 	if (ret) {
-		dev_err(&hdev->pdev->dev, "setup nic fail, ret =%d\n", ret);
-		return ret;
-	}
-
-	ret = hclge_map_tqp_to_vport(hdev, vport);
-	if (ret) {
-		dev_err(&hdev->pdev->dev, "map vport tqp fail, ret =%d\n", ret);
-		return ret;
-	}
-
-	ret = hclge_tm_schd_init(hdev);
-	if (ret) {
-		dev_err(&hdev->pdev->dev, "tm schd init fail, ret =%d\n", ret);
+		dev_err(&hdev->pdev->dev, "tm vport map fail, ret =%d\n", ret);
 		return ret;
 	}
 

@@ -142,6 +142,7 @@ struct hclge_port_shapping_cmd {
 				       (HCLGE_TM_SHAP_##string##_LSH))
 
 int hclge_tm_schd_init(struct hclge_dev *hdev);
+int hclge_tm_vport_map_update(struct hclge_dev *hdev);
 int hclge_pause_setup_hw(struct hclge_dev *hdev);
 int hclge_tm_schd_mode_hw(struct hclge_dev *hdev);
 void hclge_tm_prio_tc_info_update(struct hclge_dev *hdev, u8 *prio_tc);
