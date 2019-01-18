@@ -104,6 +104,10 @@
 /* Analog Register Part: reg0b */
 #define CLOCK_LANE_VOD_RANGE_SET_MASK	GENMASK(3, 0)
 #define CLOCK_LANE_VOD_RANGE_SET(x)	UPDATE(x, 3, 0)
+#define VOD_MIN_RANGE			0x1
+#define VOD_MID_RANGE			0x3
+#define VOD_BIG_RANGE			0x7
+#define VOD_MAX_RANGE			0xf
 /* Analog Register Part: reg11 */
 #define DATA_SAMPLE_PHASE_SET_MASK	GENMASK(7, 6)
 #define DATA_SAMPLE_PHASE_SET(x)	UPDATE(x, 7, 6)
@@ -354,6 +358,9 @@ static void inno_mipi_dphy_pll_enable(struct inno_mipi_dphy *inno)
 			 REG_FBDIV_LO_MASK, REG_FBDIV_LO(inno->pll.fbdiv));
 	inno_update_bits(inno, REGISTER_PART_ANALOG, 0x08,
 			 PLL_POST_DIV_ENABLE_MASK, PLL_POST_DIV_ENABLE);
+	inno_update_bits(inno, REGISTER_PART_ANALOG, 0x0b,
+			 CLOCK_LANE_VOD_RANGE_SET_MASK,
+			 CLOCK_LANE_VOD_RANGE_SET(VOD_MAX_RANGE));
 	inno_update_bits(inno, REGISTER_PART_ANALOG, 0x01,
 			 REG_LDOPD_MASK | REG_PLLPD_MASK,
 			 REG_LDOPD_POWER_ON | REG_PLLPD_POWER_ON);
