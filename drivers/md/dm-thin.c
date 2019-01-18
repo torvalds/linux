@@ -4227,7 +4227,6 @@ static int thin_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	if (tc->pool->pf.discard_enabled) {
 		ti->discards_supported = true;
 		ti->num_discard_bios = 1;
-		ti->split_discard_bios = false;
 	}
 
 	mutex_unlock(&dm_thin_pool_table.mutex);

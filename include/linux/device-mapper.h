@@ -315,12 +315,6 @@ struct dm_target {
 	 * whether or not its underlying devices have support.
 	 */
 	bool discards_supported:1;
-
-	/*
-	 * Set if the target required discard bios to be split
-	 * on max_io_len boundary.
-	 */
-	bool split_discard_bios:1;
 };
 
 /* Each target can link one of these into the table */

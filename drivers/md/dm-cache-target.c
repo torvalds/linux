@@ -2496,7 +2496,6 @@ static int cache_create(struct cache_args *ca, struct cache **result)
 
 	ti->num_discard_bios = 1;
 	ti->discards_supported = true;
-	ti->split_discard_bios = false;
 
 	ti->per_io_data_size = sizeof(struct per_bio_data);
 

@@ -1478,17 +1478,10 @@ static unsigned get_num_write_zeroes_bios(struct dm_target *ti)
 	return ti->num_write_zeroes_bios;
 }
 
-typedef bool (*is_split_required_fn)(struct dm_target *ti);
-
-static bool is_split_required_for_discard(struct dm_target *ti)
-{
-	return ti->split_discard_bios;
-}
-
 static int __send_changing_extent_only(struct clone_info *ci, struct dm_target *ti,
-				       unsigned num_bios, bool is_split_required)
+				       unsigned num_bios)
 {
-	unsigned len;
+	unsigned len = ci->sector_count;
 
 	/*
 	 * Even though the device advertised support for this type of
@@ -1498,11 +1491,6 @@ static int __send_changing_extent_only(struct clone_info *ci, struct dm_target *
 	 */
 	if (!num_bios)
 		return -EOPNOTSUPP;
-
-	if (!is_split_required)
-		len = min((sector_t)ci->sector_count, max_io_len_target_boundary(ci->sector, ti));
-	else
-		len = min((sector_t)ci->sector_count, max_io_len(ci->sector, ti));
 
 	__send_duplicate_bios(ci, ti, num_bios, &len);
 
@@ -1514,23 +1502,22 @@ static int __send_changing_extent_only(struct clone_info *ci, struct dm_target *
 
 static int __send_discard(struct clone_info *ci, struct dm_target *ti)
 {
-	return __send_changing_extent_only(ci, ti, get_num_discard_bios(ti),
-					   is_split_required_for_discard(ti));
+	return __send_changing_extent_only(ci, ti, get_num_discard_bios(ti));
 }
 
 static int __send_secure_erase(struct clone_info *ci, struct dm_target *ti)
 {
-	return __send_changing_extent_only(ci, ti, get_num_secure_erase_bios(ti), false);
+	return __send_changing_extent_only(ci, ti, get_num_secure_erase_bios(ti));
 }
 
 static int __send_write_same(struct clone_info *ci, struct dm_target *ti)
 {
-	return __send_changing_extent_only(ci, ti, get_num_write_same_bios(ti), false);
+	return __send_changing_extent_only(ci, ti, get_num_write_same_bios(ti));
 }
 
 static int __send_write_zeroes(struct clone_info *ci, struct dm_target *ti)
 {
-	return __send_changing_extent_only(ci, ti, get_num_write_zeroes_bios(ti), false);
+	return __send_changing_extent_only(ci, ti, get_num_write_zeroes_bios(ti));
 }
 
 static bool is_abnormal_io(struct bio *bio)
