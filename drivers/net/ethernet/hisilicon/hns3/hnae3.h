@@ -124,6 +124,7 @@ enum hnae3_reset_notify_type {
 	HNAE3_DOWN_CLIENT,
 	HNAE3_INIT_CLIENT,
 	HNAE3_UNINIT_CLIENT,
+	HNAE3_RESTORE_CLIENT,
 };
 
 enum hnae3_reset_type {
@@ -500,6 +501,7 @@ struct hnae3_tc_info {
 struct hnae3_knic_private_info {
 	struct net_device *netdev; /* Set by KNIC client when init instance */
 	u16 rss_size;		   /* Allocated RSS queues */
+	u16 req_rss_size;
 	u16 rx_buf_len;
 	u16 num_desc;
 
