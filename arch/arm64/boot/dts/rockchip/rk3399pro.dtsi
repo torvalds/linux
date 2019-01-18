@@ -36,6 +36,11 @@
 		SYS_STATUS_DUALVIEW     600000
 		SYS_STATUS_ISP          600000
 	>;
+	vop-pn-msch-readlatency = <
+	/* plane_number  readlatency */
+		0	0
+		4	0x20
+	>;
 	vop-bw-dmc-freq = <
 	/* min_bw(MB/s) max_bw(MB/s) freq(KHz) */
 		0       762      200000
