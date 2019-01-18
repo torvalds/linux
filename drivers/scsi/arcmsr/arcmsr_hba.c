@@ -1113,7 +1113,11 @@ static int arcmsr_resume(struct pci_dev *pdev)
 	switch (acb->adapter_type) {
 	case ACB_ADAPTER_TYPE_B: {
 		struct MessageUnit_B *reg = acb->pmuB;
-		reg->post_qbuffer[0] = 0;
+		uint32_t i;
+		for (i = 0; i < ARCMSR_MAX_HBB_POSTQUEUE; i++) {
+			reg->post_qbuffer[i] = 0;
+			reg->done_qbuffer[i] = 0;
+		}
 		reg->postq_index = 0;
 		reg->doneq_index = 0;
 		break;
