@@ -130,9 +130,11 @@ struct qxl_mman {
 };
 
 struct qxl_memslot {
+	int             index;
+	const char      *name;
 	uint8_t		generation;
 	uint64_t	start_phys_addr;
-	uint64_t	end_phys_addr;
+	uint64_t	size;
 	uint64_t	high_bits;
 };
 
@@ -228,11 +230,8 @@ struct qxl_device {
 
 	unsigned int primary_created:1;
 
-	struct qxl_memslot	*mem_slots;
-	uint8_t		n_mem_slots;
-
-	uint8_t		main_mem_slot;
-	uint8_t		surfaces_mem_slot;
+	struct qxl_memslot main_slot;
+	struct qxl_memslot surfaces_slot;
 	uint8_t		slot_id_bits;
 	uint8_t		slot_gen_bits;
 	uint64_t	va_slot_mask;
@@ -312,8 +311,8 @@ static inline uint64_t
 qxl_bo_physical_address(struct qxl_device *qdev, struct qxl_bo *bo,
 			unsigned long offset)
 {
-	int slot_id = bo->type == QXL_GEM_DOMAIN_VRAM ? qdev->main_mem_slot : qdev->surfaces_mem_slot;
-	struct qxl_memslot *slot = &(qdev->mem_slots[slot_id]);
+	struct qxl_memslot *slot = bo->type == QXL_GEM_DOMAIN_VRAM
+		? &qdev->main_slot : &qdev->surfaces_slot;
 
 	/* TODO - need to hold one of the locks to read tbo.offset */
 	return slot->high_bits | (bo->tbo.offset + offset);
