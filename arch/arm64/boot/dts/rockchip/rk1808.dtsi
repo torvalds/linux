@@ -1290,7 +1290,10 @@
 		compatible = "rockchip,rk1808-cif";
 		reg = <0x0 0xffae0000 0x0 0x200>, <0x0 0xffb10000 0x0 0x100>;
 		reg-names = "cif_regs", "csihost_regs";
-		interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "cif-intr", "csi-intr1", "csi-intr2";
 		clocks = <&cru ACLK_CIF>, <&cru DCLK_CIF>,
 			 <&cru HCLK_CIF>, <&cru SCLK_CIF_OUT>,
 			 <&cru PCLK_CSI2HOST>;
