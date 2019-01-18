@@ -1651,18 +1651,6 @@ static int had_create_jack(struct snd_intelhad *ctx,
 static int __maybe_unused hdmi_lpe_audio_suspend(struct device *dev)
 {
 	struct snd_intelhad_card *card_ctx = dev_get_drvdata(dev);
-	int port;
-
-	for_each_port(card_ctx, port) {
-		struct snd_intelhad *ctx = &card_ctx->pcm_ctx[port];
-		struct snd_pcm_substream *substream;
-
-		substream = had_substream_get(ctx);
-		if (substream) {
-			snd_pcm_suspend(substream);
-			had_substream_put(ctx);
-		}
-	}
 
 	snd_power_change_state(card_ctx->card, SNDRV_CTL_POWER_D3hot);
 

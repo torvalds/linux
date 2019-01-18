@@ -2614,8 +2614,6 @@ static int intel8x0_suspend(struct device *dev)
 	int i;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-	for (i = 0; i < chip->pcm_devs; i++)
-		snd_pcm_suspend_all(chip->pcm[i]);
 	for (i = 0; i < chip->ncodecs; i++)
 		snd_ac97_suspend(chip->ac97[i]);
 	if (chip->device_type == DEVICE_INTEL_ICH4)

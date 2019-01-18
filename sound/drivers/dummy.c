@@ -1138,10 +1138,8 @@ static int snd_dummy_remove(struct platform_device *devptr)
 static int snd_dummy_suspend(struct device *pdev)
 {
 	struct snd_card *card = dev_get_drvdata(pdev);
-	struct snd_dummy *dummy = card->private_data;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-	snd_pcm_suspend_all(dummy->pcm);
 	return 0;
 }
 	

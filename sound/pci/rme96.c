@@ -2388,8 +2388,6 @@ static int rme96_suspend(struct device *dev)
 	struct rme96 *rme96 = card->private_data;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-	snd_pcm_suspend(rme96->playback_substream);
-	snd_pcm_suspend(rme96->capture_substream);
 
 	/* save capture & playback pointers */
 	rme96->playback_pointer = readl(rme96->iobase + RME96_IO_GET_PLAY_POS)

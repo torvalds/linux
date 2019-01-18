@@ -1731,8 +1731,6 @@ static int snd_es18xx_suspend(struct snd_card *card, pm_message_t state)
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 
-	snd_pcm_suspend_all(chip->pcm);
-
 	/* power down */
 	chip->pm_reg = (unsigned char)snd_es18xx_read(chip, ES18XX_PM);
 	chip->pm_reg |= (ES18XX_PM_FM | ES18XX_PM_SUS);

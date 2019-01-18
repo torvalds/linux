@@ -265,7 +265,6 @@ int snd_pdacf_suspend(struct snd_pdacf *chip)
 	u16 val;
 	
 	snd_power_change_state(chip->card, SNDRV_CTL_POWER_D3hot);
-	snd_pcm_suspend_all(chip->pcm);
 	/* disable interrupts, but use direct write to preserve old register value in chip->regmap */
 	val = inw(chip->port + PDAUDIOCF_REG_IER);
 	val &= ~(PDAUDIOCF_IRQOVREN|PDAUDIOCF_IRQAKMEN|PDAUDIOCF_IRQLVLEN0|PDAUDIOCF_IRQLVLEN1);

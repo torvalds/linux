@@ -1200,12 +1200,8 @@ static int loopback_remove(struct platform_device *devptr)
 static int loopback_suspend(struct device *pdev)
 {
 	struct snd_card *card = dev_get_drvdata(pdev);
-	struct loopback *loopback = card->private_data;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-
-	snd_pcm_suspend_all(loopback->pcm[0]);
-	snd_pcm_suspend_all(loopback->pcm[1]);
 	return 0;
 }
 	
