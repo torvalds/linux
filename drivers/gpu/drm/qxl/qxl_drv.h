@@ -220,8 +220,6 @@ struct qxl_device {
 	struct qxl_mman		mman;
 	struct qxl_gem		gem;
 
-	struct drm_fb_helper	fb_helper;
-
 	void *ram_physical;
 
 	struct qxl_ring *release_ring;
@@ -321,12 +319,6 @@ qxl_bo_physical_address(struct qxl_device *qdev, struct qxl_bo *bo,
 	/* TODO - need to hold one of the locks to read tbo.offset */
 	return slot->high_bits | (bo->tbo.offset - slot->gpu_offset + offset);
 }
-
-/* qxl_fb.c */
-#define QXLFB_CONN_LIMIT 1
-
-int qxl_fbdev_init(struct qxl_device *qdev);
-void qxl_fbdev_fini(struct qxl_device *qdev);
 
 /* qxl_display.c */
 void qxl_display_read_client_monitors_config(struct qxl_device *qdev);
@@ -432,9 +424,6 @@ int qxl_alloc_bo_reserved(struct qxl_device *qdev,
 			  struct qxl_bo **_bo);
 /* qxl drawing commands */
 
-void qxl_draw_opaque_fb(const struct qxl_fb_image *qxl_fb_image,
-			int stride /* filled in if 0 */);
-
 void qxl_draw_dirty_fb(struct qxl_device *qdev,
 		       struct drm_framebuffer *fb,
 		       struct qxl_bo *bo,
@@ -442,13 +431,6 @@ void qxl_draw_dirty_fb(struct qxl_device *qdev,
 		       struct drm_clip_rect *clips,
 		       unsigned int num_clips, int inc,
 		       uint32_t dumb_shadow_offset);
-
-void qxl_draw_fill(struct qxl_draw_fill *qxl_draw_fill_rec);
-
-void qxl_draw_copyarea(struct qxl_device *qdev,
-		       u32 width, u32 height,
-		       u32 sx, u32 sy,
-		       u32 dx, u32 dy);
 
 void qxl_release_free(struct qxl_device *qdev,
 		      struct qxl_release *release);
@@ -480,9 +462,6 @@ int qxl_gem_prime_mmap(struct drm_gem_object *obj,
 /* qxl_irq.c */
 int qxl_irq_init(struct qxl_device *qdev);
 irqreturn_t qxl_irq_handler(int irq, void *arg);
-
-/* qxl_fb.c */
-bool qxl_fbdev_qobj_is_fb(struct qxl_device *qdev, struct qxl_bo *qobj);
 
 int qxl_debugfs_add_files(struct qxl_device *qdev,
 			  struct drm_info_list *files,
