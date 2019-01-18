@@ -53,6 +53,7 @@
 #define MLXSW_PCI_WQE_SIZE	32 /* 32 bytes per element */
 #define MLXSW_PCI_CQE01_SIZE	16 /* 16 bytes per element */
 #define MLXSW_PCI_CQE2_SIZE	32 /* 32 bytes per element */
+#define MLXSW_PCI_CQE_SIZE_MAX	MLXSW_PCI_CQE2_SIZE
 #define MLXSW_PCI_EQE_SIZE	16 /* 16 bytes per element */
 #define MLXSW_PCI_WQE_COUNT	(MLXSW_PCI_AQ_SIZE / MLXSW_PCI_WQE_SIZE)
 #define MLXSW_PCI_CQE01_COUNT	(MLXSW_PCI_AQ_SIZE / MLXSW_PCI_CQE01_SIZE)
