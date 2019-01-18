@@ -1910,11 +1910,8 @@ static int snd_ca0106_suspend(struct device *dev)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_ca0106 *chip = card->private_data;
-	int i;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-	for (i = 0; i < 4; i++)
-		snd_pcm_suspend_all(chip->pcm[i]);
 	if (chip->details->ac97)
 		snd_ac97_suspend(chip->ac97);
 	snd_ca0106_mixer_suspend(chip);

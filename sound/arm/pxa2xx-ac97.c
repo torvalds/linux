@@ -124,7 +124,6 @@ static int pxa2xx_ac97_do_suspend(struct snd_card *card)
 	pxa2xx_audio_ops_t *platform_ops = card->dev->platform_data;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3cold);
-	snd_pcm_suspend_all(pxa2xx_ac97_pcm);
 	snd_ac97_suspend(pxa2xx_ac97_ac97);
 	if (platform_ops && platform_ops->suspend)
 		platform_ops->suspend(platform_ops->priv);

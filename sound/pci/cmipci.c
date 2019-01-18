@@ -3351,10 +3351,6 @@ static int snd_cmipci_suspend(struct device *dev)
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 	
-	snd_pcm_suspend_all(cm->pcm);
-	snd_pcm_suspend_all(cm->pcm2);
-	snd_pcm_suspend_all(cm->pcm_spdif);
-
 	/* save registers */
 	for (i = 0; i < ARRAY_SIZE(saved_regs); i++)
 		cm->saved_regs[i] = snd_cmipci_read(cm, saved_regs[i]);

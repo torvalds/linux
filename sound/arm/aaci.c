@@ -757,7 +757,6 @@ static int aaci_do_suspend(struct snd_card *card)
 {
 	struct aaci *aaci = card->private_data;
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3cold);
-	snd_pcm_suspend_all(aaci->pcm);
 	return 0;
 }
 
