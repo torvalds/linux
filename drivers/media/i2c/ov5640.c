@@ -2441,6 +2441,11 @@ static int ov5640_set_ctrl_gain(struct ov5640_dev *sensor, bool auto_gain)
 	return ret;
 }
 
+static const char * const test_pattern_menu[] = {
+	"Disabled",
+	"Color bars",
+};
+
 static int ov5640_set_ctrl_test_pattern(struct ov5640_dev *sensor, int value)
 {
 	return ov5640_mod_reg(sensor, OV5640_REG_PRE_ISP_TEST_SET1,
@@ -2583,11 +2588,6 @@ static int ov5640_s_ctrl(struct v4l2_ctrl *ctrl)
 static const struct v4l2_ctrl_ops ov5640_ctrl_ops = {
 	.g_volatile_ctrl = ov5640_g_volatile_ctrl,
 	.s_ctrl = ov5640_s_ctrl,
-};
-
-static const char * const test_pattern_menu[] = {
-	"Disabled",
-	"Color bars",
 };
 
 static int ov5640_init_controls(struct ov5640_dev *sensor)
