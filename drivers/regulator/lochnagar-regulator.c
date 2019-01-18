@@ -232,8 +232,9 @@ static const struct of_device_id lochnagar_of_match[] = {
 		.compatible = "cirrus,lochnagar2-vddcore",
 		.data = &lochnagar_regulators[LOCHNAGAR_VDDCORE],
 	},
-	{},
+	{}
 };
+MODULE_DEVICE_TABLE(of, lochnagar_of_match);
 
 static int lochnagar_regulator_probe(struct platform_device *pdev)
 {
