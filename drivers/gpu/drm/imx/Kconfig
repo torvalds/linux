@@ -18,6 +18,7 @@ config DRM_IMX_PARALLEL_DISPLAY
 config DRM_IMX_TVE
 	tristate "Support for TV and VGA displays"
 	depends on DRM_IMX
+	depends on COMMON_CLK
 	select REGMAP_MMIO
 	help
 	  Choose this to enable the internal Television Encoder (TVe)
