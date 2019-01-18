@@ -4928,6 +4928,10 @@ static int rtnl_valid_stats_req(const struct nlmsghdr *nlh, bool strict_check,
 		NL_SET_ERR_MSG(extack, "Invalid attributes after stats header");
 		return -EINVAL;
 	}
+	if (ifsm->filter_mask >= IFLA_STATS_FILTER_BIT(IFLA_STATS_MAX + 1)) {
+		NL_SET_ERR_MSG(extack, "Invalid stats requested through filter mask");
+		return -EINVAL;
+	}
 
 	return 0;
 }
