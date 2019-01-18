@@ -1004,7 +1004,9 @@ static ssize_t amdgpu_get_pp_dpm_pcie(struct device *dev,
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = ddev->dev_private;
 
-	if (adev->powerplay.pp_funcs->print_clock_levels)
+	if (is_support_sw_smu(adev))
+		return smu_print_clk_levels(&adev->smu, PP_PCIE, buf);
+	else if (adev->powerplay.pp_funcs->print_clock_levels)
 		return amdgpu_dpm_print_clock_levels(adev, PP_PCIE, buf);
 	else
 		return snprintf(buf, PAGE_SIZE, "\n");
@@ -1024,7 +1026,9 @@ static ssize_t amdgpu_set_pp_dpm_pcie(struct device *dev,
 	if (ret)
 		return ret;
 
-	if (adev->powerplay.pp_funcs->force_clock_level)
+	if (is_support_sw_smu(adev))
+		ret = smu_force_clk_levels(&adev->smu, PP_PCIE, mask);
+	else if (adev->powerplay.pp_funcs->force_clock_level)
 		ret = amdgpu_dpm_force_clock_level(adev, PP_PCIE, mask);
 
 	if (ret)
