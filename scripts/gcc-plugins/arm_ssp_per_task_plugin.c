@@ -13,7 +13,7 @@ static unsigned int arm_pertask_ssp_rtl_execute(void)
 	for (insn = get_insns(); insn; insn = NEXT_INSN(insn)) {
 		const char *sym;
 		rtx body;
-		rtx masked_sp;
+		rtx mask, masked_sp;
 
 		/*
 		 * Find a SET insn involving a SYMBOL_REF to __stack_chk_guard
@@ -33,12 +33,13 @@ static unsigned int arm_pertask_ssp_rtl_execute(void)
 		 * produces the address of the copy of the stack canary value
 		 * stored in struct thread_info
 		 */
+		mask = GEN_INT(sext_hwi(sp_mask, GET_MODE_PRECISION(Pmode)));
 		masked_sp = gen_reg_rtx(Pmode);
 
 		emit_insn_before(gen_rtx_SET(masked_sp,
 					     gen_rtx_AND(Pmode,
 							 stack_pointer_rtx,
-							 GEN_INT(sp_mask))),
+							 mask)),
 				 insn);
 
 		SET_SRC(body) = gen_rtx_PLUS(Pmode, masked_sp,
