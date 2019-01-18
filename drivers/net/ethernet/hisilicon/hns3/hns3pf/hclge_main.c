@@ -1123,7 +1123,7 @@ static int hclge_map_tqp_to_vport(struct hclge_dev *hdev,
 	u16 i;
 
 	kinfo = &nic->kinfo;
-	for (i = 0; i < kinfo->num_tqps; i++) {
+	for (i = 0; i < vport->alloc_tqps; i++) {
 		struct hclge_tqp *q =
 			container_of(kinfo->tqp[i], struct hclge_tqp, q);
 		bool is_pf;
@@ -5241,6 +5241,7 @@ static int hclge_set_loopback(struct hnae3_handle *handle,
 			      enum hnae3_loop loop_mode, bool en)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hnae3_knic_private_info *kinfo;
 	struct hclge_dev *hdev = vport->back;
 	int i, ret;
 
@@ -5259,7 +5260,8 @@ static int hclge_set_loopback(struct hnae3_handle *handle,
 		break;
 	}
 
-	for (i = 0; i < vport->alloc_tqps; i++) {
+	kinfo = &vport->nic.kinfo;
+	for (i = 0; i < kinfo->num_tqps; i++) {
 		ret = hclge_tqp_enable(hdev, i, 0, en);
 		if (ret)
 			return ret;
@@ -5271,11 +5273,13 @@ static int hclge_set_loopback(struct hnae3_handle *handle,
 static void hclge_reset_tqp_stats(struct hnae3_handle *handle)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hnae3_knic_private_info *kinfo;
 	struct hnae3_queue *queue;
 	struct hclge_tqp *tqp;
 	int i;
 
-	for (i = 0; i < vport->alloc_tqps; i++) {
+	kinfo = &vport->nic.kinfo;
+	for (i = 0; i < kinfo->num_tqps; i++) {
 		queue = handle->kinfo.tqp[i];
 		tqp = container_of(queue, struct hclge_tqp, q);
 		memset(&tqp->tqp_stats, 0, sizeof(tqp->tqp_stats));
