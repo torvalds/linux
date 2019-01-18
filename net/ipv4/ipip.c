@@ -719,7 +719,7 @@ static int ipip_netlink_fan(struct nlattr *data[], struct ip_tunnel *t,
 	struct nlattr *attr;
 	int rem, rv;
 
-	if (!data[IFLA_IPTUN_FAN_MAP])
+	if (data == NULL || !data[IFLA_IPTUN_FAN_MAP])
 		return 0;
 
 	if (parms->iph.daddr)
