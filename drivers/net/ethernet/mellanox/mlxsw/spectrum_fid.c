@@ -696,8 +696,8 @@ static const struct mlxsw_sp_fid_ops mlxsw_sp_fid_dummy_ops = {
 static const struct mlxsw_sp_fid_family mlxsw_sp_fid_dummy_family = {
 	.type			= MLXSW_SP_FID_TYPE_DUMMY,
 	.fid_size		= sizeof(struct mlxsw_sp_fid),
-	.start_index		= MLXSW_SP_RFID_BASE - 1,
-	.end_index		= MLXSW_SP_RFID_BASE - 1,
+	.start_index		= VLAN_N_VID - 1,
+	.end_index		= VLAN_N_VID - 1,
 	.ops			= &mlxsw_sp_fid_dummy_ops,
 };
 
