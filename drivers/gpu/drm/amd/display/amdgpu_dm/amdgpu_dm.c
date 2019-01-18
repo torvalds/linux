@@ -137,30 +137,6 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 static void handle_cursor_update(struct drm_plane *plane,
 				 struct drm_plane_state *old_plane_state);
 
-
-
-static const enum drm_plane_type dm_plane_type_default[AMDGPU_MAX_PLANES] = {
-	DRM_PLANE_TYPE_PRIMARY,
-	DRM_PLANE_TYPE_PRIMARY,
-	DRM_PLANE_TYPE_PRIMARY,
-	DRM_PLANE_TYPE_PRIMARY,
-	DRM_PLANE_TYPE_PRIMARY,
-	DRM_PLANE_TYPE_PRIMARY,
-};
-
-static const enum drm_plane_type dm_plane_type_carizzo[AMDGPU_MAX_PLANES] = {
-	DRM_PLANE_TYPE_PRIMARY,
-	DRM_PLANE_TYPE_PRIMARY,
-	DRM_PLANE_TYPE_PRIMARY,
-	DRM_PLANE_TYPE_OVERLAY,/* YUV Capable Underlay */
-};
-
-static const enum drm_plane_type dm_plane_type_stoney[AMDGPU_MAX_PLANES] = {
-	DRM_PLANE_TYPE_PRIMARY,
-	DRM_PLANE_TYPE_PRIMARY,
-	DRM_PLANE_TYPE_OVERLAY, /* YUV Capable Underlay */
-};
-
 /*
  * dm_vblank_get_counter
  *
@@ -1840,8 +1816,8 @@ amdgpu_dm_register_backlight_device(struct amdgpu_display_manager *dm)
 #endif
 
 static int initialize_plane(struct amdgpu_display_manager *dm,
-			     struct amdgpu_mode_info *mode_info,
-			     int plane_id)
+			    struct amdgpu_mode_info *mode_info, int plane_id,
+			    enum drm_plane_type plane_type)
 {
 	struct drm_plane *plane;
 	unsigned long possible_crtcs;
@@ -1854,13 +1830,13 @@ static int initialize_plane(struct amdgpu_display_manager *dm,
 		DRM_ERROR("KMS: Failed to allocate plane\n");
 		return -ENOMEM;
 	}
-	plane->type = mode_info->plane_type[plane_id];
+	plane->type = plane_type;
 
 	/*
-	 * HACK: IGT tests expect that each plane can only have
-	 * one possible CRTC. For now, set one CRTC for each
-	 * plane that is not an underlay, but still allow multiple
-	 * CRTCs for underlay planes.
+	 * HACK: IGT tests expect that the primary plane for a CRTC
+	 * can only have one possible CRTC. Only expose support for
+	 * any CRTC if they're not going to be used as a primary plane
+	 * for a CRTC - like overlay or underlay planes.
 	 */
 	possible_crtcs = 1 << plane_id;
 	if (plane_id >= dm->dc->caps.max_streams)
@@ -1915,7 +1891,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 	struct amdgpu_encoder *aencoder = NULL;
 	struct amdgpu_mode_info *mode_info = &adev->mode_info;
 	uint32_t link_cnt;
-	int32_t total_overlay_planes, total_primary_planes;
+	int32_t primary_planes;
 	enum dc_connection_type new_connection_type = dc_connection_none;
 
 	link_cnt = dm->dc->caps.max_links;
@@ -1924,21 +1900,17 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 		return -EINVAL;
 	}
 
-	/* Identify the number of planes to be initialized */
-	total_overlay_planes = dm->dc->caps.max_slave_planes;
-	total_primary_planes = dm->dc->caps.max_planes - dm->dc->caps.max_slave_planes;
+	/* There is one primary plane per CRTC */
+	primary_planes = dm->dc->caps.max_streams;
+	ASSERT(primary_planes < AMDGPU_MAX_PLANES);
 
-	/* First initialize overlay planes, index starting after primary planes */
-	for (i = (total_overlay_planes - 1); i >= 0; i--) {
-		if (initialize_plane(dm, mode_info, (total_primary_planes + i))) {
-			DRM_ERROR("KMS: Failed to initialize overlay plane\n");
-			goto fail;
-		}
-	}
-
-	/* Initialize primary planes */
-	for (i = (total_primary_planes - 1); i >= 0; i--) {
-		if (initialize_plane(dm, mode_info, i)) {
+	/*
+	 * Initialize primary planes, implicit planes for legacy IOCTLS.
+	 * Order is reversed to match iteration order in atomic check.
+	 */
+	for (i = (primary_planes - 1); i >= 0; i--) {
+		if (initialize_plane(dm, mode_info, i,
+				     DRM_PLANE_TYPE_PRIMARY)) {
 			DRM_ERROR("KMS: Failed to initialize primary plane\n");
 			goto fail;
 		}
@@ -2041,7 +2013,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 fail:
 	kfree(aencoder);
 	kfree(aconnector);
-	for (i = 0; i < dm->dc->caps.max_planes; i++)
+	for (i = 0; i < primary_planes; i++)
 		kfree(mode_info->planes[i]);
 	return -EINVAL;
 }
@@ -2123,53 +2095,45 @@ static int dm_early_init(void *handle)
 		adev->mode_info.num_crtc = 6;
 		adev->mode_info.num_hpd = 6;
 		adev->mode_info.num_dig = 6;
-		adev->mode_info.plane_type = dm_plane_type_default;
 		break;
 	case CHIP_KAVERI:
 		adev->mode_info.num_crtc = 4;
 		adev->mode_info.num_hpd = 6;
 		adev->mode_info.num_dig = 7;
-		adev->mode_info.plane_type = dm_plane_type_default;
 		break;
 	case CHIP_KABINI:
 	case CHIP_MULLINS:
 		adev->mode_info.num_crtc = 2;
 		adev->mode_info.num_hpd = 6;
 		adev->mode_info.num_dig = 6;
-		adev->mode_info.plane_type = dm_plane_type_default;
 		break;
 	case CHIP_FIJI:
 	case CHIP_TONGA:
 		adev->mode_info.num_crtc = 6;
 		adev->mode_info.num_hpd = 6;
 		adev->mode_info.num_dig = 7;
-		adev->mode_info.plane_type = dm_plane_type_default;
 		break;
 	case CHIP_CARRIZO:
 		adev->mode_info.num_crtc = 3;
 		adev->mode_info.num_hpd = 6;
 		adev->mode_info.num_dig = 9;
-		adev->mode_info.plane_type = dm_plane_type_carizzo;
 		break;
 	case CHIP_STONEY:
 		adev->mode_info.num_crtc = 2;
 		adev->mode_info.num_hpd = 6;
 		adev->mode_info.num_dig = 9;
-		adev->mode_info.plane_type = dm_plane_type_stoney;
 		break;
 	case CHIP_POLARIS11:
 	case CHIP_POLARIS12:
 		adev->mode_info.num_crtc = 5;
 		adev->mode_info.num_hpd = 5;
 		adev->mode_info.num_dig = 5;
-		adev->mode_info.plane_type = dm_plane_type_default;
 		break;
 	case CHIP_POLARIS10:
 	case CHIP_VEGAM:
 		adev->mode_info.num_crtc = 6;
 		adev->mode_info.num_hpd = 6;
 		adev->mode_info.num_dig = 6;
-		adev->mode_info.plane_type = dm_plane_type_default;
 		break;
 	case CHIP_VEGA10:
 	case CHIP_VEGA12:
@@ -2177,14 +2141,12 @@ static int dm_early_init(void *handle)
 		adev->mode_info.num_crtc = 6;
 		adev->mode_info.num_hpd = 6;
 		adev->mode_info.num_dig = 6;
-		adev->mode_info.plane_type = dm_plane_type_default;
 		break;
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 	case CHIP_RAVEN:
 		adev->mode_info.num_crtc = 4;
 		adev->mode_info.num_hpd = 4;
 		adev->mode_info.num_dig = 4;
-		adev->mode_info.plane_type = dm_plane_type_default;
 		break;
 #endif
 	default:
