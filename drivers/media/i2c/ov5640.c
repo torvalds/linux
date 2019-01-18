@@ -2461,8 +2461,7 @@ static const char * const test_pattern_menu[] = {
 
 static const u8 test_pattern_val[] = {
 	0,
-	OV5640_TEST_ENABLE | OV5640_TEST_TRANSPARENT |
-		OV5640_TEST_BAR_VERT_CHANGE_1 |
+	OV5640_TEST_ENABLE | OV5640_TEST_BAR_VERT_CHANGE_1 |
 		OV5640_TEST_BAR,
 };
 
