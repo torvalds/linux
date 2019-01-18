@@ -203,8 +203,8 @@ show_fan_div(struct device *dev, struct device_attribute *devattr, char *buf)
 	return sprintf(buf, "%d\n", DIV_FROM_REG(data->fan_div[attr->index]));
 }
 
-static ssize_t set_fan_div(struct device *dev,
-	    struct device_attribute *devattr, const char *buf, size_t count)
+static ssize_t set_fan_div(struct device *dev, struct device_attribute *devattr,
+			   const char *buf, size_t count)
 {
 	struct adm1029_data *data = dev_get_drvdata(dev);
 	struct i2c_client *client = data->client;
@@ -322,7 +322,7 @@ static int adm1029_detect(struct i2c_client *client,
 	temp_devices_installed = i2c_smbus_read_byte_data(client,
 					ADM1029_REG_TEMP_DEVICES_INSTALLED);
 	nb_fan_support = i2c_smbus_read_byte_data(client,
-						ADM1029_REG_NB_FAN_SUPPORT);
+						  ADM1029_REG_NB_FAN_SUPPORT);
 	/* 0x41 is Analog Devices */
 	if (man_id != 0x41 || (temp_devices_installed & 0xf9) != 0x01 ||
 	    nb_fan_support != 0x03)
