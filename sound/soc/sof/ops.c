@@ -142,15 +142,17 @@ void snd_sof_dsp_update_bits_forced(struct snd_sof_dev *sdev, u32 bar,
 EXPORT_SYMBOL(snd_sof_dsp_update_bits_forced);
 
 int snd_sof_dsp_register_poll(struct snd_sof_dev *sdev, u32 bar, u32 offset,
-			      u32 mask, u32 target, u32 timeout_ms)
+			      u32 mask, u32 target, u32 timeout_ms,
+			      u32 interval_us)
 {
 	u32 reg;
 	unsigned long tout_jiff;
-	int k = 0, s = 500;
+	int k = 0, s = interval_us;
 
 	/*
 	 * Split the loop into 2 sleep stages with varying resolution.
 	 * To do it more accurately, the range of wakeups are:
+	 * In case of interval_us = 500,
 	 * Phase 1(first 5ms): min sleep 0.5ms; max sleep 1ms.
 	 * Phase 2(beyond 5ms): min sleep 5ms; max sleep 10ms.
 	 */
@@ -163,7 +165,7 @@ int snd_sof_dsp_register_poll(struct snd_sof_dev *sdev, u32 bar, u32 offset,
 
 		/* Phase 2 after 5ms(500us * 10) */
 		if (++k > 10)
-			s = 5000;
+			s = interval_us * 10;
 
 		usleep_range(s, 2 * s);
 	} while (time_before(jiffies, tout_jiff));

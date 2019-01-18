@@ -40,7 +40,8 @@ int hda_dsp_core_reset_enter(struct snd_sof_dev *sdev, unsigned int core_mask)
 					HDA_DSP_REG_ADSPCS,
 					HDA_DSP_ADSPCS_CRST_MASK(core_mask),
 					HDA_DSP_ADSPCS_CRST_MASK(core_mask),
-					HDA_DSP_RESET_TIMEOUT);
+					HDA_DSP_RESET_TIMEOUT,
+					HDA_DSP_REG_POLL_INTERVAL_US);
 
 	/* has core entered reset ? */
 	adspcs = snd_sof_dsp_read(sdev, HDA_DSP_BAR,
@@ -71,7 +72,8 @@ int hda_dsp_core_reset_leave(struct snd_sof_dev *sdev, unsigned int core_mask)
 	ret = snd_sof_dsp_register_poll(sdev, HDA_DSP_BAR,
 					HDA_DSP_REG_ADSPCS,
 					HDA_DSP_ADSPCS_CRST_MASK(core_mask), 0,
-					HDA_DSP_RESET_TIMEOUT);
+					HDA_DSP_RESET_TIMEOUT,
+					HDA_DSP_REG_POLL_INTERVAL_US);
 
 	/* has core left reset ? */
 	adspcs = snd_sof_dsp_read(sdev, HDA_DSP_BAR,
@@ -144,7 +146,8 @@ int hda_dsp_core_power_up(struct snd_sof_dev *sdev, unsigned int core_mask)
 					HDA_DSP_REG_ADSPCS,
 					HDA_DSP_ADSPCS_CPA_MASK(core_mask),
 					HDA_DSP_ADSPCS_CPA_MASK(core_mask),
-					HDA_DSP_PU_TIMEOUT);
+					HDA_DSP_PU_TIMEOUT,
+					HDA_DSP_REG_POLL_INTERVAL_US);
 	if (ret < 0)
 		dev_err(sdev->dev, "error: timeout on core powerup\n");
 
@@ -172,7 +175,8 @@ int hda_dsp_core_power_down(struct snd_sof_dev *sdev, unsigned int core_mask)
 	/* poll with timeout to check if operation successful */
 	return snd_sof_dsp_register_poll(sdev, HDA_DSP_BAR,
 		HDA_DSP_REG_ADSPCS, HDA_DSP_ADSPCS_CPA_MASK(core_mask), 0,
-		HDA_DSP_PD_TIMEOUT);
+		HDA_DSP_PD_TIMEOUT,
+		HDA_DSP_REG_POLL_INTERVAL_US);
 }
 
 bool hda_dsp_core_is_enabled(struct snd_sof_dev *sdev,

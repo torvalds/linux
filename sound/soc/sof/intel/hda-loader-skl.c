@@ -361,7 +361,8 @@ static int cl_dsp_init_skl(struct snd_sof_dev *sdev)
 	ret = snd_sof_dsp_register_poll(sdev, HDA_DSP_BAR,
 					HDA_ADSP_FW_STATUS_SKL,
 					HDA_DSP_ROM_STS_MASK, HDA_DSP_ROM_INIT,
-					HDA_DSP_INIT_TIMEOUT);
+					HDA_DSP_INIT_TIMEOUT,
+					HDA_DSP_REG_POLL_INTERVAL_US);
 	if (ret < 0)
 		goto err;
 
@@ -462,7 +463,8 @@ static int cl_copy_fw_skl(struct snd_sof_dev *sdev)
 					HDA_ADSP_FW_STATUS_SKL,
 					HDA_DSP_ROM_STS_MASK,
 					HDA_DSP_ROM_FW_FW_LOADED,
-					HDA_DSP_BASEFW_TIMEOUT);
+					HDA_DSP_BASEFW_TIMEOUT,
+					HDA_DSP_REG_POLL_INTERVAL_US);
 	if (ret < 0)
 		dev_err(sdev->dev, "error: firmware transfer timeout!");
 

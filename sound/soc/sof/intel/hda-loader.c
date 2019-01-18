@@ -108,7 +108,8 @@ static int cl_dsp_init(struct snd_sof_dev *sdev, const void *fwdata,
 	ret = snd_sof_dsp_register_poll(sdev, HDA_DSP_BAR,
 					chip->ipc_ack,
 					chip->ipc_ack_mask, chip->ipc_ack_mask,
-					HDA_DSP_INIT_TIMEOUT);
+					HDA_DSP_INIT_TIMEOUT,
+					HDA_DSP_REG_POLL_INTERVAL_US);
 
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: waiting for HIPCIE done\n");
@@ -130,7 +131,8 @@ static int cl_dsp_init(struct snd_sof_dev *sdev, const void *fwdata,
 	ret = snd_sof_dsp_register_poll(sdev, HDA_DSP_BAR,
 					HDA_DSP_SRAM_REG_ROM_STATUS,
 					HDA_DSP_ROM_STS_MASK, HDA_DSP_ROM_INIT,
-					HDA_ROM_INIT_TIMEOUT);
+					HDA_ROM_INIT_TIMEOUT,
+					HDA_DSP_REG_POLL_INTERVAL_US);
 	if (!ret)
 		return 0;
 
@@ -231,7 +233,8 @@ static int cl_copy_fw(struct snd_sof_dev *sdev, struct hdac_ext_stream *stream)
 					   HDA_DSP_SRAM_REG_ROM_STATUS,
 					   HDA_DSP_ROM_STS_MASK,
 					   HDA_DSP_ROM_FW_ENTERED,
-					   HDA_DSP_BASEFW_TIMEOUT);
+					   HDA_DSP_BASEFW_TIMEOUT,
+					   HDA_DSP_REG_POLL_INTERVAL_US);
 
 	ret = cl_trigger(sdev, stream, SNDRV_PCM_TRIGGER_STOP);
 	if (ret < 0) {
