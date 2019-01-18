@@ -2211,7 +2211,7 @@ static void rx_data(struct net_device *dev, struct rcs __iomem *prcs,
 			untranslate(local, skb, total_len);
 		}
 	} else { /* sniffer mode, so just pass whole packet */
-	};
+	}
 
 /************************/
 	/* Now pick up the rest of the fragments if any */
