@@ -22,6 +22,7 @@
  * Authors: Andreas Pokorny
  */
 
+#include "qxl_drv.h"
 #include "qxl_object.h"
 
 /* Empty Implementations as there should not be any other driver for a virtual
@@ -29,13 +30,16 @@
 
 int qxl_gem_prime_pin(struct drm_gem_object *obj)
 {
-	WARN_ONCE(1, "not implemented");
-	return -ENOSYS;
+	struct qxl_bo *bo = gem_to_qxl_bo(obj);
+
+	return qxl_bo_pin(bo);
 }
 
 void qxl_gem_prime_unpin(struct drm_gem_object *obj)
 {
-	WARN_ONCE(1, "not implemented");
+	struct qxl_bo *bo = gem_to_qxl_bo(obj);
+
+	qxl_bo_unpin(bo);
 }
 
 struct sg_table *qxl_gem_prime_get_sg_table(struct drm_gem_object *obj)
