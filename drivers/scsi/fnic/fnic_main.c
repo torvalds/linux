@@ -658,12 +658,20 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_out_iounmap;
 	}
 
+	err = vnic_dev_cmd_init(fnic->vdev);
+	if (err) {
+		shost_printk(KERN_ERR, fnic->lport->host,
+				"vnic_dev_cmd_init() returns %d, aborting\n",
+				err);
+		goto err_out_vnic_unregister;
+	}
+
 	err = fnic_dev_wait(fnic->vdev, vnic_dev_open,
 			    vnic_dev_open_done, CMD_OPENF_RQ_ENABLE_THEN_POST);
 	if (err) {
 		shost_printk(KERN_ERR, fnic->lport->host,
 			     "vNIC dev open failed, aborting.\n");
-		goto err_out_vnic_unregister;
+		goto err_out_dev_cmd_deinit;
 	}
 
 	err = vnic_dev_init(fnic->vdev, 0);
@@ -921,6 +929,7 @@ err_out_clear_intr:
 	fnic_clear_intr_mode(fnic);
 err_out_dev_close:
 	vnic_dev_close(fnic->vdev);
+err_out_dev_cmd_deinit:
 err_out_vnic_unregister:
 	vnic_dev_unregister(fnic->vdev);
 err_out_iounmap:

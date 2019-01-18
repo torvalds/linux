@@ -934,3 +934,20 @@ err_out:
 	vnic_dev_unregister(vdev);
 	return NULL;
 }
+
+int vnic_dev_cmd_init(struct vnic_dev *vdev)
+{
+	int err;
+	void *p;
+
+	p = vnic_dev_get_res(vdev, RES_TYPE_DEVCMD2, 0);
+	if (p) {
+		pr_err("fnic: DEVCMD2 resource found!\n");
+		err = vnic_dev_init_devcmd2(vdev);
+	} else {
+		pr_err("fnic: DEVCMD2 not found, fall back to Devcmd\n");
+		err = vnic_dev_init_devcmd1(vdev);
+	}
+
+	return err;
+}
