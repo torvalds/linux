@@ -125,6 +125,7 @@ struct dc_link {
 	struct dc_link_status link_status;
 
 	struct link_trace link_trace;
+	struct gpio *hpd_gpio;
 };
 
 const struct dc_link_status *dc_link_get_status(const struct dc_link *dc_link);
