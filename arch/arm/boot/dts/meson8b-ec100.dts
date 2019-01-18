@@ -88,6 +88,9 @@
 	};
 
 	usb_vbus: regulator-usb-vbus {
+		/*
+		 * Silergy SY6288CCAC-GP 2A Power Distribution Switch.
+		 */
 		compatible = "regulator-fixed";
 
 		regulator-name = "USB_VBUS";
@@ -95,11 +98,20 @@
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 
+		vin-supply = <&vcc_5v>;
+
+		/*
+		 * signal name from the schematics: USB_PWR_EN
+		 */
 		gpio = <&gpio_ao GPIOAO_5 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 	};
 
 	vcc_5v: regulator-vcc5v {
+		/*
+		 * supplied by the main power input which called PWR_5V_STB
+		 * in the schematics
+		 */
 		compatible = "regulator-fixed";
 
 		regulator-name = "VCC5V";
@@ -107,6 +119,9 @@
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 
+		/*
+		 * signal name from the schematics: 3V3_5V_EN
+		 */
 		gpio = <&gpio GPIODV_29 GPIO_ACTIVE_LOW>;
 
 		regulator-boot-on;
@@ -114,11 +129,17 @@
 	};
 
 	vcck: regulator-vcck {
+		/*
+		 * Silergy SY8089AAC-GP 2A continuous, 3A peak, 1MHz
+		 * Synchronous Step Down Regulator.
+		 */
 		compatible = "pwm-regulator";
 
 		regulator-name = "VCCK";
 		regulator-min-microvolt = <860000>;
 		regulator-max-microvolt = <1140000>;
+
+		vin-supply = <&vcc_5v>;
 
 		pwms = <&pwm_cd 0 1148 0>;
 		pwm-dutycycle-range = <100 0>;
@@ -128,19 +149,66 @@
 	};
 
 	vcc_1v8: regulator-vcc1v8 {
+		/*
+		 * ABLIC S-1339D18-M5001-GP
+		 */
 		compatible = "regulator-fixed";
 
 		regulator-name = "VCC1V8";
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
+
+		vin-supply = <&vcc_3v3>;
 	};
 
 	vcc_3v3: regulator-vcc3v3 {
+		/*
+		 * Silergy SY8089AAC-GP 2A continuous, 3A peak, 1MHz
+		 * Synchronous Step Down Regulator. Also called
+		 * VDDIO_AO3.3V in the schematics.
+		 */
 		compatible = "regulator-fixed";
 
 		regulator-name = "VCC3V3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
+
+		vin-supply = <&vcc_5v>;
+	};
+
+	vcc_ddr3: regulator-vcc-ddr3 {
+		/*
+		 * Silergy SY8089AAC-GP 2A continuous, 3A peak, 1MHz
+		 * Synchronous Step Down Regulator. Also called
+		 * DDR3_1.5V in the schematics.
+		 */
+		compatible = "regulator-fixed";
+
+		regulator-name = "VCC_DDR3_1V5";
+		regulator-min-microvolt = <1500000>;
+		regulator-max-microvolt = <1500000>;
+
+		vin-supply = <&vcc_5v>;
+
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vcc_rtc: regulator-vcc-rtc {
+		/*
+		 * Global Mixed-mode Technology Inc. G918T12U-GP
+		 */
+		compatible = "regulator-fixed";
+
+		regulator-name = "VCC_RTC";
+		regulator-min-microvolt = <900000>;
+		regulator-max-microvolt = <900000>;
+
+		/*
+		 * When the board is powered then the input is VCC3V3,
+		 * otherwise power is taken from the coin cell battery.
+		 */
+		vin-supply = <&vcc_3v3>;
 	};
 };
 
