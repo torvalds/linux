@@ -226,10 +226,8 @@ static int hspi_probe(struct platform_device *pdev)
 	}
 
 	master = spi_alloc_master(&pdev->dev, sizeof(*hspi));
-	if (!master) {
-		dev_err(&pdev->dev, "spi_alloc_master error.\n");
+	if (!master)
 		return -ENOMEM;
-	}
 
 	clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(clk)) {
@@ -248,7 +246,6 @@ static int hspi_probe(struct platform_device *pdev)
 	hspi->addr	= devm_ioremap(hspi->dev,
 				       res->start, resource_size(res));
 	if (!hspi->addr) {
-		dev_err(&pdev->dev, "ioremap error.\n");
 		ret = -ENOMEM;
 		goto error1;
 	}
