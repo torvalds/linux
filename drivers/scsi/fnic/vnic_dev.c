@@ -27,6 +27,24 @@
 #include "vnic_devcmd.h"
 #include "vnic_dev.h"
 #include "vnic_stats.h"
+#include "vnic_wq.h"
+
+struct devcmd2_controller {
+	struct vnic_wq_ctrl *wq_ctrl;
+	struct vnic_dev_ring results_ring;
+	struct vnic_wq wq;
+	struct vnic_devcmd2 *cmd_ring;
+	struct devcmd2_result *result;
+	u16 next_result;
+	u16 result_size;
+	int color;
+};
+
+enum vnic_proxy_type {
+	PROXY_NONE,
+	PROXY_BY_BDF,
+	PROXY_BY_INDEX,
+};
 
 struct vnic_res {
 	void __iomem *vaddr;
@@ -48,6 +66,12 @@ struct vnic_dev {
 	dma_addr_t stats_pa;
 	struct vnic_devcmd_fw_info *fw_info;
 	dma_addr_t fw_info_pa;
+	enum vnic_proxy_type proxy;
+	u32 proxy_index;
+	u64 args[VNIC_DEVCMD_NARGS];
+	struct devcmd2_controller *devcmd2;
+	int (*devcmd_rtn)(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
+			int wait);
 };
 
 #define VNIC_MAX_RES_HDR_SIZE \
@@ -119,6 +143,7 @@ static int vnic_dev_discover_res(struct vnic_dev *vdev,
 			}
 			break;
 		case RES_TYPE_INTR_PBA_LEGACY:
+		case RES_TYPE_DEVCMD2:
 		case RES_TYPE_DEVCMD:
 			len = count;
 			break;
@@ -229,8 +254,7 @@ void vnic_dev_free_desc_ring(struct vnic_dev *vdev, struct vnic_dev_ring *ring)
 	}
 }
 
-int vnic_dev_cmd(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
-	u64 *a0, u64 *a1, int wait)
+int vnic_dev_cmd1(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd, int wait)
 {
 	struct vnic_devcmd __iomem *devcmd = vdev->devcmd;
 	int delay;
@@ -244,6 +268,8 @@ int vnic_dev_cmd(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 		EBUSY,  /* ERR_EBUSY */
 	};
 	int err;
+	u64 *a0 = &vdev->args[0];
+	u64 *a1 = &vdev->args[1];
 
 	status = ioread32(&devcmd->status);
 	if (status & STAT_BUSY) {
