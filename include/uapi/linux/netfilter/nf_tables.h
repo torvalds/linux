@@ -877,8 +877,8 @@ enum nft_hash_attributes {
 	NFTA_HASH_SEED,
 	NFTA_HASH_OFFSET,
 	NFTA_HASH_TYPE,
-	NFTA_HASH_SET_NAME,
-	NFTA_HASH_SET_ID,
+	NFTA_HASH_SET_NAME,	/* deprecated */
+	NFTA_HASH_SET_ID,	/* deprecated */
 	__NFTA_HASH_MAX,
 };
 #define NFTA_HASH_MAX	(__NFTA_HASH_MAX - 1)
