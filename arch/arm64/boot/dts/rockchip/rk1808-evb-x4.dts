@@ -72,39 +72,9 @@
 		dsi,lanes = <4>;
 
 		display-timings {
-			native-mode = <&timing_720p_rgb3>;
+			native-mode = <&timing_1280x3_720>;
 
-			timing_720p: timing-720p {
-				clock-frequency = <32000000>;
-				hactive = <720>;
-				vactive = <1280>;
-				hfront-porch = <40>;
-				hsync-len = <10>;
-				hback-porch = <40>;
-				vfront-porch = <40>;
-				vsync-len = <4>;
-				vback-porch = <40>;
-				hsync-active = <0>;
-				vsync-active = <0>;
-				de-active = <0>;
-				pixelclk-active = <0>;
-			};
-			timing_1080p: timing-1080p {
-				clock-frequency = <44000000>;
-				hactive = <1920>;
-				vactive = <1080>;
-				hfront-porch = <100>;
-				hsync-len = <10>;
-				hback-porch = <30>;
-				vfront-porch = <10>;
-				vsync-len = <10>;
-				vback-porch = <10>;
-				hsync-active = <0>;
-				vsync-active = <0>;
-				de-active = <0>;
-				pixelclk-active = <0>;
-			};
-			timing_720p_rgb3: timing-720p-rgb3 {
+			timing_1280x3_720: timing-1280x3-720 {
 				clock-frequency = <80000000>;
 				hactive = <3840>;
 				vactive = <720>;
@@ -123,22 +93,37 @@
 				clock-frequency = <250000000>;
 				hactive = <3840>;
 				vactive = <2160>;
-				hfront-porch = <1200>;
+				hfront-porch = <1500>;
 				hsync-len = <500>;
 				hback-porch = <30>;
-				vfront-porch = <4>;
-				vsync-len = <2>;
-				vback-porch = <4>;
+				vfront-porch = <40>;
+				vsync-len = <20>;
+				vback-porch = <40>;
 				hsync-active = <0>;
 				vsync-active = <0>;
 				de-active = <0>;
 				pixelclk-active = <0>;
 			};
-			timing_5k: timing-5k {
-				clock-frequency = <237500000>;
-				hactive = <5120>;
-				vactive = <2880>;
-				hfront-porch = <1200>;
+			timing_4096: timing-4096 {
+				clock-frequency = <190000000>;
+				hactive = <4096>;
+				vactive = <2048>;
+				hfront-porch = <1500>;
+				hsync-len = <500>;
+				hback-porch = <30>;
+				vfront-porch = <40>;
+				vsync-len = <20>;
+				vback-porch = <40>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+			timing_1920x3_1080: timing-1920x3-1080 {
+				clock-frequency = <250000000>;
+				hactive = <5760>;
+				vactive = <1080>;
+				hfront-porch = <1500>;
 				hsync-len = <70>;
 				hback-porch = <30>;
 				vfront-porch = <40>;
@@ -178,7 +163,7 @@
 		port {
 			vcamera_out: endpoint {
 				remote-endpoint = <&dphy_rx_in>;
-				link-frequencies = /bits/ 64 <400000000>;
+				link-frequencies = /bits/ 64 <320000000>;
 			};
 		};
 	};
@@ -236,7 +221,7 @@
 	status = "okay";
 };
 
-&route_dsi {
+&route_csi {
 	status = "disabled";
 };
 
