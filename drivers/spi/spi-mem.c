@@ -547,6 +547,8 @@ void spi_mem_dirmap_destroy(struct spi_mem_dirmap_desc *desc)
 
 	if (!desc->nodirmap && ctlr->mem_ops && ctlr->mem_ops->dirmap_destroy)
 		ctlr->mem_ops->dirmap_destroy(desc);
+
+	kfree(desc);
 }
 EXPORT_SYMBOL_GPL(spi_mem_dirmap_destroy);
 
