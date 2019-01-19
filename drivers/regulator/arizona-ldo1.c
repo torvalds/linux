@@ -40,30 +40,6 @@ struct arizona_ldo1 {
 	struct gpio_desc *ena_gpiod;
 };
 
-static int arizona_ldo1_hc_list_voltage(struct regulator_dev *rdev,
-					unsigned int selector)
-{
-	if (selector >= rdev->desc->n_voltages)
-		return -EINVAL;
-
-	if (selector == rdev->desc->n_voltages - 1)
-		return 1800000;
-	else
-		return rdev->desc->min_uV + (rdev->desc->uV_step * selector);
-}
-
-static int arizona_ldo1_hc_map_voltage(struct regulator_dev *rdev,
-				       int min_uV, int max_uV)
-{
-	int sel;
-
-	sel = DIV_ROUND_UP(min_uV - rdev->desc->min_uV, rdev->desc->uV_step);
-	if (sel >= rdev->desc->n_voltages)
-		sel = rdev->desc->n_voltages - 1;
-
-	return sel;
-}
-
 static int arizona_ldo1_hc_set_voltage_sel(struct regulator_dev *rdev,
 					   unsigned sel)
 {
@@ -113,12 +89,17 @@ static int arizona_ldo1_hc_get_voltage_sel(struct regulator_dev *rdev)
 }
 
 static const struct regulator_ops arizona_ldo1_hc_ops = {
-	.list_voltage = arizona_ldo1_hc_list_voltage,
-	.map_voltage = arizona_ldo1_hc_map_voltage,
+	.list_voltage = regulator_list_voltage_linear_range,
+	.map_voltage = regulator_map_voltage_linear_range,
 	.get_voltage_sel = arizona_ldo1_hc_get_voltage_sel,
 	.set_voltage_sel = arizona_ldo1_hc_set_voltage_sel,
 	.get_bypass = regulator_get_bypass_regmap,
 	.set_bypass = regulator_set_bypass_regmap,
+};
+
+static const struct regulator_linear_range arizona_ldo1_hc_ranges[] = {
+	REGULATOR_LINEAR_RANGE(900000, 0, 0x6, 50000),
+	REGULATOR_LINEAR_RANGE(1800000, 0x7, 0x7, 0),
 };
 
 static const struct regulator_desc arizona_ldo1_hc = {
@@ -129,8 +110,8 @@ static const struct regulator_desc arizona_ldo1_hc = {
 
 	.bypass_reg = ARIZONA_LDO1_CONTROL_1,
 	.bypass_mask = ARIZONA_LDO1_BYPASS,
-	.min_uV = 900000,
-	.uV_step = 50000,
+	.linear_ranges = arizona_ldo1_hc_ranges,
+	.n_linear_ranges = ARRAY_SIZE(arizona_ldo1_hc_ranges),
 	.n_voltages = 8,
 	.enable_time = 1500,
 	.ramp_delay = 24000,
