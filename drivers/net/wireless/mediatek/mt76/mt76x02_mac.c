@@ -476,7 +476,9 @@ out:
 }
 
 static int
-mt76x02_mac_process_rate(struct mt76_rx_status *status, u16 rate)
+mt76x02_mac_process_rate(struct mt76x02_dev *dev,
+			 struct mt76_rx_status *status,
+			 u16 rate)
 {
 	u8 idx = FIELD_GET(MT_RXWI_RATE_INDEX, rate);
 
@@ -508,11 +510,15 @@ mt76x02_mac_process_rate(struct mt76_rx_status *status, u16 rate)
 		status->encoding = RX_ENC_HT;
 		status->rate_idx = idx;
 		break;
-	case MT_PHY_TYPE_VHT:
+	case MT_PHY_TYPE_VHT: {
+		u8 n_rxstream = dev->mt76.chainmask & 0xf;
+
 		status->encoding = RX_ENC_VHT;
 		status->rate_idx = FIELD_GET(MT_RATE_INDEX_VHT_IDX, idx);
-		status->nss = FIELD_GET(MT_RATE_INDEX_VHT_NSS, idx) + 1;
+		status->nss = min_t(u8, n_rxstream,
+				    FIELD_GET(MT_RATE_INDEX_VHT_NSS, idx) + 1);
 		break;
+	}
 	default:
 		return -EINVAL;
 	}
@@ -656,7 +662,7 @@ int mt76x02_mac_process_rx(struct mt76x02_dev *dev, struct sk_buff *skb,
 	status->tid = FIELD_GET(MT_RXWI_TID, tid_sn);
 	status->seqno = FIELD_GET(MT_RXWI_SN, tid_sn);
 
-	return mt76x02_mac_process_rate(status, rate);
+	return mt76x02_mac_process_rate(dev, status, rate);
 }
 
 void mt76x02_mac_poll_tx_status(struct mt76x02_dev *dev, bool irq)
