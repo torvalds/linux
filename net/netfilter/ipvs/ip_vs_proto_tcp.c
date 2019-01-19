@@ -28,6 +28,7 @@
 #include <net/ip6_checksum.h>
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>
+#include <linux/indirect_call_wrapper.h>
 
 #include <net/ip_vs.h>
 
@@ -146,7 +147,7 @@ tcp_partial_csum_update(int af, struct tcphdr *tcph,
 }
 
 
-static int
+INDIRECT_CALLABLE_SCOPE int
 tcp_snat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 		 struct ip_vs_conn *cp, struct ip_vs_iphdr *iph)
 {
