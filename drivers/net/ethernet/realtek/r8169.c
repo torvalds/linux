@@ -6630,10 +6630,6 @@ static int rtl_open(struct net_device *dev)
 	if (retval < 0)
 		goto err_free_rx_1;
 
-	INIT_WORK(&tp->wk.work, rtl_task);
-
-	smp_mb();
-
 	rtl_request_firmware(tp);
 
 	retval = pci_request_irq(pdev, 0, rtl8169_interrupt, NULL, tp,
@@ -7293,6 +7289,7 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	tp->saved_wolopts = __rtl8169_get_wol(tp);
 
 	mutex_init(&tp->wk.mutex);
+	INIT_WORK(&tp->wk.work, rtl_task);
 	u64_stats_init(&tp->rx_stats.syncp);
 	u64_stats_init(&tp->tx_stats.syncp);
 
