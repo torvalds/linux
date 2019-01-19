@@ -7155,6 +7155,32 @@ static void rtl_disable_clk(void *data)
 	clk_disable_unprepare(data);
 }
 
+static int rtl_get_ether_clk(struct rtl8169_private *tp)
+{
+	struct device *d = tp_to_dev(tp);
+	struct clk *clk;
+	int rc;
+
+	clk = devm_clk_get(d, "ether_clk");
+	if (IS_ERR(clk)) {
+		rc = PTR_ERR(clk);
+		if (rc == -ENOENT)
+			/* clk-core allows NULL (for suspend / resume) */
+			rc = 0;
+		else if (rc != -EPROBE_DEFER)
+			dev_err(d, "failed to get clk: %d\n", rc);
+	} else {
+		tp->clk = clk;
+		rc = clk_prepare_enable(clk);
+		if (rc)
+			dev_err(d, "failed to enable clk: %d\n", rc);
+		else
+			rc = devm_add_action_or_reset(d, rtl_disable_clk, clk);
+	}
+
+	return rc;
+}
+
 static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	const struct rtl_cfg_info *cfg = rtl_cfg_infos + ent->driver_data;
@@ -7176,30 +7202,9 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	tp->supports_gmii = cfg->has_gmii;
 
 	/* Get the *optional* external "ether_clk" used on some boards */
-	tp->clk = devm_clk_get(&pdev->dev, "ether_clk");
-	if (IS_ERR(tp->clk)) {
-		rc = PTR_ERR(tp->clk);
-		if (rc == -ENOENT) {
-			/* clk-core allows NULL (for suspend / resume) */
-			tp->clk = NULL;
-		} else if (rc == -EPROBE_DEFER) {
-			return rc;
-		} else {
-			dev_err(&pdev->dev, "failed to get clk: %d\n", rc);
-			return rc;
-		}
-	} else {
-		rc = clk_prepare_enable(tp->clk);
-		if (rc) {
-			dev_err(&pdev->dev, "failed to enable clk: %d\n", rc);
-			return rc;
-		}
-
-		rc = devm_add_action_or_reset(&pdev->dev, rtl_disable_clk,
-					      tp->clk);
-		if (rc)
-			return rc;
-	}
+	rc = rtl_get_ether_clk(tp);
+	if (rc)
+		return rc;
 
 	/* enable device (incl. PCI PM wakeup and hotplug setup) */
 	rc = pcim_enable_device(pdev);
