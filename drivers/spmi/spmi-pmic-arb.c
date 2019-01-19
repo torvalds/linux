@@ -745,9 +745,14 @@ static void qpnpint_irq_domain_map(struct spmi_pmic_arb *pmic_arb,
 				   irq_hw_number_t hwirq, unsigned int type)
 {
 	irq_flow_handler_t handler;
+	unsigned int old_virq;
 
 	dev_dbg(&pmic_arb->spmic->dev, "virq = %u, hwirq = %lu, type = %u\n",
 		virq, hwirq, type);
+
+	old_virq = irq_find_mapping(domain, hwirq);
+	if (old_virq)
+		irq_domain_disassociate(domain, old_virq);
 
 	if (type & IRQ_TYPE_EDGE_BOTH)
 		handler = handle_edge_irq;
