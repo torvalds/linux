@@ -885,7 +885,7 @@ static int deliver_response(struct ipmi_smi *intf, struct ipmi_recv_msg *msg)
 
 		if (user) {
 			user->handler->ipmi_recv_hndl(msg, user->handler_data);
-			release_ipmi_user(msg->user, index);
+			release_ipmi_user(user, index);
 		} else {
 			/* User went away, give up. */
 			ipmi_free_recv_msg(msg);
