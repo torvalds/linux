@@ -333,6 +333,8 @@ enum bch_time_stats {
 /* Size of the freelist we allocate btree nodes from: */
 #define BTREE_NODE_RESERVE	BTREE_RESERVE_MAX
 
+#define BTREE_NODE_OPEN_BUCKET_RESERVE	(BTREE_RESERVE_MAX * BCH_REPLICAS_MAX)
+
 struct btree;
 
 enum gc_phase {

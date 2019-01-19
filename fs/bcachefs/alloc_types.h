@@ -56,9 +56,10 @@ struct open_bucket {
 	spinlock_t		lock;
 	atomic_t		pin;
 	u8			freelist;
-	bool			valid;
-	bool			on_partial_list;
 	u8			ec_idx;
+	u8			type;
+	unsigned		valid:1;
+	unsigned		on_partial_list:1;
 	unsigned		sectors_free;
 	struct bch_extent_ptr	ptr;
 	struct ec_stripe_new	*ec;

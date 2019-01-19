@@ -107,6 +107,7 @@ void __bch2_open_bucket_put(struct bch_fs *c, struct open_bucket *ob)
 	bch2_mark_alloc_bucket(c, ca, PTR_BUCKET_NR(ca, &ob->ptr),
 			       false, gc_pos_alloc(c, ob), 0);
 	ob->valid = false;
+	ob->type = 0;
 
 	spin_unlock(&ob->lock);
 	percpu_up_read(&c->mark_lock);
@@ -142,6 +143,7 @@ static struct open_bucket *bch2_open_bucket_alloc(struct bch_fs *c)
 	ob = c->open_buckets + c->open_buckets_freelist;
 	c->open_buckets_freelist = ob->freelist;
 	atomic_set(&ob->pin, 1);
+	ob->type = 0;
 
 	c->open_buckets_nr_free--;
 	return ob;
@@ -210,9 +212,9 @@ static inline unsigned open_buckets_reserved(enum alloc_reserve reserve)
 	case RESERVE_ALLOC:
 		return 0;
 	case RESERVE_BTREE:
-		return BTREE_NODE_RESERVE / 2;
+		return BTREE_NODE_OPEN_BUCKET_RESERVE;
 	default:
-		return BTREE_NODE_RESERVE;
+		return BTREE_NODE_OPEN_BUCKET_RESERVE * 2;
 	}
 }
 

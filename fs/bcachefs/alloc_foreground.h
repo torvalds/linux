@@ -86,6 +86,7 @@ static inline void bch2_open_bucket_get(struct bch_fs *c,
 	unsigned i;
 
 	open_bucket_for_each(c, &wp->ptrs, ob, i) {
+		ob->type = wp->type;
 		atomic_inc(&ob->pin);
 		ob_push(c, ptrs, ob);
 	}
