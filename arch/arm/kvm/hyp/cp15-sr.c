@@ -27,7 +27,6 @@ static u64 *cp15_64(struct kvm_cpu_context *ctxt, int idx)
 
 void __hyp_text __sysreg_save_state(struct kvm_cpu_context *ctxt)
 {
-	ctxt->cp15[c0_MPIDR]		= read_sysreg(VMPIDR);
 	ctxt->cp15[c0_CSSELR]		= read_sysreg(CSSELR);
 	ctxt->cp15[c1_SCTLR]		= read_sysreg(SCTLR);
 	ctxt->cp15[c1_CPACR]		= read_sysreg(CPACR);

@@ -1561,6 +1561,7 @@ static int init_hyp_mode(void)
 		kvm_cpu_context_t *cpu_ctxt;
 
 		cpu_ctxt = per_cpu_ptr(&kvm_host_cpu_state, cpu);
+		kvm_init_host_cpu_context(cpu_ctxt, cpu);
 		err = create_hyp_mappings(cpu_ctxt, cpu_ctxt + 1, PAGE_HYP);
 
 		if (err) {
