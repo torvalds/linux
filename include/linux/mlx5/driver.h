@@ -850,11 +850,30 @@ void mlx5_cmd_cleanup(struct mlx5_core_dev *dev);
 void mlx5_cmd_use_events(struct mlx5_core_dev *dev);
 void mlx5_cmd_use_polling(struct mlx5_core_dev *dev);
 
+struct mlx5_async_ctx {
+	struct mlx5_core_dev *dev;
+	atomic_t num_inflight;
+	struct wait_queue_head wait;
+};
+
+struct mlx5_async_work;
+
+typedef void (*mlx5_async_cbk_t)(int status, struct mlx5_async_work *context);
+
+struct mlx5_async_work {
+	struct mlx5_async_ctx *ctx;
+	mlx5_async_cbk_t user_callback;
+};
+
+void mlx5_cmd_init_async_ctx(struct mlx5_core_dev *dev,
+			     struct mlx5_async_ctx *ctx);
+void mlx5_cmd_cleanup_async_ctx(struct mlx5_async_ctx *ctx);
+int mlx5_cmd_exec_cb(struct mlx5_async_ctx *ctx, void *in, int in_size,
+		     void *out, int out_size, mlx5_async_cbk_t callback,
+		     struct mlx5_async_work *work);
+
 int mlx5_cmd_exec(struct mlx5_core_dev *dev, void *in, int in_size, void *out,
 		  int out_size);
-int mlx5_cmd_exec_cb(struct mlx5_core_dev *dev, void *in, int in_size,
-		     void *out, int out_size, mlx5_cmd_cbk_t callback,
-		     void *context);
 int mlx5_cmd_exec_polling(struct mlx5_core_dev *dev, void *in, int in_size,
 			  void *out, int out_size);
 void mlx5_cmd_mbox_status(void *out, u8 *status, u32 *syndrome);
@@ -885,9 +904,10 @@ void mlx5_init_mkey_table(struct mlx5_core_dev *dev);
 void mlx5_cleanup_mkey_table(struct mlx5_core_dev *dev);
 int mlx5_core_create_mkey_cb(struct mlx5_core_dev *dev,
 			     struct mlx5_core_mkey *mkey,
-			     u32 *in, int inlen,
-			     u32 *out, int outlen,
-			     mlx5_cmd_cbk_t callback, void *context);
+			     struct mlx5_async_ctx *async_ctx, u32 *in,
+			     int inlen, u32 *out, int outlen,
+			     mlx5_async_cbk_t callback,
+			     struct mlx5_async_work *context);
 int mlx5_core_create_mkey(struct mlx5_core_dev *dev,
 			  struct mlx5_core_mkey *mkey,
 			  u32 *in, int inlen);

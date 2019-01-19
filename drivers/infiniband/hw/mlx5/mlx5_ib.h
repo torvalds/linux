@@ -587,6 +587,7 @@ struct mlx5_ib_mr {
 	struct mlx5_ib_mr      *parent;
 	atomic_t		num_leaf_free;
 	wait_queue_head_t       q_leaf_free;
+	struct mlx5_async_work  cb_work;
 };
 
 struct mlx5_ib_mw {
@@ -944,6 +945,7 @@ struct mlx5_ib_dev {
 	struct mlx5_memic	memic;
 	u16			devx_whitelist_uid;
 	struct mlx5_srq_table   srq_table;
+	struct mlx5_async_ctx   async_ctx;
 };
 
 static inline struct mlx5_ib_cq *to_mibcq(struct mlx5_core_cq *mcq)
