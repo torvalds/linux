@@ -25,6 +25,8 @@
 #ifndef _LINUX_I2C_ALGO_BIT_H
 #define _LINUX_I2C_ALGO_BIT_H
 
+#include <linux/i2c.h>
+
 /* --- Defines for bit-adapters ---------------------------------------	*/
 /*
  * This struct contains the hw-dependent functions of bit-style adapters to
