@@ -639,6 +639,7 @@ struct rtl8169_private {
 	void __iomem *mmio_addr;	/* memory map physical address */
 	struct pci_dev *pci_dev;
 	struct net_device *dev;
+	struct phy_device *phydev;
 	struct napi_struct napi;
 	u32 msg_enable;
 	u16 mac_version;
@@ -679,7 +680,6 @@ struct rtl8169_private {
 	} wk;
 
 	unsigned supports_gmii:1;
-	struct mii_bus *mii_bus;
 	dma_addr_t counters_phys_addr;
 	struct rtl8169_counters *counters;
 	struct rtl8169_tc_offsets tc_offset;
@@ -1318,7 +1318,7 @@ static void rtl8169_irq_mask_and_ack(struct rtl8169_private *tp)
 static void rtl_link_chg_patch(struct rtl8169_private *tp)
 {
 	struct net_device *dev = tp->dev;
-	struct phy_device *phydev = dev->phydev;
+	struct phy_device *phydev = tp->phydev;
 
 	if (!netif_running(dev))
 		return;
@@ -3999,17 +3999,17 @@ static void rtl8169_init_phy(struct net_device *dev, struct rtl8169_private *tp)
 	}
 
 	/* We may have called phy_speed_down before */
-	phy_speed_up(dev->phydev);
+	phy_speed_up(tp->phydev);
 
-	genphy_soft_reset(dev->phydev);
+	genphy_soft_reset(tp->phydev);
 
 	/* It was reported that several chips end up with 10MBit/Half on a
 	 * 1GBit link after resuming from S3. For whatever reason the PHY on
 	 * these chips doesn't properly start a renegotiation when soft-reset.
 	 * Explicitly requesting a renegotiation fixes this.
 	 */
-	if (dev->phydev->autoneg == AUTONEG_ENABLE)
-		phy_restart_aneg(dev->phydev);
+	if (tp->phydev->autoneg == AUTONEG_ENABLE)
+		phy_restart_aneg(tp->phydev);
 }
 
 static void rtl_rar_set(struct rtl8169_private *tp, u8 *addr)
@@ -4054,10 +4054,12 @@ static int rtl_set_mac_address(struct net_device *dev, void *p)
 
 static int rtl8169_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
+	struct rtl8169_private *tp = netdev_priv(dev);
+
 	if (!netif_running(dev))
 		return -ENODEV;
 
-	return phy_mii_ioctl(dev->phydev, ifr, cmd);
+	return phy_mii_ioctl(tp->phydev, ifr, cmd);
 }
 
 static void rtl_init_mdio_ops(struct rtl8169_private *tp)
@@ -4106,15 +4108,10 @@ static void rtl_wol_suspend_quirk(struct rtl8169_private *tp)
 
 static bool rtl_wol_pll_power_down(struct rtl8169_private *tp)
 {
-	struct phy_device *phydev;
-
 	if (!__rtl8169_get_wol(tp))
 		return false;
 
-	/* phydev may not be attached to netdevice */
-	phydev = mdiobus_get_phy(tp->mii_bus, 0);
-
-	phy_speed_down(phydev, false);
+	phy_speed_down(tp->phydev, false);
 	rtl_wol_suspend_quirk(tp);
 
 	return true;
@@ -4183,7 +4180,7 @@ static void r8168_pll_power_up(struct rtl8169_private *tp)
 		break;
 	}
 
-	phy_resume(tp->dev->phydev);
+	phy_resume(tp->phydev);
 	/* give MAC/PHY some time to resume */
 	msleep(20);
 }
@@ -6415,8 +6412,8 @@ static irqreturn_t rtl8169_interrupt(int irq, void *dev_instance)
 		goto out;
 	}
 
-	if (status & LinkChg && tp->dev->phydev)
-		phy_mac_interrupt(tp->dev->phydev);
+	if (status & LinkChg)
+		phy_mac_interrupt(tp->phydev);
 
 	if (unlikely(status & RxFIFOOver &&
 	    tp->mac_version == RTL_GIGA_MAC_VER_11)) {
@@ -6507,12 +6504,12 @@ static void r8169_phylink_handler(struct net_device *ndev)
 	}
 
 	if (net_ratelimit())
-		phy_print_status(ndev->phydev);
+		phy_print_status(tp->phydev);
 }
 
 static int r8169_phy_connect(struct rtl8169_private *tp)
 {
-	struct phy_device *phydev = mdiobus_get_phy(tp->mii_bus, 0);
+	struct phy_device *phydev = tp->phydev;
 	phy_interface_t phy_mode;
 	int ret;
 
@@ -6539,7 +6536,7 @@ static void rtl8169_down(struct net_device *dev)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
 
-	phy_stop(dev->phydev);
+	phy_stop(tp->phydev);
 
 	napi_disable(&tp->napi);
 	netif_stop_queue(dev);
@@ -6581,7 +6578,7 @@ static int rtl8169_close(struct net_device *dev)
 
 	cancel_work_sync(&tp->wk.work);
 
-	phy_disconnect(dev->phydev);
+	phy_disconnect(tp->phydev);
 
 	pci_free_irq(pdev, 0, tp);
 
@@ -6658,7 +6655,7 @@ static int rtl_open(struct net_device *dev)
 	if (!rtl8169_init_counter_offsets(tp))
 		netif_warn(tp, hw, dev, "counter reset/update failed\n");
 
-	phy_start(dev->phydev);
+	phy_start(tp->phydev);
 	netif_start_queue(dev);
 
 	rtl_unlock_work(tp);
@@ -6747,7 +6744,7 @@ static void rtl8169_net_suspend(struct net_device *dev)
 	if (!netif_running(dev))
 		return;
 
-	phy_stop(dev->phydev);
+	phy_stop(tp->phydev);
 	netif_device_detach(dev);
 
 	rtl_lock_work(tp);
@@ -6782,7 +6779,7 @@ static void __rtl8169_resume(struct net_device *dev)
 	rtl_pll_power_up(tp);
 	rtl8169_init_phy(dev, tp);
 
-	phy_start(tp->dev->phydev);
+	phy_start(tp->phydev);
 
 	rtl_lock_work(tp);
 	napi_enable(&tp->napi);
@@ -6925,7 +6922,7 @@ static void rtl_remove_one(struct pci_dev *pdev)
 	netif_napi_del(&tp->napi);
 
 	unregister_netdev(dev);
-	mdiobus_unregister(tp->mii_bus);
+	mdiobus_unregister(tp->phydev->mdio.bus);
 
 	rtl_release_firmware(tp);
 
@@ -7032,7 +7029,6 @@ static int r8169_mdio_write_reg(struct mii_bus *mii_bus, int phyaddr,
 static int r8169_mdio_register(struct rtl8169_private *tp)
 {
 	struct pci_dev *pdev = tp->pci_dev;
-	struct phy_device *phydev;
 	struct mii_bus *new_bus;
 	int ret;
 
@@ -7054,16 +7050,14 @@ static int r8169_mdio_register(struct rtl8169_private *tp)
 	if (ret)
 		return ret;
 
-	phydev = mdiobus_get_phy(new_bus, 0);
-	if (!phydev) {
+	tp->phydev = mdiobus_get_phy(new_bus, 0);
+	if (!tp->phydev) {
 		mdiobus_unregister(new_bus);
 		return -ENODEV;
 	}
 
 	/* PHY will be woken up in rtl_open() */
-	phy_suspend(phydev);
-
-	tp->mii_bus = new_bus;
+	phy_suspend(tp->phydev);
 
 	return 0;
 }
@@ -7397,7 +7391,7 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	return 0;
 
 err_mdio_unregister:
-	mdiobus_unregister(tp->mii_bus);
+	mdiobus_unregister(tp->phydev->mdio.bus);
 	return rc;
 }
 
