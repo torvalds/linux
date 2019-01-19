@@ -537,7 +537,6 @@ EXPORT_SYMBOL_GPL(spi_mem_dirmap_create);
 /**
  * spi_mem_dirmap_destroy() - Destroy a direct mapping descriptor
  * @desc: the direct mapping descriptor to destroy
- * @info: direct mapping information
  *
  * This function destroys a direct mapping descriptor previously created by
  * spi_mem_dirmap_create().
