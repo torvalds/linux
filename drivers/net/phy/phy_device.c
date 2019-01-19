@@ -1072,7 +1072,7 @@ int phy_init_hw(struct phy_device *phydev)
 	/* Deassert the reset signal */
 	phy_device_reset(phydev, 0);
 
-	if (!phydev->drv || !phydev->drv->config_init)
+	if (!phydev->drv)
 		return 0;
 
 	if (phydev->drv->soft_reset)
@@ -1085,7 +1085,10 @@ int phy_init_hw(struct phy_device *phydev)
 	if (ret < 0)
 		return ret;
 
-	return phydev->drv->config_init(phydev);
+	if (phydev->drv->config_init)
+		ret = phydev->drv->config_init(phydev);
+
+	return ret;
 }
 EXPORT_SYMBOL(phy_init_hw);
 
