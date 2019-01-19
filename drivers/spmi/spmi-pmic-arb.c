@@ -740,9 +740,9 @@ static int qpnpint_irq_domain_translate(struct irq_domain *d,
 }
 
 
-static void qpnpint_irq_domain_map(struct spmi_pmic_arb *pmic_arb,
-				   struct irq_domain *domain, unsigned int virq,
-				   irq_hw_number_t hwirq, unsigned int type)
+static int qpnpint_irq_domain_map(struct spmi_pmic_arb *pmic_arb,
+				  struct irq_domain *domain, unsigned int virq,
+				  irq_hw_number_t hwirq, unsigned int type)
 {
 	irq_flow_handler_t handler;
 	unsigned int old_virq;
@@ -756,11 +756,15 @@ static void qpnpint_irq_domain_map(struct spmi_pmic_arb *pmic_arb,
 
 	if (type & IRQ_TYPE_EDGE_BOTH)
 		handler = handle_edge_irq;
-	else
+	else if (type & (IRQ_TYPE_LEVEL_LOW | IRQ_TYPE_LEVEL_HIGH))
 		handler = handle_level_irq;
+	else
+		return -EINVAL;
 
 	irq_domain_set_info(domain, virq, hwirq, &pmic_arb_irqchip, pmic_arb,
 			    handler, NULL, NULL);
+
+	return 0;
 }
 
 static int qpnpint_irq_domain_alloc(struct irq_domain *domain,
@@ -777,9 +781,12 @@ static int qpnpint_irq_domain_alloc(struct irq_domain *domain,
 	if (ret)
 		return ret;
 
-	for (i = 0; i < nr_irqs; i++)
-		qpnpint_irq_domain_map(pmic_arb, domain, virq + i, hwirq + i,
-				       type);
+	for (i = 0; i < nr_irqs; i++) {
+		ret = qpnpint_irq_domain_map(pmic_arb, domain, virq + i,
+					     hwirq + i, type);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }
