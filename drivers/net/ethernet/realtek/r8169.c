@@ -4691,18 +4691,10 @@ static void rtl_enable_clock_request(struct rtl8169_private *tp)
 				 PCI_EXP_LNKCTL_CLKREQ_EN);
 }
 
-static void rtl_pcie_state_l2l3_enable(struct rtl8169_private *tp, bool enable)
+static void rtl_pcie_state_l2l3_disable(struct rtl8169_private *tp)
 {
-	u8 data;
-
-	data = RTL_R8(tp, Config3);
-
-	if (enable)
-		data |= Rdy_to_L23;
-	else
-		data &= ~Rdy_to_L23;
-
-	RTL_W8(tp, Config3, data);
+	/* work around an issue when PCI reset occurs during L2/L3 state */
+	RTL_W8(tp, Config3, RTL_R8(tp, Config3) & ~Rdy_to_L23);
 }
 
 static void rtl_hw_aspm_clkreq_enable(struct rtl8169_private *tp, bool enable)
@@ -5023,7 +5015,7 @@ static void rtl_hw_start_8411(struct rtl8169_private *tp)
 	};
 
 	rtl_hw_start_8168f(tp);
-	rtl_pcie_state_l2l3_enable(tp, false);
+	rtl_pcie_state_l2l3_disable(tp);
 
 	rtl_ephy_init(tp, e_info_8168f_1, ARRAY_SIZE(e_info_8168f_1));
 
@@ -5057,7 +5049,7 @@ static void rtl_hw_start_8168g(struct rtl8169_private *tp)
 	rtl_w0w1_eri(tp, 0x2fc, ERIAR_MASK_0001, 0x01, 0x06, ERIAR_EXGMAC);
 	rtl_w0w1_eri(tp, 0x1b0, ERIAR_MASK_0011, 0x0000, 0x1000, ERIAR_EXGMAC);
 
-	rtl_pcie_state_l2l3_enable(tp, false);
+	rtl_pcie_state_l2l3_disable(tp);
 }
 
 static void rtl_hw_start_8168g_1(struct rtl8169_private *tp)
@@ -5163,7 +5155,7 @@ static void rtl_hw_start_8168h_1(struct rtl8169_private *tp)
 
 	rtl_w0w1_eri(tp, 0x1b0, ERIAR_MASK_0011, 0x0000, 0x1000, ERIAR_EXGMAC);
 
-	rtl_pcie_state_l2l3_enable(tp, false);
+	rtl_pcie_state_l2l3_disable(tp);
 
 	rtl_writephy(tp, 0x1f, 0x0c42);
 	rg_saw_cnt = (rtl_readphy(tp, 0x13) & 0x3fff);
@@ -5240,7 +5232,7 @@ static void rtl_hw_start_8168ep(struct rtl8169_private *tp)
 
 	RTL_W8(tp, DLLPR, RTL_R8(tp, DLLPR) & ~TX_10M_PS_EN);
 
-	rtl_pcie_state_l2l3_enable(tp, false);
+	rtl_pcie_state_l2l3_disable(tp);
 }
 
 static void rtl_hw_start_8168ep_1(struct rtl8169_private *tp)
@@ -5511,7 +5503,7 @@ static void rtl_hw_start_8105e_1(struct rtl8169_private *tp)
 
 	rtl_ephy_init(tp, e_info_8105e_1, ARRAY_SIZE(e_info_8105e_1));
 
-	rtl_pcie_state_l2l3_enable(tp, false);
+	rtl_pcie_state_l2l3_disable(tp);
 }
 
 static void rtl_hw_start_8105e_2(struct rtl8169_private *tp)
@@ -5546,7 +5538,7 @@ static void rtl_hw_start_8402(struct rtl8169_private *tp)
 	rtl_eri_write(tp, 0xb8, ERIAR_MASK_0011, 0x0000, ERIAR_EXGMAC);
 	rtl_w0w1_eri(tp, 0x0d4, ERIAR_MASK_0011, 0x0e00, 0xff00, ERIAR_EXGMAC);
 
-	rtl_pcie_state_l2l3_enable(tp, false);
+	rtl_pcie_state_l2l3_disable(tp);
 }
 
 static void rtl_hw_start_8106(struct rtl8169_private *tp)
@@ -5560,7 +5552,7 @@ static void rtl_hw_start_8106(struct rtl8169_private *tp)
 	RTL_W8(tp, MCU, RTL_R8(tp, MCU) | EN_NDP | EN_OOB_RESET);
 	RTL_W8(tp, DLLPR, RTL_R8(tp, DLLPR) & ~PFM_EN);
 
-	rtl_pcie_state_l2l3_enable(tp, false);
+	rtl_pcie_state_l2l3_disable(tp);
 	rtl_hw_aspm_clkreq_enable(tp, true);
 }
 
