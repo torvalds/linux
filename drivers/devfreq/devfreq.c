@@ -689,10 +689,22 @@ struct devfreq *devfreq_add_device(struct device *dev,
 					 devfreq->profile->max_state,
 					 devfreq->profile->max_state),
 			     GFP_KERNEL);
+	if (!devfreq->trans_table) {
+		mutex_unlock(&devfreq->lock);
+		err = -ENOMEM;
+		goto err_devfreq;
+	}
+
 	devfreq->time_in_state = devm_kcalloc(&devfreq->dev,
 						devfreq->profile->max_state,
 						sizeof(unsigned long),
 						GFP_KERNEL);
+	if (!devfreq->time_in_state) {
+		mutex_unlock(&devfreq->lock);
+		err = -ENOMEM;
+		goto err_devfreq;
+	}
+
 	devfreq->last_stat_updated = jiffies;
 
 	srcu_init_notifier_head(&devfreq->transition_notifier_list);
@@ -726,7 +738,7 @@ struct devfreq *devfreq_add_device(struct device *dev,
 
 err_init:
 	mutex_unlock(&devfreq_list_lock);
-
+err_devfreq:
 	devfreq_remove_device(devfreq);
 	devfreq = NULL;
 err_dev:
