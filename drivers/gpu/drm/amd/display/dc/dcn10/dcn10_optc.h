@@ -485,7 +485,7 @@ void optc1_program_timing(
 
 void optc1_program_vline_interrupt(struct timing_generator *optc,
 		enum vline_select vline,
-		struct vline_config vline_config);
+		const struct vline_config *vline_config);
 
 void optc1_program_global_sync(
 		struct timing_generator *optc);

@@ -151,7 +151,7 @@ struct timing_generator_funcs {
 							bool use_vbios);
 	void (*program_vline_interrupt)(struct timing_generator *optc,
 			enum vline_select vline,
-			struct vline_config vline_config);
+			const struct vline_config *vline_config);
 	bool (*enable_crtc)(struct timing_generator *tg);
 	bool (*disable_crtc)(struct timing_generator *tg);
 	bool (*is_counter_moving)(struct timing_generator *tg);

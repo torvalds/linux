@@ -95,19 +95,19 @@ static void optc1_disable_stereo(struct timing_generator *optc)
 void optc1_program_vline_interrupt(
 		struct timing_generator *optc,
 		enum vline_select vline,
-		struct vline_config vline_config)
+		const struct vline_config *vline_config)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 
 	switch (vline) {
 	case VLINE0:
 		REG_SET_2(OTG_VERTICAL_INTERRUPT0_POSITION, 0,
-				OTG_VERTICAL_INTERRUPT0_LINE_START, vline_config.start_line,
-				OTG_VERTICAL_INTERRUPT0_LINE_END, vline_config.end_line);
+				OTG_VERTICAL_INTERRUPT0_LINE_START, vline_config->start_line,
+				OTG_VERTICAL_INTERRUPT0_LINE_END, vline_config->end_line);
 		break;
 	case VLINE1:
 		REG_SET(OTG_VERTICAL_INTERRUPT1_POSITION, 0,
-					OTG_VERTICAL_INTERRUPT1_LINE_START, vline_config.start_line);
+					OTG_VERTICAL_INTERRUPT1_LINE_START, vline_config->start_line);
 		break;
 	default:
 		break;

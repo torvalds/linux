@@ -1560,11 +1560,11 @@ static void commit_planes_do_stream_update(struct dc *dc,
 
 			if (stream_update->vline0_config && pipe_ctx->stream_res.tg->funcs->program_vline_interrupt)
 				pipe_ctx->stream_res.tg->funcs->program_vline_interrupt(
-					pipe_ctx->stream_res.tg, VLINE0, stream->vline0_config);
+					pipe_ctx->stream_res.tg, VLINE0, &stream->vline0_config);
 
 			if (stream_update->vline1_config && pipe_ctx->stream_res.tg->funcs->program_vline_interrupt)
 				pipe_ctx->stream_res.tg->funcs->program_vline_interrupt(
-					pipe_ctx->stream_res.tg, VLINE1, stream->vline1_config);
+					pipe_ctx->stream_res.tg, VLINE1, &stream->vline1_config);
 
 			if ((stream_update->hdr_static_metadata && !stream->use_dynamic_meta) ||
 					stream_update->vrr_infopacket ||
