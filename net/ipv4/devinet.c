@@ -2063,13 +2063,49 @@ static const struct nla_policy devconf_ipv4_policy[NETCONFA_MAX+1] = {
 	[NETCONFA_IGNORE_ROUTES_WITH_LINKDOWN]	= { .len = sizeof(int) },
 };
 
+static int inet_netconf_valid_get_req(struct sk_buff *skb,
+				      const struct nlmsghdr *nlh,
+				      struct nlattr **tb,
+				      struct netlink_ext_ack *extack)
+{
+	int i, err;
+
+	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(struct netconfmsg))) {
+		NL_SET_ERR_MSG(extack, "ipv4: Invalid header for netconf get request");
+		return -EINVAL;
+	}
+
+	if (!netlink_strict_get_check(skb))
+		return nlmsg_parse(nlh, sizeof(struct netconfmsg), tb,
+				   NETCONFA_MAX, devconf_ipv4_policy, extack);
+
+	err = nlmsg_parse_strict(nlh, sizeof(struct netconfmsg), tb,
+				 NETCONFA_MAX, devconf_ipv4_policy, extack);
+	if (err)
+		return err;
+
+	for (i = 0; i <= NETCONFA_MAX; i++) {
+		if (!tb[i])
+			continue;
+
+		switch (i) {
+		case NETCONFA_IFINDEX:
+			break;
+		default:
+			NL_SET_ERR_MSG(extack, "ipv4: Unsupported attribute in netconf get request");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static int inet_netconf_get_devconf(struct sk_buff *in_skb,
 				    struct nlmsghdr *nlh,
 				    struct netlink_ext_ack *extack)
 {
 	struct net *net = sock_net(in_skb->sk);
 	struct nlattr *tb[NETCONFA_MAX+1];
-	struct netconfmsg *ncm;
 	struct sk_buff *skb;
 	struct ipv4_devconf *devconf;
 	struct in_device *in_dev;
@@ -2077,9 +2113,8 @@ static int inet_netconf_get_devconf(struct sk_buff *in_skb,
 	int ifindex;
 	int err;
 
-	err = nlmsg_parse(nlh, sizeof(*ncm), tb, NETCONFA_MAX,
-			  devconf_ipv4_policy, extack);
-	if (err < 0)
+	err = inet_netconf_valid_get_req(in_skb, nlh, tb, extack);
+	if (err)
 		goto errout;
 
 	err = -EINVAL;

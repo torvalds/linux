@@ -1371,6 +1371,14 @@ int netlink_has_listeners(struct sock *sk, unsigned int group)
 }
 EXPORT_SYMBOL_GPL(netlink_has_listeners);
 
+bool netlink_strict_get_check(struct sk_buff *skb)
+{
+	const struct netlink_sock *nlk = nlk_sk(NETLINK_CB(skb).sk);
+
+	return nlk->flags & NETLINK_F_STRICT_CHK;
+}
+EXPORT_SYMBOL_GPL(netlink_strict_get_check);
+
 static int netlink_broadcast_deliver(struct sock *sk, struct sk_buff *skb)
 {
 	struct netlink_sock *nlk = nlk_sk(sk);
