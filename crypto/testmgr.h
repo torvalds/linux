@@ -50,7 +50,7 @@ struct hash_testvec {
  * @ctext:	Pointer to ciphertext
  * @len:	Length of @ptext and @ctext in bytes
  * @fail:	If set to one, the test need to fail
- * @wk:		Does the test need CRYPTO_TFM_REQ_WEAK_KEY
+ * @wk:		Does the test need CRYPTO_TFM_REQ_FORBID_WEAK_KEYS?
  * 		( e.g. test needs to fail due to a weak key )
  * @np: 	numbers of SG to distribute data in (from 1 to MAX_TAP)
  * @tap:	How to distribute data in @np SGs
@@ -91,7 +91,7 @@ struct cipher_testvec {
  * @anp:	Numbers of SG to distribute assoc data in
  * @fail:	setkey() failure expected?
  * @novrfy:	Decryption verification failure expected?
- * @wk:		Does the test need CRYPTO_TFM_REQ_WEAK_KEY?
+ * @wk:		Does the test need CRYPTO_TFM_REQ_FORBID_WEAK_KEYS?
  *		(e.g. setkey() needs to fail due to a weak key)
  * @klen:	Length of @key in bytes
  * @plen:	Length of @ptext in bytes

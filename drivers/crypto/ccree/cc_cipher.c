@@ -352,7 +352,8 @@ static int cc_cipher_setkey(struct crypto_skcipher *sktfm, const u8 *key,
 			dev_dbg(dev, "weak 3DES key");
 			return -EINVAL;
 		} else if (!des_ekey(tmp, key) &&
-		    (crypto_tfm_get_flags(tfm) & CRYPTO_TFM_REQ_WEAK_KEY)) {
+			   (crypto_tfm_get_flags(tfm) &
+			    CRYPTO_TFM_REQ_FORBID_WEAK_KEYS)) {
 			tfm->crt_flags |= CRYPTO_TFM_RES_WEAK_KEY;
 			dev_dbg(dev, "weak DES key");
 			return -EINVAL;

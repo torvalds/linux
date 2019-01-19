@@ -60,7 +60,7 @@ static int rk_tdes_setkey(struct crypto_ablkcipher *cipher,
 
 	if (keylen == DES_KEY_SIZE) {
 		if (!des_ekey(tmp, key) &&
-		    (tfm->crt_flags & CRYPTO_TFM_REQ_WEAK_KEY)) {
+		    (tfm->crt_flags & CRYPTO_TFM_REQ_FORBID_WEAK_KEYS)) {
 			tfm->crt_flags |= CRYPTO_TFM_RES_WEAK_KEY;
 			return -EINVAL;
 		}

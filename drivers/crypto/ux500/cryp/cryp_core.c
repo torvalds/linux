@@ -1000,10 +1000,11 @@ static int des_ablkcipher_setkey(struct crypto_ablkcipher *cipher,
 	}
 
 	ret = des_ekey(tmp, key);
-	if (unlikely(ret == 0) && (*flags & CRYPTO_TFM_REQ_WEAK_KEY)) {
+	if (unlikely(ret == 0) &&
+	    (*flags & CRYPTO_TFM_REQ_FORBID_WEAK_KEYS)) {
 		*flags |= CRYPTO_TFM_RES_WEAK_KEY;
-		pr_debug(DEV_DBG_NAME " [%s]: CRYPTO_TFM_REQ_WEAK_KEY",
-				__func__);
+		pr_debug(DEV_DBG_NAME " [%s]: CRYPTO_TFM_RES_WEAK_KEY",
+			 __func__);
 		return -EINVAL;
 	}
 
@@ -1034,18 +1035,19 @@ static int des3_ablkcipher_setkey(struct crypto_ablkcipher *cipher,
 	/* Checking key interdependency for weak key detection. */
 	if (unlikely(!((K[0] ^ K[2]) | (K[1] ^ K[3])) ||
 				!((K[2] ^ K[4]) | (K[3] ^ K[5]))) &&
-			(*flags & CRYPTO_TFM_REQ_WEAK_KEY)) {
+			(*flags & CRYPTO_TFM_REQ_FORBID_WEAK_KEYS)) {
 		*flags |= CRYPTO_TFM_RES_WEAK_KEY;
-		pr_debug(DEV_DBG_NAME " [%s]: CRYPTO_TFM_REQ_WEAK_KEY",
-				__func__);
+		pr_debug(DEV_DBG_NAME " [%s]: CRYPTO_TFM_RES_WEAK_KEY",
+			 __func__);
 		return -EINVAL;
 	}
 	for (i = 0; i < 3; i++) {
 		ret = des_ekey(tmp, key + i*DES_KEY_SIZE);
-		if (unlikely(ret == 0) && (*flags & CRYPTO_TFM_REQ_WEAK_KEY)) {
+		if (unlikely(ret == 0) &&
+		    (*flags & CRYPTO_TFM_REQ_FORBID_WEAK_KEYS)) {
 			*flags |= CRYPTO_TFM_RES_WEAK_KEY;
-			pr_debug(DEV_DBG_NAME " [%s]: "
-					"CRYPTO_TFM_REQ_WEAK_KEY", __func__);
+			pr_debug(DEV_DBG_NAME " [%s]: CRYPTO_TFM_RES_WEAK_KEY",
+				 __func__);
 			return -EINVAL;
 		}
 	}

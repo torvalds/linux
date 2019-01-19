@@ -1818,7 +1818,7 @@ static int des_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
 	if (keylen == DES_KEY_SIZE) {
 		if (des_ekey(tmp, key) == 0) {
 			if (crypto_ablkcipher_get_flags(cipher) &
-			    CRYPTO_TFM_REQ_WEAK_KEY) {
+			    CRYPTO_TFM_REQ_FORBID_WEAK_KEYS) {
 				u32 flags = CRYPTO_TFM_RES_WEAK_KEY;
 
 				crypto_ablkcipher_set_flags(cipher, flags);
@@ -2872,7 +2872,7 @@ static int aead_authenc_setkey(struct crypto_aead *cipher,
 
 			if (des_ekey(tmp, keys.enckey) == 0) {
 				if (crypto_aead_get_flags(cipher) &
-				    CRYPTO_TFM_REQ_WEAK_KEY) {
+				    CRYPTO_TFM_REQ_FORBID_WEAK_KEYS) {
 					crypto_aead_set_flags(cipher, flags);
 					return -EINVAL;
 				}
