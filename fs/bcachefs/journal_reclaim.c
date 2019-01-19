@@ -336,7 +336,7 @@ void bch2_journal_reclaim_work(struct work_struct *work)
 		mutex_unlock(&j->reclaim_lock);
 
 	if (!test_bit(BCH_FS_RO, &c->flags))
-		queue_delayed_work(system_freezable_wq, &j->reclaim_work,
+		queue_delayed_work(c->journal_reclaim_wq, &j->reclaim_work,
 				   msecs_to_jiffies(j->reclaim_delay_ms));
 }
 

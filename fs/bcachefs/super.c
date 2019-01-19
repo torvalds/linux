@@ -388,6 +388,8 @@ static void bch2_fs_free(struct bch_fs *c)
 	kfree(c->replicas_gc.entries);
 	kfree(rcu_dereference_protected(c->disk_groups, 1));
 
+	if (c->journal_reclaim_wq)
+		destroy_workqueue(c->journal_reclaim_wq);
 	if (c->copygc_wq)
 		destroy_workqueue(c->copygc_wq);
 	if (c->wq)
@@ -601,6 +603,8 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	if (!(c->wq = alloc_workqueue("bcachefs",
 				WQ_FREEZABLE|WQ_MEM_RECLAIM|WQ_HIGHPRI, 1)) ||
 	    !(c->copygc_wq = alloc_workqueue("bcache_copygc",
+				WQ_FREEZABLE|WQ_MEM_RECLAIM|WQ_HIGHPRI, 1)) ||
+	    !(c->journal_reclaim_wq = alloc_workqueue("bcache_journal",
 				WQ_FREEZABLE|WQ_MEM_RECLAIM|WQ_HIGHPRI, 1)) ||
 	    percpu_ref_init(&c->writes, bch2_writes_disabled, 0, GFP_KERNEL) ||
 	    mempool_init_kmalloc_pool(&c->btree_reserve_pool, 1,
