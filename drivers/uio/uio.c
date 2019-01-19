@@ -494,7 +494,7 @@ static int uio_open(struct inode *inode, struct file *filep)
 		goto err_infoopen;
 	}
 
-	if (idev->info && idev->info->open)
+	if (idev->info->open)
 		ret = idev->info->open(idev->info, inode);
 	mutex_unlock(&idev->info_lock);
 	if (ret)
@@ -635,7 +635,7 @@ static ssize_t uio_write(struct file *filep, const char __user *buf,
 		goto out;
 	}
 
-	if (!idev->info || !idev->info->irq) {
+	if (!idev->info->irq) {
 		retval = -EIO;
 		goto out;
 	}
