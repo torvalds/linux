@@ -564,10 +564,12 @@ static int phy_request_driver_module(struct phy_device *dev, int phy_id)
 
 	ret = request_module(MDIO_MODULE_PREFIX MDIO_ID_FMT,
 			     MDIO_ID_ARGS(phy_id));
-	/* we only check for failures in executing the usermode binary,
-	 * not whether a PHY driver module exists for the PHY ID
+	/* We only check for failures in executing the usermode binary,
+	 * not whether a PHY driver module exists for the PHY ID.
+	 * Accept -ENOENT because this may occur in case no initramfs exists,
+	 * then modprobe isn't available.
 	 */
-	if (IS_ENABLED(CONFIG_MODULES) && ret < 0) {
+	if (IS_ENABLED(CONFIG_MODULES) && ret < 0 && ret != -ENOENT) {
 		phydev_err(dev, "error %d loading PHY driver module for ID 0x%08x\n",
 			   ret, phy_id);
 		return ret;
