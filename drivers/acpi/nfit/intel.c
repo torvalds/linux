@@ -146,7 +146,7 @@ static int intel_security_change_key(struct nvdimm *nvdimm,
 
 static void nvdimm_invalidate_cache(void);
 
-static int intel_security_unlock(struct nvdimm *nvdimm,
+static int __maybe_unused intel_security_unlock(struct nvdimm *nvdimm,
 		const struct nvdimm_key_data *key_data)
 {
 	struct nfit_mem *nfit_mem = nvdimm_provider_data(nvdimm);
@@ -227,7 +227,7 @@ static int intel_security_disable(struct nvdimm *nvdimm,
 	return 0;
 }
 
-static int intel_security_erase(struct nvdimm *nvdimm,
+static int __maybe_unused intel_security_erase(struct nvdimm *nvdimm,
 		const struct nvdimm_key_data *key,
 		enum nvdimm_passphrase_type ptype)
 {
@@ -276,7 +276,7 @@ static int intel_security_erase(struct nvdimm *nvdimm,
 	return 0;
 }
 
-static int intel_security_query_overwrite(struct nvdimm *nvdimm)
+static int __maybe_unused intel_security_query_overwrite(struct nvdimm *nvdimm)
 {
 	int rc;
 	struct nfit_mem *nfit_mem = nvdimm_provider_data(nvdimm);
@@ -313,7 +313,7 @@ static int intel_security_query_overwrite(struct nvdimm *nvdimm)
 	return 0;
 }
 
-static int intel_security_overwrite(struct nvdimm *nvdimm,
+static int __maybe_unused intel_security_overwrite(struct nvdimm *nvdimm,
 		const struct nvdimm_key_data *nkey)
 {
 	int rc;
