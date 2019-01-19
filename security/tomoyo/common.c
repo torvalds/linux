@@ -986,7 +986,7 @@ static bool tomoyo_select_domain(struct tomoyo_io_buffer *head,
 		else
 			p = find_task_by_vpid(pid);
 		if (p)
-			domain = tomoyo_real_domain(p);
+			domain = tomoyo_task(p)->domain_info;
 		rcu_read_unlock();
 	} else if (!strncmp(data, "domain=", 7)) {
 		if (tomoyo_domain_def(data + 7))
@@ -1668,7 +1668,7 @@ static void tomoyo_read_pid(struct tomoyo_io_buffer *head)
 	else
 		p = find_task_by_vpid(pid);
 	if (p)
-		domain = tomoyo_real_domain(p);
+		domain = tomoyo_task(p)->domain_info;
 	rcu_read_unlock();
 	if (!domain)
 		return;

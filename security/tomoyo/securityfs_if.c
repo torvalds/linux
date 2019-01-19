@@ -67,21 +67,14 @@ static ssize_t tomoyo_write_self(struct file *file, const char __user *buf,
 			if (!new_domain) {
 				error = -ENOENT;
 			} else {
-				struct cred *cred = prepare_creds();
-				if (!cred) {
-					error = -ENOMEM;
-				} else {
-					struct tomoyo_domain_info **blob;
-					struct tomoyo_domain_info *old_domain;
+				struct tomoyo_task *s = tomoyo_task(current);
+				struct tomoyo_domain_info *old_domain =
+					s->domain_info;
 
-					blob = tomoyo_cred(cred);
-					old_domain = *blob;
-					*blob = new_domain;
-					atomic_inc(&new_domain->users);
-					atomic_dec(&old_domain->users);
-					commit_creds(cred);
-					error = 0;
-				}
+				s->domain_info = new_domain;
+				atomic_inc(&new_domain->users);
+				atomic_dec(&old_domain->users);
+				error = 0;
 			}
 		}
 		tomoyo_read_unlock(idx);

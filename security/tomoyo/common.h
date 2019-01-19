@@ -686,7 +686,7 @@ struct tomoyo_domain_info {
 	u8 group;          /* Group number to use.   */
 	bool is_deleted;   /* Delete flag.           */
 	bool flags[TOMOYO_MAX_DOMAIN_INFO_FLAGS];
-	atomic_t users; /* Number of referring credentials. */
+	atomic_t users; /* Number of referring tasks. */
 };
 
 /*
@@ -913,6 +913,12 @@ struct tomoyo_policy_namespace {
 	const char *name;
 };
 
+/* Structure for "struct task_struct"->security. */
+struct tomoyo_task {
+	struct tomoyo_domain_info *domain_info;
+	struct tomoyo_domain_info *old_domain_info;
+};
+
 /********** Function prototypes. **********/
 
 bool tomoyo_address_matches_group(const bool is_ipv6, const __be32 *address,
@@ -1021,6 +1027,7 @@ ssize_t tomoyo_write_control(struct tomoyo_io_buffer *head,
 struct tomoyo_condition *tomoyo_get_condition(struct tomoyo_acl_param *param);
 struct tomoyo_domain_info *tomoyo_assign_domain(const char *domainname,
 						const bool transit);
+struct tomoyo_domain_info *tomoyo_domain(void);
 struct tomoyo_domain_info *tomoyo_find_domain(const char *domainname);
 struct tomoyo_group *tomoyo_get_group(struct tomoyo_acl_param *param,
 				      const u8 idx);
@@ -1200,41 +1207,15 @@ static inline void tomoyo_put_group(struct tomoyo_group *group)
 }
 
 /**
- * tomoyo_cred - Get a pointer to the tomoyo cred security blob
- * @cred - the relevant cred
+ * tomoyo_task - Get "struct tomoyo_task" for specified thread.
  *
- * Returns pointer to the tomoyo cred blob.
+ * @task - Pointer to "struct task_struct".
+ *
+ * Returns pointer to "struct tomoyo_task" for specified thread.
  */
-static inline struct tomoyo_domain_info **tomoyo_cred(const struct cred *cred)
+static inline struct tomoyo_task *tomoyo_task(struct task_struct *task)
 {
-	return cred->security + tomoyo_blob_sizes.lbs_cred;
-}
-
-/**
- * tomoyo_domain - Get "struct tomoyo_domain_info" for current thread.
- *
- * Returns pointer to "struct tomoyo_domain_info" for current thread.
- */
-static inline struct tomoyo_domain_info *tomoyo_domain(void)
-{
-	struct tomoyo_domain_info **blob = tomoyo_cred(current_cred());
-
-	return *blob;
-}
-
-/**
- * tomoyo_real_domain - Get "struct tomoyo_domain_info" for specified thread.
- *
- * @task: Pointer to "struct task_struct".
- *
- * Returns pointer to "struct tomoyo_security" for specified thread.
- */
-static inline struct tomoyo_domain_info *tomoyo_real_domain(struct task_struct
-							    *task)
-{
-	struct tomoyo_domain_info **blob = tomoyo_cred(get_task_cred(task));
-
-	return *blob;
+	return task->security + tomoyo_blob_sizes.lbs_task;
 }
 
 /**
