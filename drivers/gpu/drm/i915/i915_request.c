@@ -343,6 +343,13 @@ static void move_to_timeline(struct i915_request *request,
 	spin_unlock(&request->timeline->lock);
 }
 
+static u32 next_global_seqno(struct i915_timeline *tl)
+{
+	if (!++tl->seqno)
+		++tl->seqno;
+	return tl->seqno;
+}
+
 void __i915_request_submit(struct i915_request *request)
 {
 	struct intel_engine_cs *engine = request->engine;
@@ -359,7 +366,7 @@ void __i915_request_submit(struct i915_request *request)
 
 	GEM_BUG_ON(request->global_seqno);
 
-	seqno = timeline_get_seqno(&engine->timeline);
+	seqno = next_global_seqno(&engine->timeline);
 	GEM_BUG_ON(!seqno);
 	GEM_BUG_ON(intel_engine_signaled(engine, seqno));
 
