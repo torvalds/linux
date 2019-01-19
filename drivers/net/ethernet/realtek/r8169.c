@@ -1278,11 +1278,6 @@ static u8 rtl8168d_efuse_read(struct rtl8169_private *tp, int reg_addr)
 		RTL_R32(tp, EFUSEAR) & EFUSEAR_DATA_MASK : ~0;
 }
 
-static u16 rtl_get_events(struct rtl8169_private *tp)
-{
-	return RTL_R16(tp, IntrStatus);
-}
-
 static void rtl_ack_events(struct rtl8169_private *tp, u16 bits)
 {
 	RTL_W16(tp, IntrStatus, bits);
@@ -6409,7 +6404,7 @@ release_descriptor:
 static irqreturn_t rtl8169_interrupt(int irq, void *dev_instance)
 {
 	struct rtl8169_private *tp = dev_instance;
-	u16 status = rtl_get_events(tp);
+	u16 status = RTL_R16(tp, IntrStatus);
 	u16 irq_mask = RTL_R16(tp, IntrMask);
 
 	if (status == 0xffff || !(status & irq_mask))
