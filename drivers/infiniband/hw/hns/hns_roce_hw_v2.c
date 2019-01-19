@@ -4702,10 +4702,21 @@ static irqreturn_t hns_roce_v2_msix_interrupt_abn(int irq, void *dev_id)
 	int_en = roce_read(hr_dev, ROCEE_VF_ABN_INT_EN_REG);
 
 	if (roce_get_bit(int_st, HNS_ROCE_V2_VF_INT_ST_AEQ_OVERFLOW_S)) {
+		struct pci_dev *pdev = hr_dev->pci_dev;
+		struct hnae3_ae_dev *ae_dev = pci_get_drvdata(pdev);
+		const struct hnae3_ae_ops *ops = ae_dev->ops;
+
 		dev_err(dev, "AEQ overflow!\n");
 
 		roce_set_bit(int_st, HNS_ROCE_V2_VF_INT_ST_AEQ_OVERFLOW_S, 1);
 		roce_write(hr_dev, ROCEE_VF_ABN_INT_ST_REG, int_st);
+
+		/* Set reset level for reset_event() */
+		if (ops->set_default_reset_request)
+			ops->set_default_reset_request(ae_dev,
+						       HNAE3_FUNC_RESET);
+		if (ops->reset_event)
+			ops->reset_event(pdev, NULL);
 
 		roce_set_bit(int_en, HNS_ROCE_V2_VF_ABN_INT_EN_S, 1);
 		roce_write(hr_dev, ROCEE_VF_ABN_INT_EN_REG, int_en);
