@@ -9,15 +9,15 @@
  */
 #include <linux/debugfs.h>
 #include <linux/delay.h>
-#include <linux/i2c.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c-algo-bit.h>
-#include <linux/platform_data/i2c-gpio.h>
+#include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/slab.h>
-#include <linux/platform_device.h>
-#include <linux/gpio/consumer.h>
 #include <linux/of.h>
+#include <linux/platform_data/i2c-gpio.h>
+#include <linux/platform_device.h>
+#include <linux/slab.h>
 
 struct i2c_gpio_private_data {
 	struct gpio_desc *sda;
