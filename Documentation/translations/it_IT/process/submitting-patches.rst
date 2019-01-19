@@ -534,7 +534,7 @@ alle persone che vogliono seguire i vostri sorgenti, e quelle che cercano
 dei bachi.
 
 
-12) Quando utilizzare Acked-by:, Cc:, e Co-Developed-by:
+12) Quando utilizzare Acked-by:, Cc:, e Co-developed-by:
 --------------------------------------------------------
 
 L'etichetta Signed-off-by: indica che il firmatario è stato coinvolto nello
@@ -567,7 +567,7 @@ alcunché - ma dovrebbe indicare che la persona ha ricevuto una copia della
 patch.  Questa etichetta documenta che terzi potenzialmente interessati sono
 stati inclusi nella discussione.
 
-L'etichetta Co-Developed-by: indica che la patch è stata scritta dall'autore in
+L'etichetta Co-developed-by: indica che la patch è stata scritta dall'autore in
 collaborazione con un altro sviluppatore.  Qualche volta questo è utile quando
 più persone lavorano sulla stessa patch.  Notate, questa persona deve avere
 nella patch anche una riga Signed-off-by:.

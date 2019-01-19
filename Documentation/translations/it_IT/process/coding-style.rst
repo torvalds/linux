@@ -449,6 +449,9 @@ Nonostante questo non sia richiesto dal linguaggio C, in Linux viene preferito
 perché è un modo semplice per aggiungere informazioni importanti per il
 lettore.
 
+Non usate la parola chiave ``extern`` coi prototipi di funzione perché
+rende le righe più lunghe e non è strettamente necessario.
+
 7) Centralizzare il ritorno delle funzioni
 ------------------------------------------
 
