@@ -1151,6 +1151,7 @@ xprt_request_enqueue_transmit(struct rpc_task *task)
 	struct rpc_xprt *xprt = req->rq_xprt;
 
 	if (xprt_request_need_enqueue_transmit(task, req)) {
+		req->rq_bytes_sent = 0;
 		spin_lock(&xprt->queue_lock);
 		/*
 		 * Requests that carry congestion control credits are added
@@ -1177,7 +1178,7 @@ xprt_request_enqueue_transmit(struct rpc_task *task)
 				INIT_LIST_HEAD(&req->rq_xmit2);
 				goto out;
 			}
-		} else {
+		} else if (!req->rq_seqno) {
 			list_for_each_entry(pos, &xprt->xmit_queue, rq_xmit) {
 				if (pos->rq_task->tk_owner != task->tk_owner)
 					continue;
