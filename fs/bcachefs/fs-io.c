@@ -1782,6 +1782,7 @@ static long bch2_dio_write_loop(struct dio_write *dio)
 	struct bio *bio = &dio->iop.op.wbio.bio;
 	struct bvec_iter_all iter;
 	struct bio_vec *bv;
+	loff_t offset;
 	bool sync;
 	long ret;
 
@@ -1792,12 +1793,16 @@ static long bch2_dio_write_loop(struct dio_write *dio)
 	bch2_pagecache_block_get(&inode->ei_pagecache_lock);
 
 	/* Write and invalidate pagecache range that we're writing to: */
-	ret = write_invalidate_inode_pages_range(mapping, req->ki_pos,
-				req->ki_pos + iov_iter_count(&dio->iter) - 1);
+	offset = req->ki_pos + (dio->iop.op.written << 9);
+	ret = write_invalidate_inode_pages_range(mapping,
+					offset,
+					offset + iov_iter_count(&dio->iter) - 1);
 	if (unlikely(ret))
 		goto err;
 
 	while (1) {
+		offset = req->ki_pos + (dio->iop.op.written << 9);
+
 		if (kthread)
 			kthread_use_mm(dio->mm);
 		BUG_ON(current->faults_disabled_mapping);
@@ -1814,13 +1819,12 @@ static long bch2_dio_write_loop(struct dio_write *dio)
 
 		/* gup might have faulted pages back in: */
 		ret = write_invalidate_inode_pages_range(mapping,
-				req->ki_pos + (dio->iop.op.written << 9),
-				req->ki_pos + iov_iter_count(&dio->iter) - 1);
+				offset,
+				offset + bio->bi_iter.bi_size - 1);
 		if (unlikely(ret))
 			goto err;
 
-		dio->iop.op.pos = POS(inode->v.i_ino,
-				(req->ki_pos >> 9) + dio->iop.op.written);
+		dio->iop.op.pos = POS(inode->v.i_ino, offset >> 9);
 
 		task_io_account_write(bio->bi_iter.bi_size);
 
@@ -1888,7 +1892,6 @@ ssize_t bch2_direct_write(struct kiocb *req, struct iov_iter *iter)
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct dio_write *dio;
 	struct bio *bio;
-	loff_t offset = req->ki_pos;
 	ssize_t ret;
 
 	lockdep_assert_held(&inode->v.i_rwsem);
@@ -1896,7 +1899,7 @@ ssize_t bch2_direct_write(struct kiocb *req, struct iov_iter *iter)
 	if (unlikely(!iter->count))
 		return 0;
 
-	if (unlikely((offset|iter->count) & (block_bytes(c) - 1)))
+	if (unlikely((req->ki_pos|iter->count) & (block_bytes(c) - 1)))
 		return -EINVAL;
 
 	bio = bio_alloc_bioset(NULL,
@@ -1910,7 +1913,7 @@ ssize_t bch2_direct_write(struct kiocb *req, struct iov_iter *iter)
 	dio->mm			= current->mm;
 	dio->loop		= false;
 	dio->sync		= is_sync_kiocb(req) ||
-		offset + iter->count > inode->v.i_size;
+		req->ki_pos + iter->count > inode->v.i_size;
 	dio->free_iov		= false;
 	dio->quota_res.sectors	= 0;
 	dio->iter		= *iter;
@@ -1931,7 +1934,7 @@ ssize_t bch2_direct_write(struct kiocb *req, struct iov_iter *iter)
 					dio->iop.op.opts.data_replicas, 0);
 	if (unlikely(ret)) {
 		if (bch2_check_range_allocated(c, POS(inode->v.i_ino,
-						      offset >> 9),
+						      req->ki_pos >> 9),
 					       iter->count >> 9))
 			goto err;
 
