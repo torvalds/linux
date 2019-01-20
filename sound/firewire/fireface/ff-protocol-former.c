@@ -14,6 +14,62 @@
 #define FORMER_REG_FETCH_PCM_FRAMES	0x0000801c0000ull
 #define FORMER_REG_CLOCK_CONFIG		0x0000801c0004ull
 
+static int parse_clock_bits(u32 data, unsigned int *rate,
+			    enum snd_ff_clock_src *src)
+{
+	static const struct {
+		unsigned int rate;
+		u32 mask;
+	} *rate_entry, rate_entries[] = {
+		{  32000, 0x00000002, },
+		{  44100, 0x00000000, },
+		{  48000, 0x00000006, },
+		{  64000, 0x0000000a, },
+		{  88200, 0x00000008, },
+		{  96000, 0x0000000e, },
+		{ 128000, 0x00000012, },
+		{ 176400, 0x00000010, },
+		{ 192000, 0x00000016, },
+	};
+	static const struct {
+		enum snd_ff_clock_src src;
+		u32 mask;
+	} *clk_entry, clk_entries[] = {
+		{ SND_FF_CLOCK_SRC_ADAT1,	0x00000000, },
+		{ SND_FF_CLOCK_SRC_ADAT2,	0x00000400, },
+		{ SND_FF_CLOCK_SRC_SPDIF,	0x00000c00, },
+		{ SND_FF_CLOCK_SRC_WORD,	0x00001000, },
+		{ SND_FF_CLOCK_SRC_LTC,		0x00001800, },
+	};
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(rate_entries); ++i) {
+		rate_entry = rate_entries + i;
+		if ((data & 0x0000001e) == rate_entry->mask) {
+			*rate = rate_entry->rate;
+			break;
+		}
+	}
+	if (i == ARRAY_SIZE(rate_entries))
+		return -EIO;
+
+	if (data & 0x00000001) {
+		*src = SND_FF_CLOCK_SRC_INTERNAL;
+	} else {
+		for (i = 0; i < ARRAY_SIZE(clk_entries); ++i) {
+			clk_entry = clk_entries + i;
+			if ((data & 0x00001c00) == clk_entry->mask) {
+				*src = clk_entry->src;
+				break;
+			}
+		}
+		if (i == ARRAY_SIZE(clk_entries))
+			return -EIO;
+	}
+
+	return 0;
+}
+
 static int former_get_clock(struct snd_ff *ff, unsigned int *rate,
 			    enum snd_ff_clock_src *src)
 {
@@ -27,54 +83,7 @@ static int former_get_clock(struct snd_ff *ff, unsigned int *rate,
 		return err;
 	data = le32_to_cpu(reg);
 
-	/* Calculate sampling rate. */
-	switch ((data >> 1) & 0x03) {
-	case 0x01:
-		*rate = 32000;
-		break;
-	case 0x00:
-		*rate = 44100;
-		break;
-	case 0x03:
-		*rate = 48000;
-		break;
-	case 0x02:
-	default:
-		return -EIO;
-	}
-
-	if (data & 0x08)
-		*rate *= 2;
-	else if (data & 0x10)
-		*rate *= 4;
-
-	/* Calculate source of clock. */
-	if (data & 0x01) {
-		*src = SND_FF_CLOCK_SRC_INTERNAL;
-	} else {
-		/* TODO: 0x02, 0x06, 0x07? */
-		switch ((data >> 10) & 0x07) {
-		case 0x00:
-			*src = SND_FF_CLOCK_SRC_ADAT1;
-			break;
-		case 0x01:
-			*src = SND_FF_CLOCK_SRC_ADAT2;
-			break;
-		case 0x03:
-			*src = SND_FF_CLOCK_SRC_SPDIF;
-			break;
-		case 0x04:
-			*src = SND_FF_CLOCK_SRC_WORD;
-			break;
-		case 0x05:
-			*src = SND_FF_CLOCK_SRC_LTC;
-			break;
-		default:
-			return -EIO;
-		}
-	}
-
-	return 0;
+	return parse_clock_bits(data, rate, src);
 }
 
 static int former_switch_fetching_mode(struct snd_ff *ff, bool enable)
@@ -116,76 +125,37 @@ static void dump_clock_config(struct snd_ff *ff, struct snd_info_buffer *buffer)
 	__le32 reg;
 	u32 data;
 	unsigned int rate;
-	const char *src;
+	enum snd_ff_clock_src src;
+	const char *label;
 	int err;
 
 	err = snd_fw_transaction(ff->unit, TCODE_READ_BLOCK_REQUEST,
 				 FORMER_REG_CLOCK_CONFIG, &reg, sizeof(reg), 0);
 	if (err < 0)
 		return;
-
 	data = le32_to_cpu(reg);
 
 	snd_iprintf(buffer, "Output S/PDIF format: %s (Emphasis: %s)\n",
-		    (data & 0x20) ? "Professional" : "Consumer",
-		    (data & 0x40) ? "on" : "off");
+		    (data & 0x00000020) ? "Professional" : "Consumer",
+		    (data & 0x00000040) ? "on" : "off");
 
 	snd_iprintf(buffer, "Optical output interface format: %s\n",
-		    ((data >> 8) & 0x01) ? "S/PDIF" : "ADAT");
+		    (data & 0x00000100) ? "S/PDIF" : "ADAT");
 
 	snd_iprintf(buffer, "Word output single speed: %s\n",
-		    ((data >> 8) & 0x20) ? "on" : "off");
+		    (data & 0x00002000) ? "on" : "off");
 
 	snd_iprintf(buffer, "S/PDIF input interface: %s\n",
-		    ((data >> 8) & 0x02) ? "Optical" : "Coaxial");
+		    (data & 0x00000200) ? "Optical" : "Coaxial");
 
-	switch ((data >> 1) & 0x03) {
-	case 0x01:
-		rate = 32000;
-		break;
-	case 0x00:
-		rate = 44100;
-		break;
-	case 0x03:
-		rate = 48000;
-		break;
-	case 0x02:
-	default:
+	err = parse_clock_bits(data, &rate, &src);
+	if (err < 0)
 		return;
-	}
+	label = snd_ff_proc_get_clk_label(src);
+	if (!label)
+		return;
 
-	if (data & 0x08)
-		rate *= 2;
-	else if (data & 0x10)
-		rate *= 4;
-
-	snd_iprintf(buffer, "Sampling rate: %d\n", rate);
-
-	if (data & 0x01) {
-		src = "Internal";
-	} else {
-		switch ((data >> 10) & 0x07) {
-		case 0x00:
-			src = "ADAT1";
-			break;
-		case 0x01:
-			src = "ADAT2";
-			break;
-		case 0x03:
-			src = "S/PDIF";
-			break;
-		case 0x04:
-			src = "Word";
-			break;
-		case 0x05:
-			src = "LTC";
-			break;
-		default:
-			return;
-		}
-	}
-
-	snd_iprintf(buffer, "Sync to clock source: %s\n", src);
+	snd_iprintf(buffer, "Clock configuration: %d %s\n", rate, label);
 }
 
 static void dump_sync_status(struct snd_ff *ff, struct snd_info_buffer *buffer)

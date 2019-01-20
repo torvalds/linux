@@ -139,6 +139,7 @@ int snd_ff_stream_lock_try(struct snd_ff *ff);
 void snd_ff_stream_lock_release(struct snd_ff *ff);
 
 void snd_ff_proc_init(struct snd_ff *ff);
+const char *snd_ff_proc_get_clk_label(enum snd_ff_clock_src src);
 
 int snd_ff_create_midi_devices(struct snd_ff *ff);
 

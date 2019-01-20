@@ -8,6 +8,23 @@
 
 #include "./ff.h"
 
+const char *snd_ff_proc_get_clk_label(enum snd_ff_clock_src src)
+{
+	static const char *const labels[] = {
+		"Internal",
+		"S/PDIF",
+		"ADAT1",
+		"ADAT2",
+		"Word",
+		"LTC",
+	};
+
+	if (src >= ARRAY_SIZE(labels))
+		return NULL;
+
+	return labels[src];
+}
+
 static void proc_dump_status(struct snd_info_entry *entry,
 			     struct snd_info_buffer *buffer)
 {
