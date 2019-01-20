@@ -6251,7 +6251,14 @@ u16 mlxsw_sp_ipip_lb_rif_index(const struct mlxsw_sp_rif_ipip_lb *lb_rif)
 
 u16 mlxsw_sp_ipip_lb_ul_vr_id(const struct mlxsw_sp_rif_ipip_lb *lb_rif)
 {
-	return lb_rif->ul_vr_id;
+	u32 ul_tb_id = mlxsw_sp_ipip_dev_ul_tb_id(lb_rif->common.dev);
+	struct mlxsw_sp_vr *ul_vr;
+
+	ul_vr = mlxsw_sp_vr_get(lb_rif->common.mlxsw_sp, ul_tb_id, NULL);
+	if (WARN_ON(IS_ERR(ul_vr)))
+		return 0;
+
+	return ul_vr->id;
 }
 
 int mlxsw_sp_rif_dev_ifindex(const struct mlxsw_sp_rif *rif)
