@@ -977,6 +977,28 @@ static bool dce110_clock_source_power_down(
 	return bp_result == BP_RESULT_OK;
 }
 
+static bool get_pixel_clk_frequency_100hz(
+		struct clock_source *clock_source,
+		unsigned int inst,
+		unsigned int *pixel_clk_khz)
+{
+	struct dce110_clk_src *clk_src = TO_DCE110_CLK_SRC(clock_source);
+	unsigned int clock_hz = 0;
+
+	if (clock_source->id == CLOCK_SOURCE_ID_DP_DTO) {
+		clock_hz = REG_READ(PHASE[inst]);
+
+		/* NOTE: There is agreement with VBIOS here that MODULO is
+		 * programmed equal to DPREFCLK, in which case PHASE will be
+		 * equivalent to pixel clock.
+		 */
+		*pixel_clk_khz = clock_hz / 100;
+		return true;
+	}
+
+	return false;
+}
+
 /*****************************************/
 /* Constructor                           */
 /*****************************************/
@@ -984,12 +1006,14 @@ static bool dce110_clock_source_power_down(
 static const struct clock_source_funcs dce112_clk_src_funcs = {
 	.cs_power_down = dce110_clock_source_power_down,
 	.program_pix_clk = dce112_program_pix_clk,
-	.get_pix_clk_dividers = dce112_get_pix_clk_dividers
+	.get_pix_clk_dividers = dce112_get_pix_clk_dividers,
+	.get_pixel_clk_frequency_100hz = get_pixel_clk_frequency_100hz
 };
 static const struct clock_source_funcs dce110_clk_src_funcs = {
 	.cs_power_down = dce110_clock_source_power_down,
 	.program_pix_clk = dce110_program_pix_clk,
-	.get_pix_clk_dividers = dce110_get_pix_clk_dividers
+	.get_pix_clk_dividers = dce110_get_pix_clk_dividers,
+	.get_pixel_clk_frequency_100hz = get_pixel_clk_frequency_100hz
 };
 
 

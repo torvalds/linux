@@ -85,6 +85,7 @@ static const struct link_encoder_funcs dcn10_lnk_enc_funcs = {
 	.enable_hpd = dcn10_link_encoder_enable_hpd,
 	.disable_hpd = dcn10_link_encoder_disable_hpd,
 	.is_dig_enabled = dcn10_is_dig_enabled,
+	.get_dig_frontend = dcn10_get_dig_frontend,
 	.destroy = dcn10_link_encoder_destroy
 };
 
@@ -492,6 +493,15 @@ bool dcn10_is_dig_enabled(struct link_encoder *enc)
 	uint32_t value;
 
 	REG_GET(DIG_BE_EN_CNTL, DIG_ENABLE, &value);
+	return value;
+}
+
+unsigned int dcn10_get_dig_frontend(struct link_encoder *enc)
+{
+	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
+	uint32_t value;
+
+	REG_GET(DIG_BE_CNTL, DIG_FE_SOURCE_SELECT, &value);
 	return value;
 }
 

@@ -170,6 +170,8 @@ struct timing_generator_funcs {
 	bool (*get_otg_active_size)(struct timing_generator *optc,
 			uint32_t *otg_active_width,
 			uint32_t *otg_active_height);
+	bool (*is_matching_timing)(struct timing_generator *tg,
+			const struct dc_crtc_timing *otg_timing);
 	void (*set_early_control)(struct timing_generator *tg,
 							   uint32_t early_cntl);
 	void (*wait_for_state)(struct timing_generator *tg,

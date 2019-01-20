@@ -969,6 +969,52 @@ static bool context_changed(
 	return false;
 }
 
+bool dc_validate_seamless_boot_timing(struct dc *dc,
+				const struct dc_sink *sink,
+				struct dc_crtc_timing *crtc_timing)
+{
+	struct timing_generator *tg;
+	struct dc_link *link = sink->link;
+	unsigned int inst;
+
+	/* Check for enabled DIG to identify enabled display */
+	if (!link->link_enc->funcs->is_dig_enabled(link->link_enc))
+		return false;
+
+	/* Check for which front end is used by this encoder.
+	 * Note the inst is 1 indexed, where 0 is undefined.
+	 * Note that DIG_FE can source from different OTG but our
+	 * current implementation always map 1-to-1, so this code makes
+	 * the same assumption and doesn't check OTG source.
+	 */
+	inst = link->link_enc->funcs->get_dig_frontend(link->link_enc) - 1;
+
+	/* Instance should be within the range of the pool */
+	if (inst >= dc->res_pool->pipe_count)
+		return false;
+
+	tg = dc->res_pool->timing_generators[inst];
+
+	if (!tg->funcs->is_matching_timing)
+		return false;
+
+	if (!tg->funcs->is_matching_timing(tg, crtc_timing))
+		return false;
+
+	if (dc_is_dp_signal(link->connector_signal)) {
+		unsigned int pix_clk_100hz;
+
+		dc->res_pool->dp_clock_source->funcs->get_pixel_clk_frequency_100hz(
+			dc->res_pool->dp_clock_source,
+			inst, &pix_clk_100hz);
+
+		if (crtc_timing->pix_clk_100hz != pix_clk_100hz)
+			return false;
+	}
+
+	return true;
+}
+
 bool dc_enable_stereo(
 	struct dc *dc,
 	struct dc_state *context,
