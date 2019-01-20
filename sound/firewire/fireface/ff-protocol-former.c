@@ -1,10 +1,9 @@
-/*
- * ff-protocol-ff800.c - a part of driver for RME Fireface series
- *
- * Copyright (c) 2018 Takashi Sakamoto
- *
- * Licensed under the terms of the GNU General Public License, version 2.
- */
+// SPDX-License-Identifier: GPL-2.0
+// ff-protocol-former.c - a part of driver for RME Fireface series
+//
+// Copyright (c) 2019 Takashi Sakamoto
+//
+// Licensed under the terms of the GNU General Public License, version 2.
 
 #include <linux/delay.h>
 
