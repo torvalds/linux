@@ -240,6 +240,7 @@ struct mlx5e_params {
 	bool rx_cqe_compress_def;
 	struct net_dim_cq_moder rx_cq_moderation;
 	struct net_dim_cq_moder tx_cq_moderation;
+	bool tunneled_offload_en;
 	bool lro_en;
 	u8  tx_min_inline_mode;
 	bool vlan_strip_disable;

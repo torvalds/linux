@@ -3100,6 +3100,8 @@ static void mlx5e_build_indir_tir_ctx_common(struct mlx5e_priv *priv,
 	MLX5_SET(tirc, tirc, transport_domain, priv->mdev->mlx5e_res.td.tdn);
 	MLX5_SET(tirc, tirc, disp_type, MLX5_TIRC_DISP_TYPE_INDIRECT);
 	MLX5_SET(tirc, tirc, indirect_table, rqtn);
+	MLX5_SET(tirc, tirc, tunneled_offload_en,
+		 priv->channels.params.tunneled_offload_en);
 
 	mlx5e_build_tir_ctx_lro(&priv->channels.params, tirc);
 }
@@ -3126,7 +3128,6 @@ static void mlx5e_build_inner_indir_tir_ctx(struct mlx5e_priv *priv,
 	mlx5e_build_indir_tir_ctx_common(priv, priv->indir_rqt.rqtn, tirc);
 	mlx5e_build_indir_tir_ctx_hash(&priv->rss_params,
 				       &tirc_default_config[tt], tirc, true);
-	MLX5_SET(tirc, tirc, tunneled_offload_en, 0x1);
 }
 
 int mlx5e_create_indirect_tirs(struct mlx5e_priv *priv, bool inner_ttc)
@@ -4572,6 +4573,8 @@ void mlx5e_build_nic_params(struct mlx5_core_dev *mdev,
 
 	/* RSS */
 	mlx5e_build_rss_params(rss_params, params->num_channels);
+	params->tunneled_offload_en =
+		mlx5e_tunnel_inner_ft_supported(mdev);
 }
 
 static void mlx5e_set_netdev_dev_addr(struct net_device *netdev)
