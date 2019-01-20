@@ -186,6 +186,42 @@ void optc1_program_vline_interrupt(
 	}
 }
 
+void optc1_program_vupdate_interrupt(
+		struct timing_generator *optc,
+		const struct dc_crtc_timing *dc_crtc_timing)
+{
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+	int32_t vertical_line_start;
+	uint32_t asic_blank_end;
+	uint32_t vesa_sync_start;
+	struct dc_crtc_timing patched_crtc_timing;
+
+	patched_crtc_timing = *dc_crtc_timing;
+	optc1_apply_front_porch_workaround(optc, &patched_crtc_timing);
+
+	/* asic_h_blank_end = HsyncWidth + HbackPorch =
+	 * vesa. usHorizontalTotal - vesa. usHorizontalSyncStart -
+	 * vesa.h_left_border
+	 */
+	vesa_sync_start = patched_crtc_timing.h_addressable +
+			patched_crtc_timing.h_border_right +
+			patched_crtc_timing.h_front_porch;
+
+	asic_blank_end = patched_crtc_timing.h_total -
+			vesa_sync_start -
+			patched_crtc_timing.h_border_left;
+
+	/* Use OTG_VERTICAL_INTERRUPT2 replace VUPDATE interrupt,
+	 * program the reg for interrupt postition.
+	 */
+	vertical_line_start = asic_blank_end - optc->dlg_otg_param.vstartup_start + 1;
+	if (vertical_line_start < 0)
+		vertical_line_start = 0;
+
+	REG_SET(OTG_VERTICAL_INTERRUPT2_POSITION, 0,
+			OTG_VERTICAL_INTERRUPT2_LINE_START, vertical_line_start);
+}
+
 /**
  * program_timing_generator   used by mode timing set
  * Program CRTC Timing Registers - OTG_H_*, OTG_V_*, Pixel repetition.
@@ -288,22 +324,14 @@ void optc1_program_timing(
 			patched_crtc_timing.v_addressable +
 			patched_crtc_timing.v_border_bottom);
 
-	REG_UPDATE_2(OTG_V_BLANK_START_END,
-			OTG_V_BLANK_START, asic_blank_start,
-			OTG_V_BLANK_END, asic_blank_end);
-
-	/* Use OTG_VERTICAL_INTERRUPT2 replace VUPDATE interrupt,
-	 * program the reg for interrupt postition.
-	 */
 	vertical_line_start = asic_blank_end - optc->dlg_otg_param.vstartup_start + 1;
 	v_fp2 = 0;
 	if (vertical_line_start < 0)
 		v_fp2 = -vertical_line_start;
-	if (vertical_line_start < 0)
-		vertical_line_start = 0;
 
-	REG_SET(OTG_VERTICAL_INTERRUPT2_POSITION, 0,
-			OTG_VERTICAL_INTERRUPT2_LINE_START, vertical_line_start);
+	REG_UPDATE_2(OTG_V_BLANK_START_END,
+			OTG_V_BLANK_START, asic_blank_start,
+			OTG_V_BLANK_END, asic_blank_end);
 
 	/* v_sync polarity */
 	v_sync_polarity = patched_crtc_timing.flags.VSYNC_POSITIVE_POLARITY ?
@@ -1453,6 +1481,7 @@ static const struct timing_generator_funcs dcn10_tg_funcs = {
 		.validate_timing = optc1_validate_timing,
 		.program_timing = optc1_program_timing,
 		.program_vline_interrupt = optc1_program_vline_interrupt,
+		.program_vupdate_interrupt = optc1_program_vupdate_interrupt,
 		.program_global_sync = optc1_program_global_sync,
 		.enable_crtc = optc1_enable_crtc,
 		.disable_crtc = optc1_disable_crtc,

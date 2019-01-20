@@ -1341,6 +1341,11 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 	/*  */
 	dc->hwss.enable_stream_timing(pipe_ctx, context, dc);
 
+	if (pipe_ctx->stream_res.tg->funcs->program_vupdate_interrupt)
+		pipe_ctx->stream_res.tg->funcs->program_vupdate_interrupt(
+						pipe_ctx->stream_res.tg,
+							&stream->timing);
+
 	if (pipe_ctx->stream->signal != SIGNAL_TYPE_VIRTUAL)
 		pipe_ctx->stream_res.stream_enc->funcs->dig_connect_to_otg(
 			pipe_ctx->stream_res.stream_enc,

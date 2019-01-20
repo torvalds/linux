@@ -154,6 +154,9 @@ struct timing_generator_funcs {
 			const struct dc_crtc_timing *dc_crtc_timing,
 			enum vline_select vline,
 			const union vline_config *vline_config);
+
+	void (*program_vupdate_interrupt)(struct timing_generator *optc,
+			const struct dc_crtc_timing *dc_crtc_timing);
 	bool (*enable_crtc)(struct timing_generator *tg);
 	bool (*disable_crtc)(struct timing_generator *tg);
 	bool (*is_counter_moving)(struct timing_generator *tg);
