@@ -1027,6 +1027,11 @@ static void dcn10_init_hw(struct dc *dc)
 				dc->hwss.edp_power_control(link, true);
 
 			link->link_enc->funcs->hw_init(link->link_enc);
+
+			/* Check for enabled DIG to identify enabled display */
+			if (link->link_enc->funcs->is_dig_enabled &&
+				link->link_enc->funcs->is_dig_enabled(link->link_enc))
+				link->link_status.link_active = true;
 		}
 	}
 

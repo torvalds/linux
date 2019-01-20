@@ -30,6 +30,7 @@
 #include "grph_object_defs.h"
 
 struct dc_link_status {
+	bool link_active;
 	struct dpcd_caps *dpcd_caps;
 };
 

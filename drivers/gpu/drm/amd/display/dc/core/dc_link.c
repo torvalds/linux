@@ -2612,6 +2612,8 @@ void core_link_enable_stream(
 			}
 		}
 
+		stream->link->link_status.link_active = true;
+
 		core_dc->hwss.enable_audio_stream(pipe_ctx);
 
 		/* turn off otg test pattern if enable */
@@ -2646,6 +2648,8 @@ void core_link_disable_stream(struct pipe_ctx *pipe_ctx, int option)
 	core_dc->hwss.disable_stream(pipe_ctx, option);
 
 	disable_link(pipe_ctx->stream->link, pipe_ctx->stream->signal);
+
+	pipe_ctx->stream->link->link_status.link_active = false;
 }
 
 void core_link_set_avmute(struct pipe_ctx *pipe_ctx, bool enable)
