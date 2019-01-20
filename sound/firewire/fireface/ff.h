@@ -35,7 +35,6 @@
 #define SND_FF_IN_MIDI_PORTS		2
 #define SND_FF_OUT_MIDI_PORTS		2
 
-#define SND_FF_REG_SYNC_STATUS		0x0000801c0000ull
 /* For block write request. */
 #define SND_FF_REG_FETCH_PCM_FRAMES	0x0000801c0000ull
 #define SND_FF_REG_CLOCK_CONFIG		0x0000801c0004ull
@@ -111,6 +110,7 @@ struct snd_ff_protocol {
 	void (*handle_midi_msg)(struct snd_ff *ff, __le32 *buf, size_t length);
 	int (*begin_session)(struct snd_ff *ff, unsigned int rate);
 	void (*finish_session)(struct snd_ff *ff);
+	void (*dump_status)(struct snd_ff *ff, struct snd_info_buffer *buffer);
 };
 
 extern const struct snd_ff_protocol snd_ff_protocol_ff800;
