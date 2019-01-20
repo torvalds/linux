@@ -75,6 +75,11 @@ enum mlxsw_sp_rif_type {
 	MLXSW_SP_RIF_TYPE_MAX,
 };
 
+struct mlxsw_sp_rif_ops;
+
+extern const struct mlxsw_sp_rif_ops *mlxsw_sp1_rif_ops_arr[];
+extern const struct mlxsw_sp_rif_ops *mlxsw_sp2_rif_ops_arr[];
+
 enum mlxsw_sp_fid_type {
 	MLXSW_SP_FID_TYPE_8021Q,
 	MLXSW_SP_FID_TYPE_8021D,
@@ -161,6 +166,7 @@ struct mlxsw_sp {
 	const struct mlxsw_sp_mr_tcam_ops *mr_tcam_ops;
 	const struct mlxsw_sp_acl_tcam_ops *acl_tcam_ops;
 	const struct mlxsw_sp_nve_ops **nve_ops_arr;
+	const struct mlxsw_sp_rif_ops **rif_ops_arr;
 };
 
 static inline struct mlxsw_sp_upper *
