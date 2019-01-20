@@ -10,6 +10,42 @@
 #include "ff.h"
 
 #define FORMER_REG_SYNC_STATUS		0x0000801c0000ull
+/* For block write request. */
+#define FORMER_REG_FETCH_PCM_FRAMES	0x0000801c0000ull
+
+static int former_switch_fetching_mode(struct snd_ff *ff, bool enable)
+{
+	unsigned int count;
+	__le32 *reg;
+	int i;
+	int err;
+
+	count = 0;
+	for (i = 0; i < SND_FF_STREAM_MODE_COUNT; ++i)
+		count = max(count, ff->spec->pcm_playback_channels[i]);
+
+	reg = kcalloc(count, sizeof(__le32), GFP_KERNEL);
+	if (!reg)
+		return -ENOMEM;
+
+	if (!enable) {
+		/*
+		 * Each quadlet is corresponding to data channels in a data
+		 * blocks in reverse order. Precisely, quadlets for available
+		 * data channels should be enabled. Here, I take second best
+		 * to fetch PCM frames from all of data channels regardless of
+		 * stf.
+		 */
+		for (i = 0; i < count; ++i)
+			reg[i] = cpu_to_le32(0x00000001);
+	}
+
+	err = snd_fw_transaction(ff->unit, TCODE_WRITE_BLOCK_REQUEST,
+				 FORMER_REG_FETCH_PCM_FRAMES, reg,
+				 sizeof(__le32) * count, 0);
+	kfree(reg);
+	return err;
+}
 
 static void dump_clock_config(struct snd_ff *ff, struct snd_info_buffer *buffer)
 {
@@ -347,6 +383,7 @@ static void ff800_handle_midi_msg(struct snd_ff *ff, __le32 *buf, size_t length)
 
 const struct snd_ff_protocol snd_ff_protocol_ff800 = {
 	.handle_midi_msg	= ff800_handle_midi_msg,
+	.switch_fetching_mode	= former_switch_fetching_mode,
 	.begin_session		= ff800_begin_session,
 	.finish_session		= ff800_finish_session,
 	.dump_status		= former_dump_status,
@@ -495,6 +532,7 @@ static void ff400_handle_midi_msg(struct snd_ff *ff, __le32 *buf, size_t length)
 
 const struct snd_ff_protocol snd_ff_protocol_ff400 = {
 	.handle_midi_msg	= ff400_handle_midi_msg,
+	.switch_fetching_mode	= former_switch_fetching_mode,
 	.begin_session		= ff400_begin_session,
 	.finish_session		= ff400_finish_session,
 	.dump_status		= former_dump_status,

@@ -35,8 +35,6 @@
 #define SND_FF_IN_MIDI_PORTS		2
 #define SND_FF_OUT_MIDI_PORTS		2
 
-/* For block write request. */
-#define SND_FF_REG_FETCH_PCM_FRAMES	0x0000801c0000ull
 #define SND_FF_REG_CLOCK_CONFIG		0x0000801c0004ull
 
 enum snd_ff_stream_mode {
@@ -108,6 +106,7 @@ enum snd_ff_clock_src {
 
 struct snd_ff_protocol {
 	void (*handle_midi_msg)(struct snd_ff *ff, __le32 *buf, size_t length);
+	int (*switch_fetching_mode)(struct snd_ff *ff, bool enable);
 	int (*begin_session)(struct snd_ff *ff, unsigned int rate);
 	void (*finish_session)(struct snd_ff *ff);
 	void (*dump_status)(struct snd_ff *ff, struct snd_info_buffer *buffer);
