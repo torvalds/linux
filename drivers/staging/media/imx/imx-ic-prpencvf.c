@@ -1222,9 +1222,14 @@ static int prp_s_frame_interval(struct v4l2_subdev *sd,
 	if (fi->pad >= PRPENCVF_NUM_PADS)
 		return -EINVAL;
 
-	/* No limits on frame interval */
 	mutex_lock(&priv->lock);
-	priv->frame_interval = fi->interval;
+
+	/* No limits on valid frame intervals */
+	if (fi->interval.numerator == 0 || fi->interval.denominator == 0)
+		fi->interval = priv->frame_interval;
+	else
+		priv->frame_interval = fi->interval;
+
 	mutex_unlock(&priv->lock);
 
 	return 0;

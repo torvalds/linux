@@ -818,7 +818,10 @@ static int vdic_s_frame_interval(struct v4l2_subdev *sd,
 	switch (fi->pad) {
 	case VDIC_SINK_PAD_DIRECT:
 	case VDIC_SINK_PAD_IDMAC:
-		/* No limits on input frame interval */
+		/* No limits on valid input frame intervals */
+		if (fi->interval.numerator == 0 ||
+		    fi->interval.denominator == 0)
+			fi->interval = priv->frame_interval[fi->pad];
 		/* Reset output interval */
 		*output_fi = fi->interval;
 		if (priv->csi_direct)

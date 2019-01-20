@@ -926,7 +926,10 @@ static int csi_s_frame_interval(struct v4l2_subdev *sd,
 
 	switch (fi->pad) {
 	case CSI_SINK_PAD:
-		/* No limits on input frame interval */
+		/* No limits on valid input frame intervals */
+		if (fi->interval.numerator == 0 ||
+		    fi->interval.denominator == 0)
+			fi->interval = *input_fi;
 		/* Reset output intervals and frame skipping ratio to 1:1 */
 		priv->frame_interval[CSI_SRC_PAD_IDMAC] = fi->interval;
 		priv->frame_interval[CSI_SRC_PAD_DIRECT] = fi->interval;
