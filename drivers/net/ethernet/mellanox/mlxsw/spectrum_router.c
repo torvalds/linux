@@ -1437,8 +1437,8 @@ mlxsw_sp_ipip_entry_ol_up_event(struct mlxsw_sp *mlxsw_sp,
 }
 
 static int
-mlxsw_sp_rif_ipip_lb_op(struct mlxsw_sp_rif_ipip_lb *lb_rif,
-			struct mlxsw_sp_vr *ul_vr, bool enable)
+mlxsw_sp_rif_ipip_lb_op(struct mlxsw_sp_rif_ipip_lb *lb_rif, u16 ul_vr_id,
+			u16 ul_rif_id, bool enable)
 {
 	struct mlxsw_sp_rif_ipip_lb_config lb_cf = lb_rif->lb_config;
 	struct mlxsw_sp_rif *rif = &lb_rif->common;
@@ -1453,7 +1453,7 @@ mlxsw_sp_rif_ipip_lb_op(struct mlxsw_sp_rif_ipip_lb *lb_rif,
 				    rif->rif_index, rif->vr_id, rif->dev->mtu);
 		mlxsw_reg_ritr_loopback_ipip4_pack(ritr_pl, lb_cf.lb_ipipt,
 			    MLXSW_REG_RITR_LOOPBACK_IPIP_OPTIONS_GRE_KEY_PRESET,
-			    ul_vr->id, 0, saddr4, lb_cf.okey);
+			    ul_vr_id, ul_rif_id, saddr4, lb_cf.okey);
 		break;
 
 	case MLXSW_SP_L3_PROTO_IPV6:
@@ -1475,7 +1475,7 @@ static int mlxsw_sp_netdevice_ipip_ol_update_mtu(struct mlxsw_sp *mlxsw_sp,
 	if (ipip_entry) {
 		lb_rif = ipip_entry->ol_lb;
 		ul_vr = &mlxsw_sp->router->vrs[lb_rif->ul_vr_id];
-		err = mlxsw_sp_rif_ipip_lb_op(lb_rif, ul_vr, true);
+		err = mlxsw_sp_rif_ipip_lb_op(lb_rif, ul_vr->id, 0, true);
 		if (err)
 			goto out;
 		lb_rif->common.mtu = ol_dev->mtu;
@@ -7436,7 +7436,7 @@ mlxsw_sp1_rif_ipip_lb_configure(struct mlxsw_sp_rif *rif)
 	if (IS_ERR(ul_vr))
 		return PTR_ERR(ul_vr);
 
-	err = mlxsw_sp_rif_ipip_lb_op(lb_rif, ul_vr, true);
+	err = mlxsw_sp_rif_ipip_lb_op(lb_rif, ul_vr->id, 0, true);
 	if (err)
 		goto err_loopback_op;
 
@@ -7456,7 +7456,7 @@ static void mlxsw_sp1_rif_ipip_lb_deconfigure(struct mlxsw_sp_rif *rif)
 	struct mlxsw_sp_vr *ul_vr;
 
 	ul_vr = &mlxsw_sp->router->vrs[lb_rif->ul_vr_id];
-	mlxsw_sp_rif_ipip_lb_op(lb_rif, ul_vr, false);
+	mlxsw_sp_rif_ipip_lb_op(lb_rif, ul_vr->id, 0, false);
 
 	--ul_vr->rif_count;
 	mlxsw_sp_vr_put(mlxsw_sp, ul_vr);
