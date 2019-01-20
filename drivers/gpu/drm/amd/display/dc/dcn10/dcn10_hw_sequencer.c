@@ -636,8 +636,6 @@ static enum dc_status dcn10_enable_stream_timing(
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	enum dc_color_space color_space;
 	struct tg_color black_color = {0};
-	struct drr_params params = {0};
-	unsigned int event_triggers = 0;
 
 	/* by upper caller loop, pipe0 is parent pipe and be called first.
 	 * back end is set up by for pipe0. Other children pipe share back end
@@ -704,19 +702,6 @@ static enum dc_status dcn10_enable_stream_timing(
 		BREAK_TO_DEBUGGER();
 		return DC_ERROR_UNEXPECTED;
 	}
-
-	params.vertical_total_min = stream->adjust.v_total_min;
-	params.vertical_total_max = stream->adjust.v_total_max;
-	if (pipe_ctx->stream_res.tg->funcs->set_drr)
-		pipe_ctx->stream_res.tg->funcs->set_drr(
-			pipe_ctx->stream_res.tg, &params);
-
-	// DRR should set trigger event to monitor surface update event
-	if (stream->adjust.v_total_min != 0 && stream->adjust.v_total_max != 0)
-		event_triggers = 0x80;
-	if (pipe_ctx->stream_res.tg->funcs->set_static_screen_control)
-		pipe_ctx->stream_res.tg->funcs->set_static_screen_control(
-				pipe_ctx->stream_res.tg, event_triggers);
 
 	/* TODO program crtc source select for non-virtual signal*/
 	/* TODO program FMT */

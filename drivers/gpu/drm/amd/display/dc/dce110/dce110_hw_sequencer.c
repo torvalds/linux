@@ -1250,8 +1250,6 @@ static enum dc_status dce110_enable_stream_timing(
 	struct pipe_ctx *pipe_ctx_old = &dc->current_state->res_ctx.
 			pipe_ctx[pipe_ctx->pipe_idx];
 	struct tg_color black_color = {0};
-	struct drr_params params = {0};
-	unsigned int event_triggers = 0;
 
 	if (!pipe_ctx_old->stream) {
 
@@ -1280,20 +1278,6 @@ static enum dc_status dce110_enable_stream_timing(
 				pipe_ctx->stream_res.tg,
 				&stream->timing,
 				true);
-
-		params.vertical_total_min = stream->adjust.v_total_min;
-		params.vertical_total_max = stream->adjust.v_total_max;
-		if (pipe_ctx->stream_res.tg->funcs->set_drr)
-			pipe_ctx->stream_res.tg->funcs->set_drr(
-				pipe_ctx->stream_res.tg, &params);
-
-		// DRR should set trigger event to monitor surface update event
-		if (stream->adjust.v_total_min != 0 &&
-				stream->adjust.v_total_max != 0)
-			event_triggers = 0x80;
-		if (pipe_ctx->stream_res.tg->funcs->set_static_screen_control)
-			pipe_ctx->stream_res.tg->funcs->set_static_screen_control(
-				pipe_ctx->stream_res.tg, event_triggers);
 	}
 
 	if (!pipe_ctx_old->stream) {
@@ -1313,6 +1297,8 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 		struct dc *dc)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
+	struct drr_params params = {0};
+	unsigned int event_triggers = 0;
 
 	if (pipe_ctx->stream_res.audio != NULL) {
 		struct audio_output audio_output;
@@ -1347,6 +1333,19 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 		pipe_ctx->stream_res.tg->funcs->program_vupdate_interrupt(
 						pipe_ctx->stream_res.tg,
 							&stream->timing);
+
+	params.vertical_total_min = stream->adjust.v_total_min;
+	params.vertical_total_max = stream->adjust.v_total_max;
+	if (pipe_ctx->stream_res.tg->funcs->set_drr)
+		pipe_ctx->stream_res.tg->funcs->set_drr(
+			pipe_ctx->stream_res.tg, &params);
+
+	// DRR should set trigger event to monitor surface update event
+	if (stream->adjust.v_total_min != 0 && stream->adjust.v_total_max != 0)
+		event_triggers = 0x80;
+	if (pipe_ctx->stream_res.tg->funcs->set_static_screen_control)
+		pipe_ctx->stream_res.tg->funcs->set_static_screen_control(
+				pipe_ctx->stream_res.tg, event_triggers);
 
 	if (pipe_ctx->stream->signal != SIGNAL_TYPE_VIRTUAL)
 		pipe_ctx->stream_res.stream_enc->funcs->dig_connect_to_otg(
