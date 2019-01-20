@@ -7424,7 +7424,7 @@ mlxsw_sp_rif_ipip_lb_setup(struct mlxsw_sp_rif *rif,
 }
 
 static int
-mlxsw_sp_rif_ipip_lb_configure(struct mlxsw_sp_rif *rif)
+mlxsw_sp1_rif_ipip_lb_configure(struct mlxsw_sp_rif *rif)
 {
 	struct mlxsw_sp_rif_ipip_lb *lb_rif = mlxsw_sp_rif_ipip_lb_rif(rif);
 	u32 ul_tb_id = mlxsw_sp_ipip_dev_ul_tb_id(rif->dev);
@@ -7449,7 +7449,7 @@ err_loopback_op:
 	return err;
 }
 
-static void mlxsw_sp_rif_ipip_lb_deconfigure(struct mlxsw_sp_rif *rif)
+static void mlxsw_sp1_rif_ipip_lb_deconfigure(struct mlxsw_sp_rif *rif)
 {
 	struct mlxsw_sp_rif_ipip_lb *lb_rif = mlxsw_sp_rif_ipip_lb_rif(rif);
 	struct mlxsw_sp *mlxsw_sp = rif->mlxsw_sp;
@@ -7462,19 +7462,44 @@ static void mlxsw_sp_rif_ipip_lb_deconfigure(struct mlxsw_sp_rif *rif)
 	mlxsw_sp_vr_put(mlxsw_sp, ul_vr);
 }
 
-static const struct mlxsw_sp_rif_ops mlxsw_sp_rif_ipip_lb_ops = {
+static const struct mlxsw_sp_rif_ops mlxsw_sp1_rif_ipip_lb_ops = {
 	.type			= MLXSW_SP_RIF_TYPE_IPIP_LB,
 	.rif_size		= sizeof(struct mlxsw_sp_rif_ipip_lb),
 	.setup                  = mlxsw_sp_rif_ipip_lb_setup,
-	.configure		= mlxsw_sp_rif_ipip_lb_configure,
-	.deconfigure		= mlxsw_sp_rif_ipip_lb_deconfigure,
+	.configure		= mlxsw_sp1_rif_ipip_lb_configure,
+	.deconfigure		= mlxsw_sp1_rif_ipip_lb_deconfigure,
 };
 
-static const struct mlxsw_sp_rif_ops *mlxsw_sp_rif_ops_arr[] = {
+const struct mlxsw_sp_rif_ops *mlxsw_sp1_rif_ops_arr[] = {
 	[MLXSW_SP_RIF_TYPE_SUBPORT]	= &mlxsw_sp_rif_subport_ops,
 	[MLXSW_SP_RIF_TYPE_VLAN]	= &mlxsw_sp_rif_vlan_emu_ops,
 	[MLXSW_SP_RIF_TYPE_FID]		= &mlxsw_sp_rif_fid_ops,
-	[MLXSW_SP_RIF_TYPE_IPIP_LB]	= &mlxsw_sp_rif_ipip_lb_ops,
+	[MLXSW_SP_RIF_TYPE_IPIP_LB]	= &mlxsw_sp1_rif_ipip_lb_ops,
+};
+
+static int
+mlxsw_sp2_rif_ipip_lb_configure(struct mlxsw_sp_rif *rif)
+{
+	return 0;
+}
+
+static void mlxsw_sp2_rif_ipip_lb_deconfigure(struct mlxsw_sp_rif *rif)
+{
+}
+
+static const struct mlxsw_sp_rif_ops mlxsw_sp2_rif_ipip_lb_ops = {
+	.type			= MLXSW_SP_RIF_TYPE_IPIP_LB,
+	.rif_size		= sizeof(struct mlxsw_sp_rif_ipip_lb),
+	.setup                  = mlxsw_sp_rif_ipip_lb_setup,
+	.configure		= mlxsw_sp2_rif_ipip_lb_configure,
+	.deconfigure		= mlxsw_sp2_rif_ipip_lb_deconfigure,
+};
+
+const struct mlxsw_sp_rif_ops *mlxsw_sp2_rif_ops_arr[] = {
+	[MLXSW_SP_RIF_TYPE_SUBPORT]	= &mlxsw_sp_rif_subport_ops,
+	[MLXSW_SP_RIF_TYPE_VLAN]	= &mlxsw_sp_rif_vlan_emu_ops,
+	[MLXSW_SP_RIF_TYPE_FID]		= &mlxsw_sp_rif_fid_ops,
+	[MLXSW_SP_RIF_TYPE_IPIP_LB]	= &mlxsw_sp2_rif_ipip_lb_ops,
 };
 
 static int mlxsw_sp_rifs_init(struct mlxsw_sp *mlxsw_sp)
@@ -7487,7 +7512,7 @@ static int mlxsw_sp_rifs_init(struct mlxsw_sp *mlxsw_sp)
 	if (!mlxsw_sp->router->rifs)
 		return -ENOMEM;
 
-	mlxsw_sp->router->rif_ops_arr = mlxsw_sp_rif_ops_arr;
+	mlxsw_sp->router->rif_ops_arr = mlxsw_sp1_rif_ops_arr;
 
 	return 0;
 }
