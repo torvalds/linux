@@ -2140,6 +2140,11 @@ int qed_hw_init(struct qed_dev *cdev, struct qed_hw_init_params *p_params)
 			   "Load request was sent. Load code: 0x%x\n",
 			   load_code);
 
+		/* Only relevant for recovery:
+		 * Clear the indication after LOAD_REQ is responded by the MFW.
+		 */
+		cdev->recov_in_prog = false;
+
 		qed_mcp_set_capabilities(p_hwfn, p_hwfn->p_main_ptt);
 
 		qed_reset_mb_shadow(p_hwfn, p_hwfn->p_main_ptt);
@@ -2291,6 +2296,9 @@ static void qed_hw_timers_stop(struct qed_dev *cdev,
 	qed_wr(p_hwfn, p_ptt, TM_REG_PF_ENABLE_CONN, 0x0);
 	qed_wr(p_hwfn, p_ptt, TM_REG_PF_ENABLE_TASK, 0x0);
 
+	if (cdev->recov_in_prog)
+		return;
+
 	for (i = 0; i < QED_HW_STOP_RETRY_LIMIT; i++) {
 		if ((!qed_rd(p_hwfn, p_ptt,
 			     TM_REG_PF_SCAN_ACTIVE_CONN)) &&
@@ -2353,12 +2361,14 @@ int qed_hw_stop(struct qed_dev *cdev)
 		p_hwfn->hw_init_done = false;
 
 		/* Send unload command to MCP */
-		rc = qed_mcp_unload_req(p_hwfn, p_ptt);
-		if (rc) {
-			DP_NOTICE(p_hwfn,
-				  "Failed sending a UNLOAD_REQ command. rc = %d.\n",
-				  rc);
-			rc2 = -EINVAL;
+		if (!cdev->recov_in_prog) {
+			rc = qed_mcp_unload_req(p_hwfn, p_ptt);
+			if (rc) {
+				DP_NOTICE(p_hwfn,
+					  "Failed sending a UNLOAD_REQ command. rc = %d.\n",
+					  rc);
+				rc2 = -EINVAL;
+			}
 		}
 
 		qed_slowpath_irq_sync(p_hwfn);
@@ -2400,16 +2410,18 @@ int qed_hw_stop(struct qed_dev *cdev)
 		qed_wr(p_hwfn, p_ptt, DORQ_REG_PF_DB_ENABLE, 0);
 		qed_wr(p_hwfn, p_ptt, QM_REG_PF_EN, 0);
 
-		qed_mcp_unload_done(p_hwfn, p_ptt);
-		if (rc) {
-			DP_NOTICE(p_hwfn,
-				  "Failed sending a UNLOAD_DONE command. rc = %d.\n",
-				  rc);
-			rc2 = -EINVAL;
+		if (!cdev->recov_in_prog) {
+			rc = qed_mcp_unload_done(p_hwfn, p_ptt);
+			if (rc) {
+				DP_NOTICE(p_hwfn,
+					  "Failed sending a UNLOAD_DONE command. rc = %d.\n",
+					  rc);
+				rc2 = -EINVAL;
+			}
 		}
 	}
 
-	if (IS_PF(cdev)) {
+	if (IS_PF(cdev) && !cdev->recov_in_prog) {
 		p_hwfn = QED_LEADING_HWFN(cdev);
 		p_ptt = QED_LEADING_HWFN(cdev)->p_main_ptt;
 
@@ -3459,6 +3471,7 @@ static int qed_hw_prepare_single(struct qed_hwfn *p_hwfn,
 				 void __iomem *p_doorbells,
 				 enum qed_pci_personality personality)
 {
+	struct qed_dev *cdev = p_hwfn->cdev;
 	int rc = 0;
 
 	/* Split PCI bars evenly between hwfns */
@@ -3511,7 +3524,7 @@ static int qed_hw_prepare_single(struct qed_hwfn *p_hwfn,
 	/* Sending a mailbox to the MFW should be done after qed_get_hw_info()
 	 * is called as it sets the ports number in an engine.
 	 */
-	if (IS_LEAD_HWFN(p_hwfn)) {
+	if (IS_LEAD_HWFN(p_hwfn) && !cdev->recov_in_prog) {
 		rc = qed_mcp_initiate_pf_flr(p_hwfn, p_hwfn->p_main_ptt);
 		if (rc)
 			DP_NOTICE(p_hwfn, "Failed to initiate PF FLR\n");
