@@ -2203,9 +2203,9 @@ void igb_down(struct igb_adapter *adapter)
 	del_timer_sync(&adapter->phy_info_timer);
 
 	/* record the stats before reset*/
-	mutex_lock(&adapter->stats64_lock);
+	spin_lock(&adapter->stats64_lock);
 	igb_update_stats(adapter);
-	mutex_unlock(&adapter->stats64_lock);
+	spin_unlock(&adapter->stats64_lock);
 
 	adapter->link_speed = 0;
 	adapter->link_duplex = 0;
@@ -3840,7 +3840,7 @@ static int igb_sw_init(struct igb_adapter *adapter)
 	adapter->min_frame_size = ETH_ZLEN + ETH_FCS_LEN;
 
 	spin_lock_init(&adapter->nfc_lock);
-	mutex_init(&adapter->stats64_lock);
+	spin_lock_init(&adapter->stats64_lock);
 #ifdef CONFIG_PCI_IOV
 	switch (hw->mac.type) {
 	case e1000_82576:
@@ -5406,9 +5406,9 @@ no_wait:
 		}
 	}
 
-	mutex_lock(&adapter->stats64_lock);
+	spin_lock(&adapter->stats64_lock);
 	igb_update_stats(adapter);
-	mutex_unlock(&adapter->stats64_lock);
+	spin_unlock(&adapter->stats64_lock);
 
 	for (i = 0; i < adapter->num_tx_queues; i++) {
 		struct igb_ring *tx_ring = adapter->tx_ring[i];
@@ -6235,10 +6235,10 @@ static void igb_get_stats64(struct net_device *netdev,
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 
-	mutex_lock(&adapter->stats64_lock);
+	spin_lock(&adapter->stats64_lock);
 	igb_update_stats(adapter);
 	memcpy(stats, &adapter->stats64, sizeof(*stats));
-	mutex_unlock(&adapter->stats64_lock);
+	spin_unlock(&adapter->stats64_lock);
 }
 
 /**
