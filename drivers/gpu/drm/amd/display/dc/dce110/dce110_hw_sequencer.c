@@ -1521,6 +1521,14 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 	struct dc_link *edp_link = get_link_for_edp(dc);
 	bool can_edp_fast_boot_optimize = false;
 	bool apply_edp_fast_boot_optimization = false;
+	bool can_apply_seamless_boot = false;
+
+	for (i = 0; i < context->stream_count; i++) {
+		if (context->streams[i]->apply_seamless_boot_optimization) {
+			can_apply_seamless_boot = true;
+			break;
+		}
+	}
 
 	if (edp_link) {
 		/* this seems to cause blank screens on DCE8 */
@@ -1549,7 +1557,7 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 		}
 	}
 
-	if (!apply_edp_fast_boot_optimization) {
+	if (!apply_edp_fast_boot_optimization && !can_apply_seamless_boot) {
 		if (edp_link_to_turnoff) {
 			/*turn off backlight before DP_blank and encoder powered down*/
 			dc->hwss.edp_backlight_control(edp_link_to_turnoff, false);

@@ -959,9 +959,25 @@ static void dcn10_disable_plane(struct dc *dc, struct pipe_ctx *pipe_ctx)
 static void dcn10_init_pipes(struct dc *dc, struct dc_state *context)
 {
 	int i;
+	bool can_apply_seamless_boot = false;
+
+	for (i = 0; i < context->stream_count; i++) {
+		if (context->streams[i]->apply_seamless_boot_optimization) {
+			can_apply_seamless_boot = true;
+			break;
+		}
+	}
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct timing_generator *tg = dc->res_pool->timing_generators[i];
+		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+
+		/* There is assumption that pipe_ctx is not mapping irregularly
+		 * to non-preferred front end. If pipe_ctx->stream is not NULL,
+		 * we will use the pipe, so don't disable
+		 */
+		if (pipe_ctx->stream != NULL)
+			continue;
 
 		if (tg->funcs->is_tg_enabled(tg))
 			tg->funcs->lock(tg);
@@ -975,13 +991,25 @@ static void dcn10_init_pipes(struct dc *dc, struct dc_state *context)
 		}
 	}
 
-	dc->res_pool->mpc->funcs->mpc_init(dc->res_pool->mpc);
+	/* Cannot reset the MPC mux if seamless boot */
+	if (!can_apply_seamless_boot)
+		dc->res_pool->mpc->funcs->mpc_init(dc->res_pool->mpc);
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct timing_generator *tg = dc->res_pool->timing_generators[i];
 		struct hubp *hubp = dc->res_pool->hubps[i];
 		struct dpp *dpp = dc->res_pool->dpps[i];
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+
+		// W/A for issue with dc_post_update_surfaces_to_stream
+		hubp->power_gated = true;
+
+		/* There is assumption that pipe_ctx is not mapping irregularly
+		 * to non-preferred front end. If pipe_ctx->stream is not NULL,
+		 * we will use the pipe, so don't disable
+		 */
+		if (pipe_ctx->stream != NULL)
+			continue;
 
 		dpp->funcs->dpp_reset(dpp);
 
