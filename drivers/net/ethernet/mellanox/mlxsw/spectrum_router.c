@@ -1453,7 +1453,7 @@ mlxsw_sp_rif_ipip_lb_op(struct mlxsw_sp_rif_ipip_lb *lb_rif,
 				    rif->rif_index, rif->vr_id, rif->dev->mtu);
 		mlxsw_reg_ritr_loopback_ipip4_pack(ritr_pl, lb_cf.lb_ipipt,
 			    MLXSW_REG_RITR_LOOPBACK_IPIP_OPTIONS_GRE_KEY_PRESET,
-			    ul_vr->id, saddr4, lb_cf.okey);
+			    ul_vr->id, 0, saddr4, lb_cf.okey);
 		break;
 
 	case MLXSW_SP_L3_PROTO_IPV6:
