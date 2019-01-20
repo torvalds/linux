@@ -1320,6 +1320,9 @@ void iwl_mvm_nic_restart(struct iwl_mvm *mvm, bool fw_error)
 		reprobe->dev = mvm->trans->dev;
 		INIT_WORK(&reprobe->work, iwl_mvm_reprobe_wk);
 		schedule_work(&reprobe->work);
+	} else if (test_bit(IWL_MVM_STATUS_HW_RESTART_REQUESTED,
+			    &mvm->status)) {
+		IWL_ERR(mvm, "HW restart already requested, but not started\n");
 	} else if (mvm->fwrt.cur_fw_img == IWL_UCODE_REGULAR &&
 		   mvm->hw_registered &&
 		   !test_bit(STATUS_TRANS_DEAD, &mvm->trans->status)) {
