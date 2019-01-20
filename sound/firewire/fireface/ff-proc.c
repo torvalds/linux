@@ -8,10 +8,8 @@
 
 #include "./ff.h"
 
-static void proc_dump_clock_config(struct snd_info_entry *entry,
-				   struct snd_info_buffer *buffer)
+static void dump_clock_config(struct snd_ff *ff, struct snd_info_buffer *buffer)
 {
-	struct snd_ff *ff = entry->private_data;
 	__le32 reg;
 	u32 data;
 	unsigned int rate;
@@ -87,10 +85,8 @@ static void proc_dump_clock_config(struct snd_info_entry *entry,
 	snd_iprintf(buffer, "Sync to clock source: %s\n", src);
 }
 
-static void proc_dump_sync_status(struct snd_info_entry *entry,
-				  struct snd_info_buffer *buffer)
+static void dump_sync_status(struct snd_ff *ff, struct snd_info_buffer *buffer)
 {
-	struct snd_ff *ff = entry->private_data;
 	__le32 reg;
 	u32 data;
 	int err;
@@ -213,6 +209,15 @@ static void proc_dump_sync_status(struct snd_info_entry *entry,
 	snd_iprintf(buffer, "%d\n", (data & 0x3ff) * 250);
 }
 
+static void proc_dump_status(struct snd_info_entry *entry,
+			     struct snd_info_buffer *buffer)
+{
+	struct snd_ff *ff = entry->private_data;
+
+	dump_clock_config(ff, buffer);
+	dump_sync_status(ff, buffer);
+}
+
 static void add_node(struct snd_ff *ff, struct snd_info_entry *root,
 		     const char *name,
 		     void (*op)(struct snd_info_entry *e,
@@ -247,6 +252,5 @@ void snd_ff_proc_init(struct snd_ff *ff)
 		return;
 	}
 
-	add_node(ff, root, "clock-config", proc_dump_clock_config);
-	add_node(ff, root, "sync-status", proc_dump_sync_status);
+	add_node(ff, root, "status", proc_dump_status);
 }
