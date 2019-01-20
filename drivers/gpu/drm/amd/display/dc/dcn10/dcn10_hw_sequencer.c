@@ -956,97 +956,34 @@ static void dcn10_disable_plane(struct dc *dc, struct pipe_ctx *pipe_ctx)
 					pipe_ctx->pipe_idx);
 }
 
-static void dcn10_init_hw(struct dc *dc)
+static void dcn10_init_pipes(struct dc *dc, struct dc_state *context)
 {
 	int i;
-	struct abm *abm = dc->res_pool->abm;
-	struct dmcu *dmcu = dc->res_pool->dmcu;
-	struct dce_hwseq *hws = dc->hwseq;
-	struct dc_bios *dcb = dc->ctx->dc_bios;
-	struct dc_state  *context = dc->current_state;
-
-	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
-		REG_WRITE(REFCLK_CNTL, 0);
-		REG_UPDATE(DCHUBBUB_GLOBAL_TIMER_CNTL, DCHUBBUB_GLOBAL_TIMER_ENABLE, 1);
-		REG_WRITE(DIO_MEM_PWR_CTRL, 0);
-
-		if (!dc->debug.disable_clock_gate) {
-			/* enable all DCN clock gating */
-			REG_WRITE(DCCG_GATE_DISABLE_CNTL, 0);
-
-			REG_WRITE(DCCG_GATE_DISABLE_CNTL2, 0);
-
-			REG_UPDATE(DCFCLK_CNTL, DCFCLK_GATE_DIS, 0);
-		}
-
-		enable_power_gating_plane(dc->hwseq, true);
-	} else {
-
-		if (!dcb->funcs->is_accelerated_mode(dcb)) {
-			bool allow_self_fresh_force_enable =
-					hububu1_is_allow_self_refresh_enabled(dc->res_pool->hubbub);
-
-			bios_golden_init(dc);
-
-			/* WA for making DF sleep when idle after resume from S0i3.
-			 * DCHUBBUB_ARB_ALLOW_SELF_REFRESH_FORCE_ENABLE is set to 1 by
-			 * command table, if DCHUBBUB_ARB_ALLOW_SELF_REFRESH_FORCE_ENABLE = 0
-			 * before calling command table and it changed to 1 after,
-			 * it should be set back to 0.
-			 */
-			if (allow_self_fresh_force_enable == false &&
-					hububu1_is_allow_self_refresh_enabled(dc->res_pool->hubbub))
-				hubbub1_allow_self_refresh_control(dc->res_pool->hubbub, true);
-
-			disable_vga(dc->hwseq);
-		}
-
-		for (i = 0; i < dc->link_count; i++) {
-			/* Power up AND update implementation according to the
-			 * required signal (which may be different from the
-			 * default signal on connector).
-			 */
-			struct dc_link *link = dc->links[i];
-
-			if (link->link_enc->connector.id == CONNECTOR_ID_EDP)
-				dc->hwss.edp_power_control(link, true);
-
-			link->link_enc->funcs->hw_init(link->link_enc);
-
-			/* Check for enabled DIG to identify enabled display */
-			if (link->link_enc->funcs->is_dig_enabled &&
-				link->link_enc->funcs->is_dig_enabled(link->link_enc))
-				link->link_status.link_active = true;
-		}
-	}
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct timing_generator *tg = dc->res_pool->timing_generators[i];
 
 		if (tg->funcs->is_tg_enabled(tg))
 			tg->funcs->lock(tg);
-	}
 
-	/* Blank controller using driver code instead of
-	 * command table.
-	 */
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct timing_generator *tg = dc->res_pool->timing_generators[i];
-
+		/* Blank controller using driver code instead of
+		 * command table.
+		 */
 		if (tg->funcs->is_tg_enabled(tg)) {
 			tg->funcs->set_blank(tg, true);
 			hwss_wait_for_blank_complete(tg);
 		}
 	}
 
-	/* Reset all MPCC muxes */
 	dc->res_pool->mpc->funcs->mpc_init(dc->res_pool->mpc);
 
-	for (i = 0; i < dc->res_pool->timing_generator_count; i++) {
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct timing_generator *tg = dc->res_pool->timing_generators[i];
-		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 		struct hubp *hubp = dc->res_pool->hubps[i];
 		struct dpp *dpp = dc->res_pool->dpps[i];
+		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+
+		dpp->funcs->dpp_reset(dpp);
 
 		pipe_ctx->stream_res.tg = tg;
 		pipe_ctx->pipe_idx = i;
@@ -1064,18 +1001,9 @@ static void dcn10_init_hw(struct dc *dc)
 		pipe_ctx->stream_res.opp = dc->res_pool->opps[i];
 
 		hwss1_plane_atomic_disconnect(dc, pipe_ctx);
-	}
-
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct timing_generator *tg = dc->res_pool->timing_generators[i];
 
 		if (tg->funcs->is_tg_enabled(tg))
 			tg->funcs->unlock(tg);
-	}
-
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct timing_generator *tg = dc->res_pool->timing_generators[i];
-		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
 		dcn10_disable_plane(dc, pipe_ctx);
 
@@ -1084,10 +1012,73 @@ static void dcn10_init_hw(struct dc *dc)
 
 		tg->funcs->tg_init(tg);
 	}
+}
 
-	/* end of FPGA. Below if real ASIC */
-	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment))
+static void dcn10_init_hw(struct dc *dc)
+{
+	int i;
+	struct abm *abm = dc->res_pool->abm;
+	struct dmcu *dmcu = dc->res_pool->dmcu;
+	struct dce_hwseq *hws = dc->hwseq;
+	struct dc_bios *dcb = dc->ctx->dc_bios;
+
+	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
+		REG_WRITE(REFCLK_CNTL, 0);
+		REG_UPDATE(DCHUBBUB_GLOBAL_TIMER_CNTL, DCHUBBUB_GLOBAL_TIMER_ENABLE, 1);
+		REG_WRITE(DIO_MEM_PWR_CTRL, 0);
+
+		if (!dc->debug.disable_clock_gate) {
+			/* enable all DCN clock gating */
+			REG_WRITE(DCCG_GATE_DISABLE_CNTL, 0);
+
+			REG_WRITE(DCCG_GATE_DISABLE_CNTL2, 0);
+
+			REG_UPDATE(DCFCLK_CNTL, DCFCLK_GATE_DIS, 0);
+		}
+
+		enable_power_gating_plane(dc->hwseq, true);
+
+		/* end of FPGA. Below if real ASIC */
 		return;
+	}
+
+	if (!dcb->funcs->is_accelerated_mode(dcb)) {
+		bool allow_self_fresh_force_enable =
+			hububu1_is_allow_self_refresh_enabled(
+						dc->res_pool->hubbub);
+
+		bios_golden_init(dc);
+
+		/* WA for making DF sleep when idle after resume from S0i3.
+		 * DCHUBBUB_ARB_ALLOW_SELF_REFRESH_FORCE_ENABLE is set to 1 by
+		 * command table, if DCHUBBUB_ARB_ALLOW_SELF_REFRESH_FORCE_ENABLE = 0
+		 * before calling command table and it changed to 1 after,
+		 * it should be set back to 0.
+		 */
+		if (allow_self_fresh_force_enable == false &&
+				hububu1_is_allow_self_refresh_enabled(dc->res_pool->hubbub))
+			hubbub1_allow_self_refresh_control(dc->res_pool->hubbub, true);
+
+		disable_vga(dc->hwseq);
+	}
+
+	for (i = 0; i < dc->link_count; i++) {
+		/* Power up AND update implementation according to the
+		 * required signal (which may be different from the
+		 * default signal on connector).
+		 */
+		struct dc_link *link = dc->links[i];
+
+		if (link->link_enc->connector.id == CONNECTOR_ID_EDP)
+			dc->hwss.edp_power_control(link, true);
+
+		link->link_enc->funcs->hw_init(link->link_enc);
+
+		/* Check for enabled DIG to identify enabled display */
+		if (link->link_enc->funcs->is_dig_enabled &&
+			link->link_enc->funcs->is_dig_enabled(link->link_enc))
+			link->link_status.link_active = true;
+	}
 
 	for (i = 0; i < dc->res_pool->audio_count; i++) {
 		struct audio *audio = dc->res_pool->audios[i];
@@ -1118,6 +1109,9 @@ static void dcn10_init_hw(struct dc *dc)
 	enable_power_gating_plane(dc->hwseq, true);
 
 	memset(&dc->res_pool->clk_mgr->clks, 0, sizeof(dc->res_pool->clk_mgr->clks));
+
+	if (dc->hwss.init_pipes)
+		dc->hwss.init_pipes(dc, dc->current_state);
 }
 
 static void reset_hw_ctx_wrap(
@@ -2718,6 +2712,7 @@ static void dcn10_set_cursor_sdr_white_level(struct pipe_ctx *pipe_ctx)
 static const struct hw_sequencer_funcs dcn10_funcs = {
 	.program_gamut_remap = program_gamut_remap,
 	.init_hw = dcn10_init_hw,
+	.init_pipes = dcn10_init_pipes,
 	.apply_ctx_to_hw = dce110_apply_ctx_to_hw,
 	.apply_ctx_for_surface = dcn10_apply_ctx_for_surface,
 	.update_plane_addr = dcn10_update_plane_addr,
