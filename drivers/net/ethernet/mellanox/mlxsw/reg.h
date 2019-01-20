@@ -7210,6 +7210,13 @@ MLXSW_ITEM32(reg, rtdp, type, 0x00, 28, 4);
  */
 MLXSW_ITEM32(reg, rtdp, tunnel_index, 0x00, 0, 24);
 
+/* reg_rtdp_egress_router_interface
+ * Underlay egress router interface.
+ * Valid range is from 0 to cap_max_router_interfaces - 1
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, rtdp, egress_router_interface, 0x40, 0, 16);
+
 /* IPinIP */
 
 /* reg_rtdp_ipip_irif
