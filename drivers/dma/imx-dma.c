@@ -283,7 +283,7 @@ static inline int imxdma_sg_next(struct imxdma_desc *d)
 	struct imxdma_channel *imxdmac = to_imxdma_chan(d->desc.chan);
 	struct imxdma_engine *imxdma = imxdmac->imxdma;
 	struct scatterlist *sg = d->sg;
-	unsigned long now;
+	size_t now;
 
 	now = min_t(size_t, d->len, sg_dma_len(sg));
 	if (d->len != IMX_DMA_LENGTH_LOOP)
