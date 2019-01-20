@@ -101,10 +101,6 @@
 	};
 };
 
-&nand {
-	status = "okay";
-};
-
 &usb0 {
 	status = "okay";
 };
@@ -114,5 +110,9 @@
 };
 
 &pcie {
+	status = "okay";
+};
+
+&nand {
 	status = "okay";
 };
