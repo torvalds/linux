@@ -98,9 +98,9 @@ text, like this:
 
     commit <sha1> upstream.
 
-Additionally, some patches submitted via Option 1 may have additional patch
-prerequisites which can be cherry-picked. This can be specified in the following
-format in the sign-off area:
+Additionally, some patches submitted via :ref:`option_1` may have additional
+patch prerequisites which can be cherry-picked. This can be specified in the
+following format in the sign-off area:
 
 .. code-block:: none
 
