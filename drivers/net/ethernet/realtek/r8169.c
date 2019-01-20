@@ -5659,11 +5659,6 @@ static inline void rtl8169_mark_to_asic(struct RxDesc *desc)
 	desc->opts1 = cpu_to_le32(DescOwn | eor | R8169_RX_BUF_SIZE);
 }
 
-static inline void *rtl8169_align(void *data)
-{
-	return (void *)ALIGN((long)data, 16);
-}
-
 static struct sk_buff *rtl8169_alloc_rx_data(struct rtl8169_private *tp,
 					     struct RxDesc *desc)
 {
@@ -5676,15 +5671,13 @@ static struct sk_buff *rtl8169_alloc_rx_data(struct rtl8169_private *tp,
 	if (!data)
 		return NULL;
 
-	if (rtl8169_align(data) != data) {
-		kfree(data);
-		data = kmalloc_node(R8169_RX_BUF_SIZE + 15, GFP_KERNEL, node);
-		if (!data)
-			return NULL;
+	/* Memory should be properly aligned, but better check. */
+	if (!IS_ALIGNED((unsigned long)data, 8)) {
+		netdev_err_once(tp->dev, "RX buffer not 8-byte-aligned\n");
+		goto err_out;
 	}
 
-	mapping = dma_map_single(d, rtl8169_align(data), R8169_RX_BUF_SIZE,
-				 DMA_FROM_DEVICE);
+	mapping = dma_map_single(d, data, R8169_RX_BUF_SIZE, DMA_FROM_DEVICE);
 	if (unlikely(dma_mapping_error(d, mapping))) {
 		if (net_ratelimit())
 			netif_err(tp, drv, tp->dev, "Failed to map RX DMA!\n");
@@ -6290,7 +6283,6 @@ static struct sk_buff *rtl8169_try_rx_copy(void *data,
 	struct sk_buff *skb;
 	struct device *d = tp_to_dev(tp);
 
-	data = rtl8169_align(data);
 	dma_sync_single_for_cpu(d, addr, pkt_size, DMA_FROM_DEVICE);
 	prefetch(data);
 	skb = napi_alloc_skb(&tp->napi, pkt_size);
