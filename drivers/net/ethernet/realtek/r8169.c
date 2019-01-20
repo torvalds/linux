@@ -229,7 +229,6 @@ static const struct pci_device_id rtl8169_pci_tbl[] = {
 
 MODULE_DEVICE_TABLE(pci, rtl8169_pci_tbl);
 
-static int use_dac = -1;
 static struct {
 	u32 msg_enable;
 } debug = { -1 };
@@ -704,8 +703,6 @@ struct rtl8169_private {
 
 MODULE_AUTHOR("Realtek and the Linux r8169 crew <netdev@vger.kernel.org>");
 MODULE_DESCRIPTION("RealTek RTL-8169 Gigabit Ethernet driver");
-module_param(use_dac, int, 0);
-MODULE_PARM_DESC(use_dac, "Enable PCI DAC. Unsafe on 32 bit PCI slot.");
 module_param_named(debug, debug.msg_enable, int, 0);
 MODULE_PARM_DESC(debug, "Debug verbosity level (0=none, ..., 16=all)");
 MODULE_SOFTDEP("pre: realtek");
@@ -6180,14 +6177,6 @@ static void rtl8169_pcierr_interrupt(struct net_device *dev)
 		PCI_STATUS_SIG_SYSTEM_ERROR | PCI_STATUS_REC_MASTER_ABORT |
 		PCI_STATUS_REC_TARGET_ABORT | PCI_STATUS_SIG_TARGET_ABORT));
 
-	/* The infamous DAC f*ckup only happens at boot time */
-	if ((tp->cp_cmd & PCIDAC) && !tp->cur_rx) {
-		netif_info(tp, intr, dev, "disabling PCI DAC\n");
-		tp->cp_cmd &= ~PCIDAC;
-		RTL_W16(tp, CPlusCmd, tp->cp_cmd);
-		dev->features &= ~NETIF_F_HIGHDMA;
-	}
-
 	rtl_schedule_task(tp, RTL_FLAG_TASK_RESET_PENDING);
 }
 
@@ -7241,13 +7230,8 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	tp->cp_cmd = RTL_R16(tp, CPlusCmd);
 
-	if (sizeof(dma_addr_t) > 4 && (use_dac == 1 || (use_dac == -1 &&
-	    tp->mac_version >= RTL_GIGA_MAC_VER_18)) &&
+	if (sizeof(dma_addr_t) > 4 && tp->mac_version >= RTL_GIGA_MAC_VER_18 &&
 	    !dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64))) {
-
-		/* CPlusCmd Dual Access Cycle is only needed for non-PCIe */
-		if (!pci_is_pcie(pdev))
-			tp->cp_cmd |= PCIDAC;
 		dev->features |= NETIF_F_HIGHDMA;
 	} else {
 		rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
