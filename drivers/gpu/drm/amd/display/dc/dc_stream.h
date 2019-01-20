@@ -119,7 +119,6 @@ struct dc_stream_state {
 	int phy_pix_clk;
 	enum signal_type signal;
 	bool dpms_off;
-	bool apply_edp_fast_boot_optimization;
 
 	void *dm_stream_context;
 
@@ -145,6 +144,9 @@ struct dc_stream_state {
 		// offsets need to be exposed to DM
 		uint8_t otg_offset;
 	} out;
+
+	bool apply_edp_fast_boot_optimization;
+	bool apply_seamless_boot_optimization;
 
 	uint32_t stream_id;
 };

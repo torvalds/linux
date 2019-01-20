@@ -1096,6 +1096,9 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 		const struct dc_link *link = context->streams[i]->link;
 		struct dc_stream_status *status;
 
+		if (context->streams[i]->apply_seamless_boot_optimization)
+			context->streams[i]->apply_seamless_boot_optimization = false;
+
 		if (!context->streams[i]->mode_changed)
 			continue;
 

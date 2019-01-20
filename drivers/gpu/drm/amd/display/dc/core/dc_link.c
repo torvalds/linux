@@ -2579,13 +2579,23 @@ void core_link_enable_stream(
 			&stream->timing);
 
 	if (!IS_FPGA_MAXIMUS_DC(core_dc->ctx->dce_environment)) {
+		bool apply_edp_fast_boot_optimization =
+			pipe_ctx->stream->apply_edp_fast_boot_optimization;
+
+		pipe_ctx->stream->apply_edp_fast_boot_optimization = false;
+
 		resource_build_info_frame(pipe_ctx);
 		core_dc->hwss.update_info_frame(pipe_ctx);
 
+		/* Do not touch link on seamless boot optimization. */
+		if (pipe_ctx->stream->apply_seamless_boot_optimization) {
+			pipe_ctx->stream->dpms_off = false;
+			return;
+		}
+
 		/* eDP lit up by bios already, no need to enable again. */
 		if (pipe_ctx->stream->signal == SIGNAL_TYPE_EDP &&
-				pipe_ctx->stream->apply_edp_fast_boot_optimization) {
-			pipe_ctx->stream->apply_edp_fast_boot_optimization = false;
+					apply_edp_fast_boot_optimization) {
 			pipe_ctx->stream->dpms_off = false;
 			return;
 		}

@@ -1800,6 +1800,51 @@ static void calculate_phy_pix_clks(struct dc_stream_state *stream)
 		stream->phy_pix_clk *= 2;
 }
 
+static int acquire_resource_from_hw_enabled_state(
+		struct resource_context *res_ctx,
+		const struct resource_pool *pool,
+		struct dc_stream_state *stream)
+{
+	struct dc_link *link = stream->link;
+	unsigned int inst;
+
+	/* Check for enabled DIG to identify enabled display */
+	if (!link->link_enc->funcs->is_dig_enabled(link->link_enc))
+		return -1;
+
+	/* Check for which front end is used by this encoder.
+	 * Note the inst is 1 indexed, where 0 is undefined.
+	 * Note that DIG_FE can source from different OTG but our
+	 * current implementation always map 1-to-1, so this code makes
+	 * the same assumption and doesn't check OTG source.
+	 */
+	inst = link->link_enc->funcs->get_dig_frontend(link->link_enc) - 1;
+
+	/* Instance should be within the range of the pool */
+	if (inst >= pool->pipe_count)
+		return -1;
+
+	if (!res_ctx->pipe_ctx[inst].stream) {
+		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[inst];
+
+		pipe_ctx->stream_res.tg = pool->timing_generators[inst];
+		pipe_ctx->plane_res.mi = pool->mis[inst];
+		pipe_ctx->plane_res.hubp = pool->hubps[inst];
+		pipe_ctx->plane_res.ipp = pool->ipps[inst];
+		pipe_ctx->plane_res.xfm = pool->transforms[inst];
+		pipe_ctx->plane_res.dpp = pool->dpps[inst];
+		pipe_ctx->stream_res.opp = pool->opps[inst];
+		if (pool->dpps[inst])
+			pipe_ctx->plane_res.mpcc_inst = pool->dpps[inst]->inst;
+		pipe_ctx->pipe_idx = inst;
+
+		pipe_ctx->stream = stream;
+		return inst;
+	}
+
+	return -1;
+}
+
 enum dc_status resource_map_pool_resources(
 		const struct dc  *dc,
 		struct dc_state *context,
@@ -1824,8 +1869,15 @@ enum dc_status resource_map_pool_resources(
 
 	calculate_phy_pix_clks(stream);
 
-	/* acquire new resources */
-	pipe_idx = acquire_first_free_pipe(&context->res_ctx, pool, stream);
+	if (stream->apply_seamless_boot_optimization)
+		pipe_idx = acquire_resource_from_hw_enabled_state(
+				&context->res_ctx,
+				pool,
+				stream);
+
+	if (pipe_idx < 0)
+		/* acquire new resources */
+		pipe_idx = acquire_first_free_pipe(&context->res_ctx, pool, stream);
 
 #ifdef CONFIG_DRM_AMD_DC_DCN1_0
 	if (pipe_idx < 0)

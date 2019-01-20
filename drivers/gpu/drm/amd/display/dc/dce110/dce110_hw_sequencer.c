@@ -1339,7 +1339,9 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 	}
 
 	/*  */
-	dc->hwss.enable_stream_timing(pipe_ctx, context, dc);
+	/* Do not touch stream timing on seamless boot optimization. */
+	if (!pipe_ctx->stream->apply_seamless_boot_optimization)
+		dc->hwss.enable_stream_timing(pipe_ctx, context, dc);
 
 	if (pipe_ctx->stream_res.tg->funcs->program_vupdate_interrupt)
 		pipe_ctx->stream_res.tg->funcs->program_vupdate_interrupt(
