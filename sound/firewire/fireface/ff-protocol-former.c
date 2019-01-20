@@ -12,6 +12,70 @@
 #define FORMER_REG_SYNC_STATUS		0x0000801c0000ull
 /* For block write request. */
 #define FORMER_REG_FETCH_PCM_FRAMES	0x0000801c0000ull
+#define FORMER_REG_CLOCK_CONFIG		0x0000801c0004ull
+
+static int former_get_clock(struct snd_ff *ff, unsigned int *rate,
+			    enum snd_ff_clock_src *src)
+{
+	__le32 reg;
+	u32 data;
+	int err;
+
+	err = snd_fw_transaction(ff->unit, TCODE_READ_QUADLET_REQUEST,
+				 FORMER_REG_CLOCK_CONFIG, &reg, sizeof(reg), 0);
+	if (err < 0)
+		return err;
+	data = le32_to_cpu(reg);
+
+	/* Calculate sampling rate. */
+	switch ((data >> 1) & 0x03) {
+	case 0x01:
+		*rate = 32000;
+		break;
+	case 0x00:
+		*rate = 44100;
+		break;
+	case 0x03:
+		*rate = 48000;
+		break;
+	case 0x02:
+	default:
+		return -EIO;
+	}
+
+	if (data & 0x08)
+		*rate *= 2;
+	else if (data & 0x10)
+		*rate *= 4;
+
+	/* Calculate source of clock. */
+	if (data & 0x01) {
+		*src = SND_FF_CLOCK_SRC_INTERNAL;
+	} else {
+		/* TODO: 0x02, 0x06, 0x07? */
+		switch ((data >> 10) & 0x07) {
+		case 0x00:
+			*src = SND_FF_CLOCK_SRC_ADAT1;
+			break;
+		case 0x01:
+			*src = SND_FF_CLOCK_SRC_ADAT2;
+			break;
+		case 0x03:
+			*src = SND_FF_CLOCK_SRC_SPDIF;
+			break;
+		case 0x04:
+			*src = SND_FF_CLOCK_SRC_WORD;
+			break;
+		case 0x05:
+			*src = SND_FF_CLOCK_SRC_LTC;
+			break;
+		default:
+			return -EIO;
+		}
+	}
+
+	return 0;
+}
 
 static int former_switch_fetching_mode(struct snd_ff *ff, bool enable)
 {
@@ -56,7 +120,7 @@ static void dump_clock_config(struct snd_ff *ff, struct snd_info_buffer *buffer)
 	int err;
 
 	err = snd_fw_transaction(ff->unit, TCODE_READ_BLOCK_REQUEST,
-				 SND_FF_REG_CLOCK_CONFIG, &reg, sizeof(reg), 0);
+				 FORMER_REG_CLOCK_CONFIG, &reg, sizeof(reg), 0);
 	if (err < 0)
 		return;
 
@@ -383,6 +447,7 @@ static void ff800_handle_midi_msg(struct snd_ff *ff, __le32 *buf, size_t length)
 
 const struct snd_ff_protocol snd_ff_protocol_ff800 = {
 	.handle_midi_msg	= ff800_handle_midi_msg,
+	.get_clock		= former_get_clock,
 	.switch_fetching_mode	= former_switch_fetching_mode,
 	.begin_session		= ff800_begin_session,
 	.finish_session		= ff800_finish_session,
@@ -532,6 +597,7 @@ static void ff400_handle_midi_msg(struct snd_ff *ff, __le32 *buf, size_t length)
 
 const struct snd_ff_protocol snd_ff_protocol_ff400 = {
 	.handle_midi_msg	= ff400_handle_midi_msg,
+	.get_clock		= former_get_clock,
 	.switch_fetching_mode	= former_switch_fetching_mode,
 	.begin_session		= ff400_begin_session,
 	.finish_session		= ff400_finish_session,
