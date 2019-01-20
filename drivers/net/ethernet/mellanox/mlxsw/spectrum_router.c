@@ -80,7 +80,7 @@ struct mlxsw_sp_router {
 struct mlxsw_sp_rif {
 	struct list_head nexthop_list;
 	struct list_head neigh_list;
-	struct net_device *dev;
+	struct net_device *dev; /* NULL for underlay RIF */
 	struct mlxsw_sp_fid *fid;
 	unsigned char addr[ETH_ALEN];
 	int mtu;
@@ -6224,10 +6224,12 @@ static struct mlxsw_sp_rif *mlxsw_sp_rif_alloc(size_t rif_size, u16 rif_index,
 
 	INIT_LIST_HEAD(&rif->nexthop_list);
 	INIT_LIST_HEAD(&rif->neigh_list);
-	ether_addr_copy(rif->addr, l3_dev->dev_addr);
-	rif->mtu = l3_dev->mtu;
+	if (l3_dev) {
+		ether_addr_copy(rif->addr, l3_dev->dev_addr);
+		rif->mtu = l3_dev->mtu;
+		rif->dev = l3_dev;
+	}
 	rif->vr_id = vr_id;
-	rif->dev = l3_dev;
 	rif->rif_index = rif_index;
 
 	return rif;
@@ -6758,7 +6760,7 @@ static int mlxsw_sp_router_port_check_rif_addr(struct mlxsw_sp *mlxsw_sp,
 
 	for (i = 0; i < MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_RIFS); i++) {
 		rif = mlxsw_sp->router->rifs[i];
-		if (rif && rif->dev != dev &&
+		if (rif && rif->dev && rif->dev != dev &&
 		    !ether_addr_equal_masked(rif->dev->dev_addr, dev_addr,
 					     mlxsw_sp->mac_mask)) {
 			NL_SET_ERR_MSG_MOD(extack, "All router interface MAC addresses must have the same prefix");
