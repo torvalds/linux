@@ -120,6 +120,7 @@ struct mlxsw_sp_rif_ipip_lb {
 	struct mlxsw_sp_rif common;
 	struct mlxsw_sp_rif_ipip_lb_config lb_config;
 	u16 ul_vr_id; /* Reserved for Spectrum-2. */
+	u16 ul_rif_id; /* Reserved for Spectrum. */
 };
 
 struct mlxsw_sp_rif_params_ipip_lb {
@@ -1468,14 +1469,13 @@ static int mlxsw_sp_netdevice_ipip_ol_update_mtu(struct mlxsw_sp *mlxsw_sp,
 {
 	struct mlxsw_sp_ipip_entry *ipip_entry;
 	struct mlxsw_sp_rif_ipip_lb *lb_rif;
-	struct mlxsw_sp_vr *ul_vr;
 	int err = 0;
 
 	ipip_entry = mlxsw_sp_ipip_entry_find_by_ol_dev(mlxsw_sp, ol_dev);
 	if (ipip_entry) {
 		lb_rif = ipip_entry->ol_lb;
-		ul_vr = &mlxsw_sp->router->vrs[lb_rif->ul_vr_id];
-		err = mlxsw_sp_rif_ipip_lb_op(lb_rif, ul_vr->id, 0, true);
+		err = mlxsw_sp_rif_ipip_lb_op(lb_rif, lb_rif->ul_vr_id,
+					      lb_rif->ul_rif_id, true);
 		if (err)
 			goto out;
 		lb_rif->common.mtu = ol_dev->mtu;
@@ -7442,6 +7442,7 @@ mlxsw_sp1_rif_ipip_lb_configure(struct mlxsw_sp_rif *rif)
 		goto err_loopback_op;
 
 	lb_rif->ul_vr_id = ul_vr->id;
+	lb_rif->ul_rif_id = 0;
 	++ul_vr->rif_count;
 	return 0;
 
