@@ -114,6 +114,7 @@ struct snd_ff_protocol {
 
 extern const struct snd_ff_protocol snd_ff_protocol_ff800;
 extern const struct snd_ff_protocol snd_ff_protocol_ff400;
+extern const struct snd_ff_protocol snd_ff_protocol_latter;
 
 int snd_ff_transaction_register(struct snd_ff *ff);
 int snd_ff_transaction_reregister(struct snd_ff *ff);

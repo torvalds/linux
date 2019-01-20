@@ -32,7 +32,8 @@ static void ff_card_free(struct snd_card *card)
 	struct snd_ff *ff = card->private_data;
 
 	snd_ff_stream_destroy_duplex(ff);
-	snd_ff_transaction_unregister(ff);
+	if (ff->spec->midi_high_addr > 0)
+		snd_ff_transaction_unregister(ff);
 }
 
 static void do_registration(struct work_struct *work)
@@ -50,9 +51,11 @@ static void do_registration(struct work_struct *work)
 	ff->card->private_free = ff_card_free;
 	ff->card->private_data = ff;
 
-	err = snd_ff_transaction_register(ff);
-	if (err < 0)
-		goto error;
+	if (ff->spec->midi_high_addr > 0) {
+		err = snd_ff_transaction_register(ff);
+		if (err < 0)
+			goto error;
+	}
 
 	name_card(ff);
 
@@ -62,9 +65,11 @@ static void do_registration(struct work_struct *work)
 
 	snd_ff_proc_init(ff);
 
-	err = snd_ff_create_midi_devices(ff);
-	if (err < 0)
-		goto error;
+	if (ff->spec->midi_in_ports > 0 || ff->spec->midi_out_ports > 0) {
+		err = snd_ff_create_midi_devices(ff);
+		if (err < 0)
+			goto error;
+	}
 
 	err = snd_ff_create_pcm_devices(ff);
 	if (err < 0)
@@ -119,7 +124,8 @@ static void snd_ff_update(struct fw_unit *unit)
 	if (!ff->registered)
 		snd_fw_schedule_registration(unit, &ff->dwork);
 
-	snd_ff_transaction_reregister(ff);
+	if (ff->spec->midi_high_addr > 0)
+		snd_ff_transaction_reregister(ff);
 
 	if (ff->registered)
 		snd_ff_stream_update_duplex(ff);
@@ -165,6 +171,13 @@ static const struct snd_ff_spec spec_ff400 = {
 	.midi_high_addr = 0x0000801003f4ull,
 };
 
+static const struct snd_ff_spec spec_ucx = {
+	.name = "FirefaceUCX",
+	.pcm_capture_channels = {18, 14, 12},
+	.pcm_playback_channels = {18, 14, 12},
+	.protocol = &snd_ff_protocol_latter,
+};
+
 static const struct ieee1394_device_id snd_ff_id_table[] = {
 	/* Fireface 800 */
 	{
@@ -189,6 +202,18 @@ static const struct ieee1394_device_id snd_ff_id_table[] = {
 		.version	= 0x000002,
 		.model_id	= 0x101800,
 		.driver_data	= (kernel_ulong_t)&spec_ff400,
+	},
+	// Fireface UCX.
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
+				  IEEE1394_MATCH_SPECIFIER_ID |
+				  IEEE1394_MATCH_VERSION |
+				  IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_RME,
+		.specifier_id	= OUI_RME,
+		.version	= 0x000004,
+		.model_id	= 0x101800,
+		.driver_data	= (kernel_ulong_t)&spec_ucx,
 	},
 	{}
 };
