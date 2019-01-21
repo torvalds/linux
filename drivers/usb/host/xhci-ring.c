@@ -3222,6 +3222,7 @@ static int queue_bulk_sg_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	int last_trb_num;
 	u64 addr;
 	bool more_trbs_coming;
+	bool en_trb_ent;
 
 	struct xhci_generic_trb *start_trb;
 	int start_cycle;
@@ -3284,6 +3285,17 @@ static int queue_bulk_sg_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	if (trb_buff_len > urb->transfer_buffer_length)
 		trb_buff_len = urb->transfer_buffer_length;
 
+	/*
+	 * Don't enable the ENT flag in the TRB in the following cases:
+	 * 1. The transfer length of the first TRB isn't an integer
+	 *    multiple of the EP maxpacket.
+	 * 2. The EP support bulk streaming protocol.
+	 */
+	if (trb_buff_len % usb_endpoint_maxp(&urb->ep->desc) || urb->stream_id)
+		en_trb_ent = false;
+	else
+		en_trb_ent = true;
+
 	first_trb = true;
 	last_trb_num = zero_length_needed ? 2 : 1;
 	/* Queue the first TRB, even if it's zero-length */
@@ -3305,7 +3317,7 @@ static int queue_bulk_sg_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		 */
 		if (num_trbs > last_trb_num) {
 			field |= TRB_CHAIN;
-			if (xhci->quirks & XHCI_TRB_ENT_QUIRK)
+			if (xhci->quirks & XHCI_TRB_ENT_QUIRK && en_trb_ent)
 				field |= TRB_ENT;
 		} else if (num_trbs == last_trb_num) {
 			td->last_trb = ep_ring->enqueue;
@@ -3391,6 +3403,7 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	int last_trb_num;
 	bool more_trbs_coming;
 	bool zero_length_needed;
+	bool en_trb_ent;
 	int start_cycle;
 	u32 field, length_field;
 
@@ -3463,6 +3476,17 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	if (trb_buff_len > urb->transfer_buffer_length)
 		trb_buff_len = urb->transfer_buffer_length;
 
+	/*
+	 * Don't enable the ENT flag in the TRB in the following cases:
+	 * 1. The transfer length of the first TRB isn't an integer
+	 *    multiple of the EP maxpacket.
+	 * 2. The EP support bulk streaming protocol.
+	 */
+	if (trb_buff_len % usb_endpoint_maxp(&urb->ep->desc) || urb->stream_id)
+		en_trb_ent = false;
+	else
+		en_trb_ent = true;
+
 	first_trb = true;
 	last_trb_num = zero_length_needed ? 2 : 1;
 	/* Queue the first TRB, even if it's zero-length */
@@ -3483,7 +3507,7 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		 */
 		if (num_trbs > last_trb_num) {
 			field |= TRB_CHAIN;
-			if (xhci->quirks & XHCI_TRB_ENT_QUIRK)
+			if (xhci->quirks & XHCI_TRB_ENT_QUIRK && en_trb_ent)
 				field |= TRB_ENT;
 		} else if (num_trbs == last_trb_num) {
 			td->last_trb = ep_ring->enqueue;
