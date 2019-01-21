@@ -1334,6 +1334,8 @@ static int lpuart32_startup(struct uart_port *port)
 	sport->txfifo_size = 0x1 << (((temp >> UARTFIFO_TXSIZE_OFF) &
 		UARTFIFO_FIFOSIZE_MASK) - 1);
 
+	sport->port.fifosize = sport->txfifo_size;
+
 	sport->rxfifo_size = 0x1 << (((temp >> UARTFIFO_RXSIZE_OFF) &
 		UARTFIFO_FIFOSIZE_MASK) - 1);
 
