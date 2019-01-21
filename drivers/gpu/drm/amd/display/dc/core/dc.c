@@ -869,8 +869,9 @@ static void program_timing_sync(
 		struct dc *dc,
 		struct dc_state *ctx)
 {
-	int i, j;
+	int i, j, k;
 	int group_index = 0;
+	int num_group = 0;
 	int pipe_count = dc->res_pool->pipe_count;
 	struct pipe_ctx *unsynced_pipes[MAX_PIPES] = { NULL };
 
@@ -922,6 +923,18 @@ static void program_timing_sync(
 			}
 		}
 
+
+		for (k = 0; k < group_size; k++) {
+			struct dc_stream_status *status = dc_stream_get_status_from_state(ctx, pipe_set[k]->stream);
+
+			status->timing_sync_info.group_id = num_group;
+			status->timing_sync_info.group_size = group_size;
+			if (k == 0)
+				status->timing_sync_info.master = true;
+			else
+				status->timing_sync_info.master = false;
+
+		}
 		/* remove any other pipes with plane as they have already been synced */
 		for (j = j + 1; j < group_size; j++) {
 			if (pipe_set[j]->plane_state) {
@@ -936,6 +949,7 @@ static void program_timing_sync(
 				dc, group_index, group_size, pipe_set);
 			group_index++;
 		}
+		num_group++;
 	}
 }
 

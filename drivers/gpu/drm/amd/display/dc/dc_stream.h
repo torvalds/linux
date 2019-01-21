@@ -32,11 +32,17 @@
 /*******************************************************************************
  * Stream Interfaces
  ******************************************************************************/
+struct timing_sync_info {
+	int group_id;
+	int group_size;
+	bool master;
+};
 
 struct dc_stream_status {
 	int primary_otg_inst;
 	int stream_enc_inst;
 	int plane_count;
+	struct timing_sync_info timing_sync_info;
 	struct dc_plane_state *plane_states[MAX_SURFACE_NUM];
 };
 
