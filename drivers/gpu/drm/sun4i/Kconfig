@@ -45,10 +45,19 @@ config DRM_SUN6I_DSI
 	default MACH_SUN8I
 	select CRC_CCITT
 	select DRM_MIPI_DSI
+	select DRM_SUN6I_DPHY
 	help
 	  Choose this option if you want have an Allwinner SoC with
 	  MIPI-DSI support. If M is selected the module will be called
-	  sun6i-dsi
+	  sun6i_mipi_dsi.
+
+config DRM_SUN6I_DPHY
+	tristate "Allwinner A31 MIPI D-PHY Support"
+	select GENERIC_PHY_MIPI_DPHY
+	help
+	  Choose this option if you have an Allwinner SoC with
+	  MIPI-DSI support. If M is selected, the module will be
+	  called sun6i_mipi_dphy.
 
 config DRM_SUN8I_DW_HDMI
 	tristate "Support for Allwinner version of DesignWare HDMI"

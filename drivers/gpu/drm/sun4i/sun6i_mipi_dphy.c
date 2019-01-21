@@ -8,11 +8,14 @@
 
 #include <linux/bitops.h>
 #include <linux/clk.h>
+#include <linux/module.h>
 #include <linux/of_address.h>
+#include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
 
-#include "sun6i_mipi_dsi.h"
+#include <linux/phy/phy.h>
+#include <linux/phy/phy-mipi-dphy.h>
 
 #define SUN6I_DPHY_GCTL_REG		0x00
 #define SUN6I_DPHY_GCTL_LANE_NUM(n)		((((n) - 1) & 3) << 4)
@@ -81,11 +84,45 @@
 
 #define SUN6I_DPHY_DBG5_REG		0xf4
 
-int sun6i_dphy_init(struct sun6i_dphy *dphy, unsigned int lanes)
+struct sun6i_dphy {
+	struct clk				*bus_clk;
+	struct clk				*mod_clk;
+	struct regmap				*regs;
+	struct reset_control			*reset;
+
+	struct phy				*phy;
+	struct phy_configure_opts_mipi_dphy	config;
+};
+
+static int sun6i_dphy_init(struct phy *phy)
 {
+	struct sun6i_dphy *dphy = phy_get_drvdata(phy);
+
 	reset_control_deassert(dphy->reset);
 	clk_prepare_enable(dphy->mod_clk);
 	clk_set_rate_exclusive(dphy->mod_clk, 150000000);
+
+	return 0;
+}
+
+static int sun6i_dphy_configure(struct phy *phy, union phy_configure_opts *opts)
+{
+	struct sun6i_dphy *dphy = phy_get_drvdata(phy);
+	int ret;
+
+	ret = phy_mipi_dphy_config_validate(&opts->mipi_dphy);
+	if (ret)
+		return ret;
+
+	memcpy(&dphy->config, opts, sizeof(dphy->config));
+
+	return 0;
+}
+
+static int sun6i_dphy_power_on(struct phy *phy)
+{
+	struct sun6i_dphy *dphy = phy_get_drvdata(phy);
+	u8 lanes_mask = GENMASK(dphy->config.lanes - 1, 0);
 
 	regmap_write(dphy->regs, SUN6I_DPHY_TX_CTL_REG,
 		     SUN6I_DPHY_TX_CTL_HS_TX_CLK_CONT);
@@ -111,15 +148,8 @@ int sun6i_dphy_init(struct sun6i_dphy *dphy, unsigned int lanes)
 		     SUN6I_DPHY_TX_TIME4_HS_TX_ANA1(3));
 
 	regmap_write(dphy->regs, SUN6I_DPHY_GCTL_REG,
-		     SUN6I_DPHY_GCTL_LANE_NUM(lanes) |
+		     SUN6I_DPHY_GCTL_LANE_NUM(dphy->config.lanes) |
 		     SUN6I_DPHY_GCTL_EN);
-
-	return 0;
-}
-
-int sun6i_dphy_power_on(struct sun6i_dphy *dphy, unsigned int lanes)
-{
-	u8 lanes_mask = GENMASK(lanes - 1, 0);
 
 	regmap_write(dphy->regs, SUN6I_DPHY_ANA0_REG,
 		     SUN6I_DPHY_ANA0_REG_PWS |
@@ -181,22 +211,35 @@ int sun6i_dphy_power_on(struct sun6i_dphy *dphy, unsigned int lanes)
 	return 0;
 }
 
-int sun6i_dphy_power_off(struct sun6i_dphy *dphy)
+static int sun6i_dphy_power_off(struct phy *phy)
 {
+	struct sun6i_dphy *dphy = phy_get_drvdata(phy);
+
 	regmap_update_bits(dphy->regs, SUN6I_DPHY_ANA1_REG,
 			   SUN6I_DPHY_ANA1_REG_VTTMODE, 0);
 
 	return 0;
 }
 
-int sun6i_dphy_exit(struct sun6i_dphy *dphy)
+static int sun6i_dphy_exit(struct phy *phy)
 {
+	struct sun6i_dphy *dphy = phy_get_drvdata(phy);
+
 	clk_rate_exclusive_put(dphy->mod_clk);
 	clk_disable_unprepare(dphy->mod_clk);
 	reset_control_assert(dphy->reset);
 
 	return 0;
 }
+
+
+static struct phy_ops sun6i_dphy_ops = {
+	.configure	= sun6i_dphy_configure,
+	.power_on	= sun6i_dphy_power_on,
+	.power_off	= sun6i_dphy_power_off,
+	.init		= sun6i_dphy_init,
+	.exit		= sun6i_dphy_exit,
+};
 
 static struct regmap_config sun6i_dphy_regmap_config = {
 	.reg_bits	= 32,
@@ -206,87 +249,70 @@ static struct regmap_config sun6i_dphy_regmap_config = {
 	.name		= "mipi-dphy",
 };
 
+static int sun6i_dphy_probe(struct platform_device *pdev)
+{
+	struct phy_provider *phy_provider;
+	struct sun6i_dphy *dphy;
+	struct resource *res;
+	void __iomem *regs;
+
+	dphy = devm_kzalloc(&pdev->dev, sizeof(*dphy), GFP_KERNEL);
+	if (!dphy)
+		return -ENOMEM;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(regs)) {
+		dev_err(&pdev->dev, "Couldn't map the DPHY encoder registers\n");
+		return PTR_ERR(regs);
+	}
+
+	dphy->regs = devm_regmap_init_mmio_clk(&pdev->dev, "bus",
+					       regs, &sun6i_dphy_regmap_config);
+	if (IS_ERR(dphy->regs)) {
+		dev_err(&pdev->dev, "Couldn't create the DPHY encoder regmap\n");
+		return PTR_ERR(dphy->regs);
+	}
+
+	dphy->reset = devm_reset_control_get_shared(&pdev->dev, NULL);
+	if (IS_ERR(dphy->reset)) {
+		dev_err(&pdev->dev, "Couldn't get our reset line\n");
+		return PTR_ERR(dphy->reset);
+	}
+
+	dphy->mod_clk = devm_clk_get(&pdev->dev, "mod");
+	if (IS_ERR(dphy->mod_clk)) {
+		dev_err(&pdev->dev, "Couldn't get the DPHY mod clock\n");
+		return PTR_ERR(dphy->mod_clk);
+	}
+
+	dphy->phy = devm_phy_create(&pdev->dev, NULL, &sun6i_dphy_ops);
+	if (IS_ERR(dphy->phy)) {
+		dev_err(&pdev->dev, "failed to create PHY\n");
+		return PTR_ERR(dphy->phy);
+	}
+
+	phy_set_drvdata(dphy->phy, dphy);
+	phy_provider = devm_of_phy_provider_register(&pdev->dev, of_phy_simple_xlate);
+
+	return PTR_ERR_OR_ZERO(phy_provider);
+}
+
 static const struct of_device_id sun6i_dphy_of_table[] = {
 	{ .compatible = "allwinner,sun6i-a31-mipi-dphy" },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, sun6i_dphy_of_table);
 
-int sun6i_dphy_probe(struct sun6i_dsi *dsi, struct device_node *node)
-{
-	struct sun6i_dphy *dphy;
-	struct resource res;
-	void __iomem *regs;
-	int ret;
+static struct platform_driver sun6i_dphy_platform_driver = {
+	.probe		= sun6i_dphy_probe,
+	.driver		= {
+		.name		= "sun6i-mipi-dphy",
+		.of_match_table	= sun6i_dphy_of_table,
+	},
+};
+module_platform_driver(sun6i_dphy_platform_driver);
 
-	if (!of_match_node(sun6i_dphy_of_table, node)) {
-		dev_err(dsi->dev, "Incompatible D-PHY\n");
-		return -EINVAL;
-	}
-
-	dphy = devm_kzalloc(dsi->dev, sizeof(*dphy), GFP_KERNEL);
-	if (!dphy)
-		return -ENOMEM;
-
-	ret = of_address_to_resource(node, 0, &res);
-	if (ret) {
-		dev_err(dsi->dev, "phy: Couldn't get our resources\n");
-		return ret;
-	}
-
-	regs = devm_ioremap_resource(dsi->dev, &res);
-	if (IS_ERR(regs)) {
-		dev_err(dsi->dev, "Couldn't map the DPHY encoder registers\n");
-		return PTR_ERR(regs);
-	}
-
-	dphy->regs = devm_regmap_init_mmio(dsi->dev, regs,
-					   &sun6i_dphy_regmap_config);
-	if (IS_ERR(dphy->regs)) {
-		dev_err(dsi->dev, "Couldn't create the DPHY encoder regmap\n");
-		return PTR_ERR(dphy->regs);
-	}
-
-	dphy->reset = of_reset_control_get_shared(node, NULL);
-	if (IS_ERR(dphy->reset)) {
-		dev_err(dsi->dev, "Couldn't get our reset line\n");
-		return PTR_ERR(dphy->reset);
-	}
-
-	dphy->bus_clk = of_clk_get_by_name(node, "bus");
-	if (IS_ERR(dphy->bus_clk)) {
-		dev_err(dsi->dev, "Couldn't get the DPHY bus clock\n");
-		ret = PTR_ERR(dphy->bus_clk);
-		goto err_free_reset;
-	}
-	regmap_mmio_attach_clk(dphy->regs, dphy->bus_clk);
-
-	dphy->mod_clk = of_clk_get_by_name(node, "mod");
-	if (IS_ERR(dphy->mod_clk)) {
-		dev_err(dsi->dev, "Couldn't get the DPHY mod clock\n");
-		ret = PTR_ERR(dphy->mod_clk);
-		goto err_free_bus;
-	}
-
-	dsi->dphy = dphy;
-
-	return 0;
-
-err_free_bus:
-	regmap_mmio_detach_clk(dphy->regs);
-	clk_put(dphy->bus_clk);
-err_free_reset:
-	reset_control_put(dphy->reset);
-	return ret;
-}
-
-int sun6i_dphy_remove(struct sun6i_dsi *dsi)
-{
-	struct sun6i_dphy *dphy = dsi->dphy;
-
-	regmap_mmio_detach_clk(dphy->regs);
-	clk_put(dphy->mod_clk);
-	clk_put(dphy->bus_clk);
-	reset_control_put(dphy->reset);
-
-	return 0;
-}
+MODULE_AUTHOR("Maxime Ripard <maxime.ripard@bootlin>");
+MODULE_DESCRIPTION("Allwinner A31 MIPI D-PHY Driver");
+MODULE_LICENSE("GPL");
