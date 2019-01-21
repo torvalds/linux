@@ -277,7 +277,7 @@
 struct meye_grab_buffer {
 	int state;			/* state of buffer */
 	unsigned long size;		/* size of jpg frame */
-	struct timeval timestamp;	/* timestamp */
+	u64 ts;				/* timestamp */
 	unsigned long sequence;		/* sequence number */
 };
 
