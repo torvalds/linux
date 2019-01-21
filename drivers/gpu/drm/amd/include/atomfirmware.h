@@ -528,6 +528,35 @@ struct atom_firmware_info_v3_2 {
   uint32_t reserved2[3];
 };
 
+struct atom_firmware_info_v3_3
+{
+  struct atom_common_table_header table_header;
+  uint32_t firmware_revision;
+  uint32_t bootup_sclk_in10khz;
+  uint32_t bootup_mclk_in10khz;
+  uint32_t firmware_capability;             // enum atombios_firmware_capability
+  uint32_t main_call_parser_entry;          /* direct address of main parser call in VBIOS binary. */
+  uint32_t bios_scratch_reg_startaddr;      // 1st bios scratch register dword address
+  uint16_t bootup_vddc_mv;
+  uint16_t bootup_vddci_mv;
+  uint16_t bootup_mvddc_mv;
+  uint16_t bootup_vddgfx_mv;
+  uint8_t  mem_module_id;
+  uint8_t  coolingsolution_id;              /*0: Air cooling; 1: Liquid cooling ... */
+  uint8_t  reserved1[2];
+  uint32_t mc_baseaddr_high;
+  uint32_t mc_baseaddr_low;
+  uint8_t  board_i2c_feature_id;            // enum of atom_board_i2c_feature_id_def
+  uint8_t  board_i2c_feature_gpio_id;       // i2c id find in gpio_lut data table gpio_id
+  uint8_t  board_i2c_feature_slave_addr;
+  uint8_t  reserved3;
+  uint16_t bootup_mvddq_mv;
+  uint16_t bootup_mvpp_mv;
+  uint32_t zfbstartaddrin16mb;
+  uint32_t pplib_pptable_id;                // if pplib_pptable_id!=0, pplib get powerplay table inside driver instead of from VBIOS
+  uint32_t reserved2[2];
+};
+
 /* 
   ***************************************************************************
     Data Table lcd_info  structure
@@ -1226,16 +1255,17 @@ struct  atom_gfx_info_v2_3 {
   uint32_t rm21_sram_vmin_value;
 };
 
-struct  atom_gfx_info_v2_4 {
+struct  atom_gfx_info_v2_4
+{
   struct  atom_common_table_header  table_header;
   uint8_t gfxip_min_ver;
   uint8_t gfxip_max_ver;
-  uint8_t gc_num_se;
-  uint8_t max_tile_pipes;
-  uint8_t gc_num_cu_per_sh;
-  uint8_t gc_num_sh_per_se;
-  uint8_t gc_num_rb_per_se;
-  uint8_t gc_num_tccs;
+  uint8_t max_shader_engines;
+  uint8_t reserved;
+  uint8_t max_cu_per_sh;
+  uint8_t max_sh_per_se;
+  uint8_t max_backends_per_se;
+  uint8_t max_texture_channel_caches;
   uint32_t regaddr_cp_dma_src_addr;
   uint32_t regaddr_cp_dma_src_addr_hi;
   uint32_t regaddr_cp_dma_dst_addr;

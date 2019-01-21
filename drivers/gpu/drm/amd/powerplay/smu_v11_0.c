@@ -24,6 +24,7 @@
 #include <linux/firmware.h>
 #include "amdgpu.h"
 #include "amdgpu_smu.h"
+#include "atomfirmware.h"
 #include "smu_v11_0.h"
 #include "smu_v11_0_ppsmc.h"
 #include "smu11_driver_if.h"
