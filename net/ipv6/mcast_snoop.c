@@ -136,8 +136,7 @@ static inline __sum16 ipv6_mc_validate_checksum(struct sk_buff *skb)
 	return skb_checksum_validate(skb, IPPROTO_ICMPV6, ip6_compute_pseudo);
 }
 
-static int __ipv6_mc_check_mld(struct sk_buff *skb,
-			       struct sk_buff **skb_trimmed)
+static int __ipv6_mc_check_mld(struct sk_buff *skb)
 
 {
 	struct sk_buff *skb_chk = NULL;
@@ -160,16 +159,10 @@ static int __ipv6_mc_check_mld(struct sk_buff *skb,
 	if (ret)
 		goto err;
 
-	if (skb_trimmed)
-		*skb_trimmed = skb_chk;
-	/* free now unneeded clone */
-	else if (skb_chk != skb)
-		kfree_skb(skb_chk);
-
 	ret = 0;
 
 err:
-	if (ret && skb_chk && skb_chk != skb)
+	if (skb_chk && skb_chk != skb)
 		kfree_skb(skb_chk);
 
 	return ret;
@@ -178,7 +171,6 @@ err:
 /**
  * ipv6_mc_check_mld - checks whether this is a sane MLD packet
  * @skb: the skb to validate
- * @skb_trimmed: to store an skb pointer trimmed to IPv6 packet tail (optional)
  *
  * Checks whether an IPv6 packet is a valid MLD packet. If so sets
  * skb transport header accordingly and returns zero.
@@ -188,18 +180,10 @@ err:
  * -ENOMSG: IP header validation succeeded but it is not an MLD packet.
  * -ENOMEM: A memory allocation failure happened.
  *
- * Optionally, an skb pointer might be provided via skb_trimmed (or set it
- * to NULL): After parsing an MLD packet successfully it will point to
- * an skb which has its tail aligned to the IP packet end. This might
- * either be the originally provided skb or a trimmed, cloned version if
- * the skb frame had data beyond the IP packet. A cloned skb allows us
- * to leave the original skb and its full frame unchanged (which might be
- * desirable for layer 2 frame jugglers).
- *
  * Caller needs to set the skb network header and free any returned skb if it
  * differs from the provided skb.
  */
-int ipv6_mc_check_mld(struct sk_buff *skb, struct sk_buff **skb_trimmed)
+int ipv6_mc_check_mld(struct sk_buff *skb)
 {
 	int ret;
 
@@ -211,6 +195,6 @@ int ipv6_mc_check_mld(struct sk_buff *skb, struct sk_buff **skb_trimmed)
 	if (ret < 0)
 		return ret;
 
-	return __ipv6_mc_check_mld(skb, skb_trimmed);
+	return __ipv6_mc_check_mld(skb);
 }
 EXPORT_SYMBOL(ipv6_mc_check_mld);
