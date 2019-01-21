@@ -110,7 +110,6 @@ struct ramoops_context {
 };
 
 static struct platform_device *dummy;
-static struct ramoops_platform_data *dummy_data;
 
 static int ramoops_pstore_open(struct pstore_info *psi)
 {
@@ -892,13 +891,12 @@ static inline void ramoops_unregister_dummy(void)
 {
 	platform_device_unregister(dummy);
 	dummy = NULL;
-
-	kfree(dummy_data);
-	dummy_data = NULL;
 }
 
 static void __init ramoops_register_dummy(void)
 {
+	struct ramoops_platform_data pdata;
+
 	/*
 	 * Prepare a dummy platform data structure to carry the module
 	 * parameters. If mem_size isn't set, then there are no module
@@ -909,30 +907,25 @@ static void __init ramoops_register_dummy(void)
 
 	pr_info("using module parameters\n");
 
-	dummy_data = kzalloc(sizeof(*dummy_data), GFP_KERNEL);
-	if (!dummy_data) {
-		pr_info("could not allocate pdata\n");
-		return;
-	}
-
-	dummy_data->mem_size = mem_size;
-	dummy_data->mem_address = mem_address;
-	dummy_data->mem_type = mem_type;
-	dummy_data->record_size = record_size;
-	dummy_data->console_size = ramoops_console_size;
-	dummy_data->ftrace_size = ramoops_ftrace_size;
-	dummy_data->pmsg_size = ramoops_pmsg_size;
-	dummy_data->dump_oops = dump_oops;
-	dummy_data->flags = RAMOOPS_FLAG_FTRACE_PER_CPU;
+	memset(&pdata, 0, sizeof(pdata));
+	pdata.mem_size = mem_size;
+	pdata.mem_address = mem_address;
+	pdata.mem_type = mem_type;
+	pdata.record_size = record_size;
+	pdata.console_size = ramoops_console_size;
+	pdata.ftrace_size = ramoops_ftrace_size;
+	pdata.pmsg_size = ramoops_pmsg_size;
+	pdata.dump_oops = dump_oops;
+	pdata.flags = RAMOOPS_FLAG_FTRACE_PER_CPU;
 
 	/*
 	 * For backwards compatibility ramoops.ecc=1 means 16 bytes ECC
 	 * (using 1 byte for ECC isn't much of use anyway).
 	 */
-	dummy_data->ecc_info.ecc_size = ramoops_ecc == 1 ? 16 : ramoops_ecc;
+	pdata.ecc_info.ecc_size = ramoops_ecc == 1 ? 16 : ramoops_ecc;
 
 	dummy = platform_device_register_data(NULL, "ramoops", -1,
-			dummy_data, sizeof(struct ramoops_platform_data));
+			&pdata, sizeof(pdata));
 	if (IS_ERR(dummy)) {
 		pr_info("could not create platform device: %ld\n",
 			PTR_ERR(dummy));
