@@ -192,12 +192,12 @@ struct pinmux_data_reg {
  *   - name: Register name (unused, for documentation purposes only)
  *   - r: Physical register address
  *   - r_width: Width of the register (in bits)
- * This macro must be followed by initialization data: For each register bit
- * (from left to right, i.e. MSB to LSB), one enum ID must be specified.
+ *   - ids: For each register bit (from left to right, i.e. MSB to LSB), one
+ *          enum ID must be specified, all wrapped using the GROUP() macro.
  */
-#define PINMUX_DATA_REG(name, r, r_width) \
-	.reg = r, .reg_width = r_width,	\
-	.enum_ids = (const u16 [r_width]) \
+#define PINMUX_DATA_REG(name, r, r_width, ids)				\
+	.reg = r, .reg_width = r_width,					\
+	.enum_ids = (const u16 [r_width]) { ids }
 
 struct pinmux_irq {
 	const short *gpios;
