@@ -90,7 +90,7 @@ static const struct sof_dev_desc cnl_desc = {
 	.resindex_dma_base	= -1,
 	.chip_info = &cnl_chip_info,
 	.nocodec_fw_filename = "intel/sof-cnl.ri",
-	.nocodec_tplg_filename = "intel/sof-cnl.tplg",
+	.nocodec_tplg_filename = "intel/sof-cnl-nocodec.tplg",
 	.ops = &sof_cnl_ops,
 	.arch_ops = &sof_xtensa_arch_ops
 };
