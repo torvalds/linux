@@ -35,7 +35,7 @@ struct zoran_sync {
 	unsigned long frame;	/* number of buffer that has been free'd */
 	unsigned long length;	/* number of code bytes in buffer (capture only) */
 	unsigned long seq;	/* frame sequence number */
-	struct timeval timestamp;	/* timestamp */
+	u64 ts;			/* timestamp */
 };
 
 
