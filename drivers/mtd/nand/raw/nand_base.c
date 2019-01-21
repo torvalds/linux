@@ -420,7 +420,7 @@ static int nand_do_write_oob(struct nand_chip *chip, loff_t to,
 			     struct mtd_oob_ops *ops)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
-	int chipnr, page, status, len;
+	int chipnr, page, status, len, ret;
 
 	pr_debug("%s: to = 0x%08x, len = %i\n",
 			 __func__, (unsigned int)to, (int)ops->ooblen);
@@ -442,7 +442,9 @@ static int nand_do_write_oob(struct nand_chip *chip, loff_t to,
 	 * if we don't do this. I have no clue why, but I seem to have 'fixed'
 	 * it in the doc2000 driver in August 1999.  dwmw2.
 	 */
-	nand_reset(chip, chipnr);
+	ret = nand_reset(chip, chipnr);
+	if (ret)
+		return ret;
 
 	nand_select_target(chip, chipnr);
 
@@ -5019,11 +5021,15 @@ static int nand_scan_ident(struct nand_chip *chip, unsigned int maxchips,
 		u8 id[2];
 
 		/* See comment in nand_get_flash_type for reset */
-		nand_reset(chip, i);
+		ret = nand_reset(chip, i);
+		if (ret)
+			break;
 
 		nand_select_target(chip, i);
 		/* Send the command for reading device ID */
-		nand_readid_op(chip, 0, id, sizeof(id));
+		ret = nand_readid_op(chip, 0, id, sizeof(id));
+		if (ret)
+			break;
 		/* Read manufacturer and device IDs */
 		if (nand_maf_id != id[0] || nand_dev_id != id[1]) {
 			nand_deselect_target(chip);
