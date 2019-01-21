@@ -367,7 +367,7 @@ static void videobuf_status(struct videobuf_queue *q, struct v4l2_buffer *b,
 	}
 
 	b->field     = vb->field;
-	b->timestamp = vb->ts;
+	b->timestamp = ns_to_timeval(vb->ts);
 	b->bytesused = vb->size;
 	b->sequence  = vb->field_count >> 1;
 }
@@ -581,7 +581,7 @@ int videobuf_qbuf(struct videobuf_queue *q, struct v4l2_buffer *b)
 		    || q->type == V4L2_BUF_TYPE_SDR_OUTPUT) {
 			buf->size = b->bytesused;
 			buf->field = b->field;
-			buf->ts = b->timestamp;
+			buf->ts = v4l2_timeval_to_ns(&b->timestamp);
 		}
 		break;
 	case V4L2_MEMORY_USERPTR:

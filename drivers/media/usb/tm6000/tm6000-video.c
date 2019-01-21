@@ -106,7 +106,7 @@ static inline void buffer_filled(struct tm6000_core *dev,
 	dprintk(dev, V4L2_DEBUG_ISOC, "[%p/%d] wakeup\n", buf, buf->vb.i);
 	buf->vb.state = VIDEOBUF_DONE;
 	buf->vb.field_count++;
-	v4l2_get_timestamp(&buf->vb.ts);
+	buf->vb.ts = ktime_get_ns();
 
 	list_del(&buf->vb.queue);
 	wake_up(&buf->vb.done);

@@ -521,7 +521,7 @@ static void zr364xx_fillbuff(struct zr364xx_camera *cam,
 	/* tell v4l buffer was filled */
 
 	buf->vb.field_count = cam->frame_count * 2;
-	v4l2_get_timestamp(&buf->vb.ts);
+	buf->vb.ts = ktime_get_ns();
 	buf->vb.state = VIDEOBUF_DONE;
 }
 
@@ -549,7 +549,7 @@ static int zr364xx_got_frame(struct zr364xx_camera *cam, int jpgsize)
 		goto unlock;
 	}
 	list_del(&buf->vb.queue);
-	v4l2_get_timestamp(&buf->vb.ts);
+	buf->vb.ts = ktime_get_ns();
 	DBG("[%p/%d] wakeup\n", buf, buf->vb.i);
 	zr364xx_fillbuff(cam, buf, jpgsize);
 	wake_up(&buf->vb.done);

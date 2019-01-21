@@ -80,7 +80,7 @@ struct videobuf_buffer {
 	struct list_head        queue;
 	wait_queue_head_t       done;
 	unsigned int            field_count;
-	struct timeval          ts;
+	u64			ts;
 
 	/* Memory type */
 	enum v4l2_memory        memory;
