@@ -81,7 +81,8 @@ static int rkisp1_stats_querycap(struct file *file,
 
 	strcpy(cap->driver, DRIVER_NAME);
 	snprintf(cap->driver, sizeof(cap->driver),
-		 "%s_v%02d", DRIVER_NAME, stats_vdev->dev->isp_ver);
+		 "%s_v%d", DRIVER_NAME,
+		 stats_vdev->dev->isp_ver >> 4);
 	strlcpy(cap->card, vdev->name, sizeof(cap->card));
 	strlcpy(cap->bus_info, "platform: " DRIVER_NAME, sizeof(cap->bus_info));
 

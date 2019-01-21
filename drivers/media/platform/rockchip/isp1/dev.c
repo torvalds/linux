@@ -338,13 +338,16 @@ static int rkisp1_create_links(struct rkisp1_device *dev)
 		return ret;
 
 	/* create isp internal links */
-	/* SP links */
-	source = &dev->isp_sdev.sd.entity;
-	sink = &dev->stream[RKISP1_STREAM_SP].vnode.vdev.entity;
-	ret = media_create_pad_link(source, RKISP1_ISP_PAD_SOURCE_PATH,
-				       sink, 0, flags);
-	if (ret < 0)
-		return ret;
+	if (dev->isp_ver != ISP_V10_1) {
+		/* SP links */
+		source = &dev->isp_sdev.sd.entity;
+		sink = &dev->stream[RKISP1_STREAM_SP].vnode.vdev.entity;
+		ret = media_create_pad_link(source,
+					    RKISP1_ISP_PAD_SOURCE_PATH,
+					    sink, 0, flags);
+		if (ret < 0)
+			return ret;
+	}
 
 	/* MP links */
 	source = &dev->isp_sdev.sd.entity;
@@ -450,8 +453,9 @@ static int _set_pipeline_default_fmt(struct rkisp1_device *dev)
 		/* change fmt&size of MP/SP */
 		rkisp1_set_stream_def_fmt(dev, RKISP1_STREAM_MP,
 					  width, height, V4L2_PIX_FMT_YUYV);
-		rkisp1_set_stream_def_fmt(dev, RKISP1_STREAM_SP,
-					  width, height, V4L2_PIX_FMT_YUYV);
+		if (dev->isp_ver != ISP_V10_1)
+			rkisp1_set_stream_def_fmt(dev, RKISP1_STREAM_SP,
+						  width, height, V4L2_PIX_FMT_YUYV);
 	}
 
 	return 0;
@@ -792,7 +796,7 @@ static const struct isp_match_data rk3326_isp_match_data = {
 static const struct isp_match_data rk3368_isp_match_data = {
 	.clks = rk3368_isp_clks,
 	.num_clks = ARRAY_SIZE(rk3368_isp_clks),
-	.isp_ver = ISP_V10,
+	.isp_ver = ISP_V10_1,
 	.clk_rate_tbl = rk3368_isp_clk_rate,
 	.num_clk_rate_tbl = ARRAY_SIZE(rk3368_isp_clk_rate),
 	.irqs = rk3368_isp_irqs,

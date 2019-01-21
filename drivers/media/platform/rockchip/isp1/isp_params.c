@@ -1882,7 +1882,8 @@ static int rkisp1_params_querycap(struct file *file,
 	struct rkisp1_isp_params_vdev *params_vdev = video_get_drvdata(vdev);
 
 	snprintf(cap->driver, sizeof(cap->driver),
-		 "%s_v%02d", DRIVER_NAME, params_vdev->dev->isp_ver);
+		 "%s_v%d", DRIVER_NAME,
+		 params_vdev->dev->isp_ver >> 4);
 	strlcpy(cap->card, vdev->name, sizeof(cap->card));
 	strlcpy(cap->bus_info, "platform: " DRIVER_NAME, sizeof(cap->bus_info));
 

@@ -1918,7 +1918,8 @@ static int rkisp1_querycap(struct file *file, void *priv,
 
 	strlcpy(cap->card, vdev->name, sizeof(cap->card));
 	snprintf(cap->driver, sizeof(cap->driver),
-		 "%s_v%02d", dev->driver->name, stream->ispdev->isp_ver);
+		 "%s_v%d", dev->driver->name,
+		 stream->ispdev->isp_ver >> 4);
 	snprintf(cap->bus_info, sizeof(cap->bus_info),
 		 "platform:%s", dev_name(dev));
 
@@ -1958,7 +1959,8 @@ void rkisp1_unregister_stream_vdevs(struct rkisp1_device *dev)
 	struct rkisp1_stream *raw_stream = &dev->stream[RKISP1_STREAM_RAW];
 
 	rkisp1_unregister_stream_vdev(mp_stream);
-	rkisp1_unregister_stream_vdev(sp_stream);
+	if (dev->isp_ver != ISP_V10_1)
+		rkisp1_unregister_stream_vdev(sp_stream);
 	if (dev->isp_ver == ISP_V12 ||
 		dev->isp_ver == ISP_V13)
 		rkisp1_unregister_stream_vdev(raw_stream);
@@ -1976,6 +1978,8 @@ static int rkisp1_register_stream_vdev(struct rkisp1_stream *stream)
 	switch (stream->id) {
 	case RKISP1_STREAM_SP:
 		vdev_name = SP_VDEV_NAME;
+		if (dev->isp_ver == ISP_V10_1)
+			return 0;
 		break;
 	case RKISP1_STREAM_MP:
 		vdev_name = MP_VDEV_NAME;

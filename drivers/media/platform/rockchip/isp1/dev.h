@@ -60,11 +60,13 @@
 #define RKISP1_MEDIA_BUS_FMT_MASK	0xF000
 #define RKISP1_MEDIA_BUS_FMT_BAYER	0x3000
 
+/* ISP_V10_1 for only support MP */
 enum rkisp1_isp_ver {
-	ISP_V10 = 0,
-	ISP_V11,
-	ISP_V12,
-	ISP_V13
+	ISP_V10 = 0x00,
+	ISP_V10_1 = 0x01,
+	ISP_V11 = 0x10,
+	ISP_V12 = 0x20,
+	ISP_V13 = 0x30,
 };
 
 /*
