@@ -124,6 +124,7 @@ struct vicodec_ctx {
 	u32			cur_buf_offset;
 	u32			comp_max_size;
 	u32			comp_size;
+	u32			header_size;
 	u32			comp_magic_cnt;
 	u32			comp_frame_size;
 	bool			comp_has_frame;
@@ -201,6 +202,62 @@ static int device_process(struct vicodec_ctx *ctx,
 /*
  * mem2mem callbacks
  */
+enum vb2_buffer_state get_next_header(struct vicodec_ctx *ctx, u8 **pp, u32 sz)
+{
+	static const u8 magic[] = {
+		0x4f, 0x4f, 0x4f, 0x4f, 0xff, 0xff, 0xff, 0xff
+	};
+	u8 *p = *pp;
+	u32 state;
+	u8 *header = (u8 *)&ctx->state.header;
+
+	state = VB2_BUF_STATE_DONE;
+
+	if (!ctx->header_size) {
+		state = VB2_BUF_STATE_ERROR;
+		for (; p < *pp + sz; p++) {
+			u32 copy;
+
+			p = memchr(p, magic[ctx->comp_magic_cnt],
+				   *pp + sz - p);
+			if (!p) {
+				ctx->comp_magic_cnt = 0;
+				p = *pp + sz;
+				break;
+			}
+			copy = sizeof(magic) - ctx->comp_magic_cnt;
+			if (*pp + sz - p < copy)
+				copy = *pp + sz - p;
+
+			memcpy(header + ctx->comp_magic_cnt, p, copy);
+			ctx->comp_magic_cnt += copy;
+			if (!memcmp(header, magic, ctx->comp_magic_cnt)) {
+				p += copy;
+				state = VB2_BUF_STATE_DONE;
+				break;
+			}
+			ctx->comp_magic_cnt = 0;
+		}
+		if (ctx->comp_magic_cnt < sizeof(magic)) {
+			*pp = p;
+			return state;
+		}
+		ctx->header_size = sizeof(magic);
+	}
+
+	if (ctx->header_size < sizeof(struct fwht_cframe_hdr)) {
+		u32 copy = sizeof(struct fwht_cframe_hdr) - ctx->header_size;
+
+		if (*pp + sz - p < copy)
+			copy = *pp + sz - p;
+
+		memcpy(header + ctx->header_size, p, copy);
+		p += copy;
+		ctx->header_size += copy;
+	}
+	*pp = p;
+	return state;
+}
 
 /* device_run() - prepares and starts the device */
 static void device_run(void *priv)
@@ -241,6 +298,7 @@ static void device_run(void *priv)
 	}
 	v4l2_m2m_buf_done(dst_buf, state);
 	ctx->comp_size = 0;
+	ctx->header_size = 0;
 	ctx->comp_magic_cnt = 0;
 	ctx->comp_has_frame = false;
 	spin_unlock(ctx->lock);
@@ -291,54 +349,15 @@ restart:
 
 	state = VB2_BUF_STATE_DONE;
 
-	if (!ctx->comp_size) {
-		state = VB2_BUF_STATE_ERROR;
-		for (; p < p_src + sz; p++) {
-			u32 copy;
-
-			p = memchr(p, magic[ctx->comp_magic_cnt],
-				   p_src + sz - p);
-			if (!p) {
-				ctx->comp_magic_cnt = 0;
-				break;
-			}
-			copy = sizeof(magic) - ctx->comp_magic_cnt;
-			if (p_src + sz - p < copy)
-				copy = p_src + sz - p;
-
-			memcpy(ctx->state.compressed_frame + ctx->comp_magic_cnt,
-			       p, copy);
-			ctx->comp_magic_cnt += copy;
-			if (!memcmp(ctx->state.compressed_frame, magic,
-				    ctx->comp_magic_cnt)) {
-				p += copy;
-				state = VB2_BUF_STATE_DONE;
-				break;
-			}
-			ctx->comp_magic_cnt = 0;
-		}
-		if (ctx->comp_magic_cnt < sizeof(magic)) {
+	if (ctx->header_size < sizeof(struct fwht_cframe_hdr)) {
+		state = get_next_header(ctx, &p, p_src + sz - p);
+		if (ctx->header_size < sizeof(struct fwht_cframe_hdr)) {
 			job_remove_src_buf(ctx, state);
 			goto restart;
 		}
-		ctx->comp_size = sizeof(magic);
-	}
-	if (ctx->comp_size < sizeof(struct fwht_cframe_hdr)) {
-		struct fwht_cframe_hdr *p_hdr =
-			(struct fwht_cframe_hdr *)ctx->state.compressed_frame;
-		u32 copy = sizeof(struct fwht_cframe_hdr) - ctx->comp_size;
 
-		if (copy > p_src + sz - p)
-			copy = p_src + sz - p;
-		memcpy(ctx->state.compressed_frame + ctx->comp_size,
-		       p, copy);
-		p += copy;
-		ctx->comp_size += copy;
-		if (ctx->comp_size < sizeof(struct fwht_cframe_hdr)) {
-			job_remove_src_buf(ctx, state);
-			goto restart;
-		}
-		ctx->comp_frame_size = ntohl(p_hdr->size) + sizeof(*p_hdr);
+		ctx->comp_frame_size = ntohl(ctx->state.header.size);
+
 		if (ctx->comp_frame_size > ctx->comp_max_size)
 			ctx->comp_frame_size = ctx->comp_max_size;
 	}
@@ -1121,7 +1140,7 @@ static int vicodec_start_streaming(struct vb2_queue *q,
 		state->stride = q_data->coded_width * info->bytesperline_mult;
 	}
 	state->ref_frame.luma = kvmalloc(total_planes_size, GFP_KERNEL);
-	ctx->comp_max_size = total_planes_size + sizeof(struct fwht_cframe_hdr);
+	ctx->comp_max_size = total_planes_size;
 	state->compressed_frame = kvmalloc(ctx->comp_max_size, GFP_KERNEL);
 	if (!state->ref_frame.luma || !state->compressed_frame) {
 		kvfree(state->ref_frame.luma);
@@ -1148,6 +1167,7 @@ static int vicodec_start_streaming(struct vb2_queue *q,
 	state->gop_cnt = 0;
 	ctx->cur_buf_offset = 0;
 	ctx->comp_size = 0;
+	ctx->header_size = 0;
 	ctx->comp_magic_cnt = 0;
 	ctx->comp_has_frame = false;
 

@@ -41,6 +41,7 @@ struct v4l2_fwht_state {
 	enum v4l2_quantization quantization;
 
 	struct fwht_raw_frame ref_frame;
+	struct fwht_cframe_hdr header;
 	u8 *compressed_frame;
 };
 

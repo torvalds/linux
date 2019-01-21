@@ -235,7 +235,6 @@ int v4l2_fwht_decode(struct v4l2_fwht_state *state, u8 *p_in, u8 *p_out)
 {
 	unsigned int i, j, k;
 	u32 flags;
-	struct fwht_cframe_hdr *p_hdr;
 	struct fwht_cframe cf;
 	u8 *p, *ref_p;
 	unsigned int components_num = 3;
@@ -247,25 +246,24 @@ int v4l2_fwht_decode(struct v4l2_fwht_state *state, u8 *p_in, u8 *p_out)
 		return -EINVAL;
 
 	info = state->info;
-	p_hdr = (struct fwht_cframe_hdr *)p_in;
 
-	version = ntohl(p_hdr->version);
+	version = ntohl(state->header.version);
 	if (!version || version > FWHT_VERSION) {
 		pr_err("version %d is not supported, current version is %d\n",
 		       version, FWHT_VERSION);
 		return -EINVAL;
 	}
 
-	if (p_hdr->magic1 != FWHT_MAGIC1 ||
-	    p_hdr->magic2 != FWHT_MAGIC2)
+	if (state->header.magic1 != FWHT_MAGIC1 ||
+	    state->header.magic2 != FWHT_MAGIC2)
 		return -EINVAL;
 
 	/* TODO: support resolution changes */
-	if (ntohl(p_hdr->width)  != state->visible_width ||
-	    ntohl(p_hdr->height) != state->visible_height)
+	if (ntohl(state->header.width)  != state->visible_width ||
+	    ntohl(state->header.height) != state->visible_height)
 		return -EINVAL;
 
-	flags = ntohl(p_hdr->flags);
+	flags = ntohl(state->header.flags);
 
 	if (version == FWHT_VERSION) {
 		if ((flags & FWHT_FL_PIXENC_MSK) != info->pixenc)
@@ -277,11 +275,11 @@ int v4l2_fwht_decode(struct v4l2_fwht_state *state, u8 *p_in, u8 *p_out)
 	if (components_num != info->components_num)
 		return -EINVAL;
 
-	state->colorspace = ntohl(p_hdr->colorspace);
-	state->xfer_func = ntohl(p_hdr->xfer_func);
-	state->ycbcr_enc = ntohl(p_hdr->ycbcr_enc);
-	state->quantization = ntohl(p_hdr->quantization);
-	cf.rlc_data = (__be16 *)(p_in + sizeof(*p_hdr));
+	state->colorspace = ntohl(state->header.colorspace);
+	state->xfer_func = ntohl(state->header.xfer_func);
+	state->ycbcr_enc = ntohl(state->header.ycbcr_enc);
+	state->quantization = ntohl(state->header.quantization);
+	cf.rlc_data = (__be16 *)p_in;
 
 	hdr_width_div = (flags & FWHT_FL_CHROMA_FULL_WIDTH) ? 1 : 2;
 	hdr_height_div = (flags & FWHT_FL_CHROMA_FULL_HEIGHT) ? 1 : 2;
