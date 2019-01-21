@@ -396,6 +396,11 @@ mt76_txq_send_burst(struct mt76_dev *dev, struct mt76_queue *hwq,
 	bool probe;
 	int idx;
 
+	if (test_bit(MT_WCID_FLAG_PS, &wcid->flags)) {
+		*empty = true;
+		return 0;
+	}
+
 	skb = mt76_txq_dequeue(dev, mtxq, false);
 	if (!skb) {
 		*empty = true;
