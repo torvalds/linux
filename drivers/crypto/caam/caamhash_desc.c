@@ -2,7 +2,7 @@
 /*
  * Shared descriptors for ahash algorithms
  *
- * Copyright 2017-2018 NXP
+ * Copyright 2017-2019 NXP
  */
 
 #include "compat.h"
@@ -76,7 +76,8 @@ void cnstr_shdsc_ahash(u32 * const desc, struct alginfo *adata, u32 state,
 EXPORT_SYMBOL(cnstr_shdsc_ahash);
 
 /**
- * cnstr_shdsc_axcbc - axcbc shared descriptor
+ * cnstr_shdsc_sk_hash - shared descriptor for symmetric key cipher-based
+ *                       hash algorithms
  * @desc: pointer to buffer used for descriptor construction
  * @adata: pointer to authentication transform definitions.
  * @state: algorithm state OP_ALG_AS_{INIT, FINALIZE, INITFINALIZE, UPDATE}
@@ -84,8 +85,8 @@ EXPORT_SYMBOL(cnstr_shdsc_ahash);
  * @ctx_len: size of Context Register
  * @key_dma: I/O Virtual Address of the key
  */
-void cnstr_shdsc_axcbc(u32 * const desc, struct alginfo *adata, u32 state,
-		       int digestsize, int ctx_len, dma_addr_t key_dma)
+void cnstr_shdsc_sk_hash(u32 * const desc, struct alginfo *adata, u32 state,
+			 int digestsize, int ctx_len, dma_addr_t key_dma)
 {
 	u32 *skip_key_load;
 
@@ -98,9 +99,14 @@ void cnstr_shdsc_axcbc(u32 * const desc, struct alginfo *adata, u32 state,
 		append_key_as_imm(desc, adata->key_virt, adata->keylen,
 				  adata->keylen, CLASS_1 | KEY_DEST_CLASS_REG);
 	} else { /* UPDATE, FINALIZE */
-		/* Load K1 */
-		append_key(desc, adata->key_dma, adata->keylen,
-			   CLASS_1 | KEY_DEST_CLASS_REG | KEY_ENC);
+		if (is_xcbc_aes(adata->algtype))
+			/* Load K1 */
+			append_key(desc, adata->key_dma, adata->keylen,
+				   CLASS_1 | KEY_DEST_CLASS_REG | KEY_ENC);
+		else /* CMAC */
+			append_key_as_imm(desc, adata->key_virt, adata->keylen,
+					  adata->keylen, CLASS_1 |
+					  KEY_DEST_CLASS_REG);
 		/* Restore context */
 		append_seq_load(desc, ctx_len, LDST_CLASS_1_CCB |
 				LDST_SRCDST_BYTE_CONTEXT);
@@ -121,15 +127,19 @@ void cnstr_shdsc_axcbc(u32 * const desc, struct alginfo *adata, u32 state,
 	append_seq_fifo_load(desc, 0, FIFOLD_CLASS_CLASS1 | FIFOLD_TYPE_LAST1 |
 			     FIFOLD_TYPE_MSG | FIFOLDST_VLF);
 
-	/* Save context (partial hash, K2, K3) */
+	/*
+	 * Save context:
+	 * - xcbc: partial hash, keys K2 and K3
+	 * - cmac: partial hash, constant L = E(K,0)
+	 */
 	append_seq_store(desc, digestsize, LDST_CLASS_1_CCB |
 			 LDST_SRCDST_BYTE_CONTEXT);
-	if (state == OP_ALG_AS_INIT)
+	if (is_xcbc_aes(adata->algtype) && state == OP_ALG_AS_INIT)
 		/* Save K1 */
 		append_fifo_store(desc, key_dma, adata->keylen,
 				  LDST_CLASS_1_CCB | FIFOST_TYPE_KEY_KEK);
 }
-EXPORT_SYMBOL(cnstr_shdsc_axcbc);
+EXPORT_SYMBOL(cnstr_shdsc_sk_hash);
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("FSL CAAM ahash descriptors support");
