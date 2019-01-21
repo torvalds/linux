@@ -31,6 +31,10 @@ static int fsm_io_helper(struct vfio_ccw_private *private)
 	private->state = VFIO_CCW_STATE_BUSY;
 
 	orb = cp_get_orb(&private->cp, (u32)(addr_t)sch, sch->lpm);
+	if (!orb) {
+		ret = -EIO;
+		goto out;
+	}
 
 	/* Issue "Start Subchannel" */
 	ccode = ssch(sch->schid, orb);
@@ -64,6 +68,7 @@ static int fsm_io_helper(struct vfio_ccw_private *private)
 	default:
 		ret = ccode;
 	}
+out:
 	spin_unlock_irqrestore(sch->lock, flags);
 	return ret;
 }
