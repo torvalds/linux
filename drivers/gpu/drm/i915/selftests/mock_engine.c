@@ -67,11 +67,10 @@ static struct mock_request *first_request(struct mock_engine *engine)
 					link);
 }
 
-static void advance(struct mock_engine *engine,
-		    struct mock_request *request)
+static void advance(struct mock_request *request)
 {
 	list_del_init(&request->link);
-	mock_seqno_advance(&engine->base, request->base.global_seqno);
+	mock_seqno_advance(request->base.engine, request->base.global_seqno);
 }
 
 static void hw_delay_complete(struct timer_list *t)
@@ -84,7 +83,7 @@ static void hw_delay_complete(struct timer_list *t)
 	/* Timer fired, first request is complete */
 	request = first_request(engine);
 	if (request)
-		advance(engine, request);
+		advance(request);
 
 	/*
 	 * Also immediately signal any subsequent 0-delay requests, but
@@ -96,7 +95,7 @@ static void hw_delay_complete(struct timer_list *t)
 			break;
 		}
 
-		advance(engine, request);
+		advance(request);
 	}
 
 	spin_unlock(&engine->hw_lock);
@@ -180,7 +179,7 @@ static void mock_submit_request(struct i915_request *request)
 		if (mock->delay)
 			mod_timer(&engine->hw_delay, jiffies + mock->delay);
 		else
-			advance(engine, mock);
+			advance(mock);
 	}
 	spin_unlock_irq(&engine->hw_lock);
 }
@@ -240,10 +239,8 @@ void mock_engine_flush(struct intel_engine_cs *engine)
 	del_timer_sync(&mock->hw_delay);
 
 	spin_lock_irq(&mock->hw_lock);
-	list_for_each_entry_safe(request, rn, &mock->hw_queue, link) {
-		list_del_init(&request->link);
-		mock_seqno_advance(&mock->base, request->base.global_seqno);
-	}
+	list_for_each_entry_safe(request, rn, &mock->hw_queue, link)
+		advance(request);
 	spin_unlock_irq(&mock->hw_lock);
 }
 
