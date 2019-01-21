@@ -108,7 +108,7 @@ int asoc_simple_card_parse_graph_dai(struct device_node *ep,
 int asoc_simple_card_init_dai(struct snd_soc_dai *dai,
 			      struct asoc_simple_dai *simple_dai);
 
-int asoc_simple_card_canonicalize_dailink(struct snd_soc_dai_link *dai_link);
+void asoc_simple_card_canonicalize_platform(struct snd_soc_dai_link *dai_link);
 void asoc_simple_card_canonicalize_cpu(struct snd_soc_dai_link *dai_link,
 				      int is_single_links);
 

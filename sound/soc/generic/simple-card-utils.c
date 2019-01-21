@@ -394,16 +394,13 @@ int asoc_simple_card_init_dai(struct snd_soc_dai *dai,
 }
 EXPORT_SYMBOL_GPL(asoc_simple_card_init_dai);
 
-int asoc_simple_card_canonicalize_dailink(struct snd_soc_dai_link *dai_link)
+void asoc_simple_card_canonicalize_platform(struct snd_soc_dai_link *dai_link)
 {
 	/* Assumes platform == cpu */
 	if (!dai_link->platforms->of_node)
 		dai_link->platforms->of_node = dai_link->cpu_of_node;
-
-	return 0;
-
 }
-EXPORT_SYMBOL_GPL(asoc_simple_card_canonicalize_dailink);
+EXPORT_SYMBOL_GPL(asoc_simple_card_canonicalize_platform);
 
 void asoc_simple_card_canonicalize_cpu(struct snd_soc_dai_link *dai_link,
 				       int is_single_links)
