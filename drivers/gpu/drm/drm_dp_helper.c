@@ -194,11 +194,11 @@ drm_dp_dump_access(const struct drm_dp_aux *aux,
 	const char *arrow = request == DP_AUX_NATIVE_READ ? "->" : "<-";
 
 	if (ret > 0)
-		drm_dbg(DRM_UT_DP, "%s: 0x%05x AUX %s (ret=%3d) %*ph\n",
-			aux->name, offset, arrow, ret, min(ret, 20), buffer);
+		DRM_DEBUG_DP("%s: 0x%05x AUX %s (ret=%3d) %*ph\n",
+			     aux->name, offset, arrow, ret, min(ret, 20), buffer);
 	else
-		drm_dbg(DRM_UT_DP, "%s: 0x%05x AUX %s (ret=%3d)\n",
-			aux->name, offset, arrow, ret);
+		DRM_DEBUG_DP("%s: 0x%05x AUX %s (ret=%3d)\n",
+			     aux->name, offset, arrow, ret);
 }
 
 /**
