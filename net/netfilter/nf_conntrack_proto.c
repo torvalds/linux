@@ -597,7 +597,9 @@ void nf_conntrack_proto_pernet_init(struct net *net)
 	nf_conntrack_udp_init_net(net);
 	nf_conntrack_tcp_init_net(net);
 	nf_conntrack_icmp_init_net(net);
+#if IS_ENABLED(CONFIG_IPV6)
 	nf_conntrack_icmpv6_init_net(net);
+#endif
 #ifdef CONFIG_NF_CT_PROTO_DCCP
 	nf_conntrack_dccp_init_net(net);
 #endif

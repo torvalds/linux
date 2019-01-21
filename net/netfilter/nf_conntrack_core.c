@@ -274,8 +274,10 @@ nf_ct_get_tuple(const struct sk_buff *skb,
 	tuple->dst.dir = IP_CT_DIR_ORIGINAL;
 
 	switch (protonum) {
+#if IS_ENABLED(CONFIG_IPV6)
 	case IPPROTO_ICMPV6:
 		return icmpv6_pkt_to_tuple(skb, dataoff, net, tuple);
+#endif
 	case IPPROTO_ICMP:
 		return icmp_pkt_to_tuple(skb, dataoff, net, tuple);
 #ifdef CONFIG_NF_CT_PROTO_GRE
@@ -412,8 +414,10 @@ nf_ct_invert_tuple(struct nf_conntrack_tuple *inverse,
 	switch (orig->dst.protonum) {
 	case IPPROTO_ICMP:
 		return nf_conntrack_invert_icmp_tuple(inverse, orig);
+#if IS_ENABLED(CONFIG_IPV6)
 	case IPPROTO_ICMPV6:
 		return nf_conntrack_invert_icmpv6_tuple(inverse, orig);
+#endif
 	}
 
 	inverse->src.u.all = orig->dst.u.all;
@@ -526,10 +530,12 @@ EXPORT_SYMBOL_GPL(nf_ct_tmpl_free);
 
 static void destroy_gre_conntrack(struct nf_conn *ct)
 {
+#ifdef CONFIG_NF_CT_PROTO_GRE
 	struct nf_conn *master = ct->master;
 
 	if (master)
 		nf_ct_gre_keymap_destroy(master);
+#endif
 }
 
 static void
@@ -1553,8 +1559,10 @@ static int nf_conntrack_handle_packet(struct nf_conn *ct,
 					       ctinfo, state);
 	case IPPROTO_ICMP:
 		return nf_conntrack_icmp_packet(ct, skb, ctinfo, state);
+#if IS_ENABLED(CONFIG_IPV6)
 	case IPPROTO_ICMPV6:
 		return nf_conntrack_icmpv6_packet(ct, skb, ctinfo, state);
+#endif
 #ifdef CONFIG_NF_CT_PROTO_UDPLITE
 	case IPPROTO_UDPLITE:
 		return nf_conntrack_udplite_packet(ct, skb, dataoff,
