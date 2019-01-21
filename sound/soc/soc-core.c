@@ -1612,27 +1612,24 @@ static int soc_probe_link_dais(struct snd_soc_card *card,
 					 dai_link->stream_name);
 			return ret;
 		}
-	} else {
-
-		if (!dai_link->params) {
-			/* create the pcm */
-			ret = soc_new_pcm(rtd, num);
-			if (ret < 0) {
-				dev_err(card->dev, "ASoC: can't create pcm %s :%d\n",
-					dai_link->stream_name, ret);
-				return ret;
-			}
-			ret = soc_link_dai_pcm_new(&cpu_dai, 1, rtd);
-			if (ret < 0)
-				return ret;
-			ret = soc_link_dai_pcm_new(rtd->codec_dais,
-						   rtd->num_codecs, rtd);
-			if (ret < 0)
-				return ret;
-		} else {
-			INIT_DELAYED_WORK(&rtd->delayed_work,
-						codec2codec_close_delayed_work);
+	} else if (!dai_link->params) {
+		/* create the pcm */
+		ret = soc_new_pcm(rtd, num);
+		if (ret < 0) {
+			dev_err(card->dev, "ASoC: can't create pcm %s :%d\n",
+				dai_link->stream_name, ret);
+			return ret;
 		}
+		ret = soc_link_dai_pcm_new(&cpu_dai, 1, rtd);
+		if (ret < 0)
+			return ret;
+		ret = soc_link_dai_pcm_new(rtd->codec_dais,
+					   rtd->num_codecs, rtd);
+		if (ret < 0)
+			return ret;
+	} else {
+		INIT_DELAYED_WORK(&rtd->delayed_work,
+				  codec2codec_close_delayed_work);
 	}
 
 	return 0;
