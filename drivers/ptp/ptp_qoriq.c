@@ -88,6 +88,49 @@ static void set_fipers(struct qoriq_ptp *qoriq_ptp)
 	qoriq_write(&regs->fiper_regs->tmr_fiper2, qoriq_ptp->tmr_fiper2);
 }
 
+static int extts_clean_up(struct qoriq_ptp *qoriq_ptp, int index,
+			  bool update_event)
+{
+	struct qoriq_ptp_registers *regs = &qoriq_ptp->regs;
+	struct ptp_clock_event event;
+	void __iomem *reg_etts_l;
+	void __iomem *reg_etts_h;
+	u32 valid, stat, lo, hi;
+
+	switch (index) {
+	case 0:
+		valid = ETS1_VLD;
+		reg_etts_l = &regs->etts_regs->tmr_etts1_l;
+		reg_etts_h = &regs->etts_regs->tmr_etts1_h;
+		break;
+	case 1:
+		valid = ETS2_VLD;
+		reg_etts_l = &regs->etts_regs->tmr_etts2_l;
+		reg_etts_h = &regs->etts_regs->tmr_etts2_h;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	event.type = PTP_CLOCK_EXTTS;
+	event.index = index;
+
+	do {
+		lo = qoriq_read(reg_etts_l);
+		hi = qoriq_read(reg_etts_h);
+
+		if (update_event) {
+			event.timestamp = ((u64) hi) << 32;
+			event.timestamp |= lo;
+			ptp_clock_event(qoriq_ptp->clock, &event);
+		}
+
+		stat = qoriq_read(&regs->ctrl_regs->tmr_stat);
+	} while (qoriq_ptp->extts_fifo_support && (stat & valid));
+
+	return 0;
+}
+
 /*
  * Interrupt service routine
  */
@@ -111,24 +154,12 @@ static irqreturn_t isr(int irq, void *priv)
 
 	if (irqs & ETS1) {
 		ack |= ETS1;
-		hi = qoriq_read(&regs->etts_regs->tmr_etts1_h);
-		lo = qoriq_read(&regs->etts_regs->tmr_etts1_l);
-		event.type = PTP_CLOCK_EXTTS;
-		event.index = 0;
-		event.timestamp = ((u64) hi) << 32;
-		event.timestamp |= lo;
-		ptp_clock_event(qoriq_ptp->clock, &event);
+		extts_clean_up(qoriq_ptp, 0, true);
 	}
 
 	if (irqs & ETS2) {
 		ack |= ETS2;
-		hi = qoriq_read(&regs->etts_regs->tmr_etts2_h);
-		lo = qoriq_read(&regs->etts_regs->tmr_etts2_l);
-		event.type = PTP_CLOCK_EXTTS;
-		event.index = 1;
-		event.timestamp = ((u64) hi) << 32;
-		event.timestamp |= lo;
-		ptp_clock_event(qoriq_ptp->clock, &event);
+		extts_clean_up(qoriq_ptp, 1, true);
 	}
 
 	if (irqs & ALM2) {
@@ -278,6 +309,10 @@ static int ptp_qoriq_enable(struct ptp_clock_info *ptp,
 		default:
 			return -EINVAL;
 		}
+
+		if (on)
+			extts_clean_up(qoriq_ptp, rq->extts.index, false);
+
 		break;
 	case PTP_CLK_REQ_PPS:
 		bit = PP1EN;
@@ -440,6 +475,11 @@ static int qoriq_ptp_probe(struct platform_device *dev)
 
 	if (of_property_read_u32(node, "fsl,cksel", &qoriq_ptp->cksel))
 		qoriq_ptp->cksel = DEFAULT_CKSEL;
+
+	if (of_property_read_bool(node, "fsl,extts-fifo"))
+		qoriq_ptp->extts_fifo_support = true;
+	else
+		qoriq_ptp->extts_fifo_support = false;
 
 	if (of_property_read_u32(node,
 				 "fsl,tclk-period", &qoriq_ptp->tclk_period) ||
