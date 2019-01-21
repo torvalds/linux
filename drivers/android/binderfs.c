@@ -373,10 +373,6 @@ static int binderfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 static int binderfs_unlink(struct inode *dir, struct dentry *dentry)
 {
-	/*
-	 * The control dentry is only ever touched during mount so checking it
-	 * here should not require us to take lock.
-	 */
 	if (BINDERFS_I(dir)->control_dentry == dentry)
 		return -EPERM;
 
