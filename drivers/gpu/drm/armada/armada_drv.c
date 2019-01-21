@@ -100,6 +100,17 @@ static int armada_drm_bind(struct device *dev)
 		return ret;
 	}
 
+	/* Remove early framebuffers */
+	ret = drm_fb_helper_remove_conflicting_framebuffers(NULL,
+							    "armada-drm-fb",
+							    false);
+	if (ret) {
+		dev_err(dev, "[" DRM_NAME ":%s] can't kick out simple-fb: %d\n",
+			__func__, ret);
+		kfree(priv);
+		return ret;
+	}
+
 	priv->drm.dev_private = priv;
 
 	dev_set_drvdata(dev, &priv->drm);
