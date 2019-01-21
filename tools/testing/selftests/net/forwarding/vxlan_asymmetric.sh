@@ -94,9 +94,12 @@
 ALL_TESTS="
 	ping_ipv4
 	arp_decap
+	arp_suppression
 "
 NUM_NETIFS=6
 source lib.sh
+
+require_command $ARPING
 
 hx_create()
 {
@@ -481,6 +484,77 @@ arp_decap()
 		dev vlan10 extern_learn
 	ip neigh replace 10.1.2.102 lladdr $(in_ns ns1 mac_get w4) nud noarp \
 		dev vlan20 extern_learn
+}
+
+arp_suppression_compare()
+{
+	local expect=$1; shift
+	local actual=$(in_ns ns1 tc_rule_stats_get vx10 1 ingress)
+
+	(( expect == actual ))
+	check_err $? "expected $expect arps got $actual"
+}
+
+arp_suppression()
+{
+	ip link set dev vx10 type bridge_slave neigh_suppress on
+
+	in_ns ns1 tc qdisc add dev vx10 clsact
+	in_ns ns1 tc filter add dev vx10 ingress proto arp pref 1 handle 101 \
+		flower dst_mac ff:ff:ff:ff:ff:ff arp_tip 10.1.1.102 arp_op \
+		request action pass
+
+	# The neighbour is configured on the SVI and ARP suppression is on, so
+	# the ARP request should be suppressed
+	RET=0
+
+	$ARPING -I $h1 -fqb -c 1 -w 1 10.1.1.102
+	check_err $? "arping failed"
+
+	arp_suppression_compare 0
+
+	log_test "neigh_suppress: on / neigh exists: yes"
+
+	# Delete the neighbour from the the SVI. A single ARP request should be
+	# received by the remote VTEP
+	RET=0
+
+	ip neigh del 10.1.1.102 dev vlan10
+
+	$ARPING -I $h1 -fqb -c 1 -w 1 10.1.1.102
+	check_err $? "arping failed"
+
+	arp_suppression_compare 1
+
+	log_test "neigh_suppress: on / neigh exists: no"
+
+	# Turn off ARP suppression and make sure ARP is not suppressed,
+	# regardless of neighbour existence on the SVI
+	RET=0
+
+	ip neigh del 10.1.1.102 dev vlan10 &> /dev/null
+	ip link set dev vx10 type bridge_slave neigh_suppress off
+
+	$ARPING -I $h1 -fqb -c 1 -w 1 10.1.1.102
+	check_err $? "arping failed"
+
+	arp_suppression_compare 2
+
+	log_test "neigh_suppress: off / neigh exists: no"
+
+	RET=0
+
+	ip neigh add 10.1.1.102 lladdr $(in_ns ns1 mac_get w2) nud noarp \
+		dev vlan10 extern_learn
+
+	$ARPING -I $h1 -fqb -c 1 -w 1 10.1.1.102
+	check_err $? "arping failed"
+
+	arp_suppression_compare 3
+
+	log_test "neigh_suppress: off / neigh exists: yes"
+
+	in_ns ns1 tc qdisc del dev vx10 clsact
 }
 
 trap cleanup EXIT
