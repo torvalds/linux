@@ -261,7 +261,7 @@ struct sh_pfc_soc_info {
 	const struct sh_pfc_function *functions;
 	unsigned int nr_functions;
 
-#ifdef CONFIG_SUPERH
+#ifdef CONFIG_PINCTRL_SH_FUNC_GPIO
 	const struct pinmux_func *func_gpios;
 	unsigned int nr_func_gpios;
 #endif
