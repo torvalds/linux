@@ -14,6 +14,7 @@
 #include <linux/export.h>
 #include <linux/if_ether.h>
 #include <linux/igmp.h>
+#include <linux/in.h>
 #include <linux/jhash.h>
 #include <linux/kernel.h>
 #include <linux/log2.h>
@@ -29,10 +30,12 @@
 #include <net/ip.h>
 #include <net/switchdev.h>
 #if IS_ENABLED(CONFIG_IPV6)
+#include <linux/icmpv6.h>
 #include <net/ipv6.h>
 #include <net/mld.h>
 #include <net/ip6_checksum.h>
 #include <net/addrconf.h>
+#include <net/ipv6.h>
 #endif
 
 #include "br_private.h"
@@ -1583,6 +1586,19 @@ static void br_multicast_pim(struct net_bridge *br,
 	br_multicast_mark_router(br, port);
 }
 
+static int br_ip4_multicast_mrd_rcv(struct net_bridge *br,
+				    struct net_bridge_port *port,
+				    struct sk_buff *skb)
+{
+	if (ip_hdr(skb)->protocol != IPPROTO_IGMP ||
+	    igmp_hdr(skb)->type != IGMP_MRDISC_ADV)
+		return -ENOMSG;
+
+	br_multicast_mark_router(br, port);
+
+	return 0;
+}
+
 static int br_multicast_ipv4_rcv(struct net_bridge *br,
 				 struct net_bridge_port *port,
 				 struct sk_buff *skb,
@@ -1600,7 +1616,15 @@ static int br_multicast_ipv4_rcv(struct net_bridge *br,
 		} else if (pim_ipv4_all_pim_routers(ip_hdr(skb)->daddr)) {
 			if (ip_hdr(skb)->protocol == IPPROTO_PIM)
 				br_multicast_pim(br, port, skb);
+		} else if (ipv4_is_all_snoopers(ip_hdr(skb)->daddr)) {
+			err = br_ip4_multicast_mrd_rcv(br, port, skb);
+
+			if (err < 0 && err != -ENOMSG) {
+				br_multicast_err_count(br, port, skb->protocol);
+				return err;
+			}
 		}
+
 		return 0;
 	} else if (err < 0) {
 		br_multicast_err_count(br, port, skb->protocol);
@@ -1635,6 +1659,27 @@ static int br_multicast_ipv4_rcv(struct net_bridge *br,
 }
 
 #if IS_ENABLED(CONFIG_IPV6)
+static int br_ip6_multicast_mrd_rcv(struct net_bridge *br,
+				    struct net_bridge_port *port,
+				    struct sk_buff *skb)
+{
+	int ret;
+
+	if (ipv6_hdr(skb)->nexthdr != IPPROTO_ICMPV6)
+		return -ENOMSG;
+
+	ret = ipv6_mc_check_icmpv6(skb);
+	if (ret < 0)
+		return ret;
+
+	if (icmp6_hdr(skb)->icmp6_type != ICMPV6_MRDISC_ADV)
+		return -ENOMSG;
+
+	br_multicast_mark_router(br, port);
+
+	return 0;
+}
+
 static int br_multicast_ipv6_rcv(struct net_bridge *br,
 				 struct net_bridge_port *port,
 				 struct sk_buff *skb,
@@ -1649,6 +1694,16 @@ static int br_multicast_ipv6_rcv(struct net_bridge *br,
 	if (err == -ENOMSG) {
 		if (!ipv6_addr_is_ll_all_nodes(&ipv6_hdr(skb)->daddr))
 			BR_INPUT_SKB_CB(skb)->mrouters_only = 1;
+
+		if (ipv6_addr_is_all_snoopers(&ipv6_hdr(skb)->daddr)) {
+			err = br_ip6_multicast_mrd_rcv(br, port, skb);
+
+			if (err < 0 && err != -ENOMSG) {
+				br_multicast_err_count(br, port, skb->protocol);
+				return err;
+			}
+		}
+
 		return 0;
 	} else if (err < 0) {
 		br_multicast_err_count(br, port, skb->protocol);

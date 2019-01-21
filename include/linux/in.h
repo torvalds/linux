@@ -60,6 +60,11 @@ static inline bool ipv4_is_lbcast(__be32 addr)
 	return addr == htonl(INADDR_BROADCAST);
 }
 
+static inline bool ipv4_is_all_snoopers(__be32 addr)
+{
+	return addr == htonl(INADDR_ALLSNOOPERS_GROUP);
+}
+
 static inline bool ipv4_is_zeronet(__be32 addr)
 {
 	return (addr & htonl(0xff000000)) == htonl(0x00000000);

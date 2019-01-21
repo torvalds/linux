@@ -41,6 +41,8 @@ static int ipv6_mc_check_ip6hdr(struct sk_buff *skb)
 	if (skb->len < len || len <= offset)
 		return -EINVAL;
 
+	skb_set_transport_header(skb, offset);
+
 	return 0;
 }
 
@@ -142,7 +144,7 @@ static inline __sum16 ipv6_mc_validate_checksum(struct sk_buff *skb)
 	return skb_checksum_validate(skb, IPPROTO_ICMPV6, ip6_compute_pseudo);
 }
 
-static int ipv6_mc_check_icmpv6(struct sk_buff *skb)
+int ipv6_mc_check_icmpv6(struct sk_buff *skb)
 {
 	unsigned int len = skb_transport_offset(skb) + sizeof(struct icmp6hdr);
 	unsigned int transport_len = ipv6_transport_len(skb);
@@ -161,6 +163,7 @@ static int ipv6_mc_check_icmpv6(struct sk_buff *skb)
 
 	return 0;
 }
+EXPORT_SYMBOL(ipv6_mc_check_icmpv6);
 
 /**
  * ipv6_mc_check_mld - checks whether this is a sane MLD packet
