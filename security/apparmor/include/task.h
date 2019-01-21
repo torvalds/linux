@@ -16,7 +16,7 @@
 
 static inline struct aa_task_ctx *task_ctx(struct task_struct *task)
 {
-	return task->security;
+	return task->security + apparmor_blob_sizes.lbs_task;
 }
 
 /*
