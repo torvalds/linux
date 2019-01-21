@@ -2626,8 +2626,8 @@ static void dwc3_stop_active_transfer(struct dwc3_ep *dep, bool force)
 	u32 cmd;
 	int ret;
 
-	if ((dep->flags & DWC3_EP_END_TRANSFER_PENDING) ||
-	    !dep->resource_index)
+	if ((dep->flags & DWC3_EP_END_TRANSFER_PENDING)
+		|| !(dep->flags & DWC3_EP_TRANSFER_STARTED))
 		return;
 
 	/*
