@@ -310,6 +310,8 @@ struct smu_table_context
 	uint32_t			*od_settings_min;
 	void				*overdrive_table;
 	void				*od8_settings;
+	bool				od_gfxclk_update;
+	bool				od_memclk_update;
 };
 
 struct smu_dpm_context {
@@ -417,6 +419,9 @@ struct pptable_funcs {
 	int (*set_od_percentage)(struct smu_context *smu,
 				 enum pp_clock_type type,
 				 uint32_t value);
+	int (*od_edit_dpm_table)(struct smu_context *smu,
+				 enum PP_OD_DPM_TABLE_COMMAND type,
+				 long *input, uint32_t size);
 	int (*get_clock_by_type_with_latency)(struct smu_context *smu,
 					      enum amd_pp_clock_type type,
 					      struct
@@ -603,6 +608,8 @@ struct smu_funcs
 	((smu)->ppt_funcs->get_od_percentage ? (smu)->ppt_funcs->get_od_percentage((smu), (type)) : 0)
 #define smu_set_od_percentage(smu, type, value) \
 	((smu)->ppt_funcs->set_od_percentage ? (smu)->ppt_funcs->set_od_percentage((smu), (type), (value)) : 0)
+#define smu_od_edit_dpm_table(smu, type, input, size) \
+	((smu)->ppt_funcs->od_edit_dpm_table ? (smu)->ppt_funcs->od_edit_dpm_table((smu), (type), (input), (size)) : 0)
 #define smu_start_thermal_control(smu) \
 	((smu)->funcs->start_thermal_control? (smu)->funcs->start_thermal_control((smu)) : 0)
 #define smu_read_sensor(smu, sensor, data, size) \

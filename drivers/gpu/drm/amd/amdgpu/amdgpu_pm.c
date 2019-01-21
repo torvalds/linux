@@ -649,19 +649,29 @@ static ssize_t amdgpu_set_pp_od_clk_voltage(struct device *dev,
 			tmp_str++;
 	}
 
-	if (adev->powerplay.pp_funcs->odn_edit_dpm_table)
-		ret = amdgpu_dpm_odn_edit_dpm_table(adev, type,
+	if (is_support_sw_smu(adev)) {
+		ret = smu_od_edit_dpm_table(&adev->smu, type,
+					    parameter, parameter_size);
+
+		if (ret)
+			return -EINVAL;
+	} else {
+		if (adev->powerplay.pp_funcs->odn_edit_dpm_table)
+			ret = amdgpu_dpm_odn_edit_dpm_table(adev, type,
 						parameter, parameter_size);
 
-	if (ret)
-		return -EINVAL;
-
-	if (type == PP_OD_COMMIT_DPM_TABLE) {
-		if (adev->powerplay.pp_funcs->dispatch_tasks) {
-			amdgpu_dpm_dispatch_task(adev, AMD_PP_TASK_READJUST_POWER_STATE, NULL);
-			return count;
-		} else {
+		if (ret)
 			return -EINVAL;
+
+		if (type == PP_OD_COMMIT_DPM_TABLE) {
+			if (adev->powerplay.pp_funcs->dispatch_tasks) {
+				amdgpu_dpm_dispatch_task(adev,
+						AMD_PP_TASK_READJUST_POWER_STATE,
+						NULL);
+				return count;
+			} else {
+				return -EINVAL;
+			}
 		}
 	}
 
