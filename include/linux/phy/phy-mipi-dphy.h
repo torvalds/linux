@@ -269,7 +269,8 @@ struct phy_configure_opts_mipi_dphy {
 	/**
 	 * @lanes:
 	 *
-	 * Number of active data lanes used for the transmissions.
+	 * Number of active, consecutive, data lanes, starting from
+	 * lane 0, used for the transmissions.
 	 */
 	unsigned char		lanes;
 };
