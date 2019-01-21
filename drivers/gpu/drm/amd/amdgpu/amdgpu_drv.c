@@ -72,9 +72,10 @@
  * - 3.26.0 - GFX9: Process AMDGPU_IB_FLAG_TC_WB_NOT_INVALIDATE.
  * - 3.27.0 - Add new chunk to to AMDGPU_CS to enable BO_LIST creation.
  * - 3.28.0 - Add AMDGPU_CHUNK_ID_SCHEDULED_DEPENDENCIES
+ * - 3.29.0 - Add AMDGPU_IB_FLAG_RESET_GDS_MAX_WAVE_ID
  */
 #define KMS_DRIVER_MAJOR	3
-#define KMS_DRIVER_MINOR	28
+#define KMS_DRIVER_MINOR	29
 #define KMS_DRIVER_PATCHLEVEL	0
 
 int amdgpu_vram_limit = 0;

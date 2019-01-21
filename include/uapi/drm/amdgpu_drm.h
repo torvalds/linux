@@ -566,6 +566,11 @@ union drm_amdgpu_cs {
  * caches (L2/vL1/sL1/I$). */
 #define AMDGPU_IB_FLAG_TC_WB_NOT_INVALIDATE (1 << 3)
 
+/* Set GDS_COMPUTE_MAX_WAVE_ID = DEFAULT before PACKET3_INDIRECT_BUFFER.
+ * This will reset wave ID counters for the IB.
+ */
+#define AMDGPU_IB_FLAG_RESET_GDS_MAX_WAVE_ID (1 << 4)
+
 struct drm_amdgpu_cs_chunk_ib {
 	__u32 _pad;
 	/** AMDGPU_IB_FLAG_* */
