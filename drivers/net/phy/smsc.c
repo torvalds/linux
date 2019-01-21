@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * drivers/net/phy/smsc.c
  *
@@ -6,11 +7,6 @@
  * Author: Herbert Valerio Riedel
  *
  * Copyright (c) 2006 Herbert Valerio Riedel <hvr@gnu.org>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  *
  * Support added for SMSC LAN8187 and LAN8700 by steve.glendinning@shawell.net
  *
