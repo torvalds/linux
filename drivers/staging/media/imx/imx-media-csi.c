@@ -722,10 +722,16 @@ static int csi_start(struct csi_priv *priv)
 
 	output_fi = &priv->frame_interval[priv->active_output_pad];
 
+	/* start upstream */
+	ret = v4l2_subdev_call(priv->src_sd, video, s_stream, 1);
+	ret = (ret && ret != -ENOIOCTLCMD) ? ret : 0;
+	if (ret)
+		return ret;
+
 	if (priv->dest == IPU_CSI_DEST_IDMAC) {
 		ret = csi_idmac_start(priv);
 		if (ret)
-			return ret;
+			goto stop_upstream;
 	}
 
 	ret = csi_setup(priv);
@@ -753,6 +759,8 @@ fim_off:
 idmac_stop:
 	if (priv->dest == IPU_CSI_DEST_IDMAC)
 		csi_idmac_stop(priv);
+stop_upstream:
+	v4l2_subdev_call(priv->src_sd, video, s_stream, 0);
 	return ret;
 }
 
@@ -767,6 +775,9 @@ static void csi_stop(struct csi_priv *priv)
 	 * create hard system-wide hangs.
 	 */
 	ipu_csi_disable(priv->csi);
+
+	/* stop upstream */
+	v4l2_subdev_call(priv->src_sd, video, s_stream, 0);
 
 	if (priv->dest == IPU_CSI_DEST_IDMAC) {
 		csi_idmac_stop(priv);
@@ -935,23 +946,13 @@ static int csi_s_stream(struct v4l2_subdev *sd, int enable)
 		goto update_count;
 
 	if (enable) {
-		/* upstream must be started first, before starting CSI */
-		ret = v4l2_subdev_call(priv->src_sd, video, s_stream, 1);
-		ret = (ret && ret != -ENOIOCTLCMD) ? ret : 0;
-		if (ret)
-			goto out;
-
 		dev_dbg(priv->dev, "stream ON\n");
 		ret = csi_start(priv);
-		if (ret) {
-			v4l2_subdev_call(priv->src_sd, video, s_stream, 0);
+		if (ret)
 			goto out;
-		}
 	} else {
 		dev_dbg(priv->dev, "stream OFF\n");
-		/* CSI must be stopped first, then stop upstream */
 		csi_stop(priv);
-		v4l2_subdev_call(priv->src_sd, video, s_stream, 0);
 	}
 
 update_count:
