@@ -322,7 +322,6 @@ static int sprd_pmic_eic_probe(struct platform_device *pdev)
 
 	ret = devm_request_threaded_irq(&pdev->dev, pmic_eic->irq, NULL,
 					sprd_pmic_eic_irq_handler,
-					IRQF_TRIGGER_LOW |
 					IRQF_ONESHOT | IRQF_NO_SUSPEND,
 					dev_name(&pdev->dev), pmic_eic);
 	if (ret) {
