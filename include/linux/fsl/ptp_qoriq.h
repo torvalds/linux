@@ -143,6 +143,8 @@ struct qoriq_ptp {
 	struct ptp_clock *clock;
 	struct ptp_clock_info caps;
 	struct resource *rsrc;
+	struct dentry *debugfs_root;
+	struct device *dev;
 	bool extts_fifo_support;
 	int irq;
 	int phc_index;
@@ -168,5 +170,15 @@ static inline void qoriq_write(unsigned __iomem *addr, u32 val)
 {
 	iowrite32be(val, addr);
 }
+
+#ifdef CONFIG_DEBUG_FS
+void ptp_qoriq_create_debugfs(struct qoriq_ptp *qoriq_ptp);
+void ptp_qoriq_remove_debugfs(struct qoriq_ptp *qoriq_ptp);
+#else
+static inline void ptp_qoriq_create_debugfs(struct qoriq_ptp *qoriq_ptp)
+{ }
+static inline void ptp_qoriq_remove_debugfs(struct qoriq_ptp *qoriq_ptp)
+{ }
+#endif
 
 #endif

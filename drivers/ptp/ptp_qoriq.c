@@ -471,6 +471,7 @@ static int qoriq_ptp_probe(struct platform_device *dev)
 
 	err = -EINVAL;
 
+	qoriq_ptp->dev = &dev->dev;
 	qoriq_ptp->caps = ptp_qoriq_caps;
 
 	if (of_property_read_u32(node, "fsl,cksel", &qoriq_ptp->cksel))
@@ -572,6 +573,7 @@ static int qoriq_ptp_probe(struct platform_device *dev)
 	}
 	qoriq_ptp->phc_index = ptp_clock_index(qoriq_ptp->clock);
 
+	ptp_qoriq_create_debugfs(qoriq_ptp);
 	platform_set_drvdata(dev, qoriq_ptp);
 
 	return 0;
@@ -597,6 +599,7 @@ static int qoriq_ptp_remove(struct platform_device *dev)
 	qoriq_write(&regs->ctrl_regs->tmr_temask, 0);
 	qoriq_write(&regs->ctrl_regs->tmr_ctrl,   0);
 
+	ptp_qoriq_remove_debugfs(qoriq_ptp);
 	ptp_clock_unregister(qoriq_ptp->clock);
 	iounmap(qoriq_ptp->base);
 	release_resource(qoriq_ptp->rsrc);
