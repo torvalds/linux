@@ -93,6 +93,7 @@
 
 ALL_TESTS="
 	ping_ipv4
+	arp_decap
 "
 NUM_NETIFS=6
 source lib.sh
@@ -463,6 +464,23 @@ ping_ipv4()
 	ping_test $h2 10.1.2.102 ": local->remote vid 20->vid 20"
 	ping_test $h1 10.1.2.102 ": local->remote vid 10->vid 20"
 	ping_test $h2 10.1.1.102 ": local->remote vid 20->vid 10"
+}
+
+arp_decap()
+{
+	# Repeat the ping tests, but without populating the neighbours. This
+	# makes sure we correctly decapsulate ARP packets
+	log_info "deleting neighbours from vlan interfaces"
+
+	ip neigh del 10.1.1.102 dev vlan10
+	ip neigh del 10.1.2.102 dev vlan20
+
+	ping_ipv4
+
+	ip neigh replace 10.1.1.102 lladdr $(in_ns ns1 mac_get w2) nud noarp \
+		dev vlan10 extern_learn
+	ip neigh replace 10.1.2.102 lladdr $(in_ns ns1 mac_get w4) nud noarp \
+		dev vlan20 extern_learn
 }
 
 trap cleanup EXIT
