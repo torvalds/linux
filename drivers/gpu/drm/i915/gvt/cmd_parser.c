@@ -399,10 +399,10 @@ struct cmd_info {
 #define R_VECS	(1 << VECS)
 #define R_ALL (R_RCS | R_VCS | R_BCS | R_VECS)
 	/* rings that support this cmd: BLT/RCS/VCS/VECS */
-	uint16_t rings;
+	u16 rings;
 
 	/* devices that support this cmd: SNB/IVB/HSW/... */
-	uint16_t devices;
+	u16 devices;
 
 	/* which DWords are address that need fix up.
 	 * bit 0 means a 32-bit non address operand in command
@@ -412,13 +412,13 @@ struct cmd_info {
 	 * No matter the address length, each address only takes
 	 * one bit in the bitmap.
 	 */
-	uint16_t addr_bitmap;
+	u16 addr_bitmap;
 
 	/* flag == F_LEN_CONST : command length
 	 * flag == F_LEN_VAR : length bias bits
 	 * Note: length is in DWord
 	 */
-	uint8_t	len;
+	u8 len;
 
 	parser_cmd_handler handler;
 };
@@ -1639,7 +1639,7 @@ static int find_bb_size(struct parser_exec_state *s, unsigned long *bb_size)
 {
 	unsigned long gma = 0;
 	const struct cmd_info *info;
-	uint32_t cmd_len = 0;
+	u32 cmd_len = 0;
 	bool bb_end = false;
 	struct intel_vgpu *vgpu = s->vgpu;
 	u32 cmd;
@@ -2678,7 +2678,7 @@ static int scan_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 					I915_GTT_PAGE_SIZE)))
 		return -EINVAL;
 
-	ring_tail = wa_ctx->indirect_ctx.size + 3 * sizeof(uint32_t);
+	ring_tail = wa_ctx->indirect_ctx.size + 3 * sizeof(u32);
 	ring_size = round_up(wa_ctx->indirect_ctx.size + CACHELINE_BYTES,
 			PAGE_SIZE);
 	gma_head = wa_ctx->indirect_ctx.guest_gma;
@@ -2845,7 +2845,7 @@ put_obj:
 
 static int combine_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 {
-	uint32_t per_ctx_start[CACHELINE_DWORDS] = {0};
+	u32 per_ctx_start[CACHELINE_DWORDS] = {0};
 	unsigned char *bb_start_sva;
 
 	if (!wa_ctx->per_ctx.valid)

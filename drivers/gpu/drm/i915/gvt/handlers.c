@@ -278,7 +278,7 @@ static int mul_force_wake_write(struct intel_vgpu *vgpu,
 		unsigned int offset, void *p_data, unsigned int bytes)
 {
 	u32 old, new;
-	uint32_t ack_reg_offset;
+	u32 ack_reg_offset;
 
 	old = vgpu_vreg(vgpu, offset);
 	new = CALC_MODE_MASK_REG(old, *(u32 *)p_data);
@@ -833,7 +833,7 @@ static int dp_aux_ch_ctl_trans_done(struct intel_vgpu *vgpu, u32 value,
 }
 
 static void dp_aux_ch_ctl_link_training(struct intel_vgpu_dpcd_data *dpcd,
-		uint8_t t)
+		u8 t)
 {
 	if ((t & DPCD_TRAINING_PATTERN_SET_MASK) == DPCD_TRAINING_PATTERN_1) {
 		/* training pattern 1 for CR */
@@ -917,7 +917,7 @@ static int dp_aux_ch_ctl_mmio_write(struct intel_vgpu *vgpu,
 
 	if (op == GVT_AUX_NATIVE_WRITE) {
 		int t;
-		uint8_t buf[16];
+		u8 buf[16];
 
 		if ((addr + len + 1) >= DPCD_SIZE) {
 			/*
