@@ -664,8 +664,18 @@ static unsigned int lpuart_tx_empty(struct uart_port *port)
 
 static unsigned int lpuart32_tx_empty(struct uart_port *port)
 {
-	return (lpuart32_read(port, UARTSTAT) & UARTSTAT_TC) ?
-		TIOCSER_TEMT : 0;
+	struct lpuart_port *sport = container_of(port,
+			struct lpuart_port, port);
+	unsigned long stat = lpuart32_read(port, UARTSTAT);
+	unsigned long sfifo = lpuart32_read(port, UARTFIFO);
+
+	if (sport->dma_tx_in_progress)
+		return 0;
+
+	if (stat & UARTSTAT_TC && sfifo & UARTFIFO_TXEMPT)
+		return TIOCSER_TEMT;
+
+	return 0;
 }
 
 static bool lpuart_is_32(struct lpuart_port *sport)
