@@ -92,7 +92,7 @@ enum dm_pp_clock_type {
 	(clk_type) == DM_PP_CLOCK_TYPE_FCLK ? "F" : \
 	"Invalid"
 
-#define DM_PP_MAX_CLOCK_LEVELS 8
+#define DM_PP_MAX_CLOCK_LEVELS 16
 
 struct dm_pp_clock_levels {
 	uint32_t num_levels;
