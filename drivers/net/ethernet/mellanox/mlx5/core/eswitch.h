@@ -137,6 +137,9 @@ struct mlx5_eswitch_fdb {
 			struct mlx5_flow_group *addr_grp;
 			struct mlx5_flow_group *allmulti_grp;
 			struct mlx5_flow_group *promisc_grp;
+			struct mlx5_flow_table *vepa_fdb;
+			struct mlx5_flow_handle *vepa_uplink_rule;
+			struct mlx5_flow_handle *vepa_star_rule;
 		} legacy;
 
 		struct offloads_fdb {
@@ -242,6 +245,8 @@ int mlx5_eswitch_set_vport_trust(struct mlx5_eswitch *esw,
 				 int vport_num, bool setting);
 int mlx5_eswitch_set_vport_rate(struct mlx5_eswitch *esw, int vport,
 				u32 max_rate, u32 min_rate);
+int mlx5_eswitch_set_vepa(struct mlx5_eswitch *esw, u8 setting);
+int mlx5_eswitch_get_vepa(struct mlx5_eswitch *esw, u8 *setting);
 int mlx5_eswitch_get_vport_config(struct mlx5_eswitch *esw,
 				  int vport, struct ifla_vf_info *ivi);
 int mlx5_eswitch_get_vport_stats(struct mlx5_eswitch *esw,
