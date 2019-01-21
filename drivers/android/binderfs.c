@@ -346,34 +346,26 @@ static const struct super_operations binderfs_super_ops = {
 	.statfs         = simple_statfs,
 };
 
+static inline bool is_binderfs_control_device(const struct dentry *dentry)
+{
+	struct binderfs_info *info = dentry->d_sb->s_fs_info;
+	return info->control_dentry == dentry;
+}
+
 static int binderfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			   struct inode *new_dir, struct dentry *new_dentry,
 			   unsigned int flags)
 {
-	struct inode *inode = d_inode(old_dentry);
-
-	/* binderfs doesn't support directories. */
-	if (d_is_dir(old_dentry))
+	if (is_binderfs_control_device(old_dentry) ||
+	    is_binderfs_control_device(new_dentry))
 		return -EPERM;
 
-	if (flags & ~RENAME_NOREPLACE)
-		return -EINVAL;
-
-	if (!simple_empty(new_dentry))
-		return -ENOTEMPTY;
-
-	if (d_really_is_positive(new_dentry))
-		simple_unlink(new_dir, new_dentry);
-
-	old_dir->i_ctime = old_dir->i_mtime = new_dir->i_ctime =
-		new_dir->i_mtime = inode->i_ctime = current_time(old_dir);
-
-	return 0;
+	return simple_rename(old_dir, old_dentry, new_dir, new_dentry, flags);
 }
 
 static int binderfs_unlink(struct inode *dir, struct dentry *dentry)
 {
-	if (BINDERFS_I(dir)->control_dentry == dentry)
+	if (is_binderfs_control_device(dentry))
 		return -EPERM;
 
 	return simple_unlink(dir, dentry);
