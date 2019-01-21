@@ -1160,7 +1160,7 @@ static void usbvision_parse_data(struct usb_usbvision *usbvision)
 
 	if (newstate == parse_state_next_frame) {
 		frame->grabstate = frame_state_done;
-		v4l2_get_timestamp(&(frame->timestamp));
+		frame->ts = ktime_get_ns();
 		frame->sequence = usbvision->frame_num;
 
 		spin_lock_irqsave(&usbvision->queue_lock, lock_flags);

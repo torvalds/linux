@@ -316,7 +316,7 @@ struct usbvision_frame {
 	long bytes_read;				/* amount of scanlength that has been read from data */
 	struct usbvision_v4l2_format_st v4l2_format;	/* format the user needs*/
 	int v4l2_linesize;				/* bytes for one videoline*/
-	struct timeval timestamp;
+	u64 ts;
 	int sequence;					/* How many video frames we send to user */
 };
 
