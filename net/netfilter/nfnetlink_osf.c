@@ -66,6 +66,7 @@ static bool nf_osf_match_one(const struct sk_buff *skb,
 			     int ttl_check,
 			     struct nf_osf_hdr_ctx *ctx)
 {
+	const __u8 *optpinit = ctx->optp;
 	unsigned int check_WSS = 0;
 	int fmatch = FMATCH_WRONG;
 	int foptsize, optnum;
@@ -154,6 +155,9 @@ static bool nf_osf_match_one(const struct sk_buff *skb,
 			break;
 		}
 	}
+
+	if (fmatch != FMATCH_OK)
+		ctx->optp = optpinit;
 
 	return fmatch == FMATCH_OK;
 }
