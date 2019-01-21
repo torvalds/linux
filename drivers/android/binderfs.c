@@ -461,12 +461,9 @@ static const struct inode_operations binderfs_dir_inode_operations = {
 
 static int binderfs_fill_super(struct super_block *sb, void *data, int silent)
 {
+	int ret;
 	struct binderfs_info *info;
-	int ret = -ENOMEM;
 	struct inode *inode = NULL;
-	struct ipc_namespace *ipc_ns = current->nsproxy->ipc_ns;
-
-	get_ipc_ns(ipc_ns);
 
 	sb->s_blocksize = PAGE_SIZE;
 	sb->s_blocksize_bits = PAGE_SHIFT;
@@ -488,15 +485,17 @@ static int binderfs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_op = &binderfs_super_ops;
 	sb->s_time_gran = 1;
 
-	info = kzalloc(sizeof(struct binderfs_info), GFP_KERNEL);
-	if (!info)
-		goto err_without_dentry;
+	sb->s_fs_info = kzalloc(sizeof(struct binderfs_info), GFP_KERNEL);
+	if (!sb->s_fs_info)
+		return -ENOMEM;
+	info = sb->s_fs_info;
+
+	info->ipc_ns = get_ipc_ns(current->nsproxy->ipc_ns);
 
 	ret = binderfs_parse_mount_opts(data, &info->mount_opts);
 	if (ret)
-		goto err_without_dentry;
+		return ret;
 
-	info->ipc_ns = ipc_ns;
 	info->root_gid = make_kgid(sb->s_user_ns, 0);
 	if (!gid_valid(info->root_gid))
 		info->root_gid = GLOBAL_ROOT_GID;
@@ -504,12 +503,9 @@ static int binderfs_fill_super(struct super_block *sb, void *data, int silent)
 	if (!uid_valid(info->root_uid))
 		info->root_uid = GLOBAL_ROOT_UID;
 
-	sb->s_fs_info = info;
-
-	ret = -ENOMEM;
 	inode = new_inode(sb);
 	if (!inode)
-		goto err_without_dentry;
+		return -ENOMEM;
 
 	inode->i_ino = FIRST_INODE;
 	inode->i_fop = &simple_dir_operations;
@@ -520,24 +516,9 @@ static int binderfs_fill_super(struct super_block *sb, void *data, int silent)
 
 	sb->s_root = d_make_root(inode);
 	if (!sb->s_root)
-		goto err_without_dentry;
+		return -ENOMEM;
 
-	ret = binderfs_binder_ctl_create(sb);
-	if (ret)
-		goto err_with_dentry;
-
-	return 0;
-
-err_with_dentry:
-	dput(sb->s_root);
-	sb->s_root = NULL;
-
-err_without_dentry:
-	put_ipc_ns(ipc_ns);
-	iput(inode);
-	kfree(info);
-
-	return ret;
+	return binderfs_binder_ctl_create(sb);
 }
 
 static struct dentry *binderfs_mount(struct file_system_type *fs_type,
