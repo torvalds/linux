@@ -134,6 +134,7 @@ void bch2_flags_to_text(struct printbuf *out,
 			const char * const list[], u64 flags)
 {
 	unsigned bit, nr = 0;
+	bool first = true;
 
 	if (out->pos != out->end)
 		*out->pos = '\0';
@@ -142,7 +143,10 @@ void bch2_flags_to_text(struct printbuf *out,
 		nr++;
 
 	while (flags && (bit = __ffs(flags)) < nr) {
-		pr_buf(out, "%s,", list[bit]);
+		pr_buf(out, "%s", list[bit]);
+		if (!first)
+			pr_buf(out, ",");
+		first = false;
 		flags ^= 1 << bit;
 	}
 }
