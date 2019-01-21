@@ -35,11 +35,6 @@
 #define SND_FF_IN_MIDI_PORTS		2
 #define SND_FF_OUT_MIDI_PORTS		2
 
-#define SND_FF_REG_SYNC_STATUS		0x0000801c0000ull
-/* For block write request. */
-#define SND_FF_REG_FETCH_PCM_FRAMES	0x0000801c0000ull
-#define SND_FF_REG_CLOCK_CONFIG		0x0000801c0004ull
-
 enum snd_ff_stream_mode {
 	SND_FF_STREAM_MODE_LOW = 0,
 	SND_FF_STREAM_MODE_MID,
@@ -109,15 +104,18 @@ enum snd_ff_clock_src {
 
 struct snd_ff_protocol {
 	void (*handle_midi_msg)(struct snd_ff *ff, __le32 *buf, size_t length);
+	int (*get_clock)(struct snd_ff *ff, unsigned int *rate,
+			 enum snd_ff_clock_src *src);
+	int (*switch_fetching_mode)(struct snd_ff *ff, bool enable);
 	int (*begin_session)(struct snd_ff *ff, unsigned int rate);
 	void (*finish_session)(struct snd_ff *ff);
+	void (*dump_status)(struct snd_ff *ff, struct snd_info_buffer *buffer);
 };
 
 extern const struct snd_ff_protocol snd_ff_protocol_ff800;
 extern const struct snd_ff_protocol snd_ff_protocol_ff400;
+extern const struct snd_ff_protocol snd_ff_protocol_latter;
 
-int snd_ff_transaction_get_clock(struct snd_ff *ff, unsigned int *rate,
-				 enum snd_ff_clock_src *src);
 int snd_ff_transaction_register(struct snd_ff *ff);
 int snd_ff_transaction_reregister(struct snd_ff *ff);
 void snd_ff_transaction_unregister(struct snd_ff *ff);
@@ -142,6 +140,7 @@ int snd_ff_stream_lock_try(struct snd_ff *ff);
 void snd_ff_stream_lock_release(struct snd_ff *ff);
 
 void snd_ff_proc_init(struct snd_ff *ff);
+const char *snd_ff_proc_get_clk_label(enum snd_ff_clock_src src);
 
 int snd_ff_create_midi_devices(struct snd_ff *ff);
 
