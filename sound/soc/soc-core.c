@@ -425,6 +425,14 @@ struct snd_soc_pcm_runtime *snd_soc_get_pcm_runtime(struct snd_soc_card *card,
 }
 EXPORT_SYMBOL_GPL(snd_soc_get_pcm_runtime);
 
+static void snd_soc_flush_all_delayed_work(struct snd_soc_card *card)
+{
+	struct snd_soc_pcm_runtime *rtd;
+
+	for_each_card_rtds(card, rtd)
+		flush_delayed_work(&rtd->delayed_work);
+}
+
 static void codec2codec_close_delayed_work(struct work_struct *work)
 {
 	/*
@@ -494,8 +502,7 @@ int snd_soc_suspend(struct device *dev)
 	}
 
 	/* close any waiting streams */
-	for_each_card_rtds(card, rtd)
-		flush_delayed_work(&rtd->delayed_work);
+	snd_soc_flush_all_delayed_work(card);
 
 	for_each_card_rtds(card, rtd) {
 
@@ -2228,11 +2235,8 @@ static int soc_probe(struct platform_device *pdev)
 
 static int soc_cleanup_card_resources(struct snd_soc_card *card)
 {
-	struct snd_soc_pcm_runtime *rtd;
-
 	/* make sure any delayed work runs */
-	for_each_card_rtds(card, rtd)
-		flush_delayed_work(&rtd->delayed_work);
+	snd_soc_flush_all_delayed_work(card);
 
 	/* free the ALSA card at first; this syncs with pending operations */
 	snd_card_free(card->snd_card);
@@ -2275,8 +2279,7 @@ int snd_soc_poweroff(struct device *dev)
 	 * Flush out pmdown_time work - we actually do want to run it
 	 * now, we're shutting down so no imminent restart.
 	 */
-	for_each_card_rtds(card, rtd)
-		flush_delayed_work(&rtd->delayed_work);
+	snd_soc_flush_all_delayed_work(card);
 
 	snd_soc_dapm_shutdown(card);
 
