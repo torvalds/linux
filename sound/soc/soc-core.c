@@ -937,21 +937,24 @@ _err_defer:
 	return -EPROBE_DEFER;
 }
 
+static void soc_cleanup_component(struct snd_soc_component *component)
+{
+	list_del(&component->card_list);
+	snd_soc_dapm_free(snd_soc_component_get_dapm(component));
+	soc_cleanup_component_debugfs(component);
+	component->card = NULL;
+	module_put(component->dev->driver->owner);
+}
+
 static void soc_remove_component(struct snd_soc_component *component)
 {
 	if (!component->card)
 		return;
 
-	list_del(&component->card_list);
-
 	if (component->driver->remove)
 		component->driver->remove(component);
 
-	snd_soc_dapm_free(snd_soc_component_get_dapm(component));
-
-	soc_cleanup_component_debugfs(component);
-	component->card = NULL;
-	module_put(component->dev->driver->owner);
+	soc_cleanup_component(component);
 }
 
 static void soc_remove_dai(struct snd_soc_dai *dai, int order)
@@ -1360,6 +1363,8 @@ static int soc_probe_component(struct snd_soc_card *card,
 
 	component->card = card;
 	dapm->card = card;
+	INIT_LIST_HEAD(&component->card_list);
+	INIT_LIST_HEAD(&dapm->list);
 	soc_set_name_prefix(card, component);
 
 	soc_init_component_debugfs(component);
@@ -1422,12 +1427,9 @@ static int soc_probe_component(struct snd_soc_card *card,
 	/* see for_each_card_components */
 	list_add(&component->card_list, &card->component_dev_list);
 
-	return 0;
-
 err_probe:
-	soc_cleanup_component_debugfs(component);
-	component->card = NULL;
-	module_put(component->dev->driver->owner);
+	if (ret < 0)
+		soc_cleanup_component(component);
 
 	return ret;
 }
