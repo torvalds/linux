@@ -2,8 +2,8 @@
 /*
  * Driver for the Renesas R-Car I2C unit
  *
- * Copyright (C) 2014-15 Wolfram Sang <wsa@sang-engineering.com>
- * Copyright (C) 2011-2015 Renesas Electronics Corporation
+ * Copyright (C) 2014-19 Wolfram Sang <wsa@sang-engineering.com>
+ * Copyright (C) 2011-2019 Renesas Electronics Corporation
  *
  * Copyright (C) 2012-14 Renesas Solutions Corp.
  * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
@@ -355,9 +355,6 @@ static void rcar_i2c_next_msg(struct rcar_i2c_priv *priv)
 	rcar_i2c_prepare_msg(priv);
 }
 
-/*
- *		interrupt functions
- */
 static void rcar_i2c_dma_unmap(struct rcar_i2c_priv *priv)
 {
 	struct dma_chan *chan = priv->dma_direction == DMA_FROM_DEVICE
