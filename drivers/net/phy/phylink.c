@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * phylink models the MAC to optional PHY connection, supporting
  * technologies such as SFP cages where the PHY is hot-pluggable.
  *
  * Copyright (C) 2015 Russell King
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/ethtool.h>
 #include <linux/export.h>
@@ -1697,4 +1694,4 @@ void phylink_helper_basex_speed(struct phylink_link_state *state)
 }
 EXPORT_SYMBOL_GPL(phylink_helper_basex_speed);
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
