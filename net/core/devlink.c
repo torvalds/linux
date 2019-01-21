@@ -4086,6 +4086,9 @@ devlink_health_buffer_snd(struct genl_info *info,
 		return -ENOMEM;
 	nlh = nlmsg_put(skb, info->snd_portid, info->snd_seq,
 			NLMSG_DONE, 0, flags | NLM_F_MULTI);
+	if (!nlh)
+		goto nla_put_failure;
+
 	err = genlmsg_reply(skb, info);
 	if (err)
 		return err;
