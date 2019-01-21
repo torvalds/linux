@@ -483,6 +483,8 @@ cifs_show_options(struct seq_file *s, struct dentry *root)
 		seq_puts(s, ",seal");
 	if (tcon->nocase)
 		seq_puts(s, ",nocase");
+	if (tcon->local_lease)
+		seq_puts(s, ",locallease");
 	if (tcon->retry)
 		seq_puts(s, ",hard");
 	else
