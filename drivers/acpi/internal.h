@@ -192,8 +192,8 @@ extern struct acpi_ec *first_ec;
 typedef int (*acpi_ec_query_func) (void *data);
 
 int acpi_ec_init(void);
-int acpi_ec_ecdt_probe(void);
-int acpi_ec_dsdt_probe(void);
+void acpi_ec_ecdt_probe(void);
+void acpi_ec_dsdt_probe(void);
 void acpi_ec_block_transactions(void);
 void acpi_ec_unblock_transactions(void);
 void acpi_ec_mark_gpe_for_wake(void);

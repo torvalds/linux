@@ -1730,10 +1730,10 @@ static const struct acpi_device_id ec_device_ids[] = {
  * namespace EC before the main ACPI device enumeration process. It is
  * retained for historical reason and will be deprecated in the future.
  */
-int __init acpi_ec_dsdt_probe(void)
+void __init acpi_ec_dsdt_probe(void)
 {
-	acpi_status status;
 	struct acpi_ec *ec;
+	acpi_status status;
 	int ret;
 
 	/*
@@ -1743,21 +1743,22 @@ int __init acpi_ec_dsdt_probe(void)
 	 * picking up an invalid EC device.
 	 */
 	if (boot_ec)
-		return -ENODEV;
+		return;
 
 	ec = acpi_ec_alloc();
 	if (!ec)
-		return -ENOMEM;
+		return;
+
 	/*
 	 * At this point, the namespace is initialized, so start to find
 	 * the namespace objects.
 	 */
-	status = acpi_get_devices(ec_device_ids[0].id,
-				  ec_parse_device, ec, NULL);
+	status = acpi_get_devices(ec_device_ids[0].id, ec_parse_device, ec, NULL);
 	if (ACPI_FAILURE(status) || !ec->handle) {
-		ret = -ENODEV;
-		goto error;
+		acpi_ec_free(ec);
+		return;
 	}
+
 	/*
 	 * When the DSDT EC is available, always re-configure boot EC to
 	 * have _REG evaluated. _REG can only be evaluated after the
@@ -1766,10 +1767,8 @@ int __init acpi_ec_dsdt_probe(void)
 	 * handle the events.
 	 */
 	ret = acpi_config_boot_ec(ec, ec->handle, false, false);
-error:
 	if (ret)
 		acpi_ec_free(ec);
-	return ret;
 }
 
 /*
@@ -1872,35 +1871,31 @@ static const struct dmi_system_id ec_dmi_table[] __initconst = {
 	{},
 };
 
-int __init acpi_ec_ecdt_probe(void)
+void __init acpi_ec_ecdt_probe(void)
 {
-	int ret;
-	acpi_status status;
 	struct acpi_table_ecdt *ecdt_ptr;
 	struct acpi_ec *ec;
+	acpi_status status;
+	int ret;
 
-	ec = acpi_ec_alloc();
-	if (!ec)
-		return -ENOMEM;
-	/*
-	 * Generate a boot ec context
-	 */
+	/* Generate a boot ec context. */
 	dmi_check_system(ec_dmi_table);
 	status = acpi_get_table(ACPI_SIG_ECDT, 1,
 				(struct acpi_table_header **)&ecdt_ptr);
-	if (ACPI_FAILURE(status)) {
-		ret = -ENODEV;
-		goto error;
-	}
+	if (ACPI_FAILURE(status))
+		return;
 
 	if (!ecdt_ptr->control.address || !ecdt_ptr->data.address) {
 		/*
 		 * Asus X50GL:
 		 * https://bugzilla.kernel.org/show_bug.cgi?id=11880
 		 */
-		ret = -ENODEV;
-		goto error;
+		return;
 	}
+
+	ec = acpi_ec_alloc();
+	if (!ec)
+		return;
 
 	if (EC_FLAGS_CORRECT_ECDT) {
 		ec->command_addr = ecdt_ptr->data.address;
@@ -1916,10 +1911,8 @@ int __init acpi_ec_ecdt_probe(void)
 	 * the namespace objects, or handle the events.
 	 */
 	ret = acpi_config_boot_ec(ec, ACPI_ROOT_OBJECT, false, true);
-error:
 	if (ret)
 		acpi_ec_free(ec);
-	return ret;
 }
 
 #ifdef CONFIG_PM_SLEEP
