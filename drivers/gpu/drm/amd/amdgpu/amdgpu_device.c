@@ -3399,6 +3399,11 @@ static int amdgpu_do_asic_reset(struct amdgpu_hive_info *hive,
 						break;
 				}
 			}
+
+			list_for_each_entry(tmp_adev, device_list_handle,
+					gmc.xgmi.head) {
+				amdgpu_ras_reserve_bad_pages(tmp_adev);
+			}
 		}
 	}
 
