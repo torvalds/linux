@@ -222,6 +222,24 @@ static u32 hash_conntrack(const struct net *net,
 	return scale_hash(hash_conntrack_raw(tuple, net));
 }
 
+static bool nf_ct_get_tuple_ports(const struct sk_buff *skb,
+				  unsigned int dataoff,
+				  struct nf_conntrack_tuple *tuple)
+{	struct {
+		__be16 sport;
+		__be16 dport;
+	} _inet_hdr, *inet_hdr;
+
+	/* Actually only need first 4 bytes to get ports. */
+	inet_hdr = skb_header_pointer(skb, dataoff, sizeof(_inet_hdr), &_inet_hdr);
+	if (!inet_hdr)
+		return false;
+
+	tuple->src.u.udp.port = inet_hdr->sport;
+	tuple->dst.u.udp.port = inet_hdr->dport;
+	return true;
+}
+
 static bool
 nf_ct_get_tuple(const struct sk_buff *skb,
 		unsigned int nhoff,
@@ -234,10 +252,6 @@ nf_ct_get_tuple(const struct sk_buff *skb,
 	unsigned int size;
 	const __be32 *ap;
 	__be32 _addrs[8];
-	struct {
-		__be16 sport;
-		__be16 dport;
-	} _inet_hdr, *inet_hdr;
 
 	memset(tuple, 0, sizeof(*tuple));
 
@@ -284,15 +298,25 @@ nf_ct_get_tuple(const struct sk_buff *skb,
 	case IPPROTO_GRE:
 		return gre_pkt_to_tuple(skb, dataoff, net, tuple);
 #endif
+	case IPPROTO_TCP:
+	case IPPROTO_UDP: /* fallthrough */
+		return nf_ct_get_tuple_ports(skb, dataoff, tuple);
+#ifdef CONFIG_NF_CT_PROTO_UDPLITE
+	case IPPROTO_UDPLITE:
+		return nf_ct_get_tuple_ports(skb, dataoff, tuple);
+#endif
+#ifdef CONFIG_NF_CT_PROTO_SCTP
+	case IPPROTO_SCTP:
+		return nf_ct_get_tuple_ports(skb, dataoff, tuple);
+#endif
+#ifdef CONFIG_NF_CT_PROTO_DCCP
+	case IPPROTO_DCCP:
+		return nf_ct_get_tuple_ports(skb, dataoff, tuple);
+#endif
+	default:
+		break;
 	}
 
-	/* Actually only need first 4 bytes to get ports. */
-	inet_hdr = skb_header_pointer(skb, dataoff, sizeof(_inet_hdr), &_inet_hdr);
-	if (!inet_hdr)
-		return false;
-
-	tuple->src.u.udp.port = inet_hdr->sport;
-	tuple->dst.u.udp.port = inet_hdr->dport;
 	return true;
 }
 
