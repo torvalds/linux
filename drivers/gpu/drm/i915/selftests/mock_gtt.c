@@ -97,9 +97,9 @@ static void mock_unbind_ggtt(struct i915_vma *vma)
 {
 }
 
-void mock_init_ggtt(struct drm_i915_private *i915)
+void mock_init_ggtt(struct drm_i915_private *i915, struct i915_ggtt *ggtt)
 {
-	struct i915_ggtt *ggtt = &i915->ggtt;
+	memset(ggtt, 0, sizeof(*ggtt));
 
 	ggtt->vm.i915 = i915;
 	ggtt->vm.is_ggtt = true;
@@ -118,13 +118,10 @@ void mock_init_ggtt(struct drm_i915_private *i915)
 	ggtt->vm.vma_ops.set_pages   = ggtt_set_pages;
 	ggtt->vm.vma_ops.clear_pages = clear_pages;
 
-
 	i915_address_space_init(&ggtt->vm, VM_CLASS_GGTT);
 }
 
-void mock_fini_ggtt(struct drm_i915_private *i915)
+void mock_fini_ggtt(struct i915_ggtt *ggtt)
 {
-	struct i915_ggtt *ggtt = &i915->ggtt;
-
 	i915_address_space_fini(&ggtt->vm);
 }

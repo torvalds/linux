@@ -72,7 +72,7 @@ static void mock_device_release(struct drm_device *dev)
 	i915_gem_drain_freed_objects(i915);
 
 	mutex_lock(&i915->drm.struct_mutex);
-	mock_fini_ggtt(i915);
+	mock_fini_ggtt(&i915->ggtt);
 	mutex_unlock(&i915->drm.struct_mutex);
 	WARN_ON(!list_empty(&i915->gt.timelines));
 
@@ -232,7 +232,7 @@ struct drm_i915_private *mock_gem_device(void)
 
 	mutex_lock(&i915->drm.struct_mutex);
 
-	mock_init_ggtt(i915);
+	mock_init_ggtt(i915, &i915->ggtt);
 
 	mkwrite_device_info(i915)->ring_mask = BIT(0);
 	i915->kernel_context = mock_context(i915, NULL);
