@@ -531,11 +531,12 @@ static void binderfs_kill_super(struct super_block *sb)
 {
 	struct binderfs_info *info = sb->s_fs_info;
 
+	kill_litter_super(sb);
+
 	if (info && info->ipc_ns)
 		put_ipc_ns(info->ipc_ns);
 
 	kfree(info);
-	kill_litter_super(sb);
 }
 
 static struct file_system_type binder_fs_type = {
