@@ -39,8 +39,8 @@ struct vm_helper {
 	unsigned int num_vmid;
 	unsigned int num_hubp;
 	unsigned int num_vmids_available;
-	uint64_t *ptb_assigned_to_vmid;
-	struct vmid_usage *hubp_vmid_usage;
+	uint64_t ptb_assigned_to_vmid[MAX_VMID];
+	struct vmid_usage hubp_vmid_usage[MAX_HUBP];
 };
 
 uint8_t get_vmid_for_ptb(
@@ -48,7 +48,8 @@ uint8_t get_vmid_for_ptb(
 		int64_t ptb,
 		uint8_t pipe_idx);
 
-struct vm_helper init_vm_helper(
+void init_vm_helper(
+	struct vm_helper *vm_helper,
 	unsigned int num_vmid,
 	unsigned int num_hubp);
 

@@ -265,7 +265,6 @@ struct dc_debug_data {
 	uint32_t auxErrorCount;
 };
 
-
 struct dc_state;
 struct resource_pool;
 struct dce_hwseq;
