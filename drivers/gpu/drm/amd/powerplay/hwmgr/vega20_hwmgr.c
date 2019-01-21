@@ -804,6 +804,11 @@ static int vega20_set_allowed_featuresmask(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
+static int vega20_run_btc(struct pp_hwmgr *hwmgr)
+{
+	return smum_send_msg_to_smc(hwmgr, PPSMC_MSG_RunBtc);
+}
+
 static int vega20_run_btc_afll(struct pp_hwmgr *hwmgr)
 {
 	return smum_send_msg_to_smc(hwmgr, PPSMC_MSG_RunAfllBtc);
@@ -1563,6 +1568,11 @@ static int vega20_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 	result = vega20_init_smc_table(hwmgr);
 	PP_ASSERT_WITH_CODE(!result,
 			"[EnableDPMTasks] Failed to initialize SMC table!",
+			return result);
+
+	result = vega20_run_btc(hwmgr);
+	PP_ASSERT_WITH_CODE(!result,
+			"[EnableDPMTasks] Failed to run btc!",
 			return result);
 
 	result = vega20_run_btc_afll(hwmgr);
