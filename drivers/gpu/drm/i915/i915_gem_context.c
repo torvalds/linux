@@ -338,11 +338,8 @@ __create_hw_context(struct drm_i915_private *dev_priv,
 	ctx->i915 = dev_priv;
 	ctx->sched.priority = I915_USER_PRIORITY(I915_PRIORITY_NORMAL);
 
-	for (n = 0; n < ARRAY_SIZE(ctx->__engine); n++) {
-		struct intel_context *ce = &ctx->__engine[n];
-
-		ce->gem_context = ctx;
-	}
+	for (n = 0; n < ARRAY_SIZE(ctx->__engine); n++)
+		intel_context_init(&ctx->__engine[n], ctx, dev_priv->engine[n]);
 
 	INIT_RADIX_TREE(&ctx->handles_vma, GFP_KERNEL);
 	INIT_LIST_HEAD(&ctx->handles_list);

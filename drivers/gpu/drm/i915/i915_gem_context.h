@@ -364,4 +364,12 @@ static inline void i915_gem_context_put(struct i915_gem_context *ctx)
 	kref_put(&ctx->ref, i915_gem_context_release);
 }
 
+static inline void
+intel_context_init(struct intel_context *ce,
+		   struct i915_gem_context *ctx,
+		   struct intel_engine_cs *engine)
+{
+	ce->gem_context = ctx;
+}
+
 #endif /* !__I915_GEM_CONTEXT_H__ */
