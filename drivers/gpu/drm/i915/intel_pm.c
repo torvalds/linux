@@ -6662,7 +6662,7 @@ void gen6_rps_boost(struct i915_request *rq,
 	if (!rps->enabled)
 		return;
 
-	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &rq->fence.flags))
+	if (i915_request_signaled(rq))
 		return;
 
 	/* Serializes with i915_request_retire() */

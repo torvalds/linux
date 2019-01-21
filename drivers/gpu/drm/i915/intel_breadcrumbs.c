@@ -631,8 +631,7 @@ static int intel_breadcrumbs_signaler(void *arg)
 				rq->signaling.wait.seqno = 0;
 				__list_del_entry(&rq->signaling.link);
 
-				if (!test_bit(DMA_FENCE_FLAG_SIGNALED_BIT,
-					      &rq->fence.flags)) {
+				if (!i915_request_signaled(rq)) {
 					list_add_tail(&rq->signaling.link,
 						      &list);
 					i915_request_get(rq);
