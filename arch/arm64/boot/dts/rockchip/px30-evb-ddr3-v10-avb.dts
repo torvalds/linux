@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2017-2019 Fuzhou Rockchip Electronics Co., Ltd
+ */
+
+/dts-v1/;
+#include "px30-evb-ddr3-v10.dtsi"
+
+/ {
+	model = "Rockchip PX30 evb ddr3 board";
+	compatible = "rockchip,px30-evb-ddr3-v10-avb", "rockchip,px30";
+};
+
+&firmware_android {
+	compatible = "android,firmware";
+	boot_devices = "ff390000.dwmmc,ff3b0000.nandc";
+	vbmeta {
+		compatible = "android,vbmeta";
+		parts = "vbmeta,boot,system,vendor,dtbo";
+	};
+	fstab {
+		compatible = "android,fstab";
+		vendor {
+			compatible = "android,vendor";
+			dev = "/dev/block/by-name/vendor";
+			type = "ext4";
+			mnt_flags = "ro,barrier=1,inode_readahead_blks=8";
+			fsmgr_flags = "wait,avb";
+		};
+	};
+};
+
