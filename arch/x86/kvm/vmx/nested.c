@@ -55,7 +55,7 @@ static u16 shadow_read_write_fields[] = {
 static int max_shadow_read_write_fields =
 	ARRAY_SIZE(shadow_read_write_fields);
 
-void init_vmcs_shadow_fields(void)
+static void init_vmcs_shadow_fields(void)
 {
 	int i, j;
 
