@@ -3495,8 +3495,8 @@ static int addrconf_notify(struct notifier_block *this, unsigned long event,
 
 			if (!addrconf_link_ready(dev)) {
 				/* device is not ready yet. */
-				pr_info("ADDRCONF(NETDEV_UP): %s: link is not ready\n",
-					dev->name);
+				pr_debug("ADDRCONF(NETDEV_UP): %s: link is not ready\n",
+					 dev->name);
 				break;
 			}
 
