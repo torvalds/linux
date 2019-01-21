@@ -559,7 +559,6 @@ struct rproc_vdev {
 	unsigned int id;
 	struct list_head node;
 	struct rproc *rproc;
-	struct virtio_device vdev;
 	struct rproc_vring vring[RVDEV_NUM_VRINGS];
 	u32 rsc_offset;
 	u32 index;
@@ -602,7 +601,7 @@ int rproc_coredump_add_custom_segment(struct rproc *rproc,
 
 static inline struct rproc_vdev *vdev_to_rvdev(struct virtio_device *vdev)
 {
-	return container_of(vdev, struct rproc_vdev, vdev);
+	return container_of(vdev->dev.parent, struct rproc_vdev, dev);
 }
 
 static inline struct rproc *vdev_to_rproc(struct virtio_device *vdev)

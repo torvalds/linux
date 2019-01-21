@@ -313,6 +313,8 @@ static void rproc_virtio_dev_release(struct device *dev)
 	struct rproc_vdev *rvdev = vdev_to_rvdev(vdev);
 	struct rproc *rproc = vdev_to_rproc(vdev);
 
+	kfree(vdev);
+
 	kref_put(&rvdev->refcount, rproc_vdev_release);
 
 	put_device(&rproc->dev);
@@ -331,7 +333,7 @@ int rproc_add_virtio_dev(struct rproc_vdev *rvdev, int id)
 {
 	struct rproc *rproc = rvdev->rproc;
 	struct device *dev = &rvdev->dev;
-	struct virtio_device *vdev = &rvdev->vdev;
+	struct virtio_device *vdev;
 	struct rproc_mem_entry *mem;
 	int ret;
 
@@ -372,6 +374,12 @@ int rproc_add_virtio_dev(struct rproc_vdev *rvdev, int id)
 		}
 	}
 
+	/* Allocate virtio device */
+	vdev = kzalloc(sizeof(*vdev), GFP_KERNEL);
+	if (!vdev) {
+		ret = -ENOMEM;
+		goto out;
+	}
 	vdev->id.device	= id,
 	vdev->config = &rproc_virtio_config_ops,
 	vdev->dev.parent = dev;
@@ -405,11 +413,15 @@ out:
 
 /**
  * rproc_remove_virtio_dev() - remove an rproc-induced virtio device
- * @rvdev: the remote vdev
+ * @dev: the virtio device
+ * @data: must be null
  *
  * This function unregisters an existing virtio device.
  */
-void rproc_remove_virtio_dev(struct rproc_vdev *rvdev)
+int rproc_remove_virtio_dev(struct device *dev, void *data)
 {
-	unregister_virtio_device(&rvdev->vdev);
+	struct virtio_device *vdev = dev_to_virtio(dev);
+
+	unregister_virtio_device(vdev);
+	return 0;
 }

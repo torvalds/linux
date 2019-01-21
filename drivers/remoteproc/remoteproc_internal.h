@@ -32,7 +32,7 @@ void rproc_vdev_release(struct kref *ref);
 
 /* from remoteproc_virtio.c */
 int rproc_add_virtio_dev(struct rproc_vdev *rvdev, int id);
-void rproc_remove_virtio_dev(struct rproc_vdev *rvdev);
+int rproc_remove_virtio_dev(struct device *dev, void *data);
 
 /* from remoteproc_debugfs.c */
 void rproc_remove_trace_file(struct dentry *tfile);
