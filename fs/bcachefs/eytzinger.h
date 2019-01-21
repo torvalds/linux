@@ -263,18 +263,20 @@ static inline ssize_t eytzinger0_find_le(void *base, size_t nr, size_t size,
 	}
 }
 
-static inline size_t eytzinger0_find(void *base, size_t nr, size_t size,
-				     eytzinger_cmp_fn cmp, const void *search)
-{
-	size_t i = 0;
-	int res;
-
-	while (i < nr &&
-	       (res = cmp(search, base + i * size, size)))
-		i = eytzinger0_child(i, res > 0);
-
-	return i;
-}
+#define eytzinger0_find(base, nr, size, _cmp, search)			\
+({									\
+	void *_base	= (base);					\
+	void *_search	= (search);					\
+	size_t _nr	= (nr);						\
+	size_t _size	= (size);					\
+	size_t _i	= 0;						\
+	int _res;							\
+									\
+	while (_i < _nr &&						\
+	       (_res = _cmp(_search, _base + _i * _size, _size)))	\
+		_i = eytzinger0_child(_i, _res > 0);			\
+	_i;								\
+})
 
 void eytzinger0_sort(void *, size_t, size_t,
 		    int (*cmp_func)(const void *, const void *, size_t),

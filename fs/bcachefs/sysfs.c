@@ -234,33 +234,45 @@ static size_t bch2_btree_cache_size(struct bch_fs *c)
 static ssize_t show_fs_alloc_debug(struct bch_fs *c, char *buf)
 {
 	struct printbuf out = _PBUF(buf, PAGE_SIZE);
-	struct bch_fs_usage stats = bch2_fs_usage_read(c);
-	unsigned replicas, type;
+	struct bch_fs_usage *fs_usage = bch2_fs_usage_read(c);
+	unsigned i;
+
+	if (!fs_usage)
+		return -ENOMEM;
 
 	pr_buf(&out, "capacity:\t\t%llu\n", c->capacity);
 
-	for (replicas = 0; replicas < ARRAY_SIZE(stats.replicas); replicas++) {
-		pr_buf(&out, "%u replicas:\n", replicas + 1);
-
+	for (i = 0;
+	     i < ARRAY_SIZE(fs_usage->persistent_reserved);
+	     i++) {
+		pr_buf(&out, "%u replicas:\n", i + 1);
+#if 0
 		for (type = BCH_DATA_SB; type < BCH_DATA_NR; type++)
 			pr_buf(&out, "\t%s:\t\t%llu\n",
 			       bch2_data_types[type],
 			       stats.replicas[replicas].data[type]);
 		pr_buf(&out, "\terasure coded:\t%llu\n",
 		       stats.replicas[replicas].ec_data);
+#endif
 		pr_buf(&out, "\treserved:\t%llu\n",
-		       stats.replicas[replicas].persistent_reserved);
+		       fs_usage->persistent_reserved[i]);
 	}
 
-	pr_buf(&out, "bucket usage\n");
-
-	for (type = BCH_DATA_SB; type < BCH_DATA_NR; type++)
-		pr_buf(&out, "\t%s:\t\t%llu\n",
-		       bch2_data_types[type],
-		       stats.buckets[type]);
-
 	pr_buf(&out, "online reserved:\t%llu\n",
-	       stats.s.online_reserved);
+	       fs_usage->s.online_reserved);
+
+	for (i = 0; i < c->replicas.nr; i++) {
+		struct bch_replicas_entry *e =
+			cpu_replicas_entry(&c->replicas, i);
+
+		pr_buf(&out, "\t");
+		bch2_replicas_entry_to_text(&out, e);
+		pr_buf(&out, ":\t%llu\n", fs_usage->data[i]);
+	}
+
+	percpu_up_read(&c->mark_lock);
+
+	kfree(fs_usage);
 
 	return out.pos - buf;
 }

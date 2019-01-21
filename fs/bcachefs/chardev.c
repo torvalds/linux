@@ -394,20 +394,30 @@ static long bch2_ioctl_usage(struct bch_fs *c,
 	}
 
 	{
-		struct bch_fs_usage src = bch2_fs_usage_read(c);
+		struct bch_fs_usage *src;
 		struct bch_ioctl_fs_usage dst = {
 			.capacity		= c->capacity,
-			.used			= bch2_fs_sectors_used(c, src),
-			.online_reserved	= src.s.online_reserved,
 		};
+
+		src = bch2_fs_usage_read(c);
+		if (!src)
+			return -ENOMEM;
+
+		percpu_up_read(&c->mark_lock);
+
+		dst.used		= bch2_fs_sectors_used(c, *src);
+		dst.online_reserved	= src->s.online_reserved;
 
 		for (i = 0; i < BCH_REPLICAS_MAX; i++) {
 			dst.persistent_reserved[i] =
-				src.replicas[i].persistent_reserved;
-
+				src->persistent_reserved[i];
+#if 0
 			for (j = 0; j < BCH_DATA_NR; j++)
 				dst.sectors[j][i] = src.replicas[i].data[j];
+#endif
 		}
+
+		kfree(src);
 
 		ret = copy_to_user(&user_arg->fs, &dst, sizeof(dst));
 		if (ret)

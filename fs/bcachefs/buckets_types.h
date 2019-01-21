@@ -75,16 +75,18 @@ struct bch_fs_usage {
 		u64		cached;
 		u64		reserved;
 		u64		nr_inodes;
+
+		/* XXX: add stats for compression ratio */
+#if 0
+		u64		uncompressed;
+		u64		compressed;
+#endif
 	} s;
 
 	/* broken out: */
-	struct {
-		u64		data[BCH_DATA_NR];
-		u64		ec_data;
-		u64		persistent_reserved;
-	}			replicas[BCH_REPLICAS_MAX];
 
-	u64			buckets[BCH_DATA_NR];
+	u64			persistent_reserved[BCH_REPLICAS_MAX];
+	u64			data[];
 };
 
 struct bch_fs_usage_short {

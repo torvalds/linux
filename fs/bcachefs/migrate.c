@@ -5,6 +5,7 @@
 
 #include "bcachefs.h"
 #include "btree_update.h"
+#include "btree_update_interior.h"
 #include "buckets.h"
 #include "extents.h"
 #include "io.h"
@@ -151,6 +152,16 @@ retry:
 			}
 		}
 		bch2_btree_iter_unlock(&iter);
+	}
+
+	/* flush relevant btree updates */
+	while (1) {
+		closure_wait_event(&c->btree_interior_update_wait,
+				   !bch2_btree_interior_updates_nr_pending(c) ||
+				   c->btree_roots_dirty);
+		if (!bch2_btree_interior_updates_nr_pending(c))
+			break;
+		bch2_journal_meta(&c->journal);
 	}
 
 	ret = 0;

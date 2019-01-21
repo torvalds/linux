@@ -72,11 +72,10 @@
 #include "ec.h"
 #include "error.h"
 #include "movinggc.h"
+#include "replicas.h"
 #include "trace.h"
 
 #include <linux/preempt.h>
-
-static inline u64 __bch2_fs_sectors_used(struct bch_fs *, struct bch_fs_usage);
 
 /*
  * Clear journal_seq_valid for buckets for which it's not needed, to prevent
@@ -132,9 +131,29 @@ struct bch_dev_usage bch2_dev_usage_read(struct bch_fs *c, struct bch_dev *ca)
 	return bch2_usage_read_raw(ca->usage[0]);
 }
 
-struct bch_fs_usage bch2_fs_usage_read(struct bch_fs *c)
+struct bch_fs_usage *bch2_fs_usage_read(struct bch_fs *c)
 {
-	return bch2_usage_read_raw(c->usage[0]);
+	struct bch_fs_usage *ret;
+	unsigned nr = READ_ONCE(c->replicas.nr);
+retry:
+	ret = kzalloc(sizeof(*ret) + nr * sizeof(u64), GFP_NOFS);
+	if (unlikely(!ret))
+		return NULL;
+
+	percpu_down_read(&c->mark_lock);
+
+	if (unlikely(nr < c->replicas.nr)) {
+		nr = c->replicas.nr;
+		percpu_up_read(&c->mark_lock);
+		kfree(ret);
+		goto retry;
+	}
+
+	acc_u64s_percpu((u64 *) ret,
+			(u64 __percpu *) c->usage[0],
+			sizeof(*ret) / sizeof(u64) + nr);
+
+	return ret;
 }
 
 #define RESERVE_FACTOR	6
@@ -149,17 +168,13 @@ static u64 avail_factor(u64 r)
 	return (r << RESERVE_FACTOR) / ((1 << RESERVE_FACTOR) + 1);
 }
 
-static inline u64 __bch2_fs_sectors_used(struct bch_fs *c, struct bch_fs_usage fs_usage)
-{
-	return fs_usage.s.hidden +
-		fs_usage.s.data +
-		reserve_factor(fs_usage.s.reserved +
-			       fs_usage.s.online_reserved);
-}
-
 u64 bch2_fs_sectors_used(struct bch_fs *c, struct bch_fs_usage fs_usage)
 {
-	return min(c->capacity, __bch2_fs_sectors_used(c, fs_usage));
+	return min(fs_usage.s.hidden +
+		   fs_usage.s.data +
+		   reserve_factor(fs_usage.s.reserved +
+				  fs_usage.s.online_reserved),
+		   c->capacity);
 }
 
 struct bch_fs_usage_short
@@ -208,13 +223,14 @@ static bool bucket_became_unavailable(struct bucket_mark old,
 	       !is_available_bucket(new);
 }
 
-void bch2_fs_usage_apply(struct bch_fs *c,
-			 struct bch_fs_usage *fs_usage,
-			 struct disk_reservation *disk_res,
-			 struct gc_pos gc_pos)
+int bch2_fs_usage_apply(struct bch_fs *c,
+			struct bch_fs_usage *fs_usage,
+			struct disk_reservation *disk_res,
+			struct gc_pos gc_pos)
 {
 	s64 added = fs_usage->s.data + fs_usage->s.reserved;
 	s64 should_not_have_added;
+	int ret = 0;
 
 	percpu_rwsem_assert_held(&c->mark_lock);
 
@@ -227,6 +243,7 @@ void bch2_fs_usage_apply(struct bch_fs *c,
 		      "disk usage increased without a reservation")) {
 		atomic64_sub(should_not_have_added, &c->sectors_available);
 		added -= should_not_have_added;
+		ret = -1;
 	}
 
 	if (added > 0) {
@@ -237,17 +254,17 @@ void bch2_fs_usage_apply(struct bch_fs *c,
 	preempt_disable();
 	acc_u64s((u64 *) this_cpu_ptr(c->usage[0]),
 		 (u64 *) fs_usage,
-		 sizeof(*fs_usage) / sizeof(u64));
+		 sizeof(*fs_usage) / sizeof(u64) + c->replicas.nr);
 
 	if (gc_visited(c, gc_pos)) {
 		BUG_ON(!c->usage[1]);
 		acc_u64s((u64 *) this_cpu_ptr(c->usage[1]),
 			 (u64 *) fs_usage,
-			 sizeof(*fs_usage) / sizeof(u64));
+			 sizeof(*fs_usage) / sizeof(u64) + c->replicas.nr);
 	}
 	preempt_enable();
 
-	memset(fs_usage, 0, sizeof(*fs_usage));
+	return ret;
 }
 
 static inline void account_bucket(struct bch_fs_usage *fs_usage,
@@ -258,7 +275,6 @@ static inline void account_bucket(struct bch_fs_usage *fs_usage,
 	if (type == BCH_DATA_SB || type == BCH_DATA_JOURNAL)
 		fs_usage->s.hidden	+= size;
 
-	fs_usage->buckets[type]		+= size;
 	dev_usage->buckets[type]	+= nr;
 }
 
@@ -332,6 +348,34 @@ void bch2_dev_usage_from_buckets(struct bch_fs *c, struct bch_dev *ca)
 	_old;							\
 })
 
+static inline void update_replicas(struct bch_fs *c,
+				   struct bch_fs_usage *fs_usage,
+				   struct bch_replicas_entry *r,
+				   s64 sectors)
+{
+	int idx = bch2_replicas_entry_idx(c, r);
+
+	BUG_ON(idx < 0);
+	BUG_ON(!sectors);
+
+	if (r->data_type == BCH_DATA_CACHED)
+		fs_usage->s.cached	+= sectors;
+	else
+		fs_usage->s.data	+= sectors;
+	fs_usage->data[idx]		+= sectors;
+}
+
+static inline void update_cached_sectors(struct bch_fs *c,
+					 struct bch_fs_usage *fs_usage,
+					 unsigned dev, s64 sectors)
+{
+	struct bch_replicas_padded r;
+
+	bch2_replicas_entry_cached(&r.e, dev);
+
+	update_replicas(c, fs_usage, &r.e, sectors);
+}
+
 static void __bch2_invalidate_bucket(struct bch_fs *c, struct bch_dev *ca,
 				     size_t b, struct bucket_mark *old,
 				     bool gc)
@@ -350,8 +394,9 @@ static void __bch2_invalidate_bucket(struct bch_fs *c, struct bch_dev *ca,
 		new.gen++;
 	}));
 
-	fs_usage->replicas[0].data[BCH_DATA_CACHED]	-= old->cached_sectors;
-	fs_usage->s.cached				-= old->cached_sectors;
+	if (old->cached_sectors)
+		update_cached_sectors(c, fs_usage, ca->dev_idx,
+				      -old->cached_sectors);
 }
 
 void bch2_invalidate_bucket(struct bch_fs *c, struct bch_dev *ca,
@@ -418,11 +463,6 @@ static void __bch2_mark_metadata_bucket(struct bch_fs *c, struct bch_dev *ca,
 		new.data_type	= type;
 		checked_add(new.dirty_sectors, sectors);
 	}));
-
-	if (type == BCH_DATA_BTREE ||
-	    type == BCH_DATA_USER)
-		fs_usage->s.data		+= sectors;
-	fs_usage->replicas[0].data[type]	+= sectors;
 }
 
 void bch2_mark_metadata_bucket(struct bch_fs *c, struct bch_dev *ca,
@@ -550,9 +590,9 @@ static void bch2_mark_pointer(struct bch_fs *c,
 
 static int bch2_mark_stripe_ptr(struct bch_fs *c,
 				struct bch_extent_stripe_ptr p,
+				enum bch_data_type data_type,
+				struct bch_fs_usage *fs_usage,
 				s64 sectors, unsigned flags,
-				s64 *adjusted_disk_sectors,
-				unsigned *redundancy,
 				bool gc)
 {
 	struct stripe *m;
@@ -568,16 +608,15 @@ static int bch2_mark_stripe_ptr(struct bch_fs *c,
 		return -1;
 	}
 
+	BUG_ON(m->r.e.data_type != data_type);
+
 	nr_data = m->nr_blocks - m->nr_redundant;
 
 	parity_sectors = DIV_ROUND_UP(abs(sectors) * m->nr_redundant, nr_data);
 
 	if (sectors < 0)
 		parity_sectors = -parity_sectors;
-
-	*adjusted_disk_sectors += parity_sectors;
-
-	*redundancy = max_t(unsigned, *redundancy, m->nr_redundant + 1);
+	sectors += parity_sectors;
 
 	new = atomic_add_return(sectors, &m->block_sectors[p.block]);
 	old = new - sectors;
@@ -593,6 +632,8 @@ static int bch2_mark_stripe_ptr(struct bch_fs *c,
 	if (!gc)
 		bch2_stripes_heap_update(c, m, p.idx);
 
+	update_replicas(c, fs_usage, &m->r.e, sectors);
+
 	return 0;
 }
 
@@ -605,13 +646,14 @@ static int bch2_mark_extent(struct bch_fs *c, struct bkey_s_c k,
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	const union bch_extent_entry *entry;
 	struct extent_ptr_decoded p;
-	s64 cached_sectors	= 0;
-	s64 dirty_sectors	= 0;
-	s64 ec_sectors		= 0;
-	unsigned replicas	= 0;
-	unsigned ec_redundancy	= 0;
+	struct bch_replicas_padded r;
+	s64 dirty_sectors = 0;
 	unsigned i;
 	int ret;
+
+	r.e.data_type	= data_type;
+	r.e.nr_devs	= 0;
+	r.e.nr_required	= 1;
 
 	BUG_ON(!sectors);
 
@@ -619,44 +661,31 @@ static int bch2_mark_extent(struct bch_fs *c, struct bkey_s_c k,
 		s64 disk_sectors = data_type == BCH_DATA_BTREE
 			? sectors
 			: ptr_disk_sectors_delta(p, sectors);
-		s64 adjusted_disk_sectors = disk_sectors;
 
 		bch2_mark_pointer(c, p, disk_sectors, data_type,
 				  fs_usage, journal_seq, flags, gc);
 
-		if (!p.ptr.cached)
+		if (p.ptr.cached) {
+			update_cached_sectors(c, fs_usage, p.ptr.dev,
+					      disk_sectors);
+		} else if (!p.ec_nr) {
+			dirty_sectors	       += disk_sectors;
+			r.e.devs[r.e.nr_devs++]	= p.ptr.dev;
+		} else {
 			for (i = 0; i < p.ec_nr; i++) {
 				ret = bch2_mark_stripe_ptr(c, p.ec[i],
-						disk_sectors, flags,
-						&adjusted_disk_sectors,
-						&ec_redundancy, gc);
+						data_type, fs_usage,
+						disk_sectors, flags, gc);
 				if (ret)
 					return ret;
 			}
-		if (!p.ptr.cached)
-			replicas++;
 
-		if (p.ptr.cached)
-			cached_sectors	+= adjusted_disk_sectors;
-		else if (!p.ec_nr)
-			dirty_sectors	+= adjusted_disk_sectors;
-		else
-			ec_sectors	+= adjusted_disk_sectors;
+			r.e.nr_required = 0;
+		}
 	}
 
-	replicas	= clamp_t(unsigned,	replicas,
-				  1, ARRAY_SIZE(fs_usage->replicas));
-	ec_redundancy	= clamp_t(unsigned,	ec_redundancy,
-				  1, ARRAY_SIZE(fs_usage->replicas));
-
-	fs_usage->s.cached					+= cached_sectors;
-	fs_usage->replicas[0].data[BCH_DATA_CACHED]		+= cached_sectors;
-
-	fs_usage->s.data					+= dirty_sectors;
-	fs_usage->replicas[replicas - 1].data[data_type]	+= dirty_sectors;
-
-	fs_usage->s.data					+= ec_sectors;
-	fs_usage->replicas[ec_redundancy - 1].ec_data		+= ec_sectors;
+	if (dirty_sectors)
+		update_replicas(c, fs_usage, &r.e, dirty_sectors);
 
 	return 0;
 }
@@ -724,7 +753,23 @@ static int bch2_mark_stripe(struct bch_fs *c, struct bkey_s_c k,
 		m->algorithm	= s.v->algorithm;
 		m->nr_blocks	= s.v->nr_blocks;
 		m->nr_redundant	= s.v->nr_redundant;
+
+		memset(&m->r, 0, sizeof(m->r));
+
+		m->r.e.data_type	= BCH_DATA_USER;
+		m->r.e.nr_devs		= s.v->nr_blocks;
+		m->r.e.nr_required	= s.v->nr_blocks - s.v->nr_redundant;
+
+		for (i = 0; i < s.v->nr_blocks; i++)
+			m->r.e.devs[i] = s.v->ptrs[i].dev;
 	}
+
+	/*
+	 * XXX: account for stripes somehow here
+	 */
+#if 0
+	update_replicas(c, fs_usage, &m->r.e, stripe_sectors);
+#endif
 
 	if (!gc) {
 		if (inserting)
@@ -773,11 +818,11 @@ static int __bch2_mark_key(struct bch_fs *c, struct bkey_s_c k,
 		unsigned replicas = bkey_s_c_to_reservation(k).v->nr_replicas;
 
 		sectors *= replicas;
-		replicas = clamp_t(unsigned, replicas,
-				   1, ARRAY_SIZE(fs_usage->replicas));
+		replicas = clamp_t(unsigned, replicas, 1,
+				   ARRAY_SIZE(fs_usage->persistent_reserved));
 
-		fs_usage->s.reserved					+= sectors;
-		fs_usage->replicas[replicas - 1].persistent_reserved	+= sectors;
+		fs_usage->s.reserved				+= sectors;
+		fs_usage->persistent_reserved[replicas - 1]	+= sectors;
 		break;
 	}
 	default:
@@ -839,20 +884,24 @@ void bch2_mark_update(struct btree_insert *trans,
 	struct btree_iter	*iter = insert->iter;
 	struct btree		*b = iter->l[0].b;
 	struct btree_node_iter	node_iter = iter->l[0].iter;
-	struct bch_fs_usage	fs_usage = { 0 };
+	struct bch_fs_usage	*fs_usage;
 	struct gc_pos		pos = gc_pos_btree_node(b);
 	struct bkey_packed	*_k;
+	u64 disk_res_sectors = trans->disk_res ? trans->disk_res->sectors : 0;
+	static int warned_disk_usage = 0;
 
 	if (!btree_node_type_needs_gc(iter->btree_id))
 		return;
 
 	percpu_down_read(&c->mark_lock);
+	preempt_disable();
+	fs_usage = bch2_fs_usage_get_scratch(c);
 
 	if (!(trans->flags & BTREE_INSERT_JOURNAL_REPLAY))
 		bch2_mark_key_locked(c, bkey_i_to_s_c(insert->k), true,
 			bpos_min(insert->k->k.p, b->key.k.p).offset -
 			bkey_start_offset(&insert->k->k),
-			pos, &fs_usage, trans->journal_res.seq, 0);
+			pos, fs_usage, trans->journal_res.seq, 0);
 
 	while ((_k = bch2_btree_node_iter_peek_filter(&node_iter, b,
 						      KEY_TYPE_discard))) {
@@ -885,7 +934,7 @@ void bch2_mark_update(struct btree_insert *trans,
 				BUG_ON(sectors <= 0);
 
 				bch2_mark_key_locked(c, k, true, sectors,
-					pos, &fs_usage, trans->journal_res.seq, 0);
+					pos, fs_usage, trans->journal_res.seq, 0);
 
 				sectors = bkey_start_offset(&insert->k->k) -
 					k.k->p.offset;
@@ -896,13 +945,44 @@ void bch2_mark_update(struct btree_insert *trans,
 		}
 
 		bch2_mark_key_locked(c, k, false, sectors,
-			pos, &fs_usage, trans->journal_res.seq, 0);
+			pos, fs_usage, trans->journal_res.seq, 0);
 
 		bch2_btree_node_iter_advance(&node_iter, b);
 	}
 
-	bch2_fs_usage_apply(c, &fs_usage, trans->disk_res, pos);
+	if (bch2_fs_usage_apply(c, fs_usage, trans->disk_res, pos) &&
+	    !warned_disk_usage &&
+	    !xchg(&warned_disk_usage, 1)) {
+		char buf[200];
 
+		pr_err("disk usage increased more than %llu sectors reserved", disk_res_sectors);
+
+		pr_err("while inserting");
+		bch2_bkey_val_to_text(&PBUF(buf), c, bkey_i_to_s_c(insert->k));
+		pr_err("%s", buf);
+		pr_err("overlapping with");
+
+		node_iter = iter->l[0].iter;
+		while ((_k = bch2_btree_node_iter_peek_filter(&node_iter, b,
+							      KEY_TYPE_discard))) {
+			struct bkey		unpacked;
+			struct bkey_s_c		k;
+
+			k = bkey_disassemble(b, _k, &unpacked);
+
+			if (btree_node_is_extents(b)
+			    ? bkey_cmp(insert->k->k.p, bkey_start_pos(k.k)) <= 0
+			    : bkey_cmp(insert->k->k.p, k.k->p))
+				break;
+
+			bch2_bkey_val_to_text(&PBUF(buf), c, k);
+			pr_err("%s", buf);
+
+			bch2_btree_node_iter_advance(&node_iter, b);
+		}
+	}
+
+	preempt_enable();
 	percpu_up_read(&c->mark_lock);
 }
 

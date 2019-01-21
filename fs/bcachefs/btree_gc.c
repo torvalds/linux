@@ -478,33 +478,12 @@ static void bch2_gc_free(struct bch_fs *c)
 		ca->usage[1] = NULL;
 	}
 
+	percpu_down_write(&c->mark_lock);
+
 	free_percpu(c->usage[1]);
 	c->usage[1] = NULL;
-}
 
-/*
- * Accumulate percpu counters onto one cpu's copy - only valid when access
- * against any percpu counter is guarded against
- */
-static u64 *acc_percpu_u64s(u64 __percpu *p, unsigned nr)
-{
-	u64 *ret;
-	int cpu;
-
-	preempt_disable();
-	ret = this_cpu_ptr(p);
-	preempt_enable();
-
-	for_each_possible_cpu(cpu) {
-		u64 *i = per_cpu_ptr(p, cpu);
-
-		if (i != ret) {
-			acc_u64s(ret, i, nr);
-			memset(i, 0, nr * sizeof(u64));
-		}
-	}
-
-	return ret;
+	percpu_up_write(&c->mark_lock);
 }
 
 static void bch2_gc_done_nocheck(struct bch_fs *c)
@@ -542,24 +521,25 @@ static void bch2_gc_done_nocheck(struct bch_fs *c)
 	for_each_member_device(ca, c, i) {
 		unsigned nr = sizeof(struct bch_dev_usage) / sizeof(u64);
 		struct bch_dev_usage *dst = (void *)
-			acc_percpu_u64s((void *) ca->usage[0], nr);
+			bch2_acc_percpu_u64s((void *) ca->usage[0], nr);
 		struct bch_dev_usage *src = (void *)
-			acc_percpu_u64s((void *) ca->usage[1], nr);
+			bch2_acc_percpu_u64s((void *) ca->usage[1], nr);
 
 		*dst = *src;
 	}
 
 	{
-		unsigned nr = sizeof(struct bch_fs_usage) / sizeof(u64);
+		unsigned nr = sizeof(struct bch_fs_usage) / sizeof(u64) +
+			c->replicas.nr;
 		struct bch_fs_usage *dst = (void *)
-			acc_percpu_u64s((void *) c->usage[0], nr);
+			bch2_acc_percpu_u64s((void *) c->usage[0], nr);
 		struct bch_fs_usage *src = (void *)
-			acc_percpu_u64s((void *) c->usage[1], nr);
+			bch2_acc_percpu_u64s((void *) c->usage[1], nr);
 		unsigned offset = offsetof(typeof(*dst), s.gc_start);
 
 		memcpy((void *) dst + offset,
 		       (void *) src + offset,
-		       sizeof(*dst) - offset);
+		       nr * sizeof(u64) - offset);
 	}
 }
 
@@ -655,9 +635,9 @@ static void bch2_gc_done(struct bch_fs *c, bool initial)
 	for_each_member_device(ca, c, i) {
 		unsigned nr = sizeof(struct bch_dev_usage) / sizeof(u64);
 		struct bch_dev_usage *dst = (void *)
-			acc_percpu_u64s((void *) ca->usage[0], nr);
+			bch2_acc_percpu_u64s((void *) ca->usage[0], nr);
 		struct bch_dev_usage *src = (void *)
-			acc_percpu_u64s((void *) ca->usage[1], nr);
+			bch2_acc_percpu_u64s((void *) ca->usage[1], nr);
 		unsigned b;
 
 		for (b = 0; b < BCH_DATA_NR; b++)
@@ -674,12 +654,12 @@ static void bch2_gc_done(struct bch_fs *c, bool initial)
 	}
 
 	{
-		unsigned nr = sizeof(struct bch_fs_usage) / sizeof(u64);
+		unsigned nr = sizeof(struct bch_fs_usage) / sizeof(u64) +
+			c->replicas.nr;
 		struct bch_fs_usage *dst = (void *)
-			acc_percpu_u64s((void *) c->usage[0], nr);
+			bch2_acc_percpu_u64s((void *) c->usage[0], nr);
 		struct bch_fs_usage *src = (void *)
-			acc_percpu_u64s((void *) c->usage[1], nr);
-		unsigned r, b;
+			bch2_acc_percpu_u64s((void *) c->usage[1], nr);
 
 		copy_fs_field(s.hidden,		"hidden");
 		copy_fs_field(s.data,		"data");
@@ -687,20 +667,16 @@ static void bch2_gc_done(struct bch_fs *c, bool initial)
 		copy_fs_field(s.reserved,	"reserved");
 		copy_fs_field(s.nr_inodes,	"nr_inodes");
 
-		for (r = 0; r < BCH_REPLICAS_MAX; r++) {
-			for (b = 0; b < BCH_DATA_NR; b++)
-				copy_fs_field(replicas[r].data[b],
-					      "replicas[%i].data[%s]",
-					      r, bch2_data_types[b]);
-			copy_fs_field(replicas[r].ec_data,
-				      "replicas[%i].ec_data", r);
-			copy_fs_field(replicas[r].persistent_reserved,
-				      "replicas[%i].persistent_reserved", r);
-		}
+		for (i = 0; i < BCH_REPLICAS_MAX; i++)
+			copy_fs_field(persistent_reserved[i],
+				      "persistent_reserved[%i]", i);
 
-		for (b = 0; b < BCH_DATA_NR; b++)
-			copy_fs_field(buckets[b],
-				      "buckets[%s]", bch2_data_types[b]);
+		for (i = 0; i < c->replicas.nr; i++) {
+			/*
+			 * XXX: print out replicas entry
+			 */
+			copy_fs_field(data[i], "data[%i]", i);
+		}
 	}
 out:
 	percpu_up_write(&c->mark_lock);
@@ -723,9 +699,15 @@ static int bch2_gc_start(struct bch_fs *c)
 	 */
 	gc_pos_set(c, gc_phase(GC_PHASE_START));
 
+	percpu_down_write(&c->mark_lock);
 	BUG_ON(c->usage[1]);
 
-	c->usage[1] = alloc_percpu(struct bch_fs_usage);
+	c->usage[1] = __alloc_percpu_gfp(sizeof(struct bch_fs_usage) +
+					 sizeof(u64) * c->replicas.nr,
+					 sizeof(u64),
+					 GFP_KERNEL);
+	percpu_up_write(&c->mark_lock);
+
 	if (!c->usage[1])
 		return -ENOMEM;
 

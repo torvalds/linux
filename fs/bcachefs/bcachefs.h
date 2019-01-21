@@ -624,9 +624,10 @@ struct bch_fs {
 
 	struct bch_fs_pcpu __percpu	*pcpu;
 
-	struct bch_fs_usage __percpu	*usage[2];
-
 	struct percpu_rw_semaphore	mark_lock;
+
+	struct bch_fs_usage __percpu	*usage[2];
+	struct bch_fs_usage __percpu	*usage_scratch;
 
 	/*
 	 * When we invalidate buckets, we use both the priority and the amount

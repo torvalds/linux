@@ -1669,12 +1669,13 @@ static bool bch2_extent_merge_inline(struct bch_fs *c,
 	return ret == BCH_MERGE_MERGE;
 }
 
-int bch2_check_range_allocated(struct bch_fs *c, struct bpos pos, u64 size)
+bool bch2_check_range_allocated(struct bch_fs *c, struct bpos pos, u64 size,
+			       unsigned nr_replicas)
 {
 	struct btree_iter iter;
 	struct bpos end = pos;
 	struct bkey_s_c k;
-	int ret = 0;
+	bool ret = true;
 
 	end.offset += size;
 
@@ -1683,12 +1684,35 @@ int bch2_check_range_allocated(struct bch_fs *c, struct bpos pos, u64 size)
 		if (bkey_cmp(bkey_start_pos(k.k), end) >= 0)
 			break;
 
-		if (!bch2_extent_is_fully_allocated(k)) {
-			ret = -ENOSPC;
+		if (nr_replicas > bch2_bkey_nr_ptrs_allocated(k)) {
+			ret = false;
 			break;
 		}
 	}
 	bch2_btree_iter_unlock(&iter);
+
+	return ret;
+}
+
+unsigned bch2_bkey_nr_ptrs_allocated(struct bkey_s_c k)
+{
+	unsigned ret = 0;
+
+	switch (k.k->type) {
+	case KEY_TYPE_extent: {
+		struct bkey_s_c_extent e = bkey_s_c_to_extent(k);
+		const union bch_extent_entry *entry;
+		struct extent_ptr_decoded p;
+
+		extent_for_each_ptr_decode(e, p, entry)
+			ret += !p.ptr.cached &&
+				p.crc.compression_type == BCH_COMPRESSION_NONE;
+		break;
+	}
+	case KEY_TYPE_reservation:
+		ret = bkey_s_c_to_reservation(k).v->nr_replicas;
+		break;
+	}
 
 	return ret;
 }

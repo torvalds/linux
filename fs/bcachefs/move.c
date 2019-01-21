@@ -4,6 +4,7 @@
 #include "alloc_foreground.h"
 #include "btree_gc.h"
 #include "btree_update.h"
+#include "btree_update_interior.h"
 #include "buckets.h"
 #include "disk_groups.h"
 #include "inode.h"
@@ -762,6 +763,16 @@ int bch2_data_job(struct bch_fs *c,
 		ret = bch2_journal_flush_device_pins(&c->journal, -1);
 
 		ret = bch2_move_btree(c, rereplicate_pred, c, stats) ?: ret;
+
+		while (1) {
+			closure_wait_event(&c->btree_interior_update_wait,
+					   !bch2_btree_interior_updates_nr_pending(c) ||
+					   c->btree_roots_dirty);
+			if (!bch2_btree_interior_updates_nr_pending(c))
+				break;
+			bch2_journal_meta(&c->journal);
+		}
+
 		ret = bch2_gc_btree_replicas(c) ?: ret;
 
 		ret = bch2_move_data(c, NULL,

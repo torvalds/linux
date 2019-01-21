@@ -6,6 +6,11 @@
 
 #define EC_STRIPE_MAX	16
 
+struct bch_replicas_padded {
+	struct bch_replicas_entry	e;
+	u8				pad[EC_STRIPE_MAX];
+};
+
 struct stripe {
 	size_t			heap_idx;
 
@@ -18,6 +23,8 @@ struct stripe {
 	u8			alive;
 	atomic_t		blocks_nonempty;
 	atomic_t		block_sectors[EC_STRIPE_MAX];
+
+	struct bch_replicas_padded r;
 };
 
 struct ec_stripe_heap_entry {

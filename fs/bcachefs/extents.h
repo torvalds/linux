@@ -572,6 +572,7 @@ static inline void extent_save(struct btree *b, struct bkey_packed *dst,
 		BUG_ON(!bch2_bkey_pack_key(dst, src, f));
 }
 
-int bch2_check_range_allocated(struct bch_fs *, struct bpos, u64);
+bool bch2_check_range_allocated(struct bch_fs *, struct bpos, u64, unsigned);
+unsigned bch2_bkey_nr_ptrs_allocated(struct bkey_s_c);
 
 #endif /* _BCACHEFS_EXTENTS_H */

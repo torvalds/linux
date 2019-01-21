@@ -2,17 +2,42 @@
 #ifndef _BCACHEFS_REPLICAS_H
 #define _BCACHEFS_REPLICAS_H
 
+#include "eytzinger.h"
 #include "replicas_types.h"
 
-bool bch2_replicas_marked(struct bch_fs *, enum bch_data_type,
-			  struct bch_devs_list, bool);
+void bch2_replicas_entry_to_text(struct printbuf *,
+				 struct bch_replicas_entry *);
+void bch2_cpu_replicas_to_text(struct printbuf *, struct bch_replicas_cpu *);
+
+static inline struct bch_replicas_entry *
+cpu_replicas_entry(struct bch_replicas_cpu *r, unsigned i)
+{
+	return (void *) r->entries + r->entry_size * i;
+}
+
+int bch2_replicas_entry_idx(struct bch_fs *,
+			    struct bch_replicas_entry *);
+
+void bch2_devlist_to_replicas(struct bch_replicas_entry *,
+			      enum bch_data_type,
+			      struct bch_devs_list);
+bool bch2_replicas_marked(struct bch_fs *,
+			  struct bch_replicas_entry *, bool);
+int bch2_mark_replicas(struct bch_fs *,
+		       struct bch_replicas_entry *);
+
 bool bch2_bkey_replicas_marked(struct bch_fs *,
 			       struct bkey_s_c, bool);
-int bch2_mark_replicas(struct bch_fs *, enum bch_data_type,
-		       struct bch_devs_list);
 int bch2_mark_bkey_replicas(struct bch_fs *, struct bkey_s_c);
 
-void bch2_cpu_replicas_to_text(struct printbuf *, struct bch_replicas_cpu *);
+static inline void bch2_replicas_entry_cached(struct bch_replicas_entry *e,
+					      unsigned dev)
+{
+	e->data_type	= BCH_DATA_CACHED;
+	e->nr_devs	= 1;
+	e->nr_required	= 1;
+	e->devs[0]	= dev;
+}
 
 struct replicas_status {
 	struct {

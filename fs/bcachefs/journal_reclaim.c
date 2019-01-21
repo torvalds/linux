@@ -388,7 +388,6 @@ int bch2_journal_flush_device_pins(struct journal *j, int dev_idx)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	struct journal_entry_pin_list *p;
-	struct bch_devs_list devs;
 	u64 iter, seq = 0;
 	int ret = 0;
 
@@ -413,12 +412,15 @@ int bch2_journal_flush_device_pins(struct journal *j, int dev_idx)
 
 	spin_lock(&j->lock);
 	while (!ret && seq < j->pin.back) {
+		struct bch_replicas_padded replicas;
+
 		seq = max(seq, journal_last_seq(j));
-		devs = journal_seq_pin(j, seq)->devs;
+		bch2_devlist_to_replicas(&replicas.e, BCH_DATA_JOURNAL,
+					 journal_seq_pin(j, seq)->devs);
 		seq++;
 
 		spin_unlock(&j->lock);
-		ret = bch2_mark_replicas(c, BCH_DATA_JOURNAL, devs);
+		ret = bch2_mark_replicas(c, &replicas.e);
 		spin_lock(&j->lock);
 	}
 	spin_unlock(&j->lock);

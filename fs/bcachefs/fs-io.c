@@ -253,7 +253,9 @@ static s64 sum_sector_overwrites(struct bkey_i *new, struct btree_iter *_iter,
 		BUG_ON(btree_iter_err(old));
 
 		if (allocating &&
-		    !bch2_extent_is_fully_allocated(old))
+		    !*allocating &&
+		    bch2_bkey_nr_ptrs_allocated(old) <
+		    bch2_bkey_nr_dirty_ptrs(bkey_i_to_s_c(new)))
 			*allocating = true;
 
 		delta += (min(new->k.p.offset,
@@ -812,9 +814,7 @@ static void bch2_add_page_sectors(struct bio *bio, struct bkey_s_c k)
 {
 	struct bvec_iter iter;
 	struct bio_vec bv;
-	unsigned nr_ptrs = !bch2_extent_is_compressed(k)
-		? bch2_bkey_nr_dirty_ptrs(k)
-		: 0;
+	unsigned nr_ptrs = bch2_bkey_nr_ptrs_allocated(k);
 
 	bio_for_each_segment(bv, bio, iter) {
 		/* brand new pages, don't need to be locked: */
@@ -1930,18 +1930,19 @@ ssize_t bch2_direct_write(struct kiocb *req, struct iov_iter *iter)
 	if (unlikely(ret))
 		goto err;
 
+	dio->iop.op.nr_replicas	= dio->iop.op.opts.data_replicas;
+
 	ret = bch2_disk_reservation_get(c, &dio->iop.op.res, iter->count >> 9,
 					dio->iop.op.opts.data_replicas, 0);
 	if (unlikely(ret)) {
-		if (bch2_check_range_allocated(c, POS(inode->v.i_ino,
-						      req->ki_pos >> 9),
-					       iter->count >> 9))
+		if (!bch2_check_range_allocated(c, POS(inode->v.i_ino,
+						       req->ki_pos >> 9),
+						iter->count >> 9,
+						dio->iop.op.opts.data_replicas))
 			goto err;
 
 		dio->iop.unalloc = true;
 	}
-
-	dio->iop.op.nr_replicas	= dio->iop.op.res.nr_replicas;
 
 	return bch2_dio_write_loop(dio);
 err:

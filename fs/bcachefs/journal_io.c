@@ -694,6 +694,11 @@ int bch2_journal_read(struct bch_fs *c, struct list_head *list)
 	}
 
 	list_for_each_entry(i, list, list) {
+		struct bch_replicas_padded replicas;
+		char buf[80];
+
+		bch2_devlist_to_replicas(&replicas.e, BCH_DATA_JOURNAL, i->devs);
+
 		ret = jset_validate_entries(c, &i->j, READ);
 		if (ret)
 			goto fsck_err;
@@ -705,11 +710,11 @@ int bch2_journal_read(struct bch_fs *c, struct list_head *list)
 
 		if (!degraded &&
 		    (test_bit(BCH_FS_REBUILD_REPLICAS, &c->flags) ||
-		     fsck_err_on(!bch2_replicas_marked(c, BCH_DATA_JOURNAL,
-						       i->devs, false), c,
-				 "superblock not marked as containing replicas (type %u)",
-				 BCH_DATA_JOURNAL))) {
-			ret = bch2_mark_replicas(c, BCH_DATA_JOURNAL, i->devs);
+		     fsck_err_on(!bch2_replicas_marked(c, &replicas.e, false), c,
+				 "superblock not marked as containing replicas %s",
+				 (bch2_replicas_entry_to_text(&PBUF(buf),
+							      &replicas.e), buf)))) {
+			ret = bch2_mark_replicas(c, &replicas.e);
 			if (ret)
 				return ret;
 		}
@@ -1108,6 +1113,7 @@ static void journal_write_done(struct closure *cl)
 	struct journal_buf *w = journal_prev_buf(j);
 	struct bch_devs_list devs =
 		bch2_bkey_devs(bkey_i_to_s_c(&w->key));
+	struct bch_replicas_padded replicas;
 	u64 seq = le64_to_cpu(w->data->seq);
 	u64 last_seq = le64_to_cpu(w->data->last_seq);
 
@@ -1118,7 +1124,9 @@ static void journal_write_done(struct closure *cl)
 		goto err;
 	}
 
-	if (bch2_mark_replicas(c, BCH_DATA_JOURNAL, devs))
+	bch2_devlist_to_replicas(&replicas.e, BCH_DATA_JOURNAL, devs);
+
+	if (bch2_mark_replicas(c, &replicas.e))
 		goto err;
 
 	spin_lock(&j->lock);

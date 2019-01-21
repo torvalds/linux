@@ -218,7 +218,18 @@ static inline u64 dev_buckets_free(struct bch_fs *c, struct bch_dev *ca)
 
 /* Filesystem usage: */
 
-struct bch_fs_usage bch2_fs_usage_read(struct bch_fs *);
+static inline struct bch_fs_usage *bch2_fs_usage_get_scratch(struct bch_fs *c)
+{
+	struct bch_fs_usage *ret;
+
+	ret = this_cpu_ptr(c->usage_scratch);
+
+	memset(ret, 0, sizeof(*ret) + c->replicas.nr * sizeof(u64));
+
+	return ret;
+}
+
+struct bch_fs_usage *bch2_fs_usage_read(struct bch_fs *);
 
 u64 bch2_fs_sectors_used(struct bch_fs *, struct bch_fs_usage);
 
@@ -254,8 +265,8 @@ int bch2_mark_key(struct bch_fs *, struct bkey_s_c,
 		  bool, s64, struct gc_pos,
 		  struct bch_fs_usage *, u64, unsigned);
 void bch2_mark_update(struct btree_insert *, struct btree_insert_entry *);
-void bch2_fs_usage_apply(struct bch_fs *, struct bch_fs_usage *,
-			 struct disk_reservation *, struct gc_pos);
+int bch2_fs_usage_apply(struct bch_fs *, struct bch_fs_usage *,
+			struct disk_reservation *, struct gc_pos);
 
 /* disk reservations: */
 
