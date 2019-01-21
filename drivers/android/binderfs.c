@@ -400,8 +400,6 @@ static int binderfs_binder_ctl_create(struct super_block *sb)
 	if (!device)
 		return -ENOMEM;
 
-	inode_lock(d_inode(root));
-
 	/* If we have already created a binder-control node, return. */
 	if (info->control_dentry) {
 		ret = 0;
@@ -440,12 +438,10 @@ static int binderfs_binder_ctl_create(struct super_block *sb)
 	inode->i_private = device;
 	info->control_dentry = dentry;
 	d_add(dentry, inode);
-	inode_unlock(d_inode(root));
 
 	return 0;
 
 out:
-	inode_unlock(d_inode(root));
 	kfree(device);
 	iput(inode);
 
