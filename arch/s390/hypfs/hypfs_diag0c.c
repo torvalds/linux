@@ -124,7 +124,8 @@ int __init hypfs_diag0c_init(void)
 {
 	if (!MACHINE_IS_VM)
 		return 0;
-	return hypfs_dbfs_create_file(&dbfs_file_0c);
+	hypfs_dbfs_create_file(&dbfs_file_0c);
+	return 0;
 }
 
 /*
