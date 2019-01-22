@@ -299,7 +299,7 @@ static void free_per_mm(struct rcu_head *rcu)
 	kfree(container_of(rcu, struct ib_ucontext_per_mm, rcu));
 }
 
-void put_per_mm(struct ib_umem_odp *umem_odp)
+static void put_per_mm(struct ib_umem_odp *umem_odp)
 {
 	struct ib_ucontext_per_mm *per_mm = umem_odp->per_mm;
 	struct ib_ucontext *ctx = umem_odp->umem.context;
