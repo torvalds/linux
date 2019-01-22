@@ -16,6 +16,9 @@
 
 #define HCLGE_MAX_PF_NUM		8
 
+#define HCLGE_RD_FIRST_STATS_NUM        2
+#define HCLGE_RD_OTHER_STATS_NUM        4
+
 #define HCLGE_INVALID_VPORT 0xffff
 
 #define HCLGE_PF_CFG_BLOCK_SIZE		32
@@ -415,6 +418,10 @@ struct hclge_mac_stats {
 	u64 mac_rx_fcs_err_pkt_num;
 	u64 mac_rx_send_app_good_pkt_num;
 	u64 mac_rx_send_app_bad_pkt_num;
+	u64 mac_tx_pfc_pause_pkt_num;
+	u64 mac_rx_pfc_pause_pkt_num;
+	u64 mac_tx_ctrl_pkt_num;
+	u64 mac_rx_ctrl_pkt_num;
 };
 
 #define HCLGE_STATS_TIMER_INTERVAL	(60 * 5)
