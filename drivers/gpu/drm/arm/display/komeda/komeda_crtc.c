@@ -94,9 +94,61 @@ komeda_crtc_atomic_flush(struct drm_crtc *crtc,
 	komeda_crtc_do_flush(crtc, old);
 }
 
+static enum drm_mode_status
+komeda_crtc_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *m)
+{
+	struct komeda_dev *mdev = crtc->dev->dev_private;
+	struct komeda_crtc *kcrtc = to_kcrtc(crtc);
+	struct komeda_pipeline *master = kcrtc->master;
+	long mode_clk, pxlclk;
+
+	if (m->flags & DRM_MODE_FLAG_INTERLACE)
+		return MODE_NO_INTERLACE;
+
+	/* main clock/AXI clk must be faster than pxlclk*/
+	mode_clk = m->clock * 1000;
+	pxlclk = clk_round_rate(master->pxlclk, mode_clk);
+	if (pxlclk != mode_clk) {
+		DRM_DEBUG_ATOMIC("pxlclk doesn't support %ld Hz\n", mode_clk);
+
+		return MODE_NOCLOCK;
+	}
+
+	if (clk_round_rate(mdev->mclk, mode_clk) < pxlclk) {
+		DRM_DEBUG_ATOMIC("mclk can't satisfy the requirement of %s-clk: %ld.\n",
+				 m->name, pxlclk);
+
+		return MODE_CLOCK_HIGH;
+	}
+
+	if (clk_round_rate(master->aclk, mode_clk) < pxlclk) {
+		DRM_DEBUG_ATOMIC("aclk can't satisfy the requirement of %s-clk: %ld.\n",
+				 m->name, pxlclk);
+
+		return MODE_CLOCK_HIGH;
+	}
+
+	return MODE_OK;
+}
+
+static bool komeda_crtc_mode_fixup(struct drm_crtc *crtc,
+				   const struct drm_display_mode *m,
+				   struct drm_display_mode *adjusted_mode)
+{
+	struct komeda_crtc *kcrtc = to_kcrtc(crtc);
+	struct komeda_pipeline *master = kcrtc->master;
+	long mode_clk = m->clock * 1000;
+
+	adjusted_mode->clock = clk_round_rate(master->pxlclk, mode_clk) / 1000;
+
+	return true;
+}
+
 struct drm_crtc_helper_funcs komeda_crtc_helper_funcs = {
 	.atomic_check	= komeda_crtc_atomic_check,
 	.atomic_flush	= komeda_crtc_atomic_flush,
+	.mode_valid	= komeda_crtc_mode_valid,
+	.mode_fixup	= komeda_crtc_mode_fixup,
 };
 
 static const struct drm_crtc_funcs komeda_crtc_funcs = {
