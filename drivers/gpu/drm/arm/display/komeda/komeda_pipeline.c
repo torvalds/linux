@@ -275,3 +275,23 @@ int komeda_assemble_pipelines(struct komeda_dev *mdev)
 
 	return 0;
 }
+
+void komeda_pipeline_dump_register(struct komeda_pipeline *pipe,
+				   struct seq_file *sf)
+{
+	struct komeda_component *c;
+	u32 id;
+
+	seq_printf(sf, "\n======== Pipeline-%d ==========\n", pipe->id);
+
+	if (pipe->funcs && pipe->funcs->dump_register)
+		pipe->funcs->dump_register(pipe, sf);
+
+	dp_for_each_set_bit(id, pipe->avail_comps) {
+		c = komeda_pipeline_get_component(pipe, id);
+
+		seq_printf(sf, "\n------%s------\n", c->name);
+		if (c->funcs->dump_register)
+			c->funcs->dump_register(c, sf);
+	}
+}

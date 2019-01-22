@@ -8,10 +8,54 @@
 #include <linux/of_device.h>
 #include <linux/of_graph.h>
 #include <linux/platform_device.h>
+#ifdef CONFIG_DEBUG_FS
+#include <linux/debugfs.h>
+#include <linux/seq_file.h>
+#endif
 
 #include <drm/drm_print.h>
 
 #include "komeda_dev.h"
+
+static int komeda_register_show(struct seq_file *sf, void *x)
+{
+	struct komeda_dev *mdev = sf->private;
+	int i;
+
+	if (mdev->funcs->dump_register)
+		mdev->funcs->dump_register(mdev, sf);
+
+	for (i = 0; i < mdev->n_pipelines; i++)
+		komeda_pipeline_dump_register(mdev->pipelines[i], sf);
+
+	return 0;
+}
+
+static int komeda_register_open(struct inode *inode, struct file *filp)
+{
+	return single_open(filp, komeda_register_show, inode->i_private);
+}
+
+static const struct file_operations komeda_register_fops = {
+	.owner		= THIS_MODULE,
+	.open		= komeda_register_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static void komeda_debugfs_init(struct komeda_dev *mdev)
+{
+	if (!debugfs_initialized())
+		return;
+
+	mdev->debugfs_root = debugfs_create_dir("komeda", NULL);
+	if (IS_ERR_OR_NULL(mdev->debugfs_root))
+		return;
+
+	debugfs_create_file("register", 0444, mdev->debugfs_root,
+			    mdev, &komeda_register_fops);
+}
 
 static int komeda_parse_pipe_dt(struct komeda_dev *mdev, struct device_node *np)
 {
@@ -159,6 +203,10 @@ struct komeda_dev *komeda_dev_create(struct device *dev)
 		goto err_cleanup;
 	}
 
+#ifdef CONFIG_DEBUG_FS
+	komeda_debugfs_init(mdev);
+#endif
+
 	return mdev;
 
 err_cleanup:
@@ -171,6 +219,10 @@ void komeda_dev_destroy(struct komeda_dev *mdev)
 	struct device *dev = mdev->dev;
 	struct komeda_dev_funcs *funcs = mdev->funcs;
 	int i;
+
+#ifdef CONFIG_DEBUG_FS
+	debugfs_remove_recursive(mdev->debugfs_root);
+#endif
 
 	for (i = 0; i < mdev->n_pipelines; i++) {
 		komeda_pipeline_destroy(mdev, mdev->pipelines[i]);

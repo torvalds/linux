@@ -367,6 +367,9 @@ int komeda_assemble_pipelines(struct komeda_dev *mdev);
 struct komeda_component *
 komeda_pipeline_get_component(struct komeda_pipeline *pipe, int id);
 
+void komeda_pipeline_dump_register(struct komeda_pipeline *pipe,
+				   struct seq_file *sf);
+
 /* component APIs */
 struct komeda_component *
 komeda_component_add(struct komeda_pipeline *pipe,

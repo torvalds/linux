@@ -103,6 +103,9 @@ struct komeda_dev_funcs {
 	int (*enable_irq)(struct komeda_dev *mdev);
 	/** @disable_irq: disable irq */
 	int (*disable_irq)(struct komeda_dev *mdev);
+
+	/** @dump_register: Optional, dump registers to seq_file */
+	void (*dump_register)(struct komeda_dev *mdev, struct seq_file *seq);
 };
 
 /**
@@ -139,6 +142,8 @@ struct komeda_dev {
 	 * destroyed by &komeda_dev_funcs.cleanup()
 	 */
 	void *chip_data;
+
+	struct dentry *debugfs_root;
 };
 
 static inline bool

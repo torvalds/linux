@@ -71,6 +71,42 @@ static u32 get_valid_inputs(struct block_header *blk)
 	return valid_inputs;
 }
 
+static void get_values_from_reg(void __iomem *reg, u32 offset,
+				u32 count, u32 *val)
+{
+	u32 i, addr;
+
+	for (i = 0; i < count; i++) {
+		addr = offset + (i << 2);
+		/* 0xA4 is WO register */
+		if (addr != 0xA4)
+			val[i] = malidp_read32(reg, addr);
+		else
+			val[i] = 0xDEADDEAD;
+	}
+}
+
+static void dump_block_header(struct seq_file *sf, void __iomem *reg)
+{
+	struct block_header hdr;
+	u32 i, n_input, n_output;
+
+	d71_read_block_header(reg, &hdr);
+	seq_printf(sf, "BLOCK_INFO:\t\t0x%X\n", hdr.block_info);
+	seq_printf(sf, "PIPELINE_INFO:\t\t0x%X\n", hdr.pipeline_info);
+
+	n_output = PIPELINE_INFO_N_OUTPUTS(hdr.pipeline_info);
+	n_input  = PIPELINE_INFO_N_VALID_INPUTS(hdr.pipeline_info);
+
+	for (i = 0; i < n_input; i++)
+		seq_printf(sf, "VALID_INPUT_ID%u:\t0x%X\n",
+			   i, hdr.input_ids[i]);
+
+	for (i = 0; i < n_output; i++)
+		seq_printf(sf, "OUTPUT_ID%u:\t\t0x%X\n",
+			   i, hdr.output_ids[i]);
+}
+
 static u32 to_rot_ctrl(u32 rot)
 {
 	u32 lr_ctrl = 0;
@@ -143,9 +179,76 @@ static void d71_layer_update(struct komeda_component *c,
 	malidp_write32_mask(reg, BLK_CONTROL, ctrl_mask, ctrl);
 }
 
+static void d71_layer_dump(struct komeda_component *c, struct seq_file *sf)
+{
+	u32 v[15], i;
+	bool rich, rgb2rgb;
+	char *prefix;
+
+	get_values_from_reg(c->reg, LAYER_INFO, 1, &v[14]);
+	if (v[14] & 0x1) {
+		rich = true;
+		prefix = "LR_";
+	} else {
+		rich = false;
+		prefix = "LS_";
+	}
+
+	rgb2rgb = !!(v[14] & L_INFO_CM);
+
+	dump_block_header(sf, c->reg);
+
+	seq_printf(sf, "%sLAYER_INFO:\t\t0x%X\n", prefix, v[14]);
+
+	get_values_from_reg(c->reg, 0xD0, 1, v);
+	seq_printf(sf, "%sCONTROL:\t\t0x%X\n", prefix, v[0]);
+	if (rich) {
+		get_values_from_reg(c->reg, 0xD4, 1, v);
+		seq_printf(sf, "LR_RICH_CONTROL:\t0x%X\n", v[0]);
+	}
+	get_values_from_reg(c->reg, 0xD8, 4, v);
+	seq_printf(sf, "%sFORMAT:\t\t0x%X\n", prefix, v[0]);
+	seq_printf(sf, "%sIT_COEFFTAB:\t\t0x%X\n", prefix, v[1]);
+	seq_printf(sf, "%sIN_SIZE:\t\t0x%X\n", prefix, v[2]);
+	seq_printf(sf, "%sPALPHA:\t\t0x%X\n", prefix, v[3]);
+
+	get_values_from_reg(c->reg, 0x100, 3, v);
+	seq_printf(sf, "%sP0_PTR_LOW:\t\t0x%X\n", prefix, v[0]);
+	seq_printf(sf, "%sP0_PTR_HIGH:\t\t0x%X\n", prefix, v[1]);
+	seq_printf(sf, "%sP0_STRIDE:\t\t0x%X\n", prefix, v[2]);
+
+	get_values_from_reg(c->reg, 0x110, 2, v);
+	seq_printf(sf, "%sP1_PTR_LOW:\t\t0x%X\n", prefix, v[0]);
+	seq_printf(sf, "%sP1_PTR_HIGH:\t\t0x%X\n", prefix, v[1]);
+	if (rich) {
+		get_values_from_reg(c->reg, 0x118, 1, v);
+		seq_printf(sf, "LR_P1_STRIDE:\t\t0x%X\n", v[0]);
+
+		get_values_from_reg(c->reg, 0x120, 2, v);
+		seq_printf(sf, "LR_P2_PTR_LOW:\t\t0x%X\n", v[0]);
+		seq_printf(sf, "LR_P2_PTR_HIGH:\t\t0x%X\n", v[1]);
+
+		get_values_from_reg(c->reg, 0x130, 12, v);
+		for (i = 0; i < 12; i++)
+			seq_printf(sf, "LR_YUV_RGB_COEFF%u:\t0x%X\n", i, v[i]);
+	}
+
+	if (rgb2rgb) {
+		get_values_from_reg(c->reg, LAYER_RGB_RGB_COEFF0, 12, v);
+		for (i = 0; i < 12; i++)
+			seq_printf(sf, "LS_RGB_RGB_COEFF%u:\t0x%X\n", i, v[i]);
+	}
+
+	get_values_from_reg(c->reg, 0x160, 3, v);
+	seq_printf(sf, "%sAD_CONTROL:\t\t0x%X\n", prefix, v[0]);
+	seq_printf(sf, "%sAD_H_CROP:\t\t0x%X\n", prefix, v[1]);
+	seq_printf(sf, "%sAD_V_CROP:\t\t0x%X\n", prefix, v[2]);
+}
+
 static struct komeda_component_funcs d71_layer_funcs = {
 	.update		= d71_layer_update,
 	.disable	= d71_layer_disable,
+	.dump_register	= d71_layer_dump,
 };
 
 static int d71_layer_init(struct d71_dev *d71,
@@ -252,9 +355,46 @@ static void d71_compiz_update(struct komeda_component *c,
 	malidp_write32(reg, BLK_SIZE, HV_SIZE(st->hsize, st->vsize));
 }
 
+static void d71_compiz_dump(struct komeda_component *c, struct seq_file *sf)
+{
+	u32 v[8], i;
+
+	dump_block_header(sf, c->reg);
+
+	get_values_from_reg(c->reg, 0x80, 5, v);
+	for (i = 0; i < 5; i++)
+		seq_printf(sf, "CU_INPUT_ID%u:\t\t0x%X\n", i, v[i]);
+
+	get_values_from_reg(c->reg, 0xA0, 5, v);
+	seq_printf(sf, "CU_IRQ_RAW_STATUS:\t0x%X\n", v[0]);
+	seq_printf(sf, "CU_IRQ_CLEAR:\t\t0x%X\n", v[1]);
+	seq_printf(sf, "CU_IRQ_MASK:\t\t0x%X\n", v[2]);
+	seq_printf(sf, "CU_IRQ_STATUS:\t\t0x%X\n", v[3]);
+	seq_printf(sf, "CU_STATUS:\t\t0x%X\n", v[4]);
+
+	get_values_from_reg(c->reg, 0xD0, 2, v);
+	seq_printf(sf, "CU_CONTROL:\t\t0x%X\n", v[0]);
+	seq_printf(sf, "CU_SIZE:\t\t0x%X\n", v[1]);
+
+	get_values_from_reg(c->reg, 0xDC, 1, v);
+	seq_printf(sf, "CU_BG_COLOR:\t\t0x%X\n", v[0]);
+
+	for (i = 0, v[4] = 0xE0; i < 5; i++, v[4] += 0x10) {
+		get_values_from_reg(c->reg, v[4], 3, v);
+		seq_printf(sf, "CU_INPUT%u_SIZE:\t\t0x%X\n", i, v[0]);
+		seq_printf(sf, "CU_INPUT%u_OFFSET:\t0x%X\n", i, v[1]);
+		seq_printf(sf, "CU_INPUT%u_CONTROL:\t0x%X\n", i, v[2]);
+	}
+
+	get_values_from_reg(c->reg, 0x130, 2, v);
+	seq_printf(sf, "CU_USER_LOW:\t\t0x%X\n", v[0]);
+	seq_printf(sf, "CU_USER_HIGH:\t\t0x%X\n", v[1]);
+}
+
 struct komeda_component_funcs d71_compiz_funcs = {
 	.update		= d71_compiz_update,
 	.disable	= d71_component_disable,
+	.dump_register	= d71_compiz_dump,
 };
 
 static int d71_compiz_init(struct d71_dev *d71,
@@ -300,9 +440,37 @@ static void d71_improc_update(struct komeda_component *c,
 	malidp_write32(reg, BLK_SIZE, HV_SIZE(st->hsize, st->vsize));
 }
 
+static void d71_improc_dump(struct komeda_component *c, struct seq_file *sf)
+{
+	u32 v[12], i;
+
+	dump_block_header(sf, c->reg);
+
+	get_values_from_reg(c->reg, 0x80, 2, v);
+	seq_printf(sf, "IPS_INPUT_ID0:\t\t0x%X\n", v[0]);
+	seq_printf(sf, "IPS_INPUT_ID1:\t\t0x%X\n", v[1]);
+
+	get_values_from_reg(c->reg, 0xC0, 1, v);
+	seq_printf(sf, "IPS_INFO:\t\t0x%X\n", v[0]);
+
+	get_values_from_reg(c->reg, 0xD0, 3, v);
+	seq_printf(sf, "IPS_CONTROL:\t\t0x%X\n", v[0]);
+	seq_printf(sf, "IPS_SIZE:\t\t0x%X\n", v[1]);
+	seq_printf(sf, "IPS_DEPTH:\t\t0x%X\n", v[2]);
+
+	get_values_from_reg(c->reg, 0x130, 12, v);
+	for (i = 0; i < 12; i++)
+		seq_printf(sf, "IPS_RGB_RGB_COEFF%u:\t0x%X\n", i, v[i]);
+
+	get_values_from_reg(c->reg, 0x170, 12, v);
+	for (i = 0; i < 12; i++)
+		seq_printf(sf, "IPS_RGB_YUV_COEFF%u:\t0x%X\n", i, v[i]);
+}
+
 struct komeda_component_funcs d71_improc_funcs = {
 	.update		= d71_improc_update,
 	.disable	= d71_component_disable,
+	.dump_register	= d71_improc_dump,
 };
 
 static int d71_improc_init(struct d71_dev *d71,
@@ -375,9 +543,46 @@ static void d71_timing_ctrlr_update(struct komeda_component *c,
 	malidp_write32(reg, BLK_CONTROL, value);
 }
 
+void d71_timing_ctrlr_dump(struct komeda_component *c, struct seq_file *sf)
+{
+	u32 v[8], i;
+
+	dump_block_header(sf, c->reg);
+
+	get_values_from_reg(c->reg, 0xC0, 1, v);
+	seq_printf(sf, "BS_INFO:\t\t0x%X\n", v[0]);
+
+	get_values_from_reg(c->reg, 0xD0, 8, v);
+	seq_printf(sf, "BS_CONTROL:\t\t0x%X\n", v[0]);
+	seq_printf(sf, "BS_PROG_LINE:\t\t0x%X\n", v[1]);
+	seq_printf(sf, "BS_PREFETCH_LINE:\t0x%X\n", v[2]);
+	seq_printf(sf, "BS_BG_COLOR:\t\t0x%X\n", v[3]);
+	seq_printf(sf, "BS_ACTIVESIZE:\t\t0x%X\n", v[4]);
+	seq_printf(sf, "BS_HINTERVALS:\t\t0x%X\n", v[5]);
+	seq_printf(sf, "BS_VINTERVALS:\t\t0x%X\n", v[6]);
+	seq_printf(sf, "BS_SYNC:\t\t0x%X\n", v[7]);
+
+	get_values_from_reg(c->reg, 0x100, 3, v);
+	seq_printf(sf, "BS_DRIFT_TO:\t\t0x%X\n", v[0]);
+	seq_printf(sf, "BS_FRAME_TO:\t\t0x%X\n", v[1]);
+	seq_printf(sf, "BS_TE_TO:\t\t0x%X\n", v[2]);
+
+	get_values_from_reg(c->reg, 0x110, 3, v);
+	for (i = 0; i < 3; i++)
+		seq_printf(sf, "BS_T%u_INTERVAL:\t\t0x%X\n", i, v[i]);
+
+	get_values_from_reg(c->reg, 0x120, 5, v);
+	for (i = 0; i < 2; i++) {
+		seq_printf(sf, "BS_CRC%u_LOW:\t\t0x%X\n", i, v[i << 1]);
+		seq_printf(sf, "BS_CRC%u_HIGH:\t\t0x%X\n", i, v[(i << 1) + 1]);
+	}
+	seq_printf(sf, "BS_USER:\t\t0x%X\n", v[4]);
+}
+
 struct komeda_component_funcs d71_timing_ctrlr_funcs = {
 	.update		= d71_timing_ctrlr_update,
 	.disable	= d71_timing_ctrlr_disable,
+	.dump_register	= d71_timing_ctrlr_dump,
 };
 
 static int d71_timing_ctrlr_init(struct d71_dev *d71,
