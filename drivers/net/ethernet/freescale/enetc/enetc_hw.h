@@ -13,9 +13,11 @@
 /** SI regs, offset: 0h */
 #define ENETC_SIMR	0
 #define ENETC_SIMR_EN	BIT(31)
+#define ENETC_SIMR_RSSE	BIT(0)
 #define ENETC_SICTR0	0x18
 #define ENETC_SICTR1	0x1c
 #define ENETC_SIPCAPR0	0x20
+#define ENETC_SIPCAPR0_RSS	BIT(8)
 #define ENETC_SIPCAPR1	0x24
 #define ENETC_SITGTGR	0x30
 #define ENETC_SIRBGCR	0x38
@@ -91,6 +93,11 @@ static inline u32 enetc_vsi_set_msize(u32 size)
 #define ENETC_SIMSIRRV(n) (0xB80 + (n) * 0x4)
 
 #define ENETC_SIUEFDCR	0xe28
+
+#define ENETC_SIRFSCAPR	0x1200
+#define ENETC_SIRFSCAPR_GET_NUM_RFS(val) ((val) & 0x7f)
+#define ENETC_SIRSSCAPR	0x1600
+#define ENETC_SIRSSCAPR_GET_NUM_RSS(val) (BIT((val) & 0xf) * 32)
 
 /** SI BDR sub-blocks, n = 0..7 */
 enum enetc_bdr_type {TX, RX};
@@ -172,8 +179,15 @@ enum enetc_bdr_type {TX, RX};
 
 #define ENETC_PTCCBSR0(n)	(0x1110 + (n) * 8) /* n = 0 to 7*/
 #define ENETC_PTCCBSR1(n)	(0x1114 + (n) * 8) /* n = 0 to 7*/
+#define ENETC_RSSHASH_KEY_SIZE	40
+#define ENETC_PRSSK(n)		(0x1410 + (n) * 4) /* n = [0..9] */
 #define ENETC_PSIVLANFMR	0x1700
 #define ENETC_PSIVLANFMR_VS	BIT(0)
+#define ENETC_PRFSMR		0x1800
+#define ENETC_PRFSMR_RFSE	BIT(31)
+#define ENETC_PRFSCAPR		0x1804
+#define ENETC_PRFSCAPR_GET_NUM_RFS(val)	((((val) & 0xf) + 1) * 16)
+#define ENETC_PSIRFSCFGR(n)	(0x1814 + (n) * 4) /* n = SI index */
 #define ENETC_PFPMR		0x1900
 #define ENETC_PFPMR_PMACE	BIT(1)
 #define ENETC_PFPMR_MWLM	BIT(0)
@@ -430,6 +444,35 @@ struct enetc_cbd {
 
 #define ENETC_CBD_FLAGS_SF	BIT(7) /* short format */
 #define ENETC_CBD_STATUS_MASK	0xf
+
+struct enetc_cmd_rfse {
+	u8 smac_h[6];
+	u8 smac_m[6];
+	u8 dmac_h[6];
+	u8 dmac_m[6];
+	u32 sip_h[4];
+	u32 sip_m[4];
+	u32 dip_h[4];
+	u32 dip_m[4];
+	u16 ethtype_h;
+	u16 ethtype_m;
+	u16 ethtype4_h;
+	u16 ethtype4_m;
+	u16 sport_h;
+	u16 sport_m;
+	u16 dport_h;
+	u16 dport_m;
+	u16 vlan_h;
+	u16 vlan_m;
+	u8 proto_h;
+	u8 proto_m;
+	u16 flags;
+	u16 result;
+	u16 mode;
+};
+
+#define ENETC_RFSE_EN	BIT(15)
+#define ENETC_RFSE_MODE_BD	2
 
 static inline void enetc_get_primary_mac_addr(struct enetc_hw *hw, u8 *addr)
 {

@@ -128,6 +128,8 @@ struct enetc_si {
 
 	int num_rx_rings; /* how many rings are available in the SI */
 	int num_tx_rings;
+	int num_fs_entries;
+	int num_rss; /* number of RSS buckets */
 	unsigned short pad;
 };
 
@@ -158,6 +160,11 @@ struct enetc_int_vector {
 	struct enetc_bdr tx_ring[0];
 };
 
+struct enetc_cls_rule {
+	struct ethtool_rx_flow_spec fs;
+	int used;
+};
+
 #define ENETC_MAX_BDR_INT	2 /* fixed to max # of available cpus */
 
 struct enetc_ndev_priv {
@@ -174,6 +181,8 @@ struct enetc_ndev_priv {
 
 	struct enetc_bdr *tx_ring[16];
 	struct enetc_bdr *rx_ring[16];
+
+	struct enetc_cls_rule *cls_rules;
 
 	struct device_node *phy_node;
 	phy_interface_t if_mode;
@@ -205,6 +214,8 @@ int enetc_open(struct net_device *ndev);
 int enetc_close(struct net_device *ndev);
 netdev_tx_t enetc_xmit(struct sk_buff *skb, struct net_device *ndev);
 struct net_device_stats *enetc_get_stats(struct net_device *ndev);
+int enetc_set_features(struct net_device *ndev,
+		       netdev_features_t features);
 /* ethtool */
 void enetc_set_ethtool_ops(struct net_device *ndev);
 
@@ -212,3 +223,8 @@ void enetc_set_ethtool_ops(struct net_device *ndev);
 int enetc_set_mac_flt_entry(struct enetc_si *si, int index,
 			    char *mac_addr, int si_map);
 int enetc_clear_mac_flt_entry(struct enetc_si *si, int index);
+int enetc_set_fs_entry(struct enetc_si *si, struct enetc_cmd_rfse *rfse,
+		       int index);
+void enetc_set_rss_key(struct enetc_hw *hw, const u8 *bytes);
+int enetc_get_rss_table(struct enetc_si *si, u32 *table, int count);
+int enetc_set_rss_table(struct enetc_si *si, const u32 *table, int count);

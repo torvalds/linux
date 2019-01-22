@@ -638,6 +638,7 @@ static int enetc_clean_rx_ring(struct enetc_bdr *rx_ring,
 }
 
 /* Probing and Init */
+#define ENETC_MAX_RFS_SIZE 64
 void enetc_get_si_caps(struct enetc_si *si)
 {
 	struct enetc_hw *hw = &si->hw;
@@ -647,6 +648,17 @@ void enetc_get_si_caps(struct enetc_si *si)
 	val = enetc_rd(hw, ENETC_SICAPR0);
 	si->num_rx_rings = (val >> 16) & 0xff;
 	si->num_tx_rings = val & 0xff;
+
+	val = enetc_rd(hw, ENETC_SIRFSCAPR);
+	si->num_fs_entries = ENETC_SIRFSCAPR_GET_NUM_RFS(val);
+	si->num_fs_entries = min(si->num_fs_entries, ENETC_MAX_RFS_SIZE);
+
+	si->num_rss = 0;
+	val = enetc_rd(hw, ENETC_SIPCAPR0);
+	if (val & ENETC_SIPCAPR0_RSS) {
+		val = enetc_rd(hw, ENETC_SIRSSCAPR);
+		si->num_rss = ENETC_SIRSSCAPR_GET_NUM_RSS(val);
+	}
 }
 
 static int enetc_dma_alloc_bdr(struct enetc_bdr *r, size_t bd_size)
@@ -898,10 +910,31 @@ static void enetc_clear_cbdr(struct enetc_hw *hw)
 	enetc_wr(hw, ENETC_SICBDRMR, 0);
 }
 
+static int enetc_setup_default_rss_table(struct enetc_si *si, int num_groups)
+{
+	int *rss_table;
+	int i;
+
+	rss_table = kmalloc_array(si->num_rss, sizeof(*rss_table), GFP_KERNEL);
+	if (!rss_table)
+		return -ENOMEM;
+
+	/* Set up RSS table defaults */
+	for (i = 0; i < si->num_rss; i++)
+		rss_table[i] = i % num_groups;
+
+	enetc_set_rss_table(si, rss_table, si->num_rss);
+
+	kfree(rss_table);
+
+	return 0;
+}
+
 static int enetc_configure_si(struct enetc_ndev_priv *priv)
 {
 	struct enetc_si *si = priv->si;
 	struct enetc_hw *hw = &si->hw;
+	int err;
 
 	enetc_setup_cbdr(hw, &si->cbd_ring);
 	/* set SI cache attributes */
@@ -910,6 +943,12 @@ static int enetc_configure_si(struct enetc_ndev_priv *priv)
 	enetc_wr(hw, ENETC_SICAR1, ENETC_SICAR_MSI);
 	/* enable SI */
 	enetc_wr(hw, ENETC_SIMR, ENETC_SIMR_EN);
+
+	if (si->num_rss) {
+		err = enetc_setup_default_rss_table(si, priv->num_rx_rings);
+		if (err)
+			return err;
+	}
 
 	return 0;
 }
@@ -943,6 +982,13 @@ int enetc_alloc_si_resources(struct enetc_ndev_priv *priv)
 	if (err)
 		return err;
 
+	priv->cls_rules = kcalloc(si->num_fs_entries, sizeof(*priv->cls_rules),
+				  GFP_KERNEL);
+	if (!priv->cls_rules) {
+		err = -ENOMEM;
+		goto err_alloc_cls;
+	}
+
 	err = enetc_configure_si(priv);
 	if (err)
 		goto err_config_si;
@@ -950,6 +996,8 @@ int enetc_alloc_si_resources(struct enetc_ndev_priv *priv)
 	return 0;
 
 err_config_si:
+	kfree(priv->cls_rules);
+err_alloc_cls:
 	enetc_clear_cbdr(&si->hw);
 	enetc_free_cbdr(priv->dev, &si->cbd_ring);
 
@@ -962,6 +1010,8 @@ void enetc_free_si_resources(struct enetc_ndev_priv *priv)
 
 	enetc_clear_cbdr(&si->hw);
 	enetc_free_cbdr(priv->dev, &si->cbd_ring);
+
+	kfree(priv->cls_rules);
 }
 
 static void enetc_setup_txbdr(struct enetc_hw *hw, struct enetc_bdr *tx_ring)
@@ -1314,6 +1364,33 @@ struct net_device_stats *enetc_get_stats(struct net_device *ndev)
 	stats->tx_bytes = bytes;
 
 	return stats;
+}
+
+static int enetc_set_rss(struct net_device *ndev, int en)
+{
+	struct enetc_ndev_priv *priv = netdev_priv(ndev);
+	struct enetc_hw *hw = &priv->si->hw;
+	u32 reg;
+
+	enetc_wr(hw, ENETC_SIRBGCR, priv->num_rx_rings);
+
+	reg = enetc_rd(hw, ENETC_SIMR);
+	reg &= ~ENETC_SIMR_RSSE;
+	reg |= (en) ? ENETC_SIMR_RSSE : 0;
+	enetc_wr(hw, ENETC_SIMR, reg);
+
+	return 0;
+}
+
+int enetc_set_features(struct net_device *ndev,
+		       netdev_features_t features)
+{
+	netdev_features_t changed = ndev->features ^ features;
+
+	if (changed & NETIF_F_RXHASH)
+		enetc_set_rss(ndev, !!(features & NETIF_F_RXHASH));
+
+	return 0;
 }
 
 int enetc_alloc_msix(struct enetc_ndev_priv *priv)

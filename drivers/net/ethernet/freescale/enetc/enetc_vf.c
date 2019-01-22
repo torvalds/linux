@@ -97,6 +97,12 @@ static int enetc_vf_set_mac_addr(struct net_device *ndev, void *addr)
 	return 0;
 }
 
+static int enetc_vf_set_features(struct net_device *ndev,
+				 netdev_features_t features)
+{
+	return enetc_set_features(ndev, features);
+}
+
 /* Probing/ Init */
 static const struct net_device_ops enetc_ndev_ops = {
 	.ndo_open		= enetc_open,
@@ -104,6 +110,7 @@ static const struct net_device_ops enetc_ndev_ops = {
 	.ndo_start_xmit		= enetc_xmit,
 	.ndo_get_stats		= enetc_get_stats,
 	.ndo_set_mac_address	= enetc_vf_set_mac_addr,
+	.ndo_set_features	= enetc_vf_set_features,
 };
 
 static void enetc_vf_netdev_setup(struct enetc_si *si, struct net_device *ndev,
@@ -130,6 +137,9 @@ static void enetc_vf_netdev_setup(struct enetc_si *si, struct net_device *ndev,
 			 NETIF_F_RXCSUM | NETIF_F_HW_CSUM |
 			 NETIF_F_HW_VLAN_CTAG_TX |
 			 NETIF_F_HW_VLAN_CTAG_RX;
+
+	if (si->num_rss)
+		ndev->hw_features |= NETIF_F_RXHASH;
 
 	if (si->errata & ENETC_ERR_TXCSUM) {
 		ndev->hw_features &= ~NETIF_F_HW_CSUM;

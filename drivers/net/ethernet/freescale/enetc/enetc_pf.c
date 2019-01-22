@@ -435,6 +435,27 @@ static void enetc_port_setup_primary_mac_address(struct enetc_si *si)
 	}
 }
 
+static void enetc_port_assign_rfs_entries(struct enetc_si *si)
+{
+	struct enetc_pf *pf = enetc_si_priv(si);
+	struct enetc_hw *hw = &si->hw;
+	int num_entries, vf_entries, i;
+	u32 val;
+
+	/* split RFS entries between functions */
+	val = enetc_port_rd(hw, ENETC_PRFSCAPR);
+	num_entries = ENETC_PRFSCAPR_GET_NUM_RFS(val);
+	vf_entries = num_entries / (pf->total_vfs + 1);
+
+	for (i = 0; i < pf->total_vfs; i++)
+		enetc_port_wr(hw, ENETC_PSIRFSCFGR(i + 1), vf_entries);
+	enetc_port_wr(hw, ENETC_PSIRFSCFGR(0),
+		      num_entries - vf_entries * pf->total_vfs);
+
+	/* enable RFS on port */
+	enetc_port_wr(hw, ENETC_PRFSMR, ENETC_PRFSMR_RFSE);
+}
+
 static void enetc_port_si_configure(struct enetc_si *si)
 {
 	struct enetc_pf *pf = enetc_si_priv(si);
@@ -523,6 +544,7 @@ static void enetc_configure_port_pmac(struct enetc_hw *hw)
 
 static void enetc_configure_port(struct enetc_pf *pf)
 {
+	u8 hash_key[ENETC_RSSHASH_KEY_SIZE];
 	struct enetc_hw *hw = &pf->si->hw;
 
 	enetc_configure_port_pmac(hw);
@@ -530,6 +552,13 @@ static void enetc_configure_port(struct enetc_pf *pf)
 	enetc_configure_port_mac(hw);
 
 	enetc_port_si_configure(pf->si);
+
+	/* set up hash key */
+	get_random_bytes(hash_key, ENETC_RSSHASH_KEY_SIZE);
+	enetc_set_rss_key(hw, hash_key);
+
+	/* split up RFS entries */
+	enetc_port_assign_rfs_entries(pf->si);
 
 	/* fix-up primary MAC addresses, if not set already */
 	enetc_port_setup_primary_mac_address(pf->si);
@@ -657,7 +686,7 @@ static int enetc_pf_set_features(struct net_device *ndev,
 	if (changed & NETIF_F_LOOPBACK)
 		enetc_set_loopback(ndev, !!(features & NETIF_F_LOOPBACK));
 
-	return 0;
+	return enetc_set_features(ndev, features);
 }
 
 static const struct net_device_ops enetc_ndev_ops = {
@@ -700,6 +729,9 @@ static void enetc_pf_netdev_setup(struct enetc_si *si, struct net_device *ndev,
 			 NETIF_F_HW_VLAN_CTAG_TX |
 			 NETIF_F_HW_VLAN_CTAG_RX |
 			 NETIF_F_HW_VLAN_CTAG_FILTER;
+
+	if (si->num_rss)
+		ndev->hw_features |= NETIF_F_RXHASH;
 
 	if (si->errata & ENETC_ERR_TXCSUM) {
 		ndev->hw_features &= ~NETIF_F_HW_CSUM;
