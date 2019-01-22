@@ -101,7 +101,7 @@ static int menf21bmc_hwmon_get_volt_limits(struct menf21bmc_hwmon *drv_data)
 }
 
 static ssize_t
-show_label(struct device *dev, struct device_attribute *devattr, char *buf)
+label_show(struct device *dev, struct device_attribute *devattr, char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 
@@ -109,7 +109,7 @@ show_label(struct device *dev, struct device_attribute *devattr, char *buf)
 }
 
 static ssize_t
-show_in(struct device *dev, struct device_attribute *devattr, char *buf)
+in_show(struct device *dev, struct device_attribute *devattr, char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct menf21bmc_hwmon *drv_data = menf21bmc_hwmon_update(dev);
@@ -121,7 +121,7 @@ show_in(struct device *dev, struct device_attribute *devattr, char *buf)
 }
 
 static ssize_t
-show_min(struct device *dev, struct device_attribute *devattr, char *buf)
+min_show(struct device *dev, struct device_attribute *devattr, char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct menf21bmc_hwmon *drv_data = dev_get_drvdata(dev);
@@ -130,7 +130,7 @@ show_min(struct device *dev, struct device_attribute *devattr, char *buf)
 }
 
 static ssize_t
-show_max(struct device *dev, struct device_attribute *devattr, char *buf)
+max_show(struct device *dev, struct device_attribute *devattr, char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct menf21bmc_hwmon *drv_data = dev_get_drvdata(dev);
@@ -138,21 +138,26 @@ show_max(struct device *dev, struct device_attribute *devattr, char *buf)
 	return sprintf(buf, "%d\n", drv_data->in_max[attr->index]);
 }
 
-#define create_voltage_sysfs(idx)			\
-static SENSOR_DEVICE_ATTR(in##idx##_input, S_IRUGO,	\
-			show_in, NULL, idx);		\
-static SENSOR_DEVICE_ATTR(in##idx##_min, S_IRUGO,	\
-			show_min, NULL, idx);		\
-static SENSOR_DEVICE_ATTR(in##idx##_max, S_IRUGO,	\
-			show_max, NULL, idx);		\
-static SENSOR_DEVICE_ATTR(in##idx##_label, S_IRUGO,	\
-			show_label, NULL, idx);
-
-create_voltage_sysfs(0);
-create_voltage_sysfs(1);
-create_voltage_sysfs(2);
-create_voltage_sysfs(3);
-create_voltage_sysfs(4);
+static SENSOR_DEVICE_ATTR_RO(in0_input, in, 0);
+static SENSOR_DEVICE_ATTR_RO(in0_min, min, 0);
+static SENSOR_DEVICE_ATTR_RO(in0_max, max, 0);
+static SENSOR_DEVICE_ATTR_RO(in0_label, label, 0);
+static SENSOR_DEVICE_ATTR_RO(in1_input, in, 1);
+static SENSOR_DEVICE_ATTR_RO(in1_min, min, 1);
+static SENSOR_DEVICE_ATTR_RO(in1_max, max, 1);
+static SENSOR_DEVICE_ATTR_RO(in1_label, label, 1);
+static SENSOR_DEVICE_ATTR_RO(in2_input, in, 2);
+static SENSOR_DEVICE_ATTR_RO(in2_min, min, 2);
+static SENSOR_DEVICE_ATTR_RO(in2_max, max, 2);
+static SENSOR_DEVICE_ATTR_RO(in2_label, label, 2);
+static SENSOR_DEVICE_ATTR_RO(in3_input, in, 3);
+static SENSOR_DEVICE_ATTR_RO(in3_min, min, 3);
+static SENSOR_DEVICE_ATTR_RO(in3_max, max, 3);
+static SENSOR_DEVICE_ATTR_RO(in3_label, label, 3);
+static SENSOR_DEVICE_ATTR_RO(in4_input, in, 4);
+static SENSOR_DEVICE_ATTR_RO(in4_min, min, 4);
+static SENSOR_DEVICE_ATTR_RO(in4_max, max, 4);
+static SENSOR_DEVICE_ATTR_RO(in4_label, label, 4);
 
 static struct attribute *menf21bmc_hwmon_attrs[] = {
 	&sensor_dev_attr_in0_input.dev_attr.attr,
