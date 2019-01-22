@@ -455,6 +455,7 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(voltage_vph),
 	POWER_SUPPLY_ATTR(chip_version),
 	POWER_SUPPLY_ATTR(therm_icl_limit),
+	POWER_SUPPLY_ATTR(dc_reset),
 	/* Charge pump properties */
 	POWER_SUPPLY_ATTR(cp_status1),
 	POWER_SUPPLY_ATTR(cp_status2),
