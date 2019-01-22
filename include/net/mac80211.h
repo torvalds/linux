@@ -6210,6 +6210,19 @@ void ieee80211_txq_schedule_end(struct ieee80211_hw *hw, u8 ac)
 	__releases(txq_lock);
 
 /**
+ * ieee80211_schedule_txq - schedule a TXQ for transmission
+ *
+ * @hw: pointer as obtained from ieee80211_alloc_hw()
+ * @txq: pointer obtained from station or virtual interface
+ *
+ * Schedules a TXQ for transmission if it is not already scheduled. Takes a
+ * lock, which means it must *not* be called between
+ * ieee80211_txq_schedule_start() and ieee80211_txq_schedule_end()
+ */
+void ieee80211_schedule_txq(struct ieee80211_hw *hw, struct ieee80211_txq *txq)
+	__acquires(txq_lock) __releases(txq_lock);
+
+/**
  * ieee80211_txq_may_transmit - check whether TXQ is allowed to transmit
  *
  * This function is used to check whether given txq is allowed to transmit by
