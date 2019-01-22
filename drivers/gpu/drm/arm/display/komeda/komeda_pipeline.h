@@ -278,6 +278,22 @@ struct komeda_timing_ctrlr_state {
 	struct komeda_component_state base;
 };
 
+/* Why define A separated structure but not use plane_state directly ?
+ * 1. Komeda supports layer_split which means a plane_state can be split and
+ *    handled by two layers, one layer only handle half of plane image.
+ * 2. Fix up the user properties according to HW's capabilities, like user
+ *    set rotation to R180, but HW only supports REFLECT_X+Y. the rot here is
+ *    after drm_rotation_simplify()
+ */
+struct komeda_data_flow_cfg {
+	struct komeda_component_output input;
+	u16 in_x, in_y, in_w, in_h;
+	u32 out_x, out_y, out_w, out_h;
+	u32 rot;
+	int blending_zorder;
+	u8 pixel_blend_mode, layer_alpha;
+};
+
 /** struct komeda_pipeline_funcs */
 struct komeda_pipeline_funcs {
 	/* dump_register: Optional, dump registers to seq_file */
@@ -381,5 +397,13 @@ komeda_component_add(struct komeda_pipeline *pipe,
 
 void komeda_component_destroy(struct komeda_dev *mdev,
 			      struct komeda_component *c);
+
+struct komeda_plane_state;
+struct komeda_crtc_state;
+
+int komeda_build_layer_data_flow(struct komeda_layer *layer,
+				 struct komeda_plane_state *kplane_st,
+				 struct komeda_crtc_state *kcrtc_st,
+				 struct komeda_data_flow_cfg *dflow);
 
 #endif /* _KOMEDA_PIPELINE_H_*/

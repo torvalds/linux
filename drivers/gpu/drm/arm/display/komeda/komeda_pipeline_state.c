@@ -10,6 +10,7 @@
 #include "komeda_dev.h"
 #include "komeda_kms.h"
 #include "komeda_pipeline.h"
+#include "komeda_framebuffer.h"
 
 static inline bool is_switching_user(void *old, void *new)
 {
@@ -85,6 +86,18 @@ komeda_component_get_state(struct komeda_component *c,
 	return priv_to_comp_st(priv_st);
 }
 
+static struct komeda_component_state *
+komeda_component_get_old_state(struct komeda_component *c,
+			       struct drm_atomic_state *state)
+{
+	struct drm_private_state *priv_st;
+
+	priv_st = drm_atomic_get_old_private_obj_state(state, &c->obj);
+	if (priv_st)
+		return priv_to_comp_st(priv_st);
+	return NULL;
+}
+
 /**
  * komeda_component_get_state_and_set_user()
  *
@@ -110,7 +123,7 @@ komeda_component_get_state(struct komeda_component *c,
  * CRTC. if the pipeline is busy (assigned to another CRTC), even the required
  * component is free, the component still cannot be assigned to the direct user.
  */
-struct komeda_component_state *
+static struct komeda_component_state *
 komeda_component_get_state_and_set_user(struct komeda_component *c,
 					struct drm_atomic_state *state,
 					void *user,
@@ -141,4 +154,255 @@ komeda_component_get_state_and_set_user(struct komeda_component *c,
 		pipe_st->active_comps |= BIT(c->id);
 
 	return st;
+}
+
+static void
+komeda_component_add_input(struct komeda_component_state *state,
+			   struct komeda_component_output *input,
+			   int idx)
+{
+	struct komeda_component *c = state->component;
+
+	WARN_ON((idx < 0 || idx >= c->max_active_inputs));
+
+	/* since the inputs[i] is only valid when it is active. So if a input[i]
+	 * is a newly enabled input which switches from disable to enable, then
+	 * the old inputs[i] is undefined (NOT zeroed), we can not rely on
+	 * memcmp, but directly mark it changed
+	 */
+	if (!has_bit(idx, state->affected_inputs) ||
+	    memcmp(&state->inputs[idx], input, sizeof(*input))) {
+		memcpy(&state->inputs[idx], input, sizeof(*input));
+		state->changed_active_inputs |= BIT(idx);
+	}
+	state->active_inputs |= BIT(idx);
+	state->affected_inputs |= BIT(idx);
+}
+
+static int
+komeda_component_check_input(struct komeda_component_state *state,
+			     struct komeda_component_output *input,
+			     int idx)
+{
+	struct komeda_component *c = state->component;
+
+	if ((idx < 0) || (idx >= c->max_active_inputs)) {
+		DRM_DEBUG_ATOMIC("%s invalid input id: %d.\n", c->name, idx);
+		return -EINVAL;
+	}
+
+	if (has_bit(idx, state->active_inputs)) {
+		DRM_DEBUG_ATOMIC("%s required input_id: %d has been occupied already.\n",
+				 c->name, idx);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static void
+komeda_component_set_output(struct komeda_component_output *output,
+			    struct komeda_component *comp,
+			    u8 output_port)
+{
+	output->component = comp;
+	output->output_port = output_port;
+}
+
+static int
+komeda_component_validate_private(struct komeda_component *c,
+				  struct komeda_component_state *st)
+{
+	int err;
+
+	if (!c->funcs->validate)
+		return 0;
+
+	err = c->funcs->validate(c, st);
+	if (err)
+		DRM_DEBUG_ATOMIC("%s validate private failed.\n", c->name);
+
+	return err;
+}
+
+static int
+komeda_layer_check_cfg(struct komeda_layer *layer,
+		       struct komeda_plane_state *kplane_st,
+		       struct komeda_data_flow_cfg *dflow)
+{
+	if (!in_range(&layer->hsize_in, dflow->in_w)) {
+		DRM_DEBUG_ATOMIC("src_w: %d is out of range.\n", dflow->in_w);
+		return -EINVAL;
+	}
+
+	if (!in_range(&layer->vsize_in, dflow->in_h)) {
+		DRM_DEBUG_ATOMIC("src_h: %d is out of range.\n", dflow->in_h);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int
+komeda_layer_validate(struct komeda_layer *layer,
+		      struct komeda_plane_state *kplane_st,
+		      struct komeda_data_flow_cfg *dflow)
+{
+	struct drm_plane_state *plane_st = &kplane_st->base;
+	struct drm_framebuffer *fb = plane_st->fb;
+	struct komeda_fb *kfb = to_kfb(fb);
+	struct komeda_component_state *c_st;
+	struct komeda_layer_state *st;
+	int i, err;
+
+	err = komeda_layer_check_cfg(layer, kplane_st, dflow);
+	if (err)
+		return err;
+
+	c_st = komeda_component_get_state_and_set_user(&layer->base,
+			plane_st->state, plane_st->plane, plane_st->crtc);
+	if (IS_ERR(c_st))
+		return PTR_ERR(c_st);
+
+	st = to_layer_st(c_st);
+
+	st->rot = dflow->rot;
+	st->hsize = kfb->aligned_w;
+	st->vsize = kfb->aligned_h;
+
+	for (i = 0; i < fb->format->num_planes; i++)
+		st->addr[i] = komeda_fb_get_pixel_addr(kfb, dflow->in_x,
+						       dflow->in_y, i);
+
+	err = komeda_component_validate_private(&layer->base, c_st);
+	if (err)
+		return err;
+
+	/* update the data flow for the next stage */
+	komeda_component_set_output(&dflow->input, &layer->base, 0);
+
+	return 0;
+}
+
+static void pipeline_composition_size(struct komeda_crtc_state *kcrtc_st,
+				      u16 *hsize, u16 *vsize)
+{
+	struct drm_display_mode *m = &kcrtc_st->base.adjusted_mode;
+
+	if (hsize)
+		*hsize = m->hdisplay;
+	if (vsize)
+		*vsize = m->vdisplay;
+}
+
+static int
+komeda_compiz_set_input(struct komeda_compiz *compiz,
+			struct komeda_crtc_state *kcrtc_st,
+			struct komeda_data_flow_cfg *dflow)
+{
+	struct drm_atomic_state *drm_st = kcrtc_st->base.state;
+	struct komeda_component_state *c_st, *old_st;
+	struct komeda_compiz_input_cfg *cin;
+	u16 compiz_w, compiz_h;
+	int idx = dflow->blending_zorder;
+
+	pipeline_composition_size(kcrtc_st, &compiz_w, &compiz_h);
+	/* check display rect */
+	if ((dflow->out_x + dflow->out_w > compiz_w) ||
+	    (dflow->out_y + dflow->out_h > compiz_h) ||
+	     dflow->out_w == 0 || dflow->out_h == 0) {
+		DRM_DEBUG_ATOMIC("invalid disp rect [x=%d, y=%d, w=%d, h=%d]\n",
+				 dflow->out_x, dflow->out_y,
+				 dflow->out_w, dflow->out_h);
+		return -EINVAL;
+	}
+
+	c_st = komeda_component_get_state_and_set_user(&compiz->base, drm_st,
+			kcrtc_st->base.crtc, kcrtc_st->base.crtc);
+	if (IS_ERR(c_st))
+		return PTR_ERR(c_st);
+
+	if (komeda_component_check_input(c_st, &dflow->input, idx))
+		return -EINVAL;
+
+	cin = &(to_compiz_st(c_st)->cins[idx]);
+
+	cin->hsize   = dflow->out_w;
+	cin->vsize   = dflow->out_h;
+	cin->hoffset = dflow->out_x;
+	cin->voffset = dflow->out_y;
+	cin->pixel_blend_mode = dflow->pixel_blend_mode;
+	cin->layer_alpha = dflow->layer_alpha;
+
+	old_st = komeda_component_get_old_state(&compiz->base, drm_st);
+	WARN_ON(!old_st);
+
+	/* compare with old to check if this input has been changed */
+	if (memcmp(&(to_compiz_st(old_st)->cins[idx]), cin, sizeof(*cin)))
+		c_st->changed_active_inputs |= BIT(idx);
+
+	komeda_component_add_input(c_st, &dflow->input, idx);
+
+	return 0;
+}
+
+int
+komeda_compiz_validate(struct komeda_compiz *compiz,
+		       struct komeda_crtc_state *state,
+		       struct komeda_data_flow_cfg *dflow)
+{
+	struct komeda_component_state *c_st;
+	struct komeda_compiz_state *st;
+
+	c_st = komeda_component_get_state_and_set_user(&compiz->base,
+			state->base.state, state->base.crtc, state->base.crtc);
+	if (IS_ERR(c_st))
+		return PTR_ERR(c_st);
+
+	st = to_compiz_st(c_st);
+
+	pipeline_composition_size(state, &st->hsize, &st->vsize);
+
+	komeda_component_set_output(&dflow->input, &compiz->base, 0);
+
+	/* compiz output dflow will be fed to the next pipeline stage, prepare
+	 * the data flow configuration for the next stage
+	 */
+	if (dflow) {
+		dflow->in_w = st->hsize;
+		dflow->in_h = st->vsize;
+		dflow->out_w = dflow->in_w;
+		dflow->out_h = dflow->in_h;
+		/* the output data of compiz doesn't have alpha, it only can be
+		 * used as bottom layer when blend it with master layers
+		 */
+		dflow->pixel_blend_mode = DRM_MODE_BLEND_PIXEL_NONE;
+		dflow->layer_alpha = 0xFF;
+		dflow->blending_zorder = 0;
+	}
+
+	return 0;
+}
+
+int komeda_build_layer_data_flow(struct komeda_layer *layer,
+				 struct komeda_plane_state *kplane_st,
+				 struct komeda_crtc_state *kcrtc_st,
+				 struct komeda_data_flow_cfg *dflow)
+{
+	struct drm_plane *plane = kplane_st->base.plane;
+	struct komeda_pipeline *pipe = layer->base.pipeline;
+	int err;
+
+	DRM_DEBUG_ATOMIC("%s handling [PLANE:%d:%s]: src[x/y:%d/%d, w/h:%d/%d] disp[x/y:%d/%d, w/h:%d/%d]",
+			 layer->base.name, plane->base.id, plane->name,
+			 dflow->in_x, dflow->in_y, dflow->in_w, dflow->in_h,
+			 dflow->out_x, dflow->out_y, dflow->out_w, dflow->out_h);
+
+	err = komeda_layer_validate(layer, kplane_st, dflow);
+	if (err)
+		return err;
+
+	err = komeda_compiz_set_input(pipe->compiz, kcrtc_st, dflow);
+
+	return err;
 }
