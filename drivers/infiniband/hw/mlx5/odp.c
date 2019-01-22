@@ -1115,22 +1115,25 @@ invalid_transport_or_opcode:
 static inline struct mlx5_core_rsc_common *odp_get_rsc(struct mlx5_ib_dev *dev,
 						       u32 wq_num, int pf_type)
 {
-	enum mlx5_res_type res_type;
+	struct mlx5_core_rsc_common *common = NULL;
+	struct mlx5_core_srq *srq;
 
 	switch (pf_type) {
 	case MLX5_WQE_PF_TYPE_RMP:
-		res_type = MLX5_RES_SRQ;
+		srq = mlx5_cmd_get_srq(dev, wq_num);
+		if (srq)
+			common = &srq->common;
 		break;
 	case MLX5_WQE_PF_TYPE_REQ_SEND_OR_WRITE:
 	case MLX5_WQE_PF_TYPE_RESP:
 	case MLX5_WQE_PF_TYPE_REQ_READ_OR_ATOMIC:
-		res_type = MLX5_RES_QP;
+		common = mlx5_core_res_hold(dev->mdev, wq_num, MLX5_RES_QP);
 		break;
 	default:
-		return NULL;
+		break;
 	}
 
-	return mlx5_core_res_hold(dev->mdev, wq_num, res_type);
+	return common;
 }
 
 static inline struct mlx5_ib_qp *res_to_qp(struct mlx5_core_rsc_common *res)
