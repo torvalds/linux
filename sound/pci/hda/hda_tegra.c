@@ -233,16 +233,12 @@ static void hda_tegra_disable_clocks(struct hda_tegra *data)
 static int hda_tegra_suspend(struct device *dev)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
-	struct azx *chip = card->private_data;
-	struct hda_tegra *hda = container_of(chip, struct hda_tegra, chip);
-	struct hdac_bus *bus = azx_bus(chip);
+	int rc;
 
+	rc = pm_runtime_force_suspend(dev);
+	if (rc < 0)
+		return rc;
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-
-	azx_stop_chip(chip);
-	synchronize_irq(bus->irq);
-	azx_enter_link_reset(chip);
-	hda_tegra_disable_clocks(hda);
 
 	return 0;
 }
@@ -250,15 +246,11 @@ static int hda_tegra_suspend(struct device *dev)
 static int hda_tegra_resume(struct device *dev)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
-	struct azx *chip = card->private_data;
-	struct hda_tegra *hda = container_of(chip, struct hda_tegra, chip);
+	int rc;
 
-	hda_tegra_enable_clocks(hda);
-
-	hda_tegra_init(hda);
-
-	azx_init_chip(chip, 1);
-
+	rc = pm_runtime_force_resume(dev);
+	if (rc < 0)
+		return rc;
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 
 	return 0;
@@ -268,11 +260,36 @@ static int hda_tegra_resume(struct device *dev)
 #ifdef CONFIG_PM
 static int hda_tegra_runtime_suspend(struct device *dev)
 {
+	struct snd_card *card = dev_get_drvdata(dev);
+	struct azx *chip = card->private_data;
+	struct hda_tegra *hda = container_of(chip, struct hda_tegra, chip);
+	struct hdac_bus *bus = azx_bus(chip);
+
+	if (chip && chip->running) {
+		azx_stop_chip(chip);
+		synchronize_irq(bus->irq);
+		azx_enter_link_reset(chip);
+	}
+	hda_tegra_disable_clocks(hda);
+
 	return 0;
 }
 
 static int hda_tegra_runtime_resume(struct device *dev)
 {
+	struct snd_card *card = dev_get_drvdata(dev);
+	struct azx *chip = card->private_data;
+	struct hda_tegra *hda = container_of(chip, struct hda_tegra, chip);
+	int rc;
+
+	rc = hda_tegra_enable_clocks(hda);
+	if (rc != 0)
+		return rc;
+	if (chip && chip->running) {
+		hda_tegra_init(hda);
+		azx_init_chip(chip, 1);
+	}
+
 	return 0;
 }
 #endif /* CONFIG_PM */
