@@ -8,9 +8,6 @@
 
 #include "ff.h"
 
-#define SND_FF_REG_MIDI_RX_PORT_0	0x000080180000ull
-#define SND_FF_REG_MIDI_RX_PORT_1	0x000080190000ull
-
 static void finish_transmit_midi_msg(struct snd_ff *ff, unsigned int port,
 				     int rcode)
 {
@@ -93,10 +90,10 @@ static void transmit_midi_msg(struct snd_ff *ff, unsigned int port)
 		fill_midi_buf(ff, port, i, buf[i]);
 
 	if (port == 0) {
-		addr = SND_FF_REG_MIDI_RX_PORT_0;
+		addr = ff->spec->midi_rx_addrs[0];
 		callback = finish_transmit_midi0_msg;
 	} else {
-		addr = SND_FF_REG_MIDI_RX_PORT_1;
+		addr = ff->spec->midi_rx_addrs[1];
 		callback = finish_transmit_midi1_msg;
 	}
 
