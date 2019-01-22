@@ -886,7 +886,7 @@ struct task_struct {
 	struct callback_head		*task_works;
 
 	struct audit_context		*audit_context;
-#ifdef CONFIG_AUDITSYSCALL
+#ifdef CONFIG_AUDIT
 	kuid_t				loginuid;
 	unsigned int			sessionid;
 #endif

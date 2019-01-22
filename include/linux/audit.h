@@ -159,6 +159,18 @@ extern int		    audit_update_lsm_rules(void);
 extern int audit_rule_change(int type, int seq, void *data, size_t datasz);
 extern int audit_list_rules_send(struct sk_buff *request_skb, int seq);
 
+extern int audit_set_loginuid(kuid_t loginuid);
+
+static inline kuid_t audit_get_loginuid(struct task_struct *tsk)
+{
+	return tsk->loginuid;
+}
+
+static inline unsigned int audit_get_sessionid(struct task_struct *tsk)
+{
+	return tsk->sessionid;
+}
+
 extern u32 audit_enabled;
 #else /* CONFIG_AUDIT */
 static inline __printf(4, 5)
@@ -201,6 +213,17 @@ static inline int audit_log_task_context(struct audit_buffer *ab)
 }
 static inline void audit_log_task_info(struct audit_buffer *ab)
 { }
+
+static inline kuid_t audit_get_loginuid(struct task_struct *tsk)
+{
+	return INVALID_UID;
+}
+
+static inline unsigned int audit_get_sessionid(struct task_struct *tsk)
+{
+	return AUDIT_SID_UNSET;
+}
+
 #define audit_enabled AUDIT_OFF
 #endif /* CONFIG_AUDIT */
 
@@ -323,17 +346,6 @@ static inline void audit_ptrace(struct task_struct *t)
 extern unsigned int audit_serial(void);
 extern int auditsc_get_stamp(struct audit_context *ctx,
 			      struct timespec64 *t, unsigned int *serial);
-extern int audit_set_loginuid(kuid_t loginuid);
-
-static inline kuid_t audit_get_loginuid(struct task_struct *tsk)
-{
-	return tsk->loginuid;
-}
-
-static inline unsigned int audit_get_sessionid(struct task_struct *tsk)
-{
-	return tsk->sessionid;
-}
 
 extern void __audit_ipc_obj(struct kern_ipc_perm *ipcp);
 extern void __audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid, umode_t mode);
@@ -518,14 +530,6 @@ static inline int auditsc_get_stamp(struct audit_context *ctx,
 			      struct timespec64 *t, unsigned int *serial)
 {
 	return 0;
-}
-static inline kuid_t audit_get_loginuid(struct task_struct *tsk)
-{
-	return INVALID_UID;
-}
-static inline unsigned int audit_get_sessionid(struct task_struct *tsk)
-{
-	return AUDIT_SID_UNSET;
 }
 static inline void audit_ipc_obj(struct kern_ipc_perm *ipcp)
 { }
