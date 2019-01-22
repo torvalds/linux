@@ -332,9 +332,10 @@ static void put_per_mm(struct ib_umem_odp *umem_odp)
 	mmu_notifier_call_srcu(&per_mm->rcu, free_per_mm);
 }
 
-struct ib_umem_odp *ib_alloc_odp_umem(struct ib_ucontext_per_mm *per_mm,
+struct ib_umem_odp *ib_alloc_odp_umem(struct ib_umem_odp *root,
 				      unsigned long addr, size_t size)
 {
+	struct ib_ucontext_per_mm *per_mm = root->per_mm;
 	struct ib_ucontext *ctx = per_mm->context;
 	struct ib_umem_odp *odp_data;
 	struct ib_umem *umem;
@@ -349,7 +350,7 @@ struct ib_umem_odp *ib_alloc_odp_umem(struct ib_ucontext_per_mm *per_mm,
 	umem->length     = size;
 	umem->address    = addr;
 	umem->page_shift = PAGE_SHIFT;
-	umem->writable   = 1;
+	umem->writable   = root->umem.writable;
 	umem->is_odp = 1;
 	odp_data->per_mm = per_mm;
 
