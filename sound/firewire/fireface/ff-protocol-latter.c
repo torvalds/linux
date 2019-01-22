@@ -306,8 +306,104 @@ static void latter_handle_midi_msg(struct snd_ff *ff, unsigned int offset,
 		snd_rawmidi_receive(substream, byte, len);
 }
 
+/*
+ * When return minus value, given argument is not MIDI status.
+ * When return 0, given argument is a beginning of system exclusive.
+ * When return the others, given argument is MIDI data.
+ */
+static inline int calculate_message_bytes(u8 status)
+{
+	switch (status) {
+	case 0xf6:	/* Tune request. */
+	case 0xf8:	/* Timing clock. */
+	case 0xfa:	/* Start. */
+	case 0xfb:	/* Continue. */
+	case 0xfc:	/* Stop. */
+	case 0xfe:	/* Active sensing. */
+	case 0xff:	/* System reset. */
+		return 1;
+	case 0xf1:	/* MIDI time code quarter frame. */
+	case 0xf3:	/* Song select. */
+		return 2;
+	case 0xf2:	/* Song position pointer. */
+		return 3;
+	case 0xf0:	/* Exclusive. */
+		return 0;
+	case 0xf7:	/* End of exclusive. */
+		break;
+	case 0xf4:	/* Undefined. */
+	case 0xf5:	/* Undefined. */
+	case 0xf9:	/* Undefined. */
+	case 0xfd:	/* Undefined. */
+		break;
+	default:
+		switch (status & 0xf0) {
+		case 0x80:	/* Note on. */
+		case 0x90:	/* Note off. */
+		case 0xa0:	/* Polyphonic key pressure. */
+		case 0xb0:	/* Control change and Mode change. */
+		case 0xe0:	/* Pitch bend change. */
+			return 3;
+		case 0xc0:	/* Program change. */
+		case 0xd0:	/* Channel pressure. */
+			return 2;
+		default:
+		break;
+		}
+	break;
+	}
+
+	return -EINVAL;
+}
+
+static int latter_fill_midi_msg(struct snd_ff *ff,
+				struct snd_rawmidi_substream *substream,
+				unsigned int port)
+{
+	u32 data = {0};
+	u8 *buf = (u8 *)&data;
+	int consumed;
+
+	buf[0] = port << 4;
+	consumed = snd_rawmidi_transmit_peek(substream, buf + 1, 3);
+	if (consumed <= 0)
+		return consumed;
+
+	if (!ff->on_sysex[port]) {
+		if (buf[1] != 0xf0) {
+			if (consumed < calculate_message_bytes(buf[1]))
+				return 0;
+		} else {
+			// The beginning of exclusives.
+			ff->on_sysex[port] = true;
+		}
+
+		buf[0] |= consumed;
+	} else {
+		if (buf[1] != 0xf7) {
+			if (buf[2] == 0xf7 || buf[3] == 0xf7) {
+				// Transfer end code at next time.
+				consumed -= 1;
+			}
+
+			buf[0] |= consumed;
+		} else {
+			// The end of exclusives.
+			ff->on_sysex[port] = false;
+			consumed = 1;
+			buf[0] |= 0x0f;
+		}
+	}
+
+	ff->msg_buf[port][0] = cpu_to_le32(data);
+	ff->rx_bytes[port] = consumed;
+
+	return 1;
+}
+
 const struct snd_ff_protocol snd_ff_protocol_latter = {
 	.handle_midi_msg	= latter_handle_midi_msg,
+	.fill_midi_msg		= latter_fill_midi_msg,
 	.get_clock		= latter_get_clock,
 	.switch_fetching_mode	= latter_switch_fetching_mode,
 	.begin_session		= latter_begin_session,

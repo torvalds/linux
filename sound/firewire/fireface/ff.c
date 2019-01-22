@@ -174,6 +174,7 @@ static const struct snd_ff_spec spec_ucx = {
 	.pcm_capture_channels = {18, 14, 12},
 	.pcm_playback_channels = {18, 14, 12},
 	.midi_in_ports = 2,
+	.midi_out_ports = 2,
 	.protocol = &snd_ff_protocol_latter,
 	.midi_high_addr = 0xffff00000034ull,
 	.midi_addr_range = 0x80,

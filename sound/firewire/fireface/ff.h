@@ -75,7 +75,7 @@ struct snd_ff {
 
 	/* TO handle MIDI rx. */
 	struct snd_rawmidi_substream *rx_midi_substreams[SND_FF_OUT_MIDI_PORTS];
-	u8 running_status[SND_FF_OUT_MIDI_PORTS];
+	bool on_sysex[SND_FF_OUT_MIDI_PORTS];
 	__le32 msg_buf[SND_FF_OUT_MIDI_PORTS][SND_FF_MAXIMIM_MIDI_QUADS];
 	struct work_struct rx_midi_work[SND_FF_OUT_MIDI_PORTS];
 	struct fw_transaction transactions[SND_FF_OUT_MIDI_PORTS];
