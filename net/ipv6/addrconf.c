@@ -5120,6 +5120,8 @@ static int inet6_dump_addr(struct sk_buff *skb, struct netlink_callback *cb,
 			if (idev) {
 				err = in6_dump_addrs(idev, skb, cb, s_ip_idx,
 						     &fillargs);
+				if (err > 0)
+					err = 0;
 			}
 			goto put_tgt_net;
 		}
