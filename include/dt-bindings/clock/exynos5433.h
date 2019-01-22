@@ -1406,4 +1406,10 @@
 
 #define CAM1_NR_CLK					113
 
+/* CMU_IMEM */
+#define CLK_ACLK_SLIMSSS		2
+#define CLK_PCLK_SLIMSSS		35
+
+#define IMEM_NR_CLK			36
+
 #endif /* _DT_BINDINGS_CLOCK_EXYNOS5433_H */
