@@ -2565,6 +2565,8 @@ struct ib_device {
 	__be64			     node_guid;
 	u32			     local_dma_lkey;
 	u16                          is_switch:1;
+	/* Indicates kernel verbs support, should not be used in drivers */
+	u16                          kverbs_provider:1;
 	u8                           node_type;
 	u8                           phys_port_cnt;
 	struct ib_device_attr        attrs;
@@ -2619,6 +2621,9 @@ struct ib_client {
 			const struct sockaddr *addr,
 			void *client_data);
 	struct list_head list;
+
+	/* kverbs are not required by the client */
+	u8 no_kverbs_req:1;
 };
 
 struct ib_device *_ib_alloc_device(size_t size);

@@ -1151,6 +1151,7 @@ static const struct file_operations uverbs_mmap_fops = {
 
 static struct ib_client uverbs_client = {
 	.name   = "uverbs",
+	.no_kverbs_req = true,
 	.add    = ib_uverbs_add_one,
 	.remove = ib_uverbs_remove_one
 };

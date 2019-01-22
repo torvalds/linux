@@ -121,13 +121,12 @@ static int ib_device_check_mandatory(struct ib_device *device)
 	};
 	int i;
 
+	device->kverbs_provider = true;
 	for (i = 0; i < ARRAY_SIZE(mandatory_table); ++i) {
 		if (!*(void **) ((void *) &device->ops +
 				 mandatory_table[i].offset)) {
-			dev_warn(&device->dev,
-				 "Device is missing mandatory function %s\n",
-				 mandatory_table[i].name);
-			return -EINVAL;
+			device->kverbs_provider = false;
+			break;
 		}
 	}
 
@@ -324,6 +323,9 @@ EXPORT_SYMBOL(ib_dealloc_device);
 static int add_client_context(struct ib_device *device, struct ib_client *client)
 {
 	struct ib_client_data *context;
+
+	if (!device->kverbs_provider && !client->no_kverbs_req)
+		return -EOPNOTSUPP;
 
 	context = kmalloc(sizeof(*context), GFP_KERNEL);
 	if (!context)
