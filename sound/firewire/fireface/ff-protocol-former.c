@@ -375,7 +375,8 @@ static void ff800_finish_session(struct snd_ff *ff)
 			   FF800_ISOC_COMM_STOP, &reg, sizeof(reg), 0);
 }
 
-static void ff800_handle_midi_msg(struct snd_ff *ff, __le32 *buf, size_t length)
+static void ff800_handle_midi_msg(struct snd_ff *ff, unsigned int offset,
+				  __le32 *buf, size_t length)
 {
 	int i;
 
@@ -502,7 +503,8 @@ static void ff400_finish_session(struct snd_ff *ff)
 			   FF400_ISOC_COMM_STOP, &reg, sizeof(reg), 0);
 }
 
-static void ff400_handle_midi_msg(struct snd_ff *ff, __le32 *buf, size_t length)
+static void ff400_handle_midi_msg(struct snd_ff *ff, unsigned int offset,
+				  __le32 *buf, size_t length)
 {
 	int i;
 

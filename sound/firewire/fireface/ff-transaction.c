@@ -146,7 +146,9 @@ static void handle_midi_msg(struct fw_card *card, struct fw_request *request,
 
 	fw_send_response(card, request, RCODE_COMPLETE);
 
-	ff->spec->protocol->handle_midi_msg(ff, buf, length);
+	offset -= ff->async_handler.offset;
+	ff->spec->protocol->handle_midi_msg(ff, (unsigned int)offset, buf,
+					    length);
 }
 
 static int allocate_own_address(struct snd_ff *ff, int i)

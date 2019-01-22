@@ -103,7 +103,8 @@ enum snd_ff_clock_src {
 };
 
 struct snd_ff_protocol {
-	void (*handle_midi_msg)(struct snd_ff *ff, __le32 *buf, size_t length);
+	void (*handle_midi_msg)(struct snd_ff *ff, unsigned int offset,
+				__le32 *buf, size_t length);
 	int (*get_clock)(struct snd_ff *ff, unsigned int *rate,
 			 enum snd_ff_clock_src *src);
 	int (*switch_fetching_mode)(struct snd_ff *ff, bool enable);
