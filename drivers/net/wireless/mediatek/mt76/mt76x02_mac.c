@@ -648,7 +648,7 @@ int mt76x02_mac_process_rx(struct mt76x02_dev *dev, struct sk_buff *skb,
 
 	status->chains = BIT(0);
 	signal = mt76x02_mac_get_rssi(dev, rxwi->rssi[0], 0);
-	for (i = 1; i < nstreams; i++) {
+	for (i = 0; i < nstreams; i++) {
 		status->chains |= BIT(i);
 		status->chain_signal[i] = mt76x02_mac_get_rssi(dev,
 							       rxwi->rssi[i],
