@@ -207,16 +207,20 @@ static inline u16 component_changed_inputs(struct komeda_component_state *st)
 #define to_comp(__c)	(((__c) == NULL) ? NULL : &((__c)->base))
 #define to_cpos(__c)	((struct komeda_component **)&(__c))
 
-/* these structures are going to be filled in in uture patches */
 struct komeda_layer {
 	struct komeda_component base;
-	/* layer specific features and caps */
-	int layer_type; /* RICH, SIMPLE or WB */
+	/* accepted h/v input range before rotation */
+	struct malidp_range hsize_in, vsize_in;
+	u32 layer_type; /* RICH, SIMPLE or WB */
+	u32 supported_rots;
 };
 
 struct komeda_layer_state {
 	struct komeda_component_state base;
 	/* layer specific configuration state */
+	u16 hsize, vsize;
+	u32 rot;
+	dma_addr_t addr[3];
 };
 
 struct komeda_compiz {
