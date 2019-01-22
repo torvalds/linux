@@ -161,26 +161,7 @@ struct ip_callchain {
 	u64 ips[0];
 };
 
-struct branch_flags {
-	u64 mispred:1;
-	u64 predicted:1;
-	u64 in_tx:1;
-	u64 abort:1;
-	u64 cycles:16;
-	u64 type:4;
-	u64 reserved:40;
-};
-
-struct branch_entry {
-	u64			from;
-	u64			to;
-	struct branch_flags	flags;
-};
-
-struct branch_stack {
-	u64			nr;
-	struct branch_entry	entries[0];
-};
+struct branch_stack;
 
 enum {
 	PERF_IP_FLAG_BRANCH		= 1ULL << 0,

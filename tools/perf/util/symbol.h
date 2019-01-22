@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <byteswap.h>
 #include <libgen.h>
+#include "branch.h"
 #include "build-id.h"
 #include "event.h"
 #include "path.h"
