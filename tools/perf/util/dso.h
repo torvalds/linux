@@ -7,11 +7,13 @@
 #include <linux/rbtree.h>
 #include <sys/types.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include "rwsem.h"
 #include <linux/bitops.h>
-#include "map.h"
 #include "namespaces.h"
 #include "build-id.h"
+
+struct map;
 
 enum dso_binary_type {
 	DSO_BINARY_TYPE__KALLSYMS = 0,
