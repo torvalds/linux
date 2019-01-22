@@ -67,6 +67,64 @@ static bool drm_dp_validate_guid(struct drm_dp_mst_topology_mgr *mgr,
 static int drm_dp_mst_register_i2c_bus(struct drm_dp_aux *aux);
 static void drm_dp_mst_unregister_i2c_bus(struct drm_dp_aux *aux);
 static void drm_dp_mst_kick_tx(struct drm_dp_mst_topology_mgr *mgr);
+
+#define DP_STR(x) [DP_ ## x] = #x
+
+static const char *drm_dp_mst_req_type_str(u8 req_type)
+{
+	static const char * const req_type_str[] = {
+		DP_STR(GET_MSG_TRANSACTION_VERSION),
+		DP_STR(LINK_ADDRESS),
+		DP_STR(CONNECTION_STATUS_NOTIFY),
+		DP_STR(ENUM_PATH_RESOURCES),
+		DP_STR(ALLOCATE_PAYLOAD),
+		DP_STR(QUERY_PAYLOAD),
+		DP_STR(RESOURCE_STATUS_NOTIFY),
+		DP_STR(CLEAR_PAYLOAD_ID_TABLE),
+		DP_STR(REMOTE_DPCD_READ),
+		DP_STR(REMOTE_DPCD_WRITE),
+		DP_STR(REMOTE_I2C_READ),
+		DP_STR(REMOTE_I2C_WRITE),
+		DP_STR(POWER_UP_PHY),
+		DP_STR(POWER_DOWN_PHY),
+		DP_STR(SINK_EVENT_NOTIFY),
+		DP_STR(QUERY_STREAM_ENC_STATUS),
+	};
+
+	if (req_type >= ARRAY_SIZE(req_type_str) ||
+	    !req_type_str[req_type])
+		return "unknown";
+
+	return req_type_str[req_type];
+}
+
+#undef DP_STR
+#define DP_STR(x) [DP_NAK_ ## x] = #x
+
+static const char *drm_dp_mst_nak_reason_str(u8 nak_reason)
+{
+	static const char * const nak_reason_str[] = {
+		DP_STR(WRITE_FAILURE),
+		DP_STR(INVALID_READ),
+		DP_STR(CRC_FAILURE),
+		DP_STR(BAD_PARAM),
+		DP_STR(DEFER),
+		DP_STR(LINK_FAILURE),
+		DP_STR(NO_RESOURCES),
+		DP_STR(DPCD_FAIL),
+		DP_STR(I2C_NAK),
+		DP_STR(ALLOCATE_FAIL),
+	};
+
+	if (nak_reason >= ARRAY_SIZE(nak_reason_str) ||
+	    !nak_reason_str[nak_reason])
+		return "unknown";
+
+	return nak_reason_str[nak_reason];
+}
+
+#undef DP_STR
+
 /* sideband msg handling */
 static u8 drm_dp_msg_header_crc4(const uint8_t *data, size_t num_nibbles)
 {
@@ -594,7 +652,8 @@ static bool drm_dp_sideband_parse_reply(struct drm_dp_sideband_msg_rx *raw,
 	case DP_POWER_UP_PHY:
 		return drm_dp_sideband_parse_power_updown_phy_ack(raw, msg);
 	default:
-		DRM_ERROR("Got unknown reply 0x%02x\n", msg->req_type);
+		DRM_ERROR("Got unknown reply 0x%02x (%s)\n", msg->req_type,
+			  drm_dp_mst_req_type_str(msg->req_type));
 		return false;
 	}
 }
@@ -661,7 +720,8 @@ static bool drm_dp_sideband_parse_req(struct drm_dp_sideband_msg_rx *raw,
 	case DP_RESOURCE_STATUS_NOTIFY:
 		return drm_dp_sideband_parse_resource_status_notify(raw, msg);
 	default:
-		DRM_ERROR("Got unknown request 0x%02x\n", msg->req_type);
+		DRM_ERROR("Got unknown request 0x%02x (%s)\n", msg->req_type,
+			  drm_dp_mst_req_type_str(msg->req_type));
 		return false;
 	}
 }
@@ -2747,7 +2807,12 @@ static int drm_dp_mst_handle_down_rep(struct drm_dp_mst_topology_mgr *mgr)
 		drm_dp_sideband_parse_reply(&mgr->down_rep_recv, &txmsg->reply);
 
 		if (txmsg->reply.reply_type == DP_SIDEBAND_REPLY_NAK)
-			DRM_DEBUG_KMS("Got NAK reply: req 0x%02x, reason 0x%02x, nak data 0x%02x\n", txmsg->reply.req_type, txmsg->reply.u.nak.reason, txmsg->reply.u.nak.nak_data);
+			DRM_DEBUG_KMS("Got NAK reply: req 0x%02x (%s), reason 0x%02x (%s), nak data 0x%02x\n",
+				      txmsg->reply.req_type,
+				      drm_dp_mst_req_type_str(txmsg->reply.req_type),
+				      txmsg->reply.u.nak.reason,
+				      drm_dp_mst_nak_reason_str(txmsg->reply.u.nak.reason),
+				      txmsg->reply.u.nak.nak_data);
 
 		memset(&mgr->down_rep_recv, 0, sizeof(struct drm_dp_sideband_msg_rx));
 		drm_dp_mst_topology_put_mstb(mstb);

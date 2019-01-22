@@ -976,6 +976,7 @@
 #define DP_PEER_DEVICE_DP_LEGACY_CONV	0x4
 
 /* DP 1.2 MST sideband request names DP 1.2a Table 2-80 */
+#define DP_GET_MSG_TRANSACTION_VERSION	0x00 /* DP 1.3 */
 #define DP_LINK_ADDRESS			0x01
 #define DP_CONNECTION_STATUS_NOTIFY	0x02
 #define DP_ENUM_PATH_RESOURCES		0x10
