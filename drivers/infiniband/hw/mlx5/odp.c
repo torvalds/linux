@@ -1020,6 +1020,10 @@ static int mlx5_ib_mr_initiator_pfault_handler(
 		 MLX5_WQE_CTRL_OPCODE_MASK;
 
 	switch (qp->ibqp.qp_type) {
+	case IB_QPT_XRC_INI:
+		*wqe += sizeof(struct mlx5_wqe_xrc_seg);
+		transport_caps = dev->odp_caps.per_transport_caps.xrc_odp_caps;
+		break;
 	case IB_QPT_RC:
 		transport_caps = dev->odp_caps.per_transport_caps.rc_odp_caps;
 		break;
@@ -1039,7 +1043,7 @@ static int mlx5_ib_mr_initiator_pfault_handler(
 		return -EFAULT;
 	}
 
-	if (qp->ibqp.qp_type != IB_QPT_RC) {
+	if (qp->ibqp.qp_type == IB_QPT_UD) {
 		av = *wqe;
 		if (av->dqp_dct & cpu_to_be32(MLX5_EXTENDED_UD_AV))
 			*wqe += sizeof(struct mlx5_av);
