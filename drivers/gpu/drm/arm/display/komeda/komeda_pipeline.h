@@ -256,15 +256,22 @@ struct komeda_compiz_state {
 
 struct komeda_improc {
 	struct komeda_component base;
+	u32 supported_color_formats;  /* DRM_RGB/YUV444/YUV420*/
+	u32 supported_color_depths; /* BIT(8) | BIT(10)*/
+	u8 supports_degamma : 1;
+	u8 supports_csc : 1;
+	u8 supports_gamma : 1;
 };
 
 struct komeda_improc_state {
 	struct komeda_component_state base;
+	u16 hsize, vsize;
 };
 
 /* display timing controller */
 struct komeda_timing_ctrlr {
 	struct komeda_component base;
+	u8 supports_dual_link : 1;
 };
 
 struct komeda_timing_ctrlr_state {

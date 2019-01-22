@@ -284,18 +284,125 @@ static int d71_compiz_init(struct d71_dev *d71,
 	return 0;
 }
 
+static void d71_improc_update(struct komeda_component *c,
+			      struct komeda_component_state *state)
+{
+	struct komeda_improc_state *st = to_improc_st(state);
+	u32 __iomem *reg = c->reg;
+	u32 index, input_hw_id;
+
+	for_each_changed_input(state, index) {
+		input_hw_id = state->active_inputs & BIT(index) ?
+			      to_d71_input_id(&state->inputs[index]) : 0;
+		malidp_write32(reg, BLK_INPUT_ID0 + index * 4, input_hw_id);
+	}
+
+	malidp_write32(reg, BLK_SIZE, HV_SIZE(st->hsize, st->vsize));
+}
+
+struct komeda_component_funcs d71_improc_funcs = {
+	.update		= d71_improc_update,
+	.disable	= d71_component_disable,
+};
+
 static int d71_improc_init(struct d71_dev *d71,
 			   struct block_header *blk, u32 __iomem *reg)
 {
-	DRM_DEBUG("Detect D71_improc.\n");
+	struct komeda_component *c;
+	struct komeda_improc *improc;
+	u32 pipe_id, comp_id, value;
+
+	get_resources_id(blk->block_info, &pipe_id, &comp_id);
+
+	c = komeda_component_add(&d71->pipes[pipe_id]->base, sizeof(*improc),
+				 comp_id,
+				 BLOCK_INFO_INPUT_ID(blk->block_info),
+				 &d71_improc_funcs, IPS_NUM_INPUT_IDS,
+				 get_valid_inputs(blk),
+				 IPS_NUM_OUTPUT_IDS, reg, "DOU%d_IPS", pipe_id);
+	if (IS_ERR(c)) {
+		DRM_ERROR("Failed to add improc component\n");
+		return PTR_ERR(c);
+	}
+
+	improc = to_improc(c);
+	improc->supported_color_depths = BIT(8) | BIT(10);
+	improc->supported_color_formats = DRM_COLOR_FORMAT_RGB444 |
+					  DRM_COLOR_FORMAT_YCRCB444 |
+					  DRM_COLOR_FORMAT_YCRCB422;
+	value = malidp_read32(reg, BLK_INFO);
+	if (value & IPS_INFO_CHD420)
+		improc->supported_color_formats |= DRM_COLOR_FORMAT_YCRCB420;
+
+	improc->supports_csc = true;
+	improc->supports_gamma = true;
 
 	return 0;
 }
 
+static void d71_timing_ctrlr_disable(struct komeda_component *c)
+{
+	malidp_write32_mask(c->reg, BLK_CONTROL, BS_CTRL_EN, 0);
+}
+
+static void d71_timing_ctrlr_update(struct komeda_component *c,
+				    struct komeda_component_state *state)
+{
+	struct drm_crtc_state *crtc_st = state->crtc->state;
+	u32 __iomem *reg = c->reg;
+	struct videomode vm;
+	u32 value;
+
+	drm_display_mode_to_videomode(&crtc_st->adjusted_mode, &vm);
+
+	malidp_write32(reg, BS_ACTIVESIZE, HV_SIZE(vm.hactive, vm.vactive));
+	malidp_write32(reg, BS_HINTERVALS, BS_H_INTVALS(vm.hfront_porch,
+							vm.hback_porch));
+	malidp_write32(reg, BS_VINTERVALS, BS_V_INTVALS(vm.vfront_porch,
+							vm.vback_porch));
+
+	value = BS_SYNC_VSW(vm.vsync_len) | BS_SYNC_HSW(vm.hsync_len);
+	value |= vm.flags & DISPLAY_FLAGS_VSYNC_HIGH ? BS_SYNC_VSP : 0;
+	value |= vm.flags & DISPLAY_FLAGS_HSYNC_HIGH ? BS_SYNC_HSP : 0;
+	malidp_write32(reg, BS_SYNC, value);
+
+	malidp_write32(reg, BS_PROG_LINE, D71_DEFAULT_PREPRETCH_LINE - 1);
+	malidp_write32(reg, BS_PREFETCH_LINE, D71_DEFAULT_PREPRETCH_LINE);
+
+	/* configure bs control register */
+	value = BS_CTRL_EN | BS_CTRL_VM;
+
+	malidp_write32(reg, BLK_CONTROL, value);
+}
+
+struct komeda_component_funcs d71_timing_ctrlr_funcs = {
+	.update		= d71_timing_ctrlr_update,
+	.disable	= d71_timing_ctrlr_disable,
+};
+
 static int d71_timing_ctrlr_init(struct d71_dev *d71,
 				 struct block_header *blk, u32 __iomem *reg)
 {
-	DRM_DEBUG("Detect D71_timing_ctrlr.\n");
+	struct komeda_component *c;
+	struct komeda_timing_ctrlr *ctrlr;
+	u32 pipe_id, comp_id;
+
+	get_resources_id(blk->block_info, &pipe_id, &comp_id);
+
+	c = komeda_component_add(&d71->pipes[pipe_id]->base, sizeof(*ctrlr),
+				 KOMEDA_COMPONENT_TIMING_CTRLR,
+				 BLOCK_INFO_INPUT_ID(blk->block_info),
+				 &d71_timing_ctrlr_funcs,
+				 1, BIT(KOMEDA_COMPONENT_IPS0 + pipe_id),
+				 BS_NUM_OUTPUT_IDS, reg, "DOU%d_BS", pipe_id);
+	if (IS_ERR(c)) {
+		DRM_ERROR("Failed to add display_ctrl component\n");
+		return PTR_ERR(c);
+	}
+
+	ctrlr = to_ctrlr(c);
+
+	ctrlr->supports_dual_link = true;
 
 	return 0;
 }

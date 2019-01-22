@@ -12,6 +12,8 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_device.h>
 #include <drm/drm_writeback.h>
+#include <video/videomode.h>
+#include <video/display_timing.h>
 
 /** struct komeda_plane - komeda instance of drm_plane */
 struct komeda_plane {
