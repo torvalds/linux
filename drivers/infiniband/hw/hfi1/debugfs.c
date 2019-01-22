@@ -1339,8 +1339,6 @@ DEBUGFS_FILE_OPS(driver_stats);
 void hfi1_dbg_init(void)
 {
 	hfi1_dbg_root  = debugfs_create_dir(DRIVER_NAME, NULL);
-	if (!hfi1_dbg_root)
-		pr_warn("init of debugfs failed\n");
 	debugfs_create_file("driver_stats_names", 0444, hfi1_dbg_root, NULL,
 			    &_driver_stats_names_file_ops);
 	debugfs_create_file("driver_stats", 0444, hfi1_dbg_root, NULL,
