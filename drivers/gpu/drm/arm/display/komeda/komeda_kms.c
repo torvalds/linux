@@ -100,9 +100,37 @@ static const struct drm_mode_config_helper_funcs komeda_mode_config_helpers = {
 	.atomic_commit_tail = komeda_kms_commit_tail,
 };
 
+static int komeda_kms_check(struct drm_device *dev,
+			    struct drm_atomic_state *state)
+{
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *old_crtc_st, *new_crtc_st;
+	int i, err;
+
+	err = drm_atomic_helper_check_modeset(dev, state);
+	if (err)
+		return err;
+
+	/* komeda need to re-calculate resource assumption in every commit
+	 * so need to add all affected_planes (even unchanged) to
+	 * drm_atomic_state.
+	 */
+	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_st, new_crtc_st, i) {
+		err = drm_atomic_add_affected_planes(state, crtc);
+		if (err)
+			return err;
+	}
+
+	err = drm_atomic_helper_check_planes(dev, state);
+	if (err)
+		return err;
+
+	return 0;
+}
+
 static const struct drm_mode_config_funcs komeda_mode_config_funcs = {
 	.fb_create		= komeda_fb_create,
-	.atomic_check		= drm_atomic_helper_check,
+	.atomic_check		= komeda_kms_check,
 	.atomic_commit		= drm_atomic_helper_commit,
 };
 
