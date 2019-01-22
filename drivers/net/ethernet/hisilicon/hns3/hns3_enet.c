@@ -3397,6 +3397,11 @@ static void hns3_fini_ring(struct hns3_enet_ring *ring)
 	ring->desc_cb = NULL;
 	ring->next_to_clean = 0;
 	ring->next_to_use = 0;
+	ring->pending_buf = 0;
+	if (ring->skb) {
+		dev_kfree_skb_any(ring->skb);
+		ring->skb = NULL;
+	}
 }
 
 static int hns3_buf_size2type(u32 buf_size)
