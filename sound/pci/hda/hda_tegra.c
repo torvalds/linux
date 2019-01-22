@@ -319,7 +319,6 @@ static int hda_tegra_init_chip(struct azx *chip, struct platform_device *pdev)
 	struct hdac_bus *bus = azx_bus(chip);
 	struct device *dev = hda->dev;
 	struct resource *res;
-	int err;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	hda->regs = devm_ioremap_resource(dev, res);
@@ -328,12 +327,6 @@ static int hda_tegra_init_chip(struct azx *chip, struct platform_device *pdev)
 
 	bus->remap_addr = hda->regs + HDA_BAR0;
 	bus->addr = res->start + HDA_BAR0;
-
-	err = hda_tegra_enable_clocks(hda);
-	if (err) {
-		dev_err(dev, "failed to get enable clocks\n");
-		return err;
-	}
 
 	hda_tegra_init(hda);
 
