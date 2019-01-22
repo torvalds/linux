@@ -5,16 +5,10 @@
 #include <linux/types.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include "map.h"
-#include "../perf.h"
 #include <linux/list.h>
 #include <linux/rbtree.h>
 #include <stdio.h>
-#include <byteswap.h>
-#include <libgen.h>
 #include "branch.h"
-#include "build-id.h"
-#include "event.h"
 #include "path.h"
 #include "symbol_conf.h"
 
@@ -25,6 +19,10 @@
 #include <elf.h>
 
 #include "dso.h"
+
+struct map;
+struct map_groups;
+struct option;
 
 /*
  * libelf 0.8.x and earlier do not support ELF_C_READ_MMAP;
