@@ -291,7 +291,6 @@ struct rbd_img_request {
 	int			result;	/* first nonzero obj_request result */
 
 	struct list_head	object_extents;	/* obj_req.ex structs */
-	u32			obj_request_count;
 	u32			pending_count;
 
 	struct kref		kref;
@@ -1345,7 +1344,6 @@ static inline void rbd_img_obj_request_add(struct rbd_img_request *img_request,
 
 	/* Image request now owns object's original reference */
 	obj_request->img_request = img_request;
-	img_request->obj_request_count++;
 	img_request->pending_count++;
 	dout("%s: img %p obj %p\n", __func__, img_request, obj_request);
 }
@@ -1355,8 +1353,6 @@ static inline void rbd_img_obj_request_del(struct rbd_img_request *img_request,
 {
 	dout("%s: img %p obj %p\n", __func__, img_request, obj_request);
 	list_del(&obj_request->ex.oe_item);
-	rbd_assert(img_request->obj_request_count > 0);
-	img_request->obj_request_count--;
 	rbd_assert(obj_request->img_request == img_request);
 	rbd_obj_request_put(obj_request);
 }
@@ -1672,7 +1668,6 @@ static void rbd_img_request_destroy(struct kref *kref)
 
 	for_each_obj_request_safe(img_request, obj_request, next_obj_request)
 		rbd_img_obj_request_del(img_request, obj_request);
-	rbd_assert(img_request->obj_request_count == 0);
 
 	if (img_request_layered_test(img_request)) {
 		img_request_layered_clear(img_request);
