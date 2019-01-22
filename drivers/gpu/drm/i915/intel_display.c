@@ -14313,13 +14313,6 @@ static void intel_setup_outputs(struct drm_i915_private *dev_priv)
 	if (!HAS_DISPLAY(dev_priv))
 		return;
 
-	/*
-	 * intel_edp_init_connector() depends on this completing first, to
-	 * prevent the registeration of both eDP and LVDS and the incorrect
-	 * sharing of the PPS.
-	 */
-	intel_lvds_init(dev_priv);
-
 	if (IS_ICELAKE(dev_priv)) {
 		intel_ddi_init(dev_priv, PORT_A);
 		intel_ddi_init(dev_priv, PORT_B);
@@ -14382,6 +14375,13 @@ static void intel_setup_outputs(struct drm_i915_private *dev_priv)
 
 	} else if (HAS_PCH_SPLIT(dev_priv)) {
 		int found;
+
+		/*
+		 * intel_edp_init_connector() depends on this completing first,
+		 * to prevent the registration of both eDP and LVDS and the
+		 * incorrect sharing of the PPS.
+		 */
+		intel_lvds_init(dev_priv);
 
 		if (dev_priv->vbt.int_crt_support)
 			intel_crt_init(dev_priv);
@@ -14460,10 +14460,14 @@ static void intel_setup_outputs(struct drm_i915_private *dev_priv)
 
 		vlv_dsi_init(dev_priv);
 	} else if (IS_PINEVIEW(dev_priv)) {
+		intel_lvds_init(dev_priv);
+
 		if (dev_priv->vbt.int_crt_support)
 			intel_crt_init(dev_priv);
 	} else if (IS_GEN_RANGE(dev_priv, 3, 4)) {
 		bool found = false;
+
+		intel_lvds_init(dev_priv);
 
 		if (dev_priv->vbt.int_crt_support)
 			intel_crt_init(dev_priv);
@@ -14500,6 +14504,8 @@ static void intel_setup_outputs(struct drm_i915_private *dev_priv)
 		if (IS_G4X(dev_priv) && (I915_READ(DP_D) & DP_DETECTED))
 			intel_dp_init(dev_priv, DP_D, PORT_D);
 	} else if (IS_GEN(dev_priv, 2)) {
+		intel_lvds_init(dev_priv);
+
 		if (dev_priv->vbt.int_crt_support)
 			intel_crt_init(dev_priv);
 
