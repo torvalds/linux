@@ -18,6 +18,32 @@
 #include "komeda_dev.h"
 #include "komeda_kms.h"
 
+/* crtc_atomic_check is the final check stage, so beside build a display data
+ * pipeline according the crtc_state, but still needs to release/disable the
+ * unclaimed pipeline resources.
+ */
+static int
+komeda_crtc_atomic_check(struct drm_crtc *crtc,
+			 struct drm_crtc_state *state)
+{
+	struct komeda_crtc *kcrtc = to_kcrtc(crtc);
+	struct komeda_crtc_state *kcrtc_st = to_kcrtc_st(state);
+	int err;
+
+	if (state->active) {
+		err = komeda_build_display_data_flow(kcrtc, kcrtc_st);
+		if (err)
+			return err;
+	}
+
+	/* release unclaimed pipeline resources */
+	err = komeda_release_unclaimed_resources(kcrtc->master, kcrtc_st);
+	if (err)
+		return err;
+
+	return 0;
+}
+
 void komeda_crtc_handle_event(struct komeda_crtc   *kcrtc,
 			      struct komeda_events *evts)
 {
@@ -37,6 +63,7 @@ void komeda_crtc_handle_event(struct komeda_crtc   *kcrtc,
 }
 
 struct drm_crtc_helper_funcs komeda_crtc_helper_funcs = {
+	.atomic_check	= komeda_crtc_atomic_check,
 };
 
 static const struct drm_crtc_funcs komeda_crtc_funcs = {

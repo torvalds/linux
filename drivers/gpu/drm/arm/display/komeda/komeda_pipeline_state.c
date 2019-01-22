@@ -33,6 +33,18 @@ komeda_pipeline_get_state(struct komeda_pipeline *pipe,
 	return priv_to_pipe_st(priv_st);
 }
 
+struct komeda_pipeline_state *
+komeda_pipeline_get_new_state(struct komeda_pipeline *pipe,
+			      struct drm_atomic_state *state)
+{
+	struct drm_private_state *priv_st;
+
+	priv_st = drm_atomic_get_new_private_obj_state(state, &pipe->obj);
+	if (priv_st)
+		return priv_to_pipe_st(priv_st);
+	return NULL;
+}
+
 /* Assign pipeline for crtc */
 struct komeda_pipeline_state *
 komeda_pipeline_get_state_and_set_crtc(struct komeda_pipeline *pipe,
@@ -477,6 +489,52 @@ int komeda_build_display_data_flow(struct komeda_crtc *kcrtc,
 	err = komeda_timing_ctrlr_validate(master->ctrlr, kcrtc_st, &m_dflow);
 	if (err)
 		return err;
+
+	return 0;
+}
+
+void komeda_pipeline_unbound_components(struct komeda_pipeline *pipe,
+					struct komeda_pipeline_state *new)
+{
+	struct drm_atomic_state *drm_st = new->obj.state;
+	struct komeda_pipeline_state *old = priv_to_pipe_st(pipe->obj.state);
+	struct komeda_component_state *c_st;
+	struct komeda_component *c;
+	u32 disabling_comps, id;
+
+	WARN_ON(!old);
+
+	disabling_comps = (~new->active_comps) & old->active_comps;
+
+	/* unbound all disabling component */
+	dp_for_each_set_bit(id, disabling_comps) {
+		c = komeda_pipeline_get_component(pipe, id);
+		c_st = komeda_component_get_state_and_set_user(c,
+				drm_st, NULL, new->crtc);
+		WARN_ON(IS_ERR(c_st));
+	}
+}
+
+/* release unclaimed pipeline resource */
+int komeda_release_unclaimed_resources(struct komeda_pipeline *pipe,
+				       struct komeda_crtc_state *kcrtc_st)
+{
+	struct drm_atomic_state *drm_st = kcrtc_st->base.state;
+	struct komeda_pipeline_state *st;
+
+	/* ignore the pipeline which is not affected */
+	if (!pipe || !has_bit(pipe->id, kcrtc_st->affected_pipes))
+		return 0;
+
+	if (has_bit(pipe->id, kcrtc_st->active_pipes))
+		st = komeda_pipeline_get_new_state(pipe, drm_st);
+	else
+		st = komeda_pipeline_get_state_and_set_crtc(pipe, drm_st, NULL);
+
+	if (WARN_ON(IS_ERR_OR_NULL(st)))
+		return -EINVAL;
+
+	komeda_pipeline_unbound_components(pipe, st);
 
 	return 0;
 }

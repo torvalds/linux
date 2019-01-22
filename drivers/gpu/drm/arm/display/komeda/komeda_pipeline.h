@@ -409,4 +409,7 @@ int komeda_build_layer_data_flow(struct komeda_layer *layer,
 int komeda_build_display_data_flow(struct komeda_crtc *kcrtc,
 				   struct komeda_crtc_state *kcrtc_st);
 
+int komeda_release_unclaimed_resources(struct komeda_pipeline *pipe,
+				       struct komeda_crtc_state *kcrtc_st);
+
 #endif /* _KOMEDA_PIPELINE_H_*/
