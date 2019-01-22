@@ -947,6 +947,36 @@ static int hclge_tm_pri_tc_base_dwrr_cfg(struct hclge_dev *hdev)
 	return 0;
 }
 
+static int hclge_tm_ets_tc_dwrr_cfg(struct hclge_dev *hdev)
+{
+#define DEFAULT_TC_WEIGHT	1
+#define DEFAULT_TC_OFFSET	14
+
+	struct hclge_ets_tc_weight_cmd *ets_weight;
+	struct hclge_desc desc;
+	int i;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_ETS_TC_WEIGHT, false);
+	ets_weight = (struct hclge_ets_tc_weight_cmd *)desc.data;
+
+	for (i = 0; i < HNAE3_MAX_TC; i++) {
+		struct hclge_pg_info *pg_info;
+
+		ets_weight->tc_weight[i] = DEFAULT_TC_WEIGHT;
+
+		if (!(hdev->hw_tc_map & BIT(i)))
+			continue;
+
+		pg_info =
+			&hdev->tm_info.pg_info[hdev->tm_info.tc_info[i].pgid];
+		ets_weight->tc_weight[i] = pg_info->tc_dwrr[i];
+	}
+
+	ets_weight->weight_offset = DEFAULT_TC_OFFSET;
+
+	return hclge_cmd_send(&hdev->hw, &desc, 1);
+}
+
 static int hclge_tm_pri_vnet_base_dwrr_pri_cfg(struct hclge_vport *vport)
 {
 	struct hnae3_knic_private_info *kinfo = &vport->nic.kinfo;
@@ -996,6 +1026,19 @@ static int hclge_tm_pri_dwrr_cfg(struct hclge_dev *hdev)
 		ret = hclge_tm_pri_tc_base_dwrr_cfg(hdev);
 		if (ret)
 			return ret;
+
+		if (!hnae3_dev_dcb_supported(hdev))
+			return 0;
+
+		ret = hclge_tm_ets_tc_dwrr_cfg(hdev);
+		if (ret == -EOPNOTSUPP) {
+			dev_warn(&hdev->pdev->dev,
+				 "fw %08x does't support ets tc weight cmd\n",
+				 hdev->fw_version);
+			ret = 0;
+		}
+
+		return ret;
 	} else {
 		ret = hclge_tm_pri_vnet_base_dwrr_cfg(hdev);
 		if (ret)
