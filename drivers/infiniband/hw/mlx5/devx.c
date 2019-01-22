@@ -1184,6 +1184,7 @@ struct devx_async_event_queue {
 	wait_queue_head_t	poll_wait;
 	struct list_head	event_list;
 	atomic_t		bytes_in_use;
+	u8			is_destroyed:1;
 };
 
 struct devx_async_cmd_event_file {
@@ -1198,6 +1199,7 @@ static void devx_init_event_queue(struct devx_async_event_queue *ev_queue)
 	INIT_LIST_HEAD(&ev_queue->event_list);
 	init_waitqueue_head(&ev_queue->poll_wait);
 	atomic_set(&ev_queue->bytes_in_use, 0);
+	ev_queue->is_destroyed = 0;
 }
 
 static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_ASYNC_CMD_FD_ALLOC)(
@@ -1488,9 +1490,15 @@ static ssize_t devx_async_cmd_event_read(struct file *filp, char __user *buf,
 
 		if (wait_event_interruptible(
 			    ev_queue->poll_wait,
-			    !list_empty(&ev_queue->event_list))) {
+			    (!list_empty(&ev_queue->event_list) ||
+			     ev_queue->is_destroyed))) {
 			return -ERESTARTSYS;
 		}
+
+		if (list_empty(&ev_queue->event_list) &&
+		    ev_queue->is_destroyed)
+			return -EIO;
+
 		spin_lock_irq(&ev_queue->lock);
 	}
 
@@ -1544,7 +1552,9 @@ static __poll_t devx_async_cmd_event_poll(struct file *filp,
 	poll_wait(filp, &ev_queue->poll_wait, wait);
 
 	spin_lock_irq(&ev_queue->lock);
-	if (!list_empty(&ev_queue->event_list))
+	if (ev_queue->is_destroyed)
+		pollflags = EPOLLIN | EPOLLRDNORM | EPOLLRDHUP;
+	else if (!list_empty(&ev_queue->event_list))
 		pollflags = EPOLLIN | EPOLLRDNORM;
 	spin_unlock_irq(&ev_queue->lock);
 
@@ -1565,6 +1575,14 @@ static int devx_hot_unplug_async_cmd_event_file(struct ib_uobject *uobj,
 	struct devx_async_cmd_event_file *comp_ev_file =
 		container_of(uobj, struct devx_async_cmd_event_file,
 			     uobj);
+	struct devx_async_event_queue *ev_queue = &comp_ev_file->ev_queue;
+
+	spin_lock_irq(&ev_queue->lock);
+	ev_queue->is_destroyed = 1;
+	spin_unlock_irq(&ev_queue->lock);
+
+	if (why == RDMA_REMOVE_DRIVER_REMOVE)
+		wake_up_interruptible(&ev_queue->poll_wait);
 
 	mlx5_cmd_cleanup_async_ctx(&comp_ev_file->async_ctx);
 	return 0;
