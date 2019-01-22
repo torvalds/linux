@@ -67,6 +67,7 @@ struct xdp_umem *xdp_get_umem_from_qid(struct net_device *dev,
 
 	return NULL;
 }
+EXPORT_SYMBOL(xdp_get_umem_from_qid);
 
 static void xdp_clear_umem_at_qid(struct net_device *dev, u16 queue_id)
 {
