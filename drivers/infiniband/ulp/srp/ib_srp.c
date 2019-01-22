@@ -3823,6 +3823,7 @@ static ssize_t srp_create_target(struct device *dev,
 	target_host->max_id      = 1;
 	target_host->max_lun     = -1LL;
 	target_host->max_cmd_len = sizeof ((struct srp_cmd *) (void *) 0L)->cdb;
+	target_host->max_segment_size = ib_dma_max_seg_size(ibdev);
 
 	target = host_to_target(target_host);
 

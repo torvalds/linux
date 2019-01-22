@@ -3716,6 +3716,19 @@ static inline unsigned int ib_sg_dma_len(struct ib_device *dev,
 }
 
 /**
+ * ib_dma_max_seg_size - Return the size limit of a single DMA transfer
+ * @dev: The device to query
+ *
+ * The returned value represents a size in bytes.
+ */
+static inline unsigned int ib_dma_max_seg_size(struct ib_device *dev)
+{
+	struct device_dma_parameters *p = dev->dma_device->dma_parms;
+
+	return p ? p->max_segment_size : UINT_MAX;
+}
+
+/**
  * ib_dma_sync_single_for_cpu - Prepare DMA region to be accessed by CPU
  * @dev: The device for which the DMA address was created
  * @addr: The DMA address
