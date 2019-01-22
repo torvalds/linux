@@ -141,8 +141,8 @@ int sys_enter(struct syscall_enter_args *args)
 		len = sizeof(augmented_args.args);
 	}
 
-	perf_event_output(args, &__augmented_syscalls__, BPF_F_CURRENT_CPU, &augmented_args, len);
-	return 0;
+	/* If perf_event_output fails, return non-zero so that it gets recorded unaugmented */
+	return perf_event_output(args, &__augmented_syscalls__, BPF_F_CURRENT_CPU, &augmented_args, len);
 }
 
 SEC("raw_syscalls:sys_exit")

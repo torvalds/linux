@@ -8,7 +8,6 @@
 #include <sys/types.h>
 #include <stdbool.h>
 #include "rwsem.h"
-#include <linux/types.h>
 #include <linux/bitops.h>
 #include "map.h"
 #include "namespaces.h"

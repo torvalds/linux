@@ -35,6 +35,7 @@ libperf-y += dso.o
 libperf-y += symbol.o
 libperf-y += symbol_fprintf.o
 libperf-y += color.o
+libperf-y += color_config.o
 libperf-y += metricgroup.o
 libperf-y += header.o
 libperf-y += callchain.o
@@ -44,6 +45,8 @@ libperf-y += machine.o
 libperf-y += map.o
 libperf-y += pstack.o
 libperf-y += session.o
+libperf-y += sample-raw.o
+libperf-y += s390-sample-raw.o
 libperf-$(CONFIG_TRACE) += syscalltbl.o
 libperf-y += ordered-events.o
 libperf-y += namespaces.o
@@ -151,6 +154,8 @@ libperf-$(CONFIG_DWARF) += genelf_debug.o
 endif
 
 libperf-y += perf-hooks.o
+
+libperf-$(CONFIG_LIBBPF) += bpf-event.o
 
 libperf-$(CONFIG_CXX) += c++/
 

@@ -1035,6 +1035,9 @@ void perf_evsel__config(struct perf_evsel *evsel, struct record_opts *opts,
 	attr->mmap  = track;
 	attr->mmap2 = track && !perf_missing_features.mmap2;
 	attr->comm  = track;
+	attr->ksymbol = track && !perf_missing_features.ksymbol;
+	attr->bpf_event = track && opts->bpf_event &&
+		!perf_missing_features.bpf_event;
 
 	if (opts->record_namespaces)
 		attr->namespaces  = track;
@@ -1652,6 +1655,8 @@ int perf_event_attr__fprintf(FILE *fp, struct perf_event_attr *attr,
 	PRINT_ATTRf(context_switch, p_unsigned);
 	PRINT_ATTRf(write_backward, p_unsigned);
 	PRINT_ATTRf(namespaces, p_unsigned);
+	PRINT_ATTRf(ksymbol, p_unsigned);
+	PRINT_ATTRf(bpf_event, p_unsigned);
 
 	PRINT_ATTRn("{ wakeup_events, wakeup_watermark }", wakeup_events, p_unsigned);
 	PRINT_ATTRf(bp_type, p_unsigned);
@@ -1811,6 +1816,10 @@ fallback_missing_features:
 				     PERF_SAMPLE_BRANCH_NO_CYCLES);
 	if (perf_missing_features.group_read && evsel->attr.inherit)
 		evsel->attr.read_format &= ~(PERF_FORMAT_GROUP|PERF_FORMAT_ID);
+	if (perf_missing_features.ksymbol)
+		evsel->attr.ksymbol = 0;
+	if (perf_missing_features.bpf_event)
+		evsel->attr.bpf_event = 0;
 retry_sample_id:
 	if (perf_missing_features.sample_id_all)
 		evsel->attr.sample_id_all = 0;
@@ -1930,7 +1939,15 @@ try_fallback:
 	 * Must probe features in the order they were added to the
 	 * perf_event_attr interface.
 	 */
-	if (!perf_missing_features.write_backward && evsel->attr.write_backward) {
+	if (!perf_missing_features.bpf_event && evsel->attr.bpf_event) {
+		perf_missing_features.bpf_event = true;
+		pr_debug2("switching off bpf_event\n");
+		goto fallback_missing_features;
+	} else if (!perf_missing_features.ksymbol && evsel->attr.ksymbol) {
+		perf_missing_features.ksymbol = true;
+		pr_debug2("switching off ksymbol\n");
+		goto fallback_missing_features;
+	} else if (!perf_missing_features.write_backward && evsel->attr.write_backward) {
 		perf_missing_features.write_backward = true;
 		pr_debug2("switching off write_backward\n");
 		goto out_close;

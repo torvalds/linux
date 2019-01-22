@@ -49,6 +49,9 @@ struct perf_evlist {
 	struct perf_evsel *selected;
 	struct events_stats stats;
 	struct perf_env	*env;
+	void (*trace_event_sample_raw)(struct perf_evlist *evlist,
+				       union perf_event *event,
+				       struct perf_sample *sample);
 	u64		first_sample_time;
 	u64		last_sample_time;
 };
@@ -314,5 +317,4 @@ void perf_evlist__force_leader(struct perf_evlist *evlist);
 
 struct perf_evsel *perf_evlist__reset_weak_group(struct perf_evlist *evlist,
 						 struct perf_evsel *evsel);
-
 #endif /* __PERF_EVLIST_H */
