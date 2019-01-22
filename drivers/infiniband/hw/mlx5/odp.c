@@ -1064,12 +1064,12 @@ static int mlx5_ib_mr_initiator_pfault_handler(
 }
 
 /*
- * Parse responder WQE. Advances the wqe pointer to point at the
- * scatter-gather list, and set wqe_end to the end of the WQE.
+ * Parse responder WQE and set wqe_end to the end of the WQE.
  */
-static int mlx5_ib_mr_responder_pfault_handler(
-	struct mlx5_ib_dev *dev, struct mlx5_pagefault *pfault,
-	struct mlx5_ib_qp *qp, void **wqe, void **wqe_end, int wqe_length)
+static int mlx5_ib_mr_responder_pfault_handler(struct mlx5_ib_dev *dev,
+					       struct mlx5_ib_qp *qp, void *wqe,
+					       void **wqe_end,
+					       int wqe_length)
 {
 	struct mlx5_ib_wq *wq = &qp->rq;
 	int wqe_size = 1 << wq->wqe_shift;
@@ -1102,7 +1102,7 @@ invalid_transport_or_opcode:
 		return -EFAULT;
 	}
 
-	*wqe_end = *wqe + wqe_size;
+	*wqe_end = wqe + wqe_size;
 
 	return 0;
 }
@@ -1185,7 +1185,7 @@ static void mlx5_ib_mr_wqe_pfault_handler(struct mlx5_ib_dev *dev,
 		ret = mlx5_ib_mr_initiator_pfault_handler(dev, pfault, qp, &wqe,
 							  &wqe_end, ret);
 	else
-		ret = mlx5_ib_mr_responder_pfault_handler(dev, pfault, qp, &wqe,
+		ret = mlx5_ib_mr_responder_pfault_handler(dev, qp, wqe,
 							  &wqe_end, ret);
 	if (ret < 0)
 		goto resolve_page_fault;
