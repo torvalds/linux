@@ -5530,9 +5530,7 @@ static bool mlx5_ib_bind_slave_port(struct mlx5_ib_dev *ibdev,
 	mpi->mdev_events.notifier_call = mlx5_ib_event_slave_port;
 	mlx5_notifier_register(mpi->mdev, &mpi->mdev_events);
 
-	err = mlx5_ib_init_cong_debugfs(ibdev, port_num);
-	if (err)
-		goto unbind;
+	mlx5_ib_init_cong_debugfs(ibdev, port_num);
 
 	return true;
 
@@ -6207,8 +6205,9 @@ void mlx5_ib_stage_counters_cleanup(struct mlx5_ib_dev *dev)
 
 static int mlx5_ib_stage_cong_debugfs_init(struct mlx5_ib_dev *dev)
 {
-	return mlx5_ib_init_cong_debugfs(dev,
-					 mlx5_core_native_port_num(dev->mdev) - 1);
+	mlx5_ib_init_cong_debugfs(dev,
+				  mlx5_core_native_port_num(dev->mdev) - 1);
+	return 0;
 }
 
 static void mlx5_ib_stage_cong_debugfs_cleanup(struct mlx5_ib_dev *dev)

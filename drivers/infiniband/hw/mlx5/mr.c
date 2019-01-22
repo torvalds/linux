@@ -606,52 +606,27 @@ static void mlx5_mr_cache_debugfs_cleanup(struct mlx5_ib_dev *dev)
 	dev->cache.root = NULL;
 }
 
-static int mlx5_mr_cache_debugfs_init(struct mlx5_ib_dev *dev)
+static void mlx5_mr_cache_debugfs_init(struct mlx5_ib_dev *dev)
 {
 	struct mlx5_mr_cache *cache = &dev->cache;
 	struct mlx5_cache_ent *ent;
+	struct dentry *dir;
 	int i;
 
 	if (!mlx5_debugfs_root || dev->rep)
-		return 0;
+		return;
 
 	cache->root = debugfs_create_dir("mr_cache", dev->mdev->priv.dbg_root);
-	if (!cache->root)
-		return -ENOMEM;
 
 	for (i = 0; i < MAX_MR_CACHE_ENTRIES; i++) {
 		ent = &cache->ent[i];
 		sprintf(ent->name, "%d", ent->order);
-		ent->dir = debugfs_create_dir(ent->name,  cache->root);
-		if (!ent->dir)
-			goto err;
-
-		ent->fsize = debugfs_create_file("size", 0600, ent->dir, ent,
-						 &size_fops);
-		if (!ent->fsize)
-			goto err;
-
-		ent->flimit = debugfs_create_file("limit", 0600, ent->dir, ent,
-						  &limit_fops);
-		if (!ent->flimit)
-			goto err;
-
-		ent->fcur = debugfs_create_u32("cur", 0400, ent->dir,
-					       &ent->cur);
-		if (!ent->fcur)
-			goto err;
-
-		ent->fmiss = debugfs_create_u32("miss", 0600, ent->dir,
-						&ent->miss);
-		if (!ent->fmiss)
-			goto err;
+		dir = debugfs_create_dir(ent->name, cache->root);
+		debugfs_create_file("size", 0600, dir, ent, &size_fops);
+		debugfs_create_file("limit", 0600, dir, ent, &limit_fops);
+		debugfs_create_u32("cur", 0400, dir, &ent->cur);
+		debugfs_create_u32("miss", 0600, dir, &ent->miss);
 	}
-
-	return 0;
-err:
-	mlx5_mr_cache_debugfs_cleanup(dev);
-
-	return -ENOMEM;
 }
 
 static void delay_time_func(struct timer_list *t)
@@ -665,7 +640,6 @@ int mlx5_mr_cache_init(struct mlx5_ib_dev *dev)
 {
 	struct mlx5_mr_cache *cache = &dev->cache;
 	struct mlx5_cache_ent *ent;
-	int err;
 	int i;
 
 	mutex_init(&dev->slow_path_mutex);
@@ -709,14 +683,7 @@ int mlx5_mr_cache_init(struct mlx5_ib_dev *dev)
 		queue_work(cache->wq, &ent->work);
 	}
 
-	err = mlx5_mr_cache_debugfs_init(dev);
-	if (err)
-		mlx5_ib_warn(dev, "cache debugfs failure\n");
-
-	/*
-	 * We don't want to fail driver if debugfs failed to initialize,
-	 * so we are not forwarding error to the user.
-	 */
+	mlx5_mr_cache_debugfs_init(dev);
 
 	return 0;
 }

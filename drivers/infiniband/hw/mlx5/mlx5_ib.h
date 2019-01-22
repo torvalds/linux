@@ -636,7 +636,6 @@ struct mlx5_cache_ent {
 	spinlock_t		lock;
 
 
-	struct dentry	       *dir;
 	char                    name[4];
 	u32                     order;
 	u32			xlt;
@@ -647,11 +646,6 @@ struct mlx5_cache_ent {
 	u32                     cur;
 	u32                     miss;
 	u32			limit;
-
-	struct dentry          *fsize;
-	struct dentry          *fcur;
-	struct dentry          *fmiss;
-	struct dentry          *flimit;
 
 	struct mlx5_ib_dev     *dev;
 	struct work_struct	work;
@@ -1270,7 +1264,7 @@ __be16 mlx5_get_roce_udp_sport(struct mlx5_ib_dev *dev,
 			       const struct ib_gid_attr *attr);
 
 void mlx5_ib_cleanup_cong_debugfs(struct mlx5_ib_dev *dev, u8 port_num);
-int mlx5_ib_init_cong_debugfs(struct mlx5_ib_dev *dev, u8 port_num);
+void mlx5_ib_init_cong_debugfs(struct mlx5_ib_dev *dev, u8 port_num);
 
 /* GSI QP helper functions */
 struct ib_qp *mlx5_ib_gsi_create_qp(struct ib_pd *pd,
