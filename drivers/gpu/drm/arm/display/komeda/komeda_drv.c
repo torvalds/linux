@@ -17,6 +17,13 @@ struct komeda_drv {
 	struct komeda_kms_dev *kms;
 };
 
+struct komeda_dev *dev_to_mdev(struct device *dev)
+{
+	struct komeda_drv *mdrv = dev_get_drvdata(dev);
+
+	return mdrv ? mdrv->mdev : NULL;
+}
+
 static void komeda_unbind(struct device *dev)
 {
 	struct komeda_drv *mdrv = dev_get_drvdata(dev);
