@@ -14504,6 +14504,9 @@ static void intel_setup_outputs(struct drm_i915_private *dev_priv)
 
 		if (IS_G4X(dev_priv) && (I915_READ(DP_D) & DP_DETECTED))
 			intel_dp_init(dev_priv, DP_D, PORT_D);
+
+		if (SUPPORTS_TV(dev_priv))
+			intel_tv_init(dev_priv);
 	} else if (IS_GEN(dev_priv, 2)) {
 		if (IS_MOBILE(dev_priv) && !IS_I830(dev_priv))
 			intel_lvds_init(dev_priv);
@@ -14513,9 +14516,6 @@ static void intel_setup_outputs(struct drm_i915_private *dev_priv)
 
 		intel_dvo_init(dev_priv);
 	}
-
-	if (SUPPORTS_TV(dev_priv))
-		intel_tv_init(dev_priv);
 
 	intel_psr_init(dev_priv);
 
