@@ -147,6 +147,12 @@ struct komeda_dev *komeda_dev_create(struct device *dev)
 		goto err_cleanup;
 	}
 
+	err = komeda_assemble_pipelines(mdev);
+	if (err) {
+		DRM_ERROR("assemble display pipelines failed.\n");
+		goto err_cleanup;
+	}
+
 	return mdev;
 
 err_cleanup:

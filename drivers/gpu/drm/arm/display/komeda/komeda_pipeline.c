@@ -200,3 +200,78 @@ void komeda_component_destroy(struct komeda_dev *mdev,
 {
 	devm_kfree(mdev->dev, c);
 }
+
+static void komeda_component_dump(struct komeda_component *c)
+{
+	if (!c)
+		return;
+
+	DRM_DEBUG("	%s: ID %d-0x%08lx.\n",
+		  c->name, c->id, BIT(c->id));
+	DRM_DEBUG("		max_active_inputs:%d, supported_inputs: 0x%08x.\n",
+		  c->max_active_inputs, c->supported_inputs);
+	DRM_DEBUG("		max_active_outputs:%d, supported_outputs: 0x%08x.\n",
+		  c->max_active_outputs, c->supported_outputs);
+}
+
+static void komeda_pipeline_dump(struct komeda_pipeline *pipe)
+{
+	struct komeda_component *c;
+	int id;
+
+	DRM_INFO("Pipeline-%d: n_layers: %d, n_scalers: %d, output: %s\n",
+		 pipe->id, pipe->n_layers, pipe->n_scalers,
+		 pipe->of_output_dev ? pipe->of_output_dev->full_name : "none");
+
+	dp_for_each_set_bit(id, pipe->avail_comps) {
+		c = komeda_pipeline_get_component(pipe, id);
+
+		komeda_component_dump(c);
+	}
+}
+
+static void komeda_component_verify_inputs(struct komeda_component *c)
+{
+	struct komeda_pipeline *pipe = c->pipeline;
+	struct komeda_component *input;
+	int id;
+
+	dp_for_each_set_bit(id, c->supported_inputs) {
+		input = komeda_pipeline_get_component(pipe, id);
+		if (!input) {
+			c->supported_inputs &= ~(BIT(id));
+			DRM_WARN("Can not find input(ID-%d) for component: %s.\n",
+				 id, c->name);
+			continue;
+		}
+
+		input->supported_outputs |= BIT(c->id);
+	}
+}
+
+static void komeda_pipeline_assemble(struct komeda_pipeline *pipe)
+{
+	struct komeda_component *c;
+	int id;
+
+	dp_for_each_set_bit(id, pipe->avail_comps) {
+		c = komeda_pipeline_get_component(pipe, id);
+
+		komeda_component_verify_inputs(c);
+	}
+}
+
+int komeda_assemble_pipelines(struct komeda_dev *mdev)
+{
+	struct komeda_pipeline *pipe;
+	int i;
+
+	for (i = 0; i < mdev->n_pipelines; i++) {
+		pipe = mdev->pipelines[i];
+
+		komeda_pipeline_assemble(pipe);
+		komeda_pipeline_dump(pipe);
+	}
+
+	return 0;
+}
