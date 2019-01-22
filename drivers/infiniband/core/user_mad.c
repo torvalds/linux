@@ -957,19 +957,22 @@ static int ib_umad_open(struct inode *inode, struct file *filp)
 {
 	struct ib_umad_port *port;
 	struct ib_umad_file *file;
-	int ret = -ENXIO;
+	int ret = 0;
 
 	port = container_of(inode->i_cdev, struct ib_umad_port, cdev);
 
 	mutex_lock(&port->file_mutex);
 
-	if (!port->ib_dev)
+	if (!port->ib_dev) {
+		ret = -ENXIO;
 		goto out;
+	}
 
-	ret = -ENOMEM;
-	file = kzalloc(sizeof *file, GFP_KERNEL);
-	if (!file)
+	file = kzalloc(sizeof(*file), GFP_KERNEL);
+	if (!file) {
+		ret = -ENOMEM;
 		goto out;
+	}
 
 	mutex_init(&file->mutex);
 	spin_lock_init(&file->send_lock);
@@ -982,13 +985,7 @@ static int ib_umad_open(struct inode *inode, struct file *filp)
 
 	list_add_tail(&file->port_list, &port->file_list);
 
-	ret = nonseekable_open(inode, filp);
-	if (ret) {
-		list_del(&file->port_list);
-		kfree(file);
-		goto out;
-	}
-
+	nonseekable_open(inode, filp);
 out:
 	mutex_unlock(&port->file_mutex);
 	return ret;
@@ -1070,15 +1067,8 @@ static int ib_umad_sm_open(struct inode *inode, struct file *filp)
 
 	filp->private_data = port;
 
-	ret = nonseekable_open(inode, filp);
-	if (ret)
-		goto err_clr_sm_cap;
-
+	nonseekable_open(inode, filp);
 	return 0;
-
-err_clr_sm_cap:
-	swap(props.set_port_cap_mask, props.clr_port_cap_mask);
-	ib_modify_port(port->ib_dev, port->port_num, 0, &props);
 
 err_up_sem:
 	up(&port->sm_sem);
@@ -1278,12 +1268,12 @@ static void ib_umad_kill_port(struct ib_umad_port *port)
 	mutex_unlock(&port->file_mutex);
 
 	cdev_device_del(&port->sm_cdev, &port->sm_dev);
+	cdev_device_del(&port->cdev, &port->dev);
+	ida_free(&umad_ida, port->dev_num);
+
 	/* balances device_initialize() */
 	put_device(&port->sm_dev);
-	cdev_device_del(&port->cdev, &port->dev);
-	/* balances device_initialize() */
 	put_device(&port->dev);
-	ida_free(&umad_ida, port->dev_num);
 }
 
 static void ib_umad_add_one(struct ib_device *device)
