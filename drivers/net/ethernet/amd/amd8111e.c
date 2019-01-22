@@ -435,7 +435,7 @@ static int amd8111e_restart(struct net_device *dev)
 	int i,reg_val;
 
 	/* stop the chip */
-	 writel(RUN, mmio + CMD0);
+	writel(RUN, mmio + CMD0);
 
 	if(amd8111e_init_ring(dev))
 		return -ENOMEM;
@@ -1720,7 +1720,7 @@ static void amd8111e_config_ipg(struct timer_list *t)
 		writew((u32)tmp_ipg, mmio + IPG);
 		writew((u32)(tmp_ipg - IFS1_DELTA), mmio + IFS1);
 	}
-	 mod_timer(&lp->ipg_data.ipg_timer, jiffies + IPG_CONVERGE_JIFFIES);
+	mod_timer(&lp->ipg_data.ipg_timer, jiffies + IPG_CONVERGE_JIFFIES);
 	return;
 
 }
