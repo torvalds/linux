@@ -7518,7 +7518,8 @@ static void hclge_get_tqps_and_rss_info(struct hnae3_handle *handle,
 	*max_rss_size = hdev->rss_size_max;
 }
 
-static int hclge_set_channels(struct hnae3_handle *handle, u32 new_tqps_num)
+static int hclge_set_channels(struct hnae3_handle *handle, u32 new_tqps_num,
+			      bool rxfh_configured)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hnae3_knic_private_info *kinfo = &vport->nic.kinfo;
@@ -7557,6 +7558,10 @@ static int hclge_set_channels(struct hnae3_handle *handle, u32 new_tqps_num)
 	if (ret)
 		return ret;
 
+	/* RSS indirection table has been configuared by user */
+	if (rxfh_configured)
+		goto out;
+
 	/* Reinitializes the rss indirect table according to the new RSS size */
 	rss_indir = kcalloc(HCLGE_RSS_IND_TBL_SIZE, sizeof(u32), GFP_KERNEL);
 	if (!rss_indir)
@@ -7572,6 +7577,7 @@ static int hclge_set_channels(struct hnae3_handle *handle, u32 new_tqps_num)
 
 	kfree(rss_indir);
 
+out:
 	if (!ret)
 		dev_info(&hdev->pdev->dev,
 			 "Channels changed, rss_size from %d to %d, tqps from %d to %d",

@@ -4163,6 +4163,7 @@ int hns3_set_channels(struct net_device *netdev,
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
 	struct hnae3_knic_private_info *kinfo = &h->kinfo;
+	bool rxfh_configured = netif_is_rxfh_configured(netdev);
 	u32 new_tqp_num = ch->combined_count;
 	u16 org_tqp_num;
 	int ret;
@@ -4190,9 +4191,10 @@ int hns3_set_channels(struct net_device *netdev,
 		return ret;
 
 	org_tqp_num = h->kinfo.num_tqps;
-	ret = h->ae_algo->ops->set_channels(h, new_tqp_num);
+	ret = h->ae_algo->ops->set_channels(h, new_tqp_num, rxfh_configured);
 	if (ret) {
-		ret = h->ae_algo->ops->set_channels(h, org_tqp_num);
+		ret = h->ae_algo->ops->set_channels(h, org_tqp_num,
+						    rxfh_configured);
 		if (ret) {
 			/* If revert to old tqp failed, fatal error occurred */
 			dev_err(&netdev->dev,
