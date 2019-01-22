@@ -19,17 +19,17 @@ komeda_pipeline_add(struct komeda_dev *mdev, size_t size,
 	if (mdev->n_pipelines + 1 > KOMEDA_MAX_PIPELINES) {
 		DRM_ERROR("Exceed max support %d pipelines.\n",
 			  KOMEDA_MAX_PIPELINES);
-		return NULL;
+		return ERR_PTR(-ENOSPC);
 	}
 
 	if (size < sizeof(*pipe)) {
 		DRM_ERROR("Request pipeline size too small.\n");
-		return NULL;
+		return ERR_PTR(-EINVAL);
 	}
 
 	pipe = devm_kzalloc(mdev->dev, size, GFP_KERNEL);
 	if (!pipe)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	pipe->mdev = mdev;
 	pipe->id   = mdev->n_pipelines;
@@ -142,32 +142,32 @@ komeda_component_add(struct komeda_pipeline *pipe,
 	if (max_active_inputs > KOMEDA_COMPONENT_N_INPUTS) {
 		WARN(1, "please large KOMEDA_COMPONENT_N_INPUTS to %d.\n",
 		     max_active_inputs);
-		return NULL;
+		return ERR_PTR(-ENOSPC);
 	}
 
 	pos = komeda_pipeline_get_component_pos(pipe, id);
 	if (!pos || (*pos))
-		return NULL;
+		return ERR_PTR(-EINVAL);
 
 	if (has_bit(id, KOMEDA_PIPELINE_LAYERS)) {
 		idx = id - KOMEDA_COMPONENT_LAYER0;
 		num = &pipe->n_layers;
 		if (idx != pipe->n_layers) {
 			DRM_ERROR("please add Layer by id sequence.\n");
-			return NULL;
+			return ERR_PTR(-EINVAL);
 		}
 	} else if (has_bit(id,  KOMEDA_PIPELINE_SCALERS)) {
 		idx = id - KOMEDA_COMPONENT_SCALER0;
 		num = &pipe->n_scalers;
 		if (idx != pipe->n_scalers) {
 			DRM_ERROR("please add Scaler by id sequence.\n");
-			return NULL;
+			return ERR_PTR(-EINVAL);
 		}
 	}
 
 	c = devm_kzalloc(pipe->mdev->dev, comp_sz, GFP_KERNEL);
 	if (!c)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	c->id = id;
 	c->hw_id = hw_id;

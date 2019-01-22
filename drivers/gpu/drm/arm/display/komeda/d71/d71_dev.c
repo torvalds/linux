@@ -4,13 +4,141 @@
  * Author: James.Qian.Wang <james.qian.wang@arm.com>
  *
  */
+
+#include <drm/drm_print.h>
+#include "d71_dev.h"
 #include "malidp_io.h"
-#include "komeda_dev.h"
+
+static int d71_reset(struct d71_dev *d71)
+{
+	u32 __iomem *gcu = d71->gcu_addr;
+	int ret;
+
+	malidp_write32_mask(gcu, BLK_CONTROL,
+			    GCU_CONTROL_SRST, GCU_CONTROL_SRST);
+
+	ret = dp_wait_cond(!(malidp_read32(gcu, BLK_CONTROL) & GCU_CONTROL_SRST),
+			   100, 1000, 10000);
+
+	return ret > 0 ? 0 : -ETIMEDOUT;
+}
+
+void d71_read_block_header(u32 __iomem *reg, struct block_header *blk)
+{
+	int i;
+
+	blk->block_info = malidp_read32(reg, BLK_BLOCK_INFO);
+	if (BLOCK_INFO_BLK_TYPE(blk->block_info) == D71_BLK_TYPE_RESERVED)
+		return;
+
+	blk->pipeline_info = malidp_read32(reg, BLK_PIPELINE_INFO);
+
+	/* get valid input and output ids */
+	for (i = 0; i < PIPELINE_INFO_N_VALID_INPUTS(blk->pipeline_info); i++)
+		blk->input_ids[i] = malidp_read32(reg + i, BLK_VALID_INPUT_ID0);
+	for (i = 0; i < PIPELINE_INFO_N_OUTPUTS(blk->pipeline_info); i++)
+		blk->output_ids[i] = malidp_read32(reg + i, BLK_OUTPUT_ID0);
+}
+
+static void d71_cleanup(struct komeda_dev *mdev)
+{
+	struct d71_dev *d71 = mdev->chip_data;
+
+	if (!d71)
+		return;
+
+	devm_kfree(mdev->dev, d71);
+	mdev->chip_data = NULL;
+}
 
 static int d71_enum_resources(struct komeda_dev *mdev)
 {
-	/* TODO add enum resources */
-	return -1;
+	struct d71_dev *d71;
+	struct komeda_pipeline *pipe;
+	struct block_header blk;
+	u32 __iomem *blk_base;
+	u32 i, value, offset;
+	int err;
+
+	d71 = devm_kzalloc(mdev->dev, sizeof(*d71), GFP_KERNEL);
+	if (!d71)
+		return -ENOMEM;
+
+	mdev->chip_data = d71;
+	d71->mdev = mdev;
+	d71->gcu_addr = mdev->reg_base;
+	d71->periph_addr = mdev->reg_base + (D71_BLOCK_OFFSET_PERIPH >> 2);
+
+	err = d71_reset(d71);
+	if (err) {
+		DRM_ERROR("Fail to reset d71 device.\n");
+		goto err_cleanup;
+	}
+
+	/* probe GCU */
+	value = malidp_read32(d71->gcu_addr, GLB_CORE_INFO);
+	d71->num_blocks = value & 0xFF;
+	d71->num_pipelines = (value >> 8) & 0x7;
+
+	if (d71->num_pipelines > D71_MAX_PIPELINE) {
+		DRM_ERROR("d71 supports %d pipelines, but got: %d.\n",
+			  D71_MAX_PIPELINE, d71->num_pipelines);
+		err = -EINVAL;
+		goto err_cleanup;
+	}
+
+	/* probe PERIPH */
+	value = malidp_read32(d71->periph_addr, BLK_BLOCK_INFO);
+	if (BLOCK_INFO_BLK_TYPE(value) != D71_BLK_TYPE_PERIPH) {
+		DRM_ERROR("access blk periph but got blk: %d.\n",
+			  BLOCK_INFO_BLK_TYPE(value));
+		err = -EINVAL;
+		goto err_cleanup;
+	}
+
+	value = malidp_read32(d71->periph_addr, PERIPH_CONFIGURATION_ID);
+
+	d71->max_line_size	= value & PERIPH_MAX_LINE_SIZE ? 4096 : 2048;
+	d71->max_vsize		= 4096;
+	d71->num_rich_layers	= value & PERIPH_NUM_RICH_LAYERS ? 2 : 1;
+	d71->supports_dual_link	= value & PERIPH_SPLIT_EN ? true : false;
+	d71->integrates_tbu	= value & PERIPH_TBU_EN ? true : false;
+
+	for (i = 0; i < d71->num_pipelines; i++) {
+		pipe = komeda_pipeline_add(mdev, sizeof(struct d71_pipeline),
+					   NULL);
+		if (IS_ERR(pipe)) {
+			err = PTR_ERR(pipe);
+			goto err_cleanup;
+		}
+		d71->pipes[i] = to_d71_pipeline(pipe);
+	}
+
+	/* loop the register blks and probe */
+	i = 2; /* exclude GCU and PERIPH */
+	offset = D71_BLOCK_SIZE; /* skip GCU */
+	while (i < d71->num_blocks) {
+		blk_base = mdev->reg_base + (offset >> 2);
+
+		d71_read_block_header(blk_base, &blk);
+		if (BLOCK_INFO_BLK_TYPE(blk.block_info) != D71_BLK_TYPE_RESERVED) {
+			err = d71_probe_block(d71, &blk, blk_base);
+			if (err)
+				goto err_cleanup;
+			i++;
+		}
+
+		offset += D71_BLOCK_SIZE;
+	}
+
+	DRM_DEBUG("total %d (out of %d) blocks are found.\n",
+		  i, d71->num_blocks);
+
+	return 0;
+
+err_cleanup:
+	d71_cleanup(mdev);
+	return err;
 }
 
 #define __HW_ID(__group, __format) \
@@ -93,12 +221,8 @@ static void d71_init_fmt_tbl(struct komeda_dev *mdev)
 static struct komeda_dev_funcs d71_chip_funcs = {
 	.init_format_table = d71_init_fmt_tbl,
 	.enum_resources	= d71_enum_resources,
-	.cleanup	= NULL,
+	.cleanup	= d71_cleanup,
 };
-
-#define GLB_ARCH_ID		0x000
-#define GLB_CORE_ID		0x004
-#define GLB_CORE_INFO		0x008
 
 struct komeda_dev_funcs *
 d71_identify(u32 __iomem *reg_base, struct komeda_chip_info *chip)
