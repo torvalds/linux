@@ -125,7 +125,7 @@ static irqreturn_t sirf_wakeup_handler(int irq, void *dev_id)
 	if (ret < 0)
 		goto out;
 
-	data->active = !!ret;
+	data->active = ret;
 	wake_up_interruptible(&data->power_wait);
 out:
 	return IRQ_HANDLED;
