@@ -2708,7 +2708,7 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
 	amdgpu_irq_disable_all(adev);
 	if (adev->mode_info.mode_config_initialized){
 		if (!amdgpu_device_has_dc_support(adev))
-			drm_crtc_force_disable_all(adev->ddev);
+			drm_helper_force_disable_all(adev->ddev);
 		else
 			drm_atomic_helper_shutdown(adev->ddev);
 	}

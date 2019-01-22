@@ -1692,7 +1692,8 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
 
 	dc_resource_state_copy_construct_current(adev->dm.dc, state->context);
 
-	drm_atomic_private_obj_init(&adev->dm.atomic_obj,
+	drm_atomic_private_obj_init(adev->ddev,
+				    &adev->dm.atomic_obj,
 				    &state->base,
 				    &dm_atomic_state_funcs);
 

@@ -48,8 +48,8 @@ static int qxl_alloc_client_monitors_config(struct qxl_device *qdev,
 	}
 	if (!qdev->client_monitors_config) {
 		qdev->client_monitors_config = kzalloc(
-				sizeof(struct qxl_monitors_config) +
-				sizeof(struct qxl_head) * count, GFP_KERNEL);
+				struct_size(qdev->client_monitors_config,
+				heads, count), GFP_KERNEL);
 		if (!qdev->client_monitors_config)
 			return -ENOMEM;
 	}
@@ -1010,7 +1010,6 @@ static void qxl_conn_destroy(struct drm_connector *connector)
 }
 
 static const struct drm_connector_funcs qxl_connector_funcs = {
-	.dpms = drm_helper_connector_dpms,
 	.detect = qxl_conn_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = qxl_conn_destroy,

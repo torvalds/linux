@@ -1344,7 +1344,8 @@ static void hdmi_config_AVI(struct dw_hdmi *hdmi, struct drm_display_mode *mode)
 	u8 val;
 
 	/* Initialise info frame from DRM mode */
-	drm_hdmi_avi_infoframe_from_display_mode(&frame, mode, false);
+	drm_hdmi_avi_infoframe_from_display_mode(&frame,
+						 &hdmi->connector, mode);
 
 	if (hdmi_bus_fmt_is_yuv444(hdmi->hdmi_data.enc_out_bus_format))
 		frame.colorspace = HDMI_COLORSPACE_YUV444;
@@ -1998,8 +1999,8 @@ dw_hdmi_bridge_mode_valid(struct drm_bridge *bridge,
 }
 
 static void dw_hdmi_bridge_mode_set(struct drm_bridge *bridge,
-				    struct drm_display_mode *orig_mode,
-				    struct drm_display_mode *mode)
+				    const struct drm_display_mode *orig_mode,
+				    const struct drm_display_mode *mode)
 {
 	struct dw_hdmi *hdmi = bridge->driver_private;
 

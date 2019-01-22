@@ -102,7 +102,6 @@ struct intel_sdvo {
 
 	bool has_hdmi_monitor;
 	bool has_hdmi_audio;
-	bool rgb_quant_range_selectable;
 
 	/* DDC bus used by this SDVO encoder */
 	uint8_t ddc_bus;
@@ -980,29 +979,30 @@ static bool intel_sdvo_write_infoframe(struct intel_sdvo *intel_sdvo,
 }
 
 static bool intel_sdvo_set_avi_infoframe(struct intel_sdvo *intel_sdvo,
-					 const struct intel_crtc_state *pipe_config)
+					 const struct intel_crtc_state *pipe_config,
+					 const struct drm_connector_state *conn_state)
 {
+	const struct drm_display_mode *adjusted_mode =
+		&pipe_config->base.adjusted_mode;
 	uint8_t sdvo_data[HDMI_INFOFRAME_SIZE(AVI)];
 	union hdmi_infoframe frame;
 	int ret;
 	ssize_t len;
 
 	ret = drm_hdmi_avi_infoframe_from_display_mode(&frame.avi,
-						       &pipe_config->base.adjusted_mode,
-						       false);
+						       conn_state->connector,
+						       adjusted_mode);
 	if (ret < 0) {
 		DRM_ERROR("couldn't fill AVI infoframe\n");
 		return false;
 	}
 
-	if (intel_sdvo->rgb_quant_range_selectable) {
-		if (pipe_config->limited_color_range)
-			frame.avi.quantization_range =
-				HDMI_QUANTIZATION_RANGE_LIMITED;
-		else
-			frame.avi.quantization_range =
-				HDMI_QUANTIZATION_RANGE_FULL;
-	}
+	drm_hdmi_avi_infoframe_quant_range(&frame.avi,
+					   conn_state->connector,
+					   adjusted_mode,
+					   pipe_config->limited_color_range ?
+					   HDMI_QUANTIZATION_RANGE_LIMITED :
+					   HDMI_QUANTIZATION_RANGE_FULL);
 
 	len = hdmi_infoframe_pack(&frame, sdvo_data, sizeof(sdvo_data));
 	if (len < 0)
@@ -1315,7 +1315,8 @@ static void intel_sdvo_pre_enable(struct intel_encoder *intel_encoder,
 		intel_sdvo_set_encode(intel_sdvo, SDVO_ENCODE_HDMI);
 		intel_sdvo_set_colorimetry(intel_sdvo,
 					   SDVO_COLORIMETRY_RGB256);
-		intel_sdvo_set_avi_infoframe(intel_sdvo, crtc_state);
+		intel_sdvo_set_avi_infoframe(intel_sdvo,
+					     crtc_state, conn_state);
 	} else
 		intel_sdvo_set_encode(intel_sdvo, SDVO_ENCODE_DVI);
 
@@ -1801,8 +1802,6 @@ intel_sdvo_tmds_sink_detect(struct drm_connector *connector)
 			if (intel_sdvo_connector->is_hdmi) {
 				intel_sdvo->has_hdmi_monitor = drm_detect_hdmi_monitor(edid);
 				intel_sdvo->has_hdmi_audio = drm_detect_monitor_audio(edid);
-				intel_sdvo->rgb_quant_range_selectable =
-					drm_rgb_quant_range_selectable(edid);
 			}
 		} else
 			status = connector_status_disconnected;
@@ -1851,7 +1850,6 @@ intel_sdvo_detect(struct drm_connector *connector, bool force)
 
 	intel_sdvo->has_hdmi_monitor = false;
 	intel_sdvo->has_hdmi_audio = false;
-	intel_sdvo->rgb_quant_range_selectable = false;
 
 	if ((intel_sdvo_connector->output_flag & response) == 0)
 		ret = connector_status_disconnected;

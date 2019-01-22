@@ -154,6 +154,7 @@ u8 drm_dp_link_rate_to_bw_code(int link_rate)
 	default:
 		WARN(1, "unknown DP link rate %d, using %x\n", link_rate,
 		     DP_LINK_BW_1_62);
+		/* fall through */
 	case 162000:
 		return DP_LINK_BW_1_62;
 	case 270000:
@@ -171,6 +172,7 @@ int drm_dp_bw_code_to_link_rate(u8 link_bw)
 	switch (link_bw) {
 	default:
 		WARN(1, "unknown DP link BW code %x, using 162000\n", link_bw);
+		/* fall through */
 	case DP_LINK_BW_1_62:
 		return 162000;
 	case DP_LINK_BW_2_7:
@@ -552,6 +554,7 @@ int drm_dp_downstream_max_bpc(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
 		case DP_DS_16BPC:
 			return 16;
 		}
+		/* fall through */
 	default:
 		return 0;
 	}

@@ -4873,6 +4873,7 @@ DRM DRIVER FOR QXL VIRTUAL GPU
 M:	Dave Airlie <airlied@redhat.com>
 M:	Gerd Hoffmann <kraxel@redhat.com>
 L:	virtualization@lists.linux-foundation.org
+L:	spice-devel@lists.freedesktop.org
 T:	git git://anongit.freedesktop.org/drm/drm-misc
 S:	Maintained
 F:	drivers/gpu/drm/qxl/
@@ -4909,6 +4910,13 @@ DRM DRIVER FOR TDFX VIDEO CARDS
 S:	Orphan / Obsolete
 F:	drivers/gpu/drm/tdfx/
 
+DRM DRIVER FOR TPO TPG110 PANELS
+M:	Linus Walleij <linus.walleij@linaro.org>
+T:	git git://anongit.freedesktop.org/drm/drm-misc
+S:	Maintained
+F:	drivers/gpu/drm/panel/panel-tpo-tpg110.c
+F:	Documentation/devicetree/bindings/display/panel/tpo,tpg110.txt
+
 DRM DRIVER FOR USB DISPLAYLINK VIDEO ADAPTERS
 M:	Dave Airlie <airlied@redhat.com>
 R:	Sean Paul <sean@poorly.run>
@@ -4916,6 +4924,16 @@ L:	dri-devel@lists.freedesktop.org
 S:	Odd Fixes
 F:	drivers/gpu/drm/udl/
 T:	git git://anongit.freedesktop.org/drm/drm-misc
+
+DRM DRIVER FOR VIRTUAL KERNEL MODESETTING (VKMS)
+M:	Rodrigo Siqueira <rodrigosiqueiramelo@gmail.com>
+R:	Haneen Mohammed <hamohammed.sa@gmail.com>
+R:	Daniel Vetter <daniel@ffwll.ch>
+T:	git git://anongit.freedesktop.org/drm/drm-misc
+S:	Maintained
+L:	dri-devel@lists.freedesktop.org
+F:	drivers/gpu/drm/vkms/
+F:	Documentation/gpu/vkms.rst
 
 DRM DRIVER FOR VMWARE VIRTUAL GPU
 M:	"VMware Graphics" <linux-graphics-maintainer@vmware.com>
@@ -4986,7 +5004,6 @@ F:	Documentation/devicetree/bindings/display/atmel/
 T:	git git://anongit.freedesktop.org/drm/drm-misc
 
 DRM DRIVERS FOR BRIDGE CHIPS
-M:	Archit Taneja <architt@codeaurora.org>
 M:	Andrzej Hajda <a.hajda@samsung.com>
 R:	Laurent Pinchart <Laurent.pinchart@ideasonboard.com>
 S:	Maintained

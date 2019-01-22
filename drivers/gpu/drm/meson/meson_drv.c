@@ -152,6 +152,23 @@ static void meson_vpu_init(struct meson_drm *priv)
 	writel_relaxed(0x20000, priv->io_base + _REG(VPU_WRARB_MODE_L2C1));
 }
 
+static void meson_remove_framebuffers(void)
+{
+	struct apertures_struct *ap;
+
+	ap = alloc_apertures(1);
+	if (!ap)
+		return;
+
+	/* The framebuffer can be located anywhere in RAM */
+	ap->ranges[0].base = 0;
+	ap->ranges[0].size = ~0;
+
+	drm_fb_helper_remove_conflicting_framebuffers(ap, "meson-drm-fb",
+						      false);
+	kfree(ap);
+}
+
 static int meson_drv_bind_master(struct device *dev, bool has_components)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -261,6 +278,9 @@ static int meson_drv_bind_master(struct device *dev, bool has_components)
 	ret = drm_vblank_init(drm, 1);
 	if (ret)
 		goto free_drm;
+
+	/* Remove early framebuffers (ie. simplefb) */
+	meson_remove_framebuffers();
 
 	drm_mode_config_init(drm);
 	drm->mode_config.max_width = 3840;

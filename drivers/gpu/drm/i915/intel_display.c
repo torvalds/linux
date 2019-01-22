@@ -12739,6 +12739,10 @@ static int intel_atomic_check(struct drm_device *dev,
 				       "[modeset]" : "[fastset]");
 	}
 
+	ret = drm_dp_mst_atomic_check(state);
+	if (ret)
+		return ret;
+
 	if (any_ms) {
 		ret = intel_modeset_checks(state);
 

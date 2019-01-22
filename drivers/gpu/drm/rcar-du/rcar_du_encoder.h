@@ -10,10 +10,8 @@
 #ifndef __RCAR_DU_ENCODER_H__
 #define __RCAR_DU_ENCODER_H__
 
-#include <drm/drm_crtc.h>
 #include <drm/drm_encoder.h>
 
-struct drm_panel;
 struct rcar_du_device;
 
 struct rcar_du_encoder {

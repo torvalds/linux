@@ -478,18 +478,14 @@ static void intel_hdmi_set_avi_infoframe(struct intel_encoder *encoder,
 					 const struct intel_crtc_state *crtc_state,
 					 const struct drm_connector_state *conn_state)
 {
-	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
 	const struct drm_display_mode *adjusted_mode =
 		&crtc_state->base.adjusted_mode;
-	struct drm_connector *connector = &intel_hdmi->attached_connector->base;
-	bool is_hdmi2_sink = connector->display_info.hdmi.scdc.supported ||
-	   connector->display_info.color_formats & DRM_COLOR_FORMAT_YCRCB420;
 	union hdmi_infoframe frame;
 	int ret;
 
 	ret = drm_hdmi_avi_infoframe_from_display_mode(&frame.avi,
-						       adjusted_mode,
-						       is_hdmi2_sink);
+						       conn_state->connector,
+						       adjusted_mode);
 	if (ret < 0) {
 		DRM_ERROR("couldn't fill AVI infoframe\n");
 		return;
@@ -502,12 +498,12 @@ static void intel_hdmi_set_avi_infoframe(struct intel_encoder *encoder,
 	else
 		frame.avi.colorspace = HDMI_COLORSPACE_RGB;
 
-	drm_hdmi_avi_infoframe_quant_range(&frame.avi, adjusted_mode,
+	drm_hdmi_avi_infoframe_quant_range(&frame.avi,
+					   conn_state->connector,
+					   adjusted_mode,
 					   crtc_state->limited_color_range ?
 					   HDMI_QUANTIZATION_RANGE_LIMITED :
-					   HDMI_QUANTIZATION_RANGE_FULL,
-					   intel_hdmi->rgb_quant_range_selectable,
-					   is_hdmi2_sink);
+					   HDMI_QUANTIZATION_RANGE_FULL);
 
 	drm_hdmi_avi_infoframe_content_type(&frame.avi,
 					    conn_state);
@@ -1836,7 +1832,6 @@ intel_hdmi_unset_edid(struct drm_connector *connector)
 
 	intel_hdmi->has_hdmi_sink = false;
 	intel_hdmi->has_audio = false;
-	intel_hdmi->rgb_quant_range_selectable = false;
 
 	intel_hdmi->dp_dual_mode.type = DRM_DP_DUAL_MODE_NONE;
 	intel_hdmi->dp_dual_mode.max_tmds_clock = 0;
@@ -1921,9 +1916,6 @@ intel_hdmi_set_edid(struct drm_connector *connector)
 
 	to_intel_connector(connector)->detect_edid = edid;
 	if (edid && edid->input & DRM_EDID_INPUT_DIGITAL) {
-		intel_hdmi->rgb_quant_range_selectable =
-			drm_rgb_quant_range_selectable(edid);
-
 		intel_hdmi->has_audio = drm_detect_monitor_audio(edid);
 		intel_hdmi->has_hdmi_sink = drm_detect_hdmi_monitor(edid);
 

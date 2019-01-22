@@ -741,7 +741,8 @@ static void tegra_hdmi_setup_avi_infoframe(struct tegra_hdmi *hdmi,
 	u8 buffer[17];
 	ssize_t err;
 
-	err = drm_hdmi_avi_infoframe_from_display_mode(&frame, mode, false);
+	err = drm_hdmi_avi_infoframe_from_display_mode(&frame,
+						       &hdmi->output.connector, mode);
 	if (err < 0) {
 		dev_err(hdmi->dev, "failed to setup AVI infoframe: %zd\n", err);
 		return;
