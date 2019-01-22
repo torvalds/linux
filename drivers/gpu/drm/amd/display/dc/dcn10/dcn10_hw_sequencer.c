@@ -1011,7 +1011,7 @@ static void dcn10_init_hw(struct dc *dc)
 			 */
 			if (allow_self_fresh_force_enable == false &&
 					hububu1_is_allow_self_refresh_enabled(dc->res_pool->hubbub))
-				hubbub1_disable_allow_self_refresh(dc->res_pool->hubbub);
+				hubbub1_allow_self_refresh_control(dc->res_pool->hubbub, true);
 
 			disable_vga(dc->hwseq);
 		}
@@ -2384,6 +2384,22 @@ static void dcn10_apply_ctx_for_surface(
 		hubbub1_wm_change_req_wa(dc->res_pool->hubbub);
 }
 
+static void dcn10_stereo_hw_frame_pack_wa(struct dc *dc, struct dc_state *context)
+{
+	uint8_t i;
+
+	for (i = 0; i < context->stream_count; i++) {
+		if (context->streams[i]->timing.timing_3d_format
+				== TIMING_3D_FORMAT_HW_FRAME_PACKING) {
+			/*
+			 * Disable stutter
+			 */
+			hubbub1_allow_self_refresh_control(dc->res_pool->hubbub, false);
+			break;
+		}
+	}
+}
+
 static void dcn10_prepare_bandwidth(
 		struct dc *dc,
 		struct dc_state *context)
@@ -2405,6 +2421,7 @@ static void dcn10_prepare_bandwidth(
 			&context->bw.dcn.watermarks,
 			dc->res_pool->ref_clock_inKhz / 1000,
 			true);
+	dcn10_stereo_hw_frame_pack_wa(dc, context);
 
 	if (dc->debug.pplib_wm_report_mode == WM_REPORT_OVERRIDE)
 		dcn_bw_notify_pplib_of_wm_ranges(dc);
@@ -2434,6 +2451,7 @@ static void dcn10_optimize_bandwidth(
 			&context->bw.dcn.watermarks,
 			dc->res_pool->ref_clock_inKhz / 1000,
 			true);
+	dcn10_stereo_hw_frame_pack_wa(dc, context);
 
 	if (dc->debug.pplib_wm_report_mode == WM_REPORT_OVERRIDE)
 		dcn_bw_notify_pplib_of_wm_ranges(dc);
