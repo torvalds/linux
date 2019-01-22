@@ -486,12 +486,6 @@ int adf_init_etr_data(struct adf_accel_dev *accel_dev)
 	/* accel_dev->debugfs_dir should always be non-NULL here */
 	etr_data->debug = debugfs_create_dir("transport",
 					     accel_dev->debugfs_dir);
-	if (!etr_data->debug) {
-		dev_err(&GET_DEV(accel_dev),
-			"Unable to create transport debugfs entry\n");
-		ret = -ENOENT;
-		goto err_bank_debug;
-	}
 
 	for (i = 0; i < num_banks; i++) {
 		ret = adf_init_bank(accel_dev, &etr_data->banks[i], i,
