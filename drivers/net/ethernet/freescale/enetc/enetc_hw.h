@@ -34,6 +34,29 @@
 #define ENETC_SIPMAR0	0x80
 #define ENETC_SIPMAR1	0x84
 
+/* VF-PF Message passing */
+#define ENETC_DEFAULT_MSG_SIZE	1024	/* and max size */
+/* msg size encoding: default and max msg value of 1024B encoded as 0 */
+static inline u32 enetc_vsi_set_msize(u32 size)
+{
+	return size < ENETC_DEFAULT_MSG_SIZE ? size >> 5 : 0;
+}
+
+#define ENETC_PSIMSGRR	0x204
+#define ENETC_PSIMSGRR_MR_MASK	GENMASK(2, 1)
+#define ENETC_PSIMSGRR_MR(n) BIT((n) + 1) /* n = VSI index */
+#define ENETC_PSIVMSGRCVAR0(n)	(0x210 + (n) * 0x8) /* n = VSI index */
+#define ENETC_PSIVMSGRCVAR1(n)	(0x214 + (n) * 0x8)
+
+#define ENETC_VSIMSGSR	0x204	/* RO */
+#define ENETC_VSIMSGSR_MB	BIT(0)
+#define ENETC_VSIMSGSR_MS	BIT(1)
+#define ENETC_VSIMSGSNDAR0	0x210
+#define ENETC_VSIMSGSNDAR1	0x214
+
+#define ENETC_SIMSGSR_SET_MC(val) ((val) << 16)
+#define ENETC_SIMSGSR_GET_MC(val) ((val) >> 16)
+
 /* SI statistics */
 #define ENETC_SIROCT	0x300
 #define ENETC_SIRFRM	0x308
@@ -417,6 +440,33 @@ static inline void enetc_get_primary_mac_addr(struct enetc_hw *hw, u8 *addr)
 #define ENETC_SI_INT_IDX	0
 /* base index for Rx/Tx interrupts */
 #define ENETC_BDR_INT_BASE_IDX	1
+
+/* Messaging */
+
+/* Command completion status */
+enum enetc_msg_cmd_status {
+	ENETC_MSG_CMD_STATUS_OK,
+	ENETC_MSG_CMD_STATUS_FAIL
+};
+
+/* VSI-PSI command message types */
+enum enetc_msg_cmd_type {
+	ENETC_MSG_CMD_MNG_MAC = 1, /* manage MAC address */
+	ENETC_MSG_CMD_MNG_RX_MAC_FILTER,/* manage RX MAC table */
+	ENETC_MSG_CMD_MNG_RX_VLAN_FILTER /* manage RX VLAN table */
+};
+
+/* VSI-PSI command action types */
+enum enetc_msg_cmd_action_type {
+	ENETC_MSG_CMD_MNG_ADD = 1,
+	ENETC_MSG_CMD_MNG_REMOVE
+};
+
+/* PSI-VSI command header format */
+struct enetc_msg_cmd_header {
+	u16 type;	/* command class type */
+	u16 id;		/* denotes the specific required action */
+};
 
 /* Common H/W utility functions */
 

@@ -13,12 +13,97 @@ static const char enetc_drv_ver[] = ENETC_DRV_VER_STR;
 #define ENETC_DRV_NAME_STR "ENETC VF driver"
 static const char enetc_drv_name[] = ENETC_DRV_NAME_STR;
 
+/* Messaging */
+static void enetc_msg_vsi_write_msg(struct enetc_hw *hw,
+				    struct enetc_msg_swbd *msg)
+{
+	u32 val;
+
+	val = enetc_vsi_set_msize(msg->size) | lower_32_bits(msg->dma);
+	enetc_wr(hw, ENETC_VSIMSGSNDAR1, upper_32_bits(msg->dma));
+	enetc_wr(hw, ENETC_VSIMSGSNDAR0, val);
+}
+
+static int enetc_msg_vsi_send(struct enetc_si *si, struct enetc_msg_swbd *msg)
+{
+	int timeout = 100;
+	u32 vsimsgsr;
+
+	enetc_msg_vsi_write_msg(&si->hw, msg);
+
+	do {
+		vsimsgsr = enetc_rd(&si->hw, ENETC_VSIMSGSR);
+		if (!(vsimsgsr & ENETC_VSIMSGSR_MB))
+			break;
+
+		usleep_range(1000, 2000);
+	} while (--timeout);
+
+	if (!timeout)
+		return -ETIMEDOUT;
+
+	/* check for message delivery error */
+	if (vsimsgsr & ENETC_VSIMSGSR_MS) {
+		dev_err(&si->pdev->dev, "VSI command execute error: %d\n",
+			ENETC_SIMSGSR_GET_MC(vsimsgsr));
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static int enetc_msg_vsi_set_primary_mac_addr(struct enetc_ndev_priv *priv,
+					      struct sockaddr *saddr)
+{
+	struct enetc_msg_cmd_set_primary_mac *cmd;
+	struct enetc_msg_swbd msg;
+	int err;
+
+	msg.size = ALIGN(sizeof(struct enetc_msg_cmd_set_primary_mac), 64);
+	msg.vaddr = dma_alloc_coherent(priv->dev, msg.size, &msg.dma,
+				       GFP_KERNEL);
+	if (!msg.vaddr) {
+		dev_err(priv->dev, "Failed to alloc Tx msg (size: %d)\n",
+			msg.size);
+		return -ENOMEM;
+	}
+
+	cmd = (struct enetc_msg_cmd_set_primary_mac *)msg.vaddr;
+	cmd->header.type = ENETC_MSG_CMD_MNG_MAC;
+	cmd->header.id = ENETC_MSG_CMD_MNG_ADD;
+	memcpy(&cmd->mac, saddr, sizeof(struct sockaddr));
+
+	/* send the command and wait */
+	err = enetc_msg_vsi_send(priv->si, &msg);
+
+	dma_free_coherent(priv->dev, msg.size, msg.vaddr, msg.dma);
+
+	return err;
+}
+
+static int enetc_vf_set_mac_addr(struct net_device *ndev, void *addr)
+{
+	struct enetc_ndev_priv *priv = netdev_priv(ndev);
+	struct sockaddr *saddr = addr;
+	int err;
+
+	if (!is_valid_ether_addr(saddr->sa_data))
+		return -EADDRNOTAVAIL;
+
+	err = enetc_msg_vsi_set_primary_mac_addr(priv, saddr);
+	if (err)
+		return err;
+
+	return 0;
+}
+
 /* Probing/ Init */
 static const struct net_device_ops enetc_ndev_ops = {
 	.ndo_open		= enetc_open,
 	.ndo_stop		= enetc_close,
 	.ndo_start_xmit		= enetc_xmit,
 	.ndo_get_stats		= enetc_get_stats,
+	.ndo_set_mac_address	= enetc_vf_set_mac_addr,
 };
 
 static void enetc_vf_netdev_setup(struct enetc_si *si, struct net_device *ndev,

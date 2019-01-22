@@ -366,6 +366,7 @@ static int enetc_pf_set_vf_mac(struct net_device *ndev, int vf, u8 *mac)
 {
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
 	struct enetc_pf *pf = enetc_si_priv(priv->si);
+	struct enetc_vf_state *vf_state;
 
 	if (vf >= pf->total_vfs)
 		return -EINVAL;
@@ -373,6 +374,8 @@ static int enetc_pf_set_vf_mac(struct net_device *ndev, int vf, u8 *mac)
 	if (!is_valid_ether_addr(mac))
 		return -EADDRNOTAVAIL;
 
+	vf_state = &pf->vf_state[vf];
+	vf_state->flags |= ENETC_VF_FLAG_PF_SET_MAC;
 	enetc_pf_set_primary_mac_addr(&priv->si->hw, vf + 1, mac);
 	return 0;
 }
@@ -541,6 +544,53 @@ static void enetc_configure_port(struct enetc_pf *pf)
 	enetc_port_wr(hw, ENETC_PMR, ENETC_PMR_EN);
 }
 
+/* Messaging */
+static u16 enetc_msg_pf_set_vf_primary_mac_addr(struct enetc_pf *pf,
+						int vf_id)
+{
+	struct enetc_vf_state *vf_state = &pf->vf_state[vf_id];
+	struct enetc_msg_swbd *msg = &pf->rxmsg[vf_id];
+	struct enetc_msg_cmd_set_primary_mac *cmd;
+	struct device *dev = &pf->si->pdev->dev;
+	u16 cmd_id;
+	char *addr;
+
+	cmd = (struct enetc_msg_cmd_set_primary_mac *)msg->vaddr;
+	cmd_id = cmd->header.id;
+	if (cmd_id != ENETC_MSG_CMD_MNG_ADD)
+		return ENETC_MSG_CMD_STATUS_FAIL;
+
+	addr = cmd->mac.sa_data;
+	if (vf_state->flags & ENETC_VF_FLAG_PF_SET_MAC)
+		dev_warn(dev, "Attempt to override PF set mac addr for VF%d\n",
+			 vf_id);
+	else
+		enetc_pf_set_primary_mac_addr(&pf->si->hw, vf_id + 1, addr);
+
+	return ENETC_MSG_CMD_STATUS_OK;
+}
+
+void enetc_msg_handle_rxmsg(struct enetc_pf *pf, int vf_id, u16 *status)
+{
+	struct enetc_msg_swbd *msg = &pf->rxmsg[vf_id];
+	struct device *dev = &pf->si->pdev->dev;
+	struct enetc_msg_cmd_header *cmd_hdr;
+	u16 cmd_type;
+
+	*status = ENETC_MSG_CMD_STATUS_OK;
+	cmd_hdr = (struct enetc_msg_cmd_header *)msg->vaddr;
+	cmd_type = cmd_hdr->type;
+
+	switch (cmd_type) {
+	case ENETC_MSG_CMD_MNG_MAC:
+		*status = enetc_msg_pf_set_vf_primary_mac_addr(pf, vf_id);
+		break;
+	default:
+		dev_err(dev, "command not supported (cmd_type: 0x%x)\n",
+			cmd_type);
+	}
+}
+
 #ifdef CONFIG_PCI_IOV
 static int enetc_sriov_configure(struct pci_dev *pdev, int num_vfs)
 {
@@ -549,10 +599,25 @@ static int enetc_sriov_configure(struct pci_dev *pdev, int num_vfs)
 	int err;
 
 	if (!num_vfs) {
+		enetc_msg_psi_free(pf);
+		kfree(pf->vf_state);
 		pf->num_vfs = 0;
 		pci_disable_sriov(pdev);
 	} else {
 		pf->num_vfs = num_vfs;
+
+		pf->vf_state = kcalloc(num_vfs, sizeof(struct enetc_vf_state),
+				       GFP_KERNEL);
+		if (!pf->vf_state) {
+			pf->num_vfs = 0;
+			return -ENOMEM;
+		}
+
+		err = enetc_msg_psi_init(pf);
+		if (err) {
+			dev_err(&pdev->dev, "enetc_msg_psi_init (%d)\n", err);
+			goto err_msg_psi;
+		}
 
 		err = pci_enable_sriov(pdev, num_vfs);
 		if (err) {
@@ -564,6 +629,9 @@ static int enetc_sriov_configure(struct pci_dev *pdev, int num_vfs)
 	return num_vfs;
 
 err_en_sriov:
+	enetc_msg_psi_free(pf);
+err_msg_psi:
+	kfree(pf->vf_state);
 	pf->num_vfs = 0;
 
 	return err;

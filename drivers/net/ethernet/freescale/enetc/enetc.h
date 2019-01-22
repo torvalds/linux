@@ -103,6 +103,12 @@ struct enetc_cbdr {
 #define ENETC_TXBD(BDR, i) (&(((union enetc_tx_bd *)((BDR).bd_base))[i]))
 #define ENETC_RXBD(BDR, i) (&(((union enetc_rx_bd *)((BDR).bd_base))[i]))
 
+struct enetc_msg_swbd {
+	void *vaddr;
+	dma_addr_t dma;
+	int size;
+};
+
 #define ENETC_REV1	0x1
 enum enetc_errata {
 	ENETC_ERR_TXCSUM	= BIT(0),
@@ -171,6 +177,14 @@ struct enetc_ndev_priv {
 
 	struct device_node *phy_node;
 	phy_interface_t if_mode;
+};
+
+/* Messaging */
+
+/* VF-PF set primary MAC address message format */
+struct enetc_msg_cmd_set_primary_mac {
+	struct enetc_msg_cmd_header header;
+	struct sockaddr mac;
 };
 
 #define ENETC_CBD(R, i)	(&(((struct enetc_cbd *)((R).bd_base))[i]))
