@@ -1399,7 +1399,12 @@ static void hns3_nic_get_stats64(struct net_device *netdev,
 	int queue_num = priv->ae_handle->kinfo.num_tqps;
 	struct hnae3_handle *handle = priv->ae_handle;
 	struct hns3_enet_ring *ring;
+	u64 rx_length_errors = 0;
+	u64 rx_crc_errors = 0;
+	u64 rx_multicast = 0;
 	unsigned int start;
+	u64 tx_errors = 0;
+	u64 rx_errors = 0;
 	unsigned int idx;
 	u64 tx_bytes = 0;
 	u64 rx_bytes = 0;
@@ -1422,6 +1427,8 @@ static void hns3_nic_get_stats64(struct net_device *netdev,
 			tx_pkts += ring->stats.tx_pkts;
 			tx_drop += ring->stats.tx_busy;
 			tx_drop += ring->stats.sw_err_cnt;
+			tx_errors += ring->stats.tx_busy;
+			tx_errors += ring->stats.sw_err_cnt;
 		} while (u64_stats_fetch_retry_irq(&ring->syncp, start));
 
 		/* fetch the rx stats */
@@ -1433,6 +1440,12 @@ static void hns3_nic_get_stats64(struct net_device *netdev,
 			rx_drop += ring->stats.non_vld_descs;
 			rx_drop += ring->stats.err_pkt_len;
 			rx_drop += ring->stats.l2_err;
+			rx_errors += ring->stats.non_vld_descs;
+			rx_errors += ring->stats.l2_err;
+			rx_crc_errors += ring->stats.l2_err;
+			rx_crc_errors += ring->stats.l3l4_csum_err;
+			rx_multicast += ring->stats.rx_multicast;
+			rx_length_errors += ring->stats.err_pkt_len;
 		} while (u64_stats_fetch_retry_irq(&ring->syncp, start));
 	}
 
@@ -1441,15 +1454,15 @@ static void hns3_nic_get_stats64(struct net_device *netdev,
 	stats->rx_bytes = rx_bytes;
 	stats->rx_packets = rx_pkts;
 
-	stats->rx_errors = netdev->stats.rx_errors;
-	stats->multicast = netdev->stats.multicast;
-	stats->rx_length_errors = netdev->stats.rx_length_errors;
-	stats->rx_crc_errors = netdev->stats.rx_crc_errors;
+	stats->rx_errors = rx_errors;
+	stats->multicast = rx_multicast;
+	stats->rx_length_errors = rx_length_errors;
+	stats->rx_crc_errors = rx_crc_errors;
 	stats->rx_missed_errors = netdev->stats.rx_missed_errors;
 
-	stats->tx_errors = netdev->stats.tx_errors;
-	stats->rx_dropped = rx_drop + netdev->stats.rx_dropped;
-	stats->tx_dropped = tx_drop + netdev->stats.tx_dropped;
+	stats->tx_errors = tx_errors;
+	stats->rx_dropped = rx_drop;
+	stats->tx_dropped = tx_drop;
 	stats->collisions = netdev->stats.collisions;
 	stats->rx_over_errors = netdev->stats.rx_over_errors;
 	stats->rx_frame_errors = netdev->stats.rx_frame_errors;
