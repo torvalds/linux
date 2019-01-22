@@ -190,7 +190,12 @@ static int btqcomsmd_probe(struct platform_device *pdev)
 	hdev->open = btqcomsmd_open;
 	hdev->close = btqcomsmd_close;
 	hdev->send = btqcomsmd_send;
+#ifdef CONFIG_BT_QCOMSMD_HACK
+	if (bacmp(&btq->bdaddr, BDADDR_ANY))
+		hdev->setup = btqcomsmd_setup;
+#else
 	hdev->setup = btqcomsmd_setup;
+#endif
 	hdev->set_bdaddr = qca_set_bdaddr_rome;
 
 	ret = hci_register_dev(hdev);
