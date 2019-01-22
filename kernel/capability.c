@@ -416,6 +416,25 @@ bool ns_capable_noaudit(struct user_namespace *ns, int cap)
 EXPORT_SYMBOL(ns_capable_noaudit);
 
 /**
+ * ns_capable_setid - Determine if the current task has a superior capability
+ * in effect, while signalling that this check is being done from within a
+ * setid syscall.
+ * @ns:  The usernamespace we want the capability in
+ * @cap: The capability to be tested for
+ *
+ * Return true if the current task has the given superior capability currently
+ * available for use, false if not.
+ *
+ * This sets PF_SUPERPRIV on the task if the capability is available on the
+ * assumption that it's about to be used.
+ */
+bool ns_capable_setid(struct user_namespace *ns, int cap)
+{
+	return ns_capable_common(ns, cap, CAP_OPT_INSETID);
+}
+EXPORT_SYMBOL(ns_capable_setid);
+
+/**
  * capable - Determine if the current task has a superior capability in effect
  * @cap: The capability to be tested for
  *
