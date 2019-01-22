@@ -45,7 +45,7 @@
 
 #include "sisusb.h"
 
-#ifdef INCL_SISUSB_CON
+#ifdef CONFIG_USB_SISUSBVGA_CON
 
 #include "sisusb_init.h"
 
@@ -956,4 +956,4 @@ int SiSUSBSetVESAMode(struct SiS_Private *SiS_Pr, unsigned short VModeNo)
 	return SiSUSBSetMode(SiS_Pr, ModeNo);
 }
 
-#endif /* INCL_SISUSB_CON */
+#endif /* CONFIG_USB_SISUSBVGA_CON */

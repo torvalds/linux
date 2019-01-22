@@ -70,7 +70,7 @@
 #include "sisusb.h"
 #include "sisusb_init.h"
 
-#ifdef INCL_SISUSB_CON
+#ifdef CONFIG_USB_SISUSBVGA_CON
 
 #define sisusbcon_writew(val, addr)	(*(addr) = (val))
 #define sisusbcon_readw(addr)		(*(addr))
