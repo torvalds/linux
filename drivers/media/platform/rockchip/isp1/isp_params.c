@@ -2254,6 +2254,7 @@ void rkisp1_params_config_parameter(struct rkisp1_isp_params_vdev *params_vdev)
 {
 	struct rkisp1_isp_params_ops *ops = params_vdev->ops;
 	struct cifisp_hst_config hst = hst_params_default_config;
+	struct device *dev = params_vdev->dev->dev;
 	int i;
 
 	spin_lock(&params_vdev->config_lock);
@@ -2307,6 +2308,10 @@ void rkisp1_params_config_parameter(struct rkisp1_isp_params_vdev *params_vdev)
 		params_vdev->hdrae_para.lsc_table[i] = 0x0400;
 
 	/* override the default things */
+	if (!params_vdev->cur_params.module_cfg_update &&
+	    !params_vdev->cur_params.module_en_update)
+		dev_warn(dev, "can not get first iq setting in stream on\n");
+
 	__isp_isr_other_config(params_vdev, &params_vdev->cur_params);
 	__isp_isr_meas_config(params_vdev, &params_vdev->cur_params);
 	__preisp_isr_update_hdrae_para(params_vdev, &params_vdev->cur_params);
