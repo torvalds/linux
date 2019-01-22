@@ -1034,7 +1034,9 @@ static int rcar_i2c_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(rcar_i2c_pm_ops, rcar_i2c_suspend, rcar_i2c_resume);
+static const struct dev_pm_ops rcar_i2c_pm_ops = {
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(rcar_i2c_suspend, rcar_i2c_resume)
+};
 
 #define DEV_PM_OPS (&rcar_i2c_pm_ops)
 #else
