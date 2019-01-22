@@ -24,7 +24,6 @@ Interfaces
     dev-codec
     dev-raw-vbi
     dev-sliced-vbi
-    dev-teletext
     dev-radio
     dev-rds
     dev-sdr
