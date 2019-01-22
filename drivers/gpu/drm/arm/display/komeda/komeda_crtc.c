@@ -55,7 +55,7 @@ u32 komeda_calc_mclk(struct komeda_crtc_state *kcrtc_st)
  * 1. adjust display operation mode.
  * 2. enable needed clk
  */
-int
+static int
 komeda_crtc_prepare(struct komeda_crtc *kcrtc)
 {
 	struct komeda_dev *mdev = kcrtc->base.dev->dev_private;
@@ -111,7 +111,7 @@ unlock:
 	return err;
 }
 
-int
+static int
 komeda_crtc_unprepare(struct komeda_crtc *kcrtc)
 {
 	struct komeda_dev *mdev = kcrtc->base.dev->dev_private;
@@ -161,9 +161,28 @@ void komeda_crtc_handle_event(struct komeda_crtc   *kcrtc,
 	if (events & KOMEDA_EVENT_EOW)
 		DRM_DEBUG("EOW.\n");
 
-	/* will handle it with crtc->flush */
-	if (events & KOMEDA_EVENT_FLIP)
-		DRM_DEBUG("FLIP Done.\n");
+	if (events & KOMEDA_EVENT_FLIP) {
+		unsigned long flags;
+		struct drm_pending_vblank_event *event;
+
+		spin_lock_irqsave(&crtc->dev->event_lock, flags);
+		if (kcrtc->disable_done) {
+			complete_all(kcrtc->disable_done);
+			kcrtc->disable_done = NULL;
+		} else if (crtc->state->event) {
+			event = crtc->state->event;
+			/*
+			 * Consume event before notifying drm core that flip
+			 * happened.
+			 */
+			crtc->state->event = NULL;
+			drm_crtc_send_vblank_event(crtc, event);
+		} else {
+			DRM_WARN("CRTC[%d]: FLIP happen but no pending commit.\n",
+				 drm_crtc_index(&kcrtc->base));
+		}
+		spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
+	}
 }
 
 static void
@@ -185,6 +204,81 @@ komeda_crtc_do_flush(struct drm_crtc *crtc,
 
 	/* step 2: notify the HW to kickoff the update */
 	mdev->funcs->flush(mdev, master->id, kcrtc_st->active_pipes);
+}
+
+static void
+komeda_crtc_atomic_enable(struct drm_crtc *crtc,
+			  struct drm_crtc_state *old)
+{
+	komeda_crtc_prepare(to_kcrtc(crtc));
+	drm_crtc_vblank_on(crtc);
+	komeda_crtc_do_flush(crtc, old);
+}
+
+static void
+komeda_crtc_atomic_disable(struct drm_crtc *crtc,
+			   struct drm_crtc_state *old)
+{
+	struct komeda_crtc *kcrtc = to_kcrtc(crtc);
+	struct komeda_crtc_state *old_st = to_kcrtc_st(old);
+	struct komeda_dev *mdev = crtc->dev->dev_private;
+	struct komeda_pipeline *master = kcrtc->master;
+	struct completion *disable_done = &crtc->state->commit->flip_done;
+	struct completion temp;
+	int timeout;
+
+	DRM_DEBUG_ATOMIC("CRTC%d_DISABLE: active_pipes: 0x%x, affected: 0x%x.\n",
+			 drm_crtc_index(crtc),
+			 old_st->active_pipes, old_st->affected_pipes);
+
+	if (has_bit(master->id, old_st->active_pipes))
+		komeda_pipeline_disable(master, old->state);
+
+	/* crtc_disable has two scenarios according to the state->active switch.
+	 * 1. active -> inactive
+	 *    this commit is a disable commit. and the commit will be finished
+	 *    or done after the disable operation. on this case we can directly
+	 *    use the crtc->state->event to tracking the HW disable operation.
+	 * 2. active -> active
+	 *    the crtc->commit is not for disable, but a modeset operation when
+	 *    crtc is active, such commit actually has been completed by 3
+	 *    DRM operations:
+	 *    crtc_disable, update_planes(crtc_flush), crtc_enable
+	 *    so on this case the crtc->commit is for the whole process.
+	 *    we can not use it for tracing the disable, we need a temporary
+	 *    flip_done for tracing the disable. and crtc->state->event for
+	 *    the crtc_enable operation.
+	 *    That's also the reason why skip modeset commit in
+	 *    komeda_crtc_atomic_flush()
+	 */
+	if (crtc->state->active) {
+		struct komeda_pipeline_state *pipe_st;
+		/* clear the old active_comps to zero */
+		pipe_st = komeda_pipeline_get_old_state(master, old->state);
+		pipe_st->active_comps = 0;
+
+		init_completion(&temp);
+		kcrtc->disable_done = &temp;
+		disable_done = &temp;
+	}
+
+	mdev->funcs->flush(mdev, master->id, 0);
+
+	/* wait the disable take affect.*/
+	timeout = wait_for_completion_timeout(disable_done, HZ);
+	if (timeout == 0) {
+		DRM_ERROR("disable pipeline%d timeout.\n", kcrtc->master->id);
+		if (crtc->state->active) {
+			unsigned long flags;
+
+			spin_lock_irqsave(&crtc->dev->event_lock, flags);
+			kcrtc->disable_done = NULL;
+			spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
+		}
+	}
+
+	drm_crtc_vblank_off(crtc);
+	komeda_crtc_unprepare(kcrtc);
 }
 
 static void
@@ -251,6 +345,8 @@ static bool komeda_crtc_mode_fixup(struct drm_crtc *crtc,
 struct drm_crtc_helper_funcs komeda_crtc_helper_funcs = {
 	.atomic_check	= komeda_crtc_atomic_check,
 	.atomic_flush	= komeda_crtc_atomic_flush,
+	.atomic_enable	= komeda_crtc_atomic_enable,
+	.atomic_disable	= komeda_crtc_atomic_disable,
 	.mode_valid	= komeda_crtc_mode_valid,
 	.mode_fixup	= komeda_crtc_mode_fixup,
 };

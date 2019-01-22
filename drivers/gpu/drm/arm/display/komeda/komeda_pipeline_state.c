@@ -551,6 +551,38 @@ int komeda_release_unclaimed_resources(struct komeda_pipeline *pipe,
 	return 0;
 }
 
+void komeda_pipeline_disable(struct komeda_pipeline *pipe,
+			     struct drm_atomic_state *old_state)
+{
+	struct komeda_pipeline_state *old;
+	struct komeda_component *c;
+	struct komeda_component_state *c_st;
+	u32 id, disabling_comps = 0;
+
+	old = komeda_pipeline_get_old_state(pipe, old_state);
+
+	disabling_comps = old->active_comps;
+	DRM_DEBUG_ATOMIC("PIPE%d: disabling_comps: 0x%x.\n",
+			 pipe->id, disabling_comps);
+
+	dp_for_each_set_bit(id, disabling_comps) {
+		c = komeda_pipeline_get_component(pipe, id);
+		c_st = priv_to_comp_st(c->obj.state);
+
+		/*
+		 * If we disabled a component then all active_inputs should be
+		 * put in the list of changed_active_inputs, so they get
+		 * re-enabled.
+		 * This usually happens during a modeset when the pipeline is
+		 * first disabled and then the actual state gets committed
+		 * again.
+		 */
+		c_st->changed_active_inputs |= c_st->active_inputs;
+
+		c->funcs->disable(c);
+	}
+}
+
 void komeda_pipeline_update(struct komeda_pipeline *pipe,
 			    struct drm_atomic_state *old_state)
 {
