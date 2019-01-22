@@ -176,12 +176,20 @@ properties:
               - fsl,vf610
               - fsl,vf610m4
 
-      - description: LS1021A based Boards
+      - description: LS1012A based Boards
         items:
           - enum:
               - fsl,ls1012a-rdb
               - fsl,ls1012a-frdm
               - fsl,ls1012a-qds
+          - const: fsl,ls1012a
+
+      - description: LS1021A based Boards
+        items:
+          - enum:
+              - fsl,ls1021a-moxa-uc-8410a
+              - fsl,ls1021a-qds
+              - fsl,ls1021a-twr
           - const: fsl,ls1021a
 
       - description: LS1043A based Boards
