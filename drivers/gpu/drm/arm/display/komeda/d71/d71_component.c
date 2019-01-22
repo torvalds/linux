@@ -98,6 +98,13 @@ static u32 to_rot_ctrl(u32 rot)
 	return lr_ctrl;
 }
 
+static inline u32 to_d71_input_id(struct komeda_component_output *output)
+{
+	struct komeda_component *comp = output->component;
+
+	return comp ? (comp->hw_id + output->output_port) : 0;
+}
+
 static void d71_layer_disable(struct komeda_component *c)
 {
 	malidp_write32_mask(c->reg, BLK_CONTROL, L_EN, 0);
@@ -186,10 +193,93 @@ static int d71_wb_layer_init(struct d71_dev *d71,
 	return 0;
 }
 
+static void d71_component_disable(struct komeda_component *c)
+{
+	u32 __iomem *reg = c->reg;
+	u32 i;
+
+	malidp_write32(reg, BLK_CONTROL, 0);
+
+	for (i = 0; i < c->max_active_inputs; i++)
+		malidp_write32(reg, BLK_INPUT_ID0 + (i << 2), 0);
+}
+
+static void compiz_enable_input(u32 __iomem *id_reg,
+				u32 __iomem *cfg_reg,
+				u32 input_hw_id,
+				struct komeda_compiz_input_cfg *cin)
+{
+	u32 ctrl = CU_INPUT_CTRL_EN;
+	u8 blend = cin->pixel_blend_mode;
+
+	if (blend == DRM_MODE_BLEND_PIXEL_NONE)
+		ctrl |= CU_INPUT_CTRL_PAD;
+	else if (blend == DRM_MODE_BLEND_PREMULTI)
+		ctrl |= CU_INPUT_CTRL_PMUL;
+
+	ctrl |= CU_INPUT_CTRL_ALPHA(cin->layer_alpha);
+
+	malidp_write32(id_reg, BLK_INPUT_ID0, input_hw_id);
+
+	malidp_write32(cfg_reg, CU_INPUT0_SIZE,
+		       HV_SIZE(cin->hsize, cin->vsize));
+	malidp_write32(cfg_reg, CU_INPUT0_OFFSET,
+		       HV_OFFSET(cin->hoffset, cin->voffset));
+	malidp_write32(cfg_reg, CU_INPUT0_CONTROL, ctrl);
+}
+
+static void d71_compiz_update(struct komeda_component *c,
+			      struct komeda_component_state *state)
+{
+	struct komeda_compiz_state *st = to_compiz_st(state);
+	u32 __iomem *reg = c->reg;
+	u32 __iomem *id_reg, *cfg_reg;
+	u32 index, input_hw_id;
+
+	for_each_changed_input(state, index) {
+		id_reg = reg + index;
+		cfg_reg = reg + index * CU_PER_INPUT_REGS;
+		input_hw_id = to_d71_input_id(&state->inputs[index]);
+		if (state->active_inputs & BIT(index)) {
+			compiz_enable_input(id_reg, cfg_reg,
+					    input_hw_id, &st->cins[index]);
+		} else {
+			malidp_write32(id_reg, BLK_INPUT_ID0, 0);
+			malidp_write32(cfg_reg, CU_INPUT0_CONTROL, 0);
+		}
+	}
+
+	malidp_write32(reg, BLK_SIZE, HV_SIZE(st->hsize, st->vsize));
+}
+
+struct komeda_component_funcs d71_compiz_funcs = {
+	.update		= d71_compiz_update,
+	.disable	= d71_component_disable,
+};
+
 static int d71_compiz_init(struct d71_dev *d71,
 			   struct block_header *blk, u32 __iomem *reg)
 {
-	DRM_DEBUG("Detect D71_compiz.\n");
+	struct komeda_component *c;
+	struct komeda_compiz *compiz;
+	u32 pipe_id, comp_id;
+
+	get_resources_id(blk->block_info, &pipe_id, &comp_id);
+
+	c = komeda_component_add(&d71->pipes[pipe_id]->base, sizeof(*compiz),
+				 comp_id,
+				 BLOCK_INFO_INPUT_ID(blk->block_info),
+				 &d71_compiz_funcs,
+				 CU_NUM_INPUT_IDS, get_valid_inputs(blk),
+				 CU_NUM_OUTPUT_IDS, reg,
+				 "CU%d", pipe_id);
+	if (IS_ERR(c))
+		return PTR_ERR(c);
+
+	compiz = to_compiz(c);
+
+	set_range(&compiz->hsize, D71_MIN_LINE_SIZE, d71->max_line_size);
+	set_range(&compiz->vsize, D71_MIN_VERTICAL_SIZE, d71->max_vsize);
 
 	return 0;
 }

@@ -204,6 +204,10 @@ static inline u16 component_changed_inputs(struct komeda_component_state *st)
 	return component_disabling_inputs(st) | st->changed_active_inputs;
 }
 
+#define for_each_changed_input(st, i)	\
+	for ((i) = 0; (i) < (st)->component->max_active_inputs; (i)++)	\
+		if (has_bit((i), component_changed_inputs(st)))
+
 #define to_comp(__c)	(((__c) == NULL) ? NULL : &((__c)->base))
 #define to_cpos(__c)	((struct komeda_component **)&(__c))
 
@@ -223,16 +227,6 @@ struct komeda_layer_state {
 	dma_addr_t addr[3];
 };
 
-struct komeda_compiz {
-	struct komeda_component base;
-	/* compiz specific features and caps */
-};
-
-struct komeda_compiz_state {
-	struct komeda_component_state base;
-	/* compiz specific configuration state */
-};
-
 struct komeda_scaler {
 	struct komeda_component base;
 	/* scaler features and caps */
@@ -240,6 +234,24 @@ struct komeda_scaler {
 
 struct komeda_scaler_state {
 	struct komeda_component_state base;
+};
+
+struct komeda_compiz {
+	struct komeda_component base;
+	struct malidp_range hsize, vsize;
+};
+
+struct komeda_compiz_input_cfg {
+	u16 hsize, vsize;
+	u16 hoffset, voffset;
+	u8 pixel_blend_mode, layer_alpha;
+};
+
+struct komeda_compiz_state {
+	struct komeda_component_state base;
+	/* composition size */
+	u16 hsize, vsize;
+	struct komeda_compiz_input_cfg cins[KOMEDA_COMPONENT_N_INPUTS];
 };
 
 struct komeda_improc {
