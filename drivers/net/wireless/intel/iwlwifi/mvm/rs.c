@@ -4078,9 +4078,8 @@ static ssize_t iwl_dbgfs_ss_force_write(struct iwl_lq_sta *lq_sta, char *buf,
 #define MVM_DEBUGFS_READ_WRITE_FILE_OPS(name, bufsz) \
 	_MVM_DEBUGFS_READ_WRITE_FILE_OPS(name, bufsz, struct iwl_lq_sta)
 #define MVM_DEBUGFS_ADD_FILE_RS(name, parent, mode) do {		\
-		if (!debugfs_create_file(#name, mode, parent, lq_sta,	\
-					 &iwl_dbgfs_##name##_ops))	\
-			goto err;					\
+		debugfs_create_file(#name, mode, parent, lq_sta,	\
+				    &iwl_dbgfs_##name##_ops);		\
 	} while (0)
 
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(ss_force, 32);
@@ -4108,9 +4107,6 @@ static void rs_drv_add_sta_debugfs(void *mvm, void *priv_sta,
 			  &lq_sta->pers.dbg_fixed_txp_reduction);
 
 	MVM_DEBUGFS_ADD_FILE_RS(ss_force, dir, 0600);
-	return;
-err:
-	IWL_ERR((struct iwl_mvm *)mvm, "Can't create debugfs entity\n");
 }
 
 void rs_remove_sta_debugfs(void *mvm, void *mvm_sta)
