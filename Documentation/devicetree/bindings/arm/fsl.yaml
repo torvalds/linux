@@ -179,6 +179,7 @@ properties:
       - description: LS1012A based Boards
         items:
           - enum:
+              - ebs-systart,oxalis
               - fsl,ls1012a-rdb
               - fsl,ls1012a-frdm
               - fsl,ls1012a-qds
