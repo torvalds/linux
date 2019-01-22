@@ -50,6 +50,7 @@ static LIST_HEAD(soft_list);
  * file operations
  */
 static const struct file_operations mbcs_ops = {
+	.owner = THIS_MODULE,
 	.open = mbcs_open,
 	.llseek = mbcs_sram_llseek,
 	.read = mbcs_sram_read,
