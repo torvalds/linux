@@ -184,6 +184,7 @@ uninstall_irq:
 	drm_irq_uninstall(drm);
 cleanup_mode_config:
 	drm_mode_config_cleanup(drm);
+	komeda_kms_cleanup_private_objs(kms);
 free_kms:
 	kfree(kms);
 	return ERR_PTR(err);
@@ -198,7 +199,7 @@ void komeda_kms_detach(struct komeda_kms_dev *kms)
 	drm_dev_unregister(drm);
 	drm_irq_uninstall(drm);
 	component_unbind_all(mdev->dev, drm);
-	komeda_kms_cleanup_private_objs(mdev);
+	komeda_kms_cleanup_private_objs(kms);
 	drm_mode_config_cleanup(drm);
 	drm->dev_private = NULL;
 	drm_dev_put(drm);

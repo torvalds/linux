@@ -108,7 +108,7 @@ int komeda_kms_add_crtcs(struct komeda_kms_dev *kms, struct komeda_dev *mdev);
 int komeda_kms_add_planes(struct komeda_kms_dev *kms, struct komeda_dev *mdev);
 int komeda_kms_add_private_objs(struct komeda_kms_dev *kms,
 				struct komeda_dev *mdev);
-void komeda_kms_cleanup_private_objs(struct komeda_dev *mdev);
+void komeda_kms_cleanup_private_objs(struct komeda_kms_dev *kms);
 
 void komeda_crtc_handle_event(struct komeda_crtc   *kcrtc,
 			      struct komeda_events *evts);
