@@ -520,6 +520,7 @@ d71_identify(u32 __iomem *reg_base, struct komeda_chip_info *chip)
 	chip->arch_id	= malidp_read32(reg_base, GLB_ARCH_ID);
 	chip->core_id	= malidp_read32(reg_base, GLB_CORE_ID);
 	chip->core_info	= malidp_read32(reg_base, GLB_CORE_INFO);
+	chip->bus_width	= D71_BUS_WIDTH_16_BYTES;
 
 	return &d71_chip_funcs;
 }

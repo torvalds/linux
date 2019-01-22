@@ -26,10 +26,10 @@ static int komeda_gem_cma_dumb_create(struct drm_file *file,
 				      struct drm_device *dev,
 				      struct drm_mode_create_dumb *args)
 {
-	u32 alignment = 16; /* TODO get alignment from dev */
+	struct komeda_dev *mdev = dev->dev_private;
+	u32 pitch = DIV_ROUND_UP(args->width * args->bpp, 8);
 
-	args->pitch = ALIGN(DIV_ROUND_UP(args->width * args->bpp, 8),
-			    alignment);
+	args->pitch = ALIGN(pitch, mdev->chip.bus_width);
 
 	return drm_gem_cma_dumb_create_internal(file, dev, args);
 }
