@@ -17,14 +17,26 @@
 
 #include <linux/mfd/syscon.h>
 #include <linux/mod_devicetable.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/reset-controller.h>
 #include <linux/regmap.h>
 #include <dt-bindings/reset/imx7-reset.h>
 
+struct imx7_src_signal {
+	unsigned int offset, bit;
+};
+
+struct imx7_src_variant {
+	const struct imx7_src_signal *signals;
+	unsigned int signals_num;
+	struct reset_control_ops ops;
+};
+
 struct imx7_src {
 	struct reset_controller_dev rcdev;
 	struct regmap *regmap;
+	const struct imx7_src_signal *signals;
 };
 
 enum imx7_src_registers {
@@ -39,9 +51,14 @@ enum imx7_src_registers {
 	SRC_DDRC_RCR		= 0x1000,
 };
 
-struct imx7_src_signal {
-	unsigned int offset, bit;
-};
+static int imx7_reset_update(struct imx7_src *imx7src,
+			     unsigned long id, unsigned int value)
+{
+	const struct imx7_src_signal *signal = &imx7src->signals[id];
+
+	return regmap_update_bits(imx7src->regmap,
+				  signal->offset, signal->bit, value);
+}
 
 static const struct imx7_src_signal imx7_src_signals[IMX7_RESET_NUM] = {
 	[IMX7_RESET_A7_CORE_POR_RESET0] = { SRC_A7RCR0, BIT(0) },
@@ -81,8 +98,8 @@ static int imx7_reset_set(struct reset_controller_dev *rcdev,
 			  unsigned long id, bool assert)
 {
 	struct imx7_src *imx7src = to_imx7_src(rcdev);
-	const struct imx7_src_signal *signal = &imx7_src_signals[id];
-	unsigned int value = assert ? signal->bit : 0;
+	const unsigned int bit = imx7src->signals[id].bit;
+	unsigned int value = assert ? bit : 0;
 
 	switch (id) {
 	case IMX7_RESET_PCIEPHY:
@@ -95,12 +112,11 @@ static int imx7_reset_set(struct reset_controller_dev *rcdev,
 		break;
 
 	case IMX7_RESET_PCIE_CTRL_APPS_EN:
-		value = (assert) ? 0 : signal->bit;
+		value = assert ? 0 : bit;
 		break;
 	}
 
-	return regmap_update_bits(imx7src->regmap,
-				  signal->offset, signal->bit, value);
+	return imx7_reset_update(imx7src, id, value);
 }
 
 static int imx7_reset_assert(struct reset_controller_dev *rcdev,
@@ -115,9 +131,13 @@ static int imx7_reset_deassert(struct reset_controller_dev *rcdev,
 	return imx7_reset_set(rcdev, id, false);
 }
 
-static const struct reset_control_ops imx7_reset_ops = {
-	.assert		= imx7_reset_assert,
-	.deassert	= imx7_reset_deassert,
+static const struct imx7_src_variant variant_imx7 = {
+	.signals = imx7_src_signals,
+	.signals_num = ARRAY_SIZE(imx7_src_signals),
+	.ops = {
+		.assert   = imx7_reset_assert,
+		.deassert = imx7_reset_deassert,
+	},
 };
 
 static int imx7_reset_probe(struct platform_device *pdev)
@@ -125,11 +145,13 @@ static int imx7_reset_probe(struct platform_device *pdev)
 	struct imx7_src *imx7src;
 	struct device *dev = &pdev->dev;
 	struct regmap_config config = { .name = "src" };
+	const struct imx7_src_variant *variant = of_device_get_match_data(dev);
 
 	imx7src = devm_kzalloc(dev, sizeof(*imx7src), GFP_KERNEL);
 	if (!imx7src)
 		return -ENOMEM;
 
+	imx7src->signals = variant->signals;
 	imx7src->regmap = syscon_node_to_regmap(dev->of_node);
 	if (IS_ERR(imx7src->regmap)) {
 		dev_err(dev, "Unable to get imx7-src regmap");
@@ -138,15 +160,15 @@ static int imx7_reset_probe(struct platform_device *pdev)
 	regmap_attach_dev(dev, imx7src->regmap, &config);
 
 	imx7src->rcdev.owner     = THIS_MODULE;
-	imx7src->rcdev.nr_resets = IMX7_RESET_NUM;
-	imx7src->rcdev.ops       = &imx7_reset_ops;
+	imx7src->rcdev.nr_resets = variant->signals_num;
+	imx7src->rcdev.ops       = &variant->ops;
 	imx7src->rcdev.of_node   = dev->of_node;
 
 	return devm_reset_controller_register(dev, &imx7src->rcdev);
 }
 
 static const struct of_device_id imx7_reset_dt_ids[] = {
-	{ .compatible = "fsl,imx7d-src", },
+	{ .compatible = "fsl,imx7d-src", .data = &variant_imx7 },
 	{ /* sentinel */ },
 };
 
