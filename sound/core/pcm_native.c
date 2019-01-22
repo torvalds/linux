@@ -87,18 +87,6 @@ static int snd_pcm_open(struct file *file, struct snd_pcm *pcm, int stream);
 
 static DECLARE_RWSEM(snd_pcm_link_rwsem);
 
-/* Writer in rwsem may block readers even during its waiting in queue,
- * and this may lead to a deadlock when the code path takes read sem
- * twice (e.g. one in snd_pcm_action_nonatomic() and another in
- * snd_pcm_stream_lock()).  As a (suboptimal) workaround, let writer to
- * sleep until all the readers are completed without blocking by writer.
- */
-static inline void down_write_nonfifo(struct rw_semaphore *lock)
-{
-	while (!down_write_trylock(lock))
-		msleep(1);
-}
-
 void snd_pcm_group_init(struct snd_pcm_group *group)
 {
 	spin_lock_init(&group->lock);
@@ -2055,7 +2043,7 @@ static int snd_pcm_link(struct snd_pcm_substream *substream, int fd)
 	}
 	snd_pcm_group_init(group);
 
-	down_write_nonfifo(&snd_pcm_link_rwsem);
+	down_write(&snd_pcm_link_rwsem);
 	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN ||
 	    substream->runtime->status->state != substream1->runtime->status->state ||
 	    substream->pcm->nonatomic != substream1->pcm->nonatomic) {
@@ -2103,7 +2091,7 @@ static int snd_pcm_unlink(struct snd_pcm_substream *substream)
 	bool do_free = false;
 	int res = 0;
 
-	down_write_nonfifo(&snd_pcm_link_rwsem);
+	down_write(&snd_pcm_link_rwsem);
 
 	if (!snd_pcm_stream_linked(substream)) {
 		res = -EALREADY;
