@@ -232,7 +232,7 @@ int rxe_srq_from_attr(struct rxe_dev *rxe, struct rxe_srq *srq,
 		      struct ib_srq_attr *attr, enum ib_srq_attr_mask mask,
 		      struct rxe_modify_srq_cmd *ucmd);
 
-void rxe_release(struct kref *kref);
+void rxe_dealloc(struct ib_device *ib_dev);
 
 int rxe_completer(void *arg);
 int rxe_requester(void *arg);

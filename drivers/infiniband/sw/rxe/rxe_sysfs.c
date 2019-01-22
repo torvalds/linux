@@ -111,7 +111,7 @@ static int rxe_param_set_remove(const char *val, const struct kernel_param *kp)
 
 	if (strncmp("all", intf, len) == 0) {
 		pr_info("rxe_sys: remove all");
-		rxe_remove_all();
+		ib_unregister_driver(RDMA_DRIVER_RXE);
 		return 0;
 	}
 
@@ -122,8 +122,7 @@ static int rxe_param_set_remove(const char *val, const struct kernel_param *kp)
 		return -EINVAL;
 	}
 
-	list_del(&rxe->list);
-	rxe_remove(rxe);
+	ib_unregister_device(&rxe->ib_dev);
 
 	return 0;
 }

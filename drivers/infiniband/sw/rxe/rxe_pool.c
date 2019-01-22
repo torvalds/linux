@@ -398,25 +398,27 @@ void *rxe_alloc(struct rxe_pool *pool)
 	kref_get(&pool->ref_cnt);
 	read_unlock_irqrestore(&pool->pool_lock, flags);
 
-	kref_get(&pool->rxe->ref_cnt);
+	if (!ib_device_try_get(&pool->rxe->ib_dev))
+		goto out_put_pool;
 
 	if (atomic_inc_return(&pool->num_elem) > pool->max_elem)
-		goto out_put_pool;
+		goto out_cnt;
 
 	elem = kmem_cache_zalloc(pool_cache(pool),
 				 (pool->flags & RXE_POOL_ATOMIC) ?
 				 GFP_ATOMIC : GFP_KERNEL);
 	if (!elem)
-		goto out_put_pool;
+		goto out_cnt;
 
 	elem->pool = pool;
 	kref_init(&elem->ref_cnt);
 
 	return elem;
 
-out_put_pool:
+out_cnt:
 	atomic_dec(&pool->num_elem);
-	rxe_dev_put(pool->rxe);
+	ib_device_put(&pool->rxe->ib_dev);
+out_put_pool:
 	rxe_pool_put(pool);
 	return NULL;
 }
@@ -435,19 +437,21 @@ int rxe_add_to_pool(struct rxe_pool *pool, struct rxe_pool_entry *elem)
 	kref_get(&pool->ref_cnt);
 	read_unlock_irqrestore(&pool->pool_lock, flags);
 
-	kref_get(&pool->rxe->ref_cnt);
+	if (!ib_device_try_get(&pool->rxe->ib_dev))
+		goto out_put_pool;
 
 	if (atomic_inc_return(&pool->num_elem) > pool->max_elem)
-		goto out_put_pool;
+		goto out_cnt;
 
 	elem->pool = pool;
 	kref_init(&elem->ref_cnt);
 
 	return 0;
 
-out_put_pool:
+out_cnt:
 	atomic_dec(&pool->num_elem);
-	rxe_dev_put(pool->rxe);
+	ib_device_put(&pool->rxe->ib_dev);
+out_put_pool:
 	rxe_pool_put(pool);
 	return -EINVAL;
 }
@@ -464,7 +468,7 @@ void rxe_elem_release(struct kref *kref)
 	if (!(pool->flags & RXE_POOL_NO_ALLOC))
 		kmem_cache_free(pool_cache(pool), elem);
 	atomic_dec(&pool->num_elem);
-	rxe_dev_put(pool->rxe);
+	ib_device_put(&pool->rxe->ib_dev);
 	rxe_pool_put(pool);
 }
 

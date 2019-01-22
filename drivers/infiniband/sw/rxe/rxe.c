@@ -50,8 +50,10 @@ static void rxe_cleanup_ports(struct rxe_dev *rxe)
 /* free resources for a rxe device all objects created for this device must
  * have been destroyed
  */
-static void rxe_cleanup(struct rxe_dev *rxe)
+void rxe_dealloc(struct ib_device *ib_dev)
 {
+	struct rxe_dev *rxe = container_of(ib_dev, struct rxe_dev, ib_dev);
+
 	rxe_pool_cleanup(&rxe->uc_pool);
 	rxe_pool_cleanup(&rxe->pd_pool);
 	rxe_pool_cleanup(&rxe->ah_pool);
@@ -65,16 +67,10 @@ static void rxe_cleanup(struct rxe_dev *rxe)
 
 	rxe_cleanup_ports(rxe);
 
-	crypto_free_shash(rxe->tfm);
-}
+	if (rxe->tfm)
+		crypto_free_shash(rxe->tfm);
 
-/* called when all references have been dropped */
-void rxe_release(struct kref *kref)
-{
-	struct rxe_dev *rxe = container_of(kref, struct rxe_dev, ref_cnt);
-
-	rxe_cleanup(rxe);
-	ib_dealloc_device(&rxe->ib_dev);
+	list_del(&rxe->list);
 }
 
 /* initialize rxe device parameters */
@@ -312,31 +308,13 @@ int rxe_add(struct rxe_dev *rxe, unsigned int mtu)
 {
 	int err;
 
-	kref_init(&rxe->ref_cnt);
-
 	err = rxe_init(rxe);
 	if (err)
-		goto err1;
+		return err;
 
 	rxe_set_mtu(rxe, mtu);
 
-	err = rxe_register_device(rxe);
-	if (err)
-		goto err1;
-
-	return 0;
-
-err1:
-	rxe_dev_put(rxe);
-	return err;
-}
-
-/* called by the ifc layer to remove a device */
-void rxe_remove(struct rxe_dev *rxe)
-{
-	rxe_unregister_device(rxe);
-
-	rxe_dev_put(rxe);
+	return rxe_register_device(rxe);
 }
 
 static int __init rxe_module_init(void)
@@ -360,7 +338,7 @@ static int __init rxe_module_init(void)
 
 static void __exit rxe_module_exit(void)
 {
-	rxe_remove_all();
+	ib_unregister_driver(RDMA_DRIVER_RXE);
 	rxe_net_exit();
 	rxe_cache_exit();
 

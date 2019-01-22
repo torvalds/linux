@@ -1135,6 +1135,7 @@ static const struct ib_device_ops rxe_dev_ops = {
 	.create_cq = rxe_create_cq,
 	.create_qp = rxe_create_qp,
 	.create_srq = rxe_create_srq,
+	.dealloc_driver = rxe_dealloc,
 	.dealloc_pd = rxe_dealloc_pd,
 	.dealloc_ucontext = rxe_dealloc_ucontext,
 	.dereg_mr = rxe_dereg_mr,
@@ -1241,22 +1242,8 @@ int rxe_register_device(struct rxe_dev *rxe)
 	rdma_set_device_sysfs_group(dev, &rxe_attr_group);
 	dev->driver_id = RDMA_DRIVER_RXE;
 	err = ib_register_device(dev, "rxe%d");
-	if (err) {
+	if (err)
 		pr_warn("%s failed with error %d\n", __func__, err);
-		goto err1;
-	}
-
-	return 0;
-
-err1:
-	crypto_free_shash(rxe->tfm);
 
 	return err;
-}
-
-void rxe_unregister_device(struct rxe_dev *rxe)
-{
-	struct ib_device *dev = &rxe->ib_dev;
-
-	ib_unregister_device(dev);
 }

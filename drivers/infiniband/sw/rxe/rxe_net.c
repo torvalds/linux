@@ -559,21 +559,6 @@ struct rxe_dev *rxe_net_add(struct net_device *ndev)
 	return rxe;
 }
 
-void rxe_remove_all(void)
-{
-	spin_lock_bh(&dev_list_lock);
-	while (!list_empty(&rxe_dev_list)) {
-		struct rxe_dev *rxe =
-			list_first_entry(&rxe_dev_list, struct rxe_dev, list);
-
-		list_del(&rxe->list);
-		spin_unlock_bh(&dev_list_lock);
-		rxe_remove(rxe);
-		spin_lock_bh(&dev_list_lock);
-	}
-	spin_unlock_bh(&dev_list_lock);
-}
-
 static void rxe_port_event(struct rxe_dev *rxe,
 			   enum ib_event_type event)
 {
@@ -631,10 +616,8 @@ static int rxe_notify(struct notifier_block *not_blk,
 
 	switch (event) {
 	case NETDEV_UNREGISTER:
-		list_del(&rxe->list);
-		ib_device_put(&rxe->ib_dev);
-		rxe_remove(rxe);
-		return NOTIFY_OK;
+		ib_unregister_device_queued(&rxe->ib_dev);
+		break;
 	case NETDEV_UP:
 		rxe_port_up(rxe);
 		break;
