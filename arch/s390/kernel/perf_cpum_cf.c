@@ -197,7 +197,7 @@ static int __hw_perf_event_init(struct perf_event *event)
 	struct perf_event_attr *attr = &event->attr;
 	struct hw_perf_event *hwc = &event->hw;
 	enum cpumf_ctr_set set;
-	int err;
+	int err = 0;
 	u64 ev;
 
 	switch (attr->type) {
@@ -273,6 +273,8 @@ static int __hw_perf_event_init(struct perf_event *event)
 			atomic_inc(&num_events);
 		mutex_unlock(&pmc_reserve_mutex);
 	}
+	if (err)
+		return err;
 	event->destroy = hw_perf_event_destroy;
 
 	/* Finally, validate version and authorization of the counter set */
