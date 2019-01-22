@@ -1222,8 +1222,13 @@ static int rkisp1_start(struct rkisp1_stream *stream)
 			"stream raw only support to open after stream mp/sp");
 		return -EINVAL;
 	}
+
+#if RKISP1_RK3326_USE_OLDMIPI
+	if (dev->isp_ver == ISP_V13)
+#else
 	if (dev->isp_ver == ISP_V12 ||
 		dev->isp_ver == ISP_V13)
+#endif
 		raw_config_mi(stream);
 
 	if (stream->ops->set_data_path)
@@ -1959,10 +1964,16 @@ void rkisp1_unregister_stream_vdevs(struct rkisp1_device *dev)
 	struct rkisp1_stream *raw_stream = &dev->stream[RKISP1_STREAM_RAW];
 
 	rkisp1_unregister_stream_vdev(mp_stream);
+
 	if (dev->isp_ver != ISP_V10_1)
 		rkisp1_unregister_stream_vdev(sp_stream);
+
+#if RKISP1_RK3326_USE_OLDMIPI
+	if (dev->isp_ver == ISP_V13)
+#else
 	if (dev->isp_ver == ISP_V12 ||
 		dev->isp_ver == ISP_V13)
+#endif
 		rkisp1_unregister_stream_vdev(raw_stream);
 }
 
@@ -1986,8 +1997,12 @@ static int rkisp1_register_stream_vdev(struct rkisp1_stream *stream)
 		break;
 	case RKISP1_STREAM_RAW:
 		vdev_name = RAW_VDEV_NAME;
+#if RKISP1_RK3326_USE_OLDMIPI
+		if (dev->isp_ver != ISP_V13)
+#else
 		if (dev->isp_ver != ISP_V12 &&
 			dev->isp_ver != ISP_V13)
+#endif
 			return 0;
 		break;
 	default:
