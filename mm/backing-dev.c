@@ -103,39 +103,25 @@ static int bdi_debug_stats_show(struct seq_file *m, void *v)
 }
 DEFINE_SHOW_ATTRIBUTE(bdi_debug_stats);
 
-static int bdi_debug_register(struct backing_dev_info *bdi, const char *name)
+static void bdi_debug_register(struct backing_dev_info *bdi, const char *name)
 {
-	if (!bdi_debug_root)
-		return -ENOMEM;
-
 	bdi->debug_dir = debugfs_create_dir(name, bdi_debug_root);
-	if (!bdi->debug_dir)
-		return -ENOMEM;
 
-	bdi->debug_stats = debugfs_create_file("stats", 0444, bdi->debug_dir,
-					       bdi, &bdi_debug_stats_fops);
-	if (!bdi->debug_stats) {
-		debugfs_remove(bdi->debug_dir);
-		bdi->debug_dir = NULL;
-		return -ENOMEM;
-	}
-
-	return 0;
+	debugfs_create_file("stats", 0444, bdi->debug_dir, bdi,
+			    &bdi_debug_stats_fops);
 }
 
 static void bdi_debug_unregister(struct backing_dev_info *bdi)
 {
-	debugfs_remove(bdi->debug_stats);
-	debugfs_remove(bdi->debug_dir);
+	debugfs_remove_recursive(bdi->debug_dir);
 }
 #else
 static inline void bdi_debug_init(void)
 {
 }
-static inline int bdi_debug_register(struct backing_dev_info *bdi,
+static inline void bdi_debug_register(struct backing_dev_info *bdi,
 				      const char *name)
 {
-	return 0;
 }
 static inline void bdi_debug_unregister(struct backing_dev_info *bdi)
 {
