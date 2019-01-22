@@ -586,12 +586,7 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	host->transportt = fnic_fc_transport;
 
-	err = fnic_stats_debugfs_init(fnic);
-	if (err) {
-		shost_printk(KERN_ERR, fnic->lport->host,
-				"Failed to initialize debugfs for stats\n");
-		fnic_stats_debugfs_remove(fnic);
-	}
+	fnic_stats_debugfs_init(fnic);
 
 	/* Setup PCI resources */
 	pci_set_drvdata(pdev, fnic);

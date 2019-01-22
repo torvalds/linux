@@ -514,15 +514,10 @@ int fnic_trace_buf_init(void)
 		fnic_trace_entries.page_offset[i] = fnic_buf_head;
 		fnic_buf_head += FNIC_ENTRY_SIZE_BYTES;
 	}
-	err = fnic_trace_debugfs_init();
-	if (err < 0) {
-		pr_err("fnic: Failed to initialize debugfs for tracing\n");
-		goto err_fnic_trace_debugfs_init;
-	}
+	fnic_trace_debugfs_init();
 	pr_info("fnic: Successfully Initialized Trace Buffer\n");
 	return err;
-err_fnic_trace_debugfs_init:
-	fnic_trace_free();
+
 err_fnic_trace_buf_init:
 	return err;
 }
@@ -607,16 +602,10 @@ int fnic_fc_trace_init(void)
 		fc_trace_entries.page_offset[i] = fc_trace_buf_head;
 		fc_trace_buf_head += FC_TRC_SIZE_BYTES;
 	}
-	err = fnic_fc_trace_debugfs_init();
-	if (err < 0) {
-		pr_err("fnic: Failed to initialize FC_CTLR tracing.\n");
-		goto err_fnic_fc_ctlr_trace_debugfs_init;
-	}
+	fnic_fc_trace_debugfs_init();
 	pr_info("fnic: Successfully Initialized FC_CTLR Trace Buffer\n");
 	return err;
 
-err_fnic_fc_ctlr_trace_debugfs_init:
-	fnic_fc_trace_free();
 err_fnic_fc_ctlr_trace_buf_init:
 	return err;
 }
