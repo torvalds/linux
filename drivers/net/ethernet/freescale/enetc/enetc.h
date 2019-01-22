@@ -1,0 +1,200 @@
+/* SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause) */
+/* Copyright 2017-2019 NXP */
+
+#include <linux/timer.h>
+#include <linux/pci.h>
+#include <linux/netdevice.h>
+#include <linux/etherdevice.h>
+#include <linux/dma-mapping.h>
+#include <linux/skbuff.h>
+#include <linux/ethtool.h>
+#include <linux/if_vlan.h>
+#include <linux/phy.h>
+
+#include "enetc_hw.h"
+
+#define ENETC_MAC_MAXFRM_SIZE	9600
+#define ENETC_MAX_MTU		(ENETC_MAC_MAXFRM_SIZE - \
+				(ETH_FCS_LEN + ETH_HLEN + VLAN_HLEN))
+
+struct enetc_tx_swbd {
+	struct sk_buff *skb;
+	dma_addr_t dma;
+	u16 len;
+	u16 is_dma_page;
+};
+
+#define ENETC_RX_MAXFRM_SIZE	ENETC_MAC_MAXFRM_SIZE
+#define ENETC_RXB_TRUESIZE	2048 /* PAGE_SIZE >> 1 */
+#define ENETC_RXB_PAD		NET_SKB_PAD /* add extra space if needed */
+#define ENETC_RXB_DMA_SIZE	\
+	(SKB_WITH_OVERHEAD(ENETC_RXB_TRUESIZE) - ENETC_RXB_PAD)
+
+struct enetc_rx_swbd {
+	dma_addr_t dma;
+	struct page *page;
+	u16 page_offset;
+};
+
+struct enetc_ring_stats {
+	unsigned int packets;
+	unsigned int bytes;
+	unsigned int rx_alloc_errs;
+};
+
+#define ENETC_BDR_DEFAULT_SIZE	1024
+#define ENETC_DEFAULT_TX_WORK	256
+
+struct enetc_bdr {
+	struct device *dev; /* for DMA mapping */
+	struct net_device *ndev;
+	void *bd_base; /* points to Rx or Tx BD ring */
+	union {
+		void __iomem *tpir;
+		void __iomem *rcir;
+	};
+	u16 index;
+	int bd_count; /* # of BDs */
+	int next_to_use;
+	int next_to_clean;
+	union {
+		struct enetc_tx_swbd *tx_swbd;
+		struct enetc_rx_swbd *rx_swbd;
+	};
+	union {
+		void __iomem *tcir; /* Tx */
+		int next_to_alloc; /* Rx */
+	};
+	void __iomem *idr; /* Interrupt Detect Register pointer */
+
+	struct enetc_ring_stats stats;
+
+	dma_addr_t bd_dma_base;
+} ____cacheline_aligned_in_smp;
+
+static inline void enetc_bdr_idx_inc(struct enetc_bdr *bdr, int *i)
+{
+	if (unlikely(++*i == bdr->bd_count))
+		*i = 0;
+}
+
+static inline int enetc_bd_unused(struct enetc_bdr *bdr)
+{
+	if (bdr->next_to_clean > bdr->next_to_use)
+		return bdr->next_to_clean - bdr->next_to_use - 1;
+
+	return bdr->bd_count + bdr->next_to_clean - bdr->next_to_use - 1;
+}
+
+/* Control BD ring */
+#define ENETC_CBDR_DEFAULT_SIZE	64
+struct enetc_cbdr {
+	void *bd_base; /* points to Rx or Tx BD ring */
+	void __iomem *pir;
+	void __iomem *cir;
+
+	int bd_count; /* # of BDs */
+	int next_to_use;
+	int next_to_clean;
+
+	dma_addr_t bd_dma_base;
+};
+
+#define ENETC_TXBD(BDR, i) (&(((union enetc_tx_bd *)((BDR).bd_base))[i]))
+#define ENETC_RXBD(BDR, i) (&(((union enetc_rx_bd *)((BDR).bd_base))[i]))
+
+#define ENETC_REV1	0x1
+enum enetc_errata {
+	ENETC_ERR_TXCSUM	= BIT(0),
+	ENETC_ERR_VLAN_ISOL	= BIT(1),
+	ENETC_ERR_UCMCSWP	= BIT(2),
+};
+
+/* PCI IEP device data */
+struct enetc_si {
+	struct pci_dev *pdev;
+	struct enetc_hw hw;
+	enum enetc_errata errata;
+
+	struct net_device *ndev; /* back ref. */
+
+	struct enetc_cbdr cbd_ring;
+
+	int num_rx_rings; /* how many rings are available in the SI */
+	int num_tx_rings;
+	unsigned short pad;
+};
+
+#define ENETC_SI_ALIGN	32
+
+static inline void *enetc_si_priv(const struct enetc_si *si)
+{
+	return (char *)si + ALIGN(sizeof(struct enetc_si), ENETC_SI_ALIGN);
+}
+
+static inline bool enetc_si_is_pf(struct enetc_si *si)
+{
+	return !!(si->hw.port);
+}
+
+#define ENETC_MAX_NUM_TXQS	8
+#define ENETC_INT_NAME_MAX	(IFNAMSIZ + 8)
+
+struct enetc_int_vector {
+	void __iomem *rbier;
+	void __iomem *tbier_base;
+	unsigned long tx_rings_map;
+	int count_tx_rings;
+	struct napi_struct napi;
+	char name[ENETC_INT_NAME_MAX];
+
+	struct enetc_bdr rx_ring ____cacheline_aligned_in_smp;
+	struct enetc_bdr tx_ring[0];
+};
+
+#define ENETC_MAX_BDR_INT	2 /* fixed to max # of available cpus */
+
+struct enetc_ndev_priv {
+	struct net_device *ndev;
+	struct device *dev; /* dma-mapping device */
+	struct enetc_si *si;
+
+	int bdr_int_num; /* number of Rx/Tx ring interrupts */
+	struct enetc_int_vector *int_vector[ENETC_MAX_BDR_INT];
+	u16 num_rx_rings, num_tx_rings;
+	u16 rx_bd_count, tx_bd_count;
+
+	u16 msg_enable;
+
+	struct enetc_bdr *tx_ring[16];
+	struct enetc_bdr *rx_ring[16];
+
+	struct device_node *phy_node;
+	phy_interface_t if_mode;
+};
+
+#define ENETC_CBD(R, i)	(&(((struct enetc_cbd *)((R).bd_base))[i]))
+
+#define ENETC_CBDR_TIMEOUT	1000 /* usecs */
+
+/* SI common */
+int enetc_pci_probe(struct pci_dev *pdev, const char *name, int sizeof_priv);
+void enetc_pci_remove(struct pci_dev *pdev);
+int enetc_alloc_msix(struct enetc_ndev_priv *priv);
+void enetc_free_msix(struct enetc_ndev_priv *priv);
+void enetc_get_si_caps(struct enetc_si *si);
+void enetc_init_si_rings_params(struct enetc_ndev_priv *priv);
+int enetc_alloc_si_resources(struct enetc_ndev_priv *priv);
+void enetc_free_si_resources(struct enetc_ndev_priv *priv);
+
+int enetc_open(struct net_device *ndev);
+int enetc_close(struct net_device *ndev);
+netdev_tx_t enetc_xmit(struct sk_buff *skb, struct net_device *ndev);
+struct net_device_stats *enetc_get_stats(struct net_device *ndev);
+/* ethtool */
+void enetc_set_ethtool_ops(struct net_device *ndev);
+
+/* control buffer descriptor ring (CBDR) */
+int enetc_set_mac_flt_entry(struct enetc_si *si, int index,
+			    char *mac_addr, int si_map);
+int enetc_clear_mac_flt_entry(struct enetc_si *si, int index);
