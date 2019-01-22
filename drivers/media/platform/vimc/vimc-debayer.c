@@ -321,7 +321,6 @@ static void vimc_deb_set_rgb_mbus_fmt_rgb888_1x24(struct vimc_deb_device *vdeb,
 static int vimc_deb_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct vimc_deb_device *vdeb = v4l2_get_subdevdata(sd);
-	int ret;
 
 	if (enable) {
 		const struct vimc_pix_map *vpix;
@@ -351,21 +350,9 @@ static int vimc_deb_s_stream(struct v4l2_subdev *sd, int enable)
 		if (!vdeb->src_frame)
 			return -ENOMEM;
 
-		/* Turn the stream on in the subdevices directly connected */
-		ret = vimc_pipeline_s_stream(&vdeb->sd.entity, 1);
-		if (ret) {
-			vfree(vdeb->src_frame);
-			vdeb->src_frame = NULL;
-			return ret;
-		}
 	} else {
 		if (!vdeb->src_frame)
 			return 0;
-
-		/* Disable streaming from the pipe */
-		ret = vimc_pipeline_s_stream(&vdeb->sd.entity, 0);
-		if (ret)
-			return ret;
 
 		vfree(vdeb->src_frame);
 		vdeb->src_frame = NULL;
@@ -480,9 +467,8 @@ static void vimc_deb_calc_rgb_sink(struct vimc_deb_device *vdeb,
 	}
 }
 
-static void vimc_deb_process_frame(struct vimc_ent_device *ved,
-				   struct media_pad *sink,
-				   const void *sink_frame)
+static void *vimc_deb_process_frame(struct vimc_ent_device *ved,
+				    const void *sink_frame)
 {
 	struct vimc_deb_device *vdeb = container_of(ved, struct vimc_deb_device,
 						    ved);
@@ -491,7 +477,7 @@ static void vimc_deb_process_frame(struct vimc_ent_device *ved,
 
 	/* If the stream in this node is not active, just return */
 	if (!vdeb->src_frame)
-		return;
+		return ERR_PTR(-EINVAL);
 
 	for (i = 0; i < vdeb->sink_fmt.height; i++)
 		for (j = 0; j < vdeb->sink_fmt.width; j++) {
@@ -499,12 +485,8 @@ static void vimc_deb_process_frame(struct vimc_ent_device *ved,
 			vdeb->set_rgb_src(vdeb, i, j, rgb);
 		}
 
-	/* Propagate the frame through all source pads */
-	for (i = 1; i < vdeb->sd.entity.num_pads; i++) {
-		struct media_pad *pad = &vdeb->sd.entity.pads[i];
+	return vdeb->src_frame;
 
-		vimc_propagate_frame(pad, vdeb->src_frame);
-	}
 }
 
 static void vimc_deb_comp_unbind(struct device *comp, struct device *master,
