@@ -263,6 +263,27 @@ static void former_dump_status(struct snd_ff *ff,
 	dump_sync_status(ff, buffer);
 }
 
+static int former_fill_midi_msg(struct snd_ff *ff,
+				struct snd_rawmidi_substream *substream,
+				unsigned int port)
+{
+	u8 *buf = (u8 *)ff->msg_buf[port];
+	int len;
+	int i;
+
+	len = snd_rawmidi_transmit_peek(substream, buf,
+					SND_FF_MAXIMIM_MIDI_QUADS);
+	if (len <= 0)
+		return len;
+
+	// One quadlet includes one byte.
+	for (i = len - 1; i >= 0; --i)
+		ff->msg_buf[port][i] = cpu_to_le32(buf[i]);
+	ff->rx_bytes[port] = len;
+
+	return len;
+}
+
 #define FF800_STF		0x0000fc88f000
 #define FF800_RX_PACKET_FORMAT	0x0000fc88f004
 #define FF800_ALLOC_TX_STREAM	0x0000fc88f008
@@ -375,7 +396,8 @@ static void ff800_finish_session(struct snd_ff *ff)
 			   FF800_ISOC_COMM_STOP, &reg, sizeof(reg), 0);
 }
 
-static void ff800_handle_midi_msg(struct snd_ff *ff, __le32 *buf, size_t length)
+static void ff800_handle_midi_msg(struct snd_ff *ff, unsigned int offset,
+				  __le32 *buf, size_t length)
 {
 	int i;
 
@@ -391,6 +413,7 @@ static void ff800_handle_midi_msg(struct snd_ff *ff, __le32 *buf, size_t length)
 
 const struct snd_ff_protocol snd_ff_protocol_ff800 = {
 	.handle_midi_msg	= ff800_handle_midi_msg,
+	.fill_midi_msg		= former_fill_midi_msg,
 	.get_clock		= former_get_clock,
 	.switch_fetching_mode	= former_switch_fetching_mode,
 	.begin_session		= ff800_begin_session,
@@ -502,7 +525,8 @@ static void ff400_finish_session(struct snd_ff *ff)
 			   FF400_ISOC_COMM_STOP, &reg, sizeof(reg), 0);
 }
 
-static void ff400_handle_midi_msg(struct snd_ff *ff, __le32 *buf, size_t length)
+static void ff400_handle_midi_msg(struct snd_ff *ff, unsigned int offset,
+				  __le32 *buf, size_t length)
 {
 	int i;
 
@@ -541,6 +565,7 @@ static void ff400_handle_midi_msg(struct snd_ff *ff, __le32 *buf, size_t length)
 
 const struct snd_ff_protocol snd_ff_protocol_ff400 = {
 	.handle_midi_msg	= ff400_handle_midi_msg,
+	.fill_midi_msg		= former_fill_midi_msg,
 	.get_clock		= former_get_clock,
 	.switch_fetching_mode	= former_switch_fetching_mode,
 	.begin_session		= ff400_begin_session,

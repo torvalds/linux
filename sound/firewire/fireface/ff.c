@@ -32,8 +32,7 @@ static void ff_card_free(struct snd_card *card)
 	struct snd_ff *ff = card->private_data;
 
 	snd_ff_stream_destroy_duplex(ff);
-	if (ff->spec->midi_high_addr > 0)
-		snd_ff_transaction_unregister(ff);
+	snd_ff_transaction_unregister(ff);
 }
 
 static void do_registration(struct work_struct *work)
@@ -51,11 +50,9 @@ static void do_registration(struct work_struct *work)
 	ff->card->private_free = ff_card_free;
 	ff->card->private_data = ff;
 
-	if (ff->spec->midi_high_addr > 0) {
-		err = snd_ff_transaction_register(ff);
-		if (err < 0)
-			goto error;
-	}
+	err = snd_ff_transaction_register(ff);
+	if (err < 0)
+		goto error;
 
 	name_card(ff);
 
@@ -65,11 +62,9 @@ static void do_registration(struct work_struct *work)
 
 	snd_ff_proc_init(ff);
 
-	if (ff->spec->midi_in_ports > 0 || ff->spec->midi_out_ports > 0) {
-		err = snd_ff_create_midi_devices(ff);
-		if (err < 0)
-			goto error;
-	}
+	err = snd_ff_create_midi_devices(ff);
+	if (err < 0)
+		goto error;
 
 	err = snd_ff_create_pcm_devices(ff);
 	if (err < 0)
@@ -124,8 +119,7 @@ static void snd_ff_update(struct fw_unit *unit)
 	if (!ff->registered)
 		snd_fw_schedule_registration(unit, &ff->dwork);
 
-	if (ff->spec->midi_high_addr > 0)
-		snd_ff_transaction_reregister(ff);
+	snd_ff_transaction_reregister(ff);
 
 	if (ff->registered)
 		snd_ff_stream_update_duplex(ff);
@@ -159,6 +153,8 @@ static const struct snd_ff_spec spec_ff800 = {
 	.midi_out_ports = 1,
 	.protocol = &snd_ff_protocol_ff800,
 	.midi_high_addr = 0x000200000320ull,
+	.midi_addr_range = 12,
+	.midi_rx_addrs = {0x000080180000ull, 0},
 };
 
 static const struct snd_ff_spec spec_ff400 = {
@@ -169,13 +165,20 @@ static const struct snd_ff_spec spec_ff400 = {
 	.midi_out_ports = 2,
 	.protocol = &snd_ff_protocol_ff400,
 	.midi_high_addr = 0x0000801003f4ull,
+	.midi_addr_range = SND_FF_MAXIMIM_MIDI_QUADS * 4,
+	.midi_rx_addrs = {0x000080180000ull, 0x000080190000ull},
 };
 
 static const struct snd_ff_spec spec_ucx = {
 	.name = "FirefaceUCX",
 	.pcm_capture_channels = {18, 14, 12},
 	.pcm_playback_channels = {18, 14, 12},
+	.midi_in_ports = 2,
+	.midi_out_ports = 2,
 	.protocol = &snd_ff_protocol_latter,
+	.midi_high_addr = 0xffff00000034ull,
+	.midi_addr_range = 0x80,
+	.midi_rx_addrs = {0xffff00000030ull, 0xffff00000030ull},
 };
 
 static const struct ieee1394_device_id snd_ff_id_table[] = {

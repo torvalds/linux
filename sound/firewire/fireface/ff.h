@@ -54,6 +54,8 @@ struct snd_ff_spec {
 
 	const struct snd_ff_protocol *protocol;
 	u64 midi_high_addr;
+	u8 midi_addr_range;
+	u64 midi_rx_addrs[SND_FF_OUT_MIDI_PORTS];
 };
 
 struct snd_ff {
@@ -73,7 +75,7 @@ struct snd_ff {
 
 	/* TO handle MIDI rx. */
 	struct snd_rawmidi_substream *rx_midi_substreams[SND_FF_OUT_MIDI_PORTS];
-	u8 running_status[SND_FF_OUT_MIDI_PORTS];
+	bool on_sysex[SND_FF_OUT_MIDI_PORTS];
 	__le32 msg_buf[SND_FF_OUT_MIDI_PORTS][SND_FF_MAXIMIM_MIDI_QUADS];
 	struct work_struct rx_midi_work[SND_FF_OUT_MIDI_PORTS];
 	struct fw_transaction transactions[SND_FF_OUT_MIDI_PORTS];
@@ -103,7 +105,11 @@ enum snd_ff_clock_src {
 };
 
 struct snd_ff_protocol {
-	void (*handle_midi_msg)(struct snd_ff *ff, __le32 *buf, size_t length);
+	void (*handle_midi_msg)(struct snd_ff *ff, unsigned int offset,
+				__le32 *buf, size_t length);
+	int (*fill_midi_msg)(struct snd_ff *ff,
+			     struct snd_rawmidi_substream *substream,
+			     unsigned int port);
 	int (*get_clock)(struct snd_ff *ff, unsigned int *rate,
 			 enum snd_ff_clock_src *src);
 	int (*switch_fetching_mode)(struct snd_ff *ff, bool enable);
