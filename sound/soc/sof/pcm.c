@@ -224,6 +224,10 @@ static int sof_restore_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+/*
+ * FE dai link trigger actions are always executed in non-atomic context because
+ * they involve IPC's.
+ */
 static int sof_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
