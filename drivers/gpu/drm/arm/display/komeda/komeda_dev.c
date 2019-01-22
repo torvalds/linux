@@ -53,6 +53,7 @@ static int komeda_parse_pipe_dt(struct komeda_dev *mdev, struct device_node *np)
 
 static int komeda_parse_dt(struct device *dev, struct komeda_dev *mdev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct device_node *child, *np = dev->of_node;
 	struct clk *clk;
 	int ret;
@@ -62,6 +63,11 @@ static int komeda_parse_dt(struct device *dev, struct komeda_dev *mdev)
 		return PTR_ERR(clk);
 
 	mdev->mclk = clk;
+	mdev->irq  = platform_get_irq(pdev, 0);
+	if (mdev->irq < 0) {
+		DRM_ERROR("could not get IRQ number.\n");
+		return mdev->irq;
+	}
 
 	for_each_available_child_of_node(np, child) {
 		if (of_node_cmp(child->name, "pipeline") == 0) {

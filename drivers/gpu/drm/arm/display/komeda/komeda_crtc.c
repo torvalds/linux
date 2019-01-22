@@ -18,6 +18,24 @@
 #include "komeda_dev.h"
 #include "komeda_kms.h"
 
+void komeda_crtc_handle_event(struct komeda_crtc   *kcrtc,
+			      struct komeda_events *evts)
+{
+	struct drm_crtc *crtc = &kcrtc->base;
+	u32 events = evts->pipes[kcrtc->master->id];
+
+	if (events & KOMEDA_EVENT_VSYNC)
+		drm_crtc_handle_vblank(crtc);
+
+	/* will handle it together with the write back support */
+	if (events & KOMEDA_EVENT_EOW)
+		DRM_DEBUG("EOW.\n");
+
+	/* will handle it with crtc->flush */
+	if (events & KOMEDA_EVENT_FLIP)
+		DRM_DEBUG("FLIP Done.\n");
+}
+
 struct drm_crtc_helper_funcs komeda_crtc_helper_funcs = {
 };
 
