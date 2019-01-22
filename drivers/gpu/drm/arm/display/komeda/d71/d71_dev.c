@@ -243,6 +243,37 @@ static int d71_disable_irq(struct komeda_dev *mdev)
 	return 0;
 }
 
+static int to_d71_opmode(int core_mode)
+{
+	switch (core_mode) {
+	case KOMEDA_MODE_DISP0:
+		return DO0_ACTIVE_MODE;
+	case KOMEDA_MODE_DISP1:
+		return DO1_ACTIVE_MODE;
+	case KOMEDA_MODE_DUAL_DISP:
+		return DO01_ACTIVE_MODE;
+	case KOMEDA_MODE_INACTIVE:
+		return INACTIVE_MODE;
+	default:
+		WARN(1, "Unknown operation mode");
+		return INACTIVE_MODE;
+	}
+}
+
+static int d71_change_opmode(struct komeda_dev *mdev, int new_mode)
+{
+	struct d71_dev *d71 = mdev->chip_data;
+	u32 opmode = to_d71_opmode(new_mode);
+	int ret;
+
+	malidp_write32_mask(d71->gcu_addr, BLK_CONTROL, 0x7, opmode);
+
+	ret = dp_wait_cond(((malidp_read32(d71->gcu_addr, BLK_CONTROL) & 0x7) == opmode),
+			   100, 1000, 10000);
+
+	return ret > 0 ? 0 : -ETIMEDOUT;
+}
+
 static void d71_flush(struct komeda_dev *mdev,
 		      int master_pipe, u32 active_pipes)
 {
@@ -469,6 +500,7 @@ static struct komeda_dev_funcs d71_chip_funcs = {
 	.irq_handler	= d71_irq_handler,
 	.enable_irq	= d71_enable_irq,
 	.disable_irq	= d71_disable_irq,
+	.change_opmode	= d71_change_opmode,
 	.flush		= d71_flush,
 };
 

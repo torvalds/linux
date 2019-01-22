@@ -44,6 +44,110 @@ komeda_crtc_atomic_check(struct drm_crtc *crtc,
 	return 0;
 }
 
+u32 komeda_calc_mclk(struct komeda_crtc_state *kcrtc_st)
+{
+	unsigned long mclk = kcrtc_st->base.adjusted_mode.clock * 1000;
+
+	return mclk;
+}
+
+/* For active a crtc, mainly need two parts of preparation
+ * 1. adjust display operation mode.
+ * 2. enable needed clk
+ */
+int
+komeda_crtc_prepare(struct komeda_crtc *kcrtc)
+{
+	struct komeda_dev *mdev = kcrtc->base.dev->dev_private;
+	struct komeda_pipeline *master = kcrtc->master;
+	struct komeda_crtc_state *kcrtc_st = to_kcrtc_st(kcrtc->base.state);
+	unsigned long pxlclk_rate = kcrtc_st->base.adjusted_mode.clock * 1000;
+	u32 new_mode;
+	int err;
+
+	mutex_lock(&mdev->lock);
+
+	new_mode = mdev->dpmode | BIT(master->id);
+	if (WARN_ON(new_mode == mdev->dpmode)) {
+		err = 0;
+		goto unlock;
+	}
+
+	err = mdev->funcs->change_opmode(mdev, new_mode);
+	if (err) {
+		DRM_ERROR("failed to change opmode: 0x%x -> 0x%x.\n,",
+			  mdev->dpmode, new_mode);
+		goto unlock;
+	}
+
+	mdev->dpmode = new_mode;
+	/* Only need to enable mclk on single display mode, but no need to
+	 * enable mclk it on dual display mode, since the dual mode always
+	 * switch from single display mode, the mclk already enabled, no need
+	 * to enable it again.
+	 */
+	if (new_mode != KOMEDA_MODE_DUAL_DISP) {
+		err = clk_set_rate(mdev->mclk, komeda_calc_mclk(kcrtc_st));
+		if (err)
+			DRM_ERROR("failed to set mclk.\n");
+		err = clk_prepare_enable(mdev->mclk);
+		if (err)
+			DRM_ERROR("failed to enable mclk.\n");
+	}
+
+	err = clk_prepare_enable(master->aclk);
+	if (err)
+		DRM_ERROR("failed to enable axi clk for pipe%d.\n", master->id);
+	err = clk_set_rate(master->pxlclk, pxlclk_rate);
+	if (err)
+		DRM_ERROR("failed to set pxlclk for pipe%d\n", master->id);
+	err = clk_prepare_enable(master->pxlclk);
+	if (err)
+		DRM_ERROR("failed to enable pxl clk for pipe%d.\n", master->id);
+
+unlock:
+	mutex_unlock(&mdev->lock);
+
+	return err;
+}
+
+int
+komeda_crtc_unprepare(struct komeda_crtc *kcrtc)
+{
+	struct komeda_dev *mdev = kcrtc->base.dev->dev_private;
+	struct komeda_pipeline *master = kcrtc->master;
+	u32 new_mode;
+	int err;
+
+	mutex_lock(&mdev->lock);
+
+	new_mode = mdev->dpmode & (~BIT(master->id));
+
+	if (WARN_ON(new_mode == mdev->dpmode)) {
+		err = 0;
+		goto unlock;
+	}
+
+	err = mdev->funcs->change_opmode(mdev, new_mode);
+	if (err) {
+		DRM_ERROR("failed to change opmode: 0x%x -> 0x%x.\n,",
+			  mdev->dpmode, new_mode);
+		goto unlock;
+	}
+
+	mdev->dpmode = new_mode;
+
+	clk_disable_unprepare(master->pxlclk);
+	clk_disable_unprepare(master->aclk);
+	if (new_mode == KOMEDA_MODE_INACTIVE)
+		clk_disable_unprepare(mdev->mclk);
+
+unlock:
+	mutex_unlock(&mdev->lock);
+
+	return err;
+}
+
 void komeda_crtc_handle_event(struct komeda_crtc   *kcrtc,
 			      struct komeda_events *evts)
 {

@@ -151,6 +151,8 @@ struct komeda_dev *komeda_dev_create(struct device *dev)
 	if (!mdev)
 		return ERR_PTR(-ENOMEM);
 
+	mutex_init(&mdev->lock);
+
 	mdev->dev = dev;
 	mdev->reg_base = devm_ioremap_resource(dev, io_res);
 	if (IS_ERR(mdev->reg_base)) {
