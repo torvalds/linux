@@ -5791,14 +5791,13 @@ dm_determine_update_type_for_commit(struct dc *dc,
 		old_dm_crtc_state = to_dm_crtc_state(old_crtc_state);
 		num_plane = 0;
 
-		if (!new_dm_crtc_state->stream) {
-			if (!new_dm_crtc_state->stream && old_dm_crtc_state->stream) {
-				update_type = UPDATE_TYPE_FULL;
-				goto cleanup;
-			}
-
-			continue;
+		if (new_dm_crtc_state->stream != old_dm_crtc_state->stream) {
+			update_type = UPDATE_TYPE_FULL;
+			goto cleanup;
 		}
+
+		if (!new_dm_crtc_state->stream)
+			continue;
 
 		for_each_oldnew_plane_in_state(state, plane, old_plane_state, new_plane_state, j) {
 			new_plane_crtc = new_plane_state->crtc;
@@ -5808,6 +5807,11 @@ dm_determine_update_type_for_commit(struct dc *dc,
 
 			if (plane->type == DRM_PLANE_TYPE_CURSOR)
 				continue;
+
+			if (new_dm_plane_state->dc_state != old_dm_plane_state->dc_state) {
+				update_type = UPDATE_TYPE_FULL;
+				goto cleanup;
+			}
 
 			if (!state->allow_modeset)
 				continue;
