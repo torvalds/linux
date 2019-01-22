@@ -2984,12 +2984,6 @@ static void artpec6_crypto_init_debugfs(void)
 {
 	dbgfs_root = debugfs_create_dir("artpec6_crypto", NULL);
 
-	if (!dbgfs_root || IS_ERR(dbgfs_root)) {
-		dbgfs_root = NULL;
-		pr_err("%s: Could not initialise debugfs!\n", MODULE_NAME);
-		return;
-	}
-
 #ifdef CONFIG_FAULT_INJECTION
 	fault_create_debugfs_attr("fail_status_read", dbgfs_root,
 				  &artpec6_crypto_fail_status_read);
@@ -3001,9 +2995,6 @@ static void artpec6_crypto_init_debugfs(void)
 
 static void artpec6_crypto_free_debugfs(void)
 {
-	if (!dbgfs_root)
-		return;
-
 	debugfs_remove_recursive(dbgfs_root);
 	dbgfs_root = NULL;
 }
