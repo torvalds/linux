@@ -194,6 +194,13 @@ struct snd_soc_acpi_mach  snd_soc_acpi_intel_baytrail_machines[] = {
 		.sof_tplg_filename = "intel/sof-byt-es8316.tplg",
 		.asoc_plat_name = "sst-mfld-platform",
 	},
+	{
+		.id = "10EC5682",
+		.drv_name = "sof_rt5682",
+		.sof_fw_filename = "intel/sof-byt.ri",
+		.sof_tplg_filename = "intel/sof-byt-rt5682.tplg",
+		.asoc_plat_name = "sst-mfld-platform",
+	},
 	/* some Baytrail platforms rely on RT5645, use CHT machine driver */
 	{
 		.id = "10EC5645",

@@ -173,6 +173,13 @@ struct snd_soc_acpi_mach  snd_soc_acpi_intel_cherrytrail_machines[] = {
 		.sof_tplg_filename = "intel/sof-cht-rt5640.tplg",
 		.asoc_plat_name = "sst-mfld-platform",
 	},
+	{
+		.id = "10EC5682",
+		.drv_name = "sof_rt5682",
+		.sof_fw_filename = "intel/sof-cht.ri",
+		.sof_tplg_filename = "intel/sof-cht-rt5682.tplg",
+		.asoc_plat_name = "sst-mfld-platform",
+	},
 	/* some CHT-T platforms rely on RT5651, use Baytrail machine driver */
 	{
 		.id = "10EC5651",

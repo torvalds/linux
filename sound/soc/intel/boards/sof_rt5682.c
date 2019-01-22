@@ -9,6 +9,8 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/dmi.h>
+#include <asm/cpu_device_id.h>
+#include <asm/intel-family.h>
 #include <sound/core.h>
 #include <sound/jack.h>
 #include <sound/pcm.h>
@@ -22,17 +24,16 @@
 #define QUAD_CHANNEL 4
 #define NAME_SIZE 32
 
-#define SOF_RT5682_MCLK_EN		BIT(0)
-#define SOF_RT5682_MCLK_24MHZ		BIT(1)
-#define SOF_RT5682_SSP0			BIT(2)
-#define SOF_RT5682_SSP1			BIT(3)
-
-static char sof_rt5682_cpu_dai_name[9]; /*  = "SSP[0/1] Pin" */
-static char sof_rt5682_dai_link_name[11]; /*  = "SSP[0/1]-Codec" */
+#define SOF_RT5682_SSP(quirk)		((quirk) & GENMASK(2, 0))
+#define SOF_RT5682_SSP_MASK		(GENMASK(2, 0))
+#define SOF_RT5682_MCLK_EN		BIT(3)
+#define SOF_RT5682_MCLK_24MHZ		BIT(4)
 
 /* Default: MCLK on, MCLK 19.2M, SSP0  */
 static unsigned long sof_rt5682_quirk = SOF_RT5682_MCLK_EN |
-					SOF_RT5682_SSP0;
+					SOF_RT5682_SSP(0);
+
+static int is_legacy_cpu;
 
 static struct snd_soc_jack sof_hdmi[3];
 
@@ -62,7 +63,7 @@ static const struct dmi_system_id sof_rt5682_quirk_table[] = {
 		},
 		.driver_data = (void *)(SOF_RT5682_MCLK_EN |
 					SOF_RT5682_MCLK_24MHZ |
-					SOF_RT5682_SSP1),
+					SOF_RT5682_SSP(1)),
 	},
 	{
 		.callback = sof_rt5682_quirk_cb,
@@ -71,7 +72,7 @@ static const struct dmi_system_id sof_rt5682_quirk_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Ice Lake Client"),
 		},
 		.driver_data = (void *)(SOF_RT5682_MCLK_EN |
-					SOF_RT5682_SSP0),
+					SOF_RT5682_SSP(0)),
 	},
 	{}
 };
@@ -192,74 +193,6 @@ static struct snd_soc_dai_link_component platform_component[] = {
 	}
 };
 
-/* sof digital audio interface glue - connects codec <--> CPU */
-static struct snd_soc_dai_link sof_rt5682_dais[] = {
-	/* Back End DAI links */
-	{
-		.name = "SSP0-Codec",
-		.id = 0,
-		.cpu_dai_name = "SSP0 Pin",
-		.codec_name = "i2c-10EC5682:00",
-		.codec_dai_name = "rt5682-aif1",
-		.platforms = platform_component,
-		.num_platforms = ARRAY_SIZE(platform_component),
-		.init = sof_rt5682_codec_init,
-		.ops = &sof_rt5682_ops,
-		.nonatomic = true,
-		.dpcm_playback = 1,
-		.dpcm_capture = 1,
-		.no_pcm = 1,
-	},
-	{
-		.name = "dmic01",
-		.id = 1,
-		.cpu_dai_name = "DMIC01 Pin",
-		.codec_name = "dmic-codec",
-		.codec_dai_name = "dmic-hifi",
-		.platforms = platform_component,
-		.num_platforms = ARRAY_SIZE(platform_component),
-		.ignore_suspend = 1,
-		.dpcm_capture = 1,
-		.no_pcm = 1,
-	},
-	{
-		.name = "iDisp1",
-		.id = 2,
-		.cpu_dai_name = "iDisp1 Pin",
-		.codec_name = "ehdaudio0D2",
-		.codec_dai_name = "intel-hdmi-hifi1",
-		.platforms = platform_component,
-		.num_platforms = ARRAY_SIZE(platform_component),
-		.init = sof_hdmi_init,
-		.dpcm_playback = 1,
-		.no_pcm = 1,
-	},
-	{
-		.name = "iDisp2",
-		.id = 3,
-		.cpu_dai_name = "iDisp2 Pin",
-		.codec_name = "ehdaudio0D2",
-		.codec_dai_name = "intel-hdmi-hifi2",
-		.platforms = platform_component,
-		.num_platforms = ARRAY_SIZE(platform_component),
-		.init = sof_hdmi_init,
-		.dpcm_playback = 1,
-		.no_pcm = 1,
-	},
-	{
-		.name = "iDisp3",
-		.id = 4,
-		.cpu_dai_name = "iDisp3 Pin",
-		.codec_name = "ehdaudio0D2",
-		.codec_dai_name = "intel-hdmi-hifi3",
-		.platforms = platform_component,
-		.num_platforms = ARRAY_SIZE(platform_component),
-		.init = sof_hdmi_init,
-		.dpcm_playback = 1,
-		.no_pcm = 1,
-	},
-};
-
 static int sof_card_late_probe(struct snd_soc_card *card)
 {
 	struct sof_card_private *ctx = snd_soc_card_get_drvdata(card);
@@ -268,6 +201,10 @@ static int sof_card_late_probe(struct snd_soc_card *card)
 	struct sof_hdmi_pcm *pcm;
 	int err = 0;
 	int i = 0;
+
+	/* HDMI is not supported by SOF on Baytrail/CherryTrail */
+	if (is_legacy_cpu)
+		return 0;
 
 	list_for_each_entry(pcm, &ctx->hdmi_pcm_list, head) {
 		component = pcm->codec_dai->component;
@@ -318,8 +255,6 @@ static const struct snd_soc_dapm_route sof_map[] = {
 static struct snd_soc_card sof_audio_card_rt5682 = {
 	.name = "sof_rt5682",
 	.owner = THIS_MODULE,
-	.dai_link = sof_rt5682_dais,
-	.num_links = ARRAY_SIZE(sof_rt5682_dais),
 	.controls = sof_controls,
 	.num_controls = ARRAY_SIZE(sof_controls),
 	.dapm_widgets = sof_widgets,
@@ -330,26 +265,116 @@ static struct snd_soc_card sof_audio_card_rt5682 = {
 	.late_probe = sof_card_late_probe,
 };
 
+static const struct x86_cpu_id legacy_cpi_ids[] = {
+	{ X86_VENDOR_INTEL, 6, INTEL_FAM6_ATOM_SILVERMONT }, /* Baytrail */
+	{ X86_VENDOR_INTEL, 6, INTEL_FAM6_ATOM_AIRMONT }, /* Cherrytrail */
+	{}
+};
+
+static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
+							  int ssp_port,
+							  int dmic_num,
+							  int hdmi_num)
+{
+	struct snd_soc_dai_link *links;
+	int i, id = 0;
+
+	links = devm_kzalloc(dev, sizeof(struct snd_soc_dai_link) *
+			     (1 + dmic_num + hdmi_num), GFP_KERNEL);
+	/* SSP */
+	links[id].name = devm_kasprintf(dev, GFP_KERNEL,
+					"SSP%d-Codec", ssp_port);
+	links[id].id = id;
+	links[id].codec_name = "i2c-10EC5682:00";
+	links[id].codec_dai_name = "rt5682-aif1";
+	links[id].platforms = platform_component;
+	links[id].num_platforms = ARRAY_SIZE(platform_component);
+	links[id].init = sof_rt5682_codec_init;
+	links[id].ops = &sof_rt5682_ops;
+	links[id].nonatomic = true;
+	links[id].dpcm_playback = 1;
+	links[id].dpcm_capture = 1;
+	links[id].no_pcm = 1;
+	if (is_legacy_cpu) {
+		links[id].cpu_dai_name = devm_kasprintf(dev, GFP_KERNEL,
+							"ssp%d-port", ssp_port);
+	} else {
+		links[id].cpu_dai_name = devm_kasprintf(dev, GFP_KERNEL,
+							"SSP%d Pin", ssp_port);
+	}
+	id++;
+
+	/* dmic */
+	for (i = 1; i <= dmic_num; i++) {
+		links[id].name = devm_kasprintf(dev, GFP_KERNEL,
+						"dmic%02d", i);
+		links[id].id = id;
+		links[id].cpu_dai_name = devm_kasprintf(dev, GFP_KERNEL,
+							"DMIC%02d Pin", i);
+		links[id].codec_name = "dmic-codec";
+		links[id].codec_dai_name = "dmic-hifi";
+		links[id].platforms = platform_component;
+		links[id].num_platforms = ARRAY_SIZE(platform_component);
+		links[id].ignore_suspend = 1;
+		links[id].dpcm_capture = 1;
+		links[id].no_pcm = 1;
+		id++;
+	}
+
+	/* HDMI */
+	for (i = 1; i <= hdmi_num; i++) {
+		links[id].name = devm_kasprintf(dev, GFP_KERNEL,
+						"iDisp%d", i);
+		links[id].id = id;
+		links[id].cpu_dai_name = devm_kasprintf(dev, GFP_KERNEL,
+							"iDisp%d Pin", i);
+		links[id].codec_name = "ehdaudio0D2";
+		links[id].codec_dai_name = devm_kasprintf(dev, GFP_KERNEL,
+							  "intel-hdmi-hifi%d",
+							  i);
+		links[id].platforms = platform_component;
+		links[id].num_platforms = ARRAY_SIZE(platform_component);
+		links[id].init = sof_hdmi_init;
+		links[id].dpcm_playback = 1;
+		links[id].no_pcm = 1;
+		id++;
+	}
+
+	return links;
+}
+
 static int sof_audio_probe(struct platform_device *pdev)
 {
+	struct snd_soc_dai_link *dai_links;
 	struct sof_card_private *ctx;
+	int dmic_num, hdmi_num;
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_ATOMIC);
 	if (!ctx)
 		return -ENOMEM;
 
+	if (x86_match_cpu(legacy_cpi_ids)) {
+		is_legacy_cpu = 1;
+		dmic_num = 0;
+		hdmi_num = 0;
+		/* default quirk for legacy cpu */
+		sof_rt5682_quirk = SOF_RT5682_SSP(2);
+	} else {
+		dmic_num = 1;
+		hdmi_num = 3;
+	}
+
 	dmi_check_system(sof_rt5682_quirk_table);
 
-	if (sof_rt5682_quirk & SOF_RT5682_SSP1) {
-		snprintf(sof_rt5682_dai_link_name,
-			 sizeof(sof_rt5682_dai_link_name),
-			 "%s", "SSP1-Codec");
-		snprintf(sof_rt5682_cpu_dai_name,
-			 sizeof(sof_rt5682_cpu_dai_name),
-			 "%s", "SSP1 Pin");
-		sof_rt5682_dais[0].name = sof_rt5682_dai_link_name;
-		sof_rt5682_dais[0].cpu_dai_name = sof_rt5682_cpu_dai_name;
-	}
+	dev_dbg(&pdev->dev, "sof_rt5682_quirk = %lx\n",
+		sof_rt5682_quirk);
+
+	dai_links = sof_card_dai_links_create(&pdev->dev, sof_rt5682_quirk &
+					      SOF_RT5682_SSP_MASK,
+					      dmic_num, hdmi_num);
+	sof_audio_card_rt5682.dai_link = dai_links;
+	sof_audio_card_rt5682.num_links = 1 + dmic_num + hdmi_num;
+
 	INIT_LIST_HEAD(&ctx->hdmi_pcm_list);
 
 	sof_audio_card_rt5682.dev = &pdev->dev;
