@@ -1014,11 +1014,8 @@ static inline int __bkey_cmp_bits(const u64 *l, const u64 *r,
 			nr_key_bits -= 64;
 		}
 
-		if (l_v != r_v)
-			return l_v < r_v ? -1 : 1;
-
-		if (!nr_key_bits)
-			return 0;
+		if (!nr_key_bits || l_v != r_v)
+			break;
 
 		l = next_word(l);
 		r = next_word(r);
@@ -1026,6 +1023,8 @@ static inline int __bkey_cmp_bits(const u64 *l, const u64 *r,
 		l_v = *l;
 		r_v = *r;
 	}
+
+	return (l_v > r_v) - (l_v < r_v);
 }
 #endif
 
