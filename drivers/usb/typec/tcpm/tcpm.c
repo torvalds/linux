@@ -4810,12 +4810,12 @@ struct tcpm_port *tcpm_register_port(struct device *dev, struct tcpc_dev *tcpc)
 
 	err = devm_tcpm_psy_register(port);
 	if (err)
-		goto out_destroy_wq;
+		goto out_role_sw_put;
 
 	port->typec_port = typec_register_port(port->dev, &port->typec_caps);
 	if (IS_ERR(port->typec_port)) {
 		err = PTR_ERR(port->typec_port);
-		goto out_destroy_wq;
+		goto out_role_sw_put;
 	}
 
 	if (tcpc->config && tcpc->config->alt_modes) {
@@ -4848,8 +4848,10 @@ struct tcpm_port *tcpm_register_port(struct device *dev, struct tcpc_dev *tcpc)
 	tcpm_log(port, "%s: registered", dev_name(dev));
 	return port;
 
-out_destroy_wq:
+out_role_sw_put:
 	usb_role_switch_put(port->role_sw);
+out_destroy_wq:
+	tcpm_debugfs_exit(port);
 	destroy_workqueue(port->wq);
 	return ERR_PTR(err);
 }
