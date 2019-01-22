@@ -37,31 +37,8 @@
 
 /* create and remove of files */
 #define DEBUGFS_ADD_FILE(name, parent, mode) do {			\
-	if (!debugfs_create_file(#name, mode, parent, priv,		\
-				 &iwl_dbgfs_##name##_ops))		\
-		goto err;						\
-} while (0)
-
-#define DEBUGFS_ADD_BOOL(name, parent, ptr) do {			\
-	struct dentry *__tmp;						\
-	__tmp = debugfs_create_bool(#name, 0600, parent, ptr);		\
-	if (IS_ERR(__tmp) || !__tmp)					\
-		goto err;						\
-} while (0)
-
-#define DEBUGFS_ADD_X32(name, parent, ptr) do {				\
-	struct dentry *__tmp;						\
-	__tmp = debugfs_create_x32(#name, 0600, parent, ptr);		\
-	if (IS_ERR(__tmp) || !__tmp)					\
-		goto err;						\
-} while (0)
-
-#define DEBUGFS_ADD_U32(name, parent, ptr, mode) do {			\
-	struct dentry *__tmp;						\
-	__tmp = debugfs_create_u32(#name, mode,				\
-				   parent, ptr);			\
-	if (IS_ERR(__tmp) || !__tmp)					\
-		goto err;						\
+	debugfs_create_file(#name, mode, parent, priv,			\
+			    &iwl_dbgfs_##name##_ops);			\
 } while (0)
 
 /* file operation */
@@ -2348,21 +2325,15 @@ DEBUGFS_READ_WRITE_FILE_OPS(calib_disabled);
  * Create the debugfs files and directories
  *
  */
-int iwl_dbgfs_register(struct iwl_priv *priv, struct dentry *dbgfs_dir)
+void iwl_dbgfs_register(struct iwl_priv *priv, struct dentry *dbgfs_dir)
 {
 	struct dentry *dir_data, *dir_rf, *dir_debug;
 
 	priv->debugfs_dir = dbgfs_dir;
 
 	dir_data = debugfs_create_dir("data", dbgfs_dir);
-	if (!dir_data)
-		goto err;
 	dir_rf = debugfs_create_dir("rf", dbgfs_dir);
-	if (!dir_rf)
-		goto err;
 	dir_debug = debugfs_create_dir("debug", dbgfs_dir);
-	if (!dir_debug)
-		goto err;
 
 	DEBUGFS_ADD_FILE(nvm, dir_data, 0400);
 	DEBUGFS_ADD_FILE(sram, dir_data, 0600);
@@ -2422,13 +2393,6 @@ int iwl_dbgfs_register(struct iwl_priv *priv, struct dentry *dbgfs_dir)
 
 		snprintf(buf, 100, "../../%pd2", dev_dir);
 
-		if (!debugfs_create_symlink("iwlwifi", mac80211_dir, buf))
-			goto err;
+		debugfs_create_symlink("iwlwifi", mac80211_dir, buf);
 	}
-
-	return 0;
-
-err:
-	IWL_ERR(priv, "failed to create the dvm debugfs entries\n");
-	return -ENOMEM;
 }
