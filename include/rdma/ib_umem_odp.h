@@ -169,12 +169,6 @@ static inline int ib_umem_odp_get(struct ib_umem_odp *umem_odp, int access)
 	return -EINVAL;
 }
 
-static inline struct ib_umem_odp *
-ib_alloc_odp_umem(struct ib_ucontext *context, unsigned long addr, size_t size)
-{
-	return ERR_PTR(-EINVAL);
-}
-
 static inline void ib_umem_odp_release(struct ib_umem_odp *umem_odp) {}
 
 #endif /* CONFIG_INFINIBAND_ON_DEMAND_PAGING */
