@@ -752,11 +752,6 @@ int __init acpi_aml_init(void)
 {
 	int ret = 0;
 
-	if (!acpi_debugfs_dir) {
-		ret = -ENOENT;
-		goto err_exit;
-	}
-
 	/* Initialize AML IO interface */
 	mutex_init(&acpi_aml_io.lock);
 	init_waitqueue_head(&acpi_aml_io.wait);
@@ -766,10 +761,6 @@ int __init acpi_aml_init(void)
 					      S_IFREG | S_IRUGO | S_IWUSR,
 					      acpi_debugfs_dir, NULL,
 					      &acpi_aml_operations);
-	if (acpi_aml_dentry == NULL) {
-		ret = -ENODEV;
-		goto err_exit;
-	}
 	ret = acpi_register_debugger(THIS_MODULE, &acpi_aml_debugger);
 	if (ret)
 		goto err_fs;
@@ -788,10 +779,8 @@ void __exit acpi_aml_exit(void)
 {
 	if (acpi_aml_initialized) {
 		acpi_unregister_debugger(&acpi_aml_debugger);
-		if (acpi_aml_dentry) {
-			debugfs_remove(acpi_aml_dentry);
-			acpi_aml_dentry = NULL;
-		}
+		debugfs_remove(acpi_aml_dentry);
+		acpi_aml_dentry = NULL;
 		acpi_aml_initialized = false;
 	}
 }
