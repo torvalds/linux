@@ -106,6 +106,9 @@ struct komeda_dev_funcs {
 
 	/** @dump_register: Optional, dump registers to seq_file */
 	void (*dump_register)(struct komeda_dev *mdev, struct seq_file *seq);
+	/** @flush: Notify the HW to flush or kickoff the update */
+	void (*flush)(struct komeda_dev *mdev,
+		      int master_pipe, u32 active_pipes);
 };
 
 /**

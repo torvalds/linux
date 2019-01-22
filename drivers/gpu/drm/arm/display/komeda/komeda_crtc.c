@@ -62,8 +62,41 @@ void komeda_crtc_handle_event(struct komeda_crtc   *kcrtc,
 		DRM_DEBUG("FLIP Done.\n");
 }
 
+static void
+komeda_crtc_do_flush(struct drm_crtc *crtc,
+		     struct drm_crtc_state *old)
+{
+	struct komeda_crtc *kcrtc = to_kcrtc(crtc);
+	struct komeda_crtc_state *kcrtc_st = to_kcrtc_st(crtc->state);
+	struct komeda_dev *mdev = kcrtc->base.dev->dev_private;
+	struct komeda_pipeline *master = kcrtc->master;
+
+	DRM_DEBUG_ATOMIC("CRTC%d_FLUSH: active_pipes: 0x%x, affected: 0x%x.\n",
+			 drm_crtc_index(crtc),
+			 kcrtc_st->active_pipes, kcrtc_st->affected_pipes);
+
+	/* step 1: update the pipeline/component state to HW */
+	if (has_bit(master->id, kcrtc_st->affected_pipes))
+		komeda_pipeline_update(master, old->state);
+
+	/* step 2: notify the HW to kickoff the update */
+	mdev->funcs->flush(mdev, master->id, kcrtc_st->active_pipes);
+}
+
+static void
+komeda_crtc_atomic_flush(struct drm_crtc *crtc,
+			 struct drm_crtc_state *old)
+{
+	/* commit with modeset will be handled in enable/disable */
+	if (drm_atomic_crtc_needs_modeset(crtc->state))
+		return;
+
+	komeda_crtc_do_flush(crtc, old);
+}
+
 struct drm_crtc_helper_funcs komeda_crtc_helper_funcs = {
 	.atomic_check	= komeda_crtc_atomic_check,
+	.atomic_flush	= komeda_crtc_atomic_flush,
 };
 
 static const struct drm_crtc_funcs komeda_crtc_funcs = {

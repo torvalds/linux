@@ -34,6 +34,18 @@ komeda_pipeline_get_state(struct komeda_pipeline *pipe,
 }
 
 struct komeda_pipeline_state *
+komeda_pipeline_get_old_state(struct komeda_pipeline *pipe,
+			      struct drm_atomic_state *state)
+{
+	struct drm_private_state *priv_st;
+
+	priv_st = drm_atomic_get_old_private_obj_state(state, &pipe->obj);
+	if (priv_st)
+		return priv_to_pipe_st(priv_st);
+	return NULL;
+}
+
+struct komeda_pipeline_state *
 komeda_pipeline_get_new_state(struct komeda_pipeline *pipe,
 			      struct drm_atomic_state *state)
 {
@@ -537,4 +549,29 @@ int komeda_release_unclaimed_resources(struct komeda_pipeline *pipe,
 	komeda_pipeline_unbound_components(pipe, st);
 
 	return 0;
+}
+
+void komeda_pipeline_update(struct komeda_pipeline *pipe,
+			    struct drm_atomic_state *old_state)
+{
+	struct komeda_pipeline_state *new = priv_to_pipe_st(pipe->obj.state);
+	struct komeda_pipeline_state *old;
+	struct komeda_component *c;
+	u32 id, changed_comps = 0;
+
+	old = komeda_pipeline_get_old_state(pipe, old_state);
+
+	changed_comps = new->active_comps | old->active_comps;
+
+	DRM_DEBUG_ATOMIC("PIPE%d: active_comps: 0x%x, changed: 0x%x.\n",
+			 pipe->id, new->active_comps, changed_comps);
+
+	dp_for_each_set_bit(id, changed_comps) {
+		c = komeda_pipeline_get_component(pipe, id);
+
+		if (new->active_comps & BIT(c->id))
+			c->funcs->update(c, priv_to_comp_st(c->obj.state));
+		else
+			c->funcs->disable(c);
+	}
 }

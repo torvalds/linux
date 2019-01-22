@@ -412,4 +412,9 @@ int komeda_build_display_data_flow(struct komeda_crtc *kcrtc,
 int komeda_release_unclaimed_resources(struct komeda_pipeline *pipe,
 				       struct komeda_crtc_state *kcrtc_st);
 
+void komeda_pipeline_disable(struct komeda_pipeline *pipe,
+			     struct drm_atomic_state *old_state);
+void komeda_pipeline_update(struct komeda_pipeline *pipe,
+			    struct drm_atomic_state *old_state);
+
 #endif /* _KOMEDA_PIPELINE_H_*/

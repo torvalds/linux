@@ -243,6 +243,16 @@ static int d71_disable_irq(struct komeda_dev *mdev)
 	return 0;
 }
 
+static void d71_flush(struct komeda_dev *mdev,
+		      int master_pipe, u32 active_pipes)
+{
+	struct d71_dev *d71 = mdev->chip_data;
+	u32 reg_offset = (master_pipe == 0) ?
+			 GCU_CONFIG_VALID0 : GCU_CONFIG_VALID1;
+
+	malidp_write32(d71->gcu_addr, reg_offset, GCU_CONFIG_CVAL);
+}
+
 static int d71_reset(struct d71_dev *d71)
 {
 	u32 __iomem *gcu = d71->gcu_addr;
@@ -459,6 +469,7 @@ static struct komeda_dev_funcs d71_chip_funcs = {
 	.irq_handler	= d71_irq_handler,
 	.enable_irq	= d71_enable_irq,
 	.disable_irq	= d71_disable_irq,
+	.flush		= d71_flush,
 };
 
 struct komeda_dev_funcs *
