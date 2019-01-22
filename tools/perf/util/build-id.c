@@ -15,6 +15,7 @@
 #include <sys/types.h>
 #include "build-id.h"
 #include "event.h"
+#include "namespaces.h"
 #include "symbol.h"
 #include "thread.h"
 #include <linux/kernel.h>

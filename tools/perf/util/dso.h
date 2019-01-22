@@ -10,9 +10,9 @@
 #include <stdio.h>
 #include "rwsem.h"
 #include <linux/bitops.h>
-#include "namespaces.h"
 #include "build-id.h"
 
+struct machine;
 struct map;
 
 enum dso_binary_type {

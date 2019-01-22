@@ -10,6 +10,7 @@
 #include <fcntl.h>
 #include <libgen.h>
 #include "compress.h"
+#include "namespaces.h"
 #include "path.h"
 #include "symbol.h"
 #include "srcline.h"

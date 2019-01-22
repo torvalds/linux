@@ -35,6 +35,7 @@
 
 #include "util.h"
 #include "event.h"
+#include "namespaces.h"
 #include "strlist.h"
 #include "strfilter.h"
 #include "debug.h"

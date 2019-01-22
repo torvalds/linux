@@ -2,6 +2,7 @@
 #include "../perf.h"
 #include "util.h"
 #include "debug.h"
+#include "namespaces.h"
 #include <api/fs/fs.h>
 #include <sys/mman.h>
 #include <sys/stat.h>

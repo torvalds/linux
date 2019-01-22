@@ -13,6 +13,7 @@
 #include <intlist.h>
 #include "rwsem.h"
 
+struct namespaces_event;
 struct thread_stack;
 struct unwind_libunwind_ops;
 
