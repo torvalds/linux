@@ -315,6 +315,9 @@ void mlx5_ib_internal_fill_odp_caps(struct mlx5_ib_dev *dev)
 	if (MLX5_CAP_ODP(dev->mdev, ud_odp_caps.send))
 		caps->per_transport_caps.ud_odp_caps |= IB_ODP_SUPPORT_SEND;
 
+	if (MLX5_CAP_ODP(dev->mdev, ud_odp_caps.srq_receive))
+		caps->per_transport_caps.ud_odp_caps |= IB_ODP_SUPPORT_SRQ_RECV;
+
 	if (MLX5_CAP_ODP(dev->mdev, rc_odp_caps.send))
 		caps->per_transport_caps.rc_odp_caps |= IB_ODP_SUPPORT_SEND;
 
@@ -329,6 +332,9 @@ void mlx5_ib_internal_fill_odp_caps(struct mlx5_ib_dev *dev)
 
 	if (MLX5_CAP_ODP(dev->mdev, rc_odp_caps.atomic))
 		caps->per_transport_caps.rc_odp_caps |= IB_ODP_SUPPORT_ATOMIC;
+
+	if (MLX5_CAP_ODP(dev->mdev, rc_odp_caps.srq_receive))
+		caps->per_transport_caps.rc_odp_caps |= IB_ODP_SUPPORT_SRQ_RECV;
 
 	if (MLX5_CAP_GEN(dev->mdev, fixed_buffer_size) &&
 	    MLX5_CAP_GEN(dev->mdev, null_mkey) &&
