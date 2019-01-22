@@ -268,6 +268,7 @@ enum ib_odp_transport_cap_bits {
 	IB_ODP_SUPPORT_WRITE	= 1 << 2,
 	IB_ODP_SUPPORT_READ	= 1 << 3,
 	IB_ODP_SUPPORT_ATOMIC	= 1 << 4,
+	IB_ODP_SUPPORT_SRQ_RECV	= 1 << 5,
 };
 
 struct ib_odp_caps {
