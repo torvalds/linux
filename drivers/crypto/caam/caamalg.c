@@ -846,7 +846,8 @@ static void caam_unmap(struct device *dev, struct scatterlist *src,
 	if (dst != src) {
 		if (src_nents)
 			dma_unmap_sg(dev, src, src_nents, DMA_TO_DEVICE);
-		dma_unmap_sg(dev, dst, dst_nents, DMA_FROM_DEVICE);
+		if (dst_nents)
+			dma_unmap_sg(dev, dst, dst_nents, DMA_FROM_DEVICE);
 	} else {
 		dma_unmap_sg(dev, src, src_nents, DMA_BIDIRECTIONAL);
 	}
@@ -1038,7 +1039,9 @@ static void init_aead_job(struct aead_request *req,
 	out_options = in_options;
 
 	if (unlikely(req->src != req->dst)) {
-		if (edesc->dst_nents == 1) {
+		if (!edesc->dst_nents) {
+			dst_dma = 0;
+		} else if (edesc->dst_nents == 1) {
 			dst_dma = sg_dma_address(req->dst);
 		} else {
 			dst_dma = edesc->sec4_sg_dma +
@@ -1289,12 +1292,19 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 			mapped_src_nents = 0;
 		}
 
-		mapped_dst_nents = dma_map_sg(jrdev, req->dst, dst_nents,
-					      DMA_FROM_DEVICE);
-		if (unlikely(!mapped_dst_nents)) {
-			dev_err(jrdev, "unable to map destination\n");
-			dma_unmap_sg(jrdev, req->src, src_nents, DMA_TO_DEVICE);
-			return ERR_PTR(-ENOMEM);
+		/* Cover also the case of null (zero length) output data */
+		if (dst_nents) {
+			mapped_dst_nents = dma_map_sg(jrdev, req->dst,
+						      dst_nents,
+						      DMA_FROM_DEVICE);
+			if (unlikely(!mapped_dst_nents)) {
+				dev_err(jrdev, "unable to map destination\n");
+				dma_unmap_sg(jrdev, req->src, src_nents,
+					     DMA_TO_DEVICE);
+				return ERR_PTR(-ENOMEM);
+			}
+		} else {
+			mapped_dst_nents = 0;
 		}
 	}
 
