@@ -9,6 +9,7 @@ komeda-y := \
 	komeda_dev.o \
 	komeda_format_caps.o \
 	komeda_pipeline.o \
+	komeda_pipeline_state.o \
 	komeda_framebuffer.o \
 	komeda_kms.o \
 	komeda_crtc.o \
