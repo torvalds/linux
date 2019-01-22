@@ -720,11 +720,8 @@ static const struct file_operations ep_debugfs_fops = {
 	.read    = debugfs_read,
 };
 
-static int setup_debugfs(struct c4iw_dev *devp)
+static void setup_debugfs(struct c4iw_dev *devp)
 {
-	if (!devp->debugfs_root)
-		return -1;
-
 	debugfs_create_file_size("qps", S_IWUSR, devp->debugfs_root,
 				 (void *)devp, &qp_debugfs_fops, 4096);
 
@@ -740,7 +737,6 @@ static int setup_debugfs(struct c4iw_dev *devp)
 	if (c4iw_wr_log)
 		debugfs_create_file_size("wr_log", S_IWUSR, devp->debugfs_root,
 					 (void *)devp, &wr_log_debugfs_fops, 4096);
-	return 0;
 }
 
 void c4iw_release_dev_ucontext(struct c4iw_rdev *rdev,
@@ -1553,8 +1549,6 @@ static int __init c4iw_init_module(void)
 		return err;
 
 	c4iw_debugfs_root = debugfs_create_dir(DRV_NAME, NULL);
-	if (!c4iw_debugfs_root)
-		pr_warn("could not create debugfs entry, continuing\n");
 
 	reg_workq = create_singlethread_workqueue("Register_iWARP_device");
 	if (!reg_workq) {
