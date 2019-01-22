@@ -1472,7 +1472,49 @@ static int devx_umem_cleanup(struct ib_uobject *uobject,
 static ssize_t devx_async_cmd_event_read(struct file *filp, char __user *buf,
 					 size_t count, loff_t *pos)
 {
-	return -EINVAL;
+	struct devx_async_cmd_event_file *comp_ev_file = filp->private_data;
+	struct devx_async_event_queue *ev_queue = &comp_ev_file->ev_queue;
+	struct devx_async_data *event;
+	int ret = 0;
+	size_t eventsz;
+
+	spin_lock_irq(&ev_queue->lock);
+
+	while (list_empty(&ev_queue->event_list)) {
+		spin_unlock_irq(&ev_queue->lock);
+
+		if (filp->f_flags & O_NONBLOCK)
+			return -EAGAIN;
+
+		if (wait_event_interruptible(
+			    ev_queue->poll_wait,
+			    !list_empty(&ev_queue->event_list))) {
+			return -ERESTARTSYS;
+		}
+		spin_lock_irq(&ev_queue->lock);
+	}
+
+	event = list_entry(ev_queue->event_list.next,
+			   struct devx_async_data, list);
+	eventsz = event->cmd_out_len +
+			sizeof(struct mlx5_ib_uapi_devx_async_cmd_hdr);
+
+	if (eventsz > count) {
+		spin_unlock_irq(&ev_queue->lock);
+		return -ENOSPC;
+	}
+
+	list_del(ev_queue->event_list.next);
+	spin_unlock_irq(&ev_queue->lock);
+
+	if (copy_to_user(buf, &event->hdr, eventsz))
+		ret = -EFAULT;
+	else
+		ret = eventsz;
+
+	atomic_sub(event->cmd_out_len, &ev_queue->bytes_in_use);
+	kvfree(event);
+	return ret;
 }
 
 static int devx_async_cmd_event_close(struct inode *inode, struct file *filp)
@@ -1495,7 +1537,18 @@ static int devx_async_cmd_event_close(struct inode *inode, struct file *filp)
 static __poll_t devx_async_cmd_event_poll(struct file *filp,
 					      struct poll_table_struct *wait)
 {
-	return 0;
+	struct devx_async_cmd_event_file *comp_ev_file = filp->private_data;
+	struct devx_async_event_queue *ev_queue = &comp_ev_file->ev_queue;
+	__poll_t pollflags = 0;
+
+	poll_wait(filp, &ev_queue->poll_wait, wait);
+
+	spin_lock_irq(&ev_queue->lock);
+	if (!list_empty(&ev_queue->event_list))
+		pollflags = EPOLLIN | EPOLLRDNORM;
+	spin_unlock_irq(&ev_queue->lock);
+
+	return pollflags;
 }
 
 const struct file_operations devx_async_cmd_event_fops = {
