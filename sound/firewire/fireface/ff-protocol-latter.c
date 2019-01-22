@@ -264,7 +264,50 @@ static void latter_dump_status(struct snd_ff *ff, struct snd_info_buffer *buffer
 	snd_iprintf(buffer, "Referred clock: %s %d\n", label, rate);
 }
 
+// NOTE: transactions are transferred within 0x00-0x7f in allocated range of
+// address. This seems to be for check of discontinuity in receiver side.
+static void latter_handle_midi_msg(struct snd_ff *ff, unsigned int offset,
+				   __le32 *buf, size_t length)
+{
+	u32 data = le32_to_cpu(*buf);
+	unsigned int index = (data & 0x000000f0) >> 4;
+	u8 byte[3];
+	struct snd_rawmidi_substream *substream;
+	unsigned int len;
+
+	if (index > ff->spec->midi_in_ports)
+		return;
+
+	switch (data & 0x0000000f) {
+	case 0x00000008:
+	case 0x00000009:
+	case 0x0000000a:
+	case 0x0000000b:
+	case 0x0000000e:
+		len = 3;
+		break;
+	case 0x0000000c:
+	case 0x0000000d:
+		len = 2;
+		break;
+	default:
+		len = data & 0x00000003;
+		if (len == 0)
+			len = 3;
+		break;
+	}
+
+	byte[0] = (data & 0x0000ff00) >> 8;
+	byte[1] = (data & 0x00ff0000) >> 16;
+	byte[2] = (data & 0xff000000) >> 24;
+
+	substream = READ_ONCE(ff->tx_midi_substreams[index]);
+	if (substream)
+		snd_rawmidi_receive(substream, byte, len);
+}
+
 const struct snd_ff_protocol snd_ff_protocol_latter = {
+	.handle_midi_msg	= latter_handle_midi_msg,
 	.get_clock		= latter_get_clock,
 	.switch_fetching_mode	= latter_switch_fetching_mode,
 	.begin_session		= latter_begin_session,
