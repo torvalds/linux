@@ -683,40 +683,26 @@ static int smu_hw_fini(void *handle)
 	if (!is_support_sw_smu(adev))
 		return -EINVAL;
 
-	if (table_context->driver_pptable) {
-		kfree(table_context->driver_pptable);
-		table_context->driver_pptable = NULL;
-	}
+	kfree(table_context->driver_pptable);
+	table_context->driver_pptable = NULL;
 
-	if (table_context->max_sustainable_clocks) {
-		kfree(table_context->max_sustainable_clocks);
-		table_context->max_sustainable_clocks = NULL;
-	}
+	kfree(table_context->max_sustainable_clocks);
+	table_context->max_sustainable_clocks = NULL;
 
-	if (table_context->od_feature_capabilities) {
-		kfree(table_context->od_feature_capabilities);
-		table_context->od_feature_capabilities = NULL;
-	}
+	kfree(table_context->od_feature_capabilities);
+	table_context->od_feature_capabilities = NULL;
 
-	if (table_context->od_settings_max) {
-		kfree(table_context->od_settings_max);
-		table_context->od_settings_max = NULL;
-	}
+	kfree(table_context->od_settings_max);
+	table_context->od_settings_max = NULL;
 
-	if (table_context->od_settings_min) {
-		kfree(table_context->od_settings_min);
-		table_context->od_settings_min = NULL;
-	}
+	kfree(table_context->od_settings_min);
+	table_context->od_settings_min = NULL;
 
-	if (table_context->overdrive_table) {
-		kfree(table_context->overdrive_table);
-		table_context->overdrive_table = NULL;
-	}
+	kfree(table_context->overdrive_table);
+	table_context->overdrive_table = NULL;
 
-	if (table_context->od8_settings) {
-		kfree(table_context->od8_settings);
-		table_context->od8_settings = NULL;
-	}
+	kfree(table_context->od8_settings);
+	table_context->od8_settings = NULL;
 
 	ret = smu_fini_fb_allocations(smu);
 	if (ret)
