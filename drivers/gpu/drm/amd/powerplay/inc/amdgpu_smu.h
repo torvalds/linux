@@ -484,7 +484,8 @@ struct smu_funcs
 	int (*disable_all_mask)(struct smu_context *smu);
 	int (*update_feature_enable_state)(struct smu_context *smu, uint32_t feature_id, bool enabled);
 	int (*notify_display_change)(struct smu_context *smu);
-	int (*get_power_limit)(struct smu_context *smu);
+	int (*get_power_limit)(struct smu_context *smu, uint32_t *limit, bool def);
+	int (*set_power_limit)(struct smu_context *smu, uint32_t n);
 	int (*get_current_clk_freq)(struct smu_context *smu, uint32_t clk_id, uint32_t *value);
 	int (*init_max_sustainable_clocks)(struct smu_context *smu);
 	int (*start_thermal_control)(struct smu_context *smu);
@@ -619,8 +620,10 @@ struct smu_funcs
 	((smu)->ppt_funcs->set_default_od8_settings ? (smu)->ppt_funcs->set_default_od8_settings((smu)) : 0)
 #define smu_update_specified_od8_value(smu, index, value) \
 	((smu)->ppt_funcs->update_specified_od8_value ? (smu)->ppt_funcs->update_specified_od8_value((smu), (index), (value)) : 0)
-#define smu_get_power_limit(smu) \
-	((smu)->funcs->get_power_limit? (smu)->funcs->get_power_limit((smu)) : 0)
+#define smu_get_power_limit(smu, limit, def) \
+	((smu)->funcs->get_power_limit ? (smu)->funcs->get_power_limit((smu), (limit), (def)) : 0)
+#define smu_set_power_limit(smu, limit) \
+	((smu)->funcs->set_power_limit ? (smu)->funcs->set_power_limit((smu), (limit)) : 0)
 #define smu_get_current_clk_freq(smu, clk_id, value) \
 	((smu)->funcs->get_current_clk_freq? (smu)->funcs->get_current_clk_freq((smu), (clk_id), (value)) : 0)
 #define smu_print_clk_levels(smu, type, buf) \

@@ -619,7 +619,7 @@ static int smu_smc_table_hw_init(struct smu_context *smu)
 	if (ret)
 		return ret;
 
-	ret = smu_get_power_limit(smu);
+	ret = smu_get_power_limit(smu, &smu->default_power_limit, false);
 	if (ret)
 		return ret;
 

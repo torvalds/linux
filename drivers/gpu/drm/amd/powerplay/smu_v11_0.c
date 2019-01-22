@@ -873,23 +873,42 @@ static int smu_v11_0_init_max_sustainable_clocks(struct smu_context *smu)
 	return 0;
 }
 
-static int smu_v11_0_get_power_limit(struct smu_context *smu)
+static int smu_v11_0_get_power_limit(struct smu_context *smu,
+				     uint32_t *limit,
+				     bool get_default)
 {
-	int ret;
-	uint32_t power_limit_value;
+	int ret = 0;
 
-	ret = smu_send_smc_msg_with_param(smu,
-			SMU_MSG_GetPptLimit,
-			POWER_SOURCE_AC << 16);
+	if (get_default) {
+		mutex_lock(&smu->mutex);
+		*limit = smu->default_power_limit;
+		mutex_unlock(&smu->mutex);
+	} else {
+		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_GetPptLimit,
+						  POWER_SOURCE_AC << 16);
+		if (ret) {
+			pr_err("[%s] get PPT limit failed!", __func__);
+			return ret;
+		}
+		smu_read_smc_arg(smu, limit);
+		smu->power_limit = *limit;
+	}
+
+	return ret;
+}
+
+static int smu_v11_0_set_power_limit(struct smu_context *smu, uint32_t n)
+{
+	int ret = 0;
+
+	if (smu_feature_is_enabled(smu, FEATURE_PPT_BIT))
+		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetPptLimit, n);
 	if (ret) {
-		pr_err("[GetPptLimit] get default PPT limit failed!");
+		pr_err("[%s] Set power limit Failed!", __func__);
 		return ret;
 	}
 
-	smu_read_smc_arg(smu, &power_limit_value);
-	smu->power_limit = smu->default_power_limit = power_limit_value;
-
-	return 0;
+	return ret;
 }
 
 static int smu_v11_0_get_current_clk_freq(struct smu_context *smu, uint32_t clk_id, uint32_t *value)
@@ -1760,6 +1779,7 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.update_feature_enable_state = smu_v11_0_update_feature_enable_state,
 	.notify_display_change = smu_v11_0_notify_display_change,
 	.get_power_limit = smu_v11_0_get_power_limit,
+	.set_power_limit = smu_v11_0_set_power_limit,
 	.get_current_clk_freq = smu_v11_0_get_current_clk_freq,
 	.init_max_sustainable_clocks = smu_v11_0_init_max_sustainable_clocks,
 	.start_thermal_control = smu_v11_0_start_thermal_control,
