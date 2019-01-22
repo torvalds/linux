@@ -2078,6 +2078,8 @@ struct cfg80211_bss_ies {
  * @signal: signal strength value (type depends on the wiphy's signal_type)
  * @chains: bitmask for filled values in @chain_signal.
  * @chain_signal: per-chain signal strength of last received BSS in dBm.
+ * @bssid_index: index in the multiple BSS set
+ * @max_bssid_indicator: max number of members in the BSS set
  * @priv: private area for driver use, has at least wiphy->bss_priv_size bytes
  */
 struct cfg80211_bss {
@@ -2100,6 +2102,9 @@ struct cfg80211_bss {
 	u8 bssid[ETH_ALEN];
 	u8 chains;
 	s8 chain_signal[IEEE80211_MAX_CHAINS];
+
+	u8 bssid_index;
+	u8 max_bssid_indicator;
 
 	u8 priv[0] __aligned(sizeof(void *));
 };
