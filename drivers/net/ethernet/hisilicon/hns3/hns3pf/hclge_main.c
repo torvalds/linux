@@ -7428,7 +7428,7 @@ static int hclge_reset_ae_dev(struct hnae3_ae_dev *ae_dev)
 		return ret;
 	}
 
-	ret = hclge_tm_init_hw(hdev);
+	ret = hclge_tm_init_hw(hdev, true);
 	if (ret) {
 		dev_err(&pdev->dev, "tm init hw fail, ret =%d\n", ret);
 		return ret;
