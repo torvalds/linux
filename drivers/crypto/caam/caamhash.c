@@ -955,7 +955,7 @@ static int ahash_update_ctx(struct ahash_request *req)
 #endif
 
 	return ret;
- unmap_ctx:
+unmap_ctx:
 	ahash_unmap_ctx(jrdev, edesc, req, ctx->ctx_len, DMA_BIDIRECTIONAL);
 	kfree(edesc);
 	return ret;
