@@ -166,7 +166,7 @@ static int hclge_map_update(struct hnae3_handle *h)
 	if (ret)
 		return ret;
 
-	ret = hclge_pause_setup_hw(hdev);
+	ret = hclge_pause_setup_hw(hdev, false);
 	if (ret)
 		return ret;
 
@@ -313,7 +313,7 @@ static int hclge_ieee_setpfc(struct hnae3_handle *h, struct ieee_pfc *pfc)
 
 	hdev->tm_info.hw_pfc_map = pfc_map;
 
-	return hclge_pause_setup_hw(hdev);
+	return hclge_pause_setup_hw(hdev, false);
 }
 
 /* DCBX configuration */
@@ -361,7 +361,7 @@ static int hclge_setup_tc(struct hnae3_handle *h, u8 tc, u8 *prio_tc)
 	hclge_tm_schd_info_update(hdev, tc);
 	hclge_tm_prio_tc_info_update(hdev, prio_tc);
 
-	ret = hclge_tm_init_hw(hdev);
+	ret = hclge_tm_init_hw(hdev, false);
 	if (ret)
 		return ret;
 

@@ -1255,7 +1255,7 @@ static int hclge_tm_bp_setup(struct hclge_dev *hdev)
 	return ret;
 }
 
-int hclge_pause_setup_hw(struct hclge_dev *hdev)
+int hclge_pause_setup_hw(struct hclge_dev *hdev, bool init)
 {
 	int ret;
 
@@ -1271,10 +1271,15 @@ int hclge_pause_setup_hw(struct hclge_dev *hdev)
 	if (!hnae3_dev_dcb_supported(hdev))
 		return 0;
 
-	/* When MAC is GE Mode, hdev does not support pfc setting */
+	/* GE MAC does not support PFC, when driver is initializing and MAC
+	 * is in GE Mode, ignore the error here, otherwise initialization
+	 * will fail.
+	 */
 	ret = hclge_pfc_setup_hw(hdev);
-	if (ret)
-		dev_warn(&hdev->pdev->dev, "set pfc pause failed:%d\n", ret);
+	if (init && ret == -EOPNOTSUPP)
+		dev_warn(&hdev->pdev->dev, "GE MAC does not support pfc\n");
+	else
+		return ret;
 
 	return hclge_tm_bp_setup(hdev);
 }
@@ -1314,7 +1319,7 @@ void hclge_tm_schd_info_update(struct hclge_dev *hdev, u8 num_tc)
 	hclge_tm_schd_info_init(hdev);
 }
 
-int hclge_tm_init_hw(struct hclge_dev *hdev)
+int hclge_tm_init_hw(struct hclge_dev *hdev, bool init)
 {
 	int ret;
 
@@ -1326,7 +1331,7 @@ int hclge_tm_init_hw(struct hclge_dev *hdev)
 	if (ret)
 		return ret;
 
-	ret = hclge_pause_setup_hw(hdev);
+	ret = hclge_pause_setup_hw(hdev, init);
 	if (ret)
 		return ret;
 
@@ -1345,7 +1350,7 @@ int hclge_tm_schd_init(struct hclge_dev *hdev)
 	if (ret)
 		return ret;
 
-	return hclge_tm_init_hw(hdev);
+	return hclge_tm_init_hw(hdev, true);
 }
 
 int hclge_tm_vport_map_update(struct hclge_dev *hdev)
