@@ -346,7 +346,7 @@ komeda_compiz_set_input(struct komeda_compiz *compiz,
 	return 0;
 }
 
-int
+static int
 komeda_compiz_validate(struct komeda_compiz *compiz,
 		       struct komeda_crtc_state *state,
 		       struct komeda_data_flow_cfg *dflow)
@@ -384,6 +384,53 @@ komeda_compiz_validate(struct komeda_compiz *compiz,
 	return 0;
 }
 
+static int
+komeda_improc_validate(struct komeda_improc *improc,
+		       struct komeda_crtc_state *kcrtc_st,
+		       struct komeda_data_flow_cfg *dflow)
+{
+	struct drm_crtc *crtc = kcrtc_st->base.crtc;
+	struct komeda_component_state *c_st;
+	struct komeda_improc_state *st;
+
+	c_st = komeda_component_get_state_and_set_user(&improc->base,
+			kcrtc_st->base.state, crtc, crtc);
+	if (IS_ERR(c_st))
+		return PTR_ERR(c_st);
+
+	st = to_improc_st(c_st);
+
+	st->hsize = dflow->in_w;
+	st->vsize = dflow->in_h;
+
+	komeda_component_add_input(&st->base, &dflow->input, 0);
+	komeda_component_set_output(&dflow->input, &improc->base, 0);
+
+	return 0;
+}
+
+static int
+komeda_timing_ctrlr_validate(struct komeda_timing_ctrlr *ctrlr,
+			     struct komeda_crtc_state *kcrtc_st,
+			     struct komeda_data_flow_cfg *dflow)
+{
+	struct drm_crtc *crtc = kcrtc_st->base.crtc;
+	struct komeda_timing_ctrlr_state *st;
+	struct komeda_component_state *c_st;
+
+	c_st = komeda_component_get_state_and_set_user(&ctrlr->base,
+			kcrtc_st->base.state, crtc, crtc);
+	if (IS_ERR(c_st))
+		return PTR_ERR(c_st);
+
+	st = to_ctrlr_st(c_st);
+
+	komeda_component_add_input(&st->base, &dflow->input, 0);
+	komeda_component_set_output(&dflow->input, &ctrlr->base, 0);
+
+	return 0;
+}
+
 int komeda_build_layer_data_flow(struct komeda_layer *layer,
 				 struct komeda_plane_state *kplane_st,
 				 struct komeda_crtc_state *kcrtc_st,
@@ -405,4 +452,31 @@ int komeda_build_layer_data_flow(struct komeda_layer *layer,
 	err = komeda_compiz_set_input(pipe->compiz, kcrtc_st, dflow);
 
 	return err;
+}
+
+/* build display output data flow, the data path is:
+ * compiz -> improc -> timing_ctrlr
+ */
+int komeda_build_display_data_flow(struct komeda_crtc *kcrtc,
+				   struct komeda_crtc_state *kcrtc_st)
+{
+	struct komeda_pipeline *master = kcrtc->master;
+	struct komeda_data_flow_cfg m_dflow; /* master data flow */
+	int err;
+
+	memset(&m_dflow, 0, sizeof(m_dflow));
+
+	err = komeda_compiz_validate(master->compiz, kcrtc_st, &m_dflow);
+	if (err)
+		return err;
+
+	err = komeda_improc_validate(master->improc, kcrtc_st, &m_dflow);
+	if (err)
+		return err;
+
+	err = komeda_timing_ctrlr_validate(master->ctrlr, kcrtc_st, &m_dflow);
+	if (err)
+		return err;
+
+	return 0;
 }

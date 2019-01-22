@@ -400,10 +400,13 @@ void komeda_component_destroy(struct komeda_dev *mdev,
 
 struct komeda_plane_state;
 struct komeda_crtc_state;
+struct komeda_crtc;
 
 int komeda_build_layer_data_flow(struct komeda_layer *layer,
 				 struct komeda_plane_state *kplane_st,
 				 struct komeda_crtc_state *kcrtc_st,
 				 struct komeda_data_flow_cfg *dflow);
+int komeda_build_display_data_flow(struct komeda_crtc *kcrtc,
+				   struct komeda_crtc_state *kcrtc_st);
 
 #endif /* _KOMEDA_PIPELINE_H_*/
