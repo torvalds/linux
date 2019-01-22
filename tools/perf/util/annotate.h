@@ -4,16 +4,24 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <linux/types.h>
-#include "symbol.h"
-#include "hist.h"
-#include "sort.h"
 #include <linux/list.h>
 #include <linux/rbtree.h>
 #include <pthread.h>
 #include <asm/bug.h>
+#include "symbol_conf.h"
 
+struct hist_browser_timer;
+struct hist_entry;
 struct ins_ops;
+struct map;
+struct map_symbol;
+struct addr_map_symbol;
+struct option;
+struct perf_sample;
+struct perf_evsel;
+struct symbol;
 
 struct ins {
 	const char     *name;
