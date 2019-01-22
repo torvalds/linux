@@ -268,43 +268,30 @@
 						regulator-name = "AVDD_DSI_CSI_1V2";
 						regulator-min-microvolt = <1200000>;
 						regulator-max-microvolt = <1200000>;
-						/* XXX */
-						regulator-always-on;
-						regulator-boot-on;
 					};
 
 					vdd_1v8: sd2 {
 						regulator-name = "VDD_1V8";
 						regulator-min-microvolt = <1800000>;
 						regulator-max-microvolt = <1800000>;
-						/* XXX */
-						regulator-always-on;
-						regulator-boot-on;
 					};
 
 					vdd_3v3_sys: sd3 {
 						regulator-name = "VDD_3V3_SYS";
 						regulator-min-microvolt = <3300000>;
 						regulator-max-microvolt = <3300000>;
-						/* XXX */
-						regulator-always-on;
-						regulator-boot-on;
 					};
 
 					vdd_1v8_pll: ldo0 {
 						regulator-name = "VDD_1V8_AP_PLL";
 						regulator-min-microvolt = <1800000>;
 						regulator-max-microvolt = <1800000>;
-						/* XXX */
-						regulator-always-on;
-						regulator-boot-on;
 					};
 
 					ldo2 {
 						regulator-name = "VDDIO_3V3_AOHV";
 						regulator-min-microvolt = <3300000>;
 						regulator-max-microvolt = <3300000>;
-						/* XXX */
 						regulator-always-on;
 						regulator-boot-on;
 					};
@@ -331,18 +318,12 @@
 						regulator-name = "VDD_HDMI_1V05";
 						regulator-min-microvolt = <1050000>;
 						regulator-max-microvolt = <1050000>;
-						/* XXX */
-						regulator-always-on;
-						regulator-boot-on;
 					};
 
 					vdd_pex: ldo8 {
 						regulator-name = "VDD_PEX_1V05";
 						regulator-min-microvolt = <1050000>;
 						regulator-max-microvolt = <1050000>;
-						/* XXX */
-						regulator-always-on;
-						regulator-boot-on;
 					};
 				};
 			};
@@ -389,10 +370,6 @@
 			regulator-name = "VDD_1V8_AP";
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
-
-			/* XXX */
-			regulator-always-on;
-			regulator-boot-on;
 
 			gpio = <&pmic 1 GPIO_ACTIVE_HIGH>;
 			enable-active-high;
