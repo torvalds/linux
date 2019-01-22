@@ -25,6 +25,7 @@ obj-$(CONFIG_MXC_CLK_SCU) += \
 	clk-scu.o \
 	clk-lpcg-scu.o
 
+obj-$(CONFIG_CLK_IMX8MM) += clk-imx8mm.o
 obj-$(CONFIG_CLK_IMX8MQ) += clk-imx8mq.o
 obj-$(CONFIG_CLK_IMX8QXP) += clk-imx8qxp.o clk-imx8qxp-lpcg.o
 
