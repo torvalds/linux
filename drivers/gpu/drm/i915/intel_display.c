@@ -14382,9 +14382,7 @@ static void intel_setup_outputs(struct drm_i915_private *dev_priv)
 		 * incorrect sharing of the PPS.
 		 */
 		intel_lvds_init(dev_priv);
-
-		if (dev_priv->vbt.int_crt_support)
-			intel_crt_init(dev_priv);
+		intel_crt_init(dev_priv);
 
 		dpd_is_edp = intel_dp_is_port_edp(dev_priv, PORT_D);
 
@@ -14461,17 +14459,14 @@ static void intel_setup_outputs(struct drm_i915_private *dev_priv)
 		vlv_dsi_init(dev_priv);
 	} else if (IS_PINEVIEW(dev_priv)) {
 		intel_lvds_init(dev_priv);
-
-		if (dev_priv->vbt.int_crt_support)
-			intel_crt_init(dev_priv);
+		intel_crt_init(dev_priv);
 	} else if (IS_GEN_RANGE(dev_priv, 3, 4)) {
 		bool found = false;
 
 		if (IS_MOBILE(dev_priv))
 			intel_lvds_init(dev_priv);
 
-		if (dev_priv->vbt.int_crt_support)
-			intel_crt_init(dev_priv);
+		intel_crt_init(dev_priv);
 
 		if (I915_READ(GEN3_SDVOB) & SDVO_DETECTED) {
 			DRM_DEBUG_KMS("probing SDVOB\n");
@@ -14511,9 +14506,7 @@ static void intel_setup_outputs(struct drm_i915_private *dev_priv)
 		if (IS_I85X(dev_priv))
 			intel_lvds_init(dev_priv);
 
-		if (dev_priv->vbt.int_crt_support)
-			intel_crt_init(dev_priv);
-
+		intel_crt_init(dev_priv);
 		intel_dvo_init(dev_priv);
 	}
 
