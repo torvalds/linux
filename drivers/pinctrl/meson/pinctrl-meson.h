@@ -120,6 +120,7 @@ struct meson_pinctrl {
 	struct regmap *reg_pullen;
 	struct regmap *reg_pull;
 	struct regmap *reg_gpio;
+	struct regmap *reg_ds;
 	struct gpio_chip chip;
 	struct device_node *of_node;
 };
