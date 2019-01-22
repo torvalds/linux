@@ -555,10 +555,11 @@ void ip_md_tunnel_xmit(struct sk_buff *skb, struct net_device *dev, u8 proto)
 	struct ip_tunnel_info *tun_info;
 	const struct ip_tunnel_key *key;
 	const struct iphdr *inner_iph;
-	struct rtable *rt;
+	struct rtable *rt = NULL;
 	struct flowi4 fl4;
 	__be16 df = 0;
 	u8 tos, ttl;
+	bool use_cache;
 
 	tun_info = skb_tunnel_info(skb);
 	if (unlikely(!tun_info || !(tun_info->mode & IP_TUNNEL_INFO_TX) ||
@@ -578,10 +579,19 @@ void ip_md_tunnel_xmit(struct sk_buff *skb, struct net_device *dev, u8 proto)
 			    RT_TOS(tos), tunnel->parms.link, tunnel->fwmark);
 	if (tunnel->encap.type != TUNNEL_ENCAP_NONE)
 		goto tx_error;
-	rt = ip_route_output_key(tunnel->net, &fl4);
-	if (IS_ERR(rt)) {
-		dev->stats.tx_carrier_errors++;
-		goto tx_error;
+
+	use_cache = ip_tunnel_dst_cache_usable(skb, tun_info);
+	if (use_cache)
+		rt = dst_cache_get_ip4(&tun_info->dst_cache, &fl4.saddr);
+	if (!rt) {
+		rt = ip_route_output_key(tunnel->net, &fl4);
+		if (IS_ERR(rt)) {
+			dev->stats.tx_carrier_errors++;
+			goto tx_error;
+		}
+		if (use_cache)
+			dst_cache_set_ip4(&tun_info->dst_cache, &rt->dst,
+					  fl4.saddr);
 	}
 	if (rt->dst.dev == dev) {
 		ip_rt_put(rt);
