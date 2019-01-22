@@ -193,9 +193,8 @@ static int __init pwrdms_setup(struct powerdomain *pwrdm, void *dir)
 		return 0;
 
 	d = debugfs_create_dir(pwrdm->name, (struct dentry *)dir);
-	if (d)
-		(void) debugfs_create_file("suspend", S_IRUGO|S_IWUSR, d,
-			(void *)pwrdm, &pwrdm_suspend_fops);
+	debugfs_create_file("suspend", S_IRUGO|S_IWUSR, d, pwrdm,
+			    &pwrdm_suspend_fops);
 
 	return 0;
 }
@@ -233,16 +232,14 @@ static int __init pm_dbg_init(void)
 		return 0;
 
 	d = debugfs_create_dir("pm_debug", NULL);
-	if (!d)
-		return -EINVAL;
 
-	(void) debugfs_create_file("count", 0444, d, NULL, &pm_dbg_counters_fops);
-	(void) debugfs_create_file("time", 0444, d, NULL, &pm_dbg_timers_fops);
+	debugfs_create_file("count", 0444, d, NULL, &pm_dbg_counters_fops);
+	debugfs_create_file("time", 0444, d, NULL, &pm_dbg_timers_fops);
 
 	pwrdm_for_each(pwrdms_setup, (void *)d);
 
-	(void) debugfs_create_file("enable_off_mode", S_IRUGO | S_IWUSR, d,
-				   &enable_off_mode, &pm_dbg_option_fops);
+	debugfs_create_file("enable_off_mode", S_IRUGO | S_IWUSR, d,
+			    &enable_off_mode, &pm_dbg_option_fops);
 	pm_dbg_init_done = 1;
 
 	return 0;
