@@ -1005,7 +1005,7 @@ static int hclge_tm_pri_dwrr_cfg(struct hclge_dev *hdev)
 	return 0;
 }
 
-int hclge_tm_map_cfg(struct hclge_dev *hdev)
+static int hclge_tm_map_cfg(struct hclge_dev *hdev)
 {
 	int ret;
 
@@ -1120,7 +1120,7 @@ static int hclge_tm_lvl34_schd_mode_cfg(struct hclge_dev *hdev)
 	return 0;
 }
 
-int hclge_tm_schd_mode_hw(struct hclge_dev *hdev)
+static int hclge_tm_schd_mode_hw(struct hclge_dev *hdev)
 {
 	int ret;
 
@@ -1131,7 +1131,7 @@ int hclge_tm_schd_mode_hw(struct hclge_dev *hdev)
 	return hclge_tm_lvl34_schd_mode_cfg(hdev);
 }
 
-static int hclge_tm_schd_setup_hw(struct hclge_dev *hdev)
+int hclge_tm_schd_setup_hw(struct hclge_dev *hdev)
 {
 	int ret;
 
