@@ -162,11 +162,7 @@ static int hclge_map_update(struct hnae3_handle *h)
 	struct hclge_dev *hdev = vport->back;
 	int ret;
 
-	ret = hclge_tm_map_cfg(hdev);
-	if (ret)
-		return ret;
-
-	ret = hclge_tm_schd_mode_hw(hdev);
+	ret = hclge_tm_schd_setup_hw(hdev);
 	if (ret)
 		return ret;
 
