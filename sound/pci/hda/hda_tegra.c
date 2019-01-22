@@ -32,6 +32,7 @@
 #include <linux/slab.h>
 #include <linux/time.h>
 #include <linux/string.h>
+#include <linux/pm_runtime.h>
 
 #include <sound/core.h>
 #include <sound/initval.h>
@@ -512,6 +513,11 @@ static int hda_tegra_probe(struct platform_device *pdev)
 	card->private_data = chip;
 
 	dev_set_drvdata(&pdev->dev, card);
+
+	pm_runtime_enable(hda->dev);
+	if (!azx_has_pm_runtime(chip))
+		pm_runtime_forbid(hda->dev);
+
 	schedule_work(&hda->probe_work);
 
 	return 0;
@@ -528,6 +534,7 @@ static void hda_tegra_probe_work(struct work_struct *work)
 	struct platform_device *pdev = to_platform_device(hda->dev);
 	int err;
 
+	pm_runtime_get_sync(hda->dev);
 	err = hda_tegra_first_init(chip, pdev);
 	if (err < 0)
 		goto out_free;
@@ -549,12 +556,18 @@ static void hda_tegra_probe_work(struct work_struct *work)
 	snd_hda_set_power_save(&chip->bus, power_save * 1000);
 
  out_free:
+	pm_runtime_put(hda->dev);
 	return; /* no error return from async probe */
 }
 
 static int hda_tegra_remove(struct platform_device *pdev)
 {
-	return snd_card_free(dev_get_drvdata(&pdev->dev));
+	int ret;
+
+	ret = snd_card_free(dev_get_drvdata(&pdev->dev));
+	pm_runtime_disable(&pdev->dev);
+
+	return ret;
 }
 
 static void hda_tegra_shutdown(struct platform_device *pdev)
