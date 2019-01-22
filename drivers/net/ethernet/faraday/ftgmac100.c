@@ -935,16 +935,14 @@ static int ftgmac100_alloc_rings(struct ftgmac100 *priv)
 		return -ENOMEM;
 
 	/* Allocate descriptors */
-	priv->rxdes = dma_zalloc_coherent(priv->dev,
-					  MAX_RX_QUEUE_ENTRIES *
-					  sizeof(struct ftgmac100_rxdes),
-					  &priv->rxdes_dma, GFP_KERNEL);
+	priv->rxdes = dma_alloc_coherent(priv->dev,
+					 MAX_RX_QUEUE_ENTRIES * sizeof(struct ftgmac100_rxdes),
+					 &priv->rxdes_dma, GFP_KERNEL);
 	if (!priv->rxdes)
 		return -ENOMEM;
-	priv->txdes = dma_zalloc_coherent(priv->dev,
-					  MAX_TX_QUEUE_ENTRIES *
-					  sizeof(struct ftgmac100_txdes),
-					  &priv->txdes_dma, GFP_KERNEL);
+	priv->txdes = dma_alloc_coherent(priv->dev,
+					 MAX_TX_QUEUE_ENTRIES * sizeof(struct ftgmac100_txdes),
+					 &priv->txdes_dma, GFP_KERNEL);
 	if (!priv->txdes)
 		return -ENOMEM;
 

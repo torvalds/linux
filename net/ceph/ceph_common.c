@@ -255,6 +255,7 @@ enum {
 	Opt_nocephx_sign_messages,
 	Opt_tcp_nodelay,
 	Opt_notcp_nodelay,
+	Opt_abort_on_full,
 };
 
 static match_table_t opt_tokens = {
@@ -280,6 +281,7 @@ static match_table_t opt_tokens = {
 	{Opt_nocephx_sign_messages, "nocephx_sign_messages"},
 	{Opt_tcp_nodelay, "tcp_nodelay"},
 	{Opt_notcp_nodelay, "notcp_nodelay"},
+	{Opt_abort_on_full, "abort_on_full"},
 	{-1, NULL}
 };
 
@@ -535,6 +537,10 @@ ceph_parse_options(char *options, const char *dev_name,
 			opt->flags &= ~CEPH_OPT_TCP_NODELAY;
 			break;
 
+		case Opt_abort_on_full:
+			opt->flags |= CEPH_OPT_ABORT_ON_FULL;
+			break;
+
 		default:
 			BUG_ON(token);
 		}
@@ -549,7 +555,8 @@ out:
 }
 EXPORT_SYMBOL(ceph_parse_options);
 
-int ceph_print_client_options(struct seq_file *m, struct ceph_client *client)
+int ceph_print_client_options(struct seq_file *m, struct ceph_client *client,
+			      bool show_all)
 {
 	struct ceph_options *opt = client->options;
 	size_t pos = m->count;
@@ -574,6 +581,8 @@ int ceph_print_client_options(struct seq_file *m, struct ceph_client *client)
 		seq_puts(m, "nocephx_sign_messages,");
 	if ((opt->flags & CEPH_OPT_TCP_NODELAY) == 0)
 		seq_puts(m, "notcp_nodelay,");
+	if (show_all && (opt->flags & CEPH_OPT_ABORT_ON_FULL))
+		seq_puts(m, "abort_on_full,");
 
 	if (opt->mount_timeout != CEPH_MOUNT_TIMEOUT_DEFAULT)
 		seq_printf(m, "mount_timeout=%d,",

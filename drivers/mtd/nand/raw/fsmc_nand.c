@@ -593,23 +593,6 @@ static void fsmc_write_buf_dma(struct fsmc_nand_data *host, const u8 *buf,
 	dma_xfer(host, (void *)buf, len, DMA_TO_DEVICE);
 }
 
-/* fsmc_select_chip - assert or deassert nCE */
-static void fsmc_ce_ctrl(struct fsmc_nand_data *host, bool assert)
-{
-	u32 pc = readl(host->regs_va + FSMC_PC);
-
-	if (!assert)
-		writel_relaxed(pc & ~FSMC_ENABLE, host->regs_va + FSMC_PC);
-	else
-		writel_relaxed(pc | FSMC_ENABLE, host->regs_va + FSMC_PC);
-
-	/*
-	 * nCE line changes must be applied before returning from this
-	 * function.
-	 */
-	mb();
-}
-
 /*
  * fsmc_exec_op - hook called by the core to execute NAND operations
  *
@@ -626,8 +609,6 @@ static int fsmc_exec_op(struct nand_chip *chip, const struct nand_operation *op,
 	int i;
 
 	pr_debug("Executing operation [%d instructions]:\n", op->ninstrs);
-
-	fsmc_ce_ctrl(host, true);
 
 	for (op_id = 0; op_id < op->ninstrs; op_id++) {
 		instr = &op->instrs[op_id];
@@ -685,8 +666,6 @@ static int fsmc_exec_op(struct nand_chip *chip, const struct nand_operation *op,
 			break;
 		}
 	}
-
-	fsmc_ce_ctrl(host, false);
 
 	return ret;
 }

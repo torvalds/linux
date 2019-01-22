@@ -3,9 +3,6 @@ OBJCOPYFLAGS	:= -O binary -R .note -R .note.gnu.build-id -R .comment -S
 
 KBUILD_DEFCONFIG := defconfig
 
-comma = ,
-
-
 ifdef CONFIG_FUNCTION_TRACER
 arch-y += -malways-save-lp -mno-relax
 endif
@@ -54,8 +51,6 @@ endif
 boot := arch/nds32/boot
 core-y += $(boot)/dts/
 
-.PHONY: FORCE
-
 Image: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
@@ -68,9 +63,6 @@ prepare: vdso_prepare
 vdso_prepare: prepare0
 	$(Q)$(MAKE) $(build)=arch/nds32/kernel/vdso include/generated/vdso-offsets.h
 
-CLEAN_FILES += include/asm-nds32/constants.h*
-
-# We use MRPROPER_FILES and CLEAN_FILES now
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
 

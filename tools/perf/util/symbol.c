@@ -614,6 +614,7 @@ out:
 static bool symbol__is_idle(const char *name)
 {
 	const char * const idle_symbols[] = {
+		"arch_cpu_idle",
 		"cpu_idle",
 		"cpu_startup_entry",
 		"intel_idle",

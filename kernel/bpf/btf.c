@@ -467,7 +467,7 @@ static const struct btf_kind_operations *btf_type_ops(const struct btf_type *t)
 	return kind_ops[BTF_INFO_KIND(t->info)];
 }
 
-bool btf_name_offset_valid(const struct btf *btf, u32 offset)
+static bool btf_name_offset_valid(const struct btf *btf, u32 offset)
 {
 	return BTF_STR_OFFSET_VALID(offset) &&
 		offset < btf->hdr.str_len;
@@ -1219,8 +1219,6 @@ static void btf_bitfield_seq_show(void *data, u8 bits_offset,
 	u8 nr_copy_bits;
 	u64 print_num;
 
-	data += BITS_ROUNDDOWN_BYTES(bits_offset);
-	bits_offset = BITS_PER_BYTE_MASKED(bits_offset);
 	nr_copy_bits = nr_bits + bits_offset;
 	nr_copy_bytes = BITS_ROUNDUP_BYTES(nr_copy_bits);
 
@@ -1255,7 +1253,9 @@ static void btf_int_bits_seq_show(const struct btf *btf,
 	 * BTF_INT_OFFSET() cannot exceed 64 bits.
 	 */
 	total_bits_offset = bits_offset + BTF_INT_OFFSET(int_data);
-	btf_bitfield_seq_show(data, total_bits_offset, nr_bits, m);
+	data += BITS_ROUNDDOWN_BYTES(total_bits_offset);
+	bits_offset = BITS_PER_BYTE_MASKED(total_bits_offset);
+	btf_bitfield_seq_show(data, bits_offset, nr_bits, m);
 }
 
 static void btf_int_seq_show(const struct btf *btf, const struct btf_type *t,
@@ -2001,12 +2001,12 @@ static void btf_struct_seq_show(const struct btf *btf, const struct btf_type *t,
 
 		member_offset = btf_member_bit_offset(t, member);
 		bitfield_size = btf_member_bitfield_size(t, member);
+		bytes_offset = BITS_ROUNDDOWN_BYTES(member_offset);
+		bits8_offset = BITS_PER_BYTE_MASKED(member_offset);
 		if (bitfield_size) {
-			btf_bitfield_seq_show(data, member_offset,
+			btf_bitfield_seq_show(data + bytes_offset, bits8_offset,
 					      bitfield_size, m);
 		} else {
-			bytes_offset = BITS_ROUNDDOWN_BYTES(member_offset);
-			bits8_offset = BITS_PER_BYTE_MASKED(member_offset);
 			ops = btf_type_ops(member_type);
 			ops->seq_show(btf, member_type, member->type,
 				      data + bytes_offset, bits8_offset, m);
