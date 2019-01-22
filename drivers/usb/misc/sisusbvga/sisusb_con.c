@@ -70,8 +70,6 @@
 #include "sisusb.h"
 #include "sisusb_init.h"
 
-#ifdef CONFIG_USB_SISUSBVGA_CON
-
 #define sisusbcon_writew(val, addr)	(*(addr) = (val))
 #define sisusbcon_readw(addr)		(*(addr))
 #define sisusbcon_memmovew(d, s, c)	memmove(d, s, c)
@@ -1534,8 +1532,3 @@ void __init sisusb_init_concode(void)
 	for (i = 0; i < MAX_NR_CONSOLES; i++)
 		mysisusbs[i] = NULL;
 }
-
-#endif /* INCL_CON */
-
-
-

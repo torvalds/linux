@@ -44,9 +44,6 @@
 #include <linux/spinlock.h>
 
 #include "sisusb.h"
-
-#ifdef CONFIG_USB_SISUSBVGA_CON
-
 #include "sisusb_init.h"
 
 /*********************************************/
@@ -955,5 +952,3 @@ int SiSUSBSetVESAMode(struct SiS_Private *SiS_Pr, unsigned short VModeNo)
 
 	return SiSUSBSetMode(SiS_Pr, ModeNo);
 }
-
-#endif /* CONFIG_USB_SISUSBVGA_CON */
