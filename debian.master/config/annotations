@@ -850,7 +850,7 @@ CONFIG_SCLP_OFB                                 mark<ENFORCED> note<LP:1787898>
 
 # Menu: Device Drivers >> Character devices >> Enable TTY
 CONFIG_TTY                                      policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y', 's390x': 'y'}>
-CONFIG_VT                                       policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y', 's390x': 'n'}>
+CONFIG_VT                                       policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y', 's390x': 'y'}>
 CONFIG_CONSOLE_TRANSLATIONS                     policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y'}>
 CONFIG_VT_CONSOLE                               policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y'}>
 CONFIG_VT_HW_CONSOLE_BINDING                    policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y'}>
@@ -1830,7 +1830,7 @@ CONFIG_DUMMY_CONSOLE_COLUMNS                    policy<{'amd64': '80', 'arm64': 
 CONFIG_DUMMY_CONSOLE_ROWS                       policy<{'amd64': '25', 'arm64': '25', 'i386': '25', 'ppc64el': '25'}>
 
 # Menu: Device Drivers >> Graphics support >> Console display driver support >> Framebuffer Console support
-CONFIG_FRAMEBUFFER_CONSOLE                      policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y'}>
+CONFIG_FRAMEBUFFER_CONSOLE                      policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y', 's390x': 'y'}>
 CONFIG_FRAMEBUFFER_CONSOLE_DETECT_PRIMARY       policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y'}>
 CONFIG_FRAMEBUFFER_CONSOLE_ROTATION             policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y'}>
 CONFIG_FRAMEBUFFER_CONSOLE_DEFERRED_TAKEOVER    policy<{'amd64': 'n', 'arm64': 'n', 'armhf': 'n', 'i386': 'n', 'ppc64el': 'n'}>
@@ -1839,7 +1839,7 @@ CONFIG_FRAMEBUFFER_CONSOLE                      mark<ENFORCED> note<boot essenti
 CONFIG_FRAMEBUFFER_CONSOLE_DEFERRED_TAKEOVER    flag<REVIEW>
 
 # Menu: Device Drivers >> Graphics support >> Direct Rendering Manager (XFree86 4.1.0 and higher DRI support)
-CONFIG_DRM                                      policy<{'amd64': 'm', 'arm64-generic': 'm', 'arm64-snapdragon': 'y', 'armhf': 'm', 'i386': 'm', 'ppc64el': 'm', 's390x': 'n'}>
+CONFIG_DRM                                      policy<{'amd64': 'm', 'arm64-generic': 'm', 'arm64-snapdragon': 'y', 'armhf': 'm', 'i386': 'm', 'ppc64el': 'm', 's390x': 'm'}>
 CONFIG_DRM_DP_AUX_CHARDEV                       policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y'}>
 CONFIG_DRM_DEBUG_MM                             policy<{'arm64-snapdragon': 'n'}>
 CONFIG_DRM_DEBUG_SELFTEST                       policy<{'amd64': 'n', 'arm64': 'n', 'armhf': 'n', 'i386': 'n', 'ppc64el': 'n'}>
@@ -1870,7 +1870,7 @@ CONFIG_DRM_OMAP                                 policy<{'armhf': 'n'}>
 CONFIG_DRM_TILCDC                               policy<{'armhf': 'm'}>
 CONFIG_DRM_QXL                                  policy<{'amd64': 'm', 'arm64': 'm', 'armhf': 'm', 'i386': 'm', 'ppc64el': 'm'}>
 CONFIG_DRM_BOCHS                                policy<{'amd64': 'n', 'arm64': 'n', 'armhf': 'n', 'i386': 'n', 'ppc64el': 'n'}>
-CONFIG_DRM_VIRTIO_GPU                           policy<{'amd64': 'm', 'arm64': 'm', 'armhf': 'm', 'i386': 'm', 'ppc64el': 'm'}>
+CONFIG_DRM_VIRTIO_GPU                           policy<{'amd64': 'm', 'arm64': 'm', 'armhf': 'm', 'i386': 'm', 'ppc64el': 'm', 's390x': 'm'}>
 CONFIG_DRM_FSL_DCU                              policy<{'armhf': 'm'}>
 CONFIG_DRM_TEGRA                                policy<{'armhf-generic': 'm'}>
 CONFIG_DRM_TEGRA_DEBUG                          policy<{'armhf-generic': 'n'}>
@@ -2076,7 +2076,7 @@ CONFIG_TINYDRM_ST7735R                          policy<{'amd64': 'm', 'arm64': '
 # Menu: Device Drivers >> Graphics support >> Frame buffer Devices >> Marvell MMP Display Subsystem support
 
 # Menu: Device Drivers >> Graphics support >> Frame buffer Devices >> Support for frame buffer devices
-CONFIG_FB                                       policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y', 's390x': 'n'}>
+CONFIG_FB                                       policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y', 's390x': 'y'}>
 CONFIG_FIRMWARE_EDID                            policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y'}>
 CONFIG_FB_MODE_HELPERS                          policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y'}>
 CONFIG_FB_TILEBLITTING                          policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y'}>
@@ -3305,14 +3305,14 @@ CONFIG_INFINIBAND_ISERT                         policy<{'amd64': 'm', 'arm64': '
 # Menu: Device Drivers >> Input device support
 
 # Menu: Device Drivers >> Input device support >> Generic input layer (needed for keyboard, mouse, ...)
-CONFIG_INPUT                                    policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y', 's390x': 'n'}>
+CONFIG_INPUT                                    policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y', 's390x': 'y'}>
 CONFIG_INPUT_LEDS                               policy<{'amd64': 'm', 'arm64': 'm', 'armhf': 'm', 'i386': 'm', 'ppc64el': 'm'}>
 CONFIG_INPUT_FF_MEMLESS                         policy<{'amd64': 'm', 'arm64': 'm', 'armhf': 'm', 'i386': 'm', 'ppc64el': 'm'}>
 CONFIG_INPUT_POLLDEV                            policy<{'amd64': 'm', 'arm64': 'm', 'armhf': 'm', 'i386': 'm', 'ppc64el': 'm'}>
 CONFIG_INPUT_SPARSEKMAP                         policy<{'amd64': 'm', 'arm64': 'm', 'armhf': 'm', 'i386': 'm', 'ppc64el': 'm'}>
 CONFIG_INPUT_MATRIXKMAP                         policy<{'amd64': 'm', 'arm64': 'm', 'armhf': 'm', 'i386': 'm', 'ppc64el': 'm'}>
 CONFIG_INPUT_JOYDEV                             policy<{'amd64': 'm', 'arm64': 'm', 'armhf': 'm', 'i386': 'm', 'ppc64el': 'm'}>
-CONFIG_INPUT_EVDEV                              policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y'}>
+CONFIG_INPUT_EVDEV                              policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y', 's390x': 'y'}>
 CONFIG_INPUT_EVBUG                              policy<{'amd64': 'm', 'arm64': 'm', 'armhf': 'm', 'i386': 'm', 'ppc64el': 'm'}>
 
 # Menu: Device Drivers >> Input device support >> Generic input layer (needed for keyboard, mouse, ...) >> Joysticks/Gamepads
@@ -8644,7 +8644,7 @@ CONFIG_VIRTIO_MENU                              policy<{'amd64': 'y', 'arm64': '
 CONFIG_VIRTIO_PCI                               policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y', 's390x': 'y'}>
 CONFIG_VIRTIO_PCI_LEGACY                        policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y', 's390x': 'y'}>
 CONFIG_VIRTIO_BALLOON                           policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y', 's390x': 'y'}>
-CONFIG_VIRTIO_INPUT                             policy<{'amd64': 'm', 'arm64': 'm', 'armhf': 'm', 'i386': 'm', 'ppc64el': 'm'}>
+CONFIG_VIRTIO_INPUT                             policy<{'amd64': 'm', 'arm64': 'm', 'armhf': 'm', 'i386': 'm', 'ppc64el': 'm', 's390x': 'm'}>
 CONFIG_VIRTIO_MMIO                              policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y', 's390x': 'n'}>
 CONFIG_VIRTIO_MMIO_CMDLINE_DEVICES              policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y'}>
 #
