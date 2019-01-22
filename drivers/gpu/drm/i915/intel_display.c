@@ -14508,7 +14508,7 @@ static void intel_setup_outputs(struct drm_i915_private *dev_priv)
 		if (SUPPORTS_TV(dev_priv))
 			intel_tv_init(dev_priv);
 	} else if (IS_GEN(dev_priv, 2)) {
-		if (IS_MOBILE(dev_priv) && !IS_I830(dev_priv))
+		if (IS_I85X(dev_priv))
 			intel_lvds_init(dev_priv);
 
 		if (dev_priv->vbt.int_crt_support)
