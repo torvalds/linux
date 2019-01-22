@@ -113,11 +113,20 @@ enum mlx5_ib_devx_umem_methods {
 	MLX5_IB_METHOD_DEVX_UMEM_DEREG,
 };
 
+enum mlx5_ib_devx_async_cmd_fd_alloc_attrs {
+	MLX5_IB_ATTR_DEVX_ASYNC_CMD_FD_ALLOC_HANDLE = (1U << UVERBS_ID_NS_SHIFT),
+};
+
+enum mlx5_ib_devx_async_cmd_fd_methods {
+	MLX5_IB_METHOD_DEVX_ASYNC_CMD_FD_ALLOC = (1U << UVERBS_ID_NS_SHIFT),
+};
+
 enum mlx5_ib_objects {
 	MLX5_IB_OBJECT_DEVX = (1U << UVERBS_ID_NS_SHIFT),
 	MLX5_IB_OBJECT_DEVX_OBJ,
 	MLX5_IB_OBJECT_DEVX_UMEM,
 	MLX5_IB_OBJECT_FLOW_MATCHER,
+	MLX5_IB_OBJECT_DEVX_ASYNC_CMD_FD,
 };
 
 enum mlx5_ib_flow_matcher_create_attrs {

@@ -1168,6 +1168,38 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_QUERY)(
 			      cmd_out, cmd_out_len);
 }
 
+struct devx_async_event_queue {
+	spinlock_t		lock;
+	wait_queue_head_t	poll_wait;
+	struct list_head	event_list;
+};
+
+struct devx_async_cmd_event_file {
+	struct ib_uobject		uobj;
+	struct devx_async_event_queue	ev_queue;
+};
+
+static void devx_init_event_queue(struct devx_async_event_queue *ev_queue)
+{
+	spin_lock_init(&ev_queue->lock);
+	INIT_LIST_HEAD(&ev_queue->event_list);
+	init_waitqueue_head(&ev_queue->poll_wait);
+}
+
+static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_ASYNC_CMD_FD_ALLOC)(
+	struct uverbs_attr_bundle *attrs)
+{
+	struct devx_async_cmd_event_file *ev_file;
+
+	struct ib_uobject *uobj = uverbs_attr_get_uobject(
+		attrs, MLX5_IB_ATTR_DEVX_ASYNC_CMD_FD_ALLOC_HANDLE);
+
+	ev_file = container_of(uobj, struct devx_async_cmd_event_file,
+			       uobj);
+	devx_init_event_queue(&ev_file->ev_queue);
+	return 0;
+}
+
 static int devx_umem_get(struct mlx5_ib_dev *dev, struct ib_ucontext *ucontext,
 			 struct uverbs_attr_bundle *attrs,
 			 struct devx_umem *obj)
@@ -1313,6 +1345,38 @@ static int devx_umem_cleanup(struct ib_uobject *uobject,
 	return 0;
 }
 
+static ssize_t devx_async_cmd_event_read(struct file *filp, char __user *buf,
+					 size_t count, loff_t *pos)
+{
+	return -EINVAL;
+}
+
+static int devx_async_cmd_event_close(struct inode *inode, struct file *filp)
+{
+	uverbs_close_fd(filp);
+	return 0;
+}
+
+static __poll_t devx_async_cmd_event_poll(struct file *filp,
+					      struct poll_table_struct *wait)
+{
+	return 0;
+}
+
+const struct file_operations devx_async_cmd_event_fops = {
+	.owner	 = THIS_MODULE,
+	.read	 = devx_async_cmd_event_read,
+	.poll    = devx_async_cmd_event_poll,
+	.release = devx_async_cmd_event_close,
+	.llseek	 = no_llseek,
+};
+
+static int devx_hot_unplug_async_cmd_event_file(struct ib_uobject *uobj,
+						   enum rdma_remove_reason why)
+{
+	return 0;
+};
+
 DECLARE_UVERBS_NAMED_METHOD(
 	MLX5_IB_METHOD_DEVX_UMEM_REG,
 	UVERBS_ATTR_IDR(MLX5_IB_ATTR_DEVX_UMEM_REG_HANDLE,
@@ -1440,6 +1504,22 @@ DECLARE_UVERBS_NAMED_OBJECT(MLX5_IB_OBJECT_DEVX_UMEM,
 			    &UVERBS_METHOD(MLX5_IB_METHOD_DEVX_UMEM_REG),
 			    &UVERBS_METHOD(MLX5_IB_METHOD_DEVX_UMEM_DEREG));
 
+
+DECLARE_UVERBS_NAMED_METHOD(
+	MLX5_IB_METHOD_DEVX_ASYNC_CMD_FD_ALLOC,
+	UVERBS_ATTR_FD(MLX5_IB_ATTR_DEVX_ASYNC_CMD_FD_ALLOC_HANDLE,
+			MLX5_IB_OBJECT_DEVX_ASYNC_CMD_FD,
+			UVERBS_ACCESS_NEW,
+			UA_MANDATORY));
+
+DECLARE_UVERBS_NAMED_OBJECT(
+	MLX5_IB_OBJECT_DEVX_ASYNC_CMD_FD,
+	UVERBS_TYPE_ALLOC_FD(sizeof(struct devx_async_cmd_event_file),
+			     devx_hot_unplug_async_cmd_event_file,
+			     &devx_async_cmd_event_fops, "[devx_async_cmd]",
+			     O_RDONLY),
+	&UVERBS_METHOD(MLX5_IB_METHOD_DEVX_ASYNC_CMD_FD_ALLOC));
+
 static bool devx_is_supported(struct ib_device *device)
 {
 	struct mlx5_ib_dev *dev = to_mdev(device);
@@ -1456,6 +1536,9 @@ const struct uapi_definition mlx5_ib_devx_defs[] = {
 		UAPI_DEF_IS_OBJ_SUPPORTED(devx_is_supported)),
 	UAPI_DEF_CHAIN_OBJ_TREE_NAMED(
 		MLX5_IB_OBJECT_DEVX_UMEM,
+		UAPI_DEF_IS_OBJ_SUPPORTED(devx_is_supported)),
+	UAPI_DEF_CHAIN_OBJ_TREE_NAMED(
+		MLX5_IB_OBJECT_DEVX_ASYNC_CMD_FD,
 		UAPI_DEF_IS_OBJ_SUPPORTED(devx_is_supported)),
 	{},
 };

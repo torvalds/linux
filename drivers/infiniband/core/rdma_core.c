@@ -801,6 +801,7 @@ void uverbs_close_fd(struct file *f)
 	/* Pairs with filp->private_data in alloc_begin_fd_uobject */
 	uverbs_uobject_put(uobj);
 }
+EXPORT_SYMBOL(uverbs_close_fd);
 
 /*
  * Drop the ucontext off the ufile and completely disconnect it from the
