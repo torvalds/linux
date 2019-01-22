@@ -798,26 +798,6 @@ static bool compute_is_dual_link_lvds(struct intel_lvds_encoder *lvds_encoder)
 	return (val & LVDS_CLKB_POWER_MASK) == LVDS_CLKB_POWER_UP;
 }
 
-static bool intel_lvds_supported(struct drm_i915_private *dev_priv)
-{
-	/*
-	 * With the introduction of the PCH we gained a dedicated
-	 * LVDS presence pin, use it.
-	 */
-	if (HAS_PCH_IBX(dev_priv) || HAS_PCH_CPT(dev_priv))
-		return true;
-
-	/*
-	 * Otherwise LVDS was only attached to mobile products,
-	 * except for the inglorious 830gm
-	 */
-	if (INTEL_GEN(dev_priv) <= 4 &&
-	    IS_MOBILE(dev_priv) && !IS_I830(dev_priv))
-		return true;
-
-	return false;
-}
-
 /**
  * intel_lvds_init - setup LVDS connectors on this device
  * @dev_priv: i915 device
@@ -841,9 +821,6 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 	u32 lvds;
 	u8 pin;
 	u32 allowed_scalers;
-
-	if (!intel_lvds_supported(dev_priv))
-		return;
 
 	/* Skip init on machines we know falsely report LVDS */
 	if (dmi_check_system(intel_no_lvds)) {

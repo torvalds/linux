@@ -14467,7 +14467,8 @@ static void intel_setup_outputs(struct drm_i915_private *dev_priv)
 	} else if (IS_GEN_RANGE(dev_priv, 3, 4)) {
 		bool found = false;
 
-		intel_lvds_init(dev_priv);
+		if (IS_MOBILE(dev_priv))
+			intel_lvds_init(dev_priv);
 
 		if (dev_priv->vbt.int_crt_support)
 			intel_crt_init(dev_priv);
@@ -14504,7 +14505,8 @@ static void intel_setup_outputs(struct drm_i915_private *dev_priv)
 		if (IS_G4X(dev_priv) && (I915_READ(DP_D) & DP_DETECTED))
 			intel_dp_init(dev_priv, DP_D, PORT_D);
 	} else if (IS_GEN(dev_priv, 2)) {
-		intel_lvds_init(dev_priv);
+		if (IS_MOBILE(dev_priv) && !IS_I830(dev_priv))
+			intel_lvds_init(dev_priv);
 
 		if (dev_priv->vbt.int_crt_support)
 			intel_crt_init(dev_priv);
