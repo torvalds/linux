@@ -4984,6 +4984,7 @@ static const struct pp_hwmgr_func vega10_hwmgr_funcs = {
 	.get_asic_baco_capability = vega10_baco_get_capability,
 	.get_asic_baco_state = vega10_baco_get_state,
 	.set_asic_baco_state = vega10_baco_set_state,
+	.enable_mgpu_fan_boost = vega10_enable_mgpu_fan_boost,
 };
 
 int vega10_hwmgr_init(struct pp_hwmgr *hwmgr)
