@@ -101,7 +101,7 @@ static int check_parent(struct ib_umem_odp *odp,
 	return mr && mr->parent == parent && !odp->dying;
 }
 
-struct ib_ucontext_per_mm *mr_to_per_mm(struct mlx5_ib_mr *mr)
+static struct ib_ucontext_per_mm *mr_to_per_mm(struct mlx5_ib_mr *mr)
 {
 	if (WARN_ON(!mr || !is_odp_mr(mr)))
 		return NULL;
