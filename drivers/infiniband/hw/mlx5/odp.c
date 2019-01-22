@@ -869,7 +869,6 @@ srcu_unlock:
 /**
  * Parse a series of data segments for page fault handling.
  *
- * @qp the QP on which the fault occurred.
  * @pfault contains page fault information.
  * @wqe points at the first data segment in the WQE.
  * @wqe_end points after the end of the WQE.
@@ -886,7 +885,7 @@ srcu_unlock:
  */
 static int pagefault_data_segments(struct mlx5_ib_dev *dev,
 				   struct mlx5_pagefault *pfault,
-				   struct mlx5_ib_qp *qp, void *wqe,
+				   void *wqe,
 				   void *wqe_end, u32 *bytes_mapped,
 				   u32 *total_wqe_bytes, int receive_queue)
 {
@@ -896,10 +895,6 @@ static int pagefault_data_segments(struct mlx5_ib_dev *dev,
 	u32 byte_count;
 	size_t bcnt;
 	int inline_segment;
-
-	/* Skip SRQ next-WQE segment. */
-	if (receive_queue && qp->ibqp.srq)
-		wqe += sizeof(struct mlx5_wqe_srq_next_seg);
 
 	if (bytes_mapped)
 		*bytes_mapped = 0;
@@ -1200,7 +1195,7 @@ static void mlx5_ib_mr_wqe_pfault_handler(struct mlx5_ib_dev *dev,
 		goto resolve_page_fault;
 	}
 
-	ret = pagefault_data_segments(dev, pfault, qp, wqe, wqe_end,
+	ret = pagefault_data_segments(dev, pfault, wqe, wqe_end,
 				      &bytes_mapped, &total_wqe_bytes,
 				      !requestor);
 	if (ret == -EAGAIN) {
