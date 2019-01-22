@@ -351,7 +351,26 @@ struct drm_crtc_helper_funcs komeda_crtc_helper_funcs = {
 	.mode_fixup	= komeda_crtc_mode_fixup,
 };
 
+static int komeda_crtc_vblank_enable(struct drm_crtc *crtc)
+{
+	struct komeda_dev *mdev = crtc->dev->dev_private;
+	struct komeda_crtc *kcrtc = to_kcrtc(crtc);
+
+	mdev->funcs->on_off_vblank(mdev, kcrtc->master->id, true);
+	return 0;
+}
+
+static void komeda_crtc_vblank_disable(struct drm_crtc *crtc)
+{
+	struct komeda_dev *mdev = crtc->dev->dev_private;
+	struct komeda_crtc *kcrtc = to_kcrtc(crtc);
+
+	mdev->funcs->on_off_vblank(mdev, kcrtc->master->id, false);
+}
+
 static const struct drm_crtc_funcs komeda_crtc_funcs = {
+	.enable_vblank		= komeda_crtc_vblank_enable,
+	.disable_vblank		= komeda_crtc_vblank_disable,
 };
 
 int komeda_kms_setup_crtcs(struct komeda_kms_dev *kms,

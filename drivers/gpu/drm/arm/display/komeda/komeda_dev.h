@@ -103,6 +103,9 @@ struct komeda_dev_funcs {
 	int (*enable_irq)(struct komeda_dev *mdev);
 	/** @disable_irq: disable irq */
 	int (*disable_irq)(struct komeda_dev *mdev);
+	/** @on_off_vblank: notify HW to on/off vblank */
+	void (*on_off_vblank)(struct komeda_dev *mdev,
+			      int master_pipe, bool on);
 
 	/** @dump_register: Optional, dump registers to seq_file */
 	void (*dump_register)(struct komeda_dev *mdev, struct seq_file *seq);

@@ -243,6 +243,15 @@ static int d71_disable_irq(struct komeda_dev *mdev)
 	return 0;
 }
 
+static void d71_on_off_vblank(struct komeda_dev *mdev, int master_pipe, bool on)
+{
+	struct d71_dev *d71 = mdev->chip_data;
+	struct d71_pipeline *pipe = d71->pipes[master_pipe];
+
+	malidp_write32_mask(pipe->dou_addr, BLK_IRQ_MASK,
+			    DOU_IRQ_PL0, on ? DOU_IRQ_PL0 : 0);
+}
+
 static int to_d71_opmode(int core_mode)
 {
 	switch (core_mode) {
@@ -500,6 +509,7 @@ static struct komeda_dev_funcs d71_chip_funcs = {
 	.irq_handler	= d71_irq_handler,
 	.enable_irq	= d71_enable_irq,
 	.disable_irq	= d71_disable_irq,
+	.on_off_vblank	= d71_on_off_vblank,
 	.change_opmode	= d71_change_opmode,
 	.flush		= d71_flush,
 };
