@@ -684,6 +684,7 @@ struct rtl8169_private {
 	struct rtl8169_tc_offsets tc_offset;
 	u32 saved_wolopts;
 
+	const char *fw_name;
 	struct rtl_fw {
 		const struct firmware *fw;
 
@@ -696,7 +697,6 @@ struct rtl8169_private {
 			size_t size;
 		} phy_action;
 	} *rtl_fw;
-#define RTL_FIRMWARE_UNKNOWN	ERR_PTR(-EAGAIN)
 
 	u32 ocp_base;
 };
@@ -1510,11 +1510,6 @@ static int rtl8169_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	return 0;
 }
 
-static const char *rtl_lookup_firmware_name(struct rtl8169_private *tp)
-{
-	return rtl_chip_infos[tp->mac_version].fw_name;
-}
-
 static void rtl8169_get_drvinfo(struct net_device *dev,
 				struct ethtool_drvinfo *info)
 {
@@ -1524,7 +1519,7 @@ static void rtl8169_get_drvinfo(struct net_device *dev,
 	strlcpy(info->driver, MODULENAME, sizeof(info->driver));
 	strlcpy(info->bus_info, pci_name(tp->pci_dev), sizeof(info->bus_info));
 	BUILD_BUG_ON(sizeof(info->fw_version) < sizeof(rtl_fw->version));
-	if (!IS_ERR_OR_NULL(rtl_fw))
+	if (rtl_fw)
 		strlcpy(info->fw_version, rtl_fw->version,
 			sizeof(info->fw_version));
 }
@@ -2201,7 +2196,7 @@ static bool rtl_fw_format_ok(struct rtl8169_private *tp, struct rtl_fw *rtl_fw)
 		if (fw->size % FW_OPCODE_SIZE)
 			goto out;
 
-		strlcpy(version, rtl_lookup_firmware_name(tp), RTL_VER_SIZE);
+		strlcpy(version, tp->fw_name, RTL_VER_SIZE);
 
 		pa->code = (__le32 *)fw->data;
 		pa->size = fw->size / FW_OPCODE_SIZE;
@@ -2376,20 +2371,18 @@ static void rtl_phy_write_fw(struct rtl8169_private *tp, struct rtl_fw *rtl_fw)
 
 static void rtl_release_firmware(struct rtl8169_private *tp)
 {
-	if (!IS_ERR_OR_NULL(tp->rtl_fw)) {
+	if (tp->rtl_fw) {
 		release_firmware(tp->rtl_fw->fw);
 		kfree(tp->rtl_fw);
+		tp->rtl_fw = NULL;
 	}
-	tp->rtl_fw = RTL_FIRMWARE_UNKNOWN;
 }
 
 static void rtl_apply_firmware(struct rtl8169_private *tp)
 {
-	struct rtl_fw *rtl_fw = tp->rtl_fw;
-
 	/* TODO: release firmware once rtl_phy_write_fw signals failures. */
-	if (!IS_ERR_OR_NULL(rtl_fw))
-		rtl_phy_write_fw(tp, rtl_fw);
+	if (tp->rtl_fw)
+		rtl_phy_write_fw(tp, tp->rtl_fw);
 }
 
 static void rtl_apply_firmware_cond(struct rtl8169_private *tp, u8 reg, u16 val)
@@ -4377,21 +4370,20 @@ static void rtl_hw_reset(struct rtl8169_private *tp)
 	rtl_udelay_loop_wait_low(tp, &rtl_chipcmd_cond, 100, 100);
 }
 
-static void rtl_request_uncached_firmware(struct rtl8169_private *tp)
+static void rtl_request_firmware(struct rtl8169_private *tp)
 {
 	struct rtl_fw *rtl_fw;
-	const char *name;
 	int rc = -ENOMEM;
 
-	name = rtl_lookup_firmware_name(tp);
-	if (!name)
-		goto out_no_firmware;
+	/* firmware loaded already or no firmware available */
+	if (tp->rtl_fw || !tp->fw_name)
+		return;
 
 	rtl_fw = kzalloc(sizeof(*rtl_fw), GFP_KERNEL);
 	if (!rtl_fw)
 		goto err_warn;
 
-	rc = request_firmware(&rtl_fw->fw, name, tp_to_dev(tp));
+	rc = request_firmware(&rtl_fw->fw, tp->fw_name, tp_to_dev(tp));
 	if (rc < 0)
 		goto err_free;
 
@@ -4400,7 +4392,7 @@ static void rtl_request_uncached_firmware(struct rtl8169_private *tp)
 		goto err_release_firmware;
 
 	tp->rtl_fw = rtl_fw;
-out:
+
 	return;
 
 err_release_firmware:
@@ -4409,16 +4401,7 @@ err_free:
 	kfree(rtl_fw);
 err_warn:
 	netif_warn(tp, ifup, tp->dev, "unable to load firmware patch %s (%d)\n",
-		   name, rc);
-out_no_firmware:
-	tp->rtl_fw = NULL;
-	goto out;
-}
-
-static void rtl_request_firmware(struct rtl8169_private *tp)
-{
-	if (IS_ERR(tp->rtl_fw))
-		rtl_request_uncached_firmware(tp);
+		   tp->fw_name, rc);
 }
 
 static void rtl_rx_close(struct rtl8169_private *tp)
@@ -7331,7 +7314,7 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	tp->irq_mask = RTL_EVENT_NAPI | cfg->irq_mask;
 	tp->coalesce_info = cfg->coalesce_info;
 
-	tp->rtl_fw = RTL_FIRMWARE_UNKNOWN;
+	tp->fw_name = rtl_chip_infos[chipset].fw_name;
 
 	tp->counters = dmam_alloc_coherent (&pdev->dev, sizeof(*tp->counters),
 					    &tp->counters_phys_addr,
