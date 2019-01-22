@@ -1154,6 +1154,7 @@ static void mlx5_ib_mr_wqe_pfault_handler(struct mlx5_ib_dev *dev,
 	int requestor = pfault->type & MLX5_PFAULT_REQUESTOR;
 	struct mlx5_core_rsc_common *res;
 	struct mlx5_ib_qp *qp;
+	size_t bytes_copied;
 
 	res = odp_get_rsc(dev, pfault->wqe.wq_num, pfault->type);
 	if (!res) {
@@ -1176,9 +1177,16 @@ static void mlx5_ib_mr_wqe_pfault_handler(struct mlx5_ib_dev *dev,
 		goto resolve_page_fault;
 	}
 
-	ret = mlx5_ib_read_user_wqe(qp, requestor, wqe_index, buffer,
-				    PAGE_SIZE, &qp->trans_qp.base);
-	if (ret < 0) {
+	if (requestor)
+		ret = mlx5_ib_read_user_wqe_sq(qp, wqe_index,
+					       buffer, PAGE_SIZE,
+					       &bytes_copied);
+	else
+		ret = mlx5_ib_read_user_wqe_rq(qp, wqe_index,
+					       buffer, PAGE_SIZE,
+					       &bytes_copied);
+
+	if (ret) {
 		mlx5_ib_err(dev, "Failed reading a WQE following page fault, error=%d, wqe_index=%x, qpn=%x\n",
 			    ret, wqe_index, pfault->token);
 		goto resolve_page_fault;
@@ -1187,10 +1195,12 @@ static void mlx5_ib_mr_wqe_pfault_handler(struct mlx5_ib_dev *dev,
 	wqe = buffer;
 	if (requestor)
 		ret = mlx5_ib_mr_initiator_pfault_handler(dev, pfault, qp, &wqe,
-							  &wqe_end, ret);
+							  &wqe_end,
+							  bytes_copied);
 	else
 		ret = mlx5_ib_mr_responder_pfault_handler(dev, qp, wqe,
-							  &wqe_end, ret);
+							  &wqe_end,
+							  bytes_copied);
 	if (ret < 0)
 		goto resolve_page_fault;
 

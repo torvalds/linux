@@ -1075,9 +1075,12 @@ int mlx5_ib_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 		      const struct ib_send_wr **bad_wr);
 int mlx5_ib_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
 		      const struct ib_recv_wr **bad_wr);
-int mlx5_ib_read_user_wqe(struct mlx5_ib_qp *qp, int send, int wqe_index,
-			  void *buffer, u32 length,
-			  struct mlx5_ib_qp_base *base);
+int mlx5_ib_read_user_wqe_sq(struct mlx5_ib_qp *qp, int wqe_index, void *buffer,
+			     int buflen, size_t *bc);
+int mlx5_ib_read_user_wqe_rq(struct mlx5_ib_qp *qp, int wqe_index, void *buffer,
+			     int buflen, size_t *bc);
+int mlx5_ib_read_user_wqe_srq(struct mlx5_ib_srq *srq, int wqe_index,
+			      void *buffer, int buflen, size_t *bc);
 struct ib_cq *mlx5_ib_create_cq(struct ib_device *ibdev,
 				const struct ib_cq_init_attr *attr,
 				struct ib_ucontext *context,
