@@ -53,19 +53,15 @@ static const struct file_operations name## _ops = {			\
 
 #define DEBUGFS_ADD(name, parent)					\
 	do {								\
-		entry = debugfs_create_file(#name, 0400, parent,	\
-					    wl, &name## _ops);		\
-		if (!entry || IS_ERR(entry))				\
-			goto err;					\
+		debugfs_create_file(#name, 0400, parent,		\
+				    wl, &name## _ops);			\
 	} while (0)
 
 
 #define DEBUGFS_ADD_PREFIX(prefix, name, parent)			\
 	do {								\
-		entry = debugfs_create_file(#name, 0400, parent,	\
+		debugfs_create_file(#name, 0400, parent,		\
 				    wl, &prefix## _## name## _ops);	\
-		if (!entry || IS_ERR(entry))				\
-			goto err;					\
 	} while (0)
 
 #define DEBUGFS_FWSTATS_FILE(sub, name, fmt, struct_type)		\
