@@ -992,6 +992,10 @@
 #define DP_SINK_EVENT_NOTIFY		0x30
 #define DP_QUERY_STREAM_ENC_STATUS	0x38
 
+/* DP 1.2 MST sideband reply types */
+#define DP_SIDEBAND_REPLY_ACK		0x00
+#define DP_SIDEBAND_REPLY_NAK		0x01
+
 /* DP 1.2 MST sideband nak reasons - table 2.84 */
 #define DP_NAK_WRITE_FAILURE		0x01
 #define DP_NAK_INVALID_READ		0x02
