@@ -202,6 +202,13 @@ enum hns3_nic_state {
 
 #define HNS3_RING_EN_B				0
 
+enum hns3_pkt_l2t_type {
+	HNS3_L2_TYPE_UNICAST,
+	HNS3_L2_TYPE_MULTICAST,
+	HNS3_L2_TYPE_BROADCAST,
+	HNS3_L2_TYPE_INVALID,
+};
+
 enum hns3_pkt_l3t_type {
 	HNS3_L3T_NONE,
 	HNS3_L3T_IPV6,
@@ -376,6 +383,7 @@ struct ring_stats {
 			u64 err_bd_num;
 			u64 l2_err;
 			u64 l3l4_csum_err;
+			u64 rx_multicast;
 		};
 	};
 };
