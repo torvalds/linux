@@ -133,7 +133,7 @@ save_stack_trace_tsk_reliable(struct task_struct *tsk,
 
 	if (sp < stack_page + sizeof(struct thread_struct) ||
 	    sp > stack_end - STACK_FRAME_MIN_SIZE) {
-		return 1;
+		return -EINVAL;
 	}
 
 	for (firstframe = true; sp != stack_end;
@@ -143,16 +143,16 @@ save_stack_trace_tsk_reliable(struct task_struct *tsk,
 
 		/* sanity check: ABI requires SP to be aligned 16 bytes. */
 		if (sp & 0xF)
-			return 1;
+			return -EINVAL;
 
 		newsp = stack[0];
 		/* Stack grows downwards; unwinder may only go up. */
 		if (newsp <= sp)
-			return 1;
+			return -EINVAL;
 
 		if (newsp != stack_end &&
 		    newsp > stack_end - STACK_FRAME_MIN_SIZE) {
-			return 1; /* invalid backlink, too far up. */
+			return -EINVAL; /* invalid backlink, too far up. */
 		}
 
 		/*
@@ -166,13 +166,13 @@ save_stack_trace_tsk_reliable(struct task_struct *tsk,
 		/* Mark stacktraces with exception frames as unreliable. */
 		if (sp <= stack_end - STACK_INT_FRAME_SIZE &&
 		    stack[STACK_FRAME_MARKER] == STACK_FRAME_REGS_MARKER) {
-			return 1;
+			return -EINVAL;
 		}
 
 		/* Examine the saved LR: it must point into kernel code. */
 		ip = stack[STACK_FRAME_LR_SAVE];
 		if (!__kernel_text_address(ip))
-			return 1;
+			return -EINVAL;
 
 		/*
 		 * FIXME: IMHO these tests do not belong in
@@ -185,7 +185,7 @@ save_stack_trace_tsk_reliable(struct task_struct *tsk,
 		 * as unreliable.
 		 */
 		if (ip == (unsigned long)kretprobe_trampoline)
-			return 1;
+			return -EINVAL;
 #endif
 
 		if (trace->nr_entries >= trace->max_entries)
