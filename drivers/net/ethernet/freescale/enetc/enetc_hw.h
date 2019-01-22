@@ -34,6 +34,17 @@
 #define ENETC_SIPMAR0	0x80
 #define ENETC_SIPMAR1	0x84
 
+/* SI statistics */
+#define ENETC_SIROCT	0x300
+#define ENETC_SIRFRM	0x308
+#define ENETC_SIRUCA	0x310
+#define ENETC_SIRMCA	0x318
+#define ENETC_SITOCT	0x320
+#define ENETC_SITFRM	0x328
+#define ENETC_SITUCA	0x330
+#define ENETC_SITMCA	0x338
+#define ENETC_RBDCR(n)	(0x8180 + (n) * 0x200)
+
 /* Control BDR regs */
 #define ENETC_SICBDRMR		0x800
 #define ENETC_SICBDRSR		0x804	/* RO */
@@ -171,6 +182,65 @@ enum enetc_bdr_type {TX, RX};
 #define ENETC_PM0_IFM_RGAUTO	(BIT(15) | ENETC_PMO_IFM_RG | BIT(1))
 #define ENETC_PM0_IFM_XGMII	BIT(12)
 
+/* MAC counters */
+#define ENETC_PM0_REOCT		0x8100
+#define ENETC_PM0_RALN		0x8110
+#define ENETC_PM0_RXPF		0x8118
+#define ENETC_PM0_RFRM		0x8120
+#define ENETC_PM0_RFCS		0x8128
+#define ENETC_PM0_RVLAN		0x8130
+#define ENETC_PM0_RERR		0x8138
+#define ENETC_PM0_RUCA		0x8140
+#define ENETC_PM0_RMCA		0x8148
+#define ENETC_PM0_RBCA		0x8150
+#define ENETC_PM0_RDRP		0x8158
+#define ENETC_PM0_RPKT		0x8160
+#define ENETC_PM0_RUND		0x8168
+#define ENETC_PM0_R64		0x8170
+#define ENETC_PM0_R127		0x8178
+#define ENETC_PM0_R255		0x8180
+#define ENETC_PM0_R511		0x8188
+#define ENETC_PM0_R1023		0x8190
+#define ENETC_PM0_R1518		0x8198
+#define ENETC_PM0_R1519X	0x81A0
+#define ENETC_PM0_ROVR		0x81A8
+#define ENETC_PM0_RJBR		0x81B0
+#define ENETC_PM0_RFRG		0x81B8
+#define ENETC_PM0_RCNP		0x81C0
+#define ENETC_PM0_RDRNTP	0x81C8
+#define ENETC_PM0_TEOCT		0x8200
+#define ENETC_PM0_TOCT		0x8208
+#define ENETC_PM0_TCRSE		0x8210
+#define ENETC_PM0_TXPF		0x8218
+#define ENETC_PM0_TFRM		0x8220
+#define ENETC_PM0_TFCS		0x8228
+#define ENETC_PM0_TVLAN		0x8230
+#define ENETC_PM0_TERR		0x8238
+#define ENETC_PM0_TUCA		0x8240
+#define ENETC_PM0_TMCA		0x8248
+#define ENETC_PM0_TBCA		0x8250
+#define ENETC_PM0_TPKT		0x8260
+#define ENETC_PM0_TUND		0x8268
+#define ENETC_PM0_T127		0x8278
+#define ENETC_PM0_T1023		0x8290
+#define ENETC_PM0_T1518		0x8298
+#define ENETC_PM0_TCNP		0x82C0
+#define ENETC_PM0_TDFR		0x82D0
+#define ENETC_PM0_TMCOL		0x82D8
+#define ENETC_PM0_TSCOL		0x82E0
+#define ENETC_PM0_TLCOL		0x82E8
+#define ENETC_PM0_TECOL		0x82F0
+
+/* Port counters */
+#define ENETC_PICDR(n)		(0x0700 + (n) * 8) /* n = [0..3] */
+#define ENETC_PBFDSIR		0x0810
+#define ENETC_PFDMSAPR		0x0814
+#define ENETC_UFDMF		0x1680
+#define ENETC_MFDMF		0x1684
+#define ENETC_PUFDVFR		0x1780
+#define ENETC_PMFDVFR		0x1784
+#define ENETC_PBFDVFR		0x1788
+
 /** Global regs, offset: 2_0000h */
 #define ENETC_GLOBAL_BASE	0x20000
 #define ENETC_G_EIPBRR0		0x0bf8
@@ -191,9 +261,27 @@ struct enetc_hw {
 /* general register accessors */
 #define enetc_rd_reg(reg)	ioread32((reg))
 #define enetc_wr_reg(reg, val)	iowrite32((val), (reg))
+#ifdef ioread64
+#define enetc_rd_reg64(reg)	ioread64((reg))
+#else
+/* using this to read out stats on 32b systems */
+static inline u64 enetc_rd_reg64(void __iomem *reg)
+{
+	u32 low, high, tmp;
+
+	do {
+		high = ioread32(reg + 4);
+		low = ioread32(reg);
+		tmp = ioread32(reg + 4);
+	} while (high != tmp);
+
+	return le64_to_cpu((__le64)high << 32 | low);
+}
+#endif
 
 #define enetc_rd(hw, off)		enetc_rd_reg((hw)->reg + (off))
 #define enetc_wr(hw, off, val)		enetc_wr_reg((hw)->reg + (off), val)
+#define enetc_rd64(hw, off)		enetc_rd_reg64((hw)->reg + (off))
 /* port register accessors - PF only */
 #define enetc_port_rd(hw, off)		enetc_rd_reg((hw)->port + (off))
 #define enetc_port_wr(hw, off, val)	enetc_wr_reg((hw)->port + (off), val)
