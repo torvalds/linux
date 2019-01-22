@@ -148,7 +148,6 @@ struct zpci_dev {
 	enum pci_bus_speed max_bus_speed;
 
 	struct dentry	*debugfs_dev;
-	struct dentry	*debugfs_perf;
 
 	struct s390_domain *s390_domain; /* s390 IOMMU domain data */
 };
