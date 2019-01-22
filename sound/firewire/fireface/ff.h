@@ -54,6 +54,7 @@ struct snd_ff_spec {
 
 	const struct snd_ff_protocol *protocol;
 	u64 midi_high_addr;
+	u8 midi_addr_range;
 };
 
 struct snd_ff {

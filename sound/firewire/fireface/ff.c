@@ -159,6 +159,7 @@ static const struct snd_ff_spec spec_ff800 = {
 	.midi_out_ports = 1,
 	.protocol = &snd_ff_protocol_ff800,
 	.midi_high_addr = 0x000200000320ull,
+	.midi_addr_range = 12,
 };
 
 static const struct snd_ff_spec spec_ff400 = {
@@ -169,6 +170,7 @@ static const struct snd_ff_spec spec_ff400 = {
 	.midi_out_ports = 2,
 	.protocol = &snd_ff_protocol_ff400,
 	.midi_high_addr = 0x0000801003f4ull,
+	.midi_addr_range = SND_FF_MAXIMIM_MIDI_QUADS * 4,
 };
 
 static const struct snd_ff_spec spec_ucx = {

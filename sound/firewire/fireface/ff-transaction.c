@@ -156,7 +156,7 @@ static int allocate_own_address(struct snd_ff *ff, int i)
 	struct fw_address_region midi_msg_region;
 	int err;
 
-	ff->async_handler.length = SND_FF_MAXIMIM_MIDI_QUADS * 4;
+	ff->async_handler.length = ff->spec->midi_addr_range;
 	ff->async_handler.address_callback = handle_midi_msg;
 	ff->async_handler.callback_data = ff;
 
