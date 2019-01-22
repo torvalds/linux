@@ -278,7 +278,8 @@ int hfi1_fault_init_debugfs(struct hfi1_ibdev *ibd)
 		return -ENOENT;
 	}
 
-	DEBUGFS_SEQ_FILE_CREATE(fault_stats, ibd->fault->dir, ibd);
+	debugfs_create_file("fault_stats", 0444, ibd->fault->dir, ibd,
+			    &_fault_stats_file_ops);
 	if (!debugfs_create_bool("enable", 0600, ibd->fault->dir,
 				 &ibd->fault->enable))
 		goto fail;
