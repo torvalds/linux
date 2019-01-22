@@ -165,6 +165,12 @@ static const struct snd_soc_ops aif1_ops = {
 	.shutdown = aif1_shutdown,
 };
 
+static struct snd_soc_dai_link_component platform_component[] = {
+	{
+		.name = "0000:00:0e.0"
+	}
+};
+
 static struct snd_soc_dai_link dailink[] = {
 	/* CODEC<->CODEC link */
 	/* back ends */
@@ -172,7 +178,8 @@ static struct snd_soc_dai_link dailink[] = {
 		.name = "SSP5-Codec",
 		.id = 0,
 		.cpu_dai_name = "SSP5 Pin",
-		.platform_name = "sof-audio",
+		.platforms = platform_component,
+		.num_platforms = ARRAY_SIZE(platform_component),
 		.no_pcm = 1,
 		.codec_dai_name = "pcm512x-hifi",
 		.codec_name = "i2c-104C5122:00",
@@ -191,7 +198,8 @@ static struct snd_soc_dai_link dailink[] = {
 		.cpu_dai_name = "iDisp1 Pin",
 		.codec_name = "ehdaudio0D2",
 		.codec_dai_name = "intel-hdmi-hifi1",
-		.platform_name = "0000:00:0e.0",
+		.platforms = platform_component,
+		.num_platforms = ARRAY_SIZE(platform_component),
 		.init = broxton_hdmi_init,
 		.dpcm_playback = 1,
 		.no_pcm = 1,
@@ -202,7 +210,8 @@ static struct snd_soc_dai_link dailink[] = {
 		.cpu_dai_name = "iDisp2 Pin",
 		.codec_name = "ehdaudio0D2",
 		.codec_dai_name = "intel-hdmi-hifi2",
-		.platform_name = "0000:00:0e.0",
+		.platforms = platform_component,
+		.num_platforms = ARRAY_SIZE(platform_component),
 		.init = broxton_hdmi_init,
 		.dpcm_playback = 1,
 		.no_pcm = 1,
@@ -213,7 +222,8 @@ static struct snd_soc_dai_link dailink[] = {
 		.cpu_dai_name = "iDisp3 Pin",
 		.codec_name = "ehdaudio0D2",
 		.codec_dai_name = "intel-hdmi-hifi3",
-		.platform_name = "0000:00:0e.0",
+		.platforms = platform_component,
+		.num_platforms = ARRAY_SIZE(platform_component),
 		.init = broxton_hdmi_init,
 		.dpcm_playback = 1,
 		.no_pcm = 1,
