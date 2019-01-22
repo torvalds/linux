@@ -297,11 +297,6 @@ int rsi_init_dbgfs(struct rsi_hw *adapter)
 
 	dev_dbgfs->subdir = debugfs_create_dir(devdir, NULL);
 
-	if (!dev_dbgfs->subdir) {
-		kfree(dev_dbgfs);
-		return -ENOMEM;
-	}
-
 	for (ii = 0; ii < adapter->num_debugfs_entries; ii++) {
 		files = &dev_debugfs_files[ii];
 		dev_dbgfs->rsi_files[ii] =
