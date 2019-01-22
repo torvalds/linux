@@ -351,6 +351,47 @@ struct drm_crtc_helper_funcs komeda_crtc_helper_funcs = {
 	.mode_fixup	= komeda_crtc_mode_fixup,
 };
 
+static void komeda_crtc_reset(struct drm_crtc *crtc)
+{
+	struct komeda_crtc_state *state;
+
+	if (crtc->state)
+		__drm_atomic_helper_crtc_destroy_state(crtc->state);
+
+	kfree(to_kcrtc_st(crtc->state));
+	crtc->state = NULL;
+
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	if (state) {
+		crtc->state = &state->base;
+		crtc->state->crtc = crtc;
+	}
+}
+
+static struct drm_crtc_state *
+komeda_crtc_atomic_duplicate_state(struct drm_crtc *crtc)
+{
+	struct komeda_crtc_state *old = to_kcrtc_st(crtc->state);
+	struct komeda_crtc_state *new;
+
+	new = kzalloc(sizeof(*new), GFP_KERNEL);
+	if (!new)
+		return NULL;
+
+	__drm_atomic_helper_crtc_duplicate_state(crtc, &new->base);
+
+	new->affected_pipes = old->active_pipes;
+
+	return &new->base;
+}
+
+static void komeda_crtc_atomic_destroy_state(struct drm_crtc *crtc,
+					     struct drm_crtc_state *state)
+{
+	__drm_atomic_helper_crtc_destroy_state(state);
+	kfree(to_kcrtc_st(state));
+}
+
 static int komeda_crtc_vblank_enable(struct drm_crtc *crtc)
 {
 	struct komeda_dev *mdev = crtc->dev->dev_private;
@@ -369,6 +410,13 @@ static void komeda_crtc_vblank_disable(struct drm_crtc *crtc)
 }
 
 static const struct drm_crtc_funcs komeda_crtc_funcs = {
+	.gamma_set		= drm_atomic_helper_legacy_gamma_set,
+	.destroy		= drm_crtc_cleanup,
+	.set_config		= drm_atomic_helper_set_config,
+	.page_flip		= drm_atomic_helper_page_flip,
+	.reset			= komeda_crtc_reset,
+	.atomic_duplicate_state	= komeda_crtc_atomic_duplicate_state,
+	.atomic_destroy_state	= komeda_crtc_atomic_destroy_state,
 	.enable_vblank		= komeda_crtc_vblank_enable,
 	.disable_vblank		= komeda_crtc_vblank_disable,
 };
