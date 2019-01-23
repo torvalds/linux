@@ -520,6 +520,8 @@ static void rkcif_csihost_disable(struct rkcif_device *dev)
 	void __iomem *base = dev->csi_base;
 
 	write_csihost_reg(base, CSIHOST_RESETN, 0);
+	write_csihost_reg(base, CSIHOST_MSK1, 0xffffffff);
+	write_csihost_reg(base, CSIHOST_MSK2, 0xffffffff);
 
 	v4l2_info(&dev->v4l2_dev, "mipi csi host disable\n");
 }
@@ -536,9 +538,14 @@ static void rkcif_csihost_enable(struct rkcif_device *dev,
 				  SW_CPHY_EN(0) | SW_DSI_EN(1) |
 				  SW_DATATYPE_FS(0x01) | SW_DATATYPE_FE(0x11) |
 				  SW_DATATYPE_LS(0x21) | SW_DATATYPE_LE(0x31));
+		/* Disable some error interrupt when HOST work on DSI RX mode */
+		write_csihost_reg(base, CSIHOST_MSK1, 0xe00000f0);
+		write_csihost_reg(base, CSIHOST_MSK2, 0xff00);
 	} else {
 		write_csihost_reg(base, CSIHOST_CONTROL,
 				  SW_CPHY_EN(0) | SW_DSI_EN(0));
+		write_csihost_reg(base, CSIHOST_MSK1, 0);
+		write_csihost_reg(base, CSIHOST_MSK2, 0);
 	}
 
 	write_csihost_reg(base, CSIHOST_RESETN, 1);
