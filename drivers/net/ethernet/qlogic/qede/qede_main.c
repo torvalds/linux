@@ -133,22 +133,11 @@ static int qede_probe(struct pci_dev *pdev, const struct pci_device_id *id);
 static void qede_remove(struct pci_dev *pdev);
 static void qede_shutdown(struct pci_dev *pdev);
 static void qede_link_update(void *dev, struct qed_link_output *link);
+static void qede_schedule_recovery_handler(void *dev);
+static void qede_recovery_handler(struct qede_dev *edev);
 static void qede_get_eth_tlv_data(void *edev, void *data);
 static void qede_get_generic_tlv_data(void *edev,
 				      struct qed_generic_tlvs *data);
-
-/* The qede lock is used to protect driver state change and driver flows that
- * are not reentrant.
- */
-void __qede_lock(struct qede_dev *edev)
-{
-	mutex_lock(&edev->qede_lock);
-}
-
-void __qede_unlock(struct qede_dev *edev)
-{
-	mutex_unlock(&edev->qede_lock);
-}
 
 #ifdef CONFIG_QED_SRIOV
 static int qede_set_vf_vlan(struct net_device *ndev, int vf, u16 vlan, u8 qos,
@@ -231,6 +220,7 @@ static struct qed_eth_cb_ops qede_ll_ops = {
 		.arfs_filter_op = qede_arfs_filter_op,
 #endif
 		.link_update = qede_link_update,
+		.schedule_recovery_handler = qede_schedule_recovery_handler,
 		.get_generic_tlv_data = qede_get_generic_tlv_data,
 		.get_protocol_tlv_data = qede_get_eth_tlv_data,
 	},
@@ -950,10 +940,56 @@ err:
 	return -ENOMEM;
 }
 
+/* The qede lock is used to protect driver state change and driver flows that
+ * are not reentrant.
+ */
+void __qede_lock(struct qede_dev *edev)
+{
+	mutex_lock(&edev->qede_lock);
+}
+
+void __qede_unlock(struct qede_dev *edev)
+{
+	mutex_unlock(&edev->qede_lock);
+}
+
+/* This version of the lock should be used when acquiring the RTNL lock is also
+ * needed in addition to the internal qede lock.
+ */
+void qede_lock(struct qede_dev *edev)
+{
+	rtnl_lock();
+	__qede_lock(edev);
+}
+
+void qede_unlock(struct qede_dev *edev)
+{
+	__qede_unlock(edev);
+	rtnl_unlock();
+}
+
 static void qede_sp_task(struct work_struct *work)
 {
 	struct qede_dev *edev = container_of(work, struct qede_dev,
 					     sp_task.work);
+
+	/* The locking scheme depends on the specific flag:
+	 * In case of QEDE_SP_RECOVERY, acquiring the RTNL lock is required to
+	 * ensure that ongoing flows are ended and new ones are not started.
+	 * In other cases - only the internal qede lock should be acquired.
+	 */
+
+	if (test_and_clear_bit(QEDE_SP_RECOVERY, &edev->sp_flags)) {
+#ifdef CONFIG_QED_SRIOV
+		/* SRIOV must be disabled outside the lock to avoid a deadlock.
+		 * The recovery of the active VFs is currently not supported.
+		 */
+		qede_sriov_configure(edev->pdev, 0);
+#endif
+		qede_lock(edev);
+		qede_recovery_handler(edev);
+		qede_unlock(edev);
+	}
 
 	__qede_lock(edev);
 
@@ -1031,7 +1067,12 @@ static void qede_log_probe(struct qede_dev *edev)
 
 enum qede_probe_mode {
 	QEDE_PROBE_NORMAL,
+	QEDE_PROBE_RECOVERY,
 };
+
+#define QEDE_RDMA_PROBE_MODE(mode) \
+	((mode) == QEDE_PROBE_NORMAL ? QEDE_RDMA_PROBE_NORMAL \
+				     : QEDE_RDMA_PROBE_RECOVERY)
 
 static int __qede_probe(struct pci_dev *pdev, u32 dp_module, u8 dp_level,
 			bool is_vf, enum qede_probe_mode mode)
@@ -1051,6 +1092,7 @@ static int __qede_probe(struct pci_dev *pdev, u32 dp_module, u8 dp_level,
 	probe_params.dp_module = dp_module;
 	probe_params.dp_level = dp_level;
 	probe_params.is_vf = is_vf;
+	probe_params.recov_in_prog = (mode == QEDE_PROBE_RECOVERY);
 	cdev = qed_ops->common->probe(pdev, &probe_params);
 	if (!cdev) {
 		rc = -ENODEV;
@@ -1078,11 +1120,20 @@ static int __qede_probe(struct pci_dev *pdev, u32 dp_module, u8 dp_level,
 	if (rc)
 		goto err2;
 
-	edev = qede_alloc_etherdev(cdev, pdev, &dev_info, dp_module,
-				   dp_level);
-	if (!edev) {
-		rc = -ENOMEM;
-		goto err2;
+	if (mode != QEDE_PROBE_RECOVERY) {
+		edev = qede_alloc_etherdev(cdev, pdev, &dev_info, dp_module,
+					   dp_level);
+		if (!edev) {
+			rc = -ENOMEM;
+			goto err2;
+		}
+	} else {
+		struct net_device *ndev = pci_get_drvdata(pdev);
+
+		edev = netdev_priv(ndev);
+		edev->cdev = cdev;
+		memset(&edev->stats, 0, sizeof(edev->stats));
+		memcpy(&edev->dev_info, &dev_info, sizeof(dev_info));
 	}
 
 	if (is_vf)
@@ -1090,28 +1141,31 @@ static int __qede_probe(struct pci_dev *pdev, u32 dp_module, u8 dp_level,
 
 	qede_init_ndev(edev);
 
-	rc = qede_rdma_dev_add(edev);
+	rc = qede_rdma_dev_add(edev, QEDE_RDMA_PROBE_MODE(mode));
 	if (rc)
 		goto err3;
 
-	/* Prepare the lock prior to the registration of the netdev,
-	 * as once it's registered we might reach flows requiring it
-	 * [it's even possible to reach a flow needing it directly
-	 * from there, although it's unlikely].
-	 */
-	INIT_DELAYED_WORK(&edev->sp_task, qede_sp_task);
-	mutex_init(&edev->qede_lock);
-	rc = register_netdev(edev->ndev);
-	if (rc) {
-		DP_NOTICE(edev, "Cannot register net-device\n");
-		goto err4;
+	if (mode != QEDE_PROBE_RECOVERY) {
+		/* Prepare the lock prior to the registration of the netdev,
+		 * as once it's registered we might reach flows requiring it
+		 * [it's even possible to reach a flow needing it directly
+		 * from there, although it's unlikely].
+		 */
+		INIT_DELAYED_WORK(&edev->sp_task, qede_sp_task);
+		mutex_init(&edev->qede_lock);
+
+		rc = register_netdev(edev->ndev);
+		if (rc) {
+			DP_NOTICE(edev, "Cannot register net-device\n");
+			goto err4;
+		}
 	}
 
 	edev->ops->common->set_name(cdev, edev->ndev->name);
 
 	/* PTP not supported on VFs */
 	if (!is_vf)
-		qede_ptp_enable(edev, true);
+		qede_ptp_enable(edev, (mode == QEDE_PROBE_NORMAL));
 
 	edev->ops->register_ops(cdev, &qede_ll_ops, edev);
 
@@ -1126,7 +1180,7 @@ static int __qede_probe(struct pci_dev *pdev, u32 dp_module, u8 dp_level,
 	return 0;
 
 err4:
-	qede_rdma_dev_remove(edev);
+	qede_rdma_dev_remove(edev, QEDE_RDMA_PROBE_MODE(mode));
 err3:
 	free_netdev(edev->ndev);
 err2:
@@ -1162,7 +1216,12 @@ static int qede_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 enum qede_remove_mode {
 	QEDE_REMOVE_NORMAL,
+	QEDE_REMOVE_RECOVERY,
 };
+
+#define QEDE_RDMA_REMOVE_MODE(mode) \
+	((mode) == QEDE_REMOVE_NORMAL ? QEDE_RDMA_REMOVE_NORMAL \
+			      : QEDE_RDMA_REMOVE_RECOVERY)
 
 static void __qede_remove(struct pci_dev *pdev, enum qede_remove_mode mode)
 {
@@ -1172,15 +1231,19 @@ static void __qede_remove(struct pci_dev *pdev, enum qede_remove_mode mode)
 
 	DP_INFO(edev, "Starting qede_remove\n");
 
-	qede_rdma_dev_remove(edev);
-	unregister_netdev(ndev);
-	cancel_delayed_work_sync(&edev->sp_task);
+	qede_rdma_dev_remove(edev, QEDE_RDMA_REMOVE_MODE(mode));
+
+	if (mode != QEDE_REMOVE_RECOVERY) {
+		unregister_netdev(ndev);
+
+		cancel_delayed_work_sync(&edev->sp_task);
+
+		edev->ops->common->set_power_state(cdev, PCI_D0);
+
+		pci_set_drvdata(pdev, NULL);
+	}
 
 	qede_ptp_disable(edev);
-
-	edev->ops->common->set_power_state(cdev, PCI_D0);
-
-	pci_set_drvdata(pdev, NULL);
 
 	/* Use global ops since we've freed edev */
 	qed_ops->common->slowpath_stop(cdev);
@@ -1194,7 +1257,8 @@ static void __qede_remove(struct pci_dev *pdev, enum qede_remove_mode mode)
 	 * [e.g., QED register callbacks] won't break anything when
 	 * accessing the netdevice.
 	 */
-	 free_netdev(ndev);
+	if (mode != QEDE_REMOVE_RECOVERY)
+		free_netdev(ndev);
 
 	dev_info(&pdev->dev, "Ending qede_remove successfully\n");
 }
@@ -1537,6 +1601,58 @@ static int qede_alloc_mem_load(struct qede_dev *edev)
 	}
 
 	return 0;
+}
+
+static void qede_empty_tx_queue(struct qede_dev *edev,
+				struct qede_tx_queue *txq)
+{
+	unsigned int pkts_compl = 0, bytes_compl = 0;
+	struct netdev_queue *netdev_txq;
+	int rc, len = 0;
+
+	netdev_txq = netdev_get_tx_queue(edev->ndev, txq->ndev_txq_id);
+
+	while (qed_chain_get_cons_idx(&txq->tx_pbl) !=
+	       qed_chain_get_prod_idx(&txq->tx_pbl)) {
+		DP_VERBOSE(edev, NETIF_MSG_IFDOWN,
+			   "Freeing a packet on tx queue[%d]: chain_cons 0x%x, chain_prod 0x%x\n",
+			   txq->index, qed_chain_get_cons_idx(&txq->tx_pbl),
+			   qed_chain_get_prod_idx(&txq->tx_pbl));
+
+		rc = qede_free_tx_pkt(edev, txq, &len);
+		if (rc) {
+			DP_NOTICE(edev,
+				  "Failed to free a packet on tx queue[%d]: chain_cons 0x%x, chain_prod 0x%x\n",
+				  txq->index,
+				  qed_chain_get_cons_idx(&txq->tx_pbl),
+				  qed_chain_get_prod_idx(&txq->tx_pbl));
+			break;
+		}
+
+		bytes_compl += len;
+		pkts_compl++;
+		txq->sw_tx_cons++;
+	}
+
+	netdev_tx_completed_queue(netdev_txq, pkts_compl, bytes_compl);
+}
+
+static void qede_empty_tx_queues(struct qede_dev *edev)
+{
+	int i;
+
+	for_each_queue(i)
+		if (edev->fp_array[i].type & QEDE_FASTPATH_TX) {
+			int cos;
+
+			for_each_cos_in_txq(edev, cos) {
+				struct qede_fastpath *fp;
+
+				fp = &edev->fp_array[i];
+				qede_empty_tx_queue(edev,
+						    &fp->txq[cos]);
+			}
+		}
 }
 
 /* This function inits fp content and resets the SB, RXQ and TXQ structures */
@@ -2053,6 +2169,7 @@ out:
 
 enum qede_unload_mode {
 	QEDE_UNLOAD_NORMAL,
+	QEDE_UNLOAD_RECOVERY,
 };
 
 static void qede_unload(struct qede_dev *edev, enum qede_unload_mode mode,
@@ -2068,7 +2185,8 @@ static void qede_unload(struct qede_dev *edev, enum qede_unload_mode mode,
 
 	clear_bit(QEDE_FLAGS_LINK_REQUESTED, &edev->flags);
 
-	edev->state = QEDE_STATE_CLOSED;
+	if (mode != QEDE_UNLOAD_RECOVERY)
+		edev->state = QEDE_STATE_CLOSED;
 
 	qede_rdma_dev_event_close(edev);
 
@@ -2076,17 +2194,20 @@ static void qede_unload(struct qede_dev *edev, enum qede_unload_mode mode,
 	netif_tx_disable(edev->ndev);
 	netif_carrier_off(edev->ndev);
 
-	/* Reset the link */
-	memset(&link_params, 0, sizeof(link_params));
-	link_params.link_up = false;
-	edev->ops->common->set_link(edev->cdev, &link_params);
-	rc = qede_stop_queues(edev);
-	if (rc) {
-		qede_sync_free_irqs(edev);
-		goto out;
-	}
+	if (mode != QEDE_UNLOAD_RECOVERY) {
+		/* Reset the link */
+		memset(&link_params, 0, sizeof(link_params));
+		link_params.link_up = false;
+		edev->ops->common->set_link(edev->cdev, &link_params);
 
-	DP_INFO(edev, "Stopped Queues\n");
+		rc = qede_stop_queues(edev);
+		if (rc) {
+			qede_sync_free_irqs(edev);
+			goto out;
+		}
+
+		DP_INFO(edev, "Stopped Queues\n");
+	}
 
 	qede_vlan_mark_nonconfigured(edev);
 	edev->ops->fastpath_stop(edev->cdev);
@@ -2102,18 +2223,26 @@ static void qede_unload(struct qede_dev *edev, enum qede_unload_mode mode,
 
 	qede_napi_disable_remove(edev);
 
+	if (mode == QEDE_UNLOAD_RECOVERY)
+		qede_empty_tx_queues(edev);
+
 	qede_free_mem_load(edev);
 	qede_free_fp_array(edev);
 
 out:
 	if (!is_locked)
 		__qede_unlock(edev);
+
+	if (mode != QEDE_UNLOAD_RECOVERY)
+		DP_NOTICE(edev, "Link is down\n");
+
 	DP_INFO(edev, "Ending qede unload\n");
 }
 
 enum qede_load_mode {
 	QEDE_LOAD_NORMAL,
 	QEDE_LOAD_RELOAD,
+	QEDE_LOAD_RECOVERY,
 };
 
 static int qede_load(struct qede_dev *edev, enum qede_load_mode mode,
@@ -2291,6 +2420,77 @@ static void qede_link_update(void *dev, struct qed_link_output *link)
 			qede_rdma_dev_event_close(edev);
 		}
 	}
+}
+
+static void qede_schedule_recovery_handler(void *dev)
+{
+	struct qede_dev *edev = dev;
+
+	if (edev->state == QEDE_STATE_RECOVERY) {
+		DP_NOTICE(edev,
+			  "Avoid scheduling a recovery handling since already in recovery state\n");
+		return;
+	}
+
+	set_bit(QEDE_SP_RECOVERY, &edev->sp_flags);
+	schedule_delayed_work(&edev->sp_task, 0);
+
+	DP_INFO(edev, "Scheduled a recovery handler\n");
+}
+
+static void qede_recovery_failed(struct qede_dev *edev)
+{
+	netdev_err(edev->ndev, "Recovery handling has failed. Power cycle is needed.\n");
+
+	netif_device_detach(edev->ndev);
+
+	if (edev->cdev)
+		edev->ops->common->set_power_state(edev->cdev, PCI_D3hot);
+}
+
+static void qede_recovery_handler(struct qede_dev *edev)
+{
+	u32 curr_state = edev->state;
+	int rc;
+
+	DP_NOTICE(edev, "Starting a recovery process\n");
+
+	/* No need to acquire first the qede_lock since is done by qede_sp_task
+	 * before calling this function.
+	 */
+	edev->state = QEDE_STATE_RECOVERY;
+
+	edev->ops->common->recovery_prolog(edev->cdev);
+
+	if (curr_state == QEDE_STATE_OPEN)
+		qede_unload(edev, QEDE_UNLOAD_RECOVERY, true);
+
+	__qede_remove(edev->pdev, QEDE_REMOVE_RECOVERY);
+
+	rc = __qede_probe(edev->pdev, edev->dp_module, edev->dp_level,
+			  IS_VF(edev), QEDE_PROBE_RECOVERY);
+	if (rc) {
+		edev->cdev = NULL;
+		goto err;
+	}
+
+	if (curr_state == QEDE_STATE_OPEN) {
+		rc = qede_load(edev, QEDE_LOAD_RECOVERY, true);
+		if (rc)
+			goto err;
+
+		qede_config_rx_mode(edev->ndev);
+		udp_tunnel_get_rx_info(edev->ndev);
+	}
+
+	edev->state = curr_state;
+
+	DP_NOTICE(edev, "Recovery handling is done\n");
+
+	return;
+
+err:
+	qede_recovery_failed(edev);
 }
 
 static bool qede_is_txq_full(struct qede_dev *edev, struct qede_tx_queue *txq)
