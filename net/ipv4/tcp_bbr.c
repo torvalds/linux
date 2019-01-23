@@ -315,30 +315,19 @@ static void bbr_cwnd_event(struct sock *sk, enum tcp_ca_event event)
 	}
 }
 
-/* Find target cwnd. Right-size the cwnd based on min RTT and the
- * estimated bottleneck bandwidth:
+/* Calculate bdp based on min RTT and the estimated bottleneck bandwidth:
  *
- * cwnd = bw * min_rtt * gain = BDP * gain
+ * bdp = bw * min_rtt * gain
  *
  * The key factor, gain, controls the amount of queue. While a small gain
  * builds a smaller queue, it becomes more vulnerable to noise in RTT
  * measurements (e.g., delayed ACKs or other ACK compression effects). This
  * noise may cause BBR to under-estimate the rate.
- *
- * To achieve full performance in high-speed paths, we budget enough cwnd to
- * fit full-sized skbs in-flight on both end hosts to fully utilize the path:
- *   - one skb in sending host Qdisc,
- *   - one skb in sending host TSO/GSO engine
- *   - one skb being received by receiver host LRO/GRO/delayed-ACK engine
- * Don't worry, at low rates (bbr_min_tso_rate) this won't bloat cwnd because
- * in such cases tso_segs_goal is 1. The minimum cwnd is 4 packets,
- * which allows 2 outstanding 2-packet sequences, to try to keep pipe
- * full even with ACK-every-other-packet delayed ACKs.
  */
-static u32 bbr_target_cwnd(struct sock *sk, u32 bw, int gain)
+static u32 bbr_bdp(struct sock *sk, u32 bw, int gain)
 {
 	struct bbr *bbr = inet_csk_ca(sk);
-	u32 cwnd;
+	u32 bdp;
 	u64 w;
 
 	/* If we've never had a valid RTT sample, cap cwnd at the initial
@@ -353,7 +342,24 @@ static u32 bbr_target_cwnd(struct sock *sk, u32 bw, int gain)
 	w = (u64)bw * bbr->min_rtt_us;
 
 	/* Apply a gain to the given value, then remove the BW_SCALE shift. */
-	cwnd = (((w * gain) >> BBR_SCALE) + BW_UNIT - 1) / BW_UNIT;
+	bdp = (((w * gain) >> BBR_SCALE) + BW_UNIT - 1) / BW_UNIT;
+
+	return bdp;
+}
+
+/* To achieve full performance in high-speed paths, we budget enough cwnd to
+ * fit full-sized skbs in-flight on both end hosts to fully utilize the path:
+ *   - one skb in sending host Qdisc,
+ *   - one skb in sending host TSO/GSO engine
+ *   - one skb being received by receiver host LRO/GRO/delayed-ACK engine
+ * Don't worry, at low rates (bbr_min_tso_rate) this won't bloat cwnd because
+ * in such cases tso_segs_goal is 1. The minimum cwnd is 4 packets,
+ * which allows 2 outstanding 2-packet sequences, to try to keep pipe
+ * full even with ACK-every-other-packet delayed ACKs.
+ */
+static u32 bbr_quantization_budget(struct sock *sk, u32 cwnd, int gain)
+{
+	struct bbr *bbr = inet_csk_ca(sk);
 
 	/* Allow enough full-sized skbs in flight to utilize end systems. */
 	cwnd += 3 * bbr_tso_segs_goal(sk);
@@ -366,6 +372,17 @@ static u32 bbr_target_cwnd(struct sock *sk, u32 bw, int gain)
 		cwnd += 2;
 
 	return cwnd;
+}
+
+/* Find inflight based on min RTT and the estimated bottleneck bandwidth. */
+static u32 bbr_inflight(struct sock *sk, u32 bw, int gain)
+{
+	u32 inflight;
+
+	inflight = bbr_bdp(sk, bw, gain);
+	inflight = bbr_quantization_budget(sk, inflight, gain);
+
+	return inflight;
 }
 
 /* An optimization in BBR to reduce losses: On the first round of recovery, we
@@ -429,7 +446,8 @@ static void bbr_set_cwnd(struct sock *sk, const struct rate_sample *rs,
 		goto done;
 
 	/* If we're below target cwnd, slow start cwnd toward target cwnd. */
-	target_cwnd = bbr_target_cwnd(sk, bw, gain);
+	target_cwnd = bbr_bdp(sk, bw, gain);
+	target_cwnd = bbr_quantization_budget(sk, target_cwnd, gain);
 	if (bbr_full_bw_reached(sk))  /* only cut cwnd if we filled the pipe */
 		cwnd = min(cwnd + acked, target_cwnd);
 	else if (cwnd < target_cwnd || tp->delivered < TCP_INIT_CWND)
@@ -470,14 +488,14 @@ static bool bbr_is_next_cycle_phase(struct sock *sk,
 	if (bbr->pacing_gain > BBR_UNIT)
 		return is_full_length &&
 			(rs->losses ||  /* perhaps pacing_gain*BDP won't fit */
-			 inflight >= bbr_target_cwnd(sk, bw, bbr->pacing_gain));
+			 inflight >= bbr_inflight(sk, bw, bbr->pacing_gain));
 
 	/* A pacing_gain < 1.0 tries to drain extra queue we added if bw
 	 * probing didn't find more bw. If inflight falls to match BDP then we
 	 * estimate queue is drained; persisting would underutilize the pipe.
 	 */
 	return is_full_length ||
-		inflight <= bbr_target_cwnd(sk, bw, BBR_UNIT);
+		inflight <= bbr_inflight(sk, bw, BBR_UNIT);
 }
 
 static void bbr_advance_cycle_phase(struct sock *sk)
@@ -736,11 +754,11 @@ static void bbr_check_drain(struct sock *sk, const struct rate_sample *rs)
 		bbr->pacing_gain = bbr_drain_gain;	/* pace slow to drain */
 		bbr->cwnd_gain = bbr_high_gain;	/* maintain cwnd */
 		tcp_sk(sk)->snd_ssthresh =
-				bbr_target_cwnd(sk, bbr_max_bw(sk), BBR_UNIT);
+				bbr_inflight(sk, bbr_max_bw(sk), BBR_UNIT);
 	}	/* fall through to check if in-flight is already small: */
 	if (bbr->mode == BBR_DRAIN &&
 	    tcp_packets_in_flight(tcp_sk(sk)) <=
-	    bbr_target_cwnd(sk, bbr_max_bw(sk), BBR_UNIT))
+	    bbr_inflight(sk, bbr_max_bw(sk), BBR_UNIT))
 		bbr_reset_probe_bw_mode(sk);  /* we estimate queue is drained */
 }
 
