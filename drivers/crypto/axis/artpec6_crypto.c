@@ -665,8 +665,8 @@ artpec6_crypto_dma_map_descs(struct artpec6_crypto_req_common *common)
 	 * to be written.
 	 */
 	return artpec6_crypto_dma_map_single(common,
-				dma->stat + dma->in_cnt - 1,
-				sizeof(dma->stat[0]),
+				dma->stat,
+				sizeof(dma->stat[0]) * dma->in_cnt,
 				DMA_BIDIRECTIONAL,
 				&dma->stat_dma_addr);
 }
@@ -2087,9 +2087,12 @@ static void artpec6_crypto_task(unsigned long data)
 	list_for_each_entry_safe(req, n, &ac->pending, list) {
 		struct artpec6_crypto_dma_descriptors *dma = req->dma;
 		u32 stat;
+		dma_addr_t stataddr;
 
-		dma_sync_single_for_cpu(artpec6_crypto_dev, dma->stat_dma_addr,
-					sizeof(dma->stat[0]),
+		stataddr = dma->stat_dma_addr + 4 * (req->dma->in_cnt - 1);
+		dma_sync_single_for_cpu(artpec6_crypto_dev,
+					stataddr,
+					4,
 					DMA_BIDIRECTIONAL);
 
 		stat = req->dma->stat[req->dma->in_cnt-1];
