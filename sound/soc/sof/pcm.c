@@ -252,22 +252,6 @@ static int sof_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	stream.comp_id = spcm->stream[substream->stream].comp_id;
 
 	switch (cmd) {
-	case SNDRV_PCM_TRIGGER_STOP:
-
-		/*
-		 * Check if stream was marked for restore before suspend
-		 */
-		if (spcm->restore_stream[substream->stream]) {
-
-			/* unset restore_stream */
-			spcm->restore_stream[substream->stream] = 0;
-
-			/* do not send ipc as the stream hasn't been set up */
-			return 0;
-		}
-
-		stream.hdr.cmd |= SOF_IPC_STREAM_TRIG_STOP;
-		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		stream.hdr.cmd |= SOF_IPC_STREAM_TRIG_PAUSE;
 		break;
@@ -313,6 +297,20 @@ static int sof_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
+		/* fallthrough */
+	case SNDRV_PCM_TRIGGER_STOP:
+
+		/* Check if stream was marked for restore before suspend */
+		if (spcm->restore_stream[substream->stream]) {
+
+			/* unset restore_stream */
+			spcm->restore_stream[substream->stream] = 0;
+
+			/* do not send ipc as the stream hasn't been set up */
+			return 0;
+		}
+
+		stream.hdr.cmd |= SOF_IPC_STREAM_TRIG_STOP;
 		break;
 	default:
 		dev_err(sdev->dev, "error: unhandled trigger cmd %d\n", cmd);
