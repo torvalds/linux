@@ -278,6 +278,7 @@ struct ad_system {
 
 struct ad_bond_info {
 	struct ad_system system;	/* 802.3ad system structure */
+	struct bond_3ad_stats stats;
 	u32 agg_select_timer;		/* Timer to select aggregator after all adapter's hand shakes */
 	u16 aggregator_identifier;
 };
@@ -321,7 +322,6 @@ int bond_3ad_lacpdu_recv(const struct sk_buff *skb, struct bonding *bond,
 int bond_3ad_set_carrier(struct bonding *bond);
 void bond_3ad_update_lacp_rate(struct bonding *bond);
 void bond_3ad_update_ad_actor_settings(struct bonding *bond);
-void bond_3ad_stats_add(struct slave *slave, struct bond_3ad_stats *stats);
 int bond_3ad_stats_fill(struct sk_buff *skb, struct bond_3ad_stats *stats);
 size_t bond_3ad_stats_size(void);
 #endif /* _NET_BOND_3AD_H */

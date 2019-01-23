@@ -715,16 +715,12 @@ static int bond_fill_linkxstats(struct sk_buff *skb,
 	if (!nest)
 		return -EMSGSIZE;
 	if (BOND_MODE(bond) == BOND_MODE_8023AD) {
-		struct bond_3ad_stats stats;
-		struct list_head *iter;
+		struct bond_3ad_stats *stats;
 
-		memset(&stats, 0, sizeof(stats));
-		if (slave) {
-			bond_3ad_stats_add(slave, &stats);
-		} else {
-			bond_for_each_slave(bond, slave, iter)
-				bond_3ad_stats_add(slave, &stats);
-		}
+		if (slave)
+			stats = &SLAVE_AD_INFO(slave)->stats;
+		else
+			stats = &BOND_AD_INFO(bond).stats;
 
 		nest2 = nla_nest_start(skb, BOND_XSTATS_3AD);
 		if (!nest2) {
@@ -732,7 +728,7 @@ static int bond_fill_linkxstats(struct sk_buff *skb,
 			return -EMSGSIZE;
 		}
 
-		if (bond_3ad_stats_fill(skb, &stats)) {
+		if (bond_3ad_stats_fill(skb, stats)) {
 			nla_nest_cancel(skb, nest2);
 			nla_nest_end(skb, nest);
 			return -EMSGSIZE;

@@ -853,6 +853,7 @@ static int ad_lacpdu_send(struct port *port)
 		return -ENOMEM;
 
 	atomic64_inc(&SLAVE_AD_INFO(slave)->stats.lacpdu_tx);
+	atomic64_inc(&BOND_AD_INFO(slave->bond).stats.lacpdu_tx);
 
 	skb->dev = slave->dev;
 	skb_reset_mac_header(skb);
@@ -898,9 +899,11 @@ static int ad_marker_send(struct port *port, struct bond_marker *marker)
 	switch (marker->tlv_type) {
 	case AD_MARKER_INFORMATION_SUBTYPE:
 		atomic64_inc(&SLAVE_AD_INFO(slave)->stats.marker_tx);
+		atomic64_inc(&BOND_AD_INFO(slave->bond).stats.marker_tx);
 		break;
 	case AD_MARKER_RESPONSE_SUBTYPE:
 		atomic64_inc(&SLAVE_AD_INFO(slave)->stats.marker_resp_tx);
+		atomic64_inc(&BOND_AD_INFO(slave->bond).stats.marker_resp_tx);
 		break;
 	}
 
@@ -1098,9 +1101,10 @@ static void ad_rx_machine(struct lacpdu *lacpdu, struct port *port)
 	 */
 	last_state = port->sm_rx_state;
 
-	if (lacpdu)
+	if (lacpdu) {
 		atomic64_inc(&SLAVE_AD_INFO(port->slave)->stats.lacpdu_rx);
-
+		atomic64_inc(&BOND_AD_INFO(port->slave->bond).stats.lacpdu_rx);
+	}
 	/* check if state machine should change state */
 
 	/* first, check if port was reinitialized */
@@ -1938,6 +1942,7 @@ static void ad_marker_info_received(struct bond_marker *marker_info,
 	struct bond_marker marker;
 
 	atomic64_inc(&SLAVE_AD_INFO(port->slave)->stats.marker_rx);
+	atomic64_inc(&BOND_AD_INFO(port->slave->bond).stats.marker_rx);
 
 	/* copy the received marker data to the response marker */
 	memcpy(&marker, marker_info, sizeof(struct bond_marker));
@@ -1964,6 +1969,7 @@ static void ad_marker_response_received(struct bond_marker *marker,
 					struct port *port)
 {
 	atomic64_inc(&SLAVE_AD_INFO(port->slave)->stats.marker_resp_rx);
+	atomic64_inc(&BOND_AD_INFO(port->slave->bond).stats.marker_resp_rx);
 
 	/* DO NOTHING, SINCE WE DECIDED NOT TO IMPLEMENT THIS FEATURE FOR NOW */
 }
@@ -2374,6 +2380,7 @@ re_arm:
  */
 static int bond_3ad_rx_indication(struct lacpdu *lacpdu, struct slave *slave)
 {
+	struct bonding *bond = slave->bond;
 	int ret = RX_HANDLER_ANOTHER;
 	struct bond_marker *marker;
 	struct port *port;
@@ -2419,10 +2426,13 @@ static int bond_3ad_rx_indication(struct lacpdu *lacpdu, struct slave *slave)
 				   port->actor_port_number);
 			stat = &SLAVE_AD_INFO(slave)->stats.marker_unknown_rx;
 			atomic64_inc(stat);
+			stat = &BOND_AD_INFO(bond).stats.marker_unknown_rx;
+			atomic64_inc(stat);
 		}
 		break;
 	default:
 		atomic64_inc(&SLAVE_AD_INFO(slave)->stats.lacpdu_unknown_rx);
+		atomic64_inc(&BOND_AD_INFO(bond).stats.lacpdu_unknown_rx);
 	}
 
 	return ret;
@@ -2662,6 +2672,7 @@ int bond_3ad_lacpdu_recv(const struct sk_buff *skb, struct bonding *bond,
 	lacpdu = skb_header_pointer(skb, 0, sizeof(_lacpdu), &_lacpdu);
 	if (!lacpdu) {
 		atomic64_inc(&SLAVE_AD_INFO(slave)->stats.lacpdu_illegal_rx);
+		atomic64_inc(&BOND_AD_INFO(bond).stats.lacpdu_illegal_rx);
 		return RX_HANDLER_ANOTHER;
 	}
 
@@ -2696,30 +2707,6 @@ void bond_3ad_update_lacp_rate(struct bonding *bond)
 			port->actor_oper_port_state &= ~AD_STATE_LACP_TIMEOUT;
 	}
 	spin_unlock_bh(&bond->mode_lock);
-}
-
-void bond_3ad_stats_add(struct slave *slave, struct bond_3ad_stats *stats)
-{
-	struct bond_3ad_stats *rstats = &SLAVE_AD_INFO(slave)->stats;
-	u64 stat;
-
-	atomic64_add(atomic64_read(&rstats->lacpdu_rx), &stats->lacpdu_rx);
-	atomic64_add(atomic64_read(&rstats->lacpdu_tx), &stats->lacpdu_tx);
-
-	stat = atomic64_read(&rstats->lacpdu_unknown_rx);
-	atomic64_add(stat, &stats->lacpdu_unknown_rx);
-	stat = atomic64_read(&rstats->lacpdu_illegal_rx);
-	atomic64_add(stat, &stats->lacpdu_illegal_rx);
-
-	atomic64_add(atomic64_read(&rstats->marker_rx), &stats->marker_rx);
-	atomic64_add(atomic64_read(&rstats->marker_tx), &stats->marker_tx);
-
-	stat = atomic64_read(&rstats->marker_resp_rx);
-	atomic64_add(stat, &stats->marker_resp_rx);
-	stat = atomic64_read(&rstats->marker_resp_tx);
-	atomic64_add(stat, &stats->marker_resp_tx);
-	stat = atomic64_read(&rstats->marker_unknown_rx);
-	atomic64_add(stat, &stats->marker_unknown_rx);
 }
 
 size_t bond_3ad_stats_size(void)
