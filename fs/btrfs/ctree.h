@@ -1199,6 +1199,13 @@ enum {
 	BTRFS_ROOT_MULTI_LOG_TASKS,
 	BTRFS_ROOT_DIRTY,
 	BTRFS_ROOT_DELETING,
+
+	/*
+	 * Reloc tree is orphan, only kept here for qgroup delayed subtree scan
+	 *
+	 * Set for the subvolume tree owning the reloc tree.
+	 */
+	BTRFS_ROOT_DEAD_RELOC_TREE,
 };
 
 /*
@@ -1310,6 +1317,14 @@ struct btrfs_root {
 	struct list_head ordered_extents;
 	struct list_head ordered_root;
 	u64 nr_ordered_extents;
+
+	/*
+	 * Not empty if this subvolume root has gone through tree block swap
+	 * (relocation)
+	 *
+	 * Will be used by reloc_control::dirty_subvol_roots.
+	 */
+	struct list_head reloc_dirty_list;
 
 	/*
 	 * Number of currently running SEND ioctls to prevent
