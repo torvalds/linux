@@ -163,6 +163,9 @@ static int sof_pcm_hw_params(struct snd_pcm_substream *substream,
 	/* save pcm hw_params */
 	memcpy(&spcm->params[substream->stream], params, sizeof(*params));
 
+	/* unset restore_stream */
+	spcm->restore_stream[substream->stream] = 0;
+
 	return ret;
 }
 
