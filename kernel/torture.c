@@ -88,6 +88,8 @@ bool torture_offline(int cpu, long *n_offl_attempts, long *n_offl_successes,
 
 	if (!cpu_online(cpu) || !cpu_is_hotpluggable(cpu))
 		return false;
+	if (num_online_cpus() <= 1)
+		return false;  /* Can't offline the last CPU. */
 
 	if (verbose > 1)
 		pr_alert("%s" TORTURE_FLAG
