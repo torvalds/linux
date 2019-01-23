@@ -2959,11 +2959,9 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 	drm_connector = &aconnector->base;
 
 	if (!aconnector->dc_sink) {
-		if (!aconnector->mst_port) {
-			sink = create_fake_sink(aconnector);
-			if (!sink)
-				return stream;
-		}
+		sink = create_fake_sink(aconnector);
+		if (!sink)
+			return stream;
 	} else {
 		sink = aconnector->dc_sink;
 	}

@@ -173,6 +173,9 @@ static int dm_dp_mst_get_modes(struct drm_connector *connector)
 		aconnector->edid = edid;
 	}
 
+	if (aconnector->dc_sink && aconnector->dc_sink->sink_signal == SIGNAL_TYPE_VIRTUAL)
+		dc_sink_release(aconnector->dc_sink);
+
 	if (!aconnector->dc_sink) {
 		struct dc_sink *dc_sink;
 		struct dc_sink_init_data init_params = {
