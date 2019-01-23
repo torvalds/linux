@@ -10,6 +10,7 @@
 # CONFIG_ALIM7101_WDT is not set
 # CONFIG_ALTERA_TSE is not set
 # CONFIG_AMIGA_PARTITION is not set
+# CONFIG_ANDROID is not set
 # CONFIG_APPLICOM is not set
 # CONFIG_ARCNET is not set
 # CONFIG_ATA is not set
