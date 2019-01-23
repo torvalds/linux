@@ -254,7 +254,8 @@ static int bxt_pcm512x_probe(struct platform_device *pdev)
 	struct bxt_card_private *ctx;
 	const char *i2c_name = NULL;
 	int dai_index = 0;
-	int ret_val = 0, i;
+	int ret_val = 0;
+	int i;
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
@@ -266,6 +267,12 @@ static int bxt_pcm512x_probe(struct platform_device *pdev)
 	mach = (&pdev->dev)->platform_data;
 	card = &bxt_pcm512x_card;
 	card->dev = &pdev->dev;
+
+	/* set platform name for each dailink */
+	ret_val = snd_soc_fixup_dai_links_platform_name(card,
+							mach->mach_params.platform);
+	if (ret_val)
+		return ret_val;
 
 	/* fix index of codec dai */
 	for (i = 0; i < ARRAY_SIZE(dailink); i++) {
