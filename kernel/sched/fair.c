@@ -3673,6 +3673,7 @@ util_est_dequeue(struct cfs_rq *cfs_rq, struct task_struct *p, bool task_sleep)
 {
 	long last_ewma_diff;
 	struct util_est ue;
+	int cpu;
 
 	if (!sched_feat(UTIL_EST))
 		return;
@@ -3708,6 +3709,14 @@ util_est_dequeue(struct cfs_rq *cfs_rq, struct task_struct *p, bool task_sleep)
 	ue.enqueued = (task_util(p) | UTIL_AVG_UNCHANGED);
 	last_ewma_diff = ue.enqueued - ue.ewma;
 	if (within_margin(last_ewma_diff, (SCHED_CAPACITY_SCALE / 100)))
+		return;
+
+	/*
+	 * To avoid overestimation of actual task utilization, skip updates if
+	 * we cannot grant there is idle time in this CPU.
+	 */
+	cpu = cpu_of(rq_of(cfs_rq));
+	if (task_util(p) > capacity_orig_of(cpu))
 		return;
 
 	/*
@@ -5608,11 +5617,6 @@ static unsigned long target_load(int cpu, int type)
 static unsigned long capacity_of(int cpu)
 {
 	return cpu_rq(cpu)->cpu_capacity;
-}
-
-static unsigned long capacity_orig_of(int cpu)
-{
-	return cpu_rq(cpu)->cpu_capacity_orig;
 }
 
 static unsigned long cpu_avg_load_per_task(int cpu)
