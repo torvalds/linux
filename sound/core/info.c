@@ -741,7 +741,11 @@ struct snd_info_entry *snd_info_create_module_entry(struct module * module,
 					       const char *name,
 					       struct snd_info_entry *parent)
 {
-	struct snd_info_entry *entry = snd_info_create_entry(name, parent);
+	struct snd_info_entry *entry;
+
+	if (!parent)
+		parent = snd_proc_root;
+	entry = snd_info_create_entry(name, parent);
 	if (entry)
 		entry->module = module;
 	return entry;
@@ -762,7 +766,11 @@ struct snd_info_entry *snd_info_create_card_entry(struct snd_card *card,
 					     const char *name,
 					     struct snd_info_entry * parent)
 {
-	struct snd_info_entry *entry = snd_info_create_entry(name, parent);
+	struct snd_info_entry *entry;
+
+	if (!parent)
+		parent = card->proc_root;
+	entry = snd_info_create_entry(name, parent);
 	if (entry) {
 		entry->module = card->module;
 		entry->card = card;
