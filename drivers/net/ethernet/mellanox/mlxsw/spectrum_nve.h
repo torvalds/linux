@@ -28,6 +28,7 @@ struct mlxsw_sp_nve {
 	unsigned int num_nve_tunnels;	/* Protected by RTNL */
 	unsigned int num_max_mc_entries[MLXSW_SP_L3_PROTO_MAX];
 	u32 tunnel_index;
+	u16 ul_rif_index;	/* Reserved for Spectrum */
 };
 
 struct mlxsw_sp_nve_ops {

@@ -7,6 +7,7 @@
 #include <net/vxlan.h>
 
 #include "reg.h"
+#include "spectrum.h"
 #include "spectrum_nve.h"
 
 /* Eth (18B) | IPv6 (40B) | UDP (8B) | VxLAN (8B) | Eth (14B) | IPv6 (40B)
@@ -254,14 +255,121 @@ static bool mlxsw_sp2_nve_vxlan_can_offload(const struct mlxsw_sp_nve *nve,
 	return false;
 }
 
+static bool mlxsw_sp2_nve_vxlan_learning_set(struct mlxsw_sp *mlxsw_sp,
+					     bool learning_en)
+{
+	char tnpc_pl[MLXSW_REG_TNPC_LEN];
+
+	mlxsw_reg_tnpc_pack(tnpc_pl, MLXSW_REG_TNPC_TUNNEL_PORT_NVE,
+			    learning_en);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(tnpc), tnpc_pl);
+}
+
+static int
+mlxsw_sp2_nve_vxlan_config_set(struct mlxsw_sp *mlxsw_sp,
+			       const struct mlxsw_sp_nve_config *config)
+{
+	char tngcr_pl[MLXSW_REG_TNGCR_LEN];
+	u16 ul_rif_index;
+	int err;
+
+	err = mlxsw_sp_router_ul_rif_get(mlxsw_sp, config->ul_tb_id,
+					 &ul_rif_index);
+	if (err)
+		return err;
+	mlxsw_sp->nve->ul_rif_index = ul_rif_index;
+
+	err = mlxsw_sp2_nve_vxlan_learning_set(mlxsw_sp, config->learning_en);
+	if (err)
+		goto err_vxlan_learning_set;
+
+	mlxsw_sp_nve_vxlan_config_prepare(tngcr_pl, config);
+	mlxsw_reg_tngcr_underlay_rif_set(tngcr_pl, ul_rif_index);
+
+	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(tngcr), tngcr_pl);
+	if (err)
+		goto err_tngcr_write;
+
+	return 0;
+
+err_tngcr_write:
+	mlxsw_sp2_nve_vxlan_learning_set(mlxsw_sp, false);
+err_vxlan_learning_set:
+	mlxsw_sp_router_ul_rif_put(mlxsw_sp, ul_rif_index);
+	return err;
+}
+
+static void mlxsw_sp2_nve_vxlan_config_clear(struct mlxsw_sp *mlxsw_sp)
+{
+	char tngcr_pl[MLXSW_REG_TNGCR_LEN];
+
+	mlxsw_reg_tngcr_pack(tngcr_pl, MLXSW_REG_TNGCR_TYPE_VXLAN, false, 0);
+	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(tngcr), tngcr_pl);
+	mlxsw_sp2_nve_vxlan_learning_set(mlxsw_sp, false);
+	mlxsw_sp_router_ul_rif_put(mlxsw_sp, mlxsw_sp->nve->ul_rif_index);
+}
+
+static int mlxsw_sp2_nve_vxlan_rtdp_set(struct mlxsw_sp *mlxsw_sp,
+					unsigned int tunnel_index,
+					u16 ul_rif_index)
+{
+	char rtdp_pl[MLXSW_REG_RTDP_LEN];
+
+	mlxsw_reg_rtdp_pack(rtdp_pl, MLXSW_REG_RTDP_TYPE_NVE, tunnel_index);
+	mlxsw_reg_rtdp_egress_router_interface_set(rtdp_pl, ul_rif_index);
+
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(rtdp), rtdp_pl);
+}
+
 static int mlxsw_sp2_nve_vxlan_init(struct mlxsw_sp_nve *nve,
 				    const struct mlxsw_sp_nve_config *config)
 {
-	return -EOPNOTSUPP;
+	struct mlxsw_sp *mlxsw_sp = nve->mlxsw_sp;
+	int err;
+
+	err = mlxsw_sp_nve_parsing_set(mlxsw_sp,
+				       MLXSW_SP_NVE_VXLAN_PARSING_DEPTH,
+				       config->udp_dport);
+	if (err)
+		return err;
+
+	err = mlxsw_sp2_nve_vxlan_config_set(mlxsw_sp, config);
+	if (err)
+		goto err_config_set;
+
+	err = mlxsw_sp2_nve_vxlan_rtdp_set(mlxsw_sp, nve->tunnel_index,
+					   nve->ul_rif_index);
+	if (err)
+		goto err_rtdp_set;
+
+	err = mlxsw_sp_router_nve_promote_decap(mlxsw_sp, config->ul_tb_id,
+						config->ul_proto,
+						&config->ul_sip,
+						nve->tunnel_index);
+	if (err)
+		goto err_promote_decap;
+
+	return 0;
+
+err_promote_decap:
+err_rtdp_set:
+	mlxsw_sp2_nve_vxlan_config_clear(mlxsw_sp);
+err_config_set:
+	mlxsw_sp_nve_parsing_set(mlxsw_sp, MLXSW_SP_NVE_DEFAULT_PARSING_DEPTH,
+				 config->udp_dport);
+	return err;
 }
 
 static void mlxsw_sp2_nve_vxlan_fini(struct mlxsw_sp_nve *nve)
 {
+	struct mlxsw_sp_nve_config *config = &nve->config;
+	struct mlxsw_sp *mlxsw_sp = nve->mlxsw_sp;
+
+	mlxsw_sp_router_nve_demote_decap(mlxsw_sp, config->ul_tb_id,
+					 config->ul_proto, &config->ul_sip);
+	mlxsw_sp2_nve_vxlan_config_clear(mlxsw_sp);
+	mlxsw_sp_nve_parsing_set(mlxsw_sp, MLXSW_SP_NVE_DEFAULT_PARSING_DEPTH,
+				 config->udp_dport);
 }
 
 const struct mlxsw_sp_nve_ops mlxsw_sp2_nve_vxlan_ops = {
