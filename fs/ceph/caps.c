@@ -657,6 +657,10 @@ void ceph_add_cap(struct inode *inode,
 		session->s_nr_caps++;
 		spin_unlock(&session->s_cap_lock);
 	} else {
+		spin_lock(&session->s_cap_lock);
+		list_move_tail(&cap->session_caps, &session->s_caps);
+		spin_unlock(&session->s_cap_lock);
+
 		if (cap->cap_gen < session->s_cap_gen)
 			cap->issued = cap->implemented = CEPH_CAP_PIN;
 
