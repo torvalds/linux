@@ -3322,7 +3322,7 @@ try_onemore:
 	sb->s_root = d_make_root(root); /* allocate root dentry */
 	if (!sb->s_root) {
 		err = -ENOMEM;
-		goto free_root_inode;
+		goto free_node_inode;
 	}
 
 	err = f2fs_register_sysfs(sbi);
