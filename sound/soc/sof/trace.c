@@ -137,7 +137,7 @@ int snd_sof_init_trace_ipc(struct snd_sof_dev *sdev)
 	struct sof_ipc_reply ipc_reply;
 	int ret;
 
-	if (sdev->dtrace_is_enabled)
+	if (sdev->dtrace_is_enabled || !sdev->dma_trace_pages)
 		return -EINVAL;
 
 	/* set IPC parameters */
@@ -233,6 +233,7 @@ int snd_sof_init_trace(struct snd_sof_dev *sdev)
 
 	return 0;
 table_err:
+	sdev->dma_trace_pages = 0;
 	snd_dma_free_pages(&sdev->dmatb);
 page_err:
 	snd_dma_free_pages(&sdev->dmatp);
