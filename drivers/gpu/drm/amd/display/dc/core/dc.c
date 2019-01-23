@@ -1125,6 +1125,9 @@ bool dc_post_update_surfaces_to_stream(struct dc *dc)
 	int i;
 	struct dc_state *context = dc->current_state;
 
+	if (dc->optimized_required == false)
+		return true;
+
 	post_surface_trace(dc);
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++)
