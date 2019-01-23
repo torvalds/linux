@@ -74,13 +74,6 @@ struct pipe_inode_info {
  */
 struct pipe_buf_operations {
 	/*
-	 * This is set to 1, if the generic pipe read/write may coalesce
-	 * data into an existing buffer. If this is set to 0, a new pipe
-	 * page segment is always used for new data.
-	 */
-	int can_merge;
-
-	/*
 	 * ->confirm() verifies that the data in the pipe buffer is there
 	 * and that the contents are good. If the pages in the pipe belong
 	 * to a file system, we may need to wait for IO completion in this

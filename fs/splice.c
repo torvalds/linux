@@ -138,7 +138,6 @@ error:
 }
 
 const struct pipe_buf_operations page_cache_pipe_buf_ops = {
-	.can_merge = 0,
 	.confirm = page_cache_pipe_buf_confirm,
 	.release = page_cache_pipe_buf_release,
 	.steal = page_cache_pipe_buf_steal,
@@ -156,7 +155,6 @@ static int user_page_pipe_buf_steal(struct pipe_inode_info *pipe,
 }
 
 static const struct pipe_buf_operations user_page_pipe_buf_ops = {
-	.can_merge = 0,
 	.confirm = generic_pipe_buf_confirm,
 	.release = page_cache_pipe_buf_release,
 	.steal = user_page_pipe_buf_steal,
@@ -326,7 +324,6 @@ ssize_t generic_file_splice_read(struct file *in, loff_t *ppos,
 EXPORT_SYMBOL(generic_file_splice_read);
 
 const struct pipe_buf_operations default_pipe_buf_ops = {
-	.can_merge = 0,
 	.confirm = generic_pipe_buf_confirm,
 	.release = generic_pipe_buf_release,
 	.steal = generic_pipe_buf_steal,
@@ -341,7 +338,6 @@ static int generic_pipe_buf_nosteal(struct pipe_inode_info *pipe,
 
 /* Pipe buffer operations for a socket and similar. */
 const struct pipe_buf_operations nosteal_pipe_buf_ops = {
-	.can_merge = 0,
 	.confirm = generic_pipe_buf_confirm,
 	.release = generic_pipe_buf_release,
 	.steal = generic_pipe_buf_nosteal,
