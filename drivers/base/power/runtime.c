@@ -1309,10 +1309,15 @@ void pm_runtime_enable(struct device *dev)
 
 	spin_lock_irqsave(&dev->power.lock, flags);
 
-	if (dev->power.disable_depth > 0)
+	if (dev->power.disable_depth > 0) {
 		dev->power.disable_depth--;
-	else
+
+		/* About to enable runtime pm, set accounting_timestamp to now */
+		if (!dev->power.disable_depth)
+			dev->power.accounting_timestamp = jiffies;
+	} else {
 		dev_warn(dev, "Unbalanced %s!\n", __func__);
+	}
 
 	WARN(!dev->power.disable_depth &&
 	     dev->power.runtime_status == RPM_SUSPENDED &&
@@ -1509,7 +1514,7 @@ void pm_runtime_init(struct device *dev)
 	dev->power.request_pending = false;
 	dev->power.request = RPM_REQ_NONE;
 	dev->power.deferred_resume = false;
-	dev->power.accounting_timestamp = jiffies;
+	dev->power.accounting_timestamp = 0;
 	INIT_WORK(&dev->power.work, pm_runtime_work);
 
 	dev->power.timer_expires = 0;
