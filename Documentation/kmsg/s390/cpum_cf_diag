@@ -1,0 +1,45 @@
+/*? Text: "%s: %d output lines suppressed due to ratelimiting\n" */
+/*? Text: "cpum_cf_diag counter set compare error in set %i\n" */
+/*? Text: "Registration of s390dbf(cpum_cf_diag) failed\n" */
+/*? Text: "Registration of PMU(cpum_cf_diag) failed with rc=%i\n" */
+
+/*?
+ * Text: "Enabling the performance measuring unit failed with rc=%x\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: Error code returned by PMU enable function
+ * Description:
+ * The CPU Measurement Facilitiy for counters needs to be enabled to extract
+ * counter data.
+ * User action:
+ * To use the CPU-measurement counter facility, authorize the LPAR for each
+ * counter set you want to use. Customize the LPAR activation profile and modify
+ * the Counter Facility Security Options. Then reboot.
+ * If the problem persists, gather Linux debug data and report the
+ * problem to your support organization.
+ */
+
+/*?
+ * Text: "Disabling the performance measuring unit failed with rc=%x\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: Error code returned by PMU disable function
+ * Description:
+ * The CPU Measurement Facilitiy for counters is disabled to stop extraction
+ * of counter data.
+ * User action:
+ * Reboot. If the problem persists, gather Linux debug data and report the
+ * problem to your support organization.
+ */
+
+/*?
+ * Text: "Insufficient memory for PMU(cpum_cf_diag) need=%zu\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: Required amount of bytes needed to store the counter sets.
+ * Description:
+ * The preallocted memory to store counter sets is too small.
+ * User action:
+ * If the problem persists, gather Linux debug data and report the
+ * problem to your support organization.
+ */
