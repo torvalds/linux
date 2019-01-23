@@ -30,6 +30,8 @@ properties:
 
       - description: RZ/A2 (R7S9210)
         items:
+          - enum:
+              - renesas,rza2mevb # RZ/A2M Eval Board (RTK7921053S00000BE)
           - const: renesas,r7s9210
 
       - description: SH-Mobile AG5 (R8A73A00/SH73A0)
