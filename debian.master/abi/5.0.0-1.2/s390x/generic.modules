@@ -76,7 +76,6 @@ async_tx
 async_xor
 at24
 at803x
-at91-usart
 auth_rpcgss
 authenc
 authencesn
@@ -114,6 +113,9 @@ ccm
 ccwgroup
 ceph
 cfb
+cfbcopyarea
+cfbfillrect
+cfbimgblt
 ch
 chacha20poly1305
 chacha_generic
@@ -211,6 +213,9 @@ dp83848
 dp83867
 dp83tc811
 drbd
+drm
+drm_kms_helper
+drm_panel_orientation_quirks
 drop_monitor
 ds1682
 dummy
@@ -262,6 +267,7 @@ et1011c
 failover
 fan53555
 faulty
+fb_sys_fops
 fcoe
 fcrypt
 fixed
@@ -361,6 +367,7 @@ ib_srp
 ib_srpt
 ib_umad
 ib_uverbs
+icp
 icplus
 ics932s401
 idma64
@@ -931,6 +938,8 @@ smc_diag
 smsc
 smsgiucv_app
 softdog
+spl
+splat
 st
 st_drv
 ste10Xp
@@ -946,6 +955,9 @@ sunrpc
 switchtec
 sym53c500_cs
 synclink_cs
+syscopyarea
+sysfillrect
+sysimgblt
 tap
 tape
 tape_34xx
@@ -1016,6 +1028,7 @@ tsi568
 tsi57x
 tsi721_mport
 tsl2550
+ttm
 tunnel4
 tunnel6
 twofish_common
@@ -1042,9 +1055,11 @@ vhost_net
 vhost_scsi
 vhost_vsock
 virt-dma
+virtio-gpu
 virtio-rng
 virtio_blk
 virtio_crypto
+virtio_input
 virtio_net
 virtio_scsi
 virtual
@@ -1159,13 +1174,19 @@ xt_time
 xt_u32
 yenta_socket
 z3fold
+zavl
+zcommon
 zcrypt
 zcrypt_cex2a
 zcrypt_cex2c
 zcrypt_cex4
 zfcp
+zfs
 ziirave_wdt
 zlib_deflate
+znvpair
+zpios
 zram
 zstd
 zstd_compress
+zunicode
