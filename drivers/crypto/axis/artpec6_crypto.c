@@ -2201,9 +2201,9 @@ static void artpec6_crypto_complete_aead(struct crypto_async_request *req)
 				   areq->assoclen + areq->cryptlen -
 				   authsize);
 
-		if (memcmp(req_ctx->decryption_tag,
-			   input_tag,
-			   authsize)) {
+		if (crypto_memneq(req_ctx->decryption_tag,
+				  input_tag,
+				  authsize)) {
 			pr_debug("***EBADMSG:\n");
 			print_hex_dump_debug("ref:", DUMP_PREFIX_ADDRESS, 32, 1,
 					     input_tag, authsize, true);
