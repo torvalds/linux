@@ -2,9 +2,6 @@
 /*
  * BCM2835 DMA engine support
  *
- * This driver only supports cyclic DMA transfers
- * as needed for the I2S module.
- *
  * Author:      Florian Meier <florian.meier@koalo.de>
  *              Copyright 2013
  *
