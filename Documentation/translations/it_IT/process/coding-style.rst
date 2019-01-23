@@ -949,7 +949,40 @@ qualche valore fuori dai limiti.  Un tipico esempio è quello delle funzioni
 che ritornano un puntatore; queste utilizzano NULL o ERR_PTR come meccanismo
 di notifica degli errori.
 
-17) Non reinventate le macro del kernel
+17) L'uso di bool
+-----------------
+
+Nel kernel Linux il tipo bool deriva dal tipo _Bool dello standard C99.
+Un valore bool può assumere solo i valori 0 o 1, e implicitamente o
+esplicitamente la conversione a bool converte i valori in vero (*true*) o
+falso (*false*).  Quando si usa un tipo bool il costrutto !! non sarà più
+necessario, e questo va ad eliminare una certa serie di bachi.
+
+Quando si usano i valori booleani, dovreste utilizzare le definizioni di true
+e false al posto dei valori 1 e 0.
+
+Per il valore di ritorno delle funzioni e per le variabili sullo stack, l'uso
+del tipo bool è sempre appropriato.  L'uso di bool viene incoraggiato per
+migliorare la leggibilità e spesso è molto meglio di 'int' nella gestione di
+valori booleani.
+
+Non usate bool se per voi sono importanti l'ordine delle righe di cache o
+la loro dimensione; la dimensione e l'allineamento cambia a seconda
+dell'architettura per la quale è stato compilato.  Le strutture che sono state
+ottimizzate per l'allineamento o la dimensione non dovrebbero usare bool.
+
+Se una struttura ha molti valori true/false, considerate l'idea di raggrupparli
+in un intero usando campi da 1 bit, oppure usate un tipo dalla larghezza fissa,
+come u8.
+
+Come per gli argomenti delle funzioni, molti valori true/false possono essere
+raggruppati in un singolo argomento a bit denominato 'flags'; spesso 'flags' è
+un'alternativa molto più leggibile se si hanno valori costanti per true/false.
+
+Detto ciò, un uso parsimonioso di bool nelle strutture dati e negli argomenti
+può migliorare la leggibilità.
+
+18) Non reinventate le macro del kernel
 ---------------------------------------
 
 Il file di intestazione include/linux/kernel.h contiene un certo numero
@@ -973,7 +1006,7 @@ rigido sui tipi.  Sentitevi liberi di leggere attentamente questo file
 d'intestazione per scoprire cos'altro è stato definito che non dovreste
 reinventare nel vostro codice.
 
-18) Linee di configurazione degli editor e altre schifezze
+19) Linee di configurazione degli editor e altre schifezze
 -----------------------------------------------------------
 
 Alcuni editor possono interpretare dei parametri di configurazione integrati
@@ -1007,8 +1040,8 @@ d'indentazione e di modalità d'uso.  Le persone potrebbero aver configurato una
 modalità su misura, oppure potrebbero avere qualche altra magia per far
 funzionare bene l'indentazione.
 
-19) Inline assembly
----------------------
+20) Inline assembly
+-------------------
 
 Nel codice specifico per un'architettura, potreste aver bisogno di codice
 *inline assembly* per interfacciarvi col processore o con una funzionalità
@@ -1040,7 +1073,7 @@ al fine di allineare correttamente l'assembler che verrà generato:
 	     "more_magic %reg2, %reg3"
 	     : /* outputs */ : /* inputs */ : /* clobbers */);
 
-20) Compilazione sotto condizione
+21) Compilazione sotto condizione
 ---------------------------------
 
 Ovunque sia possibile, non usate le direttive condizionali del preprocessore
