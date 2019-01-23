@@ -120,6 +120,7 @@ psp_cmd_submit_buf(struct psp_context *psp,
 {
 	int ret;
 	int index;
+	int timeout = 2000;
 
 	memset(psp->cmd_buf_mem, 0, PSP_CMD_BUFFER_SIZE);
 
@@ -133,8 +134,11 @@ psp_cmd_submit_buf(struct psp_context *psp,
 		return ret;
 	}
 
-	while (*((unsigned int *)psp->fence_buf) != index)
+	while (*((unsigned int *)psp->fence_buf) != index) {
+		if (--timeout == 0)
+			return -EINVAL;
 		msleep(1);
+	}
 
 	/* In some cases, psp response status is not 0 even there is no
 	 * problem while the command is submitted. Some version of PSP FW
