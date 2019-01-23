@@ -955,7 +955,15 @@ static int vega20_force_clk_levels(struct smu_context *smu,
 	struct vega20_dpm_table *dpm_table;
 	struct vega20_single_dpm_table *single_dpm_table;
 	uint32_t soft_min_level, soft_max_level;
-	int ret;
+	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
+	int ret = 0;
+
+	if (smu_dpm->dpm_level != AMD_DPM_FORCED_LEVEL_MANUAL) {
+		pr_info("force clock level is for dpm manual mode only.\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&(smu->mutex));
 
 	soft_min_level = mask ? (ffs(mask) - 1) : 0;
 	soft_max_level = mask ? (fls(mask) - 1) : 0;
@@ -969,7 +977,8 @@ static int vega20_force_clk_levels(struct smu_context *smu,
 		if (soft_max_level >= single_dpm_table->count) {
 			pr_err("Clock level specified %d is over max allowed %d\n",
 					soft_max_level, single_dpm_table->count - 1);
-			return -EINVAL;
+			ret = -EINVAL;
+			break;
 		}
 
 		single_dpm_table->dpm_state.soft_min_level =
@@ -980,14 +989,12 @@ static int vega20_force_clk_levels(struct smu_context *smu,
 		ret = vega20_upload_dpm_min_level(smu);
 		if (ret) {
 			pr_err("Failed to upload boot level to lowest!\n");
-			return ret;
+			break;
 		}
 
 		ret = vega20_upload_dpm_max_level(smu);
-		if (ret) {
+		if (ret)
 			pr_err("Failed to upload dpm max level to highest!\n");
-			return ret;
-		}
 
 		break;
 
@@ -997,7 +1004,8 @@ static int vega20_force_clk_levels(struct smu_context *smu,
 		if (soft_max_level >= single_dpm_table->count) {
 			pr_err("Clock level specified %d is over max allowed %d\n",
 					soft_max_level, single_dpm_table->count - 1);
-			return -EINVAL;
+			ret = -EINVAL;
+			break;
 		}
 
 		single_dpm_table->dpm_state.soft_min_level =
@@ -1008,14 +1016,12 @@ static int vega20_force_clk_levels(struct smu_context *smu,
 		ret = vega20_upload_dpm_min_level(smu);
 		if (ret) {
 			pr_err("Failed to upload boot level to lowest!\n");
-			return ret;
+			break;
 		}
 
 		ret = vega20_upload_dpm_max_level(smu);
-		if (ret) {
+		if (ret)
 			pr_err("Failed to upload dpm max level to highest!\n");
-			return ret;
-		}
 
 		break;
 
@@ -1026,7 +1032,8 @@ static int vega20_force_clk_levels(struct smu_context *smu,
 		break;
 	}
 
-	return 0;
+	mutex_unlock(&(smu->mutex));
+	return ret;
 }
 
 static int vega20_get_clock_by_type_with_latency(struct smu_context *smu,
