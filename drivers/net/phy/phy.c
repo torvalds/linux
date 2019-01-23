@@ -856,9 +856,16 @@ void phy_start(struct phy_device *phydev)
 
 	mutex_lock(&phydev->lock);
 
+	if (phydev->state != PHY_READY && phydev->state != PHY_HALTED) {
+		WARN(1, "called from state %s\n",
+		     phy_state_to_str(phydev->state));
+		goto out;
+	}
+
 	switch (phydev->state) {
 	case PHY_READY:
 		phydev->state = PHY_UP;
+		phy_start_machine(phydev);
 		break;
 	case PHY_HALTED:
 		/* if phy was suspended, bring the physical link up again */
@@ -872,13 +879,13 @@ void phy_start(struct phy_device *phydev)
 		}
 
 		phydev->state = PHY_RESUMING;
+		phy_start_machine(phydev);
 		break;
 	default:
 		break;
 	}
+out:
 	mutex_unlock(&phydev->lock);
-
-	phy_start_machine(phydev);
 }
 EXPORT_SYMBOL(phy_start);
 
