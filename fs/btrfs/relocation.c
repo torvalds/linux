@@ -1898,6 +1898,13 @@ again:
 		if (ret < 0)
 			break;
 
+		btrfs_node_key_to_cpu(parent, &first_key, slot);
+		ret = btrfs_qgroup_add_swapped_blocks(trans, dest,
+				rc->block_group, parent, slot,
+				path->nodes[level], path->slots[level],
+				last_snapshot);
+		if (ret < 0)
+			break;
 		/*
 		 * swap blocks in fs tree and reloc tree.
 		 */

@@ -3818,3 +3818,153 @@ void btrfs_qgroup_check_reserved_leak(struct inode *inode)
 	}
 	extent_changeset_release(&changeset);
 }
+
+void btrfs_qgroup_init_swapped_blocks(
+	struct btrfs_qgroup_swapped_blocks *swapped_blocks)
+{
+	int i;
+
+	spin_lock_init(&swapped_blocks->lock);
+	for (i = 0; i < BTRFS_MAX_LEVEL; i++)
+		swapped_blocks->blocks[i] = RB_ROOT;
+	swapped_blocks->swapped = false;
+}
+
+/*
+ * Delete all swapped blocks record of @root.
+ * Every record here means we skipped a full subtree scan for qgroup.
+ *
+ * Gets called when committing one transaction.
+ */
+void btrfs_qgroup_clean_swapped_blocks(struct btrfs_root *root)
+{
+	struct btrfs_qgroup_swapped_blocks *swapped_blocks;
+	int i;
+
+	swapped_blocks = &root->swapped_blocks;
+
+	spin_lock(&swapped_blocks->lock);
+	if (!swapped_blocks->swapped)
+		goto out;
+	for (i = 0; i < BTRFS_MAX_LEVEL; i++) {
+		struct rb_root *cur_root = &swapped_blocks->blocks[i];
+		struct btrfs_qgroup_swapped_block *entry;
+		struct btrfs_qgroup_swapped_block *next;
+
+		rbtree_postorder_for_each_entry_safe(entry, next, cur_root,
+						     node)
+			kfree(entry);
+		swapped_blocks->blocks[i] = RB_ROOT;
+	}
+	swapped_blocks->swapped = false;
+out:
+	spin_unlock(&swapped_blocks->lock);
+}
+
+/*
+ * Add subtree roots record into @subvol_root.
+ *
+ * @subvol_root:	tree root of the subvolume tree get swapped
+ * @bg:			block group under balance
+ * @subvol_parent/slot:	pointer to the subtree root in subvolume tree
+ * @reloc_parent/slot:	pointer to the subtree root in reloc tree
+ *			BOTH POINTERS ARE BEFORE TREE SWAP
+ * @last_snapshot:	last snapshot generation of the subvolume tree
+ */
+int btrfs_qgroup_add_swapped_blocks(struct btrfs_trans_handle *trans,
+		struct btrfs_root *subvol_root,
+		struct btrfs_block_group_cache *bg,
+		struct extent_buffer *subvol_parent, int subvol_slot,
+		struct extent_buffer *reloc_parent, int reloc_slot,
+		u64 last_snapshot)
+{
+	struct btrfs_fs_info *fs_info = subvol_root->fs_info;
+	struct btrfs_qgroup_swapped_blocks *blocks = &subvol_root->swapped_blocks;
+	struct btrfs_qgroup_swapped_block *block;
+	struct rb_node **cur;
+	struct rb_node *parent = NULL;
+	int level = btrfs_header_level(subvol_parent) - 1;
+	int ret = 0;
+
+	if (!test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags))
+		return 0;
+
+	if (btrfs_node_ptr_generation(subvol_parent, subvol_slot) >
+	    btrfs_node_ptr_generation(reloc_parent, reloc_slot)) {
+		btrfs_err_rl(fs_info,
+		"%s: bad parameter order, subvol_gen=%llu reloc_gen=%llu",
+			__func__,
+			btrfs_node_ptr_generation(subvol_parent, subvol_slot),
+			btrfs_node_ptr_generation(reloc_parent, reloc_slot));
+		return -EUCLEAN;
+	}
+
+	block = kmalloc(sizeof(*block), GFP_NOFS);
+	if (!block) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	/*
+	 * @reloc_parent/slot is still before swap, while @block is going to
+	 * record the bytenr after swap, so we do the swap here.
+	 */
+	block->subvol_bytenr = btrfs_node_blockptr(reloc_parent, reloc_slot);
+	block->subvol_generation = btrfs_node_ptr_generation(reloc_parent,
+							     reloc_slot);
+	block->reloc_bytenr = btrfs_node_blockptr(subvol_parent, subvol_slot);
+	block->reloc_generation = btrfs_node_ptr_generation(subvol_parent,
+							    subvol_slot);
+	block->last_snapshot = last_snapshot;
+	block->level = level;
+	if (bg->flags & BTRFS_BLOCK_GROUP_DATA)
+		block->trace_leaf = true;
+	else
+		block->trace_leaf = false;
+	btrfs_node_key_to_cpu(reloc_parent, &block->first_key, reloc_slot);
+
+	/* Insert @block into @blocks */
+	spin_lock(&blocks->lock);
+	cur = &blocks->blocks[level].rb_node;
+	while (*cur) {
+		struct btrfs_qgroup_swapped_block *entry;
+
+		parent = *cur;
+		entry = rb_entry(parent, struct btrfs_qgroup_swapped_block,
+				 node);
+
+		if (entry->subvol_bytenr < block->subvol_bytenr) {
+			cur = &(*cur)->rb_left;
+		} else if (entry->subvol_bytenr > block->subvol_bytenr) {
+			cur = &(*cur)->rb_right;
+		} else {
+			if (entry->subvol_generation !=
+					block->subvol_generation ||
+			    entry->reloc_bytenr != block->reloc_bytenr ||
+			    entry->reloc_generation !=
+					block->reloc_generation) {
+				/*
+				 * Duplicated but mismatch entry found.
+				 * Shouldn't happen.
+				 *
+				 * Marking qgroup inconsistent should be enough
+				 * for end users.
+				 */
+				WARN_ON(IS_ENABLED(CONFIG_BTRFS_DEBUG));
+				ret = -EEXIST;
+			}
+			kfree(block);
+			goto out_unlock;
+		}
+	}
+	rb_link_node(&block->node, parent, cur);
+	rb_insert_color(&block->node, &blocks->blocks[level]);
+	blocks->swapped = true;
+out_unlock:
+	spin_unlock(&blocks->lock);
+out:
+	if (ret < 0)
+		fs_info->qgroup_flags |=
+			BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT;
+	return ret;
+}
