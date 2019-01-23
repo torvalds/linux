@@ -2017,6 +2017,59 @@ out:
 	return ret;
 }
 
+static int qgroup_trace_subtree_swap(struct btrfs_trans_handle *trans,
+				struct extent_buffer *src_eb,
+				struct extent_buffer *dst_eb,
+				u64 last_snapshot, bool trace_leaf)
+{
+	struct btrfs_fs_info *fs_info = trans->fs_info;
+	struct btrfs_path *dst_path = NULL;
+	int level;
+	int ret;
+
+	if (!test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags))
+		return 0;
+
+	/* Wrong parameter order */
+	if (btrfs_header_generation(src_eb) > btrfs_header_generation(dst_eb)) {
+		btrfs_err_rl(fs_info,
+		"%s: bad parameter order, src_gen=%llu dst_gen=%llu", __func__,
+			     btrfs_header_generation(src_eb),
+			     btrfs_header_generation(dst_eb));
+		return -EUCLEAN;
+	}
+
+	if (!extent_buffer_uptodate(src_eb) || !extent_buffer_uptodate(dst_eb)) {
+		ret = -EIO;
+		goto out;
+	}
+
+	level = btrfs_header_level(dst_eb);
+	dst_path = btrfs_alloc_path();
+	if (!dst_path) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	/* For dst_path */
+	extent_buffer_get(dst_eb);
+	dst_path->nodes[level] = dst_eb;
+	dst_path->slots[level] = 0;
+	dst_path->locks[level] = 0;
+
+	/* Do the generation aware breadth-first search */
+	ret = qgroup_trace_new_subtree_blocks(trans, src_eb, dst_path, level,
+					      level, last_snapshot, trace_leaf);
+	if (ret < 0)
+		goto out;
+	ret = 0;
+
+out:
+	btrfs_free_path(dst_path);
+	if (ret < 0)
+		fs_info->qgroup_flags |= BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT;
+	return ret;
+}
+
 /*
  * Inform qgroup to trace subtree swap used in balance.
  *
@@ -2042,14 +2095,12 @@ int btrfs_qgroup_trace_subtree_swap(struct btrfs_trans_handle *trans,
 				u64 last_snapshot)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
-	struct btrfs_path *dst_path = NULL;
 	struct btrfs_key first_key;
 	struct extent_buffer *src_eb = NULL;
 	struct extent_buffer *dst_eb = NULL;
 	bool trace_leaf = false;
 	u64 child_gen;
 	u64 child_bytenr;
-	int level;
 	int ret;
 
 	if (!test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags))
@@ -2100,22 +2151,9 @@ int btrfs_qgroup_trace_subtree_swap(struct btrfs_trans_handle *trans,
 		goto out;
 	}
 
-	level = btrfs_header_level(dst_eb);
-	dst_path = btrfs_alloc_path();
-	if (!dst_path) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	/* For dst_path */
-	extent_buffer_get(dst_eb);
-	dst_path->nodes[level] = dst_eb;
-	dst_path->slots[level] = 0;
-	dst_path->locks[level] = 0;
-
-	/* Do the generation-aware breadth-first search */
-	ret = qgroup_trace_new_subtree_blocks(trans, src_eb, dst_path, level,
-					      level, last_snapshot, trace_leaf);
+	/* Do the generation aware breadth-first search */
+	ret = qgroup_trace_subtree_swap(trans, src_eb, dst_eb, last_snapshot,
+					trace_leaf);
 	if (ret < 0)
 		goto out;
 	ret = 0;
@@ -2123,9 +2161,6 @@ int btrfs_qgroup_trace_subtree_swap(struct btrfs_trans_handle *trans,
 out:
 	free_extent_buffer(src_eb);
 	free_extent_buffer(dst_eb);
-	btrfs_free_path(dst_path);
-	if (ret < 0)
-		fs_info->qgroup_flags |= BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT;
 	return ret;
 }
 
