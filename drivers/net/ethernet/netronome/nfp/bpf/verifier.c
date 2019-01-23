@@ -786,3 +786,37 @@ int nfp_bpf_finalize(struct bpf_verifier_env *env)
 
 	return 0;
 }
+
+int nfp_bpf_opt_replace_insn(struct bpf_verifier_env *env, u32 off,
+			     struct bpf_insn *insn)
+{
+	struct nfp_prog *nfp_prog = env->prog->aux->offload->dev_priv;
+	struct bpf_insn_aux_data *aux_data = env->insn_aux_data;
+	struct nfp_insn_meta *meta = nfp_prog->verifier_meta;
+
+	meta = nfp_bpf_goto_meta(nfp_prog, meta, aux_data[off].orig_idx);
+	nfp_prog->verifier_meta = meta;
+
+	/* conditional jump to jump conversion */
+	if (is_mbpf_cond_jump(meta) &&
+	    insn->code == (BPF_JMP | BPF_JA | BPF_K)) {
+		unsigned int tgt_off;
+
+		tgt_off = off + insn->off + 1;
+
+		if (!insn->off) {
+			meta->jmp_dst = list_next_entry(meta, l);
+			meta->jump_neg_op = false;
+		} else if (meta->jmp_dst->n != aux_data[tgt_off].orig_idx) {
+			pr_vlog(env, "branch hard wire at %d changes target %d -> %d\n",
+				off, meta->jmp_dst->n,
+				aux_data[tgt_off].orig_idx);
+			return -EINVAL;
+		}
+		return 0;
+	}
+
+	pr_vlog(env, "unsupported instruction replacement %hhx -> %hhx\n",
+		meta->insn.code, insn->code);
+	return -EINVAL;
+}

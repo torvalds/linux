@@ -592,6 +592,7 @@ int nfp_net_bpf_offload(struct nfp_net *nn, struct bpf_prog *prog,
 const struct bpf_prog_offload_ops nfp_bpf_dev_ops = {
 	.insn_hook	= nfp_verify_insn,
 	.finalize	= nfp_bpf_finalize,
+	.replace_insn	= nfp_bpf_opt_replace_insn,
 	.prepare	= nfp_bpf_verifier_prep,
 	.translate	= nfp_bpf_translate,
 	.destroy	= nfp_bpf_destroy,

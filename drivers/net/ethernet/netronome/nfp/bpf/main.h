@@ -412,6 +412,17 @@ static inline bool is_mbpf_div(const struct nfp_insn_meta *meta)
 	return is_mbpf_alu(meta) && mbpf_op(meta) == BPF_DIV;
 }
 
+static inline bool is_mbpf_cond_jump(const struct nfp_insn_meta *meta)
+{
+	u8 op;
+
+	if (BPF_CLASS(meta->insn.code) != BPF_JMP)
+		return false;
+
+	op = BPF_OP(meta->insn.code);
+	return op != BPF_JA && op != BPF_EXIT && op != BPF_CALL;
+}
+
 static inline bool is_mbpf_helper_call(const struct nfp_insn_meta *meta)
 {
 	struct bpf_insn insn = meta->insn;
@@ -519,6 +530,9 @@ bool nfp_bpf_supported_opcode(u8 code);
 int nfp_verify_insn(struct bpf_verifier_env *env, int insn_idx,
 		    int prev_insn_idx);
 int nfp_bpf_finalize(struct bpf_verifier_env *env);
+
+int nfp_bpf_opt_replace_insn(struct bpf_verifier_env *env, u32 off,
+			     struct bpf_insn *insn);
 
 extern const struct bpf_prog_offload_ops nfp_bpf_dev_ops;
 
