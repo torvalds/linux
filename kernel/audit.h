@@ -215,7 +215,7 @@ extern void audit_log_session_info(struct audit_buffer *ab);
 
 extern void audit_copy_inode(struct audit_names *name,
 			     const struct dentry *dentry,
-			     struct inode *inode);
+			     struct inode *inode, unsigned int flags);
 extern void audit_log_cap(struct audit_buffer *ab, char *prefix,
 			  kernel_cap_t *cap);
 extern void audit_log_name(struct audit_context *context,

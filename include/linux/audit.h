@@ -25,6 +25,7 @@
 
 #include <linux/sched.h>
 #include <linux/ptrace.h>
+#include <linux/namei.h>  /* LOOKUP_* */
 #include <uapi/linux/audit.h>
 
 #define AUDIT_INO_UNSET ((unsigned long)-1)
@@ -248,6 +249,7 @@ extern void __audit_getname(struct filename *name);
 
 #define AUDIT_INODE_PARENT	1	/* dentry represents the parent */
 #define AUDIT_INODE_HIDDEN	2	/* audit record should be hidden */
+#define AUDIT_INODE_NOEVAL	4	/* audit record incomplete */
 extern void __audit_inode(struct filename *name, const struct dentry *dentry,
 				unsigned int flags);
 extern void __audit_file(const struct file *);
@@ -308,12 +310,15 @@ static inline void audit_getname(struct filename *name)
 }
 static inline void audit_inode(struct filename *name,
 				const struct dentry *dentry,
-				unsigned int parent) {
+				unsigned int flags) {
 	if (unlikely(!audit_dummy_context())) {
-		unsigned int flags = 0;
-		if (parent)
-			flags |= AUDIT_INODE_PARENT;
-		__audit_inode(name, dentry, flags);
+		unsigned int aflags = 0;
+
+		if (flags & LOOKUP_PARENT)
+			aflags |= AUDIT_INODE_PARENT;
+		if (flags & LOOKUP_NO_EVAL)
+			aflags |= AUDIT_INODE_NOEVAL;
+		__audit_inode(name, dentry, aflags);
 	}
 }
 static inline void audit_file(struct file *file)
