@@ -2492,9 +2492,6 @@ void btrfs_cleanup_ref_head_accounting(struct btrfs_fs_info *fs_info,
 		}
 	}
 
-	/* Also free its reserved qgroup space */
-	btrfs_qgroup_free_delayed_ref(fs_info, head->qgroup_ref_root,
-				      head->qgroup_reserved);
 	btrfs_delayed_refs_rsv_release(fs_info, nr_items);
 }
 
