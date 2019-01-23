@@ -878,7 +878,7 @@ void phy_start(struct phy_device *phydev)
 	}
 	mutex_unlock(&phydev->lock);
 
-	phy_trigger_machine(phydev);
+	phy_start_machine(phydev);
 }
 EXPORT_SYMBOL(phy_start);
 
