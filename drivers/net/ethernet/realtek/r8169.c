@@ -3372,6 +3372,24 @@ static void rtl8168g_disable_aldps(struct rtl8169_private *tp)
 	phy_clear_bits(tp->phydev, 0x10, BIT(2));
 }
 
+static void rtl8168g_phy_adjust_10m_aldps(struct rtl8169_private *tp)
+{
+	struct phy_device *phydev = tp->phydev;
+
+	phy_write(phydev, 0x1f, 0x0bcc);
+	phy_clear_bits(phydev, 0x14, BIT(8));
+
+	phy_write(phydev, 0x1f, 0x0a44);
+	phy_set_bits(phydev, 0x11, BIT(7) | BIT(6));
+
+	phy_write(phydev, 0x1f, 0x0a43);
+	phy_write(phydev, 0x13, 0x8084);
+	phy_clear_bits(phydev, 0x14, BIT(14) | BIT(13));
+	phy_set_bits(phydev, 0x10, BIT(12) | BIT(1) | BIT(0));
+
+	phy_write(phydev, 0x1f, 0x0000);
+}
+
 static void rtl8168g_1_hw_phy_config(struct rtl8169_private *tp)
 {
 	rtl_apply_firmware(tp);
@@ -3398,14 +3416,7 @@ static void rtl8168g_1_hw_phy_config(struct rtl8169_private *tp)
 	rtl_writephy(tp, 0x1f, 0x0a44);
 	rtl_w0w1_phy(tp, 0x11, 0x000c, 0x0000);
 
-	rtl_writephy(tp, 0x1f, 0x0bcc);
-	rtl_w0w1_phy(tp, 0x14, 0x0100, 0x0000);
-	rtl_writephy(tp, 0x1f, 0x0a44);
-	rtl_w0w1_phy(tp, 0x11, 0x00c0, 0x0000);
-	rtl_writephy(tp, 0x1f, 0x0a43);
-	rtl_writephy(tp, 0x13, 0x8084);
-	rtl_w0w1_phy(tp, 0x14, 0x0000, 0x6000);
-	rtl_w0w1_phy(tp, 0x10, 0x1003, 0x0000);
+	rtl8168g_phy_adjust_10m_aldps(tp);
 
 	/* EEE auto-fallback function */
 	rtl_writephy(tp, 0x1f, 0x0a4b);
@@ -3624,16 +3635,7 @@ static void rtl8168ep_1_hw_phy_config(struct rtl8169_private *tp)
 	rtl_w0w1_phy(tp, 0x11, 0x000c, 0x0000);
 	rtl_writephy(tp, 0x1f, 0x0000);
 
-	/* patch 10M & ALDPS */
-	rtl_writephy(tp, 0x1f, 0x0bcc);
-	rtl_w0w1_phy(tp, 0x14, 0x0000, 0x0100);
-	rtl_writephy(tp, 0x1f, 0x0a44);
-	rtl_w0w1_phy(tp, 0x11, 0x00c0, 0x0000);
-	rtl_writephy(tp, 0x1f, 0x0a43);
-	rtl_writephy(tp, 0x13, 0x8084);
-	rtl_w0w1_phy(tp, 0x14, 0x0000, 0x6000);
-	rtl_w0w1_phy(tp, 0x10, 0x1003, 0x0000);
-	rtl_writephy(tp, 0x1f, 0x0000);
+	rtl8168g_phy_adjust_10m_aldps(tp);
 
 	/* Enable EEE auto-fallback function */
 	rtl_writephy(tp, 0x1f, 0x0a4b);
@@ -3658,16 +3660,7 @@ static void rtl8168ep_1_hw_phy_config(struct rtl8169_private *tp)
 
 static void rtl8168ep_2_hw_phy_config(struct rtl8169_private *tp)
 {
-	/* patch 10M & ALDPS */
-	rtl_writephy(tp, 0x1f, 0x0bcc);
-	rtl_w0w1_phy(tp, 0x14, 0x0000, 0x0100);
-	rtl_writephy(tp, 0x1f, 0x0a44);
-	rtl_w0w1_phy(tp, 0x11, 0x00c0, 0x0000);
-	rtl_writephy(tp, 0x1f, 0x0a43);
-	rtl_writephy(tp, 0x13, 0x8084);
-	rtl_w0w1_phy(tp, 0x14, 0x0000, 0x6000);
-	rtl_w0w1_phy(tp, 0x10, 0x1003, 0x0000);
-	rtl_writephy(tp, 0x1f, 0x0000);
+	rtl8168g_phy_adjust_10m_aldps(tp);
 
 	/* Enable UC LPF tune function */
 	rtl_writephy(tp, 0x1f, 0x0a43);
