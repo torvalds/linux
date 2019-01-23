@@ -220,6 +220,10 @@ static int nfp_bpf_translate(struct bpf_prog *prog)
 	unsigned int max_instr;
 	int err;
 
+	/* We depend on dead code elimination succeeding */
+	if (prog->aux->offload->opt_failed)
+		return -EINVAL;
+
 	max_instr = nn_readw(nn, NFP_NET_CFG_BPF_MAX_LEN);
 	nfp_prog->__prog_alloc_len = max_instr * sizeof(u64);
 
@@ -593,6 +597,7 @@ const struct bpf_prog_offload_ops nfp_bpf_dev_ops = {
 	.insn_hook	= nfp_verify_insn,
 	.finalize	= nfp_bpf_finalize,
 	.replace_insn	= nfp_bpf_opt_replace_insn,
+	.remove_insns	= nfp_bpf_opt_remove_insns,
 	.prepare	= nfp_bpf_verifier_prep,
 	.translate	= nfp_bpf_translate,
 	.destroy	= nfp_bpf_destroy,

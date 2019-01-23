@@ -820,3 +820,27 @@ int nfp_bpf_opt_replace_insn(struct bpf_verifier_env *env, u32 off,
 		meta->insn.code, insn->code);
 	return -EINVAL;
 }
+
+int nfp_bpf_opt_remove_insns(struct bpf_verifier_env *env, u32 off, u32 cnt)
+{
+	struct nfp_prog *nfp_prog = env->prog->aux->offload->dev_priv;
+	struct bpf_insn_aux_data *aux_data = env->insn_aux_data;
+	struct nfp_insn_meta *meta = nfp_prog->verifier_meta;
+	unsigned int i;
+
+	meta = nfp_bpf_goto_meta(nfp_prog, meta, aux_data[off].orig_idx);
+
+	for (i = 0; i < cnt; i++) {
+		if (WARN_ON_ONCE(&meta->l == &nfp_prog->insns))
+			return -EINVAL;
+
+		/* doesn't count if it already has the flag */
+		if (meta->flags & FLAG_INSN_SKIP_VERIFIER_OPT)
+			i--;
+
+		meta->flags |= FLAG_INSN_SKIP_VERIFIER_OPT;
+		meta = list_next_entry(meta, l);
+	}
+
+	return 0;
+}

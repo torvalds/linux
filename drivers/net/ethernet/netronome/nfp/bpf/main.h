@@ -247,9 +247,12 @@ struct nfp_bpf_reg_state {
 #define FLAG_INSN_SKIP_NOOP			BIT(3)
 /* Instruction is optimized out based on preceding instructions */
 #define FLAG_INSN_SKIP_PREC_DEPENDENT		BIT(4)
+/* Instruction is optimized by the verifier */
+#define FLAG_INSN_SKIP_VERIFIER_OPT		BIT(5)
 
 #define FLAG_INSN_SKIP_MASK		(FLAG_INSN_SKIP_NOOP | \
-					 FLAG_INSN_SKIP_PREC_DEPENDENT)
+					 FLAG_INSN_SKIP_PREC_DEPENDENT | \
+					 FLAG_INSN_SKIP_VERIFIER_OPT)
 
 /**
  * struct nfp_insn_meta - BPF instruction wrapper
@@ -533,6 +536,7 @@ int nfp_bpf_finalize(struct bpf_verifier_env *env);
 
 int nfp_bpf_opt_replace_insn(struct bpf_verifier_env *env, u32 off,
 			     struct bpf_insn *insn);
+int nfp_bpf_opt_remove_insns(struct bpf_verifier_env *env, u32 off, u32 cnt);
 
 extern const struct bpf_prog_offload_ops nfp_bpf_dev_ops;
 
