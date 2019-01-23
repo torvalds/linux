@@ -25,6 +25,7 @@
 #include <linux/user_namespace.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/netfilter_ipv6.h>
+#include <linux/zlib.h>
 #include <net/sock.h>
 #include <uapi/linux/mount.h>
 
@@ -1266,6 +1267,16 @@ static const struct kernel_param_ops param_ops_aauint = {
 	.get = param_get_aauint
 };
 
+static int param_set_aacompressionlevel(const char *val,
+					const struct kernel_param *kp);
+static int param_get_aacompressionlevel(char *buffer,
+					const struct kernel_param *kp);
+#define param_check_aacompressionlevel param_check_int
+static const struct kernel_param_ops param_ops_aacompressionlevel = {
+	.set = param_set_aacompressionlevel,
+	.get = param_get_aacompressionlevel
+};
+
 static int param_set_aalockpolicy(const char *val, const struct kernel_param *kp);
 static int param_get_aalockpolicy(char *buffer, const struct kernel_param *kp);
 #define param_check_aalockpolicy param_check_bool
@@ -1295,6 +1306,11 @@ bool aa_g_hash_policy = IS_ENABLED(CONFIG_SECURITY_APPARMOR_HASH_DEFAULT);
 #ifdef CONFIG_SECURITY_APPARMOR_HASH
 module_param_named(hash_policy, aa_g_hash_policy, aabool, S_IRUSR | S_IWUSR);
 #endif
+
+/* policy loaddata compression level */
+int aa_g_rawdata_compression_level = Z_DEFAULT_COMPRESSION;
+module_param_named(rawdata_compression_level, aa_g_rawdata_compression_level,
+		   aacompressionlevel, 0400);
 
 /* Debug mode */
 bool aa_g_debug = IS_ENABLED(CONFIG_SECURITY_APPARMOR_DEBUG_MESSAGES);
@@ -1458,6 +1474,37 @@ static int param_get_aaintbool(char *buffer, const struct kernel_param *kp)
 	kp_local.arg = &value;
 
 	return param_get_bool(buffer, &kp_local);
+}
+
+static int param_set_aacompressionlevel(const char *val,
+					const struct kernel_param *kp)
+{
+	int error;
+
+	if (!apparmor_enabled)
+		return -EINVAL;
+	if (apparmor_initialized)
+		return -EPERM;
+
+	error = param_set_int(val, kp);
+
+	aa_g_rawdata_compression_level = clamp(aa_g_rawdata_compression_level,
+					       Z_NO_COMPRESSION,
+					       Z_BEST_COMPRESSION);
+	pr_info("AppArmor: policy rawdata compression level set to %u\n",
+		aa_g_rawdata_compression_level);
+
+	return error;
+}
+
+static int param_get_aacompressionlevel(char *buffer,
+					const struct kernel_param *kp)
+{
+	if (!apparmor_enabled)
+		return -EINVAL;
+	if (apparmor_initialized && !policy_view_capable(NULL))
+		return -EPERM;
+	return param_get_int(buffer, kp);
 }
 
 static int param_get_audit(char *buffer, const struct kernel_param *kp)
