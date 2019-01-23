@@ -451,7 +451,7 @@ config USE_OF
 	help
 	  Include support for flattened device tree machine descriptions.
 
-config BUILTIN_DTB
+config BUILTIN_DTB_SOURCE
 	string "DTB to build into the kernel image"
 	depends on OF
 
