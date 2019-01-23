@@ -194,35 +194,16 @@ static int sof_send_pm_ipc(struct snd_sof_dev *sdev, int cmd)
 				 sizeof(pm_ctx), &reply, sizeof(reply));
 }
 
-static void sof_suspend_streams(struct snd_sof_dev *sdev)
+static void sof_set_restore_stream(struct snd_sof_dev *sdev)
 {
 	struct snd_sof_pcm *spcm;
-	struct snd_pcm_substream *substream;
-	int dir, playback_dir, capture_dir;
 
 	/* suspend all running streams */
 	list_for_each_entry(spcm, &sdev->pcm_list, list) {
-
 		mutex_lock(&spcm->mutex);
 
-		playback_dir = SNDRV_PCM_STREAM_PLAYBACK;
-		capture_dir = SNDRV_PCM_STREAM_CAPTURE;
-
-		/* suspend running streams in both directions */
-		for (dir = playback_dir; dir <= capture_dir; dir++) {
-			substream = spcm->stream[dir].substream;
-
-			if (substream && substream->runtime) {
-
-				snd_pcm_suspend(substream);
-
-				/*
-				 * set restore_stream so that hw_params can be
-				 * restored during resume
-				 */
-				spcm->restore_stream[dir] = 1;
-			}
-		}
+		spcm->restore_stream[0] = 1;
+		spcm->restore_stream[1] = 1;
 
 		mutex_unlock(&spcm->mutex);
 	}
@@ -311,11 +292,9 @@ static int sof_suspend(struct device *dev, bool runtime_suspend)
 	/* release trace */
 	snd_sof_release_trace(sdev);
 
-	/*
-	 * Suspend running pcm streams.
-	 * They will be restarted by ALSA resume trigger call.
-	 */
-	sof_suspend_streams(sdev);
+	/* set restore_stream for all streams during system suspend */
+	if (!runtime_suspend)
+		sof_set_restore_stream(sdev);
 
 	/* notify DSP of upcoming power down */
 	ret = sof_send_pm_ipc(sdev, SOF_IPC_PM_CTX_SAVE);
