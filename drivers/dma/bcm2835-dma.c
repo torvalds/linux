@@ -42,7 +42,6 @@
 
 struct bcm2835_dmadev {
 	struct dma_device ddev;
-	spinlock_t lock;
 	void __iomem *base;
 	struct device_dma_parameters dma_parms;
 };
@@ -64,7 +63,6 @@ struct bcm2835_cb_entry {
 
 struct bcm2835_chan {
 	struct virt_dma_chan vc;
-	struct list_head node;
 
 	struct dma_slave_config	cfg;
 	unsigned int dreq;
@@ -777,16 +775,10 @@ static int bcm2835_dma_slave_config(struct dma_chan *chan,
 static int bcm2835_dma_terminate_all(struct dma_chan *chan)
 {
 	struct bcm2835_chan *c = to_bcm2835_dma_chan(chan);
-	struct bcm2835_dmadev *d = to_bcm2835_dma_dev(c->vc.chan.device);
 	unsigned long flags;
 	LIST_HEAD(head);
 
 	spin_lock_irqsave(&c->vc.lock, flags);
-
-	/* Prevent this channel being scheduled */
-	spin_lock(&d->lock);
-	list_del_init(&c->node);
-	spin_unlock(&d->lock);
 
 	/* stop DMA activity */
 	if (c->desc) {
@@ -820,7 +812,6 @@ static int bcm2835_dma_chan_init(struct bcm2835_dmadev *d, int chan_id,
 
 	c->vc.desc_free = bcm2835_dma_desc_free;
 	vchan_init(&c->vc, &d->ddev);
-	INIT_LIST_HEAD(&c->node);
 
 	c->chan_base = BCM2835_DMA_CHANIO(d->base, chan_id);
 	c->ch = chan_id;
@@ -923,7 +914,6 @@ static int bcm2835_dma_probe(struct platform_device *pdev)
 	od->ddev.residue_granularity = DMA_RESIDUE_GRANULARITY_BURST;
 	od->ddev.dev = &pdev->dev;
 	INIT_LIST_HEAD(&od->ddev.channels);
-	spin_lock_init(&od->lock);
 
 	platform_set_drvdata(pdev, od);
 
