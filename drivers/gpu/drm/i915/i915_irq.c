@@ -4089,6 +4089,7 @@ static int gen11_irq_postinstall(struct drm_device *dev)
 	I915_WRITE(GEN11_DISPLAY_INT_CTL, GEN11_DISPLAY_IRQ_ENABLE);
 
 	gen11_master_intr_enable(dev_priv->regs);
+	POSTING_READ(GEN11_GFX_MSTR_IRQ);
 
 	return 0;
 }
