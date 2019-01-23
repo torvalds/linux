@@ -406,7 +406,7 @@ static void bcm2835_dma_fill_cb_chain_with_sg(
 	}
 }
 
-static int bcm2835_dma_abort(struct bcm2835_chan *c)
+static void bcm2835_dma_abort(struct bcm2835_chan *c)
 {
 	void __iomem *chan_base = c->chan_base;
 	long int timeout = 10000;
@@ -416,7 +416,7 @@ static int bcm2835_dma_abort(struct bcm2835_chan *c)
 	 * (The ACTIVE flag in the CS register is not a reliable indicator.)
 	 */
 	if (!readl(chan_base + BCM2835_DMA_ADDR))
-		return 0;
+		return;
 
 	/* Write 0 to the active bit - Pause the DMA */
 	writel(0, chan_base + BCM2835_DMA_CS);
@@ -432,7 +432,6 @@ static int bcm2835_dma_abort(struct bcm2835_chan *c)
 			"failed to complete outstanding writes\n");
 
 	writel(BCM2835_DMA_RESET, chan_base + BCM2835_DMA_CS);
-	return 0;
 }
 
 static void bcm2835_dma_start_desc(struct bcm2835_chan *c)
