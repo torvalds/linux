@@ -3182,7 +3182,7 @@ bpf_to_bpf_call(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 		wrp_immed_relo(nfp_prog, imm_b(nfp_prog), 0, RELO_IMMED_REL);
 	} else {
 		ret_tgt = nfp_prog_current_offset(nfp_prog) + 2;
-		emit_br(nfp_prog, BR_UNC, meta->n + 1 + meta->insn.imm, 1);
+		emit_br(nfp_prog, BR_UNC, meta->insn.imm, 1);
 		offset_br = nfp_prog_current_offset(nfp_prog);
 	}
 	wrp_immed_relo(nfp_prog, ret_reg(nfp_prog), ret_tgt, RELO_IMMED_REL);
