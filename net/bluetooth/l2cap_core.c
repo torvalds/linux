@@ -4265,6 +4265,7 @@ static inline int l2cap_config_rsp(struct l2cap_conn *conn,
 				goto done;
 			break;
 		}
+		/* fall through */
 
 	default:
 		l2cap_chan_set_err(chan, ECONNRESET);
