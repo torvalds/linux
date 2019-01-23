@@ -1399,7 +1399,12 @@ static void hns3_nic_get_stats64(struct net_device *netdev,
 	int queue_num = priv->ae_handle->kinfo.num_tqps;
 	struct hnae3_handle *handle = priv->ae_handle;
 	struct hns3_enet_ring *ring;
+	u64 rx_length_errors = 0;
+	u64 rx_crc_errors = 0;
+	u64 rx_multicast = 0;
 	unsigned int start;
+	u64 tx_errors = 0;
+	u64 rx_errors = 0;
 	unsigned int idx;
 	u64 tx_bytes = 0;
 	u64 rx_bytes = 0;
@@ -1422,6 +1427,8 @@ static void hns3_nic_get_stats64(struct net_device *netdev,
 			tx_pkts += ring->stats.tx_pkts;
 			tx_drop += ring->stats.tx_busy;
 			tx_drop += ring->stats.sw_err_cnt;
+			tx_errors += ring->stats.tx_busy;
+			tx_errors += ring->stats.sw_err_cnt;
 		} while (u64_stats_fetch_retry_irq(&ring->syncp, start));
 
 		/* fetch the rx stats */
@@ -1433,6 +1440,12 @@ static void hns3_nic_get_stats64(struct net_device *netdev,
 			rx_drop += ring->stats.non_vld_descs;
 			rx_drop += ring->stats.err_pkt_len;
 			rx_drop += ring->stats.l2_err;
+			rx_errors += ring->stats.non_vld_descs;
+			rx_errors += ring->stats.l2_err;
+			rx_crc_errors += ring->stats.l2_err;
+			rx_crc_errors += ring->stats.l3l4_csum_err;
+			rx_multicast += ring->stats.rx_multicast;
+			rx_length_errors += ring->stats.err_pkt_len;
 		} while (u64_stats_fetch_retry_irq(&ring->syncp, start));
 	}
 
@@ -1441,15 +1454,15 @@ static void hns3_nic_get_stats64(struct net_device *netdev,
 	stats->rx_bytes = rx_bytes;
 	stats->rx_packets = rx_pkts;
 
-	stats->rx_errors = netdev->stats.rx_errors;
-	stats->multicast = netdev->stats.multicast;
-	stats->rx_length_errors = netdev->stats.rx_length_errors;
-	stats->rx_crc_errors = netdev->stats.rx_crc_errors;
+	stats->rx_errors = rx_errors;
+	stats->multicast = rx_multicast;
+	stats->rx_length_errors = rx_length_errors;
+	stats->rx_crc_errors = rx_crc_errors;
 	stats->rx_missed_errors = netdev->stats.rx_missed_errors;
 
-	stats->tx_errors = netdev->stats.tx_errors;
-	stats->rx_dropped = rx_drop + netdev->stats.rx_dropped;
-	stats->tx_dropped = tx_drop + netdev->stats.tx_dropped;
+	stats->tx_errors = tx_errors;
+	stats->rx_dropped = rx_drop;
+	stats->tx_dropped = tx_drop;
 	stats->collisions = netdev->stats.collisions;
 	stats->rx_over_errors = netdev->stats.rx_over_errors;
 	stats->rx_frame_errors = netdev->stats.rx_frame_errors;
@@ -2572,6 +2585,7 @@ static int hns3_handle_rx_bd(struct hns3_enet_ring *ring,
 			     struct sk_buff **out_skb)
 {
 	struct net_device *netdev = ring->tqp->handle->kinfo.netdev;
+	enum hns3_pkt_l2t_type l2_frame_type;
 	struct sk_buff *skb = ring->skb;
 	struct hns3_desc_cb *desc_cb;
 	struct hns3_desc *desc;
@@ -2680,7 +2694,12 @@ static int hns3_handle_rx_bd(struct hns3_enet_ring *ring,
 		return -EFAULT;
 	}
 
+	l2_frame_type = hnae3_get_field(l234info, HNS3_RXD_DMAC_M,
+					HNS3_RXD_DMAC_S);
 	u64_stats_update_begin(&ring->syncp);
+	if (l2_frame_type == HNS3_L2_TYPE_MULTICAST)
+		ring->stats.rx_multicast++;
+
 	ring->stats.rx_pkts++;
 	ring->stats.rx_bytes += skb->len;
 	u64_stats_update_end(&ring->syncp);
@@ -3378,6 +3397,11 @@ static void hns3_fini_ring(struct hns3_enet_ring *ring)
 	ring->desc_cb = NULL;
 	ring->next_to_clean = 0;
 	ring->next_to_use = 0;
+	ring->pending_buf = 0;
+	if (ring->skb) {
+		dev_kfree_skb_any(ring->skb);
+		ring->skb = NULL;
+	}
 }
 
 static int hns3_buf_size2type(u32 buf_size)
@@ -4144,6 +4168,7 @@ int hns3_set_channels(struct net_device *netdev,
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
 	struct hnae3_knic_private_info *kinfo = &h->kinfo;
+	bool rxfh_configured = netif_is_rxfh_configured(netdev);
 	u32 new_tqp_num = ch->combined_count;
 	u16 org_tqp_num;
 	int ret;
@@ -4171,9 +4196,10 @@ int hns3_set_channels(struct net_device *netdev,
 		return ret;
 
 	org_tqp_num = h->kinfo.num_tqps;
-	ret = h->ae_algo->ops->set_channels(h, new_tqp_num);
+	ret = h->ae_algo->ops->set_channels(h, new_tqp_num, rxfh_configured);
 	if (ret) {
-		ret = h->ae_algo->ops->set_channels(h, org_tqp_num);
+		ret = h->ae_algo->ops->set_channels(h, org_tqp_num,
+						    rxfh_configured);
 		if (ret) {
 			/* If revert to old tqp failed, fatal error occurred */
 			dev_err(&netdev->dev,
