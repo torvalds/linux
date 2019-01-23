@@ -4,8 +4,21 @@
 #include "error.h"
 #include "../string.h"
 
+#include <linux/numa.h>
 #include <linux/efi.h>
 #include <asm/efi.h>
+
+/*
+ * Longest parameter of 'acpi=' is 'copy_dsdt', plus an extra '\0'
+ * for termination.
+ */
+#define MAX_ACPI_ARG_LENGTH 10
+
+/*
+ * Immovable memory regions representation. Max amount of memory regions is
+ * MAX_NUMNODES*2.
+ */
+struct mem_vector immovable_mem[MAX_NUMNODES*2];
 
 /*
  * Max length of 64-bit hex address string is 19, prefix "0x" + 16 hex
@@ -203,3 +216,111 @@ acpi_physical_address get_rsdp_addr(void)
 
 	return pa;
 }
+
+#if defined(CONFIG_RANDOMIZE_BASE) && defined(CONFIG_MEMORY_HOTREMOVE)
+/* Compute SRAT address from RSDP. */
+static unsigned long get_acpi_srat_table(void)
+{
+	unsigned long root_table, acpi_table;
+	struct acpi_table_header *header;
+	struct acpi_table_rsdp *rsdp;
+	u32 num_entries, size, len;
+	char arg[10];
+	u8 *entry;
+
+	rsdp = (struct acpi_table_rsdp *)(long)boot_params->acpi_rsdp_addr;
+	if (!rsdp)
+		return 0;
+
+	/* Get ACPI root table from RSDP.*/
+	if (!(cmdline_find_option("acpi", arg, sizeof(arg)) == 4 &&
+	    !strncmp(arg, "rsdt", 4)) &&
+	    rsdp->xsdt_physical_address &&
+	    rsdp->revision > 1) {
+		root_table = rsdp->xsdt_physical_address;
+		size = ACPI_XSDT_ENTRY_SIZE;
+	} else {
+		root_table = rsdp->rsdt_physical_address;
+		size = ACPI_RSDT_ENTRY_SIZE;
+	}
+
+	if (!root_table)
+		return 0;
+
+	header = (struct acpi_table_header *)root_table;
+	len = header->length;
+	if (len < sizeof(struct acpi_table_header) + size)
+		return 0;
+
+	num_entries = (len - sizeof(struct acpi_table_header)) / size;
+	entry = (u8 *)(root_table + sizeof(struct acpi_table_header));
+
+	while (num_entries--) {
+		if (size == ACPI_RSDT_ENTRY_SIZE)
+			acpi_table = *(u32 *)entry;
+		else
+			acpi_table = *(u64 *)entry;
+
+		if (acpi_table) {
+			header = (struct acpi_table_header *)acpi_table;
+
+			if (ACPI_COMPARE_NAME(header->signature, ACPI_SIG_SRAT))
+				return acpi_table;
+		}
+		entry += size;
+	}
+	return 0;
+}
+
+/**
+ * count_immovable_mem_regions - Parse SRAT and cache the immovable
+ * memory regions into the immovable_mem array.
+ *
+ * Return the number of immovable memory regions on success, 0 on failure:
+ *
+ * - Too many immovable memory regions
+ * - ACPI off or no SRAT found
+ * - No immovable memory region found.
+ */
+int count_immovable_mem_regions(void)
+{
+	unsigned long table_addr, table_end, table;
+	struct acpi_subtable_header *sub_table;
+	struct acpi_table_header *table_header;
+	char arg[MAX_ACPI_ARG_LENGTH];
+	int num = 0;
+
+	if (cmdline_find_option("acpi", arg, sizeof(arg)) == 3 &&
+	    !strncmp(arg, "off", 3))
+		return 0;
+
+	table_addr = get_acpi_srat_table();
+	if (!table_addr)
+		return 0;
+
+	table_header = (struct acpi_table_header *)table_addr;
+	table_end = table_addr + table_header->length;
+	table = table_addr + sizeof(struct acpi_table_srat);
+
+	while (table + sizeof(struct acpi_subtable_header) < table_end) {
+		sub_table = (struct acpi_subtable_header *)table;
+		if (sub_table->type == ACPI_SRAT_TYPE_MEMORY_AFFINITY) {
+			struct acpi_srat_mem_affinity *ma;
+
+			ma = (struct acpi_srat_mem_affinity *)sub_table;
+			if (!(ma->flags & ACPI_SRAT_MEM_HOT_PLUGGABLE) && ma->length) {
+				immovable_mem[num].start = ma->base_address;
+				immovable_mem[num].size = ma->length;
+				num++;
+			}
+
+			if (num >= MAX_NUMNODES*2) {
+				debug_putstr("Too many immovable memory regions, aborting.\n");
+				return 0;
+			}
+		}
+		table += sub_table->length;
+	}
+	return num;
+}
+#endif /* CONFIG_RANDOMIZE_BASE && CONFIG_MEMORY_HOTREMOVE */

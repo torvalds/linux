@@ -72,6 +72,10 @@ int cmdline_find_option(const char *option, char *buffer, int bufsize);
 int cmdline_find_option_bool(const char *option);
 #endif
 
+struct mem_vector {
+	unsigned long long start;
+	unsigned long long size;
+};
 
 #if CONFIG_RANDOMIZE_BASE
 /* kaslr.c */
@@ -125,4 +129,10 @@ void set_sev_encryption_mask(void);
 acpi_physical_address get_rsdp_addr(void);
 #else
 static inline acpi_physical_address get_rsdp_addr(void) { return 0; }
+#endif
+
+#if defined(CONFIG_RANDOMIZE_BASE) && defined(CONFIG_MEMORY_HOTREMOVE)
+int count_immovable_mem_regions(void);
+#else
+static inline int count_immovable_mem_regions(void) { return 0; }
 #endif
