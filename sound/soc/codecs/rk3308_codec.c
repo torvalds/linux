@@ -199,7 +199,9 @@ struct rk3308_codec_priv {
 	unsigned int hpout_l_dgain;
 	unsigned int hpout_r_dgain;
 
+	bool enable_micbias;
 	bool enable_all_adcs;
+	bool internal_micbias;
 	bool hp_plugged;
 	bool loopback_dacs_enabled;
 	bool no_deep_low_power;
@@ -2620,6 +2622,8 @@ static int rk3308_codec_micbias_enable(struct rk3308_codec_priv *rk3308,
 			   RK3308_ADC_MIC_BIAS_BUF_EN,
 			   RK3308_ADC_MIC_BIAS_BUF_EN);
 
+	rk3308->enable_micbias = true;
+
 	return 0;
 }
 
@@ -2648,6 +2652,8 @@ static int rk3308_codec_micbias_disable(struct rk3308_codec_priv *rk3308)
 	regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON08(0),
 			   RK3308_ADC_MICBIAS_CURRENT_MSK,
 			   RK3308_ADC_MICBIAS_CURRENT_DIS);
+
+	rk3308->enable_micbias = false;
 
 	return 0;
 }
@@ -3314,12 +3320,21 @@ static int rk3308_hw_params(struct snd_pcm_substream *substream,
 		rk3308_codec_dac_dig_config(rk3308, params);
 		rk3308_codec_set_dac_path_state(rk3308, PATH_BUSY);
 	} else {
+		if (rk3308->internal_micbias &&
+		    !rk3308->enable_micbias)
+			rk3308_codec_micbias_enable(rk3308, RK3308_ADC_MICBIAS_VOLT_0_85);
+
 		rk3308_codec_adc_mclk_enable(rk3308);
 		ret = rk3308_codec_update_adc_grps(rk3308, params);
 		if (ret < 0)
 			return ret;
 
 		if (handle_loopback(rk3308)) {
+			if (rk3308->internal_micbias &&
+			    (params_channels(params) == 2) &&
+			    to_mapped_grp(rk3308, 0) == rk3308->loopback_grp)
+				rk3308_codec_micbias_disable(rk3308);
+
 			/* Check the DACs are opened */
 			if (playback_str->substream_opened) {
 				rk3308->loopback_dacs_enabled = true;
@@ -3423,6 +3438,9 @@ static void rk3308_pcm_shutdown(struct snd_pcm_substream *substream,
 		if (!has_en_always_grps(rk3308)) {
 			rk3308_codec_adc_mclk_disable(rk3308);
 			rk3308_codec_update_adcs_status(rk3308, PATH_IDLE);
+			if (rk3308->internal_micbias &&
+			    rk3308->enable_micbias)
+				rk3308_codec_micbias_disable(rk3308);
 		}
 
 		regcache_cache_only(rk3308->regmap, false);
@@ -3662,7 +3680,7 @@ static int rk3308_probe(struct snd_soc_codec *codec)
 	rk3308_codec_power_on(rk3308);
 
 	/* From vendor recommend */
-	rk3308_codec_micbias_enable(rk3308, RK3308_ADC_MICBIAS_VOLT_0_85);
+	rk3308_codec_micbias_disable(rk3308);
 
 	rk3308_codec_prepare(rk3308);
 	if (!rk3308->no_hp_det)
@@ -4431,6 +4449,9 @@ static int rk3308_platform_probe(struct platform_device *pdev)
 
 	rk3308->enable_all_adcs =
 		of_property_read_bool(np, "rockchip,enable-all-adcs");
+
+	rk3308->internal_micbias =
+		of_property_read_bool(np, "rockchip,internal-micbias");
 
 	rk3308->no_deep_low_power =
 		of_property_read_bool(np, "rockchip,no-deep-low-power");
