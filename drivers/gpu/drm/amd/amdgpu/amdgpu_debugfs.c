@@ -978,12 +978,40 @@ static void amdgpu_ib_preempt_job_recovery(struct drm_gpu_scheduler *sched)
 	spin_unlock(&sched->job_list_lock);
 }
 
+static void amdgpu_ib_preempt_mark_partial_job(struct amdgpu_ring *ring)
+{
+	struct amdgpu_job *job;
+	struct drm_sched_job *s_job;
+	uint32_t preempt_seq;
+	struct dma_fence *fence, **ptr;
+	struct amdgpu_fence_driver *drv = &ring->fence_drv;
+	struct drm_gpu_scheduler *sched = &ring->sched;
+
+	if (ring->funcs->type != AMDGPU_RING_TYPE_GFX)
+		return;
+
+	preempt_seq = le32_to_cpu(*(drv->cpu_addr + 2));
+	if (preempt_seq <= atomic_read(&drv->last_seq))
+		return;
+
+	preempt_seq &= drv->num_fences_mask;
+	ptr = &drv->fences[preempt_seq];
+	fence = rcu_dereference_protected(*ptr, 1);
+
+	spin_lock(&sched->job_list_lock);
+	list_for_each_entry(s_job, &sched->ring_mirror_list, node) {
+		job = to_amdgpu_job(s_job);
+		if (job->fence == fence)
+			/* mark the job as preempted */
+			job->preemption_status |= AMDGPU_IB_PREEMPTED;
+	}
+	spin_unlock(&sched->job_list_lock);
+}
+
 static int amdgpu_debugfs_ib_preempt(void *data, u64 val)
 {
 	int r, resched, length;
 	struct amdgpu_ring *ring;
-	struct drm_sched_job *s_job;
-	struct amdgpu_job *job;
 	struct dma_fence **fences = NULL;
 	struct amdgpu_device *adev = (struct amdgpu_device *)data;
 
@@ -1022,20 +1050,12 @@ static int amdgpu_debugfs_ib_preempt(void *data, u64 val)
 	    ring->fence_drv.sync_seq) {
 		DRM_INFO("ring %d was preempted\n", ring->idx);
 
+		amdgpu_ib_preempt_mark_partial_job(ring);
+
 		/* swap out the old fences */
 		amdgpu_ib_preempt_fences_swap(ring, fences);
 
 		amdgpu_fence_driver_force_completion(ring);
-
-		s_job = list_first_entry_or_null(
-			&ring->sched.ring_mirror_list,
-			struct drm_sched_job, node);
-		if (s_job) {
-			job = to_amdgpu_job(s_job);
-			/* mark the job as preempted */
-			/* job->preemption_status |=
-			   AMDGPU_IB_PREEMPTED; */
-		}
 
 		/* resubmit unfinished jobs */
 		amdgpu_ib_preempt_job_recovery(&ring->sched);
