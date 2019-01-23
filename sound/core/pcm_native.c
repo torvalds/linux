@@ -2504,10 +2504,8 @@ static int snd_pcm_open_file(struct file *file,
 		return -ENOMEM;
 	}
 	pcm_file->substream = substream;
-	if (substream->ref_count == 1) {
-		substream->file = pcm_file;
+	if (substream->ref_count == 1)
 		substream->pcm_release = pcm_release_private;
-	}
 	file->private_data = pcm_file;
 
 	return 0;
