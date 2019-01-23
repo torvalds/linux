@@ -247,6 +247,7 @@ static int ceph_init_file(struct inode *inode, struct file *file, int fmode)
 	case S_IFREG:
 		ceph_fscache_register_inode_cookie(inode);
 		ceph_fscache_file_set_cookie(inode, file);
+		/* fall through */
 	case S_IFDIR:
 		ret = ceph_init_file_info(inode, file, fmode,
 						S_ISDIR(inode->i_mode));

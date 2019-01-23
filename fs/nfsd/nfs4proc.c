@@ -427,6 +427,7 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 				goto out;
 			open->op_openowner->oo_flags |= NFS4_OO_CONFIRMED;
 			reclaim = true;
+			/* fall through */
 		case NFS4_OPEN_CLAIM_FH:
 		case NFS4_OPEN_CLAIM_DELEG_CUR_FH:
 			status = do_open_fhandle(rqstp, cstate, open);
