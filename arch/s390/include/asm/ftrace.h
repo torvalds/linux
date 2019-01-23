@@ -81,5 +81,30 @@ static inline void ftrace_generate_call_insn(struct ftrace_insn *insn,
 #endif
 }
 
+/*
+ * Even though the system call numbers are identical for s390/s390x a
+ * different system call table is used for compat tasks. This may lead
+ * to e.g. incorrect or missing trace event sysfs files.
+ * Therefore simply do not trace compat system calls at all.
+ * See kernel/trace/trace_syscalls.c.
+ */
+#define ARCH_TRACE_IGNORE_COMPAT_SYSCALLS
+static inline bool arch_trace_is_compat_syscall(struct pt_regs *regs)
+{
+	return is_compat_task();
+}
+
+#define ARCH_HAS_SYSCALL_MATCH_SYM_NAME
+static inline bool arch_syscall_match_sym_name(const char *sym,
+					       const char *name)
+{
+	/*
+	 * Skip __s390_ and __s390x_ prefix - due to compat wrappers
+	 * and aliasing some symbols of 64 bit system call functions
+	 * may get the __s390_ prefix instead of the __s390x_ prefix.
+	 */
+	return !strcmp(sym + 7, name) || !strcmp(sym + 8, name);
+}
+
 #endif /* __ASSEMBLY__ */
 #endif /* _ASM_S390_FTRACE_H */
