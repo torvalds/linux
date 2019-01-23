@@ -1766,9 +1766,30 @@ void __audit_inode(struct filename *name, const struct dentry *dentry,
 	struct inode *inode = d_backing_inode(dentry);
 	struct audit_names *n;
 	bool parent = flags & AUDIT_INODE_PARENT;
+	struct audit_entry *e;
+	struct list_head *list = &audit_filter_list[AUDIT_FILTER_FS];
+	int i;
 
 	if (!context->in_syscall)
 		return;
+
+	rcu_read_lock();
+	if (!list_empty(list)) {
+		list_for_each_entry_rcu(e, list, list) {
+			for (i = 0; i < e->rule.field_count; i++) {
+				struct audit_field *f = &e->rule.fields[i];
+
+				if (f->type == AUDIT_FSTYPE
+				    && audit_comparator(inode->i_sb->s_magic,
+							f->op, f->val)
+				    && e->rule.action == AUDIT_NEVER) {
+					rcu_read_unlock();
+					return;
+				}
+			}
+		}
+	}
+	rcu_read_unlock();
 
 	if (!name)
 		goto out_alloc;
@@ -1878,14 +1899,12 @@ void __audit_inode_child(struct inode *parent,
 			for (i = 0; i < e->rule.field_count; i++) {
 				struct audit_field *f = &e->rule.fields[i];
 
-				if (f->type == AUDIT_FSTYPE) {
-					if (audit_comparator(parent->i_sb->s_magic,
-					    f->op, f->val)) {
-						if (e->rule.action == AUDIT_NEVER) {
-							rcu_read_unlock();
-							return;
-						}
-					}
+				if (f->type == AUDIT_FSTYPE
+				    && audit_comparator(parent->i_sb->s_magic,
+							f->op, f->val)
+				    && e->rule.action == AUDIT_NEVER) {
+					rcu_read_unlock();
+					return;
 				}
 			}
 		}
