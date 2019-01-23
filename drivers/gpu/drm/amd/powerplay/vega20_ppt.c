@@ -1764,44 +1764,35 @@ static enum amd_dpm_forced_level vega20_get_performance_level(struct smu_context
 	return smu_dpm_ctx->dpm_level;
 }
 
-static int
-vega20_force_performance_level(struct smu_context *smu, enum amd_dpm_forced_level level)
+static int vega20_adjust_power_state_dynamic(struct smu_context *smu,
+					     enum amd_dpm_forced_level level)
 {
 	int ret = 0;
 	int index = 0;
-	int i = 0;
 	uint32_t sclk_mask, mclk_mask, soc_mask;
 	long workload;
 	struct smu_dpm_context *smu_dpm_ctx = &(smu->smu_dpm);
-	if (!smu_dpm_ctx->dpm_context)
-		return -EINVAL;
 
-	for (i = 0; i < smu->adev->num_ip_blocks; i++) {
-		if (smu->adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_SMC)
-			break;
-	}
-	mutex_lock(&smu->mutex);
-	smu->adev->ip_blocks[i].version->funcs->enable_umd_pstate(smu, &level);
 	ret = vega20_display_config_changed(smu);
 	if (ret) {
 		pr_err("Failed to change display config!");
-		goto failed;
+		return ret;
 	}
 	ret = vega20_apply_clocks_adjust_rules(smu);
 	if (ret) {
 		pr_err("Failed to apply clocks adjust rules!");
-		goto failed;
+		return ret;
 	}
 	ret = vega20_notify_smc_dispaly_config(smu);
 	if (ret) {
 		pr_err("Failed to notify smc display config!");
-		goto failed;
+		return ret;
 	}
+
 	switch (level) {
 	case AMD_DPM_FORCED_LEVEL_HIGH:
 		ret = vega20_force_dpm_highest(smu);
 		break;
-
 	case AMD_DPM_FORCED_LEVEL_LOW:
 		ret = vega20_force_dpm_lowest(smu);
 		break;
@@ -1819,7 +1810,7 @@ vega20_force_performance_level(struct smu_context *smu, enum amd_dpm_forced_leve
 						    &mclk_mask,
 						    &soc_mask);
 		if (ret)
-			goto failed;
+			return ret;
 		vega20_force_clk_levels(smu, PP_SCLK, 1 << sclk_mask);
 		vega20_force_clk_levels(smu, PP_MCLK, 1 << mclk_mask);
 		break;
@@ -1842,8 +1833,31 @@ vega20_force_performance_level(struct smu_context *smu, enum amd_dpm_forced_leve
 			smu->funcs->set_power_profile_mode(smu, &workload, 0);
 	}
 
-failed:
+	return ret;
+}
+
+static int
+vega20_force_performance_level(struct smu_context *smu, enum amd_dpm_forced_level level)
+{
+	int ret = 0;
+	int i;
+	struct smu_dpm_context *smu_dpm_ctx = &(smu->smu_dpm);
+
+	if (!smu_dpm_ctx->dpm_context)
+		return -EINVAL;
+
+	for (i = 0; i < smu->adev->num_ip_blocks; i++) {
+		if (smu->adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_SMC)
+			break;
+	}
+
+	mutex_lock(&smu->mutex);
+
+	smu->adev->ip_blocks[i].version->funcs->enable_umd_pstate(smu, &level);
+	ret = vega20_adjust_power_state_dynamic(smu, level);
+
 	mutex_unlock(&smu->mutex);
+
 	return ret;
 }
 
@@ -1934,8 +1948,11 @@ static int vega20_set_od_percentage(struct smu_context *smu,
 	struct vega20_single_dpm_table *single_dpm_table;
 	struct vega20_single_dpm_table *golden_dpm_table;
 	uint32_t od_clk, index;
-	int ret, feature_enabled;
+	int ret = 0;
+	int feature_enabled;
 	PPCLK_e clk_id;
+
+	mutex_lock(&(smu->mutex));
 
 	dpm_table = smu_dpm->dpm_context;
 	golden_table = smu_dpm->golden_dpm_context;
@@ -1956,9 +1973,12 @@ static int vega20_set_od_percentage(struct smu_context *smu,
 		index = OD8_SETTING_UCLK_FMAX;
 		break;
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
 		break;
 	}
+
+	if (ret)
+		goto set_od_failed;
 
 	od_clk = golden_dpm_table->dpm_levels[golden_dpm_table->count - 1].value * value;
 	od_clk /= 100;
@@ -1967,7 +1987,7 @@ static int vega20_set_od_percentage(struct smu_context *smu,
 	ret = smu_update_od8_settings(smu, index, od_clk);
 	if (ret) {
 		pr_err("[Setoverdrive] failed to set od clk!\n");
-		return ret;
+		goto set_od_failed;
 	}
 
 	if (feature_enabled) {
@@ -1975,14 +1995,19 @@ static int vega20_set_od_percentage(struct smu_context *smu,
 						  clk_id);
 		if (ret) {
 			pr_err("[Setoverdrive] failed to refresh dpm table!\n");
-			return ret;
+			goto set_od_failed;
 		}
 	} else {
 		single_dpm_table->count = 1;
 		single_dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.gfxclk / 100;
 	}
 
-	return 0;
+	ret = vega20_adjust_power_state_dynamic(smu, smu_dpm->dpm_level);
+
+set_od_failed:
+	mutex_unlock(&(smu->mutex));
+
+	return ret;
 }
 
 static int vega20_odn_edit_dpm_table(struct smu_context *smu,
@@ -1999,7 +2024,8 @@ static int vega20_odn_edit_dpm_table(struct smu_context *smu,
 		(struct vega20_od8_settings *)table_context->od8_settings;
 	struct pp_clock_levels_with_latency clocks;
 	int32_t input_index, input_clk, input_vol, i;
-	int od8_id, ret;
+	int od8_id;
+	int ret = 0;
 
 	dpm_table = smu_dpm->dpm_context;
 
@@ -2204,7 +2230,13 @@ static int vega20_odn_edit_dpm_table(struct smu_context *smu,
 		return -EINVAL;
 	}
 
-	return 0;
+	if (type == PP_OD_COMMIT_DPM_TABLE) {
+		mutex_lock(&(smu->mutex));
+		ret = vega20_adjust_power_state_dynamic(smu, smu_dpm->dpm_level);
+		mutex_unlock(&(smu->mutex));
+	}
+
+	return ret;
 }
 
 static const struct pptable_funcs vega20_ppt_funcs = {
