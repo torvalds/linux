@@ -923,7 +923,6 @@ static struct platform_driver ti_iodelay_driver = {
 	.probe = ti_iodelay_probe,
 	.remove = ti_iodelay_remove,
 	.driver = {
-		   .owner = THIS_MODULE,
 		   .name = DRIVER_NAME,
 		   .of_match_table = ti_iodelay_of_match,
 	},
