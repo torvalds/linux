@@ -1334,6 +1334,24 @@ static void allocator_start_issue_discards(struct bch_fs *c)
 					     ca->mi.bucket_size, GFP_NOIO);
 }
 
+static int resize_free_inc(struct bch_dev *ca)
+{
+	alloc_fifo free_inc;
+
+	if (!fifo_full(&ca->free_inc))
+		return 0;
+
+	if (!init_fifo(&free_inc,
+		       ca->free_inc.size * 2,
+		       GFP_KERNEL))
+		return -ENOMEM;
+
+	fifo_move(&free_inc, &ca->free_inc);
+	swap(free_inc, ca->free_inc);
+	free_fifo(&free_inc);
+	return 0;
+}
+
 static int __bch2_fs_allocator_start(struct bch_fs *c)
 {
 	struct bch_dev *ca;
@@ -1409,6 +1427,12 @@ not_enough:
 
 			while (!fifo_full(&ca->free[RESERVE_BTREE]) &&
 			       (bu = next_alloc_bucket(ca)) >= 0) {
+				ret = resize_free_inc(ca);
+				if (ret) {
+					percpu_ref_put(&ca->io_ref);
+					return ret;
+				}
+
 				bch2_invalidate_one_bucket(c, ca, bu,
 							   &journal_seq);
 
