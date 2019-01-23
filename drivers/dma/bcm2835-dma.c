@@ -406,12 +406,10 @@ static void bcm2835_dma_fill_cb_chain_with_sg(
 	}
 }
 
-static int bcm2835_dma_abort(void __iomem *chan_base)
+static int bcm2835_dma_abort(struct bcm2835_chan *c)
 {
-	unsigned long cs;
+	void __iomem *chan_base = c->chan_base;
 	long int timeout = 10000;
-
-	cs = readl(chan_base + BCM2835_DMA_CS);
 
 	/*
 	 * A zero control block address means the channel is idle.
@@ -424,25 +422,16 @@ static int bcm2835_dma_abort(void __iomem *chan_base)
 	writel(0, chan_base + BCM2835_DMA_CS);
 
 	/* Wait for any current AXI transfer to complete */
-	while ((cs & BCM2835_DMA_ISPAUSED) && --timeout) {
+	while ((readl(chan_base + BCM2835_DMA_CS) &
+		BCM2835_DMA_WAITING_FOR_WRITES) && --timeout)
 		cpu_relax();
-		cs = readl(chan_base + BCM2835_DMA_CS);
-	}
 
-	/* We'll un-pause when we set of our next DMA */
+	/* Peripheral might be stuck and fail to signal AXI write responses */
 	if (!timeout)
-		return -ETIMEDOUT;
+		dev_err(c->vc.chan.device->dev,
+			"failed to complete outstanding writes\n");
 
-	if (!(cs & BCM2835_DMA_ACTIVE))
-		return 0;
-
-	/* Terminate the control block chain */
-	writel(0, chan_base + BCM2835_DMA_NEXTCB);
-
-	/* Abort the whole DMA */
-	writel(BCM2835_DMA_ABORT | BCM2835_DMA_ACTIVE,
-	       chan_base + BCM2835_DMA_CS);
-
+	writel(BCM2835_DMA_RESET, chan_base + BCM2835_DMA_CS);
 	return 0;
 }
 
@@ -787,7 +776,6 @@ static int bcm2835_dma_terminate_all(struct dma_chan *chan)
 	struct bcm2835_chan *c = to_bcm2835_dma_chan(chan);
 	struct bcm2835_dmadev *d = to_bcm2835_dma_dev(c->vc.chan.device);
 	unsigned long flags;
-	int timeout = 10000;
 	LIST_HEAD(head);
 
 	spin_lock_irqsave(&c->vc.lock, flags);
@@ -801,18 +789,7 @@ static int bcm2835_dma_terminate_all(struct dma_chan *chan)
 	if (c->desc) {
 		vchan_terminate_vdesc(&c->desc->vd);
 		c->desc = NULL;
-		bcm2835_dma_abort(c->chan_base);
-
-		/* Wait for stopping */
-		while (--timeout) {
-			if (!readl(c->chan_base + BCM2835_DMA_ADDR))
-				break;
-
-			cpu_relax();
-		}
-
-		if (!timeout)
-			dev_err(d->ddev.dev, "DMA transfer could not be terminated\n");
+		bcm2835_dma_abort(c);
 	}
 
 	vchan_get_all_descriptors(&c->vc, &head);
