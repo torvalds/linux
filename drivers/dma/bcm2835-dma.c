@@ -503,8 +503,12 @@ static int bcm2835_dma_alloc_chan_resources(struct dma_chan *chan)
 
 	dev_dbg(dev, "Allocating DMA channel %d\n", c->ch);
 
+	/*
+	 * Control blocks are 256 bit in length and must start at a 256 bit
+	 * (32 byte) aligned address (BCM2835 ARM Peripherals, sec. 4.2.1.1).
+	 */
 	c->cb_pool = dma_pool_create(dev_name(dev), dev,
-				     sizeof(struct bcm2835_dma_cb), 0, 0);
+				     sizeof(struct bcm2835_dma_cb), 32, 0);
 	if (!c->cb_pool) {
 		dev_err(dev, "unable to allocate descriptor pool\n");
 		return -ENOMEM;
