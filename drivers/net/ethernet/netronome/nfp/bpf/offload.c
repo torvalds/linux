@@ -163,8 +163,9 @@ nfp_prog_prepare(struct nfp_prog *nfp_prog, const struct bpf_insn *prog,
 
 		list_add_tail(&meta->l, &nfp_prog->insns);
 	}
+	nfp_prog->n_insns = cnt;
 
-	nfp_bpf_jit_prepare(nfp_prog, cnt);
+	nfp_bpf_jit_prepare(nfp_prog);
 
 	return 0;
 }

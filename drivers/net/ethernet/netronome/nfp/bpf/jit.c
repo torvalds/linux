@@ -4327,7 +4327,7 @@ int nfp_bpf_jit(struct nfp_prog *nfp_prog)
 	return ret;
 }
 
-void nfp_bpf_jit_prepare(struct nfp_prog *nfp_prog, unsigned int cnt)
+void nfp_bpf_jit_prepare(struct nfp_prog *nfp_prog)
 {
 	struct nfp_insn_meta *meta;
 
@@ -4355,7 +4355,7 @@ void nfp_bpf_jit_prepare(struct nfp_prog *nfp_prog, unsigned int cnt)
 		else
 			dst_idx = meta->n + 1 + meta->insn.off;
 
-		dst_meta = nfp_bpf_goto_meta(nfp_prog, meta, dst_idx, cnt);
+		dst_meta = nfp_bpf_goto_meta(nfp_prog, meta, dst_idx);
 
 		if (pseudo_call)
 			dst_meta->flags |= FLAG_INSN_IS_SUBPROG_START;
