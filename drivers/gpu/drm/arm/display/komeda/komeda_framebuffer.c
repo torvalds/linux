@@ -144,7 +144,7 @@ komeda_fb_get_pixel_addr(struct komeda_fb *kfb, int x, int y, int plane)
 	const struct drm_gem_cma_object *obj;
 	u32 plane_x, plane_y, cpp, pitch, offset;
 
-	if (plane > fb->format->num_planes) {
+	if (plane >= fb->format->num_planes) {
 		DRM_DEBUG_KMS("Out of max plane num.\n");
 		return -EINVAL;
 	}
