@@ -120,6 +120,8 @@ struct qoriq_ptp_registers {
 /* Bit definitions for the TMR_STAT register */
 #define STAT_VEC_SHIFT        (0) /* Timer general purpose status vector */
 #define STAT_VEC_MASK         (0x3f)
+#define ETS1_VLD              (1<<24)
+#define ETS2_VLD              (1<<25)
 
 /* Bit definitions for the TMR_PRSC register */
 #define PRSC_OCK_SHIFT        (0) /* Output clock division/prescale factor. */
@@ -141,6 +143,9 @@ struct qoriq_ptp {
 	struct ptp_clock *clock;
 	struct ptp_clock_info caps;
 	struct resource *rsrc;
+	struct dentry *debugfs_root;
+	struct device *dev;
+	bool extts_fifo_support;
 	int irq;
 	int phc_index;
 	u64 alarm_interval; /* for periodic alarm */
@@ -165,5 +170,15 @@ static inline void qoriq_write(unsigned __iomem *addr, u32 val)
 {
 	iowrite32be(val, addr);
 }
+
+#ifdef CONFIG_DEBUG_FS
+void ptp_qoriq_create_debugfs(struct qoriq_ptp *qoriq_ptp);
+void ptp_qoriq_remove_debugfs(struct qoriq_ptp *qoriq_ptp);
+#else
+static inline void ptp_qoriq_create_debugfs(struct qoriq_ptp *qoriq_ptp)
+{ }
+static inline void ptp_qoriq_remove_debugfs(struct qoriq_ptp *qoriq_ptp)
+{ }
+#endif
 
 #endif
