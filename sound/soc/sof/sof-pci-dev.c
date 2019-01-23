@@ -205,6 +205,8 @@ static int sof_pci_probe(struct pci_dev *pci,
 	mach = snd_soc_acpi_find_machine(desc->machines);
 	if (!mach)
 		dev_warn(dev, "warning: No matching ASoC machine driver found\n");
+	else
+		mach->mach_params.platform = "sof-audio";
 #endif /* CONFIG_SND_SOC_SOF_FORCE_NOCODEC_MODE */
 
 	sof_pdata->id = pci_id->device;

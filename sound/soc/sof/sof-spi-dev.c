@@ -121,6 +121,7 @@ static int sof_spi_probe(struct spi_device *spi)
 	mach->sof_fw_filename = desc->nocodec_fw_filename;
 	mach->sof_tplg_filename = desc->nocodec_tplg_filename;
 	mach->asoc_plat_name = "sof-platform";
+	mach->mach_params.platform = "sof-audio";
 
 	sof_pdata->id = -1;
 	sof_pdata->name = dev_name(&spi->dev);
