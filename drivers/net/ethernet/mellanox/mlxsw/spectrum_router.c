@@ -7595,6 +7595,34 @@ static void mlxsw_sp_ul_rif_put(struct mlxsw_sp_rif *ul_rif)
 	mlxsw_sp_vr_put(mlxsw_sp, vr);
 }
 
+int mlxsw_sp_router_ul_rif_get(struct mlxsw_sp *mlxsw_sp, u32 ul_tb_id,
+			       u16 *ul_rif_index)
+{
+	struct mlxsw_sp_rif *ul_rif;
+
+	ASSERT_RTNL();
+
+	ul_rif = mlxsw_sp_ul_rif_get(mlxsw_sp, ul_tb_id, NULL);
+	if (IS_ERR(ul_rif))
+		return PTR_ERR(ul_rif);
+	*ul_rif_index = ul_rif->rif_index;
+
+	return 0;
+}
+
+void mlxsw_sp_router_ul_rif_put(struct mlxsw_sp *mlxsw_sp, u16 ul_rif_index)
+{
+	struct mlxsw_sp_rif *ul_rif;
+
+	ASSERT_RTNL();
+
+	ul_rif = mlxsw_sp->router->rifs[ul_rif_index];
+	if (WARN_ON(!ul_rif))
+		return;
+
+	mlxsw_sp_ul_rif_put(ul_rif);
+}
+
 static int
 mlxsw_sp2_rif_ipip_lb_configure(struct mlxsw_sp_rif *rif)
 {
