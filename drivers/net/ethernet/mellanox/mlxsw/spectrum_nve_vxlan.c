@@ -21,9 +21,9 @@
 #define MLXSW_SP_NVE_VXLAN_SUPPORTED_FLAGS	(VXLAN_F_UDP_ZERO_CSUM_TX | \
 						 VXLAN_F_LEARN)
 
-static bool mlxsw_sp1_nve_vxlan_can_offload(const struct mlxsw_sp_nve *nve,
-					    const struct net_device *dev,
-					    struct netlink_ext_ack *extack)
+static bool mlxsw_sp_nve_vxlan_can_offload(const struct mlxsw_sp_nve *nve,
+					   const struct net_device *dev,
+					   struct netlink_ext_ack *extack)
 {
 	struct vxlan_dev *vxlan = netdev_priv(dev);
 	struct vxlan_config *cfg = &vxlan->cfg;
@@ -240,20 +240,13 @@ mlxsw_sp_nve_vxlan_clear_offload(const struct net_device *nve_dev, __be32 vni)
 
 const struct mlxsw_sp_nve_ops mlxsw_sp1_nve_vxlan_ops = {
 	.type		= MLXSW_SP_NVE_TYPE_VXLAN,
-	.can_offload	= mlxsw_sp1_nve_vxlan_can_offload,
+	.can_offload	= mlxsw_sp_nve_vxlan_can_offload,
 	.nve_config	= mlxsw_sp_nve_vxlan_config,
 	.init		= mlxsw_sp1_nve_vxlan_init,
 	.fini		= mlxsw_sp1_nve_vxlan_fini,
 	.fdb_replay	= mlxsw_sp_nve_vxlan_fdb_replay,
 	.fdb_clear_offload = mlxsw_sp_nve_vxlan_clear_offload,
 };
-
-static bool mlxsw_sp2_nve_vxlan_can_offload(const struct mlxsw_sp_nve *nve,
-					    const struct net_device *dev,
-					    struct netlink_ext_ack *extack)
-{
-	return false;
-}
 
 static bool mlxsw_sp2_nve_vxlan_learning_set(struct mlxsw_sp *mlxsw_sp,
 					     bool learning_en)
@@ -374,7 +367,7 @@ static void mlxsw_sp2_nve_vxlan_fini(struct mlxsw_sp_nve *nve)
 
 const struct mlxsw_sp_nve_ops mlxsw_sp2_nve_vxlan_ops = {
 	.type		= MLXSW_SP_NVE_TYPE_VXLAN,
-	.can_offload	= mlxsw_sp2_nve_vxlan_can_offload,
+	.can_offload	= mlxsw_sp_nve_vxlan_can_offload,
 	.nve_config	= mlxsw_sp_nve_vxlan_config,
 	.init		= mlxsw_sp2_nve_vxlan_init,
 	.fini		= mlxsw_sp2_nve_vxlan_fini,
