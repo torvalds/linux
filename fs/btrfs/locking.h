@@ -39,16 +39,4 @@ static inline void btrfs_tree_unlock_rw(struct extent_buffer *eb, int rw)
 		BUG();
 }
 
-/*
- * If we currently have a spinning reader or writer lock (indicated by the rw
- * flag) this will bump the count of blocking holders and drop the spinlock.
- */
-static inline void btrfs_set_lock_blocking_rw(struct extent_buffer *eb, int rw)
-{
-	if (rw == BTRFS_WRITE_LOCK)
-		btrfs_set_lock_blocking_write(eb);
-	else if (rw == BTRFS_READ_LOCK)
-		btrfs_set_lock_blocking_read(eb);
-}
-
 #endif
