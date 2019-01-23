@@ -21,7 +21,7 @@ Interfaces
     dev-overlay
     dev-output
     dev-osd
-    dev-codec
+    dev-mem2mem
     dev-raw-vbi
     dev-sliced-vbi
     dev-radio
