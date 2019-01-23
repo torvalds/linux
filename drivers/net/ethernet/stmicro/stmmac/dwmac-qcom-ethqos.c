@@ -473,8 +473,8 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 	ethqos->por = of_device_get_match_data(&pdev->dev);
 
 	ethqos->rgmii_clk = devm_clk_get(&pdev->dev, "rgmii");
-	if (!ethqos->rgmii_clk) {
-		ret = -ENOMEM;
+	if (IS_ERR(ethqos->rgmii_clk)) {
+		ret = PTR_ERR(ethqos->rgmii_clk);
 		goto err_mem;
 	}
 
