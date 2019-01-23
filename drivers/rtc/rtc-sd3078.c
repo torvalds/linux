@@ -218,7 +218,6 @@ MODULE_DEVICE_TABLE(of, rtc_dt_match);
 static struct i2c_driver sd3078_driver = {
 	.driver     = {
 		.name   = "sd3078",
-		.owner  = THIS_MODULE,
 		.of_match_table = of_match_ptr(rtc_dt_match),
 	},
 	.probe      = sd3078_probe,
