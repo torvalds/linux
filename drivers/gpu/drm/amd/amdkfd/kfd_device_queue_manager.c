@@ -902,12 +902,18 @@ static void uninitialize(struct device_queue_manager *dqm)
 static int start_nocpsch(struct device_queue_manager *dqm)
 {
 	init_interrupts(dqm);
-	return pm_init(&dqm->packets, dqm);
+	
+	if (dqm->dev->device_info->asic_family == CHIP_HAWAII)
+		return pm_init(&dqm->packets, dqm);
+	
+	return 0;
 }
 
 static int stop_nocpsch(struct device_queue_manager *dqm)
 {
-	pm_uninit(&dqm->packets);
+	if (dqm->dev->device_info->asic_family == CHIP_HAWAII)
+		pm_uninit(&dqm->packets);
+	
 	return 0;
 }
 
