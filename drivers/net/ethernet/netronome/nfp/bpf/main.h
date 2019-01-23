@@ -243,6 +243,13 @@ struct nfp_bpf_reg_state {
 #define FLAG_INSN_IS_JUMP_DST			BIT(0)
 #define FLAG_INSN_IS_SUBPROG_START		BIT(1)
 #define FLAG_INSN_PTR_CALLER_STACK_FRAME	BIT(2)
+/* Instruction is pointless, noop even on its own */
+#define FLAG_INSN_SKIP_NOOP			BIT(3)
+/* Instruction is optimized out based on preceding instructions */
+#define FLAG_INSN_SKIP_PREC_DEPENDENT		BIT(4)
+
+#define FLAG_INSN_SKIP_MASK		(FLAG_INSN_SKIP_NOOP | \
+					 FLAG_INSN_SKIP_PREC_DEPENDENT)
 
 /**
  * struct nfp_insn_meta - BPF instruction wrapper
@@ -271,7 +278,6 @@ struct nfp_bpf_reg_state {
  * @n: eBPF instruction number
  * @flags: eBPF instruction extra optimization flags
  * @subprog_idx: index of subprogram to which the instruction belongs
- * @skip: skip this instruction (optimized out)
  * @double_cb: callback for second part of the instruction
  * @l: link on nfp_prog->insns list
  */
@@ -319,7 +325,6 @@ struct nfp_insn_meta {
 	unsigned short n;
 	unsigned short flags;
 	unsigned short subprog_idx;
-	bool skip;
 	instr_cb_t double_cb;
 
 	struct list_head l;
