@@ -144,6 +144,8 @@ struct amdgpu_gmc {
 	const struct amdgpu_gmc_funcs	*gmc_funcs;
 
 	struct amdgpu_xgmi xgmi;
+	struct amdgpu_irq_src	ecc_irq;
+	struct ras_common_if    *ras_if;
 };
 
 #define amdgpu_gmc_flush_gpu_tlb(adev, vmid, type) (adev)->gmc.gmc_funcs->flush_gpu_tlb((adev), (vmid), (type))

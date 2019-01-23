@@ -47,6 +47,8 @@
 
 #include "ivsrcid/vmc/irqsrcs_vmc_1_0.h"
 
+#include "amdgpu_ras.h"
+
 /* add these here since we already include dce12 headers and these are for DCN */
 #define mmHUBP0_DCSURF_PRI_VIEWPORT_DIMENSION                                                          0x055d
 #define mmHUBP0_DCSURF_PRI_VIEWPORT_DIMENSION_BASE_IDX                                                 2
@@ -199,6 +201,175 @@ static const uint32_t ecc_umcch_eccctrl_addrs[] = {
 	UMCCH_ECCCTRL_ADDR15,
 };
 
+static const uint32_t ecc_umc_mcumc_ctrl_addrs[] = {
+	(0x000143c0 + 0x00000000),
+	(0x000143c0 + 0x00000800),
+	(0x000143c0 + 0x00001000),
+	(0x000143c0 + 0x00001800),
+	(0x000543c0 + 0x00000000),
+	(0x000543c0 + 0x00000800),
+	(0x000543c0 + 0x00001000),
+	(0x000543c0 + 0x00001800),
+	(0x000943c0 + 0x00000000),
+	(0x000943c0 + 0x00000800),
+	(0x000943c0 + 0x00001000),
+	(0x000943c0 + 0x00001800),
+	(0x000d43c0 + 0x00000000),
+	(0x000d43c0 + 0x00000800),
+	(0x000d43c0 + 0x00001000),
+	(0x000d43c0 + 0x00001800),
+	(0x001143c0 + 0x00000000),
+	(0x001143c0 + 0x00000800),
+	(0x001143c0 + 0x00001000),
+	(0x001143c0 + 0x00001800),
+	(0x001543c0 + 0x00000000),
+	(0x001543c0 + 0x00000800),
+	(0x001543c0 + 0x00001000),
+	(0x001543c0 + 0x00001800),
+	(0x001943c0 + 0x00000000),
+	(0x001943c0 + 0x00000800),
+	(0x001943c0 + 0x00001000),
+	(0x001943c0 + 0x00001800),
+	(0x001d43c0 + 0x00000000),
+	(0x001d43c0 + 0x00000800),
+	(0x001d43c0 + 0x00001000),
+	(0x001d43c0 + 0x00001800),
+};
+
+static const uint32_t ecc_umc_mcumc_ctrl_mask_addrs[] = {
+	(0x000143e0 + 0x00000000),
+	(0x000143e0 + 0x00000800),
+	(0x000143e0 + 0x00001000),
+	(0x000143e0 + 0x00001800),
+	(0x000543e0 + 0x00000000),
+	(0x000543e0 + 0x00000800),
+	(0x000543e0 + 0x00001000),
+	(0x000543e0 + 0x00001800),
+	(0x000943e0 + 0x00000000),
+	(0x000943e0 + 0x00000800),
+	(0x000943e0 + 0x00001000),
+	(0x000943e0 + 0x00001800),
+	(0x000d43e0 + 0x00000000),
+	(0x000d43e0 + 0x00000800),
+	(0x000d43e0 + 0x00001000),
+	(0x000d43e0 + 0x00001800),
+	(0x001143e0 + 0x00000000),
+	(0x001143e0 + 0x00000800),
+	(0x001143e0 + 0x00001000),
+	(0x001143e0 + 0x00001800),
+	(0x001543e0 + 0x00000000),
+	(0x001543e0 + 0x00000800),
+	(0x001543e0 + 0x00001000),
+	(0x001543e0 + 0x00001800),
+	(0x001943e0 + 0x00000000),
+	(0x001943e0 + 0x00000800),
+	(0x001943e0 + 0x00001000),
+	(0x001943e0 + 0x00001800),
+	(0x001d43e0 + 0x00000000),
+	(0x001d43e0 + 0x00000800),
+	(0x001d43e0 + 0x00001000),
+	(0x001d43e0 + 0x00001800),
+};
+
+static const uint32_t ecc_umc_mcumc_status_addrs[] = {
+	(0x000143c2 + 0x00000000),
+	(0x000143c2 + 0x00000800),
+	(0x000143c2 + 0x00001000),
+	(0x000143c2 + 0x00001800),
+	(0x000543c2 + 0x00000000),
+	(0x000543c2 + 0x00000800),
+	(0x000543c2 + 0x00001000),
+	(0x000543c2 + 0x00001800),
+	(0x000943c2 + 0x00000000),
+	(0x000943c2 + 0x00000800),
+	(0x000943c2 + 0x00001000),
+	(0x000943c2 + 0x00001800),
+	(0x000d43c2 + 0x00000000),
+	(0x000d43c2 + 0x00000800),
+	(0x000d43c2 + 0x00001000),
+	(0x000d43c2 + 0x00001800),
+	(0x001143c2 + 0x00000000),
+	(0x001143c2 + 0x00000800),
+	(0x001143c2 + 0x00001000),
+	(0x001143c2 + 0x00001800),
+	(0x001543c2 + 0x00000000),
+	(0x001543c2 + 0x00000800),
+	(0x001543c2 + 0x00001000),
+	(0x001543c2 + 0x00001800),
+	(0x001943c2 + 0x00000000),
+	(0x001943c2 + 0x00000800),
+	(0x001943c2 + 0x00001000),
+	(0x001943c2 + 0x00001800),
+	(0x001d43c2 + 0x00000000),
+	(0x001d43c2 + 0x00000800),
+	(0x001d43c2 + 0x00001000),
+	(0x001d43c2 + 0x00001800),
+};
+
+static int gmc_v9_0_ecc_interrupt_state(struct amdgpu_device *adev,
+		struct amdgpu_irq_src *src,
+		unsigned type,
+		enum amdgpu_interrupt_state state)
+{
+	u32 bits, i, tmp, reg;
+
+	bits = 0x7f;
+
+	switch (state) {
+	case AMDGPU_IRQ_STATE_DISABLE:
+		for (i = 0; i < ARRAY_SIZE(ecc_umc_mcumc_ctrl_addrs); i++) {
+			reg = ecc_umc_mcumc_ctrl_addrs[i];
+			tmp = RREG32(reg);
+			tmp &= ~bits;
+			WREG32(reg, tmp);
+		}
+		for (i = 0; i < ARRAY_SIZE(ecc_umc_mcumc_ctrl_mask_addrs); i++) {
+			reg = ecc_umc_mcumc_ctrl_mask_addrs[i];
+			tmp = RREG32(reg);
+			tmp &= ~bits;
+			WREG32(reg, tmp);
+		}
+		break;
+	case AMDGPU_IRQ_STATE_ENABLE:
+		for (i = 0; i < ARRAY_SIZE(ecc_umc_mcumc_ctrl_addrs); i++) {
+			reg = ecc_umc_mcumc_ctrl_addrs[i];
+			tmp = RREG32(reg);
+			tmp |= bits;
+			WREG32(reg, tmp);
+		}
+		for (i = 0; i < ARRAY_SIZE(ecc_umc_mcumc_ctrl_mask_addrs); i++) {
+			reg = ecc_umc_mcumc_ctrl_mask_addrs[i];
+			tmp = RREG32(reg);
+			tmp |= bits;
+			WREG32(reg, tmp);
+		}
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static int gmc_v9_0_process_ras_data_cb(struct amdgpu_device *adev,
+		struct amdgpu_iv_entry *entry)
+{
+	amdgpu_ras_reset_gpu(adev, 0);
+	return AMDGPU_RAS_UE;
+}
+
+static int gmc_v9_0_process_ecc_irq(struct amdgpu_device *adev,
+		struct amdgpu_irq_src *source,
+		struct amdgpu_iv_entry *entry)
+{
+	struct ras_dispatch_if ih_data = {
+		.head = *adev->gmc.ras_if,
+		.entry = entry,
+	};
+	amdgpu_ras_interrupt_dispatch(adev, &ih_data);
+	return 0;
+}
+
 static int gmc_v9_0_vm_fault_interrupt_state(struct amdgpu_device *adev,
 					struct amdgpu_irq_src *src,
 					unsigned type,
@@ -350,10 +521,19 @@ static const struct amdgpu_irq_src_funcs gmc_v9_0_irq_funcs = {
 	.process = gmc_v9_0_process_interrupt,
 };
 
+
+static const struct amdgpu_irq_src_funcs gmc_v9_0_ecc_funcs = {
+	.set = gmc_v9_0_ecc_interrupt_state,
+	.process = gmc_v9_0_process_ecc_irq,
+};
+
 static void gmc_v9_0_set_irq_funcs(struct amdgpu_device *adev)
 {
 	adev->gmc.vm_fault.num_types = 1;
 	adev->gmc.vm_fault.funcs = &gmc_v9_0_irq_funcs;
+
+	adev->gmc.ecc_irq.num_types = 1;
+	adev->gmc.ecc_irq.funcs = &gmc_v9_0_ecc_funcs;
 }
 
 static uint32_t gmc_v9_0_get_invalidate_req(unsigned int vmid,
@@ -723,6 +903,75 @@ static int gmc_v9_0_allocate_vm_inv_eng(struct amdgpu_device *adev)
 	return 0;
 }
 
+static int gmc_v9_0_ecc_late_init(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct ras_common_if **ras_if = &adev->gmc.ras_if;
+	struct ras_ih_if ih_info = {
+		.cb = gmc_v9_0_process_ras_data_cb,
+	};
+	struct ras_fs_if fs_info = {
+		.sysfs_name = "umc_err_count",
+		.debugfs_name = "umc_err_inject",
+	};
+	struct ras_common_if ras_block = {
+		.block = AMDGPU_RAS_BLOCK__UMC,
+		.type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE,
+		.sub_block_index = 0,
+		.name = "umc",
+	};
+	int r;
+
+	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__UMC)) {
+		amdgpu_ras_feature_enable(adev, &ras_block, 0);
+		return 0;
+	}
+
+	*ras_if = kmalloc(sizeof(**ras_if), GFP_KERNEL);
+	if (!*ras_if)
+		return -ENOMEM;
+
+	**ras_if = ras_block;
+
+	r = amdgpu_ras_feature_enable(adev, *ras_if, 1);
+	if (r)
+		goto feature;
+
+	ih_info.head = **ras_if;
+	fs_info.head = **ras_if;
+
+	r = amdgpu_ras_interrupt_add_handler(adev, &ih_info);
+	if (r)
+		goto interrupt;
+
+	r = amdgpu_ras_debugfs_create(adev, &fs_info);
+	if (r)
+		goto debugfs;
+
+	r = amdgpu_ras_sysfs_create(adev, &fs_info);
+	if (r)
+		goto sysfs;
+
+	r = amdgpu_irq_get(adev, &adev->gmc.ecc_irq, 0);
+	if (r)
+		goto irq;
+
+	return 0;
+irq:
+	amdgpu_ras_sysfs_remove(adev, *ras_if);
+sysfs:
+	amdgpu_ras_debugfs_remove(adev, *ras_if);
+debugfs:
+	amdgpu_ras_interrupt_remove_handler(adev, &ih_info);
+interrupt:
+	amdgpu_ras_feature_enable(adev, *ras_if, 0);
+feature:
+	kfree(*ras_if);
+	*ras_if = NULL;
+	return -EINVAL;
+}
+
+
 static int gmc_v9_0_late_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
@@ -747,6 +996,10 @@ static int gmc_v9_0_late_init(void *handle)
 			return r;
 		}
 	}
+
+	r = gmc_v9_0_ecc_late_init(handle);
+	if (r)
+		return r;
 
 	return amdgpu_irq_get(adev, &adev->gmc.vm_fault, 0);
 }
@@ -959,6 +1212,12 @@ static int gmc_v9_0_sw_init(void *handle)
 	if (r)
 		return r;
 
+	/* interrupt sent to DF. */
+	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_DF, 0,
+			&adev->gmc.ecc_irq);
+	if (r)
+		return r;
+
 	/* Set the internal MC address mask
 	 * This is the max address of the GPU's
 	 * internal address space.
@@ -1023,6 +1282,22 @@ static int gmc_v9_0_sw_init(void *handle)
 static int gmc_v9_0_sw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__UMC) &&
+			adev->gmc.ras_if) {
+		struct ras_common_if *ras_if = adev->gmc.ras_if;
+		struct ras_ih_if ih_info = {
+			.head = *ras_if,
+		};
+
+		/*remove fs first*/
+		amdgpu_ras_debugfs_remove(adev, ras_if);
+		amdgpu_ras_sysfs_remove(adev, ras_if);
+		/*remove the IH*/
+		amdgpu_ras_interrupt_remove_handler(adev, &ih_info);
+		amdgpu_ras_feature_enable(adev, ras_if, 0);
+		kfree(ras_if);
+	}
 
 	amdgpu_gem_force_release(adev);
 	amdgpu_vm_manager_fini(adev);
@@ -1170,6 +1445,7 @@ static int gmc_v9_0_hw_fini(void *handle)
 		return 0;
 	}
 
+	amdgpu_irq_put(adev, &adev->gmc.ecc_irq, 0);
 	amdgpu_irq_put(adev, &adev->gmc.vm_fault, 0);
 	gmc_v9_0_gart_disable(adev);
 
