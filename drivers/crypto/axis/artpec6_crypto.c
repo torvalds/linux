@@ -135,7 +135,6 @@
 #define regk_crypto_ext         0x00000001
 #define regk_crypto_hmac_sha1   0x00000007
 #define regk_crypto_hmac_sha256 0x00000009
-#define regk_crypto_hmac_sha384 0x0000000b
 #define regk_crypto_hmac_sha512 0x0000000d
 #define regk_crypto_init        0x00000000
 #define regk_crypto_key_128     0x00000000
@@ -144,7 +143,6 @@
 #define regk_crypto_null        0x00000000
 #define regk_crypto_sha1        0x00000006
 #define regk_crypto_sha256      0x00000008
-#define regk_crypto_sha384      0x0000000a
 #define regk_crypto_sha512      0x0000000c
 
 /* DMA descriptor structures */
@@ -190,7 +188,6 @@ struct pdma_stat_descr {
 /* Hash modes (including HMAC variants) */
 #define ARTPEC6_CRYPTO_HASH_SHA1	1
 #define ARTPEC6_CRYPTO_HASH_SHA256	2
-#define ARTPEC6_CRYPTO_HASH_SHA384	3
 #define ARTPEC6_CRYPTO_HASH_SHA512	4
 
 /* Crypto modes */
@@ -1315,8 +1312,7 @@ static int artpec6_crypto_prepare_hash(struct ahash_request *areq)
 	struct artpec6_hashalg_context *ctx = crypto_tfm_ctx(areq->base.tfm);
 	struct artpec6_hash_request_context *req_ctx = ahash_request_ctx(areq);
 	size_t digestsize = crypto_ahash_digestsize(crypto_ahash_reqtfm(areq));
-	size_t contextsize = digestsize == SHA384_DIGEST_SIZE ?
-		SHA512_DIGEST_SIZE : digestsize;
+	size_t contextsize = digestsize;
 	size_t blocksize = crypto_tfm_alg_blocksize(
 		crypto_ahash_tfm(crypto_ahash_reqtfm(areq)));
 	struct artpec6_crypto_req_common *common = &req_ctx->common;
@@ -1456,7 +1452,6 @@ static int artpec6_crypto_prepare_hash(struct ahash_request *areq)
 
 	/* Finalize */
 	if (req_ctx->hash_flags & HASH_FLAG_FINALIZE) {
-		bool needtrim = contextsize != digestsize;
 		size_t hash_pad_len;
 		u64 digest_bits;
 		u32 oper;
@@ -1502,18 +1497,9 @@ static int artpec6_crypto_prepare_hash(struct ahash_request *areq)
 		/* Descriptor for the final result */
 		error = artpec6_crypto_setup_in_descr(common, areq->result,
 						      digestsize,
-						      !needtrim);
+						      true);
 		if (error)
 			return error;
-
-		if (needtrim) {
-			/* Discard the extra context bytes for SHA-384 */
-			error = artpec6_crypto_setup_in_descr(common,
-					req_ctx->partial_buffer,
-					digestsize - contextsize, true);
-			if (error)
-				return error;
-		}
 
 	} else { /* This is not the final operation for this request */
 		if (!run_hw)
@@ -2266,9 +2252,6 @@ artpec6_crypto_init_hash(struct ahash_request *req, u8 type, int hmac)
 	case ARTPEC6_CRYPTO_HASH_SHA256:
 		oper = hmac ? regk_crypto_hmac_sha256 : regk_crypto_sha256;
 		break;
-	case ARTPEC6_CRYPTO_HASH_SHA384:
-		oper = hmac ? regk_crypto_hmac_sha384 : regk_crypto_sha384;
-		break;
 	case ARTPEC6_CRYPTO_HASH_SHA512:
 		oper = hmac ? regk_crypto_hmac_sha512 : regk_crypto_sha512;
 		break;
@@ -2368,22 +2351,6 @@ static int artpec6_crypto_sha256_digest(struct ahash_request *req)
 	return artpec6_crypto_prepare_submit_hash(req);
 }
 
-static int __maybe_unused artpec6_crypto_sha384_init(struct ahash_request *req)
-{
-	return artpec6_crypto_init_hash(req, ARTPEC6_CRYPTO_HASH_SHA384, 0);
-}
-
-static int __maybe_unused
-artpec6_crypto_sha384_digest(struct ahash_request *req)
-{
-	struct artpec6_hash_request_context *req_ctx = ahash_request_ctx(req);
-
-	artpec6_crypto_init_hash(req, ARTPEC6_CRYPTO_HASH_SHA384, 0);
-	req_ctx->hash_flags |= HASH_FLAG_UPDATE | HASH_FLAG_FINALIZE;
-
-	return artpec6_crypto_prepare_submit_hash(req);
-}
-
 static int artpec6_crypto_sha512_init(struct ahash_request *req)
 {
 	return artpec6_crypto_init_hash(req, ARTPEC6_CRYPTO_HASH_SHA512, 0);
@@ -2404,12 +2371,6 @@ static int artpec6_crypto_hmac_sha256_init(struct ahash_request *req)
 	return artpec6_crypto_init_hash(req, ARTPEC6_CRYPTO_HASH_SHA256, 1);
 }
 
-static int __maybe_unused
-artpec6_crypto_hmac_sha384_init(struct ahash_request *req)
-{
-	return artpec6_crypto_init_hash(req, ARTPEC6_CRYPTO_HASH_SHA384, 1);
-}
-
 static int artpec6_crypto_hmac_sha512_init(struct ahash_request *req)
 {
 	return artpec6_crypto_init_hash(req, ARTPEC6_CRYPTO_HASH_SHA512, 1);
@@ -2420,17 +2381,6 @@ static int artpec6_crypto_hmac_sha256_digest(struct ahash_request *req)
 	struct artpec6_hash_request_context *req_ctx = ahash_request_ctx(req);
 
 	artpec6_crypto_init_hash(req, ARTPEC6_CRYPTO_HASH_SHA256, 1);
-	req_ctx->hash_flags |= HASH_FLAG_UPDATE | HASH_FLAG_FINALIZE;
-
-	return artpec6_crypto_prepare_submit_hash(req);
-}
-
-static int __maybe_unused
-artpec6_crypto_hmac_sha384_digest(struct ahash_request *req)
-{
-	struct artpec6_hash_request_context *req_ctx = ahash_request_ctx(req);
-
-	artpec6_crypto_init_hash(req, ARTPEC6_CRYPTO_HASH_SHA384, 1);
 	req_ctx->hash_flags |= HASH_FLAG_UPDATE | HASH_FLAG_FINALIZE;
 
 	return artpec6_crypto_prepare_submit_hash(req);
@@ -2478,12 +2428,6 @@ static int artpec6_crypto_ahash_init(struct crypto_tfm *tfm)
 static int artpec6_crypto_ahash_init_hmac_sha256(struct crypto_tfm *tfm)
 {
 	return artpec6_crypto_ahash_init_common(tfm, "sha256");
-}
-
-static int __maybe_unused
-artpec6_crypto_ahash_init_hmac_sha384(struct crypto_tfm *tfm)
-{
-	return artpec6_crypto_ahash_init_common(tfm, "sha384");
 }
 
 static int artpec6_crypto_ahash_init_hmac_sha512(struct crypto_tfm *tfm)
@@ -2762,53 +2706,6 @@ static struct ahash_alg hash_algos[] = {
 };
 
 static struct ahash_alg artpec7_hash_algos[] = {
-	/* SHA-384 */
-	{
-		.init = artpec6_crypto_sha384_init,
-		.update = artpec6_crypto_hash_update,
-		.final = artpec6_crypto_hash_final,
-		.digest = artpec6_crypto_sha384_digest,
-		.import = artpec6_crypto_hash_import,
-		.export = artpec6_crypto_hash_export,
-		.halg.digestsize = SHA384_DIGEST_SIZE,
-		.halg.statesize = sizeof(struct artpec6_hash_export_state),
-		.halg.base = {
-			.cra_name = "sha384",
-			.cra_driver_name = "artpec-sha384",
-			.cra_priority = 300,
-			.cra_flags = CRYPTO_ALG_ASYNC,
-			.cra_blocksize = SHA384_BLOCK_SIZE,
-			.cra_ctxsize = sizeof(struct artpec6_hashalg_context),
-			.cra_alignmask = 3,
-			.cra_module = THIS_MODULE,
-			.cra_init = artpec6_crypto_ahash_init,
-			.cra_exit = artpec6_crypto_ahash_exit,
-		}
-	},
-	/* HMAC SHA-384 */
-	{
-		.init = artpec6_crypto_hmac_sha384_init,
-		.update = artpec6_crypto_hash_update,
-		.final = artpec6_crypto_hash_final,
-		.digest = artpec6_crypto_hmac_sha384_digest,
-		.import = artpec6_crypto_hash_import,
-		.export = artpec6_crypto_hash_export,
-		.setkey = artpec6_crypto_hash_set_key,
-		.halg.digestsize = SHA384_DIGEST_SIZE,
-		.halg.statesize = sizeof(struct artpec6_hash_export_state),
-		.halg.base = {
-			.cra_name = "hmac(sha384)",
-			.cra_driver_name = "artpec-hmac-sha384",
-			.cra_priority = 300,
-			.cra_flags = CRYPTO_ALG_ASYNC,
-			.cra_blocksize = SHA384_BLOCK_SIZE,
-			.cra_ctxsize = sizeof(struct artpec6_hashalg_context),
-			.cra_alignmask = 3,
-			.cra_module = THIS_MODULE,
-			.cra_init = artpec6_crypto_ahash_init_hmac_sha384,
-			.cra_exit = artpec6_crypto_ahash_exit,
-		}
-	},
 	/* SHA-512 */
 	{
 		.init = artpec6_crypto_sha512_init,
