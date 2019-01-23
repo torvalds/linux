@@ -713,18 +713,15 @@ static int ramoops_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct ramoops_platform_data *pdata = dev->platform_data;
+	struct ramoops_platform_data pdata_local;
 	struct ramoops_context *cxt = &oops_cxt;
 	size_t dump_mem_sz;
 	phys_addr_t paddr;
 	int err = -EINVAL;
 
 	if (dev_of_node(dev) && !pdata) {
-		pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
-		if (!pdata) {
-			pr_err("cannot allocate platform data buffer\n");
-			err = -ENOMEM;
-			goto fail_out;
-		}
+		pdata = &pdata_local;
+		memset(pdata, 0, sizeof(*pdata));
 
 		err = ramoops_parse_dt(pdev, pdata);
 		if (err < 0)

@@ -1,6 +1,7 @@
 all:
 
 top_srcdir = ../../../../
+KSFT_KHDR_INSTALL := 1
 UNAME_M := $(shell uname -m)
 
 LIBKVM = lib/assert.c lib/elf.c lib/io.c lib/kvm_util.c lib/sparsebit.c
@@ -40,4 +41,3 @@ $(OUTPUT)/libkvm.a: $(LIBKVM_OBJ)
 
 all: $(STATIC_LIBS)
 $(TEST_GEN_PROGS): $(STATIC_LIBS)
-$(STATIC_LIBS):| khdr

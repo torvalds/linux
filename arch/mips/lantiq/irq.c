@@ -224,9 +224,11 @@ static struct irq_chip ltq_eiu_type = {
 	.irq_set_type = ltq_eiu_settype,
 };
 
-static void ltq_hw_irqdispatch(int module)
+static void ltq_hw_irq_handler(struct irq_desc *desc)
 {
+	int module = irq_desc_get_irq(desc) - 2;
 	u32 irq;
+	int hwirq;
 
 	irq = ltq_icu_r32(module, LTQ_ICU_IM0_IOSR);
 	if (irq == 0)
@@ -237,55 +239,13 @@ static void ltq_hw_irqdispatch(int module)
 	 * other bits might be bogus
 	 */
 	irq = __fls(irq);
-	do_IRQ((int)irq + MIPS_CPU_IRQ_CASCADE + (INT_NUM_IM_OFFSET * module));
+	hwirq = irq + MIPS_CPU_IRQ_CASCADE + (INT_NUM_IM_OFFSET * module);
+	generic_handle_irq(irq_linear_revmap(ltq_domain, hwirq));
 
 	/* if this is a EBU irq, we need to ack it or get a deadlock */
 	if ((irq == LTQ_ICU_EBU_IRQ) && (module == 0) && LTQ_EBU_PCC_ISTAT)
 		ltq_ebu_w32(ltq_ebu_r32(LTQ_EBU_PCC_ISTAT) | 0x10,
 			LTQ_EBU_PCC_ISTAT);
-}
-
-#define DEFINE_HWx_IRQDISPATCH(x)					\
-	static void ltq_hw ## x ## _irqdispatch(void)			\
-	{								\
-		ltq_hw_irqdispatch(x);					\
-	}
-DEFINE_HWx_IRQDISPATCH(0)
-DEFINE_HWx_IRQDISPATCH(1)
-DEFINE_HWx_IRQDISPATCH(2)
-DEFINE_HWx_IRQDISPATCH(3)
-DEFINE_HWx_IRQDISPATCH(4)
-
-#if MIPS_CPU_TIMER_IRQ == 7
-static void ltq_hw5_irqdispatch(void)
-{
-	do_IRQ(MIPS_CPU_TIMER_IRQ);
-}
-#else
-DEFINE_HWx_IRQDISPATCH(5)
-#endif
-
-static void ltq_hw_irq_handler(struct irq_desc *desc)
-{
-	ltq_hw_irqdispatch(irq_desc_get_irq(desc) - 2);
-}
-
-asmlinkage void plat_irq_dispatch(void)
-{
-	unsigned int pending = read_c0_status() & read_c0_cause() & ST0_IM;
-	int irq;
-
-	if (!pending) {
-		spurious_interrupt();
-		return;
-	}
-
-	pending >>= CAUSEB_IP;
-	while (pending) {
-		irq = fls(pending) - 1;
-		do_IRQ(MIPS_CPU_IRQ_BASE + irq);
-		pending &= ~BIT(irq);
-	}
 }
 
 static int icu_map(struct irq_domain *d, unsigned int irq, irq_hw_number_t hw)
@@ -343,27 +303,9 @@ int __init icu_of_init(struct device_node *node, struct device_node *parent)
 	for (i = 0; i < MAX_IM; i++)
 		irq_set_chained_handler(i + 2, ltq_hw_irq_handler);
 
-	if (cpu_has_vint) {
-		pr_info("Setting up vectored interrupts\n");
-		set_vi_handler(2, ltq_hw0_irqdispatch);
-		set_vi_handler(3, ltq_hw1_irqdispatch);
-		set_vi_handler(4, ltq_hw2_irqdispatch);
-		set_vi_handler(5, ltq_hw3_irqdispatch);
-		set_vi_handler(6, ltq_hw4_irqdispatch);
-		set_vi_handler(7, ltq_hw5_irqdispatch);
-	}
-
 	ltq_domain = irq_domain_add_linear(node,
 		(MAX_IM * INT_NUM_IM_OFFSET) + MIPS_CPU_IRQ_CASCADE,
 		&irq_domain_ops, 0);
-
-#ifndef CONFIG_MIPS_MT_SMP
-	set_c0_status(IE_IRQ0 | IE_IRQ1 | IE_IRQ2 |
-		IE_IRQ3 | IE_IRQ4 | IE_IRQ5);
-#else
-	set_c0_status(IE_SW0 | IE_SW1 | IE_IRQ0 | IE_IRQ1 |
-		IE_IRQ2 | IE_IRQ3 | IE_IRQ4 | IE_IRQ5);
-#endif
 
 	/* tell oprofile which irq to use */
 	ltq_perfcount_irq = irq_create_mapping(ltq_domain, LTQ_PERF_IRQ);

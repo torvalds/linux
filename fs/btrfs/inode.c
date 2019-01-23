@@ -3151,9 +3151,6 @@ out:
 	/* once for the tree */
 	btrfs_put_ordered_extent(ordered_extent);
 
-	/* Try to release some metadata so we don't get an OOM but don't wait */
-	btrfs_btree_balance_dirty_nodelay(fs_info);
-
 	return ret;
 }
 

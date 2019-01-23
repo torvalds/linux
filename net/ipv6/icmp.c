@@ -421,10 +421,10 @@ static int icmp6_iif(const struct sk_buff *skb)
 static void icmp6_send(struct sk_buff *skb, u8 type, u8 code, __u32 info,
 		       const struct in6_addr *force_saddr)
 {
-	struct net *net = dev_net(skb->dev);
 	struct inet6_dev *idev = NULL;
 	struct ipv6hdr *hdr = ipv6_hdr(skb);
 	struct sock *sk;
+	struct net *net;
 	struct ipv6_pinfo *np;
 	const struct in6_addr *saddr = NULL;
 	struct dst_entry *dst;
@@ -435,12 +435,16 @@ static void icmp6_send(struct sk_buff *skb, u8 type, u8 code, __u32 info,
 	int iif = 0;
 	int addr_type = 0;
 	int len;
-	u32 mark = IP6_REPLY_MARK(net, skb->mark);
+	u32 mark;
 
 	if ((u8 *)hdr < skb->head ||
 	    (skb_network_header(skb) + sizeof(*hdr)) > skb_tail_pointer(skb))
 		return;
 
+	if (!skb->dev)
+		return;
+	net = dev_net(skb->dev);
+	mark = IP6_REPLY_MARK(net, skb->mark);
 	/*
 	 *	Make sure we respect the rules
 	 *	i.e. RFC 1885 2.4(e)

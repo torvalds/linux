@@ -1131,13 +1131,16 @@ static int ahash_final_no_ctx(struct ahash_request *req)
 
 	desc = edesc->hw_desc;
 
-	state->buf_dma = dma_map_single(jrdev, buf, buflen, DMA_TO_DEVICE);
-	if (dma_mapping_error(jrdev, state->buf_dma)) {
-		dev_err(jrdev, "unable to map src\n");
-		goto unmap;
-	}
+	if (buflen) {
+		state->buf_dma = dma_map_single(jrdev, buf, buflen,
+						DMA_TO_DEVICE);
+		if (dma_mapping_error(jrdev, state->buf_dma)) {
+			dev_err(jrdev, "unable to map src\n");
+			goto unmap;
+		}
 
-	append_seq_in_ptr(desc, state->buf_dma, buflen, 0);
+		append_seq_in_ptr(desc, state->buf_dma, buflen, 0);
+	}
 
 	edesc->dst_dma = map_seq_out_ptr_result(desc, jrdev, req->result,
 						digestsize);

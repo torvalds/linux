@@ -249,9 +249,10 @@ struct device_type part_type = {
 	.uevent		= part_uevent,
 };
 
-static void delete_partition_rcu_cb(struct rcu_head *head)
+static void delete_partition_work_fn(struct work_struct *work)
 {
-	struct hd_struct *part = container_of(head, struct hd_struct, rcu_head);
+	struct hd_struct *part = container_of(to_rcu_work(work), struct hd_struct,
+					rcu_work);
 
 	part->start_sect = 0;
 	part->nr_sects = 0;
@@ -262,7 +263,8 @@ static void delete_partition_rcu_cb(struct rcu_head *head)
 void __delete_partition(struct percpu_ref *ref)
 {
 	struct hd_struct *part = container_of(ref, struct hd_struct, ref);
-	call_rcu(&part->rcu_head, delete_partition_rcu_cb);
+	INIT_RCU_WORK(&part->rcu_work, delete_partition_work_fn);
+	queue_rcu_work(system_wq, &part->rcu_work);
 }
 
 /*
