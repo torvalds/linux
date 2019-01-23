@@ -645,8 +645,6 @@ no_longmode:
 	.data
 gdt64:
 	.word	gdt_end - gdt
-	.long	0
-	.word	0
 	.quad   0
 gdt:
 	.word	gdt_end - gdt
