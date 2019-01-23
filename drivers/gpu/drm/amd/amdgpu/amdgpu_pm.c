@@ -2443,7 +2443,7 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 				"pp_power_profile_mode\n");
 		return ret;
 	}
-	if (hwmgr->od_enabled) {
+	if (is_support_sw_smu(adev) || hwmgr->od_enabled) {
 		ret = device_create_file(adev->dev,
 				&dev_attr_pp_od_clk_voltage);
 		if (ret) {
