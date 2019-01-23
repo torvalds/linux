@@ -421,13 +421,14 @@ static int erofs_read_super(struct super_block *sb,
 		errln("rootino(nid %llu) is not a directory(i_mode %o)",
 			ROOT_NID(sbi), inode->i_mode);
 		err = -EINVAL;
-		goto err_isdir;
+		iput(inode);
+		goto err_iget;
 	}
 
 	sb->s_root = d_make_root(inode);
 	if (sb->s_root == NULL) {
 		err = -ENOMEM;
-		goto err_makeroot;
+		goto err_iget;
 	}
 
 	/* save the device name to sbi */
@@ -453,10 +454,6 @@ static int erofs_read_super(struct super_block *sb,
 	 */
 err_devname:
 	dput(sb->s_root);
-err_makeroot:
-err_isdir:
-	if (sb->s_root == NULL)
-		iput(inode);
 err_iget:
 #ifdef EROFS_FS_HAS_MANAGED_CACHE
 	iput(sbi->managed_cache);
