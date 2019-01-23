@@ -359,6 +359,7 @@
 			nvidia,default-tap = <0x8>;
 			nvidia,default-trim = <0x14>;
 			nvidia,dqs-trim = <40>;
+			supports-cqe;
 			status = "disabled";
 		};
 
