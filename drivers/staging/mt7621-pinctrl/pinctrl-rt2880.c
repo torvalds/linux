@@ -363,7 +363,7 @@ static int rt2880_pinmux_probe(struct platform_device *pdev)
 		}
 
 		range = devm_kzalloc(p->dev, sizeof(*range) + 4, GFP_KERNEL);
-		range->name = name = (char *) &range[1];
+		range->name = name = (char *)&range[1];
 		sprintf(name, "pio");
 		range->npins = __be32_to_cpu(*ngpio);
 		range->base = __be32_to_cpu(*gpiobase);
