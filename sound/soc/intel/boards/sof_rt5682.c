@@ -186,6 +186,12 @@ static struct snd_soc_ops sof_rt5682_ops = {
 	.hw_params = sof_rt5682_hw_params,
 };
 
+static struct snd_soc_dai_link_component platform_component[] = {
+	{
+		.name = "sof-audio"
+	}
+};
+
 /* sof digital audio interface glue - connects codec <--> CPU */
 static struct snd_soc_dai_link sof_rt5682_dais[] = {
 	/* Back End DAI links */
@@ -195,6 +201,8 @@ static struct snd_soc_dai_link sof_rt5682_dais[] = {
 		.cpu_dai_name = "SSP0 Pin",
 		.codec_name = "i2c-10EC5682:00",
 		.codec_dai_name = "rt5682-aif1",
+		.platforms = platform_component,
+		.num_platforms = ARRAY_SIZE(platform_component),
 		.init = sof_rt5682_codec_init,
 		.ops = &sof_rt5682_ops,
 		.nonatomic = true,
@@ -208,6 +216,8 @@ static struct snd_soc_dai_link sof_rt5682_dais[] = {
 		.cpu_dai_name = "DMIC01 Pin",
 		.codec_name = "dmic-codec",
 		.codec_dai_name = "dmic-hifi",
+		.platforms = platform_component,
+		.num_platforms = ARRAY_SIZE(platform_component),
 		.ignore_suspend = 1,
 		.dpcm_capture = 1,
 		.no_pcm = 1,
@@ -218,6 +228,8 @@ static struct snd_soc_dai_link sof_rt5682_dais[] = {
 		.cpu_dai_name = "iDisp1 Pin",
 		.codec_name = "ehdaudio0D2",
 		.codec_dai_name = "intel-hdmi-hifi1",
+		.platforms = platform_component,
+		.num_platforms = ARRAY_SIZE(platform_component),
 		.init = sof_hdmi_init,
 		.dpcm_playback = 1,
 		.no_pcm = 1,
@@ -228,6 +240,8 @@ static struct snd_soc_dai_link sof_rt5682_dais[] = {
 		.cpu_dai_name = "iDisp2 Pin",
 		.codec_name = "ehdaudio0D2",
 		.codec_dai_name = "intel-hdmi-hifi2",
+		.platforms = platform_component,
+		.num_platforms = ARRAY_SIZE(platform_component),
 		.init = sof_hdmi_init,
 		.dpcm_playback = 1,
 		.no_pcm = 1,
@@ -238,6 +252,8 @@ static struct snd_soc_dai_link sof_rt5682_dais[] = {
 		.cpu_dai_name = "iDisp3 Pin",
 		.codec_name = "ehdaudio0D2",
 		.codec_dai_name = "intel-hdmi-hifi3",
+		.platforms = platform_component,
+		.num_platforms = ARRAY_SIZE(platform_component),
 		.init = sof_hdmi_init,
 		.dpcm_playback = 1,
 		.no_pcm = 1,
