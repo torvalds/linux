@@ -1907,7 +1907,7 @@ static int artpec6_crypto_prepare_aead(struct aead_request *areq)
 	/* For the decryption, cryptlen includes the tag. */
 	input_length = areq->cryptlen;
 	if (req_ctx->decrypt)
-		input_length -= AES_BLOCK_SIZE;
+		input_length -= crypto_aead_authsize(cipher);
 
 	/* Prepare the context buffer */
 	req_ctx->hw_ctx.aad_length_bits =
@@ -1972,7 +1972,7 @@ static int artpec6_crypto_prepare_aead(struct aead_request *areq)
 		size_t output_len = areq->cryptlen;
 
 		if (req_ctx->decrypt)
-			output_len -= AES_BLOCK_SIZE;
+			output_len -= crypto_aead_authsize(cipher);
 
 		artpec6_crypto_walk_init(&walk, areq->dst);
 
@@ -2001,19 +2001,32 @@ static int artpec6_crypto_prepare_aead(struct aead_request *areq)
 		 * the output ciphertext. For decryption it is put in a context
 		 * buffer for later compare against the input tag.
 		 */
-		count = AES_BLOCK_SIZE;
 
 		if (req_ctx->decrypt) {
 			ret = artpec6_crypto_setup_in_descr(common,
-				req_ctx->decryption_tag, count, false);
+				req_ctx->decryption_tag, AES_BLOCK_SIZE, false);
 			if (ret)
 				return ret;
 
 		} else {
+			/* For encryption the requested tag size may be smaller
+			 * than the hardware's generated tag.
+			 */
+			size_t authsize = crypto_aead_authsize(cipher);
+
 			ret = artpec6_crypto_setup_sg_descrs_in(common, &walk,
-								count);
+								authsize);
 			if (ret)
 				return ret;
+
+			if (authsize < AES_BLOCK_SIZE) {
+				count = AES_BLOCK_SIZE - authsize;
+				ret = artpec6_crypto_setup_in_descr(common,
+					ac->pad_buffer,
+					count, false);
+				if (ret)
+					return ret;
+			}
 		}
 
 	}
@@ -2174,27 +2187,29 @@ static void artpec6_crypto_complete_aead(struct crypto_async_request *req)
 	/* Verify GCM hashtag. */
 	struct aead_request *areq = container_of(req,
 		struct aead_request, base);
+	struct crypto_aead *aead = crypto_aead_reqtfm(areq);
 	struct artpec6_crypto_aead_req_ctx *req_ctx = aead_request_ctx(areq);
 
 	if (req_ctx->decrypt) {
 		u8 input_tag[AES_BLOCK_SIZE];
+		unsigned int authsize = crypto_aead_authsize(aead);
 
 		sg_pcopy_to_buffer(areq->src,
 				   sg_nents(areq->src),
 				   input_tag,
-				   AES_BLOCK_SIZE,
+				   authsize,
 				   areq->assoclen + areq->cryptlen -
-				   AES_BLOCK_SIZE);
+				   authsize);
 
 		if (memcmp(req_ctx->decryption_tag,
 			   input_tag,
-			   AES_BLOCK_SIZE)) {
+			   authsize)) {
 			pr_debug("***EBADMSG:\n");
 			print_hex_dump_debug("ref:", DUMP_PREFIX_ADDRESS, 32, 1,
-					     input_tag, AES_BLOCK_SIZE, true);
+					     input_tag, authsize, true);
 			print_hex_dump_debug("out:", DUMP_PREFIX_ADDRESS, 32, 1,
 					     req_ctx->decryption_tag,
-					     AES_BLOCK_SIZE, true);
+					     authsize, true);
 
 			result = -EBADMSG;
 		}
