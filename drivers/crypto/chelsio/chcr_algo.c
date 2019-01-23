@@ -3676,9 +3676,9 @@ static int chcr_aead_op(struct aead_request *req,
 	/* Form a WR from req */
 	skb = create_wr_fn(req, u_ctx->lldi.rxq_ids[a_ctx(tfm)->rx_qidx], size);
 
-	if (IS_ERR(skb) || !skb) {
+	if (IS_ERR_OR_NULL(skb)) {
 		chcr_dec_wrcount(cdev);
-		return PTR_ERR(skb);
+		return PTR_ERR_OR_ZERO(skb);
 	}
 
 	skb->dev = u_ctx->lldi.ports[0];
