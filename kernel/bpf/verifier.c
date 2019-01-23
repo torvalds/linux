@@ -6660,6 +6660,27 @@ static int opt_remove_dead_code(struct bpf_verifier_env *env)
 	return 0;
 }
 
+static int opt_remove_nops(struct bpf_verifier_env *env)
+{
+	const struct bpf_insn ja = BPF_JMP_IMM(BPF_JA, 0, 0, 0);
+	struct bpf_insn *insn = env->prog->insnsi;
+	int insn_cnt = env->prog->len;
+	int i, err;
+
+	for (i = 0; i < insn_cnt; i++) {
+		if (memcmp(&insn[i], &ja, sizeof(ja)))
+			continue;
+
+		err = verifier_remove_insns(env, i, 1);
+		if (err)
+			return err;
+		insn_cnt--;
+		i--;
+	}
+
+	return 0;
+}
+
 /* convert load instructions that access fields of a context type into a
  * sequence of instructions that access fields of the underlying structure:
  *     struct __sk_buff    -> struct sk_buff
@@ -7452,6 +7473,8 @@ skip_full_check:
 			opt_hard_wire_dead_code_branches(env);
 		if (ret == 0)
 			ret = opt_remove_dead_code(env);
+		if (ret == 0)
+			ret = opt_remove_nops(env);
 	} else {
 		if (ret == 0)
 			sanitize_dead_code(env);
