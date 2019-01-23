@@ -1889,16 +1889,12 @@ again:
 		 *    If not traced, we will leak data numbers
 		 * 2) Fs subtree
 		 *    If not traced, we will double count old data
-		 *    and tree block numbers, if current trans doesn't free
-		 *    data reloc tree inode.
+		 *
+		 * We don't scan the subtree right now, but only record
+		 * the swapped tree blocks.
+		 * The real subtree rescan is delayed until we have new
+		 * CoW on the subtree root node before transaction commit.
 		 */
-		ret = btrfs_qgroup_trace_subtree_swap(trans, rc->block_group,
-				parent, slot, path->nodes[level],
-				path->slots[level], last_snapshot);
-		if (ret < 0)
-			break;
-
-		btrfs_node_key_to_cpu(parent, &first_key, slot);
 		ret = btrfs_qgroup_add_swapped_blocks(trans, dest,
 				rc->block_group, parent, slot,
 				path->nodes[level], path->slots[level],

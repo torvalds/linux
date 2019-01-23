@@ -13,6 +13,7 @@
 #include "print-tree.h"
 #include "locking.h"
 #include "volumes.h"
+#include "qgroup.h"
 
 static int split_node(struct btrfs_trans_handle *trans, struct btrfs_root
 		      *root, struct btrfs_path *path, int level);
@@ -1489,6 +1490,13 @@ noinline int btrfs_cow_block(struct btrfs_trans_handle *trans,
 		btrfs_set_lock_blocking(parent);
 	btrfs_set_lock_blocking(buf);
 
+	/*
+	 * Before CoWing this block for later modification, check if it's
+	 * the subtree root and do the delayed subtree trace if needed.
+	 *
+	 * Also We don't care about the error, as it's handled internally.
+	 */
+	btrfs_qgroup_trace_subtree_after_cow(trans, root, buf);
 	ret = __btrfs_cow_block(trans, root, buf, parent,
 				 parent_slot, cow_ret, search_start, 0);
 

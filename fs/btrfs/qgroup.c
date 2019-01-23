@@ -3968,3 +3968,91 @@ out:
 			BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT;
 	return ret;
 }
+
+/*
+ * Check if the tree block is a subtree root, and if so do the needed
+ * delayed subtree trace for qgroup.
+ *
+ * This is called during btrfs_cow_block().
+ */
+int btrfs_qgroup_trace_subtree_after_cow(struct btrfs_trans_handle *trans,
+					 struct btrfs_root *root,
+					 struct extent_buffer *subvol_eb)
+{
+	struct btrfs_fs_info *fs_info = root->fs_info;
+	struct btrfs_qgroup_swapped_blocks *blocks = &root->swapped_blocks;
+	struct btrfs_qgroup_swapped_block *block;
+	struct extent_buffer *reloc_eb = NULL;
+	struct rb_node *node;
+	bool found = false;
+	bool swapped = false;
+	int level = btrfs_header_level(subvol_eb);
+	int ret = 0;
+	int i;
+
+	if (!test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags))
+		return 0;
+	if (!is_fstree(root->root_key.objectid) || !root->reloc_root)
+		return 0;
+
+	spin_lock(&blocks->lock);
+	if (!blocks->swapped) {
+		spin_unlock(&blocks->lock);
+		return 0;
+	}
+	node = blocks->blocks[level].rb_node;
+
+	while (node) {
+		block = rb_entry(node, struct btrfs_qgroup_swapped_block, node);
+		if (block->subvol_bytenr < subvol_eb->start) {
+			node = node->rb_left;
+		} else if (block->subvol_bytenr > subvol_eb->start) {
+			node = node->rb_right;
+		} else {
+			found = true;
+			break;
+		}
+	}
+	if (!found) {
+		spin_unlock(&blocks->lock);
+		goto out;
+	}
+	/* Found one, remove it from @blocks first and update blocks->swapped */
+	rb_erase(&block->node, &blocks->blocks[level]);
+	for (i = 0; i < BTRFS_MAX_LEVEL; i++) {
+		if (RB_EMPTY_ROOT(&blocks->blocks[i])) {
+			swapped = true;
+			break;
+		}
+	}
+	blocks->swapped = swapped;
+	spin_unlock(&blocks->lock);
+
+	/* Read out reloc subtree root */
+	reloc_eb = read_tree_block(fs_info, block->reloc_bytenr,
+				   block->reloc_generation, block->level,
+				   &block->first_key);
+	if (IS_ERR(reloc_eb)) {
+		ret = PTR_ERR(reloc_eb);
+		reloc_eb = NULL;
+		goto free_out;
+	}
+	if (!extent_buffer_uptodate(reloc_eb)) {
+		ret = -EIO;
+		goto free_out;
+	}
+
+	ret = qgroup_trace_subtree_swap(trans, reloc_eb, subvol_eb,
+			block->last_snapshot, block->trace_leaf);
+free_out:
+	kfree(block);
+	free_extent_buffer(reloc_eb);
+out:
+	if (ret < 0) {
+		btrfs_err_rl(fs_info,
+			     "failed to account subtree at bytenr %llu: %d",
+			     subvol_eb->start, ret);
+		fs_info->qgroup_flags |= BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT;
+	}
+	return ret;
+}
