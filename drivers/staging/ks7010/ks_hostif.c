@@ -35,7 +35,7 @@ static inline u8 get_byte(struct ks_wlan_private *priv)
 {
 	u8 data;
 
-	data = *(priv->rxp)++;
+	data = *priv->rxp++;
 	/* length check in advance ! */
 	--(priv->rx_size);
 	return data;
@@ -171,7 +171,7 @@ int get_current_ap(struct ks_wlan_private *priv, struct link_ap_info *ap_info)
 		   "- rate_set_size=%d\n",
 		   ap->bssid[0], ap->bssid[1], ap->bssid[2],
 		   ap->bssid[3], ap->bssid[4], ap->bssid[5],
-		   &(ap->ssid.body[0]),
+		   &ap->ssid.body[0],
 		   ap->rate_set.body[0], ap->rate_set.body[1],
 		   ap->rate_set.body[2], ap->rate_set.body[3],
 		   ap->rate_set.body[4], ap->rate_set.body[5],
@@ -732,7 +732,7 @@ void hostif_scan_indication(struct ks_wlan_private *priv)
 		netdev_dbg(priv->net_dev, " scan_ind_count=%d :: aplist.size=%d\n",
 			priv->scan_ind_count, priv->aplist.size);
 		get_ap_information(priv, (struct ap_info *)(priv->rxp),
-				   &(priv->aplist.ap[priv->scan_ind_count - 1]));
+				   &priv->aplist.ap[priv->scan_ind_count - 1]);
 		priv->aplist.size = priv->scan_ind_count;
 	} else {
 		netdev_dbg(priv->net_dev, " count over :: scan_ind_count=%d\n",
