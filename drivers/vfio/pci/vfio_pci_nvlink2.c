@@ -174,11 +174,11 @@ static int vfio_pci_nvgpu_add_capability(struct vfio_pci_device *vdev,
 		struct vfio_pci_region *region, struct vfio_info_cap *caps)
 {
 	struct vfio_pci_nvgpu_data *data = region->data;
-	struct vfio_region_info_cap_nvlink2_ssatgt cap = { 0 };
-
-	cap.header.id = VFIO_REGION_INFO_CAP_NVLINK2_SSATGT;
-	cap.header.version = 1;
-	cap.tgt = data->gpu_tgt;
+	struct vfio_region_info_cap_nvlink2_ssatgt cap = {
+		.header.id = VFIO_REGION_INFO_CAP_NVLINK2_SSATGT,
+		.header.version = 1,
+		.tgt = data->gpu_tgt
+	};
 
 	return vfio_info_add_capability(caps, &cap.header, sizeof(cap));
 }
@@ -361,17 +361,17 @@ static int vfio_pci_npu2_add_capability(struct vfio_pci_device *vdev,
 		struct vfio_pci_region *region, struct vfio_info_cap *caps)
 {
 	struct vfio_pci_npu2_data *data = region->data;
-	struct vfio_region_info_cap_nvlink2_ssatgt captgt = { 0 };
-	struct vfio_region_info_cap_nvlink2_lnkspd capspd = { 0 };
+	struct vfio_region_info_cap_nvlink2_ssatgt captgt = {
+		.header.id = VFIO_REGION_INFO_CAP_NVLINK2_SSATGT,
+		.header.version = 1,
+		.tgt = data->gpu_tgt
+	};
+	struct vfio_region_info_cap_nvlink2_lnkspd capspd = {
+		.header.id = VFIO_REGION_INFO_CAP_NVLINK2_LNKSPD,
+		.header.version = 1,
+		.link_speed = data->link_speed
+	};
 	int ret;
-
-	captgt.header.id = VFIO_REGION_INFO_CAP_NVLINK2_SSATGT;
-	captgt.header.version = 1;
-	captgt.tgt = data->gpu_tgt;
-
-	capspd.header.id = VFIO_REGION_INFO_CAP_NVLINK2_LNKSPD;
-	capspd.header.version = 1;
-	capspd.link_speed = data->link_speed;
 
 	ret = vfio_info_add_capability(caps, &captgt.header, sizeof(captgt));
 	if (ret)
