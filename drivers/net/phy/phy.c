@@ -785,28 +785,27 @@ static int phy_enable_interrupts(struct phy_device *phydev)
 }
 
 /**
- * phy_start_interrupts - request and enable interrupts for a PHY device
+ * phy_request_interrupt - request interrupt for a PHY device
  * @phydev: target phy_device struct
  *
  * Description: Request the interrupt for the given PHY.
  *   If this fails, then we set irq to PHY_POLL.
- *   Otherwise, we enable the interrupts in the PHY.
  *   This should only be called with a valid IRQ number.
- *   Returns 0 on success or < 0 on error.
  */
-int phy_start_interrupts(struct phy_device *phydev)
+void phy_request_interrupt(struct phy_device *phydev)
 {
-	if (request_threaded_irq(phydev->irq, NULL, phy_interrupt,
-				 IRQF_ONESHOT | IRQF_SHARED,
-				 phydev_name(phydev), phydev) < 0) {
-		phydev_warn(phydev, "Can't get IRQ %d\n", phydev->irq);
-		phydev->irq = PHY_POLL;
-		return 0;
-	}
+	int err;
 
-	return phy_enable_interrupts(phydev);
+	err = request_threaded_irq(phydev->irq, NULL, phy_interrupt,
+				   IRQF_ONESHOT | IRQF_SHARED,
+				   phydev_name(phydev), phydev);
+	if (err) {
+		phydev_warn(phydev, "Error %d requesting IRQ %d, falling back to polling\n",
+			    err, phydev->irq);
+		phydev->irq = PHY_POLL;
+	}
 }
-EXPORT_SYMBOL(phy_start_interrupts);
+EXPORT_SYMBOL(phy_request_interrupt);
 
 /**
  * phy_stop - Bring down the PHY link, and stop checking the status
