@@ -184,3 +184,22 @@ static acpi_physical_address bios_get_rsdp_addr(void)
 
 	return 0;
 }
+
+/* Return RSDP address on success, otherwise 0. */
+acpi_physical_address get_rsdp_addr(void)
+{
+	acpi_physical_address pa;
+
+	pa = get_acpi_rsdp();
+
+	if (!pa)
+		pa = boot_params->acpi_rsdp_addr;
+
+	if (!pa)
+		pa = efi_get_rsdp_addr();
+
+	if (!pa)
+		pa = bios_get_rsdp_addr();
+
+	return pa;
+}
