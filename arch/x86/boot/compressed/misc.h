@@ -25,6 +25,9 @@
 #include <asm/bootparam.h>
 #include <asm/bootparam_utils.h>
 
+#define BOOT_CTYPE_H
+#include <linux/acpi.h>
+
 #define BOOT_BOOT_H
 #include "../ctype.h"
 
