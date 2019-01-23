@@ -1570,10 +1570,6 @@ uvcg_uncompressed_##cname##_store(struct config_item *item,		\
 	if (ret)							\
 		goto end;						\
 									\
-	if (num > 255) {						\
-		ret = -EINVAL;						\
-		goto end;						\
-	}								\
 	u->desc.aname = num;						\
 	ret = len;							\
 end:									\
@@ -1767,10 +1763,6 @@ uvcg_mjpeg_##cname##_store(struct config_item *item,			\
 	if (ret)							\
 		goto end;						\
 									\
-	if (num > 255) {						\
-		ret = -EINVAL;						\
-		goto end;						\
-	}								\
 	u->desc.aname = num;						\
 	ret = len;							\
 end:									\
