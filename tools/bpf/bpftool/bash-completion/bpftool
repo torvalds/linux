@@ -679,6 +679,25 @@ _bpftool()
                     ;;
             esac
             ;;
+        feature)
+            case $command in
+                probe)
+                    [[ $prev == "dev" ]] && _sysfs_get_netdevs && return 0
+                    [[ $prev == "prefix" ]] && return 0
+                    if _bpftool_search_list 'macros'; then
+                        COMPREPLY+=( $( compgen -W 'prefix' -- "$cur" ) )
+                    else
+                        COMPREPLY+=( $( compgen -W 'macros' -- "$cur" ) )
+                    fi
+                    _bpftool_one_of_list 'kernel dev'
+                    return 0
+                    ;;
+                *)
+                    [[ $prev == $object ]] && \
+                        COMPREPLY=( $( compgen -W 'help probe' -- "$cur" ) )
+                    ;;
+            esac
+            ;;
     esac
 } &&
 complete -F _bpftool bpftool

@@ -21,7 +21,7 @@
 #include "json_writer.h"
 #include "main.h"
 
-static const char * const map_type_name[] = {
+const char * const map_type_name[] = {
 	[BPF_MAP_TYPE_UNSPEC]			= "unspec",
 	[BPF_MAP_TYPE_HASH]			= "hash",
 	[BPF_MAP_TYPE_ARRAY]			= "array",
@@ -47,6 +47,8 @@ static const char * const map_type_name[] = {
 	[BPF_MAP_TYPE_QUEUE]			= "queue",
 	[BPF_MAP_TYPE_STACK]			= "stack",
 };
+
+const size_t map_type_name_size = ARRAY_SIZE(map_type_name);
 
 static bool map_is_per_cpu(__u32 type)
 {
