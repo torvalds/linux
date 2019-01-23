@@ -49,6 +49,7 @@ Optional properties:
   during suspend.
 - rockchip,no-hp-det: If there is no headphone on boards, we don't need to
   enable headphone detection.
+- rockchip,internal-micbias: Using internal micbias which are from codec.
 - hp-ctl-gpios: The gpio of head phone controller.
 - pa-drv-gpios: The gpio of poweramplifier controller
 - rockchip,delay-pa-drv-ms: This property points out that the delay for
