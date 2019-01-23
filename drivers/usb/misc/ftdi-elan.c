@@ -915,7 +915,6 @@ static int ftdi_elan_respond_engine(struct usb_ftdi *ftdi)
 	int bytes_read = 0;
 	int retry_on_empty = 1;
 	int retry_on_timeout = 3;
-	int empty_packets = 0;
 read:{
 		int packet_bytes = 0;
 		int retval = usb_bulk_msg(ftdi->udev,
@@ -963,7 +962,6 @@ read:{
 		} else if (packet_bytes == 2) {
 			unsigned char s0 = ftdi->bulk_in_buffer[0];
 			unsigned char s1 = ftdi->bulk_in_buffer[1];
-			empty_packets += 1;
 			if (s0 == 0x31 && s1 == 0x60) {
 				if (retry_on_empty-- > 0) {
 					goto more;
