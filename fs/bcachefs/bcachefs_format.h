@@ -1362,7 +1362,8 @@ static inline __u64 __bset_magic(struct bch_sb *sb)
 	x(btree_root,		1)		\
 	x(prio_ptrs,		2)		\
 	x(blacklist,		3)		\
-	x(blacklist_v2,		4)
+	x(blacklist_v2,		4)		\
+	x(usage,		5)
 
 enum {
 #define x(f, nr)	BCH_JSET_ENTRY_##f	= nr,
@@ -1391,6 +1392,20 @@ struct jset_entry_blacklist_v2 {
 	__le64			start;
 	__le64			end;
 };
+
+enum {
+	FS_USAGE_REPLICAS		= 0,
+	FS_USAGE_INODES			= 1,
+	FS_USAGE_KEY_VERSION		= 2,
+	FS_USAGE_NR			= 3
+};
+
+struct jset_entry_usage {
+	struct jset_entry	entry;
+	__le64			sectors;
+	__u8			type;
+	struct bch_replicas_entry r;
+} __attribute__((packed));
 
 /*
  * On disk format for a journal entry:

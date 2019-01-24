@@ -80,4 +80,6 @@ int bch2_sb_replicas_to_cpu_replicas(struct bch_fs *);
 extern const struct bch_sb_field_ops bch_sb_field_ops_replicas;
 extern const struct bch_sb_field_ops bch_sb_field_ops_replicas_v0;
 
+int bch2_fs_replicas_init(struct bch_fs *);
+
 #endif /* _BCACHEFS_REPLICAS_H */

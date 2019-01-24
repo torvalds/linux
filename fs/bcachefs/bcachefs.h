@@ -545,6 +545,8 @@ struct bch_fs {
 	struct bch_replicas_cpu replicas_gc;
 	struct mutex		replicas_gc_lock;
 
+	struct journal_entry_res replicas_journal_res;
+
 	struct bch_disk_groups_cpu __rcu *disk_groups;
 
 	struct bch_opts		opts;

@@ -108,7 +108,8 @@ static bool journal_empty(struct list_head *journal)
 
 	list_for_each_entry(i, journal, list) {
 		vstruct_for_each(&i->j, entry) {
-			if (entry->type == BCH_JSET_ENTRY_btree_root)
+			if (entry->type == BCH_JSET_ENTRY_btree_root ||
+			    entry->type == BCH_JSET_ENTRY_usage)
 				continue;
 
 			if (entry->type == BCH_JSET_ENTRY_btree_keys &&

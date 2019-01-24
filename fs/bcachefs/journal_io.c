@@ -284,6 +284,7 @@ static int journal_entry_validate_blacklist_v2(struct bch_fs *c,
 	if (journal_entry_err_on(le16_to_cpu(entry->u64s) != 2, c,
 		"invalid journal seq blacklist entry: bad size")) {
 		journal_entry_null_range(entry, vstruct_next(entry));
+		goto out;
 	}
 
 	bl_entry = container_of(entry, struct jset_entry_blacklist_v2, entry);
@@ -292,6 +293,28 @@ static int journal_entry_validate_blacklist_v2(struct bch_fs *c,
 				 le64_to_cpu(bl_entry->end), c,
 		"invalid journal seq blacklist entry: start > end")) {
 		journal_entry_null_range(entry, vstruct_next(entry));
+	}
+out:
+fsck_err:
+	return ret;
+}
+
+static int journal_entry_validate_usage(struct bch_fs *c,
+					struct jset *jset,
+					struct jset_entry *entry,
+					int write)
+{
+	struct jset_entry_usage *u =
+		container_of(entry, struct jset_entry_usage, entry);
+	unsigned bytes = jset_u64s(le16_to_cpu(entry->u64s)) * sizeof(u64);
+	int ret = 0;
+
+	if (journal_entry_err_on(bytes < sizeof(*u) ||
+				 bytes < sizeof(*u) + u->r.nr_devs,
+				 c,
+				 "invalid journal entry usage: bad size")) {
+		journal_entry_null_range(entry, vstruct_next(entry));
+		return ret;
 	}
 
 fsck_err:
@@ -315,18 +338,10 @@ static const struct jset_entry_ops bch2_jset_entry_ops[] = {
 static int journal_entry_validate(struct bch_fs *c, struct jset *jset,
 				  struct jset_entry *entry, int write)
 {
-	int ret = 0;
-
-	if (entry->type >= BCH_JSET_ENTRY_NR) {
-		journal_entry_err(c, "invalid journal entry type %u",
-				  entry->type);
-		journal_entry_null_range(entry, vstruct_next(entry));
-		return 0;
-	}
-
-	ret = bch2_jset_entry_ops[entry->type].validate(c, jset, entry, write);
-fsck_err:
-	return ret;
+	return entry->type < BCH_JSET_ENTRY_NR
+		? bch2_jset_entry_ops[entry->type].validate(c, jset,
+							    entry, write)
+		: 0;
 }
 
 static int jset_validate_entries(struct bch_fs *c, struct jset *jset,
