@@ -57,8 +57,13 @@ static int dax_match_id(struct dax_device_driver *dax_drv, struct device *dev)
 	return match;
 }
 
+enum id_action {
+	ID_REMOVE,
+	ID_ADD,
+};
+
 static ssize_t do_id_store(struct device_driver *drv, const char *buf,
-		size_t count, bool add)
+		size_t count, enum id_action action)
 {
 	struct dax_device_driver *dax_drv = to_dax_drv(drv);
 	unsigned int region_id, id;
@@ -77,7 +82,7 @@ static ssize_t do_id_store(struct device_driver *drv, const char *buf,
 	mutex_lock(&dax_bus_lock);
 	dax_id = __dax_match_id(dax_drv, buf);
 	if (!dax_id) {
-		if (add) {
+		if (action == ID_ADD) {
 			dax_id = kzalloc(sizeof(*dax_id), GFP_KERNEL);
 			if (dax_id) {
 				strncpy(dax_id->dev_name, buf, DAX_NAME_LEN);
@@ -86,26 +91,33 @@ static ssize_t do_id_store(struct device_driver *drv, const char *buf,
 				rc = -ENOMEM;
 		} else
 			/* nothing to remove */;
-	} else if (!add) {
+	} else if (action == ID_REMOVE) {
 		list_del(&dax_id->list);
 		kfree(dax_id);
 	} else
 		/* dax_id already added */;
 	mutex_unlock(&dax_bus_lock);
-	return rc;
+
+	if (rc < 0)
+		return rc;
+	if (action == ID_ADD)
+		rc = driver_attach(drv);
+	if (rc)
+		return rc;
+	return count;
 }
 
 static ssize_t new_id_store(struct device_driver *drv, const char *buf,
 		size_t count)
 {
-	return do_id_store(drv, buf, count, true);
+	return do_id_store(drv, buf, count, ID_ADD);
 }
 static DRIVER_ATTR_WO(new_id);
 
 static ssize_t remove_id_store(struct device_driver *drv, const char *buf,
 		size_t count)
 {
-	return do_id_store(drv, buf, count, false);
+	return do_id_store(drv, buf, count, ID_REMOVE);
 }
 static DRIVER_ATTR_WO(remove_id);
 
