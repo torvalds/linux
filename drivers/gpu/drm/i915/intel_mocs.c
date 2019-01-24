@@ -71,6 +71,12 @@ struct drm_i915_mocs_table {
 #define L3_2_RESERVED		_L3_CACHEABILITY(2)
 #define L3_3_WB			_L3_CACHEABILITY(3)
 
+#define MOCS_ENTRY(__idx, __control_value, __l3cc_value) \
+	[__idx] = { \
+		.control_value = __control_value, \
+		.l3cc_value = __l3cc_value, \
+	}
+
 /*
  * MOCS tables
  *
@@ -93,40 +99,27 @@ struct drm_i915_mocs_table {
  *       may only be updated incrementally by adding entries at the
  *       end.
  */
-
 #define GEN9_MOCS_ENTRIES \
-	[I915_MOCS_UNCACHED] = { \
-		/* 0x00000009 */ \
-		.control_value = LE_1_UC | LE_TC_2_LLC_ELLC, \
-		/* 0x0010 */ \
-		.l3cc_value = L3_1_UC, \
-	}, \
-	[I915_MOCS_PTE] = { \
-		/* 0x00000038 */ \
-		.control_value = LE_0_PAGETABLE | LE_TC_2_LLC_ELLC | LE_LRUM(3), \
-		/* 0x0030 */ \
-		.l3cc_value = L3_3_WB, \
-	}
+	MOCS_ENTRY(I915_MOCS_UNCACHED, \
+		   LE_1_UC | LE_TC_2_LLC_ELLC, \
+		   L3_1_UC), \
+	MOCS_ENTRY(I915_MOCS_PTE, \
+		   LE_0_PAGETABLE | LE_TC_2_LLC_ELLC | LE_LRUM(3), \
+		   L3_3_WB)
 
 static const struct drm_i915_mocs_entry skylake_mocs_table[] = {
 	GEN9_MOCS_ENTRIES,
-	[I915_MOCS_CACHED] = {
-		/* 0x0000003b */
-		.control_value = LE_3_WB | LE_TC_2_LLC_ELLC | LE_LRUM(3),
-		/* 0x0030 */
-		.l3cc_value =   L3_3_WB,
-	},
+	MOCS_ENTRY(I915_MOCS_CACHED,
+		   LE_3_WB | LE_TC_2_LLC_ELLC | LE_LRUM(3),
+		   L3_3_WB)
 };
 
 /* NOTE: the LE_TGT_CACHE is not used on Broxton */
 static const struct drm_i915_mocs_entry broxton_mocs_table[] = {
 	GEN9_MOCS_ENTRIES,
-	[I915_MOCS_CACHED] = {
-		/* 0x00000039 */
-		.control_value = LE_1_UC | LE_TC_2_LLC_ELLC | LE_LRUM(3),
-		/* 0x0030 */
-		.l3cc_value = L3_3_WB,
-	},
+	MOCS_ENTRY(I915_MOCS_CACHED,
+		   LE_1_UC | LE_TC_2_LLC_ELLC | LE_LRUM(3),
+		   L3_3_WB)
 };
 
 /**
