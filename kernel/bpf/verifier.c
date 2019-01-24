@@ -6432,6 +6432,153 @@ static struct bpf_prog *bpf_patch_insn_data(struct bpf_verifier_env *env, u32 of
 	return new_prog;
 }
 
+static int adjust_subprog_starts_after_remove(struct bpf_verifier_env *env,
+					      u32 off, u32 cnt)
+{
+	int i, j;
+
+	/* find first prog starting at or after off (first to remove) */
+	for (i = 0; i < env->subprog_cnt; i++)
+		if (env->subprog_info[i].start >= off)
+			break;
+	/* find first prog starting at or after off + cnt (first to stay) */
+	for (j = i; j < env->subprog_cnt; j++)
+		if (env->subprog_info[j].start >= off + cnt)
+			break;
+	/* if j doesn't start exactly at off + cnt, we are just removing
+	 * the front of previous prog
+	 */
+	if (env->subprog_info[j].start != off + cnt)
+		j--;
+
+	if (j > i) {
+		struct bpf_prog_aux *aux = env->prog->aux;
+		int move;
+
+		/* move fake 'exit' subprog as well */
+		move = env->subprog_cnt + 1 - j;
+
+		memmove(env->subprog_info + i,
+			env->subprog_info + j,
+			sizeof(*env->subprog_info) * move);
+		env->subprog_cnt -= j - i;
+
+		/* remove func_info */
+		if (aux->func_info) {
+			move = aux->func_info_cnt - j;
+
+			memmove(aux->func_info + i,
+				aux->func_info + j,
+				sizeof(*aux->func_info) * move);
+			aux->func_info_cnt -= j - i;
+			/* func_info->insn_off is set after all code rewrites,
+			 * in adjust_btf_func() - no need to adjust
+			 */
+		}
+	} else {
+		/* convert i from "first prog to remove" to "first to adjust" */
+		if (env->subprog_info[i].start == off)
+			i++;
+	}
+
+	/* update fake 'exit' subprog as well */
+	for (; i <= env->subprog_cnt; i++)
+		env->subprog_info[i].start -= cnt;
+
+	return 0;
+}
+
+static int bpf_adj_linfo_after_remove(struct bpf_verifier_env *env, u32 off,
+				      u32 cnt)
+{
+	struct bpf_prog *prog = env->prog;
+	u32 i, l_off, l_cnt, nr_linfo;
+	struct bpf_line_info *linfo;
+
+	nr_linfo = prog->aux->nr_linfo;
+	if (!nr_linfo)
+		return 0;
+
+	linfo = prog->aux->linfo;
+
+	/* find first line info to remove, count lines to be removed */
+	for (i = 0; i < nr_linfo; i++)
+		if (linfo[i].insn_off >= off)
+			break;
+
+	l_off = i;
+	l_cnt = 0;
+	for (; i < nr_linfo; i++)
+		if (linfo[i].insn_off < off + cnt)
+			l_cnt++;
+		else
+			break;
+
+	/* First live insn doesn't match first live linfo, it needs to "inherit"
+	 * last removed linfo.  prog is already modified, so prog->len == off
+	 * means no live instructions after (tail of the program was removed).
+	 */
+	if (prog->len != off && l_cnt &&
+	    (i == nr_linfo || linfo[i].insn_off != off + cnt)) {
+		l_cnt--;
+		linfo[--i].insn_off = off + cnt;
+	}
+
+	/* remove the line info which refer to the removed instructions */
+	if (l_cnt) {
+		memmove(linfo + l_off, linfo + i,
+			sizeof(*linfo) * (nr_linfo - i));
+
+		prog->aux->nr_linfo -= l_cnt;
+		nr_linfo = prog->aux->nr_linfo;
+	}
+
+	/* pull all linfo[i].insn_off >= off + cnt in by cnt */
+	for (i = l_off; i < nr_linfo; i++)
+		linfo[i].insn_off -= cnt;
+
+	/* fix up all subprogs (incl. 'exit') which start >= off */
+	for (i = 0; i <= env->subprog_cnt; i++)
+		if (env->subprog_info[i].linfo_idx > l_off) {
+			/* program may have started in the removed region but
+			 * may not be fully removed
+			 */
+			if (env->subprog_info[i].linfo_idx >= l_off + l_cnt)
+				env->subprog_info[i].linfo_idx -= l_cnt;
+			else
+				env->subprog_info[i].linfo_idx = l_off;
+		}
+
+	return 0;
+}
+
+static int verifier_remove_insns(struct bpf_verifier_env *env, u32 off, u32 cnt)
+{
+	struct bpf_insn_aux_data *aux_data = env->insn_aux_data;
+	unsigned int orig_prog_len = env->prog->len;
+	int err;
+
+	if (bpf_prog_is_dev_bound(env->prog->aux))
+		bpf_prog_offload_remove_insns(env, off, cnt);
+
+	err = bpf_remove_insns(env->prog, off, cnt);
+	if (err)
+		return err;
+
+	err = adjust_subprog_starts_after_remove(env, off, cnt);
+	if (err)
+		return err;
+
+	err = bpf_adj_linfo_after_remove(env, off, cnt);
+	if (err)
+		return err;
+
+	memmove(aux_data + off,	aux_data + off + cnt,
+		sizeof(*aux_data) * (orig_prog_len - off - cnt));
+
+	return 0;
+}
+
 /* The verifier does more data flow analysis than llvm and will not
  * explore branches that are dead at run time. Malicious programs can
  * have dead code too. Therefore replace all dead at-run-time code
@@ -6456,6 +6603,88 @@ static void sanitize_dead_code(struct bpf_verifier_env *env)
 			continue;
 		memcpy(insn + i, &trap, sizeof(trap));
 	}
+}
+
+static bool insn_is_cond_jump(u8 code)
+{
+	u8 op;
+
+	if (BPF_CLASS(code) != BPF_JMP)
+		return false;
+
+	op = BPF_OP(code);
+	return op != BPF_JA && op != BPF_EXIT && op != BPF_CALL;
+}
+
+static void opt_hard_wire_dead_code_branches(struct bpf_verifier_env *env)
+{
+	struct bpf_insn_aux_data *aux_data = env->insn_aux_data;
+	struct bpf_insn ja = BPF_JMP_IMM(BPF_JA, 0, 0, 0);
+	struct bpf_insn *insn = env->prog->insnsi;
+	const int insn_cnt = env->prog->len;
+	int i;
+
+	for (i = 0; i < insn_cnt; i++, insn++) {
+		if (!insn_is_cond_jump(insn->code))
+			continue;
+
+		if (!aux_data[i + 1].seen)
+			ja.off = insn->off;
+		else if (!aux_data[i + 1 + insn->off].seen)
+			ja.off = 0;
+		else
+			continue;
+
+		if (bpf_prog_is_dev_bound(env->prog->aux))
+			bpf_prog_offload_replace_insn(env, i, &ja);
+
+		memcpy(insn, &ja, sizeof(ja));
+	}
+}
+
+static int opt_remove_dead_code(struct bpf_verifier_env *env)
+{
+	struct bpf_insn_aux_data *aux_data = env->insn_aux_data;
+	int insn_cnt = env->prog->len;
+	int i, err;
+
+	for (i = 0; i < insn_cnt; i++) {
+		int j;
+
+		j = 0;
+		while (i + j < insn_cnt && !aux_data[i + j].seen)
+			j++;
+		if (!j)
+			continue;
+
+		err = verifier_remove_insns(env, i, j);
+		if (err)
+			return err;
+		insn_cnt = env->prog->len;
+	}
+
+	return 0;
+}
+
+static int opt_remove_nops(struct bpf_verifier_env *env)
+{
+	const struct bpf_insn ja = BPF_JMP_IMM(BPF_JA, 0, 0, 0);
+	struct bpf_insn *insn = env->prog->insnsi;
+	int insn_cnt = env->prog->len;
+	int i, err;
+
+	for (i = 0; i < insn_cnt; i++) {
+		if (memcmp(&insn[i], &ja, sizeof(ja)))
+			continue;
+
+		err = verifier_remove_insns(env, i, 1);
+		if (err)
+			return err;
+		insn_cnt--;
+		i--;
+	}
+
+	return 0;
 }
 
 /* convert load instructions that access fields of a context type into a
@@ -7148,7 +7377,8 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr,
 {
 	struct bpf_verifier_env *env;
 	struct bpf_verifier_log *log;
-	int ret = -EINVAL;
+	int i, len, ret = -EINVAL;
+	bool is_priv;
 
 	/* no program is valid */
 	if (ARRAY_SIZE(bpf_verifier_ops) == 0)
@@ -7162,12 +7392,14 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr,
 		return -ENOMEM;
 	log = &env->log;
 
+	len = (*prog)->len;
 	env->insn_aux_data =
-		vzalloc(array_size(sizeof(struct bpf_insn_aux_data),
-				   (*prog)->len));
+		vzalloc(array_size(sizeof(struct bpf_insn_aux_data), len));
 	ret = -ENOMEM;
 	if (!env->insn_aux_data)
 		goto err_free_env;
+	for (i = 0; i < len; i++)
+		env->insn_aux_data[i].orig_idx = i;
 	env->prog = *prog;
 	env->ops = bpf_verifier_ops[env->prog->type];
 
@@ -7195,6 +7427,9 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr,
 	if (attr->prog_flags & BPF_F_ANY_ALIGNMENT)
 		env->strict_alignment = false;
 
+	is_priv = capable(CAP_SYS_ADMIN);
+	env->allow_ptr_leaks = is_priv;
+
 	ret = replace_map_fd_with_map_ptr(env);
 	if (ret < 0)
 		goto skip_full_check;
@@ -7211,8 +7446,6 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr,
 	ret = -ENOMEM;
 	if (!env->explored_states)
 		goto skip_full_check;
-
-	env->allow_ptr_leaks = capable(CAP_SYS_ADMIN);
 
 	ret = check_subprogs(env);
 	if (ret < 0)
@@ -7243,8 +7476,17 @@ skip_full_check:
 		ret = check_max_stack_depth(env);
 
 	/* instruction rewrites happen after this point */
-	if (ret == 0)
-		sanitize_dead_code(env);
+	if (is_priv) {
+		if (ret == 0)
+			opt_hard_wire_dead_code_branches(env);
+		if (ret == 0)
+			ret = opt_remove_dead_code(env);
+		if (ret == 0)
+			ret = opt_remove_nops(env);
+	} else {
+		if (ret == 0)
+			sanitize_dead_code(env);
+	}
 
 	if (ret == 0)
 		/* program is valid, convert *(u32*)(ctx + off) accesses */

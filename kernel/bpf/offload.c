@@ -173,6 +173,41 @@ int bpf_prog_offload_finalize(struct bpf_verifier_env *env)
 	return ret;
 }
 
+void
+bpf_prog_offload_replace_insn(struct bpf_verifier_env *env, u32 off,
+			      struct bpf_insn *insn)
+{
+	const struct bpf_prog_offload_ops *ops;
+	struct bpf_prog_offload *offload;
+	int ret = -EOPNOTSUPP;
+
+	down_read(&bpf_devs_lock);
+	offload = env->prog->aux->offload;
+	if (offload) {
+		ops = offload->offdev->ops;
+		if (!offload->opt_failed && ops->replace_insn)
+			ret = ops->replace_insn(env, off, insn);
+		offload->opt_failed |= ret;
+	}
+	up_read(&bpf_devs_lock);
+}
+
+void
+bpf_prog_offload_remove_insns(struct bpf_verifier_env *env, u32 off, u32 cnt)
+{
+	struct bpf_prog_offload *offload;
+	int ret = -EOPNOTSUPP;
+
+	down_read(&bpf_devs_lock);
+	offload = env->prog->aux->offload;
+	if (offload) {
+		if (!offload->opt_failed && offload->offdev->ops->remove_insns)
+			ret = offload->offdev->ops->remove_insns(env, off, cnt);
+		offload->opt_failed |= ret;
+	}
+	up_read(&bpf_devs_lock);
+}
+
 static void __bpf_prog_offload_destroy(struct bpf_prog *prog)
 {
 	struct bpf_prog_offload *offload = prog->aux->offload;
