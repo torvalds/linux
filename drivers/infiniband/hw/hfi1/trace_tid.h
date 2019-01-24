@@ -21,9 +21,20 @@ __print_symbolic(type,                       \
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM hfi1_tid
 
+u8 hfi1_trace_get_tid_ctrl(u32 ent);
+u16 hfi1_trace_get_tid_len(u32 ent);
+u16 hfi1_trace_get_tid_idx(u32 ent);
+
 #define OPFN_PARAM_PRN "[%s] qpn 0x%x %s OPFN: qp 0x%x, max read %u, " \
 		       "max write %u, max length %u, jkey 0x%x timeout %u " \
 		       "urg %u"
+
+#define TID_FLOW_PRN "[%s] qpn 0x%x flow %d: idx %d resp_ib_psn 0x%x " \
+		     "generation 0x%x fpsn 0x%x-%x r_next_psn 0x%x " \
+		     "npagesets %u tnode_cnt %u tidcnt %u length %u"
+
+#define TID_NODE_PRN "[%s] qpn 0x%x  %s idx %u grp base 0x%x map 0x%x " \
+		     "used %u cnt %u"
 
 DECLARE_EVENT_CLASS(/* class */
 	hfi1_exp_tid_reg_unreg,
@@ -321,6 +332,229 @@ DEFINE_EVENT(/* event */
 	hfi1_msg_template, hfi1_msg_opfn_conn_error,
 	TP_PROTO(struct rvt_qp *qp, const char *msg, u64 more),
 	TP_ARGS(qp, msg, more)
+);
+
+DEFINE_EVENT(/* event */
+	hfi1_msg_template, hfi1_msg_alloc_tids,
+	TP_PROTO(struct rvt_qp *qp, const char *msg, u64 more),
+	TP_ARGS(qp, msg, more)
+);
+
+DECLARE_EVENT_CLASS(/* tid_flow_page */
+	hfi1_tid_flow_page_template,
+	TP_PROTO(struct rvt_qp *qp, struct tid_rdma_flow *flow, u32 index,
+		 char mtu8k, char v1, void *vaddr),
+	TP_ARGS(qp, flow, index, mtu8k, v1, vaddr),
+	TP_STRUCT__entry(/* entry */
+		DD_DEV_ENTRY(dd_from_ibdev(qp->ibqp.device))
+		__field(u32, qpn)
+		__field(char, mtu8k)
+		__field(char, v1)
+		__field(u32, index)
+		__field(u64, page)
+		__field(u64, vaddr)
+	),
+	TP_fast_assign(/* assign */
+		DD_DEV_ASSIGN(dd_from_ibdev(qp->ibqp.device));
+		__entry->qpn = qp->ibqp.qp_num;
+		__entry->mtu8k = mtu8k;
+		__entry->v1 = v1;
+		__entry->index = index;
+		__entry->page = vaddr ? (u64)virt_to_page(vaddr) : 0ULL;
+		__entry->vaddr = (u64)vaddr;
+	),
+	TP_printk(/* print */
+		"[%s] qpn 0x%x page[%u]: page 0x%llx %s 0x%llx",
+		__get_str(dev),
+		__entry->qpn,
+		__entry->index,
+		__entry->page,
+		__entry->mtu8k ? (__entry->v1 ? "v1" : "v0") : "vaddr",
+		__entry->vaddr
+	)
+);
+
+DEFINE_EVENT(/* event */
+	hfi1_tid_flow_page_template, hfi1_tid_flow_page,
+	TP_PROTO(struct rvt_qp *qp, struct tid_rdma_flow *flow, u32 index,
+		 char mtu8k, char v1, void *vaddr),
+	TP_ARGS(qp, flow, index, mtu8k, v1, vaddr)
+);
+
+DECLARE_EVENT_CLASS(/* tid_pageset */
+	hfi1_tid_pageset_template,
+	TP_PROTO(struct rvt_qp *qp, u32 index, u16 idx, u16 count),
+	TP_ARGS(qp, index, idx, count),
+	TP_STRUCT__entry(/* entry */
+		DD_DEV_ENTRY(dd_from_ibdev(qp->ibqp.device))
+		__field(u32, qpn)
+		__field(u32, index)
+		__field(u16, idx)
+		__field(u16, count)
+	),
+	TP_fast_assign(/* assign */
+		DD_DEV_ASSIGN(dd_from_ibdev(qp->ibqp.device));
+		__entry->qpn = qp->ibqp.qp_num;
+		__entry->index = index;
+		__entry->idx = idx;
+		__entry->count = count;
+	),
+	TP_printk(/* print */
+		"[%s] qpn 0x%x list[%u]: idx %u count %u",
+		__get_str(dev),
+		__entry->qpn,
+		__entry->index,
+		__entry->idx,
+		__entry->count
+	)
+);
+
+DEFINE_EVENT(/* event */
+	hfi1_tid_pageset_template, hfi1_tid_pageset,
+	TP_PROTO(struct rvt_qp *qp, u32 index, u16 idx, u16 count),
+	TP_ARGS(qp, index, idx, count)
+);
+
+DECLARE_EVENT_CLASS(/* tid_fow */
+	hfi1_tid_flow_template,
+	TP_PROTO(struct rvt_qp *qp, int index, struct tid_rdma_flow *flow),
+	TP_ARGS(qp, index, flow),
+	TP_STRUCT__entry(/* entry */
+		DD_DEV_ENTRY(dd_from_ibdev(qp->ibqp.device))
+		__field(u32, qpn)
+		__field(int, index)
+		__field(int, idx)
+		__field(u32, resp_ib_psn)
+		__field(u32, generation)
+		__field(u32, fspsn)
+		__field(u32, flpsn)
+		__field(u32, r_next_psn)
+		__field(u32, npagesets)
+		__field(u32, tnode_cnt)
+		__field(u32, tidcnt)
+		__field(u32, length)
+	),
+	TP_fast_assign(/* assign */
+		DD_DEV_ASSIGN(dd_from_ibdev(qp->ibqp.device));
+		__entry->qpn = qp->ibqp.qp_num;
+		__entry->index = index;
+		__entry->idx = flow->idx;
+		__entry->resp_ib_psn = flow->flow_state.resp_ib_psn;
+		__entry->generation = flow->flow_state.generation;
+		__entry->fspsn = full_flow_psn(flow,
+					       flow->flow_state.spsn);
+		__entry->flpsn = full_flow_psn(flow,
+					       flow->flow_state.lpsn);
+		__entry->r_next_psn = flow->flow_state.r_next_psn;
+		__entry->npagesets = flow->npagesets;
+		__entry->tnode_cnt = flow->tnode_cnt;
+		__entry->tidcnt = flow->tidcnt;
+		__entry->length = flow->length;
+	),
+	TP_printk(/* print */
+		TID_FLOW_PRN,
+		__get_str(dev),
+		__entry->qpn,
+		__entry->index,
+		__entry->idx,
+		__entry->resp_ib_psn,
+		__entry->generation,
+		__entry->fspsn,
+		__entry->flpsn,
+		__entry->r_next_psn,
+		__entry->npagesets,
+		__entry->tnode_cnt,
+		__entry->tidcnt,
+		__entry->length
+	)
+);
+
+DEFINE_EVENT(/* event */
+	hfi1_tid_flow_template, hfi1_tid_flow_alloc,
+	TP_PROTO(struct rvt_qp *qp, int index, struct tid_rdma_flow *flow),
+	TP_ARGS(qp, index, flow)
+);
+
+DECLARE_EVENT_CLASS(/* tid_node */
+	hfi1_tid_node_template,
+	TP_PROTO(struct rvt_qp *qp, const char *msg, u32 index, u32 base,
+		 u8 map, u8 used, u8 cnt),
+	TP_ARGS(qp, msg, index, base, map, used, cnt),
+	TP_STRUCT__entry(/* entry */
+		DD_DEV_ENTRY(dd_from_ibdev(qp->ibqp.device))
+		__field(u32, qpn)
+		__string(msg, msg)
+		__field(u32, index)
+		__field(u32, base)
+		__field(u8, map)
+		__field(u8, used)
+		__field(u8, cnt)
+	),
+	TP_fast_assign(/* assign */
+		DD_DEV_ASSIGN(dd_from_ibdev(qp->ibqp.device));
+		__entry->qpn = qp->ibqp.qp_num;
+		__assign_str(msg, msg);
+		__entry->index = index;
+		__entry->base = base;
+		__entry->map = map;
+		__entry->used = used;
+		__entry->cnt = cnt;
+	),
+	TP_printk(/* print */
+		TID_NODE_PRN,
+		__get_str(dev),
+		__entry->qpn,
+		__get_str(msg),
+		__entry->index,
+		__entry->base,
+		__entry->map,
+		__entry->used,
+		__entry->cnt
+	)
+);
+
+DEFINE_EVENT(/* event */
+	hfi1_tid_node_template, hfi1_tid_node_add,
+	TP_PROTO(struct rvt_qp *qp, const char *msg, u32 index, u32 base,
+		 u8 map, u8 used, u8 cnt),
+	TP_ARGS(qp, msg, index, base, map, used, cnt)
+);
+
+DECLARE_EVENT_CLASS(/* tid_entry */
+	hfi1_tid_entry_template,
+	TP_PROTO(struct rvt_qp *qp, int index, u32 ent),
+	TP_ARGS(qp, index, ent),
+	TP_STRUCT__entry(/* entry */
+		DD_DEV_ENTRY(dd_from_ibdev(qp->ibqp.device))
+		__field(u32, qpn)
+		__field(int, index)
+		__field(u8, ctrl)
+		__field(u16, idx)
+		__field(u16, len)
+	),
+	TP_fast_assign(/* assign */
+		DD_DEV_ASSIGN(dd_from_ibdev(qp->ibqp.device));
+		__entry->qpn = qp->ibqp.qp_num;
+		__entry->index = index;
+		__entry->ctrl = hfi1_trace_get_tid_ctrl(ent);
+		__entry->idx = hfi1_trace_get_tid_idx(ent);
+		__entry->len = hfi1_trace_get_tid_len(ent);
+	),
+	TP_printk(/* print */
+		"[%s] qpn 0x%x TID entry %d: idx %u len %u ctrl 0x%x",
+		__get_str(dev),
+		__entry->qpn,
+		__entry->index,
+		__entry->idx,
+		__entry->len,
+		__entry->ctrl
+	)
+);
+
+DEFINE_EVENT(/* event */
+	hfi1_tid_entry_template, hfi1_tid_entry_alloc,
+	TP_PROTO(struct rvt_qp *qp, int index, u32 entry),
+	TP_ARGS(qp, index, entry)
 );
 
 #endif /* __HFI1_TRACE_TID_H */

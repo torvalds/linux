@@ -817,8 +817,11 @@ static u32 tid_rdma_find_phys_blocks_4k(struct tid_rdma_flow *flow,
 	 * using the bigger supported sizes.
 	 */
 	vaddr = page_address(pages[0]);
+	trace_hfi1_tid_flow_page(flow->req->qp, flow, 0, 0, 0, vaddr);
 	for (pageidx = 0, pagecount = 1, i = 1; i <= npages; i++) {
 		this_vaddr = i < npages ? page_address(pages[i]) : NULL;
+		trace_hfi1_tid_flow_page(flow->req->qp, flow, i, 0, 0,
+					 this_vaddr);
 		/*
 		 * If the vaddr's are not sequential, pages are not physically
 		 * contiguous.
@@ -851,6 +854,9 @@ static u32 tid_rdma_find_phys_blocks_4k(struct tid_rdma_flow *flow,
 
 				list[setcount].idx = pageidx;
 				list[setcount].count = maxpages;
+				trace_hfi1_tid_pageset(flow->req->qp, setcount,
+						       list[setcount].idx,
+						       list[setcount].count);
 				pagecount -= maxpages;
 				pageidx += maxpages;
 				setcount++;
@@ -946,8 +952,10 @@ static u32 tid_rdma_find_phys_blocks_8k(struct tid_rdma_flow *flow,
 	for (idx = 0, i = 0, vm1 = NULL; i < npages; i += 2) {
 		/* get a new v0 */
 		v0 = page_address(pages[i]);
+		trace_hfi1_tid_flow_page(flow->req->qp, flow, i, 1, 0, v0);
 		v1 = i + 1 < npages ?
 				page_address(pages[i + 1]) : NULL;
+		trace_hfi1_tid_flow_page(flow->req->qp, flow, i, 1, 1, v1);
 		/* compare i, i + 1 vaddr */
 		if (v1 != (v0 + PAGE_SIZE)) {
 			/* flush out pages */
@@ -1093,6 +1101,8 @@ static int kern_get_phys_blocks(struct tid_rdma_flow *flow,
 
 	/* Reuse previously computed pagesets, if any */
 	if (flow->npagesets) {
+		trace_hfi1_tid_flow_alloc(flow->req->qp, flow->req->setup_head,
+					  flow);
 		if (!dma_mapped(flow))
 			return dma_map_flow(flow, pages);
 		return 0;
@@ -1128,6 +1138,8 @@ static inline void kern_add_tid_node(struct tid_rdma_flow *flow,
 	node->grp = grp;
 	node->map = grp->map;
 	node->cnt = cnt;
+	trace_hfi1_tid_node_add(flow->req->qp, s, flow->tnode_cnt - 1,
+				grp->base, grp->map, grp->used, cnt);
 }
 
 /*
@@ -1199,6 +1211,8 @@ used_list:
 	if (pageidx >= flow->npagesets)
 		goto ok;
 bail_eagain:
+	trace_hfi1_msg_alloc_tids(flow->req->qp, " insufficient tids: needed ",
+				  (u64)flow->npagesets);
 	return -EAGAIN;
 ok:
 	return 0;
@@ -1250,6 +1264,10 @@ static void kern_program_rcv_group(struct tid_rdma_flow *flow, int grp_num,
 				EXP_TID_SET(IDX, rcventry >> 1) |
 				EXP_TID_SET(CTRL, tidctrl) |
 				EXP_TID_SET(LEN, npages);
+			trace_hfi1_tid_entry_alloc(/* entry */
+			   flow->req->qp, flow->tidcnt - 1,
+			   flow->tid_entry[flow->tidcnt - 1]);
+
 			/* Efficient DIV_ROUND_UP(npages, pmtu_pg) */
 			flow->npkts += (npages + pmtu_pg - 1) >> ilog2(pmtu_pg);
 			npages = 0;
@@ -1316,6 +1334,7 @@ static void kern_program_rcvarray(struct tid_rdma_flow *flow)
 	flow->tidcnt = 0;
 	for (i = 0; i < flow->tnode_cnt; i++)
 		kern_program_rcv_group(flow, i, &pset_idx);
+	trace_hfi1_tid_flow_alloc(flow->req->qp, flow->req->setup_head, flow);
 }
 
 /**

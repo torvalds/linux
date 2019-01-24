@@ -46,6 +46,7 @@
  */
 #define CREATE_TRACE_POINTS
 #include "trace.h"
+#include "exp_rcv.h"
 
 static u8 __get_ib_hdr_len(struct ib_header *hdr)
 {
@@ -392,6 +393,21 @@ const char *print_u32_array(
 		trace_seq_printf(p, "%s%#x", i == 0 ? "" : " ", arr[i]);
 	trace_seq_putc(p, 0);
 	return ret;
+}
+
+u8 hfi1_trace_get_tid_ctrl(u32 ent)
+{
+	return EXP_TID_GET(ent, CTRL);
+}
+
+u16 hfi1_trace_get_tid_len(u32 ent)
+{
+	return EXP_TID_GET(ent, LEN);
+}
+
+u16 hfi1_trace_get_tid_idx(u32 ent)
+{
+	return EXP_TID_GET(ent, IDX);
 }
 
 __hfi1_trace_fn(AFFINITY);
