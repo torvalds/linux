@@ -163,6 +163,7 @@ struct hfi1_qp_priv {
 	u32 tid_enqueue;                          /* saved when tid waited */
 	u8 s_sc;		                  /* SC[0..4] for next packet */
 	struct iowait s_iowait;
+	struct timer_list s_tid_timer;            /* for timing tid wait */
 	struct list_head tid_wait;                /* for queueing tid space */
 	struct hfi1_opfn_data opfn;
 	struct tid_flow_state flow_state;

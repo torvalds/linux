@@ -118,6 +118,9 @@ static int hfi1_kern_exp_rcv_alloc_flows(struct tid_rdma_request *req,
 static void hfi1_init_trdma_req(struct rvt_qp *qp,
 				struct tid_rdma_request *req);
 static void hfi1_tid_write_alloc_resources(struct rvt_qp *qp, bool intr_ctx);
+static void hfi1_tid_timeout(struct timer_list *t);
+static void hfi1_add_tid_reap_timer(struct rvt_qp *qp);
+static void hfi1_mod_tid_reap_timer(struct rvt_qp *qp);
 
 static u64 tid_rdma_opfn_encode(struct tid_rdma_params *p)
 {
@@ -321,6 +324,7 @@ int hfi1_qp_priv_init(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 	qpriv->r_tid_tail = HFI1_QP_WQE_INVALID;
 	qpriv->r_tid_ack = HFI1_QP_WQE_INVALID;
 	qpriv->r_tid_alloc = HFI1_QP_WQE_INVALID;
+	timer_setup(&qpriv->s_tid_timer, hfi1_tid_timeout, 0);
 	INIT_LIST_HEAD(&qpriv->tid_wait);
 
 	if (init_attr->qp_type == IB_QPT_RC && HFI1_CAP_IS_KSET(TID_RDMA)) {
@@ -3619,6 +3623,7 @@ u32 hfi1_build_tid_rdma_write_resp(struct rvt_qp *qp, struct rvt_ack_entry *e,
 
 		req->state = TID_REQUEST_ACTIVE;
 		req->flow_idx = CIRC_NEXT(req->flow_idx, MAX_FLOWS);
+		hfi1_add_tid_reap_timer(qp);
 		break;
 
 	case TID_REQUEST_RESEND_ACTIVE:
@@ -3627,6 +3632,7 @@ u32 hfi1_build_tid_rdma_write_resp(struct rvt_qp *qp, struct rvt_ack_entry *e,
 		if (!CIRC_CNT(req->setup_head, req->flow_idx, MAX_FLOWS))
 			req->state = TID_REQUEST_ACTIVE;
 
+		hfi1_mod_tid_reap_timer(qp);
 		break;
 	}
 	flow->flow_state.resp_ib_psn = bth2;
@@ -3677,4 +3683,90 @@ u32 hfi1_build_tid_rdma_write_resp(struct rvt_qp *qp, struct rvt_ack_entry *e,
 	qpriv->pending_tid_w_segs++;
 done:
 	return hdwords;
+}
+
+static void hfi1_add_tid_reap_timer(struct rvt_qp *qp)
+{
+	struct hfi1_qp_priv *qpriv = qp->priv;
+
+	lockdep_assert_held(&qp->s_lock);
+	if (!(qpriv->s_flags & HFI1_R_TID_RSC_TIMER)) {
+		qpriv->s_flags |= HFI1_R_TID_RSC_TIMER;
+		qpriv->s_tid_timer.expires = jiffies +
+			qpriv->tid_timer_timeout_jiffies;
+		add_timer(&qpriv->s_tid_timer);
+	}
+}
+
+static void hfi1_mod_tid_reap_timer(struct rvt_qp *qp)
+{
+	struct hfi1_qp_priv *qpriv = qp->priv;
+
+	lockdep_assert_held(&qp->s_lock);
+	qpriv->s_flags |= HFI1_R_TID_RSC_TIMER;
+	mod_timer(&qpriv->s_tid_timer, jiffies +
+		  qpriv->tid_timer_timeout_jiffies);
+}
+
+static int hfi1_stop_tid_reap_timer(struct rvt_qp *qp)
+{
+	struct hfi1_qp_priv *qpriv = qp->priv;
+	int rval = 0;
+
+	lockdep_assert_held(&qp->s_lock);
+	if (qpriv->s_flags & HFI1_R_TID_RSC_TIMER) {
+		rval = del_timer(&qpriv->s_tid_timer);
+		qpriv->s_flags &= ~HFI1_R_TID_RSC_TIMER;
+	}
+	return rval;
+}
+
+void hfi1_del_tid_reap_timer(struct rvt_qp *qp)
+{
+	struct hfi1_qp_priv *qpriv = qp->priv;
+
+	del_timer_sync(&qpriv->s_tid_timer);
+	qpriv->s_flags &= ~HFI1_R_TID_RSC_TIMER;
+}
+
+static void hfi1_tid_timeout(struct timer_list *t)
+{
+	struct hfi1_qp_priv *qpriv = from_timer(qpriv, t, s_tid_timer);
+	struct rvt_qp *qp = qpriv->owner;
+	struct rvt_dev_info *rdi = ib_to_rvt(qp->ibqp.device);
+	unsigned long flags;
+	u32 i;
+
+	spin_lock_irqsave(&qp->r_lock, flags);
+	spin_lock(&qp->s_lock);
+	if (qpriv->s_flags & HFI1_R_TID_RSC_TIMER) {
+		dd_dev_warn(dd_from_ibdev(qp->ibqp.device), "[QP%u] %s %d\n",
+			    qp->ibqp.qp_num, __func__, __LINE__);
+		hfi1_stop_tid_reap_timer(qp);
+		/*
+		 * Go though the entire ack queue and clear any outstanding
+		 * HW flow and RcvArray resources.
+		 */
+		hfi1_kern_clear_hw_flow(qpriv->rcd, qp);
+		for (i = 0; i < rvt_max_atomic(rdi); i++) {
+			struct tid_rdma_request *req =
+				ack_to_tid_req(&qp->s_ack_queue[i]);
+
+			hfi1_kern_exp_rcv_clear_all(req);
+		}
+		spin_unlock(&qp->s_lock);
+		if (qp->ibqp.event_handler) {
+			struct ib_event ev;
+
+			ev.device = qp->ibqp.device;
+			ev.element.qp = &qp->ibqp;
+			ev.event = IB_EVENT_QP_FATAL;
+			qp->ibqp.event_handler(&ev, qp->ibqp.qp_context);
+		}
+		rvt_rc_error(qp, IB_WC_RESP_TIMEOUT_ERR);
+		goto unlock_r_lock;
+	}
+	spin_unlock(&qp->s_lock);
+unlock_r_lock:
+	spin_unlock_irqrestore(&qp->r_lock, flags);
 }

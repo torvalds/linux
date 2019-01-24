@@ -755,6 +755,7 @@ void quiesce_qp(struct rvt_qp *qp)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
 
+	hfi1_del_tid_reap_timer(qp);
 	iowait_sdma_drain(&priv->s_iowait);
 	qp_pio_drain(qp);
 	flush_tx_list(qp);

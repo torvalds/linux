@@ -26,6 +26,7 @@
  *
  * HFI1_S_TID_WAIT_INTERLCK - QP is waiting for requester interlock
  */
+#define HFI1_R_TID_RSC_TIMER      BIT(2)
 /* BIT(4) reserved for RVT_S_ACK_PENDING. */
 #define HFI1_S_TID_WAIT_INTERLCK  BIT(5)
 #define HFI1_R_TID_SW_PSN         BIT(19)
@@ -267,5 +268,7 @@ u32 hfi1_build_tid_rdma_write_resp(struct rvt_qp *qp, struct rvt_ack_entry *e,
 				   struct ib_other_headers *ohdr, u32 *bth1,
 				   u32 bth2, u32 *len,
 				   struct rvt_sge_state **ss);
+
+void hfi1_del_tid_reap_timer(struct rvt_qp *qp);
 
 #endif /* HFI1_TID_RDMA_H */
