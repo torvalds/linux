@@ -622,7 +622,7 @@ void fuse_conn_init(struct fuse_conn *fc, struct user_namespace *user_ns)
 	atomic_set(&fc->num_waiting, 0);
 	fc->max_background = FUSE_DEFAULT_MAX_BACKGROUND;
 	fc->congestion_threshold = FUSE_DEFAULT_CONGESTION_THRESHOLD;
-	fc->khctr = 0;
+	atomic64_set(&fc->khctr, 0);
 	fc->polled_files = RB_ROOT;
 	fc->blocked = 0;
 	fc->initialized = 0;
