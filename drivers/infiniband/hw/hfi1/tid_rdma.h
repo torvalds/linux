@@ -279,4 +279,6 @@ bool hfi1_build_tid_rdma_packet(struct rvt_swqe *wqe,
 				struct ib_other_headers *ohdr,
 				u32 *bth1, u32 *bth2, u32 *len);
 
+void hfi1_rc_rcv_tid_rdma_write_data(struct hfi1_packet *packet);
+
 #endif /* HFI1_TID_RDMA_H */

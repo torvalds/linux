@@ -174,6 +174,8 @@ struct hfi1_qp_priv {
 
 	/* variables for the TID RDMA SE state machine */
 	u8 rnr_nak_state;       /* RNR NAK state */
+	u8 s_nak_state;
+	u32 s_nak_psn;
 	u32 s_flags;
 	u32 s_tid_cur;
 	u32 s_tid_head;
@@ -193,6 +195,7 @@ struct hfi1_qp_priv {
 	u16 pkts_ps;            /* packets per segment */
 	u8 timeout_shift;       /* account for number of packets per segment */
 
+	u32 r_next_psn_kdeth;
 	u8 sync_pt;           /* Set when QP reaches sync point */
 };
 
