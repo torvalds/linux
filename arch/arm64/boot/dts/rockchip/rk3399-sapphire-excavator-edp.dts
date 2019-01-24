@@ -69,6 +69,18 @@
 	};
 };
 
+&dp_sound {
+	status = "disabled";
+};
+
+&hdmi_dp_sound {
+	status = "disabled";
+};
+
+&hdmi_sound {
+	status = "okay";
+};
+
 &isp0 {
 	status = "okay";
 };
