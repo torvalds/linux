@@ -91,7 +91,6 @@ static int rockchip_drm_fbdev_create(struct drm_fb_helper *helper,
 	}
 
 	fbi->par = helper;
-	fbi->flags = FBINFO_FLAG_DEFAULT;
 	fbi->fbops = &rockchip_drm_fbdev_ops;
 
 	fb = helper->fb;

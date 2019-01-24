@@ -256,7 +256,6 @@ static int tegra_fbdev_probe(struct drm_fb_helper *helper,
 	helper->fbdev = info;
 
 	info->par = helper;
-	info->flags = FBINFO_FLAG_DEFAULT;
 	info->fbops = &tegra_fb_ops;
 
 	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->format->depth);

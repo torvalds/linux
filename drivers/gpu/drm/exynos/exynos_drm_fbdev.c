@@ -88,7 +88,6 @@ static int exynos_drm_fbdev_update(struct drm_fb_helper *helper,
 	}
 
 	fbi->par = helper;
-	fbi->flags = FBINFO_FLAG_DEFAULT;
 	fbi->fbops = &exynos_drm_fb_ops;
 
 	drm_fb_helper_fill_fix(fbi, fb->pitches[0], fb->format->depth);
