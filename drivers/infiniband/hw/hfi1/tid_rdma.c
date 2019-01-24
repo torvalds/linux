@@ -2796,3 +2796,36 @@ void hfi1_tid_rdma_restart_req(struct rvt_qp *qp, struct rvt_swqe *wqe,
 
 	req->state = TID_REQUEST_ACTIVE;
 }
+
+void hfi1_qp_kern_exp_rcv_clear_all(struct rvt_qp *qp)
+{
+	int i, ret;
+	struct hfi1_qp_priv *qpriv = qp->priv;
+	struct tid_flow_state *fs;
+
+	if (qp->ibqp.qp_type != IB_QPT_RC || !HFI1_CAP_IS_KSET(TID_RDMA))
+		return;
+
+	/*
+	 * First, clear the flow to help prevent any delayed packets from
+	 * being delivered.
+	 */
+	fs = &qpriv->flow_state;
+	if (fs->index != RXE_NUM_TID_FLOWS)
+		hfi1_kern_clear_hw_flow(qpriv->rcd, qp);
+
+	for (i = qp->s_acked; i != qp->s_head;) {
+		struct rvt_swqe *wqe = rvt_get_swqe_ptr(qp, i);
+
+		if (++i == qp->s_size)
+			i = 0;
+		/* Free only locally allocated TID entries */
+		if (wqe->wr.opcode != IB_WR_TID_RDMA_READ)
+			continue;
+		do {
+			struct hfi1_swqe_priv *priv = wqe->priv;
+
+			ret = hfi1_kern_exp_rcv_clear(&priv->tid_req);
+		} while (!ret);
+	}
+}

@@ -761,6 +761,7 @@ void quiesce_qp(struct rvt_qp *qp)
 
 void notify_qp_reset(struct rvt_qp *qp)
 {
+	hfi1_qp_kern_exp_rcv_clear_all(qp);
 	qp->r_adefered = 0;
 	clear_ahg(qp);
 

@@ -209,5 +209,6 @@ bool hfi1_handle_kdeth_eflags(struct hfi1_ctxtdata *rcd,
 			      struct hfi1_packet *packet);
 void hfi1_tid_rdma_restart_req(struct rvt_qp *qp, struct rvt_swqe *wqe,
 			       u32 *bth2);
+void hfi1_qp_kern_exp_rcv_clear_all(struct rvt_qp *qp);
 
 #endif /* HFI1_TID_RDMA_H */
