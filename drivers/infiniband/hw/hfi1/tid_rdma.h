@@ -296,4 +296,6 @@ u32 hfi1_build_tid_rdma_resync(struct rvt_qp *qp, struct rvt_swqe *wqe,
 			       struct ib_other_headers *ohdr, u32 *bth1,
 			       u32 *bth2, u16 fidx);
 
+void hfi1_rc_rcv_tid_rdma_resync(struct hfi1_packet *packet);
+
 #endif /* HFI1_TID_RDMA_H */

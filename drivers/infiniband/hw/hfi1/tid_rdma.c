@@ -4649,3 +4649,106 @@ u32 hfi1_build_tid_rdma_resync(struct rvt_qp *qp, struct rvt_swqe *wqe,
 
 	return sizeof(ohdr->u.tid_rdma.resync) / sizeof(u32);
 }
+
+void hfi1_rc_rcv_tid_rdma_resync(struct hfi1_packet *packet)
+{
+	struct ib_other_headers *ohdr = packet->ohdr;
+	struct rvt_qp *qp = packet->qp;
+	struct hfi1_qp_priv *qpriv = qp->priv;
+	struct hfi1_ctxtdata *rcd = qpriv->rcd;
+	struct hfi1_ibdev *dev = to_idev(qp->ibqp.device);
+	struct rvt_ack_entry *e;
+	struct tid_rdma_request *req;
+	struct tid_rdma_flow *flow;
+	struct tid_flow_state *fs = &qpriv->flow_state;
+	u32 psn, generation, idx, gen_next;
+	bool is_fecn;
+	unsigned long flags;
+
+	is_fecn = process_ecn(qp, packet);
+	psn = mask_psn(be32_to_cpu(ohdr->bth[2]));
+
+	generation = mask_psn(psn + 1) >> HFI1_KDETH_BTH_SEQ_SHIFT;
+	spin_lock_irqsave(&qp->s_lock, flags);
+
+	gen_next = (fs->generation == KERN_GENERATION_RESERVED) ?
+		generation : kern_flow_generation_next(fs->generation);
+	/*
+	 * RESYNC packet contains the "next" generation and can only be
+	 * from the current or previous generations
+	 */
+	if (generation != mask_generation(gen_next - 1) &&
+	    generation != gen_next)
+		goto bail;
+	/* Already processing a resync */
+	if (qpriv->resync)
+		goto bail;
+
+	spin_lock(&rcd->exp_lock);
+	if (fs->index >= RXE_NUM_TID_FLOWS) {
+		/*
+		 * If we don't have a flow, save the generation so it can be
+		 * applied when a new flow is allocated
+		 */
+		fs->generation = generation;
+	} else {
+		/* Reprogram the QP flow with new generation */
+		rcd->flows[fs->index].generation = generation;
+		fs->generation = kern_setup_hw_flow(rcd, fs->index);
+	}
+	fs->psn = 0;
+	/*
+	 * Disable SW PSN checking since a RESYNC is equivalent to a
+	 * sync point and the flow has/will be reprogrammed
+	 */
+	qpriv->s_flags &= ~HFI1_R_TID_SW_PSN;
+
+	/*
+	 * Reset all TID flow information with the new generation.
+	 * This is done for all requests and segments after the
+	 * last received segment
+	 */
+	for (idx = qpriv->r_tid_tail; ; idx++) {
+		u16 flow_idx;
+
+		if (idx > rvt_size_atomic(&dev->rdi))
+			idx = 0;
+		e = &qp->s_ack_queue[idx];
+		if (e->opcode == TID_OP(WRITE_REQ)) {
+			req = ack_to_tid_req(e);
+
+			/* start from last unacked segment */
+			for (flow_idx = req->clear_tail;
+			     CIRC_CNT(req->setup_head, flow_idx,
+				      MAX_FLOWS);
+			     flow_idx = CIRC_NEXT(flow_idx, MAX_FLOWS)) {
+				u32 lpsn;
+				u32 next;
+
+				flow = &req->flows[flow_idx];
+				lpsn = full_flow_psn(flow,
+						     flow->flow_state.lpsn);
+				next = flow->flow_state.r_next_psn;
+				flow->npkts = delta_psn(lpsn, next - 1);
+				flow->flow_state.generation = fs->generation;
+				flow->flow_state.spsn = fs->psn;
+				flow->flow_state.lpsn =
+					flow->flow_state.spsn + flow->npkts - 1;
+				flow->flow_state.r_next_psn =
+					full_flow_psn(flow,
+						      flow->flow_state.spsn);
+				fs->psn += flow->npkts;
+			}
+		}
+		if (idx == qp->s_tail_ack_queue)
+			break;
+	}
+
+	spin_unlock(&rcd->exp_lock);
+	qpriv->resync = true;
+	/* RESYNC request always gets a TID RDMA ACK. */
+	qpriv->s_nak_state = 0;
+	qpriv->s_flags |= RVT_S_ACK_PENDING;
+bail:
+	spin_unlock_irqrestore(&qp->s_lock, flags);
+}
