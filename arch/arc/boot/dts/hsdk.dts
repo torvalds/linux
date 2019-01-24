@@ -110,12 +110,12 @@
 		cgu_rst: reset-controller@8a0 {
 			compatible = "snps,hsdk-reset";
 			#reset-cells = <1>;
-			reg = <0x8A0 0x4>, <0xFF0 0x4>;
+			reg = <0x8a0 0x4>, <0xff0 0x4>;
 		};
 
 		core_clk: core-clk@0 {
 			compatible = "snps,hsdk-core-pll-clock";
-			reg = <0x00 0x10>, <0x14B8 0x4>;
+			reg = <0x00 0x10>, <0x14b8 0x4>;
 			#clock-cells = <0>;
 			clocks = <&input_clk>;
 
