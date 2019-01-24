@@ -350,6 +350,10 @@ static int xsk_release(struct socket *sock)
 
 	net = sock_net(sk);
 
+	mutex_lock(&net->xdp.lock);
+	sk_del_node_init_rcu(sk);
+	mutex_unlock(&net->xdp.lock);
+
 	local_bh_disable();
 	sock_prot_inuse_add(net, sk->sk_prot, -1);
 	local_bh_enable();
@@ -746,6 +750,10 @@ static int xsk_create(struct net *net, struct socket *sock, int protocol,
 	mutex_init(&xs->mutex);
 	spin_lock_init(&xs->tx_completion_lock);
 
+	mutex_lock(&net->xdp.lock);
+	sk_add_node_rcu(sk, &net->xdp.list);
+	mutex_unlock(&net->xdp.lock);
+
 	local_bh_disable();
 	sock_prot_inuse_add(net, &xsk_proto, 1);
 	local_bh_enable();
@@ -757,6 +765,23 @@ static const struct net_proto_family xsk_family_ops = {
 	.family = PF_XDP,
 	.create = xsk_create,
 	.owner	= THIS_MODULE,
+};
+
+static int __net_init xsk_net_init(struct net *net)
+{
+	mutex_init(&net->xdp.lock);
+	INIT_HLIST_HEAD(&net->xdp.list);
+	return 0;
+}
+
+static void __net_exit xsk_net_exit(struct net *net)
+{
+	WARN_ON_ONCE(!hlist_empty(&net->xdp.list));
+}
+
+static struct pernet_operations xsk_net_ops = {
+	.init = xsk_net_init,
+	.exit = xsk_net_exit,
 };
 
 static int __init xsk_init(void)
@@ -771,8 +796,13 @@ static int __init xsk_init(void)
 	if (err)
 		goto out_proto;
 
+	err = register_pernet_subsys(&xsk_net_ops);
+	if (err)
+		goto out_sk;
 	return 0;
 
+out_sk:
+	sock_unregister(PF_XDP);
 out_proto:
 	proto_unregister(&xsk_proto);
 out:
