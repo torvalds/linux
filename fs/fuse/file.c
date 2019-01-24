@@ -1131,9 +1131,6 @@ static ssize_t fuse_perform_write(struct kiocb *iocb,
 	int err = 0;
 	ssize_t res = 0;
 
-	if (is_bad_inode(inode))
-		return -EIO;
-
 	if (inode->i_size < pos + iov_iter_count(ii))
 		set_bit(FUSE_I_SIZE_UNSTABLE, &fi->state);
 
@@ -1422,9 +1419,6 @@ static ssize_t __fuse_direct_read(struct fuse_io_priv *io,
 	ssize_t res;
 	struct inode *inode = file_inode(io->iocb->ki_filp);
 
-	if (is_bad_inode(inode))
-		return -EIO;
-
 	res = fuse_direct_io(io, iter, ppos, 0);
 
 	fuse_invalidate_atime(inode);
@@ -1439,11 +1433,6 @@ static ssize_t fuse_direct_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	ssize_t res;
 
 	if (!is_sync_kiocb(iocb) && iocb->ki_flags & IOCB_DIRECT) {
-		struct file *file = iocb->ki_filp;
-
-		if (is_bad_inode(file_inode(file)))
-			return -EIO;
-
 		res = fuse_direct_IO(iocb, to);
 	} else {
 		struct fuse_io_priv io = FUSE_IO_PRIV_SYNC(iocb);
@@ -1459,9 +1448,6 @@ static ssize_t fuse_direct_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	struct inode *inode = file_inode(iocb->ki_filp);
 	struct fuse_io_priv io = FUSE_IO_PRIV_SYNC(iocb);
 	ssize_t res;
-
-	if (is_bad_inode(inode))
-		return -EIO;
 
 	/* Don't allow parallel writes to the same file */
 	inode_lock(inode);
@@ -1484,7 +1470,11 @@ static ssize_t fuse_direct_write_iter(struct kiocb *iocb, struct iov_iter *from)
 
 static ssize_t fuse_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
-	struct fuse_file *ff = iocb->ki_filp->private_data;
+	struct file *file = iocb->ki_filp;
+	struct fuse_file *ff = file->private_data;
+
+	if (is_bad_inode(file_inode(file)))
+		return -EIO;
 
 	if (!(ff->open_flags & FOPEN_DIRECT_IO))
 		return fuse_cache_read_iter(iocb, to);
@@ -1494,7 +1484,11 @@ static ssize_t fuse_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 
 static ssize_t fuse_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
-	struct fuse_file *ff = iocb->ki_filp->private_data;
+	struct file *file = iocb->ki_filp;
+	struct fuse_file *ff = file->private_data;
+
+	if (is_bad_inode(file_inode(file)))
+		return -EIO;
 
 	if (!(ff->open_flags & FOPEN_DIRECT_IO))
 		return fuse_cache_write_iter(iocb, from);
