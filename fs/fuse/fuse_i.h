@@ -947,7 +947,7 @@ void fuse_request_send_background(struct fuse_conn *fc, struct fuse_req *req);
 bool fuse_request_queue_background(struct fuse_conn *fc, struct fuse_req *req);
 
 /* Abort all requests */
-void fuse_abort_conn(struct fuse_conn *fc, bool is_abort);
+void fuse_abort_conn(struct fuse_conn *fc);
 void fuse_wait_aborted(struct fuse_conn *fc);
 
 /**

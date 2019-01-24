@@ -379,7 +379,7 @@ void fuse_unlock_inode(struct inode *inode, bool locked)
 
 static void fuse_umount_begin(struct super_block *sb)
 {
-	fuse_abort_conn(get_fuse_conn_super(sb), false);
+	fuse_abort_conn(get_fuse_conn_super(sb));
 }
 
 static void fuse_send_destroy(struct fuse_conn *fc)
@@ -1245,7 +1245,7 @@ static void fuse_sb_destroy(struct super_block *sb)
 	if (fc) {
 		fuse_send_destroy(fc);
 
-		fuse_abort_conn(fc, false);
+		fuse_abort_conn(fc);
 		fuse_wait_aborted(fc);
 
 		down_write(&fc->killsb);
