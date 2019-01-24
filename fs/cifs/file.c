@@ -2076,11 +2076,11 @@ wdata_prepare_pages(struct cifs_writedata *wdata, unsigned int found_pages,
 }
 
 static int
-wdata_send_pages(struct cifs_writedata *wdata, unsigned int nr_pages,
-		 struct address_space *mapping, struct writeback_control *wbc)
+wdata_send_pages(struct TCP_Server_Info *server, struct cifs_writedata *wdata,
+		 unsigned int nr_pages, struct address_space *mapping,
+		 struct writeback_control *wbc)
 {
 	int rc = 0;
-	struct TCP_Server_Info *server;
 	unsigned int i;
 
 	wdata->sync_mode = wbc->sync_mode;
@@ -2092,6 +2092,10 @@ wdata_send_pages(struct cifs_writedata *wdata, unsigned int nr_pages,
 			(loff_t)PAGE_SIZE);
 	wdata->bytes = ((nr_pages - 1) * PAGE_SIZE) + wdata->tailsz;
 
+	rc = adjust_credits(server, &wdata->credits, wdata->bytes);
+	if (rc)
+		goto send_pages_out;
+
 	if (wdata->cfile != NULL)
 		cifsFileInfo_put(wdata->cfile);
 	wdata->cfile = find_writable_file(CIFS_I(mapping->host), false);
@@ -2100,10 +2104,10 @@ wdata_send_pages(struct cifs_writedata *wdata, unsigned int nr_pages,
 		rc = -EBADF;
 	} else {
 		wdata->pid = wdata->cfile->pid;
-		server = tlink_tcon(wdata->cfile->tlink)->ses->server;
 		rc = server->ops->async_writev(wdata, cifs_writedata_release);
 	}
 
+send_pages_out:
 	for (i = 0; i < nr_pages; ++i)
 		unlock_page(wdata->pages[i]);
 
@@ -2184,7 +2188,7 @@ retry:
 
 		wdata->credits = credits_on_stack;
 
-		rc = wdata_send_pages(wdata, nr_pages, mapping, wbc);
+		rc = wdata_send_pages(server, wdata, nr_pages, mapping, wbc);
 
 		/* send failure -- clean up the mess */
 		if (rc != 0) {
@@ -2743,10 +2747,17 @@ cifs_write_from_iter(loff_t offset, size_t len, struct iov_iter *from,
 		wdata->ctx = ctx;
 		kref_get(&ctx->refcount);
 
-		if (!wdata->cfile->invalidHandle ||
-		    !(rc = cifs_reopen_file(wdata->cfile, false)))
-			rc = server->ops->async_writev(wdata,
+		rc = adjust_credits(server, &wdata->credits, wdata->bytes);
+
+		if (!rc) {
+			if (wdata->cfile->invalidHandle)
+				rc = cifs_reopen_file(wdata->cfile, false);
+
+			if (!rc)
+				rc = server->ops->async_writev(wdata,
 					cifs_uncached_writedata_release);
+		}
+
 		if (rc) {
 			add_credits_and_wake_if(server, &wdata->credits, 0);
 			kref_put(&wdata->refcount,
@@ -3423,9 +3434,16 @@ cifs_send_async_read(loff_t offset, size_t len, struct cifsFileInfo *open_file,
 		rdata->ctx = ctx;
 		kref_get(&ctx->refcount);
 
-		if (!rdata->cfile->invalidHandle ||
-		    !(rc = cifs_reopen_file(rdata->cfile, true)))
-			rc = server->ops->async_readv(rdata);
+		rc = adjust_credits(server, &rdata->credits, rdata->bytes);
+
+		if (!rc) {
+			if (rdata->cfile->invalidHandle)
+				rc = cifs_reopen_file(rdata->cfile, true);
+
+			if (!rc)
+				rc = server->ops->async_readv(rdata);
+		}
+
 		if (rc) {
 			add_credits_and_wake_if(server, &rdata->credits, 0);
 			kref_put(&rdata->refcount,
@@ -4163,9 +4181,16 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 			rdata->pages[rdata->nr_pages++] = page;
 		}
 
-		if (!rdata->cfile->invalidHandle ||
-		    !(rc = cifs_reopen_file(rdata->cfile, true)))
-			rc = server->ops->async_readv(rdata);
+		rc = adjust_credits(server, &rdata->credits, rdata->bytes);
+
+		if (!rc) {
+			if (rdata->cfile->invalidHandle)
+				rc = cifs_reopen_file(rdata->cfile, true);
+
+			if (!rc)
+				rc = server->ops->async_readv(rdata);
+		}
+
 		if (rc) {
 			add_credits_and_wake_if(server, &rdata->credits, 0);
 			for (i = 0; i < rdata->nr_pages; i++) {

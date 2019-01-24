@@ -222,6 +222,38 @@ smb2_wait_mtu_credits(struct TCP_Server_Info *server, unsigned int size,
 	return rc;
 }
 
+static int
+smb2_adjust_credits(struct TCP_Server_Info *server,
+		    struct cifs_credits *credits,
+		    const unsigned int payload_size)
+{
+	int new_val = DIV_ROUND_UP(payload_size, SMB2_MAX_BUFFER_SIZE);
+
+	if (!credits->value || credits->value == new_val)
+		return 0;
+
+	if (credits->value < new_val) {
+		WARN_ONCE(1, "request has less credits (%d) than required (%d)",
+			  credits->value, new_val);
+		return -ENOTSUPP;
+	}
+
+	spin_lock(&server->req_lock);
+
+	if (server->reconnect_instance != credits->instance) {
+		spin_unlock(&server->req_lock);
+		cifs_dbg(VFS, "trying to return %d credits to old session\n",
+			 credits->value - new_val);
+		return -EAGAIN;
+	}
+
+	server->credits += credits->value - new_val;
+	spin_unlock(&server->req_lock);
+	wake_up(&server->request_q);
+	credits->value = new_val;
+	return 0;
+}
+
 static __u64
 smb2_get_next_mid(struct TCP_Server_Info *server)
 {
@@ -3678,6 +3710,7 @@ struct smb_version_operations smb21_operations = {
 	.get_credits_field = smb2_get_credits_field,
 	.get_credits = smb2_get_credits,
 	.wait_mtu_credits = smb2_wait_mtu_credits,
+	.adjust_credits = smb2_adjust_credits,
 	.get_next_mid = smb2_get_next_mid,
 	.revert_current_mid = smb2_revert_current_mid,
 	.read_data_offset = smb2_read_data_offset,
@@ -3775,6 +3808,7 @@ struct smb_version_operations smb30_operations = {
 	.get_credits_field = smb2_get_credits_field,
 	.get_credits = smb2_get_credits,
 	.wait_mtu_credits = smb2_wait_mtu_credits,
+	.adjust_credits = smb2_adjust_credits,
 	.get_next_mid = smb2_get_next_mid,
 	.revert_current_mid = smb2_revert_current_mid,
 	.read_data_offset = smb2_read_data_offset,
@@ -3881,6 +3915,7 @@ struct smb_version_operations smb311_operations = {
 	.get_credits_field = smb2_get_credits_field,
 	.get_credits = smb2_get_credits,
 	.wait_mtu_credits = smb2_wait_mtu_credits,
+	.adjust_credits = smb2_adjust_credits,
 	.get_next_mid = smb2_get_next_mid,
 	.revert_current_mid = smb2_revert_current_mid,
 	.read_data_offset = smb2_read_data_offset,

@@ -457,6 +457,10 @@ struct smb_version_operations {
 	/* get mtu credits */
 	int (*wait_mtu_credits)(struct TCP_Server_Info *, unsigned int,
 				unsigned int *, struct cifs_credits *);
+	/* adjust previously taken mtu credits to request size */
+	int (*adjust_credits)(struct TCP_Server_Info *server,
+			      struct cifs_credits *credits,
+			      const unsigned int payload_size);
 	/* check if we need to issue closedir */
 	bool (*dir_needs_close)(struct cifsFileInfo *);
 	long (*fallocate)(struct file *, struct cifs_tcon *, int, loff_t,
@@ -761,6 +765,14 @@ static inline void
 set_credits(struct TCP_Server_Info *server, const int val)
 {
 	server->ops->set_credits(server, val);
+}
+
+static inline int
+adjust_credits(struct TCP_Server_Info *server, struct cifs_credits *credits,
+	       const unsigned int payload_size)
+{
+	return server->ops->adjust_credits ?
+		server->ops->adjust_credits(server, credits, payload_size) : 0;
 }
 
 static inline __le64

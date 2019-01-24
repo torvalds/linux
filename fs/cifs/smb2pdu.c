@@ -3322,21 +3322,11 @@ smb2_async_readv(struct cifs_readdata *rdata)
 						SMB2_MAX_BUFFER_SIZE));
 		shdr->CreditRequest =
 			cpu_to_le16(le16_to_cpu(shdr->CreditCharge) + 1);
-		spin_lock(&server->req_lock);
-		if (server->reconnect_instance == rdata->credits.instance)
-			server->credits += rdata->credits.value -
-						le16_to_cpu(shdr->CreditCharge);
-		else {
-			spin_unlock(&server->req_lock);
-			cifs_dbg(VFS, "trying to return %u credits to old session\n",
-				 rdata->credits.value
-				 - le16_to_cpu(shdr->CreditCharge));
-			rc = -EAGAIN;
+
+		rc = adjust_credits(server, &rdata->credits, rdata->bytes);
+		if (rc)
 			goto async_readv_out;
-		}
-		spin_unlock(&server->req_lock);
-		wake_up(&server->request_q);
-		rdata->credits.value = le16_to_cpu(shdr->CreditCharge);
+
 		flags |= CIFS_HAS_CREDITS;
 	}
 
@@ -3626,21 +3616,11 @@ smb2_async_writev(struct cifs_writedata *wdata,
 						    SMB2_MAX_BUFFER_SIZE));
 		shdr->CreditRequest =
 			cpu_to_le16(le16_to_cpu(shdr->CreditCharge) + 1);
-		spin_lock(&server->req_lock);
-		if (server->reconnect_instance == wdata->credits.instance)
-			server->credits += wdata->credits.value -
-						le16_to_cpu(shdr->CreditCharge);
-		else {
-			spin_unlock(&server->req_lock);
-			cifs_dbg(VFS, "trying to return %d credits to old session\n",
-				 wdata->credits.value
-				 - le16_to_cpu(shdr->CreditCharge));
-			rc = -EAGAIN;
+
+		rc = adjust_credits(server, &wdata->credits, wdata->bytes);
+		if (rc)
 			goto async_writev_out;
-		}
-		spin_unlock(&server->req_lock);
-		wake_up(&server->request_q);
-		wdata->credits.value = le16_to_cpu(shdr->CreditCharge);
+
 		flags |= CIFS_HAS_CREDITS;
 	}
 
