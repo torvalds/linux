@@ -305,6 +305,7 @@ static int bxt_pcm512x_probe(struct platform_device *pdev)
 static struct platform_driver bxt_pcm521x_driver = {
 	.driver = {
 		.name = "bxt-pcm512x",
+		.pm = &snd_soc_pm_ops,
 	},
 	.probe = bxt_pcm512x_probe,
 };
