@@ -885,29 +885,112 @@ void bch2_sb_clean_renumber(struct bch_sb_field_clean *clean, int write)
 		bch2_bkey_renumber(BKEY_TYPE_BTREE, bkey_to_packed(entry->start), write);
 }
 
-void bch2_fs_mark_clean(struct bch_fs *c, bool clean)
+static void bch2_fs_mark_dirty(struct bch_fs *c)
 {
-	struct bch_sb_field_clean *sb_clean;
-	unsigned u64s = sizeof(*sb_clean) / sizeof(u64);
-	struct jset_entry *entry;
-	struct btree_root *r;
-
 	mutex_lock(&c->sb_lock);
-	if (clean == BCH_SB_CLEAN(c->disk_sb.sb))
-		goto out;
+	if (BCH_SB_CLEAN(c->disk_sb.sb)) {
+		SET_BCH_SB_CLEAN(c->disk_sb.sb, false);
+		bch2_write_super(c);
+	}
+	mutex_unlock(&c->sb_lock);
+}
 
-	SET_BCH_SB_CLEAN(c->disk_sb.sb, clean);
-
-	if (!clean)
-		goto write_super;
+struct jset_entry *
+bch2_journal_super_entries_add_common(struct bch_fs *c,
+				      struct jset_entry *entry,
+				      u64 journal_seq)
+{
+	struct jset_entry_usage *u;
+	struct btree_root *r;
+	unsigned i;
 
 	mutex_lock(&c->btree_root_lock);
 
 	for (r = c->btree_roots;
 	     r < c->btree_roots + BTREE_ID_NR;
 	     r++)
-		if (r->alive)
-			u64s += jset_u64s(r->key.u64s);
+		if (r->alive) {
+			entry->u64s	= r->key.u64s;
+			entry->btree_id	= r - c->btree_roots;
+			entry->level	= r->level;
+			entry->type	= BCH_JSET_ENTRY_btree_root;
+			bkey_copy(&entry->start[0], &r->key);
+
+			entry = vstruct_next(entry);
+		}
+	c->btree_roots_dirty = false;
+
+	mutex_unlock(&c->btree_root_lock);
+
+	if (journal_seq)
+		return entry;
+
+	percpu_down_write(&c->mark_lock);
+
+	{
+		u64 nr_inodes = percpu_u64_get(&c->usage[0]->s.nr_inodes);
+
+		u = container_of(entry, struct jset_entry_usage, entry);
+		memset(u, 0, sizeof(*u));
+		u->entry.u64s	= DIV_ROUND_UP(sizeof(*u), sizeof(u64)) - 1;
+		u->entry.type	= BCH_JSET_ENTRY_usage;
+		u->sectors	= cpu_to_le64(nr_inodes);
+		u->type		= FS_USAGE_INODES;
+
+		entry = vstruct_next(entry);
+	}
+
+	{
+		u = container_of(entry, struct jset_entry_usage, entry);
+		memset(u, 0, sizeof(*u));
+		u->entry.u64s	= DIV_ROUND_UP(sizeof(*u), sizeof(u64)) - 1;
+		u->entry.type	= BCH_JSET_ENTRY_usage;
+		u->sectors	= cpu_to_le64(atomic64_read(&c->key_version));
+		u->type		= FS_USAGE_KEY_VERSION;
+
+		entry = vstruct_next(entry);
+	}
+
+	for (i = 0; i < c->replicas.nr; i++) {
+		struct bch_replicas_entry *e =
+			cpu_replicas_entry(&c->replicas, i);
+		u64 sectors = percpu_u64_get(&c->usage[0]->data[i]);
+
+		u = container_of(entry, struct jset_entry_usage, entry);
+		u->entry.u64s	= DIV_ROUND_UP(sizeof(*u) + e->nr_devs,
+					       sizeof(u64)) - 1;
+		u->entry.type	= BCH_JSET_ENTRY_usage;
+		u->sectors	= cpu_to_le64(sectors);
+		u->type		= FS_USAGE_REPLICAS;
+		unsafe_memcpy(&u->r, e, replicas_entry_bytes(e),
+			      "embedded variable length struct");
+
+		entry = vstruct_next(entry);
+	}
+
+	percpu_up_write(&c->mark_lock);
+
+	return entry;
+}
+
+void bch2_fs_mark_clean(struct bch_fs *c, bool clean)
+{
+	struct bch_sb_field_clean *sb_clean;
+	struct jset_entry *entry;
+	unsigned u64s;
+
+	if (!clean) {
+		bch2_fs_mark_dirty(c);
+		return;
+	}
+
+	mutex_lock(&c->sb_lock);
+	if (BCH_SB_CLEAN(c->disk_sb.sb))
+		goto out;
+
+	SET_BCH_SB_CLEAN(c->disk_sb.sb, true);
+
+	u64s = sizeof(*sb_clean) / sizeof(u64) + c->journal.entry_u64s_reserved;
 
 	sb_clean = bch2_sb_resize_clean(&c->disk_sb, u64s);
 	if (!sb_clean) {
@@ -921,30 +1004,16 @@ void bch2_fs_mark_clean(struct bch_fs *c, bool clean)
 	sb_clean->journal_seq	= journal_cur_seq(&c->journal) - 1;
 
 	entry = sb_clean->start;
+	entry = bch2_journal_super_entries_add_common(c, entry, 0);
+	BUG_ON((void *) entry > vstruct_end(&sb_clean->field));
+
 	memset(entry, 0,
 	       vstruct_end(&sb_clean->field) - (void *) entry);
-
-	for (r = c->btree_roots;
-	     r < c->btree_roots + BTREE_ID_NR;
-	     r++)
-		if (r->alive) {
-			entry->u64s	= r->key.u64s;
-			entry->btree_id	= r - c->btree_roots;
-			entry->level	= r->level;
-			entry->type	= BCH_JSET_ENTRY_btree_root;
-			bkey_copy(&entry->start[0], &r->key);
-			entry = vstruct_next(entry);
-			BUG_ON((void *) entry > vstruct_end(&sb_clean->field));
-		}
-
-	BUG_ON(entry != vstruct_end(&sb_clean->field));
 
 	if (le16_to_cpu(c->disk_sb.sb->version) <
 	    bcachefs_metadata_version_bkey_renumber)
 		bch2_sb_clean_renumber(sb_clean, WRITE);
 
-	mutex_unlock(&c->btree_root_lock);
-write_super:
 	bch2_write_super(c);
 out:
 	mutex_unlock(&c->sb_lock);

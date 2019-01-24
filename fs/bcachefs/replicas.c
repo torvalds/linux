@@ -30,11 +30,6 @@ static void replicas_entry_sort(struct bch_replicas_entry *e)
 	bubble_sort(e->devs, e->nr_devs, u8_cmp);
 }
 
-#define for_each_cpu_replicas_entry(_r, _i)				\
-	for (_i = (_r)->entries;					\
-	     (void *) (_i) < (void *) (_r)->entries + (_r)->nr * (_r)->entry_size;\
-	     _i = (void *) (_i) + (_r)->entry_size)
-
 static void bch2_cpu_replicas_sort(struct bch_replicas_cpu *r)
 {
 	eytzinger0_sort(r->entries, r->nr, r->entry_size, memcmp, NULL);

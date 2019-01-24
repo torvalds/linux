@@ -863,19 +863,6 @@ err:
 
 /* journal write: */
 
-static void bch2_journal_add_btree_root(struct journal_buf *buf,
-				       enum btree_id id, struct bkey_i *k,
-				       unsigned level)
-{
-	struct jset_entry *entry;
-
-	entry = bch2_journal_add_entry_noreservation(buf, k->k.u64s);
-	entry->type	= BCH_JSET_ENTRY_btree_root;
-	entry->btree_id = id;
-	entry->level	= level;
-	memcpy_u64s(entry->_data, k, k->k.u64s);
-}
-
 static unsigned journal_dev_buckets_available(struct journal *j,
 					      struct journal_device *ja)
 {
@@ -1206,25 +1193,27 @@ void bch2_journal_write(struct closure *cl)
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	struct bch_dev *ca;
 	struct journal_buf *w = journal_prev_buf(j);
+	struct jset_entry *start, *end;
 	struct jset *jset;
 	struct bio *bio;
 	struct bch_extent_ptr *ptr;
 	bool validate_before_checksum = false;
-	unsigned i, sectors, bytes;
+	unsigned i, sectors, bytes, u64s;
 
 	journal_buf_realloc(j, w);
 	jset = w->data;
 
 	j->write_start_time = local_clock();
-	mutex_lock(&c->btree_root_lock);
-	for (i = 0; i < BTREE_ID_NR; i++) {
-		struct btree_root *r = &c->btree_roots[i];
 
-		if (r->alive)
-			bch2_journal_add_btree_root(w, i, &r->key, r->level);
-	}
-	c->btree_roots_dirty = false;
-	mutex_unlock(&c->btree_root_lock);
+	start	= vstruct_last(w->data);
+	end	= bch2_journal_super_entries_add_common(c, start,
+						le64_to_cpu(jset->seq));
+	u64s	= (u64 *) end - (u64 *) start;
+	BUG_ON(u64s > j->entry_u64s_reserved);
+
+	le32_add_cpu(&w->data->u64s, u64s);
+	BUG_ON(vstruct_sectors(jset, c->block_bits) >
+	       w->disk_sectors);
 
 	journal_write_compact(jset);
 
