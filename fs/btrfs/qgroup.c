@@ -2842,16 +2842,15 @@ out:
 /*
  * Two limits to commit transaction in advance.
  *
- * For RATIO, it will be 1/RATIO of the remaining limit
- * (excluding data and prealloc meta) as threshold.
+ * For RATIO, it will be 1/RATIO of the remaining limit as threshold.
  * For SIZE, it will be in byte unit as threshold.
  */
-#define QGROUP_PERTRANS_RATIO		32
-#define QGROUP_PERTRANS_SIZE		SZ_32M
+#define QGROUP_FREE_RATIO		32
+#define QGROUP_FREE_SIZE		SZ_32M
 static bool qgroup_check_limits(struct btrfs_fs_info *fs_info,
 				const struct btrfs_qgroup *qg, u64 num_bytes)
 {
-	u64 limit;
+	u64 free;
 	u64 threshold;
 
 	if ((qg->lim_flags & BTRFS_QGROUP_LIMIT_MAX_RFER) &&
@@ -2870,20 +2869,21 @@ static bool qgroup_check_limits(struct btrfs_fs_info *fs_info,
 	 */
 	if ((qg->lim_flags & (BTRFS_QGROUP_LIMIT_MAX_RFER |
 			      BTRFS_QGROUP_LIMIT_MAX_EXCL))) {
-		if (qg->lim_flags & BTRFS_QGROUP_LIMIT_MAX_EXCL)
-			limit = qg->max_excl;
-		else
-			limit = qg->max_rfer;
-		threshold = (limit - qg->rsv.values[BTRFS_QGROUP_RSV_DATA] -
-			    qg->rsv.values[BTRFS_QGROUP_RSV_META_PREALLOC]) /
-			    QGROUP_PERTRANS_RATIO;
-		threshold = min_t(u64, threshold, QGROUP_PERTRANS_SIZE);
+		if (qg->lim_flags & BTRFS_QGROUP_LIMIT_MAX_EXCL) {
+			free = qg->max_excl - qgroup_rsv_total(qg) - qg->excl;
+			threshold = min_t(u64, qg->max_excl / QGROUP_FREE_RATIO,
+					  QGROUP_FREE_SIZE);
+		} else {
+			free = qg->max_rfer - qgroup_rsv_total(qg) - qg->rfer;
+			threshold = min_t(u64, qg->max_rfer / QGROUP_FREE_RATIO,
+					  QGROUP_FREE_SIZE);
+		}
 
 		/*
 		 * Use transaction_kthread to commit transaction, so we no
 		 * longer need to bother nested transaction nor lock context.
 		 */
-		if (qg->rsv.values[BTRFS_QGROUP_RSV_META_PERTRANS] > threshold)
+		if (free < threshold)
 			btrfs_commit_transaction_locksafe(fs_info);
 	}
 
