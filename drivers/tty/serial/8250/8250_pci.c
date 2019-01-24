@@ -3375,6 +3375,9 @@ static const struct pci_device_id blacklist[] = {
 	/* Exar devices */
 	{ PCI_VDEVICE(EXAR, PCI_ANY_ID), },
 	{ PCI_VDEVICE(COMMTECH, PCI_ANY_ID), },
+
+	/* End of the black list */
+	{ }
 };
 
 static int serial_pci_is_class_communication(struct pci_dev *dev)
@@ -3388,25 +3391,6 @@ static int serial_pci_is_class_communication(struct pci_dev *dev)
 	     ((dev->class >> 8) != PCI_CLASS_COMMUNICATION_MODEM)) ||
 	    (dev->class & 0xff) > 6)
 		return -ENODEV;
-
-	return 0;
-}
-
-static int serial_pci_is_blacklisted(struct pci_dev *dev)
-{
-	const struct pci_device_id *bldev;
-
-	/*
-	 * Do not access blacklisted devices that are known not to
-	 * feature serial ports or are handled by other modules.
-	 */
-	for (bldev = blacklist;
-	     bldev < blacklist + ARRAY_SIZE(blacklist);
-	     bldev++) {
-		if (dev->vendor == bldev->vendor &&
-		    dev->device == bldev->device)
-			return -ENODEV;
-	}
 
 	return 0;
 }
@@ -3634,6 +3618,7 @@ pciserial_init_one(struct pci_dev *dev, const struct pci_device_id *ent)
 	struct pci_serial_quirk *quirk;
 	struct serial_private *priv;
 	const struct pciserial_board *board;
+	const struct pci_device_id *exclude;
 	struct pciserial_board tmp;
 	int rc;
 
@@ -3652,9 +3637,9 @@ pciserial_init_one(struct pci_dev *dev, const struct pci_device_id *ent)
 
 	board = &pci_boards[ent->driver_data];
 
-	rc = serial_pci_is_blacklisted(dev);
-	if (rc)
-		return rc;
+	exclude = pci_match_id(blacklist, dev);
+	if (exclude)
+		return -ENODEV;
 
 	rc = pcim_enable_device(dev);
 	pci_save_state(dev);
