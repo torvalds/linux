@@ -1590,6 +1590,28 @@ static int smu_v11_0_update_od8_settings(struct smu_context *smu,
 	return 0;
 }
 
+static int smu_v11_0_dpm_set_uvd_enable(struct smu_context *smu, bool enable)
+{
+	if (!smu_feature_is_supported(smu, FEATURE_DPM_VCE_BIT))
+		return 0;
+
+	if (enable == smu_feature_is_enabled(smu, FEATURE_DPM_VCE_BIT))
+		return 0;
+
+	return smu_feature_set_enabled(smu, FEATURE_DPM_VCE_BIT, enable);
+}
+
+static int smu_v11_0_dpm_set_vce_enable(struct smu_context *smu, bool enable)
+{
+	if (!smu_feature_is_supported(smu, FEATURE_DPM_UVD_BIT))
+		return 0;
+
+	if (enable == smu_feature_is_enabled(smu, FEATURE_DPM_UVD_BIT))
+		return 0;
+
+	return smu_feature_set_enabled(smu, FEATURE_DPM_UVD_BIT, enable);
+}
+
 static const struct smu_funcs smu_v11_0_funcs = {
 	.init_microcode = smu_v11_0_init_microcode,
 	.load_microcode = smu_v11_0_load_microcode,
@@ -1635,6 +1657,9 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.get_power_profile_mode = smu_v11_0_get_power_profile_mode,
 	.set_power_profile_mode = smu_v11_0_set_power_profile_mode,
 	.update_od8_settings = smu_v11_0_update_od8_settings,
+	.dpm_set_uvd_enable = smu_v11_0_dpm_set_uvd_enable,
+	.dpm_set_vce_enable = smu_v11_0_dpm_set_vce_enable,
+
 };
 
 void smu_v11_0_set_smu_funcs(struct smu_context *smu)

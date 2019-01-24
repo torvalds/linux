@@ -514,6 +514,8 @@ struct smu_funcs
 	int (*update_od8_settings)(struct smu_context *smu,
 				   uint32_t index,
 				   uint32_t value);
+	int (*dpm_set_uvd_enable)(struct smu_context *smu, bool enable);
+	int (*dpm_set_vce_enable)(struct smu_context *smu, bool enable);
 };
 
 #define smu_init_microcode(smu) \
@@ -659,6 +661,10 @@ struct smu_funcs
 	((smu)->funcs->notify_smu_enable_pwe ? (smu)->funcs->notify_smu_enable_pwe((smu)) : 0)
 #define smu_set_watermarks_for_clock_ranges(smu, clock_ranges) \
 	((smu)->funcs->set_watermarks_for_clock_ranges ? (smu)->funcs->set_watermarks_for_clock_ranges((smu), (clock_ranges)) : 0)
+#define smu_dpm_set_uvd_enable(smu, enable) \
+	((smu)->funcs->dpm_set_uvd_enable ? (smu)->funcs->dpm_set_uvd_enable((smu), (enable)) : 0)
+#define smu_dpm_set_vce_enable(smu, enable) \
+	((smu)->funcs->dpm_set_vce_enable ? (smu)->funcs->dpm_set_vce_enable((smu), (enable)) : 0)
 
 
 extern int smu_get_atom_data_table(struct smu_context *smu, uint32_t table,
