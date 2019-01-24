@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2016 Intel Corporation.
+ * Copyright(c) 2016 - 2018 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -100,6 +100,8 @@ struct ib_atomic_eth {
 	__be64 compare_data; /* potentially unaligned */
 } __packed;
 
+#include <rdma/tid_rdma_defs.h>
+
 union ib_ehdrs {
 	struct {
 		__be32 deth[2];
@@ -117,6 +119,11 @@ union ib_ehdrs {
 	__be32 aeth;
 	__be32 ieth;
 	struct ib_atomic_eth atomic_eth;
+	/* TID RDMA headers */
+	union {
+		struct tid_rdma_read_req r_req;
+		struct tid_rdma_read_resp r_rsp;
+	} tid_rdma;
 }  __packed;
 
 struct ib_other_headers {

@@ -45,6 +45,19 @@ struct tid_flow_state {
 	u8 flags;
 };
 
+enum tid_rdma_req_state {
+	TID_REQUEST_INACTIVE = 0,
+	TID_REQUEST_INIT,
+	TID_REQUEST_INIT_RESEND,
+	TID_REQUEST_ACTIVE,
+	TID_REQUEST_RESEND,
+	TID_REQUEST_RESEND_ACTIVE,
+	TID_REQUEST_QUEUED,
+	TID_REQUEST_SYNC,
+	TID_REQUEST_RNR_NAK,
+	TID_REQUEST_COMPLETE,
+};
+
 struct tid_rdma_request {
 	struct rvt_qp *qp;
 	struct hfi1_ctxtdata *rcd;
@@ -60,8 +73,13 @@ struct tid_rdma_request {
 	u16 flow_idx;		/* flow index most recently set up */
 
 	u32 seg_len;
+	u32 s_next_psn;		/* IB PSN of next segment start for read */
 
+	u32 cur_seg;		/* index of current segment */
 	u32 isge;		/* index of "current" sge */
+	u32 ack_pending;        /* num acks pending for this request */
+
+	enum tid_rdma_req_state state;
 };
 
 /*
@@ -77,6 +95,10 @@ struct flow_state {
 	u32 spsn;            /* starting PSN in TID space */
 	u32 lpsn;            /* last PSN in TID space */
 	u32 r_next_psn;      /* next PSN to be received (in TID space) */
+
+	/* For tid rdma read */
+	u32 ib_spsn;         /* starting PSN in Verbs space */
+	u32 ib_lpsn;         /* last PSn in Verbs space */
 };
 
 struct tid_rdma_pageset {
@@ -110,11 +132,14 @@ struct tid_rdma_flow {
 	struct flow_state flow_state;
 	struct tid_rdma_request *req;
 	u32 length;
+	u32 sent;
 	u8 tnode_cnt;
 	u8 tidcnt;
+	u8 tid_idx;
 	u8 idx;
 	u8 npagesets;
 	u8 npkts;
+	u8 pkt;
 	struct kern_tid_node tnode[TID_RDMA_MAX_PAGES];
 	struct tid_rdma_pageset pagesets[TID_RDMA_MAX_PAGES];
 	u32 tid_entry[TID_RDMA_MAX_PAGES];
@@ -158,5 +183,12 @@ void hfi1_kern_init_ctxt_generations(struct hfi1_ctxtdata *rcd);
 struct cntr_entry;
 u64 hfi1_access_sw_tid_wait(const struct cntr_entry *entry,
 			    void *context, int vl, int mode, u64 data);
+
+u32 hfi1_build_tid_rdma_read_packet(struct rvt_swqe *wqe,
+				    struct ib_other_headers *ohdr,
+				    u32 *bth1, u32 *bth2, u32 *len);
+u32 hfi1_build_tid_rdma_read_req(struct rvt_qp *qp, struct rvt_swqe *wqe,
+				 struct ib_other_headers *ohdr, u32 *bth1,
+				 u32 *bth2, u32 *len);
 
 #endif /* HFI1_TID_RDMA_H */

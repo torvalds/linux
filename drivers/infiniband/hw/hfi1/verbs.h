@@ -170,12 +170,16 @@ struct hfi1_qp_priv {
 	struct rvt_qp *owner;
 	u8 hdr_type; /* 9B or 16B */
 	unsigned long tid_timer_timeout_jiffies;
+
+	/* For TID RDMA READ */
+	u32 pending_tid_r_segs; /* Num of pending tid read segments */
 	u16 pkts_ps;            /* packets per segment */
 	u8 timeout_shift;       /* account for number of packets per segment */
 };
 
 struct hfi1_swqe_priv {
 	struct tid_rdma_request tid_req;
+	struct rvt_sge_state ss;  /* Used for TID RDMA READ Request */
 };
 
 struct hfi1_ack_priv {
@@ -329,6 +333,11 @@ static inline u32 mask_psn(u32 a)
 static inline u32 delta_psn(u32 a, u32 b)
 {
 	return (((int)a - (int)b) << PSN_SHIFT) >> PSN_SHIFT;
+}
+
+static inline struct tid_rdma_request *wqe_to_tid_req(struct rvt_swqe *wqe)
+{
+	return &((struct hfi1_swqe_priv *)wqe->priv)->tid_req;
 }
 
 /*
