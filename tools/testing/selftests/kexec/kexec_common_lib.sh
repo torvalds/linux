@@ -4,6 +4,9 @@
 # Kselftest framework defines: ksft_pass=0, ksft_fail=1, ksft_skip=4
 
 VERBOSE="${VERBOSE:-1}"
+IKCONFIG="/tmp/config-`uname -r`"
+KERNEL_IMAGE="/boot/vmlinuz-`uname -r`"
+SECURITYFS=$(grep "securityfs" /proc/mounts | awk '{print $2}')
 
 log_info()
 {
@@ -72,4 +75,100 @@ require_root_privileges()
 	if [ $(id -ru) -ne 0 ]; then
 		log_skip "requires root privileges"
 	fi
+}
+
+# Look for config option in Kconfig file.
+# Return 1 for found and 0 for not found.
+kconfig_enabled()
+{
+	local config="$1"
+	local msg="$2"
+
+	grep -E -q $config $IKCONFIG
+	if [ $? -eq 0 ]; then
+		log_info "$msg"
+		return 1
+	fi
+	return 0
+}
+
+# Attempt to get the kernel config first via proc, and then by
+# extracting it from the kernel image or the configs.ko using
+# scripts/extract-ikconfig.
+# Return 1 for found.
+get_kconfig()
+{
+	local proc_config="/proc/config.gz"
+	local module_dir="/lib/modules/`uname -r`"
+	local configs_module="$module_dir/kernel/kernel/configs.ko"
+
+	if [ ! -f $proc_config ]; then
+		modprobe configs > /dev/null 2>&1
+	fi
+	if [ -f $proc_config ]; then
+		cat $proc_config | gunzip > $IKCONFIG 2>/dev/null
+		if [ $? -eq 0 ]; then
+			return 1
+		fi
+	fi
+
+	local extract_ikconfig="$module_dir/source/scripts/extract-ikconfig"
+	if [ ! -f $extract_ikconfig ]; then
+		log_skip "extract-ikconfig not found"
+	fi
+
+	$extract_ikconfig $KERNEL_IMAGE > $IKCONFIG 2>/dev/null
+	if [ $? -eq 1 ]; then
+		if [ ! -f $configs_module ]; then
+			log_skip "CONFIG_IKCONFIG not enabled"
+		fi
+		$extract_ikconfig $configs_module > $IKCONFIG
+		if [ $? -eq 1 ]; then
+			log_skip "CONFIG_IKCONFIG not enabled"
+		fi
+	fi
+	return 1
+}
+
+# Make sure that securityfs is mounted
+mount_securityfs()
+{
+	if [ -z $SECURITYFS ]; then
+		SECURITYFS=/sys/kernel/security
+		mount -t securityfs security $SECURITYFS
+	fi
+
+	if [ ! -d "$SECURITYFS" ]; then
+		log_fail "$SECURITYFS :securityfs is not mounted"
+	fi
+}
+
+# The policy rule format is an "action" followed by key-value pairs.  This
+# function supports up to two key-value pairs, in any order.
+# For example: action func=<keyword> [appraise_type=<type>]
+# Return 1 for found and 0 for not found.
+check_ima_policy()
+{
+	local action="$1"
+	local keypair1="$2"
+	local keypair2="$3"
+	local ret=0
+
+	mount_securityfs
+
+	local ima_policy=$SECURITYFS/ima/policy
+	if [ ! -e $ima_policy ]; then
+		log_fail "$ima_policy not found"
+	fi
+
+	if [ -n $keypair2 ]; then
+		grep -e "^$action.*$keypair1" "$ima_policy" | \
+			grep -q -e "$keypair2"
+	else
+		grep -q -e "^$action.*$keypair1" "$ima_policy"
+	fi
+
+	# invert "grep -q" result, returning 1 for found.
+	[ $? -eq 0 ] && ret=1
+	return $ret
 }
