@@ -64,11 +64,6 @@ static void bch2_journal_buf_init(struct journal *j)
 	buf->data->u64s	= 0;
 }
 
-static inline size_t journal_entry_u64s_reserve(struct journal_buf *buf)
-{
-	return BTREE_ID_NR * (JSET_KEYS_U64s + BKEY_EXTENT_U64s_MAX);
-}
-
 static inline bool journal_entry_empty(struct jset *j)
 {
 	struct jset_entry *i;
@@ -130,7 +125,7 @@ static enum {
 
 	j->prev_buf_sectors =
 		vstruct_blocks_plus(buf->data, c->block_bits,
-				    journal_entry_u64s_reserve(buf)) *
+				    buf->u64s_reserved) *
 		c->opts.block_size;
 	BUG_ON(j->prev_buf_sectors > j->cur_buf_sectors);
 
@@ -225,6 +220,7 @@ static int journal_entry_open(struct journal *j)
 		return sectors;
 
 	buf->disk_sectors	= sectors;
+	buf->u64s_reserved	= j->entry_u64s_reserved;
 
 	sectors = min_t(unsigned, sectors, buf->size >> 9);
 	j->cur_buf_sectors	= sectors;
@@ -233,11 +229,7 @@ static int journal_entry_open(struct journal *j)
 
 	/* Subtract the journal header */
 	u64s -= sizeof(struct jset) / sizeof(u64);
-	/*
-	 * Btree roots, prio pointers don't get added until right before we do
-	 * the write:
-	 */
-	u64s -= journal_entry_u64s_reserve(buf);
+	u64s -= buf->u64s_reserved;
 	u64s  = max_t(ssize_t, 0L, u64s);
 
 	BUG_ON(u64s >= JOURNAL_ENTRY_CLOSED_VAL);
@@ -436,6 +428,45 @@ int bch2_journal_res_get_slowpath(struct journal *j, struct journal_res *res,
 		   (flags & JOURNAL_RES_GET_NONBLOCK));
 	return ret;
 }
+
+/* journal_entry_res: */
+
+void bch2_journal_entry_res_resize(struct journal *j,
+				   struct journal_entry_res *res,
+				   unsigned new_u64s)
+{
+	union journal_res_state state;
+	int d = new_u64s - res->u64s;
+
+	spin_lock(&j->lock);
+
+	j->entry_u64s_reserved += d;
+	if (d <= 0)
+		goto out_unlock;
+
+	j->cur_entry_u64s -= d;
+	smp_mb();
+	state = READ_ONCE(j->reservations);
+
+	if (state.cur_entry_offset < JOURNAL_ENTRY_CLOSED_VAL &&
+	    state.cur_entry_offset > j->cur_entry_u64s) {
+		j->cur_entry_u64s += d;
+		/*
+		 * Not enough room in current journal entry, have to flush it:
+		 */
+		__journal_entry_close(j);
+		goto out;
+	}
+
+	journal_cur_buf(j)->u64s_reserved += d;
+out_unlock:
+	spin_unlock(&j->lock);
+out:
+	res->u64s += d;
+	return;
+}
+
+/* journal flushing: */
 
 u64 bch2_journal_last_unwritten_seq(struct journal *j)
 {
@@ -1023,6 +1054,10 @@ int bch2_fs_journal_init(struct journal *j)
 	j->buf[1].size		= JOURNAL_ENTRY_SIZE_MIN;
 	j->write_delay_ms	= 1000;
 	j->reclaim_delay_ms	= 100;
+
+	/* Btree roots: */
+	j->entry_u64s_reserved +=
+		BTREE_ID_NR * (JSET_KEYS_U64s + BKEY_EXTENT_U64s_MAX);
 
 	atomic64_set(&j->reservations.counter,
 		((union journal_res_state)
