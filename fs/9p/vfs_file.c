@@ -446,7 +446,11 @@ v9fs_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		i_size = i_size_read(inode);
 		if (iocb->ki_pos > i_size) {
 			inode_add_bytes(inode, iocb->ki_pos - i_size);
-			i_size_write(inode, iocb->ki_pos);
+			/*
+			 * Need to serialize against i_size_write() in
+			 * v9fs_stat2inode()
+			 */
+			v9fs_i_size_write(inode, iocb->ki_pos);
 		}
 		return retval;
 	}
