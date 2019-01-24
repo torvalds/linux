@@ -482,6 +482,15 @@ check_s_state:
 		len = wqe->length;
 		ss = &qp->s_sge;
 		bth2 = mask_psn(qp->s_psn);
+
+		/*
+		 * Interlock between various IB requests and TID RDMA
+		 * if necessary.
+		 */
+		if ((priv->s_flags & HFI1_S_TID_WAIT_INTERLCK) ||
+		    hfi1_tid_rdma_wqe_interlock(qp, wqe))
+			goto bail;
+
 		switch (wqe->wr.opcode) {
 		case IB_WR_SEND:
 		case IB_WR_SEND_WITH_IMM:
@@ -1321,6 +1330,7 @@ static void reset_psn(struct rvt_qp *qp, u32 psn)
 		qp->s_state = OP(SEND_LAST);
 	}
 done:
+	priv->s_flags &= ~HFI1_S_TID_WAIT_INTERLCK;
 	qp->s_psn = psn;
 	/*
 	 * Set RVT_S_WAIT_PSN as rc_complete() may start the timer
@@ -1540,6 +1550,8 @@ struct rvt_swqe *do_rc_completion(struct rvt_qp *qp,
 				  struct rvt_swqe *wqe,
 				  struct hfi1_ibport *ibp)
 {
+	struct hfi1_qp_priv *priv = qp->priv;
+
 	lockdep_assert_held(&qp->s_lock);
 	/*
 	 * Don't decrement refcount and don't generate a
@@ -1607,6 +1619,10 @@ struct rvt_swqe *do_rc_completion(struct rvt_qp *qp,
 		if (qp->state == IB_QPS_SQD && qp->s_acked == qp->s_cur)
 			qp->s_draining = 0;
 		wqe = rvt_get_swqe_ptr(qp, qp->s_acked);
+	}
+	if (priv->s_flags & HFI1_S_TID_WAIT_INTERLCK) {
+		priv->s_flags &= ~HFI1_S_TID_WAIT_INTERLCK;
+		hfi1_schedule_send(qp);
 	}
 	return wqe;
 }

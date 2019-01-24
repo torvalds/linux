@@ -2829,3 +2829,40 @@ void hfi1_qp_kern_exp_rcv_clear_all(struct rvt_qp *qp)
 		} while (!ret);
 	}
 }
+
+bool hfi1_tid_rdma_wqe_interlock(struct rvt_qp *qp, struct rvt_swqe *wqe)
+{
+	struct rvt_swqe *prev;
+	struct hfi1_qp_priv *priv = qp->priv;
+	u32 s_prev;
+
+	s_prev = (qp->s_cur == 0 ? qp->s_size : qp->s_cur) - 1;
+	prev = rvt_get_swqe_ptr(qp, s_prev);
+
+	switch (wqe->wr.opcode) {
+	case IB_WR_SEND:
+	case IB_WR_SEND_WITH_IMM:
+	case IB_WR_SEND_WITH_INV:
+	case IB_WR_ATOMIC_CMP_AND_SWP:
+	case IB_WR_ATOMIC_FETCH_AND_ADD:
+	case IB_WR_RDMA_WRITE:
+	case IB_WR_RDMA_READ:
+		break;
+	case IB_WR_TID_RDMA_READ:
+		switch (prev->wr.opcode) {
+		case IB_WR_RDMA_READ:
+			if (qp->s_acked != qp->s_cur)
+				goto interlock;
+			break;
+		default:
+			break;
+		}
+	default:
+		break;
+	}
+	return false;
+
+interlock:
+	priv->s_flags |= HFI1_S_TID_WAIT_INTERLCK;
+	return true;
+}

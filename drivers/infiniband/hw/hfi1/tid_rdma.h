@@ -17,6 +17,16 @@
 #define TID_RDMA_MAX_SEGMENT_SIZE       BIT(18)   /* 256 KiB (for now) */
 #define TID_RDMA_MAX_PAGES              (BIT(18) >> PAGE_SHIFT)
 
+/*
+ * Bit definitions for priv->s_flags.
+ * These bit flags overload the bit flags defined for the QP's s_flags.
+ * Due to the fact that these bit fields are used only for the QP priv
+ * s_flags, there are no collisions.
+ *
+ * HFI1_S_TID_WAIT_INTERLCK - QP is waiting for requester interlock
+ */
+#define HFI1_S_TID_WAIT_INTERLCK  BIT(5)
+
 struct tid_rdma_params {
 	struct rcu_head rcu_head;
 	u32 qp;
@@ -210,5 +220,6 @@ bool hfi1_handle_kdeth_eflags(struct hfi1_ctxtdata *rcd,
 void hfi1_tid_rdma_restart_req(struct rvt_qp *qp, struct rvt_swqe *wqe,
 			       u32 *bth2);
 void hfi1_qp_kern_exp_rcv_clear_all(struct rvt_qp *qp);
+bool hfi1_tid_rdma_wqe_interlock(struct rvt_qp *qp, struct rvt_swqe *wqe);
 
 #endif /* HFI1_TID_RDMA_H */

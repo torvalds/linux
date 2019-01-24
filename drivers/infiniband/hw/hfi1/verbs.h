@@ -171,6 +171,9 @@ struct hfi1_qp_priv {
 	u8 hdr_type; /* 9B or 16B */
 	unsigned long tid_timer_timeout_jiffies;
 
+	/* variables for the TID RDMA SE state machine */
+	u32 s_flags;
+
 	/* For TID RDMA READ */
 	u32 tid_r_reqs;         /* Num of tid reads requested */
 	u32 tid_r_comp;         /* Num of tid reads completed */
