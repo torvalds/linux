@@ -553,11 +553,7 @@ static noinline int build_verbs_ulp_payload(
 	int ret = 0;
 
 	while (length) {
-		len = ss->sge.length;
-		if (len > length)
-			len = length;
-		if (len > ss->sge.sge_length)
-			len = ss->sge.sge_length;
+		len = rvt_get_sge_length(&ss->sge, length);
 		WARN_ON_ONCE(len == 0);
 		ret = sdma_txadd_kvaddr(
 			sde->dd,
@@ -914,12 +910,8 @@ int hfi1_verbs_send_pio(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 		if (ss) {
 			while (len) {
 				void *addr = ss->sge.vaddr;
-				u32 slen = ss->sge.length;
+				u32 slen = rvt_get_sge_length(&ss->sge, len);
 
-				if (slen > len)
-					slen = len;
-				if (slen > ss->sge.sge_length)
-					slen = ss->sge.sge_length;
 				rvt_update_sge(ss, slen, false);
 				seg_pio_copy_mid(pbuf, addr, slen);
 				len -= slen;
