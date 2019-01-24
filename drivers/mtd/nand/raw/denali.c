@@ -473,7 +473,7 @@ static void denali_setup_dma32(struct denali_nand_info *denali,
 }
 
 static int denali_pio_read(struct denali_nand_info *denali, void *buf,
-			   size_t size, int page, int raw)
+			   size_t size, int page)
 {
 	u32 addr = DENALI_MAP01 | DENALI_BANK(denali) | page;
 	uint32_t *buf32 = (uint32_t *)buf;
@@ -501,7 +501,7 @@ static int denali_pio_read(struct denali_nand_info *denali, void *buf,
 }
 
 static int denali_pio_write(struct denali_nand_info *denali,
-			    const void *buf, size_t size, int page, int raw)
+			    const void *buf, size_t size, int page)
 {
 	u32 addr = DENALI_MAP01 | DENALI_BANK(denali) | page;
 	const uint32_t *buf32 = (uint32_t *)buf;
@@ -522,16 +522,16 @@ static int denali_pio_write(struct denali_nand_info *denali,
 }
 
 static int denali_pio_xfer(struct denali_nand_info *denali, void *buf,
-			   size_t size, int page, int raw, int write)
+			   size_t size, int page, int write)
 {
 	if (write)
-		return denali_pio_write(denali, buf, size, page, raw);
+		return denali_pio_write(denali, buf, size, page);
 	else
-		return denali_pio_read(denali, buf, size, page, raw);
+		return denali_pio_read(denali, buf, size, page);
 }
 
 static int denali_dma_xfer(struct denali_nand_info *denali, void *buf,
-			   size_t size, int page, int raw, int write)
+			   size_t size, int page, int write)
 {
 	dma_addr_t dma_addr;
 	uint32_t irq_mask, irq_status, ecc_err_mask;
@@ -541,7 +541,7 @@ static int denali_dma_xfer(struct denali_nand_info *denali, void *buf,
 	dma_addr = dma_map_single(denali->dev, buf, size, dir);
 	if (dma_mapping_error(denali->dev, dma_addr)) {
 		dev_dbg(denali->dev, "Failed to DMA-map buffer. Trying PIO.\n");
-		return denali_pio_xfer(denali, buf, size, page, raw, write);
+		return denali_pio_xfer(denali, buf, size, page, write);
 	}
 
 	if (write) {
@@ -595,9 +595,9 @@ static int denali_data_xfer(struct denali_nand_info *denali, void *buf,
 		  denali->reg + TRANSFER_SPARE_REG);
 
 	if (denali->dma_avail)
-		return denali_dma_xfer(denali, buf, size, page, raw, write);
+		return denali_dma_xfer(denali, buf, size, page, write);
 	else
-		return denali_pio_xfer(denali, buf, size, page, raw, write);
+		return denali_pio_xfer(denali, buf, size, page, write);
 }
 
 static void denali_oob_xfer(struct mtd_info *mtd, struct nand_chip *chip,
