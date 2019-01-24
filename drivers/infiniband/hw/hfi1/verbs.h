@@ -427,6 +427,10 @@ int hfi1_register_ib_device(struct hfi1_devdata *);
 
 void hfi1_unregister_ib_device(struct hfi1_devdata *);
 
+void hfi1_kdeth_eager_rcv(struct hfi1_packet *packet);
+
+void hfi1_kdeth_expected_rcv(struct hfi1_packet *packet);
+
 void hfi1_ib_rcv(struct hfi1_packet *packet);
 
 void hfi1_16B_rcv(struct hfi1_packet *packet);

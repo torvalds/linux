@@ -2120,7 +2120,7 @@ static inline u64 hfi1_pkt_default_send_ctxt_mask(struct hfi1_devdata *dd,
 			SEND_CTXT_CHECK_ENABLE_DISALLOW_PBC_TEST_SMASK |
 #endif
 			HFI1_PKT_USER_SC_INTEGRITY;
-	else
+	else if (ctxt_type != SC_KERNEL)
 		base_sc_integrity |= HFI1_PKT_KERNEL_SC_INTEGRITY;
 
 	/* turn on send-side job key checks if !A0 */
