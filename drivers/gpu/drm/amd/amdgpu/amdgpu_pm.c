@@ -2045,18 +2045,20 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	     attr == &sensor_dev_attr_fan1_enable.dev_attr.attr))
 		return 0;
 
-	/* mask fan attributes if we have no bindings for this asic to expose */
-	if ((!adev->powerplay.pp_funcs->get_fan_speed_percent &&
-	     attr == &sensor_dev_attr_pwm1.dev_attr.attr) || /* can't query fan */
-	    (!adev->powerplay.pp_funcs->get_fan_control_mode &&
-	     attr == &sensor_dev_attr_pwm1_enable.dev_attr.attr)) /* can't query state */
-		effective_mode &= ~S_IRUGO;
+	if (!is_support_sw_smu(adev)) {
+		/* mask fan attributes if we have no bindings for this asic to expose */
+		if ((!adev->powerplay.pp_funcs->get_fan_speed_percent &&
+		     attr == &sensor_dev_attr_pwm1.dev_attr.attr) || /* can't query fan */
+		    (!adev->powerplay.pp_funcs->get_fan_control_mode &&
+		     attr == &sensor_dev_attr_pwm1_enable.dev_attr.attr)) /* can't query state */
+			effective_mode &= ~S_IRUGO;
 
-	if ((!adev->powerplay.pp_funcs->set_fan_speed_percent &&
-	     attr == &sensor_dev_attr_pwm1.dev_attr.attr) || /* can't manage fan */
-	    (!adev->powerplay.pp_funcs->set_fan_control_mode &&
-	     attr == &sensor_dev_attr_pwm1_enable.dev_attr.attr)) /* can't manage state */
-		effective_mode &= ~S_IWUSR;
+		if ((!adev->powerplay.pp_funcs->set_fan_speed_percent &&
+		     attr == &sensor_dev_attr_pwm1.dev_attr.attr) || /* can't manage fan */
+		    (!adev->powerplay.pp_funcs->set_fan_control_mode &&
+		     attr == &sensor_dev_attr_pwm1_enable.dev_attr.attr)) /* can't manage state */
+			effective_mode &= ~S_IWUSR;
+	}
 
 	if ((adev->flags & AMD_IS_APU) &&
 	    (attr == &sensor_dev_attr_power1_average.dev_attr.attr ||
@@ -2065,20 +2067,22 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	     attr == &sensor_dev_attr_power1_cap.dev_attr.attr))
 		return 0;
 
-	/* hide max/min values if we can't both query and manage the fan */
-	if ((!adev->powerplay.pp_funcs->set_fan_speed_percent &&
-	     !adev->powerplay.pp_funcs->get_fan_speed_percent) &&
-	     (!adev->powerplay.pp_funcs->set_fan_speed_rpm &&
-	     !adev->powerplay.pp_funcs->get_fan_speed_rpm) &&
-	    (attr == &sensor_dev_attr_pwm1_max.dev_attr.attr ||
-	     attr == &sensor_dev_attr_pwm1_min.dev_attr.attr))
-		return 0;
+	if (!is_support_sw_smu(adev)) {
+		/* hide max/min values if we can't both query and manage the fan */
+		if ((!adev->powerplay.pp_funcs->set_fan_speed_percent &&
+		     !adev->powerplay.pp_funcs->get_fan_speed_percent) &&
+		     (!adev->powerplay.pp_funcs->set_fan_speed_rpm &&
+		     !adev->powerplay.pp_funcs->get_fan_speed_rpm) &&
+		    (attr == &sensor_dev_attr_pwm1_max.dev_attr.attr ||
+		     attr == &sensor_dev_attr_pwm1_min.dev_attr.attr))
+			return 0;
 
-	if ((!adev->powerplay.pp_funcs->set_fan_speed_rpm &&
-	     !adev->powerplay.pp_funcs->get_fan_speed_rpm) &&
-	    (attr == &sensor_dev_attr_fan1_max.dev_attr.attr ||
-	     attr == &sensor_dev_attr_fan1_min.dev_attr.attr))
-		return 0;
+		if ((!adev->powerplay.pp_funcs->set_fan_speed_rpm &&
+		     !adev->powerplay.pp_funcs->get_fan_speed_rpm) &&
+		    (attr == &sensor_dev_attr_fan1_max.dev_attr.attr ||
+		     attr == &sensor_dev_attr_fan1_min.dev_attr.attr))
+			return 0;
+	}
 
 	/* only APUs have vddnb */
 	if (!(adev->flags & AMD_IS_APU) &&
