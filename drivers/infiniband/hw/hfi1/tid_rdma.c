@@ -2179,6 +2179,7 @@ static int tid_rdma_rcv_error(struct hfi1_packet *packet,
 			req->state = TID_REQUEST_RESEND;
 			req->cur_seg = req->comp_seg;
 		}
+		qpriv->s_flags &= ~HFI1_R_TID_WAIT_INTERLCK;
 	}
 	/* Re-process old requests.*/
 	if (qp->s_acked_ack_queue == qp->s_tail_ack_queue)
@@ -3229,6 +3230,7 @@ bool hfi1_tid_rdma_wqe_interlock(struct rvt_qp *qp, struct rvt_swqe *wqe)
 	struct rvt_swqe *prev;
 	struct hfi1_qp_priv *priv = qp->priv;
 	u32 s_prev;
+	struct tid_rdma_request *req;
 
 	s_prev = (qp->s_cur == 0 ? qp->s_size : qp->s_cur) - 1;
 	prev = rvt_get_swqe_ptr(qp, s_prev);
@@ -3240,14 +3242,28 @@ bool hfi1_tid_rdma_wqe_interlock(struct rvt_qp *qp, struct rvt_swqe *wqe)
 	case IB_WR_ATOMIC_CMP_AND_SWP:
 	case IB_WR_ATOMIC_FETCH_AND_ADD:
 	case IB_WR_RDMA_WRITE:
+		switch (prev->wr.opcode) {
+		case IB_WR_TID_RDMA_WRITE:
+			req = wqe_to_tid_req(prev);
+			if (req->ack_seg != req->total_segs)
+				goto interlock;
+		default:
+			break;
+		}
 	case IB_WR_RDMA_READ:
-		break;
+		if (prev->wr.opcode != IB_WR_TID_RDMA_WRITE)
+			break;
+		/* fall through */
 	case IB_WR_TID_RDMA_READ:
 		switch (prev->wr.opcode) {
 		case IB_WR_RDMA_READ:
 			if (qp->s_acked != qp->s_cur)
 				goto interlock;
 			break;
+		case IB_WR_TID_RDMA_WRITE:
+			req = wqe_to_tid_req(prev);
+			if (req->ack_seg != req->total_segs)
+				goto interlock;
 		default:
 			break;
 		}
@@ -5157,7 +5173,9 @@ static int make_tid_rdma_ack(struct rvt_qp *qp,
 		e = &qp->s_ack_queue[qpriv->r_tid_ack];
 		req = ack_to_tid_req(e);
 		flow = req->acked_tail;
-	}
+	} else if (req->ack_seg == req->total_segs &&
+		   qpriv->s_flags & HFI1_R_TID_WAIT_INTERLCK)
+		qpriv->s_flags &= ~HFI1_R_TID_WAIT_INTERLCK;
 
 	hwords += hfi1_build_tid_rdma_write_ack(qp, e, ohdr, flow, &bth1,
 						&bth2);
@@ -5308,5 +5326,29 @@ bool hfi1_schedule_tid_send(struct rvt_qp *qp)
 	if (qp->s_flags & HFI1_S_ANY_WAIT_IO)
 		iowait_set_flag(&((struct hfi1_qp_priv *)qp->priv)->s_iowait,
 				IOWAIT_PENDING_TID);
+	return false;
+}
+
+bool hfi1_tid_rdma_ack_interlock(struct rvt_qp *qp, struct rvt_ack_entry *e)
+{
+	struct rvt_ack_entry *prev;
+	struct tid_rdma_request *req;
+	struct hfi1_ibdev *dev = to_idev(qp->ibqp.device);
+	struct hfi1_qp_priv *priv = qp->priv;
+	u32 s_prev;
+
+	s_prev = qp->s_tail_ack_queue == 0 ? rvt_size_atomic(&dev->rdi) :
+		(qp->s_tail_ack_queue - 1);
+	prev = &qp->s_ack_queue[s_prev];
+
+	if ((e->opcode == TID_OP(READ_REQ) ||
+	     e->opcode == OP(RDMA_READ_REQUEST)) &&
+	    prev->opcode == TID_OP(WRITE_REQ)) {
+		req = ack_to_tid_req(prev);
+		if (req->ack_seg != req->total_segs) {
+			priv->s_flags |= HFI1_R_TID_WAIT_INTERLCK;
+			return true;
+		}
+	}
 	return false;
 }

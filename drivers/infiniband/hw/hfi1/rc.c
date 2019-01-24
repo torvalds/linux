@@ -173,6 +173,12 @@ static int make_rc_ack(struct hfi1_ibdev *dev, struct rvt_qp *qp,
 		}
 
 		e = &qp->s_ack_queue[qp->s_tail_ack_queue];
+		/* Check for tid write fence */
+		if ((qpriv->s_flags & HFI1_R_TID_WAIT_INTERLCK) ||
+		    hfi1_tid_rdma_ack_interlock(qp, e)) {
+			iowait_set_flag(&qpriv->s_iowait, IOWAIT_PENDING_IB);
+			goto bail;
+		}
 		if (e->opcode == OP(RDMA_READ_REQUEST)) {
 			/*
 			 * If a RDMA read response is being resent and

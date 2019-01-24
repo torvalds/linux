@@ -25,6 +25,7 @@
  * s_flags, there are no collisions.
  *
  * HFI1_S_TID_WAIT_INTERLCK - QP is waiting for requester interlock
+ * HFI1_R_TID_WAIT_INTERLCK - QP is waiting for responder interlock
  */
 #define HFI1_S_TID_BUSY_SET       BIT(0)
 /* BIT(1) reserved for RVT_S_BUSY. */
@@ -32,9 +33,15 @@
 /* BIT(3) reserved for RVT_S_RESP_PENDING. */
 /* BIT(4) reserved for RVT_S_ACK_PENDING. */
 #define HFI1_S_TID_WAIT_INTERLCK  BIT(5)
+#define HFI1_R_TID_WAIT_INTERLCK  BIT(6)
 /* BIT(7) - BIT(15) reserved for RVT_S_WAIT_*. */
+/* BIT(16) reserved for RVT_S_SEND_ONE */
 #define HFI1_S_TID_RETRY_TIMER    BIT(17)
+/* BIT(18) reserved for RVT_S_ECN. */
 #define HFI1_R_TID_SW_PSN         BIT(19)
+/* BIT(26) reserved for HFI1_S_WAIT_HALT */
+/* BIT(27) reserved for HFI1_S_WAIT_TID_RESP */
+/* BIT(28) reserved for HFI1_S_WAIT_TID_SPACE */
 
 /*
  * Unlike regular IB RDMA VERBS, which do not require an entry
@@ -308,5 +315,7 @@ int hfi1_make_tid_rdma_pkt(struct rvt_qp *qp, struct hfi1_pkt_state *ps);
 void _hfi1_do_tid_send(struct work_struct *work);
 
 bool hfi1_schedule_tid_send(struct rvt_qp *qp);
+
+bool hfi1_tid_rdma_ack_interlock(struct rvt_qp *qp, struct rvt_ack_entry *e);
 
 #endif /* HFI1_TID_RDMA_H */
