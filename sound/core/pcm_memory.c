@@ -93,12 +93,6 @@ static void snd_pcm_lib_preallocate_dma_free(struct snd_pcm_substream *substream
 int snd_pcm_lib_preallocate_free(struct snd_pcm_substream *substream)
 {
 	snd_pcm_lib_preallocate_dma_free(substream);
-#ifdef CONFIG_SND_VERBOSE_PROCFS
-	snd_info_free_entry(substream->proc_prealloc_max_entry);
-	substream->proc_prealloc_max_entry = NULL;
-	snd_info_free_entry(substream->proc_prealloc_entry);
-	substream->proc_prealloc_entry = NULL;
-#endif
 	return 0;
 }
 
@@ -203,21 +197,15 @@ static inline void preallocate_info_init(struct snd_pcm_substream *substream)
 		entry->c.text.write = snd_pcm_lib_preallocate_proc_write;
 		entry->mode |= 0200;
 		entry->private_data = substream;
-		if (snd_info_register(entry) < 0) {
+		if (snd_info_register(entry) < 0)
 			snd_info_free_entry(entry);
-			entry = NULL;
-		}
 	}
-	substream->proc_prealloc_entry = entry;
 	if ((entry = snd_info_create_card_entry(substream->pcm->card, "prealloc_max", substream->proc_root)) != NULL) {
 		entry->c.text.read = snd_pcm_lib_preallocate_max_proc_read;
 		entry->private_data = substream;
-		if (snd_info_register(entry) < 0) {
+		if (snd_info_register(entry) < 0)
 			snd_info_free_entry(entry);
-			entry = NULL;
-		}
 	}
-	substream->proc_prealloc_max_entry = entry;
 }
 
 #else /* !CONFIG_SND_VERBOSE_PROCFS */
