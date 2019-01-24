@@ -850,14 +850,6 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 
 	btrfs_trans_release_chunk_metadata(trans);
 
-	if (lock && should_end_transaction(trans) &&
-	    READ_ONCE(cur_trans->state) == TRANS_STATE_RUNNING) {
-		spin_lock(&info->trans_lock);
-		if (cur_trans->state == TRANS_STATE_RUNNING)
-			cur_trans->state = TRANS_STATE_BLOCKED;
-		spin_unlock(&info->trans_lock);
-	}
-
 	if (lock && READ_ONCE(cur_trans->state) == TRANS_STATE_BLOCKED) {
 		if (throttle)
 			return btrfs_commit_transaction(trans);
