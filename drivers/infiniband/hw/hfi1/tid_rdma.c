@@ -2866,3 +2866,71 @@ interlock:
 	priv->s_flags |= HFI1_S_TID_WAIT_INTERLCK;
 	return true;
 }
+
+/* Does @sge meet the alignment requirements for tid rdma? */
+static inline bool hfi1_check_sge_align(struct rvt_sge *sge, int num_sge)
+{
+	int i;
+
+	for (i = 0; i < num_sge; i++, sge++)
+		if ((u64)sge->vaddr & ~PAGE_MASK ||
+		    sge->sge_length & ~PAGE_MASK)
+			return false;
+	return true;
+}
+
+void setup_tid_rdma_wqe(struct rvt_qp *qp, struct rvt_swqe *wqe)
+{
+	struct hfi1_qp_priv *qpriv = (struct hfi1_qp_priv *)qp->priv;
+	struct hfi1_swqe_priv *priv = wqe->priv;
+	struct tid_rdma_params *remote;
+	enum ib_wr_opcode new_opcode;
+	bool do_tid_rdma = false;
+	struct hfi1_pportdata *ppd = qpriv->rcd->ppd;
+
+	if ((rdma_ah_get_dlid(&qp->remote_ah_attr) & ~((1 << ppd->lmc) - 1)) ==
+				ppd->lid)
+		return;
+	if (qpriv->hdr_type != HFI1_PKT_TYPE_9B)
+		return;
+
+	rcu_read_lock();
+	remote = rcu_dereference(qpriv->tid_rdma.remote);
+	/*
+	 * If TID RDMA is disabled by the negotiation, don't
+	 * use it.
+	 */
+	if (!remote)
+		goto exit;
+
+	if (wqe->wr.opcode == IB_WR_RDMA_READ) {
+		if (hfi1_check_sge_align(&wqe->sg_list[0], wqe->wr.num_sge)) {
+			new_opcode = IB_WR_TID_RDMA_READ;
+			do_tid_rdma = true;
+		}
+	}
+
+	if (do_tid_rdma) {
+		if (hfi1_kern_exp_rcv_alloc_flows(&priv->tid_req, GFP_ATOMIC))
+			goto exit;
+		wqe->wr.opcode = new_opcode;
+		priv->tid_req.seg_len =
+			min_t(u32, remote->max_len, wqe->length);
+		priv->tid_req.total_segs =
+			DIV_ROUND_UP(wqe->length, priv->tid_req.seg_len);
+		/* Compute the last PSN of the request */
+		wqe->lpsn = wqe->psn;
+		if (wqe->wr.opcode == IB_WR_TID_RDMA_READ) {
+			priv->tid_req.n_flows = remote->max_read;
+			qpriv->tid_r_reqs++;
+			wqe->lpsn += rvt_div_round_up_mtu(qp, wqe->length) - 1;
+		}
+
+		priv->tid_req.cur_seg = 0;
+		priv->tid_req.comp_seg = 0;
+		priv->tid_req.ack_seg = 0;
+		priv->tid_req.state = TID_REQUEST_INACTIVE;
+	}
+exit:
+	rcu_read_unlock();
+}

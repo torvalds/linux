@@ -14,6 +14,7 @@
 #define CIRC_NEXT(val, size) CIRC_ADD(val, 1, size)
 #define CIRC_PREV(val, size) CIRC_ADD(val, -1, size)
 
+#define TID_RDMA_MIN_SEGMENT_SIZE       BIT(18)   /* 256 KiB (for now) */
 #define TID_RDMA_MAX_SEGMENT_SIZE       BIT(18)   /* 256 KiB (for now) */
 #define TID_RDMA_MAX_PAGES              (BIT(18) >> PAGE_SHIFT)
 
@@ -221,5 +222,15 @@ void hfi1_tid_rdma_restart_req(struct rvt_qp *qp, struct rvt_swqe *wqe,
 			       u32 *bth2);
 void hfi1_qp_kern_exp_rcv_clear_all(struct rvt_qp *qp);
 bool hfi1_tid_rdma_wqe_interlock(struct rvt_qp *qp, struct rvt_swqe *wqe);
+
+void setup_tid_rdma_wqe(struct rvt_qp *qp, struct rvt_swqe *wqe);
+static inline void hfi1_setup_tid_rdma_wqe(struct rvt_qp *qp,
+					   struct rvt_swqe *wqe)
+{
+	if (wqe->priv &&
+	    wqe->wr.opcode == IB_WR_RDMA_READ &&
+	    wqe->length >= TID_RDMA_MIN_SEGMENT_SIZE)
+		setup_tid_rdma_wqe(qp, wqe);
+}
 
 #endif /* HFI1_TID_RDMA_H */
