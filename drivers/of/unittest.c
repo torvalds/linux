@@ -1127,7 +1127,11 @@ static void update_node_properties(struct device_node *np,
 
 /**
  *	attach_node_and_children - attaches nodes
- *	and its children to live tree
+ *	and its children to live tree.
+ *	CAUTION: misleading function name - if node @np already exists in
+ *	the live tree then children of @np are *not* attached to the live
+ *	tree.  This works for the current test devicetree nodes because such
+ *	nodes do not have child nodes.
  *
  *	@np:	Node to attach to live tree
  */
