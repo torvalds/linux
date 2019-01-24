@@ -751,9 +751,6 @@ static int denali_read_oob(struct nand_chip *chip, int page)
 static int denali_write_oob(struct nand_chip *chip, int page)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
-	struct denali_nand_info *denali = mtd_to_denali(mtd);
-
-	denali_reset_irq(denali);
 
 	denali_oob_xfer(mtd, chip, page, 1);
 
