@@ -2975,3 +2975,41 @@ void setup_tid_rdma_wqe(struct rvt_qp *qp, struct rvt_swqe *wqe)
 exit:
 	rcu_read_unlock();
 }
+
+/* TID RDMA WRITE functions */
+
+u32 hfi1_build_tid_rdma_write_req(struct rvt_qp *qp, struct rvt_swqe *wqe,
+				  struct ib_other_headers *ohdr,
+				  u32 *bth1, u32 *bth2, u32 *len)
+{
+	struct hfi1_qp_priv *qpriv = qp->priv;
+	struct tid_rdma_request *req = wqe_to_tid_req(wqe);
+	struct tid_rdma_params *remote;
+
+	rcu_read_lock();
+	remote = rcu_dereference(qpriv->tid_rdma.remote);
+	/*
+	 * Set the number of flow to be used based on negotiated
+	 * parameters.
+	 */
+	req->n_flows = remote->max_write;
+	req->state = TID_REQUEST_ACTIVE;
+
+	KDETH_RESET(ohdr->u.tid_rdma.w_req.kdeth0, KVER, 0x1);
+	KDETH_RESET(ohdr->u.tid_rdma.w_req.kdeth1, JKEY, remote->jkey);
+	ohdr->u.tid_rdma.w_req.reth.vaddr =
+		cpu_to_be64(wqe->rdma_wr.remote_addr + (wqe->length - *len));
+	ohdr->u.tid_rdma.w_req.reth.rkey =
+		cpu_to_be32(wqe->rdma_wr.rkey);
+	ohdr->u.tid_rdma.w_req.reth.length = cpu_to_be32(*len);
+	ohdr->u.tid_rdma.w_req.verbs_qp = cpu_to_be32(qp->remote_qpn);
+	*bth1 &= ~RVT_QPN_MASK;
+	*bth1 |= remote->qp;
+	qp->s_state = TID_OP(WRITE_REQ);
+	qp->s_flags |= HFI1_S_WAIT_TID_RESP;
+	*bth2 |= IB_BTH_REQ_ACK;
+	*len = 0;
+
+	rcu_read_unlock();
+	return sizeof(ohdr->u.tid_rdma.w_req) / sizeof(u32);
+}

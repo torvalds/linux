@@ -233,4 +233,7 @@ static inline void hfi1_setup_tid_rdma_wqe(struct rvt_qp *qp,
 		setup_tid_rdma_wqe(qp, wqe);
 }
 
+u32 hfi1_build_tid_rdma_write_req(struct rvt_qp *qp, struct rvt_swqe *wqe,
+				  struct ib_other_headers *ohdr,
+				  u32 *bth1, u32 *bth2, u32 *len);
 #endif /* HFI1_TID_RDMA_H */
