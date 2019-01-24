@@ -73,6 +73,14 @@ int smu_common_read_sensor(struct smu_context *smu, enum amd_pp_sensors sensor,
 	int ret = 0;
 
 	switch (sensor) {
+	case AMDGPU_PP_SENSOR_STABLE_PSTATE_SCLK:
+		*((uint32_t *)data) = smu->pstate_sclk;
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_STABLE_PSTATE_MCLK:
+		*((uint32_t *)data) = smu->pstate_mclk;
+		*size = 4;
+		break;
 	case AMDGPU_PP_SENSOR_ENABLED_SMC_FEATURES_MASK:
 		ret = smu_feature_get_enabled_mask(smu, (uint32_t *)data, 2);
 		*size = 8;
