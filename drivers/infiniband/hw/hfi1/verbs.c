@@ -1735,6 +1735,7 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	dd->verbs_dev.rdi.dparms.sge_copy_mode = sge_copy_mode;
 	dd->verbs_dev.rdi.dparms.wss_threshold = wss_threshold;
 	dd->verbs_dev.rdi.dparms.wss_clean_period = wss_clean_period;
+	dd->verbs_dev.rdi.dparms.extra_rdma_atomic = 1;
 
 	/* post send table */
 	dd->verbs_dev.rdi.post_parms = hfi1_post_parms;

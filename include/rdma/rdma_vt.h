@@ -182,6 +182,7 @@ struct rvt_driver_params {
 	u32 max_mad_size;
 	u8 qos_shift;
 	u8 max_rdma_atomic;
+	u8 extra_rdma_atomic;
 	u8 reserved_operations;
 };
 
@@ -519,7 +520,14 @@ static inline unsigned rvt_get_npkeys(struct rvt_dev_info *rdi)
  */
 static inline unsigned int rvt_max_atomic(struct rvt_dev_info *rdi)
 {
-	return rdi->dparms.max_rdma_atomic + 1;
+	return rdi->dparms.max_rdma_atomic +
+		rdi->dparms.extra_rdma_atomic + 1;
+}
+
+static inline unsigned int rvt_size_atomic(struct rvt_dev_info *rdi)
+{
+	return rdi->dparms.max_rdma_atomic +
+		rdi->dparms.extra_rdma_atomic;
 }
 
 /*

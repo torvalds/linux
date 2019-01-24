@@ -122,7 +122,8 @@ static int make_rc_ack(struct hfi1_ibdev *dev, struct rvt_qp *qp,
 		 * response has been sent instead of only being
 		 * constructed.
 		 */
-		if (++qp->s_tail_ack_queue > HFI1_MAX_RDMA_ATOMIC)
+		if (++qp->s_tail_ack_queue >
+		    rvt_size_atomic(ib_to_rvt(qp->ibqp.device)))
 			qp->s_tail_ack_queue = 0;
 		/* FALLTHROUGH */
 	case OP(SEND_ONLY):
@@ -1818,7 +1819,7 @@ static noinline int rc_rcv_error(struct ib_other_headers *ohdr, void *data,
 		if (i)
 			prev = i - 1;
 		else
-			prev = HFI1_MAX_RDMA_ATOMIC;
+			prev = rvt_size_atomic(ib_to_rvt(qp->ibqp.device));
 		if (prev == qp->r_head_ack_queue) {
 			e = NULL;
 			break;
@@ -1942,7 +1943,7 @@ static inline void update_ack_queue(struct rvt_qp *qp, unsigned n)
 	unsigned next;
 
 	next = n + 1;
-	if (next > HFI1_MAX_RDMA_ATOMIC)
+	if (next > rvt_size_atomic(ib_to_rvt(qp->ibqp.device)))
 		next = 0;
 	qp->s_tail_ack_queue = next;
 	qp->s_ack_state = OP(ACKNOWLEDGE);
@@ -2298,8 +2299,8 @@ send_last:
 		if (unlikely(!(qp->qp_access_flags & IB_ACCESS_REMOTE_READ)))
 			goto nack_inv;
 		next = qp->r_head_ack_queue + 1;
-		/* s_ack_queue is size HFI1_MAX_RDMA_ATOMIC+1 so use > not >= */
-		if (next > HFI1_MAX_RDMA_ATOMIC)
+		/* s_ack_queue is size rvt_size_atomic()+1 so use > not >= */
+		if (next > rvt_size_atomic(ib_to_rvt(qp->ibqp.device)))
 			next = 0;
 		spin_lock_irqsave(&qp->s_lock, flags);
 		if (unlikely(next == qp->s_tail_ack_queue)) {
@@ -2373,7 +2374,7 @@ send_last:
 		if (unlikely(!(qp->qp_access_flags & IB_ACCESS_REMOTE_ATOMIC)))
 			goto nack_inv;
 		next = qp->r_head_ack_queue + 1;
-		if (next > HFI1_MAX_RDMA_ATOMIC)
+		if (next > rvt_size_atomic(ib_to_rvt(qp->ibqp.device)))
 			next = 0;
 		spin_lock_irqsave(&qp->s_lock, flags);
 		if (unlikely(next == qp->s_tail_ack_queue)) {
