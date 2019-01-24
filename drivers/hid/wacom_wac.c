@@ -2159,27 +2159,6 @@ static void wacom_wac_pen_usage_mapping(struct hid_device *hdev,
 	case HID_DG_TOOLSERIALNUMBER:
 		features->quirks |= WACOM_QUIRK_TOOLSERIAL;
 		wacom_map_usage(input, usage, field, EV_MSC, MSC_SERIAL, 0);
-
-		/* Adjust AES usages to match modern convention */
-		if (usage->hid == WACOM_HID_WT_SERIALNUMBER && field->report_size == 16) {
-			if (field->index + 2 < field->report->maxfield) {
-				struct hid_field *a = field->report->field[field->index + 1];
-				struct hid_field *b = field->report->field[field->index + 2];
-
-				if (a->maxusage > 0 && a->usage[0].hid == HID_DG_TOOLSERIALNUMBER && a->report_size == 32 &&
-				    b->maxusage > 0 && b->usage[0].hid == 0xFF000000 && b->report_size == 8) {
-					features->quirks |= WACOM_QUIRK_AESPEN;
-					usage->hid = WACOM_HID_WD_TOOLTYPE;
-					field->logical_minimum = S16_MIN;
-					field->logical_maximum = S16_MAX;
-					a->logical_minimum = S32_MIN;
-					a->logical_maximum = S32_MAX;
-					b->usage[0].hid = WACOM_HID_WD_SERIALHI;
-					b->logical_minimum = 0;
-					b->logical_maximum = U8_MAX;
-				}
-			}
-		}
 		break;
 	case WACOM_HID_WD_SENSE:
 		features->quirks |= WACOM_QUIRK_SENSE;
