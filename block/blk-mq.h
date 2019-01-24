@@ -23,6 +23,7 @@ struct blk_mq_ctx {
 
 	unsigned int		cpu;
 	unsigned short		index_hw[HCTX_MAX_TYPES];
+	struct blk_mq_hw_ctx 	*hctxs[HCTX_MAX_TYPES];
 
 	/* incremented at dispatch time */
 	unsigned long		rq_dispatched[2];
@@ -97,11 +98,11 @@ static inline struct blk_mq_hw_ctx *blk_mq_map_queue_type(struct request_queue *
  * blk_mq_map_queue() - map (cmd_flags,type) to hardware queue
  * @q: request queue
  * @flags: request command flags
- * @cpu: CPU
+ * @cpu: cpu ctx
  */
 static inline struct blk_mq_hw_ctx *blk_mq_map_queue(struct request_queue *q,
 						     unsigned int flags,
-						     unsigned int cpu)
+						     struct blk_mq_ctx *ctx)
 {
 	enum hctx_type type = HCTX_TYPE_DEFAULT;
 
@@ -116,7 +117,7 @@ static inline struct blk_mq_hw_ctx *blk_mq_map_queue(struct request_queue *q,
 		 q->tag_set->map[HCTX_TYPE_READ].nr_queues)
 		type = HCTX_TYPE_READ;
 	
-	return blk_mq_map_queue_type(q, type, cpu);
+	return ctx->hctxs[type];
 }
 
 /*
