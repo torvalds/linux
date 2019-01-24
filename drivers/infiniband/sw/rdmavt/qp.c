@@ -2986,34 +2986,12 @@ do_write:
 
 	sge = &sqp->s_sge.sge;
 	while (sqp->s_len) {
-		u32 len = sqp->s_len;
+		u32 len = rvt_get_sge_length(sge, sqp->s_len);
 
-		if (len > sge->length)
-			len = sge->length;
-		if (len > sge->sge_length)
-			len = sge->sge_length;
 		WARN_ON_ONCE(len == 0);
 		rvt_copy_sge(qp, &qp->r_sge, sge->vaddr,
 			     len, release, copy_last);
-		sge->vaddr += len;
-		sge->length -= len;
-		sge->sge_length -= len;
-		if (sge->sge_length == 0) {
-			if (!release)
-				rvt_put_mr(sge->mr);
-			if (--sqp->s_sge.num_sge)
-				*sge = *sqp->s_sge.sg_list++;
-		} else if (sge->length == 0 && sge->mr->lkey) {
-			if (++sge->n >= RVT_SEGSZ) {
-				if (++sge->m >= sge->mr->mapsz)
-					break;
-				sge->n = 0;
-			}
-			sge->vaddr =
-				sge->mr->map[sge->m]->segs[sge->n].vaddr;
-			sge->length =
-				sge->mr->map[sge->m]->segs[sge->n].length;
-		}
+		rvt_update_sge(&sqp->s_sge, len, !release);
 		sqp->s_len -= len;
 	}
 	if (release)
