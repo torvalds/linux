@@ -1051,12 +1051,14 @@
 				<&cru ACLK_CPU>, <&cru HCLK_CPU>,
 				<&cru PCLK_CPU>, <&cru ACLK_PERI>,
 				<&cru HCLK_PERI>, <&cru PCLK_PERI>,
+				<&cru ACLK_VIO0>, <&cru ACLK_VIO1>,
 				<&cru ACLK_GPU>;
 		assigned-clock-rates =
 				<594000000>, <1250000000>,
 				<300000000>, <150000000>,
 				<75000000>, <300000000>,
 				<150000000>, <75000000>,
+				<594000000>, <297000000>,
 				<200000000>;
 	};
 
