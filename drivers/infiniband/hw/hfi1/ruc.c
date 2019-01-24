@@ -250,7 +250,6 @@ static inline void hfi1_make_ruc_bth(struct rvt_qp *qp,
 				     struct ib_other_headers *ohdr,
 				     u32 bth0, u32 bth1, u32 bth2)
 {
-	bth1 |= qp->remote_qpn;
 	ohdr->bth[0] = cpu_to_be32(bth0);
 	ohdr->bth[1] = cpu_to_be32(bth1);
 	ohdr->bth[2] = cpu_to_be32(bth2);
@@ -272,13 +271,13 @@ static inline void hfi1_make_ruc_bth(struct rvt_qp *qp,
  */
 static inline void hfi1_make_ruc_header_16B(struct rvt_qp *qp,
 					    struct ib_other_headers *ohdr,
-					    u32 bth0, u32 bth2, int middle,
+					    u32 bth0, u32 bth1, u32 bth2,
+					    int middle,
 					    struct hfi1_pkt_state *ps)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
 	struct hfi1_ibport *ibp = ps->ibp;
 	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
-	u32 bth1 = 0;
 	u32 slid;
 	u16 pkey = hfi1_get_pkey(ibp, qp->s_pkey_index);
 	u8 l4 = OPA_16B_L4_IB_LOCAL;
@@ -360,12 +359,12 @@ static inline void hfi1_make_ruc_header_16B(struct rvt_qp *qp,
  */
 static inline void hfi1_make_ruc_header_9B(struct rvt_qp *qp,
 					   struct ib_other_headers *ohdr,
-					   u32 bth0, u32 bth2, int middle,
+					   u32 bth0, u32 bth1, u32 bth2,
+					   int middle,
 					   struct hfi1_pkt_state *ps)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
 	struct hfi1_ibport *ibp = ps->ibp;
-	u32 bth1 = 0;
 	u16 pkey = hfi1_get_pkey(ibp, qp->s_pkey_index);
 	u16 lrh0 = HFI1_LRH_BTH;
 	u8 extra_bytes = -ps->s_txreq->s_cur_size & 3;
@@ -415,7 +414,7 @@ static inline void hfi1_make_ruc_header_9B(struct rvt_qp *qp,
 
 typedef void (*hfi1_make_ruc_hdr)(struct rvt_qp *qp,
 				  struct ib_other_headers *ohdr,
-				  u32 bth0, u32 bth2, int middle,
+				  u32 bth0, u32 bth1, u32 bth2, int middle,
 				  struct hfi1_pkt_state *ps);
 
 /* We support only two types - 9B and 16B for now */
@@ -425,7 +424,7 @@ static const hfi1_make_ruc_hdr hfi1_ruc_header_tbl[2] = {
 };
 
 void hfi1_make_ruc_header(struct rvt_qp *qp, struct ib_other_headers *ohdr,
-			  u32 bth0, u32 bth2, int middle,
+			  u32 bth0, u32 bth1, u32 bth2, int middle,
 			  struct hfi1_pkt_state *ps)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
@@ -446,7 +445,8 @@ void hfi1_make_ruc_header(struct rvt_qp *qp, struct ib_other_headers *ohdr,
 	priv->s_ahg->ahgidx = 0;
 
 	/* Make the appropriate header */
-	hfi1_ruc_header_tbl[priv->hdr_type](qp, ohdr, bth0, bth2, middle, ps);
+	hfi1_ruc_header_tbl[priv->hdr_type](qp, ohdr, bth0, bth1, bth2, middle,
+					    ps);
 }
 
 /* when sending, force a reschedule every one of these periods */

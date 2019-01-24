@@ -89,8 +89,8 @@ static int make_rc_ack(struct hfi1_ibdev *dev, struct rvt_qp *qp,
 	struct rvt_ack_entry *e;
 	u32 hwords;
 	u32 len;
-	u32 bth0;
-	u32 bth2;
+	u32 bth0, bth2;
+	u32 bth1 = qp->remote_qpn | (HFI1_CAP_IS_KSET(OPFN) << IB_BTHE_E_SHIFT);
 	int middle = 0;
 	u32 pmtu = qp->pmtu;
 	struct hfi1_qp_priv *priv = qp->priv;
@@ -229,7 +229,7 @@ normal:
 	ps->s_txreq->sde = priv->s_sde;
 	ps->s_txreq->s_cur_size = len;
 	ps->s_txreq->hdr_dwords = hwords;
-	hfi1_make_ruc_header(qp, ohdr, bth0, bth2, middle, ps);
+	hfi1_make_ruc_header(qp, ohdr, bth0, bth1, bth2, middle, ps);
 	return 1;
 
 bail:
@@ -262,8 +262,8 @@ int hfi1_make_rc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 	struct rvt_swqe *wqe;
 	u32 hwords;
 	u32 len;
-	u32 bth0 = 0;
-	u32 bth2;
+	u32 bth0 = 0, bth2;
+	u32 bth1 = qp->remote_qpn | (HFI1_CAP_IS_KSET(OPFN) << IB_BTHE_E_SHIFT);
 	u32 pmtu = qp->pmtu;
 	char newreq;
 	int middle = 0;
@@ -693,6 +693,7 @@ no_flow_control:
 		qp,
 		ohdr,
 		bth0 | (qp->s_state << 24),
+		bth1,
 		bth2,
 		middle,
 		ps);
@@ -796,6 +797,11 @@ static inline void hfi1_make_rc_ack_9B(struct hfi1_packet *packet,
 	if (qp->s_mig_state == IB_MIG_MIGRATED)
 		bth0 |= IB_BTH_MIG_REQ;
 	bth1 = (!!is_fecn) << IB_BECN_SHIFT;
+	/*
+	 * Inline ACKs go out without the use of the Verbs send engine, so
+	 * we need to set the STL Verbs Extended bit here
+	 */
+	bth1 |= HFI1_CAP_IS_KSET(OPFN) << IB_BTHE_E_SHIFT;
 	hfi1_make_bth_aeth(qp, ohdr, bth0, bth1);
 }
 

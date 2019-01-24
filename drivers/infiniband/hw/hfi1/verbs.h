@@ -72,6 +72,7 @@ struct hfi1_packet;
 
 #include "iowait.h"
 #include "tid_rdma.h"
+#include "opfn.h"
 
 #define HFI1_MAX_RDMA_ATOMIC     16
 
@@ -356,7 +357,7 @@ u32 hfi1_make_grh(struct hfi1_ibport *ibp, struct ib_grh *hdr,
 		  const struct ib_global_route *grh, u32 hwords, u32 nwords);
 
 void hfi1_make_ruc_header(struct rvt_qp *qp, struct ib_other_headers *ohdr,
-			  u32 bth0, u32 bth2, int middle,
+			  u32 bth0, u32 bth1, u32 bth2, int middle,
 			  struct hfi1_pkt_state *ps);
 
 void _hfi1_do_send(struct work_struct *work);
