@@ -40,6 +40,7 @@
 #define BLOCK_ERASE_CMD		0x60d0
 #define READ_CMD		0x0030
 #define READ_DP_OUT_CMD		0x05E0
+#define READ_ECC_STATUS_CMD	0x7A
 
 #define SAMSUNG			0x00	/* SAMSUNG */
 #define TOSHIBA			0x01	/* TOSHIBA */

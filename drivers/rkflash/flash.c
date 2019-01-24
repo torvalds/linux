@@ -18,6 +18,7 @@ static u8 g_nand_max_die;
 static u16 g_totle_block;
 static u8 g_nand_flash_ecc_bits;
 static u8 g_nand_idb_res_blk_num;
+static u8 g_nand_ecc_en;
 
 static struct NAND_PARA_INFO_T nand_para = {
 	2,
@@ -123,6 +124,7 @@ static void flash_erase_cmd(u8 cs, u32 page_addr)
 
 static void flash_prog_second_cmd(u8 cs, u32 page_addr)
 {
+	usleep_range(100, 120);
 	nandc_writel(PAGE_PROG_CMD & 0x00ff, NANDC_CHIP_CMD(cs));
 }
 
@@ -142,9 +144,28 @@ static void flash_read_random_dataout_cmd(u8 cs, u32 col_addr)
 	nandc_writel(READ_DP_OUT_CMD & 0x00ff, NANDC_CHIP_CMD(cs));
 }
 
+static u32 flash_read_ecc(u8 cs)
+{
+	u32 ecc0, ecc1;
+
+	nandc_writel(READ_ECC_STATUS_CMD, NANDC_CHIP_CMD(cs));
+	nandc_delayns(80);
+	ecc0 = nandc_readl(NANDC_CHIP_DATA(cs)) & 0xF;
+	ecc1 = nandc_readl(NANDC_CHIP_DATA(cs)) & 0xF;
+	if (ecc1 > ecc0)
+		ecc0 = ecc1;
+	ecc1 = nandc_readl(NANDC_CHIP_DATA(cs)) & 0xF;
+	if (ecc1 > ecc0)
+		ecc0 = ecc1;
+	ecc1 = nandc_readl(NANDC_CHIP_DATA(cs)) & 0xF;
+	if (ecc1 > ecc0)
+		ecc0 = ecc1;
+
+	return ecc0;
+}
+
 static u32 flash_read_page_raw(u8 cs, u32 page_addr, u32 *p_data, u32 *p_spare)
 {
-	u32 ret = 0;
 	u32 error_ecc_bits;
 	u32 sec_per_page = nand_para.sec_per_page;
 
@@ -157,34 +178,44 @@ static u32 flash_read_page_raw(u8 cs, u32 page_addr, u32 *p_data, u32 *p_spare)
 
 	error_ecc_bits = nandc_xfer_data(cs, NANDC_READ, sec_per_page,
 					 p_data, p_spare);
-	if (error_ecc_bits > 2) {
-		PRINT_NANDC_E("FlashReadRawPage %x %x error_ecc_bits %d\n",
-			      cs, page_addr, error_ecc_bits);
-		if (p_data)
-			PRINT_NANDC_HEX("data:", p_data, 4, 8);
-		if (p_spare)
-			PRINT_NANDC_HEX("spare:", p_spare, 4, 2);
-	}
+
 	nandc_flash_de_cs(cs);
 
 	if (error_ecc_bits != NAND_STS_ECC_ERR) {
-		if (error_ecc_bits >= (u32)nand_para.ecc_bits - 3)
-			ret = NAND_STS_REFRESH;
-		else
-			ret = NAND_STS_OK;
+		if (error_ecc_bits >= (u32)nand_para.ecc_bits - 3) {
+			error_ecc_bits = NAND_STS_REFRESH;
+		} else {
+			error_ecc_bits = NAND_STS_OK;
+			if (g_nand_ecc_en) {
+				u32 nand_ecc = flash_read_ecc(cs);
+
+				if (nand_ecc >= 6) {
+					PRINT_NANDC_E("%s nand ecc %x ecc %d\n",
+						      __func__, page_addr, nand_ecc);
+					error_ecc_bits = NAND_STS_REFRESH;
+				}
+			}
+		}
 	}
 
-	return ret;
+	return error_ecc_bits;
 }
 
 static u32 flash_read_page(u8 cs, u32 page_addr, u32 *p_data, u32 *p_spare)
 {
-	u32 ret;
+	u32 ret, i;
 
 	ret = flash_read_page_raw(cs, page_addr, p_data, p_spare);
-	if (ret == NAND_STS_ECC_ERR)
-		ret = flash_read_page_raw(cs, page_addr, p_data, p_spare);
-
+	if (ret == NAND_STS_ECC_ERR) {
+		for (i = 0; i < 50; i++) {
+			ret = flash_read_page_raw(cs, page_addr, p_data, p_spare);
+			if (ret != NAND_STS_ECC_ERR) {
+				ret = NAND_STS_REFRESH;
+				break;
+			}
+		}
+		PRINT_NANDC_E("flash_read_page %x err_ecc %d\n", page_addr, ret);
+	}
 	return ret;
 }
 
@@ -468,6 +499,7 @@ u32 nandc_flash_init(void __iomem *nandc_addr)
 
 	PRINT_NANDC_I("...%s enter...\n", __func__);
 	g_nand_idb_res_blk_num = MAX_IDB_RESERVED_BLOCK;
+	g_nand_ecc_en = 0;
 
 	nandc_init(nandc_addr);
 
@@ -487,6 +519,8 @@ u32 nandc_flash_init(void __iomem *nandc_addr)
 				return FTL_UNSUPPORTED_FLASH;
 		}
 	}
+	if (id_byte[0][0] == 0x98 && (id_byte[0][4] & 0x80))
+		g_nand_ecc_en = 1;
 	nand_para.nand_id[1] = id_byte[0][1];
 	if (id_byte[0][1] == 0xDA) {
 		nand_para.plane_per_die = 2;
@@ -497,8 +531,9 @@ u32 nandc_flash_init(void __iomem *nandc_addr)
 			nand_para.plane_per_die = 2;
 			nand_para.sec_per_page = 8;
 		} else if (id_byte[0][0] == 0x98 && id_byte[0][3] == 0x26) {
-			nand_para.blk_per_plane = 2048;
+			nand_para.blk_per_plane = 1024;
 			nand_para.sec_per_page = 8;
+			nand_para.plane_per_die = 2;
 		} else {
 			nand_para.plane_per_die = 2;
 			nand_para.blk_per_plane = 2048;

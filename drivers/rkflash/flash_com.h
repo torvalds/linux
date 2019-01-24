@@ -15,6 +15,11 @@
 #define NAND_STS_EMPTY                  512	/* page is not proged */
 #define NAND_STS_ECC_ERR                NAND_ERROR
 
+#define NAND_IDB_START    64 /* 32 KB*/
+#define NAND_IDB_SIZE    512 /* 256 KB*/
+#define NAND_IDB_END    (NAND_IDB_START + NAND_IDB_SIZE - 1)
+#define DEFAULT_IDB_RESERVED_BLOCK 16
+
 #define FULL_SLC			0
 #define SLC				1
 
