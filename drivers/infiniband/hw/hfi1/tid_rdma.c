@@ -7,6 +7,7 @@
 #include "hfi.h"
 #include "verbs.h"
 #include "tid_rdma.h"
+#include "trace.h"
 
 /*
  * J_KEY for kernel contexts when TID RDMA is used.
@@ -148,6 +149,8 @@ bool tid_rdma_conn_reply(struct rvt_qp *qp, u64 data)
 	priv->tid_timer_timeout_jiffies =
 		usecs_to_jiffies((((4096UL * (1UL << remote->timeout)) /
 				   1000UL) << 3) * 7);
+	trace_hfi1_opfn_param(qp, 0, &priv->tid_rdma.local);
+	trace_hfi1_opfn_param(qp, 1, remote);
 	rcu_assign_pointer(priv->tid_rdma.remote, remote);
 	/*
 	 * A TID RDMA READ request's segment size is not equal to

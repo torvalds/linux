@@ -48,6 +48,7 @@ static void opfn_conn_request(struct rvt_qp *qp)
 	unsigned long flags;
 	int ret = 0;
 
+	trace_hfi1_opfn_state_conn_request(qp);
 	spin_lock_irqsave(&priv->opfn.lock, flags);
 	/*
 	 * Exit if the extended bit is not set, or if nothing is requested, or
@@ -76,6 +77,7 @@ static void opfn_conn_request(struct rvt_qp *qp)
 		goto done;
 	}
 
+	trace_hfi1_opfn_data_conn_request(qp, capcode, data);
 	data = (data & ~0xf) | capcode;
 
 	memset(&wr, 0, sizeof(wr));
@@ -90,8 +92,11 @@ static void opfn_conn_request(struct rvt_qp *qp)
 	ret = ib_post_send(&qp->ibqp, &wr.wr, NULL);
 	if (ret)
 		goto err;
+	trace_hfi1_opfn_state_conn_request(qp);
 	return;
 err:
+	trace_hfi1_msg_opfn_conn_request(qp, "ib_ost_send failed: ret = ",
+					 (u64)ret);
 	spin_lock_irqsave(&priv->opfn.lock, flags);
 	/*
 	 * In case of an unexpected error return from ib_post_send
@@ -123,6 +128,7 @@ static void opfn_schedule_conn_request(struct rvt_qp *qp)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
 
+	trace_hfi1_opfn_state_sched_conn_request(qp);
 	queue_work(opfn_wq, &priv->opfn.opfn_work);
 }
 
@@ -135,7 +141,9 @@ void opfn_conn_response(struct rvt_qp *qp, struct rvt_ack_entry *e,
 	u8 capcode;
 	unsigned long flags;
 
+	trace_hfi1_opfn_state_conn_response(qp);
 	capcode = data & 0xf;
+	trace_hfi1_opfn_data_conn_response(qp, capcode, data);
 	if (!capcode || capcode >= STL_VERBS_EXTD_MAX)
 		return;
 
@@ -160,6 +168,7 @@ void opfn_conn_response(struct rvt_qp *qp, struct rvt_ack_entry *e,
 	if (extd->response(qp, &data))
 		priv->opfn.completed |= OPFN_CODE(capcode);
 	e->atomic_data = (data & ~0xf) | capcode;
+	trace_hfi1_opfn_state_conn_response(qp);
 	spin_unlock_irqrestore(&priv->opfn.lock, flags);
 }
 
@@ -170,7 +179,9 @@ void opfn_conn_reply(struct rvt_qp *qp, u64 data)
 	u8 capcode;
 	unsigned long flags;
 
+	trace_hfi1_opfn_state_conn_reply(qp);
 	capcode = data & 0xf;
+	trace_hfi1_opfn_data_conn_reply(qp, capcode, data);
 	if (!capcode || capcode >= STL_VERBS_EXTD_MAX)
 		return;
 
@@ -195,6 +206,7 @@ clear:
 	 * progress
 	 */
 	priv->opfn.curr = STL_VERBS_EXTD_NONE;
+	trace_hfi1_opfn_state_conn_reply(qp);
 done:
 	spin_unlock_irqrestore(&priv->opfn.lock, flags);
 }
@@ -206,6 +218,8 @@ void opfn_conn_error(struct rvt_qp *qp)
 	unsigned long flags;
 	u16 capcode;
 
+	trace_hfi1_opfn_state_conn_error(qp);
+	trace_hfi1_msg_opfn_conn_error(qp, "error. qp state ", (u64)qp->state);
 	/*
 	 * The QP has gone into the Error state. We have to invalidate all
 	 * negotiated feature, including the one in progress (if any). The RC
