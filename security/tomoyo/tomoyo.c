@@ -105,6 +105,7 @@ static int tomoyo_bprm_check_security(struct linux_binprm *bprm)
 	if (!s->old_domain_info) {
 		const int idx = tomoyo_read_lock();
 		const int err = tomoyo_find_next_domain(bprm);
+
 		tomoyo_read_unlock(idx);
 		return err;
 	}
@@ -151,6 +152,7 @@ static int tomoyo_path_truncate(const struct path *path)
 static int tomoyo_path_unlink(const struct path *parent, struct dentry *dentry)
 {
 	struct path path = { .mnt = parent->mnt, .dentry = dentry };
+
 	return tomoyo_path_perm(TOMOYO_TYPE_UNLINK, &path, NULL);
 }
 
@@ -167,6 +169,7 @@ static int tomoyo_path_mkdir(const struct path *parent, struct dentry *dentry,
 			     umode_t mode)
 {
 	struct path path = { .mnt = parent->mnt, .dentry = dentry };
+
 	return tomoyo_path_number_perm(TOMOYO_TYPE_MKDIR, &path,
 				       mode & S_IALLUGO);
 }
@@ -182,6 +185,7 @@ static int tomoyo_path_mkdir(const struct path *parent, struct dentry *dentry,
 static int tomoyo_path_rmdir(const struct path *parent, struct dentry *dentry)
 {
 	struct path path = { .mnt = parent->mnt, .dentry = dentry };
+
 	return tomoyo_path_perm(TOMOYO_TYPE_RMDIR, &path, NULL);
 }
 
@@ -198,6 +202,7 @@ static int tomoyo_path_symlink(const struct path *parent, struct dentry *dentry,
 			       const char *old_name)
 {
 	struct path path = { .mnt = parent->mnt, .dentry = dentry };
+
 	return tomoyo_path_perm(TOMOYO_TYPE_SYMLINK, &path, old_name);
 }
 
@@ -255,6 +260,7 @@ static int tomoyo_path_link(struct dentry *old_dentry, const struct path *new_di
 {
 	struct path path1 = { .mnt = new_dir->mnt, .dentry = old_dentry };
 	struct path path2 = { .mnt = new_dir->mnt, .dentry = new_dentry };
+
 	return tomoyo_path2_perm(TOMOYO_TYPE_LINK, &path1, &path2);
 }
 
@@ -275,6 +281,7 @@ static int tomoyo_path_rename(const struct path *old_parent,
 {
 	struct path path1 = { .mnt = old_parent->mnt, .dentry = old_dentry };
 	struct path path2 = { .mnt = new_parent->mnt, .dentry = new_dentry };
+
 	return tomoyo_path2_perm(TOMOYO_TYPE_RENAME, &path1, &path2);
 }
 
@@ -306,11 +313,11 @@ static int tomoyo_file_fcntl(struct file *file, unsigned int cmd,
  */
 static int tomoyo_file_open(struct file *f)
 {
-	int flags = f->f_flags;
 	/* Don't check read permission here if called from do_execve(). */
 	if (current->in_execve)
 		return 0;
-	return tomoyo_check_open_permission(tomoyo_domain(), &f->f_path, flags);
+	return tomoyo_check_open_permission(tomoyo_domain(), &f->f_path,
+					    f->f_flags);
 }
 
 /**
@@ -354,6 +361,7 @@ static int tomoyo_path_chmod(const struct path *path, umode_t mode)
 static int tomoyo_path_chown(const struct path *path, kuid_t uid, kgid_t gid)
 {
 	int error = 0;
+
 	if (uid_valid(uid))
 		error = tomoyo_path_number_perm(TOMOYO_TYPE_CHOWN, path,
 						from_kuid(&init_user_ns, uid));
@@ -403,6 +411,7 @@ static int tomoyo_sb_mount(const char *dev_name, const struct path *path,
 static int tomoyo_sb_umount(struct vfsmount *mnt, int flags)
 {
 	struct path path = { .mnt = mnt, .dentry = mnt->mnt_root };
+
 	return tomoyo_path_perm(TOMOYO_TYPE_UMOUNT, &path, NULL);
 }
 
@@ -573,7 +582,7 @@ static int __init tomoyo_init(void)
 
 	/* register ourselves with the security framework */
 	security_add_hooks(tomoyo_hooks, ARRAY_SIZE(tomoyo_hooks), "tomoyo");
-	printk(KERN_INFO "TOMOYO Linux initialized\n");
+	pr_info("TOMOYO Linux initialized\n");
 	s->domain_info = &tomoyo_kernel_domain;
 	atomic_inc(&tomoyo_kernel_domain.users);
 	s->old_domain_info = NULL;

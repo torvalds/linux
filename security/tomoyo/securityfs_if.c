@@ -21,6 +21,7 @@ static bool tomoyo_check_task_acl(struct tomoyo_request_info *r,
 {
 	const struct tomoyo_task_acl *acl = container_of(ptr, typeof(*acl),
 							 head);
+
 	return !tomoyo_pathcmp(r->param.task.domainname, acl->domainname);
 }
 
@@ -42,6 +43,7 @@ static ssize_t tomoyo_write_self(struct file *file, const char __user *buf,
 {
 	char *data;
 	int error;
+
 	if (!count || count >= TOMOYO_EXEC_TMPSIZE - 10)
 		return -ENOMEM;
 	data = memdup_user_nul(buf, count);
@@ -52,6 +54,7 @@ static ssize_t tomoyo_write_self(struct file *file, const char __user *buf,
 		const int idx = tomoyo_read_lock();
 		struct tomoyo_path_info name;
 		struct tomoyo_request_info r;
+
 		name.name = data;
 		tomoyo_fill_path_info(&name);
 		/* Check "task manual_domain_transition" permission. */
@@ -100,6 +103,7 @@ static ssize_t tomoyo_read_self(struct file *file, char __user *buf,
 	const char *domain = tomoyo_domain()->domainname->name;
 	loff_t len = strlen(domain);
 	loff_t pos = *ppos;
+
 	if (pos >= len || !count)
 		return 0;
 	len -= pos;

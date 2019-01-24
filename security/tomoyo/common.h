@@ -10,6 +10,8 @@
 #ifndef _SECURITY_TOMOYO_COMMON_H
 #define _SECURITY_TOMOYO_COMMON_H
 
+#define pr_fmt(fmt) fmt
+
 #include <linux/ctype.h>
 #include <linux/string.h>
 #include <linux/mm.h>
@@ -788,9 +790,9 @@ struct tomoyo_acl_param {
  * interfaces.
  */
 struct tomoyo_io_buffer {
-	void (*read) (struct tomoyo_io_buffer *);
-	int (*write) (struct tomoyo_io_buffer *);
-	__poll_t (*poll) (struct file *file, poll_table *wait);
+	void (*read)(struct tomoyo_io_buffer *head);
+	int (*write)(struct tomoyo_io_buffer *head);
+	__poll_t (*poll)(struct file *file, poll_table *wait);
 	/* Exclusive lock for this structure.   */
 	struct mutex io_sem;
 	char __user *read_user_buf;
@@ -1042,8 +1044,8 @@ void *tomoyo_commit_ok(void *data, const unsigned int size);
 void __init tomoyo_load_builtin_policy(void);
 void __init tomoyo_mm_init(void);
 void tomoyo_check_acl(struct tomoyo_request_info *r,
-		      bool (*check_entry) (struct tomoyo_request_info *,
-					   const struct tomoyo_acl_info *));
+		      bool (*check_entry)(struct tomoyo_request_info *,
+					  const struct tomoyo_acl_info *));
 void tomoyo_check_profile(void);
 void tomoyo_convert_time(time64_t time, struct tomoyo_time *stamp);
 void tomoyo_del_condition(struct list_head *element);
@@ -1131,6 +1133,7 @@ static inline void tomoyo_read_unlock(int idx)
 static inline pid_t tomoyo_sys_getppid(void)
 {
 	pid_t pid;
+
 	rcu_read_lock();
 	pid = task_tgid_vnr(rcu_dereference(current->real_parent));
 	rcu_read_unlock();
