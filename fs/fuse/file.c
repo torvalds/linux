@@ -3156,6 +3156,7 @@ static const struct file_operations fuse_file_operations = {
 	.lock		= fuse_file_lock,
 	.flock		= fuse_file_flock,
 	.splice_read	= generic_file_splice_read,
+	.splice_write	= iter_file_splice_write,
 	.unlocked_ioctl	= fuse_file_ioctl,
 	.compat_ioctl	= fuse_file_compat_ioctl,
 	.poll		= fuse_file_poll,
@@ -3174,11 +3175,12 @@ static const struct file_operations fuse_direct_io_file_operations = {
 	.fsync		= fuse_fsync,
 	.lock		= fuse_file_lock,
 	.flock		= fuse_file_flock,
+	.splice_read	= generic_file_splice_read,
+	.splice_write	= iter_file_splice_write,
 	.unlocked_ioctl	= fuse_file_ioctl,
 	.compat_ioctl	= fuse_file_compat_ioctl,
 	.poll		= fuse_file_poll,
 	.fallocate	= fuse_file_fallocate,
-	/* no splice_read */
 };
 
 static const struct address_space_operations fuse_file_aops  = {
