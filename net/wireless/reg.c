@@ -1024,8 +1024,13 @@ static void regdb_fw_cb(const struct firmware *fw, void *context)
 	}
 
 	rtnl_lock();
-	if (WARN_ON(regdb && !IS_ERR(regdb))) {
-		/* just restore and free new db */
+	if (regdb && !IS_ERR(regdb)) {
+		/* negative case - a bug
+		 * positive case - can happen due to race in case of multiple cb's in
+		 * queue, due to usage of asynchronous callback
+		 *
+		 * Either case, just restore and free new db.
+		 */
 	} else if (set_error) {
 		regdb = ERR_PTR(set_error);
 	} else if (fw) {
