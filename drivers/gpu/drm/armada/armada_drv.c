@@ -210,17 +210,9 @@ static void armada_add_endpoints(struct device *dev,
 
 	for_each_endpoint_of_node(dev_node, ep) {
 		remote = of_graph_get_remote_port_parent(ep);
-		if (!remote || !of_device_is_available(remote)) {
-			of_node_put(remote);
-			continue;
-		} else if (!of_device_is_available(remote->parent)) {
-			dev_warn(dev, "parent device of %pOF is not available\n",
-				 remote);
-			of_node_put(remote);
-			continue;
-		}
-
-		drm_of_component_match_add(dev, match, compare_of, remote);
+		if (remote && of_device_is_available(remote))
+			drm_of_component_match_add(dev, match, compare_of,
+						   remote);
 		of_node_put(remote);
 	}
 }
