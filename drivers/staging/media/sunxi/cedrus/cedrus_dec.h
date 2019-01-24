@@ -16,8 +16,6 @@
 #ifndef _CEDRUS_DEC_H_
 #define _CEDRUS_DEC_H_
 
-int cedrus_reference_index_find(struct vb2_queue *queue,
-				struct vb2_buffer *vb2_buf, u64 timestamp);
 void cedrus_device_run(void *priv);
 
 #endif

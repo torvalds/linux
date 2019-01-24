@@ -10,7 +10,6 @@
 #include <media/videobuf2-dma-contig.h>
 
 #include "cedrus.h"
-#include "cedrus_dec.h"
 #include "cedrus_hw.h"
 #include "cedrus_regs.h"
 
@@ -160,8 +159,8 @@ static void cedrus_mpeg2_setup(struct cedrus_ctx *ctx, struct cedrus_run *run)
 	cedrus_write(dev, VE_DEC_MPEG_PICBOUNDSIZE, reg);
 
 	/* Forward and backward prediction reference buffers. */
-	forward_idx = cedrus_reference_index_find(cap_q, &run->dst->vb2_buf,
-						  slice_params->forward_ref_ts);
+	forward_idx = vb2_find_timestamp(cap_q,
+					 slice_params->forward_ref_ts, 0);
 
 	fwd_luma_addr = cedrus_dst_buf_addr(ctx, forward_idx, 0);
 	fwd_chroma_addr = cedrus_dst_buf_addr(ctx, forward_idx, 1);
@@ -169,9 +168,8 @@ static void cedrus_mpeg2_setup(struct cedrus_ctx *ctx, struct cedrus_run *run)
 	cedrus_write(dev, VE_DEC_MPEG_FWD_REF_LUMA_ADDR, fwd_luma_addr);
 	cedrus_write(dev, VE_DEC_MPEG_FWD_REF_CHROMA_ADDR, fwd_chroma_addr);
 
-	backward_idx = cedrus_reference_index_find(cap_q, &run->dst->vb2_buf,
-						   slice_params->backward_ref_ts);
-
+	backward_idx = vb2_find_timestamp(cap_q,
+					  slice_params->backward_ref_ts, 0);
 	bwd_luma_addr = cedrus_dst_buf_addr(ctx, backward_idx, 0);
 	bwd_chroma_addr = cedrus_dst_buf_addr(ctx, backward_idx, 1);
 
