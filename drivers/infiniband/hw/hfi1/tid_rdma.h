@@ -305,4 +305,8 @@ void hfi1_rc_rcv_tid_rdma_resync(struct hfi1_packet *packet);
 struct hfi1_pkt_state;
 int hfi1_make_tid_rdma_pkt(struct rvt_qp *qp, struct hfi1_pkt_state *ps);
 
+void _hfi1_do_tid_send(struct work_struct *work);
+
+bool hfi1_schedule_tid_send(struct rvt_qp *qp);
+
 #endif /* HFI1_TID_RDMA_H */

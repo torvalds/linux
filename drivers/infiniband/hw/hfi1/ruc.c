@@ -453,11 +453,13 @@ void hfi1_make_ruc_header(struct rvt_qp *qp, struct ib_other_headers *ohdr,
 #define SEND_RESCHED_TIMEOUT (5 * HZ)  /* 5s in jiffies */
 
 /**
- * schedule_send_yield - test for a yield required for QP send engine
+ * hfi1_schedule_send_yield - test for a yield required for QP
+ * send engine
  * @timeout: Final time for timeout slice for jiffies
  * @qp: a pointer to QP
  * @ps: a pointer to a structure with commonly lookup values for
  *      the the send engine progress
+ * @tid - true if it is the tid leg
  *
  * This routine checks if the time slice for the QP has expired
  * for RC QPs, if so an additional work entry is queued. At this
@@ -465,8 +467,8 @@ void hfi1_make_ruc_header(struct rvt_qp *qp, struct ib_other_headers *ohdr,
  * returns true if a yield is required, otherwise, false
  * is returned.
  */
-static bool schedule_send_yield(struct rvt_qp *qp,
-				struct hfi1_pkt_state *ps)
+bool hfi1_schedule_send_yield(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
+			      bool tid)
 {
 	ps->pkts_sent = true;
 
@@ -474,8 +476,24 @@ static bool schedule_send_yield(struct rvt_qp *qp,
 		if (!ps->in_thread ||
 		    workqueue_congested(ps->cpu, ps->ppd->hfi1_wq)) {
 			spin_lock_irqsave(&qp->s_lock, ps->flags);
-			qp->s_flags &= ~RVT_S_BUSY;
-			hfi1_schedule_send(qp);
+			if (!tid) {
+				qp->s_flags &= ~RVT_S_BUSY;
+				hfi1_schedule_send(qp);
+			} else {
+				struct hfi1_qp_priv *priv = qp->priv;
+
+				if (priv->s_flags &
+				    HFI1_S_TID_BUSY_SET) {
+					qp->s_flags &= ~RVT_S_BUSY;
+					priv->s_flags &=
+						~(HFI1_S_TID_BUSY_SET |
+						  RVT_S_BUSY);
+				} else {
+					priv->s_flags &= ~RVT_S_BUSY;
+				}
+				hfi1_schedule_tid_send(qp);
+			}
+
 			spin_unlock_irqrestore(&qp->s_lock, ps->flags);
 			this_cpu_inc(*ps->ppd->dd->send_schedule);
 			trace_hfi1_rc_expired_time_slice(qp, true);
@@ -576,6 +594,8 @@ void hfi1_do_send(struct rvt_qp *qp, bool in_thread)
 	do {
 		/* Check for a constructed packet to be sent. */
 		if (ps.s_txreq) {
+			if (priv->s_flags & HFI1_S_TID_BUSY_SET)
+				qp->s_flags |= RVT_S_BUSY;
 			spin_unlock_irqrestore(&qp->s_lock, ps.flags);
 			/*
 			 * If the packet cannot be sent now, return and
@@ -585,7 +605,7 @@ void hfi1_do_send(struct rvt_qp *qp, bool in_thread)
 				return;
 
 			/* allow other tasks to run */
-			if (schedule_send_yield(qp, &ps))
+			if (hfi1_schedule_send_yield(qp, &ps, false))
 				return;
 
 			spin_lock_irqsave(&qp->s_lock, ps.flags);

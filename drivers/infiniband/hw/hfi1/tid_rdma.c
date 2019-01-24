@@ -127,6 +127,7 @@ static void hfi1_tid_retry_timeout(struct timer_list *t);
 static int make_tid_rdma_ack(struct rvt_qp *qp,
 			     struct ib_other_headers *ohdr,
 			     struct hfi1_pkt_state *ps);
+static void hfi1_do_tid_send(struct rvt_qp *qp);
 
 static u64 tid_rdma_opfn_encode(struct tid_rdma_params *p)
 {
@@ -3048,6 +3049,7 @@ nak_psn:
 		qpriv->s_flags |= RVT_S_ACK_PENDING;
 		if (qpriv->r_tid_ack == HFI1_QP_WQE_INVALID)
 			qpriv->r_tid_ack = qpriv->r_tid_tail;
+		hfi1_schedule_tid_send(qp);
 	}
 	goto unlock;
 }
@@ -3517,6 +3519,7 @@ static void hfi1_tid_write_alloc_resources(struct rvt_qp *qp, bool intr_ctx)
 			ret = -EAGAIN;
 			to_seg = MAX_FLOWS >> 1;
 			qpriv->s_flags |= RVT_S_ACK_PENDING;
+			hfi1_schedule_tid_send(qp);
 			break;
 		}
 
@@ -4128,6 +4131,7 @@ void hfi1_rc_rcv_tid_rdma_write_resp(struct hfi1_packet *packet)
 	}
 	qp->s_flags &= ~HFI1_S_WAIT_TID_RESP;
 
+	hfi1_schedule_tid_send(qp);
 	goto ack_done;
 
 ack_op_err:
@@ -4287,6 +4291,7 @@ void hfi1_rc_rcv_tid_rdma_write_data(struct hfi1_packet *packet)
 
 done:
 	priv->s_flags |= RVT_S_ACK_PENDING;
+	hfi1_schedule_tid_send(qp);
 exit:
 	priv->r_next_psn_kdeth = flow->flow_state.r_next_psn;
 	spin_unlock_irqrestore(&qp->s_lock, flags);
@@ -4299,6 +4304,7 @@ send_nak:
 		priv->s_flags |= RVT_S_ACK_PENDING;
 		if (priv->r_tid_ack == HFI1_QP_WQE_INVALID)
 			priv->r_tid_ack = priv->r_tid_tail;
+		hfi1_schedule_tid_send(qp);
 	}
 	goto done;
 }
@@ -4567,6 +4573,7 @@ void hfi1_rc_rcv_tid_rdma_ack(struct hfi1_packet *packet)
 			req->cur_seg = req->ack_seg;
 			qpriv->s_tid_tail = qp->s_acked;
 			qpriv->s_state = TID_OP(WRITE_REQ);
+			hfi1_schedule_tid_send(qp);
 		}
 done:
 		qpriv->s_retry = qp->s_retry_cnt;
@@ -4584,6 +4591,7 @@ done:
 			qpriv->s_tid_tail = qp->s_acked;
 			qpriv->s_state = TID_OP(WRITE_REQ);
 			qpriv->s_retry = qp->s_retry_cnt;
+			hfi1_schedule_tid_send(qp);
 			break;
 
 		default:
@@ -4673,6 +4681,7 @@ static void hfi1_tid_retry_timeout(struct timer_list *t)
 			qp->s_flags |= HFI1_S_WAIT_HALT;
 			priv->s_state = TID_OP(RESYNC);
 			priv->s_retry--;
+			hfi1_schedule_tid_send(qp);
 		}
 	}
 	spin_unlock(&qp->s_lock);
@@ -4804,6 +4813,7 @@ void hfi1_rc_rcv_tid_rdma_resync(struct hfi1_packet *packet)
 	/* RESYNC request always gets a TID RDMA ACK. */
 	qpriv->s_nak_state = 0;
 	qpriv->s_flags |= RVT_S_ACK_PENDING;
+	hfi1_schedule_tid_send(qp);
 bail:
 	spin_unlock_irqrestore(&qp->s_lock, flags);
 }
@@ -5154,4 +5164,135 @@ bail:
 	smp_wmb();
 	qpriv->s_flags &= ~RVT_S_ACK_PENDING;
 	return 0;
+}
+
+static int hfi1_send_tid_ok(struct rvt_qp *qp)
+{
+	struct hfi1_qp_priv *priv = qp->priv;
+
+	return !(priv->s_flags & RVT_S_BUSY ||
+		 qp->s_flags & HFI1_S_ANY_WAIT_IO) &&
+		(verbs_txreq_queued(iowait_get_tid_work(&priv->s_iowait)) ||
+		 (priv->s_flags & RVT_S_RESP_PENDING) ||
+		 !(qp->s_flags & HFI1_S_ANY_TID_WAIT_SEND));
+}
+
+void _hfi1_do_tid_send(struct work_struct *work)
+{
+	struct iowait_work *w = container_of(work, struct iowait_work, iowork);
+	struct rvt_qp *qp = iowait_to_qp(w->iow);
+
+	hfi1_do_tid_send(qp);
+}
+
+static void hfi1_do_tid_send(struct rvt_qp *qp)
+{
+	struct hfi1_pkt_state ps;
+	struct hfi1_qp_priv *priv = qp->priv;
+
+	ps.dev = to_idev(qp->ibqp.device);
+	ps.ibp = to_iport(qp->ibqp.device, qp->port_num);
+	ps.ppd = ppd_from_ibp(ps.ibp);
+	ps.wait = iowait_get_tid_work(&priv->s_iowait);
+	ps.in_thread = false;
+	ps.timeout_int = qp->timeout_jiffies / 8;
+
+	spin_lock_irqsave(&qp->s_lock, ps.flags);
+
+	/* Return if we are already busy processing a work request. */
+	if (!hfi1_send_tid_ok(qp)) {
+		if (qp->s_flags & HFI1_S_ANY_WAIT_IO)
+			iowait_set_flag(&priv->s_iowait, IOWAIT_PENDING_TID);
+		spin_unlock_irqrestore(&qp->s_lock, ps.flags);
+		return;
+	}
+
+	priv->s_flags |= RVT_S_BUSY;
+
+	ps.timeout = jiffies + ps.timeout_int;
+	ps.cpu = priv->s_sde ? priv->s_sde->cpu :
+		cpumask_first(cpumask_of_node(ps.ppd->dd->node));
+	ps.pkts_sent = false;
+
+	/* insure a pre-built packet is handled  */
+	ps.s_txreq = get_waiting_verbs_txreq(ps.wait);
+	do {
+		/* Check for a constructed packet to be sent. */
+		if (ps.s_txreq) {
+			if (priv->s_flags & HFI1_S_TID_BUSY_SET) {
+				qp->s_flags |= RVT_S_BUSY;
+				ps.wait = iowait_get_ib_work(&priv->s_iowait);
+			}
+			spin_unlock_irqrestore(&qp->s_lock, ps.flags);
+
+			/*
+			 * If the packet cannot be sent now, return and
+			 * the send tasklet will be woken up later.
+			 */
+			if (hfi1_verbs_send(qp, &ps))
+				return;
+
+			/* allow other tasks to run */
+			if (hfi1_schedule_send_yield(qp, &ps, true))
+				return;
+
+			spin_lock_irqsave(&qp->s_lock, ps.flags);
+			if (priv->s_flags & HFI1_S_TID_BUSY_SET) {
+				qp->s_flags &= ~RVT_S_BUSY;
+				priv->s_flags &= ~HFI1_S_TID_BUSY_SET;
+				ps.wait = iowait_get_tid_work(&priv->s_iowait);
+				if (iowait_flag_set(&priv->s_iowait,
+						    IOWAIT_PENDING_IB))
+					hfi1_schedule_send(qp);
+			}
+		}
+	} while (hfi1_make_tid_rdma_pkt(qp, &ps));
+	iowait_starve_clear(ps.pkts_sent, &priv->s_iowait);
+	spin_unlock_irqrestore(&qp->s_lock, ps.flags);
+}
+
+static bool _hfi1_schedule_tid_send(struct rvt_qp *qp)
+{
+	struct hfi1_qp_priv *priv = qp->priv;
+	struct hfi1_ibport *ibp =
+		to_iport(qp->ibqp.device, qp->port_num);
+	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
+	struct hfi1_devdata *dd = dd_from_ibdev(qp->ibqp.device);
+
+	return iowait_tid_schedule(&priv->s_iowait, ppd->hfi1_wq,
+				   priv->s_sde ?
+				   priv->s_sde->cpu :
+				   cpumask_first(cpumask_of_node(dd->node)));
+}
+
+/**
+ * hfi1_schedule_tid_send - schedule progress on TID RDMA state machine
+ * @qp: the QP
+ *
+ * This schedules qp progress on the TID RDMA state machine. Caller
+ * should hold the s_lock.
+ * Unlike hfi1_schedule_send(), this cannot use hfi1_send_ok() because
+ * the two state machines can step on each other with respect to the
+ * RVT_S_BUSY flag.
+ * Therefore, a modified test is used.
+ * @return true if the second leg is scheduled;
+ *  false if the second leg is not scheduled.
+ */
+bool hfi1_schedule_tid_send(struct rvt_qp *qp)
+{
+	lockdep_assert_held(&qp->s_lock);
+	if (hfi1_send_tid_ok(qp)) {
+		/*
+		 * The following call returns true if the qp is not on the
+		 * queue and false if the qp is already on the queue before
+		 * this call. Either way, the qp will be on the queue when the
+		 * call returns.
+		 */
+		_hfi1_schedule_tid_send(qp);
+		return true;
+	}
+	if (qp->s_flags & HFI1_S_ANY_WAIT_IO)
+		iowait_set_flag(&((struct hfi1_qp_priv *)qp->priv)->s_iowait,
+				IOWAIT_PENDING_TID);
+	return false;
 }

@@ -82,6 +82,7 @@ extern const struct rvt_operation_params hfi1_post_parms[];
 
 #define HFI1_S_ANY_WAIT_IO (RVT_S_ANY_WAIT_IO | HFI1_S_WAIT_PIO_DRAIN)
 #define HFI1_S_ANY_WAIT (HFI1_S_ANY_WAIT_IO | RVT_S_ANY_WAIT_SEND)
+#define HFI1_S_ANY_TID_WAIT_SEND (RVT_S_WAIT_SSN_CREDIT | RVT_S_WAIT_DMA)
 
 /*
  * Send if not busy or waiting for I/O and either

@@ -443,6 +443,9 @@ void hfi1_make_ruc_header(struct rvt_qp *qp, struct ib_other_headers *ohdr,
 			  u32 bth0, u32 bth1, u32 bth2, int middle,
 			  struct hfi1_pkt_state *ps);
 
+bool hfi1_schedule_send_yield(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
+			      bool tid);
+
 void _hfi1_do_send(struct work_struct *work);
 
 void hfi1_do_send_from_rvt(struct rvt_qp *qp);

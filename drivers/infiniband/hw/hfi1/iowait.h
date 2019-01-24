@@ -186,6 +186,18 @@ static inline bool iowait_schedule(struct iowait *wait,
 }
 
 /**
+ * iowait_tid_schedule - schedule the tid SE
+ * @wait: the iowait structure
+ * @wq: the work queue
+ * @cpu: the cpu
+ */
+static inline bool iowait_tid_schedule(struct iowait *wait,
+				       struct workqueue_struct *wq, int cpu)
+{
+	return !!queue_work_on(cpu, wq, &wait->wait[IOWAIT_TID_SE].iowork);
+}
+
+/**
  * iowait_sdma_drain() - wait for DMAs to drain
  *
  * @wait: iowait structure

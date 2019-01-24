@@ -431,6 +431,11 @@ static void hfi1_qp_schedule(struct rvt_qp *qp)
 		if (ret)
 			iowait_clear_flag(&priv->s_iowait, IOWAIT_PENDING_IB);
 	}
+	if (iowait_flag_set(&priv->s_iowait, IOWAIT_PENDING_TID)) {
+		ret = hfi1_schedule_tid_send(qp);
+		if (ret)
+			iowait_clear_flag(&priv->s_iowait, IOWAIT_PENDING_TID);
+	}
 }
 
 void hfi1_qp_wakeup(struct rvt_qp *qp, u32 flag)
@@ -450,8 +455,27 @@ void hfi1_qp_wakeup(struct rvt_qp *qp, u32 flag)
 
 void hfi1_qp_unbusy(struct rvt_qp *qp, struct iowait_work *wait)
 {
-	if (iowait_set_work_flag(wait) == IOWAIT_IB_SE)
+	struct hfi1_qp_priv *priv = qp->priv;
+
+	if (iowait_set_work_flag(wait) == IOWAIT_IB_SE) {
 		qp->s_flags &= ~RVT_S_BUSY;
+		/*
+		 * If we are sending a first-leg packet from the second leg,
+		 * we need to clear the busy flag from priv->s_flags to
+		 * avoid a race condition when the qp wakes up before
+		 * the call to hfi1_verbs_send() returns to the second
+		 * leg. In that case, the second leg will terminate without
+		 * being re-scheduled, resulting in failure to send TID RDMA
+		 * WRITE DATA and TID RDMA ACK packets.
+		 */
+		if (priv->s_flags & HFI1_S_TID_BUSY_SET) {
+			priv->s_flags &= ~(HFI1_S_TID_BUSY_SET |
+					   RVT_S_BUSY);
+			iowait_set_flag(&priv->s_iowait, IOWAIT_PENDING_TID);
+		}
+	} else {
+		priv->s_flags &= ~RVT_S_BUSY;
+	}
 }
 
 static int iowait_sleep(
@@ -694,7 +718,7 @@ void *qp_priv_alloc(struct rvt_dev_info *rdi, struct rvt_qp *qp)
 		&priv->s_iowait,
 		1,
 		_hfi1_do_send,
-		NULL,
+		_hfi1_do_tid_send,
 		iowait_sleep,
 		iowait_wakeup,
 		iowait_sdma_drained);
@@ -851,7 +875,8 @@ void notify_error_qp(struct rvt_qp *qp)
 	if (lock) {
 		write_seqlock(lock);
 		if (!list_empty(&priv->s_iowait.list) &&
-		    !(qp->s_flags & RVT_S_BUSY)) {
+		    !(qp->s_flags & RVT_S_BUSY) &&
+		    !(priv->s_flags & RVT_S_BUSY)) {
 			qp->s_flags &= ~RVT_S_ANY_WAIT_IO;
 			list_del_init(&priv->s_iowait.list);
 			priv->s_iowait.lock = NULL;
@@ -860,7 +885,8 @@ void notify_error_qp(struct rvt_qp *qp)
 		write_sequnlock(lock);
 	}
 
-	if (!(qp->s_flags & RVT_S_BUSY)) {
+	if (!(qp->s_flags & RVT_S_BUSY) && !(priv->s_flags & RVT_S_BUSY)) {
+		qp->s_hdrwords = 0;
 		if (qp->s_rdma_mr) {
 			rvt_put_mr(qp->s_rdma_mr);
 			qp->s_rdma_mr = NULL;
