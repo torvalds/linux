@@ -164,6 +164,7 @@ struct hfi1_qp_priv {
 	u8 s_sc;		                  /* SC[0..4] for next packet */
 	struct iowait s_iowait;
 	struct timer_list s_tid_timer;            /* for timing tid wait */
+	struct timer_list s_tid_retry_timer;      /* for timing tid ack */
 	struct list_head tid_wait;                /* for queueing tid space */
 	struct hfi1_opfn_data opfn;
 	struct tid_flow_state flow_state;
@@ -172,6 +173,7 @@ struct hfi1_qp_priv {
 	u8 hdr_type; /* 9B or 16B */
 	atomic_t n_tid_requests;            /* # of sent TID RDMA requests */
 	unsigned long tid_timer_timeout_jiffies;
+	unsigned long tid_retry_timeout_jiffies;
 
 	/* variables for the TID RDMA SE state machine */
 	u8 s_state;

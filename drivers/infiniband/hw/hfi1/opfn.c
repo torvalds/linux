@@ -252,6 +252,8 @@ void opfn_qp_init(struct rvt_qp *qp, struct ib_qp_attr *attr, int attr_mask)
 	if (ibqp->qp_type == IB_QPT_RC && HFI1_CAP_IS_KSET(TID_RDMA)) {
 		struct tid_rdma_params *local = &priv->tid_rdma.local;
 
+		if (attr_mask & IB_QP_TIMEOUT)
+			priv->tid_retry_timeout_jiffies = qp->timeout_jiffies;
 		if (qp->pmtu == enum_to_mtu(OPA_MTU_4096) ||
 		    qp->pmtu == enum_to_mtu(OPA_MTU_8192)) {
 			tid_rdma_opfn_init(qp, local);

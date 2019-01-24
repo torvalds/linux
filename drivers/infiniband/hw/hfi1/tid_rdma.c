@@ -121,6 +121,9 @@ static void hfi1_tid_write_alloc_resources(struct rvt_qp *qp, bool intr_ctx);
 static void hfi1_tid_timeout(struct timer_list *t);
 static void hfi1_add_tid_reap_timer(struct rvt_qp *qp);
 static void hfi1_mod_tid_reap_timer(struct rvt_qp *qp);
+static void hfi1_mod_tid_retry_timer(struct rvt_qp *qp);
+static int hfi1_stop_tid_retry_timer(struct rvt_qp *qp);
+static void hfi1_tid_retry_timeout(struct timer_list *t);
 
 static u64 tid_rdma_opfn_encode(struct tid_rdma_params *p)
 {
@@ -330,6 +333,7 @@ int hfi1_qp_priv_init(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 	qpriv->r_tid_alloc = HFI1_QP_WQE_INVALID;
 	atomic_set(&qpriv->n_tid_requests, 0);
 	timer_setup(&qpriv->s_tid_timer, hfi1_tid_timeout, 0);
+	timer_setup(&qpriv->s_tid_retry_timer, hfi1_tid_retry_timeout, 0);
 	INIT_LIST_HEAD(&qpriv->tid_wait);
 
 	if (init_attr->qp_type == IB_QPT_RC && HFI1_CAP_IS_KSET(TID_RDMA)) {
@@ -4396,11 +4400,19 @@ void hfi1_rc_rcv_tid_rdma_ack(struct hfi1_packet *packet)
 		if (qpriv->s_flags & RVT_S_WAIT_ACK)
 			qpriv->s_flags &= ~RVT_S_WAIT_ACK;
 		if (!hfi1_tid_rdma_is_resync_psn(psn)) {
+			/* Check if there is any pending TID ACK */
+			if (wqe->wr.opcode == IB_WR_TID_RDMA_WRITE &&
+			    req->ack_seg < req->cur_seg)
+				hfi1_mod_tid_retry_timer(qp);
+			else
+				hfi1_stop_tid_retry_timer(qp);
 			hfi1_schedule_send(qp);
 		} else {
 			u32 spsn, fpsn, last_acked, generation;
 			struct tid_rdma_request *rptr;
 
+			/* ACK(RESYNC) */
+			hfi1_stop_tid_retry_timer(qp);
 			/* Allow new requests (see hfi1_make_tid_rdma_pkt) */
 			qp->s_flags &= ~HFI1_S_WAIT_HALT;
 			/*
@@ -4506,6 +4518,7 @@ done:
 		break;
 
 	case 3:         /* NAK */
+		hfi1_stop_tid_retry_timer(qp);
 		switch ((aeth >> IB_AETH_CREDIT_SHIFT) &
 			IB_AETH_CREDIT_MASK) {
 		case 0: /* PSN sequence error */
@@ -4529,4 +4542,84 @@ done:
 
 ack_op_err:
 	spin_unlock_irqrestore(&qp->s_lock, flags);
+}
+
+void hfi1_add_tid_retry_timer(struct rvt_qp *qp)
+{
+	struct hfi1_qp_priv *priv = qp->priv;
+	struct ib_qp *ibqp = &qp->ibqp;
+	struct rvt_dev_info *rdi = ib_to_rvt(ibqp->device);
+
+	lockdep_assert_held(&qp->s_lock);
+	if (!(priv->s_flags & HFI1_S_TID_RETRY_TIMER)) {
+		priv->s_flags |= HFI1_S_TID_RETRY_TIMER;
+		priv->s_tid_retry_timer.expires = jiffies +
+			priv->tid_retry_timeout_jiffies + rdi->busy_jiffies;
+		add_timer(&priv->s_tid_retry_timer);
+	}
+}
+
+static void hfi1_mod_tid_retry_timer(struct rvt_qp *qp)
+{
+	struct hfi1_qp_priv *priv = qp->priv;
+	struct ib_qp *ibqp = &qp->ibqp;
+	struct rvt_dev_info *rdi = ib_to_rvt(ibqp->device);
+
+	lockdep_assert_held(&qp->s_lock);
+	priv->s_flags |= HFI1_S_TID_RETRY_TIMER;
+	mod_timer(&priv->s_tid_retry_timer, jiffies +
+		  priv->tid_retry_timeout_jiffies + rdi->busy_jiffies);
+}
+
+static int hfi1_stop_tid_retry_timer(struct rvt_qp *qp)
+{
+	struct hfi1_qp_priv *priv = qp->priv;
+	int rval = 0;
+
+	lockdep_assert_held(&qp->s_lock);
+	if (priv->s_flags & HFI1_S_TID_RETRY_TIMER) {
+		rval = del_timer(&priv->s_tid_retry_timer);
+		priv->s_flags &= ~HFI1_S_TID_RETRY_TIMER;
+	}
+	return rval;
+}
+
+void hfi1_del_tid_retry_timer(struct rvt_qp *qp)
+{
+	struct hfi1_qp_priv *priv = qp->priv;
+
+	del_timer_sync(&priv->s_tid_retry_timer);
+	priv->s_flags &= ~HFI1_S_TID_RETRY_TIMER;
+}
+
+static void hfi1_tid_retry_timeout(struct timer_list *t)
+{
+	struct hfi1_qp_priv *priv = from_timer(priv, t, s_tid_retry_timer);
+	struct rvt_qp *qp = priv->owner;
+	struct rvt_swqe *wqe;
+	unsigned long flags;
+
+	spin_lock_irqsave(&qp->r_lock, flags);
+	spin_lock(&qp->s_lock);
+	if (priv->s_flags & HFI1_S_TID_RETRY_TIMER) {
+		hfi1_stop_tid_retry_timer(qp);
+		if (!priv->s_retry) {
+			wqe = rvt_get_swqe_ptr(qp, qp->s_acked);
+			hfi1_trdma_send_complete(qp, wqe, IB_WC_RETRY_EXC_ERR);
+			rvt_error_qp(qp, IB_WC_WR_FLUSH_ERR);
+		} else {
+			priv->s_flags &= ~RVT_S_WAIT_ACK;
+			/* Only send one packet (the RESYNC) */
+			priv->s_flags |= RVT_S_SEND_ONE;
+			/*
+			 * No additional request shall be made by this QP until
+			 * the RESYNC has been complete.
+			 */
+			qp->s_flags |= HFI1_S_WAIT_HALT;
+			priv->s_state = TID_OP(RESYNC);
+			priv->s_retry--;
+		}
+	}
+	spin_unlock(&qp->s_lock);
+	spin_unlock_irqrestore(&qp->r_lock, flags);
 }

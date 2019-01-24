@@ -29,6 +29,7 @@
 #define HFI1_R_TID_RSC_TIMER      BIT(2)
 /* BIT(4) reserved for RVT_S_ACK_PENDING. */
 #define HFI1_S_TID_WAIT_INTERLCK  BIT(5)
+#define HFI1_S_TID_RETRY_TIMER    BIT(17)
 #define HFI1_R_TID_SW_PSN         BIT(19)
 
 /*
@@ -287,5 +288,8 @@ u32 hfi1_build_tid_rdma_write_ack(struct rvt_qp *qp, struct rvt_ack_entry *e,
 				  u32 *bth1, u32 *bth2);
 
 void hfi1_rc_rcv_tid_rdma_ack(struct hfi1_packet *packet);
+
+void hfi1_add_tid_retry_timer(struct rvt_qp *qp);
+void hfi1_del_tid_retry_timer(struct rvt_qp *qp);
 
 #endif /* HFI1_TID_RDMA_H */
