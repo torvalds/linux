@@ -796,16 +796,19 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 			hw->netdev_features |= IWL_TX_CSUM_NETIF_FLAGS;
 	}
 
-	ret = ieee80211_register_hw(mvm->hw);
-	if (ret)
-		iwl_mvm_leds_exit(mvm);
-	mvm->init_status |= IWL_MVM_INIT_STATUS_REG_HW_INIT_COMPLETE;
-
 	if (mvm->cfg->vht_mu_mimo_supported)
 		wiphy_ext_feature_set(hw->wiphy,
 				      NL80211_EXT_FEATURE_MU_MIMO_AIR_SNIFFER);
 
-	return ret;
+	ret = ieee80211_register_hw(mvm->hw);
+	if (ret) {
+		iwl_mvm_leds_exit(mvm);
+		return ret;
+	}
+
+	mvm->init_status |= IWL_MVM_INIT_STATUS_REG_HW_INIT_COMPLETE;
+
+	return 0;
 }
 
 static bool iwl_mvm_defer_tx(struct iwl_mvm *mvm,
