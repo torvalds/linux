@@ -1688,6 +1688,7 @@ u32 hfi1_build_tid_rdma_read_packet(struct rvt_swqe *wqe,
 
 	/* This is the IB psn used to send the request */
 	*bth2 = mask_psn(flow->flow_state.ib_spsn + flow->pkt);
+	trace_hfi1_tid_flow_build_read_pkt(qp, req->flow_idx, flow);
 
 	/* TID Entries for TID RDMA READ payload */
 	req_addr = &flow->tid_entry[flow->tid_idx];
@@ -1768,6 +1769,8 @@ u32 hfi1_build_tid_rdma_read_req(struct rvt_qp *qp, struct rvt_swqe *wqe,
 	bool retry = true;
 	u32 npkts = rvt_div_round_up_mtu(qp, *len);
 
+	trace_hfi1_tid_req_build_read_req(qp, 0, wqe->wr.opcode, wqe->psn,
+					  wqe->lpsn, req);
 	/*
 	 * Check sync conditions. Make sure that there are no pending
 	 * segments before freeing the flow.
@@ -1883,6 +1886,8 @@ static int tid_rdma_rcv_read_request(struct rvt_qp *qp,
 	 */
 	flow->npkts = rvt_div_round_up_mtu(qp, len);
 	for (i = 0; i < flow->tidcnt; i++) {
+		trace_hfi1_tid_entry_rcv_read_req(qp, i,
+						  flow->tid_entry[i]);
 		tlen = EXP_TID_GET(flow->tid_entry[i], LEN);
 		if (!tlen)
 			return 1;
@@ -1917,6 +1922,7 @@ static int tid_rdma_rcv_read_request(struct rvt_qp *qp,
 	flow->flow_state.ib_spsn = psn;
 	flow->flow_state.ib_lpsn = flow->flow_state.ib_spsn + flow->npkts - 1;
 
+	trace_hfi1_tid_flow_rcv_read_req(qp, req->setup_head, flow);
 	/* Set the initial flow index to the current flow. */
 	req->flow_idx = req->setup_head;
 
@@ -1942,6 +1948,8 @@ static int tid_rdma_rcv_read_request(struct rvt_qp *qp,
 	req->total_segs = 1;
 	req->r_flow_psn = e->psn;
 
+	trace_hfi1_tid_req_rcv_read_req(qp, 0, e->opcode, e->psn, e->lpsn,
+					req);
 	return 0;
 }
 
@@ -1957,6 +1965,8 @@ static int tid_rdma_rcv_error(struct hfi1_packet *packet,
 	u8 prev;
 	bool old_req;
 
+	trace_hfi1_rsp_tid_rcv_error(qp, psn);
+	trace_hfi1_tid_rdma_rcv_err(qp, 0, psn, diff);
 	if (diff > 0) {
 		/* sequence error */
 		if (!qp->r_nak_state) {
@@ -1977,7 +1987,7 @@ static int tid_rdma_rcv_error(struct hfi1_packet *packet,
 
 	req = ack_to_tid_req(e);
 	req->r_flow_psn = psn;
-
+	trace_hfi1_tid_req_rcv_err(qp, 0, e->opcode, e->psn, e->lpsn, req);
 	if (e->opcode == TID_OP(READ_REQ)) {
 		struct ib_reth *reth;
 		u32 offset;
@@ -2088,6 +2098,7 @@ void hfi1_rc_rcv_tid_rdma_read_req(struct hfi1_packet *packet)
 
 	is_fecn = process_ecn(qp, packet);
 	psn = mask_psn(be32_to_cpu(ohdr->bth[2]));
+	trace_hfi1_rsp_rcv_tid_read_req(qp, psn);
 
 	if (qp->state == IB_QPS_RTR && !(qp->r_flags & RVT_R_COMM_EST))
 		rvt_comm_est(qp);
@@ -2199,6 +2210,9 @@ u32 hfi1_build_tid_rdma_read_resp(struct rvt_qp *qp, struct rvt_ack_entry *e,
 	next_offset = flow->tid_offset + *len;
 	last_pkt = (flow->sent >= flow->length);
 
+	trace_hfi1_tid_entry_build_read_resp(qp, flow->tid_idx, tidentry);
+	trace_hfi1_tid_flow_build_read_resp(qp, req->clear_tail, flow);
+
 	rcu_read_lock();
 	remote = rcu_dereference(qpriv->tid_rdma.remote);
 	if (!remote) {
@@ -2293,6 +2307,7 @@ void hfi1_rc_rcv_tid_rdma_read_resp(struct hfi1_packet *packet)
 	unsigned long flags;
 	u32 kpsn, ipsn;
 
+	trace_hfi1_sender_rcv_tid_read_resp(qp);
 	is_fecn = process_ecn(qp, packet);
 	kpsn = mask_psn(be32_to_cpu(ohdr->bth[2]));
 	aeth = be32_to_cpu(ohdr->u.tid_rdma.r_rsp.aeth);
@@ -2321,6 +2336,12 @@ void hfi1_rc_rcv_tid_rdma_read_resp(struct hfi1_packet *packet)
 		qp->s_flags &= ~(RVT_S_WAIT_RDMAR | RVT_S_WAIT_ACK);
 		hfi1_schedule_send(qp);
 	}
+
+	trace_hfi1_ack(qp, ipsn);
+	trace_hfi1_tid_req_rcv_read_resp(qp, 0, req->e.swqe->wr.opcode,
+					 req->e.swqe->psn, req->e.swqe->lpsn,
+					 req);
+	trace_hfi1_tid_flow_rcv_read_resp(qp, req->clear_tail, flow);
 
 	/* Release the tid resources */
 	hfi1_kern_exp_rcv_clear(req);
@@ -2671,6 +2692,8 @@ bool hfi1_handle_kdeth_eflags(struct hfi1_ctxtdata *rcd,
 	unsigned long flags;
 	bool ret = true;
 
+	trace_hfi1_msg_handle_kdeth_eflags(NULL, "Kdeth error: rhf ",
+					   packet->rhf);
 	if (packet->rhf & (RHF_VCRC_ERR | RHF_ICRC_ERR))
 		return ret;
 
@@ -2754,12 +2777,20 @@ void hfi1_tid_rdma_restart_req(struct rvt_qp *qp, struct rvt_swqe *wqe,
 	if (wqe->wr.opcode == IB_WR_TID_RDMA_READ) {
 		*bth2 = mask_psn(qp->s_psn);
 		flow = find_flow_ib(req, *bth2, &fidx);
-		if (!flow)
+		if (!flow) {
+			trace_hfi1_msg_tid_restart_req(/* msg */
+			   qp, "!!!!!! Could not find flow to restart: bth2 ",
+			   (u64)*bth2);
+			trace_hfi1_tid_req_restart_req(qp, 0, wqe->wr.opcode,
+						       wqe->psn, wqe->lpsn,
+						       req);
 			return;
+		}
 	} else {
 		return;
 	}
 
+	trace_hfi1_tid_flow_restart_req(qp, fidx, flow);
 	diff = delta_psn(*bth2, flow->flow_state.ib_spsn);
 
 	flow->sent = 0;
@@ -2794,6 +2825,9 @@ void hfi1_tid_rdma_restart_req(struct rvt_qp *qp, struct rvt_swqe *wqe,
 	/* Move flow_idx to correct index */
 	req->flow_idx = fidx;
 
+	trace_hfi1_tid_flow_restart_req(qp, fidx, flow);
+	trace_hfi1_tid_req_restart_req(qp, 0, wqe->wr.opcode, wqe->psn,
+				       wqe->lpsn, req);
 	req->state = TID_REQUEST_ACTIVE;
 }
 
@@ -2868,14 +2902,17 @@ interlock:
 }
 
 /* Does @sge meet the alignment requirements for tid rdma? */
-static inline bool hfi1_check_sge_align(struct rvt_sge *sge, int num_sge)
+static inline bool hfi1_check_sge_align(struct rvt_qp *qp,
+					struct rvt_sge *sge, int num_sge)
 {
 	int i;
 
-	for (i = 0; i < num_sge; i++, sge++)
+	for (i = 0; i < num_sge; i++, sge++) {
+		trace_hfi1_sge_check_align(qp, i, sge);
 		if ((u64)sge->vaddr & ~PAGE_MASK ||
 		    sge->sge_length & ~PAGE_MASK)
 			return false;
+	}
 	return true;
 }
 
@@ -2904,7 +2941,8 @@ void setup_tid_rdma_wqe(struct rvt_qp *qp, struct rvt_swqe *wqe)
 		goto exit;
 
 	if (wqe->wr.opcode == IB_WR_RDMA_READ) {
-		if (hfi1_check_sge_align(&wqe->sg_list[0], wqe->wr.num_sge)) {
+		if (hfi1_check_sge_align(qp, &wqe->sg_list[0],
+					 wqe->wr.num_sge)) {
 			new_opcode = IB_WR_TID_RDMA_READ;
 			do_tid_rdma = true;
 		}
@@ -2930,6 +2968,9 @@ void setup_tid_rdma_wqe(struct rvt_qp *qp, struct rvt_swqe *wqe)
 		priv->tid_req.comp_seg = 0;
 		priv->tid_req.ack_seg = 0;
 		priv->tid_req.state = TID_REQUEST_INACTIVE;
+		trace_hfi1_tid_req_setup_tid_wqe(qp, 1, wqe->wr.opcode,
+						 wqe->psn, wqe->lpsn,
+						 &priv->tid_req);
 	}
 exit:
 	rcu_read_unlock();
