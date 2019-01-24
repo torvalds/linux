@@ -40,6 +40,7 @@ struct sirf_data {
 	struct serdev_device *serdev;
 	speed_t	speed;
 	struct regulator *vcc;
+	struct regulator *lna;
 	struct gpio_desc *on_off;
 	struct gpio_desc *wakeup;
 	int irq;
@@ -289,21 +290,60 @@ static int sirf_set_active(struct sirf_data *data, bool active)
 static int sirf_runtime_suspend(struct device *dev)
 {
 	struct sirf_data *data = dev_get_drvdata(dev);
+	int ret2;
+	int ret;
 
-	if (!data->on_off)
-		return regulator_disable(data->vcc);
+	if (data->on_off)
+		ret = sirf_set_active(data, false);
+	else
+		ret = regulator_disable(data->vcc);
 
-	return sirf_set_active(data, false);
+	if (ret)
+		return ret;
+
+	ret = regulator_disable(data->lna);
+	if (ret)
+		goto err_reenable;
+
+	return 0;
+
+err_reenable:
+	if (data->on_off)
+		ret2 = sirf_set_active(data, true);
+	else
+		ret2 = regulator_enable(data->vcc);
+
+	if (ret2)
+		dev_err(dev,
+			"failed to reenable power on failed suspend: %d\n",
+			ret2);
+
+	return ret;
 }
 
 static int sirf_runtime_resume(struct device *dev)
 {
 	struct sirf_data *data = dev_get_drvdata(dev);
+	int ret;
 
-	if (!data->on_off)
-		return regulator_enable(data->vcc);
+	ret = regulator_enable(data->lna);
+	if (ret)
+		return ret;
 
-	return sirf_set_active(data, true);
+	if (data->on_off)
+		ret = sirf_set_active(data, true);
+	else
+		ret = regulator_enable(data->vcc);
+
+	if (ret)
+		goto err_disable_lna;
+
+	return 0;
+
+err_disable_lna:
+	regulator_disable(data->lna);
+
+	return ret;
 }
 
 static int __maybe_unused sirf_suspend(struct device *dev)
@@ -388,6 +428,12 @@ static int sirf_probe(struct serdev_device *serdev)
 	data->vcc = devm_regulator_get(dev, "vcc");
 	if (IS_ERR(data->vcc)) {
 		ret = PTR_ERR(data->vcc);
+		goto err_put_device;
+	}
+
+	data->lna = devm_regulator_get(dev, "lna");
+	if (IS_ERR(data->lna)) {
+		ret = PTR_ERR(data->lna);
 		goto err_put_device;
 	}
 
