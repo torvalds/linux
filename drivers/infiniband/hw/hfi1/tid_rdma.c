@@ -3322,6 +3322,18 @@ void setup_tid_rdma_wqe(struct rvt_qp *qp, struct rvt_swqe *wqe)
 			new_opcode = IB_WR_TID_RDMA_READ;
 			do_tid_rdma = true;
 		}
+	} else if (wqe->wr.opcode == IB_WR_RDMA_WRITE) {
+		/*
+		 * TID RDMA is enabled for this RDMA WRITE request iff:
+		 *   1. The remote address is page-aligned,
+		 *   2. The length is larger than the minimum segment size,
+		 *   3. The length is page-multiple.
+		 */
+		if (!(wqe->rdma_wr.remote_addr & ~PAGE_MASK) &&
+		    !(wqe->length & ~PAGE_MASK)) {
+			new_opcode = IB_WR_TID_RDMA_WRITE;
+			do_tid_rdma = true;
+		}
 	}
 
 	if (do_tid_rdma) {
@@ -3338,12 +3350,22 @@ void setup_tid_rdma_wqe(struct rvt_qp *qp, struct rvt_swqe *wqe)
 			priv->tid_req.n_flows = remote->max_read;
 			qpriv->tid_r_reqs++;
 			wqe->lpsn += rvt_div_round_up_mtu(qp, wqe->length) - 1;
+		} else {
+			wqe->lpsn += priv->tid_req.total_segs - 1;
+			atomic_inc(&qpriv->n_requests);
 		}
 
 		priv->tid_req.cur_seg = 0;
 		priv->tid_req.comp_seg = 0;
 		priv->tid_req.ack_seg = 0;
 		priv->tid_req.state = TID_REQUEST_INACTIVE;
+		/*
+		 * Reset acked_tail.
+		 * TID RDMA READ does not have ACKs so it does not
+		 * update the pointer. We have to reset it so TID RDMA
+		 * WRITE does not get confused.
+		 */
+		priv->tid_req.acked_tail = priv->tid_req.setup_head;
 		trace_hfi1_tid_req_setup_tid_wqe(qp, 1, wqe->wr.opcode,
 						 wqe->psn, wqe->lpsn,
 						 &priv->tid_req);

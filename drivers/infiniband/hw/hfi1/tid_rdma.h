@@ -266,7 +266,8 @@ static inline void hfi1_setup_tid_rdma_wqe(struct rvt_qp *qp,
 					   struct rvt_swqe *wqe)
 {
 	if (wqe->priv &&
-	    wqe->wr.opcode == IB_WR_RDMA_READ &&
+	    (wqe->wr.opcode == IB_WR_RDMA_READ ||
+	     wqe->wr.opcode == IB_WR_RDMA_WRITE) &&
 	    wqe->length >= TID_RDMA_MIN_SEGMENT_SIZE)
 		setup_tid_rdma_wqe(qp, wqe);
 }
