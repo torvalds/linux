@@ -79,7 +79,7 @@ static int bd718xx_set_voltage_sel_pickable_restricted(
 	return regulator_set_voltage_sel_pickable_regmap(rdev, sel);
 }
 
-static struct regulator_ops bd718xx_pickable_range_ldo_ops = {
+static const struct regulator_ops bd718xx_pickable_range_ldo_ops = {
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
 	.is_enabled = regulator_is_enabled_regmap,
@@ -88,7 +88,7 @@ static struct regulator_ops bd718xx_pickable_range_ldo_ops = {
 	.get_voltage_sel = regulator_get_voltage_sel_pickable_regmap,
 };
 
-static struct regulator_ops bd718xx_pickable_range_buck_ops = {
+static const struct regulator_ops bd718xx_pickable_range_buck_ops = {
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
 	.is_enabled = regulator_is_enabled_regmap,
@@ -98,7 +98,7 @@ static struct regulator_ops bd718xx_pickable_range_buck_ops = {
 	.set_voltage_time_sel = regulator_set_voltage_time_sel,
 };
 
-static struct regulator_ops bd718xx_ldo_regulator_ops = {
+static const struct regulator_ops bd718xx_ldo_regulator_ops = {
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
 	.is_enabled = regulator_is_enabled_regmap,
@@ -107,7 +107,7 @@ static struct regulator_ops bd718xx_ldo_regulator_ops = {
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 };
 
-static struct regulator_ops bd718xx_ldo_regulator_nolinear_ops = {
+static const struct regulator_ops bd718xx_ldo_regulator_nolinear_ops = {
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
 	.is_enabled = regulator_is_enabled_regmap,
@@ -116,7 +116,7 @@ static struct regulator_ops bd718xx_ldo_regulator_nolinear_ops = {
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 };
 
-static struct regulator_ops bd718xx_buck_regulator_ops = {
+static const struct regulator_ops bd718xx_buck_regulator_ops = {
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
 	.is_enabled = regulator_is_enabled_regmap,
@@ -126,7 +126,7 @@ static struct regulator_ops bd718xx_buck_regulator_ops = {
 	.set_voltage_time_sel = regulator_set_voltage_time_sel,
 };
 
-static struct regulator_ops bd718xx_buck_regulator_nolinear_ops = {
+static const struct regulator_ops bd718xx_buck_regulator_nolinear_ops = {
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
 	.is_enabled = regulator_is_enabled_regmap,
@@ -137,7 +137,7 @@ static struct regulator_ops bd718xx_buck_regulator_nolinear_ops = {
 	.set_voltage_time_sel = regulator_set_voltage_time_sel,
 };
 
-static struct regulator_ops bd718xx_dvs_buck_regulator_ops = {
+static const struct regulator_ops bd718xx_dvs_buck_regulator_ops = {
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
 	.is_enabled = regulator_is_enabled_regmap,
