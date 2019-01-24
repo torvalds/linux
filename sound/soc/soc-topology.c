@@ -508,7 +508,6 @@ static void remove_widget(struct snd_soc_component *comp,
 	}
 
 free_news:
-	list_del(&dobj->list);
 	kfree(w->kcontrol_news);
 
 	/* widget w is freed by soc-dapm.c */
