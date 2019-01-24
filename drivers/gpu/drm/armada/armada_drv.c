@@ -204,11 +204,11 @@ static int compare_dev_name(struct device *dev, void *data)
 }
 
 static void armada_add_endpoints(struct device *dev,
-	struct component_match **match, struct device_node *port)
+	struct component_match **match, struct device_node *dev_node)
 {
 	struct device_node *ep, *remote;
 
-	for_each_child_of_node(port, ep) {
+	for_each_endpoint_of_node(dev_node, ep) {
 		remote = of_graph_get_remote_port_parent(ep);
 		if (!remote || !of_device_is_available(remote)) {
 			of_node_put(remote);
@@ -242,7 +242,6 @@ static int armada_drm_probe(struct platform_device *pdev)
 
 	if (dev->platform_data) {
 		char **devices = dev->platform_data;
-		struct device_node *port;
 		struct device *d;
 		int i;
 
@@ -258,10 +257,8 @@ static int armada_drm_probe(struct platform_device *pdev)
 		for (i = 0; devices[i]; i++) {
 			d = bus_find_device_by_name(&platform_bus_type, NULL,
 						    devices[i]);
-			if (d && d->of_node) {
-				for_each_child_of_node(d->of_node, port)
-					armada_add_endpoints(dev, &match, port);
-			}
+			if (d && d->of_node)
+				armada_add_endpoints(dev, &match, d->of_node);
 			put_device(d);
 		}
 	}
