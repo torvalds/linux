@@ -370,15 +370,7 @@ https://bugzilla.kernel.org 는 리눅스 커널 개발자들이 커널의 버�
 다른 사람들의 버그들을 수정하기 위하여 시간을 낭비하지 않기 때문이다.
 
 이미 보고된 버그 리포트들을 가지고 작업하기 위해서 https://bugzilla.kernel.org
-를 참조하라. 여러분이 앞으로 생겨날 버그 리포트들의 조언자가 되길 원한다면
-bugme-new 메일링 리스트나(새로운 버그 리포트들만이 이곳에서 메일로 전해진다)
-bugme-janitor 메일링 리스트(bugzilla에 모든 변화들이 여기서 메일로 전해진다)
-에 등록하면 된다.
-
-      https://lists.linux-foundation.org/mailman/listinfo/bugme-new
-
-      https://lists.linux-foundation.org/mailman/listinfo/bugme-janitors
-
+를 참조하라.
 
 
 메일링 리스트들
