@@ -319,6 +319,7 @@ int hfi1_qp_priv_init(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 	qpriv->flow_state.index = RXE_NUM_TID_FLOWS;
 	qpriv->flow_state.last_index = RXE_NUM_TID_FLOWS;
 	qpriv->flow_state.generation = KERN_GENERATION_RESERVED;
+	qpriv->s_state = TID_OP(WRITE_RESP);
 	qpriv->s_tid_cur = HFI1_QP_WQE_INVALID;
 	qpriv->s_tid_head = HFI1_QP_WQE_INVALID;
 	qpriv->s_tid_tail = HFI1_QP_WQE_INVALID;
@@ -327,6 +328,7 @@ int hfi1_qp_priv_init(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 	qpriv->r_tid_tail = HFI1_QP_WQE_INVALID;
 	qpriv->r_tid_ack = HFI1_QP_WQE_INVALID;
 	qpriv->r_tid_alloc = HFI1_QP_WQE_INVALID;
+	atomic_set(&qpriv->n_tid_requests, 0);
 	timer_setup(&qpriv->s_tid_timer, hfi1_tid_timeout, 0);
 	INIT_LIST_HEAD(&qpriv->tid_wait);
 
@@ -4317,4 +4319,214 @@ u32 hfi1_build_tid_rdma_write_ack(struct rvt_qp *qp, struct rvt_ack_entry *e,
 	}
 
 	return sizeof(ohdr->u.tid_rdma.ack) / sizeof(u32);
+}
+
+void hfi1_rc_rcv_tid_rdma_ack(struct hfi1_packet *packet)
+{
+	struct ib_other_headers *ohdr = packet->ohdr;
+	struct rvt_qp *qp = packet->qp;
+	struct hfi1_qp_priv *qpriv = qp->priv;
+	struct rvt_swqe *wqe;
+	struct tid_rdma_request *req;
+	struct tid_rdma_flow *flow;
+	u32 aeth, psn, req_psn, ack_psn, fspsn, resync_psn, ack_kpsn;
+	bool is_fecn;
+	unsigned long flags;
+	u16 fidx;
+
+	is_fecn = process_ecn(qp, packet);
+	psn = mask_psn(be32_to_cpu(ohdr->bth[2]));
+	aeth = be32_to_cpu(ohdr->u.tid_rdma.ack.aeth);
+	req_psn = mask_psn(be32_to_cpu(ohdr->u.tid_rdma.ack.verbs_psn));
+	resync_psn = mask_psn(be32_to_cpu(ohdr->u.tid_rdma.ack.tid_flow_psn));
+
+	spin_lock_irqsave(&qp->s_lock, flags);
+
+	/* If we are waiting for an ACK to RESYNC, drop any other packets */
+	if ((qp->s_flags & HFI1_S_WAIT_HALT) &&
+	    cmp_psn(psn, qpriv->s_resync_psn))
+		goto ack_op_err;
+
+	ack_psn = req_psn;
+	if (hfi1_tid_rdma_is_resync_psn(psn))
+		ack_kpsn = resync_psn;
+	else
+		ack_kpsn = psn;
+	if (aeth >> 29) {
+		ack_psn--;
+		ack_kpsn--;
+	}
+
+	wqe = rvt_get_swqe_ptr(qp, qp->s_acked);
+
+	if (wqe->wr.opcode != IB_WR_TID_RDMA_WRITE)
+		goto ack_op_err;
+
+	req = wqe_to_tid_req(wqe);
+	flow = &req->flows[req->acked_tail];
+
+	/* Drop stale ACK/NAK */
+	if (cmp_psn(psn, full_flow_psn(flow, flow->flow_state.spsn)) < 0)
+		goto ack_op_err;
+
+	while (cmp_psn(ack_kpsn,
+		       full_flow_psn(flow, flow->flow_state.lpsn)) >= 0 &&
+	       req->ack_seg < req->cur_seg) {
+		req->ack_seg++;
+		/* advance acked segment pointer */
+		req->acked_tail = CIRC_NEXT(req->acked_tail, MAX_FLOWS);
+		req->r_last_acked = flow->flow_state.resp_ib_psn;
+		if (req->ack_seg == req->total_segs) {
+			req->state = TID_REQUEST_COMPLETE;
+			wqe = do_rc_completion(qp, wqe,
+					       to_iport(qp->ibqp.device,
+							qp->port_num));
+			atomic_dec(&qpriv->n_tid_requests);
+			if (qp->s_acked == qp->s_tail)
+				break;
+			if (wqe->wr.opcode != IB_WR_TID_RDMA_WRITE)
+				break;
+			req = wqe_to_tid_req(wqe);
+		}
+		flow = &req->flows[req->acked_tail];
+	}
+
+	switch (aeth >> 29) {
+	case 0:         /* ACK */
+		if (qpriv->s_flags & RVT_S_WAIT_ACK)
+			qpriv->s_flags &= ~RVT_S_WAIT_ACK;
+		if (!hfi1_tid_rdma_is_resync_psn(psn)) {
+			hfi1_schedule_send(qp);
+		} else {
+			u32 spsn, fpsn, last_acked, generation;
+			struct tid_rdma_request *rptr;
+
+			/* Allow new requests (see hfi1_make_tid_rdma_pkt) */
+			qp->s_flags &= ~HFI1_S_WAIT_HALT;
+			/*
+			 * Clear RVT_S_SEND_ONE flag in case that the TID RDMA
+			 * ACK is received after the TID retry timer is fired
+			 * again. In this case, do not send any more TID
+			 * RESYNC request or wait for any more TID ACK packet.
+			 */
+			qpriv->s_flags &= ~RVT_S_SEND_ONE;
+			hfi1_schedule_send(qp);
+
+			if ((qp->s_acked == qpriv->s_tid_tail &&
+			     req->ack_seg == req->total_segs) ||
+			    qp->s_acked == qp->s_tail) {
+				qpriv->s_state = TID_OP(WRITE_DATA_LAST);
+				goto done;
+			}
+
+			if (req->ack_seg == req->comp_seg) {
+				qpriv->s_state = TID_OP(WRITE_DATA);
+				goto done;
+			}
+
+			/*
+			 * The PSN to start with is the next PSN after the
+			 * RESYNC PSN.
+			 */
+			psn = mask_psn(psn + 1);
+			generation = psn >> HFI1_KDETH_BTH_SEQ_SHIFT;
+			spsn = 0;
+
+			/*
+			 * Update to the correct WQE when we get an ACK(RESYNC)
+			 * in the middle of a request.
+			 */
+			if (delta_psn(ack_psn, wqe->lpsn))
+				wqe = rvt_get_swqe_ptr(qp, qp->s_acked);
+			req = wqe_to_tid_req(wqe);
+			flow = &req->flows[req->acked_tail];
+			/*
+			 * RESYNC re-numbers the PSN ranges of all remaining
+			 * segments. Also, PSN's start from 0 in the middle of a
+			 * segment and the first segment size is less than the
+			 * default number of packets. flow->resync_npkts is used
+			 * to track the number of packets from the start of the
+			 * real segment to the point of 0 PSN after the RESYNC
+			 * in order to later correctly rewind the SGE.
+			 */
+			fpsn = full_flow_psn(flow, flow->flow_state.spsn);
+			req->r_ack_psn = psn;
+			flow->resync_npkts +=
+				delta_psn(mask_psn(resync_psn + 1), fpsn);
+			/*
+			 * Renumber all packet sequence number ranges
+			 * based on the new generation.
+			 */
+			last_acked = qp->s_acked;
+			rptr = req;
+			while (1) {
+				/* start from last acked segment */
+				for (fidx = rptr->acked_tail;
+				     CIRC_CNT(rptr->setup_head, fidx,
+					      MAX_FLOWS);
+				     fidx = CIRC_NEXT(fidx, MAX_FLOWS)) {
+					u32 lpsn;
+					u32 gen;
+
+					flow = &rptr->flows[fidx];
+					gen = flow->flow_state.generation;
+					if (WARN_ON(gen == generation &&
+						    flow->flow_state.spsn !=
+						     spsn))
+						continue;
+					lpsn = flow->flow_state.lpsn;
+					lpsn = full_flow_psn(flow, lpsn);
+					flow->npkts =
+						delta_psn(lpsn,
+							  mask_psn(resync_psn)
+							  );
+					flow->flow_state.generation =
+						generation;
+					flow->flow_state.spsn = spsn;
+					flow->flow_state.lpsn =
+						flow->flow_state.spsn +
+						flow->npkts - 1;
+					flow->pkt = 0;
+					spsn += flow->npkts;
+					resync_psn += flow->npkts;
+				}
+				if (++last_acked == qpriv->s_tid_cur + 1)
+					break;
+				if (last_acked == qp->s_size)
+					last_acked = 0;
+				wqe = rvt_get_swqe_ptr(qp, last_acked);
+				rptr = wqe_to_tid_req(wqe);
+			}
+			req->cur_seg = req->ack_seg;
+			qpriv->s_tid_tail = qp->s_acked;
+			qpriv->s_state = TID_OP(WRITE_REQ);
+		}
+done:
+		qpriv->s_retry = qp->s_retry_cnt;
+		break;
+
+	case 3:         /* NAK */
+		switch ((aeth >> IB_AETH_CREDIT_SHIFT) &
+			IB_AETH_CREDIT_MASK) {
+		case 0: /* PSN sequence error */
+			flow = &req->flows[req->acked_tail];
+			fspsn = full_flow_psn(flow, flow->flow_state.spsn);
+			req->r_ack_psn = mask_psn(be32_to_cpu(ohdr->bth[2]));
+			req->cur_seg = req->ack_seg;
+			qpriv->s_tid_tail = qp->s_acked;
+			qpriv->s_state = TID_OP(WRITE_REQ);
+			qpriv->s_retry = qp->s_retry_cnt;
+			break;
+
+		default:
+			break;
+		}
+		break;
+
+	default:
+		break;
+	}
+
+ack_op_err:
+	spin_unlock_irqrestore(&qp->s_lock, flags);
 }

@@ -101,6 +101,7 @@ struct tid_rdma_request {
 
 	u32 seg_len;
 	u32 total_len;
+	u32 r_ack_psn;          /* next expected ack PSN */
 	u32 r_flow_psn;         /* IB PSN of next segment start */
 	u32 r_last_acked;       /* IB PSN of last ACK'ed packet */
 	u32 s_next_psn;		/* IB PSN of next segment start for read */
@@ -284,5 +285,7 @@ void hfi1_rc_rcv_tid_rdma_write_data(struct hfi1_packet *packet);
 u32 hfi1_build_tid_rdma_write_ack(struct rvt_qp *qp, struct rvt_ack_entry *e,
 				  struct ib_other_headers *ohdr, u16 iflow,
 				  u32 *bth1, u32 *bth2);
+
+void hfi1_rc_rcv_tid_rdma_ack(struct hfi1_packet *packet);
 
 #endif /* HFI1_TID_RDMA_H */

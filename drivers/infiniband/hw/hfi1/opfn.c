@@ -245,6 +245,9 @@ void opfn_qp_init(struct rvt_qp *qp, struct ib_qp_attr *attr, int attr_mask)
 	struct hfi1_qp_priv *priv = qp->priv;
 	unsigned long flags;
 
+	if (attr_mask & IB_QP_RETRY_CNT)
+		priv->s_retry = attr->retry_cnt;
+
 	spin_lock_irqsave(&priv->opfn.lock, flags);
 	if (ibqp->qp_type == IB_QPT_RC && HFI1_CAP_IS_KSET(TID_RDMA)) {
 		struct tid_rdma_params *local = &priv->tid_rdma.local;

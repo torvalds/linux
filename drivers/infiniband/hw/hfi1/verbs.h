@@ -170,9 +170,12 @@ struct hfi1_qp_priv {
 	struct tid_rdma_qp_params tid_rdma;
 	struct rvt_qp *owner;
 	u8 hdr_type; /* 9B or 16B */
+	atomic_t n_tid_requests;            /* # of sent TID RDMA requests */
 	unsigned long tid_timer_timeout_jiffies;
 
 	/* variables for the TID RDMA SE state machine */
+	u8 s_state;
+	u8 s_retry;
 	u8 rnr_nak_state;       /* RNR NAK state */
 	u8 s_nak_state;
 	u32 s_nak_psn;
@@ -197,6 +200,7 @@ struct hfi1_qp_priv {
 
 	u32 r_next_psn_kdeth;
 	u32 r_next_psn_kdeth_save;
+	u32 s_resync_psn;
 	u8 sync_pt;           /* Set when QP reaches sync point */
 	u8 resync;
 };
