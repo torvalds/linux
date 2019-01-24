@@ -51,28 +51,48 @@
 
 #include "hfi.h"
 #include "qp.h"
+#include "rc.h"
 #include "verbs_txreq.h"
 #include "trace.h"
 
-/* cut down ridiculously long IB macro names */
-#define OP(x) RC_OP(x)
-
-static struct rvt_swqe *do_rc_completion(struct rvt_qp *qp,
-					 struct rvt_swqe *wqe,
-					 struct hfi1_ibport *ibp);
-
-static u32 restart_sge(struct rvt_sge_state *ss, struct rvt_swqe *wqe,
-		       u32 psn, u32 pmtu)
+struct rvt_ack_entry *find_prev_entry(struct rvt_qp *qp, u32 psn, u8 *prev,
+				      u8 *prev_ack, bool *scheduled)
+	__must_hold(&qp->s_lock)
 {
-	u32 len;
+	struct rvt_ack_entry *e = NULL;
+	u8 i, p;
+	bool s = true;
 
-	len = delta_psn(psn, wqe->psn) * pmtu;
-	ss->sge = wqe->sg_list[0];
-	ss->sg_list = wqe->sg_list + 1;
-	ss->num_sge = wqe->wr.num_sge;
-	ss->total_len = wqe->length;
-	rvt_skip_sge(ss, len, false);
-	return wqe->length - len;
+	for (i = qp->r_head_ack_queue; ; i = p) {
+		if (i == qp->s_tail_ack_queue)
+			s = false;
+		if (i)
+			p = i - 1;
+		else
+			p = rvt_size_atomic(ib_to_rvt(qp->ibqp.device));
+		if (p == qp->r_head_ack_queue) {
+			e = NULL;
+			break;
+		}
+		e = &qp->s_ack_queue[p];
+		if (!e->opcode) {
+			e = NULL;
+			break;
+		}
+		if (cmp_psn(psn, e->psn) >= 0) {
+			if (p == qp->s_tail_ack_queue &&
+			    cmp_psn(psn, e->lpsn) <= 0)
+				s = false;
+			break;
+		}
+	}
+	if (prev)
+		*prev = p;
+	if (prev_ack)
+		*prev_ack = i;
+	if (scheduled)
+		*scheduled = s;
+	return e;
 }
 
 /**
@@ -1229,9 +1249,9 @@ static inline void update_last_psn(struct rvt_qp *qp, u32 psn)
  * This is similar to hfi1_send_complete but has to check to be sure
  * that the SGEs are not being referenced if the SWQE is being resent.
  */
-static struct rvt_swqe *do_rc_completion(struct rvt_qp *qp,
-					 struct rvt_swqe *wqe,
-					 struct hfi1_ibport *ibp)
+struct rvt_swqe *do_rc_completion(struct rvt_qp *qp,
+				  struct rvt_swqe *wqe,
+				  struct hfi1_ibport *ibp)
 {
 	lockdep_assert_held(&qp->s_lock);
 	/*
@@ -1314,8 +1334,8 @@ static struct rvt_swqe *do_rc_completion(struct rvt_qp *qp,
  * May be called at interrupt level, with the QP s_lock held.
  * Returns 1 if OK, 0 if current operation should be aborted (NAK).
  */
-static int do_rc_ack(struct rvt_qp *qp, u32 aeth, u32 psn, int opcode,
-		     u64 val, struct hfi1_ctxtdata *rcd)
+int do_rc_ack(struct rvt_qp *qp, u32 aeth, u32 psn, int opcode,
+	      u64 val, struct hfi1_ctxtdata *rcd)
 {
 	struct hfi1_ibport *ibp;
 	enum ib_wc_status status;
@@ -1754,16 +1774,6 @@ bail:
 	return;
 }
 
-static inline void rc_defered_ack(struct hfi1_ctxtdata *rcd,
-				  struct rvt_qp *qp)
-{
-	if (list_empty(&qp->rspwait)) {
-		qp->r_flags |= RVT_R_RSP_NAK;
-		rvt_get_qp(qp);
-		list_add_tail(&qp->rspwait, &rcd->qp_wait_list);
-	}
-}
-
 static inline void rc_cancel_ack(struct rvt_qp *qp)
 {
 	qp->r_adefered = 0;
@@ -1796,8 +1806,9 @@ static noinline int rc_rcv_error(struct ib_other_headers *ohdr, void *data,
 	struct hfi1_ibport *ibp = rcd_to_iport(rcd);
 	struct rvt_ack_entry *e;
 	unsigned long flags;
-	u8 i, prev;
-	int old_req;
+	u8 prev;
+	u8 mra; /* most recent ACK */
+	bool old_req;
 
 	trace_hfi1_rcv_error(qp, psn);
 	if (diff > 0) {
@@ -1843,29 +1854,8 @@ static noinline int rc_rcv_error(struct ib_other_headers *ohdr, void *data,
 
 	spin_lock_irqsave(&qp->s_lock, flags);
 
-	for (i = qp->r_head_ack_queue; ; i = prev) {
-		if (i == qp->s_tail_ack_queue)
-			old_req = 0;
-		if (i)
-			prev = i - 1;
-		else
-			prev = rvt_size_atomic(ib_to_rvt(qp->ibqp.device));
-		if (prev == qp->r_head_ack_queue) {
-			e = NULL;
-			break;
-		}
-		e = &qp->s_ack_queue[prev];
-		if (!e->opcode) {
-			e = NULL;
-			break;
-		}
-		if (cmp_psn(psn, e->psn) >= 0) {
-			if (prev == qp->s_tail_ack_queue &&
-			    cmp_psn(psn, e->lpsn) <= 0)
-				old_req = 0;
-			break;
-		}
-	}
+	e = find_prev_entry(qp, psn, &prev, &mra, &old_req);
+
 	switch (opcode) {
 	case OP(RDMA_READ_REQUEST): {
 		struct ib_reth *reth;
@@ -1940,7 +1930,7 @@ static noinline int rc_rcv_error(struct ib_other_headers *ohdr, void *data,
 		 * Resend the most recent ACK if this request is
 		 * after all the previous RDMA reads and atomics.
 		 */
-		if (i == qp->r_head_ack_queue) {
+		if (mra == qp->r_head_ack_queue) {
 			spin_unlock_irqrestore(&qp->s_lock, flags);
 			qp->r_nak_state = 0;
 			qp->r_ack_psn = qp->r_psn - 1;
@@ -1951,7 +1941,7 @@ static noinline int rc_rcv_error(struct ib_other_headers *ohdr, void *data,
 		 * Resend the RDMA read or atomic op which
 		 * ACKs this duplicate request.
 		 */
-		qp->s_tail_ack_queue = i;
+		qp->s_tail_ack_queue = mra;
 		break;
 	}
 	qp->s_ack_state = OP(ACKNOWLEDGE);
@@ -1966,17 +1956,6 @@ done:
 
 send_ack:
 	return 0;
-}
-
-static inline void update_ack_queue(struct rvt_qp *qp, unsigned n)
-{
-	unsigned next;
-
-	next = n + 1;
-	if (next > rvt_size_atomic(ib_to_rvt(qp->ibqp.device)))
-		next = 0;
-	qp->s_tail_ack_queue = next;
-	qp->s_ack_state = OP(ACKNOWLEDGE);
 }
 
 static void log_cca_event(struct hfi1_pportdata *ppd, u8 sl, u32 rlid,

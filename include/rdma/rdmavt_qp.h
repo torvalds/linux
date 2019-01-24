@@ -629,6 +629,16 @@ __be32 rvt_compute_aeth(struct rvt_qp *qp);
 void rvt_get_credit(struct rvt_qp *qp, u32 aeth);
 
 /**
+ * rvt_restart_sge - rewind the sge state for a wqe
+ * @ss: the sge state pointer
+ * @wqe: the wqe to rewind
+ * @len: the data length from the start of the wqe in bytes
+ *
+ * Returns the remaining data length.
+ */
+u32 rvt_restart_sge(struct rvt_sge_state *ss, struct rvt_swqe *wqe, u32 len);
+
+/**
  * @qp - the qp pair
  * @len - the length
  *
