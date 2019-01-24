@@ -3181,6 +3181,7 @@ static const struct file_operations fuse_direct_io_file_operations = {
 	.compat_ioctl	= fuse_file_compat_ioctl,
 	.poll		= fuse_file_poll,
 	.fallocate	= fuse_file_fallocate,
+	.copy_file_range = fuse_copy_file_range,
 };
 
 static const struct address_space_operations fuse_file_aops  = {
