@@ -493,10 +493,8 @@ CPU 에게 기대할 수 있는 최소한의 보장사항 몇가지가 있습니
      이 타입의 오퍼레이션은 단방향의 투과성 배리어처럼 동작합니다.  ACQUIRE
      오퍼레이션 뒤의 모든 메모리 오퍼레이션들이 ACQUIRE 오퍼레이션 후에
      일어난 것으로 시스템의 나머지 컴포넌트들에 보이게 될 것이 보장됩니다.
-     LOCK 오퍼레이션과 smp_load_acquire(), smp_cond_acquire() 오퍼레이션도
-     ACQUIRE 오퍼레이션에 포함됩니다.  smp_cond_acquire() 오퍼레이션은 컨트롤
-     의존성과 smp_rmb() 를 사용해서 ACQUIRE 의 의미적 요구사항(semantic)을
-     충족시킵니다.
+     LOCK 오퍼레이션과 smp_load_acquire(), smp_cond_load_acquire() 오퍼레이션도
+     ACQUIRE 오퍼레이션에 포함됩니다.
 
      ACQUIRE 오퍼레이션 앞의 메모리 오퍼레이션들은 ACQUIRE 오퍼레이션 완료 후에
      수행된 것처럼 보일 수 있습니다.
