@@ -94,12 +94,12 @@ hangcheck_action_to_str(const enum intel_engine_hangcheck_action a)
 #define I915_MAX_SUBSLICES 8
 
 #define instdone_slice_mask(dev_priv__) \
-	(IS_GEN7(dev_priv__) ? \
-	 1 : INTEL_INFO(dev_priv__)->sseu.slice_mask)
+	(IS_GEN(dev_priv__, 7) ? \
+	 1 : RUNTIME_INFO(dev_priv__)->sseu.slice_mask)
 
 #define instdone_subslice_mask(dev_priv__) \
-	(IS_GEN7(dev_priv__) ? \
-	 1 : INTEL_INFO(dev_priv__)->sseu.subslice_mask[0])
+	(IS_GEN(dev_priv__, 7) ? \
+	 1 : RUNTIME_INFO(dev_priv__)->sseu.subslice_mask[0])
 
 #define for_each_instdone_slice_subslice(dev_priv__, slice__, subslice__) \
 	for ((slice__) = 0, (subslice__) = 0; \
@@ -365,9 +365,6 @@ struct intel_engine_cs {
 	struct drm_i915_gem_object *default_state;
 	void *pinned_default_state;
 
-	unsigned long irq_posted;
-#define ENGINE_IRQ_BREADCRUMB 0
-
 	/* Rather than have every client wait upon all user interrupts,
 	 * with the herd waking after every interrupt and each doing the
 	 * heavyweight seqno dance, we delegate the task (of being the
@@ -501,68 +498,7 @@ struct intel_engine_cs {
 	 */
 	void		(*cancel_requests)(struct intel_engine_cs *engine);
 
-	/* Some chipsets are not quite as coherent as advertised and need
-	 * an expensive kick to force a true read of the up-to-date seqno.
-	 * However, the up-to-date seqno is not always required and the last
-	 * seen value is good enough. Note that the seqno will always be
-	 * monotonic, even if not coherent.
-	 */
-	void		(*irq_seqno_barrier)(struct intel_engine_cs *engine);
 	void		(*cleanup)(struct intel_engine_cs *engine);
-
-	/* GEN8 signal/wait table - never trust comments!
-	 *	  signal to	signal to    signal to   signal to      signal to
-	 *	    RCS		   VCS          BCS        VECS		 VCS2
-	 *      --------------------------------------------------------------------
-	 *  RCS | NOP (0x00) | VCS (0x08) | BCS (0x10) | VECS (0x18) | VCS2 (0x20) |
-	 *	|-------------------------------------------------------------------
-	 *  VCS | RCS (0x28) | NOP (0x30) | BCS (0x38) | VECS (0x40) | VCS2 (0x48) |
-	 *	|-------------------------------------------------------------------
-	 *  BCS | RCS (0x50) | VCS (0x58) | NOP (0x60) | VECS (0x68) | VCS2 (0x70) |
-	 *	|-------------------------------------------------------------------
-	 * VECS | RCS (0x78) | VCS (0x80) | BCS (0x88) |  NOP (0x90) | VCS2 (0x98) |
-	 *	|-------------------------------------------------------------------
-	 * VCS2 | RCS (0xa0) | VCS (0xa8) | BCS (0xb0) | VECS (0xb8) | NOP  (0xc0) |
-	 *	|-------------------------------------------------------------------
-	 *
-	 * Generalization:
-	 *  f(x, y) := (x->id * NUM_RINGS * seqno_size) + (seqno_size * y->id)
-	 *  ie. transpose of g(x, y)
-	 *
-	 *	 sync from	sync from    sync from    sync from	sync from
-	 *	    RCS		   VCS          BCS        VECS		 VCS2
-	 *      --------------------------------------------------------------------
-	 *  RCS | NOP (0x00) | VCS (0x28) | BCS (0x50) | VECS (0x78) | VCS2 (0xa0) |
-	 *	|-------------------------------------------------------------------
-	 *  VCS | RCS (0x08) | NOP (0x30) | BCS (0x58) | VECS (0x80) | VCS2 (0xa8) |
-	 *	|-------------------------------------------------------------------
-	 *  BCS | RCS (0x10) | VCS (0x38) | NOP (0x60) | VECS (0x88) | VCS2 (0xb0) |
-	 *	|-------------------------------------------------------------------
-	 * VECS | RCS (0x18) | VCS (0x40) | BCS (0x68) |  NOP (0x90) | VCS2 (0xb8) |
-	 *	|-------------------------------------------------------------------
-	 * VCS2 | RCS (0x20) | VCS (0x48) | BCS (0x70) | VECS (0x98) |  NOP (0xc0) |
-	 *	|-------------------------------------------------------------------
-	 *
-	 * Generalization:
-	 *  g(x, y) := (y->id * NUM_RINGS * seqno_size) + (seqno_size * x->id)
-	 *  ie. transpose of f(x, y)
-	 */
-	struct {
-#define GEN6_SEMAPHORE_LAST	VECS_HW
-#define GEN6_NUM_SEMAPHORES	(GEN6_SEMAPHORE_LAST + 1)
-#define GEN6_SEMAPHORES_MASK	GENMASK(GEN6_SEMAPHORE_LAST, 0)
-		struct {
-			/* our mbox written by others */
-			u32		wait[GEN6_NUM_SEMAPHORES];
-			/* mboxes this ring signals to */
-			i915_reg_t	signal[GEN6_NUM_SEMAPHORES];
-		} mbox;
-
-		/* AKA wait() */
-		int	(*sync_to)(struct i915_request *rq,
-				   struct i915_request *signal);
-		u32	*(*signal)(struct i915_request *rq, u32 *cs);
-	} semaphore;
 
 	struct intel_engine_execlists execlists;
 
@@ -808,7 +744,6 @@ void intel_legacy_submission_resume(struct drm_i915_private *dev_priv);
 
 int __must_check intel_ring_cacheline_align(struct i915_request *rq);
 
-int intel_ring_wait_for_space(struct intel_ring *ring, unsigned int bytes);
 u32 __must_check *intel_ring_begin(struct i915_request *rq, unsigned int n);
 
 static inline void intel_ring_advance(struct i915_request *rq, u32 *cs)
@@ -889,7 +824,7 @@ intel_ring_set_tail(struct intel_ring *ring, unsigned int tail)
 	return tail;
 }
 
-void intel_engine_init_global_seqno(struct intel_engine_cs *engine, u32 seqno);
+void intel_engine_write_global_seqno(struct intel_engine_cs *engine, u32 seqno);
 
 void intel_engine_setup_common(struct intel_engine_cs *engine);
 int intel_engine_init_common(struct intel_engine_cs *engine);
@@ -902,6 +837,8 @@ int intel_init_vebox_ring_buffer(struct intel_engine_cs *engine);
 
 int intel_engine_stop_cs(struct intel_engine_cs *engine);
 void intel_engine_cancel_stop_cs(struct intel_engine_cs *engine);
+
+void intel_engine_set_hwsp_writemask(struct intel_engine_cs *engine, u32 mask);
 
 u64 intel_engine_get_active_head(const struct intel_engine_cs *engine);
 u64 intel_engine_get_last_batch_head(const struct intel_engine_cs *engine);
@@ -946,15 +883,6 @@ static inline bool intel_engine_has_started(struct intel_engine_cs *engine,
 
 void intel_engine_get_instdone(struct intel_engine_cs *engine,
 			       struct intel_instdone *instdone);
-
-/*
- * Arbitrary size for largest possible 'add request' sequence. The code paths
- * are complex and variable. Empirical measurement shows that the worst case
- * is BDW at 192 bytes (6 + 6 + 36 dwords), then ILK at 136 bytes. However,
- * we need to allocate double the largest single packet within that emission
- * to account for tail wraparound (so 6 + 6 + 72 dwords for BDW).
- */
-#define MIN_SPACE_FOR_ADD_REQUEST 336
 
 static inline u32 intel_hws_seqno_address(struct intel_engine_cs *engine)
 {
@@ -1055,7 +983,7 @@ static inline u32 *gen8_emit_pipe_control(u32 *batch, u32 flags, u32 offset)
 }
 
 static inline u32 *
-gen8_emit_ggtt_write_rcs(u32 *cs, u32 value, u32 gtt_offset)
+gen8_emit_ggtt_write_rcs(u32 *cs, u32 value, u32 gtt_offset, u32 flags)
 {
 	/* We're using qword write, offset should be aligned to 8 bytes. */
 	GEM_BUG_ON(!IS_ALIGNED(gtt_offset, 8));
@@ -1065,8 +993,7 @@ gen8_emit_ggtt_write_rcs(u32 *cs, u32 value, u32 gtt_offset)
 	 * following the batch.
 	 */
 	*cs++ = GFX_OP_PIPE_CONTROL(6);
-	*cs++ = PIPE_CONTROL_GLOBAL_GTT_IVB | PIPE_CONTROL_CS_STALL |
-		PIPE_CONTROL_QW_WRITE;
+	*cs++ = flags | PIPE_CONTROL_QW_WRITE | PIPE_CONTROL_GLOBAL_GTT_IVB;
 	*cs++ = gtt_offset;
 	*cs++ = 0;
 	*cs++ = value;
@@ -1092,7 +1019,7 @@ gen8_emit_ggtt_write(u32 *cs, u32 value, u32 gtt_offset)
 	return cs;
 }
 
-void intel_engines_sanitize(struct drm_i915_private *i915);
+void intel_engines_sanitize(struct drm_i915_private *i915, bool force);
 
 bool intel_engine_is_idle(struct intel_engine_cs *engine);
 bool intel_engines_are_idle(struct drm_i915_private *dev_priv);

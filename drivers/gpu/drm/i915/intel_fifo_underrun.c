@@ -260,9 +260,9 @@ static bool __intel_set_cpu_fifo_underrun_reporting(struct drm_device *dev,
 
 	if (HAS_GMCH_DISPLAY(dev_priv))
 		i9xx_set_fifo_underrun_reporting(dev, pipe, enable, old);
-	else if (IS_GEN5(dev_priv) || IS_GEN6(dev_priv))
+	else if (IS_GEN_RANGE(dev_priv, 5, 6))
 		ironlake_set_fifo_underrun_reporting(dev, pipe, enable);
-	else if (IS_GEN7(dev_priv))
+	else if (IS_GEN(dev_priv, 7))
 		ivybridge_set_fifo_underrun_reporting(dev, pipe, enable, old);
 	else if (INTEL_GEN(dev_priv) >= 8)
 		broadwell_set_fifo_underrun_reporting(dev, pipe, enable);
@@ -423,7 +423,7 @@ void intel_check_cpu_fifo_underruns(struct drm_i915_private *dev_priv)
 
 		if (HAS_GMCH_DISPLAY(dev_priv))
 			i9xx_check_fifo_underruns(crtc);
-		else if (IS_GEN7(dev_priv))
+		else if (IS_GEN(dev_priv, 7))
 			ivybridge_check_fifo_underruns(crtc);
 	}
 

@@ -148,10 +148,10 @@ int intel_gvt_init_vgpu_types(struct intel_gvt *gvt)
 		gvt->types[i].avail_instance = min(low_avail / vgpu_types[i].low_mm,
 						   high_avail / vgpu_types[i].high_mm);
 
-		if (IS_GEN8(gvt->dev_priv))
+		if (IS_GEN(gvt->dev_priv, 8))
 			sprintf(gvt->types[i].name, "GVTg_V4_%s",
 						vgpu_types[i].name);
-		else if (IS_GEN9(gvt->dev_priv))
+		else if (IS_GEN(gvt->dev_priv, 9))
 			sprintf(gvt->types[i].name, "GVTg_V5_%s",
 						vgpu_types[i].name);
 

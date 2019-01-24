@@ -103,52 +103,87 @@ static u64 hws_address(const struct i915_vma *hws,
 	return hws->node.start + offset_in_page(sizeof(u32)*rq->fence.context);
 }
 
-static int emit_recurse_batch(struct hang *h,
-			      struct i915_request *rq)
+static int move_to_active(struct i915_vma *vma,
+			  struct i915_request *rq,
+			  unsigned int flags)
 {
-	struct drm_i915_private *i915 = h->i915;
-	struct i915_address_space *vm =
-		rq->gem_context->ppgtt ?
-		&rq->gem_context->ppgtt->vm :
-		&i915->ggtt.vm;
-	struct i915_vma *hws, *vma;
-	unsigned int flags;
-	u32 *batch;
 	int err;
 
-	vma = i915_vma_instance(h->obj, vm, NULL);
-	if (IS_ERR(vma))
-		return PTR_ERR(vma);
-
-	hws = i915_vma_instance(h->hws, vm, NULL);
-	if (IS_ERR(hws))
-		return PTR_ERR(hws);
-
-	err = i915_vma_pin(vma, 0, 0, PIN_USER);
+	err = i915_vma_move_to_active(vma, rq, flags);
 	if (err)
 		return err;
-
-	err = i915_vma_pin(hws, 0, 0, PIN_USER);
-	if (err)
-		goto unpin_vma;
-
-	err = i915_vma_move_to_active(vma, rq, 0);
-	if (err)
-		goto unpin_hws;
 
 	if (!i915_gem_object_has_active_reference(vma->obj)) {
 		i915_gem_object_get(vma->obj);
 		i915_gem_object_set_active_reference(vma->obj);
 	}
 
-	err = i915_vma_move_to_active(hws, rq, 0);
-	if (err)
-		goto unpin_hws;
+	return 0;
+}
 
-	if (!i915_gem_object_has_active_reference(hws->obj)) {
-		i915_gem_object_get(hws->obj);
-		i915_gem_object_set_active_reference(hws->obj);
+static struct i915_request *
+hang_create_request(struct hang *h, struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *i915 = h->i915;
+	struct i915_address_space *vm =
+		h->ctx->ppgtt ? &h->ctx->ppgtt->vm : &i915->ggtt.vm;
+	struct i915_request *rq = NULL;
+	struct i915_vma *hws, *vma;
+	unsigned int flags;
+	u32 *batch;
+	int err;
+
+	if (i915_gem_object_is_active(h->obj)) {
+		struct drm_i915_gem_object *obj;
+		void *vaddr;
+
+		obj = i915_gem_object_create_internal(h->i915, PAGE_SIZE);
+		if (IS_ERR(obj))
+			return ERR_CAST(obj);
+
+		vaddr = i915_gem_object_pin_map(obj,
+						i915_coherent_map_type(h->i915));
+		if (IS_ERR(vaddr)) {
+			i915_gem_object_put(obj);
+			return ERR_CAST(vaddr);
+		}
+
+		i915_gem_object_unpin_map(h->obj);
+		i915_gem_object_put(h->obj);
+
+		h->obj = obj;
+		h->batch = vaddr;
 	}
+
+	vma = i915_vma_instance(h->obj, vm, NULL);
+	if (IS_ERR(vma))
+		return ERR_CAST(vma);
+
+	hws = i915_vma_instance(h->hws, vm, NULL);
+	if (IS_ERR(hws))
+		return ERR_CAST(hws);
+
+	err = i915_vma_pin(vma, 0, 0, PIN_USER);
+	if (err)
+		return ERR_PTR(err);
+
+	err = i915_vma_pin(hws, 0, 0, PIN_USER);
+	if (err)
+		goto unpin_vma;
+
+	rq = i915_request_alloc(engine, h->ctx);
+	if (IS_ERR(rq)) {
+		err = PTR_ERR(rq);
+		goto unpin_hws;
+	}
+
+	err = move_to_active(vma, rq, 0);
+	if (err)
+		goto cancel_rq;
+
+	err = move_to_active(hws, rq, 0);
+	if (err)
+		goto cancel_rq;
 
 	batch = h->batch;
 	if (INTEL_GEN(i915) >= 8) {
@@ -213,52 +248,16 @@ static int emit_recurse_batch(struct hang *h,
 
 	err = rq->engine->emit_bb_start(rq, vma->node.start, PAGE_SIZE, flags);
 
+cancel_rq:
+	if (err) {
+		i915_request_skip(rq, err);
+		i915_request_add(rq);
+	}
 unpin_hws:
 	i915_vma_unpin(hws);
 unpin_vma:
 	i915_vma_unpin(vma);
-	return err;
-}
-
-static struct i915_request *
-hang_create_request(struct hang *h, struct intel_engine_cs *engine)
-{
-	struct i915_request *rq;
-	int err;
-
-	if (i915_gem_object_is_active(h->obj)) {
-		struct drm_i915_gem_object *obj;
-		void *vaddr;
-
-		obj = i915_gem_object_create_internal(h->i915, PAGE_SIZE);
-		if (IS_ERR(obj))
-			return ERR_CAST(obj);
-
-		vaddr = i915_gem_object_pin_map(obj,
-						i915_coherent_map_type(h->i915));
-		if (IS_ERR(vaddr)) {
-			i915_gem_object_put(obj);
-			return ERR_CAST(vaddr);
-		}
-
-		i915_gem_object_unpin_map(h->obj);
-		i915_gem_object_put(h->obj);
-
-		h->obj = obj;
-		h->batch = vaddr;
-	}
-
-	rq = i915_request_alloc(engine, h->ctx);
-	if (IS_ERR(rq))
-		return rq;
-
-	err = emit_recurse_batch(h, rq);
-	if (err) {
-		i915_request_add(rq);
-		return ERR_PTR(err);
-	}
-
-	return rq;
+	return err ? ERR_PTR(err) : rq;
 }
 
 static u32 hws_seqno(const struct hang *h, const struct i915_request *rq)
@@ -384,6 +383,30 @@ static int igt_global_reset(void *arg)
 		err = -EIO;
 
 	return err;
+}
+
+static int igt_wedged_reset(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+
+	/* Check that we can recover a wedged device with a GPU reset */
+
+	igt_global_reset_lock(i915);
+	mutex_lock(&i915->drm.struct_mutex);
+	intel_runtime_pm_get(i915);
+
+	i915_gem_set_wedged(i915);
+	GEM_BUG_ON(!i915_terminally_wedged(&i915->gpu_error));
+
+	set_bit(I915_RESET_HANDOFF, &i915->gpu_error.flags);
+	i915_reset(i915, ALL_ENGINES, NULL);
+	GEM_BUG_ON(test_bit(I915_RESET_HANDOFF, &i915->gpu_error.flags));
+
+	intel_runtime_pm_put(i915);
+	mutex_unlock(&i915->drm.struct_mutex);
+	igt_global_reset_unlock(i915);
+
+	return i915_terminally_wedged(&i915->gpu_error) ? -EIO : 0;
 }
 
 static bool wait_for_idle(struct intel_engine_cs *engine)
@@ -1449,10 +1472,182 @@ err_unlock:
 	return err;
 }
 
+static void __preempt_begin(void)
+{
+	preempt_disable();
+}
+
+static void __preempt_end(void)
+{
+	preempt_enable();
+}
+
+static void __softirq_begin(void)
+{
+	local_bh_disable();
+}
+
+static void __softirq_end(void)
+{
+	local_bh_enable();
+}
+
+static void __hardirq_begin(void)
+{
+	local_irq_disable();
+}
+
+static void __hardirq_end(void)
+{
+	local_irq_enable();
+}
+
+struct atomic_section {
+	const char *name;
+	void (*critical_section_begin)(void);
+	void (*critical_section_end)(void);
+};
+
+static int __igt_atomic_reset_engine(struct intel_engine_cs *engine,
+				     const struct atomic_section *p,
+				     const char *mode)
+{
+	struct tasklet_struct * const t = &engine->execlists.tasklet;
+	int err;
+
+	GEM_TRACE("i915_reset_engine(%s:%s) under %s\n",
+		  engine->name, mode, p->name);
+
+	tasklet_disable_nosync(t);
+	p->critical_section_begin();
+
+	err = i915_reset_engine(engine, NULL);
+
+	p->critical_section_end();
+	tasklet_enable(t);
+
+	if (err)
+		pr_err("i915_reset_engine(%s:%s) failed under %s\n",
+		       engine->name, mode, p->name);
+
+	return err;
+}
+
+static int igt_atomic_reset_engine(struct intel_engine_cs *engine,
+				   const struct atomic_section *p)
+{
+	struct drm_i915_private *i915 = engine->i915;
+	struct i915_request *rq;
+	struct hang h;
+	int err;
+
+	err = __igt_atomic_reset_engine(engine, p, "idle");
+	if (err)
+		return err;
+
+	err = hang_init(&h, i915);
+	if (err)
+		return err;
+
+	rq = hang_create_request(&h, engine);
+	if (IS_ERR(rq)) {
+		err = PTR_ERR(rq);
+		goto out;
+	}
+
+	i915_request_get(rq);
+	i915_request_add(rq);
+
+	if (wait_until_running(&h, rq)) {
+		err = __igt_atomic_reset_engine(engine, p, "active");
+	} else {
+		pr_err("%s(%s): Failed to start request %llx, at %x\n",
+		       __func__, engine->name,
+		       rq->fence.seqno, hws_seqno(&h, rq));
+		err = -EIO;
+	}
+
+	if (err == 0) {
+		struct igt_wedge_me w;
+
+		igt_wedge_on_timeout(&w, i915, HZ / 20 /* 50ms timeout*/)
+			i915_request_wait(rq,
+					  I915_WAIT_LOCKED,
+					  MAX_SCHEDULE_TIMEOUT);
+		if (i915_terminally_wedged(&i915->gpu_error))
+			err = -EIO;
+	}
+
+	i915_request_put(rq);
+out:
+	hang_fini(&h);
+	return err;
+}
+
+static void force_reset(struct drm_i915_private *i915)
+{
+	i915_gem_set_wedged(i915);
+	set_bit(I915_RESET_HANDOFF, &i915->gpu_error.flags);
+	i915_reset(i915, 0, NULL);
+}
+
+static int igt_atomic_reset(void *arg)
+{
+	static const struct atomic_section phases[] = {
+		{ "preempt", __preempt_begin, __preempt_end },
+		{ "softirq", __softirq_begin, __softirq_end },
+		{ "hardirq", __hardirq_begin, __hardirq_end },
+		{ }
+	};
+	struct drm_i915_private *i915 = arg;
+	int err = 0;
+
+	/* Check that the resets are usable from atomic context */
+
+	if (USES_GUC_SUBMISSION(i915))
+		return 0; /* guc is dead; long live the guc */
+
+	igt_global_reset_lock(i915);
+	mutex_lock(&i915->drm.struct_mutex);
+	intel_runtime_pm_get(i915);
+
+	/* Flush any requests before we get started and check basics */
+	force_reset(i915);
+	if (i915_terminally_wedged(&i915->gpu_error))
+		goto unlock;
+
+	if (intel_has_reset_engine(i915)) {
+		struct intel_engine_cs *engine;
+		enum intel_engine_id id;
+
+		for_each_engine(engine, i915, id) {
+			const typeof(*phases) *p;
+
+			for (p = phases; p->name; p++) {
+				err = igt_atomic_reset_engine(engine, p);
+				if (err)
+					goto out;
+			}
+		}
+	}
+
+out:
+	/* As we poke around the guts, do a full reset before continuing. */
+	force_reset(i915);
+
+unlock:
+	intel_runtime_pm_put(i915);
+	mutex_unlock(&i915->drm.struct_mutex);
+	igt_global_reset_unlock(i915);
+
+	return err;
+}
+
 int intel_hangcheck_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(igt_global_reset), /* attempt to recover GPU first */
+		SUBTEST(igt_wedged_reset),
 		SUBTEST(igt_hang_sanitycheck),
 		SUBTEST(igt_reset_idle_engine),
 		SUBTEST(igt_reset_active_engine),
@@ -1463,6 +1658,7 @@ int intel_hangcheck_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(igt_reset_evict_ppgtt),
 		SUBTEST(igt_reset_evict_fence),
 		SUBTEST(igt_handle_error),
+		SUBTEST(igt_atomic_reset),
 	};
 	bool saved_hangcheck;
 	int err;

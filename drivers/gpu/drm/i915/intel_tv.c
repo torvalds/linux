@@ -30,7 +30,6 @@
  * Integrated TV-out support for the 915GM and 945GM.
  */
 
-#include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>

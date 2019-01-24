@@ -26,7 +26,6 @@
  *
  */
 
-#include <drm/drmP.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 
@@ -102,7 +101,7 @@ static int i915_adjust_stolen(struct drm_i915_private *dev_priv,
 		resource_size_t ggtt_start;
 
 		ggtt_start = I915_READ(PGTBL_CTL);
-		if (IS_GEN4(dev_priv))
+		if (IS_GEN(dev_priv, 4))
 			ggtt_start = (ggtt_start & PGTBL_ADDRESS_LO_MASK) |
 				     (ggtt_start & PGTBL_ADDRESS_HI_MASK) << 28;
 		else
@@ -156,7 +155,7 @@ static int i915_adjust_stolen(struct drm_i915_private *dev_priv,
 		 * GEN3 firmware likes to smash pci bridges into the stolen
 		 * range. Apparently this works.
 		 */
-		if (r == NULL && !IS_GEN3(dev_priv)) {
+		if (r == NULL && !IS_GEN(dev_priv, 3)) {
 			DRM_ERROR("conflict detected with stolen region: %pR\n",
 				  dsm);
 
@@ -194,7 +193,8 @@ static void g4x_get_stolen_reserved(struct drm_i915_private *dev_priv,
 	 * Whether ILK really reuses the ELK register for this is unclear.
 	 * Let's see if we catch anyone with this supposedly enabled on ILK.
 	 */
-	WARN(IS_GEN5(dev_priv), "ILK stolen reserved found? 0x%08x\n", reg_val);
+	WARN(IS_GEN(dev_priv, 5), "ILK stolen reserved found? 0x%08x\n",
+	     reg_val);
 
 	if (!(reg_val & G4X_STOLEN_RESERVED_ADDR2_MASK))
 		return;

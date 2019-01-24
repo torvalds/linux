@@ -232,8 +232,8 @@ static void sii902x_bridge_enable(struct drm_bridge *bridge)
 }
 
 static void sii902x_bridge_mode_set(struct drm_bridge *bridge,
-				    struct drm_display_mode *mode,
-				    struct drm_display_mode *adj)
+				    const struct drm_display_mode *mode,
+				    const struct drm_display_mode *adj)
 {
 	struct sii902x *sii902x = bridge_to_sii902x(bridge);
 	struct regmap *regmap = sii902x->regmap;

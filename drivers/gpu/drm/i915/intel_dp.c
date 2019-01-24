@@ -32,7 +32,6 @@
 #include <linux/notifier.h>
 #include <linux/reboot.h>
 #include <asm/byteorder.h>
-#include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
@@ -304,9 +303,11 @@ static int cnl_max_source_rate(struct intel_dp *intel_dp)
 static int icl_max_source_rate(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
 	enum port port = dig_port->base.port;
 
-	if (port == PORT_B)
+	if (intel_port_is_combophy(dev_priv, port) &&
+	    !intel_dp_is_edp(intel_dp))
 		return 540000;
 
 	return 810000;
@@ -344,7 +345,7 @@ intel_dp_set_source_rates(struct intel_dp *intel_dp)
 	if (INTEL_GEN(dev_priv) >= 10) {
 		source_rates = cnl_rates;
 		size = ARRAY_SIZE(cnl_rates);
-		if (IS_GEN10(dev_priv))
+		if (IS_GEN(dev_priv, 10))
 			max_rate = cnl_max_source_rate(intel_dp);
 		else
 			max_rate = icl_max_source_rate(intel_dp);
@@ -1128,7 +1129,7 @@ static uint32_t g4x_get_aux_send_ctl(struct intel_dp *intel_dp,
 			to_i915(intel_dig_port->base.base.dev);
 	uint32_t precharge, timeout;
 
-	if (IS_GEN6(dev_priv))
+	if (IS_GEN(dev_priv, 6))
 		precharge = 3;
 	else
 		precharge = 5;
@@ -2055,7 +2056,8 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 							&limits);
 
 	/* enable compression if the mode doesn't fit available BW */
-	if (ret) {
+	DRM_DEBUG_KMS("Force DSC en = %d\n", intel_dp->force_dsc_en);
+	if (ret || intel_dp->force_dsc_en) {
 		ret = intel_dp_dsc_compute_config(intel_dp, pipe_config,
 						  conn_state, &limits);
 		if (ret < 0)
@@ -2590,7 +2592,7 @@ static void edp_panel_on(struct intel_dp *intel_dp)
 
 	pp_ctrl_reg = _pp_ctrl_reg(intel_dp);
 	pp = ironlake_get_pp_control(intel_dp);
-	if (IS_GEN5(dev_priv)) {
+	if (IS_GEN(dev_priv, 5)) {
 		/* ILK workaround: disable reset around power sequence */
 		pp &= ~PANEL_POWER_RESET;
 		I915_WRITE(pp_ctrl_reg, pp);
@@ -2598,7 +2600,7 @@ static void edp_panel_on(struct intel_dp *intel_dp)
 	}
 
 	pp |= PANEL_POWER_ON;
-	if (!IS_GEN5(dev_priv))
+	if (!IS_GEN(dev_priv, 5))
 		pp |= PANEL_POWER_RESET;
 
 	I915_WRITE(pp_ctrl_reg, pp);
@@ -2607,7 +2609,7 @@ static void edp_panel_on(struct intel_dp *intel_dp)
 	wait_panel_on(intel_dp);
 	intel_dp->last_power_on = jiffies;
 
-	if (IS_GEN5(dev_priv)) {
+	if (IS_GEN(dev_priv, 5)) {
 		pp |= PANEL_POWER_RESET; /* restore panel reset bit */
 		I915_WRITE(pp_ctrl_reg, pp);
 		POSTING_READ(pp_ctrl_reg);
@@ -2836,7 +2838,7 @@ static void ironlake_edp_pll_on(struct intel_dp *intel_dp,
 	 * 1. Wait for the start of vertical blank on the enabled pipe going to FDI
 	 * 2. Program DP PLL enable
 	 */
-	if (IS_GEN5(dev_priv))
+	if (IS_GEN(dev_priv, 5))
 		intel_wait_for_vblank_if_active(dev_priv, !crtc->pipe);
 
 	intel_dp->DP |= DP_PLL_ENABLE;
@@ -3854,7 +3856,7 @@ intel_dp_set_signal_levels(struct intel_dp *intel_dp)
 	} else if (IS_IVYBRIDGE(dev_priv) && port == PORT_A) {
 		signal_levels = ivb_cpu_edp_signal_levels(train_set);
 		mask = EDP_LINK_TRAIN_VOL_EMP_MASK_IVB;
-	} else if (IS_GEN6(dev_priv) && port == PORT_A) {
+	} else if (IS_GEN(dev_priv, 6) && port == PORT_A) {
 		signal_levels = snb_cpu_edp_signal_levels(train_set);
 		mask = EDP_LINK_TRAIN_VOL_EMP_MASK_SNB;
 	} else {
@@ -3996,12 +3998,50 @@ intel_dp_link_down(struct intel_encoder *encoder,
 	}
 }
 
+static void
+intel_dp_extended_receiver_capabilities(struct intel_dp *intel_dp)
+{
+	u8 dpcd_ext[6];
+
+	/*
+	 * Prior to DP1.3 the bit represented by
+	 * DP_EXTENDED_RECEIVER_CAP_FIELD_PRESENT was reserved.
+	 * if it is set DP_DPCD_REV at 0000h could be at a value less than
+	 * the true capability of the panel. The only way to check is to
+	 * then compare 0000h and 2200h.
+	 */
+	if (!(intel_dp->dpcd[DP_TRAINING_AUX_RD_INTERVAL] &
+	      DP_EXTENDED_RECEIVER_CAP_FIELD_PRESENT))
+		return;
+
+	if (drm_dp_dpcd_read(&intel_dp->aux, DP_DP13_DPCD_REV,
+			     &dpcd_ext, sizeof(dpcd_ext)) != sizeof(dpcd_ext)) {
+		DRM_ERROR("DPCD failed read at extended capabilities\n");
+		return;
+	}
+
+	if (intel_dp->dpcd[DP_DPCD_REV] > dpcd_ext[DP_DPCD_REV]) {
+		DRM_DEBUG_KMS("DPCD extended DPCD rev less than base DPCD rev\n");
+		return;
+	}
+
+	if (!memcmp(intel_dp->dpcd, dpcd_ext, sizeof(dpcd_ext)))
+		return;
+
+	DRM_DEBUG_KMS("Base DPCD: %*ph\n",
+		      (int)sizeof(intel_dp->dpcd), intel_dp->dpcd);
+
+	memcpy(intel_dp->dpcd, dpcd_ext, sizeof(dpcd_ext));
+}
+
 bool
 intel_dp_read_dpcd(struct intel_dp *intel_dp)
 {
 	if (drm_dp_dpcd_read(&intel_dp->aux, 0x000, intel_dp->dpcd,
 			     sizeof(intel_dp->dpcd)) < 0)
 		return false; /* aux transfer failed */
+
+	intel_dp_extended_receiver_capabilities(intel_dp);
 
 	DRM_DEBUG_KMS("DPCD: %*ph\n", (int) sizeof(intel_dp->dpcd), intel_dp->dpcd);
 
@@ -5033,28 +5073,38 @@ static bool icl_combo_port_connected(struct drm_i915_private *dev_priv,
 	return I915_READ(SDEISR) & SDE_DDI_HOTPLUG_ICP(port);
 }
 
+static const char *tc_type_name(enum tc_port_type type)
+{
+	static const char * const names[] = {
+		[TC_PORT_UNKNOWN] = "unknown",
+		[TC_PORT_LEGACY] = "legacy",
+		[TC_PORT_TYPEC] = "typec",
+		[TC_PORT_TBT] = "tbt",
+	};
+
+	if (WARN_ON(type >= ARRAY_SIZE(names)))
+		type = TC_PORT_UNKNOWN;
+
+	return names[type];
+}
+
 static void icl_update_tc_port_type(struct drm_i915_private *dev_priv,
 				    struct intel_digital_port *intel_dig_port,
 				    bool is_legacy, bool is_typec, bool is_tbt)
 {
 	enum port port = intel_dig_port->base.port;
 	enum tc_port_type old_type = intel_dig_port->tc_type;
-	const char *type_str;
 
 	WARN_ON(is_legacy + is_typec + is_tbt != 1);
 
-	if (is_legacy) {
+	if (is_legacy)
 		intel_dig_port->tc_type = TC_PORT_LEGACY;
-		type_str = "legacy";
-	} else if (is_typec) {
+	else if (is_typec)
 		intel_dig_port->tc_type = TC_PORT_TYPEC;
-		type_str = "typec";
-	} else if (is_tbt) {
+	else if (is_tbt)
 		intel_dig_port->tc_type = TC_PORT_TBT;
-		type_str = "tbt";
-	} else {
+	else
 		return;
-	}
 
 	/* Types are not supposed to be changed at runtime. */
 	WARN_ON(old_type != TC_PORT_UNKNOWN &&
@@ -5062,11 +5112,8 @@ static void icl_update_tc_port_type(struct drm_i915_private *dev_priv,
 
 	if (old_type != intel_dig_port->tc_type)
 		DRM_DEBUG_KMS("Port %c has TC type %s\n", port_name(port),
-			      type_str);
+			      tc_type_name(intel_dig_port->tc_type));
 }
-
-static void icl_tc_phy_disconnect(struct drm_i915_private *dev_priv,
-				  struct intel_digital_port *dig_port);
 
 /*
  * This function implements the first part of the Connect Flow described by our
@@ -5102,6 +5149,7 @@ static bool icl_tc_phy_connect(struct drm_i915_private *dev_priv,
 	val = I915_READ(PORT_TX_DFLEXDPPMS);
 	if (!(val & DP_PHY_MODE_STATUS_COMPLETED(tc_port))) {
 		DRM_DEBUG_KMS("DP PHY for TC port %d not ready\n", tc_port);
+		WARN_ON(dig_port->tc_legacy_port);
 		return false;
 	}
 
@@ -5133,8 +5181,8 @@ static bool icl_tc_phy_connect(struct drm_i915_private *dev_priv,
  * See the comment at the connect function. This implements the Disconnect
  * Flow.
  */
-static void icl_tc_phy_disconnect(struct drm_i915_private *dev_priv,
-				  struct intel_digital_port *dig_port)
+void icl_tc_phy_disconnect(struct drm_i915_private *dev_priv,
+			   struct intel_digital_port *dig_port)
 {
 	enum tc_port tc_port = intel_port_to_tc(dev_priv, dig_port->base.port);
 
@@ -5153,6 +5201,10 @@ static void icl_tc_phy_disconnect(struct drm_i915_private *dev_priv,
 		val &= ~DP_PHY_MODE_STATUS_NOT_SAFE(tc_port);
 		I915_WRITE(PORT_TX_DFLEXDPCSSS, val);
 	}
+
+	DRM_DEBUG_KMS("Port %c TC type %s disconnected\n",
+		      port_name(dig_port->base.port),
+		      tc_type_name(dig_port->tc_type));
 
 	dig_port->tc_type = TC_PORT_UNKNOWN;
 }
@@ -5175,7 +5227,14 @@ static bool icl_tc_port_connected(struct drm_i915_private *dev_priv,
 	bool is_legacy, is_typec, is_tbt;
 	u32 dpsp;
 
-	is_legacy = I915_READ(SDEISR) & SDE_TC_HOTPLUG_ICP(tc_port);
+	/*
+	 * WARN if we got a legacy port HPD, but VBT didn't mark the port as
+	 * legacy. Treat the port as legacy from now on.
+	 */
+	if (WARN_ON(!intel_dig_port->tc_legacy_port &&
+		    I915_READ(SDEISR) & SDE_TC_HOTPLUG_ICP(tc_port)))
+		intel_dig_port->tc_legacy_port = true;
+	is_legacy = intel_dig_port->tc_legacy_port;
 
 	/*
 	 * The spec says we shouldn't be using the ISR bits for detecting
@@ -5187,6 +5246,7 @@ static bool icl_tc_port_connected(struct drm_i915_private *dev_priv,
 
 	if (!is_legacy && !is_typec && !is_tbt) {
 		icl_tc_phy_disconnect(dev_priv, intel_dig_port);
+
 		return false;
 	}
 
@@ -5238,17 +5298,17 @@ bool intel_digital_port_connected(struct intel_encoder *encoder)
 
 	if (INTEL_GEN(dev_priv) >= 11)
 		return icl_digital_port_connected(encoder);
-	else if (IS_GEN10(dev_priv) || IS_GEN9_BC(dev_priv))
+	else if (IS_GEN(dev_priv, 10) || IS_GEN9_BC(dev_priv))
 		return spt_digital_port_connected(encoder);
 	else if (IS_GEN9_LP(dev_priv))
 		return bxt_digital_port_connected(encoder);
-	else if (IS_GEN8(dev_priv))
+	else if (IS_GEN(dev_priv, 8))
 		return bdw_digital_port_connected(encoder);
-	else if (IS_GEN7(dev_priv))
+	else if (IS_GEN(dev_priv, 7))
 		return ivb_digital_port_connected(encoder);
-	else if (IS_GEN6(dev_priv))
+	else if (IS_GEN(dev_priv, 6))
 		return snb_digital_port_connected(encoder);
-	else if (IS_GEN5(dev_priv))
+	else if (IS_GEN(dev_priv, 5))
 		return ilk_digital_port_connected(encoder);
 
 	MISSING_CASE(INTEL_GEN(dev_priv));
@@ -5495,7 +5555,7 @@ intel_dp_connector_unregister(struct drm_connector *connector)
 	intel_connector_unregister(connector);
 }
 
-void intel_dp_encoder_destroy(struct drm_encoder *encoder)
+void intel_dp_encoder_flush_work(struct drm_encoder *encoder)
 {
 	struct intel_digital_port *intel_dig_port = enc_to_dig_port(encoder);
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
@@ -5518,9 +5578,14 @@ void intel_dp_encoder_destroy(struct drm_encoder *encoder)
 	}
 
 	intel_dp_aux_fini(intel_dp);
+}
+
+static void intel_dp_encoder_destroy(struct drm_encoder *encoder)
+{
+	intel_dp_encoder_flush_work(encoder);
 
 	drm_encoder_cleanup(encoder);
-	kfree(intel_dig_port);
+	kfree(enc_to_dig_port(encoder));
 }
 
 void intel_dp_encoder_suspend(struct intel_encoder *intel_encoder)
@@ -5583,7 +5648,12 @@ int intel_dp_hdcp_write_an_aksv(struct intel_digital_port *intel_dig_port,
 	}
 
 	reply = (rxbuf[0] >> 4) & DP_AUX_NATIVE_REPLY_MASK;
-	return reply == DP_AUX_NATIVE_REPLY_ACK ? 0 : -EIO;
+	if (reply != DP_AUX_NATIVE_REPLY_ACK) {
+		DRM_DEBUG_KMS("Aksv write: no DP_AUX_NATIVE_REPLY_ACK %x\n",
+			      reply);
+		return -EIO;
+	}
+	return 0;
 }
 
 static int intel_dp_hdcp_read_bksv(struct intel_digital_port *intel_dig_port,
@@ -6366,8 +6436,8 @@ void intel_edp_drrs_enable(struct intel_dp *intel_dp,
 	}
 
 	mutex_lock(&dev_priv->drrs.mutex);
-	if (WARN_ON(dev_priv->drrs.dp)) {
-		DRM_ERROR("DRRS already enabled\n");
+	if (dev_priv->drrs.dp) {
+		DRM_DEBUG_KMS("DRRS already enabled\n");
 		goto unlock;
 	}
 

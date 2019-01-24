@@ -528,7 +528,7 @@ check_for_unclaimed_mmio(struct drm_i915_private *dev_priv)
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		ret |= vlv_check_for_unclaimed_mmio(dev_priv);
 
-	if (IS_GEN6(dev_priv) || IS_GEN7(dev_priv))
+	if (IS_GEN_RANGE(dev_priv, 6, 7))
 		ret |= gen6_check_for_fifo_debug(dev_priv);
 
 	return ret;
@@ -556,7 +556,7 @@ static void __intel_uncore_early_sanitize(struct drm_i915_private *dev_priv,
 		dev_priv->uncore.funcs.force_wake_get(dev_priv,
 						      restore_forcewake);
 
-		if (IS_GEN6(dev_priv) || IS_GEN7(dev_priv))
+		if (IS_GEN_RANGE(dev_priv, 6, 7))
 			dev_priv->uncore.fifo_count =
 				fifo_free_entries(dev_priv);
 		spin_unlock_irq(&dev_priv->uncore.lock);
@@ -1398,7 +1398,7 @@ static void intel_uncore_fw_domains_init(struct drm_i915_private *dev_priv)
 	if (INTEL_GEN(dev_priv) <= 5 || intel_vgpu_active(dev_priv))
 		return;
 
-	if (IS_GEN6(dev_priv)) {
+	if (IS_GEN(dev_priv, 6)) {
 		dev_priv->uncore.fw_reset = 0;
 		dev_priv->uncore.fw_set = FORCEWAKE_KERNEL;
 		dev_priv->uncore.fw_clear = 0;
@@ -1437,7 +1437,7 @@ static void intel_uncore_fw_domains_init(struct drm_i915_private *dev_priv)
 				       FORCEWAKE_MEDIA_VEBOX_GEN11(i),
 				       FORCEWAKE_ACK_MEDIA_VEBOX_GEN11(i));
 		}
-	} else if (IS_GEN10(dev_priv) || IS_GEN9(dev_priv)) {
+	} else if (IS_GEN_RANGE(dev_priv, 9, 10)) {
 		dev_priv->uncore.funcs.force_wake_get =
 			fw_domains_get_with_fallback;
 		dev_priv->uncore.funcs.force_wake_put = fw_domains_put;
@@ -1503,7 +1503,7 @@ static void intel_uncore_fw_domains_init(struct drm_i915_private *dev_priv)
 			fw_domain_init(dev_priv, FW_DOMAIN_ID_RENDER,
 				       FORCEWAKE, FORCEWAKE_ACK);
 		}
-	} else if (IS_GEN6(dev_priv)) {
+	} else if (IS_GEN(dev_priv, 6)) {
 		dev_priv->uncore.funcs.force_wake_get =
 			fw_domains_get_with_thread_status;
 		dev_priv->uncore.funcs.force_wake_put = fw_domains_put;
@@ -1567,13 +1567,13 @@ void intel_uncore_init(struct drm_i915_private *dev_priv)
 	dev_priv->uncore.pmic_bus_access_nb.notifier_call =
 		i915_pmic_bus_access_notifier;
 
-	if (IS_GEN(dev_priv, 2, 4) || intel_vgpu_active(dev_priv)) {
+	if (IS_GEN_RANGE(dev_priv, 2, 4) || intel_vgpu_active(dev_priv)) {
 		ASSIGN_WRITE_MMIO_VFUNCS(dev_priv, gen2);
 		ASSIGN_READ_MMIO_VFUNCS(dev_priv, gen2);
-	} else if (IS_GEN5(dev_priv)) {
+	} else if (IS_GEN(dev_priv, 5)) {
 		ASSIGN_WRITE_MMIO_VFUNCS(dev_priv, gen5);
 		ASSIGN_READ_MMIO_VFUNCS(dev_priv, gen5);
-	} else if (IS_GEN(dev_priv, 6, 7)) {
+	} else if (IS_GEN_RANGE(dev_priv, 6, 7)) {
 		ASSIGN_WRITE_MMIO_VFUNCS(dev_priv, gen6);
 
 		if (IS_VALLEYVIEW(dev_priv)) {
@@ -1582,7 +1582,7 @@ void intel_uncore_init(struct drm_i915_private *dev_priv)
 		} else {
 			ASSIGN_READ_MMIO_VFUNCS(dev_priv, gen6);
 		}
-	} else if (IS_GEN8(dev_priv)) {
+	} else if (IS_GEN(dev_priv, 8)) {
 		if (IS_CHERRYVIEW(dev_priv)) {
 			ASSIGN_FW_DOMAINS_TABLE(__chv_fw_ranges);
 			ASSIGN_WRITE_MMIO_VFUNCS(dev_priv, fwtable);
@@ -1592,7 +1592,7 @@ void intel_uncore_init(struct drm_i915_private *dev_priv)
 			ASSIGN_WRITE_MMIO_VFUNCS(dev_priv, gen8);
 			ASSIGN_READ_MMIO_VFUNCS(dev_priv, gen6);
 		}
-	} else if (IS_GEN(dev_priv, 9, 10)) {
+	} else if (IS_GEN_RANGE(dev_priv, 9, 10)) {
 		ASSIGN_FW_DOMAINS_TABLE(__gen9_fw_ranges);
 		ASSIGN_WRITE_MMIO_VFUNCS(dev_priv, fwtable);
 		ASSIGN_READ_MMIO_VFUNCS(dev_priv, fwtable);
@@ -1931,6 +1931,103 @@ static int gen6_reset_engines(struct drm_i915_private *dev_priv,
 	return gen6_hw_domain_reset(dev_priv, hw_mask);
 }
 
+static u32 gen11_lock_sfc(struct drm_i915_private *dev_priv,
+			  struct intel_engine_cs *engine)
+{
+	u8 vdbox_sfc_access = RUNTIME_INFO(dev_priv)->vdbox_sfc_access;
+	i915_reg_t sfc_forced_lock, sfc_forced_lock_ack;
+	u32 sfc_forced_lock_bit, sfc_forced_lock_ack_bit;
+	i915_reg_t sfc_usage;
+	u32 sfc_usage_bit;
+	u32 sfc_reset_bit;
+
+	switch (engine->class) {
+	case VIDEO_DECODE_CLASS:
+		if ((BIT(engine->instance) & vdbox_sfc_access) == 0)
+			return 0;
+
+		sfc_forced_lock = GEN11_VCS_SFC_FORCED_LOCK(engine);
+		sfc_forced_lock_bit = GEN11_VCS_SFC_FORCED_LOCK_BIT;
+
+		sfc_forced_lock_ack = GEN11_VCS_SFC_LOCK_STATUS(engine);
+		sfc_forced_lock_ack_bit  = GEN11_VCS_SFC_LOCK_ACK_BIT;
+
+		sfc_usage = GEN11_VCS_SFC_LOCK_STATUS(engine);
+		sfc_usage_bit = GEN11_VCS_SFC_USAGE_BIT;
+		sfc_reset_bit = GEN11_VCS_SFC_RESET_BIT(engine->instance);
+		break;
+
+	case VIDEO_ENHANCEMENT_CLASS:
+		sfc_forced_lock = GEN11_VECS_SFC_FORCED_LOCK(engine);
+		sfc_forced_lock_bit = GEN11_VECS_SFC_FORCED_LOCK_BIT;
+
+		sfc_forced_lock_ack = GEN11_VECS_SFC_LOCK_ACK(engine);
+		sfc_forced_lock_ack_bit  = GEN11_VECS_SFC_LOCK_ACK_BIT;
+
+		sfc_usage = GEN11_VECS_SFC_USAGE(engine);
+		sfc_usage_bit = GEN11_VECS_SFC_USAGE_BIT;
+		sfc_reset_bit = GEN11_VECS_SFC_RESET_BIT(engine->instance);
+		break;
+
+	default:
+		return 0;
+	}
+
+	/*
+	 * Tell the engine that a software reset is going to happen. The engine
+	 * will then try to force lock the SFC (if currently locked, it will
+	 * remain so until we tell the engine it is safe to unlock; if currently
+	 * unlocked, it will ignore this and all new lock requests). If SFC
+	 * ends up being locked to the engine we want to reset, we have to reset
+	 * it as well (we will unlock it once the reset sequence is completed).
+	 */
+	I915_WRITE_FW(sfc_forced_lock,
+		      I915_READ_FW(sfc_forced_lock) | sfc_forced_lock_bit);
+
+	if (__intel_wait_for_register_fw(dev_priv,
+					 sfc_forced_lock_ack,
+					 sfc_forced_lock_ack_bit,
+					 sfc_forced_lock_ack_bit,
+					 1000, 0, NULL)) {
+		DRM_DEBUG_DRIVER("Wait for SFC forced lock ack failed\n");
+		return 0;
+	}
+
+	if (I915_READ_FW(sfc_usage) & sfc_usage_bit)
+		return sfc_reset_bit;
+
+	return 0;
+}
+
+static void gen11_unlock_sfc(struct drm_i915_private *dev_priv,
+			     struct intel_engine_cs *engine)
+{
+	u8 vdbox_sfc_access = RUNTIME_INFO(dev_priv)->vdbox_sfc_access;
+	i915_reg_t sfc_forced_lock;
+	u32 sfc_forced_lock_bit;
+
+	switch (engine->class) {
+	case VIDEO_DECODE_CLASS:
+		if ((BIT(engine->instance) & vdbox_sfc_access) == 0)
+			return;
+
+		sfc_forced_lock = GEN11_VCS_SFC_FORCED_LOCK(engine);
+		sfc_forced_lock_bit = GEN11_VCS_SFC_FORCED_LOCK_BIT;
+		break;
+
+	case VIDEO_ENHANCEMENT_CLASS:
+		sfc_forced_lock = GEN11_VECS_SFC_FORCED_LOCK(engine);
+		sfc_forced_lock_bit = GEN11_VECS_SFC_FORCED_LOCK_BIT;
+		break;
+
+	default:
+		return;
+	}
+
+	I915_WRITE_FW(sfc_forced_lock,
+		      I915_READ_FW(sfc_forced_lock) & ~sfc_forced_lock_bit);
+}
+
 /**
  * gen11_reset_engines - reset individual engines
  * @dev_priv: i915 device
@@ -1947,7 +2044,6 @@ static int gen6_reset_engines(struct drm_i915_private *dev_priv,
 static int gen11_reset_engines(struct drm_i915_private *dev_priv,
 			       unsigned int engine_mask)
 {
-	struct intel_engine_cs *engine;
 	const u32 hw_engine_mask[I915_NUM_ENGINES] = {
 		[RCS] = GEN11_GRDOM_RENDER,
 		[BCS] = GEN11_GRDOM_BLT,
@@ -1958,21 +2054,30 @@ static int gen11_reset_engines(struct drm_i915_private *dev_priv,
 		[VECS] = GEN11_GRDOM_VECS,
 		[VECS2] = GEN11_GRDOM_VECS2,
 	};
+	struct intel_engine_cs *engine;
+	unsigned int tmp;
 	u32 hw_mask;
+	int ret;
 
 	BUILD_BUG_ON(VECS2 + 1 != I915_NUM_ENGINES);
 
 	if (engine_mask == ALL_ENGINES) {
 		hw_mask = GEN11_GRDOM_FULL;
 	} else {
-		unsigned int tmp;
-
 		hw_mask = 0;
-		for_each_engine_masked(engine, dev_priv, engine_mask, tmp)
+		for_each_engine_masked(engine, dev_priv, engine_mask, tmp) {
 			hw_mask |= hw_engine_mask[engine->id];
+			hw_mask |= gen11_lock_sfc(dev_priv, engine);
+		}
 	}
 
-	return gen6_hw_domain_reset(dev_priv, hw_mask);
+	ret = gen6_hw_domain_reset(dev_priv, hw_mask);
+
+	if (engine_mask != ALL_ENGINES)
+		for_each_engine_masked(engine, dev_priv, engine_mask, tmp)
+			gen11_unlock_sfc(dev_priv, engine);
+
+	return ret;
 }
 
 /**
@@ -2173,7 +2278,7 @@ static reset_func intel_get_gpu_reset(struct drm_i915_private *dev_priv)
 		return gen8_reset_engines;
 	else if (INTEL_GEN(dev_priv) >= 6)
 		return gen6_reset_engines;
-	else if (IS_GEN5(dev_priv))
+	else if (IS_GEN(dev_priv, 5))
 		return ironlake_do_reset;
 	else if (IS_G4X(dev_priv))
 		return g4x_do_reset;
@@ -2256,7 +2361,7 @@ bool intel_has_gpu_reset(struct drm_i915_private *dev_priv)
 
 bool intel_has_reset_engine(struct drm_i915_private *dev_priv)
 {
-	return (dev_priv->info.has_reset_engine &&
+	return (INTEL_INFO(dev_priv)->has_reset_engine &&
 		i915_modparams.reset >= 2);
 }
 
@@ -2321,7 +2426,7 @@ intel_uncore_forcewake_for_read(struct drm_i915_private *dev_priv,
 	} else if (INTEL_GEN(dev_priv) >= 6) {
 		fw_domains = __gen6_reg_read_fw_domains(offset);
 	} else {
-		WARN_ON(!IS_GEN(dev_priv, 2, 5));
+		WARN_ON(!IS_GEN_RANGE(dev_priv, 2, 5));
 		fw_domains = 0;
 	}
 
@@ -2341,12 +2446,12 @@ intel_uncore_forcewake_for_write(struct drm_i915_private *dev_priv,
 		fw_domains = __gen11_fwtable_reg_write_fw_domains(offset);
 	} else if (HAS_FWTABLE(dev_priv) && !IS_VALLEYVIEW(dev_priv)) {
 		fw_domains = __fwtable_reg_write_fw_domains(offset);
-	} else if (IS_GEN8(dev_priv)) {
+	} else if (IS_GEN(dev_priv, 8)) {
 		fw_domains = __gen8_reg_write_fw_domains(offset);
-	} else if (IS_GEN(dev_priv, 6, 7)) {
+	} else if (IS_GEN_RANGE(dev_priv, 6, 7)) {
 		fw_domains = FORCEWAKE_RENDER;
 	} else {
-		WARN_ON(!IS_GEN(dev_priv, 2, 5));
+		WARN_ON(!IS_GEN_RANGE(dev_priv, 2, 5));
 		fw_domains = 0;
 	}
 

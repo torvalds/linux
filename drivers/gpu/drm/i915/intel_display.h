@@ -121,7 +121,7 @@ enum i9xx_plane_id {
 };
 
 #define plane_name(p) ((p) + 'A')
-#define sprite_name(p, s) ((p) * INTEL_INFO(dev_priv)->num_sprites[(p)] + (s) + 'A')
+#define sprite_name(p, s) ((p) * RUNTIME_INFO(dev_priv)->num_sprites[(p)] + (s) + 'A')
 
 /*
  * Per-pipe plane identifier.
@@ -311,12 +311,12 @@ struct intel_link_m_n {
 
 #define for_each_universal_plane(__dev_priv, __pipe, __p)		\
 	for ((__p) = 0;							\
-	     (__p) < INTEL_INFO(__dev_priv)->num_sprites[(__pipe)] + 1;	\
+	     (__p) < RUNTIME_INFO(__dev_priv)->num_sprites[(__pipe)] + 1;	\
 	     (__p)++)
 
 #define for_each_sprite(__dev_priv, __p, __s)				\
 	for ((__s) = 0;							\
-	     (__s) < INTEL_INFO(__dev_priv)->num_sprites[(__p)];	\
+	     (__s) < RUNTIME_INFO(__dev_priv)->num_sprites[(__p)];	\
 	     (__s)++)
 
 #define for_each_port_masked(__port, __ports_mask) \

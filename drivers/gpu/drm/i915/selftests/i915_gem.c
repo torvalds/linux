@@ -121,7 +121,7 @@ static void pm_resume(struct drm_i915_private *i915)
 	 */
 	intel_runtime_pm_get(i915);
 
-	intel_engines_sanitize(i915);
+	intel_engines_sanitize(i915, false);
 	i915_gem_sanitize(i915);
 	i915_gem_resume(i915);
 

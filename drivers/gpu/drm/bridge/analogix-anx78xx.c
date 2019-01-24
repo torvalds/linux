@@ -1082,8 +1082,8 @@ static void anx78xx_bridge_disable(struct drm_bridge *bridge)
 }
 
 static void anx78xx_bridge_mode_set(struct drm_bridge *bridge,
-				    struct drm_display_mode *mode,
-				    struct drm_display_mode *adjusted_mode)
+				const struct drm_display_mode *mode,
+				const struct drm_display_mode *adjusted_mode)
 {
 	struct anx78xx *anx78xx = bridge_to_anx78xx(bridge);
 	struct hdmi_avi_infoframe frame;

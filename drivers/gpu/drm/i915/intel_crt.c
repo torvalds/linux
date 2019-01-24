@@ -27,7 +27,6 @@
 #include <linux/dmi.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
-#include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
@@ -322,7 +321,7 @@ intel_crt_mode_valid(struct drm_connector *connector,
 		 * DAC limit supposedly 355 MHz.
 		 */
 		max_clock = 270000;
-	else if (IS_GEN3(dev_priv) || IS_GEN4(dev_priv))
+	else if (IS_GEN_RANGE(dev_priv, 3, 4))
 		max_clock = 400000;
 	else
 		max_clock = 350000;
@@ -667,7 +666,7 @@ intel_crt_load_detect(struct intel_crt *crt, uint32_t pipe)
 	/* Set the border color to purple. */
 	I915_WRITE(bclrpat_reg, 0x500050);
 
-	if (!IS_GEN2(dev_priv)) {
+	if (!IS_GEN(dev_priv, 2)) {
 		uint32_t pipeconf = I915_READ(pipeconf_reg);
 		I915_WRITE(pipeconf_reg, pipeconf | PIPECONF_FORCE_BORDER);
 		POSTING_READ(pipeconf_reg);
@@ -982,7 +981,7 @@ void intel_crt_init(struct drm_i915_private *dev_priv)
 	else
 		crt->base.crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);
 
-	if (IS_GEN2(dev_priv))
+	if (IS_GEN(dev_priv, 2))
 		connector->interlace_allowed = 0;
 	else
 		connector->interlace_allowed = 1;

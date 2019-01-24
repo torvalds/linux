@@ -26,7 +26,6 @@
  */
 
 #include <drm/drm_dp_helper.h>
-#include <drm/drmP.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 
@@ -453,7 +452,7 @@ parse_sdvo_device_mapping(struct drm_i915_private *dev_priv, u8 bdb_version)
 	 * Only parse SDVO mappings on gens that could have SDVO. This isn't
 	 * accurate and doesn't have to be, as long as it's not too strict.
 	 */
-	if (!IS_GEN(dev_priv, 3, 7)) {
+	if (!IS_GEN_RANGE(dev_priv, 3, 7)) {
 		DRM_DEBUG_KMS("Skipping SDVO device mapping\n");
 		return;
 	}
@@ -1386,8 +1385,15 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 	info->supports_dp = is_dp;
 	info->supports_edp = is_edp;
 
-	DRM_DEBUG_KMS("Port %c VBT info: DP:%d HDMI:%d DVI:%d EDP:%d CRT:%d\n",
-		      port_name(port), is_dp, is_hdmi, is_dvi, is_edp, is_crt);
+	if (bdb_version >= 195)
+		info->supports_typec_usb = child->dp_usb_type_c;
+
+	if (bdb_version >= 209)
+		info->supports_tbt = child->tbt;
+
+	DRM_DEBUG_KMS("Port %c VBT info: DP:%d HDMI:%d DVI:%d EDP:%d CRT:%d TCUSB:%d TBT:%d\n",
+		      port_name(port), is_dp, is_hdmi, is_dvi, is_edp, is_crt,
+		      info->supports_typec_usb, info->supports_tbt);
 
 	if (is_edp && is_dvi)
 		DRM_DEBUG_KMS("Internal DP port %c is TMDS compatible\n",

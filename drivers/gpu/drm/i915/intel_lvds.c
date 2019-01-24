@@ -32,7 +32,6 @@
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/vga_switcheroo.h>
-#include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
@@ -279,7 +278,7 @@ static void intel_pre_enable_lvds(struct intel_encoder *encoder,
 	 * special lvds dither control bit on pch-split platforms, dithering is
 	 * only controlled through the PIPECONF reg.
 	 */
-	if (IS_GEN4(dev_priv)) {
+	if (IS_GEN(dev_priv, 4)) {
 		/*
 		 * Bspec wording suggests that LVDS port dithering only exists
 		 * for 18bpp panels.
@@ -919,7 +918,7 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 	intel_encoder->cloneable = 0;
 	if (HAS_PCH_SPLIT(dev_priv))
 		intel_encoder->crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);
-	else if (IS_GEN4(dev_priv))
+	else if (IS_GEN(dev_priv, 4))
 		intel_encoder->crtc_mask = (1 << 0) | (1 << 1);
 	else
 		intel_encoder->crtc_mask = (1 << 1);

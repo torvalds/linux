@@ -1796,7 +1796,7 @@ static int gen8_enable_metric_set(struct i915_perf_stream *stream)
 	 * be read back from automatically triggered reports, as part of the
 	 * RPT_ID field.
 	 */
-	if (IS_GEN(dev_priv, 9, 11)) {
+	if (IS_GEN_RANGE(dev_priv, 9, 11)) {
 		I915_WRITE(GEN8_OA_DEBUG,
 			   _MASKED_BIT_ENABLE(GEN9_OA_DEBUG_DISABLE_CLK_RATIO_REPORTS |
 					      GEN9_OA_DEBUG_INCLUDE_CLK_RATIO));
@@ -2646,7 +2646,7 @@ err:
 static u64 oa_exponent_to_ns(struct drm_i915_private *dev_priv, int exponent)
 {
 	return div64_u64(1000000000ULL * (2ULL << exponent),
-			 1000ULL * INTEL_INFO(dev_priv)->cs_timestamp_frequency_khz);
+			 1000ULL * RUNTIME_INFO(dev_priv)->cs_timestamp_frequency_khz);
 }
 
 /**
@@ -3415,7 +3415,7 @@ void i915_perf_init(struct drm_i915_private *dev_priv)
 		dev_priv->perf.oa.ops.read = gen8_oa_read;
 		dev_priv->perf.oa.ops.oa_hw_tail_read = gen8_oa_hw_tail_read;
 
-		if (IS_GEN8(dev_priv) || IS_GEN9(dev_priv)) {
+		if (IS_GEN_RANGE(dev_priv, 8, 9)) {
 			dev_priv->perf.oa.ops.is_valid_b_counter_reg =
 				gen7_is_valid_b_counter_addr;
 			dev_priv->perf.oa.ops.is_valid_mux_reg =
@@ -3431,7 +3431,7 @@ void i915_perf_init(struct drm_i915_private *dev_priv)
 			dev_priv->perf.oa.ops.enable_metric_set = gen8_enable_metric_set;
 			dev_priv->perf.oa.ops.disable_metric_set = gen8_disable_metric_set;
 
-			if (IS_GEN8(dev_priv)) {
+			if (IS_GEN(dev_priv, 8)) {
 				dev_priv->perf.oa.ctx_oactxctrl_offset = 0x120;
 				dev_priv->perf.oa.ctx_flexeu0_offset = 0x2ce;
 
@@ -3442,7 +3442,7 @@ void i915_perf_init(struct drm_i915_private *dev_priv)
 
 				dev_priv->perf.oa.gen8_valid_ctx_bit = (1<<16);
 			}
-		} else if (IS_GEN(dev_priv, 10, 11)) {
+		} else if (IS_GEN_RANGE(dev_priv, 10, 11)) {
 			dev_priv->perf.oa.ops.is_valid_b_counter_reg =
 				gen7_is_valid_b_counter_addr;
 			dev_priv->perf.oa.ops.is_valid_mux_reg =
@@ -3471,7 +3471,7 @@ void i915_perf_init(struct drm_i915_private *dev_priv)
 		spin_lock_init(&dev_priv->perf.oa.oa_buffer.ptr_lock);
 
 		oa_sample_rate_hard_limit = 1000 *
-			(INTEL_INFO(dev_priv)->cs_timestamp_frequency_khz / 2);
+			(RUNTIME_INFO(dev_priv)->cs_timestamp_frequency_khz / 2);
 		dev_priv->perf.sysctl_header = register_sysctl_table(dev_root);
 
 		mutex_init(&dev_priv->perf.metrics_lock);

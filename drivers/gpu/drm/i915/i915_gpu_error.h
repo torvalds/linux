@@ -45,6 +45,7 @@ struct i915_gpu_state {
 	u32 reset_count;
 	u32 suspend_count;
 	struct intel_device_info device_info;
+	struct intel_runtime_info runtime_info;
 	struct intel_driver_caps driver_caps;
 	struct i915_params params;
 
