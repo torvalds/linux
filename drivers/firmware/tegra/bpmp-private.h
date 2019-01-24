@@ -24,5 +24,6 @@ struct tegra_bpmp_ops {
 };
 
 extern const struct tegra_bpmp_ops tegra186_bpmp_ops;
+extern const struct tegra_bpmp_ops tegra210_bpmp_ops;
 
 #endif

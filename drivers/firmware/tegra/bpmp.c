@@ -768,17 +768,23 @@ static int tegra_bpmp_probe(struct platform_device *pdev)
 	if (err < 0)
 		goto free_mrq;
 
-	err = tegra_bpmp_init_clocks(bpmp);
-	if (err < 0)
-		goto free_mrq;
+	if (of_find_property(pdev->dev.of_node, "#clock-cells", NULL)) {
+		err = tegra_bpmp_init_clocks(bpmp);
+		if (err < 0)
+			goto free_mrq;
+	}
 
-	err = tegra_bpmp_init_resets(bpmp);
-	if (err < 0)
-		goto free_mrq;
+	if (of_find_property(pdev->dev.of_node, "#reset-cells", NULL)) {
+		err = tegra_bpmp_init_resets(bpmp);
+		if (err < 0)
+			goto free_mrq;
+	}
 
-	err = tegra_bpmp_init_powergates(bpmp);
-	if (err < 0)
-		goto free_mrq;
+	if (of_find_property(pdev->dev.of_node, "#power-domain-cells", NULL)) {
+		err = tegra_bpmp_init_powergates(bpmp);
+		if (err < 0)
+			goto free_mrq;
+	}
 
 	err = tegra_bpmp_init_debugfs(bpmp);
 	if (err < 0)
@@ -827,8 +833,30 @@ static const struct tegra_bpmp_soc tegra186_soc = {
 	.num_resets = 193,
 };
 
+static const struct tegra_bpmp_soc tegra210_soc = {
+	.channels = {
+		.cpu_tx = {
+			.offset = 0,
+			.count = 1,
+			.timeout = 60 * USEC_PER_SEC,
+		},
+		.thread = {
+			.offset = 4,
+			.count = 1,
+			.timeout = 600 * USEC_PER_SEC,
+		},
+		.cpu_rx = {
+			.offset = 8,
+			.count = 1,
+			.timeout = 0,
+		},
+	},
+	.ops = &tegra210_bpmp_ops,
+};
+
 static const struct of_device_id tegra_bpmp_match[] = {
 	{ .compatible = "nvidia,tegra186-bpmp", .data = &tegra186_soc },
+	{ .compatible = "nvidia,tegra210-bpmp", .data = &tegra210_soc },
 	{ }
 };
 
