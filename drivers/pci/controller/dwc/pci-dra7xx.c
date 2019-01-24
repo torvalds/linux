@@ -504,6 +504,10 @@ static int dra7xx_pcie_enable_phy(struct dra7xx_pcie *dra7xx)
 	int i;
 
 	for (i = 0; i < phy_count; i++) {
+		ret = phy_set_mode(dra7xx->phy[i], PHY_MODE_PCIE);
+		if (ret < 0)
+			goto err_phy;
+
 		ret = phy_init(dra7xx->phy[i]);
 		if (ret < 0)
 			goto err_phy;
