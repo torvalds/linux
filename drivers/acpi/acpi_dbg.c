@@ -750,29 +750,28 @@ static const struct acpi_debugger_ops acpi_aml_debugger = {
 
 int __init acpi_aml_init(void)
 {
-	int ret = 0;
+	int ret;
 
 	/* Initialize AML IO interface */
 	mutex_init(&acpi_aml_io.lock);
 	init_waitqueue_head(&acpi_aml_io.wait);
 	acpi_aml_io.out_crc.buf = acpi_aml_io.out_buf;
 	acpi_aml_io.in_crc.buf = acpi_aml_io.in_buf;
+
 	acpi_aml_dentry = debugfs_create_file("acpidbg",
 					      S_IFREG | S_IRUGO | S_IWUSR,
 					      acpi_debugfs_dir, NULL,
 					      &acpi_aml_operations);
-	ret = acpi_register_debugger(THIS_MODULE, &acpi_aml_debugger);
-	if (ret)
-		goto err_fs;
-	acpi_aml_initialized = true;
 
-err_fs:
+	ret = acpi_register_debugger(THIS_MODULE, &acpi_aml_debugger);
 	if (ret) {
 		debugfs_remove(acpi_aml_dentry);
 		acpi_aml_dentry = NULL;
+		return ret;
 	}
-err_exit:
-	return ret;
+
+	acpi_aml_initialized = true;
+	return 0;
 }
 
 void __exit acpi_aml_exit(void)
