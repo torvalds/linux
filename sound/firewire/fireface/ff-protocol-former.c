@@ -396,6 +396,10 @@ static void ff800_finish_session(struct snd_ff *ff)
 			   FF800_ISOC_COMM_STOP, &reg, sizeof(reg), 0);
 }
 
+// Fireface 800 doesn't allow drivers to register lower 4 bytes of destination
+// address.
+// A write transaction to clear registered higher 4 bytes of destination address
+// has an effect to suppress asynchronous transaction from device.
 static void ff800_handle_midi_msg(struct snd_ff *ff, unsigned int offset,
 				  __le32 *buf, size_t length)
 {
@@ -525,6 +529,25 @@ static void ff400_finish_session(struct snd_ff *ff)
 			   FF400_ISOC_COMM_STOP, &reg, sizeof(reg), 0);
 }
 
+// For Fireface 400, lower 4 bytes of destination address is configured by bit
+// flag in quadlet register (little endian) at 0x'0000'801'0051c. Drivers can
+// select one of 4 options:
+//
+// bit flags: offset of destination address
+//  - 0x04000000: 0x'....'....'0000'0000
+//  - 0x08000000: 0x'....'....'0000'0080
+//  - 0x10000000: 0x'....'....'0000'0100
+//  - 0x20000000: 0x'....'....'0000'0180
+//
+// Drivers can suppress the device to transfer asynchronous transactions by
+// using below 2 bits.
+//  - 0x01000000: suppress transmission
+//  - 0x02000000: suppress transmission
+//
+// Actually, the register is write-only and includes the other options such as
+// input attenuation. This driver allocates destination address with '0000'0000
+// in its lower offset and expects userspace application to configure the
+// register for it.
 static void ff400_handle_midi_msg(struct snd_ff *ff, unsigned int offset,
 				  __le32 *buf, size_t length)
 {

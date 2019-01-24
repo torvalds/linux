@@ -165,35 +165,13 @@ static int allocate_own_address(struct snd_ff *ff, int i)
 	return err;
 }
 
-/*
- * Controllers are allowed to register higher 4 bytes of address to receive
- * the transactions. Different models have different registers for this purpose;
- * e.g. 0x'0000'8010'03f4 for Fireface 400.
- * The controllers are not allowed to register lower 4 bytes of the address.
- * They are forced to select one of 4 options for the part of address by writing
- * corresponding bits to 0x'0000'8010'051f.
- *
- * The 3rd-6th bits of this register are flags to indicate lower 4 bytes of
- * address to which the device transferrs the transactions. In short:
- *  - 0x20: 0x'....'....'0000'0180
- *  - 0x10: 0x'....'....'0000'0100
- *  - 0x08: 0x'....'....'0000'0080
- *  - 0x04: 0x'....'....'0000'0000
- *
- * This driver configure 0x'....'....'0000'0000 to receive MIDI messages from
- * units. The 3rd bit of the register should be configured, however this driver
- * deligates this task to userspace applications due to a restriction that this
- * register is write-only and the other bits have own effects.
- *
- * Unlike Fireface 800, Fireface 400 cancels transferring asynchronous
- * transactions when the 1st and 2nd of the register stand. These two bits have
- * the same effect.
- *  - 0x02, 0x01: cancel transferring
- *
- * On the other hand, the bits have no effect on Fireface 800. This model
- * cancels asynchronous transactions when the higher 4 bytes of address is
- * overwritten with zero.
- */
+// Controllers are allowed to register higher 4 bytes of destination address to
+// receive asynchronous transactions for MIDI messages, while the way to
+// register lower 4 bytes of address is different depending on protocols. For
+// details, please refer to comments in protocol implementations.
+//
+// This driver expects userspace applications to configure registers for the
+// lower address because in most cases such registers has the other settings.
 int snd_ff_transaction_reregister(struct snd_ff *ff)
 {
 	struct fw_card *fw_card = fw_parent_device(ff->unit)->card;
