@@ -32,7 +32,7 @@ struct input_event {
 #define input_event_usec time.tv_usec
 #else
 	__kernel_ulong_t __sec;
-#ifdef CONFIG_SPARC64
+#if defined(__sparc__) && defined(__arch64__)
 	unsigned int __usec;
 #else
 	__kernel_ulong_t __usec;
