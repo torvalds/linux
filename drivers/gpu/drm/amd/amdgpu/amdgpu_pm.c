@@ -1444,8 +1444,10 @@ static ssize_t amdgpu_hwmon_set_pwm1(struct device *dev,
 	if  ((adev->flags & AMD_IS_PX) &&
 	     (adev->ddev->switch_power_state != DRM_SWITCH_POWER_ON))
 		return -EINVAL;
-
-	pwm_mode = amdgpu_dpm_get_fan_control_mode(adev);
+	if (is_support_sw_smu(adev))
+		pwm_mode = smu_get_fan_control_mode(&adev->smu);
+	else
+		pwm_mode = amdgpu_dpm_get_fan_control_mode(adev);
 	if (pwm_mode != AMD_FAN_CTRL_MANUAL) {
 		pr_info("manual fan speed control should be enabled first\n");
 		return -EINVAL;
@@ -1457,7 +1459,11 @@ static ssize_t amdgpu_hwmon_set_pwm1(struct device *dev,
 
 	value = (value * 100) / 255;
 
-	if (adev->powerplay.pp_funcs->set_fan_speed_percent) {
+	if (is_support_sw_smu(adev)) {
+		err = smu_set_fan_speed_percent(&adev->smu, value);
+		if (err)
+			return err;
+	} else if (adev->powerplay.pp_funcs->set_fan_speed_percent) {
 		err = amdgpu_dpm_set_fan_speed_percent(adev, value);
 		if (err)
 			return err;
@@ -1479,7 +1485,11 @@ static ssize_t amdgpu_hwmon_get_pwm1(struct device *dev,
 	     (adev->ddev->switch_power_state != DRM_SWITCH_POWER_ON))
 		return -EINVAL;
 
-	if (adev->powerplay.pp_funcs->get_fan_speed_percent) {
+	if (is_support_sw_smu(adev)) {
+		err = smu_get_fan_speed_percent(&adev->smu, &speed);
+		if (err)
+			return err;
+	} else if (adev->powerplay.pp_funcs->get_fan_speed_percent) {
 		err = amdgpu_dpm_get_fan_speed_percent(adev, &speed);
 		if (err)
 			return err;

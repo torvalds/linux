@@ -532,6 +532,9 @@ struct smu_funcs
 	uint32_t (*get_sclk)(struct smu_context *smu, bool low);
 	uint32_t (*get_mclk)(struct smu_context *smu, bool low);
 	int (*get_current_rpm)(struct smu_context *smu, uint32_t *speed);
+	uint32_t (*get_fan_control_mode)(struct smu_context *smu);
+	int (*get_fan_speed_percent)(struct smu_context *smu, uint32_t *speed);
+	int (*set_fan_speed_percent)(struct smu_context *smu, uint32_t speed);
 };
 
 #define smu_init_microcode(smu) \
@@ -664,6 +667,12 @@ struct smu_funcs
 	((smu)->ppt_funcs->get_profiling_clk_mask ? (smu)->ppt_funcs->get_profiling_clk_mask((smu), (level), (sclk_mask), (mclk_mask), (soc_mask)) : 0)
 #define smu_set_cpu_power_state(smu) \
 	((smu)->ppt_funcs->set_cpu_power_state ? (smu)->ppt_funcs->set_cpu_power_state((smu)) : 0)
+#define smu_get_fan_control_mode(smu) \
+	((smu)->funcs->get_fan_control_mode ? (smu)->funcs->get_fan_control_mode((smu)) : 0)
+#define smu_get_fan_speed_percent(smu, speed) \
+	((smu)->funcs->get_fan_speed_percent ? (smu)->funcs->get_fan_speed_percent((smu), (speed)) : 0)
+#define smu_set_fan_speed_percent(smu, speed) \
+	((smu)->funcs->set_fan_speed_percent ? (smu)->funcs->set_fan_speed_percent((smu), (speed)) : 0)
 
 #define smu_msg_get_index(smu, msg) \
 	((smu)->ppt_funcs? ((smu)->ppt_funcs->get_smu_msg_index? (smu)->ppt_funcs->get_smu_msg_index((smu), (msg)) : -EINVAL) : -EINVAL)

@@ -1748,6 +1748,92 @@ static int smu_v11_0_get_current_rpm(struct smu_context *smu,
 	return 0;
 }
 
+static uint32_t
+smu_v11_0_get_fan_control_mode(struct smu_context *smu)
+{
+	if (!smu_feature_is_enabled(smu, FEATURE_FAN_CONTROL_BIT))
+		return AMD_FAN_CTRL_MANUAL;
+	else
+		return AMD_FAN_CTRL_AUTO;
+}
+
+static int
+smu_v11_0_get_fan_speed_percent(struct smu_context *smu,
+					   uint32_t *speed)
+{
+	int ret = 0;
+	uint32_t percent = 0;
+	uint32_t current_rpm;
+	PPTable_t *pptable = smu->smu_table.driver_pptable;
+
+	ret = smu_v11_0_get_current_rpm(smu, &current_rpm);
+	percent = current_rpm * 100 / pptable->FanMaximumRpm;
+	*speed = percent > 100 ? 100 : percent;
+
+	return ret;
+}
+
+static int
+smu_v11_0_smc_fan_control(struct smu_context *smu, bool start)
+{
+	int ret = 0;
+
+	if (smu_feature_is_supported(smu, FEATURE_FAN_CONTROL_BIT))
+		return 0;
+
+	ret = smu_feature_set_enabled(smu, FEATURE_FAN_CONTROL_BIT, start);
+	if (ret)
+		pr_err("[%s]%s smc FAN CONTROL feature failed!",
+		       __func__, (start ? "Start" : "Stop"));
+
+	return ret;
+}
+
+static int
+smu_v11_0_set_fan_static_mode(struct smu_context *smu, uint32_t mode)
+{
+	struct amdgpu_device *adev = smu->adev;
+
+	WREG32_SOC15(THM, 0, mmCG_FDO_CTRL2,
+		     REG_SET_FIELD(RREG32_SOC15(THM, 0, mmCG_FDO_CTRL2),
+				   CG_FDO_CTRL2, TMIN, 0));
+	WREG32_SOC15(THM, 0, mmCG_FDO_CTRL2,
+		     REG_SET_FIELD(RREG32_SOC15(THM, 0, mmCG_FDO_CTRL2),
+				   CG_FDO_CTRL2, FDO_PWM_MODE, mode));
+
+	return 0;
+}
+
+static int
+smu_v11_0_set_fan_speed_percent(struct smu_context *smu, uint32_t speed)
+{
+	struct amdgpu_device *adev = smu->adev;
+	uint32_t duty100;
+	uint32_t duty;
+	uint64_t tmp64;
+	bool stop = 0;
+
+	if (speed > 100)
+		speed = 100;
+
+	if (smu_v11_0_smc_fan_control(smu, stop))
+		return -EINVAL;
+	duty100 = REG_GET_FIELD(RREG32_SOC15(THM, 0, mmCG_FDO_CTRL1),
+				CG_FDO_CTRL1, FMAX_DUTY100);
+	if (!duty100)
+		return -EINVAL;
+
+	tmp64 = (uint64_t)speed * duty100;
+	do_div(tmp64, 100);
+	duty = (uint32_t)tmp64;
+
+	WREG32_SOC15(THM, 0, mmCG_FDO_CTRL0,
+		     REG_SET_FIELD(RREG32_SOC15(THM, 0, mmCG_FDO_CTRL0),
+				   CG_FDO_CTRL0, FDO_STATIC_DUTY, duty));
+
+	return smu_v11_0_set_fan_static_mode(smu, FDO_PWM_MODE_STATIC);
+}
+
 static const struct smu_funcs smu_v11_0_funcs = {
 	.init_microcode = smu_v11_0_init_microcode,
 	.load_microcode = smu_v11_0_load_microcode,
@@ -1799,6 +1885,9 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.dpm_set_uvd_enable = smu_v11_0_dpm_set_uvd_enable,
 	.dpm_set_vce_enable = smu_v11_0_dpm_set_vce_enable,
 	.get_current_rpm = smu_v11_0_get_current_rpm,
+	.get_fan_control_mode = smu_v11_0_get_fan_control_mode,
+	.get_fan_speed_percent = smu_v11_0_get_fan_speed_percent,
+	.set_fan_speed_percent = smu_v11_0_set_fan_speed_percent,
 };
 
 void smu_v11_0_set_smu_funcs(struct smu_context *smu)
