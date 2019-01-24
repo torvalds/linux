@@ -1888,7 +1888,7 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	dd->verbs_dev.rdi.dparms.wss_threshold = wss_threshold;
 	dd->verbs_dev.rdi.dparms.wss_clean_period = wss_clean_period;
 	dd->verbs_dev.rdi.dparms.reserved_operations = 1;
-	dd->verbs_dev.rdi.dparms.extra_rdma_atomic = 1;
+	dd->verbs_dev.rdi.dparms.extra_rdma_atomic = HFI1_TID_RDMA_WRITE_CNT;
 
 	/* post send table */
 	dd->verbs_dev.rdi.post_parms = hfi1_post_parms;

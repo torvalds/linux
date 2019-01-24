@@ -28,6 +28,17 @@
  */
 #define HFI1_S_TID_WAIT_INTERLCK  BIT(5)
 
+/*
+ * Unlike regular IB RDMA VERBS, which do not require an entry
+ * in the s_ack_queue, TID RDMA WRITE requests do because they
+ * generate responses.
+ * Therefore, the s_ack_queue needs to be extended by a certain
+ * amount. The key point is that the queue needs to be extended
+ * without letting the "user" know so they user doesn't end up
+ * using these extra entries.
+ */
+#define HFI1_TID_RDMA_WRITE_CNT 8
+
 struct tid_rdma_params {
 	struct rcu_head rcu_head;
 	u32 qp;
