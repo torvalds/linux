@@ -29,7 +29,6 @@ static int rockchip_sound_cdndp_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	int mclk, ret;
 
 	/* in bypass mode, the mclk has to be one of the frequencies below */
@@ -61,8 +60,8 @@ static int rockchip_sound_cdndp_hw_params(struct snd_pcm_substream *substream,
 
 	ret = snd_soc_dai_set_sysclk(cpu_dai, 0, mclk,
 				     SND_SOC_CLOCK_OUT);
-	if (ret < 0) {
-		dev_err(codec_dai->dev, "Can't set cpu clock out %d\n", ret);
+	if (ret && ret != -ENOTSUPP) {
+		dev_err(cpu_dai->dev, "Can't set cpu clock %d\n", ret);
 		return ret;
 	}
 
@@ -95,7 +94,7 @@ static struct snd_soc_ops rockchip_sound_cdndp_ops = {
 static struct snd_soc_dai_link cdndp_dailink = {
 	.name = "DP",
 	.stream_name = "DP PCM",
-	.codec_dai_name = "i2s-hifi",
+	.codec_dai_name = "spdif-hifi",
 	.init = rockchip_sound_cdndp_init,
 	.ops = &rockchip_sound_cdndp_ops,
 	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
