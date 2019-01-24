@@ -2044,6 +2044,8 @@ static int tid_rdma_rcv_error(struct hfi1_packet *packet,
 			goto unlock;
 	}
 	/* Re-process old requests.*/
+	if (qp->s_acked_ack_queue == qp->s_tail_ack_queue)
+		qp->s_acked_ack_queue = prev;
 	qp->s_tail_ack_queue = prev;
 	/*
 	 * Since the qp->s_tail_ack_queue is modified, the

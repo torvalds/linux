@@ -18,6 +18,7 @@ static inline void update_ack_queue(struct rvt_qp *qp, unsigned int n)
 	if (next > rvt_size_atomic(ib_to_rvt(qp->ibqp.device)))
 		next = 0;
 	qp->s_tail_ack_queue = next;
+	qp->s_acked_ack_queue = next;
 	qp->s_ack_state = OP(ACKNOWLEDGE);
 }
 

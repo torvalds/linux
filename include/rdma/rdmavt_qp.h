@@ -375,6 +375,7 @@ struct rvt_qp {
 	u8 s_rnr_retry;         /* requester RNR retry counter */
 	u8 s_num_rd_atomic;     /* number of RDMA read/atomic pending */
 	u8 s_tail_ack_queue;    /* index into s_ack_queue[] */
+	u8 s_acked_ack_queue;   /* index into s_ack_queue[] */
 
 	struct rvt_sge_state s_ack_rdma_sge;
 	struct timer_list s_timer;

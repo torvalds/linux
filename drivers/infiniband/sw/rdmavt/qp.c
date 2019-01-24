@@ -854,6 +854,7 @@ static void rvt_init_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 	qp->s_mig_state = IB_MIG_MIGRATED;
 	qp->r_head_ack_queue = 0;
 	qp->s_tail_ack_queue = 0;
+	qp->s_acked_ack_queue = 0;
 	qp->s_num_rd_atomic = 0;
 	if (qp->r_rq.wq) {
 		qp->r_rq.wq->head = 0;

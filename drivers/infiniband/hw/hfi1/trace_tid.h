@@ -40,7 +40,7 @@ u16 hfi1_trace_get_tid_idx(u32 ent);
 #define RSP_INFO_PRN "[%s] qpn 0x%x state 0x%x s_state 0x%x psn 0x%x " \
 		     "r_psn 0x%x r_state 0x%x r_flags 0x%x " \
 		     "r_head_ack_queue %u s_tail_ack_queue %u " \
-		     "s_ack_state 0x%x " \
+		     "s_acked_ack_queue %u s_ack_state 0x%x " \
 		     "s_nak_state 0x%x s_flags 0x%x ps_flags 0x%x " \
 		     "iow_flags 0x%lx"
 
@@ -62,7 +62,7 @@ u16 hfi1_trace_get_tid_idx(u32 ent);
 		    "s_next_psn 0x%x"
 
 #define RCV_ERR_PRN "[%s] qpn 0x%x s_flags 0x%x state 0x%x " \
-		    "s_tail_ack_queue %u " \
+		    "s_acked_ack_queue %u s_tail_ack_queue %u " \
 		    "r_head_ack_queue %u opcode 0x%x psn 0x%x r_psn 0x%x " \
 		    " diff %d"
 
@@ -671,6 +671,7 @@ DECLARE_EVENT_CLASS(/* rsp_info */
 		__field(u8, r_flags)
 		__field(u8, r_head_ack_queue)
 		__field(u8, s_tail_ack_queue)
+		__field(u8, s_acked_ack_queue)
 		__field(u8, s_ack_state)
 		__field(u8, s_nak_state)
 		__field(u8, r_nak_state)
@@ -691,6 +692,7 @@ DECLARE_EVENT_CLASS(/* rsp_info */
 		__entry->r_flags = qp->r_flags;
 		__entry->r_head_ack_queue = qp->r_head_ack_queue;
 		__entry->s_tail_ack_queue = qp->s_tail_ack_queue;
+		__entry->s_acked_ack_queue = qp->s_acked_ack_queue;
 		__entry->s_ack_state = qp->s_ack_state;
 		__entry->s_nak_state = qp->s_nak_state;
 		__entry->s_flags = qp->s_flags;
@@ -709,6 +711,7 @@ DECLARE_EVENT_CLASS(/* rsp_info */
 		__entry->r_flags,
 		__entry->r_head_ack_queue,
 		__entry->s_tail_ack_queue,
+		__entry->s_acked_ack_queue,
 		__entry->s_ack_state,
 		__entry->s_nak_state,
 		__entry->s_flags,
@@ -1007,6 +1010,7 @@ DECLARE_EVENT_CLASS(/* rc_rcv_err */
 		__field(u32, qpn)
 		__field(u32, s_flags)
 		__field(u8, state)
+		__field(u8, s_acked_ack_queue)
 		__field(u8, s_tail_ack_queue)
 		__field(u8, r_head_ack_queue)
 		__field(u32, opcode)
@@ -1019,6 +1023,7 @@ DECLARE_EVENT_CLASS(/* rc_rcv_err */
 		__entry->qpn = qp->ibqp.qp_num;
 		__entry->s_flags = qp->s_flags;
 		__entry->state = qp->state;
+		__entry->s_acked_ack_queue = qp->s_acked_ack_queue;
 		__entry->s_tail_ack_queue = qp->s_tail_ack_queue;
 		__entry->r_head_ack_queue = qp->r_head_ack_queue;
 		__entry->opcode = opcode;
@@ -1032,6 +1037,7 @@ DECLARE_EVENT_CLASS(/* rc_rcv_err */
 		__entry->qpn,
 		__entry->s_flags,
 		__entry->state,
+		__entry->s_acked_ack_queue,
 		__entry->s_tail_ack_queue,
 		__entry->r_head_ack_queue,
 		__entry->opcode,
