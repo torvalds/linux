@@ -1958,16 +1958,36 @@ static uint32_t vega20_dpm_get_mclk(struct pp_hwmgr *hwmgr, bool low)
 	return (mem_clk * 100);
 }
 
+static int vega20_get_metrics_table(struct pp_hwmgr *hwmgr, SmuMetrics_t *metrics_table)
+{
+	struct vega20_hwmgr *data =
+			(struct vega20_hwmgr *)(hwmgr->backend);
+	int ret = 0;
+
+	if (!data->metrics_time || time_after(jiffies, data->metrics_time + HZ / 2)) {
+		ret = smum_smc_table_manager(hwmgr, (uint8_t *)metrics_table,
+				TABLE_SMU_METRICS, true);
+		if (ret) {
+			pr_info("Failed to export SMU metrics table!\n");
+			return ret;
+		}
+		memcpy(&data->metrics_table, metrics_table, sizeof(SmuMetrics_t));
+		data->metrics_time = jiffies;
+	} else
+		memcpy(metrics_table, &data->metrics_table, sizeof(SmuMetrics_t));
+
+	return ret;
+}
+
 static int vega20_get_gpu_power(struct pp_hwmgr *hwmgr,
 		uint32_t *query)
 {
 	int ret = 0;
 	SmuMetrics_t metrics_table;
 
-	ret = smum_smc_table_manager(hwmgr, (uint8_t *)&metrics_table, TABLE_SMU_METRICS, true);
-	PP_ASSERT_WITH_CODE(!ret,
-			"Failed to export SMU METRICS table!",
-			return ret);
+	ret = vega20_get_metrics_table(hwmgr, &metrics_table);
+	if (ret)
+		return ret;
 
 	*query = metrics_table.CurrSocketPower << 8;
 
@@ -1998,10 +2018,9 @@ static int vega20_get_current_activity_percent(struct pp_hwmgr *hwmgr,
 	int ret = 0;
 	SmuMetrics_t metrics_table;
 
-	ret = smum_smc_table_manager(hwmgr, (uint8_t *)&metrics_table, TABLE_SMU_METRICS, true);
-	PP_ASSERT_WITH_CODE(!ret,
-			"Failed to export SMU METRICS table!",
-			return ret);
+	ret = vega20_get_metrics_table(hwmgr, &metrics_table);
+	if (ret)
+		return ret;
 
 	*activity_percent = metrics_table.AverageGfxActivity;
 
@@ -2019,11 +2038,9 @@ static int vega20_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 
 	switch (idx) {
 	case AMDGPU_PP_SENSOR_GFX_SCLK:
-		ret = smum_smc_table_manager(hwmgr, (uint8_t *)&metrics_table,
-				TABLE_SMU_METRICS, true);
-		PP_ASSERT_WITH_CODE(!ret,
-				"Failed to export SMU METRICS table!",
-				return ret);
+		ret = vega20_get_metrics_table(hwmgr, &metrics_table);
+		if (ret)
+			return ret;
 
 		*((uint32_t *)value) = metrics_table.AverageGfxclkFrequency * 100;
 		*size = 4;
