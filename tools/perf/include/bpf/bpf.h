@@ -18,6 +18,14 @@ struct bpf_map {
         unsigned int numa_node;
 };
 
+#define bpf_map(name, _type, type_key, type_val, _max_entries)	\
+struct bpf_map SEC("maps") name = {				\
+	.type	     = BPF_MAP_TYPE_##_type,			\
+	.key_size    = sizeof(type_key),			\
+	.value_size  = sizeof(type_val),			\
+	.max_entries = _max_entries,				\
+}
+
 /*
  * FIXME: this should receive .max_entries as a parameter, as careful
  *	  tuning of these limits is needed to avoid hitting limits that
