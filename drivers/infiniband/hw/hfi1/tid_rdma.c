@@ -4623,3 +4623,29 @@ static void hfi1_tid_retry_timeout(struct timer_list *t)
 	spin_unlock(&qp->s_lock);
 	spin_unlock_irqrestore(&qp->r_lock, flags);
 }
+
+u32 hfi1_build_tid_rdma_resync(struct rvt_qp *qp, struct rvt_swqe *wqe,
+			       struct ib_other_headers *ohdr, u32 *bth1,
+			       u32 *bth2, u16 fidx)
+{
+	struct hfi1_qp_priv *qpriv = qp->priv;
+	struct tid_rdma_params *remote;
+	struct tid_rdma_request *req = wqe_to_tid_req(wqe);
+	struct tid_rdma_flow *flow = &req->flows[fidx];
+	u32 generation;
+
+	rcu_read_lock();
+	remote = rcu_dereference(qpriv->tid_rdma.remote);
+	KDETH_RESET(ohdr->u.tid_rdma.ack.kdeth1, JKEY, remote->jkey);
+	ohdr->u.tid_rdma.ack.verbs_qp = cpu_to_be32(qp->remote_qpn);
+	*bth1 = remote->qp;
+	rcu_read_unlock();
+
+	generation = kern_flow_generation_next(flow->flow_state.generation);
+	*bth2 = mask_psn((generation << HFI1_KDETH_BTH_SEQ_SHIFT) - 1);
+	qpriv->s_resync_psn = *bth2;
+	*bth2 |= IB_BTH_REQ_ACK;
+	KDETH_RESET(ohdr->u.tid_rdma.ack.kdeth0, KVER, 0x1);
+
+	return sizeof(ohdr->u.tid_rdma.resync) / sizeof(u32);
+}

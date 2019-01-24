@@ -292,4 +292,8 @@ void hfi1_rc_rcv_tid_rdma_ack(struct hfi1_packet *packet);
 void hfi1_add_tid_retry_timer(struct rvt_qp *qp);
 void hfi1_del_tid_retry_timer(struct rvt_qp *qp);
 
+u32 hfi1_build_tid_rdma_resync(struct rvt_qp *qp, struct rvt_swqe *wqe,
+			       struct ib_other_headers *ohdr, u32 *bth1,
+			       u32 *bth2, u16 fidx);
+
 #endif /* HFI1_TID_RDMA_H */
