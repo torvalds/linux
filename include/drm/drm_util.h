@@ -71,7 +71,7 @@
  * FIXME: All users of drm_can_sleep should be removed (see todo.rst)
  *
  * Returns:
- * True if kgdb is active or we are in an atomic context or irqs are disabled
+ * False if kgdb is active, we are in atomic context or irqs are disabled.
  */
 static inline bool drm_can_sleep(void)
 {

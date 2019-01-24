@@ -106,7 +106,7 @@ static void jd_t18003_t01_pipe_enable(struct drm_simple_display_pipe *pipe,
 static const struct drm_simple_display_pipe_funcs jd_t18003_t01_pipe_funcs = {
 	.enable		= jd_t18003_t01_pipe_enable,
 	.disable	= mipi_dbi_pipe_disable,
-	.update		= tinydrm_display_pipe_update,
+	.update		= mipi_dbi_pipe_update,
 	.prepare_fb	= drm_gem_fb_simple_display_pipe_prepare_fb,
 };
 
