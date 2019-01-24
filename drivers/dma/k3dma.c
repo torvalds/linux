@@ -116,6 +116,14 @@ struct k3_dma_dev {
 	unsigned int		irq;
 };
 
+
+#define K3_FLAG_NOCLK	BIT(1)
+
+struct k3dma_soc_data {
+	unsigned long flags;
+};
+
+
 #define to_k3_dma(dmadev) container_of(dmadev, struct k3_dma_dev, slave)
 
 static int k3_dma_config_write(struct dma_chan *chan,
@@ -790,8 +798,21 @@ static int k3_dma_transfer_resume(struct dma_chan *chan)
 	return 0;
 }
 
+static const struct k3dma_soc_data k3_v1_dma_data = {
+	.flags = 0,
+};
+
+static const struct k3dma_soc_data asp_v1_dma_data = {
+	.flags = K3_FLAG_NOCLK,
+};
+
 static const struct of_device_id k3_pdma_dt_ids[] = {
-	{ .compatible = "hisilicon,k3-dma-1.0", },
+	{ .compatible = "hisilicon,k3-dma-1.0",
+	  .data = &k3_v1_dma_data
+	},
+	{ .compatible = "hisilicon,hisi-pcm-asp-dma-1.0",
+	  .data = &asp_v1_dma_data
+	},
 	{}
 };
 MODULE_DEVICE_TABLE(of, k3_pdma_dt_ids);
@@ -810,6 +831,7 @@ static struct dma_chan *k3_of_dma_simple_xlate(struct of_phandle_args *dma_spec,
 
 static int k3_dma_probe(struct platform_device *op)
 {
+	const struct k3dma_soc_data *soc_data;
 	struct k3_dma_dev *d;
 	const struct of_device_id *of_id;
 	struct resource *iores;
@@ -823,6 +845,10 @@ static int k3_dma_probe(struct platform_device *op)
 	if (!d)
 		return -ENOMEM;
 
+	soc_data = device_get_match_data(&op->dev);
+	if (!soc_data)
+		return -EINVAL;
+
 	d->base = devm_ioremap_resource(&op->dev, iores);
 	if (IS_ERR(d->base))
 		return PTR_ERR(d->base);
@@ -835,10 +861,12 @@ static int k3_dma_probe(struct platform_device *op)
 				"dma-requests", &d->dma_requests);
 	}
 
-	d->clk = devm_clk_get(&op->dev, NULL);
-	if (IS_ERR(d->clk)) {
-		dev_err(&op->dev, "no dma clk\n");
-		return PTR_ERR(d->clk);
+	if (!(soc_data->flags & K3_FLAG_NOCLK)) {
+		d->clk = devm_clk_get(&op->dev, NULL);
+		if (IS_ERR(d->clk)) {
+			dev_err(&op->dev, "no dma clk\n");
+			return PTR_ERR(d->clk);
+		}
 	}
 
 	irq = platform_get_irq(op, 0);
