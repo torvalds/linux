@@ -1126,7 +1126,8 @@ static inline u32 set_pkt_bth_psn(__be32 bthpsn, u8 expct, u32 frags)
 			0xffffffull),
 		psn = val & mask;
 	if (expct)
-		psn = (psn & ~BTH_SEQ_MASK) | ((psn + frags) & BTH_SEQ_MASK);
+		psn = (psn & ~HFI1_KDETH_BTH_SEQ_MASK) |
+			((psn + frags) & HFI1_KDETH_BTH_SEQ_MASK);
 	else
 		psn = psn + frags;
 	return psn & mask;

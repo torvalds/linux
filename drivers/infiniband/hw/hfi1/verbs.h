@@ -193,6 +193,7 @@ struct hfi1_qp_priv {
 	u32 r_tid_ack;      /* the TID RDMA request to be ACK'ed */
 	u32 r_tid_alloc;    /* Request for which we are allocating resources */
 	u32 pending_tid_w_segs; /* Num of pending tid write segments */
+	u32 pending_tid_w_resp; /* Num of pending tid write responses */
 	u32 alloc_w_segs;       /* Number of segments for which write */
 			       /* resources have been allocated for this QP */
 

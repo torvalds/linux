@@ -138,6 +138,12 @@ const struct rvt_operation_params hfi1_post_parms[RVT_OPERATION_MAX] = {
 	.flags = RVT_OPERATION_USE_RESERVE,
 },
 
+[IB_WR_TID_RDMA_WRITE] = {
+	.length = sizeof(struct ib_rdma_wr),
+	.qpt_support = BIT(IB_QPT_RC),
+	.flags = RVT_OPERATION_IGN_RNR_CNT,
+},
+
 };
 
 static void flush_list_head(struct list_head *l)
@@ -780,6 +786,7 @@ void quiesce_qp(struct rvt_qp *qp)
 	struct hfi1_qp_priv *priv = qp->priv;
 
 	hfi1_del_tid_reap_timer(qp);
+	hfi1_del_tid_retry_timer(qp);
 	iowait_sdma_drain(&priv->s_iowait);
 	qp_pio_drain(qp);
 	flush_tx_list(qp);

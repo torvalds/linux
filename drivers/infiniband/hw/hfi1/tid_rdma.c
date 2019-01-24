@@ -3208,6 +3208,20 @@ void hfi1_qp_kern_exp_rcv_clear_all(struct rvt_qp *qp)
 			ret = hfi1_kern_exp_rcv_clear(&priv->tid_req);
 		} while (!ret);
 	}
+	for (i = qp->s_acked_ack_queue; i != qp->r_head_ack_queue;) {
+		struct rvt_ack_entry *e = &qp->s_ack_queue[i];
+
+		if (++i == rvt_max_atomic(ib_to_rvt(qp->ibqp.device)))
+			i = 0;
+		/* Free only locally allocated TID entries */
+		if (e->opcode != TID_OP(WRITE_REQ))
+			continue;
+		do {
+			struct hfi1_ack_priv *priv = e->priv;
+
+			ret = hfi1_kern_exp_rcv_clear(&priv->tid_req);
+		} while (!ret);
+	}
 }
 
 bool hfi1_tid_rdma_wqe_interlock(struct rvt_qp *qp, struct rvt_swqe *wqe)
