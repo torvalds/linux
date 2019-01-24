@@ -134,7 +134,7 @@ struct dc_crtc_timing;
 
 struct drr_params;
 
-struct vline_config;
+union vline_config;
 
 
 enum vline_select {
@@ -149,9 +149,11 @@ struct timing_generator_funcs {
 	void (*program_timing)(struct timing_generator *tg,
 							const struct dc_crtc_timing *timing,
 							bool use_vbios);
-	void (*program_vline_interrupt)(struct timing_generator *optc,
+	void (*program_vline_interrupt)(
+			struct timing_generator *optc,
+			const struct dc_crtc_timing *dc_crtc_timing,
 			enum vline_select vline,
-			const struct vline_config *vline_config);
+			const union vline_config *vline_config);
 	bool (*enable_crtc)(struct timing_generator *tg);
 	bool (*disable_crtc)(struct timing_generator *tg);
 	bool (*is_counter_moving)(struct timing_generator *tg);

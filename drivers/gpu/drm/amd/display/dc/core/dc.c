@@ -1572,13 +1572,13 @@ static void commit_planes_do_stream_update(struct dc *dc,
 					stream_update->adjust->v_total_min,
 					stream_update->adjust->v_total_max);
 
-			if (stream_update->vline0_config && pipe_ctx->stream_res.tg->funcs->program_vline_interrupt)
+			if (stream_update->periodic_vsync_config && pipe_ctx->stream_res.tg->funcs->program_vline_interrupt)
 				pipe_ctx->stream_res.tg->funcs->program_vline_interrupt(
-					pipe_ctx->stream_res.tg, VLINE0, &stream->vline0_config);
+					pipe_ctx->stream_res.tg, &pipe_ctx->stream->timing, VLINE0, &stream->periodic_vsync_config);
 
-			if (stream_update->vline1_config && pipe_ctx->stream_res.tg->funcs->program_vline_interrupt)
+			if (stream_update->enhanced_sync_config && pipe_ctx->stream_res.tg->funcs->program_vline_interrupt)
 				pipe_ctx->stream_res.tg->funcs->program_vline_interrupt(
-					pipe_ctx->stream_res.tg, VLINE1, &stream->vline1_config);
+					pipe_ctx->stream_res.tg, &pipe_ctx->stream->timing, VLINE1, &stream->enhanced_sync_config);
 
 			if ((stream_update->hdr_static_metadata && !stream->use_dynamic_meta) ||
 					stream_update->vrr_infopacket ||

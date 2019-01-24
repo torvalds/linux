@@ -51,10 +51,11 @@ struct freesync_context {
 	bool dummy;
 };
 
-struct vline_config {
-	unsigned int start_line;
-	unsigned int end_line;
+union vline_config {
+	unsigned int line_number;
+	unsigned long long delta_in_ns;
 };
+
 
 struct dc_stream_state {
 	// sink is deprecated, new code should not reference
@@ -105,8 +106,8 @@ struct dc_stream_state {
 	/* DMCU info */
 	unsigned int abm_level;
 
-	struct vline_config vline0_config;
-	struct vline_config vline1_config;
+	union vline_config periodic_vsync_config;
+	union vline_config enhanced_sync_config;
 
 	/* from core_stream struct */
 	struct dc_context *ctx;
@@ -155,8 +156,8 @@ struct dc_stream_update {
 	struct dc_info_packet *hdr_static_metadata;
 	unsigned int *abm_level;
 
-	struct vline_config *vline0_config;
-	struct vline_config *vline1_config;
+	union vline_config *periodic_vsync_config;
+	union vline_config *enhanced_sync_config;
 
 	struct dc_crtc_timing_adjust *adjust;
 	struct dc_info_packet *vrr_infopacket;
