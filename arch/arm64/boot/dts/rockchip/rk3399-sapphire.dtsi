@@ -82,6 +82,13 @@
 		};
 	};
 
+	dp_sound: dp-sound {
+		status = "disabled";
+		compatible = "rockchip,cdndp-sound";
+		rockchip,cpu = <&spdif>;
+		rockchip,codec = <&cdn_dp 1>;
+	};
+
 	/* switched by pmic_sleep */
 	vcc1v8_s3: vcca1v8_s3: vcc1v8-s3 {
 		compatible = "regulator-fixed";
