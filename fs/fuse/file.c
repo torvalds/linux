@@ -19,8 +19,6 @@
 #include <linux/falloc.h>
 #include <linux/uio.h>
 
-static const struct file_operations fuse_direct_io_file_operations;
-
 static int fuse_send_open(struct fuse_conn *fc, u64 nodeid, struct file *file,
 			  int opcode, struct fuse_open_out *outargp)
 {
@@ -174,8 +172,6 @@ void fuse_finish_open(struct inode *inode, struct file *file)
 	struct fuse_file *ff = file->private_data;
 	struct fuse_conn *fc = get_fuse_conn(inode);
 
-	if (ff->open_flags & FOPEN_DIRECT_IO)
-		file->f_op = &fuse_direct_io_file_operations;
 	if (!(ff->open_flags & FOPEN_KEEP_CACHE))
 		invalidate_inode_pages2(inode->i_mapping);
 	if (ff->open_flags & FOPEN_NONSEEKABLE)
@@ -929,7 +925,7 @@ out:
 	return err;
 }
 
-static ssize_t fuse_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
+static ssize_t fuse_cache_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
 	struct inode *inode = iocb->ki_filp->f_mapping->host;
 	struct fuse_conn *fc = get_fuse_conn(inode);
@@ -1183,7 +1179,7 @@ static ssize_t fuse_perform_write(struct kiocb *iocb,
 	return res > 0 ? res : err;
 }
 
-static ssize_t fuse_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
+static ssize_t fuse_cache_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
 	struct address_space *mapping = file->f_mapping;
@@ -1484,6 +1480,26 @@ static ssize_t fuse_direct_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	inode_unlock(inode);
 
 	return res;
+}
+
+static ssize_t fuse_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
+{
+	struct fuse_file *ff = iocb->ki_filp->private_data;
+
+	if (!(ff->open_flags & FOPEN_DIRECT_IO))
+		return fuse_cache_read_iter(iocb, to);
+	else
+		return fuse_direct_read_iter(iocb, to);
+}
+
+static ssize_t fuse_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
+{
+	struct fuse_file *ff = iocb->ki_filp->private_data;
+
+	if (!(ff->open_flags & FOPEN_DIRECT_IO))
+		return fuse_cache_write_iter(iocb, from);
+	else
+		return fuse_direct_write_iter(iocb, from);
 }
 
 static void fuse_writepage_free(struct fuse_conn *fc, struct fuse_req *req)
@@ -2129,23 +2145,24 @@ static const struct vm_operations_struct fuse_file_vm_ops = {
 
 static int fuse_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
+	struct fuse_file *ff = file->private_data;
+
+	if (ff->open_flags & FOPEN_DIRECT_IO) {
+		/* Can't provide the coherency needed for MAP_SHARED */
+		if (vma->vm_flags & VM_MAYSHARE)
+			return -ENODEV;
+
+		invalidate_inode_pages2(file->f_mapping);
+
+		return generic_file_mmap(file, vma);
+	}
+
 	if ((vma->vm_flags & VM_SHARED) && (vma->vm_flags & VM_MAYWRITE))
 		fuse_link_write_file(file);
 
 	file_accessed(file);
 	vma->vm_ops = &fuse_file_vm_ops;
 	return 0;
-}
-
-static int fuse_direct_mmap(struct file *file, struct vm_area_struct *vma)
-{
-	/* Can't provide the coherency needed for MAP_SHARED */
-	if (vma->vm_flags & VM_MAYSHARE)
-		return -ENODEV;
-
-	invalidate_inode_pages2(file->f_mapping);
-
-	return generic_file_mmap(file, vma);
 }
 
 static int convert_fuse_file_lock(struct fuse_conn *fc,
@@ -3149,26 +3166,6 @@ static const struct file_operations fuse_file_operations = {
 	.read_iter	= fuse_file_read_iter,
 	.write_iter	= fuse_file_write_iter,
 	.mmap		= fuse_file_mmap,
-	.open		= fuse_open,
-	.flush		= fuse_flush,
-	.release	= fuse_release,
-	.fsync		= fuse_fsync,
-	.lock		= fuse_file_lock,
-	.flock		= fuse_file_flock,
-	.splice_read	= generic_file_splice_read,
-	.splice_write	= iter_file_splice_write,
-	.unlocked_ioctl	= fuse_file_ioctl,
-	.compat_ioctl	= fuse_file_compat_ioctl,
-	.poll		= fuse_file_poll,
-	.fallocate	= fuse_file_fallocate,
-	.copy_file_range = fuse_copy_file_range,
-};
-
-static const struct file_operations fuse_direct_io_file_operations = {
-	.llseek		= fuse_file_llseek,
-	.read_iter	= fuse_direct_read_iter,
-	.write_iter	= fuse_direct_write_iter,
-	.mmap		= fuse_direct_mmap,
 	.open		= fuse_open,
 	.flush		= fuse_flush,
 	.release	= fuse_release,
