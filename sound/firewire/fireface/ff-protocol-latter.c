@@ -266,6 +266,24 @@ static void latter_dump_status(struct snd_ff *ff, struct snd_info_buffer *buffer
 
 // NOTE: transactions are transferred within 0x00-0x7f in allocated range of
 // address. This seems to be for check of discontinuity in receiver side.
+//
+// Like Fireface 400, drivers can select one of 4 options for lower 4 bytes of
+// destination address by bit flags in quadlet register (little endian) at
+// 0x'ffff'0000'0014:
+//
+// bit flags: offset of destination address
+// - 0x00002000: 0x'....'....'0000'0000
+// - 0x00004000: 0x'....'....'0000'0080
+// - 0x00008000: 0x'....'....'0000'0100
+// - 0x00010000: 0x'....'....'0000'0180
+//
+// Drivers can suppress the device to transfer asynchronous transactions by
+// clear these bit flags.
+//
+// Actually, the register is write-only and includes the other settings such as
+// input attenuation. This driver allocates for the first option
+// (0x'....'....'0000'0000) and expects userspace application to configure the
+// register for it.
 static void latter_handle_midi_msg(struct snd_ff *ff, unsigned int offset,
 				   __le32 *buf, size_t length)
 {
