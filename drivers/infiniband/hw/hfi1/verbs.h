@@ -161,8 +161,13 @@ struct hfi1_qp_priv {
 	struct hfi1_ctxtdata *rcd;                /* QP's receive context */
 	u8 s_sc;		                  /* SC[0..4] for next packet */
 	struct iowait s_iowait;
+	struct hfi1_opfn_data opfn;
+	struct tid_rdma_qp_params tid_rdma;
 	struct rvt_qp *owner;
 	u8 hdr_type; /* 9B or 16B */
+	unsigned long tid_timer_timeout_jiffies;
+	u16 pkts_ps;            /* packets per segment */
+	u8 timeout_shift;       /* account for number of packets per segment */
 };
 
 /*

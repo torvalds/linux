@@ -50,4 +50,9 @@
 /* STL Verbs Extended */
 #define IB_BTHE_E_SHIFT           24
 
+struct hfi1_opfn_data {
+	/* serialize opfn function calls */
+	spinlock_t lock;
+};
+
 #endif /* _HFI1_OPFN_H */
