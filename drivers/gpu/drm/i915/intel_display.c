@@ -11719,6 +11719,15 @@ pipe_config_err(bool adjust, const char *name, const char *format, ...)
 	va_end(args);
 }
 
+static bool fastboot_enabled(struct drm_i915_private *dev_priv)
+{
+	if (i915_modparams.fastboot != -1)
+		return i915_modparams.fastboot;
+
+	/* Enable fastboot by default on Skylake and newer */
+	return INTEL_GEN(dev_priv) >= 9;
+}
+
 static bool
 intel_pipe_config_compare(struct drm_i915_private *dev_priv,
 			  struct intel_crtc_state *current_config,
@@ -11730,7 +11739,7 @@ intel_pipe_config_compare(struct drm_i915_private *dev_priv,
 		(current_config->base.mode.private_flags & I915_MODE_FLAG_INHERITED) &&
 		!(pipe_config->base.mode.private_flags & I915_MODE_FLAG_INHERITED);
 
-	if (fixup_inherited && !i915_modparams.fastboot) {
+	if (fixup_inherited && !fastboot_enabled(dev_priv)) {
 		DRM_DEBUG_KMS("initial modeset and fastboot not set\n");
 		ret = false;
 	}
