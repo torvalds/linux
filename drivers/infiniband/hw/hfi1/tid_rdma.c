@@ -1622,6 +1622,27 @@ u64 hfi1_access_sw_tid_wait(const struct cntr_entry *entry,
 	return dd->verbs_dev.n_tidwait;
 }
 
+static struct tid_rdma_flow *find_flow_ib(struct tid_rdma_request *req,
+					  u32 psn, u16 *fidx)
+{
+	u16 head, tail;
+	struct tid_rdma_flow *flow;
+
+	head = req->setup_head;
+	tail = req->clear_tail;
+	for ( ; CIRC_CNT(head, tail, MAX_FLOWS);
+	     tail = CIRC_NEXT(tail, MAX_FLOWS)) {
+		flow = &req->flows[tail];
+		if (cmp_psn(psn, flow->flow_state.ib_spsn) >= 0 &&
+		    cmp_psn(psn, flow->flow_state.ib_lpsn) <= 0) {
+			if (fidx)
+				*fidx = tail;
+			return flow;
+		}
+	}
+	return NULL;
+}
+
 static struct tid_rdma_flow *
 __find_flow_ranged(struct tid_rdma_request *req, u16 head, u16 tail,
 		   u32 psn, u16 *fidx)
@@ -2713,4 +2734,65 @@ rcu_unlock:
 	rcu_read_unlock();
 drop:
 	return ret;
+}
+
+/*
+ * "Rewind" the TID request information.
+ * This means that we reset the state back to ACTIVE,
+ * find the proper flow, set the flow index to that flow,
+ * and reset the flow information.
+ */
+void hfi1_tid_rdma_restart_req(struct rvt_qp *qp, struct rvt_swqe *wqe,
+			       u32 *bth2)
+{
+	struct tid_rdma_request *req = wqe_to_tid_req(wqe);
+	struct tid_rdma_flow *flow;
+	int diff;
+	u32 tididx = 0;
+	u16 fidx;
+
+	if (wqe->wr.opcode == IB_WR_TID_RDMA_READ) {
+		*bth2 = mask_psn(qp->s_psn);
+		flow = find_flow_ib(req, *bth2, &fidx);
+		if (!flow)
+			return;
+	} else {
+		return;
+	}
+
+	diff = delta_psn(*bth2, flow->flow_state.ib_spsn);
+
+	flow->sent = 0;
+	flow->pkt = 0;
+	flow->tid_idx = 0;
+	flow->tid_offset = 0;
+	if (diff) {
+		for (tididx = 0; tididx < flow->tidcnt; tididx++) {
+			u32 tidentry = flow->tid_entry[tididx], tidlen,
+				tidnpkts, npkts;
+
+			flow->tid_offset = 0;
+			tidlen = EXP_TID_GET(tidentry, LEN) * PAGE_SIZE;
+			tidnpkts = rvt_div_round_up_mtu(qp, tidlen);
+			npkts = min_t(u32, diff, tidnpkts);
+			flow->pkt += npkts;
+			flow->sent += (npkts == tidnpkts ? tidlen :
+				       npkts * qp->pmtu);
+			flow->tid_offset += npkts * qp->pmtu;
+			diff -= npkts;
+			if (!diff)
+				break;
+		}
+	}
+
+	if (flow->tid_offset ==
+	    EXP_TID_GET(flow->tid_entry[tididx], LEN) * PAGE_SIZE) {
+		tididx++;
+		flow->tid_offset = 0;
+	}
+	flow->tid_idx = tididx;
+	/* Move flow_idx to correct index */
+	req->flow_idx = fidx;
+
+	req->state = TID_REQUEST_ACTIVE;
 }
