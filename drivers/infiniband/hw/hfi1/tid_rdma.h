@@ -155,4 +155,8 @@ int hfi1_kern_setup_hw_flow(struct hfi1_ctxtdata *rcd, struct rvt_qp *qp);
 void hfi1_kern_clear_hw_flow(struct hfi1_ctxtdata *rcd, struct rvt_qp *qp);
 void hfi1_kern_init_ctxt_generations(struct hfi1_ctxtdata *rcd);
 
+struct cntr_entry;
+u64 hfi1_access_sw_tid_wait(const struct cntr_entry *entry,
+			    void *context, int vl, int mode, u64 data);
+
 #endif /* HFI1_TID_RDMA_H */

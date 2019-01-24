@@ -243,6 +243,7 @@ struct hfi1_ibdev {
 	struct kmem_cache *verbs_txreq_cache;
 	u64 n_txwait;
 	u64 n_kmem_wait;
+	u64 n_tidwait;
 
 	/* protect iowait lists */
 	seqlock_t iowait_lock ____cacheline_aligned_in_smp;

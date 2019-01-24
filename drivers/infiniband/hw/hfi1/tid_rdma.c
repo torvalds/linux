@@ -495,6 +495,7 @@ static void queue_qp_for_tid_wait(struct hfi1_ctxtdata *rcd,
 		qp->s_flags |= HFI1_S_WAIT_TID_SPACE;
 		list_add_tail(&priv->tid_wait, &queue->queue_head);
 		priv->tid_enqueue = ++queue->enqueue;
+		rcd->dd->verbs_dev.n_tidwait++;
 		trace_hfi1_qpsleep(qp, HFI1_S_WAIT_TID_SPACE);
 		rvt_get_qp(qp);
 	}
@@ -1568,4 +1569,12 @@ static void hfi1_init_trdma_req(struct rvt_qp *qp,
 	 */
 	req->qp = qp;
 	req->rcd = qpriv->rcd;
+}
+
+u64 hfi1_access_sw_tid_wait(const struct cntr_entry *entry,
+			    void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = context;
+
+	return dd->verbs_dev.n_tidwait;
 }
