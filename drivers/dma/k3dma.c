@@ -111,6 +111,7 @@ struct k3_dma_dev {
 	struct dma_pool		*pool;
 	u32			dma_channels;
 	u32			dma_requests;
+	u32			dma_channel_mask;
 	unsigned int		irq;
 };
 
@@ -319,6 +320,9 @@ static void k3_dma_tasklet(unsigned long arg)
 	/* check new channel request in d->chan_pending */
 	spin_lock_irq(&d->lock);
 	for (pch = 0; pch < d->dma_channels; pch++) {
+		if (!(d->dma_channel_mask & (1 << pch)))
+			continue;
+
 		p = &d->phy[pch];
 
 		if (p->vchan == NULL && !list_empty(&d->chan_pending)) {
@@ -336,6 +340,9 @@ static void k3_dma_tasklet(unsigned long arg)
 	spin_unlock_irq(&d->lock);
 
 	for (pch = 0; pch < d->dma_channels; pch++) {
+		if (!(d->dma_channel_mask & (1 << pch)))
+			continue;
+
 		if (pch_alloc & (1 << pch)) {
 			p = &d->phy[pch];
 			c = p->vchan;
@@ -856,6 +863,13 @@ static int k3_dma_probe(struct platform_device *op)
 				"dma-channels", &d->dma_channels);
 		of_property_read_u32((&op->dev)->of_node,
 				"dma-requests", &d->dma_requests);
+		ret = of_property_read_u32((&op->dev)->of_node,
+				"dma-channel-mask", &d->dma_channel_mask);
+		if (ret) {
+			dev_warn(&op->dev,
+				 "dma-channel-mask doesn't exist, considering all as available.\n");
+			d->dma_channel_mask = (u32)~0UL;
+		}
 	}
 
 	if (!(soc_data->flags & K3_FLAG_NOCLK)) {
@@ -887,8 +901,12 @@ static int k3_dma_probe(struct platform_device *op)
 		return -ENOMEM;
 
 	for (i = 0; i < d->dma_channels; i++) {
-		struct k3_dma_phy *p = &d->phy[i];
+		struct k3_dma_phy *p;
 
+		if (!(d->dma_channel_mask & BIT(i)))
+			continue;
+
+		p = &d->phy[i];
 		p->idx = i;
 		p->base = d->base + i * 0x40;
 	}
