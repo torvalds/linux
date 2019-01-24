@@ -256,7 +256,7 @@ static int hda_init_caps(struct snd_sof_dev *sdev)
 	ret = hda_dsp_ctrl_init_chip(sdev, true);
 	if (ret < 0) {
 		dev_err(bus->dev, "error: init chip failed with ret: %d\n", ret);
-		hda_codec_i915_put(sdev);
+		hda_codec_i915_exit(sdev);
 		return ret;
 	}
 
