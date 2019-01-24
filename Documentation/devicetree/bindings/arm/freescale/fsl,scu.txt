@@ -71,6 +71,7 @@ This binding uses the common clock binding[1].
 
 Required properties:
 - compatible:		Should be one of:
+			  "fsl,imx8qm-clock"
 			  "fsl,imx8qxp-clock"
 			followed by "fsl,scu-clk"
 - #clock-cells:		Should be 1. Contains the Clock ID value.
