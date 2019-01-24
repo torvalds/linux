@@ -1494,6 +1494,7 @@ static void fuse_send_writepage(struct fuse_conn *fc, struct fuse_req *req,
 __releases(fc->lock)
 __acquires(fc->lock)
 {
+	struct fuse_req *aux, *next;
 	struct fuse_inode *fi = get_fuse_inode(req->inode);
 	struct fuse_write_in *inarg = &req->misc.write.in;
 	__u64 data_size = req->num_pages * PAGE_SIZE;
@@ -1520,6 +1521,15 @@ __acquires(fc->lock)
  out_free:
 	fuse_writepage_finish(fc, req);
 	spin_unlock(&fc->lock);
+
+	/* After fuse_writepage_finish() aux request list is private */
+	for (aux = req->misc.write.next; aux; aux = next) {
+		next = aux->misc.write.next;
+		aux->misc.write.next = NULL;
+		fuse_writepage_free(fc, aux);
+		fuse_put_request(fc, aux);
+	}
+
 	fuse_writepage_free(fc, req);
 	fuse_put_request(fc, req);
 	spin_lock(&fc->lock);
