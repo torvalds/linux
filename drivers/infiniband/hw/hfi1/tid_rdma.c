@@ -3059,8 +3059,9 @@ void hfi1_tid_rdma_restart_req(struct rvt_qp *qp, struct rvt_swqe *wqe,
 {
 	struct tid_rdma_request *req = wqe_to_tid_req(wqe);
 	struct tid_rdma_flow *flow;
-	int diff;
-	u32 tididx = 0;
+	struct hfi1_qp_priv *qpriv = qp->priv;
+	int diff, delta_pkts;
+	u32 tididx = 0, i;
 	u16 fidx;
 
 	if (wqe->wr.opcode == IB_WR_TID_RDMA_READ) {
@@ -3076,11 +3077,20 @@ void hfi1_tid_rdma_restart_req(struct rvt_qp *qp, struct rvt_swqe *wqe,
 			return;
 		}
 	} else {
-		return;
+		fidx = req->acked_tail;
+		flow = &req->flows[fidx];
+		*bth2 = mask_psn(req->r_ack_psn);
 	}
 
+	if (wqe->wr.opcode == IB_WR_TID_RDMA_READ)
+		delta_pkts = delta_psn(*bth2, flow->flow_state.ib_spsn);
+	else
+		delta_pkts = delta_psn(*bth2,
+				       full_flow_psn(flow,
+						     flow->flow_state.spsn));
+
 	trace_hfi1_tid_flow_restart_req(qp, fidx, flow);
-	diff = delta_psn(*bth2, flow->flow_state.ib_spsn);
+	diff = delta_pkts + flow->resync_npkts;
 
 	flow->sent = 0;
 	flow->pkt = 0;
@@ -3104,6 +3114,18 @@ void hfi1_tid_rdma_restart_req(struct rvt_qp *qp, struct rvt_swqe *wqe,
 				break;
 		}
 	}
+	if (wqe->wr.opcode == IB_WR_TID_RDMA_WRITE) {
+		rvt_skip_sge(&qpriv->tid_ss, (req->cur_seg * req->seg_len) +
+			     flow->sent, 0);
+		/*
+		 * Packet PSN is based on flow_state.spsn + flow->pkt. However,
+		 * during a RESYNC, the generation is incremented and the
+		 * sequence is reset to 0. Since we've adjusted the npkts in the
+		 * flow and the SGE has been sufficiently advanced, we have to
+		 * adjust flow->pkt in order to calculate the correct PSN.
+		 */
+		flow->pkt -= flow->resync_npkts;
+	}
 
 	if (flow->tid_offset ==
 	    EXP_TID_GET(flow->tid_entry[tididx], LEN) * PAGE_SIZE) {
@@ -3111,13 +3133,42 @@ void hfi1_tid_rdma_restart_req(struct rvt_qp *qp, struct rvt_swqe *wqe,
 		flow->tid_offset = 0;
 	}
 	flow->tid_idx = tididx;
-	/* Move flow_idx to correct index */
-	req->flow_idx = fidx;
+	if (wqe->wr.opcode == IB_WR_TID_RDMA_READ)
+		/* Move flow_idx to correct index */
+		req->flow_idx = fidx;
+	else
+		req->clear_tail = fidx;
 
 	trace_hfi1_tid_flow_restart_req(qp, fidx, flow);
 	trace_hfi1_tid_req_restart_req(qp, 0, wqe->wr.opcode, wqe->psn,
 				       wqe->lpsn, req);
 	req->state = TID_REQUEST_ACTIVE;
+	if (wqe->wr.opcode == IB_WR_TID_RDMA_WRITE) {
+		/* Reset all the flows that we are going to resend */
+		fidx = CIRC_NEXT(fidx, MAX_FLOWS);
+		i = qpriv->s_tid_tail;
+		do {
+			for (; CIRC_CNT(req->setup_head, fidx, MAX_FLOWS);
+			      fidx = CIRC_NEXT(fidx, MAX_FLOWS)) {
+				req->flows[fidx].sent = 0;
+				req->flows[fidx].pkt = 0;
+				req->flows[fidx].tid_idx = 0;
+				req->flows[fidx].tid_offset = 0;
+				req->flows[fidx].resync_npkts = 0;
+			}
+			if (i == qpriv->s_tid_cur)
+				break;
+			do {
+				i = (++i == qp->s_size ? 0 : i);
+				wqe = rvt_get_swqe_ptr(qp, i);
+			} while (wqe->wr.opcode != IB_WR_TID_RDMA_WRITE);
+			req = wqe_to_tid_req(wqe);
+			req->cur_seg = req->ack_seg;
+			fidx = req->acked_tail;
+			/* Pull req->clear_tail back */
+			req->clear_tail = fidx;
+		} while (1);
+	}
 }
 
 void hfi1_qp_kern_exp_rcv_clear_all(struct rvt_qp *qp)
