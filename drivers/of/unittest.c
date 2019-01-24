@@ -1116,9 +1116,12 @@ static void update_node_properties(struct device_node *np,
 	for (prop = np->properties; prop != NULL; prop = save_next) {
 		save_next = prop->next;
 		ret = of_add_property(dup, prop);
-		if (ret)
+		if (ret) {
+			if (ret == -EEXIST && !strcmp(prop->name, "name"))
+				continue;
 			pr_err("unittest internal error: unable to add testdata property %pOF/%s",
 			       np, prop->name);
+		}
 	}
 }
 
