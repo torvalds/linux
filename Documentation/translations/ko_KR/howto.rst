@@ -99,7 +99,7 @@ mtk.manpages@gmail.com의 메인테이너에게 보낼 것을 권장한다.
 
 다음은 커널 소스 트리에 있는 읽어야 할 파일들의 리스트이다.
 
-  README
+  :ref:`Documentation/admin-guide/README.rst <readme>`
     이 파일은 리눅스 커널에 관하여 간단한 배경 설명과 커널을 설정하고
     빌드하기 위해 필요한 것을 설명한다. 커널에 입문하는 사람들은 여기서
     시작해야 한다.
