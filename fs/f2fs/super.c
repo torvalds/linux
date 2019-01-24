@@ -835,11 +835,11 @@ static int parse_options(struct super_block *sb, char *options)
 			return -EINVAL;
 		}
 		if (!F2FS_OPTION(sbi).inline_xattr_size ||
-			F2FS_OPTION(sbi).inline_xattr_size >=
-					DEF_ADDRS_PER_INODE -
-					F2FS_TOTAL_EXTRA_ATTR_SIZE -
-					DEF_INLINE_RESERVED_SIZE -
-					DEF_MIN_INLINE_SIZE) {
+			F2FS_OPTION(sbi).inline_xattr_size >
+				DEF_ADDRS_PER_INODE -
+				F2FS_TOTAL_EXTRA_ATTR_SIZE / sizeof(__le32) -
+				DEF_INLINE_RESERVED_SIZE -
+				MIN_INLINE_DENTRY_SIZE / sizeof(__le32)) {
 			f2fs_msg(sb, KERN_ERR,
 					"inline xattr size is out of range");
 			return -EINVAL;
