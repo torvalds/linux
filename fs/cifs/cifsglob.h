@@ -385,8 +385,8 @@ struct smb_version_operations {
 			 struct cifs_fid *);
 	/* calculate a size of SMB message */
 	unsigned int (*calc_smb_size)(void *buf, struct TCP_Server_Info *ptcpi);
-	/* check for STATUS_PENDING and process it in a positive case */
-	bool (*is_status_pending)(char *, struct TCP_Server_Info *, int);
+	/* check for STATUS_PENDING and process the response if yes */
+	bool (*is_status_pending)(char *buf, struct TCP_Server_Info *server);
 	/* check for STATUS_NETWORK_SESSION_EXPIRED */
 	bool (*is_session_expired)(char *);
 	/* send oplock break response */

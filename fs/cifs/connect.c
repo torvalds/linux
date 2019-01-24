@@ -1054,7 +1054,7 @@ cifs_handle_standard(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	}
 
 	if (server->ops->is_status_pending &&
-	    server->ops->is_status_pending(buf, server, length))
+	    server->ops->is_status_pending(buf, server))
 		return -1;
 
 	if (!mid)
