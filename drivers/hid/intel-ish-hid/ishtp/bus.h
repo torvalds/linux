@@ -112,8 +112,8 @@ void	ishtp_cl_driver_unregister(struct ishtp_cl_driver *driver);
 
 int	ishtp_register_event_cb(struct ishtp_cl_device *device,
 				void (*read_cb)(struct ishtp_cl_device *));
-int	ishtp_fw_cl_by_uuid(struct ishtp_device *dev, const uuid_le *cuuid);
+int	ishtp_fw_cl_by_uuid(struct ishtp_device *dev, const guid_t *cuuid);
 struct	ishtp_fw_client *ishtp_fw_cl_get_client(struct ishtp_device *dev,
-						const uuid_le *uuid);
+						const guid_t *uuid);
 
 #endif /* _LINUX_ISHTP_CL_BUS_H */
