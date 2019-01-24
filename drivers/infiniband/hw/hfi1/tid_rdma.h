@@ -102,6 +102,7 @@ struct tid_rdma_request {
 	u32 seg_len;
 	u32 total_len;
 	u32 r_flow_psn;         /* IB PSN of next segment start */
+	u32 r_last_acked;       /* IB PSN of last ACK'ed packet */
 	u32 s_next_psn;		/* IB PSN of next segment start for read */
 
 	u32 total_segs;		/* segments required to complete a request */
@@ -175,6 +176,7 @@ struct tid_rdma_flow {
 	u8 npagesets;
 	u8 npkts;
 	u8 pkt;
+	u8 resync_npkts;
 	struct kern_tid_node tnode[TID_RDMA_MAX_PAGES];
 	struct tid_rdma_pageset pagesets[TID_RDMA_MAX_PAGES];
 	u32 tid_entry[TID_RDMA_MAX_PAGES];
@@ -270,5 +272,7 @@ u32 hfi1_build_tid_rdma_write_resp(struct rvt_qp *qp, struct rvt_ack_entry *e,
 				   struct rvt_sge_state **ss);
 
 void hfi1_del_tid_reap_timer(struct rvt_qp *qp);
+
+void hfi1_rc_rcv_tid_rdma_write_resp(struct hfi1_packet *packet);
 
 #endif /* HFI1_TID_RDMA_H */

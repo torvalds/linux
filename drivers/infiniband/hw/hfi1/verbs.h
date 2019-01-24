@@ -175,6 +175,9 @@ struct hfi1_qp_priv {
 	/* variables for the TID RDMA SE state machine */
 	u8 rnr_nak_state;       /* RNR NAK state */
 	u32 s_flags;
+	u32 s_tid_cur;
+	u32 s_tid_head;
+	u32 s_tid_tail;
 	u32 r_tid_head;     /* Most recently added TID RDMA request */
 	u32 r_tid_tail;     /* the last completed TID RDMA request */
 	u32 r_tid_ack;      /* the TID RDMA request to be ACK'ed */

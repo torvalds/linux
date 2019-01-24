@@ -319,6 +319,9 @@ int hfi1_qp_priv_init(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 	qpriv->flow_state.index = RXE_NUM_TID_FLOWS;
 	qpriv->flow_state.last_index = RXE_NUM_TID_FLOWS;
 	qpriv->flow_state.generation = KERN_GENERATION_RESERVED;
+	qpriv->s_tid_cur = HFI1_QP_WQE_INVALID;
+	qpriv->s_tid_head = HFI1_QP_WQE_INVALID;
+	qpriv->s_tid_tail = HFI1_QP_WQE_INVALID;
 	qpriv->rnr_nak_state = TID_RNR_NAK_INIT;
 	qpriv->r_tid_head = HFI1_QP_WQE_INVALID;
 	qpriv->r_tid_tail = HFI1_QP_WQE_INVALID;
@@ -3769,4 +3772,174 @@ static void hfi1_tid_timeout(struct timer_list *t)
 	spin_unlock(&qp->s_lock);
 unlock_r_lock:
 	spin_unlock_irqrestore(&qp->r_lock, flags);
+}
+
+void hfi1_rc_rcv_tid_rdma_write_resp(struct hfi1_packet *packet)
+{
+	/* HANDLER FOR TID RDMA WRITE RESPONSE packet (Requestor side */
+
+	/*
+	 * 1. Find matching SWQE
+	 * 2. Check that TIDENTRY array has enough space for a complete
+	 *    segment. If not, put QP in error state.
+	 * 3. Save response data in struct tid_rdma_req and struct tid_rdma_flow
+	 * 4. Remove HFI1_S_WAIT_TID_RESP from s_flags.
+	 * 5. Set qp->s_state
+	 * 6. Kick the send engine (hfi1_schedule_send())
+	 */
+	struct ib_other_headers *ohdr = packet->ohdr;
+	struct rvt_qp *qp = packet->qp;
+	struct hfi1_qp_priv *qpriv = qp->priv;
+	struct hfi1_ctxtdata *rcd = packet->rcd;
+	struct rvt_swqe *wqe;
+	struct tid_rdma_request *req;
+	struct tid_rdma_flow *flow;
+	enum ib_wc_status status;
+	u32 opcode, aeth, psn, flow_psn, i, tidlen = 0, pktlen;
+	bool is_fecn;
+	unsigned long flags;
+
+	is_fecn = process_ecn(qp, packet);
+	psn = mask_psn(be32_to_cpu(ohdr->bth[2]));
+	aeth = be32_to_cpu(ohdr->u.tid_rdma.w_rsp.aeth);
+	opcode = (be32_to_cpu(ohdr->bth[0]) >> 24) & 0xff;
+
+	spin_lock_irqsave(&qp->s_lock, flags);
+
+	/* Ignore invalid responses */
+	if (cmp_psn(psn, qp->s_next_psn) >= 0)
+		goto ack_done;
+
+	/* Ignore duplicate responses. */
+	if (unlikely(cmp_psn(psn, qp->s_last_psn) <= 0))
+		goto ack_done;
+
+	if (unlikely(qp->s_acked == qp->s_tail))
+		goto ack_done;
+
+	/*
+	 * If we are waiting for a particular packet sequence number
+	 * due to a request being resent, check for it. Otherwise,
+	 * ensure that we haven't missed anything.
+	 */
+	if (qp->r_flags & RVT_R_RDMAR_SEQ) {
+		if (cmp_psn(psn, qp->s_last_psn + 1) != 0)
+			goto ack_done;
+		qp->r_flags &= ~RVT_R_RDMAR_SEQ;
+	}
+
+	wqe = rvt_get_swqe_ptr(qp, qpriv->s_tid_cur);
+	if (unlikely(wqe->wr.opcode != IB_WR_TID_RDMA_WRITE))
+		goto ack_op_err;
+
+	req = wqe_to_tid_req(wqe);
+	/*
+	 * If we've lost ACKs and our acked_tail pointer is too far
+	 * behind, don't overwrite segments. Just drop the packet and
+	 * let the reliability protocol take care of it.
+	 */
+	if (!CIRC_SPACE(req->setup_head, req->acked_tail, MAX_FLOWS))
+		goto ack_done;
+
+	/*
+	 * The call to do_rc_ack() should be last in the chain of
+	 * packet checks because it will end up updating the QP state.
+	 * Therefore, anything that would prevent the packet from
+	 * being accepted as a successful response should be prior
+	 * to it.
+	 */
+	if (!do_rc_ack(qp, aeth, psn, opcode, 0, rcd))
+		goto ack_done;
+
+	flow = &req->flows[req->setup_head];
+	flow->pkt = 0;
+	flow->tid_idx = 0;
+	flow->tid_offset = 0;
+	flow->sent = 0;
+	flow->resync_npkts = 0;
+	flow->tid_qpn = be32_to_cpu(ohdr->u.tid_rdma.w_rsp.tid_flow_qp);
+	flow->idx = (flow->tid_qpn >> TID_RDMA_DESTQP_FLOW_SHIFT) &
+		TID_RDMA_DESTQP_FLOW_MASK;
+	flow_psn = mask_psn(be32_to_cpu(ohdr->u.tid_rdma.w_rsp.tid_flow_psn));
+	flow->flow_state.generation = flow_psn >> HFI1_KDETH_BTH_SEQ_SHIFT;
+	flow->flow_state.spsn = flow_psn & HFI1_KDETH_BTH_SEQ_MASK;
+	flow->flow_state.resp_ib_psn = psn;
+	flow->length = min_t(u32, req->seg_len,
+			     (wqe->length - (req->comp_seg * req->seg_len)));
+
+	flow->npkts = rvt_div_round_up_mtu(qp, flow->length);
+	flow->flow_state.lpsn = flow->flow_state.spsn +
+		flow->npkts - 1;
+	/* payload length = packet length - (header length + ICRC length) */
+	pktlen = packet->tlen - (packet->hlen + 4);
+	if (pktlen > sizeof(flow->tid_entry)) {
+		status = IB_WC_LOC_LEN_ERR;
+		goto ack_err;
+	}
+	memcpy(flow->tid_entry, packet->ebuf, pktlen);
+	flow->tidcnt = pktlen / sizeof(*flow->tid_entry);
+
+	req->comp_seg++;
+	/*
+	 * Walk the TID_ENTRY list to make sure we have enough space for a
+	 * complete segment.
+	 */
+	for (i = 0; i < flow->tidcnt; i++) {
+		if (!EXP_TID_GET(flow->tid_entry[i], LEN)) {
+			status = IB_WC_LOC_LEN_ERR;
+			goto ack_err;
+		}
+		tidlen += EXP_TID_GET(flow->tid_entry[i], LEN);
+	}
+	if (tidlen * PAGE_SIZE < flow->length) {
+		status = IB_WC_LOC_LEN_ERR;
+		goto ack_err;
+	}
+
+	/*
+	 * If this is the first response for this request, set the initial
+	 * flow index to the current flow.
+	 */
+	if (!cmp_psn(psn, wqe->psn)) {
+		req->r_last_acked = mask_psn(wqe->psn - 1);
+		/* Set acked flow index to head index */
+		req->acked_tail = req->setup_head;
+	}
+
+	/* advance circular buffer head */
+	req->setup_head = CIRC_NEXT(req->setup_head, MAX_FLOWS);
+	req->state = TID_REQUEST_ACTIVE;
+
+	/*
+	 * If all responses for this TID RDMA WRITE request have been received
+	 * advance the pointer to the next one.
+	 * Since TID RDMA requests could be mixed in with regular IB requests,
+	 * they might not appear sequentially in the queue. Therefore, the
+	 * next request needs to be "found".
+	 */
+	if (qpriv->s_tid_cur != qpriv->s_tid_head &&
+	    req->comp_seg == req->total_segs) {
+		for (i = qpriv->s_tid_cur + 1; ; i++) {
+			if (i == qp->s_size)
+				i = 0;
+			wqe = rvt_get_swqe_ptr(qp, i);
+			if (i == qpriv->s_tid_head)
+				break;
+			if (wqe->wr.opcode == IB_WR_TID_RDMA_WRITE)
+				break;
+		}
+		qpriv->s_tid_cur = i;
+	}
+	qp->s_flags &= ~HFI1_S_WAIT_TID_RESP;
+
+	goto ack_done;
+
+ack_op_err:
+	status = IB_WC_LOC_QP_OP_ERR;
+ack_err:
+	rvt_error_qp(qp, status);
+ack_done:
+	spin_unlock_irqrestore(&qp->s_lock, flags);
+	if (is_fecn)
+		hfi1_send_rc_ack(packet, is_fecn);
 }
