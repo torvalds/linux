@@ -437,6 +437,18 @@ struct pptable_funcs {
 	int (*set_power_profile_mode)(struct smu_context *smu, long *input, uint32_t size);
 	enum amd_dpm_forced_level (*get_performance_level)(struct smu_context *smu);
 	int (*force_performance_level)(struct smu_context *smu, enum amd_dpm_forced_level level);
+	int (*pre_display_config_changed)(struct smu_context *smu);
+	int (*display_config_changed)(struct smu_context *smu);
+	int (*apply_clocks_adjust_rules)(struct smu_context *smu);
+	int (*notify_smc_dispaly_config)(struct smu_context *smu);
+	int (*force_dpm_limit_value)(struct smu_context *smu, bool highest);
+	int (*upload_dpm_level)(struct smu_context *smu, bool max);
+	int (*get_profiling_clk_mask)(struct smu_context *smu,
+				      enum amd_dpm_forced_level level,
+				      uint32_t *sclk_mask,
+				      uint32_t *mclk_mask,
+				      uint32_t *soc_mask);
+	int (*set_cpu_power_state)(struct smu_context *smu);
 };
 
 struct smu_funcs
@@ -628,6 +640,22 @@ struct smu_funcs
 	((smu)->ppt_funcs->get_performance_level ? (smu)->ppt_funcs->get_performance_level((smu)) : 0)
 #define smu_force_performance_level(smu, level) \
 	((smu)->ppt_funcs->force_performance_level ? (smu)->ppt_funcs->force_performance_level((smu), (level)) : 0)
+#define smu_pre_display_config_changed(smu) \
+	((smu)->ppt_funcs->pre_display_config_changed ? (smu)->ppt_funcs->pre_display_config_changed((smu)) : 0)
+#define smu_display_config_changed(smu) \
+	((smu)->ppt_funcs->display_config_changed ? (smu)->ppt_funcs->display_config_changed((smu)) : 0)
+#define smu_apply_clocks_adjust_rules(smu) \
+	((smu)->ppt_funcs->apply_clocks_adjust_rules ? (smu)->ppt_funcs->apply_clocks_adjust_rules((smu)) : 0)
+#define smu_notify_smc_dispaly_config(smu) \
+	((smu)->ppt_funcs->notify_smc_dispaly_config ? (smu)->ppt_funcs->notify_smc_dispaly_config((smu)) : 0)
+#define smu_force_dpm_limit_value(smu, highest) \
+	((smu)->ppt_funcs->force_dpm_limit_value ? (smu)->ppt_funcs->force_dpm_limit_value((smu), (highest)) : 0)
+#define smu_upload_dpm_level(smu, max) \
+	((smu)->ppt_funcs->upload_dpm_level ? (smu)->ppt_funcs->upload_dpm_level((smu), (max)) : 0)
+#define smu_get_profiling_clk_mask(smu, level, sclk_mask, mclk_mask, soc_mask) \
+	((smu)->ppt_funcs->get_profiling_clk_mask ? (smu)->ppt_funcs->get_profiling_clk_mask((smu), (level), (sclk_mask), (mclk_mask), (soc_mask)) : 0)
+#define smu_set_cpu_power_state(smu) \
+	((smu)->ppt_funcs->set_cpu_power_state ? (smu)->ppt_funcs->set_cpu_power_state((smu)) : 0)
 
 #define smu_msg_get_index(smu, msg) \
 	((smu)->ppt_funcs? ((smu)->ppt_funcs->get_smu_msg_index? (smu)->ppt_funcs->get_smu_msg_index((smu), (msg)) : -EINVAL) : -EINVAL)
@@ -699,4 +727,7 @@ extern int smu_display_configuration_change(struct smu_context *smu, const
 extern int smu_get_current_clocks(struct smu_context *smu,
 				  struct amd_pp_clock_info *clocks);
 extern int smu_dpm_set_power_gate(struct smu_context *smu,uint32_t block_type, bool gate);
+extern int smu_handle_task(struct smu_context *smu,
+			   enum amd_dpm_forced_level level,
+			   enum amd_pp_task task_id);
 #endif

@@ -1041,6 +1041,133 @@ static int smu_enable_umd_pstate(void *handle,
 	return 0;
 }
 
+int smu_unforce_dpm_levels(struct smu_context *smu)
+{
+	int ret = 0;
+
+	ret = smu_upload_dpm_level(smu, false);
+	if (ret) {
+		pr_err("Failed to upload DPM Bootup Levels!");
+		return ret;
+	}
+
+	ret = smu_upload_dpm_level(smu, true);
+	if (ret) {
+		pr_err("Failed to upload DPM Max Levels!");
+		return ret;
+	}
+
+	return ret;
+}
+
+int smu_adjust_power_state_dynamic(struct smu_context *smu,
+				   enum amd_dpm_forced_level level,
+				   bool skip_display_settings)
+{
+	int ret = 0;
+	int index = 0;
+	uint32_t sclk_mask, mclk_mask, soc_mask;
+	long workload;
+	struct smu_dpm_context *smu_dpm_ctx = &(smu->smu_dpm);
+
+	if (!skip_display_settings) {
+		ret = smu_display_config_changed(smu);
+		if (ret) {
+			pr_err("Failed to change display config!");
+			return ret;
+		}
+	}
+
+	ret = smu_apply_clocks_adjust_rules(smu);
+	if (ret) {
+		pr_err("Failed to apply clocks adjust rules!");
+		return ret;
+	}
+
+	if (!skip_display_settings) {
+		ret = smu_notify_smc_dispaly_config(smu);
+		if (ret) {
+			pr_err("Failed to notify smc display config!");
+			return ret;
+		}
+	}
+
+	if (smu_dpm_ctx->dpm_level != level) {
+		switch (level) {
+		case AMD_DPM_FORCED_LEVEL_HIGH:
+			ret = smu_force_dpm_limit_value(smu, true);
+			break;
+		case AMD_DPM_FORCED_LEVEL_LOW:
+			ret = smu_force_dpm_limit_value(smu, false);
+			break;
+
+		case AMD_DPM_FORCED_LEVEL_AUTO:
+			ret = smu_unforce_dpm_levels(smu);
+			break;
+
+		case AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD:
+		case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK:
+		case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK:
+		case AMD_DPM_FORCED_LEVEL_PROFILE_PEAK:
+			ret = smu_get_profiling_clk_mask(smu, level,
+							 &sclk_mask,
+							 &mclk_mask,
+							 &soc_mask);
+			if (ret)
+				return ret;
+			smu_force_clk_levels(smu, PP_SCLK, 1 << sclk_mask);
+			smu_force_clk_levels(smu, PP_MCLK, 1 << mclk_mask);
+			break;
+
+		case AMD_DPM_FORCED_LEVEL_MANUAL:
+		case AMD_DPM_FORCED_LEVEL_PROFILE_EXIT:
+		default:
+			break;
+		}
+
+		if (!ret)
+			smu_dpm_ctx->dpm_level = level;
+	}
+
+	if (smu_dpm_ctx->dpm_level != AMD_DPM_FORCED_LEVEL_MANUAL) {
+		index = fls(smu->workload_mask);
+		index = index > 0 && index <= WORKLOAD_POLICY_MAX ? index - 1 : 0;
+		workload = smu->workload_setting[index];
+
+		if (smu->power_profile_mode != workload)
+			smu_set_power_profile_mode(smu, &workload, 0);
+	}
+
+	return ret;
+}
+
+int smu_handle_task(struct smu_context *smu,
+		    enum amd_dpm_forced_level level,
+		    enum amd_pp_task task_id)
+{
+	int ret = 0;
+
+	switch (task_id) {
+	case AMD_PP_TASK_DISPLAY_CONFIG_CHANGE:
+		ret = smu_pre_display_config_changed(smu);
+		if (ret)
+			return ret;
+		ret = smu_set_cpu_power_state(smu);
+		if (ret)
+			return ret;
+		ret = smu_adjust_power_state_dynamic(smu, level, false);
+		break;
+	case AMD_PP_TASK_COMPLETE_INIT:
+	case AMD_PP_TASK_READJUST_POWER_STATE:
+		ret = smu_adjust_power_state_dynamic(smu, level, true);
+		break;
+	default:
+		break;
+	}
+
+	return ret;
+}
+
 const struct amd_ip_funcs smu_ip_funcs = {
 	.name = "smu",
 	.early_init = smu_early_init,

@@ -2608,28 +2608,38 @@ void amdgpu_pm_compute_clocks(struct amdgpu_device *adev)
 			amdgpu_fence_wait_empty(ring);
 	}
 
-	if (adev->powerplay.pp_funcs->dispatch_tasks) {
-		if (!amdgpu_device_has_dc_support(adev)) {
+	if (is_support_sw_smu(adev)) {
+		struct smu_context *smu = &adev->smu;
+		struct smu_dpm_context *smu_dpm = &adev->smu.smu_dpm;
+		mutex_lock(&(smu->mutex));
+		smu_handle_task(&adev->smu,
+				smu_dpm->dpm_level,
+				AMD_PP_TASK_DISPLAY_CONFIG_CHANGE);
+		mutex_unlock(&(smu->mutex));
+	} else {
+		if (adev->powerplay.pp_funcs->dispatch_tasks) {
+			if (!amdgpu_device_has_dc_support(adev)) {
+				mutex_lock(&adev->pm.mutex);
+				amdgpu_dpm_get_active_displays(adev);
+				adev->pm.pm_display_cfg.num_display = adev->pm.dpm.new_active_crtc_count;
+				adev->pm.pm_display_cfg.vrefresh = amdgpu_dpm_get_vrefresh(adev);
+				adev->pm.pm_display_cfg.min_vblank_time = amdgpu_dpm_get_vblank_time(adev);
+				/* we have issues with mclk switching with refresh rates over 120 hz on the non-DC code. */
+				if (adev->pm.pm_display_cfg.vrefresh > 120)
+					adev->pm.pm_display_cfg.min_vblank_time = 0;
+				if (adev->powerplay.pp_funcs->display_configuration_change)
+					adev->powerplay.pp_funcs->display_configuration_change(
+									adev->powerplay.pp_handle,
+									&adev->pm.pm_display_cfg);
+				mutex_unlock(&adev->pm.mutex);
+			}
+			amdgpu_dpm_dispatch_task(adev, AMD_PP_TASK_DISPLAY_CONFIG_CHANGE, NULL);
+		} else {
 			mutex_lock(&adev->pm.mutex);
 			amdgpu_dpm_get_active_displays(adev);
-			adev->pm.pm_display_cfg.num_display = adev->pm.dpm.new_active_crtc_count;
-			adev->pm.pm_display_cfg.vrefresh = amdgpu_dpm_get_vrefresh(adev);
-			adev->pm.pm_display_cfg.min_vblank_time = amdgpu_dpm_get_vblank_time(adev);
-			/* we have issues with mclk switching with refresh rates over 120 hz on the non-DC code. */
-			if (adev->pm.pm_display_cfg.vrefresh > 120)
-				adev->pm.pm_display_cfg.min_vblank_time = 0;
-			if (adev->powerplay.pp_funcs->display_configuration_change)
-				adev->powerplay.pp_funcs->display_configuration_change(
-								adev->powerplay.pp_handle,
-								&adev->pm.pm_display_cfg);
+			amdgpu_dpm_change_power_state_locked(adev);
 			mutex_unlock(&adev->pm.mutex);
 		}
-		amdgpu_dpm_dispatch_task(adev, AMD_PP_TASK_DISPLAY_CONFIG_CHANGE, NULL);
-	} else {
-		mutex_lock(&adev->pm.mutex);
-		amdgpu_dpm_get_active_displays(adev);
-		amdgpu_dpm_change_power_state_locked(adev);
-		mutex_unlock(&adev->pm.mutex);
 	}
 }
 
