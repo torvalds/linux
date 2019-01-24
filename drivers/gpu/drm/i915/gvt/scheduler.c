@@ -332,6 +332,9 @@ static void release_shadow_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 
 	i915_gem_object_unpin_map(wa_ctx->indirect_ctx.obj);
 	i915_gem_object_put(wa_ctx->indirect_ctx.obj);
+
+	wa_ctx->indirect_ctx.obj = NULL;
+	wa_ctx->indirect_ctx.shadow_va = NULL;
 }
 
 static int set_context_ppgtt_from_shadow(struct intel_vgpu_workload *workload,
@@ -911,11 +914,6 @@ static void complete_current_workload(struct intel_gvt *gvt, int ring_id)
 
 	list_del_init(&workload->list);
 
-	if (!workload->status) {
-		release_shadow_batch_buffer(workload);
-		release_shadow_wa_ctx(&workload->wa_ctx);
-	}
-
 	if (workload->status || (vgpu->resetting_eng & ENGINE_MASK(ring_id))) {
 		/* if workload->status is not successful means HW GPU
 		 * has occurred GPU hang or something wrong with i915/GVT,
@@ -1282,6 +1280,9 @@ int intel_vgpu_select_submission_ops(struct intel_vgpu *vgpu,
 void intel_vgpu_destroy_workload(struct intel_vgpu_workload *workload)
 {
 	struct intel_vgpu_submission *s = &workload->vgpu->submission;
+
+	release_shadow_batch_buffer(workload);
+	release_shadow_wa_ctx(&workload->wa_ctx);
 
 	if (workload->shadow_mm)
 		intel_vgpu_mm_put(workload->shadow_mm);
