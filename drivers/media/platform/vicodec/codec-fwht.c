@@ -13,6 +13,8 @@
 #include <linux/kernel.h>
 #include "codec-fwht.h"
 
+#define OVERFLOW_BIT BIT(14)
+
 /*
  * Note: bit 0 of the header must always be 0. Otherwise it cannot
  * be guaranteed that the magic 8 byte sequence (see below) can
@@ -104,15 +106,20 @@ static int rlc(const s16 *in, __be16 *output, int blocktype)
  * This function will worst-case increase rlc_in by 65*2 bytes:
  * one s16 value for the header and 8 * 8 coefficients of type s16.
  */
-static s16 derlc(const __be16 **rlc_in, s16 *dwht_out)
+static u16 derlc(const __be16 **rlc_in, s16 *dwht_out,
+		 const __be16 *end_of_input)
 {
 	/* header */
 	const __be16 *input = *rlc_in;
-	s16 ret = ntohs(*input++);
+	u16 stat;
 	int dec_count = 0;
 	s16 block[8 * 8 + 16];
 	s16 *wp = block;
 	int i;
+
+	if (input > end_of_input)
+		return OVERFLOW_BIT;
+	stat = ntohs(*input++);
 
 	/*
 	 * Now de-compress, it expands one byte to up to 15 bytes
@@ -123,9 +130,15 @@ static s16 derlc(const __be16 **rlc_in, s16 *dwht_out)
 	 * allow for overflow if the incoming data was malformed.
 	 */
 	while (dec_count < 8 * 8) {
-		s16 in = ntohs(*input++);
-		int length = in & 0xf;
-		int coeff = in >> 4;
+		s16 in;
+		int length;
+		int coeff;
+
+		if (input > end_of_input)
+			return OVERFLOW_BIT;
+		in = ntohs(*input++);
+		length = in & 0xf;
+		coeff = in >> 4;
 
 		/* fill remainder with zeros */
 		if (length == 15) {
@@ -150,7 +163,7 @@ static s16 derlc(const __be16 **rlc_in, s16 *dwht_out)
 		dwht_out[x + y * 8] = *wp++;
 	}
 	*rlc_in = input;
-	return ret;
+	return stat;
 }
 
 static const int quant_table[] = {
@@ -808,22 +821,24 @@ u32 fwht_encode_frame(struct fwht_raw_frame *frm,
 	return encoding;
 }
 
-static void decode_plane(struct fwht_cframe *cf, const __be16 **rlco, u8 *ref,
+static bool decode_plane(struct fwht_cframe *cf, const __be16 **rlco, u8 *ref,
 			 u32 height, u32 width, u32 coded_width,
-			 bool uncompressed)
+			 bool uncompressed, const __be16 *end_of_rlco_buf)
 {
 	unsigned int copies = 0;
 	s16 copy[8 * 8];
-	s16 stat;
+	u16 stat;
 	unsigned int i, j;
 
 	width = round_up(width, 8);
 	height = round_up(height, 8);
 
 	if (uncompressed) {
+		if (end_of_rlco_buf + 1 < *rlco + width * height / 2)
+			return false;
 		memcpy(ref, *rlco, width * height);
 		*rlco += width * height / 2;
-		return;
+		return true;
 	}
 
 	/*
@@ -847,8 +862,9 @@ static void decode_plane(struct fwht_cframe *cf, const __be16 **rlco, u8 *ref,
 				continue;
 			}
 
-			stat = derlc(rlco, cf->coeffs);
-
+			stat = derlc(rlco, cf->coeffs, end_of_rlco_buf);
+			if (stat & OVERFLOW_BIT)
+				return false;
 			if (stat & PFRAME_BIT)
 				dequantize_inter(cf->coeffs);
 			else
@@ -865,17 +881,22 @@ static void decode_plane(struct fwht_cframe *cf, const __be16 **rlco, u8 *ref,
 			fill_decoder_block(refp, cf->de_fwht, coded_width);
 		}
 	}
+	return true;
 }
 
-void fwht_decode_frame(struct fwht_cframe *cf, struct fwht_raw_frame *ref,
+bool fwht_decode_frame(struct fwht_cframe *cf, struct fwht_raw_frame *ref,
 		       u32 hdr_flags, unsigned int components_num,
 		       unsigned int width, unsigned int height,
 		       unsigned int coded_width)
 {
 	const __be16 *rlco = cf->rlc_data;
+	const __be16 *end_of_rlco_buf = cf->rlc_data +
+			(cf->size / sizeof(*rlco)) - 1;
 
-	decode_plane(cf, &rlco, ref->luma, height, width, coded_width,
-		     hdr_flags & FWHT_FL_LUMA_IS_UNCOMPRESSED);
+	if (!decode_plane(cf, &rlco, ref->luma, height, width, coded_width,
+			  hdr_flags & FWHT_FL_LUMA_IS_UNCOMPRESSED,
+			  end_of_rlco_buf))
+		return false;
 
 	if (components_num >= 3) {
 		u32 h = height;
@@ -888,13 +909,21 @@ void fwht_decode_frame(struct fwht_cframe *cf, struct fwht_raw_frame *ref,
 			w /= 2;
 			c /= 2;
 		}
-		decode_plane(cf, &rlco, ref->cb, h, w, c,
-			     hdr_flags & FWHT_FL_CB_IS_UNCOMPRESSED);
-		decode_plane(cf, &rlco, ref->cr, h, w, c,
-			     hdr_flags & FWHT_FL_CR_IS_UNCOMPRESSED);
+		if (!decode_plane(cf, &rlco, ref->cb, h, w, c,
+				  hdr_flags & FWHT_FL_CB_IS_UNCOMPRESSED,
+				  end_of_rlco_buf))
+			return false;
+		if (!decode_plane(cf, &rlco, ref->cr, h, w, c,
+				  hdr_flags & FWHT_FL_CR_IS_UNCOMPRESSED,
+				  end_of_rlco_buf))
+			return false;
 	}
 
 	if (components_num == 4)
-		decode_plane(cf, &rlco, ref->alpha, height, width, coded_width,
-			     hdr_flags & FWHT_FL_ALPHA_IS_UNCOMPRESSED);
+		if (!decode_plane(cf, &rlco, ref->alpha, height, width,
+				  coded_width,
+				  hdr_flags & FWHT_FL_ALPHA_IS_UNCOMPRESSED,
+				  end_of_rlco_buf))
+			return false;
+	return true;
 }

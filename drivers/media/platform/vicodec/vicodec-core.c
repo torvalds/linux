@@ -186,6 +186,10 @@ static int device_process(struct vicodec_ctx *ctx,
 			return ret;
 		vb2_set_plane_payload(&dst_vb->vb2_buf, 0, ret);
 	} else {
+		unsigned int comp_frame_size = ntohl(ctx->state.header.size);
+
+		if (comp_frame_size > ctx->comp_max_size)
+			return -EINVAL;
 		state->info = q_dst->info;
 		ret = v4l2_fwht_decode(state, p_src, p_dst);
 		if (ret < 0)

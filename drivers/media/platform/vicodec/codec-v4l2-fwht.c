@@ -280,6 +280,7 @@ int v4l2_fwht_decode(struct v4l2_fwht_state *state, u8 *p_in, u8 *p_out)
 	state->ycbcr_enc = ntohl(state->header.ycbcr_enc);
 	state->quantization = ntohl(state->header.quantization);
 	cf.rlc_data = (__be16 *)p_in;
+	cf.size = ntohl(state->header.size);
 
 	hdr_width_div = (flags & FWHT_FL_CHROMA_FULL_WIDTH) ? 1 : 2;
 	hdr_height_div = (flags & FWHT_FL_CHROMA_FULL_HEIGHT) ? 1 : 2;
@@ -287,9 +288,10 @@ int v4l2_fwht_decode(struct v4l2_fwht_state *state, u8 *p_in, u8 *p_out)
 	    hdr_height_div != info->height_div)
 		return -EINVAL;
 
-	fwht_decode_frame(&cf, &state->ref_frame, flags, components_num,
-			  state->visible_width, state->visible_height,
-			  state->coded_width);
+	if (!fwht_decode_frame(&cf, &state->ref_frame, flags, components_num,
+			       state->visible_width, state->visible_height,
+			       state->coded_width))
+		return -EINVAL;
 
 	/*
 	 * TODO - handle the case where the compressed stream encodes a
