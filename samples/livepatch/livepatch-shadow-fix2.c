@@ -50,7 +50,7 @@ struct dummy {
 	unsigned long jiffies_expire;
 };
 
-bool livepatch_fix2_dummy_check(struct dummy *d, unsigned long jiffies)
+static bool livepatch_fix2_dummy_check(struct dummy *d, unsigned long jiffies)
 {
 	int *shadow_count;
 
@@ -78,7 +78,7 @@ static void livepatch_fix2_dummy_leak_dtor(void *obj, void *shadow_data)
 			 __func__, d, *shadow_leak);
 }
 
-void livepatch_fix2_dummy_free(struct dummy *d)
+static void livepatch_fix2_dummy_free(struct dummy *d)
 {
 	void **shadow_leak;
 	int *shadow_count;
