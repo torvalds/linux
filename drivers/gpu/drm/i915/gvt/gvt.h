@@ -52,12 +52,8 @@
 
 #define GVT_MAX_VGPU 8
 
-enum {
-	INTEL_GVT_HYPERVISOR_XEN = 0,
-	INTEL_GVT_HYPERVISOR_KVM,
-};
-
 struct intel_gvt_host {
+	struct device *dev;
 	bool initialized;
 	int hypervisor_type;
 	struct intel_gvt_mpt *mpt;

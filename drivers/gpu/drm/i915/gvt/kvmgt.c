@@ -627,6 +627,12 @@ static int intel_vgpu_open(struct mdev_device *mdev)
 		goto undo_iommu;
 	}
 
+	/* Take a module reference as mdev core doesn't take
+	 * a reference for vendor driver.
+	 */
+	if (!try_module_get(THIS_MODULE))
+		goto undo_group;
+
 	ret = kvmgt_guest_init(mdev);
 	if (ret)
 		goto undo_group;
@@ -679,6 +685,9 @@ static void __intel_vgpu_release(struct intel_vgpu *vgpu)
 					&vgpu->vdev.group_notifier);
 	WARN(ret, "vfio_unregister_notifier for group failed: %d\n", ret);
 
+	/* dereference module reference taken at open */
+	module_put(THIS_MODULE);
+
 	info = (struct kvmgt_guest_info *)vgpu->handle;
 	kvmgt_guest_exit(info);
 
@@ -703,7 +712,7 @@ static void intel_vgpu_release_work(struct work_struct *work)
 	__intel_vgpu_release(vgpu);
 }
 
-static uint64_t intel_vgpu_get_bar_addr(struct intel_vgpu *vgpu, int bar)
+static u64 intel_vgpu_get_bar_addr(struct intel_vgpu *vgpu, int bar)
 {
 	u32 start_lo, start_hi;
 	u32 mem_type;
@@ -730,10 +739,10 @@ static uint64_t intel_vgpu_get_bar_addr(struct intel_vgpu *vgpu, int bar)
 	return ((u64)start_hi << 32) | start_lo;
 }
 
-static int intel_vgpu_bar_rw(struct intel_vgpu *vgpu, int bar, uint64_t off,
+static int intel_vgpu_bar_rw(struct intel_vgpu *vgpu, int bar, u64 off,
 			     void *buf, unsigned int count, bool is_write)
 {
-	uint64_t bar_start = intel_vgpu_get_bar_addr(vgpu, bar);
+	u64 bar_start = intel_vgpu_get_bar_addr(vgpu, bar);
 	int ret;
 
 	if (is_write)
@@ -745,13 +754,13 @@ static int intel_vgpu_bar_rw(struct intel_vgpu *vgpu, int bar, uint64_t off,
 	return ret;
 }
 
-static inline bool intel_vgpu_in_aperture(struct intel_vgpu *vgpu, uint64_t off)
+static inline bool intel_vgpu_in_aperture(struct intel_vgpu *vgpu, u64 off)
 {
 	return off >= vgpu_aperture_offset(vgpu) &&
 	       off < vgpu_aperture_offset(vgpu) + vgpu_aperture_sz(vgpu);
 }
 
-static int intel_vgpu_aperture_rw(struct intel_vgpu *vgpu, uint64_t off,
+static int intel_vgpu_aperture_rw(struct intel_vgpu *vgpu, u64 off,
 		void *buf, unsigned long count, bool is_write)
 {
 	void *aperture_va;
@@ -783,7 +792,7 @@ static ssize_t intel_vgpu_rw(struct mdev_device *mdev, char *buf,
 {
 	struct intel_vgpu *vgpu = mdev_get_drvdata(mdev);
 	unsigned int index = VFIO_PCI_OFFSET_TO_INDEX(*ppos);
-	uint64_t pos = *ppos & VFIO_PCI_OFFSET_MASK;
+	u64 pos = *ppos & VFIO_PCI_OFFSET_MASK;
 	int ret = -EINVAL;
 
 
@@ -1029,7 +1038,7 @@ static int intel_vgpu_get_irq_count(struct intel_vgpu *vgpu, int type)
 
 static int intel_vgpu_set_intx_mask(struct intel_vgpu *vgpu,
 			unsigned int index, unsigned int start,
-			unsigned int count, uint32_t flags,
+			unsigned int count, u32 flags,
 			void *data)
 {
 	return 0;
@@ -1037,21 +1046,21 @@ static int intel_vgpu_set_intx_mask(struct intel_vgpu *vgpu,
 
 static int intel_vgpu_set_intx_unmask(struct intel_vgpu *vgpu,
 			unsigned int index, unsigned int start,
-			unsigned int count, uint32_t flags, void *data)
+			unsigned int count, u32 flags, void *data)
 {
 	return 0;
 }
 
 static int intel_vgpu_set_intx_trigger(struct intel_vgpu *vgpu,
 		unsigned int index, unsigned int start, unsigned int count,
-		uint32_t flags, void *data)
+		u32 flags, void *data)
 {
 	return 0;
 }
 
 static int intel_vgpu_set_msi_trigger(struct intel_vgpu *vgpu,
 		unsigned int index, unsigned int start, unsigned int count,
-		uint32_t flags, void *data)
+		u32 flags, void *data)
 {
 	struct eventfd_ctx *trigger;
 
@@ -1070,12 +1079,12 @@ static int intel_vgpu_set_msi_trigger(struct intel_vgpu *vgpu,
 	return 0;
 }
 
-static int intel_vgpu_set_irqs(struct intel_vgpu *vgpu, uint32_t flags,
+static int intel_vgpu_set_irqs(struct intel_vgpu *vgpu, u32 flags,
 		unsigned int index, unsigned int start, unsigned int count,
 		void *data)
 {
 	int (*func)(struct intel_vgpu *vgpu, unsigned int index,
-			unsigned int start, unsigned int count, uint32_t flags,
+			unsigned int start, unsigned int count, u32 flags,
 			void *data) = NULL;
 
 	switch (index) {
@@ -1467,7 +1476,7 @@ static int kvmgt_host_init(struct device *dev, void *gvt, const void *ops)
 	return mdev_register_device(dev, &intel_vgpu_ops);
 }
 
-static void kvmgt_host_exit(struct device *dev, void *gvt)
+static void kvmgt_host_exit(struct device *dev)
 {
 	mdev_unregister_device(dev);
 }
@@ -1849,7 +1858,8 @@ static bool kvmgt_is_valid_gfn(unsigned long handle, unsigned long gfn)
 	return ret;
 }
 
-struct intel_gvt_mpt kvmgt_mpt = {
+static struct intel_gvt_mpt kvmgt_mpt = {
+	.type = INTEL_GVT_HYPERVISOR_KVM,
 	.host_init = kvmgt_host_init,
 	.host_exit = kvmgt_host_exit,
 	.attach_vgpu = kvmgt_attach_vgpu,
@@ -1868,15 +1878,17 @@ struct intel_gvt_mpt kvmgt_mpt = {
 	.put_vfio_device = kvmgt_put_vfio_device,
 	.is_valid_gfn = kvmgt_is_valid_gfn,
 };
-EXPORT_SYMBOL_GPL(kvmgt_mpt);
 
 static int __init kvmgt_init(void)
 {
+	if (intel_gvt_register_hypervisor(&kvmgt_mpt) < 0)
+		return -ENODEV;
 	return 0;
 }
 
 static void __exit kvmgt_exit(void)
 {
+	intel_gvt_unregister_hypervisor();
 }
 
 module_init(kvmgt_init);
