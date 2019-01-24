@@ -5296,6 +5296,7 @@ static int make_tid_rdma_ack(struct rvt_qp *qp,
 	ps->s_txreq->ss = NULL;
 	hfi1_make_ruc_header(qp, ohdr, (TID_OP(ACK) << 24), bth1, bth2, middle,
 			     ps);
+	ps->s_txreq->txreq.flags |= SDMA_TXREQ_F_VIP;
 	return 1;
 bail:
 	/*

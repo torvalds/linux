@@ -518,6 +518,7 @@ static int iowait_sleep(
 
 			ibp->rvp.n_dmawait++;
 			qp->s_flags |= RVT_S_WAIT_DMA_DESC;
+			iowait_get_priority(&priv->s_iowait);
 			iowait_queue(pkts_sent, &priv->s_iowait,
 				     &sde->dmawait);
 			priv->s_iowait.lock = &sde->waitlock;
@@ -565,6 +566,17 @@ static void iowait_sdma_drained(struct iowait *wait)
 		hfi1_schedule_send(qp);
 	}
 	spin_unlock_irqrestore(&qp->s_lock, flags);
+}
+
+static void hfi1_init_priority(struct iowait *w)
+{
+	struct rvt_qp *qp = iowait_to_qp(w);
+	struct hfi1_qp_priv *priv = qp->priv;
+
+	if (qp->s_flags & RVT_S_ACK_PENDING)
+		w->priority++;
+	if (priv->s_flags & RVT_S_ACK_PENDING)
+		w->priority++;
 }
 
 /**
@@ -727,7 +739,8 @@ void *qp_priv_alloc(struct rvt_dev_info *rdi, struct rvt_qp *qp)
 		_hfi1_do_tid_send,
 		iowait_sleep,
 		iowait_wakeup,
-		iowait_sdma_drained);
+		iowait_sdma_drained,
+		hfi1_init_priority);
 	return priv;
 }
 

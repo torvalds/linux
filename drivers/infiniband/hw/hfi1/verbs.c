@@ -945,6 +945,7 @@ static int pio_wait(struct rvt_qp *qp,
 			dev->n_piodrain += !!(flag & HFI1_S_WAIT_PIO_DRAIN);
 			qp->s_flags |= flag;
 			was_empty = list_empty(&sc->piowait);
+			iowait_get_priority(&priv->s_iowait);
 			iowait_queue(ps->pkts_sent, &priv->s_iowait,
 				     &sc->piowait);
 			priv->s_iowait.lock = &sc->waitlock;

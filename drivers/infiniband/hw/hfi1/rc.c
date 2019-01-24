@@ -390,6 +390,7 @@ normal_no_state:
 		bth0 = OP(ACKNOWLEDGE) << 24;
 		bth2 = mask_psn(qp->s_ack_psn);
 		qp->s_flags &= ~RVT_S_ACK_PENDING;
+		ps->s_txreq->txreq.flags |= SDMA_TXREQ_F_VIP;
 		ps->s_txreq->ss = NULL;
 	}
 	qp->s_rdma_ack_cnt++;
