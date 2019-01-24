@@ -6,7 +6,16 @@
 #ifndef HFI1_TID_RDMA_H
 #define HFI1_TID_RDMA_H
 
+#include <linux/circ_buf.h>
+#include "common.h"
+
+/* Add a convenience helper */
+#define CIRC_ADD(val, add, size) (((val) + (add)) & ((size) - 1))
+#define CIRC_NEXT(val, size) CIRC_ADD(val, 1, size)
+#define CIRC_PREV(val, size) CIRC_ADD(val, -1, size)
+
 #define TID_RDMA_MAX_SEGMENT_SIZE       BIT(18)   /* 256 KiB (for now) */
+#define TID_RDMA_MAX_PAGES              (BIT(18) >> PAGE_SHIFT)
 
 struct tid_rdma_params {
 	struct rcu_head rcu_head;
@@ -36,6 +45,81 @@ struct tid_flow_state {
 	u8 flags;
 };
 
+struct tid_rdma_request {
+	struct rvt_qp *qp;
+	struct hfi1_ctxtdata *rcd;
+	union {
+		struct rvt_swqe *swqe;
+		struct rvt_ack_entry *ack;
+	} e;
+
+	struct tid_rdma_flow *flows;	/* array of tid flows */
+	u16 n_flows;		/* size of the flow buffer window */
+	u16 setup_head;		/* flow index we are setting up */
+	u16 clear_tail;		/* flow index we are clearing */
+	u16 flow_idx;		/* flow index most recently set up */
+
+	u32 seg_len;
+
+	u32 isge;		/* index of "current" sge */
+};
+
+/*
+ * When header suppression is used, PSNs associated with a "flow" are
+ * relevant (and not the PSNs maintained by verbs). Track per-flow
+ * PSNs here for a TID RDMA segment.
+ *
+ */
+struct flow_state {
+	u32 flags;
+	u32 resp_ib_psn;     /* The IB PSN of the response for this flow */
+	u32 generation;      /* generation of flow */
+	u32 spsn;            /* starting PSN in TID space */
+	u32 lpsn;            /* last PSN in TID space */
+	u32 r_next_psn;      /* next PSN to be received (in TID space) */
+};
+
+struct tid_rdma_pageset {
+	dma_addr_t addr : 48; /* Only needed for the first page */
+	u8 idx: 8;
+	u8 count : 7;
+	u8 mapped: 1;
+};
+
+/**
+ * kern_tid_node - used for managing TID's in TID groups
+ *
+ * @grp_idx: rcd relative index to tid_group
+ * @map: grp->map captured prior to programming this TID group in HW
+ * @cnt: Only @cnt of available group entries are actually programmed
+ */
+struct kern_tid_node {
+	struct tid_group *grp;
+	u8 map;
+	u8 cnt;
+};
+
+/* Overall info for a TID RDMA segment */
+struct tid_rdma_flow {
+	/*
+	 * While a TID RDMA segment is being transferred, it uses a QP number
+	 * from the "KDETH section of QP numbers" (which is different from the
+	 * QP number that originated the request). Bits 11-15 of these QP
+	 * numbers identify the "TID flow" for the segment.
+	 */
+	struct flow_state flow_state;
+	struct tid_rdma_request *req;
+	u32 length;
+	u8 tnode_cnt;
+	u8 tidcnt;
+	u8 idx;
+	u8 npagesets;
+	u8 npkts;
+	struct kern_tid_node tnode[TID_RDMA_MAX_PAGES];
+	struct tid_rdma_pageset pagesets[TID_RDMA_MAX_PAGES];
+	u32 tid_entry[TID_RDMA_MAX_PAGES];
+};
+
 bool tid_rdma_conn_req(struct rvt_qp *qp, u64 *data);
 bool tid_rdma_conn_reply(struct rvt_qp *qp, u64 data);
 bool tid_rdma_conn_resp(struct rvt_qp *qp, u64 *data);
@@ -43,6 +127,23 @@ void tid_rdma_conn_error(struct rvt_qp *qp);
 void tid_rdma_opfn_init(struct rvt_qp *qp, struct tid_rdma_params *p);
 
 int hfi1_kern_exp_rcv_init(struct hfi1_ctxtdata *rcd, int reinit);
+int hfi1_kern_exp_rcv_setup(struct tid_rdma_request *req,
+			    struct rvt_sge_state *ss, bool *last);
+int hfi1_kern_exp_rcv_clear(struct tid_rdma_request *req);
+void hfi1_kern_exp_rcv_clear_all(struct tid_rdma_request *req);
+void __trdma_clean_swqe(struct rvt_qp *qp, struct rvt_swqe *wqe);
+
+/**
+ * trdma_clean_swqe - clean flows for swqe if large send queue
+ * @qp: the qp
+ * @wqe: the send wqe
+ */
+static inline void trdma_clean_swqe(struct rvt_qp *qp, struct rvt_swqe *wqe)
+{
+	if (!wqe->priv)
+		return;
+	__trdma_clean_swqe(qp, wqe);
+}
 
 int hfi1_qp_priv_init(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 		      struct ib_qp_init_attr *init_attr);

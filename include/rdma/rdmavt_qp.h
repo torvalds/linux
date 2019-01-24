@@ -174,6 +174,7 @@ struct rvt_swqe {
 	u32 lpsn;               /* last packet sequence number */
 	u32 ssn;                /* send sequence number */
 	u32 length;             /* total length of data in sg_list */
+	void *priv;             /* driver dependent field */
 	struct rvt_sge sg_list[0];
 };
 
@@ -235,6 +236,7 @@ struct rvt_ack_entry {
 	u32 lpsn;
 	u8 opcode;
 	u8 sent;
+	void *priv;
 };
 
 #define	RC_QP_SCALING_INTERVAL	5

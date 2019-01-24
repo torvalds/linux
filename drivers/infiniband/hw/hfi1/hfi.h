@@ -303,6 +303,8 @@ struct hfi1_ctxtdata {
 	spinlock_t exp_lock;
 	/* Queue for QP's waiting for HW TID flows */
 	struct tid_queue flow_queue;
+	/* Queue for QP's waiting for HW receive array entries */
+	struct tid_queue rarr_queue;
 	/* when waiting for rcv or pioavail */
 	wait_queue_head_t wait;
 	/* uuid from PSM */

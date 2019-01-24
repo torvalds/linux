@@ -1642,11 +1642,11 @@ int rvt_destroy_qp(struct ib_qp *ibqp)
 		kref_put(&qp->ip->ref, rvt_release_mmap_info);
 	else
 		vfree(qp->r_rq.wq);
-	vfree(qp->s_wq);
 	rdi->driver_f.qp_priv_free(rdi, qp);
 	kfree(qp->s_ack_queue);
 	rdma_destroy_ah_attr(&qp->remote_ah_attr);
 	rdma_destroy_ah_attr(&qp->alt_ah_attr);
+	vfree(qp->s_wq);
 	kfree(qp);
 	return 0;
 }

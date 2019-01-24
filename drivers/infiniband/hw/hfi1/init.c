@@ -372,6 +372,7 @@ int hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, int numa,
 		mutex_init(&rcd->exp_mutex);
 		spin_lock_init(&rcd->exp_lock);
 		INIT_LIST_HEAD(&rcd->flow_queue.queue_head);
+		INIT_LIST_HEAD(&rcd->rarr_queue.queue_head);
 
 		hfi1_cdbg(PROC, "setting up context %u\n", rcd->ctxt);
 
@@ -1596,7 +1597,7 @@ static void cleanup_device_data(struct hfi1_devdata *dd)
 		struct hfi1_ctxtdata *rcd = dd->rcd[ctxt];
 
 		if (rcd) {
-			hfi1_clear_tids(rcd);
+			hfi1_free_ctxt_rcv_groups(rcd);
 			hfi1_free_ctxt(rcd);
 		}
 	}

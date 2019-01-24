@@ -159,6 +159,7 @@ struct hfi1_qp_priv {
 	struct sdma_engine *s_sde;                /* current sde */
 	struct send_context *s_sendcontext;       /* current sendcontext */
 	struct hfi1_ctxtdata *rcd;                /* QP's receive context */
+	struct page **pages;                      /* for TID page scan */
 	u32 tid_enqueue;                          /* saved when tid waited */
 	u8 s_sc;		                  /* SC[0..4] for next packet */
 	struct iowait s_iowait;
@@ -171,6 +172,14 @@ struct hfi1_qp_priv {
 	unsigned long tid_timer_timeout_jiffies;
 	u16 pkts_ps;            /* packets per segment */
 	u8 timeout_shift;       /* account for number of packets per segment */
+};
+
+struct hfi1_swqe_priv {
+	struct tid_rdma_request tid_req;
+};
+
+struct hfi1_ack_priv {
+	struct tid_rdma_request tid_req;
 };
 
 /*
@@ -321,6 +330,21 @@ static inline u32 delta_psn(u32 a, u32 b)
 	return (((int)a - (int)b) << PSN_SHIFT) >> PSN_SHIFT;
 }
 
+/*
+ * Look through all the active flows for a TID RDMA request and find
+ * the one (if it exists) that contains the specified PSN.
+ */
+static inline u32 __full_flow_psn(struct flow_state *state, u32 psn)
+{
+	return mask_psn((state->generation << HFI1_KDETH_BTH_SEQ_SHIFT) |
+			(psn & HFI1_KDETH_BTH_SEQ_MASK));
+}
+
+static inline u32 full_flow_psn(struct tid_rdma_flow *flow, u32 psn)
+{
+	return __full_flow_psn(&flow->flow_state, psn);
+}
+
 struct verbs_txreq;
 void hfi1_put_txreq(struct verbs_txreq *tx);
 
@@ -401,6 +425,16 @@ int hfi1_verbs_send_pio(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 static inline bool opa_bth_is_migration(struct ib_other_headers *ohdr)
 {
 	return ohdr->bth[1] & cpu_to_be32(OPA_BTH_MIG_REQ);
+}
+
+void hfi1_wait_kmem(struct rvt_qp *qp);
+
+static inline void hfi1_trdma_send_complete(struct rvt_qp *qp,
+					    struct rvt_swqe *wqe,
+					    enum ib_wc_status status)
+{
+	trdma_clean_swqe(qp, wqe);
+	rvt_send_complete(qp, wqe, status);
 }
 
 extern const enum ib_wc_opcode ib_hfi1_wc_opcode[];
