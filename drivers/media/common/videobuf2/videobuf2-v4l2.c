@@ -567,7 +567,7 @@ static int __fill_vb2_buffer(struct vb2_buffer *vb, struct vb2_plane *planes)
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	unsigned int plane;
 
-	if (!vb->vb2_queue->is_output || !vb->vb2_queue->copy_timestamp)
+	if (!vb->vb2_queue->copy_timestamp)
 		vb->timestamp = 0;
 
 	for (plane = 0; plane < vb->num_planes; ++plane) {
@@ -594,14 +594,9 @@ int vb2_find_timestamp(const struct vb2_queue *q, u64 timestamp,
 {
 	unsigned int i;
 
-	for (i = start_idx; i < q->num_buffers; i++) {
-		struct vb2_buffer *vb = q->bufs[i];
-
-		if ((vb->state == VB2_BUF_STATE_DEQUEUED ||
-		     vb->state == VB2_BUF_STATE_DONE) &&
-		    vb->timestamp == timestamp)
+	for (i = start_idx; i < q->num_buffers; i++)
+		if (q->bufs[i]->timestamp == timestamp)
 			return i;
-	}
 	return -1;
 }
 EXPORT_SYMBOL_GPL(vb2_find_timestamp);
