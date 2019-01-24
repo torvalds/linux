@@ -143,10 +143,10 @@ help:
 
 # ===========================================================================
 # object files used by all kconfig flavours
-common-objs	:= confdata.o expr.o symbol.o preprocess.o zconf.lex.o zconf.tab.o
+common-objs	:= confdata.o expr.o lexer.lex.o preprocess.o symbol.o zconf.tab.o
 
-$(obj)/zconf.lex.o: $(obj)/zconf.tab.h
-HOSTCFLAGS_zconf.lex.o	:= -I$(src)
+$(obj)/lexer.lex.o: $(obj)/zconf.tab.h
+HOSTCFLAGS_lexer.lex.o	:= -I$(src)
 HOSTCFLAGS_zconf.tab.o	:= -I$(src)
 
 # conf: Used for defconfig, oldconfig and related targets
