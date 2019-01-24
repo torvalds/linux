@@ -96,7 +96,7 @@ static bool tegra_bpmp_message_valid(const struct tegra_bpmp_message *msg)
 	       (msg->rx.size == 0 || msg->rx.data);
 }
 
-static bool tegra_bpmp_master_acked(struct tegra_bpmp_channel *channel)
+static bool tegra_bpmp_is_response_ready(struct tegra_bpmp_channel *channel)
 {
 	void *frame;
 
@@ -111,7 +111,12 @@ static bool tegra_bpmp_master_acked(struct tegra_bpmp_channel *channel)
 	return true;
 }
 
-static int tegra_bpmp_wait_ack(struct tegra_bpmp_channel *channel)
+static bool tegra_bpmp_is_request_ready(struct tegra_bpmp_channel *channel)
+{
+	return tegra_bpmp_is_response_ready(channel);
+}
+
+static int tegra_bpmp_wait_response(struct tegra_bpmp_channel *channel)
 {
 	unsigned long timeout = channel->bpmp->soc->channels.cpu_tx.timeout;
 	ktime_t end;
@@ -119,14 +124,25 @@ static int tegra_bpmp_wait_ack(struct tegra_bpmp_channel *channel)
 	end = ktime_add_us(ktime_get(), timeout);
 
 	do {
-		if (tegra_bpmp_master_acked(channel))
+		if (tegra_bpmp_is_response_ready(channel))
 			return 0;
 	} while (ktime_before(ktime_get(), end));
 
 	return -ETIMEDOUT;
 }
 
-static bool tegra_bpmp_master_free(struct tegra_bpmp_channel *channel)
+static int tegra_bpmp_ack_response(struct tegra_bpmp_channel *channel)
+{
+	return tegra_ivc_read_advance(channel->ivc);
+}
+
+static int tegra_bpmp_ack_request(struct tegra_bpmp_channel *channel)
+{
+	return tegra_ivc_read_advance(channel->ivc);
+}
+
+static bool
+tegra_bpmp_is_request_channel_free(struct tegra_bpmp_channel *channel)
 {
 	void *frame;
 
@@ -141,7 +157,14 @@ static bool tegra_bpmp_master_free(struct tegra_bpmp_channel *channel)
 	return true;
 }
 
-static int tegra_bpmp_wait_master_free(struct tegra_bpmp_channel *channel)
+static bool
+tegra_bpmp_is_response_channel_free(struct tegra_bpmp_channel *channel)
+{
+	return tegra_bpmp_is_request_channel_free(channel);
+}
+
+static int
+tegra_bpmp_wait_request_channel_free(struct tegra_bpmp_channel *channel)
 {
 	unsigned long timeout = channel->bpmp->soc->channels.cpu_tx.timeout;
 	ktime_t start, now;
@@ -149,13 +172,39 @@ static int tegra_bpmp_wait_master_free(struct tegra_bpmp_channel *channel)
 	start = ns_to_ktime(local_clock());
 
 	do {
-		if (tegra_bpmp_master_free(channel))
+		if (tegra_bpmp_is_request_channel_free(channel))
 			return 0;
 
 		now = ns_to_ktime(local_clock());
 	} while (ktime_us_delta(now, start) < timeout);
 
 	return -ETIMEDOUT;
+}
+
+static int tegra_bpmp_post_request(struct tegra_bpmp_channel *channel)
+{
+	return tegra_ivc_write_advance(channel->ivc);
+}
+
+static int tegra_bpmp_post_response(struct tegra_bpmp_channel *channel)
+{
+	return tegra_ivc_write_advance(channel->ivc);
+}
+
+static int tegra_bpmp_ring_doorbell(struct tegra_bpmp *bpmp)
+{
+	int err;
+
+	if (WARN_ON(bpmp->mbox.channel == NULL))
+		return -EINVAL;
+
+	err = mbox_send_message(bpmp->mbox.channel, NULL);
+	if (err < 0)
+		return err;
+
+	mbox_client_txdone(bpmp->mbox.channel, 0);
+
+	return 0;
 }
 
 static ssize_t __tegra_bpmp_channel_read(struct tegra_bpmp_channel *channel,
@@ -166,7 +215,7 @@ static ssize_t __tegra_bpmp_channel_read(struct tegra_bpmp_channel *channel,
 	if (data && size > 0)
 		memcpy(data, channel->ib->data, size);
 
-	err = tegra_ivc_read_advance(channel->ivc);
+	err = tegra_bpmp_ack_response(channel);
 	if (err < 0)
 		return err;
 
@@ -210,7 +259,7 @@ static ssize_t __tegra_bpmp_channel_write(struct tegra_bpmp_channel *channel,
 	if (data && size > 0)
 		memcpy(channel->ob->data, data, size);
 
-	return tegra_ivc_write_advance(channel->ivc);
+	return tegra_bpmp_post_request(channel);
 }
 
 static struct tegra_bpmp_channel *
@@ -238,7 +287,7 @@ tegra_bpmp_write_threaded(struct tegra_bpmp *bpmp, unsigned int mrq,
 
 	channel = &bpmp->threaded_channels[index];
 
-	if (!tegra_bpmp_master_free(channel)) {
+	if (!tegra_bpmp_is_request_channel_free(channel)) {
 		err = -EBUSY;
 		goto unlock;
 	}
@@ -270,7 +319,7 @@ static ssize_t tegra_bpmp_channel_write(struct tegra_bpmp_channel *channel,
 {
 	int err;
 
-	err = tegra_bpmp_wait_master_free(channel);
+	err = tegra_bpmp_wait_request_channel_free(channel);
 	if (err < 0)
 		return err;
 
@@ -302,13 +351,11 @@ int tegra_bpmp_transfer_atomic(struct tegra_bpmp *bpmp,
 
 	spin_unlock(&bpmp->atomic_tx_lock);
 
-	err = mbox_send_message(bpmp->mbox.channel, NULL);
+	err = tegra_bpmp_ring_doorbell(bpmp);
 	if (err < 0)
 		return err;
 
-	mbox_client_txdone(bpmp->mbox.channel, 0);
-
-	err = tegra_bpmp_wait_ack(channel);
+	err = tegra_bpmp_wait_response(channel);
 	if (err < 0)
 		return err;
 
@@ -335,11 +382,9 @@ int tegra_bpmp_transfer(struct tegra_bpmp *bpmp,
 	if (IS_ERR(channel))
 		return PTR_ERR(channel);
 
-	err = mbox_send_message(bpmp->mbox.channel, NULL);
+	err = tegra_bpmp_ring_doorbell(bpmp);
 	if (err < 0)
 		return err;
-
-	mbox_client_txdone(bpmp->mbox.channel, 0);
 
 	timeout = usecs_to_jiffies(bpmp->soc->channels.thread.timeout);
 
@@ -369,38 +414,34 @@ void tegra_bpmp_mrq_return(struct tegra_bpmp_channel *channel, int code,
 {
 	unsigned long flags = channel->ib->flags;
 	struct tegra_bpmp *bpmp = channel->bpmp;
-	struct tegra_bpmp_mb_data *frame;
 	int err;
 
 	if (WARN_ON(size > MSG_DATA_MIN_SZ))
 		return;
 
-	err = tegra_ivc_read_advance(channel->ivc);
+	err = tegra_bpmp_ack_request(channel);
 	if (WARN_ON(err < 0))
 		return;
 
 	if ((flags & MSG_ACK) == 0)
 		return;
 
-	frame = tegra_ivc_write_get_next_frame(channel->ivc);
-	if (WARN_ON(IS_ERR(frame)))
+	if (WARN_ON(!tegra_bpmp_is_response_channel_free(channel)))
 		return;
 
-	frame->code = code;
+	channel->ob->code = code;
 
 	if (data && size > 0)
-		memcpy(frame->data, data, size);
+		memcpy(channel->ob->data, data, size);
 
-	err = tegra_ivc_write_advance(channel->ivc);
+	err = tegra_bpmp_post_response(channel);
 	if (WARN_ON(err < 0))
 		return;
 
 	if (flags & MSG_RING) {
-		err = mbox_send_message(bpmp->mbox.channel, NULL);
+		err = tegra_bpmp_ring_doorbell(bpmp);
 		if (WARN_ON(err < 0))
 			return;
-
-		mbox_client_txdone(bpmp->mbox.channel, 0);
 	}
 }
 EXPORT_SYMBOL_GPL(tegra_bpmp_mrq_return);
@@ -638,7 +679,7 @@ static void tegra_bpmp_handle_rx(struct mbox_client *client, void *data)
 	count = bpmp->soc->channels.thread.count;
 	busy = bpmp->threaded.busy;
 
-	if (tegra_bpmp_master_acked(channel))
+	if (tegra_bpmp_is_request_ready(channel))
 		tegra_bpmp_handle_mrq(bpmp, channel->ib->code, channel);
 
 	spin_lock(&bpmp->lock);
@@ -648,7 +689,7 @@ static void tegra_bpmp_handle_rx(struct mbox_client *client, void *data)
 
 		channel = &bpmp->threaded_channels[i];
 
-		if (tegra_bpmp_master_acked(channel)) {
+		if (tegra_bpmp_is_response_ready(channel)) {
 			tegra_bpmp_channel_signal(channel);
 			clear_bit(i, busy);
 		}
@@ -660,16 +701,8 @@ static void tegra_bpmp_handle_rx(struct mbox_client *client, void *data)
 static void tegra_bpmp_ivc_notify(struct tegra_ivc *ivc, void *data)
 {
 	struct tegra_bpmp *bpmp = data;
-	int err;
 
-	if (WARN_ON(bpmp->mbox.channel == NULL))
-		return;
-
-	err = mbox_send_message(bpmp->mbox.channel, NULL);
-	if (err < 0)
-		return;
-
-	mbox_client_txdone(bpmp->mbox.channel, 0);
+	WARN_ON(tegra_bpmp_ring_doorbell(bpmp));
 }
 
 static int tegra_bpmp_channel_init(struct tegra_bpmp_channel *channel,
