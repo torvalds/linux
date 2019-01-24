@@ -124,6 +124,9 @@ static void hfi1_mod_tid_reap_timer(struct rvt_qp *qp);
 static void hfi1_mod_tid_retry_timer(struct rvt_qp *qp);
 static int hfi1_stop_tid_retry_timer(struct rvt_qp *qp);
 static void hfi1_tid_retry_timeout(struct timer_list *t);
+static int make_tid_rdma_ack(struct rvt_qp *qp,
+			     struct ib_other_headers *ohdr,
+			     struct hfi1_pkt_state *ps);
 
 static u64 tid_rdma_opfn_encode(struct tid_rdma_params *p)
 {
@@ -4874,6 +4877,10 @@ int hfi1_make_tid_rdma_pkt(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 
 	ohdr = &ps->s_txreq->phdr.hdr.ibh.u.oth;
 
+	if ((priv->s_flags & RVT_S_ACK_PENDING) &&
+	    make_tid_rdma_ack(qp, ohdr, ps))
+		return 1;
+
 	if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_SEND_OK)) {
 		if (!(ib_rvt_state_ops[qp->state] & RVT_FLUSH_SEND))
 			goto bail;
@@ -5012,5 +5019,139 @@ bail_no_tx:
 	 * sleep/wakeup flags.)
 	 */
 	iowait_set_flag(&priv->s_iowait, IOWAIT_PENDING_TID);
+	return 0;
+}
+
+static int make_tid_rdma_ack(struct rvt_qp *qp,
+			     struct ib_other_headers *ohdr,
+			     struct hfi1_pkt_state *ps)
+{
+	struct rvt_ack_entry *e;
+	struct hfi1_qp_priv *qpriv = qp->priv;
+	struct hfi1_ibdev *dev = to_idev(qp->ibqp.device);
+	u32 hwords, next;
+	u32 len = 0;
+	u32 bth1 = 0, bth2 = 0;
+	int middle = 0;
+	u16 flow;
+	struct tid_rdma_request *req, *nreq;
+
+	/* Don't send an ACK if we aren't supposed to. */
+	if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_RECV_OK))
+		goto bail;
+
+	/* header size in 32-bit words LRH+BTH = (8+12)/4. */
+	hwords = 5;
+
+	e = &qp->s_ack_queue[qpriv->r_tid_ack];
+	req = ack_to_tid_req(e);
+	/*
+	 * In the RESYNC case, we are exactly one segment past the
+	 * previously sent ack or at the previously sent NAK. So to send
+	 * the resync ack, we go back one segment (which might be part of
+	 * the previous request) and let the do-while loop execute again.
+	 * The advantage of executing the do-while loop is that any data
+	 * received after the previous ack is automatically acked in the
+	 * RESYNC ack. It turns out that for the do-while loop we only need
+	 * to pull back qpriv->r_tid_ack, not the segment
+	 * indices/counters. The scheme works even if the previous request
+	 * was not a TID WRITE request.
+	 */
+	if (qpriv->resync) {
+		if (!req->ack_seg || req->ack_seg == req->total_segs)
+			qpriv->r_tid_ack = !qpriv->r_tid_ack ?
+				rvt_size_atomic(&dev->rdi) :
+				qpriv->r_tid_ack - 1;
+		e = &qp->s_ack_queue[qpriv->r_tid_ack];
+		req = ack_to_tid_req(e);
+	}
+
+	/*
+	 * If we've sent all the ACKs that we can, we are done
+	 * until we get more segments...
+	 */
+	if (!qpriv->s_nak_state && !qpriv->resync &&
+	    req->ack_seg == req->comp_seg)
+		goto bail;
+
+	do {
+		/*
+		 * To deal with coalesced ACKs, the acked_tail pointer
+		 * into the flow array is used. The distance between it
+		 * and the clear_tail is the number of flows that are
+		 * being ACK'ed.
+		 */
+		req->ack_seg +=
+			/* Get up-to-date value */
+			CIRC_CNT(req->clear_tail, req->acked_tail,
+				 MAX_FLOWS);
+		/* Advance acked index */
+		req->acked_tail = req->clear_tail;
+
+		/*
+		 * req->clear_tail points to the segment currently being
+		 * received. So, when sending an ACK, the previous
+		 * segment is being ACK'ed.
+		 */
+		flow = CIRC_PREV(req->acked_tail, MAX_FLOWS);
+		if (req->ack_seg != req->total_segs)
+			break;
+		req->state = TID_REQUEST_COMPLETE;
+
+		next = qpriv->r_tid_ack + 1;
+		if (next > rvt_size_atomic(&dev->rdi))
+			next = 0;
+		qpriv->r_tid_ack = next;
+		if (qp->s_ack_queue[next].opcode != TID_OP(WRITE_REQ))
+			break;
+		nreq = ack_to_tid_req(&qp->s_ack_queue[next]);
+		if (!nreq->comp_seg || nreq->ack_seg == nreq->comp_seg)
+			break;
+
+		/* Move to the next ack entry now */
+		e = &qp->s_ack_queue[qpriv->r_tid_ack];
+		req = ack_to_tid_req(e);
+	} while (1);
+
+	/*
+	 * At this point qpriv->r_tid_ack == qpriv->r_tid_tail but e and
+	 * req could be pointing at the previous ack queue entry
+	 */
+	if (qpriv->s_nak_state ||
+	    (qpriv->resync &&
+	     !hfi1_tid_rdma_is_resync_psn(qpriv->r_next_psn_kdeth - 1) &&
+	     (cmp_psn(qpriv->r_next_psn_kdeth - 1,
+		      full_flow_psn(&req->flows[flow],
+				    req->flows[flow].flow_state.lpsn)) > 0))) {
+		/*
+		 * A NAK will implicitly acknowledge all previous TID RDMA
+		 * requests. Therefore, we NAK with the req->acked_tail
+		 * segment for the request at qpriv->r_tid_ack (same at
+		 * this point as the req->clear_tail segment for the
+		 * qpriv->r_tid_tail request)
+		 */
+		e = &qp->s_ack_queue[qpriv->r_tid_ack];
+		req = ack_to_tid_req(e);
+		flow = req->acked_tail;
+	}
+
+	hwords += hfi1_build_tid_rdma_write_ack(qp, e, ohdr, flow, &bth1,
+						&bth2);
+	len = 0;
+	qpriv->s_flags &= ~RVT_S_ACK_PENDING;
+	ps->s_txreq->hdr_dwords = hwords;
+	ps->s_txreq->sde = qpriv->s_sde;
+	ps->s_txreq->s_cur_size = len;
+	ps->s_txreq->ss = NULL;
+	hfi1_make_ruc_header(qp, ohdr, (TID_OP(ACK) << 24), bth1, bth2, middle,
+			     ps);
+	return 1;
+bail:
+	/*
+	 * Ensure s_rdma_ack_cnt changes are committed prior to resetting
+	 * RVT_S_RESP_PENDING
+	 */
+	smp_wmb();
+	qpriv->s_flags &= ~RVT_S_ACK_PENDING;
 	return 0;
 }
