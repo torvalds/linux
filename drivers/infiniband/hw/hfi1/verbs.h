@@ -196,7 +196,9 @@ struct hfi1_qp_priv {
 	u8 timeout_shift;       /* account for number of packets per segment */
 
 	u32 r_next_psn_kdeth;
+	u32 r_next_psn_kdeth_save;
 	u8 sync_pt;           /* Set when QP reaches sync point */
+	u8 resync;
 };
 
 #define HFI1_QP_WQE_INVALID   ((u32)-1)

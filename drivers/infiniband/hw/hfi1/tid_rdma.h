@@ -281,4 +281,8 @@ bool hfi1_build_tid_rdma_packet(struct rvt_swqe *wqe,
 
 void hfi1_rc_rcv_tid_rdma_write_data(struct hfi1_packet *packet);
 
+u32 hfi1_build_tid_rdma_write_ack(struct rvt_qp *qp, struct rvt_ack_entry *e,
+				  struct ib_other_headers *ohdr, u16 iflow,
+				  u32 *bth1, u32 *bth2);
+
 #endif /* HFI1_TID_RDMA_H */

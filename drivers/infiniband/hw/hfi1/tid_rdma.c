@@ -4241,3 +4241,80 @@ send_nak:
 	}
 	goto done;
 }
+
+static bool hfi1_tid_rdma_is_resync_psn(u32 psn)
+{
+	return (bool)((psn & HFI1_KDETH_BTH_SEQ_MASK) ==
+		      HFI1_KDETH_BTH_SEQ_MASK);
+}
+
+u32 hfi1_build_tid_rdma_write_ack(struct rvt_qp *qp, struct rvt_ack_entry *e,
+				  struct ib_other_headers *ohdr, u16 iflow,
+				  u32 *bth1, u32 *bth2)
+{
+	struct hfi1_qp_priv *qpriv = qp->priv;
+	struct tid_flow_state *fs = &qpriv->flow_state;
+	struct tid_rdma_request *req = ack_to_tid_req(e);
+	struct tid_rdma_flow *flow = &req->flows[iflow];
+	struct tid_rdma_params *remote;
+
+	rcu_read_lock();
+	remote = rcu_dereference(qpriv->tid_rdma.remote);
+	KDETH_RESET(ohdr->u.tid_rdma.ack.kdeth1, JKEY, remote->jkey);
+	ohdr->u.tid_rdma.ack.verbs_qp = cpu_to_be32(qp->remote_qpn);
+	*bth1 = remote->qp;
+	rcu_read_unlock();
+
+	if (qpriv->resync) {
+		*bth2 = mask_psn((fs->generation <<
+				  HFI1_KDETH_BTH_SEQ_SHIFT) - 1);
+		ohdr->u.tid_rdma.ack.aeth = rvt_compute_aeth(qp);
+	} else if (qpriv->s_nak_state) {
+		*bth2 = mask_psn(qpriv->s_nak_psn);
+		ohdr->u.tid_rdma.ack.aeth =
+			cpu_to_be32((qp->r_msn & IB_MSN_MASK) |
+				    (qpriv->s_nak_state <<
+				     IB_AETH_CREDIT_SHIFT));
+	} else {
+		*bth2 = full_flow_psn(flow, flow->flow_state.lpsn);
+		ohdr->u.tid_rdma.ack.aeth = rvt_compute_aeth(qp);
+	}
+	KDETH_RESET(ohdr->u.tid_rdma.ack.kdeth0, KVER, 0x1);
+	ohdr->u.tid_rdma.ack.tid_flow_qp =
+		cpu_to_be32(qpriv->tid_rdma.local.qp |
+			    ((flow->idx & TID_RDMA_DESTQP_FLOW_MASK) <<
+			     TID_RDMA_DESTQP_FLOW_SHIFT) |
+			    qpriv->rcd->ctxt);
+
+	ohdr->u.tid_rdma.ack.tid_flow_psn = 0;
+	ohdr->u.tid_rdma.ack.verbs_psn =
+		cpu_to_be32(flow->flow_state.resp_ib_psn);
+
+	if (qpriv->resync) {
+		/*
+		 * If the PSN before the current expect KDETH PSN is the
+		 * RESYNC PSN, then we never received a good TID RDMA WRITE
+		 * DATA packet after a previous RESYNC.
+		 * In this case, the next expected KDETH PSN stays the same.
+		 */
+		if (hfi1_tid_rdma_is_resync_psn(qpriv->r_next_psn_kdeth - 1)) {
+			ohdr->u.tid_rdma.ack.tid_flow_psn =
+				cpu_to_be32(qpriv->r_next_psn_kdeth_save);
+		} else {
+			/*
+			 * Because the KDETH PSNs jump during a RESYNC, it's
+			 * not possible to infer (or compute) the previous value
+			 * of r_next_psn_kdeth in the case of back-to-back
+			 * RESYNC packets. Therefore, we save it.
+			 */
+			qpriv->r_next_psn_kdeth_save =
+				qpriv->r_next_psn_kdeth - 1;
+			ohdr->u.tid_rdma.ack.tid_flow_psn =
+				cpu_to_be32(qpriv->r_next_psn_kdeth_save);
+			qpriv->r_next_psn_kdeth = mask_psn(*bth2 + 1);
+		}
+		qpriv->resync = false;
+	}
+
+	return sizeof(ohdr->u.tid_rdma.ack) / sizeof(u32);
+}
