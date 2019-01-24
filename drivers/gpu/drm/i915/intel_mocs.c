@@ -36,8 +36,8 @@ struct drm_i915_mocs_table {
 };
 
 /* Defines for the tables (XXX_MOCS_0 - XXX_MOCS_63) */
-#define LE_CACHEABILITY(value)	((value) << 0)
-#define LE_TGT_CACHE(value)	((value) << 2)
+#define _LE_CACHEABILITY(value)	((value) << 0)
+#define _LE_TGT_CACHE(value)	((value) << 2)
 #define LE_LRUM(value)		((value) << 4)
 #define LE_AOM(value)		((value) << 6)
 #define LE_RSC(value)		((value) << 7)
@@ -48,28 +48,28 @@ struct drm_i915_mocs_table {
 /* Defines for the tables (LNCFMOCS0 - LNCFMOCS31) - two entries per word */
 #define L3_ESC(value)		((value) << 0)
 #define L3_SCC(value)		((value) << 1)
-#define L3_CACHEABILITY(value)	((value) << 4)
+#define _L3_CACHEABILITY(value)	((value) << 4)
 
 /* Helper defines */
 #define GEN9_NUM_MOCS_ENTRIES	62  /* 62 out of 64 - 63 & 64 are reserved. */
 
 /* (e)LLC caching options */
-#define LE_PAGETABLE		0
-#define LE_UC			1
-#define LE_WT			2
-#define LE_WB			3
-
-/* L3 caching options */
-#define L3_DIRECT		0
-#define L3_UC			1
-#define L3_RESERVED		2
-#define L3_WB			3
+#define LE_0_PAGETABLE		_LE_CACHEABILITY(0)
+#define LE_1_UC			_LE_CACHEABILITY(1)
+#define LE_2_WT			_LE_CACHEABILITY(2)
+#define LE_3_WB			_LE_CACHEABILITY(3)
 
 /* Target cache */
-#define LE_TC_PAGETABLE		0
-#define LE_TC_LLC		1
-#define LE_TC_LLC_ELLC		2
-#define LE_TC_LLC_ELLC_ALT	3
+#define LE_TC_0_PAGETABLE	_LE_TGT_CACHE(0)
+#define LE_TC_1_LLC		_LE_TGT_CACHE(1)
+#define LE_TC_2_LLC_ELLC	_LE_TGT_CACHE(2)
+#define LE_TC_3_LLC_ELLC_ALT	_LE_TGT_CACHE(3)
+
+/* L3 caching options */
+#define L3_0_DIRECT		_L3_CACHEABILITY(0)
+#define L3_1_UC			_L3_CACHEABILITY(1)
+#define L3_2_RESERVED		_L3_CACHEABILITY(2)
+#define L3_3_WB			_L3_CACHEABILITY(3)
 
 /*
  * MOCS tables
@@ -96,31 +96,21 @@ struct drm_i915_mocs_table {
 static const struct drm_i915_mocs_entry skylake_mocs_table[] = {
 	[I915_MOCS_UNCACHED] = {
 	  /* 0x00000009 */
-	  .control_value = LE_CACHEABILITY(LE_UC) |
-			   LE_TGT_CACHE(LE_TC_LLC_ELLC) |
-			   LE_LRUM(0) | LE_AOM(0) | LE_RSC(0) | LE_SCC(0) |
-			   LE_PFM(0) | LE_SCF(0),
-
+	  .control_value = LE_1_UC | LE_TC_2_LLC_ELLC,
 	  /* 0x0010 */
-	  .l3cc_value =    L3_ESC(0) | L3_SCC(0) | L3_CACHEABILITY(L3_UC),
+	  .l3cc_value =    L3_1_UC,
 	},
 	[I915_MOCS_PTE] = {
 	  /* 0x00000038 */
-	  .control_value = LE_CACHEABILITY(LE_PAGETABLE) |
-			   LE_TGT_CACHE(LE_TC_LLC_ELLC) |
-			   LE_LRUM(3) | LE_AOM(0) | LE_RSC(0) | LE_SCC(0) |
-			   LE_PFM(0) | LE_SCF(0),
+	  .control_value = LE_0_PAGETABLE | LE_TC_2_LLC_ELLC | LE_LRUM(3),
 	  /* 0x0030 */
-	  .l3cc_value =    L3_ESC(0) | L3_SCC(0) | L3_CACHEABILITY(L3_WB),
+	  .l3cc_value =    L3_3_WB,
 	},
 	[I915_MOCS_CACHED] = {
 	  /* 0x0000003b */
-	  .control_value = LE_CACHEABILITY(LE_WB) |
-			   LE_TGT_CACHE(LE_TC_LLC_ELLC) |
-			   LE_LRUM(3) | LE_AOM(0) | LE_RSC(0) | LE_SCC(0) |
-			   LE_PFM(0) | LE_SCF(0),
+	  .control_value = LE_3_WB | LE_TC_2_LLC_ELLC | LE_LRUM(3),
 	  /* 0x0030 */
-	  .l3cc_value =   L3_ESC(0) | L3_SCC(0) | L3_CACHEABILITY(L3_WB),
+	  .l3cc_value =   L3_3_WB,
 	},
 };
 
@@ -128,33 +118,21 @@ static const struct drm_i915_mocs_entry skylake_mocs_table[] = {
 static const struct drm_i915_mocs_entry broxton_mocs_table[] = {
 	[I915_MOCS_UNCACHED] = {
 	  /* 0x00000009 */
-	  .control_value = LE_CACHEABILITY(LE_UC) |
-			   LE_TGT_CACHE(LE_TC_LLC_ELLC) |
-			   LE_LRUM(0) | LE_AOM(0) | LE_RSC(0) | LE_SCC(0) |
-			   LE_PFM(0) | LE_SCF(0),
-
+	  .control_value = LE_1_UC | LE_TC_2_LLC_ELLC,
 	  /* 0x0010 */
-	  .l3cc_value =    L3_ESC(0) | L3_SCC(0) | L3_CACHEABILITY(L3_UC),
+	  .l3cc_value = L3_1_UC,
 	},
 	[I915_MOCS_PTE] = {
 	  /* 0x00000038 */
-	  .control_value = LE_CACHEABILITY(LE_PAGETABLE) |
-			   LE_TGT_CACHE(LE_TC_LLC_ELLC) |
-			   LE_LRUM(3) | LE_AOM(0) | LE_RSC(0) | LE_SCC(0) |
-			   LE_PFM(0) | LE_SCF(0),
-
+	  .control_value = LE_0_PAGETABLE | LE_TC_2_LLC_ELLC | LE_LRUM(3),
 	  /* 0x0030 */
-	  .l3cc_value =    L3_ESC(0) | L3_SCC(0) | L3_CACHEABILITY(L3_WB),
+	  .l3cc_value = L3_3_WB,
 	},
 	[I915_MOCS_CACHED] = {
 	  /* 0x00000039 */
-	  .control_value = LE_CACHEABILITY(LE_UC) |
-			   LE_TGT_CACHE(LE_TC_LLC_ELLC) |
-			   LE_LRUM(3) | LE_AOM(0) | LE_RSC(0) | LE_SCC(0) |
-			   LE_PFM(0) | LE_SCF(0),
-
+	  .control_value = LE_1_UC | LE_TC_2_LLC_ELLC | LE_LRUM(3),
 	  /* 0x0030 */
-	  .l3cc_value =    L3_ESC(0) | L3_SCC(0) | L3_CACHEABILITY(L3_WB),
+	  .l3cc_value = L3_3_WB,
 	},
 };
 
