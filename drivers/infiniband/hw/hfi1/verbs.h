@@ -200,6 +200,7 @@ struct hfi1_swqe_priv {
 };
 
 struct hfi1_ack_priv {
+	struct rvt_sge_state ss;               /* used for TID WRITE RESP */
 	struct tid_rdma_request tid_req;
 };
 

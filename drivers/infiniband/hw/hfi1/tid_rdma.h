@@ -263,4 +263,9 @@ void hfi1_compute_tid_rdma_flow_wt(void);
 
 void hfi1_rc_rcv_tid_rdma_write_req(struct hfi1_packet *packet);
 
+u32 hfi1_build_tid_rdma_write_resp(struct rvt_qp *qp, struct rvt_ack_entry *e,
+				   struct ib_other_headers *ohdr, u32 *bth1,
+				   u32 bth2, u32 *len,
+				   struct rvt_sge_state **ss);
+
 #endif /* HFI1_TID_RDMA_H */

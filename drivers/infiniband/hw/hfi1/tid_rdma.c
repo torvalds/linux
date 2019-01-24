@@ -3583,3 +3583,98 @@ nack_acc:
 send_ack:
 	hfi1_send_rc_ack(packet, is_fecn);
 }
+
+u32 hfi1_build_tid_rdma_write_resp(struct rvt_qp *qp, struct rvt_ack_entry *e,
+				   struct ib_other_headers *ohdr, u32 *bth1,
+				   u32 bth2, u32 *len,
+				   struct rvt_sge_state **ss)
+{
+	struct hfi1_ack_priv *epriv = e->priv;
+	struct tid_rdma_request *req = &epriv->tid_req;
+	struct hfi1_qp_priv *qpriv = qp->priv;
+	struct tid_rdma_flow *flow = NULL;
+	u32 resp_len = 0, hdwords = 0;
+	void *resp_addr = NULL;
+	struct tid_rdma_params *remote;
+
+	flow = &req->flows[req->flow_idx];
+	switch (req->state) {
+	default:
+		/*
+		 * Try to allocate resources here in case QP was queued and was
+		 * later scheduled when resources became available
+		 */
+		hfi1_tid_write_alloc_resources(qp, false);
+
+		/* We've already sent everything which is ready */
+		if (req->cur_seg >= req->alloc_seg)
+			goto done;
+
+		/*
+		 * Resources can be assigned but responses cannot be sent in
+		 * rnr_nak state, till the resent request is received
+		 */
+		if (qpriv->rnr_nak_state == TID_RNR_NAK_SENT)
+			goto done;
+
+		req->state = TID_REQUEST_ACTIVE;
+		req->flow_idx = CIRC_NEXT(req->flow_idx, MAX_FLOWS);
+		break;
+
+	case TID_REQUEST_RESEND_ACTIVE:
+	case TID_REQUEST_RESEND:
+		req->flow_idx = CIRC_NEXT(req->flow_idx, MAX_FLOWS);
+		if (!CIRC_CNT(req->setup_head, req->flow_idx, MAX_FLOWS))
+			req->state = TID_REQUEST_ACTIVE;
+
+		break;
+	}
+	flow->flow_state.resp_ib_psn = bth2;
+	resp_addr = (void *)flow->tid_entry;
+	resp_len = sizeof(*flow->tid_entry) * flow->tidcnt;
+	req->cur_seg++;
+
+	memset(&ohdr->u.tid_rdma.w_rsp, 0, sizeof(ohdr->u.tid_rdma.w_rsp));
+	epriv->ss.sge.vaddr = resp_addr;
+	epriv->ss.sge.sge_length = resp_len;
+	epriv->ss.sge.length = epriv->ss.sge.sge_length;
+	/*
+	 * We can safely zero these out. Since the first SGE covers the
+	 * entire packet, nothing else should even look at the MR.
+	 */
+	epriv->ss.sge.mr = NULL;
+	epriv->ss.sge.m = 0;
+	epriv->ss.sge.n = 0;
+
+	epriv->ss.sg_list = NULL;
+	epriv->ss.total_len = epriv->ss.sge.sge_length;
+	epriv->ss.num_sge = 1;
+
+	*ss = &epriv->ss;
+	*len = epriv->ss.total_len;
+
+	/* Construct the TID RDMA WRITE RESP packet header */
+	rcu_read_lock();
+	remote = rcu_dereference(qpriv->tid_rdma.remote);
+
+	KDETH_RESET(ohdr->u.tid_rdma.w_rsp.kdeth0, KVER, 0x1);
+	KDETH_RESET(ohdr->u.tid_rdma.w_rsp.kdeth1, JKEY, remote->jkey);
+	ohdr->u.tid_rdma.w_rsp.aeth = rvt_compute_aeth(qp);
+	ohdr->u.tid_rdma.w_rsp.tid_flow_psn =
+		cpu_to_be32((flow->flow_state.generation <<
+			     HFI1_KDETH_BTH_SEQ_SHIFT) |
+			    (flow->flow_state.spsn &
+			     HFI1_KDETH_BTH_SEQ_MASK));
+	ohdr->u.tid_rdma.w_rsp.tid_flow_qp =
+		cpu_to_be32(qpriv->tid_rdma.local.qp |
+			    ((flow->idx & TID_RDMA_DESTQP_FLOW_MASK) <<
+			     TID_RDMA_DESTQP_FLOW_SHIFT) |
+			    qpriv->rcd->ctxt);
+	ohdr->u.tid_rdma.w_rsp.verbs_qp = cpu_to_be32(qp->remote_qpn);
+	*bth1 = remote->qp;
+	rcu_read_unlock();
+	hdwords = sizeof(ohdr->u.tid_rdma.w_rsp) / sizeof(u32);
+	qpriv->pending_tid_w_segs++;
+done:
+	return hdwords;
+}
