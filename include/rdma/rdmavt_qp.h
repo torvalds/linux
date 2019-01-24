@@ -688,7 +688,11 @@ enum hrtimer_restart rvt_rc_rnr_retry(struct hrtimer *t);
 void rvt_add_rnr_timer(struct rvt_qp *qp, u32 aeth);
 void rvt_del_timers_sync(struct rvt_qp *qp);
 void rvt_stop_rc_timers(struct rvt_qp *qp);
-void rvt_add_retry_timer(struct rvt_qp *qp);
+void rvt_add_retry_timer_ext(struct rvt_qp *qp, u8 shift);
+static inline void rvt_add_retry_timer(struct rvt_qp *qp)
+{
+	rvt_add_retry_timer_ext(qp, 0);
+}
 
 void rvt_copy_sge(struct rvt_qp *qp, struct rvt_sge_state *ss,
 		  void *data, u32 length,
