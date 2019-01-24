@@ -275,4 +275,8 @@ void hfi1_del_tid_reap_timer(struct rvt_qp *qp);
 
 void hfi1_rc_rcv_tid_rdma_write_resp(struct hfi1_packet *packet);
 
+bool hfi1_build_tid_rdma_packet(struct rvt_swqe *wqe,
+				struct ib_other_headers *ohdr,
+				u32 *bth1, u32 *bth2, u32 *len);
+
 #endif /* HFI1_TID_RDMA_H */

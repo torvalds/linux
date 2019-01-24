@@ -3943,3 +3943,65 @@ ack_done:
 	if (is_fecn)
 		hfi1_send_rc_ack(packet, is_fecn);
 }
+
+bool hfi1_build_tid_rdma_packet(struct rvt_swqe *wqe,
+				struct ib_other_headers *ohdr,
+				u32 *bth1, u32 *bth2, u32 *len)
+{
+	struct tid_rdma_request *req = wqe_to_tid_req(wqe);
+	struct tid_rdma_flow *flow = &req->flows[req->clear_tail];
+	struct tid_rdma_params *remote;
+	struct rvt_qp *qp = req->qp;
+	struct hfi1_qp_priv *qpriv = qp->priv;
+	u32 tidentry = flow->tid_entry[flow->tid_idx];
+	u32 tidlen = EXP_TID_GET(tidentry, LEN) << PAGE_SHIFT;
+	struct tid_rdma_write_data *wd = &ohdr->u.tid_rdma.w_data;
+	u32 next_offset, om = KDETH_OM_LARGE;
+	bool last_pkt;
+
+	if (!tidlen) {
+		hfi1_trdma_send_complete(qp, wqe, IB_WC_REM_INV_RD_REQ_ERR);
+		rvt_error_qp(qp, IB_WC_REM_INV_RD_REQ_ERR);
+	}
+
+	*len = min_t(u32, qp->pmtu, tidlen - flow->tid_offset);
+	flow->sent += *len;
+	next_offset = flow->tid_offset + *len;
+	last_pkt = (flow->tid_idx == (flow->tidcnt - 1) &&
+		    next_offset >= tidlen) || (flow->sent >= flow->length);
+
+	rcu_read_lock();
+	remote = rcu_dereference(qpriv->tid_rdma.remote);
+	KDETH_RESET(wd->kdeth0, KVER, 0x1);
+	KDETH_SET(wd->kdeth0, SH, !last_pkt);
+	KDETH_SET(wd->kdeth0, INTR, !!(!last_pkt && remote->urg));
+	KDETH_SET(wd->kdeth0, TIDCTRL, EXP_TID_GET(tidentry, CTRL));
+	KDETH_SET(wd->kdeth0, TID, EXP_TID_GET(tidentry, IDX));
+	KDETH_SET(wd->kdeth0, OM, om == KDETH_OM_LARGE);
+	KDETH_SET(wd->kdeth0, OFFSET, flow->tid_offset / om);
+	KDETH_RESET(wd->kdeth1, JKEY, remote->jkey);
+	wd->verbs_qp = cpu_to_be32(qp->remote_qpn);
+	rcu_read_unlock();
+
+	*bth1 = flow->tid_qpn;
+	*bth2 = mask_psn(((flow->flow_state.spsn + flow->pkt++) &
+			 HFI1_KDETH_BTH_SEQ_MASK) |
+			 (flow->flow_state.generation <<
+			  HFI1_KDETH_BTH_SEQ_SHIFT));
+	if (last_pkt) {
+		/* PSNs are zero-based, so +1 to count number of packets */
+		if (flow->flow_state.lpsn + 1 +
+		    rvt_div_round_up_mtu(qp, req->seg_len) >
+		    MAX_TID_FLOW_PSN)
+			req->state = TID_REQUEST_SYNC;
+		*bth2 |= IB_BTH_REQ_ACK;
+	}
+
+	if (next_offset >= tidlen) {
+		flow->tid_offset = 0;
+		flow->tid_idx++;
+	} else {
+		flow->tid_offset = next_offset;
+	}
+	return last_pkt;
+}
