@@ -18,7 +18,7 @@ config DRM_ROCKCHIP
 
 config ROCKCHIP_DRM_DEBUG
 	tristate "Rockchip DRM debug"
-	depends on DRM_ROCKCHIP
+	depends on DRM_ROCKCHIP && DEBUG_FS
 	help
 	  This option add a debug nod to dump buf from application.
 	  dump path: /data/vop_buf
