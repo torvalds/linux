@@ -1797,3 +1797,332 @@ sync_check:
 done:
 	return hdwords;
 }
+
+/*
+ * Validate and accept the TID RDMA READ request parameters.
+ * Return 0 if the request is accepted successfully;
+ * Return 1 otherwise.
+ */
+static int tid_rdma_rcv_read_request(struct rvt_qp *qp,
+				     struct rvt_ack_entry *e,
+				     struct hfi1_packet *packet,
+				     struct ib_other_headers *ohdr,
+				     u32 bth0, u32 psn, u64 vaddr, u32 len)
+{
+	struct hfi1_qp_priv *qpriv = qp->priv;
+	struct tid_rdma_request *req;
+	struct tid_rdma_flow *flow;
+	u32 flow_psn, i, tidlen = 0, pktlen, tlen;
+
+	req = ack_to_tid_req(e);
+
+	/* Validate the payload first */
+	flow = &req->flows[req->setup_head];
+
+	/* payload length = packet length - (header length + ICRC length) */
+	pktlen = packet->tlen - (packet->hlen + 4);
+	if (pktlen > sizeof(flow->tid_entry))
+		return 1;
+	memcpy(flow->tid_entry, packet->ebuf, pktlen);
+	flow->tidcnt = pktlen / sizeof(*flow->tid_entry);
+
+	/*
+	 * Walk the TID_ENTRY list to make sure we have enough space for a
+	 * complete segment. Also calculate the number of required packets.
+	 */
+	flow->npkts = rvt_div_round_up_mtu(qp, len);
+	for (i = 0; i < flow->tidcnt; i++) {
+		tlen = EXP_TID_GET(flow->tid_entry[i], LEN);
+		if (!tlen)
+			return 1;
+
+		/*
+		 * For tid pair (tidctr == 3), the buffer size of the pair
+		 * should be the sum of the buffer size described by each
+		 * tid entry. However, only the first entry needs to be
+		 * specified in the request (see WFR HAS Section 8.5.7.1).
+		 */
+		tidlen += tlen;
+	}
+	if (tidlen * PAGE_SIZE < len)
+		return 1;
+
+	/* Empty the flow array */
+	req->clear_tail = req->setup_head;
+	flow->pkt = 0;
+	flow->tid_idx = 0;
+	flow->tid_offset = 0;
+	flow->sent = 0;
+	flow->tid_qpn = be32_to_cpu(ohdr->u.tid_rdma.r_req.tid_flow_qp);
+	flow->idx = (flow->tid_qpn >> TID_RDMA_DESTQP_FLOW_SHIFT) &
+		    TID_RDMA_DESTQP_FLOW_MASK;
+	flow_psn = mask_psn(be32_to_cpu(ohdr->u.tid_rdma.r_req.tid_flow_psn));
+	flow->flow_state.generation = flow_psn >> HFI1_KDETH_BTH_SEQ_SHIFT;
+	flow->flow_state.spsn = flow_psn & HFI1_KDETH_BTH_SEQ_MASK;
+	flow->length = len;
+
+	flow->flow_state.lpsn = flow->flow_state.spsn +
+		flow->npkts - 1;
+	flow->flow_state.ib_spsn = psn;
+	flow->flow_state.ib_lpsn = flow->flow_state.ib_spsn + flow->npkts - 1;
+
+	/* Set the initial flow index to the current flow. */
+	req->flow_idx = req->setup_head;
+
+	/* advance circular buffer head */
+	req->setup_head = (req->setup_head + 1) & (MAX_FLOWS - 1);
+
+	/*
+	 * Compute last PSN for request.
+	 */
+	e->opcode = (bth0 >> 24) & 0xff;
+	e->psn = psn;
+	e->lpsn = psn + flow->npkts - 1;
+	e->sent = 0;
+
+	req->n_flows = qpriv->tid_rdma.local.max_read;
+	req->state = TID_REQUEST_ACTIVE;
+	req->cur_seg = 0;
+	req->comp_seg = 0;
+	req->ack_seg = 0;
+	req->isge = 0;
+	req->seg_len = qpriv->tid_rdma.local.max_len;
+	req->total_len = len;
+	req->total_segs = 1;
+	req->r_flow_psn = e->psn;
+
+	return 0;
+}
+
+static int tid_rdma_rcv_error(struct hfi1_packet *packet,
+			      struct ib_other_headers *ohdr,
+			      struct rvt_qp *qp, u32 psn, int diff)
+{
+	struct hfi1_ibport *ibp = to_iport(qp->ibqp.device, qp->port_num);
+	struct hfi1_ctxtdata *rcd = ((struct hfi1_qp_priv *)qp->priv)->rcd;
+	struct rvt_ack_entry *e;
+	struct tid_rdma_request *req;
+	unsigned long flags;
+	u8 prev;
+	bool old_req;
+
+	if (diff > 0) {
+		/* sequence error */
+		if (!qp->r_nak_state) {
+			ibp->rvp.n_rc_seqnak++;
+			qp->r_nak_state = IB_NAK_PSN_ERROR;
+			qp->r_ack_psn = qp->r_psn;
+			rc_defered_ack(rcd, qp);
+		}
+		goto done;
+	}
+
+	ibp->rvp.n_rc_dupreq++;
+
+	spin_lock_irqsave(&qp->s_lock, flags);
+	e = find_prev_entry(qp, psn, &prev, NULL, &old_req);
+	if (!e || e->opcode != TID_OP(READ_REQ))
+		goto unlock;
+
+	req = ack_to_tid_req(e);
+	req->r_flow_psn = psn;
+
+	if (e->opcode == TID_OP(READ_REQ)) {
+		struct ib_reth *reth;
+		u32 offset;
+		u32 len;
+		u32 rkey;
+		u64 vaddr;
+		int ok;
+		u32 bth0;
+
+		reth = &ohdr->u.tid_rdma.r_req.reth;
+		/*
+		 * The requester always restarts from the start of the original
+		 * request.
+		 */
+		offset = delta_psn(psn, e->psn) * qp->pmtu;
+		len = be32_to_cpu(reth->length);
+		if (psn != e->psn || len != req->total_len)
+			goto unlock;
+
+		if (e->rdma_sge.mr) {
+			rvt_put_mr(e->rdma_sge.mr);
+			e->rdma_sge.mr = NULL;
+		}
+
+		rkey = be32_to_cpu(reth->rkey);
+		vaddr = get_ib_reth_vaddr(reth);
+
+		qp->r_len = len;
+		ok = rvt_rkey_ok(qp, &e->rdma_sge, len, vaddr, rkey,
+				 IB_ACCESS_REMOTE_READ);
+		if (unlikely(!ok))
+			goto unlock;
+
+		/*
+		 * If all the response packets for the current request have
+		 * been sent out and this request is complete (old_request
+		 * == false) and the TID flow may be unusable (the
+		 * req->clear_tail is advanced). However, when an earlier
+		 * request is received, this request will not be complete any
+		 * more (qp->s_tail_ack_queue is moved back, see below).
+		 * Consequently, we need to update the TID flow info everytime
+		 * a duplicate request is received.
+		 */
+		bth0 = be32_to_cpu(ohdr->bth[0]);
+		if (tid_rdma_rcv_read_request(qp, e, packet, ohdr, bth0, psn,
+					      vaddr, len))
+			goto unlock;
+
+		/*
+		 * True if the request is already scheduled (between
+		 * qp->s_tail_ack_queue and qp->r_head_ack_queue);
+		 */
+		if (old_req)
+			goto unlock;
+	}
+	/* Re-process old requests.*/
+	qp->s_tail_ack_queue = prev;
+	/*
+	 * Since the qp->s_tail_ack_queue is modified, the
+	 * qp->s_ack_state must be changed to re-initialize
+	 * qp->s_ack_rdma_sge; Otherwise, we will end up in
+	 * wrong memory region.
+	 */
+	qp->s_ack_state = OP(ACKNOWLEDGE);
+	qp->r_state = e->opcode;
+	qp->r_nak_state = 0;
+	qp->s_flags |= RVT_S_RESP_PENDING;
+	hfi1_schedule_send(qp);
+unlock:
+	spin_unlock_irqrestore(&qp->s_lock, flags);
+done:
+	return 1;
+}
+
+void hfi1_rc_rcv_tid_rdma_read_req(struct hfi1_packet *packet)
+{
+	/* HANDLER FOR TID RDMA READ REQUEST packet (Responder side)*/
+
+	/*
+	 * 1. Verify TID RDMA READ REQ as per IB_OPCODE_RC_RDMA_READ
+	 *    (see hfi1_rc_rcv())
+	 * 2. Put TID RDMA READ REQ into the response queueu (s_ack_queue)
+	 *     - Setup struct tid_rdma_req with request info
+	 *     - Initialize struct tid_rdma_flow info;
+	 *     - Copy TID entries;
+	 * 3. Set the qp->s_ack_state.
+	 * 4. Set RVT_S_RESP_PENDING in s_flags.
+	 * 5. Kick the send engine (hfi1_schedule_send())
+	 */
+	struct hfi1_ctxtdata *rcd = packet->rcd;
+	struct rvt_qp *qp = packet->qp;
+	struct hfi1_ibport *ibp = to_iport(qp->ibqp.device, qp->port_num);
+	struct ib_other_headers *ohdr = packet->ohdr;
+	struct rvt_ack_entry *e;
+	unsigned long flags;
+	struct ib_reth *reth;
+	struct hfi1_qp_priv *qpriv = qp->priv;
+	u32 bth0, psn, len, rkey;
+	bool is_fecn;
+	u8 next;
+	u64 vaddr;
+	int diff;
+	u8 nack_state = IB_NAK_INVALID_REQUEST;
+
+	bth0 = be32_to_cpu(ohdr->bth[0]);
+	if (hfi1_ruc_check_hdr(ibp, packet))
+		return;
+
+	is_fecn = process_ecn(qp, packet);
+	psn = mask_psn(be32_to_cpu(ohdr->bth[2]));
+
+	if (qp->state == IB_QPS_RTR && !(qp->r_flags & RVT_R_COMM_EST))
+		rvt_comm_est(qp);
+
+	if (unlikely(!(qp->qp_access_flags & IB_ACCESS_REMOTE_READ)))
+		goto nack_inv;
+
+	reth = &ohdr->u.tid_rdma.r_req.reth;
+	vaddr = be64_to_cpu(reth->vaddr);
+	len = be32_to_cpu(reth->length);
+	/* The length needs to be in multiples of PAGE_SIZE */
+	if (!len || len & ~PAGE_MASK || len > qpriv->tid_rdma.local.max_len)
+		goto nack_inv;
+
+	diff = delta_psn(psn, qp->r_psn);
+	if (unlikely(diff)) {
+		if (tid_rdma_rcv_error(packet, ohdr, qp, psn, diff))
+			return;
+		goto send_ack;
+	}
+
+	/* We've verified the request, insert it into the ack queue. */
+	next = qp->r_head_ack_queue + 1;
+	if (next > rvt_size_atomic(ib_to_rvt(qp->ibqp.device)))
+		next = 0;
+	spin_lock_irqsave(&qp->s_lock, flags);
+	if (unlikely(next == qp->s_tail_ack_queue)) {
+		if (!qp->s_ack_queue[next].sent) {
+			nack_state = IB_NAK_REMOTE_OPERATIONAL_ERROR;
+			goto nack_inv_unlock;
+		}
+		update_ack_queue(qp, next);
+	}
+	e = &qp->s_ack_queue[qp->r_head_ack_queue];
+	if (e->rdma_sge.mr) {
+		rvt_put_mr(e->rdma_sge.mr);
+		e->rdma_sge.mr = NULL;
+	}
+
+	rkey = be32_to_cpu(reth->rkey);
+	qp->r_len = len;
+
+	if (unlikely(!rvt_rkey_ok(qp, &e->rdma_sge, qp->r_len, vaddr,
+				  rkey, IB_ACCESS_REMOTE_READ)))
+		goto nack_acc;
+
+	/* Accept the request parameters */
+	if (tid_rdma_rcv_read_request(qp, e, packet, ohdr, bth0, psn, vaddr,
+				      len))
+		goto nack_inv_unlock;
+
+	qp->r_state = e->opcode;
+	qp->r_nak_state = 0;
+	/*
+	 * We need to increment the MSN here instead of when we
+	 * finish sending the result since a duplicate request would
+	 * increment it more than once.
+	 */
+	qp->r_msn++;
+	qp->r_psn += e->lpsn - e->psn + 1;
+
+	qp->r_head_ack_queue = next;
+
+	/* Schedule the send tasklet. */
+	qp->s_flags |= RVT_S_RESP_PENDING;
+	hfi1_schedule_send(qp);
+
+	spin_unlock_irqrestore(&qp->s_lock, flags);
+	if (is_fecn)
+		goto send_ack;
+	return;
+
+nack_inv_unlock:
+	spin_unlock_irqrestore(&qp->s_lock, flags);
+nack_inv:
+	rvt_rc_error(qp, IB_WC_LOC_QP_OP_ERR);
+	qp->r_nak_state = nack_state;
+	qp->r_ack_psn = qp->r_psn;
+	/* Queue NAK for later */
+	rc_defered_ack(rcd, qp);
+	return;
+nack_acc:
+	spin_unlock_irqrestore(&qp->s_lock, flags);
+	rvt_rc_error(qp, IB_WC_LOC_PROT_ERR);
+	qp->r_nak_state = IB_NAK_REMOTE_ACCESS_ERROR;
+	qp->r_ack_psn = qp->r_psn;
+send_ack:
+	hfi1_send_rc_ack(packet, is_fecn);
+}

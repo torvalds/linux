@@ -340,6 +340,11 @@ static inline struct tid_rdma_request *wqe_to_tid_req(struct rvt_swqe *wqe)
 	return &((struct hfi1_swqe_priv *)wqe->priv)->tid_req;
 }
 
+static inline struct tid_rdma_request *ack_to_tid_req(struct rvt_ack_entry *e)
+{
+	return &((struct hfi1_ack_priv *)e->priv)->tid_req;
+}
+
 /*
  * Look through all the active flows for a TID RDMA request and find
  * the one (if it exists) that contains the specified PSN.

@@ -73,9 +73,14 @@ struct tid_rdma_request {
 	u16 flow_idx;		/* flow index most recently set up */
 
 	u32 seg_len;
+	u32 total_len;
+	u32 r_flow_psn;         /* IB PSN of next segment start */
 	u32 s_next_psn;		/* IB PSN of next segment start for read */
 
+	u32 total_segs;		/* segments required to complete a request */
 	u32 cur_seg;		/* index of current segment */
+	u32 comp_seg;           /* index of last completed segment */
+	u32 ack_seg;            /* index of last ack'ed segment */
 	u32 isge;		/* index of "current" sge */
 	u32 ack_pending;        /* num acks pending for this request */
 
@@ -131,6 +136,8 @@ struct tid_rdma_flow {
 	 */
 	struct flow_state flow_state;
 	struct tid_rdma_request *req;
+	u32 tid_qpn;
+	u32 tid_offset;
 	u32 length;
 	u32 sent;
 	u8 tnode_cnt;
@@ -190,5 +197,6 @@ u32 hfi1_build_tid_rdma_read_packet(struct rvt_swqe *wqe,
 u32 hfi1_build_tid_rdma_read_req(struct rvt_qp *qp, struct rvt_swqe *wqe,
 				 struct ib_other_headers *ohdr, u32 *bth1,
 				 u32 *bth2, u32 *len);
+void hfi1_rc_rcv_tid_rdma_read_req(struct hfi1_packet *packet);
 
 #endif /* HFI1_TID_RDMA_H */
