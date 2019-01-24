@@ -340,6 +340,7 @@ struct smu_feature
 	DECLARE_BITMAP(supported, SMU_FEATURE_MAX);
 	DECLARE_BITMAP(allowed, SMU_FEATURE_MAX);
 	DECLARE_BITMAP(enabled, SMU_FEATURE_MAX);
+	struct mutex mutex;
 };
 
 struct smu_clocks {
@@ -469,6 +470,7 @@ struct smu_funcs
 	int (*get_enabled_mask)(struct smu_context *smu, uint32_t *feature_mask, uint32_t num);
 	int (*enable_all_mask)(struct smu_context *smu);
 	int (*disable_all_mask)(struct smu_context *smu);
+	int (*update_feature_enable_state)(struct smu_context *smu, uint32_t feature_id, bool enabled);
 	int (*notify_display_change)(struct smu_context *smu);
 	int (*get_power_limit)(struct smu_context *smu);
 	int (*get_current_clk_freq)(struct smu_context *smu, uint32_t clk_id, uint32_t *value);
@@ -580,6 +582,8 @@ struct smu_funcs
 	((smu)->funcs->enable_all_mask? (smu)->funcs->enable_all_mask((smu)) : 0)
 #define smu_feature_disable_all(smu) \
 	((smu)->funcs->disable_all_mask? (smu)->funcs->disable_all_mask((smu)) : 0)
+#define smu_feature_update_enable_state(smu, feature_id, enabled) \
+	((smu)->funcs->update_feature_enable_state? (smu)->funcs->update_feature_enable_state((smu), (feature_id), (enabled)) : 0)
 #define smu_notify_display_change(smu) \
 	((smu)->funcs->notify_display_change? (smu)->funcs->notify_display_change((smu)) : 0)
 #define smu_store_powerplay_table(smu) \

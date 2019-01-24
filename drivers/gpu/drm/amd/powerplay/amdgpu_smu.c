@@ -170,16 +170,20 @@ int smu_feature_init_dpm(struct smu_context *smu)
 	int ret = 0;
 	uint32_t unallowed_feature_mask[SMU_FEATURE_MAX/32];
 
+	mutex_lock(&feature->mutex);
 	bitmap_fill(feature->allowed, SMU_FEATURE_MAX);
+	mutex_unlock(&feature->mutex);
 
 	ret = smu_get_unallowed_feature_mask(smu, unallowed_feature_mask,
 					     SMU_FEATURE_MAX/32);
 	if (ret)
 		return ret;
 
+	mutex_lock(&feature->mutex);
 	bitmap_andnot(feature->allowed, feature->allowed,
 		      (unsigned long *)unallowed_feature_mask,
 		      feature->feature_num);
+	mutex_unlock(&feature->mutex);
 
 	return ret;
 }
@@ -187,38 +191,70 @@ int smu_feature_init_dpm(struct smu_context *smu)
 int smu_feature_is_enabled(struct smu_context *smu, int feature_id)
 {
 	struct smu_feature *feature = &smu->smu_feature;
+	int ret = 0;
+
 	WARN_ON(feature_id > feature->feature_num);
-	return test_bit(feature_id, feature->enabled);
+
+	mutex_lock(&feature->mutex);
+	ret = test_bit(feature_id, feature->enabled);
+	mutex_unlock(&feature->mutex);
+
+	return ret;
 }
 
 int smu_feature_set_enabled(struct smu_context *smu, int feature_id, bool enable)
 {
 	struct smu_feature *feature = &smu->smu_feature;
+	int ret = 0;
+
 	WARN_ON(feature_id > feature->feature_num);
+
+	mutex_lock(&feature->mutex);
+	ret = smu_feature_update_enable_state(smu, feature_id, enable);
+	if (ret)
+		goto failed;
+
 	if (enable)
 		test_and_set_bit(feature_id, feature->enabled);
 	else
 		test_and_clear_bit(feature_id, feature->enabled);
-	return 0;
+
+failed:
+	mutex_unlock(&feature->mutex);
+
+	return ret;
 }
 
 int smu_feature_is_supported(struct smu_context *smu, int feature_id)
 {
 	struct smu_feature *feature = &smu->smu_feature;
+	int ret = 0;
+
 	WARN_ON(feature_id > feature->feature_num);
-	return test_bit(feature_id, feature->supported);
+
+	mutex_lock(&feature->mutex);
+	ret = test_bit(feature_id, feature->supported);
+	mutex_unlock(&feature->mutex);
+
+	return ret;
 }
 
 int smu_feature_set_supported(struct smu_context *smu, int feature_id,
 			      bool enable)
 {
 	struct smu_feature *feature = &smu->smu_feature;
+	int ret = 0;
+
 	WARN_ON(feature_id > feature->feature_num);
+
+	mutex_unlock(&feature->mutex);
 	if (enable)
 		test_and_set_bit(feature_id, feature->supported);
 	else
 		test_and_clear_bit(feature_id, feature->supported);
-	return 0;
+	mutex_unlock(&feature->mutex);
+
+	return ret;
 }
 
 static int smu_set_funcs(struct amdgpu_device *adev)
@@ -326,6 +362,7 @@ static int smu_sw_init(void *handle)
 
 	smu->pool_size = adev->pm.smu_prv_buffer_size;
 	smu->smu_feature.feature_num = SMU_FEATURE_MAX;
+	mutex_init(&smu->smu_feature.mutex);
 	bitmap_zero(smu->smu_feature.supported, SMU_FEATURE_MAX);
 	bitmap_zero(smu->smu_feature.enabled, SMU_FEATURE_MAX);
 	bitmap_zero(smu->smu_feature.allowed, SMU_FEATURE_MAX);
