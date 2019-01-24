@@ -1574,12 +1574,6 @@ static int cp2102n_gpioconf_init(struct usb_serial *serial)
 	if (config_version != 0x01)
 		return -ENOTSUPP;
 
-	/*
-	 * We only support 4 GPIOs even on the QFN28 package, because
-	 * config locations of GPIOs 4-6 determined using reverse
-	 * engineering revealed conflicting offsets with other
-	 * documented functions. So we'll just play it safe for now.
-	 */
 	priv->gc.ngpio = 4;
 
 	/*
@@ -1593,6 +1587,19 @@ static int cp2102n_gpioconf_init(struct usb_serial *serial)
 
 	/* 0 indicates GPIO mode, 1 is alternate function */
 	priv->gpio_altfunc = (gpio_ctrl >> 2) & 0x0f;
+
+	if (priv->partnum == CP210X_PARTNUM_CP2102N_QFN28) {
+		/*
+		 * For the QFN28 package, GPIO4-6 are controlled by
+		 * the low three bits of the mode/latch fields.
+		 * Contrary to the document linked above, the bits for
+		 * the SUSPEND pins are elsewhere.  No alternate
+		 * function is available for these pins.
+		 */
+		priv->gc.ngpio = 7;
+		gpio_latch |= (gpio_rst_latch & 7) << 4;
+		priv->gpio_pushpull |= (gpio_pushpull & 7) << 4;
+	}
 
 	/*
 	 * The CP2102N does not strictly has input and output pin modes,
