@@ -753,8 +753,8 @@ static int do_help(int argc, char **argv)
 }
 
 static const struct cmd cmds[] = {
-	{ "help",	do_help },
 	{ "probe",	do_probe },
+	{ "help",	do_help },
 	{ 0 }
 };
 
