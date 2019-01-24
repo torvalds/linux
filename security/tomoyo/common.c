@@ -1174,7 +1174,7 @@ static int tomoyo_write_domain(struct tomoyo_io_buffer *head)
 	struct tomoyo_domain_info *domain = head->w.domain;
 	const bool is_delete = head->w.is_delete;
 	bool is_select = !is_delete && tomoyo_str_starts(&data, "select ");
-	unsigned int profile;
+	unsigned int idx;
 
 	if (*data == '<') {
 		int ret = 0;
@@ -1192,24 +1192,27 @@ static int tomoyo_write_domain(struct tomoyo_io_buffer *head)
 	if (!domain)
 		return -EINVAL;
 	ns = domain->ns;
-	if (sscanf(data, "use_profile %u", &profile) == 1
-	    && profile < TOMOYO_MAX_PROFILES) {
-		if (!tomoyo_policy_loaded || ns->profile_ptr[profile])
-			domain->profile = (u8) profile;
+	if (sscanf(data, "use_profile %u", &idx) == 1
+	    && idx < TOMOYO_MAX_PROFILES) {
+		if (!tomoyo_policy_loaded || ns->profile_ptr[idx])
+			if (!is_delete)
+				domain->profile = (u8) idx;
 		return 0;
 	}
-	if (sscanf(data, "use_group %u\n", &profile) == 1
-	    && profile < TOMOYO_MAX_ACL_GROUPS) {
+	if (sscanf(data, "use_group %u\n", &idx) == 1
+	    && idx < TOMOYO_MAX_ACL_GROUPS) {
 		if (!is_delete)
-			domain->group = (u8) profile;
+			set_bit(idx, domain->group);
+		else
+			clear_bit(idx, domain->group);
 		return 0;
 	}
-	for (profile = 0; profile < TOMOYO_MAX_DOMAIN_INFO_FLAGS; profile++) {
-		const char *cp = tomoyo_dif[profile];
+	for (idx = 0; idx < TOMOYO_MAX_DOMAIN_INFO_FLAGS; idx++) {
+		const char *cp = tomoyo_dif[idx];
 
 		if (strncmp(data, cp, strlen(cp) - 1))
 			continue;
-		domain->flags[profile] = !is_delete;
+		domain->flags[idx] = !is_delete;
 		return 0;
 	}
 	return tomoyo_write_domain2(ns, &domain->acl_info_list, data,
@@ -1629,22 +1632,33 @@ static void tomoyo_read_domain(struct tomoyo_io_buffer *head)
 			tomoyo_set_lf(head);
 			tomoyo_io_printf(head, "use_profile %u\n",
 					 domain->profile);
-			tomoyo_io_printf(head, "use_group %u\n",
-					 domain->group);
 			for (i = 0; i < TOMOYO_MAX_DOMAIN_INFO_FLAGS; i++)
 				if (domain->flags[i])
 					tomoyo_set_string(head, tomoyo_dif[i]);
+			head->r.index = 0;
+			head->r.step++;
+			/* fall through */
+		case 1:
+			while (head->r.index < TOMOYO_MAX_ACL_GROUPS) {
+				i = head->r.index++;
+				if (!test_bit(i, domain->group))
+					continue;
+				tomoyo_io_printf(head, "use_group %u\n", i);
+				if (!tomoyo_flush(head))
+					return;
+			}
+			head->r.index = 0;
 			head->r.step++;
 			tomoyo_set_lf(head);
 			/* fall through */
-		case 1:
+		case 2:
 			if (!tomoyo_read_domain2(head, &domain->acl_info_list))
 				return;
 			head->r.step++;
 			if (!tomoyo_set_lf(head))
 				return;
 			/* fall through */
-		case 2:
+		case 3:
 			head->r.step = 0;
 			if (head->r.print_this_domain_only)
 				goto done;

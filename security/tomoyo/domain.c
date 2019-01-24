@@ -162,8 +162,8 @@ void tomoyo_check_acl(struct tomoyo_request_info *r,
 {
 	const struct tomoyo_domain_info *domain = r->domain;
 	struct tomoyo_acl_info *ptr;
-	bool retried = false;
 	const struct list_head *list = &domain->acl_info_list;
+	u16 i = 0;
 
 retry:
 	list_for_each_entry_rcu(ptr, list, list) {
@@ -177,9 +177,10 @@ retry:
 		r->granted = true;
 		return;
 	}
-	if (!retried) {
-		retried = true;
-		list = &domain->ns->acl_group[domain->group];
+	for (; i < TOMOYO_MAX_ACL_GROUPS; i++) {
+		if (!test_bit(i, domain->group))
+			continue;
+		list = &domain->ns->acl_group[i++];
 		goto retry;
 	}
 	r->granted = false;
@@ -561,7 +562,7 @@ struct tomoyo_domain_info *tomoyo_assign_domain(const char *domainname,
 		const struct tomoyo_domain_info *domain = tomoyo_domain();
 
 		e.profile = domain->profile;
-		e.group = domain->group;
+		memcpy(e.group, domain->group, sizeof(e.group));
 	}
 	e.domainname = tomoyo_get_name(domainname);
 	if (!e.domainname)
@@ -583,13 +584,17 @@ out:
 	if (entry && transit) {
 		if (created) {
 			struct tomoyo_request_info r;
+			int i;
 
 			tomoyo_init_request_info(&r, entry,
 						 TOMOYO_MAC_FILE_EXECUTE);
 			r.granted = false;
 			tomoyo_write_log(&r, "use_profile %u\n",
 					 entry->profile);
-			tomoyo_write_log(&r, "use_group %u\n", entry->group);
+			for (i = 0; i < TOMOYO_MAX_ACL_GROUPS; i++)
+				if (test_bit(i, entry->group))
+					tomoyo_write_log(&r, "use_group %u\n",
+							 i);
 			tomoyo_update_stat(TOMOYO_STAT_POLICY_UPDATES);
 		}
 	}

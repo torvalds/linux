@@ -684,8 +684,9 @@ struct tomoyo_domain_info {
 	const struct tomoyo_path_info *domainname;
 	/* Namespace for this domain. Never NULL. */
 	struct tomoyo_policy_namespace *ns;
+	/* Group numbers to use.   */
+	unsigned long group[TOMOYO_MAX_ACL_GROUPS / BITS_PER_LONG];
 	u8 profile;        /* Profile number to use. */
-	u8 group;          /* Group number to use.   */
 	bool is_deleted;   /* Delete flag.           */
 	bool flags[TOMOYO_MAX_DOMAIN_INFO_FLAGS];
 	atomic_t users; /* Number of referring tasks. */
