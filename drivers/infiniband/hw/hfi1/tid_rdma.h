@@ -26,9 +26,13 @@
  *
  * HFI1_S_TID_WAIT_INTERLCK - QP is waiting for requester interlock
  */
+#define HFI1_S_TID_BUSY_SET       BIT(0)
+/* BIT(1) reserved for RVT_S_BUSY. */
 #define HFI1_R_TID_RSC_TIMER      BIT(2)
+/* BIT(3) reserved for RVT_S_RESP_PENDING. */
 /* BIT(4) reserved for RVT_S_ACK_PENDING. */
 #define HFI1_S_TID_WAIT_INTERLCK  BIT(5)
+/* BIT(7) - BIT(15) reserved for RVT_S_WAIT_*. */
 #define HFI1_S_TID_RETRY_TIMER    BIT(17)
 #define HFI1_R_TID_SW_PSN         BIT(19)
 
@@ -297,5 +301,8 @@ u32 hfi1_build_tid_rdma_resync(struct rvt_qp *qp, struct rvt_swqe *wqe,
 			       u32 *bth2, u16 fidx);
 
 void hfi1_rc_rcv_tid_rdma_resync(struct hfi1_packet *packet);
+
+struct hfi1_pkt_state;
+int hfi1_make_tid_rdma_pkt(struct rvt_qp *qp, struct hfi1_pkt_state *ps);
 
 #endif /* HFI1_TID_RDMA_H */

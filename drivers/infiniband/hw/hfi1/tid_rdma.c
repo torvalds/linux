@@ -331,6 +331,7 @@ int hfi1_qp_priv_init(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 	qpriv->r_tid_tail = HFI1_QP_WQE_INVALID;
 	qpriv->r_tid_ack = HFI1_QP_WQE_INVALID;
 	qpriv->r_tid_alloc = HFI1_QP_WQE_INVALID;
+	atomic_set(&qpriv->n_requests, 0);
 	atomic_set(&qpriv->n_tid_requests, 0);
 	timer_setup(&qpriv->s_tid_timer, hfi1_tid_timeout, 0);
 	timer_setup(&qpriv->s_tid_retry_timer, hfi1_tid_retry_timeout, 0);
@@ -4802,4 +4803,214 @@ void hfi1_rc_rcv_tid_rdma_resync(struct hfi1_packet *packet)
 	qpriv->s_flags |= RVT_S_ACK_PENDING;
 bail:
 	spin_unlock_irqrestore(&qp->s_lock, flags);
+}
+
+/*
+ * Call this function when the last TID RDMA WRITE DATA packet for a request
+ * is built.
+ */
+static void update_tid_tail(struct rvt_qp *qp)
+	__must_hold(&qp->s_lock)
+{
+	struct hfi1_qp_priv *priv = qp->priv;
+	u32 i;
+	struct rvt_swqe *wqe;
+
+	lockdep_assert_held(&qp->s_lock);
+	/* Can't move beyond s_tid_cur */
+	if (priv->s_tid_tail == priv->s_tid_cur)
+		return;
+	for (i = priv->s_tid_tail + 1; ; i++) {
+		if (i == qp->s_size)
+			i = 0;
+
+		if (i == priv->s_tid_cur)
+			break;
+		wqe = rvt_get_swqe_ptr(qp, i);
+		if (wqe->wr.opcode == IB_WR_TID_RDMA_WRITE)
+			break;
+	}
+	priv->s_tid_tail = i;
+	priv->s_state = TID_OP(WRITE_RESP);
+}
+
+int hfi1_make_tid_rdma_pkt(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
+	__must_hold(&qp->s_lock)
+{
+	struct hfi1_qp_priv *priv = qp->priv;
+	struct rvt_swqe *wqe;
+	u32 bth1 = 0, bth2 = 0, hwords = 5, len, middle = 0;
+	struct ib_other_headers *ohdr;
+	struct rvt_sge_state *ss = &qp->s_sge;
+	struct rvt_ack_entry *e = &qp->s_ack_queue[qp->s_tail_ack_queue];
+	struct tid_rdma_request *req = ack_to_tid_req(e);
+	bool last = false;
+	u8 opcode = TID_OP(WRITE_DATA);
+
+	lockdep_assert_held(&qp->s_lock);
+	/*
+	 * Prioritize the sending of the requests and responses over the
+	 * sending of the TID RDMA data packets.
+	 */
+	if (((atomic_read(&priv->n_tid_requests) < HFI1_TID_RDMA_WRITE_CNT) &&
+	     atomic_read(&priv->n_requests) &&
+	     !(qp->s_flags & (RVT_S_BUSY | RVT_S_WAIT_ACK |
+			     HFI1_S_ANY_WAIT_IO))) ||
+	    (e->opcode == TID_OP(WRITE_REQ) && req->cur_seg < req->alloc_seg &&
+	     !(qp->s_flags & (RVT_S_BUSY | HFI1_S_ANY_WAIT_IO)))) {
+		struct iowait_work *iowork;
+
+		iowork = iowait_get_ib_work(&priv->s_iowait);
+		ps->s_txreq = get_waiting_verbs_txreq(iowork);
+		if (ps->s_txreq || hfi1_make_rc_req(qp, ps)) {
+			priv->s_flags |= HFI1_S_TID_BUSY_SET;
+			return 1;
+		}
+	}
+
+	ps->s_txreq = get_txreq(ps->dev, qp);
+	if (!ps->s_txreq)
+		goto bail_no_tx;
+
+	ohdr = &ps->s_txreq->phdr.hdr.ibh.u.oth;
+
+	if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_SEND_OK)) {
+		if (!(ib_rvt_state_ops[qp->state] & RVT_FLUSH_SEND))
+			goto bail;
+		/* We are in the error state, flush the work request. */
+		if (qp->s_last == READ_ONCE(qp->s_head))
+			goto bail;
+		/* If DMAs are in progress, we can't flush immediately. */
+		if (iowait_sdma_pending(&priv->s_iowait)) {
+			qp->s_flags |= RVT_S_WAIT_DMA;
+			goto bail;
+		}
+		clear_ahg(qp);
+		wqe = rvt_get_swqe_ptr(qp, qp->s_last);
+		hfi1_trdma_send_complete(qp, wqe, qp->s_last != qp->s_acked ?
+					 IB_WC_SUCCESS : IB_WC_WR_FLUSH_ERR);
+		/* will get called again */
+		goto done_free_tx;
+	}
+
+	if (priv->s_flags & RVT_S_WAIT_ACK)
+		goto bail;
+
+	/* Check whether there is anything to do. */
+	if (priv->s_tid_tail == HFI1_QP_WQE_INVALID)
+		goto bail;
+	wqe = rvt_get_swqe_ptr(qp, priv->s_tid_tail);
+	req = wqe_to_tid_req(wqe);
+	switch (priv->s_state) {
+	case TID_OP(WRITE_REQ):
+	case TID_OP(WRITE_RESP):
+		priv->tid_ss.sge = wqe->sg_list[0];
+		priv->tid_ss.sg_list = wqe->sg_list + 1;
+		priv->tid_ss.num_sge = wqe->wr.num_sge;
+		priv->tid_ss.total_len = wqe->length;
+
+		if (priv->s_state == TID_OP(WRITE_REQ))
+			hfi1_tid_rdma_restart_req(qp, wqe, &bth2);
+		priv->s_state = TID_OP(WRITE_DATA);
+		/* fall through */
+
+	case TID_OP(WRITE_DATA):
+		/*
+		 * 1. Check whether TID RDMA WRITE RESP available.
+		 * 2. If no:
+		 *    2.1 If have more segments and no TID RDMA WRITE RESP,
+		 *        set HFI1_S_WAIT_TID_RESP
+		 *    2.2 Return indicating no progress made.
+		 * 3. If yes:
+		 *    3.1 Build TID RDMA WRITE DATA packet.
+		 *    3.2 If last packet in segment:
+		 *        3.2.1 Change KDETH header bits
+		 *        3.2.2 Advance RESP pointers.
+		 *    3.3 Return indicating progress made.
+		 */
+		wqe = rvt_get_swqe_ptr(qp, priv->s_tid_tail);
+		req = wqe_to_tid_req(wqe);
+		len = wqe->length;
+
+		if (!req->comp_seg || req->cur_seg == req->comp_seg)
+			goto bail;
+
+		last = hfi1_build_tid_rdma_packet(wqe, ohdr, &bth1, &bth2,
+						  &len);
+
+		if (last) {
+			/* move pointer to next flow */
+			req->clear_tail = CIRC_NEXT(req->clear_tail,
+						    MAX_FLOWS);
+			if (++req->cur_seg < req->total_segs) {
+				if (!CIRC_CNT(req->setup_head, req->clear_tail,
+					      MAX_FLOWS))
+					qp->s_flags |= HFI1_S_WAIT_TID_RESP;
+			} else {
+				priv->s_state = TID_OP(WRITE_DATA_LAST);
+				opcode = TID_OP(WRITE_DATA_LAST);
+
+				/* Advance the s_tid_tail now */
+				update_tid_tail(qp);
+			}
+		}
+		hwords += sizeof(ohdr->u.tid_rdma.w_data) / sizeof(u32);
+		ss = &priv->tid_ss;
+		break;
+
+	case TID_OP(RESYNC):
+		/* Use generation from the most recently received response */
+		wqe = rvt_get_swqe_ptr(qp, priv->s_tid_cur);
+		req = wqe_to_tid_req(wqe);
+		/* If no responses for this WQE look at the previous one */
+		if (!req->comp_seg) {
+			wqe = rvt_get_swqe_ptr(qp,
+					       (!priv->s_tid_cur ? qp->s_size :
+						priv->s_tid_cur) - 1);
+			req = wqe_to_tid_req(wqe);
+		}
+		hwords += hfi1_build_tid_rdma_resync(qp, wqe, ohdr, &bth1,
+						     &bth2,
+						     CIRC_PREV(req->setup_head,
+							       MAX_FLOWS));
+		ss = NULL;
+		len = 0;
+		opcode = TID_OP(RESYNC);
+		break;
+
+	default:
+		goto bail;
+	}
+	if (priv->s_flags & RVT_S_SEND_ONE) {
+		priv->s_flags &= ~RVT_S_SEND_ONE;
+		priv->s_flags |= RVT_S_WAIT_ACK;
+		bth2 |= IB_BTH_REQ_ACK;
+	}
+	qp->s_len -= len;
+	ps->s_txreq->hdr_dwords = hwords;
+	ps->s_txreq->sde = priv->s_sde;
+	ps->s_txreq->ss = ss;
+	ps->s_txreq->s_cur_size = len;
+	hfi1_make_ruc_header(qp, ohdr, (opcode << 24), bth1, bth2,
+			     middle, ps);
+	return 1;
+done_free_tx:
+	hfi1_put_txreq(ps->s_txreq);
+	ps->s_txreq = NULL;
+	return 1;
+
+bail:
+	hfi1_put_txreq(ps->s_txreq);
+bail_no_tx:
+	ps->s_txreq = NULL;
+	priv->s_flags &= ~RVT_S_BUSY;
+	/*
+	 * If we didn't get a txreq, the QP will be woken up later to try
+	 * again, set the flags to the the wake up which work item to wake
+	 * up.
+	 * (A better algorithm should be found to do this and generalize the
+	 * sleep/wakeup flags.)
+	 */
+	iowait_set_flag(&priv->s_iowait, IOWAIT_PENDING_TID);
+	return 0;
 }
