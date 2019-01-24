@@ -2084,8 +2084,9 @@ static void audit_log_fcaps(struct audit_buffer *ab, struct audit_names *name)
 {
 	audit_log_cap(ab, "cap_fp", &name->fcap.permitted);
 	audit_log_cap(ab, "cap_fi", &name->fcap.inheritable);
-	audit_log_format(ab, " cap_fe=%d cap_fver=%x",
-			 name->fcap.fE, name->fcap_ver);
+	audit_log_format(ab, " cap_fe=%d cap_fver=%x cap_frootid=%d",
+			 name->fcap.fE, name->fcap_ver,
+			 from_kuid(&init_user_ns, name->fcap.rootid));
 }
 
 static inline int audit_copy_fcaps(struct audit_names *name,
@@ -2104,6 +2105,7 @@ static inline int audit_copy_fcaps(struct audit_names *name,
 	name->fcap.permitted = caps.permitted;
 	name->fcap.inheritable = caps.inheritable;
 	name->fcap.fE = !!(caps.magic_etc & VFS_CAP_FLAGS_EFFECTIVE);
+	name->fcap.rootid = caps.rootid;
 	name->fcap_ver = (caps.magic_etc & VFS_CAP_REVISION_MASK) >>
 				VFS_CAP_REVISION_SHIFT;
 

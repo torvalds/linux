@@ -1358,6 +1358,9 @@ static void audit_log_exit(void)
 			audit_log_cap(ab, "pi", &axs->new_pcap.inheritable);
 			audit_log_cap(ab, "pe", &axs->new_pcap.effective);
 			audit_log_cap(ab, "pa", &axs->new_pcap.ambient);
+			audit_log_format(ab, " frootid=%d",
+					 from_kuid(&init_user_ns,
+						   axs->fcap.rootid));
 			break; }
 
 		}
@@ -2271,6 +2274,7 @@ int __audit_log_bprm_fcaps(struct linux_binprm *bprm,
 	ax->fcap.permitted = vcaps.permitted;
 	ax->fcap.inheritable = vcaps.inheritable;
 	ax->fcap.fE = !!(vcaps.magic_etc & VFS_CAP_FLAGS_EFFECTIVE);
+	ax->fcap.rootid = vcaps.rootid;
 	ax->fcap_ver = (vcaps.magic_etc & VFS_CAP_REVISION_MASK) >> VFS_CAP_REVISION_SHIFT;
 
 	ax->old_pcap.permitted   = old->cap_permitted;
