@@ -2126,3 +2126,70 @@ nack_acc:
 send_ack:
 	hfi1_send_rc_ack(packet, is_fecn);
 }
+
+u32 hfi1_build_tid_rdma_read_resp(struct rvt_qp *qp, struct rvt_ack_entry *e,
+				  struct ib_other_headers *ohdr, u32 *bth0,
+				  u32 *bth1, u32 *bth2, u32 *len, bool *last)
+{
+	struct hfi1_ack_priv *epriv = e->priv;
+	struct tid_rdma_request *req = &epriv->tid_req;
+	struct hfi1_qp_priv *qpriv = qp->priv;
+	struct tid_rdma_flow *flow = &req->flows[req->clear_tail];
+	u32 tidentry = flow->tid_entry[flow->tid_idx];
+	u32 tidlen = EXP_TID_GET(tidentry, LEN) << PAGE_SHIFT;
+	struct tid_rdma_read_resp *resp = &ohdr->u.tid_rdma.r_rsp;
+	u32 next_offset, om = KDETH_OM_LARGE;
+	bool last_pkt;
+	u32 hdwords = 0;
+	struct tid_rdma_params *remote;
+
+	*len = min_t(u32, qp->pmtu, tidlen - flow->tid_offset);
+	flow->sent += *len;
+	next_offset = flow->tid_offset + *len;
+	last_pkt = (flow->sent >= flow->length);
+
+	rcu_read_lock();
+	remote = rcu_dereference(qpriv->tid_rdma.remote);
+	if (!remote) {
+		rcu_read_unlock();
+		goto done;
+	}
+	KDETH_RESET(resp->kdeth0, KVER, 0x1);
+	KDETH_SET(resp->kdeth0, SH, !last_pkt);
+	KDETH_SET(resp->kdeth0, INTR, !!(!last_pkt && remote->urg));
+	KDETH_SET(resp->kdeth0, TIDCTRL, EXP_TID_GET(tidentry, CTRL));
+	KDETH_SET(resp->kdeth0, TID, EXP_TID_GET(tidentry, IDX));
+	KDETH_SET(resp->kdeth0, OM, om == KDETH_OM_LARGE);
+	KDETH_SET(resp->kdeth0, OFFSET, flow->tid_offset / om);
+	KDETH_RESET(resp->kdeth1, JKEY, remote->jkey);
+	resp->verbs_qp = cpu_to_be32(qp->remote_qpn);
+	rcu_read_unlock();
+
+	resp->aeth = rvt_compute_aeth(qp);
+	resp->verbs_psn = cpu_to_be32(mask_psn(flow->flow_state.ib_spsn +
+					       flow->pkt));
+
+	*bth0 = TID_OP(READ_RESP) << 24;
+	*bth1 = flow->tid_qpn;
+	*bth2 = mask_psn(((flow->flow_state.spsn + flow->pkt++) &
+			  HFI1_KDETH_BTH_SEQ_MASK) |
+			 (flow->flow_state.generation <<
+			  HFI1_KDETH_BTH_SEQ_SHIFT));
+	*last = last_pkt;
+	if (last_pkt)
+		/* Advance to next flow */
+		req->clear_tail = (req->clear_tail + 1) &
+				  (MAX_FLOWS - 1);
+
+	if (next_offset >= tidlen) {
+		flow->tid_offset = 0;
+		flow->tid_idx++;
+	} else {
+		flow->tid_offset = next_offset;
+	}
+
+	hdwords = sizeof(ohdr->u.tid_rdma.r_rsp) / sizeof(u32);
+
+done:
+	return hdwords;
+}

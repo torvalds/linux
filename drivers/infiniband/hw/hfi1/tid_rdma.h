@@ -198,5 +198,8 @@ u32 hfi1_build_tid_rdma_read_req(struct rvt_qp *qp, struct rvt_swqe *wqe,
 				 struct ib_other_headers *ohdr, u32 *bth1,
 				 u32 *bth2, u32 *len);
 void hfi1_rc_rcv_tid_rdma_read_req(struct hfi1_packet *packet);
+u32 hfi1_build_tid_rdma_read_resp(struct rvt_qp *qp, struct rvt_ack_entry *e,
+				  struct ib_other_headers *ohdr, u32 *bth0,
+				  u32 *bth1, u32 *bth2, u32 *len, bool *last);
 
 #endif /* HFI1_TID_RDMA_H */
