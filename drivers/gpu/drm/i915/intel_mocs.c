@@ -46,6 +46,8 @@ struct drm_i915_mocs_table {
 #define LE_SCC(value)		((value) << 8)
 #define LE_PFM(value)		((value) << 11)
 #define LE_SCF(value)		((value) << 14)
+#define LE_COS(value)		((value) << 15)
+#define LE_SSE(value)		((value) << 17)
 
 /* Defines for the tables (LNCFMOCS0 - LNCFMOCS31) - two entries per word */
 #define L3_ESC(value)		((value) << 0)
@@ -54,6 +56,7 @@ struct drm_i915_mocs_table {
 
 /* Helper defines */
 #define GEN9_NUM_MOCS_ENTRIES	62  /* 62 out of 64 - 63 & 64 are reserved. */
+#define GEN11_NUM_MOCS_ENTRIES	64  /* 63-64 are reserved, but configured. */
 
 /* (e)LLC caching options */
 #define LE_0_PAGETABLE		_LE_CACHEABILITY(0)
@@ -89,18 +92,23 @@ struct drm_i915_mocs_table {
  * LNCFCMOCS0 - LNCFCMOCS32 registers.
  *
  * These tables are intended to be kept reasonably consistent across
- * platforms. However some of the fields are not applicable to all of
- * them.
+ * HW platforms, and for ICL+, be identical across OSes. To achieve
+ * that, for Icelake and above, list of entries is published as part
+ * of bspec.
  *
  * Entries not part of the following tables are undefined as far as
  * userspace is concerned and shouldn't be relied upon.  For the time
  * being they will be initialized to PTE.
  *
- * NOTE: These tables MUST start with being uncached and the length
- *       MUST be less than 63 as the last two registers are reserved
- *       by the hardware.  These tables are part of the kernel ABI and
- *       may only be updated incrementally by adding entries at the
- *       end.
+ * The last two entries are reserved by the hardware. For ICL+ they
+ * should be initialized according to bspec and never used, for older
+ * platforms they should never be written to.
+ *
+ * NOTE: These tables are part of bspec and defined as part of hardware
+ *       interface for ICL+. For older platforms, they are part of kernel
+ *       ABI. It is expected that, for specific hardware platform, existing
+ *       entries will remain constant and the table will only be updated by
+ *       adding new entries, filling unused positions.
  */
 #define GEN9_MOCS_ENTRIES \
 	MOCS_ENTRY(I915_MOCS_UNCACHED, \
@@ -125,6 +133,108 @@ static const struct drm_i915_mocs_entry broxton_mocs_table[] = {
 		   L3_3_WB)
 };
 
+#define GEN11_MOCS_ENTRIES \
+	/* Base - Uncached (Deprecated) */ \
+	MOCS_ENTRY(I915_MOCS_UNCACHED, \
+		   LE_1_UC | LE_TC_1_LLC, \
+		   L3_1_UC), \
+	/* Base - L3 + LeCC:PAT (Deprecated) */ \
+	MOCS_ENTRY(I915_MOCS_PTE, \
+		   LE_0_PAGETABLE | LE_TC_1_LLC, \
+		   L3_3_WB), \
+	/* Base - L3 + LLC */ \
+	MOCS_ENTRY(2, \
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3), \
+		   L3_3_WB), \
+	/* Base - Uncached */ \
+	MOCS_ENTRY(3, \
+		   LE_1_UC | LE_TC_1_LLC, \
+		   L3_1_UC), \
+	/* Base - L3 */ \
+	MOCS_ENTRY(4, \
+		   LE_1_UC | LE_TC_1_LLC, \
+		   L3_3_WB), \
+	/* Base - LLC */ \
+	MOCS_ENTRY(5, \
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3), \
+		   L3_1_UC), \
+	/* Age 0 - LLC */ \
+	MOCS_ENTRY(6, \
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(1), \
+		   L3_1_UC), \
+	/* Age 0 - L3 + LLC */ \
+	MOCS_ENTRY(7, \
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(1), \
+		   L3_3_WB), \
+	/* Age: Don't Chg. - LLC */ \
+	MOCS_ENTRY(8, \
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(2), \
+		   L3_1_UC), \
+	/* Age: Don't Chg. - L3 + LLC */ \
+	MOCS_ENTRY(9, \
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(2), \
+		   L3_3_WB), \
+	/* No AOM - LLC */ \
+	MOCS_ENTRY(10, \
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3) | LE_AOM(1), \
+		   L3_1_UC), \
+	/* No AOM - L3 + LLC */ \
+	MOCS_ENTRY(11, \
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3) | LE_AOM(1), \
+		   L3_3_WB), \
+	/* No AOM; Age 0 - LLC */ \
+	MOCS_ENTRY(12, \
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(1) | LE_AOM(1), \
+		   L3_1_UC), \
+	/* No AOM; Age 0 - L3 + LLC */ \
+	MOCS_ENTRY(13, \
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(1) | LE_AOM(1), \
+		   L3_3_WB), \
+	/* No AOM; Age:DC - LLC */ \
+	MOCS_ENTRY(14, \
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(2) | LE_AOM(1), \
+		   L3_1_UC), \
+	/* No AOM; Age:DC - L3 + LLC */ \
+	MOCS_ENTRY(15, \
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(2) | LE_AOM(1), \
+		   L3_3_WB), \
+	/* Self-Snoop - L3 + LLC */ \
+	MOCS_ENTRY(18, \
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3) | LE_SSE(3), \
+		   L3_3_WB), \
+	/* Skip Caching - L3 + LLC(12.5%) */ \
+	MOCS_ENTRY(19, \
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3) | LE_SCC(7), \
+		   L3_3_WB), \
+	/* Skip Caching - L3 + LLC(25%) */ \
+	MOCS_ENTRY(20, \
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3) | LE_SCC(3), \
+		   L3_3_WB), \
+	/* Skip Caching - L3 + LLC(50%) */ \
+	MOCS_ENTRY(21, \
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3) | LE_SCC(1), \
+		   L3_3_WB), \
+	/* Skip Caching - L3 + LLC(75%) */ \
+	MOCS_ENTRY(22, \
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3) | LE_RSC(1) | LE_SCC(3), \
+		   L3_3_WB), \
+	/* Skip Caching - L3 + LLC(87.5%) */ \
+	MOCS_ENTRY(23, \
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3) | LE_RSC(1) | LE_SCC(7), \
+		   L3_3_WB), \
+	/* HW Reserved - SW program but never use */ \
+	MOCS_ENTRY(62, \
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3), \
+		   L3_1_UC), \
+	/* HW Reserved - SW program but never use */ \
+	MOCS_ENTRY(63, \
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3), \
+		   L3_1_UC)
+
+static const struct drm_i915_mocs_entry icelake_mocs_table[] = {
+	GEN11_MOCS_ENTRIES
+};
+
 /**
  * get_mocs_settings()
  * @dev_priv:	i915 device.
@@ -142,8 +252,12 @@ static bool get_mocs_settings(struct drm_i915_private *dev_priv,
 {
 	bool result = false;
 
-	if (IS_GEN9_BC(dev_priv) || IS_CANNONLAKE(dev_priv) ||
-	    IS_ICELAKE(dev_priv)) {
+	if (IS_ICELAKE(dev_priv)) {
+		table->size  = ARRAY_SIZE(icelake_mocs_table);
+		table->table = icelake_mocs_table;
+		table->n_entries = GEN11_NUM_MOCS_ENTRIES;
+		result = true;
+	} else if (IS_GEN9_BC(dev_priv) || IS_CANNONLAKE(dev_priv)) {
 		table->size  = ARRAY_SIZE(skylake_mocs_table);
 		table->n_entries = GEN9_NUM_MOCS_ENTRIES;
 		table->table = skylake_mocs_table;
