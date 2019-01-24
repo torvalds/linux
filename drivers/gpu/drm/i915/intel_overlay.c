@@ -25,7 +25,6 @@
  *
  * Derived from Xorg ddx, xf86-video-intel, src/i830_video.c
  */
-#include <drm/drmP.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 #include "i915_reg.h"
@@ -541,7 +540,7 @@ static u32 calc_swidthsw(struct drm_i915_private *dev_priv, u32 offset, u32 widt
 {
 	u32 sw;
 
-	if (IS_GEN2(dev_priv))
+	if (IS_GEN(dev_priv, 2))
 		sw = ALIGN((offset & 31) + width, 32);
 	else
 		sw = ALIGN((offset & 63) + width, 64);
@@ -778,7 +777,7 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 		u32 oconfig;
 
 		oconfig = OCONF_CC_OUT_8BIT;
-		if (IS_GEN4(dev_priv))
+		if (IS_GEN(dev_priv, 4))
 			oconfig |= OCONF_CSC_MODE_BT709;
 		oconfig |= pipe == 0 ?
 			OCONF_PIPE_A : OCONF_PIPE_B;
@@ -1012,7 +1011,7 @@ static int check_overlay_src(struct drm_i915_private *dev_priv,
 
 	if (rec->stride_Y & stride_mask || rec->stride_UV & stride_mask)
 		return -EINVAL;
-	if (IS_GEN4(dev_priv) && rec->stride_Y < 512)
+	if (IS_GEN(dev_priv, 4) && rec->stride_Y < 512)
 		return -EINVAL;
 
 	tmp = (rec->flags & I915_OVERLAY_TYPE_MASK) == I915_OVERLAY_YUV_PLANAR ?
@@ -1246,7 +1245,7 @@ int intel_overlay_attrs_ioctl(struct drm_device *dev, void *data,
 		attrs->contrast   = overlay->contrast;
 		attrs->saturation = overlay->saturation;
 
-		if (!IS_GEN2(dev_priv)) {
+		if (!IS_GEN(dev_priv, 2)) {
 			attrs->gamma0 = I915_READ(OGAMC0);
 			attrs->gamma1 = I915_READ(OGAMC1);
 			attrs->gamma2 = I915_READ(OGAMC2);
@@ -1270,7 +1269,7 @@ int intel_overlay_attrs_ioctl(struct drm_device *dev, void *data,
 		update_reg_attrs(overlay, overlay->regs);
 
 		if (attrs->flags & I915_OVERLAY_UPDATE_GAMMA) {
-			if (IS_GEN2(dev_priv))
+			if (IS_GEN(dev_priv, 2))
 				goto out_unlock;
 
 			if (overlay->active) {

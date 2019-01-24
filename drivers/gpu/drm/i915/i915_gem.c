@@ -25,7 +25,6 @@
  *
  */
 
-#include <drm/drmP.h>
 #include <drm/drm_vma_manager.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
@@ -859,58 +858,6 @@ flush_write_domain(struct drm_i915_gem_object *obj, unsigned int flush_domains)
 	obj->write_domain = 0;
 }
 
-static inline int
-__copy_to_user_swizzled(char __user *cpu_vaddr,
-			const char *gpu_vaddr, int gpu_offset,
-			int length)
-{
-	int ret, cpu_offset = 0;
-
-	while (length > 0) {
-		int cacheline_end = ALIGN(gpu_offset + 1, 64);
-		int this_length = min(cacheline_end - gpu_offset, length);
-		int swizzled_gpu_offset = gpu_offset ^ 64;
-
-		ret = __copy_to_user(cpu_vaddr + cpu_offset,
-				     gpu_vaddr + swizzled_gpu_offset,
-				     this_length);
-		if (ret)
-			return ret + length;
-
-		cpu_offset += this_length;
-		gpu_offset += this_length;
-		length -= this_length;
-	}
-
-	return 0;
-}
-
-static inline int
-__copy_from_user_swizzled(char *gpu_vaddr, int gpu_offset,
-			  const char __user *cpu_vaddr,
-			  int length)
-{
-	int ret, cpu_offset = 0;
-
-	while (length > 0) {
-		int cacheline_end = ALIGN(gpu_offset + 1, 64);
-		int this_length = min(cacheline_end - gpu_offset, length);
-		int swizzled_gpu_offset = gpu_offset ^ 64;
-
-		ret = __copy_from_user(gpu_vaddr + swizzled_gpu_offset,
-				       cpu_vaddr + cpu_offset,
-				       this_length);
-		if (ret)
-			return ret + length;
-
-		cpu_offset += this_length;
-		gpu_offset += this_length;
-		length -= this_length;
-	}
-
-	return 0;
-}
-
 /*
  * Pins the specified object's pages and synchronizes the object with
  * GPU accesses. Sets needs_clflush to non-zero if the caller should
@@ -1030,72 +977,23 @@ err_unpin:
 	return ret;
 }
 
-static void
-shmem_clflush_swizzled_range(char *addr, unsigned long length,
-			     bool swizzled)
-{
-	if (unlikely(swizzled)) {
-		unsigned long start = (unsigned long) addr;
-		unsigned long end = (unsigned long) addr + length;
-
-		/* For swizzling simply ensure that we always flush both
-		 * channels. Lame, but simple and it works. Swizzled
-		 * pwrite/pread is far from a hotpath - current userspace
-		 * doesn't use it at all. */
-		start = round_down(start, 128);
-		end = round_up(end, 128);
-
-		drm_clflush_virt_range((void *)start, end - start);
-	} else {
-		drm_clflush_virt_range(addr, length);
-	}
-
-}
-
-/* Only difference to the fast-path function is that this can handle bit17
- * and uses non-atomic copy and kmap functions. */
 static int
-shmem_pread_slow(struct page *page, int offset, int length,
-		 char __user *user_data,
-		 bool page_do_bit17_swizzling, bool needs_clflush)
+shmem_pread(struct page *page, int offset, int len, char __user *user_data,
+	    bool needs_clflush)
 {
 	char *vaddr;
 	int ret;
 
 	vaddr = kmap(page);
-	if (needs_clflush)
-		shmem_clflush_swizzled_range(vaddr + offset, length,
-					     page_do_bit17_swizzling);
 
-	if (page_do_bit17_swizzling)
-		ret = __copy_to_user_swizzled(user_data, vaddr, offset, length);
-	else
-		ret = __copy_to_user(user_data, vaddr + offset, length);
+	if (needs_clflush)
+		drm_clflush_virt_range(vaddr + offset, len);
+
+	ret = __copy_to_user(user_data, vaddr + offset, len);
+
 	kunmap(page);
 
-	return ret ? - EFAULT : 0;
-}
-
-static int
-shmem_pread(struct page *page, int offset, int length, char __user *user_data,
-	    bool page_do_bit17_swizzling, bool needs_clflush)
-{
-	int ret;
-
-	ret = -ENODEV;
-	if (!page_do_bit17_swizzling) {
-		char *vaddr = kmap_atomic(page);
-
-		if (needs_clflush)
-			drm_clflush_virt_range(vaddr + offset, length);
-		ret = __copy_to_user_inatomic(user_data, vaddr + offset, length);
-		kunmap_atomic(vaddr);
-	}
-	if (ret == 0)
-		return 0;
-
-	return shmem_pread_slow(page, offset, length, user_data,
-				page_do_bit17_swizzling, needs_clflush);
+	return ret ? -EFAULT : 0;
 }
 
 static int
@@ -1104,14 +1002,9 @@ i915_gem_shmem_pread(struct drm_i915_gem_object *obj,
 {
 	char __user *user_data;
 	u64 remain;
-	unsigned int obj_do_bit17_swizzling;
 	unsigned int needs_clflush;
 	unsigned int idx, offset;
 	int ret;
-
-	obj_do_bit17_swizzling = 0;
-	if (i915_gem_object_needs_bit17_swizzle(obj))
-		obj_do_bit17_swizzling = BIT(17);
 
 	ret = mutex_lock_interruptible(&obj->base.dev->struct_mutex);
 	if (ret)
@@ -1130,7 +1023,6 @@ i915_gem_shmem_pread(struct drm_i915_gem_object *obj,
 		unsigned int length = min_t(u64, remain, PAGE_SIZE - offset);
 
 		ret = shmem_pread(page, offset, length, user_data,
-				  page_to_phys(page) & obj_do_bit17_swizzling,
 				  needs_clflush);
 		if (ret)
 			break;
@@ -1470,33 +1362,6 @@ out_unlock:
 	return ret;
 }
 
-static int
-shmem_pwrite_slow(struct page *page, int offset, int length,
-		  char __user *user_data,
-		  bool page_do_bit17_swizzling,
-		  bool needs_clflush_before,
-		  bool needs_clflush_after)
-{
-	char *vaddr;
-	int ret;
-
-	vaddr = kmap(page);
-	if (unlikely(needs_clflush_before || page_do_bit17_swizzling))
-		shmem_clflush_swizzled_range(vaddr + offset, length,
-					     page_do_bit17_swizzling);
-	if (page_do_bit17_swizzling)
-		ret = __copy_from_user_swizzled(vaddr, offset, user_data,
-						length);
-	else
-		ret = __copy_from_user(vaddr + offset, user_data, length);
-	if (needs_clflush_after)
-		shmem_clflush_swizzled_range(vaddr + offset, length,
-					     page_do_bit17_swizzling);
-	kunmap(page);
-
-	return ret ? -EFAULT : 0;
-}
-
 /* Per-page copy function for the shmem pwrite fastpath.
  * Flushes invalid cachelines before writing to the target if
  * needs_clflush_before is set and flushes out any written cachelines after
@@ -1504,31 +1369,24 @@ shmem_pwrite_slow(struct page *page, int offset, int length,
  */
 static int
 shmem_pwrite(struct page *page, int offset, int len, char __user *user_data,
-	     bool page_do_bit17_swizzling,
 	     bool needs_clflush_before,
 	     bool needs_clflush_after)
 {
+	char *vaddr;
 	int ret;
 
-	ret = -ENODEV;
-	if (!page_do_bit17_swizzling) {
-		char *vaddr = kmap_atomic(page);
+	vaddr = kmap(page);
 
-		if (needs_clflush_before)
-			drm_clflush_virt_range(vaddr + offset, len);
-		ret = __copy_from_user_inatomic(vaddr + offset, user_data, len);
-		if (needs_clflush_after)
-			drm_clflush_virt_range(vaddr + offset, len);
+	if (needs_clflush_before)
+		drm_clflush_virt_range(vaddr + offset, len);
 
-		kunmap_atomic(vaddr);
-	}
-	if (ret == 0)
-		return ret;
+	ret = __copy_from_user(vaddr + offset, user_data, len);
+	if (!ret && needs_clflush_after)
+		drm_clflush_virt_range(vaddr + offset, len);
 
-	return shmem_pwrite_slow(page, offset, len, user_data,
-				 page_do_bit17_swizzling,
-				 needs_clflush_before,
-				 needs_clflush_after);
+	kunmap(page);
+
+	return ret ? -EFAULT : 0;
 }
 
 static int
@@ -1538,7 +1396,6 @@ i915_gem_shmem_pwrite(struct drm_i915_gem_object *obj,
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 	void __user *user_data;
 	u64 remain;
-	unsigned int obj_do_bit17_swizzling;
 	unsigned int partial_cacheline_write;
 	unsigned int needs_clflush;
 	unsigned int offset, idx;
@@ -1552,10 +1409,6 @@ i915_gem_shmem_pwrite(struct drm_i915_gem_object *obj,
 	mutex_unlock(&i915->drm.struct_mutex);
 	if (ret)
 		return ret;
-
-	obj_do_bit17_swizzling = 0;
-	if (i915_gem_object_needs_bit17_swizzle(obj))
-		obj_do_bit17_swizzling = BIT(17);
 
 	/* If we don't overwrite a cacheline completely we need to be
 	 * careful to have up-to-date data by first clflushing. Don't
@@ -1573,7 +1426,6 @@ i915_gem_shmem_pwrite(struct drm_i915_gem_object *obj,
 		unsigned int length = min_t(u64, remain, PAGE_SIZE - offset);
 
 		ret = shmem_pwrite(page, offset, length, user_data,
-				   page_to_phys(page) & obj_do_bit17_swizzling,
 				   (offset | length) & partial_cacheline_write,
 				   needs_clflush & CLFLUSH_AFTER);
 		if (ret)
@@ -3227,13 +3079,6 @@ void i915_gem_reset_engine(struct intel_engine_cs *engine,
 			   struct i915_request *request,
 			   bool stalled)
 {
-	/*
-	 * Make sure this write is visible before we re-enable the interrupt
-	 * handlers on another CPU, as tasklet_enable() resolves to just
-	 * a compiler barrier which is insufficient for our purpose here.
-	 */
-	smp_store_mb(engine->irq_posted, 0);
-
 	if (request)
 		request = i915_gem_reset_request(engine, request, stalled);
 
@@ -3315,7 +3160,7 @@ static void nop_submit_request(struct i915_request *request)
 
 	spin_lock_irqsave(&request->engine->timeline.lock, flags);
 	__i915_request_submit(request);
-	intel_engine_init_global_seqno(request->engine, request->global_seqno);
+	intel_engine_write_global_seqno(request->engine, request->global_seqno);
 	spin_unlock_irqrestore(&request->engine->timeline.lock, flags);
 }
 
@@ -3356,7 +3201,7 @@ void i915_gem_set_wedged(struct drm_i915_private *i915)
 
 	/*
 	 * Make sure no request can slip through without getting completed by
-	 * either this call here to intel_engine_init_global_seqno, or the one
+	 * either this call here to intel_engine_write_global_seqno, or the one
 	 * in nop_submit_request.
 	 */
 	synchronize_rcu();
@@ -3383,6 +3228,9 @@ bool i915_gem_unset_wedged(struct drm_i915_private *i915)
 	lockdep_assert_held(&i915->drm.struct_mutex);
 	if (!test_bit(I915_WEDGED, &i915->gpu_error.flags))
 		return true;
+
+	if (!i915->gt.scratch) /* Never full initialised, recovery impossible */
+		return false;
 
 	GEM_TRACE("start\n");
 
@@ -3422,8 +3270,7 @@ bool i915_gem_unset_wedged(struct drm_i915_private *i915)
 	i915_retire_requests(i915);
 	GEM_BUG_ON(i915->gt.active_requests);
 
-	if (!intel_gpu_reset(i915, ALL_ENGINES))
-		intel_engines_sanitize(i915);
+	intel_engines_sanitize(i915, false);
 
 	/*
 	 * Undo nop_submit_request. We prevent all new i915 requests from
@@ -5027,8 +4874,6 @@ void __i915_gem_object_release_unless_active(struct drm_i915_gem_object *obj)
 
 void i915_gem_sanitize(struct drm_i915_private *i915)
 {
-	int err;
-
 	GEM_TRACE("\n");
 
 	mutex_lock(&i915->drm.struct_mutex);
@@ -5053,11 +4898,7 @@ void i915_gem_sanitize(struct drm_i915_private *i915)
 	 * it may impact the display and we are uncertain about the stability
 	 * of the reset, so this could be applied to even earlier gen.
 	 */
-	err = -ENODEV;
-	if (INTEL_GEN(i915) >= 5 && intel_has_gpu_reset(i915))
-		err = WARN_ON(intel_gpu_reset(i915, ALL_ENGINES));
-	if (!err)
-		intel_engines_sanitize(i915);
+	intel_engines_sanitize(i915, false);
 
 	intel_uncore_forcewake_put(i915, FORCEWAKE_ALL);
 	intel_runtime_pm_put(i915);
@@ -5223,15 +5064,15 @@ void i915_gem_init_swizzling(struct drm_i915_private *dev_priv)
 	I915_WRITE(DISP_ARB_CTL, I915_READ(DISP_ARB_CTL) |
 				 DISP_TILE_SURFACE_SWIZZLING);
 
-	if (IS_GEN5(dev_priv))
+	if (IS_GEN(dev_priv, 5))
 		return;
 
 	I915_WRITE(TILECTL, I915_READ(TILECTL) | TILECTL_SWZCTL);
-	if (IS_GEN6(dev_priv))
+	if (IS_GEN(dev_priv, 6))
 		I915_WRITE(ARB_MODE, _MASKED_BIT_ENABLE(ARB_MODE_SWIZZLE_SNB));
-	else if (IS_GEN7(dev_priv))
+	else if (IS_GEN(dev_priv, 7))
 		I915_WRITE(ARB_MODE, _MASKED_BIT_ENABLE(ARB_MODE_SWIZZLE_IVB));
-	else if (IS_GEN8(dev_priv))
+	else if (IS_GEN(dev_priv, 8))
 		I915_WRITE(GAMTARBMODE, _MASKED_BIT_ENABLE(ARB_MODE_SWIZZLE_BDW));
 	else
 		BUG();
@@ -5253,10 +5094,10 @@ static void init_unused_rings(struct drm_i915_private *dev_priv)
 		init_unused_ring(dev_priv, SRB1_BASE);
 		init_unused_ring(dev_priv, SRB2_BASE);
 		init_unused_ring(dev_priv, SRB3_BASE);
-	} else if (IS_GEN2(dev_priv)) {
+	} else if (IS_GEN(dev_priv, 2)) {
 		init_unused_ring(dev_priv, SRB0_BASE);
 		init_unused_ring(dev_priv, SRB1_BASE);
-	} else if (IS_GEN3(dev_priv)) {
+	} else if (IS_GEN(dev_priv, 3)) {
 		init_unused_ring(dev_priv, PRB1_BASE);
 		init_unused_ring(dev_priv, PRB2_BASE);
 	}
@@ -5580,7 +5421,7 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 	}
 
 	ret = i915_gem_init_scratch(dev_priv,
-				    IS_GEN2(dev_priv) ? SZ_256K : PAGE_SIZE);
+				    IS_GEN(dev_priv, 2) ? SZ_256K : PAGE_SIZE);
 	if (ret) {
 		GEM_BUG_ON(ret == -EIO);
 		goto err_ggtt;

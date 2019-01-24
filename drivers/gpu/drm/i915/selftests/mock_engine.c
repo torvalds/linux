@@ -148,8 +148,6 @@ static struct intel_ring *mock_ring(struct intel_engine_cs *engine)
 	const unsigned long sz = PAGE_SIZE / 2;
 	struct mock_ring *ring;
 
-	BUILD_BUG_ON(MIN_SPACE_FOR_ADD_REQUEST > sz);
-
 	ring = kzalloc(sizeof(*ring) + sz, GFP_KERNEL);
 	if (!ring)
 		return NULL;

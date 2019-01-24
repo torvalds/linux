@@ -23,7 +23,6 @@
  *
  */
 
-#include <drm/drmP.h>
 #include "i915_drv.h"
 #include "intel_drv.h"
 #include <drm/drm_atomic_helper.h>

@@ -314,6 +314,10 @@
 # define DP_PSR_SETUP_TIME_SHIFT            1
 # define DP_PSR2_SU_Y_COORDINATE_REQUIRED   (1 << 4)  /* eDP 1.4a */
 # define DP_PSR2_SU_GRANULARITY_REQUIRED    (1 << 5)  /* eDP 1.4b */
+
+#define DP_PSR2_SU_X_GRANULARITY	    0x072 /* eDP 1.4b */
+#define DP_PSR2_SU_Y_GRANULARITY	    0x074 /* eDP 1.4b */
+
 /*
  * 0x80-0x8f describe downstream port capabilities, but there are two layouts
  * based on whether DP_DETAILED_CAP_INFO_AVAILABLE was set.  If it was not,
@@ -1365,6 +1369,13 @@ enum drm_dp_quirk {
 	 * to 16 bits. So will give a constant value (0x8000) for compatability.
 	 */
 	DP_DPCD_QUIRK_CONSTANT_N,
+	/**
+	 * @DP_DPCD_QUIRK_NO_PSR:
+	 *
+	 * The device does not support PSR even if reports that it supports or
+	 * driver still need to implement proper handling for such device.
+	 */
+	DP_DPCD_QUIRK_NO_PSR,
 };
 
 /**

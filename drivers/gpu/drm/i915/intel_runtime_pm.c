@@ -509,7 +509,7 @@ static bool hsw_power_well_enabled(struct drm_i915_private *dev_priv,
 	 * BIOS's own request bits, which are forced-on for these power wells
 	 * when exiting DC5/6.
 	 */
-	if (IS_GEN9(dev_priv) && !IS_GEN9_LP(dev_priv) &&
+	if (IS_GEN(dev_priv, 9) && !IS_GEN9_LP(dev_priv) &&
 	    (id == SKL_DISP_PW_1 || id == SKL_DISP_PW_MISC_IO))
 		val |= I915_READ(regs->bios);
 
@@ -3058,7 +3058,7 @@ static uint32_t get_allowed_dc_mask(const struct drm_i915_private *dev_priv,
 		 * suspend/resume, so allow it unconditionally.
 		 */
 		mask = DC_STATE_EN_DC9;
-	} else if (IS_GEN10(dev_priv) || IS_GEN9_BC(dev_priv)) {
+	} else if (IS_GEN(dev_priv, 10) || IS_GEN9_BC(dev_priv)) {
 		max_dc = 2;
 		mask = 0;
 	} else if (IS_GEN9_LP(dev_priv)) {

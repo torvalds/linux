@@ -15,10 +15,14 @@ struct intel_pmic_opregion_data {
 	int (*update_aux)(struct regmap *r, int reg, int raw_temp);
 	int (*get_policy)(struct regmap *r, int reg, int bit, u64 *value);
 	int (*update_policy)(struct regmap *r, int reg, int bit, int enable);
+	int (*exec_mipi_pmic_seq_element)(struct regmap *r, u16 i2c_address,
+					  u32 reg_address, u32 value, u32 mask);
 	struct pmic_table *power_table;
 	int power_table_count;
 	struct pmic_table *thermal_table;
 	int thermal_table_count;
+	/* For generic exec_mipi_pmic_seq_element handling */
+	int pmic_i2c_address;
 };
 
 int intel_pmic_install_opregion_handler(struct device *dev, acpi_handle handle, struct regmap *regmap, struct intel_pmic_opregion_data *d);

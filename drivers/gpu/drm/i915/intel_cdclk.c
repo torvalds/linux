@@ -2140,7 +2140,7 @@ static int intel_pixel_rate_to_cdclk(struct drm_i915_private *dev_priv,
 {
 	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
 		return DIV_ROUND_UP(pixel_rate, 2);
-	else if (IS_GEN9(dev_priv) ||
+	else if (IS_GEN(dev_priv, 9) ||
 		 IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv))
 		return pixel_rate;
 	else if (IS_CHERRYVIEW(dev_priv))
@@ -2176,7 +2176,7 @@ int intel_crtc_compute_min_cdclk(const struct intel_crtc_state *crtc_state)
 		if (IS_CANNONLAKE(dev_priv) || IS_GEMINILAKE(dev_priv)) {
 			/* Display WA #1145: glk,cnl */
 			min_cdclk = max(316800, min_cdclk);
-		} else if (IS_GEN9(dev_priv) || IS_BROADWELL(dev_priv)) {
+		} else if (IS_GEN(dev_priv, 9) || IS_BROADWELL(dev_priv)) {
 			/* Display WA #1144: skl,bxt */
 			min_cdclk = max(432000, min_cdclk);
 		}
@@ -2537,7 +2537,7 @@ static int intel_compute_max_dotclk(struct drm_i915_private *dev_priv)
 
 	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
 		return 2 * max_cdclk_freq;
-	else if (IS_GEN9(dev_priv) ||
+	else if (IS_GEN(dev_priv, 9) ||
 		 IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv))
 		return max_cdclk_freq;
 	else if (IS_CHERRYVIEW(dev_priv))
@@ -2785,9 +2785,9 @@ void intel_init_cdclk_hooks(struct drm_i915_private *dev_priv)
 		dev_priv->display.get_cdclk = hsw_get_cdclk;
 	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		dev_priv->display.get_cdclk = vlv_get_cdclk;
-	else if (IS_GEN6(dev_priv) || IS_IVYBRIDGE(dev_priv))
+	else if (IS_GEN(dev_priv, 6) || IS_IVYBRIDGE(dev_priv))
 		dev_priv->display.get_cdclk = fixed_400mhz_get_cdclk;
-	else if (IS_GEN5(dev_priv))
+	else if (IS_GEN(dev_priv, 5))
 		dev_priv->display.get_cdclk = fixed_450mhz_get_cdclk;
 	else if (IS_GM45(dev_priv))
 		dev_priv->display.get_cdclk = gm45_get_cdclk;

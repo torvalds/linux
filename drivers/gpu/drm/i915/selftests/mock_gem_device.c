@@ -147,7 +147,7 @@ struct drm_i915_private *mock_gem_device(void)
 	pdev->class = PCI_BASE_CLASS_DISPLAY << 16;
 	pdev->dev.release = release_dev;
 	dev_set_name(&pdev->dev, "mock");
-	dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+	dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 
 #if IS_ENABLED(CONFIG_IOMMU_API) && defined(CONFIG_INTEL_IOMMU)
 	/* hack to disable iommu for the fake device; force identity mapping */

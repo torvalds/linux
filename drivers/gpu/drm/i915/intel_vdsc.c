@@ -6,7 +6,6 @@
  *         Manasi Navare <manasi.d.navare@intel.com>
  */
 
-#include <drm/drmP.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 #include "intel_drv.h"

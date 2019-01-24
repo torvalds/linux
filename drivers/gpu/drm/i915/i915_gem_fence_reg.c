@@ -21,7 +21,6 @@
  * IN THE SOFTWARE.
  */
 
-#include <drm/drmP.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 
@@ -193,9 +192,9 @@ static void fence_write(struct drm_i915_fence_reg *fence,
 	 * and explicitly managed for internal users.
 	 */
 
-	if (IS_GEN2(fence->i915))
+	if (IS_GEN(fence->i915, 2))
 		i830_write_fence_reg(fence, vma);
-	else if (IS_GEN3(fence->i915))
+	else if (IS_GEN(fence->i915, 3))
 		i915_write_fence_reg(fence, vma);
 	else
 		i965_write_fence_reg(fence, vma);
@@ -596,13 +595,13 @@ i915_gem_detect_bit_6_swizzle(struct drm_i915_private *dev_priv)
 				swizzle_y = I915_BIT_6_SWIZZLE_NONE;
 			}
 		}
-	} else if (IS_GEN5(dev_priv)) {
+	} else if (IS_GEN(dev_priv, 5)) {
 		/* On Ironlake whatever DRAM config, GPU always do
 		 * same swizzling setup.
 		 */
 		swizzle_x = I915_BIT_6_SWIZZLE_9_10;
 		swizzle_y = I915_BIT_6_SWIZZLE_9;
-	} else if (IS_GEN2(dev_priv)) {
+	} else if (IS_GEN(dev_priv, 2)) {
 		/* As far as we know, the 865 doesn't have these bit 6
 		 * swizzling issues.
 		 */
@@ -647,7 +646,7 @@ i915_gem_detect_bit_6_swizzle(struct drm_i915_private *dev_priv)
 		}
 
 		/* check for L-shaped memory aka modified enhanced addressing */
-		if (IS_GEN4(dev_priv) &&
+		if (IS_GEN(dev_priv, 4) &&
 		    !(I915_READ(DCC2) & DCC2_MODIFIED_ENHANCED_DISABLE)) {
 			swizzle_x = I915_BIT_6_SWIZZLE_UNKNOWN;
 			swizzle_y = I915_BIT_6_SWIZZLE_UNKNOWN;

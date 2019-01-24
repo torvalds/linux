@@ -31,7 +31,6 @@
 #include <linux/sysrq.h>
 #include <linux/slab.h>
 #include <linux/circ_buf.h>
-#include <drm/drmP.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 #include "i915_trace.h"
@@ -950,7 +949,7 @@ static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
 		vtotal /= 2;
 
-	if (IS_GEN2(dev_priv))
+	if (IS_GEN(dev_priv, 2))
 		position = I915_READ_FW(PIPEDSL(pipe)) & DSL_LINEMASK_GEN2;
 	else
 		position = I915_READ_FW(PIPEDSL(pipe)) & DSL_LINEMASK_GEN3;
@@ -1030,7 +1029,7 @@ static bool i915_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
 	if (stime)
 		*stime = ktime_get();
 
-	if (IS_GEN2(dev_priv) || IS_G4X(dev_priv) || INTEL_GEN(dev_priv) >= 5) {
+	if (IS_GEN(dev_priv, 2) || IS_G4X(dev_priv) || INTEL_GEN(dev_priv) >= 5) {
 		/* No obvious pixelcount register. Only query vertical
 		 * scanout position from Display scan line register.
 		 */
@@ -1090,7 +1089,7 @@ static bool i915_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
 	else
 		position += vtotal - vbl_end;
 
-	if (IS_GEN2(dev_priv) || IS_G4X(dev_priv) || INTEL_GEN(dev_priv) >= 5) {
+	if (IS_GEN(dev_priv, 2) || IS_G4X(dev_priv) || INTEL_GEN(dev_priv) >= 5) {
 		*vpos = position;
 		*hpos = 0;
 	} else {
@@ -1189,13 +1188,6 @@ static void notify_ring(struct intel_engine_cs *engine)
 				rq = i915_request_get(waiter);
 
 			tsk = wait->tsk;
-		} else {
-			if (engine->irq_seqno_barrier &&
-			    i915_seqno_passed(seqno, wait->seqno - 1)) {
-				set_bit(ENGINE_IRQ_BREADCRUMB,
-					&engine->irq_posted);
-				tsk = wait->tsk;
-			}
 		}
 
 		engine->breadcrumbs.irq_count++;
@@ -2547,7 +2539,7 @@ static void ilk_display_irq_handler(struct drm_i915_private *dev_priv,
 		I915_WRITE(SDEIIR, pch_iir);
 	}
 
-	if (IS_GEN5(dev_priv) && de_iir & DE_PCU_EVENT)
+	if (IS_GEN(dev_priv, 5) && de_iir & DE_PCU_EVENT)
 		ironlake_rps_change_irq_handler(dev_priv);
 }
 
@@ -3243,7 +3235,7 @@ void i915_clear_error_registers(struct drm_i915_private *dev_priv)
 {
 	u32 eir;
 
-	if (!IS_GEN2(dev_priv))
+	if (!IS_GEN(dev_priv, 2))
 		I915_WRITE(PGTBL_ER, I915_READ(PGTBL_ER));
 
 	if (INTEL_GEN(dev_priv) < 4)
@@ -3586,11 +3578,8 @@ static void ironlake_irq_reset(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
-	if (IS_GEN5(dev_priv))
-		I915_WRITE(HWSTAM, 0xffffffff);
-
 	GEN3_IRQ_RESET(DE);
-	if (IS_GEN7(dev_priv))
+	if (IS_GEN(dev_priv, 7))
 		I915_WRITE(GEN7_ERR_INT, 0xffffffff);
 
 	if (IS_HASWELL(dev_priv)) {
@@ -4045,7 +4034,7 @@ static void gen5_gt_irq_postinstall(struct drm_device *dev)
 	}
 
 	gt_irqs |= GT_RENDER_USER_INTERRUPT;
-	if (IS_GEN5(dev_priv)) {
+	if (IS_GEN(dev_priv, 5)) {
 		gt_irqs |= ILK_BSD_USER_INTERRUPT;
 	} else {
 		gt_irqs |= GT_BLT_USER_INTERRUPT | GT_BSD_USER_INTERRUPT;
@@ -4182,9 +4171,6 @@ static void gen8_gt_irq_postinstall(struct drm_i915_private *dev_priv)
 		GT_RENDER_USER_INTERRUPT << GEN8_VECS_IRQ_SHIFT |
 			GT_CONTEXT_SWITCH_INTERRUPT << GEN8_VECS_IRQ_SHIFT
 		};
-
-	if (HAS_L3_DPF(dev_priv))
-		gt_interrupts[0] |= GT_RENDER_L3_PARITY_ERROR_INTERRUPT;
 
 	dev_priv->pm_ier = 0x0;
 	dev_priv->pm_imr = ~dev_priv->pm_ier;
@@ -4368,8 +4354,6 @@ static void i8xx_irq_reset(struct drm_device *dev)
 
 	i9xx_pipestat_irq_reset(dev_priv);
 
-	I915_WRITE16(HWSTAM, 0xffff);
-
 	GEN2_IRQ_RESET();
 }
 
@@ -4537,8 +4521,6 @@ static void i915_irq_reset(struct drm_device *dev)
 
 	i9xx_pipestat_irq_reset(dev_priv);
 
-	I915_WRITE(HWSTAM, 0xffffffff);
-
 	GEN3_IRQ_RESET();
 }
 
@@ -4647,8 +4629,6 @@ static void i965_irq_reset(struct drm_device *dev)
 	I915_WRITE(PORT_HOTPLUG_STAT, I915_READ(PORT_HOTPLUG_STAT));
 
 	i9xx_pipestat_irq_reset(dev_priv);
-
-	I915_WRITE(HWSTAM, 0xffffffff);
 
 	GEN3_IRQ_RESET();
 }
@@ -4836,7 +4816,7 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 	if (INTEL_GEN(dev_priv) >= 8)
 		rps->pm_intrmsk_mbz |= GEN8_PMINTR_DISABLE_REDIRECT_TO_GUC;
 
-	if (IS_GEN2(dev_priv)) {
+	if (IS_GEN(dev_priv, 2)) {
 		/* Gen2 doesn't have a hardware frame counter */
 		dev->max_vblank_count = 0;
 	} else if (IS_G4X(dev_priv) || INTEL_GEN(dev_priv) >= 5) {
@@ -4852,7 +4832,7 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 	 * Gen2 doesn't have a hardware frame counter and so depends on
 	 * vblank interrupts to produce sane vblank seuquence numbers.
 	 */
-	if (!IS_GEN2(dev_priv))
+	if (!IS_GEN(dev_priv, 2))
 		dev->vblank_disable_immediate = true;
 
 	/* Most platforms treat the display irq block as an always-on
@@ -4924,14 +4904,14 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 		dev->driver->disable_vblank = ironlake_disable_vblank;
 		dev_priv->display.hpd_irq_setup = ilk_hpd_irq_setup;
 	} else {
-		if (IS_GEN2(dev_priv)) {
+		if (IS_GEN(dev_priv, 2)) {
 			dev->driver->irq_preinstall = i8xx_irq_reset;
 			dev->driver->irq_postinstall = i8xx_irq_postinstall;
 			dev->driver->irq_handler = i8xx_irq_handler;
 			dev->driver->irq_uninstall = i8xx_irq_reset;
 			dev->driver->enable_vblank = i8xx_enable_vblank;
 			dev->driver->disable_vblank = i8xx_disable_vblank;
-		} else if (IS_GEN3(dev_priv)) {
+		} else if (IS_GEN(dev_priv, 3)) {
 			dev->driver->irq_preinstall = i915_irq_reset;
 			dev->driver->irq_postinstall = i915_irq_postinstall;
 			dev->driver->irq_uninstall = i915_irq_reset;

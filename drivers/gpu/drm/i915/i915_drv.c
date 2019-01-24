@@ -41,7 +41,6 @@
 #include <linux/vt.h>
 #include <acpi/video.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/i915_drm.h>
@@ -132,15 +131,15 @@ intel_pch_type(const struct drm_i915_private *dev_priv, unsigned short id)
 	switch (id) {
 	case INTEL_PCH_IBX_DEVICE_ID_TYPE:
 		DRM_DEBUG_KMS("Found Ibex Peak PCH\n");
-		WARN_ON(!IS_GEN5(dev_priv));
+		WARN_ON(!IS_GEN(dev_priv, 5));
 		return PCH_IBX;
 	case INTEL_PCH_CPT_DEVICE_ID_TYPE:
 		DRM_DEBUG_KMS("Found CougarPoint PCH\n");
-		WARN_ON(!IS_GEN6(dev_priv) && !IS_IVYBRIDGE(dev_priv));
+		WARN_ON(!IS_GEN(dev_priv, 6) && !IS_IVYBRIDGE(dev_priv));
 		return PCH_CPT;
 	case INTEL_PCH_PPT_DEVICE_ID_TYPE:
 		DRM_DEBUG_KMS("Found PantherPoint PCH\n");
-		WARN_ON(!IS_GEN6(dev_priv) && !IS_IVYBRIDGE(dev_priv));
+		WARN_ON(!IS_GEN(dev_priv, 6) && !IS_IVYBRIDGE(dev_priv));
 		/* PantherPoint is CPT compatible */
 		return PCH_CPT;
 	case INTEL_PCH_LPT_DEVICE_ID_TYPE:
@@ -217,9 +216,9 @@ intel_virt_detect_pch(const struct drm_i915_private *dev_priv)
 	 * make an educated guess as to which PCH is really there.
 	 */
 
-	if (IS_GEN5(dev_priv))
+	if (IS_GEN(dev_priv, 5))
 		id = INTEL_PCH_IBX_DEVICE_ID_TYPE;
-	else if (IS_GEN6(dev_priv) || IS_IVYBRIDGE(dev_priv))
+	else if (IS_GEN(dev_priv, 6) || IS_IVYBRIDGE(dev_priv))
 		id = INTEL_PCH_CPT_DEVICE_ID_TYPE;
 	else if (IS_HSW_ULT(dev_priv) || IS_BDW_ULT(dev_priv))
 		id = INTEL_PCH_LPT_LP_DEVICE_ID_TYPE;
@@ -349,7 +348,7 @@ static int i915_getparam_ioctl(struct drm_device *dev, void *data,
 		value = min_t(int, INTEL_PPGTT(dev_priv), I915_GEM_PPGTT_FULL);
 		break;
 	case I915_PARAM_HAS_SEMAPHORES:
-		value = HAS_LEGACY_SEMAPHORES(dev_priv);
+		value = 0;
 		break;
 	case I915_PARAM_HAS_SECURE_BATCHES:
 		value = capable(CAP_SYS_ADMIN);
@@ -358,12 +357,12 @@ static int i915_getparam_ioctl(struct drm_device *dev, void *data,
 		value = i915_cmd_parser_get_version(dev_priv);
 		break;
 	case I915_PARAM_SUBSLICE_TOTAL:
-		value = sseu_subslice_total(&INTEL_INFO(dev_priv)->sseu);
+		value = sseu_subslice_total(&RUNTIME_INFO(dev_priv)->sseu);
 		if (!value)
 			return -ENODEV;
 		break;
 	case I915_PARAM_EU_TOTAL:
-		value = INTEL_INFO(dev_priv)->sseu.eu_total;
+		value = RUNTIME_INFO(dev_priv)->sseu.eu_total;
 		if (!value)
 			return -ENODEV;
 		break;
@@ -380,7 +379,7 @@ static int i915_getparam_ioctl(struct drm_device *dev, void *data,
 		value = HAS_POOLED_EU(dev_priv);
 		break;
 	case I915_PARAM_MIN_EU_IN_POOL:
-		value = INTEL_INFO(dev_priv)->sseu.min_eu_in_pool;
+		value = RUNTIME_INFO(dev_priv)->sseu.min_eu_in_pool;
 		break;
 	case I915_PARAM_HUC_STATUS:
 		value = intel_huc_check_status(&dev_priv->huc);
@@ -430,17 +429,17 @@ static int i915_getparam_ioctl(struct drm_device *dev, void *data,
 		value = intel_engines_has_context_isolation(dev_priv);
 		break;
 	case I915_PARAM_SLICE_MASK:
-		value = INTEL_INFO(dev_priv)->sseu.slice_mask;
+		value = RUNTIME_INFO(dev_priv)->sseu.slice_mask;
 		if (!value)
 			return -ENODEV;
 		break;
 	case I915_PARAM_SUBSLICE_MASK:
-		value = INTEL_INFO(dev_priv)->sseu.subslice_mask[0];
+		value = RUNTIME_INFO(dev_priv)->sseu.subslice_mask[0];
 		if (!value)
 			return -ENODEV;
 		break;
 	case I915_PARAM_CS_TIMESTAMP_FREQUENCY:
-		value = 1000 * INTEL_INFO(dev_priv)->cs_timestamp_frequency_khz;
+		value = 1000 * RUNTIME_INFO(dev_priv)->cs_timestamp_frequency_khz;
 		break;
 	case I915_PARAM_MMAP_GTT_COHERENT:
 		value = INTEL_INFO(dev_priv)->has_coherent_ggtt;
@@ -966,7 +965,7 @@ static int i915_mmio_setup(struct drm_i915_private *dev_priv)
 	int mmio_bar;
 	int mmio_size;
 
-	mmio_bar = IS_GEN2(dev_priv) ? 1 : 0;
+	mmio_bar = IS_GEN(dev_priv, 2) ? 1 : 0;
 	/*
 	 * Before gen4, the registers and the GTT are behind different BARs.
 	 * However, from gen4 onwards, the registers and the GTT are shared
@@ -1341,7 +1340,7 @@ intel_get_dram_info(struct drm_i915_private *dev_priv)
 	/* Need to calculate bandwidth only for Gen9 */
 	if (IS_BROXTON(dev_priv))
 		ret = bxt_get_dram_info(dev_priv);
-	else if (IS_GEN9(dev_priv))
+	else if (IS_GEN(dev_priv, 9))
 		ret = skl_get_dram_info(dev_priv);
 	else
 		ret = skl_dram_get_channels_info(dev_priv);
@@ -1374,7 +1373,7 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 	if (i915_inject_load_failure())
 		return -ENODEV;
 
-	intel_device_info_runtime_init(mkwrite_device_info(dev_priv));
+	intel_device_info_runtime_init(dev_priv);
 
 	if (HAS_PPGTT(dev_priv)) {
 		if (intel_vgpu_active(dev_priv) &&
@@ -1436,7 +1435,7 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 	pci_set_master(pdev);
 
 	/* overlay on gen2 is broken and can't address above 1G */
-	if (IS_GEN2(dev_priv)) {
+	if (IS_GEN(dev_priv, 2)) {
 		ret = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(30));
 		if (ret) {
 			DRM_ERROR("failed to set DMA mask\n");
@@ -1574,7 +1573,7 @@ static void i915_driver_register(struct drm_i915_private *dev_priv)
 		acpi_video_register();
 	}
 
-	if (IS_GEN5(dev_priv))
+	if (IS_GEN(dev_priv, 5))
 		intel_gpu_ips_init(dev_priv);
 
 	intel_audio_init(dev_priv);
@@ -1636,8 +1635,14 @@ static void i915_welcome_messages(struct drm_i915_private *dev_priv)
 	if (drm_debug & DRM_UT_DRIVER) {
 		struct drm_printer p = drm_debug_printer("i915 device info:");
 
-		intel_device_info_dump(&dev_priv->info, &p);
-		intel_device_info_dump_runtime(&dev_priv->info, &p);
+		drm_printf(&p, "pciid=0x%04x rev=0x%02x platform=%s gen=%i\n",
+			   INTEL_DEVID(dev_priv),
+			   INTEL_REVID(dev_priv),
+			   intel_platform_name(INTEL_INFO(dev_priv)->platform),
+			   INTEL_GEN(dev_priv));
+
+		intel_device_info_dump_flags(INTEL_INFO(dev_priv), &p);
+		intel_device_info_dump_runtime(RUNTIME_INFO(dev_priv), &p);
 	}
 
 	if (IS_ENABLED(CONFIG_DRM_I915_DEBUG))
@@ -1674,7 +1679,7 @@ i915_driver_create(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Setup the write-once "constant" device info */
 	device_info = mkwrite_device_info(i915);
 	memcpy(device_info, match_info, sizeof(*device_info));
-	device_info->device_id = pdev->device;
+	RUNTIME_INFO(i915)->device_id = pdev->device;
 
 	BUILD_BUG_ON(INTEL_MAX_PLATFORMS >
 		     BITS_PER_TYPE(device_info->platform_mask));
@@ -2174,7 +2179,7 @@ static int i915_drm_resume_early(struct drm_device *dev)
 
 	intel_power_domains_resume(dev_priv);
 
-	intel_engines_sanitize(dev_priv);
+	intel_engines_sanitize(dev_priv, true);
 
 	enable_rpm_wakeref_asserts(dev_priv);
 
@@ -2226,6 +2231,7 @@ void i915_reset(struct drm_i915_private *i915,
 
 	might_sleep();
 	lockdep_assert_held(&i915->drm.struct_mutex);
+	assert_rpm_wakelock_held(i915);
 	GEM_BUG_ON(!test_bit(I915_RESET_BACKOFF, &error->flags));
 
 	if (!test_bit(I915_RESET_HANDOFF, &error->flags))

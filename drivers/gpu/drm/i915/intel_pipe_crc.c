@@ -427,13 +427,13 @@ static int get_new_crc_ctl_reg(struct drm_i915_private *dev_priv,
 			       enum intel_pipe_crc_source *source, u32 *val,
 			       bool set_wa)
 {
-	if (IS_GEN2(dev_priv))
+	if (IS_GEN(dev_priv, 2))
 		return i8xx_pipe_crc_ctl_reg(source, val);
 	else if (INTEL_GEN(dev_priv) < 5)
 		return i9xx_pipe_crc_ctl_reg(dev_priv, pipe, source, val);
 	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		return vlv_pipe_crc_ctl_reg(dev_priv, pipe, source, val);
-	else if (IS_GEN5(dev_priv) || IS_GEN6(dev_priv))
+	else if (IS_GEN_RANGE(dev_priv, 5, 6))
 		return ilk_pipe_crc_ctl_reg(source, val);
 	else
 		return ivb_pipe_crc_ctl_reg(dev_priv, pipe, source, val, set_wa);
@@ -544,13 +544,13 @@ static int
 intel_is_valid_crc_source(struct drm_i915_private *dev_priv,
 			  const enum intel_pipe_crc_source source)
 {
-	if (IS_GEN2(dev_priv))
+	if (IS_GEN(dev_priv, 2))
 		return i8xx_crc_source_valid(dev_priv, source);
 	else if (INTEL_GEN(dev_priv) < 5)
 		return i9xx_crc_source_valid(dev_priv, source);
 	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		return vlv_crc_source_valid(dev_priv, source);
-	else if (IS_GEN5(dev_priv) || IS_GEN6(dev_priv))
+	else if (IS_GEN_RANGE(dev_priv, 5, 6))
 		return ilk_crc_source_valid(dev_priv, source);
 	else
 		return ivb_crc_source_valid(dev_priv, source);

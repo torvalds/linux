@@ -572,7 +572,8 @@ static void inject_preempt_context(struct work_struct *work)
 		if (engine->id == RCS) {
 			cs = gen8_emit_ggtt_write_rcs(cs,
 						      GUC_PREEMPT_FINISHED,
-						      addr);
+						      addr,
+						      PIPE_CONTROL_CS_STALL);
 		} else {
 			cs = gen8_emit_ggtt_write(cs,
 						  GUC_PREEMPT_FINISHED,

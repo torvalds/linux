@@ -594,13 +594,14 @@ static void print_error_obj(struct drm_i915_error_state_buf *m,
 
 static void err_print_capabilities(struct drm_i915_error_state_buf *m,
 				   const struct intel_device_info *info,
+				   const struct intel_runtime_info *runtime,
 				   const struct intel_driver_caps *caps)
 {
 	struct drm_printer p = i915_error_printer(m);
 
 	intel_device_info_dump_flags(info, &p);
 	intel_driver_caps_print(caps, &p);
-	intel_device_info_dump_topology(&info->sseu, &p);
+	intel_device_info_dump_topology(&runtime->sseu, &p);
 }
 
 static void err_print_params(struct drm_i915_error_state_buf *m,
@@ -664,7 +665,9 @@ static void __err_print_to_sgl(struct drm_i915_error_state_buf *m,
 
 	if (*error->error_msg)
 		err_printf(m, "%s\n", error->error_msg);
-	err_printf(m, "Kernel: %s\n", init_utsname()->release);
+	err_printf(m, "Kernel: %s %s\n",
+		   init_utsname()->release,
+		   init_utsname()->machine);
 	ts = ktime_to_timespec64(error->time);
 	err_printf(m, "Time: %lld s %ld us\n",
 		   (s64)ts.tv_sec, ts.tv_nsec / NSEC_PER_USEC);
@@ -735,7 +738,7 @@ static void __err_print_to_sgl(struct drm_i915_error_state_buf *m,
 		err_printf(m, "DONE_REG: 0x%08x\n", error->done_reg);
 	}
 
-	if (IS_GEN7(m->i915))
+	if (IS_GEN(m->i915, 7))
 		err_printf(m, "ERR_INT: 0x%08x\n", error->err_int);
 
 	for (i = 0; i < ARRAY_SIZE(error->engine); i++) {
@@ -844,7 +847,8 @@ static void __err_print_to_sgl(struct drm_i915_error_state_buf *m,
 	if (error->display)
 		intel_display_print_error_state(m, error->display);
 
-	err_print_capabilities(m, &error->device_info, &error->driver_caps);
+	err_print_capabilities(m, &error->device_info, &error->runtime_info,
+			       &error->driver_caps);
 	err_print_params(m, &error->params);
 	err_print_uc(m, &error->uc);
 }
@@ -963,17 +967,10 @@ static void i915_error_object_free(struct drm_i915_error_object *obj)
 	kfree(obj);
 }
 
-static __always_inline void free_param(const char *type, void *x)
-{
-	if (!__builtin_strcmp(type, "char *"))
-		kfree(*(void **)x);
-}
 
 static void cleanup_params(struct i915_gpu_state *error)
 {
-#define FREE(T, x, ...) free_param(#T, &error->params.x);
-	I915_PARAMS_FOR_EACH(FREE);
-#undef FREE
+	i915_params_free(&error->params);
 }
 
 static void cleanup_uc_state(struct i915_gpu_state *error)
@@ -1037,7 +1034,7 @@ i915_error_object_create(struct drm_i915_private *i915,
 	dma_addr_t dma;
 	int ret;
 
-	if (!vma)
+	if (!vma || !vma->pages)
 		return NULL;
 
 	num_pages = min_t(u64, vma->size, vma->obj->base.size) >> PAGE_SHIFT;
@@ -1314,7 +1311,7 @@ static void error_record_engine_registers(struct i915_gpu_state *error,
 	if (!HWS_NEEDS_PHYSICAL(dev_priv)) {
 		i915_reg_t mmio;
 
-		if (IS_GEN7(dev_priv)) {
+		if (IS_GEN(dev_priv, 7)) {
 			switch (engine->id) {
 			default:
 			case RCS:
@@ -1330,7 +1327,7 @@ static void error_record_engine_registers(struct i915_gpu_state *error,
 				mmio = VEBOX_HWS_PGA_GEN7;
 				break;
 			}
-		} else if (IS_GEN6(engine->i915)) {
+		} else if (IS_GEN(engine->i915, 6)) {
 			mmio = RING_HWS_PGA_GEN6(engine->mmio_base);
 		} else {
 			/* XXX: gen8 returns to sanity */
@@ -1352,10 +1349,10 @@ static void error_record_engine_registers(struct i915_gpu_state *error,
 
 		ee->vm_info.gfx_mode = I915_READ(RING_MODE_GEN7(engine));
 
-		if (IS_GEN6(dev_priv))
+		if (IS_GEN(dev_priv, 6))
 			ee->vm_info.pp_dir_base =
 				I915_READ(RING_PP_DIR_BASE_READ(engine));
-		else if (IS_GEN7(dev_priv))
+		else if (IS_GEN(dev_priv, 7))
 			ee->vm_info.pp_dir_base =
 				I915_READ(RING_PP_DIR_BASE(engine));
 		else if (INTEL_GEN(dev_priv) >= 8)
@@ -1725,7 +1722,7 @@ static void capture_reg_state(struct i915_gpu_state *error)
 		error->forcewake = I915_READ_FW(FORCEWAKE_VLV);
 	}
 
-	if (IS_GEN7(dev_priv))
+	if (IS_GEN(dev_priv, 7))
 		error->err_int = I915_READ(GEN7_ERR_INT);
 
 	if (INTEL_GEN(dev_priv) >= 8) {
@@ -1733,7 +1730,7 @@ static void capture_reg_state(struct i915_gpu_state *error)
 		error->fault_data1 = I915_READ(GEN8_FAULT_TLB_DATA1);
 	}
 
-	if (IS_GEN6(dev_priv)) {
+	if (IS_GEN(dev_priv, 6)) {
 		error->forcewake = I915_READ_FW(FORCEWAKE);
 		error->gab_ctl = I915_READ(GAB_CTL);
 		error->gfx_mode = I915_READ(GFX_MODE);
@@ -1753,7 +1750,7 @@ static void capture_reg_state(struct i915_gpu_state *error)
 		error->ccid = I915_READ(CCID);
 
 	/* 3: Feature specific registers */
-	if (IS_GEN6(dev_priv) || IS_GEN7(dev_priv)) {
+	if (IS_GEN_RANGE(dev_priv, 6, 7)) {
 		error->gam_ecochk = I915_READ(GAM_ECOCHK);
 		error->gac_eco = I915_READ(GAC_ECO_BITS);
 	}
@@ -1777,7 +1774,7 @@ static void capture_reg_state(struct i915_gpu_state *error)
 		error->ier = I915_READ(DEIER);
 		error->gtier[0] = I915_READ(GTIER);
 		error->ngtier = 1;
-	} else if (IS_GEN2(dev_priv)) {
+	} else if (IS_GEN(dev_priv, 2)) {
 		error->ier = I915_READ16(IER);
 	} else if (!IS_VALLEYVIEW(dev_priv)) {
 		error->ier = I915_READ(IER);
@@ -1831,21 +1828,15 @@ static void capture_gen_state(struct i915_gpu_state *error)
 	memcpy(&error->device_info,
 	       INTEL_INFO(i915),
 	       sizeof(error->device_info));
+	memcpy(&error->runtime_info,
+	       RUNTIME_INFO(i915),
+	       sizeof(error->runtime_info));
 	error->driver_caps = i915->caps;
-}
-
-static __always_inline void dup_param(const char *type, void *x)
-{
-	if (!__builtin_strcmp(type, "char *"))
-		*(void **)x = kstrdup(*(void **)x, GFP_ATOMIC);
 }
 
 static void capture_params(struct i915_gpu_state *error)
 {
-	error->params = i915_modparams;
-#define DUP(T, x, ...) dup_param(#T, &error->params.x);
-	I915_PARAMS_FOR_EACH(DUP);
-#undef DUP
+	i915_params_copy(&error->params, &i915_modparams);
 }
 
 static unsigned long capture_find_epoch(const struct i915_gpu_state *error)
@@ -1907,9 +1898,16 @@ i915_capture_gpu_state(struct drm_i915_private *i915)
 {
 	struct i915_gpu_state *error;
 
+	/* Check if GPU capture has been disabled */
+	error = READ_ONCE(i915->gpu_error.first_error);
+	if (IS_ERR(error))
+		return error;
+
 	error = kzalloc(sizeof(*error), GFP_ATOMIC);
-	if (!error)
-		return NULL;
+	if (!error) {
+		i915_disable_error_state(i915, -ENOMEM);
+		return ERR_PTR(-ENOMEM);
+	}
 
 	kref_init(&error->ref);
 	error->i915 = i915;
@@ -1945,11 +1943,8 @@ void i915_capture_error_state(struct drm_i915_private *i915,
 		return;
 
 	error = i915_capture_gpu_state(i915);
-	if (!error) {
-		DRM_DEBUG_DRIVER("out of memory, not capturing error state\n");
-		i915_disable_error_state(i915, -ENOMEM);
+	if (IS_ERR(error))
 		return;
-	}
 
 	i915_error_capture_msg(i915, error, engine_mask, error_msg);
 	DRM_INFO("%s\n", error->error_msg);
@@ -1987,7 +1982,7 @@ i915_first_error_state(struct drm_i915_private *i915)
 
 	spin_lock_irq(&i915->gpu_error.lock);
 	error = i915->gpu_error.first_error;
-	if (error)
+	if (!IS_ERR_OR_NULL(error))
 		i915_gpu_state_get(error);
 	spin_unlock_irq(&i915->gpu_error.lock);
 
@@ -2000,10 +1995,11 @@ void i915_reset_error_state(struct drm_i915_private *i915)
 
 	spin_lock_irq(&i915->gpu_error.lock);
 	error = i915->gpu_error.first_error;
-	i915->gpu_error.first_error = NULL;
+	if (error != ERR_PTR(-ENODEV)) /* if disabled, always disabled */
+		i915->gpu_error.first_error = NULL;
 	spin_unlock_irq(&i915->gpu_error.lock);
 
-	if (!IS_ERR(error))
+	if (!IS_ERR_OR_NULL(error))
 		i915_gpu_state_put(error);
 }
 

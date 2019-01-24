@@ -27,7 +27,6 @@
 #include <drm/intel_lpe_audio.h>
 #include "intel_drv.h"
 
-#include <drm/drmP.h>
 #include <drm/drm_edid.h>
 #include "i915_drv.h"
 
@@ -758,7 +757,7 @@ static void i915_audio_component_codec_wake_override(struct device *kdev,
 	struct drm_i915_private *dev_priv = kdev_to_i915(kdev);
 	u32 tmp;
 
-	if (!IS_GEN9(dev_priv))
+	if (!IS_GEN(dev_priv, 9))
 		return;
 
 	i915_audio_component_get_power(kdev);

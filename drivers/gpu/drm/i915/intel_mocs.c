@@ -193,7 +193,7 @@ static bool get_mocs_settings(struct drm_i915_private *dev_priv,
 	}
 
 	/* WaDisableSkipCaching:skl,bxt,kbl,glk */
-	if (IS_GEN9(dev_priv)) {
+	if (IS_GEN(dev_priv, 9)) {
 		int i;
 
 		for (i = 0; i < table->size; i++)

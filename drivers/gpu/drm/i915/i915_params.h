@@ -33,6 +33,15 @@ struct drm_printer;
 #define ENABLE_GUC_SUBMISSION		BIT(0)
 #define ENABLE_GUC_LOAD_HUC		BIT(1)
 
+/*
+ * Invoke param, a function-like macro, for each i915 param, with arguments:
+ *
+ * param(type, name, value)
+ *
+ * type: parameter type, one of {bool, int, unsigned int, char *}
+ * name: name of the parameter
+ * value: initial/default value of the parameter
+ */
 #define I915_PARAMS_FOR_EACH(param) \
 	param(char *, vbt_firmware, NULL) \
 	param(int, modeset, -1) \
@@ -78,6 +87,8 @@ struct i915_params {
 extern struct i915_params i915_modparams __read_mostly;
 
 void i915_params_dump(const struct i915_params *params, struct drm_printer *p);
+void i915_params_copy(struct i915_params *dest, const struct i915_params *src);
+void i915_params_free(struct i915_params *params);
 
 #endif
 

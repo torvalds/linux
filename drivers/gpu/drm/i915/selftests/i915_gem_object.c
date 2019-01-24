@@ -238,6 +238,7 @@ static int check_partial_mapping(struct drm_i915_gem_object *obj,
 		u32 *cpu;
 
 		GEM_BUG_ON(view.partial.size > nreal);
+		cond_resched();
 
 		err = i915_gem_object_set_to_gtt_domain(obj, true);
 		if (err) {
