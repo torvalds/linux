@@ -26,7 +26,9 @@
  *
  * HFI1_S_TID_WAIT_INTERLCK - QP is waiting for requester interlock
  */
+/* BIT(4) reserved for RVT_S_ACK_PENDING. */
 #define HFI1_S_TID_WAIT_INTERLCK  BIT(5)
+#define HFI1_R_TID_SW_PSN         BIT(19)
 
 /*
  * Unlike regular IB RDMA VERBS, which do not require an entry
@@ -89,10 +91,12 @@ struct tid_rdma_request {
 	} e;
 
 	struct tid_rdma_flow *flows;	/* array of tid flows */
+	struct rvt_sge_state ss; /* SGE state for TID RDMA requests */
 	u16 n_flows;		/* size of the flow buffer window */
 	u16 setup_head;		/* flow index we are setting up */
 	u16 clear_tail;		/* flow index we are clearing */
 	u16 flow_idx;		/* flow index most recently set up */
+	u16 acked_tail;
 
 	u32 seg_len;
 	u32 total_len;
@@ -103,6 +107,7 @@ struct tid_rdma_request {
 	u32 cur_seg;		/* index of current segment */
 	u32 comp_seg;           /* index of last completed segment */
 	u32 ack_seg;            /* index of last ack'ed segment */
+	u32 alloc_seg;          /* index of next segment to be allocated */
 	u32 isge;		/* index of "current" sge */
 	u32 ack_pending;        /* num acks pending for this request */
 
@@ -172,6 +177,12 @@ struct tid_rdma_flow {
 	struct kern_tid_node tnode[TID_RDMA_MAX_PAGES];
 	struct tid_rdma_pageset pagesets[TID_RDMA_MAX_PAGES];
 	u32 tid_entry[TID_RDMA_MAX_PAGES];
+};
+
+enum tid_rnr_nak_state {
+	TID_RNR_NAK_INIT = 0,
+	TID_RNR_NAK_SEND,
+	TID_RNR_NAK_SENT,
 };
 
 bool tid_rdma_conn_req(struct rvt_qp *qp, u64 *data);
@@ -247,4 +258,9 @@ static inline void hfi1_setup_tid_rdma_wqe(struct rvt_qp *qp,
 u32 hfi1_build_tid_rdma_write_req(struct rvt_qp *qp, struct rvt_swqe *wqe,
 				  struct ib_other_headers *ohdr,
 				  u32 *bth1, u32 *bth2, u32 *len);
+
+void hfi1_compute_tid_rdma_flow_wt(void);
+
+void hfi1_rc_rcv_tid_rdma_write_req(struct hfi1_packet *packet);
+
 #endif /* HFI1_TID_RDMA_H */

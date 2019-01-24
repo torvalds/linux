@@ -172,7 +172,15 @@ struct hfi1_qp_priv {
 	unsigned long tid_timer_timeout_jiffies;
 
 	/* variables for the TID RDMA SE state machine */
+	u8 rnr_nak_state;       /* RNR NAK state */
 	u32 s_flags;
+	u32 r_tid_head;     /* Most recently added TID RDMA request */
+	u32 r_tid_tail;     /* the last completed TID RDMA request */
+	u32 r_tid_ack;      /* the TID RDMA request to be ACK'ed */
+	u32 r_tid_alloc;    /* Request for which we are allocating resources */
+	u32 pending_tid_w_segs; /* Num of pending tid write segments */
+	u32 alloc_w_segs;       /* Number of segments for which write */
+			       /* resources have been allocated for this QP */
 
 	/* For TID RDMA READ */
 	u32 tid_r_reqs;         /* Num of tid reads requested */
@@ -180,7 +188,11 @@ struct hfi1_qp_priv {
 	u32 pending_tid_r_segs; /* Num of pending tid read segments */
 	u16 pkts_ps;            /* packets per segment */
 	u8 timeout_shift;       /* account for number of packets per segment */
+
+	u8 sync_pt;           /* Set when QP reaches sync point */
 };
+
+#define HFI1_QP_WQE_INVALID   ((u32)-1)
 
 struct hfi1_swqe_priv {
 	struct tid_rdma_request tid_req;

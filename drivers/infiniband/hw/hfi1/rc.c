@@ -2411,6 +2411,7 @@ void hfi1_rc_rcv(struct hfi1_packet *packet)
 	void *data = packet->payload;
 	u32 tlen = packet->tlen;
 	struct rvt_qp *qp = packet->qp;
+	struct hfi1_qp_priv *qpriv = qp->priv;
 	struct hfi1_ibport *ibp = rcd_to_iport(rcd);
 	struct ib_other_headers *ohdr = packet->ohdr;
 	u32 opcode = packet->opcode;
@@ -2716,6 +2717,7 @@ send_last:
 		qp->r_state = opcode;
 		qp->r_nak_state = 0;
 		qp->r_head_ack_queue = next;
+		qpriv->r_tid_alloc = qp->r_head_ack_queue;
 
 		/* Schedule the send engine. */
 		qp->s_flags |= RVT_S_RESP_PENDING;
@@ -2789,6 +2791,7 @@ ack:
 		qp->r_state = opcode;
 		qp->r_nak_state = 0;
 		qp->r_head_ack_queue = next;
+		qpriv->r_tid_alloc = qp->r_head_ack_queue;
 
 		/* Schedule the send engine. */
 		qp->s_flags |= RVT_S_RESP_PENDING;
