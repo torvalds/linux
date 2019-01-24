@@ -2013,16 +2013,20 @@ static int vega20_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 {
 	struct vega20_hwmgr *data = (struct vega20_hwmgr *)(hwmgr->backend);
 	struct amdgpu_device *adev = hwmgr->adev;
+	SmuMetrics_t metrics_table;
 	uint32_t val_vid;
 	int ret = 0;
 
 	switch (idx) {
 	case AMDGPU_PP_SENSOR_GFX_SCLK:
-		ret = vega20_get_current_clk_freq(hwmgr,
-				PPCLK_GFXCLK,
-				(uint32_t *)value);
-		if (!ret)
-			*size = 4;
+		ret = smum_smc_table_manager(hwmgr, (uint8_t *)&metrics_table,
+				TABLE_SMU_METRICS, true);
+		PP_ASSERT_WITH_CODE(!ret,
+				"Failed to export SMU METRICS table!",
+				return ret);
+
+		*((uint32_t *)value) = metrics_table.AverageGfxclkFrequency * 100;
+		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_GFX_MCLK:
 		ret = vega20_get_current_clk_freq(hwmgr,
