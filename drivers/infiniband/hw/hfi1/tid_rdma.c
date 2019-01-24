@@ -246,5 +246,16 @@ int hfi1_qp_priv_init(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 
 	qpriv->rcd = qp_to_rcd(rdi, qp);
 
+	spin_lock_init(&qpriv->opfn.lock);
+	INIT_WORK(&qpriv->opfn.opfn_work, opfn_send_conn_request);
+
 	return 0;
+}
+
+void hfi1_qp_priv_tid_free(struct rvt_dev_info *rdi, struct rvt_qp *qp)
+{
+	struct hfi1_qp_priv *priv = qp->priv;
+
+	if (qp->ibqp.qp_type == IB_QPT_RC && HFI1_CAP_IS_KSET(TID_RDMA))
+		cancel_work_sync(&priv->opfn.opfn_work);
 }

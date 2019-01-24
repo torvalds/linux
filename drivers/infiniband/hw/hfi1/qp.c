@@ -132,6 +132,12 @@ const struct rvt_operation_params hfi1_post_parms[RVT_OPERATION_MAX] = {
 	.qpt_support = BIT(IB_QPT_RC),
 },
 
+[IB_WR_OPFN] = {
+	.length = sizeof(struct ib_atomic_wr),
+	.qpt_support = BIT(IB_QPT_RC),
+	.flags = RVT_OPERATION_USE_RESERVE,
+},
+
 };
 
 static void flush_list_head(struct list_head *l)
@@ -285,6 +291,8 @@ void hfi1_modify_qp(struct rvt_qp *qp, struct ib_qp_attr *attr,
 		priv->s_sendcontext = qp_to_send_context(qp, priv->s_sc);
 		qp_set_16b(qp);
 	}
+
+	opfn_qp_init(qp, attr, attr_mask);
 }
 
 /**
@@ -696,6 +704,7 @@ void qp_priv_free(struct rvt_dev_info *rdi, struct rvt_qp *qp)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
 
+	hfi1_qp_priv_tid_free(rdi, qp);
 	kfree(priv->s_ahg);
 	kfree(priv);
 }
@@ -751,6 +760,10 @@ void notify_qp_reset(struct rvt_qp *qp)
 {
 	qp->r_adefered = 0;
 	clear_ahg(qp);
+
+	/* Clear any OPFN state */
+	if (qp->ibqp.qp_type == IB_QPT_RC)
+		opfn_conn_error(qp);
 }
 
 /*

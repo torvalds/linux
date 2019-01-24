@@ -35,5 +35,6 @@ int hfi1_kern_exp_rcv_init(struct hfi1_ctxtdata *rcd, int reinit);
 
 int hfi1_qp_priv_init(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 		      struct ib_qp_init_attr *init_attr);
+void hfi1_qp_priv_tid_free(struct rvt_dev_info *rdi, struct rvt_qp *qp);
 
 #endif /* HFI1_TID_RDMA_H */
