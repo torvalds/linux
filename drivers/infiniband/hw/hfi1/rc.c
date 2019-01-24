@@ -162,6 +162,7 @@ static int make_rc_ack(struct hfi1_ibdev *dev, struct rvt_qp *qp,
 		    qp->s_acked_ack_queue == qp->s_tail_ack_queue)
 			qp->s_acked_ack_queue = next;
 		qp->s_tail_ack_queue = next;
+		trace_hfi1_rsp_make_rc_ack(qp, e->psn);
 		/* FALLTHROUGH */
 	case OP(SEND_ONLY):
 	case OP(ACKNOWLEDGE):
@@ -263,6 +264,7 @@ static int make_rc_ack(struct hfi1_ibdev *dev, struct rvt_qp *qp,
 			bth2 = mask_psn(e->psn);
 			e->sent = 1;
 		}
+		trace_hfi1_tid_write_rsp_make_rc_ack(qp);
 		bth0 = qp->s_ack_state << 24;
 		break;
 
@@ -335,6 +337,8 @@ write_resp:
 		hwords += hdrlen;
 		bth0 = qp->s_ack_state << 24;
 		qp->s_ack_rdma_psn++;
+		trace_hfi1_tid_req_make_rc_ack_write(qp, 0, e->opcode, e->psn,
+						     e->lpsn, req);
 		if (req->cur_seg != req->total_segs)
 			break;
 
@@ -761,6 +765,11 @@ no_flow_control:
 					delta_psn(wqe->lpsn, bth2) + 1;
 			}
 
+			trace_hfi1_tid_write_sender_make_req(qp, newreq);
+			trace_hfi1_tid_req_make_req_write(qp, newreq,
+							  wqe->wr.opcode,
+							  wqe->psn, wqe->lpsn,
+							  req);
 			if (++qp->s_cur == qp->s_size)
 				qp->s_cur = 0;
 			break;
@@ -1070,6 +1079,8 @@ no_flow_control:
 		priv->s_tid_cur = qp->s_cur;
 		if (++qp->s_cur == qp->s_size)
 			qp->s_cur = 0;
+		trace_hfi1_tid_req_make_req_write(qp, 0, wqe->wr.opcode,
+						  wqe->psn, wqe->lpsn, req);
 		break;
 
 	case TID_OP(READ_RESP):
@@ -1625,6 +1636,7 @@ void hfi1_restart_rc(struct rvt_qp *qp, u32 psn, int wait)
 				wqe = do_rc_completion(qp, wqe, ibp);
 				qp->s_flags &= ~RVT_S_WAIT_ACK;
 			} else {
+				trace_hfi1_tid_write_sender_restart_rc(qp, 0);
 				if (wqe->wr.opcode == IB_WR_TID_RDMA_READ) {
 					struct tid_rdma_request *req;
 

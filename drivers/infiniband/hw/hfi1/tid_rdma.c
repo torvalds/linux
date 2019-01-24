@@ -2962,6 +2962,12 @@ bool hfi1_handle_kdeth_eflags(struct hfi1_ctxtdata *rcd,
 	e = &qp->s_ack_queue[qpriv->r_tid_tail];
 	req = ack_to_tid_req(e);
 	flow = &req->flows[req->clear_tail];
+	trace_hfi1_eflags_err_write(qp, rcv_type, rte, psn);
+	trace_hfi1_rsp_handle_kdeth_eflags(qp, psn);
+	trace_hfi1_tid_write_rsp_handle_kdeth_eflags(qp);
+	trace_hfi1_tid_req_handle_kdeth_eflags(qp, 0, e->opcode, e->psn,
+					       e->lpsn, req);
+	trace_hfi1_tid_flow_handle_kdeth_eflags(qp, req->clear_tail, flow);
 
 	switch (rcv_type) {
 	case RHF_RCV_TYPE_EXPECTED:
@@ -3489,6 +3495,8 @@ static void hfi1_tid_write_alloc_resources(struct rvt_qp *qp, bool intr_ctx)
 	lockdep_assert_held(&qp->s_lock);
 
 	while (1) {
+		trace_hfi1_rsp_tid_write_alloc_res(qp, 0);
+		trace_hfi1_tid_write_rsp_alloc_res(qp);
 		/*
 		 * Don't allocate more segments if a RNR NAK has already been
 		 * scheduled to avoid messing up qp->r_psn: the RNR NAK will
@@ -3517,6 +3525,8 @@ static void hfi1_tid_write_alloc_resources(struct rvt_qp *qp, bool intr_ctx)
 		if (e->opcode != TID_OP(WRITE_REQ))
 			goto next_req;
 		req = ack_to_tid_req(e);
+		trace_hfi1_tid_req_write_alloc_res(qp, 0, e->opcode, e->psn,
+						   e->lpsn, req);
 		/* Finished allocating for all segments of this request */
 		if (req->alloc_seg >= req->total_segs)
 			goto next_req;
@@ -3633,6 +3643,7 @@ send_rnr_nak:
 	 */
 	qp->s_flags &= ~(RVT_S_ACK_PENDING);
 
+	trace_hfi1_rsp_tid_write_alloc_res(qp, qp->r_psn);
 	/*
 	 * qpriv->rnr_nak_state is used to determine when the scheduled RNR NAK
 	 * has actually been sent. qp->s_flags RVT_S_ACK_PENDING bit cannot be
@@ -3686,6 +3697,7 @@ void hfi1_rc_rcv_tid_rdma_write_req(struct hfi1_packet *packet)
 
 	is_fecn = process_ecn(qp, packet);
 	psn = mask_psn(be32_to_cpu(ohdr->bth[2]));
+	trace_hfi1_rsp_rcv_tid_write_req(qp, psn);
 
 	if (qp->state == IB_QPS_RTR && !(qp->r_flags & RVT_R_COMM_EST))
 		rvt_comm_est(qp);
@@ -3794,6 +3806,9 @@ void hfi1_rc_rcv_tid_rdma_write_req(struct hfi1_packet *packet)
 	qp->r_msn++;
 	qp->r_psn++;
 
+	trace_hfi1_tid_req_rcv_write_req(qp, 0, e->opcode, e->psn, e->lpsn,
+					 req);
+
 	if (qpriv->r_tid_tail == HFI1_QP_WQE_INVALID) {
 		qpriv->r_tid_tail = qp->r_head_ack_queue;
 	} else if (qpriv->r_tid_tail == qpriv->r_tid_head) {
@@ -3814,6 +3829,7 @@ update_head:
 	qpriv->r_tid_head = qp->r_head_ack_queue;
 
 	hfi1_tid_write_alloc_resources(qp, true);
+	trace_hfi1_tid_write_rsp_rcv_req(qp);
 
 	/* Schedule the send tasklet. */
 	qp->s_flags |= RVT_S_RESP_PENDING;
@@ -3855,6 +3871,10 @@ u32 hfi1_build_tid_rdma_write_resp(struct rvt_qp *qp, struct rvt_ack_entry *e,
 	void *resp_addr = NULL;
 	struct tid_rdma_params *remote;
 
+	trace_hfi1_tid_req_build_write_resp(qp, 0, e->opcode, e->psn, e->lpsn,
+					    req);
+	trace_hfi1_tid_write_rsp_build_resp(qp);
+	trace_hfi1_rsp_build_tid_write_resp(qp, bth2);
 	flow = &req->flows[req->flow_idx];
 	switch (req->state) {
 	default:
@@ -3876,12 +3896,14 @@ u32 hfi1_build_tid_rdma_write_resp(struct rvt_qp *qp, struct rvt_ack_entry *e,
 			goto done;
 
 		req->state = TID_REQUEST_ACTIVE;
+		trace_hfi1_tid_flow_build_write_resp(qp, req->flow_idx, flow);
 		req->flow_idx = CIRC_NEXT(req->flow_idx, MAX_FLOWS);
 		hfi1_add_tid_reap_timer(qp);
 		break;
 
 	case TID_REQUEST_RESEND_ACTIVE:
 	case TID_REQUEST_RESEND:
+		trace_hfi1_tid_flow_build_write_resp(qp, req->flow_idx, flow);
 		req->flow_idx = CIRC_NEXT(req->flow_idx, MAX_FLOWS);
 		if (!CIRC_CNT(req->setup_head, req->flow_idx, MAX_FLOWS))
 			req->state = TID_REQUEST_ACTIVE;
@@ -3996,6 +4018,9 @@ static void hfi1_tid_timeout(struct timer_list *t)
 	if (qpriv->s_flags & HFI1_R_TID_RSC_TIMER) {
 		dd_dev_warn(dd_from_ibdev(qp->ibqp.device), "[QP%u] %s %d\n",
 			    qp->ibqp.qp_num, __func__, __LINE__);
+		trace_hfi1_msg_tid_timeout(/* msg */
+			qp, "resource timeout = ",
+			(u64)qpriv->tid_timer_timeout_jiffies);
 		hfi1_stop_tid_reap_timer(qp);
 		/*
 		 * Go though the entire ack queue and clear any outstanding
@@ -4102,6 +4127,8 @@ void hfi1_rc_rcv_tid_rdma_write_resp(struct hfi1_packet *packet)
 	if (!do_rc_ack(qp, aeth, psn, opcode, 0, rcd))
 		goto ack_done;
 
+	trace_hfi1_ack(qp, psn);
+
 	flow = &req->flows[req->setup_head];
 	flow->pkt = 0;
 	flow->tid_idx = 0;
@@ -4129,13 +4156,17 @@ void hfi1_rc_rcv_tid_rdma_write_resp(struct hfi1_packet *packet)
 	}
 	memcpy(flow->tid_entry, packet->ebuf, pktlen);
 	flow->tidcnt = pktlen / sizeof(*flow->tid_entry);
+	trace_hfi1_tid_flow_rcv_write_resp(qp, req->setup_head, flow);
 
 	req->comp_seg++;
+	trace_hfi1_tid_write_sender_rcv_resp(qp, 0);
 	/*
 	 * Walk the TID_ENTRY list to make sure we have enough space for a
 	 * complete segment.
 	 */
 	for (i = 0; i < flow->tidcnt; i++) {
+		trace_hfi1_tid_entry_rcv_write_resp(/* entry */
+			qp, i, flow->tid_entry[i]);
 		if (!EXP_TID_GET(flow->tid_entry[i], LEN)) {
 			status = IB_WC_LOC_LEN_ERR;
 			goto ack_err;
@@ -4147,6 +4178,8 @@ void hfi1_rc_rcv_tid_rdma_write_resp(struct hfi1_packet *packet)
 		goto ack_err;
 	}
 
+	trace_hfi1_tid_req_rcv_write_resp(qp, 0, wqe->wr.opcode, wqe->psn,
+					  wqe->lpsn, req);
 	/*
 	 * If this is the first response for this request, set the initial
 	 * flow index to the current flow.
@@ -4221,6 +4254,8 @@ bool hfi1_build_tid_rdma_packet(struct rvt_swqe *wqe,
 	next_offset = flow->tid_offset + *len;
 	last_pkt = (flow->tid_idx == (flow->tidcnt - 1) &&
 		    next_offset >= tidlen) || (flow->sent >= flow->length);
+	trace_hfi1_tid_entry_build_write_data(qp, flow->tid_idx, tidentry);
+	trace_hfi1_tid_flow_build_write_data(qp, req->clear_tail, flow);
 
 	rcu_read_lock();
 	remote = rcu_dereference(qpriv->tid_rdma.remote);
@@ -4303,6 +4338,10 @@ void hfi1_rc_rcv_tid_rdma_write_data(struct hfi1_packet *packet)
 	 *  - The entire request is complete and there are no more requests
 	 *    (of any kind) in the queue.
 	 */
+	trace_hfi1_rsp_rcv_tid_write_data(qp, psn);
+	trace_hfi1_tid_req_rcv_write_data(qp, 0, e->opcode, e->psn, e->lpsn,
+					  req);
+	trace_hfi1_tid_write_rsp_rcv_data(qp);
 	if (priv->r_tid_ack == HFI1_QP_WQE_INVALID)
 		priv->r_tid_ack = priv->r_tid_tail;
 
@@ -4451,6 +4490,7 @@ void hfi1_rc_rcv_tid_rdma_ack(struct hfi1_packet *packet)
 	unsigned long flags;
 	u16 fidx;
 
+	trace_hfi1_tid_write_sender_rcv_tid_ack(qp, 0);
 	is_fecn = process_ecn(qp, packet);
 	psn = mask_psn(be32_to_cpu(ohdr->bth[2]));
 	aeth = be32_to_cpu(ohdr->u.tid_rdma.ack.aeth);
@@ -4458,6 +4498,7 @@ void hfi1_rc_rcv_tid_rdma_ack(struct hfi1_packet *packet)
 	resync_psn = mask_psn(be32_to_cpu(ohdr->u.tid_rdma.ack.tid_flow_psn));
 
 	spin_lock_irqsave(&qp->s_lock, flags);
+	trace_hfi1_rcv_tid_ack(qp, aeth, psn, req_psn, resync_psn);
 
 	/* If we are waiting for an ACK to RESYNC, drop any other packets */
 	if ((qp->s_flags & HFI1_S_WAIT_HALT) &&
@@ -4480,7 +4521,10 @@ void hfi1_rc_rcv_tid_rdma_ack(struct hfi1_packet *packet)
 		goto ack_op_err;
 
 	req = wqe_to_tid_req(wqe);
+	trace_hfi1_tid_req_rcv_tid_ack(qp, 0, wqe->wr.opcode, wqe->psn,
+				       wqe->lpsn, req);
 	flow = &req->flows[req->acked_tail];
+	trace_hfi1_tid_flow_rcv_tid_ack(qp, req->acked_tail, flow);
 
 	/* Drop stale ACK/NAK */
 	if (cmp_psn(psn, full_flow_psn(flow, flow->flow_state.spsn)) < 0)
@@ -4493,11 +4537,14 @@ void hfi1_rc_rcv_tid_rdma_ack(struct hfi1_packet *packet)
 		/* advance acked segment pointer */
 		req->acked_tail = CIRC_NEXT(req->acked_tail, MAX_FLOWS);
 		req->r_last_acked = flow->flow_state.resp_ib_psn;
+		trace_hfi1_tid_req_rcv_tid_ack(qp, 0, wqe->wr.opcode, wqe->psn,
+					       wqe->lpsn, req);
 		if (req->ack_seg == req->total_segs) {
 			req->state = TID_REQUEST_COMPLETE;
 			wqe = do_rc_completion(qp, wqe,
 					       to_iport(qp->ibqp.device,
 							qp->port_num));
+			trace_hfi1_sender_rcv_tid_ack(qp);
 			atomic_dec(&qpriv->n_tid_requests);
 			if (qp->s_acked == qp->s_tail)
 				break;
@@ -4506,8 +4553,11 @@ void hfi1_rc_rcv_tid_rdma_ack(struct hfi1_packet *packet)
 			req = wqe_to_tid_req(wqe);
 		}
 		flow = &req->flows[req->acked_tail];
+		trace_hfi1_tid_flow_rcv_tid_ack(qp, req->acked_tail, flow);
 	}
 
+	trace_hfi1_tid_req_rcv_tid_ack(qp, 0, wqe->wr.opcode, wqe->psn,
+				       wqe->lpsn, req);
 	switch (aeth >> 29) {
 	case 0:         /* ACK */
 		if (qpriv->s_flags & RVT_S_WAIT_ACK)
@@ -4614,6 +4664,9 @@ void hfi1_rc_rcv_tid_rdma_ack(struct hfi1_packet *packet)
 					flow->pkt = 0;
 					spsn += flow->npkts;
 					resync_psn += flow->npkts;
+					trace_hfi1_tid_flow_rcv_tid_ack(qp,
+									fidx,
+									flow);
 				}
 				if (++last_acked == qpriv->s_tid_cur + 1)
 					break;
@@ -4638,6 +4691,8 @@ done:
 		case 0: /* PSN sequence error */
 			flow = &req->flows[req->acked_tail];
 			fspsn = full_flow_psn(flow, flow->flow_state.spsn);
+			trace_hfi1_tid_flow_rcv_tid_ack(qp, req->acked_tail,
+							flow);
 			req->r_ack_psn = mask_psn(be32_to_cpu(ohdr->bth[2]));
 			req->cur_seg = req->ack_seg;
 			qpriv->s_tid_tail = qp->s_acked;
@@ -4713,16 +4768,28 @@ static void hfi1_tid_retry_timeout(struct timer_list *t)
 	struct rvt_qp *qp = priv->owner;
 	struct rvt_swqe *wqe;
 	unsigned long flags;
+	struct tid_rdma_request *req;
 
 	spin_lock_irqsave(&qp->r_lock, flags);
 	spin_lock(&qp->s_lock);
+	trace_hfi1_tid_write_sender_retry_timeout(qp, 0);
 	if (priv->s_flags & HFI1_S_TID_RETRY_TIMER) {
 		hfi1_stop_tid_retry_timer(qp);
 		if (!priv->s_retry) {
+			trace_hfi1_msg_tid_retry_timeout(/* msg */
+				qp,
+				"Exhausted retries. Tid retry timeout = ",
+				(u64)priv->tid_retry_timeout_jiffies);
+
 			wqe = rvt_get_swqe_ptr(qp, qp->s_acked);
 			hfi1_trdma_send_complete(qp, wqe, IB_WC_RETRY_EXC_ERR);
 			rvt_error_qp(qp, IB_WC_WR_FLUSH_ERR);
 		} else {
+			wqe = rvt_get_swqe_ptr(qp, qp->s_acked);
+			req = wqe_to_tid_req(wqe);
+			trace_hfi1_tid_req_tid_retry_timeout(/* req */
+			   qp, 0, wqe->wr.opcode, wqe->psn, wqe->lpsn, req);
+
 			priv->s_flags &= ~RVT_S_WAIT_ACK;
 			/* Only send one packet (the RESYNC) */
 			priv->s_flags |= RVT_S_SEND_ONE;
@@ -4818,6 +4885,7 @@ void hfi1_rc_rcv_tid_rdma_resync(struct hfi1_packet *packet)
 	 * sync point and the flow has/will be reprogrammed
 	 */
 	qpriv->s_flags &= ~HFI1_R_TID_SW_PSN;
+	trace_hfi1_tid_write_rsp_rcv_resync(qp);
 
 	/*
 	 * Reset all TID flow information with the new generation.
@@ -4832,6 +4900,8 @@ void hfi1_rc_rcv_tid_rdma_resync(struct hfi1_packet *packet)
 		e = &qp->s_ack_queue[idx];
 		if (e->opcode == TID_OP(WRITE_REQ)) {
 			req = ack_to_tid_req(e);
+			trace_hfi1_tid_req_rcv_resync(qp, 0, e->opcode, e->psn,
+						      e->lpsn, req);
 
 			/* start from last unacked segment */
 			for (flow_idx = req->clear_tail;
@@ -4854,6 +4924,8 @@ void hfi1_rc_rcv_tid_rdma_resync(struct hfi1_packet *packet)
 					full_flow_psn(flow,
 						      flow->flow_state.spsn);
 				fs->psn += flow->npkts;
+				trace_hfi1_tid_flow_rcv_resync(qp, flow_idx,
+							       flow);
 			}
 		}
 		if (idx == qp->s_tail_ack_queue)
@@ -4913,6 +4985,7 @@ int hfi1_make_tid_rdma_pkt(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 	u8 opcode = TID_OP(WRITE_DATA);
 
 	lockdep_assert_held(&qp->s_lock);
+	trace_hfi1_tid_write_sender_make_tid_pkt(qp, 0);
 	/*
 	 * Prioritize the sending of the requests and responses over the
 	 * sending of the TID RDMA data packets.
@@ -4970,6 +5043,8 @@ int hfi1_make_tid_rdma_pkt(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 		goto bail;
 	wqe = rvt_get_swqe_ptr(qp, priv->s_tid_tail);
 	req = wqe_to_tid_req(wqe);
+	trace_hfi1_tid_req_make_tid_pkt(qp, 0, wqe->wr.opcode, wqe->psn,
+					wqe->lpsn, req);
 	switch (priv->s_state) {
 	case TID_OP(WRITE_REQ):
 	case TID_OP(WRITE_RESP):
@@ -4997,6 +5072,8 @@ int hfi1_make_tid_rdma_pkt(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 		 *        3.2.2 Advance RESP pointers.
 		 *    3.3 Return indicating progress made.
 		 */
+		trace_hfi1_sender_make_tid_pkt(qp);
+		trace_hfi1_tid_write_sender_make_tid_pkt(qp, 0);
 		wqe = rvt_get_swqe_ptr(qp, priv->s_tid_tail);
 		req = wqe_to_tid_req(wqe);
 		len = wqe->length;
@@ -5004,6 +5081,8 @@ int hfi1_make_tid_rdma_pkt(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 		if (!req->comp_seg || req->cur_seg == req->comp_seg)
 			goto bail;
 
+		trace_hfi1_tid_req_make_tid_pkt(qp, 0, wqe->wr.opcode,
+						wqe->psn, wqe->lpsn, req);
 		last = hfi1_build_tid_rdma_packet(wqe, ohdr, &bth1, &bth2,
 						  &len);
 
@@ -5028,6 +5107,7 @@ int hfi1_make_tid_rdma_pkt(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 		break;
 
 	case TID_OP(RESYNC):
+		trace_hfi1_sender_make_tid_pkt(qp);
 		/* Use generation from the most recently received response */
 		wqe = rvt_get_swqe_ptr(qp, priv->s_tid_cur);
 		req = wqe_to_tid_req(wqe);
@@ -5098,6 +5178,7 @@ static int make_tid_rdma_ack(struct rvt_qp *qp,
 	u16 flow;
 	struct tid_rdma_request *req, *nreq;
 
+	trace_hfi1_tid_write_rsp_make_tid_ack(qp);
 	/* Don't send an ACK if we aren't supposed to. */
 	if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_RECV_OK))
 		goto bail;
@@ -5128,6 +5209,9 @@ static int make_tid_rdma_ack(struct rvt_qp *qp,
 		req = ack_to_tid_req(e);
 	}
 
+	trace_hfi1_rsp_make_tid_ack(qp, e->psn);
+	trace_hfi1_tid_req_make_tid_ack(qp, 0, e->opcode, e->psn, e->lpsn,
+					req);
 	/*
 	 * If we've sent all the ACKs that we can, we are done
 	 * until we get more segments...
@@ -5199,6 +5283,9 @@ static int make_tid_rdma_ack(struct rvt_qp *qp,
 		   qpriv->s_flags & HFI1_R_TID_WAIT_INTERLCK)
 		qpriv->s_flags &= ~HFI1_R_TID_WAIT_INTERLCK;
 
+	trace_hfi1_tid_write_rsp_make_tid_ack(qp);
+	trace_hfi1_tid_req_make_tid_ack(qp, 0, e->opcode, e->psn, e->lpsn,
+					req);
 	hwords += hfi1_build_tid_rdma_write_ack(qp, e, ohdr, flow, &bth1,
 						&bth2);
 	len = 0;
@@ -5251,6 +5338,7 @@ static void hfi1_do_tid_send(struct rvt_qp *qp)
 	ps.in_thread = false;
 	ps.timeout_int = qp->timeout_jiffies / 8;
 
+	trace_hfi1_rc_do_tid_send(qp, false);
 	spin_lock_irqsave(&qp->s_lock, ps.flags);
 
 	/* Return if we are already busy processing a work request. */
