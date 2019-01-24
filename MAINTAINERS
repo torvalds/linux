@@ -3958,7 +3958,7 @@ M:	Viresh Kumar <viresh.kumar@linaro.org>
 L:	linux-pm@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rafael/linux-pm.git
-T:	git git://git.linaro.org/people/vireshk/linux.git (For ARM Updates)
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/vireshk/pm.git (For ARM Updates)
 B:	https://bugzilla.kernel.org
 F:	Documentation/cpu-freq/
 F:	Documentation/devicetree/bindings/cpufreq/
