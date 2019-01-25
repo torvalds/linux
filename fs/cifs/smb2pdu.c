@@ -3297,17 +3297,8 @@ smb2_async_readv(struct cifs_readdata *rdata)
 
 	rc = smb2_new_read_req(
 		(void **) &buf, &total_len, &io_parms, rdata, 0, 0);
-	if (rc) {
-		if (rc == -EAGAIN && rdata->credits.value) {
-			/* credits was reset by reconnect */
-			rdata->credits.value = 0;
-			/* reduce in_flight value since we won't send the req */
-			spin_lock(&server->req_lock);
-			server->in_flight--;
-			spin_unlock(&server->req_lock);
-		}
+	if (rc)
 		return rc;
-	}
 
 	if (smb3_encryption_required(io_parms.tcon))
 		flags |= CIFS_TRANSFORM_REQ;
@@ -3515,17 +3506,8 @@ smb2_async_writev(struct cifs_writedata *wdata,
 	unsigned int total_len;
 
 	rc = smb2_plain_req_init(SMB2_WRITE, tcon, (void **) &req, &total_len);
-	if (rc) {
-		if (rc == -EAGAIN && wdata->credits.value) {
-			/* credits was reset by reconnect */
-			wdata->credits.value = 0;
-			/* reduce in_flight value since we won't send the req */
-			spin_lock(&server->req_lock);
-			server->in_flight--;
-			spin_unlock(&server->req_lock);
-		}
-		goto async_writev_out;
-	}
+	if (rc)
+		return rc;
 
 	if (smb3_encryption_required(tcon))
 		flags |= CIFS_TRANSFORM_REQ;
