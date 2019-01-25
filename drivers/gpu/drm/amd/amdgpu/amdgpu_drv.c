@@ -139,6 +139,7 @@ uint amdgpu_dc_feature_mask = 0;
 int amdgpu_async_gfx_ring = 1;
 int amdgpu_mcbp = 0;
 int amdgpu_discovery = 0;
+int amdgpu_mes = 0;
 
 struct amdgpu_mgpu_info mgpu_info = {
 	.mutex = __MUTEX_INITIALIZER(mgpu_info.mutex),
@@ -583,6 +584,10 @@ module_param_named(mcbp, amdgpu_mcbp, int, 0444);
 MODULE_PARM_DESC(discovery,
 	"Allow driver to discover hardware IPs from IP Discovery table at the top of VRAM");
 module_param_named(discovery, amdgpu_discovery, int, 0444);
+
+MODULE_PARM_DESC(mes,
+	"Enable Micro Engine Scheduler (0 = disabled (default), 1 = enabled)");
+module_param_named(mes, amdgpu_mes, int, 0444);
 
 #ifdef CONFIG_HSA_AMD
 /**
