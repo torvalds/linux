@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: GPL-2.0
+config FSL_ENETC
+	tristate "ENETC PF driver"
+	depends on PCI && PCI_MSI && (ARCH_LAYERSCAPE || COMPILE_TEST)
+	help
+	  This driver supports NXP ENETC gigabit ethernet controller PCIe
+	  physical function (PF) devices, managing ENETC Ports at a privileged
+	  level.
+
+	  If compiled as module (M), the module name is fsl-enetc.
+
+config FSL_ENETC_VF
+	tristate "ENETC VF driver"
+	depends on PCI && PCI_MSI && (ARCH_LAYERSCAPE || COMPILE_TEST)
+	help
+	  This driver supports NXP ENETC gigabit ethernet controller PCIe
+	  virtual function (VF) devices enabled by the ENETC PF driver.
+
+	  If compiled as module (M), the module name is fsl-enetc-vf.
