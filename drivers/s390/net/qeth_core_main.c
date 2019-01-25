@@ -3928,7 +3928,6 @@ static int qeth_fill_buffer(struct qeth_qdio_out_q *queue,
 {
 	struct qdio_buffer *buffer = buf->buffer;
 	bool is_first_elem = true;
-	int flush_cnt = 0;
 
 	__skb_queue_tail(&buf->skb_list, skb);
 
@@ -3949,24 +3948,22 @@ static int qeth_fill_buffer(struct qeth_qdio_out_q *queue,
 
 	if (!queue->do_pack) {
 		QETH_CARD_TEXT(queue->card, 6, "fillbfnp");
-		/* set state to PRIMED -> will be flushed */
-		atomic_set(&buf->state, QETH_QDIO_BUF_PRIMED);
-		flush_cnt = 1;
 	} else {
 		QETH_CARD_TEXT(queue->card, 6, "fillbfpa");
 		if (queue->card->options.performance_stats)
 			queue->card->perf_stats.skbs_sent_pack++;
-		if (buf->next_element_to_fill >=
-				QETH_MAX_BUFFER_ELEMENTS(queue->card)) {
-			/*
-			 * packed buffer if full -> set state PRIMED
-			 * -> will be flushed
-			 */
-			atomic_set(&buf->state, QETH_QDIO_BUF_PRIMED);
-			flush_cnt = 1;
-		}
+
+		/* If the buffer still has free elements, keep using it. */
+		if (buf->next_element_to_fill <
+		    QETH_MAX_BUFFER_ELEMENTS(queue->card))
+			return 0;
 	}
-	return flush_cnt;
+
+	/* flush out the buffer */
+	atomic_set(&buf->state, QETH_QDIO_BUF_PRIMED);
+	queue->next_buf_to_fill = (queue->next_buf_to_fill + 1) %
+				  QDIO_MAX_BUFFERS_PER_Q;
+	return 1;
 }
 
 static int qeth_do_send_packet_fast(struct qeth_qdio_out_q *queue,
@@ -3982,7 +3979,6 @@ static int qeth_do_send_packet_fast(struct qeth_qdio_out_q *queue,
 	 */
 	if (atomic_read(&buffer->state) != QETH_QDIO_BUF_EMPTY)
 		return -EBUSY;
-	queue->next_buf_to_fill = (index + 1) % QDIO_MAX_BUFFERS_PER_Q;
 	qeth_fill_buffer(queue, buffer, skb, hdr, offset, hd_len);
 	qeth_flush_buffers(queue, index, 1);
 	return 0;
@@ -4040,10 +4036,9 @@ int qeth_do_send_packet(struct qeth_card *card, struct qeth_qdio_out_q *queue,
 			}
 		}
 	}
-	tmp = qeth_fill_buffer(queue, buffer, skb, hdr, offset, hd_len);
-	queue->next_buf_to_fill = (queue->next_buf_to_fill + tmp) %
-				  QDIO_MAX_BUFFERS_PER_Q;
-	flush_count += tmp;
+
+	flush_count += qeth_fill_buffer(queue, buffer, skb, hdr, offset,
+					hd_len);
 	if (flush_count)
 		qeth_flush_buffers(queue, start_index, flush_count);
 	else if (!atomic_read(&queue->set_pci_flags_count))
