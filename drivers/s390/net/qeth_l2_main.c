@@ -97,8 +97,7 @@ static int qeth_l2_send_setmac(struct qeth_card *card, __u8 *mac)
 	rc = qeth_l2_send_setdelmac(card, mac, IPA_CMD_SETVMAC);
 	if (rc == 0) {
 		dev_info(&card->gdev->dev,
-			 "MAC address %pM successfully registered on device %s\n",
-			 mac, card->dev->name);
+			 "MAC address %pM successfully registered\n", mac);
 	} else {
 		switch (rc) {
 		case -EEXIST:
@@ -456,6 +455,15 @@ static int qeth_l2_request_initial_mac(struct qeth_card *card)
 out:
 	QETH_DBF_HEX(SETUP, 2, card->dev->dev_addr, card->dev->addr_len);
 	return 0;
+}
+
+static void qeth_l2_register_dev_addr(struct qeth_card *card)
+{
+	if (!is_valid_ether_addr(card->dev->dev_addr))
+		qeth_l2_request_initial_mac(card);
+
+	if (!IS_OSN(card) && !qeth_l2_send_setmac(card, card->dev->dev_addr))
+		card->info.mac_bits |= QETH_LAYER2_MAC_REGISTERED;
 }
 
 static int qeth_l2_validate_addr(struct net_device *dev)
@@ -845,8 +853,6 @@ static int qeth_l2_setup_netdev(struct qeth_card *card, bool carrier_ok)
 				       PAGE_SIZE * (QDIO_MAX_ELEMENTS_PER_BUFFER - 1));
 	}
 
-	if (!is_valid_ether_addr(card->dev->dev_addr))
-		qeth_l2_request_initial_mac(card);
 	netif_napi_add(card->dev, &card->napi, qeth_poll, QETH_NAPI_WEIGHT);
 	rc = register_netdev(card->dev);
 	if (!rc && carrier_ok)
@@ -901,13 +907,11 @@ static int __qeth_l2_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 		dev_info(&card->gdev->dev,
 		"The device represents a Bridge Capable Port\n");
 
+	qeth_l2_register_dev_addr(card);
+
 	rc = qeth_l2_setup_netdev(card, carrier_ok);
 	if (rc)
 		goto out_remove;
-
-	if (card->info.type != QETH_CARD_TYPE_OSN &&
-	    !qeth_l2_send_setmac(card, card->dev->dev_addr))
-		card->info.mac_bits |= QETH_LAYER2_MAC_REGISTERED;
 
 	if (qeth_is_diagass_supported(card, QETH_DIAGS_CMD_TRAP)) {
 		if (card->info.hwtrap &&
