@@ -94,14 +94,14 @@ static void armada_drm_overlay_plane_atomic_update(struct drm_plane *plane,
 		armada_reg_queue_mod(regs, idx,
 				     0, CFG_PDWN16x66 | CFG_PDWN32x66,
 				     LCD_SPU_SRAM_PARA1);
-	val = armada_rect_hw_fp(&state->src);
-	if (armada_rect_hw_fp(&old_state->src) != val)
+	val = armada_src_hw(state);
+	if (armada_src_hw(old_state) != val)
 		armada_reg_queue_set(regs, idx, val, LCD_SPU_DMA_HPXL_VLN);
-	val = armada_rect_yx(&state->dst);
-	if (armada_rect_yx(&old_state->dst) != val)
+	val = armada_dst_yx(state);
+	if (armada_dst_yx(old_state) != val)
 		armada_reg_queue_set(regs, idx, val, LCD_SPU_DMA_OVSA_HPXL_VLN);
-	val = armada_rect_hw(&state->dst);
-	if (armada_rect_hw(&old_state->dst) != val)
+	val = armada_dst_hw(state);
+	if (armada_dst_hw(old_state) != val)
 		armada_reg_queue_set(regs, idx, val, LCD_SPU_DZM_HPXL_VLN);
 	/* FIXME: overlay on an interlaced display */
 	if (old_state->src.x1 != state->src.x1 ||
