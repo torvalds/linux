@@ -278,16 +278,9 @@ static void armada_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
 
 	armada_reg_queue_set(regs, i, sclk, LCD_CFG_SCLK_DIV);
 
-	if (interlaced ^ dcrtc->interlaced) {
-		if (adj->flags & DRM_MODE_FLAG_INTERLACE)
-			drm_crtc_vblank_get(&dcrtc->crtc);
-		else
-			drm_crtc_vblank_put(&dcrtc->crtc);
-		dcrtc->interlaced = interlaced;
-	}
-
 	spin_lock_irqsave(&dcrtc->irq_lock, flags);
 
+	dcrtc->interlaced = interlaced;
 	/* Even interlaced/progressive frame */
 	dcrtc->v[1].spu_v_h_total = adj->crtc_vtotal << 16 |
 				    adj->crtc_htotal;
@@ -390,6 +383,9 @@ static void armada_drm_crtc_atomic_disable(struct drm_crtc *crtc,
 
 	DRM_DEBUG_KMS("[CRTC:%d:%s]\n", crtc->base.id, crtc->name);
 
+	if (old_state->adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE)
+		drm_crtc_vblank_put(crtc);
+
 	drm_crtc_vblank_off(crtc);
 	armada_drm_crtc_update(dcrtc, false);
 
@@ -433,6 +429,9 @@ static void armada_drm_crtc_atomic_enable(struct drm_crtc *crtc,
 	}
 	armada_drm_crtc_update(dcrtc, true);
 	drm_crtc_vblank_on(crtc);
+
+	if (crtc->state->adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE)
+		WARN_ON(drm_crtc_vblank_get(crtc));
 
 	armada_drm_crtc_queue_state_event(crtc);
 }
