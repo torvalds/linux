@@ -29,6 +29,25 @@
 #include "smu_v11_0.h"
 #include "atom.h"
 
+int smu_dpm_set_power_gate(struct smu_context *smu, uint32_t block_type,
+			   bool gate)
+{
+	int ret = 0;
+
+	switch (block_type) {
+	case AMD_IP_BLOCK_TYPE_UVD:
+		ret = smu_dpm_set_uvd_enable(smu, gate);
+		break;
+	case AMD_IP_BLOCK_TYPE_VCE:
+		ret = smu_dpm_set_vce_enable(smu, gate);
+		break;
+	default:
+		break;
+	}
+
+	return ret;
+}
+
 enum amd_pm_state_type smu_get_current_power_state(struct smu_context *smu)
 {
 	/* not support power state */

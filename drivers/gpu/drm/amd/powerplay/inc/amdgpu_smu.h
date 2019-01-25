@@ -698,5 +698,5 @@ extern int smu_display_configuration_change(struct smu_context *smu, const
 					    *display_config);
 extern int smu_get_current_clocks(struct smu_context *smu,
 				  struct amd_pp_clock_info *clocks);
-
+extern int smu_dpm_set_power_gate(struct smu_context *smu,uint32_t block_type, bool gate);
 #endif
