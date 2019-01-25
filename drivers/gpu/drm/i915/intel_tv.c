@@ -1189,7 +1189,7 @@ intel_tv_compute_config(struct intel_encoder *encoder,
 
 		if (extra < 0) {
 			DRM_DEBUG_KMS("No vertical scaling for >1024 pixel wide modes\n");
-			return false;
+			return -EINVAL;
 		}
 
 		/* Need to turn off the vertical filter and center the image */
