@@ -139,6 +139,9 @@ static inline bool serial8250_set_THRI(struct uart_8250_port *up)
 	if (up->ier & UART_IER_THRI)
 		return false;
 	up->ier |= UART_IER_THRI;
+#if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
+	up->ier |= UART_IER_PTIME;
+#endif
 	serial_out(up, UART_IER, up->ier);
 	return true;
 }

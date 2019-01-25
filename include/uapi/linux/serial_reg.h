@@ -30,6 +30,7 @@
  * Sleep mode for ST16650 and TI16750.  For the ST16650, EFR[4]=1
  */
 #define UART_IERX_SLEEP		0x10 /* Enable sleep mode */
+#define UART_IER_PTIME		0x80 /* Enable programmable transmit interrupt mode */
 
 #define UART_IIR	2	/* In:  Interrupt ID Register */
 #define UART_IIR_NO_INT		0x01 /* No interrupts pending */

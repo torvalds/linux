@@ -1911,8 +1911,9 @@ int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
 	unsigned char status;
 	unsigned long flags;
 	struct uart_8250_port *up = up_to_u8250p(port);
+#ifndef CONFIG_ARCH_ROCKCHIP
 	bool skip_rx = false;
-	int dma_err = -1;
+#endif
 
 	if (iir & UART_IIR_NO_INT)
 		return 0;
@@ -1921,6 +1922,17 @@ int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
 
 	status = serial_port_in(port, UART_LSR);
 
+#ifdef CONFIG_ARCH_ROCKCHIP
+	if (status & (UART_LSR_DR | UART_LSR_BI)) {
+		int dma_err = -1;
+
+		if (up->dma && up->dma->rxchan)
+			dma_err = handle_rx_dma(up, iir);
+
+		if (!up->dma || dma_err)
+			status = serial8250_rx_chars(up, status);
+	}
+#else
 	/*
 	 * If port is stopped and there are no error conditions in the
 	 * FIFO, then don't drain the FIFO, as this may lead to TTY buffer
@@ -1934,15 +1946,6 @@ int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
 	    !(port->read_status_mask & UART_LSR_DR))
 		skip_rx = true;
 
-#ifdef CONFIG_ARCH_ROCKCHIP
-	if (status & (UART_LSR_DR | UART_LSR_BI)) {
-		if (up->dma && up->dma->rxchan)
-			dma_err = handle_rx_dma(up, iir);
-
-		if (!up->dma || dma_err)
-			status = serial8250_rx_chars(up, status);
-	}
-#else
 	if (status & (UART_LSR_DR | UART_LSR_BI) && !skip_rx) {
 		if (!up->dma || handle_rx_dma(up, iir))
 			status = serial8250_rx_chars(up, status);
@@ -1951,7 +1954,7 @@ int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
 	serial8250_modem_status(up);
 #ifdef CONFIG_ARCH_ROCKCHIP
 	if ((!up->dma || (up->dma && (!up->dma->txchan || up->dma->tx_err))) &&
-	    (status & UART_LSR_THRE))
+	    ((iir & 0xf) == UART_IIR_THRI))
 		serial8250_tx_chars(up);
 #else
 	if ((!up->dma || (up->dma && up->dma->tx_err)) &&
