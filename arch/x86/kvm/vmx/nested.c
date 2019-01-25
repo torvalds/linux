@@ -2753,9 +2753,8 @@ static int nested_vmx_check_vmentry_hw(struct kvm_vcpu *vcpu)
 	}
 
 	asm(
-		/* Set HOST_RSP */
 		"sub $%c[wordsize], %%" _ASM_SP "\n\t" /* temporarily adjust RSP for CALL */
-		__ex("vmwrite %%" _ASM_SP ", %%" _ASM_DX) "\n\t"
+		__ex("vmwrite %%" _ASM_SP ", %[HOST_RSP]") "\n\t"
 		"mov %%" _ASM_SP ", %c[host_rsp](%% " _ASM_CX ")\n\t"
 		"add $%c[wordsize], %%" _ASM_SP "\n\t" /* un-adjust RSP */
 
@@ -2772,7 +2771,8 @@ static int nested_vmx_check_vmentry_hw(struct kvm_vcpu *vcpu)
 
 		CC_SET(be)
 	      : ASM_CALL_CONSTRAINT, CC_OUT(be) (vm_fail)
-	      : "c"(vmx), "d"((unsigned long)HOST_RSP),
+	      : "c"(vmx),
+		[HOST_RSP]"r"((unsigned long)HOST_RSP),
 		[loaded_vmcs]"r"(vmx->loaded_vmcs),
 		[launched]"i"(offsetof(struct loaded_vmcs, launched)),
 		[host_rsp]"i"(offsetof(struct vcpu_vmx, host_rsp)),
