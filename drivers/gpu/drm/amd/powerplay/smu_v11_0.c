@@ -1834,6 +1834,36 @@ smu_v11_0_set_fan_speed_percent(struct smu_context *smu, uint32_t speed)
 	return smu_v11_0_set_fan_static_mode(smu, FDO_PWM_MODE_STATIC);
 }
 
+static int
+smu_v11_0_set_fan_control_mode(struct smu_context *smu,
+			       uint32_t mode)
+{
+	int ret = 0;
+	bool start = 1;
+	bool stop  = 0;
+
+	switch (mode) {
+	case AMD_FAN_CTRL_NONE:
+		ret = smu_v11_0_set_fan_speed_percent(smu, 100);
+		break;
+	case AMD_FAN_CTRL_MANUAL:
+		ret = smu_v11_0_smc_fan_control(smu, stop);
+		break;
+	case AMD_FAN_CTRL_AUTO:
+		ret = smu_v11_0_smc_fan_control(smu, start);
+		break;
+	default:
+		break;
+	}
+
+	if (ret) {
+		pr_err("[%s]Set fan control mode failed!");
+		return -EINVAL;
+	}
+
+	return ret;
+}
+
 static const struct smu_funcs smu_v11_0_funcs = {
 	.init_microcode = smu_v11_0_init_microcode,
 	.load_microcode = smu_v11_0_load_microcode,
@@ -1886,6 +1916,7 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.dpm_set_vce_enable = smu_v11_0_dpm_set_vce_enable,
 	.get_current_rpm = smu_v11_0_get_current_rpm,
 	.get_fan_control_mode = smu_v11_0_get_fan_control_mode,
+	.set_fan_control_mode = smu_v11_0_set_fan_control_mode,
 	.get_fan_speed_percent = smu_v11_0_get_fan_speed_percent,
 	.set_fan_speed_percent = smu_v11_0_set_fan_speed_percent,
 };
