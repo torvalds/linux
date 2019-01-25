@@ -1346,9 +1346,8 @@ static inline void vmw_bo_unreference(struct vmw_buffer_object **buf)
 static inline struct vmw_buffer_object *
 vmw_bo_reference(struct vmw_buffer_object *buf)
 {
-	if (ttm_bo_reference(&buf->base))
-		return buf;
-	return NULL;
+	ttm_bo_get(&buf->base);
+	return buf;
 }
 
 static inline struct ttm_mem_global *vmw_mem_glob(struct vmw_private *dev_priv)

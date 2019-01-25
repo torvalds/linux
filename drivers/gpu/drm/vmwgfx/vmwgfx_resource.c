@@ -461,7 +461,8 @@ vmw_resource_check_buffer(struct ww_acquire_ctx *ticket,
 	}
 
 	INIT_LIST_HEAD(&val_list);
-	val_buf->bo = ttm_bo_reference(&res->backup->base);
+	ttm_bo_get(&res->backup->base);
+	val_buf->bo = &res->backup->base;
 	val_buf->num_shared = 0;
 	list_add_tail(&val_buf->head, &val_list);
 	ret = ttm_eu_reserve_buffers(ticket, &val_list, interruptible, NULL);

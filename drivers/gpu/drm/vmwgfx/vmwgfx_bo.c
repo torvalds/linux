@@ -614,7 +614,8 @@ int vmw_user_bo_alloc(struct vmw_private *dev_priv,
 	if (unlikely(ret != 0))
 		return ret;
 
-	tmp = ttm_bo_reference(&user_bo->vbo.base);
+	ttm_bo_get(&user_bo->vbo.base);
+	tmp = &user_bo->vbo.base;
 	ret = ttm_prime_object_init(tfile,
 				    size,
 				    &user_bo->prime,
@@ -911,7 +912,7 @@ int vmw_user_bo_lookup(struct ttm_object_file *tfile,
 
 	vmw_user_bo = container_of(base, struct vmw_user_buffer_object,
 				   prime.base);
-	(void)ttm_bo_reference(&vmw_user_bo->vbo.base);
+	ttm_bo_get(&vmw_user_bo->vbo.base);
 	if (p_base)
 		*p_base = base;
 	else
