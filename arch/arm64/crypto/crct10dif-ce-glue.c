@@ -25,8 +25,6 @@
 asmlinkage u16 crc_t10dif_pmull_p64(u16 init_crc, const u8 buf[], u64 len);
 asmlinkage u16 crc_t10dif_pmull_p8(u16 init_crc, const u8 buf[], u64 len);
 
-static u16 (*crc_t10dif_pmull)(u16 init_crc, const u8 buf[], u64 len);
-
 static int crct10dif_init(struct shash_desc *desc)
 {
 	u16 *crc = shash_desc_ctx(desc);
@@ -35,14 +33,30 @@ static int crct10dif_init(struct shash_desc *desc)
 	return 0;
 }
 
-static int crct10dif_update(struct shash_desc *desc, const u8 *data,
+static int crct10dif_update_pmull_p8(struct shash_desc *desc, const u8 *data,
 			    unsigned int length)
 {
 	u16 *crc = shash_desc_ctx(desc);
 
 	if (length >= CRC_T10DIF_PMULL_CHUNK_SIZE && may_use_simd()) {
 		kernel_neon_begin();
-		*crc = crc_t10dif_pmull(*crc, data, length);
+		*crc = crc_t10dif_pmull_p8(*crc, data, length);
+		kernel_neon_end();
+	} else {
+		*crc = crc_t10dif_generic(*crc, data, length);
+	}
+
+	return 0;
+}
+
+static int crct10dif_update_pmull_p64(struct shash_desc *desc, const u8 *data,
+			    unsigned int length)
+{
+	u16 *crc = shash_desc_ctx(desc);
+
+	if (length >= CRC_T10DIF_PMULL_CHUNK_SIZE && may_use_simd()) {
+		kernel_neon_begin();
+		*crc = crc_t10dif_pmull_p64(*crc, data, length);
 		kernel_neon_end();
 	} else {
 		*crc = crc_t10dif_generic(*crc, data, length);
@@ -59,10 +73,22 @@ static int crct10dif_final(struct shash_desc *desc, u8 *out)
 	return 0;
 }
 
-static struct shash_alg crc_t10dif_alg = {
+static struct shash_alg crc_t10dif_alg[] = {{
 	.digestsize		= CRC_T10DIF_DIGEST_SIZE,
 	.init			= crct10dif_init,
-	.update			= crct10dif_update,
+	.update			= crct10dif_update_pmull_p8,
+	.final			= crct10dif_final,
+	.descsize		= CRC_T10DIF_DIGEST_SIZE,
+
+	.base.cra_name		= "crct10dif",
+	.base.cra_driver_name	= "crct10dif-arm64-neon",
+	.base.cra_priority	= 100,
+	.base.cra_blocksize	= CRC_T10DIF_BLOCK_SIZE,
+	.base.cra_module	= THIS_MODULE,
+}, {
+	.digestsize		= CRC_T10DIF_DIGEST_SIZE,
+	.init			= crct10dif_init,
+	.update			= crct10dif_update_pmull_p64,
 	.final			= crct10dif_final,
 	.descsize		= CRC_T10DIF_DIGEST_SIZE,
 
@@ -71,21 +97,25 @@ static struct shash_alg crc_t10dif_alg = {
 	.base.cra_priority	= 200,
 	.base.cra_blocksize	= CRC_T10DIF_BLOCK_SIZE,
 	.base.cra_module	= THIS_MODULE,
-};
+}};
 
 static int __init crc_t10dif_mod_init(void)
 {
 	if (elf_hwcap & HWCAP_PMULL)
-		crc_t10dif_pmull = crc_t10dif_pmull_p64;
+		return crypto_register_shashes(crc_t10dif_alg,
+					       ARRAY_SIZE(crc_t10dif_alg));
 	else
-		crc_t10dif_pmull = crc_t10dif_pmull_p8;
-
-	return crypto_register_shash(&crc_t10dif_alg);
+		/* only register the first array element */
+		return crypto_register_shash(crc_t10dif_alg);
 }
 
 static void __exit crc_t10dif_mod_exit(void)
 {
-	crypto_unregister_shash(&crc_t10dif_alg);
+	if (elf_hwcap & HWCAP_PMULL)
+		crypto_unregister_shashes(crc_t10dif_alg,
+					  ARRAY_SIZE(crc_t10dif_alg));
+	else
+		crypto_unregister_shash(crc_t10dif_alg);
 }
 
 module_cpu_feature_match(ASIMD, crc_t10dif_mod_init);
