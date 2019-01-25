@@ -240,26 +240,28 @@ static ssize_t show_fs_alloc_debug(struct bch_fs *c, char *buf)
 	if (!fs_usage)
 		return -ENOMEM;
 
-	pr_buf(&out, "capacity:\t\t%llu\n", c->capacity);
+	pr_buf(&out, "capacity:\t\t\t%llu\n", c->capacity);
+
+	pr_buf(&out, "hidden:\t\t\t\t%llu\n",
+	       fs_usage->s.hidden);
+	pr_buf(&out, "data:\t\t\t\t%llu\n",
+	       fs_usage->s.data);
+	pr_buf(&out, "cached:\t\t\t\t%llu\n",
+	       fs_usage->s.cached);
+	pr_buf(&out, "reserved:\t\t\t%llu\n",
+	       fs_usage->s.reserved);
+	pr_buf(&out, "nr_inodes:\t\t\t%llu\n",
+	       fs_usage->s.nr_inodes);
+	pr_buf(&out, "online reserved:\t\t%llu\n",
+	       fs_usage->s.online_reserved);
 
 	for (i = 0;
 	     i < ARRAY_SIZE(fs_usage->persistent_reserved);
 	     i++) {
 		pr_buf(&out, "%u replicas:\n", i + 1);
-#if 0
-		for (type = BCH_DATA_SB; type < BCH_DATA_NR; type++)
-			pr_buf(&out, "\t%s:\t\t%llu\n",
-			       bch2_data_types[type],
-			       stats.replicas[replicas].data[type]);
-		pr_buf(&out, "\terasure coded:\t%llu\n",
-		       stats.replicas[replicas].ec_data);
-#endif
-		pr_buf(&out, "\treserved:\t%llu\n",
+		pr_buf(&out, "\treserved:\t\t%llu\n",
 		       fs_usage->persistent_reserved[i]);
 	}
-
-	pr_buf(&out, "online reserved:\t%llu\n",
-	       fs_usage->s.online_reserved);
 
 	for (i = 0; i < c->replicas.nr; i++) {
 		struct bch_replicas_entry *e =
