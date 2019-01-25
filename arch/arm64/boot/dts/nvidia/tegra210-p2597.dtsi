@@ -1303,6 +1303,15 @@
 		clock-frequency = <100000>;
 	};
 
+	sata@70020000 {
+		status = "okay";
+		phys = <&{/padctl@7009f000/pads/sata/lanes/sata-0}>;
+	};
+
+	hda@70030000 {
+		status = "okay";
+	};
+
 	usb@70090000 {
 		phys = <&{/padctl@7009f000/pads/usb2/lanes/usb2-0}>,
 		       <&{/padctl@7009f000/pads/usb2/lanes/usb2-1}>,
@@ -1322,15 +1331,6 @@
 		dvdd-usb-ss-pll-supply = <&vdd_pex_1v05>;
 		hvdd-usb-ss-pll-e-supply = <&vdd_1v8>;
 
-		status = "okay";
-	};
-
-	sata@70020000 {
-		status = "okay";
-		phys = <&{/padctl@7009f000/pads/sata/lanes/sata-0}>;
-	};
-
-	hda@70030000 {
 		status = "okay";
 	};
 
