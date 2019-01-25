@@ -27,7 +27,7 @@
 #define DEFAULT_ENCODING	DRM_COLOR_YCBCR_BT601
 
 struct armada_overlay_state {
-	struct drm_plane_state base;
+	struct armada_plane_state base;
 	u32 colorkey_yr;
 	u32 colorkey_ug;
 	u32 colorkey_vb;
@@ -38,7 +38,7 @@ struct armada_overlay_state {
 	u16 saturation;
 };
 #define drm_to_overlay_state(s) \
-	container_of(s, struct armada_overlay_state, base)
+	container_of(s, struct armada_overlay_state, base.base)
 
 static inline u32 armada_spu_contrast(struct drm_plane_state *state)
 {
@@ -320,9 +320,9 @@ static void armada_overlay_reset(struct drm_plane *plane)
 		state->brightness = DEFAULT_BRIGHTNESS;
 		state->contrast = DEFAULT_CONTRAST;
 		state->saturation = DEFAULT_SATURATION;
-		__drm_atomic_helper_plane_reset(plane, &state->base);
-		state->base.color_encoding = DEFAULT_ENCODING;
-		state->base.color_range = DRM_COLOR_YCBCR_LIMITED_RANGE;
+		__drm_atomic_helper_plane_reset(plane, &state->base.base);
+		state->base.base.color_encoding = DEFAULT_ENCODING;
+		state->base.base.color_range = DRM_COLOR_YCBCR_LIMITED_RANGE;
 	}
 }
 
@@ -336,8 +336,9 @@ armada_overlay_duplicate_state(struct drm_plane *plane)
 
 	state = kmemdup(plane->state, sizeof(*state), GFP_KERNEL);
 	if (state)
-		__drm_atomic_helper_plane_duplicate_state(plane, &state->base);
-	return &state->base;
+		__drm_atomic_helper_plane_duplicate_state(plane,
+							  &state->base.base);
+	return &state->base.base;
 }
 
 static int armada_overlay_set_property(struct drm_plane *plane,

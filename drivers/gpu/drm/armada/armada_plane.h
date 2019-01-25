@@ -1,9 +1,18 @@
 #ifndef ARMADA_PLANE_H
 #define ARMADA_PLANE_H
 
-#define armada_src_hw(state)	armada_rect_hw_fp(&(state)->src)
-#define armada_dst_yx(state)	armada_rect_yx(&(state)->dst)
-#define armada_dst_hw(state)	armada_rect_hw(&(state)->dst)
+struct armada_plane_state {
+	struct drm_plane_state base;
+	u32 src_hw;
+	u32 dst_yx;
+	u32 dst_hw;
+};
+
+#define to_armada_plane_state(st) \
+	container_of(st, struct armada_plane_state, base)
+#define armada_src_hw(state) to_armada_plane_state(state)->src_hw
+#define armada_dst_yx(state) to_armada_plane_state(state)->dst_yx
+#define armada_dst_hw(state) to_armada_plane_state(state)->dst_hw
 
 void armada_drm_plane_calc(struct drm_plane_state *state, u32 addrs[2][3],
 	u16 pitches[3], bool interlaced);
@@ -13,6 +22,11 @@ void armada_drm_plane_cleanup_fb(struct drm_plane *plane,
 	struct drm_plane_state *old_state);
 int armada_drm_plane_atomic_check(struct drm_plane *plane,
 	struct drm_plane_state *state);
+void armada_plane_reset(struct drm_plane *plane);
+struct drm_plane_state *armada_plane_duplicate_state(struct drm_plane *plane);
+void armada_plane_destroy_state(struct drm_plane *plane,
+				struct drm_plane_state *state);
+
 int armada_drm_primary_plane_init(struct drm_device *drm,
 	struct drm_plane *primary);
 

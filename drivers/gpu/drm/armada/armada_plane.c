@@ -126,20 +126,47 @@ void armada_drm_plane_cleanup_fb(struct drm_plane *plane,
 int armada_drm_plane_atomic_check(struct drm_plane *plane,
 	struct drm_plane_state *state)
 {
-	if (state->fb && !WARN_ON(!state->crtc)) {
-		struct drm_crtc *crtc = state->crtc;
-		struct drm_crtc_state *crtc_state;
+	struct armada_plane_state *st = to_armada_plane_state(state);
+	struct drm_crtc *crtc = state->crtc;
+	struct drm_crtc_state *crtc_state;
+	bool interlace;
+	int ret;
 
-		if (state->state)
-			crtc_state = drm_atomic_get_existing_crtc_state(state->state, crtc);
-		else
-			crtc_state = crtc->state;
-		return drm_atomic_helper_check_plane_state(state, crtc_state,
-							   0, INT_MAX,
-							   true, false);
-	} else {
+	if (!state->fb || WARN_ON(!state->crtc)) {
 		state->visible = false;
+		return 0;
 	}
+
+	if (state->state)
+		crtc_state = drm_atomic_get_existing_crtc_state(state->state, crtc);
+	else
+		crtc_state = crtc->state;
+
+	ret = drm_atomic_helper_check_plane_state(state, crtc_state, 0,
+						  INT_MAX, true, false);
+	if (ret)
+		return ret;
+
+	interlace = crtc_state->adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE;
+	if (interlace) {
+		if ((state->dst.y1 | state->dst.y2) & 1)
+			return -EINVAL;
+		st->src_hw = drm_rect_height(&state->src) >> 17;
+		st->dst_yx = state->dst.y1 >> 1;
+		st->dst_hw = drm_rect_height(&state->dst) >> 1;
+	} else {
+		st->src_hw = drm_rect_height(&state->src) >> 16;
+		st->dst_yx = state->dst.y1;
+		st->dst_hw = drm_rect_height(&state->dst);
+	}
+
+	st->src_hw <<= 16;
+	st->src_hw |= drm_rect_width(&state->src) >> 16;
+	st->dst_yx <<= 16;
+	st->dst_yx |= state->dst.x1 & 0x0000ffff;
+	st->dst_hw <<= 16;
+	st->dst_hw |= drm_rect_width(&state->dst) & 0x0000ffff;
+
 	return 0;
 }
 
@@ -262,12 +289,37 @@ static const struct drm_plane_helper_funcs armada_primary_plane_helper_funcs = {
 	.atomic_disable	= armada_drm_primary_plane_atomic_disable,
 };
 
+void armada_plane_reset(struct drm_plane *plane)
+{
+	struct armada_plane_state *st;
+	if (plane->state)
+		__drm_atomic_helper_plane_destroy_state(plane->state);
+	kfree(plane->state);
+	st = kzalloc(sizeof(*st), GFP_KERNEL);
+	if (st)
+		__drm_atomic_helper_plane_reset(plane, &st->base);
+}
+
+struct drm_plane_state *armada_plane_duplicate_state(struct drm_plane *plane)
+{
+	struct armada_plane_state *st;
+
+	if (WARN_ON(!plane->state))
+		return NULL;
+
+	st = kmemdup(plane->state, sizeof(*st), GFP_KERNEL);
+	if (st)
+		__drm_atomic_helper_plane_duplicate_state(plane, &st->base);
+
+	return &st->base;
+}
+
 static const struct drm_plane_funcs armada_primary_plane_funcs = {
 	.update_plane	= drm_atomic_helper_update_plane,
 	.disable_plane	= drm_atomic_helper_disable_plane,
 	.destroy	= drm_primary_helper_destroy,
-	.reset		= drm_atomic_helper_plane_reset,
-	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
+	.reset		= armada_plane_reset,
+	.atomic_duplicate_state = armada_plane_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
 };
 
