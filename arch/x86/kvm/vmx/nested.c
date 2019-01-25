@@ -2757,7 +2757,7 @@ static int nested_vmx_check_vmentry_hw(struct kvm_vcpu *vcpu)
 		/* Set HOST_RSP */
 		"sub $%c[wordsize], %%" _ASM_SP "\n\t" /* temporarily adjust RSP for CALL */
 		__ex("vmwrite %%" _ASM_SP ", %%" _ASM_DX) "\n\t"
-		"mov %%" _ASM_SP ", %c[host_rsp](%1)\n\t"
+		"mov %%" _ASM_SP ", %c[host_rsp](%% " _ASM_CX ")\n\t"
 		"add $%c[wordsize], %%" _ASM_SP "\n\t" /* un-adjust RSP */
 
 		/* Check if vmlaunch or vmresume is needed */
