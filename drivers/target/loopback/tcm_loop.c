@@ -560,11 +560,6 @@ static int tcm_loop_write_pending(struct se_cmd *se_cmd)
 	return 0;
 }
 
-static int tcm_loop_write_pending_status(struct se_cmd *se_cmd)
-{
-	return 0;
-}
-
 static int tcm_loop_queue_data_in(struct se_cmd *se_cmd)
 {
 	struct tcm_loop_cmd *tl_cmd = container_of(se_cmd,
@@ -1159,7 +1154,6 @@ static const struct target_core_fabric_ops loop_ops = {
 	.release_cmd			= tcm_loop_release_cmd,
 	.sess_get_index			= tcm_loop_sess_get_index,
 	.write_pending			= tcm_loop_write_pending,
-	.write_pending_status		= tcm_loop_write_pending_status,
 	.set_default_node_attributes	= tcm_loop_set_default_node_attributes,
 	.get_cmd_state			= tcm_loop_get_cmd_state,
 	.queue_data_in			= tcm_loop_queue_data_in,

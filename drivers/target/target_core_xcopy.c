@@ -442,11 +442,6 @@ static int xcopy_pt_write_pending(struct se_cmd *se_cmd)
 	return 0;
 }
 
-static int xcopy_pt_write_pending_status(struct se_cmd *se_cmd)
-{
-	return 0;
-}
-
 static int xcopy_pt_queue_data_in(struct se_cmd *se_cmd)
 {
 	return 0;
@@ -463,7 +458,6 @@ static const struct target_core_fabric_ops xcopy_pt_tfo = {
 	.release_cmd		= xcopy_pt_release_cmd,
 	.check_stop_free	= xcopy_pt_check_stop_free,
 	.write_pending		= xcopy_pt_write_pending,
-	.write_pending_status	= xcopy_pt_write_pending_status,
 	.queue_data_in		= xcopy_pt_queue_data_in,
 	.queue_status		= xcopy_pt_queue_status,
 };

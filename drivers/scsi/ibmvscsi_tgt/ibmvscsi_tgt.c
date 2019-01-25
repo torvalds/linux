@@ -3788,11 +3788,6 @@ static int ibmvscsis_write_pending(struct se_cmd *se_cmd)
 	return 0;
 }
 
-static int ibmvscsis_write_pending_status(struct se_cmd *se_cmd)
-{
-	return 0;
-}
-
 static void ibmvscsis_set_default_node_attrs(struct se_node_acl *nacl)
 {
 }
@@ -4053,7 +4048,6 @@ static const struct target_core_fabric_ops ibmvscsis_ops = {
 	.release_cmd			= ibmvscsis_release_cmd,
 	.sess_get_index			= ibmvscsis_sess_get_index,
 	.write_pending			= ibmvscsis_write_pending,
-	.write_pending_status		= ibmvscsis_write_pending_status,
 	.set_default_node_attributes	= ibmvscsis_set_default_node_attrs,
 	.get_cmd_state			= ibmvscsis_get_cmd_state,
 	.queue_data_in			= ibmvscsis_queue_data_in,

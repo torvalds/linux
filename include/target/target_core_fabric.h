@@ -74,7 +74,6 @@ struct target_core_fabric_ops {
 	u32 (*sess_get_initiator_sid)(struct se_session *,
 				      unsigned char *, u32);
 	int (*write_pending)(struct se_cmd *);
-	int (*write_pending_status)(struct se_cmd *);
 	void (*set_default_node_attributes)(struct se_node_acl *);
 	int (*get_cmd_state)(struct se_cmd *);
 	int (*queue_data_in)(struct se_cmd *);
