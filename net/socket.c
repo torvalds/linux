@@ -3001,6 +3001,7 @@ static int compat_ifreq_ioctl(struct net *net, struct socket *sock,
 		case SIOCGIFTXQLEN:
 		case SIOCGMIIPHY:
 		case SIOCGMIIREG:
+		case SIOCGIFNAME:
 			if (copy_in_user(uifr32, uifr, sizeof(*uifr32)))
 				err = -EFAULT;
 			break;
@@ -3224,6 +3225,7 @@ static int compat_sock_ioctl_trans(struct file *file, struct socket *sock,
 	case SIOCSIFTXQLEN:
 	case SIOCBRADDIF:
 	case SIOCBRDELIF:
+	case SIOCGIFNAME:
 	case SIOCSIFNAME:
 	case SIOCGMIIPHY:
 	case SIOCGMIIREG:
@@ -3238,7 +3240,6 @@ static int compat_sock_ioctl_trans(struct file *file, struct socket *sock,
 	case SIOCBONDRELEASE:
 	case SIOCBONDSETHWADDR:
 	case SIOCBONDCHANGEACTIVE:
-	case SIOCGIFNAME:
 		return sock_do_ioctl(net, sock, cmd, arg);
 	}
 
