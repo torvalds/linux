@@ -684,6 +684,9 @@ void qla24xx_do_nack_work(struct scsi_qla_host *vha, struct qla_work_evt *e)
 
 	switch (e->u.nack.type) {
 	case SRB_NACK_PRLI:
+		t = e->u.nack.fcport;
+		flush_work(&t->del_work);
+		flush_work(&t->free_work);
 		mutex_lock(&vha->vha_tgt.tgt_mutex);
 		t = qlt_create_sess(vha, e->u.nack.fcport, 0);
 		mutex_unlock(&vha->vha_tgt.tgt_mutex);
