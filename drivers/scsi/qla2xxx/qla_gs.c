@@ -4157,7 +4157,8 @@ int qla24xx_async_gpnft(scsi_qla_host_t *vha, u8 fc4_type, srb_t *sp)
 			spin_lock_irqsave(&vha->work_lock, flags);
 			vha->scan.scan_flags &= ~SF_SCANNING;
 			spin_unlock_irqrestore(&vha->work_lock, flags);
-			goto done_free_sp;
+			qla2x00_rel_sp(sp);
+			return rval;
 		}
 		sp->u.iocb_cmd.u.ctarg.req_size = GPN_FT_REQ_SIZE;
 
@@ -4175,7 +4176,13 @@ int qla24xx_async_gpnft(scsi_qla_host_t *vha, u8 fc4_type, srb_t *sp)
 			spin_lock_irqsave(&vha->work_lock, flags);
 			vha->scan.scan_flags &= ~SF_SCANNING;
 			spin_unlock_irqrestore(&vha->work_lock, flags);
-			goto done_free_sp;
+			dma_free_coherent(&vha->hw->pdev->dev,
+			    sp->u.iocb_cmd.u.ctarg.req_allocated_size,
+			    sp->u.iocb_cmd.u.ctarg.req,
+			    sp->u.iocb_cmd.u.ctarg.req_dma);
+			sp->u.iocb_cmd.u.ctarg.req = NULL;
+			qla2x00_rel_sp(sp);
+			return rval;
 		}
 		sp->u.iocb_cmd.u.ctarg.rsp_size = rspsz;
 
