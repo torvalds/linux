@@ -3246,6 +3246,22 @@ transport_send_check_condition_and_sense(struct se_cmd *cmd,
 }
 EXPORT_SYMBOL(transport_send_check_condition_and_sense);
 
+/**
+ * target_send_busy - Send SCSI BUSY status back to the initiator
+ * @cmd: SCSI command for which to send a BUSY reply.
+ *
+ * Note: Only call this function if target_submit_cmd*() failed.
+ */
+int target_send_busy(struct se_cmd *cmd)
+{
+	WARN_ON_ONCE(cmd->se_cmd_flags & SCF_SCSI_TMR_CDB);
+
+	cmd->scsi_status = SAM_STAT_BUSY;
+	trace_target_cmd_complete(cmd);
+	return cmd->se_tfo->queue_status(cmd);
+}
+EXPORT_SYMBOL(target_send_busy);
+
 static void target_tmr_work(struct work_struct *work)
 {
 	struct se_cmd *cmd = container_of(work, struct se_cmd, work);
