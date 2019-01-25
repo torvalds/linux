@@ -84,7 +84,7 @@ ENDPROC(vmx_vmexit)
  * __vmx_vcpu_run - Run a vCPU via a transition to VMX guest mode
  * @vmx:	struct vcpu_vmx *
  * @regs:	unsigned long * (to guest registers)
- * %RBX:	VMCS launched status (non-zero indicates already launched)
+ * @launched:	%true if the VMCS has been launched
  *
  * Returns:
  *	%RBX is 0 on VM-Exit, 1 on VM-Fail
@@ -98,6 +98,9 @@ ENTRY(__vmx_vcpu_run)
 	 * @regs is needed after VM-Exit to save the guest's register values.
 	 */
 	push %_ASM_ARG2
+
+	/* Copy @launched to BL, _ASM_ARG3 is volatile. */
+	mov %_ASM_ARG3B, %bl
 
 	/* Adjust RSP to account for the CALL to vmx_vmenter(). */
 	lea -WORD_SIZE(%_ASM_SP), %_ASM_ARG2
