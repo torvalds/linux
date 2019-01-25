@@ -1217,22 +1217,15 @@ static int srpt_ch_qp_err(struct srpt_rdma_ch *ch)
 static struct srpt_send_ioctx *srpt_get_send_ioctx(struct srpt_rdma_ch *ch)
 {
 	struct srpt_send_ioctx *ioctx;
-	unsigned long flags;
+	int tag, cpu;
 
 	BUG_ON(!ch);
 
-	ioctx = NULL;
-	spin_lock_irqsave(&ch->spinlock, flags);
-	if (!list_empty(&ch->free_list)) {
-		ioctx = list_first_entry(&ch->free_list,
-					 struct srpt_send_ioctx, free_list);
-		list_del(&ioctx->free_list);
-	}
-	spin_unlock_irqrestore(&ch->spinlock, flags);
+	tag = sbitmap_queue_get(&ch->sess->sess_tag_pool, &cpu);
+	if (tag < 0)
+		return NULL;
 
-	if (!ioctx)
-		return ioctx;
-
+	ioctx = ch->ioctx_ring[tag];
 	BUG_ON(ioctx->ch != ch);
 	ioctx->state = SRPT_STATE_NEW;
 	WARN_ON_ONCE(ioctx->recv_ioctx);
@@ -1245,6 +1238,8 @@ static struct srpt_send_ioctx *srpt_get_send_ioctx(struct srpt_rdma_ch *ch)
 	 */
 	memset(&ioctx->cmd, 0, sizeof(ioctx->cmd));
 	memset(&ioctx->sense_data, 0, sizeof(ioctx->sense_data));
+	ioctx->cmd.map_tag = tag;
+	ioctx->cmd.map_cpu = cpu;
 
 	return ioctx;
 }
@@ -2148,7 +2143,7 @@ static int srpt_cm_req_recv(struct srpt_device *const sdev,
 	struct srpt_rdma_ch *ch = NULL;
 	char i_port_id[36];
 	u32 it_iu_len;
-	int i, ret;
+	int i, tag_num, tag_size, ret;
 
 	WARN_ON_ONCE(irqs_disabled());
 
@@ -2248,11 +2243,8 @@ static int srpt_cm_req_recv(struct srpt_device *const sdev,
 		goto free_rsp_cache;
 	}
 
-	INIT_LIST_HEAD(&ch->free_list);
-	for (i = 0; i < ch->rq_size; i++) {
+	for (i = 0; i < ch->rq_size; i++)
 		ch->ioctx_ring[i]->ch = ch;
-		list_add_tail(&ch->ioctx_ring[i]->free_list, &ch->free_list);
-	}
 	if (!sdev->use_srq) {
 		u16 imm_data_offset = req->req_flags & SRP_IMMED_REQUESTED ?
 			be16_to_cpu(req->imm_data_offset) : 0;
@@ -2306,18 +2298,20 @@ static int srpt_cm_req_recv(struct srpt_device *const sdev,
 
 	pr_debug("registering session %s\n", ch->sess_name);
 
+	tag_num = ch->rq_size;
+	tag_size = 1; /* ib_srpt does not use se_sess->sess_cmd_map */
 	if (sport->port_guid_tpg.se_tpg_wwn)
-		ch->sess = target_setup_session(&sport->port_guid_tpg, 0, 0,
-						TARGET_PROT_NORMAL,
+		ch->sess = target_setup_session(&sport->port_guid_tpg, tag_num,
+						tag_size, TARGET_PROT_NORMAL,
 						ch->sess_name, ch, NULL);
 	if (sport->port_gid_tpg.se_tpg_wwn && IS_ERR_OR_NULL(ch->sess))
-		ch->sess = target_setup_session(&sport->port_gid_tpg, 0, 0,
-					TARGET_PROT_NORMAL, i_port_id, ch,
-					NULL);
+		ch->sess = target_setup_session(&sport->port_gid_tpg, tag_num,
+					tag_size, TARGET_PROT_NORMAL, i_port_id,
+					ch, NULL);
 	/* Retry without leading "0x" */
 	if (sport->port_gid_tpg.se_tpg_wwn && IS_ERR_OR_NULL(ch->sess))
-		ch->sess = target_setup_session(&sport->port_gid_tpg, 0, 0,
-						TARGET_PROT_NORMAL,
+		ch->sess = target_setup_session(&sport->port_gid_tpg, tag_num,
+						tag_size, TARGET_PROT_NORMAL,
 						i_port_id + 2, ch, NULL);
 	if (IS_ERR_OR_NULL(ch->sess)) {
 		WARN_ON_ONCE(ch->sess == NULL);
@@ -3279,7 +3273,6 @@ static void srpt_release_cmd(struct se_cmd *se_cmd)
 				struct srpt_send_ioctx, cmd);
 	struct srpt_rdma_ch *ch = ioctx->ch;
 	struct srpt_recv_ioctx *recv_ioctx = ioctx->recv_ioctx;
-	unsigned long flags;
 
 	WARN_ON_ONCE(ioctx->state != SRPT_STATE_DONE &&
 		     !(ioctx->cmd.transport_state & CMD_T_ABORTED));
@@ -3295,9 +3288,7 @@ static void srpt_release_cmd(struct se_cmd *se_cmd)
 		ioctx->n_rw_ctx = 0;
 	}
 
-	spin_lock_irqsave(&ch->spinlock, flags);
-	list_add(&ioctx->free_list, &ch->free_list);
-	spin_unlock_irqrestore(&ch->spinlock, flags);
+	target_free_tag(se_cmd->se_sess, se_cmd);
 }
 
 /**
