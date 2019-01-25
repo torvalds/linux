@@ -12,6 +12,8 @@
 
 #include "intel_guc.h"
 
+#define RESET_MAX_RETRIES 3
+
 static void engine_skip_context(struct i915_request *rq)
 {
 	struct intel_engine_cs *engine = rq->engine;
@@ -144,14 +146,14 @@ static int i915_do_reset(struct drm_i915_private *i915,
 
 	/* Assert reset for at least 20 usec, and wait for acknowledgement. */
 	pci_write_config_byte(pdev, I915_GDRST, GRDOM_RESET_ENABLE);
-	usleep_range(50, 200);
-	err = wait_for(i915_in_reset(pdev), 500);
+	udelay(50);
+	err = wait_for_atomic(i915_in_reset(pdev), 50);
 
 	/* Clear the reset request. */
 	pci_write_config_byte(pdev, I915_GDRST, 0);
-	usleep_range(50, 200);
+	udelay(50);
 	if (!err)
-		err = wait_for(!i915_in_reset(pdev), 500);
+		err = wait_for_atomic(!i915_in_reset(pdev), 50);
 
 	return err;
 }
@@ -171,7 +173,7 @@ static int g33_do_reset(struct drm_i915_private *i915,
 	struct pci_dev *pdev = i915->drm.pdev;
 
 	pci_write_config_byte(pdev, I915_GDRST, GRDOM_RESET_ENABLE);
-	return wait_for(g4x_reset_complete(pdev), 500);
+	return wait_for_atomic(g4x_reset_complete(pdev), 50);
 }
 
 static int g4x_do_reset(struct drm_i915_private *dev_priv,
@@ -182,13 +184,13 @@ static int g4x_do_reset(struct drm_i915_private *dev_priv,
 	int ret;
 
 	/* WaVcpClkGateDisableForMediaReset:ctg,elk */
-	I915_WRITE(VDECCLK_GATE_D,
-		   I915_READ(VDECCLK_GATE_D) | VCP_UNIT_CLOCK_GATE_DISABLE);
-	POSTING_READ(VDECCLK_GATE_D);
+	I915_WRITE_FW(VDECCLK_GATE_D,
+		      I915_READ(VDECCLK_GATE_D) | VCP_UNIT_CLOCK_GATE_DISABLE);
+	POSTING_READ_FW(VDECCLK_GATE_D);
 
 	pci_write_config_byte(pdev, I915_GDRST,
 			      GRDOM_MEDIA | GRDOM_RESET_ENABLE);
-	ret =  wait_for(g4x_reset_complete(pdev), 500);
+	ret =  wait_for_atomic(g4x_reset_complete(pdev), 50);
 	if (ret) {
 		DRM_DEBUG_DRIVER("Wait for media reset failed\n");
 		goto out;
@@ -196,7 +198,7 @@ static int g4x_do_reset(struct drm_i915_private *dev_priv,
 
 	pci_write_config_byte(pdev, I915_GDRST,
 			      GRDOM_RENDER | GRDOM_RESET_ENABLE);
-	ret =  wait_for(g4x_reset_complete(pdev), 500);
+	ret =  wait_for_atomic(g4x_reset_complete(pdev), 50);
 	if (ret) {
 		DRM_DEBUG_DRIVER("Wait for render reset failed\n");
 		goto out;
@@ -205,9 +207,9 @@ static int g4x_do_reset(struct drm_i915_private *dev_priv,
 out:
 	pci_write_config_byte(pdev, I915_GDRST, 0);
 
-	I915_WRITE(VDECCLK_GATE_D,
-		   I915_READ(VDECCLK_GATE_D) & ~VCP_UNIT_CLOCK_GATE_DISABLE);
-	POSTING_READ(VDECCLK_GATE_D);
+	I915_WRITE_FW(VDECCLK_GATE_D,
+		      I915_READ(VDECCLK_GATE_D) & ~VCP_UNIT_CLOCK_GATE_DISABLE);
+	POSTING_READ_FW(VDECCLK_GATE_D);
 
 	return ret;
 }
@@ -218,27 +220,29 @@ static int ironlake_do_reset(struct drm_i915_private *dev_priv,
 {
 	int ret;
 
-	I915_WRITE(ILK_GDSR, ILK_GRDOM_RENDER | ILK_GRDOM_RESET_ENABLE);
-	ret = intel_wait_for_register(dev_priv,
-				      ILK_GDSR, ILK_GRDOM_RESET_ENABLE, 0,
-				      500);
+	I915_WRITE_FW(ILK_GDSR, ILK_GRDOM_RENDER | ILK_GRDOM_RESET_ENABLE);
+	ret = __intel_wait_for_register_fw(dev_priv, ILK_GDSR,
+					   ILK_GRDOM_RESET_ENABLE, 0,
+					   5000, 0,
+					   NULL);
 	if (ret) {
 		DRM_DEBUG_DRIVER("Wait for render reset failed\n");
 		goto out;
 	}
 
-	I915_WRITE(ILK_GDSR, ILK_GRDOM_MEDIA | ILK_GRDOM_RESET_ENABLE);
-	ret = intel_wait_for_register(dev_priv,
-				      ILK_GDSR, ILK_GRDOM_RESET_ENABLE, 0,
-				      500);
+	I915_WRITE_FW(ILK_GDSR, ILK_GRDOM_MEDIA | ILK_GRDOM_RESET_ENABLE);
+	ret = __intel_wait_for_register_fw(dev_priv, ILK_GDSR,
+					   ILK_GRDOM_RESET_ENABLE, 0,
+					   5000, 0,
+					   NULL);
 	if (ret) {
 		DRM_DEBUG_DRIVER("Wait for media reset failed\n");
 		goto out;
 	}
 
 out:
-	I915_WRITE(ILK_GDSR, 0);
-	POSTING_READ(ILK_GDSR);
+	I915_WRITE_FW(ILK_GDSR, 0);
+	POSTING_READ_FW(ILK_GDSR);
 	return ret;
 }
 
@@ -527,32 +531,21 @@ static reset_func intel_get_gpu_reset(struct drm_i915_private *i915)
 
 int intel_gpu_reset(struct drm_i915_private *i915, unsigned int engine_mask)
 {
-	reset_func reset = intel_get_gpu_reset(i915);
+	const int retries = engine_mask == ALL_ENGINES ? RESET_MAX_RETRIES : 1;
+	reset_func reset;
+	int ret = -ETIMEDOUT;
 	int retry;
-	int ret;
 
-	/*
-	 * We want to perform per-engine reset from atomic context (e.g.
-	 * softirq), which imposes the constraint that we cannot sleep.
-	 * However, experience suggests that spending a bit of time waiting
-	 * for a reset helps in various cases, so for a full-device reset
-	 * we apply the opposite rule and wait if we want to. As we should
-	 * always follow up a failed per-engine reset with a full device reset,
-	 * being a little faster, stricter and more error prone for the
-	 * atomic case seems an acceptable compromise.
-	 *
-	 * Unfortunately this leads to a bimodal routine, when the goal was
-	 * to have a single reset function that worked for resetting any
-	 * number of engines simultaneously.
-	 */
-	might_sleep_if(engine_mask == ALL_ENGINES);
+	reset = intel_get_gpu_reset(i915);
+	if (!reset)
+		return -ENODEV;
 
 	/*
 	 * If the power well sleeps during the reset, the reset
 	 * request may be dropped and never completes (causing -EIO).
 	 */
 	intel_uncore_forcewake_get(i915, FORCEWAKE_ALL);
-	for (retry = 0; retry < 3; retry++) {
+	for (retry = 0; ret == -ETIMEDOUT && retry < retries; retry++) {
 		/*
 		 * We stop engines, otherwise we might get failed reset and a
 		 * dead gpu (on elk). Also as modern gpu as kbl can suffer
@@ -569,15 +562,10 @@ int intel_gpu_reset(struct drm_i915_private *i915, unsigned int engine_mask)
 		 */
 		i915_stop_engines(i915, engine_mask);
 
-		ret = -ENODEV;
-		if (reset) {
-			GEM_TRACE("engine_mask=%x\n", engine_mask);
-			ret = reset(i915, engine_mask, retry);
-		}
-		if (ret != -ETIMEDOUT || engine_mask != ALL_ENGINES)
-			break;
-
-		cond_resched();
+		GEM_TRACE("engine_mask=%x\n", engine_mask);
+		preempt_disable();
+		ret = reset(i915, engine_mask, retry);
+		preempt_enable();
 	}
 	intel_uncore_forcewake_put(i915, FORCEWAKE_ALL);
 
@@ -1014,7 +1002,7 @@ void i915_reset(struct drm_i915_private *i915,
 		goto error;
 	}
 
-	for (i = 0; i < 3; i++) {
+	for (i = 0; i < RESET_MAX_RETRIES; i++) {
 		ret = intel_gpu_reset(i915, ALL_ENGINES);
 		if (ret == 0)
 			break;
