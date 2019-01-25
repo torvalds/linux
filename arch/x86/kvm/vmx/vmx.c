@@ -6382,7 +6382,6 @@ static void __vmx_vcpu_run(struct kvm_vcpu *vcpu, struct vcpu_vmx *vmx)
 	asm(
 		/* Store host registers */
 		"push %%" _ASM_BP " \n\t"
-		"sub $%c[wordsize], %%" _ASM_SP "\n\t" /* placeholder for guest RCX */
 		"push %%" _ASM_ARG1 " \n\t"
 
 		/* Adjust RSP to account for the CALL to vmx_vmenter(). */
@@ -6418,11 +6417,11 @@ static void __vmx_vcpu_run(struct kvm_vcpu *vcpu, struct vcpu_vmx *vmx)
 		/* Enter guest mode */
 		"call vmx_vmenter\n\t"
 
-		/* Save guest's RCX to the stack placeholder (see above) */
-		"mov %%" _ASM_CX ", %c[wordsize](%%" _ASM_SP ") \n\t"
+		/* Temporarily save guest's RCX. */
+		"push %%" _ASM_CX " \n\t"
 
-		/* Load host's RCX, i.e. the vmx_vcpu pointer */
-		"pop %%" _ASM_CX " \n\t"
+		/* Reload the vcpu_vmx pointer to RCX. */
+		"mov %c[wordsize](%%" _ASM_SP "), %%" _ASM_CX " \n\t"
 
 		/* Set vmx->fail based on EFLAGS.{CF,ZF} */
 		"setbe %c[fail](%%" _ASM_CX ")\n\t"
@@ -6469,6 +6468,9 @@ static void __vmx_vcpu_run(struct kvm_vcpu *vcpu, struct vcpu_vmx *vmx)
 		"xor %%esi, %%esi \n\t"
 		"xor %%edi, %%edi \n\t"
 		"xor %%ebp, %%ebp \n\t"
+
+		/* "POP" the vcpu_vmx pointer. */
+		"add $%c[wordsize], %%" _ASM_SP " \n\t"
 		"pop  %%" _ASM_BP " \n\t"
 	      : ASM_CALL_CONSTRAINT, "=b"((int){0}),
 #ifdef CONFIG_X86_64
