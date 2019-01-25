@@ -220,6 +220,41 @@
 		};
 	};
 
+	replicator@20120000 {
+		compatible = "arm,coresight-dynamic-replicator", "arm,primecell";
+		reg = <0 0x20120000 0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
+
+		out-ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			/* replicator output ports */
+			port@0 {
+				reg = <0>;
+				replicator_out_port0: endpoint {
+					remote-endpoint = <&tpiu_in_port>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+				replicator_out_port1: endpoint {
+					remote-endpoint = <&etr_in_port>;
+				};
+			};
+		};
+		in-ports {
+			port {
+				replicator_in_port0: endpoint {
+				};
+			};
+		};
+	};
+
 	cpu_debug0: cpu-debug@22010000 {
 		compatible = "arm,coresight-cpu-debug", "arm,primecell";
 		reg = <0x0 0x22010000 0x0 0x1000>;
@@ -447,41 +482,6 @@
 			port {
 				cluster1_etm3_out_port: endpoint {
 					remote-endpoint = <&cluster1_funnel_in_port3>;
-				};
-			};
-		};
-	};
-
-	replicator@20120000 {
-		compatible = "arm,coresight-dynamic-replicator", "arm,primecell";
-		reg = <0 0x20120000 0 0x1000>;
-
-		clocks = <&soc_smc50mhz>;
-		clock-names = "apb_pclk";
-		power-domains = <&scpi_devpd 0>;
-
-		out-ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			/* replicator output ports */
-			port@0 {
-				reg = <0>;
-				replicator_out_port0: endpoint {
-					remote-endpoint = <&tpiu_in_port>;
-				};
-			};
-
-			port@1 {
-				reg = <1>;
-				replicator_out_port1: endpoint {
-					remote-endpoint = <&etr_in_port>;
-				};
-			};
-		};
-		in-ports {
-			port {
-				replicator_in_port0: endpoint {
 				};
 			};
 		};
