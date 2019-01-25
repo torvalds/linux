@@ -259,15 +259,13 @@ nl80211_pmsr_ftm_req_attr_policy[NL80211_PMSR_FTM_REQ_ATTR_MAX + 1] = {
 static const struct nla_policy
 nl80211_pmsr_req_data_policy[NL80211_PMSR_TYPE_MAX + 1] = {
 	[NL80211_PMSR_TYPE_FTM] =
-		NLA_POLICY_NESTED(NL80211_PMSR_FTM_REQ_ATTR_MAX,
-				  nl80211_pmsr_ftm_req_attr_policy),
+		NLA_POLICY_NESTED(nl80211_pmsr_ftm_req_attr_policy),
 };
 
 static const struct nla_policy
 nl80211_pmsr_req_attr_policy[NL80211_PMSR_REQ_ATTR_MAX + 1] = {
 	[NL80211_PMSR_REQ_ATTR_DATA] =
-		NLA_POLICY_NESTED(NL80211_PMSR_TYPE_MAX,
-				  nl80211_pmsr_req_data_policy),
+		NLA_POLICY_NESTED(nl80211_pmsr_req_data_policy),
 	[NL80211_PMSR_REQ_ATTR_GET_AP_TSF] = { .type = NLA_FLAG },
 };
 
@@ -280,8 +278,7 @@ nl80211_psmr_peer_attr_policy[NL80211_PMSR_PEER_ATTR_MAX + 1] = {
 	 */
 	[NL80211_PMSR_PEER_ATTR_CHAN] = { .type = NLA_NESTED },
 	[NL80211_PMSR_PEER_ATTR_REQ] =
-		NLA_POLICY_NESTED(NL80211_PMSR_REQ_ATTR_MAX,
-				  nl80211_pmsr_req_attr_policy),
+		NLA_POLICY_NESTED(nl80211_pmsr_req_attr_policy),
 	[NL80211_PMSR_PEER_ATTR_RESP] = { .type = NLA_REJECT },
 };
 
@@ -292,8 +289,7 @@ nl80211_pmsr_attr_policy[NL80211_PMSR_ATTR_MAX + 1] = {
 	[NL80211_PMSR_ATTR_RANDOMIZE_MAC_ADDR] = { .type = NLA_REJECT },
 	[NL80211_PMSR_ATTR_TYPE_CAPA] = { .type = NLA_REJECT },
 	[NL80211_PMSR_ATTR_PEERS] =
-		NLA_POLICY_NESTED_ARRAY(NL80211_PMSR_PEER_ATTR_MAX,
-					nl80211_psmr_peer_attr_policy),
+		NLA_POLICY_NESTED_ARRAY(nl80211_psmr_peer_attr_policy),
 };
 
 const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
@@ -555,8 +551,7 @@ const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 	},
 	[NL80211_ATTR_TIMEOUT] = NLA_POLICY_MIN(NLA_U32, 1),
 	[NL80211_ATTR_PEER_MEASUREMENTS] =
-		NLA_POLICY_NESTED(NL80211_PMSR_ATTR_MAX,
-				  nl80211_pmsr_attr_policy),
+		NLA_POLICY_NESTED(nl80211_pmsr_attr_policy),
 	[NL80211_ATTR_AIRTIME_WEIGHT] = NLA_POLICY_MIN(NLA_U16, 1),
 };
 
