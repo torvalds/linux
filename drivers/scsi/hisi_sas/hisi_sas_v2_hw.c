@@ -2676,6 +2676,8 @@ static int phy_up_v2_hw(int phy_no, struct hisi_hba *hisi_hba)
 	if (is_sata_phy_v2_hw(hisi_hba, phy_no))
 		goto end;
 
+	del_timer(&phy->timer);
+
 	if (phy_no == 8) {
 		u32 port_state = hisi_sas_read32(hisi_hba, PORT_STATE);
 
@@ -2755,6 +2757,7 @@ static int phy_down_v2_hw(int phy_no, struct hisi_hba *hisi_hba)
 	struct hisi_sas_port *port = phy->port;
 	struct device *dev = hisi_hba->dev;
 
+	del_timer(&phy->timer);
 	hisi_sas_phy_write32(hisi_hba, phy_no, PHYCTRL_NOT_RDY_MSK, 1);
 
 	phy_state = hisi_sas_read32(hisi_hba, PHY_STATE);
@@ -2942,6 +2945,9 @@ static irqreturn_t int_chnl_int_v2_hw(int irq_no, void *p)
 		if ((irq_msk & (1 << phy_no)) && irq_value0) {
 			if (irq_value0 & CHL_INT0_SL_RX_BCST_ACK_MSK)
 				phy_bcast_v2_hw(phy_no, hisi_hba);
+
+			if (irq_value0 & CHL_INT0_PHY_RDY_MSK)
+				hisi_sas_phy_oob_ready(hisi_hba, phy_no);
 
 			hisi_sas_phy_write32(hisi_hba, phy_no,
 					CHL_INT0, irq_value0
@@ -3225,6 +3231,8 @@ static irqreturn_t sata_int_v2_hw(int irq_no, void *p)
 	u8 attached_sas_addr[SAS_ADDR_SIZE] = {0};
 	unsigned long flags;
 	int phy_no, offset;
+
+	del_timer(&phy->timer);
 
 	phy_no = sas_phy->id;
 	initial_fis = &hisi_hba->initial_fis[phy_no];
