@@ -86,7 +86,7 @@
 				mmci@50000 {
 					compatible = "arm,pl180", "arm,primecell";
 					reg = <0x050000 0x1000>;
-					interrupts = <9 10>;
+					interrupts = <9>, <10>;
 					cd-gpios = <&v2m_sysreg 0 0>;
 					wp-gpios = <&v2m_sysreg 1 0>;
 					max-frequency = <12000000>;
