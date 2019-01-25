@@ -410,6 +410,8 @@ struct tegra_sor {
 	struct clk *clk_dp;
 	struct clk *clk;
 
+	u8 xbar_cfg[5];
+
 	struct drm_dp_aux *aux;
 
 	struct drm_info_list *debugfs_files;
@@ -1814,7 +1816,7 @@ static void tegra_sor_edp_enable(struct drm_encoder *encoder)
 
 	/* XXX not in TRM */
 	for (value = 0, i = 0; i < 5; i++)
-		value |= SOR_XBAR_CTRL_LINK0_XSEL(i, sor->soc->xbar_cfg[i]) |
+		value |= SOR_XBAR_CTRL_LINK0_XSEL(i, sor->xbar_cfg[i]) |
 			 SOR_XBAR_CTRL_LINK1_XSEL(i, i);
 
 	tegra_sor_writel(sor, 0x00000000, SOR_XBAR_POL);
@@ -2550,7 +2552,7 @@ static void tegra_sor_hdmi_enable(struct drm_encoder *encoder)
 
 	/* XXX not in TRM */
 	for (value = 0, i = 0; i < 5; i++)
-		value |= SOR_XBAR_CTRL_LINK0_XSEL(i, sor->soc->xbar_cfg[i]) |
+		value |= SOR_XBAR_CTRL_LINK0_XSEL(i, sor->xbar_cfg[i]) |
 			 SOR_XBAR_CTRL_LINK1_XSEL(i, i);
 
 	tegra_sor_writel(sor, 0x00000000, SOR_XBAR_POL);
@@ -3171,6 +3173,8 @@ MODULE_DEVICE_TABLE(of, tegra_sor_of_match);
 static int tegra_sor_parse_dt(struct tegra_sor *sor)
 {
 	struct device_node *np = sor->dev->of_node;
+	u32 xbar_cfg[5];
+	unsigned int i;
 	u32 value;
 	int err;
 
@@ -3186,6 +3190,17 @@ static int tegra_sor_parse_dt(struct tegra_sor *sor)
 		 * earlier
 		 */
 		sor->pad = TEGRA_IO_PAD_HDMI_DP0 + sor->index;
+	}
+
+	err = of_property_read_u32_array(np, "nvidia,xbar-cfg", xbar_cfg, 5);
+	if (err < 0) {
+		/* fall back to default per-SoC XBAR configuration */
+		for (i = 0; i < 5; i++)
+			sor->xbar_cfg[i] = sor->soc->xbar_cfg[i];
+	} else {
+		/* copy cells to SOR XBAR configuration */
+		for (i = 0; i < 5; i++)
+			sor->xbar_cfg[i] = xbar_cfg[i];
 	}
 
 	return 0;
