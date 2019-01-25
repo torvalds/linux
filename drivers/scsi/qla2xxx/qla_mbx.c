@@ -2246,10 +2246,7 @@ qla2x00_lip_reset(scsi_qla_host_t *vha)
 		mcp->out_mb = MBX_2|MBX_1|MBX_0;
 	} else if (IS_FWI2_CAPABLE(vha->hw)) {
 		mcp->mb[0] = MBC_LIP_FULL_LOGIN;
-		if (N2N_TOPO(vha->hw))
-			mcp->mb[1] = BIT_4; /* re-init */
-		else
-			mcp->mb[1] = BIT_6; /* LIP */
+		mcp->mb[1] = BIT_4;
 		mcp->mb[2] = 0;
 		mcp->mb[3] = vha->hw->loop_reset_delay;
 		mcp->out_mb = MBX_3|MBX_2|MBX_1|MBX_0;
@@ -2759,7 +2756,7 @@ qla2x00_full_login_lip(scsi_qla_host_t *vha)
 	    "Entered %s.\n", __func__);
 
 	mcp->mb[0] = MBC_LIP_FULL_LOGIN;
-	mcp->mb[1] = IS_FWI2_CAPABLE(vha->hw) ? BIT_3 : 0;
+	mcp->mb[1] = IS_FWI2_CAPABLE(vha->hw) ? BIT_4 : 0;
 	mcp->mb[2] = 0;
 	mcp->mb[3] = 0;
 	mcp->out_mb = MBX_3|MBX_2|MBX_1|MBX_0;
