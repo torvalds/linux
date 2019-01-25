@@ -1505,7 +1505,7 @@ static void srpt_handle_cmd(struct srpt_rdma_ch *ch,
 			pr_err("0x%llx: parsing SRP descriptor table failed.\n",
 			       srp_cmd->tag);
 		}
-		goto release_ioctx;
+		goto busy;
 	}
 
 	rc = target_submit_cmd_map_sgls(cmd, ch->sess, srp_cmd->cdb,
@@ -1516,13 +1516,12 @@ static void srpt_handle_cmd(struct srpt_rdma_ch *ch,
 	if (rc != 0) {
 		pr_debug("target_submit_cmd() returned %d for tag %#llx\n", rc,
 			 srp_cmd->tag);
-		goto release_ioctx;
+		goto busy;
 	}
 	return;
 
-release_ioctx:
-	send_ioctx->state = SRPT_STATE_DONE;
-	srpt_release_cmd(cmd);
+busy:
+	target_send_busy(cmd);
 }
 
 static int srp_tmr_to_tcm(int fn)
