@@ -2765,7 +2765,7 @@ static int nested_vmx_check_vmentry_hw(struct kvm_vcpu *vcpu)
 		"add $%c[wordsize], %%" _ASM_SP "\n\t" /* un-adjust RSP */
 
 		/* Check if vmlaunch or vmresume is needed */
-		"cmpl $0, %c[launched](%% " _ASM_CX")\n\t"
+		"cmpb $0, %c[launched](%% " _ASM_CX")\n\t"
 
 		"call vmx_vmenter\n\t"
 
