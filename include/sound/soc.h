@@ -961,7 +961,8 @@ struct snd_soc_dai_link {
 	 */
 	const char *platform_name;
 	struct device_node *platform_of_node;
-	struct snd_soc_dai_link_component *platform;
+	struct snd_soc_dai_link_component *platforms;
+	unsigned int num_platforms;
 
 	int id;	/* optional ID for machine driver link identification */
 
@@ -1020,6 +1021,12 @@ struct snd_soc_dai_link {
 
 	/* Do not create a PCM for this DAI link (Backend link) */
 	unsigned int ignore:1;
+
+	/*
+	 * This driver uses legacy platform naming. Set by the core, machine
+	 * drivers should not modify this value.
+	 */
+	unsigned int legacy_platform:1;
 
 	struct list_head list; /* DAI link list of the soc card */
 	struct snd_soc_dobj dobj; /* For topology */
