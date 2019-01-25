@@ -185,7 +185,12 @@ ENTRY(__vmx_vcpu_run)
 	 * free.  RSP and RAX are exempt as RSP is restored by hardware during
 	 * VM-Exit and RAX is explicitly loaded with 0 or 1 to return VM-Fail.
 	 */
-1:
+1:	xor %ebx, %ebx
+	xor %ecx, %ecx
+	xor %edx, %edx
+	xor %esi, %esi
+	xor %edi, %edi
+	xor %ebp, %ebp
 #ifdef CONFIG_X86_64
 	xor %r8d,  %r8d
 	xor %r9d,  %r9d
@@ -196,12 +201,6 @@ ENTRY(__vmx_vcpu_run)
 	xor %r14d, %r14d
 	xor %r15d, %r15d
 #endif
-	xor %ebx, %ebx
-	xor %ecx, %ecx
-	xor %edx, %edx
-	xor %esi, %esi
-	xor %edi, %edi
-	xor %ebp, %ebp
 
 	/* "POP" @regs. */
 	add $WORD_SIZE, %_ASM_SP
