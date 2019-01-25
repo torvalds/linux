@@ -2718,6 +2718,7 @@ static int nested_vmx_check_vmentry_hw(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	unsigned long cr3, cr4;
+	bool vm_fail;
 
 	if (!nested_early_check)
 		return 0;
@@ -2763,14 +2764,18 @@ static int nested_vmx_check_vmentry_hw(struct kvm_vcpu *vcpu)
 		/* Check if vmlaunch or vmresume is needed */
 		"cmpb $0, %c[launched](%% " _ASM_CX")\n\t"
 
+		/*
+		 * VMLAUNCH and VMRESUME clear RFLAGS.{CF,ZF} on VM-Exit, set
+		 * RFLAGS.CF on VM-Fail Invalid and set RFLAGS.ZF on VM-Fail
+		 * Valid.  vmx_vmenter() directly "returns" RFLAGS, and so the
+		 * results of VM-Enter is captured via SETBE to vm_fail.
+		 */
 		"call vmx_vmenter\n\t"
 
-		/* Set vmx->fail accordingly */
-		"setbe %c[fail](%% " _ASM_CX")\n\t"
-	      : ASM_CALL_CONSTRAINT
+		"setbe %[fail]\n\t"
+	      : ASM_CALL_CONSTRAINT, [fail]"=qm"(vm_fail)
 	      : "c"(vmx), "d"((unsigned long)HOST_RSP),
 		[launched]"i"(offsetof(struct vcpu_vmx, __launched)),
-		[fail]"i"(offsetof(struct vcpu_vmx, fail)),
 		[host_rsp]"i"(offsetof(struct vcpu_vmx, host_rsp)),
 		[wordsize]"i"(sizeof(ulong))
 	      : "cc", "memory"
@@ -2783,10 +2788,9 @@ static int nested_vmx_check_vmentry_hw(struct kvm_vcpu *vcpu)
 	if (vmx->msr_autoload.guest.nr)
 		vmcs_write32(VM_ENTRY_MSR_LOAD_COUNT, vmx->msr_autoload.guest.nr);
 
-	if (vmx->fail) {
+	if (vm_fail) {
 		WARN_ON_ONCE(vmcs_read32(VM_INSTRUCTION_ERROR) !=
 			     VMXERR_ENTRY_INVALID_CONTROL_FIELD);
-		vmx->fail = 0;
 		return 1;
 	}
 
