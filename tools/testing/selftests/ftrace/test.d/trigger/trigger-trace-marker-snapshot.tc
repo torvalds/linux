@@ -33,12 +33,12 @@ test_trace() {
     x=$2
 
     cat $file | while read line; do
-	comment=`echo $line | sed -e 's/^#//'`
+	comment=`echo "$line" | sed -e 's/^#//'`
 	if [ "$line" != "$comment" ]; then
 	    continue
 	fi
 	echo "testing $line for >$x<"
-	match=`echo $line | sed -e "s/>$x<//"`
+	match=`echo "$line" | sed -e "s/>$x<//"`
 	if [ "$line" = "$match" ]; then
 	    fail "$line does not have >$x< in it"
 	fi
