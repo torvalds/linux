@@ -147,6 +147,9 @@ config ARCH_MXC
 	select ARM64_ERRATUM_843419
 	select ARM64_ERRATUM_845719
 	select IMX_GPCV2
+	select IMX_GPCV2_PM_DOMAINS
+	select PM
+	select PM_GENERIC_DOMAINS
 	help
 	  This enables support for the ARMv8 based SoCs in the
 	  NXP i.MX family.
