@@ -85,6 +85,7 @@
 #include "amdgpu_amdkfd.h"
 #include "amdgpu_smu.h"
 #include "amdgpu_discovery.h"
+#include "amdgpu_mes.h"
 
 #define MAX_GPU_INSTANCE		16
 
@@ -918,6 +919,10 @@ struct amdgpu_device {
 
 	/* discovery */
 	uint8_t				*discovery;
+
+	/* mes */
+	bool                            enable_mes;
+	struct amdgpu_mes               mes;
 
 	struct amdgpu_ip_block          ip_blocks[AMDGPU_MAX_IP_NUM];
 	int				num_ip_blocks;
