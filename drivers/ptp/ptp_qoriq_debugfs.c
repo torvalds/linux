@@ -33,8 +33,8 @@ static int ptp_qoriq_fiper1_lpbk_set(void *data, u64 val)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(ptp_qoriq_fiper1_fops, ptp_qoriq_fiper1_lpbk_get,
-			ptp_qoriq_fiper1_lpbk_set, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(ptp_qoriq_fiper1_fops, ptp_qoriq_fiper1_lpbk_get,
+			 ptp_qoriq_fiper1_lpbk_set, "%llu\n");
 
 static int ptp_qoriq_fiper2_lpbk_get(void *data, u64 *val)
 {
@@ -64,8 +64,8 @@ static int ptp_qoriq_fiper2_lpbk_set(void *data, u64 val)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(ptp_qoriq_fiper2_fops, ptp_qoriq_fiper2_lpbk_get,
-			ptp_qoriq_fiper2_lpbk_set, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(ptp_qoriq_fiper2_fops, ptp_qoriq_fiper2_lpbk_get,
+			 ptp_qoriq_fiper2_lpbk_set, "%llu\n");
 
 void ptp_qoriq_create_debugfs(struct qoriq_ptp *qoriq_ptp)
 {
@@ -79,11 +79,11 @@ void ptp_qoriq_create_debugfs(struct qoriq_ptp *qoriq_ptp)
 
 	qoriq_ptp->debugfs_root = root;
 
-	if (!debugfs_create_file("fiper1-loopback", 0600, root, qoriq_ptp,
-				 &ptp_qoriq_fiper1_fops))
+	if (!debugfs_create_file_unsafe("fiper1-loopback", 0600, root,
+					qoriq_ptp, &ptp_qoriq_fiper1_fops))
 		goto err_node;
-	if (!debugfs_create_file("fiper2-loopback", 0600, root, qoriq_ptp,
-				 &ptp_qoriq_fiper2_fops))
+	if (!debugfs_create_file_unsafe("fiper2-loopback", 0600, root,
+					qoriq_ptp, &ptp_qoriq_fiper2_fops))
 		goto err_node;
 	return;
 
