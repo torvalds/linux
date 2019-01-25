@@ -2,7 +2,7 @@
 # Makefile for the Hisilicon RoCE drivers.
 #
 
-ccflags-y :=  -Idrivers/net/ethernet/hisilicon/hns3
+ccflags-y :=  -I $(srctree)/drivers/net/ethernet/hisilicon/hns3
 
 obj-$(CONFIG_INFINIBAND_HNS) += hns-roce.o
 hns-roce-objs := hns_roce_main.o hns_roce_cmd.o hns_roce_pd.o \
