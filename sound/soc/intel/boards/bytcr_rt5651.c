@@ -922,6 +922,7 @@ static int snd_byt_rt5651_mc_probe(struct platform_device *pdev)
 	static const char * const mic_name[] = { "dmic", "in1", "in2", "in12" };
 	struct byt_rt5651_private *priv;
 	struct snd_soc_acpi_mach *mach;
+	const char *platform_name;
 	struct device *codec_dev;
 	const char *i2c_name = NULL;
 	const char *hp_swapped;
@@ -1136,6 +1137,14 @@ static int snd_byt_rt5651_mc_probe(struct platform_device *pdev)
 			"mono" : "stereo",
 		 mic_name[BYT_RT5651_MAP(byt_rt5651_quirk)], hp_swapped);
 	byt_rt5651_card.long_name = byt_rt5651_long_name;
+
+	/* override plaform name, if required */
+	platform_name = mach->mach_params.platform;
+
+	ret_val = snd_soc_fixup_dai_links_platform_name(&byt_rt5651_card,
+							platform_name);
+	if (ret_val)
+		return ret_val;
 
 	ret_val = devm_snd_soc_register_card(&pdev->dev, &byt_rt5651_card);
 
