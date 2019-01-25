@@ -30,6 +30,16 @@ struct snd_sof_pdata {
 	/* parent device */
 	struct device *dev;
 
+	/*
+	 * notification callback used if the hardware initialization
+	 * can take time or is handled in a workqueue. This callback
+	 * can be used by the parent device to e.g. enable runtime_pm
+	 * or limit functionality until all low-level inits are
+	 * complete. The device argument refers to the parent, not the
+	 * "sof-audio" device.
+	 */
+	void (*sof_probe_complete)(struct device *dev);
+
 	/* descriptor */
 	const struct sof_dev_desc *desc;
 
