@@ -2346,7 +2346,6 @@ static int __qeth_l3_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 		if (rc)
 			QETH_DBF_TEXT_(SETUP, 2, "5err%04x", rc);
 	}
-	netif_tx_disable(card->dev);
 
 	rc = qeth_init_qdio_queues(card);
 	if (rc) {
