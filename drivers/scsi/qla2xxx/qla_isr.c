@@ -834,7 +834,8 @@ skip_rio:
 			 * Restore for Physical Port only
 			 */
 			if (!vha->vp_idx) {
-				if (ha->flags.fawwpn_enabled) {
+				if (ha->flags.fawwpn_enabled &&
+				    (ha->current_topology == ISP_CFG_F)) {
 					void *wwpn = ha->init_cb->port_name;
 					memcpy(vha->port_name, wwpn, WWN_SIZE);
 					fc_host_port_name(vha->host) =
