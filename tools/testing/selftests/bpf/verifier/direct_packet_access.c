@@ -1,4 +1,18 @@
 {
+	"pkt_end - pkt_start is allowed",
+	.insns = {
+		BPF_LDX_MEM(BPF_W, BPF_REG_0, BPF_REG_1,
+			    offsetof(struct __sk_buff, data_end)),
+		BPF_LDX_MEM(BPF_W, BPF_REG_2, BPF_REG_1,
+			    offsetof(struct __sk_buff, data)),
+		BPF_ALU64_REG(BPF_SUB, BPF_REG_0, BPF_REG_2),
+		BPF_EXIT_INSN(),
+	},
+	.result = ACCEPT,
+	.retval = TEST_DATA_LEN,
+	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+},
+{
 	"direct packet access: test1",
 	.insns = {
 	BPF_LDX_MEM(BPF_W, BPF_REG_2, BPF_REG_1,

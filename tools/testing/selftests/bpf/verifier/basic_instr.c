@@ -90,3 +90,45 @@
 	},
 	.result = ACCEPT,
 },
+{
+	"invalid 64-bit BPF_END",
+	.insns = {
+	BPF_MOV32_IMM(BPF_REG_0, 0),
+	{
+		.code  = BPF_ALU64 | BPF_END | BPF_TO_LE,
+		.dst_reg = BPF_REG_0,
+		.src_reg = 0,
+		.off   = 0,
+		.imm   = 32,
+	},
+	BPF_EXIT_INSN(),
+	},
+	.errstr = "unknown opcode d7",
+	.result = REJECT,
+},
+{
+	"mov64 src == dst",
+	.insns = {
+	BPF_MOV64_IMM(BPF_REG_2, 0),
+	BPF_MOV64_REG(BPF_REG_2, BPF_REG_2),
+	// Check bounds are OK
+	BPF_ALU64_REG(BPF_ADD, BPF_REG_1, BPF_REG_2),
+	BPF_MOV64_IMM(BPF_REG_0, 0),
+	BPF_EXIT_INSN(),
+	},
+	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+	.result = ACCEPT,
+},
+{
+	"mov64 src != dst",
+	.insns = {
+	BPF_MOV64_IMM(BPF_REG_3, 0),
+	BPF_MOV64_REG(BPF_REG_2, BPF_REG_3),
+	// Check bounds are OK
+	BPF_ALU64_REG(BPF_ADD, BPF_REG_1, BPF_REG_2),
+	BPF_MOV64_IMM(BPF_REG_0, 0),
+	BPF_EXIT_INSN(),
+	},
+	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+	.result = ACCEPT,
+},

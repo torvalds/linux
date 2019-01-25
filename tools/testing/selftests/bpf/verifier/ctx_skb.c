@@ -999,3 +999,35 @@
 	.result = ACCEPT,
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 },
+{
+	"check wire_len is not readable by sockets",
+	.insns = {
+		BPF_LDX_MEM(BPF_W, BPF_REG_0, BPF_REG_1,
+			    offsetof(struct __sk_buff, wire_len)),
+		BPF_EXIT_INSN(),
+	},
+	.errstr = "invalid bpf_context access",
+	.result = REJECT,
+},
+{
+	"check wire_len is readable by tc classifier",
+	.insns = {
+		BPF_LDX_MEM(BPF_W, BPF_REG_0, BPF_REG_1,
+			    offsetof(struct __sk_buff, wire_len)),
+		BPF_EXIT_INSN(),
+	},
+	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+	.result = ACCEPT,
+},
+{
+	"check wire_len is not writable by tc classifier",
+	.insns = {
+		BPF_STX_MEM(BPF_W, BPF_REG_1, BPF_REG_1,
+			    offsetof(struct __sk_buff, wire_len)),
+		BPF_EXIT_INSN(),
+	},
+	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+	.errstr = "invalid bpf_context access",
+	.errstr_unpriv = "R1 leaks addr",
+	.result = REJECT,
+},
