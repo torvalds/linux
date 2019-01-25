@@ -3455,6 +3455,7 @@ static int tcp_send_syn_data(struct sock *sk, struct sk_buff *syn)
 			skb_trim(syn_data, copied);
 			space = copied;
 		}
+		skb_zcopy_set(syn_data, fo->uarg, NULL);
 	}
 	/* No more data pending in inet_wait_for_connect() */
 	if (space == fo->size)
