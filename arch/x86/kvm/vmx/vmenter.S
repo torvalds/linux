@@ -81,7 +81,7 @@ ENTRY(vmx_vmexit)
 ENDPROC(vmx_vmexit)
 
 /**
- * ____vmx_vcpu_run - Run a vCPU via a transition to VMX guest mode
+ * __vmx_vcpu_run - Run a vCPU via a transition to VMX guest mode
  * @vmx:	struct vcpu_vmx *
  * @regs:	unsigned long * (to guest registers)
  * %RBX:	VMCS launched status (non-zero indicates already launched)
@@ -89,7 +89,7 @@ ENDPROC(vmx_vmexit)
  * Returns:
  *	%RBX is 0 on VM-Exit, 1 on VM-Fail
  */
-ENTRY(____vmx_vcpu_run)
+ENTRY(__vmx_vcpu_run)
 	push %_ASM_BP
 	mov  %_ASM_SP, %_ASM_BP
 
@@ -198,4 +198,4 @@ ENTRY(____vmx_vcpu_run)
 	/* VM-Fail.  Out-of-line to avoid a taken Jcc after VM-Exit. */
 2:	mov $1, %ebx
 	jmp 1b
-ENDPROC(____vmx_vcpu_run)
+ENDPROC(__vmx_vcpu_run)

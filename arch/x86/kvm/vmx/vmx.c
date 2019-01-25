@@ -6445,7 +6445,7 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu)
 		write_cr2(vcpu->arch.cr2);
 
 	asm(
-		"call ____vmx_vcpu_run \n\t"
+		"call __vmx_vcpu_run \n\t"
 	      : ASM_CALL_CONSTRAINT, "=b"(vmx->fail),
 #ifdef CONFIG_X86_64
 		"=D"((int){0}), "=S"((int){0})
