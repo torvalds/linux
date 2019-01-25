@@ -3645,23 +3645,22 @@ qla24xx_prlo_iocb(srb_t *sp, struct logio_entry_24xx *logio)
 int
 qla2x00_start_sp(srb_t *sp)
 {
-	int rval;
+	int rval = QLA_SUCCESS;
 	scsi_qla_host_t *vha = sp->vha;
 	struct qla_hw_data *ha = vha->hw;
 	struct qla_qpair *qp = sp->qpair;
 	void *pkt;
 	unsigned long flags;
 
-	rval = QLA_FUNCTION_FAILED;
 	spin_lock_irqsave(qp->qp_lock_ptr, flags);
 	pkt = __qla2x00_alloc_iocbs(sp->qpair, sp);
 	if (!pkt) {
+		rval = EAGAIN;
 		ql_log(ql_log_warn, vha, 0x700c,
 		    "qla2x00_alloc_iocbs failed.\n");
 		goto done;
 	}
 
-	rval = QLA_SUCCESS;
 	switch (sp->type) {
 	case SRB_LOGIN_CMD:
 		IS_FWI2_CAPABLE(ha) ?
