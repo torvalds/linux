@@ -3834,6 +3834,8 @@ static int kvm_vcpu_ioctl_enable_cap(struct kvm_vcpu *vcpu,
 	case KVM_CAP_HYPERV_SYNIC2:
 		if (cap->args[0])
 			return -EINVAL;
+		/* fall through */
+
 	case KVM_CAP_HYPERV_SYNIC:
 		if (!irqchip_in_kernel(vcpu->kvm))
 			return -EINVAL;
@@ -7936,6 +7938,7 @@ static inline int vcpu_block(struct kvm *kvm, struct kvm_vcpu *vcpu)
 		vcpu->arch.pv.pv_unhalted = false;
 		vcpu->arch.mp_state =
 			KVM_MP_STATE_RUNNABLE;
+		/* fall through */
 	case KVM_MP_STATE_RUNNABLE:
 		vcpu->arch.apf.halted = false;
 		break;

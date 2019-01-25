@@ -1773,7 +1773,7 @@ static int vmx_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		if (!msr_info->host_initiated &&
 		    !guest_cpuid_has(vcpu, X86_FEATURE_RDTSCP))
 			return 1;
-		/* Otherwise falls through */
+		/* Else, falls through */
 	default:
 		msr = find_msr_entry(vmx, msr_info->index);
 		if (msr) {
@@ -2014,7 +2014,7 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		/* Check reserved bit, higher 32 bits should be zero */
 		if ((data >> 32) != 0)
 			return 1;
-		/* Otherwise falls through */
+		/* Else, falls through */
 	default:
 		msr = find_msr_entry(vmx, msr_index);
 		if (msr) {

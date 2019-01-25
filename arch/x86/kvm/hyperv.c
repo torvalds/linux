@@ -1636,7 +1636,7 @@ int kvm_hv_hypercall(struct kvm_vcpu *vcpu)
 		ret = kvm_hvcall_signal_event(vcpu, fast, ingpa);
 		if (ret != HV_STATUS_INVALID_PORT_ID)
 			break;
-		/* maybe userspace knows this conn_id: fall through */
+		/* fall through - maybe userspace knows this conn_id. */
 	case HVCALL_POST_MESSAGE:
 		/* don't bother userspace if it has no way to handle it */
 		if (unlikely(rep || !vcpu_to_synic(vcpu)->active)) {
