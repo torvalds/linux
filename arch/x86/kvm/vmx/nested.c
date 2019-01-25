@@ -2793,7 +2793,7 @@ static int nested_vmx_check_vmentry_hw(struct kvm_vcpu *vcpu)
 		[fail]"i"(offsetof(struct vcpu_vmx, fail)),
 		[host_rsp]"i"(offsetof(struct vcpu_vmx, host_rsp)),
 		[wordsize]"i"(sizeof(ulong))
-	      : "rax", "cc", "memory"
+	      : "cc", "memory"
 	);
 
 	preempt_enable();
