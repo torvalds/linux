@@ -1712,6 +1712,23 @@ static int smu_v11_0_dpm_set_vce_enable(struct smu_context *smu, bool enable)
 	return smu_feature_set_enabled(smu, FEATURE_DPM_UVD_BIT, enable);
 }
 
+static int smu_v11_0_get_current_rpm(struct smu_context *smu,
+				     uint32_t *current_rpm)
+{
+	int ret;
+
+	ret = smu_send_smc_msg(smu, SMU_MSG_GetCurrentRpm);
+
+	if (ret) {
+		pr_err("Attempt to get current RPM from SMC Failed!\n");
+		return ret;
+	}
+
+	smu_read_smc_arg(smu, current_rpm);
+
+	return 0;
+}
+
 static const struct smu_funcs smu_v11_0_funcs = {
 	.init_microcode = smu_v11_0_init_microcode,
 	.load_microcode = smu_v11_0_load_microcode,
@@ -1761,7 +1778,7 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.update_od8_settings = smu_v11_0_update_od8_settings,
 	.dpm_set_uvd_enable = smu_v11_0_dpm_set_uvd_enable,
 	.dpm_set_vce_enable = smu_v11_0_dpm_set_vce_enable,
-
+	.get_current_rpm = smu_v11_0_get_current_rpm,
 };
 
 void smu_v11_0_set_smu_funcs(struct smu_context *smu)

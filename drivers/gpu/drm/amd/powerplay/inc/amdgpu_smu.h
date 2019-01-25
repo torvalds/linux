@@ -530,6 +530,7 @@ struct smu_funcs
 	int (*dpm_set_vce_enable)(struct smu_context *smu, bool enable);
 	uint32_t (*get_sclk)(struct smu_context *smu, bool low);
 	uint32_t (*get_mclk)(struct smu_context *smu, bool low);
+	int (*get_current_rpm)(struct smu_context *smu, uint32_t *speed);
 };
 
 #define smu_init_microcode(smu) \
@@ -580,6 +581,8 @@ struct smu_funcs
 	((smu)->funcs->set_od8_default_settings ? (smu)->funcs->set_od8_default_settings((smu)) : 0)
 #define smu_update_od8_settings(smu, index, value) \
 	((smu)->funcs->update_od8_settings ? (smu)->funcs->update_od8_settings((smu), (index), (value)) : 0)
+#define smu_get_current_rpm(smu, speed) \
+	((smu)->funcs->get_current_rpm ? (smu)->funcs->get_current_rpm((smu), (speed)) : 0)
 #define smu_send_smc_msg(smu, msg) \
 	((smu)->funcs->send_smc_msg? (smu)->funcs->send_smc_msg((smu), (msg)) : 0)
 #define smu_send_smc_msg_with_param(smu, msg, param) \

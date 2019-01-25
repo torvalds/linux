@@ -1503,7 +1503,11 @@ static ssize_t amdgpu_hwmon_get_fan1_input(struct device *dev,
 	     (adev->ddev->switch_power_state != DRM_SWITCH_POWER_ON))
 		return -EINVAL;
 
-	if (adev->powerplay.pp_funcs->get_fan_speed_rpm) {
+	if (is_support_sw_smu(adev)) {
+		err = smu_get_current_rpm(&adev->smu, &speed);
+		if (err)
+			return err;
+	} else if (adev->powerplay.pp_funcs->get_fan_speed_rpm) {
 		err = amdgpu_dpm_get_fan_speed_rpm(adev, &speed);
 		if (err)
 			return err;
@@ -1559,7 +1563,11 @@ static ssize_t amdgpu_hwmon_get_fan1_target(struct device *dev,
 	     (adev->ddev->switch_power_state != DRM_SWITCH_POWER_ON))
 		return -EINVAL;
 
-	if (adev->powerplay.pp_funcs->get_fan_speed_rpm) {
+	if (is_support_sw_smu(adev)) {
+		err = smu_get_current_rpm(&adev->smu, &rpm);
+		if (err)
+			return err;
+	} else if (adev->powerplay.pp_funcs->get_fan_speed_rpm) {
 		err = amdgpu_dpm_get_fan_speed_rpm(adev, &rpm);
 		if (err)
 			return err;
