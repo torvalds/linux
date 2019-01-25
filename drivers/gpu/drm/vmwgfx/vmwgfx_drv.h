@@ -1337,9 +1337,7 @@ static inline void vmw_bo_unreference(struct vmw_buffer_object **buf)
 
 	*buf = NULL;
 	if (tmp_buf != NULL) {
-		struct ttm_buffer_object *bo = &tmp_buf->base;
-
-		ttm_bo_unref(&bo);
+		ttm_bo_put(&tmp_buf->base);
 	}
 }
 

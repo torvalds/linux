@@ -485,7 +485,8 @@ vmw_resource_check_buffer(struct ww_acquire_ctx *ticket,
 out_no_validate:
 	ttm_eu_backoff_reservation(ticket, &val_list);
 out_no_reserve:
-	ttm_bo_unref(&val_buf->bo);
+	ttm_bo_put(val_buf->bo);
+	val_buf->bo = NULL;
 	if (backup_dirty)
 		vmw_bo_unreference(&res->backup);
 
@@ -545,7 +546,8 @@ vmw_resource_backoff_reservation(struct ww_acquire_ctx *ticket,
 	INIT_LIST_HEAD(&val_list);
 	list_add_tail(&val_buf->head, &val_list);
 	ttm_eu_backoff_reservation(ticket, &val_list);
-	ttm_bo_unref(&val_buf->bo);
+	ttm_bo_put(val_buf->bo);
+	val_buf->bo = NULL;
 }
 
 /**
