@@ -52,7 +52,8 @@ enum amd_ip_block_type {
 	AMD_IP_BLOCK_TYPE_UVD,
 	AMD_IP_BLOCK_TYPE_VCE,
 	AMD_IP_BLOCK_TYPE_ACP,
-	AMD_IP_BLOCK_TYPE_VCN
+	AMD_IP_BLOCK_TYPE_VCN,
+	AMD_IP_BLOCK_TYPE_MES
 };
 
 enum amd_clockgating_state {

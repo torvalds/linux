@@ -120,6 +120,10 @@ amdgpu-y += \
 	sdma_v4_0.o \
 	sdma_v5_0.o
 
+# add MES block
+amdgpu-y += \
+	mes_v10_1.o
+
 # add UVD block
 amdgpu-y += \
 	amdgpu_uvd.o \
