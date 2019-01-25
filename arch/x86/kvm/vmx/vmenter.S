@@ -103,31 +103,31 @@ ENTRY(__vmx_vcpu_run)
 	lea -WORD_SIZE(%_ASM_SP), %_ASM_ARG2
 	call vmx_update_host_rsp
 
-	/* Load @regs to RCX. */
-	mov (%_ASM_SP), %_ASM_CX
+	/* Load @regs to RAX. */
+	mov (%_ASM_SP), %_ASM_AX
 
 	/* Check if vmlaunch or vmresume is needed */
 	cmpb $0, %bl
 
 	/* Load guest registers.  Don't clobber flags. */
-	mov VCPU_RAX(%_ASM_CX), %_ASM_AX
-	mov VCPU_RBX(%_ASM_CX), %_ASM_BX
-	mov VCPU_RDX(%_ASM_CX), %_ASM_DX
-	mov VCPU_RSI(%_ASM_CX), %_ASM_SI
-	mov VCPU_RDI(%_ASM_CX), %_ASM_DI
-	mov VCPU_RBP(%_ASM_CX), %_ASM_BP
+	mov VCPU_RBX(%_ASM_AX), %_ASM_BX
+	mov VCPU_RCX(%_ASM_AX), %_ASM_CX
+	mov VCPU_RDX(%_ASM_AX), %_ASM_DX
+	mov VCPU_RSI(%_ASM_AX), %_ASM_SI
+	mov VCPU_RDI(%_ASM_AX), %_ASM_DI
+	mov VCPU_RBP(%_ASM_AX), %_ASM_BP
 #ifdef CONFIG_X86_64
-	mov VCPU_R8 (%_ASM_CX),  %r8
-	mov VCPU_R9 (%_ASM_CX),  %r9
-	mov VCPU_R10(%_ASM_CX), %r10
-	mov VCPU_R11(%_ASM_CX), %r11
-	mov VCPU_R12(%_ASM_CX), %r12
-	mov VCPU_R13(%_ASM_CX), %r13
-	mov VCPU_R14(%_ASM_CX), %r14
-	mov VCPU_R15(%_ASM_CX), %r15
+	mov VCPU_R8 (%_ASM_AX),  %r8
+	mov VCPU_R9 (%_ASM_AX),  %r9
+	mov VCPU_R10(%_ASM_AX), %r10
+	mov VCPU_R11(%_ASM_AX), %r11
+	mov VCPU_R12(%_ASM_AX), %r12
+	mov VCPU_R13(%_ASM_AX), %r13
+	mov VCPU_R14(%_ASM_AX), %r14
+	mov VCPU_R15(%_ASM_AX), %r15
 #endif
-	/* Load guest RCX.  This kills the vmx_vcpu pointer! */
-	mov VCPU_RCX(%_ASM_CX), %_ASM_CX
+	/* Load guest RAX.  This kills the vmx_vcpu pointer! */
+	mov VCPU_RAX(%_ASM_AX), %_ASM_AX
 
 	/* Enter guest mode */
 	call vmx_vmenter
@@ -135,29 +135,29 @@ ENTRY(__vmx_vcpu_run)
 	/* Jump on VM-Fail. */
 	jbe 2f
 
-	/* Temporarily save guest's RCX. */
-	push %_ASM_CX
+	/* Temporarily save guest's RAX. */
+	push %_ASM_AX
 
-	/* Reload @regs to RCX. */
-	mov WORD_SIZE(%_ASM_SP), %_ASM_CX
+	/* Reload @regs to RAX. */
+	mov WORD_SIZE(%_ASM_SP), %_ASM_AX
 
-	/* Save all guest registers, including RCX from the stack */
-	mov %_ASM_AX,   VCPU_RAX(%_ASM_CX)
-	mov %_ASM_BX,   VCPU_RBX(%_ASM_CX)
-	__ASM_SIZE(pop) VCPU_RCX(%_ASM_CX)
-	mov %_ASM_DX,   VCPU_RDX(%_ASM_CX)
-	mov %_ASM_SI,   VCPU_RSI(%_ASM_CX)
-	mov %_ASM_DI,   VCPU_RDI(%_ASM_CX)
-	mov %_ASM_BP,   VCPU_RBP(%_ASM_CX)
+	/* Save all guest registers, including RAX from the stack */
+	__ASM_SIZE(pop) VCPU_RAX(%_ASM_AX)
+	mov %_ASM_BX,   VCPU_RBX(%_ASM_AX)
+	mov %_ASM_CX,   VCPU_RCX(%_ASM_AX)
+	mov %_ASM_DX,   VCPU_RDX(%_ASM_AX)
+	mov %_ASM_SI,   VCPU_RSI(%_ASM_AX)
+	mov %_ASM_DI,   VCPU_RDI(%_ASM_AX)
+	mov %_ASM_BP,   VCPU_RBP(%_ASM_AX)
 #ifdef CONFIG_X86_64
-	mov %r8,  VCPU_R8 (%_ASM_CX)
-	mov %r9,  VCPU_R9 (%_ASM_CX)
-	mov %r10, VCPU_R10(%_ASM_CX)
-	mov %r11, VCPU_R11(%_ASM_CX)
-	mov %r12, VCPU_R12(%_ASM_CX)
-	mov %r13, VCPU_R13(%_ASM_CX)
-	mov %r14, VCPU_R14(%_ASM_CX)
-	mov %r15, VCPU_R15(%_ASM_CX)
+	mov %r8,  VCPU_R8 (%_ASM_AX)
+	mov %r9,  VCPU_R9 (%_ASM_AX)
+	mov %r10, VCPU_R10(%_ASM_AX)
+	mov %r11, VCPU_R11(%_ASM_AX)
+	mov %r12, VCPU_R12(%_ASM_AX)
+	mov %r13, VCPU_R13(%_ASM_AX)
+	mov %r14, VCPU_R14(%_ASM_AX)
+	mov %r15, VCPU_R15(%_ASM_AX)
 #endif
 
 	/* Clear EBX to indicate VM-Exit (as opposed to VM-Fail). */
