@@ -48,13 +48,19 @@ int iscsit_dump_data_payload(
 	u32 buf_len,
 	int dump_padding_digest)
 {
-	char *buf, pad_bytes[4];
+	char *buf;
 	int ret = DATAOUT_WITHIN_COMMAND_RECOVERY, rx_got;
-	u32 length, padding, offset = 0, size;
+	u32 length, offset = 0, size;
 	struct kvec iov;
 
 	if (conn->sess->sess_ops->RDMAExtensions)
 		return 0;
+
+	if (dump_padding_digest) {
+		buf_len = ALIGN(buf_len, 4);
+		if (conn->conn_ops->DataDigest)
+			buf_len += ISCSI_CRC_LEN;
+	}
 
 	length = min(buf_len, OFFLOAD_BUF_SIZE);
 
@@ -75,41 +81,12 @@ int iscsit_dump_data_payload(
 		rx_got = rx_data(conn, &iov, 1, size);
 		if (rx_got != size) {
 			ret = DATAOUT_CANNOT_RECOVER;
-			goto out;
+			break;
 		}
 
 		offset += size;
 	}
 
-	if (!dump_padding_digest)
-		goto out;
-
-	padding = ((-buf_len) & 3);
-	if (padding != 0) {
-		iov.iov_len = padding;
-		iov.iov_base = pad_bytes;
-
-		rx_got = rx_data(conn, &iov, 1, padding);
-		if (rx_got != padding) {
-			ret = DATAOUT_CANNOT_RECOVER;
-			goto out;
-		}
-	}
-
-	if (conn->conn_ops->DataDigest) {
-		u32 data_crc;
-
-		iov.iov_len = ISCSI_CRC_LEN;
-		iov.iov_base = &data_crc;
-
-		rx_got = rx_data(conn, &iov, 1, ISCSI_CRC_LEN);
-		if (rx_got != ISCSI_CRC_LEN) {
-			ret = DATAOUT_CANNOT_RECOVER;
-			goto out;
-		}
-	}
-
-out:
 	kfree(buf);
 	return ret;
 }
