@@ -230,7 +230,13 @@ struct rcu_data {
 					/* Leader CPU takes GP-end wakeups. */
 #endif /* #ifdef CONFIG_RCU_NOCB_CPU */
 
-	/* 6) Diagnostic data, including RCU CPU stall warnings. */
+	/* 6) RCU priority boosting. */
+	struct task_struct *rcu_cpu_kthread_task;
+					/* rcuc per-CPU kthread or NULL. */
+	unsigned int rcu_cpu_kthread_status;
+	char rcu_cpu_has_work;
+
+	/* 7) Diagnostic data, including RCU CPU stall warnings. */
 	unsigned int softirq_snap;	/* Snapshot of softirq activity. */
 	/* ->rcu_iw* fields protected by leaf rcu_node ->lock. */
 	struct irq_work rcu_iw;		/* Check for non-irq activity. */
@@ -299,6 +305,8 @@ struct rcu_state {
 	struct swait_queue_head gp_wq;		/* Where GP task waits. */
 	short gp_flags;				/* Commands for GP task. */
 	short gp_state;				/* GP kthread sleep state. */
+	unsigned long gp_wake_time;		/* Last GP kthread wake. */
+	unsigned long gp_wake_seq;		/* ->gp_seq at ^^^. */
 
 	/* End of fields guarded by root rcu_node's lock. */
 
@@ -397,13 +405,6 @@ static const char *tp_rcu_varname __used __tracepoint_string = rcu_name;
 #endif /* #else #ifdef CONFIG_TRACING */
 
 int rcu_dynticks_snap(struct rcu_data *rdp);
-
-#ifdef CONFIG_RCU_BOOST
-DECLARE_PER_CPU(unsigned int, rcu_cpu_kthread_status);
-DECLARE_PER_CPU(int, rcu_cpu_kthread_cpu);
-DECLARE_PER_CPU(unsigned int, rcu_cpu_kthread_loops);
-DECLARE_PER_CPU(char, rcu_cpu_has_work);
-#endif /* #ifdef CONFIG_RCU_BOOST */
 
 /* Forward declarations for rcutree_plugin.h */
 static void rcu_bootup_announce(void);

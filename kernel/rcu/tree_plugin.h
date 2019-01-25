@@ -34,17 +34,7 @@
 #include "../time/tick-internal.h"
 
 #ifdef CONFIG_RCU_BOOST
-
 #include "../locking/rtmutex_common.h"
-
-/*
- * Control variables for per-CPU and per-rcu_node kthreads.
- */
-static DEFINE_PER_CPU(struct task_struct *, rcu_cpu_kthread_task);
-DEFINE_PER_CPU(unsigned int, rcu_cpu_kthread_status);
-DEFINE_PER_CPU(unsigned int, rcu_cpu_kthread_loops);
-DEFINE_PER_CPU(char, rcu_cpu_has_work);
-
 #else /* #ifdef CONFIG_RCU_BOOST */
 
 /*
@@ -1243,11 +1233,11 @@ static void invoke_rcu_callbacks_kthread(void)
 	unsigned long flags;
 
 	local_irq_save(flags);
-	__this_cpu_write(rcu_cpu_has_work, 1);
-	if (__this_cpu_read(rcu_cpu_kthread_task) != NULL &&
-	    current != __this_cpu_read(rcu_cpu_kthread_task)) {
-		rcu_wake_cond(__this_cpu_read(rcu_cpu_kthread_task),
-			      __this_cpu_read(rcu_cpu_kthread_status));
+	__this_cpu_write(rcu_data.rcu_cpu_has_work, 1);
+	if (__this_cpu_read(rcu_data.rcu_cpu_kthread_task) != NULL &&
+	    current != __this_cpu_read(rcu_data.rcu_cpu_kthread_task)) {
+		rcu_wake_cond(__this_cpu_read(rcu_data.rcu_cpu_kthread_task),
+			      __this_cpu_read(rcu_data.rcu_cpu_kthread_status));
 	}
 	local_irq_restore(flags);
 }
@@ -1258,7 +1248,7 @@ static void invoke_rcu_callbacks_kthread(void)
  */
 static bool rcu_is_callbacks_kthread(void)
 {
-	return __this_cpu_read(rcu_cpu_kthread_task) == current;
+	return __this_cpu_read(rcu_data.rcu_cpu_kthread_task) == current;
 }
 
 #define RCU_BOOST_DELAY_JIFFIES DIV_ROUND_UP(CONFIG_RCU_BOOST_DELAY * HZ, 1000)
@@ -1315,12 +1305,12 @@ static void rcu_cpu_kthread_setup(unsigned int cpu)
 
 static void rcu_cpu_kthread_park(unsigned int cpu)
 {
-	per_cpu(rcu_cpu_kthread_status, cpu) = RCU_KTHREAD_OFFCPU;
+	per_cpu(rcu_data.rcu_cpu_kthread_status, cpu) = RCU_KTHREAD_OFFCPU;
 }
 
 static int rcu_cpu_kthread_should_run(unsigned int cpu)
 {
-	return __this_cpu_read(rcu_cpu_has_work);
+	return __this_cpu_read(rcu_data.rcu_cpu_has_work);
 }
 
 /*
@@ -1330,15 +1320,14 @@ static int rcu_cpu_kthread_should_run(unsigned int cpu)
  */
 static void rcu_cpu_kthread(unsigned int cpu)
 {
-	unsigned int *statusp = this_cpu_ptr(&rcu_cpu_kthread_status);
-	char work, *workp = this_cpu_ptr(&rcu_cpu_has_work);
+	unsigned int *statusp = this_cpu_ptr(&rcu_data.rcu_cpu_kthread_status);
+	char work, *workp = this_cpu_ptr(&rcu_data.rcu_cpu_has_work);
 	int spincnt;
 
 	for (spincnt = 0; spincnt < 10; spincnt++) {
 		trace_rcu_utilization(TPS("Start CPU kthread@rcu_wait"));
 		local_bh_disable();
 		*statusp = RCU_KTHREAD_RUNNING;
-		this_cpu_inc(rcu_cpu_kthread_loops);
 		local_irq_disable();
 		work = *workp;
 		*workp = 0;
@@ -1390,7 +1379,7 @@ static void rcu_boost_kthread_setaffinity(struct rcu_node *rnp, int outgoingcpu)
 }
 
 static struct smp_hotplug_thread rcu_cpu_thread_spec = {
-	.store			= &rcu_cpu_kthread_task,
+	.store			= &rcu_data.rcu_cpu_kthread_task,
 	.thread_should_run	= rcu_cpu_kthread_should_run,
 	.thread_fn		= rcu_cpu_kthread,
 	.thread_comm		= "rcuc/%u",
@@ -1407,7 +1396,7 @@ static void __init rcu_spawn_boost_kthreads(void)
 	int cpu;
 
 	for_each_possible_cpu(cpu)
-		per_cpu(rcu_cpu_has_work, cpu) = 0;
+		per_cpu(rcu_data.rcu_cpu_has_work, cpu) = 0;
 	if (WARN_ONCE(smpboot_register_percpu_thread(&rcu_cpu_thread_spec), "%s: Could not start rcub kthread, OOM is now expected behavior\n", __func__))
 		return;
 	rcu_for_each_leaf_node(rnp)
@@ -1773,22 +1762,24 @@ static void zero_cpu_stall_ticks(struct rcu_data *rdp)
 
 /*
  * Offload callback processing from the boot-time-specified set of CPUs
- * specified by rcu_nocb_mask.  For each CPU in the set, there is a
- * kthread created that pulls the callbacks from the corresponding CPU,
- * waits for a grace period to elapse, and invokes the callbacks.
- * The no-CBs CPUs do a wake_up() on their kthread when they insert
- * a callback into any empty list, unless the rcu_nocb_poll boot parameter
- * has been specified, in which case each kthread actively polls its
- * CPU.  (Which isn't so great for energy efficiency, but which does
- * reduce RCU's overhead on that CPU.)
+ * specified by rcu_nocb_mask.  For the CPUs in the set, there are kthreads
+ * created that pull the callbacks from the corresponding CPU, wait for
+ * a grace period to elapse, and invoke the callbacks.  These kthreads
+ * are organized into leaders, which manage incoming callbacks, wait for
+ * grace periods, and awaken followers, and the followers, which only
+ * invoke callbacks.  Each leader is its own follower.  The no-CBs CPUs
+ * do a wake_up() on their kthread when they insert a callback into any
+ * empty list, unless the rcu_nocb_poll boot parameter has been specified,
+ * in which case each kthread actively polls its CPU.  (Which isn't so great
+ * for energy efficiency, but which does reduce RCU's overhead on that CPU.)
  *
  * This is intended to be used in conjunction with Frederic Weisbecker's
  * adaptive-idle work, which would seriously reduce OS jitter on CPUs
  * running CPU-bound user-mode computations.
  *
- * Offloading of callback processing could also in theory be used as
- * an energy-efficiency measure because CPUs with no RCU callbacks
- * queued are more aggressive about entering dyntick-idle mode.
+ * Offloading of callbacks can also be used as an energy-efficiency
+ * measure because CPUs with no RCU callbacks queued are more aggressive
+ * about entering dyntick-idle mode.
  */
 
 
@@ -1892,10 +1883,7 @@ static void wake_nocb_leader_defer(struct rcu_data *rdp, int waketype,
 	raw_spin_unlock_irqrestore(&rdp->nocb_lock, flags);
 }
 
-/*
- * Does the specified CPU need an RCU callback for this invocation
- * of rcu_barrier()?
- */
+/* Does rcu_barrier need to queue an RCU callback on the specified CPU?  */
 static bool rcu_nocb_cpu_needs_barrier(int cpu)
 {
 	struct rcu_data *rdp = per_cpu_ptr(&rcu_data, cpu);
@@ -1911,8 +1899,8 @@ static bool rcu_nocb_cpu_needs_barrier(int cpu)
 	 * callbacks would be posted.  In the worst case, the first
 	 * barrier in rcu_barrier() suffices (but the caller cannot
 	 * necessarily rely on this, not a substitute for the caller
-	 * getting the concurrency design right!).  There must also be
-	 * a barrier between the following load an posting of a callback
+	 * getting the concurrency design right!).  There must also be a
+	 * barrier between the following load and posting of a callback
 	 * (if a callback is in fact needed).  This is associated with an
 	 * atomic_inc() in the caller.
 	 */
