@@ -2096,15 +2096,16 @@ wdata_send_pages(struct TCP_Server_Info *server, struct cifs_writedata *wdata,
 	if (rc)
 		goto send_pages_out;
 
-	if (wdata->cfile != NULL)
-		cifsFileInfo_put(wdata->cfile);
-	wdata->cfile = find_writable_file(CIFS_I(mapping->host), false);
 	if (!wdata->cfile) {
-		cifs_dbg(VFS, "No writable handles for inode\n");
+		cifs_dbg(VFS, "No writable handle in writepages\n");
 		rc = -EBADF;
 	} else {
 		wdata->pid = wdata->cfile->pid;
-		rc = server->ops->async_writev(wdata, cifs_writedata_release);
+		if (wdata->cfile->invalidHandle)
+			rc = -EAGAIN;
+		else
+			rc = server->ops->async_writev(wdata,
+						       cifs_writedata_release);
 	}
 
 send_pages_out:
@@ -2117,11 +2118,13 @@ send_pages_out:
 static int cifs_writepages(struct address_space *mapping,
 			   struct writeback_control *wbc)
 {
-	struct cifs_sb_info *cifs_sb = CIFS_SB(mapping->host->i_sb);
+	struct inode *inode = mapping->host;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct TCP_Server_Info *server;
 	bool done = false, scanned = false, range_whole = false;
 	pgoff_t end, index;
 	struct cifs_writedata *wdata;
+	struct cifsFileInfo *cfile = NULL;
 	int rc = 0;
 	int saved_rc = 0;
 	unsigned int xid;
@@ -2151,6 +2154,11 @@ retry:
 		pgoff_t next = 0, tofind, saved_index = index;
 		struct cifs_credits credits_on_stack;
 		struct cifs_credits *credits = &credits_on_stack;
+
+		if (cfile)
+			cifsFileInfo_put(cfile);
+
+		cfile = find_writable_file(CIFS_I(inode), false);
 
 		rc = server->ops->wait_mtu_credits(server, cifs_sb->wsize,
 						   &wsize, credits);
@@ -2187,6 +2195,8 @@ retry:
 		}
 
 		wdata->credits = credits_on_stack;
+		wdata->cfile = cfile;
+		cfile = NULL;
 
 		rc = wdata_send_pages(server, wdata, nr_pages, mapping, wbc);
 
@@ -2244,6 +2254,8 @@ retry:
 	if (wbc->range_cyclic || (range_whole && wbc->nr_to_write > 0))
 		mapping->writeback_index = index;
 
+	if (cfile)
+		cifsFileInfo_put(cfile);
 	free_xid(xid);
 	return rc;
 }
