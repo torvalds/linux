@@ -410,6 +410,7 @@ static void remove_enum(struct snd_soc_component *comp,
 	kfree(dobj->control.dvalues);
 	for (i = 0; i < se->items; i++)
 		kfree(dobj->control.dtexts[i]);
+	kfree(dobj->control.dtexts);
 	kfree(se);
 }
 
@@ -467,6 +468,7 @@ static void remove_widget(struct snd_soc_component *comp,
 			kfree(dobj->control.dvalues);
 			for (j = 0; j < se->items; j++)
 				kfree(dobj->control.dtexts[j]);
+			kfree(dobj->control.dtexts);
 
 			kfree(se);
 			kfree(w->kcontrol_news[i].name);
@@ -1361,6 +1363,7 @@ err_se:
 		kfree(se->dobj.control.dvalues);
 		for (j = 0; j < ec->items; j++)
 			kfree(se->dobj.control.dtexts[j]);
+		kfree(se->dobj.control.dtexts);
 
 		kfree(se);
 		kfree(kc[i].name);
