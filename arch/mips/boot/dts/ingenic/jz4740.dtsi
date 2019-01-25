@@ -132,6 +132,24 @@
 		};
 	};
 
+	mmc: mmc@10021000 {
+		compatible = "ingenic,jz4740-mmc";
+		reg = <0x10021000 0x1000>;
+
+		clocks = <&cgu JZ4740_CLK_MMC>;
+		clock-names = "mmc";
+
+		interrupt-parent = <&intc>;
+		interrupts = <14>;
+
+		dmas = <&dmac 27 0xffffffff>, <&dmac 26 0xffffffff>;
+		dma-names = "rx", "tx";
+
+		cap-sd-highspeed;
+		cap-mmc-highspeed;
+		cap-sdio-irq;
+	};
+
 	uart0: serial@10030000 {
 		compatible = "ingenic,jz4740-uart";
 		reg = <0x10030000 0x100>;
@@ -164,9 +182,6 @@
 		interrupts = <20>;
 
 		clocks = <&cgu JZ4740_CLK_DMA>;
-
-		/* Disable dmac until we have something that uses it */
-		status = "disabled";
 	};
 
 	uhc: uhc@13030000 {
