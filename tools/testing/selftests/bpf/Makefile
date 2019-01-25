@@ -212,4 +212,17 @@ ifeq ($(DWARF2BTF),y)
 	$(BTF_PAHOLE) -J $@
 endif
 
+$(OUTPUT)/test_verifier: $(OUTPUT)/verifier/tests.h
+$(OUTPUT)/test_verifier: CFLAGS += -I$(OUTPUT)
+
+VERIFIER_TEST_FILES := $(wildcard verifier/*.c)
+$(OUTPUT)/verifier/tests.h: $(VERIFIER_TEST_FILES)
+	$(shell ( cd verifier/
+		  echo '/* Generated header, do not edit */'; \
+		  echo '#ifdef FILL_ARRAY'; \
+		  ls *.c 2> /dev/null | \
+			sed -e 's@\(.*\)@#include \"\1\"@'; \
+		  echo '#endif' \
+		 ) > $(OUTPUT)/verifier/tests.h)
+
 EXTRA_CLEAN := $(TEST_CUSTOM_PROGS) $(ALU32_BUILD_DIR)
