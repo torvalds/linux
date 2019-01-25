@@ -741,11 +741,6 @@ struct qeth_discipline {
 					struct qeth_ipa_cmd *cmd);
 };
 
-struct qeth_vlan_vid {
-	struct list_head list;
-	unsigned short vid;
-};
-
 enum qeth_addr_disposition {
 	QETH_DISP_ADDR_DELETE = 0,
 	QETH_DISP_ADDR_DO_NOTHING = 1,
@@ -792,8 +787,6 @@ struct qeth_card {
 	wait_queue_head_t wait_q;
 	spinlock_t mclock;
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
-	struct mutex vid_list_mutex;		/* vid_list */
-	struct list_head vid_list;
 	DECLARE_HASHTABLE(mac_htable, 4);
 	DECLARE_HASHTABLE(ip_htable, 4);
 	DECLARE_HASHTABLE(ip_mc_htable, 4);

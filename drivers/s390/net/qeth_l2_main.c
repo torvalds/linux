@@ -261,69 +261,28 @@ static int qeth_l2_send_setdelvlan(struct qeth_card *card, __u16 i,
 					    qeth_l2_send_setdelvlan_cb, NULL));
 }
 
-static void qeth_l2_process_vlans(struct qeth_card *card)
-{
-	struct qeth_vlan_vid *id;
-
-	QETH_CARD_TEXT(card, 3, "L2prcvln");
-	mutex_lock(&card->vid_list_mutex);
-	list_for_each_entry(id, &card->vid_list, list) {
-		qeth_l2_send_setdelvlan(card, id->vid, IPA_CMD_SETVLAN);
-	}
-	mutex_unlock(&card->vid_list_mutex);
-}
-
 static int qeth_l2_vlan_rx_add_vid(struct net_device *dev,
 				   __be16 proto, u16 vid)
 {
 	struct qeth_card *card = dev->ml_priv;
-	struct qeth_vlan_vid *id;
-	int rc;
 
 	QETH_CARD_TEXT_(card, 4, "aid:%d", vid);
 	if (!vid)
 		return 0;
 
-	id = kmalloc(sizeof(*id), GFP_KERNEL);
-	if (id) {
-		id->vid = vid;
-		rc = qeth_l2_send_setdelvlan(card, vid, IPA_CMD_SETVLAN);
-		if (rc) {
-			kfree(id);
-			return rc;
-		}
-		mutex_lock(&card->vid_list_mutex);
-		list_add_tail(&id->list, &card->vid_list);
-		mutex_unlock(&card->vid_list_mutex);
-	} else {
-		return -ENOMEM;
-	}
-	return 0;
+	return qeth_l2_send_setdelvlan(card, vid, IPA_CMD_SETVLAN);
 }
 
 static int qeth_l2_vlan_rx_kill_vid(struct net_device *dev,
 				    __be16 proto, u16 vid)
 {
-	struct qeth_vlan_vid *id, *tmpid = NULL;
 	struct qeth_card *card = dev->ml_priv;
-	int rc = 0;
 
 	QETH_CARD_TEXT_(card, 4, "kid:%d", vid);
+	if (!vid)
+		return 0;
 
-	mutex_lock(&card->vid_list_mutex);
-	list_for_each_entry(id, &card->vid_list, list) {
-		if (id->vid == vid) {
-			list_del(&id->list);
-			tmpid = id;
-			break;
-		}
-	}
-	mutex_unlock(&card->vid_list_mutex);
-	if (tmpid) {
-		rc = qeth_l2_send_setdelvlan(card, vid, IPA_CMD_DELVLAN);
-		kfree(tmpid);
-	}
-	return rc;
+	return qeth_l2_send_setdelvlan(card, vid, IPA_CMD_DELVLAN);
 }
 
 static void qeth_l2_stop_card(struct qeth_card *card, int recovery_mode)
@@ -718,7 +677,7 @@ static int qeth_l2_probe_device(struct ccwgroup_device *gdev)
 		if (rc)
 			return rc;
 	}
-	INIT_LIST_HEAD(&card->vid_list);
+
 	hash_init(card->mac_htable);
 	card->info.hwtrap = 0;
 	qeth_l2_vnicc_set_defaults(card);
@@ -787,10 +746,13 @@ static int qeth_l2_setup_netdev(struct qeth_card *card, bool carrier_ok)
 		card->dev->needed_headroom = sizeof(struct qeth_hdr);
 	}
 
-	if (card->info.type == QETH_CARD_TYPE_OSM)
+	if (IS_OSM(card)) {
 		card->dev->features |= NETIF_F_VLAN_CHALLENGED;
-	else
+	} else {
+		if (!IS_VM_NIC(card))
+			card->dev->hw_features |= NETIF_F_HW_VLAN_CTAG_FILTER;
 		card->dev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
+	}
 
 	if (card->info.type == QETH_CARD_TYPE_OSD && !card->info.guestlan) {
 		card->dev->features |= NETIF_F_SG;
@@ -908,9 +870,6 @@ static int __qeth_l2_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 		if (rc)
 			goto out_remove;
 	}
-
-	if (card->info.type != QETH_CARD_TYPE_OSN)
-		qeth_l2_process_vlans(card);
 
 	rc = qeth_init_qdio_queues(card);
 	if (rc) {

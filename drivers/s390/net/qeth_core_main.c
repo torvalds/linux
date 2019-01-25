@@ -1404,7 +1404,6 @@ static void qeth_setup_card(struct qeth_card *card)
 	spin_lock_init(&card->thread_mask_lock);
 	mutex_init(&card->conf_mutex);
 	mutex_init(&card->discipline_mutex);
-	mutex_init(&card->vid_list_mutex);
 	INIT_WORK(&card->kernel_thread_starter, qeth_start_kernel_thread);
 	INIT_LIST_HEAD(&card->cmd_waiter_list);
 	init_waitqueue_head(&card->wait_q);
@@ -6489,8 +6488,6 @@ static int qeth_set_ipa_rx_csum(struct qeth_card *card, bool on)
 	return (rc_ipv6) ? rc_ipv6 : rc_ipv4;
 }
 
-#define QETH_HW_FEATURES (NETIF_F_RXCSUM | NETIF_F_IP_CSUM | NETIF_F_TSO | \
-			  NETIF_F_IPV6_CSUM | NETIF_F_TSO6)
 /**
  * qeth_enable_hw_features() - (Re-)Enable HW functions for device features
  * @dev:	a net_device
@@ -6501,10 +6498,15 @@ void qeth_enable_hw_features(struct net_device *dev)
 	netdev_features_t features;
 
 	features = dev->features;
-	/* force-off any feature that needs an IPA sequence.
+	/* force-off any feature that might need an IPA sequence.
 	 * netdev_update_features() will restart them.
 	 */
-	dev->features &= ~QETH_HW_FEATURES;
+	dev->features &= ~dev->hw_features;
+	/* toggle VLAN filter, so that VIDs are re-programmed: */
+	if (IS_LAYER2(card) && IS_VM_NIC(card)) {
+		dev->features &= ~NETIF_F_HW_VLAN_CTAG_FILTER;
+		dev->wanted_features |= NETIF_F_HW_VLAN_CTAG_FILTER;
+	}
 	netdev_update_features(dev);
 	if (features != dev->features)
 		dev_warn(&card->gdev->dev,
