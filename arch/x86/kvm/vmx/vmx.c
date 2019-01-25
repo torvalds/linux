@@ -6378,7 +6378,7 @@ static void __vmx_vcpu_run(struct kvm_vcpu *vcpu, struct vcpu_vmx *vmx)
 	asm(
 		/* Store host registers */
 		"push %%" _ASM_DX "; push %%" _ASM_BP ";"
-		"push %%" _ASM_CX " \n\t" /* placeholder for guest rcx */
+		"sub $%c[wordsize], %%" _ASM_SP "\n\t" /* placeholder for guest RCX */
 		"push %%" _ASM_CX " \n\t"
 		"sub $%c[wordsize], %%" _ASM_SP "\n\t" /* temporarily adjust RSP for CALL */
 		"cmp %%" _ASM_SP ", %c[host_rsp](%%" _ASM_CX ") \n\t"
