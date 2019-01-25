@@ -61,7 +61,12 @@ nouveau_bo_ref(struct nouveau_bo *ref, struct nouveau_bo **pnvbo)
 		return -EINVAL;
 	prev = *pnvbo;
 
-	*pnvbo = ref ? nouveau_bo(ttm_bo_reference(&ref->bo)) : NULL;
+	if (ref) {
+		ttm_bo_get(&ref->bo);
+		*pnvbo = nouveau_bo(&ref->bo);
+	} else {
+		*pnvbo = NULL;
+	}
 	if (prev) {
 		struct ttm_buffer_object *bo = &prev->bo;
 
