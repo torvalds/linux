@@ -3258,16 +3258,16 @@ static int compat_sock_ioctl_trans(struct file *file, struct socket *sock,
 	case SIOCGMIIPHY:
 	case SIOCGMIIREG:
 	case SIOCSMIIREG:
+	case SIOCBONDENSLAVE:
+	case SIOCBONDRELEASE:
+	case SIOCBONDSETHWADDR:
+	case SIOCBONDCHANGEACTIVE:
 		return compat_ifreq_ioctl(net, sock, cmd, argp);
 
 	case SIOCSARP:
 	case SIOCGARP:
 	case SIOCDARP:
 	case SIOCATMARK:
-	case SIOCBONDENSLAVE:
-	case SIOCBONDRELEASE:
-	case SIOCBONDSETHWADDR:
-	case SIOCBONDCHANGEACTIVE:
 		return sock_do_ioctl(net, sock, cmd, arg);
 	}
 
