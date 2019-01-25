@@ -13,15 +13,6 @@
 	};
 };
 
-&cpu0_opp_table {
-	opp-408000000 {
-		/delete-property/ opp-suspend;
-	};
-	opp-1008000000 {
-		opp-suspend;
-	};
-};
-
 &thermal_zones {
 	soc-thermal {
 		sustainable-power = <308>;
