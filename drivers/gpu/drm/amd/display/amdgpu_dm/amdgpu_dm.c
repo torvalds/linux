@@ -4663,10 +4663,9 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 		struct dc_plane_state *dc_plane;
 		struct dm_plane_state *dm_new_plane_state = to_dm_plane_state(new_plane_state);
 
-		if (plane->type == DRM_PLANE_TYPE_CURSOR) {
-			handle_cursor_update(plane, old_plane_state);
+		/* Cursor plane is handled after stream updates */
+		if (plane->type == DRM_PLANE_TYPE_CURSOR)
 			continue;
-		}
 
 		if (!fb || !crtc || pcrtc != crtc)
 			continue;
@@ -4865,6 +4864,10 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 						     dc_state);
 		mutex_unlock(&dm->dc_lock);
 	}
+
+	for_each_oldnew_plane_in_state(state, plane, old_plane_state, new_plane_state, i)
+		if (plane->type == DRM_PLANE_TYPE_CURSOR)
+			handle_cursor_update(plane, old_plane_state);
 
 cleanup:
 	kfree(flip);
