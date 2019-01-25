@@ -389,16 +389,16 @@ static int igt_wedged_reset(void *arg)
 	/* Check that we can recover a wedged device with a GPU reset */
 
 	igt_global_reset_lock(i915);
-	mutex_lock(&i915->drm.struct_mutex);
 	wakeref = intel_runtime_pm_get(i915);
 
 	i915_gem_set_wedged(i915);
-	GEM_BUG_ON(!i915_terminally_wedged(&i915->gpu_error));
 
+	mutex_lock(&i915->drm.struct_mutex);
+	GEM_BUG_ON(!i915_terminally_wedged(&i915->gpu_error));
 	i915_reset(i915, ALL_ENGINES, NULL);
+	mutex_unlock(&i915->drm.struct_mutex);
 
 	intel_runtime_pm_put(i915, wakeref);
-	mutex_unlock(&i915->drm.struct_mutex);
 	igt_global_reset_unlock(i915);
 
 	return i915_terminally_wedged(&i915->gpu_error) ? -EIO : 0;
@@ -1675,6 +1675,7 @@ int intel_hangcheck_live_selftests(struct drm_i915_private *i915)
 
 	wakeref = intel_runtime_pm_get(i915);
 	saved_hangcheck = fetch_and_zero(&i915_modparams.enable_hangcheck);
+	drain_delayed_work(&i915->gpu_error.hangcheck_work); /* flush param */
 
 	err = i915_subtests(tests, i915);
 
