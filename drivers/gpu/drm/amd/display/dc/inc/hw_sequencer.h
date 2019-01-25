@@ -68,6 +68,10 @@ struct stream_resource;
 
 struct hw_sequencer_funcs {
 
+	void (*disable_stream_gating)(struct dc *dc, struct pipe_ctx *pipe_ctx);
+
+	void (*enable_stream_gating)(struct dc *dc, struct pipe_ctx *pipe_ctx);
+
 	void (*init_hw)(struct dc *dc);
 
 	void (*init_pipes)(struct dc *dc, struct dc_state *context);

@@ -1165,11 +1165,13 @@ static void reset_hw_ctx_wrap(
 			struct clock_source *old_clk = pipe_ctx_old->clock_source;
 
 			reset_back_end_for_pipe(dc, pipe_ctx_old, dc->current_state);
+			if (dc->hwss.enable_stream_gating) {
+				dc->hwss.enable_stream_gating(dc, pipe_ctx);
+			}
 			if (old_clk)
 				old_clk->funcs->cs_power_down(old_clk);
 		}
 	}
-
 }
 
 static bool patch_address_for_sbs_tb_stereo(
@@ -2786,7 +2788,9 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.edp_wait_for_hpd_ready = hwss_edp_wait_for_hpd_ready,
 	.set_cursor_position = dcn10_set_cursor_position,
 	.set_cursor_attribute = dcn10_set_cursor_attribute,
-	.set_cursor_sdr_white_level = dcn10_set_cursor_sdr_white_level
+	.set_cursor_sdr_white_level = dcn10_set_cursor_sdr_white_level,
+	.disable_stream_gating = NULL,
+	.enable_stream_gating = NULL
 };
 
 

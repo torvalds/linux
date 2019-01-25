@@ -1300,6 +1300,10 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 	struct drr_params params = {0};
 	unsigned int event_triggers = 0;
 
+	if (dc->hwss.disable_stream_gating) {
+		dc->hwss.disable_stream_gating(dc, pipe_ctx);
+	}
+
 	if (pipe_ctx->stream_res.audio != NULL) {
 		struct audio_output audio_output;
 
@@ -2684,6 +2688,8 @@ static const struct hw_sequencer_funcs dce110_funcs = {
 	.set_static_screen_control = set_static_screen_control,
 	.reset_hw_ctx_wrap = dce110_reset_hw_ctx_wrap,
 	.enable_stream_timing = dce110_enable_stream_timing,
+	.disable_stream_gating = NULL,
+	.enable_stream_gating = NULL,
 	.setup_stereo = NULL,
 	.set_avmute = dce110_set_avmute,
 	.wait_for_mpcc_disconnect = dce110_wait_for_mpcc_disconnect,
