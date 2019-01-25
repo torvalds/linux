@@ -134,8 +134,17 @@ endif
 
 ifeq ($(uefi_signed),true)
 	install -d $(signingv)
-	cp -p $(pkgdir_bin)/boot/$(instfile)-$(abi_release)-$* \
-		$(signingv)/$(instfile)-$(abi_release)-$*.efi;
+	# gzipped kernel images must be decompressed for signing
+	if [[ "$(kernfile)" =~ \.gz$$ ]]; then \
+		< $(pkgdir_bin)/boot/$(instfile)-$(abi_release)-$* \
+			gunzip -cv > $(signingv)/$(instfile)-$(abi_release)-$*.efi; \
+		cp -p --attributes-only $(pkgdir_bin)/boot/$(instfile)-$(abi_release)-$* \
+			$(signingv)/$(instfile)-$(abi_release)-$*.efi; \
+		echo "GZIP=1" >> $(signingv)/$(instfile)-$(abi_release)-$*.efi.vars; \
+	else \
+		cp -p $(pkgdir_bin)/boot/$(instfile)-$(abi_release)-$* \
+			$(signingv)/$(instfile)-$(abi_release)-$*.efi; \
+	fi
 endif
 ifeq ($(opal_signed),true)
 	install -d $(signingv)
