@@ -72,6 +72,21 @@ static const uint32_t channel_number[] = {1, 2, 0, 4, 0, 8, 0, 16, 2};
 #define DF_CS_AON0_DramBaseAddress0__IntLvAddrSel_MASK                                                        0x00000700L
 #define DF_CS_AON0_DramBaseAddress0__DramBaseAddr_MASK                                                        0xFFFFF000L
 
+typedef enum {
+	CLK_SMNCLK = 0,
+	CLK_SOCCLK,
+	CLK_MP0CLK,
+	CLK_MP1CLK,
+	CLK_LCLK,
+	CLK_DCEFCLK,
+	CLK_VCLK,
+	CLK_DCLK,
+	CLK_ECLK,
+	CLK_UCLK,
+	CLK_GFXCLK,
+	CLK_COUNT,
+} CLOCK_ID_e;
+
 static const ULONG PhwVega10_Magic = (ULONG)(PHM_VIslands_Magic);
 
 struct vega10_power_state *cast_phw_vega10_power_state(
@@ -3486,6 +3501,17 @@ static int vega10_upload_dpm_bootup_level(struct pp_hwmgr *hwmgr)
 		}
 	}
 
+	if (!data->registry_data.socclk_dpm_key_disabled) {
+		if (data->smc_state_table.soc_boot_level !=
+				data->dpm_table.soc_table.dpm_state.soft_min_level) {
+			smum_send_msg_to_smc_with_parameter(hwmgr,
+				PPSMC_MSG_SetSoftMinSocclkByIndex,
+				data->smc_state_table.soc_boot_level);
+			data->dpm_table.soc_table.dpm_state.soft_min_level =
+					data->smc_state_table.soc_boot_level;
+		}
+	}
+
 	return 0;
 }
 
@@ -3514,6 +3540,17 @@ static int vega10_upload_dpm_max_level(struct pp_hwmgr *hwmgr)
 					data->smc_state_table.mem_max_level);
 			data->dpm_table.mem_table.dpm_state.soft_max_level =
 					data->smc_state_table.mem_max_level;
+		}
+	}
+
+	if (!data->registry_data.socclk_dpm_key_disabled) {
+		if (data->smc_state_table.soc_max_level !=
+			data->dpm_table.soc_table.dpm_state.soft_max_level) {
+			smum_send_msg_to_smc_with_parameter(hwmgr,
+				PPSMC_MSG_SetSoftMaxSocclkByIndex,
+				data->smc_state_table.soc_max_level);
+			data->dpm_table.soc_table.dpm_state.soft_max_level =
+					data->smc_state_table.soc_max_level;
 		}
 	}
 
@@ -4029,6 +4066,24 @@ static int vega10_force_clock_level(struct pp_hwmgr *hwmgr,
 
 		break;
 
+	case PP_SOCCLK:
+		data->smc_state_table.soc_boot_level = mask ? (ffs(mask) - 1) : 0;
+		data->smc_state_table.soc_max_level = mask ? (fls(mask) - 1) : 0;
+
+		PP_ASSERT_WITH_CODE(!vega10_upload_dpm_bootup_level(hwmgr),
+			"Failed to upload boot level to lowest!",
+			return -EINVAL);
+
+		PP_ASSERT_WITH_CODE(!vega10_upload_dpm_max_level(hwmgr),
+			"Failed to upload dpm max level to highest!",
+			return -EINVAL);
+
+		break;
+
+	case PP_DCEFCLK:
+		pr_info("Setting DCEFCLK min/max dpm level is not supported!\n");
+		break;
+
 	case PP_PCIE:
 	default:
 		break;
@@ -4274,6 +4329,8 @@ static int vega10_print_clock_levels(struct pp_hwmgr *hwmgr,
 	struct vega10_hwmgr *data = hwmgr->backend;
 	struct vega10_single_dpm_table *sclk_table = &(data->dpm_table.gfx_table);
 	struct vega10_single_dpm_table *mclk_table = &(data->dpm_table.mem_table);
+	struct vega10_single_dpm_table *soc_table = &(data->dpm_table.soc_table);
+	struct vega10_single_dpm_table *dcef_table = &(data->dpm_table.dcef_table);
 	struct vega10_pcie_table *pcie_table = &(data->dpm_table.pcie_table);
 	struct vega10_odn_clock_voltage_dependency_table *podn_vdd_dep = NULL;
 
@@ -4303,6 +4360,32 @@ static int vega10_print_clock_levels(struct pp_hwmgr *hwmgr,
 			size += sprintf(buf + size, "%d: %uMhz %s\n",
 					i, mclk_table->dpm_levels[i].value / 100,
 					(i == now) ? "*" : "");
+		break;
+	case PP_SOCCLK:
+		if (data->registry_data.socclk_dpm_key_disabled)
+			break;
+
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetCurrentSocclkIndex);
+		now = smum_get_argument(hwmgr);
+
+		for (i = 0; i < soc_table->count; i++)
+			size += sprintf(buf + size, "%d: %uMhz %s\n",
+					i, soc_table->dpm_levels[i].value / 100,
+					(i == now) ? "*" : "");
+		break;
+	case PP_DCEFCLK:
+		if (data->registry_data.dcefclk_dpm_key_disabled)
+			break;
+
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+				PPSMC_MSG_GetClockFreqMHz, CLK_DCEFCLK);
+		now = smum_get_argument(hwmgr);
+
+		for (i = 0; i < dcef_table->count; i++)
+			size += sprintf(buf + size, "%d: %uMhz %s\n",
+					i, dcef_table->dpm_levels[i].value / 100,
+					(dcef_table->dpm_levels[i].value / 100 == now) ?
+					"*" : "");
 		break;
 	case PP_PCIE:
 		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetCurrentLinkIndex);
