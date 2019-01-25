@@ -35,9 +35,6 @@
 #define AT803X_LOC_MAC_ADDR_0_15_OFFSET		0x804C
 #define AT803X_LOC_MAC_ADDR_16_31_OFFSET	0x804B
 #define AT803X_LOC_MAC_ADDR_32_47_OFFSET	0x804A
-#define AT803X_MMD_ACCESS_CONTROL		0x0D
-#define AT803X_MMD_ACCESS_CONTROL_DATA		0x0E
-#define AT803X_FUNC_DATA			0x4003
 #define AT803X_REG_CHIP_CONFIG			0x1f
 #define AT803X_BT_BX_REG_SEL			0x8000
 
@@ -164,16 +161,9 @@ static int at803x_set_wol(struct phy_device *phydev,
 		if (!is_valid_ether_addr(mac))
 			return -EINVAL;
 
-		for (i = 0; i < 3; i++) {
-			phy_write(phydev, AT803X_MMD_ACCESS_CONTROL,
-				  AT803X_DEVICE_ADDR);
-			phy_write(phydev, AT803X_MMD_ACCESS_CONTROL_DATA,
-				  offsets[i]);
-			phy_write(phydev, AT803X_MMD_ACCESS_CONTROL,
-				  AT803X_FUNC_DATA);
-			phy_write(phydev, AT803X_MMD_ACCESS_CONTROL_DATA,
-				  mac[(i * 2) + 1] | (mac[(i * 2)] << 8));
-		}
+		for (i = 0; i < 3; i++)
+			phy_write_mmd(phydev, AT803X_DEVICE_ADDR, offsets[i],
+				      mac[(i * 2) + 1] | (mac[(i * 2)] << 8));
 
 		value = phy_read(phydev, AT803X_INTR_ENABLE);
 		value |= AT803X_INTR_ENABLE_WOL;
