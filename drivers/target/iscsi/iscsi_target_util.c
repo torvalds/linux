@@ -56,9 +56,6 @@
 extern struct list_head g_tiqn_list;
 extern spinlock_t tiqn_lock;
 
-/*
- *	Called with cmd->r2t_lock held.
- */
 int iscsit_add_r2t_to_list(
 	struct iscsi_cmd *cmd,
 	u32 offset,
@@ -67,6 +64,8 @@ int iscsit_add_r2t_to_list(
 	u32 r2t_sn)
 {
 	struct iscsi_r2t *r2t;
+
+	lockdep_assert_held(&cmd->r2t_lock);
 
 	r2t = kmem_cache_zalloc(lio_r2t_cache, GFP_ATOMIC);
 	if (!r2t) {
@@ -128,11 +127,10 @@ struct iscsi_r2t *iscsit_get_r2t_from_list(struct iscsi_cmd *cmd)
 	return NULL;
 }
 
-/*
- *	Called with cmd->r2t_lock held.
- */
 void iscsit_free_r2t(struct iscsi_r2t *r2t, struct iscsi_cmd *cmd)
 {
+	lockdep_assert_held(&cmd->r2t_lock);
+
 	list_del(&r2t->r2t_list);
 	kmem_cache_free(lio_r2t_cache, r2t);
 }
@@ -1013,13 +1011,13 @@ void iscsit_handle_nopin_timeout(struct timer_list *t)
 	iscsit_dec_conn_usage_count(conn);
 }
 
-/*
- * Called with conn->nopin_timer_lock held.
- */
 void __iscsit_start_nopin_timer(struct iscsi_conn *conn)
 {
 	struct iscsi_session *sess = conn->sess;
 	struct iscsi_node_attrib *na = iscsit_tpg_get_node_attrib(sess);
+
+	lockdep_assert_held(&conn->nopin_timer_lock);
+
 	/*
 	* NOPIN timeout is disabled.
 	 */

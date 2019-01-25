@@ -308,15 +308,14 @@ bool iscsit_check_np_match(
 	return false;
 }
 
-/*
- * Called with mutex np_lock held
- */
 static struct iscsi_np *iscsit_get_np(
 	struct sockaddr_storage *sockaddr,
 	int network_transport)
 {
 	struct iscsi_np *np;
 	bool match;
+
+	lockdep_assert_held(&np_lock);
 
 	list_for_each_entry(np, &g_np_list, np_list) {
 		spin_lock_bh(&np->np_thread_lock);
@@ -2655,9 +2654,6 @@ static int iscsit_handle_immediate_data(
 	return IMMEDIATE_DATA_NORMAL_OPERATION;
 }
 
-/*
- *	Called with sess->conn_lock held.
- */
 /* #warning iscsi_build_conn_drop_async_message() only sends out on connections
 	with active network interface */
 static void iscsit_build_conn_drop_async_message(struct iscsi_conn *conn)
@@ -2665,6 +2661,8 @@ static void iscsit_build_conn_drop_async_message(struct iscsi_conn *conn)
 	struct iscsi_cmd *cmd;
 	struct iscsi_conn *conn_p;
 	bool found = false;
+
+	lockdep_assert_held(&conn->sess->conn_lock);
 
 	/*
 	 * Only send a Asynchronous Message on connections whos network

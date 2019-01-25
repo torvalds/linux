@@ -797,14 +797,14 @@ static struct iscsi_ooo_cmdsn *iscsit_allocate_ooo_cmdsn(void)
 	return ooo_cmdsn;
 }
 
-/*
- *	Called with sess->cmdsn_mutex held.
- */
 static int iscsit_attach_ooo_cmdsn(
 	struct iscsi_session *sess,
 	struct iscsi_ooo_cmdsn *ooo_cmdsn)
 {
 	struct iscsi_ooo_cmdsn *ooo_tail, *ooo_tmp;
+
+	lockdep_assert_held(&sess->cmdsn_mutex);
+
 	/*
 	 * We attach the struct iscsi_ooo_cmdsn entry to the out of order
 	 * list in increasing CmdSN order.
@@ -871,14 +871,13 @@ void iscsit_clear_ooo_cmdsns_for_conn(struct iscsi_conn *conn)
 	mutex_unlock(&sess->cmdsn_mutex);
 }
 
-/*
- *	Called with sess->cmdsn_mutex held.
- */
 int iscsit_execute_ooo_cmdsns(struct iscsi_session *sess)
 {
 	int ooo_count = 0;
 	struct iscsi_cmd *cmd = NULL;
 	struct iscsi_ooo_cmdsn *ooo_cmdsn, *ooo_cmdsn_tmp;
+
+	lockdep_assert_held(&sess->cmdsn_mutex);
 
 	list_for_each_entry_safe(ooo_cmdsn, ooo_cmdsn_tmp,
 				&sess->sess_ooo_cmdsn_list, ooo_list) {
@@ -1232,15 +1231,14 @@ void iscsit_mod_dataout_timer(struct iscsi_cmd *cmd)
 	spin_unlock_bh(&cmd->dataout_timeout_lock);
 }
 
-/*
- *	Called with cmd->dataout_timeout_lock held.
- */
 void iscsit_start_dataout_timer(
 	struct iscsi_cmd *cmd,
 	struct iscsi_conn *conn)
 {
 	struct iscsi_session *sess = conn->sess;
 	struct iscsi_node_attrib *na = iscsit_tpg_get_node_attrib(sess);
+
+	lockdep_assert_held(&cmd->dataout_timeout_lock);
 
 	if (cmd->dataout_timer_flags & ISCSI_TF_RUNNING)
 		return;
