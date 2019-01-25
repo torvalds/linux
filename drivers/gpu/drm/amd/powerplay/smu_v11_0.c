@@ -1864,6 +1864,36 @@ smu_v11_0_set_fan_control_mode(struct smu_context *smu,
 	return ret;
 }
 
+static int smu_v11_0_set_fan_speed_rpm(struct smu_context *smu,
+				       uint32_t speed)
+{
+	struct amdgpu_device *adev = smu->adev;
+	int ret;
+	uint32_t tach_period, crystal_clock_freq;
+	bool stop = 0;
+
+	if (!speed)
+		return -EINVAL;
+
+	mutex_lock(&(smu->mutex));
+	ret = smu_v11_0_smc_fan_control(smu, stop);
+	if (ret)
+		goto set_fan_speed_rpm_failed;
+
+	crystal_clock_freq = amdgpu_asic_get_xclk(adev);
+	tach_period = 60 * crystal_clock_freq * 10000 / (8 * speed);
+	WREG32_SOC15(THM, 0, mmCG_TACH_CTRL,
+		     REG_SET_FIELD(RREG32_SOC15(THM, 0, mmCG_TACH_CTRL),
+				   CG_TACH_CTRL, TARGET_PERIOD,
+				   tach_period));
+
+	ret = smu_v11_0_set_fan_static_mode(smu, FDO_PWM_MODE_STATIC_RPM);
+
+set_fan_speed_rpm_failed:
+	mutex_unlock(&(smu->mutex));
+	return ret;
+}
+
 static const struct smu_funcs smu_v11_0_funcs = {
 	.init_microcode = smu_v11_0_init_microcode,
 	.load_microcode = smu_v11_0_load_microcode,
@@ -1919,6 +1949,7 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.set_fan_control_mode = smu_v11_0_set_fan_control_mode,
 	.get_fan_speed_percent = smu_v11_0_get_fan_speed_percent,
 	.set_fan_speed_percent = smu_v11_0_set_fan_speed_percent,
+	.set_fan_speed_rpm = smu_v11_0_set_fan_speed_rpm,
 };
 
 void smu_v11_0_set_smu_funcs(struct smu_context *smu)

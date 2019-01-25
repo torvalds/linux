@@ -536,6 +536,7 @@ struct smu_funcs
 	int (*set_fan_control_mode)(struct smu_context *smu, uint32_t mode);
 	int (*get_fan_speed_percent)(struct smu_context *smu, uint32_t *speed);
 	int (*set_fan_speed_percent)(struct smu_context *smu, uint32_t speed);
+	int (*set_fan_speed_rpm)(struct smu_context *smu, uint32_t speed);
 };
 
 #define smu_init_microcode(smu) \
@@ -588,6 +589,8 @@ struct smu_funcs
 	((smu)->funcs->update_od8_settings ? (smu)->funcs->update_od8_settings((smu), (index), (value)) : 0)
 #define smu_get_current_rpm(smu, speed) \
 	((smu)->funcs->get_current_rpm ? (smu)->funcs->get_current_rpm((smu), (speed)) : 0)
+#define smu_set_fan_speed_rpm(smu, speed) \
+	((smu)->funcs->set_fan_speed_rpm ? (smu)->funcs->set_fan_speed_rpm((smu), (speed)) : 0)
 #define smu_send_smc_msg(smu, msg) \
 	((smu)->funcs->send_smc_msg? (smu)->funcs->send_smc_msg((smu), (msg)) : 0)
 #define smu_send_smc_msg_with_param(smu, msg, param) \
