@@ -247,7 +247,7 @@ intel_find_shared_dpll(struct intel_crtc *crtc,
 		       enum intel_dpll_id range_max)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	struct intel_shared_dpll *pll;
+	struct intel_shared_dpll *pll, *unused_pll = NULL;
 	struct intel_shared_dpll_state *shared_dpll;
 	enum intel_dpll_id i;
 
@@ -257,8 +257,10 @@ intel_find_shared_dpll(struct intel_crtc *crtc,
 		pll = &dev_priv->shared_dplls[i];
 
 		/* Only want to check enabled timings first */
-		if (shared_dpll[i].crtc_mask == 0)
+		if (shared_dpll[i].crtc_mask == 0) {
+			unused_pll = pll;
 			continue;
+		}
 
 		if (memcmp(&crtc_state->dpll_hw_state,
 			   &shared_dpll[i].hw_state,
@@ -273,14 +275,11 @@ intel_find_shared_dpll(struct intel_crtc *crtc,
 	}
 
 	/* Ok no matching timings, maybe there's a free one? */
-	for (i = range_min; i <= range_max; i++) {
-		pll = &dev_priv->shared_dplls[i];
-		if (shared_dpll[i].crtc_mask == 0) {
-			DRM_DEBUG_KMS("[CRTC:%d:%s] allocated %s\n",
-				      crtc->base.base.id, crtc->base.name,
-				      pll->info->name);
-			return pll;
-		}
+	if (unused_pll) {
+		DRM_DEBUG_KMS("[CRTC:%d:%s] allocated %s\n",
+			      crtc->base.base.id, crtc->base.name,
+			      unused_pll->info->name);
+		return unused_pll;
 	}
 
 	return NULL;
