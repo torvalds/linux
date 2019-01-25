@@ -1173,6 +1173,24 @@ static int __context_pin(struct i915_gem_context *ctx, struct i915_vma *vma)
 	return i915_vma_pin(vma, 0, 0, flags);
 }
 
+static u32 make_rpcs(struct drm_i915_private *dev_priv);
+
+static void
+__execlists_update_reg_state(struct intel_engine_cs *engine,
+			     struct intel_context *ce)
+{
+	u32 *regs = ce->lrc_reg_state;
+	struct intel_ring *ring = ce->ring;
+
+	regs[CTX_RING_BUFFER_START + 1] = i915_ggtt_offset(ring->vma);
+	regs[CTX_RING_HEAD + 1] = ring->head;
+	regs[CTX_RING_TAIL + 1] = ring->tail;
+
+	/* RPCS */
+	if (engine->class == RENDER_CLASS)
+		regs[CTX_R_PWR_CLK_STATE + 1] = make_rpcs(engine->i915);
+}
+
 static struct intel_context *
 __execlists_context_pin(struct intel_engine_cs *engine,
 			struct i915_gem_context *ctx,
@@ -1211,10 +1229,8 @@ __execlists_context_pin(struct intel_engine_cs *engine,
 	GEM_BUG_ON(!intel_ring_offset_valid(ce->ring, ce->ring->head));
 
 	ce->lrc_reg_state = vaddr + LRC_STATE_PN * PAGE_SIZE;
-	ce->lrc_reg_state[CTX_RING_BUFFER_START+1] =
-		i915_ggtt_offset(ce->ring->vma);
-	ce->lrc_reg_state[CTX_RING_HEAD + 1] = ce->ring->head;
-	ce->lrc_reg_state[CTX_RING_TAIL + 1] = ce->ring->tail;
+
+	__execlists_update_reg_state(engine, ce);
 
 	ce->state->obj->pin_global++;
 	i915_gem_context_get(ctx);
@@ -1838,14 +1854,14 @@ static void execlists_reset(struct intel_engine_cs *engine,
 		       engine->pinned_default_state + LRC_STATE_PN * PAGE_SIZE,
 		       engine->context_size - PAGE_SIZE);
 	}
-	execlists_init_reg_state(regs,
-				 request->gem_context, engine, request->ring);
 
 	/* Move the RING_HEAD onto the breadcrumb, past the hanging batch */
-	regs[CTX_RING_BUFFER_START + 1] = i915_ggtt_offset(request->ring->vma);
-
 	request->ring->head = intel_ring_wrap(request->ring, request->postfix);
-	regs[CTX_RING_HEAD + 1] = request->ring->head;
+
+	execlists_init_reg_state(regs, request->gem_context, engine,
+				 request->ring);
+
+	__execlists_update_reg_state(engine, request->hw_context);
 
 	intel_ring_update_space(request->ring);
 
@@ -2534,8 +2550,7 @@ static void execlists_init_reg_state(u32 *regs,
 
 	if (rcs) {
 		regs[CTX_LRI_HEADER_2] = MI_LOAD_REGISTER_IMM(1);
-		CTX_REG(regs, CTX_R_PWR_CLK_STATE, GEN8_R_PWR_CLK_STATE,
-			make_rpcs(dev_priv));
+		CTX_REG(regs, CTX_R_PWR_CLK_STATE, GEN8_R_PWR_CLK_STATE, 0);
 
 		i915_oa_init_reg_state(engine, ctx, regs);
 	}
@@ -2696,12 +2711,8 @@ void intel_lr_context_resume(struct drm_i915_private *i915)
 
 			intel_ring_reset(ce->ring, 0);
 
-			if (ce->pin_count) { /* otherwise done in context_pin */
-				u32 *regs = ce->lrc_reg_state;
-
-				regs[CTX_RING_HEAD + 1] = ce->ring->head;
-				regs[CTX_RING_TAIL + 1] = ce->ring->tail;
-			}
+			if (ce->pin_count) /* otherwise done in context_pin */
+				__execlists_update_reg_state(engine, ce);
 		}
 	}
 }
