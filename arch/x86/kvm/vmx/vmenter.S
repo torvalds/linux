@@ -92,6 +92,16 @@ ENDPROC(vmx_vmexit)
 ENTRY(__vmx_vcpu_run)
 	push %_ASM_BP
 	mov  %_ASM_SP, %_ASM_BP
+#ifdef CONFIG_X86_64
+	push %r15
+	push %r14
+	push %r13
+	push %r12
+#else
+	push %edi
+	push %esi
+#endif
+	push %_ASM_BX
 
 	/*
 	 * Save @regs, _ASM_ARG2 may be modified by vmx_update_host_rsp() and
@@ -195,6 +205,17 @@ ENTRY(__vmx_vcpu_run)
 
 	/* "POP" @regs. */
 	add $WORD_SIZE, %_ASM_SP
+	pop %_ASM_BX
+
+#ifdef CONFIG_X86_64
+	pop %r12
+	pop %r13
+	pop %r14
+	pop %r15
+#else
+	pop %esi
+	pop %edi
+#endif
 	pop %_ASM_BP
 	ret
 

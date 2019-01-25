@@ -6456,10 +6456,7 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu)
 #endif
 	      : "cc", "memory"
 #ifdef CONFIG_X86_64
-		, "rbx", "rcx"
-		, "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15"
-#else
-		, "ebx", "edi", "esi"
+		, "rcx", "r8", "r9", "r10", "r11"
 #endif
 	      );
 
