@@ -1191,6 +1191,13 @@ config GPIO_TPS68470
 	  of the TPS68470 must be available before dependent
 	  drivers are loaded.
 
+config GPIO_TQMX86
+	tristate "TQ-Systems QTMX86 GPIO"
+	depends on MFD_TQMX86 || COMPILE_TEST
+	select GPIOLIB_IRQCHIP
+	help
+	  This driver supports GPIO on the TQMX86 IO controller.
+
 config GPIO_TWL4030
 	tristate "TWL4030, TWL5030, and TPS659x0 GPIOs"
 	depends on TWL4030_CORE
