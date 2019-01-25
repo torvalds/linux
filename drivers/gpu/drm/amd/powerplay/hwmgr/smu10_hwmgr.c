@@ -1033,6 +1033,7 @@ static int smu10_get_clock_by_type_with_latency(struct pp_hwmgr *hwmgr,
 		break;
 	case amd_pp_dpp_clock:
 		pclk_vol_table = pinfo->vdd_dep_on_dppclk;
+		break;
 	default:
 		return -EINVAL;
 	}
