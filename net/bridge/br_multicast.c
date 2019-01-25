@@ -35,7 +35,6 @@
 #include <net/mld.h>
 #include <net/ip6_checksum.h>
 #include <net/addrconf.h>
-#include <net/ipv6.h>
 #endif
 
 #include "br_private.h"
