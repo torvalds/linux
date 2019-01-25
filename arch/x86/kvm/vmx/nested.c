@@ -2752,8 +2752,6 @@ static int nested_vmx_check_vmentry_hw(struct kvm_vcpu *vcpu)
 		vmx->loaded_vmcs->host_state.cr4 = cr4;
 	}
 
-	vmx->__launched = vmx->loaded_vmcs->launched;
-
 	asm(
 		/* Set HOST_RSP */
 		"sub $%c[wordsize], %%" _ASM_SP "\n\t" /* temporarily adjust RSP for CALL */
@@ -2762,7 +2760,7 @@ static int nested_vmx_check_vmentry_hw(struct kvm_vcpu *vcpu)
 		"add $%c[wordsize], %%" _ASM_SP "\n\t" /* un-adjust RSP */
 
 		/* Check if vmlaunch or vmresume is needed */
-		"cmpb $0, %c[launched](%% " _ASM_CX")\n\t"
+		"cmpb $0, %c[launched](%[loaded_vmcs])\n\t"
 
 		/*
 		 * VMLAUNCH and VMRESUME clear RFLAGS.{CF,ZF} on VM-Exit, set
@@ -2775,7 +2773,8 @@ static int nested_vmx_check_vmentry_hw(struct kvm_vcpu *vcpu)
 		CC_SET(be)
 	      : ASM_CALL_CONSTRAINT, CC_OUT(be) (vm_fail)
 	      : "c"(vmx), "d"((unsigned long)HOST_RSP),
-		[launched]"i"(offsetof(struct vcpu_vmx, __launched)),
+		[loaded_vmcs]"r"(vmx->loaded_vmcs),
+		[launched]"i"(offsetof(struct loaded_vmcs, launched)),
 		[host_rsp]"i"(offsetof(struct vcpu_vmx, host_rsp)),
 		[wordsize]"i"(sizeof(ulong))
 	      : "cc", "memory"
