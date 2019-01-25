@@ -113,7 +113,11 @@ static void xtensa_mx_irq_ack(struct irq_data *d)
 
 static int xtensa_mx_irq_retrigger(struct irq_data *d)
 {
-	xtensa_set_sr(1 << d->hwirq, intset);
+	unsigned int mask = 1u << d->hwirq;
+
+	if (WARN_ON(mask & ~XCHAL_INTTYPE_MASK_SOFTWARE))
+		return 0;
+	xtensa_set_sr(mask, intset);
 	return 1;
 }
 
