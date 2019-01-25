@@ -6381,9 +6381,9 @@ static void __vmx_vcpu_run(struct kvm_vcpu *vcpu, struct vcpu_vmx *vmx)
 		"sub $%c[wordsize], %%" _ASM_SP "\n\t" /* placeholder for guest RCX */
 		"push %%" _ASM_CX " \n\t"
 		"sub $%c[wordsize], %%" _ASM_SP "\n\t" /* temporarily adjust RSP for CALL */
-		"cmp %%" _ASM_SP ", %c[host_rsp](%%" _ASM_CX ") \n\t"
+		"cmp %%" _ASM_SP ", (%%" _ASM_DI ") \n\t"
 		"je 1f \n\t"
-		"mov %%" _ASM_SP ", %c[host_rsp](%%" _ASM_CX ") \n\t"
+		"mov %%" _ASM_SP ", (%%" _ASM_DI ") \n\t"
 		/* Avoid VMWRITE when Enlightened VMCS is in use */
 		"test %%" _ASM_SI ", %%" _ASM_SI " \n\t"
 		"jz 2f \n\t"
@@ -6482,11 +6482,10 @@ static void __vmx_vcpu_run(struct kvm_vcpu *vcpu, struct vcpu_vmx *vmx)
 		"xor %%edi, %%edi \n\t"
 		"xor %%ebp, %%ebp \n\t"
 		"pop  %%" _ASM_BP " \n\t"
-	      : ASM_CALL_CONSTRAINT, "=S"((int){0})
-	      : "c"(vmx), "S"(evmcs_rsp),
+	      : ASM_CALL_CONSTRAINT, "=D"((int){0}), "=S"((int){0})
+	      : "c"(vmx), "D"(&vmx->loaded_vmcs->host_state.rsp), "S"(evmcs_rsp),
 		[launched]"i"(offsetof(struct vcpu_vmx, __launched)),
 		[fail]"i"(offsetof(struct vcpu_vmx, fail)),
-		[host_rsp]"i"(offsetof(struct vcpu_vmx, host_rsp)),
 		[HOST_RSP]"i"(HOST_RSP),
 		[rax]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_RAX])),
 		[rbx]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_RBX])),
@@ -6509,10 +6508,10 @@ static void __vmx_vcpu_run(struct kvm_vcpu *vcpu, struct vcpu_vmx *vmx)
 		[wordsize]"i"(sizeof(ulong))
 	      : "cc", "memory"
 #ifdef CONFIG_X86_64
-		, "rax", "rbx", "rdx", "rdi"
+		, "rax", "rbx", "rdx"
 		, "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15"
 #else
-		, "eax", "ebx", "edx", "edi"
+		, "eax", "ebx", "edx"
 #endif
 	      );
 }

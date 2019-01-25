@@ -1980,17 +1980,6 @@ static void prepare_vmcs02_early(struct vcpu_vmx *vmx, struct vmcs12 *vmcs12)
 		prepare_vmcs02_early_full(vmx, vmcs12);
 
 	/*
-	 * HOST_RSP is normally set correctly in vmx_vcpu_run() just before
-	 * entry, but only if the current (host) sp changed from the value
-	 * we wrote last (vmx->host_rsp).  This cache is no longer relevant
-	 * if we switch vmcs, and rather than hold a separate cache per vmcs,
-	 * here we just force the write to happen on entry.  host_rsp will
-	 * also be written unconditionally by nested_vmx_check_vmentry_hw()
-	 * if we are doing early consistency checks via hardware.
-	 */
-	vmx->host_rsp = 0;
-
-	/*
 	 * PIN CONTROLS
 	 */
 	exec_control = vmcs12->pin_based_vm_exec_control;
@@ -2754,8 +2743,11 @@ static int nested_vmx_check_vmentry_hw(struct kvm_vcpu *vcpu)
 
 	asm(
 		"sub $%c[wordsize], %%" _ASM_SP "\n\t" /* temporarily adjust RSP for CALL */
+		"cmp %%" _ASM_SP ", %c[host_state_rsp](%[loaded_vmcs]) \n\t"
+		"je 1f \n\t"
 		__ex("vmwrite %%" _ASM_SP ", %[HOST_RSP]") "\n\t"
-		"mov %%" _ASM_SP ", %c[host_rsp](%% " _ASM_CX ")\n\t"
+		"mov %%" _ASM_SP ", %c[host_state_rsp](%[loaded_vmcs]) \n\t"
+		"1: \n\t"
 		"add $%c[wordsize], %%" _ASM_SP "\n\t" /* un-adjust RSP */
 
 		/* Check if vmlaunch or vmresume is needed */
@@ -2771,11 +2763,10 @@ static int nested_vmx_check_vmentry_hw(struct kvm_vcpu *vcpu)
 
 		CC_SET(be)
 	      : ASM_CALL_CONSTRAINT, CC_OUT(be) (vm_fail)
-	      : "c"(vmx),
-		[HOST_RSP]"r"((unsigned long)HOST_RSP),
+	      :	[HOST_RSP]"r"((unsigned long)HOST_RSP),
 		[loaded_vmcs]"r"(vmx->loaded_vmcs),
 		[launched]"i"(offsetof(struct loaded_vmcs, launched)),
-		[host_rsp]"i"(offsetof(struct vcpu_vmx, host_rsp)),
+		[host_state_rsp]"i"(offsetof(struct loaded_vmcs, host_state.rsp)),
 		[wordsize]"i"(sizeof(ulong))
 	      : "cc", "memory"
 	);
@@ -3911,9 +3902,6 @@ void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason,
 				   SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES)) {
 		vmx_flush_tlb(vcpu, true);
 	}
-
-	/* This is needed for same reason as it was needed in prepare_vmcs02 */
-	vmx->host_rsp = 0;
 
 	/* Unpin physical memory we referred to in vmcs02 */
 	if (vmx->nested.apic_access_page) {
