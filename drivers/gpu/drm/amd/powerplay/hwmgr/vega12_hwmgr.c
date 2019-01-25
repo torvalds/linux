@@ -1093,6 +1093,16 @@ static int vega12_upload_dpm_min_level(struct pp_hwmgr *hwmgr)
 					return ret);
 	}
 
+	if (data->smu_features[GNLD_DPM_DCEFCLK].enabled) {
+		min_freq = data->dpm_table.dcef_table.dpm_state.hard_min_level;
+
+		PP_ASSERT_WITH_CODE(!(ret = smum_send_msg_to_smc_with_parameter(
+					hwmgr, PPSMC_MSG_SetHardMinByFreq,
+					(PPCLK_DCEFCLK << 16) | (min_freq & 0xffff))),
+					"Failed to set hard min dcefclk!",
+					return ret);
+	}
+
 	return ret;
 
 }
@@ -1818,7 +1828,7 @@ static int vega12_force_clock_level(struct pp_hwmgr *hwmgr,
 		enum pp_clock_type type, uint32_t mask)
 {
 	struct vega12_hwmgr *data = (struct vega12_hwmgr *)(hwmgr->backend);
-	uint32_t soft_min_level, soft_max_level;
+	uint32_t soft_min_level, soft_max_level, hard_min_level;
 	int ret = 0;
 
 	switch (type) {
@@ -1860,6 +1870,56 @@ static int vega12_force_clock_level(struct pp_hwmgr *hwmgr,
 		PP_ASSERT_WITH_CODE(!ret,
 			"Failed to upload dpm max level to highest!",
 			return ret);
+
+		break;
+
+	case PP_SOCCLK:
+		soft_min_level = mask ? (ffs(mask) - 1) : 0;
+		soft_max_level = mask ? (fls(mask) - 1) : 0;
+
+		if (soft_max_level >= data->dpm_table.soc_table.count) {
+			pr_err("Clock level specified %d is over max allowed %d\n",
+					soft_max_level,
+					data->dpm_table.soc_table.count - 1);
+			return -EINVAL;
+		}
+
+		data->dpm_table.soc_table.dpm_state.soft_min_level =
+			data->dpm_table.soc_table.dpm_levels[soft_min_level].value;
+		data->dpm_table.soc_table.dpm_state.soft_max_level =
+			data->dpm_table.soc_table.dpm_levels[soft_max_level].value;
+
+		ret = vega12_upload_dpm_min_level(hwmgr);
+		PP_ASSERT_WITH_CODE(!ret,
+			"Failed to upload boot level to lowest!",
+			return ret);
+
+		ret = vega12_upload_dpm_max_level(hwmgr);
+		PP_ASSERT_WITH_CODE(!ret,
+			"Failed to upload dpm max level to highest!",
+			return ret);
+
+		break;
+
+	case PP_DCEFCLK:
+		hard_min_level = mask ? (ffs(mask) - 1) : 0;
+
+		if (hard_min_level >= data->dpm_table.dcef_table.count) {
+			pr_err("Clock level specified %d is over max allowed %d\n",
+					hard_min_level,
+					data->dpm_table.dcef_table.count - 1);
+			return -EINVAL;
+		}
+
+		data->dpm_table.dcef_table.dpm_state.hard_min_level =
+			data->dpm_table.dcef_table.dpm_levels[hard_min_level].value;
+
+		ret = vega12_upload_dpm_min_level(hwmgr);
+		PP_ASSERT_WITH_CODE(!ret,
+			"Failed to upload boot level to lowest!",
+			return ret);
+
+		//TODO: Setting DCEFCLK max dpm level is not supported
 
 		break;
 
@@ -1910,6 +1970,42 @@ static int vega12_print_clock_levels(struct pp_hwmgr *hwmgr,
 			size += sprintf(buf + size, "%d: %uMhz %s\n",
 				i, clocks.data[i].clocks_in_khz / 1000,
 				(clocks.data[i].clocks_in_khz / 1000 == now / 100) ? "*" : "");
+		break;
+
+	case PP_SOCCLK:
+		PP_ASSERT_WITH_CODE(
+				smum_send_msg_to_smc_with_parameter(hwmgr,
+					PPSMC_MSG_GetDpmClockFreq, (PPCLK_SOCCLK << 16)) == 0,
+				"Attempt to get Current SOCCLK Frequency Failed!",
+				return -EINVAL);
+		now = smum_get_argument(hwmgr);
+
+		PP_ASSERT_WITH_CODE(
+				vega12_get_socclocks(hwmgr, &clocks) == 0,
+				"Attempt to get soc clk levels Failed!",
+				return -1);
+		for (i = 0; i < clocks.num_levels; i++)
+			size += sprintf(buf + size, "%d: %uMhz %s\n",
+				i, clocks.data[i].clocks_in_khz / 1000,
+				(clocks.data[i].clocks_in_khz / 1000 == now) ? "*" : "");
+		break;
+
+	case PP_DCEFCLK:
+		PP_ASSERT_WITH_CODE(
+				smum_send_msg_to_smc_with_parameter(hwmgr,
+					PPSMC_MSG_GetDpmClockFreq, (PPCLK_DCEFCLK << 16)) == 0,
+				"Attempt to get Current DCEFCLK Frequency Failed!",
+				return -EINVAL);
+		now = smum_get_argument(hwmgr);
+
+		PP_ASSERT_WITH_CODE(
+				vega12_get_dcefclocks(hwmgr, &clocks) == 0,
+				"Attempt to get dcef clk levels Failed!",
+				return -1);
+		for (i = 0; i < clocks.num_levels; i++)
+			size += sprintf(buf + size, "%d: %uMhz %s\n",
+				i, clocks.data[i].clocks_in_khz / 1000,
+				(clocks.data[i].clocks_in_khz / 1000 == now) ? "*" : "");
 		break;
 
 	case PP_PCIE:
