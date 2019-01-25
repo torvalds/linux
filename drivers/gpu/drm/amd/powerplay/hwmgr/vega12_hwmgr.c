@@ -1933,6 +1933,104 @@ static int vega12_force_clock_level(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
+static int vega12_get_ppfeature_status(struct pp_hwmgr *hwmgr, char *buf)
+{
+	static const char *ppfeature_name[] = {
+			"DPM_PREFETCHER",
+			"GFXCLK_DPM",
+			"UCLK_DPM",
+			"SOCCLK_DPM",
+			"UVD_DPM",
+			"VCE_DPM",
+			"ULV",
+			"MP0CLK_DPM",
+			"LINK_DPM",
+			"DCEFCLK_DPM",
+			"GFXCLK_DS",
+			"SOCCLK_DS",
+			"LCLK_DS",
+			"PPT",
+			"TDC",
+			"THERMAL",
+			"GFX_PER_CU_CG",
+			"RM",
+			"DCEFCLK_DS",
+			"ACDC",
+			"VR0HOT",
+			"VR1HOT",
+			"FW_CTF",
+			"LED_DISPLAY",
+			"FAN_CONTROL",
+			"DIDT",
+			"GFXOFF",
+			"CG",
+			"ACG"};
+	static const char *output_title[] = {
+			"FEATURES",
+			"BITMASK",
+			"ENABLEMENT"};
+	uint64_t features_enabled;
+	int i;
+	int ret = 0;
+	int size = 0;
+
+	ret = vega12_get_enabled_smc_features(hwmgr, &features_enabled);
+	PP_ASSERT_WITH_CODE(!ret,
+		"[EnableAllSmuFeatures] Failed to get enabled smc features!",
+		return ret);
+
+	size += sprintf(buf + size, "Current ppfeatures: 0x%016llx\n", features_enabled);
+	size += sprintf(buf + size, "%-19s %-22s %s\n",
+				output_title[0],
+				output_title[1],
+				output_title[2]);
+	for (i = 0; i < GNLD_FEATURES_MAX; i++) {
+		size += sprintf(buf + size, "%-19s 0x%016llx %6s\n",
+				ppfeature_name[i],
+				1ULL << i,
+				(features_enabled & (1ULL << i)) ? "Y" : "N");
+	}
+
+	return size;
+}
+
+static int vega12_set_ppfeature_status(struct pp_hwmgr *hwmgr, uint64_t new_ppfeature_masks)
+{
+	uint64_t features_enabled;
+	uint64_t features_to_enable;
+	uint64_t features_to_disable;
+	int ret = 0;
+
+	if (new_ppfeature_masks >= (1ULL << GNLD_FEATURES_MAX))
+		return -EINVAL;
+
+	ret = vega12_get_enabled_smc_features(hwmgr, &features_enabled);
+	if (ret)
+		return ret;
+
+	features_to_disable =
+		(features_enabled ^ new_ppfeature_masks) & features_enabled;
+	features_to_enable =
+		(features_enabled ^ new_ppfeature_masks) ^ features_to_disable;
+
+	pr_debug("features_to_disable 0x%llx\n", features_to_disable);
+	pr_debug("features_to_enable 0x%llx\n", features_to_enable);
+
+	if (features_to_disable) {
+		ret = vega12_enable_smc_features(hwmgr, false, features_to_disable);
+		if (ret)
+			return ret;
+	}
+
+	if (features_to_enable) {
+		ret = vega12_enable_smc_features(hwmgr, true, features_to_enable);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int vega12_print_clock_levels(struct pp_hwmgr *hwmgr,
 		enum pp_clock_type type, char *buf)
 {
@@ -2528,6 +2626,8 @@ static const struct pp_hwmgr_func vega12_hwmgr_funcs = {
 	.start_thermal_controller = vega12_start_thermal_controller,
 	.powergate_gfx = vega12_gfx_off_control,
 	.get_performance_level = vega12_get_performance_level,
+	.get_ppfeature_status = vega12_get_ppfeature_status,
+	.set_ppfeature_status = vega12_set_ppfeature_status,
 };
 
 int vega12_hwmgr_init(struct pp_hwmgr *hwmgr)
