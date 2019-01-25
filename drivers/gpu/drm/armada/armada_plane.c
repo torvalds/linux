@@ -79,23 +79,6 @@ void armada_drm_plane_calc(struct drm_plane_state *state, u32 addrs[2][3],
 	}
 }
 
-static unsigned armada_drm_crtc_calc_fb(struct drm_plane_state *state,
-	struct armada_regs *regs, bool interlaced)
-{
-	u16 pitches[3];
-	u32 addrs[2][3];
-	unsigned i = 0;
-
-	armada_drm_plane_calc(state, addrs, pitches, interlaced);
-
-	/* write offset, base, and pitch */
-	armada_reg_queue_set(regs, i, addrs[0][0], LCD_CFG_GRA_START_ADDR0);
-	armada_reg_queue_set(regs, i, addrs[1][0], LCD_CFG_GRA_START_ADDR1);
-	armada_reg_queue_mod(regs, i, pitches[0], 0xffff, LCD_CFG_GRA_PITCH);
-
-	return i;
-}
-
 int armada_drm_plane_prepare_fb(struct drm_plane *plane,
 	struct drm_plane_state *state)
 {
@@ -167,6 +150,9 @@ int armada_drm_plane_atomic_check(struct drm_plane *plane,
 	st->dst_hw <<= 16;
 	st->dst_hw |= drm_rect_width(&state->dst) & 0x0000ffff;
 
+	armada_drm_plane_calc(state, st->addrs, st->pitches, interlace);
+	st->interlace = interlace;
+
 	return 0;
 }
 
@@ -213,8 +199,12 @@ static void armada_drm_primary_plane_atomic_update(struct drm_plane *plane,
 	    old_state->src.y1 != state->src.y1 ||
 	    old_state->fb != state->fb ||
 	    state->crtc->state->mode_changed) {
-		idx += armada_drm_crtc_calc_fb(state, regs + idx,
-					       dcrtc->interlaced);
+		armada_reg_queue_set(regs, idx, armada_addr(state, 0, 0),
+				     LCD_CFG_GRA_START_ADDR0);
+		armada_reg_queue_set(regs, idx, armada_addr(state, 1, 0),
+				     LCD_CFG_GRA_START_ADDR1);
+		armada_reg_queue_mod(regs, idx, armada_pitch(state, 0), 0xffff,
+				     LCD_CFG_GRA_PITCH);
 	}
 	if (old_state->fb != state->fb ||
 	    state->crtc->state->mode_changed) {
@@ -224,7 +214,7 @@ static void armada_drm_primary_plane_atomic_update(struct drm_plane *plane,
 			cfg |= CFG_PALETTE_ENA;
 		if (state->visible)
 			cfg |= CFG_GRA_ENA;
-		if (dcrtc->interlaced)
+		if (to_armada_plane_state(state)->interlace)
 			cfg |= CFG_GRA_FTOGGLE;
 		cfg_mask = CFG_GRAFORMAT |
 			   CFG_GRA_MOD(CFG_SWAPRB | CFG_SWAPUV |

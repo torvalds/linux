@@ -109,27 +109,24 @@ static void armada_drm_overlay_plane_atomic_update(struct drm_plane *plane,
 	    old_state->fb != state->fb ||
 	    state->crtc->state->mode_changed) {
 		const struct drm_format_info *format;
-		u16 src_x, pitches[3];
-		u32 addrs[2][3];
+		u16 src_x;
 
-		armada_drm_plane_calc(state, addrs, pitches, dcrtc->interlaced);
-
-		armada_reg_queue_set(regs, idx, addrs[0][0],
+		armada_reg_queue_set(regs, idx, armada_addr(state, 0, 0),
 				     LCD_SPU_DMA_START_ADDR_Y0);
-		armada_reg_queue_set(regs, idx, addrs[0][1],
+		armada_reg_queue_set(regs, idx, armada_addr(state, 0, 1),
 				     LCD_SPU_DMA_START_ADDR_U0);
-		armada_reg_queue_set(regs, idx, addrs[0][2],
+		armada_reg_queue_set(regs, idx, armada_addr(state, 0, 2),
 				     LCD_SPU_DMA_START_ADDR_V0);
-		armada_reg_queue_set(regs, idx, addrs[1][0],
+		armada_reg_queue_set(regs, idx, armada_addr(state, 1, 0),
 				     LCD_SPU_DMA_START_ADDR_Y1);
-		armada_reg_queue_set(regs, idx, addrs[1][1],
+		armada_reg_queue_set(regs, idx, armada_addr(state, 1, 1),
 				     LCD_SPU_DMA_START_ADDR_U1);
-		armada_reg_queue_set(regs, idx, addrs[1][2],
+		armada_reg_queue_set(regs, idx, armada_addr(state, 1, 2),
 				     LCD_SPU_DMA_START_ADDR_V1);
 
-		val = pitches[0] << 16 | pitches[0];
+		val = armada_pitch(state, 0) << 16 | armada_pitch(state, 0);
 		armada_reg_queue_set(regs, idx, val, LCD_SPU_DMA_PITCH_YC);
-		val = pitches[1] << 16 | pitches[2];
+		val = armada_pitch(state, 1) << 16 | armada_pitch(state, 2);
 		armada_reg_queue_set(regs, idx, val, LCD_SPU_DMA_PITCH_UV);
 
 		cfg = CFG_DMA_FMT(drm_fb_to_armada_fb(state->fb)->fmt) |
@@ -147,7 +144,7 @@ static void armada_drm_overlay_plane_atomic_update(struct drm_plane *plane,
 		src_x = state->src.x1 >> 16;
 		if (format->num_planes == 1 && src_x & (format->hsub - 1))
 			cfg ^= CFG_DMA_MOD(CFG_SWAPUV);
-		if (dcrtc->interlaced)
+		if (to_armada_plane_state(state)->interlace)
 			cfg |= CFG_DMA_FTOGGLE;
 		cfg_mask = CFG_CBSH_ENA | CFG_DMAFORMAT |
 			   CFG_DMA_MOD(CFG_SWAPRB | CFG_SWAPUV |
