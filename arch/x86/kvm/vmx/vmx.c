@@ -6446,20 +6446,20 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu)
 
 	asm(
 		"call __vmx_vcpu_run \n\t"
-	      : ASM_CALL_CONSTRAINT, "=b"(vmx->fail),
+	      : ASM_CALL_CONSTRAINT, "=a"(vmx->fail),
 #ifdef CONFIG_X86_64
 		"=D"((int){0}), "=S"((int){0}), "=d"((int){0})
 	      : "D"(vmx), "S"(&vcpu->arch.regs), "d"(vmx->loaded_vmcs->launched)
 #else
-		"=a"((int){0}), "=d"((int){0}), "=c"((int){0})
+		"=d"((int){0}), "=c"((int){0})
 	      : "a"(vmx), "d"(&vcpu->arch.regs), "c"(vmx->loaded_vmcs->launched)
 #endif
 	      : "cc", "memory"
 #ifdef CONFIG_X86_64
-		, "rax", "rcx"
+		, "rbx", "rcx"
 		, "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15"
 #else
-		, "edi", "esi"
+		, "ebx", "edi", "esi"
 #endif
 	      );
 

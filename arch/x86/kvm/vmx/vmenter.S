@@ -87,7 +87,7 @@ ENDPROC(vmx_vmexit)
  * @launched:	%true if the VMCS has been launched
  *
  * Returns:
- *	%RBX is 0 on VM-Exit, 1 on VM-Fail
+ *	0 on VM-Exit, 1 on VM-Fail
  */
 ENTRY(__vmx_vcpu_run)
 	push %_ASM_BP
@@ -163,17 +163,17 @@ ENTRY(__vmx_vcpu_run)
 	mov %r15, VCPU_R15(%_ASM_AX)
 #endif
 
-	/* Clear EBX to indicate VM-Exit (as opposed to VM-Fail). */
-	xor %ebx, %ebx
+	/* Clear RAX to indicate VM-Exit (as opposed to VM-Fail). */
+	xor %eax, %eax
 
 	/*
-	 * Clear all general purpose registers except RSP and RBX to prevent
+	 * Clear all general purpose registers except RSP and RAX to prevent
 	 * speculative use of the guest's values, even those that are reloaded
 	 * via the stack.  In theory, an L1 cache miss when restoring registers
 	 * could lead to speculative execution with the guest's values.
 	 * Zeroing XORs are dirt cheap, i.e. the extra paranoia is essentially
-	 * free.  RSP and RBX are exempt as RSP is restored by hardware during
-	 * VM-Exit and RBX is explicitly loaded with 0 or 1 to "return" VM-Fail.
+	 * free.  RSP and RAX are exempt as RSP is restored by hardware during
+	 * VM-Exit and RAX is explicitly loaded with 0 or 1 to return VM-Fail.
 	 */
 1:
 #ifdef CONFIG_X86_64
@@ -186,7 +186,7 @@ ENTRY(__vmx_vcpu_run)
 	xor %r14d, %r14d
 	xor %r15d, %r15d
 #endif
-	xor %eax, %eax
+	xor %ebx, %ebx
 	xor %ecx, %ecx
 	xor %edx, %edx
 	xor %esi, %esi
@@ -199,6 +199,6 @@ ENTRY(__vmx_vcpu_run)
 	ret
 
 	/* VM-Fail.  Out-of-line to avoid a taken Jcc after VM-Exit. */
-2:	mov $1, %ebx
+2:	mov $1, %eax
 	jmp 1b
 ENDPROC(__vmx_vcpu_run)
