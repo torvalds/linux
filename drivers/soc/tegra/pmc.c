@@ -637,7 +637,7 @@ EXPORT_SYMBOL(tegra_powergate_power_off);
  * tegra_powergate_is_powered() - check if partition is powered
  * @id: partition ID
  */
-int tegra_powergate_is_powered(unsigned int id)
+static int tegra_powergate_is_powered(unsigned int id)
 {
 	if (!tegra_powergate_is_valid(id))
 		return -EINVAL;
