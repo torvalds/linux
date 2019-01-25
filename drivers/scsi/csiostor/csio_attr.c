@@ -497,7 +497,6 @@ out:
 static int
 csio_fcoe_free_vnp(struct csio_hw *hw, struct csio_lnode *ln)
 {
-	struct csio_lnode *pln;
 	struct csio_mb  *mbp;
 	struct fw_fcoe_vnp_cmd *rsp;
 	int ret = 0;
@@ -513,8 +512,6 @@ csio_fcoe_free_vnp(struct csio_hw *hw, struct csio_lnode *ln)
 		ret = -ENOMEM;
 		goto out;
 	}
-
-	pln = ln->pln;
 
 	csio_fcoe_vnp_free_init_mb(ln, mbp, CSIO_MB_DEFAULT_TMO,
 				   ln->fcf_flowid, ln->vnp_flowid,
