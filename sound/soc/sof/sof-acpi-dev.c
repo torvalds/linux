@@ -207,6 +207,7 @@ static int sof_acpi_probe(struct platform_device *pdev)
 #endif
 
 	mach->mach_params.platform = "sof-audio";
+	mach->mach_params.acpi_ipc_irq_index = desc->irqindex_host_ipc;
 
 	sof_pdata->machine = mach;
 	sof_pdata->desc = desc;
