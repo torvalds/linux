@@ -368,6 +368,7 @@ struct hisi_hba {
 
 	struct dentry *debugfs_dir;
 	struct dentry *debugfs_dump_dentry;
+	bool debugfs_snapshot;
 };
 
 /* Generic HW DMA host memory structures */
