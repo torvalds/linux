@@ -2181,6 +2181,7 @@ static int rt5651_i2c_probe(struct i2c_client *i2c,
 {
 	struct rt5651_priv *rt5651;
 	int ret;
+	int err;
 
 	rt5651 = devm_kzalloc(&i2c->dev, sizeof(*rt5651),
 				GFP_KERNEL);
@@ -2197,7 +2198,10 @@ static int rt5651_i2c_probe(struct i2c_client *i2c,
 		return ret;
 	}
 
-	regmap_read(rt5651->regmap, RT5651_DEVICE_ID, &ret);
+	err = regmap_read(rt5651->regmap, RT5651_DEVICE_ID, &ret);
+	if (err)
+		return err;
+
 	if (ret != RT5651_DEVICE_ID_VALUE) {
 		dev_err(&i2c->dev,
 			"Device with ID register %#x is not rt5651\n", ret);
