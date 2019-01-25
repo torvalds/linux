@@ -20,7 +20,6 @@
 
 #define pr_fmt(fmt) "tegra-pmc: " fmt
 
-#include <linux/kernel.h>
 #include <linux/clk.h>
 #include <linux/clk/tegra.h>
 #include <linux/debugfs.h>
@@ -30,16 +29,17 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
-#include <linux/irq.h>
 #include <linux/irqdomain.h>
-#include <linux/of.h>
+#include <linux/irq.h>
+#include <linux/kernel.h>
 #include <linux/of_address.h>
 #include <linux/of_clk.h>
+#include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
-#include <linux/pinctrl/pinctrl.h>
-#include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinconf-generic.h>
+#include <linux/pinctrl/pinconf.h>
+#include <linux/pinctrl/pinctrl.h>
 #include <linux/platform_device.h>
 #include <linux/pm_domain.h>
 #include <linux/reboot.h>
