@@ -84,39 +84,50 @@ static struct sof_dev_desc sof_acpi_baytrail_desc = {
 };
 
 #ifdef CONFIG_X86 /* TODO: move this to common helper */
-static int is_byt_cr(struct device *dev)
+
+static bool is_byt_cr(struct platform_device *pdev)
 {
-	u32 bios_status;
-	int status;
+	struct device *dev = &pdev->dev;
+	int status = 0;
 
-	if (!iosf_mbi_available()) {
-		dev_info(dev, "IOSF_MBI not enabled - can't determine CPU variant\n");
-		return -EIO;
+	if (iosf_mbi_available()) {
+		u32 bios_status;
+		status = iosf_mbi_read(BT_MBI_UNIT_PMC, /* 0x04 PUNIT */
+				       MBI_REG_READ, /* 0x10 */
+				       0x006, /* BIOS_CONFIG */
+				       &bios_status);
+
+		if (status) {
+			dev_err(dev, "could not read PUNIT BIOS_CONFIG\n");
+		} else {
+			/* bits 26:27 mirror PMIC options */
+			bios_status = (bios_status >> 26) & 3;
+
+			if (bios_status == 1 || bios_status == 3) {
+				dev_info(dev, "Detected Baytrail-CR platform\n");
+				return true;
+			}
+
+			dev_info(dev, "BYT-CR not detected\n");
+		}
+	} else {
+		dev_info(dev, "IOSF_MBI not available, no BYT-CR detection\n");
 	}
 
-	status = iosf_mbi_read(BT_MBI_UNIT_PMC, /* 0x04 PUNIT */
-			       MBI_REG_READ, /* 0x10 */
-			       0x006, /* BIOS_CONFIG */
-			       &bios_status);
-
-	if (status) {
-		dev_err(dev, "error: could not read PUNIT BIOS_CONFIG\n");
-		return -EIO;
+	if (platform_get_resource(pdev, IORESOURCE_IRQ, 5) == NULL) {
+		/*
+		 * Some devices detected as BYT-T have only a single IRQ listed,
+		 * causing platform_get_irq with index 5 to return -ENXIO.
+		 * The correct IRQ in this case is at index 0, as on BYT-CR.
+		 */
+		dev_info(dev, "Falling back to Baytrail-CR platform\n");
+		return true;
 	}
 
-	/* bits 26:27 mirror PMIC options */
-	bios_status = (bios_status >> 26) & 3;
-
-	if (bios_status == 1 || bios_status == 3) {
-		dev_info(dev, "BYT-CR detected\n");
-		return 1;
-	}
-
-	dev_info(dev, "BYT-CR not detected\n");
-	return 0;
+	return false;
 }
 #else
-static int is_byt_cr(struct device *dev)
+static int is_byt_cr(struct platform_device *pdev)
 {
 	return 0;
 }
@@ -168,7 +179,7 @@ static int sof_acpi_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_BAYTRAIL)
-	if (desc == &sof_acpi_baytrail_desc && is_byt_cr(dev))
+	if (desc == &sof_acpi_baytrail_desc && is_byt_cr(pdev))
 		desc = &sof_acpi_baytrailcr_desc;
 #endif
 
