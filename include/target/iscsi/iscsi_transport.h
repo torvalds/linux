@@ -53,7 +53,7 @@ extern void iscsit_put_transport(struct iscsit_transport *);
  */
 extern int iscsit_setup_scsi_cmd(struct iscsi_conn *, struct iscsi_cmd *,
 				unsigned char *);
-extern void iscsit_set_unsoliticed_dataout(struct iscsi_cmd *);
+extern void iscsit_set_unsolicited_dataout(struct iscsi_cmd *);
 extern int iscsit_process_scsi_cmd(struct iscsi_conn *, struct iscsi_cmd *,
 				struct iscsi_scsi_req *);
 extern int

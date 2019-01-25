@@ -979,7 +979,7 @@ int iscsit_execute_cmd(struct iscsi_cmd *cmd, int ooo)
 			if (cmd->se_cmd.transport_state & CMD_T_ABORTED)
 				return 0;
 
-			iscsit_set_unsoliticed_dataout(cmd);
+			iscsit_set_unsolicited_dataout(cmd);
 		}
 		return transport_handle_cdb_direct(&cmd->se_cmd);
 
