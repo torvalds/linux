@@ -6382,13 +6382,18 @@ static void __vmx_vcpu_run(struct kvm_vcpu *vcpu, struct vcpu_vmx *vmx)
 	asm(
 		/* Store host registers */
 		"push %%" _ASM_BP " \n\t"
-		"push %%" _ASM_ARG1 " \n\t"
+
+		/*
+		 * Save @regs, _ASM_ARG2 may be modified by vmx_update_host_rsp() and
+		 * @regs is needed after VM-Exit to save the guest's register values.
+		 */
+		"push %%" _ASM_ARG2 " \n\t"
 
 		/* Adjust RSP to account for the CALL to vmx_vmenter(). */
 		"lea -%c[wordsize](%%" _ASM_SP "), %%" _ASM_ARG2 " \n\t"
 		"call vmx_update_host_rsp \n\t"
 
-		/* Load the vcpu_vmx pointer to RCX. */
+		/* Load RCX with @regs. */
 		"mov (%%" _ASM_SP "), %%" _ASM_CX " \n\t"
 
 		/* Check if vmlaunch or vmresume is needed */
@@ -6421,7 +6426,7 @@ static void __vmx_vcpu_run(struct kvm_vcpu *vcpu, struct vcpu_vmx *vmx)
 		/* Temporarily save guest's RCX. */
 		"push %%" _ASM_CX " \n\t"
 
-		/* Reload the vcpu_vmx pointer to RCX. */
+		/* Reload RCX with @regs. */
 		"mov %c[wordsize](%%" _ASM_SP "), %%" _ASM_CX " \n\t"
 
 		/* Save all guest registers, including RCX from the stack */
@@ -6486,37 +6491,37 @@ static void __vmx_vcpu_run(struct kvm_vcpu *vcpu, struct vcpu_vmx *vmx)
 
 	      : ASM_CALL_CONSTRAINT, "=b"(vmx->fail),
 #ifdef CONFIG_X86_64
-		"=D"((int){0})
-	      : "D"(vmx),
+		"=D"((int){0}), "=S"((int){0})
+	      : "D"(vmx), "S"(&vcpu->arch.regs),
 #else
-		"=a"((int){0})
-	      : "a"(vmx),
+		"=a"((int){0}), "=d"((int){0})
+	      : "a"(vmx), "d"(&vcpu->arch.regs),
 #endif
 		"b"(vmx->loaded_vmcs->launched),
-		[rax]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_RAX])),
-		[rbx]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_RBX])),
-		[rcx]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_RCX])),
-		[rdx]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_RDX])),
-		[rsi]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_RSI])),
-		[rdi]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_RDI])),
-		[rbp]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_RBP])),
+		[rax]"i"(VCPU_REGS_RAX * sizeof(ulong)),
+		[rbx]"i"(VCPU_REGS_RBX * sizeof(ulong)),
+		[rcx]"i"(VCPU_REGS_RCX * sizeof(ulong)),
+		[rdx]"i"(VCPU_REGS_RDX * sizeof(ulong)),
+		[rsi]"i"(VCPU_REGS_RSI * sizeof(ulong)),
+		[rdi]"i"(VCPU_REGS_RDI * sizeof(ulong)),
+		[rbp]"i"(VCPU_REGS_RBP * sizeof(ulong)),
 #ifdef CONFIG_X86_64
-		[r8]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_R8])),
-		[r9]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_R9])),
-		[r10]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_R10])),
-		[r11]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_R11])),
-		[r12]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_R12])),
-		[r13]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_R13])),
-		[r14]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_R14])),
-		[r15]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_R15])),
+		[r8]"i"(VCPU_REGS_R8 * sizeof(ulong)),
+		[r9]"i"(VCPU_REGS_R9 * sizeof(ulong)),
+		[r10]"i"(VCPU_REGS_R10 * sizeof(ulong)),
+		[r11]"i"(VCPU_REGS_R11 * sizeof(ulong)),
+		[r12]"i"(VCPU_REGS_R12 * sizeof(ulong)),
+		[r13]"i"(VCPU_REGS_R13 * sizeof(ulong)),
+		[r14]"i"(VCPU_REGS_R14 * sizeof(ulong)),
+		[r15]"i"(VCPU_REGS_R15 * sizeof(ulong)),
 #endif
 		[wordsize]"i"(sizeof(ulong))
 	      : "cc", "memory"
 #ifdef CONFIG_X86_64
-		, "rax", "rcx", "rdx", "rsi"
+		, "rax", "rcx", "rdx"
 		, "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15"
 #else
-		, "ecx", "edx", "edi", "esi"
+		, "ecx", "edi", "esi"
 #endif
 	      );
 
