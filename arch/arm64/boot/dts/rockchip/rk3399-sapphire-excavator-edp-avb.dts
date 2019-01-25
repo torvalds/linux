@@ -10,7 +10,7 @@
 	model = "Rockchip RK3399 Excavator Board edp avb (Android)";
 	compatible = "rockchip,android", "rockchip,rk3399-excavator-edp-avb", "rockchip,rk3399";
 	chosen {
-	bootargs = "earlycon=uart8250,mmio32,0xff1a0000 swiotlb=1 console=ttyFIQ0 androidboot.baseband=N/A androidboot.veritymode=enforcing androidboot.hardware=rk30board androidboot.console=ttyFIQ0 init=/init initrd=0x62000001,0x00800000";
+	bootargs = "earlycon=uart8250,mmio32,0xff1a0000 swiotlb=1 console=ttyFIQ0 androidboot.baseband=N/A androidboot.veritymode=enforcing androidboot.hardware=rk30board androidboot.console=ttyFIQ0 init=/init initrd=0x62000001,0x00800000 coherent_pool=1m";
 	};
 
 };

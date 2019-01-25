@@ -48,7 +48,7 @@
 	compatible = "pine64,rock64", "rockchip,rk3328";
 
 	chosen {
-		bootargs = "rockchip_jtag earlyprintk=uart8250-32bit,0xff130000 swiotlb=1 kpti=0";
+		bootargs = "rockchip_jtag earlyprintk=uart8250-32bit,0xff130000 swiotlb=1 kpti=0 coherent_pool=1m";
 		stdout-path = "serial2:1500000n8";
 	};
 
