@@ -409,6 +409,18 @@ static void cpufreq_ready(struct cpufreq_policy *policy)
 	of_node_put(np);
 }
 
+static int rockchip_cpufreq_suspend(struct cpufreq_policy *policy)
+{
+	struct private_data *priv = policy->driver_data;
+	int ret = 0;
+
+	ret = cpufreq_generic_suspend(policy);
+	if (!ret)
+		rockchip_cpu_suspend_low_temp_adjust(priv->opp_info);
+
+	return ret;
+}
+
 static struct cpufreq_driver dt_cpufreq_driver = {
 	.flags = CPUFREQ_STICKY | CPUFREQ_NEED_INITIAL_FREQ_CHECK |
 			 CPUFREQ_HAVE_GOVERNOR_PER_POLICY,
@@ -420,7 +432,11 @@ static struct cpufreq_driver dt_cpufreq_driver = {
 	.ready = cpufreq_ready,
 	.name = "cpufreq-dt",
 	.attr = cpufreq_dt_attr,
+#ifdef CONFIG_ARCH_ROCKCHIP
+	.suspend = rockchip_cpufreq_suspend,
+#else
 	.suspend = cpufreq_generic_suspend,
+#endif
 };
 
 static int dt_cpufreq_probe(struct platform_device *pdev)
