@@ -2809,8 +2809,6 @@ static int nested_vmx_check_vmentry_hw(struct kvm_vcpu *vcpu)
 
 	return 0;
 }
-STACK_FRAME_NON_STANDARD(nested_vmx_check_vmentry_hw);
-
 
 static inline bool nested_vmx_prepare_msr_bitmap(struct kvm_vcpu *vcpu,
 						 struct vmcs12 *vmcs12);
