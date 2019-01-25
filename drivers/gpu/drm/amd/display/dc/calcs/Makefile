@@ -30,7 +30,7 @@ else ifneq ($(call cc-option, -mstack-alignment=16),)
 	cc_stack_align := -mstack-alignment=16
 endif
 
-calcs_ccflags := -mhard-float -msse $(cc_stack_align)
+calcs_ccflags := -mhard-float -msse -msse2 $(cc_stack_align)
 
 CFLAGS_dcn_calcs.o := $(calcs_ccflags)
 CFLAGS_dcn_calc_auto.o := $(calcs_ccflags)
