@@ -4220,7 +4220,7 @@ struct qla_hw_data {
 
 	atomic_t zio_threshold;
 	uint16_t last_zio_threshold;
-#define DEFAULT_ZIO_THRESHOLD 64
+#define DEFAULT_ZIO_THRESHOLD 5
 };
 
 #define FW_ABILITY_MAX_SPEED_MASK	0xFUL
