@@ -6371,6 +6371,8 @@ void vmx_update_host_rsp(struct vcpu_vmx *vmx, unsigned long host_rsp)
 	}
 }
 
+bool __vmx_vcpu_run(struct vcpu_vmx *vmx, unsigned long *regs, bool launched);
+
 static void vmx_vcpu_run(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
@@ -6444,21 +6446,8 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu)
 	if (vcpu->arch.cr2 != read_cr2())
 		write_cr2(vcpu->arch.cr2);
 
-	asm(
-		"call __vmx_vcpu_run \n\t"
-	      : ASM_CALL_CONSTRAINT, "=a"(vmx->fail),
-#ifdef CONFIG_X86_64
-		"=D"((int){0}), "=S"((int){0}), "=d"((int){0})
-	      : "D"(vmx), "S"(&vcpu->arch.regs), "d"(vmx->loaded_vmcs->launched)
-#else
-		"=d"((int){0}), "=c"((int){0})
-	      : "a"(vmx), "d"(&vcpu->arch.regs), "c"(vmx->loaded_vmcs->launched)
-#endif
-	      : "cc", "memory"
-#ifdef CONFIG_X86_64
-		, "rcx", "r8", "r9", "r10", "r11"
-#endif
-	      );
+	vmx->fail = __vmx_vcpu_run(vmx, (unsigned long *)&vcpu->arch.regs,
+				   vmx->loaded_vmcs->launched);
 
 	vcpu->arch.cr2 = read_cr2();
 
