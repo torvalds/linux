@@ -604,6 +604,47 @@ static void __intel_context_unpin(struct i915_gem_context *ctx,
 	intel_context_unpin(to_intel_context(ctx, engine));
 }
 
+struct measure_breadcrumb {
+	struct i915_request rq;
+	struct i915_timeline timeline;
+	struct intel_ring ring;
+	u32 cs[1024];
+};
+
+static int measure_breadcrumb_sz(struct intel_engine_cs *engine)
+{
+	struct measure_breadcrumb *frame;
+	unsigned int dw;
+
+	GEM_BUG_ON(!engine->i915->gt.scratch);
+
+	frame = kzalloc(sizeof(*frame), GFP_KERNEL);
+	if (!frame)
+		return -ENOMEM;
+
+	i915_timeline_init(engine->i915, &frame->timeline, "measure");
+
+	INIT_LIST_HEAD(&frame->ring.request_list);
+	frame->ring.timeline = &frame->timeline;
+	frame->ring.vaddr = frame->cs;
+	frame->ring.size = sizeof(frame->cs);
+	frame->ring.effective_size = frame->ring.size;
+	intel_ring_update_space(&frame->ring);
+
+	frame->rq.i915 = engine->i915;
+	frame->rq.engine = engine;
+	frame->rq.ring = &frame->ring;
+	frame->rq.timeline = &frame->timeline;
+
+	dw = engine->emit_breadcrumb(&frame->rq, frame->cs) - frame->cs;
+	GEM_BUG_ON(dw != engine->emit_breadcrumb_sz);
+
+	i915_timeline_fini(&frame->timeline);
+	kfree(frame);
+
+	return dw;
+}
+
 /**
  * intel_engines_init_common - initialize cengine state which might require hw access
  * @engine: Engine to initialize.
@@ -657,8 +698,16 @@ int intel_engine_init_common(struct intel_engine_cs *engine)
 	if (ret)
 		goto err_breadcrumbs;
 
+	ret = measure_breadcrumb_sz(engine);
+	if (ret < 0)
+		goto err_status_page;
+
+	engine->emit_breadcrumb_sz = ret;
+
 	return 0;
 
+err_status_page:
+	cleanup_status_page(engine);
 err_breadcrumbs:
 	intel_engine_fini_breadcrumbs(engine);
 err_unpin_preempt:

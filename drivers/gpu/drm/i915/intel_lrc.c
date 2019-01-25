@@ -2051,15 +2051,17 @@ static int gen8_emit_flush_render(struct i915_request *request,
  * used as a workaround for not being allowed to do lite
  * restore with HEAD==TAIL (WaIdleLiteRestore).
  */
-static void gen8_emit_wa_tail(struct i915_request *request, u32 *cs)
+static u32 *gen8_emit_wa_tail(struct i915_request *request, u32 *cs)
 {
 	/* Ensure there's always at least one preemption point per-request. */
 	*cs++ = MI_ARB_CHECK;
 	*cs++ = MI_NOOP;
 	request->wa_tail = intel_ring_offset(request, cs);
+
+	return cs;
 }
 
-static void gen8_emit_breadcrumb(struct i915_request *request, u32 *cs)
+static u32 *gen8_emit_breadcrumb(struct i915_request *request, u32 *cs)
 {
 	/* w/a: bit 5 needs to be zero for MI_FLUSH_DW address. */
 	BUILD_BUG_ON(I915_GEM_HWS_INDEX_ADDR & (1 << 5));
@@ -2071,11 +2073,11 @@ static void gen8_emit_breadcrumb(struct i915_request *request, u32 *cs)
 	request->tail = intel_ring_offset(request, cs);
 	assert_ring_tail_valid(request->ring, request->tail);
 
-	gen8_emit_wa_tail(request, cs);
+	return gen8_emit_wa_tail(request, cs);
 }
 static const int gen8_emit_breadcrumb_sz = 6 + WA_TAIL_DWORDS;
 
-static void gen8_emit_breadcrumb_rcs(struct i915_request *request, u32 *cs)
+static u32 *gen8_emit_breadcrumb_rcs(struct i915_request *request, u32 *cs)
 {
 	/* We're using qword write, seqno should be aligned to 8 bytes. */
 	BUILD_BUG_ON(I915_GEM_HWS_INDEX & 1);
@@ -2095,7 +2097,7 @@ static void gen8_emit_breadcrumb_rcs(struct i915_request *request, u32 *cs)
 	request->tail = intel_ring_offset(request, cs);
 	assert_ring_tail_valid(request->ring, request->tail);
 
-	gen8_emit_wa_tail(request, cs);
+	return gen8_emit_wa_tail(request, cs);
 }
 static const int gen8_emit_breadcrumb_rcs_sz = 8 + WA_TAIL_DWORDS;
 

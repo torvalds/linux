@@ -159,9 +159,9 @@ static int mock_emit_flush(struct i915_request *request,
 	return 0;
 }
 
-static void mock_emit_breadcrumb(struct i915_request *request,
-				 u32 *flags)
+static u32 *mock_emit_breadcrumb(struct i915_request *request, u32 *cs)
 {
+	return cs;
 }
 
 static void mock_submit_request(struct i915_request *request)

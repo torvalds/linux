@@ -299,7 +299,7 @@ gen6_render_ring_flush(struct i915_request *rq, u32 mode)
 	return 0;
 }
 
-static void gen6_rcs_emit_breadcrumb(struct i915_request *rq, u32 *cs)
+static u32 *gen6_rcs_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 {
 	/* First we do the gen6_emit_post_sync_nonzero_flush w/a */
 	*cs++ = GFX_OP_PIPE_CONTROL(4);
@@ -327,6 +327,8 @@ static void gen6_rcs_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 
 	rq->tail = intel_ring_offset(rq, cs);
 	assert_ring_tail_valid(rq->ring, rq->tail);
+
+	return cs;
 }
 static const int gen6_rcs_emit_breadcrumb_sz = 14;
 
@@ -409,7 +411,7 @@ gen7_render_ring_flush(struct i915_request *rq, u32 mode)
 	return 0;
 }
 
-static void gen7_rcs_emit_breadcrumb(struct i915_request *rq, u32 *cs)
+static u32 *gen7_rcs_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 {
 	*cs++ = GFX_OP_PIPE_CONTROL(4);
 	*cs++ = (PIPE_CONTROL_RENDER_TARGET_CACHE_FLUSH |
@@ -427,10 +429,12 @@ static void gen7_rcs_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 
 	rq->tail = intel_ring_offset(rq, cs);
 	assert_ring_tail_valid(rq->ring, rq->tail);
+
+	return cs;
 }
 static const int gen7_rcs_emit_breadcrumb_sz = 6;
 
-static void gen6_xcs_emit_breadcrumb(struct i915_request *rq, u32 *cs)
+static u32 *gen6_xcs_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 {
 	*cs++ = MI_FLUSH_DW | MI_FLUSH_DW_OP_STOREDW;
 	*cs++ = intel_hws_seqno_address(rq->engine) | MI_FLUSH_DW_USE_GTT;
@@ -439,11 +443,13 @@ static void gen6_xcs_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 
 	rq->tail = intel_ring_offset(rq, cs);
 	assert_ring_tail_valid(rq->ring, rq->tail);
+
+	return cs;
 }
 static const int gen6_xcs_emit_breadcrumb_sz = 4;
 
 #define GEN7_XCS_WA 32
-static void gen7_xcs_emit_breadcrumb(struct i915_request *rq, u32 *cs)
+static u32 *gen7_xcs_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 {
 	int i;
 
@@ -466,6 +472,8 @@ static void gen7_xcs_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 
 	rq->tail = intel_ring_offset(rq, cs);
 	assert_ring_tail_valid(rq->ring, rq->tail);
+
+	return cs;
 }
 static const int gen7_xcs_emit_breadcrumb_sz = 8 + GEN7_XCS_WA * 3;
 #undef GEN7_XCS_WA
@@ -861,7 +869,7 @@ static void i9xx_submit_request(struct i915_request *request)
 			intel_ring_set_tail(request->ring, request->tail));
 }
 
-static void i9xx_emit_breadcrumb(struct i915_request *rq, u32 *cs)
+static u32 *i9xx_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 {
 	*cs++ = MI_FLUSH;
 
@@ -874,11 +882,13 @@ static void i9xx_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 
 	rq->tail = intel_ring_offset(rq, cs);
 	assert_ring_tail_valid(rq->ring, rq->tail);
+
+	return cs;
 }
 static const int i9xx_emit_breadcrumb_sz = 6;
 
 #define GEN5_WA_STORES 8 /* must be at least 1! */
-static void gen5_emit_breadcrumb(struct i915_request *rq, u32 *cs)
+static u32 *gen5_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 {
 	int i;
 
@@ -895,6 +905,8 @@ static void gen5_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 
 	rq->tail = intel_ring_offset(rq, cs);
 	assert_ring_tail_valid(rq->ring, rq->tail);
+
+	return cs;
 }
 static const int gen5_emit_breadcrumb_sz = GEN5_WA_STORES * 3 + 2;
 #undef GEN5_WA_STORES

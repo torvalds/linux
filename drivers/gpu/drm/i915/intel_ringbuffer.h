@@ -470,7 +470,7 @@ struct intel_engine_cs {
 					 unsigned int dispatch_flags);
 #define I915_DISPATCH_SECURE BIT(0)
 #define I915_DISPATCH_PINNED BIT(1)
-	void		(*emit_breadcrumb)(struct i915_request *rq, u32 *cs);
+	u32		*(*emit_breadcrumb)(struct i915_request *rq, u32 *cs);
 	int		emit_breadcrumb_sz;
 
 	/* Pass the request to the hardware queue (e.g. directly into
