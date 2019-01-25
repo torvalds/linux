@@ -6399,7 +6399,7 @@ static void __vmx_vcpu_run(struct kvm_vcpu *vcpu, struct vcpu_vmx *vmx)
 		"mov %%" _ASM_AX", %%cr2 \n\t"
 		"3: \n\t"
 		/* Check if vmlaunch or vmresume is needed */
-		"cmpl $0, %c[launched](%%" _ASM_CX ") \n\t"
+		"cmpb $0, %c[launched](%%" _ASM_CX ") \n\t"
 		/* Load guest registers.  Don't clobber flags. */
 		"mov %c[rax](%%" _ASM_CX "), %%" _ASM_AX " \n\t"
 		"mov %c[rbx](%%" _ASM_CX "), %%" _ASM_BX " \n\t"
