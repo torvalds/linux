@@ -678,7 +678,6 @@ static void avc_audit_pre_callback(struct audit_buffer *ab, void *a)
 		return;
 	}
 
-	BUG_ON(!sad->tclass || sad->tclass >= ARRAY_SIZE(secclass_map));
 	perms = secclass_map[sad->tclass-1].perms;
 
 	audit_log_string(ab, " {");
@@ -731,7 +730,6 @@ static void avc_audit_post_callback(struct audit_buffer *ab, void *a)
 		kfree(scontext);
 	}
 
-	BUG_ON(!sad->tclass || sad->tclass >= ARRAY_SIZE(secclass_map));
 	audit_log_format(ab, " tclass=%s", secclass_map[sad->tclass-1].name);
 
 	if (sad->denied)
@@ -747,6 +745,9 @@ noinline int slow_avc_audit(struct selinux_state *state,
 {
 	struct common_audit_data stack_data;
 	struct selinux_audit_data sad;
+
+	if (WARN_ON(!tclass || tclass >= ARRAY_SIZE(secclass_map)))
+		return -EINVAL;
 
 	if (!a) {
 		a = &stack_data;
