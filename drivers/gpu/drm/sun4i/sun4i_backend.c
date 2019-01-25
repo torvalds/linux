@@ -1012,6 +1012,10 @@ static const struct of_device_id sun4i_backend_of_table[] = {
 		.data = &sun7i_backend_quirks,
 	},
 	{
+		.compatible = "allwinner,sun8i-a23-display-backend",
+		.data = &sun8i_a33_backend_quirks,
+	},
+	{
 		.compatible = "allwinner,sun8i-a33-display-backend",
 		.data = &sun8i_a33_backend_quirks,
 	},
