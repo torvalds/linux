@@ -716,7 +716,8 @@ static void hisi_sas_phyup_work(struct work_struct *work)
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
 	int phy_no = sas_phy->id;
 
-	hisi_hba->hw->sl_notify(hisi_hba, phy_no); /* This requires a sleep */
+	if (phy->identify.target_port_protocols == SAS_PROTOCOL_SSP)
+		hisi_hba->hw->sl_notify_ssp(hisi_hba, phy_no);
 	hisi_sas_bytes_dmaed(hisi_hba, phy_no);
 }
 
