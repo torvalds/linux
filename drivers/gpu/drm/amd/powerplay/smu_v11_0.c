@@ -1857,7 +1857,7 @@ smu_v11_0_set_fan_control_mode(struct smu_context *smu,
 	}
 
 	if (ret) {
-		pr_err("[%s]Set fan control mode failed!");
+		pr_err("[%s]Set fan control mode failed!", __func__);
 		return -EINVAL;
 	}
 

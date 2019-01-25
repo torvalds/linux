@@ -1635,11 +1635,14 @@ static ssize_t amdgpu_hwmon_get_fan1_enable(struct device *dev,
 	struct amdgpu_device *adev = dev_get_drvdata(dev);
 	u32 pwm_mode = 0;
 
-	if (!adev->powerplay.pp_funcs->get_fan_control_mode)
-		return -EINVAL;
+	if (is_support_sw_smu(adev)) {
+		pwm_mode = smu_get_fan_control_mode(&adev->smu);
+	} else {
+		if (!adev->powerplay.pp_funcs->get_fan_control_mode)
+			return -EINVAL;
 
-	pwm_mode = amdgpu_dpm_get_fan_control_mode(adev);
-
+		pwm_mode = amdgpu_dpm_get_fan_control_mode(adev);
+	}
 	return sprintf(buf, "%i\n", pwm_mode == AMD_FAN_CTRL_AUTO ? 0 : 1);
 }
 
@@ -1658,8 +1661,6 @@ static ssize_t amdgpu_hwmon_set_fan1_enable(struct device *dev,
 	     (adev->ddev->switch_power_state != DRM_SWITCH_POWER_ON))
 		return -EINVAL;
 
-	if (!adev->powerplay.pp_funcs->set_fan_control_mode)
-		return -EINVAL;
 
 	err = kstrtoint(buf, 10, &value);
 	if (err)
@@ -1672,7 +1673,13 @@ static ssize_t amdgpu_hwmon_set_fan1_enable(struct device *dev,
 	else
 		return -EINVAL;
 
-	amdgpu_dpm_set_fan_control_mode(adev, pwm_mode);
+	if (is_support_sw_smu(adev)) {
+		smu_set_fan_control_mode(&adev->smu, pwm_mode);
+	} else {
+		if (!adev->powerplay.pp_funcs->set_fan_control_mode)
+			return -EINVAL;
+		amdgpu_dpm_set_fan_control_mode(adev, pwm_mode);
+	}
 
 	return count;
 }
