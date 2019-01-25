@@ -1593,6 +1593,8 @@ struct chan_info_params {
 	u32 mac_clk_mhz;
 };
 
+#define WMI_TLV_FLAG_MGMT_BUNDLE_TX_COMPL	BIT(9)
+
 struct wmi_tlv_mgmt_tx_compl_ev {
 	__le32 desc_id;
 	__le32 status;
