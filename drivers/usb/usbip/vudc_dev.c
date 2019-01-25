@@ -297,7 +297,8 @@ static void vep_free_request(struct usb_ep *_ep, struct usb_request *_req)
 {
 	struct vrequest *req;
 
-	if (WARN_ON(!_ep || !_req))
+	/* ep is always valid here - see usb_ep_free_request() */
+	if (!_req)
 		return;
 
 	req = to_vrequest(_req);
