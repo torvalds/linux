@@ -355,6 +355,9 @@ static int sof_probe_continue(struct snd_sof_dev *sdev)
 	dev_dbg(sdev->dev, "created machine %s\n",
 		dev_name(&plat_data->pdev_mach->dev));
 
+	if (plat_data->sof_probe_complete)
+		plat_data->sof_probe_complete(sdev->dev);
+
 	return 0;
 
 comp_err:
