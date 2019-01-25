@@ -2578,6 +2578,9 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	if (amdgpu_mcbp)
 		DRM_INFO("MCBP is enabled\n");
 
+	if (amdgpu_mes && adev->asic_type >= CHIP_NAVI10)
+		adev->enable_mes = true;
+
 	if (amdgpu_discovery) {
 		r = amdgpu_discovery_init(adev);
 		if (r) {
