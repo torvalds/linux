@@ -2768,12 +2768,12 @@ static int nested_vmx_check_vmentry_hw(struct kvm_vcpu *vcpu)
 		 * VMLAUNCH and VMRESUME clear RFLAGS.{CF,ZF} on VM-Exit, set
 		 * RFLAGS.CF on VM-Fail Invalid and set RFLAGS.ZF on VM-Fail
 		 * Valid.  vmx_vmenter() directly "returns" RFLAGS, and so the
-		 * results of VM-Enter is captured via SETBE to vm_fail.
+		 * results of VM-Enter is captured via CC_{SET,OUT} to vm_fail.
 		 */
 		"call vmx_vmenter\n\t"
 
-		"setbe %[fail]\n\t"
-	      : ASM_CALL_CONSTRAINT, [fail]"=qm"(vm_fail)
+		CC_SET(be)
+	      : ASM_CALL_CONSTRAINT, CC_OUT(be) (vm_fail)
 	      : "c"(vmx), "d"((unsigned long)HOST_RSP),
 		[launched]"i"(offsetof(struct vcpu_vmx, __launched)),
 		[host_rsp]"i"(offsetof(struct vcpu_vmx, host_rsp)),
