@@ -3257,13 +3257,10 @@ int qlt_xmit_response(struct qla_tgt_cmd *cmd, int xmit_type,
 	unsigned long flags = 0;
 	int res;
 
-	if (cmd->sess && cmd->sess->deleted) {
+	if (!qpair->fw_started || (cmd->reset_count != qpair->chip_reset) ||
+	    (cmd->sess && cmd->sess->deleted)) {
 		cmd->state = QLA_TGT_STATE_PROCESSED;
-		if (cmd->sess->logout_completed)
-			/* no need to terminate. FW already freed exchange. */
-			qlt_abort_cmd_on_host_reset(cmd->vha, cmd);
-		else
-			qlt_send_term_exchange(qpair, cmd, &cmd->atio, 0, 0);
+		qlt_abort_cmd_on_host_reset(cmd->vha, cmd);
 		return 0;
 	}
 
