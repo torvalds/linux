@@ -138,6 +138,7 @@ bool nd_is_uuid_unique(struct device *dev, u8 *uuid)
 bool pmem_should_map_pages(struct device *dev)
 {
 	struct nd_region *nd_region = to_nd_region(dev->parent);
+	struct nd_namespace_common *ndns = to_ndns(dev);
 	struct nd_namespace_io *nsio;
 
 	if (!IS_ENABLED(CONFIG_ZONE_DEVICE))
@@ -147,6 +148,9 @@ bool pmem_should_map_pages(struct device *dev)
 		return false;
 
 	if (is_nd_pfn(dev) || is_nd_btt(dev))
+		return false;
+
+	if (ndns->force_raw)
 		return false;
 
 	nsio = to_nd_namespace_io(dev);
