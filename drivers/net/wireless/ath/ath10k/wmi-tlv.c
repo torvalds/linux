@@ -620,6 +620,9 @@ static void ath10k_wmi_tlv_op_rx(struct ath10k *ar, struct sk_buff *skb)
 	case WMI_TLV_MGMT_TX_COMPLETION_EVENTID:
 		ath10k_wmi_event_mgmt_tx_compl(ar, skb);
 		break;
+	case WMI_TLV_MGMT_TX_BUNDLE_COMPLETION_EVENTID:
+		ath10k_wmi_event_mgmt_tx_bundle_compl(ar, skb);
+		break;
 	default:
 		ath10k_dbg(ar, ATH10K_DBG_WMI, "Unknown eventid: %d\n", id);
 		break;
@@ -683,6 +686,65 @@ ath10k_wmi_tlv_op_pull_mgmt_tx_compl_ev(struct ath10k *ar, struct sk_buff *skb,
 	arg->pdev_id = ev->pdev_id;
 
 	kfree(tb);
+	return 0;
+}
+
+struct wmi_tlv_tx_bundle_compl_parse {
+	const __le32 *num_reports;
+	const __le32 *desc_ids;
+	const __le32 *status;
+	bool desc_ids_done;
+	bool status_done;
+};
+
+static int
+ath10k_wmi_tlv_mgmt_tx_bundle_compl_parse(struct ath10k *ar, u16 tag, u16 len,
+					  const void *ptr, void *data)
+{
+	struct wmi_tlv_tx_bundle_compl_parse *bundle_tx_compl = data;
+
+	switch (tag) {
+	case WMI_TLV_TAG_STRUCT_MGMT_TX_COMPL_BUNDLE_EVENT:
+		bundle_tx_compl->num_reports = ptr;
+		break;
+	case WMI_TLV_TAG_ARRAY_UINT32:
+		if (!bundle_tx_compl->desc_ids_done) {
+			bundle_tx_compl->desc_ids_done = true;
+			bundle_tx_compl->desc_ids = ptr;
+		} else if (!bundle_tx_compl->status_done) {
+			bundle_tx_compl->status_done = true;
+			bundle_tx_compl->status = ptr;
+		}
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+
+static int ath10k_wmi_tlv_op_pull_mgmt_tx_bundle_compl_ev(
+				struct ath10k *ar, struct sk_buff *skb,
+				struct wmi_tlv_mgmt_tx_bundle_compl_ev_arg *arg)
+{
+	struct wmi_tlv_tx_bundle_compl_parse bundle_tx_compl = { };
+	int ret;
+
+	ret = ath10k_wmi_tlv_iter(ar, skb->data, skb->len,
+				  ath10k_wmi_tlv_mgmt_tx_bundle_compl_parse,
+				  &bundle_tx_compl);
+	if (ret) {
+		ath10k_warn(ar, "failed to parse tlv: %d\n", ret);
+		return ret;
+	}
+
+	if (!bundle_tx_compl.num_reports || !bundle_tx_compl.desc_ids ||
+	    !bundle_tx_compl.status)
+		return -EPROTO;
+
+	arg->num_reports = *bundle_tx_compl.num_reports;
+	arg->desc_ids = bundle_tx_compl.desc_ids;
+	arg->status = bundle_tx_compl.status;
+
 	return 0;
 }
 
@@ -4093,6 +4155,7 @@ static const struct wmi_ops wmi_tlv_ops = {
 	.pull_scan = ath10k_wmi_tlv_op_pull_scan_ev,
 	.pull_mgmt_rx = ath10k_wmi_tlv_op_pull_mgmt_rx_ev,
 	.pull_mgmt_tx_compl = ath10k_wmi_tlv_op_pull_mgmt_tx_compl_ev,
+	.pull_mgmt_tx_bundle_compl = ath10k_wmi_tlv_op_pull_mgmt_tx_bundle_compl_ev,
 	.pull_ch_info = ath10k_wmi_tlv_op_pull_ch_info_ev,
 	.pull_vdev_start = ath10k_wmi_tlv_op_pull_vdev_start_ev,
 	.pull_peer_kick = ath10k_wmi_tlv_op_pull_peer_kick_ev,
