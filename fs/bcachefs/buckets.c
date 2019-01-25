@@ -823,7 +823,7 @@ static int __bch2_mark_key(struct bch_fs *c, struct bkey_s_c k,
 		ret = bch2_mark_stripe(c, k, inserting,
 				       fs_usage, journal_seq, flags, gc);
 		break;
-	case KEY_TYPE_alloc:
+	case KEY_TYPE_inode:
 		if (inserting)
 			fs_usage->s.nr_inodes++;
 		else
