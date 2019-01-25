@@ -114,6 +114,32 @@ enum ds_type {
 #	define RX8025_BIT_VDET		0x40
 #	define RX8025_BIT_XST		0x20
 
+#define RX8130_REG_ALARM_MIN		0x07
+#define RX8130_REG_ALARM_HOUR		0x08
+#define RX8130_REG_ALARM_WEEK_OR_DAY	0x09
+#define RX8130_REG_EXTENSION		0x0c
+#define RX8130_REG_EXTENSION_WADA	BIT(3)
+#define RX8130_REG_FLAG			0x0d
+#define RX8130_REG_FLAG_AF		BIT(3)
+#define RX8130_REG_CONTROL0		0x0e
+#define RX8130_REG_CONTROL0_AIE		BIT(3)
+
+#define MCP794XX_REG_CONTROL		0x07
+#	define MCP794XX_BIT_ALM0_EN	0x10
+#	define MCP794XX_BIT_ALM1_EN	0x20
+#define MCP794XX_REG_ALARM0_BASE	0x0a
+#define MCP794XX_REG_ALARM0_CTRL	0x0d
+#define MCP794XX_REG_ALARM1_BASE	0x11
+#define MCP794XX_REG_ALARM1_CTRL	0x14
+#	define MCP794XX_BIT_ALMX_IF	BIT(3)
+#	define MCP794XX_BIT_ALMX_C0	BIT(4)
+#	define MCP794XX_BIT_ALMX_C1	BIT(5)
+#	define MCP794XX_BIT_ALMX_C2	BIT(6)
+#	define MCP794XX_BIT_ALMX_POL	BIT(7)
+#	define MCP794XX_MSK_ALMX_MATCH	(MCP794XX_BIT_ALMX_C0 | \
+					 MCP794XX_BIT_ALMX_C1 | \
+					 MCP794XX_BIT_ALMX_C2)
+
 #define M41TXX_REG_CONTROL	0x07
 #	define M41TXX_BIT_OUT		BIT(7)
 #	define M41TXX_BIT_FT		BIT(6)
@@ -680,16 +706,6 @@ static const struct rtc_class_ops ds13xx_rtc_ops = {
  * Alarm support for rx8130 devices.
  */
 
-#define RX8130_REG_ALARM_MIN		0x07
-#define RX8130_REG_ALARM_HOUR		0x08
-#define RX8130_REG_ALARM_WEEK_OR_DAY	0x09
-#define RX8130_REG_EXTENSION		0x0c
-#define RX8130_REG_EXTENSION_WADA	BIT(3)
-#define RX8130_REG_FLAG			0x0d
-#define RX8130_REG_FLAG_AF		BIT(3)
-#define RX8130_REG_CONTROL0		0x0e
-#define RX8130_REG_CONTROL0_AIE		BIT(3)
-
 static irqreturn_t rx8130_irq(int irq, void *dev_id)
 {
 	struct ds1307           *ds1307 = dev_id;
@@ -838,22 +854,6 @@ static int rx8130_alarm_irq_enable(struct device *dev, unsigned int enabled)
 /*
  * Alarm support for mcp794xx devices.
  */
-
-#define MCP794XX_REG_CONTROL		0x07
-#	define MCP794XX_BIT_ALM0_EN	0x10
-#	define MCP794XX_BIT_ALM1_EN	0x20
-#define MCP794XX_REG_ALARM0_BASE	0x0a
-#define MCP794XX_REG_ALARM0_CTRL	0x0d
-#define MCP794XX_REG_ALARM1_BASE	0x11
-#define MCP794XX_REG_ALARM1_CTRL	0x14
-#	define MCP794XX_BIT_ALMX_IF	BIT(3)
-#	define MCP794XX_BIT_ALMX_C0	BIT(4)
-#	define MCP794XX_BIT_ALMX_C1	BIT(5)
-#	define MCP794XX_BIT_ALMX_C2	BIT(6)
-#	define MCP794XX_BIT_ALMX_POL	BIT(7)
-#	define MCP794XX_MSK_ALMX_MATCH	(MCP794XX_BIT_ALMX_C0 | \
-					 MCP794XX_BIT_ALMX_C1 | \
-					 MCP794XX_BIT_ALMX_C2)
 
 static irqreturn_t mcp794xx_irq(int irq, void *dev_id)
 {
