@@ -6407,8 +6407,8 @@ static void __vmx_vcpu_run(struct kvm_vcpu *vcpu, struct vcpu_vmx *vmx)
 		write_cr2(vcpu->arch.cr2);
 
 	asm(
-		/* Store host registers */
 		"push %%" _ASM_BP " \n\t"
+		"mov  %%" _ASM_SP ", %%" _ASM_BP " \n\t"
 
 		/*
 		 * Save @regs, _ASM_ARG2 may be modified by vmx_update_host_rsp() and
