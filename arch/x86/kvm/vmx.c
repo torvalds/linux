@@ -10841,6 +10841,15 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 		"mov %%r13, %c[r13](%0) \n\t"
 		"mov %%r14, %c[r14](%0) \n\t"
 		"mov %%r15, %c[r15](%0) \n\t"
+
+		/*
+		 * Clear all general purpose registers (except RSP, which is loaded by
+		 * the CPU during VM-Exit) to prevent speculative use of the guest's
+		 * values, even those that are saved/loaded via the stack.  In theory,
+		 * an L1 cache miss when restoring registers could lead to speculative
+		 * execution with the guest's values.  Zeroing XORs are dirt cheap,
+		 * i.e. the extra paranoia is essentially free.
+		 */
 		"xor %%r8d,  %%r8d \n\t"
 		"xor %%r9d,  %%r9d \n\t"
 		"xor %%r10d, %%r10d \n\t"
@@ -10855,8 +10864,11 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 
 		"xor %%eax, %%eax \n\t"
 		"xor %%ebx, %%ebx \n\t"
+		"xor %%ecx, %%ecx \n\t"
+		"xor %%edx, %%edx \n\t"
 		"xor %%esi, %%esi \n\t"
 		"xor %%edi, %%edi \n\t"
+		"xor %%ebp, %%ebp \n\t"
 		"pop  %%" _ASM_BP "; pop  %%" _ASM_DX " \n\t"
 		".pushsection .rodata \n\t"
 		".global vmx_return \n\t"
