@@ -868,6 +868,9 @@ int f2fs_disable_cp_again(struct f2fs_sb_info *sbi)
 
 	if (holes[DATA] > ovp || holes[NODE] > ovp)
 		return -EAGAIN;
+	if (is_sbi_flag_set(sbi, SBI_CP_DISABLED_QUICK) &&
+		dirty_segments(sbi) > overprovision_segments(sbi))
+		return -EAGAIN;
 	return 0;
 }
 
