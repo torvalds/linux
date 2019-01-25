@@ -102,7 +102,8 @@ smb2_add_credits(struct TCP_Server_Info *server, const unsigned int add,
 	spin_unlock(&server->req_lock);
 	wake_up(&server->request_q);
 
-	if (server->tcpStatus == CifsNeedReconnect)
+	if (server->tcpStatus == CifsNeedReconnect
+	    || server->tcpStatus == CifsExiting)
 		return;
 
 	switch (rc) {
