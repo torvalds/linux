@@ -279,6 +279,9 @@ struct kfd_dev {
 
 	/* SRAM ECC flag */
 	atomic_t sram_ecc_flag;
+
+	/* Compute Profile ref. count */
+	atomic_t compute_profile;
 };
 
 enum kfd_mempool {
@@ -977,6 +980,10 @@ void kfd_flush_tlb(struct kfd_process_device *pdd);
 int dbgdev_wave_reset_wavefronts(struct kfd_dev *dev, struct kfd_process *p);
 
 bool kfd_is_locked(void);
+
+/* Compute profile */
+void kfd_inc_compute_active(struct kfd_dev *dev);
+void kfd_dec_compute_active(struct kfd_dev *dev);
 
 /* Debugfs */
 #if defined(CONFIG_DEBUG_FS)

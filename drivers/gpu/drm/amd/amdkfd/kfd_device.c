@@ -463,6 +463,7 @@ struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd,
 	kfd->pdev = pdev;
 	kfd->init_complete = false;
 	kfd->kfd2kgd = f2g;
+	atomic_set(&kfd->compute_profile, 0);
 
 	mutex_init(&kfd->doorbell_mutex);
 	memset(&kfd->doorbell_available_index, 0,
@@ -1035,6 +1036,21 @@ void kgd2kfd_set_sram_ecc_flag(struct kfd_dev *kfd)
 {
 	if (kfd)
 		atomic_inc(&kfd->sram_ecc_flag);
+}
+
+void kfd_inc_compute_active(struct kfd_dev *kfd)
+{
+	if (atomic_inc_return(&kfd->compute_profile) == 1)
+		amdgpu_amdkfd_set_compute_idle(kfd->kgd, false);
+}
+
+void kfd_dec_compute_active(struct kfd_dev *kfd)
+{
+	int count = atomic_dec_return(&kfd->compute_profile);
+
+	if (count == 0)
+		amdgpu_amdkfd_set_compute_idle(kfd->kgd, true);
+	WARN_ONCE(count < 0, "Compute profile ref. count error");
 }
 
 #if defined(CONFIG_DEBUG_FS)
