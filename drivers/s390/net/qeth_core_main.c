@@ -3558,8 +3558,6 @@ static void qeth_qdio_cq_handler(struct qeth_card *card, unsigned int qdio_err,
 	card->qdio.c_q->next_buf_to_init = (card->qdio.c_q->next_buf_to_init
 				   + count) % QDIO_MAX_BUFFERS_PER_Q;
 
-	netif_wake_queue(card->dev);
-
 	if (card->options.performance_stats) {
 		int delta_t = qeth_get_micros();
 		delta_t -= card->perf_stats.cq_start_time;
