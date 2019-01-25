@@ -5147,13 +5147,6 @@ retriable:
 		*carrier_ok = true;
 	}
 
-	if (qeth_netdev_is_registered(card->dev)) {
-		if (*carrier_ok)
-			netif_carrier_on(card->dev);
-		else
-			netif_carrier_off(card->dev);
-	}
-
 	card->options.ipa4.supported_funcs = 0;
 	card->options.ipa6.supported_funcs = 0;
 	card->options.adp.supported_funcs = 0;
@@ -6538,7 +6531,6 @@ void qeth_enable_hw_features(struct net_device *dev)
 	struct qeth_card *card = dev->ml_priv;
 	netdev_features_t features;
 
-	rtnl_lock();
 	features = dev->features;
 	/* force-off any feature that needs an IPA sequence.
 	 * netdev_update_features() will restart them.
@@ -6548,7 +6540,6 @@ void qeth_enable_hw_features(struct net_device *dev)
 	if (features != dev->features)
 		dev_warn(&card->gdev->dev,
 			 "Device recovery failed to restore all offload features\n");
-	rtnl_unlock();
 }
 EXPORT_SYMBOL_GPL(qeth_enable_hw_features);
 

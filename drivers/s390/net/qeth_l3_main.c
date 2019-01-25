@@ -2178,9 +2178,6 @@ static int qeth_l3_setup_netdev(struct qeth_card *card, bool carrier_ok)
 	unsigned int headroom;
 	int rc;
 
-	if (qeth_netdev_is_registered(card->dev))
-		return 0;
-
 	if (card->info.type == QETH_CARD_TYPE_OSD ||
 	    card->info.type == QETH_CARD_TYPE_OSX) {
 		if ((card->info.link_type == QETH_LINK_TYPE_LANE_TR) ||
@@ -2296,6 +2293,7 @@ static void qeth_l3_remove_device(struct ccwgroup_device *cgdev)
 static int __qeth_l3_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 {
 	struct qeth_card *card = dev_get_drvdata(&gdev->dev);
+	struct net_device *dev = card->dev;
 	int rc = 0;
 	enum qeth_card_states recover_flag;
 	bool carrier_ok;
@@ -2312,10 +2310,6 @@ static int __qeth_l3_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 		rc = -ENODEV;
 		goto out_remove;
 	}
-
-	rc = qeth_l3_setup_netdev(card, carrier_ok);
-	if (rc)
-		goto out_remove;
 
 	if (qeth_is_diagass_supported(card, QETH_DIAGS_CMD_TRAP)) {
 		if (card->info.hwtrap &&
@@ -2358,14 +2352,26 @@ static int __qeth_l3_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 	qeth_set_allowed_threads(card, 0xffffffff, 0);
 	qeth_l3_recover_ip(card);
 
-	qeth_enable_hw_features(card->dev);
-	if (recover_flag == CARD_STATE_RECOVER) {
+	if (!qeth_netdev_is_registered(dev)) {
+		rc = qeth_l3_setup_netdev(card, carrier_ok);
+		if (rc)
+			goto out_remove;
+	} else {
 		rtnl_lock();
-		if (recovery_mode) {
-			qeth_open_internal(card->dev);
-			qeth_l3_set_rx_mode(card->dev);
-		} else {
-			dev_open(card->dev, NULL);
+		if (carrier_ok)
+			netif_carrier_on(dev);
+		else
+			netif_carrier_off(dev);
+
+		qeth_enable_hw_features(dev);
+
+		if (recover_flag == CARD_STATE_RECOVER) {
+			if (recovery_mode) {
+				qeth_open_internal(dev);
+				qeth_l3_set_rx_mode(dev);
+			} else {
+				dev_open(dev, NULL);
+			}
 		}
 		rtnl_unlock();
 	}

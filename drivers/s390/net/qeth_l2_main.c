@@ -803,9 +803,6 @@ static int qeth_l2_setup_netdev(struct qeth_card *card, bool carrier_ok)
 {
 	int rc;
 
-	if (qeth_netdev_is_registered(card->dev))
-		return 0;
-
 	card->dev->priv_flags |= IFF_UNICAST_FLT;
 	card->dev->netdev_ops = &qeth_l2_netdev_ops;
 	if (card->info.type == QETH_CARD_TYPE_OSN) {
@@ -886,6 +883,7 @@ static void qeth_l2_trace_features(struct qeth_card *card)
 static int __qeth_l2_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 {
 	struct qeth_card *card = dev_get_drvdata(&gdev->dev);
+	struct net_device *dev = card->dev;
 	int rc = 0;
 	enum qeth_card_states recover_flag;
 	bool carrier_ok;
@@ -908,10 +906,6 @@ static int __qeth_l2_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 		"The device represents a Bridge Capable Port\n");
 
 	qeth_l2_register_dev_addr(card);
-
-	rc = qeth_l2_setup_netdev(card, carrier_ok);
-	if (rc)
-		goto out_remove;
 
 	if (qeth_is_diagass_supported(card, QETH_DIAGS_CMD_TRAP)) {
 		if (card->info.hwtrap &&
@@ -954,18 +948,30 @@ static int __qeth_l2_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 
 	qeth_set_allowed_threads(card, 0xffffffff, 0);
 
-	qeth_enable_hw_features(card->dev);
-	if (recover_flag == CARD_STATE_RECOVER) {
-		if (recovery_mode && !IS_OSN(card)) {
-			if (!qeth_l2_validate_addr(card->dev)) {
-				qeth_open_internal(card->dev);
-				qeth_l2_set_rx_mode(card->dev);
+	if (!qeth_netdev_is_registered(dev)) {
+		rc = qeth_l2_setup_netdev(card, carrier_ok);
+		if (rc)
+			goto out_remove;
+	} else {
+		rtnl_lock();
+		if (carrier_ok)
+			netif_carrier_on(dev);
+		else
+			netif_carrier_off(dev);
+
+		qeth_enable_hw_features(dev);
+
+		if (recover_flag == CARD_STATE_RECOVER) {
+			if (recovery_mode && !IS_OSN(card)) {
+				if (!qeth_l2_validate_addr(dev)) {
+					qeth_open_internal(dev);
+					qeth_l2_set_rx_mode(dev);
+				}
+			} else {
+				dev_open(dev, NULL);
 			}
-		} else {
-			rtnl_lock();
-			dev_open(card->dev, NULL);
-			rtnl_unlock();
 		}
+		rtnl_unlock();
 	}
 	/* let user_space know that device is online */
 	kobject_uevent(&gdev->dev.kobj, KOBJ_CHANGE);
