@@ -676,9 +676,8 @@ static int phylink_bringup_phy(struct phylink *pl, struct phy_device *phy)
 		   __ETHTOOL_LINK_MODE_MASK_NBITS, pl->supported,
 		   __ETHTOOL_LINK_MODE_MASK_NBITS, phy->advertising);
 
-	phy_start_machine(phy);
-	if (phy->irq > 0)
-		phy_start_interrupts(phy);
+	if (phy_interrupt_is_valid(phy))
+		phy_request_interrupt(phy);
 
 	return 0;
 }

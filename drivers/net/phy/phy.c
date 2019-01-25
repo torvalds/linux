@@ -785,28 +785,27 @@ static int phy_enable_interrupts(struct phy_device *phydev)
 }
 
 /**
- * phy_start_interrupts - request and enable interrupts for a PHY device
+ * phy_request_interrupt - request interrupt for a PHY device
  * @phydev: target phy_device struct
  *
  * Description: Request the interrupt for the given PHY.
  *   If this fails, then we set irq to PHY_POLL.
- *   Otherwise, we enable the interrupts in the PHY.
  *   This should only be called with a valid IRQ number.
- *   Returns 0 on success or < 0 on error.
  */
-int phy_start_interrupts(struct phy_device *phydev)
+void phy_request_interrupt(struct phy_device *phydev)
 {
-	if (request_threaded_irq(phydev->irq, NULL, phy_interrupt,
-				 IRQF_ONESHOT | IRQF_SHARED,
-				 phydev_name(phydev), phydev) < 0) {
-		phydev_warn(phydev, "Can't get IRQ %d\n", phydev->irq);
-		phydev->irq = PHY_POLL;
-		return 0;
-	}
+	int err;
 
-	return phy_enable_interrupts(phydev);
+	err = request_threaded_irq(phydev->irq, NULL, phy_interrupt,
+				   IRQF_ONESHOT | IRQF_SHARED,
+				   phydev_name(phydev), phydev);
+	if (err) {
+		phydev_warn(phydev, "Error %d requesting IRQ %d, falling back to polling\n",
+			    err, phydev->irq);
+		phydev->irq = PHY_POLL;
+	}
 }
-EXPORT_SYMBOL(phy_start_interrupts);
+EXPORT_SYMBOL(phy_request_interrupt);
 
 /**
  * phy_stop - Bring down the PHY link, and stop checking the status
@@ -852,33 +851,34 @@ EXPORT_SYMBOL(phy_stop);
  */
 void phy_start(struct phy_device *phydev)
 {
-	int err = 0;
+	int err;
 
 	mutex_lock(&phydev->lock);
 
-	switch (phydev->state) {
-	case PHY_READY:
-		phydev->state = PHY_UP;
-		break;
-	case PHY_HALTED:
-		/* if phy was suspended, bring the physical link up again */
-		__phy_resume(phydev);
-
-		/* make sure interrupts are re-enabled for the PHY */
-		if (phy_interrupt_is_valid(phydev)) {
-			err = phy_enable_interrupts(phydev);
-			if (err < 0)
-				break;
-		}
-
-		phydev->state = PHY_RESUMING;
-		break;
-	default:
-		break;
+	if (phydev->state != PHY_READY && phydev->state != PHY_HALTED) {
+		WARN(1, "called from state %s\n",
+		     phy_state_to_str(phydev->state));
+		goto out;
 	}
-	mutex_unlock(&phydev->lock);
 
-	phy_trigger_machine(phydev);
+	/* if phy was suspended, bring the physical link up again */
+	__phy_resume(phydev);
+
+	/* make sure interrupts are enabled for the PHY */
+	if (phy_interrupt_is_valid(phydev)) {
+		err = phy_enable_interrupts(phydev);
+		if (err < 0)
+			goto out;
+	}
+
+	if (phydev->state == PHY_READY)
+		phydev->state = PHY_UP;
+	else
+		phydev->state = PHY_RESUMING;
+
+	phy_start_machine(phydev);
+out:
+	mutex_unlock(&phydev->lock);
 }
 EXPORT_SYMBOL(phy_start);
 
