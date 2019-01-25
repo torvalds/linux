@@ -194,6 +194,20 @@ static int ds1307_get_time(struct device *dev, struct rtc_time *t)
 	const struct chip_desc *chip = &chips[ds1307->type];
 	u8 regs[7];
 
+	if (ds1307->type == rx_8130) {
+		unsigned int regflag;
+		ret = regmap_read(ds1307->regmap, RX8130_REG_FLAG, &regflag);
+		if (ret) {
+			dev_err(dev, "%s error %d\n", "read", ret);
+			return ret;
+		}
+
+		if (regflag & RX8130_REG_FLAG_VLF) {
+			dev_warn_once(dev, "oscillator failed, set time!\n");
+			return -EINVAL;
+		}
+	}
+
 	/* read the RTC date and time registers all at once */
 	ret = regmap_bulk_read(ds1307->regmap, chip->offset, regs,
 			       sizeof(regs));
@@ -293,6 +307,17 @@ static int ds1307_set_time(struct device *dev, struct rtc_time *t)
 		dev_err(dev, "%s error %d\n", "write", result);
 		return result;
 	}
+
+	if (ds1307->type == rx_8130) {
+		/* clear Voltage Loss Flag as data is available now */
+		result = regmap_write(ds1307->regmap, RX8130_REG_FLAG,
+				      ~(u8)RX8130_REG_FLAG_VLF);
+		if (result) {
+			dev_err(dev, "%s error %d\n", "write", result);
+			return result;
+		}
+	}
+
 	return 0;
 }
 
