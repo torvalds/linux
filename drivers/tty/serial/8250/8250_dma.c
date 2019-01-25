@@ -42,6 +42,9 @@ static void __dma_tx_complete(void *param)
 	ret = serial8250_tx_dma(p);
 	if (ret) {
 		p->ier |= UART_IER_THRI;
+#ifdef CONFIG_ARCH_ROCKCHIP
+		p->ier |= UART_IER_PTIME;
+#endif
 		serial_port_out(&p->port, UART_IER, p->ier);
 	}
 
@@ -148,6 +151,9 @@ int serial8250_tx_dma(struct uart_8250_port *p)
 		dma->tx_err = 0;
 		if (p->ier & UART_IER_THRI) {
 			p->ier &= ~UART_IER_THRI;
+#ifdef CONFIG_ARCH_ROCKCHIP
+			p->ier &= ~UART_IER_PTIME;
+#endif
 			serial_out(p, UART_IER, p->ier);
 		}
 	}
