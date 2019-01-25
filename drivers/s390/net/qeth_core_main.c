@@ -193,23 +193,6 @@ const char *qeth_get_cardname_short(struct qeth_card *card)
 	return "n/a";
 }
 
-void qeth_set_recovery_task(struct qeth_card *card)
-{
-	card->recovery_task = current;
-}
-EXPORT_SYMBOL_GPL(qeth_set_recovery_task);
-
-void qeth_clear_recovery_task(struct qeth_card *card)
-{
-	card->recovery_task = NULL;
-}
-EXPORT_SYMBOL_GPL(qeth_clear_recovery_task);
-
-static bool qeth_is_recovery_task(const struct qeth_card *card)
-{
-	return card->recovery_task == current;
-}
-
 void qeth_set_allowed_threads(struct qeth_card *card, unsigned long threads,
 			 int clear_start_mask)
 {
@@ -235,15 +218,6 @@ int qeth_threads_running(struct qeth_card *card, unsigned long threads)
 	return rc;
 }
 EXPORT_SYMBOL_GPL(qeth_threads_running);
-
-int qeth_wait_for_threads(struct qeth_card *card, unsigned long threads)
-{
-	if (qeth_is_recovery_task(card))
-		return 0;
-	return wait_event_interruptible(card->wait_q,
-			qeth_threads_running(card, threads) == 0);
-}
-EXPORT_SYMBOL_GPL(qeth_wait_for_threads);
 
 void qeth_clear_working_pool_list(struct qeth_card *card)
 {
@@ -5923,9 +5897,6 @@ int qeth_do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	if (!card)
 		return -ENODEV;
 
-	if (!qeth_card_hw_is_reachable(card))
-		return -ENODEV;
-
 	if (card->info.type == QETH_CARD_TYPE_OSN)
 		return -EPERM;
 
@@ -6236,8 +6207,6 @@ int qeth_core_ethtool_get_link_ksettings(struct net_device *netdev,
 	/* Check if we can obtain more accurate information.	 */
 	/* If QUERY_CARD_INFO command is not supported or fails, */
 	/* just return the heuristics that was filled above.	 */
-	if (!qeth_card_hw_is_reachable(card))
-		return -ENODEV;
 	rc = qeth_query_card_info(card, &carrier_info);
 	if (rc == -EOPNOTSUPP) /* for old hardware, return heuristic */
 		return 0;
@@ -6608,10 +6577,7 @@ netdev_features_t qeth_fix_features(struct net_device *dev,
 		features &= ~NETIF_F_TSO;
 	if (!qeth_is_supported6(card, IPA_OUTBOUND_TSO))
 		features &= ~NETIF_F_TSO6;
-	/* if the card isn't up, remove features that require hw changes */
-	if (card->state == CARD_STATE_DOWN ||
-	    card->state == CARD_STATE_RECOVER)
-		features &= ~QETH_HW_FEATURES;
+
 	QETH_DBF_HEX(SETUP, 2, &features, sizeof(features));
 	return features;
 }
@@ -6643,7 +6609,7 @@ netdev_features_t qeth_features_check(struct sk_buff *skb,
 }
 EXPORT_SYMBOL_GPL(qeth_features_check);
 
-int qeth_open_internal(struct net_device *dev)
+int qeth_open(struct net_device *dev)
 {
 	struct qeth_card *card = dev->ml_priv;
 
@@ -6666,19 +6632,6 @@ int qeth_open_internal(struct net_device *dev)
 	/* kick-start the NAPI softirq: */
 	local_bh_enable();
 	return 0;
-}
-EXPORT_SYMBOL_GPL(qeth_open_internal);
-
-int qeth_open(struct net_device *dev)
-{
-	struct qeth_card *card = dev->ml_priv;
-
-	QETH_CARD_TEXT(card, 5, "qethope_");
-	if (qeth_wait_for_threads(card, QETH_RECOVER_THREAD)) {
-		QETH_CARD_TEXT(card, 3, "openREC");
-		return -ERESTARTSYS;
-	}
-	return qeth_open_internal(dev);
 }
 EXPORT_SYMBOL_GPL(qeth_open);
 

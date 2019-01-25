@@ -1280,10 +1280,6 @@ static int qeth_l3_vlan_rx_kill_vid(struct net_device *dev,
 
 	QETH_CARD_TEXT_(card, 4, "kid:%d", vid);
 
-	if (qeth_wait_for_threads(card, QETH_RECOVER_THREAD)) {
-		QETH_CARD_TEXT(card, 3, "kidREC");
-		return 0;
-	}
 	clear_bit(vid, card->active_vlans);
 	qeth_l3_set_rx_mode(dev);
 	return 0;
@@ -1472,9 +1468,7 @@ static void qeth_l3_set_rx_mode(struct net_device *dev)
 	int i, rc;
 
 	QETH_CARD_TEXT(card, 3, "setmulti");
-	if (qeth_threads_running(card, QETH_RECOVER_THREAD) &&
-	    (card->state != CARD_STATE_UP))
-		return;
+
 	if (!card->options.sniffer) {
 		spin_lock_bh(&card->mclock);
 
@@ -2363,11 +2357,12 @@ static int __qeth_l3_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 		else
 			netif_carrier_off(dev);
 
+		netif_device_attach(dev);
 		qeth_enable_hw_features(dev);
 
 		if (recover_flag == CARD_STATE_RECOVER) {
 			if (recovery_mode) {
-				qeth_open_internal(dev);
+				qeth_open(dev);
 				qeth_l3_set_rx_mode(dev);
 			} else {
 				dev_open(dev, NULL);
@@ -2413,7 +2408,11 @@ static int __qeth_l3_set_offline(struct ccwgroup_device *cgdev,
 	QETH_DBF_TEXT(SETUP, 3, "setoffl");
 	QETH_DBF_HEX(SETUP, 3, &card, sizeof(void *));
 
+	rtnl_lock();
+	netif_device_detach(card->dev);
 	netif_carrier_off(card->dev);
+	rtnl_unlock();
+
 	recover_flag = card->state;
 	if ((!recovery_mode && card->info.hwtrap) || card->info.hwtrap == 2) {
 		qeth_hw_trap(card, QETH_DIAGS_TRAP_DISARM);
@@ -2460,7 +2459,6 @@ static int qeth_l3_recover(void *ptr)
 	QETH_CARD_TEXT(card, 2, "recover2");
 	dev_warn(&card->gdev->dev,
 		"A recovery process has been started for the device\n");
-	qeth_set_recovery_task(card);
 	__qeth_l3_set_offline(card->gdev, 1);
 	rc = __qeth_l3_set_online(card->gdev, 1);
 	if (!rc)
@@ -2471,7 +2469,6 @@ static int qeth_l3_recover(void *ptr)
 		dev_warn(&card->gdev->dev, "The qeth device driver "
 				"failed to recover an error on the device\n");
 	}
-	qeth_clear_recovery_task(card);
 	qeth_clear_thread_start_bit(card, QETH_RECOVER_THREAD);
 	qeth_clear_thread_running_bit(card, QETH_RECOVER_THREAD);
 	return 0;
@@ -2481,7 +2478,6 @@ static int qeth_l3_pm_suspend(struct ccwgroup_device *gdev)
 {
 	struct qeth_card *card = dev_get_drvdata(&gdev->dev);
 
-	netif_device_detach(card->dev);
 	qeth_set_allowed_threads(card, 0, 1);
 	wait_event(card->wait_q, qeth_threads_running(card, 0xffffffff) == 0);
 	if (gdev->state == CCWGROUP_OFFLINE)
@@ -2511,7 +2507,6 @@ static int qeth_l3_pm_resume(struct ccwgroup_device *gdev)
 		rc = __qeth_l3_set_online(card->gdev, 0);
 
 	qeth_set_allowed_threads(card, 0xffffffff, 0);
-	netif_device_attach(card->dev);
 	if (rc)
 		dev_warn(&card->gdev->dev, "The qeth device driver "
 			"failed to recover an error on the device\n");

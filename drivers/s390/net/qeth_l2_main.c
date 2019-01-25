@@ -283,10 +283,7 @@ static int qeth_l2_vlan_rx_add_vid(struct net_device *dev,
 	QETH_CARD_TEXT_(card, 4, "aid:%d", vid);
 	if (!vid)
 		return 0;
-	if (qeth_wait_for_threads(card, QETH_RECOVER_THREAD)) {
-		QETH_CARD_TEXT(card, 3, "aidREC");
-		return 0;
-	}
+
 	id = kmalloc(sizeof(*id), GFP_KERNEL);
 	if (id) {
 		id->vid = vid;
@@ -312,10 +309,7 @@ static int qeth_l2_vlan_rx_kill_vid(struct net_device *dev,
 	int rc = 0;
 
 	QETH_CARD_TEXT_(card, 4, "kid:%d", vid);
-	if (qeth_wait_for_threads(card, QETH_RECOVER_THREAD)) {
-		QETH_CARD_TEXT(card, 3, "kidREC");
-		return 0;
-	}
+
 	mutex_lock(&card->vid_list_mutex);
 	list_for_each_entry(id, &card->vid_list, list) {
 		if (id->vid == vid) {
@@ -496,39 +490,22 @@ static int qeth_l2_set_mac_address(struct net_device *dev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	if (qeth_wait_for_threads(card, QETH_RECOVER_THREAD)) {
-		QETH_CARD_TEXT(card, 3, "setmcREC");
-		return -ERESTARTSYS;
-	}
-
-	/* avoid racing against concurrent state change: */
-	if (!mutex_trylock(&card->conf_mutex))
-		return -EAGAIN;
-
-	if (!qeth_card_hw_is_reachable(card)) {
-		ether_addr_copy(dev->dev_addr, addr->sa_data);
-		goto out_unlock;
-	}
-
 	/* don't register the same address twice */
 	if (ether_addr_equal_64bits(dev->dev_addr, addr->sa_data) &&
 	    (card->info.mac_bits & QETH_LAYER2_MAC_REGISTERED))
-		goto out_unlock;
+		return 0;
 
 	/* add the new address, switch over, drop the old */
 	rc = qeth_l2_send_setmac(card, addr->sa_data);
 	if (rc)
-		goto out_unlock;
+		return rc;
 	ether_addr_copy(old_addr, dev->dev_addr);
 	ether_addr_copy(dev->dev_addr, addr->sa_data);
 
 	if (card->info.mac_bits & QETH_LAYER2_MAC_REGISTERED)
 		qeth_l2_remove_mac(card, old_addr);
 	card->info.mac_bits |= QETH_LAYER2_MAC_REGISTERED;
-
-out_unlock:
-	mutex_unlock(&card->conf_mutex);
-	return rc;
+	return 0;
 }
 
 static void qeth_promisc_to_bridge(struct qeth_card *card)
@@ -603,9 +580,6 @@ static void qeth_l2_set_rx_mode(struct net_device *dev)
 		return;
 
 	QETH_CARD_TEXT(card, 3, "setmulti");
-	if (qeth_threads_running(card, QETH_RECOVER_THREAD) &&
-	    (card->state != CARD_STATE_UP))
-		return;
 
 	spin_lock_bh(&card->mclock);
 
@@ -959,12 +933,13 @@ static int __qeth_l2_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 		else
 			netif_carrier_off(dev);
 
+		netif_device_attach(dev);
 		qeth_enable_hw_features(dev);
 
 		if (recover_flag == CARD_STATE_RECOVER) {
 			if (recovery_mode && !IS_OSN(card)) {
 				if (!qeth_l2_validate_addr(dev)) {
-					qeth_open_internal(dev);
+					qeth_open(dev);
 					qeth_l2_set_rx_mode(dev);
 				}
 			} else {
@@ -1011,7 +986,11 @@ static int __qeth_l2_set_offline(struct ccwgroup_device *cgdev,
 	QETH_DBF_TEXT(SETUP, 3, "setoffl");
 	QETH_DBF_HEX(SETUP, 3, &card, sizeof(void *));
 
+	rtnl_lock();
+	netif_device_detach(card->dev);
 	netif_carrier_off(card->dev);
+	rtnl_unlock();
+
 	recover_flag = card->state;
 	if ((!recovery_mode && card->info.hwtrap) || card->info.hwtrap == 2) {
 		qeth_hw_trap(card, QETH_DIAGS_TRAP_DISARM);
@@ -1052,7 +1031,6 @@ static int qeth_l2_recover(void *ptr)
 	QETH_CARD_TEXT(card, 2, "recover2");
 	dev_warn(&card->gdev->dev,
 		"A recovery process has been started for the device\n");
-	qeth_set_recovery_task(card);
 	__qeth_l2_set_offline(card->gdev, 1);
 	rc = __qeth_l2_set_online(card->gdev, 1);
 	if (!rc)
@@ -1063,7 +1041,6 @@ static int qeth_l2_recover(void *ptr)
 		dev_warn(&card->gdev->dev, "The qeth device driver "
 				"failed to recover an error on the device\n");
 	}
-	qeth_clear_recovery_task(card);
 	qeth_clear_thread_start_bit(card, QETH_RECOVER_THREAD);
 	qeth_clear_thread_running_bit(card, QETH_RECOVER_THREAD);
 	return 0;
@@ -1084,7 +1061,6 @@ static int qeth_l2_pm_suspend(struct ccwgroup_device *gdev)
 {
 	struct qeth_card *card = dev_get_drvdata(&gdev->dev);
 
-	netif_device_detach(card->dev);
 	qeth_set_allowed_threads(card, 0, 1);
 	wait_event(card->wait_q, qeth_threads_running(card, 0xffffffff) == 0);
 	if (gdev->state == CCWGROUP_OFFLINE)
@@ -1114,7 +1090,6 @@ static int qeth_l2_pm_resume(struct ccwgroup_device *gdev)
 		rc = __qeth_l2_set_online(card->gdev, 0);
 
 	qeth_set_allowed_threads(card, 0xffffffff, 0);
-	netif_device_attach(card->dev);
 	if (rc)
 		dev_warn(&card->gdev->dev, "The qeth device driver "
 			"failed to recover an error on the device\n");
