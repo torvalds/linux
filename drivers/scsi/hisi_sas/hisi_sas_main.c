@@ -2692,6 +2692,7 @@ static int hisi_sas_show_row_32(struct seq_file *s, int index,
 	/* completion header size not fixed per HW version */
 	seq_printf(s, "index %04d:\n\t", index);
 	for (i = 1; i <= sz / 4; i++, ptr++) {
+		seq_printf(s, " 0x%08x", le32_to_cpu(*ptr));
 		if (!(i % 4))
 			seq_puts(s, "\n\t");
 	}
