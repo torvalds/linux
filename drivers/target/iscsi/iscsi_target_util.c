@@ -760,8 +760,8 @@ void __iscsit_free_cmd(struct iscsi_cmd *cmd, bool check_queues)
 		iscsit_remove_cmd_from_response_queue(cmd, conn);
 	}
 
-	if (conn && conn->conn_transport->iscsit_release_cmd)
-		conn->conn_transport->iscsit_release_cmd(conn, cmd);
+	if (conn && conn->conn_transport->iscsit_unmap_cmd)
+		conn->conn_transport->iscsit_unmap_cmd(conn, cmd);
 }
 
 void iscsit_free_cmd(struct iscsi_cmd *cmd, bool shutdown)
