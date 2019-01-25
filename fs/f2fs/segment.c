@@ -1063,6 +1063,8 @@ static void __init_discard_policy(struct f2fs_sb_info *sbi,
 	} else if (discard_type == DPOLICY_UMOUNT) {
 		dpolicy->max_requests = UINT_MAX;
 		dpolicy->io_aware = false;
+		/* we need to issue all to keep CP_TRIMMED_FLAG */
+		dpolicy->granularity = 1;
 	}
 }
 
