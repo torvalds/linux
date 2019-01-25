@@ -2990,6 +2990,53 @@ static int compat_ifr_data_ioctl(struct net *net, unsigned int cmd,
 	return dev_ioctl(net, cmd, &ifreq, NULL);
 }
 
+static int compat_ifreq_ioctl(struct net *net, struct socket *sock,
+			      unsigned int cmd,
+			      struct compat_ifreq __user *uifr32)
+{
+	struct ifreq __user *uifr;
+	int err;
+
+	/* Handle the fact that while struct ifreq has the same *layout* on
+	 * 32/64 for everything but ifreq::ifru_ifmap and ifreq::ifru_data,
+	 * which are handled elsewhere, it still has different *size* due to
+	 * ifreq::ifru_ifmap (which is 16 bytes on 32 bit, 24 bytes on 64-bit,
+	 * resulting in struct ifreq being 32 and 40 bytes respectively).
+	 * As a result, if the struct happens to be at the end of a page and
+	 * the next page isn't readable/writable, we get a fault. To prevent
+	 * that, copy back and forth to the full size.
+	 */
+
+	uifr = compat_alloc_user_space(sizeof(*uifr));
+	if (copy_in_user(uifr, uifr32, sizeof(*uifr32)))
+		return -EFAULT;
+
+	err = sock_do_ioctl(net, sock, cmd, (unsigned long)uifr);
+
+	if (!err) {
+		switch (cmd) {
+		case SIOCGIFFLAGS:
+		case SIOCGIFMETRIC:
+		case SIOCGIFMTU:
+		case SIOCGIFMEM:
+		case SIOCGIFHWADDR:
+		case SIOCGIFINDEX:
+		case SIOCGIFADDR:
+		case SIOCGIFBRDADDR:
+		case SIOCGIFDSTADDR:
+		case SIOCGIFNETMASK:
+		case SIOCGIFPFLAGS:
+		case SIOCGIFTXQLEN:
+		case SIOCGMIIPHY:
+		case SIOCGMIIREG:
+			if (copy_in_user(uifr32, uifr, sizeof(*uifr32)))
+				err = -EFAULT;
+			break;
+		}
+	}
+	return err;
+}
+
 static int compat_sioc_ifmap(struct net *net, unsigned int cmd,
 			struct compat_ifreq __user *uifr32)
 {
@@ -3209,6 +3256,8 @@ static int compat_sock_ioctl_trans(struct file *file, struct socket *sock,
 	case SIOCGMIIPHY:
 	case SIOCGMIIREG:
 	case SIOCSMIIREG:
+		return compat_ifreq_ioctl(net, sock, cmd, argp);
+
 	case SIOCSARP:
 	case SIOCGARP:
 	case SIOCDARP:
