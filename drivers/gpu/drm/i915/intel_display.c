@@ -9445,7 +9445,7 @@ static void icelake_get_ddi_pll(struct drm_i915_private *dev_priv,
 		if (WARN_ON(!intel_dpll_is_combophy(id)))
 			return;
 	} else if (intel_port_is_tc(dev_priv, port)) {
-		id = icl_port_to_mg_pll_id(port);
+		id = icl_tc_port_to_pll_id(intel_port_to_tc(dev_priv, port));
 	} else {
 		WARN(1, "Invalid port %x\n", port);
 		return;

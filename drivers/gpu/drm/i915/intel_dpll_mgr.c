@@ -2639,14 +2639,14 @@ int icl_calc_dp_combo_pll_link(struct drm_i915_private *dev_priv,
 	return link_clock;
 }
 
-static enum port icl_mg_pll_id_to_port(enum intel_dpll_id id)
+static enum tc_port icl_pll_id_to_tc_port(enum intel_dpll_id id)
 {
-	return id - DPLL_ID_ICL_MGPLL1 + PORT_C;
+	return id - DPLL_ID_ICL_MGPLL1;
 }
 
-enum intel_dpll_id icl_port_to_mg_pll_id(enum port port)
+enum intel_dpll_id icl_tc_port_to_pll_id(enum tc_port tc_port)
 {
-	return port - PORT_C + DPLL_ID_ICL_MGPLL1;
+	return tc_port + DPLL_ID_ICL_MGPLL1;
 }
 
 bool intel_dpll_is_combophy(enum intel_dpll_id id)
@@ -2925,7 +2925,10 @@ icl_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 			ret = icl_calc_dpll_state(crtc_state, encoder, clock,
 						  &pll_state);
 		} else {
-			min = icl_port_to_mg_pll_id(port);
+			enum tc_port tc_port;
+
+			tc_port = intel_port_to_tc(dev_priv, port);
+			min = icl_tc_port_to_pll_id(tc_port);
 			max = min;
 			ret = icl_calc_mg_pll_state(crtc_state, encoder, clock,
 						    &pll_state);
@@ -2959,12 +2962,8 @@ static i915_reg_t icl_pll_id_to_enable_reg(enum intel_dpll_id id)
 		return CNL_DPLL_ENABLE(id);
 	else if (id == DPLL_ID_ICL_TBTPLL)
 		return TBT_PLL_ENABLE;
-	else
-		/*
-		 * TODO: Make MG_PLL macros use
-		 * tc port id instead of port id
-		 */
-		return MG_PLL_ENABLE(icl_mg_pll_id_to_port(id));
+
+	return MG_PLL_ENABLE(icl_pll_id_to_tc_port(id));
 }
 
 static bool icl_pll_get_hw_state(struct drm_i915_private *dev_priv,
@@ -2974,7 +2973,6 @@ static bool icl_pll_get_hw_state(struct drm_i915_private *dev_priv,
 	const enum intel_dpll_id id = pll->info->id;
 	intel_wakeref_t wakeref;
 	bool ret = false;
-	enum port port;
 	u32 val;
 
 	wakeref = intel_display_power_get_if_enabled(dev_priv,
@@ -2991,32 +2989,33 @@ static bool icl_pll_get_hw_state(struct drm_i915_private *dev_priv,
 		hw_state->cfgcr0 = I915_READ(ICL_DPLL_CFGCR0(id));
 		hw_state->cfgcr1 = I915_READ(ICL_DPLL_CFGCR1(id));
 	} else {
-		port = icl_mg_pll_id_to_port(id);
-		hw_state->mg_refclkin_ctl = I915_READ(MG_REFCLKIN_CTL(port));
+		enum tc_port tc_port = icl_pll_id_to_tc_port(id);
+
+		hw_state->mg_refclkin_ctl = I915_READ(MG_REFCLKIN_CTL(tc_port));
 		hw_state->mg_refclkin_ctl &= MG_REFCLKIN_CTL_OD_2_MUX_MASK;
 
 		hw_state->mg_clktop2_coreclkctl1 =
-			I915_READ(MG_CLKTOP2_CORECLKCTL1(port));
+			I915_READ(MG_CLKTOP2_CORECLKCTL1(tc_port));
 		hw_state->mg_clktop2_coreclkctl1 &=
 			MG_CLKTOP2_CORECLKCTL1_A_DIVRATIO_MASK;
 
 		hw_state->mg_clktop2_hsclkctl =
-			I915_READ(MG_CLKTOP2_HSCLKCTL(port));
+			I915_READ(MG_CLKTOP2_HSCLKCTL(tc_port));
 		hw_state->mg_clktop2_hsclkctl &=
 			MG_CLKTOP2_HSCLKCTL_TLINEDRV_CLKSEL_MASK |
 			MG_CLKTOP2_HSCLKCTL_CORE_INPUTSEL_MASK |
 			MG_CLKTOP2_HSCLKCTL_HSDIV_RATIO_MASK |
 			MG_CLKTOP2_HSCLKCTL_DSDIV_RATIO_MASK;
 
-		hw_state->mg_pll_div0 = I915_READ(MG_PLL_DIV0(port));
-		hw_state->mg_pll_div1 = I915_READ(MG_PLL_DIV1(port));
-		hw_state->mg_pll_lf = I915_READ(MG_PLL_LF(port));
-		hw_state->mg_pll_frac_lock = I915_READ(MG_PLL_FRAC_LOCK(port));
-		hw_state->mg_pll_ssc = I915_READ(MG_PLL_SSC(port));
+		hw_state->mg_pll_div0 = I915_READ(MG_PLL_DIV0(tc_port));
+		hw_state->mg_pll_div1 = I915_READ(MG_PLL_DIV1(tc_port));
+		hw_state->mg_pll_lf = I915_READ(MG_PLL_LF(tc_port));
+		hw_state->mg_pll_frac_lock = I915_READ(MG_PLL_FRAC_LOCK(tc_port));
+		hw_state->mg_pll_ssc = I915_READ(MG_PLL_SSC(tc_port));
 
-		hw_state->mg_pll_bias = I915_READ(MG_PLL_BIAS(port));
+		hw_state->mg_pll_bias = I915_READ(MG_PLL_BIAS(tc_port));
 		hw_state->mg_pll_tdc_coldst_bias =
-			I915_READ(MG_PLL_TDC_COLDST_BIAS(port));
+			I915_READ(MG_PLL_TDC_COLDST_BIAS(tc_port));
 
 		if (dev_priv->cdclk.hw.ref == 38400) {
 			hw_state->mg_pll_tdc_coldst_bias_mask = MG_PLL_TDC_COLDST_COLDSTART;
@@ -3051,7 +3050,7 @@ static void icl_mg_pll_write(struct drm_i915_private *dev_priv,
 			     struct intel_shared_dpll *pll)
 {
 	struct intel_dpll_hw_state *hw_state = &pll->state.hw_state;
-	enum port port = icl_mg_pll_id_to_port(pll->info->id);
+	enum tc_port tc_port = icl_pll_id_to_tc_port(pll->info->id);
 	u32 val;
 
 	/*
@@ -3060,41 +3059,41 @@ static void icl_mg_pll_write(struct drm_i915_private *dev_priv,
 	 * during the calc/readout phase if the mask depends on some other HW
 	 * state like refclk, see icl_calc_mg_pll_state().
 	 */
-	val = I915_READ(MG_REFCLKIN_CTL(port));
+	val = I915_READ(MG_REFCLKIN_CTL(tc_port));
 	val &= ~MG_REFCLKIN_CTL_OD_2_MUX_MASK;
 	val |= hw_state->mg_refclkin_ctl;
-	I915_WRITE(MG_REFCLKIN_CTL(port), val);
+	I915_WRITE(MG_REFCLKIN_CTL(tc_port), val);
 
-	val = I915_READ(MG_CLKTOP2_CORECLKCTL1(port));
+	val = I915_READ(MG_CLKTOP2_CORECLKCTL1(tc_port));
 	val &= ~MG_CLKTOP2_CORECLKCTL1_A_DIVRATIO_MASK;
 	val |= hw_state->mg_clktop2_coreclkctl1;
-	I915_WRITE(MG_CLKTOP2_CORECLKCTL1(port), val);
+	I915_WRITE(MG_CLKTOP2_CORECLKCTL1(tc_port), val);
 
-	val = I915_READ(MG_CLKTOP2_HSCLKCTL(port));
+	val = I915_READ(MG_CLKTOP2_HSCLKCTL(tc_port));
 	val &= ~(MG_CLKTOP2_HSCLKCTL_TLINEDRV_CLKSEL_MASK |
 		 MG_CLKTOP2_HSCLKCTL_CORE_INPUTSEL_MASK |
 		 MG_CLKTOP2_HSCLKCTL_HSDIV_RATIO_MASK |
 		 MG_CLKTOP2_HSCLKCTL_DSDIV_RATIO_MASK);
 	val |= hw_state->mg_clktop2_hsclkctl;
-	I915_WRITE(MG_CLKTOP2_HSCLKCTL(port), val);
+	I915_WRITE(MG_CLKTOP2_HSCLKCTL(tc_port), val);
 
-	I915_WRITE(MG_PLL_DIV0(port), hw_state->mg_pll_div0);
-	I915_WRITE(MG_PLL_DIV1(port), hw_state->mg_pll_div1);
-	I915_WRITE(MG_PLL_LF(port), hw_state->mg_pll_lf);
-	I915_WRITE(MG_PLL_FRAC_LOCK(port), hw_state->mg_pll_frac_lock);
-	I915_WRITE(MG_PLL_SSC(port), hw_state->mg_pll_ssc);
+	I915_WRITE(MG_PLL_DIV0(tc_port), hw_state->mg_pll_div0);
+	I915_WRITE(MG_PLL_DIV1(tc_port), hw_state->mg_pll_div1);
+	I915_WRITE(MG_PLL_LF(tc_port), hw_state->mg_pll_lf);
+	I915_WRITE(MG_PLL_FRAC_LOCK(tc_port), hw_state->mg_pll_frac_lock);
+	I915_WRITE(MG_PLL_SSC(tc_port), hw_state->mg_pll_ssc);
 
-	val = I915_READ(MG_PLL_BIAS(port));
+	val = I915_READ(MG_PLL_BIAS(tc_port));
 	val &= ~hw_state->mg_pll_bias_mask;
 	val |= hw_state->mg_pll_bias;
-	I915_WRITE(MG_PLL_BIAS(port), val);
+	I915_WRITE(MG_PLL_BIAS(tc_port), val);
 
-	val = I915_READ(MG_PLL_TDC_COLDST_BIAS(port));
+	val = I915_READ(MG_PLL_TDC_COLDST_BIAS(tc_port));
 	val &= ~hw_state->mg_pll_tdc_coldst_bias_mask;
 	val |= hw_state->mg_pll_tdc_coldst_bias;
-	I915_WRITE(MG_PLL_TDC_COLDST_BIAS(port), val);
+	I915_WRITE(MG_PLL_TDC_COLDST_BIAS(tc_port), val);
 
-	POSTING_READ(MG_PLL_TDC_COLDST_BIAS(port));
+	POSTING_READ(MG_PLL_TDC_COLDST_BIAS(tc_port));
 }
 
 static void icl_pll_enable(struct drm_i915_private *dev_priv,

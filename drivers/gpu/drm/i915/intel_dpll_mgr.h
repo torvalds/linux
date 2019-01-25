@@ -344,7 +344,7 @@ void intel_dpll_dump_hw_state(struct drm_i915_private *dev_priv,
 int icl_calc_dp_combo_pll_link(struct drm_i915_private *dev_priv,
 			       u32 pll_id);
 int cnl_hdmi_pll_ref_clock(struct drm_i915_private *dev_priv);
-enum intel_dpll_id icl_port_to_mg_pll_id(enum port port);
+enum intel_dpll_id icl_tc_port_to_pll_id(enum tc_port tc_port);
 bool intel_dpll_is_combophy(enum intel_dpll_id id);
 
 #endif /* _INTEL_DPLL_MGR_H_ */

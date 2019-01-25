@@ -1391,16 +1391,17 @@ static int icl_calc_tbt_pll_link(struct drm_i915_private *dev_priv,
 static int icl_calc_mg_pll_link(struct drm_i915_private *dev_priv,
 				enum port port)
 {
+	enum tc_port tc_port = intel_port_to_tc(dev_priv, port);
 	u32 mg_pll_div0, mg_clktop_hsclkctl;
 	u32 m1, m2_int, m2_frac, div1, div2, refclk;
 	u64 tmp;
 
 	refclk = dev_priv->cdclk.hw.ref;
 
-	mg_pll_div0 = I915_READ(MG_PLL_DIV0(port));
-	mg_clktop_hsclkctl = I915_READ(MG_CLKTOP2_HSCLKCTL(port));
+	mg_pll_div0 = I915_READ(MG_PLL_DIV0(tc_port));
+	mg_clktop_hsclkctl = I915_READ(MG_CLKTOP2_HSCLKCTL(tc_port));
 
-	m1 = I915_READ(MG_PLL_DIV1(port)) & MG_PLL_DIV1_FBPREDIV_MASK;
+	m1 = I915_READ(MG_PLL_DIV1(tc_port)) & MG_PLL_DIV1_FBPREDIV_MASK;
 	m2_int = mg_pll_div0 & MG_PLL_DIV0_FBDIV_INT_MASK;
 	m2_frac = (mg_pll_div0 & MG_PLL_DIV0_FRACNEN_H) ?
 		  (mg_pll_div0 & MG_PLL_DIV0_FBDIV_FRAC_MASK) >>
