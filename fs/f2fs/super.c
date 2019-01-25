@@ -3205,6 +3205,10 @@ try_onemore:
 
 	if (__is_set_ckpt_flags(F2FS_CKPT(sbi), CP_QUOTA_NEED_FSCK_FLAG))
 		set_sbi_flag(sbi, SBI_QUOTA_NEED_REPAIR);
+	if (__is_set_ckpt_flags(F2FS_CKPT(sbi), CP_DISABLED_QUICK_FLAG)) {
+		set_sbi_flag(sbi, SBI_CP_DISABLED_QUICK);
+		sbi->interval_time[DISABLE_TIME] = DEF_DISABLE_QUICK_INTERVAL;
+	}
 
 	/* Initialize device list */
 	err = f2fs_scan_devices(sbi);
@@ -3392,6 +3396,7 @@ skip_recovery:
 				cur_cp_version(F2FS_CKPT(sbi)));
 	f2fs_update_time(sbi, CP_TIME);
 	f2fs_update_time(sbi, REQ_TIME);
+	clear_sbi_flag(sbi, SBI_CP_DISABLED_QUICK);
 	return 0;
 
 free_meta:
