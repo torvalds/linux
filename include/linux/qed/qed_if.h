@@ -764,7 +764,6 @@ struct qed_probe_params {
 	u32 dp_module;
 	u8 dp_level;
 	bool is_vf;
-	bool recov_in_prog;
 };
 
 #define QED_DRV_VER_STR_SIZE 12
@@ -811,7 +810,6 @@ struct qed_common_cb_ops {
 	void (*arfs_filter_op)(void *dev, void *fltr, u8 fw_rc);
 	void	(*link_update)(void			*dev,
 			       struct qed_link_output	*link);
-	void (*schedule_recovery_handler)(void *dev);
 	void	(*dcbx_aen)(void *dev, struct qed_dcbx_get *get, u32 mib_type);
 	void (*get_generic_tlv_data)(void *dev, struct qed_generic_tlvs *data);
 	void (*get_protocol_tlv_data)(void *dev, void *data);
@@ -1058,24 +1056,6 @@ struct qed_common_ops {
  */
 	int (*db_recovery_del)(struct qed_dev *cdev,
 			       void __iomem *db_addr, void *db_data);
-
-/**
- * @brief recovery_process - Trigger a recovery process
- *
- * @param cdev
- *
- * @return 0 on success, error otherwise.
- */
-	int (*recovery_process)(struct qed_dev *cdev);
-
-/**
- * @brief recovery_prolog - Execute the prolog operations of a recovery process
- *
- * @param cdev
- *
- * @return 0 on success, error otherwise.
- */
-	int (*recovery_prolog)(struct qed_dev *cdev);
 
 /**
  * @brief update_drv_state - API to inform the change in the driver state.

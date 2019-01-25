@@ -55,16 +55,6 @@ struct qede_rdma_event_work {
 	enum qede_rdma_event event;
 };
 
-enum qede_rdma_probe_mode {
-	QEDE_RDMA_PROBE_NORMAL,
-	QEDE_RDMA_PROBE_RECOVERY,
-};
-
-enum qede_rdma_remove_mode {
-	QEDE_RDMA_REMOVE_NORMAL,
-	QEDE_RDMA_REMOVE_RECOVERY,
-};
-
 struct qedr_driver {
 	unsigned char name[32];
 
@@ -84,24 +74,21 @@ void qede_rdma_unregister_driver(struct qedr_driver *drv);
 bool qede_rdma_supported(struct qede_dev *dev);
 
 #if IS_ENABLED(CONFIG_QED_RDMA)
-int qede_rdma_dev_add(struct qede_dev *dev, enum qede_rdma_probe_mode mode);
+int qede_rdma_dev_add(struct qede_dev *dev);
 void qede_rdma_dev_event_open(struct qede_dev *dev);
 void qede_rdma_dev_event_close(struct qede_dev *dev);
-void qede_rdma_dev_remove(struct qede_dev *dev,
-			  enum qede_rdma_remove_mode mode);
+void qede_rdma_dev_remove(struct qede_dev *dev);
 void qede_rdma_event_changeaddr(struct qede_dev *edr);
 
 #else
-static inline int qede_rdma_dev_add(struct qede_dev *dev,
-				    enum qede_rdma_probe_mode mode)
+static inline int qede_rdma_dev_add(struct qede_dev *dev)
 {
 	return 0;
 }
 
 static inline void qede_rdma_dev_event_open(struct qede_dev *dev) {}
 static inline void qede_rdma_dev_event_close(struct qede_dev *dev) {}
-static inline void qede_rdma_dev_remove(struct qede_dev *dev,
-					enum qede_rdma_remove_mode mode) {}
+static inline void qede_rdma_dev_remove(struct qede_dev *dev) {}
 static inline void qede_rdma_event_changeaddr(struct qede_dev *edr) {}
 #endif
 #endif

@@ -473,18 +473,6 @@ int
 qed_set_queue_coalesce(u16 rx_coal, u16 tx_coal, void *p_handle);
 
 /**
- * @brief qed_pglueb_set_pfid_enable - Enable or disable PCI BUS MASTER
- *
- * @param p_hwfn
- * @param p_ptt
- * @param b_enable - true/false
- *
- * @return int
- */
-int qed_pglueb_set_pfid_enable(struct qed_hwfn *p_hwfn,
-			       struct qed_ptt *p_ptt, bool b_enable);
-
-/**
  * @brief db_recovery_add - add doorbell information to the doorbell
  * recovery mechanism.
  *

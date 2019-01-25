@@ -1959,6 +1959,11 @@ static int qed_hw_init_pf(struct qed_hwfn *p_hwfn,
 		     (p_hwfn->hw_info.personality == QED_PCI_FCOE) ? 1 : 0);
 	STORE_RT_REG(p_hwfn, PRS_REG_SEARCH_ROCE_RT_OFFSET, 0);
 
+	/* Cleanup chip from previous driver if such remains exist */
+	rc = qed_final_cleanup(p_hwfn, p_ptt, rel_pf_id, false);
+	if (rc)
+		return rc;
+
 	/* Sanity check before the PF init sequence that uses DMAE */
 	rc = qed_dmae_sanity(p_hwfn, p_ptt, "pf_phase");
 	if (rc)
@@ -2002,15 +2007,17 @@ static int qed_hw_init_pf(struct qed_hwfn *p_hwfn,
 	return rc;
 }
 
-int qed_pglueb_set_pfid_enable(struct qed_hwfn *p_hwfn,
-			       struct qed_ptt *p_ptt, bool b_enable)
+static int qed_change_pci_hwfn(struct qed_hwfn *p_hwfn,
+			       struct qed_ptt *p_ptt,
+			       u8 enable)
 {
-	u32 delay_idx = 0, val, set_val = b_enable ? 1 : 0;
+	u32 delay_idx = 0, val, set_val = enable ? 1 : 0;
 
-	/* Configure the PF's internal FID_enable for master transactions */
-	qed_wr(p_hwfn, p_ptt, PGLUE_B_REG_INTERNAL_PFID_ENABLE_MASTER, set_val);
+	/* Change PF in PXP */
+	qed_wr(p_hwfn, p_ptt,
+	       PGLUE_B_REG_INTERNAL_PFID_ENABLE_MASTER, set_val);
 
-	/* Wait until value is set - try for 1 second every 50us */
+	/* wait until value is set - try for 1 second every 50us */
 	for (delay_idx = 0; delay_idx < 20000; delay_idx++) {
 		val = qed_rd(p_hwfn, p_ptt,
 			     PGLUE_B_REG_INTERNAL_PFID_ENABLE_MASTER);
@@ -2064,19 +2071,13 @@ static int qed_vf_start(struct qed_hwfn *p_hwfn,
 	return 0;
 }
 
-static void qed_pglueb_clear_err(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
-{
-	qed_wr(p_hwfn, p_ptt, PGLUE_B_REG_WAS_ERROR_PF_31_0_CLR,
-	       BIT(p_hwfn->abs_pf_id));
-}
-
 int qed_hw_init(struct qed_dev *cdev, struct qed_hw_init_params *p_params)
 {
 	struct qed_load_req_params load_req_params;
 	u32 load_code, resp, param, drv_mb_param;
 	bool b_default_mtu = true;
 	struct qed_hwfn *p_hwfn;
-	int rc = 0, i;
+	int rc = 0, mfw_rc, i;
 	u16 ether_type;
 
 	if ((p_params->int_mode == QED_INT_MODE_MSI) && (cdev->num_hwfns > 1)) {
@@ -2091,7 +2092,7 @@ int qed_hw_init(struct qed_dev *cdev, struct qed_hw_init_params *p_params)
 	}
 
 	for_each_hwfn(cdev, i) {
-		p_hwfn = &cdev->hwfns[i];
+		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
 
 		/* If management didn't provide a default, set one of our own */
 		if (!p_hwfn->hw_info.mtu) {
@@ -2103,6 +2104,9 @@ int qed_hw_init(struct qed_dev *cdev, struct qed_hw_init_params *p_params)
 			qed_vf_start(p_hwfn, p_params);
 			continue;
 		}
+
+		/* Enable DMAE in PXP */
+		rc = qed_change_pci_hwfn(p_hwfn, p_hwfn->p_main_ptt, true);
 
 		rc = qed_calc_hw_mode(p_hwfn);
 		if (rc)
@@ -2140,43 +2144,12 @@ int qed_hw_init(struct qed_dev *cdev, struct qed_hw_init_params *p_params)
 			   "Load request was sent. Load code: 0x%x\n",
 			   load_code);
 
-		/* Only relevant for recovery:
-		 * Clear the indication after LOAD_REQ is responded by the MFW.
-		 */
-		cdev->recov_in_prog = false;
-
 		qed_mcp_set_capabilities(p_hwfn, p_hwfn->p_main_ptt);
 
 		qed_reset_mb_shadow(p_hwfn, p_hwfn->p_main_ptt);
 
-		/* Clean up chip from previous driver if such remains exist.
-		 * This is not needed when the PF is the first one on the
-		 * engine, since afterwards we are going to init the FW.
-		 */
-		if (load_code != FW_MSG_CODE_DRV_LOAD_ENGINE) {
-			rc = qed_final_cleanup(p_hwfn, p_hwfn->p_main_ptt,
-					       p_hwfn->rel_pf_id, false);
-			if (rc) {
-				DP_NOTICE(p_hwfn, "Final cleanup failed\n");
-				goto load_err;
-			}
-		}
-
-		/* Log and clear previous pglue_b errors if such exist */
-		qed_pglueb_rbc_attn_handler(p_hwfn, p_hwfn->p_main_ptt);
-
-		/* Enable the PF's internal FID_enable in the PXP */
-		rc = qed_pglueb_set_pfid_enable(p_hwfn, p_hwfn->p_main_ptt,
-						true);
-		if (rc)
-			goto load_err;
-
-		/* Clear the pglue_b was_error indication.
-		 * In E4 it must be done after the BME and the internal
-		 * FID_enable for the PF are set, since VDMs may cause the
-		 * indication to be set again.
-		 */
-		qed_pglueb_clear_err(p_hwfn, p_hwfn->p_main_ptt);
+		p_hwfn->first_on_engine = (load_code ==
+					   FW_MSG_CODE_DRV_LOAD_ENGINE);
 
 		switch (load_code) {
 		case FW_MSG_CODE_DRV_LOAD_ENGINE:
@@ -2207,29 +2180,39 @@ int qed_hw_init(struct qed_dev *cdev, struct qed_hw_init_params *p_params)
 			break;
 		}
 
-		if (rc) {
+		if (rc)
 			DP_NOTICE(p_hwfn,
 				  "init phase failed for loadcode 0x%x (rc %d)\n",
-				  load_code, rc);
-			goto load_err;
-		}
+				   load_code, rc);
 
-		rc = qed_mcp_load_done(p_hwfn, p_hwfn->p_main_ptt);
+		/* ACK mfw regardless of success or failure of initialization */
+		mfw_rc = qed_mcp_cmd(p_hwfn, p_hwfn->p_main_ptt,
+				     DRV_MSG_CODE_LOAD_DONE,
+				     0, &load_code, &param);
 		if (rc)
 			return rc;
+		if (mfw_rc) {
+			DP_NOTICE(p_hwfn, "Failed sending LOAD_DONE command\n");
+			return mfw_rc;
+		}
+
+		/* Check if there is a DID mismatch between nvm-cfg/efuse */
+		if (param & FW_MB_PARAM_LOAD_DONE_DID_EFUSE_ERROR)
+			DP_NOTICE(p_hwfn,
+				  "warning: device configuration is not supported on this board type. The device may not function as expected.\n");
 
 		/* send DCBX attention request command */
 		DP_VERBOSE(p_hwfn,
 			   QED_MSG_DCB,
 			   "sending phony dcbx set command to trigger DCBx attention handling\n");
-		rc = qed_mcp_cmd(p_hwfn, p_hwfn->p_main_ptt,
-				 DRV_MSG_CODE_SET_DCBX,
-				 1 << DRV_MB_PARAM_DCBX_NOTIFY_SHIFT,
-				 &resp, &param);
-		if (rc) {
+		mfw_rc = qed_mcp_cmd(p_hwfn, p_hwfn->p_main_ptt,
+				     DRV_MSG_CODE_SET_DCBX,
+				     1 << DRV_MB_PARAM_DCBX_NOTIFY_SHIFT,
+				     &load_code, &param);
+		if (mfw_rc) {
 			DP_NOTICE(p_hwfn,
 				  "Failed to send DCBX attention request\n");
-			return rc;
+			return mfw_rc;
 		}
 
 		p_hwfn->hw_init_done = true;
@@ -2278,12 +2261,6 @@ int qed_hw_init(struct qed_dev *cdev, struct qed_hw_init_params *p_params)
 	}
 
 	return 0;
-
-load_err:
-	/* The MFW load lock should be released also when initialization fails.
-	 */
-	qed_mcp_load_done(p_hwfn, p_hwfn->p_main_ptt);
-	return rc;
 }
 
 #define QED_HW_STOP_RETRY_LIMIT (10)
@@ -2295,9 +2272,6 @@ static void qed_hw_timers_stop(struct qed_dev *cdev,
 	/* close timers */
 	qed_wr(p_hwfn, p_ptt, TM_REG_PF_ENABLE_CONN, 0x0);
 	qed_wr(p_hwfn, p_ptt, TM_REG_PF_ENABLE_TASK, 0x0);
-
-	if (cdev->recov_in_prog)
-		return;
 
 	for (i = 0; i < QED_HW_STOP_RETRY_LIMIT; i++) {
 		if ((!qed_rd(p_hwfn, p_ptt,
@@ -2361,14 +2335,12 @@ int qed_hw_stop(struct qed_dev *cdev)
 		p_hwfn->hw_init_done = false;
 
 		/* Send unload command to MCP */
-		if (!cdev->recov_in_prog) {
-			rc = qed_mcp_unload_req(p_hwfn, p_ptt);
-			if (rc) {
-				DP_NOTICE(p_hwfn,
-					  "Failed sending a UNLOAD_REQ command. rc = %d.\n",
-					  rc);
-				rc2 = -EINVAL;
-			}
+		rc = qed_mcp_unload_req(p_hwfn, p_ptt);
+		if (rc) {
+			DP_NOTICE(p_hwfn,
+				  "Failed sending a UNLOAD_REQ command. rc = %d.\n",
+				  rc);
+			rc2 = -EINVAL;
 		}
 
 		qed_slowpath_irq_sync(p_hwfn);
@@ -2410,31 +2382,27 @@ int qed_hw_stop(struct qed_dev *cdev)
 		qed_wr(p_hwfn, p_ptt, DORQ_REG_PF_DB_ENABLE, 0);
 		qed_wr(p_hwfn, p_ptt, QM_REG_PF_EN, 0);
 
-		if (!cdev->recov_in_prog) {
-			rc = qed_mcp_unload_done(p_hwfn, p_ptt);
-			if (rc) {
-				DP_NOTICE(p_hwfn,
-					  "Failed sending a UNLOAD_DONE command. rc = %d.\n",
-					  rc);
-				rc2 = -EINVAL;
-			}
+		qed_mcp_unload_done(p_hwfn, p_ptt);
+		if (rc) {
+			DP_NOTICE(p_hwfn,
+				  "Failed sending a UNLOAD_DONE command. rc = %d.\n",
+				  rc);
+			rc2 = -EINVAL;
 		}
 	}
 
-	if (IS_PF(cdev) && !cdev->recov_in_prog) {
+	if (IS_PF(cdev)) {
 		p_hwfn = QED_LEADING_HWFN(cdev);
 		p_ptt = QED_LEADING_HWFN(cdev)->p_main_ptt;
 
-		/* Clear the PF's internal FID_enable in the PXP.
-		 * In CMT this should only be done for first hw-function, and
-		 * only after all transactions have stopped for all active
-		 * hw-functions.
+		/* Disable DMAE in PXP - in CMT, this should only be done for
+		 * first hw-function, and only after all transactions have
+		 * stopped for all active hw-functions.
 		 */
-		rc = qed_pglueb_set_pfid_enable(p_hwfn, p_ptt, false);
+		rc = qed_change_pci_hwfn(p_hwfn, p_ptt, false);
 		if (rc) {
 			DP_NOTICE(p_hwfn,
-				  "qed_pglueb_set_pfid_enable() failed. rc = %d.\n",
-				  rc);
+				  "qed_change_pci_hwfn failed. rc = %d.\n", rc);
 			rc2 = -EINVAL;
 		}
 	}
@@ -2534,8 +2502,9 @@ static void qed_hw_hwfn_prepare(struct qed_hwfn *p_hwfn)
 		       PGLUE_B_REG_PGL_ADDR_94_F0_BB, 0);
 	}
 
-	/* Clean previous pglue_b errors if such exist */
-	qed_pglueb_clear_err(p_hwfn, p_hwfn->p_main_ptt);
+	/* Clean Previous errors if such exist */
+	qed_wr(p_hwfn, p_hwfn->p_main_ptt,
+	       PGLUE_B_REG_WAS_ERROR_PF_31_0_CLR, 1 << p_hwfn->abs_pf_id);
 
 	/* enable internal target-read */
 	qed_wr(p_hwfn, p_hwfn->p_main_ptt,
@@ -3471,7 +3440,6 @@ static int qed_hw_prepare_single(struct qed_hwfn *p_hwfn,
 				 void __iomem *p_doorbells,
 				 enum qed_pci_personality personality)
 {
-	struct qed_dev *cdev = p_hwfn->cdev;
 	int rc = 0;
 
 	/* Split PCI bars evenly between hwfns */
@@ -3524,7 +3492,7 @@ static int qed_hw_prepare_single(struct qed_hwfn *p_hwfn,
 	/* Sending a mailbox to the MFW should be done after qed_get_hw_info()
 	 * is called as it sets the ports number in an engine.
 	 */
-	if (IS_LEAD_HWFN(p_hwfn) && !cdev->recov_in_prog) {
+	if (IS_LEAD_HWFN(p_hwfn)) {
 		rc = qed_mcp_initiate_pf_flr(p_hwfn, p_hwfn->p_main_ptt);
 		if (rc)
 			DP_NOTICE(p_hwfn, "Failed to initiate PF FLR\n");

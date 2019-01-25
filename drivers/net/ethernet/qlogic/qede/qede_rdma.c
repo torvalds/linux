@@ -50,8 +50,6 @@ static void _qede_rdma_dev_add(struct qede_dev *edev)
 	if (!qedr_drv)
 		return;
 
-	/* Leftovers from previous error recovery */
-	edev->rdma_info.exp_recovery = false;
 	edev->rdma_info.qedr_dev = qedr_drv->add(edev->cdev, edev->pdev,
 						 edev->ndev);
 }
@@ -89,26 +87,21 @@ static void qede_rdma_destroy_wq(struct qede_dev *edev)
 	destroy_workqueue(edev->rdma_info.rdma_wq);
 }
 
-int qede_rdma_dev_add(struct qede_dev *edev, enum qede_rdma_probe_mode mode)
+int qede_rdma_dev_add(struct qede_dev *edev)
 {
-	int rc;
+	int rc = 0;
 
-	if (!qede_rdma_supported(edev))
-		return 0;
+	if (qede_rdma_supported(edev)) {
+		rc = qede_rdma_create_wq(edev);
+		if (rc)
+			return rc;
 
-	/* Cannot start qedr while recovering since it wasn't fully stopped */
-	if (mode == QEDE_RDMA_PROBE_RECOVERY)
-		return 0;
-
-	rc = qede_rdma_create_wq(edev);
-	if (rc)
-		return rc;
-
-	INIT_LIST_HEAD(&edev->rdma_info.entry);
-	mutex_lock(&qedr_dev_list_lock);
-	list_add_tail(&edev->rdma_info.entry, &qedr_dev_list);
-	_qede_rdma_dev_add(edev);
-	mutex_unlock(&qedr_dev_list_lock);
+		INIT_LIST_HEAD(&edev->rdma_info.entry);
+		mutex_lock(&qedr_dev_list_lock);
+		list_add_tail(&edev->rdma_info.entry, &qedr_dev_list);
+		_qede_rdma_dev_add(edev);
+		mutex_unlock(&qedr_dev_list_lock);
+	}
 
 	return rc;
 }
@@ -117,31 +110,19 @@ static void _qede_rdma_dev_remove(struct qede_dev *edev)
 {
 	if (qedr_drv && qedr_drv->remove && edev->rdma_info.qedr_dev)
 		qedr_drv->remove(edev->rdma_info.qedr_dev);
+	edev->rdma_info.qedr_dev = NULL;
 }
 
-void qede_rdma_dev_remove(struct qede_dev *edev,
-			  enum qede_rdma_remove_mode mode)
+void qede_rdma_dev_remove(struct qede_dev *edev)
 {
 	if (!qede_rdma_supported(edev))
 		return;
 
-	/* Cannot remove qedr while recovering since it wasn't fully stopped */
-	if (mode == QEDE_RDMA_REMOVE_NORMAL) {
-		qede_rdma_destroy_wq(edev);
-		mutex_lock(&qedr_dev_list_lock);
-		if (!edev->rdma_info.exp_recovery)
-			_qede_rdma_dev_remove(edev);
-		edev->rdma_info.qedr_dev = NULL;
-		list_del(&edev->rdma_info.entry);
-		mutex_unlock(&qedr_dev_list_lock);
-	} else {
-		if (!edev->rdma_info.exp_recovery) {
-			mutex_lock(&qedr_dev_list_lock);
-			_qede_rdma_dev_remove(edev);
-			mutex_unlock(&qedr_dev_list_lock);
-		}
-		edev->rdma_info.exp_recovery = true;
-	}
+	qede_rdma_destroy_wq(edev);
+	mutex_lock(&qedr_dev_list_lock);
+	_qede_rdma_dev_remove(edev);
+	list_del(&edev->rdma_info.entry);
+	mutex_unlock(&qedr_dev_list_lock);
 }
 
 static void _qede_rdma_dev_open(struct qede_dev *edev)
@@ -223,8 +204,7 @@ void qede_rdma_unregister_driver(struct qedr_driver *drv)
 
 	mutex_lock(&qedr_dev_list_lock);
 	list_for_each_entry(edev, &qedr_dev_list, rdma_info.entry) {
-		/* If device has experienced recovery it was already removed */
-		if (edev->rdma_info.qedr_dev && !edev->rdma_info.exp_recovery)
+		if (edev->rdma_info.qedr_dev)
 			_qede_rdma_dev_remove(edev);
 	}
 	qedr_drv = NULL;
@@ -303,10 +283,6 @@ static void qede_rdma_add_event(struct qede_dev *edev,
 				enum qede_rdma_event event)
 {
 	struct qede_rdma_event_work *event_node;
-
-	/* If a recovery was experienced avoid adding the event */
-	if (edev->rdma_info.exp_recovery)
-		return;
 
 	if (!edev->rdma_info.qedr_dev)
 		return;
