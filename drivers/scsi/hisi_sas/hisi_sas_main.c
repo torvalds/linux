@@ -2769,6 +2769,36 @@ static const struct file_operations hisi_sas_debugfs_iost_fops = {
 	.owner = THIS_MODULE,
 };
 
+static int hisi_sas_debugfs_itct_show(struct seq_file *s, void *p)
+{
+	int i, ret;
+	struct hisi_hba *hisi_hba = s->private;
+	struct hisi_sas_itct *debugfs_itct = hisi_hba->debugfs_itct;
+	__le64 *itct = &debugfs_itct->qw0;
+
+	for (i = 0; i < HISI_SAS_MAX_ITCT_ENTRIES; i++, debugfs_itct++) {
+		ret = hisi_sas_show_row_64(s, i, sizeof(*debugfs_itct),
+					   itct);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int hisi_sas_debugfs_itct_open(struct inode *inode, struct file *filp)
+{
+	return single_open(filp, hisi_sas_debugfs_itct_show, inode->i_private);
+}
+
+static const struct file_operations hisi_sas_debugfs_itct_fops = {
+	.open = hisi_sas_debugfs_itct_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+	.owner = THIS_MODULE,
+};
+
 static void hisi_sas_debugfs_create_files(struct hisi_hba *hisi_hba)
 {
 	struct dentry *dump_dentry;
@@ -2814,6 +2844,9 @@ static void hisi_sas_debugfs_create_files(struct hisi_hba *hisi_hba)
 
 	debugfs_create_file("iost", 0400, dump_dentry, hisi_hba,
 			    &hisi_sas_debugfs_iost_fops);
+
+	debugfs_create_file("itct", 0400, dump_dentry, hisi_hba,
+			    &hisi_sas_debugfs_itct_fops);
 
 	return;
 }
