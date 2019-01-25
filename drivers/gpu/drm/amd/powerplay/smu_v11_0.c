@@ -1092,6 +1092,8 @@ static int smu_v11_0_read_sensor(struct smu_context *smu,
 				 enum amd_pp_sensors sensor,
 				 void *data, uint32_t *size)
 {
+	struct smu_table_context *table_context = &smu->smu_table;
+	PPTable_t *pptable = table_context->driver_pptable;
 	int ret = 0;
 	switch (sensor) {
 	case AMDGPU_PP_SENSOR_GPU_LOAD:
@@ -1125,6 +1127,14 @@ static int smu_v11_0_read_sensor(struct smu_context *smu,
 		break;
 	case AMDGPU_PP_SENSOR_VCE_POWER:
 		*(uint32_t *)data = smu_feature_is_enabled(smu, FEATURE_DPM_VCE_BIT) ? 1 : 0;
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_MIN_FAN_RPM:
+		*(uint32_t *)data = 0;
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_MAX_FAN_RPM:
+		*(uint32_t *)data = pptable->FanMaximumRpm;
 		*size = 4;
 		break;
 	default:
