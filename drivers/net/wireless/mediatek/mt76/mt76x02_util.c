@@ -431,7 +431,7 @@ int mt76x02_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	} else {
 		if (idx == wcid->hw_key_idx) {
 			wcid->hw_key_idx = -1;
-			wcid->sw_iv = true;
+			wcid->sw_iv = false;
 		}
 
 		key = NULL;
