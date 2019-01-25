@@ -1150,6 +1150,11 @@ intel_tv_get_config(struct intel_encoder *encoder,
 				 ypos, mode.vdisplay - ysize - ypos);
 
 	adjusted_mode->crtc_clock = mode.clock;
+
+	/* pixel counter doesn't work on i965gm TV output */
+	if (IS_I965GM(dev_priv))
+		adjusted_mode->private_flags |=
+			I915_MODE_FLAG_USE_SCANLINE_COUNTER;
 }
 
 static int
@@ -1294,6 +1299,11 @@ intel_tv_compute_config(struct intel_encoder *encoder,
 				 tv_conn_state->margins.bottom);
 	drm_mode_set_crtcinfo(adjusted_mode, 0);
 	adjusted_mode->name[0] = '\0';
+
+	/* pixel counter doesn't work on i965gm TV output */
+	if (IS_I965GM(dev_priv))
+		adjusted_mode->private_flags |=
+			I915_MODE_FLAG_USE_SCANLINE_COUNTER;
 
 	return 0;
 }
