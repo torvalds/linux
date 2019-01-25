@@ -2502,7 +2502,7 @@ static void hisi_sas_debugfs_snapshot_cq_reg(struct hisi_hba *hisi_hba)
 
 static void hisi_sas_debugfs_snapshot_dq_reg(struct hisi_hba *hisi_hba)
 {
-	int queue_entry_size = hisi_hba->hw->complete_hdr_size;
+	int queue_entry_size = sizeof(struct hisi_sas_cmd_hdr);
 	int i;
 
 	for (i = 0; i < hisi_hba->queue_count; i++)
@@ -2945,7 +2945,7 @@ void hisi_sas_debugfs_init(struct hisi_hba *hisi_hba)
 	}
 
 	/* Alloc buffer for dq */
-	sz = hisi_hba->hw->complete_hdr_size * HISI_SAS_QUEUE_SLOTS;
+	sz = sizeof(struct hisi_sas_cmd_hdr) * HISI_SAS_QUEUE_SLOTS;
 	for (d = 0; d < hisi_hba->queue_count; d++) {
 		hisi_hba->debugfs_cmd_hdr[d] =
 			devm_kmalloc(dev, sz, GFP_KERNEL);
