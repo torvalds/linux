@@ -67,11 +67,8 @@ nouveau_bo_ref(struct nouveau_bo *ref, struct nouveau_bo **pnvbo)
 	} else {
 		*pnvbo = NULL;
 	}
-	if (prev) {
-		struct ttm_buffer_object *bo = &prev->bo;
-
-		ttm_bo_unref(&bo);
-	}
+	if (prev)
+		ttm_bo_put(&prev->bo);
 
 	return 0;
 }
