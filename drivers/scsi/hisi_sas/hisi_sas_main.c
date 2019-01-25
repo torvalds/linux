@@ -626,7 +626,6 @@ static struct hisi_sas_device *hisi_sas_alloc_dev(struct domain_device *device)
 
 			hisi_hba->devices[i].device_id = i;
 			sas_dev = &hisi_hba->devices[i];
-			sas_dev->dev_status = HISI_SAS_DEV_NORMAL;
 			sas_dev->dev_type = device->dev_type;
 			sas_dev->hisi_hba = hisi_hba;
 			sas_dev->sas_device = device;
@@ -1495,7 +1494,6 @@ static int hisi_sas_abort_task(struct sas_task *task)
 	task->task_state_flags |= SAS_TASK_STATE_ABORTED;
 	spin_unlock_irqrestore(&task->task_state_lock, flags);
 
-	sas_dev->dev_status = HISI_SAS_DEV_EH;
 	if (task->lldd_task && task->task_proto & SAS_PROTOCOL_SSP) {
 		struct scsi_cmnd *cmnd = task->uldd_task;
 		struct hisi_sas_slot *slot = task->lldd_task;
@@ -1639,14 +1637,9 @@ static int hisi_sas_debug_I_T_nexus_reset(struct domain_device *device)
 
 static int hisi_sas_I_T_nexus_reset(struct domain_device *device)
 {
-	struct hisi_sas_device *sas_dev = device->lldd_dev;
 	struct hisi_hba *hisi_hba = dev_to_hisi_hba(device);
 	struct device *dev = hisi_hba->dev;
 	int rc = TMF_RESP_FUNC_FAILED;
-
-	if (sas_dev->dev_status != HISI_SAS_DEV_EH)
-		return TMF_RESP_FUNC_FAILED;
-	sas_dev->dev_status = HISI_SAS_DEV_NORMAL;
 
 	rc = hisi_sas_internal_task_abort(hisi_hba, device,
 					HISI_SAS_INT_ABT_DEV, 0);
@@ -1671,7 +1664,6 @@ static int hisi_sas_lu_reset(struct domain_device *device, u8 *lun)
 	struct device *dev = hisi_hba->dev;
 	int rc = TMF_RESP_FUNC_FAILED;
 
-	sas_dev->dev_status = HISI_SAS_DEV_EH;
 	if (dev_is_sata(device)) {
 		struct sas_phy *phy;
 
@@ -2100,7 +2092,6 @@ int hisi_sas_alloc(struct hisi_hba *hisi_hba, struct Scsi_Host *shost)
 	for (i = 0; i < HISI_SAS_MAX_DEVICES; i++) {
 		hisi_hba->devices[i].dev_type = SAS_PHY_UNUSED;
 		hisi_hba->devices[i].device_id = i;
-		hisi_hba->devices[i].dev_status = HISI_SAS_DEV_NORMAL;
 	}
 
 	for (i = 0; i < hisi_hba->queue_count; i++) {

@@ -83,11 +83,6 @@ enum {
 	PORT_TYPE_SATA = (1U << 0),
 };
 
-enum dev_status {
-	HISI_SAS_DEV_NORMAL,
-	HISI_SAS_DEV_EH,
-};
-
 enum {
 	HISI_SAS_INT_ABT_CMD = 0,
 	HISI_SAS_INT_ABT_DEV = 1,
@@ -188,7 +183,6 @@ struct hisi_sas_device {
 	enum sas_device_type	dev_type;
 	int device_id;
 	int sata_idx;
-	u8 dev_status;
 };
 
 struct hisi_sas_tmf_task {
