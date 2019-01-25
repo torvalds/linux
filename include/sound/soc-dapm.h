@@ -540,6 +540,8 @@ struct snd_soc_dapm_route {
 	/* Note: currently only supported for links where source is a supply */
 	int (*connected)(struct snd_soc_dapm_widget *source,
 			 struct snd_soc_dapm_widget *sink);
+
+	struct snd_soc_dobj dobj;
 };
 
 /* dapm audio path between two widgets */
