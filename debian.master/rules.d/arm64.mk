@@ -7,6 +7,7 @@ build_image	= Image.gz
 kernel_file	= arch/$(build_arch)/boot/Image.gz
 install_file	= vmlinuz
 no_dumpfile = true
+uefi_signed     = true
 
 # The uboot used in ubuntu core can't handle Image.gz, so
 # create this flavour to generate a Image just for them
