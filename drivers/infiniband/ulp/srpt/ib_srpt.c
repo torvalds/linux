@@ -1581,11 +1581,9 @@ static void srpt_handle_tsk_mgmt(struct srpt_rdma_ch *ch,
 			       TARGET_SCF_ACK_KREF);
 	if (rc != 0) {
 		send_ioctx->cmd.se_tmr_req->response = TMR_FUNCTION_REJECTED;
-		goto fail;
+		cmd->se_tfo->queue_tm_rsp(cmd);
 	}
 	return;
-fail:
-	transport_send_check_condition_and_sense(cmd, 0, 0); // XXX:
 }
 
 /**
