@@ -1474,29 +1474,6 @@ int qla24xx_fcport_handle_login(struct scsi_qla_host *vha, fc_port_t *fcport)
 	return 0;
 }
 
-static
-void qla24xx_handle_rscn_event(fc_port_t *fcport, struct event_arg *ea)
-{
-	fcport->rscn_gen++;
-
-	ql_dbg(ql_dbg_disc, fcport->vha, 0x210c,
-	    "%s %8phC DS %d LS %d\n",
-	    __func__, fcport->port_name, fcport->disc_state,
-	    fcport->fw_login_state);
-
-	if (fcport->flags & FCF_ASYNC_SENT)
-		return;
-
-	switch (fcport->disc_state) {
-	case DSC_DELETED:
-	case DSC_LOGIN_COMPLETE:
-		qla24xx_post_gpnid_work(fcport->vha, &ea->id);
-		break;
-	default:
-		break;
-	}
-}
-
 int qla24xx_post_newsess_work(struct scsi_qla_host *vha, port_id_t *id,
     u8 *port_name, u8 *node_name, void *pla, u8 fc4_type)
 {
@@ -1563,8 +1540,6 @@ static void qla_handle_els_plogi_done(scsi_qla_host_t *vha,
 
 void qla2x00_fcport_event_handler(scsi_qla_host_t *vha, struct event_arg *ea)
 {
-	fc_port_t *f, *tf;
-	uint32_t id = 0, mask, rid;
 	fc_port_t *fcport;
 
 	switch (ea->event) {
@@ -1577,10 +1552,6 @@ void qla2x00_fcport_event_handler(scsi_qla_host_t *vha, struct event_arg *ea)
 	case FCME_RSCN:
 		if (test_bit(UNLOADING, &vha->dpc_flags))
 			return;
-		switch (ea->id.b.rsvd_1) {
-		case RSCN_PORT_ADDR:
-#define BIGSCAN 1
-#if defined BIGSCAN & BIGSCAN > 0
 		{
 			unsigned long flags;
 			fcport = qla2x00_find_fcport_by_nportid
@@ -1598,59 +1569,6 @@ void qla2x00_fcport_event_handler(scsi_qla_host_t *vha, struct event_arg *ea)
 				schedule_delayed_work(&vha->scan.scan_work, 5);
 			}
 			spin_unlock_irqrestore(&vha->work_lock, flags);
-		}
-#else
-		{
-			int rc;
-			fcport = qla2x00_find_fcport_by_nportid(vha, &ea->id, 1);
-			if (!fcport) {
-				/* cable moved */
-				 rc = qla24xx_post_gpnid_work(vha, &ea->id);
-				 if (rc) {
-					 ql_log(ql_log_warn, vha, 0xd044,
-					     "RSCN GPNID work failed %06x\n",
-					     ea->id.b24);
-				 }
-			} else {
-				ea->fcport = fcport;
-				fcport->scan_needed = 1;
-				qla24xx_handle_rscn_event(fcport, ea);
-			}
-		}
-#endif
-			break;
-		case RSCN_AREA_ADDR:
-		case RSCN_DOM_ADDR:
-			if (ea->id.b.rsvd_1 == RSCN_AREA_ADDR) {
-				mask = 0xffff00;
-				ql_dbg(ql_dbg_async, vha, 0x5044,
-				    "RSCN: Area 0x%06x was affected\n",
-				    ea->id.b24);
-			} else {
-				mask = 0xff0000;
-				ql_dbg(ql_dbg_async, vha, 0x507a,
-				    "RSCN: Domain 0x%06x was affected\n",
-				    ea->id.b24);
-			}
-
-			rid = ea->id.b24 & mask;
-			list_for_each_entry_safe(f, tf, &vha->vp_fcports,
-			    list) {
-				id = f->d_id.b24 & mask;
-				if (rid == id) {
-					ea->fcport = f;
-					qla24xx_handle_rscn_event(f, ea);
-				}
-			}
-			break;
-		case RSCN_FAB_ADDR:
-		default:
-			ql_log(ql_log_warn, vha, 0xd045,
-			    "RSCN: Fabric was affected. Addr format %d\n",
-			    ea->id.b.rsvd_1);
-			qla2x00_mark_all_devices_lost(vha, 1);
-			set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
-			set_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);
 		}
 		break;
 	case FCME_GNL_DONE:
@@ -1712,11 +1630,7 @@ void qla_rscn_replay(fc_port_t *fcport)
                ea.event = FCME_RSCN;
                ea.id = fcport->d_id;
                ea.id.b.rsvd_1 = RSCN_PORT_ADDR;
-#if defined BIGSCAN & BIGSCAN > 0
                qla2x00_fcport_event_handler(fcport->vha, &ea);
-#else
-               qla24xx_post_gpnid_work(fcport->vha, &ea.id);
-#endif
 	}
 }
 
