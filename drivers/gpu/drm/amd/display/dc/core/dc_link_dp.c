@@ -2540,7 +2540,6 @@ void detect_edp_sink_caps(struct dc_link *link)
 	uint32_t entry;
 	uint32_t link_rate_in_khz;
 	enum dc_link_rate link_rate = LINK_RATE_UNKNOWN;
-	uint8_t link_rate_set = 0;
 
 	retrieve_link_cap(link);
 
@@ -2560,39 +2559,7 @@ void detect_edp_sink_caps(struct dc_link *link)
 				link_rate = linkRateInKHzToLinkRateMultiplier(link_rate_in_khz);
 				if (link->reported_link_cap.link_rate < link_rate) {
 					link->reported_link_cap.link_rate = link_rate;
-
-					switch (link_rate) {
-					case LINK_RATE_LOW:
-						link_rate_set = 1;
-						break;
-					case LINK_RATE_RATE_2:
-						link_rate_set = 2;
-						break;
-					case LINK_RATE_RATE_3:
-						link_rate_set = 3;
-						break;
-					case LINK_RATE_HIGH:
-						link_rate_set = 4;
-						break;
-					case LINK_RATE_RBR2:
-						link_rate_set = 5;
-						break;
-					case LINK_RATE_RATE_6:
-						link_rate_set = 6;
-						break;
-					case LINK_RATE_HIGH2:
-						link_rate_set = 7;
-						break;
-					case LINK_RATE_HIGH3:
-						link_rate_set = 8;
-						break;
-					default:
-						link_rate_set = 0;
-						break;
-					}
-
-					if (link->dpcd_caps.link_rate_set < link_rate_set)
-						link->dpcd_caps.link_rate_set = link_rate_set;
+					link->dpcd_caps.link_rate_set = entry;
 				}
 			}
 		}
