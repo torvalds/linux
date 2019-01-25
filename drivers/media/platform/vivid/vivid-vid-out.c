@@ -102,16 +102,19 @@ static int vid_out_buf_out_validate(struct vb2_buffer *vb)
 static int vid_out_buf_prepare(struct vb2_buffer *vb)
 {
 	struct vivid_dev *dev = vb2_get_drv_priv(vb->vb2_queue);
-	unsigned long size;
-	unsigned planes;
+	const struct vivid_fmt *vfmt = dev->fmt_out;
+	unsigned int planes = vfmt->buffers;
+	unsigned int h = dev->fmt_out_rect.height;
+	unsigned int size = dev->bytesperline_out[0] * h;
 	unsigned p;
+
+	for (p = vfmt->buffers; p < vfmt->planes; p++)
+		size += dev->bytesperline_out[p] * h / vfmt->vdownsampling[p];
 
 	dprintk(dev, 1, "%s\n", __func__);
 
 	if (WARN_ON(NULL == dev->fmt_out))
 		return -EINVAL;
-
-	planes = dev->fmt_out->planes;
 
 	if (dev->buf_prepare_error) {
 		/*
@@ -123,11 +126,12 @@ static int vid_out_buf_prepare(struct vb2_buffer *vb)
 	}
 
 	for (p = 0; p < planes; p++) {
-		size = dev->bytesperline_out[p] * dev->fmt_out_rect.height +
-			vb->planes[p].data_offset;
+		if (p)
+			size = dev->bytesperline_out[p] * h;
+		size += vb->planes[p].data_offset;
 
 		if (vb2_get_plane_payload(vb, p) < size) {
-			dprintk(dev, 1, "%s the payload is too small for plane %u (%lu < %lu)\n",
+			dprintk(dev, 1, "%s the payload is too small for plane %u (%lu < %u)\n",
 					__func__, p, vb2_get_plane_payload(vb, p), size);
 			return -EINVAL;
 		}
