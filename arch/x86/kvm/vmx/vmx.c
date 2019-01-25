@@ -6371,6 +6371,33 @@ void vmx_update_host_rsp(struct vcpu_vmx *vmx, unsigned long host_rsp)
 	}
 }
 
+#ifdef CONFIG_X86_64
+#define WORD_SIZE	8
+#else
+#define WORD_SIZE	4
+#endif
+
+#define _WORD_SIZE	__stringify(WORD_SIZE)
+
+#define VCPU_RAX	__stringify(__VCPU_REGS_RAX * WORD_SIZE)
+#define VCPU_RCX	__stringify(__VCPU_REGS_RCX * WORD_SIZE)
+#define VCPU_RDX	__stringify(__VCPU_REGS_RDX * WORD_SIZE)
+#define VCPU_RBX	__stringify(__VCPU_REGS_RBX * WORD_SIZE)
+/* Intentionally omit %RSP as it's context switched by hardware */
+#define VCPU_RBP	__stringify(__VCPU_REGS_RBP * WORD_SIZE)
+#define VCPU_RSI	__stringify(__VCPU_REGS_RSI * WORD_SIZE)
+#define VCPU_RDI	__stringify(__VCPU_REGS_RDI * WORD_SIZE)
+#ifdef CONFIG_X86_64
+#define VCPU_R8		__stringify(__VCPU_REGS_R8  * WORD_SIZE)
+#define VCPU_R9		__stringify(__VCPU_REGS_R9  * WORD_SIZE)
+#define VCPU_R10	__stringify(__VCPU_REGS_R10 * WORD_SIZE)
+#define VCPU_R11	__stringify(__VCPU_REGS_R11 * WORD_SIZE)
+#define VCPU_R12	__stringify(__VCPU_REGS_R12 * WORD_SIZE)
+#define VCPU_R13	__stringify(__VCPU_REGS_R13 * WORD_SIZE)
+#define VCPU_R14	__stringify(__VCPU_REGS_R14 * WORD_SIZE)
+#define VCPU_R15	__stringify(__VCPU_REGS_R15 * WORD_SIZE)
+#endif
+
 static void __vmx_vcpu_run(struct kvm_vcpu *vcpu, struct vcpu_vmx *vmx)
 {
 	if (static_branch_unlikely(&vmx_l1d_should_flush))
@@ -6390,7 +6417,7 @@ static void __vmx_vcpu_run(struct kvm_vcpu *vcpu, struct vcpu_vmx *vmx)
 		"push %%" _ASM_ARG2 " \n\t"
 
 		/* Adjust RSP to account for the CALL to vmx_vmenter(). */
-		"lea -%c[wordsize](%%" _ASM_SP "), %%" _ASM_ARG2 " \n\t"
+		"lea -" _WORD_SIZE "(%%" _ASM_SP "), %%" _ASM_ARG2 " \n\t"
 		"call vmx_update_host_rsp \n\t"
 
 		/* Load RCX with @regs. */
@@ -6400,24 +6427,24 @@ static void __vmx_vcpu_run(struct kvm_vcpu *vcpu, struct vcpu_vmx *vmx)
 		"cmpb $0, %%bl \n\t"
 
 		/* Load guest registers.  Don't clobber flags. */
-		"mov %c[rax](%%" _ASM_CX "), %%" _ASM_AX " \n\t"
-		"mov %c[rbx](%%" _ASM_CX "), %%" _ASM_BX " \n\t"
-		"mov %c[rdx](%%" _ASM_CX "), %%" _ASM_DX " \n\t"
-		"mov %c[rsi](%%" _ASM_CX "), %%" _ASM_SI " \n\t"
-		"mov %c[rdi](%%" _ASM_CX "), %%" _ASM_DI " \n\t"
-		"mov %c[rbp](%%" _ASM_CX "), %%" _ASM_BP " \n\t"
+		"mov " VCPU_RAX "(%%" _ASM_CX "), %%" _ASM_AX " \n\t"
+		"mov " VCPU_RBX "(%%" _ASM_CX "), %%" _ASM_BX " \n\t"
+		"mov " VCPU_RDX "(%%" _ASM_CX "), %%" _ASM_DX " \n\t"
+		"mov " VCPU_RSI "(%%" _ASM_CX "), %%" _ASM_SI " \n\t"
+		"mov " VCPU_RDI "(%%" _ASM_CX "), %%" _ASM_DI " \n\t"
+		"mov " VCPU_RBP "(%%" _ASM_CX "), %%" _ASM_BP " \n\t"
 #ifdef CONFIG_X86_64
-		"mov %c[r8](%%" _ASM_CX "),  %%r8  \n\t"
-		"mov %c[r9](%%" _ASM_CX "),  %%r9  \n\t"
-		"mov %c[r10](%%" _ASM_CX "), %%r10 \n\t"
-		"mov %c[r11](%%" _ASM_CX "), %%r11 \n\t"
-		"mov %c[r12](%%" _ASM_CX "), %%r12 \n\t"
-		"mov %c[r13](%%" _ASM_CX "), %%r13 \n\t"
-		"mov %c[r14](%%" _ASM_CX "), %%r14 \n\t"
-		"mov %c[r15](%%" _ASM_CX "), %%r15 \n\t"
+		"mov " VCPU_R8  "(%%" _ASM_CX "),  %%r8  \n\t"
+		"mov " VCPU_R9  "(%%" _ASM_CX "),  %%r9  \n\t"
+		"mov " VCPU_R10 "(%%" _ASM_CX "), %%r10 \n\t"
+		"mov " VCPU_R11 "(%%" _ASM_CX "), %%r11 \n\t"
+		"mov " VCPU_R12 "(%%" _ASM_CX "), %%r12 \n\t"
+		"mov " VCPU_R13 "(%%" _ASM_CX "), %%r13 \n\t"
+		"mov " VCPU_R14 "(%%" _ASM_CX "), %%r14 \n\t"
+		"mov " VCPU_R15 "(%%" _ASM_CX "), %%r15 \n\t"
 #endif
 		/* Load guest RCX.  This kills the vmx_vcpu pointer! */
-		"mov %c[rcx](%%" _ASM_CX "), %%" _ASM_CX " \n\t"
+		"mov " VCPU_RCX"(%%" _ASM_CX "), %%" _ASM_CX " \n\t"
 
 		/* Enter guest mode */
 		"call vmx_vmenter\n\t"
@@ -6427,25 +6454,25 @@ static void __vmx_vcpu_run(struct kvm_vcpu *vcpu, struct vcpu_vmx *vmx)
 		"push %%" _ASM_CX " \n\t"
 
 		/* Reload RCX with @regs. */
-		"mov %c[wordsize](%%" _ASM_SP "), %%" _ASM_CX " \n\t"
+		"mov " _WORD_SIZE "(%%" _ASM_SP "), %%" _ASM_CX " \n\t"
 
 		/* Save all guest registers, including RCX from the stack */
-		"mov %%" _ASM_AX ", %c[rax](%%" _ASM_CX ") \n\t"
-		"mov %%" _ASM_BX ", %c[rbx](%%" _ASM_CX ") \n\t"
-		__ASM_SIZE(pop) " %c[rcx](%%" _ASM_CX ") \n\t"
-		"mov %%" _ASM_DX ", %c[rdx](%%" _ASM_CX ") \n\t"
-		"mov %%" _ASM_SI ", %c[rsi](%%" _ASM_CX ") \n\t"
-		"mov %%" _ASM_DI ", %c[rdi](%%" _ASM_CX ") \n\t"
-		"mov %%" _ASM_BP ", %c[rbp](%%" _ASM_CX ") \n\t"
+		"mov %%" _ASM_AX ", " VCPU_RAX "(%%" _ASM_CX ") \n\t"
+		"mov %%" _ASM_BX ", " VCPU_RBX "(%%" _ASM_CX ") \n\t"
+		__ASM_SIZE(pop) "   " VCPU_RCX "(%%" _ASM_CX ") \n\t"
+		"mov %%" _ASM_DX ", " VCPU_RDX "(%%" _ASM_CX ") \n\t"
+		"mov %%" _ASM_SI ", " VCPU_RSI "(%%" _ASM_CX ") \n\t"
+		"mov %%" _ASM_DI ", " VCPU_RDI "(%%" _ASM_CX ") \n\t"
+		"mov %%" _ASM_BP ", " VCPU_RBP "(%%" _ASM_CX ") \n\t"
 #ifdef CONFIG_X86_64
-		"mov %%r8,  %c[r8](%%" _ASM_CX ") \n\t"
-		"mov %%r9,  %c[r9](%%" _ASM_CX ") \n\t"
-		"mov %%r10, %c[r10](%%" _ASM_CX ") \n\t"
-		"mov %%r11, %c[r11](%%" _ASM_CX ") \n\t"
-		"mov %%r12, %c[r12](%%" _ASM_CX ") \n\t"
-		"mov %%r13, %c[r13](%%" _ASM_CX ") \n\t"
-		"mov %%r14, %c[r14](%%" _ASM_CX ") \n\t"
-		"mov %%r15, %c[r15](%%" _ASM_CX ") \n\t"
+		"mov %%r8,  " VCPU_R8  "(%%" _ASM_CX ") \n\t"
+		"mov %%r9,  " VCPU_R9  "(%%" _ASM_CX ") \n\t"
+		"mov %%r10, " VCPU_R10 "(%%" _ASM_CX ") \n\t"
+		"mov %%r11, " VCPU_R11 "(%%" _ASM_CX ") \n\t"
+		"mov %%r12, " VCPU_R12 "(%%" _ASM_CX ") \n\t"
+		"mov %%r13, " VCPU_R13 "(%%" _ASM_CX ") \n\t"
+		"mov %%r14, " VCPU_R14 "(%%" _ASM_CX ") \n\t"
+		"mov %%r15, " VCPU_R15 "(%%" _ASM_CX ") \n\t"
 #endif
 
 		/* Clear EBX to indicate VM-Exit (as opposed to VM-Fail). */
@@ -6479,7 +6506,7 @@ static void __vmx_vcpu_run(struct kvm_vcpu *vcpu, struct vcpu_vmx *vmx)
 		"xor %%ebp, %%ebp \n\t"
 
 		/* "POP" the vcpu_vmx pointer. */
-		"add $%c[wordsize], %%" _ASM_SP " \n\t"
+		"add $" _WORD_SIZE ", %%" _ASM_SP " \n\t"
 		"pop  %%" _ASM_BP " \n\t"
 		"jmp 3f \n\t"
 
@@ -6497,25 +6524,7 @@ static void __vmx_vcpu_run(struct kvm_vcpu *vcpu, struct vcpu_vmx *vmx)
 		"=a"((int){0}), "=d"((int){0})
 	      : "a"(vmx), "d"(&vcpu->arch.regs),
 #endif
-		"b"(vmx->loaded_vmcs->launched),
-		[rax]"i"(VCPU_REGS_RAX * sizeof(ulong)),
-		[rbx]"i"(VCPU_REGS_RBX * sizeof(ulong)),
-		[rcx]"i"(VCPU_REGS_RCX * sizeof(ulong)),
-		[rdx]"i"(VCPU_REGS_RDX * sizeof(ulong)),
-		[rsi]"i"(VCPU_REGS_RSI * sizeof(ulong)),
-		[rdi]"i"(VCPU_REGS_RDI * sizeof(ulong)),
-		[rbp]"i"(VCPU_REGS_RBP * sizeof(ulong)),
-#ifdef CONFIG_X86_64
-		[r8]"i"(VCPU_REGS_R8 * sizeof(ulong)),
-		[r9]"i"(VCPU_REGS_R9 * sizeof(ulong)),
-		[r10]"i"(VCPU_REGS_R10 * sizeof(ulong)),
-		[r11]"i"(VCPU_REGS_R11 * sizeof(ulong)),
-		[r12]"i"(VCPU_REGS_R12 * sizeof(ulong)),
-		[r13]"i"(VCPU_REGS_R13 * sizeof(ulong)),
-		[r14]"i"(VCPU_REGS_R14 * sizeof(ulong)),
-		[r15]"i"(VCPU_REGS_R15 * sizeof(ulong)),
-#endif
-		[wordsize]"i"(sizeof(ulong))
+		"b"(vmx->loaded_vmcs->launched)
 	      : "cc", "memory"
 #ifdef CONFIG_X86_64
 		, "rax", "rcx", "rdx"
