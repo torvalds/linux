@@ -6363,14 +6363,17 @@ static void vmx_update_hv_timer(struct kvm_vcpu *vcpu)
 	vmx->loaded_vmcs->hv_timer_armed = false;
 }
 
+void vmx_update_host_rsp(struct vcpu_vmx *vmx, unsigned long host_rsp)
+{
+	if (unlikely(host_rsp != vmx->loaded_vmcs->host_state.rsp)) {
+		vmx->loaded_vmcs->host_state.rsp = host_rsp;
+		vmcs_writel(HOST_RSP, host_rsp);
+	}
+}
+
 static void __vmx_vcpu_run(struct kvm_vcpu *vcpu, struct vcpu_vmx *vmx)
 {
-	unsigned long evmcs_rsp;
-
 	vmx->__launched = vmx->loaded_vmcs->launched;
-
-	evmcs_rsp = static_branch_unlikely(&enable_evmcs) ?
-		(unsigned long)&current_evmcs->host_rsp : 0;
 
 	if (static_branch_unlikely(&vmx_l1d_should_flush))
 		vmx_l1d_flush(vcpu);
@@ -6382,21 +6385,14 @@ static void __vmx_vcpu_run(struct kvm_vcpu *vcpu, struct vcpu_vmx *vmx)
 		/* Store host registers */
 		"push %%" _ASM_BP " \n\t"
 		"sub $%c[wordsize], %%" _ASM_SP "\n\t" /* placeholder for guest RCX */
-		"push %%" _ASM_CX " \n\t"
-		"sub $%c[wordsize], %%" _ASM_SP "\n\t" /* temporarily adjust RSP for CALL */
-		"cmp %%" _ASM_SP ", (%%" _ASM_DI ") \n\t"
-		"je 1f \n\t"
-		"mov %%" _ASM_SP ", (%%" _ASM_DI ") \n\t"
-		/* Avoid VMWRITE when Enlightened VMCS is in use */
-		"test %%" _ASM_SI ", %%" _ASM_SI " \n\t"
-		"jz 2f \n\t"
-		"mov %%" _ASM_SP ", (%%" _ASM_SI ") \n\t"
-		"jmp 1f \n\t"
-		"2: \n\t"
-		"mov $%c[HOST_RSP], %%" _ASM_DX " \n\t"
-		__ex("vmwrite %%" _ASM_SP ", %%" _ASM_DX) "\n\t"
-		"1: \n\t"
-		"add $%c[wordsize], %%" _ASM_SP "\n\t" /* un-adjust RSP */
+		"push %%" _ASM_ARG1 " \n\t"
+
+		/* Adjust RSP to account for the CALL to vmx_vmenter(). */
+		"lea -%c[wordsize](%%" _ASM_SP "), %%" _ASM_ARG2 " \n\t"
+		"call vmx_update_host_rsp \n\t"
+
+		/* Load the vcpu_vmx pointer to RCX. */
+		"mov (%%" _ASM_SP "), %%" _ASM_CX " \n\t"
 
 		/* Check if vmlaunch or vmresume is needed */
 		"cmpb $0, %c[launched](%%" _ASM_CX ") \n\t"
@@ -6475,11 +6471,16 @@ static void __vmx_vcpu_run(struct kvm_vcpu *vcpu, struct vcpu_vmx *vmx)
 		"xor %%edi, %%edi \n\t"
 		"xor %%ebp, %%ebp \n\t"
 		"pop  %%" _ASM_BP " \n\t"
-	      : ASM_CALL_CONSTRAINT, "=D"((int){0}), "=S"((int){0})
-	      : "c"(vmx), "D"(&vmx->loaded_vmcs->host_state.rsp), "S"(evmcs_rsp),
+	      : ASM_CALL_CONSTRAINT,
+#ifdef CONFIG_X86_64
+		"=D"((int){0})
+	      : "D"(vmx),
+#else
+		"=a"((int){0})
+	      : "a"(vmx),
+#endif
 		[launched]"i"(offsetof(struct vcpu_vmx, __launched)),
 		[fail]"i"(offsetof(struct vcpu_vmx, fail)),
-		[HOST_RSP]"i"(HOST_RSP),
 		[rax]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_RAX])),
 		[rbx]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_RBX])),
 		[rcx]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_RCX])),
@@ -6500,10 +6501,10 @@ static void __vmx_vcpu_run(struct kvm_vcpu *vcpu, struct vcpu_vmx *vmx)
 		[wordsize]"i"(sizeof(ulong))
 	      : "cc", "memory"
 #ifdef CONFIG_X86_64
-		, "rax", "rbx", "rdx"
+		, "rax", "rbx", "rcx", "rdx", "rsi"
 		, "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15"
 #else
-		, "eax", "ebx", "edx"
+		, "ebx", "ecx", "edx", "edi", "esi"
 #endif
 	      );
 
