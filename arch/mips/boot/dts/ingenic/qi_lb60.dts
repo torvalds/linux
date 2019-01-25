@@ -2,12 +2,22 @@
 /dts-v1/;
 
 #include "jz4740.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	compatible = "qi,lb60", "ingenic,jz4740";
 
 	chosen {
 		stdout-path = &uart0;
+	};
+
+	mmc_power: fixedregulator {
+		compatible = "regulator-fixed";
+		regulator-name = "mmc_vcc";
+		gpio = <&gpd 2 0>;
+
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
 	};
 };
 
@@ -30,4 +40,27 @@
 		groups = "uart0-data";
 		bias-disable;
 	};
+
+	pins_mmc: mmc {
+		mmc {
+			function = "mmc";
+			groups = "mmc-1bit", "mmc-4bit";
+			bias-disable;
+		};
+
+		mmc-gpios {
+			pins = "PD0", "PD2";
+			bias-disable;
+		};
+	};
+};
+
+&mmc {
+	bus-width = <4>;
+	max-frequency = <24000000>;
+	cd-gpios = <&gpd 0 GPIO_ACTIVE_HIGH>;
+	vmmc-supply = <&mmc_power>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pins_mmc>;
 };
