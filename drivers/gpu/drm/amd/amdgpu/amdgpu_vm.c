@@ -107,14 +107,6 @@ struct amdgpu_pte_update_params {
 	 * DMA addresses to use for mapping, used during VM update by CPU
 	 */
 	dma_addr_t *pages_addr;
-
-	/**
-	 * @kptr:
-	 *
-	 * Kernel pointer of PD/PT BO that needs to be updated,
-	 * used during VM update by CPU
-	 */
-	void *kptr;
 };
 
 /**
