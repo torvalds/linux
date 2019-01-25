@@ -441,6 +441,7 @@ static int snd_byt_cht_es8316_mc_probe(struct platform_device *pdev)
 	struct byt_cht_es8316_private *priv;
 	struct device *dev = &pdev->dev;
 	struct snd_soc_acpi_mach *mach;
+	const char *platform_name;
 	const char *i2c_name = NULL;
 	struct device *codec_dev;
 	int dai_index = 0;
@@ -468,6 +469,14 @@ static int snd_byt_cht_es8316_mc_probe(struct platform_device *pdev)
 			"%s%s", "i2c-", i2c_name);
 		byt_cht_es8316_dais[dai_index].codec_name = codec_name;
 	}
+
+	/* override plaform name, if required */
+	platform_name = mach->mach_params.platform;
+
+	ret = snd_soc_fixup_dai_links_platform_name(&byt_cht_es8316_card,
+						    platform_name);
+	if (ret)
+		return ret;
 
 	/* Check for BYTCR or other platform and setup quirks */
 	if (x86_match_cpu(baytrail_cpu_ids) &&
