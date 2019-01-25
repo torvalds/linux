@@ -3,14 +3,9 @@
  * Copyright (c) 2018, NVIDIA CORPORATION.
  */
 
-#include <linux/clk/tegra.h>
 #include <linux/genalloc.h>
 #include <linux/mailbox_client.h>
-#include <linux/of.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
-#include <linux/semaphore.h>
 
 #include <soc/tegra/bpmp.h>
 #include <soc/tegra/bpmp-abi.h>
