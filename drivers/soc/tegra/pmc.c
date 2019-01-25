@@ -273,6 +273,9 @@ static const char * const tegra30_reset_sources[] = {
  * struct tegra_pmc - NVIDIA Tegra PMC
  * @dev: pointer to PMC device structure
  * @base: pointer to I/O remapped register region
+ * @wake: pointer to I/O remapped region for WAKE registers
+ * @aotag: pointer to I/O remapped region for AOTAG registers
+ * @scratch: pointer to I/O remapped region for scratch registers
  * @clk: pointer to pclk clock
  * @soc: pointer to SoC data structure
  * @debugfs: pointer to debugfs entry
@@ -291,6 +294,9 @@ static const char * const tegra30_reset_sources[] = {
  * @lp0_vec_size: size of the LP0 warm boot code
  * @powergates_available: Bitmap of available power gates
  * @powergates_lock: mutex for power gate register access
+ * @pctl_dev: pin controller exposed by the PMC
+ * @domain: IRQ domain provided by the PMC
+ * @irq: chip implementation for the IRQ domain
  */
 struct tegra_pmc {
 	struct device *dev;
