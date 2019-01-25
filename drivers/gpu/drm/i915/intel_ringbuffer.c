@@ -33,6 +33,7 @@
 
 #include "i915_drv.h"
 #include "i915_gem_render_state.h"
+#include "i915_reset.h"
 #include "i915_trace.h"
 #include "intel_drv.h"
 #include "intel_workarounds.h"
@@ -711,52 +712,80 @@ out:
 	return ret;
 }
 
-static struct i915_request *reset_prepare(struct intel_engine_cs *engine)
+static void reset_prepare(struct intel_engine_cs *engine)
 {
 	intel_engine_stop_cs(engine);
-	return i915_gem_find_active_request(engine);
 }
 
-static void skip_request(struct i915_request *rq)
+static void reset_ring(struct intel_engine_cs *engine, bool stalled)
 {
-	void *vaddr = rq->ring->vaddr;
+	struct i915_timeline *tl = &engine->timeline;
+	struct i915_request *pos, *rq;
+	unsigned long flags;
 	u32 head;
 
-	head = rq->infix;
-	if (rq->postfix < head) {
-		memset32(vaddr + head, MI_NOOP,
-			 (rq->ring->size - head) / sizeof(u32));
-		head = 0;
+	rq = NULL;
+	spin_lock_irqsave(&tl->lock, flags);
+	list_for_each_entry(pos, &tl->requests, link) {
+		if (!__i915_request_completed(pos, pos->global_seqno)) {
+			rq = pos;
+			break;
+		}
 	}
-	memset32(vaddr + head, MI_NOOP, (rq->postfix - head) / sizeof(u32));
-}
 
-static void reset_ring(struct intel_engine_cs *engine, struct i915_request *rq)
-{
-	GEM_TRACE("%s request global=%d, current=%d\n",
-		  engine->name, rq ? rq->global_seqno : 0,
-		  intel_engine_get_seqno(engine));
-
+	GEM_TRACE("%s seqno=%d, current=%d, stalled? %s\n",
+		  engine->name,
+		  rq ? rq->global_seqno : 0,
+		  intel_engine_get_seqno(engine),
+		  yesno(stalled));
 	/*
-	 * Try to restore the logical GPU state to match the continuation
-	 * of the request queue. If we skip the context/PD restore, then
-	 * the next request may try to execute assuming that its context
-	 * is valid and loaded on the GPU and so may try to access invalid
-	 * memory, prompting repeated GPU hangs.
+	 * The guilty request will get skipped on a hung engine.
 	 *
-	 * If the request was guilty, we still restore the logical state
-	 * in case the next request requires it (e.g. the aliasing ppgtt),
-	 * but skip over the hung batch.
+	 * Users of client default contexts do not rely on logical
+	 * state preserved between batches so it is safe to execute
+	 * queued requests following the hang. Non default contexts
+	 * rely on preserved state, so skipping a batch loses the
+	 * evolution of the state and it needs to be considered corrupted.
+	 * Executing more queued batches on top of corrupted state is
+	 * risky. But we take the risk by trying to advance through
+	 * the queued requests in order to make the client behaviour
+	 * more predictable around resets, by not throwing away random
+	 * amount of batches it has prepared for execution. Sophisticated
+	 * clients can use gem_reset_stats_ioctl and dma fence status
+	 * (exported via sync_file info ioctl on explicit fences) to observe
+	 * when it loses the context state and should rebuild accordingly.
 	 *
-	 * If the request was innocent, we try to replay the request with
-	 * the restored context.
+	 * The context ban, and ultimately the client ban, mechanism are safety
+	 * valves if client submission ends up resulting in nothing more than
+	 * subsequent hangs.
 	 */
+
 	if (rq) {
-		/* If the rq hung, jump to its breadcrumb and skip the batch */
-		rq->ring->head = intel_ring_wrap(rq->ring, rq->head);
-		if (rq->fence.error == -EIO)
-			skip_request(rq);
+		/*
+		 * Try to restore the logical GPU state to match the
+		 * continuation of the request queue. If we skip the
+		 * context/PD restore, then the next request may try to execute
+		 * assuming that its context is valid and loaded on the GPU and
+		 * so may try to access invalid memory, prompting repeated GPU
+		 * hangs.
+		 *
+		 * If the request was guilty, we still restore the logical
+		 * state in case the next request requires it (e.g. the
+		 * aliasing ppgtt), but skip over the hung batch.
+		 *
+		 * If the request was innocent, we try to replay the request
+		 * with the restored context.
+		 */
+		i915_reset_request(rq, stalled);
+
+		GEM_BUG_ON(rq->ring != engine->buffer);
+		head = rq->head;
+	} else {
+		head = engine->buffer->tail;
 	}
+	engine->buffer->head = intel_ring_wrap(engine->buffer, head);
+
+	spin_unlock_irqrestore(&tl->lock, flags);
 }
 
 static void reset_finish(struct intel_engine_cs *engine)

@@ -39,6 +39,7 @@
 #include <linux/pagevec.h>
 
 #include "i915_request.h"
+#include "i915_reset.h"
 #include "i915_selftest.h"
 #include "i915_timeline.h"
 

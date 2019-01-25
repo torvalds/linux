@@ -214,7 +214,6 @@ out_put:
 
 static int do_device_reset(struct intel_engine_cs *engine)
 {
-	set_bit(I915_RESET_HANDOFF, &engine->i915->gpu_error.flags);
 	i915_reset(engine->i915, ENGINE_MASK(engine->id), "live_workarounds");
 	return 0;
 }
@@ -394,7 +393,6 @@ static int
 live_gpu_reset_gt_engine_workarounds(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
-	struct i915_gpu_error *error = &i915->gpu_error;
 	intel_wakeref_t wakeref;
 	struct wa_lists lists;
 	bool ok;
@@ -413,7 +411,6 @@ live_gpu_reset_gt_engine_workarounds(void *arg)
 	if (!ok)
 		goto out;
 
-	set_bit(I915_RESET_HANDOFF, &error->flags);
 	i915_reset(i915, ALL_ENGINES, "live_workarounds");
 
 	ok = verify_gt_engine_wa(i915, &lists, "after reset");

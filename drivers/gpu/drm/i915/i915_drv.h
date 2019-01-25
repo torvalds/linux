@@ -3001,11 +3001,6 @@ static inline bool i915_reset_backoff(struct i915_gpu_error *error)
 	return unlikely(test_bit(I915_RESET_BACKOFF, &error->flags));
 }
 
-static inline bool i915_reset_handoff(struct i915_gpu_error *error)
-{
-	return unlikely(test_bit(I915_RESET_HANDOFF, &error->flags));
-}
-
 static inline bool i915_terminally_wedged(struct i915_gpu_error *error)
 {
 	return unlikely(test_bit(I915_WEDGED, &error->flags));

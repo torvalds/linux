@@ -1119,10 +1119,8 @@ void intel_engines_sanitize(struct drm_i915_private *i915, bool force)
 	if (!reset_engines(i915) && !force)
 		return;
 
-	for_each_engine(engine, i915, id) {
-		if (engine->reset.reset)
-			engine->reset.reset(engine, NULL);
-	}
+	for_each_engine(engine, i915, id)
+		intel_engine_reset(engine, false);
 }
 
 /**

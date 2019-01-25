@@ -1284,8 +1284,6 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 		seq_puts(m, "Wedged\n");
 	if (test_bit(I915_RESET_BACKOFF, &dev_priv->gpu_error.flags))
 		seq_puts(m, "Reset in progress: struct_mutex backoff\n");
-	if (test_bit(I915_RESET_HANDOFF, &dev_priv->gpu_error.flags))
-		seq_puts(m, "Reset in progress: reset handoff to waiter\n");
 	if (waitqueue_active(&dev_priv->gpu_error.wait_queue))
 		seq_puts(m, "Waiter holding struct mutex\n");
 	if (waitqueue_active(&dev_priv->gpu_error.reset_queue))
@@ -1321,15 +1319,15 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 		struct rb_node *rb;
 
 		seq_printf(m, "%s:\n", engine->name);
-		seq_printf(m, "\tseqno = %x [current %x, last %x]\n",
+		seq_printf(m, "\tseqno = %x [current %x, last %x], %dms ago\n",
 			   engine->hangcheck.seqno, seqno[id],
-			   intel_engine_last_submit(engine));
-		seq_printf(m, "\twaiters? %s, fake irq active? %s, stalled? %s, wedged? %s\n",
+			   intel_engine_last_submit(engine),
+			   jiffies_to_msecs(jiffies -
+					    engine->hangcheck.action_timestamp));
+		seq_printf(m, "\twaiters? %s, fake irq active? %s\n",
 			   yesno(intel_engine_has_waiter(engine)),
 			   yesno(test_bit(engine->id,
-					  &dev_priv->gpu_error.missed_irq_rings)),
-			   yesno(engine->hangcheck.stalled),
-			   yesno(engine->hangcheck.wedged));
+					  &dev_priv->gpu_error.missed_irq_rings)));
 
 		spin_lock_irq(&b->rb_lock);
 		for (rb = rb_first(&b->waiters); rb; rb = rb_next(rb)) {
@@ -1343,11 +1341,6 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 		seq_printf(m, "\tACTHD = 0x%08llx [current 0x%08llx]\n",
 			   (long long)engine->hangcheck.acthd,
 			   (long long)acthd[id]);
-		seq_printf(m, "\taction = %s(%d) %d ms ago\n",
-			   hangcheck_action_to_str(engine->hangcheck.action),
-			   engine->hangcheck.action,
-			   jiffies_to_msecs(jiffies -
-					    engine->hangcheck.action_timestamp));
 
 		if (engine->id == RCS) {
 			seq_puts(m, "\tinstdone read =\n");
@@ -3911,8 +3904,6 @@ static int
 i915_wedged_set(void *data, u64 val)
 {
 	struct drm_i915_private *i915 = data;
-	struct intel_engine_cs *engine;
-	unsigned int tmp;
 
 	/*
 	 * There is no safeguard against this debugfs entry colliding
@@ -3925,18 +3916,8 @@ i915_wedged_set(void *data, u64 val)
 	if (i915_reset_backoff(&i915->gpu_error))
 		return -EAGAIN;
 
-	for_each_engine_masked(engine, i915, val, tmp) {
-		engine->hangcheck.seqno = intel_engine_get_seqno(engine);
-		engine->hangcheck.stalled = true;
-	}
-
 	i915_handle_error(i915, val, I915_ERROR_CAPTURE,
 			  "Manually set wedged engine mask = %llx", val);
-
-	wait_on_bit(&i915->gpu_error.flags,
-		    I915_RESET_HANDOFF,
-		    TASK_UNINTERRUPTIBLE);
-
 	return 0;
 }
 
@@ -4091,13 +4072,8 @@ i915_drop_caches_set(void *data, u64 val)
 		mutex_unlock(&i915->drm.struct_mutex);
 	}
 
-	if (val & DROP_RESET_ACTIVE &&
-	    i915_terminally_wedged(&i915->gpu_error)) {
+	if (val & DROP_RESET_ACTIVE && i915_terminally_wedged(&i915->gpu_error))
 		i915_handle_error(i915, ALL_ENGINES, 0, NULL);
-		wait_on_bit(&i915->gpu_error.flags,
-			    I915_RESET_HANDOFF,
-			    TASK_UNINTERRUPTIBLE);
-	}
 
 	fs_reclaim_acquire(GFP_KERNEL);
 	if (val & DROP_BOUND)

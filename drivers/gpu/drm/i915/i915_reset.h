@@ -29,6 +29,9 @@ void i915_reset(struct drm_i915_private *i915,
 int i915_reset_engine(struct intel_engine_cs *engine,
 		      const char *reason);
 
+void i915_reset_request(struct i915_request *rq, bool guilty);
+bool i915_reset_flush(struct drm_i915_private *i915);
+
 bool intel_has_gpu_reset(struct drm_i915_private *i915);
 bool intel_has_reset_engine(struct drm_i915_private *i915);
 

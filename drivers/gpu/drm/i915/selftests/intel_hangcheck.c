@@ -363,9 +363,7 @@ static int igt_global_reset(void *arg)
 	/* Check that we can issue a global GPU reset */
 
 	igt_global_reset_lock(i915);
-	set_bit(I915_RESET_HANDOFF, &i915->gpu_error.flags);
 
-	mutex_lock(&i915->drm.struct_mutex);
 	reset_count = i915_reset_count(&i915->gpu_error);
 
 	i915_reset(i915, ALL_ENGINES, NULL);
@@ -374,9 +372,7 @@ static int igt_global_reset(void *arg)
 		pr_err("No GPU reset recorded!\n");
 		err = -EINVAL;
 	}
-	mutex_unlock(&i915->drm.struct_mutex);
 
-	GEM_BUG_ON(test_bit(I915_RESET_HANDOFF, &i915->gpu_error.flags));
 	igt_global_reset_unlock(i915);
 
 	if (i915_terminally_wedged(&i915->gpu_error))
@@ -399,9 +395,7 @@ static int igt_wedged_reset(void *arg)
 	i915_gem_set_wedged(i915);
 	GEM_BUG_ON(!i915_terminally_wedged(&i915->gpu_error));
 
-	set_bit(I915_RESET_HANDOFF, &i915->gpu_error.flags);
 	i915_reset(i915, ALL_ENGINES, NULL);
-	GEM_BUG_ON(test_bit(I915_RESET_HANDOFF, &i915->gpu_error.flags));
 
 	intel_runtime_pm_put(i915, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
@@ -511,7 +505,7 @@ static int __igt_reset_engine(struct drm_i915_private *i915, bool active)
 				break;
 			}
 
-			if (!wait_for_idle(engine)) {
+			if (!i915_reset_flush(i915)) {
 				struct drm_printer p =
 					drm_info_printer(i915->drm.dev);
 
@@ -903,20 +897,13 @@ static int igt_reset_engines(void *arg)
 	return 0;
 }
 
-static u32 fake_hangcheck(struct i915_request *rq, u32 mask)
+static u32 fake_hangcheck(struct drm_i915_private *i915, u32 mask)
 {
-	struct i915_gpu_error *error = &rq->i915->gpu_error;
-	u32 reset_count = i915_reset_count(error);
+	u32 count = i915_reset_count(&i915->gpu_error);
 
-	error->stalled_mask = mask;
+	i915_reset(i915, mask, NULL);
 
-	/* set_bit() must be after we have setup the backchannel (mask) */
-	smp_mb__before_atomic();
-	set_bit(I915_RESET_HANDOFF, &error->flags);
-
-	wake_up_all(&error->wait_queue);
-
-	return reset_count;
+	return count;
 }
 
 static int igt_reset_wait(void *arg)
@@ -962,7 +949,7 @@ static int igt_reset_wait(void *arg)
 		goto out_rq;
 	}
 
-	reset_count = fake_hangcheck(rq, ALL_ENGINES);
+	reset_count = fake_hangcheck(i915, ALL_ENGINES);
 
 	timeout = i915_request_wait(rq, I915_WAIT_LOCKED, 10);
 	if (timeout < 0) {
@@ -972,7 +959,6 @@ static int igt_reset_wait(void *arg)
 		goto out_rq;
 	}
 
-	GEM_BUG_ON(test_bit(I915_RESET_HANDOFF, &i915->gpu_error.flags));
 	if (i915_reset_count(&i915->gpu_error) == reset_count) {
 		pr_err("No GPU reset recorded!\n");
 		err = -EINVAL;
@@ -1162,7 +1148,7 @@ static int __igt_reset_evict_vma(struct drm_i915_private *i915,
 	}
 
 out_reset:
-	fake_hangcheck(rq, intel_engine_flag(rq->engine));
+	fake_hangcheck(rq->i915, intel_engine_flag(rq->engine));
 
 	if (tsk) {
 		struct igt_wedge_me w;
@@ -1341,12 +1327,7 @@ static int igt_reset_queue(void *arg)
 				goto fini;
 			}
 
-			reset_count = fake_hangcheck(prev, ENGINE_MASK(id));
-
-			i915_reset(i915, ENGINE_MASK(id), NULL);
-
-			GEM_BUG_ON(test_bit(I915_RESET_HANDOFF,
-					    &i915->gpu_error.flags));
+			reset_count = fake_hangcheck(i915, ENGINE_MASK(id));
 
 			if (prev->fence.error != -EIO) {
 				pr_err("GPU reset not recorded on hanging request [fence.error=%d]!\n",
@@ -1565,6 +1546,7 @@ static int igt_atomic_reset_engine(struct intel_engine_cs *engine,
 		pr_err("%s(%s): Failed to start request %llx, at %x\n",
 		       __func__, engine->name,
 		       rq->fence.seqno, hws_seqno(&h, rq));
+		i915_gem_set_wedged(i915);
 		err = -EIO;
 	}
 
@@ -1588,7 +1570,6 @@ out:
 static void force_reset(struct drm_i915_private *i915)
 {
 	i915_gem_set_wedged(i915);
-	set_bit(I915_RESET_HANDOFF, &i915->gpu_error.flags);
 	i915_reset(i915, 0, NULL);
 }
 
@@ -1617,6 +1598,26 @@ static int igt_atomic_reset(void *arg)
 	force_reset(i915);
 	if (i915_terminally_wedged(&i915->gpu_error))
 		goto unlock;
+
+	if (intel_has_gpu_reset(i915)) {
+		const typeof(*phases) *p;
+
+		for (p = phases; p->name; p++) {
+			GEM_TRACE("intel_gpu_reset under %s\n", p->name);
+
+			p->critical_section_begin();
+			err = intel_gpu_reset(i915, ALL_ENGINES);
+			p->critical_section_end();
+
+			if (err) {
+				pr_err("intel_gpu_reset failed under %s\n",
+				       p->name);
+				goto out;
+			}
+		}
+
+		force_reset(i915);
+	}
 
 	if (intel_has_reset_engine(i915)) {
 		struct intel_engine_cs *engine;

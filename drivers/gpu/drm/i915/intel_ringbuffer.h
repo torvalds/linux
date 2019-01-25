@@ -120,13 +120,8 @@ struct intel_instdone {
 struct intel_engine_hangcheck {
 	u64 acthd;
 	u32 seqno;
-	enum intel_engine_hangcheck_action action;
 	unsigned long action_timestamp;
-	int deadlock;
 	struct intel_instdone instdone;
-	struct i915_request *active_request;
-	bool stalled:1;
-	bool wedged:1;
 };
 
 struct intel_ring {
@@ -444,9 +439,8 @@ struct intel_engine_cs {
 	int		(*init_hw)(struct intel_engine_cs *engine);
 
 	struct {
-		struct i915_request *(*prepare)(struct intel_engine_cs *engine);
-		void (*reset)(struct intel_engine_cs *engine,
-			      struct i915_request *rq);
+		void (*prepare)(struct intel_engine_cs *engine);
+		void (*reset)(struct intel_engine_cs *engine, bool stalled);
 		void (*finish)(struct intel_engine_cs *engine);
 	} reset;
 
@@ -1016,6 +1010,13 @@ gen8_emit_ggtt_write(u32 *cs, u32 value, u32 gtt_offset)
 	*cs++ = value;
 
 	return cs;
+}
+
+static inline void intel_engine_reset(struct intel_engine_cs *engine,
+				      bool stalled)
+{
+	if (engine->reset.reset)
+		engine->reset.reset(engine, stalled);
 }
 
 void intel_engines_sanitize(struct drm_i915_private *i915, bool force);
