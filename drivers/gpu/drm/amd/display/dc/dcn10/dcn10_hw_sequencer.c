@@ -2741,6 +2741,147 @@ static void dcn10_set_cursor_sdr_white_level(struct pipe_ctx *pipe_ctx)
 			pipe_ctx->plane_res.dpp, &opt_attr);
 }
 
+/**
+* apply_front_porch_workaround  TODO FPGA still need?
+*
+* This is a workaround for a bug that has existed since R5xx and has not been
+* fixed keep Front porch at minimum 2 for Interlaced mode or 1 for progressive.
+*/
+static void apply_front_porch_workaround(
+	struct dc_crtc_timing *timing)
+{
+	if (timing->flags.INTERLACE == 1) {
+		if (timing->v_front_porch < 2)
+			timing->v_front_porch = 2;
+	} else {
+		if (timing->v_front_porch < 1)
+			timing->v_front_porch = 1;
+	}
+}
+
+int get_vupdate_offset_from_vsync(struct pipe_ctx *pipe_ctx)
+{
+	struct timing_generator *optc = pipe_ctx->stream_res.tg;
+	const struct dc_crtc_timing *dc_crtc_timing = &pipe_ctx->stream->timing;
+	struct dc_crtc_timing patched_crtc_timing;
+	int vesa_sync_start;
+	int asic_blank_end;
+	int interlace_factor;
+	int vertical_line_start;
+
+	patched_crtc_timing = *dc_crtc_timing;
+	apply_front_porch_workaround(&patched_crtc_timing);
+
+	interlace_factor = patched_crtc_timing.flags.INTERLACE ? 2 : 1;
+
+	vesa_sync_start = patched_crtc_timing.v_addressable +
+			patched_crtc_timing.v_border_bottom +
+			patched_crtc_timing.v_front_porch;
+
+	asic_blank_end = (patched_crtc_timing.v_total -
+			vesa_sync_start -
+			patched_crtc_timing.v_border_top)
+			* interlace_factor;
+
+	vertical_line_start = asic_blank_end -
+			optc->dlg_otg_param.vstartup_start + 1;
+
+	return vertical_line_start;
+}
+
+static void calc_vupdate_position(
+		struct pipe_ctx *pipe_ctx,
+		uint32_t *start_line,
+		uint32_t *end_line)
+{
+	const struct dc_crtc_timing *dc_crtc_timing = &pipe_ctx->stream->timing;
+	int vline_int_offset_from_vupdate =
+			pipe_ctx->stream->periodic_interrupt0.lines_offset;
+	int vupdate_offset_from_vsync = get_vupdate_offset_from_vsync(pipe_ctx);
+	int start_position;
+
+	if (vline_int_offset_from_vupdate > 0)
+		vline_int_offset_from_vupdate--;
+	else if (vline_int_offset_from_vupdate < 0)
+		vline_int_offset_from_vupdate++;
+
+	start_position = vline_int_offset_from_vupdate + vupdate_offset_from_vsync;
+
+	if (start_position >= 0)
+		*start_line = start_position;
+	else
+		*start_line = dc_crtc_timing->v_total + start_position - 1;
+
+	*end_line = *start_line + 2;
+
+	if (*end_line >= dc_crtc_timing->v_total)
+		*end_line = 2;
+}
+
+static void cal_vline_position(
+		struct pipe_ctx *pipe_ctx,
+		enum vline_select vline,
+		uint32_t *start_line,
+		uint32_t *end_line)
+{
+	enum vertical_interrupt_ref_point ref_point = INVALID_POINT;
+
+	if (vline == VLINE0)
+		ref_point = pipe_ctx->stream->periodic_interrupt0.ref_point;
+	else if (vline == VLINE1)
+		ref_point = pipe_ctx->stream->periodic_interrupt1.ref_point;
+
+	switch (ref_point) {
+	case START_V_UPDATE:
+		calc_vupdate_position(
+				pipe_ctx,
+				start_line,
+				end_line);
+		break;
+	case START_V_SYNC:
+		// Suppose to do nothing because vsync is 0;
+		break;
+	default:
+		ASSERT(0);
+		break;
+	}
+}
+
+static void dcn10_setup_periodic_interrupt(
+		struct pipe_ctx *pipe_ctx,
+		enum vline_select vline)
+{
+	struct timing_generator *tg = pipe_ctx->stream_res.tg;
+
+	if (vline == VLINE0) {
+		uint32_t start_line = 0;
+		uint32_t end_line = 0;
+
+		cal_vline_position(pipe_ctx, vline, &start_line, &end_line);
+
+		tg->funcs->setup_vertical_interrupt0(tg, start_line, end_line);
+
+	} else if (vline == VLINE1) {
+		pipe_ctx->stream_res.tg->funcs->setup_vertical_interrupt1(
+				tg,
+				pipe_ctx->stream->periodic_interrupt1.lines_offset);
+	}
+}
+
+static void dcn10_setup_vupdate_interrupt(struct pipe_ctx *pipe_ctx)
+{
+	struct timing_generator *tg = pipe_ctx->stream_res.tg;
+	int start_line = get_vupdate_offset_from_vsync(pipe_ctx);
+
+	if (start_line < 0) {
+		ASSERT(0);
+		start_line = 0;
+	}
+
+	if (tg->funcs->setup_vertical_interrupt2)
+		tg->funcs->setup_vertical_interrupt2(tg, start_line);
+}
+
 static const struct hw_sequencer_funcs dcn10_funcs = {
 	.program_gamut_remap = program_gamut_remap,
 	.init_hw = dcn10_init_hw,
@@ -2790,7 +2931,9 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.set_cursor_attribute = dcn10_set_cursor_attribute,
 	.set_cursor_sdr_white_level = dcn10_set_cursor_sdr_white_level,
 	.disable_stream_gating = NULL,
-	.enable_stream_gating = NULL
+	.enable_stream_gating = NULL,
+	.setup_periodic_interrupt = dcn10_setup_periodic_interrupt,
+	.setup_vupdate_interrupt = dcn10_setup_vupdate_interrupt
 };
 
 

@@ -1333,10 +1333,8 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 	if (!pipe_ctx->stream->apply_seamless_boot_optimization)
 		dc->hwss.enable_stream_timing(pipe_ctx, context, dc);
 
-	if (pipe_ctx->stream_res.tg->funcs->program_vupdate_interrupt)
-		pipe_ctx->stream_res.tg->funcs->program_vupdate_interrupt(
-						pipe_ctx->stream_res.tg,
-							&stream->timing);
+	if (dc->hwss.setup_vupdate_interrupt)
+		dc->hwss.setup_vupdate_interrupt(pipe_ctx);
 
 	params.vertical_total_min = stream->adjust.v_total_min;
 	params.vertical_total_max = stream->adjust.v_total_max;
