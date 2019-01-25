@@ -150,6 +150,24 @@ static const struct dev_pm_ops sof_pci_pm = {
 			   NULL)
 };
 
+static void sof_pci_probe_complete(struct device *dev)
+{
+	dev_dbg(dev, "Completing SOF PCI probe");
+
+	/* allow runtime_pm */
+	pm_runtime_set_autosuspend_delay(dev, SND_SOF_SUSPEND_DELAY_MS);
+	pm_runtime_use_autosuspend(dev);
+
+	/*
+	 * runtime pm for pci device is "forbidden" by default.
+	 * so call pm_runtime_allow() to enable it.
+	 */
+	pm_runtime_allow(dev);
+
+	/* follow recommendation in pci-driver.c to decrement usage counter */
+	pm_runtime_put_noidle(dev);
+}
+
 static int sof_pci_probe(struct pci_dev *pci,
 			 const struct pci_device_id *pci_id)
 {
@@ -209,6 +227,10 @@ static int sof_pci_probe(struct pci_dev *pci,
 	sof_pdata->dev = dev;
 	sof_pdata->platform = dev_name(dev);
 
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_PROBE_WORK_QUEUE)
+	/* set callback to enable runtime_pm */
+	sof_pdata->sof_probe_complete = sof_pci_probe_complete;
+#endif
 	/* call sof helper for DSP hardware probe */
 	ret = snd_sof_device_probe(dev, sof_pdata);
 	if (ret) {
@@ -216,18 +238,9 @@ static int sof_pci_probe(struct pci_dev *pci,
 		goto release_regions;
 	}
 
-	/* allow runtime_pm */
-	pm_runtime_set_autosuspend_delay(dev, SND_SOF_SUSPEND_DELAY_MS);
-	pm_runtime_use_autosuspend(dev);
-
-	/*
-	 * runtime pm for pci device is "forbidden" by default.
-	 * so call pm_runtime_allow() to enable it.
-	 */
-	pm_runtime_allow(dev);
-
-	/* follow recommendation in pci-driver.c to decrement usage counter */
-	pm_runtime_put_noidle(dev);
+#if !IS_ENABLED(CONFIG_SND_SOC_SOF_PROBE_WORK_QUEUE)
+	sof_pci_probe_complete(dev);
+#endif
 
 	return ret;
 
