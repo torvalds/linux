@@ -6377,7 +6377,7 @@ static void __vmx_vcpu_run(struct kvm_vcpu *vcpu, struct vcpu_vmx *vmx)
 
 	asm(
 		/* Store host registers */
-		"push %%" _ASM_DX "; push %%" _ASM_BP ";"
+		"push %%" _ASM_BP " \n\t"
 		"sub $%c[wordsize], %%" _ASM_SP "\n\t" /* placeholder for guest RCX */
 		"push %%" _ASM_CX " \n\t"
 		"sub $%c[wordsize], %%" _ASM_SP "\n\t" /* temporarily adjust RSP for CALL */
@@ -6481,7 +6481,7 @@ static void __vmx_vcpu_run(struct kvm_vcpu *vcpu, struct vcpu_vmx *vmx)
 		"xor %%esi, %%esi \n\t"
 		"xor %%edi, %%edi \n\t"
 		"xor %%ebp, %%ebp \n\t"
-		"pop  %%" _ASM_BP "; pop  %%" _ASM_DX " \n\t"
+		"pop  %%" _ASM_BP " \n\t"
 	      : ASM_CALL_CONSTRAINT, "=S"((int){0})
 	      : "c"(vmx), "S"(evmcs_rsp),
 		[launched]"i"(offsetof(struct vcpu_vmx, __launched)),
@@ -6509,10 +6509,10 @@ static void __vmx_vcpu_run(struct kvm_vcpu *vcpu, struct vcpu_vmx *vmx)
 		[wordsize]"i"(sizeof(ulong))
 	      : "cc", "memory"
 #ifdef CONFIG_X86_64
-		, "rax", "rbx", "rdi"
+		, "rax", "rbx", "rdx", "rdi"
 		, "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15"
 #else
-		, "eax", "ebx", "edi"
+		, "eax", "ebx", "edx", "edi"
 #endif
 	      );
 }
