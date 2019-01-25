@@ -650,7 +650,7 @@ i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 	 * around inside i915_request_add() there is sufficient space at
 	 * the beginning of the ring as well.
 	 */
-	rq->reserved_space = 2 * engine->emit_breadcrumb_sz * sizeof(u32);
+	rq->reserved_space = 2 * engine->emit_breadcrumb_dw * sizeof(u32);
 
 	/*
 	 * Record the position of the start of the request so that
@@ -901,7 +901,7 @@ void i915_request_add(struct i915_request *request)
 	 * GPU processing the request, we never over-estimate the
 	 * position of the ring's HEAD.
 	 */
-	cs = intel_ring_begin(request, engine->emit_breadcrumb_sz);
+	cs = intel_ring_begin(request, engine->emit_breadcrumb_dw);
 	GEM_BUG_ON(IS_ERR(cs));
 	request->postfix = intel_ring_offset(request, cs);
 

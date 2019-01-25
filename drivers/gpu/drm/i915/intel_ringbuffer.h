@@ -471,7 +471,7 @@ struct intel_engine_cs {
 #define I915_DISPATCH_SECURE BIT(0)
 #define I915_DISPATCH_PINNED BIT(1)
 	u32		*(*emit_breadcrumb)(struct i915_request *rq, u32 *cs);
-	int		emit_breadcrumb_sz;
+	int		emit_breadcrumb_dw;
 
 	/* Pass the request to the hardware queue (e.g. directly into
 	 * the legacy ringbuffer or to the end of an execlist).

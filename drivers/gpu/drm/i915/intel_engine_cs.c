@@ -611,7 +611,7 @@ struct measure_breadcrumb {
 	u32 cs[1024];
 };
 
-static int measure_breadcrumb_sz(struct intel_engine_cs *engine)
+static int measure_breadcrumb_dw(struct intel_engine_cs *engine)
 {
 	struct measure_breadcrumb *frame;
 	unsigned int dw;
@@ -637,7 +637,6 @@ static int measure_breadcrumb_sz(struct intel_engine_cs *engine)
 	frame->rq.timeline = &frame->timeline;
 
 	dw = engine->emit_breadcrumb(&frame->rq, frame->cs) - frame->cs;
-	GEM_BUG_ON(dw != engine->emit_breadcrumb_sz);
 
 	i915_timeline_fini(&frame->timeline);
 	kfree(frame);
@@ -698,11 +697,11 @@ int intel_engine_init_common(struct intel_engine_cs *engine)
 	if (ret)
 		goto err_breadcrumbs;
 
-	ret = measure_breadcrumb_sz(engine);
+	ret = measure_breadcrumb_dw(engine);
 	if (ret < 0)
 		goto err_status_page;
 
-	engine->emit_breadcrumb_sz = ret;
+	engine->emit_breadcrumb_dw = ret;
 
 	return 0;
 

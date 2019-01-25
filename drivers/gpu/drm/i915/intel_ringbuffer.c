@@ -330,7 +330,6 @@ static u32 *gen6_rcs_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 
 	return cs;
 }
-static const int gen6_rcs_emit_breadcrumb_sz = 14;
 
 static int
 gen7_render_ring_cs_stall_wa(struct i915_request *rq)
@@ -432,7 +431,6 @@ static u32 *gen7_rcs_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 
 	return cs;
 }
-static const int gen7_rcs_emit_breadcrumb_sz = 6;
 
 static u32 *gen6_xcs_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 {
@@ -446,7 +444,6 @@ static u32 *gen6_xcs_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 
 	return cs;
 }
-static const int gen6_xcs_emit_breadcrumb_sz = 4;
 
 #define GEN7_XCS_WA 32
 static u32 *gen7_xcs_emit_breadcrumb(struct i915_request *rq, u32 *cs)
@@ -475,7 +472,6 @@ static u32 *gen7_xcs_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 
 	return cs;
 }
-static const int gen7_xcs_emit_breadcrumb_sz = 8 + GEN7_XCS_WA * 3;
 #undef GEN7_XCS_WA
 
 static void set_hwstam(struct intel_engine_cs *engine, u32 mask)
@@ -885,7 +881,6 @@ static u32 *i9xx_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 
 	return cs;
 }
-static const int i9xx_emit_breadcrumb_sz = 6;
 
 #define GEN5_WA_STORES 8 /* must be at least 1! */
 static u32 *gen5_emit_breadcrumb(struct i915_request *rq, u32 *cs)
@@ -908,7 +903,6 @@ static u32 *gen5_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 
 	return cs;
 }
-static const int gen5_emit_breadcrumb_sz = GEN5_WA_STORES * 3 + 2;
 #undef GEN5_WA_STORES
 
 static void
@@ -2206,11 +2200,8 @@ static void intel_ring_default_vfuncs(struct drm_i915_private *dev_priv,
 	engine->request_alloc = ring_request_alloc;
 
 	engine->emit_breadcrumb = i9xx_emit_breadcrumb;
-	engine->emit_breadcrumb_sz = i9xx_emit_breadcrumb_sz;
-	if (IS_GEN(dev_priv, 5)) {
+	if (IS_GEN(dev_priv, 5))
 		engine->emit_breadcrumb = gen5_emit_breadcrumb;
-		engine->emit_breadcrumb_sz = gen5_emit_breadcrumb_sz;
-	}
 
 	engine->set_default_submission = i9xx_set_default_submission;
 
@@ -2240,12 +2231,10 @@ int intel_init_render_ring_buffer(struct intel_engine_cs *engine)
 		engine->init_context = intel_rcs_ctx_init;
 		engine->emit_flush = gen7_render_ring_flush;
 		engine->emit_breadcrumb = gen7_rcs_emit_breadcrumb;
-		engine->emit_breadcrumb_sz = gen7_rcs_emit_breadcrumb_sz;
 	} else if (IS_GEN(dev_priv, 6)) {
 		engine->init_context = intel_rcs_ctx_init;
 		engine->emit_flush = gen6_render_ring_flush;
 		engine->emit_breadcrumb = gen6_rcs_emit_breadcrumb;
-		engine->emit_breadcrumb_sz = gen6_rcs_emit_breadcrumb_sz;
 	} else if (IS_GEN(dev_priv, 5)) {
 		engine->emit_flush = gen4_render_ring_flush;
 	} else {
@@ -2281,13 +2270,10 @@ int intel_init_bsd_ring_buffer(struct intel_engine_cs *engine)
 		engine->emit_flush = gen6_bsd_ring_flush;
 		engine->irq_enable_mask = GT_BSD_USER_INTERRUPT;
 
-		if (IS_GEN(dev_priv, 6)) {
+		if (IS_GEN(dev_priv, 6))
 			engine->emit_breadcrumb = gen6_xcs_emit_breadcrumb;
-			engine->emit_breadcrumb_sz = gen6_xcs_emit_breadcrumb_sz;
-		} else {
+		else
 			engine->emit_breadcrumb = gen7_xcs_emit_breadcrumb;
-			engine->emit_breadcrumb_sz = gen7_xcs_emit_breadcrumb_sz;
-		}
 	} else {
 		engine->emit_flush = bsd_ring_flush;
 		if (IS_GEN(dev_priv, 5))
@@ -2310,13 +2296,10 @@ int intel_init_blt_ring_buffer(struct intel_engine_cs *engine)
 	engine->emit_flush = gen6_ring_flush;
 	engine->irq_enable_mask = GT_BLT_USER_INTERRUPT;
 
-	if (IS_GEN(dev_priv, 6)) {
+	if (IS_GEN(dev_priv, 6))
 		engine->emit_breadcrumb = gen6_xcs_emit_breadcrumb;
-		engine->emit_breadcrumb_sz = gen6_xcs_emit_breadcrumb_sz;
-	} else {
+	else
 		engine->emit_breadcrumb = gen7_xcs_emit_breadcrumb;
-		engine->emit_breadcrumb_sz = gen7_xcs_emit_breadcrumb_sz;
-	}
 
 	return intel_init_ring_buffer(engine);
 }
@@ -2335,7 +2318,6 @@ int intel_init_vebox_ring_buffer(struct intel_engine_cs *engine)
 	engine->irq_disable = hsw_vebox_irq_disable;
 
 	engine->emit_breadcrumb = gen7_xcs_emit_breadcrumb;
-	engine->emit_breadcrumb_sz = gen7_xcs_emit_breadcrumb_sz;
 
 	return intel_init_ring_buffer(engine);
 }
