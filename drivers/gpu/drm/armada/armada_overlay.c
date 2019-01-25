@@ -307,13 +307,10 @@ static void armada_overlay_reset(struct drm_plane *plane)
 	if (plane->state)
 		__drm_atomic_helper_plane_destroy_state(plane->state);
 	kfree(plane->state);
+	plane->state = NULL;
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (state) {
-		state->base.plane = plane;
-		state->base.color_encoding = DEFAULT_ENCODING;
-		state->base.color_range = DRM_COLOR_YCBCR_LIMITED_RANGE;
-		state->base.rotation = DRM_MODE_ROTATE_0;
 		state->colorkey_yr = 0xfefefe00;
 		state->colorkey_ug = 0x01010100;
 		state->colorkey_vb = 0x01010100;
@@ -323,8 +320,10 @@ static void armada_overlay_reset(struct drm_plane *plane)
 		state->brightness = DEFAULT_BRIGHTNESS;
 		state->contrast = DEFAULT_CONTRAST;
 		state->saturation = DEFAULT_SATURATION;
+		__drm_atomic_helper_plane_reset(plane, &state->base);
+		state->base.color_encoding = DEFAULT_ENCODING;
+		state->base.color_range = DRM_COLOR_YCBCR_LIMITED_RANGE;
 	}
-	plane->state = &state->base;
 }
 
 struct drm_plane_state *
