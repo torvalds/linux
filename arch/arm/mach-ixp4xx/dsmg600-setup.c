@@ -270,9 +270,6 @@ static void __init dsmg600_init(void)
 {
 	ixp4xx_sys_init();
 
-	/* Make sure that GPIO14 and GPIO15 are not used as clocks */
-	*IXP4XX_GPIO_GPCLKR = 0;
-
 	dsmg600_flash_resource.start = IXP4XX_EXP_BUS_BASE(0);
 	dsmg600_flash_resource.end =
 		IXP4XX_EXP_BUS_BASE(0) + ixp4xx_exp_bus_size - 1;
