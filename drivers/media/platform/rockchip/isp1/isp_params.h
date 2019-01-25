@@ -88,6 +88,18 @@ struct rkisp1_isp_params_ops {
 			   const struct cifisp_dpf_config *arg);
 	void (*dpf_strength_config)(struct rkisp1_isp_params_vdev *params_vdev,
 				    const struct cifisp_dpf_strength_config *arg);
+	void (*wdr_config)(struct rkisp1_isp_params_vdev *params_vdev,
+			   const struct cifisp_wdr_config *arg);
+	void (*wdr_enable)(struct rkisp1_isp_params_vdev *params_vdev,
+			  bool en);
+	void (*demosaiclp_config)(struct rkisp1_isp_params_vdev *params_vdev,
+				  const struct cifisp_demosaiclp_config *arg);
+	void (*demosaiclp_enable)(struct rkisp1_isp_params_vdev *params_vdev,
+				  bool en);
+	void (*rkiesharp_config)(struct rkisp1_isp_params_vdev *params_vdev,
+				 const struct cifisp_rkiesharp_config *arg);
+	void (*rkiesharp_enable)(struct rkisp1_isp_params_vdev *params_vdev,
+				 bool en);
 };
 
 struct rkisp1_isp_params_config {

@@ -10,106 +10,111 @@
 #include <linux/types.h>
 #include <linux/v4l2-controls.h>
 
-#define CIFISP_MODULE_DPCC              (1 << 0)
-#define CIFISP_MODULE_BLS               (1 << 1)
-#define CIFISP_MODULE_SDG               (1 << 2)
-#define CIFISP_MODULE_HST               (1 << 3)
-#define CIFISP_MODULE_LSC               (1 << 4)
-#define CIFISP_MODULE_AWB_GAIN          (1 << 5)
-#define CIFISP_MODULE_FLT               (1 << 6)
-#define CIFISP_MODULE_BDM               (1 << 7)
-#define CIFISP_MODULE_CTK               (1 << 8)
-#define CIFISP_MODULE_GOC               (1 << 9)
-#define CIFISP_MODULE_CPROC             (1 << 10)
-#define CIFISP_MODULE_AFC               (1 << 11)
-#define CIFISP_MODULE_AWB               (1 << 12)
-#define CIFISP_MODULE_IE                (1 << 13)
-#define CIFISP_MODULE_AEC               (1 << 14)
-#define CIFISP_MODULE_WDR               (1 << 15)
-#define CIFISP_MODULE_DPF               (1 << 16)
-#define CIFISP_MODULE_DPF_STRENGTH      (1 << 17)
+#define CIFISP_MODULE_DPCC			(1 << 0)
+#define CIFISP_MODULE_BLS			(1 << 1)
+#define CIFISP_MODULE_SDG			(1 << 2)
+#define CIFISP_MODULE_HST			(1 << 3)
+#define CIFISP_MODULE_LSC			(1 << 4)
+#define CIFISP_MODULE_AWB_GAIN			(1 << 5)
+#define CIFISP_MODULE_FLT			(1 << 6)
+#define CIFISP_MODULE_BDM			(1 << 7)
+#define CIFISP_MODULE_CTK			(1 << 8)
+#define CIFISP_MODULE_GOC			(1 << 9)
+#define CIFISP_MODULE_CPROC			(1 << 10)
+#define CIFISP_MODULE_AFC			(1 << 11)
+#define CIFISP_MODULE_AWB			(1 << 12)
+#define CIFISP_MODULE_IE			(1 << 13)
+#define CIFISP_MODULE_AEC			(1 << 14)
+#define CIFISP_MODULE_WDR			(1 << 15)
+#define CIFISP_MODULE_DPF			(1 << 16)
+#define CIFISP_MODULE_DPF_STRENGTH		(1 << 17)
+#define CIFISP_MODULE_DEMOSAICLP		(1 << 18)
+#define CIFISP_MODULE_RK_IESHARP		(1 << 19)
 
-#define CIFISP_CTK_COEFF_MAX            0x100
-#define CIFISP_CTK_OFFSET_MAX           0x800
+#define CIFISP_CTK_COEFF_MAX			0x100
+#define CIFISP_CTK_OFFSET_MAX			0x800
 
-#define CIFISP_AE_MEAN_MAX              81
-#define CIFISP_HIST_BIN_N_MAX           32
-#define CIFISP_AFM_MAX_WINDOWS          3
-#define CIFISP_DEGAMMA_CURVE_SIZE       17
+#define CIFISP_AE_MEAN_MAX			81
+#define CIFISP_HIST_BIN_N_MAX			32
+#define CIFISP_AFM_MAX_WINDOWS			3
+#define CIFISP_DEGAMMA_CURVE_SIZE		17
 
-#define CIFISP_BDM_MAX_TH               0xFF
+#define CIFISP_BDM_MAX_TH			0xFF
 
 /*
  * Black level compensation
  */
 /* maximum value for horizontal start address */
-#define CIFISP_BLS_START_H_MAX             0x00000FFF
+#define CIFISP_BLS_START_H_MAX			0x00000FFF
 /* maximum value for horizontal stop address */
-#define CIFISP_BLS_STOP_H_MAX              0x00000FFF
+#define CIFISP_BLS_STOP_H_MAX			0x00000FFF
 /* maximum value for vertical start address */
-#define CIFISP_BLS_START_V_MAX             0x00000FFF
+#define CIFISP_BLS_START_V_MAX			0x00000FFF
 /* maximum value for vertical stop address */
-#define CIFISP_BLS_STOP_V_MAX              0x00000FFF
+#define CIFISP_BLS_STOP_V_MAX			0x00000FFF
 /* maximum is 2^18 = 262144*/
-#define CIFISP_BLS_SAMPLES_MAX             0x00000012
+#define CIFISP_BLS_SAMPLES_MAX			0x00000012
 /* maximum value for fixed black level */
-#define CIFISP_BLS_FIX_SUB_MAX             0x00000FFF
+#define CIFISP_BLS_FIX_SUB_MAX			0x00000FFF
 /* minimum value for fixed black level */
-#define CIFISP_BLS_FIX_SUB_MIN             0xFFFFF000
+#define CIFISP_BLS_FIX_SUB_MIN			0xFFFFF000
 /* 13 bit range (signed)*/
-#define CIFISP_BLS_FIX_MASK                0x00001FFF
+#define CIFISP_BLS_FIX_MASK			0x00001FFF
 
 /*
  * Automatic white balance measurments
  */
-#define CIFISP_AWB_MAX_GRID                1
-#define CIFISP_AWB_MAX_FRAMES              7
+#define CIFISP_AWB_MAX_GRID			1
+#define CIFISP_AWB_MAX_FRAMES			7
 
 /*
  * Gamma out
  */
 /* Maximum number of color samples supported */
-#define CIFISP_GAMMA_OUT_MAX_SAMPLES       34
+#define CIFISP_GAMMA_OUT_MAX_SAMPLES		34
 
 /*
  * Lens shade correction
  */
-#define CIFISP_LSC_GRAD_TBL_SIZE           8
-#define CIFISP_LSC_SIZE_TBL_SIZE           8
+#define CIFISP_LSC_GRAD_TBL_SIZE		8
+#define CIFISP_LSC_SIZE_TBL_SIZE		8
 /*
  * The following matches the tuning process,
  * not the max capabilities of the chip.
  * Last value unused.
  */
-#define	CIFISP_LSC_DATA_TBL_SIZE           290
+#define	CIFISP_LSC_DATA_TBL_SIZE		290
 
 /*
  * Histogram calculation
  */
 /* Last 3 values unused. */
-#define CIFISP_HISTOGRAM_WEIGHT_GRIDS_SIZE 81
+#define CIFISP_HISTOGRAM_WEIGHT_GRIDS_SIZE	81
 
 /*
  * Defect Pixel Cluster Correction
  */
-#define CIFISP_DPCC_METHODS_MAX       3
+#define CIFISP_DPCC_METHODS_MAX			3
 
 /*
  * Denoising pre filter
  */
-#define CIFISP_DPF_MAX_NLF_COEFFS      17
-#define CIFISP_DPF_MAX_SPATIAL_COEFFS  6
+#define CIFISP_DPF_MAX_NLF_COEFFS		17
+#define CIFISP_DPF_MAX_SPATIAL_COEFFS		6
+
+/* WDR */
+#define CIFISP_WDR_SIZE				48
 
 /*
  * Measurement types
  */
-#define CIFISP_STAT_AWB           (1 << 0)
-#define CIFISP_STAT_AUTOEXP       (1 << 1)
-#define CIFISP_STAT_AFM_FIN       (1 << 2)
-#define CIFISP_STAT_HIST          (1 << 3)
-#define CIFISP_STAT_EMB_DATA      (1 << 4)
+#define CIFISP_STAT_AWB				(1 << 0)
+#define CIFISP_STAT_AUTOEXP			(1 << 1)
+#define CIFISP_STAT_AFM_FIN			(1 << 2)
+#define CIFISP_STAT_HIST			(1 << 3)
+#define CIFISP_STAT_EMB_DATA			(1 << 4)
 
-#define CIFISP_ADD_DATA_FIFO_SIZE (2048 * 4)
+#define CIFISP_ADD_DATA_FIFO_SIZE		(2048 * 4)
 
 /*
  * private control id
@@ -582,6 +587,82 @@ struct cifisp_dpf_strength_config {
 } __attribute__ ((packed));
 
 /**
+ * enum cifisp_wdr_mode - wdr mode
+ * @CIFISP_WDR_MODE_BLOCK: use a linear scaling
+ * @CIFISP_WDR_MODE_GLOBAL: use a logarithmic scaling
+ */
+enum cifisp_wdr_mode {
+	CIFISP_WDR_MODE_BLOCK,
+	CIFISP_WDR_MODE_GLOBAL
+};
+
+/**
+ * struct cifisp_wdr_config - Gamma Out correction
+ */
+struct cifisp_wdr_config {
+	enum cifisp_wdr_mode mode;
+	unsigned int c_wdr[CIFISP_WDR_SIZE];
+} __attribute__ ((packed));
+
+/**
+ * struct cifisp_demosaiclp_config - rk demosiac low pass
+ */
+struct cifisp_demosaiclp_config {
+	unsigned char rb_filter_en;
+	unsigned char hp_filter_en;
+	unsigned char lu_divided[4];
+	unsigned char thgrad_divided[5];
+	unsigned char thdiff_divided[5];
+	unsigned char thcsc_divided[5];
+	unsigned short thvar_divided[5];
+	unsigned char th_grad;
+	unsigned char th_diff;
+	unsigned char th_csc;
+	unsigned short th_var;
+	unsigned char th_var_en;
+	unsigned char th_csc_en;
+	unsigned char th_diff_en;
+	unsigned char th_grad_en;
+	unsigned char use_old_lp;
+	unsigned char similarity_th;
+	unsigned char flat_level_sel;
+	unsigned char pattern_level_sel;
+	unsigned char edge_level_sel;
+	unsigned char thgrad_r_fct;
+	unsigned char thdiff_r_fct;
+	unsigned char thvar_r_fct;
+	unsigned char thgrad_b_fct;
+	unsigned char thdiff_b_fct;
+	unsigned char thvar_b_fct;
+} __attribute__ ((packed));
+
+/**
+ * struct cifisp_rkiesharp_config - rk ie sharp
+ */
+struct cifisp_rkiesharp_config {
+	unsigned char coring_thr;
+	unsigned char full_range;
+	unsigned char switch_avg;
+	unsigned char yavg_thr[4];
+	unsigned char delta1[5];
+	unsigned char delta2[5];
+	unsigned char maxnumber[5];
+	unsigned char minnumber[5];
+	unsigned char gauss_flat_coe[9];
+	unsigned char gauss_noise_coe[9];
+	unsigned char gauss_other_coe[9];
+	unsigned char line1_filter_coe[6];
+	unsigned char line2_filter_coe[9];
+	unsigned char line3_filter_coe[6];
+	unsigned short grad_seq[4];
+	unsigned char sharp_factor[5];
+	unsigned char uv_gauss_flat_coe[15];
+	unsigned char uv_gauss_noise_coe[15];
+	unsigned char uv_gauss_other_coe[15];
+	unsigned char lap_mat_coe[9];
+} __attribute__ ((packed));
+
+/**
  * struct cifisp_isp_other_cfg - Parameters for some blocks in rockchip isp1
  *
  * @dpcc_config: Defect Pixel Cluster Correction config
@@ -613,6 +694,9 @@ struct cifisp_isp_other_cfg {
 	struct cifisp_dpf_strength_config dpf_strength_config;
 	struct cifisp_cproc_config cproc_config;
 	struct cifisp_ie_config ie_config;
+	struct cifisp_wdr_config wdr_config;
+	struct cifisp_demosaiclp_config demosaiclp_config;
+	struct cifisp_rkiesharp_config rkiesharp_config;
 } __attribute__ ((packed));
 
 /**
