@@ -293,7 +293,7 @@ static void latter_handle_midi_msg(struct snd_ff *ff, unsigned int offset,
 	struct snd_rawmidi_substream *substream;
 	unsigned int len;
 
-	if (index > ff->spec->midi_in_ports)
+	if (index >= ff->spec->midi_in_ports)
 		return;
 
 	switch (data & 0x0000000f) {
