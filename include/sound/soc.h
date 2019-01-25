@@ -1580,6 +1580,37 @@ struct snd_soc_dai *snd_soc_card_get_codec_dai(struct snd_soc_card *card,
 	return NULL;
 }
 
+static inline
+int snd_soc_fixup_dai_links_platform_name(struct snd_soc_card *card,
+					  const char *platform_name)
+{
+	struct snd_soc_dai_link *dai_link;
+	const char *name;
+	int i;
+
+	if (!platform_name) /* nothing to do */
+		return 0;
+
+	/* set platform name for each dailink */
+	for_each_card_prelinks(card, i, dai_link) {
+		name = devm_kstrdup(card->dev, platform_name, GFP_KERNEL);
+		if (!name)
+			return -ENOMEM;
+
+		if (dai_link->platforms)
+			/* only single platform is supported for now */
+			dai_link->platforms->name = name;
+		else
+			/*
+			 * legacy mode, this case will be removed when all
+			 * derivers are switched to modern style dai_link.
+			 */
+			dai_link->platform_name = name;
+	}
+
+	return 0;
+}
+
 #ifdef CONFIG_DEBUG_FS
 extern struct dentry *snd_soc_debugfs_root;
 #endif
