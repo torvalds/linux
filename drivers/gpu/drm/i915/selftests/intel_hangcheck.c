@@ -449,8 +449,6 @@ static int __igt_reset_engine(struct drm_i915_private *i915, bool active)
 
 		set_bit(I915_RESET_ENGINE + id, &i915->gpu_error.flags);
 		do {
-			u32 seqno = intel_engine_get_seqno(engine);
-
 			if (active) {
 				struct i915_request *rq;
 
@@ -479,8 +477,6 @@ static int __igt_reset_engine(struct drm_i915_private *i915, bool active)
 					break;
 				}
 
-				GEM_BUG_ON(!rq->global_seqno);
-				seqno = rq->global_seqno - 1;
 				i915_request_put(rq);
 			}
 
@@ -496,11 +492,10 @@ static int __igt_reset_engine(struct drm_i915_private *i915, bool active)
 				break;
 			}
 
-			reset_engine_count += active;
 			if (i915_reset_engine_count(&i915->gpu_error, engine) !=
-			    reset_engine_count) {
-				pr_err("%s engine reset %srecorded!\n",
-				       engine->name, active ? "not " : "");
+			    ++reset_engine_count) {
+				pr_err("%s engine reset not recorded!\n",
+				       engine->name);
 				err = -EINVAL;
 				break;
 			}
@@ -728,7 +723,6 @@ static int __igt_reset_engines(struct drm_i915_private *i915,
 
 		set_bit(I915_RESET_ENGINE + id, &i915->gpu_error.flags);
 		do {
-			u32 seqno = intel_engine_get_seqno(engine);
 			struct i915_request *rq = NULL;
 
 			if (flags & TEST_ACTIVE) {
@@ -756,9 +750,6 @@ static int __igt_reset_engines(struct drm_i915_private *i915,
 					err = -EIO;
 					break;
 				}
-
-				GEM_BUG_ON(!rq->global_seqno);
-				seqno = rq->global_seqno - 1;
 			}
 
 			err = i915_reset_engine(engine, NULL);
@@ -795,10 +786,9 @@ static int __igt_reset_engines(struct drm_i915_private *i915,
 
 		reported = i915_reset_engine_count(&i915->gpu_error, engine);
 		reported -= threads[engine->id].resets;
-		if (reported != (flags & TEST_ACTIVE ? count : 0)) {
-			pr_err("i915_reset_engine(%s:%s): reset %lu times, but reported %lu, expected %lu reported\n",
-			       engine->name, test_name, count, reported,
-			       (flags & TEST_ACTIVE ? count : 0));
+		if (reported != count) {
+			pr_err("i915_reset_engine(%s:%s): reset %lu times, but reported %lu\n",
+			       engine->name, test_name, count, reported);
 			if (!err)
 				err = -EINVAL;
 		}
