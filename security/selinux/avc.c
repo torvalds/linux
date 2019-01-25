@@ -734,6 +734,21 @@ static void avc_audit_post_callback(struct audit_buffer *ab, void *a)
 
 	if (sad->denied)
 		audit_log_format(ab, " permissive=%u", sad->result ? 0 : 1);
+
+	/* in case of invalid context report also the actual context string */
+	rc = security_sid_to_context_inval(sad->state, sad->ssid, &scontext,
+					   &scontext_len);
+	if (!rc && scontext) {
+		audit_log_format(ab, " srawcon=%s", scontext);
+		kfree(scontext);
+	}
+
+	rc = security_sid_to_context_inval(sad->state, sad->tsid, &scontext,
+					   &scontext_len);
+	if (!rc && scontext) {
+		audit_log_format(ab, " trawcon=%s", scontext);
+		kfree(scontext);
+	}
 }
 
 /* This is the slow part of avc audit with big stack footprint */
