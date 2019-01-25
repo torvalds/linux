@@ -29,7 +29,7 @@
  * @irq:	  Linux IRQ number for the event, for request_ / free_irq
  * @irqflags:     flags to pass to request_irq when requesting the IRQ
  * @irq_is_wake:  If the ACPI flags indicate the IRQ is a wakeup source
- * @is_requested: True if request_irq has been done
+ * @irq_requested:True if request_irq has been done
  * @desc:	  gpio_desc for the GPIO pin for this event
  */
 struct acpi_gpio_event {
