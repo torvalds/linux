@@ -4755,6 +4755,16 @@ qla2x00_alloc_fcport(scsi_qla_host_t *vha, gfp_t flags)
 	if (!fcport)
 		return NULL;
 
+	fcport->ct_desc.ct_sns = dma_alloc_coherent(&vha->hw->pdev->dev,
+		sizeof(struct ct_sns_pkt), &fcport->ct_desc.ct_sns_dma,
+		flags);
+	if (!fcport->ct_desc.ct_sns) {
+		ql_log(ql_log_warn, vha, 0xd049,
+		    "Failed to allocate ct_sns request.\n");
+		kfree(fcport);
+		return NULL;
+	}
+
 	/* Setup fcport template structure. */
 	fcport->vha = vha;
 	fcport->port_type = FCT_UNKNOWN;
@@ -4763,13 +4773,11 @@ qla2x00_alloc_fcport(scsi_qla_host_t *vha, gfp_t flags)
 	fcport->supported_classes = FC_COS_UNSPECIFIED;
 	fcport->fp_speed = PORT_SPEED_UNKNOWN;
 
-	fcport->ct_desc.ct_sns = dma_alloc_coherent(&vha->hw->pdev->dev,
-		sizeof(struct ct_sns_pkt), &fcport->ct_desc.ct_sns_dma,
-		flags);
 	fcport->disc_state = DSC_DELETED;
 	fcport->fw_login_state = DSC_LS_PORT_UNAVAIL;
 	fcport->deleted = QLA_SESS_DELETED;
 	fcport->login_retry = vha->hw->login_retry_count;
+	fcport->chip_reset = vha->hw->base_qpair->chip_reset;
 	fcport->logout_on_delete = 1;
 
 	if (!fcport->ct_desc.ct_sns) {
@@ -4778,6 +4786,7 @@ qla2x00_alloc_fcport(scsi_qla_host_t *vha, gfp_t flags)
 		kfree(fcport);
 		fcport = NULL;
 	}
+
 	INIT_WORK(&fcport->del_work, qla24xx_delete_sess_fn);
 	INIT_WORK(&fcport->reg_work, qla_register_fcport_fn);
 	INIT_LIST_HEAD(&fcport->gnl_entry);
