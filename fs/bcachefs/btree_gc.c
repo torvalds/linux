@@ -1249,19 +1249,3 @@ int bch2_gc_thread_start(struct bch_fs *c)
 	wake_up_process(p);
 	return 0;
 }
-
-/* Initial GC computes bucket marks during startup */
-
-int bch2_initial_gc(struct bch_fs *c, struct list_head *journal)
-{
-	int ret = bch2_gc(c, journal, true);
-
-	/*
-	 * Skip past versions that might have possibly been used (as nonces),
-	 * but hadn't had their pointers written:
-	 */
-	if (c->sb.encryption_type)
-		atomic64_add(1 << 16, &c->key_version);
-
-	return ret;
-}

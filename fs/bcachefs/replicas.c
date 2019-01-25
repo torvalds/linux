@@ -530,6 +530,34 @@ int bch2_replicas_gc_start(struct bch_fs *c, unsigned typemask)
 	return 0;
 }
 
+int bch2_replicas_set_usage(struct bch_fs *c,
+			    struct bch_replicas_entry *r,
+			    u64 sectors)
+{
+	int ret, idx = bch2_replicas_entry_idx(c, r);
+
+	if (idx < 0) {
+		struct bch_replicas_cpu n;
+
+		n = cpu_replicas_add_entry(&c->replicas, r);
+		if (!n.entries)
+			return -ENOMEM;
+
+		ret = replicas_table_update(c, &n);
+		if (ret)
+			return ret;
+
+		kfree(n.entries);
+
+		idx = bch2_replicas_entry_idx(c, r);
+		BUG_ON(ret < 0);
+	}
+
+	percpu_u64_set(&c->usage[0]->data[idx], sectors);
+
+	return 0;
+}
+
 /* Replicas tracking - superblock: */
 
 static int

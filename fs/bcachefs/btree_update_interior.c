@@ -2122,7 +2122,6 @@ void bch2_btree_set_root_for_read(struct bch_fs *c, struct btree *b)
 	BUG_ON(btree_node_root(c, b));
 
 	__bch2_btree_set_root_inmem(c, b);
-	bch2_btree_set_root_ondisk(c, b, READ);
 }
 
 void bch2_btree_root_alloc(struct bch_fs *c, enum btree_id id)

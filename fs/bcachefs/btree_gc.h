@@ -8,7 +8,6 @@ void bch2_coalesce(struct bch_fs *);
 int bch2_gc(struct bch_fs *, struct list_head *, bool);
 void bch2_gc_thread_stop(struct bch_fs *);
 int bch2_gc_thread_start(struct bch_fs *);
-int bch2_initial_gc(struct bch_fs *, struct list_head *);
 void bch2_mark_dev_superblock(struct bch_fs *, struct bch_dev *, unsigned);
 
 /*
