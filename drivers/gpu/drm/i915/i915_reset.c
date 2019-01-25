@@ -574,6 +574,9 @@ int intel_gpu_reset(struct drm_i915_private *i915, unsigned int engine_mask)
 
 bool intel_has_gpu_reset(struct drm_i915_private *i915)
 {
+	if (USES_GUC(i915))
+		return false;
+
 	return intel_get_gpu_reset(i915);
 }
 
