@@ -208,7 +208,7 @@ struct vcpu_vmx {
 	struct loaded_vmcs    vmcs01;
 	struct loaded_vmcs   *loaded_vmcs;
 	struct loaded_vmcs   *loaded_cpu_state;
-	bool                  __launched; /* temporary, used in vmx_vcpu_run */
+
 	struct msr_autoload {
 		struct vmx_msrs guest;
 		struct vmx_msrs host;
