@@ -6652,6 +6652,59 @@ netdev_features_t qeth_features_check(struct sk_buff *skb,
 }
 EXPORT_SYMBOL_GPL(qeth_features_check);
 
+int qeth_open_internal(struct net_device *dev)
+{
+	struct qeth_card *card = dev->ml_priv;
+
+	QETH_CARD_TEXT(card, 4, "qethopen");
+	if (card->state == CARD_STATE_UP)
+		return 0;
+	if (card->state != CARD_STATE_SOFTSETUP)
+		return -ENODEV;
+
+	if (qdio_stop_irq(CARD_DDEV(card), 0) < 0)
+		return -EIO;
+
+	card->data.state = CH_STATE_UP;
+	card->state = CARD_STATE_UP;
+	netif_start_queue(dev);
+
+	napi_enable(&card->napi);
+	local_bh_disable();
+	napi_schedule(&card->napi);
+	/* kick-start the NAPI softirq: */
+	local_bh_enable();
+	return 0;
+}
+EXPORT_SYMBOL_GPL(qeth_open_internal);
+
+int qeth_open(struct net_device *dev)
+{
+	struct qeth_card *card = dev->ml_priv;
+
+	QETH_CARD_TEXT(card, 5, "qethope_");
+	if (qeth_wait_for_threads(card, QETH_RECOVER_THREAD)) {
+		QETH_CARD_TEXT(card, 3, "openREC");
+		return -ERESTARTSYS;
+	}
+	return qeth_open_internal(dev);
+}
+EXPORT_SYMBOL_GPL(qeth_open);
+
+int qeth_stop(struct net_device *dev)
+{
+	struct qeth_card *card = dev->ml_priv;
+
+	QETH_CARD_TEXT(card, 4, "qethstop");
+	netif_tx_disable(dev);
+	if (card->state == CARD_STATE_UP) {
+		card->state = CARD_STATE_SOFTSETUP;
+		napi_disable(&card->napi);
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(qeth_stop);
+
 static int __init qeth_core_init(void)
 {
 	int rc;

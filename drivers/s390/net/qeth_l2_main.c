@@ -25,7 +25,6 @@
 #include "qeth_l2.h"
 
 static int qeth_l2_set_offline(struct ccwgroup_device *);
-static int qeth_l2_stop(struct net_device *);
 static void qeth_bridgeport_query_support(struct qeth_card *card);
 static void qeth_bridge_state_change(struct qeth_card *card,
 					struct qeth_ipa_cmd *cmd);
@@ -343,9 +342,8 @@ static void qeth_l2_stop_card(struct qeth_card *card, int recovery_mode)
 	if (card->read.state == CH_STATE_UP &&
 	    card->write.state == CH_STATE_UP &&
 	    (card->state == CARD_STATE_UP)) {
-		if (recovery_mode &&
-		    card->info.type != QETH_CARD_TYPE_OSN) {
-			qeth_l2_stop(card->dev);
+		if (recovery_mode && !IS_OSN(card)) {
+			qeth_stop(card->dev);
 		} else {
 			rtnl_lock();
 			dev_close(card->dev);
@@ -458,6 +456,17 @@ static int qeth_l2_request_initial_mac(struct qeth_card *card)
 out:
 	QETH_DBF_HEX(SETUP, 2, card->dev->dev_addr, card->dev->addr_len);
 	return 0;
+}
+
+static int qeth_l2_validate_addr(struct net_device *dev)
+{
+	struct qeth_card *card = dev->ml_priv;
+
+	if (IS_OSN(card) || (card->info.mac_bits & QETH_LAYER2_MAC_REGISTERED))
+		return eth_validate_addr(dev);
+
+	QETH_CARD_TEXT(card, 4, "nomacadr");
+	return -EPERM;
 }
 
 static int qeth_l2_set_mac_address(struct net_device *dev, void *p)
@@ -712,62 +721,6 @@ tx_drop:
 	return NETDEV_TX_OK;
 }
 
-static int __qeth_l2_open(struct net_device *dev)
-{
-	struct qeth_card *card = dev->ml_priv;
-	int rc = 0;
-
-	QETH_CARD_TEXT(card, 4, "qethopen");
-	if (card->state == CARD_STATE_UP)
-		return rc;
-	if (card->state != CARD_STATE_SOFTSETUP)
-		return -ENODEV;
-
-	if ((card->info.type != QETH_CARD_TYPE_OSN) &&
-	     (!(card->info.mac_bits & QETH_LAYER2_MAC_REGISTERED))) {
-		QETH_CARD_TEXT(card, 4, "nomacadr");
-		return -EPERM;
-	}
-	card->data.state = CH_STATE_UP;
-	card->state = CARD_STATE_UP;
-	netif_start_queue(dev);
-
-	if (qdio_stop_irq(card->data.ccwdev, 0) >= 0) {
-		napi_enable(&card->napi);
-		local_bh_disable();
-		napi_schedule(&card->napi);
-		/* kick-start the NAPI softirq: */
-		local_bh_enable();
-	} else
-		rc = -EIO;
-	return rc;
-}
-
-static int qeth_l2_open(struct net_device *dev)
-{
-	struct qeth_card *card = dev->ml_priv;
-
-	QETH_CARD_TEXT(card, 5, "qethope_");
-	if (qeth_wait_for_threads(card, QETH_RECOVER_THREAD)) {
-		QETH_CARD_TEXT(card, 3, "openREC");
-		return -ERESTARTSYS;
-	}
-	return __qeth_l2_open(dev);
-}
-
-static int qeth_l2_stop(struct net_device *dev)
-{
-	struct qeth_card *card = dev->ml_priv;
-
-	QETH_CARD_TEXT(card, 4, "qethstop");
-	netif_tx_disable(dev);
-	if (card->state == CARD_STATE_UP) {
-		card->state = CARD_STATE_SOFTSETUP;
-		napi_disable(&card->napi);
-	}
-	return 0;
-}
-
 static const struct device_type qeth_l2_devtype = {
 	.name = "qeth_layer2",
 	.groups = qeth_l2_attr_groups,
@@ -822,12 +775,12 @@ static const struct ethtool_ops qeth_l2_osn_ops = {
 };
 
 static const struct net_device_ops qeth_l2_netdev_ops = {
-	.ndo_open		= qeth_l2_open,
-	.ndo_stop		= qeth_l2_stop,
+	.ndo_open		= qeth_open,
+	.ndo_stop		= qeth_stop,
 	.ndo_get_stats		= qeth_get_stats,
 	.ndo_start_xmit		= qeth_l2_hard_start_xmit,
 	.ndo_features_check	= qeth_features_check,
-	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_validate_addr	= qeth_l2_validate_addr,
 	.ndo_set_rx_mode	= qeth_l2_set_rx_mode,
 	.ndo_do_ioctl		= qeth_do_ioctl,
 	.ndo_set_mac_address    = qeth_l2_set_mac_address,
@@ -1001,10 +954,11 @@ static int __qeth_l2_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 
 	qeth_enable_hw_features(card->dev);
 	if (recover_flag == CARD_STATE_RECOVER) {
-		if (recovery_mode &&
-		    card->info.type != QETH_CARD_TYPE_OSN) {
-			__qeth_l2_open(card->dev);
-			qeth_l2_set_rx_mode(card->dev);
+		if (recovery_mode && !IS_OSN(card)) {
+			if (!qeth_l2_validate_addr(card->dev)) {
+				qeth_open_internal(card->dev);
+				qeth_l2_set_rx_mode(card->dev);
+			}
 		} else {
 			rtnl_lock();
 			dev_open(card->dev, NULL);
