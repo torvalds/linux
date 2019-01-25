@@ -114,6 +114,33 @@ void bch2_bucket_seq_cleanup(struct bch_fs *c)
 	}
 }
 
+void bch2_fs_usage_initialize(struct bch_fs *c)
+{
+	struct bch_fs_usage *usage;
+	unsigned i, nr;
+
+	percpu_down_write(&c->mark_lock);
+	nr = sizeof(struct bch_fs_usage) / sizeof(u64) + c->replicas.nr;
+	usage = (void *) bch2_acc_percpu_u64s((void *) c->usage[0], nr);
+
+	for (i = 0; i < c->replicas.nr; i++) {
+		struct bch_replicas_entry *e =
+			cpu_replicas_entry(&c->replicas, i);
+
+		switch (e->data_type) {
+		case BCH_DATA_BTREE:
+		case BCH_DATA_USER:
+			usage->s.data	+= usage->data[i];
+			break;
+		case BCH_DATA_CACHED:
+			usage->s.cached	+= usage->data[i];
+			break;
+		}
+	}
+
+	percpu_up_write(&c->mark_lock);
+}
+
 #define bch2_usage_read_raw(_stats)					\
 ({									\
 	typeof(*this_cpu_ptr(_stats)) _acc;				\

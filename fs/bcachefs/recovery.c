@@ -6,6 +6,7 @@
 #include "btree_update.h"
 #include "btree_update_interior.h"
 #include "btree_io.h"
+#include "buckets.h"
 #include "dirent.h"
 #include "ec.h"
 #include "error.h"
@@ -251,6 +252,8 @@ int bch2_fs_recovery(struct bch_fs *c)
 			}
 	}
 
+	bch2_fs_usage_initialize(c);
+
 	for (i = 0; i < BTREE_ID_NR; i++) {
 		struct btree_root *r = &c->btree_roots[i];
 
@@ -383,6 +386,11 @@ int bch2_fs_initialize(struct bch_fs *c)
 	int ret;
 
 	bch_notice(c, "initializing new filesystem");
+
+	mutex_lock(&c->sb_lock);
+	for_each_online_member(ca, c, i)
+		bch2_mark_dev_superblock(c, ca, 0);
+	mutex_unlock(&c->sb_lock);
 
 	set_bit(BCH_FS_ALLOC_READ_DONE, &c->flags);
 

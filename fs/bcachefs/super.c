@@ -1071,9 +1071,12 @@ static int bch2_dev_attach_bdev(struct bch_fs *c, struct bch_sb_handle *sb)
 	if (ret)
 		return ret;
 
-	mutex_lock(&c->sb_lock);
-	bch2_mark_dev_superblock(ca->fs, ca, 0);
-	mutex_unlock(&c->sb_lock);
+	if (test_bit(BCH_FS_ALLOC_READ_DONE, &c->flags) &&
+	    !percpu_u64_get(&ca->usage[0]->buckets[BCH_DATA_SB])) {
+		mutex_lock(&c->sb_lock);
+		bch2_mark_dev_superblock(ca->fs, ca, 0);
+		mutex_unlock(&c->sb_lock);
+	}
 
 	bch2_dev_sysfs_online(c, ca);
 

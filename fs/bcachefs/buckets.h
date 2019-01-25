@@ -248,6 +248,7 @@ static inline u64 bch2_fs_sectors_free(struct bch_fs *c)
 /* key/bucket marking: */
 
 void bch2_bucket_seq_cleanup(struct bch_fs *);
+void bch2_fs_usage_initialize(struct bch_fs *);
 
 void bch2_invalidate_bucket(struct bch_fs *, struct bch_dev *,
 			    size_t, struct bucket_mark *);
