@@ -1583,6 +1583,9 @@ widget:
 	if (ret < 0)
 		goto ready_err;
 
+	kfree(template.sname);
+	kfree(template.name);
+
 	return 0;
 
 ready_err:
