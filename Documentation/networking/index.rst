@@ -29,6 +29,7 @@ Contents:
    msg_zerocopy
    failover
    net_failover
+   phy
    alias
    bridge
    snmp_counter
