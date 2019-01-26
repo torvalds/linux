@@ -315,7 +315,7 @@ out_i2c_error:
 	.vsel_mask = LP8755_BUCK_VOUT_M,\
 }
 
-static struct regulator_desc lp8755_regulators[] = {
+static const struct regulator_desc lp8755_regulators[] = {
 	lp8755_buck_desc(0),
 	lp8755_buck_desc(1),
 	lp8755_buck_desc(2),
