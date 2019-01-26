@@ -76,15 +76,14 @@ struct page_pool;
 #define MLX5_SKB_FRAG_SZ(len)	(SKB_DATA_ALIGN(len) +	\
 				 SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
 
+#define MLX5E_RX_MAX_HEAD (256)
+
 #define MLX5_MPWRQ_MIN_LOG_STRIDE_SZ(mdev) \
 	(6 + MLX5_CAP_GEN(mdev, cache_line_128byte)) /* HW restriction */
 #define MLX5_MPWRQ_LOG_STRIDE_SZ(mdev, req) \
 	max_t(u32, MLX5_MPWRQ_MIN_LOG_STRIDE_SZ(mdev), req)
-#define MLX5_MPWRQ_DEF_LOG_STRIDE_SZ(mdev)       MLX5_MPWRQ_LOG_STRIDE_SZ(mdev, 6)
-#define MLX5_MPWRQ_CQE_CMPRS_LOG_STRIDE_SZ(mdev) MLX5_MPWRQ_LOG_STRIDE_SZ(mdev, 8)
-#define MLX5E_MPWQE_STRIDE_SZ(mdev, cqe_cmprs) \
-	(cqe_cmprs ? MLX5_MPWRQ_CQE_CMPRS_LOG_STRIDE_SZ(mdev) : \
-	MLX5_MPWRQ_DEF_LOG_STRIDE_SZ(mdev))
+#define MLX5_MPWRQ_DEF_LOG_STRIDE_SZ(mdev) \
+	MLX5_MPWRQ_LOG_STRIDE_SZ(mdev, order_base_2(MLX5E_RX_MAX_HEAD))
 
 #define MLX5_MPWRQ_LOG_WQE_SZ			18
 #define MLX5_MPWRQ_WQE_PAGE_ORDER  (MLX5_MPWRQ_LOG_WQE_SZ - PAGE_SHIFT > 0 ? \
@@ -118,8 +117,6 @@ struct page_pool;
 					       MLX5E_LOG_MAX_RQ_NUM_PACKETS_MPW)
 
 #define MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE_MPW            0x2
-
-#define MLX5E_RX_MAX_HEAD (256)
 
 #define MLX5E_PARAMS_DEFAULT_LRO_WQE_SZ                 (64 * 1024)
 #define MLX5E_DEFAULT_LRO_TIMEOUT                       32
@@ -309,16 +306,18 @@ struct mlx5e_cq {
 	struct mlx5_core_cq        mcq;
 	struct mlx5e_channel      *channel;
 
+	/* control */
+	struct mlx5_core_dev      *mdev;
+	struct mlx5_wq_ctrl        wq_ctrl;
+} ____cacheline_aligned_in_smp;
+
+struct mlx5e_cq_decomp {
 	/* cqe decompression */
 	struct mlx5_cqe64          title;
 	struct mlx5_mini_cqe8      mini_arr[MLX5_MINI_CQE_ARRAY_SIZE];
 	u8                         mini_arr_idx;
-	u16                        decmprs_left;
-	u16                        decmprs_wqe_counter;
-
-	/* control */
-	struct mlx5_core_dev      *mdev;
-	struct mlx5_wq_ctrl        wq_ctrl;
+	u16                        left;
+	u16                        wqe_counter;
 } ____cacheline_aligned_in_smp;
 
 struct mlx5e_tx_wqe_info {
@@ -581,6 +580,7 @@ struct mlx5e_rq {
 	struct net_device     *netdev;
 	struct mlx5e_rq_stats *stats;
 	struct mlx5e_cq        cq;
+	struct mlx5e_cq_decomp cqd;
 	struct mlx5e_page_cache page_cache;
 	struct hwtstamp_config *tstamp;
 	struct mlx5_clock      *clock;
@@ -638,6 +638,7 @@ struct mlx5e_channel {
 	struct hwtstamp_config    *tstamp;
 	int                        ix;
 	int                        cpu;
+	cpumask_var_t              xps_cpumask;
 };
 
 struct mlx5e_channels {
@@ -803,6 +804,7 @@ mlx5e_skb_from_cqe_nonlinear(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe,
 
 void mlx5e_update_stats(struct mlx5e_priv *priv);
 void mlx5e_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats);
+void mlx5e_fold_sw_stats64(struct mlx5e_priv *priv, struct rtnl_link_stats64 *s);
 
 void mlx5e_init_l2_addr(struct mlx5e_priv *priv);
 int mlx5e_self_test_num(struct mlx5e_priv *priv);
