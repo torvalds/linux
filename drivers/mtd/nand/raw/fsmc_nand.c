@@ -986,6 +986,19 @@ static const struct nand_controller_ops fsmc_nand_controller_ops = {
 	.setup_data_interface = fsmc_setup_data_interface,
 };
 
+/**
+ * fsmc_nand_disable() - Disables the NAND bank
+ * @host: The instance to disable
+ */
+static void fsmc_nand_disable(struct fsmc_nand_data *host)
+{
+	u32 val;
+
+	val = readl(host->regs_va + FSMC_PC);
+	val &= ~FSMC_ENABLE;
+	writel(val, host->regs_va + FSMC_PC);
+}
+
 /*
  * fsmc_nand_probe - Probe function
  * @pdev:       platform device structure
@@ -1141,6 +1154,7 @@ release_dma_read_chan:
 	if (host->mode == USE_DMA_ACCESS)
 		dma_release_channel(host->read_dma_chan);
 disable_clk:
+	fsmc_nand_disable(host);
 	clk_disable_unprepare(host->clk);
 
 	return ret;
@@ -1155,6 +1169,7 @@ static int fsmc_nand_remove(struct platform_device *pdev)
 
 	if (host) {
 		nand_release(&host->nand);
+		fsmc_nand_disable(host);
 
 		if (host->mode == USE_DMA_ACCESS) {
 			dma_release_channel(host->write_dma_chan);
