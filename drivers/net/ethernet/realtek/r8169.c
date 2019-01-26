@@ -1990,6 +1990,12 @@ static int rtl_get_eee_supp(struct rtl8169_private *tp)
 	int ret;
 
 	switch (tp->mac_version) {
+	case RTL_GIGA_MAC_VER_34:
+	case RTL_GIGA_MAC_VER_35:
+	case RTL_GIGA_MAC_VER_36:
+	case RTL_GIGA_MAC_VER_38:
+		ret = phy_read_mmd(phydev, MDIO_MMD_PCS, MDIO_PCS_EEE_ABLE);
+		break;
 	case RTL_GIGA_MAC_VER_40 ... RTL_GIGA_MAC_VER_51:
 		phy_write(phydev, 0x1f, 0x0a5c);
 		ret = phy_read(phydev, 0x12);
@@ -2009,6 +2015,12 @@ static int rtl_get_eee_lpadv(struct rtl8169_private *tp)
 	int ret;
 
 	switch (tp->mac_version) {
+	case RTL_GIGA_MAC_VER_34:
+	case RTL_GIGA_MAC_VER_35:
+	case RTL_GIGA_MAC_VER_36:
+	case RTL_GIGA_MAC_VER_38:
+		ret = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_EEE_LPABLE);
+		break;
 	case RTL_GIGA_MAC_VER_40 ... RTL_GIGA_MAC_VER_51:
 		phy_write(phydev, 0x1f, 0x0a5d);
 		ret = phy_read(phydev, 0x11);
@@ -2028,6 +2040,12 @@ static int rtl_get_eee_adv(struct rtl8169_private *tp)
 	int ret;
 
 	switch (tp->mac_version) {
+	case RTL_GIGA_MAC_VER_34:
+	case RTL_GIGA_MAC_VER_35:
+	case RTL_GIGA_MAC_VER_36:
+	case RTL_GIGA_MAC_VER_38:
+		ret = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_EEE_ADV);
+		break;
 	case RTL_GIGA_MAC_VER_40 ... RTL_GIGA_MAC_VER_51:
 		phy_write(phydev, 0x1f, 0x0a5d);
 		ret = phy_read(phydev, 0x10);
@@ -2047,6 +2065,12 @@ static int rtl_set_eee_adv(struct rtl8169_private *tp, int val)
 	int ret = 0;
 
 	switch (tp->mac_version) {
+	case RTL_GIGA_MAC_VER_34:
+	case RTL_GIGA_MAC_VER_35:
+	case RTL_GIGA_MAC_VER_36:
+	case RTL_GIGA_MAC_VER_38:
+		ret = phy_write_mmd(phydev, MDIO_MMD_AN, MDIO_AN_EEE_ADV, val);
+		break;
 	case RTL_GIGA_MAC_VER_40 ... RTL_GIGA_MAC_VER_51:
 		phy_write(phydev, 0x1f, 0x0a5d);
 		phy_write(phydev, 0x10, val);
@@ -2572,6 +2596,21 @@ static void rtl_apply_firmware_cond(struct rtl8169_private *tp, u8 reg, u16 val)
 static void rtl8168_config_eee_mac(struct rtl8169_private *tp)
 {
 	rtl_w0w1_eri(tp, 0x1b0, ERIAR_MASK_1111, 0x0003, 0x0000, ERIAR_EXGMAC);
+}
+
+static void rtl8168f_config_eee_phy(struct rtl8169_private *tp)
+{
+	struct phy_device *phydev = tp->phydev;
+
+	phy_write(phydev, 0x1f, 0x0007);
+	phy_write(phydev, 0x1e, 0x0020);
+	phy_set_bits(phydev, 0x15, BIT(8));
+
+	phy_write(phydev, 0x1f, 0x0005);
+	phy_write(phydev, 0x05, 0x8b85);
+	phy_set_bits(phydev, 0x06, BIT(13));
+
+	phy_write(phydev, 0x1f, 0x0000);
 }
 
 static void rtl8168g_config_eee_phy(struct rtl8169_private *tp)
@@ -3348,6 +3387,8 @@ static void rtl8168e_2_hw_phy_config(struct rtl8169_private *tp)
 	rtl_w0w1_phy(tp, 0x06, 0x4000, 0x0000);
 	rtl_writephy(tp, 0x1f, 0x0000);
 
+	rtl8168f_config_eee_phy(tp);
+
 	/* EEE setting */
 	rtl_w0w1_eri(tp, 0x1b0, ERIAR_MASK_1111, 0x0003, 0x0000, ERIAR_EXGMAC);
 	rtl_writephy(tp, 0x1f, 0x0005);
@@ -3398,6 +3439,8 @@ static void rtl8168f_hw_phy_config(struct rtl8169_private *tp)
 	rtl_writephy(tp, 0x05, 0x8b86);
 	rtl_w0w1_phy(tp, 0x06, 0x0001, 0x0000);
 	rtl_writephy(tp, 0x1f, 0x0000);
+
+	rtl8168f_config_eee_phy(tp);
 }
 
 static void rtl8168f_1_hw_phy_config(struct rtl8169_private *tp)
@@ -5113,6 +5156,8 @@ static void rtl_hw_start_8168e_2(struct rtl8169_private *tp)
 	/* Adjust EEE LED frequency */
 	RTL_W8(tp, EEE_LED, RTL_R8(tp, EEE_LED) & ~0x07);
 
+	rtl8168_config_eee_mac(tp);
+
 	RTL_W8(tp, DLLPR, RTL_R8(tp, DLLPR) | PFM_EN);
 	RTL_W32(tp, MISC, RTL_R32(tp, MISC) | PWM_EN);
 	RTL_W8(tp, Config5, RTL_R8(tp, Config5) & ~Spi_en);
@@ -5145,6 +5190,8 @@ static void rtl_hw_start_8168f(struct rtl8169_private *tp)
 	RTL_W8(tp, DLLPR, RTL_R8(tp, DLLPR) | PFM_EN);
 	RTL_W32(tp, MISC, RTL_R32(tp, MISC) | PWM_EN);
 	RTL_W8(tp, Config5, RTL_R8(tp, Config5) & ~Spi_en);
+
+	rtl8168_config_eee_mac(tp);
 }
 
 static void rtl_hw_start_8168f_1(struct rtl8169_private *tp)
