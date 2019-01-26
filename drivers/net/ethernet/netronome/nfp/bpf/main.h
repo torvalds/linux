@@ -365,6 +365,21 @@ static inline bool is_mbpf_load(const struct nfp_insn_meta *meta)
 	return (meta->insn.code & ~BPF_SIZE_MASK) == (BPF_LDX | BPF_MEM);
 }
 
+static inline bool is_mbpf_jmp32(const struct nfp_insn_meta *meta)
+{
+	return mbpf_class(meta) == BPF_JMP32;
+}
+
+static inline bool is_mbpf_jmp64(const struct nfp_insn_meta *meta)
+{
+	return mbpf_class(meta) == BPF_JMP;
+}
+
+static inline bool is_mbpf_jmp(const struct nfp_insn_meta *meta)
+{
+	return is_mbpf_jmp32(meta) || is_mbpf_jmp64(meta);
+}
+
 static inline bool is_mbpf_store(const struct nfp_insn_meta *meta)
 {
 	return (meta->insn.code & ~BPF_SIZE_MASK) == (BPF_STX | BPF_MEM);
@@ -419,10 +434,13 @@ static inline bool is_mbpf_cond_jump(const struct nfp_insn_meta *meta)
 {
 	u8 op;
 
-	if (BPF_CLASS(meta->insn.code) != BPF_JMP)
+	if (is_mbpf_jmp32(meta))
+		return true;
+
+	if (!is_mbpf_jmp64(meta))
 		return false;
 
-	op = BPF_OP(meta->insn.code);
+	op = mbpf_op(meta);
 	return op != BPF_JA && op != BPF_EXIT && op != BPF_CALL;
 }
 
