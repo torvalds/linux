@@ -2749,6 +2749,19 @@ static struct bpf_test tests[] = {
 		.result = ACCEPT,
 	},
 	{
+		"alu32: mov u32 const",
+		.insns = {
+			BPF_MOV32_IMM(BPF_REG_7, 0),
+			BPF_ALU32_IMM(BPF_AND, BPF_REG_7, 1),
+			BPF_MOV32_REG(BPF_REG_0, BPF_REG_7),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 1),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_7, 0),
+			BPF_EXIT_INSN(),
+		},
+		.result = ACCEPT,
+		.retval = 0,
+	},
+	{
 		"unpriv: partial copy of pointer",
 		.insns = {
 			BPF_MOV32_REG(BPF_REG_1, BPF_REG_10),
