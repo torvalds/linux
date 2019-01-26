@@ -526,9 +526,9 @@ static inline void *xa_store_irq(struct xarray *xa, unsigned long index,
  * @xa: XArray.
  * @index: Index of entry.
  *
- * This function is the equivalent of calling xa_store() with %NULL as
- * the third argument.  The XArray does not need to allocate memory, so
- * the user does not need to provide GFP flags.
+ * After this function returns, loading from @index will return %NULL.
+ * If the index is part of a multi-index entry, all indices will be erased
+ * and none of the entries will be part of a multi-index entry.
  *
  * Context: Any context.  Takes and releases the xa_lock while
  * disabling softirqs.
@@ -550,9 +550,9 @@ static inline void *xa_erase_bh(struct xarray *xa, unsigned long index)
  * @xa: XArray.
  * @index: Index of entry.
  *
- * This function is the equivalent of calling xa_store() with %NULL as
- * the third argument.  The XArray does not need to allocate memory, so
- * the user does not need to provide GFP flags.
+ * After this function returns, loading from @index will return %NULL.
+ * If the index is part of a multi-index entry, all indices will be erased
+ * and none of the entries will be part of a multi-index entry.
  *
  * Context: Process context.  Takes and releases the xa_lock while
  * disabling interrupts.

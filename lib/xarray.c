@@ -1294,13 +1294,12 @@ static void *xas_result(struct xa_state *xas, void *curr)
  * @xa: XArray.
  * @index: Index into array.
  *
- * If the entry at this index is a multi-index entry then all indices will
- * be erased, and the entry will no longer be a multi-index entry.
- * This function expects the xa_lock to be held on entry.
+ * After this function returns, loading from @index will return %NULL.
+ * If the index is part of a multi-index entry, all indices will be erased
+ * and none of the entries will be part of a multi-index entry.
  *
- * Context: Any context.  Expects xa_lock to be held on entry.  May
- * release and reacquire xa_lock if @gfp flags permit.
- * Return: The old entry at this index.
+ * Context: Any context.  Expects xa_lock to be held on entry.
+ * Return: The entry which used to be at this index.
  */
 void *__xa_erase(struct xarray *xa, unsigned long index)
 {
@@ -1314,9 +1313,9 @@ EXPORT_SYMBOL(__xa_erase);
  * @xa: XArray.
  * @index: Index of entry.
  *
- * This function is the equivalent of calling xa_store() with %NULL as
- * the third argument.  The XArray does not need to allocate memory, so
- * the user does not need to provide GFP flags.
+ * After this function returns, loading from @index will return %NULL.
+ * If the index is part of a multi-index entry, all indices will be erased
+ * and none of the entries will be part of a multi-index entry.
  *
  * Context: Any context.  Takes and releases the xa_lock.
  * Return: The entry which used to be at this index.
