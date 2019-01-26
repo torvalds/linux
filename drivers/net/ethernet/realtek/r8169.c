@@ -1984,6 +1984,172 @@ static int rtl_set_coalesce(struct net_device *dev, struct ethtool_coalesce *ec)
 	return 0;
 }
 
+static int rtl_get_eee_supp(struct rtl8169_private *tp)
+{
+	struct phy_device *phydev = tp->phydev;
+	int ret;
+
+	switch (tp->mac_version) {
+	case RTL_GIGA_MAC_VER_40 ... RTL_GIGA_MAC_VER_51:
+		phy_write(phydev, 0x1f, 0x0a5c);
+		ret = phy_read(phydev, 0x12);
+		phy_write(phydev, 0x1f, 0x0000);
+		break;
+	default:
+		ret = -EPROTONOSUPPORT;
+		break;
+	}
+
+	return ret;
+}
+
+static int rtl_get_eee_lpadv(struct rtl8169_private *tp)
+{
+	struct phy_device *phydev = tp->phydev;
+	int ret;
+
+	switch (tp->mac_version) {
+	case RTL_GIGA_MAC_VER_40 ... RTL_GIGA_MAC_VER_51:
+		phy_write(phydev, 0x1f, 0x0a5d);
+		ret = phy_read(phydev, 0x11);
+		phy_write(phydev, 0x1f, 0x0000);
+		break;
+	default:
+		ret = -EPROTONOSUPPORT;
+		break;
+	}
+
+	return ret;
+}
+
+static int rtl_get_eee_adv(struct rtl8169_private *tp)
+{
+	struct phy_device *phydev = tp->phydev;
+	int ret;
+
+	switch (tp->mac_version) {
+	case RTL_GIGA_MAC_VER_40 ... RTL_GIGA_MAC_VER_51:
+		phy_write(phydev, 0x1f, 0x0a5d);
+		ret = phy_read(phydev, 0x10);
+		phy_write(phydev, 0x1f, 0x0000);
+		break;
+	default:
+		ret = -EPROTONOSUPPORT;
+		break;
+	}
+
+	return ret;
+}
+
+static int rtl_set_eee_adv(struct rtl8169_private *tp, int val)
+{
+	struct phy_device *phydev = tp->phydev;
+	int ret = 0;
+
+	switch (tp->mac_version) {
+	case RTL_GIGA_MAC_VER_40 ... RTL_GIGA_MAC_VER_51:
+		phy_write(phydev, 0x1f, 0x0a5d);
+		phy_write(phydev, 0x10, val);
+		phy_write(phydev, 0x1f, 0x0000);
+		break;
+	default:
+		ret = -EPROTONOSUPPORT;
+		break;
+	}
+
+	return ret;
+}
+
+static int rtl8169_get_eee(struct net_device *dev, struct ethtool_eee *data)
+{
+	struct rtl8169_private *tp = netdev_priv(dev);
+	struct device *d = tp_to_dev(tp);
+	int ret;
+
+	pm_runtime_get_noresume(d);
+
+	if (!pm_runtime_active(d)) {
+		ret = -EOPNOTSUPP;
+		goto out;
+	}
+
+	/* Get Supported EEE */
+	ret = rtl_get_eee_supp(tp);
+	if (ret < 0)
+		goto out;
+	data->supported = mmd_eee_cap_to_ethtool_sup_t(ret);
+
+	/* Get advertisement EEE */
+	ret = rtl_get_eee_adv(tp);
+	if (ret < 0)
+		goto out;
+	data->advertised = mmd_eee_adv_to_ethtool_adv_t(ret);
+	data->eee_enabled = !!data->advertised;
+
+	/* Get LP advertisement EEE */
+	ret = rtl_get_eee_lpadv(tp);
+	if (ret < 0)
+		goto out;
+	data->lp_advertised = mmd_eee_adv_to_ethtool_adv_t(ret);
+	data->eee_active = !!(data->advertised & data->lp_advertised);
+out:
+	pm_runtime_put_noidle(d);
+	return ret < 0 ? ret : 0;
+}
+
+static int rtl8169_set_eee(struct net_device *dev, struct ethtool_eee *data)
+{
+	struct rtl8169_private *tp = netdev_priv(dev);
+	struct device *d = tp_to_dev(tp);
+	int old_adv, adv = 0, cap, ret;
+
+	pm_runtime_get_noresume(d);
+
+	if (!dev->phydev || !pm_runtime_active(d)) {
+		ret = -EOPNOTSUPP;
+		goto out;
+	}
+
+	if (dev->phydev->autoneg == AUTONEG_DISABLE ||
+	    dev->phydev->duplex != DUPLEX_FULL) {
+		ret = -EPROTONOSUPPORT;
+		goto out;
+	}
+
+	/* Get Supported EEE */
+	ret = rtl_get_eee_supp(tp);
+	if (ret < 0)
+		goto out;
+	cap = ret;
+
+	ret = rtl_get_eee_adv(tp);
+	if (ret < 0)
+		goto out;
+	old_adv = ret;
+
+	if (data->eee_enabled) {
+		adv = !data->advertised ? cap :
+		      ethtool_adv_to_mmd_eee_adv_t(data->advertised) & cap;
+		/* Mask prohibited EEE modes */
+		adv &= ~dev->phydev->eee_broken_modes;
+	}
+
+	if (old_adv != adv) {
+		ret = rtl_set_eee_adv(tp, adv);
+		if (ret < 0)
+			goto out;
+
+		/* Restart autonegotiation so the new modes get sent to the
+		 * link partner.
+		 */
+		ret = phy_restart_aneg(dev->phydev);
+	}
+
+out:
+	pm_runtime_put_noidle(d);
+	return ret < 0 ? ret : 0;
+}
+
 static const struct ethtool_ops rtl8169_ethtool_ops = {
 	.get_drvinfo		= rtl8169_get_drvinfo,
 	.get_regs_len		= rtl8169_get_regs_len,
@@ -2000,9 +2166,19 @@ static const struct ethtool_ops rtl8169_ethtool_ops = {
 	.get_ethtool_stats	= rtl8169_get_ethtool_stats,
 	.get_ts_info		= ethtool_op_get_ts_info,
 	.nway_reset		= phy_ethtool_nway_reset,
+	.get_eee		= rtl8169_get_eee,
+	.set_eee		= rtl8169_set_eee,
 	.get_link_ksettings	= phy_ethtool_get_link_ksettings,
 	.set_link_ksettings	= phy_ethtool_set_link_ksettings,
 };
+
+static void rtl_enable_eee(struct rtl8169_private *tp)
+{
+	int supported = rtl_get_eee_supp(tp);
+
+	if (supported > 0)
+		rtl_set_eee_adv(tp, supported);
+}
 
 static void rtl8169_get_mac_version(struct rtl8169_private *tp)
 {
@@ -2391,6 +2567,18 @@ static void rtl_apply_firmware_cond(struct rtl8169_private *tp, u8 reg, u16 val)
 		netif_warn(tp, hw, tp->dev, "chipset not ready for firmware\n");
 	else
 		rtl_apply_firmware(tp);
+}
+
+static void rtl8168_config_eee_mac(struct rtl8169_private *tp)
+{
+	rtl_w0w1_eri(tp, 0x1b0, ERIAR_MASK_1111, 0x0003, 0x0000, ERIAR_EXGMAC);
+}
+
+static void rtl8168g_config_eee_phy(struct rtl8169_private *tp)
+{
+	phy_write(tp->phydev, 0x1f, 0x0a43);
+	phy_set_bits(tp->phydev, 0x11, BIT(4));
+	phy_write(tp->phydev, 0x1f, 0x0000);
 }
 
 static void rtl8169s_hw_phy_config(struct rtl8169_private *tp)
@@ -3442,13 +3630,15 @@ static void rtl8168g_1_hw_phy_config(struct rtl8169_private *tp)
 	rtl_writephy(tp, 0x14, 0x1065);
 
 	rtl8168g_disable_aldps(tp);
-
-	rtl_writephy(tp, 0x1f, 0x0000);
+	rtl8168g_config_eee_phy(tp);
+	rtl_enable_eee(tp);
 }
 
 static void rtl8168g_2_hw_phy_config(struct rtl8169_private *tp)
 {
 	rtl_apply_firmware(tp);
+	rtl8168g_config_eee_phy(tp);
+	rtl_enable_eee(tp);
 }
 
 static void rtl8168h_1_hw_phy_config(struct rtl8169_private *tp)
@@ -3554,8 +3744,8 @@ static void rtl8168h_1_hw_phy_config(struct rtl8169_private *tp)
 	rtl_writephy(tp, 0x1f, 0x0000);
 
 	rtl8168g_disable_aldps(tp);
-
-	rtl_writephy(tp, 0x1f, 0x0000);
+	rtl8168g_config_eee_phy(tp);
+	rtl_enable_eee(tp);
 }
 
 static void rtl8168h_2_hw_phy_config(struct rtl8169_private *tp)
@@ -3624,8 +3814,8 @@ static void rtl8168h_2_hw_phy_config(struct rtl8169_private *tp)
 	rtl_writephy(tp, 0x1f, 0x0000);
 
 	rtl8168g_disable_aldps(tp);
-
-	rtl_writephy(tp, 0x1f, 0x0000);
+	rtl8168g_config_eee_phy(tp);
+	rtl_enable_eee(tp);
 }
 
 static void rtl8168ep_1_hw_phy_config(struct rtl8169_private *tp)
@@ -3654,8 +3844,8 @@ static void rtl8168ep_1_hw_phy_config(struct rtl8169_private *tp)
 	rtl_writephy(tp, 0x1f, 0x0000);
 
 	rtl8168g_disable_aldps(tp);
-
-	rtl_writephy(tp, 0x1f, 0x0000);
+	rtl8168g_config_eee_phy(tp);
+	rtl_enable_eee(tp);
 }
 
 static void rtl8168ep_2_hw_phy_config(struct rtl8169_private *tp)
@@ -3733,8 +3923,8 @@ static void rtl8168ep_2_hw_phy_config(struct rtl8169_private *tp)
 	rtl_writephy(tp, 0x1f, 0x0000);
 
 	rtl8168g_disable_aldps(tp);
-
-	rtl_writephy(tp, 0x1f, 0x0000);
+	rtl8168g_config_eee_phy(tp);
+	rtl_enable_eee(tp);
 }
 
 static void rtl8102e_hw_phy_config(struct rtl8169_private *tp)
@@ -5017,6 +5207,8 @@ static void rtl_hw_start_8168g(struct rtl8169_private *tp)
 	/* Adjust EEE LED frequency */
 	RTL_W8(tp, EEE_LED, RTL_R8(tp, EEE_LED) & ~0x07);
 
+	rtl8168_config_eee_mac(tp);
+
 	rtl_w0w1_eri(tp, 0x2fc, ERIAR_MASK_0001, 0x01, 0x06, ERIAR_EXGMAC);
 	rtl_w0w1_eri(tp, 0x1b0, ERIAR_MASK_0011, 0x0000, 0x1000, ERIAR_EXGMAC);
 
@@ -5119,6 +5311,8 @@ static void rtl_hw_start_8168h_1(struct rtl8169_private *tp)
 	/* Adjust EEE LED frequency */
 	RTL_W8(tp, EEE_LED, RTL_R8(tp, EEE_LED) & ~0x07);
 
+	rtl8168_config_eee_mac(tp);
+
 	RTL_W8(tp, DLLPR, RTL_R8(tp, DLLPR) & ~PFM_EN);
 	RTL_W8(tp, MISC_1, RTL_R8(tp, MISC_1) & ~PFM_D3COLD_EN);
 
@@ -5198,6 +5392,8 @@ static void rtl_hw_start_8168ep(struct rtl8169_private *tp)
 
 	/* Adjust EEE LED frequency */
 	RTL_W8(tp, EEE_LED, RTL_R8(tp, EEE_LED) & ~0x07);
+
+	rtl8168_config_eee_mac(tp);
 
 	rtl_w0w1_eri(tp, 0x2fc, ERIAR_MASK_0001, 0x01, 0x06, ERIAR_EXGMAC);
 
