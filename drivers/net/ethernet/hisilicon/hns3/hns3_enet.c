@@ -1425,9 +1425,7 @@ static void hns3_nic_get_stats64(struct net_device *netdev,
 			start = u64_stats_fetch_begin_irq(&ring->syncp);
 			tx_bytes += ring->stats.tx_bytes;
 			tx_pkts += ring->stats.tx_pkts;
-			tx_drop += ring->stats.tx_busy;
 			tx_drop += ring->stats.sw_err_cnt;
-			tx_errors += ring->stats.tx_busy;
 			tx_errors += ring->stats.sw_err_cnt;
 		} while (u64_stats_fetch_retry_irq(&ring->syncp, start));
 
@@ -1438,7 +1436,6 @@ static void hns3_nic_get_stats64(struct net_device *netdev,
 			rx_bytes += ring->stats.rx_bytes;
 			rx_pkts += ring->stats.rx_pkts;
 			rx_drop += ring->stats.non_vld_descs;
-			rx_drop += ring->stats.err_pkt_len;
 			rx_drop += ring->stats.l2_err;
 			rx_errors += ring->stats.non_vld_descs;
 			rx_errors += ring->stats.l2_err;
