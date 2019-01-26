@@ -7,11 +7,15 @@
  *          Michael Thayer <michael.thayer@oracle.com,
  *          Hans de Goede <hdegoede@redhat.com>
  */
-#include <linux/module.h>
 #include <linux/console.h>
+#include <linux/module.h>
+#include <linux/pci.h>
 #include <linux/vt_kern.h>
 
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_file.h>
+#include <drm/drm_ioctl.h>
 
 #include "vbox_drv.h"
 
