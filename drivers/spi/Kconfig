@@ -317,8 +317,7 @@ config SPI_IMX
 	depends on ARCH_MXC || COMPILE_TEST
 	select SPI_BITBANG
 	help
-	  This enables using the Freescale i.MX SPI controllers in master
-	  mode.
+	  This enables support for the Freescale i.MX SPI controllers.
 
 config SPI_JCORE
 	tristate "J-Core SPI Master"
