@@ -370,7 +370,7 @@ static const struct regulator_ops lp8788_buck34_ops = {
 	.get_mode = lp8788_buck_get_mode,
 };
 
-static struct regulator_desc lp8788_buck_desc[] = {
+static const struct regulator_desc lp8788_buck_desc[] = {
 	{
 		.name = "buck1",
 		.id = BUCK1,
