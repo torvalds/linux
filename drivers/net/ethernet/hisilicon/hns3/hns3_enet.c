@@ -3737,7 +3737,6 @@ static int hns3_client_setup_tc(struct hnae3_handle *handle, u8 tc)
 {
 	struct hnae3_knic_private_info *kinfo = &handle->kinfo;
 	struct net_device *ndev = kinfo->netdev;
-	int ret;
 
 	if (tc > HNAE3_MAX_TC)
 		return -EINVAL;
@@ -3745,14 +3744,7 @@ static int hns3_client_setup_tc(struct hnae3_handle *handle, u8 tc)
 	if (!ndev)
 		return -ENODEV;
 
-	ret = (kinfo->dcb_ops && kinfo->dcb_ops->map_update) ?
-		kinfo->dcb_ops->map_update(handle) : -EOPNOTSUPP;
-	if (ret)
-		return ret;
-
-	ret = hns3_nic_set_real_num_queue(ndev);
-
-	return ret;
+	return hns3_nic_set_real_num_queue(ndev);
 }
 
 static int hns3_recover_hw_addr(struct net_device *ndev)

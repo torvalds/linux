@@ -156,10 +156,8 @@ static int hclge_ets_validate(struct hclge_dev *hdev, struct ieee_ets *ets,
 	return 0;
 }
 
-static int hclge_map_update(struct hnae3_handle *h)
+static int hclge_map_update(struct hclge_dev *hdev)
 {
-	struct hclge_vport *vport = hclge_get_vport(h);
-	struct hclge_dev *hdev = vport->back;
 	int ret;
 
 	ret = hclge_tm_schd_setup_hw(hdev);
@@ -235,6 +233,10 @@ static int hclge_ieee_setets(struct hnae3_handle *h, struct ieee_ets *ets)
 		goto err_out;
 
 	if (map_changed) {
+		ret = hclge_map_update(hdev);
+		if (ret)
+			goto err_out;
+
 		ret = hclge_client_setup_tc(hdev);
 		if (ret)
 			goto err_out;
@@ -411,7 +413,6 @@ static const struct hnae3_dcb_ops hns3_dcb_ops = {
 	.ieee_setpfc	= hclge_ieee_setpfc,
 	.getdcbx	= hclge_getdcbx,
 	.setdcbx	= hclge_setdcbx,
-	.map_update	= hclge_map_update,
 	.setup_tc	= hclge_setup_tc,
 };
 
