@@ -348,6 +348,8 @@ static int hns3_nic_net_up(struct net_device *netdev)
 		return ret;
 	}
 
+	clear_bit(HNS3_NIC_STATE_DOWN, &priv->state);
+
 	/* enable the vectors */
 	for (i = 0; i < priv->vector_num; i++)
 		hns3_vector_enable(&priv->tqp_vector[i]);
@@ -361,11 +363,10 @@ static int hns3_nic_net_up(struct net_device *netdev)
 	if (ret)
 		goto out_start_err;
 
-	clear_bit(HNS3_NIC_STATE_DOWN, &priv->state);
-
 	return 0;
 
 out_start_err:
+	set_bit(HNS3_NIC_STATE_DOWN, &priv->state);
 	while (j--)
 		hns3_tqp_disable(h->kinfo.tqp[j]);
 
@@ -3614,6 +3615,7 @@ static int hns3_client_init(struct hnae3_handle *handle)
 	priv->netdev = netdev;
 	priv->ae_handle = handle;
 	priv->tx_timeout_count = 0;
+	set_bit(HNS3_NIC_STATE_DOWN, &priv->state);
 
 	handle->kinfo.netdev = netdev;
 	handle->priv = (void *)priv;
