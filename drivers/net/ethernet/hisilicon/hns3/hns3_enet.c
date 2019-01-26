@@ -1620,6 +1620,7 @@ static void hns3_remove(struct pci_dev *pdev)
 		hns3_disable_sriov(pdev);
 
 	hnae3_unregister_ae_dev(ae_dev);
+	pci_set_drvdata(pdev, NULL);
 }
 
 /**
