@@ -3843,8 +3843,16 @@ static int hclge_set_promisc_mode(struct hnae3_handle *handle, bool en_uc_pmc,
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
 	struct hclge_promisc_param param;
+	bool en_bc_pmc = true;
 
-	hclge_promisc_param_init(&param, en_uc_pmc, en_mc_pmc, true,
+	/* For revision 0x20, if broadcast promisc enabled, vlan filter is
+	 * always bypassed. So broadcast promisc should be disabled until
+	 * user enable promisc mode
+	 */
+	if (handle->pdev->revision == 0x20)
+		en_bc_pmc = handle->netdev_flags & HNAE3_BPE ? true : false;
+
+	hclge_promisc_param_init(&param, en_uc_pmc, en_mc_pmc, en_bc_pmc,
 				 vport->vport_id);
 	return hclge_cmd_set_promisc_mode(hdev, &param);
 }

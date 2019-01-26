@@ -506,7 +506,7 @@ static u8 hns3_get_netdev_flags(struct net_device *netdev)
 	u8 flags = 0;
 
 	if (netdev->flags & IFF_PROMISC) {
-		flags = HNAE3_USER_UPE | HNAE3_USER_MPE;
+		flags = HNAE3_USER_UPE | HNAE3_USER_MPE | HNAE3_BPE;
 	} else {
 		flags |= HNAE3_VLAN_FLTR;
 		if (netdev->flags & IFF_ALLMULTI)
@@ -541,13 +541,13 @@ static void hns3_nic_set_rx_mode(struct net_device *netdev)
 		}
 	}
 
-	hns3_update_promisc_mode(netdev, new_flags);
 	/* User mode Promisc mode enable and vlan filtering is disabled to
 	 * let all packets in. MAC-VLAN Table overflow Promisc enabled and
 	 * vlan fitering is enabled
 	 */
 	hns3_enable_vlan_filter(netdev, new_flags & HNAE3_VLAN_FLTR);
 	h->netdev_flags = new_flags;
+	hns3_update_promisc_mode(netdev, new_flags);
 }
 
 int hns3_update_promisc_mode(struct net_device *netdev, u8 promisc_flags)
