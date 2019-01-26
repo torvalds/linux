@@ -905,7 +905,11 @@ static int pvrdma_pci_probe(struct pci_dev *pdev,
 		PVRDMA_GOS_BITS_64;
 	dev->dsr->gos_info.gos_type = PVRDMA_GOS_TYPE_LINUX;
 	dev->dsr->gos_info.gos_ver = 1;
-	dev->dsr->uar_pfn = dev->driver_uar.pfn;
+
+	if (dev->dsr_version < PVRDMA_PPN64_VERSION)
+		dev->dsr->uar_pfn = dev->driver_uar.pfn;
+	else
+		dev->dsr->uar_pfn64 = dev->driver_uar.pfn;
 
 	/* Command slot. */
 	dev->cmd_slot = dma_alloc_coherent(&pdev->dev, PAGE_SIZE,

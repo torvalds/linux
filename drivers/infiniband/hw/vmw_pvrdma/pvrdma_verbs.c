@@ -340,7 +340,12 @@ struct ib_ucontext *pvrdma_alloc_ucontext(struct ib_device *ibdev,
 
 	/* get ctx_handle from host */
 	memset(cmd, 0, sizeof(*cmd));
-	cmd->pfn = context->uar.pfn;
+
+	if (vdev->dsr_version < PVRDMA_PPN64_VERSION)
+		cmd->pfn = context->uar.pfn;
+	else
+		cmd->pfn64 = context->uar.pfn;
+
 	cmd->hdr.cmd = PVRDMA_CMD_CREATE_UC;
 	ret = pvrdma_cmd_post(vdev, &req, &rsp, PVRDMA_CMD_CREATE_UC_RESP);
 	if (ret < 0) {
