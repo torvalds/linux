@@ -203,12 +203,11 @@ static int hclge_map_unmap_ring_to_vf_vector(struct hclge_vport *vport, bool en,
 static int hclge_set_vf_promisc_mode(struct hclge_vport *vport,
 				     struct hclge_mbx_vf_to_pf_cmd *req)
 {
-	bool en_uc = req->msg[1] ? true : false;
-	bool en_mc = req->msg[2] ? true : false;
+	bool en_bc = req->msg[1] ? true : false;
 	struct hclge_promisc_param param;
 
-	/* always enable broadcast promisc bit */
-	hclge_promisc_param_init(&param, en_uc, en_mc, true, vport->vport_id);
+	/* vf is not allowed to enable unicast/multicast broadcast */
+	hclge_promisc_param_init(&param, false, false, en_bc, vport->vport_id);
 	return hclge_cmd_set_promisc_mode(vport->back, &param);
 }
 
