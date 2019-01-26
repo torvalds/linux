@@ -1185,6 +1185,7 @@ static int fsmc_nand_resume(struct device *dev)
 		clk_prepare_enable(host->clk);
 		if (host->dev_timings)
 			fsmc_nand_setup(host, host->dev_timings);
+		nand_reset(&host->nand, 0);
 	}
 
 	return 0;
