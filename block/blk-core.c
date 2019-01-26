@@ -1083,7 +1083,18 @@ blk_qc_t generic_make_request(struct bio *bio)
 			/* Create a fresh bio_list for all subordinate requests */
 			bio_list_on_stack[1] = bio_list_on_stack[0];
 			bio_list_init(&bio_list_on_stack[0]);
+
+			/*
+			 * Since we're recursing into make_request here, ensure
+			 * that we mark this bio as already having entered the queue.
+			 * If not, and the queue is going away, we can get stuck
+			 * forever on waiting for the queue reference to drop. But
+			 * that will never happen, as we're already holding a
+			 * reference to it.
+			 */
+			bio_set_flag(bio, BIO_QUEUE_ENTERED);
 			ret = q->make_request_fn(q, bio);
+			bio_clear_flag(bio, BIO_QUEUE_ENTERED);
 
 			/* sort new bios into those for a lower level
 			 * and those for the same level
