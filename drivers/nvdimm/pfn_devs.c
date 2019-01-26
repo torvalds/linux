@@ -690,7 +690,6 @@ static void trim_pfn_device(struct nd_pfn *nd_pfn, u32 *start_pad, u32 *end_trun
 
 static int nd_pfn_init(struct nd_pfn *nd_pfn)
 {
-	u32 dax_label_reserve = is_nd_dax(&nd_pfn->dev) ? SZ_128K : 0;
 	struct nd_namespace_common *ndns = nd_pfn->ndns;
 	struct nd_namespace_io *nsio = to_nd_namespace_io(&ndns->dev);
 	u32 start_pad, end_trunc, reserve = info_block_reserve();
@@ -748,11 +747,10 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
 		 * when populating the vmemmap. This *should* be equal to
 		 * PMD_SIZE for most architectures.
 		 */
-		offset = ALIGN(start + reserve + 64 * npfns + dax_label_reserve,
+		offset = ALIGN(start + reserve + 64 * npfns,
 				max(nd_pfn->align, PMD_SIZE)) - start;
 	} else if (nd_pfn->mode == PFN_MODE_RAM)
-		offset = ALIGN(start + reserve + dax_label_reserve,
-				nd_pfn->align) - start;
+		offset = ALIGN(start + reserve, nd_pfn->align) - start;
 	else
 		return -ENXIO;
 
