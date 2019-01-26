@@ -232,12 +232,13 @@ static int hclge_ieee_setets(struct hnae3_handle *h, struct ieee_ets *ets)
 
 	ret = hclge_ieee_ets_to_tm_info(hdev, ets);
 	if (ret)
-		return ret;
+		goto err_out;
 
 	if (map_changed) {
 		ret = hclge_client_setup_tc(hdev);
 		if (ret)
-			return ret;
+			goto err_out;
+
 		ret = hclge_notify_client(hdev, HNAE3_INIT_CLIENT);
 		if (ret)
 			return ret;
@@ -248,6 +249,16 @@ static int hclge_ieee_setets(struct hnae3_handle *h, struct ieee_ets *ets)
 	}
 
 	return hclge_tm_dwrr_cfg(hdev);
+
+err_out:
+	if (!map_changed)
+		return ret;
+
+	if (hclge_notify_client(hdev, HNAE3_INIT_CLIENT))
+		return ret;
+
+	hclge_notify_client(hdev, HNAE3_UP_CLIENT);
+	return ret;
 }
 
 static int hclge_ieee_getpfc(struct hnae3_handle *h, struct ieee_pfc *pfc)
