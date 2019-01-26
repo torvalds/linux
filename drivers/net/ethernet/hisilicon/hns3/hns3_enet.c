@@ -1482,7 +1482,6 @@ static int hns3_setup_tc(struct net_device *netdev, void *type_data)
 	u8 tc = mqprio_qopt->qopt.num_tc;
 	u16 mode = mqprio_qopt->mode;
 	u8 hw = mqprio_qopt->qopt.hw;
-	int ret;
 
 	if (!((hw == TC_MQPRIO_HW_OFFLOAD_TCS &&
 	       mode == TC_MQPRIO_MODE_CHANNEL) || (!hw && tc == 0)))
@@ -1494,12 +1493,8 @@ static int hns3_setup_tc(struct net_device *netdev, void *type_data)
 	if (!netdev)
 		return -EINVAL;
 
-	ret = (kinfo->dcb_ops && kinfo->dcb_ops->setup_tc) ?
+	return (kinfo->dcb_ops && kinfo->dcb_ops->setup_tc) ?
 		kinfo->dcb_ops->setup_tc(h, tc, prio_tc) : -EOPNOTSUPP;
-	if (ret)
-		return ret;
-
-	return hns3_nic_set_real_num_queue(netdev);
 }
 
 static int hns3_nic_setup_tc(struct net_device *dev, enum tc_setup_type type,
