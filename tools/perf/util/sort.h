@@ -145,8 +145,8 @@ struct hist_entry {
 	union {
 		/* this is for hierarchical entry structure */
 		struct {
-			struct rb_root	hroot_in;
-			struct rb_root  hroot_out;
+			struct rb_root_cached	hroot_in;
+			struct rb_root_cached   hroot_out;
 		};				/* non-leaf entries */
 		struct rb_root	sorted_chain;	/* leaf entry has callchains */
 	};

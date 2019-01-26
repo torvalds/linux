@@ -753,7 +753,8 @@ static int tasks_print(struct report *rep, FILE *fp)
 	for (i = 0; i < THREADS__TABLE_SIZE; i++) {
 		struct threads *threads = &machine->threads[i];
 
-		for (nd = rb_first(&threads->entries); nd; nd = rb_next(nd)) {
+		for (nd = rb_first_cached(&threads->entries); nd;
+		     nd = rb_next(nd)) {
 			task = tasks + itask++;
 
 			task->thread = rb_entry(nd, struct thread, rb_node);

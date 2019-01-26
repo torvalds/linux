@@ -1,5 +1,3 @@
-#!/usr/bin/python
-
 from os import getenv
 from subprocess import Popen, PIPE
 from re import sub

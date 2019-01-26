@@ -9,6 +9,7 @@
 
 #include <errno.h>
 #include <inttypes.h>
+#include <libgen.h>
 #include "util.h"
 #include "ui/ui.h"
 #include "sort.h"

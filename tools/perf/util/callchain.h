@@ -2,7 +2,6 @@
 #ifndef __PERF_CALLCHAIN_H
 #define __PERF_CALLCHAIN_H
 
-#include "../perf.h"
 #include <linux/list.h>
 #include <linux/rbtree.h>
 #include "event.h"

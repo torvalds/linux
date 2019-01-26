@@ -7,6 +7,7 @@
 #include "bpf-event.h"
 #include "debug.h"
 #include "symbol.h"
+#include "machine.h"
 
 #define ptr_to_u64(ptr)    ((__u64)(unsigned long)(ptr))
 
@@ -149,7 +150,7 @@ static int perf_event__synthesize_one_bpf_prog(struct perf_tool *tool,
 		*ksymbol_event = (struct ksymbol_event){
 			.header = {
 				.type = PERF_RECORD_KSYMBOL,
-				.size = sizeof(struct ksymbol_event),
+				.size = offsetof(struct ksymbol_event, name),
 			},
 			.addr = prog_addrs[i],
 			.len = prog_lens[i],
@@ -178,6 +179,9 @@ static int perf_event__synthesize_one_bpf_prog(struct perf_tool *tool,
 
 		ksymbol_event->header.size += PERF_ALIGN(name_len + 1,
 							 sizeof(u64));
+
+		memset((void *)event + event->header.size, 0, machine->id_hdr_size);
+		event->header.size += machine->id_hdr_size;
 		err = perf_tool__process_synth_event(tool, event,
 						     machine, process);
 	}
@@ -194,6 +198,8 @@ static int perf_event__synthesize_one_bpf_prog(struct perf_tool *tool,
 			.id = info.id,
 		};
 		memcpy(bpf_event->tag, prog_tags[i], BPF_TAG_SIZE);
+		memset((void *)event + event->header.size, 0, machine->id_hdr_size);
+		event->header.size += machine->id_hdr_size;
 		err = perf_tool__process_synth_event(tool, event,
 						     machine, process);
 	}
@@ -217,7 +223,7 @@ int perf_event__synthesize_bpf_events(struct perf_tool *tool,
 	int err;
 	int fd;
 
-	event = malloc(sizeof(event->bpf_event) + KSYM_NAME_LEN);
+	event = malloc(sizeof(event->bpf_event) + KSYM_NAME_LEN + machine->id_hdr_size);
 	if (!event)
 		return -1;
 	while (true) {

@@ -429,7 +429,7 @@ get_pair_fmt(struct hist_entry *he, struct diff_hpp_fmt *dfmt)
 
 static void hists__baseline_only(struct hists *hists)
 {
-	struct rb_root *root;
+	struct rb_root_cached *root;
 	struct rb_node *next;
 
 	if (hists__has(hists, need_collapse))
@@ -437,13 +437,13 @@ static void hists__baseline_only(struct hists *hists)
 	else
 		root = hists->entries_in;
 
-	next = rb_first(root);
+	next = rb_first_cached(root);
 	while (next != NULL) {
 		struct hist_entry *he = rb_entry(next, struct hist_entry, rb_node_in);
 
 		next = rb_next(&he->rb_node_in);
 		if (!hist_entry__next_pair(he)) {
-			rb_erase(&he->rb_node_in, root);
+			rb_erase_cached(&he->rb_node_in, root);
 			hist_entry__delete(he);
 		}
 	}
@@ -451,7 +451,7 @@ static void hists__baseline_only(struct hists *hists)
 
 static void hists__precompute(struct hists *hists)
 {
-	struct rb_root *root;
+	struct rb_root_cached *root;
 	struct rb_node *next;
 
 	if (hists__has(hists, need_collapse))
@@ -459,7 +459,7 @@ static void hists__precompute(struct hists *hists)
 	else
 		root = hists->entries_in;
 
-	next = rb_first(root);
+	next = rb_first_cached(root);
 	while (next != NULL) {
 		struct hist_entry *he, *pair;
 		struct data__file *d;
