@@ -117,7 +117,7 @@ static int hns3_lp_up(struct net_device *ndev, enum hnae3_loop loop_mode)
 	ret = hns3_lp_setup(ndev, loop_mode, true);
 	usleep_range(10000, 20000);
 
-	return 0;
+	return ret;
 }
 
 static int hns3_lp_down(struct net_device *ndev, enum hnae3_loop loop_mode)
@@ -334,10 +334,10 @@ static void hns3_self_test(struct net_device *ndev,
 			continue;
 
 		data[test_index] = hns3_lp_up(ndev, loop_type);
-		if (!data[test_index]) {
+		if (!data[test_index])
 			data[test_index] = hns3_lp_run_test(ndev, loop_type);
-			hns3_lp_down(ndev, loop_type);
-		}
+
+		hns3_lp_down(ndev, loop_type);
 
 		if (data[test_index])
 			eth_test->flags |= ETH_TEST_FL_FAILED;

@@ -5332,6 +5332,9 @@ static int hclge_set_loopback(struct hnae3_handle *handle,
 		break;
 	}
 
+	if (ret)
+		return ret;
+
 	kinfo = &vport->nic.kinfo;
 	for (i = 0; i < kinfo->num_tqps; i++) {
 		ret = hclge_tqp_enable(hdev, i, 0, en);
