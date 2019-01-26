@@ -324,10 +324,10 @@ Table 1-4: Contents of the stat files (as of 2.6.30-rc7)
   cmin_flt      number of minor faults with child's
   maj_flt       number of major faults
   cmaj_flt      number of major faults with child's
-  utime         user mode jiffies
-  stime         kernel mode jiffies
-  cutime        user mode jiffies with child's
-  cstime        kernel mode jiffies with child's
+  utime         user mode USER_HZ
+  stime         kernel mode USER_HZ
+  cutime        user mode USER_HZ with child's
+  cstime        kernel mode USER_HZ with child's
   priority      priority level
   nice          nice level
   num_threads   number of threads
@@ -353,8 +353,8 @@ Table 1-4: Contents of the stat files (as of 2.6.30-rc7)
   rt_priority   realtime priority
   policy        scheduling policy (man sched_setscheduler)
   blkio_ticks   time spent waiting for block IO
-  gtime         guest time of the task in jiffies
-  cgtime        guest time of the task children in jiffies
+  gtime         guest time of the task in USER_HZ
+  cgtime        guest time of the task children in USER_HZ
   start_data    address above which program data+bss is placed
   end_data      address below which program data+bss is placed
   start_brk     address above which program heap can be expanded with brk()
