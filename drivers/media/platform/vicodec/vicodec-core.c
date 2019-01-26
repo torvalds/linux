@@ -207,7 +207,8 @@ static int device_process(struct vicodec_ctx *ctx,
 /*
  * mem2mem callbacks
  */
-enum vb2_buffer_state get_next_header(struct vicodec_ctx *ctx, u8 **pp, u32 sz)
+static enum vb2_buffer_state get_next_header(struct vicodec_ctx *ctx,
+					     u8 **pp, u32 sz)
 {
 	static const u8 magic[] = {
 		0x4f, 0x4f, 0x4f, 0x4f, 0xff, 0xff, 0xff, 0xff
