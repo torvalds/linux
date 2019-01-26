@@ -185,18 +185,6 @@ static inline int map_seq_out_ptr_ctx(u32 *desc, struct device *jrdev,
 	return 0;
 }
 
-/* Map req->result, and append seq_out_ptr command that points to it */
-static inline dma_addr_t map_seq_out_ptr_result(u32 *desc, struct device *jrdev,
-						u8 *result, int digestsize)
-{
-	dma_addr_t dst_dma;
-
-	dst_dma = dma_map_single(jrdev, result, digestsize, DMA_FROM_DEVICE);
-	append_seq_out_ptr(desc, dst_dma, digestsize, 0);
-
-	return dst_dma;
-}
-
 /* Map current buffer in state (if length > 0) and put it in link table */
 static inline int buf_map_to_sec4_sg(struct device *jrdev,
 				     struct sec4_sg_entry *sec4_sg,
@@ -488,7 +476,6 @@ static int ahash_setkey(struct crypto_ahash *ahash,
 
 /*
  * ahash_edesc - s/w-extended ahash descriptor
- * @dst_dma: physical mapped address of req->result
  * @sec4_sg_dma: physical mapped address of h/w link table
  * @src_nents: number of segments in input scatterlist
  * @sec4_sg_bytes: length of dma mapped sec4_sg space
@@ -496,7 +483,6 @@ static int ahash_setkey(struct crypto_ahash *ahash,
  * @sec4_sg: h/w link table
  */
 struct ahash_edesc {
-	dma_addr_t dst_dma;
 	dma_addr_t sec4_sg_dma;
 	int src_nents;
 	int sec4_sg_bytes;
@@ -512,8 +498,6 @@ static inline void ahash_unmap(struct device *dev,
 
 	if (edesc->src_nents)
 		dma_unmap_sg(dev, req->src, edesc->src_nents, DMA_TO_DEVICE);
-	if (edesc->dst_dma)
-		dma_unmap_single(dev, edesc->dst_dma, dst_len, DMA_FROM_DEVICE);
 
 	if (edesc->sec4_sg_bytes)
 		dma_unmap_single(dev, edesc->sec4_sg_dma,
@@ -546,9 +530,9 @@ static void ahash_done(struct device *jrdev, u32 *desc, u32 err,
 	struct ahash_edesc *edesc;
 	struct crypto_ahash *ahash = crypto_ahash_reqtfm(req);
 	int digestsize = crypto_ahash_digestsize(ahash);
+	struct caam_hash_state *state = ahash_request_ctx(req);
 #ifdef DEBUG
 	struct caam_hash_ctx *ctx = crypto_ahash_ctx(ahash);
-	struct caam_hash_state *state = ahash_request_ctx(req);
 
 	dev_err(jrdev, "%s %d: err 0x%x\n", __func__, __LINE__, err);
 #endif
@@ -557,17 +541,14 @@ static void ahash_done(struct device *jrdev, u32 *desc, u32 err,
 	if (err)
 		caam_jr_strstatus(jrdev, err);
 
-	ahash_unmap(jrdev, edesc, req, digestsize);
+	ahash_unmap_ctx(jrdev, edesc, req, digestsize, DMA_FROM_DEVICE);
+	memcpy(req->result, state->caam_ctx, digestsize);
 	kfree(edesc);
 
 #ifdef DEBUG
 	print_hex_dump(KERN_ERR, "ctx@"__stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, state->caam_ctx,
 		       ctx->ctx_len, 1);
-	if (req->result)
-		print_hex_dump(KERN_ERR, "result@"__stringify(__LINE__)": ",
-			       DUMP_PREFIX_ADDRESS, 16, 4, req->result,
-			       digestsize, 1);
 #endif
 
 	req->base.complete(&req->base, err);
@@ -615,9 +596,9 @@ static void ahash_done_ctx_src(struct device *jrdev, u32 *desc, u32 err,
 	struct ahash_edesc *edesc;
 	struct crypto_ahash *ahash = crypto_ahash_reqtfm(req);
 	int digestsize = crypto_ahash_digestsize(ahash);
+	struct caam_hash_state *state = ahash_request_ctx(req);
 #ifdef DEBUG
 	struct caam_hash_ctx *ctx = crypto_ahash_ctx(ahash);
-	struct caam_hash_state *state = ahash_request_ctx(req);
 
 	dev_err(jrdev, "%s %d: err 0x%x\n", __func__, __LINE__, err);
 #endif
@@ -626,17 +607,14 @@ static void ahash_done_ctx_src(struct device *jrdev, u32 *desc, u32 err,
 	if (err)
 		caam_jr_strstatus(jrdev, err);
 
-	ahash_unmap_ctx(jrdev, edesc, req, digestsize, DMA_TO_DEVICE);
+	ahash_unmap_ctx(jrdev, edesc, req, digestsize, DMA_BIDIRECTIONAL);
+	memcpy(req->result, state->caam_ctx, digestsize);
 	kfree(edesc);
 
 #ifdef DEBUG
 	print_hex_dump(KERN_ERR, "ctx@"__stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, state->caam_ctx,
 		       ctx->ctx_len, 1);
-	if (req->result)
-		print_hex_dump(KERN_ERR, "result@"__stringify(__LINE__)": ",
-			       DUMP_PREFIX_ADDRESS, 16, 4, req->result,
-			       digestsize, 1);
 #endif
 
 	req->base.complete(&req->base, err);
@@ -897,7 +875,7 @@ static int ahash_final_ctx(struct ahash_request *req)
 	edesc->sec4_sg_bytes = sec4_sg_bytes;
 
 	ret = ctx_map_to_sec4_sg(jrdev, state, ctx->ctx_len,
-				 edesc->sec4_sg, DMA_TO_DEVICE);
+				 edesc->sec4_sg, DMA_BIDIRECTIONAL);
 	if (ret)
 		goto unmap_ctx;
 
@@ -917,14 +895,7 @@ static int ahash_final_ctx(struct ahash_request *req)
 
 	append_seq_in_ptr(desc, edesc->sec4_sg_dma, ctx->ctx_len + buflen,
 			  LDST_SGF);
-
-	edesc->dst_dma = map_seq_out_ptr_result(desc, jrdev, req->result,
-						digestsize);
-	if (dma_mapping_error(jrdev, edesc->dst_dma)) {
-		dev_err(jrdev, "unable to map dst\n");
-		ret = -ENOMEM;
-		goto unmap_ctx;
-	}
+	append_seq_out_ptr(desc, state->ctx_dma, digestsize, 0);
 
 #ifdef DEBUG
 	print_hex_dump(KERN_ERR, "jobdesc@"__stringify(__LINE__)": ",
@@ -937,7 +908,7 @@ static int ahash_final_ctx(struct ahash_request *req)
 
 	return -EINPROGRESS;
  unmap_ctx:
-	ahash_unmap_ctx(jrdev, edesc, req, digestsize, DMA_FROM_DEVICE);
+	ahash_unmap_ctx(jrdev, edesc, req, digestsize, DMA_BIDIRECTIONAL);
 	kfree(edesc);
 	return ret;
 }
@@ -991,7 +962,7 @@ static int ahash_finup_ctx(struct ahash_request *req)
 	edesc->src_nents = src_nents;
 
 	ret = ctx_map_to_sec4_sg(jrdev, state, ctx->ctx_len,
-				 edesc->sec4_sg, DMA_TO_DEVICE);
+				 edesc->sec4_sg, DMA_BIDIRECTIONAL);
 	if (ret)
 		goto unmap_ctx;
 
@@ -1005,13 +976,7 @@ static int ahash_finup_ctx(struct ahash_request *req)
 	if (ret)
 		goto unmap_ctx;
 
-	edesc->dst_dma = map_seq_out_ptr_result(desc, jrdev, req->result,
-						digestsize);
-	if (dma_mapping_error(jrdev, edesc->dst_dma)) {
-		dev_err(jrdev, "unable to map dst\n");
-		ret = -ENOMEM;
-		goto unmap_ctx;
-	}
+	append_seq_out_ptr(desc, state->ctx_dma, digestsize, 0);
 
 #ifdef DEBUG
 	print_hex_dump(KERN_ERR, "jobdesc@"__stringify(__LINE__)": ",
@@ -1024,7 +989,7 @@ static int ahash_finup_ctx(struct ahash_request *req)
 
 	return -EINPROGRESS;
  unmap_ctx:
-	ahash_unmap_ctx(jrdev, edesc, req, digestsize, DMA_FROM_DEVICE);
+	ahash_unmap_ctx(jrdev, edesc, req, digestsize, DMA_BIDIRECTIONAL);
 	kfree(edesc);
 	return ret;
 }
@@ -1083,10 +1048,8 @@ static int ahash_digest(struct ahash_request *req)
 
 	desc = edesc->hw_desc;
 
-	edesc->dst_dma = map_seq_out_ptr_result(desc, jrdev, req->result,
-						digestsize);
-	if (dma_mapping_error(jrdev, edesc->dst_dma)) {
-		dev_err(jrdev, "unable to map dst\n");
+	ret = map_seq_out_ptr_ctx(desc, jrdev, state, digestsize);
+	if (ret) {
 		ahash_unmap(jrdev, edesc, req, digestsize);
 		kfree(edesc);
 		return -ENOMEM;
@@ -1101,7 +1064,7 @@ static int ahash_digest(struct ahash_request *req)
 	if (!ret) {
 		ret = -EINPROGRESS;
 	} else {
-		ahash_unmap(jrdev, edesc, req, digestsize);
+		ahash_unmap_ctx(jrdev, edesc, req, digestsize, DMA_FROM_DEVICE);
 		kfree(edesc);
 	}
 
@@ -1143,12 +1106,9 @@ static int ahash_final_no_ctx(struct ahash_request *req)
 		append_seq_in_ptr(desc, state->buf_dma, buflen, 0);
 	}
 
-	edesc->dst_dma = map_seq_out_ptr_result(desc, jrdev, req->result,
-						digestsize);
-	if (dma_mapping_error(jrdev, edesc->dst_dma)) {
-		dev_err(jrdev, "unable to map dst\n");
+	ret = map_seq_out_ptr_ctx(desc, jrdev, state, digestsize);
+	if (ret)
 		goto unmap;
-	}
 
 #ifdef DEBUG
 	print_hex_dump(KERN_ERR, "jobdesc@"__stringify(__LINE__)": ",
@@ -1159,7 +1119,7 @@ static int ahash_final_no_ctx(struct ahash_request *req)
 	if (!ret) {
 		ret = -EINPROGRESS;
 	} else {
-		ahash_unmap(jrdev, edesc, req, digestsize);
+		ahash_unmap_ctx(jrdev, edesc, req, digestsize, DMA_FROM_DEVICE);
 		kfree(edesc);
 	}
 
@@ -1358,12 +1318,9 @@ static int ahash_finup_no_ctx(struct ahash_request *req)
 		goto unmap;
 	}
 
-	edesc->dst_dma = map_seq_out_ptr_result(desc, jrdev, req->result,
-						digestsize);
-	if (dma_mapping_error(jrdev, edesc->dst_dma)) {
-		dev_err(jrdev, "unable to map dst\n");
+	ret = map_seq_out_ptr_ctx(desc, jrdev, state, digestsize);
+	if (ret)
 		goto unmap;
-	}
 
 #ifdef DEBUG
 	print_hex_dump(KERN_ERR, "jobdesc@"__stringify(__LINE__)": ",
@@ -1374,7 +1331,7 @@ static int ahash_finup_no_ctx(struct ahash_request *req)
 	if (!ret) {
 		ret = -EINPROGRESS;
 	} else {
-		ahash_unmap(jrdev, edesc, req, digestsize);
+		ahash_unmap_ctx(jrdev, edesc, req, digestsize, DMA_FROM_DEVICE);
 		kfree(edesc);
 	}
 
