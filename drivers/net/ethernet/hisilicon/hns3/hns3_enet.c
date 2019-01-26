@@ -348,6 +348,8 @@ static int hns3_nic_net_up(struct net_device *netdev)
 		return ret;
 	}
 
+	clear_bit(HNS3_NIC_STATE_DOWN, &priv->state);
+
 	/* enable the vectors */
 	for (i = 0; i < priv->vector_num; i++)
 		hns3_vector_enable(&priv->tqp_vector[i]);
@@ -361,11 +363,10 @@ static int hns3_nic_net_up(struct net_device *netdev)
 	if (ret)
 		goto out_start_err;
 
-	clear_bit(HNS3_NIC_STATE_DOWN, &priv->state);
-
 	return 0;
 
 out_start_err:
+	set_bit(HNS3_NIC_STATE_DOWN, &priv->state);
 	while (j--)
 		hns3_tqp_disable(h->kinfo.tqp[j]);
 
@@ -506,7 +507,7 @@ static u8 hns3_get_netdev_flags(struct net_device *netdev)
 	u8 flags = 0;
 
 	if (netdev->flags & IFF_PROMISC) {
-		flags = HNAE3_USER_UPE | HNAE3_USER_MPE;
+		flags = HNAE3_USER_UPE | HNAE3_USER_MPE | HNAE3_BPE;
 	} else {
 		flags |= HNAE3_VLAN_FLTR;
 		if (netdev->flags & IFF_ALLMULTI)
@@ -541,13 +542,13 @@ static void hns3_nic_set_rx_mode(struct net_device *netdev)
 		}
 	}
 
-	hns3_update_promisc_mode(netdev, new_flags);
 	/* User mode Promisc mode enable and vlan filtering is disabled to
 	 * let all packets in. MAC-VLAN Table overflow Promisc enabled and
 	 * vlan fitering is enabled
 	 */
 	hns3_enable_vlan_filter(netdev, new_flags & HNAE3_VLAN_FLTR);
 	h->netdev_flags = new_flags;
+	hns3_update_promisc_mode(netdev, new_flags);
 }
 
 int hns3_update_promisc_mode(struct net_device *netdev, u8 promisc_flags)
@@ -1133,6 +1134,7 @@ static int hns3_nic_maybe_stop_tso(struct sk_buff **out_skb, int *bnum,
 				   struct hns3_enet_ring *ring)
 {
 	struct sk_buff *skb = *out_skb;
+	struct sk_buff *new_skb = NULL;
 	struct skb_frag_struct *frag;
 	int bdnum_for_frag;
 	int frag_num;
@@ -1155,7 +1157,19 @@ static int hns3_nic_maybe_stop_tso(struct sk_buff **out_skb, int *bnum,
 		buf_num += bdnum_for_frag;
 	}
 
-	if (buf_num > ring_space(ring))
+	if (unlikely(buf_num > HNS3_MAX_BD_PER_FRAG)) {
+		buf_num = (skb->len + HNS3_MAX_BD_SIZE - 1) / HNS3_MAX_BD_SIZE;
+		if (ring_space(ring) < buf_num)
+			return -EBUSY;
+		/* manual split the send packet */
+		new_skb = skb_copy(skb, GFP_ATOMIC);
+		if (!new_skb)
+			return -ENOMEM;
+		dev_kfree_skb_any(skb);
+		*out_skb = new_skb;
+	}
+
+	if (unlikely(ring_space(ring) < buf_num))
 		return -EBUSY;
 
 	*bnum = buf_num;
@@ -1166,10 +1180,23 @@ static int hns3_nic_maybe_stop_tx(struct sk_buff **out_skb, int *bnum,
 				  struct hns3_enet_ring *ring)
 {
 	struct sk_buff *skb = *out_skb;
+	struct sk_buff *new_skb = NULL;
 	int buf_num;
 
 	/* No. of segments (plus a header) */
 	buf_num = skb_shinfo(skb)->nr_frags + 1;
+
+	if (unlikely(buf_num > HNS3_MAX_BD_PER_FRAG)) {
+		buf_num = (skb->len + HNS3_MAX_BD_SIZE - 1) / HNS3_MAX_BD_SIZE;
+		if (ring_space(ring) < buf_num)
+			return -EBUSY;
+		/* manual split the send packet */
+		new_skb = skb_copy(skb, GFP_ATOMIC);
+		if (!new_skb)
+			return -ENOMEM;
+		dev_kfree_skb_any(skb);
+		*out_skb = new_skb;
+	}
 
 	if (unlikely(ring_space(ring) < buf_num))
 		return -EBUSY;
@@ -1425,9 +1452,7 @@ static void hns3_nic_get_stats64(struct net_device *netdev,
 			start = u64_stats_fetch_begin_irq(&ring->syncp);
 			tx_bytes += ring->stats.tx_bytes;
 			tx_pkts += ring->stats.tx_pkts;
-			tx_drop += ring->stats.tx_busy;
 			tx_drop += ring->stats.sw_err_cnt;
-			tx_errors += ring->stats.tx_busy;
 			tx_errors += ring->stats.sw_err_cnt;
 		} while (u64_stats_fetch_retry_irq(&ring->syncp, start));
 
@@ -1438,7 +1463,6 @@ static void hns3_nic_get_stats64(struct net_device *netdev,
 			rx_bytes += ring->stats.rx_bytes;
 			rx_pkts += ring->stats.rx_pkts;
 			rx_drop += ring->stats.non_vld_descs;
-			rx_drop += ring->stats.err_pkt_len;
 			rx_drop += ring->stats.l2_err;
 			rx_errors += ring->stats.non_vld_descs;
 			rx_errors += ring->stats.l2_err;
@@ -1485,8 +1509,6 @@ static int hns3_setup_tc(struct net_device *netdev, void *type_data)
 	u8 tc = mqprio_qopt->qopt.num_tc;
 	u16 mode = mqprio_qopt->mode;
 	u8 hw = mqprio_qopt->qopt.hw;
-	bool if_running;
-	int ret;
 
 	if (!((hw == TC_MQPRIO_HW_OFFLOAD_TCS &&
 	       mode == TC_MQPRIO_MODE_CHANNEL) || (!hw && tc == 0)))
@@ -1498,24 +1520,8 @@ static int hns3_setup_tc(struct net_device *netdev, void *type_data)
 	if (!netdev)
 		return -EINVAL;
 
-	if_running = netif_running(netdev);
-	if (if_running) {
-		hns3_nic_net_stop(netdev);
-		msleep(100);
-	}
-
-	ret = (kinfo->dcb_ops && kinfo->dcb_ops->setup_tc) ?
+	return (kinfo->dcb_ops && kinfo->dcb_ops->setup_tc) ?
 		kinfo->dcb_ops->setup_tc(h, tc, prio_tc) : -EOPNOTSUPP;
-	if (ret)
-		goto out;
-
-	ret = hns3_nic_set_real_num_queue(netdev);
-
-out:
-	if (if_running)
-		hns3_nic_net_open(netdev);
-
-	return ret;
 }
 
 static int hns3_nic_setup_tc(struct net_device *dev, enum tc_setup_type type,
@@ -1784,6 +1790,7 @@ static void hns3_remove(struct pci_dev *pdev)
 		hns3_disable_sriov(pdev);
 
 	hnae3_unregister_ae_dev(ae_dev);
+	pci_set_drvdata(pdev, NULL);
 }
 
 /**
@@ -3608,6 +3615,7 @@ static int hns3_client_init(struct hnae3_handle *handle)
 	priv->netdev = netdev;
 	priv->ae_handle = handle;
 	priv->tx_timeout_count = 0;
+	set_bit(HNS3_NIC_STATE_DOWN, &priv->state);
 
 	handle->kinfo.netdev = netdev;
 	handle->priv = (void *)priv;
@@ -3752,7 +3760,6 @@ static int hns3_client_setup_tc(struct hnae3_handle *handle, u8 tc)
 {
 	struct hnae3_knic_private_info *kinfo = &handle->kinfo;
 	struct net_device *ndev = kinfo->netdev;
-	int ret;
 
 	if (tc > HNAE3_MAX_TC)
 		return -EINVAL;
@@ -3760,14 +3767,7 @@ static int hns3_client_setup_tc(struct hnae3_handle *handle, u8 tc)
 	if (!ndev)
 		return -ENODEV;
 
-	ret = (kinfo->dcb_ops && kinfo->dcb_ops->map_update) ?
-		kinfo->dcb_ops->map_update(handle) : -EOPNOTSUPP;
-	if (ret)
-		return ret;
-
-	ret = hns3_nic_set_real_num_queue(ndev);
-
-	return ret;
+	return hns3_nic_set_real_num_queue(ndev);
 }
 
 static int hns3_recover_hw_addr(struct net_device *ndev)

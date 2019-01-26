@@ -969,33 +969,29 @@ static int hclgevf_put_vector(struct hnae3_handle *handle, int vector)
 }
 
 static int hclgevf_cmd_set_promisc_mode(struct hclgevf_dev *hdev,
-					bool en_uc_pmc, bool en_mc_pmc)
+					bool en_bc_pmc)
 {
 	struct hclge_mbx_vf_to_pf_cmd *req;
 	struct hclgevf_desc desc;
-	int status;
+	int ret;
 
 	req = (struct hclge_mbx_vf_to_pf_cmd *)desc.data;
 
 	hclgevf_cmd_setup_basic_desc(&desc, HCLGEVF_OPC_MBX_VF_TO_PF, false);
 	req->msg[0] = HCLGE_MBX_SET_PROMISC_MODE;
-	req->msg[1] = en_uc_pmc ? 1 : 0;
-	req->msg[2] = en_mc_pmc ? 1 : 0;
+	req->msg[1] = en_bc_pmc ? 1 : 0;
 
-	status = hclgevf_cmd_send(&hdev->hw, &desc, 1);
-	if (status)
+	ret = hclgevf_cmd_send(&hdev->hw, &desc, 1);
+	if (ret)
 		dev_err(&hdev->pdev->dev,
-			"Set promisc mode fail, status is %d.\n", status);
+			"Set promisc mode fail, status is %d.\n", ret);
 
-	return status;
+	return ret;
 }
 
-static int hclgevf_set_promisc_mode(struct hnae3_handle *handle,
-				    bool en_uc_pmc, bool en_mc_pmc)
+static int hclgevf_set_promisc_mode(struct hclgevf_dev *hdev, bool en_bc_pmc)
 {
-	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
-
-	return hclgevf_cmd_set_promisc_mode(hdev, en_uc_pmc, en_mc_pmc);
+	return hclgevf_cmd_set_promisc_mode(hdev, en_bc_pmc);
 }
 
 static int hclgevf_tqp_enable(struct hclgevf_dev *hdev, int tqp_id,
@@ -2382,6 +2378,15 @@ static int hclgevf_init_hdev(struct hclgevf_dev *hdev)
 	if (ret)
 		goto err_config;
 
+	/* vf is not allowed to enable unicast/multicast promisc mode.
+	 * For revision 0x20, default to disable broadcast promisc mode,
+	 * firmware makes sure broadcast packets can be accepted.
+	 * For revision 0x21, default to enable broadcast promisc mode.
+	 */
+	ret = hclgevf_set_promisc_mode(hdev, true);
+	if (ret)
+		goto err_config;
+
 	/* Initialize RSS for this VF */
 	ret = hclgevf_rss_init_hw(hdev);
 	if (ret) {
@@ -2646,7 +2651,6 @@ static const struct hnae3_ae_ops hclgevf_ops = {
 	.get_vector = hclgevf_get_vector,
 	.put_vector = hclgevf_put_vector,
 	.reset_queue = hclgevf_reset_tqp,
-	.set_promisc_mode = hclgevf_set_promisc_mode,
 	.get_mac_addr = hclgevf_get_mac_addr,
 	.set_mac_addr = hclgevf_set_mac_addr,
 	.add_uc_addr = hclgevf_add_uc_addr,
