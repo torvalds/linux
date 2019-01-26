@@ -1029,31 +1029,50 @@ static int da9062_regulator_probe(struct platform_device *pdev)
 		regl->desc.type = REGULATOR_VOLTAGE;
 		regl->desc.owner = THIS_MODULE;
 
-		if (regl->info->mode.reg)
+		if (regl->info->mode.reg) {
 			regl->mode = devm_regmap_field_alloc(
 					&pdev->dev,
 					chip->regmap,
 					regl->info->mode);
-		if (regl->info->suspend.reg)
+			if (IS_ERR(regl->mode))
+				return PTR_ERR(regl->mode);
+		}
+
+		if (regl->info->suspend.reg) {
 			regl->suspend = devm_regmap_field_alloc(
 					&pdev->dev,
 					chip->regmap,
 					regl->info->suspend);
-		if (regl->info->sleep.reg)
+			if (IS_ERR(regl->suspend))
+				return PTR_ERR(regl->suspend);
+		}
+
+		if (regl->info->sleep.reg) {
 			regl->sleep = devm_regmap_field_alloc(
 					&pdev->dev,
 					chip->regmap,
 					regl->info->sleep);
-		if (regl->info->suspend_sleep.reg)
+			if (IS_ERR(regl->sleep))
+				return PTR_ERR(regl->sleep);
+		}
+
+		if (regl->info->suspend_sleep.reg) {
 			regl->suspend_sleep = devm_regmap_field_alloc(
 					&pdev->dev,
 					chip->regmap,
 					regl->info->suspend_sleep);
-		if (regl->info->ilimit.reg)
+			if (IS_ERR(regl->suspend_sleep))
+				return PTR_ERR(regl->suspend_sleep);
+		}
+
+		if (regl->info->ilimit.reg) {
 			regl->ilimit = devm_regmap_field_alloc(
 					&pdev->dev,
 					chip->regmap,
 					regl->info->ilimit);
+			if (IS_ERR(regl->ilimit))
+				return PTR_ERR(regl->ilimit);
+		}
 
 		/* Register regulator */
 		memset(&config, 0, sizeof(config));
