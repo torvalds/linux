@@ -370,12 +370,25 @@ static int hclge_setup_tc(struct hnae3_handle *h, u8 tc, u8 *prio_tc)
 	if (ret)
 		return -EINVAL;
 
+	ret = hclge_notify_client(hdev, HNAE3_DOWN_CLIENT);
+	if (ret)
+		return ret;
+
+	ret = hclge_notify_client(hdev, HNAE3_UNINIT_CLIENT);
+	if (ret)
+		return ret;
+
 	hclge_tm_schd_info_update(hdev, tc);
 	hclge_tm_prio_tc_info_update(hdev, prio_tc);
 
 	ret = hclge_tm_init_hw(hdev, false);
-	if (ret)
+	if (ret) {
+		if (hclge_notify_client(hdev, HNAE3_INIT_CLIENT))
+			return ret;
+
+		hclge_notify_client(hdev, HNAE3_UP_CLIENT);
 		return ret;
+	}
 
 	hdev->flag &= ~HCLGE_FLAG_DCB_ENABLE;
 
@@ -384,7 +397,11 @@ static int hclge_setup_tc(struct hnae3_handle *h, u8 tc, u8 *prio_tc)
 	else
 		hdev->flag &= ~HCLGE_FLAG_MQPRIO_ENABLE;
 
-	return 0;
+	ret = hclge_notify_client(hdev, HNAE3_INIT_CLIENT);
+	if (ret)
+		return ret;
+
+	return hclge_notify_client(hdev, HNAE3_UP_CLIENT);
 }
 
 static const struct hnae3_dcb_ops hns3_dcb_ops = {
