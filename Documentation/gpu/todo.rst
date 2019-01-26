@@ -10,25 +10,6 @@ graphics subsystem useful as newbie projects. Or for slow rainy days.
 Subsystem-wide refactorings
 ===========================
 
-De-midlayer drivers
--------------------
-
-With the recent ``drm_bus`` cleanup patches for 3.17 it is no longer required
-to have a ``drm_bus`` structure set up. Drivers can directly set up the
-``drm_device`` structure instead of relying on bus methods in ``drm_usb.c``
-and ``drm_pci.c``. The goal is to get rid of the driver's ``->load`` /
-``->unload`` callbacks and open-code the load/unload sequence properly, using
-the new two-stage ``drm_device`` setup/teardown.
-
-Once all existing drivers are converted we can also remove those bus support
-files for USB and platform devices.
-
-All you need is a GPU for a non-converted driver (currently almost all of
-them, but also all the virtual ones used by KVM, so everyone qualifies).
-
-Contact: Daniel Vetter, Thierry Reding, respective driver maintainers
-
-
 Remove custom dumb_map_offset implementations
 ---------------------------------------------
 
