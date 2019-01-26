@@ -477,7 +477,6 @@ struct hnae3_dcb_ops {
 	u8   (*getdcbx)(struct hnae3_handle *);
 	u8   (*setdcbx)(struct hnae3_handle *, u8);
 
-	int (*map_update)(struct hnae3_handle *);
 	int (*setup_tc)(struct hnae3_handle *, u8, u8 *);
 };
 
