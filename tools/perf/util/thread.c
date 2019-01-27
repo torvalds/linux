@@ -12,6 +12,7 @@
 #include "debug.h"
 #include "namespaces.h"
 #include "comm.h"
+#include "symbol.h"
 #include "unwind.h"
 
 #include <api/fs/fs.h>

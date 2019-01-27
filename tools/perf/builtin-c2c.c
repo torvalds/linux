@@ -33,6 +33,7 @@
 #include "ui/browsers/hists.h"
 #include "thread.h"
 #include "mem2node.h"
+#include "symbol.h"
 
 struct c2c_hists {
 	struct hists		hists;

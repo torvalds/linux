@@ -22,6 +22,7 @@
 #include "thread_map.h"
 #include "sane_ctype.h"
 #include "map.h"
+#include "symbol.h"
 #include "symbol/kallsyms.h"
 #include "asm/bug.h"
 #include "stat.h"

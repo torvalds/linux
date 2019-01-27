@@ -12,6 +12,7 @@
 #include "../../util/evlist.h"
 #include "../../util/hist.h"
 #include "../../util/map.h"
+#include "../../util/symbol.h"
 #include "../../util/pstack.h"
 #include "../../util/sort.h"
 #include "../../util/util.h"
