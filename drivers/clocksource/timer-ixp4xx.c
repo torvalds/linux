@@ -16,6 +16,8 @@
 #include <linux/slab.h>
 #include <linux/bitops.h>
 #include <linux/delay.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 /* Goes away with OF conversion */
 #include <linux/platform_data/timer-ixp4xx.h>
 
@@ -247,3 +249,36 @@ void __init ixp4xx_timer_setup(resource_size_t timerbase,
 	ixp4xx_timer_register(base, timer_irq, timer_freq);
 }
 EXPORT_SYMBOL_GPL(ixp4xx_timer_setup);
+
+#ifdef CONFIG_OF
+static __init int ixp4xx_of_timer_init(struct device_node *np)
+{
+	void __iomem *base;
+	int irq;
+	int ret;
+
+	base = of_iomap(np, 0);
+	if (!base) {
+		pr_crit("IXP4xx: can't remap timer\n");
+		return -ENODEV;
+	}
+
+	irq = irq_of_parse_and_map(np, 0);
+	if (irq <= 0) {
+		pr_err("Can't parse IRQ\n");
+		ret = -EINVAL;
+		goto out_unmap;
+	}
+
+	/* TODO: get some fixed clocks into the device tree */
+	ret = ixp4xx_timer_register(base, irq, 66666000);
+	if (ret)
+		goto out_unmap;
+	return 0;
+
+out_unmap:
+	iounmap(base);
+	return ret;
+}
+TIMER_OF_DECLARE(ixp4xx, "intel,ixp4xx-timer", ixp4xx_of_timer_init);
+#endif
