@@ -7,6 +7,7 @@
 #include <inttypes.h>
 
 #include "map.h"
+#include "map_groups.h"
 #include "symbol.h"
 #include "demangle-java.h"
 #include "demangle-rust.h"

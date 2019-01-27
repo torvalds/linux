@@ -5,6 +5,7 @@
 #include "../../util/util.h"
 #include "../../util/hist.h"
 #include "../../util/map.h"
+#include "../../util/map_groups.h"
 #include "../../util/sort.h"
 #include "../../util/evsel.h"
 #include "../../util/srcline.h"
