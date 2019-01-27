@@ -363,28 +363,28 @@ static int rk808_set_suspend_disable(struct regulator_dev *rdev)
 				  rdev->desc->enable_mask);
 }
 
-static struct regulator_ops rk805_reg_ops = {
-		.list_voltage           = regulator_list_voltage_linear,
-		.map_voltage            = regulator_map_voltage_linear,
-		.get_voltage_sel        = regulator_get_voltage_sel_regmap,
-		.set_voltage_sel        = regulator_set_voltage_sel_regmap,
-		.enable                 = regulator_enable_regmap,
-		.disable                = regulator_disable_regmap,
-		.is_enabled             = regulator_is_enabled_regmap,
-		.set_suspend_voltage    = rk808_set_suspend_voltage,
-		.set_suspend_enable     = rk805_set_suspend_enable,
-		.set_suspend_disable    = rk805_set_suspend_disable,
+static const struct regulator_ops rk805_reg_ops = {
+	.list_voltage           = regulator_list_voltage_linear,
+	.map_voltage            = regulator_map_voltage_linear,
+	.get_voltage_sel        = regulator_get_voltage_sel_regmap,
+	.set_voltage_sel        = regulator_set_voltage_sel_regmap,
+	.enable                 = regulator_enable_regmap,
+	.disable                = regulator_disable_regmap,
+	.is_enabled             = regulator_is_enabled_regmap,
+	.set_suspend_voltage    = rk808_set_suspend_voltage,
+	.set_suspend_enable     = rk805_set_suspend_enable,
+	.set_suspend_disable    = rk805_set_suspend_disable,
 };
 
-static struct regulator_ops rk805_switch_ops = {
-		.enable                 = regulator_enable_regmap,
-		.disable                = regulator_disable_regmap,
-		.is_enabled             = regulator_is_enabled_regmap,
-		.set_suspend_enable     = rk805_set_suspend_enable,
-		.set_suspend_disable    = rk805_set_suspend_disable,
+static const struct regulator_ops rk805_switch_ops = {
+	.enable                 = regulator_enable_regmap,
+	.disable                = regulator_disable_regmap,
+	.is_enabled             = regulator_is_enabled_regmap,
+	.set_suspend_enable     = rk805_set_suspend_enable,
+	.set_suspend_disable    = rk805_set_suspend_disable,
 };
 
-static struct regulator_ops rk808_buck1_2_ops = {
+static const struct regulator_ops rk808_buck1_2_ops = {
 	.list_voltage		= regulator_list_voltage_linear,
 	.map_voltage		= regulator_map_voltage_linear,
 	.get_voltage_sel	= rk808_buck1_2_get_voltage_sel_regmap,
@@ -399,7 +399,7 @@ static struct regulator_ops rk808_buck1_2_ops = {
 	.set_suspend_disable	= rk808_set_suspend_disable,
 };
 
-static struct regulator_ops rk808_reg_ops = {
+static const struct regulator_ops rk808_reg_ops = {
 	.list_voltage		= regulator_list_voltage_linear,
 	.map_voltage		= regulator_map_voltage_linear,
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
@@ -412,7 +412,7 @@ static struct regulator_ops rk808_reg_ops = {
 	.set_suspend_disable	= rk808_set_suspend_disable,
 };
 
-static struct regulator_ops rk808_reg_ops_ranges = {
+static const struct regulator_ops rk808_reg_ops_ranges = {
 	.list_voltage		= regulator_list_voltage_linear_range,
 	.map_voltage		= regulator_map_voltage_linear_range,
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
@@ -425,7 +425,7 @@ static struct regulator_ops rk808_reg_ops_ranges = {
 	.set_suspend_disable	= rk808_set_suspend_disable,
 };
 
-static struct regulator_ops rk808_switch_ops = {
+static const struct regulator_ops rk808_switch_ops = {
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
 	.is_enabled		= regulator_is_enabled_regmap,
