@@ -497,7 +497,6 @@ CPU_LE(	ext		v7.16b, v7.16b, v7.16b, #8	)
 
 	cmp		arg3, #16
 	b.eq		.L_128_done_\@		// exactly 16 left
-	b.lt		.L_less_than_16_left_\@
 
 	ldr_l		q10, rk1, x8		// rk1 and rk2 in xmm10
 	__pmull_pre_\p	v10
@@ -509,16 +508,6 @@ CPU_LE(	ext		v7.16b, v7.16b, v7.16b, #8	)
 
 	add		arg3, arg3, #16
 	b		.L_get_last_two_regs_\@
-
-.L_less_than_16_left_\@:
-	// shl r9, 4
-	adr_l		x0, tbl_shf_table + 16
-	sub		x0, x0, arg3
-	ld1		{v0.16b}, [x0]
-	movi		v9.16b, #0x80
-	eor		v0.16b, v0.16b, v9.16b
-	tbl		v7.16b, {v7.16b}, v0.16b
-	b		.L_128_done_\@
 	.endm
 
 ENTRY(crc_t10dif_pmull_p8)
