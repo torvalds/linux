@@ -2189,17 +2189,17 @@ void kvm_sigset_deactivate(struct kvm_vcpu *vcpu)
 
 static void grow_halt_poll_ns(struct kvm_vcpu *vcpu)
 {
-	unsigned int old, val, grow;
+	unsigned int old, val, grow, grow_start;
 
 	old = val = vcpu->halt_poll_ns;
+	grow_start = READ_ONCE(halt_poll_ns_grow_start);
 	grow = READ_ONCE(halt_poll_ns_grow);
 	if (!grow)
 		goto out;
 
-	if (val == 0)
-		val = halt_poll_ns_grow_start;
-	else
-		val *= grow;
+	val *= grow;
+	if (val < grow_start)
+		val = grow_start;
 
 	if (val > halt_poll_ns)
 		val = halt_poll_ns;

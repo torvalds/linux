@@ -3634,10 +3634,9 @@ static void grow_halt_poll_ns(struct kvmppc_vcore *vc)
 	if (!halt_poll_ns_grow)
 		return;
 
-	if (vc->halt_poll_ns == 0)
+	vc->halt_poll_ns *= halt_poll_ns_grow;
+	if (vc->halt_poll_ns < halt_poll_ns_grow_start)
 		vc->halt_poll_ns = halt_poll_ns_grow_start;
-	else
-		vc->halt_poll_ns *= halt_poll_ns_grow;
 }
 
 static void shrink_halt_poll_ns(struct kvmppc_vcore *vc)
