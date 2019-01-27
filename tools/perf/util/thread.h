@@ -7,8 +7,8 @@
 #include <linux/list.h>
 #include <unistd.h>
 #include <sys/types.h>
+#include "srccode.h"
 #include "symbol.h"
-#include "map.h"
 #include <strlist.h>
 #include <intlist.h>
 #include "rwsem.h"
