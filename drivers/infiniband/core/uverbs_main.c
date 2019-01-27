@@ -967,11 +967,19 @@ void uverbs_user_mmap_disassociate(struct ib_uverbs_file *ufile)
 
 		/* Get an arbitrary mm pointer that hasn't been cleaned yet */
 		mutex_lock(&ufile->umap_lock);
-		if (!list_empty(&ufile->umaps)) {
-			mm = list_first_entry(&ufile->umaps,
-					      struct rdma_umap_priv, list)
-				     ->vma->vm_mm;
-			mmget(mm);
+		while (!list_empty(&ufile->umaps)) {
+			int ret;
+
+			priv = list_first_entry(&ufile->umaps,
+						struct rdma_umap_priv, list);
+			mm = priv->vma->vm_mm;
+			ret = mmget_not_zero(mm);
+			if (!ret) {
+				list_del_init(&priv->list);
+				mm = NULL;
+				continue;
+			}
+			break;
 		}
 		mutex_unlock(&ufile->umap_lock);
 		if (!mm)
