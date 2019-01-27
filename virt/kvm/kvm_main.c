@@ -81,6 +81,11 @@ unsigned int halt_poll_ns_grow = 2;
 module_param(halt_poll_ns_grow, uint, 0644);
 EXPORT_SYMBOL_GPL(halt_poll_ns_grow);
 
+/* The start value to grow halt_poll_ns from */
+unsigned int halt_poll_ns_grow_start = 10000; /* 10us */
+module_param(halt_poll_ns_grow_start, uint, 0644);
+EXPORT_SYMBOL_GPL(halt_poll_ns_grow_start);
+
 /* Default resets per-vcpu halt_poll_ns . */
 unsigned int halt_poll_ns_shrink;
 module_param(halt_poll_ns_shrink, uint, 0644);
@@ -2191,9 +2196,8 @@ static void grow_halt_poll_ns(struct kvm_vcpu *vcpu)
 	if (!grow)
 		goto out;
 
-	/* 10us base */
 	if (val == 0)
-		val = 10000;
+		val = halt_poll_ns_grow_start;
 	else
 		val *= grow;
 
