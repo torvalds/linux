@@ -20,6 +20,7 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <mach/npe.h>
 
 #define DEBUG_MSG			0
@@ -687,6 +688,10 @@ static int __init npe_init_module(void)
 {
 
 	int i, found = 0;
+
+	/* This driver does not work with device tree */
+	if (of_have_populated_dt())
+		return -ENODEV;
 
 	for (i = 0; i < NPE_COUNT; i++) {
 		struct npe *npe = &npe_tab[i];

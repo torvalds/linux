@@ -6,6 +6,9 @@
 obj-pci-y	:=
 obj-pci-n	:=
 
+# Device tree platform
+obj-pci-$(CONFIG_MACH_IXP4XX_OF)	+= ixp4xx-of.o
+
 obj-pci-$(CONFIG_ARCH_IXDP4XX)		+= ixdp425-pci.o
 obj-pci-$(CONFIG_MACH_AVILA)		+= avila-pci.o
 obj-pci-$(CONFIG_MACH_IXDPG425)		+= ixdpg425-pci.o

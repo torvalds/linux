@@ -12,6 +12,7 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <mach/qmgr.h>
 
 #include "irqs.h"
@@ -288,6 +289,10 @@ static int qmgr_init(void)
 {
 	int i, err;
 	irq_handler_t handler1, handler2;
+
+	/* This driver does not work with device tree */
+	if (of_have_populated_dt())
+		return -ENODEV;
 
 	mem_res = request_mem_region(IXP4XX_QMGR_BASE_PHYS,
 				     IXP4XX_QMGR_REGION_SIZE,
