@@ -327,19 +327,6 @@ static int mlx5_health_try_recover(struct mlx5_core_dev *dev)
 	return 0;
 }
 
-static void health_recover_work(struct work_struct *work)
-{
-	struct mlx5_core_health *health;
-	struct mlx5_core_dev *dev;
-	struct mlx5_priv *priv;
-
-	health = container_of(work, struct mlx5_core_health, work);
-	priv = container_of(health, struct mlx5_priv, health);
-	dev = container_of(priv, struct mlx5_core_dev, priv);
-
-	mlx5_health_try_recover(dev);
-}
-
 static const char *hsynd_str(u8 synd)
 {
 	switch (synd) {
@@ -614,6 +601,29 @@ free_data:
 	return err;
 }
 
+static void mlx5_fw_fatal_reporter_err_work(struct work_struct *work)
+{
+	struct mlx5_fw_reporter_ctx fw_reporter_ctx;
+	struct mlx5_core_health *health;
+	struct mlx5_core_dev *dev;
+	struct mlx5_priv *priv;
+
+	health = container_of(work, struct mlx5_core_health, fatal_report_work);
+	priv = container_of(health, struct mlx5_priv, health);
+	dev = container_of(priv, struct mlx5_core_dev, priv);
+
+	mlx5_enter_error_state(dev, false);
+	if (IS_ERR_OR_NULL(health->fw_fatal_reporter)) {
+		if (mlx5_health_try_recover(dev))
+			mlx5_core_err(dev, "health recovery failed\n");
+		return;
+	}
+	fw_reporter_ctx.err_synd = health->synd;
+	fw_reporter_ctx.miss_counter = health->miss_counter;
+	devlink_health_report(health->fw_fatal_reporter,
+			      "FW fatal error reported", &fw_reporter_ctx);
+}
+
 static const struct devlink_health_reporter_ops mlx5_fw_fatal_reporter_ops = {
 		.name = "fw_fatal",
 		.recover = mlx5_fw_fatal_reporter_recover,
@@ -672,7 +682,7 @@ void mlx5_trigger_health_work(struct mlx5_core_dev *dev)
 
 	spin_lock_irqsave(&health->wq_lock, flags);
 	if (!test_bit(MLX5_DROP_NEW_HEALTH_WORK, &health->flags))
-		queue_work(health->wq, &health->work);
+		queue_work(health->wq, &health->fatal_report_work);
 	else
 		mlx5_core_err(dev, "new health works are not permitted at this stage\n");
 	spin_unlock_irqrestore(&health->wq_lock, flags);
@@ -758,7 +768,7 @@ void mlx5_drain_health_wq(struct mlx5_core_dev *dev)
 	set_bit(MLX5_DROP_NEW_HEALTH_WORK, &health->flags);
 	spin_unlock_irqrestore(&health->wq_lock, flags);
 	cancel_work_sync(&health->report_work);
-	cancel_work_sync(&health->work);
+	cancel_work_sync(&health->fatal_report_work);
 }
 
 void mlx5_health_flush(struct mlx5_core_dev *dev)
@@ -795,7 +805,7 @@ int mlx5_health_init(struct mlx5_core_dev *dev)
 	if (!health->wq)
 		goto out_err;
 	spin_lock_init(&health->wq_lock);
-	INIT_WORK(&health->work, health_recover_work);
+	INIT_WORK(&health->fatal_report_work, mlx5_fw_fatal_reporter_err_work);
 	INIT_WORK(&health->report_work, mlx5_fw_reporter_err_work);
 
 	return 0;

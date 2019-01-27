@@ -1363,11 +1363,8 @@ static pci_ers_result_t mlx5_pci_err_detected(struct pci_dev *pdev,
 	mlx5_enter_error_state(dev, false);
 	mlx5_error_sw_reset(dev);
 	mlx5_unload_one(dev, false);
-	/* In case of kernel call drain the health wq */
-	if (state) {
-		mlx5_drain_health_wq(dev);
-		mlx5_pci_disable_device(dev);
-	}
+	mlx5_drain_health_wq(dev);
+	mlx5_pci_disable_device(dev);
 
 	return state == pci_channel_io_perm_failure ?
 		PCI_ERS_RESULT_DISCONNECT : PCI_ERS_RESULT_NEED_RESET;
@@ -1535,7 +1532,8 @@ MODULE_DEVICE_TABLE(pci, mlx5_core_pci_table);
 
 void mlx5_disable_device(struct mlx5_core_dev *dev)
 {
-	mlx5_pci_err_detected(dev->pdev, 0);
+	mlx5_error_sw_reset(dev);
+	mlx5_unload_one(dev, false);
 }
 
 void mlx5_recover_device(struct mlx5_core_dev *dev)
