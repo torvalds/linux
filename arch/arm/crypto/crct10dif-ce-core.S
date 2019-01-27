@@ -342,7 +342,6 @@ CPU_LE(	vrev64.8	q7, q7		)
 
 	cmp		arg3, #16
 	beq		_128_done		// exactly 16 left
-	blt		_less_than_16_left
 
 	// now if there is, load the constants
 	vldr		d20, rk1
@@ -353,18 +352,6 @@ CPU_LE(	vrev64.8	q7, q7		)
 	addlt		arg3, arg3, #16
 	blt		_get_last_two_regs
 	b		_16B_reduction_loop
-
-_less_than_16_left:
-	// shl r9, 4
-	adr		ip, tbl_shf_table + 16
-	sub		ip, ip, arg3
-	vld1.8		{q0}, [ip]
-	vmov.i8		q9, #0x80
-	veor.8		q0, q0, q9
-	vtbl.8		d18, {d14-d15}, d0
-	vtbl.8		d15, {d14-d15}, d1
-	vmov		d14, d18
-	b		_128_done
 ENDPROC(crc_t10dif_pmull)
 
 // precomputed constants
