@@ -26,6 +26,7 @@
 #include "map.h"
 #include "callchain.h"
 #include "branch.h"
+#include "symbol.h"
 
 #define CALLCHAIN_PARAM_DEFAULT			\
 	.mode		= CHAIN_GRAPH_ABS,	\

@@ -8,12 +8,13 @@
 #include "evsel.h"
 #include "header.h"
 #include "color.h"
-#include "symbol.h"
 #include "ui/progress.h"
 
 struct hist_entry;
 struct hist_entry_ops;
 struct addr_location;
+struct mem_info;
+struct branch_info;
 struct symbol;
 
 enum hist_filter {
