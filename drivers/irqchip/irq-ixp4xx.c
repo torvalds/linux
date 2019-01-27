@@ -15,6 +15,9 @@
 #include <linux/irqchip.h>
 #include <linux/irqchip/irq-ixp4xx.h>
 #include <linux/irqdomain.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/platform_device.h>
 #include <linux/cpu.h>
 
@@ -360,3 +363,41 @@ void __init ixp4xx_irq_init(resource_size_t irqbase,
 	}
 }
 EXPORT_SYMBOL_GPL(ixp4xx_irq_init);
+
+#ifdef CONFIG_OF
+int __init ixp4xx_of_init_irq(struct device_node *np,
+			      struct device_node *parent)
+{
+	struct ixp4xx_irq *ixi = &ixirq;
+	void __iomem *base;
+	struct fwnode_handle *fwnode;
+	bool is_356;
+	int ret;
+
+	base = of_iomap(np, 0);
+	if (!base) {
+		pr_crit("IXP4XX: could not ioremap interrupt controller\n");
+		return -ENODEV;
+	}
+	fwnode = of_node_to_fwnode(np);
+
+	/* These chip variants have 64 interrupts */
+	is_356 = of_device_is_compatible(np, "intel,ixp43x-interrupt") ||
+		of_device_is_compatible(np, "intel,ixp45x-interrupt") ||
+		of_device_is_compatible(np, "intel,ixp46x-interrupt");
+
+	ret = ixp4xx_irq_setup(ixi, base, fwnode, is_356);
+	if (ret)
+		pr_crit("IXP4XX: failed to set up irqchip\n");
+
+	return ret;
+}
+IRQCHIP_DECLARE(ixp42x, "intel,ixp42x-interrupt",
+		ixp4xx_of_init_irq);
+IRQCHIP_DECLARE(ixp43x, "intel,ixp43x-interrupt",
+		ixp4xx_of_init_irq);
+IRQCHIP_DECLARE(ixp45x, "intel,ixp45x-interrupt",
+		ixp4xx_of_init_irq);
+IRQCHIP_DECLARE(ixp46x, "intel,ixp46x-interrupt",
+		ixp4xx_of_init_irq);
+#endif
