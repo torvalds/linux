@@ -5,7 +5,7 @@
 #include <linux/list.h>
 #include <linux/rbtree.h>
 #include "event.h"
-#include "symbol.h"
+#include "map_symbol.h"
 #include "branch.h"
 
 struct map;

@@ -8,6 +8,7 @@
 #include "evsel.h"
 #include "header.h"
 #include "color.h"
+#include "symbol.h"
 #include "ui/progress.h"
 
 struct hist_entry;
