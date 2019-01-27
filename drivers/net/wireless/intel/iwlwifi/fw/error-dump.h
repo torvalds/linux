@@ -308,6 +308,9 @@ struct iwl_fw_ini_error_dump {
 	struct iwl_fw_ini_error_dump_range ranges[];
 } __packed;
 
+/* This bit is used to differentiate between lmac and umac rxf */
+#define IWL_RXF_UMAC_BIT BIT(31)
+
 /**
  * struct iwl_fw_ini_fifo_error_dump_range - ini fifo range dump
  * @fifo_num: the fifo num. In case of rxf and umac rxf, set BIT(31) to
