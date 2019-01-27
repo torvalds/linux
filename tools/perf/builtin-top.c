@@ -30,6 +30,7 @@
 #include "util/evsel.h"
 #include "util/event.h"
 #include "util/machine.h"
+#include "util/map.h"
 #include "util/session.h"
 #include "util/symbol.h"
 #include "util/thread.h"

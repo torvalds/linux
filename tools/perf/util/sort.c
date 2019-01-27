@@ -6,6 +6,7 @@
 #include "sort.h"
 #include "hist.h"
 #include "comm.h"
+#include "map.h"
 #include "symbol.h"
 #include "thread.h"
 #include "evsel.h"

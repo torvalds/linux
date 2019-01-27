@@ -41,6 +41,7 @@
 #include "debug.h"
 #include "cache.h"
 #include "color.h"
+#include "map.h"
 #include "symbol.h"
 #include "thread.h"
 #include <api/fs/fs.h>

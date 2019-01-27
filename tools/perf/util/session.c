@@ -13,6 +13,7 @@
 #include "evlist.h"
 #include "evsel.h"
 #include "memswap.h"
+#include "map.h"
 #include "session.h"
 #include "tool.h"
 #include "sort.h"

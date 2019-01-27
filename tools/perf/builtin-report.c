@@ -16,6 +16,7 @@
 #include <linux/list.h>
 #include <linux/rbtree.h>
 #include <linux/err.h>
+#include "util/map.h"
 #include "util/symbol.h"
 #include "util/callchain.h"
 #include "util/values.h"

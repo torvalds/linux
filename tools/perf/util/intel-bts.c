@@ -27,6 +27,7 @@
 #include "evsel.h"
 #include "evlist.h"
 #include "machine.h"
+#include "map.h"
 #include "session.h"
 #include "util.h"
 #include "thread.h"

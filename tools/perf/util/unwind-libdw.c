@@ -8,6 +8,7 @@
 #include "unwind.h"
 #include "unwind-libdw.h"
 #include "machine.h"
+#include "map.h"
 #include "thread.h"
 #include <linux/types.h>
 #include "event.h"

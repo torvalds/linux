@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <inttypes.h>
 
+#include "map.h"
 #include "symbol.h"
 #include "demangle-java.h"
 #include "demangle-rust.h"

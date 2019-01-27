@@ -11,6 +11,7 @@
 #include "tests.h"
 #include "machine.h"
 #include "thread_map.h"
+#include "map.h"
 #include "symbol.h"
 #include "thread.h"
 #include "util.h"

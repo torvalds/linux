@@ -20,6 +20,7 @@
 #include "thread.h"
 #include "comm.h"
 #include "symbol.h"
+#include "map.h"
 #include "event.h"
 #include "util.h"
 #include "thread-stack.h"

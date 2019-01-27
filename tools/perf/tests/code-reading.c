@@ -15,6 +15,7 @@
 #include "thread_map.h"
 #include "cpumap.h"
 #include "machine.h"
+#include "map.h"
 #include "event.h"
 #include "thread.h"
 

@@ -17,6 +17,7 @@
 #include "util.h"
 #include "debug.h"
 #include "machine.h"
+#include "map.h"
 #include "symbol.h"
 #include "strlist.h"
 #include "intlist.h"

@@ -13,6 +13,7 @@
 #include "util/data.h"
 #include "util/mem-events.h"
 #include "util/debug.h"
+#include "util/map.h"
 #include "util/symbol.h"
 
 #define MEM_OPERATION_LOAD	0x1

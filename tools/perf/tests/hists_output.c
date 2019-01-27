@@ -2,6 +2,7 @@
 #include "perf.h"
 #include "util/debug.h"
 #include "util/event.h"
+#include "util/map.h"
 #include "util/symbol.h"
 #include "util/sort.h"
 #include "util/evsel.h"
