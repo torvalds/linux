@@ -268,20 +268,11 @@ static int erspan_rcv(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 	int len;
 
 	itn = net_generic(net, erspan_net_id);
-	len = gre_hdr_len + sizeof(*ershdr);
-
-	/* Check based hdr len */
-	if (unlikely(!pskb_may_pull(skb, len)))
-		return PACKET_REJECT;
 
 	iph = ip_hdr(skb);
 	ershdr = (struct erspan_base_hdr *)(skb->data + gre_hdr_len);
 	ver = ershdr->ver;
 
-	/* The original GRE header does not have key field,
-	 * Use ERSPAN 10-bit session ID as key.
-	 */
-	tpi->key = cpu_to_be32(get_session_id(ershdr));
 	tunnel = ip_tunnel_lookup(itn, skb->dev->ifindex,
 				  tpi->flags | TUNNEL_KEY,
 				  iph->saddr, iph->daddr, tpi->key);
