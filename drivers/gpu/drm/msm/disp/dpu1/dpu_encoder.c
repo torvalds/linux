@@ -520,8 +520,8 @@ static void _dpu_encoder_adjust_mode(struct drm_connector *connector,
 
 	list_for_each_entry(cur_mode, &connector->modes, head) {
 		if (cur_mode->vdisplay == adj_mode->vdisplay &&
-			cur_mode->hdisplay == adj_mode->hdisplay &&
-			cur_mode->vrefresh == adj_mode->vrefresh) {
+		    cur_mode->hdisplay == adj_mode->hdisplay &&
+		    drm_mode_vrefresh(cur_mode) == drm_mode_vrefresh(adj_mode)) {
 			adj_mode->private = cur_mode->private;
 			adj_mode->private_flags |= cur_mode->private_flags;
 		}
@@ -1802,7 +1802,7 @@ void dpu_encoder_kickoff(struct drm_encoder *drm_enc, bool async)
 
 	atomic_set(&dpu_enc->frame_done_timeout,
 			DPU_FRAME_DONE_TIMEOUT * 1000 /
-			drm_enc->crtc->state->adjusted_mode.vrefresh);
+			drm_mode_vrefresh(&drm_enc->crtc->state->adjusted_mode));
 	mod_timer(&dpu_enc->frame_done_timer, jiffies +
 		((atomic_read(&dpu_enc->frame_done_timeout) * HZ) / 1000));
 
