@@ -2848,6 +2848,9 @@ F:	include/uapi/linux/if_bonding.h
 BPF (Safe dynamic programs and tools)
 M:	Alexei Starovoitov <ast@kernel.org>
 M:	Daniel Borkmann <daniel@iogearbox.net>
+R:	Martin KaFai Lau <kafai@fb.com>
+R:	Song Liu <songliubraving@fb.com>
+R:	Yonghong Song <yhs@fb.com>
 L:	netdev@vger.kernel.org
 L:	linux-kernel@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/bpf/bpf.git
@@ -2873,6 +2876,8 @@ F:	samples/bpf/
 F:	tools/bpf/
 F:	tools/lib/bpf/
 F:	tools/testing/selftests/bpf/
+K:	bpf
+N:	bpf
 
 BPF JIT for ARM
 M:	Shubham Bansal <illusionist.neo@gmail.com>
