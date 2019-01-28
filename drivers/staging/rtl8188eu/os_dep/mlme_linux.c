@@ -47,7 +47,7 @@ void rtw_reset_securitypriv(struct adapter *adapter)
 		 * the countermeasure is trigger, the driver have to disconnect
 		 * with AP for 60 seconds.
 		 */
-		memcpy(&backup_pmkid[0], &adapter->securitypriv.PMKIDList[0], sizeof(struct rt_pmkid_list) * NUM_PMKID_CACHE);
+		memcpy(backup_pmkid, adapter->securitypriv.PMKIDList, sizeof(struct rt_pmkid_list) * NUM_PMKID_CACHE);
 		backup_index = adapter->securitypriv.PMKIDIndex;
 		backup_counter = adapter->securitypriv.btkip_countermeasure;
 		backup_time = adapter->securitypriv.btkip_countermeasure_time;
@@ -56,7 +56,7 @@ void rtw_reset_securitypriv(struct adapter *adapter)
 		/* Restore the PMK information to securitypriv structure
 		 * for the following connection.
 		 */
-		memcpy(&adapter->securitypriv.PMKIDList[0], &backup_pmkid[0],
+		memcpy(adapter->securitypriv.PMKIDList, backup_pmkid,
 		       sizeof(struct rt_pmkid_list) * NUM_PMKID_CACHE);
 		adapter->securitypriv.PMKIDIndex = backup_index;
 		adapter->securitypriv.btkip_countermeasure = backup_counter;
