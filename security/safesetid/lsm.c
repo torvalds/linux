@@ -274,4 +274,5 @@ static int __init safesetid_security_init(void)
 
 DEFINE_LSM(safesetid_security_init) = {
 	.init = safesetid_security_init,
+	.name = "safesetid",
 };
