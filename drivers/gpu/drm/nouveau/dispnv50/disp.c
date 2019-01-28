@@ -817,7 +817,8 @@ nv50_msto_enable(struct drm_encoder *encoder)
 
 	r = drm_dp_mst_allocate_vcpi(&mstm->mgr, mstc->port, armh->dp.pbn,
 				     armh->dp.tu);
-	WARN_ON(!r);
+	if (!r)
+		DRM_DEBUG_KMS("Failed to allocate VCPI\n");
 
 	if (!mstm->links++)
 		nv50_outp_acquire(mstm->outp);
