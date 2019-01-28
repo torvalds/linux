@@ -334,11 +334,10 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 
 	rcu_read_lock();
 	scnprintf(tmp, sizeof(tmp),
-		  "XRI Dist lpfc%d Total %d NVME %d SCSI %d ELS %d\n",
+		  "XRI Dist lpfc%d Total %d IO %d ELS %d\n",
 		  phba->brd_no,
 		  phba->sli4_hba.max_cfg_param.max_xri,
-		  phba->sli4_hba.nvme_xri_max,
-		  phba->sli4_hba.scsi_xri_max,
+		  phba->sli4_hba.common_xri_max,
 		  lpfc_sli4_get_els_iocb_cnt(phba));
 	if (strlcat(buf, tmp, PAGE_SIZE) >= PAGE_SIZE)
 		goto buffer_done;
@@ -3731,22 +3730,6 @@ LPFC_ATTR_R(enable_fc4_type, LPFC_ENABLE_FCP,
 	    "Enable FC4 Protocol support - FCP / NVME");
 
 /*
- * lpfc_xri_split: Defines the division of XRI resources between SCSI and NVME
- * This parameter is only used if:
- *     lpfc_enable_fc4_type is 3 - register both FCP and NVME and
- *     port is not configured for NVMET.
- *
- * ELS/CT always get 10% of XRIs, up to a maximum of 250
- * The remaining XRIs get split up based on lpfc_xri_split per port:
- *
- * Supported Values are in percentages
- * the xri_split value is the percentage the SCSI port will get. The remaining
- * percentage will go to NVME.
- */
-LPFC_ATTR_R(xri_split, 50, 10, 90,
-	    "Percentage of FCP XRI resources versus NVME");
-
-/*
 # lpfc_log_verbose: Only turn this flag on if you are willing to risk being
 # deluged with LOTS of information.
 # You can set a bit mask to record specific types of verbose messages:
@@ -5704,7 +5687,6 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_lpfc_nodev_tmo,
 	&dev_attr_lpfc_devloss_tmo,
 	&dev_attr_lpfc_enable_fc4_type,
-	&dev_attr_lpfc_xri_split,
 	&dev_attr_lpfc_fcp_class,
 	&dev_attr_lpfc_use_adisc,
 	&dev_attr_lpfc_first_burst_size,
@@ -6865,7 +6847,6 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 
 	phba->cfg_soft_wwnn = 0L;
 	phba->cfg_soft_wwpn = 0L;
-	lpfc_xri_split_init(phba, lpfc_xri_split);
 	lpfc_sg_seg_cnt_init(phba, lpfc_sg_seg_cnt);
 	lpfc_hba_queue_depth_init(phba, lpfc_hba_queue_depth);
 	lpfc_hba_log_verbose_init(phba, lpfc_log_verbose);

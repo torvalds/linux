@@ -131,7 +131,15 @@ struct lpfc_scsicmd_bkt {
 };
 
 struct lpfc_scsi_buf {
+	/* Common fields */
 	struct list_head list;
+	void *data;
+	dma_addr_t dma_handle;
+	dma_addr_t dma_phys_sgl;
+	struct ulp_bde64 *dma_sgl;
+	struct lpfc_iocbq cur_iocbq;
+
+	/* SCSI specific fields */
 	struct scsi_cmnd *pCmd;
 	struct lpfc_rport_data *rdata;
 	struct lpfc_nodelist *ndlp;
@@ -139,9 +147,10 @@ struct lpfc_scsi_buf {
 	uint32_t timeout;
 
 	uint16_t flags;  /* TBD convert exch_busy to flags */
-#define LPFC_SBUF_XBUSY         0x1     /* SLI4 hba reported XB on WCQE cmpl */
-#define LPFC_SBUF_BUMP_QDEPTH	0x8	/* bumped queue depth counter */
+#define LPFC_SBUF_XBUSY		0x1	/* SLI4 hba reported XB on WCQE cmpl */
+#define LPFC_SBUF_BUMP_QDEPTH	0x2	/* bumped queue depth counter */
 	uint16_t exch_busy;     /* SLI4 hba reported XB on complete WCQE */
+	uint16_t cpu;
 	uint16_t status;	/* From IOCB Word 7- ulpStatus */
 	uint32_t result;	/* From IOCB Word 4. */
 
@@ -150,27 +159,13 @@ struct lpfc_scsi_buf {
 				 * to dma_unmap_sg. */
 	uint32_t prot_seg_cnt;  /* seg_cnt's counterpart for protection data */
 
-	dma_addr_t nonsg_phys;	/* Non scatter-gather physical address. */
-
 	/*
 	 * data and dma_handle are the kernel virtual and bus address of the
 	 * dma-able buffer containing the fcp_cmd, fcp_rsp and a scatter
 	 * gather bde list that supports the sg_tablesize value.
 	 */
-	void *data;
-	dma_addr_t dma_handle;
-
 	struct fcp_cmnd *fcp_cmnd;
 	struct fcp_rsp *fcp_rsp;
-	struct ulp_bde64 *fcp_bpl;
-
-	dma_addr_t dma_phys_bpl;
-
-	/* cur_iocbq has phys of the dma-able buffer.
-	 * Iotag is in here
-	 */
-	struct lpfc_iocbq cur_iocbq;
-	uint16_t cpu;
 
 	wait_queue_head_t *waitq;
 	unsigned long start_time;

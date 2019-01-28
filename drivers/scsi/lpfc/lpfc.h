@@ -617,8 +617,6 @@ struct lpfc_ras_fwlog {
 
 struct lpfc_hba {
 	/* SCSI interface function jump table entries */
-	int (*lpfc_new_scsi_buf)
-		(struct lpfc_vport *, int);
 	struct lpfc_scsi_buf * (*lpfc_get_scsi_buf)
 		(struct lpfc_hba *, struct lpfc_nodelist *);
 	int (*lpfc_scsi_prep_dma_buf)
@@ -875,7 +873,6 @@ struct lpfc_hba {
 	uint32_t cfg_enable_fc4_type;
 	uint32_t cfg_enable_bbcr;	/* Enable BB Credit Recovery */
 	uint32_t cfg_enable_dpp;	/* Enable Direct Packet Push */
-	uint32_t cfg_xri_split;
 #define LPFC_ENABLE_FCP  1
 #define LPFC_ENABLE_NVME 2
 #define LPFC_ENABLE_BOTH 3
@@ -970,13 +967,13 @@ struct lpfc_hba {
 	struct list_head lpfc_scsi_buf_list_get;
 	struct list_head lpfc_scsi_buf_list_put;
 	uint32_t total_scsi_bufs;
-	spinlock_t nvme_buf_list_get_lock;  /* NVME buf alloc list lock */
-	spinlock_t nvme_buf_list_put_lock;  /* NVME buf free list lock */
-	struct list_head lpfc_nvme_buf_list_get;
-	struct list_head lpfc_nvme_buf_list_put;
-	uint32_t total_nvme_bufs;
-	uint32_t get_nvme_bufs;
-	uint32_t put_nvme_bufs;
+	spinlock_t common_buf_list_get_lock;  /* Common buf alloc list lock */
+	spinlock_t common_buf_list_put_lock;  /* Common buf free list lock */
+	struct list_head lpfc_common_buf_list_get;
+	struct list_head lpfc_common_buf_list_put;
+	uint32_t total_common_bufs;
+	uint32_t get_common_bufs;
+	uint32_t put_common_bufs;
 	struct list_head lpfc_iocb_list;
 	uint32_t total_iocbq_bufs;
 	struct list_head active_rrq_list;

@@ -41,6 +41,9 @@
 #define LPFC_FCP_IO_CHAN_DEF	4
 #define LPFC_NVME_IO_CHAN_DEF	0
 
+/* Common buffer size to accomidate SCSI and NVME IO buffers */
+#define LPFC_COMMON_IO_BUF_SZ	768
+
 /* Number of channels used for Flash Optimized Fabric (FOF) operations */
 
 #define LPFC_FOF_IO_CHAN_NUM       1
@@ -663,12 +666,9 @@ struct lpfc_sli4_hba {
 	uint16_t rpi_hdrs_in_use; /* must post rpi hdrs if set. */
 	uint16_t next_xri; /* last_xri - max_cfg_param.xri_base = used */
 	uint16_t next_rpi;
-	uint16_t nvme_xri_max;
-	uint16_t nvme_xri_cnt;
-	uint16_t nvme_xri_start;
-	uint16_t scsi_xri_max;
-	uint16_t scsi_xri_cnt;
-	uint16_t scsi_xri_start;
+	uint16_t common_xri_max;
+	uint16_t common_xri_cnt;
+	uint16_t common_xri_start;
 	uint16_t els_xri_cnt;
 	uint16_t nvmet_xri_cnt;
 	uint16_t nvmet_io_wait_cnt;
@@ -843,12 +843,10 @@ int lpfc_rq_destroy(struct lpfc_hba *, struct lpfc_queue *,
 int lpfc_sli4_queue_setup(struct lpfc_hba *);
 void lpfc_sli4_queue_unset(struct lpfc_hba *);
 int lpfc_sli4_post_sgl(struct lpfc_hba *, dma_addr_t, dma_addr_t, uint16_t);
-int lpfc_sli4_repost_scsi_sgl_list(struct lpfc_hba *);
-int lpfc_repost_nvme_sgl_list(struct lpfc_hba *phba);
+int lpfc_repost_common_sgl_list(struct lpfc_hba *phba);
 uint16_t lpfc_sli4_next_xritag(struct lpfc_hba *);
 void lpfc_sli4_free_xri(struct lpfc_hba *, int);
 int lpfc_sli4_post_async_mbox(struct lpfc_hba *);
-int lpfc_sli4_post_scsi_sgl_block(struct lpfc_hba *, struct list_head *, int);
 struct lpfc_cq_event *__lpfc_sli4_cq_event_alloc(struct lpfc_hba *);
 struct lpfc_cq_event *lpfc_sli4_cq_event_alloc(struct lpfc_hba *);
 void __lpfc_sli4_cq_event_release(struct lpfc_hba *, struct lpfc_cq_event *);
