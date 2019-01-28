@@ -529,7 +529,7 @@ struct lpfc_vector_map_info {
 	uint16_t	phys_id;
 	uint16_t	core_id;
 	uint16_t	irq;
-	uint16_t	channel_id;
+	uint16_t	hdwq;
 };
 #define LPFC_VECTOR_MAP_EMPTY	0xffff
 

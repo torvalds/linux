@@ -5071,21 +5071,41 @@ lpfc_fcp_cpu_map_show(struct device *dev, struct device_attribute *attr,
 	while (phba->sli4_hba.curr_disp_cpu < phba->sli4_hba.num_present_cpu) {
 		cpup = &phba->sli4_hba.cpu_map[phba->sli4_hba.curr_disp_cpu];
 
-		/* margin should fit in this and the truncated message */
-		if (cpup->irq == LPFC_VECTOR_MAP_EMPTY)
-			len += snprintf(buf + len, PAGE_SIZE-len,
-					"CPU %02d io_chan %02d "
+		if (cpup->irq == LPFC_VECTOR_MAP_EMPTY) {
+			if (cpup->hdwq == LPFC_VECTOR_MAP_EMPTY)
+				len += snprintf(
+					buf + len, PAGE_SIZE - len,
+					"CPU %02d hdwq None "
 					"physid %d coreid %d\n",
 					phba->sli4_hba.curr_disp_cpu,
-					cpup->channel_id, cpup->phys_id,
+					cpup->phys_id,
 					cpup->core_id);
-		else
-			len += snprintf(buf + len, PAGE_SIZE-len,
-					"CPU %02d io_chan %02d "
+			else
+				len += snprintf(
+					buf + len, PAGE_SIZE - len,
+					"CPU %02d hdwq %04d "
+					"physid %d coreid %d\n",
+					phba->sli4_hba.curr_disp_cpu,
+					cpup->hdwq, cpup->phys_id,
+					cpup->core_id);
+		} else {
+			if (cpup->hdwq == LPFC_VECTOR_MAP_EMPTY)
+				len += snprintf(
+					buf + len, PAGE_SIZE - len,
+					"CPU %02d hdwq None "
 					"physid %d coreid %d IRQ %d\n",
 					phba->sli4_hba.curr_disp_cpu,
-					cpup->channel_id, cpup->phys_id,
+					cpup->phys_id,
 					cpup->core_id, cpup->irq);
+			else
+				len += snprintf(
+					buf + len, PAGE_SIZE - len,
+					"CPU %02d hdwq %04d "
+					"physid %d coreid %d IRQ %d\n",
+					phba->sli4_hba.curr_disp_cpu,
+					cpup->hdwq, cpup->phys_id,
+					cpup->core_id, cpup->irq);
+		}
 
 		phba->sli4_hba.curr_disp_cpu++;
 

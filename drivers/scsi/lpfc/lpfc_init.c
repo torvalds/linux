@@ -71,7 +71,6 @@ unsigned long _dump_buf_dif_order;
 spinlock_t _dump_buf_lock;
 
 /* Used when mapping IRQ vectors in a driver centric manner */
-uint16_t *lpfc_used_cpu;
 uint32_t lpfc_present_cpu;
 
 static void lpfc_get_hba_model_desc(struct lpfc_hba *, uint8_t *, uint8_t *);
@@ -6841,20 +6840,6 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		rc = -ENOMEM;
 		goto out_free_hba_eq_hdl;
 	}
-	if (lpfc_used_cpu == NULL) {
-		lpfc_used_cpu = kcalloc(lpfc_present_cpu, sizeof(uint16_t),
-						GFP_KERNEL);
-		if (!lpfc_used_cpu) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"3335 Failed allocate memory for msi-x "
-					"interrupt vector mapping\n");
-			kfree(phba->sli4_hba.cpu_map);
-			rc = -ENOMEM;
-			goto out_free_hba_eq_hdl;
-		}
-		for (i = 0; i < lpfc_present_cpu; i++)
-			lpfc_used_cpu[i] = LPFC_VECTOR_MAP_EMPTY;
-	}
 
 	/*
 	 * Enable sr-iov virtual functions if supported and configured
@@ -10463,7 +10448,6 @@ lpfc_sli_disable_intr(struct lpfc_hba *phba)
 /**
  * lpfc_cpu_affinity_check - Check vector CPU affinity mappings
  * @phba: pointer to lpfc hba data structure.
- * @vectors: number of msix vectors allocated.
  *
  * The routine will figure out the CPU affinity assignment for every
  * MSI-X vector allocated for the HBA.  The hba_eq_hdl will be updated
@@ -10474,12 +10458,10 @@ lpfc_sli_disable_intr(struct lpfc_hba *phba)
  * and the phba->sli4_hba.cpu_map array will reflect this.
  */
 static void
-lpfc_cpu_affinity_check(struct lpfc_hba *phba, int vectors)
+lpfc_cpu_affinity_check(struct lpfc_hba *phba)
 {
 	struct lpfc_vector_map_info *cpup;
-	int index = 0;
-	int vec = 0;
-	int cpu;
+	int cpu, idx;
 #ifdef CONFIG_X86
 	struct cpuinfo_x86 *cpuinfo;
 #endif
@@ -10501,16 +10483,26 @@ lpfc_cpu_affinity_check(struct lpfc_hba *phba, int vectors)
 		cpup->phys_id = 0;
 		cpup->core_id = 0;
 #endif
-		cpup->channel_id = index;  /* For now round robin */
-		cpup->irq = pci_irq_vector(phba->pcidev, vec);
-		vec++;
-		if (vec >= vectors)
-			vec = 0;
-		index++;
-		if (index >= phba->cfg_hdw_queue)
-			index = 0;
+		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+				"3328 CPU physid %d coreid %d\n",
+				cpup->phys_id, cpup->core_id);
 		cpup++;
 	}
+
+	for (idx = 0; idx <  phba->cfg_hdw_queue; idx++) {
+		cpup = &phba->sli4_hba.cpu_map[idx];
+		cpup->irq = pci_irq_vector(phba->pcidev, idx);
+
+		/* For now assume vector N maps to CPU N */
+		irq_set_affinity_hint(cpup->irq, get_cpu_mask(idx));
+		cpup->hdwq = idx;
+
+		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+			"3336 Set Affinity: CPU %d "
+			"hdwq %d irq %d\n",
+			cpu, cpup->hdwq, cpup->irq);
+	}
+	return;
 }
 
 
@@ -10576,7 +10568,7 @@ lpfc_sli4_enable_msix(struct lpfc_hba *phba)
 		if (phba->cfg_nvmet_mrq > vectors)
 			phba->cfg_nvmet_mrq = vectors;
 	}
-	lpfc_cpu_affinity_check(phba, vectors);
+	lpfc_cpu_affinity_check(phba);
 
 	return rc;
 
@@ -10724,9 +10716,13 @@ lpfc_sli4_disable_intr(struct lpfc_hba *phba)
 		int index;
 
 		/* Free up MSI-X multi-message vectors */
-		for (index = 0; index < phba->cfg_hdw_queue; index++)
+		for (index = 0; index < phba->cfg_hdw_queue; index++) {
+			irq_set_affinity_hint(
+				pci_irq_vector(phba->pcidev, index),
+				NULL);
 			free_irq(pci_irq_vector(phba->pcidev, index),
 					&phba->sli4_hba.hba_eq_hdl[index]);
+		}
 	} else {
 		free_irq(phba->pcidev->irq, phba);
 	}
@@ -12990,7 +12986,6 @@ lpfc_init(void)
 	lpfc_nvmet_cmd_template();
 
 	/* Initialize in case vector mapping is needed */
-	lpfc_used_cpu = NULL;
 	lpfc_present_cpu = num_present_cpus();
 
 	error = pci_register_driver(&lpfc_driver);
@@ -13029,7 +13024,6 @@ lpfc_exit(void)
 				(1L << _dump_buf_dif_order), _dump_buf_dif);
 		free_pages((unsigned long)_dump_buf_dif, _dump_buf_dif_order);
 	}
-	kfree(lpfc_used_cpu);
 	idr_destroy(&lpfc_hba_index);
 }
 
