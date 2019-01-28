@@ -22,6 +22,7 @@
 #include <sound/tlv.h>
 #include <sound/info.h>
 #include "wcd9335.h"
+#include "wcd-clsh-v2.h"
 
 #define WCD9335_RATES_MASK (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 |\
 			    SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_48000 |\
@@ -181,6 +182,7 @@ struct wcd9335_codec {
 	int sido_ccl_cnt;
 	enum wcd_clock_type clk_type;
 
+	struct wcd_clsh_ctrl *clsh_ctrl;
 	u32 hph_mode;
 	int intr1;
 	int reset_gpio;
@@ -1109,6 +1111,13 @@ static int wcd9335_codec_probe(struct snd_soc_component *component)
 	int i;
 
 	snd_soc_component_init_regmap(component, wcd->regmap);
+	/* Class-H Init*/
+	wcd->clsh_ctrl = wcd_clsh_ctrl_alloc(component, wcd->version);
+	if (IS_ERR(wcd->clsh_ctrl))
+		return PTR_ERR(wcd->clsh_ctrl);
+
+	/* Default HPH Mode to Class-H HiFi */
+	wcd->hph_mode = CLS_H_HIFI;
 	wcd->component = component;
 
 	wcd9335_codec_init(component);
@@ -1123,6 +1132,7 @@ static void wcd9335_codec_remove(struct snd_soc_component *comp)
 {
 	struct wcd9335_codec *wcd = dev_get_drvdata(comp->dev);
 
+	wcd_clsh_ctrl_free(wcd->clsh_ctrl);
 	free_irq(regmap_irq_get_virq(wcd->irq_data, WCD9335_IRQ_SLIMBUS), wcd);
 }
 
