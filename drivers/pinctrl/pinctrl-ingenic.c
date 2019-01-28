@@ -335,6 +335,11 @@ static int jz4770_mmc1_4bit_d_pins[] = { 0x75, 0x76, 0x77, };
 static int jz4770_mmc1_1bit_e_pins[] = { 0x9c, 0x9d, 0x94, };
 static int jz4770_mmc1_4bit_e_pins[] = { 0x95, 0x96, 0x97, };
 static int jz4770_mmc1_8bit_e_pins[] = { 0x98, 0x99, 0x9a, 0x9b, };
+static int jz4770_mmc2_1bit_b_pins[] = { 0x3c, 0x3d, 0x34, };
+static int jz4770_mmc2_4bit_b_pins[] = { 0x35, 0x3e, 0x3f, };
+static int jz4770_mmc2_1bit_e_pins[] = { 0x9c, 0x9d, 0x94, };
+static int jz4770_mmc2_4bit_e_pins[] = { 0x95, 0x96, 0x97, };
+static int jz4770_mmc2_8bit_e_pins[] = { 0x98, 0x99, 0x9a, 0x9b, };
 static int jz4770_nemc_8bit_data_pins[] = {
 	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
 };
@@ -345,6 +350,7 @@ static int jz4770_nemc_cle_ale_pins[] = { 0x20, 0x21, };
 static int jz4770_nemc_addr_pins[] = { 0x22, 0x23, 0x24, 0x25, };
 static int jz4770_nemc_rd_we_pins[] = { 0x10, 0x11, };
 static int jz4770_nemc_frd_fwe_pins[] = { 0x12, 0x13, };
+static int jz4770_nemc_wait_pins[] = { 0x1b, };
 static int jz4770_nemc_cs1_pins[] = { 0x15, };
 static int jz4770_nemc_cs2_pins[] = { 0x16, };
 static int jz4770_nemc_cs3_pins[] = { 0x17, };
@@ -375,6 +381,10 @@ static int jz4770_pwm_pwm4_pins[] = { 0x84, };
 static int jz4770_pwm_pwm5_pins[] = { 0x85, };
 static int jz4770_pwm_pwm6_pins[] = { 0x6a, };
 static int jz4770_pwm_pwm7_pins[] = { 0x6b, };
+static int jz4770_mac_rmii_pins[] = {
+	0xa9, 0xab, 0xaa, 0xac, 0xa5, 0xa4, 0xad, 0xae, 0xa6, 0xa8,
+};
+static int jz4770_mac_mii_pins[] = { 0xa7, 0xaf, };
 
 static int jz4770_uart0_data_funcs[] = { 0, 0, };
 static int jz4770_uart0_hwflow_funcs[] = { 0, 0, };
@@ -394,12 +404,18 @@ static int jz4770_mmc1_4bit_d_funcs[] = { 0, 0, 0, };
 static int jz4770_mmc1_1bit_e_funcs[] = { 1, 1, 1, };
 static int jz4770_mmc1_4bit_e_funcs[] = { 1, 1, 1, };
 static int jz4770_mmc1_8bit_e_funcs[] = { 1, 1, 1, 1, };
+static int jz4770_mmc2_1bit_b_funcs[] = { 0, 0, 0, };
+static int jz4770_mmc2_4bit_b_funcs[] = { 0, 0, 0, };
+static int jz4770_mmc2_1bit_e_funcs[] = { 2, 2, 2, };
+static int jz4770_mmc2_4bit_e_funcs[] = { 2, 2, 2, };
+static int jz4770_mmc2_8bit_e_funcs[] = { 2, 2, 2, 2, };
 static int jz4770_nemc_8bit_data_funcs[] = { 0, 0, 0, 0, 0, 0, 0, 0, };
 static int jz4770_nemc_16bit_data_funcs[] = { 0, 0, 0, 0, 0, 0, 0, 0, };
 static int jz4770_nemc_cle_ale_funcs[] = { 0, 0, };
 static int jz4770_nemc_addr_funcs[] = { 0, 0, 0, 0, };
 static int jz4770_nemc_rd_we_funcs[] = { 0, 0, };
 static int jz4770_nemc_frd_fwe_funcs[] = { 0, 0, };
+static int jz4770_nemc_wait_funcs[] = { 0, };
 static int jz4770_nemc_cs1_funcs[] = { 0, };
 static int jz4770_nemc_cs2_funcs[] = { 0, };
 static int jz4770_nemc_cs3_funcs[] = { 0, };
@@ -425,6 +441,8 @@ static int jz4770_pwm_pwm4_funcs[] = { 0, };
 static int jz4770_pwm_pwm5_funcs[] = { 0, };
 static int jz4770_pwm_pwm6_funcs[] = { 0, };
 static int jz4770_pwm_pwm7_funcs[] = { 0, };
+static int jz4770_mac_rmii_funcs[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, };
+static int jz4770_mac_mii_funcs[] = { 0, 0, };
 
 static const struct group_desc jz4770_groups[] = {
 	INGENIC_PIN_GROUP("uart0-data", jz4770_uart0_data),
@@ -445,12 +463,18 @@ static const struct group_desc jz4770_groups[] = {
 	INGENIC_PIN_GROUP("mmc1-1bit-e", jz4770_mmc1_1bit_e),
 	INGENIC_PIN_GROUP("mmc1-4bit-e", jz4770_mmc1_4bit_e),
 	INGENIC_PIN_GROUP("mmc1-8bit-e", jz4770_mmc1_8bit_e),
+	INGENIC_PIN_GROUP("mmc2-1bit-b", jz4770_mmc2_1bit_b),
+	INGENIC_PIN_GROUP("mmc2-4bit-b", jz4770_mmc2_4bit_b),
+	INGENIC_PIN_GROUP("mmc2-1bit-e", jz4770_mmc2_1bit_e),
+	INGENIC_PIN_GROUP("mmc2-4bit-e", jz4770_mmc2_4bit_e),
+	INGENIC_PIN_GROUP("mmc2-8bit-e", jz4770_mmc2_8bit_e),
 	INGENIC_PIN_GROUP("nemc-8bit-data", jz4770_nemc_8bit_data),
 	INGENIC_PIN_GROUP("nemc-16bit-data", jz4770_nemc_16bit_data),
 	INGENIC_PIN_GROUP("nemc-cle-ale", jz4770_nemc_cle_ale),
 	INGENIC_PIN_GROUP("nemc-addr", jz4770_nemc_addr),
 	INGENIC_PIN_GROUP("nemc-rd-we", jz4770_nemc_rd_we),
 	INGENIC_PIN_GROUP("nemc-frd-fwe", jz4770_nemc_frd_fwe),
+	INGENIC_PIN_GROUP("nemc-wait", jz4770_nemc_wait),
 	INGENIC_PIN_GROUP("nemc-cs1", jz4770_nemc_cs1),
 	INGENIC_PIN_GROUP("nemc-cs2", jz4770_nemc_cs2),
 	INGENIC_PIN_GROUP("nemc-cs3", jz4770_nemc_cs3),
@@ -472,6 +496,8 @@ static const struct group_desc jz4770_groups[] = {
 	INGENIC_PIN_GROUP("pwm5", jz4770_pwm_pwm5),
 	INGENIC_PIN_GROUP("pwm6", jz4770_pwm_pwm6),
 	INGENIC_PIN_GROUP("pwm7", jz4770_pwm_pwm7),
+	INGENIC_PIN_GROUP("mac-rmii", jz4770_mac_rmii),
+	INGENIC_PIN_GROUP("mac-mii", jz4770_mac_mii),
 };
 
 static const char *jz4770_uart0_groups[] = { "uart0-data", "uart0-hwflow", };
@@ -486,9 +512,13 @@ static const char *jz4770_mmc1_groups[] = {
 	"mmc1-1bit-d", "mmc1-4bit-d",
 	"mmc1-1bit-e", "mmc1-4bit-e", "mmc1-8bit-e",
 };
+static const char *jz4770_mmc2_groups[] = {
+	"mmc2-1bit-b", "mmc2-4bit-b",
+	"mmc2-1bit-e", "mmc2-4bit-e", "mmc2-8bit-e",
+};
 static const char *jz4770_nemc_groups[] = {
 	"nemc-8bit-data", "nemc-16bit-data", "nemc-cle-ale",
-	"nemc-addr", "nemc-rd-we", "nemc-frd-fwe",
+	"nemc-addr", "nemc-rd-we", "nemc-frd-fwe", "nemc-wait",
 };
 static const char *jz4770_cs1_groups[] = { "nemc-cs1", };
 static const char *jz4770_cs2_groups[] = { "nemc-cs2", };
@@ -509,6 +539,7 @@ static const char *jz4770_pwm4_groups[] = { "pwm4", };
 static const char *jz4770_pwm5_groups[] = { "pwm5", };
 static const char *jz4770_pwm6_groups[] = { "pwm6", };
 static const char *jz4770_pwm7_groups[] = { "pwm7", };
+static const char *jz4770_mac_groups[] = { "mac-rmii", "mac-mii", };
 
 static const struct function_desc jz4770_functions[] = {
 	{ "uart0", jz4770_uart0_groups, ARRAY_SIZE(jz4770_uart0_groups), },
@@ -517,6 +548,7 @@ static const struct function_desc jz4770_functions[] = {
 	{ "uart3", jz4770_uart3_groups, ARRAY_SIZE(jz4770_uart3_groups), },
 	{ "mmc0", jz4770_mmc0_groups, ARRAY_SIZE(jz4770_mmc0_groups), },
 	{ "mmc1", jz4770_mmc1_groups, ARRAY_SIZE(jz4770_mmc1_groups), },
+	{ "mmc2", jz4770_mmc2_groups, ARRAY_SIZE(jz4770_mmc2_groups), },
 	{ "nemc", jz4770_nemc_groups, ARRAY_SIZE(jz4770_nemc_groups), },
 	{ "nemc-cs1", jz4770_cs1_groups, ARRAY_SIZE(jz4770_cs1_groups), },
 	{ "nemc-cs2", jz4770_cs2_groups, ARRAY_SIZE(jz4770_cs2_groups), },
@@ -537,6 +569,7 @@ static const struct function_desc jz4770_functions[] = {
 	{ "pwm5", jz4770_pwm5_groups, ARRAY_SIZE(jz4770_pwm5_groups), },
 	{ "pwm6", jz4770_pwm6_groups, ARRAY_SIZE(jz4770_pwm6_groups), },
 	{ "pwm7", jz4770_pwm7_groups, ARRAY_SIZE(jz4770_pwm7_groups), },
+	{ "mac", jz4770_mac_groups, ARRAY_SIZE(jz4770_mac_groups), },
 };
 
 static const struct ingenic_chip_info jz4770_chip_info = {
@@ -584,11 +617,16 @@ static const struct group_desc jz4780_groups[] = {
 	INGENIC_PIN_GROUP("mmc1-4bit-d", jz4770_mmc1_4bit_d),
 	INGENIC_PIN_GROUP("mmc1-1bit-e", jz4770_mmc1_1bit_e),
 	INGENIC_PIN_GROUP("mmc1-4bit-e", jz4770_mmc1_4bit_e),
+	INGENIC_PIN_GROUP("mmc2-1bit-b", jz4770_mmc2_1bit_b),
+	INGENIC_PIN_GROUP("mmc2-4bit-b", jz4770_mmc2_4bit_b),
+	INGENIC_PIN_GROUP("mmc2-1bit-e", jz4770_mmc2_1bit_e),
+	INGENIC_PIN_GROUP("mmc2-4bit-e", jz4770_mmc2_4bit_e),
 	INGENIC_PIN_GROUP("nemc-data", jz4770_nemc_8bit_data),
 	INGENIC_PIN_GROUP("nemc-cle-ale", jz4770_nemc_cle_ale),
 	INGENIC_PIN_GROUP("nemc-addr", jz4770_nemc_addr),
 	INGENIC_PIN_GROUP("nemc-rd-we", jz4770_nemc_rd_we),
 	INGENIC_PIN_GROUP("nemc-frd-fwe", jz4770_nemc_frd_fwe),
+	INGENIC_PIN_GROUP("nemc-wait", jz4770_nemc_wait),
 	INGENIC_PIN_GROUP("nemc-cs1", jz4770_nemc_cs1),
 	INGENIC_PIN_GROUP("nemc-cs2", jz4770_nemc_cs2),
 	INGENIC_PIN_GROUP("nemc-cs3", jz4770_nemc_cs3),
@@ -623,9 +661,12 @@ static const char *jz4780_mmc0_groups[] = {
 static const char *jz4780_mmc1_groups[] = {
 	"mmc1-1bit-d", "mmc1-4bit-d", "mmc1-1bit-e", "mmc1-4bit-e",
 };
+static const char *jz4780_mmc2_groups[] = {
+	"mmc2-1bit-b", "mmc2-4bit-b", "mmc2-1bit-e", "mmc2-4bit-e",
+};
 static const char *jz4780_nemc_groups[] = {
 	"nemc-data", "nemc-cle-ale", "nemc-addr",
-	"nemc-rd-we", "nemc-frd-fwe",
+	"nemc-rd-we", "nemc-frd-fwe", "nemc-wait",
 };
 static const char *jz4780_i2c3_groups[] = { "i2c3-data", };
 static const char *jz4780_i2c4_groups[] = { "i2c4-data-e", "i2c4-data-f", };
@@ -639,6 +680,7 @@ static const struct function_desc jz4780_functions[] = {
 	{ "uart4", jz4780_uart4_groups, ARRAY_SIZE(jz4780_uart4_groups), },
 	{ "mmc0", jz4780_mmc0_groups, ARRAY_SIZE(jz4780_mmc0_groups), },
 	{ "mmc1", jz4780_mmc1_groups, ARRAY_SIZE(jz4780_mmc1_groups), },
+	{ "mmc2", jz4780_mmc2_groups, ARRAY_SIZE(jz4780_mmc2_groups), },
 	{ "nemc", jz4780_nemc_groups, ARRAY_SIZE(jz4780_nemc_groups), },
 	{ "nemc-cs1", jz4770_cs1_groups, ARRAY_SIZE(jz4770_cs1_groups), },
 	{ "nemc-cs2", jz4770_cs2_groups, ARRAY_SIZE(jz4770_cs2_groups), },
