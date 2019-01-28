@@ -1282,7 +1282,7 @@ lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 	struct lpfc_register reg_data;
 	struct nvme_fc_local_port *localport;
 	struct lpfc_nvme_lport *lport;
-	struct lpfc_nvme_ctrl_stat *cstat;
+	struct lpfc_fc4_ctrl_stat *cstat;
 	void __iomem *eqdreg = phba->sli4_hba.u.if_type2.EQDregaddr;
 
 	vports = lpfc_create_vport_work_array(phba);
@@ -1324,16 +1324,13 @@ lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 				tot = 0;
 				for (i = 0;
 					i < phba->cfg_hdw_queue; i++) {
-					cstat = &lport->cstat[i];
-					data1 = atomic_read(
-						&cstat->fc4NvmeInputRequests);
-					data2 = atomic_read(
-						&cstat->fc4NvmeOutputRequests);
-					data3 = atomic_read(
-						&cstat->fc4NvmeControlRequests);
+					cstat =
+					     &phba->sli4_hba.hdwq[i].nvme_cstat;
+					data1 = cstat->input_requests;
+					data2 = cstat->output_requests;
+					data3 = cstat->control_requests;
 					tot += (data1 + data2 + data3);
-					tot -= atomic_read(
-						&cstat->fc4NvmeIoCmpls);
+					tot -= cstat->io_cmpls;
 				}
 			}
 		}
@@ -7221,10 +7218,6 @@ lpfc_create_shost(struct lpfc_hba *phba)
 	phba->fc_arbtov = FF_DEF_ARBTOV;
 
 	atomic_set(&phba->sdev_cnt, 0);
-	atomic_set(&phba->fc4ScsiInputRequests, 0);
-	atomic_set(&phba->fc4ScsiOutputRequests, 0);
-	atomic_set(&phba->fc4ScsiControlRequests, 0);
-	atomic_set(&phba->fc4ScsiIoCmpls, 0);
 	vport = lpfc_create_port(phba, phba->brd_no, &phba->pcidev->dev);
 	if (!vport)
 		return -ENODEV;
@@ -8776,6 +8769,25 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 			phba->sli4_hba.nvmet_mrq_data[idx] = qdesc;
 		}
 	}
+
+#if defined(BUILD_NVME)
+	/* Clear NVME stats */
+	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
+		for (idx = 0; idx < phba->cfg_hdw_queue; idx++) {
+			memset(&phba->sli4_hba.hdwq[idx].nvme_cstat, 0,
+			       sizeof(phba->sli4_hba.hdwq[idx].nvme_cstat));
+		}
+	}
+#endif
+
+	/* Clear SCSI stats */
+	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_FCP) {
+		for (idx = 0; idx < phba->cfg_hdw_queue; idx++) {
+			memset(&phba->sli4_hba.hdwq[idx].scsi_cstat, 0,
+			       sizeof(phba->sli4_hba.hdwq[idx].scsi_cstat));
+		}
+	}
+
 	return 0;
 
 out_error:

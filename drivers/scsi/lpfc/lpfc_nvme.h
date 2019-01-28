@@ -30,6 +30,9 @@
 #define LPFC_NVME_FB_SHIFT		9
 #define LPFC_NVME_MAX_FB		(1 << 20)	/* 1M */
 
+#define LPFC_MAX_NVME_INFO_TMP_LEN	100
+#define LPFC_NVME_INFO_MORE_STR		"\nCould be more info...\n"
+
 #define lpfc_ndlp_get_nrport(ndlp)					\
 	((!ndlp->nrport || (ndlp->upcall_flags & NLP_WAIT_FOR_UNREG))	\
 	? NULL : ndlp->nrport)
@@ -40,19 +43,11 @@ struct lpfc_nvme_qhandle {
 	uint32_t cpu_id;	/* current cpu id at time of create */
 };
 
-struct lpfc_nvme_ctrl_stat {
-	atomic_t fc4NvmeInputRequests;
-	atomic_t fc4NvmeOutputRequests;
-	atomic_t fc4NvmeControlRequests;
-	atomic_t fc4NvmeIoCmpls;
-};
-
 /* Declare nvme-based local and remote port definitions. */
 struct lpfc_nvme_lport {
 	struct lpfc_vport *vport;
 	struct completion lport_unreg_done;
 	/* Add stats counters here */
-	struct lpfc_nvme_ctrl_stat *cstat;
 	atomic_t fc4NvmeLsRequests;
 	atomic_t fc4NvmeLsCmpls;
 	atomic_t xmt_fcp_noxri;

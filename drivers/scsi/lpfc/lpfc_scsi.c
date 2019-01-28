@@ -3722,14 +3722,18 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	unsigned long flags;
 	struct lpfc_fast_path_event *fast_path_evt;
 	struct Scsi_Host *shost;
+	int idx;
 	uint32_t logit = LOG_FCP;
-
-	atomic_inc(&phba->fc4ScsiIoCmpls);
 
 	/* Sanity check on return of outstanding command */
 	cmd = lpfc_cmd->pCmd;
 	if (!cmd)
 		return;
+
+	idx = lpfc_cmd->cur_iocbq.hba_wqidx;
+	if (phba->sli4_hba.hdwq)
+		phba->sli4_hba.hdwq[idx].scsi_cstat.io_cmpls++;
+
 	shost = cmd->device->host;
 
 	lpfc_cmd->result = (pIocbOut->iocb.un.ulpWord[4] & IOERR_PARAM_MASK);
@@ -3986,7 +3990,9 @@ lpfc_scsi_prep_cmnd(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 	struct fcp_cmnd *fcp_cmnd = lpfc_cmd->fcp_cmnd;
 	IOCB_t *iocb_cmd = &lpfc_cmd->cur_iocbq.iocb;
 	struct lpfc_iocbq *piocbq = &(lpfc_cmd->cur_iocbq);
+	struct lpfc_sli4_hdw_queue *hdwq = NULL;
 	int datadir = scsi_cmnd->sc_data_direction;
+	int idx;
 	uint8_t *ptr;
 	bool sli4;
 	uint32_t fcpdl;
@@ -4012,6 +4018,9 @@ lpfc_scsi_prep_cmnd(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 
 	sli4 = (phba->sli_rev == LPFC_SLI_REV4);
 	piocbq->iocb.un.fcpi.fcpi_XRdy = 0;
+	idx = lpfc_cmd->hdwq;
+	if (phba->sli4_hba.hdwq)
+		hdwq = &phba->sli4_hba.hdwq[idx];
 
 	/*
 	 * There are three possibilities here - use scatter-gather segment, use
@@ -4033,19 +4042,22 @@ lpfc_scsi_prep_cmnd(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 						vport->cfg_first_burst_size;
 			}
 			fcp_cmnd->fcpCntl3 = WRITE_DATA;
-			atomic_inc(&phba->fc4ScsiOutputRequests);
+			if (hdwq)
+				hdwq->scsi_cstat.output_requests++;
 		} else {
 			iocb_cmd->ulpCommand = CMD_FCP_IREAD64_CR;
 			iocb_cmd->ulpPU = PARM_READ_CHECK;
 			fcp_cmnd->fcpCntl3 = READ_DATA;
-			atomic_inc(&phba->fc4ScsiInputRequests);
+			if (hdwq)
+				hdwq->scsi_cstat.input_requests++;
 		}
 	} else {
 		iocb_cmd->ulpCommand = CMD_FCP_ICMND64_CR;
 		iocb_cmd->un.fcpi.fcpi_parm = 0;
 		iocb_cmd->ulpPU = 0;
 		fcp_cmnd->fcpCntl3 = 0;
-		atomic_inc(&phba->fc4ScsiControlRequests);
+		if (hdwq)
+			hdwq->scsi_cstat.control_requests++;
 	}
 	if (phba->sli_rev == 3 &&
 	    !(phba->sli3_options & LPFC_SLI3_BG_ENABLED))
@@ -4397,7 +4409,7 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 	struct lpfc_nodelist *ndlp;
 	struct lpfc_scsi_buf *lpfc_cmd;
 	struct fc_rport *rport = starget_to_rport(scsi_target(cmnd->device));
-	int err;
+	int err, idx;
 
 	rdata = lpfc_rport_data_from_scsi_device(cmnd->device);
 
@@ -4532,16 +4544,6 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 				 (uint32_t)
 				 (cmnd->request->timeout / 1000));
 
-		switch (lpfc_cmd->fcp_cmnd->fcpCntl3) {
-		case WRITE_DATA:
-			atomic_dec(&phba->fc4ScsiOutputRequests);
-			break;
-		case READ_DATA:
-			atomic_dec(&phba->fc4ScsiInputRequests);
-			break;
-		default:
-			atomic_dec(&phba->fc4ScsiControlRequests);
-		}
 		goto out_host_busy_free_buf;
 	}
 	if (phba->cfg_poll & ENABLE_FCP_RING_POLLING) {
@@ -4555,7 +4557,20 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 	return 0;
 
  out_host_busy_free_buf:
+	idx = lpfc_cmd->hdwq;
 	lpfc_scsi_unprep_dma_buf(phba, lpfc_cmd);
+	if (phba->sli4_hba.hdwq) {
+		switch (lpfc_cmd->fcp_cmnd->fcpCntl3) {
+		case WRITE_DATA:
+			phba->sli4_hba.hdwq[idx].scsi_cstat.output_requests--;
+			break;
+		case READ_DATA:
+			phba->sli4_hba.hdwq[idx].scsi_cstat.input_requests--;
+			break;
+		default:
+			phba->sli4_hba.hdwq[idx].scsi_cstat.control_requests--;
+		}
+	}
 	lpfc_release_scsi_buf(phba, lpfc_cmd);
  out_host_busy:
 	return SCSI_MLQUEUE_HOST_BUSY;

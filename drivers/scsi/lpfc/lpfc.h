@@ -479,6 +479,7 @@ struct lpfc_vport {
 	struct dentry *debug_disc_trc;
 	struct dentry *debug_nodelist;
 	struct dentry *debug_nvmestat;
+	struct dentry *debug_scsistat;
 	struct dentry *debug_nvmektime;
 	struct dentry *debug_cpucheck;
 	struct dentry *vport_debugfs_root;
@@ -945,14 +946,6 @@ struct lpfc_hba {
 	struct timer_list fcp_poll_timer;
 	struct timer_list eratt_poll;
 	uint32_t eratt_poll_interval;
-
-	/*
-	 * stat  counters
-	 */
-	atomic_t fc4ScsiInputRequests;
-	atomic_t fc4ScsiOutputRequests;
-	atomic_t fc4ScsiControlRequests;
-	atomic_t fc4ScsiIoCmpls;
 
 	uint64_t bg_guard_err_cnt;
 	uint64_t bg_apptag_err_cnt;

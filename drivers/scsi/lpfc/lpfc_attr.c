@@ -64,9 +64,6 @@
 #define LPFC_MIN_MRQ_POST	512
 #define LPFC_MAX_MRQ_POST	2048
 
-#define LPFC_MAX_NVME_INFO_TMP_LEN	100
-#define LPFC_NVME_INFO_MORE_STR		"\nCould be more info...\n"
-
 /*
  * Write key size should be multiple of 4. If write key is changed
  * make sure that library write key is also changed.
@@ -155,7 +152,7 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 	struct lpfc_nvme_rport *rport;
 	struct lpfc_nodelist *ndlp;
 	struct nvme_fc_remote_port *nrport;
-	struct lpfc_nvme_ctrl_stat *cstat;
+	struct lpfc_fc4_ctrl_stat *cstat;
 	uint64_t data1, data2, data3;
 	uint64_t totin, totout, tot;
 	char *statep;
@@ -457,12 +454,12 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 	totin = 0;
 	totout = 0;
 	for (i = 0; i < phba->cfg_hdw_queue; i++) {
-		cstat = &lport->cstat[i];
-		tot = atomic_read(&cstat->fc4NvmeIoCmpls);
+		cstat = &phba->sli4_hba.hdwq[i].nvme_cstat;
+		tot = cstat->io_cmpls;
 		totin += tot;
-		data1 = atomic_read(&cstat->fc4NvmeInputRequests);
-		data2 = atomic_read(&cstat->fc4NvmeOutputRequests);
-		data3 = atomic_read(&cstat->fc4NvmeControlRequests);
+		data1 = cstat->input_requests;
+		data2 = cstat->output_requests;
+		data3 = cstat->control_requests;
 		totout += (data1 + data2 + data3);
 	}
 	scnprintf(tmp, sizeof(tmp),
@@ -504,6 +501,57 @@ buffer_done:
 			strnlen(LPFC_NVME_INFO_MORE_STR, PAGE_SIZE - 1)
 			+ 1);
 	}
+
+	return len;
+}
+
+static ssize_t
+lpfc_scsi_stat_show(struct device *dev, struct device_attribute *attr,
+		    char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct lpfc_vport *vport = shost_priv(shost);
+	struct lpfc_hba *phba = vport->phba;
+	int len;
+	struct lpfc_fc4_ctrl_stat *cstat;
+	u64 data1, data2, data3;
+	u64 tot, totin, totout;
+	int i;
+	char tmp[LPFC_MAX_SCSI_INFO_TMP_LEN] = {0};
+
+	if (!(phba->cfg_enable_fc4_type & LPFC_ENABLE_FCP) ||
+	    (phba->sli_rev != LPFC_SLI_REV4))
+		return 0;
+
+	scnprintf(buf, PAGE_SIZE, "SCSI HDWQ Statistics\n");
+
+	totin = 0;
+	totout = 0;
+	for (i = 0; i < phba->cfg_hdw_queue; i++) {
+		cstat = &phba->sli4_hba.hdwq[i].scsi_cstat;
+		tot = cstat->io_cmpls;
+		totin += tot;
+		data1 = cstat->input_requests;
+		data2 = cstat->output_requests;
+		data3 = cstat->control_requests;
+		totout += (data1 + data2 + data3);
+
+		scnprintf(tmp, sizeof(tmp), "HDWQ (%d): Rd %016llx Wr %016llx "
+			  "IO %016llx ", i, data1, data2, data3);
+		if (strlcat(buf, tmp, PAGE_SIZE) >= PAGE_SIZE)
+			goto buffer_done;
+
+		scnprintf(tmp, sizeof(tmp), "Cmpl %016llx OutIO %016llx\n",
+			  tot, ((data1 + data2 + data3) - tot));
+		if (strlcat(buf, tmp, PAGE_SIZE) >= PAGE_SIZE)
+			goto buffer_done;
+	}
+	scnprintf(tmp, sizeof(tmp), "Total FCP Cmpl %016llx Issue %016llx "
+		  "OutIO %016llx\n", totin, totout, totout - totin);
+	strlcat(buf, tmp, PAGE_SIZE);
+
+buffer_done:
+	len = strnlen(buf, PAGE_SIZE);
 
 	return len;
 }
@@ -2573,6 +2621,7 @@ lpfc_##attr##_store(struct device *dev, struct device_attribute *attr, \
 
 
 static DEVICE_ATTR(nvme_info, 0444, lpfc_nvme_info_show, NULL);
+static DEVICE_ATTR(scsi_stat, 0444, lpfc_scsi_stat_show, NULL);
 static DEVICE_ATTR(bg_info, S_IRUGO, lpfc_bg_info_show, NULL);
 static DEVICE_ATTR(bg_guard_err, S_IRUGO, lpfc_bg_guard_err_show, NULL);
 static DEVICE_ATTR(bg_apptag_err, S_IRUGO, lpfc_bg_apptag_err_show, NULL);
@@ -5642,6 +5691,7 @@ LPFC_ATTR_RW(enable_dpp, 1, 0, 1, "Enable Direct Packet Push");
 
 struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_nvme_info,
+	&dev_attr_scsi_stat,
 	&dev_attr_bg_info,
 	&dev_attr_bg_guard_err,
 	&dev_attr_bg_apptag_err,

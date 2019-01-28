@@ -533,6 +533,13 @@ struct lpfc_vector_map_info {
 };
 #define LPFC_VECTOR_MAP_EMPTY	0xffff
 
+struct lpfc_fc4_ctrl_stat {
+	u32 input_requests;
+	u32 output_requests;
+	u32 control_requests;
+	u32 io_cmpls;
+};
+
 /* SLI4 HBA data structure entries */
 struct lpfc_sli4_hdw_queue {
 	/* Pointers to the constructed SLI4 queues */
@@ -559,6 +566,10 @@ struct lpfc_sli4_hdw_queue {
 	uint32_t empty_io_bufs;
 	uint32_t abts_scsi_io_bufs;
 	uint32_t abts_nvme_io_bufs;
+
+	/* FC-4 Stats counters */
+	struct lpfc_fc4_ctrl_stat nvme_cstat;
+	struct lpfc_fc4_ctrl_stat scsi_cstat;
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 #define LPFC_CHECK_CPU_CNT    128

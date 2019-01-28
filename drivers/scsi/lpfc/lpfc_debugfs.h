@@ -50,6 +50,9 @@
 #define LPFC_CPUCHECK_SIZE 8192
 #define LPFC_NVMEIO_TRC_SIZE 8192
 
+/* scsistat output buffer size */
+#define LPFC_SCSISTAT_SIZE 8192
+
 #define LPFC_DEBUG_OUT_LINE_SZ	80
 
 /*

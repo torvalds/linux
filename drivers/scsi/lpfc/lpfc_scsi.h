@@ -196,5 +196,8 @@ struct lpfc_scsi_buf {
 
 #define TXRDY_PAYLOAD_LEN	12
 
+/* For sysfs/debugfs tmp string max len */
+#define LPFC_MAX_SCSI_INFO_TMP_LEN	79
+
 int lpfc_sli4_scmd_to_wqidx_distr(struct lpfc_hba *phba,
 				  struct lpfc_scsi_buf *lpfc_cmd);
