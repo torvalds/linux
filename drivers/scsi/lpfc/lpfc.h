@@ -619,7 +619,8 @@ struct lpfc_ras_fwlog {
 struct lpfc_hba {
 	/* SCSI interface function jump table entries */
 	struct lpfc_scsi_buf * (*lpfc_get_scsi_buf)
-		(struct lpfc_hba *, struct lpfc_nodelist *);
+		(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
+		struct scsi_cmnd *cmnd);
 	int (*lpfc_scsi_prep_dma_buf)
 		(struct lpfc_hba *, struct lpfc_scsi_buf *);
 	void (*lpfc_scsi_unprep_dma_buf)

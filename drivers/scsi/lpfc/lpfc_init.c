@@ -4063,12 +4063,16 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 	shost->max_lun = vport->cfg_max_luns;
 	shost->this_id = -1;
 	shost->max_cmd_len = 16;
-	shost->nr_hw_queues = phba->cfg_hdw_queue;
 	if (phba->sli_rev == LPFC_SLI_REV4) {
+		shost->nr_hw_queues = phba->cfg_hdw_queue;
 		shost->dma_boundary =
 			phba->sli4_hba.pc_sli4_params.sge_supp_len-1;
 		shost->sg_tablesize = phba->cfg_scsi_seg_cnt;
-	}
+	} else
+		/* SLI-3 has a limited number of hardware queues (3),
+		 * thus there is only one for FCP processing.
+		 */
+		shost->nr_hw_queues = 1;
 
 	/*
 	 * Set initial can_queue value since 0 is no longer supported and

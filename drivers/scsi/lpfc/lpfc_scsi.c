@@ -636,7 +636,8 @@ lpfc_sli4_fcp_xri_aborted(struct lpfc_hba *phba,
  *   Pointer to lpfc_scsi_buf - Success
  **/
 static struct lpfc_scsi_buf*
-lpfc_get_scsi_buf_s3(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
+lpfc_get_scsi_buf_s3(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
+		     struct scsi_cmnd *cmnd)
 {
 	struct  lpfc_scsi_buf * lpfc_cmd = NULL;
 	struct list_head *scsi_buf_list_get = &phba->lpfc_scsi_buf_list_get;
@@ -674,7 +675,8 @@ lpfc_get_scsi_buf_s3(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
  *   Pointer to lpfc_scsi_buf - Success
  **/
 static struct lpfc_scsi_buf*
-lpfc_get_scsi_buf_s4(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
+lpfc_get_scsi_buf_s4(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
+		     struct scsi_cmnd *cmnd)
 {
 	struct lpfc_scsi_buf *lpfc_cmd, *lpfc_cmd_next;
 	struct lpfc_sli4_hdw_queue *qp;
@@ -685,12 +687,18 @@ lpfc_get_scsi_buf_s4(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 	dma_addr_t pdma_phys_fcp_cmd;
 	uint32_t sgl_size, cpu, idx;
 	int found = 0;
+	int tag;
 
 	cpu = smp_processor_id();
-	if (cpu < phba->cfg_hdw_queue)
-		idx = cpu;
-	else
-		idx = cpu % phba->cfg_hdw_queue;
+	if (cmnd) {
+		tag = blk_mq_unique_tag(cmnd->request);
+		idx = blk_mq_unique_tag_to_hwq(tag);
+	} else {
+		if (cpu < phba->cfg_hdw_queue)
+			idx = cpu;
+		else
+			idx = cpu % phba->cfg_hdw_queue;
+	}
 
 	qp = &phba->sli4_hba.hdwq[idx];
 	spin_lock_irqsave(&qp->io_buf_list_get_lock, iflag);
@@ -815,9 +823,10 @@ lpfc_get_scsi_buf_s4(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
  *   Pointer to lpfc_scsi_buf - Success
  **/
 static struct lpfc_scsi_buf*
-lpfc_get_scsi_buf(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
+lpfc_get_scsi_buf(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
+		  struct scsi_cmnd *cmnd)
 {
-	return  phba->lpfc_get_scsi_buf(phba, ndlp);
+	return  phba->lpfc_get_scsi_buf(phba, ndlp, cmnd);
 }
 
 /**
@@ -3658,49 +3667,6 @@ lpfc_handle_fcp_err(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 }
 
 /**
- * lpfc_sli4_scmd_to_wqidx_distr - scsi command to SLI4 WQ index distribution
- * @phba: Pointer to HBA context object.
- *
- * This routine performs a roundrobin SCSI command to SLI4 FCP WQ index
- * distribution.  This is called by __lpfc_sli_issue_iocb_s4() with the hbalock
- * held.
- * If scsi-mq is enabled, get the default block layer mapping of software queues
- * to hardware queues. This information is saved in request tag.
- *
- * Return: index into SLI4 fast-path FCP queue index.
- **/
-int lpfc_sli4_scmd_to_wqidx_distr(struct lpfc_hba *phba,
-				  struct lpfc_scsi_buf *lpfc_cmd)
-{
-	struct scsi_cmnd *cmnd = lpfc_cmd->pCmd;
-	struct lpfc_vector_map_info *cpup;
-	int chann, cpu;
-	uint32_t tag;
-	uint16_t hwq;
-
-	if (cmnd) {
-		tag = blk_mq_unique_tag(cmnd->request);
-		hwq = blk_mq_unique_tag_to_hwq(tag);
-
-		return hwq;
-	}
-
-	if (phba->cfg_fcp_io_sched == LPFC_FCP_SCHED_BY_CPU &&
-	    phba->cfg_hdw_queue > 1) {
-		cpu = lpfc_cmd->cpu;
-		if (cpu < phba->sli4_hba.num_present_cpu) {
-			cpup = phba->sli4_hba.cpu_map;
-			cpup += cpu;
-			return cpup->channel_id;
-		}
-	}
-	chann = atomic_add_return(1, &phba->fcp_qidx);
-	chann = chann % phba->cfg_hdw_queue;
-	return chann;
-}
-
-
-/**
  * lpfc_scsi_cmd_iocb_cmpl - Scsi cmnd IOCB completion routine
  * @phba: The Hba for which this call is being executed.
  * @pIocbIn: The command IOCBQ for the scsi cmnd.
@@ -4474,7 +4440,7 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 		}
 	}
 
-	lpfc_cmd = lpfc_get_scsi_buf(phba, ndlp);
+	lpfc_cmd = lpfc_get_scsi_buf(phba, ndlp, cmnd);
 	if (lpfc_cmd == NULL) {
 		lpfc_rampdown_queue_depth(phba);
 
@@ -4913,7 +4879,7 @@ lpfc_send_taskmgmt(struct lpfc_vport *vport, struct scsi_cmnd *cmnd,
 		return FAILED;
 	pnode = rdata->pnode;
 
-	lpfc_cmd = lpfc_get_scsi_buf(phba, pnode);
+	lpfc_cmd = lpfc_get_scsi_buf(phba, pnode, NULL);
 	if (lpfc_cmd == NULL)
 		return FAILED;
 	lpfc_cmd->timeout = phba->cfg_task_mgmt_tmo;
