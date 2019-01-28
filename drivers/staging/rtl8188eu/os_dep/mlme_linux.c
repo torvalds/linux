@@ -39,34 +39,35 @@ void rtw_reset_securitypriv(struct adapter *adapter)
 	u8 backup_index;
 	u8 backup_counter;
 	u32 backup_time;
+	struct security_priv *psec_priv = &adapter->securitypriv;
 
-	if (adapter->securitypriv.dot11AuthAlgrthm == dot11AuthAlgrthm_8021X) {
+	if (psec_priv->dot11AuthAlgrthm == dot11AuthAlgrthm_8021X) {
 		/* 802.1x
 		 * We have to backup the PMK information for WiFi PMK Caching
 		 * test item. Backup the btkip_countermeasure information. When
 		 * the countermeasure is trigger, the driver have to disconnect
 		 * with AP for 60 seconds.
 		 */
-		memcpy(backup_pmkid, adapter->securitypriv.PMKIDList, sizeof(struct rt_pmkid_list) * NUM_PMKID_CACHE);
-		backup_index = adapter->securitypriv.PMKIDIndex;
-		backup_counter = adapter->securitypriv.btkip_countermeasure;
-		backup_time = adapter->securitypriv.btkip_countermeasure_time;
-		memset((unsigned char *)&adapter->securitypriv, 0, sizeof(struct security_priv));
+		memcpy(backup_pmkid, psec_priv->PMKIDList,
+		       sizeof(struct rt_pmkid_list) * NUM_PMKID_CACHE);
+		backup_index = psec_priv->PMKIDIndex;
+		backup_counter = psec_priv->btkip_countermeasure;
+		backup_time = psec_priv->btkip_countermeasure_time;
+
+		memset(psec_priv, 0, sizeof(*psec_priv));
 
 		/* Restore the PMK information to securitypriv structure
 		 * for the following connection.
 		 */
-		memcpy(adapter->securitypriv.PMKIDList, backup_pmkid,
+		memcpy(psec_priv->PMKIDList, backup_pmkid,
 		       sizeof(struct rt_pmkid_list) * NUM_PMKID_CACHE);
-		adapter->securitypriv.PMKIDIndex = backup_index;
-		adapter->securitypriv.btkip_countermeasure = backup_counter;
-		adapter->securitypriv.btkip_countermeasure_time = backup_time;
-		adapter->securitypriv.ndisauthtype = Ndis802_11AuthModeOpen;
-		adapter->securitypriv.ndisencryptstatus = Ndis802_11WEPDisabled;
+		psec_priv->PMKIDIndex = backup_index;
+		psec_priv->btkip_countermeasure = backup_counter;
+		psec_priv->btkip_countermeasure_time = backup_time;
+		psec_priv->ndisauthtype = Ndis802_11AuthModeOpen;
+		psec_priv->ndisencryptstatus = Ndis802_11WEPDisabled;
 	} else {
 		/* reset values in securitypriv */
-		struct security_priv *psec_priv = &adapter->securitypriv;
-
 		psec_priv->dot11AuthAlgrthm = dot11AuthAlgrthm_Open;
 		psec_priv->dot11PrivacyAlgrthm = _NO_PRIVACY_;
 		psec_priv->dot11PrivacyKeyIndex = 0;
