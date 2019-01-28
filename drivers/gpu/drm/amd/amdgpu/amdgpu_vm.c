@@ -332,7 +332,6 @@ static void amdgpu_vm_bo_base_init(struct amdgpu_vm_bo_base *base,
 	if (bo->tbo.resv != vm->root.base.bo->tbo.resv)
 		return;
 
-	vm->bulk_moveable = false;
 	if (bo->tbo.type == ttm_bo_type_kernel)
 		amdgpu_vm_bo_relocated(base);
 	else
@@ -697,8 +696,6 @@ int amdgpu_vm_validate_pt_bos(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 {
 	struct amdgpu_vm_bo_base *bo_base, *tmp;
 	int r = 0;
-
-	vm->bulk_moveable &= list_empty(&vm->evicted);
 
 	list_for_each_entry_safe(bo_base, tmp, &vm->evicted, vm_status) {
 		struct amdgpu_bo *bo = bo_base->bo;
@@ -2758,9 +2755,6 @@ void amdgpu_vm_bo_rmv(struct amdgpu_device *adev,
 	struct amdgpu_vm_bo_base **base;
 
 	if (bo) {
-		if (bo->tbo.resv == vm->root.base.bo->tbo.resv)
-			vm->bulk_moveable = false;
-
 		for (base = &bo_va->base.bo->vm_bo; *base;
 		     base = &(*base)->next) {
 			if (*base != &bo_va->base)
