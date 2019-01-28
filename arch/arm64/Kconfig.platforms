@@ -112,7 +112,6 @@ config ARCH_MESON
 	bool "Amlogic Platforms"
 	select PINCTRL
 	select PINCTRL_MESON
-	select COMMON_CLK_AMLOGIC
 	select COMMON_CLK_GXBB
 	select COMMON_CLK_AXG
 	select MESON_IRQ_GPIO
