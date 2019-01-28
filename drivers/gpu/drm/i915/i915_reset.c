@@ -760,6 +760,7 @@ static void nop_submit_request(struct i915_request *request)
 
 	spin_lock_irqsave(&request->engine->timeline.lock, flags);
 	__i915_request_submit(request);
+	i915_request_mark_complete(request);
 	intel_engine_write_global_seqno(request->engine, request->global_seqno);
 	spin_unlock_irqrestore(&request->engine->timeline.lock, flags);
 }

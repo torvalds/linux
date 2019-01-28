@@ -270,6 +270,10 @@ int i915_timeline_pin(struct i915_timeline *tl)
 	if (err)
 		goto unpin;
 
+	tl->hwsp_offset =
+		i915_ggtt_offset(tl->hwsp_ggtt) +
+		offset_in_page(tl->hwsp_offset);
+
 	return 0;
 
 unpin:

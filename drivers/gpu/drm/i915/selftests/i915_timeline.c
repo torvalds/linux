@@ -440,11 +440,6 @@ static int emit_ggtt_store_dw(struct i915_request *rq, u32 addr, u32 value)
 	return 0;
 }
 
-static u32 hwsp_address(const struct i915_timeline *tl)
-{
-	return i915_ggtt_offset(tl->hwsp_ggtt) + tl->hwsp_offset;
-}
-
 static struct i915_request *
 tl_write(struct i915_timeline *tl, struct intel_engine_cs *engine, u32 value)
 {
@@ -463,7 +458,7 @@ tl_write(struct i915_timeline *tl, struct intel_engine_cs *engine, u32 value)
 	if (IS_ERR(rq))
 		goto out_unpin;
 
-	err = emit_ggtt_store_dw(rq, hwsp_address(tl), value);
+	err = emit_ggtt_store_dw(rq, tl->hwsp_offset, value);
 	i915_request_add(rq);
 	if (err)
 		rq = ERR_PTR(err);

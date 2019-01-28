@@ -326,6 +326,11 @@ static u32 *gen6_rcs_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 		 PIPE_CONTROL_DC_FLUSH_ENABLE |
 		 PIPE_CONTROL_QW_WRITE |
 		 PIPE_CONTROL_CS_STALL);
+	*cs++ = rq->timeline->hwsp_offset | PIPE_CONTROL_GLOBAL_GTT;
+	*cs++ = rq->fence.seqno;
+
+	*cs++ = GFX_OP_PIPE_CONTROL(4);
+	*cs++ = PIPE_CONTROL_QW_WRITE | PIPE_CONTROL_CS_STALL;
 	*cs++ = intel_hws_seqno_address(rq->engine) | PIPE_CONTROL_GLOBAL_GTT;
 	*cs++ = rq->global_seqno;
 
@@ -427,6 +432,13 @@ static u32 *gen7_rcs_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 		 PIPE_CONTROL_QW_WRITE |
 		 PIPE_CONTROL_GLOBAL_GTT_IVB |
 		 PIPE_CONTROL_CS_STALL);
+	*cs++ = rq->timeline->hwsp_offset;
+	*cs++ = rq->fence.seqno;
+
+	*cs++ = GFX_OP_PIPE_CONTROL(4);
+	*cs++ = (PIPE_CONTROL_QW_WRITE |
+		 PIPE_CONTROL_GLOBAL_GTT_IVB |
+		 PIPE_CONTROL_CS_STALL);
 	*cs++ = intel_hws_seqno_address(rq->engine);
 	*cs++ = rq->global_seqno;
 
@@ -441,10 +453,19 @@ static u32 *gen7_rcs_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 
 static u32 *gen6_xcs_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 {
-	*cs++ = MI_FLUSH_DW | MI_FLUSH_DW_OP_STOREDW;
-	*cs++ = intel_hws_seqno_address(rq->engine) | MI_FLUSH_DW_USE_GTT;
+	GEM_BUG_ON(rq->timeline->hwsp_ggtt != rq->engine->status_page.vma);
+	GEM_BUG_ON(offset_in_page(rq->timeline->hwsp_offset) != I915_GEM_HWS_SEQNO_ADDR);
+
+	*cs++ = MI_FLUSH_DW | MI_FLUSH_DW_OP_STOREDW | MI_FLUSH_DW_STORE_INDEX;
+	*cs++ = I915_GEM_HWS_SEQNO_ADDR | MI_FLUSH_DW_USE_GTT;
+	*cs++ = rq->fence.seqno;
+
+	*cs++ = MI_FLUSH_DW | MI_FLUSH_DW_OP_STOREDW | MI_FLUSH_DW_STORE_INDEX;
+	*cs++ = I915_GEM_HWS_INDEX_ADDR | MI_FLUSH_DW_USE_GTT;
 	*cs++ = rq->global_seqno;
+
 	*cs++ = MI_USER_INTERRUPT;
+	*cs++ = MI_NOOP;
 
 	rq->tail = intel_ring_offset(rq, cs);
 	assert_ring_tail_valid(rq->ring, rq->tail);
@@ -457,14 +478,21 @@ static u32 *gen7_xcs_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 {
 	int i;
 
-	*cs++ = MI_FLUSH_DW | MI_FLUSH_DW_OP_STOREDW;
-	*cs++ = intel_hws_seqno_address(rq->engine) | MI_FLUSH_DW_USE_GTT;
+	GEM_BUG_ON(rq->timeline->hwsp_ggtt != rq->engine->status_page.vma);
+	GEM_BUG_ON(offset_in_page(rq->timeline->hwsp_offset) != I915_GEM_HWS_SEQNO_ADDR);
+
+	*cs++ = MI_FLUSH_DW | MI_FLUSH_DW_OP_STOREDW | MI_FLUSH_DW_STORE_INDEX;
+	*cs++ = I915_GEM_HWS_SEQNO_ADDR | MI_FLUSH_DW_USE_GTT;
+	*cs++ = rq->fence.seqno;
+
+	*cs++ = MI_FLUSH_DW | MI_FLUSH_DW_OP_STOREDW | MI_FLUSH_DW_STORE_INDEX;
+	*cs++ = I915_GEM_HWS_INDEX_ADDR | MI_FLUSH_DW_USE_GTT;
 	*cs++ = rq->global_seqno;
 
 	for (i = 0; i < GEN7_XCS_WA; i++) {
 		*cs++ = MI_STORE_DWORD_INDEX;
-		*cs++ = I915_GEM_HWS_INDEX_ADDR;
-		*cs++ = rq->global_seqno;
+		*cs++ = I915_GEM_HWS_SEQNO_ADDR;
+		*cs++ = rq->fence.seqno;
 	}
 
 	*cs++ = MI_FLUSH_DW;
@@ -472,7 +500,6 @@ static u32 *gen7_xcs_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 	*cs++ = 0;
 
 	*cs++ = MI_USER_INTERRUPT;
-	*cs++ = MI_NOOP;
 
 	rq->tail = intel_ring_offset(rq, cs);
 	assert_ring_tail_valid(rq->ring, rq->tail);
@@ -738,7 +765,7 @@ static void reset_ring(struct intel_engine_cs *engine, bool stalled)
 	rq = NULL;
 	spin_lock_irqsave(&tl->lock, flags);
 	list_for_each_entry(pos, &tl->requests, link) {
-		if (!__i915_request_completed(pos, pos->global_seqno)) {
+		if (!i915_request_completed(pos)) {
 			rq = pos;
 			break;
 		}
@@ -880,10 +907,10 @@ static void cancel_requests(struct intel_engine_cs *engine)
 	list_for_each_entry(request, &engine->timeline.requests, link) {
 		GEM_BUG_ON(!request->global_seqno);
 
-		if (i915_request_signaled(request))
-			continue;
+		if (!i915_request_signaled(request))
+			dma_fence_set_error(&request->fence, -EIO);
 
-		dma_fence_set_error(&request->fence, -EIO);
+		i915_request_mark_complete(request);
 	}
 
 	intel_write_status_page(engine,
@@ -907,14 +934,20 @@ static void i9xx_submit_request(struct i915_request *request)
 
 static u32 *i9xx_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 {
+	GEM_BUG_ON(rq->timeline->hwsp_ggtt != rq->engine->status_page.vma);
+	GEM_BUG_ON(offset_in_page(rq->timeline->hwsp_offset) != I915_GEM_HWS_SEQNO_ADDR);
+
 	*cs++ = MI_FLUSH;
+
+	*cs++ = MI_STORE_DWORD_INDEX;
+	*cs++ = I915_GEM_HWS_SEQNO_ADDR;
+	*cs++ = rq->fence.seqno;
 
 	*cs++ = MI_STORE_DWORD_INDEX;
 	*cs++ = I915_GEM_HWS_INDEX_ADDR;
 	*cs++ = rq->global_seqno;
 
 	*cs++ = MI_USER_INTERRUPT;
-	*cs++ = MI_NOOP;
 
 	rq->tail = intel_ring_offset(rq, cs);
 	assert_ring_tail_valid(rq->ring, rq->tail);
@@ -927,7 +960,14 @@ static u32 *gen5_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 {
 	int i;
 
+	GEM_BUG_ON(rq->timeline->hwsp_ggtt != rq->engine->status_page.vma);
+	GEM_BUG_ON(offset_in_page(rq->timeline->hwsp_offset) != I915_GEM_HWS_SEQNO_ADDR);
+
 	*cs++ = MI_FLUSH;
+
+	*cs++ = MI_STORE_DWORD_INDEX;
+	*cs++ = I915_GEM_HWS_SEQNO_ADDR;
+	*cs++ = rq->fence.seqno;
 
 	BUILD_BUG_ON(GEN5_WA_STORES < 1);
 	for (i = 0; i < GEN5_WA_STORES; i++) {
@@ -937,6 +977,7 @@ static u32 *gen5_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 	}
 
 	*cs++ = MI_USER_INTERRUPT;
+	*cs++ = MI_NOOP;
 
 	rq->tail = intel_ring_offset(rq, cs);
 	assert_ring_tail_valid(rq->ring, rq->tail);
@@ -1169,6 +1210,10 @@ int intel_ring_pin(struct intel_ring *ring)
 
 	GEM_BUG_ON(ring->vaddr);
 
+	ret = i915_timeline_pin(ring->timeline);
+	if (ret)
+		return ret;
+
 	flags = PIN_GLOBAL;
 
 	/* Ring wraparound at offset 0 sometimes hangs. No idea why. */
@@ -1185,28 +1230,32 @@ int intel_ring_pin(struct intel_ring *ring)
 		else
 			ret = i915_gem_object_set_to_cpu_domain(vma->obj, true);
 		if (unlikely(ret))
-			return ret;
+			goto unpin_timeline;
 	}
 
 	ret = i915_vma_pin(vma, 0, 0, flags);
 	if (unlikely(ret))
-		return ret;
+		goto unpin_timeline;
 
 	if (i915_vma_is_map_and_fenceable(vma))
 		addr = (void __force *)i915_vma_pin_iomap(vma);
 	else
 		addr = i915_gem_object_pin_map(vma->obj, map);
-	if (IS_ERR(addr))
-		goto err;
+	if (IS_ERR(addr)) {
+		ret = PTR_ERR(addr);
+		goto unpin_ring;
+	}
 
 	vma->obj->pin_global++;
 
 	ring->vaddr = addr;
 	return 0;
 
-err:
+unpin_ring:
 	i915_vma_unpin(vma);
-	return PTR_ERR(addr);
+unpin_timeline:
+	i915_timeline_unpin(ring->timeline);
+	return ret;
 }
 
 void intel_ring_reset(struct intel_ring *ring, u32 tail)
@@ -1235,6 +1284,8 @@ void intel_ring_unpin(struct intel_ring *ring)
 
 	ring->vma->obj->pin_global--;
 	i915_vma_unpin(ring->vma);
+
+	i915_timeline_unpin(ring->timeline);
 }
 
 static struct i915_vma *

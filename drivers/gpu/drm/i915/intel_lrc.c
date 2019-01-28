@@ -832,10 +832,10 @@ static void execlists_cancel_requests(struct intel_engine_cs *engine)
 	list_for_each_entry(rq, &engine->timeline.requests, link) {
 		GEM_BUG_ON(!rq->global_seqno);
 
-		if (i915_request_signaled(rq))
-			continue;
+		if (!i915_request_signaled(rq))
+			dma_fence_set_error(&rq->fence, -EIO);
 
-		dma_fence_set_error(&rq->fence, -EIO);
+		i915_request_mark_complete(rq);
 	}
 
 	/* Flush the queued requests to the timeline list (for retiring). */
@@ -845,9 +845,9 @@ static void execlists_cancel_requests(struct intel_engine_cs *engine)
 
 		priolist_for_each_request_consume(rq, rn, p, i) {
 			list_del_init(&rq->sched.link);
-
-			dma_fence_set_error(&rq->fence, -EIO);
 			__i915_request_submit(rq);
+			dma_fence_set_error(&rq->fence, -EIO);
+			i915_request_mark_complete(rq);
 		}
 
 		rb_erase_cached(&p->node, &execlists->queue);
@@ -2044,10 +2044,17 @@ static u32 *gen8_emit_breadcrumb(struct i915_request *request, u32 *cs)
 	/* w/a: bit 5 needs to be zero for MI_FLUSH_DW address. */
 	BUILD_BUG_ON(I915_GEM_HWS_INDEX_ADDR & (1 << 5));
 
-	cs = gen8_emit_ggtt_write(cs, request->global_seqno,
+	cs = gen8_emit_ggtt_write(cs,
+				  request->fence.seqno,
+				  request->timeline->hwsp_offset);
+
+	cs = gen8_emit_ggtt_write(cs,
+				  request->global_seqno,
 				  intel_hws_seqno_address(request->engine));
+
 	*cs++ = MI_USER_INTERRUPT;
 	*cs++ = MI_ARB_ON_OFF | MI_ARB_ENABLE;
+
 	request->tail = intel_ring_offset(request, cs);
 	assert_ring_tail_valid(request->ring, request->tail);
 
@@ -2056,16 +2063,18 @@ static u32 *gen8_emit_breadcrumb(struct i915_request *request, u32 *cs)
 
 static u32 *gen8_emit_breadcrumb_rcs(struct i915_request *request, u32 *cs)
 {
-	/* We're using qword write, seqno should be aligned to 8 bytes. */
-	BUILD_BUG_ON(I915_GEM_HWS_INDEX & 1);
-
 	cs = gen8_emit_ggtt_write_rcs(cs,
-				      request->global_seqno,
-				      intel_hws_seqno_address(request->engine),
+				      request->fence.seqno,
+				      request->timeline->hwsp_offset,
 				      PIPE_CONTROL_RENDER_TARGET_CACHE_FLUSH |
 				      PIPE_CONTROL_DEPTH_CACHE_FLUSH |
 				      PIPE_CONTROL_DC_FLUSH_ENABLE |
 				      PIPE_CONTROL_FLUSH_ENABLE |
+				      PIPE_CONTROL_CS_STALL);
+
+	cs = gen8_emit_ggtt_write_rcs(cs,
+				      request->global_seqno,
+				      intel_hws_seqno_address(request->engine),
 				      PIPE_CONTROL_CS_STALL);
 
 	*cs++ = MI_USER_INTERRUPT;

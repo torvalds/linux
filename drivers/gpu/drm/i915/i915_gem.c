@@ -2890,7 +2890,7 @@ i915_gem_find_active_request(struct intel_engine_cs *engine)
 	 */
 	spin_lock_irqsave(&engine->timeline.lock, flags);
 	list_for_each_entry(request, &engine->timeline.requests, link) {
-		if (__i915_request_completed(request, request->global_seqno))
+		if (i915_request_completed(request))
 			continue;
 
 		active = request;

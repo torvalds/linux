@@ -289,6 +289,7 @@ long i915_request_wait(struct i915_request *rq,
 
 static inline bool i915_request_signaled(const struct i915_request *rq)
 {
+	/* The request may live longer than its HWSP, so check flags first! */
 	return test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &rq->fence.flags);
 }
 
@@ -340,32 +341,23 @@ static inline u32 hwsp_seqno(const struct i915_request *rq)
  */
 static inline bool i915_request_started(const struct i915_request *rq)
 {
-	u32 seqno;
+	if (i915_request_signaled(rq))
+		return true;
 
-	seqno = i915_request_global_seqno(rq);
-	if (!seqno) /* not yet submitted to HW */
-		return false;
-
-	return i915_seqno_passed(hwsp_seqno(rq), seqno - 1);
-}
-
-static inline bool
-__i915_request_completed(const struct i915_request *rq, u32 seqno)
-{
-	GEM_BUG_ON(!seqno);
-	return i915_seqno_passed(hwsp_seqno(rq), seqno) &&
-		seqno == i915_request_global_seqno(rq);
+	return i915_seqno_passed(hwsp_seqno(rq), rq->fence.seqno - 1);
 }
 
 static inline bool i915_request_completed(const struct i915_request *rq)
 {
-	u32 seqno;
+	if (i915_request_signaled(rq))
+		return true;
 
-	seqno = i915_request_global_seqno(rq);
-	if (!seqno)
-		return false;
+	return i915_seqno_passed(hwsp_seqno(rq), rq->fence.seqno);
+}
 
-	return __i915_request_completed(rq, seqno);
+static inline void i915_request_mark_complete(struct i915_request *rq)
+{
+	rq->hwsp_seqno = (u32 *)&rq->fence.seqno; /* decouple from HWSP */
 }
 
 void i915_retire_requests(struct drm_i915_private *i915);

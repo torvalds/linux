@@ -199,6 +199,7 @@ static void __retire_engine_request(struct intel_engine_cs *engine,
 	spin_unlock(&engine->timeline.lock);
 
 	spin_lock(&rq->lock);
+	i915_request_mark_complete(rq);
 	if (!i915_request_signaled(rq))
 		dma_fence_signal_locked(&rq->fence);
 	if (test_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT, &rq->fence.flags))
@@ -621,7 +622,7 @@ i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 	rq->ring = ce->ring;
 	rq->timeline = ce->ring->timeline;
 	GEM_BUG_ON(rq->timeline == &engine->timeline);
-	rq->hwsp_seqno = &engine->status_page.addr[I915_GEM_HWS_INDEX];
+	rq->hwsp_seqno = rq->timeline->hwsp_seqno;
 
 	spin_lock_init(&rq->lock);
 	dma_fence_init(&rq->fence,

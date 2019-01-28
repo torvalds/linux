@@ -660,10 +660,16 @@ static int measure_breadcrumb_dw(struct intel_engine_cs *engine)
 	frame->rq.ring = &frame->ring;
 	frame->rq.timeline = &frame->timeline;
 
+	dw = i915_timeline_pin(&frame->timeline);
+	if (dw < 0)
+		goto out_timeline;
+
 	dw = engine->emit_breadcrumb(&frame->rq, frame->cs) - frame->cs;
 
-	i915_timeline_fini(&frame->timeline);
+	i915_timeline_unpin(&frame->timeline);
 
+out_timeline:
+	i915_timeline_fini(&frame->timeline);
 out_frame:
 	kfree(frame);
 	return dw;
@@ -1426,9 +1432,10 @@ static void intel_engine_print_registers(const struct intel_engine_cs *engine,
 				char hdr[80];
 
 				snprintf(hdr, sizeof(hdr),
-					 "\t\tELSP[%d] count=%d, ring->start=%08x, rq: ",
+					 "\t\tELSP[%d] count=%d, ring:{start:%08x, hwsp:%08x}, rq: ",
 					 idx, count,
-					 i915_ggtt_offset(rq->ring->vma));
+					 i915_ggtt_offset(rq->ring->vma),
+					 rq->timeline->hwsp_offset);
 				print_request(m, rq, hdr);
 			} else {
 				drm_printf(m, "\t\tELSP[%d] idle\n", idx);
@@ -1538,6 +1545,8 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 			   rq->ring->emit);
 		drm_printf(m, "\t\tring->space:  0x%08x\n",
 			   rq->ring->space);
+		drm_printf(m, "\t\tring->hwsp:   0x%08x\n",
+			   rq->timeline->hwsp_offset);
 
 		print_request_ring(m, rq);
 	}

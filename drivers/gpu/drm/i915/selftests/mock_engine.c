@@ -30,6 +30,17 @@ struct mock_ring {
 	struct i915_timeline timeline;
 };
 
+static void mock_timeline_pin(struct i915_timeline *tl)
+{
+	tl->pin_count++;
+}
+
+static void mock_timeline_unpin(struct i915_timeline *tl)
+{
+	GEM_BUG_ON(!tl->pin_count);
+	tl->pin_count--;
+}
+
 static struct intel_ring *mock_ring(struct intel_engine_cs *engine)
 {
 	const unsigned long sz = PAGE_SIZE / 2;
@@ -76,6 +87,8 @@ static void advance(struct mock_request *request)
 {
 	list_del_init(&request->link);
 	mock_seqno_advance(request->base.engine, request->base.global_seqno);
+	i915_request_mark_complete(&request->base);
+	GEM_BUG_ON(!i915_request_completed(&request->base));
 }
 
 static void hw_delay_complete(struct timer_list *t)
@@ -108,6 +121,7 @@ static void hw_delay_complete(struct timer_list *t)
 
 static void mock_context_unpin(struct intel_context *ce)
 {
+	mock_timeline_unpin(ce->ring->timeline);
 	i915_gem_context_put(ce->gem_context);
 }
 
@@ -129,6 +143,7 @@ mock_context_pin(struct intel_engine_cs *engine,
 		 struct i915_gem_context *ctx)
 {
 	struct intel_context *ce = to_intel_context(ctx, engine);
+	int err = -ENOMEM;
 
 	if (ce->pin_count++)
 		return ce;
@@ -139,13 +154,15 @@ mock_context_pin(struct intel_engine_cs *engine,
 			goto err;
 	}
 
+	mock_timeline_pin(ce->ring->timeline);
+
 	ce->ops = &mock_context_ops;
 	i915_gem_context_get(ctx);
 	return ce;
 
 err:
 	ce->pin_count = 0;
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(err);
 }
 
 static int mock_request_alloc(struct i915_request *request)
