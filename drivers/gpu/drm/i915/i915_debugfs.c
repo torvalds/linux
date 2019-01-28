@@ -159,14 +159,14 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 		   obj->mm.madv == I915_MADV_DONTNEED ? " purgeable" : "");
 	if (obj->base.name)
 		seq_printf(m, " (name: %d)", obj->base.name);
-	list_for_each_entry(vma, &obj->vma_list, obj_link) {
+	list_for_each_entry(vma, &obj->vma.list, obj_link) {
 		if (i915_vma_is_pinned(vma))
 			pin_count++;
 	}
 	seq_printf(m, " (pinned x %d)", pin_count);
 	if (obj->pin_global)
 		seq_printf(m, " (global)");
-	list_for_each_entry(vma, &obj->vma_list, obj_link) {
+	list_for_each_entry(vma, &obj->vma.list, obj_link) {
 		if (!drm_mm_node_allocated(&vma->node))
 			continue;
 
@@ -322,7 +322,7 @@ static int per_file_stats(int id, void *ptr, void *data)
 	if (obj->base.name || obj->base.dma_buf)
 		stats->shared += obj->base.size;
 
-	list_for_each_entry(vma, &obj->vma_list, obj_link) {
+	list_for_each_entry(vma, &obj->vma.list, obj_link) {
 		if (!drm_mm_node_allocated(&vma->node))
 			continue;
 

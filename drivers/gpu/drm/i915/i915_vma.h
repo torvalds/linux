@@ -425,7 +425,7 @@ void i915_vma_parked(struct drm_i915_private *i915);
  * or the list is empty ofc.
  */
 #define for_each_ggtt_vma(V, OBJ) \
-	list_for_each_entry(V, &(OBJ)->vma_list, obj_link)		\
+	list_for_each_entry(V, &(OBJ)->vma.list, obj_link)		\
 		for_each_until(!i915_vma_is_ggtt(V))
 
 #endif

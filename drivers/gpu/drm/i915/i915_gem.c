@@ -437,15 +437,19 @@ int i915_gem_object_unbind(struct drm_i915_gem_object *obj)
 	if (ret)
 		return ret;
 
-	while ((vma = list_first_entry_or_null(&obj->vma_list,
-					       struct i915_vma,
-					       obj_link))) {
+	spin_lock(&obj->vma.lock);
+	while (!ret && (vma = list_first_entry_or_null(&obj->vma.list,
+						       struct i915_vma,
+						       obj_link))) {
 		list_move_tail(&vma->obj_link, &still_in_list);
+		spin_unlock(&obj->vma.lock);
+
 		ret = i915_vma_unbind(vma);
-		if (ret)
-			break;
+
+		spin_lock(&obj->vma.lock);
 	}
-	list_splice(&still_in_list, &obj->vma_list);
+	list_splice(&still_in_list, &obj->vma.list);
+	spin_unlock(&obj->vma.lock);
 
 	return ret;
 }
@@ -3489,7 +3493,7 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 	 * reading an invalid PTE on older architectures.
 	 */
 restart:
-	list_for_each_entry(vma, &obj->vma_list, obj_link) {
+	list_for_each_entry(vma, &obj->vma.list, obj_link) {
 		if (!drm_mm_node_allocated(&vma->node))
 			continue;
 
@@ -3567,7 +3571,7 @@ restart:
 			 */
 		}
 
-		list_for_each_entry(vma, &obj->vma_list, obj_link) {
+		list_for_each_entry(vma, &obj->vma.list, obj_link) {
 			if (!drm_mm_node_allocated(&vma->node))
 				continue;
 
@@ -3577,7 +3581,7 @@ restart:
 		}
 	}
 
-	list_for_each_entry(vma, &obj->vma_list, obj_link)
+	list_for_each_entry(vma, &obj->vma.list, obj_link)
 		vma->node.color = cache_level;
 	i915_gem_object_set_cache_coherency(obj, cache_level);
 	obj->cache_dirty = true; /* Always invalidate stale cachelines */
@@ -4153,7 +4157,9 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 {
 	mutex_init(&obj->mm.lock);
 
-	INIT_LIST_HEAD(&obj->vma_list);
+	spin_lock_init(&obj->vma.lock);
+	INIT_LIST_HEAD(&obj->vma.list);
+
 	INIT_LIST_HEAD(&obj->lut_list);
 	INIT_LIST_HEAD(&obj->batch_pool_link);
 
@@ -4319,14 +4325,13 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 		mutex_lock(&i915->drm.struct_mutex);
 
 		GEM_BUG_ON(i915_gem_object_is_active(obj));
-		list_for_each_entry_safe(vma, vn,
-					 &obj->vma_list, obj_link) {
+		list_for_each_entry_safe(vma, vn, &obj->vma.list, obj_link) {
 			GEM_BUG_ON(i915_vma_is_active(vma));
 			vma->flags &= ~I915_VMA_PIN_MASK;
 			i915_vma_destroy(vma);
 		}
-		GEM_BUG_ON(!list_empty(&obj->vma_list));
-		GEM_BUG_ON(!RB_EMPTY_ROOT(&obj->vma_tree));
+		GEM_BUG_ON(!list_empty(&obj->vma.list));
+		GEM_BUG_ON(!RB_EMPTY_ROOT(&obj->vma.tree));
 
 		/* This serializes freeing with the shrinker. Since the free
 		 * is delayed, first by RCU then by the workqueue, we want the

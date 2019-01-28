@@ -672,7 +672,7 @@ static int igt_vma_partial(void *arg)
 		}
 
 		count = 0;
-		list_for_each_entry(vma, &obj->vma_list, obj_link)
+		list_for_each_entry(vma, &obj->vma.list, obj_link)
 			count++;
 		if (count != nvma) {
 			pr_err("(%s) All partial vma were not recorded on the obj->vma_list: found %u, expected %u\n",
@@ -701,7 +701,7 @@ static int igt_vma_partial(void *arg)
 		i915_vma_unpin(vma);
 
 		count = 0;
-		list_for_each_entry(vma, &obj->vma_list, obj_link)
+		list_for_each_entry(vma, &obj->vma.list, obj_link)
 			count++;
 		if (count != nvma) {
 			pr_err("(%s) allocated an extra full vma!\n", p->name);

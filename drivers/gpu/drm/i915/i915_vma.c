@@ -187,32 +187,52 @@ vma_create(struct drm_i915_gem_object *obj,
 								i915_gem_object_get_stride(obj));
 		GEM_BUG_ON(!is_power_of_2(vma->fence_alignment));
 
+		vma->flags |= I915_VMA_GGTT;
+	}
+
+	spin_lock(&obj->vma.lock);
+
+	rb = NULL;
+	p = &obj->vma.tree.rb_node;
+	while (*p) {
+		struct i915_vma *pos;
+		long cmp;
+
+		rb = *p;
+		pos = rb_entry(rb, struct i915_vma, obj_node);
+
+		/*
+		 * If the view already exists in the tree, another thread
+		 * already created a matching vma, so return the older instance
+		 * and dispose of ours.
+		 */
+		cmp = i915_vma_compare(pos, vm, view);
+		if (cmp == 0) {
+			spin_unlock(&obj->vma.lock);
+			kmem_cache_free(vm->i915->vmas, vma);
+			return pos;
+		}
+
+		if (cmp < 0)
+			p = &rb->rb_right;
+		else
+			p = &rb->rb_left;
+	}
+	rb_link_node(&vma->obj_node, rb, p);
+	rb_insert_color(&vma->obj_node, &obj->vma.tree);
+
+	if (i915_vma_is_ggtt(vma))
 		/*
 		 * We put the GGTT vma at the start of the vma-list, followed
 		 * by the ppGGTT vma. This allows us to break early when
 		 * iterating over only the GGTT vma for an object, see
 		 * for_each_ggtt_vma()
 		 */
-		vma->flags |= I915_VMA_GGTT;
-		list_add(&vma->obj_link, &obj->vma_list);
-	} else {
-		list_add_tail(&vma->obj_link, &obj->vma_list);
-	}
+		list_add(&vma->obj_link, &obj->vma.list);
+	else
+		list_add_tail(&vma->obj_link, &obj->vma.list);
 
-	rb = NULL;
-	p = &obj->vma_tree.rb_node;
-	while (*p) {
-		struct i915_vma *pos;
-
-		rb = *p;
-		pos = rb_entry(rb, struct i915_vma, obj_node);
-		if (i915_vma_compare(pos, vm, view) < 0)
-			p = &rb->rb_right;
-		else
-			p = &rb->rb_left;
-	}
-	rb_link_node(&vma->obj_node, rb, p);
-	rb_insert_color(&vma->obj_node, &obj->vma_tree);
+	spin_unlock(&obj->vma.lock);
 
 	mutex_lock(&vm->mutex);
 	list_add(&vma->vm_link, &vm->unbound_list);
@@ -232,7 +252,7 @@ vma_lookup(struct drm_i915_gem_object *obj,
 {
 	struct rb_node *rb;
 
-	rb = obj->vma_tree.rb_node;
+	rb = obj->vma.tree.rb_node;
 	while (rb) {
 		struct i915_vma *vma = rb_entry(rb, struct i915_vma, obj_node);
 		long cmp;
@@ -272,16 +292,18 @@ i915_vma_instance(struct drm_i915_gem_object *obj,
 {
 	struct i915_vma *vma;
 
-	lockdep_assert_held(&obj->base.dev->struct_mutex);
 	GEM_BUG_ON(view && !i915_is_ggtt(vm));
 	GEM_BUG_ON(vm->closed);
 
+	spin_lock(&obj->vma.lock);
 	vma = vma_lookup(obj, vm, view);
-	if (!vma)
+	spin_unlock(&obj->vma.lock);
+
+	/* vma_create() will resolve the race if another creates the vma */
+	if (unlikely(!vma))
 		vma = vma_create(obj, vm, view);
 
 	GEM_BUG_ON(!IS_ERR(vma) && i915_vma_compare(vma, vm, view));
-	GEM_BUG_ON(!IS_ERR(vma) && vma_lookup(obj, vm, view) != vma);
 	return vma;
 }
 
@@ -808,14 +830,18 @@ static void __i915_vma_destroy(struct i915_vma *vma)
 
 	GEM_BUG_ON(i915_gem_active_isset(&vma->last_fence));
 
-	list_del(&vma->obj_link);
-
 	mutex_lock(&vma->vm->mutex);
 	list_del(&vma->vm_link);
 	mutex_unlock(&vma->vm->mutex);
 
-	if (vma->obj)
-		rb_erase(&vma->obj_node, &vma->obj->vma_tree);
+	if (vma->obj) {
+		struct drm_i915_gem_object *obj = vma->obj;
+
+		spin_lock(&obj->vma.lock);
+		list_del(&vma->obj_link);
+		rb_erase(&vma->obj_node, &vma->obj->vma.tree);
+		spin_unlock(&obj->vma.lock);
+	}
 
 	rbtree_postorder_for_each_entry_safe(iter, n, &vma->active, node) {
 		GEM_BUG_ON(i915_gem_active_isset(&iter->base));
