@@ -875,7 +875,7 @@ static int soc_bind_dai_link(struct snd_soc_card *card,
 	struct snd_soc_dai_link *dai_link)
 {
 	struct snd_soc_pcm_runtime *rtd;
-	struct snd_soc_dai_link_component *codecs = dai_link->codecs;
+	struct snd_soc_dai_link_component *codecs;
 	struct snd_soc_dai_link_component cpu_dai_component;
 	struct snd_soc_component *component;
 	struct snd_soc_dai **codec_dais;
@@ -910,13 +910,12 @@ static int soc_bind_dai_link(struct snd_soc_card *card,
 	rtd->num_codecs = dai_link->num_codecs;
 
 	/* Find CODEC from registered CODECs */
-	/* we can use for_each_rtd_codec_dai() after this */
 	codec_dais = rtd->codec_dais;
-	for (i = 0; i < rtd->num_codecs; i++) {
-		codec_dais[i] = snd_soc_find_dai(&codecs[i]);
+	for_each_link_codecs(dai_link, i, codecs) {
+		codec_dais[i] = snd_soc_find_dai(codecs);
 		if (!codec_dais[i]) {
 			dev_info(card->dev, "ASoC: CODEC DAI %s not registered\n",
-				 codecs[i].dai_name);
+				 codecs->dai_name);
 			goto _err_defer;
 		}
 		snd_soc_rtdcom_add(rtd, codec_dais[i]->component);
