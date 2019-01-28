@@ -3768,7 +3768,7 @@ static int sctp_setsockopt_auth_key(struct sock *sk,
 	struct sctp_endpoint *ep = sctp_sk(sk)->ep;
 	struct sctp_authkey *authkey;
 	struct sctp_association *asoc;
-	int ret;
+	int ret = -EINVAL;
 
 	if (!ep->auth_enable)
 		return -EACCES;
@@ -3778,25 +3778,44 @@ static int sctp_setsockopt_auth_key(struct sock *sk,
 	/* authkey->sca_keylength is u16, so optlen can't be bigger than
 	 * this.
 	 */
-	optlen = min_t(unsigned int, optlen, USHRT_MAX +
-					     sizeof(struct sctp_authkey));
+	optlen = min_t(unsigned int, optlen, USHRT_MAX + sizeof(*authkey));
 
 	authkey = memdup_user(optval, optlen);
 	if (IS_ERR(authkey))
 		return PTR_ERR(authkey);
 
-	if (authkey->sca_keylength > optlen - sizeof(struct sctp_authkey)) {
-		ret = -EINVAL;
+	if (authkey->sca_keylength > optlen - sizeof(*authkey))
 		goto out;
-	}
 
 	asoc = sctp_id2assoc(sk, authkey->sca_assoc_id);
-	if (!asoc && authkey->sca_assoc_id && sctp_style(sk, UDP)) {
-		ret = -EINVAL;
+	if (!asoc && authkey->sca_assoc_id > SCTP_ALL_ASSOC &&
+	    sctp_style(sk, UDP))
+		goto out;
+
+	if (asoc) {
+		ret = sctp_auth_set_key(ep, asoc, authkey);
 		goto out;
 	}
 
-	ret = sctp_auth_set_key(ep, asoc, authkey);
+	if (authkey->sca_assoc_id == SCTP_FUTURE_ASSOC ||
+	    authkey->sca_assoc_id == SCTP_ALL_ASSOC) {
+		ret = sctp_auth_set_key(ep, asoc, authkey);
+		if (ret)
+			goto out;
+	}
+
+	ret = 0;
+
+	if (authkey->sca_assoc_id == SCTP_CURRENT_ASSOC ||
+	    authkey->sca_assoc_id == SCTP_ALL_ASSOC) {
+		list_for_each_entry(asoc, &ep->asocs, asocs) {
+			int res = sctp_auth_set_key(ep, asoc, authkey);
+
+			if (res && !ret)
+				ret = res;
+		}
+	}
+
 out:
 	kzfree(authkey);
 	return ret;
