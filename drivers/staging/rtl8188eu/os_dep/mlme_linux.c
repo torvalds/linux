@@ -41,17 +41,21 @@ void rtw_reset_securitypriv(struct adapter *adapter)
 	u32	backup_time = 0;
 
 	if (adapter->securitypriv.dot11AuthAlgrthm == dot11AuthAlgrthm_8021X) {
-		/* 802.1x */
-		/*  We have to backup the PMK information for WiFi PMK Caching test item. */
-		/*  Backup the btkip_countermeasure information. */
-		/*  When the countermeasure is trigger, the driver have to disconnect with AP for 60 seconds. */
+		/* 802.1x
+		 * We have to backup the PMK information for WiFi PMK Caching
+		 * test item. Backup the btkip_countermeasure information. When
+		 * the countermeasure is trigger, the driver have to disconnect
+		 * with AP for 60 seconds.
+		 */
 		memcpy(&backup_pmkid[0], &adapter->securitypriv.PMKIDList[0], sizeof(struct rt_pmkid_list) * NUM_PMKID_CACHE);
 		backup_index = adapter->securitypriv.PMKIDIndex;
 		backup_counter = adapter->securitypriv.btkip_countermeasure;
 		backup_time = adapter->securitypriv.btkip_countermeasure_time;
 		memset((unsigned char *)&adapter->securitypriv, 0, sizeof(struct security_priv));
 
-		/*  Restore the PMK information to securitypriv structure for the following connection. */
+		/* Restore the PMK information to securitypriv structure
+		 * for the following connection.
+		 */
 		memcpy(&adapter->securitypriv.PMKIDList[0], &backup_pmkid[0],
 		       sizeof(struct rt_pmkid_list) * NUM_PMKID_CACHE);
 		adapter->securitypriv.PMKIDIndex = backup_index;
@@ -75,7 +79,8 @@ void rtw_reset_securitypriv(struct adapter *adapter)
 
 void rtw_os_indicate_disconnect(struct adapter *adapter)
 {
-	netif_carrier_off(adapter->pnetdev); /*  Do it first for tx broadcast pkt after disconnection issue! */
+	/* Do it first for tx broadcast pkt after disconnection issue! */
+	netif_carrier_off(adapter->pnetdev);
 	rtw_indicate_wx_disassoc_event(adapter);
 	rtw_reset_securitypriv(adapter);
 }
