@@ -15,6 +15,7 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/async.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/kernel.h>
@@ -612,9 +613,8 @@ out:
 	mutex_unlock(&rockchip->lock);
 }
 
-static int dwc3_rockchip_extcon_register(struct dwc3_rockchip *rockchip)
+static int dwc3_rockchip_get_extcon_dev(struct dwc3_rockchip *rockchip)
 {
-	int			ret;
 	struct device		*dev = rockchip->dev;
 	struct extcon_dev	*edev;
 
@@ -628,24 +628,8 @@ static int dwc3_rockchip_extcon_register(struct dwc3_rockchip *rockchip)
 
 		rockchip->device_nb.notifier_call =
 				dwc3_rockchip_device_notifier;
-		ret = extcon_register_notifier(edev, EXTCON_USB,
-					       &rockchip->device_nb);
-		if (ret < 0) {
-			dev_err(dev, "failed to register notifier for USB\n");
-			return ret;
-		}
-
 		rockchip->host_nb.notifier_call =
 				dwc3_rockchip_host_notifier;
-		ret = extcon_register_notifier(edev, EXTCON_USB_HOST,
-					       &rockchip->host_nb);
-		if (ret < 0) {
-			dev_err(dev, "failed to register notifier for USB HOST\n");
-			extcon_unregister_notifier(edev, EXTCON_USB,
-						   &rockchip->device_nb);
-			return ret;
-		}
-
 		rockchip->edev = edev;
 	}
 
@@ -663,6 +647,71 @@ static void dwc3_rockchip_extcon_unregister(struct dwc3_rockchip *rockchip)
 				   &rockchip->host_nb);
 
 	cancel_work_sync(&rockchip->otg_work);
+}
+
+static void dwc3_rockchip_async_probe(void *data, async_cookie_t cookie)
+{
+	struct dwc3_rockchip	*rockchip = data;
+	struct device		*dev = rockchip->dev;
+	struct dwc3		*dwc = rockchip->dwc;
+	struct usb_hcd		*hcd = dev_get_drvdata(&dwc->xhci->dev);
+	int			ret;
+
+	mutex_lock(&rockchip->lock);
+
+	if (rockchip->edev) {
+		ret = extcon_register_notifier(rockchip->edev, EXTCON_USB,
+					       &rockchip->device_nb);
+		if (ret < 0) {
+			dev_err(dev, "fail to register notifier for USB Dev\n");
+			goto err;
+		}
+
+		ret = extcon_register_notifier(rockchip->edev, EXTCON_USB_HOST,
+					       &rockchip->host_nb);
+		if (ret < 0) {
+			dev_err(dev,
+				"fail to register notifier for USB HOST\n");
+			extcon_unregister_notifier(rockchip->edev, EXTCON_USB,
+						   &rockchip->device_nb);
+			goto err;
+		}
+	}
+
+	if (rockchip->edev || rockchip->dwc->dr_mode == USB_DR_MODE_OTG) {
+		if (hcd && hcd->state != HC_STATE_HALT) {
+			usb_remove_hcd(hcd->shared_hcd);
+			usb_remove_hcd(hcd);
+		}
+
+		pm_runtime_set_autosuspend_delay(dwc->dev,
+						 DWC3_ROCKCHIP_AUTOSUSPEND_DELAY);
+		pm_runtime_allow(dwc->dev);
+		pm_runtime_suspend(dwc->dev);
+		pm_runtime_put_sync(rockchip->dev);
+
+		if ((extcon_get_cable_state_(rockchip->edev,
+					     EXTCON_USB) > 0) ||
+		    (extcon_get_cable_state_(rockchip->edev,
+					     EXTCON_USB_HOST) > 0))
+			schedule_work(&rockchip->otg_work);
+	} else {
+		/*
+		 * DWC3 work as Host only mode or Peripheral
+		 * only mode, set connected flag to true, it
+		 * can avoid to reset the DWC3 controller when
+		 * resume from PM suspend which may cause the
+		 * usb device to be reenumerated.
+		 */
+		rockchip->connected = true;
+	}
+
+	ret = sysfs_create_group(&dev->kobj, &dwc3_rockchip_attr_group);
+	if (ret)
+		dev_err(dev, "failed to create sysfs group: %d\n", ret);
+
+err:
+	mutex_unlock(&rockchip->lock);
 }
 
 static int dwc3_rockchip_probe(struct platform_device *pdev)
@@ -774,41 +823,11 @@ static int dwc3_rockchip_probe(struct platform_device *pdev)
 		}
 	}
 
-	ret = dwc3_rockchip_extcon_register(rockchip);
+	ret = dwc3_rockchip_get_extcon_dev(rockchip);
 	if (ret < 0)
 		goto err2;
 
-	if (rockchip->edev || (rockchip->dwc->dr_mode == USB_DR_MODE_OTG)) {
-		if (hcd && hcd->state != HC_STATE_HALT) {
-			usb_remove_hcd(hcd->shared_hcd);
-			usb_remove_hcd(hcd);
-		}
-
-		pm_runtime_set_autosuspend_delay(&child_pdev->dev,
-						 DWC3_ROCKCHIP_AUTOSUSPEND_DELAY);
-		pm_runtime_allow(&child_pdev->dev);
-		pm_runtime_suspend(&child_pdev->dev);
-		pm_runtime_put_sync(dev);
-
-		if ((extcon_get_cable_state_(rockchip->edev,
-					     EXTCON_USB) > 0) ||
-		    (extcon_get_cable_state_(rockchip->edev,
-					     EXTCON_USB_HOST) > 0))
-			schedule_work(&rockchip->otg_work);
-	} else {
-		/*
-		 * DWC3 work as Host only mode or Peripheral
-		 * only mode, set connected flag to true, it
-		 * can avoid to reset the DWC3 controller when
-		 * resume from PM suspend which may cause the
-		 * usb device to be reenumerated.
-		 */
-		 rockchip->connected = true;
-	}
-
-	ret = sysfs_create_group(&dev->kobj, &dwc3_rockchip_attr_group);
-	if (ret)
-		dev_err(dev, "failed to create sysfs group: %d\n", ret);
+	async_schedule(dwc3_rockchip_async_probe, rockchip);
 
 	mutex_unlock(&rockchip->lock);
 
