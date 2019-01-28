@@ -199,6 +199,8 @@ struct sctp_sock {
 	__u32 flowlabel;
 	__u8  dscp;
 
+	int pf_retrans;
+
 	/* The initial Path MTU to use for new associations. */
 	__u32 pathmtu;
 
