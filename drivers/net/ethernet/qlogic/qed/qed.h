@@ -554,7 +554,6 @@ struct qed_hwfn {
 	u8				dp_level;
 	char				name[NAME_SIZE];
 
-	bool				first_on_engine;
 	bool				hw_init_done;
 
 	u8				num_funcs_on_engine;
