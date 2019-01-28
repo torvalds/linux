@@ -484,26 +484,6 @@ static void intel_engine_init_execlist(struct intel_engine_cs *engine)
 	execlists->queue = RB_ROOT_CACHED;
 }
 
-/**
- * intel_engines_setup_common - setup engine state not requiring hw access
- * @engine: Engine to setup.
- *
- * Initializes @engine@ structure members shared between legacy and execlists
- * submission modes which do not require hardware access.
- *
- * Typically done early in the submission mode specific engine setup stage.
- */
-void intel_engine_setup_common(struct intel_engine_cs *engine)
-{
-	i915_timeline_init(engine->i915, &engine->timeline, engine->name);
-	i915_timeline_set_subclass(&engine->timeline, TIMELINE_ENGINE);
-
-	intel_engine_init_execlist(engine);
-	intel_engine_init_hangcheck(engine);
-	intel_engine_init_batch_pool(engine);
-	intel_engine_init_cmd_parser(engine);
-}
-
 static void cleanup_status_page(struct intel_engine_cs *engine)
 {
 	struct i915_vma *vma;
@@ -601,6 +581,44 @@ err:
 	return ret;
 }
 
+/**
+ * intel_engines_setup_common - setup engine state not requiring hw access
+ * @engine: Engine to setup.
+ *
+ * Initializes @engine@ structure members shared between legacy and execlists
+ * submission modes which do not require hardware access.
+ *
+ * Typically done early in the submission mode specific engine setup stage.
+ */
+int intel_engine_setup_common(struct intel_engine_cs *engine)
+{
+	int err;
+
+	err = init_status_page(engine);
+	if (err)
+		return err;
+
+	err = i915_timeline_init(engine->i915,
+				 &engine->timeline,
+				 engine->name,
+				 engine->status_page.vma);
+	if (err)
+		goto err_hwsp;
+
+	i915_timeline_set_subclass(&engine->timeline, TIMELINE_ENGINE);
+
+	intel_engine_init_execlist(engine);
+	intel_engine_init_hangcheck(engine);
+	intel_engine_init_batch_pool(engine);
+	intel_engine_init_cmd_parser(engine);
+
+	return 0;
+
+err_hwsp:
+	cleanup_status_page(engine);
+	return err;
+}
+
 static void __intel_context_unpin(struct i915_gem_context *ctx,
 				  struct intel_engine_cs *engine)
 {
@@ -617,7 +635,7 @@ struct measure_breadcrumb {
 static int measure_breadcrumb_dw(struct intel_engine_cs *engine)
 {
 	struct measure_breadcrumb *frame;
-	unsigned int dw;
+	int dw = -ENOMEM;
 
 	GEM_BUG_ON(!engine->i915->gt.scratch);
 
@@ -625,7 +643,10 @@ static int measure_breadcrumb_dw(struct intel_engine_cs *engine)
 	if (!frame)
 		return -ENOMEM;
 
-	i915_timeline_init(engine->i915, &frame->timeline, "measure");
+	if (i915_timeline_init(engine->i915,
+			       &frame->timeline, "measure",
+			       engine->status_page.vma))
+		goto out_frame;
 
 	INIT_LIST_HEAD(&frame->ring.request_list);
 	frame->ring.timeline = &frame->timeline;
@@ -642,8 +663,9 @@ static int measure_breadcrumb_dw(struct intel_engine_cs *engine)
 	dw = engine->emit_breadcrumb(&frame->rq, frame->cs) - frame->cs;
 
 	i915_timeline_fini(&frame->timeline);
-	kfree(frame);
 
+out_frame:
+	kfree(frame);
 	return dw;
 }
 
@@ -693,20 +715,14 @@ int intel_engine_init_common(struct intel_engine_cs *engine)
 	if (ret)
 		goto err_unpin_preempt;
 
-	ret = init_status_page(engine);
-	if (ret)
-		goto err_breadcrumbs;
-
 	ret = measure_breadcrumb_dw(engine);
 	if (ret < 0)
-		goto err_status_page;
+		goto err_breadcrumbs;
 
 	engine->emit_breadcrumb_dw = ret;
 
 	return 0;
 
-err_status_page:
-	cleanup_status_page(engine);
 err_breadcrumbs:
 	intel_engine_fini_breadcrumbs(engine);
 err_unpin_preempt:

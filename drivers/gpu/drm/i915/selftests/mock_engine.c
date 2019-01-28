@@ -39,7 +39,12 @@ static struct intel_ring *mock_ring(struct intel_engine_cs *engine)
 	if (!ring)
 		return NULL;
 
-	i915_timeline_init(engine->i915, &ring->timeline, engine->name);
+	if (i915_timeline_init(engine->i915,
+			       &ring->timeline, engine->name,
+			       NULL)) {
+		kfree(ring);
+		return NULL;
+	}
 
 	ring->base.size = sz;
 	ring->base.effective_size = sz;
@@ -208,7 +213,11 @@ struct intel_engine_cs *mock_engine(struct drm_i915_private *i915,
 	engine->base.emit_breadcrumb = mock_emit_breadcrumb;
 	engine->base.submit_request = mock_submit_request;
 
-	i915_timeline_init(i915, &engine->base.timeline, engine->base.name);
+	if (i915_timeline_init(i915,
+			       &engine->base.timeline,
+			       engine->base.name,
+			       NULL))
+		goto err_free;
 	i915_timeline_set_subclass(&engine->base.timeline, TIMELINE_ENGINE);
 
 	intel_engine_init_breadcrumbs(&engine->base);
@@ -226,6 +235,7 @@ struct intel_engine_cs *mock_engine(struct drm_i915_private *i915,
 err_breadcrumbs:
 	intel_engine_fini_breadcrumbs(&engine->base);
 	i915_timeline_fini(&engine->base.timeline);
+err_free:
 	kfree(engine);
 	return NULL;
 }

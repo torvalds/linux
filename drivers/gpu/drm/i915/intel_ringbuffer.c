@@ -1545,9 +1545,13 @@ static int intel_init_ring_buffer(struct intel_engine_cs *engine)
 	struct intel_ring *ring;
 	int err;
 
-	intel_engine_setup_common(engine);
+	err = intel_engine_setup_common(engine);
+	if (err)
+		return err;
 
-	timeline = i915_timeline_create(engine->i915, engine->name);
+	timeline = i915_timeline_create(engine->i915,
+					engine->name,
+					engine->status_page.vma);
 	if (IS_ERR(timeline)) {
 		err = PTR_ERR(timeline);
 		goto err;
@@ -1570,6 +1574,8 @@ static int intel_init_ring_buffer(struct intel_engine_cs *engine)
 	err = intel_engine_init_common(engine);
 	if (err)
 		goto err_unpin;
+
+	GEM_BUG_ON(ring->timeline->hwsp_ggtt != engine->status_page.vma);
 
 	return 0;
 

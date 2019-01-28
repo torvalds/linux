@@ -2206,10 +2206,14 @@ logical_ring_default_irqs(struct intel_engine_cs *engine)
 	engine->irq_keep_mask = GT_CONTEXT_SWITCH_INTERRUPT << shift;
 }
 
-static void
+static int
 logical_ring_setup(struct intel_engine_cs *engine)
 {
-	intel_engine_setup_common(engine);
+	int err;
+
+	err = intel_engine_setup_common(engine);
+	if (err)
+		return err;
 
 	/* Intentionally left blank. */
 	engine->buffer = NULL;
@@ -2219,6 +2223,8 @@ logical_ring_setup(struct intel_engine_cs *engine)
 
 	logical_ring_default_vfuncs(engine);
 	logical_ring_default_irqs(engine);
+
+	return 0;
 }
 
 static int logical_ring_init(struct intel_engine_cs *engine)
@@ -2267,7 +2273,9 @@ int logical_render_ring_init(struct intel_engine_cs *engine)
 {
 	int ret;
 
-	logical_ring_setup(engine);
+	ret = logical_ring_setup(engine);
+	if (ret)
+		return ret;
 
 	/* Override some for render ring. */
 	engine->init_context = gen8_init_rcs_context;
@@ -2296,7 +2304,11 @@ int logical_render_ring_init(struct intel_engine_cs *engine)
 
 int logical_xcs_ring_init(struct intel_engine_cs *engine)
 {
-	logical_ring_setup(engine);
+	int err;
+
+	err = logical_ring_setup(engine);
+	if (err)
+		return err;
 
 	return logical_ring_init(engine);
 }
@@ -2629,7 +2641,7 @@ static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
 		goto error_deref_obj;
 	}
 
-	timeline = i915_timeline_create(ctx->i915, ctx->name);
+	timeline = i915_timeline_create(ctx->i915, ctx->name, NULL);
 	if (IS_ERR(timeline)) {
 		ret = PTR_ERR(timeline);
 		goto error_deref_obj;

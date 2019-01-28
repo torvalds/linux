@@ -712,7 +712,9 @@ intel_write_status_page(struct intel_engine_cs *engine, int reg, u32 value)
 #define I915_GEM_HWS_INDEX_ADDR		(I915_GEM_HWS_INDEX * sizeof(u32))
 #define I915_GEM_HWS_PREEMPT		0x32
 #define I915_GEM_HWS_PREEMPT_ADDR	(I915_GEM_HWS_PREEMPT * sizeof(u32))
-#define I915_GEM_HWS_SCRATCH		0x40
+#define I915_GEM_HWS_SEQNO		0x40
+#define I915_GEM_HWS_SEQNO_ADDR		(I915_GEM_HWS_SEQNO * sizeof(u32))
+#define I915_GEM_HWS_SCRATCH		0x80
 #define I915_GEM_HWS_SCRATCH_ADDR	(I915_GEM_HWS_SCRATCH * sizeof(u32))
 
 #define I915_HWS_CSB_BUF0_INDEX		0x10
@@ -818,7 +820,7 @@ intel_ring_set_tail(struct intel_ring *ring, unsigned int tail)
 
 void intel_engine_write_global_seqno(struct intel_engine_cs *engine, u32 seqno);
 
-void intel_engine_setup_common(struct intel_engine_cs *engine);
+int intel_engine_setup_common(struct intel_engine_cs *engine);
 int intel_engine_init_common(struct intel_engine_cs *engine);
 void intel_engine_cleanup_common(struct intel_engine_cs *engine);
 

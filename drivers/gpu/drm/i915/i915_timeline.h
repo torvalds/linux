@@ -32,6 +32,8 @@
 #include "i915_syncmap.h"
 #include "i915_utils.h"
 
+struct i915_vma;
+
 struct i915_timeline {
 	u64 fence_context;
 	u32 seqno;
@@ -39,6 +41,11 @@ struct i915_timeline {
 	spinlock_t lock;
 #define TIMELINE_CLIENT 0 /* default subclass */
 #define TIMELINE_ENGINE 1
+
+	unsigned int pin_count;
+	const u32 *hwsp_seqno;
+	struct i915_vma *hwsp_ggtt;
+	u32 hwsp_offset;
 
 	/**
 	 * List of breadcrumbs associated with GPU requests currently
@@ -71,9 +78,10 @@ struct i915_timeline {
 	struct kref kref;
 };
 
-void i915_timeline_init(struct drm_i915_private *i915,
-			struct i915_timeline *tl,
-			const char *name);
+int i915_timeline_init(struct drm_i915_private *i915,
+		       struct i915_timeline *tl,
+		       const char *name,
+		       struct i915_vma *hwsp);
 void i915_timeline_fini(struct i915_timeline *tl);
 
 static inline void
@@ -96,7 +104,9 @@ i915_timeline_set_subclass(struct i915_timeline *timeline,
 }
 
 struct i915_timeline *
-i915_timeline_create(struct drm_i915_private *i915, const char *name);
+i915_timeline_create(struct drm_i915_private *i915,
+		     const char *name,
+		     struct i915_vma *global_hwsp);
 
 static inline struct i915_timeline *
 i915_timeline_get(struct i915_timeline *timeline)
@@ -134,6 +144,9 @@ static inline bool i915_timeline_sync_is_later(struct i915_timeline *tl,
 {
 	return __i915_timeline_sync_is_later(tl, fence->context, fence->seqno);
 }
+
+int i915_timeline_pin(struct i915_timeline *tl);
+void i915_timeline_unpin(struct i915_timeline *tl);
 
 void i915_timelines_init(struct drm_i915_private *i915);
 void i915_timelines_park(struct drm_i915_private *i915);
