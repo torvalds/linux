@@ -43,6 +43,12 @@
  */
 #define LEGACY_REQUEST_SIZE 200
 
+static inline u32 intel_hws_seqno_address(struct intel_engine_cs *engine)
+{
+	return (i915_ggtt_offset(engine->status_page.vma) +
+		I915_GEM_HWS_INDEX_ADDR);
+}
+
 static unsigned int __intel_ring_space(unsigned int head,
 				       unsigned int tail,
 				       unsigned int size)
@@ -503,12 +509,17 @@ static void set_hws_pga(struct intel_engine_cs *engine, phys_addr_t phys)
 	I915_WRITE(HWS_PGA, addr);
 }
 
+static struct page *status_page(struct intel_engine_cs *engine)
+{
+	struct drm_i915_gem_object *obj = engine->status_page.vma->obj;
+
+	GEM_BUG_ON(!i915_gem_object_has_pinned_pages(obj));
+	return sg_page(obj->mm.pages->sgl);
+}
+
 static void ring_setup_phys_status_page(struct intel_engine_cs *engine)
 {
-	struct page *page = virt_to_page(engine->status_page.page_addr);
-	phys_addr_t phys = PFN_PHYS(page_to_pfn(page));
-
-	set_hws_pga(engine, phys);
+	set_hws_pga(engine, PFN_PHYS(page_to_pfn(status_page(engine))));
 	set_hwstam(engine, ~0u);
 }
 
@@ -575,7 +586,7 @@ static void flush_cs_tlb(struct intel_engine_cs *engine)
 
 static void ring_setup_status_page(struct intel_engine_cs *engine)
 {
-	set_hwsp(engine, engine->status_page.ggtt_offset);
+	set_hwsp(engine, i915_ggtt_offset(engine->status_page.vma));
 	set_hwstam(engine, ~0u);
 
 	flush_cs_tlb(engine);

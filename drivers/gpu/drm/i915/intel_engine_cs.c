@@ -506,27 +506,61 @@ void intel_engine_setup_common(struct intel_engine_cs *engine)
 
 static void cleanup_status_page(struct intel_engine_cs *engine)
 {
+	struct i915_vma *vma;
+
 	/* Prevent writes into HWSP after returning the page to the system */
 	intel_engine_set_hwsp_writemask(engine, ~0u);
 
-	if (HWS_NEEDS_PHYSICAL(engine->i915)) {
-		void *addr = fetch_and_zero(&engine->status_page.page_addr);
+	vma = fetch_and_zero(&engine->status_page.vma);
+	if (!vma)
+		return;
 
-		__free_page(virt_to_page(addr));
-	}
+	if (!HWS_NEEDS_PHYSICAL(engine->i915))
+		i915_vma_unpin(vma);
 
-	i915_vma_unpin_and_release(&engine->status_page.vma,
-				   I915_VMA_RELEASE_MAP);
+	i915_gem_object_unpin_map(vma->obj);
+	__i915_gem_object_release_unless_active(vma->obj);
+}
+
+static int pin_ggtt_status_page(struct intel_engine_cs *engine,
+				struct i915_vma *vma)
+{
+	unsigned int flags;
+
+	flags = PIN_GLOBAL;
+	if (!HAS_LLC(engine->i915))
+		/*
+		 * On g33, we cannot place HWS above 256MiB, so
+		 * restrict its pinning to the low mappable arena.
+		 * Though this restriction is not documented for
+		 * gen4, gen5, or byt, they also behave similarly
+		 * and hang if the HWS is placed at the top of the
+		 * GTT. To generalise, it appears that all !llc
+		 * platforms have issues with us placing the HWS
+		 * above the mappable region (even though we never
+		 * actually map it).
+		 */
+		flags |= PIN_MAPPABLE;
+	else
+		flags |= PIN_HIGH;
+
+	return i915_vma_pin(vma, 0, 0, flags);
 }
 
 static int init_status_page(struct intel_engine_cs *engine)
 {
 	struct drm_i915_gem_object *obj;
 	struct i915_vma *vma;
-	unsigned int flags;
 	void *vaddr;
 	int ret;
 
+	/*
+	 * Though the HWS register does support 36bit addresses, historically
+	 * we have had hangs and corruption reported due to wild writes if
+	 * the HWS is placed above 4G. We only allow objects to be allocated
+	 * in GFP_DMA32 for i965, and no earlier physical address users had
+	 * access to more than 4G.
+	 */
 	obj = i915_gem_object_create_internal(engine->i915, PAGE_SIZE);
 	if (IS_ERR(obj)) {
 		DRM_ERROR("Failed to allocate status page\n");
@@ -543,59 +577,28 @@ static int init_status_page(struct intel_engine_cs *engine)
 		goto err;
 	}
 
-	flags = PIN_GLOBAL;
-	if (!HAS_LLC(engine->i915))
-		/* On g33, we cannot place HWS above 256MiB, so
-		 * restrict its pinning to the low mappable arena.
-		 * Though this restriction is not documented for
-		 * gen4, gen5, or byt, they also behave similarly
-		 * and hang if the HWS is placed at the top of the
-		 * GTT. To generalise, it appears that all !llc
-		 * platforms have issues with us placing the HWS
-		 * above the mappable region (even though we never
-		 * actually map it).
-		 */
-		flags |= PIN_MAPPABLE;
-	else
-		flags |= PIN_HIGH;
-	ret = i915_vma_pin(vma, 0, 0, flags);
-	if (ret)
-		goto err;
-
 	vaddr = i915_gem_object_pin_map(obj, I915_MAP_WB);
 	if (IS_ERR(vaddr)) {
 		ret = PTR_ERR(vaddr);
-		goto err_unpin;
+		goto err;
 	}
 
+	engine->status_page.addr = memset(vaddr, 0, PAGE_SIZE);
 	engine->status_page.vma = vma;
-	engine->status_page.ggtt_offset = i915_ggtt_offset(vma);
-	engine->status_page.page_addr = memset(vaddr, 0, PAGE_SIZE);
+
+	if (!HWS_NEEDS_PHYSICAL(engine->i915)) {
+		ret = pin_ggtt_status_page(engine, vma);
+		if (ret)
+			goto err_unpin;
+	}
+
 	return 0;
 
 err_unpin:
-	i915_vma_unpin(vma);
+	i915_gem_object_unpin_map(obj);
 err:
 	i915_gem_object_put(obj);
 	return ret;
-}
-
-static int init_phys_status_page(struct intel_engine_cs *engine)
-{
-	struct page *page;
-
-	/*
-	 * Though the HWS register does support 36bit addresses, historically
-	 * we have had hangs and corruption reported due to wild writes if
-	 * the HWS is placed above 4G.
-	 */
-	page = alloc_page(GFP_KERNEL | __GFP_DMA32 | __GFP_ZERO);
-	if (!page)
-		return -ENOMEM;
-
-	engine->status_page.page_addr = page_address(page);
-
-	return 0;
 }
 
 static void __intel_context_unpin(struct i915_gem_context *ctx,
@@ -690,10 +693,7 @@ int intel_engine_init_common(struct intel_engine_cs *engine)
 	if (ret)
 		goto err_unpin_preempt;
 
-	if (HWS_NEEDS_PHYSICAL(i915))
-		ret = init_phys_status_page(engine);
-	else
-		ret = init_status_page(engine);
+	ret = init_status_page(engine);
 	if (ret)
 		goto err_breadcrumbs;
 
@@ -1366,7 +1366,8 @@ static void intel_engine_print_registers(const struct intel_engine_cs *engine,
 	}
 
 	if (HAS_EXECLISTS(dev_priv)) {
-		const u32 *hws = &engine->status_page.page_addr[I915_HWS_CSB_BUF0_INDEX];
+		const u32 *hws =
+			&engine->status_page.addr[I915_HWS_CSB_BUF0_INDEX];
 		unsigned int idx;
 		u8 read, write;
 
@@ -1549,7 +1550,7 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 	spin_unlock_irqrestore(&b->rb_lock, flags);
 
 	drm_printf(m, "HWSP:\n");
-	hexdump(m, engine->status_page.page_addr, PAGE_SIZE);
+	hexdump(m, engine->status_page.addr, PAGE_SIZE);
 
 	drm_printf(m, "Idle? %s\n", yesno(intel_engine_is_idle(engine)));
 }

@@ -32,8 +32,7 @@ struct i915_sched_attr;
 
 struct intel_hw_status_page {
 	struct i915_vma *vma;
-	u32 *page_addr;
-	u32 ggtt_offset;
+	u32 *addr;
 };
 
 #define I915_READ_TAIL(engine) I915_READ(RING_TAIL((engine)->mmio_base))
@@ -671,7 +670,7 @@ static inline u32
 intel_read_status_page(const struct intel_engine_cs *engine, int reg)
 {
 	/* Ensure that the compiler doesn't optimize away the load. */
-	return READ_ONCE(engine->status_page.page_addr[reg]);
+	return READ_ONCE(engine->status_page.addr[reg]);
 }
 
 static inline void
@@ -684,12 +683,12 @@ intel_write_status_page(struct intel_engine_cs *engine, int reg, u32 value)
 	 */
 	if (static_cpu_has(X86_FEATURE_CLFLUSH)) {
 		mb();
-		clflush(&engine->status_page.page_addr[reg]);
-		engine->status_page.page_addr[reg] = value;
-		clflush(&engine->status_page.page_addr[reg]);
+		clflush(&engine->status_page.addr[reg]);
+		engine->status_page.addr[reg] = value;
+		clflush(&engine->status_page.addr[reg]);
 		mb();
 	} else {
-		WRITE_ONCE(engine->status_page.page_addr[reg], value);
+		WRITE_ONCE(engine->status_page.addr[reg], value);
 	}
 }
 
@@ -876,16 +875,6 @@ static inline bool intel_engine_has_started(struct intel_engine_cs *engine,
 
 void intel_engine_get_instdone(struct intel_engine_cs *engine,
 			       struct intel_instdone *instdone);
-
-static inline u32 intel_hws_seqno_address(struct intel_engine_cs *engine)
-{
-	return engine->status_page.ggtt_offset + I915_GEM_HWS_INDEX_ADDR;
-}
-
-static inline u32 intel_hws_preempt_done_address(struct intel_engine_cs *engine)
-{
-	return engine->status_page.ggtt_offset + I915_GEM_HWS_PREEMPT_ADDR;
-}
 
 /* intel_breadcrumbs.c -- user interrupt bottom-half for waiters */
 int intel_engine_init_breadcrumbs(struct intel_engine_cs *engine);

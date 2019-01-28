@@ -172,6 +172,12 @@ static void execlists_init_reg_state(u32 *reg_state,
 				     struct intel_engine_cs *engine,
 				     struct intel_ring *ring);
 
+static inline u32 intel_hws_seqno_address(struct intel_engine_cs *engine)
+{
+	return (i915_ggtt_offset(engine->status_page.vma) +
+		I915_GEM_HWS_INDEX_ADDR);
+}
+
 static inline struct i915_priolist *to_priolist(struct rb_node *rb)
 {
 	return rb_entry(rb, struct i915_priolist, node);
@@ -1699,7 +1705,7 @@ static void enable_execlists(struct intel_engine_cs *engine)
 		   _MASKED_BIT_DISABLE(STOP_RING));
 
 	I915_WRITE(RING_HWS_PGA(engine->mmio_base),
-		   engine->status_page.ggtt_offset);
+		   i915_ggtt_offset(engine->status_page.vma));
 	POSTING_READ(RING_HWS_PGA(engine->mmio_base));
 }
 
@@ -2244,10 +2250,10 @@ static int logical_ring_init(struct intel_engine_cs *engine)
 	}
 
 	execlists->csb_status =
-		&engine->status_page.page_addr[I915_HWS_CSB_BUF0_INDEX];
+		&engine->status_page.addr[I915_HWS_CSB_BUF0_INDEX];
 
 	execlists->csb_write =
-		&engine->status_page.page_addr[intel_hws_csb_write_index(i915)];
+		&engine->status_page.addr[intel_hws_csb_write_index(i915)];
 
 	reset_csb_pointers(execlists);
 

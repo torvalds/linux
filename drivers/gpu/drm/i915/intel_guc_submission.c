@@ -81,6 +81,12 @@
  *
  */
 
+static inline u32 intel_hws_preempt_done_address(struct intel_engine_cs *engine)
+{
+	return (i915_ggtt_offset(engine->status_page.vma) +
+		I915_GEM_HWS_PREEMPT_ADDR);
+}
+
 static inline struct i915_priolist *to_priolist(struct rb_node *rb)
 {
 	return rb_entry(rb, struct i915_priolist, node);
