@@ -3044,7 +3044,7 @@ TEST(user_notification_basic)
 	/* Check that the basic notification machinery works */
 	listener = user_trap_syscall(__NR_getpid,
 				     SECCOMP_FILTER_FLAG_NEW_LISTENER);
-	EXPECT_GE(listener, 0);
+	ASSERT_GE(listener, 0);
 
 	/* Installing a second listener in the chain should EBUSY */
 	EXPECT_EQ(user_trap_syscall(__NR_getpid,
@@ -3103,7 +3103,7 @@ TEST(user_notification_kill_in_middle)
 
 	listener = user_trap_syscall(__NR_getpid,
 				     SECCOMP_FILTER_FLAG_NEW_LISTENER);
-	EXPECT_GE(listener, 0);
+	ASSERT_GE(listener, 0);
 
 	/*
 	 * Check that nothing bad happens when we kill the task in the middle
@@ -3152,7 +3152,7 @@ TEST(user_notification_signal)
 
 	listener = user_trap_syscall(__NR_gettid,
 				     SECCOMP_FILTER_FLAG_NEW_LISTENER);
-	EXPECT_GE(listener, 0);
+	ASSERT_GE(listener, 0);
 
 	pid = fork();
 	ASSERT_GE(pid, 0);
@@ -3215,7 +3215,7 @@ TEST(user_notification_closed_listener)
 
 	listener = user_trap_syscall(__NR_getpid,
 				     SECCOMP_FILTER_FLAG_NEW_LISTENER);
-	EXPECT_GE(listener, 0);
+	ASSERT_GE(listener, 0);
 
 	/*
 	 * Check that we get an ENOSYS when the listener is closed.
@@ -3376,7 +3376,7 @@ TEST(seccomp_get_notif_sizes)
 {
 	struct seccomp_notif_sizes sizes;
 
-	EXPECT_EQ(seccomp(SECCOMP_GET_NOTIF_SIZES, 0, &sizes), 0);
+	ASSERT_EQ(seccomp(SECCOMP_GET_NOTIF_SIZES, 0, &sizes), 0);
 	EXPECT_EQ(sizes.seccomp_notif, sizeof(struct seccomp_notif));
 	EXPECT_EQ(sizes.seccomp_notif_resp, sizeof(struct seccomp_notif_resp));
 }

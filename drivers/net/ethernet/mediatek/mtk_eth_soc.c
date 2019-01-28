@@ -258,11 +258,6 @@ static void mtk_phy_link_adjust(struct net_device *dev)
 
 	mtk_w32(mac->hw, mcr, MTK_MAC_MCR(mac->id));
 
-	if (dev->phydev->link)
-		netif_carrier_on(dev);
-	else
-		netif_carrier_off(dev);
-
 	if (!of_phy_is_fixed_link(mac->of_node))
 		phy_print_status(dev->phydev);
 }
@@ -346,17 +341,6 @@ static int mtk_phy_connect(struct net_device *dev)
 	/* couple phydev to net_device */
 	if (mtk_phy_connect_node(eth, mac, np))
 		goto err_phy;
-
-	dev->phydev->autoneg = AUTONEG_ENABLE;
-	dev->phydev->speed = 0;
-	dev->phydev->duplex = 0;
-
-	phy_set_max_speed(dev->phydev, SPEED_1000);
-	phy_support_asym_pause(dev->phydev);
-	linkmode_copy(dev->phydev->advertising, dev->phydev->supported);
-	linkmode_set_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
-			 dev->phydev->advertising);
-	phy_start_aneg(dev->phydev);
 
 	of_node_put(np);
 

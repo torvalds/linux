@@ -132,6 +132,20 @@ For example, if current state of ``libbpf.map`` is:
 Format of version script and ways to handle ABI changes, including
 incompatible ones, described in details in [1].
 
+Stand-alone build
+=================
+
+Under https://github.com/libbpf/libbpf there is a (semi-)automated
+mirror of the mainline's version of libbpf for a stand-alone build.
+
+However, all changes to libbpf's code base must be upstreamed through
+the mainline kernel tree.
+
+License
+=======
+
+libbpf is dual-licensed under LGPL 2.1 and BSD 2-Clause.
+
 Links
 =====
 

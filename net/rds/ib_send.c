@@ -522,7 +522,7 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 	if (be32_to_cpu(rm->m_inc.i_hdr.h_len) == 0)
 		i = 1;
 	else
-		i = ceil(be32_to_cpu(rm->m_inc.i_hdr.h_len), RDS_FRAG_SIZE);
+		i = DIV_ROUND_UP(be32_to_cpu(rm->m_inc.i_hdr.h_len), RDS_FRAG_SIZE);
 
 	work_alloc = rds_ib_ring_alloc(&ic->i_send_ring, i, &pos);
 	if (work_alloc == 0) {
@@ -879,7 +879,7 @@ int rds_ib_xmit_rdma(struct rds_connection *conn, struct rm_rdma_op *op)
 	 * Instead of knowing how to return a partial rdma read/write we insist that there
 	 * be enough work requests to send the entire message.
 	 */
-	i = ceil(op->op_count, max_sge);
+	i = DIV_ROUND_UP(op->op_count, max_sge);
 
 	work_alloc = rds_ib_ring_alloc(&ic->i_send_ring, i, &pos);
 	if (work_alloc != i) {

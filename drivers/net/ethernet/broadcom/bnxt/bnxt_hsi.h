@@ -386,8 +386,8 @@ struct hwrm_err_output {
 #define HWRM_VERSION_MAJOR 1
 #define HWRM_VERSION_MINOR 10
 #define HWRM_VERSION_UPDATE 0
-#define HWRM_VERSION_RSVD 33
-#define HWRM_VERSION_STR "1.10.0.33"
+#define HWRM_VERSION_RSVD 35
+#define HWRM_VERSION_STR "1.10.0.35"
 
 /* hwrm_ver_get_input (size:192b/24B) */
 struct hwrm_ver_get_input {
@@ -1184,6 +1184,7 @@ struct hwrm_func_cfg_input {
 	#define FUNC_CFG_REQ_FLAGS_L2_CTX_ASSETS_TEST             0x100000UL
 	#define FUNC_CFG_REQ_FLAGS_TRUSTED_VF_ENABLE              0x200000UL
 	#define FUNC_CFG_REQ_FLAGS_DYNAMIC_TX_RING_ALLOC          0x400000UL
+	#define FUNC_CFG_REQ_FLAGS_NQ_ASSETS_TEST                 0x800000UL
 	__le32	enables;
 	#define FUNC_CFG_REQ_ENABLES_MTU                     0x1UL
 	#define FUNC_CFG_REQ_ENABLES_MRU                     0x2UL
