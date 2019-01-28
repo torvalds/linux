@@ -721,8 +721,7 @@ struct mlxsw_sp_acl_tcam_ops {
 			  void *region_priv, void *chunk_priv,
 			  void *entry_priv);
 	int (*entry_action_replace)(struct mlxsw_sp *mlxsw_sp,
-				    void *region_priv, void *chunk_priv,
-				    void *entry_priv,
+				    void *region_priv, void *entry_priv,
 				    struct mlxsw_sp_acl_rule_info *rulei);
 	int (*entry_activity_get)(struct mlxsw_sp *mlxsw_sp,
 				  void *region_priv, void *entry_priv,

@@ -742,8 +742,7 @@ int mlxsw_sp_acl_rule_action_replace(struct mlxsw_sp *mlxsw_sp,
 	rulei = mlxsw_sp_acl_rule_rulei(rule);
 	rulei->act_block = afa_block;
 
-	return ops->rule_action_replace(mlxsw_sp, ruleset->priv, rule->priv,
-					rule->rulei);
+	return ops->rule_action_replace(mlxsw_sp, rule->priv, rule->rulei);
 }
 
 struct mlxsw_sp_acl_rule *
