@@ -130,13 +130,13 @@ properties:
         items:
           - enum:
               - renesas,marzen # Marzen (R0P7779A00010S)
-              - renesas,stout # Stout (ADAS Starterkit, Y-R-CAR-ADAS-SKH2-BOARD)
           - const: renesas,r8a7779
 
       - description: R-Car H2 (R8A77900)
         items:
           - enum:
               - renesas,lager # Lager (RTP0RC7790SEB00010S)
+              - renesas,stout # Stout (ADAS Starterkit, Y-R-CAR-ADAS-SKH2-BOARD)
           - const: renesas,r8a7790
 
       - description: R-Car M2-W (R8A77910)
