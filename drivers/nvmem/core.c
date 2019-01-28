@@ -977,7 +977,7 @@ nvmem_cell_get_from_lookup(struct device *dev, const char *con_id)
 			if (IS_ERR(nvmem)) {
 				/* Provider may not be registered yet. */
 				cell = ERR_CAST(nvmem);
-				goto out;
+				break;
 			}
 
 			cell = nvmem_find_cell_by_name(nvmem,
@@ -985,12 +985,11 @@ nvmem_cell_get_from_lookup(struct device *dev, const char *con_id)
 			if (!cell) {
 				__nvmem_device_put(nvmem);
 				cell = ERR_PTR(-ENOENT);
-				goto out;
 			}
+			break;
 		}
 	}
 
-out:
 	mutex_unlock(&nvmem_lookup_mutex);
 	return cell;
 }
