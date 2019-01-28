@@ -162,7 +162,17 @@ static const struct cif_output_fmt out_fmts[] = {
 		.cplanes = 1,
 		.mplanes = 1,
 		.bpp = { 16 },
-	},
+	}, {
+		.fourcc = V4L2_PIX_FMT_SBGGR16,
+		.cplanes = 1,
+		.mplanes = 1,
+		.bpp = { 16 },
+	}, {
+		.fourcc = V4L2_PIX_FMT_Y16,
+		.cplanes = 1,
+		.mplanes = 1,
+		.bpp = { 16 },
+	}
 
 	/* TODO: We can support NV12M/NV21M/NV16M/NV61M too */
 };
@@ -170,97 +180,147 @@ static const struct cif_output_fmt out_fmts[] = {
 static const struct cif_input_fmt in_fmts[] = {
 	{
 		.mbus_code	= MEDIA_BUS_FMT_YUYV8_2X8,
-		.fmt_val	= YUV_INPUT_422 | YUV_INPUT_ORDER_YUYV,
+		.dvp_fmt_val	= YUV_INPUT_422 | YUV_INPUT_ORDER_YUYV,
+		.csi_fmt_val	= CSI_WRDDR_TYPE_YUV422,
 		.fmt_type	= CIF_FMT_TYPE_YUV,
 		.field		= V4L2_FIELD_NONE,
 	}, {
 		.mbus_code	= MEDIA_BUS_FMT_YUYV8_2X8,
-		.fmt_val	= YUV_INPUT_422 | YUV_INPUT_ORDER_YUYV,
+		.dvp_fmt_val	= YUV_INPUT_422 | YUV_INPUT_ORDER_YUYV,
+		.csi_fmt_val	= CSI_WRDDR_TYPE_YUV422,
 		.fmt_type	= CIF_FMT_TYPE_YUV,
 		.field		= V4L2_FIELD_INTERLACED,
 	}, {
 		.mbus_code	= MEDIA_BUS_FMT_YVYU8_2X8,
-		.fmt_val	= YUV_INPUT_422 | YUV_INPUT_ORDER_YVYU,
+		.dvp_fmt_val	= YUV_INPUT_422 | YUV_INPUT_ORDER_YVYU,
+		.csi_fmt_val	= CSI_WRDDR_TYPE_YUV422,
 		.fmt_type	= CIF_FMT_TYPE_YUV,
 		.field		= V4L2_FIELD_NONE,
 	}, {
 		.mbus_code	= MEDIA_BUS_FMT_YVYU8_2X8,
-		.fmt_val	= YUV_INPUT_422 | YUV_INPUT_ORDER_YVYU,
+		.dvp_fmt_val	= YUV_INPUT_422 | YUV_INPUT_ORDER_YVYU,
+		.csi_fmt_val	= CSI_WRDDR_TYPE_YUV422,
 		.fmt_type	= CIF_FMT_TYPE_YUV,
 		.field		= V4L2_FIELD_INTERLACED,
 	}, {
 		.mbus_code	= MEDIA_BUS_FMT_UYVY8_2X8,
-		.fmt_val	= YUV_INPUT_422 | YUV_INPUT_ORDER_UYVY,
+		.dvp_fmt_val	= YUV_INPUT_422 | YUV_INPUT_ORDER_UYVY,
+		.csi_fmt_val	= CSI_WRDDR_TYPE_YUV422,
 		.fmt_type	= CIF_FMT_TYPE_YUV,
 		.field		= V4L2_FIELD_NONE,
 	}, {
 		.mbus_code	= MEDIA_BUS_FMT_UYVY8_2X8,
-		.fmt_val	= YUV_INPUT_422 | YUV_INPUT_ORDER_UYVY,
+		.dvp_fmt_val	= YUV_INPUT_422 | YUV_INPUT_ORDER_UYVY,
+		.csi_fmt_val	= CSI_WRDDR_TYPE_YUV422,
 		.fmt_type	= CIF_FMT_TYPE_YUV,
 		.field		= V4L2_FIELD_INTERLACED,
 	}, {
 		.mbus_code	= MEDIA_BUS_FMT_VYUY8_2X8,
-		.fmt_val	= YUV_INPUT_422 | YUV_INPUT_ORDER_VYUY,
+		.dvp_fmt_val	= YUV_INPUT_422 | YUV_INPUT_ORDER_VYUY,
+		.csi_fmt_val	= CSI_WRDDR_TYPE_YUV422,
 		.fmt_type	= CIF_FMT_TYPE_YUV,
 		.field		= V4L2_FIELD_NONE,
 	}, {
 		.mbus_code	= MEDIA_BUS_FMT_VYUY8_2X8,
-		.fmt_val	= YUV_INPUT_422 | YUV_INPUT_ORDER_VYUY,
+		.dvp_fmt_val	= YUV_INPUT_422 | YUV_INPUT_ORDER_VYUY,
+		.csi_fmt_val	= CSI_WRDDR_TYPE_YUV422,
 		.fmt_type	= CIF_FMT_TYPE_YUV,
 		.field		= V4L2_FIELD_INTERLACED,
 	}, {
 		.mbus_code	= MEDIA_BUS_FMT_SBGGR8_1X8,
-		.fmt_val	= CSI_WRDDR_TYPE_RAW8,
+		.dvp_fmt_val	= INPUT_MODE_RAW | RAW_DATA_WIDTH_8,
+		.csi_fmt_val	= CSI_WRDDR_TYPE_RAW8,
+		.fmt_type	= CIF_FMT_TYPE_RAW,
 		.field		= V4L2_FIELD_NONE,
 	}, {
 		.mbus_code	= MEDIA_BUS_FMT_SGBRG8_1X8,
-		.fmt_val	= CSI_WRDDR_TYPE_RAW8,
+		.dvp_fmt_val	= INPUT_MODE_RAW | RAW_DATA_WIDTH_8,
+		.csi_fmt_val	= CSI_WRDDR_TYPE_RAW8,
+		.fmt_type	= CIF_FMT_TYPE_RAW,
 		.field		= V4L2_FIELD_NONE,
 	}, {
 		.mbus_code	= MEDIA_BUS_FMT_SGRBG8_1X8,
-		.fmt_val	= CSI_WRDDR_TYPE_RAW8,
+		.dvp_fmt_val	= INPUT_MODE_RAW | RAW_DATA_WIDTH_8,
+		.csi_fmt_val	= CSI_WRDDR_TYPE_RAW8,
+		.fmt_type	= CIF_FMT_TYPE_RAW,
 		.field		= V4L2_FIELD_NONE,
 	}, {
 		.mbus_code	= MEDIA_BUS_FMT_SRGGB8_1X8,
-		.fmt_val	= CSI_WRDDR_TYPE_RAW8,
+		.dvp_fmt_val	= INPUT_MODE_RAW | RAW_DATA_WIDTH_8,
+		.csi_fmt_val	= CSI_WRDDR_TYPE_RAW8,
+		.fmt_type	= CIF_FMT_TYPE_RAW,
 		.field		= V4L2_FIELD_NONE,
 	}, {
 		.mbus_code	= MEDIA_BUS_FMT_SBGGR10_1X10,
-		.fmt_val	= CSI_WRDDR_TYPE_RAW10,
+		.dvp_fmt_val	= INPUT_MODE_RAW | RAW_DATA_WIDTH_10,
+		.csi_fmt_val	= CSI_WRDDR_TYPE_RAW10,
+		.fmt_type	= CIF_FMT_TYPE_RAW,
 		.field		= V4L2_FIELD_NONE,
 	}, {
 		.mbus_code	= MEDIA_BUS_FMT_SGBRG10_1X10,
-		.fmt_val	= CSI_WRDDR_TYPE_RAW10,
+		.dvp_fmt_val	= INPUT_MODE_RAW | RAW_DATA_WIDTH_10,
+		.csi_fmt_val	= CSI_WRDDR_TYPE_RAW10,
+		.fmt_type	= CIF_FMT_TYPE_RAW,
 		.field		= V4L2_FIELD_NONE,
 	}, {
 		.mbus_code	= MEDIA_BUS_FMT_SGRBG10_1X10,
-		.fmt_val	= CSI_WRDDR_TYPE_RAW10,
+		.dvp_fmt_val	= INPUT_MODE_RAW | RAW_DATA_WIDTH_10,
+		.csi_fmt_val	= CSI_WRDDR_TYPE_RAW10,
+		.fmt_type	= CIF_FMT_TYPE_RAW,
 		.field		= V4L2_FIELD_NONE,
 	}, {
 		.mbus_code	= MEDIA_BUS_FMT_SRGGB10_1X10,
-		.fmt_val	= CSI_WRDDR_TYPE_RAW10,
+		.dvp_fmt_val	= INPUT_MODE_RAW | RAW_DATA_WIDTH_10,
+		.csi_fmt_val	= CSI_WRDDR_TYPE_RAW10,
+		.fmt_type	= CIF_FMT_TYPE_RAW,
 		.field		= V4L2_FIELD_NONE,
 	}, {
 		.mbus_code	= MEDIA_BUS_FMT_SBGGR12_1X12,
-		.fmt_val	= CSI_WRDDR_TYPE_RAW12,
+		.dvp_fmt_val	= INPUT_MODE_RAW | RAW_DATA_WIDTH_12,
+		.csi_fmt_val	= CSI_WRDDR_TYPE_RAW12,
+		.fmt_type	= CIF_FMT_TYPE_RAW,
 		.field		= V4L2_FIELD_NONE,
 	}, {
 		.mbus_code	= MEDIA_BUS_FMT_SGBRG12_1X12,
-		.fmt_val	= CSI_WRDDR_TYPE_RAW12,
+		.dvp_fmt_val	= INPUT_MODE_RAW | RAW_DATA_WIDTH_12,
+		.csi_fmt_val	= CSI_WRDDR_TYPE_RAW12,
+		.fmt_type	= CIF_FMT_TYPE_RAW,
 		.field		= V4L2_FIELD_NONE,
 	}, {
 		.mbus_code	= MEDIA_BUS_FMT_SGRBG12_1X12,
-		.fmt_val	= CSI_WRDDR_TYPE_RAW12,
+		.dvp_fmt_val	= INPUT_MODE_RAW | RAW_DATA_WIDTH_12,
+		.csi_fmt_val	= CSI_WRDDR_TYPE_RAW12,
+		.fmt_type	= CIF_FMT_TYPE_RAW,
 		.field		= V4L2_FIELD_NONE,
 	}, {
 		.mbus_code	= MEDIA_BUS_FMT_SRGGB12_1X12,
-		.fmt_val	= CSI_WRDDR_TYPE_RAW12,
+		.dvp_fmt_val	= INPUT_MODE_RAW | RAW_DATA_WIDTH_12,
+		.csi_fmt_val	= CSI_WRDDR_TYPE_RAW12,
+		.fmt_type	= CIF_FMT_TYPE_RAW,
 		.field		= V4L2_FIELD_NONE,
 	}, {
 		.mbus_code	= MEDIA_BUS_FMT_RGB888_1X24,
-		.fmt_val	= CSI_WRDDR_TYPE_RGB888,
+		.csi_fmt_val	= CSI_WRDDR_TYPE_RGB888,
 		.field		= V4L2_FIELD_NONE,
-	},
+	}, {
+		.mbus_code	= MEDIA_BUS_FMT_Y8_1X8,
+		.dvp_fmt_val	= INPUT_MODE_RAW | RAW_DATA_WIDTH_8,
+		.csi_fmt_val	= CSI_WRDDR_TYPE_RAW8,
+		.fmt_type	= CIF_FMT_TYPE_RAW,
+		.field		= V4L2_FIELD_NONE,
+	}, {
+		.mbus_code	= MEDIA_BUS_FMT_Y10_1X10,
+		.dvp_fmt_val	= INPUT_MODE_RAW | RAW_DATA_WIDTH_10,
+		.csi_fmt_val	= CSI_WRDDR_TYPE_RAW10,
+		.fmt_type	= CIF_FMT_TYPE_RAW,
+		.field		= V4L2_FIELD_NONE,
+	}, {
+		.mbus_code	= MEDIA_BUS_FMT_Y12_1X12,
+		.dvp_fmt_val	= INPUT_MODE_RAW | RAW_DATA_WIDTH_12,
+		.csi_fmt_val	= CSI_WRDDR_TYPE_RAW12,
+		.fmt_type	= CIF_FMT_TYPE_RAW,
+		.field		= V4L2_FIELD_NONE,
+	}
 };
 
 /* Get active sensor by enabled media link */
@@ -315,7 +375,7 @@ static unsigned char get_data_type(u32 pixelformat, u8 cmd_mode_en)
 
 static int get_csi_crop_align(const struct cif_input_fmt *fmt_in)
 {
-	switch (fmt_in->fmt_val) {
+	switch (fmt_in->csi_fmt_val) {
 	case CSI_WRDDR_TYPE_RGB888:
 		return 24;
 	case CSI_WRDDR_TYPE_RAW10:
@@ -564,7 +624,7 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 	channel->enable = 1;
 	channel->width = stream->pixm.width;
 	channel->height = stream->pixm.height;
-	channel->fmt_val = stream->cif_fmt_in->fmt_val;
+	channel->fmt_val = stream->cif_fmt_in->csi_fmt_val;
 	channel->cmd_mode_en = 0; /* default use DSI Video Mode */
 
 	if (stream->crop_enable) {
@@ -946,15 +1006,18 @@ static int rkcif_stream_start(struct rkcif_stream *stream)
 			xfer_mode = BT1120_TRANSMIT_PROGRESS;
 		else
 			xfer_mode = BT1120_TRANSMIT_INTERFACE;
-		if (!CIF_FETCH_IS_Y_FIRST(stream->cif_fmt_in->fmt_val))
+		if (!CIF_FETCH_IS_Y_FIRST(stream->cif_fmt_in->dvp_fmt_val))
 			yc_swap = BT1120_YC_SWAP;
 	}
 
 	val = vsync_pol | href_pol | rkcif_determine_input_mode(dev) |
-	      stream->cif_fmt_out->fmt_val | stream->cif_fmt_in->fmt_val |
+	      stream->cif_fmt_out->fmt_val | stream->cif_fmt_in->dvp_fmt_val |
 	      xfer_mode | yc_swap;
 	write_cif_reg(base, CIF_FOR, val);
-	write_cif_reg(base, CIF_VIR_LINE_WIDTH, stream->pixm.width);
+	val = stream->pixm.width;
+	if (stream->cif_fmt_in->fmt_type == CIF_FMT_TYPE_RAW)
+		val = stream->pixm.width * 2;
+	write_cif_reg(base, CIF_VIR_LINE_WIDTH, val);
 	write_cif_reg(base, CIF_SET_SIZE,
 		      stream->pixm.width | (stream->pixm.height << 16));
 
