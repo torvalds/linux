@@ -844,19 +844,22 @@ static int usbtv_s_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CID_SHARPNESS:
 		index = USBTV_BASE + 0x0239;
-		data[0] = 0;
-		data[1] = ctrl->val;
-		size = 2;
+		ret = usb_control_msg(usbtv->udev, usb_sndctrlpipe(usbtv->udev, 0),
+			USBTV_REQUEST_REG,
+			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			(u16)ctrl->val, index, NULL, 0, 0);
 		break;
 	default:
 		kfree(data);
 		return -EINVAL;
 	}
-
-	ret = usb_control_msg(usbtv->udev, usb_sndctrlpipe(usbtv->udev, 0),
-			USBTV_CONTROL_REG,
-			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			0, index, (void *)data, size, 0);
+	
+	if(ctrl->id != V4L2_CID_SHARPNESS) {
+		ret = usb_control_msg(usbtv->udev, usb_sndctrlpipe(usbtv->udev, 0),
+				USBTV_CONTROL_REG,
+				USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+				0, index, (void *)data, size, 0);
+	}
 
 error:
 	if (ret < 0)
