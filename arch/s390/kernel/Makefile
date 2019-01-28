@@ -39,6 +39,7 @@ CFLAGS_smp.o		:= -Wno-nonnull
 #
 CFLAGS_stacktrace.o	+= -fno-optimize-sibling-calls
 CFLAGS_dumpstack.o	+= -fno-optimize-sibling-calls
+CFLAGS_unwind_bc.o	+= -fno-optimize-sibling-calls
 
 #
 # Pass UTS_MACHINE for user_regset definition
@@ -51,7 +52,7 @@ obj-y	+= debug.o irq.o ipl.o dis.o diag.o vdso.o early_nobss.o
 obj-y	+= sysinfo.o lgr.o os_info.o machine_kexec.o pgm_check.o
 obj-y	+= runtime_instr.o cache.o fpu.o dumpstack.o guarded_storage.o sthyi.o
 obj-y	+= entry.o reipl.o relocate_kernel.o kdebugfs.o alternative.o
-obj-y	+= nospec-branch.o ipl_vmparm.o machine_kexec_reloc.o
+obj-y	+= nospec-branch.o ipl_vmparm.o machine_kexec_reloc.o unwind_bc.o
 
 extra-y				+= head64.o vmlinux.lds
 

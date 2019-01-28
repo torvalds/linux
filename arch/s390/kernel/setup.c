@@ -66,6 +66,7 @@
 #include <asm/diag.h>
 #include <asm/os_info.h>
 #include <asm/sclp.h>
+#include <asm/stacktrace.h>
 #include <asm/sysinfo.h>
 #include <asm/numa.h>
 #include <asm/alternative.h>

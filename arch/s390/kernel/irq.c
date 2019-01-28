@@ -26,6 +26,7 @@
 #include <asm/lowcore.h>
 #include <asm/irq.h>
 #include <asm/hw_irq.h>
+#include <asm/stacktrace.h>
 #include "entry.h"
 
 DEFINE_PER_CPU_SHARED_ALIGNED(struct irq_stat, irq_stat);
