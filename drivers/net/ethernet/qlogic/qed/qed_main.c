@@ -359,6 +359,8 @@ static struct qed_dev *qed_probe(struct pci_dev *pdev,
 
 	qed_init_dp(cdev, params->dp_module, params->dp_level);
 
+	cdev->recov_in_prog = params->recov_in_prog;
+
 	rc = qed_init_pci(cdev, pdev);
 	if (rc) {
 		DP_ERR(cdev, "init pci failed\n");
@@ -2203,6 +2205,15 @@ static int qed_nvm_get_image(struct qed_dev *cdev, enum qed_nvm_images type,
 	return qed_mcp_get_nvm_image(hwfn, type, buf, len);
 }
 
+void qed_schedule_recovery_handler(struct qed_hwfn *p_hwfn)
+{
+	struct qed_common_cb_ops *ops = p_hwfn->cdev->protocol_ops.common;
+	void *cookie = p_hwfn->cdev->ops_cookie;
+
+	if (ops && ops->schedule_recovery_handler)
+		ops->schedule_recovery_handler(cookie);
+}
+
 static int qed_set_coalesce(struct qed_dev *cdev, u16 rx_coal, u16 tx_coal,
 			    void *handle)
 {
@@ -2224,6 +2235,23 @@ static int qed_set_led(struct qed_dev *cdev, enum qed_led_mode mode)
 	qed_ptt_release(hwfn, ptt);
 
 	return status;
+}
+
+static int qed_recovery_process(struct qed_dev *cdev)
+{
+	struct qed_hwfn *p_hwfn = QED_LEADING_HWFN(cdev);
+	struct qed_ptt *p_ptt;
+	int rc = 0;
+
+	p_ptt = qed_ptt_acquire(p_hwfn);
+	if (!p_ptt)
+		return -EAGAIN;
+
+	rc = qed_start_recovery_process(p_hwfn, p_ptt);
+
+	qed_ptt_release(p_hwfn, p_ptt);
+
+	return rc;
 }
 
 static int qed_update_wol(struct qed_dev *cdev, bool enabled)
@@ -2380,6 +2408,8 @@ const struct qed_common_ops qed_common_ops_pass = {
 	.nvm_get_image = &qed_nvm_get_image,
 	.set_coalesce = &qed_set_coalesce,
 	.set_led = &qed_set_led,
+	.recovery_process = &qed_recovery_process,
+	.recovery_prolog = &qed_recovery_prolog,
 	.update_drv_state = &qed_update_drv_state,
 	.update_mac = &qed_update_mac,
 	.update_mtu = &qed_update_mtu,
