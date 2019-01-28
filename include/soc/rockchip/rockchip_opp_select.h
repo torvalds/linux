@@ -44,6 +44,7 @@ struct thermal_opp_info {
 	int high_temp_max_volt;
 	bool is_low_temp;
 	bool is_high_temp;
+	bool is_low_temp_enabled;
 };
 
 #ifdef CONFIG_ROCKCHIP_OPP
@@ -74,6 +75,7 @@ rockchip_register_thermal_notifier(struct device *dev,
 void rockchip_unregister_thermal_notifier(struct thermal_opp_info *info);
 int rockchip_cpu_low_temp_adjust(struct thermal_opp_info *info,
 				 bool is_low);
+int rockchip_cpu_suspend_low_temp_adjust(struct thermal_opp_info *info);
 int rockchip_cpu_high_temp_adjust(struct thermal_opp_info *info,
 				  bool is_high);
 int rockchip_dev_low_temp_adjust(struct thermal_opp_info *info,
@@ -152,6 +154,12 @@ rockchip_unregister_thermal_notifier(struct thermal_opp_info *info)
 
 static inline int rockchip_cpu_low_temp_adjust(struct thermal_opp_info *info,
 					       bool is_low)
+{
+	return -ENOTSUPP;
+}
+
+static inline int
+rockchip_cpu_suspend_low_temp_adjust(struct thermal_opp_info *info)
 {
 	return -ENOTSUPP;
 }

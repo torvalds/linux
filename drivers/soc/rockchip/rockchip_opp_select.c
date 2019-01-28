@@ -906,6 +906,20 @@ static void rockchip_high_temp_adjust(struct thermal_opp_info *info,
 		info->is_high_temp = is_high;
 }
 
+int rockchip_cpu_suspend_low_temp_adjust(struct thermal_opp_info *info)
+{
+	if (!info || !info->is_low_temp_enabled)
+		return 0;
+
+	if (info->is_high_temp)
+		rockchip_high_temp_adjust(info, false);
+	if (!info->is_low_temp)
+		rockchip_low_temp_adjust(info, true);
+
+	return 0;
+}
+EXPORT_SYMBOL(rockchip_cpu_suspend_low_temp_adjust);
+
 static int rockchip_thermal_zone_notifier_call(struct notifier_block *nb,
 					       unsigned long value, void *data)
 {
@@ -925,6 +939,8 @@ static int rockchip_thermal_zone_notifier_call(struct notifier_block *nb,
 	}
 
 	if (temperature > info->high_temp) {
+		if (info->is_low_temp)
+			rockchip_low_temp_adjust(info, false);
 		if (!info->is_high_temp)
 			rockchip_high_temp_adjust(info, true);
 	} else if (temperature < (info->high_temp - info->temp_hysteresis)) {
@@ -1090,6 +1106,8 @@ rockchip_register_thermal_notifier(struct device *dev,
 	    !info->low_limit && !info->high_limit)
 		goto info_free;
 
+	if (info->low_temp_table || info->low_temp_min_volt)
+		info->is_low_temp_enabled = true;
 	srcu_notifier_chain_register(&tz->thermal_notifier_list,
 				     &info->thermal_nb);
 	thermal_zone_device_update(tz);
