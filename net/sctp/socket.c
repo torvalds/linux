@@ -4222,6 +4222,7 @@ static int sctp_setsockopt_enable_strreset(struct sock *sk,
 					   char __user *optval,
 					   unsigned int optlen)
 {
+	struct sctp_endpoint *ep = sctp_sk(sk)->ep;
 	struct sctp_assoc_value params;
 	struct sctp_association *asoc;
 	int retval = -EINVAL;
@@ -4238,17 +4239,25 @@ static int sctp_setsockopt_enable_strreset(struct sock *sk,
 		goto out;
 
 	asoc = sctp_id2assoc(sk, params.assoc_id);
+	if (!asoc && params.assoc_id > SCTP_ALL_ASSOC &&
+	    sctp_style(sk, UDP))
+		goto out;
+
+	retval = 0;
+
 	if (asoc) {
 		asoc->strreset_enable = params.assoc_value;
-	} else if (!params.assoc_id) {
-		struct sctp_sock *sp = sctp_sk(sk);
-
-		sp->ep->strreset_enable = params.assoc_value;
-	} else {
 		goto out;
 	}
 
-	retval = 0;
+	if (params.assoc_id == SCTP_FUTURE_ASSOC ||
+	    params.assoc_id == SCTP_ALL_ASSOC)
+		ep->strreset_enable = params.assoc_value;
+
+	if (params.assoc_id == SCTP_CURRENT_ASSOC ||
+	    params.assoc_id == SCTP_ALL_ASSOC)
+		list_for_each_entry(asoc, &ep->asocs, asocs)
+			asoc->strreset_enable = params.assoc_value;
 
 out:
 	return retval;
@@ -7509,16 +7518,14 @@ static int sctp_getsockopt_enable_strreset(struct sock *sk, int len,
 		goto out;
 
 	asoc = sctp_id2assoc(sk, params.assoc_id);
-	if (asoc) {
-		params.assoc_value = asoc->strreset_enable;
-	} else if (!params.assoc_id) {
-		struct sctp_sock *sp = sctp_sk(sk);
-
-		params.assoc_value = sp->ep->strreset_enable;
-	} else {
+	if (!asoc && params.assoc_id != SCTP_FUTURE_ASSOC &&
+	    sctp_style(sk, UDP)) {
 		retval = -EINVAL;
 		goto out;
 	}
+
+	params.assoc_value = asoc ? asoc->strreset_enable
+				  : sctp_sk(sk)->ep->strreset_enable;
 
 	if (put_user(len, optlen))
 		goto out;
