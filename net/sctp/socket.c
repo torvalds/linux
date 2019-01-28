@@ -3067,18 +3067,35 @@ static int sctp_setsockopt_default_sndinfo(struct sock *sk,
 		return -EINVAL;
 
 	asoc = sctp_id2assoc(sk, info.snd_assoc_id);
-	if (!asoc && info.snd_assoc_id && sctp_style(sk, UDP))
+	if (!asoc && info.snd_assoc_id > SCTP_ALL_ASSOC &&
+	    sctp_style(sk, UDP))
 		return -EINVAL;
+
 	if (asoc) {
 		asoc->default_stream = info.snd_sid;
 		asoc->default_flags = info.snd_flags;
 		asoc->default_ppid = info.snd_ppid;
 		asoc->default_context = info.snd_context;
-	} else {
+
+		return 0;
+	}
+
+	if (info.snd_assoc_id == SCTP_FUTURE_ASSOC ||
+	    info.snd_assoc_id == SCTP_ALL_ASSOC) {
 		sp->default_stream = info.snd_sid;
 		sp->default_flags = info.snd_flags;
 		sp->default_ppid = info.snd_ppid;
 		sp->default_context = info.snd_context;
+	}
+
+	if (info.snd_assoc_id == SCTP_CURRENT_ASSOC ||
+	    info.snd_assoc_id == SCTP_ALL_ASSOC) {
+		list_for_each_entry(asoc, &sp->ep->asocs, asocs) {
+			asoc->default_stream = info.snd_sid;
+			asoc->default_flags = info.snd_flags;
+			asoc->default_ppid = info.snd_ppid;
+			asoc->default_context = info.snd_context;
+		}
 	}
 
 	return 0;
@@ -6287,8 +6304,10 @@ static int sctp_getsockopt_default_sndinfo(struct sock *sk, int len,
 		return -EFAULT;
 
 	asoc = sctp_id2assoc(sk, info.snd_assoc_id);
-	if (!asoc && info.snd_assoc_id && sctp_style(sk, UDP))
+	if (!asoc && info.snd_assoc_id != SCTP_FUTURE_ASSOC &&
+	    sctp_style(sk, UDP))
 		return -EINVAL;
+
 	if (asoc) {
 		info.snd_sid = asoc->default_stream;
 		info.snd_flags = asoc->default_flags;
