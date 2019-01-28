@@ -2317,13 +2317,13 @@ static void cnl_ddi_vswing_program(struct intel_encoder *encoder,
 	/* Program PORT_TX_DW4 */
 	/* We cannot write to GRP. It would overrite individual loadgen */
 	for (ln = 0; ln < 4; ln++) {
-		val = I915_READ(CNL_PORT_TX_DW4_LN(port, ln));
+		val = I915_READ(CNL_PORT_TX_DW4_LN(ln, port));
 		val &= ~(POST_CURSOR_1_MASK | POST_CURSOR_2_MASK |
 			 CURSOR_COEFF_MASK);
 		val |= POST_CURSOR_1(ddi_translations[level].dw4_post_cursor_1);
 		val |= POST_CURSOR_2(ddi_translations[level].dw4_post_cursor_2);
 		val |= CURSOR_COEFF(ddi_translations[level].dw4_cursor_coeff);
-		I915_WRITE(CNL_PORT_TX_DW4_LN(port, ln), val);
+		I915_WRITE(CNL_PORT_TX_DW4_LN(ln, port), val);
 	}
 
 	/* Program PORT_TX_DW5 */
@@ -2379,14 +2379,14 @@ static void cnl_ddi_vswing_sequence(struct intel_encoder *encoder,
 	 * > 6 GHz (LN0=0, LN1=0, LN2=0, LN3=0)
 	 */
 	for (ln = 0; ln <= 3; ln++) {
-		val = I915_READ(CNL_PORT_TX_DW4_LN(port, ln));
+		val = I915_READ(CNL_PORT_TX_DW4_LN(ln, port));
 		val &= ~LOADGEN_SELECT;
 
 		if ((rate <= 600000 && width == 4 && ln >= 1)  ||
 		    (rate <= 600000 && width < 4 && (ln == 1 || ln == 2))) {
 			val |= LOADGEN_SELECT;
 		}
-		I915_WRITE(CNL_PORT_TX_DW4_LN(port, ln), val);
+		I915_WRITE(CNL_PORT_TX_DW4_LN(ln, port), val);
 	}
 
 	/* 3. Set PORT_CL_DW5 SUS Clock Config to 11b */
@@ -2448,13 +2448,13 @@ static void icl_ddi_combo_vswing_program(struct drm_i915_private *dev_priv,
 	/* Program PORT_TX_DW4 */
 	/* We cannot write to GRP. It would overwrite individual loadgen. */
 	for (ln = 0; ln <= 3; ln++) {
-		val = I915_READ(ICL_PORT_TX_DW4_LN(port, ln));
+		val = I915_READ(ICL_PORT_TX_DW4_LN(ln, port));
 		val &= ~(POST_CURSOR_1_MASK | POST_CURSOR_2_MASK |
 			 CURSOR_COEFF_MASK);
 		val |= POST_CURSOR_1(ddi_translations[level].dw4_post_cursor_1);
 		val |= POST_CURSOR_2(ddi_translations[level].dw4_post_cursor_2);
 		val |= CURSOR_COEFF(ddi_translations[level].dw4_cursor_coeff);
-		I915_WRITE(ICL_PORT_TX_DW4_LN(port, ln), val);
+		I915_WRITE(ICL_PORT_TX_DW4_LN(ln, port), val);
 	}
 
 	/* Program PORT_TX_DW7 */
@@ -2505,14 +2505,14 @@ static void icl_combo_phy_ddi_vswing_sequence(struct intel_encoder *encoder,
 	 * > 6 GHz (LN0=0, LN1=0, LN2=0, LN3=0)
 	 */
 	for (ln = 0; ln <= 3; ln++) {
-		val = I915_READ(ICL_PORT_TX_DW4_LN(port, ln));
+		val = I915_READ(ICL_PORT_TX_DW4_LN(ln, port));
 		val &= ~LOADGEN_SELECT;
 
 		if ((rate <= 600000 && width == 4 && ln >= 1) ||
 		    (rate <= 600000 && width < 4 && (ln == 1 || ln == 2))) {
 			val |= LOADGEN_SELECT;
 		}
-		I915_WRITE(ICL_PORT_TX_DW4_LN(port, ln), val);
+		I915_WRITE(ICL_PORT_TX_DW4_LN(ln, port), val);
 	}
 
 	/* 3. Set PORT_CL_DW5 SUS Clock Config to 11b */

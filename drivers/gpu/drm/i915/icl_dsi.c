@@ -246,13 +246,13 @@ static void dsi_program_swing_and_deemphasis(struct intel_encoder *encoder)
 
 		for (lane = 0; lane <= 3; lane++) {
 			/* Bspec: must not use GRP register for write */
-			tmp = I915_READ(ICL_PORT_TX_DW4_LN(port, lane));
+			tmp = I915_READ(ICL_PORT_TX_DW4_LN(lane, port));
 			tmp &= ~(POST_CURSOR_1_MASK | POST_CURSOR_2_MASK |
 				 CURSOR_COEFF_MASK);
 			tmp |= POST_CURSOR_1(0x0);
 			tmp |= POST_CURSOR_2(0x0);
 			tmp |= CURSOR_COEFF(0x3f);
-			I915_WRITE(ICL_PORT_TX_DW4_LN(port, lane), tmp);
+			I915_WRITE(ICL_PORT_TX_DW4_LN(lane, port), tmp);
 		}
 	}
 }
@@ -390,11 +390,11 @@ static void gen11_dsi_config_phy_lanes_sequence(struct intel_encoder *encoder)
 		tmp &= ~LOADGEN_SELECT;
 		I915_WRITE(ICL_PORT_TX_DW4_AUX(port), tmp);
 		for (lane = 0; lane <= 3; lane++) {
-			tmp = I915_READ(ICL_PORT_TX_DW4_LN(port, lane));
+			tmp = I915_READ(ICL_PORT_TX_DW4_LN(lane, port));
 			tmp &= ~LOADGEN_SELECT;
 			if (lane != 2)
 				tmp |= LOADGEN_SELECT;
-			I915_WRITE(ICL_PORT_TX_DW4_LN(port, lane), tmp);
+			I915_WRITE(ICL_PORT_TX_DW4_LN(lane, port), tmp);
 		}
 	}
 
