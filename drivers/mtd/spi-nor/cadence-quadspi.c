@@ -418,9 +418,10 @@ static int cqspi_command_write(struct spi_nor *nor, const u8 opcode,
 	void __iomem *reg_base = cqspi->iobase;
 	unsigned int reg;
 	unsigned int data;
+	u32 write_len;
 	int ret;
 
-	if (n_tx > 4 || (n_tx && !txbuf)) {
+	if (n_tx > CQSPI_STIG_DATA_LEN_MAX || (n_tx && !txbuf)) {
 		dev_err(nor->dev,
 			"Invalid input argument, cmdlen %d txbuf 0x%p\n",
 			n_tx, txbuf);
@@ -433,10 +434,18 @@ static int cqspi_command_write(struct spi_nor *nor, const u8 opcode,
 		reg |= ((n_tx - 1) & CQSPI_REG_CMDCTRL_WR_BYTES_MASK)
 			<< CQSPI_REG_CMDCTRL_WR_BYTES_LSB;
 		data = 0;
-		memcpy(&data, txbuf, n_tx);
+		write_len = (n_tx > 4) ? 4 : n_tx;
+		memcpy(&data, txbuf, write_len);
+		txbuf += write_len;
 		writel(data, reg_base + CQSPI_REG_CMDWRITEDATALOWER);
-	}
 
+		if (n_tx > 4) {
+			data = 0;
+			write_len = n_tx - 4;
+			memcpy(&data, txbuf, write_len);
+			writel(data, reg_base + CQSPI_REG_CMDWRITEDATAUPPER);
+		}
+	}
 	ret = cqspi_exec_flash_cmd(cqspi, reg);
 	return ret;
 }
