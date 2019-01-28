@@ -46,6 +46,9 @@
 #define LEFT_MIXER 0
 #define RIGHT_MIXER 1
 
+/* timeout in ms waiting for frame done */
+#define DPU_CRTC_FRAME_DONE_TIMEOUT_MS	60
+
 static struct dpu_kms *_dpu_crtc_get_kms(struct drm_crtc *crtc)
 {
 	struct msm_drm_private *priv = crtc->dev->dev_private;
@@ -683,7 +686,7 @@ static int _dpu_crtc_wait_for_frame_done(struct drm_crtc *crtc)
 
 	DPU_ATRACE_BEGIN("frame done completion wait");
 	ret = wait_for_completion_timeout(&dpu_crtc->frame_done_comp,
-			msecs_to_jiffies(DPU_FRAME_DONE_TIMEOUT));
+			msecs_to_jiffies(DPU_CRTC_FRAME_DONE_TIMEOUT_MS));
 	if (!ret) {
 		DRM_ERROR("frame done wait timed out, ret:%d\n", ret);
 		rc = -ETIMEDOUT;

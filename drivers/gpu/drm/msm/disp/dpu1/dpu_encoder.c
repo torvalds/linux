@@ -69,6 +69,9 @@
 
 #define MAX_VDISPLAY_SPLIT 1080
 
+/* timeout in frames waiting for frame done */
+#define DPU_ENCODER_FRAME_DONE_TIMEOUT_FRAMES 5
+
 /**
  * enum dpu_enc_rc_events - events for resource control state machine
  * @DPU_ENC_RC_EVENT_KICKOFF:
@@ -158,7 +161,7 @@ enum dpu_enc_rc_states {
  *				Bit0 = phys_encs[0] etc.
  * @crtc_frame_event_cb:	callback handler for frame event
  * @crtc_frame_event_cb_data:	callback handler private data
- * @frame_done_timeout:		frame done timeout in Hz
+ * @frame_done_timeout_ms:	frame done timeout in ms
  * @frame_done_timer:		watchdog timer for frame done event
  * @vsync_event_timer:		vsync timer
  * @disp_info:			local copy of msm_display_info struct
@@ -196,7 +199,7 @@ struct dpu_encoder_virt {
 	void (*crtc_frame_event_cb)(void *, u32 event);
 	void *crtc_frame_event_cb_data;
 
-	atomic_t frame_done_timeout;
+	atomic_t frame_done_timeout_ms;
 	struct timer_list frame_done_timer;
 	struct timer_list vsync_event_timer;
 
@@ -1182,7 +1185,7 @@ static void dpu_encoder_virt_disable(struct drm_encoder *drm_enc)
 	}
 
 	/* after phys waits for frame-done, should be no more frames pending */
-	if (atomic_xchg(&dpu_enc->frame_done_timeout, 0)) {
+	if (atomic_xchg(&dpu_enc->frame_done_timeout_ms, 0)) {
 		DPU_ERROR("enc%d timeout pending\n", drm_enc->base.id);
 		del_timer_sync(&dpu_enc->frame_done_timer);
 	}
@@ -1339,7 +1342,7 @@ static void dpu_encoder_frame_done_callback(
 		}
 
 		if (!dpu_enc->frame_busy_mask[0]) {
-			atomic_set(&dpu_enc->frame_done_timeout, 0);
+			atomic_set(&dpu_enc->frame_done_timeout_ms, 0);
 			del_timer(&dpu_enc->frame_done_timer);
 
 			dpu_encoder_resource_control(drm_enc,
@@ -1801,10 +1804,10 @@ void dpu_encoder_kickoff(struct drm_encoder *drm_enc, bool async)
 
 	trace_dpu_enc_kickoff(DRMID(drm_enc));
 
-	timeout_ms = DPU_FRAME_DONE_TIMEOUT * 1000 /
+	timeout_ms = DPU_ENCODER_FRAME_DONE_TIMEOUT_FRAMES * 1000 /
 		drm_mode_vrefresh(&drm_enc->crtc->state->adjusted_mode);
 
-	atomic_set(&dpu_enc->frame_done_timeout, timeout_ms);
+	atomic_set(&dpu_enc->frame_done_timeout_ms, timeout_ms);
 	mod_timer(&dpu_enc->frame_done_timer,
 		  jiffies + msecs_to_jiffies(timeout_ms));
 
@@ -2126,7 +2129,7 @@ static void dpu_encoder_frame_done_timeout(struct timer_list *t)
 		DRM_DEBUG_KMS("id:%u invalid timeout frame_busy_mask=%lu\n",
 			      DRMID(drm_enc), dpu_enc->frame_busy_mask[0]);
 		return;
-	} else if (!atomic_xchg(&dpu_enc->frame_done_timeout, 0)) {
+	} else if (!atomic_xchg(&dpu_enc->frame_done_timeout_ms, 0)) {
 		DRM_DEBUG_KMS("id:%u invalid timeout\n", DRMID(drm_enc));
 		return;
 	}
@@ -2172,7 +2175,7 @@ int dpu_encoder_setup(struct drm_device *dev, struct drm_encoder *enc,
 
 	spin_lock_init(&dpu_enc->enc_spinlock);
 
-	atomic_set(&dpu_enc->frame_done_timeout, 0);
+	atomic_set(&dpu_enc->frame_done_timeout_ms, 0);
 	timer_setup(&dpu_enc->frame_done_timer,
 			dpu_encoder_frame_done_timeout, 0);
 
