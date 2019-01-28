@@ -4290,6 +4290,9 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 	vport->fc_rscn_flush = 0;
 	lpfc_get_vport_cfgparam(vport);
 
+	/* Adjust value in vport */
+	vport->cfg_enable_fc4_type = phba->cfg_enable_fc4_type;
+
 	shost->unique_id = instance;
 	shost->max_id = LPFC_MAX_TARGET;
 	shost->max_lun = vport->cfg_max_luns;

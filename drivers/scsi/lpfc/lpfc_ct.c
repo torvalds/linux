@@ -1656,16 +1656,16 @@ lpfc_ns_cmd(struct lpfc_vport *vport, int cmdcode,
 		CtReq->un.rft.PortId = cpu_to_be32(vport->fc_myDID);
 
 		/* Register FC4 FCP type if enabled.  */
-		if ((phba->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
-		    (phba->cfg_enable_fc4_type == LPFC_ENABLE_FCP))
+		if (vport->cfg_enable_fc4_type == LPFC_ENABLE_BOTH ||
+		    vport->cfg_enable_fc4_type == LPFC_ENABLE_FCP)
 			CtReq->un.rft.fcpReg = 1;
 
 		/* Register NVME type if enabled.  Defined LE and swapped.
 		 * rsvd[0] is used as word1 because of the hard-coded
 		 * word0 usage in the ct_request data structure.
 		 */
-		if ((phba->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
-		    (phba->cfg_enable_fc4_type == LPFC_ENABLE_NVME))
+		if (vport->cfg_enable_fc4_type == LPFC_ENABLE_BOTH ||
+		    vport->cfg_enable_fc4_type == LPFC_ENABLE_NVME)
 			CtReq->un.rft.rsvd[0] =
 				cpu_to_be32(LPFC_FC4_TYPE_BITMASK);
 
@@ -1732,8 +1732,8 @@ lpfc_ns_cmd(struct lpfc_vport *vport, int cmdcode,
 		 * caller can specify NVME (type x28) as well.  But only
 		 * these that FC4 type is supported.
 		 */
-		if (((phba->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
-		     (phba->cfg_enable_fc4_type == LPFC_ENABLE_NVME)) &&
+		if (((vport->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
+		     (vport->cfg_enable_fc4_type == LPFC_ENABLE_NVME)) &&
 		    (context == FC_TYPE_NVME)) {
 			if ((vport == phba->pport) && phba->nvmet_support) {
 				CtReq->un.rff.fbits = (FC4_FEATURE_TARGET |
@@ -1744,8 +1744,8 @@ lpfc_ns_cmd(struct lpfc_vport *vport, int cmdcode,
 			}
 			CtReq->un.rff.type_code = context;
 
-		} else if (((phba->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
-			    (phba->cfg_enable_fc4_type == LPFC_ENABLE_FCP)) &&
+		} else if (((vport->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
+			    (vport->cfg_enable_fc4_type == LPFC_ENABLE_FCP)) &&
 			   (context == FC_TYPE_FCP))
 			CtReq->un.rff.type_code = context;
 

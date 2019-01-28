@@ -857,10 +857,9 @@ lpfc_port_link_failure(struct lpfc_vport *vport)
 void
 lpfc_linkdown_port(struct lpfc_vport *vport)
 {
-	struct lpfc_hba  *phba = vport->phba;
 	struct Scsi_Host  *shost = lpfc_shost_from_vport(vport);
 
-	if (phba->cfg_enable_fc4_type != LPFC_ENABLE_NVME)
+	if (vport->cfg_enable_fc4_type != LPFC_ENABLE_NVME)
 		fc_host_post_event(shost, fc_get_event_number(),
 				   FCH_EVT_LINKDOWN, 0);
 
@@ -923,8 +922,8 @@ lpfc_linkdown(struct lpfc_hba *phba)
 
 			vports[i]->fc_myDID = 0;
 
-			if ((phba->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
-			    (phba->cfg_enable_fc4_type == LPFC_ENABLE_NVME)) {
+			if ((vport->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
+			    (vport->cfg_enable_fc4_type == LPFC_ENABLE_NVME)) {
 				if (phba->nvmet_support)
 					lpfc_nvmet_update_targetport(phba);
 				else
@@ -1010,7 +1009,7 @@ lpfc_linkup_port(struct lpfc_vport *vport)
 		(vport != phba->pport))
 		return;
 
-	if (phba->cfg_enable_fc4_type != LPFC_ENABLE_NVME)
+	if (vport->cfg_enable_fc4_type != LPFC_ENABLE_NVME)
 		fc_host_post_event(shost, fc_get_event_number(),
 				   FCH_EVT_LINKUP, 0);
 
@@ -3658,8 +3657,8 @@ lpfc_mbx_cmpl_reg_vpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		spin_unlock_irq(shost->host_lock);
 		vport->fc_myDID = 0;
 
-		if ((phba->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
-		    (phba->cfg_enable_fc4_type == LPFC_ENABLE_NVME)) {
+		if ((vport->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
+		    (vport->cfg_enable_fc4_type == LPFC_ENABLE_NVME)) {
 			if (phba->nvmet_support)
 				lpfc_nvmet_update_targetport(phba);
 			else
@@ -3921,11 +3920,9 @@ lpfc_mbx_cmpl_fabric_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 int
 lpfc_issue_gidft(struct lpfc_vport *vport)
 {
-	struct lpfc_hba *phba = vport->phba;
-
 	/* Good status, issue CT Request to NameServer */
-	if ((phba->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
-	    (phba->cfg_enable_fc4_type == LPFC_ENABLE_FCP)) {
+	if ((vport->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
+	    (vport->cfg_enable_fc4_type == LPFC_ENABLE_FCP)) {
 		if (lpfc_ns_cmd(vport, SLI_CTNS_GID_FT, 0, SLI_CTPT_FCP)) {
 			/* Cannot issue NameServer FCP Query, so finish up
 			 * discovery
@@ -3940,8 +3937,8 @@ lpfc_issue_gidft(struct lpfc_vport *vport)
 		vport->gidft_inp++;
 	}
 
-	if ((phba->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
-	    (phba->cfg_enable_fc4_type == LPFC_ENABLE_NVME)) {
+	if ((vport->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
+	    (vport->cfg_enable_fc4_type == LPFC_ENABLE_NVME)) {
 		if (lpfc_ns_cmd(vport, SLI_CTNS_GID_FT, 0, SLI_CTPT_NVME)) {
 			/* Cannot issue NameServer NVME Query, so finish up
 			 * discovery
@@ -4057,12 +4054,12 @@ out:
 		lpfc_ns_cmd(vport, SLI_CTNS_RSPN_ID, 0, 0);
 		lpfc_ns_cmd(vport, SLI_CTNS_RFT_ID, 0, 0);
 
-		if ((phba->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
-		    (phba->cfg_enable_fc4_type == LPFC_ENABLE_FCP))
+		if ((vport->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
+		    (vport->cfg_enable_fc4_type == LPFC_ENABLE_FCP))
 			lpfc_ns_cmd(vport, SLI_CTNS_RFF_ID, 0, FC_TYPE_FCP);
 
-		if ((phba->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
-		    (phba->cfg_enable_fc4_type == LPFC_ENABLE_NVME))
+		if ((vport->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
+		    (vport->cfg_enable_fc4_type == LPFC_ENABLE_NVME))
 			lpfc_ns_cmd(vport, SLI_CTNS_RFF_ID, 0,
 				    FC_TYPE_NVME);
 
@@ -4098,7 +4095,7 @@ lpfc_register_remote_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	struct fc_rport_identifiers rport_ids;
 	struct lpfc_hba  *phba = vport->phba;
 
-	if (phba->cfg_enable_fc4_type == LPFC_ENABLE_NVME)
+	if (vport->cfg_enable_fc4_type == LPFC_ENABLE_NVME)
 		return;
 
 	/* Remote port has reappeared. Re-register w/ FC transport */
@@ -4173,9 +4170,8 @@ lpfc_unregister_remote_port(struct lpfc_nodelist *ndlp)
 {
 	struct fc_rport *rport = ndlp->rport;
 	struct lpfc_vport *vport = ndlp->vport;
-	struct lpfc_hba  *phba = vport->phba;
 
-	if (phba->cfg_enable_fc4_type == LPFC_ENABLE_NVME)
+	if (vport->cfg_enable_fc4_type == LPFC_ENABLE_NVME)
 		return;
 
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_RPORT,

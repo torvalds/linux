@@ -825,7 +825,7 @@ lpfc_rcv_prli(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			"rport rolechg:   role:x%x did:x%x flg:x%x",
 			roles, ndlp->nlp_DID, ndlp->nlp_flag);
 
-		if (phba->cfg_enable_fc4_type != LPFC_ENABLE_NVME)
+		if (vport->cfg_enable_fc4_type != LPFC_ENABLE_NVME)
 			fc_remote_port_rolechg(rport, roles);
 	}
 }
@@ -1789,8 +1789,8 @@ lpfc_cmpl_reglogin_reglogin_issue(struct lpfc_vport *vport,
 			 * is configured try it.
 			 */
 			ndlp->nlp_fc4_type |= NLP_FC4_FCP;
-			if ((phba->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
-			     (phba->cfg_enable_fc4_type == LPFC_ENABLE_NVME)) {
+			if ((vport->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
+			    (vport->cfg_enable_fc4_type == LPFC_ENABLE_NVME)) {
 				ndlp->nlp_fc4_type |= NLP_FC4_NVME;
 				/* We need to update the localport also */
 				lpfc_nvme_update_localport(vport);
@@ -1804,7 +1804,7 @@ lpfc_cmpl_reglogin_reglogin_issue(struct lpfc_vport *vport,
 			 * should just issue PRLI for FCP. Otherwise issue
 			 * GFT_ID to determine if remote port supports NVME.
 			 */
-			if (phba->cfg_enable_fc4_type != LPFC_ENABLE_FCP) {
+			if (vport->cfg_enable_fc4_type != LPFC_ENABLE_FCP) {
 				rc = lpfc_ns_cmd(vport, SLI_CTNS_GFT_ID,
 						 0, ndlp->nlp_DID);
 				return ndlp->nlp_state;

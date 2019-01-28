@@ -462,6 +462,7 @@ struct lpfc_vport {
 	uint32_t cfg_use_adisc;
 	uint32_t cfg_discovery_threads;
 	uint32_t cfg_log_verbose;
+	uint32_t cfg_enable_fc4_type;
 	uint32_t cfg_max_luns;
 	uint32_t cfg_enable_da_id;
 	uint32_t cfg_max_scsicmpl_time;
@@ -860,6 +861,7 @@ struct lpfc_hba {
 	uint32_t cfg_prot_guard;
 	uint32_t cfg_hostmem_hgp;
 	uint32_t cfg_log_verbose;
+	uint32_t cfg_enable_fc4_type;
 	uint32_t cfg_aer_support;
 	uint32_t cfg_sriov_nr_virtfn;
 	uint32_t cfg_request_firmware_upgrade;
@@ -880,7 +882,6 @@ struct lpfc_hba {
 	uint32_t cfg_ras_fwlog_level;
 	uint32_t cfg_ras_fwlog_buffsize;
 	uint32_t cfg_ras_fwlog_func;
-	uint32_t cfg_enable_fc4_type;
 	uint32_t cfg_enable_bbcr;	/* Enable BB Credit Recovery */
 	uint32_t cfg_enable_dpp;	/* Enable Direct Packet Push */
 #define LPFC_ENABLE_FCP  1

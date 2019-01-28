@@ -2827,8 +2827,8 @@ out:
 		!(vport->fc_flag & FC_PT2PT_PLOGI)) {
 		phba->pport->fc_myDID = 0;
 
-		if ((phba->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
-		    (phba->cfg_enable_fc4_type == LPFC_ENABLE_NVME)) {
+		if ((vport->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
+		    (vport->cfg_enable_fc4_type == LPFC_ENABLE_NVME)) {
 			if (phba->nvmet_support)
 				lpfc_nvmet_update_targetport(phba);
 			else

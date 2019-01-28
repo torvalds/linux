@@ -1166,7 +1166,7 @@ lpfc_debugfs_nvmestat_data(struct lpfc_vport *vport, char *buf, int size)
 				phba->sli4_hba.nvmet_io_wait_total,
 				tot);
 	} else {
-		if (!(phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME))
+		if (!(vport->cfg_enable_fc4_type & LPFC_ENABLE_NVME))
 			return len;
 
 		localport = vport->localport;
@@ -1264,7 +1264,7 @@ lpfc_debugfs_scsistat_data(struct lpfc_vport *vport, char *buf, int size)
 	int i;
 	char tmp[LPFC_MAX_SCSI_INFO_TMP_LEN] = {0};
 
-	if (!(phba->cfg_enable_fc4_type & LPFC_ENABLE_FCP) ||
+	if (!(vport->cfg_enable_fc4_type & LPFC_ENABLE_FCP) ||
 	    (phba->sli_rev != LPFC_SLI_REV4))
 		return 0;
 

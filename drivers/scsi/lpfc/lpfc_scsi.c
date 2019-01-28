@@ -530,7 +530,7 @@ lpfc_sli4_vport_delete_fcp_xri_aborted(struct lpfc_vport *vport)
 	unsigned long iflag = 0;
 	int idx;
 
-	if (!(phba->cfg_enable_fc4_type & LPFC_ENABLE_FCP))
+	if (!(vport->cfg_enable_fc4_type & LPFC_ENABLE_FCP))
 		return;
 
 	spin_lock_irqsave(&phba->hbalock, iflag);

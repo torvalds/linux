@@ -160,7 +160,7 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 	int len = 0;
 	char tmp[LPFC_MAX_NVME_INFO_TMP_LEN] = {0};
 
-	if (!(phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME)) {
+	if (!(vport->cfg_enable_fc4_type & LPFC_ENABLE_NVME)) {
 		len = scnprintf(buf, PAGE_SIZE, "NVME Disabled\n");
 		return len;
 	}
@@ -519,7 +519,7 @@ lpfc_scsi_stat_show(struct device *dev, struct device_attribute *attr,
 	int i;
 	char tmp[LPFC_MAX_SCSI_INFO_TMP_LEN] = {0};
 
-	if (!(phba->cfg_enable_fc4_type & LPFC_ENABLE_FCP) ||
+	if (!(vport->cfg_enable_fc4_type & LPFC_ENABLE_FCP) ||
 	    (phba->sli_rev != LPFC_SLI_REV4))
 		return 0;
 
