@@ -2746,7 +2746,7 @@ static int amdgpu_debugfs_pm_info(struct seq_file *m, void *data)
 	if  ((adev->flags & AMD_IS_PX) &&
 	     (ddev->switch_power_state != DRM_SWITCH_POWER_ON)) {
 		seq_printf(m, "PX asic powered off\n");
-	} else if (adev->powerplay.pp_funcs->debugfs_print_current_performance_level) {
+	} else if (!is_support_sw_smu(adev) && adev->powerplay.pp_funcs->debugfs_print_current_performance_level) {
 		mutex_lock(&adev->pm.mutex);
 		if (adev->powerplay.pp_funcs->debugfs_print_current_performance_level)
 			adev->powerplay.pp_funcs->debugfs_print_current_performance_level(adev, m);
