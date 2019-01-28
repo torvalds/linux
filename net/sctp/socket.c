@@ -4352,29 +4352,44 @@ static int sctp_setsockopt_scheduler(struct sock *sk,
 				     char __user *optval,
 				     unsigned int optlen)
 {
+	struct sctp_sock *sp = sctp_sk(sk);
 	struct sctp_association *asoc;
 	struct sctp_assoc_value params;
-	int retval = -EINVAL;
+	int retval = 0;
 
 	if (optlen < sizeof(params))
-		goto out;
+		return -EINVAL;
 
 	optlen = sizeof(params);
-	if (copy_from_user(&params, optval, optlen)) {
-		retval = -EFAULT;
-		goto out;
-	}
+	if (copy_from_user(&params, optval, optlen))
+		return -EFAULT;
 
 	if (params.assoc_value > SCTP_SS_MAX)
-		goto out;
+		return -EINVAL;
 
 	asoc = sctp_id2assoc(sk, params.assoc_id);
-	if (!asoc)
-		goto out;
+	if (!asoc && params.assoc_id > SCTP_ALL_ASSOC &&
+	    sctp_style(sk, UDP))
+		return -EINVAL;
 
-	retval = sctp_sched_set_sched(asoc, params.assoc_value);
+	if (asoc)
+		return sctp_sched_set_sched(asoc, params.assoc_value);
 
-out:
+	if (params.assoc_id == SCTP_FUTURE_ASSOC ||
+	    params.assoc_id == SCTP_ALL_ASSOC)
+		sp->default_ss = params.assoc_value;
+
+	if (params.assoc_id == SCTP_CURRENT_ASSOC ||
+	    params.assoc_id == SCTP_ALL_ASSOC) {
+		list_for_each_entry(asoc, &sp->ep->asocs, asocs) {
+			int ret = sctp_sched_set_sched(asoc,
+						       params.assoc_value);
+
+			if (ret && !retval)
+				retval = ret;
+		}
+	}
+
 	return retval;
 }
 
@@ -5005,6 +5020,7 @@ static int sctp_init_sock(struct sock *sk)
 	sp->param_flags = SPP_HB_ENABLE |
 			  SPP_PMTUD_ENABLE |
 			  SPP_SACKDELAY_ENABLE;
+	sp->default_ss = SCTP_SS_DEFAULT;
 
 	/* If enabled no SCTP message fragmentation will be performed.
 	 * Configure through SCTP_DISABLE_FRAGMENTS socket option.
@@ -7572,12 +7588,14 @@ static int sctp_getsockopt_scheduler(struct sock *sk, int len,
 		goto out;
 
 	asoc = sctp_id2assoc(sk, params.assoc_id);
-	if (!asoc) {
+	if (!asoc && params.assoc_id != SCTP_FUTURE_ASSOC &&
+	    sctp_style(sk, UDP)) {
 		retval = -EINVAL;
 		goto out;
 	}
 
-	params.assoc_value = sctp_sched_get_sched(asoc);
+	params.assoc_value = asoc ? sctp_sched_get_sched(asoc)
+				  : sctp_sk(sk)->default_ss;
 
 	if (put_user(len, optlen))
 		goto out;
