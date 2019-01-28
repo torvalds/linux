@@ -282,6 +282,9 @@ struct smu_bios_boot_up_values
 	uint32_t			uclk;
 	uint32_t			socclk;
 	uint32_t			dcefclk;
+	uint32_t			eclk;
+	uint32_t			vclk;
+	uint32_t			dclk;
 	uint16_t			vddc;
 	uint16_t			vddci;
 	uint16_t			mvddc;
