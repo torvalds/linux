@@ -3208,7 +3208,8 @@ static int sctp_setsockopt_associnfo(struct sock *sk, char __user *optval, unsig
 
 	asoc = sctp_id2assoc(sk, assocparams.sasoc_assoc_id);
 
-	if (!asoc && assocparams.sasoc_assoc_id && sctp_style(sk, UDP))
+	if (!asoc && assocparams.sasoc_assoc_id != SCTP_FUTURE_ASSOC &&
+	    sctp_style(sk, UDP))
 		return -EINVAL;
 
 	/* Set the values to the specific association */
@@ -6357,7 +6358,8 @@ static int sctp_getsockopt_associnfo(struct sock *sk, int len,
 
 	asoc = sctp_id2assoc(sk, assocparams.sasoc_assoc_id);
 
-	if (!asoc && assocparams.sasoc_assoc_id && sctp_style(sk, UDP))
+	if (!asoc && assocparams.sasoc_assoc_id != SCTP_FUTURE_ASSOC &&
+	    sctp_style(sk, UDP))
 		return -EINVAL;
 
 	/* Values correspoinding to the specific association */
