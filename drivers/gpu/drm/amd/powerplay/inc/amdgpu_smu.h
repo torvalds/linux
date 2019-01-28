@@ -528,6 +528,8 @@ struct smu_funcs
 				   uint32_t value);
 	int (*dpm_set_uvd_enable)(struct smu_context *smu, bool enable);
 	int (*dpm_set_vce_enable)(struct smu_context *smu, bool enable);
+	uint32_t (*get_sclk)(struct smu_context *smu, bool low);
+	uint32_t (*get_mclk)(struct smu_context *smu, bool low);
 };
 
 #define smu_init_microcode(smu) \
@@ -693,6 +695,10 @@ struct smu_funcs
 	((smu)->funcs->dpm_set_uvd_enable ? (smu)->funcs->dpm_set_uvd_enable((smu), (enable)) : 0)
 #define smu_dpm_set_vce_enable(smu, enable) \
 	((smu)->funcs->dpm_set_vce_enable ? (smu)->funcs->dpm_set_vce_enable((smu), (enable)) : 0)
+#define smu_get_sclk(smu, low) \
+	((smu)->funcs->get_sclk ? (smu)->funcs->get_sclk((smu), (low)) : 0)
+#define smu_get_mclk(smu, low) \
+	((smu)->funcs->get_mclk ? (smu)->funcs->get_mclk((smu), (low)) : 0)
 
 
 extern int smu_get_atom_data_table(struct smu_context *smu, uint32_t table,

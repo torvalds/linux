@@ -278,12 +278,6 @@ enum amdgpu_pcie_gen {
 #define amdgpu_dpm_set_fan_speed_rpm(adev, s) \
 		((adev)->powerplay.pp_funcs->set_fan_speed_rpm)((adev)->powerplay.pp_handle, (s))
 
-#define amdgpu_dpm_get_sclk(adev, l) \
-		((adev)->powerplay.pp_funcs->get_sclk((adev)->powerplay.pp_handle, (l)))
-
-#define amdgpu_dpm_get_mclk(adev, l)  \
-		((adev)->powerplay.pp_funcs->get_mclk((adev)->powerplay.pp_handle, (l)))
-
 #define amdgpu_dpm_force_performance_level(adev, l) \
 		((adev)->powerplay.pp_funcs->force_performance_level((adev)->powerplay.pp_handle, (l)))
 
@@ -508,5 +502,9 @@ enum amdgpu_pcie_gen amdgpu_get_pcie_gen_support(struct amdgpu_device *adev,
 
 struct amd_vce_state*
 amdgpu_get_vce_clock_state(void *handle, u32 idx);
+
+extern int amdgpu_dpm_get_sclk(struct amdgpu_device *adev, bool low);
+
+extern int amdgpu_dpm_get_mclk(struct amdgpu_device *adev, bool low);
 
 #endif
