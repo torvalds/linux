@@ -1344,7 +1344,7 @@ config SND_SOC_MT6358
 	tristate "MediaTek MT6358 Codec"
 	help
 	  Enable support for the platform which uses MT6358 as
-	external codec device.
+	  external codec device.
 
 config SND_SOC_NAU8540
        tristate "Nuvoton Technology Corporation NAU85L40 CODEC"
