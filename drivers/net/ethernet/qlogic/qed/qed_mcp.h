@@ -441,6 +441,38 @@ qed_mcp_send_drv_version(struct qed_hwfn *p_hwfn,
 			 struct qed_mcp_drv_version *p_ver);
 
 /**
+ * @brief Read the MFW process kill counter
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ *
+ * @return u32
+ */
+u32 qed_get_process_kill_counter(struct qed_hwfn *p_hwfn,
+				 struct qed_ptt *p_ptt);
+
+/**
+ * @brief Trigger a recovery process
+ *
+ *  @param p_hwfn
+ *  @param p_ptt
+ *
+ * @return int
+ */
+int qed_start_recovery_process(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
+
+/**
+ * @brief A recovery handler must call this function as its first step.
+ *        It is assumed that the handler is not run from an interrupt context.
+ *
+ *  @param cdev
+ *  @param p_ptt
+ *
+ * @return int
+ */
+int qed_recovery_prolog(struct qed_dev *cdev);
+
+/**
  * @brief Notify MFW about the change in base device properties
  *
  *  @param p_hwfn
