@@ -1115,12 +1115,14 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 	 */
 	if (ieee80211_is_data_qos(fc) && !ieee80211_is_qos_nullfunc(fc)) {
 		tid = ieee80211_get_tid(hdr);
-		if (WARN_ON_ONCE(tid >= IWL_MAX_TID_COUNT))
+		if (WARN_ONCE(tid >= IWL_MAX_TID_COUNT, "Invalid TID %d", tid))
 			goto drop_unlock_sta;
 
 		is_ampdu = info->flags & IEEE80211_TX_CTL_AMPDU;
-		if (WARN_ON_ONCE(is_ampdu &&
-				 mvmsta->tid_data[tid].state != IWL_AGG_ON))
+		if (WARN_ONCE(is_ampdu &&
+			      mvmsta->tid_data[tid].state != IWL_AGG_ON,
+			      "Invalid internal agg state %d for TID %d",
+			       mvmsta->tid_data[tid].state, tid))
 			goto drop_unlock_sta;
 
 		seq_number = mvmsta->tid_data[tid].seq_number;
@@ -1142,7 +1144,7 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 
 	WARN_ON_ONCE(info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM);
 
-	if (WARN_ON_ONCE(txq_id == IWL_MVM_INVALID_QUEUE)) {
+	if (WARN_ONCE(txq_id == IWL_MVM_INVALID_QUEUE, "Invalid TXQ id")) {
 		iwl_trans_free_tx_cmd(mvm->trans, dev_cmd);
 		spin_unlock(&mvmsta->lock);
 		return 0;
@@ -1192,6 +1194,7 @@ drop_unlock_sta:
 	iwl_trans_free_tx_cmd(mvm->trans, dev_cmd);
 	spin_unlock(&mvmsta->lock);
 drop:
+	IWL_DEBUG_TX(mvm, "TX to [%d|%d] dropped\n", mvmsta->sta_id, tid);
 	return -1;
 }
 

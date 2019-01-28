@@ -941,8 +941,14 @@ void iwl_mvm_mac_itxq_xmit(struct ieee80211_hw *hw, struct ieee80211_txq *txq)
 			       IWL_PLAT_PM_MODE_DISABLED))) {
 			skb = ieee80211_tx_dequeue(hw, txq);
 
-			if (!skb)
+			if (!skb) {
+				if (txq->sta)
+					IWL_DEBUG_TX(mvm,
+						     "TXQ of sta %pM tid %d is now empty\n",
+						     txq->sta->addr,
+						     txq->tid);
 				break;
+			}
 
 			if (!txq->sta)
 				iwl_mvm_tx_skb_non_sta(mvm, skb);
