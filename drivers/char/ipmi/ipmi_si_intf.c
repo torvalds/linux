@@ -2085,6 +2085,11 @@ static int try_smi_init(struct smi_info *new_smi)
 	WARN_ON(new_smi->io.dev->init_name != NULL);
 
  out_err:
+	if (rv && new_smi->io.io_cleanup) {
+		new_smi->io.io_cleanup(&new_smi->io);
+		new_smi->io.io_cleanup = NULL;
+	}
+
 	kfree(init_name);
 	return rv;
 }
