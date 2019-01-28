@@ -525,12 +525,14 @@ out:
 static struct nvmem_cell *
 nvmem_find_cell_by_name(struct nvmem_device *nvmem, const char *cell_id)
 {
-	struct nvmem_cell *cell = NULL;
+	struct nvmem_cell *iter, *cell = NULL;
 
 	mutex_lock(&nvmem_mutex);
-	list_for_each_entry(cell, &nvmem->cells, node) {
-		if (strcmp(cell_id, cell->name) == 0)
+	list_for_each_entry(iter, &nvmem->cells, node) {
+		if (strcmp(cell_id, iter->name) == 0) {
+			cell = iter;
 			break;
+		}
 	}
 	mutex_unlock(&nvmem_mutex);
 
@@ -994,12 +996,14 @@ out:
 static struct nvmem_cell *
 nvmem_find_cell_by_node(struct nvmem_device *nvmem, struct device_node *np)
 {
-	struct nvmem_cell *cell = NULL;
+	struct nvmem_cell *iter, *cell = NULL;
 
 	mutex_lock(&nvmem_mutex);
-	list_for_each_entry(cell, &nvmem->cells, node) {
-		if (np == cell->np)
+	list_for_each_entry(iter, &nvmem->cells, node) {
+		if (np == iter->np) {
+			cell = iter;
 			break;
+		}
 	}
 	mutex_unlock(&nvmem_mutex);
 
