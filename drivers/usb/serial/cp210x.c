@@ -443,10 +443,10 @@ struct cp210x_pin_mode {
 #define CP210X_PIN_MODE_GPIO		BIT(0)
 
 /*
- * CP210X_VENDOR_SPECIFIC, CP210X_GET_PORTCONFIG call reads these 0xf bytes.
- * Structure needs padding due to unused/unspecified bytes.
+ * CP210X_VENDOR_SPECIFIC, CP210X_GET_PORTCONFIG call reads these 0xf bytes
+ * on a CP2105 chip. Structure needs padding due to unused/unspecified bytes.
  */
-struct cp210x_config {
+struct cp210x_dual_port_config {
 	__le16	gpio_mode;
 	u8	__pad0[2];
 	__le16	reset_state;
@@ -457,6 +457,19 @@ struct cp210x_config {
 	u8	device_cfg;
 } __packed;
 
+/*
+ * CP210X_VENDOR_SPECIFIC, CP210X_GET_PORTCONFIG call reads these 0xd bytes
+ * on a CP2104 chip. Structure needs padding due to unused/unspecified bytes.
+ */
+struct cp210x_single_port_config {
+	__le16	gpio_mode;
+	u8	__pad0[2];
+	__le16	reset_state;
+	u8	__pad1[4];
+	__le16	suspend_state;
+	u8	device_cfg;
+} __packed;
+
 /* GPIO modes */
 #define CP210X_SCI_GPIO_MODE_OFFSET	9
 #define CP210X_SCI_GPIO_MODE_MASK	GENMASK(11, 9)
@@ -464,10 +477,18 @@ struct cp210x_config {
 #define CP210X_ECI_GPIO_MODE_OFFSET	2
 #define CP210X_ECI_GPIO_MODE_MASK	GENMASK(3, 2)
 
+#define CP210X_GPIO_MODE_OFFSET		8
+#define CP210X_GPIO_MODE_MASK		GENMASK(11, 8)
+
 /* CP2105 port configuration values */
 #define CP2105_GPIO0_TXLED_MODE		BIT(0)
 #define CP2105_GPIO1_RXLED_MODE		BIT(1)
 #define CP2105_GPIO1_RS485_MODE		BIT(2)
+
+/* CP2104 port configuration values */
+#define CP2104_GPIO0_TXLED_MODE		BIT(0)
+#define CP2104_GPIO1_RXLED_MODE		BIT(1)
+#define CP2104_GPIO2_RS485_MODE		BIT(2)
 
 /* CP2102N configuration array indices */
 #define CP210X_2NCONFIG_CONFIG_VERSION_IDX	2
@@ -1470,7 +1491,7 @@ static int cp2105_gpioconf_init(struct usb_serial *serial)
 {
 	struct cp210x_serial_private *priv = usb_get_serial_data(serial);
 	struct cp210x_pin_mode mode;
-	struct cp210x_config config;
+	struct cp210x_dual_port_config config;
 	u8 intf_num = cp210x_interface_num(serial);
 	u8 iface_config;
 	int result;
@@ -1525,6 +1546,56 @@ static int cp2105_gpioconf_init(struct usb_serial *serial)
 
 	/* driver implementation for CP2105 only supports outputs */
 	priv->gpio_input = 0;
+
+	return 0;
+}
+
+static int cp2104_gpioconf_init(struct usb_serial *serial)
+{
+	struct cp210x_serial_private *priv = usb_get_serial_data(serial);
+	struct cp210x_single_port_config config;
+	u8 iface_config;
+	u8 gpio_latch;
+	int result;
+	u8 i;
+
+	result = cp210x_read_vendor_block(serial, REQTYPE_DEVICE_TO_HOST,
+					  CP210X_GET_PORTCONFIG, &config,
+					  sizeof(config));
+	if (result < 0)
+		return result;
+
+	priv->gc.ngpio = 4;
+
+	iface_config = config.device_cfg;
+	priv->gpio_pushpull = (u8)((le16_to_cpu(config.gpio_mode) &
+					CP210X_GPIO_MODE_MASK) >>
+					CP210X_GPIO_MODE_OFFSET);
+	gpio_latch = (u8)((le16_to_cpu(config.reset_state) &
+					CP210X_GPIO_MODE_MASK) >>
+					CP210X_GPIO_MODE_OFFSET);
+
+	/* mark all pins which are not in GPIO mode */
+	if (iface_config & CP2104_GPIO0_TXLED_MODE)	/* GPIO 0 */
+		priv->gpio_altfunc |= BIT(0);
+	if (iface_config & CP2104_GPIO1_RXLED_MODE)	/* GPIO 1 */
+		priv->gpio_altfunc |= BIT(1);
+	if (iface_config & CP2104_GPIO2_RS485_MODE)	/* GPIO 2 */
+		priv->gpio_altfunc |= BIT(2);
+
+	/*
+	 * Like CP2102N, CP2104 has also no strict input and output pin
+	 * modes.
+	 * Do the same input mode emulation as CP2102N.
+	 */
+	for (i = 0; i < priv->gc.ngpio; ++i) {
+		/*
+		 * Set direction to "input" iff pin is open-drain and reset
+		 * value is 1.
+		 */
+		if (!(priv->gpio_pushpull & BIT(i)) && (gpio_latch & BIT(i)))
+			priv->gpio_input |= BIT(i);
+	}
 
 	return 0;
 }
@@ -1627,6 +1698,9 @@ static int cp210x_gpio_init(struct usb_serial *serial)
 	int result;
 
 	switch (priv->partnum) {
+	case CP210X_PARTNUM_CP2104:
+		result = cp2104_gpioconf_init(serial);
+		break;
 	case CP210X_PARTNUM_CP2105:
 		result = cp2105_gpioconf_init(serial);
 		break;
