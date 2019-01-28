@@ -6767,14 +6767,12 @@ static int sctp_getsockopt_local_auth_chunks(struct sock *sk, int len,
 
 	to = p->gauth_chunks;
 	asoc = sctp_id2assoc(sk, val.gauth_assoc_id);
-	if (!asoc && val.gauth_assoc_id && sctp_style(sk, UDP))
+	if (!asoc && val.gauth_assoc_id != SCTP_FUTURE_ASSOC &&
+	    sctp_style(sk, UDP))
 		return -EINVAL;
 
-	if (asoc)
-		ch = (struct sctp_chunks_param *)asoc->c.auth_chunks;
-	else
-		ch = ep->auth_chunk_list;
-
+	ch = asoc ? (struct sctp_chunks_param *)asoc->c.auth_chunks
+		  : ep->auth_chunk_list;
 	if (!ch)
 		goto num;
 
