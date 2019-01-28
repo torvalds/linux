@@ -961,18 +961,16 @@ lpfc_nvme_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 	struct nvmefc_fcp_req *nCmd;
 	struct nvme_fc_ersp_iu *ep;
 	struct nvme_fc_cmd_iu *cp;
-	struct lpfc_nvme_rport *rport;
 	struct lpfc_nodelist *ndlp;
 	struct lpfc_nvme_fcpreq_priv *freqpriv;
 	struct lpfc_nvme_lport *lport;
 	struct lpfc_nvme_ctrl_stat *cstat;
-	unsigned long flags;
 	uint32_t code, status, idx;
 	uint16_t cid, sqhd, data;
 	uint32_t *ptr;
 
 	/* Sanity check on return of outstanding command */
-	if (!lpfc_ncmd || !lpfc_ncmd->nvmeCmd || !lpfc_ncmd->nrport) {
+	if (!lpfc_ncmd || !lpfc_ncmd->nvmeCmd) {
 		if (!lpfc_ncmd) {
 			lpfc_printf_vlog(vport, KERN_ERR,
 					 LOG_NODE | LOG_NVME_IOERR,
@@ -983,16 +981,14 @@ lpfc_nvme_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_NODE | LOG_NVME_IOERR,
 				 "6066 Missing cmpl ptrs: lpfc_ncmd %p, "
-				 "nvmeCmd %p nrport %p\n",
-				 lpfc_ncmd, lpfc_ncmd->nvmeCmd,
-				 lpfc_ncmd->nrport);
+				 "nvmeCmd %p\n",
+				 lpfc_ncmd, lpfc_ncmd->nvmeCmd);
 
 		/* Release the lpfc_ncmd regardless of the missing elements. */
 		lpfc_release_nvme_buf(phba, lpfc_ncmd);
 		return;
 	}
 	nCmd = lpfc_ncmd->nvmeCmd;
-	rport = lpfc_ncmd->nrport;
 	status = bf_get(lpfc_wcqe_c_status, wcqe);
 
 	if (vport->localport) {
@@ -1016,18 +1012,11 @@ lpfc_nvme_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 	 * Catch race where our node has transitioned, but the
 	 * transport is still transitioning.
 	 */
-	ndlp = rport->ndlp;
+	ndlp = lpfc_ncmd->ndlp;
 	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp)) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_NODE | LOG_NVME_IOERR,
-				 "6061 rport %p,  DID x%06x node not ready.\n",
-				 rport, rport->remoteport->port_id);
-
-		ndlp = lpfc_findnode_did(vport, rport->remoteport->port_id);
-		if (!ndlp) {
-			lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_IOERR,
-					 "6062 Ignoring NVME cmpl.  No ndlp\n");
-			goto out_err;
-		}
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_IOERR,
+				 "6062 Ignoring NVME cmpl.  No ndlp\n");
+		goto out_err;
 	}
 
 	code = bf_get(lpfc_wcqe_c_code, wcqe);
@@ -1167,10 +1156,6 @@ out_err:
 		nCmd->done(nCmd);
 		lpfc_ncmd->nvmeCmd = NULL;
 	}
-
-	spin_lock_irqsave(&phba->hbalock, flags);
-	lpfc_ncmd->nrport = NULL;
-	spin_unlock_irqrestore(&phba->hbalock, flags);
 
 	/* Call release with XB=1 to queue the IO into the abort list. */
 	lpfc_release_nvme_buf(phba, lpfc_ncmd);
@@ -1585,7 +1570,6 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 	 */
 	freqpriv->nvme_buf = lpfc_ncmd;
 	lpfc_ncmd->nvmeCmd = pnvme_fcreq;
-	lpfc_ncmd->nrport = rport;
 	lpfc_ncmd->ndlp = ndlp;
 	lpfc_ncmd->start_time = jiffies;
 
