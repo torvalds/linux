@@ -152,11 +152,11 @@ static s8 mt76x0_get_delta(struct mt76x02_dev *dev)
 	return mt76x02_rate_power_val(val);
 }
 
-void mt76x0_get_tx_power_per_rate(struct mt76x02_dev *dev)
+void mt76x0_get_tx_power_per_rate(struct mt76x02_dev *dev,
+				  struct ieee80211_channel *chan,
+				  struct mt76_rate_power *t)
 {
-	struct ieee80211_channel *chan = dev->mt76.chandef.chan;
 	bool is_2ghz = chan->band == NL80211_BAND_2GHZ;
-	struct mt76_rate_power *t = &dev->mt76.rate_power;
 	u16 val, addr;
 	s8 delta;
 
@@ -212,7 +212,8 @@ void mt76x0_get_tx_power_per_rate(struct mt76x02_dev *dev)
 	mt76x02_add_rate_power_offset(t, delta);
 }
 
-void mt76x0_get_power_info(struct mt76x02_dev *dev, s8 *tp)
+void mt76x0_get_power_info(struct mt76x02_dev *dev,
+			   struct ieee80211_channel *chan, s8 *tp)
 {
 	struct mt76x0_chan_map {
 		u8 chan;
@@ -226,7 +227,6 @@ void mt76x0_get_power_info(struct mt76x02_dev *dev, s8 *tp)
 		{ 140, 26 }, { 151, 28 }, { 157, 30 }, { 161, 32 },
 		{ 167, 34 }, { 171, 36 }, { 175, 38 },
 	};
-	struct ieee80211_channel *chan = dev->mt76.chandef.chan;
 	u8 offset, addr;
 	int i, idx = 0;
 	u16 data;
