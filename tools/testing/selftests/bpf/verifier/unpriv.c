@@ -76,6 +76,7 @@
 	.errstr_unpriv = "unknown func bpf_trace_printk#6",
 	.result_unpriv = REJECT,
 	.result = ACCEPT,
+	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
 },
 {
 	"unpriv: pass pointer to helper function",
