@@ -2750,12 +2750,13 @@ static int sctp_setsockopt_peer_addr_params(struct sock *sk,
 			return -EINVAL;
 	}
 
-	/* Get association, if assoc_id != 0 and the socket is a one
-	 * to many style socket, and an association was not found, then
-	 * the id was invalid.
+	/* Get association, if assoc_id != SCTP_FUTURE_ASSOC and the
+	 * socket is a one to many style socket, and an association
+	 * was not found, then the id was invalid.
 	 */
 	asoc = sctp_id2assoc(sk, params.spp_assoc_id);
-	if (!asoc && params.spp_assoc_id && sctp_style(sk, UDP))
+	if (!asoc && params.spp_assoc_id != SCTP_FUTURE_ASSOC &&
+	    sctp_style(sk, UDP))
 		return -EINVAL;
 
 	/* Heartbeat demand can only be sent on a transport or
@@ -5676,12 +5677,13 @@ static int sctp_getsockopt_peer_addr_params(struct sock *sk, int len,
 		}
 	}
 
-	/* Get association, if assoc_id != 0 and the socket is a one
-	 * to many style socket, and an association was not found, then
-	 * the id was invalid.
+	/* Get association, if assoc_id != SCTP_FUTURE_ASSOC and the
+	 * socket is a one to many style socket, and an association
+	 * was not found, then the id was invalid.
 	 */
 	asoc = sctp_id2assoc(sk, params.spp_assoc_id);
-	if (!asoc && params.spp_assoc_id && sctp_style(sk, UDP)) {
+	if (!asoc && params.spp_assoc_id != SCTP_FUTURE_ASSOC &&
+	    sctp_style(sk, UDP)) {
 		pr_debug("%s: failed no association\n", __func__);
 		return -EINVAL;
 	}
