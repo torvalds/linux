@@ -3661,8 +3661,8 @@ int lpfc_sli4_scmd_to_wqidx_distr(struct lpfc_hba *phba,
 		return hwq;
 	}
 
-	if (phba->cfg_fcp_io_sched == LPFC_FCP_SCHED_BY_CPU
-	    && phba->cfg_fcp_io_channel > 1) {
+	if (phba->cfg_fcp_io_sched == LPFC_FCP_SCHED_BY_CPU &&
+	    phba->cfg_hdw_queue > 1) {
 		cpu = lpfc_cmd->cpu;
 		if (cpu < phba->sli4_hba.num_present_cpu) {
 			cpup = phba->sli4_hba.cpu_map;
@@ -3671,7 +3671,7 @@ int lpfc_sli4_scmd_to_wqidx_distr(struct lpfc_hba *phba,
 		}
 	}
 	chann = atomic_add_return(1, &phba->fcp_qidx);
-	chann = chann % phba->cfg_fcp_io_channel;
+	chann = chann % phba->cfg_hdw_queue;
 	return chann;
 }
 
@@ -4598,7 +4598,7 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 
 	iocb = &lpfc_cmd->cur_iocbq;
 	if (phba->sli_rev == LPFC_SLI_REV4) {
-		pring_s4 = phba->sli4_hba.fcp_wq[iocb->hba_wqidx]->pring;
+		pring_s4 = phba->sli4_hba.hdwq[iocb->hba_wqidx].fcp_wq->pring;
 		if (!pring_s4) {
 			ret = FAILED;
 			goto out_unlock;

@@ -456,7 +456,7 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 
 	totin = 0;
 	totout = 0;
-	for (i = 0; i < phba->cfg_nvme_io_channel; i++) {
+	for (i = 0; i < phba->cfg_hdw_queue; i++) {
 		cstat = &lport->cstat[i];
 		tot = atomic_read(&cstat->fc4NvmeIoCmpls);
 		totin += tot;
@@ -4909,7 +4909,7 @@ lpfc_fcp_imax_store(struct device *dev, struct device_attribute *attr,
 	phba->cfg_fcp_imax = (uint32_t)val;
 	phba->initial_imax = phba->cfg_fcp_imax;
 
-	for (i = 0; i < phba->io_channel_irqs; i += LPFC_MAX_EQ_DELAY_EQID_CNT)
+	for (i = 0; i < phba->cfg_hdw_queue; i += LPFC_MAX_EQ_DELAY_EQID_CNT)
 		lpfc_modify_hba_eq_delay(phba, i, LPFC_MAX_EQ_DELAY_EQID_CNT,
 					 val);
 
@@ -5398,41 +5398,23 @@ LPFC_ATTR_RW(nvme_embed_cmd, 1, 0, 2,
 	     "Embed NVME Command in WQE");
 
 /*
- * lpfc_fcp_io_channel: Set the number of FCP IO channels the driver
- * will advertise it supports to the SCSI layer. This also will map to
- * the number of WQs the driver will create.
- *
- *      0    = Configure the number of io channels to the number of active CPUs.
- *      1,32 = Manually specify how many io channels to use.
- *
- * Value range is [0,32]. Default value is 4.
- */
-LPFC_ATTR_R(fcp_io_channel,
-	    LPFC_FCP_IO_CHAN_DEF,
-	    LPFC_HBA_IO_CHAN_MIN, LPFC_HBA_IO_CHAN_MAX,
-	    "Set the number of FCP I/O channels");
-
-/*
- * lpfc_nvme_io_channel: Set the number of IO hardware queues the driver
- * will advertise it supports to the NVME layer. This also will map to
- * the number of WQs the driver will create.
- *
- * This module parameter is valid when lpfc_enable_fc4_type is set
- * to support NVME.
+ * lpfc_hdw_queue: Set the number of IO channels the driver
+ * will advertise it supports to the NVME and  SCSI layers. This also
+ * will map to the number of EQ/CQ/WQs the driver will create.
  *
  * The NVME Layer will try to create this many, plus 1 administrative
  * hardware queue. The administrative queue will always map to WQ 0
  * A hardware IO queue maps (qidx) to a specific driver WQ.
  *
- *      0    = Configure the number of io channels to the number of active CPUs.
- *      1,32 = Manually specify how many io channels to use.
+ *      0    = Configure the number of hdw queues to the number of active CPUs.
+ *      1,64 = Manually specify how many hdw queues to use.
  *
- * Value range is [0,32]. Default value is 0.
+ * Value range is [0,64]. Default value is 0.
  */
-LPFC_ATTR_R(nvme_io_channel,
-	    LPFC_NVME_IO_CHAN_DEF,
-	    LPFC_HBA_IO_CHAN_MIN, LPFC_HBA_IO_CHAN_MAX,
-	    "Set the number of NVME I/O channels");
+LPFC_ATTR_R(hdw_queue,
+	    LPFC_HBA_HDWQ_DEF,
+	    LPFC_HBA_HDWQ_MIN, LPFC_HBA_HDWQ_MAX,
+	    "Set the number of I/O Hardware Queues");
 
 /*
 # lpfc_enable_hba_reset: Allow or prevent HBA resets to the hardware.
@@ -5727,9 +5709,8 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_lpfc_auto_imax,
 	&dev_attr_lpfc_fcp_imax,
 	&dev_attr_lpfc_fcp_cpu_map,
-	&dev_attr_lpfc_fcp_io_channel,
+	&dev_attr_lpfc_hdw_queue,
 	&dev_attr_lpfc_suppress_rsp,
-	&dev_attr_lpfc_nvme_io_channel,
 	&dev_attr_lpfc_nvmet_mrq,
 	&dev_attr_lpfc_nvmet_mrq_post,
 	&dev_attr_lpfc_nvme_enable_fb,
@@ -6806,8 +6787,7 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	/* Initialize first burst. Target vs Initiator are different. */
 	lpfc_nvme_enable_fb_init(phba, lpfc_nvme_enable_fb);
 	lpfc_nvmet_fb_size_init(phba, lpfc_nvmet_fb_size);
-	lpfc_fcp_io_channel_init(phba, lpfc_fcp_io_channel);
-	lpfc_nvme_io_channel_init(phba, lpfc_nvme_io_channel);
+	lpfc_hdw_queue_init(phba, lpfc_hdw_queue);
 	lpfc_enable_bbcr_init(phba, lpfc_enable_bbcr);
 	lpfc_enable_dpp_init(phba, lpfc_enable_dpp);
 
@@ -6829,21 +6809,8 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	phba->cfg_enable_pbde = 0;
 
 	/* A value of 0 means use the number of CPUs found in the system */
-	if (phba->cfg_fcp_io_channel == 0)
-		phba->cfg_fcp_io_channel = phba->sli4_hba.num_present_cpu;
-	if (phba->cfg_nvme_io_channel == 0)
-		phba->cfg_nvme_io_channel = phba->sli4_hba.num_present_cpu;
-
-	if (phba->cfg_enable_fc4_type == LPFC_ENABLE_NVME)
-		phba->cfg_fcp_io_channel = 0;
-
-	if (phba->cfg_enable_fc4_type == LPFC_ENABLE_FCP)
-		phba->cfg_nvme_io_channel = 0;
-
-	if (phba->cfg_fcp_io_channel > phba->cfg_nvme_io_channel)
-		phba->io_channel_irqs = phba->cfg_fcp_io_channel;
-	else
-		phba->io_channel_irqs = phba->cfg_nvme_io_channel;
+	if (phba->cfg_hdw_queue == 0)
+		phba->cfg_hdw_queue = phba->sli4_hba.num_present_cpu;
 
 	phba->cfg_soft_wwnn = 0L;
 	phba->cfg_soft_wwpn = 0L;
@@ -6884,16 +6851,12 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 void
 lpfc_nvme_mod_param_dep(struct lpfc_hba *phba)
 {
-	if (phba->cfg_nvme_io_channel > phba->sli4_hba.num_present_cpu)
-		phba->cfg_nvme_io_channel = phba->sli4_hba.num_present_cpu;
-
-	if (phba->cfg_fcp_io_channel > phba->sli4_hba.num_present_cpu)
-		phba->cfg_fcp_io_channel = phba->sli4_hba.num_present_cpu;
+	if (phba->cfg_hdw_queue > phba->sli4_hba.num_present_cpu)
+		phba->cfg_hdw_queue = phba->sli4_hba.num_present_cpu;
 
 	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME &&
 	    phba->nvmet_support) {
 		phba->cfg_enable_fc4_type &= ~LPFC_ENABLE_FCP;
-		phba->cfg_fcp_io_channel = 0;
 
 		lpfc_printf_log(phba, KERN_INFO, LOG_NVME_DISC,
 				"6013 %s x%x fb_size x%x, fb_max x%x\n",
@@ -6910,11 +6873,11 @@ lpfc_nvme_mod_param_dep(struct lpfc_hba *phba)
 		}
 
 		if (!phba->cfg_nvmet_mrq)
-			phba->cfg_nvmet_mrq = phba->cfg_nvme_io_channel;
+			phba->cfg_nvmet_mrq = phba->cfg_hdw_queue;
 
 		/* Adjust lpfc_nvmet_mrq to avoid running out of WQE slots */
-		if (phba->cfg_nvmet_mrq > phba->cfg_nvme_io_channel) {
-			phba->cfg_nvmet_mrq = phba->cfg_nvme_io_channel;
+		if (phba->cfg_nvmet_mrq > phba->cfg_hdw_queue) {
+			phba->cfg_nvmet_mrq = phba->cfg_hdw_queue;
 			lpfc_printf_log(phba, KERN_ERR, LOG_NVME_DISC,
 					"6018 Adjust lpfc_nvmet_mrq to %d\n",
 					phba->cfg_nvmet_mrq);
@@ -6928,11 +6891,6 @@ lpfc_nvme_mod_param_dep(struct lpfc_hba *phba)
 		phba->cfg_nvmet_mrq = LPFC_NVMET_MRQ_OFF;
 		phba->cfg_nvmet_fb_size = 0;
 	}
-
-	if (phba->cfg_fcp_io_channel > phba->cfg_nvme_io_channel)
-		phba->io_channel_irqs = phba->cfg_fcp_io_channel;
-	else
-		phba->io_channel_irqs = phba->cfg_nvme_io_channel;
 }
 
 /**

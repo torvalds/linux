@@ -973,7 +973,7 @@ lpfc_nvmet_xmt_fcp_op(struct nvmet_fc_target_port *tgtport,
 		 * WQE release CQE
 		 */
 		ctxp->flag |= LPFC_NVMET_DEFER_WQFULL;
-		wq = phba->sli4_hba.nvme_wq[rsp->hwqid];
+		wq = phba->sli4_hba.hdwq[rsp->hwqid].nvme_wq;
 		pring = wq->pring;
 		spin_lock_irqsave(&pring->ring_lock, iflags);
 		list_add_tail(&nvmewqeq->list, &wq->wqfull_list);
@@ -1047,7 +1047,7 @@ lpfc_nvmet_xmt_fcp_abort(struct nvmet_fc_target_port *tgtport,
 	if (ctxp->flag & LPFC_NVMET_DEFER_WQFULL) {
 		lpfc_nvmet_unsol_fcp_issue_abort(phba, ctxp, ctxp->sid,
 						 ctxp->oxid);
-		wq = phba->sli4_hba.nvme_wq[ctxp->wqeq->hba_wqidx];
+		wq = phba->sli4_hba.hdwq[ctxp->wqeq->hba_wqidx].nvme_wq;
 		spin_unlock_irqrestore(&ctxp->ctxlock, flags);
 		lpfc_nvmet_wqfull_flush(phba, wq, ctxp);
 		return;
@@ -1377,7 +1377,7 @@ lpfc_nvmet_create_targetport(struct lpfc_hba *phba)
 	 * allocate + 3, one for cmd, one for rsp and one for this alignment
 	 */
 	lpfc_tgttemplate.max_sgl_segments = phba->cfg_nvme_seg_cnt + 1;
-	lpfc_tgttemplate.max_hw_queues = phba->cfg_nvme_io_channel;
+	lpfc_tgttemplate.max_hw_queues = phba->cfg_hdw_queue;
 	lpfc_tgttemplate.target_features = NVMET_FCTGTFEAT_READDATA_RSP;
 
 #if (IS_ENABLED(CONFIG_NVME_TARGET_FC))
@@ -1697,8 +1697,8 @@ lpfc_nvmet_destroy_targetport(struct lpfc_hba *phba)
 		return;
 	if (phba->targetport) {
 		tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;
-		for (qidx = 0; qidx < phba->cfg_nvme_io_channel; qidx++) {
-			wq = phba->sli4_hba.nvme_wq[qidx];
+		for (qidx = 0; qidx < phba->cfg_hdw_queue; qidx++) {
+			wq = phba->sli4_hba.hdwq[qidx].nvme_wq;
 			lpfc_nvmet_wqfull_flush(phba, wq, NULL);
 		}
 		init_completion(&tgtp->tport_unreg_done);

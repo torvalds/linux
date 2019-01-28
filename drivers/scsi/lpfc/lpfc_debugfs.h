@@ -410,10 +410,10 @@ lpfc_debug_dump_wq(struct lpfc_hba *phba, int qtype, int wqidx)
 	char *qtypestr;
 
 	if (qtype == DUMP_FCP) {
-		wq = phba->sli4_hba.fcp_wq[wqidx];
+		wq = phba->sli4_hba.hdwq[wqidx].fcp_wq;
 		qtypestr = "FCP";
 	} else if (qtype == DUMP_NVME) {
-		wq = phba->sli4_hba.nvme_wq[wqidx];
+		wq = phba->sli4_hba.hdwq[wqidx].nvme_wq;
 		qtypestr = "NVME";
 	} else if (qtype == DUMP_MBX) {
 		wq = phba->sli4_hba.mbx_wq;
@@ -454,14 +454,15 @@ lpfc_debug_dump_cq(struct lpfc_hba *phba, int qtype, int wqidx)
 	int eqidx;
 
 	/* fcp/nvme wq and cq are 1:1, thus same indexes */
+	eq = NULL;
 
 	if (qtype == DUMP_FCP) {
-		wq = phba->sli4_hba.fcp_wq[wqidx];
-		cq = phba->sli4_hba.fcp_cq[wqidx];
+		wq = phba->sli4_hba.hdwq[wqidx].fcp_wq;
+		cq = phba->sli4_hba.hdwq[wqidx].fcp_cq;
 		qtypestr = "FCP";
 	} else if (qtype == DUMP_NVME) {
-		wq = phba->sli4_hba.nvme_wq[wqidx];
-		cq = phba->sli4_hba.nvme_cq[wqidx];
+		wq = phba->sli4_hba.hdwq[wqidx].nvme_wq;
+		cq = phba->sli4_hba.hdwq[wqidx].nvme_cq;
 		qtypestr = "NVME";
 	} else if (qtype == DUMP_MBX) {
 		wq = phba->sli4_hba.mbx_wq;
@@ -478,16 +479,16 @@ lpfc_debug_dump_cq(struct lpfc_hba *phba, int qtype, int wqidx)
 	} else
 		return;
 
-	for (eqidx = 0; eqidx < phba->io_channel_irqs; eqidx++) {
-		if (cq->assoc_qid == phba->sli4_hba.hba_eq[eqidx]->queue_id)
+	for (eqidx = 0; eqidx < phba->cfg_hdw_queue; eqidx++) {
+		eq = phba->sli4_hba.hdwq[eqidx].hba_eq;
+		if (cq->assoc_qid == eq->queue_id)
 			break;
 	}
-	if (eqidx == phba->io_channel_irqs) {
+	if (eqidx == phba->cfg_hdw_queue) {
 		pr_err("Couldn't find EQ for CQ. Using EQ[0]\n");
 		eqidx = 0;
+		eq = phba->sli4_hba.hdwq[0].hba_eq;
 	}
-
-	eq = phba->sli4_hba.hba_eq[eqidx];
 
 	if (qtype == DUMP_FCP || qtype == DUMP_NVME)
 		pr_err("%s CQ: WQ[Idx:%d|Qid%d]->CQ[Idx%d|Qid%d]"
@@ -516,7 +517,7 @@ lpfc_debug_dump_hba_eq(struct lpfc_hba *phba, int qidx)
 {
 	struct lpfc_queue *qp;
 
-	qp = phba->sli4_hba.hba_eq[qidx];
+	qp = phba->sli4_hba.hdwq[qidx].hba_eq;
 
 	pr_err("EQ[Idx:%d|Qid:%d]\n", qidx, qp->queue_id);
 
@@ -564,21 +565,21 @@ lpfc_debug_dump_wq_by_id(struct lpfc_hba *phba, int qid)
 {
 	int wq_idx;
 
-	for (wq_idx = 0; wq_idx < phba->cfg_fcp_io_channel; wq_idx++)
-		if (phba->sli4_hba.fcp_wq[wq_idx]->queue_id == qid)
+	for (wq_idx = 0; wq_idx < phba->cfg_hdw_queue; wq_idx++)
+		if (phba->sli4_hba.hdwq[wq_idx].fcp_wq->queue_id == qid)
 			break;
-	if (wq_idx < phba->cfg_fcp_io_channel) {
+	if (wq_idx < phba->cfg_hdw_queue) {
 		pr_err("FCP WQ[Idx:%d|Qid:%d]\n", wq_idx, qid);
-		lpfc_debug_dump_q(phba->sli4_hba.fcp_wq[wq_idx]);
+		lpfc_debug_dump_q(phba->sli4_hba.hdwq[wq_idx].fcp_wq);
 		return;
 	}
 
-	for (wq_idx = 0; wq_idx < phba->cfg_nvme_io_channel; wq_idx++)
-		if (phba->sli4_hba.nvme_wq[wq_idx]->queue_id == qid)
+	for (wq_idx = 0; wq_idx < phba->cfg_hdw_queue; wq_idx++)
+		if (phba->sli4_hba.hdwq[wq_idx].nvme_wq->queue_id == qid)
 			break;
-	if (wq_idx < phba->cfg_nvme_io_channel) {
+	if (wq_idx < phba->cfg_hdw_queue) {
 		pr_err("NVME WQ[Idx:%d|Qid:%d]\n", wq_idx, qid);
-		lpfc_debug_dump_q(phba->sli4_hba.nvme_wq[wq_idx]);
+		lpfc_debug_dump_q(phba->sli4_hba.hdwq[wq_idx].nvme_wq);
 		return;
 	}
 
@@ -646,23 +647,23 @@ lpfc_debug_dump_cq_by_id(struct lpfc_hba *phba, int qid)
 {
 	int cq_idx;
 
-	for (cq_idx = 0; cq_idx < phba->cfg_fcp_io_channel; cq_idx++)
-		if (phba->sli4_hba.fcp_cq[cq_idx]->queue_id == qid)
+	for (cq_idx = 0; cq_idx < phba->cfg_hdw_queue; cq_idx++)
+		if (phba->sli4_hba.hdwq[cq_idx].fcp_cq->queue_id == qid)
 			break;
 
-	if (cq_idx < phba->cfg_fcp_io_channel) {
+	if (cq_idx < phba->cfg_hdw_queue) {
 		pr_err("FCP CQ[Idx:%d|Qid:%d]\n", cq_idx, qid);
-		lpfc_debug_dump_q(phba->sli4_hba.fcp_cq[cq_idx]);
+		lpfc_debug_dump_q(phba->sli4_hba.hdwq[cq_idx].fcp_cq);
 		return;
 	}
 
-	for (cq_idx = 0; cq_idx < phba->cfg_nvme_io_channel; cq_idx++)
-		if (phba->sli4_hba.nvme_cq[cq_idx]->queue_id == qid)
+	for (cq_idx = 0; cq_idx < phba->cfg_hdw_queue; cq_idx++)
+		if (phba->sli4_hba.hdwq[cq_idx].nvme_cq->queue_id == qid)
 			break;
 
-	if (cq_idx < phba->cfg_nvme_io_channel) {
+	if (cq_idx < phba->cfg_hdw_queue) {
 		pr_err("NVME CQ[Idx:%d|Qid:%d]\n", cq_idx, qid);
-		lpfc_debug_dump_q(phba->sli4_hba.nvme_cq[cq_idx]);
+		lpfc_debug_dump_q(phba->sli4_hba.hdwq[cq_idx].nvme_cq);
 		return;
 	}
 
@@ -697,13 +698,13 @@ lpfc_debug_dump_eq_by_id(struct lpfc_hba *phba, int qid)
 {
 	int eq_idx;
 
-	for (eq_idx = 0; eq_idx < phba->io_channel_irqs; eq_idx++)
-		if (phba->sli4_hba.hba_eq[eq_idx]->queue_id == qid)
+	for (eq_idx = 0; eq_idx < phba->cfg_hdw_queue; eq_idx++)
+		if (phba->sli4_hba.hdwq[eq_idx].hba_eq->queue_id == qid)
 			break;
 
-	if (eq_idx < phba->io_channel_irqs) {
+	if (eq_idx < phba->cfg_hdw_queue) {
 		printk(KERN_ERR "FCP EQ[Idx:%d|Qid:%d]\n", eq_idx, qid);
-		lpfc_debug_dump_q(phba->sli4_hba.hba_eq[eq_idx]);
+		lpfc_debug_dump_q(phba->sli4_hba.hdwq[eq_idx].hba_eq);
 		return;
 	}
 }

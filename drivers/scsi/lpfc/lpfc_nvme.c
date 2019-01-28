@@ -239,7 +239,7 @@ lpfc_nvme_create_queue(struct nvme_fc_local_port *pnvme_lport,
 	if (qidx) {
 		str = "IO ";  /* IO queue */
 		qhandle->index = ((qidx - 1) %
-			vport->phba->cfg_nvme_io_channel);
+			vport->phba->cfg_hdw_queue);
 	} else {
 		str = "ADM";  /* Admin queue */
 		qhandle->index = qidx;
@@ -247,7 +247,7 @@ lpfc_nvme_create_queue(struct nvme_fc_local_port *pnvme_lport,
 
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME,
 			 "6073 Binding %s HdwQueue %d  (cpu %d) to "
-			 "io_channel %d qhandle %p\n", str,
+			 "hdw_queue %d qhandle %p\n", str,
 			 qidx, qhandle->cpu_id, qhandle->index, qhandle);
 	*handle = (void *)qhandle;
 	return 0;
@@ -2083,10 +2083,10 @@ lpfc_nvme_create_localport(struct lpfc_vport *vport)
 	 * allocate + 3, one for cmd, one for rsp and one for this alignment
 	 */
 	lpfc_nvme_template.max_sgl_segments = phba->cfg_nvme_seg_cnt + 1;
-	lpfc_nvme_template.max_hw_queues = phba->cfg_nvme_io_channel;
+	lpfc_nvme_template.max_hw_queues = phba->cfg_hdw_queue;
 
 	cstat = kmalloc((sizeof(struct lpfc_nvme_ctrl_stat) *
-			phba->cfg_nvme_io_channel), GFP_KERNEL);
+			phba->cfg_hdw_queue), GFP_KERNEL);
 	if (!cstat)
 		return -ENOMEM;
 
@@ -2130,7 +2130,7 @@ lpfc_nvme_create_localport(struct lpfc_vport *vport)
 		atomic_set(&lport->fc4NvmeLsRequests, 0);
 		atomic_set(&lport->fc4NvmeLsCmpls, 0);
 
-		for (i = 0; i < phba->cfg_nvme_io_channel; i++) {
+		for (i = 0; i < phba->cfg_hdw_queue; i++) {
 			cstat = &lport->cstat[i];
 			atomic_set(&cstat->fc4NvmeInputRequests, 0);
 			atomic_set(&cstat->fc4NvmeOutputRequests, 0);
@@ -2587,14 +2587,14 @@ lpfc_nvme_wait_for_io_drain(struct lpfc_hba *phba)
 	struct lpfc_sli_ring  *pring;
 	u32 i, wait_cnt = 0;
 
-	if (phba->sli_rev < LPFC_SLI_REV4 || !phba->sli4_hba.nvme_wq)
+	if (phba->sli_rev < LPFC_SLI_REV4 || !phba->sli4_hba.hdwq)
 		return;
 
 	/* Cycle through all NVME rings and make sure all outstanding
 	 * WQEs have been removed from the txcmplqs.
 	 */
-	for (i = 0; i < phba->cfg_nvme_io_channel; i++) {
-		pring = phba->sli4_hba.nvme_wq[i]->pring;
+	for (i = 0; i < phba->cfg_hdw_queue; i++) {
+		pring = phba->sli4_hba.hdwq[i].nvme_wq->pring;
 
 		if (!pring)
 			continue;

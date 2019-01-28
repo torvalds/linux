@@ -810,11 +810,10 @@ struct lpfc_hba {
 	uint32_t cfg_auto_imax;
 	uint32_t cfg_fcp_imax;
 	uint32_t cfg_fcp_cpu_map;
-	uint32_t cfg_fcp_io_channel;
+	uint32_t cfg_hdw_queue;
 	uint32_t cfg_suppress_rsp;
 	uint32_t cfg_nvme_oas;
 	uint32_t cfg_nvme_embed_cmd;
-	uint32_t cfg_nvme_io_channel;
 	uint32_t cfg_nvmet_mrq_post;
 	uint32_t cfg_nvmet_mrq;
 	uint32_t cfg_enable_nvmet;
@@ -877,7 +876,6 @@ struct lpfc_hba {
 #define LPFC_ENABLE_NVME 2
 #define LPFC_ENABLE_BOTH 3
 	uint32_t cfg_enable_pbde;
-	uint32_t io_channel_irqs;	/* number of irqs for io channels */
 	struct nvmet_fc_target_port *targetport;
 	lpfc_vpd_t vpd;		/* vital product data */
 

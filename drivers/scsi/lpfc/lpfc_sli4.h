@@ -36,17 +36,12 @@
 #define LPFC_NEMBED_MBOX_SGL_CNT		254
 
 /* Multi-queue arrangement for FCP EQ/CQ/WQ tuples */
-#define LPFC_HBA_IO_CHAN_MIN	0
-#define LPFC_HBA_IO_CHAN_MAX	32
-#define LPFC_FCP_IO_CHAN_DEF	4
-#define LPFC_NVME_IO_CHAN_DEF	0
+#define LPFC_HBA_HDWQ_MIN	0
+#define LPFC_HBA_HDWQ_MAX	64
+#define LPFC_HBA_HDWQ_DEF	0
 
 /* Common buffer size to accomidate SCSI and NVME IO buffers */
 #define LPFC_COMMON_IO_BUF_SZ	768
-
-/* Number of channels used for Flash Optimized Fabric (FOF) operations */
-
-#define LPFC_FOF_IO_CHAN_NUM       1
 
 /*
  * Provide the default FCF Record attributes used by the driver
@@ -534,6 +529,17 @@ struct lpfc_vector_map_info {
 #define LPFC_VECTOR_MAP_EMPTY	0xffff
 
 /* SLI4 HBA data structure entries */
+struct lpfc_sli4_hdw_queue {
+	/* Pointers to the constructed SLI4 queues */
+	struct lpfc_queue *hba_eq;  /* Event queues for HBA */
+	struct lpfc_queue *fcp_cq;  /* Fast-path FCP compl queue */
+	struct lpfc_queue *nvme_cq; /* Fast-path NVME compl queue */
+	struct lpfc_queue *fcp_wq;  /* Fast-path FCP work queue */
+	struct lpfc_queue *nvme_wq; /* Fast-path NVME work queue */
+	uint16_t fcp_cq_map;
+	uint16_t nvme_cq_map;
+};
+
 struct lpfc_sli4_hba {
 	void __iomem *conf_regs_memmap_p; /* Kernel memory mapped address for
 					   * config space registers
@@ -606,17 +612,13 @@ struct lpfc_sli4_hba {
 	uint32_t (*sli4_cq_release)(struct lpfc_queue *q, bool arm);
 
 	/* Pointers to the constructed SLI4 queues */
-	struct lpfc_queue **hba_eq;  /* Event queues for HBA */
-	struct lpfc_queue **fcp_cq;  /* Fast-path FCP compl queue */
-	struct lpfc_queue **nvme_cq; /* Fast-path NVME compl queue */
+	struct lpfc_sli4_hdw_queue *hdwq;
+	struct list_head lpfc_wq_list;
+
+	/* Pointers to the constructed SLI4 queues for NVMET */
 	struct lpfc_queue **nvmet_cqset; /* Fast-path NVMET CQ Set queues */
 	struct lpfc_queue **nvmet_mrq_hdr; /* Fast-path NVMET hdr MRQs */
 	struct lpfc_queue **nvmet_mrq_data; /* Fast-path NVMET data MRQs */
-	struct lpfc_queue **fcp_wq;  /* Fast-path FCP work queue */
-	struct lpfc_queue **nvme_wq; /* Fast-path NVME work queue */
-	uint16_t *fcp_cq_map;
-	uint16_t *nvme_cq_map;
-	struct list_head lpfc_wq_list;
 
 	struct lpfc_queue *mbx_cq; /* Slow-path mailbox complete queue */
 	struct lpfc_queue *els_cq; /* Slow-path ELS response complete queue */
@@ -817,7 +819,7 @@ int lpfc_modify_hba_eq_delay(struct lpfc_hba *phba, uint32_t startq,
 int lpfc_cq_create(struct lpfc_hba *, struct lpfc_queue *,
 			struct lpfc_queue *, uint32_t, uint32_t);
 int lpfc_cq_create_set(struct lpfc_hba *phba, struct lpfc_queue **cqp,
-			struct lpfc_queue **eqp, uint32_t type,
+			struct lpfc_sli4_hdw_queue *hdwq, uint32_t type,
 			uint32_t subtype);
 int32_t lpfc_mq_create(struct lpfc_hba *, struct lpfc_queue *,
 		       struct lpfc_queue *, uint32_t);

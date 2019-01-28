@@ -3981,8 +3981,8 @@ lpfc_sli_abort_fcp_rings(struct lpfc_hba *phba)
 
 	/* Look on all the FCP Rings for the iotag */
 	if (phba->sli_rev >= LPFC_SLI_REV4) {
-		for (i = 0; i < phba->cfg_fcp_io_channel; i++) {
-			pring = phba->sli4_hba.fcp_wq[i]->pring;
+		for (i = 0; i < phba->cfg_hdw_queue; i++) {
+			pring = phba->sli4_hba.hdwq[i].fcp_wq->pring;
 			lpfc_sli_abort_iocb_ring(phba, pring);
 		}
 	} else {
@@ -4006,12 +4006,13 @@ lpfc_sli_abort_nvme_rings(struct lpfc_hba *phba)
 	struct lpfc_sli_ring  *pring;
 	uint32_t i;
 
-	if (phba->sli_rev < LPFC_SLI_REV4)
+	if ((phba->sli_rev < LPFC_SLI_REV4) ||
+	    !(phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME))
 		return;
 
 	/* Abort all IO on each NVME ring. */
-	for (i = 0; i < phba->cfg_nvme_io_channel; i++) {
-		pring = phba->sli4_hba.nvme_wq[i]->pring;
+	for (i = 0; i < phba->cfg_hdw_queue; i++) {
+		pring = phba->sli4_hba.hdwq[i].nvme_wq->pring;
 		lpfc_sli_abort_wqe_ring(phba, pring);
 	}
 }
@@ -4044,8 +4045,8 @@ lpfc_sli_flush_fcp_rings(struct lpfc_hba *phba)
 
 	/* Look on all the FCP Rings for the iotag */
 	if (phba->sli_rev >= LPFC_SLI_REV4) {
-		for (i = 0; i < phba->cfg_fcp_io_channel; i++) {
-			pring = phba->sli4_hba.fcp_wq[i]->pring;
+		for (i = 0; i < phba->cfg_hdw_queue; i++) {
+			pring = phba->sli4_hba.hdwq[i].fcp_wq->pring;
 
 			spin_lock_irq(&pring->ring_lock);
 			/* Retrieve everything on txq */
@@ -4110,7 +4111,8 @@ lpfc_sli_flush_nvme_rings(struct lpfc_hba *phba)
 	uint32_t i;
 	struct lpfc_iocbq *piocb, *next_iocb;
 
-	if (phba->sli_rev < LPFC_SLI_REV4)
+	if ((phba->sli_rev < LPFC_SLI_REV4) ||
+	    !(phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME))
 		return;
 
 	/* Hint to other driver operations that a flush is in progress. */
@@ -4122,8 +4124,8 @@ lpfc_sli_flush_nvme_rings(struct lpfc_hba *phba)
 	 * a local driver reason code.  This is a flush so no
 	 * abort exchange to FW.
 	 */
-	for (i = 0; i < phba->cfg_nvme_io_channel; i++) {
-		pring = phba->sli4_hba.nvme_wq[i]->pring;
+	for (i = 0; i < phba->cfg_hdw_queue; i++) {
+		pring = phba->sli4_hba.hdwq[i].nvme_wq->pring;
 
 		spin_lock_irq(&pring->ring_lock);
 		list_for_each_entry_safe(piocb, next_iocb,
@@ -5564,6 +5566,7 @@ lpfc_sli4_arm_cqeq_intr(struct lpfc_hba *phba)
 {
 	int qidx;
 	struct lpfc_sli4_hba *sli4_hba = &phba->sli4_hba;
+	struct lpfc_sli4_hdw_queue *qp;
 
 	sli4_hba->sli4_cq_release(sli4_hba->mbx_cq, LPFC_QUEUE_REARM);
 	sli4_hba->sli4_cq_release(sli4_hba->els_cq, LPFC_QUEUE_REARM);
@@ -5571,20 +5574,19 @@ lpfc_sli4_arm_cqeq_intr(struct lpfc_hba *phba)
 		sli4_hba->sli4_cq_release(sli4_hba->nvmels_cq,
 						LPFC_QUEUE_REARM);
 
-	if (sli4_hba->fcp_cq)
-		for (qidx = 0; qidx < phba->cfg_fcp_io_channel; qidx++)
-			sli4_hba->sli4_cq_release(sli4_hba->fcp_cq[qidx],
+	qp = sli4_hba->hdwq;
+	if (sli4_hba->hdwq) {
+		for (qidx = 0; qidx < phba->cfg_hdw_queue; qidx++) {
+			sli4_hba->sli4_cq_release(qp[qidx].fcp_cq,
 						LPFC_QUEUE_REARM);
-
-	if (sli4_hba->nvme_cq)
-		for (qidx = 0; qidx < phba->cfg_nvme_io_channel; qidx++)
-			sli4_hba->sli4_cq_release(sli4_hba->nvme_cq[qidx],
+			sli4_hba->sli4_cq_release(qp[qidx].nvme_cq,
 						LPFC_QUEUE_REARM);
+		}
 
-	if (sli4_hba->hba_eq)
-		for (qidx = 0; qidx < phba->io_channel_irqs; qidx++)
-			sli4_hba->sli4_eq_release(sli4_hba->hba_eq[qidx],
-							LPFC_QUEUE_REARM);
+		for (qidx = 0; qidx < phba->cfg_hdw_queue; qidx++)
+			sli4_hba->sli4_eq_release(qp[qidx].hba_eq,
+						LPFC_QUEUE_REARM);
+	}
 
 	if (phba->nvmet_support) {
 		for (qidx = 0; qidx < phba->cfg_nvmet_mrq; qidx++) {
@@ -7857,11 +7859,11 @@ lpfc_sli4_process_missed_mbox_completions(struct lpfc_hba *phba)
 
 	/* Find the eq associated with the mcq */
 
-	if (sli4_hba->hba_eq)
-		for (eqidx = 0; eqidx < phba->io_channel_irqs; eqidx++)
-			if (sli4_hba->hba_eq[eqidx]->queue_id ==
+	if (sli4_hba->hdwq)
+		for (eqidx = 0; eqidx < phba->cfg_hdw_queue; eqidx++)
+			if (sli4_hba->hdwq[eqidx].hba_eq->queue_id ==
 			    sli4_hba->mbx_cq->assoc_qid) {
-				fpeq = sli4_hba->hba_eq[eqidx];
+				fpeq = sli4_hba->hdwq[eqidx].hba_eq;
 				break;
 			}
 	if (!fpeq)
@@ -9866,7 +9868,7 @@ __lpfc_sli_issue_iocb_s4(struct lpfc_hba *phba, uint32_t ring_number,
 	/* Get the WQ */
 	if ((piocb->iocb_flag & LPFC_IO_FCP) ||
 	    (piocb->iocb_flag & LPFC_USE_FCPWQIDX)) {
-		wq = phba->sli4_hba.fcp_wq[piocb->hba_wqidx];
+		wq = phba->sli4_hba.hdwq[piocb->hba_wqidx].fcp_wq;
 	} else {
 		wq = phba->sli4_hba.els_wq;
 	}
@@ -10001,7 +10003,7 @@ struct lpfc_sli_ring *
 lpfc_sli4_calc_ring(struct lpfc_hba *phba, struct lpfc_iocbq *piocb)
 {
 	if (piocb->iocb_flag & (LPFC_IO_FCP | LPFC_USE_FCPWQIDX)) {
-		if (unlikely(!phba->sli4_hba.fcp_wq))
+		if (unlikely(!phba->sli4_hba.hdwq))
 			return NULL;
 		/*
 		 * for abort iocb hba_wqidx should already
@@ -10012,9 +10014,9 @@ lpfc_sli4_calc_ring(struct lpfc_hba *phba, struct lpfc_iocbq *piocb)
 				lpfc_sli4_scmd_to_wqidx_distr(
 					phba, piocb->context1);
 			piocb->hba_wqidx = piocb->hba_wqidx %
-				phba->cfg_fcp_io_channel;
+				phba->cfg_hdw_queue;
 		}
-		return phba->sli4_hba.fcp_wq[piocb->hba_wqidx]->pring;
+		return phba->sli4_hba.hdwq[piocb->hba_wqidx].fcp_wq->pring;
 	} else {
 		if (unlikely(!phba->sli4_hba.els_wq))
 			return NULL;
@@ -10063,7 +10065,7 @@ lpfc_sli_issue_iocb(struct lpfc_hba *phba, uint32_t ring_number,
 			if (atomic_dec_and_test(&hba_eq_hdl->hba_eq_in_use)) {
 
 				/* Get associated EQ with this index */
-				fpeq = phba->sli4_hba.hba_eq[idx];
+				fpeq = phba->sli4_hba.hdwq[idx].hba_eq;
 
 				/* Turn off interrupts from this EQ */
 				phba->sli4_hba.sli4_eq_clr_intr(fpeq);
@@ -10497,17 +10499,8 @@ lpfc_sli4_queue_init(struct lpfc_hba *phba)
 	INIT_LIST_HEAD(&psli->mboxq);
 	INIT_LIST_HEAD(&psli->mboxq_cmpl);
 	/* Initialize list headers for txq and txcmplq as double linked lists */
-	for (i = 0; i < phba->cfg_fcp_io_channel; i++) {
-		pring = phba->sli4_hba.fcp_wq[i]->pring;
-		pring->flag = 0;
-		pring->ringno = LPFC_FCP_RING;
-		INIT_LIST_HEAD(&pring->txq);
-		INIT_LIST_HEAD(&pring->txcmplq);
-		INIT_LIST_HEAD(&pring->iocb_continueq);
-		spin_lock_init(&pring->ring_lock);
-	}
-	for (i = 0; i < phba->cfg_nvme_io_channel; i++) {
-		pring = phba->sli4_hba.nvme_wq[i]->pring;
+	for (i = 0; i < phba->cfg_hdw_queue; i++) {
+		pring = phba->sli4_hba.hdwq[i].fcp_wq->pring;
 		pring->flag = 0;
 		pring->ringno = LPFC_FCP_RING;
 		INIT_LIST_HEAD(&pring->txq);
@@ -10523,7 +10516,16 @@ lpfc_sli4_queue_init(struct lpfc_hba *phba)
 	INIT_LIST_HEAD(&pring->iocb_continueq);
 	spin_lock_init(&pring->ring_lock);
 
-	if (phba->cfg_nvme_io_channel) {
+	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
+		for (i = 0; i < phba->cfg_hdw_queue; i++) {
+			pring = phba->sli4_hba.hdwq[i].nvme_wq->pring;
+				pring->flag = 0;
+			pring->ringno = LPFC_FCP_RING;
+			INIT_LIST_HEAD(&pring->txq);
+			INIT_LIST_HEAD(&pring->txcmplq);
+			INIT_LIST_HEAD(&pring->iocb_continueq);
+			spin_lock_init(&pring->ring_lock);
+		}
 		pring = phba->sli4_hba.nvmels_wq->pring;
 		pring->flag = 0;
 		pring->ringno = LPFC_ELS_RING;
@@ -14070,6 +14072,20 @@ lpfc_sli4_hba_handle_eqe(struct lpfc_hba *phba, struct lpfc_eqe *eqe,
 	/* Get the reference to the corresponding CQ */
 	cqid = bf_get_le32(lpfc_eqe_resource_id, eqe);
 
+	/* First check for NVME/SCSI completion */
+	if (cqid == phba->sli4_hba.hdwq[qidx].nvme_cq_map) {
+		/* Process NVME / NVMET command completion */
+		cq = phba->sli4_hba.hdwq[qidx].nvme_cq;
+		goto  process_cq;
+	}
+
+	if (cqid == phba->sli4_hba.hdwq[qidx].fcp_cq_map) {
+		/* Process FCP command completion */
+		cq = phba->sli4_hba.hdwq[qidx].fcp_cq;
+		goto  process_cq;
+	}
+
+	/* Next check for NVMET completion */
 	if (phba->cfg_nvmet_mrq && phba->sli4_hba.nvmet_cqset) {
 		id = phba->sli4_hba.nvmet_cqset[0]->queue_id;
 		if ((cqid >= id) && (cqid < (id + phba->cfg_nvmet_mrq))) {
@@ -14077,20 +14093,6 @@ lpfc_sli4_hba_handle_eqe(struct lpfc_hba *phba, struct lpfc_eqe *eqe,
 			cq = phba->sli4_hba.nvmet_cqset[cqid - id];
 			goto  process_cq;
 		}
-	}
-
-	if (phba->sli4_hba.nvme_cq_map &&
-	    (cqid == phba->sli4_hba.nvme_cq_map[qidx])) {
-		/* Process NVME / NVMET command completion */
-		cq = phba->sli4_hba.nvme_cq[qidx];
-		goto  process_cq;
-	}
-
-	if (phba->sli4_hba.fcp_cq_map &&
-	    (cqid == phba->sli4_hba.fcp_cq_map[qidx])) {
-		/* Process FCP command completion */
-		cq = phba->sli4_hba.fcp_cq[qidx];
-		goto  process_cq;
 	}
 
 	if (phba->sli4_hba.nvmels_cq &&
@@ -14101,7 +14103,8 @@ lpfc_sli4_hba_handle_eqe(struct lpfc_hba *phba, struct lpfc_eqe *eqe,
 
 	/* Otherwise this is a Slow path event */
 	if (cq == NULL) {
-		lpfc_sli4_sp_handle_eqe(phba, eqe, phba->sli4_hba.hba_eq[qidx]);
+		lpfc_sli4_sp_handle_eqe(phba, eqe,
+					phba->sli4_hba.hdwq[qidx].hba_eq);
 		return;
 	}
 
@@ -14115,7 +14118,7 @@ process_cq:
 	}
 
 	/* Save EQ associated with this CQ */
-	cq->assoc_qp = phba->sli4_hba.hba_eq[qidx];
+	cq->assoc_qp = phba->sli4_hba.hdwq[qidx].hba_eq;
 
 	if (!queue_work(phba->wq, &cq->irqwork))
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
@@ -14236,11 +14239,11 @@ lpfc_sli4_hba_intr_handler(int irq, void *dev_id)
 
 	if (unlikely(!phba))
 		return IRQ_NONE;
-	if (unlikely(!phba->sli4_hba.hba_eq))
+	if (unlikely(!phba->sli4_hba.hdwq))
 		return IRQ_NONE;
 
 	/* Get to the EQ struct associated with this vector */
-	fpeq = phba->sli4_hba.hba_eq[hba_eqidx];
+	fpeq = phba->sli4_hba.hdwq[hba_eqidx].hba_eq;
 	if (unlikely(!fpeq))
 		return IRQ_NONE;
 
@@ -14340,7 +14343,7 @@ lpfc_sli4_intr_handler(int irq, void *dev_id)
 	/*
 	 * Invoke fast-path host attention interrupt handling as appropriate.
 	 */
-	for (qidx = 0; qidx < phba->io_channel_irqs; qidx++) {
+	for (qidx = 0; qidx < phba->cfg_hdw_queue; qidx++) {
 		hba_irq_rc = lpfc_sli4_hba_intr_handler(irq,
 					&phba->sli4_hba.hba_eq_hdl[qidx]);
 		if (hba_irq_rc == IRQ_HANDLED)
@@ -14527,7 +14530,7 @@ lpfc_modify_hba_eq_delay(struct lpfc_hba *phba, uint32_t startq,
 	union lpfc_sli4_cfg_shdr *shdr;
 	uint16_t dmult;
 
-	if (startq >= phba->io_channel_irqs)
+	if (startq >= phba->cfg_hdw_queue)
 		return 0;
 
 	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
@@ -14541,7 +14544,7 @@ lpfc_modify_hba_eq_delay(struct lpfc_hba *phba, uint32_t startq,
 	eq_delay = &mbox->u.mqe.un.eq_delay;
 
 	/* Calculate delay multiper from maximum interrupt per second */
-	result = imax / phba->io_channel_irqs;
+	result = imax / phba->cfg_hdw_queue;
 	if (result > LPFC_DMULT_CONST || result == 0)
 		dmult = 0;
 	else
@@ -14550,8 +14553,8 @@ lpfc_modify_hba_eq_delay(struct lpfc_hba *phba, uint32_t startq,
 		dmult = LPFC_DMULT_MAX;
 
 	cnt = 0;
-	for (qidx = startq; qidx < phba->io_channel_irqs; qidx++) {
-		eq = phba->sli4_hba.hba_eq[qidx];
+	for (qidx = startq; qidx < phba->cfg_hdw_queue; qidx++) {
+		eq = phba->sli4_hba.hdwq[qidx].hba_eq;
 		if (!eq)
 			continue;
 		eq->q_mode = imax;
@@ -14568,8 +14571,7 @@ lpfc_modify_hba_eq_delay(struct lpfc_hba *phba, uint32_t startq,
 			val =  phba->cfg_fcp_imax;
 			if (val) {
 				/* First, interrupts per sec per EQ */
-				val = phba->cfg_fcp_imax /
-					phba->io_channel_irqs;
+				val = phba->cfg_fcp_imax / phba->cfg_hdw_queue;
 
 				/* us delay between each interrupt */
 				val = LPFC_SEC_TO_USEC / val;
@@ -14877,7 +14879,7 @@ out:
  * lpfc_cq_create_set - Create a set of Completion Queues on the HBA for MRQ
  * @phba: HBA structure that indicates port to create a queue on.
  * @cqp: The queue structure array to use to create the completion queues.
- * @eqp: The event queue array to bind these completion queues to.
+ * @hdwq: The hardware queue array  with the EQ to bind completion queues to.
  *
  * This function creates a set of  completion queue, s to support MRQ
  * as detailed in @cqp, on a port,
@@ -14897,7 +14899,8 @@ out:
  **/
 int
 lpfc_cq_create_set(struct lpfc_hba *phba, struct lpfc_queue **cqp,
-		   struct lpfc_queue **eqp, uint32_t type, uint32_t subtype)
+		   struct lpfc_sli4_hdw_queue *hdwq, uint32_t type,
+		   uint32_t subtype)
 {
 	struct lpfc_queue *cq;
 	struct lpfc_queue *eq;
@@ -14912,7 +14915,7 @@ lpfc_cq_create_set(struct lpfc_hba *phba, struct lpfc_queue **cqp,
 
 	/* sanity check on queue memory */
 	numcq = phba->cfg_nvmet_mrq;
-	if (!cqp || !eqp || !numcq)
+	if (!cqp || !hdwq || !numcq)
 		return -ENODEV;
 
 	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
@@ -14939,7 +14942,7 @@ lpfc_cq_create_set(struct lpfc_hba *phba, struct lpfc_queue **cqp,
 
 	for (idx = 0; idx < numcq; idx++) {
 		cq = cqp[idx];
-		eq = eqp[idx];
+		eq = hdwq[idx].hba_eq;
 		if (!cq || !eq) {
 			status = -ENOMEM;
 			goto out;
@@ -19462,7 +19465,7 @@ lpfc_drain_txq(struct lpfc_hba *phba)
 
 	if (phba->link_flag & LS_MDS_LOOPBACK) {
 		/* MDS WQE are posted only to first WQ*/
-		wq = phba->sli4_hba.fcp_wq[0];
+		wq = phba->sli4_hba.hdwq[0].fcp_wq;
 		if (unlikely(!wq))
 			return 0;
 		pring = wq->pring;
@@ -19712,12 +19715,12 @@ lpfc_sli4_issue_wqe(struct lpfc_hba *phba, uint32_t ring_number,
 	/* NVME_FCREQ and NVME_ABTS requests */
 	if (pwqe->iocb_flag & LPFC_IO_NVME) {
 		/* Get the IO distribution (hba_wqidx) for WQ assignment. */
-		pring = phba->sli4_hba.nvme_wq[pwqe->hba_wqidx]->pring;
+		pring = phba->sli4_hba.hdwq[pwqe->hba_wqidx].nvme_wq->pring;
 
 		spin_lock_irqsave(&pring->ring_lock, iflags);
-		wq = phba->sli4_hba.nvme_wq[pwqe->hba_wqidx];
+		wq = phba->sli4_hba.hdwq[pwqe->hba_wqidx].nvme_wq;
 		bf_set(wqe_cqid, &wqe->generic.wqe_com,
-		      phba->sli4_hba.nvme_cq[pwqe->hba_wqidx]->queue_id);
+		      phba->sli4_hba.hdwq[pwqe->hba_wqidx].nvme_cq->queue_id);
 		ret = lpfc_sli4_wq_put(wq, wqe);
 		if (ret) {
 			spin_unlock_irqrestore(&pring->ring_lock, iflags);
@@ -19731,7 +19734,7 @@ lpfc_sli4_issue_wqe(struct lpfc_hba *phba, uint32_t ring_number,
 	/* NVMET requests */
 	if (pwqe->iocb_flag & LPFC_IO_NVMET) {
 		/* Get the IO distribution (hba_wqidx) for WQ assignment. */
-		pring = phba->sli4_hba.nvme_wq[pwqe->hba_wqidx]->pring;
+		pring = phba->sli4_hba.hdwq[pwqe->hba_wqidx].nvme_wq->pring;
 
 		spin_lock_irqsave(&pring->ring_lock, iflags);
 		ctxp = pwqe->context2;
@@ -19742,9 +19745,9 @@ lpfc_sli4_issue_wqe(struct lpfc_hba *phba, uint32_t ring_number,
 		}
 		bf_set(wqe_xri_tag, &pwqe->wqe.xmit_bls_rsp.wqe_com,
 		       pwqe->sli4_xritag);
-		wq = phba->sli4_hba.nvme_wq[pwqe->hba_wqidx];
+		wq = phba->sli4_hba.hdwq[pwqe->hba_wqidx].nvme_wq;
 		bf_set(wqe_cqid, &wqe->generic.wqe_com,
-		      phba->sli4_hba.nvme_cq[pwqe->hba_wqidx]->queue_id);
+		      phba->sli4_hba.hdwq[pwqe->hba_wqidx].nvme_cq->queue_id);
 		ret = lpfc_sli4_wq_put(wq, wqe);
 		if (ret) {
 			spin_unlock_irqrestore(&pring->ring_lock, iflags);
