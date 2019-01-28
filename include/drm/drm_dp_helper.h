@@ -560,6 +560,8 @@
 # define DP_TEST_LINK_EDID_READ		    (1 << 2)
 # define DP_TEST_LINK_PHY_TEST_PATTERN	    (1 << 3) /* DPCD >= 1.1 */
 # define DP_TEST_LINK_FAUX_PATTERN	    (1 << 4) /* DPCD >= 1.2 */
+# define DP_TEST_LINK_AUDIO_PATTERN         (1 << 5) /* DPCD >= 1.2 */
+# define DP_TEST_LINK_AUDIO_DISABLED_VIDEO  (1 << 6) /* DPCD >= 1.2 */
 
 #define DP_TEST_LINK_RATE		    0x219
 # define DP_LINK_RATE_162		    (0x6)
@@ -608,6 +610,7 @@
 # define DP_COLOR_FORMAT_RGB                (0 << 1)
 # define DP_COLOR_FORMAT_YCbCr422           (1 << 1)
 # define DP_COLOR_FORMAT_YCbCr444           (2 << 1)
+# define DP_TEST_DYNAMIC_RANGE_VESA         (0 << 3)
 # define DP_TEST_DYNAMIC_RANGE_CEA          (1 << 3)
 # define DP_TEST_YCBCR_COEFFICIENTS         (1 << 4)
 # define DP_YCBCR_COEFFICIENTS_ITU601       (0 << 4)
@@ -657,6 +660,16 @@
 
 #define DP_TEST_SINK			    0x270
 # define DP_TEST_SINK_START		    (1 << 0)
+#define DP_TEST_AUDIO_MODE		    0x271
+#define DP_TEST_AUDIO_PATTERN_TYPE	    0x272
+#define DP_TEST_AUDIO_PERIOD_CH1	    0x273
+#define DP_TEST_AUDIO_PERIOD_CH2	    0x274
+#define DP_TEST_AUDIO_PERIOD_CH3	    0x275
+#define DP_TEST_AUDIO_PERIOD_CH4	    0x276
+#define DP_TEST_AUDIO_PERIOD_CH5	    0x277
+#define DP_TEST_AUDIO_PERIOD_CH6	    0x278
+#define DP_TEST_AUDIO_PERIOD_CH7	    0x279
+#define DP_TEST_AUDIO_PERIOD_CH8	    0x27A
 
 #define DP_FEC_STATUS			    0x280    /* 1.4 */
 # define DP_FEC_DECODE_EN_DETECTED	    (1 << 0)
