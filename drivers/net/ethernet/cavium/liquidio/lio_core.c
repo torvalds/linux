@@ -661,7 +661,8 @@ liquidio_push_packet(u32 octeon_id __attribute__((unused)),
 		    (((rh->r_dh.encap_on) &&
 		      (rh->r_dh.csum_verified & CNNIC_TUN_CSUM_VERIFIED)) ||
 		     (!(rh->r_dh.encap_on) &&
-		      (rh->r_dh.csum_verified & CNNIC_CSUM_VERIFIED))))
+		      ((rh->r_dh.csum_verified & CNNIC_CSUM_VERIFIED) ==
+			CNNIC_CSUM_VERIFIED))))
 			/* checksum has already been verified */
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 		else
