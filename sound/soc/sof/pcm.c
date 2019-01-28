@@ -656,23 +656,11 @@ static int sof_pcm_probe(struct snd_soc_component *component)
 		return ret;
 	}
 
-	/* enable runtime PM with auto suspend */
-	pm_runtime_set_autosuspend_delay(component->dev,
-					 SND_SOF_SUSPEND_DELAY_MS);
-	pm_runtime_use_autosuspend(component->dev);
-	pm_runtime_enable(component->dev);
-
-	pm_runtime_mark_last_busy(component->dev);
-	err = pm_runtime_put_autosuspend(component->dev);
-	if (err < 0)
-		dev_err(sdev->dev, "error: failed to enter PM idle %d\n", err);
-
 	return ret;
 }
 
 static void sof_pcm_remove(struct snd_soc_component *component)
 {
-	pm_runtime_disable(component->dev);
 }
 
 void snd_sof_new_platform_drv(struct snd_sof_dev *sdev)
