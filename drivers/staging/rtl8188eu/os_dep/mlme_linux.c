@@ -36,9 +36,9 @@ static struct rt_pmkid_list backup_pmkid[NUM_PMKID_CACHE];
 
 void rtw_reset_securitypriv(struct adapter *adapter)
 {
-	u8	backup_index = 0;
-	u8	backup_counter = 0x00;
-	u32	backup_time = 0;
+	u8 backup_index;
+	u8 backup_counter;
+	u32 backup_time;
 
 	if (adapter->securitypriv.dot11AuthAlgrthm == dot11AuthAlgrthm_8021X) {
 		/* 802.1x
