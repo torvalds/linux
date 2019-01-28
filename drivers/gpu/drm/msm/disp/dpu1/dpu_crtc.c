@@ -716,11 +716,8 @@ void dpu_crtc_commit_kickoff(struct drm_crtc *crtc, bool async)
 	 * may delay and flush at an irq event (e.g. ppdone)
 	 */
 	drm_for_each_encoder_mask(encoder, crtc->dev,
-				  crtc->state->encoder_mask) {
-		struct dpu_encoder_kickoff_params params = { 0 };
-		dpu_encoder_prepare_for_kickoff(encoder, &params, async);
-	}
-
+				  crtc->state->encoder_mask)
+		dpu_encoder_prepare_for_kickoff(encoder, async);
 
 	if (!async) {
 		/* wait for frame_event_done completion */

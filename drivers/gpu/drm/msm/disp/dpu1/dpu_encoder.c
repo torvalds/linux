@@ -1745,15 +1745,14 @@ static void dpu_encoder_vsync_event_work_handler(struct kthread_work *work)
 			nsecs_to_jiffies(ktime_to_ns(wakeup_time)));
 }
 
-void dpu_encoder_prepare_for_kickoff(struct drm_encoder *drm_enc,
-		struct dpu_encoder_kickoff_params *params, bool async)
+void dpu_encoder_prepare_for_kickoff(struct drm_encoder *drm_enc, bool async)
 {
 	struct dpu_encoder_virt *dpu_enc;
 	struct dpu_encoder_phys *phys;
 	bool needs_hw_reset = false;
 	unsigned int i;
 
-	if (!drm_enc || !params) {
+	if (!drm_enc) {
 		DPU_ERROR("invalid args\n");
 		return;
 	}
@@ -1767,7 +1766,7 @@ void dpu_encoder_prepare_for_kickoff(struct drm_encoder *drm_enc,
 		phys = dpu_enc->phys_encs[i];
 		if (phys) {
 			if (phys->ops.prepare_for_kickoff)
-				phys->ops.prepare_for_kickoff(phys, params);
+				phys->ops.prepare_for_kickoff(phys);
 			if (phys->enable_state == DPU_ENC_ERR_NEEDS_HW_RESET)
 				needs_hw_reset = true;
 		}
