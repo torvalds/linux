@@ -10554,103 +10554,6 @@ lpfc_find_eq_handle(struct lpfc_hba *phba, uint16_t hdwq)
 	return 0;
 }
 
-/**
- * lpfc_find_phys_id_eq - Find the next EQ that corresponds to the specified
- *                        Physical Id.
- * @phba: pointer to lpfc hba data structure.
- * @eqidx: EQ index
- * @phys_id: CPU package physical id
- */
-static uint16_t
-lpfc_find_phys_id_eq(struct lpfc_hba *phba, uint16_t eqidx, uint16_t phys_id)
-{
-	struct lpfc_vector_map_info *cpup;
-	int cpu, desired_phys_id;
-
-	desired_phys_id = LPFC_VECTOR_MAP_EMPTY;
-
-	/* Find the desired phys_id for the specified EQ */
-	cpup = phba->sli4_hba.cpu_map;
-	for (cpu = 0; cpu < phba->sli4_hba.num_present_cpu; cpu++) {
-		if ((cpup->irq != LPFC_VECTOR_MAP_EMPTY) &&
-		    (cpup->eq == eqidx)) {
-			desired_phys_id = cpup->phys_id;
-			break;
-		}
-		cpup++;
-	}
-	if (phys_id == desired_phys_id)
-		return eqidx;
-
-	/* Find a EQ thats on the specified phys_id */
-	cpup = phba->sli4_hba.cpu_map;
-	for (cpu = 0; cpu < phba->sli4_hba.num_present_cpu; cpu++) {
-		if ((cpup->irq != LPFC_VECTOR_MAP_EMPTY) &&
-		    (cpup->phys_id == phys_id))
-			return cpup->eq;
-		cpup++;
-	}
-	return 0;
-}
-
-/**
- * lpfc_find_cpu_map - Find next available CPU map entry that matches the
- *                     phys_id and core_id.
- * @phba: pointer to lpfc hba data structure.
- * @phys_id: CPU package physical id
- * @core_id: CPU core id
- * @hdwqidx: Hardware Queue index
- * @eqidx: EQ index
- * @isr_avail: Should an IRQ be associated with this entry
- */
-static struct lpfc_vector_map_info *
-lpfc_find_cpu_map(struct lpfc_hba *phba, uint16_t phys_id, uint16_t core_id,
-		  uint16_t hdwqidx, uint16_t eqidx, int isr_avail)
-{
-	struct lpfc_vector_map_info *cpup;
-	int cpu;
-
-	cpup = phba->sli4_hba.cpu_map;
-	for (cpu = 0; cpu < phba->sli4_hba.num_present_cpu; cpu++) {
-		/* Does the cpup match the one we are looking for */
-		if ((cpup->phys_id == phys_id) &&
-		    (cpup->core_id == core_id)) {
-			/* If it has been already assigned, then skip it */
-			if (cpup->hdwq != LPFC_VECTOR_MAP_EMPTY) {
-				cpup++;
-				continue;
-			}
-			/* Ensure we are on the same phys_id as the first one */
-			if (!isr_avail)
-				cpup->eq = lpfc_find_phys_id_eq(phba, eqidx,
-								phys_id);
-			else
-				cpup->eq = eqidx;
-
-			cpup->hdwq = hdwqidx;
-			if (isr_avail) {
-				cpup->irq =
-				    pci_irq_vector(phba->pcidev, eqidx);
-
-				/* Now affinitize to the selected CPU */
-				irq_set_affinity_hint(cpup->irq,
-						      get_cpu_mask(cpu));
-				irq_set_status_flags(cpup->irq,
-						     IRQ_NO_BALANCING);
-
-				lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
-						"3330 Set Affinity: CPU %d "
-						"EQ %d irq %d (HDWQ %x)\n",
-						cpu, cpup->eq,
-						cpup->irq, cpup->hdwq);
-			}
-			return cpup;
-		}
-		cpup++;
-	}
-	return 0;
-}
-
 #ifdef CONFIG_X86
 /**
  * lpfc_find_hyper - Determine if the CPU map entry is hyper-threaded
@@ -10693,11 +10596,11 @@ lpfc_find_hyper(struct lpfc_hba *phba, int cpu,
 static void
 lpfc_cpu_affinity_check(struct lpfc_hba *phba, int vectors)
 {
-	int i, j, idx, phys_id;
+	int i, cpu, idx, phys_id;
 	int max_phys_id, min_phys_id;
 	int max_core_id, min_core_id;
 	struct lpfc_vector_map_info *cpup;
-	int cpu, eqidx, hdwqidx, isr_avail;
+	const struct cpumask *maskp;
 #ifdef CONFIG_X86
 	struct cpuinfo_x86 *cpuinfo;
 #endif
@@ -10754,60 +10657,21 @@ lpfc_cpu_affinity_check(struct lpfc_hba *phba, int vectors)
 		eqi->icnt = 0;
 	}
 
-	/*
-	 * If the number of IRQ vectors == number of CPUs,
-	 * mapping is pretty simple: 1 to 1.
-	 * This is the desired path if NVME is enabled.
-	 */
-	if (vectors == phba->sli4_hba.num_present_cpu) {
-		cpup = phba->sli4_hba.cpu_map;
-		for (idx = 0; idx < vectors; idx++) {
+	for (idx = 0; idx <  phba->cfg_irq_chann; idx++) {
+		maskp = pci_irq_get_affinity(phba->pcidev, idx);
+		if (!maskp)
+			continue;
+
+		for_each_cpu_and(cpu, maskp, cpu_present_mask) {
+			cpup = &phba->sli4_hba.cpu_map[cpu];
 			cpup->eq = idx;
 			cpup->hdwq = idx;
 			cpup->irq = pci_irq_vector(phba->pcidev, idx);
 
-			/* Now affinitize to the selected CPU */
-			irq_set_affinity_hint(
-				pci_irq_vector(phba->pcidev, idx),
-				get_cpu_mask(idx));
-			irq_set_status_flags(cpup->irq, IRQ_NO_BALANCING);
-
-			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 					"3336 Set Affinity: CPU %d "
-					"EQ %d irq %d\n",
-					idx, cpup->eq,
-					pci_irq_vector(phba->pcidev, idx));
-			cpup++;
-		}
-		return;
-	}
-
-	idx = 0;
-	isr_avail = 1;
-	eqidx = 0;
-	hdwqidx = 0;
-
-	/* Mapping is more complicated for this case. Hardware Queues are
-	 * assigned in a "ping pong" fashion, ping pong-ing between the
-	 * available phys_id's.
-	 */
-	while (idx < phba->sli4_hba.num_present_cpu) {
-		for (i = min_core_id; i <= max_core_id; i++) {
-			for (j = min_phys_id; j <= max_phys_id; j++) {
-				cpup = lpfc_find_cpu_map(phba, j, i, hdwqidx,
-							 eqidx, isr_avail);
-				if (!cpup)
-					continue;
-				idx++;
-				hdwqidx++;
-				if (hdwqidx >= phba->cfg_hdw_queue)
-					hdwqidx = 0;
-				eqidx++;
-				if (eqidx >= phba->cfg_irq_chann) {
-					isr_avail = 0;
-					eqidx = 0;
-				}
-			}
+					"hdwq %d irq %d\n",
+					cpu, cpup->hdwq, cpup->irq);
 		}
 	}
 	return;
@@ -10834,7 +10698,7 @@ lpfc_sli4_enable_msix(struct lpfc_hba *phba)
 	vectors = phba->cfg_irq_chann;
 
 	rc = pci_alloc_irq_vectors(phba->pcidev,
-				(phba->nvmet_support) ? 1 : 2,
+				1,
 				vectors, PCI_IRQ_MSIX | PCI_IRQ_AFFINITY);
 	if (rc < 0) {
 		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
