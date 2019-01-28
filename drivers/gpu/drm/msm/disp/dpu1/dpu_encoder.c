@@ -1791,7 +1791,6 @@ void dpu_encoder_kickoff(struct drm_encoder *drm_enc, bool async)
 {
 	struct dpu_encoder_virt *dpu_enc;
 	struct dpu_encoder_phys *phys;
-	unsigned long timeout_ms;
 	ktime_t wakeup_time;
 	unsigned int i;
 
@@ -1804,12 +1803,20 @@ void dpu_encoder_kickoff(struct drm_encoder *drm_enc, bool async)
 
 	trace_dpu_enc_kickoff(DRMID(drm_enc));
 
-	timeout_ms = DPU_ENCODER_FRAME_DONE_TIMEOUT_FRAMES * 1000 /
-		drm_mode_vrefresh(&drm_enc->crtc->state->adjusted_mode);
+	/*
+	 * Asynchronous frames don't handle FRAME_DONE events. As such, they
+	 * shouldn't enable the frame_done watchdog since it will always time
+	 * out.
+	 */
+	if (!async) {
+		unsigned long timeout_ms;
+		timeout_ms = DPU_ENCODER_FRAME_DONE_TIMEOUT_FRAMES * 1000 /
+			drm_mode_vrefresh(&drm_enc->crtc->state->adjusted_mode);
 
-	atomic_set(&dpu_enc->frame_done_timeout_ms, timeout_ms);
-	mod_timer(&dpu_enc->frame_done_timer,
-		  jiffies + msecs_to_jiffies(timeout_ms));
+		atomic_set(&dpu_enc->frame_done_timeout_ms, timeout_ms);
+		mod_timer(&dpu_enc->frame_done_timer,
+			  jiffies + msecs_to_jiffies(timeout_ms));
+	}
 
 	/* All phys encs are ready to go, trigger the kickoff */
 	_dpu_encoder_kickoff_phys(dpu_enc, async);
