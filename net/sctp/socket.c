@@ -3510,8 +3510,8 @@ static int sctp_setsockopt_adaptation_layer(struct sock *sk, char __user *optval
 static int sctp_setsockopt_context(struct sock *sk, char __user *optval,
 				   unsigned int optlen)
 {
+	struct sctp_sock *sp = sctp_sk(sk);
 	struct sctp_assoc_value params;
-	struct sctp_sock *sp;
 	struct sctp_association *asoc;
 
 	if (optlen != sizeof(struct sctp_assoc_value))
@@ -3519,16 +3519,25 @@ static int sctp_setsockopt_context(struct sock *sk, char __user *optval,
 	if (copy_from_user(&params, optval, optlen))
 		return -EFAULT;
 
-	sp = sctp_sk(sk);
+	asoc = sctp_id2assoc(sk, params.assoc_id);
+	if (!asoc && params.assoc_id > SCTP_ALL_ASSOC &&
+	    sctp_style(sk, UDP))
+		return -EINVAL;
 
-	if (params.assoc_id != 0) {
-		asoc = sctp_id2assoc(sk, params.assoc_id);
-		if (!asoc)
-			return -EINVAL;
+	if (asoc) {
 		asoc->default_rcv_context = params.assoc_value;
-	} else {
-		sp->default_rcv_context = params.assoc_value;
+
+		return 0;
 	}
+
+	if (params.assoc_id == SCTP_FUTURE_ASSOC ||
+	    params.assoc_id == SCTP_ALL_ASSOC)
+		sp->default_rcv_context = params.assoc_value;
+
+	if (params.assoc_id == SCTP_CURRENT_ASSOC ||
+	    params.assoc_id == SCTP_ALL_ASSOC)
+		list_for_each_entry(asoc, &sp->ep->asocs, asocs)
+			asoc->default_rcv_context = params.assoc_value;
 
 	return 0;
 }
@@ -6517,7 +6526,6 @@ static int sctp_getsockopt_context(struct sock *sk, int len,
 				   char __user *optval, int __user *optlen)
 {
 	struct sctp_assoc_value params;
-	struct sctp_sock *sp;
 	struct sctp_association *asoc;
 
 	if (len < sizeof(struct sctp_assoc_value))
@@ -6528,16 +6536,13 @@ static int sctp_getsockopt_context(struct sock *sk, int len,
 	if (copy_from_user(&params, optval, len))
 		return -EFAULT;
 
-	sp = sctp_sk(sk);
+	asoc = sctp_id2assoc(sk, params.assoc_id);
+	if (!asoc && params.assoc_id != SCTP_FUTURE_ASSOC &&
+	    sctp_style(sk, UDP))
+		return -EINVAL;
 
-	if (params.assoc_id != 0) {
-		asoc = sctp_id2assoc(sk, params.assoc_id);
-		if (!asoc)
-			return -EINVAL;
-		params.assoc_value = asoc->default_rcv_context;
-	} else {
-		params.assoc_value = sp->default_rcv_context;
-	}
+	params.assoc_value = asoc ? asoc->default_rcv_context
+				  : sctp_sk(sk)->default_rcv_context;
 
 	if (put_user(len, optlen))
 		return -EFAULT;
