@@ -2080,8 +2080,7 @@ wdata_send_pages(struct TCP_Server_Info *server, struct cifs_writedata *wdata,
 		 unsigned int nr_pages, struct address_space *mapping,
 		 struct writeback_control *wbc)
 {
-	int rc = 0;
-	unsigned int i;
+	int rc;
 
 	wdata->sync_mode = wbc->sync_mode;
 	wdata->nr_pages = nr_pages;
@@ -2094,7 +2093,7 @@ wdata_send_pages(struct TCP_Server_Info *server, struct cifs_writedata *wdata,
 
 	rc = adjust_credits(server, &wdata->credits, wdata->bytes);
 	if (rc)
-		goto send_pages_out;
+		return rc;
 
 	if (!wdata->cfile) {
 		cifs_dbg(VFS, "No writable handle in writepages\n");
@@ -2107,10 +2106,6 @@ wdata_send_pages(struct TCP_Server_Info *server, struct cifs_writedata *wdata,
 			rc = server->ops->async_writev(wdata,
 						       cifs_writedata_release);
 	}
-
-send_pages_out:
-	for (i = 0; i < nr_pages; ++i)
-		unlock_page(wdata->pages[i]);
 
 	return rc;
 }
@@ -2199,6 +2194,9 @@ retry:
 		cfile = NULL;
 
 		rc = wdata_send_pages(server, wdata, nr_pages, mapping, wbc);
+
+		for (i = 0; i < nr_pages; ++i)
+			unlock_page(wdata->pages[i]);
 
 		/* send failure -- clean up the mess */
 		if (rc != 0) {
