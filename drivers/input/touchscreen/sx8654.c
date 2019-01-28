@@ -291,6 +291,8 @@ static int sx8654_probe(struct i2c_client *client,
 #ifdef CONFIG_OF
 static const struct of_device_id sx8654_of_match[] = {
 	{ .compatible = "semtech,sx8654", },
+	{ .compatible = "semtech,sx8655", },
+	{ .compatible = "semtech,sx8656", },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, sx8654_of_match);
@@ -298,6 +300,8 @@ MODULE_DEVICE_TABLE(of, sx8654_of_match);
 
 static const struct i2c_device_id sx8654_id_table[] = {
 	{ "semtech_sx8654", 0 },
+	{ "semtech_sx8655", 0 },
+	{ "semtech_sx8656", 0 },
 	{ },
 };
 MODULE_DEVICE_TABLE(i2c, sx8654_id_table);
