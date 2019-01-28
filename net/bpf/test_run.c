@@ -240,3 +240,85 @@ out:
 	kfree(data);
 	return ret;
 }
+
+int bpf_prog_test_run_flow_dissector(struct bpf_prog *prog,
+				     const union bpf_attr *kattr,
+				     union bpf_attr __user *uattr)
+{
+	u32 size = kattr->test.data_size_in;
+	u32 repeat = kattr->test.repeat;
+	struct bpf_flow_keys flow_keys;
+	u64 time_start, time_spent = 0;
+	struct bpf_skb_data_end *cb;
+	u32 retval, duration;
+	struct sk_buff *skb;
+	struct sock *sk;
+	void *data;
+	int ret;
+	u32 i;
+
+	if (prog->type != BPF_PROG_TYPE_FLOW_DISSECTOR)
+		return -EINVAL;
+
+	data = bpf_test_init(kattr, size, NET_SKB_PAD + NET_IP_ALIGN,
+			     SKB_DATA_ALIGN(sizeof(struct skb_shared_info)));
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
+	sk = kzalloc(sizeof(*sk), GFP_USER);
+	if (!sk) {
+		kfree(data);
+		return -ENOMEM;
+	}
+	sock_net_set(sk, current->nsproxy->net_ns);
+	sock_init_data(NULL, sk);
+
+	skb = build_skb(data, 0);
+	if (!skb) {
+		kfree(data);
+		kfree(sk);
+		return -ENOMEM;
+	}
+	skb->sk = sk;
+
+	skb_reserve(skb, NET_SKB_PAD + NET_IP_ALIGN);
+	__skb_put(skb, size);
+	skb->protocol = eth_type_trans(skb,
+				       current->nsproxy->net_ns->loopback_dev);
+	skb_reset_network_header(skb);
+
+	cb = (struct bpf_skb_data_end *)skb->cb;
+	cb->qdisc_cb.flow_keys = &flow_keys;
+
+	if (!repeat)
+		repeat = 1;
+
+	time_start = ktime_get_ns();
+	for (i = 0; i < repeat; i++) {
+		preempt_disable();
+		rcu_read_lock();
+		retval = __skb_flow_bpf_dissect(prog, skb,
+						&flow_keys_dissector,
+						&flow_keys);
+		rcu_read_unlock();
+		preempt_enable();
+
+		if (need_resched()) {
+			if (signal_pending(current))
+				break;
+			time_spent += ktime_get_ns() - time_start;
+			cond_resched();
+			time_start = ktime_get_ns();
+		}
+	}
+	time_spent += ktime_get_ns() - time_start;
+	do_div(time_spent, repeat);
+	duration = time_spent > U32_MAX ? U32_MAX : (u32)time_spent;
+
+	ret = bpf_test_finish(kattr, uattr, &flow_keys, sizeof(flow_keys),
+			      retval, duration);
+
+	kfree_skb(skb);
+	kfree(sk);
+	return ret;
+}

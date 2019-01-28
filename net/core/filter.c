@@ -7711,6 +7711,7 @@ const struct bpf_verifier_ops flow_dissector_verifier_ops = {
 };
 
 const struct bpf_prog_ops flow_dissector_prog_ops = {
+	.test_run		= bpf_prog_test_run_flow_dissector,
 };
 
 int sk_detach_filter(struct sock *sk)
