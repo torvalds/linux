@@ -13,7 +13,7 @@
 
 void rtw_init_mlme_timer(struct adapter *padapter)
 {
-	struct	mlme_priv *pmlmepriv = &padapter->mlmepriv;
+	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
 	timer_setup(&pmlmepriv->assoc_timer, _rtw_join_timeout_handler, 0);
 	timer_setup(&pmlmepriv->scan_to_timer, rtw_scan_timeout_handler, 0);
@@ -87,8 +87,8 @@ void rtw_os_indicate_disconnect(struct adapter *adapter)
 
 void rtw_report_sec_ie(struct adapter *adapter, u8 authmode, u8 *sec_ie)
 {
-	uint	len;
-	u8	*buff, *p, i;
+	uint len;
+	u8 *buff, *p, i;
 	union iwreq_data wrqu;
 
 	RT_TRACE(_module_mlme_osdep_c_, _drv_info_,
@@ -123,7 +123,7 @@ void init_addba_retry_timer(struct adapter *padapter, struct sta_info *psta)
 
 void init_mlme_ext_timer(struct adapter *padapter)
 {
-	struct	mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 
 	timer_setup(&pmlmeext->survey_timer, survey_timer_hdl, 0);
 	timer_setup(&pmlmeext->link_timer, link_timer_hdl, 0);
