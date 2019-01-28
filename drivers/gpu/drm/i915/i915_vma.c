@@ -213,7 +213,10 @@ vma_create(struct drm_i915_gem_object *obj,
 	}
 	rb_link_node(&vma->obj_node, rb, p);
 	rb_insert_color(&vma->obj_node, &obj->vma_tree);
+
+	mutex_lock(&vm->mutex);
 	list_add(&vma->vm_link, &vm->unbound_list);
+	mutex_unlock(&vm->mutex);
 
 	return vma;
 
@@ -656,7 +659,9 @@ i915_vma_insert(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
 	GEM_BUG_ON(!i915_gem_valid_gtt_space(vma, cache_level));
 
+	mutex_lock(&vma->vm->mutex);
 	list_move_tail(&vma->vm_link, &vma->vm->bound_list);
+	mutex_unlock(&vma->vm->mutex);
 
 	if (vma->obj) {
 		struct drm_i915_gem_object *obj = vma->obj;
@@ -689,8 +694,10 @@ i915_vma_remove(struct i915_vma *vma)
 
 	vma->ops->clear_pages(vma);
 
+	mutex_lock(&vma->vm->mutex);
 	drm_mm_remove_node(&vma->node);
 	list_move_tail(&vma->vm_link, &vma->vm->unbound_list);
+	mutex_unlock(&vma->vm->mutex);
 
 	/*
 	 * Since the unbound list is global, only move to that list if
@@ -802,7 +809,11 @@ static void __i915_vma_destroy(struct i915_vma *vma)
 	GEM_BUG_ON(i915_gem_active_isset(&vma->last_fence));
 
 	list_del(&vma->obj_link);
+
+	mutex_lock(&vma->vm->mutex);
 	list_del(&vma->vm_link);
+	mutex_unlock(&vma->vm->mutex);
+
 	if (vma->obj)
 		rb_erase(&vma->obj_node, &vma->obj->vma_tree);
 

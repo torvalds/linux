@@ -430,6 +430,7 @@ int i915_gem_evict_vm(struct i915_address_space *vm)
 	}
 
 	INIT_LIST_HEAD(&eviction_list);
+	mutex_lock(&vm->mutex);
 	list_for_each_entry(vma, &vm->bound_list, vm_link) {
 		if (i915_vma_is_pinned(vma))
 			continue;
@@ -437,6 +438,7 @@ int i915_gem_evict_vm(struct i915_address_space *vm)
 		__i915_vma_pin(vma);
 		list_add(&vma->evict_link, &eviction_list);
 	}
+	mutex_unlock(&vm->mutex);
 
 	ret = 0;
 	list_for_each_entry_safe(vma, next, &eviction_list, evict_link) {

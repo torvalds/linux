@@ -1931,7 +1931,10 @@ static struct i915_vma *pd_vma_create(struct gen6_hw_ppgtt *ppgtt, int size)
 	vma->ggtt_view.type = I915_GGTT_VIEW_ROTATED; /* prevent fencing */
 
 	INIT_LIST_HEAD(&vma->obj_link);
+
+	mutex_lock(&vma->vm->mutex);
 	list_add(&vma->vm_link, &vma->vm->unbound_list);
+	mutex_unlock(&vma->vm->mutex);
 
 	return vma;
 }
@@ -3504,9 +3507,10 @@ void i915_gem_restore_gtt_mappings(struct drm_i915_private *dev_priv)
 
 	i915_check_and_clear_faults(dev_priv);
 
+	mutex_lock(&ggtt->vm.mutex);
+
 	/* First fill our portion of the GTT with scratch pages */
 	ggtt->vm.clear_range(&ggtt->vm, 0, ggtt->vm.total);
-
 	ggtt->vm.closed = true; /* skip rewriting PTE on VMA unbind */
 
 	/* clflush objects bound into the GGTT and rebind them. */
@@ -3516,18 +3520,25 @@ void i915_gem_restore_gtt_mappings(struct drm_i915_private *dev_priv)
 		if (!(vma->flags & I915_VMA_GLOBAL_BIND))
 			continue;
 
+		mutex_unlock(&ggtt->vm.mutex);
+
 		if (!i915_vma_unbind(vma))
-			continue;
+			goto lock;
 
 		WARN_ON(i915_vma_bind(vma,
 				      obj ? obj->cache_level : 0,
 				      PIN_UPDATE));
 		if (obj)
 			WARN_ON(i915_gem_object_set_to_gtt_domain(obj, false));
+
+lock:
+		mutex_lock(&ggtt->vm.mutex);
 	}
 
 	ggtt->vm.closed = false;
 	i915_ggtt_invalidate(dev_priv);
+
+	mutex_unlock(&ggtt->vm.mutex);
 
 	if (INTEL_GEN(dev_priv) >= 8) {
 		struct intel_ppat *ppat = &dev_priv->ppat;

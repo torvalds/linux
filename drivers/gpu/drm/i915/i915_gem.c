@@ -245,18 +245,19 @@ int
 i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
 			    struct drm_file *file)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct i915_ggtt *ggtt = &dev_priv->ggtt;
+	struct i915_ggtt *ggtt = &to_i915(dev)->ggtt;
 	struct drm_i915_gem_get_aperture *args = data;
 	struct i915_vma *vma;
 	u64 pinned;
 
+	mutex_lock(&ggtt->vm.mutex);
+
 	pinned = ggtt->vm.reserved;
-	mutex_lock(&dev->struct_mutex);
 	list_for_each_entry(vma, &ggtt->vm.bound_list, vm_link)
 		if (i915_vma_is_pinned(vma))
 			pinned += vma->node.size;
-	mutex_unlock(&dev->struct_mutex);
+
+	mutex_unlock(&ggtt->vm.mutex);
 
 	args->aper_size = ggtt->vm.total;
 	args->aper_available_size = args->aper_size - pinned;
@@ -1529,20 +1530,21 @@ err:
 
 static void i915_gem_object_bump_inactive_ggtt(struct drm_i915_gem_object *obj)
 {
-	struct drm_i915_private *i915;
+	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 	struct list_head *list;
 	struct i915_vma *vma;
 
 	GEM_BUG_ON(!i915_gem_object_has_pinned_pages(obj));
 
+	mutex_lock(&i915->ggtt.vm.mutex);
 	for_each_ggtt_vma(vma, obj) {
 		if (!drm_mm_node_allocated(&vma->node))
 			continue;
 
 		list_move_tail(&vma->vm_link, &vma->vm->bound_list);
 	}
+	mutex_unlock(&i915->ggtt.vm.mutex);
 
-	i915 = to_i915(obj->base.dev);
 	spin_lock(&i915->mm.obj_lock);
 	list = obj->bind_count ? &i915->mm.bound_list : &i915->mm.unbound_list;
 	list_move_tail(&obj->mm.link, list);
