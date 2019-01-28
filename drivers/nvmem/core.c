@@ -874,7 +874,7 @@ struct nvmem_device *nvmem_device_get(struct device *dev, const char *dev_name)
 
 	}
 
-	return nvmem_find(dev_name);
+	return __nvmem_device_get(NULL, dev_name);
 }
 EXPORT_SYMBOL_GPL(nvmem_device_get);
 
