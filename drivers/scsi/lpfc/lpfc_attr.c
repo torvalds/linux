@@ -3772,9 +3772,9 @@ LPFC_ATTR_R(nvmet_mrq_post,
  * lpfc_enable_fc4_type: Defines what FC4 types are supported.
  * Supported Values:  1 - register just FCP
  *                    3 - register both FCP and NVME
- * Supported values are [1,3]. Default value is 1
+ * Supported values are [1,3]. Default value is 3
  */
-LPFC_ATTR_R(enable_fc4_type, LPFC_ENABLE_FCP,
+LPFC_ATTR_R(enable_fc4_type, LPFC_ENABLE_BOTH,
 	    LPFC_ENABLE_FCP, LPFC_ENABLE_BOTH,
 	    "Enable FC4 Protocol support - FCP / NVME");
 
