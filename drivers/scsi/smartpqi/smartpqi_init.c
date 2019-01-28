@@ -323,7 +323,7 @@ static inline void pqi_device_remove_start(struct pqi_scsi_dev *device)
 static inline bool pqi_device_in_remove(struct pqi_ctrl_info *ctrl_info,
 					struct pqi_scsi_dev *device)
 {
-	return device->in_remove & !ctrl_info->in_shutdown;
+	return device->in_remove && !ctrl_info->in_shutdown;
 }
 
 static inline void pqi_schedule_rescan_worker_with_delay(

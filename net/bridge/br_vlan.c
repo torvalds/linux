@@ -80,16 +80,18 @@ static bool __vlan_add_flags(struct net_bridge_vlan *v, u16 flags)
 }
 
 static int __vlan_vid_add(struct net_device *dev, struct net_bridge *br,
-			  u16 vid, u16 flags, struct netlink_ext_ack *extack)
+			  struct net_bridge_vlan *v, u16 flags,
+			  struct netlink_ext_ack *extack)
 {
 	int err;
 
 	/* Try switchdev op first. In case it is not supported, fallback to
 	 * 8021q add.
 	 */
-	err = br_switchdev_port_vlan_add(dev, vid, flags, extack);
+	err = br_switchdev_port_vlan_add(dev, v->vid, flags, extack);
 	if (err == -EOPNOTSUPP)
-		return vlan_vid_add(dev, br->vlan_proto, vid);
+		return vlan_vid_add(dev, br->vlan_proto, v->vid);
+	v->priv_flags |= BR_VLFLAG_ADDED_BY_SWITCHDEV;
 	return err;
 }
 
@@ -121,19 +123,17 @@ static void __vlan_del_list(struct net_bridge_vlan *v)
 }
 
 static int __vlan_vid_del(struct net_device *dev, struct net_bridge *br,
-			  u16 vid)
+			  const struct net_bridge_vlan *v)
 {
 	int err;
 
 	/* Try switchdev op first. In case it is not supported, fallback to
 	 * 8021q del.
 	 */
-	err = br_switchdev_port_vlan_del(dev, vid);
-	if (err == -EOPNOTSUPP) {
-		vlan_vid_del(dev, br->vlan_proto, vid);
-		return 0;
-	}
-	return err;
+	err = br_switchdev_port_vlan_del(dev, v->vid);
+	if (!(v->priv_flags & BR_VLFLAG_ADDED_BY_SWITCHDEV))
+		vlan_vid_del(dev, br->vlan_proto, v->vid);
+	return err == -EOPNOTSUPP ? 0 : err;
 }
 
 /* Returns a master vlan, if it didn't exist it gets created. In all cases a
@@ -242,7 +242,7 @@ static int __vlan_add(struct net_bridge_vlan *v, u16 flags,
 		 * This ensures tagged traffic enters the bridge when
 		 * promiscuous mode is disabled by br_manage_promisc().
 		 */
-		err = __vlan_vid_add(dev, br, v->vid, flags, extack);
+		err = __vlan_vid_add(dev, br, v, flags, extack);
 		if (err)
 			goto out;
 
@@ -305,7 +305,7 @@ out_fdb_insert:
 
 out_filt:
 	if (p) {
-		__vlan_vid_del(dev, br, v->vid);
+		__vlan_vid_del(dev, br, v);
 		if (masterv) {
 			if (v->stats && masterv->stats != v->stats)
 				free_percpu(v->stats);
@@ -338,7 +338,7 @@ static int __vlan_del(struct net_bridge_vlan *v)
 
 	__vlan_delete_pvid(vg, v->vid);
 	if (p) {
-		err = __vlan_vid_del(p->dev, p->br, v->vid);
+		err = __vlan_vid_del(p->dev, p->br, v);
 		if (err)
 			goto out;
 	} else {
