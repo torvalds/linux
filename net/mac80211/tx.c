@@ -3708,7 +3708,6 @@ void ieee80211_schedule_txq(struct ieee80211_hw *hw,
 	__acquires(txq_lock) __releases(txq_lock)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
-	struct txq_info *txqi = to_txq_info(txq);
 
 	spin_lock_bh(&local->active_txq_lock[txq->ac]);
 	ieee80211_return_txq(hw, txq);
