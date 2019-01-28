@@ -3766,10 +3766,10 @@ __lpfc_idiag_print_wq(struct lpfc_queue *qp, char *wqtype,
 			(unsigned long long)qp->q_cnt_4);
 	len += snprintf(pbuffer + len, LPFC_QUE_INFO_GET_BUF_SIZE - len,
 			"\t\tWQID[%02d], QE-CNT[%04d], QE-SZ[%04d], "
-			"HST-IDX[%04d], PRT-IDX[%04d], PST[%03d]",
+			"HST-IDX[%04d], PRT-IDX[%04d], NTFI[%03d]",
 			qp->queue_id, qp->entry_count,
 			qp->entry_size, qp->host_index,
-			qp->hba_index, qp->entry_repost);
+			qp->hba_index, qp->notify_interval);
 	len +=  snprintf(pbuffer + len,
 			LPFC_QUE_INFO_GET_BUF_SIZE - len, "\n");
 	return len;
@@ -3819,10 +3819,10 @@ __lpfc_idiag_print_cq(struct lpfc_queue *qp, char *cqtype,
 			qp->q_cnt_3, (unsigned long long)qp->q_cnt_4);
 	len += snprintf(pbuffer + len, LPFC_QUE_INFO_GET_BUF_SIZE - len,
 			"\tCQID[%02d], QE-CNT[%04d], QE-SZ[%04d], "
-			"HST-IDX[%04d], PRT-IDX[%04d], PST[%03d]",
+			"HST-IDX[%04d], NTFI[%03d], PLMT[%03d]",
 			qp->queue_id, qp->entry_count,
 			qp->entry_size, qp->host_index,
-			qp->hba_index, qp->entry_repost);
+			qp->notify_interval, qp->max_proc_limit);
 
 	len +=  snprintf(pbuffer + len, LPFC_QUE_INFO_GET_BUF_SIZE - len, "\n");
 
@@ -3845,15 +3845,15 @@ __lpfc_idiag_print_rqpair(struct lpfc_queue *qp, struct lpfc_queue *datqp,
 			qp->q_cnt_3, (unsigned long long)qp->q_cnt_4);
 	len += snprintf(pbuffer + len, LPFC_QUE_INFO_GET_BUF_SIZE - len,
 			"\t\tHQID[%02d], QE-CNT[%04d], QE-SZ[%04d], "
-			"HST-IDX[%04d], PRT-IDX[%04d], PST[%03d]\n",
+			"HST-IDX[%04d], PRT-IDX[%04d], NTFI[%03d]\n",
 			qp->queue_id, qp->entry_count, qp->entry_size,
-			qp->host_index, qp->hba_index, qp->entry_repost);
+			qp->host_index, qp->hba_index, qp->notify_interval);
 	len += snprintf(pbuffer + len, LPFC_QUE_INFO_GET_BUF_SIZE - len,
 			"\t\tDQID[%02d], QE-CNT[%04d], QE-SZ[%04d], "
-			"HST-IDX[%04d], PRT-IDX[%04d], PST[%03d]\n",
+			"HST-IDX[%04d], PRT-IDX[%04d], NTFI[%03d]\n",
 			datqp->queue_id, datqp->entry_count,
 			datqp->entry_size, datqp->host_index,
-			datqp->hba_index, datqp->entry_repost);
+			datqp->hba_index, datqp->notify_interval);
 	return len;
 }
 
@@ -3934,10 +3934,10 @@ __lpfc_idiag_print_eq(struct lpfc_queue *qp, char *eqtype,
 			(unsigned long long)qp->q_cnt_4, qp->q_mode);
 	len += snprintf(pbuffer + len, LPFC_QUE_INFO_GET_BUF_SIZE - len,
 			"EQID[%02d], QE-CNT[%04d], QE-SZ[%04d], "
-			"HST-IDX[%04d], PRT-IDX[%04d], PST[%03d] AFFIN[%03d]",
+			"HST-IDX[%04d], NTFI[%03d], PLMT[%03d], AFFIN[%03d]",
 			qp->queue_id, qp->entry_count, qp->entry_size,
-			qp->host_index, qp->hba_index, qp->entry_repost,
-			qp->chann);
+			qp->host_index, qp->notify_interval,
+			qp->max_proc_limit, qp->chann);
 	len +=  snprintf(pbuffer + len, LPFC_QUE_INFO_GET_BUF_SIZE - len, "\n");
 
 	return len;

@@ -154,14 +154,41 @@ struct lpfc_queue {
 	struct list_head child_list;
 	struct list_head page_list;
 	struct list_head sgl_list;
+	struct list_head cpu_list;
 	uint32_t entry_count;	/* Number of entries to support on the queue */
 	uint32_t entry_size;	/* Size of each queue entry. */
-	uint32_t entry_repost;	/* Count of entries before doorbell is rung */
-#define LPFC_EQ_REPOST		8
-#define LPFC_MQ_REPOST		8
-#define LPFC_CQ_REPOST		64
-#define LPFC_RQ_REPOST		64
-#define LPFC_RELEASE_NOTIFICATION_INTERVAL	32  /* For WQs */
+	uint32_t notify_interval; /* Queue Notification Interval
+				   * For chip->host queues (EQ, CQ, RQ):
+				   *  specifies the interval (number of
+				   *  entries) where the doorbell is rung to
+				   *  notify the chip of entry consumption.
+				   * For host->chip queues (WQ):
+				   *  specifies the interval (number of
+				   *  entries) where consumption CQE is
+				   *  requested to indicate WQ entries
+				   *  consumed by the chip.
+				   * Not used on an MQ.
+				   */
+#define LPFC_EQ_NOTIFY_INTRVL	16
+#define LPFC_CQ_NOTIFY_INTRVL	16
+#define LPFC_WQ_NOTIFY_INTRVL	16
+#define LPFC_RQ_NOTIFY_INTRVL	16
+	uint32_t max_proc_limit; /* Queue Processing Limit
+				  * For chip->host queues (EQ, CQ):
+				  *  specifies the maximum number of
+				  *  entries to be consumed in one
+				  *  processing iteration sequence. Queue
+				  *  will be rearmed after each iteration.
+				  * Not used on an MQ, RQ or WQ.
+				  */
+#define LPFC_EQ_MAX_PROC_LIMIT		256
+#define LPFC_CQ_MIN_PROC_LIMIT		64
+#define LPFC_CQ_MAX_PROC_LIMIT		LPFC_CQE_EXP_COUNT	// 4096
+#define LPFC_CQ_DEF_MAX_PROC_LIMIT	LPFC_CQE_DEF_COUNT	// 1024
+#define LPFC_CQ_MIN_THRESHOLD_TO_POLL	64
+#define LPFC_CQ_MAX_THRESHOLD_TO_POLL	LPFC_CQ_DEF_MAX_PROC_LIMIT
+#define LPFC_CQ_DEF_THRESHOLD_TO_POLL	LPFC_CQ_DEF_MAX_PROC_LIMIT
+	uint32_t queue_claimed; /* indicates queue is being processed */
 	uint32_t queue_id;	/* Queue ID assigned by the hardware */
 	uint32_t assoc_qid;     /* Queue ID associated with, for CQ/WQ/MQ */
 	uint32_t host_index;	/* The host's index for putting or getting */
@@ -217,11 +244,14 @@ struct lpfc_queue {
 #define	RQ_buf_posted		q_cnt_3
 #define	RQ_rcv_buf		q_cnt_4
 
-	struct work_struct irqwork;
-	struct work_struct spwork;
+	struct work_struct	irqwork;
+	struct work_struct	spwork;
+	struct delayed_work	sched_irqwork;
+	struct delayed_work	sched_spwork;
 
 	uint64_t isr_timestamp;
 	uint16_t hdwq;
+	uint16_t last_cpu;	/* most recent cpu */
 	uint8_t	qe_valid;
 	struct lpfc_queue *assoc_qp;
 	union sli4_qe qe[1];	/* array to index entries (must be last) */
@@ -608,6 +638,11 @@ struct lpfc_lock_stat {
 };
 #endif
 
+struct lpfc_eq_intr_info {
+	struct list_head list;
+	uint32_t icnt;
+};
+
 /* SLI4 HBA data structure entries */
 struct lpfc_sli4_hdw_queue {
 	/* Pointers to the constructed SLI4 queues */
@@ -749,8 +784,10 @@ struct lpfc_sli4_hba {
 	struct lpfc_hba_eq_hdl *hba_eq_hdl; /* HBA per-WQ handle */
 
 	void (*sli4_eq_clr_intr)(struct lpfc_queue *q);
-	uint32_t (*sli4_eq_release)(struct lpfc_queue *q, bool arm);
-	uint32_t (*sli4_cq_release)(struct lpfc_queue *q, bool arm);
+	void (*sli4_write_eq_db)(struct lpfc_hba *phba, struct lpfc_queue *eq,
+				uint32_t count, bool arm);
+	void (*sli4_write_cq_db)(struct lpfc_hba *phba, struct lpfc_queue *cq,
+				uint32_t count, bool arm);
 
 	/* Pointers to the constructed SLI4 queues */
 	struct lpfc_sli4_hdw_queue *hdwq;
@@ -856,6 +893,7 @@ struct lpfc_sli4_hba {
 	uint16_t num_online_cpu;
 	uint16_t num_present_cpu;
 	uint16_t curr_disp_cpu;
+	struct lpfc_eq_intr_info __percpu *eq_info;
 	uint32_t conf_trunk;
 #define lpfc_conf_trunk_port0_WORD	conf_trunk
 #define lpfc_conf_trunk_port0_SHIFT	0
@@ -1020,11 +1058,15 @@ int lpfc_sli4_get_els_iocb_cnt(struct lpfc_hba *);
 int lpfc_sli4_get_iocb_cnt(struct lpfc_hba *phba);
 int lpfc_sli4_init_vpi(struct lpfc_vport *);
 inline void lpfc_sli4_eq_clr_intr(struct lpfc_queue *);
-uint32_t lpfc_sli4_cq_release(struct lpfc_queue *, bool);
-uint32_t lpfc_sli4_eq_release(struct lpfc_queue *, bool);
+void lpfc_sli4_write_cq_db(struct lpfc_hba *phba, struct lpfc_queue *q,
+			   uint32_t count, bool arm);
+void lpfc_sli4_write_eq_db(struct lpfc_hba *phba, struct lpfc_queue *q,
+			   uint32_t count, bool arm);
 inline void lpfc_sli4_if6_eq_clr_intr(struct lpfc_queue *q);
-uint32_t lpfc_sli4_if6_cq_release(struct lpfc_queue *q, bool arm);
-uint32_t lpfc_sli4_if6_eq_release(struct lpfc_queue *q, bool arm);
+void lpfc_sli4_if6_write_cq_db(struct lpfc_hba *phba, struct lpfc_queue *q,
+			       uint32_t count, bool arm);
+void lpfc_sli4_if6_write_eq_db(struct lpfc_hba *phba, struct lpfc_queue *q,
+			       uint32_t count, bool arm);
 void lpfc_sli4_fcfi_unreg(struct lpfc_hba *, uint16_t);
 int lpfc_sli4_fcf_scan_read_fcf_rec(struct lpfc_hba *, uint16_t);
 int lpfc_sli4_fcf_rr_read_fcf_rec(struct lpfc_hba *, uint16_t);

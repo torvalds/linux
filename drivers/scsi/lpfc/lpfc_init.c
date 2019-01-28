@@ -1251,6 +1251,69 @@ lpfc_hb_mbox_cmpl(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmboxq)
 	return;
 }
 
+static void
+lpfc_hb_eq_delay_work(struct work_struct *work)
+{
+	struct lpfc_hba *phba = container_of(to_delayed_work(work),
+					     struct lpfc_hba, eq_delay_work);
+	struct lpfc_eq_intr_info *eqi, *eqi_new;
+	struct lpfc_queue *eq, *eq_next;
+	unsigned char *eqcnt = NULL;
+	uint32_t usdelay;
+	int i;
+
+	if (!phba->cfg_auto_imax || phba->pport->load_flag & FC_UNLOADING)
+		return;
+
+	if (phba->link_state == LPFC_HBA_ERROR ||
+	    phba->pport->fc_flag & FC_OFFLINE_MODE)
+		goto requeue;
+
+	eqcnt = kcalloc(num_possible_cpus(), sizeof(unsigned char),
+			GFP_KERNEL);
+	if (!eqcnt)
+		goto requeue;
+
+	for (i = 0; i < phba->cfg_irq_chann; i++) {
+		eq = phba->sli4_hba.hdwq[i].hba_eq;
+		if (eq && eqcnt[eq->last_cpu] < 2)
+			eqcnt[eq->last_cpu]++;
+		continue;
+	}
+
+	for_each_present_cpu(i) {
+		if (phba->cfg_irq_chann > 1 && eqcnt[i] < 2)
+			continue;
+
+		eqi = per_cpu_ptr(phba->sli4_hba.eq_info, i);
+
+		usdelay = (eqi->icnt / LPFC_IMAX_THRESHOLD) *
+			   LPFC_EQ_DELAY_STEP;
+		if (usdelay > LPFC_MAX_AUTO_EQ_DELAY)
+			usdelay = LPFC_MAX_AUTO_EQ_DELAY;
+
+		eqi->icnt = 0;
+
+		list_for_each_entry_safe(eq, eq_next, &eqi->list, cpu_list) {
+			if (eq->last_cpu != i) {
+				eqi_new = per_cpu_ptr(phba->sli4_hba.eq_info,
+						      eq->last_cpu);
+				list_move_tail(&eq->cpu_list, &eqi_new->list);
+				continue;
+			}
+			if (usdelay != eq->q_mode)
+				lpfc_modify_hba_eq_delay(phba, eq->hdwq, 1,
+							 usdelay);
+		}
+	}
+
+	kfree(eqcnt);
+
+requeue:
+	queue_delayed_work(phba->wq, &phba->eq_delay_work,
+			   msecs_to_jiffies(LPFC_EQ_DELAY_MSECS));
+}
+
 /**
  * lpfc_hb_mxp_handler - Multi-XRI pools handler to adjust XRI distribution
  * @phba: pointer to lpfc hba data structure.
@@ -1303,16 +1366,6 @@ lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 	int retval, i;
 	struct lpfc_sli *psli = &phba->sli;
 	LIST_HEAD(completions);
-	struct lpfc_queue *qp;
-	unsigned long time_elapsed;
-	uint32_t tick_cqe, max_cqe, val;
-	uint64_t tot, data1, data2, data3;
-	struct lpfc_nvmet_tgtport *tgtp;
-	struct lpfc_register reg_data;
-	struct nvme_fc_local_port *localport;
-	struct lpfc_nvme_lport *lport;
-	struct lpfc_fc4_ctrl_stat *cstat;
-	void __iomem *eqdreg = phba->sli4_hba.u.if_type2.EQDregaddr;
 
 	if (phba->cfg_xri_rebalancing) {
 		/* Multi-XRI pools handler */
@@ -1332,104 +1385,6 @@ lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 		(phba->pport->fc_flag & FC_OFFLINE_MODE))
 		return;
 
-	if (phba->cfg_auto_imax) {
-		if (!phba->last_eqdelay_time) {
-			phba->last_eqdelay_time = jiffies;
-			goto skip_eqdelay;
-		}
-		time_elapsed = jiffies - phba->last_eqdelay_time;
-		phba->last_eqdelay_time = jiffies;
-
-		tot = 0xffff;
-		/* Check outstanding IO count */
-		if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
-			if (phba->nvmet_support) {
-				tgtp = phba->targetport->private;
-				/* Calculate outstanding IOs */
-				tot = atomic_read(&tgtp->rcv_fcp_cmd_drop);
-				tot += atomic_read(&tgtp->xmt_fcp_release);
-				tot = atomic_read(&tgtp->rcv_fcp_cmd_in) - tot;
-			} else {
-				localport = phba->pport->localport;
-				if (!localport || !localport->private)
-					goto skip_eqdelay;
-				lport = (struct lpfc_nvme_lport *)
-					localport->private;
-				tot = 0;
-				for (i = 0;
-					i < phba->cfg_hdw_queue; i++) {
-					cstat =
-					     &phba->sli4_hba.hdwq[i].nvme_cstat;
-					data1 = cstat->input_requests;
-					data2 = cstat->output_requests;
-					data3 = cstat->control_requests;
-					tot += (data1 + data2 + data3);
-					tot -= cstat->io_cmpls;
-				}
-			}
-		}
-
-		/* Interrupts per sec per EQ */
-		val = phba->cfg_fcp_imax / phba->cfg_irq_chann;
-		tick_cqe = val / CONFIG_HZ; /* Per tick per EQ */
-
-		/* Assume 1 CQE/ISR, calc max CQEs allowed for time duration */
-		max_cqe = time_elapsed * tick_cqe;
-
-		for (i = 0; i < phba->cfg_irq_chann; i++) {
-			/* Fast-path EQ */
-			qp = phba->sli4_hba.hdwq[i].hba_eq;
-			if (!qp)
-				continue;
-
-			/* Use no EQ delay if we don't have many outstanding
-			 * IOs, or if we are only processing 1 CQE/ISR or less.
-			 * Otherwise, assume we can process up to lpfc_fcp_imax
-			 * interrupts per HBA.
-			 */
-			if (tot < LPFC_NODELAY_MAX_IO ||
-			    qp->EQ_cqe_cnt <= max_cqe)
-				val = 0;
-			else
-				val = phba->cfg_fcp_imax;
-
-			if (phba->sli.sli_flag & LPFC_SLI_USE_EQDR) {
-				/* Use EQ Delay Register method */
-
-				/* Convert for EQ Delay register */
-				if (val) {
-					/* First, interrupts per sec per EQ */
-					val = phba->cfg_fcp_imax /
-						phba->cfg_irq_chann;
-
-					/* us delay between each interrupt */
-					val = LPFC_SEC_TO_USEC / val;
-				}
-				if (val != qp->q_mode) {
-					reg_data.word0 = 0;
-					bf_set(lpfc_sliport_eqdelay_id,
-					       &reg_data, qp->queue_id);
-					bf_set(lpfc_sliport_eqdelay_delay,
-					       &reg_data, val);
-					writel(reg_data.word0, eqdreg);
-				}
-			} else {
-				/* Use mbox command method */
-				if (val != qp->q_mode)
-					lpfc_modify_hba_eq_delay(phba, i,
-								 1, val);
-			}
-
-			/*
-			 * val is cfg_fcp_imax or 0 for mbox delay or us delay
-			 * between interrupts for EQDR.
-			 */
-			qp->q_mode = val;
-			qp->EQ_cqe_cnt = 0;
-		}
-	}
-
-skip_eqdelay:
 	spin_lock_irq(&phba->pport->work_port_lock);
 
 	if (time_after(phba->last_completion_time +
@@ -2986,6 +2941,7 @@ lpfc_stop_hba_timers(struct lpfc_hba *phba)
 {
 	if (phba->pport)
 		lpfc_stop_vport_timers(phba->pport);
+	cancel_delayed_work_sync(&phba->eq_delay_work);
 	del_timer_sync(&phba->sli.mbox_tmo);
 	del_timer_sync(&phba->fabric_block_timer);
 	del_timer_sync(&phba->eratt_poll);
@@ -6234,6 +6190,8 @@ lpfc_setup_driver_resource_phase1(struct lpfc_hba *phba)
 	/* Heartbeat timer */
 	timer_setup(&phba->hb_tmofunc, lpfc_hb_timeout, 0);
 
+	INIT_DELAYED_WORK(&phba->eq_delay_work, lpfc_hb_eq_delay_work);
+
 	return 0;
 }
 
@@ -6849,6 +6807,13 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		goto out_free_hba_eq_hdl;
 	}
 
+	phba->sli4_hba.eq_info = alloc_percpu(struct lpfc_eq_intr_info);
+	if (!phba->sli4_hba.eq_info) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"3321 Failed allocation for per_cpu stats\n");
+		rc = -ENOMEM;
+		goto out_free_hba_cpu_map;
+	}
 	/*
 	 * Enable sr-iov virtual functions if supported and configured
 	 * through the module parameter.
@@ -6868,6 +6833,8 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 
 	return 0;
 
+out_free_hba_cpu_map:
+	kfree(phba->sli4_hba.cpu_map);
 out_free_hba_eq_hdl:
 	kfree(phba->sli4_hba.hba_eq_hdl);
 out_free_fcf_rr_bmask:
@@ -6896,6 +6863,8 @@ static void
 lpfc_sli4_driver_resource_unset(struct lpfc_hba *phba)
 {
 	struct lpfc_fcf_conn_entry *conn_entry, *next_conn_entry;
+
+	free_percpu(phba->sli4_hba.eq_info);
 
 	/* Free memory allocated for msi-x interrupt vector to CPU mapping */
 	kfree(phba->sli4_hba.cpu_map);
@@ -8753,6 +8722,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 	struct lpfc_queue *qdesc;
 	int idx, eqidx;
 	struct lpfc_sli4_hdw_queue *qp;
+	struct lpfc_eq_intr_info *eqi;
 
 	/*
 	 * Create HBA Record arrays.
@@ -8865,6 +8835,9 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 		qdesc->chann = lpfc_find_cpu_handle(phba, eqidx,
 						    LPFC_FIND_BY_EQ);
 		phba->sli4_hba.hdwq[idx].hba_eq = qdesc;
+		qdesc->last_cpu = qdesc->chann;
+		eqi = per_cpu_ptr(phba->sli4_hba.eq_info, qdesc->last_cpu);
+		list_add(&qdesc->cpu_list, &eqi->list);
 	}
 
 
@@ -10246,13 +10219,13 @@ lpfc_sli4_pci_mem_setup(struct lpfc_hba *phba)
 	case LPFC_SLI_INTF_IF_TYPE_0:
 	case LPFC_SLI_INTF_IF_TYPE_2:
 		phba->sli4_hba.sli4_eq_clr_intr = lpfc_sli4_eq_clr_intr;
-		phba->sli4_hba.sli4_eq_release = lpfc_sli4_eq_release;
-		phba->sli4_hba.sli4_cq_release = lpfc_sli4_cq_release;
+		phba->sli4_hba.sli4_write_eq_db = lpfc_sli4_write_eq_db;
+		phba->sli4_hba.sli4_write_cq_db = lpfc_sli4_write_cq_db;
 		break;
 	case LPFC_SLI_INTF_IF_TYPE_6:
 		phba->sli4_hba.sli4_eq_clr_intr = lpfc_sli4_if6_eq_clr_intr;
-		phba->sli4_hba.sli4_eq_release = lpfc_sli4_if6_eq_release;
-		phba->sli4_hba.sli4_cq_release = lpfc_sli4_if6_cq_release;
+		phba->sli4_hba.sli4_write_eq_db = lpfc_sli4_if6_write_eq_db;
+		phba->sli4_hba.sli4_write_cq_db = lpfc_sli4_if6_write_cq_db;
 		break;
 	default:
 		break;
@@ -10771,6 +10744,14 @@ lpfc_cpu_affinity_check(struct lpfc_hba *phba, int vectors)
 			min_core_id = cpup->core_id;
 
 		cpup++;
+	}
+
+	for_each_possible_cpu(i) {
+		struct lpfc_eq_intr_info *eqi =
+			per_cpu_ptr(phba->sli4_hba.eq_info, i);
+
+		INIT_LIST_HEAD(&eqi->list);
+		eqi->icnt = 0;
 	}
 
 	/*

@@ -208,7 +208,14 @@ struct lpfc_sli_intf {
 /* Configuration of Interrupts / sec for entire HBA port */
 #define LPFC_MIN_IMAX          5000
 #define LPFC_MAX_IMAX          5000000
-#define LPFC_DEF_IMAX          150000
+#define LPFC_DEF_IMAX          0
+
+#define LPFC_IMAX_THRESHOLD    1000
+#define LPFC_MAX_AUTO_EQ_DELAY 120
+#define LPFC_EQ_DELAY_STEP     15
+#define LPFC_EQD_ISR_TRIGGER   20000
+/* 1s intervals */
+#define LPFC_EQ_DELAY_MSECS    1000
 
 #define LPFC_MIN_CPU_MAP       0
 #define LPFC_MAX_CPU_MAP       1

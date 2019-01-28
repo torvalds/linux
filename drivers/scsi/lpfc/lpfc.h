@@ -686,6 +686,7 @@ struct lpfc_hba {
 	struct lpfc_sli4_hba sli4_hba;
 
 	struct workqueue_struct *wq;
+	struct delayed_work     eq_delay_work;
 
 	struct lpfc_sli sli;
 	uint8_t pci_dev_grp;	/* lpfc PCI dev group: 0x0, 0x1, 0x2,... */
@@ -789,7 +790,6 @@ struct lpfc_hba {
 	uint8_t  nvmet_support;	/* driver supports NVMET */
 #define LPFC_NVMET_MAX_PORTS	32
 	uint8_t  mds_diags_support;
-	uint32_t initial_imax;
 	uint8_t  bbcredit_support;
 	uint8_t  enab_exp_wqcq_pages;
 
@@ -817,6 +817,8 @@ struct lpfc_hba {
 	uint32_t cfg_use_msi;
 	uint32_t cfg_auto_imax;
 	uint32_t cfg_fcp_imax;
+	uint32_t cfg_cq_poll_threshold;
+	uint32_t cfg_cq_max_proc_limit;
 	uint32_t cfg_fcp_cpu_map;
 	uint32_t cfg_hdw_queue;
 	uint32_t cfg_irq_chann;
@@ -1084,7 +1086,6 @@ struct lpfc_hba {
 
 	uint8_t temp_sensor_support;
 	/* Fields used for heart beat. */
-	unsigned long last_eqdelay_time;
 	unsigned long last_completion_time;
 	unsigned long skipped_hb;
 	struct timer_list hb_tmofunc;
@@ -1286,4 +1287,24 @@ lpfc_phba_elsring(struct lpfc_hba *phba)
 			return NULL;
 	}
 	return &phba->sli.sli3_ring[LPFC_ELS_RING];
+}
+
+/**
+ * lpfc_sli4_mod_hba_eq_delay - update EQ delay
+ * @phba: Pointer to HBA context object.
+ * @q: The Event Queue to update.
+ * @delay: The delay value (in us) to be written.
+ *
+ **/
+static inline void
+lpfc_sli4_mod_hba_eq_delay(struct lpfc_hba *phba, struct lpfc_queue *eq,
+			   u32 delay)
+{
+	struct lpfc_register reg_data;
+
+	reg_data.word0 = 0;
+	bf_set(lpfc_sliport_eqdelay_id, &reg_data, eq->queue_id);
+	bf_set(lpfc_sliport_eqdelay_delay, &reg_data, delay);
+	writel(reg_data.word0, phba->sli4_hba.u.if_type2.EQDregaddr);
+	eq->q_mode = delay;
 }

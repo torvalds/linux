@@ -78,12 +78,13 @@ static void lpfc_sli4_send_seq_to_ulp(struct lpfc_vport *,
 				      struct hbq_dmabuf *);
 static void lpfc_sli4_handle_mds_loopback(struct lpfc_vport *vport,
 					  struct hbq_dmabuf *dmabuf);
-static int lpfc_sli4_fp_handle_cqe(struct lpfc_hba *, struct lpfc_queue *,
-				    struct lpfc_cqe *);
+static bool lpfc_sli4_fp_handle_cqe(struct lpfc_hba *phba,
+				   struct lpfc_queue *cq, struct lpfc_cqe *cqe);
 static int lpfc_sli4_post_sgl_list(struct lpfc_hba *, struct list_head *,
 				       int);
 static void lpfc_sli4_hba_handle_eqe(struct lpfc_hba *phba,
-				     struct lpfc_eqe *eqe, uint32_t qidx);
+				     struct lpfc_queue *eq,
+				     struct lpfc_eqe *eqe);
 static bool lpfc_sli4_mbox_completions_pending(struct lpfc_hba *phba);
 static bool lpfc_sli4_process_missed_mbox_completions(struct lpfc_hba *phba);
 static int lpfc_sli4_abort_nvme_io(struct lpfc_hba *phba,
@@ -160,7 +161,7 @@ lpfc_sli4_wq_put(struct lpfc_queue *q, union lpfc_wqe128 *wqe)
 	}
 	q->WQ_posted++;
 	/* set consumption flag every once in a while */
-	if (!((q->host_index + 1) % q->entry_repost))
+	if (!((q->host_index + 1) % q->notify_interval))
 		bf_set(wqe_wqec, &wqe->generic.wqe_com, 1);
 	else
 		bf_set(wqe_wqec, &wqe->generic.wqe_com, 0);
@@ -325,29 +326,16 @@ lpfc_sli4_mq_release(struct lpfc_queue *q)
 static struct lpfc_eqe *
 lpfc_sli4_eq_get(struct lpfc_queue *q)
 {
-	struct lpfc_hba *phba;
 	struct lpfc_eqe *eqe;
-	uint32_t idx;
 
 	/* sanity check on queue memory */
 	if (unlikely(!q))
 		return NULL;
-	phba = q->phba;
-	eqe = q->qe[q->hba_index].eqe;
+	eqe = q->qe[q->host_index].eqe;
 
 	/* If the next EQE is not valid then we are done */
 	if (bf_get_le32(lpfc_eqe_valid, eqe) != q->qe_valid)
 		return NULL;
-	/* If the host has not yet processed the next entry then we are done */
-	idx = ((q->hba_index + 1) % q->entry_count);
-	if (idx == q->host_index)
-		return NULL;
-
-	q->hba_index = idx;
-	/* if the index wrapped around, toggle the valid bit */
-	if (phba->sli4_hba.pc_sli4_params.eqav && !q->hba_index)
-		q->qe_valid = (q->qe_valid) ? 0 : 1;
-
 
 	/*
 	 * insert barrier for instruction interlock : data from the hardware
@@ -397,44 +385,25 @@ lpfc_sli4_if6_eq_clr_intr(struct lpfc_queue *q)
 }
 
 /**
- * lpfc_sli4_eq_release - Indicates the host has finished processing an EQ
+ * lpfc_sli4_write_eq_db - write EQ DB for eqe's consumed or arm state
+ * @phba: adapter with EQ
  * @q: The Event Queue that the host has completed processing for.
+ * @count: Number of elements that have been consumed
  * @arm: Indicates whether the host wants to arms this CQ.
  *
- * This routine will mark all Event Queue Entries on @q, from the last
- * known completed entry to the last entry that was processed, as completed
- * by clearing the valid bit for each completion queue entry. Then it will
- * notify the HBA, by ringing the doorbell, that the EQEs have been processed.
- * The internal host index in the @q will be updated by this routine to indicate
- * that the host has finished processing the entries. The @arm parameter
- * indicates that the queue should be rearmed when ringing the doorbell.
- *
- * This function will return the number of EQEs that were popped.
+ * This routine will notify the HBA, by ringing the doorbell, that count
+ * number of EQEs have been processed. The @arm parameter indicates whether
+ * the queue should be rearmed when ringing the doorbell.
  **/
-uint32_t
-lpfc_sli4_eq_release(struct lpfc_queue *q, bool arm)
+void
+lpfc_sli4_write_eq_db(struct lpfc_hba *phba, struct lpfc_queue *q,
+		     uint32_t count, bool arm)
 {
-	uint32_t released = 0;
-	struct lpfc_hba *phba;
-	struct lpfc_eqe *temp_eqe;
 	struct lpfc_register doorbell;
 
 	/* sanity check on queue memory */
-	if (unlikely(!q))
-		return 0;
-	phba = q->phba;
-
-	/* while there are valid entries */
-	while (q->hba_index != q->host_index) {
-		if (!phba->sli4_hba.pc_sli4_params.eqav) {
-			temp_eqe = q->qe[q->host_index].eqe;
-			bf_set_le32(lpfc_eqe_valid, temp_eqe, 0);
-		}
-		released++;
-		q->host_index = ((q->host_index + 1) % q->entry_count);
-	}
-	if (unlikely(released == 0 && !arm))
-		return 0;
+	if (unlikely(!q || (count == 0 && !arm)))
+		return;
 
 	/* ring doorbell for number popped */
 	doorbell.word0 = 0;
@@ -442,7 +411,7 @@ lpfc_sli4_eq_release(struct lpfc_queue *q, bool arm)
 		bf_set(lpfc_eqcq_doorbell_arm, &doorbell, 1);
 		bf_set(lpfc_eqcq_doorbell_eqci, &doorbell, 1);
 	}
-	bf_set(lpfc_eqcq_doorbell_num_released, &doorbell, released);
+	bf_set(lpfc_eqcq_doorbell_num_released, &doorbell, count);
 	bf_set(lpfc_eqcq_doorbell_qt, &doorbell, LPFC_QUEUE_TYPE_EVENT);
 	bf_set(lpfc_eqcq_doorbell_eqid_hi, &doorbell,
 			(q->queue_id >> LPFC_EQID_HI_FIELD_SHIFT));
@@ -451,60 +420,112 @@ lpfc_sli4_eq_release(struct lpfc_queue *q, bool arm)
 	/* PCI read to flush PCI pipeline on re-arming for INTx mode */
 	if ((q->phba->intr_type == INTx) && (arm == LPFC_QUEUE_REARM))
 		readl(q->phba->sli4_hba.EQDBregaddr);
-	return released;
 }
 
 /**
- * lpfc_sli4_if6_eq_release - Indicates the host has finished processing an EQ
+ * lpfc_sli4_if6_write_eq_db - write EQ DB for eqe's consumed or arm state
+ * @phba: adapter with EQ
  * @q: The Event Queue that the host has completed processing for.
+ * @count: Number of elements that have been consumed
  * @arm: Indicates whether the host wants to arms this CQ.
  *
- * This routine will mark all Event Queue Entries on @q, from the last
- * known completed entry to the last entry that was processed, as completed
- * by clearing the valid bit for each completion queue entry. Then it will
- * notify the HBA, by ringing the doorbell, that the EQEs have been processed.
- * The internal host index in the @q will be updated by this routine to indicate
- * that the host has finished processing the entries. The @arm parameter
- * indicates that the queue should be rearmed when ringing the doorbell.
- *
- * This function will return the number of EQEs that were popped.
+ * This routine will notify the HBA, by ringing the doorbell, that count
+ * number of EQEs have been processed. The @arm parameter indicates whether
+ * the queue should be rearmed when ringing the doorbell.
  **/
-uint32_t
-lpfc_sli4_if6_eq_release(struct lpfc_queue *q, bool arm)
+void
+lpfc_sli4_if6_write_eq_db(struct lpfc_hba *phba, struct lpfc_queue *q,
+			  uint32_t count, bool arm)
 {
-	uint32_t released = 0;
-	struct lpfc_hba *phba;
-	struct lpfc_eqe *temp_eqe;
 	struct lpfc_register doorbell;
 
 	/* sanity check on queue memory */
-	if (unlikely(!q))
-		return 0;
-	phba = q->phba;
-
-	/* while there are valid entries */
-	while (q->hba_index != q->host_index) {
-		if (!phba->sli4_hba.pc_sli4_params.eqav) {
-			temp_eqe = q->qe[q->host_index].eqe;
-			bf_set_le32(lpfc_eqe_valid, temp_eqe, 0);
-		}
-		released++;
-		q->host_index = ((q->host_index + 1) % q->entry_count);
-	}
-	if (unlikely(released == 0 && !arm))
-		return 0;
+	if (unlikely(!q || (count == 0 && !arm)))
+		return;
 
 	/* ring doorbell for number popped */
 	doorbell.word0 = 0;
 	if (arm)
 		bf_set(lpfc_if6_eq_doorbell_arm, &doorbell, 1);
-	bf_set(lpfc_if6_eq_doorbell_num_released, &doorbell, released);
+	bf_set(lpfc_if6_eq_doorbell_num_released, &doorbell, count);
 	bf_set(lpfc_if6_eq_doorbell_eqid, &doorbell, q->queue_id);
 	writel(doorbell.word0, q->phba->sli4_hba.EQDBregaddr);
 	/* PCI read to flush PCI pipeline on re-arming for INTx mode */
 	if ((q->phba->intr_type == INTx) && (arm == LPFC_QUEUE_REARM))
 		readl(q->phba->sli4_hba.EQDBregaddr);
-	return released;
+}
+
+static void
+__lpfc_sli4_consume_eqe(struct lpfc_hba *phba, struct lpfc_queue *eq,
+			struct lpfc_eqe *eqe)
+{
+	if (!phba->sli4_hba.pc_sli4_params.eqav)
+		bf_set_le32(lpfc_eqe_valid, eqe, 0);
+
+	eq->host_index = ((eq->host_index + 1) % eq->entry_count);
+
+	/* if the index wrapped around, toggle the valid bit */
+	if (phba->sli4_hba.pc_sli4_params.eqav && !eq->host_index)
+		eq->qe_valid = (eq->qe_valid) ? 0 : 1;
+}
+
+static void
+lpfc_sli4_eq_flush(struct lpfc_hba *phba, struct lpfc_queue *eq)
+{
+	struct lpfc_eqe *eqe;
+	uint32_t count = 0;
+
+	/* walk all the EQ entries and drop on the floor */
+	eqe = lpfc_sli4_eq_get(eq);
+	while (eqe) {
+		__lpfc_sli4_consume_eqe(phba, eq, eqe);
+		count++;
+		eqe = lpfc_sli4_eq_get(eq);
+	}
+
+	/* Clear and re-arm the EQ */
+	phba->sli4_hba.sli4_write_eq_db(phba, eq, count, LPFC_QUEUE_REARM);
+}
+
+static int
+lpfc_sli4_process_eq(struct lpfc_hba *phba, struct lpfc_queue *eq)
+{
+	struct lpfc_eqe *eqe;
+	int count = 0, consumed = 0;
+
+	if (cmpxchg(&eq->queue_claimed, 0, 1) != 0)
+		goto rearm_and_exit;
+
+	eqe = lpfc_sli4_eq_get(eq);
+	while (eqe) {
+		lpfc_sli4_hba_handle_eqe(phba, eq, eqe);
+		__lpfc_sli4_consume_eqe(phba, eq, eqe);
+
+		consumed++;
+		if (!(++count % eq->max_proc_limit))
+			break;
+
+		if (!(count % eq->notify_interval)) {
+			phba->sli4_hba.sli4_write_eq_db(phba, eq, consumed,
+							LPFC_QUEUE_NOARM);
+			consumed = 0;
+		}
+
+		eqe = lpfc_sli4_eq_get(eq);
+	}
+	eq->EQ_processed += count;
+
+	/* Track the max number of EQEs processed in 1 intr */
+	if (count > eq->EQ_max_eqe)
+		eq->EQ_max_eqe = count;
+
+	eq->queue_claimed = 0;
+
+rearm_and_exit:
+	/* Always clear and re-arm the EQ */
+	phba->sli4_hba.sli4_write_eq_db(phba, eq, consumed, LPFC_QUEUE_REARM);
+
+	return count;
 }
 
 /**
@@ -519,28 +540,16 @@ lpfc_sli4_if6_eq_release(struct lpfc_queue *q, bool arm)
 static struct lpfc_cqe *
 lpfc_sli4_cq_get(struct lpfc_queue *q)
 {
-	struct lpfc_hba *phba;
 	struct lpfc_cqe *cqe;
-	uint32_t idx;
 
 	/* sanity check on queue memory */
 	if (unlikely(!q))
 		return NULL;
-	phba = q->phba;
-	cqe = q->qe[q->hba_index].cqe;
+	cqe = q->qe[q->host_index].cqe;
 
 	/* If the next CQE is not valid then we are done */
 	if (bf_get_le32(lpfc_cqe_valid, cqe) != q->qe_valid)
 		return NULL;
-	/* If the host has not yet processed the next entry then we are done */
-	idx = ((q->hba_index + 1) % q->entry_count);
-	if (idx == q->host_index)
-		return NULL;
-
-	q->hba_index = idx;
-	/* if the index wrapped around, toggle the valid bit */
-	if (phba->sli4_hba.pc_sli4_params.cqav && !q->hba_index)
-		q->qe_valid = (q->qe_valid) ? 0 : 1;
 
 	/*
 	 * insert barrier for instruction interlock : data from the hardware
@@ -554,107 +563,81 @@ lpfc_sli4_cq_get(struct lpfc_queue *q)
 	return cqe;
 }
 
+static void
+__lpfc_sli4_consume_cqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
+			struct lpfc_cqe *cqe)
+{
+	if (!phba->sli4_hba.pc_sli4_params.cqav)
+		bf_set_le32(lpfc_cqe_valid, cqe, 0);
+
+	cq->host_index = ((cq->host_index + 1) % cq->entry_count);
+
+	/* if the index wrapped around, toggle the valid bit */
+	if (phba->sli4_hba.pc_sli4_params.cqav && !cq->host_index)
+		cq->qe_valid = (cq->qe_valid) ? 0 : 1;
+}
+
 /**
- * lpfc_sli4_cq_release - Indicates the host has finished processing a CQ
+ * lpfc_sli4_write_cq_db - write cq DB for entries consumed or arm state.
+ * @phba: the adapter with the CQ
  * @q: The Completion Queue that the host has completed processing for.
+ * @count: the number of elements that were consumed
  * @arm: Indicates whether the host wants to arms this CQ.
  *
- * This routine will mark all Completion queue entries on @q, from the last
- * known completed entry to the last entry that was processed, as completed
- * by clearing the valid bit for each completion queue entry. Then it will
- * notify the HBA, by ringing the doorbell, that the CQEs have been processed.
- * The internal host index in the @q will be updated by this routine to indicate
- * that the host has finished processing the entries. The @arm parameter
- * indicates that the queue should be rearmed when ringing the doorbell.
- *
- * This function will return the number of CQEs that were released.
+ * This routine will notify the HBA, by ringing the doorbell, that the
+ * CQEs have been processed. The @arm parameter specifies whether the
+ * queue should be rearmed when ringing the doorbell.
  **/
-uint32_t
-lpfc_sli4_cq_release(struct lpfc_queue *q, bool arm)
+void
+lpfc_sli4_write_cq_db(struct lpfc_hba *phba, struct lpfc_queue *q,
+		     uint32_t count, bool arm)
 {
-	uint32_t released = 0;
-	struct lpfc_hba *phba;
-	struct lpfc_cqe *temp_qe;
 	struct lpfc_register doorbell;
 
 	/* sanity check on queue memory */
-	if (unlikely(!q))
-		return 0;
-	phba = q->phba;
-
-	/* while there are valid entries */
-	while (q->hba_index != q->host_index) {
-		if (!phba->sli4_hba.pc_sli4_params.cqav) {
-			temp_qe = q->qe[q->host_index].cqe;
-			bf_set_le32(lpfc_cqe_valid, temp_qe, 0);
-		}
-		released++;
-		q->host_index = ((q->host_index + 1) % q->entry_count);
-	}
-	if (unlikely(released == 0 && !arm))
-		return 0;
+	if (unlikely(!q || (count == 0 && !arm)))
+		return;
 
 	/* ring doorbell for number popped */
 	doorbell.word0 = 0;
 	if (arm)
 		bf_set(lpfc_eqcq_doorbell_arm, &doorbell, 1);
-	bf_set(lpfc_eqcq_doorbell_num_released, &doorbell, released);
+	bf_set(lpfc_eqcq_doorbell_num_released, &doorbell, count);
 	bf_set(lpfc_eqcq_doorbell_qt, &doorbell, LPFC_QUEUE_TYPE_COMPLETION);
 	bf_set(lpfc_eqcq_doorbell_cqid_hi, &doorbell,
 			(q->queue_id >> LPFC_CQID_HI_FIELD_SHIFT));
 	bf_set(lpfc_eqcq_doorbell_cqid_lo, &doorbell, q->queue_id);
 	writel(doorbell.word0, q->phba->sli4_hba.CQDBregaddr);
-	return released;
 }
 
 /**
- * lpfc_sli4_if6_cq_release - Indicates the host has finished processing a CQ
+ * lpfc_sli4_if6_write_cq_db - write cq DB for entries consumed or arm state.
+ * @phba: the adapter with the CQ
  * @q: The Completion Queue that the host has completed processing for.
+ * @count: the number of elements that were consumed
  * @arm: Indicates whether the host wants to arms this CQ.
  *
- * This routine will mark all Completion queue entries on @q, from the last
- * known completed entry to the last entry that was processed, as completed
- * by clearing the valid bit for each completion queue entry. Then it will
- * notify the HBA, by ringing the doorbell, that the CQEs have been processed.
- * The internal host index in the @q will be updated by this routine to indicate
- * that the host has finished processing the entries. The @arm parameter
- * indicates that the queue should be rearmed when ringing the doorbell.
- *
- * This function will return the number of CQEs that were released.
+ * This routine will notify the HBA, by ringing the doorbell, that the
+ * CQEs have been processed. The @arm parameter specifies whether the
+ * queue should be rearmed when ringing the doorbell.
  **/
-uint32_t
-lpfc_sli4_if6_cq_release(struct lpfc_queue *q, bool arm)
+void
+lpfc_sli4_if6_write_cq_db(struct lpfc_hba *phba, struct lpfc_queue *q,
+			 uint32_t count, bool arm)
 {
-	uint32_t released = 0;
-	struct lpfc_hba *phba;
-	struct lpfc_cqe *temp_qe;
 	struct lpfc_register doorbell;
 
 	/* sanity check on queue memory */
-	if (unlikely(!q))
-		return 0;
-	phba = q->phba;
-
-	/* while there are valid entries */
-	while (q->hba_index != q->host_index) {
-		if (!phba->sli4_hba.pc_sli4_params.cqav) {
-			temp_qe = q->qe[q->host_index].cqe;
-			bf_set_le32(lpfc_cqe_valid, temp_qe, 0);
-		}
-		released++;
-		q->host_index = ((q->host_index + 1) % q->entry_count);
-	}
-	if (unlikely(released == 0 && !arm))
-		return 0;
+	if (unlikely(!q || (count == 0 && !arm)))
+		return;
 
 	/* ring doorbell for number popped */
 	doorbell.word0 = 0;
 	if (arm)
 		bf_set(lpfc_if6_cq_doorbell_arm, &doorbell, 1);
-	bf_set(lpfc_if6_cq_doorbell_num_released, &doorbell, released);
+	bf_set(lpfc_if6_cq_doorbell_num_released, &doorbell, count);
 	bf_set(lpfc_if6_cq_doorbell_cqid, &doorbell, q->queue_id);
 	writel(doorbell.word0, q->phba->sli4_hba.CQDBregaddr);
-	return released;
 }
 
 /**
@@ -703,15 +686,15 @@ lpfc_sli4_rq_put(struct lpfc_queue *hq, struct lpfc_queue *dq,
 	hq->RQ_buf_posted++;
 
 	/* Ring The Header Receive Queue Doorbell */
-	if (!(hq->host_index % hq->entry_repost)) {
+	if (!(hq->host_index % hq->notify_interval)) {
 		doorbell.word0 = 0;
 		if (hq->db_format == LPFC_DB_RING_FORMAT) {
 			bf_set(lpfc_rq_db_ring_fm_num_posted, &doorbell,
-			       hq->entry_repost);
+			       hq->notify_interval);
 			bf_set(lpfc_rq_db_ring_fm_id, &doorbell, hq->queue_id);
 		} else if (hq->db_format == LPFC_DB_LIST_FORMAT) {
 			bf_set(lpfc_rq_db_list_fm_num_posted, &doorbell,
-			       hq->entry_repost);
+			       hq->notify_interval);
 			bf_set(lpfc_rq_db_list_fm_index, &doorbell,
 			       hq->host_index);
 			bf_set(lpfc_rq_db_list_fm_id, &doorbell, hq->queue_id);
@@ -5571,30 +5554,30 @@ lpfc_sli4_arm_cqeq_intr(struct lpfc_hba *phba)
 	struct lpfc_sli4_hba *sli4_hba = &phba->sli4_hba;
 	struct lpfc_sli4_hdw_queue *qp;
 
-	sli4_hba->sli4_cq_release(sli4_hba->mbx_cq, LPFC_QUEUE_REARM);
-	sli4_hba->sli4_cq_release(sli4_hba->els_cq, LPFC_QUEUE_REARM);
+	sli4_hba->sli4_write_cq_db(phba, sli4_hba->mbx_cq, 0, LPFC_QUEUE_REARM);
+	sli4_hba->sli4_write_cq_db(phba, sli4_hba->els_cq, 0, LPFC_QUEUE_REARM);
 	if (sli4_hba->nvmels_cq)
-		sli4_hba->sli4_cq_release(sli4_hba->nvmels_cq,
-						LPFC_QUEUE_REARM);
+		sli4_hba->sli4_write_cq_db(phba, sli4_hba->nvmels_cq, 0,
+					   LPFC_QUEUE_REARM);
 
 	qp = sli4_hba->hdwq;
 	if (sli4_hba->hdwq) {
 		for (qidx = 0; qidx < phba->cfg_hdw_queue; qidx++) {
-			sli4_hba->sli4_cq_release(qp[qidx].fcp_cq,
-						LPFC_QUEUE_REARM);
-			sli4_hba->sli4_cq_release(qp[qidx].nvme_cq,
-						LPFC_QUEUE_REARM);
+			sli4_hba->sli4_write_cq_db(phba, qp[qidx].fcp_cq, 0,
+						   LPFC_QUEUE_REARM);
+			sli4_hba->sli4_write_cq_db(phba, qp[qidx].nvme_cq, 0,
+						   LPFC_QUEUE_REARM);
 		}
 
 		for (qidx = 0; qidx < phba->cfg_irq_chann; qidx++)
-			sli4_hba->sli4_eq_release(qp[qidx].hba_eq,
-						LPFC_QUEUE_REARM);
+			sli4_hba->sli4_write_eq_db(phba, qp[qidx].hba_eq,
+						0, LPFC_QUEUE_REARM);
 	}
 
 	if (phba->nvmet_support) {
 		for (qidx = 0; qidx < phba->cfg_nvmet_mrq; qidx++) {
-			sli4_hba->sli4_cq_release(
-				sli4_hba->nvmet_cqset[qidx],
+			sli4_hba->sli4_write_cq_db(phba,
+				sli4_hba->nvmet_cqset[qidx], 0,
 				LPFC_QUEUE_REARM);
 		}
 	}
@@ -7698,6 +7681,11 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	phba->hb_outstanding = 0;
 	phba->last_completion_time = jiffies;
 
+	/* start eq_delay heartbeat */
+	if (phba->cfg_auto_imax)
+		queue_delayed_work(phba->wq, &phba->eq_delay_work,
+				   msecs_to_jiffies(LPFC_EQ_DELAY_MSECS));
+
 	/* Start error attention (ERATT) polling timer */
 	mod_timer(&phba->eratt_poll,
 		  jiffies + msecs_to_jiffies(1000 * phba->eratt_poll_interval));
@@ -7869,7 +7857,6 @@ lpfc_sli4_process_missed_mbox_completions(struct lpfc_hba *phba)
 	struct lpfc_sli4_hba *sli4_hba = &phba->sli4_hba;
 	uint32_t eqidx;
 	struct lpfc_queue *fpeq = NULL;
-	struct lpfc_eqe *eqe;
 	bool mbox_pending;
 
 	if (unlikely(!phba) || (phba->sli_rev != LPFC_SLI_REV4))
@@ -7903,14 +7890,11 @@ lpfc_sli4_process_missed_mbox_completions(struct lpfc_hba *phba)
 	 */
 
 	if (mbox_pending)
-		while ((eqe = lpfc_sli4_eq_get(fpeq))) {
-			lpfc_sli4_hba_handle_eqe(phba, eqe, eqidx);
-			fpeq->EQ_processed++;
-		}
-
-	/* Always clear and re-arm the EQ */
-
-	sli4_hba->sli4_eq_release(fpeq, LPFC_QUEUE_REARM);
+		/* process and rearm the EQ */
+		lpfc_sli4_process_eq(phba, fpeq);
+	else
+		/* Always clear and re-arm the EQ */
+		sli4_hba->sli4_write_eq_db(phba, fpeq, 0, LPFC_QUEUE_REARM);
 
 	return mbox_pending;
 
@@ -13265,10 +13249,13 @@ out_no_mqe_complete:
  * Return: true if work posted to worker thread, otherwise false.
  **/
 static bool
-lpfc_sli4_sp_handle_mcqe(struct lpfc_hba *phba, struct lpfc_cqe *cqe)
+lpfc_sli4_sp_handle_mcqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
+			 struct lpfc_cqe *cqe)
 {
 	struct lpfc_mcqe mcqe;
 	bool workposted;
+
+	cq->CQ_mbox++;
 
 	/* Copy the mailbox MCQE and convert endian order as needed */
 	lpfc_sli4_pcimem_bcopy(cqe, &mcqe, sizeof(struct lpfc_mcqe));
@@ -13528,7 +13515,7 @@ out:
  * lpfc_sli4_sp_handle_cqe - Process a slow path completion queue entry
  * @phba: Pointer to HBA context object.
  * @cq: Pointer to the completion queue.
- * @wcqe: Pointer to a completion queue entry.
+ * @cqe: Pointer to a completion queue entry.
  *
  * This routine process a slow-path work-queue or receive queue completion queue
  * entry.
@@ -13628,60 +13615,129 @@ lpfc_sli4_sp_handle_eqe(struct lpfc_hba *phba, struct lpfc_eqe *eqe,
 }
 
 /**
- * lpfc_sli4_sp_process_cq - Process a slow-path event queue entry
+ * __lpfc_sli4_process_cq - Process elements of a CQ
  * @phba: Pointer to HBA context object.
+ * @cq: Pointer to CQ to be processed
+ * @handler: Routine to process each cqe
+ * @delay: Pointer to usdelay to set in case of rescheduling of the handler
  *
- * This routine process a event queue entry from the slow-path event queue.
- * It will check the MajorCode and MinorCode to determine this is for a
- * completion event on a completion queue, if not, an error shall be logged
- * and just return. Otherwise, it will get to the corresponding completion
- * queue and process all the entries on that completion queue, rearm the
- * completion queue, and then return.
+ * This routine processes completion queue entries in a CQ. While a valid
+ * queue element is found, the handler is called. During processing checks
+ * are made for periodic doorbell writes to let the hardware know of
+ * element consumption.
  *
+ * If the max limit on cqes to process is hit, or there are no more valid
+ * entries, the loop stops. If we processed a sufficient number of elements,
+ * meaning there is sufficient load, rather than rearming and generating
+ * another interrupt, a cq rescheduling delay will be set. A delay of 0
+ * indicates no rescheduling.
+ *
+ * Returns True if work scheduled, False otherwise.
  **/
-static void
-lpfc_sli4_sp_process_cq(struct work_struct *work)
+static bool
+__lpfc_sli4_process_cq(struct lpfc_hba *phba, struct lpfc_queue *cq,
+	bool (*handler)(struct lpfc_hba *, struct lpfc_queue *,
+			struct lpfc_cqe *), unsigned long *delay)
 {
-	struct lpfc_queue *cq =
-		container_of(work, struct lpfc_queue, spwork);
-	struct lpfc_hba *phba = cq->phba;
 	struct lpfc_cqe *cqe;
 	bool workposted = false;
-	int ccount = 0;
+	int count = 0, consumed = 0;
+	bool arm = true;
+
+	/* default - no reschedule */
+	*delay = 0;
+
+	if (cmpxchg(&cq->queue_claimed, 0, 1) != 0)
+		goto rearm_and_exit;
 
 	/* Process all the entries to the CQ */
-	switch (cq->type) {
-	case LPFC_MCQ:
-		while ((cqe = lpfc_sli4_cq_get(cq))) {
-			workposted |= lpfc_sli4_sp_handle_mcqe(phba, cqe);
-			if (!(++ccount % cq->entry_repost))
-				break;
-			cq->CQ_mbox++;
-		}
-		break;
-	case LPFC_WCQ:
-		while ((cqe = lpfc_sli4_cq_get(cq))) {
-			if (cq->subtype == LPFC_FCP ||
-			    cq->subtype == LPFC_NVME) {
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
-				if (phba->ktime_on)
-					cq->isr_timestamp = ktime_get_ns();
-				else
-					cq->isr_timestamp = 0;
+	cqe = lpfc_sli4_cq_get(cq);
+	while (cqe) {
+#if defined(CONFIG_SCSI_LPFC_DEBUG_FS) && defined(BUILD_NVME)
+		if (phba->ktime_on)
+			cq->isr_timestamp = ktime_get_ns();
+		else
+			cq->isr_timestamp = 0;
 #endif
-				workposted |= lpfc_sli4_fp_handle_cqe(phba, cq,
-								       cqe);
-			} else {
-				workposted |= lpfc_sli4_sp_handle_cqe(phba, cq,
-								      cqe);
-			}
-			if (!(++ccount % cq->entry_repost))
-				break;
+		workposted |= handler(phba, cq, cqe);
+		__lpfc_sli4_consume_cqe(phba, cq, cqe);
+
+		consumed++;
+		if (!(++count % cq->max_proc_limit))
+			break;
+
+		if (!(count % cq->notify_interval)) {
+			phba->sli4_hba.sli4_write_cq_db(phba, cq, consumed,
+						LPFC_QUEUE_NOARM);
+			consumed = 0;
 		}
 
-		/* Track the max number of CQEs processed in 1 EQ */
-		if (ccount > cq->CQ_max_cqe)
-			cq->CQ_max_cqe = ccount;
+		cqe = lpfc_sli4_cq_get(cq);
+	}
+	if (count >= phba->cfg_cq_poll_threshold) {
+		*delay = 1;
+		arm = false;
+	}
+
+	/* Track the max number of CQEs processed in 1 EQ */
+	if (count > cq->CQ_max_cqe)
+		cq->CQ_max_cqe = count;
+
+	cq->assoc_qp->EQ_cqe_cnt += count;
+
+	/* Catch the no cq entry condition */
+	if (unlikely(count == 0))
+		lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
+				"0369 No entry from completion queue "
+				"qid=%d\n", cq->queue_id);
+
+	cq->queue_claimed = 0;
+
+rearm_and_exit:
+	phba->sli4_hba.sli4_write_cq_db(phba, cq, consumed,
+			arm ?  LPFC_QUEUE_REARM : LPFC_QUEUE_NOARM);
+
+	return workposted;
+}
+
+/**
+ * lpfc_sli4_sp_process_cq - Process a slow-path event queue entry
+ * @cq: pointer to CQ to process
+ *
+ * This routine calls the cq processing routine with a handler specific
+ * to the type of queue bound to it.
+ *
+ * The CQ routine returns two values: the first is the calling status,
+ * which indicates whether work was queued to the  background discovery
+ * thread. If true, the routine should wakeup the discovery thread;
+ * the second is the delay parameter. If non-zero, rather than rearming
+ * the CQ and yet another interrupt, the CQ handler should be queued so
+ * that it is processed in a subsequent polling action. The value of
+ * the delay indicates when to reschedule it.
+ **/
+static void
+__lpfc_sli4_sp_process_cq(struct lpfc_queue *cq)
+{
+	struct lpfc_hba *phba = cq->phba;
+	unsigned long delay;
+	bool workposted = false;
+
+	/* Process and rearm the CQ */
+	switch (cq->type) {
+	case LPFC_MCQ:
+		workposted |= __lpfc_sli4_process_cq(phba, cq,
+						lpfc_sli4_sp_handle_mcqe,
+						&delay);
+		break;
+	case LPFC_WCQ:
+		if (cq->subtype == LPFC_FCP || cq->subtype == LPFC_NVME)
+			workposted |= __lpfc_sli4_process_cq(phba, cq,
+						lpfc_sli4_fp_handle_cqe,
+						&delay);
+		else
+			workposted |= __lpfc_sli4_process_cq(phba, cq,
+						lpfc_sli4_sp_handle_cqe,
+						&delay);
 		break;
 	default:
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
@@ -13690,18 +13746,48 @@ lpfc_sli4_sp_process_cq(struct work_struct *work)
 		return;
 	}
 
-	/* Catch the no cq entry condition, log an error */
-	if (unlikely(ccount == 0))
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-				"0371 No entry from the CQ: identifier "
-				"(x%x), type (%d)\n", cq->queue_id, cq->type);
-
-	/* In any case, flash and re-arm the RCQ */
-	phba->sli4_hba.sli4_cq_release(cq, LPFC_QUEUE_REARM);
+	if (delay) {
+		if (!queue_delayed_work_on(cq->chann, phba->wq,
+					   &cq->sched_spwork, delay))
+			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+				"0394 Cannot schedule soft IRQ "
+				"for cqid=%d on CPU %d\n",
+				cq->queue_id, cq->chann);
+	}
 
 	/* wake up worker thread if there are works to be done */
 	if (workposted)
 		lpfc_worker_wake_up(phba);
+}
+
+/**
+ * lpfc_sli4_sp_process_cq - slow-path work handler when started by
+ *   interrupt
+ * @work: pointer to work element
+ *
+ * translates from the work handler and calls the slow-path handler.
+ **/
+static void
+lpfc_sli4_sp_process_cq(struct work_struct *work)
+{
+	struct lpfc_queue *cq = container_of(work, struct lpfc_queue, spwork);
+
+	__lpfc_sli4_sp_process_cq(cq);
+}
+
+/**
+ * lpfc_sli4_dly_sp_process_cq - slow-path work handler when started by timer
+ * @work: pointer to work element
+ *
+ * translates from the work handler and calls the slow-path handler.
+ **/
+static void
+lpfc_sli4_dly_sp_process_cq(struct work_struct *work)
+{
+	struct lpfc_queue *cq = container_of(to_delayed_work(work),
+					struct lpfc_queue, sched_spwork);
+
+	__lpfc_sli4_sp_process_cq(cq);
 }
 
 /**
@@ -13935,13 +14021,16 @@ out:
 
 /**
  * lpfc_sli4_fp_handle_cqe - Process fast-path work queue completion entry
+ * @phba: adapter with cq
  * @cq: Pointer to the completion queue.
  * @eqe: Pointer to fast-path completion queue entry.
  *
  * This routine process a fast-path work queue completion entry from fast-path
  * event queue for FCP command response completion.
+ *
+ * Return: true if work posted to worker thread, otherwise false.
  **/
-static int
+static bool
 lpfc_sli4_fp_handle_cqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
 			 struct lpfc_cqe *cqe)
 {
@@ -14008,10 +14097,11 @@ lpfc_sli4_fp_handle_cqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
  * completion queue, and then return.
  **/
 static void
-lpfc_sli4_hba_handle_eqe(struct lpfc_hba *phba, struct lpfc_eqe *eqe,
-			uint32_t qidx)
+lpfc_sli4_hba_handle_eqe(struct lpfc_hba *phba, struct lpfc_queue *eq,
+			 struct lpfc_eqe *eqe)
 {
 	struct lpfc_queue *cq = NULL;
+	uint32_t qidx = eq->hdwq;
 	uint16_t cqid, id;
 
 	if (unlikely(bf_get_le32(lpfc_eqe_major_code, eqe) != 0)) {
@@ -14074,72 +14164,74 @@ work_cq:
 }
 
 /**
- * lpfc_sli4_hba_process_cq - Process a fast-path event queue entry
- * @phba: Pointer to HBA context object.
- * @eqe: Pointer to fast-path event queue entry.
+ * __lpfc_sli4_hba_process_cq - Process a fast-path event queue entry
+ * @cq: Pointer to CQ to be processed
  *
- * This routine process a event queue entry from the fast-path event queue.
- * It will check the MajorCode and MinorCode to determine this is for a
- * completion event on a completion queue, if not, an error shall be logged
- * and just return. Otherwise, it will get to the corresponding completion
- * queue and process all the entries on the completion queue, rearm the
- * completion queue, and then return.
+ * This routine calls the cq processing routine with the handler for
+ * fast path CQEs.
+ *
+ * The CQ routine returns two values: the first is the calling status,
+ * which indicates whether work was queued to the  background discovery
+ * thread. If true, the routine should wakeup the discovery thread;
+ * the second is the delay parameter. If non-zero, rather than rearming
+ * the CQ and yet another interrupt, the CQ handler should be queued so
+ * that it is processed in a subsequent polling action. The value of
+ * the delay indicates when to reschedule it.
  **/
 static void
-lpfc_sli4_hba_process_cq(struct work_struct *work)
+__lpfc_sli4_hba_process_cq(struct lpfc_queue *cq)
 {
-	struct lpfc_queue *cq =
-		container_of(work, struct lpfc_queue, irqwork);
 	struct lpfc_hba *phba = cq->phba;
-	struct lpfc_cqe *cqe;
+	unsigned long delay;
 	bool workposted = false;
-	int ccount = 0;
 
-	/* Process all the entries to the CQ */
-	while ((cqe = lpfc_sli4_cq_get(cq))) {
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
-		if (phba->ktime_on)
-			cq->isr_timestamp = ktime_get_ns();
-		else
-			cq->isr_timestamp = 0;
-#endif
-		workposted |= lpfc_sli4_fp_handle_cqe(phba, cq, cqe);
-		if (!(++ccount % cq->entry_repost))
-			break;
+	/* process and rearm the CQ */
+	workposted |= __lpfc_sli4_process_cq(phba, cq, lpfc_sli4_fp_handle_cqe,
+					     &delay);
+
+	if (delay) {
+		if (!queue_delayed_work_on(cq->chann, phba->wq,
+					   &cq->sched_irqwork, delay))
+			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+				"0367 Cannot schedule soft IRQ "
+				"for cqid=%d on CPU %d\n",
+				cq->queue_id, cq->chann);
 	}
-
-	/* Track the max number of CQEs processed in 1 EQ */
-	if (ccount > cq->CQ_max_cqe)
-		cq->CQ_max_cqe = ccount;
-	cq->assoc_qp->EQ_cqe_cnt += ccount;
-
-	/* Catch the no cq entry condition */
-	if (unlikely(ccount == 0))
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-				"0369 No entry from fast-path completion "
-				"queue fcpcqid=%d\n", cq->queue_id);
-
-	/* In any case, flash and re-arm the CQ */
-	phba->sli4_hba.sli4_cq_release(cq, LPFC_QUEUE_REARM);
 
 	/* wake up worker thread if there are works to be done */
 	if (workposted)
 		lpfc_worker_wake_up(phba);
 }
 
+/**
+ * lpfc_sli4_hba_process_cq - fast-path work handler when started by
+ *   interrupt
+ * @work: pointer to work element
+ *
+ * translates from the work handler and calls the fast-path handler.
+ **/
 static void
-lpfc_sli4_eq_flush(struct lpfc_hba *phba, struct lpfc_queue *eq)
+lpfc_sli4_hba_process_cq(struct work_struct *work)
 {
-	struct lpfc_eqe *eqe;
+	struct lpfc_queue *cq = container_of(work, struct lpfc_queue, irqwork);
 
-	/* walk all the EQ entries and drop on the floor */
-	while ((eqe = lpfc_sli4_eq_get(eq)))
-		;
-
-	/* Clear and re-arm the EQ */
-	phba->sli4_hba.sli4_eq_release(eq, LPFC_QUEUE_REARM);
+	__lpfc_sli4_hba_process_cq(cq);
 }
 
+/**
+ * lpfc_sli4_hba_process_cq - fast-path work handler when started by timer
+ * @work: pointer to work element
+ *
+ * translates from the work handler and calls the fast-path handler.
+ **/
+static void
+lpfc_sli4_dly_hba_process_cq(struct work_struct *work)
+{
+	struct lpfc_queue *cq = container_of(to_delayed_work(work),
+					struct lpfc_queue, sched_irqwork);
+
+	__lpfc_sli4_hba_process_cq(cq);
+}
 
 /**
  * lpfc_sli4_hba_intr_handler - HBA interrupt handler to SLI-4 device
@@ -14173,10 +14265,11 @@ lpfc_sli4_hba_intr_handler(int irq, void *dev_id)
 	struct lpfc_hba *phba;
 	struct lpfc_hba_eq_hdl *hba_eq_hdl;
 	struct lpfc_queue *fpeq;
-	struct lpfc_eqe *eqe;
 	unsigned long iflag;
 	int ecount = 0;
 	int hba_eqidx;
+	struct lpfc_eq_intr_info *eqi;
+	uint32_t icnt;
 
 	/* Get the driver's phba structure from the dev_id */
 	hba_eq_hdl = (struct lpfc_hba_eq_hdl *)dev_id;
@@ -14204,22 +14297,19 @@ lpfc_sli4_hba_intr_handler(int irq, void *dev_id)
 		return IRQ_NONE;
 	}
 
-	/*
-	 * Process all the event on FCP fast-path EQ
-	 */
-	while ((eqe = lpfc_sli4_eq_get(fpeq))) {
-		lpfc_sli4_hba_handle_eqe(phba, eqe, hba_eqidx);
-		if (!(++ecount % fpeq->entry_repost))
-			break;
-		fpeq->EQ_processed++;
-	}
+	eqi = phba->sli4_hba.eq_info;
+	icnt = this_cpu_inc_return(eqi->icnt);
+	fpeq->last_cpu = smp_processor_id();
 
-	/* Track the max number of EQEs processed in 1 intr */
-	if (ecount > fpeq->EQ_max_eqe)
-		fpeq->EQ_max_eqe = ecount;
+	if (icnt > LPFC_EQD_ISR_TRIGGER &&
+	    phba->cfg_irq_chann == 1 &&
+	    phba->cfg_auto_imax &&
+	    fpeq->q_mode != LPFC_MAX_AUTO_EQ_DELAY &&
+	    phba->sli.sli_flag & LPFC_SLI_USE_EQDR)
+		lpfc_sli4_mod_hba_eq_delay(phba, fpeq, LPFC_MAX_AUTO_EQ_DELAY);
 
-	/* Always clear and re-arm the fast-path EQ */
-	phba->sli4_hba.sli4_eq_release(fpeq, LPFC_QUEUE_REARM);
+	/* process and rearm the EQ */
+	ecount = lpfc_sli4_process_eq(phba, fpeq);
 
 	if (unlikely(ecount == 0)) {
 		fpeq->EQ_no_entry++;
@@ -14307,6 +14397,9 @@ lpfc_sli4_queue_free(struct lpfc_queue *queue)
 		kfree(queue->rqbp);
 	}
 
+	if (!list_empty(&queue->cpu_list))
+		list_del(&queue->cpu_list);
+
 	if (!list_empty(&queue->wq_list))
 		list_del(&queue->wq_list);
 
@@ -14355,6 +14448,7 @@ lpfc_sli4_queue_alloc(struct lpfc_hba *phba, uint32_t page_size,
 	INIT_LIST_HEAD(&queue->wqfull_list);
 	INIT_LIST_HEAD(&queue->page_list);
 	INIT_LIST_HEAD(&queue->child_list);
+	INIT_LIST_HEAD(&queue->cpu_list);
 
 	/* Set queue parameters now.  If the system cannot provide memory
 	 * resources, the free routine needs to know what was allocated.
@@ -14387,8 +14481,10 @@ lpfc_sli4_queue_alloc(struct lpfc_hba *phba, uint32_t page_size,
 	}
 	INIT_WORK(&queue->irqwork, lpfc_sli4_hba_process_cq);
 	INIT_WORK(&queue->spwork, lpfc_sli4_sp_process_cq);
+	INIT_DELAYED_WORK(&queue->sched_irqwork, lpfc_sli4_dly_hba_process_cq);
+	INIT_DELAYED_WORK(&queue->sched_spwork, lpfc_sli4_dly_sp_process_cq);
 
-	/* entry_repost will be set during q creation */
+	/* notify_interval will be set during q creation */
 
 	return queue;
 out_fail:
@@ -14457,7 +14553,6 @@ lpfc_modify_hba_eq_delay(struct lpfc_hba *phba, uint32_t startq,
 	int cnt = 0, rc, length;
 	uint32_t shdr_status, shdr_add_status;
 	uint32_t dmult;
-	struct lpfc_register reg_data;
 	int qidx;
 	union lpfc_sli4_cfg_shdr *shdr;
 
@@ -14478,16 +14573,7 @@ lpfc_modify_hba_eq_delay(struct lpfc_hba *phba, uint32_t startq,
 			if (!eq)
 				continue;
 
-			/* save value last set */
-			eq->q_mode = usdelay;
-
-			/* write register */
-			reg_data.word0 = 0;
-			bf_set(lpfc_sliport_eqdelay_id, &reg_data,
-					eq->queue_id);
-			bf_set(lpfc_sliport_eqdelay_delay, &reg_data, usdelay);
-			writel(reg_data.word0,
-					phba->sli4_hba.u.if_type2.EQDregaddr);
+			lpfc_sli4_mod_hba_eq_delay(phba, eq, usdelay);
 
 			if (++cnt >= numq)
 				break;
@@ -14673,8 +14759,8 @@ lpfc_eq_create(struct lpfc_hba *phba, struct lpfc_queue *eq, uint32_t imax)
 	if (eq->queue_id == 0xFFFF)
 		status = -ENXIO;
 	eq->host_index = 0;
-	eq->hba_index = 0;
-	eq->entry_repost = LPFC_EQ_REPOST;
+	eq->notify_interval = LPFC_EQ_NOTIFY_INTRVL;
+	eq->max_proc_limit = LPFC_EQ_MAX_PROC_LIMIT;
 
 	mempool_free(mbox, phba->mbox_mem_pool);
 	return status;
@@ -14814,8 +14900,8 @@ lpfc_cq_create(struct lpfc_hba *phba, struct lpfc_queue *cq,
 	cq->assoc_qid = eq->queue_id;
 	cq->assoc_qp = eq;
 	cq->host_index = 0;
-	cq->hba_index = 0;
-	cq->entry_repost = LPFC_CQ_REPOST;
+	cq->notify_interval = LPFC_CQ_NOTIFY_INTRVL;
+	cq->max_proc_limit = min(phba->cfg_cq_max_proc_limit, cq->entry_count);
 
 	if (cq->queue_id > phba->sli4_hba.cq_max)
 		phba->sli4_hba.cq_max = cq->queue_id;
@@ -15026,8 +15112,9 @@ lpfc_cq_create_set(struct lpfc_hba *phba, struct lpfc_queue **cqp,
 		cq->assoc_qid = eq->queue_id;
 		cq->assoc_qp = eq;
 		cq->host_index = 0;
-		cq->hba_index = 0;
-		cq->entry_repost = LPFC_CQ_REPOST;
+		cq->notify_interval = LPFC_CQ_NOTIFY_INTRVL;
+		cq->max_proc_limit = min(phba->cfg_cq_max_proc_limit,
+					 cq->entry_count);
 		cq->chann = idx;
 
 		rc = 0;
@@ -15279,7 +15366,6 @@ lpfc_mq_create(struct lpfc_hba *phba, struct lpfc_queue *mq,
 	mq->subtype = subtype;
 	mq->host_index = 0;
 	mq->hba_index = 0;
-	mq->entry_repost = LPFC_MQ_REPOST;
 
 	/* link the mq onto the parent cq child list */
 	list_add_tail(&mq->list, &cq->child_list);
@@ -15545,7 +15631,7 @@ lpfc_wq_create(struct lpfc_hba *phba, struct lpfc_queue *wq,
 	wq->subtype = subtype;
 	wq->host_index = 0;
 	wq->hba_index = 0;
-	wq->entry_repost = LPFC_RELEASE_NOTIFICATION_INTERVAL;
+	wq->notify_interval = LPFC_WQ_NOTIFY_INTRVL;
 
 	/* link the wq onto the parent cq child list */
 	list_add_tail(&wq->list, &cq->child_list);
@@ -15739,7 +15825,7 @@ lpfc_rq_create(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 	hrq->subtype = subtype;
 	hrq->host_index = 0;
 	hrq->hba_index = 0;
-	hrq->entry_repost = LPFC_RQ_REPOST;
+	hrq->notify_interval = LPFC_RQ_NOTIFY_INTRVL;
 
 	/* now create the data queue */
 	lpfc_sli4_config(phba, mbox, LPFC_MBOX_SUBSYSTEM_FCOE,
@@ -15832,7 +15918,7 @@ lpfc_rq_create(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 	drq->subtype = subtype;
 	drq->host_index = 0;
 	drq->hba_index = 0;
-	drq->entry_repost = LPFC_RQ_REPOST;
+	drq->notify_interval = LPFC_RQ_NOTIFY_INTRVL;
 
 	/* link the header and data RQs onto the parent cq child list */
 	list_add_tail(&hrq->list, &cq->child_list);
@@ -15990,7 +16076,7 @@ lpfc_mrq_create(struct lpfc_hba *phba, struct lpfc_queue **hrqp,
 		hrq->subtype = subtype;
 		hrq->host_index = 0;
 		hrq->hba_index = 0;
-		hrq->entry_repost = LPFC_RQ_REPOST;
+		hrq->notify_interval = LPFC_RQ_NOTIFY_INTRVL;
 
 		drq->db_format = LPFC_DB_RING_FORMAT;
 		drq->db_regaddr = phba->sli4_hba.RQDBregaddr;
@@ -15999,7 +16085,7 @@ lpfc_mrq_create(struct lpfc_hba *phba, struct lpfc_queue **hrqp,
 		drq->subtype = subtype;
 		drq->host_index = 0;
 		drq->hba_index = 0;
-		drq->entry_repost = LPFC_RQ_REPOST;
+		drq->notify_interval = LPFC_RQ_NOTIFY_INTRVL;
 
 		list_add_tail(&hrq->list, &cq->child_list);
 		list_add_tail(&drq->list, &cq->child_list);
@@ -16059,6 +16145,7 @@ lpfc_eq_destroy(struct lpfc_hba *phba, struct lpfc_queue *eq)
 	/* sanity check on queue memory */
 	if (!eq)
 		return -ENODEV;
+
 	mbox = mempool_alloc(eq->phba->mbox_mem_pool, GFP_KERNEL);
 	if (!mbox)
 		return -ENOMEM;
