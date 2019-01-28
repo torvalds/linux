@@ -347,6 +347,8 @@ static int sh_pfc_func_set_mux(struct pinctrl_dev *pctldev, unsigned selector,
 	unsigned int i;
 	int ret = 0;
 
+	dev_dbg(pctldev->dev, "Configuring pin group %s\n", grp->name);
+
 	spin_lock_irqsave(&pfc->lock, flags);
 
 	for (i = 0; i < grp->nr_pins; ++i) {
