@@ -854,7 +854,8 @@ bool i915_gem_unset_wedged(struct drm_i915_private *i915)
 	 *
 	 * No more can be submitted until we reset the wedged bit.
 	 */
-	list_for_each_entry(tl, &i915->gt.timelines, link) {
+	mutex_lock(&i915->gt.timelines.mutex);
+	list_for_each_entry(tl, &i915->gt.timelines.list, link) {
 		struct i915_request *rq;
 		long timeout;
 
@@ -876,9 +877,12 @@ bool i915_gem_unset_wedged(struct drm_i915_private *i915)
 		timeout = dma_fence_default_wait(&rq->fence, true,
 						 MAX_SCHEDULE_TIMEOUT);
 		i915_request_put(rq);
-		if (timeout < 0)
+		if (timeout < 0) {
+			mutex_unlock(&i915->gt.timelines.mutex);
 			goto unlock;
+		}
 	}
+	mutex_unlock(&i915->gt.timelines.mutex);
 
 	intel_engines_sanitize(i915, false);
 

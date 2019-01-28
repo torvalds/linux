@@ -13,7 +13,7 @@ void i915_timeline_init(struct drm_i915_private *i915,
 			struct i915_timeline *timeline,
 			const char *name)
 {
-	lockdep_assert_held(&i915->drm.struct_mutex);
+	struct i915_gt_timelines *gt = &i915->gt.timelines;
 
 	/*
 	 * Ideally we want a set of engines on a single leaf as we expect
@@ -23,9 +23,12 @@ void i915_timeline_init(struct drm_i915_private *i915,
 	 */
 	BUILD_BUG_ON(KSYNCMAP < I915_NUM_ENGINES);
 
+	timeline->i915 = i915;
 	timeline->name = name;
 
-	list_add(&timeline->link, &i915->gt.timelines);
+	mutex_lock(&gt->mutex);
+	list_add(&timeline->link, &gt->list);
+	mutex_unlock(&gt->mutex);
 
 	/* Called during early_init before we know how many engines there are */
 
@@ -37,6 +40,17 @@ void i915_timeline_init(struct drm_i915_private *i915,
 	INIT_LIST_HEAD(&timeline->requests);
 
 	i915_syncmap_init(&timeline->sync);
+}
+
+void i915_timelines_init(struct drm_i915_private *i915)
+{
+	struct i915_gt_timelines *gt = &i915->gt.timelines;
+
+	mutex_init(&gt->mutex);
+	INIT_LIST_HEAD(&gt->list);
+
+	/* via i915_gem_wait_for_idle() */
+	i915_gem_shrinker_taints_mutex(i915, &gt->mutex);
 }
 
 /**
@@ -51,11 +65,11 @@ void i915_timeline_init(struct drm_i915_private *i915,
  */
 void i915_timelines_park(struct drm_i915_private *i915)
 {
+	struct i915_gt_timelines *gt = &i915->gt.timelines;
 	struct i915_timeline *timeline;
 
-	lockdep_assert_held(&i915->drm.struct_mutex);
-
-	list_for_each_entry(timeline, &i915->gt.timelines, link) {
+	mutex_lock(&gt->mutex);
+	list_for_each_entry(timeline, &gt->list, link) {
 		/*
 		 * All known fences are completed so we can scrap
 		 * the current sync point tracking and start afresh,
@@ -64,15 +78,20 @@ void i915_timelines_park(struct drm_i915_private *i915)
 		 */
 		i915_syncmap_free(&timeline->sync);
 	}
+	mutex_unlock(&gt->mutex);
 }
 
 void i915_timeline_fini(struct i915_timeline *timeline)
 {
+	struct i915_gt_timelines *gt = &timeline->i915->gt.timelines;
+
 	GEM_BUG_ON(!list_empty(&timeline->requests));
 
 	i915_syncmap_free(&timeline->sync);
 
+	mutex_lock(&gt->mutex);
 	list_del(&timeline->link);
+	mutex_unlock(&gt->mutex);
 }
 
 struct i915_timeline *
@@ -97,6 +116,15 @@ void __i915_timeline_free(struct kref *kref)
 
 	i915_timeline_fini(timeline);
 	kfree(timeline);
+}
+
+void i915_timelines_fini(struct drm_i915_private *i915)
+{
+	struct i915_gt_timelines *gt = &i915->gt.timelines;
+
+	GEM_BUG_ON(!list_empty(&gt->list));
+
+	mutex_destroy(&gt->mutex);
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)

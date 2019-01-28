@@ -66,6 +66,7 @@ struct i915_timeline {
 
 	struct list_head link;
 	const char *name;
+	struct drm_i915_private *i915;
 
 	struct kref kref;
 };
@@ -134,6 +135,8 @@ static inline bool i915_timeline_sync_is_later(struct i915_timeline *tl,
 	return __i915_timeline_sync_is_later(tl, fence->context, fence->seqno);
 }
 
+void i915_timelines_init(struct drm_i915_private *i915);
 void i915_timelines_park(struct drm_i915_private *i915);
+void i915_timelines_fini(struct drm_i915_private *i915);
 
 #endif

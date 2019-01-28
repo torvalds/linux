@@ -1975,7 +1975,10 @@ struct drm_i915_private {
 		void (*resume)(struct drm_i915_private *);
 		void (*cleanup_engine)(struct intel_engine_cs *engine);
 
-		struct list_head timelines;
+		struct i915_gt_timelines {
+			struct mutex mutex; /* protects list, tainted by GPU */
+			struct list_head list;
+		} timelines;
 
 		struct list_head active_rings;
 		struct list_head closed_vma;
