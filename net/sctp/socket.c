@@ -2798,6 +2798,43 @@ static inline __u32 sctp_spp_sackdelay_disable(__u32 param_flags)
 	return (param_flags & ~SPP_SACKDELAY) | SPP_SACKDELAY_DISABLE;
 }
 
+static void sctp_apply_asoc_delayed_ack(struct sctp_sack_info *params,
+					struct sctp_association *asoc)
+{
+	struct sctp_transport *trans;
+
+	if (params->sack_delay) {
+		asoc->sackdelay = msecs_to_jiffies(params->sack_delay);
+		asoc->param_flags =
+			sctp_spp_sackdelay_enable(asoc->param_flags);
+	}
+	if (params->sack_freq == 1) {
+		asoc->param_flags =
+			sctp_spp_sackdelay_disable(asoc->param_flags);
+	} else if (params->sack_freq > 1) {
+		asoc->sackfreq = params->sack_freq;
+		asoc->param_flags =
+			sctp_spp_sackdelay_enable(asoc->param_flags);
+	}
+
+	list_for_each_entry(trans, &asoc->peer.transport_addr_list,
+			    transports) {
+		if (params->sack_delay) {
+			trans->sackdelay = msecs_to_jiffies(params->sack_delay);
+			trans->param_flags =
+				sctp_spp_sackdelay_enable(trans->param_flags);
+		}
+		if (params->sack_freq == 1) {
+			trans->param_flags =
+				sctp_spp_sackdelay_disable(trans->param_flags);
+		} else if (params->sack_freq > 1) {
+			trans->sackfreq = params->sack_freq;
+			trans->param_flags =
+				sctp_spp_sackdelay_enable(trans->param_flags);
+		}
+	}
+}
+
 /*
  * 7.1.23.  Get or set delayed ack timer (SCTP_DELAYED_SACK)
  *
@@ -2837,10 +2874,9 @@ static inline __u32 sctp_spp_sackdelay_disable(__u32 param_flags)
 static int sctp_setsockopt_delayed_ack(struct sock *sk,
 				       char __user *optval, unsigned int optlen)
 {
-	struct sctp_sack_info    params;
-	struct sctp_transport   *trans = NULL;
-	struct sctp_association *asoc = NULL;
-	struct sctp_sock        *sp = sctp_sk(sk);
+	struct sctp_sock *sp = sctp_sk(sk);
+	struct sctp_association *asoc;
+	struct sctp_sack_info params;
 
 	if (optlen == sizeof(struct sctp_sack_info)) {
 		if (copy_from_user(&params, optval, optlen))
@@ -2868,67 +2904,42 @@ static int sctp_setsockopt_delayed_ack(struct sock *sk,
 	if (params.sack_delay > 500)
 		return -EINVAL;
 
-	/* Get association, if sack_assoc_id != 0 and the socket is a one
-	 * to many style socket, and an association was not found, then
-	 * the id was invalid.
+	/* Get association, if sack_assoc_id != SCTP_FUTURE_ASSOC and the
+	 * socket is a one to many style socket, and an association
+	 * was not found, then the id was invalid.
 	 */
 	asoc = sctp_id2assoc(sk, params.sack_assoc_id);
-	if (!asoc && params.sack_assoc_id && sctp_style(sk, UDP))
+	if (!asoc && params.sack_assoc_id > SCTP_ALL_ASSOC &&
+	    sctp_style(sk, UDP))
 		return -EINVAL;
 
-	if (params.sack_delay) {
-		if (asoc) {
-			asoc->sackdelay =
-				msecs_to_jiffies(params.sack_delay);
-			asoc->param_flags =
-				sctp_spp_sackdelay_enable(asoc->param_flags);
-		} else {
+	if (asoc) {
+		sctp_apply_asoc_delayed_ack(&params, asoc);
+
+		return 0;
+	}
+
+	if (params.sack_assoc_id == SCTP_FUTURE_ASSOC ||
+	    params.sack_assoc_id == SCTP_ALL_ASSOC) {
+		if (params.sack_delay) {
 			sp->sackdelay = params.sack_delay;
 			sp->param_flags =
 				sctp_spp_sackdelay_enable(sp->param_flags);
 		}
-	}
-
-	if (params.sack_freq == 1) {
-		if (asoc) {
-			asoc->param_flags =
-				sctp_spp_sackdelay_disable(asoc->param_flags);
-		} else {
+		if (params.sack_freq == 1) {
 			sp->param_flags =
 				sctp_spp_sackdelay_disable(sp->param_flags);
-		}
-	} else if (params.sack_freq > 1) {
-		if (asoc) {
-			asoc->sackfreq = params.sack_freq;
-			asoc->param_flags =
-				sctp_spp_sackdelay_enable(asoc->param_flags);
-		} else {
+		} else if (params.sack_freq > 1) {
 			sp->sackfreq = params.sack_freq;
 			sp->param_flags =
 				sctp_spp_sackdelay_enable(sp->param_flags);
 		}
 	}
 
-	/* If change is for association, also apply to each transport. */
-	if (asoc) {
-		list_for_each_entry(trans, &asoc->peer.transport_addr_list,
-				transports) {
-			if (params.sack_delay) {
-				trans->sackdelay =
-					msecs_to_jiffies(params.sack_delay);
-				trans->param_flags =
-					sctp_spp_sackdelay_enable(trans->param_flags);
-			}
-			if (params.sack_freq == 1) {
-				trans->param_flags =
-					sctp_spp_sackdelay_disable(trans->param_flags);
-			} else if (params.sack_freq > 1) {
-				trans->sackfreq = params.sack_freq;
-				trans->param_flags =
-					sctp_spp_sackdelay_enable(trans->param_flags);
-			}
-		}
-	}
+	if (params.sack_assoc_id == SCTP_CURRENT_ASSOC ||
+	    params.sack_assoc_id == SCTP_ALL_ASSOC)
+		list_for_each_entry(asoc, &sp->ep->asocs, asocs)
+			sctp_apply_asoc_delayed_ack(&params, asoc);
 
 	return 0;
 }
@@ -5847,19 +5858,19 @@ static int sctp_getsockopt_delayed_ack(struct sock *sk, int len,
 	} else
 		return -EINVAL;
 
-	/* Get association, if sack_assoc_id != 0 and the socket is a one
-	 * to many style socket, and an association was not found, then
-	 * the id was invalid.
+	/* Get association, if sack_assoc_id != SCTP_FUTURE_ASSOC and the
+	 * socket is a one to many style socket, and an association
+	 * was not found, then the id was invalid.
 	 */
 	asoc = sctp_id2assoc(sk, params.sack_assoc_id);
-	if (!asoc && params.sack_assoc_id && sctp_style(sk, UDP))
+	if (!asoc && params.sack_assoc_id != SCTP_FUTURE_ASSOC &&
+	    sctp_style(sk, UDP))
 		return -EINVAL;
 
 	if (asoc) {
 		/* Fetch association values. */
 		if (asoc->param_flags & SPP_SACKDELAY_ENABLE) {
-			params.sack_delay = jiffies_to_msecs(
-				asoc->sackdelay);
+			params.sack_delay = jiffies_to_msecs(asoc->sackdelay);
 			params.sack_freq = asoc->sackfreq;
 
 		} else {
