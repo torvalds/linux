@@ -839,13 +839,14 @@ struct nvmem_device *of_nvmem_device_get(struct device_node *np, const char *id)
 {
 
 	struct device_node *nvmem_np;
-	int index;
+	int index = 0;
 
-	index = of_property_match_string(np, "nvmem-names", id);
+	if (id)
+		index = of_property_match_string(np, "nvmem-names", id);
 
 	nvmem_np = of_parse_phandle(np, "nvmem", index);
 	if (!nvmem_np)
-		return ERR_PTR(-EINVAL);
+		return ERR_PTR(-ENOENT);
 
 	return __nvmem_device_get(nvmem_np, NULL);
 }
