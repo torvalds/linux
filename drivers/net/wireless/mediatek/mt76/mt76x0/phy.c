@@ -855,6 +855,7 @@ void mt76x0_phy_set_txpower(struct mt76x02_dev *dev)
 	dev->mt76.txpower_cur = mt76x02_get_max_rate_power(t);
 	mt76x02_add_rate_power_offset(t, -info);
 
+	dev->target_power = info;
 	mt76x02_phy_set_txpower(dev, info, info);
 }
 
