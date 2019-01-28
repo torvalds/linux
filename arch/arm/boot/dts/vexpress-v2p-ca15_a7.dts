@@ -42,6 +42,7 @@
 			cci-control-port = <&cci_control1>;
 			cpu-idle-states = <&CLUSTER_SLEEP_BIG>;
 			capacity-dmips-mhz = <1024>;
+			dynamic-power-coefficient = <990>;
 		};
 
 		cpu1: cpu@1 {
@@ -51,6 +52,7 @@
 			cci-control-port = <&cci_control1>;
 			cpu-idle-states = <&CLUSTER_SLEEP_BIG>;
 			capacity-dmips-mhz = <1024>;
+			dynamic-power-coefficient = <990>;
 		};
 
 		cpu2: cpu@2 {
@@ -60,6 +62,7 @@
 			cci-control-port = <&cci_control2>;
 			cpu-idle-states = <&CLUSTER_SLEEP_LITTLE>;
 			capacity-dmips-mhz = <516>;
+			dynamic-power-coefficient = <133>;
 		};
 
 		cpu3: cpu@3 {
@@ -69,6 +72,7 @@
 			cci-control-port = <&cci_control2>;
 			cpu-idle-states = <&CLUSTER_SLEEP_LITTLE>;
 			capacity-dmips-mhz = <516>;
+			dynamic-power-coefficient = <133>;
 		};
 
 		cpu4: cpu@4 {
@@ -78,6 +82,7 @@
 			cci-control-port = <&cci_control2>;
 			cpu-idle-states = <&CLUSTER_SLEEP_LITTLE>;
 			capacity-dmips-mhz = <516>;
+			dynamic-power-coefficient = <133>;
 		};
 
 		idle-states {
