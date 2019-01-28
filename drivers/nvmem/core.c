@@ -811,6 +811,7 @@ static struct nvmem_device *__nvmem_device_get(struct device_node *np,
 			"could not increase module refcount for cell %s\n",
 			nvmem_dev_name(nvmem));
 
+		put_device(&nvmem->dev);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -821,6 +822,7 @@ static struct nvmem_device *__nvmem_device_get(struct device_node *np,
 
 static void __nvmem_device_put(struct nvmem_device *nvmem)
 {
+	put_device(&nvmem->dev);
 	module_put(nvmem->owner);
 	kref_put(&nvmem->refcnt, nvmem_device_release);
 }
