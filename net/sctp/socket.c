@@ -3883,8 +3883,9 @@ static int sctp_setsockopt_del_key(struct sock *sk,
 				   unsigned int optlen)
 {
 	struct sctp_endpoint *ep = sctp_sk(sk)->ep;
-	struct sctp_authkeyid val;
 	struct sctp_association *asoc;
+	struct sctp_authkeyid val;
+	int ret = 0;
 
 	if (!ep->auth_enable)
 		return -EACCES;
@@ -3895,11 +3896,32 @@ static int sctp_setsockopt_del_key(struct sock *sk,
 		return -EFAULT;
 
 	asoc = sctp_id2assoc(sk, val.scact_assoc_id);
-	if (!asoc && val.scact_assoc_id && sctp_style(sk, UDP))
+	if (!asoc && val.scact_assoc_id > SCTP_ALL_ASSOC &&
+	    sctp_style(sk, UDP))
 		return -EINVAL;
 
-	return sctp_auth_del_key_id(ep, asoc, val.scact_keynumber);
+	if (asoc)
+		return sctp_auth_del_key_id(ep, asoc, val.scact_keynumber);
 
+	if (val.scact_assoc_id == SCTP_FUTURE_ASSOC ||
+	    val.scact_assoc_id == SCTP_ALL_ASSOC) {
+		ret = sctp_auth_del_key_id(ep, asoc, val.scact_keynumber);
+		if (ret)
+			return ret;
+	}
+
+	if (val.scact_assoc_id == SCTP_CURRENT_ASSOC ||
+	    val.scact_assoc_id == SCTP_ALL_ASSOC) {
+		list_for_each_entry(asoc, &ep->asocs, asocs) {
+			int res = sctp_auth_del_key_id(ep, asoc,
+						       val.scact_keynumber);
+
+			if (res && !ret)
+				ret = res;
+		}
+	}
+
+	return ret;
 }
 
 /*
