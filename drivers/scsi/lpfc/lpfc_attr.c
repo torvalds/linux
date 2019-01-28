@@ -4935,6 +4935,7 @@ lpfc_fcp_imax_store(struct device *dev, struct device_attribute *attr,
 	struct Scsi_Host *shost = class_to_shost(dev);
 	struct lpfc_vport *vport = (struct lpfc_vport *)shost->hostdata;
 	struct lpfc_hba *phba = vport->phba;
+	uint32_t usdelay;
 	int val = 0, i;
 
 	/* fcp_imax is only valid for SLI4 */
@@ -4958,9 +4959,14 @@ lpfc_fcp_imax_store(struct device *dev, struct device_attribute *attr,
 	phba->cfg_fcp_imax = (uint32_t)val;
 	phba->initial_imax = phba->cfg_fcp_imax;
 
+	if (phba->cfg_fcp_imax)
+		usdelay = LPFC_SEC_TO_USEC / phba->cfg_fcp_imax;
+	else
+		usdelay = 0;
+
 	for (i = 0; i < phba->cfg_irq_chann; i += LPFC_MAX_EQ_DELAY_EQID_CNT)
 		lpfc_modify_hba_eq_delay(phba, i, LPFC_MAX_EQ_DELAY_EQID_CNT,
-					 val);
+					 usdelay);
 
 	return strlen(buf);
 }

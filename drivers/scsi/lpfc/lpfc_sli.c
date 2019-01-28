@@ -14425,43 +14425,86 @@ lpfc_dual_chute_pci_bar_map(struct lpfc_hba *phba, uint16_t pci_barset)
 }
 
 /**
- * lpfc_modify_hba_eq_delay - Modify Delay Multiplier on FCP EQs
- * @phba: HBA structure that indicates port to create a queue on.
- * @startq: The starting FCP EQ to modify
+ * lpfc_modify_hba_eq_delay - Modify Delay Multiplier on EQs
+ * @phba: HBA structure that EQs are on.
+ * @startq: The starting EQ index to modify
+ * @numq: The number of EQs (consecutive indexes) to modify
+ * @usdelay: amount of delay
  *
- * This function sends an MODIFY_EQ_DELAY mailbox command to the HBA.
- * The command allows up to LPFC_MAX_EQ_DELAY_EQID_CNT EQ ID's to be
- * updated in one mailbox command.
+ * This function revises the EQ delay on 1 or more EQs. The EQ delay
+ * is set either by writing to a register (if supported by the SLI Port)
+ * or by mailbox command. The mailbox command allows several EQs to be
+ * updated at once.
  *
- * The @phba struct is used to send mailbox command to HBA. The @startq
- * is used to get the starting FCP EQ to change.
- * This function is asynchronous and will wait for the mailbox
- * command to finish before continuing.
+ * The @phba struct is used to send a mailbox command to HBA. The @startq
+ * is used to get the starting EQ index to change. The @numq value is
+ * used to specify how many consecutive EQ indexes, starting at EQ index,
+ * are to be changed. This function is asynchronous and will wait for any
+ * mailbox commands to finish before returning.
  *
- * On success this function will return a zero. If unable to allocate enough
- * memory this function will return -ENOMEM. If the queue create mailbox command
- * fails this function will return -ENXIO.
+ * On success this function will return a zero. If unable to allocate
+ * enough memory this function will return -ENOMEM. If a mailbox command
+ * fails this function will return -ENXIO. Note: on ENXIO, some EQs may
+ * have had their delay multipler changed.
  **/
-int
+void
 lpfc_modify_hba_eq_delay(struct lpfc_hba *phba, uint32_t startq,
-			 uint32_t numq, uint32_t imax)
+			 uint32_t numq, uint32_t usdelay)
 {
 	struct lpfc_mbx_modify_eq_delay *eq_delay;
 	LPFC_MBOXQ_t *mbox;
 	struct lpfc_queue *eq;
-	int cnt, rc, length, status = 0;
+	int cnt = 0, rc, length;
 	uint32_t shdr_status, shdr_add_status;
-	uint32_t result, val;
+	uint32_t dmult;
+	struct lpfc_register reg_data;
 	int qidx;
 	union lpfc_sli4_cfg_shdr *shdr;
-	uint16_t dmult;
 
 	if (startq >= phba->cfg_irq_chann)
-		return 0;
+		return;
+
+	if (usdelay > 0xFFFF) {
+		lpfc_printf_log(phba, KERN_INFO, LOG_INIT | LOG_FCP | LOG_NVME,
+				"6429 usdelay %d too large. Scaled down to "
+				"0xFFFF.\n", usdelay);
+		usdelay = 0xFFFF;
+	}
+
+	/* set values by EQ_DELAY register if supported */
+	if (phba->sli.sli_flag & LPFC_SLI_USE_EQDR) {
+		for (qidx = startq; qidx < phba->cfg_irq_chann; qidx++) {
+			eq = phba->sli4_hba.hdwq[qidx].hba_eq;
+			if (!eq)
+				continue;
+
+			/* save value last set */
+			eq->q_mode = usdelay;
+
+			/* write register */
+			reg_data.word0 = 0;
+			bf_set(lpfc_sliport_eqdelay_id, &reg_data,
+					eq->queue_id);
+			bf_set(lpfc_sliport_eqdelay_delay, &reg_data, usdelay);
+			writel(reg_data.word0,
+					phba->sli4_hba.u.if_type2.EQDregaddr);
+
+			if (++cnt >= numq)
+				break;
+		}
+
+		return;
+	}
+
+	/* Otherwise, set values by mailbox cmd */
 
 	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
-	if (!mbox)
-		return -ENOMEM;
+	if (!mbox) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT | LOG_FCP | LOG_NVME,
+				"6428 Failed allocating mailbox cmd buffer."
+				" EQ delay was not set.\n");
+		return;
+	}
 	length = (sizeof(struct lpfc_mbx_modify_eq_delay) -
 		  sizeof(struct lpfc_sli4_cfg_mhdr));
 	lpfc_sli4_config(phba, mbox, LPFC_MBOX_SUBSYSTEM_COMMON,
@@ -14470,44 +14513,22 @@ lpfc_modify_hba_eq_delay(struct lpfc_hba *phba, uint32_t startq,
 	eq_delay = &mbox->u.mqe.un.eq_delay;
 
 	/* Calculate delay multiper from maximum interrupt per second */
-	result = imax / phba->cfg_irq_chann;
-	if (result > LPFC_DMULT_CONST || result == 0)
-		dmult = 0;
-	else
-		dmult = LPFC_DMULT_CONST/result - 1;
+	dmult = (usdelay * LPFC_DMULT_CONST) / LPFC_SEC_TO_USEC;
+	if (dmult)
+		dmult--;
 	if (dmult > LPFC_DMULT_MAX)
 		dmult = LPFC_DMULT_MAX;
 
-	cnt = 0;
 	for (qidx = startq; qidx < phba->cfg_irq_chann; qidx++) {
 		eq = phba->sli4_hba.hdwq[qidx].hba_eq;
 		if (!eq)
 			continue;
-		eq->q_mode = imax;
+		eq->q_mode = usdelay;
 		eq_delay->u.request.eq[cnt].eq_id = eq->queue_id;
 		eq_delay->u.request.eq[cnt].phase = 0;
 		eq_delay->u.request.eq[cnt].delay_multi = dmult;
-		cnt++;
 
-		/* q_mode is only used for auto_imax */
-		if (phba->sli.sli_flag & LPFC_SLI_USE_EQDR) {
-			/* Use EQ Delay Register method for q_mode */
-
-			/* Convert for EQ Delay register */
-			val =  phba->cfg_fcp_imax;
-			if (val) {
-				/* First, interrupts per sec per EQ */
-				val = phba->cfg_fcp_imax / phba->cfg_irq_chann;
-
-				/* us delay between each interrupt */
-				val = LPFC_SEC_TO_USEC / val;
-			}
-			eq->q_mode = val;
-		} else {
-			eq->q_mode = imax;
-		}
-
-		if (cnt >= numq)
+		if (++cnt >= numq)
 			break;
 	}
 	eq_delay->u.request.num_eq = cnt;
@@ -14525,10 +14546,9 @@ lpfc_modify_hba_eq_delay(struct lpfc_hba *phba, uint32_t startq,
 				"2512 MODIFY_EQ_DELAY mailbox failed with "
 				"status x%x add_status x%x, mbx status x%x\n",
 				shdr_status, shdr_add_status, rc);
-		status = -ENXIO;
 	}
 	mempool_free(mbox, phba->mbox_mem_pool);
-	return status;
+	return;
 }
 
 /**

@@ -9336,7 +9336,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 	struct lpfc_sli4_hdw_queue *qp;
 	LPFC_MBOXQ_t *mboxq;
 	int qidx;
-	uint32_t length;
+	uint32_t length, usdelay;
 	int rc = -ENOMEM;
 
 	/* Check for dual-ULP support */
@@ -9643,10 +9643,15 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 			phba->sli4_hba.dat_rq->queue_id,
 			phba->sli4_hba.els_cq->queue_id);
 
+	if (phba->cfg_fcp_imax)
+		usdelay = LPFC_SEC_TO_USEC / phba->cfg_fcp_imax;
+	else
+		usdelay = 0;
+
 	for (qidx = 0; qidx < phba->cfg_irq_chann;
 	     qidx += LPFC_MAX_EQ_DELAY_EQID_CNT)
 		lpfc_modify_hba_eq_delay(phba, qidx, LPFC_MAX_EQ_DELAY_EQID_CNT,
-					 phba->cfg_fcp_imax);
+					 usdelay);
 
 	if (phba->sli4_hba.cq_max) {
 		kfree(phba->sli4_hba.cq_lookup);
