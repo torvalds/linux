@@ -12,6 +12,7 @@
 struct bpf_map *bpf_map_meta_alloc(int inner_map_ufd)
 {
 	struct bpf_map *inner_map, *inner_map_meta;
+	u32 inner_map_meta_size;
 	struct fd f;
 
 	f = fdget(inner_map_ufd);
@@ -35,7 +36,12 @@ struct bpf_map *bpf_map_meta_alloc(int inner_map_ufd)
 		return ERR_PTR(-EINVAL);
 	}
 
-	inner_map_meta = kzalloc(sizeof(*inner_map_meta), GFP_USER);
+	inner_map_meta_size = sizeof(*inner_map_meta);
+	/* In some cases verifier needs to access beyond just base map. */
+	if (inner_map->ops == &array_map_ops)
+		inner_map_meta_size = sizeof(struct bpf_array);
+
+	inner_map_meta = kzalloc(inner_map_meta_size, GFP_USER);
 	if (!inner_map_meta) {
 		fdput(f);
 		return ERR_PTR(-ENOMEM);
@@ -45,8 +51,15 @@ struct bpf_map *bpf_map_meta_alloc(int inner_map_ufd)
 	inner_map_meta->key_size = inner_map->key_size;
 	inner_map_meta->value_size = inner_map->value_size;
 	inner_map_meta->map_flags = inner_map->map_flags;
-	inner_map_meta->ops = inner_map->ops;
 	inner_map_meta->max_entries = inner_map->max_entries;
+
+	/* Misc members not needed in bpf_map_meta_equal() check. */
+	inner_map_meta->ops = inner_map->ops;
+	if (inner_map->ops == &array_map_ops) {
+		inner_map_meta->unpriv_array = inner_map->unpriv_array;
+		container_of(inner_map_meta, struct bpf_array, map)->index_mask =
+		     container_of(inner_map, struct bpf_array, map)->index_mask;
+	}
 
 	fdput(f);
 	return inner_map_meta;
