@@ -4,12 +4,154 @@
  * Copyright © 2017-2018 Intel Corporation
  */
 
+#include <linux/prime_numbers.h>
+
 #include "../i915_selftest.h"
 #include "i915_random.h"
 
 #include "igt_flush_test.h"
 #include "mock_gem_device.h"
 #include "mock_timeline.h"
+
+static struct page *hwsp_page(struct i915_timeline *tl)
+{
+	struct drm_i915_gem_object *obj = tl->hwsp_ggtt->obj;
+
+	GEM_BUG_ON(!i915_gem_object_has_pinned_pages(obj));
+	return sg_page(obj->mm.pages->sgl);
+}
+
+static unsigned long hwsp_cacheline(struct i915_timeline *tl)
+{
+	unsigned long address = (unsigned long)page_address(hwsp_page(tl));
+
+	return (address + tl->hwsp_offset) / CACHELINE_BYTES;
+}
+
+#define CACHELINES_PER_PAGE (PAGE_SIZE / CACHELINE_BYTES)
+
+struct mock_hwsp_freelist {
+	struct drm_i915_private *i915;
+	struct radix_tree_root cachelines;
+	struct i915_timeline **history;
+	unsigned long count, max;
+	struct rnd_state prng;
+};
+
+enum {
+	SHUFFLE = BIT(0),
+};
+
+static void __mock_hwsp_record(struct mock_hwsp_freelist *state,
+			       unsigned int idx,
+			       struct i915_timeline *tl)
+{
+	tl = xchg(&state->history[idx], tl);
+	if (tl) {
+		radix_tree_delete(&state->cachelines, hwsp_cacheline(tl));
+		i915_timeline_put(tl);
+	}
+}
+
+static int __mock_hwsp_timeline(struct mock_hwsp_freelist *state,
+				unsigned int count,
+				unsigned int flags)
+{
+	struct i915_timeline *tl;
+	unsigned int idx;
+
+	while (count--) {
+		unsigned long cacheline;
+		int err;
+
+		tl = i915_timeline_create(state->i915, "mock", NULL);
+		if (IS_ERR(tl))
+			return PTR_ERR(tl);
+
+		cacheline = hwsp_cacheline(tl);
+		err = radix_tree_insert(&state->cachelines, cacheline, tl);
+		if (err) {
+			if (err == -EEXIST) {
+				pr_err("HWSP cacheline %lu already used; duplicate allocation!\n",
+				       cacheline);
+			}
+			i915_timeline_put(tl);
+			return err;
+		}
+
+		idx = state->count++ % state->max;
+		__mock_hwsp_record(state, idx, tl);
+	}
+
+	if (flags & SHUFFLE)
+		i915_prandom_shuffle(state->history,
+				     sizeof(*state->history),
+				     min(state->count, state->max),
+				     &state->prng);
+
+	count = i915_prandom_u32_max_state(min(state->count, state->max),
+					   &state->prng);
+	while (count--) {
+		idx = --state->count % state->max;
+		__mock_hwsp_record(state, idx, NULL);
+	}
+
+	return 0;
+}
+
+static int mock_hwsp_freelist(void *arg)
+{
+	struct mock_hwsp_freelist state;
+	const struct {
+		const char *name;
+		unsigned int flags;
+	} phases[] = {
+		{ "linear", 0 },
+		{ "shuffled", SHUFFLE },
+		{ },
+	}, *p;
+	unsigned int na;
+	int err = 0;
+
+	INIT_RADIX_TREE(&state.cachelines, GFP_KERNEL);
+	state.prng = I915_RND_STATE_INITIALIZER(i915_selftest.random_seed);
+
+	state.i915 = mock_gem_device();
+	if (!state.i915)
+		return -ENOMEM;
+
+	/*
+	 * Create a bunch of timelines and check that their HWSP do not overlap.
+	 * Free some, and try again.
+	 */
+
+	state.max = PAGE_SIZE / sizeof(*state.history);
+	state.count = 0;
+	state.history = kcalloc(state.max, sizeof(*state.history), GFP_KERNEL);
+	if (!state.history) {
+		err = -ENOMEM;
+		goto err_put;
+	}
+
+	mutex_lock(&state.i915->drm.struct_mutex);
+	for (p = phases; p->name; p++) {
+		pr_debug("%s(%s)\n", __func__, p->name);
+		for_each_prime_number_from(na, 1, 2 * CACHELINES_PER_PAGE) {
+			err = __mock_hwsp_timeline(&state, na, p->flags);
+			if (err)
+				goto out;
+		}
+	}
+
+out:
+	for (na = 0; na < state.max; na++)
+		__mock_hwsp_record(&state, na, NULL);
+	mutex_unlock(&state.i915->drm.struct_mutex);
+	kfree(state.history);
+err_put:
+	drm_dev_put(&state.i915->drm);
+	return err;
+}
 
 struct __igt_sync {
 	const char *name;
@@ -260,6 +402,7 @@ static int bench_sync(void *arg)
 int i915_timeline_mock_selftests(void)
 {
 	static const struct i915_subtest tests[] = {
+		SUBTEST(mock_hwsp_freelist),
 		SUBTEST(igt_sync),
 		SUBTEST(bench_sync),
 	};

@@ -1978,6 +1978,10 @@ struct drm_i915_private {
 		struct i915_gt_timelines {
 			struct mutex mutex; /* protects list, tainted by GPU */
 			struct list_head list;
+
+			/* Pack multiple timelines' seqnos into the same page */
+			spinlock_t hwsp_lock;
+			struct list_head hwsp_free_list;
 		} timelines;
 
 		struct list_head active_rings;

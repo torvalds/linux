@@ -33,6 +33,7 @@
 #include "i915_utils.h"
 
 struct i915_vma;
+struct i915_timeline_hwsp;
 
 struct i915_timeline {
 	u64 fence_context;

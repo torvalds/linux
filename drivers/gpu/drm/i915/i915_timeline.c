@@ -9,6 +9,18 @@
 #include "i915_timeline.h"
 #include "i915_syncmap.h"
 
+struct i915_timeline_hwsp {
+	struct i915_vma *vma;
+	struct list_head free_link;
+	u64 free_bitmap;
+};
+
+static inline struct i915_timeline_hwsp *
+i915_timeline_hwsp(const struct i915_timeline *tl)
+{
+	return tl->hwsp_ggtt->private;
+}
+
 static struct i915_vma *__hwsp_alloc(struct drm_i915_private *i915)
 {
 	struct drm_i915_gem_object *obj;
@@ -27,28 +39,89 @@ static struct i915_vma *__hwsp_alloc(struct drm_i915_private *i915)
 	return vma;
 }
 
-static int hwsp_alloc(struct i915_timeline *timeline)
+static struct i915_vma *
+hwsp_alloc(struct i915_timeline *timeline, unsigned int *cacheline)
 {
-	struct i915_vma *vma;
+	struct drm_i915_private *i915 = timeline->i915;
+	struct i915_gt_timelines *gt = &i915->gt.timelines;
+	struct i915_timeline_hwsp *hwsp;
 
-	vma = __hwsp_alloc(timeline->i915);
-	if (IS_ERR(vma))
-		return PTR_ERR(vma);
+	BUILD_BUG_ON(BITS_PER_TYPE(u64) * CACHELINE_BYTES > PAGE_SIZE);
 
-	timeline->hwsp_ggtt = vma;
-	timeline->hwsp_offset = 0;
+	spin_lock(&gt->hwsp_lock);
 
-	return 0;
+	/* hwsp_free_list only contains HWSP that have available cachelines */
+	hwsp = list_first_entry_or_null(&gt->hwsp_free_list,
+					typeof(*hwsp), free_link);
+	if (!hwsp) {
+		struct i915_vma *vma;
+
+		spin_unlock(&gt->hwsp_lock);
+
+		hwsp = kmalloc(sizeof(*hwsp), GFP_KERNEL);
+		if (!hwsp)
+			return ERR_PTR(-ENOMEM);
+
+		vma = __hwsp_alloc(i915);
+		if (IS_ERR(vma)) {
+			kfree(hwsp);
+			return vma;
+		}
+
+		vma->private = hwsp;
+		hwsp->vma = vma;
+		hwsp->free_bitmap = ~0ull;
+
+		spin_lock(&gt->hwsp_lock);
+		list_add(&hwsp->free_link, &gt->hwsp_free_list);
+	}
+
+	GEM_BUG_ON(!hwsp->free_bitmap);
+	*cacheline = __ffs64(hwsp->free_bitmap);
+	hwsp->free_bitmap &= ~BIT_ULL(*cacheline);
+	if (!hwsp->free_bitmap)
+		list_del(&hwsp->free_link);
+
+	spin_unlock(&gt->hwsp_lock);
+
+	GEM_BUG_ON(hwsp->vma->private != hwsp);
+	return hwsp->vma;
+}
+
+static void hwsp_free(struct i915_timeline *timeline)
+{
+	struct i915_gt_timelines *gt = &timeline->i915->gt.timelines;
+	struct i915_timeline_hwsp *hwsp;
+
+	hwsp = i915_timeline_hwsp(timeline);
+	if (!hwsp) /* leave global HWSP alone! */
+		return;
+
+	spin_lock(&gt->hwsp_lock);
+
+	/* As a cacheline becomes available, publish the HWSP on the freelist */
+	if (!hwsp->free_bitmap)
+		list_add_tail(&hwsp->free_link, &gt->hwsp_free_list);
+
+	hwsp->free_bitmap |= BIT_ULL(timeline->hwsp_offset / CACHELINE_BYTES);
+
+	/* And if no one is left using it, give the page back to the system */
+	if (hwsp->free_bitmap == ~0ull) {
+		i915_vma_put(hwsp->vma);
+		list_del(&hwsp->free_link);
+		kfree(hwsp);
+	}
+
+	spin_unlock(&gt->hwsp_lock);
 }
 
 int i915_timeline_init(struct drm_i915_private *i915,
 		       struct i915_timeline *timeline,
 		       const char *name,
-		       struct i915_vma *global_hwsp)
+		       struct i915_vma *hwsp)
 {
 	struct i915_gt_timelines *gt = &i915->gt.timelines;
 	void *vaddr;
-	int err;
 
 	/*
 	 * Ideally we want a set of engines on a single leaf as we expect
@@ -64,18 +137,22 @@ int i915_timeline_init(struct drm_i915_private *i915,
 	timeline->name = name;
 	timeline->pin_count = 0;
 
-	if (global_hwsp) {
-		timeline->hwsp_ggtt = i915_vma_get(global_hwsp);
-		timeline->hwsp_offset = I915_GEM_HWS_SEQNO_ADDR;
-	} else {
-		err = hwsp_alloc(timeline);
-		if (err)
-			return err;
-	}
+	timeline->hwsp_offset = I915_GEM_HWS_SEQNO_ADDR;
+	if (!hwsp) {
+		unsigned int cacheline;
 
-	vaddr = i915_gem_object_pin_map(timeline->hwsp_ggtt->obj, I915_MAP_WB);
+		hwsp = hwsp_alloc(timeline, &cacheline);
+		if (IS_ERR(hwsp))
+			return PTR_ERR(hwsp);
+
+		timeline->hwsp_offset = cacheline * CACHELINE_BYTES;
+	}
+	timeline->hwsp_ggtt = i915_vma_get(hwsp);
+
+	vaddr = i915_gem_object_pin_map(hwsp->obj, I915_MAP_WB);
 	if (IS_ERR(vaddr)) {
-		i915_vma_put(timeline->hwsp_ggtt);
+		hwsp_free(timeline);
+		i915_vma_put(hwsp);
 		return PTR_ERR(vaddr);
 	}
 
@@ -104,6 +181,9 @@ void i915_timelines_init(struct drm_i915_private *i915)
 
 	mutex_init(&gt->mutex);
 	INIT_LIST_HEAD(&gt->list);
+
+	spin_lock_init(&gt->hwsp_lock);
+	INIT_LIST_HEAD(&gt->hwsp_free_list);
 
 	/* via i915_gem_wait_for_idle() */
 	i915_gem_shrinker_taints_mutex(i915, &gt->mutex);
@@ -144,11 +224,12 @@ void i915_timeline_fini(struct i915_timeline *timeline)
 	GEM_BUG_ON(timeline->pin_count);
 	GEM_BUG_ON(!list_empty(&timeline->requests));
 
-	i915_syncmap_free(&timeline->sync);
-
 	mutex_lock(&gt->mutex);
 	list_del(&timeline->link);
 	mutex_unlock(&gt->mutex);
+
+	i915_syncmap_free(&timeline->sync);
+	hwsp_free(timeline);
 
 	i915_gem_object_unpin_map(timeline->hwsp_ggtt->obj);
 	i915_vma_put(timeline->hwsp_ggtt);
@@ -226,6 +307,7 @@ void i915_timelines_fini(struct drm_i915_private *i915)
 	struct i915_gt_timelines *gt = &i915->gt.timelines;
 
 	GEM_BUG_ON(!list_empty(&gt->list));
+	GEM_BUG_ON(!list_empty(&gt->hwsp_free_list));
 
 	mutex_destroy(&gt->mutex);
 }
