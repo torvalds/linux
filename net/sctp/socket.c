@@ -3639,11 +3639,9 @@ static int sctp_setsockopt_maxburst(struct sock *sk,
 				    char __user *optval,
 				    unsigned int optlen)
 {
+	struct sctp_sock *sp = sctp_sk(sk);
 	struct sctp_assoc_value params;
-	struct sctp_sock *sp;
 	struct sctp_association *asoc;
-	int val;
-	int assoc_id = 0;
 
 	if (optlen == sizeof(int)) {
 		pr_warn_ratelimited(DEPRECATED
@@ -3651,25 +3649,34 @@ static int sctp_setsockopt_maxburst(struct sock *sk,
 				    "Use of int in max_burst socket option deprecated.\n"
 				    "Use struct sctp_assoc_value instead\n",
 				    current->comm, task_pid_nr(current));
-		if (copy_from_user(&val, optval, optlen))
+		if (copy_from_user(&params.assoc_value, optval, optlen))
 			return -EFAULT;
+		params.assoc_id = SCTP_FUTURE_ASSOC;
 	} else if (optlen == sizeof(struct sctp_assoc_value)) {
 		if (copy_from_user(&params, optval, optlen))
 			return -EFAULT;
-		val = params.assoc_value;
-		assoc_id = params.assoc_id;
 	} else
 		return -EINVAL;
 
-	sp = sctp_sk(sk);
+	asoc = sctp_id2assoc(sk, params.assoc_id);
+	if (!asoc && params.assoc_id > SCTP_ALL_ASSOC &&
+	    sctp_style(sk, UDP))
+		return -EINVAL;
 
-	if (assoc_id != 0) {
-		asoc = sctp_id2assoc(sk, assoc_id);
-		if (!asoc)
-			return -EINVAL;
-		asoc->max_burst = val;
-	} else
-		sp->max_burst = val;
+	if (asoc) {
+		asoc->max_burst = params.assoc_value;
+
+		return 0;
+	}
+
+	if (params.assoc_id == SCTP_FUTURE_ASSOC ||
+	    params.assoc_id == SCTP_ALL_ASSOC)
+		sp->max_burst = params.assoc_value;
+
+	if (params.assoc_id == SCTP_CURRENT_ASSOC ||
+	    params.assoc_id == SCTP_ALL_ASSOC)
+		list_for_each_entry(asoc, &sp->ep->asocs, asocs)
+			asoc->max_burst = params.assoc_value;
 
 	return 0;
 }
@@ -6678,7 +6685,6 @@ static int sctp_getsockopt_maxburst(struct sock *sk, int len,
 				    int __user *optlen)
 {
 	struct sctp_assoc_value params;
-	struct sctp_sock *sp;
 	struct sctp_association *asoc;
 
 	if (len == sizeof(int)) {
@@ -6687,7 +6693,7 @@ static int sctp_getsockopt_maxburst(struct sock *sk, int len,
 				    "Use of int in max_burst socket option.\n"
 				    "Use struct sctp_assoc_value instead\n",
 				    current->comm, task_pid_nr(current));
-		params.assoc_id = 0;
+		params.assoc_id = SCTP_FUTURE_ASSOC;
 	} else if (len >= sizeof(struct sctp_assoc_value)) {
 		len = sizeof(struct sctp_assoc_value);
 		if (copy_from_user(&params, optval, len))
@@ -6695,15 +6701,12 @@ static int sctp_getsockopt_maxburst(struct sock *sk, int len,
 	} else
 		return -EINVAL;
 
-	sp = sctp_sk(sk);
+	asoc = sctp_id2assoc(sk, params.assoc_id);
+	if (!asoc && params.assoc_id != SCTP_FUTURE_ASSOC &&
+	    sctp_style(sk, UDP))
+		return -EINVAL;
 
-	if (params.assoc_id != 0) {
-		asoc = sctp_id2assoc(sk, params.assoc_id);
-		if (!asoc)
-			return -EINVAL;
-		params.assoc_value = asoc->max_burst;
-	} else
-		params.assoc_value = sp->max_burst;
+	params.assoc_value = asoc ? asoc->max_burst : sctp_sk(sk)->max_burst;
 
 	if (len == sizeof(int)) {
 		if (copy_to_user(optval, &params.assoc_value, len))
