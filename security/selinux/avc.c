@@ -1059,7 +1059,8 @@ int avc_has_extended_perms(struct selinux_state *state,
 	int rc = 0, rc2;
 
 	xp_node = &local_xp_node;
-	BUG_ON(!requested);
+	if (WARN_ON(!requested))
+		return -EACCES;
 
 	rcu_read_lock();
 
@@ -1149,7 +1150,8 @@ inline int avc_has_perm_noaudit(struct selinux_state *state,
 	int rc = 0;
 	u32 denied;
 
-	BUG_ON(!requested);
+	if (WARN_ON(!requested))
+		return -EACCES;
 
 	rcu_read_lock();
 
