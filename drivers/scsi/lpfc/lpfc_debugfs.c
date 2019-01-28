@@ -378,6 +378,126 @@ skipit:
 	return len;
 }
 
+/**
+ * lpfc_debugfs_multixripools_data - Display multi-XRI pools information
+ * @phba: The HBA to gather host buffer info from.
+ * @buf: The buffer to dump log into.
+ * @size: The maximum amount of data to process.
+ *
+ * Description:
+ * This routine displays current multi-XRI pools information including XRI
+ * count in public, private and txcmplq. It also displays current high and
+ * low watermark.
+ *
+ * Return Value:
+ * This routine returns the amount of bytes that were dumped into @buf and will
+ * not exceed @size.
+ **/
+static int
+lpfc_debugfs_multixripools_data(struct lpfc_hba *phba, char *buf, int size)
+{
+	u32 i;
+	u32 hwq_count;
+	struct lpfc_sli4_hdw_queue *qp;
+	struct lpfc_multixri_pool *multixri_pool;
+	struct lpfc_pvt_pool *pvt_pool;
+	struct lpfc_pbl_pool *pbl_pool;
+	u32 txcmplq_cnt;
+	char tmp[LPFC_DEBUG_OUT_LINE_SZ] = {0};
+
+	/*
+	 * Pbl: Current number of free XRIs in public pool
+	 * Pvt: Current number of free XRIs in private pool
+	 * Busy: Current number of outstanding XRIs
+	 * HWM: Current high watermark
+	 * pvt_empty: Incremented by 1 when IO submission fails (no xri)
+	 * pbl_empty: Incremented by 1 when all pbl_pool are empty during
+	 *            IO submission
+	 */
+	scnprintf(tmp, sizeof(tmp),
+		  "HWQ:  Pbl  Pvt Busy  HWM |  pvt_empty  pbl_empty ");
+	if (strlcat(buf, tmp, size) >= size)
+		return strnlen(buf, size);
+
+#ifdef LPFC_MXP_STAT
+	/*
+	 * MAXH: Max high watermark seen so far
+	 * above_lmt: Incremented by 1 if xri_owned > xri_limit during
+	 *            IO submission
+	 * below_lmt: Incremented by 1 if xri_owned <= xri_limit  during
+	 *            IO submission
+	 * locPbl_hit: Incremented by 1 if successfully get a batch of XRI from
+	 *             local pbl_pool
+	 * othPbl_hit: Incremented by 1 if successfully get a batch of XRI from
+	 *             other pbl_pool
+	 */
+	scnprintf(tmp, sizeof(tmp),
+		  "MAXH  above_lmt  below_lmt locPbl_hit othPbl_hit");
+	if (strlcat(buf, tmp, size) >= size)
+		return strnlen(buf, size);
+
+	/*
+	 * sPbl: snapshot of Pbl 15 sec after stat gets cleared
+	 * sPvt: snapshot of Pvt 15 sec after stat gets cleared
+	 * sBusy: snapshot of Busy 15 sec after stat gets cleared
+	 */
+	scnprintf(tmp, sizeof(tmp),
+		  " | sPbl sPvt sBusy");
+	if (strlcat(buf, tmp, size) >= size)
+		return strnlen(buf, size);
+#endif
+
+	scnprintf(tmp, sizeof(tmp), "\n");
+	if (strlcat(buf, tmp, size) >= size)
+		return strnlen(buf, size);
+
+	hwq_count = phba->cfg_hdw_queue;
+	for (i = 0; i < hwq_count; i++) {
+		qp = &phba->sli4_hba.hdwq[i];
+		multixri_pool = qp->p_multixri_pool;
+		if (!multixri_pool)
+			continue;
+		pbl_pool = &multixri_pool->pbl_pool;
+		pvt_pool = &multixri_pool->pvt_pool;
+		txcmplq_cnt = qp->fcp_wq->pring->txcmplq_cnt;
+		if (qp->nvme_wq)
+			txcmplq_cnt += qp->nvme_wq->pring->txcmplq_cnt;
+
+		scnprintf(tmp, sizeof(tmp),
+			  "%03d: %4d %4d %4d %4d | %10d %10d ",
+			  i, pbl_pool->count, pvt_pool->count,
+			  txcmplq_cnt, pvt_pool->high_watermark,
+			  qp->empty_io_bufs, multixri_pool->pbl_empty_count);
+		if (strlcat(buf, tmp, size) >= size)
+			break;
+
+#ifdef LPFC_MXP_STAT
+		scnprintf(tmp, sizeof(tmp),
+			  "%4d %10d %10d %10d %10d",
+			  multixri_pool->stat_max_hwm,
+			  multixri_pool->above_limit_count,
+			  multixri_pool->below_limit_count,
+			  multixri_pool->local_pbl_hit_count,
+			  multixri_pool->other_pbl_hit_count);
+		if (strlcat(buf, tmp, size) >= size)
+			break;
+
+		scnprintf(tmp, sizeof(tmp),
+			  " | %4d %4d %5d",
+			  multixri_pool->stat_pbl_count,
+			  multixri_pool->stat_pvt_count,
+			  multixri_pool->stat_busy_count);
+		if (strlcat(buf, tmp, size) >= size)
+			break;
+#endif
+
+		scnprintf(tmp, sizeof(tmp), "\n");
+		if (strlcat(buf, tmp, size) >= size)
+			break;
+	}
+	return strnlen(buf, size);
+}
+
 static int lpfc_debugfs_last_hdwq;
 
 /**
@@ -1752,6 +1872,53 @@ out:
 }
 
 /**
+ * lpfc_debugfs_multixripools_open - Open the multixripool debugfs buffer
+ * @inode: The inode pointer that contains a hba pointer.
+ * @file: The file pointer to attach the log output.
+ *
+ * Description:
+ * This routine is the entry point for the debugfs open file operation. It gets
+ * the hba from the i_private field in @inode, allocates the necessary buffer
+ * for the log, fills the buffer from the in-memory log for this hba, and then
+ * returns a pointer to that log in the private_data field in @file.
+ *
+ * Returns:
+ * This function returns zero if successful. On error it will return a negative
+ * error value.
+ **/
+static int
+lpfc_debugfs_multixripools_open(struct inode *inode, struct file *file)
+{
+	struct lpfc_hba *phba = inode->i_private;
+	struct lpfc_debug *debug;
+	int rc = -ENOMEM;
+
+	debug = kmalloc(sizeof(*debug), GFP_KERNEL);
+	if (!debug)
+		goto out;
+
+	/* Round to page boundary */
+	debug->buffer = kzalloc(LPFC_DUMP_MULTIXRIPOOL_SIZE, GFP_KERNEL);
+	if (!debug->buffer) {
+		kfree(debug);
+		goto out;
+	}
+
+	if (phba->cfg_xri_rebalancing)
+		debug->len = lpfc_debugfs_multixripools_data(
+			phba, debug->buffer, LPFC_DUMP_MULTIXRIPOOL_SIZE);
+	else
+		debug->len = 0;
+
+	debug->i_private = inode->i_private;
+	file->private_data = debug;
+
+	rc = 0;
+out:
+	return rc;
+}
+
+/**
  * lpfc_debugfs_hdwqinfo_open - Open the hdwqinfo debugfs buffer
  * @inode: The inode pointer that contains a vport pointer.
  * @file: The file pointer to attach the log output.
@@ -2182,6 +2349,75 @@ lpfc_debugfs_dumpDataDif_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
+/**
+ * lpfc_debugfs_multixripools_write - Clear multi-XRI pools statistics
+ * @file: The file pointer to read from.
+ * @buf: The buffer to copy the user data from.
+ * @nbytes: The number of bytes to get.
+ * @ppos: The position in the file to start reading from.
+ *
+ * Description:
+ * This routine clears multi-XRI pools statistics when buf contains "clear".
+ *
+ * Return Value:
+ * It returns the @nbytges passing in from debugfs user space when successful.
+ * In case of error conditions, it returns proper error code back to the user
+ * space.
+ **/
+static ssize_t
+lpfc_debugfs_multixripools_write(struct file *file, const char __user *buf,
+				 size_t nbytes, loff_t *ppos)
+{
+	struct lpfc_debug *debug = file->private_data;
+	struct lpfc_hba *phba = (struct lpfc_hba *)debug->i_private;
+	char mybuf[64];
+	char *pbuf;
+	u32 i;
+	u32 hwq_count;
+	struct lpfc_sli4_hdw_queue *qp;
+	struct lpfc_multixri_pool *multixri_pool;
+
+	if (nbytes > 64)
+		nbytes = 64;
+
+	/* Protect copy from user */
+	if (!access_ok(buf, nbytes))
+		return -EFAULT;
+
+	memset(mybuf, 0, sizeof(mybuf));
+
+	if (copy_from_user(mybuf, buf, nbytes))
+		return -EFAULT;
+	pbuf = &mybuf[0];
+
+	if ((strncmp(pbuf, "clear", strlen("clear"))) == 0) {
+		hwq_count = phba->cfg_hdw_queue;
+		for (i = 0; i < hwq_count; i++) {
+			qp = &phba->sli4_hba.hdwq[i];
+			multixri_pool = qp->p_multixri_pool;
+			if (!multixri_pool)
+				continue;
+
+			qp->empty_io_bufs = 0;
+			multixri_pool->pbl_empty_count = 0;
+#ifdef LPFC_MXP_STAT
+			multixri_pool->above_limit_count = 0;
+			multixri_pool->below_limit_count = 0;
+			multixri_pool->stat_max_hwm = 0;
+			multixri_pool->local_pbl_hit_count = 0;
+			multixri_pool->other_pbl_hit_count = 0;
+
+			multixri_pool->stat_pbl_count = 0;
+			multixri_pool->stat_pvt_count = 0;
+			multixri_pool->stat_busy_count = 0;
+			multixri_pool->stat_snapshot_taken = 0;
+#endif
+		}
+		return strlen(pbuf);
+	}
+
+	return -EINVAL;
+}
 
 static int
 lpfc_debugfs_nvmestat_open(struct inode *inode, struct file *file)
@@ -5044,6 +5280,16 @@ static const struct file_operations lpfc_debugfs_op_nodelist = {
 	.release =      lpfc_debugfs_release,
 };
 
+#undef lpfc_debugfs_op_multixripools
+static const struct file_operations lpfc_debugfs_op_multixripools = {
+	.owner =        THIS_MODULE,
+	.open =         lpfc_debugfs_multixripools_open,
+	.llseek =       lpfc_debugfs_lseek,
+	.read =         lpfc_debugfs_read,
+	.write =	lpfc_debugfs_multixripools_write,
+	.release =      lpfc_debugfs_release,
+};
+
 #undef lpfc_debugfs_op_hbqinfo
 static const struct file_operations lpfc_debugfs_op_hbqinfo = {
 	.owner =        THIS_MODULE,
@@ -5490,6 +5736,19 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 		atomic_inc(&lpfc_debugfs_hba_count);
 		atomic_set(&phba->debugfs_vport_count, 0);
 
+		/* Multi-XRI pools */
+		snprintf(name, sizeof(name), "multixripools");
+		phba->debug_multixri_pools =
+			debugfs_create_file(name, S_IFREG | 0644,
+					    phba->hba_debugfs_root,
+					    phba,
+					    &lpfc_debugfs_op_multixripools);
+		if (!phba->debug_multixri_pools) {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+					 "0527 Cannot create debugfs multixripools\n");
+			goto debug_failed;
+		}
+
 		/* Setup hbqinfo */
 		snprintf(name, sizeof(name), "hbqinfo");
 		phba->debug_hbqinfo =
@@ -5905,6 +6164,9 @@ lpfc_debugfs_terminate(struct lpfc_vport *vport)
 	}
 
 	if (atomic_read(&phba->debugfs_vport_count) == 0) {
+
+		debugfs_remove(phba->debug_multixri_pools); /* multixripools*/
+		phba->debug_multixri_pools = NULL;
 
 		debugfs_remove(phba->debug_hbqinfo); /* hbqinfo */
 		phba->debug_hbqinfo = NULL;

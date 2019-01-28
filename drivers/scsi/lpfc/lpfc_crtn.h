@@ -521,6 +521,7 @@ int lpfc_sli4_io_sgl_update(struct lpfc_hba *phba);
 int lpfc_sli4_post_io_sgl_list(struct lpfc_hba *phba,
 		struct list_head *blist, int xricnt);
 int lpfc_new_io_buf(struct lpfc_hba *phba, int num_to_alloc);
+void lpfc_io_free(struct lpfc_hba *phba);
 void lpfc_free_sgl_list(struct lpfc_hba *, struct list_head *);
 uint32_t lpfc_sli_port_speed_get(struct lpfc_hba *);
 int lpfc_sli4_request_firmware_update(struct lpfc_hba *, uint8_t);
@@ -573,6 +574,21 @@ void lpfc_nvme_mod_param_dep(struct lpfc_hba *phba);
 void lpfc_nvme_abort_fcreq_cmpl(struct lpfc_hba *phba,
 				struct lpfc_iocbq *cmdiocb,
 				struct lpfc_wcqe_complete *abts_cmpl);
+void lpfc_create_multixri_pools(struct lpfc_hba *phba);
+void lpfc_create_destroy_pools(struct lpfc_hba *phba);
+void lpfc_move_xri_pvt_to_pbl(struct lpfc_hba *phba, u32 hwqid);
+void lpfc_move_xri_pbl_to_pvt(struct lpfc_hba *phba, u32 hwqid, u32 cnt);
+void lpfc_adjust_high_watermark(struct lpfc_hba *phba, u32 hwqid);
+void lpfc_keep_pvt_pool_above_lowwm(struct lpfc_hba *phba, u32 hwqid);
+void lpfc_adjust_pvt_pool_count(struct lpfc_hba *phba, u32 hwqid);
+#ifdef LPFC_MXP_STAT
+void lpfc_snapshot_mxp(struct lpfc_hba *, u32);
+#endif
+struct lpfc_io_buf *lpfc_get_io_buf(struct lpfc_hba *phba,
+				struct lpfc_nodelist *ndlp, u32 hwqid,
+				int);
+void lpfc_release_io_buf(struct lpfc_hba *phba, struct lpfc_io_buf *ncmd,
+			 struct lpfc_sli4_hdw_queue *qp);
 void lpfc_nvme_cmd_template(void);
 void lpfc_nvmet_cmd_template(void);
 extern int lpfc_enable_nvmet_cnt;

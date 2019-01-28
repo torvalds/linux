@@ -533,6 +533,59 @@ struct lpfc_vector_map_info {
 };
 #define LPFC_VECTOR_MAP_EMPTY	0xffff
 
+/* Multi-XRI pool */
+#define XRI_BATCH               8
+
+struct lpfc_pbl_pool {
+	struct list_head list;
+	u32 count;
+	spinlock_t lock;	/* lock for pbl_pool*/
+};
+
+struct lpfc_pvt_pool {
+	u32 low_watermark;
+	u32 high_watermark;
+
+	struct list_head list;
+	u32 count;
+	spinlock_t lock;	/* lock for pvt_pool */
+};
+
+struct lpfc_multixri_pool {
+	u32 xri_limit;
+
+	/* Starting point when searching a pbl_pool with round-robin method */
+	u32 rrb_next_hwqid;
+
+	/* Used by lpfc_adjust_pvt_pool_count.
+	 * io_req_count is incremented by 1 during IO submission. The heartbeat
+	 * handler uses these two variables to determine if pvt_pool is idle or
+	 * busy.
+	 */
+	u32 prev_io_req_count;
+	u32 io_req_count;
+
+	/* statistics */
+	u32 pbl_empty_count;
+#ifdef LPFC_MXP_STAT
+	u32 above_limit_count;
+	u32 below_limit_count;
+	u32 local_pbl_hit_count;
+	u32 other_pbl_hit_count;
+	u32 stat_max_hwm;
+
+#define LPFC_MXP_SNAPSHOT_TAKEN 3 /* snapshot is taken at 3rd heartbeats */
+	u32 stat_pbl_count;
+	u32 stat_pvt_count;
+	u32 stat_busy_count;
+	u32 stat_snapshot_taken;
+#endif
+
+	/* TODO: Separate pvt_pool into get and put list */
+	struct lpfc_pbl_pool pbl_pool;   /* Public free XRI pool */
+	struct lpfc_pvt_pool pvt_pool;   /* Private free XRI pool */
+};
+
 struct lpfc_fc4_ctrl_stat {
 	u32 input_requests;
 	u32 output_requests;
@@ -566,6 +619,9 @@ struct lpfc_sli4_hdw_queue {
 	uint32_t empty_io_bufs;
 	uint32_t abts_scsi_io_bufs;
 	uint32_t abts_nvme_io_bufs;
+
+	/* Multi-XRI pool per HWQ */
+	struct lpfc_multixri_pool *p_multixri_pool;
 
 	/* FC-4 Stats counters */
 	struct lpfc_fc4_ctrl_stat nvme_cstat;

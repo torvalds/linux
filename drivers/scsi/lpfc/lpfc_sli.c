@@ -1133,14 +1133,14 @@ __lpfc_sli_get_els_sglq(struct lpfc_hba *phba, struct lpfc_iocbq *piocbq)
 	struct list_head *lpfc_els_sgl_list = &phba->sli4_hba.lpfc_els_sgl_list;
 	struct lpfc_sglq *sglq = NULL;
 	struct lpfc_sglq *start_sglq = NULL;
-	struct lpfc_scsi_buf *lpfc_cmd;
+	struct lpfc_io_buf *lpfc_cmd;
 	struct lpfc_nodelist *ndlp;
 	int found = 0;
 
 	lockdep_assert_held(&phba->hbalock);
 
 	if (piocbq->iocb_flag &  LPFC_IO_FCP) {
-		lpfc_cmd = (struct lpfc_scsi_buf *) piocbq->context1;
+		lpfc_cmd = (struct lpfc_io_buf *) piocbq->context1;
 		ndlp = lpfc_cmd->rdata->pnode;
 	} else  if ((piocbq->iocb.ulpCommand == CMD_GEN_REQUEST64_CR) &&
 			!(piocbq->iocb_flag & LPFC_IO_LIBDFC)) {
@@ -1596,6 +1596,7 @@ lpfc_sli_ringtxcmpl_put(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 
 	list_add_tail(&piocb->list, &pring->txcmplq);
 	piocb->iocb_flag |= LPFC_IO_ON_TXCMPLQ;
+	pring->txcmplq_cnt++;
 
 	if ((unlikely(pring->ringno == LPFC_ELS_RING)) &&
 	   (piocb->iocb.ulpCommand != CMD_ABORT_XRI_CN) &&
@@ -3008,6 +3009,7 @@ lpfc_sli_iocbq_lookup(struct lpfc_hba *phba,
 			/* remove from txcmpl queue list */
 			list_del_init(&cmd_iocb->list);
 			cmd_iocb->iocb_flag &= ~LPFC_IO_ON_TXCMPLQ;
+			pring->txcmplq_cnt--;
 			return cmd_iocb;
 		}
 	}
@@ -3045,6 +3047,7 @@ lpfc_sli_iocbq_lookup_by_tag(struct lpfc_hba *phba,
 			/* remove from txcmpl queue list */
 			list_del_init(&cmd_iocb->list);
 			cmd_iocb->iocb_flag &= ~LPFC_IO_ON_TXCMPLQ;
+			pring->txcmplq_cnt--;
 			return cmd_iocb;
 		}
 	}
@@ -7170,7 +7173,7 @@ lpfc_post_rq_buffer(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 int
 lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 {
-	int rc, i, cnt;
+	int rc, i, cnt, len;
 	LPFC_MBOXQ_t *mboxq;
 	struct lpfc_mqe *mqe;
 	uint8_t *vpd;
@@ -7648,6 +7651,25 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 		lpfc_sli_read_link_ste(phba);
 	}
 
+	/* Don't post more new bufs if repost already recovered
+	 * the nvme sgls.
+	 */
+	if (phba->nvmet_support == 0) {
+		if (phba->sli4_hba.io_xri_cnt == 0) {
+			len = lpfc_new_io_buf(
+					      phba, phba->sli4_hba.io_xri_max);
+			if (len == 0) {
+				rc = -ENOMEM;
+				goto out_unset_queue;
+			}
+
+			if (phba->cfg_xri_rebalancing)
+				lpfc_create_multixri_pools(phba);
+		}
+	} else {
+		phba->cfg_xri_rebalancing = 0;
+	}
+
 	/* Arm the CQs and then EQs on device */
 	lpfc_sli4_arm_cqeq_intr(phba);
 
@@ -7727,18 +7749,21 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT | LOG_SLI,
 					"3104 Adapter failed to issue "
 					"DOWN_LINK mbox cmd, rc:x%x\n", rc);
-			goto out_unset_queue;
+			goto out_io_buff_free;
 		}
 	} else if (phba->cfg_suppress_link_up == LPFC_INITIALIZE_LINK) {
 		/* don't perform init_link on SLI4 FC port loopback test */
 		if (!(phba->link_flag & LS_LOOPBACK_MODE)) {
 			rc = phba->lpfc_hba_init_link(phba, MBX_NOWAIT);
 			if (rc)
-				goto out_unset_queue;
+				goto out_io_buff_free;
 		}
 	}
 	mempool_free(mboxq, phba->mbox_mem_pool);
 	return rc;
+out_io_buff_free:
+	/* Free allocated IO Buffers */
+	lpfc_io_free(phba);
 out_unset_queue:
 	/* Unset all the queues set up in this routine when error out */
 	lpfc_sli4_queue_unset(phba);
@@ -9472,7 +9497,7 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 			bf_set(wqe_pbde, &wqe->fcp_iwrite.wqe_com, 0);
 
 		if (phba->fcp_embed_io) {
-			struct lpfc_scsi_buf *lpfc_cmd;
+			struct lpfc_io_buf *lpfc_cmd;
 			struct sli4_sge *sgl;
 			struct fcp_cmnd *fcp_cmnd;
 			uint32_t *ptr;
@@ -9536,7 +9561,7 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 			bf_set(wqe_pbde, &wqe->fcp_iread.wqe_com, 0);
 
 		if (phba->fcp_embed_io) {
-			struct lpfc_scsi_buf *lpfc_cmd;
+			struct lpfc_io_buf *lpfc_cmd;
 			struct sli4_sge *sgl;
 			struct fcp_cmnd *fcp_cmnd;
 			uint32_t *ptr;
@@ -9593,7 +9618,7 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 		/* Note, word 10 is already initialized to 0 */
 
 		if (phba->fcp_embed_io) {
-			struct lpfc_scsi_buf *lpfc_cmd;
+			struct lpfc_io_buf *lpfc_cmd;
 			struct sli4_sge *sgl;
 			struct fcp_cmnd *fcp_cmnd;
 			uint32_t *ptr;
@@ -9994,7 +10019,7 @@ lpfc_sli_api_table_setup(struct lpfc_hba *phba, uint8_t dev_grp)
 struct lpfc_sli_ring *
 lpfc_sli4_calc_ring(struct lpfc_hba *phba, struct lpfc_iocbq *piocb)
 {
-	struct lpfc_scsi_buf *lpfc_cmd;
+	struct lpfc_io_buf *lpfc_cmd;
 
 	if (piocb->iocb_flag & (LPFC_IO_FCP | LPFC_USE_FCPWQIDX)) {
 		if (unlikely(!phba->sli4_hba.hdwq))
@@ -10004,7 +10029,7 @@ lpfc_sli4_calc_ring(struct lpfc_hba *phba, struct lpfc_iocbq *piocb)
 		 * be setup based on what work queue we used.
 		 */
 		if (!(piocb->iocb_flag & LPFC_USE_FCPWQIDX)) {
-			lpfc_cmd = (struct lpfc_scsi_buf *)piocb->context1;
+			lpfc_cmd = (struct lpfc_io_buf *)piocb->context1;
 			piocb->hba_wqidx = lpfc_cmd->hdwq_no;
 		}
 		return phba->sli4_hba.hdwq[piocb->hba_wqidx].fcp_wq->pring;
@@ -10494,6 +10519,7 @@ lpfc_sli4_queue_init(struct lpfc_hba *phba)
 		pring = phba->sli4_hba.hdwq[i].fcp_wq->pring;
 		pring->flag = 0;
 		pring->ringno = LPFC_FCP_RING;
+		pring->txcmplq_cnt = 0;
 		INIT_LIST_HEAD(&pring->txq);
 		INIT_LIST_HEAD(&pring->txcmplq);
 		INIT_LIST_HEAD(&pring->iocb_continueq);
@@ -10502,6 +10528,7 @@ lpfc_sli4_queue_init(struct lpfc_hba *phba)
 	pring = phba->sli4_hba.els_wq->pring;
 	pring->flag = 0;
 	pring->ringno = LPFC_ELS_RING;
+	pring->txcmplq_cnt = 0;
 	INIT_LIST_HEAD(&pring->txq);
 	INIT_LIST_HEAD(&pring->txcmplq);
 	INIT_LIST_HEAD(&pring->iocb_continueq);
@@ -10510,8 +10537,9 @@ lpfc_sli4_queue_init(struct lpfc_hba *phba)
 	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
 		for (i = 0; i < phba->cfg_hdw_queue; i++) {
 			pring = phba->sli4_hba.hdwq[i].nvme_wq->pring;
-				pring->flag = 0;
+			pring->flag = 0;
 			pring->ringno = LPFC_FCP_RING;
+			pring->txcmplq_cnt = 0;
 			INIT_LIST_HEAD(&pring->txq);
 			INIT_LIST_HEAD(&pring->txcmplq);
 			INIT_LIST_HEAD(&pring->iocb_continueq);
@@ -10520,6 +10548,7 @@ lpfc_sli4_queue_init(struct lpfc_hba *phba)
 		pring = phba->sli4_hba.nvmels_wq->pring;
 		pring->flag = 0;
 		pring->ringno = LPFC_ELS_RING;
+		pring->txcmplq_cnt = 0;
 		INIT_LIST_HEAD(&pring->txq);
 		INIT_LIST_HEAD(&pring->txcmplq);
 		INIT_LIST_HEAD(&pring->iocb_continueq);
@@ -11433,7 +11462,7 @@ lpfc_sli_validate_fcp_iocb(struct lpfc_iocbq *iocbq, struct lpfc_vport *vport,
 			   uint16_t tgt_id, uint64_t lun_id,
 			   lpfc_ctx_cmd ctx_cmd)
 {
-	struct lpfc_scsi_buf *lpfc_cmd;
+	struct lpfc_io_buf *lpfc_cmd;
 	int rc = 1;
 
 	if (iocbq->vport != vport)
@@ -11443,7 +11472,7 @@ lpfc_sli_validate_fcp_iocb(struct lpfc_iocbq *iocbq, struct lpfc_vport *vport,
 	    !(iocbq->iocb_flag & LPFC_IO_ON_TXCMPLQ))
 		return rc;
 
-	lpfc_cmd = container_of(iocbq, struct lpfc_scsi_buf, cur_iocbq);
+	lpfc_cmd = container_of(iocbq, struct lpfc_io_buf, cur_iocbq);
 
 	if (lpfc_cmd->pCmd == NULL)
 		return rc;
@@ -11670,7 +11699,7 @@ lpfc_sli_abort_taskmgmt(struct lpfc_vport *vport, struct lpfc_sli_ring *pring,
 			uint16_t tgt_id, uint64_t lun_id, lpfc_ctx_cmd cmd)
 {
 	struct lpfc_hba *phba = vport->phba;
-	struct lpfc_scsi_buf *lpfc_cmd;
+	struct lpfc_io_buf *lpfc_cmd;
 	struct lpfc_iocbq *abtsiocbq;
 	struct lpfc_nodelist *ndlp;
 	struct lpfc_iocbq *iocbq;
@@ -11726,7 +11755,7 @@ lpfc_sli_abort_taskmgmt(struct lpfc_vport *vport, struct lpfc_sli_ring *pring,
 		if (iocbq->iocb_flag & LPFC_IO_FOF)
 			abtsiocbq->iocb_flag |= LPFC_IO_FOF;
 
-		lpfc_cmd = container_of(iocbq, struct lpfc_scsi_buf, cur_iocbq);
+		lpfc_cmd = container_of(iocbq, struct lpfc_io_buf, cur_iocbq);
 		ndlp = lpfc_cmd->rdata->pnode;
 
 		if (lpfc_is_link_up(phba) &&
@@ -11792,7 +11821,7 @@ lpfc_sli_wake_iocb_wait(struct lpfc_hba *phba,
 {
 	wait_queue_head_t *pdone_q;
 	unsigned long iflags;
-	struct lpfc_scsi_buf *lpfc_cmd;
+	struct lpfc_io_buf *lpfc_cmd;
 
 	spin_lock_irqsave(&phba->hbalock, iflags);
 	if (cmdiocbq->iocb_flag & LPFC_IO_WAKE_TMO) {
@@ -11821,7 +11850,7 @@ lpfc_sli_wake_iocb_wait(struct lpfc_hba *phba,
 	/* Set the exchange busy flag for task management commands */
 	if ((cmdiocbq->iocb_flag & LPFC_IO_FCP) &&
 		!(cmdiocbq->iocb_flag & LPFC_IO_LIBDFC)) {
-		lpfc_cmd = container_of(cmdiocbq, struct lpfc_scsi_buf,
+		lpfc_cmd = container_of(cmdiocbq, struct lpfc_io_buf,
 			cur_iocbq);
 		lpfc_cmd->exch_busy = rspiocbq->iocb_flag & LPFC_EXCHANGE_BUSY;
 	}
@@ -16627,7 +16656,7 @@ static int
 lpfc_sli4_post_io_sgl_block(struct lpfc_hba *phba, struct list_head *nblist,
 			    int count)
 {
-	struct lpfc_nvme_buf *lpfc_ncmd;
+	struct lpfc_io_buf *lpfc_ncmd;
 	struct lpfc_mbx_post_uembed_sgl_page1 *sgl;
 	struct sgl_page_pairs *sgl_pg_pairs;
 	void *viraddr;
@@ -16743,7 +16772,7 @@ int
 lpfc_sli4_post_io_sgl_list(struct lpfc_hba *phba,
 			   struct list_head *post_nblist, int sb_count)
 {
-	struct lpfc_nvme_buf *lpfc_ncmd, *lpfc_ncmd_next;
+	struct lpfc_io_buf *lpfc_ncmd, *lpfc_ncmd_next;
 	int status, sgl_size;
 	int post_cnt = 0, block_cnt = 0, num_posting = 0, num_posted = 0;
 	dma_addr_t pdma_phys_sgl1;
@@ -16801,11 +16830,13 @@ lpfc_sli4_post_io_sgl_list(struct lpfc_hba *phba,
 						phba, lpfc_ncmd->dma_phys_sgl,
 						pdma_phys_sgl1, cur_xritag);
 				if (status) {
-					/* failure, put on abort nvme list */
-					lpfc_ncmd->flags |= LPFC_SBUF_XBUSY;
+					/* Post error.  Buffer unavailable. */
+					lpfc_ncmd->flags |=
+						LPFC_SBUF_NOT_POSTED;
 				} else {
-					/* success, put on NVME buffer list */
-					lpfc_ncmd->flags &= ~LPFC_SBUF_XBUSY;
+					/* Post success. Bffer available. */
+					lpfc_ncmd->flags &=
+						~LPFC_SBUF_NOT_POSTED;
 					lpfc_ncmd->status = IOSTAT_SUCCESS;
 					num_posted++;
 				}
@@ -16832,13 +16863,13 @@ lpfc_sli4_post_io_sgl_list(struct lpfc_hba *phba,
 		/* put posted NVME buffer-sgl posted on NVME buffer sgl list */
 		while (!list_empty(&blck_nblist)) {
 			list_remove_head(&blck_nblist, lpfc_ncmd,
-					 struct lpfc_nvme_buf, list);
+					 struct lpfc_io_buf, list);
 			if (status) {
-				/* failure, put on abort nvme list */
-				lpfc_ncmd->flags |= LPFC_SBUF_XBUSY;
+				/* Post error.  Mark buffer unavailable. */
+				lpfc_ncmd->flags |= LPFC_SBUF_NOT_POSTED;
 			} else {
-				/* success, put on NVME buffer list */
-				lpfc_ncmd->flags &= ~LPFC_SBUF_XBUSY;
+				/* Post success, Mark buffer available. */
+				lpfc_ncmd->flags &= ~LPFC_SBUF_NOT_POSTED;
 				lpfc_ncmd->status = IOSTAT_SUCCESS;
 				num_posted++;
 			}
@@ -19704,4 +19735,637 @@ lpfc_sli4_issue_wqe(struct lpfc_hba *phba, struct lpfc_sli4_hdw_queue *qp,
 		return 0;
 	}
 	return WQE_ERROR;
+}
+
+#ifdef LPFC_MXP_STAT
+/**
+ * lpfc_snapshot_mxp - Snapshot pbl, pvt and busy count
+ * @phba: pointer to lpfc hba data structure.
+ * @hwqid: belong to which HWQ.
+ *
+ * The purpose of this routine is to take a snapshot of pbl, pvt and busy count
+ * 15 seconds after a test case is running.
+ *
+ * The user should call lpfc_debugfs_multixripools_write before running a test
+ * case to clear stat_snapshot_taken. Then the user starts a test case. During
+ * test case is running, stat_snapshot_taken is incremented by 1 every time when
+ * this routine is called from heartbeat timer. When stat_snapshot_taken is
+ * equal to LPFC_MXP_SNAPSHOT_TAKEN, a snapshot is taken.
+ **/
+void lpfc_snapshot_mxp(struct lpfc_hba *phba, u32 hwqid)
+{
+	struct lpfc_sli4_hdw_queue *qp;
+	struct lpfc_multixri_pool *multixri_pool;
+	struct lpfc_pvt_pool *pvt_pool;
+	struct lpfc_pbl_pool *pbl_pool;
+	u32 txcmplq_cnt;
+
+	qp = &phba->sli4_hba.hdwq[hwqid];
+	multixri_pool = qp->p_multixri_pool;
+	if (!multixri_pool)
+		return;
+
+	if (multixri_pool->stat_snapshot_taken == LPFC_MXP_SNAPSHOT_TAKEN) {
+		pvt_pool = &qp->p_multixri_pool->pvt_pool;
+		pbl_pool = &qp->p_multixri_pool->pbl_pool;
+		txcmplq_cnt = qp->fcp_wq->pring->txcmplq_cnt;
+		if (qp->nvme_wq)
+			txcmplq_cnt += qp->nvme_wq->pring->txcmplq_cnt;
+
+		multixri_pool->stat_pbl_count = pbl_pool->count;
+		multixri_pool->stat_pvt_count = pvt_pool->count;
+		multixri_pool->stat_busy_count = txcmplq_cnt;
+	}
+
+	multixri_pool->stat_snapshot_taken++;
+}
+#endif
+
+/**
+ * lpfc_adjust_pvt_pool_count - Adjust private pool count
+ * @phba: pointer to lpfc hba data structure.
+ * @hwqid: belong to which HWQ.
+ *
+ * This routine moves some XRIs from private to public pool when private pool
+ * is not busy.
+ **/
+void lpfc_adjust_pvt_pool_count(struct lpfc_hba *phba, u32 hwqid)
+{
+	struct lpfc_multixri_pool *multixri_pool;
+	u32 io_req_count;
+	u32 prev_io_req_count;
+
+	multixri_pool = phba->sli4_hba.hdwq[hwqid].p_multixri_pool;
+	if (!multixri_pool)
+		return;
+	io_req_count = multixri_pool->io_req_count;
+	prev_io_req_count = multixri_pool->prev_io_req_count;
+
+	if (prev_io_req_count != io_req_count) {
+		/* Private pool is busy */
+		multixri_pool->prev_io_req_count = io_req_count;
+	} else {
+		/* Private pool is not busy.
+		 * Move XRIs from private to public pool.
+		 */
+		lpfc_move_xri_pvt_to_pbl(phba, hwqid);
+	}
+}
+
+/**
+ * lpfc_adjust_high_watermark - Adjust high watermark
+ * @phba: pointer to lpfc hba data structure.
+ * @hwqid: belong to which HWQ.
+ *
+ * This routine sets high watermark as number of outstanding XRIs,
+ * but make sure the new value is between xri_limit/2 and xri_limit.
+ **/
+void lpfc_adjust_high_watermark(struct lpfc_hba *phba, u32 hwqid)
+{
+	u32 new_watermark;
+	u32 watermark_max;
+	u32 watermark_min;
+	u32 xri_limit;
+	u32 txcmplq_cnt;
+	u32 abts_io_bufs;
+	struct lpfc_multixri_pool *multixri_pool;
+	struct lpfc_sli4_hdw_queue *qp;
+
+	qp = &phba->sli4_hba.hdwq[hwqid];
+	multixri_pool = qp->p_multixri_pool;
+	if (!multixri_pool)
+		return;
+	xri_limit = multixri_pool->xri_limit;
+
+	watermark_max = xri_limit;
+	watermark_min = xri_limit / 2;
+
+	txcmplq_cnt = qp->fcp_wq->pring->txcmplq_cnt;
+	abts_io_bufs = qp->abts_scsi_io_bufs;
+	if (qp->nvme_wq) {
+		txcmplq_cnt += qp->nvme_wq->pring->txcmplq_cnt;
+		abts_io_bufs += qp->abts_nvme_io_bufs;
+	}
+
+	new_watermark = txcmplq_cnt + abts_io_bufs;
+	new_watermark = min(watermark_max, new_watermark);
+	new_watermark = max(watermark_min, new_watermark);
+	multixri_pool->pvt_pool.high_watermark = new_watermark;
+
+#ifdef LPFC_MXP_STAT
+	multixri_pool->stat_max_hwm = max(multixri_pool->stat_max_hwm,
+					  new_watermark);
+#endif
+}
+
+/**
+ * lpfc_move_xri_pvt_to_pbl - Move some XRIs from private to public pool
+ * @phba: pointer to lpfc hba data structure.
+ * @hwqid: belong to which HWQ.
+ *
+ * This routine is called from hearbeat timer when pvt_pool is idle.
+ * All free XRIs are moved from private to public pool on hwqid with 2 steps.
+ * The first step moves (all - low_watermark) amount of XRIs.
+ * The second step moves the rest of XRIs.
+ **/
+void lpfc_move_xri_pvt_to_pbl(struct lpfc_hba *phba, u32 hwqid)
+{
+	struct lpfc_pbl_pool *pbl_pool;
+	struct lpfc_pvt_pool *pvt_pool;
+	struct lpfc_io_buf *lpfc_ncmd;
+	struct lpfc_io_buf *lpfc_ncmd_next;
+	unsigned long iflag;
+	struct list_head tmp_list;
+	u32 tmp_count;
+
+	pbl_pool = &phba->sli4_hba.hdwq[hwqid].p_multixri_pool->pbl_pool;
+	pvt_pool = &phba->sli4_hba.hdwq[hwqid].p_multixri_pool->pvt_pool;
+	tmp_count = 0;
+
+	spin_lock_irqsave(&pbl_pool->lock, iflag);
+	spin_lock(&pvt_pool->lock);
+
+	if (pvt_pool->count > pvt_pool->low_watermark) {
+		/* Step 1: move (all - low_watermark) from pvt_pool
+		 * to pbl_pool
+		 */
+
+		/* Move low watermark of bufs from pvt_pool to tmp_list */
+		INIT_LIST_HEAD(&tmp_list);
+		list_for_each_entry_safe(lpfc_ncmd, lpfc_ncmd_next,
+					 &pvt_pool->list, list) {
+			list_move_tail(&lpfc_ncmd->list, &tmp_list);
+			tmp_count++;
+			if (tmp_count >= pvt_pool->low_watermark)
+				break;
+		}
+
+		/* Move all bufs from pvt_pool to pbl_pool */
+		list_splice_init(&pvt_pool->list, &pbl_pool->list);
+
+		/* Move all bufs from tmp_list to pvt_pool */
+		list_splice(&tmp_list, &pvt_pool->list);
+
+		pbl_pool->count += (pvt_pool->count - tmp_count);
+		pvt_pool->count = tmp_count;
+	} else {
+		/* Step 2: move the rest from pvt_pool to pbl_pool */
+		list_splice_init(&pvt_pool->list, &pbl_pool->list);
+		pbl_pool->count += pvt_pool->count;
+		pvt_pool->count = 0;
+	}
+
+	spin_unlock(&pvt_pool->lock);
+	spin_unlock_irqrestore(&pbl_pool->lock, iflag);
+}
+
+/**
+ * _lpfc_move_xri_pbl_to_pvt - Move some XRIs from public to private pool
+ * @phba: pointer to lpfc hba data structure
+ * @pbl_pool: specified public free XRI pool
+ * @pvt_pool: specified private free XRI pool
+ * @count: number of XRIs to move
+ *
+ * This routine tries to move some free common bufs from the specified pbl_pool
+ * to the specified pvt_pool. It might move less than count XRIs if there's not
+ * enough in public pool.
+ *
+ * Return:
+ *   true - if XRIs are successfully moved from the specified pbl_pool to the
+ *          specified pvt_pool
+ *   false - if the specified pbl_pool is empty or locked by someone else
+ **/
+static bool
+_lpfc_move_xri_pbl_to_pvt(struct lpfc_hba *phba, struct lpfc_pbl_pool *pbl_pool,
+			  struct lpfc_pvt_pool *pvt_pool, u32 count)
+{
+	struct lpfc_io_buf *lpfc_ncmd;
+	struct lpfc_io_buf *lpfc_ncmd_next;
+	unsigned long iflag;
+	int ret;
+
+	ret = spin_trylock_irqsave(&pbl_pool->lock, iflag);
+	if (ret) {
+		if (pbl_pool->count) {
+			/* Move a batch of XRIs from public to private pool */
+			spin_lock(&pvt_pool->lock);
+			list_for_each_entry_safe(lpfc_ncmd,
+						 lpfc_ncmd_next,
+						 &pbl_pool->list,
+						 list) {
+				list_move_tail(&lpfc_ncmd->list,
+					       &pvt_pool->list);
+				pvt_pool->count++;
+				pbl_pool->count--;
+				count--;
+				if (count == 0)
+					break;
+			}
+
+			spin_unlock(&pvt_pool->lock);
+			spin_unlock_irqrestore(&pbl_pool->lock, iflag);
+			return true;
+		}
+		spin_unlock_irqrestore(&pbl_pool->lock, iflag);
+	}
+
+	return false;
+}
+
+/**
+ * lpfc_move_xri_pbl_to_pvt - Move some XRIs from public to private pool
+ * @phba: pointer to lpfc hba data structure.
+ * @hwqid: belong to which HWQ.
+ * @count: number of XRIs to move
+ *
+ * This routine tries to find some free common bufs in one of public pools with
+ * Round Robin method. The search always starts from local hwqid, then the next
+ * HWQ which was found last time (rrb_next_hwqid). Once a public pool is found,
+ * a batch of free common bufs are moved to private pool on hwqid.
+ * It might move less than count XRIs if there's not enough in public pool.
+ **/
+void lpfc_move_xri_pbl_to_pvt(struct lpfc_hba *phba, u32 hwqid, u32 count)
+{
+	struct lpfc_multixri_pool *multixri_pool;
+	struct lpfc_multixri_pool *next_multixri_pool;
+	struct lpfc_pvt_pool *pvt_pool;
+	struct lpfc_pbl_pool *pbl_pool;
+	u32 next_hwqid;
+	u32 hwq_count;
+	int ret;
+
+	multixri_pool = phba->sli4_hba.hdwq[hwqid].p_multixri_pool;
+	pvt_pool = &multixri_pool->pvt_pool;
+	pbl_pool = &multixri_pool->pbl_pool;
+
+	/* Check if local pbl_pool is available */
+	ret = _lpfc_move_xri_pbl_to_pvt(phba, pbl_pool, pvt_pool, count);
+	if (ret) {
+#ifdef LPFC_MXP_STAT
+		multixri_pool->local_pbl_hit_count++;
+#endif
+		return;
+	}
+
+	hwq_count = phba->cfg_hdw_queue;
+
+	/* Get the next hwqid which was found last time */
+	next_hwqid = multixri_pool->rrb_next_hwqid;
+
+	do {
+		/* Go to next hwq */
+		next_hwqid = (next_hwqid + 1) % hwq_count;
+
+		next_multixri_pool =
+			phba->sli4_hba.hdwq[next_hwqid].p_multixri_pool;
+		pbl_pool = &next_multixri_pool->pbl_pool;
+
+		/* Check if the public free xri pool is available */
+		ret = _lpfc_move_xri_pbl_to_pvt(
+			phba, pbl_pool, pvt_pool, count);
+
+		/* Exit while-loop if success or all hwqid are checked */
+	} while (!ret && next_hwqid != multixri_pool->rrb_next_hwqid);
+
+	/* Starting point for the next time */
+	multixri_pool->rrb_next_hwqid = next_hwqid;
+
+	if (!ret) {
+		/* stats: all public pools are empty*/
+		multixri_pool->pbl_empty_count++;
+	}
+
+#ifdef LPFC_MXP_STAT
+	if (ret) {
+		if (next_hwqid == hwqid)
+			multixri_pool->local_pbl_hit_count++;
+		else
+			multixri_pool->other_pbl_hit_count++;
+	}
+#endif
+}
+
+/**
+ * lpfc_keep_pvt_pool_above_lowwm - Keep pvt_pool above low watermark
+ * @phba: pointer to lpfc hba data structure.
+ * @qp: belong to which HWQ.
+ *
+ * This routine get a batch of XRIs from pbl_pool if pvt_pool is less than
+ * low watermark.
+ **/
+void lpfc_keep_pvt_pool_above_lowwm(struct lpfc_hba *phba, u32 hwqid)
+{
+	struct lpfc_multixri_pool *multixri_pool;
+	struct lpfc_pvt_pool *pvt_pool;
+
+	multixri_pool = phba->sli4_hba.hdwq[hwqid].p_multixri_pool;
+	pvt_pool = &multixri_pool->pvt_pool;
+
+	if (pvt_pool->count < pvt_pool->low_watermark)
+		lpfc_move_xri_pbl_to_pvt(phba, hwqid, XRI_BATCH);
+}
+
+/**
+ * lpfc_release_io_buf - Return one IO buf back to free pool
+ * @phba: pointer to lpfc hba data structure.
+ * @lpfc_ncmd: IO buf to be returned.
+ * @qp: belong to which HWQ.
+ *
+ * This routine returns one IO buf back to free pool. If this is an urgent IO,
+ * the IO buf is returned to expedite pool. If cfg_xri_rebalancing==1,
+ * the IO buf is returned to pbl_pool or pvt_pool based on watermark and
+ * xri_limit.  If cfg_xri_rebalancing==0, the IO buf is returned to
+ * lpfc_io_buf_list_put.
+ **/
+void lpfc_release_io_buf(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_ncmd,
+			 struct lpfc_sli4_hdw_queue *qp)
+{
+	unsigned long iflag;
+	struct lpfc_pbl_pool *pbl_pool;
+	struct lpfc_pvt_pool *pvt_pool;
+	struct lpfc_epd_pool *epd_pool;
+	u32 txcmplq_cnt;
+	u32 xri_owned;
+	u32 xri_limit;
+	u32 abts_io_bufs;
+
+	/* MUST zero fields if buffer is reused by another protocol */
+	lpfc_ncmd->nvmeCmd = NULL;
+	lpfc_ncmd->cur_iocbq.wqe_cmpl = NULL;
+	lpfc_ncmd->cur_iocbq.iocb_cmpl = NULL;
+
+	if (phba->cfg_xri_rebalancing) {
+		if (lpfc_ncmd->expedite) {
+			/* Return to expedite pool */
+			epd_pool = &phba->epd_pool;
+			spin_lock_irqsave(&epd_pool->lock, iflag);
+			list_add_tail(&lpfc_ncmd->list, &epd_pool->list);
+			epd_pool->count++;
+			spin_unlock_irqrestore(&epd_pool->lock, iflag);
+			return;
+		}
+
+		/* Avoid invalid access if an IO sneaks in and is being rejected
+		 * just _after_ xri pools are destroyed in lpfc_offline.
+		 * Nothing much can be done at this point.
+		 */
+		if (!qp->p_multixri_pool)
+			return;
+
+		pbl_pool = &qp->p_multixri_pool->pbl_pool;
+		pvt_pool = &qp->p_multixri_pool->pvt_pool;
+
+		txcmplq_cnt = qp->fcp_wq->pring->txcmplq_cnt;
+		abts_io_bufs = qp->abts_scsi_io_bufs;
+		if (qp->nvme_wq) {
+			txcmplq_cnt += qp->nvme_wq->pring->txcmplq_cnt;
+			abts_io_bufs += qp->abts_nvme_io_bufs;
+		}
+
+		xri_owned = pvt_pool->count + txcmplq_cnt + abts_io_bufs;
+		xri_limit = qp->p_multixri_pool->xri_limit;
+
+#ifdef LPFC_MXP_STAT
+		if (xri_owned <= xri_limit)
+			qp->p_multixri_pool->below_limit_count++;
+		else
+			qp->p_multixri_pool->above_limit_count++;
+#endif
+
+		/* XRI goes to either public or private free xri pool
+		 *     based on watermark and xri_limit
+		 */
+		if ((pvt_pool->count < pvt_pool->low_watermark) ||
+		    (xri_owned < xri_limit &&
+		     pvt_pool->count < pvt_pool->high_watermark)) {
+			spin_lock_irqsave(&pvt_pool->lock, iflag);
+			list_add_tail(&lpfc_ncmd->list,
+				      &pvt_pool->list);
+			pvt_pool->count++;
+			spin_unlock_irqrestore(&pvt_pool->lock, iflag);
+		} else {
+			spin_lock_irqsave(&pbl_pool->lock, iflag);
+			list_add_tail(&lpfc_ncmd->list,
+				      &pbl_pool->list);
+			pbl_pool->count++;
+			spin_unlock_irqrestore(&pbl_pool->lock, iflag);
+		}
+	} else {
+		spin_lock_irqsave(&qp->io_buf_list_put_lock, iflag);
+		list_add_tail(&lpfc_ncmd->list,
+			      &qp->lpfc_io_buf_list_put);
+		qp->put_io_bufs++;
+		spin_unlock_irqrestore(&qp->io_buf_list_put_lock,
+				       iflag);
+	}
+}
+
+/**
+ * lpfc_get_io_buf_from_private_pool - Get one free IO buf from private pool
+ * @phba: pointer to lpfc hba data structure.
+ * @pvt_pool: pointer to private pool data structure.
+ * @ndlp: pointer to lpfc nodelist data structure.
+ *
+ * This routine tries to get one free IO buf from private pool.
+ *
+ * Return:
+ *   pointer to one free IO buf - if private pool is not empty
+ *   NULL - if private pool is empty
+ **/
+static struct lpfc_io_buf *
+lpfc_get_io_buf_from_private_pool(struct lpfc_hba *phba,
+				  struct lpfc_pvt_pool *pvt_pool,
+				  struct lpfc_nodelist *ndlp)
+{
+	struct lpfc_io_buf *lpfc_ncmd;
+	struct lpfc_io_buf *lpfc_ncmd_next;
+	unsigned long iflag;
+
+	spin_lock_irqsave(&pvt_pool->lock, iflag);
+	list_for_each_entry_safe(lpfc_ncmd, lpfc_ncmd_next,
+				 &pvt_pool->list, list) {
+		if (lpfc_test_rrq_active(
+			phba, ndlp, lpfc_ncmd->cur_iocbq.sli4_lxritag))
+			continue;
+		list_del(&lpfc_ncmd->list);
+		pvt_pool->count--;
+		spin_unlock_irqrestore(&pvt_pool->lock, iflag);
+		return lpfc_ncmd;
+	}
+	spin_unlock_irqrestore(&pvt_pool->lock, iflag);
+
+	return NULL;
+}
+
+/**
+ * lpfc_get_io_buf_from_expedite_pool - Get one free IO buf from expedite pool
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This routine tries to get one free IO buf from expedite pool.
+ *
+ * Return:
+ *   pointer to one free IO buf - if expedite pool is not empty
+ *   NULL - if expedite pool is empty
+ **/
+static struct lpfc_io_buf *
+lpfc_get_io_buf_from_expedite_pool(struct lpfc_hba *phba)
+{
+	struct lpfc_io_buf *lpfc_ncmd;
+	struct lpfc_io_buf *lpfc_ncmd_next;
+	unsigned long iflag;
+	struct lpfc_epd_pool *epd_pool;
+
+	epd_pool = &phba->epd_pool;
+	lpfc_ncmd = NULL;
+
+	spin_lock_irqsave(&epd_pool->lock, iflag);
+	if (epd_pool->count > 0) {
+		list_for_each_entry_safe(lpfc_ncmd, lpfc_ncmd_next,
+					 &epd_pool->list, list) {
+			list_del(&lpfc_ncmd->list);
+			epd_pool->count--;
+			break;
+		}
+	}
+	spin_unlock_irqrestore(&epd_pool->lock, iflag);
+
+	return lpfc_ncmd;
+}
+
+/**
+ * lpfc_get_io_buf_from_multixri_pools - Get one free IO bufs
+ * @phba: pointer to lpfc hba data structure.
+ * @ndlp: pointer to lpfc nodelist data structure.
+ * @hwqid: belong to which HWQ
+ * @expedite: 1 means this request is urgent.
+ *
+ * This routine will do the following actions and then return a pointer to
+ * one free IO buf.
+ *
+ * 1. If private free xri count is empty, move some XRIs from public to
+ *    private pool.
+ * 2. Get one XRI from private free xri pool.
+ * 3. If we fail to get one from pvt_pool and this is an expedite request,
+ *    get one free xri from expedite pool.
+ *
+ * Note: ndlp is only used on SCSI side for RRQ testing.
+ *       The caller should pass NULL for ndlp on NVME side.
+ *
+ * Return:
+ *   pointer to one free IO buf - if private pool is not empty
+ *   NULL - if private pool is empty
+ **/
+static struct lpfc_io_buf *
+lpfc_get_io_buf_from_multixri_pools(struct lpfc_hba *phba,
+				    struct lpfc_nodelist *ndlp,
+				    int hwqid, int expedite)
+{
+	struct lpfc_sli4_hdw_queue *qp;
+	struct lpfc_multixri_pool *multixri_pool;
+	struct lpfc_pvt_pool *pvt_pool;
+	struct lpfc_io_buf *lpfc_ncmd;
+
+	qp = &phba->sli4_hba.hdwq[hwqid];
+	lpfc_ncmd = NULL;
+	multixri_pool = qp->p_multixri_pool;
+	pvt_pool = &multixri_pool->pvt_pool;
+	multixri_pool->io_req_count++;
+
+	/* If pvt_pool is empty, move some XRIs from public to private pool */
+	if (pvt_pool->count == 0)
+		lpfc_move_xri_pbl_to_pvt(phba, hwqid, XRI_BATCH);
+
+	/* Get one XRI from private free xri pool */
+	lpfc_ncmd = lpfc_get_io_buf_from_private_pool(phba, pvt_pool, ndlp);
+
+	if (lpfc_ncmd) {
+		lpfc_ncmd->hdwq = qp;
+		lpfc_ncmd->hdwq_no = hwqid;
+	} else if (expedite) {
+		/* If we fail to get one from pvt_pool and this is an expedite
+		 * request, get one free xri from expedite pool.
+		 */
+		lpfc_ncmd = lpfc_get_io_buf_from_expedite_pool(phba);
+	}
+
+	return lpfc_ncmd;
+}
+
+static inline struct lpfc_io_buf *
+lpfc_io_buf(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp, int idx)
+{
+	struct lpfc_sli4_hdw_queue *qp;
+	struct lpfc_io_buf *lpfc_cmd, *lpfc_cmd_next;
+
+	qp = &phba->sli4_hba.hdwq[idx];
+	list_for_each_entry_safe(lpfc_cmd, lpfc_cmd_next,
+				 &qp->lpfc_io_buf_list_get, list) {
+		if (lpfc_test_rrq_active(phba, ndlp,
+					 lpfc_cmd->cur_iocbq.sli4_lxritag))
+			continue;
+
+		if (lpfc_cmd->flags & LPFC_SBUF_NOT_POSTED)
+			continue;
+
+		list_del_init(&lpfc_cmd->list);
+		qp->get_io_bufs--;
+		lpfc_cmd->hdwq = qp;
+		lpfc_cmd->hdwq_no = idx;
+		return lpfc_cmd;
+	}
+	return NULL;
+}
+
+/**
+ * lpfc_get_io_buf - Get one IO buffer from free pool
+ * @phba: The HBA for which this call is being executed.
+ * @ndlp: pointer to lpfc nodelist data structure.
+ * @hwqid: belong to which HWQ
+ * @expedite: 1 means this request is urgent.
+ *
+ * This routine gets one IO buffer from free pool. If cfg_xri_rebalancing==1,
+ * removes a IO buffer from multiXRI pools. If cfg_xri_rebalancing==0, removes
+ * a IO buffer from head of @hdwq io_buf_list and returns to caller.
+ *
+ * Note: ndlp is only used on SCSI side for RRQ testing.
+ *       The caller should pass NULL for ndlp on NVME side.
+ *
+ * Return codes:
+ *   NULL - Error
+ *   Pointer to lpfc_io_buf - Success
+ **/
+struct lpfc_io_buf *lpfc_get_io_buf(struct lpfc_hba *phba,
+				    struct lpfc_nodelist *ndlp,
+				    u32 hwqid, int expedite)
+{
+	struct lpfc_sli4_hdw_queue *qp;
+	unsigned long iflag;
+	struct lpfc_io_buf *lpfc_cmd;
+
+	qp = &phba->sli4_hba.hdwq[hwqid];
+	lpfc_cmd = NULL;
+
+	if (phba->cfg_xri_rebalancing)
+		lpfc_cmd = lpfc_get_io_buf_from_multixri_pools(
+			phba, ndlp, hwqid, expedite);
+	else {
+		spin_lock_irqsave(&qp->io_buf_list_get_lock, iflag);
+		if (qp->get_io_bufs > LPFC_NVME_EXPEDITE_XRICNT || expedite)
+			lpfc_cmd = lpfc_io_buf(phba, ndlp, hwqid);
+		if (!lpfc_cmd) {
+			spin_lock(&qp->io_buf_list_put_lock);
+			list_splice(&qp->lpfc_io_buf_list_put,
+				    &qp->lpfc_io_buf_list_get);
+			qp->get_io_bufs += qp->put_io_bufs;
+			INIT_LIST_HEAD(&qp->lpfc_io_buf_list_put);
+			qp->put_io_bufs = 0;
+			spin_unlock(&qp->io_buf_list_put_lock);
+			if (qp->get_io_bufs > LPFC_NVME_EXPEDITE_XRICNT ||
+			    expedite)
+				lpfc_cmd = lpfc_io_buf(phba, ndlp, hwqid);
+		}
+		spin_unlock_irqrestore(&qp->io_buf_list_get_lock, iflag);
+	}
+
+	return lpfc_cmd;
 }

@@ -235,8 +235,6 @@ typedef struct lpfc_vpd {
 	} sli3Feat;
 } lpfc_vpd_t;
 
-struct lpfc_scsi_buf;
-
 
 /*
  * lpfc stat counters
@@ -597,6 +595,13 @@ struct lpfc_mbox_ext_buf_ctx {
 	struct list_head ext_dmabuf_list;
 };
 
+struct lpfc_epd_pool {
+	/* Expedite pool */
+	struct list_head list;
+	u32 count;
+	spinlock_t lock;	/* lock for expedite pool */
+};
+
 struct lpfc_ras_fwlog {
 	uint8_t *fwlog_buff;
 	uint32_t fw_buffcount; /* Buffer size posted to FW */
@@ -618,19 +623,19 @@ struct lpfc_ras_fwlog {
 
 struct lpfc_hba {
 	/* SCSI interface function jump table entries */
-	struct lpfc_scsi_buf * (*lpfc_get_scsi_buf)
+	struct lpfc_io_buf * (*lpfc_get_scsi_buf)
 		(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
 		struct scsi_cmnd *cmnd);
 	int (*lpfc_scsi_prep_dma_buf)
-		(struct lpfc_hba *, struct lpfc_scsi_buf *);
+		(struct lpfc_hba *, struct lpfc_io_buf *);
 	void (*lpfc_scsi_unprep_dma_buf)
-		(struct lpfc_hba *, struct lpfc_scsi_buf *);
+		(struct lpfc_hba *, struct lpfc_io_buf *);
 	void (*lpfc_release_scsi_buf)
-		(struct lpfc_hba *, struct lpfc_scsi_buf *);
+		(struct lpfc_hba *, struct lpfc_io_buf *);
 	void (*lpfc_rampdown_queue_depth)
 		(struct lpfc_hba *);
 	void (*lpfc_scsi_prep_cmnd)
-		(struct lpfc_vport *, struct lpfc_scsi_buf *,
+		(struct lpfc_vport *, struct lpfc_io_buf *,
 		 struct lpfc_nodelist *);
 
 	/* IOCB interface function jump table entries */
@@ -673,8 +678,11 @@ struct lpfc_hba {
 		(struct lpfc_hba *);
 
 	int (*lpfc_bg_scsi_prep_dma_buf)
-		(struct lpfc_hba *, struct lpfc_scsi_buf *);
+		(struct lpfc_hba *, struct lpfc_io_buf *);
 	/* Add new entries here */
+
+	/* expedite pool */
+	struct lpfc_epd_pool epd_pool;
 
 	/* SLI4 specific HBA data structure */
 	struct lpfc_sli4_hba sli4_hba;
@@ -789,6 +797,7 @@ struct lpfc_hba {
 
 	/* HBA Config Parameters */
 	uint32_t cfg_ack0;
+	uint32_t cfg_xri_rebalancing;
 	uint32_t cfg_enable_npiv;
 	uint32_t cfg_enable_rrq;
 	uint32_t cfg_topology;
@@ -1014,6 +1023,7 @@ struct lpfc_hba {
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	struct dentry *hba_debugfs_root;
 	atomic_t debugfs_vport_count;
+	struct dentry *debug_multixri_pools;
 	struct dentry *debug_hbqinfo;
 	struct dentry *debug_dumpHostSlim;
 	struct dentry *debug_dumpHBASlim;

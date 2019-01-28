@@ -5267,6 +5267,12 @@ static DEVICE_ATTR_RW(lpfc_max_scsicmpl_time);
 LPFC_ATTR_R(ack0, 0, 0, 1, "Enable ACK0 support");
 
 /*
+# lpfc_xri_rebalancing: enable or disable XRI rebalancing feature
+# range is [0,1]. Default value is 1.
+*/
+LPFC_ATTR_R(xri_rebalancing, 1, 0, 1, "Enable/Disable XRI rebalancing");
+
+/*
  * lpfc_io_sched: Determine scheduling algrithmn for issuing FCP cmds
  * range is [0,1]. Default value is 0.
  * For [0], FCP commands are issued to Work Queues ina round robin fashion.
@@ -5723,6 +5729,7 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_lpfc_use_adisc,
 	&dev_attr_lpfc_first_burst_size,
 	&dev_attr_lpfc_ack0,
+	&dev_attr_lpfc_xri_rebalancing,
 	&dev_attr_lpfc_topology,
 	&dev_attr_lpfc_scan_down,
 	&dev_attr_lpfc_link_speed,
@@ -6788,6 +6795,7 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	lpfc_multi_ring_rctl_init(phba, lpfc_multi_ring_rctl);
 	lpfc_multi_ring_type_init(phba, lpfc_multi_ring_type);
 	lpfc_ack0_init(phba, lpfc_ack0);
+	lpfc_xri_rebalancing_init(phba, lpfc_xri_rebalancing);
 	lpfc_topology_init(phba, lpfc_topology);
 	lpfc_link_speed_init(phba, lpfc_link_speed);
 	lpfc_poll_tmo_init(phba, lpfc_poll_tmo);
@@ -6846,6 +6854,7 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 		phba->nvmet_support = 0;
 		phba->cfg_enable_fc4_type = LPFC_ENABLE_FCP;
 		phba->cfg_enable_bbcr = 0;
+		phba->cfg_xri_rebalancing = 0;
 	} else {
 		/* We MUST have FCP support */
 		if (!(phba->cfg_enable_fc4_type & LPFC_ENABLE_FCP))

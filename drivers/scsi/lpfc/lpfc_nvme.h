@@ -71,49 +71,6 @@ struct lpfc_nvme_rport {
 	struct completion rport_unreg_done;
 };
 
-struct lpfc_nvme_buf {
-	/* Common fields */
-	struct list_head list;
-	void *data;
-	dma_addr_t dma_handle;
-	dma_addr_t dma_phys_sgl;
-	struct sli4_sge *dma_sgl;
-	struct lpfc_iocbq cur_iocbq;
-	struct lpfc_sli4_hdw_queue *hdwq;
-	uint16_t hdwq_no;
-	uint16_t cpu;
-
-	/* NVME specific fields */
-	struct nvmefc_fcp_req *nvmeCmd;
-	struct lpfc_nodelist *ndlp;
-
-	uint32_t timeout;
-
-	uint16_t flags;  /* TBD convert exch_busy to flags */
-#define LPFC_SBUF_XBUSY         0x1     /* SLI4 hba reported XB on WCQE cmpl */
-#define LPFC_BUMP_QDEPTH	0x2	/* bumped queue depth counter */
-	uint16_t exch_busy;     /* SLI4 hba reported XB on complete WCQE */
-	uint16_t status;	/* From IOCB Word 7- ulpStatus */
-	uint32_t result;	/* From IOCB Word 4. */
-
-	uint32_t   seg_cnt;	/* Number of scatter-gather segments returned by
-				 * dma_map_sg.  The driver needs this for calls
-				 * to dma_unmap_sg.
-				 */
-	wait_queue_head_t *waitq;
-	unsigned long start_time;
-
-	uint16_t qidx;
-
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
-	uint64_t ts_cmd_start;
-	uint64_t ts_last_cmd;
-	uint64_t ts_cmd_wqput;
-	uint64_t ts_isr_cmpl;
-	uint64_t ts_data_nvme;
-#endif
-};
-
 struct lpfc_nvme_fcpreq_priv {
-	struct lpfc_nvme_buf *nvme_buf;
+	struct lpfc_io_buf *nvme_buf;
 };
