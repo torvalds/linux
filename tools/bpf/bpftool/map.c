@@ -513,10 +513,9 @@ static int show_map_close_json(int fd, struct bpf_map_info *info)
 				jsonw_uint_field(json_wtr, "owner_prog_type",
 						 prog_type);
 		}
-		if (atoi(owner_jited))
-			jsonw_bool_field(json_wtr, "owner_jited", true);
-		else
-			jsonw_bool_field(json_wtr, "owner_jited", false);
+		if (owner_jited)
+			jsonw_bool_field(json_wtr, "owner_jited",
+					 !!atoi(owner_jited));
 
 		free(owner_prog_type);
 		free(owner_jited);
@@ -569,7 +568,8 @@ static int show_map_close_plain(int fd, struct bpf_map_info *info)
 		char *owner_prog_type = get_fdinfo(fd, "owner_prog_type");
 		char *owner_jited = get_fdinfo(fd, "owner_jited");
 
-		printf("\n\t");
+		if (owner_prog_type || owner_jited)
+			printf("\n\t");
 		if (owner_prog_type) {
 			unsigned int prog_type = atoi(owner_prog_type);
 
@@ -579,10 +579,9 @@ static int show_map_close_plain(int fd, struct bpf_map_info *info)
 			else
 				printf("owner_prog_type %d  ", prog_type);
 		}
-		if (atoi(owner_jited))
-			printf("owner jited");
-		else
-			printf("owner not jited");
+		if (owner_jited)
+			printf("owner%s jited",
+			       atoi(owner_jited) ? "" : " not");
 
 		free(owner_prog_type);
 		free(owner_jited);
