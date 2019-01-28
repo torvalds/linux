@@ -44,9 +44,11 @@
 #define I2C_REG_IRQSRC			0x23
 #define I2C_REG_SOFTRESET		0x3f
 
+#define I2C_REG_SX8650_STAT		0x05
+#define SX8650_STAT_CONVIRQ		0x80
+
 /* commands */
 #define CMD_READ_REGISTER		0x40
-#define CMD_MANUAL			0xc0
 #define CMD_PENTRG			0xe0
 
 /* value for I2C_REG_SOFTRESET */
@@ -58,6 +60,7 @@
 
 /* bits for RegTouch1 */
 #define CONDIRQ				0x20
+#define RPDNT_100K			0x00
 #define FILT_7SA			0x03
 
 /* bits for I2C_REG_CHANMASK */
@@ -71,13 +74,120 @@
 /* power delay: lower nibble of CTRL0 register */
 #define POWDLY_1_1MS			0x0b
 
+/* for sx8650, as we have no pen release IRQ there: timeout in ns following the
+ * last PENIRQ after which we assume the pen is lifted.
+ */
+#define SX8650_PENIRQ_TIMEOUT		msecs_to_jiffies(10)
+
 #define MAX_12BIT			((1 << 12) - 1)
+#define MAX_I2C_READ_LEN		10 /* see datasheet section 5.1.5 */
+
+/* channel definition */
+#define CH_X				0x00
+#define CH_Y				0x01
+
+struct sx865x_data {
+	u8 cmd_manual;
+	u8 chan_mask;
+	bool has_irq_penrelease;
+	bool has_reg_irqmask;
+	irq_handler_t irqh;
+};
 
 struct sx8654 {
 	struct input_dev *input;
 	struct i2c_client *client;
 	struct gpio_desc *gpio_reset;
+
+	spinlock_t lock;	/* for input reporting from irq/timer */
+	struct timer_list timer;
+
+	const struct sx865x_data *data;
 };
+
+static inline void sx865x_penrelease(struct sx8654 *ts)
+{
+	struct input_dev *input_dev = ts->input;
+
+	input_report_key(input_dev, BTN_TOUCH, 0);
+	input_sync(input_dev);
+}
+
+static void sx865x_penrelease_timer_handler(struct timer_list *t)
+{
+	struct sx8654 *ts = from_timer(ts, t, timer);
+	unsigned long flags;
+
+	spin_lock_irqsave(&ts->lock, flags);
+	sx865x_penrelease(ts);
+	spin_unlock_irqrestore(&ts->lock, flags);
+	dev_dbg(&ts->client->dev, "penrelease by timer\n");
+}
+
+static irqreturn_t sx8650_irq(int irq, void *handle)
+{
+	struct sx8654 *ts = handle;
+	struct device *dev = &ts->client->dev;
+	int len, i;
+	unsigned long flags;
+	u8 stat;
+	u16 x, y;
+	u16 ch;
+	u16 chdata;
+	__be16 data[MAX_I2C_READ_LEN / sizeof(__be16)];
+	u8 nchan = hweight32(ts->data->chan_mask);
+	u8 readlen = nchan * sizeof(*data);
+
+	stat = i2c_smbus_read_byte_data(ts->client, CMD_READ_REGISTER
+						    | I2C_REG_SX8650_STAT);
+
+	if (!(stat & SX8650_STAT_CONVIRQ)) {
+		dev_dbg(dev, "%s ignore stat [0x%02x]", __func__, stat);
+		return IRQ_HANDLED;
+	}
+
+	len = i2c_master_recv(ts->client, (u8 *)data, readlen);
+	if (len != readlen) {
+		dev_dbg(dev, "ignore short recv (%d)\n", len);
+		return IRQ_HANDLED;
+	}
+
+	spin_lock_irqsave(&ts->lock, flags);
+
+	x = 0;
+	y = 0;
+	for (i = 0; i < nchan; i++) {
+		chdata = be16_to_cpu(data[i]);
+
+		if (unlikely(chdata == 0xFFFF)) {
+			dev_dbg(dev, "invalid qualified data @ %d\n", i);
+			continue;
+		} else if (unlikely(chdata & 0x8000)) {
+			dev_warn(dev, "hibit @ %d [0x%04x]\n", i, chdata);
+			continue;
+		}
+
+		ch = chdata >> 12;
+		if (ch == CH_X)
+			x = chdata & MAX_12BIT;
+		else if (ch == CH_Y)
+			y = chdata & MAX_12BIT;
+		else
+			dev_warn(dev, "unknown channel %d [0x%04x]\n", ch,
+				 chdata);
+	}
+
+	input_report_abs(ts->input, ABS_X, x);
+	input_report_abs(ts->input, ABS_Y, y);
+	input_report_key(ts->input, BTN_TOUCH, 1);
+	input_sync(ts->input);
+	dev_dbg(dev, "point(%4d,%4d)\n", x, y);
+
+	mod_timer(&ts->timer, jiffies + SX8650_PENIRQ_TIMEOUT);
+	spin_unlock_irqrestore(&ts->lock, flags);
+
+	return IRQ_HANDLED;
+}
 
 static irqreturn_t sx8654_irq(int irq, void *handle)
 {
@@ -179,14 +289,17 @@ static void sx8654_close(struct input_dev *dev)
 
 	disable_irq(client->irq);
 
+	if (!sx8654->data->has_irq_penrelease)
+		del_timer_sync(&sx8654->timer);
+
 	/* enable manual mode mode */
-	error = i2c_smbus_write_byte(client, CMD_MANUAL);
+	error = i2c_smbus_write_byte(client, sx8654->data->cmd_manual);
 	if (error) {
 		dev_err(&client->dev, "writing command CMD_MANUAL failed");
 		return;
 	}
 
-	error = i2c_smbus_write_byte_data(client, I2C_REG_TOUCH0, 0);
+	error = i2c_smbus_write_byte_data(client, I2C_REG_TOUCH0, RATE_MANUAL);
 	if (error) {
 		dev_err(&client->dev, "writing to I2C_REG_TOUCH0 failed");
 		return;
@@ -219,6 +332,20 @@ static int sx8654_probe(struct i2c_client *client,
 	}
 	dev_dbg(&client->dev, "got GPIO reset pin\n");
 
+	sx8654->data = device_get_match_data(&client->dev);
+	if (!sx8654->data)
+		sx8654->data = (const struct sx865x_data *)id->driver_data;
+	if (!sx8654->data) {
+		dev_err(&client->dev, "invalid or missing device data\n");
+		return -EINVAL;
+	}
+
+	if (!sx8654->data->has_irq_penrelease) {
+		dev_dbg(&client->dev, "use timer for penrelease\n");
+		timer_setup(&sx8654->timer, sx865x_penrelease_timer_handler, 0);
+		spin_lock_init(&sx8654->lock);
+	}
+
 	input = devm_input_allocate_device(&client->dev);
 	if (!input)
 		return -ENOMEM;
@@ -246,29 +373,31 @@ static int sx8654_probe(struct i2c_client *client,
 	}
 
 	error = i2c_smbus_write_byte_data(client, I2C_REG_CHANMASK,
-					  CONV_X | CONV_Y);
+					  sx8654->data->chan_mask);
 	if (error) {
 		dev_err(&client->dev, "writing to I2C_REG_CHANMASK failed");
 		return error;
 	}
 
-	error = i2c_smbus_write_byte_data(client, I2C_REG_IRQMASK,
-					  IRQ_PENTOUCH_TOUCHCONVDONE |
-						IRQ_PENRELEASE);
-	if (error) {
-		dev_err(&client->dev, "writing to I2C_REG_IRQMASK failed");
-		return error;
+	if (sx8654->data->has_reg_irqmask) {
+		error = i2c_smbus_write_byte_data(client, I2C_REG_IRQMASK,
+						  IRQ_PENTOUCH_TOUCHCONVDONE |
+							IRQ_PENRELEASE);
+		if (error) {
+			dev_err(&client->dev, "writing I2C_REG_IRQMASK failed");
+			return error;
+		}
 	}
 
 	error = i2c_smbus_write_byte_data(client, I2C_REG_TOUCH1,
-					  CONDIRQ | FILT_7SA);
+					  CONDIRQ | RPDNT_100K | FILT_7SA);
 	if (error) {
 		dev_err(&client->dev, "writing to I2C_REG_TOUCH1 failed");
 		return error;
 	}
 
 	error = devm_request_threaded_irq(&client->dev, client->irq,
-					  NULL, sx8654_irq,
+					  NULL, sx8654->data->irqh,
 					  IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 					  client->name, sx8654);
 	if (error) {
@@ -288,21 +417,48 @@ static int sx8654_probe(struct i2c_client *client,
 	return 0;
 }
 
+static const struct sx865x_data sx8650_data = {
+	.cmd_manual		= 0xb0,
+	.has_irq_penrelease	= false,
+	.has_reg_irqmask	= false,
+	.chan_mask		= (CONV_X | CONV_Y),
+	.irqh			= sx8650_irq,
+};
+
+static const struct sx865x_data sx8654_data = {
+	.cmd_manual		= 0xc0,
+	.has_irq_penrelease	= true,
+	.has_reg_irqmask	= true,
+	.chan_mask		= (CONV_X | CONV_Y),
+	.irqh			= sx8654_irq,
+};
+
 #ifdef CONFIG_OF
 static const struct of_device_id sx8654_of_match[] = {
-	{ .compatible = "semtech,sx8654", },
-	{ .compatible = "semtech,sx8655", },
-	{ .compatible = "semtech,sx8656", },
-	{ },
+	{
+		.compatible = "semtech,sx8650",
+		.data = &sx8650_data,
+	}, {
+		.compatible = "semtech,sx8654",
+		.data = &sx8654_data,
+	}, {
+		.compatible = "semtech,sx8655",
+		.data = &sx8654_data,
+	}, {
+		.compatible = "semtech,sx8656",
+		.data = &sx8654_data,
+	},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, sx8654_of_match);
 #endif
 
 static const struct i2c_device_id sx8654_id_table[] = {
-	{ "semtech_sx8654", 0 },
-	{ "semtech_sx8655", 0 },
-	{ "semtech_sx8656", 0 },
-	{ },
+	{ .name = "semtech_sx8650", .driver_data = (long)&sx8650_data },
+	{ .name = "semtech_sx8654", .driver_data = (long)&sx8654_data },
+	{ .name = "semtech_sx8655", .driver_data = (long)&sx8654_data },
+	{ .name = "semtech_sx8656", .driver_data = (long)&sx8654_data },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, sx8654_id_table);
 
