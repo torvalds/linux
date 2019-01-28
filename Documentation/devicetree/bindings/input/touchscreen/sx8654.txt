@@ -5,6 +5,9 @@ Required properties:
 - reg: i2c slave address
 - interrupts: touch controller interrupt
 
+Optional properties:
+ - reset-gpios: GPIO specification for the NRST input
+
 Example:
 
 	sx8654@48 {
@@ -12,4 +15,5 @@ Example:
 		reg = <0x48>;
 		interrupt-parent = <&gpio6>;
 		interrupts = <3 IRQ_TYPE_EDGE_FALLING>;
+		reset-gpios = <&gpio4 2 GPIO_ACTIVE_LOW>;
 	};

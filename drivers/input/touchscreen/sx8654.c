@@ -27,12 +27,14 @@
  *  published by the Free Software Foundation.
  */
 
-#include <linux/input.h>
-#include <linux/module.h>
-#include <linux/of.h>
+#include <linux/delay.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
+#include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/module.h>
+#include <linux/of.h>
 
 /* register addresses */
 #define I2C_REG_TOUCH0			0x00
@@ -74,6 +76,7 @@
 struct sx8654 {
 	struct input_dev *input;
 	struct i2c_client *client;
+	struct gpio_desc *gpio_reset;
 };
 
 static irqreturn_t sx8654_irq(int irq, void *handle)
@@ -122,6 +125,25 @@ static irqreturn_t sx8654_irq(int irq, void *handle)
 
 out:
 	return IRQ_HANDLED;
+}
+
+static int sx8654_reset(struct sx8654 *ts)
+{
+	int err;
+
+	if (ts->gpio_reset) {
+		gpiod_set_value_cansleep(ts->gpio_reset, 1);
+		udelay(2); /* Tpulse > 1µs */
+		gpiod_set_value_cansleep(ts->gpio_reset, 0);
+	} else {
+		dev_dbg(&ts->client->dev, "NRST unavailable, try softreset\n");
+		err = i2c_smbus_write_byte_data(ts->client, I2C_REG_SOFTRESET,
+						SOFTRESET_VALUE);
+		if (err)
+			return err;
+	}
+
+	return 0;
 }
 
 static int sx8654_open(struct input_dev *dev)
@@ -186,6 +208,17 @@ static int sx8654_probe(struct i2c_client *client,
 	if (!sx8654)
 		return -ENOMEM;
 
+	sx8654->gpio_reset = devm_gpiod_get_optional(&client->dev, "reset",
+						     GPIOD_OUT_HIGH);
+	if (IS_ERR(sx8654->gpio_reset)) {
+		error = PTR_ERR(sx8654->gpio_reset);
+		if (error != -EPROBE_DEFER)
+			dev_err(&client->dev, "unable to get reset-gpio: %d\n",
+				error);
+		return error;
+	}
+	dev_dbg(&client->dev, "got GPIO reset pin\n");
+
 	input = devm_input_allocate_device(&client->dev);
 	if (!input)
 		return -ENOMEM;
@@ -206,10 +239,9 @@ static int sx8654_probe(struct i2c_client *client,
 
 	input_set_drvdata(sx8654->input, sx8654);
 
-	error = i2c_smbus_write_byte_data(client, I2C_REG_SOFTRESET,
-					  SOFTRESET_VALUE);
+	error = sx8654_reset(sx8654);
 	if (error) {
-		dev_err(&client->dev, "writing softreset value failed");
+		dev_err(&client->dev, "reset failed");
 		return error;
 	}
 
