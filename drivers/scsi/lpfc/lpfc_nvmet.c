@@ -73,6 +73,9 @@ static int lpfc_nvmet_unsol_ls_issue_abort(struct lpfc_hba *,
 					   uint32_t, uint16_t);
 static void lpfc_nvmet_wqfull_flush(struct lpfc_hba *, struct lpfc_queue *,
 				    struct lpfc_nvmet_rcv_ctx *);
+static void lpfc_nvmet_fcp_rqst_defer_work(struct work_struct *);
+
+static void lpfc_nvmet_process_rcv_fcp_req(struct lpfc_nvmet_ctxbuf *ctx_buf);
 
 static union lpfc_wqe128 lpfc_tsend_cmd_template;
 static union lpfc_wqe128 lpfc_treceive_cmd_template;
@@ -220,21 +223,19 @@ lpfc_nvmet_cmd_template(void)
 void
 lpfc_nvmet_defer_release(struct lpfc_hba *phba, struct lpfc_nvmet_rcv_ctx *ctxp)
 {
-	unsigned long iflag;
+	lockdep_assert_held(&ctxp->ctxlock);
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_NVME_ABTS,
 			"6313 NVMET Defer ctx release xri x%x flg x%x\n",
 			ctxp->oxid, ctxp->flag);
 
-	spin_lock_irqsave(&phba->sli4_hba.abts_nvmet_buf_list_lock, iflag);
-	if (ctxp->flag & LPFC_NVMET_CTX_RLS) {
-		spin_unlock_irqrestore(&phba->sli4_hba.abts_nvmet_buf_list_lock,
-				       iflag);
+	if (ctxp->flag & LPFC_NVMET_CTX_RLS)
 		return;
-	}
+
 	ctxp->flag |= LPFC_NVMET_CTX_RLS;
+	spin_lock(&phba->sli4_hba.abts_nvmet_buf_list_lock);
 	list_add_tail(&ctxp->list, &phba->sli4_hba.lpfc_abts_nvmet_ctx_list);
-	spin_unlock_irqrestore(&phba->sli4_hba.abts_nvmet_buf_list_lock, iflag);
+	spin_unlock(&phba->sli4_hba.abts_nvmet_buf_list_lock);
 }
 
 /**
@@ -325,7 +326,7 @@ lpfc_nvmet_ctxbuf_post(struct lpfc_hba *phba, struct lpfc_nvmet_ctxbuf *ctx_buf)
 	struct rqb_dmabuf *nvmebuf;
 	struct lpfc_nvmet_ctx_info *infop;
 	uint32_t *payload;
-	uint32_t size, oxid, sid, rc;
+	uint32_t size, oxid, sid;
 	int cpu;
 	unsigned long iflag;
 
@@ -340,6 +341,20 @@ lpfc_nvmet_ctxbuf_post(struct lpfc_hba *phba, struct lpfc_nvmet_ctxbuf *ctx_buf)
 		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
 				"6411 NVMET free, already free IO x%x: %d %d\n",
 				ctxp->oxid, ctxp->state, ctxp->entry_cnt);
+	}
+
+	if (ctxp->rqb_buffer) {
+		nvmebuf = ctxp->rqb_buffer;
+		spin_lock_irqsave(&ctxp->ctxlock, iflag);
+		ctxp->rqb_buffer = NULL;
+		if (ctxp->flag & LPFC_NVMET_CTX_REUSE_WQ) {
+			ctxp->flag &= ~LPFC_NVMET_CTX_REUSE_WQ;
+			spin_unlock_irqrestore(&ctxp->ctxlock, iflag);
+			nvmebuf->hrq->rqbp->rqb_free_buffer(phba, nvmebuf);
+		} else {
+			spin_unlock_irqrestore(&ctxp->ctxlock, iflag);
+			lpfc_rq_buf_free(phba, &nvmebuf->hbuf); /* repost */
+		}
 	}
 	ctxp->state = LPFC_NVMET_STE_FREE;
 
@@ -388,46 +403,30 @@ lpfc_nvmet_ctxbuf_post(struct lpfc_hba *phba, struct lpfc_nvmet_ctxbuf *ctx_buf)
 		}
 #endif
 		atomic_inc(&tgtp->rcv_fcp_cmd_in);
-		/*
-		 * The calling sequence should be:
-		 * nvmet_fc_rcv_fcp_req->lpfc_nvmet_xmt_fcp_op/cmp- req->done
-		 * lpfc_nvmet_xmt_fcp_op_cmp should free the allocated ctxp.
-		 * When we return from nvmet_fc_rcv_fcp_req, all relevant info
-		 * the NVME command / FC header is stored.
-		 * A buffer has already been reposted for this IO, so just free
-		 * the nvmebuf.
+
+		/*  flag new work queued, replacement buffer has already
+		 *  been reposted
 		 */
-		rc = nvmet_fc_rcv_fcp_req(phba->targetport, &ctxp->ctx.fcp_req,
-					  payload, size);
+		spin_lock_irqsave(&ctxp->ctxlock, iflag);
+		ctxp->flag |= LPFC_NVMET_CTX_REUSE_WQ;
+		spin_unlock_irqrestore(&ctxp->ctxlock, iflag);
 
-		/* Process FCP command */
-		if (rc == 0) {
-			ctxp->rqb_buffer = NULL;
-			atomic_inc(&tgtp->rcv_fcp_cmd_out);
-			nvmebuf->hrq->rqbp->rqb_free_buffer(phba, nvmebuf);
-			return;
+		if (!queue_work(phba->wq, &ctx_buf->defer_work)) {
+			atomic_inc(&tgtp->rcv_fcp_cmd_drop);
+			lpfc_printf_log(phba, KERN_ERR, LOG_NVME,
+					"6181 Unable to queue deferred work "
+					"for oxid x%x. "
+					"FCP Drop IO [x%x x%x x%x]\n",
+					ctxp->oxid,
+					atomic_read(&tgtp->rcv_fcp_cmd_in),
+					atomic_read(&tgtp->rcv_fcp_cmd_out),
+					atomic_read(&tgtp->xmt_fcp_release));
+
+			spin_lock_irqsave(&ctxp->ctxlock, iflag);
+			lpfc_nvmet_defer_release(phba, ctxp);
+			spin_unlock_irqrestore(&ctxp->ctxlock, iflag);
+			lpfc_nvmet_unsol_fcp_issue_abort(phba, ctxp, sid, oxid);
 		}
-
-		/* Processing of FCP command is deferred */
-		if (rc == -EOVERFLOW) {
-			lpfc_nvmeio_data(phba,
-					 "NVMET RCV BUSY: xri x%x sz %d "
-					 "from %06x\n",
-					 oxid, size, sid);
-			atomic_inc(&tgtp->rcv_fcp_cmd_out);
-			return;
-		}
-		atomic_inc(&tgtp->rcv_fcp_cmd_drop);
-		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
-				"2582 FCP Drop IO x%x: err x%x: x%x x%x x%x\n",
-				ctxp->oxid, rc,
-				atomic_read(&tgtp->rcv_fcp_cmd_in),
-				atomic_read(&tgtp->rcv_fcp_cmd_out),
-				atomic_read(&tgtp->xmt_fcp_release));
-
-		lpfc_nvmet_defer_release(phba, ctxp);
-		lpfc_nvmet_unsol_fcp_issue_abort(phba, ctxp, sid, oxid);
-		nvmebuf->hrq->rqbp->rqb_free_buffer(phba, nvmebuf);
 		return;
 	}
 	spin_unlock_irqrestore(&phba->sli4_hba.nvmet_io_wait_lock, iflag);
@@ -1113,6 +1112,8 @@ lpfc_nvmet_defer_rcv(struct nvmet_fc_target_port *tgtport,
 		container_of(rsp, struct lpfc_nvmet_rcv_ctx, ctx.fcp_req);
 	struct rqb_dmabuf *nvmebuf = ctxp->rqb_buffer;
 	struct lpfc_hba *phba = ctxp->phba;
+	unsigned long iflag;
+
 
 	lpfc_nvmeio_data(phba, "NVMET DEFERRCV: xri x%x sz %d CPU %02x\n",
 			 ctxp->oxid, ctxp->size, smp_processor_id());
@@ -1131,6 +1132,9 @@ lpfc_nvmet_defer_rcv(struct nvmet_fc_target_port *tgtport,
 
 	/* Free the nvmebuf since a new buffer already replaced it */
 	nvmebuf->hrq->rqbp->rqb_free_buffer(phba, nvmebuf);
+	spin_lock_irqsave(&ctxp->ctxlock, iflag);
+	ctxp->rqb_buffer = NULL;
+	spin_unlock_irqrestore(&ctxp->ctxlock, iflag);
 }
 
 static struct nvmet_fc_target_template lpfc_tgttemplate = {
@@ -1323,6 +1327,7 @@ lpfc_nvmet_setup_io_context(struct lpfc_hba *phba)
 					"6407 Ran out of NVMET XRIs\n");
 			return -ENOMEM;
 		}
+		INIT_WORK(&ctx_buf->defer_work, lpfc_nvmet_fcp_rqst_defer_work);
 
 		/*
 		 * Add ctx to MRQidx context list. Our initial assumption
@@ -1824,6 +1829,86 @@ dropit:
 #endif
 }
 
+static void
+lpfc_nvmet_process_rcv_fcp_req(struct lpfc_nvmet_ctxbuf *ctx_buf)
+{
+#if (IS_ENABLED(CONFIG_NVME_TARGET_FC))
+	struct lpfc_nvmet_rcv_ctx *ctxp = ctx_buf->context;
+	struct lpfc_hba *phba = ctxp->phba;
+	struct rqb_dmabuf *nvmebuf = ctxp->rqb_buffer;
+	struct lpfc_nvmet_tgtport *tgtp;
+	uint32_t *payload;
+	uint32_t rc;
+	unsigned long iflags;
+
+	if (!nvmebuf) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
+			"6159 process_rcv_fcp_req, nvmebuf is NULL, "
+			"oxid: x%x flg: x%x state: x%x\n",
+			ctxp->oxid, ctxp->flag, ctxp->state);
+		spin_lock_irqsave(&ctxp->ctxlock, iflags);
+		lpfc_nvmet_defer_release(phba, ctxp);
+		spin_unlock_irqrestore(&ctxp->ctxlock, iflags);
+		lpfc_nvmet_unsol_fcp_issue_abort(phba, ctxp, ctxp->sid,
+						 ctxp->oxid);
+		return;
+	}
+
+	payload = (uint32_t *)(nvmebuf->dbuf.virt);
+	tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;
+	/*
+	 * The calling sequence should be:
+	 * nvmet_fc_rcv_fcp_req->lpfc_nvmet_xmt_fcp_op/cmp- req->done
+	 * lpfc_nvmet_xmt_fcp_op_cmp should free the allocated ctxp.
+	 * When we return from nvmet_fc_rcv_fcp_req, all relevant info
+	 * the NVME command / FC header is stored.
+	 * A buffer has already been reposted for this IO, so just free
+	 * the nvmebuf.
+	 */
+	rc = nvmet_fc_rcv_fcp_req(phba->targetport, &ctxp->ctx.fcp_req,
+				  payload, ctxp->size);
+	/* Process FCP command */
+	if (rc == 0) {
+		atomic_inc(&tgtp->rcv_fcp_cmd_out);
+		return;
+	}
+
+	/* Processing of FCP command is deferred */
+	if (rc == -EOVERFLOW) {
+		lpfc_nvmeio_data(phba, "NVMET RCV BUSY: xri x%x sz %d "
+				 "from %06x\n",
+				 ctxp->oxid, ctxp->size, ctxp->sid);
+		atomic_inc(&tgtp->rcv_fcp_cmd_out);
+		atomic_inc(&tgtp->defer_fod);
+		return;
+	}
+	atomic_inc(&tgtp->rcv_fcp_cmd_drop);
+	lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
+			"2582 FCP Drop IO x%x: err x%x: x%x x%x x%x\n",
+			ctxp->oxid, rc,
+			atomic_read(&tgtp->rcv_fcp_cmd_in),
+			atomic_read(&tgtp->rcv_fcp_cmd_out),
+			atomic_read(&tgtp->xmt_fcp_release));
+	lpfc_nvmeio_data(phba, "NVMET FCP DROP: xri x%x sz %d from %06x\n",
+			 ctxp->oxid, ctxp->size, ctxp->sid);
+	spin_lock_irqsave(&ctxp->ctxlock, iflags);
+	lpfc_nvmet_defer_release(phba, ctxp);
+	spin_unlock_irqrestore(&ctxp->ctxlock, iflags);
+	lpfc_nvmet_unsol_fcp_issue_abort(phba, ctxp, ctxp->sid, ctxp->oxid);
+#endif
+}
+
+static void
+lpfc_nvmet_fcp_rqst_defer_work(struct work_struct *work)
+{
+#if (IS_ENABLED(CONFIG_NVME_TARGET_FC))
+	struct lpfc_nvmet_ctxbuf *ctx_buf =
+		container_of(work, struct lpfc_nvmet_ctxbuf, defer_work);
+
+	lpfc_nvmet_process_rcv_fcp_req(ctx_buf);
+#endif
+}
+
 static struct lpfc_nvmet_ctxbuf *
 lpfc_nvmet_replenish_context(struct lpfc_hba *phba,
 			     struct lpfc_nvmet_ctx_info *current_infop)
@@ -1906,7 +1991,7 @@ lpfc_nvmet_unsol_fcp_buffer(struct lpfc_hba *phba,
 	struct lpfc_nvmet_ctxbuf *ctx_buf;
 	struct lpfc_nvmet_ctx_info *current_infop;
 	uint32_t *payload;
-	uint32_t size, oxid, sid, rc, qno;
+	uint32_t size, oxid, sid, qno;
 	unsigned long iflag;
 	int current_cpu;
 
@@ -1917,11 +2002,9 @@ lpfc_nvmet_unsol_fcp_buffer(struct lpfc_hba *phba,
 	if (!nvmebuf || !phba->targetport) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
 				"6157 NVMET FCP Drop IO\n");
-		oxid = 0;
-		size = 0;
-		sid = 0;
-		ctxp = NULL;
-		goto dropit;
+		if (nvmebuf)
+			lpfc_rq_buf_free(phba, &nvmebuf->hbuf);
+		return;
 	}
 
 	/*
@@ -2028,67 +2111,7 @@ lpfc_nvmet_unsol_fcp_buffer(struct lpfc_hba *phba,
 #endif
 
 	atomic_inc(&tgtp->rcv_fcp_cmd_in);
-	/*
-	 * The calling sequence should be:
-	 * nvmet_fc_rcv_fcp_req -> lpfc_nvmet_xmt_fcp_op/cmp -> req->done
-	 * lpfc_nvmet_xmt_fcp_op_cmp should free the allocated ctxp.
-	 * When we return from nvmet_fc_rcv_fcp_req, all relevant info in
-	 * the NVME command / FC header is stored, so we are free to repost
-	 * the buffer.
-	 */
-	rc = nvmet_fc_rcv_fcp_req(phba->targetport, &ctxp->ctx.fcp_req,
-				  payload, size);
-
-	/* Process FCP command */
-	if (rc == 0) {
-		ctxp->rqb_buffer = NULL;
-		atomic_inc(&tgtp->rcv_fcp_cmd_out);
-		lpfc_rq_buf_free(phba, &nvmebuf->hbuf); /* repost */
-		return;
-	}
-
-	/* Processing of FCP command is deferred */
-	if (rc == -EOVERFLOW) {
-		/*
-		 * Post a brand new DMA buffer to RQ and defer
-		 * freeing rcv buffer till .defer_rcv callback
-		 */
-		qno = nvmebuf->idx;
-		lpfc_post_rq_buffer(
-			phba, phba->sli4_hba.nvmet_mrq_hdr[qno],
-			phba->sli4_hba.nvmet_mrq_data[qno], 1, qno);
-
-		lpfc_nvmeio_data(phba,
-				 "NVMET RCV BUSY: xri x%x sz %d from %06x\n",
-				 oxid, size, sid);
-		atomic_inc(&tgtp->rcv_fcp_cmd_out);
-		atomic_inc(&tgtp->defer_fod);
-		return;
-	}
-	ctxp->rqb_buffer = nvmebuf;
-
-	atomic_inc(&tgtp->rcv_fcp_cmd_drop);
-	lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
-			"6159 FCP Drop IO x%x: err x%x: x%x x%x x%x\n",
-			ctxp->oxid, rc,
-			atomic_read(&tgtp->rcv_fcp_cmd_in),
-			atomic_read(&tgtp->rcv_fcp_cmd_out),
-			atomic_read(&tgtp->xmt_fcp_release));
-dropit:
-	lpfc_nvmeio_data(phba, "NVMET FCP DROP: xri x%x sz %d from %06x\n",
-			 oxid, size, sid);
-	if (oxid) {
-		lpfc_nvmet_defer_release(phba, ctxp);
-		lpfc_nvmet_unsol_fcp_issue_abort(phba, ctxp, sid, oxid);
-		lpfc_rq_buf_free(phba, &nvmebuf->hbuf); /* repost */
-		return;
-	}
-
-	if (ctx_buf)
-		lpfc_nvmet_ctxbuf_post(phba, ctx_buf);
-
-	if (nvmebuf)
-		lpfc_rq_buf_free(phba, &nvmebuf->hbuf); /* repost */
+	lpfc_nvmet_process_rcv_fcp_req(ctx_buf);
 }
 
 /**

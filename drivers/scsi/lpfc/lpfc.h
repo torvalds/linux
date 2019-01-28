@@ -144,6 +144,7 @@ struct lpfc_nvmet_ctxbuf {
 	struct lpfc_nvmet_rcv_ctx *context;
 	struct lpfc_iocbq *iocbq;
 	struct lpfc_sglq *sglq;
+	struct work_struct defer_work;
 };
 
 struct lpfc_dma_pool {
