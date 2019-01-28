@@ -58,7 +58,7 @@
 
 static struct lpfc_nvme_buf *
 lpfc_get_nvme_buf(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
-		  int expedite);
+		  int idx, int expedite);
 
 static void
 lpfc_release_nvme_buf(struct lpfc_hba *, struct lpfc_nvme_buf *);
@@ -1545,7 +1545,8 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 		}
 	}
 
-	lpfc_ncmd = lpfc_get_nvme_buf(phba, ndlp, expedite);
+	lpfc_ncmd = lpfc_get_nvme_buf(phba, ndlp,
+				      lpfc_queue_info->index, expedite);
 	if (lpfc_ncmd == NULL) {
 		atomic_inc(&lport->xmt_fcp_noxri);
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_IOERR,
@@ -1913,24 +1914,26 @@ static struct nvme_fc_port_template lpfc_nvme_template = {
 };
 
 static inline struct lpfc_nvme_buf *
-lpfc_nvme_buf(struct lpfc_hba *phba)
+lpfc_nvme_buf(struct lpfc_hba *phba, int idx)
 {
+	struct lpfc_sli4_hdw_queue *qp;
 	struct lpfc_nvme_buf *lpfc_ncmd, *lpfc_ncmd_next;
 
+	qp = &phba->sli4_hba.hdwq[idx];
 	list_for_each_entry_safe(lpfc_ncmd, lpfc_ncmd_next,
-				 &phba->lpfc_common_buf_list_get, list) {
+				 &qp->lpfc_io_buf_list_get, list) {
 		list_del_init(&lpfc_ncmd->list);
-		phba->get_common_bufs--;
+		qp->get_io_bufs--;
 		return lpfc_ncmd;
 	}
 	return NULL;
 }
 
 /**
- * lpfc_get_nvme_buf - Get a nvme buffer from lpfc_common_buf_list of the HBA
+ * lpfc_get_nvme_buf - Get a nvme buffer from io_buf_list of the HBA
  * @phba: The HBA for which this call is being executed.
  *
- * This routine removes a nvme buffer from head of @phba lpfc_common_buf_list
+ * This routine removes a nvme buffer from head of @hdwq io_buf_list
  * and returns to caller.
  *
  * Return codes:
@@ -1939,30 +1942,32 @@ lpfc_nvme_buf(struct lpfc_hba *phba)
  **/
 static struct lpfc_nvme_buf *
 lpfc_get_nvme_buf(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
-		  int expedite)
+		  int idx, int expedite)
 {
 	struct lpfc_nvme_buf *lpfc_ncmd = NULL;
+	struct lpfc_sli4_hdw_queue *qp;
 	struct sli4_sge *sgl;
 	struct lpfc_iocbq *pwqeq;
 	union lpfc_wqe128 *wqe;
 	unsigned long iflag = 0;
 
-	spin_lock_irqsave(&phba->common_buf_list_get_lock, iflag);
-	if (phba->get_common_bufs > LPFC_NVME_EXPEDITE_XRICNT || expedite)
-		lpfc_ncmd = lpfc_nvme_buf(phba);
+	qp = &phba->sli4_hba.hdwq[idx];
+	spin_lock_irqsave(&qp->io_buf_list_get_lock, iflag);
+	if (qp->get_io_bufs > LPFC_NVME_EXPEDITE_XRICNT || expedite)
+		lpfc_ncmd = lpfc_nvme_buf(phba, idx);
 	if (!lpfc_ncmd) {
-		spin_lock(&phba->common_buf_list_put_lock);
-		list_splice(&phba->lpfc_common_buf_list_put,
-			    &phba->lpfc_common_buf_list_get);
-		phba->get_common_bufs += phba->put_common_bufs;
-		INIT_LIST_HEAD(&phba->lpfc_common_buf_list_put);
-		phba->put_common_bufs = 0;
-		spin_unlock(&phba->common_buf_list_put_lock);
-		if (phba->get_common_bufs > LPFC_NVME_EXPEDITE_XRICNT ||
+		spin_lock(&qp->io_buf_list_put_lock);
+		list_splice(&qp->lpfc_io_buf_list_put,
+			    &qp->lpfc_io_buf_list_get);
+		qp->get_io_bufs += qp->put_io_bufs;
+		INIT_LIST_HEAD(&qp->lpfc_io_buf_list_put);
+		qp->put_io_bufs = 0;
+		spin_unlock(&qp->io_buf_list_put_lock);
+		if (qp->get_io_bufs > LPFC_NVME_EXPEDITE_XRICNT ||
 		    expedite)
-			lpfc_ncmd = lpfc_nvme_buf(phba);
+			lpfc_ncmd = lpfc_nvme_buf(phba, idx);
 	}
-	spin_unlock_irqrestore(&phba->common_buf_list_get_lock, iflag);
+	spin_unlock_irqrestore(&qp->io_buf_list_get_lock, iflag);
 
 	if (lpfc_ncmd) {
 		pwqeq = &(lpfc_ncmd->cur_iocbq);
@@ -1975,6 +1980,7 @@ lpfc_get_nvme_buf(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
 		pwqeq->wqe_cmpl = lpfc_nvme_io_cmd_wqe_cmpl;
 		lpfc_ncmd->start_time = jiffies;
 		lpfc_ncmd->flags = 0;
+		lpfc_ncmd->hdwq = idx;
 
 		/* Rsp SGE will be filled in when we rcv an IO
 		 * from the NVME Layer to be sent.
@@ -1993,7 +1999,10 @@ lpfc_get_nvme_buf(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
 			atomic_inc(&ndlp->cmd_pending);
 			lpfc_ncmd->flags |= LPFC_BUMP_QDEPTH;
 		}
-	}
+
+	} else
+		qp->empty_io_bufs++;
+
 	return  lpfc_ncmd;
 }
 
@@ -2003,13 +2012,14 @@ lpfc_get_nvme_buf(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
  * @lpfc_ncmd: The nvme buffer which is being released.
  *
  * This routine releases @lpfc_ncmd nvme buffer by adding it to tail of @phba
- * lpfc_common_buf_list list. For SLI4 XRI's are tied to the nvme buffer
+ * lpfc_io_buf_list list. For SLI4 XRI's are tied to the nvme buffer
  * and cannot be reused for at least RA_TOV amount of time if it was
  * aborted.
  **/
 static void
 lpfc_release_nvme_buf(struct lpfc_hba *phba, struct lpfc_nvme_buf *lpfc_ncmd)
 {
+	struct lpfc_sli4_hdw_queue *qp;
 	unsigned long iflag = 0;
 
 	if ((lpfc_ncmd->flags & LPFC_BUMP_QDEPTH) && lpfc_ncmd->ndlp)
@@ -2018,6 +2028,7 @@ lpfc_release_nvme_buf(struct lpfc_hba *phba, struct lpfc_nvme_buf *lpfc_ncmd)
 	lpfc_ncmd->ndlp = NULL;
 	lpfc_ncmd->flags &= ~LPFC_BUMP_QDEPTH;
 
+	qp = &phba->sli4_hba.hdwq[lpfc_ncmd->hdwq];
 	if (lpfc_ncmd->flags & LPFC_SBUF_XBUSY) {
 		lpfc_printf_log(phba, KERN_INFO, LOG_NVME_ABTS,
 				"6310 XB release deferred for "
@@ -2025,21 +2036,21 @@ lpfc_release_nvme_buf(struct lpfc_hba *phba, struct lpfc_nvme_buf *lpfc_ncmd)
 				lpfc_ncmd->cur_iocbq.sli4_xritag,
 				lpfc_ncmd->cur_iocbq.iotag);
 
-		spin_lock_irqsave(&phba->sli4_hba.abts_nvme_buf_list_lock,
-					iflag);
+		spin_lock_irqsave(&qp->abts_nvme_buf_list_lock, iflag);
 		list_add_tail(&lpfc_ncmd->list,
-			&phba->sli4_hba.lpfc_abts_nvme_buf_list);
-		spin_unlock_irqrestore(&phba->sli4_hba.abts_nvme_buf_list_lock,
-					iflag);
+			&qp->lpfc_abts_nvme_buf_list);
+		qp->abts_nvme_io_bufs++;
+		spin_unlock_irqrestore(&qp->abts_nvme_buf_list_lock, iflag);
 	} else {
 		/* MUST zero fields if buffer is reused by another protocol */
 		lpfc_ncmd->nvmeCmd = NULL;
 		lpfc_ncmd->cur_iocbq.wqe_cmpl = NULL;
-		spin_lock_irqsave(&phba->common_buf_list_put_lock, iflag);
+
+		spin_lock_irqsave(&qp->io_buf_list_put_lock, iflag);
 		list_add_tail(&lpfc_ncmd->list,
-			      &phba->lpfc_common_buf_list_put);
-		phba->put_common_bufs++;
-		spin_unlock_irqrestore(&phba->common_buf_list_put_lock, iflag);
+			      &qp->lpfc_io_buf_list_put);
+		qp->put_io_bufs++;
+		spin_unlock_irqrestore(&qp->io_buf_list_put_lock, iflag);
 	}
 }
 
@@ -2517,27 +2528,28 @@ lpfc_nvme_unregister_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
  **/
 void
 lpfc_sli4_nvme_xri_aborted(struct lpfc_hba *phba,
-			   struct sli4_wcqe_xri_aborted *axri)
+			   struct sli4_wcqe_xri_aborted *axri, int idx)
 {
 	uint16_t xri = bf_get(lpfc_wcqe_xa_xri, axri);
 	struct lpfc_nvme_buf *lpfc_ncmd, *next_lpfc_ncmd;
 	struct nvmefc_fcp_req *nvme_cmd = NULL;
 	struct lpfc_nodelist *ndlp;
+	struct lpfc_sli4_hdw_queue *qp;
 	unsigned long iflag = 0;
 
 	if (!(phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME))
 		return;
+	qp = &phba->sli4_hba.hdwq[idx];
 	spin_lock_irqsave(&phba->hbalock, iflag);
-	spin_lock(&phba->sli4_hba.abts_nvme_buf_list_lock);
+	spin_lock(&qp->abts_nvme_buf_list_lock);
 	list_for_each_entry_safe(lpfc_ncmd, next_lpfc_ncmd,
-				 &phba->sli4_hba.lpfc_abts_nvme_buf_list,
-				 list) {
+				 &qp->lpfc_abts_nvme_buf_list, list) {
 		if (lpfc_ncmd->cur_iocbq.sli4_xritag == xri) {
 			list_del_init(&lpfc_ncmd->list);
+			qp->abts_nvme_io_bufs--;
 			lpfc_ncmd->flags &= ~LPFC_SBUF_XBUSY;
 			lpfc_ncmd->status = IOSTAT_SUCCESS;
-			spin_unlock(
-				&phba->sli4_hba.abts_nvme_buf_list_lock);
+			spin_unlock(&qp->abts_nvme_buf_list_lock);
 
 			spin_unlock_irqrestore(&phba->hbalock, iflag);
 			ndlp = lpfc_ncmd->ndlp;
@@ -2563,7 +2575,7 @@ lpfc_sli4_nvme_xri_aborted(struct lpfc_hba *phba,
 			return;
 		}
 	}
-	spin_unlock(&phba->sli4_hba.abts_nvme_buf_list_lock);
+	spin_unlock(&qp->abts_nvme_buf_list_lock);
 	spin_unlock_irqrestore(&phba->hbalock, iflag);
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_NVME_ABTS,

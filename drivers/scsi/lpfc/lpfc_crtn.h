@@ -515,10 +515,12 @@ int lpfc_sli4_read_config(struct lpfc_hba *);
 void lpfc_sli4_node_prep(struct lpfc_hba *);
 int lpfc_sli4_els_sgl_update(struct lpfc_hba *phba);
 int lpfc_sli4_nvmet_sgl_update(struct lpfc_hba *phba);
-int lpfc_sli4_common_sgl_update(struct lpfc_hba *phba);
-int lpfc_sli4_post_common_sgl_list(struct lpfc_hba *phba,
-	struct list_head *blist, int xricnt);
-int lpfc_new_common_buf(struct lpfc_hba *phba, int num_to_alloc);
+int lpfc_io_buf_flush(struct lpfc_hba *phba, struct list_head *sglist);
+int lpfc_io_buf_replenish(struct lpfc_hba *phba, struct list_head *cbuf);
+int lpfc_sli4_io_sgl_update(struct lpfc_hba *phba);
+int lpfc_sli4_post_io_sgl_list(struct lpfc_hba *phba,
+		struct list_head *blist, int xricnt);
+int lpfc_new_io_buf(struct lpfc_hba *phba, int num_to_alloc);
 void lpfc_free_sgl_list(struct lpfc_hba *, struct list_head *);
 uint32_t lpfc_sli_port_speed_get(struct lpfc_hba *);
 int lpfc_sli4_request_firmware_update(struct lpfc_hba *, uint8_t);

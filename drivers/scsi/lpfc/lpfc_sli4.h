@@ -214,6 +214,7 @@ struct lpfc_queue {
 	struct work_struct spwork;
 
 	uint64_t isr_timestamp;
+	uint16_t hdwq;
 	uint8_t	qe_valid;
 	struct lpfc_queue *assoc_qp;
 	union sli4_qe qe[1];	/* array to index entries (must be last) */
@@ -538,6 +539,22 @@ struct lpfc_sli4_hdw_queue {
 	struct lpfc_queue *nvme_wq; /* Fast-path NVME work queue */
 	uint16_t fcp_cq_map;
 	uint16_t nvme_cq_map;
+
+	/* Keep track of IO buffers for this hardware queue */
+	spinlock_t io_buf_list_get_lock;  /* Common buf alloc list lock */
+	struct list_head lpfc_io_buf_list_get;
+	spinlock_t io_buf_list_put_lock;  /* Common buf free list lock */
+	struct list_head lpfc_io_buf_list_put;
+	spinlock_t abts_scsi_buf_list_lock; /* list of aborted SCSI IOs */
+	struct list_head lpfc_abts_scsi_buf_list;
+	spinlock_t abts_nvme_buf_list_lock; /* list of aborted NVME IOs */
+	struct list_head lpfc_abts_nvme_buf_list;
+	uint32_t total_io_bufs;
+	uint32_t get_io_bufs;
+	uint32_t put_io_bufs;
+	uint32_t empty_io_bufs;
+	uint32_t abts_scsi_io_bufs;
+	uint32_t abts_nvme_io_bufs;
 };
 
 struct lpfc_sli4_hba {
@@ -662,19 +679,20 @@ struct lpfc_sli4_hba {
 	uint16_t rpi_hdrs_in_use; /* must post rpi hdrs if set. */
 	uint16_t next_xri; /* last_xri - max_cfg_param.xri_base = used */
 	uint16_t next_rpi;
-	uint16_t common_xri_max;
-	uint16_t common_xri_cnt;
-	uint16_t common_xri_start;
+	uint16_t io_xri_max;
+	uint16_t io_xri_cnt;
+	uint16_t io_xri_start;
 	uint16_t els_xri_cnt;
 	uint16_t nvmet_xri_cnt;
 	uint16_t nvmet_io_wait_cnt;
 	uint16_t nvmet_io_wait_total;
 	struct list_head lpfc_els_sgl_list;
 	struct list_head lpfc_abts_els_sgl_list;
-	struct list_head lpfc_nvmet_sgl_list;
-	struct list_head lpfc_abts_nvmet_ctx_list;
+	spinlock_t abts_scsi_buf_list_lock; /* list of aborted SCSI IOs */
 	struct list_head lpfc_abts_scsi_buf_list;
-	struct list_head lpfc_abts_nvme_buf_list;
+	struct list_head lpfc_nvmet_sgl_list;
+	spinlock_t abts_nvmet_buf_list_lock; /* list of aborted NVMET IOs */
+	struct list_head lpfc_abts_nvmet_ctx_list;
 	struct list_head lpfc_nvmet_io_wait_list;
 	struct lpfc_nvmet_ctx_info *nvmet_ctx_info;
 	struct lpfc_sglq **lpfc_sglq_active_list;
@@ -703,8 +721,6 @@ struct lpfc_sli4_hba {
 #define LPFC_SLI4_PPNAME_NON	0
 #define LPFC_SLI4_PPNAME_GET	1
 	struct lpfc_iov iov;
-	spinlock_t abts_nvme_buf_list_lock; /* list of aborted SCSI IOs */
-	spinlock_t abts_scsi_buf_list_lock; /* list of aborted SCSI IOs */
 	spinlock_t sgl_list_lock; /* list of aborted els IOs */
 	spinlock_t nvmet_io_wait_lock; /* IOs waiting for ctx resources */
 	uint32_t physical_port;
@@ -839,7 +855,7 @@ int lpfc_rq_destroy(struct lpfc_hba *, struct lpfc_queue *,
 int lpfc_sli4_queue_setup(struct lpfc_hba *);
 void lpfc_sli4_queue_unset(struct lpfc_hba *);
 int lpfc_sli4_post_sgl(struct lpfc_hba *, dma_addr_t, dma_addr_t, uint16_t);
-int lpfc_repost_common_sgl_list(struct lpfc_hba *phba);
+int lpfc_repost_io_sgl_list(struct lpfc_hba *phba);
 uint16_t lpfc_sli4_next_xritag(struct lpfc_hba *);
 void lpfc_sli4_free_xri(struct lpfc_hba *, int);
 int lpfc_sli4_post_async_mbox(struct lpfc_hba *);
@@ -862,9 +878,9 @@ int lpfc_sli4_resume_rpi(struct lpfc_nodelist *,
 void lpfc_sli4_fcp_xri_abort_event_proc(struct lpfc_hba *);
 void lpfc_sli4_els_xri_abort_event_proc(struct lpfc_hba *);
 void lpfc_sli4_fcp_xri_aborted(struct lpfc_hba *,
-			       struct sli4_wcqe_xri_aborted *);
+			       struct sli4_wcqe_xri_aborted *, int);
 void lpfc_sli4_nvme_xri_aborted(struct lpfc_hba *phba,
-				struct sli4_wcqe_xri_aborted *axri);
+				struct sli4_wcqe_xri_aborted *axri, int idx);
 void lpfc_sli4_nvmet_xri_aborted(struct lpfc_hba *phba,
 				 struct sli4_wcqe_xri_aborted *axri);
 void lpfc_sli4_els_xri_aborted(struct lpfc_hba *,

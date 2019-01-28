@@ -378,6 +378,73 @@ skipit:
 	return len;
 }
 
+static int lpfc_debugfs_last_hdwq;
+
+/**
+ * lpfc_debugfs_hdwqinfo_data - Dump Hardware Queue info to a buffer
+ * @phba: The HBA to gather host buffer info from.
+ * @buf: The buffer to dump log into.
+ * @size: The maximum amount of data to process.
+ *
+ * Description:
+ * This routine dumps the Hardware Queue info from the @phba to @buf up to
+ * @size number of bytes. A header that describes the current hdwq state will be
+ * dumped to @buf first and then info on each hdwq entry will be dumped to @buf
+ * until @size bytes have been dumped or all the hdwq info has been dumped.
+ *
+ * Notes:
+ * This routine will rotate through each configured Hardware Queue each
+ * time called.
+ *
+ * Return Value:
+ * This routine returns the amount of bytes that were dumped into @buf and will
+ * not exceed @size.
+ **/
+static int
+lpfc_debugfs_hdwqinfo_data(struct lpfc_hba *phba, char *buf, int size)
+{
+	struct lpfc_sli4_hdw_queue *qp;
+	int len = 0;
+	int i, out;
+	unsigned long iflag;
+
+	if (phba->sli_rev != LPFC_SLI_REV4)
+		return 0;
+
+	if (!phba->sli4_hba.hdwq)
+		return 0;
+
+	for (i = 0; i < phba->cfg_hdw_queue; i++) {
+		if (len > (LPFC_HDWQINFO_SIZE - 80))
+			break;
+		qp = &phba->sli4_hba.hdwq[lpfc_debugfs_last_hdwq];
+
+		len +=  snprintf(buf + len, size - len, "HdwQ %d Info ", i);
+		spin_lock_irqsave(&qp->abts_scsi_buf_list_lock, iflag);
+		spin_lock(&qp->abts_nvme_buf_list_lock);
+		spin_lock(&qp->io_buf_list_get_lock);
+		spin_lock(&qp->io_buf_list_put_lock);
+		out = qp->total_io_bufs - (qp->get_io_bufs + qp->put_io_bufs +
+			qp->abts_scsi_io_bufs + qp->abts_nvme_io_bufs);
+		len +=  snprintf(buf + len, size - len,
+				 "tot:%d get:%d put:%d mt:%d "
+				 "ABTS scsi:%d nvme:%d Out:%d\n",
+			qp->total_io_bufs, qp->get_io_bufs, qp->put_io_bufs,
+			qp->empty_io_bufs, qp->abts_scsi_io_bufs,
+			qp->abts_nvme_io_bufs, out);
+		spin_unlock(&qp->io_buf_list_put_lock);
+		spin_unlock(&qp->io_buf_list_get_lock);
+		spin_unlock(&qp->abts_nvme_buf_list_lock);
+		spin_unlock_irqrestore(&qp->abts_scsi_buf_list_lock, iflag);
+
+		lpfc_debugfs_last_hdwq++;
+		if (lpfc_debugfs_last_hdwq >= phba->cfg_hdw_queue)
+			lpfc_debugfs_last_hdwq = 0;
+	}
+
+	return len;
+}
+
 static int lpfc_debugfs_last_hba_slim_off;
 
 /**
@@ -863,17 +930,17 @@ lpfc_debugfs_nvmestat_data(struct lpfc_vport *vport, char *buf, int size)
 		len +=  snprintf(buf + len, size - len, "\n");
 
 		cnt = 0;
-		spin_lock(&phba->sli4_hba.abts_nvme_buf_list_lock);
+		spin_lock(&phba->sli4_hba.abts_nvmet_buf_list_lock);
 		list_for_each_entry_safe(ctxp, next_ctxp,
 				&phba->sli4_hba.lpfc_abts_nvmet_ctx_list,
 				list) {
 			cnt++;
 		}
-		spin_unlock(&phba->sli4_hba.abts_nvme_buf_list_lock);
+		spin_unlock(&phba->sli4_hba.abts_nvmet_buf_list_lock);
 		if (cnt) {
 			len += snprintf(buf + len, size - len,
 					"ABORT: %d ctx entries\n", cnt);
-			spin_lock(&phba->sli4_hba.abts_nvme_buf_list_lock);
+			spin_lock(&phba->sli4_hba.abts_nvmet_buf_list_lock);
 			list_for_each_entry_safe(ctxp, next_ctxp,
 				    &phba->sli4_hba.lpfc_abts_nvmet_ctx_list,
 				    list) {
@@ -885,7 +952,7 @@ lpfc_debugfs_nvmestat_data(struct lpfc_vport *vport, char *buf, int size)
 						ctxp->oxid, ctxp->state,
 						ctxp->flag);
 			}
-			spin_unlock(&phba->sli4_hba.abts_nvme_buf_list_lock);
+			spin_unlock(&phba->sli4_hba.abts_nvmet_buf_list_lock);
 		}
 
 		/* Calculate outstanding IOs */
@@ -1611,6 +1678,48 @@ lpfc_debugfs_hbqinfo_open(struct inode *inode, struct file *file)
 	}
 
 	debug->len = lpfc_debugfs_hbqinfo_data(phba, debug->buffer,
+		LPFC_HBQINFO_SIZE);
+	file->private_data = debug;
+
+	rc = 0;
+out:
+	return rc;
+}
+
+/**
+ * lpfc_debugfs_hdwqinfo_open - Open the hdwqinfo debugfs buffer
+ * @inode: The inode pointer that contains a vport pointer.
+ * @file: The file pointer to attach the log output.
+ *
+ * Description:
+ * This routine is the entry point for the debugfs open file operation. It gets
+ * the vport from the i_private field in @inode, allocates the necessary buffer
+ * for the log, fills the buffer from the in-memory log for this vport, and then
+ * returns a pointer to that log in the private_data field in @file.
+ *
+ * Returns:
+ * This function returns zero if successful. On error it will return a negative
+ * error value.
+ **/
+static int
+lpfc_debugfs_hdwqinfo_open(struct inode *inode, struct file *file)
+{
+	struct lpfc_hba *phba = inode->i_private;
+	struct lpfc_debug *debug;
+	int rc = -ENOMEM;
+
+	debug = kmalloc(sizeof(*debug), GFP_KERNEL);
+	if (!debug)
+		goto out;
+
+	/* Round to page boundary */
+	debug->buffer = kmalloc(LPFC_HDWQINFO_SIZE, GFP_KERNEL);
+	if (!debug->buffer) {
+		kfree(debug);
+		goto out;
+	}
+
+	debug->len = lpfc_debugfs_hdwqinfo_data(phba, debug->buffer,
 		LPFC_HBQINFO_SIZE);
 	file->private_data = debug;
 
@@ -4819,6 +4928,15 @@ static const struct file_operations lpfc_debugfs_op_hbqinfo = {
 	.release =      lpfc_debugfs_release,
 };
 
+#undef lpfc_debugfs_op_hdwqinfo
+static const struct file_operations lpfc_debugfs_op_hdwqinfo = {
+	.owner =        THIS_MODULE,
+	.open =         lpfc_debugfs_hdwqinfo_open,
+	.llseek =       lpfc_debugfs_lseek,
+	.read =         lpfc_debugfs_read,
+	.release =      lpfc_debugfs_release,
+};
+
 #undef lpfc_debugfs_op_dumpHBASlim
 static const struct file_operations lpfc_debugfs_op_dumpHBASlim = {
 	.owner =        THIS_MODULE,
@@ -5244,6 +5362,18 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 				 phba->hba_debugfs_root,
 				 phba, &lpfc_debugfs_op_hbqinfo);
 
+		/* Setup hdwqinfo */
+		snprintf(name, sizeof(name), "hdwqinfo");
+		phba->debug_hdwqinfo =
+			debugfs_create_file(name, S_IFREG | 0644,
+					    phba->hba_debugfs_root,
+					    phba, &lpfc_debugfs_op_hdwqinfo);
+		if (!phba->debug_hdwqinfo) {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+					 "0411 Cant create debugfs hdwqinfo\n");
+			goto debug_failed;
+		}
+
 		/* Setup dumpHBASlim */
 		if (phba->sli_rev < LPFC_SLI_REV4) {
 			snprintf(name, sizeof(name), "dumpHBASlim");
@@ -5629,6 +5759,9 @@ lpfc_debugfs_terminate(struct lpfc_vport *vport)
 
 		debugfs_remove(phba->debug_hbqinfo); /* hbqinfo */
 		phba->debug_hbqinfo = NULL;
+
+		debugfs_remove(phba->debug_hdwqinfo); /* hdwqinfo */
+		phba->debug_hdwqinfo = NULL;
 
 		debugfs_remove(phba->debug_dumpHBASlim); /* HBASlim */
 		phba->debug_dumpHBASlim = NULL;

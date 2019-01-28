@@ -965,13 +965,6 @@ struct lpfc_hba {
 	struct list_head lpfc_scsi_buf_list_get;
 	struct list_head lpfc_scsi_buf_list_put;
 	uint32_t total_scsi_bufs;
-	spinlock_t common_buf_list_get_lock;  /* Common buf alloc list lock */
-	spinlock_t common_buf_list_put_lock;  /* Common buf free list lock */
-	struct list_head lpfc_common_buf_list_get;
-	struct list_head lpfc_common_buf_list_put;
-	uint32_t total_common_bufs;
-	uint32_t get_common_bufs;
-	uint32_t put_common_bufs;
 	struct list_head lpfc_iocb_list;
 	uint32_t total_iocbq_bufs;
 	struct list_head active_rrq_list;
@@ -1045,6 +1038,7 @@ struct lpfc_hba {
 
 	struct dentry *debug_nvmeio_trc;
 	struct lpfc_debugfs_nvmeio_trc *nvmeio_trc;
+	struct dentry *debug_hdwqinfo;
 	atomic_t nvmeio_trc_cnt;
 	uint32_t nvmeio_trc_size;
 	uint32_t nvmeio_trc_output_idx;

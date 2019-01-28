@@ -6023,7 +6023,7 @@ lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
 		list_add_tail(&rsrc_blks->list, ext_blk_list);
 		rsrc_start = rsrc_id;
 		if ((type == LPFC_RSC_TYPE_FCOE_XRI) && (j == 0)) {
-			phba->sli4_hba.common_xri_start = rsrc_start +
+			phba->sli4_hba.io_xri_start = rsrc_start +
 				lpfc_sli4_get_iocb_cnt(phba);
 		}
 
@@ -7051,37 +7051,30 @@ lpfc_sli4_repost_sgl_list(struct lpfc_hba *phba,
 }
 
 /**
- * lpfc_sli4_repost_common_sgl_list - Repost all the allocated nvme buffer sgls
+ * lpfc_sli4_repost_io_sgl_list - Repost all the allocated nvme buffer sgls
  * @phba: pointer to lpfc hba data structure.
  *
  * This routine walks the list of nvme buffers that have been allocated and
  * repost them to the port by using SGL block post. This is needed after a
  * pci_function_reset/warm_start or start. The lpfc_hba_down_post_s4 routine
  * is responsible for moving all nvme buffers on the lpfc_abts_nvme_sgl_list
- * to the lpfc_common_buf_list. If the repost fails, reject all nvme buffers.
+ * to the lpfc_io_buf_list. If the repost fails, reject all nvme buffers.
  *
  * Returns: 0 = success, non-zero failure.
  **/
 int
-lpfc_sli4_repost_common_sgl_list(struct lpfc_hba *phba)
+lpfc_sli4_repost_io_sgl_list(struct lpfc_hba *phba)
 {
 	LIST_HEAD(post_nblist);
 	int num_posted, rc = 0;
 
 	/* get all NVME buffers need to repost to a local list */
-	spin_lock_irq(&phba->common_buf_list_get_lock);
-	spin_lock(&phba->common_buf_list_put_lock);
-	list_splice_init(&phba->lpfc_common_buf_list_get, &post_nblist);
-	list_splice(&phba->lpfc_common_buf_list_put, &post_nblist);
-	phba->get_common_bufs = 0;
-	phba->put_common_bufs = 0;
-	spin_unlock(&phba->common_buf_list_put_lock);
-	spin_unlock_irq(&phba->common_buf_list_get_lock);
+	lpfc_io_buf_flush(phba, &post_nblist);
 
 	/* post the list of nvme buffer sgls to port if available */
 	if (!list_empty(&post_nblist)) {
-		num_posted = lpfc_sli4_post_common_sgl_list(
-			phba, &post_nblist, phba->sli4_hba.common_xri_cnt);
+		num_posted = lpfc_sli4_post_io_sgl_list(
+			phba, &post_nblist, phba->sli4_hba.io_xri_cnt);
 		/* failed to post any nvme buffer, return error */
 		if (num_posted == 0)
 			rc = -EIO;
@@ -7551,7 +7544,7 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 		cnt += phba->sli4_hba.nvmet_xri_cnt;
 	} else {
 		/* update host common xri-sgl sizes and mappings */
-		rc = lpfc_sli4_common_sgl_update(phba);
+		rc = lpfc_sli4_io_sgl_update(phba);
 		if (unlikely(rc)) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
 					"6082 Failed to update nvme-sgl size "
@@ -7560,7 +7553,7 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 		}
 
 		/* register the allocated common sgl pool to the port */
-		rc = lpfc_sli4_repost_common_sgl_list(phba);
+		rc = lpfc_sli4_repost_io_sgl_list(phba);
 		if (unlikely(rc)) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
 					"6116 Error %d during nvme sgl post "
@@ -8562,7 +8555,6 @@ lpfc_sli4_post_sync_mbox(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	rc = lpfc_sli4_wait_bmbx_ready(phba, mboxq);
 	if (rc)
 		goto exit;
-
 	/*
 	 * Initialize the bootstrap memory region to avoid stale data areas
 	 * in the mailbox post.  Then copy the caller's mailbox contents to
@@ -10002,6 +9994,8 @@ lpfc_sli_api_table_setup(struct lpfc_hba *phba, uint8_t dev_grp)
 struct lpfc_sli_ring *
 lpfc_sli4_calc_ring(struct lpfc_hba *phba, struct lpfc_iocbq *piocb)
 {
+	struct lpfc_scsi_buf *lpfc_cmd;
+
 	if (piocb->iocb_flag & (LPFC_IO_FCP | LPFC_USE_FCPWQIDX)) {
 		if (unlikely(!phba->sli4_hba.hdwq))
 			return NULL;
@@ -10010,11 +10004,8 @@ lpfc_sli4_calc_ring(struct lpfc_hba *phba, struct lpfc_iocbq *piocb)
 		 * be setup based on what work queue we used.
 		 */
 		if (!(piocb->iocb_flag & LPFC_USE_FCPWQIDX)) {
-			piocb->hba_wqidx =
-				lpfc_sli4_scmd_to_wqidx_distr(
-					phba, piocb->context1);
-			piocb->hba_wqidx = piocb->hba_wqidx %
-				phba->cfg_hdw_queue;
+			lpfc_cmd = (struct lpfc_scsi_buf *)piocb->context1;
+			piocb->hba_wqidx = lpfc_cmd->hdwq;
 		}
 		return phba->sli4_hba.hdwq[piocb->hba_wqidx].fcp_wq->pring;
 	} else {
@@ -12924,7 +12915,8 @@ void lpfc_sli4_fcp_xri_abort_event_proc(struct lpfc_hba *phba)
 				 cq_event, struct lpfc_cq_event, list);
 		spin_unlock_irq(&phba->hbalock);
 		/* Notify aborted XRI for FCP work queue */
-		lpfc_sli4_fcp_xri_aborted(phba, &cq_event->cqe.wcqe_axri);
+		lpfc_sli4_fcp_xri_aborted(phba, &cq_event->cqe.wcqe_axri,
+					  cq_event->hdwq);
 		/* Free the event processed back to the free pool */
 		lpfc_sli4_cq_event_release(phba, cq_event);
 	}
@@ -13426,17 +13418,8 @@ lpfc_sli4_sp_handle_abort_xri_wcqe(struct lpfc_hba *phba,
 
 	switch (cq->subtype) {
 	case LPFC_FCP:
-		cq_event = lpfc_cq_event_setup(
-			phba, wcqe, sizeof(struct sli4_wcqe_xri_aborted));
-		if (!cq_event)
-			return false;
-		spin_lock_irqsave(&phba->hbalock, iflags);
-		list_add_tail(&cq_event->list,
-			      &phba->sli4_hba.sp_fcp_xri_aborted_work_queue);
-		/* Set the fcp xri abort event flag */
-		phba->hba_flag |= FCP_XRI_ABORT_EVENT;
-		spin_unlock_irqrestore(&phba->hbalock, iflags);
-		workposted = true;
+		lpfc_sli4_fcp_xri_aborted(phba, wcqe, cq->hdwq);
+		workposted = false;
 		break;
 	case LPFC_NVME_LS: /* NVME LS uses ELS resources */
 	case LPFC_ELS:
@@ -13444,6 +13427,7 @@ lpfc_sli4_sp_handle_abort_xri_wcqe(struct lpfc_hba *phba,
 			phba, wcqe, sizeof(struct sli4_wcqe_xri_aborted));
 		if (!cq_event)
 			return false;
+		cq_event->hdwq = cq->hdwq;
 		spin_lock_irqsave(&phba->hbalock, iflags);
 		list_add_tail(&cq_event->list,
 			      &phba->sli4_hba.sp_els_xri_aborted_work_queue);
@@ -13457,7 +13441,7 @@ lpfc_sli4_sp_handle_abort_xri_wcqe(struct lpfc_hba *phba,
 		if (phba->nvmet_support)
 			lpfc_sli4_nvmet_xri_aborted(phba, wcqe);
 		else
-			lpfc_sli4_nvme_xri_aborted(phba, wcqe);
+			lpfc_sli4_nvme_xri_aborted(phba, wcqe, cq->hdwq);
 
 		workposted = false;
 		break;
@@ -14073,7 +14057,8 @@ lpfc_sli4_hba_handle_eqe(struct lpfc_hba *phba, struct lpfc_eqe *eqe,
 	cqid = bf_get_le32(lpfc_eqe_resource_id, eqe);
 
 	/* First check for NVME/SCSI completion */
-	if (cqid == phba->sli4_hba.hdwq[qidx].nvme_cq_map) {
+	if ((phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) &&
+	    (cqid == phba->sli4_hba.hdwq[qidx].nvme_cq_map)) {
 		/* Process NVME / NVMET command completion */
 		cq = phba->sli4_hba.hdwq[qidx].nvme_cq;
 		goto  process_cq;
@@ -16656,7 +16641,7 @@ lpfc_sli4_post_sgl_list(struct lpfc_hba *phba,
 }
 
 /**
- * lpfc_sli4_post_common_sgl_block - post a block of nvme sgl list to firmware
+ * lpfc_sli4_post_io_sgl_block - post a block of nvme sgl list to firmware
  * @phba: pointer to lpfc hba data structure.
  * @nblist: pointer to nvme buffer list.
  * @count: number of scsi buffers on the list.
@@ -16667,9 +16652,8 @@ lpfc_sli4_post_sgl_list(struct lpfc_hba *phba,
  *
  **/
 static int
-lpfc_sli4_post_common_sgl_block(struct lpfc_hba *phba,
-				struct list_head *nblist,
-				int count)
+lpfc_sli4_post_io_sgl_block(struct lpfc_hba *phba, struct list_head *nblist,
+			    int count)
 {
 	struct lpfc_nvme_buf *lpfc_ncmd;
 	struct lpfc_mbx_post_uembed_sgl_page1 *sgl;
@@ -16770,7 +16754,7 @@ lpfc_sli4_post_common_sgl_block(struct lpfc_hba *phba,
 }
 
 /**
- * lpfc_sli4_post_common_sgl_list - Post blocks of nvme buffer sgls from a list
+ * lpfc_sli4_post_io_sgl_list - Post blocks of nvme buffer sgls from a list
  * @phba: pointer to lpfc hba data structure.
  * @post_nblist: pointer to the nvme buffer list.
  *
@@ -16784,8 +16768,8 @@ lpfc_sli4_post_common_sgl_block(struct lpfc_hba *phba,
  * Returns: 0 = failure, non-zero number of successfully posted buffers.
  **/
 int
-lpfc_sli4_post_common_sgl_list(struct lpfc_hba *phba,
-			       struct list_head *post_nblist, int sb_count)
+lpfc_sli4_post_io_sgl_list(struct lpfc_hba *phba,
+			   struct list_head *post_nblist, int sb_count)
 {
 	struct lpfc_nvme_buf *lpfc_ncmd, *lpfc_ncmd_next;
 	int status, sgl_size;
@@ -16793,7 +16777,6 @@ lpfc_sli4_post_common_sgl_list(struct lpfc_hba *phba,
 	dma_addr_t pdma_phys_sgl1;
 	int last_xritag = NO_XRI;
 	int cur_xritag;
-	unsigned long iflag;
 	LIST_HEAD(prep_nblist);
 	LIST_HEAD(blck_nblist);
 	LIST_HEAD(nvme_nblist);
@@ -16864,8 +16847,8 @@ lpfc_sli4_post_common_sgl_list(struct lpfc_hba *phba,
 			continue;
 
 		/* post block of NVME buffer list sgls */
-		status = lpfc_sli4_post_common_sgl_block(phba, &blck_nblist,
-							 post_cnt);
+		status = lpfc_sli4_post_io_sgl_block(phba, &blck_nblist,
+						     post_cnt);
 
 		/* don't reset xirtag due to hole in xri block */
 		if (block_cnt == 0)
@@ -16891,17 +16874,8 @@ lpfc_sli4_post_common_sgl_list(struct lpfc_hba *phba,
 		}
 	}
 	/* Push NVME buffers with sgl posted to the available list */
-	while (!list_empty(&nvme_nblist)) {
-		list_remove_head(&nvme_nblist, lpfc_ncmd,
-				 struct lpfc_nvme_buf, list);
-		lpfc_ncmd->cur_iocbq.wqe_cmpl = NULL;
-		lpfc_ncmd->cur_iocbq.iocb_cmpl = NULL;
-		spin_lock_irqsave(&phba->common_buf_list_put_lock, iflag);
-		list_add_tail(&lpfc_ncmd->list,
-			      &phba->lpfc_common_buf_list_put);
-		phba->put_common_bufs++;
-		spin_unlock_irqrestore(&phba->common_buf_list_put_lock, iflag);
-	}
+	lpfc_io_buf_replenish(phba, &nvme_nblist);
+
 	return num_posted;
 }
 

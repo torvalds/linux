@@ -337,7 +337,7 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 		  "XRI Dist lpfc%d Total %d IO %d ELS %d\n",
 		  phba->brd_no,
 		  phba->sli4_hba.max_cfg_param.max_xri,
-		  phba->sli4_hba.common_xri_max,
+		  phba->sli4_hba.io_xri_max,
 		  lpfc_sli4_get_els_iocb_cnt(phba));
 	if (strlcat(buf, tmp, PAGE_SIZE) >= PAGE_SIZE)
 		goto buffer_done;

@@ -525,19 +525,26 @@ lpfc_sli4_vport_delete_fcp_xri_aborted(struct lpfc_vport *vport)
 {
 	struct lpfc_hba *phba = vport->phba;
 	struct lpfc_scsi_buf *psb, *next_psb;
+	struct lpfc_sli4_hdw_queue *qp;
 	unsigned long iflag = 0;
+	int idx;
 
 	if (!(phba->cfg_enable_fc4_type & LPFC_ENABLE_FCP))
 		return;
+
 	spin_lock_irqsave(&phba->hbalock, iflag);
-	spin_lock(&phba->sli4_hba.abts_scsi_buf_list_lock);
-	list_for_each_entry_safe(psb, next_psb,
-				&phba->sli4_hba.lpfc_abts_scsi_buf_list, list) {
-		if (psb->rdata && psb->rdata->pnode
-			&& psb->rdata->pnode->vport == vport)
-			psb->rdata = NULL;
+	for (idx = 0; idx < phba->cfg_hdw_queue; idx++) {
+		qp = &phba->sli4_hba.hdwq[idx];
+
+		spin_lock(&qp->abts_scsi_buf_list_lock);
+		list_for_each_entry_safe(psb, next_psb,
+					 &qp->lpfc_abts_scsi_buf_list, list) {
+			if (psb->rdata && psb->rdata->pnode &&
+			    psb->rdata->pnode->vport == vport)
+				psb->rdata = NULL;
+		}
+		spin_unlock(&qp->abts_scsi_buf_list_lock);
 	}
-	spin_unlock(&phba->sli4_hba.abts_scsi_buf_list_lock);
 	spin_unlock_irqrestore(&phba->hbalock, iflag);
 }
 
@@ -551,11 +558,12 @@ lpfc_sli4_vport_delete_fcp_xri_aborted(struct lpfc_vport *vport)
  **/
 void
 lpfc_sli4_fcp_xri_aborted(struct lpfc_hba *phba,
-			  struct sli4_wcqe_xri_aborted *axri)
+			  struct sli4_wcqe_xri_aborted *axri, int idx)
 {
 	uint16_t xri = bf_get(lpfc_wcqe_xa_xri, axri);
 	uint16_t rxid = bf_get(lpfc_wcqe_xa_remote_xid, axri);
 	struct lpfc_scsi_buf *psb, *next_psb;
+	struct lpfc_sli4_hdw_queue *qp;
 	unsigned long iflag = 0;
 	struct lpfc_iocbq *iocbq;
 	int i;
@@ -565,16 +573,19 @@ lpfc_sli4_fcp_xri_aborted(struct lpfc_hba *phba,
 
 	if (!(phba->cfg_enable_fc4_type & LPFC_ENABLE_FCP))
 		return;
+
+	qp = &phba->sli4_hba.hdwq[idx];
 	spin_lock_irqsave(&phba->hbalock, iflag);
-	spin_lock(&phba->sli4_hba.abts_scsi_buf_list_lock);
+	spin_lock(&qp->abts_scsi_buf_list_lock);
 	list_for_each_entry_safe(psb, next_psb,
-		&phba->sli4_hba.lpfc_abts_scsi_buf_list, list) {
+		&qp->lpfc_abts_scsi_buf_list, list) {
 		if (psb->cur_iocbq.sli4_xritag == xri) {
 			list_del(&psb->list);
+			qp->abts_scsi_io_bufs--;
 			psb->exch_busy = 0;
 			psb->status = IOSTAT_SUCCESS;
 			spin_unlock(
-				&phba->sli4_hba.abts_scsi_buf_list_lock);
+				&qp->abts_scsi_buf_list_lock);
 			if (psb->rdata && psb->rdata->pnode)
 				ndlp = psb->rdata->pnode;
 			else
@@ -593,7 +604,7 @@ lpfc_sli4_fcp_xri_aborted(struct lpfc_hba *phba,
 			return;
 		}
 	}
-	spin_unlock(&phba->sli4_hba.abts_scsi_buf_list_lock);
+	spin_unlock(&qp->abts_scsi_buf_list_lock);
 	for (i = 1; i <= phba->sli.last_iotag; i++) {
 		iocbq = phba->sli.iocbq_lookup[i];
 
@@ -652,10 +663,10 @@ lpfc_get_scsi_buf_s3(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 	return  lpfc_cmd;
 }
 /**
- * lpfc_get_scsi_buf_s4 - Get a scsi buffer from lpfc_common_buf_list of the HBA
+ * lpfc_get_scsi_buf_s4 - Get a scsi buffer from io_buf_list of the HBA
  * @phba: The HBA for which this call is being executed.
  *
- * This routine removes a scsi buffer from head of @phba lpfc_common_buf_list
+ * This routine removes a scsi buffer from head of @hdwq io_buf_list
  * and returns to caller.
  *
  * Return codes:
@@ -666,48 +677,58 @@ static struct lpfc_scsi_buf*
 lpfc_get_scsi_buf_s4(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 {
 	struct lpfc_scsi_buf *lpfc_cmd, *lpfc_cmd_next;
+	struct lpfc_sli4_hdw_queue *qp;
 	unsigned long iflag = 0;
 	struct sli4_sge *sgl;
 	IOCB_t *iocb;
 	dma_addr_t pdma_phys_fcp_rsp;
 	dma_addr_t pdma_phys_fcp_cmd;
-	uint32_t sgl_size;
+	uint32_t sgl_size, cpu, idx;
 	int found = 0;
 
-	spin_lock_irqsave(&phba->common_buf_list_get_lock, iflag);
+	cpu = smp_processor_id();
+	if (cpu < phba->cfg_hdw_queue)
+		idx = cpu;
+	else
+		idx = cpu % phba->cfg_hdw_queue;
+
+	qp = &phba->sli4_hba.hdwq[idx];
+	spin_lock_irqsave(&qp->io_buf_list_get_lock, iflag);
 	list_for_each_entry_safe(lpfc_cmd, lpfc_cmd_next,
-				 &phba->lpfc_common_buf_list_get, list) {
+				 &qp->lpfc_io_buf_list_get, list) {
 		if (lpfc_test_rrq_active(phba, ndlp,
 					 lpfc_cmd->cur_iocbq.sli4_lxritag))
 			continue;
 		list_del_init(&lpfc_cmd->list);
-		phba->get_common_bufs--;
+		qp->get_io_bufs--;
 		found = 1;
 		break;
 	}
 	if (!found) {
-		spin_lock(&phba->common_buf_list_put_lock);
-		list_splice(&phba->lpfc_common_buf_list_put,
-			    &phba->lpfc_common_buf_list_get);
-		phba->get_common_bufs += phba->put_common_bufs;
-		INIT_LIST_HEAD(&phba->lpfc_common_buf_list_put);
-		phba->put_common_bufs = 0;
-		spin_unlock(&phba->common_buf_list_put_lock);
+		spin_lock(&qp->io_buf_list_put_lock);
+		list_splice(&qp->lpfc_io_buf_list_put,
+			    &qp->lpfc_io_buf_list_get);
+		qp->get_io_bufs += qp->put_io_bufs;
+		INIT_LIST_HEAD(&qp->lpfc_io_buf_list_put);
+		qp->put_io_bufs = 0;
+		spin_unlock(&qp->io_buf_list_put_lock);
 		list_for_each_entry_safe(lpfc_cmd, lpfc_cmd_next,
-					 &phba->lpfc_common_buf_list_get,
+					 &qp->lpfc_io_buf_list_get,
 					 list) {
 			if (lpfc_test_rrq_active(
 				phba, ndlp, lpfc_cmd->cur_iocbq.sli4_lxritag))
 				continue;
 			list_del_init(&lpfc_cmd->list);
-			phba->get_common_bufs--;
+			qp->get_io_bufs--;
 			found = 1;
 			break;
 		}
 	}
-	spin_unlock_irqrestore(&phba->common_buf_list_get_lock, iflag);
-	if (!found)
+	spin_unlock_irqrestore(&qp->io_buf_list_get_lock, iflag);
+	if (!found) {
+		qp->empty_io_bufs++;
 		return NULL;
+	}
 
 	sgl_size = phba->cfg_sg_dma_buf_size -
 		(sizeof(struct fcp_cmnd) + sizeof(struct fcp_rsp));
@@ -723,10 +744,11 @@ lpfc_get_scsi_buf_s4(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 	lpfc_cmd->flags = 0;
 	lpfc_cmd->start_time = jiffies;
 	lpfc_cmd->waitq = NULL;
-	lpfc_cmd->cpu = smp_processor_id();
+	lpfc_cmd->cpu = cpu;
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	lpfc_cmd->prot_data_type = 0;
 #endif
+	lpfc_cmd->hdwq = idx;
 
 	lpfc_cmd->fcp_cmnd = (lpfc_cmd->data + sgl_size);
 	lpfc_cmd->fcp_rsp = (struct fcp_rsp *)((uint8_t *)lpfc_cmd->fcp_cmnd +
@@ -825,35 +847,36 @@ lpfc_release_scsi_buf_s3(struct lpfc_hba *phba, struct lpfc_scsi_buf *psb)
  * @phba: The Hba for which this call is being executed.
  * @psb: The scsi buffer which is being released.
  *
- * This routine releases @psb scsi buffer by adding it to tail of @phba
- * lpfc_common_buf_list list. For SLI4 XRI's are tied to the scsi buffer
+ * This routine releases @psb scsi buffer by adding it to tail of @hdwq
+ * io_buf_list list. For SLI4 XRI's are tied to the scsi buffer
  * and cannot be reused for at least RA_TOV amount of time if it was
  * aborted.
  **/
 static void
 lpfc_release_scsi_buf_s4(struct lpfc_hba *phba, struct lpfc_scsi_buf *psb)
 {
+	struct lpfc_sli4_hdw_queue *qp;
 	unsigned long iflag = 0;
 
 	psb->seg_cnt = 0;
 	psb->prot_seg_cnt = 0;
 
+	qp = &phba->sli4_hba.hdwq[psb->hdwq];
 	if (psb->exch_busy) {
-		spin_lock_irqsave(&phba->sli4_hba.abts_scsi_buf_list_lock,
-					iflag);
+		spin_lock_irqsave(&qp->abts_scsi_buf_list_lock, iflag);
 		psb->pCmd = NULL;
-		list_add_tail(&psb->list,
-			&phba->sli4_hba.lpfc_abts_scsi_buf_list);
-		spin_unlock_irqrestore(&phba->sli4_hba.abts_scsi_buf_list_lock,
-					iflag);
+		list_add_tail(&psb->list, &qp->lpfc_abts_scsi_buf_list);
+		qp->abts_scsi_io_bufs++;
+		spin_unlock_irqrestore(&qp->abts_scsi_buf_list_lock, iflag);
 	} else {
 		/* MUST zero fields if buffer is reused by another protocol */
 		psb->pCmd = NULL;
 		psb->cur_iocbq.iocb_cmpl = NULL;
-		spin_lock_irqsave(&phba->common_buf_list_put_lock, iflag);
-		list_add_tail(&psb->list, &phba->lpfc_common_buf_list_put);
-		phba->put_common_bufs++;
-		spin_unlock_irqrestore(&phba->common_buf_list_put_lock, iflag);
+
+		spin_lock_irqsave(&qp->io_buf_list_put_lock, iflag);
+		list_add_tail(&psb->list, &qp->lpfc_io_buf_list_put);
+		qp->put_io_bufs++;
+		spin_unlock_irqrestore(&qp->io_buf_list_put_lock, iflag);
 	}
 }
 

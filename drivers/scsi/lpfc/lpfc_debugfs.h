@@ -284,6 +284,9 @@ struct lpfc_idiag {
 
 #endif
 
+/* hdwqinfo output buffer size */
+#define LPFC_HDWQINFO_SIZE 8192
+
 enum {
 	DUMP_FCP,
 	DUMP_NVME,

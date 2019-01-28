@@ -33,6 +33,7 @@ typedef enum _lpfc_ctx_cmd {
 
 struct lpfc_cq_event {
 	struct list_head list;
+	uint16_t hdwq;
 	union {
 		struct lpfc_mcqe		mcqe_cmpl;
 		struct lpfc_acqe_link		acqe_link;

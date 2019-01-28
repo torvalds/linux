@@ -1039,12 +1039,12 @@ lpfc_hba_down_post_s4(struct lpfc_hba *phba)
 {
 	struct lpfc_scsi_buf *psb, *psb_next;
 	struct lpfc_nvmet_rcv_ctx *ctxp, *ctxp_next;
+	struct lpfc_sli4_hdw_queue *qp;
 	LIST_HEAD(aborts);
 	LIST_HEAD(nvme_aborts);
 	LIST_HEAD(nvmet_aborts);
-	unsigned long iflag = 0;
 	struct lpfc_sglq *sglq_entry = NULL;
-	int cnt;
+	int cnt, idx;
 
 
 	lpfc_sli_hbqbuf_free_all(phba);
@@ -1071,57 +1071,65 @@ lpfc_hba_down_post_s4(struct lpfc_hba *phba)
 
 
 	spin_unlock(&phba->sli4_hba.sgl_list_lock);
-	/* abts_scsi_buf_list_lock required because worker thread uses this
+
+	/* abts_xxxx_buf_list_lock required because worker thread uses this
 	 * list.
 	 */
-	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_FCP) {
-		spin_lock(&phba->sli4_hba.abts_scsi_buf_list_lock);
-		list_splice_init(&phba->sli4_hba.lpfc_abts_scsi_buf_list,
+	cnt = 0;
+	for (idx = 0; idx < phba->cfg_hdw_queue; idx++) {
+		qp = &phba->sli4_hba.hdwq[idx];
+
+		spin_lock(&qp->abts_scsi_buf_list_lock);
+		list_splice_init(&qp->lpfc_abts_scsi_buf_list,
 				 &aborts);
-		spin_unlock(&phba->sli4_hba.abts_scsi_buf_list_lock);
-	}
 
-	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
-		spin_lock(&phba->sli4_hba.abts_nvme_buf_list_lock);
-		list_splice_init(&phba->sli4_hba.lpfc_abts_nvme_buf_list,
-				 &nvme_aborts);
-		list_splice_init(&phba->sli4_hba.lpfc_abts_nvmet_ctx_list,
-				 &nvmet_aborts);
-		spin_unlock(&phba->sli4_hba.abts_nvme_buf_list_lock);
-	}
-
-	spin_unlock_irq(&phba->hbalock);
-
-	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_FCP) {
 		list_for_each_entry_safe(psb, psb_next, &aborts, list) {
-			psb->pCmd = NULL;
-			psb->status = IOSTAT_SUCCESS;
-		}
-		spin_lock_irqsave(&phba->common_buf_list_put_lock, iflag);
-		list_splice(&aborts, &phba->lpfc_common_buf_list_put);
-		spin_unlock_irqrestore(&phba->common_buf_list_put_lock, iflag);
-	}
-
-	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
-		cnt = 0;
-		list_for_each_entry_safe(psb, psb_next, &nvme_aborts, list) {
 			psb->pCmd = NULL;
 			psb->status = IOSTAT_SUCCESS;
 			cnt++;
 		}
-		spin_lock_irqsave(&phba->common_buf_list_put_lock, iflag);
-		phba->put_common_bufs += cnt;
-		list_splice(&nvme_aborts, &phba->lpfc_common_buf_list_put);
-		spin_unlock_irqrestore(&phba->common_buf_list_put_lock, iflag);
+		spin_lock(&qp->io_buf_list_put_lock);
+		list_splice_init(&aborts, &qp->lpfc_io_buf_list_put);
+		qp->put_io_bufs += qp->abts_scsi_io_bufs;
+		qp->abts_scsi_io_bufs = 0;
+		spin_unlock(&qp->io_buf_list_put_lock);
+		spin_unlock(&qp->abts_scsi_buf_list_lock);
 
+		if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
+			spin_lock(&qp->abts_nvme_buf_list_lock);
+			list_splice_init(&qp->lpfc_abts_nvme_buf_list,
+					 &nvme_aborts);
+			list_for_each_entry_safe(psb, psb_next, &nvme_aborts,
+						 list) {
+				psb->pCmd = NULL;
+				psb->status = IOSTAT_SUCCESS;
+				cnt++;
+			}
+			spin_lock(&qp->io_buf_list_put_lock);
+			qp->put_io_bufs += qp->abts_nvme_io_bufs;
+			qp->abts_nvme_io_bufs = 0;
+			list_splice_init(&nvme_aborts,
+					 &qp->lpfc_io_buf_list_put);
+			spin_unlock(&qp->io_buf_list_put_lock);
+			spin_unlock(&qp->abts_nvme_buf_list_lock);
+
+		}
+	}
+
+	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
+		spin_lock(&phba->sli4_hba.abts_nvmet_buf_list_lock);
+		list_splice_init(&phba->sli4_hba.lpfc_abts_nvmet_ctx_list,
+				 &nvmet_aborts);
+		spin_unlock(&phba->sli4_hba.abts_nvmet_buf_list_lock);
 		list_for_each_entry_safe(ctxp, ctxp_next, &nvmet_aborts, list) {
 			ctxp->flag &= ~(LPFC_NVMET_XBUSY | LPFC_NVMET_ABORT_OP);
 			lpfc_nvmet_ctxbuf_post(phba, ctxp->ctxbuf);
 		}
 	}
 
+	spin_unlock_irq(&phba->hbalock);
 	lpfc_sli4_free_sp_events(phba);
-	return 0;
+	return cnt;
 }
 
 /**
@@ -3126,18 +3134,6 @@ lpfc_online(struct lpfc_hba *phba)
 					"6132 NVME restore reg failed "
 					"on nvmei error x%x\n", error);
 		}
-		/* Don't post more new bufs if repost already recovered
-		 * the nvme sgls.
-		 */
-		if (phba->sli4_hba.common_xri_cnt == 0) {
-			i = lpfc_new_common_buf(phba,
-						 phba->sli4_hba.common_xri_max);
-			if (i == 0) {
-				lpfc_unblock_mgmt_io(phba);
-				return 1;
-			}
-			phba->total_common_bufs += i;
-		}
 	} else {
 		lpfc_sli_queue_init(phba);
 		if (lpfc_sli_hba_setup(phba)) {	/* Initialize SLI2/SLI3 HBA */
@@ -3372,7 +3368,7 @@ lpfc_scsi_free(struct lpfc_hba *phba)
 }
 
 /**
- * lpfc_common_free - Free all the IO buffers and IOCBs from driver lists
+ * lpfc_io_free - Free all the IO buffers and IOCBs from driver lists
  * @phba: pointer to lpfc hba data structure.
  *
  * This routine is to free all the IO buffers and IOCBs from the driver
@@ -3380,36 +3376,44 @@ lpfc_scsi_free(struct lpfc_hba *phba)
  * the internal resources before the device is removed from the system.
  **/
 static void
-lpfc_common_free(struct lpfc_hba *phba)
+lpfc_io_free(struct lpfc_hba *phba)
 {
 	struct lpfc_nvme_buf *lpfc_ncmd, *lpfc_ncmd_next;
+	struct lpfc_sli4_hdw_queue *qp;
+	int idx;
 
 	spin_lock_irq(&phba->hbalock);
 
-	/* Release all the lpfc_nvme_bufs maintained by this host. */
-	spin_lock(&phba->common_buf_list_put_lock);
-	list_for_each_entry_safe(lpfc_ncmd, lpfc_ncmd_next,
-				 &phba->lpfc_common_buf_list_put, list) {
-		list_del(&lpfc_ncmd->list);
-		phba->put_common_bufs--;
-		dma_pool_free(phba->lpfc_sg_dma_buf_pool, lpfc_ncmd->data,
-			      lpfc_ncmd->dma_handle);
-		kfree(lpfc_ncmd);
-		phba->total_common_bufs--;
-	}
-	spin_unlock(&phba->common_buf_list_put_lock);
+	for (idx = 0; idx < phba->cfg_hdw_queue; idx++) {
+		qp = &phba->sli4_hba.hdwq[idx];
+		/* Release all the lpfc_nvme_bufs maintained by this host. */
+		spin_lock(&qp->io_buf_list_put_lock);
+		list_for_each_entry_safe(lpfc_ncmd, lpfc_ncmd_next,
+					 &qp->lpfc_io_buf_list_put,
+					 list) {
+			list_del(&lpfc_ncmd->list);
+			qp->put_io_bufs--;
+			dma_pool_free(phba->lpfc_sg_dma_buf_pool,
+				      lpfc_ncmd->data, lpfc_ncmd->dma_handle);
+			kfree(lpfc_ncmd);
+			qp->total_io_bufs--;
+		}
+		spin_unlock(&qp->io_buf_list_put_lock);
 
-	spin_lock(&phba->common_buf_list_get_lock);
-	list_for_each_entry_safe(lpfc_ncmd, lpfc_ncmd_next,
-				 &phba->lpfc_common_buf_list_get, list) {
-		list_del(&lpfc_ncmd->list);
-		phba->get_common_bufs--;
-		dma_pool_free(phba->lpfc_sg_dma_buf_pool, lpfc_ncmd->data,
-			      lpfc_ncmd->dma_handle);
-		kfree(lpfc_ncmd);
-		phba->total_common_bufs--;
+		spin_lock(&qp->io_buf_list_get_lock);
+		list_for_each_entry_safe(lpfc_ncmd, lpfc_ncmd_next,
+					 &qp->lpfc_io_buf_list_get,
+					 list) {
+			list_del(&lpfc_ncmd->list);
+			qp->get_io_bufs--;
+			dma_pool_free(phba->lpfc_sg_dma_buf_pool,
+				      lpfc_ncmd->data, lpfc_ncmd->dma_handle);
+			kfree(lpfc_ncmd);
+			qp->total_io_bufs--;
+		}
+		spin_unlock(&qp->io_buf_list_get_lock);
 	}
-	spin_unlock(&phba->common_buf_list_get_lock);
+
 	spin_unlock_irq(&phba->hbalock);
 }
 
@@ -3654,8 +3658,101 @@ out_free_mem:
 	return rc;
 }
 
+int
+lpfc_io_buf_flush(struct lpfc_hba *phba, struct list_head *cbuf)
+{
+	LIST_HEAD(blist);
+	struct lpfc_sli4_hdw_queue *qp;
+	struct lpfc_scsi_buf *lpfc_cmd;
+	struct lpfc_scsi_buf *iobufp, *prev_iobufp;
+	int idx, cnt, xri, inserted;
+
+	cnt = 0;
+	for (idx = 0; idx < phba->cfg_hdw_queue; idx++) {
+		qp = &phba->sli4_hba.hdwq[idx];
+		spin_lock_irq(&qp->io_buf_list_get_lock);
+		spin_lock(&qp->io_buf_list_put_lock);
+
+		/* Take everything off the get and put lists */
+		list_splice_init(&qp->lpfc_io_buf_list_get, &blist);
+		list_splice(&qp->lpfc_io_buf_list_put, &blist);
+		INIT_LIST_HEAD(&qp->lpfc_io_buf_list_get);
+		INIT_LIST_HEAD(&qp->lpfc_io_buf_list_put);
+		cnt += qp->get_io_bufs + qp->put_io_bufs;
+		qp->get_io_bufs = 0;
+		qp->put_io_bufs = 0;
+		qp->total_io_bufs = 0;
+		spin_unlock(&qp->io_buf_list_put_lock);
+		spin_unlock_irq(&qp->io_buf_list_get_lock);
+	}
+
+	/*
+	 * Take IO buffers off blist and put on cbuf sorted by XRI.
+	 * This is because POST_SGL takes a sequential range of XRIs
+	 * to post to the firmware.
+	 */
+	for (idx = 0; idx < cnt; idx++) {
+		list_remove_head(&blist, lpfc_cmd, struct lpfc_scsi_buf, list);
+		if (!lpfc_cmd)
+			return cnt;
+		if (idx == 0) {
+			list_add_tail(&lpfc_cmd->list, cbuf);
+			continue;
+		}
+		xri = lpfc_cmd->cur_iocbq.sli4_xritag;
+		inserted = 0;
+		prev_iobufp = NULL;
+		list_for_each_entry(iobufp, cbuf, list) {
+			if (xri < iobufp->cur_iocbq.sli4_xritag) {
+				if (prev_iobufp)
+					list_add(&lpfc_cmd->list,
+						 &prev_iobufp->list);
+				else
+					list_add(&lpfc_cmd->list, cbuf);
+				inserted = 1;
+				break;
+			}
+			prev_iobufp = iobufp;
+		}
+		if (!inserted)
+			list_add_tail(&lpfc_cmd->list, cbuf);
+	}
+	return cnt;
+}
+
+int
+lpfc_io_buf_replenish(struct lpfc_hba *phba, struct list_head *cbuf)
+{
+	struct lpfc_sli4_hdw_queue *qp;
+	struct lpfc_scsi_buf *lpfc_cmd;
+	int idx, cnt;
+
+	qp = phba->sli4_hba.hdwq;
+	cnt = 0;
+	while (!list_empty(cbuf)) {
+		for (idx = 0; idx < phba->cfg_hdw_queue; idx++) {
+			list_remove_head(cbuf, lpfc_cmd,
+					 struct lpfc_scsi_buf, list);
+			if (!lpfc_cmd)
+				return cnt;
+			cnt++;
+			qp = &phba->sli4_hba.hdwq[idx];
+			lpfc_cmd->hdwq = idx;
+			lpfc_cmd->cur_iocbq.wqe_cmpl = NULL;
+			lpfc_cmd->cur_iocbq.iocb_cmpl = NULL;
+			spin_lock(&qp->io_buf_list_put_lock);
+			list_add_tail(&lpfc_cmd->list,
+				      &qp->lpfc_io_buf_list_put);
+			qp->put_io_bufs++;
+			qp->total_io_bufs++;
+			spin_unlock(&qp->io_buf_list_put_lock);
+		}
+	}
+	return cnt;
+}
+
 /**
- * lpfc_sli4_common_sgl_update - update xri-sgl sizing and mapping
+ * lpfc_sli4_io_sgl_update - update xri-sgl sizing and mapping
  * @phba: pointer to lpfc hba data structure.
  *
  * This routine first calculates the sizes of the current els and allocated
@@ -3667,17 +3764,13 @@ out_free_mem:
  *   0 - successful (for now, it always returns 0)
  **/
 int
-lpfc_sli4_common_sgl_update(struct lpfc_hba *phba)
+lpfc_sli4_io_sgl_update(struct lpfc_hba *phba)
 {
 	struct lpfc_nvme_buf *lpfc_ncmd = NULL, *lpfc_ncmd_next = NULL;
 	uint16_t i, lxri, els_xri_cnt;
-	uint16_t common_xri_cnt, common_xri_max;
-	LIST_HEAD(common_sgl_list);
+	uint16_t io_xri_cnt, io_xri_max;
+	LIST_HEAD(io_sgl_list);
 	int rc, cnt;
-
-	phba->total_common_bufs = 0;
-	phba->get_common_bufs = 0;
-	phba->put_common_bufs = 0;
 
 	/*
 	 * update on pci function's allocated nvme xri-sgl list
@@ -3685,34 +3778,24 @@ lpfc_sli4_common_sgl_update(struct lpfc_hba *phba)
 
 	/* maximum number of xris available for nvme buffers */
 	els_xri_cnt = lpfc_sli4_get_els_iocb_cnt(phba);
-	common_xri_max = phba->sli4_hba.max_cfg_param.max_xri - els_xri_cnt;
-	phba->sli4_hba.common_xri_max = common_xri_max;
+	io_xri_max = phba->sli4_hba.max_cfg_param.max_xri - els_xri_cnt;
+	phba->sli4_hba.io_xri_max = io_xri_max;
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
 			"6074 Current allocated XRI sgl count:%d, "
 			"maximum XRI count:%d\n",
-			phba->sli4_hba.common_xri_cnt,
-			phba->sli4_hba.common_xri_max);
+			phba->sli4_hba.io_xri_cnt,
+			phba->sli4_hba.io_xri_max);
 
-	spin_lock_irq(&phba->common_buf_list_get_lock);
-	spin_lock(&phba->common_buf_list_put_lock);
-	list_splice_init(&phba->lpfc_common_buf_list_get, &common_sgl_list);
-	list_splice(&phba->lpfc_common_buf_list_put, &common_sgl_list);
-	cnt = phba->get_common_bufs + phba->put_common_bufs;
-	phba->get_common_bufs = 0;
-	phba->put_common_bufs = 0;
-	spin_unlock(&phba->common_buf_list_put_lock);
-	spin_unlock_irq(&phba->common_buf_list_get_lock);
+	cnt = lpfc_io_buf_flush(phba, &io_sgl_list);
 
-	if (phba->sli4_hba.common_xri_cnt > phba->sli4_hba.common_xri_max) {
+	if (phba->sli4_hba.io_xri_cnt > phba->sli4_hba.io_xri_max) {
 		/* max nvme xri shrunk below the allocated nvme buffers */
-		spin_lock_irq(&phba->common_buf_list_get_lock);
-		common_xri_cnt = phba->sli4_hba.common_xri_cnt -
-					phba->sli4_hba.common_xri_max;
-		spin_unlock_irq(&phba->common_buf_list_get_lock);
+		io_xri_cnt = phba->sli4_hba.io_xri_cnt -
+					phba->sli4_hba.io_xri_max;
 		/* release the extra allocated nvme buffers */
-		for (i = 0; i < common_xri_cnt; i++) {
-			list_remove_head(&common_sgl_list, lpfc_ncmd,
+		for (i = 0; i < io_xri_cnt; i++) {
+			list_remove_head(&io_sgl_list, lpfc_ncmd,
 					 struct lpfc_nvme_buf, list);
 			if (lpfc_ncmd) {
 				dma_pool_free(phba->lpfc_sg_dma_buf_pool,
@@ -3721,16 +3804,15 @@ lpfc_sli4_common_sgl_update(struct lpfc_hba *phba)
 				kfree(lpfc_ncmd);
 			}
 		}
-		spin_lock_irq(&phba->common_buf_list_get_lock);
-		phba->sli4_hba.common_xri_cnt -= common_xri_cnt;
-		spin_unlock_irq(&phba->common_buf_list_get_lock);
+		phba->sli4_hba.io_xri_cnt -= io_xri_cnt;
 	}
 
 	/* update xris associated to remaining allocated nvme buffers */
 	lpfc_ncmd = NULL;
 	lpfc_ncmd_next = NULL;
+	phba->sli4_hba.io_xri_cnt = cnt;
 	list_for_each_entry_safe(lpfc_ncmd, lpfc_ncmd_next,
-				 &common_sgl_list, list) {
+				 &io_sgl_list, list) {
 		lxri = lpfc_sli4_next_xritag(phba);
 		if (lxri == NO_XRI) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
@@ -3742,22 +3824,16 @@ lpfc_sli4_common_sgl_update(struct lpfc_hba *phba)
 		lpfc_ncmd->cur_iocbq.sli4_lxritag = lxri;
 		lpfc_ncmd->cur_iocbq.sli4_xritag = phba->sli4_hba.xri_ids[lxri];
 	}
-	spin_lock_irq(&phba->common_buf_list_get_lock);
-	spin_lock(&phba->common_buf_list_put_lock);
-	list_splice_init(&common_sgl_list, &phba->lpfc_common_buf_list_get);
-	phba->get_common_bufs = cnt;
-	INIT_LIST_HEAD(&phba->lpfc_common_buf_list_put);
-	spin_unlock(&phba->common_buf_list_put_lock);
-	spin_unlock_irq(&phba->common_buf_list_get_lock);
+	cnt = lpfc_io_buf_replenish(phba, &io_sgl_list);
 	return 0;
 
 out_free_mem:
-	lpfc_common_free(phba);
+	lpfc_io_free(phba);
 	return rc;
 }
 
 /**
- * lpfc_new_common_buf - IO buffer allocator for HBA with SLI4 IF spec
+ * lpfc_new_io_buf - IO buffer allocator for HBA with SLI4 IF spec
  * @vport: The virtual port for which this call being executed.
  * @num_to_allocate: The requested number of buffers to allocate.
  *
@@ -3767,11 +3843,11 @@ out_free_mem:
  * them on a list, it post them to the port by using SGL block post.
  *
  * Return codes:
- *   int - number of nvme buffers that were allocated and posted.
+ *   int - number of IO buffers that were allocated and posted.
  *   0 = failure, less than num_to_alloc is a partial failure.
  **/
 int
-lpfc_new_common_buf(struct lpfc_hba *phba, int num_to_alloc)
+lpfc_new_io_buf(struct lpfc_hba *phba, int num_to_alloc)
 {
 	struct lpfc_nvme_buf *lpfc_ncmd;
 	struct lpfc_iocbq *pwqeq;
@@ -3791,6 +3867,7 @@ lpfc_new_common_buf(struct lpfc_hba *phba, int num_to_alloc)
 		return 0;
 	}
 
+	phba->sli4_hba.io_xri_cnt = 0;
 	for (bcnt = 0; bcnt < num_to_alloc; bcnt++) {
 		lpfc_ncmd = kzalloc(LPFC_COMMON_IO_BUF_SZ, GFP_KERNEL);
 		if (!lpfc_ncmd)
@@ -3857,9 +3934,7 @@ lpfc_new_common_buf(struct lpfc_hba *phba, int num_to_alloc)
 
 		/* add the nvme buffer to a post list */
 		list_add_tail(&lpfc_ncmd->list, &post_nblist);
-		spin_lock_irq(&phba->common_buf_list_get_lock);
-		phba->sli4_hba.common_xri_cnt++;
-		spin_unlock_irq(&phba->common_buf_list_get_lock);
+		phba->sli4_hba.io_xri_cnt++;
 	}
 	lpfc_printf_log(phba, KERN_INFO, LOG_NVME,
 			"6114 Allocate %d out of %d requested new NVME "
@@ -3867,7 +3942,7 @@ lpfc_new_common_buf(struct lpfc_hba *phba, int num_to_alloc)
 
 	/* post the list of nvme buffer sgls to port if available */
 	if (!list_empty(&post_nblist))
-		num_posted = lpfc_sli4_post_common_sgl_list(
+		num_posted = lpfc_sli4_post_io_sgl_list(
 				phba, &post_nblist, bcnt);
 	else
 		num_posted = 0;
@@ -5855,14 +5930,6 @@ lpfc_setup_driver_resource_phase1(struct lpfc_hba *phba)
 	spin_lock_init(&phba->scsi_buf_list_put_lock);
 	INIT_LIST_HEAD(&phba->lpfc_scsi_buf_list_put);
 
-	/* Initialize the IO buffer list used by driver for SLI4 SCSI/NVME */
-	spin_lock_init(&phba->common_buf_list_get_lock);
-	INIT_LIST_HEAD(&phba->lpfc_common_buf_list_get);
-	phba->get_common_bufs = 0;
-	spin_lock_init(&phba->common_buf_list_put_lock);
-	INIT_LIST_HEAD(&phba->lpfc_common_buf_list_put);
-	phba->put_common_bufs = 0;
-
 	/* Initialize the fabric iocb list */
 	INIT_LIST_HEAD(&phba->fabric_iocb_list);
 
@@ -6229,8 +6296,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 
 	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
 		/* Initialize the Abort nvme buffer list used by driver */
-		spin_lock_init(&phba->sli4_hba.abts_nvme_buf_list_lock);
-		INIT_LIST_HEAD(&phba->sli4_hba.lpfc_abts_nvme_buf_list);
+		spin_lock_init(&phba->sli4_hba.abts_nvmet_buf_list_lock);
 		INIT_LIST_HEAD(&phba->sli4_hba.lpfc_abts_nvmet_ctx_list);
 		INIT_LIST_HEAD(&phba->sli4_hba.lpfc_nvmet_io_wait_list);
 	}
@@ -6903,7 +6969,7 @@ lpfc_init_sgl_list(struct lpfc_hba *phba)
 	phba->sli4_hba.els_xri_cnt = 0;
 
 	/* nvme xri-buffer book keeping */
-	phba->sli4_hba.common_xri_cnt = 0;
+	phba->sli4_hba.io_xri_cnt = 0;
 }
 
 /**
@@ -7117,6 +7183,9 @@ lpfc_hba_alloc(struct pci_dev *pdev)
 static void
 lpfc_hba_free(struct lpfc_hba *phba)
 {
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		kfree(phba->sli4_hba.hdwq);
+
 	/* Release the driver assigned board number */
 	idr_remove(&lpfc_hba_index, phba->brd_no);
 
@@ -8330,6 +8399,7 @@ lpfc_alloc_nvme_wq_cq(struct lpfc_hba *phba, int wqidx)
 		return 1;
 	}
 	qdesc->qe_valid = 1;
+	qdesc->hdwq = wqidx;
 	phba->sli4_hba.hdwq[wqidx].nvme_cq = qdesc;
 
 	qdesc = lpfc_sli4_queue_alloc(phba, LPFC_EXPANDED_PAGE_SIZE,
@@ -8340,6 +8410,7 @@ lpfc_alloc_nvme_wq_cq(struct lpfc_hba *phba, int wqidx)
 				wqidx);
 		return 1;
 	}
+	qdesc->hdwq = wqidx;
 	phba->sli4_hba.hdwq[wqidx].nvme_wq = qdesc;
 	list_add_tail(&qdesc->wq_list, &phba->sli4_hba.lpfc_wq_list);
 	return 0;
@@ -8368,6 +8439,7 @@ lpfc_alloc_fcp_wq_cq(struct lpfc_hba *phba, int wqidx)
 		return 1;
 	}
 	qdesc->qe_valid = 1;
+	qdesc->hdwq = wqidx;
 	phba->sli4_hba.hdwq[wqidx].fcp_cq = qdesc;
 
 	/* Create Fast Path FCP WQs */
@@ -8389,6 +8461,7 @@ lpfc_alloc_fcp_wq_cq(struct lpfc_hba *phba, int wqidx)
 				wqidx);
 		return 1;
 	}
+	qdesc->hdwq = wqidx;
 	phba->sli4_hba.hdwq[wqidx].fcp_wq = qdesc;
 	list_add_tail(&qdesc->wq_list, &phba->sli4_hba.lpfc_wq_list);
 	return 0;
@@ -8413,6 +8486,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 {
 	struct lpfc_queue *qdesc;
 	int idx;
+	struct lpfc_sli4_hdw_queue *qp;
 
 	/*
 	 * Create HBA Record arrays.
@@ -8429,14 +8503,33 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 	phba->sli4_hba.cq_esize = LPFC_CQE_SIZE;
 	phba->sli4_hba.cq_ecount = LPFC_CQE_DEF_COUNT;
 
-	phba->sli4_hba.hdwq = kcalloc(phba->cfg_hdw_queue,
-				      sizeof(struct lpfc_sli4_hdw_queue),
-				      GFP_KERNEL);
 	if (!phba->sli4_hba.hdwq) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-			"6427 Failed allocate memory for "
-			"fast-path Hardware Queue array\n");
-		goto out_error;
+		phba->sli4_hba.hdwq = kcalloc(
+			phba->cfg_hdw_queue, sizeof(struct lpfc_sli4_hdw_queue),
+			GFP_KERNEL);
+		if (!phba->sli4_hba.hdwq) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"6427 Failed allocate memory for "
+					"fast-path Hardware Queue array\n");
+			goto out_error;
+		}
+		/* Prepare hardware queues to take IO buffers */
+		for (idx = 0; idx < phba->cfg_hdw_queue; idx++) {
+			qp = &phba->sli4_hba.hdwq[idx];
+			spin_lock_init(&qp->io_buf_list_get_lock);
+			spin_lock_init(&qp->io_buf_list_put_lock);
+			INIT_LIST_HEAD(&qp->lpfc_io_buf_list_get);
+			INIT_LIST_HEAD(&qp->lpfc_io_buf_list_put);
+			qp->get_io_bufs = 0;
+			qp->put_io_bufs = 0;
+			qp->total_io_bufs = 0;
+			spin_lock_init(&qp->abts_scsi_buf_list_lock);
+			INIT_LIST_HEAD(&qp->lpfc_abts_scsi_buf_list);
+			qp->abts_scsi_io_bufs = 0;
+			spin_lock_init(&qp->abts_nvme_buf_list_lock);
+			INIT_LIST_HEAD(&qp->lpfc_abts_nvme_buf_list);
+			qp->abts_nvme_io_bufs = 0;
+		}
 	}
 
 	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
@@ -8488,6 +8581,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 			goto out_error;
 		}
 		qdesc->qe_valid = 1;
+		qdesc->hdwq = idx;
 		phba->sli4_hba.hdwq[idx].hba_eq = qdesc;
 	}
 
@@ -8518,6 +8612,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 					goto out_error;
 				}
 				qdesc->qe_valid = 1;
+				qdesc->hdwq = idx;
 				phba->sli4_hba.nvmet_cqset[idx] = qdesc;
 			}
 		}
@@ -8650,6 +8745,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 						"receive HRQ\n");
 				goto out_error;
 			}
+			qdesc->hdwq = idx;
 			phba->sli4_hba.nvmet_mrq_hdr[idx] = qdesc;
 
 			/* Only needed for header of RQ pair */
@@ -8676,6 +8772,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 						"receive DRQ\n");
 				goto out_error;
 			}
+			qdesc->hdwq = idx;
 			phba->sli4_hba.nvmet_mrq_data[idx] = qdesc;
 		}
 	}
@@ -8727,7 +8824,6 @@ lpfc_sli4_release_hdwq(struct lpfc_sli4_hdw_queue *hdwq, int max)
 		hdwq[idx].fcp_wq = NULL;
 		hdwq[idx].nvme_wq = NULL;
 	}
-	kfree(hdwq);
 }
 
 /**
@@ -8749,7 +8845,6 @@ lpfc_sli4_queue_destroy(struct lpfc_hba *phba)
 	if (phba->sli4_hba.hdwq)
 		lpfc_sli4_release_hdwq(phba->sli4_hba.hdwq,
 				       phba->cfg_hdw_queue);
-	phba->sli4_hba.hdwq = NULL;
 
 	if (phba->nvmet_support) {
 		lpfc_sli4_release_queues(&phba->sli4_hba.nvmet_cqset,
@@ -10400,8 +10495,10 @@ lpfc_unset_hba(struct lpfc_hba *phba)
 static void
 lpfc_sli4_xri_exchange_busy_wait(struct lpfc_hba *phba)
 {
+	struct lpfc_sli4_hdw_queue *qp;
+	int idx, ccnt, fcnt;
 	int wait_time = 0;
-	int common_xri_cmpl = 1;
+	int io_xri_cmpl = 1;
 	int nvmet_xri_cmpl = 1;
 	int fcp_xri_cmpl = 1;
 	int els_xri_cmpl = list_empty(&phba->sli4_hba.lpfc_abts_els_sgl_list);
@@ -10416,17 +10513,32 @@ lpfc_sli4_xri_exchange_busy_wait(struct lpfc_hba *phba)
 	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME)
 		lpfc_nvme_wait_for_io_drain(phba);
 
-	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_FCP)
-		fcp_xri_cmpl =
-			list_empty(&phba->sli4_hba.lpfc_abts_scsi_buf_list);
+	ccnt = 0;
+	fcnt = 0;
+	for (idx = 0; idx < phba->cfg_hdw_queue; idx++) {
+		qp = &phba->sli4_hba.hdwq[idx];
+		fcp_xri_cmpl = list_empty(
+			&qp->lpfc_abts_scsi_buf_list);
+		if (!fcp_xri_cmpl) /* if list is NOT empty */
+			fcnt++;
+		if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
+			io_xri_cmpl = list_empty(
+				&qp->lpfc_abts_nvme_buf_list);
+			if (!io_xri_cmpl) /* if list is NOT empty */
+				ccnt++;
+		}
+	}
+	if (ccnt)
+		io_xri_cmpl = 0;
+	if (fcnt)
+		fcp_xri_cmpl = 0;
+
 	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
-		common_xri_cmpl =
-			list_empty(&phba->sli4_hba.lpfc_abts_nvme_buf_list);
 		nvmet_xri_cmpl =
 			list_empty(&phba->sli4_hba.lpfc_abts_nvmet_ctx_list);
 	}
 
-	while (!fcp_xri_cmpl || !els_xri_cmpl || !common_xri_cmpl ||
+	while (!fcp_xri_cmpl || !els_xri_cmpl || !io_xri_cmpl ||
 	       !nvmet_xri_cmpl) {
 		if (wait_time > LPFC_XRI_EXCH_BUSY_WAIT_TMO) {
 			if (!nvmet_xri_cmpl)
@@ -10434,7 +10546,7 @@ lpfc_sli4_xri_exchange_busy_wait(struct lpfc_hba *phba)
 						"6424 NVMET XRI exchange busy "
 						"wait time: %d seconds.\n",
 						wait_time/1000);
-			if (!common_xri_cmpl)
+			if (!io_xri_cmpl)
 				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 						"6100 NVME XRI exchange busy "
 						"wait time: %d seconds.\n",
@@ -10455,17 +10567,31 @@ lpfc_sli4_xri_exchange_busy_wait(struct lpfc_hba *phba)
 			msleep(LPFC_XRI_EXCH_BUSY_WAIT_T1);
 			wait_time += LPFC_XRI_EXCH_BUSY_WAIT_T1;
 		}
+
+		ccnt = 0;
+		fcnt = 0;
+		for (idx = 0; idx < phba->cfg_hdw_queue; idx++) {
+			qp = &phba->sli4_hba.hdwq[idx];
+			fcp_xri_cmpl = list_empty(
+				&qp->lpfc_abts_scsi_buf_list);
+			if (!fcp_xri_cmpl) /* if list is NOT empty */
+				fcnt++;
+			if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
+				io_xri_cmpl = list_empty(
+				    &qp->lpfc_abts_nvme_buf_list);
+				if (!io_xri_cmpl) /* if list is NOT empty */
+					ccnt++;
+			}
+		}
+		if (ccnt)
+			io_xri_cmpl = 0;
+		if (fcnt)
+			fcp_xri_cmpl = 0;
+
 		if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
-			common_xri_cmpl = list_empty(
-				&phba->sli4_hba.lpfc_abts_nvme_buf_list);
 			nvmet_xri_cmpl = list_empty(
 				&phba->sli4_hba.lpfc_abts_nvmet_ctx_list);
 		}
-
-		if (phba->cfg_enable_fc4_type & LPFC_ENABLE_FCP)
-			fcp_xri_cmpl = list_empty(
-				&phba->sli4_hba.lpfc_abts_scsi_buf_list);
-
 		els_xri_cmpl =
 			list_empty(&phba->sli4_hba.lpfc_abts_els_sgl_list);
 
@@ -11739,14 +11865,13 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 		/* Don't post more new bufs if repost already recovered
 		 * the nvme sgls.
 		 */
-		if (phba->sli4_hba.common_xri_cnt == 0) {
-			len = lpfc_new_common_buf(
-				phba, phba->sli4_hba.common_xri_max);
+		if (phba->sli4_hba.io_xri_cnt == 0) {
+			len = lpfc_new_io_buf(
+				phba, phba->sli4_hba.io_xri_max);
 			if (len == 0) {
 				error = -ENOMEM;
 				goto out_free_sysfs_attr;
 			}
-			phba->total_common_bufs += len;
 		}
 	}
 
@@ -11836,7 +11961,6 @@ lpfc_pci_remove_one_s4(struct pci_dev *pdev)
 	 * the HBA FCoE function.
 	 */
 	lpfc_debugfs_terminate(vport);
-	lpfc_sli4_hba_unset(phba);
 
 	lpfc_stop_hba_timers(phba);
 	spin_lock_irq(&phba->port_list_lock);
@@ -11846,8 +11970,9 @@ lpfc_pci_remove_one_s4(struct pci_dev *pdev)
 	/* Perform scsi free before driver resource_unset since scsi
 	 * buffers are released to their corresponding pools here.
 	 */
-	lpfc_common_free(phba);
+	lpfc_io_free(phba);
 	lpfc_free_iocb_list(phba);
+	lpfc_sli4_hba_unset(phba);
 
 	lpfc_unset_driver_resource_phase2(phba);
 	lpfc_sli4_driver_resource_unset(phba);

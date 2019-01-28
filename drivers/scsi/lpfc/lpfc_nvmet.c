@@ -226,15 +226,15 @@ lpfc_nvmet_defer_release(struct lpfc_hba *phba, struct lpfc_nvmet_rcv_ctx *ctxp)
 			"6313 NVMET Defer ctx release xri x%x flg x%x\n",
 			ctxp->oxid, ctxp->flag);
 
-	spin_lock_irqsave(&phba->sli4_hba.abts_nvme_buf_list_lock, iflag);
+	spin_lock_irqsave(&phba->sli4_hba.abts_nvmet_buf_list_lock, iflag);
 	if (ctxp->flag & LPFC_NVMET_CTX_RLS) {
-		spin_unlock_irqrestore(&phba->sli4_hba.abts_nvme_buf_list_lock,
+		spin_unlock_irqrestore(&phba->sli4_hba.abts_nvmet_buf_list_lock,
 				       iflag);
 		return;
 	}
 	ctxp->flag |= LPFC_NVMET_CTX_RLS;
 	list_add_tail(&ctxp->list, &phba->sli4_hba.lpfc_abts_nvmet_ctx_list);
-	spin_unlock_irqrestore(&phba->sli4_hba.abts_nvme_buf_list_lock, iflag);
+	spin_unlock_irqrestore(&phba->sli4_hba.abts_nvmet_buf_list_lock, iflag);
 }
 
 /**
@@ -1162,9 +1162,9 @@ __lpfc_nvmet_clean_io_for_cpu(struct lpfc_hba *phba,
 	spin_lock_irqsave(&infop->nvmet_ctx_list_lock, flags);
 	list_for_each_entry_safe(ctx_buf, next_ctx_buf,
 				&infop->nvmet_ctx_list, list) {
-		spin_lock(&phba->sli4_hba.abts_nvme_buf_list_lock);
+		spin_lock(&phba->sli4_hba.abts_nvmet_buf_list_lock);
 		list_del_init(&ctx_buf->list);
-		spin_unlock(&phba->sli4_hba.abts_nvme_buf_list_lock);
+		spin_unlock(&phba->sli4_hba.abts_nvmet_buf_list_lock);
 
 		__lpfc_clear_active_sglq(phba, ctx_buf->sglq->sli4_lxritag);
 		ctx_buf->sglq->state = SGL_FREED;
@@ -1502,7 +1502,7 @@ lpfc_sli4_nvmet_xri_aborted(struct lpfc_hba *phba,
 	}
 
 	spin_lock_irqsave(&phba->hbalock, iflag);
-	spin_lock(&phba->sli4_hba.abts_nvme_buf_list_lock);
+	spin_lock(&phba->sli4_hba.abts_nvmet_buf_list_lock);
 	list_for_each_entry_safe(ctxp, next_ctxp,
 				 &phba->sli4_hba.lpfc_abts_nvmet_ctx_list,
 				 list) {
@@ -1518,7 +1518,7 @@ lpfc_sli4_nvmet_xri_aborted(struct lpfc_hba *phba,
 			released = true;
 		}
 		ctxp->flag &= ~LPFC_NVMET_XBUSY;
-		spin_unlock(&phba->sli4_hba.abts_nvme_buf_list_lock);
+		spin_unlock(&phba->sli4_hba.abts_nvmet_buf_list_lock);
 
 		rrq_empty = list_empty(&phba->active_rrq_list);
 		spin_unlock_irqrestore(&phba->hbalock, iflag);
@@ -1542,7 +1542,7 @@ lpfc_sli4_nvmet_xri_aborted(struct lpfc_hba *phba,
 			lpfc_worker_wake_up(phba);
 		return;
 	}
-	spin_unlock(&phba->sli4_hba.abts_nvme_buf_list_lock);
+	spin_unlock(&phba->sli4_hba.abts_nvmet_buf_list_lock);
 	spin_unlock_irqrestore(&phba->hbalock, iflag);
 }
 
@@ -1561,14 +1561,14 @@ lpfc_nvmet_rcv_unsol_abort(struct lpfc_vport *vport,
 	xri = be16_to_cpu(fc_hdr->fh_ox_id);
 
 	spin_lock_irqsave(&phba->hbalock, iflag);
-	spin_lock(&phba->sli4_hba.abts_nvme_buf_list_lock);
+	spin_lock(&phba->sli4_hba.abts_nvmet_buf_list_lock);
 	list_for_each_entry_safe(ctxp, next_ctxp,
 				 &phba->sli4_hba.lpfc_abts_nvmet_ctx_list,
 				 list) {
 		if (ctxp->ctxbuf->sglq->sli4_xritag != xri)
 			continue;
 
-		spin_unlock(&phba->sli4_hba.abts_nvme_buf_list_lock);
+		spin_unlock(&phba->sli4_hba.abts_nvmet_buf_list_lock);
 		spin_unlock_irqrestore(&phba->hbalock, iflag);
 
 		spin_lock_irqsave(&ctxp->ctxlock, iflag);
@@ -1589,7 +1589,7 @@ lpfc_nvmet_rcv_unsol_abort(struct lpfc_vport *vport,
 		lpfc_sli4_seq_abort_rsp(vport, fc_hdr, 1);
 		return 0;
 	}
-	spin_unlock(&phba->sli4_hba.abts_nvme_buf_list_lock);
+	spin_unlock(&phba->sli4_hba.abts_nvmet_buf_list_lock);
 	spin_unlock_irqrestore(&phba->hbalock, iflag);
 
 	lpfc_nvmeio_data(phba, "NVMET ABTS RCV: xri x%x CPU %02x rjt %d\n",

@@ -138,6 +138,8 @@ struct lpfc_scsi_buf {
 	dma_addr_t dma_phys_sgl;
 	struct ulp_bde64 *dma_sgl;
 	struct lpfc_iocbq cur_iocbq;
+	uint16_t hdwq;
+	uint16_t cpu;
 
 	/* SCSI specific fields */
 	struct scsi_cmnd *pCmd;
@@ -150,7 +152,6 @@ struct lpfc_scsi_buf {
 #define LPFC_SBUF_XBUSY		0x1	/* SLI4 hba reported XB on WCQE cmpl */
 #define LPFC_SBUF_BUMP_QDEPTH	0x2	/* bumped queue depth counter */
 	uint16_t exch_busy;     /* SLI4 hba reported XB on complete WCQE */
-	uint16_t cpu;
 	uint16_t status;	/* From IOCB Word 7- ulpStatus */
 	uint32_t result;	/* From IOCB Word 4. */
 
