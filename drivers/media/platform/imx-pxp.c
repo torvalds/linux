@@ -680,7 +680,7 @@ static void pxp_setup_csc(struct pxp_ctx *ctx)
 				csc2_coef = csc2_coef_rec709_full;
 			else
 				csc2_coef = csc2_coef_rec709_lim;
-		} else if (ycbcr_enc == V4L2_YCBCR_ENC_709) {
+		} else if (ycbcr_enc == V4L2_YCBCR_ENC_BT2020) {
 			if (quantization == V4L2_QUANTIZATION_FULL_RANGE)
 				csc2_coef = csc2_coef_bt2020_full;
 			else
