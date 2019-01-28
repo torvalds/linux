@@ -211,7 +211,7 @@ log_test()
 		return 1
 	fi
 
-	printf "TEST: %-60s  [PASS]\n" "$test_name $opt_str"
+	printf "TEST: %-60s  [ OK ]\n" "$test_name $opt_str"
 	return 0
 }
 

@@ -603,7 +603,6 @@ void mlxsw_sp_acl_atcam_entry_del(struct mlxsw_sp *mlxsw_sp,
 int
 mlxsw_sp_acl_atcam_entry_action_replace(struct mlxsw_sp *mlxsw_sp,
 					struct mlxsw_sp_acl_atcam_region *aregion,
-					struct mlxsw_sp_acl_atcam_chunk *achunk,
 					struct mlxsw_sp_acl_atcam_entry *aentry,
 					struct mlxsw_sp_acl_rule_info *rulei)
 {
@@ -612,7 +611,6 @@ mlxsw_sp_acl_atcam_entry_action_replace(struct mlxsw_sp *mlxsw_sp,
 	if (mlxsw_sp_acl_atcam_is_centry(aentry))
 		err = mlxsw_sp_acl_ctcam_entry_action_replace(mlxsw_sp,
 							      &aregion->cregion,
-							      &achunk->cchunk,
 							      &aentry->centry,
 							      rulei);
 	else

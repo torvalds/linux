@@ -1,0 +1,2 @@
+fw_load_policy		[DEVICE, GENERIC]
+			Configuration mode: driverinit
