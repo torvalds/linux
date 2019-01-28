@@ -642,19 +642,19 @@ int i915_gem_gtt_insert(struct i915_address_space *vm,
 
 /* Flags used by pin/bind&friends. */
 #define PIN_NONBLOCK		BIT_ULL(0)
-#define PIN_MAPPABLE		BIT_ULL(1)
-#define PIN_ZONE_4G		BIT_ULL(2)
-#define PIN_NONFAULT		BIT_ULL(3)
-#define PIN_NOEVICT		BIT_ULL(4)
+#define PIN_NONFAULT		BIT_ULL(1)
+#define PIN_NOEVICT		BIT_ULL(2)
+#define PIN_MAPPABLE		BIT_ULL(3)
+#define PIN_ZONE_4G		BIT_ULL(4)
+#define PIN_HIGH		BIT_ULL(5)
+#define PIN_OFFSET_BIAS		BIT_ULL(6)
+#define PIN_OFFSET_FIXED	BIT_ULL(7)
 
-#define PIN_MBZ			BIT_ULL(5) /* I915_VMA_PIN_OVERFLOW */
-#define PIN_GLOBAL		BIT_ULL(6) /* I915_VMA_GLOBAL_BIND */
-#define PIN_USER		BIT_ULL(7) /* I915_VMA_LOCAL_BIND */
-#define PIN_UPDATE		BIT_ULL(8)
+#define PIN_MBZ			BIT_ULL(8) /* I915_VMA_PIN_OVERFLOW */
+#define PIN_GLOBAL		BIT_ULL(9) /* I915_VMA_GLOBAL_BIND */
+#define PIN_USER		BIT_ULL(10) /* I915_VMA_LOCAL_BIND */
+#define PIN_UPDATE		BIT_ULL(11)
 
-#define PIN_HIGH		BIT_ULL(9)
-#define PIN_OFFSET_BIAS		BIT_ULL(10)
-#define PIN_OFFSET_FIXED	BIT_ULL(11)
 #define PIN_OFFSET_MASK		(-I915_GTT_PAGE_SIZE)
 
 #endif
