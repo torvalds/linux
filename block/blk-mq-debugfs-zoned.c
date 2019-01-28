@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2017 Western Digital Corporation or its affiliates.
- *
- * This file is released under the GPL.
  */
 
 #include <linux/blkdev.h>

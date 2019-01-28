@@ -1565,8 +1565,7 @@ static void nvme_tcp_destroy_io_queues(struct nvme_ctrl *ctrl, bool remove)
 {
 	nvme_tcp_stop_io_queues(ctrl);
 	if (remove) {
-		if (ctrl->ops->flags & NVME_F_FABRICS)
-			blk_cleanup_queue(ctrl->connect_q);
+		blk_cleanup_queue(ctrl->connect_q);
 		blk_mq_free_tag_set(ctrl->tagset);
 	}
 	nvme_tcp_free_io_queues(ctrl);
@@ -1587,12 +1586,10 @@ static int nvme_tcp_configure_io_queues(struct nvme_ctrl *ctrl, bool new)
 			goto out_free_io_queues;
 		}
 
-		if (ctrl->ops->flags & NVME_F_FABRICS) {
-			ctrl->connect_q = blk_mq_init_queue(ctrl->tagset);
-			if (IS_ERR(ctrl->connect_q)) {
-				ret = PTR_ERR(ctrl->connect_q);
-				goto out_free_tag_set;
-			}
+		ctrl->connect_q = blk_mq_init_queue(ctrl->tagset);
+		if (IS_ERR(ctrl->connect_q)) {
+			ret = PTR_ERR(ctrl->connect_q);
+			goto out_free_tag_set;
 		}
 	} else {
 		blk_mq_update_nr_hw_queues(ctrl->tagset,
@@ -1606,7 +1603,7 @@ static int nvme_tcp_configure_io_queues(struct nvme_ctrl *ctrl, bool new)
 	return 0;
 
 out_cleanup_connect_q:
-	if (new && (ctrl->ops->flags & NVME_F_FABRICS))
+	if (new)
 		blk_cleanup_queue(ctrl->connect_q);
 out_free_tag_set:
 	if (new)
@@ -1620,7 +1617,6 @@ static void nvme_tcp_destroy_admin_queue(struct nvme_ctrl *ctrl, bool remove)
 {
 	nvme_tcp_stop_queue(ctrl, 0);
 	if (remove) {
-		free_opal_dev(ctrl->opal_dev);
 		blk_cleanup_queue(ctrl->admin_q);
 		blk_mq_free_tag_set(ctrl->admin_tagset);
 	}
@@ -1952,20 +1948,23 @@ nvme_tcp_timeout(struct request *rq, bool reserved)
 	struct nvme_tcp_ctrl *ctrl = req->queue->ctrl;
 	struct nvme_tcp_cmd_pdu *pdu = req->pdu;
 
-	dev_dbg(ctrl->ctrl.device,
+	dev_warn(ctrl->ctrl.device,
 		"queue %d: timeout request %#x type %d\n",
-		nvme_tcp_queue_id(req->queue), rq->tag,
-		pdu->hdr.type);
+		nvme_tcp_queue_id(req->queue), rq->tag, pdu->hdr.type);
 
 	if (ctrl->ctrl.state != NVME_CTRL_LIVE) {
-		union nvme_result res = {};
-
-		nvme_req(rq)->flags |= NVME_REQ_CANCELLED;
-		nvme_end_request(rq, cpu_to_le16(NVME_SC_ABORT_REQ), res);
+		/*
+		 * Teardown immediately if controller times out while starting
+		 * or we are already started error recovery. all outstanding
+		 * requests are completed on shutdown, so we return BLK_EH_DONE.
+		 */
+		flush_work(&ctrl->err_work);
+		nvme_tcp_teardown_io_queues(&ctrl->ctrl, false);
+		nvme_tcp_teardown_admin_queue(&ctrl->ctrl, false);
 		return BLK_EH_DONE;
 	}
 
-	/* queue error recovery */
+	dev_warn(ctrl->ctrl.device, "starting error recovery\n");
 	nvme_tcp_error_recovery(&ctrl->ctrl);
 
 	return BLK_EH_RESET_TIMER;

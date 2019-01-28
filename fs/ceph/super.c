@@ -530,7 +530,7 @@ static int ceph_show_options(struct seq_file *m, struct dentry *root)
 	seq_putc(m, ',');
 	pos = m->count;
 
-	ret = ceph_print_client_options(m, fsc->client);
+	ret = ceph_print_client_options(m, fsc->client, false);
 	if (ret)
 		return ret;
 
@@ -640,7 +640,7 @@ static struct ceph_fs_client *create_fs_client(struct ceph_mount_options *fsopt,
 	opt = NULL; /* fsc->client now owns this */
 
 	fsc->client->extra_mon_dispatch = extra_mon_dispatch;
-	fsc->client->osdc.abort_on_full = true;
+	ceph_set_opt(fsc->client, ABORT_ON_FULL);
 
 	if (!fsopt->mds_namespace) {
 		ceph_monc_want_map(&fsc->client->monc, CEPH_SUB_MDSMAP,

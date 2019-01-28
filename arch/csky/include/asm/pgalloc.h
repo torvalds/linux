@@ -24,41 +24,34 @@ static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd,
 
 extern void pgd_init(unsigned long *p);
 
-static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
-					unsigned long address)
+static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm)
 {
 	pte_t *pte;
-	unsigned long *kaddr, i;
+	unsigned long i;
 
-	pte = (pte_t *) __get_free_pages(GFP_KERNEL | __GFP_RETRY_MAYFAIL,
-					 PTE_ORDER);
-	kaddr = (unsigned long *)pte;
-	if (address & 0x80000000)
-		for (i = 0; i < (PAGE_SIZE/4); i++)
-			*(kaddr + i) = 0x1;
-	else
-		clear_page(kaddr);
+	pte = (pte_t *) __get_free_page(GFP_KERNEL);
+	if (!pte)
+		return NULL;
+
+	for (i = 0; i < PAGE_SIZE/sizeof(pte_t); i++)
+		(pte + i)->pte_low = _PAGE_GLOBAL;
 
 	return pte;
 }
 
-static inline struct page *pte_alloc_one(struct mm_struct *mm,
-						unsigned long address)
+static inline struct page *pte_alloc_one(struct mm_struct *mm)
 {
 	struct page *pte;
-	unsigned long *kaddr, i;
 
-	pte = alloc_pages(GFP_KERNEL | __GFP_RETRY_MAYFAIL, PTE_ORDER);
-	if (pte) {
-		kaddr = kmap_atomic(pte);
-		if (address & 0x80000000) {
-			for (i = 0; i < (PAGE_SIZE/4); i++)
-				*(kaddr + i) = 0x1;
-		} else
-			clear_page(kaddr);
-		kunmap_atomic(kaddr);
-		pgtable_page_ctor(pte);
+	pte = alloc_pages(GFP_KERNEL | __GFP_ZERO, 0);
+	if (!pte)
+		return NULL;
+
+	if (!pgtable_page_ctor(pte)) {
+		__free_page(pte);
+		return NULL;
 	}
+
 	return pte;
 }
 
