@@ -31,7 +31,6 @@
 /* PMIC details */
 struct isl_pmic {
 	struct i2c_client	*client;
-	struct regulator_dev	*rdev[3];
 	struct mutex		mtx;
 };
 
@@ -109,6 +108,7 @@ static const struct regulator_desc isl_rd[] = {
 static int isl6271a_probe(struct i2c_client *i2c,
 				     const struct i2c_device_id *id)
 {
+	struct regulator_dev *rdev;
 	struct regulator_config config = { };
 	struct regulator_init_data *init_data	= dev_get_platdata(&i2c->dev);
 	struct isl_pmic *pmic;
@@ -133,11 +133,10 @@ static int isl6271a_probe(struct i2c_client *i2c,
 			config.init_data = NULL;
 		config.driver_data = pmic;
 
-		pmic->rdev[i] = devm_regulator_register(&i2c->dev, &isl_rd[i],
-							&config);
-		if (IS_ERR(pmic->rdev[i])) {
+		rdev = devm_regulator_register(&i2c->dev, &isl_rd[i], &config);
+		if (IS_ERR(rdev)) {
 			dev_err(&i2c->dev, "failed to register %s\n", id->name);
-			return PTR_ERR(pmic->rdev[i]);
+			return PTR_ERR(rdev);
 		}
 	}
 
