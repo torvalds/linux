@@ -51,6 +51,7 @@
 #define RKPM_DDR_SREF_HARDWARE		BIT(7)	/* ddr enter self-refresh by PMU hardware, not recommend */
 #define RKPM_DDR_EXIT_SRPD_IDLE		BIT(8)	/* ddr exit sr/pd idle by ddr controller,  not recommend */
 #define RKPM_PDM_CLK_OFF		BIT(9)	/* armoff with pdm clk off, not recommend */
+#define RKPM_PWM_VOLTAGE_DEFAULT	BIT(10) /* pwm regulator default voltage (same with maskrom) */
 
 /*
  * Regulator mode:
