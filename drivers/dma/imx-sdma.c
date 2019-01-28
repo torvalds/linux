@@ -1913,9 +1913,14 @@ disable_clk_ipg:
 static bool sdma_filter_fn(struct dma_chan *chan, void *fn_param)
 {
 	struct sdma_channel *sdmac = to_sdma_chan(chan);
+	struct sdma_engine *sdma = sdmac->sdma;
 	struct imx_dma_data *data = fn_param;
 
 	if (!imx_dma_is_general_purpose(chan))
+		return false;
+
+	/* return false if it's not the right device */
+	if (sdma->dev->of_node != data->of_node)
 		return false;
 
 	sdmac->data = *data;
@@ -1945,6 +1950,7 @@ static struct dma_chan *sdma_xlate(struct of_phandle_args *dma_spec,
 	 * be set to sdmac->event_id1.
 	 */
 	data.dma_request2 = 0;
+	data.of_node = ofdma->of_node;
 
 	return dma_request_channel(mask, sdma_filter_fn, &data);
 }
