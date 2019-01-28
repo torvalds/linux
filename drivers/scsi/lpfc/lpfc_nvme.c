@@ -1190,7 +1190,7 @@ lpfc_nvme_prep_io_cmd(struct lpfc_vport *vport,
 	union lpfc_wqe128 *wqe = &pwqeq->wqe;
 	uint32_t req_len;
 
-	if (!pnode || !NLP_CHK_NODE_ACT(pnode))
+	if (!NLP_CHK_NODE_ACT(pnode))
 		return -EINVAL;
 
 	/*
