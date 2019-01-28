@@ -4598,14 +4598,7 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 
 	iocb = &lpfc_cmd->cur_iocbq;
 	if (phba->sli_rev == LPFC_SLI_REV4) {
-		if (!(phba->cfg_fof) ||
-		    (!(iocb->iocb_flag & LPFC_IO_FOF))) {
-			pring_s4 =
-				phba->sli4_hba.fcp_wq[iocb->hba_wqidx]->pring;
-		} else {
-			iocb->hba_wqidx = 0;
-			pring_s4 = phba->sli4_hba.oas_wq->pring;
-		}
+		pring_s4 = phba->sli4_hba.fcp_wq[iocb->hba_wqidx]->pring;
 		if (!pring_s4) {
 			ret = FAILED;
 			goto out_unlock;

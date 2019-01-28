@@ -3390,14 +3390,9 @@ lpfc_idiag_queinfo_read(struct file *file, char __user *buf, size_t nbytes,
 	if (phba->sli4_hba.hba_eq && phba->io_channel_irqs) {
 
 		x = phba->lpfc_idiag_last_eq;
-		if (phba->cfg_fof && (x >= phba->io_channel_irqs)) {
-			phba->lpfc_idiag_last_eq = 0;
-			goto fof;
-		}
 		phba->lpfc_idiag_last_eq++;
 		if (phba->lpfc_idiag_last_eq >= phba->io_channel_irqs)
-			if (phba->cfg_fof == 0)
-				phba->lpfc_idiag_last_eq = 0;
+			phba->lpfc_idiag_last_eq = 0;
 
 		len += snprintf(pbuffer + len, LPFC_QUE_INFO_GET_BUF_SIZE - len,
 					"EQ %d out of %d HBA EQs\n",
@@ -3477,35 +3472,6 @@ lpfc_idiag_queinfo_read(struct file *file, char __user *buf, size_t nbytes,
 			goto too_big;
 
 		goto out;
-	}
-
-fof:
-	if (phba->cfg_fof) {
-		/* FOF EQ */
-		qp = phba->sli4_hba.fof_eq;
-		len = __lpfc_idiag_print_eq(qp, "FOF", pbuffer, len);
-
-		/* Reset max counter */
-		if (qp)
-			qp->EQ_max_eqe = 0;
-
-		if (len >= max_cnt)
-			goto too_big;
-
-		/* OAS CQ */
-		qp = phba->sli4_hba.oas_cq;
-		len = __lpfc_idiag_print_cq(qp, "OAS", pbuffer, len);
-		/* Reset max counter */
-		if (qp)
-			qp->CQ_max_cqe = 0;
-		if (len >= max_cnt)
-			goto too_big;
-
-		/* OAS WQ */
-		qp = phba->sli4_hba.oas_wq;
-		len = __lpfc_idiag_print_wq(qp, "OAS", pbuffer, len);
-		if (len >= max_cnt)
-			goto too_big;
 	}
 
 	spin_unlock_irq(&phba->hbalock);

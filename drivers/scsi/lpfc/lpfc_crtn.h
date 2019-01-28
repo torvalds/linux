@@ -199,11 +199,6 @@ void lpfc_reset_hba(struct lpfc_hba *);
 int lpfc_emptyq_wait(struct lpfc_hba *phba, struct list_head *hd,
 			spinlock_t *slock);
 
-int lpfc_fof_queue_create(struct lpfc_hba *);
-int lpfc_fof_queue_setup(struct lpfc_hba *);
-int lpfc_fof_queue_destroy(struct lpfc_hba *);
-irqreturn_t lpfc_sli4_fof_intr_handler(int, void *);
-
 int lpfc_sli_setup(struct lpfc_hba *);
 int lpfc_sli4_setup(struct lpfc_hba *phba);
 void lpfc_sli_queue_init(struct lpfc_hba *phba);

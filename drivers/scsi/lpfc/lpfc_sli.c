@@ -5581,9 +5581,6 @@ lpfc_sli4_arm_cqeq_intr(struct lpfc_hba *phba)
 			sli4_hba->sli4_cq_release(sli4_hba->nvme_cq[qidx],
 						LPFC_QUEUE_REARM);
 
-	if (phba->cfg_fof)
-		sli4_hba->sli4_cq_release(sli4_hba->oas_cq, LPFC_QUEUE_REARM);
-
 	if (sli4_hba->hba_eq)
 		for (qidx = 0; qidx < phba->io_channel_irqs; qidx++)
 			sli4_hba->sli4_eq_release(sli4_hba->hba_eq[qidx],
@@ -5596,9 +5593,6 @@ lpfc_sli4_arm_cqeq_intr(struct lpfc_hba *phba)
 				LPFC_QUEUE_REARM);
 		}
 	}
-
-	if (phba->cfg_fof)
-		sli4_hba->sli4_eq_release(sli4_hba->fof_eq, LPFC_QUEUE_REARM);
 }
 
 /**
@@ -9872,10 +9866,7 @@ __lpfc_sli_issue_iocb_s4(struct lpfc_hba *phba, uint32_t ring_number,
 	/* Get the WQ */
 	if ((piocb->iocb_flag & LPFC_IO_FCP) ||
 	    (piocb->iocb_flag & LPFC_USE_FCPWQIDX)) {
-		if (!phba->cfg_fof || (!(piocb->iocb_flag & LPFC_IO_OAS)))
-			wq = phba->sli4_hba.fcp_wq[piocb->hba_wqidx];
-		else
-			wq = phba->sli4_hba.oas_wq;
+		wq = phba->sli4_hba.fcp_wq[piocb->hba_wqidx];
 	} else {
 		wq = phba->sli4_hba.els_wq;
 	}
@@ -10010,28 +10001,20 @@ struct lpfc_sli_ring *
 lpfc_sli4_calc_ring(struct lpfc_hba *phba, struct lpfc_iocbq *piocb)
 {
 	if (piocb->iocb_flag & (LPFC_IO_FCP | LPFC_USE_FCPWQIDX)) {
-		if (!(phba->cfg_fof) ||
-		    (!(piocb->iocb_flag & LPFC_IO_FOF))) {
-			if (unlikely(!phba->sli4_hba.fcp_wq))
-				return NULL;
-			/*
-			 * for abort iocb hba_wqidx should already
-			 * be setup based on what work queue we used.
-			 */
-			if (!(piocb->iocb_flag & LPFC_USE_FCPWQIDX)) {
-				piocb->hba_wqidx =
-					lpfc_sli4_scmd_to_wqidx_distr(phba,
-							      piocb->context1);
-				piocb->hba_wqidx = piocb->hba_wqidx %
-					phba->cfg_fcp_io_channel;
-			}
-			return phba->sli4_hba.fcp_wq[piocb->hba_wqidx]->pring;
-		} else {
-			if (unlikely(!phba->sli4_hba.oas_wq))
-				return NULL;
-			piocb->hba_wqidx = 0;
-			return phba->sli4_hba.oas_wq->pring;
+		if (unlikely(!phba->sli4_hba.fcp_wq))
+			return NULL;
+		/*
+		 * for abort iocb hba_wqidx should already
+		 * be setup based on what work queue we used.
+		 */
+		if (!(piocb->iocb_flag & LPFC_USE_FCPWQIDX)) {
+			piocb->hba_wqidx =
+				lpfc_sli4_scmd_to_wqidx_distr(
+					phba, piocb->context1);
+			piocb->hba_wqidx = piocb->hba_wqidx %
+				phba->cfg_fcp_io_channel;
 		}
+		return phba->sli4_hba.fcp_wq[piocb->hba_wqidx]->pring;
 	} else {
 		if (unlikely(!phba->sli4_hba.els_wq))
 			return NULL;
@@ -10544,16 +10527,6 @@ lpfc_sli4_queue_init(struct lpfc_hba *phba)
 		pring = phba->sli4_hba.nvmels_wq->pring;
 		pring->flag = 0;
 		pring->ringno = LPFC_ELS_RING;
-		INIT_LIST_HEAD(&pring->txq);
-		INIT_LIST_HEAD(&pring->txcmplq);
-		INIT_LIST_HEAD(&pring->iocb_continueq);
-		spin_lock_init(&pring->ring_lock);
-	}
-
-	if (phba->cfg_fof) {
-		pring = phba->sli4_hba.oas_wq->pring;
-		pring->flag = 0;
-		pring->ringno = LPFC_FCP_RING;
 		INIT_LIST_HEAD(&pring->txq);
 		INIT_LIST_HEAD(&pring->txcmplq);
 		INIT_LIST_HEAD(&pring->iocb_continueq);
@@ -14220,154 +14193,6 @@ lpfc_sli4_eq_flush(struct lpfc_hba *phba, struct lpfc_queue *eq)
 
 
 /**
- * lpfc_sli4_fof_handle_eqe - Process a Flash Optimized Fabric event queue
- *			     entry
- * @phba: Pointer to HBA context object.
- * @eqe: Pointer to fast-path event queue entry.
- *
- * This routine process a event queue entry from the Flash Optimized Fabric
- * event queue.  It will check the MajorCode and MinorCode to determine this
- * is for a completion event on a completion queue, if not, an error shall be
- * logged and just return. Otherwise, it will get to the corresponding
- * completion queue and process all the entries on the completion queue, rearm
- * the completion queue, and then return.
- **/
-static void
-lpfc_sli4_fof_handle_eqe(struct lpfc_hba *phba, struct lpfc_eqe *eqe)
-{
-	struct lpfc_queue *cq;
-	uint16_t cqid;
-
-	if (unlikely(bf_get_le32(lpfc_eqe_major_code, eqe) != 0)) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-				"9147 Not a valid completion "
-				"event: majorcode=x%x, minorcode=x%x\n",
-				bf_get_le32(lpfc_eqe_major_code, eqe),
-				bf_get_le32(lpfc_eqe_minor_code, eqe));
-		return;
-	}
-
-	/* Get the reference to the corresponding CQ */
-	cqid = bf_get_le32(lpfc_eqe_resource_id, eqe);
-
-	/* Next check for OAS */
-	cq = phba->sli4_hba.oas_cq;
-	if (unlikely(!cq)) {
-		if (phba->sli.sli_flag & LPFC_SLI_ACTIVE)
-			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-					"9148 OAS completion queue "
-					"does not exist\n");
-		return;
-	}
-
-	if (unlikely(cqid != cq->queue_id)) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-				"9149 Miss-matched fast-path compl "
-				"queue id: eqcqid=%d, fcpcqid=%d\n",
-				cqid, cq->queue_id);
-		return;
-	}
-
-	/* Save EQ associated with this CQ */
-	cq->assoc_qp = phba->sli4_hba.fof_eq;
-
-	/* CQ work will be processed on CPU affinitized to this IRQ */
-	if (!queue_work(phba->wq, &cq->irqwork))
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-				"0367 Cannot schedule soft IRQ "
-				"for CQ eqcqid=%d, cqid=%d on CPU %d\n",
-				cqid, cq->queue_id, smp_processor_id());
-}
-
-/**
- * lpfc_sli4_fof_intr_handler - HBA interrupt handler to SLI-4 device
- * @irq: Interrupt number.
- * @dev_id: The device context pointer.
- *
- * This function is directly called from the PCI layer as an interrupt
- * service routine when device with SLI-4 interface spec is enabled with
- * MSI-X multi-message interrupt mode and there is a Flash Optimized Fabric
- * IOCB ring event in the HBA. However, when the device is enabled with either
- * MSI or Pin-IRQ interrupt mode, this function is called as part of the
- * device-level interrupt handler. When the PCI slot is in error recovery
- * or the HBA is undergoing initialization, the interrupt handler will not
- * process the interrupt. The Flash Optimized Fabric ring event are handled in
- * the intrrupt context. This function is called without any lock held.
- * It gets the hbalock to access and update SLI data structures. Note that,
- * the EQ to CQ are one-to-one map such that the EQ index is
- * equal to that of CQ index.
- *
- * This function returns IRQ_HANDLED when interrupt is handled else it
- * returns IRQ_NONE.
- **/
-irqreturn_t
-lpfc_sli4_fof_intr_handler(int irq, void *dev_id)
-{
-	struct lpfc_hba *phba;
-	struct lpfc_hba_eq_hdl *hba_eq_hdl;
-	struct lpfc_queue *eq;
-	struct lpfc_eqe *eqe;
-	unsigned long iflag;
-	int ecount = 0;
-
-	/* Get the driver's phba structure from the dev_id */
-	hba_eq_hdl = (struct lpfc_hba_eq_hdl *)dev_id;
-	phba = hba_eq_hdl->phba;
-
-	if (unlikely(!phba))
-		return IRQ_NONE;
-
-	/* Get to the EQ struct associated with this vector */
-	eq = phba->sli4_hba.fof_eq;
-	if (unlikely(!eq))
-		return IRQ_NONE;
-
-	/* Check device state for handling interrupt */
-	if (unlikely(lpfc_intr_state_check(phba))) {
-		/* Check again for link_state with lock held */
-		spin_lock_irqsave(&phba->hbalock, iflag);
-		if (phba->link_state < LPFC_LINK_DOWN)
-			/* Flush, clear interrupt, and rearm the EQ */
-			lpfc_sli4_eq_flush(phba, eq);
-		spin_unlock_irqrestore(&phba->hbalock, iflag);
-		return IRQ_NONE;
-	}
-
-	/*
-	 * Process all the event on FCP fast-path EQ
-	 */
-	while ((eqe = lpfc_sli4_eq_get(eq))) {
-		lpfc_sli4_fof_handle_eqe(phba, eqe);
-		if (!(++ecount % eq->entry_repost))
-			break;
-		eq->EQ_processed++;
-	}
-
-	/* Track the max number of EQEs processed in 1 intr */
-	if (ecount > eq->EQ_max_eqe)
-		eq->EQ_max_eqe = ecount;
-
-
-	if (unlikely(ecount == 0)) {
-		eq->EQ_no_entry++;
-
-		if (phba->intr_type == MSIX)
-			/* MSI-X treated interrupt served as no EQ share INT */
-			lpfc_printf_log(phba, KERN_WARNING, LOG_SLI,
-					"9145 MSI-X interrupt with no EQE\n");
-		else {
-			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-					"9146 ISR interrupt with no EQE\n");
-			/* Non MSI-X treated on interrupt as EQ share INT */
-			return IRQ_NONE;
-		}
-	}
-	/* Always clear and re-arm the fast-path EQ */
-	phba->sli4_hba.sli4_eq_release(eq, LPFC_QUEUE_REARM);
-	return IRQ_HANDLED;
-}
-
-/**
  * lpfc_sli4_hba_intr_handler - HBA interrupt handler to SLI-4 device
  * @irq: Interrupt number.
  * @dev_id: The device context pointer.
@@ -14517,13 +14342,6 @@ lpfc_sli4_intr_handler(int irq, void *dev_id)
 	 */
 	for (qidx = 0; qidx < phba->io_channel_irqs; qidx++) {
 		hba_irq_rc = lpfc_sli4_hba_intr_handler(irq,
-					&phba->sli4_hba.hba_eq_hdl[qidx]);
-		if (hba_irq_rc == IRQ_HANDLED)
-			hba_handled |= true;
-	}
-
-	if (phba->cfg_fof) {
-		hba_irq_rc = lpfc_sli4_fof_intr_handler(irq,
 					&phba->sli4_hba.hba_eq_hdl[qidx]);
 		if (hba_irq_rc == IRQ_HANDLED)
 			hba_handled |= true;
