@@ -1031,7 +1031,7 @@ struct nvmem_cell *of_nvmem_cell_get(struct device_node *np, const char *id)
 
 	cell_np = of_parse_phandle(np, "nvmem-cells", index);
 	if (!cell_np)
-		return ERR_PTR(-EINVAL);
+		return ERR_PTR(-ENOENT);
 
 	nvmem_np = of_get_next_parent(cell_np);
 	if (!nvmem_np)
