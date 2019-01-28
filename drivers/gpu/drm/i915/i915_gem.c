@@ -253,10 +253,7 @@ i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
 
 	pinned = ggtt->vm.reserved;
 	mutex_lock(&dev->struct_mutex);
-	list_for_each_entry(vma, &ggtt->vm.active_list, vm_link)
-		if (i915_vma_is_pinned(vma))
-			pinned += vma->node.size;
-	list_for_each_entry(vma, &ggtt->vm.inactive_list, vm_link)
+	list_for_each_entry(vma, &ggtt->vm.bound_list, vm_link)
 		if (i915_vma_is_pinned(vma))
 			pinned += vma->node.size;
 	mutex_unlock(&dev->struct_mutex);
@@ -1539,13 +1536,10 @@ static void i915_gem_object_bump_inactive_ggtt(struct drm_i915_gem_object *obj)
 	GEM_BUG_ON(!i915_gem_object_has_pinned_pages(obj));
 
 	for_each_ggtt_vma(vma, obj) {
-		if (i915_vma_is_active(vma))
-			continue;
-
 		if (!drm_mm_node_allocated(&vma->node))
 			continue;
 
-		list_move_tail(&vma->vm_link, &vma->vm->inactive_list);
+		list_move_tail(&vma->vm_link, &vma->vm->bound_list);
 	}
 
 	i915 = to_i915(obj->base.dev);

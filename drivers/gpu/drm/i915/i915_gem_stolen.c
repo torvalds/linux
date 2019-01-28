@@ -701,7 +701,8 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_i915_private *dev_priv
 	vma->pages = obj->mm.pages;
 	vma->flags |= I915_VMA_GLOBAL_BIND;
 	__i915_vma_set_map_and_fenceable(vma);
-	list_move_tail(&vma->vm_link, &ggtt->vm.inactive_list);
+
+	list_move_tail(&vma->vm_link, &ggtt->vm.bound_list);
 
 	spin_lock(&dev_priv->mm.obj_lock);
 	list_move_tail(&obj->mm.link, &dev_priv->mm.bound_list);

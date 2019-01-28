@@ -79,9 +79,6 @@ __i915_vma_retire(struct i915_vma *vma, struct i915_request *rq)
 	if (--vma->active_count)
 		return;
 
-	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
-	list_move_tail(&vma->vm_link, &vma->vm->inactive_list);
-
 	GEM_BUG_ON(!i915_gem_object_is_active(obj));
 	if (--obj->active_count)
 		return;
@@ -659,7 +656,7 @@ i915_vma_insert(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
 	GEM_BUG_ON(!i915_gem_valid_gtt_space(vma, cache_level));
 
-	list_move_tail(&vma->vm_link, &vma->vm->inactive_list);
+	list_move_tail(&vma->vm_link, &vma->vm->bound_list);
 
 	if (vma->obj) {
 		struct drm_i915_gem_object *obj = vma->obj;
@@ -1003,10 +1000,8 @@ int i915_vma_move_to_active(struct i915_vma *vma,
 	 * add the active reference first and queue for it to be dropped
 	 * *last*.
 	 */
-	if (!i915_gem_active_isset(active) && !vma->active_count++) {
-		list_move_tail(&vma->vm_link, &vma->vm->active_list);
+	if (!i915_gem_active_isset(active) && !vma->active_count++)
 		obj->active_count++;
-	}
 	i915_gem_active_set(active, rq);
 	GEM_BUG_ON(!i915_vma_is_active(vma));
 	GEM_BUG_ON(!obj->active_count);

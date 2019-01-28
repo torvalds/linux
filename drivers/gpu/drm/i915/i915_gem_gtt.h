@@ -299,32 +299,12 @@ struct i915_address_space {
 	struct i915_page_directory_pointer *scratch_pdp; /* GEN8+ & 48b PPGTT */
 
 	/**
-	 * List of objects currently involved in rendering.
-	 *
-	 * Includes buffers having the contents of their GPU caches
-	 * flushed, not necessarily primitives. last_read_req
-	 * represents when the rendering involved will be completed.
-	 *
-	 * A reference is held on the buffer while on this list.
+	 * List of vma currently bound.
 	 */
-	struct list_head active_list;
+	struct list_head bound_list;
 
 	/**
-	 * LRU list of objects which are not in the ringbuffer and
-	 * are ready to unbind, but are still in the GTT.
-	 *
-	 * last_read_req is NULL while an object is in this list.
-	 *
-	 * A reference is not held on the buffer while on this list,
-	 * as merely being GTT-bound shouldn't prevent its being
-	 * freed, and we'll pull it off the list in the free path.
-	 */
-	struct list_head inactive_list;
-
-	/**
-	 * List of vma that have been unbound.
-	 *
-	 * A reference is not held on the buffer while on this list.
+	 * List of vma that are not unbound.
 	 */
 	struct list_head unbound_list;
 

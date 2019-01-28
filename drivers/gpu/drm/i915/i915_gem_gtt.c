@@ -491,9 +491,8 @@ static void i915_address_space_init(struct i915_address_space *vm, int subclass)
 
 	stash_init(&vm->free_pages);
 
-	INIT_LIST_HEAD(&vm->active_list);
-	INIT_LIST_HEAD(&vm->inactive_list);
 	INIT_LIST_HEAD(&vm->unbound_list);
+	INIT_LIST_HEAD(&vm->bound_list);
 }
 
 static void i915_address_space_fini(struct i915_address_space *vm)
@@ -2111,8 +2110,7 @@ void i915_ppgtt_close(struct i915_address_space *vm)
 static void ppgtt_destroy_vma(struct i915_address_space *vm)
 {
 	struct list_head *phases[] = {
-		&vm->active_list,
-		&vm->inactive_list,
+		&vm->bound_list,
 		&vm->unbound_list,
 		NULL,
 	}, **phase;
@@ -2135,8 +2133,7 @@ void i915_ppgtt_release(struct kref *kref)
 
 	ppgtt_destroy_vma(&ppgtt->vm);
 
-	GEM_BUG_ON(!list_empty(&ppgtt->vm.active_list));
-	GEM_BUG_ON(!list_empty(&ppgtt->vm.inactive_list));
+	GEM_BUG_ON(!list_empty(&ppgtt->vm.bound_list));
 	GEM_BUG_ON(!list_empty(&ppgtt->vm.unbound_list));
 
 	ppgtt->vm.cleanup(&ppgtt->vm);
@@ -2801,8 +2798,7 @@ void i915_ggtt_cleanup_hw(struct drm_i915_private *dev_priv)
 	mutex_lock(&dev_priv->drm.struct_mutex);
 	i915_gem_fini_aliasing_ppgtt(dev_priv);
 
-	GEM_BUG_ON(!list_empty(&ggtt->vm.active_list));
-	list_for_each_entry_safe(vma, vn, &ggtt->vm.inactive_list, vm_link)
+	list_for_each_entry_safe(vma, vn, &ggtt->vm.bound_list, vm_link)
 		WARN_ON(i915_vma_unbind(vma));
 
 	if (drm_mm_node_allocated(&ggtt->error_capture))
@@ -3514,8 +3510,7 @@ void i915_gem_restore_gtt_mappings(struct drm_i915_private *dev_priv)
 	ggtt->vm.closed = true; /* skip rewriting PTE on VMA unbind */
 
 	/* clflush objects bound into the GGTT and rebind them. */
-	GEM_BUG_ON(!list_empty(&ggtt->vm.active_list));
-	list_for_each_entry_safe(vma, vn, &ggtt->vm.inactive_list, vm_link) {
+	list_for_each_entry_safe(vma, vn, &ggtt->vm.bound_list, vm_link) {
 		struct drm_i915_gem_object *obj = vma->obj;
 
 		if (!(vma->flags & I915_VMA_GLOBAL_BIND))
