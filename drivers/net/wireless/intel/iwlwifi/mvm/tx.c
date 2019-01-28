@@ -209,7 +209,9 @@ void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
 	u16 offload_assist = 0;
 	u8 ac;
 
-	if (!(info->flags & IEEE80211_TX_CTL_NO_ACK))
+	if (!(info->flags & IEEE80211_TX_CTL_NO_ACK) ||
+	    (ieee80211_is_probe_resp(fc) &&
+	     !is_multicast_ether_addr(hdr->addr1)))
 		tx_flags |= TX_CMD_FLG_ACK;
 	else
 		tx_flags &= ~TX_CMD_FLG_ACK;
