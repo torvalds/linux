@@ -4714,26 +4714,13 @@ void devlink_port_params_unregister(struct devlink_port *devlink_port,
 }
 EXPORT_SYMBOL_GPL(devlink_port_params_unregister);
 
-/**
- *	devlink_param_driverinit_value_get - get configuration parameter
- *					     value for driver initializing
- *
- *	@devlink: devlink
- *	@param_id: parameter ID
- *	@init_val: value of parameter in driverinit configuration mode
- *
- *	This function should be used by the driver to get driverinit
- *	configuration for initialization after reload command.
- */
-int devlink_param_driverinit_value_get(struct devlink *devlink, u32 param_id,
-				       union devlink_param_value *init_val)
+static int
+__devlink_param_driverinit_value_get(struct list_head *param_list, u32 param_id,
+				     union devlink_param_value *init_val)
 {
 	struct devlink_param_item *param_item;
 
-	if (!devlink->ops || !devlink->ops->reload)
-		return -EOPNOTSUPP;
-
-	param_item = devlink_param_find_by_id(&devlink->param_list, param_id);
+	param_item = devlink_param_find_by_id(param_list, param_id);
 	if (!param_item)
 		return -EINVAL;
 
@@ -4748,6 +4735,27 @@ int devlink_param_driverinit_value_get(struct devlink *devlink, u32 param_id,
 		*init_val = param_item->driverinit_value;
 
 	return 0;
+}
+
+/**
+ *	devlink_param_driverinit_value_get - get configuration parameter
+ *					     value for driver initializing
+ *
+ *	@devlink: devlink
+ *	@param_id: parameter ID
+ *	@init_val: value of parameter in driverinit configuration mode
+ *
+ *	This function should be used by the driver to get driverinit
+ *	configuration for initialization after reload command.
+ */
+int devlink_param_driverinit_value_get(struct devlink *devlink, u32 param_id,
+				       union devlink_param_value *init_val)
+{
+	if (!devlink->ops || !devlink->ops->reload)
+		return -EOPNOTSUPP;
+
+	return __devlink_param_driverinit_value_get(&devlink->param_list,
+						    param_id, init_val);
 }
 EXPORT_SYMBOL_GPL(devlink_param_driverinit_value_get);
 
@@ -4786,6 +4794,31 @@ int devlink_param_driverinit_value_set(struct devlink *devlink, u32 param_id,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(devlink_param_driverinit_value_set);
+
+/**
+ *	devlink_port_param_driverinit_value_get - get configuration parameter
+ *						value for driver initializing
+ *
+ *	@devlink_port: devlink_port
+ *	@param_id: parameter ID
+ *	@init_val: value of parameter in driverinit configuration mode
+ *
+ *	This function should be used by the driver to get driverinit
+ *	configuration for initialization after reload command.
+ */
+int devlink_port_param_driverinit_value_get(struct devlink_port *devlink_port,
+					    u32 param_id,
+					    union devlink_param_value *init_val)
+{
+	struct devlink *devlink = devlink_port->devlink;
+
+	if (!devlink->ops || !devlink->ops->reload)
+		return -EOPNOTSUPP;
+
+	return __devlink_param_driverinit_value_get(&devlink_port->param_list,
+						    param_id, init_val);
+}
+EXPORT_SYMBOL_GPL(devlink_port_param_driverinit_value_get);
 
 /**
  *	devlink_param_value_changed - notify devlink on a parameter's value
