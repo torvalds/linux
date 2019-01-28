@@ -4658,8 +4658,10 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 	flip = kzalloc(sizeof(*flip), GFP_KERNEL);
 	full = kzalloc(sizeof(*full), GFP_KERNEL);
 
-	if (!flip || !full)
+	if (!flip || !full) {
 		dm_error("Failed to allocate update bundles\n");
+		goto cleanup;
+	}
 
 	/* update planes when needed */
 	for_each_oldnew_plane_in_state(state, plane, old_plane_state, new_plane_state, i) {
@@ -4883,6 +4885,10 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 						     dc_state);
 		mutex_unlock(&dm->dc_lock);
 	}
+
+cleanup:
+	kfree(flip);
+	kfree(full);
 }
 
 /*
