@@ -11,6 +11,7 @@
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include <linux/irqchip.h>
+#include <linux/of_irq.h>
 #include <linux/platform_device.h>
 #include <linux/bitops.h>
 /* Include that go away with DT transition */
@@ -306,6 +307,7 @@ static int ixp4xx_gpio_probe(struct platform_device *pdev)
 {
 	unsigned long flags;
 	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
 	struct irq_domain *parent;
 	struct resource *res;
 	struct ixp4xx_gpio *g;
@@ -382,11 +384,27 @@ static int ixp4xx_gpio_probe(struct platform_device *pdev)
 	 * from IRQCHIP_DECLARE(), then use of_node_to_fwnode() to get
 	 * the fwnode. For now we need this boardfile style code.
 	 */
-	parent = ixp4xx_get_irq_domain();
-	g->fwnode = irq_domain_alloc_fwnode(g->base);
-	if (!g->fwnode) {
-		dev_err(dev, "no domain base\n");
-		return -ENODEV;
+	if (np) {
+		struct device_node *irq_parent;
+
+		irq_parent = of_irq_find_parent(np);
+		if (!irq_parent) {
+			dev_err(dev, "no IRQ parent node\n");
+			return -ENODEV;
+		}
+		parent = irq_find_host(irq_parent);
+		if (!parent) {
+			dev_err(dev, "no IRQ parent domain\n");
+			return -ENODEV;
+		}
+		g->fwnode = of_node_to_fwnode(np);
+	} else {
+		parent = ixp4xx_get_irq_domain();
+		g->fwnode = irq_domain_alloc_fwnode(g->base);
+		if (!g->fwnode) {
+			dev_err(dev, "no domain base\n");
+			return -ENODEV;
+		}
 	}
 	g->domain = irq_domain_create_hierarchy(parent,
 						IRQ_DOMAIN_FLAG_HIERARCHY,
@@ -404,28 +422,31 @@ static int ixp4xx_gpio_probe(struct platform_device *pdev)
 	 * After adding OF support, this is no longer needed: irqs
 	 * will be allocated for the respective fwnodes.
 	 */
-	for (i = 0; i < ARRAY_SIZE(ixp4xx_gpiomap); i++) {
-		const struct ixp4xx_gpio_map *map = &ixp4xx_gpiomap[i];
-		struct irq_fwspec fwspec;
+	if (!np) {
+		for (i = 0; i < ARRAY_SIZE(ixp4xx_gpiomap); i++) {
+			const struct ixp4xx_gpio_map *map = &ixp4xx_gpiomap[i];
+			struct irq_fwspec fwspec;
 
-		fwspec.fwnode = g->fwnode;
-		/* This is the hwirq for the GPIO line side of things */
-		fwspec.param[0] = map->gpio_offset;
-		fwspec.param[1] = IRQ_TYPE_EDGE_RISING;
-		fwspec.param_count = 2;
-		ret = __irq_domain_alloc_irqs(g->domain,
-					      -1, /* just pick something */
-					      1,
-					      NUMA_NO_NODE,
-					      &fwspec,
-					      false,
-					      NULL);
-		if (ret < 0) {
-			irq_domain_free_fwnode(g->fwnode);
-			dev_err(dev,
-				"can not allocate irq for GPIO line %d parent hwirq %d in hierarchy domain: %d\n",
-				map->gpio_offset, map->parent_hwirq, ret);
-			return ret;
+			fwspec.fwnode = g->fwnode;
+			/* This is the hwirq for the GPIO line side of things */
+			fwspec.param[0] = map->gpio_offset;
+			fwspec.param[1] = IRQ_TYPE_EDGE_RISING;
+			fwspec.param_count = 2;
+			ret = __irq_domain_alloc_irqs(g->domain,
+						      -1, /* just pick something */
+						      1,
+						      NUMA_NO_NODE,
+						      &fwspec,
+						      false,
+						      NULL);
+			if (ret < 0) {
+				irq_domain_free_fwnode(g->fwnode);
+				dev_err(dev,
+					"can not allocate irq for GPIO line %d parent hwirq %d in hierarchy domain: %d\n",
+					map->gpio_offset, map->parent_hwirq,
+					ret);
+				return ret;
+			}
 		}
 	}
 
@@ -435,9 +456,18 @@ static int ixp4xx_gpio_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id ixp4xx_gpio_of_match[] = {
+	{
+		.compatible = "intel,ixp4xx-gpio",
+	},
+	{},
+};
+
+
 static struct platform_driver ixp4xx_gpio_driver = {
 	.driver = {
 		.name		= "ixp4xx-gpio",
+		.of_match_table = of_match_ptr(ixp4xx_gpio_of_match),
 	},
 	.probe = ixp4xx_gpio_probe,
 };
