@@ -748,6 +748,11 @@ int qed_sp_vport_update(struct qed_hwfn *p_hwfn,
 		return rc;
 	}
 
+	if (p_params->update_ctl_frame_check) {
+		p_cmn->ctl_frame_mac_check_en = p_params->mac_chk_en;
+		p_cmn->ctl_frame_ethtype_check_en = p_params->ethtype_chk_en;
+	}
+
 	/* Update mcast bins for VFs, PF doesn't use this functionality */
 	qed_sp_update_mcast_bin(p_hwfn, p_ramrod, p_params);
 
