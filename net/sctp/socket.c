@@ -3009,20 +3009,38 @@ static int sctp_setsockopt_default_send_param(struct sock *sk,
 		return -EINVAL;
 
 	asoc = sctp_id2assoc(sk, info.sinfo_assoc_id);
-	if (!asoc && info.sinfo_assoc_id && sctp_style(sk, UDP))
+	if (!asoc && info.sinfo_assoc_id > SCTP_ALL_ASSOC &&
+	    sctp_style(sk, UDP))
 		return -EINVAL;
+
 	if (asoc) {
 		asoc->default_stream = info.sinfo_stream;
 		asoc->default_flags = info.sinfo_flags;
 		asoc->default_ppid = info.sinfo_ppid;
 		asoc->default_context = info.sinfo_context;
 		asoc->default_timetolive = info.sinfo_timetolive;
-	} else {
+
+		return 0;
+	}
+
+	if (info.sinfo_assoc_id == SCTP_FUTURE_ASSOC ||
+	    info.sinfo_assoc_id == SCTP_ALL_ASSOC) {
 		sp->default_stream = info.sinfo_stream;
 		sp->default_flags = info.sinfo_flags;
 		sp->default_ppid = info.sinfo_ppid;
 		sp->default_context = info.sinfo_context;
 		sp->default_timetolive = info.sinfo_timetolive;
+	}
+
+	if (info.sinfo_assoc_id == SCTP_CURRENT_ASSOC ||
+	    info.sinfo_assoc_id == SCTP_ALL_ASSOC) {
+		list_for_each_entry(asoc, &sp->ep->asocs, asocs) {
+			asoc->default_stream = info.sinfo_stream;
+			asoc->default_flags = info.sinfo_flags;
+			asoc->default_ppid = info.sinfo_ppid;
+			asoc->default_context = info.sinfo_context;
+			asoc->default_timetolive = info.sinfo_timetolive;
+		}
 	}
 
 	return 0;
@@ -6223,8 +6241,10 @@ static int sctp_getsockopt_default_send_param(struct sock *sk,
 		return -EFAULT;
 
 	asoc = sctp_id2assoc(sk, info.sinfo_assoc_id);
-	if (!asoc && info.sinfo_assoc_id && sctp_style(sk, UDP))
+	if (!asoc && info.sinfo_assoc_id != SCTP_FUTURE_ASSOC &&
+	    sctp_style(sk, UDP))
 		return -EINVAL;
+
 	if (asoc) {
 		info.sinfo_stream = asoc->default_stream;
 		info.sinfo_flags = asoc->default_flags;
