@@ -90,6 +90,7 @@ enum devlink_command {
 	DEVLINK_CMD_REGION_READ,
 
 	DEVLINK_CMD_PORT_PARAM_GET,	/* can dump */
+	DEVLINK_CMD_PORT_PARAM_SET,
 
 	/* add new commands above here */
 	__DEVLINK_CMD_MAX,

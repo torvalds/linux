@@ -3096,10 +3096,11 @@ static int devlink_nl_cmd_param_get_doit(struct sk_buff *skb,
 	return genlmsg_reply(msg, info);
 }
 
-static int devlink_nl_cmd_param_set_doit(struct sk_buff *skb,
-					 struct genl_info *info)
+static int __devlink_nl_cmd_param_set_doit(struct devlink *devlink,
+					   struct list_head *param_list,
+					   struct genl_info *info,
+					   enum devlink_command cmd)
 {
-	struct devlink *devlink = info->user_ptr[0];
 	enum devlink_param_type param_type;
 	struct devlink_param_gset_ctx ctx;
 	enum devlink_param_cmode cmode;
@@ -3108,7 +3109,7 @@ static int devlink_nl_cmd_param_set_doit(struct sk_buff *skb,
 	union devlink_param_value value;
 	int err = 0;
 
-	param_item = devlink_param_get_from_info(&devlink->param_list, info);
+	param_item = devlink_param_get_from_info(param_list, info);
 	if (!param_item)
 		return -EINVAL;
 	param = param_item->param;
@@ -3148,8 +3149,17 @@ static int devlink_nl_cmd_param_set_doit(struct sk_buff *skb,
 			return err;
 	}
 
-	devlink_param_notify(devlink, param_item, DEVLINK_CMD_PARAM_NEW);
+	devlink_param_notify(devlink, param_item, cmd);
 	return 0;
+}
+
+static int devlink_nl_cmd_param_set_doit(struct sk_buff *skb,
+					 struct genl_info *info)
+{
+	struct devlink *devlink = info->user_ptr[0];
+
+	return __devlink_nl_cmd_param_set_doit(devlink, &devlink->param_list,
+					       info, DEVLINK_CMD_PARAM_NEW);
 }
 
 static int devlink_param_register_one(struct devlink *devlink,
@@ -3261,6 +3271,16 @@ static int devlink_nl_cmd_port_param_get_doit(struct sk_buff *skb,
 	}
 
 	return genlmsg_reply(msg, info);
+}
+
+static int devlink_nl_cmd_port_param_set_doit(struct sk_buff *skb,
+					      struct genl_info *info)
+{
+	struct devlink_port *devlink_port = info->user_ptr[0];
+
+	return __devlink_nl_cmd_param_set_doit(devlink_port->devlink,
+					       &devlink_port->param_list,
+					       info, 0);
 }
 
 static int devlink_nl_region_snapshot_id_put(struct sk_buff *msg,
@@ -3907,6 +3927,13 @@ static const struct genl_ops devlink_nl_ops[] = {
 		.policy = devlink_nl_policy,
 		.internal_flags = DEVLINK_NL_FLAG_NEED_PORT,
 		/* can be retrieved by unprivileged users */
+	},
+	{
+		.cmd = DEVLINK_CMD_PORT_PARAM_SET,
+		.doit = devlink_nl_cmd_port_param_set_doit,
+		.policy = devlink_nl_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = DEVLINK_NL_FLAG_NEED_PORT,
 	},
 	{
 		.cmd = DEVLINK_CMD_REGION_GET,
