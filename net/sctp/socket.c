@@ -3322,7 +3322,7 @@ static int sctp_setsockopt_maxseg(struct sock *sk, char __user *optval, unsigned
 				    current->comm, task_pid_nr(current));
 		if (copy_from_user(&val, optval, optlen))
 			return -EFAULT;
-		params.assoc_id = 0;
+		params.assoc_id = SCTP_FUTURE_ASSOC;
 	} else if (optlen == sizeof(struct sctp_assoc_value)) {
 		if (copy_from_user(&params, optval, optlen))
 			return -EFAULT;
@@ -3332,6 +3332,9 @@ static int sctp_setsockopt_maxseg(struct sock *sk, char __user *optval, unsigned
 	}
 
 	asoc = sctp_id2assoc(sk, params.assoc_id);
+	if (!asoc && params.assoc_id != SCTP_FUTURE_ASSOC &&
+	    sctp_style(sk, UDP))
+		return -EINVAL;
 
 	if (val) {
 		int min_len, max_len;
@@ -3349,8 +3352,6 @@ static int sctp_setsockopt_maxseg(struct sock *sk, char __user *optval, unsigned
 		asoc->user_frag = val;
 		sctp_assoc_update_frag_point(asoc);
 	} else {
-		if (params.assoc_id && sctp_style(sk, UDP))
-			return -EINVAL;
 		sp->user_frag = val;
 	}
 
@@ -6503,7 +6504,7 @@ static int sctp_getsockopt_maxseg(struct sock *sk, int len,
 				    "Use of int in maxseg socket option.\n"
 				    "Use struct sctp_assoc_value instead\n",
 				    current->comm, task_pid_nr(current));
-		params.assoc_id = 0;
+		params.assoc_id = SCTP_FUTURE_ASSOC;
 	} else if (len >= sizeof(struct sctp_assoc_value)) {
 		len = sizeof(struct sctp_assoc_value);
 		if (copy_from_user(&params, optval, len))
@@ -6512,7 +6513,8 @@ static int sctp_getsockopt_maxseg(struct sock *sk, int len,
 		return -EINVAL;
 
 	asoc = sctp_id2assoc(sk, params.assoc_id);
-	if (!asoc && params.assoc_id && sctp_style(sk, UDP))
+	if (!asoc && params.assoc_id != SCTP_FUTURE_ASSOC &&
+	    sctp_style(sk, UDP))
 		return -EINVAL;
 
 	if (asoc)
