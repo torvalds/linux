@@ -2076,11 +2076,12 @@ wdata_prepare_pages(struct cifs_writedata *wdata, unsigned int found_pages,
 }
 
 static int
-wdata_send_pages(struct TCP_Server_Info *server, struct cifs_writedata *wdata,
-		 unsigned int nr_pages, struct address_space *mapping,
-		 struct writeback_control *wbc)
+wdata_send_pages(struct cifs_writedata *wdata, unsigned int nr_pages,
+		 struct address_space *mapping, struct writeback_control *wbc)
 {
 	int rc;
+	struct TCP_Server_Info *server =
+				tlink_tcon(wdata->cfile->tlink)->ses->server;
 
 	wdata->sync_mode = wbc->sync_mode;
 	wdata->nr_pages = nr_pages;
@@ -2090,22 +2091,16 @@ wdata_send_pages(struct TCP_Server_Info *server, struct cifs_writedata *wdata,
 			page_offset(wdata->pages[nr_pages - 1]),
 			(loff_t)PAGE_SIZE);
 	wdata->bytes = ((nr_pages - 1) * PAGE_SIZE) + wdata->tailsz;
+	wdata->pid = wdata->cfile->pid;
 
 	rc = adjust_credits(server, &wdata->credits, wdata->bytes);
 	if (rc)
 		return rc;
 
-	if (!wdata->cfile) {
-		cifs_dbg(VFS, "No writable handle in writepages\n");
-		rc = -EBADF;
-	} else {
-		wdata->pid = wdata->cfile->pid;
-		if (wdata->cfile->invalidHandle)
-			rc = -EAGAIN;
-		else
-			rc = server->ops->async_writev(wdata,
-						       cifs_writedata_release);
-	}
+	if (wdata->cfile->invalidHandle)
+		rc = -EAGAIN;
+	else
+		rc = server->ops->async_writev(wdata, cifs_writedata_release);
 
 	return rc;
 }
@@ -2193,7 +2188,11 @@ retry:
 		wdata->cfile = cfile;
 		cfile = NULL;
 
-		rc = wdata_send_pages(server, wdata, nr_pages, mapping, wbc);
+		if (!wdata->cfile) {
+			cifs_dbg(VFS, "No writable handle in writepages\n");
+			rc = -EBADF;
+		} else
+			rc = wdata_send_pages(wdata, nr_pages, mapping, wbc);
 
 		for (i = 0; i < nr_pages; ++i)
 			unlock_page(wdata->pages[i]);
