@@ -542,11 +542,10 @@ static int vega20_set_default_dpm_table(struct smu_context *smu)
 	}
 	vega20_init_single_dpm_state(&(single_dpm_table->dpm_state));
 
-#if 0
 	/* eclk */
 	single_dpm_table = &(dpm_table->eclk_table);
 
-	if (feature->fea_enabled[FEATURE_DPM_VCE_BIT]) {
+	if (smu_feature_is_enabled(smu, FEATURE_DPM_VCE_BIT)) {
 		ret = vega20_set_single_dpm_table(smu, single_dpm_table, PPCLK_ECLK);
 		if (ret) {
 			pr_err("[SetupDefaultDpmTable] failed to get eclk dpm levels!");
@@ -554,14 +553,14 @@ static int vega20_set_default_dpm_table(struct smu_context *smu)
 		}
 	} else {
 		single_dpm_table->count = 1;
-		single_dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.eclock / 100;
+		single_dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.eclk / 100;
 	}
 	vega20_init_single_dpm_state(&(single_dpm_table->dpm_state));
 
 	/* vclk */
 	single_dpm_table = &(dpm_table->vclk_table);
 
-	if (feature->fea_enabled[FEATURE_DPM_UVD_BIT]) {
+	if (smu_feature_is_enabled(smu, FEATURE_DPM_UVD_BIT)) {
 		ret = vega20_set_single_dpm_table(smu, single_dpm_table, PPCLK_VCLK);
 		if (ret) {
 			pr_err("[SetupDefaultDpmTable] failed to get vclk dpm levels!");
@@ -569,14 +568,14 @@ static int vega20_set_default_dpm_table(struct smu_context *smu)
 		}
 	} else {
 		single_dpm_table->count = 1;
-		single_dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.vclock / 100;
+		single_dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.vclk / 100;
 	}
 	vega20_init_single_dpm_state(&(single_dpm_table->dpm_state));
 
 	/* dclk */
 	single_dpm_table = &(dpm_table->dclk_table);
 
-	if (feature->fea_enabled[FEATURE_DPM_UVD_BIT]) {
+	if (smu_feature_is_enabled(smu, FEATURE_DPM_UVD_BIT)) {
 		ret = vega20_set_single_dpm_table(smu, single_dpm_table, PPCLK_DCLK);
 		if (ret) {
 			pr_err("[SetupDefaultDpmTable] failed to get dclk dpm levels!");
@@ -584,10 +583,9 @@ static int vega20_set_default_dpm_table(struct smu_context *smu)
 		}
 	} else {
 		single_dpm_table->count = 1;
-		single_dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.dclock / 100;
+		single_dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.dclk / 100;
 	}
 	vega20_init_single_dpm_state(&(single_dpm_table->dpm_state));
-#endif
 
 	/* dcefclk */
 	single_dpm_table = &(dpm_table->dcef_table);
@@ -1483,7 +1481,6 @@ static int vega20_apply_clocks_adjust_rules(struct smu_context *smu)
 	if (smu->display_config->nb_pstate_switch_disable)
 		dpm_table->dpm_state.hard_min_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
 
-#if 0
 	/* vclk */
 	dpm_table = &(dpm_ctx->vclk_table);
 	dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[0].value;
@@ -1517,7 +1514,6 @@ static int vega20_apply_clocks_adjust_rules(struct smu_context *smu)
 			dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
 			dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
 		}
-#endif
 
 	/* socclk */
 	dpm_table = &(dpm_ctx->soc_table);
@@ -1536,7 +1532,6 @@ static int vega20_apply_clocks_adjust_rules(struct smu_context *smu)
 			dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
 		}
 
-#if 0
 	/* eclk */
 	dpm_table = &(dpm_ctx->eclk_table);
 	dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[0].value;
@@ -1553,7 +1548,6 @@ static int vega20_apply_clocks_adjust_rules(struct smu_context *smu)
 			dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
 			dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
 		}
-#endif
 	return 0;
 }
 
