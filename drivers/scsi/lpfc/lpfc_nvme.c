@@ -239,7 +239,7 @@ lpfc_nvme_create_queue(struct nvme_fc_local_port *pnvme_lport,
 	if (qidx) {
 		str = "IO ";  /* IO queue */
 		qhandle->index = ((qidx - 1) %
-			vport->phba->cfg_hdw_queue);
+			lpfc_nvme_template.max_hw_queues);
 	} else {
 		str = "ADM";  /* Admin queue */
 		qhandle->index = qidx;
@@ -1546,14 +1546,12 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 		}
 	}
 
+	/* Lookup Hardware Queue index based on fcp_io_sched module parameter */
 	if (phba->cfg_fcp_io_sched == LPFC_FCP_SCHED_BY_HDWQ) {
 		idx = lpfc_queue_info->index;
 	} else {
 		cpu = smp_processor_id();
-		if (cpu < phba->cfg_hdw_queue)
-			idx = cpu;
-		else
-			idx = cpu % phba->cfg_hdw_queue;
+		idx = phba->sli4_hba.cpu_map[cpu].hdwq;
 	}
 
 	lpfc_ncmd = lpfc_get_nvme_buf(phba, ndlp, idx, expedite);
@@ -2060,7 +2058,13 @@ lpfc_nvme_create_localport(struct lpfc_vport *vport)
 	 * allocate + 3, one for cmd, one for rsp and one for this alignment
 	 */
 	lpfc_nvme_template.max_sgl_segments = phba->cfg_nvme_seg_cnt + 1;
-	lpfc_nvme_template.max_hw_queues = phba->cfg_hdw_queue;
+
+	/* Advertise how many hw queues we support based on fcp_io_sched */
+	if (phba->cfg_fcp_io_sched == LPFC_FCP_SCHED_BY_HDWQ)
+		lpfc_nvme_template.max_hw_queues = phba->cfg_hdw_queue;
+	else
+		lpfc_nvme_template.max_hw_queues =
+			phba->sli4_hba.num_present_cpu;
 
 	/* localport is allocated from the stack, but the registration
 	 * call allocates heap memory as well as the private area.
@@ -2554,6 +2558,8 @@ lpfc_nvme_wait_for_io_drain(struct lpfc_hba *phba)
 	 * WQEs have been removed from the txcmplqs.
 	 */
 	for (i = 0; i < phba->cfg_hdw_queue; i++) {
+		if (!phba->sli4_hba.hdwq[i].nvme_wq)
+			continue;
 		pring = phba->sli4_hba.hdwq[i].nvme_wq->pring;
 
 		if (!pring)

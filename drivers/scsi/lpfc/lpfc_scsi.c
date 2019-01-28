@@ -692,10 +692,7 @@ lpfc_get_scsi_buf_s4(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
 		tag = blk_mq_unique_tag(cmnd->request);
 		idx = blk_mq_unique_tag_to_hwq(tag);
 	} else {
-		if (cpu < phba->cfg_hdw_queue)
-			idx = cpu;
-		else
-			idx = cpu % phba->cfg_hdw_queue;
+		idx = phba->sli4_hba.cpu_map[cpu].hdwq;
 	}
 
 	lpfc_cmd = lpfc_get_io_buf(phba, ndlp, idx,
@@ -3650,6 +3647,9 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	struct Scsi_Host *shost;
 	int idx;
 	uint32_t logit = LOG_FCP;
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+	int cpu;
+#endif
 
 	/* Sanity check on return of outstanding command */
 	cmd = lpfc_cmd->pCmd;
@@ -3660,6 +3660,13 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	if (phba->sli4_hba.hdwq)
 		phba->sli4_hba.hdwq[idx].scsi_cstat.io_cmpls++;
 
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+	if (phba->cpucheck_on & LPFC_CHECK_SCSI_IO) {
+		cpu = smp_processor_id();
+		if (cpu < LPFC_CHECK_CPU_CNT)
+			phba->sli4_hba.hdwq[idx].cpucheck_cmpl_io[cpu]++;
+	}
+#endif
 	shost = cmd->device->host;
 
 	lpfc_cmd->result = (pIocbOut->iocb.un.ulpWord[4] & IOERR_PARAM_MASK);
@@ -4336,6 +4343,9 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 	struct lpfc_io_buf *lpfc_cmd;
 	struct fc_rport *rport = starget_to_rport(scsi_target(cmnd->device));
 	int err, idx;
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+	int cpu;
+#endif
 
 	rdata = lpfc_rport_data_from_scsi_device(cmnd->device);
 
@@ -4450,6 +4460,16 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 
 	lpfc_scsi_prep_cmnd(vport, lpfc_cmd, ndlp);
 
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+	if (phba->cpucheck_on & LPFC_CHECK_SCSI_IO) {
+		cpu = smp_processor_id();
+		if (cpu < LPFC_CHECK_CPU_CNT) {
+			struct lpfc_sli4_hdw_queue *hdwq =
+					&phba->sli4_hba.hdwq[lpfc_cmd->hdwq_no];
+			hdwq->cpucheck_xmt_io[cpu]++;
+		}
+	}
+#endif
 	err = lpfc_sli_issue_iocb(phba, LPFC_FCP_RING,
 				  &lpfc_cmd->cur_iocbq, SLI_IOCB_RET_IOCB);
 	if (err) {

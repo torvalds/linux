@@ -290,9 +290,6 @@ struct lpfc_idiag {
 /* multixripool output buffer size */
 #define LPFC_DUMP_MULTIXRIPOOL_SIZE 8192
 
-/* hdwqinfo output buffer size */
-#define LPFC_HDWQINFO_SIZE 8192
-
 enum {
 	DUMP_FCP,
 	DUMP_NVME,

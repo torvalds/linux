@@ -41,7 +41,7 @@
 
 /* Multi-queue arrangement for FCP EQ/CQ/WQ tuples */
 #define LPFC_HBA_HDWQ_MIN	0
-#define LPFC_HBA_HDWQ_MAX	64
+#define LPFC_HBA_HDWQ_MAX	128
 #define LPFC_HBA_HDWQ_DEF	0
 
 /* Common buffer size to accomidate SCSI and NVME IO buffers */
@@ -166,16 +166,19 @@ struct lpfc_queue {
 	uint32_t assoc_qid;     /* Queue ID associated with, for CQ/WQ/MQ */
 	uint32_t host_index;	/* The host's index for putting or getting */
 	uint32_t hba_index;	/* The last known hba index for get or put */
+	uint32_t q_mode;
 
 	struct lpfc_sli_ring *pring; /* ptr to io ring associated with q */
 	struct lpfc_rqb *rqbp;	/* ptr to RQ buffers */
 
-	uint32_t q_mode;
 	uint16_t page_count;	/* Number of pages allocated for this queue */
 	uint16_t page_size;	/* size of page allocated for this queue */
 #define LPFC_EXPANDED_PAGE_SIZE	16384
 #define LPFC_DEFAULT_PAGE_SIZE	4096
-	uint16_t chann;		/* IO channel this queue is associated with */
+	uint16_t chann;		/* Hardware Queue association WQ/CQ */
+				/* CPU affinity for EQ */
+#define LPFC_FIND_BY_EQ		0
+#define LPFC_FIND_BY_HDWQ	1
 	uint8_t db_format;
 #define LPFC_DB_RING_FORMAT	0x01
 #define LPFC_DB_LIST_FORMAT	0x02
@@ -431,11 +434,6 @@ struct lpfc_hba_eq_hdl {
 	uint32_t idx;
 	char handler_name[LPFC_SLI4_HANDLER_NAME_SZ];
 	struct lpfc_hba *phba;
-	atomic_t hba_eq_in_use;
-	struct cpumask *cpumask;
-	/* CPU affinitsed to or 0xffffffff if multiple */
-	uint32_t cpu;
-#define LPFC_MULTI_CPU_AFFINITY 0xffffffff
 };
 
 /*BB Credit recovery value*/
@@ -529,7 +527,9 @@ struct lpfc_vector_map_info {
 	uint16_t	phys_id;
 	uint16_t	core_id;
 	uint16_t	irq;
+	uint16_t	eq;
 	uint16_t	hdwq;
+	uint16_t	hyper;
 };
 #define LPFC_VECTOR_MAP_EMPTY	0xffff
 
@@ -593,6 +593,21 @@ struct lpfc_fc4_ctrl_stat {
 	u32 io_cmpls;
 };
 
+#ifdef LPFC_HDWQ_LOCK_STAT
+struct lpfc_lock_stat {
+	uint32_t alloc_xri_get;
+	uint32_t alloc_xri_put;
+	uint32_t free_xri;
+	uint32_t wq_access;
+	uint32_t alloc_pvt_pool;
+	uint32_t mv_from_pvt_pool;
+	uint32_t mv_to_pub_pool;
+	uint32_t mv_to_pvt_pool;
+	uint32_t free_pub_pool;
+	uint32_t free_pvt_pool;
+};
+#endif
+
 /* SLI4 HBA data structure entries */
 struct lpfc_sli4_hdw_queue {
 	/* Pointers to the constructed SLI4 queues */
@@ -626,6 +641,9 @@ struct lpfc_sli4_hdw_queue {
 	/* FC-4 Stats counters */
 	struct lpfc_fc4_ctrl_stat nvme_cstat;
 	struct lpfc_fc4_ctrl_stat scsi_cstat;
+#ifdef LPFC_HDWQ_LOCK_STAT
+	struct lpfc_lock_stat lock_conflict;
+#endif
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 #define LPFC_CHECK_CPU_CNT    128
@@ -634,6 +652,34 @@ struct lpfc_sli4_hdw_queue {
 	uint32_t cpucheck_cmpl_io[LPFC_CHECK_CPU_CNT];
 #endif
 };
+
+#ifdef LPFC_HDWQ_LOCK_STAT
+/* compile time trylock stats */
+#define lpfc_qp_spin_lock_irqsave(lock, flag, qp, lstat) \
+	{ \
+	int only_once = 1; \
+	while (spin_trylock_irqsave(lock, flag) == 0) { \
+		if (only_once) { \
+			only_once = 0; \
+			qp->lock_conflict.lstat++; \
+		} \
+	} \
+	}
+#define lpfc_qp_spin_lock(lock, qp, lstat) \
+	{ \
+	int only_once = 1; \
+	while (spin_trylock(lock) == 0) { \
+		if (only_once) { \
+			only_once = 0; \
+			qp->lock_conflict.lstat++; \
+		} \
+	} \
+	}
+#else
+#define lpfc_qp_spin_lock_irqsave(lock, flag, qp, lstat) \
+	spin_lock_irqsave(lock, flag)
+#define lpfc_qp_spin_lock(lock, qp, lstat) spin_lock(lock)
+#endif
 
 struct lpfc_sli4_hba {
 	void __iomem *conf_regs_memmap_p; /* Kernel memory mapped address for
@@ -764,6 +810,8 @@ struct lpfc_sli4_hba {
 	uint16_t nvmet_xri_cnt;
 	uint16_t nvmet_io_wait_cnt;
 	uint16_t nvmet_io_wait_total;
+	uint16_t cq_max;
+	struct lpfc_queue **cq_lookup;
 	struct list_head lpfc_els_sgl_list;
 	struct list_head lpfc_abts_els_sgl_list;
 	spinlock_t abts_scsi_buf_list_lock; /* list of aborted SCSI IOs */

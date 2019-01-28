@@ -37,6 +37,7 @@
 #include <linux/miscdevice.h>
 #include <linux/percpu.h>
 #include <linux/msi.h>
+#include <linux/irq.h>
 #include <linux/bitops.h>
 
 #include <scsi/scsi.h>
@@ -92,6 +93,8 @@ static void lpfc_sli4_cq_event_release_all(struct lpfc_hba *);
 static void lpfc_sli4_disable_intr(struct lpfc_hba *);
 static uint32_t lpfc_sli4_enable_intr(struct lpfc_hba *, uint32_t);
 static void lpfc_sli4_oas_verify(struct lpfc_hba *phba);
+static uint16_t lpfc_find_eq_handle(struct lpfc_hba *, uint16_t);
+static uint16_t lpfc_find_cpu_handle(struct lpfc_hba *, uint16_t, int);
 
 static struct scsi_transport_template *lpfc_transport_template = NULL;
 static struct scsi_transport_template *lpfc_vport_transport_template = NULL;
@@ -1367,13 +1370,13 @@ lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 		}
 
 		/* Interrupts per sec per EQ */
-		val = phba->cfg_fcp_imax / phba->cfg_hdw_queue;
+		val = phba->cfg_fcp_imax / phba->cfg_irq_chann;
 		tick_cqe = val / CONFIG_HZ; /* Per tick per EQ */
 
 		/* Assume 1 CQE/ISR, calc max CQEs allowed for time duration */
 		max_cqe = time_elapsed * tick_cqe;
 
-		for (i = 0; i < phba->cfg_hdw_queue; i++) {
+		for (i = 0; i < phba->cfg_irq_chann; i++) {
 			/* Fast-path EQ */
 			qp = phba->sli4_hba.hdwq[i].hba_eq;
 			if (!qp)
@@ -1397,7 +1400,7 @@ lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 				if (val) {
 					/* First, interrupts per sec per EQ */
 					val = phba->cfg_fcp_imax /
-						phba->cfg_hdw_queue;
+						phba->cfg_irq_chann;
 
 					/* us delay between each interrupt */
 					val = LPFC_SEC_TO_USEC / val;
@@ -4335,8 +4338,13 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 	shost->max_lun = vport->cfg_max_luns;
 	shost->this_id = -1;
 	shost->max_cmd_len = 16;
+
 	if (phba->sli_rev == LPFC_SLI_REV4) {
-		shost->nr_hw_queues = phba->cfg_hdw_queue;
+		if (phba->cfg_fcp_io_sched == LPFC_FCP_SCHED_BY_HDWQ)
+			shost->nr_hw_queues = phba->cfg_hdw_queue;
+		else
+			shost->nr_hw_queues = phba->sli4_hba.num_present_cpu;
+
 		shost->dma_boundary =
 			phba->sli4_hba.pc_sli4_params.sge_supp_len-1;
 		shost->sg_tablesize = phba->cfg_scsi_seg_cnt;
@@ -6819,7 +6827,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		goto out_remove_rpi_hdrs;
 	}
 
-	phba->sli4_hba.hba_eq_hdl = kcalloc(phba->cfg_hdw_queue,
+	phba->sli4_hba.hba_eq_hdl = kcalloc(phba->cfg_irq_chann,
 					    sizeof(struct lpfc_hba_eq_hdl),
 					    GFP_KERNEL);
 	if (!phba->sli4_hba.hba_eq_hdl) {
@@ -8257,7 +8265,7 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 	struct lpfc_rsrc_desc_fcfcoe *desc;
 	char *pdesc_0;
 	uint16_t forced_link_speed;
-	uint32_t if_type;
+	uint32_t if_type, qmin;
 	int length, i, rc = 0, rc2;
 
 	pmb = (LPFC_MBOXQ_t *) mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
@@ -8362,40 +8370,44 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 				phba->sli4_hba.max_cfg_param.max_rq);
 
 		/*
-		 * Calculate NVME queue resources based on how
-		 * many WQ/CQs are available.
+		 * Calculate queue resources based on how
+		 * many WQ/CQ/EQs are available.
 		 */
-		if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
-			length = phba->sli4_hba.max_cfg_param.max_wq;
-			if (phba->sli4_hba.max_cfg_param.max_cq <
-			    phba->sli4_hba.max_cfg_param.max_wq)
-				length = phba->sli4_hba.max_cfg_param.max_cq;
+		qmin = phba->sli4_hba.max_cfg_param.max_wq;
+		if (phba->sli4_hba.max_cfg_param.max_cq < qmin)
+			qmin = phba->sli4_hba.max_cfg_param.max_cq;
+		if (phba->sli4_hba.max_cfg_param.max_eq < qmin)
+			qmin = phba->sli4_hba.max_cfg_param.max_eq;
+		/*
+		 * Whats left after this can go toward NVME / FCP.
+		 * The minus 4 accounts for ELS, NVME LS, MBOX
+		 * plus one extra. When configured for
+		 * NVMET, FCP io channel WQs are not created.
+		 */
+		qmin -= 4;
 
-			/*
-			 * Whats left after this can go toward NVME.
-			 * The minus 6 accounts for ELS, NVME LS, MBOX
-			 * plus a couple extra. When configured for
-			 * NVMET, FCP io channel WQs are not created.
-			 */
-			length -= 6;
+		/* If NVME is configured, double the number of CQ/WQs needed */
+		if ((phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) &&
+		    !phba->nvmet_support)
+			qmin /= 2;
 
-			/* Take off FCP queues */
-			if (!phba->nvmet_support)
-				length -= phba->cfg_hdw_queue;
-
-			/* Check to see if there is enough for NVME */
-			if (phba->cfg_hdw_queue > length) {
-				lpfc_printf_log(
-					phba, KERN_ERR, LOG_SLI,
-					"2005 Reducing NVME IO channel to %d: "
-					"WQ %d CQ %d CommonIO %d\n",
-					length,
+		/* Check to see if there is enough for NVME */
+		if ((phba->cfg_irq_chann > qmin) ||
+		    (phba->cfg_hdw_queue > qmin)) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+					"2005 Reducing Queues: "
+					"WQ %d CQ %d EQ %d: min %d: "
+					"IRQ %d HDWQ %d\n",
 					phba->sli4_hba.max_cfg_param.max_wq,
 					phba->sli4_hba.max_cfg_param.max_cq,
+					phba->sli4_hba.max_cfg_param.max_eq,
+					qmin, phba->cfg_irq_chann,
 					phba->cfg_hdw_queue);
 
-				phba->cfg_hdw_queue = length;
-			}
+			if (phba->cfg_irq_chann > qmin)
+				phba->cfg_irq_chann = qmin;
+			if (phba->cfg_hdw_queue > qmin)
+				phba->cfg_hdw_queue = qmin;
 		}
 	}
 
@@ -8612,25 +8624,17 @@ lpfc_sli4_queue_verify(struct lpfc_hba *phba)
 	 * device parameters
 	 */
 
-	if (phba->cfg_hdw_queue > phba->sli4_hba.max_cfg_param.max_eq) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"2575 Reducing IO channels to match number of "
-				"available EQs: from %d to %d\n",
-				phba->cfg_hdw_queue,
-				phba->sli4_hba.max_cfg_param.max_eq);
-		phba->cfg_hdw_queue = phba->sli4_hba.max_cfg_param.max_eq;
-	}
-
 	if (phba->nvmet_support) {
-		if (phba->cfg_hdw_queue < phba->cfg_nvmet_mrq)
-			phba->cfg_nvmet_mrq = phba->cfg_hdw_queue;
+		if (phba->cfg_irq_chann < phba->cfg_nvmet_mrq)
+			phba->cfg_nvmet_mrq = phba->cfg_irq_chann;
 	}
 	if (phba->cfg_nvmet_mrq > LPFC_NVMET_MRQ_MAX)
 		phba->cfg_nvmet_mrq = LPFC_NVMET_MRQ_MAX;
 
 	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-			"2574 IO channels: hdwQ %d MRQ: %d\n",
-			phba->cfg_hdw_queue, phba->cfg_nvmet_mrq);
+			"2574 IO channels: hdwQ %d IRQ %d MRQ: %d\n",
+			phba->cfg_hdw_queue, phba->cfg_irq_chann,
+			phba->cfg_nvmet_mrq);
 
 	/* Get EQ depth from module parameter, fake the default for now */
 	phba->sli4_hba.eq_esize = LPFC_EQE_SIZE_4B;
@@ -8658,6 +8662,7 @@ lpfc_alloc_nvme_wq_cq(struct lpfc_hba *phba, int wqidx)
 	}
 	qdesc->qe_valid = 1;
 	qdesc->hdwq = wqidx;
+	qdesc->chann = lpfc_find_cpu_handle(phba, wqidx, LPFC_FIND_BY_HDWQ);
 	phba->sli4_hba.hdwq[wqidx].nvme_cq = qdesc;
 
 	qdesc = lpfc_sli4_queue_alloc(phba, LPFC_EXPANDED_PAGE_SIZE,
@@ -8669,6 +8674,7 @@ lpfc_alloc_nvme_wq_cq(struct lpfc_hba *phba, int wqidx)
 		return 1;
 	}
 	qdesc->hdwq = wqidx;
+	qdesc->chann = wqidx;
 	phba->sli4_hba.hdwq[wqidx].nvme_wq = qdesc;
 	list_add_tail(&qdesc->wq_list, &phba->sli4_hba.lpfc_wq_list);
 	return 0;
@@ -8698,6 +8704,7 @@ lpfc_alloc_fcp_wq_cq(struct lpfc_hba *phba, int wqidx)
 	}
 	qdesc->qe_valid = 1;
 	qdesc->hdwq = wqidx;
+	qdesc->chann = lpfc_find_cpu_handle(phba, wqidx, LPFC_FIND_BY_HDWQ);
 	phba->sli4_hba.hdwq[wqidx].fcp_cq = qdesc;
 
 	/* Create Fast Path FCP WQs */
@@ -8720,6 +8727,7 @@ lpfc_alloc_fcp_wq_cq(struct lpfc_hba *phba, int wqidx)
 		return 1;
 	}
 	qdesc->hdwq = wqidx;
+	qdesc->chann = wqidx;
 	phba->sli4_hba.hdwq[wqidx].fcp_wq = qdesc;
 	list_add_tail(&qdesc->wq_list, &phba->sli4_hba.lpfc_wq_list);
 	return 0;
@@ -8743,7 +8751,7 @@ int
 lpfc_sli4_queue_create(struct lpfc_hba *phba)
 {
 	struct lpfc_queue *qdesc;
-	int idx;
+	int idx, eqidx;
 	struct lpfc_sli4_hdw_queue *qp;
 
 	/*
@@ -8829,7 +8837,18 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 
 	/* Create HBA Event Queues (EQs) */
 	for (idx = 0; idx < phba->cfg_hdw_queue; idx++) {
-		/* Create EQs */
+		/*
+		 * If there are more Hardware Queues than available
+		 * CQs, multiple Hardware Queues may share a common EQ.
+		 */
+		if (idx >= phba->cfg_irq_chann) {
+			/* Share an existing EQ */
+			eqidx = lpfc_find_eq_handle(phba, idx);
+			phba->sli4_hba.hdwq[idx].hba_eq =
+				phba->sli4_hba.hdwq[eqidx].hba_eq;
+			continue;
+		}
+		/* Create an EQ */
 		qdesc = lpfc_sli4_queue_alloc(phba, LPFC_DEFAULT_PAGE_SIZE,
 					      phba->sli4_hba.eq_esize,
 					      phba->sli4_hba.eq_ecount);
@@ -8840,20 +8859,27 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 		}
 		qdesc->qe_valid = 1;
 		qdesc->hdwq = idx;
+
+		/* Save the CPU this EQ is affinitised to */
+		eqidx = lpfc_find_eq_handle(phba, idx);
+		qdesc->chann = lpfc_find_cpu_handle(phba, eqidx,
+						    LPFC_FIND_BY_EQ);
 		phba->sli4_hba.hdwq[idx].hba_eq = qdesc;
 	}
 
 
 	/* Allocate SCSI SLI4 CQ/WQs */
-	for (idx = 0; idx < phba->cfg_hdw_queue; idx++)
+	for (idx = 0; idx < phba->cfg_hdw_queue; idx++) {
 		if (lpfc_alloc_fcp_wq_cq(phba, idx))
 			goto out_error;
+	}
 
 	/* Allocate NVME SLI4 CQ/WQs */
 	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
-		for (idx = 0; idx < phba->cfg_hdw_queue; idx++)
+		for (idx = 0; idx < phba->cfg_hdw_queue; idx++) {
 			if (lpfc_alloc_nvme_wq_cq(phba, idx))
 				goto out_error;
+		}
 
 		if (phba->nvmet_support) {
 			for (idx = 0; idx < phba->cfg_nvmet_mrq; idx++) {
@@ -8871,6 +8897,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 				}
 				qdesc->qe_valid = 1;
 				qdesc->hdwq = idx;
+				qdesc->chann = idx;
 				phba->sli4_hba.nvmet_cqset[idx] = qdesc;
 			}
 		}
@@ -8902,6 +8929,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 		goto out_error;
 	}
 	qdesc->qe_valid = 1;
+	qdesc->chann = 0;
 	phba->sli4_hba.els_cq = qdesc;
 
 
@@ -8919,6 +8947,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 				"0505 Failed allocate slow-path MQ\n");
 		goto out_error;
 	}
+	qdesc->chann = 0;
 	phba->sli4_hba.mbx_wq = qdesc;
 
 	/*
@@ -8934,6 +8963,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 				"0504 Failed allocate slow-path ELS WQ\n");
 		goto out_error;
 	}
+	qdesc->chann = 0;
 	phba->sli4_hba.els_wq = qdesc;
 	list_add_tail(&qdesc->wq_list, &phba->sli4_hba.lpfc_wq_list);
 
@@ -8947,6 +8977,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 					"6079 Failed allocate NVME LS CQ\n");
 			goto out_error;
 		}
+		qdesc->chann = 0;
 		qdesc->qe_valid = 1;
 		phba->sli4_hba.nvmels_cq = qdesc;
 
@@ -8959,6 +8990,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 					"6080 Failed allocate NVME LS WQ\n");
 			goto out_error;
 		}
+		qdesc->chann = 0;
 		phba->sli4_hba.nvmels_wq = qdesc;
 		list_add_tail(&qdesc->wq_list, &phba->sli4_hba.lpfc_wq_list);
 	}
@@ -9085,17 +9117,21 @@ lpfc_sli4_release_queues(struct lpfc_queue ***qs, int max)
 }
 
 static inline void
-lpfc_sli4_release_hdwq(struct lpfc_sli4_hdw_queue *hdwq, int max)
+lpfc_sli4_release_hdwq(struct lpfc_hba *phba)
 {
+	struct lpfc_sli4_hdw_queue *hdwq;
 	uint32_t idx;
 
-	for (idx = 0; idx < max; idx++) {
-		lpfc_sli4_queue_free(hdwq[idx].hba_eq);
+	hdwq = phba->sli4_hba.hdwq;
+	for (idx = 0; idx < phba->cfg_hdw_queue; idx++) {
+		if (idx < phba->cfg_irq_chann)
+			lpfc_sli4_queue_free(hdwq[idx].hba_eq);
+		hdwq[idx].hba_eq = NULL;
+
 		lpfc_sli4_queue_free(hdwq[idx].fcp_cq);
 		lpfc_sli4_queue_free(hdwq[idx].nvme_cq);
 		lpfc_sli4_queue_free(hdwq[idx].fcp_wq);
 		lpfc_sli4_queue_free(hdwq[idx].nvme_wq);
-		hdwq[idx].hba_eq = NULL;
 		hdwq[idx].fcp_cq = NULL;
 		hdwq[idx].nvme_cq = NULL;
 		hdwq[idx].fcp_wq = NULL;
@@ -9120,8 +9156,7 @@ lpfc_sli4_queue_destroy(struct lpfc_hba *phba)
 {
 	/* Release HBA eqs */
 	if (phba->sli4_hba.hdwq)
-		lpfc_sli4_release_hdwq(phba->sli4_hba.hdwq,
-				       phba->cfg_hdw_queue);
+		lpfc_sli4_release_hdwq(phba);
 
 	if (phba->nvmet_support) {
 		lpfc_sli4_release_queues(&phba->sli4_hba.nvmet_cqset,
@@ -9202,7 +9237,6 @@ lpfc_create_wq_cq(struct lpfc_hba *phba, struct lpfc_queue *eq,
 			qidx, (uint32_t)rc);
 		return rc;
 	}
-	cq->chann = qidx;
 
 	if (qtype != LPFC_MBOX) {
 		/* Setup cq_map for fast lookup */
@@ -9222,7 +9256,6 @@ lpfc_create_wq_cq(struct lpfc_hba *phba, struct lpfc_queue *eq,
 			/* no need to tear down cq - caller will do so */
 			return rc;
 		}
-		wq->chann = qidx;
 
 		/* Bind this CQ/WQ to the NVME ring */
 		pring = wq->pring;
@@ -9249,6 +9282,38 @@ lpfc_create_wq_cq(struct lpfc_hba *phba, struct lpfc_queue *eq,
 	}
 
 	return 0;
+}
+
+/**
+ * lpfc_setup_cq_lookup - Setup the CQ lookup table
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This routine will populate the cq_lookup table by all
+ * available CQ queue_id's.
+ **/
+void
+lpfc_setup_cq_lookup(struct lpfc_hba *phba)
+{
+	struct lpfc_queue *eq, *childq;
+	struct lpfc_sli4_hdw_queue *qp;
+	int qidx;
+
+	qp = phba->sli4_hba.hdwq;
+	memset(phba->sli4_hba.cq_lookup, 0,
+	       (sizeof(struct lpfc_queue *) * (phba->sli4_hba.cq_max + 1)));
+	for (qidx = 0; qidx < phba->cfg_irq_chann; qidx++) {
+		eq = qp[qidx].hba_eq;
+		if (!eq)
+			continue;
+		list_for_each_entry(childq, &eq->child_list, list) {
+			if (childq->queue_id > phba->sli4_hba.cq_max)
+				continue;
+			if ((childq->subtype == LPFC_FCP) ||
+			    (childq->subtype == LPFC_NVME))
+				phba->sli4_hba.cq_lookup[childq->queue_id] =
+					childq;
+		}
+	}
 }
 
 /**
@@ -9331,7 +9396,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 		rc = -ENOMEM;
 		goto out_error;
 	}
-	for (qidx = 0; qidx < phba->cfg_hdw_queue; qidx++) {
+	for (qidx = 0; qidx < phba->cfg_irq_chann; qidx++) {
 		if (!qp[qidx].hba_eq) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 					"0522 Fast-path EQ (%d) not "
@@ -9578,11 +9643,23 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 			phba->sli4_hba.dat_rq->queue_id,
 			phba->sli4_hba.els_cq->queue_id);
 
-	for (qidx = 0; qidx < phba->cfg_hdw_queue;
+	for (qidx = 0; qidx < phba->cfg_irq_chann;
 	     qidx += LPFC_MAX_EQ_DELAY_EQID_CNT)
 		lpfc_modify_hba_eq_delay(phba, qidx, LPFC_MAX_EQ_DELAY_EQID_CNT,
 					 phba->cfg_fcp_imax);
 
+	if (phba->sli4_hba.cq_max) {
+		kfree(phba->sli4_hba.cq_lookup);
+		phba->sli4_hba.cq_lookup = kcalloc((phba->sli4_hba.cq_max + 1),
+			sizeof(struct lpfc_queue *), GFP_KERNEL);
+		if (!phba->sli4_hba.cq_lookup) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"0549 Failed setup of CQ Lookup table: "
+					"size 0x%x\n", phba->sli4_hba.cq_max);
+			goto out_destroy;
+		}
+		lpfc_setup_cq_lookup(phba);
+	}
 	return 0;
 
 out_destroy:
@@ -9664,9 +9741,14 @@ lpfc_sli4_queue_unset(struct lpfc_hba *phba)
 			lpfc_wq_destroy(phba, qp->nvme_wq);
 			lpfc_cq_destroy(phba, qp->fcp_cq);
 			lpfc_cq_destroy(phba, qp->nvme_cq);
-			lpfc_eq_destroy(phba, qp->hba_eq);
+			if (qidx < phba->cfg_irq_chann)
+				lpfc_eq_destroy(phba, qp->hba_eq);
 		}
 	}
+
+	kfree(phba->sli4_hba.cq_lookup);
+	phba->sli4_hba.cq_lookup = NULL;
+	phba->sli4_hba.cq_max = 0;
 }
 
 /**
@@ -10446,22 +10528,198 @@ lpfc_sli_disable_intr(struct lpfc_hba *phba)
 }
 
 /**
+ * lpfc_find_cpu_handle - Find the CPU that corresponds to the specified EQ
+ * @phba: pointer to lpfc hba data structure.
+ * @id: EQ vector index or Hardware Queue index
+ * @match: LPFC_FIND_BY_EQ = match by EQ
+ *         LPFC_FIND_BY_HDWQ = match by Hardware Queue
+ */
+static uint16_t
+lpfc_find_cpu_handle(struct lpfc_hba *phba, uint16_t id, int match)
+{
+	struct lpfc_vector_map_info *cpup;
+	int cpu;
+
+	/* Find the desired phys_id for the specified EQ */
+	cpup = phba->sli4_hba.cpu_map;
+	for (cpu = 0; cpu < phba->sli4_hba.num_present_cpu; cpu++) {
+		if ((match == LPFC_FIND_BY_EQ) &&
+		    (cpup->irq != LPFC_VECTOR_MAP_EMPTY) &&
+		    (cpup->eq == id))
+			return cpu;
+		if ((match == LPFC_FIND_BY_HDWQ) && (cpup->hdwq == id))
+			return cpu;
+		cpup++;
+	}
+	return 0;
+}
+
+/**
+ * lpfc_find_eq_handle - Find the EQ that corresponds to the specified
+ *                       Hardware Queue
+ * @phba: pointer to lpfc hba data structure.
+ * @hdwq: Hardware Queue index
+ */
+static uint16_t
+lpfc_find_eq_handle(struct lpfc_hba *phba, uint16_t hdwq)
+{
+	struct lpfc_vector_map_info *cpup;
+	int cpu;
+
+	/* Find the desired phys_id for the specified EQ */
+	cpup = phba->sli4_hba.cpu_map;
+	for (cpu = 0; cpu < phba->sli4_hba.num_present_cpu; cpu++) {
+		if (cpup->hdwq == hdwq)
+			return cpup->eq;
+		cpup++;
+	}
+	return 0;
+}
+
+/**
+ * lpfc_find_phys_id_eq - Find the next EQ that corresponds to the specified
+ *                        Physical Id.
+ * @phba: pointer to lpfc hba data structure.
+ * @eqidx: EQ index
+ * @phys_id: CPU package physical id
+ */
+static uint16_t
+lpfc_find_phys_id_eq(struct lpfc_hba *phba, uint16_t eqidx, uint16_t phys_id)
+{
+	struct lpfc_vector_map_info *cpup;
+	int cpu, desired_phys_id;
+
+	desired_phys_id = LPFC_VECTOR_MAP_EMPTY;
+
+	/* Find the desired phys_id for the specified EQ */
+	cpup = phba->sli4_hba.cpu_map;
+	for (cpu = 0; cpu < phba->sli4_hba.num_present_cpu; cpu++) {
+		if ((cpup->irq != LPFC_VECTOR_MAP_EMPTY) &&
+		    (cpup->eq == eqidx)) {
+			desired_phys_id = cpup->phys_id;
+			break;
+		}
+		cpup++;
+	}
+	if (phys_id == desired_phys_id)
+		return eqidx;
+
+	/* Find a EQ thats on the specified phys_id */
+	cpup = phba->sli4_hba.cpu_map;
+	for (cpu = 0; cpu < phba->sli4_hba.num_present_cpu; cpu++) {
+		if ((cpup->irq != LPFC_VECTOR_MAP_EMPTY) &&
+		    (cpup->phys_id == phys_id))
+			return cpup->eq;
+		cpup++;
+	}
+	return 0;
+}
+
+/**
+ * lpfc_find_cpu_map - Find next available CPU map entry that matches the
+ *                     phys_id and core_id.
+ * @phba: pointer to lpfc hba data structure.
+ * @phys_id: CPU package physical id
+ * @core_id: CPU core id
+ * @hdwqidx: Hardware Queue index
+ * @eqidx: EQ index
+ * @isr_avail: Should an IRQ be associated with this entry
+ */
+static struct lpfc_vector_map_info *
+lpfc_find_cpu_map(struct lpfc_hba *phba, uint16_t phys_id, uint16_t core_id,
+		  uint16_t hdwqidx, uint16_t eqidx, int isr_avail)
+{
+	struct lpfc_vector_map_info *cpup;
+	int cpu;
+
+	cpup = phba->sli4_hba.cpu_map;
+	for (cpu = 0; cpu < phba->sli4_hba.num_present_cpu; cpu++) {
+		/* Does the cpup match the one we are looking for */
+		if ((cpup->phys_id == phys_id) &&
+		    (cpup->core_id == core_id)) {
+			/* If it has been already assigned, then skip it */
+			if (cpup->hdwq != LPFC_VECTOR_MAP_EMPTY) {
+				cpup++;
+				continue;
+			}
+			/* Ensure we are on the same phys_id as the first one */
+			if (!isr_avail)
+				cpup->eq = lpfc_find_phys_id_eq(phba, eqidx,
+								phys_id);
+			else
+				cpup->eq = eqidx;
+
+			cpup->hdwq = hdwqidx;
+			if (isr_avail) {
+				cpup->irq =
+				    pci_irq_vector(phba->pcidev, eqidx);
+
+				/* Now affinitize to the selected CPU */
+				irq_set_affinity_hint(cpup->irq,
+						      get_cpu_mask(cpu));
+				irq_set_status_flags(cpup->irq,
+						     IRQ_NO_BALANCING);
+
+				lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+						"3330 Set Affinity: CPU %d "
+						"EQ %d irq %d (HDWQ %x)\n",
+						cpu, cpup->eq,
+						cpup->irq, cpup->hdwq);
+			}
+			return cpup;
+		}
+		cpup++;
+	}
+	return 0;
+}
+
+#ifdef CONFIG_X86
+/**
+ * lpfc_find_hyper - Determine if the CPU map entry is hyper-threaded
+ * @phba: pointer to lpfc hba data structure.
+ * @cpu: CPU map index
+ * @phys_id: CPU package physical id
+ * @core_id: CPU core id
+ */
+static int
+lpfc_find_hyper(struct lpfc_hba *phba, int cpu,
+		uint16_t phys_id, uint16_t core_id)
+{
+	struct lpfc_vector_map_info *cpup;
+	int idx;
+
+	cpup = phba->sli4_hba.cpu_map;
+	for (idx = 0; idx < phba->sli4_hba.num_present_cpu; idx++) {
+		/* Does the cpup match the one we are looking for */
+		if ((cpup->phys_id == phys_id) &&
+		    (cpup->core_id == core_id) &&
+		    (cpu != idx)) {
+			return 1;
+		}
+		cpup++;
+	}
+	return 0;
+}
+#endif
+
+/**
  * lpfc_cpu_affinity_check - Check vector CPU affinity mappings
  * @phba: pointer to lpfc hba data structure.
+ * @vectors: number of msix vectors allocated.
  *
  * The routine will figure out the CPU affinity assignment for every
- * MSI-X vector allocated for the HBA.  The hba_eq_hdl will be updated
- * with a pointer to the CPU mask that defines ALL the CPUs this vector
- * can be associated with. If the vector can be unquely associated with
- * a single CPU, that CPU will be recorded in hba_eq_hdl[index].cpu.
+ * MSI-X vector allocated for the HBA.
  * In addition, the CPU to IO channel mapping will be calculated
  * and the phba->sli4_hba.cpu_map array will reflect this.
  */
 static void
-lpfc_cpu_affinity_check(struct lpfc_hba *phba)
+lpfc_cpu_affinity_check(struct lpfc_hba *phba, int vectors)
 {
+	int i, j, idx, phys_id;
+	int max_phys_id, min_phys_id;
+	int max_core_id, min_core_id;
 	struct lpfc_vector_map_info *cpup;
-	int cpu, idx;
+	int cpu, eqidx, hdwqidx, isr_avail;
 #ifdef CONFIG_X86
 	struct cpuinfo_x86 *cpuinfo;
 #endif
@@ -10471,6 +10729,12 @@ lpfc_cpu_affinity_check(struct lpfc_hba *phba)
 	       (sizeof(struct lpfc_vector_map_info) *
 	       phba->sli4_hba.num_present_cpu));
 
+	max_phys_id = 0;
+	min_phys_id = 0xffff;
+	max_core_id = 0;
+	min_core_id = 0xffff;
+	phys_id = 0;
+
 	/* Update CPU map with physical id and core id of each CPU */
 	cpup = phba->sli4_hba.cpu_map;
 	for (cpu = 0; cpu < phba->sli4_hba.num_present_cpu; cpu++) {
@@ -10478,33 +10742,90 @@ lpfc_cpu_affinity_check(struct lpfc_hba *phba)
 		cpuinfo = &cpu_data(cpu);
 		cpup->phys_id = cpuinfo->phys_proc_id;
 		cpup->core_id = cpuinfo->cpu_core_id;
+		cpup->hyper = lpfc_find_hyper(phba, cpu,
+					      cpup->phys_id, cpup->core_id);
 #else
 		/* No distinction between CPUs for other platforms */
 		cpup->phys_id = 0;
-		cpup->core_id = 0;
+		cpup->core_id = cpu;
+		cpup->hyper = 0;
 #endif
+
 		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 				"3328 CPU physid %d coreid %d\n",
 				cpup->phys_id, cpup->core_id);
+
+		if (cpup->phys_id > max_phys_id)
+			max_phys_id = cpup->phys_id;
+		if (cpup->phys_id < min_phys_id)
+			min_phys_id = cpup->phys_id;
+
+		if (cpup->core_id > max_core_id)
+			max_core_id = cpup->core_id;
+		if (cpup->core_id < min_core_id)
+			min_core_id = cpup->core_id;
+
 		cpup++;
 	}
 
-	for (idx = 0; idx <  phba->cfg_hdw_queue; idx++) {
-		cpup = &phba->sli4_hba.cpu_map[idx];
-		cpup->irq = pci_irq_vector(phba->pcidev, idx);
+	/*
+	 * If the number of IRQ vectors == number of CPUs,
+	 * mapping is pretty simple: 1 to 1.
+	 * This is the desired path if NVME is enabled.
+	 */
+	if (vectors == phba->sli4_hba.num_present_cpu) {
+		cpup = phba->sli4_hba.cpu_map;
+		for (idx = 0; idx < vectors; idx++) {
+			cpup->eq = idx;
+			cpup->hdwq = idx;
+			cpup->irq = pci_irq_vector(phba->pcidev, idx);
 
-		/* For now assume vector N maps to CPU N */
-		irq_set_affinity_hint(cpup->irq, get_cpu_mask(idx));
-		cpup->hdwq = idx;
+			/* Now affinitize to the selected CPU */
+			irq_set_affinity_hint(
+				pci_irq_vector(phba->pcidev, idx),
+				get_cpu_mask(idx));
+			irq_set_status_flags(cpup->irq, IRQ_NO_BALANCING);
 
-		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
-			"3336 Set Affinity: CPU %d "
-			"hdwq %d irq %d\n",
-			cpu, cpup->hdwq, cpup->irq);
+			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+					"3336 Set Affinity: CPU %d "
+					"EQ %d irq %d\n",
+					idx, cpup->eq,
+					pci_irq_vector(phba->pcidev, idx));
+			cpup++;
+		}
+		return;
+	}
+
+	idx = 0;
+	isr_avail = 1;
+	eqidx = 0;
+	hdwqidx = 0;
+
+	/* Mapping is more complicated for this case. Hardware Queues are
+	 * assigned in a "ping pong" fashion, ping pong-ing between the
+	 * available phys_id's.
+	 */
+	while (idx < phba->sli4_hba.num_present_cpu) {
+		for (i = min_core_id; i <= max_core_id; i++) {
+			for (j = min_phys_id; j <= max_phys_id; j++) {
+				cpup = lpfc_find_cpu_map(phba, j, i, hdwqidx,
+							 eqidx, isr_avail);
+				if (!cpup)
+					continue;
+				idx++;
+				hdwqidx++;
+				if (hdwqidx >= phba->cfg_hdw_queue)
+					hdwqidx = 0;
+				eqidx++;
+				if (eqidx >= phba->cfg_irq_chann) {
+					isr_avail = 0;
+					eqidx = 0;
+				}
+			}
+		}
 	}
 	return;
 }
-
 
 /**
  * lpfc_sli4_enable_msix - Enable MSI-X interrupt mode to SLI-4 device
@@ -10524,7 +10845,7 @@ lpfc_sli4_enable_msix(struct lpfc_hba *phba)
 	char *name;
 
 	/* Set up MSI-X multi-message vectors */
-	vectors = phba->cfg_hdw_queue;
+	vectors = phba->cfg_irq_chann;
 
 	rc = pci_alloc_irq_vectors(phba->pcidev,
 				(phba->nvmet_support) ? 1 : 2,
@@ -10545,7 +10866,6 @@ lpfc_sli4_enable_msix(struct lpfc_hba *phba)
 
 		phba->sli4_hba.hba_eq_hdl[index].idx = index;
 		phba->sli4_hba.hba_eq_hdl[index].phba = phba;
-		atomic_set(&phba->sli4_hba.hba_eq_hdl[index].hba_eq_in_use, 1);
 		rc = request_irq(pci_irq_vector(phba->pcidev, index),
 			 &lpfc_sli4_hba_intr_handler, 0,
 			 name,
@@ -10558,17 +10878,16 @@ lpfc_sli4_enable_msix(struct lpfc_hba *phba)
 		}
 	}
 
-	if (vectors != phba->cfg_hdw_queue) {
+	if (vectors != phba->cfg_irq_chann) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"3238 Reducing IO channels to match number of "
 				"MSI-X vectors, requested %d got %d\n",
-				phba->cfg_hdw_queue, vectors);
-		if (phba->cfg_hdw_queue > vectors)
-			phba->cfg_hdw_queue = vectors;
+				phba->cfg_irq_chann, vectors);
+		if (phba->cfg_irq_chann > vectors)
+			phba->cfg_irq_chann = vectors;
 		if (phba->cfg_nvmet_mrq > vectors)
 			phba->cfg_nvmet_mrq = vectors;
 	}
-	lpfc_cpu_affinity_check(phba);
 
 	return rc;
 
@@ -10623,7 +10942,7 @@ lpfc_sli4_enable_msi(struct lpfc_hba *phba)
 		return rc;
 	}
 
-	for (index = 0; index < phba->cfg_hdw_queue; index++) {
+	for (index = 0; index < phba->cfg_irq_chann; index++) {
 		phba->sli4_hba.hba_eq_hdl[index].idx = index;
 		phba->sli4_hba.hba_eq_hdl[index].phba = phba;
 	}
@@ -10688,11 +11007,10 @@ lpfc_sli4_enable_intr(struct lpfc_hba *phba, uint32_t cfg_mode)
 			phba->intr_type = INTx;
 			intr_mode = 0;
 
-			for (idx = 0; idx < phba->cfg_hdw_queue; idx++) {
+			for (idx = 0; idx < phba->cfg_irq_chann; idx++) {
 				eqhdl = &phba->sli4_hba.hba_eq_hdl[idx];
 				eqhdl->idx = idx;
 				eqhdl->phba = phba;
-				atomic_set(&eqhdl->hba_eq_in_use, 1);
 			}
 		}
 	}
@@ -10716,7 +11034,7 @@ lpfc_sli4_disable_intr(struct lpfc_hba *phba)
 		int index;
 
 		/* Free up MSI-X multi-message vectors */
-		for (index = 0; index < phba->cfg_hdw_queue; index++) {
+		for (index = 0; index < phba->cfg_irq_chann; index++) {
 			irq_set_affinity_hint(
 				pci_irq_vector(phba->pcidev, index),
 				NULL);
@@ -12092,12 +12410,13 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 	}
 	/* Default to single EQ for non-MSI-X */
 	if (phba->intr_type != MSIX) {
-		phba->cfg_hdw_queue = 1;
+		phba->cfg_irq_chann = 1;
 		if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
 			if (phba->nvmet_support)
 				phba->cfg_nvmet_mrq = 1;
 		}
 	}
+	lpfc_cpu_affinity_check(phba, phba->cfg_irq_chann);
 
 	/* Create SCSI host to the physical port */
 	error = lpfc_create_shost(phba);

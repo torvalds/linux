@@ -211,9 +211,8 @@ struct lpfc_sli_intf {
 #define LPFC_DEF_IMAX          150000
 
 #define LPFC_MIN_CPU_MAP       0
-#define LPFC_MAX_CPU_MAP       2
+#define LPFC_MAX_CPU_MAP       1
 #define LPFC_HBA_CPU_MAP       1
-#define LPFC_DRIVER_CPU_MAP    2  /* Default */
 
 /* PORT_CAPABILITIES constants. */
 #define LPFC_MAX_SUPPORTED_PAGES	8

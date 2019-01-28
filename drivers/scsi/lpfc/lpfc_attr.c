@@ -4958,7 +4958,7 @@ lpfc_fcp_imax_store(struct device *dev, struct device_attribute *attr,
 	phba->cfg_fcp_imax = (uint32_t)val;
 	phba->initial_imax = phba->cfg_fcp_imax;
 
-	for (i = 0; i < phba->cfg_hdw_queue; i += LPFC_MAX_EQ_DELAY_EQID_CNT)
+	for (i = 0; i < phba->cfg_irq_chann; i += LPFC_MAX_EQ_DELAY_EQID_CNT)
 		lpfc_modify_hba_eq_delay(phba, i, LPFC_MAX_EQ_DELAY_EQID_CNT,
 					 val);
 
@@ -5059,13 +5059,6 @@ lpfc_fcp_cpu_map_show(struct device *dev, struct device_attribute *attr,
 				phba->cfg_fcp_cpu_map,
 				phba->sli4_hba.num_online_cpu);
 		break;
-	case 2:
-		len += snprintf(buf + len, PAGE_SIZE-len,
-				"fcp_cpu_map: Driver centric mapping (%d): "
-				"%d online CPUs\n",
-				phba->cfg_fcp_cpu_map,
-				phba->sli4_hba.num_online_cpu);
-		break;
 	}
 
 	while (phba->sli4_hba.curr_disp_cpu < phba->sli4_hba.num_present_cpu) {
@@ -5076,35 +5069,35 @@ lpfc_fcp_cpu_map_show(struct device *dev, struct device_attribute *attr,
 				len += snprintf(
 					buf + len, PAGE_SIZE - len,
 					"CPU %02d hdwq None "
-					"physid %d coreid %d\n",
+					"physid %d coreid %d ht %d\n",
 					phba->sli4_hba.curr_disp_cpu,
 					cpup->phys_id,
-					cpup->core_id);
+					cpup->core_id, cpup->hyper);
 			else
 				len += snprintf(
 					buf + len, PAGE_SIZE - len,
-					"CPU %02d hdwq %04d "
-					"physid %d coreid %d\n",
+					"CPU %02d EQ %04d hdwq %04d "
+					"physid %d coreid %d ht %d\n",
 					phba->sli4_hba.curr_disp_cpu,
-					cpup->hdwq, cpup->phys_id,
-					cpup->core_id);
+					cpup->eq, cpup->hdwq, cpup->phys_id,
+					cpup->core_id, cpup->hyper);
 		} else {
 			if (cpup->hdwq == LPFC_VECTOR_MAP_EMPTY)
 				len += snprintf(
 					buf + len, PAGE_SIZE - len,
 					"CPU %02d hdwq None "
-					"physid %d coreid %d IRQ %d\n",
+					"physid %d coreid %d ht %d IRQ %d\n",
 					phba->sli4_hba.curr_disp_cpu,
 					cpup->phys_id,
-					cpup->core_id, cpup->irq);
+					cpup->core_id, cpup->hyper, cpup->irq);
 			else
 				len += snprintf(
 					buf + len, PAGE_SIZE - len,
-					"CPU %02d hdwq %04d "
-					"physid %d coreid %d IRQ %d\n",
+					"CPU %02d EQ %04d hdwq %04d "
+					"physid %d coreid %d ht %d IRQ %d\n",
 					phba->sli4_hba.curr_disp_cpu,
-					cpup->hdwq, cpup->phys_id,
-					cpup->core_id, cpup->irq);
+					cpup->eq, cpup->hdwq, cpup->phys_id,
+					cpup->core_id, cpup->hyper, cpup->irq);
 		}
 
 		phba->sli4_hba.curr_disp_cpu++;
@@ -5146,14 +5139,13 @@ lpfc_fcp_cpu_map_store(struct device *dev, struct device_attribute *attr,
 # lpfc_fcp_cpu_map: Defines how to map CPUs to IRQ vectors
 # for the HBA.
 #
-# Value range is [0 to 2]. Default value is LPFC_DRIVER_CPU_MAP (2).
+# Value range is [0 to 1]. Default value is LPFC_HBA_CPU_MAP (1).
 #	0 - Do not affinitze IRQ vectors
 #	1 - Affintize HBA vectors with respect to each HBA
 #	    (start with CPU0 for each HBA)
-#	2 - Affintize HBA vectors with respect to the entire driver
-#	    (round robin thru all CPUs across all HBAs)
+# This also defines how Hardware Queues are mapped to specific CPUs.
 */
-static int lpfc_fcp_cpu_map = LPFC_DRIVER_CPU_MAP;
+static int lpfc_fcp_cpu_map = LPFC_HBA_CPU_MAP;
 module_param(lpfc_fcp_cpu_map, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(lpfc_fcp_cpu_map,
 		 "Defines how to map CPUs to IRQ vectors per HBA");
@@ -5187,7 +5179,7 @@ lpfc_fcp_cpu_map_init(struct lpfc_hba *phba, int val)
 	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 			"3326 lpfc_fcp_cpu_map: %d out of range, using "
 			"default\n", val);
-	phba->cfg_fcp_cpu_map = LPFC_DRIVER_CPU_MAP;
+	phba->cfg_fcp_cpu_map = LPFC_HBA_CPU_MAP;
 
 	return 0;
 }
@@ -5308,7 +5300,7 @@ LPFC_ATTR_R(xri_rebalancing, 1, 0, 1, "Enable/Disable XRI rebalancing");
  * CPU. Otherwise, the default 0 (Round Robin) scheduling of FCP/NVME I/Os
  * through WQs will be used.
  */
-LPFC_ATTR_RW(fcp_io_sched, LPFC_FCP_SCHED_BY_HDWQ,
+LPFC_ATTR_RW(fcp_io_sched, LPFC_FCP_SCHED_BY_CPU,
 	     LPFC_FCP_SCHED_BY_HDWQ,
 	     LPFC_FCP_SCHED_BY_CPU,
 	     "Determine scheduling algorithm for "
@@ -5474,23 +5466,39 @@ LPFC_ATTR_RW(nvme_embed_cmd, 1, 0, 2,
 	     "Embed NVME Command in WQE");
 
 /*
- * lpfc_hdw_queue: Set the number of IO channels the driver
+ * lpfc_hdw_queue: Set the number of Hardware Queues the driver
  * will advertise it supports to the NVME and  SCSI layers. This also
- * will map to the number of EQ/CQ/WQs the driver will create.
+ * will map to the number of CQ/WQ pairs the driver will create.
  *
  * The NVME Layer will try to create this many, plus 1 administrative
  * hardware queue. The administrative queue will always map to WQ 0
- * A hardware IO queue maps (qidx) to a specific driver WQ.
+ * A hardware IO queue maps (qidx) to a specific driver CQ/WQ.
  *
  *      0    = Configure the number of hdw queues to the number of active CPUs.
- *      1,64 = Manually specify how many hdw queues to use.
+ *      1,128 = Manually specify how many hdw queues to use.
  *
- * Value range is [0,64]. Default value is 0.
+ * Value range is [0,128]. Default value is 0.
  */
 LPFC_ATTR_R(hdw_queue,
 	    LPFC_HBA_HDWQ_DEF,
 	    LPFC_HBA_HDWQ_MIN, LPFC_HBA_HDWQ_MAX,
 	    "Set the number of I/O Hardware Queues");
+
+/*
+ * lpfc_irq_chann: Set the number of IRQ vectors that are available
+ * for Hardware Queues to utilize.  This also will map to the number
+ * of EQ / MSI-X vectors the driver will create. This should never be
+ * more than the number of Hardware Queues
+ *
+ *      0     = Configure number of IRQ Channels to the number of active CPUs.
+ *      1,128 = Manually specify how many IRQ Channels to use.
+ *
+ * Value range is [0,128]. Default value is 0.
+ */
+LPFC_ATTR_R(irq_chann,
+	    LPFC_HBA_HDWQ_DEF,
+	    LPFC_HBA_HDWQ_MIN, LPFC_HBA_HDWQ_MAX,
+	    "Set the number of I/O IRQ Channels");
 
 /*
 # lpfc_enable_hba_reset: Allow or prevent HBA resets to the hardware.
@@ -5531,16 +5539,6 @@ LPFC_ATTR_RW(XLanePriority, 0, 0x0, 0x7f, "CS_CTL for Express Lane Feature.");
 # Value range is [0,1]. Default value is 0.
 */
 LPFC_ATTR_R(enable_bg, 0, 0, 1, "Enable BlockGuard Support");
-
-/*
-# lpfc_fcp_look_ahead: Look ahead for completions in FCP start routine
-#       0  = disabled (default)
-#       1  = enabled
-# Value range is [0,1]. Default value is 0.
-#
-# This feature in under investigation and may be supported in the future.
-*/
-unsigned int lpfc_fcp_look_ahead = LPFC_LOOK_AHEAD_OFF;
 
 /*
 # lpfc_prot_mask: i
@@ -5788,6 +5786,7 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_lpfc_fcp_imax,
 	&dev_attr_lpfc_fcp_cpu_map,
 	&dev_attr_lpfc_hdw_queue,
+	&dev_attr_lpfc_irq_chann,
 	&dev_attr_lpfc_suppress_rsp,
 	&dev_attr_lpfc_nvmet_mrq,
 	&dev_attr_lpfc_nvmet_mrq_post,
@@ -6867,6 +6866,7 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	lpfc_nvme_enable_fb_init(phba, lpfc_nvme_enable_fb);
 	lpfc_nvmet_fb_size_init(phba, lpfc_nvmet_fb_size);
 	lpfc_hdw_queue_init(phba, lpfc_hdw_queue);
+	lpfc_irq_chann_init(phba, lpfc_irq_chann);
 	lpfc_enable_bbcr_init(phba, lpfc_enable_bbcr);
 	lpfc_enable_dpp_init(phba, lpfc_enable_dpp);
 
@@ -6891,6 +6891,10 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	/* A value of 0 means use the number of CPUs found in the system */
 	if (phba->cfg_hdw_queue == 0)
 		phba->cfg_hdw_queue = phba->sli4_hba.num_present_cpu;
+	if (phba->cfg_irq_chann == 0)
+		phba->cfg_irq_chann = phba->sli4_hba.num_present_cpu;
+	if (phba->cfg_irq_chann > phba->cfg_hdw_queue)
+		phba->cfg_irq_chann = phba->cfg_hdw_queue;
 
 	phba->cfg_soft_wwnn = 0L;
 	phba->cfg_soft_wwpn = 0L;
@@ -6933,6 +6937,10 @@ lpfc_nvme_mod_param_dep(struct lpfc_hba *phba)
 {
 	if (phba->cfg_hdw_queue > phba->sli4_hba.num_present_cpu)
 		phba->cfg_hdw_queue = phba->sli4_hba.num_present_cpu;
+	if (phba->cfg_irq_chann > phba->sli4_hba.num_present_cpu)
+		phba->cfg_irq_chann = phba->sli4_hba.num_present_cpu;
+	if (phba->cfg_irq_chann > phba->cfg_hdw_queue)
+		phba->cfg_irq_chann = phba->cfg_hdw_queue;
 
 	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME &&
 	    phba->nvmet_support) {
@@ -6953,11 +6961,11 @@ lpfc_nvme_mod_param_dep(struct lpfc_hba *phba)
 		}
 
 		if (!phba->cfg_nvmet_mrq)
-			phba->cfg_nvmet_mrq = phba->cfg_hdw_queue;
+			phba->cfg_nvmet_mrq = phba->cfg_irq_chann;
 
 		/* Adjust lpfc_nvmet_mrq to avoid running out of WQE slots */
-		if (phba->cfg_nvmet_mrq > phba->cfg_hdw_queue) {
-			phba->cfg_nvmet_mrq = phba->cfg_hdw_queue;
+		if (phba->cfg_nvmet_mrq > phba->cfg_irq_chann) {
+			phba->cfg_nvmet_mrq = phba->cfg_irq_chann;
 			lpfc_printf_log(phba, KERN_ERR, LOG_NVME_DISC,
 					"6018 Adjust lpfc_nvmet_mrq to %d\n",
 					phba->cfg_nvmet_mrq);

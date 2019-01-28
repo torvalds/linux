@@ -84,8 +84,6 @@ struct lpfc_sli2_slim;
 #define LPFC_HB_MBOX_INTERVAL   5	/* Heart beat interval in seconds. */
 #define LPFC_HB_MBOX_TIMEOUT    30	/* Heart beat timeout  in seconds. */
 
-#define LPFC_LOOK_AHEAD_OFF	0	/* Look ahead logic is turned off */
-
 /* Error Attention event polling interval */
 #define LPFC_ERATT_POLL_INTERVAL	5 /* EATT poll interval in seconds */
 
@@ -821,6 +819,7 @@ struct lpfc_hba {
 	uint32_t cfg_fcp_imax;
 	uint32_t cfg_fcp_cpu_map;
 	uint32_t cfg_hdw_queue;
+	uint32_t cfg_irq_chann;
 	uint32_t cfg_suppress_rsp;
 	uint32_t cfg_nvme_oas;
 	uint32_t cfg_nvme_embed_cmd;
@@ -1042,6 +1041,9 @@ struct lpfc_hba {
 	struct dentry *debug_nvmeio_trc;
 	struct lpfc_debugfs_nvmeio_trc *nvmeio_trc;
 	struct dentry *debug_hdwqinfo;
+#ifdef LPFC_HDWQ_LOCK_STAT
+	struct dentry *debug_lockstat;
+#endif
 	atomic_t nvmeio_trc_cnt;
 	uint32_t nvmeio_trc_size;
 	uint32_t nvmeio_trc_output_idx;
@@ -1161,6 +1163,7 @@ struct lpfc_hba {
 #define LPFC_CHECK_NVME_IO	1
 #define LPFC_CHECK_NVMET_RCV	2
 #define LPFC_CHECK_NVMET_IO	4
+#define LPFC_CHECK_SCSI_IO	8
 	uint16_t ktime_on;
 	uint64_t ktime_data_samples;
 	uint64_t ktime_status_samples;

@@ -440,7 +440,6 @@ extern spinlock_t _dump_buf_lock;
 extern int _dump_buf_done;
 extern spinlock_t pgcnt_lock;
 extern unsigned int pgcnt;
-extern unsigned int lpfc_fcp_look_ahead;
 
 /* Interface exported by fabric iocb scheduler */
 void lpfc_fabric_abort_nport(struct lpfc_nodelist *);

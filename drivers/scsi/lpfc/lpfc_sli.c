@@ -5586,7 +5586,7 @@ lpfc_sli4_arm_cqeq_intr(struct lpfc_hba *phba)
 						LPFC_QUEUE_REARM);
 		}
 
-		for (qidx = 0; qidx < phba->cfg_hdw_queue; qidx++)
+		for (qidx = 0; qidx < phba->cfg_irq_chann; qidx++)
 			sli4_hba->sli4_eq_release(qp[qidx].hba_eq,
 						LPFC_QUEUE_REARM);
 	}
@@ -7878,7 +7878,7 @@ lpfc_sli4_process_missed_mbox_completions(struct lpfc_hba *phba)
 	/* Find the eq associated with the mcq */
 
 	if (sli4_hba->hdwq)
-		for (eqidx = 0; eqidx < phba->cfg_hdw_queue; eqidx++)
+		for (eqidx = 0; eqidx < phba->cfg_irq_chann; eqidx++)
 			if (sli4_hba->hdwq[eqidx].hba_eq->queue_id ==
 			    sli4_hba->mbx_cq->assoc_qid) {
 				fpeq = sli4_hba->hdwq[eqidx].hba_eq;
@@ -10058,12 +10058,9 @@ int
 lpfc_sli_issue_iocb(struct lpfc_hba *phba, uint32_t ring_number,
 		    struct lpfc_iocbq *piocb, uint32_t flag)
 {
-	struct lpfc_hba_eq_hdl *hba_eq_hdl;
 	struct lpfc_sli_ring *pring;
-	struct lpfc_queue *fpeq;
-	struct lpfc_eqe *eqe;
 	unsigned long iflags;
-	int rc, idx;
+	int rc;
 
 	if (phba->sli_rev == LPFC_SLI_REV4) {
 		pring = lpfc_sli4_calc_ring(phba, piocb);
@@ -10073,34 +10070,6 @@ lpfc_sli_issue_iocb(struct lpfc_hba *phba, uint32_t ring_number,
 		spin_lock_irqsave(&pring->ring_lock, iflags);
 		rc = __lpfc_sli_issue_iocb(phba, ring_number, piocb, flag);
 		spin_unlock_irqrestore(&pring->ring_lock, iflags);
-
-		if (lpfc_fcp_look_ahead && (piocb->iocb_flag &  LPFC_IO_FCP)) {
-			idx = piocb->hba_wqidx;
-			hba_eq_hdl = &phba->sli4_hba.hba_eq_hdl[idx];
-
-			if (atomic_dec_and_test(&hba_eq_hdl->hba_eq_in_use)) {
-
-				/* Get associated EQ with this index */
-				fpeq = phba->sli4_hba.hdwq[idx].hba_eq;
-
-				/* Turn off interrupts from this EQ */
-				phba->sli4_hba.sli4_eq_clr_intr(fpeq);
-
-				/*
-				 * Process all the events on FCP EQ
-				 */
-				while ((eqe = lpfc_sli4_eq_get(fpeq))) {
-					lpfc_sli4_hba_handle_eqe(phba,
-						eqe, idx);
-					fpeq->EQ_processed++;
-				}
-
-				/* Always clear and re-arm the EQ */
-				phba->sli4_hba.sli4_eq_release(fpeq,
-					LPFC_QUEUE_REARM);
-			}
-			atomic_inc(&hba_eq_hdl->hba_eq_in_use);
-		}
 	} else {
 		/* For now, SLI2/3 will still use hbalock */
 		spin_lock_irqsave(&phba->hbalock, iflags);
@@ -13651,7 +13620,7 @@ lpfc_sli4_sp_handle_eqe(struct lpfc_hba *phba, struct lpfc_eqe *eqe,
 	/* Save EQ associated with this CQ */
 	cq->assoc_qp = speq;
 
-	if (!queue_work(phba->wq, &cq->spwork))
+	if (!queue_work_on(cq->chann, phba->wq, &cq->spwork))
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 				"0390 Cannot schedule soft IRQ "
 				"for CQ eqcqid=%d, cqid=%d on CPU %d\n",
@@ -14057,18 +14026,11 @@ lpfc_sli4_hba_handle_eqe(struct lpfc_hba *phba, struct lpfc_eqe *eqe,
 	/* Get the reference to the corresponding CQ */
 	cqid = bf_get_le32(lpfc_eqe_resource_id, eqe);
 
-	/* First check for NVME/SCSI completion */
-	if ((phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) &&
-	    (cqid == phba->sli4_hba.hdwq[qidx].nvme_cq_map)) {
-		/* Process NVME / NVMET command completion */
-		cq = phba->sli4_hba.hdwq[qidx].nvme_cq;
-		goto  process_cq;
-	}
-
-	if (cqid == phba->sli4_hba.hdwq[qidx].fcp_cq_map) {
-		/* Process FCP command completion */
-		cq = phba->sli4_hba.hdwq[qidx].fcp_cq;
-		goto  process_cq;
+	/* Use the fast lookup method first */
+	if (cqid <= phba->sli4_hba.cq_max) {
+		cq = phba->sli4_hba.cq_lookup[cqid];
+		if (cq)
+			goto  work_cq;
 	}
 
 	/* Next check for NVMET completion */
@@ -14103,9 +14065,7 @@ process_cq:
 		return;
 	}
 
-	/* Save EQ associated with this CQ */
-	cq->assoc_qp = phba->sli4_hba.hdwq[qidx].hba_eq;
-
+work_cq:
 	if (!queue_work_on(cq->chann, phba->wq, &cq->irqwork))
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 				"0363 Cannot schedule soft IRQ "
@@ -14233,15 +14193,6 @@ lpfc_sli4_hba_intr_handler(int irq, void *dev_id)
 	if (unlikely(!fpeq))
 		return IRQ_NONE;
 
-	if (lpfc_fcp_look_ahead) {
-		if (atomic_dec_and_test(&hba_eq_hdl->hba_eq_in_use))
-			phba->sli4_hba.sli4_eq_clr_intr(fpeq);
-		else {
-			atomic_inc(&hba_eq_hdl->hba_eq_in_use);
-			return IRQ_NONE;
-		}
-	}
-
 	/* Check device state for handling interrupt */
 	if (unlikely(lpfc_intr_state_check(phba))) {
 		/* Check again for link_state with lock held */
@@ -14250,8 +14201,6 @@ lpfc_sli4_hba_intr_handler(int irq, void *dev_id)
 			/* Flush, clear interrupt, and rearm the EQ */
 			lpfc_sli4_eq_flush(phba, fpeq);
 		spin_unlock_irqrestore(&phba->hbalock, iflag);
-		if (lpfc_fcp_look_ahead)
-			atomic_inc(&hba_eq_hdl->hba_eq_in_use);
 		return IRQ_NONE;
 	}
 
@@ -14274,12 +14223,6 @@ lpfc_sli4_hba_intr_handler(int irq, void *dev_id)
 
 	if (unlikely(ecount == 0)) {
 		fpeq->EQ_no_entry++;
-
-		if (lpfc_fcp_look_ahead) {
-			atomic_inc(&hba_eq_hdl->hba_eq_in_use);
-			return IRQ_NONE;
-		}
-
 		if (phba->intr_type == MSIX)
 			/* MSI-X treated interrupt served as no EQ share INT */
 			lpfc_printf_log(phba, KERN_WARNING, LOG_SLI,
@@ -14288,9 +14231,6 @@ lpfc_sli4_hba_intr_handler(int irq, void *dev_id)
 			/* Non MSI-X treated on interrupt as EQ share INT */
 			return IRQ_NONE;
 	}
-
-	if (lpfc_fcp_look_ahead)
-		atomic_inc(&hba_eq_hdl->hba_eq_in_use);
 
 	return IRQ_HANDLED;
 } /* lpfc_sli4_fp_intr_handler */
@@ -14329,7 +14269,7 @@ lpfc_sli4_intr_handler(int irq, void *dev_id)
 	/*
 	 * Invoke fast-path host attention interrupt handling as appropriate.
 	 */
-	for (qidx = 0; qidx < phba->cfg_hdw_queue; qidx++) {
+	for (qidx = 0; qidx < phba->cfg_irq_chann; qidx++) {
 		hba_irq_rc = lpfc_sli4_hba_intr_handler(irq,
 					&phba->sli4_hba.hba_eq_hdl[qidx]);
 		if (hba_irq_rc == IRQ_HANDLED)
@@ -14516,7 +14456,7 @@ lpfc_modify_hba_eq_delay(struct lpfc_hba *phba, uint32_t startq,
 	union lpfc_sli4_cfg_shdr *shdr;
 	uint16_t dmult;
 
-	if (startq >= phba->cfg_hdw_queue)
+	if (startq >= phba->cfg_irq_chann)
 		return 0;
 
 	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
@@ -14530,7 +14470,7 @@ lpfc_modify_hba_eq_delay(struct lpfc_hba *phba, uint32_t startq,
 	eq_delay = &mbox->u.mqe.un.eq_delay;
 
 	/* Calculate delay multiper from maximum interrupt per second */
-	result = imax / phba->cfg_hdw_queue;
+	result = imax / phba->cfg_irq_chann;
 	if (result > LPFC_DMULT_CONST || result == 0)
 		dmult = 0;
 	else
@@ -14539,7 +14479,7 @@ lpfc_modify_hba_eq_delay(struct lpfc_hba *phba, uint32_t startq,
 		dmult = LPFC_DMULT_MAX;
 
 	cnt = 0;
-	for (qidx = startq; qidx < phba->cfg_hdw_queue; qidx++) {
+	for (qidx = startq; qidx < phba->cfg_irq_chann; qidx++) {
 		eq = phba->sli4_hba.hdwq[qidx].hba_eq;
 		if (!eq)
 			continue;
@@ -14557,7 +14497,7 @@ lpfc_modify_hba_eq_delay(struct lpfc_hba *phba, uint32_t startq,
 			val =  phba->cfg_fcp_imax;
 			if (val) {
 				/* First, interrupts per sec per EQ */
-				val = phba->cfg_fcp_imax / phba->cfg_hdw_queue;
+				val = phba->cfg_fcp_imax / phba->cfg_irq_chann;
 
 				/* us delay between each interrupt */
 				val = LPFC_SEC_TO_USEC / val;
@@ -14852,10 +14792,13 @@ lpfc_cq_create(struct lpfc_hba *phba, struct lpfc_queue *cq,
 	cq->subtype = subtype;
 	cq->queue_id = bf_get(lpfc_mbx_cq_create_q_id, &cq_create->u.response);
 	cq->assoc_qid = eq->queue_id;
+	cq->assoc_qp = eq;
 	cq->host_index = 0;
 	cq->hba_index = 0;
 	cq->entry_repost = LPFC_CQ_REPOST;
 
+	if (cq->queue_id > phba->sli4_hba.cq_max)
+		phba->sli4_hba.cq_max = cq->queue_id;
 out:
 	mempool_free(mbox, phba->mbox_mem_pool);
 	return status;
@@ -15061,6 +15004,7 @@ lpfc_cq_create_set(struct lpfc_hba *phba, struct lpfc_queue **cqp,
 		cq->type = type;
 		cq->subtype = subtype;
 		cq->assoc_qid = eq->queue_id;
+		cq->assoc_qp = eq;
 		cq->host_index = 0;
 		cq->hba_index = 0;
 		cq->entry_repost = LPFC_CQ_REPOST;
@@ -15101,6 +15045,8 @@ lpfc_cq_create_set(struct lpfc_hba *phba, struct lpfc_queue **cqp,
 	for (idx = 0; idx < numcq; idx++) {
 		cq = cqp[idx];
 		cq->queue_id = rc + idx;
+		if (cq->queue_id > phba->sli4_hba.cq_max)
+			phba->sli4_hba.cq_max = cq->queue_id;
 	}
 
 out:
@@ -19664,7 +19610,8 @@ lpfc_sli4_issue_wqe(struct lpfc_hba *phba, struct lpfc_sli4_hdw_queue *qp,
 	/* NVME_LS and NVME_LS ABTS requests. */
 	if (pwqe->iocb_flag & LPFC_IO_NVME_LS) {
 		pring =  phba->sli4_hba.nvmels_wq->pring;
-		spin_lock_irqsave(&pring->ring_lock, iflags);
+		lpfc_qp_spin_lock_irqsave(&pring->ring_lock, iflags,
+					  qp, wq_access);
 		sglq = __lpfc_sli_get_els_sglq(phba, pwqe);
 		if (!sglq) {
 			spin_unlock_irqrestore(&pring->ring_lock, iflags);
@@ -19697,7 +19644,8 @@ lpfc_sli4_issue_wqe(struct lpfc_hba *phba, struct lpfc_sli4_hdw_queue *qp,
 
 		bf_set(wqe_cqid, &wqe->generic.wqe_com, qp->nvme_cq_map);
 
-		spin_lock_irqsave(&pring->ring_lock, iflags);
+		lpfc_qp_spin_lock_irqsave(&pring->ring_lock, iflags,
+					  qp, wq_access);
 		ret = lpfc_sli4_wq_put(wq, wqe);
 		if (ret) {
 			spin_unlock_irqrestore(&pring->ring_lock, iflags);
@@ -19724,7 +19672,8 @@ lpfc_sli4_issue_wqe(struct lpfc_hba *phba, struct lpfc_sli4_hdw_queue *qp,
 		       pwqe->sli4_xritag);
 		bf_set(wqe_cqid, &wqe->generic.wqe_com, qp->nvme_cq_map);
 
-		spin_lock_irqsave(&pring->ring_lock, iflags);
+		lpfc_qp_spin_lock_irqsave(&pring->ring_lock, iflags,
+					  qp, wq_access);
 		ret = lpfc_sli4_wq_put(wq, wqe);
 		if (ret) {
 			spin_unlock_irqrestore(&pring->ring_lock, iflags);
@@ -19872,18 +19821,20 @@ void lpfc_move_xri_pvt_to_pbl(struct lpfc_hba *phba, u32 hwqid)
 {
 	struct lpfc_pbl_pool *pbl_pool;
 	struct lpfc_pvt_pool *pvt_pool;
+	struct lpfc_sli4_hdw_queue *qp;
 	struct lpfc_io_buf *lpfc_ncmd;
 	struct lpfc_io_buf *lpfc_ncmd_next;
 	unsigned long iflag;
 	struct list_head tmp_list;
 	u32 tmp_count;
 
-	pbl_pool = &phba->sli4_hba.hdwq[hwqid].p_multixri_pool->pbl_pool;
-	pvt_pool = &phba->sli4_hba.hdwq[hwqid].p_multixri_pool->pvt_pool;
+	qp = &phba->sli4_hba.hdwq[hwqid];
+	pbl_pool = &qp->p_multixri_pool->pbl_pool;
+	pvt_pool = &qp->p_multixri_pool->pvt_pool;
 	tmp_count = 0;
 
-	spin_lock_irqsave(&pbl_pool->lock, iflag);
-	spin_lock(&pvt_pool->lock);
+	lpfc_qp_spin_lock_irqsave(&pbl_pool->lock, iflag, qp, mv_to_pub_pool);
+	lpfc_qp_spin_lock(&pvt_pool->lock, qp, mv_from_pvt_pool);
 
 	if (pvt_pool->count > pvt_pool->low_watermark) {
 		/* Step 1: move (all - low_watermark) from pvt_pool
@@ -19936,7 +19887,8 @@ void lpfc_move_xri_pvt_to_pbl(struct lpfc_hba *phba, u32 hwqid)
  *   false - if the specified pbl_pool is empty or locked by someone else
  **/
 static bool
-_lpfc_move_xri_pbl_to_pvt(struct lpfc_hba *phba, struct lpfc_pbl_pool *pbl_pool,
+_lpfc_move_xri_pbl_to_pvt(struct lpfc_hba *phba, struct lpfc_sli4_hdw_queue *qp,
+			  struct lpfc_pbl_pool *pbl_pool,
 			  struct lpfc_pvt_pool *pvt_pool, u32 count)
 {
 	struct lpfc_io_buf *lpfc_ncmd;
@@ -19948,7 +19900,7 @@ _lpfc_move_xri_pbl_to_pvt(struct lpfc_hba *phba, struct lpfc_pbl_pool *pbl_pool,
 	if (ret) {
 		if (pbl_pool->count) {
 			/* Move a batch of XRIs from public to private pool */
-			spin_lock(&pvt_pool->lock);
+			lpfc_qp_spin_lock(&pvt_pool->lock, qp, mv_to_pvt_pool);
 			list_for_each_entry_safe(lpfc_ncmd,
 						 lpfc_ncmd_next,
 						 &pbl_pool->list,
@@ -19990,16 +19942,18 @@ void lpfc_move_xri_pbl_to_pvt(struct lpfc_hba *phba, u32 hwqid, u32 count)
 	struct lpfc_multixri_pool *next_multixri_pool;
 	struct lpfc_pvt_pool *pvt_pool;
 	struct lpfc_pbl_pool *pbl_pool;
+	struct lpfc_sli4_hdw_queue *qp;
 	u32 next_hwqid;
 	u32 hwq_count;
 	int ret;
 
-	multixri_pool = phba->sli4_hba.hdwq[hwqid].p_multixri_pool;
+	qp = &phba->sli4_hba.hdwq[hwqid];
+	multixri_pool = qp->p_multixri_pool;
 	pvt_pool = &multixri_pool->pvt_pool;
 	pbl_pool = &multixri_pool->pbl_pool;
 
 	/* Check if local pbl_pool is available */
-	ret = _lpfc_move_xri_pbl_to_pvt(phba, pbl_pool, pvt_pool, count);
+	ret = _lpfc_move_xri_pbl_to_pvt(phba, qp, pbl_pool, pvt_pool, count);
 	if (ret) {
 #ifdef LPFC_MXP_STAT
 		multixri_pool->local_pbl_hit_count++;
@@ -20022,7 +19976,7 @@ void lpfc_move_xri_pbl_to_pvt(struct lpfc_hba *phba, u32 hwqid, u32 count)
 
 		/* Check if the public free xri pool is available */
 		ret = _lpfc_move_xri_pbl_to_pvt(
-			phba, pbl_pool, pvt_pool, count);
+			phba, qp, pbl_pool, pvt_pool, count);
 
 		/* Exit while-loop if success or all hwqid are checked */
 	} while (!ret && next_hwqid != multixri_pool->rrb_next_hwqid);
@@ -20138,20 +20092,23 @@ void lpfc_release_io_buf(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_ncmd,
 		if ((pvt_pool->count < pvt_pool->low_watermark) ||
 		    (xri_owned < xri_limit &&
 		     pvt_pool->count < pvt_pool->high_watermark)) {
-			spin_lock_irqsave(&pvt_pool->lock, iflag);
+			lpfc_qp_spin_lock_irqsave(&pvt_pool->lock, iflag,
+						  qp, free_pvt_pool);
 			list_add_tail(&lpfc_ncmd->list,
 				      &pvt_pool->list);
 			pvt_pool->count++;
 			spin_unlock_irqrestore(&pvt_pool->lock, iflag);
 		} else {
-			spin_lock_irqsave(&pbl_pool->lock, iflag);
+			lpfc_qp_spin_lock_irqsave(&pbl_pool->lock, iflag,
+						  qp, free_pub_pool);
 			list_add_tail(&lpfc_ncmd->list,
 				      &pbl_pool->list);
 			pbl_pool->count++;
 			spin_unlock_irqrestore(&pbl_pool->lock, iflag);
 		}
 	} else {
-		spin_lock_irqsave(&qp->io_buf_list_put_lock, iflag);
+		lpfc_qp_spin_lock_irqsave(&qp->io_buf_list_put_lock, iflag,
+					  qp, free_xri);
 		list_add_tail(&lpfc_ncmd->list,
 			      &qp->lpfc_io_buf_list_put);
 		qp->put_io_bufs++;
@@ -20174,6 +20131,7 @@ void lpfc_release_io_buf(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_ncmd,
  **/
 static struct lpfc_io_buf *
 lpfc_get_io_buf_from_private_pool(struct lpfc_hba *phba,
+				  struct lpfc_sli4_hdw_queue *qp,
 				  struct lpfc_pvt_pool *pvt_pool,
 				  struct lpfc_nodelist *ndlp)
 {
@@ -20181,7 +20139,7 @@ lpfc_get_io_buf_from_private_pool(struct lpfc_hba *phba,
 	struct lpfc_io_buf *lpfc_ncmd_next;
 	unsigned long iflag;
 
-	spin_lock_irqsave(&pvt_pool->lock, iflag);
+	lpfc_qp_spin_lock_irqsave(&pvt_pool->lock, iflag, qp, alloc_pvt_pool);
 	list_for_each_entry_safe(lpfc_ncmd, lpfc_ncmd_next,
 				 &pvt_pool->list, list) {
 		if (lpfc_test_rrq_active(
@@ -20276,7 +20234,7 @@ lpfc_get_io_buf_from_multixri_pools(struct lpfc_hba *phba,
 		lpfc_move_xri_pbl_to_pvt(phba, hwqid, XRI_BATCH);
 
 	/* Get one XRI from private free xri pool */
-	lpfc_ncmd = lpfc_get_io_buf_from_private_pool(phba, pvt_pool, ndlp);
+	lpfc_ncmd = lpfc_get_io_buf_from_private_pool(phba, qp, pvt_pool, ndlp);
 
 	if (lpfc_ncmd) {
 		lpfc_ncmd->hdwq = qp;
@@ -20349,11 +20307,13 @@ struct lpfc_io_buf *lpfc_get_io_buf(struct lpfc_hba *phba,
 		lpfc_cmd = lpfc_get_io_buf_from_multixri_pools(
 			phba, ndlp, hwqid, expedite);
 	else {
-		spin_lock_irqsave(&qp->io_buf_list_get_lock, iflag);
+		lpfc_qp_spin_lock_irqsave(&qp->io_buf_list_get_lock, iflag,
+					  qp, alloc_xri_get);
 		if (qp->get_io_bufs > LPFC_NVME_EXPEDITE_XRICNT || expedite)
 			lpfc_cmd = lpfc_io_buf(phba, ndlp, hwqid);
 		if (!lpfc_cmd) {
-			spin_lock(&qp->io_buf_list_put_lock);
+			lpfc_qp_spin_lock(&qp->io_buf_list_put_lock,
+					  qp, alloc_xri_put);
 			list_splice(&qp->lpfc_io_buf_list_put,
 				    &qp->lpfc_io_buf_list_get);
 			qp->get_io_bufs += qp->put_io_bufs;
