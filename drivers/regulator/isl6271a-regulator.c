@@ -65,14 +65,14 @@ static int isl6271a_set_voltage_sel(struct regulator_dev *dev,
 	return err;
 }
 
-static struct regulator_ops isl_core_ops = {
+static const struct regulator_ops isl_core_ops = {
 	.get_voltage_sel = isl6271a_get_voltage_sel,
 	.set_voltage_sel = isl6271a_set_voltage_sel,
 	.list_voltage	= regulator_list_voltage_linear,
 	.map_voltage	= regulator_map_voltage_linear,
 };
 
-static struct regulator_ops isl_fixed_ops = {
+static const struct regulator_ops isl_fixed_ops = {
 	.list_voltage	= regulator_list_voltage_linear,
 };
 
