@@ -4050,7 +4050,8 @@ i915_drop_caches_set(void *data, u64 val)
 		  val, val & DROP_ALL);
 	wakeref = intel_runtime_pm_get(i915);
 
-	if (val & DROP_RESET_ACTIVE && !intel_engines_are_idle(i915))
+	if (val & DROP_RESET_ACTIVE &&
+	    wait_for(intel_engines_are_idle(i915), I915_IDLE_ENGINES_TIMEOUT))
 		i915_gem_set_wedged(i915);
 
 	/* No need to check and wait for gpu resets, only libdrm auto-restarts
