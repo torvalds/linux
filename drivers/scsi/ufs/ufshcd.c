@@ -393,15 +393,20 @@ static void ufshcd_print_uic_err_hist(struct ufs_hba *hba,
 		struct ufs_uic_err_reg_hist *err_hist, char *err_name)
 {
 	int i;
+	bool found = false;
 
 	for (i = 0; i < UIC_ERR_REG_HIST_LENGTH; i++) {
-		int p = (i + err_hist->pos - 1) % UIC_ERR_REG_HIST_LENGTH;
+		int p = (i + err_hist->pos) % UIC_ERR_REG_HIST_LENGTH;
 
 		if (err_hist->reg[p] == 0)
 			continue;
 		dev_err(hba->dev, "%s[%d] = 0x%x at %lld us\n", err_name, i,
 			err_hist->reg[p], ktime_to_us(err_hist->tstamp[p]));
+		found = true;
 	}
+
+	if (!found)
+		dev_err(hba->dev, "No record of %s uic errors\n", err_name);
 }
 
 static void ufshcd_print_host_regs(struct ufs_hba *hba)
