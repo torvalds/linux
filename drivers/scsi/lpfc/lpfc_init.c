@@ -6373,8 +6373,8 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	u32 if_type;
 	u32 if_fam;
 
-	phba->sli4_hba.num_online_cpu = num_online_cpus();
 	phba->sli4_hba.num_present_cpu = lpfc_present_cpu;
+	phba->sli4_hba.num_possible_cpu = num_possible_cpus();
 	phba->sli4_hba.curr_disp_cpu = 0;
 
 	/* Get all the module params for configuring this host */
@@ -6796,7 +6796,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		goto out_free_fcf_rr_bmask;
 	}
 
-	phba->sli4_hba.cpu_map = kcalloc(phba->sli4_hba.num_present_cpu,
+	phba->sli4_hba.cpu_map = kcalloc(phba->sli4_hba.num_possible_cpu,
 					sizeof(struct lpfc_vector_map_info),
 					GFP_KERNEL);
 	if (!phba->sli4_hba.cpu_map) {
@@ -6868,8 +6868,8 @@ lpfc_sli4_driver_resource_unset(struct lpfc_hba *phba)
 
 	/* Free memory allocated for msi-x interrupt vector to CPU mapping */
 	kfree(phba->sli4_hba.cpu_map);
+	phba->sli4_hba.num_possible_cpu = 0;
 	phba->sli4_hba.num_present_cpu = 0;
-	phba->sli4_hba.num_online_cpu = 0;
 	phba->sli4_hba.curr_disp_cpu = 0;
 
 	/* Free memory allocated for fast-path work queue handles */
@@ -10519,15 +10519,14 @@ lpfc_find_cpu_handle(struct lpfc_hba *phba, uint16_t id, int match)
 	int cpu;
 
 	/* Find the desired phys_id for the specified EQ */
-	cpup = phba->sli4_hba.cpu_map;
-	for (cpu = 0; cpu < phba->sli4_hba.num_present_cpu; cpu++) {
+	for_each_present_cpu(cpu) {
+		cpup = &phba->sli4_hba.cpu_map[cpu];
 		if ((match == LPFC_FIND_BY_EQ) &&
 		    (cpup->irq != LPFC_VECTOR_MAP_EMPTY) &&
 		    (cpup->eq == id))
 			return cpu;
 		if ((match == LPFC_FIND_BY_HDWQ) && (cpup->hdwq == id))
 			return cpu;
-		cpup++;
 	}
 	return 0;
 }
@@ -10545,11 +10544,10 @@ lpfc_find_eq_handle(struct lpfc_hba *phba, uint16_t hdwq)
 	int cpu;
 
 	/* Find the desired phys_id for the specified EQ */
-	cpup = phba->sli4_hba.cpu_map;
-	for (cpu = 0; cpu < phba->sli4_hba.num_present_cpu; cpu++) {
+	for_each_present_cpu(cpu) {
+		cpup = &phba->sli4_hba.cpu_map[cpu];
 		if (cpup->hdwq == hdwq)
 			return cpup->eq;
-		cpup++;
 	}
 	return 0;
 }
@@ -10569,15 +10567,13 @@ lpfc_find_hyper(struct lpfc_hba *phba, int cpu,
 	struct lpfc_vector_map_info *cpup;
 	int idx;
 
-	cpup = phba->sli4_hba.cpu_map;
-	for (idx = 0; idx < phba->sli4_hba.num_present_cpu; idx++) {
+	for_each_present_cpu(idx) {
+		cpup = &phba->sli4_hba.cpu_map[idx];
 		/* Does the cpup match the one we are looking for */
 		if ((cpup->phys_id == phys_id) &&
 		    (cpup->core_id == core_id) &&
-		    (cpu != idx)) {
+		    (cpu != idx))
 			return 1;
-		}
-		cpup++;
 	}
 	return 0;
 }
@@ -10608,7 +10604,7 @@ lpfc_cpu_affinity_check(struct lpfc_hba *phba, int vectors)
 	/* Init cpu_map array */
 	memset(phba->sli4_hba.cpu_map, 0xff,
 	       (sizeof(struct lpfc_vector_map_info) *
-	       phba->sli4_hba.num_present_cpu));
+	       phba->sli4_hba.num_possible_cpu));
 
 	max_phys_id = 0;
 	min_phys_id = 0xffff;
@@ -10617,8 +10613,8 @@ lpfc_cpu_affinity_check(struct lpfc_hba *phba, int vectors)
 	phys_id = 0;
 
 	/* Update CPU map with physical id and core id of each CPU */
-	cpup = phba->sli4_hba.cpu_map;
-	for (cpu = 0; cpu < phba->sli4_hba.num_present_cpu; cpu++) {
+	for_each_present_cpu(cpu) {
+		cpup = &phba->sli4_hba.cpu_map[cpu];
 #ifdef CONFIG_X86
 		cpuinfo = &cpu_data(cpu);
 		cpup->phys_id = cpuinfo->phys_proc_id;
@@ -10645,8 +10641,6 @@ lpfc_cpu_affinity_check(struct lpfc_hba *phba, int vectors)
 			max_core_id = cpup->core_id;
 		if (cpup->core_id < min_core_id)
 			min_core_id = cpup->core_id;
-
-		cpup++;
 	}
 
 	for_each_possible_cpu(i) {

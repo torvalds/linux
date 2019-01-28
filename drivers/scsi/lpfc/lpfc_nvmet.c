@@ -1194,9 +1194,9 @@ lpfc_nvmet_cleanup_io_context(struct lpfc_hba *phba)
 
 	/* Cycle the the entire CPU context list for every MRQ */
 	for (i = 0; i < phba->cfg_nvmet_mrq; i++) {
-		for (j = 0; j < phba->sli4_hba.num_present_cpu; j++) {
+		for_each_present_cpu(j) {
+			infop = lpfc_get_ctx_list(phba, j, i);
 			__lpfc_nvmet_clean_io_for_cpu(phba, infop);
-			infop++; /* next */
 		}
 	}
 	kfree(phba->sli4_hba.nvmet_ctx_info);
@@ -1211,14 +1211,14 @@ lpfc_nvmet_setup_io_context(struct lpfc_hba *phba)
 	union lpfc_wqe128 *wqe;
 	struct lpfc_nvmet_ctx_info *last_infop;
 	struct lpfc_nvmet_ctx_info *infop;
-	int i, j, idx;
+	int i, j, idx, cpu;
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_NVME,
 			"6403 Allocate NVMET resources for %d XRIs\n",
 			phba->sli4_hba.nvmet_xri_cnt);
 
 	phba->sli4_hba.nvmet_ctx_info = kcalloc(
-		phba->sli4_hba.num_present_cpu * phba->cfg_nvmet_mrq,
+		phba->sli4_hba.num_possible_cpu * phba->cfg_nvmet_mrq,
 		sizeof(struct lpfc_nvmet_ctx_info), GFP_KERNEL);
 	if (!phba->sli4_hba.nvmet_ctx_info) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
@@ -1246,13 +1246,12 @@ lpfc_nvmet_setup_io_context(struct lpfc_hba *phba)
 	 * of the IO completion. Thus a context that was allocated for MRQ A
 	 * whose IO completed on CPU B will be freed to cpuB/mrqA.
 	 */
-	infop = phba->sli4_hba.nvmet_ctx_info;
-	for (i = 0; i < phba->sli4_hba.num_present_cpu; i++) {
+	for_each_possible_cpu(i) {
 		for (j = 0; j < phba->cfg_nvmet_mrq; j++) {
+			infop = lpfc_get_ctx_list(phba, i, j);
 			INIT_LIST_HEAD(&infop->nvmet_ctx_list);
 			spin_lock_init(&infop->nvmet_ctx_list_lock);
 			infop->nvmet_ctx_list_cnt = 0;
-			infop++;
 		}
 	}
 
@@ -1262,8 +1261,10 @@ lpfc_nvmet_setup_io_context(struct lpfc_hba *phba)
 	 * MRQ 1 cycling thru CPUs 0 - X, and so on.
 	 */
 	for (j = 0; j < phba->cfg_nvmet_mrq; j++) {
-		last_infop = lpfc_get_ctx_list(phba, 0, j);
-		for (i = phba->sli4_hba.num_present_cpu - 1;  i >= 0; i--) {
+		last_infop = lpfc_get_ctx_list(phba,
+					       cpumask_first(cpu_present_mask),
+					       j);
+		for (i = phba->sli4_hba.num_possible_cpu - 1;  i >= 0; i--) {
 			infop = lpfc_get_ctx_list(phba, i, j);
 			infop->nvmet_ctx_next_cpu = last_infop;
 			last_infop = infop;
@@ -1274,6 +1275,7 @@ lpfc_nvmet_setup_io_context(struct lpfc_hba *phba)
 	 * received command on a per xri basis.
 	 */
 	idx = 0;
+	cpu = cpumask_first(cpu_present_mask);
 	for (i = 0; i < phba->sli4_hba.nvmet_xri_cnt; i++) {
 		ctx_buf = kzalloc(sizeof(*ctx_buf), GFP_KERNEL);
 		if (!ctx_buf) {
@@ -1327,7 +1329,7 @@ lpfc_nvmet_setup_io_context(struct lpfc_hba *phba)
 		 * is MRQidx will be associated with CPUidx. This association
 		 * can change on the fly.
 		 */
-		infop = lpfc_get_ctx_list(phba, idx, idx);
+		infop = lpfc_get_ctx_list(phba, cpu, idx);
 		spin_lock(&infop->nvmet_ctx_list_lock);
 		list_add_tail(&ctx_buf->list, &infop->nvmet_ctx_list);
 		infop->nvmet_ctx_list_cnt++;
@@ -1335,11 +1337,18 @@ lpfc_nvmet_setup_io_context(struct lpfc_hba *phba)
 
 		/* Spread ctx structures evenly across all MRQs */
 		idx++;
-		if (idx >= phba->cfg_nvmet_mrq)
+		if (idx >= phba->cfg_nvmet_mrq) {
 			idx = 0;
+			cpu = cpumask_first(cpu_present_mask);
+			continue;
+		}
+		cpu = cpumask_next(cpu, cpu_present_mask);
+		if (cpu == nr_cpu_ids)
+			cpu = cpumask_first(cpu_present_mask);
+
 	}
 
-	for (i = 0; i < phba->sli4_hba.num_present_cpu; i++) {
+	for_each_present_cpu(i) {
 		for (j = 0; j < phba->cfg_nvmet_mrq; j++) {
 			infop = lpfc_get_ctx_list(phba, i, j);
 			lpfc_printf_log(phba, KERN_INFO, LOG_NVME | LOG_INIT,
@@ -1839,7 +1848,7 @@ lpfc_nvmet_replenish_context(struct lpfc_hba *phba,
 	else
 		get_infop = current_infop->nvmet_ctx_next_cpu;
 
-	for (i = 0; i < phba->sli4_hba.num_present_cpu; i++) {
+	for (i = 0; i < phba->sli4_hba.num_possible_cpu; i++) {
 		if (get_infop == current_infop) {
 			get_infop = get_infop->nvmet_ctx_next_cpu;
 			continue;

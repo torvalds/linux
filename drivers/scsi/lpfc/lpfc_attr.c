@@ -5176,16 +5176,22 @@ lpfc_fcp_cpu_map_show(struct device *dev, struct device_attribute *attr,
 	case 1:
 		len += snprintf(buf + len, PAGE_SIZE-len,
 				"fcp_cpu_map: HBA centric mapping (%d): "
-				"%d online CPUs\n",
-				phba->cfg_fcp_cpu_map,
-				phba->sli4_hba.num_online_cpu);
+				"%d of %d CPUs online from %d possible CPUs\n",
+				phba->cfg_fcp_cpu_map, num_online_cpus(),
+				num_present_cpus(),
+				phba->sli4_hba.num_possible_cpu);
 		break;
 	}
 
-	while (phba->sli4_hba.curr_disp_cpu < phba->sli4_hba.num_present_cpu) {
+	while (phba->sli4_hba.curr_disp_cpu <
+	       phba->sli4_hba.num_possible_cpu) {
 		cpup = &phba->sli4_hba.cpu_map[phba->sli4_hba.curr_disp_cpu];
 
-		if (cpup->irq == LPFC_VECTOR_MAP_EMPTY) {
+		if (!cpu_present(phba->sli4_hba.curr_disp_cpu))
+			len += snprintf(buf + len, PAGE_SIZE - len,
+					"CPU %02d not present\n",
+					phba->sli4_hba.curr_disp_cpu);
+		else if (cpup->irq == LPFC_VECTOR_MAP_EMPTY) {
 			if (cpup->hdwq == LPFC_VECTOR_MAP_EMPTY)
 				len += snprintf(
 					buf + len, PAGE_SIZE - len,
@@ -5225,14 +5231,15 @@ lpfc_fcp_cpu_map_show(struct device *dev, struct device_attribute *attr,
 
 		/* display max number of CPUs keeping some margin */
 		if (phba->sli4_hba.curr_disp_cpu <
-				phba->sli4_hba.num_present_cpu &&
+				phba->sli4_hba.num_possible_cpu &&
 				(len >= (PAGE_SIZE - 64))) {
-			len += snprintf(buf + len, PAGE_SIZE-len, "more...\n");
+			len += snprintf(buf + len,
+					PAGE_SIZE - len, "more...\n");
 			break;
 		}
 	}
 
-	if (phba->sli4_hba.curr_disp_cpu == phba->sli4_hba.num_present_cpu)
+	if (phba->sli4_hba.curr_disp_cpu == phba->sli4_hba.num_possible_cpu)
 		phba->sli4_hba.curr_disp_cpu = 0;
 
 	return len;
