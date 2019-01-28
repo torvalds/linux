@@ -2697,6 +2697,11 @@ static const struct devlink_param devlink_param_generic[] = {
 		.name = DEVLINK_PARAM_GENERIC_FW_LOAD_POLICY_NAME,
 		.type = DEVLINK_PARAM_GENERIC_FW_LOAD_POLICY_TYPE,
 	},
+	{
+		.id = DEVLINK_PARAM_GENERIC_ID_WOL,
+		.name = DEVLINK_PARAM_GENERIC_WOL_NAME,
+		.type = DEVLINK_PARAM_GENERIC_WOL_TYPE,
+	},
 };
 
 static int devlink_param_generic_verify(const struct devlink_param *param)
