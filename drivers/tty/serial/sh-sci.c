@@ -1921,7 +1921,7 @@ out_nomem:
 
 static void sci_free_irq(struct sci_port *port)
 {
-	int i;
+	int i, j;
 
 	/*
 	 * Intentionally in reverse order so we iterate over the muxed
@@ -1935,6 +1935,13 @@ static void sci_free_irq(struct sci_port *port)
 		 * interrupt sources.
 		 */
 		if (unlikely(irq < 0))
+			continue;
+
+		/* Check if already freed (irq was muxed) */
+		for (j = 0; j < i; j++)
+			if (port->irqs[j] == irq)
+				j = i + 1;
+		if (j > i)
 			continue;
 
 		free_irq(port->irqs[i], port);
