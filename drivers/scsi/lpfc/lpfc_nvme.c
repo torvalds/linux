@@ -969,15 +969,19 @@ lpfc_nvme_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 	uint32_t *ptr;
 
 	/* Sanity check on return of outstanding command */
-	if (!lpfc_ncmd || !lpfc_ncmd->nvmeCmd) {
-		if (!lpfc_ncmd) {
-			lpfc_printf_vlog(vport, KERN_ERR,
-					 LOG_NODE | LOG_NVME_IOERR,
-					 "6071 Null lpfc_ncmd pointer. No "
-					 "release, skip completion\n");
-			return;
-		}
+	if (!lpfc_ncmd) {
+		lpfc_printf_vlog(vport, KERN_ERR,
+				 LOG_NODE | LOG_NVME_IOERR,
+				 "6071 Null lpfc_ncmd pointer. No "
+				 "release, skip completion\n");
+		return;
+	}
 
+	/* Guard against abort handler being called at same time */
+	spin_lock(&lpfc_ncmd->buf_lock);
+
+	if (!lpfc_ncmd->nvmeCmd) {
+		spin_unlock(&lpfc_ncmd->buf_lock);
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_NODE | LOG_NVME_IOERR,
 				 "6066 Missing cmpl ptrs: lpfc_ncmd %p, "
 				 "nvmeCmd %p\n",
@@ -1154,9 +1158,11 @@ out_err:
 	if (!(lpfc_ncmd->flags & LPFC_SBUF_XBUSY)) {
 		freqpriv = nCmd->private;
 		freqpriv->nvme_buf = NULL;
-		nCmd->done(nCmd);
 		lpfc_ncmd->nvmeCmd = NULL;
-	}
+		spin_unlock(&lpfc_ncmd->buf_lock);
+		nCmd->done(nCmd);
+	} else
+		spin_unlock(&lpfc_ncmd->buf_lock);
 
 	/* Call release with XB=1 to queue the IO into the abort list. */
 	lpfc_release_nvme_buf(phba, lpfc_ncmd);
@@ -1781,6 +1787,9 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 	}
 	nvmereq_wqe = &lpfc_nbuf->cur_iocbq;
 
+	/* Guard against IO completion being called at same time */
+	spin_lock(&lpfc_nbuf->buf_lock);
+
 	/*
 	 * The lpfc_nbuf and the mapped nvme_fcreq in the driver's
 	 * state must match the nvme_fcreq passed by the nvme
@@ -1789,24 +1798,22 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 	 * has not seen it yet.
 	 */
 	if (lpfc_nbuf->nvmeCmd != pnvme_fcreq) {
-		spin_unlock_irqrestore(&phba->hbalock, flags);
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_ABTS,
 				 "6143 NVME req mismatch: "
 				 "lpfc_nbuf %p nvmeCmd %p, "
 				 "pnvme_fcreq %p.  Skipping Abort xri x%x\n",
 				 lpfc_nbuf, lpfc_nbuf->nvmeCmd,
 				 pnvme_fcreq, nvmereq_wqe->sli4_xritag);
-		return;
+		goto out_unlock;
 	}
 
 	/* Don't abort IOs no longer on the pending queue. */
 	if (!(nvmereq_wqe->iocb_flag & LPFC_IO_ON_TXCMPLQ)) {
-		spin_unlock_irqrestore(&phba->hbalock, flags);
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_ABTS,
 				 "6142 NVME IO req %p not queued - skipping "
 				 "abort req xri x%x\n",
 				 pnvme_fcreq, nvmereq_wqe->sli4_xritag);
-		return;
+		goto out_unlock;
 	}
 
 	atomic_inc(&lport->xmt_fcp_abort);
@@ -1816,24 +1823,22 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 
 	/* Outstanding abort is in progress */
 	if (nvmereq_wqe->iocb_flag & LPFC_DRIVER_ABORTED) {
-		spin_unlock_irqrestore(&phba->hbalock, flags);
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_ABTS,
 				 "6144 Outstanding NVME I/O Abort Request "
 				 "still pending on nvme_fcreq %p, "
 				 "lpfc_ncmd %p xri x%x\n",
 				 pnvme_fcreq, lpfc_nbuf,
 				 nvmereq_wqe->sli4_xritag);
-		return;
+		goto out_unlock;
 	}
 
 	abts_buf = __lpfc_sli_get_iocbq(phba);
 	if (!abts_buf) {
-		spin_unlock_irqrestore(&phba->hbalock, flags);
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_ABTS,
 				 "6136 No available abort wqes. Skipping "
 				 "Abts req for nvme_fcreq %p xri x%x\n",
 				 pnvme_fcreq, nvmereq_wqe->sli4_xritag);
-		return;
+		goto out_unlock;
 	}
 
 	/* Ready - mark outstanding as aborted by driver. */
@@ -1877,6 +1882,7 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 	abts_buf->vport = vport;
 	abts_buf->wqe_cmpl = lpfc_nvme_abort_fcreq_cmpl;
 	ret_val = lpfc_sli4_issue_wqe(phba, lpfc_nbuf->hdwq, abts_buf);
+	spin_unlock(&lpfc_nbuf->buf_lock);
 	spin_unlock_irqrestore(&phba->hbalock, flags);
 	if (ret_val) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_ABTS,
@@ -1892,6 +1898,12 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 			 "ox_id x%x on reqtag x%x\n",
 			 nvmereq_wqe->sli4_xritag,
 			 abts_buf->iotag);
+	return;
+
+out_unlock:
+	spin_unlock(&lpfc_nbuf->buf_lock);
+	spin_unlock_irqrestore(&phba->hbalock, flags);
+	return;
 }
 
 /* Declare and initialization an instance of the FC NVME template. */

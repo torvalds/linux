@@ -506,6 +506,7 @@ lpfc_new_scsi_buf_s3(struct lpfc_vport *vport, int num_to_alloc)
 		psb->status = IOSTAT_SUCCESS;
 		/* Put it back into the SCSI buffer list */
 		psb->cur_iocbq.context1  = psb;
+		spin_lock_init(&psb->buf_lock);
 		lpfc_release_scsi_buf_s3(phba, psb);
 
 	}
@@ -712,7 +713,6 @@ lpfc_get_scsi_buf_s4(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
 	lpfc_cmd->cur_iocbq.iocb_flag = LPFC_IO_FCP;
 	lpfc_cmd->prot_seg_cnt = 0;
 	lpfc_cmd->seg_cnt = 0;
-	lpfc_cmd->waitq = NULL;
 	lpfc_cmd->timeout = 0;
 	lpfc_cmd->flags = 0;
 	lpfc_cmd->start_time = jiffies;
@@ -3651,10 +3651,17 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	int cpu;
 #endif
 
+	/* Guard against abort handler being called at same time */
+	spin_lock(&lpfc_cmd->buf_lock);
+
 	/* Sanity check on return of outstanding command */
 	cmd = lpfc_cmd->pCmd;
-	if (!cmd)
+	if (!cmd) {
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+				 "2621 IO completion: Not an active IO\n");
+		spin_unlock(&lpfc_cmd->buf_lock);
 		return;
+	}
 
 	idx = lpfc_cmd->cur_iocbq.hba_wqidx;
 	if (phba->sli4_hba.hdwq)
@@ -3860,29 +3867,24 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	}
 	lpfc_scsi_unprep_dma_buf(phba, lpfc_cmd);
 
-	/* If pCmd was set to NULL from abort path, do not call scsi_done */
-	if (xchg(&lpfc_cmd->pCmd, NULL) == NULL) {
-		lpfc_printf_vlog(vport, KERN_INFO, LOG_FCP,
-				 "5688 FCP cmd already NULL, sid: 0x%06x, "
-				 "did: 0x%06x, oxid: 0x%04x\n",
-				 vport->fc_myDID,
-				 (pnode) ? pnode->nlp_DID : 0,
-				 phba->sli_rev == LPFC_SLI_REV4 ?
-				 lpfc_cmd->cur_iocbq.sli4_xritag : 0xffff);
-		return;
-	}
+	lpfc_cmd->pCmd = NULL;
+	spin_unlock(&lpfc_cmd->buf_lock);
 
 	/* The sdev is not guaranteed to be valid post scsi_done upcall. */
 	cmd->scsi_done(cmd);
 
 	/*
-	 * If there is a thread waiting for command completion
+	 * If there is an abort thread waiting for command completion
 	 * wake up the thread.
 	 */
-	spin_lock_irqsave(shost->host_lock, flags);
-	if (lpfc_cmd->waitq)
-		wake_up(lpfc_cmd->waitq);
-	spin_unlock_irqrestore(shost->host_lock, flags);
+	spin_lock(&lpfc_cmd->buf_lock);
+	if (unlikely(lpfc_cmd->cur_iocbq.iocb_flag & LPFC_DRIVER_ABORTED)) {
+		lpfc_cmd->cur_iocbq.iocb_flag &= ~LPFC_DRIVER_ABORTED;
+		if (lpfc_cmd->waitq)
+			wake_up(lpfc_cmd->waitq);
+		lpfc_cmd->waitq = NULL;
+	}
+	spin_unlock(&lpfc_cmd->buf_lock);
 
 	lpfc_release_scsi_buf(phba, lpfc_cmd);
 }
@@ -4563,24 +4565,29 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 	if (status != 0 && status != SUCCESS)
 		return status;
 
+	lpfc_cmd = (struct lpfc_io_buf *)cmnd->host_scribble;
+	if (!lpfc_cmd)
+		return ret;
+
 	spin_lock_irqsave(&phba->hbalock, flags);
 	/* driver queued commands are in process of being flushed */
 	if (phba->hba_flag & HBA_FCP_IOQ_FLUSH) {
-		spin_unlock_irqrestore(&phba->hbalock, flags);
 		lpfc_printf_vlog(vport, KERN_WARNING, LOG_FCP,
 			"3168 SCSI Layer abort requested I/O has been "
 			"flushed by LLD.\n");
-		return FAILED;
+		ret = FAILED;
+		goto out_unlock;
 	}
 
-	lpfc_cmd = (struct lpfc_io_buf *)cmnd->host_scribble;
-	if (!lpfc_cmd || !lpfc_cmd->pCmd) {
-		spin_unlock_irqrestore(&phba->hbalock, flags);
+	/* Guard against IO completion being called at same time */
+	spin_lock(&lpfc_cmd->buf_lock);
+
+	if (!lpfc_cmd->pCmd) {
 		lpfc_printf_vlog(vport, KERN_WARNING, LOG_FCP,
 			 "2873 SCSI Layer I/O Abort Request IO CMPL Status "
 			 "x%x ID %d LUN %llu\n",
 			 SUCCESS, cmnd->device->id, cmnd->device->lun);
-		return SUCCESS;
+		goto out_unlock_buf;
 	}
 
 	iocb = &lpfc_cmd->cur_iocbq;
@@ -4588,19 +4595,17 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 		pring_s4 = phba->sli4_hba.hdwq[iocb->hba_wqidx].fcp_wq->pring;
 		if (!pring_s4) {
 			ret = FAILED;
-			goto out_unlock;
+			goto out_unlock_buf;
 		}
 		spin_lock(&pring_s4->ring_lock);
 	}
 	/* the command is in process of being cancelled */
 	if (!(iocb->iocb_flag & LPFC_IO_ON_TXCMPLQ)) {
-		if (phba->sli_rev == LPFC_SLI_REV4)
-			spin_unlock(&pring_s4->ring_lock);
-		spin_unlock_irqrestore(&phba->hbalock, flags);
 		lpfc_printf_vlog(vport, KERN_WARNING, LOG_FCP,
 			"3169 SCSI Layer abort requested I/O has been "
 			"cancelled by LLD.\n");
-		return FAILED;
+		ret = FAILED;
+		goto out_unlock_ring;
 	}
 	/*
 	 * If pCmd field of the corresponding lpfc_io_buf structure
@@ -4609,12 +4614,10 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 	 * see the completion before the eh fired. Just return SUCCESS.
 	 */
 	if (lpfc_cmd->pCmd != cmnd) {
-		if (phba->sli_rev == LPFC_SLI_REV4)
-			spin_unlock(&pring_s4->ring_lock);
 		lpfc_printf_vlog(vport, KERN_WARNING, LOG_FCP,
 			"3170 SCSI Layer abort requested I/O has been "
 			"completed by LLD.\n");
-		goto out_unlock;
+		goto out_unlock_ring;
 	}
 
 	BUG_ON(iocb->context1 != lpfc_cmd);
@@ -4625,6 +4628,7 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 			 "3389 SCSI Layer I/O Abort Request is pending\n");
 		if (phba->sli_rev == LPFC_SLI_REV4)
 			spin_unlock(&pring_s4->ring_lock);
+		spin_unlock(&lpfc_cmd->buf_lock);
 		spin_unlock_irqrestore(&phba->hbalock, flags);
 		goto wait_for_cmpl;
 	}
@@ -4632,9 +4636,7 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 	abtsiocb = __lpfc_sli_get_iocbq(phba);
 	if (abtsiocb == NULL) {
 		ret = FAILED;
-		if (phba->sli_rev == LPFC_SLI_REV4)
-			spin_unlock(&pring_s4->ring_lock);
-		goto out_unlock;
+		goto out_unlock_ring;
 	}
 
 	/* Indicate the IO is being aborted by the driver. */
@@ -4684,23 +4686,17 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 	/* no longer need the lock after this point */
 	spin_unlock_irqrestore(&phba->hbalock, flags);
 
-
 	if (ret_val == IOCB_ERROR) {
-		if (phba->sli_rev == LPFC_SLI_REV4)
-			spin_lock_irqsave(&pring_s4->ring_lock, flags);
-		else
-			spin_lock_irqsave(&phba->hbalock, flags);
 		/* Indicate the IO is not being aborted by the driver. */
 		iocb->iocb_flag &= ~LPFC_DRIVER_ABORTED;
 		lpfc_cmd->waitq = NULL;
-		if (phba->sli_rev == LPFC_SLI_REV4)
-			spin_unlock_irqrestore(&pring_s4->ring_lock, flags);
-		else
-			spin_unlock_irqrestore(&phba->hbalock, flags);
+		spin_unlock(&lpfc_cmd->buf_lock);
 		lpfc_sli_release_iocbq(phba, abtsiocb);
 		ret = FAILED;
 		goto out;
 	}
+
+	spin_unlock(&lpfc_cmd->buf_lock);
 
 	if (phba->cfg_poll & DISABLE_FCP_RING_INT)
 		lpfc_sli_handle_fast_ring_event(phba,
@@ -4712,9 +4708,7 @@ wait_for_cmpl:
 			  (lpfc_cmd->pCmd != cmnd),
 			   msecs_to_jiffies(2*vport->cfg_devloss_tmo*1000));
 
-	spin_lock_irqsave(shost->host_lock, flags);
-	lpfc_cmd->waitq = NULL;
-	spin_unlock_irqrestore(shost->host_lock, flags);
+	spin_lock(&lpfc_cmd->buf_lock);
 
 	if (lpfc_cmd->pCmd == cmnd) {
 		ret = FAILED;
@@ -4725,8 +4719,14 @@ wait_for_cmpl:
 				 iocb->sli4_xritag, ret,
 				 cmnd->device->id, cmnd->device->lun);
 	}
+	spin_unlock(&lpfc_cmd->buf_lock);
 	goto out;
 
+out_unlock_ring:
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		spin_unlock(&pring_s4->ring_lock);
+out_unlock_buf:
+	spin_unlock(&lpfc_cmd->buf_lock);
 out_unlock:
 	spin_unlock_irqrestore(&phba->hbalock, flags);
 out:

@@ -4160,6 +4160,7 @@ lpfc_new_io_buf(struct lpfc_hba *phba, int num_to_alloc)
 		lpfc_ncmd->dma_sgl = lpfc_ncmd->data;
 		lpfc_ncmd->dma_phys_sgl = lpfc_ncmd->dma_handle;
 		lpfc_ncmd->cur_iocbq.context1 = lpfc_ncmd;
+		spin_lock_init(&lpfc_ncmd->buf_lock);
 
 		/* add the nvme buffer to a post list */
 		list_add_tail(&lpfc_ncmd->list, &post_nblist);

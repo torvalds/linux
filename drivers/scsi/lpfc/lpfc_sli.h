@@ -387,6 +387,7 @@ struct lpfc_io_buf {
 				 * to dma_unmap_sg.
 				 */
 	unsigned long start_time;
+	spinlock_t buf_lock;	/* lock used in case of simultaneous abort */
 	bool expedite;		/* this is an expedite io_buf */
 
 	union {

@@ -11659,7 +11659,7 @@ lpfc_sli_abort_taskmgmt(struct lpfc_vport *vport, struct lpfc_sli_ring *pring,
 	IOCB_t *icmd;
 	int sum, i, ret_val;
 	unsigned long iflags;
-	struct lpfc_sli_ring *pring_s4;
+	struct lpfc_sli_ring *pring_s4 = NULL;
 
 	spin_lock_irqsave(&phba->hbalock, iflags);
 
@@ -11677,17 +11677,46 @@ lpfc_sli_abort_taskmgmt(struct lpfc_vport *vport, struct lpfc_sli_ring *pring,
 					       cmd) != 0)
 			continue;
 
+		/* Guard against IO completion being called at same time */
+		lpfc_cmd = container_of(iocbq, struct lpfc_io_buf, cur_iocbq);
+		spin_lock(&lpfc_cmd->buf_lock);
+
+		if (!lpfc_cmd->pCmd) {
+			spin_unlock(&lpfc_cmd->buf_lock);
+			continue;
+		}
+
+		if (phba->sli_rev == LPFC_SLI_REV4) {
+			pring_s4 =
+			    phba->sli4_hba.hdwq[iocbq->hba_wqidx].fcp_wq->pring;
+			if (!pring_s4) {
+				spin_unlock(&lpfc_cmd->buf_lock);
+				continue;
+			}
+			/* Note: both hbalock and ring_lock must be set here */
+			spin_lock(&pring_s4->ring_lock);
+		}
+
 		/*
 		 * If the iocbq is already being aborted, don't take a second
 		 * action, but do count it.
 		 */
-		if (iocbq->iocb_flag & LPFC_DRIVER_ABORTED)
+		if ((iocbq->iocb_flag & LPFC_DRIVER_ABORTED) ||
+		    !(iocbq->iocb_flag & LPFC_IO_ON_TXCMPLQ)) {
+			if (phba->sli_rev == LPFC_SLI_REV4)
+				spin_unlock(&pring_s4->ring_lock);
+			spin_unlock(&lpfc_cmd->buf_lock);
 			continue;
+		}
 
 		/* issue ABTS for this IOCB based on iotag */
 		abtsiocbq = __lpfc_sli_get_iocbq(phba);
-		if (abtsiocbq == NULL)
+		if (!abtsiocbq) {
+			if (phba->sli_rev == LPFC_SLI_REV4)
+				spin_unlock(&pring_s4->ring_lock);
+			spin_unlock(&lpfc_cmd->buf_lock);
 			continue;
+		}
 
 		icmd = &iocbq->iocb;
 		abtsiocbq->iocb.un.acxri.abortType = ABORT_TYPE_ABTS;
@@ -11708,7 +11737,6 @@ lpfc_sli_abort_taskmgmt(struct lpfc_vport *vport, struct lpfc_sli_ring *pring,
 		if (iocbq->iocb_flag & LPFC_IO_FOF)
 			abtsiocbq->iocb_flag |= LPFC_IO_FOF;
 
-		lpfc_cmd = container_of(iocbq, struct lpfc_io_buf, cur_iocbq);
 		ndlp = lpfc_cmd->rdata->pnode;
 
 		if (lpfc_is_link_up(phba) &&
@@ -11727,11 +11755,6 @@ lpfc_sli_abort_taskmgmt(struct lpfc_vport *vport, struct lpfc_sli_ring *pring,
 		iocbq->iocb_flag |= LPFC_DRIVER_ABORTED;
 
 		if (phba->sli_rev == LPFC_SLI_REV4) {
-			pring_s4 = lpfc_sli4_calc_ring(phba, abtsiocbq);
-			if (!pring_s4)
-				continue;
-			/* Note: both hbalock and ring_lock must be set here */
-			spin_lock(&pring_s4->ring_lock);
 			ret_val = __lpfc_sli_issue_iocb(phba, pring_s4->ringno,
 							abtsiocbq, 0);
 			spin_unlock(&pring_s4->ring_lock);
@@ -11740,6 +11763,7 @@ lpfc_sli_abort_taskmgmt(struct lpfc_vport *vport, struct lpfc_sli_ring *pring,
 							abtsiocbq, 0);
 		}
 
+		spin_unlock(&lpfc_cmd->buf_lock);
 
 		if (ret_val == IOCB_ERROR)
 			__lpfc_sli_release_iocbq(phba, abtsiocbq);
