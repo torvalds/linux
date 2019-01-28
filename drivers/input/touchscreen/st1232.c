@@ -338,5 +338,6 @@ static struct i2c_driver st1232_ts_driver = {
 module_i2c_driver(st1232_ts_driver);
 
 MODULE_AUTHOR("Tony SIM <chinyeow.sim.xt@renesas.com>");
+MODULE_AUTHOR("Martin Kepplinger <martin.kepplinger@ginzinger.com>");
 MODULE_DESCRIPTION("SITRONIX ST1232 Touchscreen Controller Driver");
 MODULE_LICENSE("GPL v2");
