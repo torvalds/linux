@@ -167,6 +167,20 @@
 					reg = <0x0000 0x1e000>;
 				};
 			};
+
+			sram_c1: sram@1a00000 {
+				compatible = "mmio-sram";
+				reg = <0x01a00000 0x200000>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x01a00000 0x200000>;
+
+				ve_sram: sram-section@0 {
+					compatible = "allwinner,sun50i-h6-sram-c1",
+						     "allwinner,sun4i-a10-sram-c1";
+					reg = <0x000000 0x200000>;
+				};
+			};
 		};
 
 		ccu: clock@3001000 {
