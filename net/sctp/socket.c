@@ -4477,54 +4477,69 @@ static int sctp_setsockopt_reuse_port(struct sock *sk, char __user *optval,
 	return 0;
 }
 
-static int sctp_setsockopt_event(struct sock *sk, char __user *optval,
-				 unsigned int optlen)
+static int sctp_assoc_ulpevent_type_set(struct sctp_event *param,
+					struct sctp_association *asoc)
 {
-	struct sctp_association *asoc;
 	struct sctp_ulpevent *event;
-	struct sctp_event param;
-	int retval = 0;
 
-	if (optlen < sizeof(param)) {
-		retval = -EINVAL;
-		goto out;
-	}
+	sctp_ulpevent_type_set(&asoc->subscribe, param->se_type, param->se_on);
 
-	optlen = sizeof(param);
-	if (copy_from_user(&param, optval, optlen)) {
-		retval = -EFAULT;
-		goto out;
-	}
-
-	if (param.se_type < SCTP_SN_TYPE_BASE ||
-	    param.se_type > SCTP_SN_TYPE_MAX) {
-		retval = -EINVAL;
-		goto out;
-	}
-
-	asoc = sctp_id2assoc(sk, param.se_assoc_id);
-	if (!asoc) {
-		sctp_ulpevent_type_set(&sctp_sk(sk)->subscribe,
-				       param.se_type, param.se_on);
-		goto out;
-	}
-
-	sctp_ulpevent_type_set(&asoc->subscribe, param.se_type, param.se_on);
-
-	if (param.se_type == SCTP_SENDER_DRY_EVENT && param.se_on) {
+	if (param->se_type == SCTP_SENDER_DRY_EVENT && param->se_on) {
 		if (sctp_outq_is_empty(&asoc->outqueue)) {
 			event = sctp_ulpevent_make_sender_dry_event(asoc,
 					GFP_USER | __GFP_NOWARN);
-			if (!event) {
-				retval = -ENOMEM;
-				goto out;
-			}
+			if (!event)
+				return -ENOMEM;
 
 			asoc->stream.si->enqueue_event(&asoc->ulpq, event);
 		}
 	}
 
-out:
+	return 0;
+}
+
+static int sctp_setsockopt_event(struct sock *sk, char __user *optval,
+				 unsigned int optlen)
+{
+	struct sctp_sock *sp = sctp_sk(sk);
+	struct sctp_association *asoc;
+	struct sctp_event param;
+	int retval = 0;
+
+	if (optlen < sizeof(param))
+		return -EINVAL;
+
+	optlen = sizeof(param);
+	if (copy_from_user(&param, optval, optlen))
+		return -EFAULT;
+
+	if (param.se_type < SCTP_SN_TYPE_BASE ||
+	    param.se_type > SCTP_SN_TYPE_MAX)
+		return -EINVAL;
+
+	asoc = sctp_id2assoc(sk, param.se_assoc_id);
+	if (!asoc && param.se_assoc_id > SCTP_ALL_ASSOC &&
+	    sctp_style(sk, UDP))
+		return -EINVAL;
+
+	if (asoc)
+		return sctp_assoc_ulpevent_type_set(&param, asoc);
+
+	if (param.se_assoc_id == SCTP_FUTURE_ASSOC ||
+	    param.se_assoc_id == SCTP_ALL_ASSOC)
+		sctp_ulpevent_type_set(&sp->subscribe,
+				       param.se_type, param.se_on);
+
+	if (param.se_assoc_id == SCTP_CURRENT_ASSOC ||
+	    param.se_assoc_id == SCTP_ALL_ASSOC) {
+		list_for_each_entry(asoc, &sp->ep->asocs, asocs) {
+			int ret = sctp_assoc_ulpevent_type_set(&param, asoc);
+
+			if (ret && !retval)
+				retval = ret;
+		}
+	}
+
 	return retval;
 }
 
@@ -7696,6 +7711,10 @@ static int sctp_getsockopt_event(struct sock *sk, int len, char __user *optval,
 		return -EINVAL;
 
 	asoc = sctp_id2assoc(sk, param.se_assoc_id);
+	if (!asoc && param.se_assoc_id != SCTP_FUTURE_ASSOC &&
+	    sctp_style(sk, UDP))
+		return -EINVAL;
+
 	subscribe = asoc ? asoc->subscribe : sctp_sk(sk)->subscribe;
 	param.se_on = sctp_ulpevent_type_enabled(subscribe, param.se_type);
 
