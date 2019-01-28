@@ -582,6 +582,9 @@ int
 devlink_port_param_driverinit_value_get(struct devlink_port *devlink_port,
 					u32 param_id,
 					union devlink_param_value *init_val);
+int devlink_port_param_driverinit_value_set(struct devlink_port *devlink_port,
+					    u32 param_id,
+					    union devlink_param_value init_val);
 void devlink_param_value_changed(struct devlink *devlink, u32 param_id);
 void devlink_param_value_str_fill(union devlink_param_value *dst_val,
 				  const char *src);
@@ -835,6 +838,14 @@ static inline int
 devlink_port_param_driverinit_value_get(struct devlink_port *devlink_port,
 					u32 param_id,
 					union devlink_param_value *init_val)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int
+devlink_port_param_driverinit_value_set(struct devlink_port *devlink_port,
+					u32 param_id,
+					union devlink_param_value init_val)
 {
 	return -EOPNOTSUPP;
 }

@@ -4737,6 +4737,32 @@ __devlink_param_driverinit_value_get(struct list_head *param_list, u32 param_id,
 	return 0;
 }
 
+static int
+__devlink_param_driverinit_value_set(struct devlink *devlink,
+				     struct list_head *param_list, u32 param_id,
+				     union devlink_param_value init_val,
+				     enum devlink_command cmd)
+{
+	struct devlink_param_item *param_item;
+
+	param_item = devlink_param_find_by_id(param_list, param_id);
+	if (!param_item)
+		return -EINVAL;
+
+	if (!devlink_param_cmode_is_supported(param_item->param,
+					      DEVLINK_PARAM_CMODE_DRIVERINIT))
+		return -EOPNOTSUPP;
+
+	if (param_item->param->type == DEVLINK_PARAM_TYPE_STRING)
+		strcpy(param_item->driverinit_value.vstr, init_val.vstr);
+	else
+		param_item->driverinit_value = init_val;
+	param_item->driverinit_value_valid = true;
+
+	devlink_param_notify(devlink, param_item, DEVLINK_CMD_PARAM_NEW);
+	return 0;
+}
+
 /**
  *	devlink_param_driverinit_value_get - get configuration parameter
  *					     value for driver initializing
@@ -4774,24 +4800,10 @@ EXPORT_SYMBOL_GPL(devlink_param_driverinit_value_get);
 int devlink_param_driverinit_value_set(struct devlink *devlink, u32 param_id,
 				       union devlink_param_value init_val)
 {
-	struct devlink_param_item *param_item;
-
-	param_item = devlink_param_find_by_id(&devlink->param_list, param_id);
-	if (!param_item)
-		return -EINVAL;
-
-	if (!devlink_param_cmode_is_supported(param_item->param,
-					      DEVLINK_PARAM_CMODE_DRIVERINIT))
-		return -EOPNOTSUPP;
-
-	if (param_item->param->type == DEVLINK_PARAM_TYPE_STRING)
-		strcpy(param_item->driverinit_value.vstr, init_val.vstr);
-	else
-		param_item->driverinit_value = init_val;
-	param_item->driverinit_value_valid = true;
-
-	devlink_param_notify(devlink, param_item, DEVLINK_CMD_PARAM_NEW);
-	return 0;
+	return __devlink_param_driverinit_value_set(devlink,
+						    &devlink->param_list,
+						    param_id, init_val,
+						    DEVLINK_CMD_PARAM_NEW);
 }
 EXPORT_SYMBOL_GPL(devlink_param_driverinit_value_set);
 
@@ -4819,6 +4831,28 @@ int devlink_port_param_driverinit_value_get(struct devlink_port *devlink_port,
 						    param_id, init_val);
 }
 EXPORT_SYMBOL_GPL(devlink_port_param_driverinit_value_get);
+
+/**
+ *     devlink_port_param_driverinit_value_set - set value of configuration
+ *                                               parameter for driverinit
+ *                                               configuration mode
+ *
+ *     @devlink_port: devlink_port
+ *     @param_id: parameter ID
+ *     @init_val: value of parameter to set for driverinit configuration mode
+ *
+ *     This function should be used by the driver to set driverinit
+ *     configuration mode default value.
+ */
+int devlink_port_param_driverinit_value_set(struct devlink_port *devlink_port,
+					    u32 param_id,
+					    union devlink_param_value init_val)
+{
+	return __devlink_param_driverinit_value_set(devlink_port->devlink,
+						    &devlink_port->param_list,
+						    param_id, init_val, 0);
+}
+EXPORT_SYMBOL_GPL(devlink_port_param_driverinit_value_set);
 
 /**
  *	devlink_param_value_changed - notify devlink on a parameter's value
