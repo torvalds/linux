@@ -594,7 +594,7 @@ extern u32 ceph_choose_frag(struct ceph_inode_info *ci, u32 v,
 			    struct ceph_inode_frag *pfrag,
 			    int *found);
 
-static inline struct ceph_dentry_info *ceph_dentry(struct dentry *dentry)
+static inline struct ceph_dentry_info *ceph_dentry(const struct dentry *dentry)
 {
 	return (struct ceph_dentry_info *)dentry->d_fsdata;
 }

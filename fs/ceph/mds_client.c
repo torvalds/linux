@@ -621,7 +621,7 @@ static struct ceph_mds_session *register_session(struct ceph_mds_client *mdsc,
 	ceph_con_init(&s->s_con, s, &mds_con_ops, &mdsc->fsc->client->msgr);
 
 	spin_lock_init(&s->s_gen_ttl_lock);
-	s->s_cap_gen = 0;
+	s->s_cap_gen = 1;
 	s->s_cap_ttl = jiffies - 1;
 
 	spin_lock_init(&s->s_cap_lock);

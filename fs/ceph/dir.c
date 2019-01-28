@@ -1139,45 +1139,59 @@ void ceph_invalidate_dentry_lease(struct dentry *dentry)
  * Check if dentry lease is valid.  If not, delete the lease.  Try to
  * renew if the least is more than half up.
  */
+static bool __dentry_lease_is_valid(struct ceph_dentry_info *di)
+{
+	struct ceph_mds_session *session;
+
+	if (!di->lease_gen)
+		return false;
+
+	session = di->lease_session;
+	if (session) {
+		u32 gen;
+		unsigned long ttl;
+
+		spin_lock(&session->s_gen_ttl_lock);
+		gen = session->s_cap_gen;
+		ttl = session->s_cap_ttl;
+		spin_unlock(&session->s_gen_ttl_lock);
+
+		if (di->lease_gen == gen &&
+		    time_before(jiffies, ttl) &&
+		    time_before(jiffies, di->time))
+			return true;
+	}
+	di->lease_gen = 0;
+	return false;
+}
+
 static int dentry_lease_is_valid(struct dentry *dentry, unsigned int flags,
 				 struct inode *dir)
 {
 	struct ceph_dentry_info *di;
-	struct ceph_mds_session *s;
-	int valid = 0;
-	u32 gen;
-	unsigned long ttl;
 	struct ceph_mds_session *session = NULL;
 	u32 seq = 0;
+	int valid = 0;
 
 	spin_lock(&dentry->d_lock);
 	di = ceph_dentry(dentry);
-	if (di && di->lease_session) {
-		s = di->lease_session;
-		spin_lock(&s->s_gen_ttl_lock);
-		gen = s->s_cap_gen;
-		ttl = s->s_cap_ttl;
-		spin_unlock(&s->s_gen_ttl_lock);
+	if (di && __dentry_lease_is_valid(di)) {
+		valid = 1;
 
-		if (di->lease_gen == gen &&
-		    time_before(jiffies, di->time) &&
-		    time_before(jiffies, ttl)) {
-			valid = 1;
-			if (di->lease_renew_after &&
-			    time_after(jiffies, di->lease_renew_after)) {
-				/*
-				 * We should renew. If we're in RCU walk mode
-				 * though, we can't do that so just return
-				 * -ECHILD.
-				 */
-				if (flags & LOOKUP_RCU) {
-					valid = -ECHILD;
-				} else {
-					session = ceph_get_mds_session(s);
-					seq = di->lease_seq;
-					di->lease_renew_after = 0;
-					di->lease_renew_from = jiffies;
-				}
+		if (di->lease_renew_after &&
+		    time_after(jiffies, di->lease_renew_after)) {
+			/*
+			 * We should renew. If we're in RCU walk mode
+			 * though, we can't do that so just return
+			 * -ECHILD.
+			 */
+			if (flags & LOOKUP_RCU) {
+				valid = -ECHILD;
+			} else {
+				session = ceph_get_mds_session(di->lease_session);
+				seq = di->lease_seq;
+				di->lease_renew_after = 0;
+				di->lease_renew_from = jiffies;
 			}
 		}
 	}
@@ -1189,6 +1203,38 @@ static int dentry_lease_is_valid(struct dentry *dentry, unsigned int flags,
 		ceph_put_mds_session(session);
 	}
 	dout("dentry_lease_is_valid - dentry %p = %d\n", dentry, valid);
+	return valid;
+}
+
+/*
+ * Called under dentry->d_lock.
+ */
+static int __dir_lease_try_check(const struct dentry *dentry)
+{
+	struct ceph_dentry_info *di = ceph_dentry(dentry);
+	struct inode *dir;
+	struct ceph_inode_info *ci;
+	int valid = 0;
+
+	if (!di->lease_shared_gen)
+		return 0;
+	if (IS_ROOT(dentry))
+		return 0;
+
+	dir = d_inode(dentry->d_parent);
+	ci = ceph_inode(dir);
+
+	if (spin_trylock(&ci->i_ceph_lock)) {
+		if (atomic_read(&ci->i_shared_gen) == di->lease_shared_gen &&
+		    __ceph_caps_issued_mask(ci, CEPH_CAP_FILE_SHARED, 0))
+			valid = 1;
+		spin_unlock(&ci->i_ceph_lock);
+	} else {
+		valid = -EBUSY;
+	}
+
+	if (!valid)
+		di->lease_shared_gen = 0;
 	return valid;
 }
 
@@ -1306,6 +1352,31 @@ static int ceph_d_revalidate(struct dentry *dentry, unsigned int flags)
 	if (!(flags & LOOKUP_RCU))
 		dput(parent);
 	return valid;
+}
+
+/*
+ * Delete unused dentry that doesn't have valid lease
+ *
+ * Called under dentry->d_lock.
+ */
+static int ceph_d_delete(const struct dentry *dentry)
+{
+	struct ceph_dentry_info *di;
+
+	/* won't release caps */
+	if (d_really_is_negative(dentry))
+		return 0;
+	if (ceph_snap(d_inode(dentry)) != CEPH_NOSNAP)
+		return 0;
+	/* vaild lease? */
+	di = ceph_dentry(dentry);
+	if (di) {
+		if (__dentry_lease_is_valid(di))
+			return 0;
+		if (__dir_lease_try_check(dentry))
+			return 0;
+	}
+	return 1;
 }
 
 /*
@@ -1531,6 +1602,7 @@ const struct inode_operations ceph_snapdir_iops = {
 
 const struct dentry_operations ceph_dentry_ops = {
 	.d_revalidate = ceph_d_revalidate,
+	.d_delete = ceph_d_delete,
 	.d_release = ceph_d_release,
 	.d_prune = ceph_d_prune,
 	.d_init = ceph_d_init,
