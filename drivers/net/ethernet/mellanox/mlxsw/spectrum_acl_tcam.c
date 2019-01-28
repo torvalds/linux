@@ -862,15 +862,6 @@ struct mlxsw_sp_acl_tcam_flower_rule {
 	struct mlxsw_sp_acl_tcam_entry entry;
 };
 
-struct mlxsw_sp_acl_tcam_mr_ruleset {
-	struct mlxsw_sp_acl_tcam_chunk *chunk;
-	struct mlxsw_sp_acl_tcam_group group;
-};
-
-struct mlxsw_sp_acl_tcam_mr_rule {
-	struct mlxsw_sp_acl_tcam_entry entry;
-};
-
 static int
 mlxsw_sp_acl_tcam_flower_ruleset_add(struct mlxsw_sp *mlxsw_sp,
 				     struct mlxsw_sp_acl_tcam *tcam,
@@ -982,6 +973,15 @@ static const struct mlxsw_sp_acl_profile_ops mlxsw_sp_acl_tcam_flower_ops = {
 	.rule_del		= mlxsw_sp_acl_tcam_flower_rule_del,
 	.rule_action_replace	= mlxsw_sp_acl_tcam_flower_rule_action_replace,
 	.rule_activity_get	= mlxsw_sp_acl_tcam_flower_rule_activity_get,
+};
+
+struct mlxsw_sp_acl_tcam_mr_ruleset {
+	struct mlxsw_sp_acl_tcam_chunk *chunk;
+	struct mlxsw_sp_acl_tcam_group group;
+};
+
+struct mlxsw_sp_acl_tcam_mr_rule {
+	struct mlxsw_sp_acl_tcam_entry entry;
 };
 
 static int
