@@ -21,10 +21,6 @@
 
 #define HPET_MASK			CLOCKSOURCE_MASK(32)
 
-/* FSEC = 10^-15
-   NSEC = 10^-9 */
-#define FSEC_PER_NSEC			1000000L
-
 #define HPET_DEV_USED_BIT		2
 #define HPET_DEV_USED			(1 << HPET_DEV_USED_BIT)
 #define HPET_DEV_VALID			0x8

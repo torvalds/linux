@@ -1252,21 +1252,22 @@ static u32 init_chip(struct net_device *dev)
 		ret = wilc->hif_func->hif_read_reg(wilc, 0x1118, &reg);
 		if (!ret) {
 			netdev_err(dev, "fail read reg 0x1118\n");
-			return ret;
+			goto release;
 		}
 		reg |= BIT(0);
 		ret = wilc->hif_func->hif_write_reg(wilc, 0x1118, reg);
 		if (!ret) {
 			netdev_err(dev, "fail write reg 0x1118\n");
-			return ret;
+			goto release;
 		}
 		ret = wilc->hif_func->hif_write_reg(wilc, 0xc0000, 0x71);
 		if (!ret) {
 			netdev_err(dev, "fail write reg 0xc0000\n");
-			return ret;
+			goto release;
 		}
 	}
 
+release:
 	release_bus(wilc, WILC_BUS_RELEASE_ONLY);
 
 	return ret;
