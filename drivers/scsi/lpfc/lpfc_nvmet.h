@@ -140,6 +140,7 @@ struct lpfc_nvmet_rcv_ctx {
 #define LPFC_NVMET_DEFER_WQFULL		0x40  /* Waiting on a free WQE */
 	struct rqb_dmabuf *rqb_buffer;
 	struct lpfc_nvmet_ctxbuf *ctxbuf;
+	struct lpfc_sli4_hdw_queue *hdwq;
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	uint64_t ts_isr_cmd;

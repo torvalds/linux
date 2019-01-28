@@ -10005,7 +10005,7 @@ lpfc_sli4_calc_ring(struct lpfc_hba *phba, struct lpfc_iocbq *piocb)
 		 */
 		if (!(piocb->iocb_flag & LPFC_USE_FCPWQIDX)) {
 			lpfc_cmd = (struct lpfc_scsi_buf *)piocb->context1;
-			piocb->hba_wqidx = lpfc_cmd->hdwq;
+			piocb->hba_wqidx = lpfc_cmd->hdwq_no;
 		}
 		return phba->sli4_hba.hdwq[piocb->hba_wqidx].fcp_wq->pring;
 	} else {
@@ -11301,6 +11301,7 @@ lpfc_sli4_abort_nvme_io(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	struct lpfc_iocbq *abtsiocbp;
 	union lpfc_wqe128 *abts_wqe;
 	int retval;
+	int idx = cmdiocb->hba_wqidx;
 
 	/*
 	 * There are certain command types we don't want to abort.  And we
@@ -11356,7 +11357,8 @@ lpfc_sli4_abort_nvme_io(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	abtsiocbp->iocb_flag |= LPFC_IO_NVME;
 	abtsiocbp->vport = vport;
 	abtsiocbp->wqe_cmpl = lpfc_nvme_abort_fcreq_cmpl;
-	retval = lpfc_sli4_issue_wqe(phba, LPFC_FCP_RING, abtsiocbp);
+	retval = lpfc_sli4_issue_wqe(phba, &phba->sli4_hba.hdwq[idx],
+				     abtsiocbp);
 	if (retval) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME,
 				 "6147 Failed abts issue_wqe with status x%x "
@@ -19617,7 +19619,7 @@ lpfc_wqe_bpl2sgl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeq,
  * @pwqe: Pointer to command WQE.
  **/
 int
-lpfc_sli4_issue_wqe(struct lpfc_hba *phba, uint32_t ring_number,
+lpfc_sli4_issue_wqe(struct lpfc_hba *phba, struct lpfc_sli4_hdw_queue *qp,
 		    struct lpfc_iocbq *pwqe)
 {
 	union lpfc_wqe128 *wqe = &pwqe->wqe;
@@ -19659,12 +19661,12 @@ lpfc_sli4_issue_wqe(struct lpfc_hba *phba, uint32_t ring_number,
 	/* NVME_FCREQ and NVME_ABTS requests */
 	if (pwqe->iocb_flag & LPFC_IO_NVME) {
 		/* Get the IO distribution (hba_wqidx) for WQ assignment. */
-		pring = phba->sli4_hba.hdwq[pwqe->hba_wqidx].nvme_wq->pring;
+		wq = qp->nvme_wq;
+		pring = wq->pring;
+
+		bf_set(wqe_cqid, &wqe->generic.wqe_com, qp->nvme_cq_map);
 
 		spin_lock_irqsave(&pring->ring_lock, iflags);
-		wq = phba->sli4_hba.hdwq[pwqe->hba_wqidx].nvme_wq;
-		bf_set(wqe_cqid, &wqe->generic.wqe_com,
-		      phba->sli4_hba.hdwq[pwqe->hba_wqidx].nvme_cq->queue_id);
 		ret = lpfc_sli4_wq_put(wq, wqe);
 		if (ret) {
 			spin_unlock_irqrestore(&pring->ring_lock, iflags);
@@ -19678,9 +19680,9 @@ lpfc_sli4_issue_wqe(struct lpfc_hba *phba, uint32_t ring_number,
 	/* NVMET requests */
 	if (pwqe->iocb_flag & LPFC_IO_NVMET) {
 		/* Get the IO distribution (hba_wqidx) for WQ assignment. */
-		pring = phba->sli4_hba.hdwq[pwqe->hba_wqidx].nvme_wq->pring;
+		wq = qp->nvme_wq;
+		pring = wq->pring;
 
-		spin_lock_irqsave(&pring->ring_lock, iflags);
 		ctxp = pwqe->context2;
 		sglq = ctxp->ctxbuf->sglq;
 		if (pwqe->sli4_xritag ==  NO_XRI) {
@@ -19689,9 +19691,9 @@ lpfc_sli4_issue_wqe(struct lpfc_hba *phba, uint32_t ring_number,
 		}
 		bf_set(wqe_xri_tag, &pwqe->wqe.xmit_bls_rsp.wqe_com,
 		       pwqe->sli4_xritag);
-		wq = phba->sli4_hba.hdwq[pwqe->hba_wqidx].nvme_wq;
-		bf_set(wqe_cqid, &wqe->generic.wqe_com,
-		      phba->sli4_hba.hdwq[pwqe->hba_wqidx].nvme_cq->queue_id);
+		bf_set(wqe_cqid, &wqe->generic.wqe_com, qp->nvme_cq_map);
+
+		spin_lock_irqsave(&pring->ring_lock, iflags);
 		ret = lpfc_sli4_wq_put(wq, wqe);
 		if (ret) {
 			spin_unlock_irqrestore(&pring->ring_lock, iflags);

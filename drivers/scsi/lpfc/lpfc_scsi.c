@@ -748,7 +748,8 @@ lpfc_get_scsi_buf_s4(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	lpfc_cmd->prot_data_type = 0;
 #endif
-	lpfc_cmd->hdwq = idx;
+	lpfc_cmd->hdwq = qp;
+	lpfc_cmd->hdwq_no = idx;
 
 	lpfc_cmd->fcp_cmnd = (lpfc_cmd->data + sgl_size);
 	lpfc_cmd->fcp_rsp = (struct fcp_rsp *)((uint8_t *)lpfc_cmd->fcp_cmnd +
@@ -861,7 +862,7 @@ lpfc_release_scsi_buf_s4(struct lpfc_hba *phba, struct lpfc_scsi_buf *psb)
 	psb->seg_cnt = 0;
 	psb->prot_seg_cnt = 0;
 
-	qp = &phba->sli4_hba.hdwq[psb->hdwq];
+	qp = psb->hdwq;
 	if (psb->exch_busy) {
 		spin_lock_irqsave(&qp->abts_scsi_buf_list_lock, iflag);
 		psb->pCmd = NULL;
@@ -4018,7 +4019,7 @@ lpfc_scsi_prep_cmnd(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 
 	sli4 = (phba->sli_rev == LPFC_SLI_REV4);
 	piocbq->iocb.un.fcpi.fcpi_XRdy = 0;
-	idx = lpfc_cmd->hdwq;
+	idx = lpfc_cmd->hdwq_no;
 	if (phba->sli4_hba.hdwq)
 		hdwq = &phba->sli4_hba.hdwq[idx];
 
@@ -4557,7 +4558,7 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 	return 0;
 
  out_host_busy_free_buf:
-	idx = lpfc_cmd->hdwq;
+	idx = lpfc_cmd->hdwq_no;
 	lpfc_scsi_unprep_dma_buf(phba, lpfc_cmd);
 	if (phba->sli4_hba.hdwq) {
 		switch (lpfc_cmd->fcp_cmnd->fcpCntl3) {

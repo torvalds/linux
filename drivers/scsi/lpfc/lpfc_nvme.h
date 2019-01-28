@@ -79,7 +79,8 @@ struct lpfc_nvme_buf {
 	dma_addr_t dma_phys_sgl;
 	struct sli4_sge *dma_sgl;
 	struct lpfc_iocbq cur_iocbq;
-	uint16_t hdwq;
+	struct lpfc_sli4_hdw_queue *hdwq;
+	uint16_t hdwq_no;
 	uint16_t cpu;
 
 	/* NVME specific fields */

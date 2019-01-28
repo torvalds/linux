@@ -528,7 +528,7 @@ lpfc_nvme_gen_req(struct lpfc_vport *vport, struct lpfc_dmabuf *bmp,
 	lpfc_nvmeio_data(phba, "NVME LS  XMIT: xri x%x iotag x%x to x%06x\n",
 			 genwqe->sli4_xritag, genwqe->iotag, ndlp->nlp_DID);
 
-	rc = lpfc_sli4_issue_wqe(phba, LPFC_ELS_RING, genwqe);
+	rc = lpfc_sli4_issue_wqe(phba, &phba->sli4_hba.hdwq[0], genwqe);
 	if (rc) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
 				 "6045 Issue GEN REQ WQE to NPORT x%x "
@@ -1605,7 +1605,7 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 			 lpfc_ncmd->cur_iocbq.sli4_xritag,
 			 lpfc_queue_info->index, ndlp->nlp_DID);
 
-	ret = lpfc_sli4_issue_wqe(phba, LPFC_FCP_RING, &lpfc_ncmd->cur_iocbq);
+	ret = lpfc_sli4_issue_wqe(phba, lpfc_ncmd->hdwq, &lpfc_ncmd->cur_iocbq);
 	if (ret) {
 		atomic_inc(&lport->xmt_fcp_wqerr);
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_IOERR,
@@ -1867,7 +1867,7 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 	abts_buf->hba_wqidx = nvmereq_wqe->hba_wqidx;
 	abts_buf->vport = vport;
 	abts_buf->wqe_cmpl = lpfc_nvme_abort_fcreq_cmpl;
-	ret_val = lpfc_sli4_issue_wqe(phba, LPFC_FCP_RING, abts_buf);
+	ret_val = lpfc_sli4_issue_wqe(phba, lpfc_nbuf->hdwq, abts_buf);
 	spin_unlock_irqrestore(&phba->hbalock, flags);
 	if (ret_val) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_ABTS,
@@ -1978,7 +1978,8 @@ lpfc_get_nvme_buf(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
 		pwqeq->wqe_cmpl = lpfc_nvme_io_cmd_wqe_cmpl;
 		lpfc_ncmd->start_time = jiffies;
 		lpfc_ncmd->flags = 0;
-		lpfc_ncmd->hdwq = idx;
+		lpfc_ncmd->hdwq = qp;
+		lpfc_ncmd->hdwq_no = idx;
 
 		/* Rsp SGE will be filled in when we rcv an IO
 		 * from the NVME Layer to be sent.
@@ -2026,7 +2027,7 @@ lpfc_release_nvme_buf(struct lpfc_hba *phba, struct lpfc_nvme_buf *lpfc_ncmd)
 	lpfc_ncmd->ndlp = NULL;
 	lpfc_ncmd->flags &= ~LPFC_BUMP_QDEPTH;
 
-	qp = &phba->sli4_hba.hdwq[lpfc_ncmd->hdwq];
+	qp = lpfc_ncmd->hdwq;
 	if (lpfc_ncmd->flags & LPFC_SBUF_XBUSY) {
 		lpfc_printf_log(phba, KERN_INFO, LOG_NVME_ABTS,
 				"6310 XB release deferred for "

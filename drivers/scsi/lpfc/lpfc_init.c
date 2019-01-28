@@ -3734,7 +3734,8 @@ lpfc_io_buf_replenish(struct lpfc_hba *phba, struct list_head *cbuf)
 				return cnt;
 			cnt++;
 			qp = &phba->sli4_hba.hdwq[idx];
-			lpfc_cmd->hdwq = idx;
+			lpfc_cmd->hdwq_no = idx;
+			lpfc_cmd->hdwq = qp;
 			lpfc_cmd->cur_iocbq.wqe_cmpl = NULL;
 			lpfc_cmd->cur_iocbq.iocb_cmpl = NULL;
 			spin_lock(&qp->io_buf_list_put_lock);
