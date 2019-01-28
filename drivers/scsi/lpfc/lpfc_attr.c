@@ -5275,11 +5275,12 @@ LPFC_ATTR_R(xri_rebalancing, 1, 0, 1, "Enable/Disable XRI rebalancing");
 /*
  * lpfc_io_sched: Determine scheduling algrithmn for issuing FCP cmds
  * range is [0,1]. Default value is 0.
- * For [0], FCP commands are issued to Work Queues ina round robin fashion.
+ * For [0], FCP commands are issued to Work Queues based on upper layer
+ * hardware queue index.
  * For [1], FCP commands are issued to a Work Queue associated with the
  *          current CPU.
  *
- * LPFC_FCP_SCHED_ROUND_ROBIN == 0
+ * LPFC_FCP_SCHED_BY_HDWQ == 0
  * LPFC_FCP_SCHED_BY_CPU == 1
  *
  * The driver dynamically sets this to 1 (BY_CPU) if it's able to set up cpu
@@ -5287,11 +5288,11 @@ LPFC_ATTR_R(xri_rebalancing, 1, 0, 1, "Enable/Disable XRI rebalancing");
  * CPU. Otherwise, the default 0 (Round Robin) scheduling of FCP/NVME I/Os
  * through WQs will be used.
  */
-LPFC_ATTR_RW(fcp_io_sched, LPFC_FCP_SCHED_ROUND_ROBIN,
-	     LPFC_FCP_SCHED_ROUND_ROBIN,
+LPFC_ATTR_RW(fcp_io_sched, LPFC_FCP_SCHED_BY_HDWQ,
+	     LPFC_FCP_SCHED_BY_HDWQ,
 	     LPFC_FCP_SCHED_BY_CPU,
 	     "Determine scheduling algorithm for "
-	     "issuing commands [0] - Round Robin, [1] - Current CPU");
+	     "issuing commands [0] - Hardware Queue, [1] - Current CPU");
 
 /*
  * lpfc_ns_query: Determine algrithmn for NameServer queries after RSCN

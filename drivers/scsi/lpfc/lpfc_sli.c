@@ -14106,7 +14106,7 @@ process_cq:
 	/* Save EQ associated with this CQ */
 	cq->assoc_qp = phba->sli4_hba.hdwq[qidx].hba_eq;
 
-	if (!queue_work(phba->wq, &cq->irqwork))
+	if (!queue_work_on(cq->chann, phba->wq, &cq->irqwork))
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 				"0363 Cannot schedule soft IRQ "
 				"for CQ eqcqid=%d, cqid=%d on CPU %d\n",

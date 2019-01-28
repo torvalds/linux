@@ -1546,8 +1546,17 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 		}
 	}
 
-	lpfc_ncmd = lpfc_get_nvme_buf(phba, ndlp,
-				      lpfc_queue_info->index, expedite);
+	if (phba->cfg_fcp_io_sched == LPFC_FCP_SCHED_BY_HDWQ) {
+		idx = lpfc_queue_info->index;
+	} else {
+		cpu = smp_processor_id();
+		if (cpu < phba->cfg_hdw_queue)
+			idx = cpu;
+		else
+			idx = cpu % phba->cfg_hdw_queue;
+	}
+
+	lpfc_ncmd = lpfc_get_nvme_buf(phba, ndlp, idx, expedite);
 	if (lpfc_ncmd == NULL) {
 		atomic_inc(&lport->xmt_fcp_noxri);
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_IOERR,
@@ -1585,7 +1594,6 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 	 * index to use and that they have affinitized a CPU to this hardware
 	 * queue. A hardware queue maps to a driver MSI-X vector/EQ/CQ/WQ.
 	 */
-	idx = lpfc_queue_info->index;
 	lpfc_ncmd->cur_iocbq.hba_wqidx = idx;
 	cstat = &phba->sli4_hba.hdwq[idx].nvme_cstat;
 
