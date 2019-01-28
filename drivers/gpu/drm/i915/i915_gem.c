@@ -3246,7 +3246,7 @@ wait_for_timelines(struct drm_i915_private *i915,
 		return timeout;
 
 	mutex_lock(&gt->mutex);
-	list_for_each_entry(tl, &gt->list, link) {
+	list_for_each_entry(tl, &gt->active_list, link) {
 		struct i915_request *rq;
 
 		rq = i915_gem_active_get_unlocked(&tl->last_request);
@@ -3274,7 +3274,7 @@ wait_for_timelines(struct drm_i915_private *i915,
 
 		/* restart after reacquiring the lock */
 		mutex_lock(&gt->mutex);
-		tl = list_entry(&gt->list, typeof(*tl), link);
+		tl = list_entry(&gt->active_list, typeof(*tl), link);
 	}
 	mutex_unlock(&gt->mutex);
 

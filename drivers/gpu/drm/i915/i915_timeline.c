@@ -120,7 +120,6 @@ int i915_timeline_init(struct drm_i915_private *i915,
 		       const char *name,
 		       struct i915_vma *hwsp)
 {
-	struct i915_gt_timelines *gt = &i915->gt.timelines;
 	void *vaddr;
 
 	/*
@@ -168,10 +167,6 @@ int i915_timeline_init(struct drm_i915_private *i915,
 
 	i915_syncmap_init(&timeline->sync);
 
-	mutex_lock(&gt->mutex);
-	list_add(&timeline->link, &gt->list);
-	mutex_unlock(&gt->mutex);
-
 	return 0;
 }
 
@@ -180,13 +175,31 @@ void i915_timelines_init(struct drm_i915_private *i915)
 	struct i915_gt_timelines *gt = &i915->gt.timelines;
 
 	mutex_init(&gt->mutex);
-	INIT_LIST_HEAD(&gt->list);
+	INIT_LIST_HEAD(&gt->active_list);
 
 	spin_lock_init(&gt->hwsp_lock);
 	INIT_LIST_HEAD(&gt->hwsp_free_list);
 
 	/* via i915_gem_wait_for_idle() */
 	i915_gem_shrinker_taints_mutex(i915, &gt->mutex);
+}
+
+static void timeline_add_to_active(struct i915_timeline *tl)
+{
+	struct i915_gt_timelines *gt = &tl->i915->gt.timelines;
+
+	mutex_lock(&gt->mutex);
+	list_add(&tl->link, &gt->active_list);
+	mutex_unlock(&gt->mutex);
+}
+
+static void timeline_remove_from_active(struct i915_timeline *tl)
+{
+	struct i915_gt_timelines *gt = &tl->i915->gt.timelines;
+
+	mutex_lock(&gt->mutex);
+	list_del(&tl->link);
+	mutex_unlock(&gt->mutex);
 }
 
 /**
@@ -205,7 +218,7 @@ void i915_timelines_park(struct drm_i915_private *i915)
 	struct i915_timeline *timeline;
 
 	mutex_lock(&gt->mutex);
-	list_for_each_entry(timeline, &gt->list, link) {
+	list_for_each_entry(timeline, &gt->active_list, link) {
 		/*
 		 * All known fences are completed so we can scrap
 		 * the current sync point tracking and start afresh,
@@ -219,14 +232,8 @@ void i915_timelines_park(struct drm_i915_private *i915)
 
 void i915_timeline_fini(struct i915_timeline *timeline)
 {
-	struct i915_gt_timelines *gt = &timeline->i915->gt.timelines;
-
 	GEM_BUG_ON(timeline->pin_count);
 	GEM_BUG_ON(!list_empty(&timeline->requests));
-
-	mutex_lock(&gt->mutex);
-	list_del(&timeline->link);
-	mutex_unlock(&gt->mutex);
 
 	i915_syncmap_free(&timeline->sync);
 	hwsp_free(timeline);
@@ -274,6 +281,8 @@ int i915_timeline_pin(struct i915_timeline *tl)
 		i915_ggtt_offset(tl->hwsp_ggtt) +
 		offset_in_page(tl->hwsp_offset);
 
+	timeline_add_to_active(tl);
+
 	return 0;
 
 unpin:
@@ -286,6 +295,8 @@ void i915_timeline_unpin(struct i915_timeline *tl)
 	GEM_BUG_ON(!tl->pin_count);
 	if (--tl->pin_count)
 		return;
+
+	timeline_remove_from_active(tl);
 
 	/*
 	 * Since this timeline is idle, all bariers upon which we were waiting
@@ -310,7 +321,7 @@ void i915_timelines_fini(struct drm_i915_private *i915)
 {
 	struct i915_gt_timelines *gt = &i915->gt.timelines;
 
-	GEM_BUG_ON(!list_empty(&gt->list));
+	GEM_BUG_ON(!list_empty(&gt->active_list));
 	GEM_BUG_ON(!list_empty(&gt->hwsp_free_list));
 
 	mutex_destroy(&gt->mutex);

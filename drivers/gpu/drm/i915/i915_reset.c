@@ -856,7 +856,7 @@ bool i915_gem_unset_wedged(struct drm_i915_private *i915)
 	 * No more can be submitted until we reset the wedged bit.
 	 */
 	mutex_lock(&i915->gt.timelines.mutex);
-	list_for_each_entry(tl, &i915->gt.timelines.list, link) {
+	list_for_each_entry(tl, &i915->gt.timelines.active_list, link) {
 		struct i915_request *rq;
 		long timeout;
 
