@@ -1366,62 +1366,67 @@ static int
 lpfc_debugfs_cpucheck_data(struct lpfc_vport *vport, char *buf, int size)
 {
 	struct lpfc_hba   *phba = vport->phba;
-	int i;
+	struct lpfc_sli4_hdw_queue *qp;
+	int i, j;
 	int len = 0;
-	uint32_t tot_xmt = 0;
-	uint32_t tot_rcv = 0;
-	uint32_t tot_cmpl = 0;
-	uint32_t tot_ccmpl = 0;
+	uint32_t tot_xmt;
+	uint32_t tot_rcv;
+	uint32_t tot_cmpl;
 
-	if (phba->nvmet_support == 0) {
-		/* NVME Initiator */
-		len += snprintf(buf + len, PAGE_SIZE - len,
-				"CPUcheck %s\n",
-				(phba->cpucheck_on & LPFC_CHECK_NVME_IO ?
-					"Enabled" : "Disabled"));
-		for (i = 0; i < phba->sli4_hba.num_present_cpu; i++) {
-			if (i >= LPFC_CHECK_CPU_CNT)
-				break;
-			len += snprintf(buf + len, PAGE_SIZE - len,
-					"%02d: xmit x%08x cmpl x%08x\n",
-					i, phba->cpucheck_xmt_io[i],
-					phba->cpucheck_cmpl_io[i]);
-			tot_xmt += phba->cpucheck_xmt_io[i];
-			tot_cmpl += phba->cpucheck_cmpl_io[i];
-		}
-		len += snprintf(buf + len, PAGE_SIZE - len,
-				"tot:xmit x%08x cmpl x%08x\n",
-				tot_xmt, tot_cmpl);
-		return len;
-	}
-
-	/* NVME Target */
 	len += snprintf(buf + len, PAGE_SIZE - len,
 			"CPUcheck %s ",
-			(phba->cpucheck_on & LPFC_CHECK_NVMET_IO ?
-				"IO Enabled - " : "IO Disabled - "));
-	len += snprintf(buf + len, PAGE_SIZE - len,
-			"%s\n",
-			(phba->cpucheck_on & LPFC_CHECK_NVMET_RCV ?
-				"Rcv Enabled\n" : "Rcv Disabled\n"));
-	for (i = 0; i < phba->sli4_hba.num_present_cpu; i++) {
-		if (i >= LPFC_CHECK_CPU_CNT)
-			break;
+			(phba->cpucheck_on & LPFC_CHECK_NVME_IO ?
+				"Enabled" : "Disabled"));
+	if (phba->nvmet_support) {
 		len += snprintf(buf + len, PAGE_SIZE - len,
-				"%02d: xmit x%08x ccmpl x%08x "
-				"cmpl x%08x rcv x%08x\n",
-				i, phba->cpucheck_xmt_io[i],
-				phba->cpucheck_ccmpl_io[i],
-				phba->cpucheck_cmpl_io[i],
-				phba->cpucheck_rcv_io[i]);
-		tot_xmt += phba->cpucheck_xmt_io[i];
-		tot_rcv += phba->cpucheck_rcv_io[i];
-		tot_cmpl += phba->cpucheck_cmpl_io[i];
-		tot_ccmpl += phba->cpucheck_ccmpl_io[i];
+				"%s\n",
+				(phba->cpucheck_on & LPFC_CHECK_NVMET_RCV ?
+					"Rcv Enabled\n" : "Rcv Disabled\n"));
+	} else {
+		len += snprintf(buf + len, PAGE_SIZE - len, "\n");
 	}
-	len += snprintf(buf + len, PAGE_SIZE - len,
-			"tot:xmit x%08x ccmpl x%08x cmpl x%08x rcv x%08x\n",
-			tot_xmt, tot_ccmpl, tot_cmpl, tot_rcv);
+
+	for (i = 0; i < phba->cfg_hdw_queue; i++) {
+		qp = &phba->sli4_hba.hdwq[i];
+
+		tot_rcv = 0;
+		tot_xmt = 0;
+		tot_cmpl = 0;
+		for (j = 0; j < LPFC_CHECK_CPU_CNT; j++) {
+			tot_xmt += qp->cpucheck_xmt_io[j];
+			tot_cmpl += qp->cpucheck_cmpl_io[j];
+			if (phba->nvmet_support)
+				tot_rcv += qp->cpucheck_rcv_io[j];
+		}
+
+		/* Only display Hardware Qs with something */
+		if (!tot_xmt && !tot_cmpl && !tot_rcv)
+			continue;
+
+		len += snprintf(buf + len, PAGE_SIZE - len,
+				"HDWQ %03d: ", i);
+		for (j = 0; j < LPFC_CHECK_CPU_CNT; j++) {
+			/* Only display non-zero counters */
+			if (!qp->cpucheck_xmt_io[j] &&
+			    !qp->cpucheck_cmpl_io[j] &&
+			    !qp->cpucheck_rcv_io[j])
+				continue;
+			if (phba->nvmet_support) {
+				len += snprintf(buf + len, PAGE_SIZE - len,
+						"CPU %03d: %x/%x/%x ", j,
+						qp->cpucheck_rcv_io[j],
+						qp->cpucheck_xmt_io[j],
+						qp->cpucheck_cmpl_io[j]);
+			} else {
+				len += snprintf(buf + len, PAGE_SIZE - len,
+						"CPU %03d: %x/%x ", j,
+						qp->cpucheck_xmt_io[j],
+						qp->cpucheck_cmpl_io[j]);
+			}
+		}
+		len += snprintf(buf + len, PAGE_SIZE - len,
+				"Total: %x\n", tot_xmt);
+	}
 	return len;
 }
 
@@ -2474,9 +2479,10 @@ lpfc_debugfs_cpucheck_write(struct file *file, const char __user *buf,
 	struct lpfc_debug *debug = file->private_data;
 	struct lpfc_vport *vport = (struct lpfc_vport *)debug->i_private;
 	struct lpfc_hba   *phba = vport->phba;
+	struct lpfc_sli4_hdw_queue *qp;
 	char mybuf[64];
 	char *pbuf;
-	int i;
+	int i, j;
 
 	if (nbytes > 64)
 		nbytes = 64;
@@ -2506,13 +2512,14 @@ lpfc_debugfs_cpucheck_write(struct file *file, const char __user *buf,
 		return strlen(pbuf);
 	} else if ((strncmp(pbuf, "zero",
 		   sizeof("zero") - 1) == 0)) {
-		for (i = 0; i < phba->sli4_hba.num_present_cpu; i++) {
-			if (i >= LPFC_CHECK_CPU_CNT)
-				break;
-			phba->cpucheck_rcv_io[i] = 0;
-			phba->cpucheck_xmt_io[i] = 0;
-			phba->cpucheck_cmpl_io[i] = 0;
-			phba->cpucheck_ccmpl_io[i] = 0;
+		for (i = 0; i < phba->cfg_hdw_queue; i++) {
+			qp = &phba->sli4_hba.hdwq[i];
+
+			for (j = 0; j < LPFC_CHECK_CPU_CNT; j++) {
+				qp->cpucheck_rcv_io[j] = 0;
+				qp->cpucheck_xmt_io[j] = 0;
+				qp->cpucheck_cmpl_io[j] = 0;
+			}
 		}
 		return strlen(pbuf);
 	}
@@ -5358,9 +5365,9 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 		/* Setup hbqinfo */
 		snprintf(name, sizeof(name), "hbqinfo");
 		phba->debug_hbqinfo =
-			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
-				 phba->hba_debugfs_root,
-				 phba, &lpfc_debugfs_op_hbqinfo);
+			debugfs_create_file(name, S_IFREG | 0644,
+					    phba->hba_debugfs_root,
+					    phba, &lpfc_debugfs_op_hbqinfo);
 
 		/* Setup hdwqinfo */
 		snprintf(name, sizeof(name), "hdwqinfo");
@@ -5370,7 +5377,7 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 					    phba, &lpfc_debugfs_op_hdwqinfo);
 		if (!phba->debug_hdwqinfo) {
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
-					 "0411 Cant create debugfs hdwqinfo\n");
+					 "0511 Cant create debugfs hdwqinfo\n");
 			goto debug_failed;
 		}
 

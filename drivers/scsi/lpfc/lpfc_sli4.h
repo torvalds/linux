@@ -20,6 +20,10 @@
  * included with this package.                                     *
  *******************************************************************/
 
+#if defined(CONFIG_DEBUG_FS) && !defined(CONFIG_SCSI_LPFC_DEBUG_FS)
+#define CONFIG_SCSI_LPFC_DEBUG_FS
+#endif
+
 #define LPFC_ACTIVE_MBOX_WAIT_CNT               100
 #define LPFC_XRI_EXCH_BUSY_WAIT_TMO		10000
 #define LPFC_XRI_EXCH_BUSY_WAIT_T1   		10
@@ -555,6 +559,13 @@ struct lpfc_sli4_hdw_queue {
 	uint32_t empty_io_bufs;
 	uint32_t abts_scsi_io_bufs;
 	uint32_t abts_nvme_io_bufs;
+
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+#define LPFC_CHECK_CPU_CNT    128
+	uint32_t cpucheck_rcv_io[LPFC_CHECK_CPU_CNT];
+	uint32_t cpucheck_xmt_io[LPFC_CHECK_CPU_CNT];
+	uint32_t cpucheck_cmpl_io[LPFC_CHECK_CPU_CNT];
+#endif
 };
 
 struct lpfc_sli4_hba {

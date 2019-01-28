@@ -744,16 +744,6 @@ lpfc_nvmet_xmt_fcp_op_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 					ktime_get_ns();
 			}
 		}
-		if (phba->cpucheck_on & LPFC_CHECK_NVMET_IO) {
-			id = smp_processor_id();
-			if (ctxp->cpu != id)
-				lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
-						"6703 CPU Check cmpl: "
-						"cpu %d expect %d\n",
-						id, ctxp->cpu);
-			if (ctxp->cpu < LPFC_CHECK_CPU_CNT)
-				phba->cpucheck_cmpl_io[id]++;
-		}
 #endif
 		rsp->done(rsp);
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
@@ -771,19 +761,22 @@ lpfc_nvmet_xmt_fcp_op_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 			ctxp->ts_isr_data = cmdwqe->isr_timestamp;
 			ctxp->ts_data_nvme = ktime_get_ns();
 		}
-		if (phba->cpucheck_on & LPFC_CHECK_NVMET_IO) {
-			id = smp_processor_id();
-			if (ctxp->cpu != id)
-				lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
-						"6704 CPU Check cmdcmpl: "
-						"cpu %d expect %d\n",
-						id, ctxp->cpu);
-			if (ctxp->cpu < LPFC_CHECK_CPU_CNT)
-				phba->cpucheck_ccmpl_io[id]++;
-		}
 #endif
 		rsp->done(rsp);
 	}
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+	if (phba->cpucheck_on & LPFC_CHECK_NVMET_IO) {
+		id = smp_processor_id();
+		if (id < LPFC_CHECK_CPU_CNT) {
+			if (ctxp->cpu != id)
+				lpfc_printf_log(phba, KERN_INFO, LOG_NVME_IOERR,
+						"6704 CPU Check cmdcmpl: "
+						"cpu %d expect %d\n",
+						id, ctxp->cpu);
+			phba->sli4_hba.hdwq[rsp->hwqid].cpucheck_cmpl_io[id]++;
+		}
+	}
+#endif
 }
 
 static int
@@ -910,16 +903,15 @@ lpfc_nvmet_xmt_fcp_op(struct nvmet_fc_target_port *tgtport,
 	}
 	if (phba->cpucheck_on & LPFC_CHECK_NVMET_IO) {
 		int id = smp_processor_id();
-		ctxp->cpu = id;
-		if (id < LPFC_CHECK_CPU_CNT)
-			phba->cpucheck_xmt_io[id]++;
-		if (rsp->hwqid != id) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
-					"6705 CPU Check OP: "
-					"cpu %d expect %d\n",
-					id, rsp->hwqid);
-			ctxp->cpu = rsp->hwqid;
+		if (id < LPFC_CHECK_CPU_CNT) {
+			if (rsp->hwqid != id)
+				lpfc_printf_log(phba, KERN_INFO, LOG_NVME_IOERR,
+						"6705 CPU Check OP: "
+						"cpu %d expect %d\n",
+						id, rsp->hwqid);
+			phba->sli4_hba.hdwq[rsp->hwqid].cpucheck_xmt_io[id]++;
 		}
+		ctxp->cpu = id; /* Setup cpu for cmpl check */
 	}
 #endif
 
@@ -1897,9 +1889,6 @@ lpfc_nvmet_unsol_fcp_buffer(struct lpfc_hba *phba,
 	uint32_t size, oxid, sid, rc, qno;
 	unsigned long iflag;
 	int current_cpu;
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
-	uint32_t id;
-#endif
 
 	if (!IS_ENABLED(CONFIG_NVME_TARGET_FC))
 		return;
@@ -1940,9 +1929,14 @@ lpfc_nvmet_unsol_fcp_buffer(struct lpfc_hba *phba,
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	if (phba->cpucheck_on & LPFC_CHECK_NVMET_RCV) {
-		id = smp_processor_id();
-		if (id < LPFC_CHECK_CPU_CNT)
-			phba->cpucheck_rcv_io[id]++;
+		if (current_cpu < LPFC_CHECK_CPU_CNT) {
+			if (idx != current_cpu)
+				lpfc_printf_log(phba, KERN_INFO, LOG_NVME_IOERR,
+						"6703 CPU Check rcv: "
+						"cpu %d expect %d\n",
+						current_cpu, idx);
+			phba->sli4_hba.hdwq[idx].cpucheck_rcv_io[current_cpu]++;
+		}
 	}
 #endif
 

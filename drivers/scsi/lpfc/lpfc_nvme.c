@@ -965,7 +965,7 @@ lpfc_nvme_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 	struct lpfc_nvme_fcpreq_priv *freqpriv;
 	struct lpfc_nvme_lport *lport;
 	struct lpfc_nvme_ctrl_stat *cstat;
-	uint32_t code, status, idx;
+	uint32_t code, status, idx, cpu;
 	uint16_t cid, sqhd, data;
 	uint32_t *ptr;
 
@@ -1136,13 +1136,17 @@ out_err:
 		lpfc_nvme_ktime(phba, lpfc_ncmd);
 	}
 	if (phba->cpucheck_on & LPFC_CHECK_NVME_IO) {
-		if (lpfc_ncmd->cpu != smp_processor_id())
-			lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_IOERR,
-					 "6701 CPU Check cmpl: "
-					 "cpu %d expect %d\n",
-					 smp_processor_id(), lpfc_ncmd->cpu);
-		if (lpfc_ncmd->cpu < LPFC_CHECK_CPU_CNT)
-			phba->cpucheck_cmpl_io[lpfc_ncmd->cpu]++;
+		idx = lpfc_ncmd->cur_iocbq.hba_wqidx;
+		cpu = smp_processor_id();
+		if (cpu < LPFC_CHECK_CPU_CNT) {
+			if (lpfc_ncmd->cpu != cpu)
+				lpfc_printf_vlog(vport,
+						 KERN_INFO, LOG_NVME_IOERR,
+						 "6701 CPU Check cmpl: "
+						 "cpu %d expect %d\n",
+						 cpu, lpfc_ncmd->cpu);
+			phba->sli4_hba.hdwq[idx].cpucheck_cmpl_io[cpu]++;
+		}
 	}
 #endif
 
@@ -1421,7 +1425,7 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 {
 	int ret = 0;
 	int expedite = 0;
-	int idx;
+	int idx, cpu;
 	struct lpfc_nvme_lport *lport;
 	struct lpfc_nvme_ctrl_stat *cstat;
 	struct lpfc_vport *vport;
@@ -1620,21 +1624,18 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 		lpfc_ncmd->ts_cmd_wqput = ktime_get_ns();
 
 	if (phba->cpucheck_on & LPFC_CHECK_NVME_IO) {
-		lpfc_ncmd->cpu = smp_processor_id();
-		if (lpfc_ncmd->cpu != lpfc_queue_info->index) {
-			/* Check for admin queue */
-			if (lpfc_queue_info->qidx) {
+		cpu = smp_processor_id();
+		if (cpu < LPFC_CHECK_CPU_CNT) {
+			lpfc_ncmd->cpu = cpu;
+			if (idx != cpu)
 				lpfc_printf_vlog(vport,
-						 KERN_ERR, LOG_NVME_IOERR,
+						 KERN_INFO, LOG_NVME_IOERR,
 						"6702 CPU Check cmd: "
 						"cpu %d wq %d\n",
 						lpfc_ncmd->cpu,
 						lpfc_queue_info->index);
-			}
-			lpfc_ncmd->cpu = lpfc_queue_info->index;
+			phba->sli4_hba.hdwq[idx].cpucheck_xmt_io[cpu]++;
 		}
-		if (lpfc_ncmd->cpu < LPFC_CHECK_CPU_CNT)
-			phba->cpucheck_xmt_io[lpfc_ncmd->cpu]++;
 	}
 #endif
 	return 0;
