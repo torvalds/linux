@@ -4240,8 +4240,8 @@ static int sctp_setsockopt_interleaving_supported(struct sock *sk,
 						  unsigned int optlen)
 {
 	struct sctp_sock *sp = sctp_sk(sk);
-	struct net *net = sock_net(sk);
 	struct sctp_assoc_value params;
+	struct sctp_association *asoc;
 	int retval = -EINVAL;
 
 	if (optlen < sizeof(params))
@@ -4253,10 +4253,12 @@ static int sctp_setsockopt_interleaving_supported(struct sock *sk,
 		goto out;
 	}
 
-	if (params.assoc_id)
+	asoc = sctp_id2assoc(sk, params.assoc_id);
+	if (!asoc && params.assoc_id != SCTP_FUTURE_ASSOC &&
+	    sctp_style(sk, UDP))
 		goto out;
 
-	if (!net->sctp.intl_enable || !sp->frag_interleave) {
+	if (!sock_net(sk)->sctp.intl_enable || !sp->frag_interleave) {
 		retval = -EPERM;
 		goto out;
 	}
@@ -7453,16 +7455,14 @@ static int sctp_getsockopt_interleaving_supported(struct sock *sk, int len,
 		goto out;
 
 	asoc = sctp_id2assoc(sk, params.assoc_id);
-	if (asoc) {
-		params.assoc_value = asoc->intl_enable;
-	} else if (!params.assoc_id) {
-		struct sctp_sock *sp = sctp_sk(sk);
-
-		params.assoc_value = sp->strm_interleave;
-	} else {
+	if (!asoc && params.assoc_id != SCTP_FUTURE_ASSOC &&
+	    sctp_style(sk, UDP)) {
 		retval = -EINVAL;
 		goto out;
 	}
+
+	params.assoc_value = asoc ? asoc->intl_enable
+				  : sctp_sk(sk)->strm_interleave;
 
 	if (put_user(len, optlen))
 		goto out;
