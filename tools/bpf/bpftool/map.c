@@ -426,6 +426,9 @@ static int parse_elem(char **argv, struct bpf_map_info *info,
 				p_err("not enough value arguments for map of progs");
 				return -1;
 			}
+			if (is_prefix(*argv, "id"))
+				p_info("Warning: updating program array via MAP_ID, make sure this map is kept open\n"
+				       "         by some process or pinned otherwise update will be lost");
 
 			fd = prog_parse_fd(&argc, &argv);
 			if (fd < 0)
