@@ -248,7 +248,7 @@ struct sctp_association *sctp_id2assoc(struct sock *sk, sctp_assoc_t id)
 	}
 
 	/* Otherwise this is a UDP-style socket. */
-	if (!id || (id == (sctp_assoc_t)-1))
+	if (id <= SCTP_ALL_ASSOC)
 		return NULL;
 
 	spin_lock_bh(&sctp_assocs_id_lock);
