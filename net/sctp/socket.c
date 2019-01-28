@@ -4041,15 +4041,14 @@ static int sctp_setsockopt_reconfig_supported(struct sock *sk,
 	}
 
 	asoc = sctp_id2assoc(sk, params.assoc_id);
-	if (asoc) {
-		asoc->reconf_enable = !!params.assoc_value;
-	} else if (!params.assoc_id) {
-		struct sctp_sock *sp = sctp_sk(sk);
-
-		sp->ep->reconf_enable = !!params.assoc_value;
-	} else {
+	if (!asoc && params.assoc_id != SCTP_FUTURE_ASSOC &&
+	    sctp_style(sk, UDP))
 		goto out;
-	}
+
+	if (asoc)
+		asoc->reconf_enable = !!params.assoc_value;
+	else
+		sctp_sk(sk)->ep->reconf_enable = !!params.assoc_value;
 
 	retval = 0;
 
@@ -7295,16 +7294,14 @@ static int sctp_getsockopt_reconfig_supported(struct sock *sk, int len,
 		goto out;
 
 	asoc = sctp_id2assoc(sk, params.assoc_id);
-	if (asoc) {
-		params.assoc_value = asoc->reconf_enable;
-	} else if (!params.assoc_id) {
-		struct sctp_sock *sp = sctp_sk(sk);
-
-		params.assoc_value = sp->ep->reconf_enable;
-	} else {
+	if (!asoc && params.assoc_id != SCTP_FUTURE_ASSOC &&
+	    sctp_style(sk, UDP)) {
 		retval = -EINVAL;
 		goto out;
 	}
+
+	params.assoc_value = asoc ? asoc->reconf_enable
+				  : sctp_sk(sk)->ep->reconf_enable;
 
 	if (put_user(len, optlen))
 		goto out;
