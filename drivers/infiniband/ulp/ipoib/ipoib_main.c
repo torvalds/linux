@@ -2411,7 +2411,7 @@ static ssize_t dev_id_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(dev_id);
 
-int ipoib_intercept_dev_id_attr(struct net_device *dev)
+static int ipoib_intercept_dev_id_attr(struct net_device *dev)
 {
 	device_remove_file(&dev->dev, &dev_attr_dev_id);
 	return device_create_file(&dev->dev, &dev_attr_dev_id);
