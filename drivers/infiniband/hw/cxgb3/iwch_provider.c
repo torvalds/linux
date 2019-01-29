@@ -1393,7 +1393,7 @@ int iwch_register_device(struct iwch_dev *dev)
 	dev->ibdev.dev.parent = &dev->rdev.rnic_info.pdev->dev;
 	dev->ibdev.uverbs_abi_ver = IWCH_UVERBS_ABI_VERSION;
 
-	dev->ibdev.iwcm = kmalloc(sizeof(struct iw_cm_verbs), GFP_KERNEL);
+	dev->ibdev.iwcm = kzalloc(sizeof(struct iw_cm_verbs), GFP_KERNEL);
 	if (!dev->ibdev.iwcm)
 		return -ENOMEM;
 
