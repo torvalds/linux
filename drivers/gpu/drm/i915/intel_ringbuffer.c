@@ -1607,6 +1607,7 @@ static int intel_init_ring_buffer(struct intel_engine_cs *engine)
 		err = PTR_ERR(timeline);
 		goto err;
 	}
+	GEM_BUG_ON(timeline->has_initial_breadcrumb);
 
 	ring = intel_engine_create_ring(engine, timeline, 32 * PAGE_SIZE);
 	i915_timeline_put(timeline);
@@ -1960,6 +1961,7 @@ static int ring_request_alloc(struct i915_request *request)
 	int ret;
 
 	GEM_BUG_ON(!request->hw_context->pin_count);
+	GEM_BUG_ON(request->timeline->has_initial_breadcrumb);
 
 	/*
 	 * Flush enough space to reduce the likelihood of waiting after
@@ -2296,9 +2298,14 @@ static void intel_ring_default_vfuncs(struct drm_i915_private *dev_priv,
 	engine->context_pin = intel_ring_context_pin;
 	engine->request_alloc = ring_request_alloc;
 
-	engine->emit_breadcrumb = i9xx_emit_breadcrumb;
+	/*
+	 * Using a global execution timeline; the previous final breadcrumb is
+	 * equivalent to our next initial bread so we can elide
+	 * engine->emit_init_breadcrumb().
+	 */
+	engine->emit_fini_breadcrumb = i9xx_emit_breadcrumb;
 	if (IS_GEN(dev_priv, 5))
-		engine->emit_breadcrumb = gen5_emit_breadcrumb;
+		engine->emit_fini_breadcrumb = gen5_emit_breadcrumb;
 
 	engine->set_default_submission = i9xx_set_default_submission;
 
@@ -2327,11 +2334,11 @@ int intel_init_render_ring_buffer(struct intel_engine_cs *engine)
 	if (INTEL_GEN(dev_priv) >= 7) {
 		engine->init_context = intel_rcs_ctx_init;
 		engine->emit_flush = gen7_render_ring_flush;
-		engine->emit_breadcrumb = gen7_rcs_emit_breadcrumb;
+		engine->emit_fini_breadcrumb = gen7_rcs_emit_breadcrumb;
 	} else if (IS_GEN(dev_priv, 6)) {
 		engine->init_context = intel_rcs_ctx_init;
 		engine->emit_flush = gen6_render_ring_flush;
-		engine->emit_breadcrumb = gen6_rcs_emit_breadcrumb;
+		engine->emit_fini_breadcrumb = gen6_rcs_emit_breadcrumb;
 	} else if (IS_GEN(dev_priv, 5)) {
 		engine->emit_flush = gen4_render_ring_flush;
 	} else {
@@ -2368,9 +2375,9 @@ int intel_init_bsd_ring_buffer(struct intel_engine_cs *engine)
 		engine->irq_enable_mask = GT_BSD_USER_INTERRUPT;
 
 		if (IS_GEN(dev_priv, 6))
-			engine->emit_breadcrumb = gen6_xcs_emit_breadcrumb;
+			engine->emit_fini_breadcrumb = gen6_xcs_emit_breadcrumb;
 		else
-			engine->emit_breadcrumb = gen7_xcs_emit_breadcrumb;
+			engine->emit_fini_breadcrumb = gen7_xcs_emit_breadcrumb;
 	} else {
 		engine->emit_flush = bsd_ring_flush;
 		if (IS_GEN(dev_priv, 5))
@@ -2394,9 +2401,9 @@ int intel_init_blt_ring_buffer(struct intel_engine_cs *engine)
 	engine->irq_enable_mask = GT_BLT_USER_INTERRUPT;
 
 	if (IS_GEN(dev_priv, 6))
-		engine->emit_breadcrumb = gen6_xcs_emit_breadcrumb;
+		engine->emit_fini_breadcrumb = gen6_xcs_emit_breadcrumb;
 	else
-		engine->emit_breadcrumb = gen7_xcs_emit_breadcrumb;
+		engine->emit_fini_breadcrumb = gen7_xcs_emit_breadcrumb;
 
 	return intel_init_ring_buffer(engine);
 }
@@ -2414,7 +2421,7 @@ int intel_init_vebox_ring_buffer(struct intel_engine_cs *engine)
 	engine->irq_enable = hsw_vebox_irq_enable;
 	engine->irq_disable = hsw_vebox_irq_disable;
 
-	engine->emit_breadcrumb = gen7_xcs_emit_breadcrumb;
+	engine->emit_fini_breadcrumb = gen7_xcs_emit_breadcrumb;
 
 	return intel_init_ring_buffer(engine);
 }

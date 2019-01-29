@@ -624,7 +624,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 		 * WaIdleLiteRestore:bdw,skl
 		 * Apply the wa NOOPs to prevent
 		 * ring:HEAD == rq:TAIL as we resubmit the
-		 * request. See gen8_emit_breadcrumb() for
+		 * request. See gen8_emit_fini_breadcrumb() for
 		 * where we prepare the padding after the
 		 * end of the request.
 		 */
@@ -1281,6 +1281,34 @@ execlists_context_pin(struct intel_engine_cs *engine,
 	ce->ops = &execlists_context_ops;
 
 	return __execlists_context_pin(engine, ctx, ce);
+}
+
+static int gen8_emit_init_breadcrumb(struct i915_request *rq)
+{
+	u32 *cs;
+
+	GEM_BUG_ON(!rq->timeline->has_initial_breadcrumb);
+
+	cs = intel_ring_begin(rq, 6);
+	if (IS_ERR(cs))
+		return PTR_ERR(cs);
+
+	/*
+	 * Check if we have been preempted before we even get started.
+	 *
+	 * After this point i915_request_started() reports true, even if
+	 * we get preempted and so are no longer running.
+	 */
+	*cs++ = MI_ARB_CHECK;
+	*cs++ = MI_NOOP;
+
+	*cs++ = MI_STORE_DWORD_IMM_GEN4 | MI_USE_GGTT;
+	*cs++ = rq->timeline->hwsp_offset;
+	*cs++ = 0;
+	*cs++ = rq->fence.seqno - 1;
+
+	intel_ring_advance(rq, cs);
+	return 0;
 }
 
 static int emit_pdps(struct i915_request *rq)
@@ -2039,7 +2067,7 @@ static u32 *gen8_emit_wa_tail(struct i915_request *request, u32 *cs)
 	return cs;
 }
 
-static u32 *gen8_emit_breadcrumb(struct i915_request *request, u32 *cs)
+static u32 *gen8_emit_fini_breadcrumb(struct i915_request *request, u32 *cs)
 {
 	/* w/a: bit 5 needs to be zero for MI_FLUSH_DW address. */
 	BUILD_BUG_ON(I915_GEM_HWS_INDEX_ADDR & (1 << 5));
@@ -2061,7 +2089,7 @@ static u32 *gen8_emit_breadcrumb(struct i915_request *request, u32 *cs)
 	return gen8_emit_wa_tail(request, cs);
 }
 
-static u32 *gen8_emit_breadcrumb_rcs(struct i915_request *request, u32 *cs)
+static u32 *gen8_emit_fini_breadcrumb_rcs(struct i915_request *request, u32 *cs)
 {
 	cs = gen8_emit_ggtt_write_rcs(cs,
 				      request->fence.seqno,
@@ -2176,7 +2204,8 @@ logical_ring_default_vfuncs(struct intel_engine_cs *engine)
 	engine->request_alloc = execlists_request_alloc;
 
 	engine->emit_flush = gen8_emit_flush;
-	engine->emit_breadcrumb = gen8_emit_breadcrumb;
+	engine->emit_init_breadcrumb = gen8_emit_init_breadcrumb;
+	engine->emit_fini_breadcrumb = gen8_emit_fini_breadcrumb;
 
 	engine->set_default_submission = intel_execlists_set_default_submission;
 
@@ -2289,7 +2318,7 @@ int logical_render_ring_init(struct intel_engine_cs *engine)
 	/* Override some for render ring. */
 	engine->init_context = gen8_init_rcs_context;
 	engine->emit_flush = gen8_emit_flush_render;
-	engine->emit_breadcrumb = gen8_emit_breadcrumb_rcs;
+	engine->emit_fini_breadcrumb = gen8_emit_fini_breadcrumb_rcs;
 
 	ret = logical_ring_init(engine);
 	if (ret)

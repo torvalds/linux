@@ -664,7 +664,7 @@ static int measure_breadcrumb_dw(struct intel_engine_cs *engine)
 	if (dw < 0)
 		goto out_timeline;
 
-	dw = engine->emit_breadcrumb(&frame->rq, frame->cs) - frame->cs;
+	dw = engine->emit_fini_breadcrumb(&frame->rq, frame->cs) - frame->cs;
 
 	i915_timeline_unpin(&frame->timeline);
 
@@ -725,7 +725,7 @@ int intel_engine_init_common(struct intel_engine_cs *engine)
 	if (ret < 0)
 		goto err_breadcrumbs;
 
-	engine->emit_breadcrumb_dw = ret;
+	engine->emit_fini_breadcrumb_dw = ret;
 
 	return 0;
 
@@ -1297,7 +1297,9 @@ static void print_request(struct drm_printer *m,
 	drm_printf(m, "%s%x%s [%llx:%llx]%s @ %dms: %s\n",
 		   prefix,
 		   rq->global_seqno,
-		   i915_request_completed(rq) ? "!" : "",
+		   i915_request_completed(rq) ? "!" :
+		   i915_request_started(rq) ? "*" :
+		   "",
 		   rq->fence.context, rq->fence.seqno,
 		   buf,
 		   jiffies_to_msecs(jiffies - rq->emitted_jiffies),

@@ -344,6 +344,7 @@ static inline bool i915_request_started(const struct i915_request *rq)
 	if (i915_request_signaled(rq))
 		return true;
 
+	/* Remember: started but may have since been preempted! */
 	return i915_seqno_passed(hwsp_seqno(rq), rq->fence.seqno - 1);
 }
 

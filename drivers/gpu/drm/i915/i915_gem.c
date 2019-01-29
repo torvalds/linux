@@ -2871,6 +2871,14 @@ i915_gem_object_pwrite_gtt(struct drm_i915_gem_object *obj,
 	return 0;
 }
 
+static bool match_ring(struct i915_request *rq)
+{
+	struct drm_i915_private *dev_priv = rq->i915;
+	u32 ring = I915_READ(RING_START(rq->engine->mmio_base));
+
+	return ring == i915_ggtt_offset(rq->ring->vma);
+}
+
 struct i915_request *
 i915_gem_find_active_request(struct intel_engine_cs *engine)
 {
@@ -2892,6 +2900,13 @@ i915_gem_find_active_request(struct intel_engine_cs *engine)
 	list_for_each_entry(request, &engine->timeline.requests, link) {
 		if (i915_request_completed(request))
 			continue;
+
+		if (!i915_request_started(request))
+			break;
+
+		/* More than one preemptible request may match! */
+		if (!match_ring(request))
+			break;
 
 		active = request;
 		break;

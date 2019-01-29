@@ -227,7 +227,7 @@ struct intel_engine_cs *mock_engine(struct drm_i915_private *i915,
 	engine->base.context_pin = mock_context_pin;
 	engine->base.request_alloc = mock_request_alloc;
 	engine->base.emit_flush = mock_emit_flush;
-	engine->base.emit_breadcrumb = mock_emit_breadcrumb;
+	engine->base.emit_fini_breadcrumb = mock_emit_breadcrumb;
 	engine->base.submit_request = mock_submit_request;
 
 	if (i915_timeline_init(i915,

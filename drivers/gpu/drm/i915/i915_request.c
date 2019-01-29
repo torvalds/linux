@@ -333,7 +333,7 @@ void i915_request_retire_upto(struct i915_request *rq)
 
 static u32 timeline_get_seqno(struct i915_timeline *tl)
 {
-	return ++tl->seqno;
+	return tl->seqno += 1 + tl->has_initial_breadcrumb;
 }
 
 static void move_to_timeline(struct i915_request *request,
@@ -382,8 +382,8 @@ void __i915_request_submit(struct i915_request *request)
 		intel_engine_enable_signaling(request, false);
 	spin_unlock(&request->lock);
 
-	engine->emit_breadcrumb(request,
-				request->ring->vaddr + request->postfix);
+	engine->emit_fini_breadcrumb(request,
+				     request->ring->vaddr + request->postfix);
 
 	/* Transfer from per-context onto the global per-engine timeline */
 	move_to_timeline(request, &engine->timeline);
@@ -657,7 +657,7 @@ i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 	 * around inside i915_request_add() there is sufficient space at
 	 * the beginning of the ring as well.
 	 */
-	rq->reserved_space = 2 * engine->emit_breadcrumb_dw * sizeof(u32);
+	rq->reserved_space = 2 * engine->emit_fini_breadcrumb_dw * sizeof(u32);
 
 	/*
 	 * Record the position of the start of the request so that
@@ -908,7 +908,7 @@ void i915_request_add(struct i915_request *request)
 	 * GPU processing the request, we never over-estimate the
 	 * position of the ring's HEAD.
 	 */
-	cs = intel_ring_begin(request, engine->emit_breadcrumb_dw);
+	cs = intel_ring_begin(request, engine->emit_fini_breadcrumb_dw);
 	GEM_BUG_ON(IS_ERR(cs));
 	request->postfix = intel_ring_offset(request, cs);
 

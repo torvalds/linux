@@ -48,6 +48,8 @@ struct i915_timeline {
 	struct i915_vma *hwsp_ggtt;
 	u32 hwsp_offset;
 
+	bool has_initial_breadcrumb;
+
 	/**
 	 * List of breadcrumbs associated with GPU requests currently
 	 * outstanding.

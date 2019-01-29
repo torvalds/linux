@@ -135,6 +135,7 @@ int i915_timeline_init(struct drm_i915_private *i915,
 	timeline->i915 = i915;
 	timeline->name = name;
 	timeline->pin_count = 0;
+	timeline->has_initial_breadcrumb = !hwsp;
 
 	timeline->hwsp_offset = I915_GEM_HWS_SEQNO_ADDR;
 	if (!hwsp) {
