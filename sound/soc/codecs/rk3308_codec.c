@@ -199,8 +199,8 @@ struct rk3308_codec_priv {
 	unsigned int hpout_l_dgain;
 	unsigned int hpout_r_dgain;
 
-	bool enable_micbias;
 	bool enable_all_adcs;
+	bool enable_micbias;
 	bool internal_micbias;
 	bool hp_plugged;
 	bool loopback_dacs_enabled;
