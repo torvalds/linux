@@ -138,6 +138,10 @@
 	pinctrl-0 = <&pinctrl_rgmii2_default &pinctrl_mdio2_default>;
 };
 
+&uart1 {
+	status = "okay";
+};
+
 &uart5 {
 	status = "okay";
 };
