@@ -3404,53 +3404,13 @@ static bool bfq_may_expire_for_budg_timeout(struct bfq_queue *bfqq)
 		bfq_bfqq_budget_timeout(bfqq);
 }
 
-/*
- * For a queue that becomes empty, device idling is allowed only if
- * this function returns true for the queue. As a consequence, since
- * device idling plays a critical role in both throughput boosting and
- * service guarantees, the return value of this function plays a
- * critical role in both these aspects as well.
- *
- * In a nutshell, this function returns true only if idling is
- * beneficial for throughput or, even if detrimental for throughput,
- * idling is however necessary to preserve service guarantees (low
- * latency, desired throughput distribution, ...). In particular, on
- * NCQ-capable devices, this function tries to return false, so as to
- * help keep the drives' internal queues full, whenever this helps the
- * device boost the throughput without causing any service-guarantee
- * issue.
- *
- * In more detail, the return value of this function is obtained by,
- * first, computing a number of boolean variables that take into
- * account throughput and service-guarantee issues, and, then,
- * combining these variables in a logical expression. Most of the
- * issues taken into account are not trivial. We discuss these issues
- * individually while introducing the variables.
- */
-static bool bfq_better_to_idle(struct bfq_queue *bfqq)
+static bool idling_boosts_thr_without_issues(struct bfq_data *bfqd,
+					     struct bfq_queue *bfqq)
 {
-	struct bfq_data *bfqd = bfqq->bfqd;
 	bool rot_without_queueing =
 		!blk_queue_nonrot(bfqd->queue) && !bfqd->hw_tag,
 		bfqq_sequential_and_IO_bound,
-		idling_boosts_thr, idling_boosts_thr_without_issues,
-		idling_needed_for_service_guarantees,
-		asymmetric_scenario;
-
-	if (bfqd->strict_guarantees)
-		return true;
-
-	/*
-	 * Idling is performed only if slice_idle > 0. In addition, we
-	 * do not idle if
-	 * (a) bfqq is async
-	 * (b) bfqq is in the idle io prio class: in this case we do
-	 * not idle because we want to minimize the bandwidth that
-	 * queues in this class can steal to higher-priority queues
-	 */
-	if (bfqd->bfq_slice_idle == 0 || !bfq_bfqq_sync(bfqq) ||
-	    bfq_class_idle(bfqq))
-		return false;
+		idling_boosts_thr;
 
 	bfqq_sequential_and_IO_bound = !BFQQ_SEEKY(bfqq) &&
 		bfq_bfqq_IO_bound(bfqq) && bfq_bfqq_has_short_ttime(bfqq);
@@ -3482,8 +3442,7 @@ static bool bfq_better_to_idle(struct bfq_queue *bfqq)
 		 bfqq_sequential_and_IO_bound);
 
 	/*
-	 * The value of the next variable,
-	 * idling_boosts_thr_without_issues, is equal to that of
+	 * The return value of this function is equal to that of
 	 * idling_boosts_thr, unless a special case holds. In this
 	 * special case, described below, idling may cause problems to
 	 * weight-raised queues.
@@ -3500,32 +3459,35 @@ static bool bfq_better_to_idle(struct bfq_queue *bfqq)
 	 * which enqueue several requests in advance, and further
 	 * reorder internally-queued requests.
 	 *
-	 * For this reason, we force to false the value of
-	 * idling_boosts_thr_without_issues if there are weight-raised
-	 * busy queues. In this case, and if bfqq is not weight-raised,
-	 * this guarantees that the device is not idled for bfqq (if,
-	 * instead, bfqq is weight-raised, then idling will be
-	 * guaranteed by another variable, see below). Combined with
-	 * the timestamping rules of BFQ (see [1] for details), this
-	 * behavior causes bfqq, and hence any sync non-weight-raised
-	 * queue, to get a lower number of requests served, and thus
-	 * to ask for a lower number of requests from the request
-	 * pool, before the busy weight-raised queues get served
-	 * again. This often mitigates starvation problems in the
-	 * presence of heavy write workloads and NCQ, thereby
-	 * guaranteeing a higher application and system responsiveness
-	 * in these hostile scenarios.
+	 * For this reason, we force to false the return value if
+	 * there are weight-raised busy queues. In this case, and if
+	 * bfqq is not weight-raised, this guarantees that the device
+	 * is not idled for bfqq (if, instead, bfqq is weight-raised,
+	 * then idling will be guaranteed by another variable, see
+	 * below). Combined with the timestamping rules of BFQ (see
+	 * [1] for details), this behavior causes bfqq, and hence any
+	 * sync non-weight-raised queue, to get a lower number of
+	 * requests served, and thus to ask for a lower number of
+	 * requests from the request pool, before the busy
+	 * weight-raised queues get served again. This often mitigates
+	 * starvation problems in the presence of heavy write
+	 * workloads and NCQ, thereby guaranteeing a higher
+	 * application and system responsiveness in these hostile
+	 * scenarios.
 	 */
-	idling_boosts_thr_without_issues = idling_boosts_thr &&
+	return idling_boosts_thr &&
 		bfqd->wr_busy_queues == 0;
+}
 
+static bool idling_needed_for_service_guarantees(struct bfq_data *bfqd,
+						 struct bfq_queue *bfqq)
+{
 	/*
-	 * There is then a case where idling must be performed not
-	 * for throughput concerns, but to preserve service
-	 * guarantees.
+	 * There is a case where idling must be performed not for
+	 * throughput concerns, but to preserve service guarantees.
 	 *
 	 * To introduce this case, we can note that allowing the drive
-	 * to enqueue more than one request at a time, and hence
+	 * to enqueue more than one request at a time, and thereby
 	 * delegating de facto final scheduling decisions to the
 	 * drive's internal scheduler, entails loss of control on the
 	 * actual request service order. In particular, the critical
@@ -3682,9 +3644,9 @@ static bool bfq_better_to_idle(struct bfq_queue *bfqq)
 	 * to let requests be served in the desired order until all
 	 * the requests already queued in the device have been served.
 	 */
-	asymmetric_scenario = (bfqq->wr_coeff > 1 &&
-			       bfqd->wr_busy_queues <
-			       bfq_tot_busy_queues(bfqd)) ||
+	bool asymmetric_scenario = (bfqq->wr_coeff > 1 &&
+				    bfqd->wr_busy_queues <
+				    bfq_tot_busy_queues(bfqd)) ||
 		!bfq_symmetric_scenario(bfqd);
 
 	/*
@@ -3701,17 +3663,64 @@ static bool bfq_better_to_idle(struct bfq_queue *bfqq)
 	 * now establish when idling is actually needed to preserve
 	 * service guarantees.
 	 */
-	idling_needed_for_service_guarantees =
-		asymmetric_scenario && !bfq_bfqq_in_large_burst(bfqq);
+	return asymmetric_scenario && !bfq_bfqq_in_large_burst(bfqq);
+}
+
+/*
+ * For a queue that becomes empty, device idling is allowed only if
+ * this function returns true for that queue. As a consequence, since
+ * device idling plays a critical role for both throughput boosting
+ * and service guarantees, the return value of this function plays a
+ * critical role as well.
+ *
+ * In a nutshell, this function returns true only if idling is
+ * beneficial for throughput or, even if detrimental for throughput,
+ * idling is however necessary to preserve service guarantees (low
+ * latency, desired throughput distribution, ...). In particular, on
+ * NCQ-capable devices, this function tries to return false, so as to
+ * help keep the drives' internal queues full, whenever this helps the
+ * device boost the throughput without causing any service-guarantee
+ * issue.
+ *
+ * Most of the issues taken into account to get the return value of
+ * this function are not trivial. We discuss these issues in the two
+ * functions providing the main pieces of information needed by this
+ * function.
+ */
+static bool bfq_better_to_idle(struct bfq_queue *bfqq)
+{
+	struct bfq_data *bfqd = bfqq->bfqd;
+	bool idling_boosts_thr_with_no_issue, idling_needed_for_service_guar;
+
+	if (unlikely(bfqd->strict_guarantees))
+		return true;
 
 	/*
-	 * We have now all the components we need to compute the
+	 * Idling is performed only if slice_idle > 0. In addition, we
+	 * do not idle if
+	 * (a) bfqq is async
+	 * (b) bfqq is in the idle io prio class: in this case we do
+	 * not idle because we want to minimize the bandwidth that
+	 * queues in this class can steal to higher-priority queues
+	 */
+	if (bfqd->bfq_slice_idle == 0 || !bfq_bfqq_sync(bfqq) ||
+	   bfq_class_idle(bfqq))
+		return false;
+
+	idling_boosts_thr_with_no_issue =
+		idling_boosts_thr_without_issues(bfqd, bfqq);
+
+	idling_needed_for_service_guar =
+		idling_needed_for_service_guarantees(bfqd, bfqq);
+
+	/*
+	 * We have now the two components we need to compute the
 	 * return value of the function, which is true only if idling
 	 * either boosts the throughput (without issues), or is
 	 * necessary to preserve service guarantees.
 	 */
-	return idling_boosts_thr_without_issues ||
-		idling_needed_for_service_guarantees;
+	return idling_boosts_thr_with_no_issue ||
+		idling_needed_for_service_guar;
 }
 
 /*
