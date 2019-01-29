@@ -188,13 +188,90 @@ static inline int rq_prio(const struct i915_request *rq)
 	return rq->sched.attr.priority;
 }
 
-static inline bool need_preempt(const struct intel_engine_cs *engine,
-				const struct i915_request *last,
-				int prio)
+static int queue_prio(const struct intel_engine_execlists *execlists)
 {
-	return (intel_engine_has_preemption(engine) &&
-		__execlists_need_preempt(prio, rq_prio(last)) &&
-		!i915_request_completed(last));
+	struct i915_priolist *p;
+	struct rb_node *rb;
+
+	rb = rb_first_cached(&execlists->queue);
+	if (!rb)
+		return INT_MIN;
+
+	/*
+	 * As the priolist[] are inverted, with the highest priority in [0],
+	 * we have to flip the index value to become priority.
+	 */
+	p = to_priolist(rb);
+	return ((p->priority + 1) << I915_USER_PRIORITY_SHIFT) - ffs(p->used);
+}
+
+static inline bool need_preempt(const struct intel_engine_cs *engine,
+				const struct i915_request *rq)
+{
+	const int last_prio = rq_prio(rq);
+
+	if (!intel_engine_has_preemption(engine))
+		return false;
+
+	if (i915_request_completed(rq))
+		return false;
+
+	/*
+	 * Check if the current priority hint merits a preemption attempt.
+	 *
+	 * We record the highest value priority we saw during rescheduling
+	 * prior to this dequeue, therefore we know that if it is strictly
+	 * less than the current tail of ESLP[0], we do not need to force
+	 * a preempt-to-idle cycle.
+	 *
+	 * However, the priority hint is a mere hint that we may need to
+	 * preempt. If that hint is stale or we may be trying to preempt
+	 * ourselves, ignore the request.
+	 */
+	if (!__execlists_need_preempt(engine->execlists.queue_priority_hint,
+				      last_prio))
+		return false;
+
+	/*
+	 * Check against the first request in ELSP[1], it will, thanks to the
+	 * power of PI, be the highest priority of that context.
+	 */
+	if (!list_is_last(&rq->link, &engine->timeline.requests) &&
+	    rq_prio(list_next_entry(rq, link)) > last_prio)
+		return true;
+
+	/*
+	 * If the inflight context did not trigger the preemption, then maybe
+	 * it was the set of queued requests? Pick the highest priority in
+	 * the queue (the first active priolist) and see if it deserves to be
+	 * running instead of ELSP[0].
+	 *
+	 * The highest priority request in the queue can not be either
+	 * ELSP[0] or ELSP[1] as, thanks again to PI, if it was the same
+	 * context, it's priority would not exceed ELSP[0] aka last_prio.
+	 */
+	return queue_prio(&engine->execlists) > last_prio;
+}
+
+__maybe_unused static inline bool
+assert_priority_queue(const struct intel_engine_execlists *execlists,
+		      const struct i915_request *prev,
+		      const struct i915_request *next)
+{
+	if (!prev)
+		return true;
+
+	/*
+	 * Without preemption, the prev may refer to the still active element
+	 * which we refuse to let go.
+	 *
+	 * Even with preemption, there are times when we think it is better not
+	 * to preempt and leave an ostensibly lower priority request in flight.
+	 */
+	if (port_request(execlists->port) == prev)
+		return true;
+
+	return rq_prio(prev) >= rq_prio(next);
 }
 
 /*
@@ -523,6 +600,8 @@ static void inject_preempt_context(struct intel_engine_cs *engine)
 
 	execlists_clear_active(execlists, EXECLISTS_ACTIVE_HWACK);
 	execlists_set_active(execlists, EXECLISTS_ACTIVE_PREEMPT);
+
+	(void)I915_SELFTEST_ONLY(execlists->preempt_hang.count++);
 }
 
 static void complete_preempt_context(struct intel_engine_execlists *execlists)
@@ -591,7 +670,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 		if (!execlists_is_active(execlists, EXECLISTS_ACTIVE_HWACK))
 			return;
 
-		if (need_preempt(engine, last, execlists->queue_priority_hint)) {
+		if (need_preempt(engine, last)) {
 			inject_preempt_context(engine);
 			return;
 		}
@@ -637,8 +716,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 		int i;
 
 		priolist_for_each_request_consume(rq, rn, p, i) {
-			GEM_BUG_ON(last &&
-				   need_preempt(engine, last, rq_prio(rq)));
+			GEM_BUG_ON(!assert_priority_queue(execlists, last, rq));
 
 			/*
 			 * Can we combine this request with the current port?
@@ -883,6 +961,8 @@ static void process_csb(struct intel_engine_cs *engine)
 	struct execlist_port *port = execlists->port;
 	const u32 * const buf = execlists->csb_status;
 	u8 head, tail;
+
+	lockdep_assert_held(&engine->timeline.lock);
 
 	/*
 	 * Note that csb_write, csb_status may be either in HWSP or mmio.

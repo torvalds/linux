@@ -238,6 +238,18 @@ sched_lock_engine(struct i915_sched_node *node, struct intel_engine_cs *locked)
 	return engine;
 }
 
+static bool inflight(const struct i915_request *rq,
+		     const struct intel_engine_cs *engine)
+{
+	const struct i915_request *active;
+
+	if (!rq->global_seqno)
+		return false;
+
+	active = port_request(engine->execlists.port);
+	return active->hw_context == rq->hw_context;
+}
+
 static void __i915_schedule(struct i915_request *rq,
 			    const struct i915_sched_attr *attr)
 {
@@ -327,6 +339,7 @@ static void __i915_schedule(struct i915_request *rq,
 		INIT_LIST_HEAD(&dep->dfs_link);
 
 		engine = sched_lock_engine(node, engine);
+		lockdep_assert_held(&engine->timeline.lock);
 
 		/* Recheck after acquiring the engine->timeline.lock */
 		if (prio <= node->attr.priority || node_signaled(node))
@@ -355,17 +368,16 @@ static void __i915_schedule(struct i915_request *rq,
 		if (prio <= engine->execlists.queue_priority_hint)
 			continue;
 
+		engine->execlists.queue_priority_hint = prio;
+
 		/*
 		 * If we are already the currently executing context, don't
 		 * bother evaluating if we should preempt ourselves.
 		 */
-		if (node_to_request(node)->global_seqno &&
-		    i915_seqno_passed(port_request(engine->execlists.port)->global_seqno,
-				      node_to_request(node)->global_seqno))
+		if (inflight(node_to_request(node), engine))
 			continue;
 
 		/* Defer (tasklet) submission until after all of our updates. */
-		engine->execlists.queue_priority_hint = prio;
 		tasklet_hi_schedule(&engine->execlists.tasklet);
 	}
 

@@ -629,6 +629,8 @@ static void inject_preempt_context(struct work_struct *work)
 				       EXECLISTS_ACTIVE_PREEMPT);
 		tasklet_schedule(&engine->execlists.tasklet);
 	}
+
+	(void)I915_SELFTEST_ONLY(engine->execlists.preempt_hang.count++);
 }
 
 /*
