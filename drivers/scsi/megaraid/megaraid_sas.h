@@ -790,6 +790,37 @@ struct MR_LD_TARGETID_LIST {
 	u8	targetId[MAX_LOGICAL_DRIVES_EXT];
 };
 
+struct MR_HOST_DEVICE_LIST_ENTRY {
+	struct {
+		union {
+			struct {
+#if defined(__BIG_ENDIAN_BITFIELD)
+				u8 reserved:7;
+				u8 is_sys_pd:1;
+#else
+				u8 is_sys_pd:1;
+				u8 reserved:7;
+#endif
+			} bits;
+			u8 byte;
+		} u;
+	} flags;
+	u8 scsi_type;
+	__le16 target_id;
+	u8 reserved[2];
+	__le64 sas_addr[2];
+} __packed;
+
+struct MR_HOST_DEVICE_LIST {
+	__le32			size;
+	__le32			count;
+	struct MR_HOST_DEVICE_LIST_ENTRY	host_device_list[1];
+} __packed;
+
+#define HOST_DEVICE_LIST_SZ (sizeof(struct MR_HOST_DEVICE_LIST) +	       \
+			      (sizeof(struct MR_HOST_DEVICE_LIST_ENTRY) *      \
+			      (MEGASAS_MAX_PD + MAX_LOGICAL_DRIVES_EXT - 1)))
+
 
 /*
  * SAS controller properties
@@ -870,13 +901,17 @@ struct megasas_ctrl_prop {
 		u8 viewSpace;
 		struct {
 #if   defined(__BIG_ENDIAN_BITFIELD)
-			u16 reserved2:11;
+			u16 reserved3:9;
+			u16 enable_fw_dev_list:1;
+			u16 reserved2:1;
 			u16 enable_snap_dump:1;
 			u16 reserved1:4;
 #else
 			u16 reserved1:4;
 			u16 enable_snap_dump:1;
-			u16 reserved2:11;
+			u16 reserved2:1;
+			u16 enable_fw_dev_list:1;
+			u16 reserved3:9;
 #endif
 		} on_off_properties2;
 	};
@@ -1685,7 +1720,8 @@ union megasas_sgl_frame {
 typedef union _MFI_CAPABILITIES {
 	struct {
 #if   defined(__BIG_ENDIAN_BITFIELD)
-	u32     reserved:17;
+	u32     reserved:16;
+	u32	support_fw_exposed_dev_list:1;
 	u32	support_nvme_passthru:1;
 	u32     support_64bit_mode:1;
 	u32 support_pd_map_target_id:1;
@@ -1717,7 +1753,8 @@ typedef union _MFI_CAPABILITIES {
 	u32	support_pd_map_target_id:1;
 	u32     support_64bit_mode:1;
 	u32	support_nvme_passthru:1;
-	u32     reserved:17;
+	u32	support_fw_exposed_dev_list:1;
+	u32     reserved:16;
 #endif
 	} mfi_capabilities;
 	__le32		reg;
@@ -2202,6 +2239,9 @@ struct megasas_instance {
 	struct MR_LD_TARGETID_LIST *ld_targetid_list_buf;
 	dma_addr_t ld_targetid_list_buf_h;
 
+	struct MR_HOST_DEVICE_LIST *host_device_list_buf;
+	dma_addr_t host_device_list_buf_h;
+
 	struct MR_SNAPDUMP_PROPERTIES *snapdump_prop;
 	dma_addr_t snapdump_prop_h;
 
@@ -2337,6 +2377,7 @@ struct megasas_instance {
 	u8 task_abort_tmo;
 	u8 max_reset_tmo;
 	u8 snapdump_wait_time;
+	u8 enable_fw_dev_list;
 };
 struct MR_LD_VF_MAP {
 	u32 size;
