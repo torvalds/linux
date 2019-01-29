@@ -105,7 +105,7 @@ struct wcove_gpio {
 	bool set_irq_mask;
 };
 
-static inline unsigned int to_reg(int gpio, enum ctrl_register reg_type)
+static inline int to_reg(int gpio, enum ctrl_register reg_type)
 {
 	unsigned int reg;
 
