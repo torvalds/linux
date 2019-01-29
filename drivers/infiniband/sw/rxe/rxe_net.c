@@ -384,9 +384,6 @@ static int prepare4(struct rxe_pkt_info *pkt, struct sk_buff *skb,
 		return -EHOSTUNREACH;
 	}
 
-	if (!memcmp(saddr, daddr, sizeof(*daddr)))
-		pkt->mask |= RXE_LOOPBACK_MASK;
-
 	prepare_udp_hdr(skb, cpu_to_be16(qp->src_port),
 			cpu_to_be16(ROCE_V2_UDP_DPORT));
 
@@ -411,9 +408,6 @@ static int prepare6(struct rxe_pkt_info *pkt, struct sk_buff *skb,
 		return -EHOSTUNREACH;
 	}
 
-	if (!memcmp(saddr, daddr, sizeof(*daddr)))
-		pkt->mask |= RXE_LOOPBACK_MASK;
-
 	prepare_udp_hdr(skb, cpu_to_be16(qp->src_port),
 			cpu_to_be16(ROCE_V2_UDP_DPORT));
 
@@ -436,6 +430,9 @@ int rxe_prepare(struct rxe_pkt_info *pkt, struct sk_buff *skb, u32 *crc)
 		err = prepare6(pkt, skb, av);
 
 	*crc = rxe_icrc_hdr(pkt, skb);
+
+	if (ether_addr_equal(skb->dev->dev_addr, av->dmac))
+		pkt->mask |= RXE_LOOPBACK_MASK;
 
 	return err;
 }
