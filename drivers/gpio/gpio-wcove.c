@@ -324,7 +324,8 @@ static struct irq_chip wcove_irqchip = {
 static irqreturn_t wcove_gpio_irq_handler(int irq, void *data)
 {
 	struct wcove_gpio *wg = (struct wcove_gpio *)data;
-	unsigned int pending, virq, gpio, mask, offset;
+	unsigned int virq, gpio, mask, offset;
+	unsigned long pending;
 	u8 p[2];
 
 	if (regmap_bulk_read(wg->regmap, IRQ_STATUS_BASE, p, 2)) {
@@ -339,8 +340,7 @@ static irqreturn_t wcove_gpio_irq_handler(int irq, void *data)
 	/* Iterate until no interrupt is pending */
 	while (pending) {
 		/* One iteration is for all pending bits */
-		for_each_set_bit(gpio, (const unsigned long *)&pending,
-						 WCOVE_GPIO_NUM) {
+		for_each_set_bit(gpio, &pending, WCOVE_GPIO_NUM) {
 			offset = (gpio > GROUP0_NR_IRQS) ? 1 : 0;
 			mask = (offset == 1) ? BIT(gpio - GROUP0_NR_IRQS) :
 								BIT(gpio);
