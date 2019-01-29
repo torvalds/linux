@@ -167,19 +167,6 @@ static void dce_virtual_crtc_disable(struct drm_crtc *crtc)
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
 
 	dce_virtual_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
-	if (crtc->primary->fb) {
-		int r;
-		struct amdgpu_bo *abo;
-
-		abo = gem_to_amdgpu_bo(crtc->primary->fb->obj[0]);
-		r = amdgpu_bo_reserve(abo, true);
-		if (unlikely(r))
-			DRM_ERROR("failed to reserve abo before unpin\n");
-		else {
-			amdgpu_bo_unpin(abo);
-			amdgpu_bo_unreserve(abo);
-		}
-	}
 
 	amdgpu_crtc->pll_id = ATOM_PPLL_INVALID;
 	amdgpu_crtc->encoder = NULL;
@@ -692,7 +679,9 @@ static int dce_virtual_pageflip(struct amdgpu_device *adev,
 	spin_unlock_irqrestore(&adev->ddev->event_lock, flags);
 
 	drm_crtc_vblank_put(&amdgpu_crtc->base);
-	schedule_work(&works->unpin_work);
+	amdgpu_bo_unref(&works->old_abo);
+	kfree(works->shared);
+	kfree(works);
 
 	return 0;
 }

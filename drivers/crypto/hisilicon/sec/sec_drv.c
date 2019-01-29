@@ -1082,9 +1082,8 @@ static int sec_queue_res_cfg(struct sec_queue *queue)
 	struct sec_queue_ring_db *ring_db = &queue->ring_db;
 	int ret;
 
-	ring_cmd->vaddr = dma_zalloc_coherent(dev, SEC_Q_CMD_SIZE,
-					      &ring_cmd->paddr,
-					      GFP_KERNEL);
+	ring_cmd->vaddr = dma_alloc_coherent(dev, SEC_Q_CMD_SIZE,
+					     &ring_cmd->paddr, GFP_KERNEL);
 	if (!ring_cmd->vaddr)
 		return -ENOMEM;
 
@@ -1092,17 +1091,15 @@ static int sec_queue_res_cfg(struct sec_queue *queue)
 	mutex_init(&ring_cmd->lock);
 	ring_cmd->callback = sec_alg_callback;
 
-	ring_cq->vaddr = dma_zalloc_coherent(dev, SEC_Q_CQ_SIZE,
-					     &ring_cq->paddr,
-					     GFP_KERNEL);
+	ring_cq->vaddr = dma_alloc_coherent(dev, SEC_Q_CQ_SIZE,
+					    &ring_cq->paddr, GFP_KERNEL);
 	if (!ring_cq->vaddr) {
 		ret = -ENOMEM;
 		goto err_free_ring_cmd;
 	}
 
-	ring_db->vaddr = dma_zalloc_coherent(dev, SEC_Q_DB_SIZE,
-					     &ring_db->paddr,
-					     GFP_KERNEL);
+	ring_db->vaddr = dma_alloc_coherent(dev, SEC_Q_DB_SIZE,
+					    &ring_db->paddr, GFP_KERNEL);
 	if (!ring_db->vaddr) {
 		ret = -ENOMEM;
 		goto err_free_ring_cq;

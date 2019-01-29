@@ -122,11 +122,18 @@ Description:
 		statistics (bd_count, bd_reads, bd_writes) in a format
 		similar to block layer statistics file format.
 
+What:		/sys/block/zram<id>/writeback_limit_enable
+Date:		November 2018
+Contact:	Minchan Kim <minchan@kernel.org>
+Description:
+		The writeback_limit_enable file is read-write and specifies
+		eanbe of writeback_limit feature. "1" means eable the feature.
+		No limit "0" is the initial state.
+
 What:		/sys/block/zram<id>/writeback_limit
 Date:		November 2018
 Contact:	Minchan Kim <minchan@kernel.org>
 Description:
 		The writeback_limit file is read-write and specifies the maximum
 		amount of writeback ZRAM can do. The limit could be changed
-		in run time and "0" means disable the limit.
-		No limit is the initial state.
+		in run time.

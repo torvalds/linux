@@ -705,7 +705,7 @@ enum PP_TABLE_VERSION {
 /**
  * The main hardware manager structure.
  */
-#define Workload_Policy_Max 5
+#define Workload_Policy_Max 6
 
 struct pp_hwmgr {
 	void *adev;

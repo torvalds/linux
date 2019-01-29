@@ -1701,8 +1701,10 @@ static int amdgpu_device_ip_init(struct amdgpu_device *adev)
 		amdgpu_xgmi_add_device(adev);
 	amdgpu_amdkfd_device_init(adev);
 
-	if (amdgpu_sriov_vf(adev))
+	if (amdgpu_sriov_vf(adev)) {
+		amdgpu_virt_init_data_exchange(adev);
 		amdgpu_virt_release_full_gpu(adev, true);
+	}
 
 	return 0;
 }
@@ -2632,9 +2634,6 @@ fence_driver_init:
 		goto failed;
 	}
 
-	if (amdgpu_sriov_vf(adev))
-		amdgpu_virt_init_data_exchange(adev);
-
 	amdgpu_fbdev_init(adev);
 
 	r = amdgpu_pm_sysfs_init(adev);
@@ -2798,7 +2797,7 @@ int amdgpu_device_suspend(struct drm_device *dev, bool suspend, bool fbcon)
 			struct drm_framebuffer *fb = crtc->primary->fb;
 			struct amdgpu_bo *robj;
 
-			if (amdgpu_crtc->cursor_bo) {
+			if (amdgpu_crtc->cursor_bo && !adev->enable_virtual_display) {
 				struct amdgpu_bo *aobj = gem_to_amdgpu_bo(amdgpu_crtc->cursor_bo);
 				r = amdgpu_bo_reserve(aobj, true);
 				if (r == 0) {
@@ -2906,7 +2905,7 @@ int amdgpu_device_resume(struct drm_device *dev, bool resume, bool fbcon)
 		list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 			struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
 
-			if (amdgpu_crtc->cursor_bo) {
+			if (amdgpu_crtc->cursor_bo && !adev->enable_virtual_display) {
 				struct amdgpu_bo *aobj = gem_to_amdgpu_bo(amdgpu_crtc->cursor_bo);
 				r = amdgpu_bo_reserve(aobj, true);
 				if (r == 0) {
@@ -3226,6 +3225,7 @@ static int amdgpu_device_reset_sriov(struct amdgpu_device *adev,
 	r = amdgpu_ib_ring_tests(adev);
 
 error:
+	amdgpu_virt_init_data_exchange(adev);
 	amdgpu_virt_release_full_gpu(adev, true);
 	if (!r && adev->virt.gim_feature & AMDGIM_FEATURE_GIM_FLR_VRAMLOST) {
 		atomic_inc(&adev->vram_lost_counter);

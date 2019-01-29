@@ -79,7 +79,7 @@
 /* Some controllers have a CBSY bit */
 #define TMIO_MMC_HAVE_CBSY		BIT(11)
 
-/* Some controllers that support HS400 use use 4 taps while others use 8. */
+/* Some controllers that support HS400 use 4 taps while others use 8. */
 #define TMIO_MMC_HAVE_4TAP_HS400	BIT(13)
 
 int tmio_core_mmc_enable(void __iomem *cnf, int shift, unsigned long base);

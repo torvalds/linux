@@ -1789,8 +1789,8 @@ static int alloc_cmd_page(struct mlx5_core_dev *dev, struct mlx5_cmd *cmd)
 {
 	struct device *ddev = &dev->pdev->dev;
 
-	cmd->cmd_alloc_buf = dma_zalloc_coherent(ddev, MLX5_ADAPTER_PAGE_SIZE,
-						 &cmd->alloc_dma, GFP_KERNEL);
+	cmd->cmd_alloc_buf = dma_alloc_coherent(ddev, MLX5_ADAPTER_PAGE_SIZE,
+						&cmd->alloc_dma, GFP_KERNEL);
 	if (!cmd->cmd_alloc_buf)
 		return -ENOMEM;
 
@@ -1804,9 +1804,9 @@ static int alloc_cmd_page(struct mlx5_core_dev *dev, struct mlx5_cmd *cmd)
 
 	dma_free_coherent(ddev, MLX5_ADAPTER_PAGE_SIZE, cmd->cmd_alloc_buf,
 			  cmd->alloc_dma);
-	cmd->cmd_alloc_buf = dma_zalloc_coherent(ddev,
-						 2 * MLX5_ADAPTER_PAGE_SIZE - 1,
-						 &cmd->alloc_dma, GFP_KERNEL);
+	cmd->cmd_alloc_buf = dma_alloc_coherent(ddev,
+						2 * MLX5_ADAPTER_PAGE_SIZE - 1,
+						&cmd->alloc_dma, GFP_KERNEL);
 	if (!cmd->cmd_alloc_buf)
 		return -ENOMEM;
 

@@ -303,6 +303,7 @@ static void __unwind_incomplete_requests(struct intel_engine_cs *engine)
 	 */
 	if (!(prio & I915_PRIORITY_NEWCLIENT)) {
 		prio |= I915_PRIORITY_NEWCLIENT;
+		active->sched.attr.priority = prio;
 		list_move_tail(&active->sched.link,
 			       i915_sched_lookup_priolist(engine, prio));
 	}
@@ -645,6 +646,9 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 		int i;
 
 		priolist_for_each_request_consume(rq, rn, p, i) {
+			GEM_BUG_ON(last &&
+				   need_preempt(engine, last, rq_prio(rq)));
+
 			/*
 			 * Can we combine this request with the current port?
 			 * It has to be the same context/ringbuffer and not
@@ -2244,6 +2248,8 @@ static int logical_ring_init(struct intel_engine_cs *engine)
 	if (ret)
 		return ret;
 
+	intel_engine_init_workarounds(engine);
+
 	if (HAS_LOGICAL_RING_ELSQ(i915)) {
 		execlists->submit_reg = i915->regs +
 			i915_mmio_reg_offset(RING_EXECLIST_SQ_CONTENTS(engine));
@@ -2310,7 +2316,6 @@ int logical_render_ring_init(struct intel_engine_cs *engine)
 	}
 
 	intel_engine_init_whitelist(engine);
-	intel_engine_init_workarounds(engine);
 
 	return 0;
 }

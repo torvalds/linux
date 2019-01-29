@@ -323,7 +323,7 @@ static inline void pqi_device_remove_start(struct pqi_scsi_dev *device)
 static inline bool pqi_device_in_remove(struct pqi_ctrl_info *ctrl_info,
 					struct pqi_scsi_dev *device)
 {
-	return device->in_remove & !ctrl_info->in_shutdown;
+	return device->in_remove && !ctrl_info->in_shutdown;
 }
 
 static inline void pqi_schedule_rescan_worker_with_delay(
@@ -3576,9 +3576,9 @@ static int pqi_alloc_operational_queues(struct pqi_ctrl_info *ctrl_info)
 	alloc_length += PQI_EXTRA_SGL_MEMORY;
 
 	ctrl_info->queue_memory_base =
-		dma_zalloc_coherent(&ctrl_info->pci_dev->dev,
-			alloc_length,
-			&ctrl_info->queue_memory_base_dma_handle, GFP_KERNEL);
+		dma_alloc_coherent(&ctrl_info->pci_dev->dev, alloc_length,
+				   &ctrl_info->queue_memory_base_dma_handle,
+				   GFP_KERNEL);
 
 	if (!ctrl_info->queue_memory_base)
 		return -ENOMEM;
@@ -3715,10 +3715,9 @@ static int pqi_alloc_admin_queues(struct pqi_ctrl_info *ctrl_info)
 		PQI_QUEUE_ELEMENT_ARRAY_ALIGNMENT;
 
 	ctrl_info->admin_queue_memory_base =
-		dma_zalloc_coherent(&ctrl_info->pci_dev->dev,
-			alloc_length,
-			&ctrl_info->admin_queue_memory_base_dma_handle,
-			GFP_KERNEL);
+		dma_alloc_coherent(&ctrl_info->pci_dev->dev, alloc_length,
+				   &ctrl_info->admin_queue_memory_base_dma_handle,
+				   GFP_KERNEL);
 
 	if (!ctrl_info->admin_queue_memory_base)
 		return -ENOMEM;
@@ -4602,9 +4601,10 @@ static void pqi_free_all_io_requests(struct pqi_ctrl_info *ctrl_info)
 
 static inline int pqi_alloc_error_buffer(struct pqi_ctrl_info *ctrl_info)
 {
-	ctrl_info->error_buffer = dma_zalloc_coherent(&ctrl_info->pci_dev->dev,
-		ctrl_info->error_buffer_length,
-		&ctrl_info->error_buffer_dma_handle, GFP_KERNEL);
+	ctrl_info->error_buffer = dma_alloc_coherent(&ctrl_info->pci_dev->dev,
+						     ctrl_info->error_buffer_length,
+						     &ctrl_info->error_buffer_dma_handle,
+						     GFP_KERNEL);
 
 	if (!ctrl_info->error_buffer)
 		return -ENOMEM;
@@ -7487,8 +7487,8 @@ static int pqi_ofa_alloc_mem(struct pqi_ctrl_info *ctrl_info,
 		dma_addr_t dma_handle;
 
 		ctrl_info->pqi_ofa_chunk_virt_addr[i] =
-			dma_zalloc_coherent(dev, chunk_size, &dma_handle,
-						GFP_KERNEL);
+			dma_alloc_coherent(dev, chunk_size, &dma_handle,
+					   GFP_KERNEL);
 
 		if (!ctrl_info->pqi_ofa_chunk_virt_addr[i])
 			break;
@@ -7545,10 +7545,10 @@ static void pqi_ofa_setup_host_buffer(struct pqi_ctrl_info *ctrl_info,
 	struct device *dev;
 
 	dev = &ctrl_info->pci_dev->dev;
-	pqi_ofa_memory = dma_zalloc_coherent(dev,
-				PQI_OFA_MEMORY_DESCRIPTOR_LENGTH,
-				&ctrl_info->pqi_ofa_mem_dma_handle,
-				GFP_KERNEL);
+	pqi_ofa_memory = dma_alloc_coherent(dev,
+					    PQI_OFA_MEMORY_DESCRIPTOR_LENGTH,
+					    &ctrl_info->pqi_ofa_mem_dma_handle,
+					    GFP_KERNEL);
 
 	if (!pqi_ofa_memory)
 		return;
