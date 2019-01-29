@@ -491,20 +491,17 @@ static int virtnet_xdp_xmit(struct net_device *dev,
 	int ret, err;
 	int i;
 
-	sq = virtnet_xdp_sq(vi);
-
-	if (unlikely(flags & ~XDP_XMIT_FLAGS_MASK)) {
-		ret = -EINVAL;
-		drops = n;
-		goto out;
-	}
-
 	/* Only allow ndo_xdp_xmit if XDP is loaded on dev, as this
 	 * indicate XDP resources have been successfully allocated.
 	 */
 	xdp_prog = rcu_dereference(rq->xdp_prog);
-	if (!xdp_prog) {
-		ret = -ENXIO;
+	if (!xdp_prog)
+		return -ENXIO;
+
+	sq = virtnet_xdp_sq(vi);
+
+	if (unlikely(flags & ~XDP_XMIT_FLAGS_MASK)) {
+		ret = -EINVAL;
 		drops = n;
 		goto out;
 	}
