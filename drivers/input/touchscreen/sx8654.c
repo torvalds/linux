@@ -31,6 +31,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
+#include <linux/input/touchscreen.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/module.h>
@@ -101,6 +102,8 @@ struct sx8654 {
 
 	spinlock_t lock;	/* for input reporting from irq/timer */
 	struct timer_list timer;
+
+	struct touchscreen_properties props;
 
 	const struct sx865x_data *data;
 };
@@ -177,8 +180,7 @@ static irqreturn_t sx8650_irq(int irq, void *handle)
 				 chdata);
 	}
 
-	input_report_abs(ts->input, ABS_X, x);
-	input_report_abs(ts->input, ABS_Y, y);
+	touchscreen_report_pos(ts->input, &ts->props, x, y, false);
 	input_report_key(ts->input, BTN_TOUCH, 1);
 	input_sync(ts->input);
 	dev_dbg(dev, "point(%4d,%4d)\n", x, y);
@@ -225,8 +227,8 @@ static irqreturn_t sx8654_irq(int irq, void *handle)
 		x = ((data[0] & 0xf) << 8) | (data[1]);
 		y = ((data[2] & 0xf) << 8) | (data[3]);
 
-		input_report_abs(sx8654->input, ABS_X, x);
-		input_report_abs(sx8654->input, ABS_Y, y);
+		touchscreen_report_pos(sx8654->input, &sx8654->props, x, y,
+				       false);
 		input_report_key(sx8654->input, BTN_TOUCH, 1);
 		input_sync(sx8654->input);
 
@@ -360,6 +362,8 @@ static int sx8654_probe(struct i2c_client *client,
 	input_set_capability(input, EV_KEY, BTN_TOUCH);
 	input_set_abs_params(input, ABS_X, 0, MAX_12BIT, 0, 0);
 	input_set_abs_params(input, ABS_Y, 0, MAX_12BIT, 0, 0);
+
+	touchscreen_parse_properties(input, false, &sx8654->props);
 
 	sx8654->client = client;
 	sx8654->input = input;
