@@ -211,7 +211,6 @@ static void free_nested(struct kvm_vcpu *vcpu)
 	if (!vmx->nested.vmxon && !vmx->nested.smm.vmxon)
 		return;
 
-	hrtimer_cancel(&vmx->nested.preemption_timer);
 	vmx->nested.vmxon = false;
 	vmx->nested.smm.vmxon = false;
 	free_vpid(vmx->nested.vpid02);
@@ -274,6 +273,7 @@ static void vmx_switch_vmcs(struct kvm_vcpu *vcpu, struct loaded_vmcs *vmcs)
 void nested_vmx_free_vcpu(struct kvm_vcpu *vcpu)
 {
 	vcpu_load(vcpu);
+	vmx_leave_nested(vcpu);
 	vmx_switch_vmcs(vcpu, &to_vmx(vcpu)->vmcs01);
 	free_nested(vcpu);
 	vcpu_put(vcpu);
@@ -3438,13 +3438,10 @@ static void sync_vmcs12(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 	else
 		vmcs12->guest_activity_state = GUEST_ACTIVITY_ACTIVE;
 
-	if (nested_cpu_has_preemption_timer(vmcs12)) {
-		if (vmcs12->vm_exit_controls &
-		    VM_EXIT_SAVE_VMX_PREEMPTION_TIMER)
+	if (nested_cpu_has_preemption_timer(vmcs12) &&
+	    vmcs12->vm_exit_controls & VM_EXIT_SAVE_VMX_PREEMPTION_TIMER)
 			vmcs12->vmx_preemption_timer_value =
 				vmx_get_preemption_timer_value(vcpu);
-		hrtimer_cancel(&to_vmx(vcpu)->nested.preemption_timer);
-	}
 
 	/*
 	 * In some cases (usually, nested EPT), L2 is allowed to change its
@@ -3851,6 +3848,9 @@ void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason,
 	WARN_ON_ONCE(vmx->nested.nested_run_pending);
 
 	leave_guest_mode(vcpu);
+
+	if (nested_cpu_has_preemption_timer(vmcs12))
+		hrtimer_cancel(&to_vmx(vcpu)->nested.preemption_timer);
 
 	if (vmcs12->cpu_based_vm_exec_control & CPU_BASED_USE_TSC_OFFSETING)
 		vcpu->arch.tsc_offset -= vmcs12->tsc_offset;
