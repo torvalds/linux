@@ -28,7 +28,6 @@ static int fsm_io_helper(struct vfio_ccw_private *private)
 	sch = private->sch;
 
 	spin_lock_irqsave(sch->lock, flags);
-	private->state = VFIO_CCW_STATE_BUSY;
 
 	orb = cp_get_orb(&private->cp, (u32)(addr_t)sch, sch->lpm);
 	if (!orb) {
@@ -46,6 +45,7 @@ static int fsm_io_helper(struct vfio_ccw_private *private)
 		 */
 		sch->schib.scsw.cmd.actl |= SCSW_ACTL_START_PEND;
 		ret = 0;
+		private->state = VFIO_CCW_STATE_CP_PENDING;
 		break;
 	case 1:		/* Status pending */
 	case 2:		/* Busy */
@@ -107,6 +107,12 @@ static void fsm_io_busy(struct vfio_ccw_private *private,
 	private->io_region->ret_code = -EBUSY;
 }
 
+static void fsm_io_retry(struct vfio_ccw_private *private,
+			 enum vfio_ccw_event event)
+{
+	private->io_region->ret_code = -EAGAIN;
+}
+
 static void fsm_disabled_irq(struct vfio_ccw_private *private,
 			     enum vfio_ccw_event event)
 {
@@ -135,8 +141,7 @@ static void fsm_io_request(struct vfio_ccw_private *private,
 	struct mdev_device *mdev = private->mdev;
 	char *errstr = "request";
 
-	private->state = VFIO_CCW_STATE_BUSY;
-
+	private->state = VFIO_CCW_STATE_CP_PROCESSING;
 	memcpy(scsw, io_region->scsw_area, sizeof(*scsw));
 
 	if (scsw->cmd.fctl & SCSW_FCTL_START_FUNC) {
@@ -181,7 +186,6 @@ static void fsm_io_request(struct vfio_ccw_private *private,
 	}
 
 err_out:
-	private->state = VFIO_CCW_STATE_IDLE;
 	trace_vfio_ccw_io_fctl(scsw->cmd.fctl, get_schid(private),
 			       io_region->ret_code, errstr);
 }
@@ -221,7 +225,12 @@ fsm_func_t *vfio_ccw_jumptable[NR_VFIO_CCW_STATES][NR_VFIO_CCW_EVENTS] = {
 		[VFIO_CCW_EVENT_IO_REQ]		= fsm_io_request,
 		[VFIO_CCW_EVENT_INTERRUPT]	= fsm_irq,
 	},
-	[VFIO_CCW_STATE_BUSY] = {
+	[VFIO_CCW_STATE_CP_PROCESSING] = {
+		[VFIO_CCW_EVENT_NOT_OPER]	= fsm_notoper,
+		[VFIO_CCW_EVENT_IO_REQ]		= fsm_io_retry,
+		[VFIO_CCW_EVENT_INTERRUPT]	= fsm_irq,
+	},
+	[VFIO_CCW_STATE_CP_PENDING] = {
 		[VFIO_CCW_EVENT_NOT_OPER]	= fsm_notoper,
 		[VFIO_CCW_EVENT_IO_REQ]		= fsm_io_busy,
 		[VFIO_CCW_EVENT_INTERRUPT]	= fsm_irq,
