@@ -84,6 +84,7 @@
 				#dma-requests = <32>;
 				clocks = <&l4_main_clk>;
 				clock-names = "apb_pclk";
+				resets = <&rst DMA_RESET>;
 			};
 		};
 
@@ -100,6 +101,7 @@
 			reg = <0xffc00000 0x1000>;
 			interrupts = <0 131 4>, <0 132 4>, <0 133 4>, <0 134 4>;
 			clocks = <&can0_clk>;
+			resets = <&rst CAN0_RESET>;
 			status = "disabled";
 		};
 
@@ -108,6 +110,7 @@
 			reg = <0xffc01000 0x1000>;
 			interrupts = <0 135 4>, <0 136 4>, <0 137 4>, <0 138 4>;
 			clocks = <&can1_clk>;
+			resets = <&rst CAN1_RESET>;
 			status = "disabled";
 		};
 
@@ -791,6 +794,7 @@
 		sdr: sdr@ffc25000 {
 			compatible = "altr,sdr-ctl", "syscon";
 			reg = <0xffc25000 0x1000>;
+			resets = <&rst SDR_RESET>;
 		};
 
 		sdramedac {
