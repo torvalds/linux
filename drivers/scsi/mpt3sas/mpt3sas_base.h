@@ -193,6 +193,9 @@ struct mpt3sas_nvme_cmd {
 #define SAS2_PCI_DEVICE_B0_REVISION	(0x01)
 #define SAS3_PCI_DEVICE_C0_REVISION	(0x02)
 
+/* Atlas PCIe Switch Management Port */
+#define MPI26_ATLAS_PCIe_SWITCH_DEVID	(0x00B2)
+
 /*
  * Intel HBA branding
  */
