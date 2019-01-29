@@ -2126,10 +2126,13 @@ cifs_writev_requeue(struct cifs_writedata *wdata)
 		wdata2->tailsz = tailsz;
 		wdata2->bytes = cur_len;
 
-		wdata2->cfile = find_writable_file(CIFS_I(inode), false);
+		rc = cifs_get_writable_file(CIFS_I(inode), false,
+					    &wdata2->cfile);
 		if (!wdata2->cfile) {
-			cifs_dbg(VFS, "No writable handle to retry writepages\n");
-			rc = -EBADF;
+			cifs_dbg(VFS, "No writable handle to retry writepages rc=%d\n",
+				 rc);
+			if (!is_retryable_error(rc))
+				rc = -EBADF;
 		} else {
 			wdata2->pid = wdata2->cfile->pid;
 			rc = server->ops->async_writev(wdata2,

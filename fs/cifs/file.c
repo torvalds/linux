@@ -1842,24 +1842,30 @@ struct cifsFileInfo *find_readable_file(struct cifsInodeInfo *cifs_inode,
 	return NULL;
 }
 
-struct cifsFileInfo *find_writable_file(struct cifsInodeInfo *cifs_inode,
-					bool fsuid_only)
+/* Return -EBADF if no handle is found and general rc otherwise */
+int
+cifs_get_writable_file(struct cifsInodeInfo *cifs_inode, bool fsuid_only,
+		       struct cifsFileInfo **ret_file)
 {
 	struct cifsFileInfo *open_file, *inv_file = NULL;
 	struct cifs_sb_info *cifs_sb;
 	struct cifs_tcon *tcon;
 	bool any_available = false;
-	int rc;
+	int rc = -EBADF;
 	unsigned int refind = 0;
 
-	/* Having a null inode here (because mapping->host was set to zero by
-	the VFS or MM) should not happen but we had reports of on oops (due to
-	it being zero) during stress testcases so we need to check for it */
+	*ret_file = NULL;
+
+	/*
+	 * Having a null inode here (because mapping->host was set to zero by
+	 * the VFS or MM) should not happen but we had reports of on oops (due
+	 * to it being zero) during stress testcases so we need to check for it
+	 */
 
 	if (cifs_inode == NULL) {
 		cifs_dbg(VFS, "Null inode passed to cifs_writeable_file\n");
 		dump_stack();
-		return NULL;
+		return rc;
 	}
 
 	cifs_sb = CIFS_SB(cifs_inode->vfs_inode.i_sb);
@@ -1873,7 +1879,7 @@ struct cifsFileInfo *find_writable_file(struct cifsInodeInfo *cifs_inode,
 refind_writable:
 	if (refind > MAX_REOPEN_ATT) {
 		spin_unlock(&tcon->open_file_lock);
-		return NULL;
+		return rc;
 	}
 	list_for_each_entry(open_file, &cifs_inode->openFileList, flist) {
 		if (!any_available && open_file->pid != current->tgid)
@@ -1885,7 +1891,8 @@ refind_writable:
 				/* found a good writable file */
 				cifsFileInfo_get(open_file);
 				spin_unlock(&tcon->open_file_lock);
-				return open_file;
+				*ret_file = open_file;
+				return 0;
 			} else {
 				if (!inv_file)
 					inv_file = open_file;
@@ -1907,22 +1914,35 @@ refind_writable:
 
 	if (inv_file) {
 		rc = cifs_reopen_file(inv_file, false);
-		if (!rc)
-			return inv_file;
-		else {
-			spin_lock(&tcon->open_file_lock);
-			list_move_tail(&inv_file->flist,
-					&cifs_inode->openFileList);
-			spin_unlock(&tcon->open_file_lock);
-			cifsFileInfo_put(inv_file);
-			++refind;
-			inv_file = NULL;
-			spin_lock(&tcon->open_file_lock);
-			goto refind_writable;
+		if (!rc) {
+			*ret_file = inv_file;
+			return 0;
 		}
+
+		spin_lock(&tcon->open_file_lock);
+		list_move_tail(&inv_file->flist, &cifs_inode->openFileList);
+		spin_unlock(&tcon->open_file_lock);
+		cifsFileInfo_put(inv_file);
+		++refind;
+		inv_file = NULL;
+		spin_lock(&tcon->open_file_lock);
+		goto refind_writable;
 	}
 
-	return NULL;
+	return rc;
+}
+
+struct cifsFileInfo *
+find_writable_file(struct cifsInodeInfo *cifs_inode, bool fsuid_only)
+{
+	struct cifsFileInfo *cfile;
+	int rc;
+
+	rc = cifs_get_writable_file(cifs_inode, fsuid_only, &cfile);
+	if (rc)
+		cifs_dbg(FYI, "couldn't find writable handle rc=%d", rc);
+
+	return cfile;
 }
 
 static int cifs_partialpagewrite(struct page *page, unsigned from, unsigned to)
@@ -1959,8 +1979,8 @@ static int cifs_partialpagewrite(struct page *page, unsigned from, unsigned to)
 	if (mapping->host->i_size - offset < (loff_t)to)
 		to = (unsigned)(mapping->host->i_size - offset);
 
-	open_file = find_writable_file(CIFS_I(mapping->host), false);
-	if (open_file) {
+	rc = cifs_get_writable_file(CIFS_I(mapping->host), false, &open_file);
+	if (!rc) {
 		bytes_written = cifs_write(open_file, open_file->pid,
 					   write_data, to - from, &offset);
 		cifsFileInfo_put(open_file);
@@ -1970,9 +1990,12 @@ static int cifs_partialpagewrite(struct page *page, unsigned from, unsigned to)
 			rc = 0;
 		else if (bytes_written < 0)
 			rc = bytes_written;
+		else
+			rc = -EFAULT;
 	} else {
-		cifs_dbg(FYI, "No writeable filehandles for inode\n");
-		rc = -EIO;
+		cifs_dbg(FYI, "No writable handle for write page rc=%d\n", rc);
+		if (!is_retryable_error(rc))
+			rc = -EIO;
 	}
 
 	kunmap(page);
@@ -2144,11 +2167,16 @@ retry:
 		pgoff_t next = 0, tofind, saved_index = index;
 		struct cifs_credits credits_on_stack;
 		struct cifs_credits *credits = &credits_on_stack;
+		int get_file_rc = 0;
 
 		if (cfile)
 			cifsFileInfo_put(cfile);
 
-		cfile = find_writable_file(CIFS_I(inode), false);
+		rc = cifs_get_writable_file(CIFS_I(inode), false, &cfile);
+
+		/* in case of an error store it to return later */
+		if (rc)
+			get_file_rc = rc;
 
 		rc = server->ops->wait_mtu_credits(server, cifs_sb->wsize,
 						   &wsize, credits);
@@ -2189,8 +2217,12 @@ retry:
 		cfile = NULL;
 
 		if (!wdata->cfile) {
-			cifs_dbg(VFS, "No writable handle in writepages\n");
-			rc = -EBADF;
+			cifs_dbg(VFS, "No writable handle in writepages rc=%d\n",
+				 get_file_rc);
+			if (is_retryable_error(get_file_rc))
+				rc = get_file_rc;
+			else
+				rc = -EBADF;
 		} else
 			rc = wdata_send_pages(wdata, nr_pages, mapping, wbc);
 
