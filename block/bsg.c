@@ -74,6 +74,11 @@ static int bsg_scsi_fill_hdr(struct request *rq, struct sg_io_v4 *hdr,
 {
 	struct scsi_request *sreq = scsi_req(rq);
 
+	if (hdr->dout_xfer_len && hdr->din_xfer_len) {
+		pr_warn_once("BIDI support in bsg has been removed.\n");
+		return -EOPNOTSUPP;
+	}
+
 	sreq->cmd_len = hdr->request_len;
 	if (sreq->cmd_len > BLK_MAX_CDB) {
 		sreq->cmd = kzalloc(sreq->cmd_len, GFP_KERNEL);
@@ -114,14 +119,10 @@ static int bsg_scsi_complete_rq(struct request *rq, struct sg_io_v4 *hdr)
 			hdr->response_len = len;
 	}
 
-	if (rq->next_rq) {
-		hdr->dout_resid = sreq->resid_len;
-		hdr->din_resid = scsi_req(rq->next_rq)->resid_len;
-	} else if (rq_data_dir(rq) == READ) {
+	if (rq_data_dir(rq) == READ)
 		hdr->din_resid = sreq->resid_len;
-	} else {
+	else
 		hdr->dout_resid = sreq->resid_len;
-	}
 
 	return ret;
 }
@@ -140,8 +141,8 @@ static const struct bsg_ops bsg_scsi_ops = {
 
 static int bsg_sg_io(struct request_queue *q, fmode_t mode, void __user *uarg)
 {
-	struct request *rq, *next_rq = NULL;
-	struct bio *bio, *bidi_bio = NULL;
+	struct request *rq;
+	struct bio *bio;
 	struct sg_io_v4 hdr;
 	int ret;
 
@@ -164,7 +165,7 @@ static int bsg_sg_io(struct request_queue *q, fmode_t mode, void __user *uarg)
 
 	ret = q->bsg_dev.ops->fill_hdr(rq, &hdr, mode);
 	if (ret)
-		goto out;
+		return ret;
 
 	rq->timeout = msecs_to_jiffies(hdr.timeout);
 	if (!rq->timeout)
@@ -173,29 +174,6 @@ static int bsg_sg_io(struct request_queue *q, fmode_t mode, void __user *uarg)
 		rq->timeout = BLK_DEFAULT_SG_TIMEOUT;
 	if (rq->timeout < BLK_MIN_SG_TIMEOUT)
 		rq->timeout = BLK_MIN_SG_TIMEOUT;
-
-	if (hdr.dout_xfer_len && hdr.din_xfer_len) {
-		if (!test_bit(QUEUE_FLAG_BIDI, &q->queue_flags)) {
-			ret = -EOPNOTSUPP;
-			goto out;
-		}
-
-		pr_warn_once(
-			"BIDI support in bsg has been deprecated and might be removed. "
-			"Please report your use case to linux-scsi@vger.kernel.org\n");
-
-		next_rq = blk_get_request(q, REQ_OP_SCSI_IN, 0);
-		if (IS_ERR(next_rq)) {
-			ret = PTR_ERR(next_rq);
-			goto out;
-		}
-
-		rq->next_rq = next_rq;
-		ret = blk_rq_map_user(q, next_rq, NULL, uptr64(hdr.din_xferp),
-				       hdr.din_xfer_len, GFP_KERNEL);
-		if (ret)
-			goto out_free_nextrq;
-	}
 
 	if (hdr.dout_xfer_len) {
 		ret = blk_rq_map_user(q, rq, NULL, uptr64(hdr.dout_xferp),
@@ -206,37 +184,19 @@ static int bsg_sg_io(struct request_queue *q, fmode_t mode, void __user *uarg)
 	}
 
 	if (ret)
-		goto out_unmap_nextrq;
+		goto out_free_rq;
 
 	bio = rq->bio;
-	if (rq->next_rq)
-		bidi_bio = rq->next_rq->bio;
 
 	blk_execute_rq(q, NULL, rq, !(hdr.flags & BSG_FLAG_Q_AT_TAIL));
 	ret = rq->q->bsg_dev.ops->complete_rq(rq, &hdr);
-
-	if (rq->next_rq) {
-		blk_rq_unmap_user(bidi_bio);
-		blk_put_request(rq->next_rq);
-	}
-
 	blk_rq_unmap_user(bio);
+
+out_free_rq:
 	rq->q->bsg_dev.ops->free_rq(rq);
 	blk_put_request(rq);
-
-	if (copy_to_user(uarg, &hdr, sizeof(hdr)))
+	if (!ret && copy_to_user(uarg, &hdr, sizeof(hdr)))
 		return -EFAULT;
-	return ret;
-
-out_unmap_nextrq:
-	if (rq->next_rq)
-		blk_rq_unmap_user(rq->next_rq->bio);
-out_free_nextrq:
-	if (rq->next_rq)
-		blk_put_request(rq->next_rq);
-out:
-	q->bsg_dev.ops->free_rq(rq);
-	blk_put_request(rq);
 	return ret;
 }
 
