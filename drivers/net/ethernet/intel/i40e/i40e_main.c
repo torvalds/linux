@@ -3289,8 +3289,11 @@ static int i40e_configure_rx_ring(struct i40e_ring *ring)
 	     i40e_alloc_rx_buffers_zc(ring, I40E_DESC_UNUSED(ring)) :
 	     !i40e_alloc_rx_buffers(ring, I40E_DESC_UNUSED(ring));
 	if (!ok) {
+		/* Log this in case the user has forgotten to give the kernel
+		 * any buffers, even later in the application.
+		 */
 		dev_info(&vsi->back->pdev->dev,
-			 "Failed allocate some buffers on %sRx ring %d (pf_q %d)\n",
+			 "Failed to allocate some buffers on %sRx ring %d (pf_q %d)\n",
 			 ring->xsk_umem ? "UMEM enabled " : "",
 			 ring->queue_index, pf_q);
 	}
@@ -11894,6 +11897,14 @@ static int i40e_xdp_setup(struct i40e_vsi *vsi,
 
 	if (old_prog)
 		bpf_prog_put(old_prog);
+
+	/* Kick start the NAPI context if there is an AF_XDP socket open
+	 * on that queue id. This so that receiving will start.
+	 */
+	if (need_reset && prog)
+		for (i = 0; i < vsi->num_queue_pairs; i++)
+			if (vsi->xdp_rings[i]->xsk_umem)
+				(void)i40e_xsk_async_xmit(vsi->netdev, i);
 
 	return 0;
 }
