@@ -94,6 +94,10 @@
 	status = "okay";
 };
 
+&hdmi_sound {
+	status = "okay";
+};
+
 &i2c0 {
 	clock-frequency = <400000>;
 	i2c-scl-rising-time-ns = <168>;
@@ -334,6 +338,10 @@
 
 &i2c4 {
 	status = "okay";
+};
+
+&i2s2 {
+        status = "okay";
 };
 
 &io_domains {
