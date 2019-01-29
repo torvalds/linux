@@ -1528,6 +1528,7 @@
 	display_subsystem: display-subsystem {
 		compatible = "rockchip,display-subsystem";
 		ports = <&vop_out>;
+		devfreq = <&dmc>;
 		status = "disabled";
 	};
 
