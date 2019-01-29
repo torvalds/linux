@@ -26,9 +26,9 @@
 
 /*
  * Whiskey Cove PMIC has 13 physical GPIO pins divided into 3 banks:
- * Bank 0: Pin 0 - 6
- * Bank 1: Pin 7 - 10
- * Bank 2: Pin 11 -12
+ * Bank 0: Pin  0 - 6
+ * Bank 1: Pin  7 - 10
+ * Bank 2: Pin 11 - 12
  * Each pin has one output control register and one input control register.
  */
 #define BANK0_NR_PINS		7
@@ -75,8 +75,8 @@
 #define CTLO_RVAL_50KDOWN	(2 << 1)
 #define CTLO_RVAL_50KUP		(3 << 1)
 
-#define CTLO_INPUT_SET	(CTLO_DRV_CMOS | CTLO_DRV_REN | CTLO_RVAL_2KUP)
-#define CTLO_OUTPUT_SET	(CTLO_DIR_OUT | CTLO_INPUT_SET)
+#define CTLO_INPUT_SET		(CTLO_DRV_CMOS | CTLO_DRV_REN | CTLO_RVAL_2KUP)
+#define CTLO_OUTPUT_SET		(CTLO_DIR_OUT | CTLO_INPUT_SET)
 
 enum ctrl_register {
 	CTRL_IN,
@@ -203,8 +203,7 @@ static int wcove_gpio_get(struct gpio_chip *chip, unsigned int gpio)
 	return val & 0x1;
 }
 
-static void wcove_gpio_set(struct gpio_chip *chip,
-				 unsigned int gpio, int value)
+static void wcove_gpio_set(struct gpio_chip *chip, unsigned int gpio, int value)
 {
 	struct wcove_gpio *wg = gpiochip_get_data(chip);
 	int reg = to_reg(gpio, CTRL_OUT);
