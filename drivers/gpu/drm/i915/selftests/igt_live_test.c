@@ -35,7 +35,6 @@ int igt_live_test_begin(struct igt_live_test *t,
 		return err;
 	}
 
-	i915->gpu_error.missed_irq_rings = 0;
 	t->reset_global = i915_reset_count(&i915->gpu_error);
 
 	for_each_engine(engine, i915, id)
@@ -72,12 +71,6 @@ int igt_live_test_end(struct igt_live_test *t)
 		       t->func, t->name, engine->name,
 		       i915_reset_engine_count(&i915->gpu_error, engine) -
 		       t->reset_engine[id]);
-		return -EIO;
-	}
-
-	if (i915->gpu_error.missed_irq_rings) {
-		pr_err("%s(%s): Missed interrupts on engines %lx\n",
-		       t->func, t->name, i915->gpu_error.missed_irq_rings);
 		return -EIO;
 	}
 

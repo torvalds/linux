@@ -723,8 +723,6 @@ static void __err_print_to_sgl(struct drm_i915_error_state_buf *m,
 	err_printf(m, "FORCEWAKE: 0x%08x\n", error->forcewake);
 	err_printf(m, "DERRMR: 0x%08x\n", error->derrmr);
 	err_printf(m, "CCID: 0x%08x\n", error->ccid);
-	err_printf(m, "Missed interrupts: 0x%08lx\n",
-		   m->i915->gpu_error.missed_irq_rings);
 
 	for (i = 0; i < error->nfence; i++)
 		err_printf(m, "  fence[%d] = %08llx\n", i, error->fence[i]);

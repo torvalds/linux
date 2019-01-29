@@ -204,8 +204,6 @@ struct i915_gpu_error {
 
 	atomic_t pending_fb_pin;
 
-	unsigned long missed_irq_rings;
-
 	/**
 	 * State variable controlling the reset flow and count
 	 *
@@ -273,9 +271,6 @@ struct i915_gpu_error {
 	 * that wait for dev_priv->mm.wedged to settle.
 	 */
 	wait_queue_head_t reset_queue;
-
-	/* For missed irq/seqno simulation. */
-	unsigned long test_irq_rings;
 
 	struct i915_gpu_restart *restart;
 };

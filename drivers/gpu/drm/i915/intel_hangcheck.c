@@ -275,6 +275,8 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 	for_each_engine(engine, dev_priv, id) {
 		struct hangcheck hc;
 
+		intel_engine_signal_breadcrumbs(engine);
+
 		hangcheck_load_sample(engine, &hc);
 		hangcheck_accumulate_sample(engine, &hc);
 		hangcheck_store_sample(engine, &hc);

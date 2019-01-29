@@ -387,14 +387,9 @@ struct intel_engine_cs {
 
 		struct irq_work irq_work; /* for use from inside irq_lock */
 
-		struct timer_list fake_irq; /* used after a missed interrupt */
-		struct timer_list hangcheck; /* detect missed interrupts */
-
-		unsigned int hangcheck_interrupts;
 		unsigned int irq_enabled;
 
 		bool irq_armed;
-		bool irq_fired;
 	} breadcrumbs;
 
 	struct {

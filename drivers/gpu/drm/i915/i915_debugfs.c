@@ -1321,9 +1321,6 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 			   intel_engine_last_submit(engine),
 			   jiffies_to_msecs(jiffies -
 					    engine->hangcheck.action_timestamp));
-		seq_printf(m, "\tfake irq active? %s\n",
-			   yesno(test_bit(engine->id,
-					  &dev_priv->gpu_error.missed_irq_rings)));
 
 		seq_printf(m, "\tACTHD = 0x%08llx [current 0x%08llx]\n",
 			   (long long)engine->hangcheck.acthd,
@@ -3899,94 +3896,6 @@ DEFINE_SIMPLE_ATTRIBUTE(i915_wedged_fops,
 			i915_wedged_get, i915_wedged_set,
 			"%llu\n");
 
-static int
-fault_irq_set(struct drm_i915_private *i915,
-	      unsigned long *irq,
-	      unsigned long val)
-{
-	int err;
-
-	err = mutex_lock_interruptible(&i915->drm.struct_mutex);
-	if (err)
-		return err;
-
-	err = i915_gem_wait_for_idle(i915,
-				     I915_WAIT_LOCKED |
-				     I915_WAIT_INTERRUPTIBLE,
-				     MAX_SCHEDULE_TIMEOUT);
-	if (err)
-		goto err_unlock;
-
-	*irq = val;
-	mutex_unlock(&i915->drm.struct_mutex);
-
-	/* Flush idle worker to disarm irq */
-	drain_delayed_work(&i915->gt.idle_work);
-
-	return 0;
-
-err_unlock:
-	mutex_unlock(&i915->drm.struct_mutex);
-	return err;
-}
-
-static int
-i915_ring_missed_irq_get(void *data, u64 *val)
-{
-	struct drm_i915_private *dev_priv = data;
-
-	*val = dev_priv->gpu_error.missed_irq_rings;
-	return 0;
-}
-
-static int
-i915_ring_missed_irq_set(void *data, u64 val)
-{
-	struct drm_i915_private *i915 = data;
-
-	return fault_irq_set(i915, &i915->gpu_error.missed_irq_rings, val);
-}
-
-DEFINE_SIMPLE_ATTRIBUTE(i915_ring_missed_irq_fops,
-			i915_ring_missed_irq_get, i915_ring_missed_irq_set,
-			"0x%08llx\n");
-
-static int
-i915_ring_test_irq_get(void *data, u64 *val)
-{
-	struct drm_i915_private *dev_priv = data;
-
-	*val = dev_priv->gpu_error.test_irq_rings;
-
-	return 0;
-}
-
-static int
-i915_ring_test_irq_set(void *data, u64 val)
-{
-	struct drm_i915_private *i915 = data;
-
-	/* GuC keeps the user interrupt permanently enabled for submission */
-	if (USES_GUC_SUBMISSION(i915))
-		return -ENODEV;
-
-	/*
-	 * From icl, we can no longer individually mask interrupt generation
-	 * from each engine.
-	 */
-	if (INTEL_GEN(i915) >= 11)
-		return -ENODEV;
-
-	val &= INTEL_INFO(i915)->ring_mask;
-	DRM_DEBUG_DRIVER("Masking interrupts on rings 0x%08llx\n", val);
-
-	return fault_irq_set(i915, &i915->gpu_error.test_irq_rings, val);
-}
-
-DEFINE_SIMPLE_ATTRIBUTE(i915_ring_test_irq_fops,
-			i915_ring_test_irq_get, i915_ring_test_irq_set,
-			"0x%08llx\n");
-
 #define DROP_UNBOUND	BIT(0)
 #define DROP_BOUND	BIT(1)
 #define DROP_RETIRE	BIT(2)
@@ -4750,8 +4659,6 @@ static const struct i915_debugfs_files {
 } i915_debugfs_files[] = {
 	{"i915_wedged", &i915_wedged_fops},
 	{"i915_cache_sharing", &i915_cache_sharing_fops},
-	{"i915_ring_missed_irq", &i915_ring_missed_irq_fops},
-	{"i915_ring_test_irq", &i915_ring_test_irq_fops},
 	{"i915_gem_drop_caches", &i915_drop_caches_fops},
 #if IS_ENABLED(CONFIG_DRM_I915_CAPTURE_ERROR)
 	{"i915_error_state", &i915_error_state_fops},
