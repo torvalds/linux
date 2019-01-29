@@ -768,7 +768,7 @@ static int snd_usb_cm6206_boot_quirk(struct usb_device *dev)
 		 * REG1: PLL binary search enable, soft mute enable.
 		 */
 		CM6206_REG1_PLLBIN_EN |
-		CM6206_REG1_SOFT_MUTE_EN |
+		CM6206_REG1_SOFT_MUTE_EN,
 		/*
 		 * REG2: enable output drivers,
 		 * select front channels to the headphone output,
@@ -1492,6 +1492,7 @@ u64 snd_usb_interface_dsd_format_quirks(struct snd_usb_audio *chip,
 			return SNDRV_PCM_FMTBIT_DSD_U32_BE;
 		break;
 
+	case USB_ID(0x10cb, 0x0103): /* The Bit Opus #3; with fp->dsd_raw */
 	case USB_ID(0x152a, 0x85de): /* SMSL D1 DAC */
 	case USB_ID(0x16d0, 0x09dd): /* Encore mDSD */
 	case USB_ID(0x0d8c, 0x0316): /* Hegel HD12 DSD */
