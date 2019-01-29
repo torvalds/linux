@@ -10,7 +10,7 @@
  *
  * Transition to SPI MEM interface:
  * Authors:
- *     Boris Brezillion <boris.brezillon@bootlin.com>
+ *     Boris Brezillon <bbrezillon@kernel.org>
  *     Frieder Schrempf <frieder.schrempf@kontron.de>
  *     Yogesh Gaur <yogeshnarayan.gaur@nxp.com>
  *     Suresh Gupta <suresh.gupta@nxp.com>
@@ -959,7 +959,7 @@ module_platform_driver(fsl_qspi_driver);
 
 MODULE_DESCRIPTION("Freescale QuadSPI Controller Driver");
 MODULE_AUTHOR("Freescale Semiconductor Inc.");
-MODULE_AUTHOR("Boris Brezillion <boris.brezillon@bootlin.com>");
+MODULE_AUTHOR("Boris Brezillon <bbrezillon@kernel.org>");
 MODULE_AUTHOR("Frieder Schrempf <frieder.schrempf@kontron.de>");
 MODULE_AUTHOR("Yogesh Gaur <yogeshnarayan.gaur@nxp.com>");
 MODULE_AUTHOR("Suresh Gupta <suresh.gupta@nxp.com>");
