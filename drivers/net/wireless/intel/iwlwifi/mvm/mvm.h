@@ -1221,7 +1221,6 @@ enum iwl_mvm_status {
 enum iwl_mvm_init_status {
 	IWL_MVM_INIT_STATUS_THERMAL_INIT_COMPLETE = BIT(0),
 	IWL_MVM_INIT_STATUS_LEDS_INIT_COMPLETE = BIT(1),
-	IWL_MVM_INIT_STATUS_REG_HW_INIT_COMPLETE = BIT(2),
 };
 
 static inline bool iwl_mvm_is_radio_killed(struct iwl_mvm *mvm)
