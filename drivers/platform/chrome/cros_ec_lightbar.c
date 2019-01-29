@@ -3,8 +3,6 @@
 //
 // Copyright (C) 2014 Google, Inc.
 
-#define pr_fmt(fmt) "cros_ec_lightbar: " fmt
-
 #include <linux/ctype.h>
 #include <linux/delay.h>
 #include <linux/device.h>
