@@ -211,7 +211,7 @@ static int __init hest_ghes_dev_register(unsigned int ghes_count)
 	if (rc)
 		goto err;
 
-	rc = ghes_estatus_pool_init();
+	rc = ghes_estatus_pool_init(ghes_count);
 	if (rc)
 		goto err;
 
