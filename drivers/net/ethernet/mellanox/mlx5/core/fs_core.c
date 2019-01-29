@@ -619,7 +619,8 @@ static struct mlx5_flow_group *alloc_flow_group(struct mlx5_flow_steering *steer
 	if (ret) {
 		kmem_cache_free(steering->fgs_cache, fg);
 		return ERR_PTR(ret);
-}
+	}
+
 	ida_init(&fg->fte_allocator);
 	fg->mask.match_criteria_enable = match_criteria_enable;
 	memcpy(&fg->mask.match_criteria, match_criteria,
