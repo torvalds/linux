@@ -39,6 +39,17 @@
 		};
 	};
 
+	panel: panel {
+		compatible = "sharp,lq035q7db03";
+		power-supply = <&reg_lcd>;
+
+		port {
+			panel_input: endpoint {
+				remote-endpoint = <&cldc_output>;
+			};
+		};
+	};
+
 	reg_backlight: regulator-backlight {
 		compatible = "regulator-fixed";
 		regulator-name = "backlight";
@@ -71,7 +82,15 @@
 };
 
 &clcd {
+	max-memory-bandwidth = <18710000>;
 	status = "okay";
+
+	port {
+		cldc_output: endpoint {
+			remote-endpoint = <&panel_input>;
+			arm,pl11x,tft-r0g0b0-pads = <0 8 16>;
+		};
+	};
 };
 
 &i2c1 {
