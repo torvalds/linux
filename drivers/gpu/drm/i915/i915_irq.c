@@ -1227,8 +1227,6 @@ static void notify_ring(struct intel_engine_cs *engine)
 		wake_up_process(tsk);
 
 	rcu_read_unlock();
-
-	trace_intel_engine_notify(engine, wait);
 }
 
 static void vlv_c0_read(struct drm_i915_private *dev_priv,
