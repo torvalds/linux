@@ -16673,6 +16673,24 @@ T:	git git://linuxtv.org/media_tree.git
 S:	Maintained
 F:	drivers/media/tuners/tuner-xc2028.*
 
+XDP (eXpress Data Path)
+M:	Alexei Starovoitov <ast@kernel.org>
+M:	Daniel Borkmann <daniel@iogearbox.net>
+M:	David S. Miller <davem@davemloft.net>
+M:	Jakub Kicinski <jakub.kicinski@netronome.com>
+M:	Jesper Dangaard Brouer <hawk@kernel.org>
+M:	John Fastabend <john.fastabend@gmail.com>
+L:	netdev@vger.kernel.org
+L:	xdp-newbies@vger.kernel.org
+S:	Supported
+F:	net/core/xdp.c
+F:	include/net/xdp.h
+F:	kernel/bpf/devmap.c
+F:	kernel/bpf/cpumap.c
+F:	include/trace/events/xdp.h
+K:	xdp
+N:	xdp
+
 XDP SOCKETS (AF_XDP)
 M:	Björn Töpel <bjorn.topel@intel.com>
 M:	Magnus Karlsson <magnus.karlsson@intel.com>
