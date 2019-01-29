@@ -214,6 +214,7 @@ enum obj_operation_type {
 	OBJ_OP_READ = 1,
 	OBJ_OP_WRITE,
 	OBJ_OP_DISCARD,
+	OBJ_OP_ZEROOUT,
 };
 
 /*
@@ -857,6 +858,8 @@ static char* obj_op_name(enum obj_operation_type op_type)
 		return "write";
 	case OBJ_OP_DISCARD:
 		return "discard";
+	case OBJ_OP_ZEROOUT:
+		return "zeroout";
 	default:
 		return "???";
 	}
@@ -1419,6 +1422,7 @@ static bool rbd_img_is_write(struct rbd_img_request *img_req)
 		return false;
 	case OBJ_OP_WRITE:
 	case OBJ_OP_DISCARD:
+	case OBJ_OP_ZEROOUT:
 		return true;
 	default:
 		BUG();
@@ -1841,7 +1845,40 @@ static int rbd_obj_setup_write(struct rbd_obj_request *obj_req)
 	return 0;
 }
 
-static void __rbd_obj_setup_discard(struct rbd_obj_request *obj_req,
+static u16 truncate_or_zero_opcode(struct rbd_obj_request *obj_req)
+{
+	return rbd_obj_is_tail(obj_req) ? CEPH_OSD_OP_TRUNCATE :
+					  CEPH_OSD_OP_ZERO;
+}
+
+static int rbd_obj_setup_discard(struct rbd_obj_request *obj_req)
+{
+	int ret;
+
+	/* reverse map the entire object onto the parent */
+	ret = rbd_obj_calc_img_extents(obj_req, true);
+	if (ret)
+		return ret;
+
+	obj_req->osd_req = rbd_osd_req_create(obj_req, 1);
+	if (!obj_req->osd_req)
+		return -ENOMEM;
+
+	if (rbd_obj_is_entire(obj_req) && !obj_req->num_img_extents) {
+		osd_req_op_init(obj_req->osd_req, 0, CEPH_OSD_OP_DELETE, 0);
+	} else {
+		osd_req_op_extent_init(obj_req->osd_req, 0,
+				       truncate_or_zero_opcode(obj_req),
+				       obj_req->ex.oe_off, obj_req->ex.oe_len,
+				       0, 0);
+	}
+
+	obj_req->write_state = RBD_OBJ_WRITE_FLAT;
+	rbd_osd_req_format_write(obj_req);
+	return 0;
+}
+
+static void __rbd_obj_setup_zeroout(struct rbd_obj_request *obj_req,
 				    unsigned int which)
 {
 	u16 opcode;
@@ -1856,10 +1893,8 @@ static void __rbd_obj_setup_discard(struct rbd_obj_request *obj_req,
 					CEPH_OSD_OP_DELETE, 0);
 			opcode = 0;
 		}
-	} else if (rbd_obj_is_tail(obj_req)) {
-		opcode = CEPH_OSD_OP_TRUNCATE;
 	} else {
-		opcode = CEPH_OSD_OP_ZERO;
+		opcode = truncate_or_zero_opcode(obj_req);
 	}
 
 	if (opcode)
@@ -1871,7 +1906,7 @@ static void __rbd_obj_setup_discard(struct rbd_obj_request *obj_req,
 	rbd_osd_req_format_write(obj_req);
 }
 
-static int rbd_obj_setup_discard(struct rbd_obj_request *obj_req)
+static int rbd_obj_setup_zeroout(struct rbd_obj_request *obj_req)
 {
 	unsigned int num_osd_ops, which = 0;
 	int ret;
@@ -1907,7 +1942,7 @@ static int rbd_obj_setup_discard(struct rbd_obj_request *obj_req)
 			return ret;
 	}
 
-	__rbd_obj_setup_discard(obj_req, which);
+	__rbd_obj_setup_zeroout(obj_req, which);
 	return 0;
 }
 
@@ -1931,6 +1966,9 @@ static int __rbd_img_fill_request(struct rbd_img_request *img_req)
 			break;
 		case OBJ_OP_DISCARD:
 			ret = rbd_obj_setup_discard(obj_req);
+			break;
+		case OBJ_OP_ZEROOUT:
+			ret = rbd_obj_setup_zeroout(obj_req);
 			break;
 		default:
 			rbd_assert(0);
@@ -2392,9 +2430,9 @@ static int rbd_obj_issue_copyup(struct rbd_obj_request *obj_req, u32 bytes)
 	case OBJ_OP_WRITE:
 		__rbd_obj_setup_write(obj_req, 1);
 		break;
-	case OBJ_OP_DISCARD:
+	case OBJ_OP_ZEROOUT:
 		rbd_assert(!rbd_obj_is_entire(obj_req));
-		__rbd_obj_setup_discard(obj_req, 1);
+		__rbd_obj_setup_zeroout(obj_req, 1);
 		break;
 	default:
 		rbd_assert(0);
@@ -2524,6 +2562,7 @@ static bool __rbd_obj_handle_request(struct rbd_obj_request *obj_req)
 	case OBJ_OP_WRITE:
 		return rbd_obj_handle_write(obj_req);
 	case OBJ_OP_DISCARD:
+	case OBJ_OP_ZEROOUT:
 		if (rbd_obj_handle_write(obj_req)) {
 			/*
 			 * Hide -ENOENT from delete/truncate/zero -- discarding
@@ -3636,8 +3675,10 @@ static void rbd_queue_workfn(struct work_struct *work)
 
 	switch (req_op(rq)) {
 	case REQ_OP_DISCARD:
-	case REQ_OP_WRITE_ZEROES:
 		op_type = OBJ_OP_DISCARD;
+		break;
+	case REQ_OP_WRITE_ZEROES:
+		op_type = OBJ_OP_ZEROOUT;
 		break;
 	case REQ_OP_WRITE:
 		op_type = OBJ_OP_WRITE;
@@ -3718,7 +3759,7 @@ static void rbd_queue_workfn(struct work_struct *work)
 	img_request->rq = rq;
 	snapc = NULL; /* img_request consumes a ref */
 
-	if (op_type == OBJ_OP_DISCARD)
+	if (op_type == OBJ_OP_DISCARD || op_type == OBJ_OP_ZEROOUT)
 		result = rbd_img_fill_nodata(img_request, offset, length);
 	else
 		result = rbd_img_fill_from_bio(img_request, offset, length,
