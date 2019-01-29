@@ -49,6 +49,7 @@ static const char * const mediatek_board_dt_compat[] = {
 	"mediatek,mt6589",
 	"mediatek,mt6592",
 	"mediatek,mt7623",
+	"mediatek,mt7629",
 	"mediatek,mt8127",
 	"mediatek,mt8135",
 	NULL,
