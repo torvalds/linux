@@ -4633,8 +4633,6 @@ static bool __bfq_insert_request(struct bfq_data *bfqd, struct request *rq)
 	bool waiting, idle_timer_disabled = false;
 
 	if (new_bfqq) {
-		if (bic_to_bfqq(RQ_BIC(rq), 1) != bfqq)
-			new_bfqq = bic_to_bfqq(RQ_BIC(rq), 1);
 		/*
 		 * Release the request's reference to the old bfqq
 		 * and make sure one is taken to the shared queue.
