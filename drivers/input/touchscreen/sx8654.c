@@ -27,6 +27,7 @@
  *  published by the Free Software Foundation.
  */
 
+#include <linux/bitops.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
@@ -46,7 +47,7 @@
 #define I2C_REG_SOFTRESET		0x3f
 
 #define I2C_REG_SX8650_STAT		0x05
-#define SX8650_STAT_CONVIRQ		0x80
+#define SX8650_STAT_CONVIRQ		BIT(7)
 
 /* commands */
 #define CMD_READ_REGISTER		0x40
@@ -56,8 +57,8 @@
 #define SOFTRESET_VALUE			0xde
 
 /* bits for I2C_REG_IRQSRC */
-#define IRQ_PENTOUCH_TOUCHCONVDONE	0x08
-#define IRQ_PENRELEASE			0x04
+#define IRQ_PENTOUCH_TOUCHCONVDONE	BIT(3)
+#define IRQ_PENRELEASE			BIT(2)
 
 /* bits for RegTouch1 */
 #define CONDIRQ				0x20
@@ -65,8 +66,8 @@
 #define FILT_7SA			0x03
 
 /* bits for I2C_REG_CHANMASK */
-#define CONV_X				0x80
-#define CONV_Y				0x40
+#define CONV_X				BIT(7)
+#define CONV_Y				BIT(6)
 
 /* coordinates rate: higher nibble of CTRL0 register */
 #define RATE_MANUAL			0x00
