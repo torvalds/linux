@@ -2669,7 +2669,7 @@ static void free_unused_bufs(struct virtnet_info *vi)
 			if (!is_xdp_raw_buffer_queue(vi, i))
 				dev_kfree_skb(buf);
 			else
-				put_page(virt_to_head_page(buf));
+				xdp_return_frame(buf);
 		}
 	}
 
