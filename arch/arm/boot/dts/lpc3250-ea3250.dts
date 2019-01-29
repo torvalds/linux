@@ -17,10 +17,8 @@
 / {
 	model = "Embedded Artists LPC3250 board based on NXP LPC3250";
 	compatible = "ea,ea3250", "nxp,lpc3250";
-	#address-cells = <1>;
-	#size-cells = <1>;
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x4000000>;
 	};
