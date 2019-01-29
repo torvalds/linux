@@ -779,4 +779,13 @@ struct typec_device_id {
 	kernel_ulong_t driver_data;
 };
 
+/**
+ * struct tee_client_device_id - tee based device identifier
+ * @uuid: For TEE based client devices we use the device uuid as
+ *        the identifier.
+ */
+struct tee_client_device_id {
+	uuid_t uuid;
+};
+
 #endif /* LINUX_MOD_DEVICETABLE_H */
