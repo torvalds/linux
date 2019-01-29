@@ -1275,7 +1275,7 @@ lba_legacy_resources(struct parisc_device *pa_dev, struct lba_device *lba_dev)
 		r->flags = IORESOURCE_MEM;
 		/* mmio_mask also clears Enable bit */
 		r->start &= mmio_mask;
-		r->start = PCI_HOST_ADDR(HBA_DATA(lba_dev), r->start);
+		r->start = PCI_HOST_ADDR(&lba_dev->hba, r->start);
 		rsize = ~ READ_REG32(lba_dev->hba.base_addr + LBA_LMMIO_MASK);
 
 		/*
@@ -1321,7 +1321,7 @@ lba_legacy_resources(struct parisc_device *pa_dev, struct lba_device *lba_dev)
 		r->flags = IORESOURCE_MEM;
 		/* mmio_mask also clears Enable bit */
 		r->start &= mmio_mask;
-		r->start = PCI_HOST_ADDR(HBA_DATA(lba_dev), r->start);
+		r->start = PCI_HOST_ADDR(&lba_dev->hba, r->start);
 		rsize = READ_REG32(lba_dev->hba.base_addr + LBA_ELMMIO_MASK);
 		r->end = r->start + ~rsize;
 	}
@@ -1562,7 +1562,7 @@ lba_driver_probe(struct parisc_device *dev)
 
 	/* ------------ Second : initialize common stuff ---------- */
 	pci_bios = &lba_bios_ops;
-	pcibios_register_hba(HBA_DATA(lba_dev));
+	pcibios_register_hba(&lba_dev->hba);
 	spin_lock_init(&lba_dev->lba_lock);
 
 	if (lba_hw_init(lba_dev))
