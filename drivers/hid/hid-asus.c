@@ -71,6 +71,7 @@ MODULE_DESCRIPTION("Asus HID Keyboard and TouchPad");
 #define QUIRK_T100CHI			BIT(7)
 #define QUIRK_G752_KEYBOARD		BIT(8)
 #define QUIRK_T101HA_DOCK		BIT(9)
+#define QUIRK_T90CHI			BIT(10)
 
 #define I2C_KEYBOARD_QUIRKS			(QUIRK_FIX_NOTEBOOK_REPORT | \
 						 QUIRK_NO_INIT_REPORTS | \
@@ -500,7 +501,7 @@ static int asus_input_mapping(struct hid_device *hdev,
 	 * This avoids a bunch of non-functional hid_input devices getting
 	 * created because of the T100CHI using HID_QUIRK_MULTI_INPUT.
 	 */
-	if (drvdata->quirks & QUIRK_T100CHI) {
+	if (drvdata->quirks & (QUIRK_T100CHI | QUIRK_T90CHI)) {
 		if (field->application == (HID_UP_GENDESK | 0x0080) ||
 		    usage->hid == (HID_UP_GENDEVCTRLS | 0x0024) ||
 		    usage->hid == (HID_UP_GENDEVCTRLS | 0x0025) ||
@@ -660,6 +661,11 @@ static int asus_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	drvdata->quirks = id->driver_data;
 
+	if (strstr(hdev->name, "T90CHI")) {
+		drvdata->quirks &= ~QUIRK_T100CHI;
+		drvdata->quirks |= QUIRK_T90CHI;
+	}
+
 	if (drvdata->quirks & QUIRK_IS_MULTITOUCH)
 		drvdata->tp = &asus_i2c_tp;
 
@@ -769,28 +775,44 @@ static __u8 *asus_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		hid_info(hdev, "Fixing up Asus T100 keyb report descriptor\n");
 		rdesc[74] &= ~HID_MAIN_ITEM_CONSTANT;
 	}
-	/* For the T100CHI keyboard dock */
-	if (drvdata->quirks & QUIRK_T100CHI &&
-		 *rsize == 403 && rdesc[388] == 0x09 && rdesc[389] == 0x76) {
+	/* For the T100CHI/T90CHI keyboard dock */
+	if (drvdata->quirks & (QUIRK_T100CHI | QUIRK_T90CHI)) {
+		int rsize_orig;
+		int offs;
+
+		if (drvdata->quirks & QUIRK_T100CHI) {
+			rsize_orig = 403;
+			offs = 388;
+		} else {
+			rsize_orig = 306;
+			offs = 291;
+		}
+
 		/*
 		 * Change Usage (76h) to Usage Minimum (00h), Usage Maximum
 		 * (FFh) and clear the flags in the Input() byte.
 		 * Note the descriptor has a bogus 0 byte at the end so we
 		 * only need 1 extra byte.
 		 */
-		*rsize = 404;
-		rdesc = kmemdup(rdesc, *rsize, GFP_KERNEL);
-		if (!rdesc)
-			return NULL;
+		if (*rsize == rsize_orig &&
+			rdesc[offs] == 0x09 && rdesc[offs + 1] == 0x76) {
+			*rsize = rsize_orig + 1;
+			rdesc = kmemdup(rdesc, *rsize, GFP_KERNEL);
+			if (!rdesc)
+				return NULL;
 
-		hid_info(hdev, "Fixing up T100CHI keyb report descriptor\n");
-		memmove(rdesc + 392, rdesc + 390, 12);
-		rdesc[388] = 0x19;
-		rdesc[389] = 0x00;
-		rdesc[390] = 0x29;
-		rdesc[391] = 0xff;
-		rdesc[402] = 0x00;
+			hid_info(hdev, "Fixing up %s keyb report descriptor\n",
+				drvdata->quirks & QUIRK_T100CHI ?
+				"T100CHI" : "T90CHI");
+			memmove(rdesc + offs + 4, rdesc + offs + 2, 12);
+			rdesc[offs] = 0x19;
+			rdesc[offs + 1] = 0x00;
+			rdesc[offs + 2] = 0x29;
+			rdesc[offs + 3] = 0xff;
+			rdesc[offs + 14] = 0x00;
+		}
 	}
+
 	if (drvdata->quirks & QUIRK_G752_KEYBOARD &&
 		 *rsize == 75 && rdesc[61] == 0x15 && rdesc[62] == 0x00) {
 		/* report is missing usage mninum and maximum */
