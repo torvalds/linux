@@ -268,9 +268,15 @@ struct bpf_verifier_ops {
 };
 
 struct bpf_prog_offload_ops {
+	/* verifier basic callbacks */
 	int (*insn_hook)(struct bpf_verifier_env *env,
 			 int insn_idx, int prev_insn_idx);
 	int (*finalize)(struct bpf_verifier_env *env);
+	/* verifier optimization callbacks (called after .finalize) */
+	int (*replace_insn)(struct bpf_verifier_env *env, u32 off,
+			    struct bpf_insn *insn);
+	int (*remove_insns)(struct bpf_verifier_env *env, u32 off, u32 cnt);
+	/* program management callbacks */
 	int (*prepare)(struct bpf_prog *prog);
 	int (*translate)(struct bpf_prog *prog);
 	void (*destroy)(struct bpf_prog *prog);
@@ -283,6 +289,7 @@ struct bpf_prog_offload {
 	void			*dev_priv;
 	struct list_head	offloads;
 	bool			dev_state;
+	bool			opt_failed;
 	void			*jited_image;
 	u32			jited_len;
 };
@@ -397,6 +404,9 @@ int bpf_prog_test_run_xdp(struct bpf_prog *prog, const union bpf_attr *kattr,
 			  union bpf_attr __user *uattr);
 int bpf_prog_test_run_skb(struct bpf_prog *prog, const union bpf_attr *kattr,
 			  union bpf_attr __user *uattr);
+int bpf_prog_test_run_flow_dissector(struct bpf_prog *prog,
+				     const union bpf_attr *kattr,
+				     union bpf_attr __user *uattr);
 
 /* an array of programs to be executed under rcu_lock.
  *

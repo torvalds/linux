@@ -31,6 +31,7 @@
 #include <net/netns/xfrm.h>
 #include <net/netns/mpls.h>
 #include <net/netns/can.h>
+#include <net/netns/xdp.h>
 #include <linux/ns_common.h>
 #include <linux/idr.h>
 #include <linux/skbuff.h>
@@ -160,6 +161,9 @@ struct net {
 #endif
 #if IS_ENABLED(CONFIG_CAN)
 	struct netns_can	can;
+#endif
+#ifdef CONFIG_XDP_SOCKETS
+	struct netns_xdp	xdp;
 #endif
 	struct sock		*diag_nlsk;
 	atomic_t		fnhe_genid;

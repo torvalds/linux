@@ -10,7 +10,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
-#include <sys/ioctl.h>
 #include <stdbool.h>
 #include <signal.h>
 #include <fcntl.h>

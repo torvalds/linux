@@ -187,6 +187,7 @@ struct bpf_insn_aux_data {
 	int sanitize_stack_off; /* stack slot to be cleared */
 	bool seen; /* this insn was processed by the verifier */
 	u8 alu_state; /* used in combination with alu_limit */
+	unsigned int orig_idx; /* original instruction index */
 };
 
 #define MAX_USED_MAPS 64 /* max number of maps accessed by one eBPF program */
@@ -265,5 +266,10 @@ int bpf_prog_offload_verifier_prep(struct bpf_prog *prog);
 int bpf_prog_offload_verify_insn(struct bpf_verifier_env *env,
 				 int insn_idx, int prev_insn_idx);
 int bpf_prog_offload_finalize(struct bpf_verifier_env *env);
+void
+bpf_prog_offload_replace_insn(struct bpf_verifier_env *env, u32 off,
+			      struct bpf_insn *insn);
+void
+bpf_prog_offload_remove_insns(struct bpf_verifier_env *env, u32 off, u32 cnt);
 
 #endif /* _LINUX_BPF_VERIFIER_H */

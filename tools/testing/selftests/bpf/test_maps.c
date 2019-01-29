@@ -633,7 +633,6 @@ static void test_stackmap(int task, void *data)
 	close(fd);
 }
 
-#include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <arpa/inet.h>
 #include <sys/select.h>

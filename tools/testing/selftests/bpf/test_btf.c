@@ -18,6 +18,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <assert.h>
 #include <bpf/libbpf.h>
 #include <bpf/btf.h>
 
@@ -134,6 +135,12 @@ static struct btf_header hdr_tmpl = {
 	.hdr_len = sizeof(struct btf_header),
 };
 
+/* several different mapv kinds(types) supported by pprint */
+enum pprint_mapv_kind_t {
+	PPRINT_MAPV_KIND_BASIC = 0,
+	PPRINT_MAPV_KIND_INT128,
+};
+
 struct btf_raw_test {
 	const char *descr;
 	const char *str_sec;
@@ -156,6 +163,7 @@ struct btf_raw_test {
 	int type_off_delta;
 	int str_off_delta;
 	int str_len_delta;
+	enum pprint_mapv_kind_t mapv_kind;
 };
 
 #define BTF_STR_SEC(str) \
@@ -2707,6 +2715,99 @@ static struct btf_raw_test raw_tests[] = {
 	.err_str = "Invalid member offset",
 },
 
+{
+	.descr = "128-bit int",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),			/* [1] */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 128, 16),		/* [2] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0A"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "int_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+},
+
+{
+	.descr = "struct, 128-bit int member",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),			/* [1] */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 128, 16),		/* [2] */
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_STRUCT, 0, 1), 16),	/* [3] */
+		BTF_MEMBER_ENC(NAME_TBD, 2, 0),
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0A"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "struct_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+},
+
+{
+	.descr = "struct, 120-bit int member bitfield",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),			/* [1] */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 120, 16),		/* [2] */
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_STRUCT, 0, 1), 16),	/* [3] */
+		BTF_MEMBER_ENC(NAME_TBD, 2, 0),
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0A"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "struct_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+},
+
+{
+	.descr = "struct, kind_flag, 128-bit int member",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),			/* [1] */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 128, 16),		/* [2] */
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_STRUCT, 1, 1), 16),	/* [3] */
+		BTF_MEMBER_ENC(NAME_TBD, 2, BTF_MEMBER_OFFSET(0, 0)),
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0A"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "struct_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+},
+
+{
+	.descr = "struct, kind_flag, 120-bit int member bitfield",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),			/* [1] */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 128, 16),		/* [2] */
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_STRUCT, 1, 1), 16),	/* [3] */
+		BTF_MEMBER_ENC(NAME_TBD, 2, BTF_MEMBER_OFFSET(120, 0)),
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0A"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "struct_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+},
+
 }; /* struct btf_raw_test raw_tests[] */
 
 static const char *get_next_str(const char *start, const char *end)
@@ -3530,6 +3631,16 @@ struct pprint_mapv {
 	uint32_t bits2c:2;
 };
 
+#ifdef __SIZEOF_INT128__
+struct pprint_mapv_int128 {
+	__int128 si128a;
+	__int128 si128b;
+	unsigned __int128 bits3:3;
+	unsigned __int128 bits80:80;
+	unsigned __int128 ui128;
+};
+#endif
+
 static struct btf_raw_test pprint_test_template[] = {
 {
 	.raw_types = {
@@ -3721,6 +3832,35 @@ static struct btf_raw_test pprint_test_template[] = {
 	.max_entries = 128 * 1024,
 },
 
+#ifdef __SIZEOF_INT128__
+{
+	/* test int128 */
+	.raw_types = {
+		/* unsigned int */				/* [1] */
+		BTF_TYPE_INT_ENC(NAME_TBD, 0, 0, 32, 4),
+		/* __int128 */					/* [2] */
+		BTF_TYPE_INT_ENC(NAME_TBD, BTF_INT_SIGNED, 0, 128, 16),
+		/* unsigned __int128 */				/* [3] */
+		BTF_TYPE_INT_ENC(NAME_TBD, 0, 0, 128, 16),
+		/* struct pprint_mapv_int128 */			/* [4] */
+		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_STRUCT, 1, 5), 64),
+		BTF_MEMBER_ENC(NAME_TBD, 2, BTF_MEMBER_OFFSET(0, 0)),		/* si128a */
+		BTF_MEMBER_ENC(NAME_TBD, 2, BTF_MEMBER_OFFSET(0, 128)),		/* si128b */
+		BTF_MEMBER_ENC(NAME_TBD, 3, BTF_MEMBER_OFFSET(3, 256)),		/* bits3 */
+		BTF_MEMBER_ENC(NAME_TBD, 3, BTF_MEMBER_OFFSET(80, 259)),	/* bits80 */
+		BTF_MEMBER_ENC(NAME_TBD, 3, BTF_MEMBER_OFFSET(0, 384)),		/* ui128 */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0unsigned int\0__int128\0unsigned __int128\0pprint_mapv_int128\0si128a\0si128b\0bits3\0bits80\0ui128"),
+	.key_size = sizeof(unsigned int),
+	.value_size = sizeof(struct pprint_mapv_int128),
+	.key_type_id = 1,
+	.value_type_id = 4,
+	.max_entries = 128 * 1024,
+	.mapv_kind = PPRINT_MAPV_KIND_INT128,
+},
+#endif
+
 };
 
 static struct btf_pprint_test_meta {
@@ -3787,24 +3927,108 @@ static struct btf_pprint_test_meta {
 
 };
 
+static size_t get_pprint_mapv_size(enum pprint_mapv_kind_t mapv_kind)
+{
+	if (mapv_kind == PPRINT_MAPV_KIND_BASIC)
+		return sizeof(struct pprint_mapv);
 
-static void set_pprint_mapv(struct pprint_mapv *v, uint32_t i,
+#ifdef __SIZEOF_INT128__
+	if (mapv_kind == PPRINT_MAPV_KIND_INT128)
+		return sizeof(struct pprint_mapv_int128);
+#endif
+
+	assert(0);
+}
+
+static void set_pprint_mapv(enum pprint_mapv_kind_t mapv_kind,
+			    void *mapv, uint32_t i,
 			    int num_cpus, int rounded_value_size)
 {
 	int cpu;
 
-	for (cpu = 0; cpu < num_cpus; cpu++) {
-		v->ui32 = i + cpu;
-		v->si32 = -i;
-		v->unused_bits2a = 3;
-		v->bits28 = i;
-		v->unused_bits2b = 3;
-		v->ui64 = i;
-		v->aenum = i & 0x03;
-		v->ui32b = 4;
-		v->bits2c = 1;
-		v = (void *)v + rounded_value_size;
+	if (mapv_kind == PPRINT_MAPV_KIND_BASIC) {
+		struct pprint_mapv *v = mapv;
+
+		for (cpu = 0; cpu < num_cpus; cpu++) {
+			v->ui32 = i + cpu;
+			v->si32 = -i;
+			v->unused_bits2a = 3;
+			v->bits28 = i;
+			v->unused_bits2b = 3;
+			v->ui64 = i;
+			v->aenum = i & 0x03;
+			v->ui32b = 4;
+			v->bits2c = 1;
+			v = (void *)v + rounded_value_size;
+		}
 	}
+
+#ifdef __SIZEOF_INT128__
+	if (mapv_kind == PPRINT_MAPV_KIND_INT128) {
+		struct pprint_mapv_int128 *v = mapv;
+
+		for (cpu = 0; cpu < num_cpus; cpu++) {
+			v->si128a = i;
+			v->si128b = -i;
+			v->bits3 = i & 0x07;
+			v->bits80 = (((unsigned __int128)1) << 64) + i;
+			v->ui128 = (((unsigned __int128)2) << 64) + i;
+			v = (void *)v + rounded_value_size;
+		}
+	}
+#endif
+}
+
+ssize_t get_pprint_expected_line(enum pprint_mapv_kind_t mapv_kind,
+				 char *expected_line, ssize_t line_size,
+				 bool percpu_map, unsigned int next_key,
+				 int cpu, void *mapv)
+{
+	ssize_t nexpected_line = -1;
+
+	if (mapv_kind == PPRINT_MAPV_KIND_BASIC) {
+		struct pprint_mapv *v = mapv;
+
+		nexpected_line = snprintf(expected_line, line_size,
+					  "%s%u: {%u,0,%d,0x%x,0x%x,0x%x,"
+					  "{%lu|[%u,%u,%u,%u,%u,%u,%u,%u]},%s,"
+					  "%u,0x%x}\n",
+					  percpu_map ? "\tcpu" : "",
+					  percpu_map ? cpu : next_key,
+					  v->ui32, v->si32,
+					  v->unused_bits2a,
+					  v->bits28,
+					  v->unused_bits2b,
+					  v->ui64,
+					  v->ui8a[0], v->ui8a[1],
+					  v->ui8a[2], v->ui8a[3],
+					  v->ui8a[4], v->ui8a[5],
+					  v->ui8a[6], v->ui8a[7],
+					  pprint_enum_str[v->aenum],
+					  v->ui32b,
+					  v->bits2c);
+	}
+
+#ifdef __SIZEOF_INT128__
+	if (mapv_kind == PPRINT_MAPV_KIND_INT128) {
+		struct pprint_mapv_int128 *v = mapv;
+
+		nexpected_line = snprintf(expected_line, line_size,
+					  "%s%u: {0x%lx,0x%lx,0x%lx,"
+					  "0x%lx%016lx,0x%lx%016lx}\n",
+					  percpu_map ? "\tcpu" : "",
+					  percpu_map ? cpu : next_key,
+					  (uint64_t)v->si128a,
+					  (uint64_t)v->si128b,
+					  (uint64_t)v->bits3,
+					  (uint64_t)(v->bits80 >> 64),
+					  (uint64_t)v->bits80,
+					  (uint64_t)(v->ui128 >> 64),
+					  (uint64_t)v->ui128);
+	}
+#endif
+
+	return nexpected_line;
 }
 
 static int check_line(const char *expected_line, int nexpected_line,
@@ -3828,10 +4052,10 @@ static int check_line(const char *expected_line, int nexpected_line,
 static int do_test_pprint(int test_num)
 {
 	const struct btf_raw_test *test = &pprint_test_template[test_num];
+	enum pprint_mapv_kind_t mapv_kind = test->mapv_kind;
 	struct bpf_create_map_attr create_attr = {};
 	bool ordered_map, lossless_map, percpu_map;
 	int err, ret, num_cpus, rounded_value_size;
-	struct pprint_mapv *mapv = NULL;
 	unsigned int key, nr_read_elems;
 	int map_fd = -1, btf_fd = -1;
 	unsigned int raw_btf_size;
@@ -3840,6 +4064,7 @@ static int do_test_pprint(int test_num)
 	char pin_path[255];
 	size_t line_len = 0;
 	char *line = NULL;
+	void *mapv = NULL;
 	uint8_t *raw_btf;
 	ssize_t nread;
 
@@ -3892,7 +4117,7 @@ static int do_test_pprint(int test_num)
 
 	percpu_map = test->percpu_map;
 	num_cpus = percpu_map ? bpf_num_possible_cpus() : 1;
-	rounded_value_size = round_up(sizeof(struct pprint_mapv), 8);
+	rounded_value_size = round_up(get_pprint_mapv_size(mapv_kind), 8);
 	mapv = calloc(num_cpus, rounded_value_size);
 	if (CHECK(!mapv, "mapv allocation failure")) {
 		err = -1;
@@ -3900,7 +4125,7 @@ static int do_test_pprint(int test_num)
 	}
 
 	for (key = 0; key < test->max_entries; key++) {
-		set_pprint_mapv(mapv, key, num_cpus, rounded_value_size);
+		set_pprint_mapv(mapv_kind, mapv, key, num_cpus, rounded_value_size);
 		bpf_map_update_elem(map_fd, &key, mapv, 0);
 	}
 
@@ -3924,13 +4149,13 @@ static int do_test_pprint(int test_num)
 	ordered_map = test->ordered_map;
 	lossless_map = test->lossless_map;
 	do {
-		struct pprint_mapv *cmapv;
 		ssize_t nexpected_line;
 		unsigned int next_key;
+		void *cmapv;
 		int cpu;
 
 		next_key = ordered_map ? nr_read_elems : atoi(line);
-		set_pprint_mapv(mapv, next_key, num_cpus, rounded_value_size);
+		set_pprint_mapv(mapv_kind, mapv, next_key, num_cpus, rounded_value_size);
 		cmapv = mapv;
 
 		for (cpu = 0; cpu < num_cpus; cpu++) {
@@ -3963,31 +4188,16 @@ static int do_test_pprint(int test_num)
 					break;
 			}
 
-			nexpected_line = snprintf(expected_line, sizeof(expected_line),
-						  "%s%u: {%u,0,%d,0x%x,0x%x,0x%x,"
-						  "{%lu|[%u,%u,%u,%u,%u,%u,%u,%u]},%s,"
-						  "%u,0x%x}\n",
-						  percpu_map ? "\tcpu" : "",
-						  percpu_map ? cpu : next_key,
-						  cmapv->ui32, cmapv->si32,
-						  cmapv->unused_bits2a,
-						  cmapv->bits28,
-						  cmapv->unused_bits2b,
-						  cmapv->ui64,
-						  cmapv->ui8a[0], cmapv->ui8a[1],
-						  cmapv->ui8a[2], cmapv->ui8a[3],
-						  cmapv->ui8a[4], cmapv->ui8a[5],
-						  cmapv->ui8a[6], cmapv->ui8a[7],
-						  pprint_enum_str[cmapv->aenum],
-						  cmapv->ui32b,
-						  cmapv->bits2c);
-
+			nexpected_line = get_pprint_expected_line(mapv_kind, expected_line,
+								  sizeof(expected_line),
+								  percpu_map, next_key,
+								  cpu, cmapv);
 			err = check_line(expected_line, nexpected_line,
 					 sizeof(expected_line), line);
 			if (err == -1)
 				goto done;
 
-			cmapv = (void *)cmapv + rounded_value_size;
+			cmapv = cmapv + rounded_value_size;
 		}
 
 		if (percpu_map) {
@@ -4083,6 +4293,10 @@ static struct prog_info_raw_test {
 	__u32 line_info_rec_size;
 	__u32 nr_jited_ksyms;
 	bool expected_prog_load_failure;
+	__u32 dead_code_cnt;
+	__u32 dead_code_mask;
+	__u32 dead_func_cnt;
+	__u32 dead_func_mask;
 } info_raw_tests[] = {
 {
 	.descr = "func_type (main func + one sub)",
@@ -4509,6 +4723,369 @@ static struct prog_info_raw_test {
 	.expected_prog_load_failure = true,
 },
 
+{
+	.descr = "line_info (dead start)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(NAME_TBD, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0int\0/* dead jmp */\0int a=1;\0int b=2;\0return a + b;\0return a + b;"),
+	.insns = {
+		BPF_JMP_IMM(BPF_JA, 0, 0, 0),
+		BPF_MOV64_IMM(BPF_REG_0, 1),
+		BPF_MOV64_IMM(BPF_REG_1, 2),
+		BPF_ALU64_REG(BPF_ADD, BPF_REG_0, BPF_REG_1),
+		BPF_EXIT_INSN(),
+	},
+	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
+	.func_info_cnt = 0,
+	.line_info = {
+		BPF_LINE_INFO_ENC(0, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(1, 0, NAME_TBD, 2, 9),
+		BPF_LINE_INFO_ENC(2, 0, NAME_TBD, 3, 8),
+		BPF_LINE_INFO_ENC(3, 0, NAME_TBD, 4, 7),
+		BPF_LINE_INFO_ENC(4, 0, NAME_TBD, 5, 6),
+		BTF_END_RAW,
+	},
+	.line_info_rec_size = sizeof(struct bpf_line_info),
+	.nr_jited_ksyms = 1,
+	.dead_code_cnt = 1,
+	.dead_code_mask = 0x01,
+},
+
+{
+	.descr = "line_info (dead end)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(NAME_TBD, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0int\0int a=1;\0int b=2;\0return a + b;\0/* dead jmp */\0return a + b;\0/* dead exit */"),
+	.insns = {
+		BPF_MOV64_IMM(BPF_REG_0, 1),
+		BPF_MOV64_IMM(BPF_REG_1, 2),
+		BPF_ALU64_REG(BPF_ADD, BPF_REG_0, BPF_REG_1),
+		BPF_JMP_IMM(BPF_JGE, BPF_REG_0, 10, 1),
+		BPF_EXIT_INSN(),
+		BPF_EXIT_INSN(),
+	},
+	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
+	.func_info_cnt = 0,
+	.line_info = {
+		BPF_LINE_INFO_ENC(0, 0, NAME_TBD, 1, 12),
+		BPF_LINE_INFO_ENC(1, 0, NAME_TBD, 2, 11),
+		BPF_LINE_INFO_ENC(2, 0, NAME_TBD, 3, 10),
+		BPF_LINE_INFO_ENC(3, 0, NAME_TBD, 4, 9),
+		BPF_LINE_INFO_ENC(4, 0, NAME_TBD, 5, 8),
+		BPF_LINE_INFO_ENC(5, 0, NAME_TBD, 6, 7),
+		BTF_END_RAW,
+	},
+	.line_info_rec_size = sizeof(struct bpf_line_info),
+	.nr_jited_ksyms = 1,
+	.dead_code_cnt = 2,
+	.dead_code_mask = 0x28,
+},
+
+{
+	.descr = "line_info (dead code + subprog + func_info)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(NAME_TBD, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_FUNC_PROTO_ENC(1, 1),			/* [2] */
+			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 1),
+		BTF_FUNC_ENC(NAME_TBD, 2),			/* [3] */
+		BTF_FUNC_ENC(NAME_TBD, 2),			/* [4] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0int\0x\0sub\0main\0int a=1+1;\0/* dead jmp */"
+		    "\0/* dead */\0/* dead */\0/* dead */\0/* dead */"
+		    "\0/* dead */\0/* dead */\0/* dead */\0/* dead */"
+		    "\0return func(a);\0b+=1;\0return b;"),
+	.insns = {
+		BPF_MOV64_IMM(BPF_REG_2, 1),
+		BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, 1),
+		BPF_MOV64_REG(BPF_REG_1, BPF_REG_2),
+		BPF_JMP_IMM(BPF_JGE, BPF_REG_2, 0, 8),
+		BPF_MOV64_IMM(BPF_REG_2, 1),
+		BPF_MOV64_IMM(BPF_REG_2, 1),
+		BPF_MOV64_IMM(BPF_REG_2, 1),
+		BPF_MOV64_IMM(BPF_REG_2, 1),
+		BPF_MOV64_IMM(BPF_REG_2, 1),
+		BPF_MOV64_IMM(BPF_REG_2, 1),
+		BPF_MOV64_IMM(BPF_REG_2, 1),
+		BPF_MOV64_IMM(BPF_REG_2, 1),
+		BPF_CALL_REL(1),
+		BPF_EXIT_INSN(),
+		BPF_MOV64_REG(BPF_REG_0, BPF_REG_1),
+		BPF_ALU64_IMM(BPF_ADD, BPF_REG_0, 1),
+		BPF_EXIT_INSN(),
+	},
+	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
+	.func_info_cnt = 2,
+	.func_info_rec_size = 8,
+	.func_info = { {0, 4}, {14, 3} },
+	.line_info = {
+		BPF_LINE_INFO_ENC(0, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(3, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(4, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(5, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(6, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(7, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(8, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(9, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(10, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(11, 0, NAME_TBD, 2, 9),
+		BPF_LINE_INFO_ENC(12, 0, NAME_TBD, 2, 9),
+		BPF_LINE_INFO_ENC(14, 0, NAME_TBD, 3, 8),
+		BPF_LINE_INFO_ENC(16, 0, NAME_TBD, 4, 7),
+		BTF_END_RAW,
+	},
+	.line_info_rec_size = sizeof(struct bpf_line_info),
+	.nr_jited_ksyms = 2,
+	.dead_code_cnt = 9,
+	.dead_code_mask = 0x3fe,
+},
+
+{
+	.descr = "line_info (dead subprog)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(NAME_TBD, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_FUNC_PROTO_ENC(1, 1),			/* [2] */
+			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 1),
+		BTF_FUNC_ENC(NAME_TBD, 2),			/* [3] */
+		BTF_FUNC_ENC(NAME_TBD, 2),			/* [4] */
+		BTF_FUNC_ENC(NAME_TBD, 2),			/* [5] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0int\0x\0dead\0main\0func\0int a=1+1;\0/* live call */"
+		    "\0return 0;\0return 0;\0/* dead */\0/* dead */"
+		    "\0/* dead */\0return bla + 1;\0return bla + 1;"
+		    "\0return bla + 1;\0return func(a);\0b+=1;\0return b;"),
+	.insns = {
+		BPF_MOV64_IMM(BPF_REG_2, 1),
+		BPF_JMP_IMM(BPF_JGE, BPF_REG_2, 0, 1),
+		BPF_CALL_REL(3),
+		BPF_CALL_REL(5),
+		BPF_MOV64_IMM(BPF_REG_0, 0),
+		BPF_EXIT_INSN(),
+		BPF_MOV64_IMM(BPF_REG_0, 0),
+		BPF_CALL_REL(1),
+		BPF_EXIT_INSN(),
+		BPF_MOV64_REG(BPF_REG_0, 2),
+		BPF_ALU64_IMM(BPF_ADD, BPF_REG_0, 1),
+		BPF_EXIT_INSN(),
+	},
+	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
+	.func_info_cnt = 3,
+	.func_info_rec_size = 8,
+		.func_info = { {0, 4}, {6, 3}, {9, 5} },
+	.line_info = {
+		BPF_LINE_INFO_ENC(0, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(3, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(4, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(5, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(6, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(7, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(8, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(9, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(10, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(11, 0, NAME_TBD, 2, 9),
+		BTF_END_RAW,
+	},
+	.line_info_rec_size = sizeof(struct bpf_line_info),
+	.nr_jited_ksyms = 2,
+	.dead_code_cnt = 3,
+	.dead_code_mask = 0x70,
+	.dead_func_cnt = 1,
+	.dead_func_mask = 0x2,
+},
+
+{
+	.descr = "line_info (dead last subprog)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(NAME_TBD, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_FUNC_PROTO_ENC(1, 1),			/* [2] */
+			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 1),
+		BTF_FUNC_ENC(NAME_TBD, 2),			/* [3] */
+		BTF_FUNC_ENC(NAME_TBD, 2),			/* [5] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0int\0x\0dead\0main\0int a=1+1;\0/* live call */"
+		    "\0return 0;\0/* dead */\0/* dead */"),
+	.insns = {
+		BPF_MOV64_IMM(BPF_REG_2, 1),
+		BPF_JMP_IMM(BPF_JGE, BPF_REG_2, 0, 1),
+		BPF_CALL_REL(2),
+		BPF_MOV64_IMM(BPF_REG_0, 0),
+		BPF_EXIT_INSN(),
+		BPF_MOV64_IMM(BPF_REG_0, 0),
+		BPF_EXIT_INSN(),
+	},
+	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
+	.func_info_cnt = 2,
+	.func_info_rec_size = 8,
+		.func_info = { {0, 4}, {5, 3} },
+	.line_info = {
+		BPF_LINE_INFO_ENC(0, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(3, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(4, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(5, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(6, 0, NAME_TBD, 1, 10),
+		BTF_END_RAW,
+	},
+	.line_info_rec_size = sizeof(struct bpf_line_info),
+	.nr_jited_ksyms = 1,
+	.dead_code_cnt = 2,
+	.dead_code_mask = 0x18,
+	.dead_func_cnt = 1,
+	.dead_func_mask = 0x2,
+},
+
+{
+	.descr = "line_info (dead subprog + dead start)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(NAME_TBD, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_FUNC_PROTO_ENC(1, 1),			/* [2] */
+			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 1),
+		BTF_FUNC_ENC(NAME_TBD, 2),			/* [3] */
+		BTF_FUNC_ENC(NAME_TBD, 2),			/* [4] */
+		BTF_FUNC_ENC(NAME_TBD, 2),			/* [5] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0int\0x\0dead\0main\0func\0int a=1+1;\0/* dead */"
+		    "\0return 0;\0return 0;\0return 0;"
+		    "\0/* dead */\0/* dead */\0/* dead */\0/* dead */"
+		    "\0return b + 1;\0return b + 1;\0return b + 1;"),
+	.insns = {
+		BPF_JMP_IMM(BPF_JA, 0, 0, 0),
+		BPF_MOV64_IMM(BPF_REG_2, 1),
+		BPF_JMP_IMM(BPF_JGE, BPF_REG_2, 0, 1),
+		BPF_CALL_REL(3),
+		BPF_CALL_REL(5),
+		BPF_MOV64_IMM(BPF_REG_0, 0),
+		BPF_EXIT_INSN(),
+		BPF_MOV64_IMM(BPF_REG_0, 0),
+		BPF_CALL_REL(1),
+		BPF_EXIT_INSN(),
+		BPF_JMP_IMM(BPF_JA, 0, 0, 0),
+		BPF_MOV64_REG(BPF_REG_0, 2),
+		BPF_ALU64_IMM(BPF_ADD, BPF_REG_0, 1),
+		BPF_EXIT_INSN(),
+	},
+	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
+	.func_info_cnt = 3,
+	.func_info_rec_size = 8,
+		.func_info = { {0, 4}, {7, 3}, {10, 5} },
+	.line_info = {
+		BPF_LINE_INFO_ENC(0, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(3, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(4, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(5, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(6, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(7, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(8, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(9, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(10, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(11, 0, NAME_TBD, 2, 9),
+		BPF_LINE_INFO_ENC(12, 0, NAME_TBD, 2, 9),
+		BPF_LINE_INFO_ENC(13, 0, NAME_TBD, 2, 9),
+		BTF_END_RAW,
+	},
+	.line_info_rec_size = sizeof(struct bpf_line_info),
+	.nr_jited_ksyms = 2,
+	.dead_code_cnt = 5,
+	.dead_code_mask = 0x1e2,
+	.dead_func_cnt = 1,
+	.dead_func_mask = 0x2,
+},
+
+{
+	.descr = "line_info (dead subprog + dead start w/ move)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(NAME_TBD, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_FUNC_PROTO_ENC(1, 1),			/* [2] */
+			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 1),
+		BTF_FUNC_ENC(NAME_TBD, 2),			/* [3] */
+		BTF_FUNC_ENC(NAME_TBD, 2),			/* [4] */
+		BTF_FUNC_ENC(NAME_TBD, 2),			/* [5] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0int\0x\0dead\0main\0func\0int a=1+1;\0/* live call */"
+		    "\0return 0;\0return 0;\0/* dead */\0/* dead */"
+		    "\0/* dead */\0return bla + 1;\0return bla + 1;"
+		    "\0return bla + 1;\0return func(a);\0b+=1;\0return b;"),
+	.insns = {
+		BPF_MOV64_IMM(BPF_REG_2, 1),
+		BPF_JMP_IMM(BPF_JGE, BPF_REG_2, 0, 1),
+		BPF_CALL_REL(3),
+		BPF_CALL_REL(5),
+		BPF_MOV64_IMM(BPF_REG_0, 0),
+		BPF_EXIT_INSN(),
+		BPF_MOV64_IMM(BPF_REG_0, 0),
+		BPF_CALL_REL(1),
+		BPF_EXIT_INSN(),
+		BPF_JMP_IMM(BPF_JA, 0, 0, 0),
+		BPF_MOV64_REG(BPF_REG_0, 2),
+		BPF_ALU64_IMM(BPF_ADD, BPF_REG_0, 1),
+		BPF_EXIT_INSN(),
+	},
+	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
+	.func_info_cnt = 3,
+	.func_info_rec_size = 8,
+		.func_info = { {0, 4}, {6, 3}, {9, 5} },
+	.line_info = {
+		BPF_LINE_INFO_ENC(0, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(3, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(4, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(5, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(6, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(7, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(8, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(9, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(11, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(12, 0, NAME_TBD, 2, 9),
+		BTF_END_RAW,
+	},
+	.line_info_rec_size = sizeof(struct bpf_line_info),
+	.nr_jited_ksyms = 2,
+	.dead_code_cnt = 3,
+	.dead_code_mask = 0x70,
+	.dead_func_cnt = 1,
+	.dead_func_mask = 0x2,
+},
+
+{
+	.descr = "line_info (dead end + subprog start w/ no linfo)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(NAME_TBD, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_FUNC_PROTO_ENC(1, 1),			/* [2] */
+			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 1),
+		BTF_FUNC_ENC(NAME_TBD, 2),			/* [3] */
+		BTF_FUNC_ENC(NAME_TBD, 2),			/* [4] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0int\0x\0main\0func\0/* main linfo */\0/* func linfo */"),
+	.insns = {
+		BPF_MOV64_IMM(BPF_REG_0, 0),
+		BPF_JMP_IMM(BPF_JGE, BPF_REG_0, 1, 3),
+		BPF_CALL_REL(3),
+		BPF_MOV64_IMM(BPF_REG_0, 0),
+		BPF_EXIT_INSN(),
+		BPF_EXIT_INSN(),
+		BPF_JMP_IMM(BPF_JA, 0, 0, 0),
+		BPF_EXIT_INSN(),
+	},
+	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
+	.func_info_cnt = 2,
+	.func_info_rec_size = 8,
+	.func_info = { {0, 3}, {6, 4}, },
+	.line_info = {
+		BPF_LINE_INFO_ENC(0, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(6, 0, NAME_TBD, 1, 10),
+		BTF_END_RAW,
+	},
+	.line_info_rec_size = sizeof(struct bpf_line_info),
+	.nr_jited_ksyms = 2,
+},
+
 };
 
 static size_t probe_prog_length(const struct bpf_insn *fp)
@@ -4568,6 +5145,7 @@ static int test_get_finfo(const struct prog_info_raw_test *test,
 	struct bpf_func_info *finfo;
 	__u32 info_len, rec_size, i;
 	void *func_info = NULL;
+	__u32 nr_func_info;
 	int err;
 
 	/* get necessary lens */
@@ -4577,7 +5155,8 @@ static int test_get_finfo(const struct prog_info_raw_test *test,
 		fprintf(stderr, "%s\n", btf_log_buf);
 		return -1;
 	}
-	if (CHECK(info.nr_func_info != test->func_info_cnt,
+	nr_func_info = test->func_info_cnt - test->dead_func_cnt;
+	if (CHECK(info.nr_func_info != nr_func_info,
 		  "incorrect info.nr_func_info (1st) %d",
 		  info.nr_func_info)) {
 		return -1;
@@ -4598,7 +5177,7 @@ static int test_get_finfo(const struct prog_info_raw_test *test,
 
 	/* reset info to only retrieve func_info related data */
 	memset(&info, 0, sizeof(info));
-	info.nr_func_info = test->func_info_cnt;
+	info.nr_func_info = nr_func_info;
 	info.func_info_rec_size = rec_size;
 	info.func_info = ptr_to_u64(func_info);
 	err = bpf_obj_get_info_by_fd(prog_fd, &info, &info_len);
@@ -4607,7 +5186,7 @@ static int test_get_finfo(const struct prog_info_raw_test *test,
 		err = -1;
 		goto done;
 	}
-	if (CHECK(info.nr_func_info != test->func_info_cnt,
+	if (CHECK(info.nr_func_info != nr_func_info,
 		  "incorrect info.nr_func_info (2nd) %d",
 		  info.nr_func_info)) {
 		err = -1;
@@ -4621,7 +5200,9 @@ static int test_get_finfo(const struct prog_info_raw_test *test,
 	}
 
 	finfo = func_info;
-	for (i = 0; i < test->func_info_cnt; i++) {
+	for (i = 0; i < nr_func_info; i++) {
+		if (test->dead_func_mask & (1 << i))
+			continue;
 		if (CHECK(finfo->type_id != test->func_info[i][1],
 			  "incorrect func_type %u expected %u",
 			  finfo->type_id, test->func_info[i][1])) {
@@ -4650,6 +5231,7 @@ static int test_get_linfo(const struct prog_info_raw_test *test,
 	struct bpf_prog_info info = {};
 	__u32 *jited_func_lens = NULL;
 	__u64 cur_func_ksyms;
+	__u32 dead_insns;
 	int err;
 
 	jited_cnt = cnt;
@@ -4658,7 +5240,7 @@ static int test_get_linfo(const struct prog_info_raw_test *test,
 	if (test->nr_jited_ksyms)
 		nr_jited_ksyms = test->nr_jited_ksyms;
 	else
-		nr_jited_ksyms = test->func_info_cnt;
+		nr_jited_ksyms = test->func_info_cnt - test->dead_func_cnt;
 	nr_jited_func_lens = nr_jited_ksyms;
 
 	info_len = sizeof(struct bpf_prog_info);
@@ -4760,12 +5342,20 @@ static int test_get_linfo(const struct prog_info_raw_test *test,
 		goto done;
 	}
 
+	dead_insns = 0;
+	while (test->dead_code_mask & (1 << dead_insns))
+		dead_insns++;
+
 	CHECK(linfo[0].insn_off, "linfo[0].insn_off:%u",
 	      linfo[0].insn_off);
 	for (i = 1; i < cnt; i++) {
 		const struct bpf_line_info *expected_linfo;
 
-		expected_linfo = patched_linfo + (i * test->line_info_rec_size);
+		while (test->dead_code_mask & (1 << (i + dead_insns)))
+			dead_insns++;
+
+		expected_linfo = patched_linfo +
+			((i + dead_insns) * test->line_info_rec_size);
 		if (CHECK(linfo[i].insn_off <= linfo[i - 1].insn_off,
 			  "linfo[%u].insn_off:%u <= linfo[%u].insn_off:%u",
 			  i, linfo[i].insn_off,
@@ -4923,7 +5513,9 @@ static int do_test_info_raw(unsigned int test_num)
 	if (err)
 		goto done;
 
-	err = test_get_linfo(test, patched_linfo, attr.line_info_cnt, prog_fd);
+	err = test_get_linfo(test, patched_linfo,
+			     attr.line_info_cnt - test->dead_code_cnt,
+			     prog_fd);
 	if (err)
 		goto done;
 
