@@ -245,11 +245,9 @@ static int sof_acpi_probe(struct platform_device *pdev)
 static int sof_acpi_remove(struct platform_device *pdev)
 {
 	struct sof_platform_priv *priv = dev_get_drvdata(&pdev->dev);
-	struct snd_sof_pdata *sof_pdata = priv->sof_pdata;
 
 	if (!IS_ERR_OR_NULL(priv->pdev_pcm))
 		platform_device_unregister(priv->pdev_pcm);
-	release_firmware(sof_pdata->fw);
 
 	return 0;
 }

@@ -8,6 +8,7 @@
 // Author: Liam Girdwood <liam.r.girdwood@linux.intel.com>
 //
 
+#include <linux/firmware.h>
 #include <linux/module.h>
 #include <sound/soc.h>
 #include <sound/sof.h>
@@ -415,7 +416,6 @@ static int sof_remove(struct platform_device *pdev)
 	snd_sof_free_debug(sdev);
 	snd_sof_free_trace(sdev);
 	snd_sof_remove(sdev);
-
 	/*
 	 * platform_device_unregister() frees the card and its resources.
 	 * So it should be called after unregistering the comp driver
@@ -423,6 +423,9 @@ static int sof_remove(struct platform_device *pdev)
 	 */
 	if (pdata && !IS_ERR_OR_NULL(pdata->pdev_mach))
 		platform_device_unregister(pdata->pdev_mach);
+
+	/* release firmware */
+	release_firmware(pdata->fw);
 
 	return 0;
 }

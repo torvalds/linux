@@ -248,14 +248,10 @@ release_regions:
 static void sof_pci_remove(struct pci_dev *pci)
 {
 	struct sof_platform_priv *priv = pci_get_drvdata(pci);
-	struct snd_sof_pdata *sof_pdata = priv->sof_pdata;
 
 	/* unregister sof-audio platform driver */
 	if (!IS_ERR_OR_NULL(priv->pdev_pcm))
 		platform_device_unregister(priv->pdev_pcm);
-
-	/* release firmware */
-	release_firmware(sof_pdata->fw);
 
 	/* follow recommendation in pci-driver.c to increment usage counter */
 	pm_runtime_get_noresume(&pci->dev);
