@@ -83,11 +83,17 @@ static inline struct rkisp1_device *sd_to_isp_dev(struct v4l2_subdev *sd)
 /* Get sensor by enabled media link */
 static struct v4l2_subdev *get_remote_sensor(struct v4l2_subdev *sd)
 {
-	struct media_pad *local;
+	struct media_pad *local, *remote;
 	struct media_entity *sensor_me;
 
 	local = &sd->entity.pads[RKISP1_ISP_PAD_SINK];
-	sensor_me = media_entity_remote_pad(local)->entity;
+	if (!local)
+		return NULL;
+	remote = media_entity_remote_pad(local);
+	if (!remote)
+		return NULL;
+
+	sensor_me = remote->entity;
 
 	return media_entity_to_v4l2_subdev(sensor_me);
 }
