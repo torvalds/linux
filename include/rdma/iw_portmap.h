@@ -58,6 +58,7 @@ struct iwpm_sa_data {
 	struct sockaddr_storage mapped_loc_addr;
 	struct sockaddr_storage rem_addr;
 	struct sockaddr_storage mapped_rem_addr;
+	u32 flags;
 };
 
 /**
@@ -205,9 +206,11 @@ int iwpm_get_remote_info(struct sockaddr_storage *mapped_loc_addr,
  * @local_addr: Local ip/tcp address
  * @mapped_addr: Mapped local ip/tcp address
  * @nl_client: The index of the netlink client
+ * @map_flags: IWPM mapping flags
  */
 int iwpm_create_mapinfo(struct sockaddr_storage *local_addr,
-			struct sockaddr_storage *mapped_addr, u8 nl_client);
+			struct sockaddr_storage *mapped_addr, u8 nl_client,
+			u32 map_flags);
 
 /**
  * iwpm_remove_mapinfo - Remove local and mapped IPv4/IPv6 address
@@ -221,4 +224,14 @@ int iwpm_create_mapinfo(struct sockaddr_storage *local_addr,
 int iwpm_remove_mapinfo(struct sockaddr_storage *local_addr,
 			struct sockaddr_storage *mapped_addr);
 
+/**
+ * iwpm_hello_cb - Process a hello message from iwpmd
+ *
+ * @skb:
+ * @cb: Contains the received message (payload and netlink header)
+ *
+ * Using the received port mapper pid, send the kernel's abi_version
+ * after adjusting it to support the iwpmd version.
+ */
+int iwpm_hello_cb(struct sk_buff *skb, struct netlink_callback *cb);
 #endif /* _IW_PORTMAP_H */

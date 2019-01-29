@@ -105,6 +105,18 @@ struct iw_cm_conn_param {
 	u32 qpn;
 };
 
+enum iw_flags {
+
+	/*
+	 * This flag allows the iwcm and iwpmd to still advertise
+	 * mappings but the real and mapped port numbers are the
+	 * same.  Further, iwpmd will not bind any user socket to
+	 * reserve the port.  This is required for soft iwarp
+	 * to play in the port mapped iwarp space.
+	 */
+	IW_F_NO_PORT_MAP = (1 << 0),
+};
+
 struct iw_cm_verbs {
 	void		(*add_ref)(struct ib_qp *qp);
 
@@ -127,6 +139,7 @@ struct iw_cm_verbs {
 
 	int		(*destroy_listen)(struct iw_cm_id *cm_id);
 	char		ifname[IFNAMSIZ];
+	enum iw_flags	driver_flags;
 };
 
 /**
