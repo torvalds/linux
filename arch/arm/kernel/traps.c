@@ -729,7 +729,7 @@ baddataabort(int code, unsigned long instr, struct pt_regs *regs)
 		pr_err("[%d] %s: bad data abort: code %d instr 0x%08lx\n",
 		       task_pid_nr(current), current->comm, code, instr);
 		dump_instr(KERN_ERR, regs);
-		show_pte(current->mm, addr);
+		show_pte(KERN_ERR, current->mm, addr);
 	}
 #endif
 
