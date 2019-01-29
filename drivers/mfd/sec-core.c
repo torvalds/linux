@@ -471,8 +471,9 @@ static int sec_pmic_probe(struct i2c_client *i2c,
 		num_sec_devs = ARRAY_SIZE(s2mpu02_devs);
 		break;
 	default:
-		/* If this happens the probe function is problem */
-		BUG();
+		dev_err(&i2c->dev, "Unsupported device type (%lu)\n",
+			sec_pmic->device_type);
+		return -ENODEV;
 	}
 	ret = devm_mfd_add_devices(sec_pmic->dev, -1, sec_devs, num_sec_devs,
 				   NULL, 0, NULL);
