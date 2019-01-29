@@ -111,12 +111,10 @@ static u32 lba_t32;
 
 #define LBA_SKIP_PROBE(d) ((d)->flags & LBA_FLAG_SKIP_PROBE)
 
-
-/* Looks nice and keeps the compiler happy */
-#define LBA_DEV(d) ({				\
-	void *__pdata = d;			\
-	BUG_ON(!__pdata);			\
-	(struct lba_device *)__pdata; })
+static inline struct lba_device *LBA_DEV(struct pci_hba_data *hba)
+{
+	return container_of(hba, struct lba_device, hba);
+}
 
 /*
 ** Only allow 8 subsidiary busses per LBA
