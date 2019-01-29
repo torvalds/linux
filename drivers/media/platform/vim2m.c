@@ -146,9 +146,6 @@ struct vim2m_dev {
 
 	atomic_t		num_inst;
 	struct mutex		dev_mutex;
-	spinlock_t		irqlock;
-
-	struct delayed_work	work_run;
 
 	struct v4l2_m2m_dev	*m2m_dev;
 };
@@ -166,6 +163,10 @@ struct vim2m_ctx {
 	u32			translen;
 	/* Transaction time (i.e. simulated processing time) in milliseconds */
 	u32			transtime;
+
+	struct mutex		vb_mutex;
+	struct delayed_work	work_run;
+	spinlock_t		irqlock;
 
 	/* Abort requested by m2m */
 	int			aborting;
@@ -490,7 +491,6 @@ static void job_abort(void *priv)
 static void device_run(void *priv)
 {
 	struct vim2m_ctx *ctx = priv;
-	struct vim2m_dev *dev = ctx->dev;
 	struct vb2_v4l2_buffer *src_buf, *dst_buf;
 
 	src_buf = v4l2_m2m_next_src_buf(ctx->fh.m2m_ctx);
@@ -507,18 +507,18 @@ static void device_run(void *priv)
 				   &ctx->hdl);
 
 	/* Run delayed work, which simulates a hardware irq  */
-	schedule_delayed_work(&dev->work_run, msecs_to_jiffies(ctx->transtime));
+	schedule_delayed_work(&ctx->work_run, msecs_to_jiffies(ctx->transtime));
 }
 
 static void device_work(struct work_struct *w)
 {
-	struct vim2m_dev *vim2m_dev =
-		container_of(w, struct vim2m_dev, work_run.work);
 	struct vim2m_ctx *curr_ctx;
+	struct vim2m_dev *vim2m_dev;
 	struct vb2_v4l2_buffer *src_vb, *dst_vb;
 	unsigned long flags;
 
-	curr_ctx = v4l2_m2m_get_curr_priv(vim2m_dev->m2m_dev);
+	curr_ctx = container_of(w, struct vim2m_ctx, work_run.work);
+	vim2m_dev = curr_ctx->dev;
 
 	if (NULL == curr_ctx) {
 		pr_err("Instance released before the end of transaction\n");
@@ -530,10 +530,10 @@ static void device_work(struct work_struct *w)
 
 	curr_ctx->num_processed++;
 
-	spin_lock_irqsave(&vim2m_dev->irqlock, flags);
+	spin_lock_irqsave(&curr_ctx->irqlock, flags);
 	v4l2_m2m_buf_done(src_vb, VB2_BUF_STATE_DONE);
 	v4l2_m2m_buf_done(dst_vb, VB2_BUF_STATE_DONE);
-	spin_unlock_irqrestore(&vim2m_dev->irqlock, flags);
+	spin_unlock_irqrestore(&curr_ctx->irqlock, flags);
 
 	if (curr_ctx->num_processed == curr_ctx->translen
 	    || curr_ctx->aborting) {
@@ -897,11 +897,10 @@ static int vim2m_start_streaming(struct vb2_queue *q, unsigned count)
 static void vim2m_stop_streaming(struct vb2_queue *q)
 {
 	struct vim2m_ctx *ctx = vb2_get_drv_priv(q);
-	struct vim2m_dev *dev = ctx->dev;
 	struct vb2_v4l2_buffer *vbuf;
 	unsigned long flags;
 
-	cancel_delayed_work_sync(&dev->work_run);
+	cancel_delayed_work_sync(&ctx->work_run);
 	for (;;) {
 		if (V4L2_TYPE_IS_OUTPUT(q->type))
 			vbuf = v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx);
@@ -911,9 +910,9 @@ static void vim2m_stop_streaming(struct vb2_queue *q)
 			return;
 		v4l2_ctrl_request_complete(vbuf->vb2_buf.req_obj.req,
 					   &ctx->hdl);
-		spin_lock_irqsave(&ctx->dev->irqlock, flags);
+		spin_lock_irqsave(&ctx->irqlock, flags);
 		v4l2_m2m_buf_done(vbuf, VB2_BUF_STATE_ERROR);
-		spin_unlock_irqrestore(&ctx->dev->irqlock, flags);
+		spin_unlock_irqrestore(&ctx->irqlock, flags);
 	}
 }
 
@@ -948,7 +947,7 @@ static int queue_init(void *priv, struct vb2_queue *src_vq, struct vb2_queue *ds
 	src_vq->ops = &vim2m_qops;
 	src_vq->mem_ops = &vb2_vmalloc_memops;
 	src_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
-	src_vq->lock = &ctx->dev->dev_mutex;
+	src_vq->lock = &ctx->vb_mutex;
 	src_vq->supports_requests = true;
 
 	ret = vb2_queue_init(src_vq);
@@ -962,7 +961,7 @@ static int queue_init(void *priv, struct vb2_queue *src_vq, struct vb2_queue *ds
 	dst_vq->ops = &vim2m_qops;
 	dst_vq->mem_ops = &vb2_vmalloc_memops;
 	dst_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
-	dst_vq->lock = &ctx->dev->dev_mutex;
+	dst_vq->lock = &ctx->vb_mutex;
 
 	return vb2_queue_init(dst_vq);
 }
@@ -1036,6 +1035,10 @@ static int vim2m_open(struct file *file)
 	ctx->colorspace = V4L2_COLORSPACE_REC709;
 
 	ctx->fh.m2m_ctx = v4l2_m2m_ctx_init(dev->m2m_dev, ctx, &queue_init);
+
+	mutex_init(&ctx->vb_mutex);
+	spin_lock_init(&ctx->irqlock);
+	INIT_DELAYED_WORK(&ctx->work_run, device_work);
 
 	if (IS_ERR(ctx->fh.m2m_ctx)) {
 		rc = PTR_ERR(ctx->fh.m2m_ctx);
@@ -1117,8 +1120,6 @@ static int vim2m_probe(struct platform_device *pdev)
 	if (!dev)
 		return -ENOMEM;
 
-	spin_lock_init(&dev->irqlock);
-
 	ret = v4l2_device_register(&pdev->dev, &dev->v4l2_dev);
 	if (ret)
 		return ret;
@@ -1130,7 +1131,6 @@ static int vim2m_probe(struct platform_device *pdev)
 	vfd = &dev->vfd;
 	vfd->lock = &dev->dev_mutex;
 	vfd->v4l2_dev = &dev->v4l2_dev;
-	INIT_DELAYED_WORK(&dev->work_run, device_work);
 
 	ret = video_register_device(vfd, VFL_TYPE_GRABBER, 0);
 	if (ret) {
