@@ -2,9 +2,9 @@
 #ifndef __PERF_HIST_H
 #define __PERF_HIST_H
 
+#include <linux/rbtree.h>
 #include <linux/types.h>
 #include <pthread.h>
-#include "callchain.h"
 #include "evsel.h"
 #include "header.h"
 #include "color.h"
@@ -13,6 +13,7 @@
 struct hist_entry;
 struct hist_entry_ops;
 struct addr_location;
+struct map_symbol;
 struct mem_info;
 struct branch_info;
 struct symbol;
