@@ -28,14 +28,23 @@
 /* SMC SIP service Call Function Identifier Prefix */
 #define PM_SIP_SVC			0xC2000000
 #define PM_GET_TRUSTZONE_VERSION	0xa03
+#define PM_SET_SUSPEND_MODE		0xa02
+#define GET_CALLBACK_DATA		0xa01
 
 /* Number of 32bits values in payload */
 #define PAYLOAD_ARG_CNT	4U
+
+/* Number of arguments for a callback */
+#define CB_ARG_CNT     4
+
+/* Payload size (consists of callback API ID + arguments) */
+#define CB_PAYLOAD_SIZE (CB_ARG_CNT + 1)
 
 enum pm_api_id {
 	PM_GET_API_VERSION = 1,
 	PM_RESET_ASSERT = 17,
 	PM_RESET_GET_STATUS,
+	PM_PM_INIT_FINALIZE = 21,
 	PM_GET_CHIPID = 24,
 	PM_IOCTL = 34,
 	PM_QUERY_DATA,
@@ -209,6 +218,12 @@ enum zynqmp_pm_reset {
 	ZYNQMP_PM_RESET_END = ZYNQMP_PM_RESET_PS_PL3
 };
 
+enum zynqmp_pm_suspend_reason {
+	SUSPEND_POWER_REQUEST = 201,
+	SUSPEND_ALERT,
+	SUSPEND_SYSTEM_SHUTDOWN,
+};
+
 /**
  * struct zynqmp_pm_query_data - PM query data
  * @qid:	query ID
@@ -240,7 +255,12 @@ struct zynqmp_eemi_ops {
 	int (*reset_assert)(const enum zynqmp_pm_reset reset,
 			    const enum zynqmp_pm_reset_action assert_flag);
 	int (*reset_get_status)(const enum zynqmp_pm_reset reset, u32 *status);
+	int (*init_finalize)(void);
+	int (*set_suspend_mode)(u32 mode);
 };
+
+int zynqmp_pm_invoke_fn(u32 pm_api_id, u32 arg0, u32 arg1,
+			u32 arg2, u32 arg3, u32 *ret_payload);
 
 #if IS_REACHABLE(CONFIG_ARCH_ZYNQMP)
 const struct zynqmp_eemi_ops *zynqmp_pm_get_eemi_ops(void);
