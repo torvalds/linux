@@ -520,8 +520,7 @@ static int xattr_entrylist(struct xattr_iter *_it,
 	if (h == NULL || (h->list != NULL && !h->list(it->dentry)))
 		return 1;
 
-	/* Note that at least one of 'prefix' and 'name' should be non-NULL */
-	prefix = h->prefix != NULL ? h->prefix : h->name;
+	prefix = xattr_prefix(h);
 	prefix_len = strlen(prefix);
 
 	if (it->buffer == NULL) {
