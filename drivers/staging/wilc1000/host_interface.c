@@ -341,29 +341,11 @@ error:
 static int wilc_send_connect_wid(struct wilc_vif *vif)
 {
 	int result = 0;
-	struct wid wid_list[8];
-	u32 wid_cnt = 0, dummyval = 0;
+	struct wid wid_list[4];
+	u32 wid_cnt = 0;
 	struct host_if_drv *hif_drv = vif->hif_drv;
 	struct wilc_conn_info *conn_attr = &hif_drv->conn_info;
 	struct wilc_join_bss_param *bss_param = conn_attr->param;
-
-	wid_list[wid_cnt].id = WID_SUCCESS_FRAME_COUNT;
-	wid_list[wid_cnt].type = WID_INT;
-	wid_list[wid_cnt].size = sizeof(u32);
-	wid_list[wid_cnt].val = (s8 *)(&(dummyval));
-	wid_cnt++;
-
-	wid_list[wid_cnt].id = WID_RECEIVED_FRAGMENT_COUNT;
-	wid_list[wid_cnt].type = WID_INT;
-	wid_list[wid_cnt].size = sizeof(u32);
-	wid_list[wid_cnt].val = (s8 *)(&(dummyval));
-	wid_cnt++;
-
-	wid_list[wid_cnt].id = WID_FAILED_COUNT;
-	wid_list[wid_cnt].type = WID_INT;
-	wid_list[wid_cnt].size = sizeof(u32);
-	wid_list[wid_cnt].val = (s8 *)(&(dummyval));
-	wid_cnt++;
 
 	wid_list[wid_cnt].id = WID_INFO_ELEMENT_ASSOCIATE;
 	wid_list[wid_cnt].type = WID_BIN_DATA;
