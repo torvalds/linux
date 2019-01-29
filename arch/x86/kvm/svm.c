@@ -145,7 +145,6 @@ struct kvm_svm {
 
 	/* Struct members for AVIC */
 	u32 avic_vm_id;
-	u32 ldr_mode;
 	struct page *avic_logical_id_table_page;
 	struct page *avic_physical_id_table_page;
 	struct hlist_node hnode;
@@ -236,6 +235,7 @@ struct vcpu_svm {
 	bool nrips_enabled	: 1;
 
 	u32 ldr_reg;
+	u32 dfr_reg;
 	struct page *avic_backing_page;
 	u64 *avic_physical_id_cache;
 	bool avic_is_running;
@@ -2106,6 +2106,7 @@ static int avic_init_vcpu(struct vcpu_svm *svm)
 
 	INIT_LIST_HEAD(&svm->ir_list);
 	spin_lock_init(&svm->ir_list_lock);
+	svm->dfr_reg = APIC_DFR_FLAT;
 
 	return ret;
 }
@@ -4565,8 +4566,7 @@ static u32 *avic_get_logical_id_entry(struct kvm_vcpu *vcpu, u32 ldr, bool flat)
 	return &logical_apic_id_table[index];
 }
 
-static int avic_ldr_write(struct kvm_vcpu *vcpu, u8 g_physical_id, u32 ldr,
-			  bool valid)
+static int avic_ldr_write(struct kvm_vcpu *vcpu, u8 g_physical_id, u32 ldr)
 {
 	bool flat;
 	u32 *entry, new_entry;
@@ -4579,31 +4579,39 @@ static int avic_ldr_write(struct kvm_vcpu *vcpu, u8 g_physical_id, u32 ldr,
 	new_entry = READ_ONCE(*entry);
 	new_entry &= ~AVIC_LOGICAL_ID_ENTRY_GUEST_PHYSICAL_ID_MASK;
 	new_entry |= (g_physical_id & AVIC_LOGICAL_ID_ENTRY_GUEST_PHYSICAL_ID_MASK);
-	if (valid)
-		new_entry |= AVIC_LOGICAL_ID_ENTRY_VALID_MASK;
-	else
-		new_entry &= ~AVIC_LOGICAL_ID_ENTRY_VALID_MASK;
+	new_entry |= AVIC_LOGICAL_ID_ENTRY_VALID_MASK;
 	WRITE_ONCE(*entry, new_entry);
 
 	return 0;
 }
 
+static void avic_invalidate_logical_id_entry(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+	bool flat = svm->dfr_reg == APIC_DFR_FLAT;
+	u32 *entry = avic_get_logical_id_entry(vcpu, svm->ldr_reg, flat);
+
+	if (entry)
+		WRITE_ONCE(*entry, (u32) ~AVIC_LOGICAL_ID_ENTRY_VALID_MASK);
+}
+
 static int avic_handle_ldr_update(struct kvm_vcpu *vcpu)
 {
-	int ret;
+	int ret = 0;
 	struct vcpu_svm *svm = to_svm(vcpu);
 	u32 ldr = kvm_lapic_get_reg(vcpu->arch.apic, APIC_LDR);
 
-	if (!ldr)
-		return 1;
+	if (ldr == svm->ldr_reg)
+		return 0;
 
-	ret = avic_ldr_write(vcpu, vcpu->vcpu_id, ldr, true);
-	if (ret && svm->ldr_reg) {
-		avic_ldr_write(vcpu, 0, svm->ldr_reg, false);
-		svm->ldr_reg = 0;
-	} else {
+	avic_invalidate_logical_id_entry(vcpu);
+
+	if (ldr)
+		ret = avic_ldr_write(vcpu, vcpu->vcpu_id, ldr);
+
+	if (!ret)
 		svm->ldr_reg = ldr;
-	}
+
 	return ret;
 }
 
@@ -4637,27 +4645,16 @@ static int avic_handle_apic_id_update(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-static int avic_handle_dfr_update(struct kvm_vcpu *vcpu)
+static void avic_handle_dfr_update(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
-	struct kvm_svm *kvm_svm = to_kvm_svm(vcpu->kvm);
 	u32 dfr = kvm_lapic_get_reg(vcpu->arch.apic, APIC_DFR);
-	u32 mod = (dfr >> 28) & 0xf;
 
-	/*
-	 * We assume that all local APICs are using the same type.
-	 * If this changes, we need to flush the AVIC logical
-	 * APID id table.
-	 */
-	if (kvm_svm->ldr_mode == mod)
-		return 0;
+	if (svm->dfr_reg == dfr)
+		return;
 
-	clear_page(page_address(kvm_svm->avic_logical_id_table_page));
-	kvm_svm->ldr_mode = mod;
-
-	if (svm->ldr_reg)
-		avic_handle_ldr_update(vcpu);
-	return 0;
+	avic_invalidate_logical_id_entry(vcpu);
+	svm->dfr_reg = dfr;
 }
 
 static int avic_unaccel_trap_write(struct vcpu_svm *svm)
@@ -6163,8 +6160,7 @@ static inline void avic_post_state_restore(struct kvm_vcpu *vcpu)
 {
 	if (avic_handle_apic_id_update(vcpu) != 0)
 		return;
-	if (avic_handle_dfr_update(vcpu) != 0)
-		return;
+	avic_handle_dfr_update(vcpu);
 	avic_handle_ldr_update(vcpu);
 }
 
