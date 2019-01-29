@@ -411,18 +411,15 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 	strcpy(drv->codec_name, RT5672_I2C_DEFAULT);
 
 	/* fixup codec name based on HID */
-	if (mach) {
-		i2c_name = acpi_dev_get_first_match_name(mach->id, NULL, -1);
-		if (i2c_name) {
-			snprintf(drv->codec_name, sizeof(drv->codec_name),
-				 "i2c-%s", i2c_name);
-			for (i = 0; i < ARRAY_SIZE(cht_dailink); i++) {
-				if (!strcmp(cht_dailink[i].codec_name,
-					    RT5672_I2C_DEFAULT)) {
-					cht_dailink[i].codec_name =
-						drv->codec_name;
-					break;
-				}
+	i2c_name = acpi_dev_get_first_match_name(mach->id, NULL, -1);
+	if (i2c_name) {
+		snprintf(drv->codec_name, sizeof(drv->codec_name),
+			 "i2c-%s", i2c_name);
+		for (i = 0; i < ARRAY_SIZE(cht_dailink); i++) {
+			if (!strcmp(cht_dailink[i].codec_name,
+				RT5672_I2C_DEFAULT)) {
+				cht_dailink[i].codec_name = drv->codec_name;
+				break;
 			}
 		}
 	}
