@@ -1485,6 +1485,7 @@ static void gfx_v10_0_tcp_harvest(struct amdgpu_device *adev)
 	/*
 	 * GCRD_TARGETS_DISABLE field contains
 	 * for Navi10: GL1C=[18:15], SQC=[14:10], TCP=[9:0]
+	 * for Navi14: GL1C=[21:18], SQC=[17:12], TCP=[11:0]
 	 */
 	u32 gcrd_targets_disable_mask = amdgpu_gfx_create_bitmask(
 		2 * max_wgp_per_sh + /* TCP */
@@ -1493,6 +1494,7 @@ static void gfx_v10_0_tcp_harvest(struct amdgpu_device *adev)
 	/*
 	 * UTCL1_UTCL0_INVREQ_DISABLE field contains
 	 * for Navi10: SQG=[24], RMI=[23:20], SQC=[19:10], TCP=[9:0]
+	 * for Navi14: SQG=[28], RMI=[27:24], SQC=[23:12], TCP=[11:0]
 	 */
 	u32 utcl_invreq_disable_mask = amdgpu_gfx_create_bitmask(
 		2 * max_wgp_per_sh + /* TCP */
@@ -1500,7 +1502,7 @@ static void gfx_v10_0_tcp_harvest(struct amdgpu_device *adev)
 		4 + /* RMI */
 		1); /* SQG */
 
-	if (adev->asic_type == CHIP_NAVI10) {
+	if (adev->asic_type == CHIP_NAVI10 || adev->asic_type == CHIP_NAVI14) {
 		mutex_lock(&adev->grbm_idx_mutex);
 		for (i = 0; i < adev->gfx.config.max_shader_engines; i++) {
 			for (j = 0; j < adev->gfx.config.max_sh_per_se; j++) {
