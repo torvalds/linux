@@ -468,6 +468,14 @@ config REGULATOR_MAX77620
 	  chip to control Step-Down DC-DC and LDOs. Say Y here to
 	  enable the regulator driver.
 
+config REGULATOR_MAX77650
+	tristate "Maxim MAX77650/77651 regulator support"
+	depends on MFD_MAX77650
+	help
+	  Regulator driver for MAX77650/77651 PMIC from Maxim
+	  Semiconductor. This device has a SIMO with three independent
+	  power rails and an LDO.
+
 config REGULATOR_MAX8649
 	tristate "Maxim 8649 voltage regulator"
 	depends on I2C
