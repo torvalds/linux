@@ -689,8 +689,9 @@ megasas_alloc_rdpq_fusion(struct megasas_instance *instance)
 	array_size = sizeof(struct MPI2_IOC_INIT_RDPQ_ARRAY_ENTRY) *
 		     MAX_MSIX_QUEUES_FUSION;
 
-	fusion->rdpq_virt = dma_zalloc_coherent(&instance->pdev->dev,
-			array_size, &fusion->rdpq_phys, GFP_KERNEL);
+	fusion->rdpq_virt = dma_alloc_coherent(&instance->pdev->dev,
+					       array_size, &fusion->rdpq_phys,
+					       GFP_KERNEL);
 	if (!fusion->rdpq_virt) {
 		dev_err(&instance->pdev->dev,
 			"Failed from %s %d\n",  __func__, __LINE__);

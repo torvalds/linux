@@ -69,15 +69,6 @@ statement S;
 - x = (T)vmalloc(E1);
 + x = (T)vzalloc(E1);
 |
-- x = dma_alloc_coherent(E2,E1,E3,E4);
-+ x = dma_zalloc_coherent(E2,E1,E3,E4);
-|
-- x = (T *)dma_alloc_coherent(E2,E1,E3,E4);
-+ x = dma_zalloc_coherent(E2,E1,E3,E4);
-|
-- x = (T)dma_alloc_coherent(E2,E1,E3,E4);
-+ x = (T)dma_zalloc_coherent(E2,E1,E3,E4);
-|
 - x = kmalloc_node(E1,E2,E3);
 + x = kzalloc_node(E1,E2,E3);
 |
@@ -225,7 +216,7 @@ p << r2.p;
 x << r2.x;
 @@
 
-msg="WARNING: dma_zalloc_coherent should be used for %s, instead of dma_alloc_coherent/memset" % (x)
+msg="WARNING: dma_alloc_coherent use in %s already zeroes out memory,  so memset is not needed" % (x)
 coccilib.report.print_report(p[0], msg)
 
 //-----------------------------------------------------------------

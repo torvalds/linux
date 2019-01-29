@@ -587,8 +587,10 @@ static bool arcmsr_alloc_io_queue(struct AdapterControlBlock *acb)
 	case ACB_ADAPTER_TYPE_B: {
 		struct MessageUnit_B *reg;
 		acb->roundup_ccbsize = roundup(sizeof(struct MessageUnit_B), 32);
-		dma_coherent = dma_zalloc_coherent(&pdev->dev, acb->roundup_ccbsize,
-			&dma_coherent_handle, GFP_KERNEL);
+		dma_coherent = dma_alloc_coherent(&pdev->dev,
+						  acb->roundup_ccbsize,
+						  &dma_coherent_handle,
+						  GFP_KERNEL);
 		if (!dma_coherent) {
 			pr_notice("arcmsr%d: DMA allocation failed\n", acb->host->host_no);
 			return false;
@@ -617,8 +619,10 @@ static bool arcmsr_alloc_io_queue(struct AdapterControlBlock *acb)
 		struct MessageUnit_D *reg;
 
 		acb->roundup_ccbsize = roundup(sizeof(struct MessageUnit_D), 32);
-		dma_coherent = dma_zalloc_coherent(&pdev->dev, acb->roundup_ccbsize,
-			&dma_coherent_handle, GFP_KERNEL);
+		dma_coherent = dma_alloc_coherent(&pdev->dev,
+						  acb->roundup_ccbsize,
+						  &dma_coherent_handle,
+						  GFP_KERNEL);
 		if (!dma_coherent) {
 			pr_notice("arcmsr%d: DMA allocation failed\n", acb->host->host_no);
 			return false;
@@ -659,8 +663,10 @@ static bool arcmsr_alloc_io_queue(struct AdapterControlBlock *acb)
 		uint32_t completeQ_size;
 		completeQ_size = sizeof(struct deliver_completeQ) * ARCMSR_MAX_HBE_DONEQUEUE + 128;
 		acb->roundup_ccbsize = roundup(completeQ_size, 32);
-		dma_coherent = dma_zalloc_coherent(&pdev->dev, acb->roundup_ccbsize,
-			&dma_coherent_handle, GFP_KERNEL);
+		dma_coherent = dma_alloc_coherent(&pdev->dev,
+						  acb->roundup_ccbsize,
+						  &dma_coherent_handle,
+						  GFP_KERNEL);
 		if (!dma_coherent){
 			pr_notice("arcmsr%d: DMA allocation failed\n", acb->host->host_no);
 			return false;

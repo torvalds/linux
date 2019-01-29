@@ -154,7 +154,7 @@ void rtw_wep_encrypt(struct adapter *padapter, u8 *pxmitframe)
 
 	pframe = ((struct xmit_frame *)pxmitframe)->buf_addr + hw_hdr_offset;
 
-	crypto_ops = try_then_request_module(lib80211_get_crypto_ops("WEP"), "lib80211_crypt_wep");
+	crypto_ops = lib80211_get_crypto_ops("WEP");
 
 	if (!crypto_ops)
 		return;
@@ -210,7 +210,7 @@ int rtw_wep_decrypt(struct adapter  *padapter, u8 *precvframe)
 		void *crypto_private = NULL;
 		int status = _SUCCESS;
 		const int keyindex = prxattrib->key_index;
-		struct lib80211_crypto_ops *crypto_ops = try_then_request_module(lib80211_get_crypto_ops("WEP"), "lib80211_crypt_wep");
+		struct lib80211_crypto_ops *crypto_ops = lib80211_get_crypto_ops("WEP");
 		char iv[4], icv[4];
 
 		if (!crypto_ops) {
@@ -1291,7 +1291,7 @@ u32 rtw_aes_decrypt(struct adapter *padapter, u8 *precvframe)
 			struct sk_buff *skb = ((struct recv_frame *)precvframe)->pkt;
 			void *crypto_private = NULL;
 			u8 *key, *pframe = skb->data;
-			struct lib80211_crypto_ops *crypto_ops = try_then_request_module(lib80211_get_crypto_ops("CCMP"), "lib80211_crypt_ccmp");
+			struct lib80211_crypto_ops *crypto_ops = lib80211_get_crypto_ops("CCMP");
 			struct security_priv *psecuritypriv = &padapter->securitypriv;
 			char iv[8], icv[8];
 

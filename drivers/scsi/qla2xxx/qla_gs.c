@@ -4147,9 +4147,10 @@ int qla24xx_async_gpnft(scsi_qla_host_t *vha, u8 fc4_type, srb_t *sp)
 			return rval;
 		}
 
-		sp->u.iocb_cmd.u.ctarg.req = dma_zalloc_coherent(
-			&vha->hw->pdev->dev, sizeof(struct ct_sns_pkt),
-			&sp->u.iocb_cmd.u.ctarg.req_dma, GFP_KERNEL);
+		sp->u.iocb_cmd.u.ctarg.req = dma_alloc_coherent(&vha->hw->pdev->dev,
+								sizeof(struct ct_sns_pkt),
+								&sp->u.iocb_cmd.u.ctarg.req_dma,
+								GFP_KERNEL);
 		sp->u.iocb_cmd.u.ctarg.req_allocated_size = sizeof(struct ct_sns_pkt);
 		if (!sp->u.iocb_cmd.u.ctarg.req) {
 			ql_log(ql_log_warn, vha, 0xffff,
@@ -4165,9 +4166,10 @@ int qla24xx_async_gpnft(scsi_qla_host_t *vha, u8 fc4_type, srb_t *sp)
 			((vha->hw->max_fibre_devices - 1) *
 			    sizeof(struct ct_sns_gpn_ft_data));
 
-		sp->u.iocb_cmd.u.ctarg.rsp = dma_zalloc_coherent(
-			&vha->hw->pdev->dev, rspsz,
-			&sp->u.iocb_cmd.u.ctarg.rsp_dma, GFP_KERNEL);
+		sp->u.iocb_cmd.u.ctarg.rsp = dma_alloc_coherent(&vha->hw->pdev->dev,
+								rspsz,
+								&sp->u.iocb_cmd.u.ctarg.rsp_dma,
+								GFP_KERNEL);
 		sp->u.iocb_cmd.u.ctarg.rsp_allocated_size = sizeof(struct ct_sns_pkt);
 		if (!sp->u.iocb_cmd.u.ctarg.rsp) {
 			ql_log(ql_log_warn, vha, 0xffff,

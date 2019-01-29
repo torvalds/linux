@@ -1549,22 +1549,18 @@ static int alloc_dma_rx_desc_resources(struct stmmac_priv *priv)
 			goto err_dma;
 
 		if (priv->extend_desc) {
-			rx_q->dma_erx = dma_zalloc_coherent(priv->device,
-							    DMA_RX_SIZE *
-							    sizeof(struct
-							    dma_extended_desc),
-							    &rx_q->dma_rx_phy,
-							    GFP_KERNEL);
+			rx_q->dma_erx = dma_alloc_coherent(priv->device,
+							   DMA_RX_SIZE * sizeof(struct dma_extended_desc),
+							   &rx_q->dma_rx_phy,
+							   GFP_KERNEL);
 			if (!rx_q->dma_erx)
 				goto err_dma;
 
 		} else {
-			rx_q->dma_rx = dma_zalloc_coherent(priv->device,
-							   DMA_RX_SIZE *
-							   sizeof(struct
-							   dma_desc),
-							   &rx_q->dma_rx_phy,
-							   GFP_KERNEL);
+			rx_q->dma_rx = dma_alloc_coherent(priv->device,
+							  DMA_RX_SIZE * sizeof(struct dma_desc),
+							  &rx_q->dma_rx_phy,
+							  GFP_KERNEL);
 			if (!rx_q->dma_rx)
 				goto err_dma;
 		}
@@ -1612,21 +1608,17 @@ static int alloc_dma_tx_desc_resources(struct stmmac_priv *priv)
 			goto err_dma;
 
 		if (priv->extend_desc) {
-			tx_q->dma_etx = dma_zalloc_coherent(priv->device,
-							    DMA_TX_SIZE *
-							    sizeof(struct
-							    dma_extended_desc),
-							    &tx_q->dma_tx_phy,
-							    GFP_KERNEL);
+			tx_q->dma_etx = dma_alloc_coherent(priv->device,
+							   DMA_TX_SIZE * sizeof(struct dma_extended_desc),
+							   &tx_q->dma_tx_phy,
+							   GFP_KERNEL);
 			if (!tx_q->dma_etx)
 				goto err_dma;
 		} else {
-			tx_q->dma_tx = dma_zalloc_coherent(priv->device,
-							   DMA_TX_SIZE *
-							   sizeof(struct
-								  dma_desc),
-							   &tx_q->dma_tx_phy,
-							   GFP_KERNEL);
+			tx_q->dma_tx = dma_alloc_coherent(priv->device,
+							  DMA_TX_SIZE * sizeof(struct dma_desc),
+							  &tx_q->dma_tx_phy,
+							  GFP_KERNEL);
 			if (!tx_q->dma_tx)
 				goto err_dma;
 		}

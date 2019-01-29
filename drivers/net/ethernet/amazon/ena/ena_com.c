@@ -111,8 +111,8 @@ static int ena_com_admin_init_sq(struct ena_com_admin_queue *queue)
 	struct ena_com_admin_sq *sq = &queue->sq;
 	u16 size = ADMIN_SQ_SIZE(queue->q_depth);
 
-	sq->entries = dma_zalloc_coherent(queue->q_dmadev, size, &sq->dma_addr,
-					  GFP_KERNEL);
+	sq->entries = dma_alloc_coherent(queue->q_dmadev, size, &sq->dma_addr,
+					 GFP_KERNEL);
 
 	if (!sq->entries) {
 		pr_err("memory allocation failed");
@@ -133,8 +133,8 @@ static int ena_com_admin_init_cq(struct ena_com_admin_queue *queue)
 	struct ena_com_admin_cq *cq = &queue->cq;
 	u16 size = ADMIN_CQ_SIZE(queue->q_depth);
 
-	cq->entries = dma_zalloc_coherent(queue->q_dmadev, size, &cq->dma_addr,
-					  GFP_KERNEL);
+	cq->entries = dma_alloc_coherent(queue->q_dmadev, size, &cq->dma_addr,
+					 GFP_KERNEL);
 
 	if (!cq->entries) {
 		pr_err("memory allocation failed");
@@ -156,8 +156,8 @@ static int ena_com_admin_init_aenq(struct ena_com_dev *dev,
 
 	dev->aenq.q_depth = ENA_ASYNC_QUEUE_DEPTH;
 	size = ADMIN_AENQ_SIZE(ENA_ASYNC_QUEUE_DEPTH);
-	aenq->entries = dma_zalloc_coherent(dev->dmadev, size, &aenq->dma_addr,
-					    GFP_KERNEL);
+	aenq->entries = dma_alloc_coherent(dev->dmadev, size, &aenq->dma_addr,
+					   GFP_KERNEL);
 
 	if (!aenq->entries) {
 		pr_err("memory allocation failed");
@@ -344,15 +344,15 @@ static int ena_com_init_io_sq(struct ena_com_dev *ena_dev,
 		dev_node = dev_to_node(ena_dev->dmadev);
 		set_dev_node(ena_dev->dmadev, ctx->numa_node);
 		io_sq->desc_addr.virt_addr =
-			dma_zalloc_coherent(ena_dev->dmadev, size,
-					    &io_sq->desc_addr.phys_addr,
-					    GFP_KERNEL);
+			dma_alloc_coherent(ena_dev->dmadev, size,
+					   &io_sq->desc_addr.phys_addr,
+					   GFP_KERNEL);
 		set_dev_node(ena_dev->dmadev, dev_node);
 		if (!io_sq->desc_addr.virt_addr) {
 			io_sq->desc_addr.virt_addr =
-				dma_zalloc_coherent(ena_dev->dmadev, size,
-						    &io_sq->desc_addr.phys_addr,
-						    GFP_KERNEL);
+				dma_alloc_coherent(ena_dev->dmadev, size,
+						   &io_sq->desc_addr.phys_addr,
+						   GFP_KERNEL);
 		}
 
 		if (!io_sq->desc_addr.virt_addr) {
@@ -425,14 +425,14 @@ static int ena_com_init_io_cq(struct ena_com_dev *ena_dev,
 	prev_node = dev_to_node(ena_dev->dmadev);
 	set_dev_node(ena_dev->dmadev, ctx->numa_node);
 	io_cq->cdesc_addr.virt_addr =
-		dma_zalloc_coherent(ena_dev->dmadev, size,
-				    &io_cq->cdesc_addr.phys_addr, GFP_KERNEL);
+		dma_alloc_coherent(ena_dev->dmadev, size,
+				   &io_cq->cdesc_addr.phys_addr, GFP_KERNEL);
 	set_dev_node(ena_dev->dmadev, prev_node);
 	if (!io_cq->cdesc_addr.virt_addr) {
 		io_cq->cdesc_addr.virt_addr =
-			dma_zalloc_coherent(ena_dev->dmadev, size,
-					    &io_cq->cdesc_addr.phys_addr,
-					    GFP_KERNEL);
+			dma_alloc_coherent(ena_dev->dmadev, size,
+					   &io_cq->cdesc_addr.phys_addr,
+					   GFP_KERNEL);
 	}
 
 	if (!io_cq->cdesc_addr.virt_addr) {
@@ -1026,8 +1026,8 @@ static int ena_com_hash_key_allocate(struct ena_com_dev *ena_dev)
 	struct ena_rss *rss = &ena_dev->rss;
 
 	rss->hash_key =
-		dma_zalloc_coherent(ena_dev->dmadev, sizeof(*rss->hash_key),
-				    &rss->hash_key_dma_addr, GFP_KERNEL);
+		dma_alloc_coherent(ena_dev->dmadev, sizeof(*rss->hash_key),
+				   &rss->hash_key_dma_addr, GFP_KERNEL);
 
 	if (unlikely(!rss->hash_key))
 		return -ENOMEM;
@@ -1050,8 +1050,8 @@ static int ena_com_hash_ctrl_init(struct ena_com_dev *ena_dev)
 	struct ena_rss *rss = &ena_dev->rss;
 
 	rss->hash_ctrl =
-		dma_zalloc_coherent(ena_dev->dmadev, sizeof(*rss->hash_ctrl),
-				    &rss->hash_ctrl_dma_addr, GFP_KERNEL);
+		dma_alloc_coherent(ena_dev->dmadev, sizeof(*rss->hash_ctrl),
+				   &rss->hash_ctrl_dma_addr, GFP_KERNEL);
 
 	if (unlikely(!rss->hash_ctrl))
 		return -ENOMEM;
@@ -1094,8 +1094,8 @@ static int ena_com_indirect_table_allocate(struct ena_com_dev *ena_dev,
 		sizeof(struct ena_admin_rss_ind_table_entry);
 
 	rss->rss_ind_tbl =
-		dma_zalloc_coherent(ena_dev->dmadev, tbl_size,
-				    &rss->rss_ind_tbl_dma_addr, GFP_KERNEL);
+		dma_alloc_coherent(ena_dev->dmadev, tbl_size,
+				   &rss->rss_ind_tbl_dma_addr, GFP_KERNEL);
 	if (unlikely(!rss->rss_ind_tbl))
 		goto mem_err1;
 
@@ -1649,9 +1649,9 @@ int ena_com_mmio_reg_read_request_init(struct ena_com_dev *ena_dev)
 
 	spin_lock_init(&mmio_read->lock);
 	mmio_read->read_resp =
-		dma_zalloc_coherent(ena_dev->dmadev,
-				    sizeof(*mmio_read->read_resp),
-				    &mmio_read->read_resp_dma_addr, GFP_KERNEL);
+		dma_alloc_coherent(ena_dev->dmadev,
+				   sizeof(*mmio_read->read_resp),
+				   &mmio_read->read_resp_dma_addr, GFP_KERNEL);
 	if (unlikely(!mmio_read->read_resp))
 		goto err;
 
@@ -2623,8 +2623,8 @@ int ena_com_allocate_host_info(struct ena_com_dev *ena_dev)
 	struct ena_host_attribute *host_attr = &ena_dev->host_attr;
 
 	host_attr->host_info =
-		dma_zalloc_coherent(ena_dev->dmadev, SZ_4K,
-				    &host_attr->host_info_dma_addr, GFP_KERNEL);
+		dma_alloc_coherent(ena_dev->dmadev, SZ_4K,
+				   &host_attr->host_info_dma_addr, GFP_KERNEL);
 	if (unlikely(!host_attr->host_info))
 		return -ENOMEM;
 
@@ -2641,8 +2641,9 @@ int ena_com_allocate_debug_area(struct ena_com_dev *ena_dev,
 	struct ena_host_attribute *host_attr = &ena_dev->host_attr;
 
 	host_attr->debug_area_virt_addr =
-		dma_zalloc_coherent(ena_dev->dmadev, debug_area_size,
-				    &host_attr->debug_area_dma_addr, GFP_KERNEL);
+		dma_alloc_coherent(ena_dev->dmadev, debug_area_size,
+				   &host_attr->debug_area_dma_addr,
+				   GFP_KERNEL);
 	if (unlikely(!host_attr->debug_area_virt_addr)) {
 		host_attr->debug_area_size = 0;
 		return -ENOMEM;
