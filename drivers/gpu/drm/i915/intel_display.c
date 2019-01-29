@@ -11735,7 +11735,15 @@ static bool fastboot_enabled(struct drm_i915_private *dev_priv)
 		return i915_modparams.fastboot;
 
 	/* Enable fastboot by default on Skylake and newer */
-	return INTEL_GEN(dev_priv) >= 9;
+	if (INTEL_GEN(dev_priv) >= 9)
+		return true;
+
+	/* Enable fastboot by default on VLV and CHV */
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
+		return true;
+
+	/* Disabled by default on all others */
+	return false;
 }
 
 static bool
