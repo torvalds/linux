@@ -82,8 +82,6 @@ struct i915_gpu_state {
 		int engine_id;
 		/* Software tracked state */
 		bool idle;
-		bool waiting;
-		int num_waiters;
 		unsigned long hangcheck_timestamp;
 		struct i915_address_space *vm;
 		int num_requests;
@@ -147,6 +145,7 @@ struct i915_gpu_state {
 		struct drm_i915_error_object *default_state;
 
 		struct drm_i915_error_request {
+			unsigned long flags;
 			long jiffies;
 			pid_t pid;
 			u32 context;
@@ -158,12 +157,6 @@ struct i915_gpu_state {
 			struct i915_sched_attr sched_attr;
 		} *requests, execlist[EXECLIST_MAX_PORTS];
 		unsigned int num_ports;
-
-		struct drm_i915_error_waiter {
-			char comm[TASK_COMM_LEN];
-			pid_t pid;
-			u32 seqno;
-		} *waiters;
 
 		struct {
 			u32 gfx_mode;

@@ -29,7 +29,7 @@ static void engine_skip_context(struct i915_request *rq)
 
 	spin_lock(&timeline->lock);
 
-	if (rq->global_seqno) {
+	if (i915_request_is_active(rq)) {
 		list_for_each_entry_continue(rq,
 					     &engine->timeline.requests, link)
 			if (rq->gem_context == hung_ctx)
@@ -751,18 +751,20 @@ static void reset_restart(struct drm_i915_private *i915)
 
 static void nop_submit_request(struct i915_request *request)
 {
+	struct intel_engine_cs *engine = request->engine;
 	unsigned long flags;
 
 	GEM_TRACE("%s fence %llx:%lld -> -EIO\n",
-		  request->engine->name,
-		  request->fence.context, request->fence.seqno);
+		  engine->name, request->fence.context, request->fence.seqno);
 	dma_fence_set_error(&request->fence, -EIO);
 
-	spin_lock_irqsave(&request->engine->timeline.lock, flags);
+	spin_lock_irqsave(&engine->timeline.lock, flags);
 	__i915_request_submit(request);
 	i915_request_mark_complete(request);
-	intel_engine_write_global_seqno(request->engine, request->global_seqno);
-	spin_unlock_irqrestore(&request->engine->timeline.lock, flags);
+	intel_engine_write_global_seqno(engine, request->global_seqno);
+	spin_unlock_irqrestore(&engine->timeline.lock, flags);
+
+	intel_engine_queue_breadcrumbs(engine);
 }
 
 void i915_gem_set_wedged(struct drm_i915_private *i915)
@@ -817,7 +819,7 @@ void i915_gem_set_wedged(struct drm_i915_private *i915)
 
 	for_each_engine(engine, i915, id) {
 		reset_finish_engine(engine);
-		intel_engine_wakeup(engine);
+		intel_engine_signal_breadcrumbs(engine);
 	}
 
 	smp_mb__before_atomic();

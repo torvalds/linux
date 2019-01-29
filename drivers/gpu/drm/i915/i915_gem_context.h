@@ -164,6 +164,8 @@ struct i915_gem_context {
 	struct intel_context {
 		struct i915_gem_context *gem_context;
 		struct intel_engine_cs *active;
+		struct list_head signal_link;
+		struct list_head signals;
 		struct i915_vma *state;
 		struct intel_ring *ring;
 		u32 *lrc_reg_state;

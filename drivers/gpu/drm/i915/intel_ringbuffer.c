@@ -743,7 +743,7 @@ static int init_ring_common(struct intel_engine_cs *engine)
 	}
 
 	/* Papering over lost _interrupts_ immediately following the restart */
-	intel_engine_wakeup(engine);
+	intel_engine_queue_breadcrumbs(engine);
 out:
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 

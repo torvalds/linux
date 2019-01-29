@@ -243,7 +243,7 @@ static bool inflight(const struct i915_request *rq,
 {
 	const struct i915_request *active;
 
-	if (!rq->global_seqno)
+	if (!i915_request_is_active(rq))
 		return false;
 
 	active = port_request(engine->execlists.port);

@@ -5,6 +5,7 @@
 #include <drm/drm_util.h>
 
 #include <linux/hashtable.h>
+#include <linux/irq_work.h>
 #include <linux/seqlock.h>
 
 #include "i915_gem_batch_pool.h"
@@ -381,22 +382,19 @@ struct intel_engine_cs {
 	 * the overhead of waking that client is much preferred.
 	 */
 	struct intel_breadcrumbs {
-		spinlock_t irq_lock; /* protects irq_*; irqsafe */
-		struct intel_wait *irq_wait; /* oldest waiter by retirement */
+		spinlock_t irq_lock;
+		struct list_head signalers;
 
-		spinlock_t rb_lock; /* protects the rb and wraps irq_lock */
-		struct rb_root waiters; /* sorted by retirement, priority */
-		struct list_head signals; /* sorted by retirement */
-		struct task_struct *signaler; /* used for fence signalling */
+		struct irq_work irq_work; /* for use from inside irq_lock */
 
 		struct timer_list fake_irq; /* used after a missed interrupt */
 		struct timer_list hangcheck; /* detect missed interrupts */
 
 		unsigned int hangcheck_interrupts;
 		unsigned int irq_enabled;
-		unsigned int irq_count;
 
-		bool irq_armed : 1;
+		bool irq_armed;
+		bool irq_fired;
 	} breadcrumbs;
 
 	struct {
@@ -885,82 +883,28 @@ static inline bool intel_engine_has_started(struct intel_engine_cs *engine,
 void intel_engine_get_instdone(struct intel_engine_cs *engine,
 			       struct intel_instdone *instdone);
 
-/* intel_breadcrumbs.c -- user interrupt bottom-half for waiters */
-int intel_engine_init_breadcrumbs(struct intel_engine_cs *engine);
-
-static inline void intel_wait_init(struct intel_wait *wait)
-{
-	wait->tsk = current;
-	wait->request = NULL;
-}
-
-static inline void intel_wait_init_for_seqno(struct intel_wait *wait, u32 seqno)
-{
-	wait->tsk = current;
-	wait->seqno = seqno;
-}
-
-static inline bool intel_wait_has_seqno(const struct intel_wait *wait)
-{
-	return wait->seqno;
-}
-
-static inline bool
-intel_wait_update_seqno(struct intel_wait *wait, u32 seqno)
-{
-	wait->seqno = seqno;
-	return intel_wait_has_seqno(wait);
-}
-
-static inline bool
-intel_wait_update_request(struct intel_wait *wait,
-			  const struct i915_request *rq)
-{
-	return intel_wait_update_seqno(wait, i915_request_global_seqno(rq));
-}
-
-static inline bool
-intel_wait_check_seqno(const struct intel_wait *wait, u32 seqno)
-{
-	return wait->seqno == seqno;
-}
-
-static inline bool
-intel_wait_check_request(const struct intel_wait *wait,
-			 const struct i915_request *rq)
-{
-	return intel_wait_check_seqno(wait, i915_request_global_seqno(rq));
-}
-
-static inline bool intel_wait_complete(const struct intel_wait *wait)
-{
-	return RB_EMPTY_NODE(&wait->node);
-}
-
-bool intel_engine_add_wait(struct intel_engine_cs *engine,
-			   struct intel_wait *wait);
-void intel_engine_remove_wait(struct intel_engine_cs *engine,
-			      struct intel_wait *wait);
-bool intel_engine_enable_signaling(struct i915_request *request, bool wakeup);
-void intel_engine_cancel_signaling(struct i915_request *request);
-
-static inline bool intel_engine_has_waiter(const struct intel_engine_cs *engine)
-{
-	return READ_ONCE(engine->breadcrumbs.irq_wait);
-}
-
-unsigned int intel_engine_wakeup(struct intel_engine_cs *engine);
-#define ENGINE_WAKEUP_WAITER BIT(0)
-#define ENGINE_WAKEUP_ASLEEP BIT(1)
+void intel_engine_init_breadcrumbs(struct intel_engine_cs *engine);
+void intel_engine_fini_breadcrumbs(struct intel_engine_cs *engine);
 
 void intel_engine_pin_breadcrumbs_irq(struct intel_engine_cs *engine);
 void intel_engine_unpin_breadcrumbs_irq(struct intel_engine_cs *engine);
 
-void __intel_engine_disarm_breadcrumbs(struct intel_engine_cs *engine);
+bool intel_engine_signal_breadcrumbs(struct intel_engine_cs *engine);
 void intel_engine_disarm_breadcrumbs(struct intel_engine_cs *engine);
+
+static inline void
+intel_engine_queue_breadcrumbs(struct intel_engine_cs *engine)
+{
+	irq_work_queue(&engine->breadcrumbs.irq_work);
+}
+
+bool intel_engine_breadcrumbs_irq(struct intel_engine_cs *engine);
 
 void intel_engine_reset_breadcrumbs(struct intel_engine_cs *engine);
 void intel_engine_fini_breadcrumbs(struct intel_engine_cs *engine);
+
+void intel_engine_print_breadcrumbs(struct intel_engine_cs *engine,
+				    struct drm_printer *p);
 
 static inline u32 *gen8_emit_pipe_control(u32 *batch, u32 flags, u32 offset)
 {

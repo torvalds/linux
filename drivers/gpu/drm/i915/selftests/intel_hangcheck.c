@@ -1127,7 +1127,7 @@ static int __igt_reset_evict_vma(struct drm_i915_private *i915,
 
 	wait_for_completion(&arg.completion);
 
-	if (wait_for(waitqueue_active(&rq->execute), 10)) {
+	if (wait_for(!list_empty(&rq->fence.cb_list), 10)) {
 		struct drm_printer p = drm_info_printer(i915->drm.dev);
 
 		pr_err("igt/evict_vma kthread did not wait\n");

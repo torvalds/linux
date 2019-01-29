@@ -86,17 +86,21 @@ static struct mock_request *first_request(struct mock_engine *engine)
 static void advance(struct mock_request *request)
 {
 	list_del_init(&request->link);
-	mock_seqno_advance(request->base.engine, request->base.global_seqno);
+	intel_engine_write_global_seqno(request->base.engine,
+					request->base.global_seqno);
 	i915_request_mark_complete(&request->base);
 	GEM_BUG_ON(!i915_request_completed(&request->base));
+
+	intel_engine_queue_breadcrumbs(request->base.engine);
 }
 
 static void hw_delay_complete(struct timer_list *t)
 {
 	struct mock_engine *engine = from_timer(engine, t, hw_delay);
 	struct mock_request *request;
+	unsigned long flags;
 
-	spin_lock(&engine->hw_lock);
+	spin_lock_irqsave(&engine->hw_lock, flags);
 
 	/* Timer fired, first request is complete */
 	request = first_request(engine);
@@ -116,7 +120,7 @@ static void hw_delay_complete(struct timer_list *t)
 		advance(request);
 	}
 
-	spin_unlock(&engine->hw_lock);
+	spin_unlock_irqrestore(&engine->hw_lock, flags);
 }
 
 static void mock_context_unpin(struct intel_context *ce)
@@ -191,11 +195,12 @@ static void mock_submit_request(struct i915_request *request)
 	struct mock_request *mock = container_of(request, typeof(*mock), base);
 	struct mock_engine *engine =
 		container_of(request->engine, typeof(*engine), base);
+	unsigned long flags;
 
 	i915_request_submit(request);
 	GEM_BUG_ON(!request->global_seqno);
 
-	spin_lock_irq(&engine->hw_lock);
+	spin_lock_irqsave(&engine->hw_lock, flags);
 	list_add_tail(&mock->link, &engine->hw_queue);
 	if (mock->link.prev == &engine->hw_queue) {
 		if (mock->delay)
@@ -203,7 +208,7 @@ static void mock_submit_request(struct i915_request *request)
 		else
 			advance(mock);
 	}
-	spin_unlock_irq(&engine->hw_lock);
+	spin_unlock_irqrestore(&engine->hw_lock, flags);
 }
 
 struct intel_engine_cs *mock_engine(struct drm_i915_private *i915,
@@ -273,7 +278,7 @@ void mock_engine_flush(struct intel_engine_cs *engine)
 
 void mock_engine_reset(struct intel_engine_cs *engine)
 {
-	intel_write_status_page(engine, I915_GEM_HWS_INDEX, 0);
+	intel_engine_write_global_seqno(engine, 0);
 }
 
 void mock_engine_free(struct intel_engine_cs *engine)

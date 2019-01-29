@@ -327,6 +327,9 @@ intel_context_init(struct intel_context *ce,
 		   struct intel_engine_cs *engine)
 {
 	ce->gem_context = ctx;
+
+	INIT_LIST_HEAD(&ce->signal_link);
+	INIT_LIST_HEAD(&ce->signals);
 }
 
 static struct i915_gem_context *

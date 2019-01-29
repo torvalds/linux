@@ -447,9 +447,14 @@ static void error_print_request(struct drm_i915_error_state_buf *m,
 	if (!erq->seqno)
 		return;
 
-	err_printf(m, "%s pid %d, ban score %d, seqno %8x:%08x, prio %d, emitted %dms, start %08x, head %08x, tail %08x\n",
+	err_printf(m, "%s pid %d, ban score %d, seqno %8x:%08x%s%s, prio %d, emitted %dms, start %08x, head %08x, tail %08x\n",
 		   prefix, erq->pid, erq->ban_score,
-		   erq->context, erq->seqno, erq->sched_attr.priority,
+		   erq->context, erq->seqno,
+		   test_bit(DMA_FENCE_FLAG_SIGNALED_BIT,
+			    &erq->flags) ? "!" : "",
+		   test_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
+			    &erq->flags) ? "+" : "",
+		   erq->sched_attr.priority,
 		   jiffies_to_msecs(erq->jiffies - epoch),
 		   erq->start, erq->head, erq->tail);
 }
@@ -530,7 +535,6 @@ static void error_print_engine(struct drm_i915_error_state_buf *m,
 	}
 	err_printf(m, "  seqno: 0x%08x\n", ee->seqno);
 	err_printf(m, "  last_seqno: 0x%08x\n", ee->last_seqno);
-	err_printf(m, "  waiting: %s\n", yesno(ee->waiting));
 	err_printf(m, "  ring->head: 0x%08x\n", ee->cpu_ring_head);
 	err_printf(m, "  ring->tail: 0x%08x\n", ee->cpu_ring_tail);
 	err_printf(m, "  hangcheck timestamp: %dms (%lu%s)\n",
@@ -804,21 +808,6 @@ static void __err_print_to_sgl(struct drm_i915_error_state_buf *m,
 						    error->epoch);
 		}
 
-		if (IS_ERR(ee->waiters)) {
-			err_printf(m, "%s --- ? waiters [unable to acquire spinlock]\n",
-				   m->i915->engine[i]->name);
-		} else if (ee->num_waiters) {
-			err_printf(m, "%s --- %d waiters\n",
-				   m->i915->engine[i]->name,
-				   ee->num_waiters);
-			for (j = 0; j < ee->num_waiters; j++) {
-				err_printf(m, " seqno 0x%08x for %s [%d]\n",
-					   ee->waiters[j].seqno,
-					   ee->waiters[j].comm,
-					   ee->waiters[j].pid);
-			}
-		}
-
 		print_error_obj(m, m->i915->engine[i],
 				"ringbuffer", ee->ringbuffer);
 
@@ -1000,8 +989,6 @@ void __i915_gpu_state_free(struct kref *error_ref)
 		i915_error_object_free(ee->wa_ctx);
 
 		kfree(ee->requests);
-		if (!IS_ERR_OR_NULL(ee->waiters))
-			kfree(ee->waiters);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(error->active_bo); i++)
@@ -1205,59 +1192,6 @@ static void gen6_record_semaphore_state(struct intel_engine_cs *engine,
 			I915_READ(RING_SYNC_2(engine->mmio_base));
 }
 
-static void error_record_engine_waiters(struct intel_engine_cs *engine,
-					struct drm_i915_error_engine *ee)
-{
-	struct intel_breadcrumbs *b = &engine->breadcrumbs;
-	struct drm_i915_error_waiter *waiter;
-	struct rb_node *rb;
-	int count;
-
-	ee->num_waiters = 0;
-	ee->waiters = NULL;
-
-	if (RB_EMPTY_ROOT(&b->waiters))
-		return;
-
-	if (!spin_trylock_irq(&b->rb_lock)) {
-		ee->waiters = ERR_PTR(-EDEADLK);
-		return;
-	}
-
-	count = 0;
-	for (rb = rb_first(&b->waiters); rb != NULL; rb = rb_next(rb))
-		count++;
-	spin_unlock_irq(&b->rb_lock);
-
-	waiter = NULL;
-	if (count)
-		waiter = kmalloc_array(count,
-				       sizeof(struct drm_i915_error_waiter),
-				       GFP_ATOMIC);
-	if (!waiter)
-		return;
-
-	if (!spin_trylock_irq(&b->rb_lock)) {
-		kfree(waiter);
-		ee->waiters = ERR_PTR(-EDEADLK);
-		return;
-	}
-
-	ee->waiters = waiter;
-	for (rb = rb_first(&b->waiters); rb; rb = rb_next(rb)) {
-		struct intel_wait *w = rb_entry(rb, typeof(*w), node);
-
-		strcpy(waiter->comm, w->tsk->comm);
-		waiter->pid = w->tsk->pid;
-		waiter->seqno = w->seqno;
-		waiter++;
-
-		if (++ee->num_waiters == count)
-			break;
-	}
-	spin_unlock_irq(&b->rb_lock);
-}
-
 static void error_record_engine_registers(struct i915_gpu_state *error,
 					  struct intel_engine_cs *engine,
 					  struct drm_i915_error_engine *ee)
@@ -1293,7 +1227,6 @@ static void error_record_engine_registers(struct i915_gpu_state *error,
 
 	intel_engine_get_instdone(engine, &ee->instdone);
 
-	ee->waiting = intel_engine_has_waiter(engine);
 	ee->instpm = I915_READ(RING_INSTPM(engine->mmio_base));
 	ee->acthd = intel_engine_get_active_head(engine);
 	ee->seqno = intel_engine_get_seqno(engine);
@@ -1367,6 +1300,7 @@ static void record_request(struct i915_request *request,
 {
 	struct i915_gem_context *ctx = request->gem_context;
 
+	erq->flags = request->fence.flags;
 	erq->context = ctx->hw_id;
 	erq->sched_attr = request->sched.attr;
 	erq->ban_score = atomic_read(&ctx->ban_score);
@@ -1542,7 +1476,6 @@ static void gem_record_rings(struct i915_gpu_state *error)
 		ee->engine_id = i;
 
 		error_record_engine_registers(error, engine, ee);
-		error_record_engine_waiters(engine, ee);
 		error_record_engine_execlists(engine, ee);
 
 		request = i915_gem_find_active_request(engine);

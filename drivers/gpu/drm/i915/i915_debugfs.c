@@ -1315,28 +1315,15 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 	seq_printf(m, "GT active? %s\n", yesno(dev_priv->gt.awake));
 
 	for_each_engine(engine, dev_priv, id) {
-		struct intel_breadcrumbs *b = &engine->breadcrumbs;
-		struct rb_node *rb;
-
 		seq_printf(m, "%s:\n", engine->name);
 		seq_printf(m, "\tseqno = %x [current %x, last %x], %dms ago\n",
 			   engine->hangcheck.seqno, seqno[id],
 			   intel_engine_last_submit(engine),
 			   jiffies_to_msecs(jiffies -
 					    engine->hangcheck.action_timestamp));
-		seq_printf(m, "\twaiters? %s, fake irq active? %s\n",
-			   yesno(intel_engine_has_waiter(engine)),
+		seq_printf(m, "\tfake irq active? %s\n",
 			   yesno(test_bit(engine->id,
 					  &dev_priv->gpu_error.missed_irq_rings)));
-
-		spin_lock_irq(&b->rb_lock);
-		for (rb = rb_first(&b->waiters); rb; rb = rb_next(rb)) {
-			struct intel_wait *w = rb_entry(rb, typeof(*w), node);
-
-			seq_printf(m, "\t%s [%d] waiting for %x\n",
-				   w->tsk->comm, w->tsk->pid, w->seqno);
-		}
-		spin_unlock_irq(&b->rb_lock);
 
 		seq_printf(m, "\tACTHD = 0x%08llx [current 0x%08llx]\n",
 			   (long long)engine->hangcheck.acthd,
@@ -2021,18 +2008,6 @@ static int i915_swizzle_info(struct seq_file *m, void *data)
 	return 0;
 }
 
-static int count_irq_waiters(struct drm_i915_private *i915)
-{
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-	int count = 0;
-
-	for_each_engine(engine, i915, id)
-		count += intel_engine_has_waiter(engine);
-
-	return count;
-}
-
 static const char *rps_power_to_str(unsigned int power)
 {
 	static const char * const strings[] = {
@@ -2072,7 +2047,6 @@ static int i915_rps_boost_info(struct seq_file *m, void *data)
 	seq_printf(m, "RPS enabled? %d\n", rps->enabled);
 	seq_printf(m, "GPU busy? %s [%d requests]\n",
 		   yesno(dev_priv->gt.awake), dev_priv->gt.active_requests);
-	seq_printf(m, "CPU waiting? %d\n", count_irq_waiters(dev_priv));
 	seq_printf(m, "Boosts outstanding? %d\n",
 		   atomic_read(&rps->num_waiters));
 	seq_printf(m, "Interactive? %d\n", READ_ONCE(rps->power.interactive));

@@ -458,12 +458,6 @@ cleanup:
 void intel_engine_write_global_seqno(struct intel_engine_cs *engine, u32 seqno)
 {
 	intel_write_status_page(engine, I915_GEM_HWS_INDEX, seqno);
-
-	/* After manually advancing the seqno, fake the interrupt in case
-	 * there are any waiters for that seqno.
-	 */
-	intel_engine_wakeup(engine);
-
 	GEM_BUG_ON(intel_engine_get_seqno(engine) != seqno);
 }
 
@@ -607,6 +601,7 @@ int intel_engine_setup_common(struct intel_engine_cs *engine)
 
 	i915_timeline_set_subclass(&engine->timeline, TIMELINE_ENGINE);
 
+	intel_engine_init_breadcrumbs(engine);
 	intel_engine_init_execlist(engine);
 	intel_engine_init_hangcheck(engine);
 	intel_engine_init_batch_pool(engine);
@@ -717,20 +712,14 @@ int intel_engine_init_common(struct intel_engine_cs *engine)
 		}
 	}
 
-	ret = intel_engine_init_breadcrumbs(engine);
-	if (ret)
-		goto err_unpin_preempt;
-
 	ret = measure_breadcrumb_dw(engine);
 	if (ret < 0)
-		goto err_breadcrumbs;
+		goto err_unpin_preempt;
 
 	engine->emit_fini_breadcrumb_dw = ret;
 
 	return 0;
 
-err_breadcrumbs:
-	intel_engine_fini_breadcrumbs(engine);
 err_unpin_preempt:
 	if (i915->preempt_context)
 		__intel_context_unpin(i915->preempt_context, engine);
@@ -1294,12 +1283,14 @@ static void print_request(struct drm_printer *m,
 
 	x = print_sched_attr(rq->i915, &rq->sched.attr, buf, x, sizeof(buf));
 
-	drm_printf(m, "%s%x%s [%llx:%llx]%s @ %dms: %s\n",
+	drm_printf(m, "%s%x%s%s [%llx:%llx]%s @ %dms: %s\n",
 		   prefix,
 		   rq->global_seqno,
 		   i915_request_completed(rq) ? "!" :
 		   i915_request_started(rq) ? "*" :
 		   "",
+		   test_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
+			    &rq->fence.flags) ?  "+" : "",
 		   rq->fence.context, rq->fence.seqno,
 		   buf,
 		   jiffies_to_msecs(jiffies - rq->emitted_jiffies),
@@ -1492,12 +1483,9 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 		       struct drm_printer *m,
 		       const char *header, ...)
 {
-	struct intel_breadcrumbs * const b = &engine->breadcrumbs;
 	struct i915_gpu_error * const error = &engine->i915->gpu_error;
 	struct i915_request *rq;
 	intel_wakeref_t wakeref;
-	unsigned long flags;
-	struct rb_node *rb;
 
 	if (header) {
 		va_list ap;
@@ -1565,21 +1553,12 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 
 	intel_execlists_show_requests(engine, m, print_request, 8);
 
-	spin_lock_irqsave(&b->rb_lock, flags);
-	for (rb = rb_first(&b->waiters); rb; rb = rb_next(rb)) {
-		struct intel_wait *w = rb_entry(rb, typeof(*w), node);
-
-		drm_printf(m, "\t%s [%d:%c] waiting for %x\n",
-			   w->tsk->comm, w->tsk->pid,
-			   task_state_to_char(w->tsk),
-			   w->seqno);
-	}
-	spin_unlock_irqrestore(&b->rb_lock, flags);
-
 	drm_printf(m, "HWSP:\n");
 	hexdump(m, engine->status_page.addr, PAGE_SIZE);
 
 	drm_printf(m, "Idle? %s\n", yesno(intel_engine_is_idle(engine)));
+
+	intel_engine_print_breadcrumbs(engine, m);
 }
 
 static u8 user_class_map[] = {
