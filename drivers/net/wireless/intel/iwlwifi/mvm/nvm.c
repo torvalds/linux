@@ -179,7 +179,7 @@ static int iwl_nvm_read_chunk(struct iwl_mvm *mvm, u16 section,
 			IWL_DEBUG_EEPROM(mvm->trans->dev,
 					 "NVM access command failed with status %d (device: %s)\n",
 					 ret, mvm->cfg->name);
-			ret = -EIO;
+			ret = -ENODATA;
 		}
 		goto exit;
 	}
@@ -380,8 +380,12 @@ int iwl_nvm_init(struct iwl_mvm *mvm)
 		/* we override the constness for initial read */
 		ret = iwl_nvm_read_section(mvm, section, nvm_buffer,
 					   size_read);
-		if (ret < 0)
+		if (ret == -ENODATA) {
+			ret = 0;
 			continue;
+		}
+		if (ret < 0)
+			break;
 		size_read += ret;
 		temp = kmemdup(nvm_buffer, ret, GFP_KERNEL);
 		if (!temp) {
@@ -454,7 +458,7 @@ int iwl_nvm_init(struct iwl_mvm *mvm)
 	IWL_DEBUG_EEPROM(mvm->trans->dev, "nvm version = %x\n",
 			 mvm->nvm_data->nvm_version);
 
-	return 0;
+	return ret < 0 ? ret : 0;
 }
 
 struct iwl_mcc_update_resp *

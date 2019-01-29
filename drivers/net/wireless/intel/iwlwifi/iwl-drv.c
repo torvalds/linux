@@ -210,18 +210,15 @@ static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 {
 	const struct iwl_cfg *cfg = drv->trans->cfg;
 	char tag[8];
-	const char *fw_pre_name;
 
 	if (drv->trans->cfg->device_family == IWL_DEVICE_FAMILY_9000 &&
-	    (CSR_HW_REV_STEP(drv->trans->hw_rev) == SILICON_B_STEP ||
-	     CSR_HW_REV_STEP(drv->trans->hw_rev) == SILICON_C_STEP))
-		fw_pre_name = cfg->fw_name_pre_b_or_c_step;
-	else if (drv->trans->cfg->integrated &&
-		 CSR_HW_RFID_STEP(drv->trans->hw_rf_id) == SILICON_B_STEP &&
-		 cfg->fw_name_pre_rf_next_step)
-		fw_pre_name = cfg->fw_name_pre_rf_next_step;
-	else
-		fw_pre_name = cfg->fw_name_pre;
+	    (CSR_HW_REV_STEP(drv->trans->hw_rev) != SILICON_B_STEP &&
+	     CSR_HW_REV_STEP(drv->trans->hw_rev) != SILICON_C_STEP)) {
+		IWL_ERR(drv,
+			"Only HW steps B and C are currently supported (0x%0x)\n",
+			drv->trans->hw_rev);
+		return -EINVAL;
+	}
 
 	if (first) {
 		drv->fw_index = cfg->ucode_api_max;
@@ -235,15 +232,13 @@ static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 		IWL_ERR(drv, "no suitable firmware found!\n");
 
 		if (cfg->ucode_api_min == cfg->ucode_api_max) {
-			IWL_ERR(drv, "%s%d is required\n", fw_pre_name,
+			IWL_ERR(drv, "%s%d is required\n", cfg->fw_name_pre,
 				cfg->ucode_api_max);
 		} else {
 			IWL_ERR(drv, "minimum version required: %s%d\n",
-				fw_pre_name,
-				cfg->ucode_api_min);
+				cfg->fw_name_pre, cfg->ucode_api_min);
 			IWL_ERR(drv, "maximum version supported: %s%d\n",
-				fw_pre_name,
-				cfg->ucode_api_max);
+				cfg->fw_name_pre, cfg->ucode_api_max);
 		}
 
 		IWL_ERR(drv,
@@ -252,7 +247,7 @@ static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 	}
 
 	snprintf(drv->firmware_name, sizeof(drv->firmware_name), "%s%s.ucode",
-		 fw_pre_name, tag);
+		 cfg->fw_name_pre, tag);
 
 	IWL_DEBUG_INFO(drv, "attempting to load firmware '%s'\n",
 		       drv->firmware_name);

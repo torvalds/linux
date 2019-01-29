@@ -778,6 +778,40 @@ struct iwl_mvm_geo_profile {
 	u8 values[ACPI_GEO_TABLE_SIZE];
 };
 
+struct iwl_mvm_txq {
+	struct list_head list;
+	u16 txq_id;
+	/* Protects TX path invocation from two places */
+	spinlock_t tx_path_lock;
+	bool stopped;
+};
+
+static inline struct iwl_mvm_txq *
+iwl_mvm_txq_from_mac80211(struct ieee80211_txq *txq)
+{
+	return (void *)txq->drv_priv;
+}
+
+static inline struct iwl_mvm_txq *
+iwl_mvm_txq_from_tid(struct ieee80211_sta *sta, u8 tid)
+{
+	if (tid == IWL_MAX_TID_COUNT)
+		tid = IEEE80211_NUM_TIDS;
+
+	return (void *)sta->txq[tid]->drv_priv;
+}
+
+/**
+ * struct iwl_mvm_tvqm_txq_info - maps TVQM hw queue to tid
+ *
+ * @sta_id: sta id
+ * @txq_tid: txq tid
+ */
+struct iwl_mvm_tvqm_txq_info {
+	u8 sta_id;
+	u8 txq_tid;
+};
+
 struct iwl_mvm_dqa_txq_info {
 	u8 ra_sta_id; /* The RA this queue is mapped to, if exists */
 	bool reserved; /* Is this the TXQ reserved for a STA */
@@ -843,12 +877,12 @@ struct iwl_mvm {
 		u64 on_time_scan;
 	} radio_stats, accu_radio_stats;
 
-	u16 hw_queue_to_mac80211[IWL_MAX_TVQM_QUEUES];
-
-	struct iwl_mvm_dqa_txq_info queue_info[IWL_MAX_HW_QUEUES];
+	struct list_head add_stream_txqs;
+	union {
+		struct iwl_mvm_dqa_txq_info queue_info[IWL_MAX_HW_QUEUES];
+		struct iwl_mvm_tvqm_txq_info tvqm_info[IWL_MAX_TVQM_QUEUES];
+	};
 	struct work_struct add_stream_wk; /* To add streams to queues */
-
-	atomic_t mac80211_queue_stop_count[IEEE80211_MAX_QUEUES];
 
 	const char *nvm_file_name;
 	struct iwl_nvm_data *nvm_data;
@@ -863,7 +897,6 @@ struct iwl_mvm {
 	/* data related to data path */
 	struct iwl_rx_phy_info last_phy_info;
 	struct ieee80211_sta __rcu *fw_id_to_mac_id[IWL_MVM_STATION_COUNT];
-	unsigned long sta_deferred_frames[BITS_TO_LONGS(IWL_MVM_STATION_COUNT)];
 	u8 rx_ba_sessions;
 
 	/* configured by mac80211 */
@@ -1470,6 +1503,11 @@ void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
 void iwl_mvm_set_tx_cmd_rate(struct iwl_mvm *mvm, struct iwl_tx_cmd *tx_cmd,
 			    struct ieee80211_tx_info *info,
 			    struct ieee80211_sta *sta, __le16 fc);
+void iwl_mvm_mac_itxq_xmit(struct ieee80211_hw *hw, struct ieee80211_txq *txq);
+unsigned int iwl_mvm_max_amsdu_size(struct iwl_mvm *mvm,
+				    struct ieee80211_sta *sta,
+				    unsigned int tid);
+
 #ifdef CONFIG_IWLWIFI_DEBUG
 const char *iwl_mvm_get_tx_fail_reason(u32 status);
 #else
@@ -1599,7 +1637,6 @@ int iwl_mvm_mac_ctxt_add(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 int iwl_mvm_mac_ctxt_changed(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			     bool force_assoc_off, const u8 *bssid_override);
 int iwl_mvm_mac_ctxt_remove(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
-u32 iwl_mvm_mac_get_queues_mask(struct ieee80211_vif *vif);
 int iwl_mvm_mac_ctxt_beacon_changed(struct iwl_mvm *mvm,
 				    struct ieee80211_vif *vif);
 void iwl_mvm_rx_beacon_notif(struct iwl_mvm *mvm,
@@ -1615,8 +1652,6 @@ void iwl_mvm_window_status_notif(struct iwl_mvm *mvm,
 				 struct iwl_rx_cmd_buffer *rxb);
 void iwl_mvm_mac_ctxt_recalc_tsf_id(struct iwl_mvm *mvm,
 				    struct ieee80211_vif *vif);
-unsigned long iwl_mvm_get_used_hw_queues(struct iwl_mvm *mvm,
-					 struct ieee80211_vif *exclude_vif);
 void iwl_mvm_probe_resp_data_notif(struct iwl_mvm *mvm,
 				   struct iwl_rx_cmd_buffer *rxb);
 void iwl_mvm_channel_switch_noa_notif(struct iwl_mvm *mvm,
@@ -1905,10 +1940,6 @@ static inline void iwl_mvm_stop_device(struct iwl_mvm *mvm)
 	iwl_fw_dump_conf_clear(&mvm->fwrt);
 	iwl_trans_stop_device(mvm->trans);
 }
-
-/* Stop/start all mac queues in a given bitmap */
-void iwl_mvm_start_mac_queues(struct iwl_mvm *mvm, unsigned long mq);
-void iwl_mvm_stop_mac_queues(struct iwl_mvm *mvm, unsigned long mq);
 
 /* Re-configure the SCD for a queue that has already been configured */
 int iwl_mvm_reconfig_scd(struct iwl_mvm *mvm, int queue, int fifo, int sta_id,

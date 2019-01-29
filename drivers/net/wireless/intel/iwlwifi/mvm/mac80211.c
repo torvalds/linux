@@ -395,6 +395,21 @@ int iwl_mvm_init_fw_regd(struct iwl_mvm *mvm)
 	return ret;
 }
 
+const static u8 he_if_types_ext_capa_sta[] = {
+	 [0] = WLAN_EXT_CAPA1_EXT_CHANNEL_SWITCHING,
+	 [7] = WLAN_EXT_CAPA8_OPMODE_NOTIF,
+	 [9] = WLAN_EXT_CAPA10_TWT_REQUESTER_SUPPORT,
+};
+
+const static struct wiphy_iftype_ext_capab he_iftypes_ext_capa[] = {
+	{
+		.iftype = NL80211_IFTYPE_STATION,
+		.extended_capabilities = he_if_types_ext_capa_sta,
+		.extended_capabilities_mask = he_if_types_ext_capa_sta,
+		.extended_capabilities_len = sizeof(he_if_types_ext_capa_sta),
+	},
+};
+
 int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 {
 	struct ieee80211_hw *hw = mvm->hw;
@@ -410,7 +425,6 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	ieee80211_hw_set(hw, SIGNAL_DBM);
 	ieee80211_hw_set(hw, SPECTRUM_MGMT);
 	ieee80211_hw_set(hw, REPORTS_TX_ACK_STATUS);
-	ieee80211_hw_set(hw, QUEUE_CONTROL);
 	ieee80211_hw_set(hw, WANT_MONITOR_VIF);
 	ieee80211_hw_set(hw, SUPPORTS_PS);
 	ieee80211_hw_set(hw, SUPPORTS_DYNAMIC_PS);
@@ -424,6 +438,10 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	ieee80211_hw_set(hw, NEEDS_UNIQUE_STA_ADDR);
 	ieee80211_hw_set(hw, DEAUTH_NEED_MGD_TX_PREP);
 	ieee80211_hw_set(hw, SUPPORTS_VHT_EXT_NSS_BW);
+	ieee80211_hw_set(hw, BUFF_MMPDU_TXQ);
+	ieee80211_hw_set(hw, STA_MMPDU_TXQ);
+	ieee80211_hw_set(hw, TX_AMSDU);
+	ieee80211_hw_set(hw, TX_FRAG_LIST);
 
 	if (iwl_mvm_has_tlc_offload(mvm)) {
 		ieee80211_hw_set(hw, TX_AMPDU_SETUP_IN_HW);
@@ -469,6 +487,7 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 
 	hw->uapsd_queues = IWL_MVM_UAPSD_QUEUES;
 	hw->uapsd_max_sp_len = IWL_UAPSD_MAX_SP;
+	hw->max_tx_fragments = mvm->trans->max_skb_frags;
 
 	BUILD_BUG_ON(ARRAY_SIZE(mvm->ciphers) < ARRAY_SIZE(mvm_ciphers) + 6);
 	memcpy(mvm->ciphers, mvm_ciphers, sizeof(mvm_ciphers));
@@ -534,6 +553,7 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	hw->sta_data_size = sizeof(struct iwl_mvm_sta);
 	hw->vif_data_size = sizeof(struct iwl_mvm_vif);
 	hw->chanctx_data_size = sizeof(u16);
+	hw->txq_data_size = sizeof(struct iwl_mvm_txq);
 
 	hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 		BIT(NL80211_IFTYPE_P2P_CLIENT) |
@@ -673,6 +693,13 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 			NL80211_EXT_FEATURE_OCE_PROBE_REQ_HIGH_TX_RATE);
 	}
 
+	if (mvm->nvm_data->sku_cap_11ax_enable &&
+	    !iwlwifi_mod_params.disable_11ax) {
+		hw->wiphy->iftype_ext_capab = he_iftypes_ext_capa;
+		hw->wiphy->num_iftype_ext_capab =
+			ARRAY_SIZE(he_iftypes_ext_capa);
+	}
+
 	mvm->rts_threshold = IEEE80211_MAX_RTS_THRESHOLD;
 
 #ifdef CONFIG_PM_SLEEP
@@ -776,7 +803,6 @@ static bool iwl_mvm_defer_tx(struct iwl_mvm *mvm,
 		goto out;
 
 	__skb_queue_tail(&mvm->d0i3_tx, skb);
-	ieee80211_stop_queues(mvm->hw);
 
 	/* trigger wakeup */
 	iwl_mvm_ref(mvm, IWL_MVM_REF_TX);
@@ -796,13 +822,15 @@ static void iwl_mvm_mac_tx(struct ieee80211_hw *hw,
 	struct ieee80211_sta *sta = control->sta;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hdr *hdr = (void *)skb->data;
+	bool offchannel = IEEE80211_SKB_CB(skb)->flags &
+		IEEE80211_TX_CTL_TX_OFFCHAN;
 
 	if (iwl_mvm_is_radio_killed(mvm)) {
 		IWL_DEBUG_DROP(mvm, "Dropping - RF/CT KILL\n");
 		goto drop;
 	}
 
-	if (info->hw_queue == IWL_MVM_OFFCHANNEL_QUEUE &&
+	if (offchannel &&
 	    !test_bit(IWL_MVM_STATUS_ROC_RUNNING, &mvm->status) &&
 	    !test_bit(IWL_MVM_STATUS_ROC_AUX_RUNNING, &mvm->status))
 		goto drop;
@@ -815,8 +843,8 @@ static void iwl_mvm_mac_tx(struct ieee80211_hw *hw,
 		sta = NULL;
 
 	/* If there is no sta, and it's not offchannel - send through AP */
-	if (info->control.vif->type == NL80211_IFTYPE_STATION &&
-	    info->hw_queue != IWL_MVM_OFFCHANNEL_QUEUE && !sta) {
+	if (!sta && info->control.vif->type == NL80211_IFTYPE_STATION &&
+	    !offchannel) {
 		struct iwl_mvm_vif *mvmvif =
 			iwl_mvm_vif_from_mac80211(info->control.vif);
 		u8 ap_sta_id = READ_ONCE(mvmvif->ap_sta_id);
@@ -842,6 +870,77 @@ static void iwl_mvm_mac_tx(struct ieee80211_hw *hw,
 	return;
  drop:
 	ieee80211_free_txskb(hw, skb);
+}
+
+void iwl_mvm_mac_itxq_xmit(struct ieee80211_hw *hw, struct ieee80211_txq *txq)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	struct iwl_mvm_txq *mvmtxq = iwl_mvm_txq_from_mac80211(txq);
+	struct sk_buff *skb = NULL;
+
+	spin_lock(&mvmtxq->tx_path_lock);
+
+	rcu_read_lock();
+	while (likely(!mvmtxq->stopped &&
+		      (mvm->trans->system_pm_mode ==
+		       IWL_PLAT_PM_MODE_DISABLED))) {
+		skb = ieee80211_tx_dequeue(hw, txq);
+
+		if (!skb)
+			break;
+
+		if (!txq->sta)
+			iwl_mvm_tx_skb_non_sta(mvm, skb);
+		else
+			iwl_mvm_tx_skb(mvm, skb, txq->sta);
+	}
+	rcu_read_unlock();
+
+	spin_unlock(&mvmtxq->tx_path_lock);
+}
+
+static void iwl_mvm_mac_wake_tx_queue(struct ieee80211_hw *hw,
+				      struct ieee80211_txq *txq)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	struct iwl_mvm_txq *mvmtxq = iwl_mvm_txq_from_mac80211(txq);
+
+	/*
+	 * Please note that racing is handled very carefully here:
+	 * mvmtxq->txq_id is updated during allocation, and mvmtxq->list is
+	 * deleted afterwards.
+	 * This means that if:
+	 * mvmtxq->txq_id != INVALID_QUEUE && list_empty(&mvmtxq->list):
+	 *	queue is allocated and we can TX.
+	 * mvmtxq->txq_id != INVALID_QUEUE && !list_empty(&mvmtxq->list):
+	 *	a race, should defer the frame.
+	 * mvmtxq->txq_id == INVALID_QUEUE && list_empty(&mvmtxq->list):
+	 *	need to allocate the queue and defer the frame.
+	 * mvmtxq->txq_id == INVALID_QUEUE && !list_empty(&mvmtxq->list):
+	 *	queue is already scheduled for allocation, no need to allocate,
+	 *	should defer the frame.
+	 */
+
+	/* If the queue is allocated TX and return. */
+	if (!txq->sta || mvmtxq->txq_id != IWL_MVM_INVALID_QUEUE) {
+		/*
+		 * Check that list is empty to avoid a race where txq_id is
+		 * already updated, but the queue allocation work wasn't
+		 * finished
+		 */
+		if (unlikely(txq->sta && !list_empty(&mvmtxq->list)))
+			return;
+
+		iwl_mvm_mac_itxq_xmit(hw, txq);
+		return;
+	}
+
+	/* The list is being deleted only after the queue is fully allocated. */
+	if (!list_empty(&mvmtxq->list))
+		return;
+
+	list_add_tail(&mvmtxq->list, &mvm->add_stream_txqs);
+	schedule_work(&mvm->add_stream_wk);
 }
 
 static inline bool iwl_enable_rx_ampdu(const struct iwl_cfg *cfg)
@@ -1085,7 +1184,6 @@ static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
 
 	iwl_mvm_reset_phy_ctxts(mvm);
 	memset(mvm->fw_key_table, 0, sizeof(mvm->fw_key_table));
-	memset(mvm->sta_deferred_frames, 0, sizeof(mvm->sta_deferred_frames));
 	memset(&mvm->last_bt_notif, 0, sizeof(mvm->last_bt_notif));
 	memset(&mvm->last_bt_ci_cmd, 0, sizeof(mvm->last_bt_ci_cmd));
 
@@ -2861,32 +2959,6 @@ iwl_mvm_tdls_check_trigger(struct iwl_mvm *mvm,
 				peer_addr, action);
 }
 
-static void iwl_mvm_purge_deferred_tx_frames(struct iwl_mvm *mvm,
-					     struct iwl_mvm_sta *mvm_sta)
-{
-	struct iwl_mvm_tid_data *tid_data;
-	struct sk_buff *skb;
-	int i;
-
-	spin_lock_bh(&mvm_sta->lock);
-	for (i = 0; i <= IWL_MAX_TID_COUNT; i++) {
-		tid_data = &mvm_sta->tid_data[i];
-
-		while ((skb = __skb_dequeue(&tid_data->deferred_tx_frames))) {
-			struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-
-			/*
-			 * The first deferred frame should've stopped the MAC
-			 * queues, so we should never get a second deferred
-			 * frame for the RA/TID.
-			 */
-			iwl_mvm_start_mac_queues(mvm, BIT(info->hw_queue));
-			ieee80211_free_txskb(mvm->hw, skb);
-		}
-	}
-	spin_unlock_bh(&mvm_sta->lock);
-}
-
 static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif,
 				 struct ieee80211_sta *sta,
@@ -2920,7 +2992,6 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 	 */
 	if (old_state == IEEE80211_STA_NONE &&
 	    new_state == IEEE80211_STA_NOTEXIST) {
-		iwl_mvm_purge_deferred_tx_frames(mvm, mvm_sta);
 		flush_work(&mvm->add_stream_wk);
 
 		/*
@@ -2967,6 +3038,8 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 			iwl_mvm_tdls_check_trigger(mvm, vif, sta->addr,
 						   NL80211_TDLS_SETUP);
 		}
+
+		sta->max_rc_amsdu_len = 1;
 	} else if (old_state == IEEE80211_STA_NONE &&
 		   new_state == IEEE80211_STA_AUTH) {
 		/*
@@ -4656,8 +4729,35 @@ static void iwl_mvm_sync_rx_queues(struct ieee80211_hw *hw)
 	mutex_unlock(&mvm->mutex);
 }
 
+static bool iwl_mvm_can_hw_csum(struct sk_buff *skb)
+{
+	u8 protocol = ip_hdr(skb)->protocol;
+
+	if (!IS_ENABLED(CONFIG_INET))
+		return false;
+
+	return protocol == IPPROTO_TCP || protocol == IPPROTO_UDP;
+}
+
+static bool iwl_mvm_mac_can_aggregate(struct ieee80211_hw *hw,
+				      struct sk_buff *head,
+				      struct sk_buff *skb)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+
+	/* For now don't aggregate IPv6 in AMSDU */
+	if (skb->protocol != htons(ETH_P_IP))
+		return false;
+
+	if (!iwl_mvm_is_csum_supported(mvm))
+		return true;
+
+	return iwl_mvm_can_hw_csum(skb) == iwl_mvm_can_hw_csum(head);
+}
+
 const struct ieee80211_ops iwl_mvm_hw_ops = {
 	.tx = iwl_mvm_mac_tx,
+	.wake_tx_queue = iwl_mvm_mac_wake_tx_queue,
 	.ampdu_action = iwl_mvm_mac_ampdu_action,
 	.start = iwl_mvm_mac_start,
 	.reconfig_complete = iwl_mvm_mac_reconfig_complete,
@@ -4731,6 +4831,7 @@ const struct ieee80211_ops iwl_mvm_hw_ops = {
 #endif
 	.get_survey = iwl_mvm_mac_get_survey,
 	.sta_statistics = iwl_mvm_mac_sta_statistics,
+	.can_aggregate_in_amsdu = iwl_mvm_mac_can_aggregate,
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	.sta_add_debugfs = iwl_mvm_sta_add_debugfs,
 #endif

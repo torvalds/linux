@@ -685,6 +685,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	INIT_DELAYED_WORK(&mvm->tdls_cs.dwork, iwl_mvm_tdls_ch_switch_work);
 	INIT_DELAYED_WORK(&mvm->scan_timeout_dwork, iwl_mvm_scan_timeout_wk);
 	INIT_WORK(&mvm->add_stream_wk, iwl_mvm_add_new_dqa_stream_wk);
+	INIT_LIST_HEAD(&mvm->add_stream_txqs);
 
 	spin_lock_init(&mvm->d0i3_tx_lock);
 	spin_lock_init(&mvm->refs_lock);
@@ -1079,24 +1080,6 @@ static void iwl_mvm_rx_mq(struct iwl_op_mode *op_mode,
 		iwl_mvm_rx_common(mvm, rxb, pkt);
 }
 
-void iwl_mvm_stop_mac_queues(struct iwl_mvm *mvm, unsigned long mq)
-{
-	int q;
-
-	if (WARN_ON_ONCE(!mq))
-		return;
-
-	for_each_set_bit(q, &mq, IEEE80211_MAX_QUEUES) {
-		if (atomic_inc_return(&mvm->mac80211_queue_stop_count[q]) > 1) {
-			IWL_DEBUG_TX_QUEUES(mvm,
-					    "mac80211 %d already stopped\n", q);
-			continue;
-		}
-
-		ieee80211_stop_queue(mvm->hw, q);
-	}
-}
-
 static void iwl_mvm_async_cb(struct iwl_op_mode *op_mode,
 			     const struct iwl_device_cmd *cmd)
 {
@@ -1109,38 +1092,66 @@ static void iwl_mvm_async_cb(struct iwl_op_mode *op_mode,
 	iwl_trans_block_txq_ptrs(mvm->trans, false);
 }
 
-static void iwl_mvm_stop_sw_queue(struct iwl_op_mode *op_mode, int hw_queue)
+static void iwl_mvm_queue_state_change(struct iwl_op_mode *op_mode,
+				       int hw_queue, bool start)
 {
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
-	unsigned long mq = mvm->hw_queue_to_mac80211[hw_queue];
+	struct ieee80211_sta *sta;
+	struct ieee80211_txq *txq;
+	struct iwl_mvm_txq *mvmtxq;
+	int i;
+	unsigned long tid_bitmap;
+	struct iwl_mvm_sta *mvmsta;
+	u8 sta_id;
 
-	iwl_mvm_stop_mac_queues(mvm, mq);
-}
+	sta_id = iwl_mvm_has_new_tx_api(mvm) ?
+		mvm->tvqm_info[hw_queue].sta_id :
+		mvm->queue_info[hw_queue].ra_sta_id;
 
-void iwl_mvm_start_mac_queues(struct iwl_mvm *mvm, unsigned long mq)
-{
-	int q;
-
-	if (WARN_ON_ONCE(!mq))
+	if (WARN_ON_ONCE(sta_id >= ARRAY_SIZE(mvm->fw_id_to_mac_id)))
 		return;
 
-	for_each_set_bit(q, &mq, IEEE80211_MAX_QUEUES) {
-		if (atomic_dec_return(&mvm->mac80211_queue_stop_count[q]) > 0) {
-			IWL_DEBUG_TX_QUEUES(mvm,
-					    "mac80211 %d still stopped\n", q);
-			continue;
-		}
+	rcu_read_lock();
 
-		ieee80211_wake_queue(mvm->hw, q);
+	sta = rcu_dereference(mvm->fw_id_to_mac_id[sta_id]);
+	if (IS_ERR_OR_NULL(sta))
+		goto out;
+	mvmsta = iwl_mvm_sta_from_mac80211(sta);
+
+	if (iwl_mvm_has_new_tx_api(mvm)) {
+		int tid = mvm->tvqm_info[hw_queue].txq_tid;
+
+		tid_bitmap = BIT(tid);
+	} else {
+		tid_bitmap = mvm->queue_info[hw_queue].tid_bitmap;
 	}
+
+	for_each_set_bit(i, &tid_bitmap, IWL_MAX_TID_COUNT + 1) {
+		int tid = i;
+
+		if (tid == IWL_MAX_TID_COUNT)
+			tid = IEEE80211_NUM_TIDS;
+
+		txq = sta->txq[tid];
+		mvmtxq = iwl_mvm_txq_from_mac80211(txq);
+		mvmtxq->stopped = !start;
+
+		if (start && mvmsta->sta_state != IEEE80211_STA_NOTEXIST)
+			iwl_mvm_mac_itxq_xmit(mvm->hw, txq);
+	}
+
+out:
+	rcu_read_unlock();
+}
+
+static void iwl_mvm_stop_sw_queue(struct iwl_op_mode *op_mode, int hw_queue)
+{
+	iwl_mvm_queue_state_change(op_mode, hw_queue, false);
 }
 
 static void iwl_mvm_wake_sw_queue(struct iwl_op_mode *op_mode, int hw_queue)
 {
-	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
-	unsigned long mq = mvm->hw_queue_to_mac80211[hw_queue];
-
-	iwl_mvm_start_mac_queues(mvm, mq);
+	iwl_mvm_queue_state_change(op_mode, hw_queue, true);
 }
 
 static void iwl_mvm_set_rfkill_state(struct iwl_mvm *mvm)
