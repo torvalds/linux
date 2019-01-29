@@ -216,7 +216,13 @@ static size_t cfg80211_gen_new_ie(const u8 *ie, size_t ielen,
 			continue;
 		}
 
-		tmp = (u8 *)cfg80211_find_ie(tmp_old[0], sub_copy, subie_len);
+		if (tmp_old[0] == WLAN_EID_EXTENSION)
+			tmp = (u8 *)cfg80211_find_ext_ie(tmp_old[2], sub_copy,
+							 subie_len);
+		else
+			tmp = (u8 *)cfg80211_find_ie(tmp_old[0], sub_copy,
+						     subie_len);
+
 		if (!tmp) {
 			/* ie in old ie but not in subelement */
 			if (tmp_old[0] != WLAN_EID_MULTIPLE_BSSID) {
@@ -226,8 +232,9 @@ static size_t cfg80211_gen_new_ie(const u8 *ie, size_t ielen,
 		} else {
 			/* ie in transmitting ie also in subelement,
 			 * copy from subelement and flag the ie in subelement
-			 * as copied (by setting eid field to 0xff). For
-			 * vendor ie, compare OUI + type + subType to
+			 * as copied (by setting eid field to WLAN_EID_SSID,
+			 * which is skipped anyway).
+			 * For vendor ie, compare OUI + type + subType to
 			 * determine if they are the same ie.
 			 */
 			if (tmp_old[0] == WLAN_EID_VENDOR_SPECIFIC) {
@@ -237,7 +244,7 @@ static size_t cfg80211_gen_new_ie(const u8 *ie, size_t ielen,
 					 */
 					memcpy(pos, tmp, tmp[1] + 2);
 					pos += tmp[1] + 2;
-					tmp[0] = 0xff;
+					tmp[0] = WLAN_EID_SSID;
 				} else {
 					memcpy(pos, tmp_old, tmp_old[1] + 2);
 					pos += tmp_old[1] + 2;
@@ -246,7 +253,7 @@ static size_t cfg80211_gen_new_ie(const u8 *ie, size_t ielen,
 				/* copy ie from subelement into new ie */
 				memcpy(pos, tmp, tmp[1] + 2);
 				pos += tmp[1] + 2;
-				tmp[0] = 0xff;
+				tmp[0] = WLAN_EID_SSID;
 			}
 		}
 
@@ -263,8 +270,7 @@ static size_t cfg80211_gen_new_ie(const u8 *ie, size_t ielen,
 	while (tmp_new + tmp_new[1] + 2 - sub_copy <= subie_len) {
 		if (!(tmp_new[0] == WLAN_EID_NON_TX_BSSID_CAP ||
 		      tmp_new[0] == WLAN_EID_SSID ||
-		      tmp_new[0] == WLAN_EID_MULTI_BSSID_IDX ||
-		      tmp_new[0] == 0xff)) {
+		      tmp_new[0] == WLAN_EID_MULTI_BSSID_IDX)) {
 			memcpy(pos, tmp_new, tmp_new[1] + 2);
 			pos += tmp_new[1] + 2;
 		}
