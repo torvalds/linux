@@ -105,7 +105,9 @@
 #define SND_AUDIOCODEC_DSD                   ((__u32) 0x00000022)
 #define SND_AUDIOCODEC_APTX                  ((__u32) 0x00000023)
 #define SND_AUDIOCODEC_TRUEHD                ((__u32) 0x00000024)
-#define SND_AUDIOCODEC_MAX                   SND_AUDIOCODEC_TRUEHD
+#define SND_AUDIOCODEC_DLB_MAT               ((__u32) 0x00000025)
+#define SND_AUDIOCODEC_DLB_THD               ((__u32) 0x00000026)
+#define SND_AUDIOCODEC_MAX                   SND_AUDIOCODEC_DLB_THD
 
 /*
  * Profile and modes are listed with bit masks. This allows for a
@@ -354,6 +356,13 @@ struct snd_enc_generic {
 	__s32 reserved[15];	/* Can be used for SND_AUDIOCODEC_BESPOKE */
 } __attribute__((packed, aligned(4)));
 
+#define SND_DEC_THD_MAX_PARAMS 8
+struct snd_dec_thd {
+	__u32 params_length;
+	__u32 params_id[SND_DEC_THD_MAX_PARAMS];
+	__u32 params_value[SND_DEC_THD_MAX_PARAMS];
+} __attribute__((packed, aligned(4)));
+
 struct snd_dec_flac {
 	__u16 sample_size;
 	__u16 min_blk_size;
@@ -413,6 +422,7 @@ union snd_codec_options {
 	struct snd_dec_alac alac;
 	struct snd_dec_ape ape;
 	struct snd_dec_aptx aptx_dec;
+	struct snd_dec_thd truehd;
 };
 
 /** struct snd_codec_desc - description of codec capabilities
