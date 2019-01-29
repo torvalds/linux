@@ -1000,7 +1000,16 @@ static int ath10k_snoc_wlan_enable(struct ath10k *ar)
 
 static void ath10k_snoc_wlan_disable(struct ath10k *ar)
 {
-	if (!test_bit(ATH10K_FLAG_CRASH_FLUSH, &ar->dev_flags))
+	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
+
+	/* If both ATH10K_FLAG_CRASH_FLUSH and ATH10K_SNOC_FLAG_RECOVERY
+	 * flags are not set, it means that the driver has restarted
+	 * due to a crash inject via debugfs. In this case, the driver
+	 * needs to restart the firmware and hence send qmi wlan disable,
+	 * during the driver restart sequence.
+	 */
+	if (!test_bit(ATH10K_FLAG_CRASH_FLUSH, &ar->dev_flags) ||
+	    !test_bit(ATH10K_SNOC_FLAG_RECOVERY, &ar_snoc->flags))
 		ath10k_qmi_wlan_disable(ar);
 }
 
