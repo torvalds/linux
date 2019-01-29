@@ -403,7 +403,7 @@ static int sx8654_probe(struct i2c_client *client,
 
 	error = devm_request_threaded_irq(&client->dev, client->irq,
 					  NULL, sx8654->data->irqh,
-					  IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+					  IRQF_ONESHOT,
 					  client->name, sx8654);
 	if (error) {
 		dev_err(&client->dev,
