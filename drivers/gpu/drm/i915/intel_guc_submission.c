@@ -737,7 +737,7 @@ static bool __guc_dequeue(struct intel_engine_cs *engine)
 		if (intel_engine_has_preemption(engine)) {
 			struct guc_preempt_work *preempt_work =
 				&engine->i915->guc.preempt_work[engine->id];
-			int prio = execlists->queue_priority;
+			int prio = execlists->queue_priority_hint;
 
 			if (__execlists_need_preempt(prio, port_prio(port))) {
 				execlists_set_active(execlists,
@@ -783,7 +783,8 @@ static bool __guc_dequeue(struct intel_engine_cs *engine)
 			kmem_cache_free(engine->i915->priorities, p);
 	}
 done:
-	execlists->queue_priority = rb ? to_priolist(rb)->priority : INT_MIN;
+	execlists->queue_priority_hint =
+		rb ? to_priolist(rb)->priority : INT_MIN;
 	if (submit)
 		port_assign(port, last);
 	if (last)

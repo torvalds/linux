@@ -293,14 +293,18 @@ struct intel_engine_execlists {
 	unsigned int port_mask;
 
 	/**
-	 * @queue_priority: Highest pending priority.
+	 * @queue_priority_hint: Highest pending priority.
 	 *
 	 * When we add requests into the queue, or adjust the priority of
 	 * executing requests, we compute the maximum priority of those
 	 * pending requests. We can then use this value to determine if
 	 * we need to preempt the executing requests to service the queue.
+	 * However, since the we may have recorded the priority of an inflight
+	 * request we wanted to preempt but since completed, at the time of
+	 * dequeuing the priority hint may no longer may match the highest
+	 * available request priority.
 	 */
-	int queue_priority;
+	int queue_priority_hint;
 
 	/**
 	 * @queue: queue of requests, in priority lists

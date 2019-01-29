@@ -591,7 +591,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 		if (!execlists_is_active(execlists, EXECLISTS_ACTIVE_HWACK))
 			return;
 
-		if (need_preempt(engine, last, execlists->queue_priority)) {
+		if (need_preempt(engine, last, execlists->queue_priority_hint)) {
 			inject_preempt_context(engine);
 			return;
 		}
@@ -699,20 +699,20 @@ done:
 	/*
 	 * Here be a bit of magic! Or sleight-of-hand, whichever you prefer.
 	 *
-	 * We choose queue_priority such that if we add a request of greater
+	 * We choose the priority hint such that if we add a request of greater
 	 * priority than this, we kick the submission tasklet to decide on
 	 * the right order of submitting the requests to hardware. We must
 	 * also be prepared to reorder requests as they are in-flight on the
-	 * HW. We derive the queue_priority then as the first "hole" in
+	 * HW. We derive the priority hint then as the first "hole" in
 	 * the HW submission ports and if there are no available slots,
 	 * the priority of the lowest executing request, i.e. last.
 	 *
 	 * When we do receive a higher priority request ready to run from the
-	 * user, see queue_request(), the queue_priority is bumped to that
+	 * user, see queue_request(), the priority hint is bumped to that
 	 * request triggering preemption on the next dequeue (or subsequent
 	 * interrupt for secondary ports).
 	 */
-	execlists->queue_priority =
+	execlists->queue_priority_hint =
 		port != execlists->port ? rq_prio(last) : INT_MIN;
 
 	if (submit) {
@@ -861,7 +861,7 @@ static void execlists_cancel_requests(struct intel_engine_cs *engine)
 
 	/* Remaining _unready_ requests will be nop'ed when submitted */
 
-	execlists->queue_priority = INT_MIN;
+	execlists->queue_priority_hint = INT_MIN;
 	execlists->queue = RB_ROOT_CACHED;
 	GEM_BUG_ON(port_isset(execlists->port));
 
@@ -1092,8 +1092,8 @@ static void __submit_queue_imm(struct intel_engine_cs *engine)
 
 static void submit_queue(struct intel_engine_cs *engine, int prio)
 {
-	if (prio > engine->execlists.queue_priority) {
-		engine->execlists.queue_priority = prio;
+	if (prio > engine->execlists.queue_priority_hint) {
+		engine->execlists.queue_priority_hint = prio;
 		__submit_queue_imm(engine);
 	}
 }
@@ -2777,7 +2777,9 @@ void intel_execlists_show_requests(struct intel_engine_cs *engine,
 
 	last = NULL;
 	count = 0;
-	drm_printf(m, "\t\tQueue priority: %d\n", execlists->queue_priority);
+	if (execlists->queue_priority_hint != INT_MIN)
+		drm_printf(m, "\t\tQueue priority hint: %d\n",
+			   execlists->queue_priority_hint);
 	for (rb = rb_first_cached(&execlists->queue); rb; rb = rb_next(rb)) {
 		struct i915_priolist *p = rb_entry(rb, typeof(*p), node);
 		int i;

@@ -127,8 +127,7 @@ static inline struct i915_priolist *to_priolist(struct rb_node *rb)
 	return rb_entry(rb, struct i915_priolist, node);
 }
 
-static void assert_priolists(struct intel_engine_execlists * const execlists,
-			     long queue_priority)
+static void assert_priolists(struct intel_engine_execlists * const execlists)
 {
 	struct rb_node *rb;
 	long last_prio, i;
@@ -139,7 +138,7 @@ static void assert_priolists(struct intel_engine_execlists * const execlists,
 	GEM_BUG_ON(rb_first_cached(&execlists->queue) !=
 		   rb_first(&execlists->queue.rb_root));
 
-	last_prio = (queue_priority >> I915_USER_PRIORITY_SHIFT) + 1;
+	last_prio = (INT_MAX >> I915_USER_PRIORITY_SHIFT) + 1;
 	for (rb = rb_first_cached(&execlists->queue); rb; rb = rb_next(rb)) {
 		const struct i915_priolist *p = to_priolist(rb);
 
@@ -166,7 +165,7 @@ i915_sched_lookup_priolist(struct intel_engine_cs *engine, int prio)
 	int idx, i;
 
 	lockdep_assert_held(&engine->timeline.lock);
-	assert_priolists(execlists, INT_MAX);
+	assert_priolists(execlists);
 
 	/* buckets sorted from highest [in slot 0] to lowest priority */
 	idx = I915_PRIORITY_COUNT - (prio & I915_PRIORITY_MASK) - 1;
@@ -353,7 +352,7 @@ static void __i915_schedule(struct i915_request *rq,
 				continue;
 		}
 
-		if (prio <= engine->execlists.queue_priority)
+		if (prio <= engine->execlists.queue_priority_hint)
 			continue;
 
 		/*
@@ -366,7 +365,7 @@ static void __i915_schedule(struct i915_request *rq,
 			continue;
 
 		/* Defer (tasklet) submission until after all of our updates. */
-		engine->execlists.queue_priority = prio;
+		engine->execlists.queue_priority_hint = prio;
 		tasklet_hi_schedule(&engine->execlists.tasklet);
 	}
 

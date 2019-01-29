@@ -480,7 +480,7 @@ static void intel_engine_init_execlist(struct intel_engine_cs *engine)
 	GEM_BUG_ON(!is_power_of_2(execlists_num_ports(execlists)));
 	GEM_BUG_ON(execlists_num_ports(execlists) > EXECLIST_MAX_PORTS);
 
-	execlists->queue_priority = INT_MIN;
+	execlists->queue_priority_hint = INT_MIN;
 	execlists->queue = RB_ROOT_CACHED;
 }
 
@@ -1178,7 +1178,7 @@ void intel_engines_park(struct drm_i915_private *i915)
 		}
 
 		/* Must be reset upon idling, or we may miss the busy wakeup. */
-		GEM_BUG_ON(engine->execlists.queue_priority != INT_MIN);
+		GEM_BUG_ON(engine->execlists.queue_priority_hint != INT_MIN);
 
 		if (engine->park)
 			engine->park(engine);
