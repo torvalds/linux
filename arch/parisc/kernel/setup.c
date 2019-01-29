@@ -40,6 +40,7 @@
 #include <linux/sched/clock.h>
 #include <linux/start_kernel.h>
 
+#include <asm/cacheflush.h>
 #include <asm/processor.h>
 #include <asm/sections.h>
 #include <asm/pdc.h>
