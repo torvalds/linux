@@ -912,37 +912,56 @@ static void __process_error(struct ghes *ghes)
 #endif
 }
 
-static int ghes_notify_nmi(unsigned int cmd, struct pt_regs *regs)
+static int ghes_in_nmi_queue_one_entry(struct ghes *ghes)
 {
 	u64 buf_paddr;
+	int sev;
+
+	if (ghes_read_estatus(ghes, &buf_paddr)) {
+		ghes_clear_estatus(ghes, buf_paddr);
+		return -ENOENT;
+	}
+
+	sev = ghes_severity(ghes->estatus->error_severity);
+	if (sev >= GHES_SEV_PANIC) {
+		ghes_print_queued_estatus();
+		__ghes_panic(ghes, buf_paddr);
+	}
+
+	__process_error(ghes);
+	ghes_clear_estatus(ghes, buf_paddr);
+
+	return 0;
+}
+
+static int ghes_in_nmi_spool_from_list(struct list_head *rcu_list)
+{
+	int ret = -ENOENT;
 	struct ghes *ghes;
-	int sev, ret = NMI_DONE;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(ghes, rcu_list, list) {
+		if (!ghes_in_nmi_queue_one_entry(ghes))
+			ret = 0;
+	}
+	rcu_read_unlock();
+
+	if (IS_ENABLED(CONFIG_ARCH_HAVE_NMI_SAFE_CMPXCHG) && !ret)
+		irq_work_queue(&ghes_proc_irq_work);
+
+	return ret;
+}
+
+static int ghes_notify_nmi(unsigned int cmd, struct pt_regs *regs)
+{
+	int ret = NMI_DONE;
 
 	if (!atomic_add_unless(&ghes_in_nmi, 1, 1))
 		return ret;
 
-	list_for_each_entry_rcu(ghes, &ghes_nmi, list) {
-		if (ghes_read_estatus(ghes, &buf_paddr)) {
-			ghes_clear_estatus(ghes, buf_paddr);
-			continue;
-		} else {
-			ret = NMI_HANDLED;
-		}
+	if (!ghes_in_nmi_spool_from_list(&ghes_nmi))
+		ret = NMI_HANDLED;
 
-		sev = ghes_severity(ghes->estatus->error_severity);
-		if (sev >= GHES_SEV_PANIC) {
-			ghes_print_queued_estatus();
-			__ghes_panic(ghes, buf_paddr);
-		}
-
-		__process_error(ghes);
-		ghes_clear_estatus(ghes, buf_paddr);
-	}
-
-#ifdef CONFIG_ARCH_HAVE_NMI_SAFE_CMPXCHG
-	if (ret == NMI_HANDLED)
-		irq_work_queue(&ghes_proc_irq_work);
-#endif
 	atomic_dec(&ghes_in_nmi);
 	return ret;
 }
