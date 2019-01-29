@@ -473,6 +473,9 @@ struct ieee80211_sta_rx_stats {
  * @last_seq_ctrl: last received seq/frag number from this STA (per TID
  *	plus one for non-QoS frames)
  * @tid_seq: per-TID sequence numbers for sending to this STA
+ * @airtime: per-AC struct airtime_info describing airtime statistics for this
+ *	station
+ * @airtime_weight: station weight for airtime fairness calculation purposes
  * @ampdu_mlme: A-MPDU state machine state
  * @mesh: mesh STA information
  * @debugfs_dir: debug filesystem directory dentry

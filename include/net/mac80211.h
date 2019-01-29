@@ -2365,7 +2365,7 @@ enum ieee80211_hw_flags {
  *	them are encountered. The default should typically not be changed,
  *	unless the driver has good reasons for needing more buffers.
  *
- * @weight_multipler: Driver specific airtime weight multiplier used while
+ * @weight_multiplier: Driver specific airtime weight multiplier used while
  *	refilling deficit of each TXQ.
  */
 struct ieee80211_hw {
