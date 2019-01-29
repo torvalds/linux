@@ -230,7 +230,7 @@ static struct kmem_cache *bfq_pool;
 #define BFQ_MIN_TT		(2 * NSEC_PER_MSEC)
 
 /* hw_tag detection: parallel requests threshold and min samples needed. */
-#define BFQ_HW_QUEUE_THRESHOLD	4
+#define BFQ_HW_QUEUE_THRESHOLD	3
 #define BFQ_HW_QUEUE_SAMPLES	32
 
 #define BFQQ_SEEK_THR		(sector_t)(8 * 100)
@@ -4798,7 +4798,7 @@ static void bfq_update_hw_tag(struct bfq_data *bfqd)
 	 * sum is not exact, as it's not taking into account deactivated
 	 * requests.
 	 */
-	if (bfqd->rq_in_driver + bfqd->queued < BFQ_HW_QUEUE_THRESHOLD)
+	if (bfqd->rq_in_driver + bfqd->queued <= BFQ_HW_QUEUE_THRESHOLD)
 		return;
 
 	if (bfqd->hw_tag_samples++ < BFQ_HW_QUEUE_SAMPLES)
