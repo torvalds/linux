@@ -5320,6 +5320,33 @@ fallback:
 }
 
 /**
+ * megasas_get_device_list -	Get the PD and LD device list from FW.
+ * @instance:			Adapter soft state
+ * @return:			Success or failure
+ *
+ * Issue DCMDs to Firmware to get the PD and LD list.
+ */
+static
+int megasas_get_device_list(struct megasas_instance *instance)
+{
+	memset(instance->pd_list, 0,
+	       (MEGASAS_MAX_PD * sizeof(struct megasas_pd_list)));
+	memset(instance->ld_ids, 0xff, MEGASAS_MAX_LD_IDS);
+
+	if (megasas_get_pd_list(instance) < 0) {
+		dev_err(&instance->pdev->dev, "failed to get PD list\n");
+		return FAILED;
+	}
+
+	if (megasas_ld_list_query(instance,
+				  MR_LD_QUERY_TYPE_EXPOSED_TO_HOST)) {
+		dev_err(&instance->pdev->dev, "failed to get LD list\n");
+		return FAILED;
+	}
+
+	return SUCCESS;
+}
+/**
  * megasas_init_fw -	Initializes the FW
  * @instance:		Adapter soft state
  *
@@ -5571,17 +5598,12 @@ static int megasas_init_fw(struct megasas_instance *instance)
 
 	megasas_setup_jbod_map(instance);
 
-	/** for passthrough
-	 * the following function will get the PD LIST.
-	 */
-	memset(instance->pd_list, 0,
-		(MEGASAS_MAX_PD * sizeof(struct megasas_pd_list)));
-	if (megasas_get_pd_list(instance) < 0) {
-		dev_err(&instance->pdev->dev, "failed to get PD list\n");
+	if (megasas_get_device_list(instance) != SUCCESS) {
+		dev_err(&instance->pdev->dev,
+			"%s: megasas_get_device_list failed\n",
+			__func__);
 		goto fail_get_ld_pd_list;
 	}
-
-	memset(instance->ld_ids, 0xff, MEGASAS_MAX_LD_IDS);
 
 	/* stream detection initialization */
 	if (instance->adapter_type >= VENTURA_SERIES) {
@@ -5611,10 +5633,6 @@ static int megasas_init_fw(struct megasas_instance *instance)
 				= MR_STREAM_BITMAP;
 		}
 	}
-
-	if (megasas_ld_list_query(instance,
-				  MR_LD_QUERY_TYPE_EXPOSED_TO_HOST))
-		goto fail_get_ld_pd_list;
 
 	/*
 	 * Compute the max allowed sectors per IO: The controller info has two
