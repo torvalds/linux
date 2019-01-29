@@ -7884,6 +7884,103 @@ static inline void megasas_remove_scsi_device(struct scsi_device *sdev)
 	scsi_device_put(sdev);
 }
 
+/**
+ * megasas_update_device_list -	Update the PD and LD device list from FW
+ *				after an AEN event notification
+ * @instance:			Adapter soft state
+ * @event_type:			Indicates type of event (PD or LD event)
+ *
+ * @return:			Success or failure
+ *
+ * Issue DCMDs to Firmware to update the internal device list in driver.
+ */
+static
+int megasas_update_device_list(struct megasas_instance *instance,
+			       int event_type)
+{
+	int dcmd_ret = DCMD_SUCCESS;
+
+	if (event_type & SCAN_PD_CHANNEL) {
+		dcmd_ret = megasas_get_pd_list(instance);
+
+		if (dcmd_ret != DCMD_SUCCESS)
+			goto out;
+	}
+
+	if (event_type & SCAN_VD_CHANNEL) {
+		if (!instance->requestorId ||
+		    (instance->requestorId &&
+		     megasas_get_ld_vf_affiliation(instance, 0))) {
+			dcmd_ret = megasas_ld_list_query(instance,
+					MR_LD_QUERY_TYPE_EXPOSED_TO_HOST);
+			if (dcmd_ret != DCMD_SUCCESS)
+				goto out;
+		}
+	}
+
+out:
+	return dcmd_ret;
+}
+
+/**
+ * megasas_add_remove_devices -	Add/remove devices to SCSI mid-layer
+ *				after an AEN event notification
+ * @instance:			Adapter soft state
+ * @scan_type:			Indicates type of devices (PD/LD) to add
+ * @return			void
+ */
+static
+void megasas_add_remove_devices(struct megasas_instance *instance,
+				int scan_type)
+{
+	int i, j;
+	u16 pd_index = 0;
+	u16 ld_index = 0;
+	struct Scsi_Host *host;
+	struct scsi_device *sdev1;
+
+	host = instance->host;
+
+	if (scan_type & SCAN_PD_CHANNEL) {
+		for (i = 0; i < MEGASAS_MAX_PD_CHANNELS; i++) {
+			for (j = 0; j < MEGASAS_MAX_DEV_PER_CHANNEL; j++) {
+				pd_index = i * MEGASAS_MAX_DEV_PER_CHANNEL + j;
+				sdev1 = scsi_device_lookup(host, i, j, 0);
+				if (instance->pd_list[pd_index].driveState ==
+							MR_PD_STATE_SYSTEM) {
+					if (!sdev1)
+						scsi_add_device(host, i, j, 0);
+					else
+						scsi_device_put(sdev1);
+				} else {
+					if (sdev1)
+						megasas_remove_scsi_device(sdev1);
+				}
+			}
+		}
+	}
+
+	if (scan_type & SCAN_VD_CHANNEL) {
+		for (i = 0; i < MEGASAS_MAX_LD_CHANNELS; i++) {
+			for (j = 0; j < MEGASAS_MAX_DEV_PER_CHANNEL; j++) {
+				ld_index = (i * MEGASAS_MAX_DEV_PER_CHANNEL) + j;
+				sdev1 = scsi_device_lookup(host,
+						MEGASAS_MAX_PD_CHANNELS + i, j, 0);
+				if (instance->ld_ids[ld_index] != 0xff) {
+					if (!sdev1)
+						scsi_add_device(host, MEGASAS_MAX_PD_CHANNELS + i, j, 0);
+					else
+						scsi_device_put(sdev1);
+				} else {
+					if (sdev1)
+						megasas_remove_scsi_device(sdev1);
+				}
+			}
+		}
+	}
+
+}
+
 static void
 megasas_aen_polling(struct work_struct *work)
 {
@@ -7891,11 +7988,7 @@ megasas_aen_polling(struct work_struct *work)
 		container_of(work, struct megasas_aen_event, hotplug_work.work);
 	struct megasas_instance *instance = ev->instance;
 	union megasas_evt_class_locale class_locale;
-	struct  Scsi_Host *host;
-	struct  scsi_device *sdev1;
-	u16     pd_index = 0;
-	u16	ld_index = 0;
-	int     i, j, doscan = 0;
+	int event_type = 0;
 	u32 seq_num, wait_time = MEGASAS_RESET_WAIT_TIME;
 	int error;
 	u8  dcmd_ret = DCMD_SUCCESS;
@@ -7914,7 +8007,6 @@ megasas_aen_polling(struct work_struct *work)
 	mutex_lock(&instance->reset_mutex);
 
 	instance->ev = NULL;
-	host = instance->host;
 	if (instance->evt_detail) {
 		megasas_decode_evt(instance);
 
@@ -7922,40 +8014,20 @@ megasas_aen_polling(struct work_struct *work)
 
 		case MR_EVT_PD_INSERTED:
 		case MR_EVT_PD_REMOVED:
-			dcmd_ret = megasas_get_pd_list(instance);
-			if (dcmd_ret == DCMD_SUCCESS)
-				doscan = SCAN_PD_CHANNEL;
+			event_type = SCAN_PD_CHANNEL;
 			break;
 
 		case MR_EVT_LD_OFFLINE:
 		case MR_EVT_CFG_CLEARED:
 		case MR_EVT_LD_DELETED:
 		case MR_EVT_LD_CREATED:
-			if (!instance->requestorId ||
-				(instance->requestorId && megasas_get_ld_vf_affiliation(instance, 0)))
-				dcmd_ret = megasas_ld_list_query(instance, MR_LD_QUERY_TYPE_EXPOSED_TO_HOST);
-
-			if (dcmd_ret == DCMD_SUCCESS)
-				doscan = SCAN_VD_CHANNEL;
-
+			event_type = SCAN_VD_CHANNEL;
 			break;
 
 		case MR_EVT_CTRL_HOST_BUS_SCAN_REQUESTED:
 		case MR_EVT_FOREIGN_CFG_IMPORTED:
 		case MR_EVT_LD_STATE_CHANGE:
-			dcmd_ret = megasas_get_pd_list(instance);
-
-			if (dcmd_ret != DCMD_SUCCESS)
-				break;
-
-			if (!instance->requestorId ||
-				(instance->requestorId && megasas_get_ld_vf_affiliation(instance, 0)))
-				dcmd_ret = megasas_ld_list_query(instance, MR_LD_QUERY_TYPE_EXPOSED_TO_HOST);
-
-			if (dcmd_ret != DCMD_SUCCESS)
-				break;
-
-			doscan = SCAN_VD_CHANNEL | SCAN_PD_CHANNEL;
+			event_type = SCAN_PD_CHANNEL | SCAN_VD_CHANNEL;
 			dev_info(&instance->pdev->dev, "scanning for scsi%d...\n",
 				instance->host->host_no);
 			break;
@@ -7971,7 +8043,7 @@ megasas_aen_polling(struct work_struct *work)
 			}
 			break;
 		default:
-			doscan = 0;
+			event_type = 0;
 			break;
 		}
 	} else {
@@ -7981,44 +8053,13 @@ megasas_aen_polling(struct work_struct *work)
 		return;
 	}
 
+	if (event_type)
+		dcmd_ret = megasas_update_device_list(instance, event_type);
+
 	mutex_unlock(&instance->reset_mutex);
 
-	if (doscan & SCAN_PD_CHANNEL) {
-		for (i = 0; i < MEGASAS_MAX_PD_CHANNELS; i++) {
-			for (j = 0; j < MEGASAS_MAX_DEV_PER_CHANNEL; j++) {
-				pd_index = i*MEGASAS_MAX_DEV_PER_CHANNEL + j;
-				sdev1 = scsi_device_lookup(host, i, j, 0);
-				if (instance->pd_list[pd_index].driveState ==
-							MR_PD_STATE_SYSTEM) {
-					if (!sdev1)
-						scsi_add_device(host, i, j, 0);
-					else
-						scsi_device_put(sdev1);
-				} else {
-					if (sdev1)
-						megasas_remove_scsi_device(sdev1);
-				}
-			}
-		}
-	}
-
-	if (doscan & SCAN_VD_CHANNEL) {
-		for (i = 0; i < MEGASAS_MAX_LD_CHANNELS; i++) {
-			for (j = 0; j < MEGASAS_MAX_DEV_PER_CHANNEL; j++) {
-				ld_index = (i * MEGASAS_MAX_DEV_PER_CHANNEL) + j;
-				sdev1 = scsi_device_lookup(host, MEGASAS_MAX_PD_CHANNELS + i, j, 0);
-				if (instance->ld_ids[ld_index] != 0xff) {
-					if (!sdev1)
-						scsi_add_device(host, MEGASAS_MAX_PD_CHANNELS + i, j, 0);
-					else
-						scsi_device_put(sdev1);
-				} else {
-					if (sdev1)
-						megasas_remove_scsi_device(sdev1);
-				}
-			}
-		}
-	}
+	if (event_type && dcmd_ret == DCMD_SUCCESS)
+		megasas_add_remove_devices(instance, event_type);
 
 	if (dcmd_ret == DCMD_SUCCESS)
 		seq_num = le32_to_cpu(instance->evt_detail->seq_num) + 1;
