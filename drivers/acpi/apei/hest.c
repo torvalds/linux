@@ -32,6 +32,7 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <acpi/apei.h>
+#include <acpi/ghes.h>
 
 #include "apei-internal.h"
 
@@ -209,6 +210,11 @@ static int __init hest_ghes_dev_register(unsigned int ghes_count)
 	rc = apei_hest_parse(hest_parse_ghes, &ghes_arr);
 	if (rc)
 		goto err;
+
+	rc = ghes_estatus_pool_init();
+	if (rc)
+		goto err;
+
 out:
 	kfree(ghes_arr.ghes_devs);
 	return rc;
@@ -257,7 +263,9 @@ void __init acpi_hest_init(void)
 		rc = apei_hest_parse(hest_parse_ghes_count, &ghes_count);
 		if (rc)
 			goto err;
-		rc = hest_ghes_dev_register(ghes_count);
+
+		if (ghes_count)
+			rc = hest_ghes_dev_register(ghes_count);
 		if (rc)
 			goto err;
 	}
