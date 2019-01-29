@@ -643,6 +643,10 @@ void drm_dev_unplug(struct drm_device *dev);
  * Unplugging itself is singalled through drm_dev_unplug(). If a device is
  * unplugged, these two functions guarantee that any store before calling
  * drm_dev_unplug() is visible to callers of this function after it completes
+ *
+ * WARNING: This function fundamentally races against drm_dev_unplug(). It is
+ * recommended that drivers instead use the underlying drm_dev_enter() and
+ * drm_dev_exit() function pairs.
  */
 static inline bool drm_dev_is_unplugged(struct drm_device *dev)
 {
