@@ -41,6 +41,11 @@ static unsigned debug;
 module_param(debug, uint, 0644);
 MODULE_PARM_DESC(debug, "activates debug info");
 
+/* Default transaction time in msec */
+static unsigned int default_transtime = 40; /* Max 25 fps */
+module_param(default_transtime, uint, 0644);
+MODULE_PARM_DESC(default_transtime, "default transaction time in ms");
+
 #define MIN_W 32
 #define MIN_H 32
 #define MAX_W 640
@@ -57,9 +62,6 @@ MODULE_PARM_DESC(debug, "activates debug info");
 #define MEM2MEM_DEF_NUM_BUFS	VIDEO_MAX_FRAME
 /* In bytes, per queue */
 #define MEM2MEM_VID_MEM_LIMIT	(16 * 1024 * 1024)
-
-/* Default transaction time in msec */
-#define MEM2MEM_DEF_TRANSTIME	40
 
 /* Flags that indicate processing mode */
 #define MEM2MEM_HFLIP	(1 << 0)
@@ -764,6 +766,8 @@ static int vim2m_s_ctrl(struct v4l2_ctrl *ctrl)
 
 	case V4L2_CID_TRANS_TIME_MSEC:
 		ctx->transtime = ctrl->val;
+		if (ctx->transtime < 1)
+			ctx->transtime = 1;
 		break;
 
 	case V4L2_CID_TRANS_NUM_BUFS:
@@ -966,12 +970,11 @@ static int queue_init(void *priv, struct vb2_queue *src_vq, struct vb2_queue *ds
 	return vb2_queue_init(dst_vq);
 }
 
-static const struct v4l2_ctrl_config vim2m_ctrl_trans_time_msec = {
+static struct v4l2_ctrl_config vim2m_ctrl_trans_time_msec = {
 	.ops = &vim2m_ctrl_ops,
 	.id = V4L2_CID_TRANS_TIME_MSEC,
 	.name = "Transaction Time (msec)",
 	.type = V4L2_CTRL_TYPE_INTEGER,
-	.def = MEM2MEM_DEF_TRANSTIME,
 	.min = 1,
 	.max = 10001,
 	.step = 1,
@@ -1013,6 +1016,8 @@ static int vim2m_open(struct file *file)
 	v4l2_ctrl_handler_init(hdl, 4);
 	v4l2_ctrl_new_std(hdl, &vim2m_ctrl_ops, V4L2_CID_HFLIP, 0, 1, 1, 0);
 	v4l2_ctrl_new_std(hdl, &vim2m_ctrl_ops, V4L2_CID_VFLIP, 0, 1, 1, 0);
+
+	vim2m_ctrl_trans_time_msec.def = default_transtime;
 	v4l2_ctrl_new_custom(hdl, &vim2m_ctrl_trans_time_msec, NULL);
 	v4l2_ctrl_new_custom(hdl, &vim2m_ctrl_trans_num_bufs, NULL);
 	if (hdl->error) {
