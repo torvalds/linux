@@ -2562,6 +2562,7 @@ static int map_sg(struct device *dev, struct scatterlist *sglist,
 	struct scatterlist *s;
 	unsigned long address;
 	u64 dma_mask;
+	int ret;
 
 	domain = get_domain(dev);
 	if (IS_ERR(domain))
@@ -2584,7 +2585,6 @@ static int map_sg(struct device *dev, struct scatterlist *sglist,
 
 		for (j = 0; j < pages; ++j) {
 			unsigned long bus_addr, phys_addr;
-			int ret;
 
 			bus_addr  = address + s->dma_address + (j << PAGE_SHIFT);
 			phys_addr = (sg_phys(s) & PAGE_MASK) + (j << PAGE_SHIFT);
@@ -2605,8 +2605,8 @@ static int map_sg(struct device *dev, struct scatterlist *sglist,
 	return nelems;
 
 out_unmap:
-	pr_err("%s: IOMMU mapping error in map_sg (io-pages: %d)\n",
-	       dev_name(dev), npages);
+	pr_err("%s: IOMMU mapping error in %s (io-pages: %d) reason: %d\n",
+	       dev_name(dev), __func__, npages, ret);
 
 	for_each_sg(sglist, s, nelems, i) {
 		int j, pages = iommu_num_pages(sg_phys(s), s->length, PAGE_SIZE);
