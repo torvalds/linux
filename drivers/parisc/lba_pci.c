@@ -49,6 +49,8 @@
 #include <asm/parisc-device.h>
 #include <asm/io.h>		/* read/write stuff */
 
+#include "iommu.h"
+
 #undef DEBUG_LBA	/* general stuff */
 #undef DEBUG_LBA_PORT	/* debug I/O Port access */
 #undef DEBUG_LBA_CFG	/* debug Config Space Access (ie PCI Bus walk) */
