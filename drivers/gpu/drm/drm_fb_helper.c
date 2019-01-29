@@ -3042,16 +3042,8 @@ static void drm_fbdev_cleanup(struct drm_fb_helper *fb_helper)
 static void drm_fbdev_release(struct drm_fb_helper *fb_helper)
 {
 	drm_fbdev_cleanup(fb_helper);
-
-	/*
-	 * FIXME:
-	 * Remove conditional when all CMA drivers have been moved over to using
-	 * drm_fbdev_generic_setup().
-	 */
-	if (fb_helper->client.funcs) {
-		drm_client_release(&fb_helper->client);
-		kfree(fb_helper);
-	}
+	drm_client_release(&fb_helper->client);
+	kfree(fb_helper);
 }
 
 /*

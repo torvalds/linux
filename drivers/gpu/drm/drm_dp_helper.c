@@ -194,11 +194,11 @@ drm_dp_dump_access(const struct drm_dp_aux *aux,
 	const char *arrow = request == DP_AUX_NATIVE_READ ? "->" : "<-";
 
 	if (ret > 0)
-		drm_dbg(DRM_UT_DP, "%s: 0x%05x AUX %s (ret=%3d) %*ph\n",
-			aux->name, offset, arrow, ret, min(ret, 20), buffer);
+		DRM_DEBUG_DP("%s: 0x%05x AUX %s (ret=%3d) %*ph\n",
+			     aux->name, offset, arrow, ret, min(ret, 20), buffer);
 	else
-		drm_dbg(DRM_UT_DP, "%s: 0x%05x AUX %s (ret=%3d)\n",
-			aux->name, offset, arrow, ret);
+		DRM_DEBUG_DP("%s: 0x%05x AUX %s (ret=%3d)\n",
+			     aux->name, offset, arrow, ret);
 }
 
 /**
@@ -887,7 +887,8 @@ static void drm_dp_i2c_msg_set_request(struct drm_dp_aux_msg *msg,
 {
 	msg->request = (i2c_msg->flags & I2C_M_RD) ?
 		DP_AUX_I2C_READ : DP_AUX_I2C_WRITE;
-	msg->request |= DP_AUX_I2C_MOT;
+	if (!(i2c_msg->flags & I2C_M_STOP))
+		msg->request |= DP_AUX_I2C_MOT;
 }
 
 /*
