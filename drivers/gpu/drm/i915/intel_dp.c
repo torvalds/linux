@@ -4614,12 +4614,10 @@ go_again:
 
 			return ret;
 		} else {
-			struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 			DRM_DEBUG_KMS("failed to get ESI - device may have failed\n");
 			intel_dp->is_mst = false;
-			drm_dp_mst_topology_mgr_set_mst(&intel_dp->mst_mgr, intel_dp->is_mst);
-			/* send a hotplug event */
-			drm_kms_helper_hotplug_event(intel_dig_port->base.base.dev);
+			drm_dp_mst_topology_mgr_set_mst(&intel_dp->mst_mgr,
+							intel_dp->is_mst);
 		}
 	}
 	return -EINVAL;
