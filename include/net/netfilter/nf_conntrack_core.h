@@ -26,7 +26,7 @@ int nf_conntrack_init_net(struct net *net);
 void nf_conntrack_cleanup_net(struct net *net);
 void nf_conntrack_cleanup_net_list(struct list_head *net_exit_list);
 
-int nf_conntrack_proto_pernet_init(struct net *net);
+void nf_conntrack_proto_pernet_init(struct net *net);
 void nf_conntrack_proto_pernet_fini(struct net *net);
 
 int nf_conntrack_proto_init(void);
@@ -39,8 +39,7 @@ void nf_conntrack_init_end(void);
 void nf_conntrack_cleanup_end(void);
 
 bool nf_ct_invert_tuple(struct nf_conntrack_tuple *inverse,
-			const struct nf_conntrack_tuple *orig,
-			const struct nf_conntrack_l4proto *l4proto);
+			const struct nf_conntrack_tuple *orig);
 
 /* Find a connection corresponding to a tuple. */
 struct nf_conntrack_tuple_hash *

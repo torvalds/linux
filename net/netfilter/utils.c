@@ -180,6 +180,25 @@ int nf_route(struct net *net, struct dst_entry **dst, struct flowi *fl,
 }
 EXPORT_SYMBOL_GPL(nf_route);
 
+static int nf_ip_reroute(struct sk_buff *skb, const struct nf_queue_entry *entry)
+{
+#ifdef CONFIG_INET
+	const struct ip_rt_info *rt_info = nf_queue_entry_reroute(entry);
+
+	if (entry->state.hook == NF_INET_LOCAL_OUT) {
+		const struct iphdr *iph = ip_hdr(skb);
+
+		if (!(iph->tos == rt_info->tos &&
+		      skb->mark == rt_info->mark &&
+		      iph->daddr == rt_info->daddr &&
+		      iph->saddr == rt_info->saddr))
+			return ip_route_me_harder(entry->state.net, skb,
+						  RTN_UNSPEC);
+	}
+#endif
+	return 0;
+}
+
 int nf_reroute(struct sk_buff *skb, struct nf_queue_entry *entry)
 {
 	const struct nf_ipv6_ops *v6ops;

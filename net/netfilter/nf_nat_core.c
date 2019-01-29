@@ -146,7 +146,7 @@ hash_by_src(const struct net *n, const struct nf_conntrack_tuple *tuple)
 }
 
 /* Is this tuple already taken? (not by us) */
-int
+static int
 nf_nat_used_tuple(const struct nf_conntrack_tuple *tuple,
 		  const struct nf_conn *ignored_conntrack)
 {
@@ -158,10 +158,9 @@ nf_nat_used_tuple(const struct nf_conntrack_tuple *tuple,
 	 */
 	struct nf_conntrack_tuple reply;
 
-	nf_ct_invert_tuplepr(&reply, tuple);
+	nf_ct_invert_tuple(&reply, tuple);
 	return nf_conntrack_tuple_taken(&reply, ignored_conntrack);
 }
-EXPORT_SYMBOL(nf_nat_used_tuple);
 
 static bool nf_nat_inet_in_range(const struct nf_conntrack_tuple *t,
 				 const struct nf_nat_range2 *range)
@@ -253,7 +252,7 @@ find_appropriate_src(struct net *net,
 		    net_eq(net, nf_ct_net(ct)) &&
 		    nf_ct_zone_equal(ct, zone, IP_CT_DIR_ORIGINAL)) {
 			/* Copy source part from reply tuple. */
-			nf_ct_invert_tuplepr(result,
+			nf_ct_invert_tuple(result,
 				       &ct->tuplehash[IP_CT_DIR_REPLY].tuple);
 			result->dst = tuple->dst;
 
@@ -560,8 +559,8 @@ nf_nat_setup_info(struct nf_conn *ct,
 	 * manipulations (future optimization: if num_manips == 0,
 	 * orig_tp = ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple)
 	 */
-	nf_ct_invert_tuplepr(&curr_tuple,
-			     &ct->tuplehash[IP_CT_DIR_REPLY].tuple);
+	nf_ct_invert_tuple(&curr_tuple,
+			   &ct->tuplehash[IP_CT_DIR_REPLY].tuple);
 
 	get_unique_tuple(&new_tuple, &curr_tuple, range, ct, maniptype);
 
@@ -569,7 +568,7 @@ nf_nat_setup_info(struct nf_conn *ct,
 		struct nf_conntrack_tuple reply;
 
 		/* Alter conntrack table so will recognize replies. */
-		nf_ct_invert_tuplepr(&reply, &new_tuple);
+		nf_ct_invert_tuple(&reply, &new_tuple);
 		nf_conntrack_alter_reply(ct, &reply);
 
 		/* Non-atomic: we own this at the moment. */
@@ -640,7 +639,7 @@ static unsigned int nf_nat_manip_pkt(struct sk_buff *skb, struct nf_conn *ct,
 	struct nf_conntrack_tuple target;
 
 	/* We are aiming to look like inverse of other direction. */
-	nf_ct_invert_tuplepr(&target, &ct->tuplehash[!dir].tuple);
+	nf_ct_invert_tuple(&target, &ct->tuplehash[!dir].tuple);
 
 	l3proto = __nf_nat_l3proto_find(target.src.l3num);
 	if (!l3proto->manip_pkt(skb, 0, &target, mtype))

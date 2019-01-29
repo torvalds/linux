@@ -10,6 +10,9 @@
 #include <net/ip_vs.h>
 
 static int
+sctp_csum_check(int af, struct sk_buff *skb, struct ip_vs_protocol *pp);
+
+static int
 sctp_conn_schedule(struct netns_ipvs *ipvs, int af, struct sk_buff *skb,
 		   struct ip_vs_proto_data *pd,
 		   int *verdict, struct ip_vs_conn **cpp,
@@ -105,7 +108,7 @@ sctp_snat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 		int ret;
 
 		/* Some checks before mangling */
-		if (pp->csum_check && !pp->csum_check(cp->af, skb, pp))
+		if (!sctp_csum_check(cp->af, skb, pp))
 			return 0;
 
 		/* Call application helper if needed */
@@ -152,7 +155,7 @@ sctp_dnat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 		int ret;
 
 		/* Some checks before mangling */
-		if (pp->csum_check && !pp->csum_check(cp->af, skb, pp))
+		if (!sctp_csum_check(cp->af, skb, pp))
 			return 0;
 
 		/* Call application helper if needed */
@@ -587,7 +590,6 @@ struct ip_vs_protocol ip_vs_protocol_sctp = {
 	.conn_out_get	= ip_vs_conn_out_get_proto,
 	.snat_handler	= sctp_snat_handler,
 	.dnat_handler	= sctp_dnat_handler,
-	.csum_check	= sctp_csum_check,
 	.state_name	= sctp_state_name,
 	.state_transition = sctp_state_transition,
 	.app_conn_bind	= sctp_app_conn_bind,
