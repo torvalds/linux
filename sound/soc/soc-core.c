@@ -1053,7 +1053,7 @@ static int snd_soc_init_platform(struct snd_soc_card *card,
 	 *	soc.h :: struct snd_soc_dai_link
 	 */
 	/* convert Legacy platform link */
-	if (!platform || dai_link->legacy_platform) {
+	if (!platform) {
 		platform = devm_kzalloc(card->dev,
 				sizeof(struct snd_soc_dai_link_component),
 				GFP_KERNEL);
@@ -1074,6 +1074,24 @@ static int snd_soc_init_platform(struct snd_soc_card *card,
 		platform->name = "snd-soc-dummy";
 
 	return 0;
+}
+
+static void soc_cleanup_platform(struct snd_soc_card *card)
+{
+	struct snd_soc_dai_link *link;
+	int i;
+	/*
+	 * FIXME
+	 *
+	 * this function should be removed with snd_soc_init_platform
+	 */
+
+	for_each_card_prelinks(card, i, link) {
+		if (link->legacy_platform) {
+			link->legacy_platform = 0;
+			link->platforms       = NULL;
+		}
+	}
 }
 
 static int snd_soc_init_multicodec(struct snd_soc_card *card,
@@ -2020,6 +2038,7 @@ static int soc_cleanup_card_resources(struct snd_soc_card *card)
 	/* remove and free each DAI */
 	soc_remove_dai_links(card);
 	soc_remove_pcm_runtimes(card);
+	soc_cleanup_platform(card);
 
 	/* remove auxiliary devices */
 	soc_remove_aux_devices(card);
