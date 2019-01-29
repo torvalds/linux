@@ -1159,6 +1159,22 @@ intel_tv_get_config(struct intel_encoder *encoder,
 			I915_MODE_FLAG_USE_SCANLINE_COUNTER;
 }
 
+static bool intel_tv_source_too_wide(struct drm_i915_private *dev_priv,
+				     int hdisplay)
+{
+	return IS_GEN(dev_priv, 3) && hdisplay > 1024;
+}
+
+static bool intel_tv_vert_scaling(const struct drm_display_mode *tv_mode,
+				  const struct drm_connector_state *conn_state,
+				  int vdisplay)
+{
+	return tv_mode->crtc_vdisplay -
+		conn_state->tv.margins.top -
+		conn_state->tv.margins.bottom !=
+		vdisplay;
+}
+
 static int
 intel_tv_compute_config(struct intel_encoder *encoder,
 			struct intel_crtc_state *pipe_config,
@@ -1189,7 +1205,8 @@ intel_tv_compute_config(struct intel_encoder *encoder,
 	intel_tv_mode_to_mode(adjusted_mode, tv_mode);
 	drm_mode_set_crtcinfo(adjusted_mode, 0);
 
-	if (IS_GEN(dev_priv, 3) && hdisplay > 1024) {
+	if (intel_tv_source_too_wide(dev_priv, hdisplay) ||
+	    !intel_tv_vert_scaling(adjusted_mode, conn_state, vdisplay)) {
 		int extra, top, bottom;
 
 		extra = adjusted_mode->crtc_vdisplay - vdisplay;
