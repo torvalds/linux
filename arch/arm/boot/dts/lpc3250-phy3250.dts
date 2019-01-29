@@ -25,37 +25,6 @@
 		reg = <0x80000000 0x4000000>;
 	};
 
-	regulators {
-		backlight_reg: regulator@0 {
-			compatible = "regulator-fixed";
-			regulator-name = "backlight_reg";
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
-			gpio = <&gpio 5 4 0>;
-			enable-active-high;
-			regulator-boot-on;
-		};
-
-		lcd_reg: regulator@1 {
-			compatible = "regulator-fixed";
-			regulator-name = "lcd_reg";
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
-			gpio = <&gpio 5 0 0>;
-			enable-active-high;
-			regulator-boot-on;
-		};
-
-		sd_reg: regulator@2 {
-			compatible = "regulator-fixed";
-			regulator-name = "sd_reg";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			gpio = <&gpio 5 5 0>;
-			enable-active-high;
-		};
-	};
-
 	leds {
 		compatible = "gpio-leds";
 
@@ -68,6 +37,36 @@
 			gpios = <&gpio 5 14 0>; /* GPO_P3 14, GPIO 93, active high */
 			linux,default-trigger = "heartbeat";
 		};
+	};
+
+	reg_backlight: regulator-backlight {
+		compatible = "regulator-fixed";
+		regulator-name = "backlight";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		gpio = <&gpio 5 4 0>;
+		enable-active-high;
+		regulator-boot-on;
+	};
+
+	reg_lcd: regulator-lcd {
+		compatible = "regulator-fixed";
+		regulator-name = "lcd";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		gpio = <&gpio 5 0 0>;
+		enable-active-high;
+		regulator-boot-on;
+	};
+
+	reg_sd: regulator-sd {
+		compatible = "regulator-fixed";
+		regulator-name = "sd";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio 5 5 0>;
+		enable-active-high;
+		regulator-boot-on;
 	};
 };
 
@@ -130,7 +129,7 @@
 	cd-gpios = <&gpio 3 1 0>;
 	cd-inverted;
 	bus-width = <4>;
-	vmmc-supply = <&sd_reg>;
+	vmmc-supply = <&reg_sd>;
 	status = "okay";
 };
 
