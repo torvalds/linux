@@ -1086,7 +1086,6 @@ iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
 	u32 reg_rule_flags, prev_reg_rule_flags = 0;
 	const u16 *nvm_chan;
 	struct ieee80211_regdomain *regd, *copy_rd;
-	int size_of_regd, regd_to_copy;
 	struct ieee80211_reg_rule *rule;
 	struct regdb_ptrs *regdb_ptrs;
 	enum nl80211_band band;
@@ -1116,11 +1115,7 @@ iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
 		      num_of_ch);
 
 	/* build a regdomain rule for every valid channel */
-	size_of_regd =
-		sizeof(struct ieee80211_regdomain) +
-		num_of_ch * sizeof(struct ieee80211_reg_rule);
-
-	regd = kzalloc(size_of_regd, GFP_KERNEL);
+	regd = kzalloc(struct_size(regd, reg_rules, num_of_ch), GFP_KERNEL);
 	if (!regd)
 		return ERR_PTR(-ENOMEM);
 
@@ -1196,10 +1191,8 @@ iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
 	 * Narrow down regdom for unused regulatory rules to prevent hole
 	 * between reg rules to wmm rules.
 	 */
-	regd_to_copy = sizeof(struct ieee80211_regdomain) +
-		valid_rules * sizeof(struct ieee80211_reg_rule);
-
-	copy_rd = kmemdup(regd, regd_to_copy, GFP_KERNEL);
+	copy_rd = kmemdup(regd, struct_size(regd, reg_rules, valid_rules),
+			  GFP_KERNEL);
 	if (!copy_rd) {
 		copy_rd = ERR_PTR(-ENOMEM);
 		goto out;
