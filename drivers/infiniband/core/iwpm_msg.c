@@ -403,10 +403,12 @@ register_pid_response_exit:
 
 /* netlink attribute policy for the received response to add mapping request */
 static const struct nla_policy resp_add_policy[IWPM_NLA_RMANAGE_MAPPING_MAX] = {
-	[IWPM_NLA_MANAGE_MAPPING_SEQ]     = { .type = NLA_U32 },
-	[IWPM_NLA_MANAGE_ADDR]            = { .len = sizeof(struct sockaddr_storage) },
-	[IWPM_NLA_MANAGE_MAPPED_LOC_ADDR] = { .len = sizeof(struct sockaddr_storage) },
-	[IWPM_NLA_RMANAGE_MAPPING_ERR]	  = { .type = NLA_U16 }
+	[IWPM_NLA_RMANAGE_MAPPING_SEQ]     = { .type = NLA_U32 },
+	[IWPM_NLA_RMANAGE_ADDR]            = {
+				.len = sizeof(struct sockaddr_storage) },
+	[IWPM_NLA_RMANAGE_MAPPED_LOC_ADDR] = {
+				.len = sizeof(struct sockaddr_storage) },
+	[IWPM_NLA_RMANAGE_MAPPING_ERR]	   = { .type = NLA_U16 }
 };
 
 /*
@@ -430,7 +432,7 @@ int iwpm_add_mapping_cb(struct sk_buff *skb, struct netlink_callback *cb)
 
 	atomic_set(&echo_nlmsg_seq, cb->nlh->nlmsg_seq);
 
-	msg_seq = nla_get_u32(nltb[IWPM_NLA_MANAGE_MAPPING_SEQ]);
+	msg_seq = nla_get_u32(nltb[IWPM_NLA_RMANAGE_MAPPING_SEQ]);
 	nlmsg_request = iwpm_find_nlmsg_request(msg_seq);
 	if (!nlmsg_request) {
 		pr_info("%s: Could not find a matching request (seq = %u)\n",
@@ -439,9 +441,9 @@ int iwpm_add_mapping_cb(struct sk_buff *skb, struct netlink_callback *cb)
 	}
 	pm_msg = nlmsg_request->req_buffer;
 	local_sockaddr = (struct sockaddr_storage *)
-			nla_data(nltb[IWPM_NLA_MANAGE_ADDR]);
+			nla_data(nltb[IWPM_NLA_RMANAGE_ADDR]);
 	mapped_sockaddr = (struct sockaddr_storage *)
-			nla_data(nltb[IWPM_NLA_MANAGE_MAPPED_LOC_ADDR]);
+			nla_data(nltb[IWPM_NLA_RMANAGE_MAPPED_LOC_ADDR]);
 
 	if (iwpm_compare_sockaddr(local_sockaddr, &pm_msg->loc_addr)) {
 		nlmsg_request->err_code = IWPM_USER_LIB_INFO_ERR;
@@ -472,11 +474,15 @@ add_mapping_response_exit:
 /* netlink attribute policy for the response to add and query mapping request
  * and response with remote address info */
 static const struct nla_policy resp_query_policy[IWPM_NLA_RQUERY_MAPPING_MAX] = {
-	[IWPM_NLA_QUERY_MAPPING_SEQ]      = { .type = NLA_U32 },
-	[IWPM_NLA_QUERY_LOCAL_ADDR]       = { .len = sizeof(struct sockaddr_storage) },
-	[IWPM_NLA_QUERY_REMOTE_ADDR]      = { .len = sizeof(struct sockaddr_storage) },
-	[IWPM_NLA_RQUERY_MAPPED_LOC_ADDR] = { .len = sizeof(struct sockaddr_storage) },
-	[IWPM_NLA_RQUERY_MAPPED_REM_ADDR] = { .len = sizeof(struct sockaddr_storage) },
+	[IWPM_NLA_RQUERY_MAPPING_SEQ]     = { .type = NLA_U32 },
+	[IWPM_NLA_RQUERY_LOCAL_ADDR]      = {
+				.len = sizeof(struct sockaddr_storage) },
+	[IWPM_NLA_RQUERY_REMOTE_ADDR]     = {
+				.len = sizeof(struct sockaddr_storage) },
+	[IWPM_NLA_RQUERY_MAPPED_LOC_ADDR] = {
+				.len = sizeof(struct sockaddr_storage) },
+	[IWPM_NLA_RQUERY_MAPPED_REM_ADDR] = {
+				.len = sizeof(struct sockaddr_storage) },
 	[IWPM_NLA_RQUERY_MAPPING_ERR]	  = { .type = NLA_U16 }
 };
 
@@ -502,7 +508,7 @@ int iwpm_add_and_query_mapping_cb(struct sk_buff *skb,
 		return -EINVAL;
 	atomic_set(&echo_nlmsg_seq, cb->nlh->nlmsg_seq);
 
-	msg_seq = nla_get_u32(nltb[IWPM_NLA_QUERY_MAPPING_SEQ]);
+	msg_seq = nla_get_u32(nltb[IWPM_NLA_RQUERY_MAPPING_SEQ]);
 	nlmsg_request = iwpm_find_nlmsg_request(msg_seq);
 	if (!nlmsg_request) {
 		pr_info("%s: Could not find a matching request (seq = %u)\n",
@@ -511,9 +517,9 @@ int iwpm_add_and_query_mapping_cb(struct sk_buff *skb,
 	}
 	pm_msg = nlmsg_request->req_buffer;
 	local_sockaddr = (struct sockaddr_storage *)
-			nla_data(nltb[IWPM_NLA_QUERY_LOCAL_ADDR]);
+			nla_data(nltb[IWPM_NLA_RQUERY_LOCAL_ADDR]);
 	remote_sockaddr = (struct sockaddr_storage *)
-			nla_data(nltb[IWPM_NLA_QUERY_REMOTE_ADDR]);
+			nla_data(nltb[IWPM_NLA_RQUERY_REMOTE_ADDR]);
 	mapped_loc_sockaddr = (struct sockaddr_storage *)
 			nla_data(nltb[IWPM_NLA_RQUERY_MAPPED_LOC_ADDR]);
 	mapped_rem_sockaddr = (struct sockaddr_storage *)
@@ -588,9 +594,9 @@ int iwpm_remote_info_cb(struct sk_buff *skb, struct netlink_callback *cb)
 	atomic_set(&echo_nlmsg_seq, cb->nlh->nlmsg_seq);
 
 	local_sockaddr = (struct sockaddr_storage *)
-			nla_data(nltb[IWPM_NLA_QUERY_LOCAL_ADDR]);
+			nla_data(nltb[IWPM_NLA_RQUERY_LOCAL_ADDR]);
 	remote_sockaddr = (struct sockaddr_storage *)
-			nla_data(nltb[IWPM_NLA_QUERY_REMOTE_ADDR]);
+			nla_data(nltb[IWPM_NLA_RQUERY_REMOTE_ADDR]);
 	mapped_loc_sockaddr = (struct sockaddr_storage *)
 			nla_data(nltb[IWPM_NLA_RQUERY_MAPPED_LOC_ADDR]);
 	mapped_rem_sockaddr = (struct sockaddr_storage *)
