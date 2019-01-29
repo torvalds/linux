@@ -1,6 +1,7 @@
 /*
  * PHYTEC phyCORE-LPC3250 board
  *
+ * Copyright (C) 2015-2019 Vladimir Zapolskiy <vz@mleia.com>
  * Copyright 2012 Roland Stigge <stigge@antcom.de>
  *
  * The code contained herein is licensed under the GNU General Public
@@ -17,10 +18,8 @@
 / {
 	model = "PHYTEC phyCORE-LPC3250 board based on NXP LPC3250";
 	compatible = "phytec,phy3250", "nxp,lpc3250";
-	#address-cells = <1>;
-	#size-cells = <1>;
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x4000000>;
 	};
