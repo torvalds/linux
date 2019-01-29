@@ -6,8 +6,9 @@
 #include <linux/compiler.h>
 #include <linux/perf_event.h>
 #include <stdbool.h>
-#include "evsel.h"
 #include "parse-events.h"
+
+struct perf_evsel_config_term;
 
 enum {
 	PERF_PMU_FORMAT_VALUE_CONFIG,
