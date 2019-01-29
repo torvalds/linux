@@ -1117,6 +1117,7 @@ config SND_SOC_UDA1380
 
 config SND_SOC_WCD9335
 	tristate "WCD9335 Codec"
+	depends on SLIMBUS
 	select REGMAP_SLIMBUS
 	help
 	  The WCD9335 is a standalone Hi-Fi audio CODEC IC, supports
