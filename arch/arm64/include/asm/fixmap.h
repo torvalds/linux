@@ -56,6 +56,10 @@ enum fixed_addresses {
 	/* Used for GHES mapping from assorted contexts */
 	FIX_APEI_GHES_IRQ,
 	FIX_APEI_GHES_SEA,
+#ifdef CONFIG_ARM_SDE_INTERFACE
+	FIX_APEI_GHES_SDEI_NORMAL,
+	FIX_APEI_GHES_SDEI_CRITICAL,
+#endif
 #endif /* CONFIG_ACPI_APEI_GHES */
 
 #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
