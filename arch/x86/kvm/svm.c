@@ -5122,11 +5122,11 @@ static void svm_refresh_apicv_exec_ctrl(struct kvm_vcpu *vcpu)
 	struct vcpu_svm *svm = to_svm(vcpu);
 	struct vmcb *vmcb = svm->vmcb;
 
-	if (!kvm_vcpu_apicv_active(&svm->vcpu))
-		return;
-
-	vmcb->control.int_ctl &= ~AVIC_ENABLE_MASK;
-	mark_dirty(vmcb, VMCB_INTR);
+	if (kvm_vcpu_apicv_active(vcpu))
+		vmcb->control.int_ctl |= AVIC_ENABLE_MASK;
+	else
+		vmcb->control.int_ctl &= ~AVIC_ENABLE_MASK;
+	mark_dirty(vmcb, VMCB_AVIC);
 }
 
 static void svm_load_eoi_exitmap(struct kvm_vcpu *vcpu, u64 *eoi_exit_bitmap)
