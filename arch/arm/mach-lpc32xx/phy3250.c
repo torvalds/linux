@@ -148,11 +148,6 @@ static struct pl08x_platform_data pl08x_pd = {
 	.mem_buses = PL08X_AHB1,
 };
 
-static struct mmci_platform_data lpc32xx_mmci_data = {
-	.ocr_mask	= MMC_VDD_30_31 | MMC_VDD_31_32 |
-			  MMC_VDD_32_33 | MMC_VDD_33_34,
-};
-
 static struct lpc32xx_slc_platform_data lpc32xx_slc_data = {
 	.dma_filter = pl08x_filter_id,
 };
@@ -166,8 +161,6 @@ static const struct of_dev_auxdata lpc32xx_auxdata_lookup[] __initconst = {
 	OF_DEV_AUXDATA("arm,pl022", 0x2008C000, "dev:ssp1", NULL),
 	OF_DEV_AUXDATA("arm,pl110", 0x31040000, "dev:clcd", &lpc32xx_clcd_data),
 	OF_DEV_AUXDATA("arm,pl080", 0x31000000, "pl08xdmac", &pl08x_pd),
-	OF_DEV_AUXDATA("arm,pl18x", 0x20098000, "20098000.sd",
-		       &lpc32xx_mmci_data),
 	OF_DEV_AUXDATA("nxp,lpc3220-slc", 0x20020000, "20020000.flash",
 		       &lpc32xx_slc_data),
 	OF_DEV_AUXDATA("nxp,lpc3220-mlc", 0x200a8000, "200a8000.flash",
