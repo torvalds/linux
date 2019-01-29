@@ -35,6 +35,7 @@
 #define RXE_LOC_H
 
 /* rxe_av.c */
+void rxe_init_av(struct rdma_ah_attr *attr, struct rxe_av *av);
 
 int rxe_av_chk_attr(struct rxe_dev *rxe, struct rdma_ah_attr *attr);
 

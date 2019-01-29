@@ -210,13 +210,6 @@ static int rxe_dealloc_pd(struct ib_pd *ibpd)
 	return 0;
 }
 
-static void rxe_init_av(struct rxe_dev *rxe, struct rdma_ah_attr *attr,
-			struct rxe_av *av)
-{
-	rxe_av_from_attr(rdma_ah_get_port_num(attr), av, attr);
-	rxe_av_fill_ip_info(av, attr);
-}
-
 static struct ib_ah *rxe_create_ah(struct ib_pd *ibpd,
 				   struct rdma_ah_attr *attr,
 				   u32 flags,
@@ -239,7 +232,7 @@ static struct ib_ah *rxe_create_ah(struct ib_pd *ibpd,
 	rxe_add_ref(pd);
 	ah->pd = pd;
 
-	rxe_init_av(rxe, attr, &ah->av);
+	rxe_init_av(attr, &ah->av);
 	return &ah->ibah;
 }
 
@@ -253,7 +246,7 @@ static int rxe_modify_ah(struct ib_ah *ibah, struct rdma_ah_attr *attr)
 	if (err)
 		return err;
 
-	rxe_init_av(rxe, attr, &ah->av);
+	rxe_init_av(attr, &ah->av);
 	return 0;
 }
 
