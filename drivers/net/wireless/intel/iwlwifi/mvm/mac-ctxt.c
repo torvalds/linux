@@ -1016,6 +1016,9 @@ int iwl_mvm_mac_ctxt_send_beacon(struct iwl_mvm *mvm,
 	if (WARN_ON(!beacon))
 		return -EINVAL;
 
+	if (IWL_MVM_NON_TRANSMITTING_AP)
+		return 0;
+
 	if (!fw_has_capa(&mvm->fw->ucode_capa,
 			 IWL_UCODE_TLV_CAPA_CSA_AND_TBTT_OFFLOAD))
 		return iwl_mvm_mac_ctxt_send_beacon_v6(mvm, vif, beacon);
