@@ -1150,6 +1150,8 @@ intel_tv_get_config(struct intel_encoder *encoder,
 				 ypos, mode.vdisplay - ysize - ypos);
 
 	adjusted_mode->crtc_clock = mode.clock;
+	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)
+		adjusted_mode->crtc_clock /= 2;
 
 	/* pixel counter doesn't work on i965gm TV output */
 	if (IS_I965GM(dev_priv))
@@ -1214,8 +1216,11 @@ intel_tv_compute_config(struct intel_encoder *encoder,
 
 		tv_conn_state->bypass_vfilter = true;
 
-		if (!tv_mode->progressive)
+		if (!tv_mode->progressive) {
+			adjusted_mode->clock /= 2;
+			adjusted_mode->crtc_clock /= 2;
 			adjusted_mode->flags |= DRM_MODE_FLAG_INTERLACE;
+		}
 	} else {
 		tv_conn_state->margins.top = conn_state->tv.margins.top;
 		tv_conn_state->margins.bottom = conn_state->tv.margins.bottom;
