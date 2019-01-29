@@ -33,6 +33,15 @@ config PHY_MVEBU_A3700_COMPHY
 	  shared serdes PHYs on Marvell Armada 3700. Its serdes lanes can be
 	  used by various controllers: Ethernet, SATA, USB3, PCIe.
 
+config PHY_MVEBU_A3700_UTMI
+	tristate "Marvell A3700 UTMI driver"
+	depends on ARCH_MVEBU || COMPILE_TEST
+	depends on OF
+	default y
+	select GENERIC_PHY
+	help
+	  Enable this to support Marvell A3700 UTMI PHY driver.
+
 config PHY_MVEBU_CP110_COMPHY
 	tristate "Marvell CP110 comphy driver"
 	depends on ARCH_MVEBU || COMPILE_TEST
