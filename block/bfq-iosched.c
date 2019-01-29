@@ -235,6 +235,11 @@ static struct kmem_cache *bfq_pool;
 
 #define BFQQ_SEEK_THR		(sector_t)(8 * 100)
 #define BFQQ_SECT_THR_NONROT	(sector_t)(2 * 32)
+#define BFQ_RQ_SEEKY(bfqd, last_pos, rq) \
+	(get_sdist(last_pos, rq) >			\
+	 BFQQ_SEEK_THR &&				\
+	 (!blk_queue_nonrot(bfqd->queue) ||		\
+	  blk_rq_sectors(rq) < BFQQ_SECT_THR_NONROT))
 #define BFQQ_CLOSE_THR		(sector_t)(8 * 1024)
 #define BFQQ_SEEKY(bfqq)	(hweight32(bfqq->seek_history) > 19)
 
@@ -2754,7 +2759,7 @@ static void bfq_update_peak_rate(struct bfq_data *bfqd, struct request *rq)
 
 	if ((bfqd->rq_in_driver > 0 ||
 		now_ns - bfqd->last_completion < BFQ_MIN_TT)
-	     && get_sdist(bfqd->last_position, rq) < BFQQ_SEEK_THR)
+	    && !BFQ_RQ_SEEKY(bfqd, bfqd->last_position, rq))
 		bfqd->sequential_samples++;
 
 	bfqd->tot_sectors_dispatched += blk_rq_sectors(rq);
@@ -4511,10 +4516,7 @@ bfq_update_io_seektime(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 		       struct request *rq)
 {
 	bfqq->seek_history <<= 1;
-	bfqq->seek_history |=
-		get_sdist(bfqq->last_request_pos, rq) > BFQQ_SEEK_THR &&
-		(!blk_queue_nonrot(bfqd->queue) ||
-		 blk_rq_sectors(rq) < BFQQ_SECT_THR_NONROT);
+	bfqq->seek_history |= BFQ_RQ_SEEKY(bfqd, bfqq->last_request_pos, rq);
 }
 
 static void bfq_update_has_short_ttime(struct bfq_data *bfqd,
