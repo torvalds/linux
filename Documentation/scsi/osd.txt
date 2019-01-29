@@ -24,11 +24,6 @@ osd-uld:
 platform, both for the in-kernel initiator as well as connected targets. It
 currently has no useful user-mode API, though it could have if need be.
 
-exofs:
-  Is an OSD based Linux file system. It uses the osd-initiator and osd-uld,
-to export a usable file system for users.
-See Documentation/filesystems/exofs.txt for more details
-
 osd target:
   There are no current plans for an OSD target implementation in kernel. For all
 needs, a user-mode target that is based on the scsi tgt target framework is

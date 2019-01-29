@@ -11390,7 +11390,6 @@ M:	Boaz Harrosh <ooo@electrozaur.com>
 S:	Maintained
 F:	drivers/scsi/osd/
 F:	include/scsi/osd_*
-F:	fs/exofs/
 
 OV2659 OMNIVISION SENSOR DRIVER
 M:	"Lad, Prabhakar" <prabhakar.csengg@gmail.com>
