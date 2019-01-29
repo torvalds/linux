@@ -714,7 +714,6 @@ static struct regulator_init_data camera_regulator_initdata = {
 static struct fixed_voltage_config camera_regulator_config = {
 	.supply_name		= "camera_vdd",
 	.microvolts		= 2800000,
-	.enable_high		= 0,
 	.init_data		= &camera_regulator_initdata,
 };
 
@@ -730,7 +729,7 @@ static struct gpiod_lookup_table camera_supply_gpiod_table = {
 	.dev_id = "reg-fixed-voltage.1",
 	.table = {
 		GPIO_LOOKUP("gpio-pxa", GPIO50_nCAM_EN,
-			    NULL, GPIO_ACTIVE_HIGH),
+			    NULL, GPIO_ACTIVE_LOW),
 		{ },
 	},
 };

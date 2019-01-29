@@ -457,7 +457,6 @@ static int da9055_gpio_init(struct da9055_regulator *regulator,
 		int gpio_mux = pdata->gpio_ren[id];
 
 		config->ena_gpiod = pdata->ena_gpiods[id];
-		config->ena_gpio_invert = 1;
 
 		/*
 		 * GPI pin is muxed with regulator to control the

@@ -46,10 +46,6 @@ struct gpio_regulator_state {
 /**
  * struct gpio_regulator_config - config structure
  * @supply_name:	Name of the regulator supply
- * @enable_gpio:	GPIO to use for enable control
- *			set to -EINVAL if not used
- * @enable_high:	Polarity of enable GPIO
- *			1 = Active high, 0 = Active low
  * @enabled_at_boot:	Whether regulator has been enabled at
  *			boot or not. 1 = Yes, 0 = No
  *			This is used to keep the regulator at
@@ -71,8 +67,6 @@ struct gpio_regulator_state {
 struct gpio_regulator_config {
 	const char *supply_name;
 
-	int enable_gpio;
-	unsigned enable_high:1;
 	unsigned enabled_at_boot:1;
 	unsigned startup_delay;
 
