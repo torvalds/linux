@@ -556,15 +556,8 @@ static void scsi_uninit_cmd(struct scsi_cmnd *cmd)
 
 static void scsi_mq_free_sgtables(struct scsi_cmnd *cmd)
 {
-	struct scsi_data_buffer *sdb;
-
 	if (cmd->sdb.table.nents)
 		sg_free_table_chained(&cmd->sdb.table, true);
-	if (cmd->request->next_rq) {
-		sdb = cmd->request->next_rq->special;
-		if (sdb)
-			sg_free_table_chained(&sdb->table, true);
-	}
 	if (scsi_prot_sg_count(cmd))
 		sg_free_table_chained(&cmd->prot_sdb->table, true);
 }
@@ -578,18 +571,13 @@ static void scsi_mq_uninit_cmd(struct scsi_cmnd *cmd)
 
 /* Returns false when no more bytes to process, true if there are more */
 static bool scsi_end_request(struct request *req, blk_status_t error,
-		unsigned int bytes, unsigned int bidi_bytes)
+		unsigned int bytes)
 {
 	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(req);
 	struct scsi_device *sdev = cmd->device;
 	struct request_queue *q = sdev->request_queue;
 
 	if (blk_update_request(req, error, bytes))
-		return true;
-
-	/* Bidi request must be completed as a whole */
-	if (unlikely(bidi_bytes) &&
-	    blk_update_request(req->next_rq, error, bidi_bytes))
 		return true;
 
 	if (blk_queue_add_random(q))
@@ -816,7 +804,7 @@ static void scsi_io_completion_action(struct scsi_cmnd *cmd, int result)
 				scsi_print_command(cmd);
 			}
 		}
-		if (!scsi_end_request(req, blk_stat, blk_rq_err_bytes(req), 0))
+		if (!scsi_end_request(req, blk_stat, blk_rq_err_bytes(req)))
 			return;
 		/*FALLTHRU*/
 	case ACTION_REPREP:
@@ -951,29 +939,6 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 		 */
 		scsi_req(req)->result = cmd->result;
 		scsi_req(req)->resid_len = scsi_get_resid(cmd);
-
-		if (unlikely(scsi_bidi_cmnd(cmd))) {
-			/*
-			 * Bidi commands Must be complete as a whole,
-			 * both sides at once.
-			 */
-			scsi_req(req->next_rq)->resid_len = scsi_in(cmd)->resid;
-			if (scsi_end_request(req, BLK_STS_OK, blk_rq_bytes(req),
-					blk_rq_bytes(req->next_rq)))
-				WARN_ONCE(true,
-					  "Bidi command with remaining bytes");
-			return;
-		}
-	}
-
-	/* no bidi support yet, other than in pass-through */
-	if (unlikely(blk_bidi_rq(req))) {
-		WARN_ONCE(true, "Only support bidi command in passthrough");
-		scmd_printk(KERN_ERR, cmd, "Killing bidi command\n");
-		if (scsi_end_request(req, BLK_STS_IOERR, blk_rq_bytes(req),
-				     blk_rq_bytes(req->next_rq)))
-			WARN_ONCE(true, "Bidi command with remaining bytes");
-		return;
 	}
 
 	/*
@@ -990,13 +955,13 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 	 * to retry code. Fast path should return in this block.
 	 */
 	if (likely(blk_rq_bytes(req) > 0 || blk_stat == BLK_STS_OK)) {
-		if (likely(!scsi_end_request(req, blk_stat, good_bytes, 0)))
+		if (likely(!scsi_end_request(req, blk_stat, good_bytes)))
 			return; /* no bytes remaining */
 	}
 
 	/* Kill remainder if no retries. */
 	if (unlikely(blk_stat && scsi_noretry_cmd(cmd))) {
-		if (scsi_end_request(req, blk_stat, blk_rq_bytes(req), 0))
+		if (scsi_end_request(req, blk_stat, blk_rq_bytes(req)))
 			WARN_ONCE(true,
 			    "Bytes remaining after failed, no-retry command");
 		return;
@@ -1057,12 +1022,6 @@ blk_status_t scsi_init_io(struct scsi_cmnd *cmd)
 	ret = scsi_init_sgtable(rq, &cmd->sdb);
 	if (ret)
 		return ret;
-
-	if (blk_bidi_rq(rq)) {
-		ret = scsi_init_sgtable(rq->next_rq, rq->next_rq->special);
-		if (ret)
-			goto out_free_sgtables;
-	}
 
 	if (blk_integrity_rq(rq)) {
 		struct scsi_data_buffer *prot_sdb = cmd->prot_sdb;
@@ -1622,17 +1581,6 @@ static blk_status_t scsi_mq_prep_fn(struct request *req)
 
 		cmd->prot_sdb->table.sgl =
 			(struct scatterlist *)(cmd->prot_sdb + 1);
-	}
-
-	if (blk_bidi_rq(req)) {
-		struct request *next_rq = req->next_rq;
-		struct scsi_data_buffer *bidi_sdb = blk_mq_rq_to_pdu(next_rq);
-
-		memset(bidi_sdb, 0, sizeof(struct scsi_data_buffer));
-		bidi_sdb->table.sgl =
-			(struct scatterlist *)(bidi_sdb + 1);
-
-		next_rq->special = bidi_sdb;
 	}
 
 	blk_mq_start_request(req);

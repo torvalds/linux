@@ -213,23 +213,6 @@ static inline int scsi_get_resid(struct scsi_cmnd *cmd)
 #define scsi_for_each_sg(cmd, sg, nseg, __i)			\
 	for_each_sg(scsi_sglist(cmd), sg, nseg, __i)
 
-static inline int scsi_bidi_cmnd(struct scsi_cmnd *cmd)
-{
-	return blk_bidi_rq(cmd->request) &&
-		(cmd->request->next_rq->special != NULL);
-}
-
-static inline struct scsi_data_buffer *scsi_in(struct scsi_cmnd *cmd)
-{
-	return scsi_bidi_cmnd(cmd) ?
-		cmd->request->next_rq->special : &cmd->sdb;
-}
-
-static inline struct scsi_data_buffer *scsi_out(struct scsi_cmnd *cmd)
-{
-	return &cmd->sdb;
-}
-
 static inline int scsi_sg_copy_from_buffer(struct scsi_cmnd *cmd,
 					   void *buf, int buflen)
 {
@@ -351,7 +334,7 @@ static inline void set_driver_byte(struct scsi_cmnd *cmd, char status)
 
 static inline unsigned scsi_transfer_length(struct scsi_cmnd *scmd)
 {
-	unsigned int xfer_len = scsi_out(scmd)->length;
+	unsigned int xfer_len = scmd->sdb.length;
 	unsigned int prot_interval = scsi_prot_interval(scmd);
 
 	if (scmd->prot_flags & SCSI_PROT_TRANSFER_PI)

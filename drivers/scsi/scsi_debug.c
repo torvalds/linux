@@ -430,7 +430,6 @@ static int resp_rsup_opcodes(struct scsi_cmnd *, struct sdebug_dev_info *);
 static int resp_rsup_tmfs(struct scsi_cmnd *, struct sdebug_dev_info *);
 static int resp_write_same_10(struct scsi_cmnd *, struct sdebug_dev_info *);
 static int resp_write_same_16(struct scsi_cmnd *, struct sdebug_dev_info *);
-static int resp_xdwriteread_10(struct scsi_cmnd *, struct sdebug_dev_info *);
 static int resp_comp_write(struct scsi_cmnd *, struct sdebug_dev_info *);
 static int resp_write_buffer(struct scsi_cmnd *, struct sdebug_dev_info *);
 static int resp_sync_cache(struct scsi_cmnd *, struct sdebug_dev_info *);
@@ -600,9 +599,6 @@ static const struct opcode_info_t opcode_info_arr[SDEB_I_LAST_ELEMENT + 1] = {
 	{0, 0x42, 0, F_D_OUT | FF_MEDIA_IO, resp_unmap, NULL, /* UNMAP */
 	    {10,  0x1, 0, 0, 0, 0, 0x3f, 0xff, 0xff, 0xc7, 0, 0, 0, 0, 0, 0} },
 /* 25 */
-	{0, 0x53, 0, F_D_IN | F_D_OUT | FF_MEDIA_IO, resp_xdwriteread_10,
-	    NULL, {10,  0xff, 0xff, 0xff, 0xff, 0xff, 0x3f, 0xff, 0xff, 0xc7,
-		   0, 0, 0, 0, 0, 0} },		/* XDWRITEREAD(10) */
 	{0, 0x3b, 0, F_D_OUT_MAYBE, resp_write_buffer, NULL,
 	    {10,  0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xc7, 0, 0,
 	     0, 0, 0, 0} },			/* WRITE_BUFFER */
@@ -1010,11 +1006,11 @@ static int fill_from_dev_buffer(struct scsi_cmnd *scp, unsigned char *arr,
 				int arr_len)
 {
 	int act_len;
-	struct scsi_data_buffer *sdb = scsi_in(scp);
+	struct scsi_data_buffer *sdb = &scp->sdb;
 
 	if (!sdb->length)
 		return 0;
-	if (!(scsi_bidi_cmnd(scp) || scp->sc_data_direction == DMA_FROM_DEVICE))
+	if (scp->sc_data_direction != DMA_FROM_DEVICE)
 		return DID_ERROR << 16;
 
 	act_len = sg_copy_from_buffer(sdb->table.sgl, sdb->table.nents,
@@ -1033,12 +1029,12 @@ static int p_fill_from_dev_buffer(struct scsi_cmnd *scp, const void *arr,
 				  int arr_len, unsigned int off_dst)
 {
 	int act_len, n;
-	struct scsi_data_buffer *sdb = scsi_in(scp);
+	struct scsi_data_buffer *sdb = &scp->sdb;
 	off_t skip = off_dst;
 
 	if (sdb->length <= off_dst)
 		return 0;
-	if (!(scsi_bidi_cmnd(scp) || scp->sc_data_direction == DMA_FROM_DEVICE))
+	if (scp->sc_data_direction != DMA_FROM_DEVICE)
 		return DID_ERROR << 16;
 
 	act_len = sg_pcopy_from_buffer(sdb->table.sgl, sdb->table.nents,
@@ -1058,7 +1054,7 @@ static int fetch_to_dev_buffer(struct scsi_cmnd *scp, unsigned char *arr,
 {
 	if (!scsi_bufflen(scp))
 		return 0;
-	if (!(scsi_bidi_cmnd(scp) || scp->sc_data_direction == DMA_TO_DEVICE))
+	if (scp->sc_data_direction != DMA_TO_DEVICE)
 		return -1;
 
 	return scsi_sg_copy_to_buffer(scp, arr, arr_len);
@@ -2477,21 +2473,19 @@ static int do_device_access(struct scsi_cmnd *scmd, u32 sg_skip, u64 lba,
 {
 	int ret;
 	u64 block, rest = 0;
-	struct scsi_data_buffer *sdb;
+	struct scsi_data_buffer *sdb = &scmd->sdb;
 	enum dma_data_direction dir;
 
 	if (do_write) {
-		sdb = scsi_out(scmd);
 		dir = DMA_TO_DEVICE;
 		write_since_sync = true;
 	} else {
-		sdb = scsi_in(scmd);
 		dir = DMA_FROM_DEVICE;
 	}
 
 	if (!sdb->length)
 		return 0;
-	if (!(scsi_bidi_cmnd(scmd) || scmd->sc_data_direction == dir))
+	if (scmd->sc_data_direction != dir)
 		return -1;
 
 	block = do_div(lba, sdebug_store_sectors);
@@ -2774,7 +2768,7 @@ static int resp_read_dt0(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 	if (unlikely(ret == -1))
 		return DID_ERROR << 16;
 
-	scsi_in(scp)->resid = scsi_bufflen(scp) - ret;
+	scp->sdb.resid = scsi_bufflen(scp) - ret;
 
 	if (unlikely(sqcp)) {
 		if (sqcp->inj_recovered) {
@@ -3718,68 +3712,6 @@ static int resp_report_luns(struct scsi_cmnd *scp,
 	return res;
 }
 
-static int resp_xdwriteread(struct scsi_cmnd *scp, unsigned long long lba,
-			    unsigned int num, struct sdebug_dev_info *devip)
-{
-	int j;
-	unsigned char *kaddr, *buf;
-	unsigned int offset;
-	struct scsi_data_buffer *sdb = scsi_in(scp);
-	struct sg_mapping_iter miter;
-
-	/* better not to use temporary buffer. */
-	buf = kzalloc(scsi_bufflen(scp), GFP_ATOMIC);
-	if (!buf) {
-		mk_sense_buffer(scp, ILLEGAL_REQUEST, INSUFF_RES_ASC,
-				INSUFF_RES_ASCQ);
-		return check_condition_result;
-	}
-
-	scsi_sg_copy_to_buffer(scp, buf, scsi_bufflen(scp));
-
-	offset = 0;
-	sg_miter_start(&miter, sdb->table.sgl, sdb->table.nents,
-			SG_MITER_ATOMIC | SG_MITER_TO_SG);
-
-	while (sg_miter_next(&miter)) {
-		kaddr = miter.addr;
-		for (j = 0; j < miter.length; j++)
-			*(kaddr + j) ^= *(buf + offset + j);
-
-		offset += miter.length;
-	}
-	sg_miter_stop(&miter);
-	kfree(buf);
-
-	return 0;
-}
-
-static int resp_xdwriteread_10(struct scsi_cmnd *scp,
-			       struct sdebug_dev_info *devip)
-{
-	u8 *cmd = scp->cmnd;
-	u64 lba;
-	u32 num;
-	int errsts;
-
-	if (!scsi_bidi_cmnd(scp)) {
-		mk_sense_buffer(scp, ILLEGAL_REQUEST, INSUFF_RES_ASC,
-				INSUFF_RES_ASCQ);
-		return check_condition_result;
-	}
-	errsts = resp_read_dt0(scp, devip);
-	if (errsts)
-		return errsts;
-	if (!(cmd[1] & 0x4)) {		/* DISABLE_WRITE is not set */
-		errsts = resp_write_dt0(scp, devip);
-		if (errsts)
-			return errsts;
-	}
-	lba = get_unaligned_be32(cmd + 2);
-	num = get_unaligned_be16(cmd + 7);
-	return resp_xdwriteread(scp, lba, num, devip);
-}
-
 static struct sdebug_queue *get_queue(struct scsi_cmnd *cmnd)
 {
 	u32 tag = blk_mq_unique_tag(cmnd->request);
@@ -3953,7 +3885,6 @@ static int scsi_debug_slave_alloc(struct scsi_device *sdp)
 	if (sdebug_verbose)
 		pr_info("slave_alloc <%u %u %u %llu>\n",
 		       sdp->host->host_no, sdp->channel, sdp->id, sdp->lun);
-	blk_queue_flag_set(QUEUE_FLAG_BIDI, sdp->request_queue);
 	return 0;
 }
 

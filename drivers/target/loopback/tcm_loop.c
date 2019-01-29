@@ -128,14 +128,6 @@ static void tcm_loop_submission_work(struct work_struct *work)
 		set_host_byte(sc, DID_ERROR);
 		goto out_done;
 	}
-	if (scsi_bidi_cmnd(sc)) {
-		struct scsi_data_buffer *sdb = scsi_in(sc);
-
-		sgl_bidi = sdb->table.sgl;
-		sgl_bidi_count = sdb->table.nents;
-		se_cmd->se_cmd_flags |= SCF_BIDI;
-
-	}
 
 	transfer_length = scsi_transfer_length(sc);
 	if (!scsi_prot_sg_count(sc) &&
@@ -304,12 +296,6 @@ static int tcm_loop_target_reset(struct scsi_cmnd *sc)
 	return FAILED;
 }
 
-static int tcm_loop_slave_alloc(struct scsi_device *sd)
-{
-	blk_queue_flag_set(QUEUE_FLAG_BIDI, sd->request_queue);
-	return 0;
-}
-
 static struct scsi_host_template tcm_loop_driver_template = {
 	.show_info		= tcm_loop_show_info,
 	.proc_name		= "tcm_loopback",
@@ -325,7 +311,6 @@ static struct scsi_host_template tcm_loop_driver_template = {
 	.cmd_per_lun		= 1024,
 	.max_sectors		= 0xFFFF,
 	.dma_boundary		= PAGE_SIZE - 1,
-	.slave_alloc		= tcm_loop_slave_alloc,
 	.module			= THIS_MODULE,
 	.track_queue_depth	= 1,
 };
