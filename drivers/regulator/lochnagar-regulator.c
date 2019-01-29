@@ -194,7 +194,7 @@ static const struct regulator_desc lochnagar_regulators[] = {
 		.name = "VDDCORE",
 		.supply_name = "SYSVDD",
 		.type = REGULATOR_VOLTAGE,
-		.n_voltages = 57,
+		.n_voltages = 66,
 		.ops = &lochnagar_vddcore_ops,
 
 		.id = LOCHNAGAR_VDDCORE,
