@@ -36,6 +36,8 @@ Here is the main features of EROFS:
 
  - Support xattr inline and tail-end data inline for all files;
 
+ - Support POSIX.1e ACLs by using xattrs;
+
  - Support transparent file compression as an option:
    LZ4 algorithm with 4 KB fixed-output compression for high performance;
 
