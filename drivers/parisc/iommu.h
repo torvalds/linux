@@ -26,10 +26,14 @@ static inline void *parisc_walk_tree(struct device *dev)
 	return dev->platform_data;
 }
 
-#define GET_IOC(dev) ({					\
-	void *__pdata = parisc_walk_tree(dev);		\
-	__pdata ? HBA_DATA(__pdata)->iommu : NULL;	\
-})
+static inline struct ioc *GET_IOC(struct device *dev)
+{
+	struct pci_hba_data *pdata = parisc_walk_tree(dev);
+
+	if (!pdata)
+		return NULL;
+	return pdata->iommu;
+}
 
 #ifdef CONFIG_IOMMU_CCIO
 void *ccio_get_iommu(const struct parisc_device *dev);
