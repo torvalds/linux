@@ -3518,21 +3518,18 @@ do {								\
 	rcu_read_unlock();					\
 } while (0)
 
-#ifdef CONFIG_BTRFS_ASSERT
-
 __cold
 static inline void assfail(const char *expr, const char *file, int line)
 {
-	pr_err("assertion failed: %s, file: %s, line: %d\n",
-	       expr, file, line);
-	BUG();
+	if (IS_ENABLED(CONFIG_BTRFS_ASSERT)) {
+		pr_err("assertion failed: %s, file: %s, line: %d\n",
+		       expr, file, line);
+		BUG();
+	}
 }
 
 #define ASSERT(expr)	\
 	(likely(expr) ? (void)0 : assfail(#expr, __FILE__, __LINE__))
-#else
-#define ASSERT(expr)	((void)0)
-#endif
 
 /*
  * Use that for functions that are conditionally exported for sanity tests but
