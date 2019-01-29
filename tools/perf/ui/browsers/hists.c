@@ -8,6 +8,7 @@
 #include <linux/rbtree.h>
 #include <sys/ttydefaults.h>
 
+#include "../../util/callchain.h"
 #include "../../util/evsel.h"
 #include "../../util/evlist.h"
 #include "../../util/hist.h"
