@@ -120,8 +120,8 @@ int drm_irq_install(struct drm_device *dev, int irq)
 	if (dev->driver->irq_preinstall)
 		dev->driver->irq_preinstall(dev);
 
-	/* Install handler */
-	if (drm_core_check_feature(dev, DRIVER_IRQ_SHARED))
+	/* PCI devices require shared interrupts. */
+	if (dev->pdev)
 		sh_flags = IRQF_SHARED;
 
 	ret = request_irq(irq, dev->driver->irq_handler,

@@ -100,20 +100,20 @@ enum drm_driver_feature {
 	 * Set up DRM AGP support, see drm_agp_init(), the DRM core will manage
 	 * AGP resources. New drivers don't need this.
 	 */
-	DRIVER_USE_AGP			= BIT(24),
+	DRIVER_USE_AGP			= BIT(25),
 	/**
 	 * @DRIVER_LEGACY:
 	 *
 	 * Denote a legacy driver using shadow attach. Do not use.
 	 */
-	DRIVER_LEGACY			= BIT(25),
+	DRIVER_LEGACY			= BIT(26),
 	/**
 	 * @DRIVER_PCI_DMA:
 	 *
 	 * Driver is capable of PCI DMA, mapping of PCI DMA buffers to userspace
 	 * will be enabled. Only for legacy drivers. Do not use.
 	 */
-	DRIVER_PCI_DMA			= BIT(26),
+	DRIVER_PCI_DMA			= BIT(27),
 	/**
 	 * @DRIVER_SG:
 	 *
@@ -121,7 +121,7 @@ enum drm_driver_feature {
 	 * scatter/gather buffers will be enabled. Only for legacy drivers. Do
 	 * not use.
 	 */
-	DRIVER_SG			= BIT(27),
+	DRIVER_SG			= BIT(28),
 
 	/**
 	 * @DRIVER_HAVE_DMA:
@@ -129,7 +129,7 @@ enum drm_driver_feature {
 	 * Driver supports DMA, the userspace DMA API will be supported. Only
 	 * for legacy drivers. Do not use.
 	 */
-	DRIVER_HAVE_DMA			= BIT(28),
+	DRIVER_HAVE_DMA			= BIT(29),
 	/**
 	 * @DRIVER_HAVE_IRQ:
 	 *
@@ -139,17 +139,7 @@ enum drm_driver_feature {
 	 * drm_irq_uninstall() helper functions, or roll their own irq support
 	 * code by calling request_irq() directly.
 	 */
-	DRIVER_HAVE_IRQ			= BIT(29),
-	/**
-	 * @DRIVER_IRQ_SHARED:
-	 *
-	 * Indicates to drm_irq_install() that a shared irq should be requested.
-	 *
-	 * FIXME: This should be an explicit argument for non-legacy drivers, or
-	 * at least the default for PCI devices (which would cover all current
-	 * users).
-	 */
-	DRIVER_IRQ_SHARED		= BIT(30),
+	DRIVER_HAVE_IRQ			= BIT(30),
 	/**
 	 * @DRIVER_KMS_LEGACY_CONTEXT:
 	 *
