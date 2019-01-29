@@ -3274,16 +3274,32 @@ void bfq_bfqq_expire(struct bfq_data *bfqd,
 		 * requests, then the request pattern is isochronous
 		 * (see the comments on the function
 		 * bfq_bfqq_softrt_next_start()). Thus we can compute
-		 * soft_rt_next_start. If, instead, the queue still
-		 * has outstanding requests, then we have to wait for
-		 * the completion of all the outstanding requests to
-		 * discover whether the request pattern is actually
-		 * isochronous.
+		 * soft_rt_next_start. And we do it, unless bfqq is in
+		 * interactive weight raising. We do not do it in the
+		 * latter subcase, for the following reason. bfqq may
+		 * be conveying the I/O needed to load a soft
+		 * real-time application. Such an application will
+		 * actually exhibit a soft real-time I/O pattern after
+		 * it finally starts doing its job. But, if
+		 * soft_rt_next_start is computed here for an
+		 * interactive bfqq, and bfqq had received a lot of
+		 * service before remaining with no outstanding
+		 * request (likely to happen on a fast device), then
+		 * soft_rt_next_start would be assigned such a high
+		 * value that, for a very long time, bfqq would be
+		 * prevented from being possibly considered as soft
+		 * real time.
+		 *
+		 * If, instead, the queue still has outstanding
+		 * requests, then we have to wait for the completion
+		 * of all the outstanding requests to discover whether
+		 * the request pattern is actually isochronous.
 		 */
-		if (bfqq->dispatched == 0)
+		if (bfqq->dispatched == 0 &&
+		    bfqq->wr_coeff != bfqd->bfq_wr_coeff)
 			bfqq->soft_rt_next_start =
 				bfq_bfqq_softrt_next_start(bfqd, bfqq);
-		else {
+		else if (bfqq->dispatched > 0) {
 			/*
 			 * Schedule an update of soft_rt_next_start to when
 			 * the task may be discovered to be isochronous.
@@ -4834,11 +4850,14 @@ static void bfq_completed_request(struct bfq_queue *bfqq, struct bfq_data *bfqd)
 	 * isochronous, and both requisites for this condition to hold
 	 * are now satisfied, then compute soft_rt_next_start (see the
 	 * comments on the function bfq_bfqq_softrt_next_start()). We
-	 * schedule this delayed check when bfqq expires, if it still
-	 * has in-flight requests.
+	 * do not compute soft_rt_next_start if bfqq is in interactive
+	 * weight raising (see the comments in bfq_bfqq_expire() for
+	 * an explanation). We schedule this delayed update when bfqq
+	 * expires, if it still has in-flight requests.
 	 */
 	if (bfq_bfqq_softrt_update(bfqq) && bfqq->dispatched == 0 &&
-	    RB_EMPTY_ROOT(&bfqq->sort_list))
+	    RB_EMPTY_ROOT(&bfqq->sort_list) &&
+	    bfqq->wr_coeff != bfqd->bfq_wr_coeff)
 		bfqq->soft_rt_next_start =
 			bfq_bfqq_softrt_next_start(bfqd, bfqq);
 
