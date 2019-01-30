@@ -226,7 +226,7 @@ enum iwl_nvm_channel_flags {
 };
 
 static inline void iwl_nvm_print_channel_flags(struct device *dev, u32 level,
-					       int chan, u16 flags)
+					       int chan, u32 flags)
 {
 #define CHECK_AND_PRINT_I(x)	\
 	((flags & NVM_CHANNEL_##x) ? " " #x : "")
@@ -257,7 +257,7 @@ static inline void iwl_nvm_print_channel_flags(struct device *dev, u32 level,
 }
 
 static u32 iwl_get_channel_flags(u8 ch_num, int ch_idx, bool is_5ghz,
-				 u16 nvm_flags, const struct iwl_cfg *cfg)
+				 u32 nvm_flags, const struct iwl_cfg *cfg)
 {
 	u32 flags = IEEE80211_CHAN_NO_HT40;
 
@@ -301,13 +301,13 @@ static u32 iwl_get_channel_flags(u8 ch_num, int ch_idx, bool is_5ghz,
 
 static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 				struct iwl_nvm_data *data,
-				const __le16 * const nvm_ch_flags,
-				u32 sbands_flags)
+				const void * const nvm_ch_flags,
+				u32 sbands_flags, bool v4)
 {
 	int ch_idx;
 	int n_channels = 0;
 	struct ieee80211_channel *channel;
-	u16 ch_flags;
+	u32 ch_flags;
 	int num_of_ch, num_2ghz_channels = NUM_2GHZ_CHANNELS;
 	const u16 *nvm_chan;
 
@@ -325,7 +325,12 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 	for (ch_idx = 0; ch_idx < num_of_ch; ch_idx++) {
 		bool is_5ghz = (ch_idx >= num_2ghz_channels);
 
-		ch_flags = __le16_to_cpup(nvm_ch_flags + ch_idx);
+		if (v4)
+			ch_flags =
+				__le32_to_cpup((__le32 *)nvm_ch_flags + ch_idx);
+		else
+			ch_flags =
+				__le16_to_cpup((__le16 *)nvm_ch_flags + ch_idx);
 
 		if (is_5ghz && !data->sku_cap_band_52ghz_enable)
 			continue;
@@ -671,15 +676,15 @@ static void iwl_init_he_hw_capab(struct ieee80211_supported_band *sband,
 
 static void iwl_init_sbands(struct device *dev, const struct iwl_cfg *cfg,
 			    struct iwl_nvm_data *data,
-			    const __le16 *nvm_ch_flags, u8 tx_chains,
-			    u8 rx_chains, u32 sbands_flags)
+			    const void *nvm_ch_flags, u8 tx_chains,
+			    u8 rx_chains, u32 sbands_flags, bool v4)
 {
 	int n_channels;
 	int n_used = 0;
 	struct ieee80211_supported_band *sband;
 
 	n_channels = iwl_init_channel_map(dev, cfg, data, nvm_ch_flags,
-					  sbands_flags);
+					  sbands_flags, v4);
 	sband = &data->bands[NL80211_BAND_2GHZ];
 	sband->band = NL80211_BAND_2GHZ;
 	sband->bitrates = &iwl_cfg80211_rates[RATES_24_OFFS];
@@ -1016,7 +1021,7 @@ iwl_parse_nvm_data(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		sbands_flags |= IWL_NVM_SBANDS_FLAGS_NO_WIDE_IN_5GHZ;
 
 	iwl_init_sbands(dev, cfg, data, ch_section, tx_chains, rx_chains,
-			sbands_flags);
+			sbands_flags, false);
 	data->calib_version = 255;
 
 	return data;
@@ -1407,7 +1412,6 @@ struct iwl_nvm_data *iwl_get_nvm(struct iwl_trans *trans,
 				 const struct iwl_fw *fw)
 {
 	struct iwl_nvm_get_info cmd = {};
-	struct iwl_nvm_get_info_rsp *rsp;
 	struct iwl_nvm_data *nvm;
 	struct iwl_host_cmd hcmd = {
 		.flags = CMD_WANT_SKB | CMD_SEND_IN_RFKILL,
@@ -1422,12 +1426,24 @@ struct iwl_nvm_data *iwl_get_nvm(struct iwl_trans *trans,
 	bool empty_otp;
 	u32 mac_flags;
 	u32 sbands_flags = 0;
+	/*
+	 * All the values in iwl_nvm_get_info_rsp v4 are the same as
+	 * in v3, except for the channel profile part of the
+	 * regulatory.  So we can just access the new struct, with the
+	 * exception of the latter.
+	 */
+	struct iwl_nvm_get_info_rsp *rsp;
+	struct iwl_nvm_get_info_rsp_v3 *rsp_v3;
+	bool v4 = fw_has_api(&fw->ucode_capa,
+			     IWL_UCODE_TLV_API_REGULATORY_NVM_INFO);
+	size_t rsp_size = v4 ? sizeof(*rsp) : sizeof(*rsp_v3);
+	void *channel_profile;
 
 	ret = iwl_trans_send_cmd(trans, &hcmd);
 	if (ret)
 		return ERR_PTR(ret);
 
-	if (WARN(iwl_rx_packet_payload_len(hcmd.resp_pkt) != sizeof(*rsp),
+	if (WARN(iwl_rx_packet_payload_len(hcmd.resp_pkt) != rsp_size,
 		 "Invalid payload len in NVM response from FW %d",
 		 iwl_rx_packet_payload_len(hcmd.resp_pkt))) {
 		ret = -EINVAL;
@@ -1489,11 +1505,15 @@ struct iwl_nvm_data *iwl_get_nvm(struct iwl_trans *trans,
 		sbands_flags |= IWL_NVM_SBANDS_FLAGS_LAR;
 	}
 
+	rsp_v3 = (void *)rsp;
+	channel_profile = v4 ? (void *)rsp->regulatory.channel_profile :
+			  (void *)rsp_v3->regulatory.channel_profile;
+
 	iwl_init_sbands(trans->dev, trans->cfg, nvm,
 			rsp->regulatory.channel_profile,
 			nvm->valid_tx_ant & fw->valid_tx_ant,
 			nvm->valid_rx_ant & fw->valid_rx_ant,
-			sbands_flags);
+			sbands_flags, v4);
 
 	iwl_free_resp(&hcmd);
 	return nvm;

@@ -272,6 +272,8 @@ typedef unsigned int __bitwise iwl_ucode_tlv_api_t;
  *	version of the beacon notification.
  * @IWL_UCODE_TLV_API_BEACON_FILTER_V4: This ucode supports v4 of
  *	BEACON_FILTER_CONFIG_API_S_VER_4.
+ * @IWL_UCODE_TLV_API_REGULATORY_NVM_INFO: This ucode supports v4 of
+ *	REGULATORY_NVM_GET_INFO_RSP_API_S.
  * @IWL_UCODE_TLV_API_FTM_NEW_RANGE_REQ: This ucode supports v7 of
  *	LOCATION_RANGE_REQ_CMD_API_S and v6 of LOCATION_RANGE_RESP_NTFY_API_S.
  *
@@ -300,6 +302,7 @@ enum iwl_ucode_tlv_api {
 	IWL_UCODE_TLV_API_REDUCE_TX_POWER	= (__force iwl_ucode_tlv_api_t)45,
 	IWL_UCODE_TLV_API_SHORT_BEACON_NOTIF	= (__force iwl_ucode_tlv_api_t)46,
 	IWL_UCODE_TLV_API_BEACON_FILTER_V4      = (__force iwl_ucode_tlv_api_t)47,
+	IWL_UCODE_TLV_API_REGULATORY_NVM_INFO   = (__force iwl_ucode_tlv_api_t)48,
 	IWL_UCODE_TLV_API_FTM_NEW_RANGE_REQ     = (__force iwl_ucode_tlv_api_t)49,
 
 	NUM_IWL_UCODE_TLV_API
