@@ -361,7 +361,7 @@ static int fill_res_name_pid(struct sk_buff *msg,
 	return 0;
 }
 
-static int fill_res_qp_entry(struct sk_buff *msg, struct netlink_callback *cb,
+static int fill_res_qp_entry(struct sk_buff *msg, bool has_cap_net_admin,
 			     struct rdma_restrack_entry *res, uint32_t port)
 {
 	struct ib_qp *qp = container_of(res, struct ib_qp, res);
@@ -427,8 +427,7 @@ out:
 	return -EMSGSIZE;
 }
 
-static int fill_res_cm_id_entry(struct sk_buff *msg,
-				struct netlink_callback *cb,
+static int fill_res_cm_id_entry(struct sk_buff *msg, bool has_cap_net_admin,
 				struct rdma_restrack_entry *res, uint32_t port)
 {
 	struct rdma_id_private *id_priv =
@@ -487,7 +486,7 @@ out:
 	return -EMSGSIZE;
 }
 
-static int fill_res_cq_entry(struct sk_buff *msg, struct netlink_callback *cb,
+static int fill_res_cq_entry(struct sk_buff *msg, bool has_cap_net_admin,
 			     struct rdma_restrack_entry *res, uint32_t port)
 {
 	struct ib_cq *cq = container_of(res, struct ib_cq, res);
@@ -524,7 +523,7 @@ out:
 	return -EMSGSIZE;
 }
 
-static int fill_res_mr_entry(struct sk_buff *msg, struct netlink_callback *cb,
+static int fill_res_mr_entry(struct sk_buff *msg, bool has_cap_net_admin,
 			     struct rdma_restrack_entry *res, uint32_t port)
 {
 	struct ib_mr *mr = container_of(res, struct ib_mr, res);
@@ -535,7 +534,7 @@ static int fill_res_mr_entry(struct sk_buff *msg, struct netlink_callback *cb,
 	if (!entry_attr)
 		goto out;
 
-	if (netlink_capable(cb->skb, CAP_NET_ADMIN)) {
+	if (has_cap_net_admin) {
 		if (nla_put_u32(msg, RDMA_NLDEV_ATTR_RES_RKEY, mr->rkey))
 			goto err;
 		if (nla_put_u32(msg, RDMA_NLDEV_ATTR_RES_LKEY, mr->lkey))
@@ -561,7 +560,7 @@ out:
 	return -EMSGSIZE;
 }
 
-static int fill_res_pd_entry(struct sk_buff *msg, struct netlink_callback *cb,
+static int fill_res_pd_entry(struct sk_buff *msg, bool has_cap_net_admin,
 			     struct rdma_restrack_entry *res, uint32_t port)
 {
 	struct ib_pd *pd = container_of(res, struct ib_pd, res);
@@ -572,7 +571,7 @@ static int fill_res_pd_entry(struct sk_buff *msg, struct netlink_callback *cb,
 	if (!entry_attr)
 		goto out;
 
-	if (netlink_capable(cb->skb, CAP_NET_ADMIN)) {
+	if (has_cap_net_admin) {
 		if (nla_put_u32(msg, RDMA_NLDEV_ATTR_RES_LOCAL_DMA_LKEY,
 				pd->local_dma_lkey))
 			goto err;
@@ -909,7 +908,7 @@ static int nldev_res_get_dumpit(struct sk_buff *skb,
 }
 
 struct nldev_fill_res_entry {
-	int (*fill_res_func)(struct sk_buff *msg, struct netlink_callback *cb,
+	int (*fill_res_func)(struct sk_buff *msg, bool has_cap_net_admin,
 			     struct rdma_restrack_entry *res, u32 port);
 	enum rdma_nldev_attr nldev_attr;
 	enum rdma_nldev_command nldev_cmd;
@@ -965,6 +964,7 @@ static int res_get_common_dumpit(struct sk_buff *skb,
 	struct nlattr *table_attr;
 	struct ib_device *device;
 	int start = cb->args[0];
+	bool has_cap_net_admin;
 	struct nlmsghdr *nlh;
 	u32 index, port = 0;
 	bool filled = false;
@@ -1013,6 +1013,8 @@ static int res_get_common_dumpit(struct sk_buff *skb,
 		goto err;
 	}
 
+	has_cap_net_admin = netlink_capable(cb->skb, CAP_NET_ADMIN);
+
 	down_read(&device->res.rwsem);
 	hash_for_each_possible(device->res.hash, res, node, res_type) {
 		if (idx < start)
@@ -1032,7 +1034,7 @@ static int res_get_common_dumpit(struct sk_buff *skb,
 		filled = true;
 
 		up_read(&device->res.rwsem);
-		ret = fe->fill_res_func(skb, cb, res, port);
+		ret = fe->fill_res_func(skb, has_cap_net_admin, res, port);
 		down_read(&device->res.rwsem);
 		/*
 		 * Return resource back, but it won't be released till
