@@ -133,7 +133,7 @@ mlxsw_sp_acl_bf_key_encode(struct mlxsw_sp_acl_atcam_region *aregion,
 		memcpy(chunk + MLXSW_BLOOM_CHUNK_PAD_BYTES, &erp_region_id,
 		       sizeof(erp_region_id));
 		memcpy(chunk + MLXSW_BLOOM_CHUNK_KEY_OFFSET,
-		       &aentry->ht_key.enc_key[chunk_key_offsets[chunk_index]],
+		       &aentry->enc_key[chunk_key_offsets[chunk_index]],
 		       MLXSW_BLOOM_CHUNK_KEY_BYTES);
 		chunk += MLXSW_BLOOM_KEY_CHUNK_BYTES;
 	}
