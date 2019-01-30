@@ -9,7 +9,8 @@ lib_dir=$(dirname $0)/../../../../net/forwarding
 
 ALL_TESTS="single_mask_test identical_filters_test two_masks_test \
 	multiple_masks_test ctcam_edge_cases_test delta_simple_test \
-	bloom_simple_test bloom_complex_test bloom_delta_test"
+	delta_two_masks_one_key_test bloom_simple_test \
+	bloom_complex_test bloom_delta_test"
 NUM_NETIFS=2
 source $lib_dir/tc_common.sh
 source $lib_dir/lib.sh
@@ -448,6 +449,49 @@ delta_simple_test()
 	check_err $? "eRP was not destroyed"
 
 	log_test "delta simple test ($tcflags)"
+}
+
+delta_two_masks_one_key_test()
+{
+	# If 2 keys are the same and only differ in mask in a way that
+	# they belong under the same ERP (second is delta of the first),
+	# there should be no C-TCAM spill.
+
+	RET=0
+
+	if [[ "$tcflags" != "skip_sw" ]]; then
+		return 0;
+	fi
+
+	tp_record "mlxsw:*" "tc filter add dev $h2 ingress protocol ip \
+		   pref 1 handle 101 flower $tcflags dst_ip 192.0.2.0/24 \
+		   action drop"
+	tp_check_hits "mlxsw:mlxsw_sp_acl_atcam_entry_add_ctcam_spill" 0
+	check_err $? "incorrect C-TCAM spill while inserting the first rule"
+
+	tp_record "mlxsw:*" "tc filter add dev $h2 ingress protocol ip \
+		   pref 2 handle 102 flower $tcflags dst_ip 192.0.2.2 \
+		   action drop"
+	tp_check_hits "mlxsw:mlxsw_sp_acl_atcam_entry_add_ctcam_spill" 0
+	check_err $? "incorrect C-TCAM spill while inserting the second rule"
+
+	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac -A 192.0.2.1 -B 192.0.2.2 \
+		-t ip -q
+
+	tc_check_packets "dev $h2 ingress" 101 1
+	check_err $? "Did not match on correct filter"
+
+	tc filter del dev $h2 ingress protocol ip pref 1 handle 101 flower
+
+	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac -A 192.0.2.1 -B 192.0.2.2 \
+		-t ip -q
+
+	tc_check_packets "dev $h2 ingress" 102 1
+	check_err $? "Did not match on correct filter"
+
+	tc filter del dev $h2 ingress protocol ip pref 2 handle 102 flower
+
+	log_test "delta two masks one key test ($tcflags)"
 }
 
 bloom_simple_test()
