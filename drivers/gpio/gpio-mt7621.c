@@ -30,6 +30,7 @@
 #define GPIO_REG_EDGE		0xA0
 
 struct mtk_gc {
+	struct irq_chip irq_chip;
 	struct gpio_chip chip;
 	spinlock_t lock;
 	int bank;
@@ -189,13 +190,6 @@ mediatek_gpio_irq_type(struct irq_data *d, unsigned int type)
 	return 0;
 }
 
-static struct irq_chip mediatek_gpio_irq_chip = {
-	.irq_unmask		= mediatek_gpio_irq_unmask,
-	.irq_mask		= mediatek_gpio_irq_mask,
-	.irq_mask_ack		= mediatek_gpio_irq_mask,
-	.irq_set_type		= mediatek_gpio_irq_type,
-};
-
 static int
 mediatek_gpio_xlate(struct gpio_chip *chip,
 		    const struct of_phandle_args *spec, u32 *flags)
@@ -254,6 +248,13 @@ mediatek_gpio_bank_probe(struct device *dev,
 		return ret;
 	}
 
+	rg->irq_chip.name = dev_name(dev);
+	rg->irq_chip.parent_device = dev;
+	rg->irq_chip.irq_unmask = mediatek_gpio_irq_unmask;
+	rg->irq_chip.irq_mask = mediatek_gpio_irq_mask;
+	rg->irq_chip.irq_mask_ack = mediatek_gpio_irq_mask;
+	rg->irq_chip.irq_set_type = mediatek_gpio_irq_type;
+
 	if (mtk->gpio_irq) {
 		/*
 		 * Manually request the irq here instead of passing
@@ -270,14 +271,14 @@ mediatek_gpio_bank_probe(struct device *dev,
 			return ret;
 		}
 
-		ret = gpiochip_irqchip_add(&rg->chip, &mediatek_gpio_irq_chip,
+		ret = gpiochip_irqchip_add(&rg->chip, &rg->irq_chip,
 					   0, handle_simple_irq, IRQ_TYPE_NONE);
 		if (ret) {
 			dev_err(dev, "failed to add gpiochip_irqchip\n");
 			return ret;
 		}
 
-		gpiochip_set_chained_irqchip(&rg->chip, &mediatek_gpio_irq_chip,
+		gpiochip_set_chained_irqchip(&rg->chip, &rg->irq_chip,
 					     mtk->gpio_irq, NULL);
 	}
 
@@ -310,7 +311,6 @@ mediatek_gpio_probe(struct platform_device *pdev)
 	mtk->gpio_irq = irq_of_parse_and_map(np, 0);
 	mtk->dev = dev;
 	platform_set_drvdata(pdev, mtk);
-	mediatek_gpio_irq_chip.name = dev_name(dev);
 
 	for (i = 0; i < MTK_BANK_CNT; i++) {
 		ret = mediatek_gpio_bank_probe(dev, np, i);
