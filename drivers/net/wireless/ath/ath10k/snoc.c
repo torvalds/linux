@@ -875,13 +875,11 @@ static void ath10k_snoc_tx_pipe_cleanup(struct ath10k_snoc_pipe *snoc_pipe)
 {
 	struct ath10k_ce_pipe *ce_pipe;
 	struct ath10k_ce_ring *ce_ring;
-	struct ath10k_snoc *ar_snoc;
 	struct sk_buff *skb;
 	struct ath10k *ar;
 	int i;
 
 	ar = snoc_pipe->hif_ce_state;
-	ar_snoc = ath10k_snoc_priv(ar);
 	ce_pipe = snoc_pipe->ce_hdl;
 	ce_ring = ce_pipe->src_ring;
 
