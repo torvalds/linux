@@ -410,15 +410,7 @@ static int add_bo_to_vm(struct amdgpu_device *adev, struct kgd_mem *mem,
 	if (p_bo_va_entry)
 		*p_bo_va_entry = bo_va_entry;
 
-	/* Allocate new page tables if needed and validate
-	 * them.
-	 */
-	ret = amdgpu_vm_alloc_pts(adev, vm, va, amdgpu_bo_size(bo));
-	if (ret) {
-		pr_err("Failed to allocate pts, err=%d\n", ret);
-		goto err_alloc_pts;
-	}
-
+	/* Allocate validate page tables if needed */
 	ret = vm_validate_pt_pd_bos(vm);
 	if (ret) {
 		pr_err("validate_pt_pd_bos() failed\n");

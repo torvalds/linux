@@ -92,15 +92,6 @@ int amdgpu_map_static_csa(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		return -ENOMEM;
 	}
 
-	r = amdgpu_vm_alloc_pts(adev, (*bo_va)->base.vm, csa_addr,
-				size);
-	if (r) {
-		DRM_ERROR("failed to allocate pts for static CSA, err=%d\n", r);
-		amdgpu_vm_bo_rmv(adev, *bo_va);
-		ttm_eu_backoff_reservation(&ticket, &list);
-		return r;
-	}
-
 	r = amdgpu_vm_bo_map(adev, *bo_va, csa_addr, 0, size,
 			     AMDGPU_PTE_READABLE | AMDGPU_PTE_WRITEABLE |
 			     AMDGPU_PTE_EXECUTABLE);

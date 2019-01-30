@@ -521,47 +521,6 @@ static void amdgpu_vm_pt_next(struct amdgpu_device *adev,
 }
 
 /**
- * amdgpu_vm_pt_first_leaf - get first leaf PD/PT
- *
- * @adev: amdgpu_device pointer
- * @vm: amdgpu_vm structure
- * @start: start addr of the walk
- * @cursor: state to initialize
- *
- * Start a walk and go directly to the leaf node.
- */
-static void amdgpu_vm_pt_first_leaf(struct amdgpu_device *adev,
-				    struct amdgpu_vm *vm, uint64_t start,
-				    struct amdgpu_vm_pt_cursor *cursor)
-{
-	amdgpu_vm_pt_start(adev, vm, start, cursor);
-	while (amdgpu_vm_pt_descendant(adev, cursor));
-}
-
-/**
- * amdgpu_vm_pt_next_leaf - get next leaf PD/PT
- *
- * @adev: amdgpu_device pointer
- * @cursor: current state
- *
- * Walk the PD/PT tree to the next leaf node.
- */
-static void amdgpu_vm_pt_next_leaf(struct amdgpu_device *adev,
-				   struct amdgpu_vm_pt_cursor *cursor)
-{
-	amdgpu_vm_pt_next(adev, cursor);
-	if (cursor->pfn != ~0ll)
-		while (amdgpu_vm_pt_descendant(adev, cursor));
-}
-
-/**
- * for_each_amdgpu_vm_pt_leaf - walk over all leaf PDs/PTs in the hierarchy
- */
-#define for_each_amdgpu_vm_pt_leaf(adev, vm, start, end, cursor)		\
-	for (amdgpu_vm_pt_first_leaf((adev), (vm), (start), &(cursor));		\
-	     (cursor).pfn <= end; amdgpu_vm_pt_next_leaf((adev), &(cursor)))
-
-/**
  * amdgpu_vm_pt_first_dfs - start a deep first search
  *
  * @adev: amdgpu_device structure
@@ -932,73 +891,50 @@ static void amdgpu_vm_bo_param(struct amdgpu_device *adev, struct amdgpu_vm *vm,
  * Returns:
  * 0 on success, errno otherwise.
  */
-int amdgpu_vm_alloc_pts(struct amdgpu_device *adev,
-			struct amdgpu_vm *vm,
-			uint64_t saddr, uint64_t size)
+static int amdgpu_vm_alloc_pts(struct amdgpu_device *adev,
+			       struct amdgpu_vm *vm,
+			       struct amdgpu_vm_pt_cursor *cursor)
 {
-	struct amdgpu_vm_pt_cursor cursor;
+	struct amdgpu_vm_pt *entry = cursor->entry;
+	struct amdgpu_bo_param bp;
 	struct amdgpu_bo *pt;
-	uint64_t eaddr;
 	int r;
 
-	/* validate the parameters */
-	if (saddr & AMDGPU_GPU_PAGE_MASK || size & AMDGPU_GPU_PAGE_MASK)
-		return -EINVAL;
+	if (cursor->level < AMDGPU_VM_PTB && !entry->entries) {
+		unsigned num_entries;
 
-	eaddr = saddr + size - 1;
-
-	saddr /= AMDGPU_GPU_PAGE_SIZE;
-	eaddr /= AMDGPU_GPU_PAGE_SIZE;
-
-	if (eaddr >= adev->vm_manager.max_pfn) {
-		dev_err(adev->dev, "va above limit (0x%08llX >= 0x%08llX)\n",
-			eaddr, adev->vm_manager.max_pfn);
-		return -EINVAL;
+		num_entries = amdgpu_vm_num_entries(adev, cursor->level);
+		entry->entries = kvmalloc_array(num_entries,
+						sizeof(*entry->entries),
+						GFP_KERNEL | __GFP_ZERO);
+		if (!entry->entries)
+			return -ENOMEM;
 	}
 
-	for_each_amdgpu_vm_pt_leaf(adev, vm, saddr, eaddr, cursor) {
-		struct amdgpu_vm_pt *entry = cursor.entry;
-		struct amdgpu_bo_param bp;
+	if (entry->base.bo)
+		return 0;
 
-		if (cursor.level < AMDGPU_VM_PTB) {
-			unsigned num_entries;
+	amdgpu_vm_bo_param(adev, vm, cursor->level, &bp);
 
-			num_entries = amdgpu_vm_num_entries(adev, cursor.level);
-			entry->entries = kvmalloc_array(num_entries,
-							sizeof(*entry->entries),
-							GFP_KERNEL |
-							__GFP_ZERO);
-			if (!entry->entries)
-				return -ENOMEM;
-		}
+	r = amdgpu_bo_create(adev, &bp, &pt);
+	if (r)
+		return r;
 
-
-		if (entry->base.bo)
-			continue;
-
-		amdgpu_vm_bo_param(adev, vm, cursor.level, &bp);
-
-		r = amdgpu_bo_create(adev, &bp, &pt);
-		if (r)
-			return r;
-
-		if (vm->use_cpu_for_update) {
-			r = amdgpu_bo_kmap(pt, NULL);
-			if (r)
-				goto error_free_pt;
-		}
-
-		/* Keep a reference to the root directory to avoid
-		* freeing them up in the wrong order.
-		*/
-		pt->parent = amdgpu_bo_ref(cursor.parent->base.bo);
-
-		amdgpu_vm_bo_base_init(&entry->base, vm, pt);
-
-		r = amdgpu_vm_clear_bo(adev, vm, pt);
+	if (vm->use_cpu_for_update) {
+		r = amdgpu_bo_kmap(pt, NULL);
 		if (r)
 			goto error_free_pt;
 	}
+
+	/* Keep a reference to the root directory to avoid
+	 * freeing them up in the wrong order.
+	 */
+	pt->parent = amdgpu_bo_ref(cursor->parent->base.bo);
+	amdgpu_vm_bo_base_init(&entry->base, vm, pt);
+
+	r = amdgpu_vm_clear_bo(adev, vm, pt);
+	if (r)
+		goto error_free_pt;
 
 	return 0;
 
@@ -1644,6 +1580,7 @@ static int amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 	struct amdgpu_vm_pt_cursor cursor;
 	uint64_t frag_start = start, frag_end;
 	unsigned int frag;
+	int r;
 
 	/* figure out the initial fragment */
 	amdgpu_vm_fragment(params, frag_start, end, flags, &frag, &frag_end);
@@ -1651,12 +1588,15 @@ static int amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 	/* walk over the address space and update the PTs */
 	amdgpu_vm_pt_start(adev, params->vm, start, &cursor);
 	while (cursor.pfn < end) {
-		struct amdgpu_bo *pt = cursor.entry->base.bo;
 		unsigned shift, parent_shift, mask;
 		uint64_t incr, entry_end, pe_start;
+		struct amdgpu_bo *pt;
 
-		if (!pt)
-			return -ENOENT;
+		r = amdgpu_vm_alloc_pts(params->adev, params->vm, &cursor);
+		if (r)
+			return r;
+
+		pt = cursor.entry->base.bo;
 
 		/* The root level can't be a huge page */
 		if (cursor.level == adev->vm_manager.root_level) {

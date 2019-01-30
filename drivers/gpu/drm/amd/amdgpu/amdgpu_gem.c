@@ -625,11 +625,6 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 
 	switch (args->operation) {
 	case AMDGPU_VA_OP_MAP:
-		r = amdgpu_vm_alloc_pts(adev, bo_va->base.vm, args->va_address,
-					args->map_size);
-		if (r)
-			goto error_backoff;
-
 		va_flags = amdgpu_gmc_get_pte_flags(adev, args->flags);
 		r = amdgpu_vm_bo_map(adev, bo_va, args->va_address,
 				     args->offset_in_bo, args->map_size,
@@ -645,11 +640,6 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 						args->map_size);
 		break;
 	case AMDGPU_VA_OP_REPLACE:
-		r = amdgpu_vm_alloc_pts(adev, bo_va->base.vm, args->va_address,
-					args->map_size);
-		if (r)
-			goto error_backoff;
-
 		va_flags = amdgpu_gmc_get_pte_flags(adev, args->flags);
 		r = amdgpu_vm_bo_replace_map(adev, bo_va, args->va_address,
 					     args->offset_in_bo, args->map_size,
