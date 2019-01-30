@@ -6176,7 +6176,7 @@ static int mlx5_ib_stage_odp_init(struct mlx5_ib_dev *dev)
 	return mlx5_ib_odp_init_one(dev);
 }
 
-void mlx5_ib_stage_odp_cleanup(struct mlx5_ib_dev *dev)
+static void mlx5_ib_stage_odp_cleanup(struct mlx5_ib_dev *dev)
 {
 	mlx5_ib_odp_cleanup_one(dev);
 }
