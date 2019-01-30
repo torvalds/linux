@@ -202,6 +202,7 @@ struct cipher_context {
 	char *iv;
 	u16 rec_seq_size;
 	char *rec_seq;
+	u16 aad_size;
 };
 
 union tls_crypto_context {
