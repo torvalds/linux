@@ -9,7 +9,8 @@ lib_dir=$(dirname $0)/../../../../net/forwarding
 
 ALL_TESTS="single_mask_test identical_filters_test two_masks_test \
 	multiple_masks_test ctcam_edge_cases_test delta_simple_test \
-	bloom_simple_test bloom_complex_test bloom_delta_test"
+	delta_two_masks_one_key_test bloom_simple_test \
+	bloom_complex_test bloom_delta_test"
 NUM_NETIFS=2
 source $lib_dir/tc_common.sh
 source $lib_dir/lib.sh
@@ -36,6 +37,55 @@ h2_destroy()
 {
 	tc qdisc del dev $h2 clsact
 	simple_if_fini $h2 192.0.2.2/24 198.51.100.2/24
+}
+
+tp_record()
+{
+	local tracepoint=$1
+	local cmd=$2
+
+	perf record -q -e $tracepoint $cmd
+	return $?
+}
+
+tp_record_all()
+{
+	local tracepoint=$1
+	local seconds=$2
+
+	perf record -a -q -e $tracepoint sleep $seconds
+	return $?
+}
+
+__tp_hit_count()
+{
+	local tracepoint=$1
+
+	local perf_output=`perf script -F trace:event,trace`
+	return `echo $perf_output | grep "$tracepoint:" | wc -l`
+}
+
+tp_check_hits()
+{
+	local tracepoint=$1
+	local count=$2
+
+	__tp_hit_count $tracepoint
+	if [[ "$?" -ne "$count" ]]; then
+		return 1
+	fi
+	return 0
+}
+
+tp_check_hits_any()
+{
+	local tracepoint=$1
+
+	__tp_hit_count $tracepoint
+	if [[ "$?" -eq "0" ]]; then
+		return 1
+	fi
+	return 0
 }
 
 single_mask_test()
@@ -182,20 +232,38 @@ multiple_masks_test()
 	# spillage is performed correctly and that the right filter is
 	# matched
 
+	if [[ "$tcflags" != "skip_sw" ]]; then
+		return 0;
+	fi
+
 	local index
 
 	RET=0
 
 	NUM_MASKS=32
+	NUM_ERPS=16
 	BASE_INDEX=100
 
 	for i in $(eval echo {1..$NUM_MASKS}); do
 		index=$((BASE_INDEX - i))
 
-		tc filter add dev $h2 ingress protocol ip pref $index \
-			handle $index \
-			flower $tcflags dst_ip 192.0.2.2/${i} src_ip 192.0.2.1 \
-			action drop
+		if ((i > NUM_ERPS)); then
+			exp_hits=1
+			err_msg="$i filters - C-TCAM spill did not happen when it was expected"
+		else
+			exp_hits=0
+			err_msg="$i filters - C-TCAM spill happened when it should not"
+		fi
+
+		tp_record "mlxsw:mlxsw_sp_acl_atcam_entry_add_ctcam_spill" \
+			"tc filter add dev $h2 ingress protocol ip pref $index \
+				handle $index \
+				flower $tcflags \
+				dst_ip 192.0.2.2/${i} src_ip 192.0.2.1/${i} \
+				action drop"
+		tp_check_hits "mlxsw:mlxsw_sp_acl_atcam_entry_add_ctcam_spill" \
+				$exp_hits
+		check_err $? "$err_msg"
 
 		$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac -A 192.0.2.1 \
 			-B 192.0.2.2 -t ip -q
@@ -325,28 +393,6 @@ ctcam_edge_cases_test()
 	ctcam_no_atcam_masks_test
 }
 
-tp_record()
-{
-	local tracepoint=$1
-	local cmd=$2
-
-	perf record -q -e $tracepoint $cmd
-	return $?
-}
-
-tp_check_hits()
-{
-	local tracepoint=$1
-	local count=$2
-
-	perf_output=`perf script -F trace:event,trace`
-	hits=`echo $perf_output | grep "$tracepoint:" | wc -l`
-	if [[ "$count" -ne "$hits" ]]; then
-		return 1
-	fi
-	return 0
-}
-
 delta_simple_test()
 {
 	# The first filter will create eRP, the second filter will fit into
@@ -403,6 +449,49 @@ delta_simple_test()
 	check_err $? "eRP was not destroyed"
 
 	log_test "delta simple test ($tcflags)"
+}
+
+delta_two_masks_one_key_test()
+{
+	# If 2 keys are the same and only differ in mask in a way that
+	# they belong under the same ERP (second is delta of the first),
+	# there should be no C-TCAM spill.
+
+	RET=0
+
+	if [[ "$tcflags" != "skip_sw" ]]; then
+		return 0;
+	fi
+
+	tp_record "mlxsw:*" "tc filter add dev $h2 ingress protocol ip \
+		   pref 1 handle 101 flower $tcflags dst_ip 192.0.2.0/24 \
+		   action drop"
+	tp_check_hits "mlxsw:mlxsw_sp_acl_atcam_entry_add_ctcam_spill" 0
+	check_err $? "incorrect C-TCAM spill while inserting the first rule"
+
+	tp_record "mlxsw:*" "tc filter add dev $h2 ingress protocol ip \
+		   pref 2 handle 102 flower $tcflags dst_ip 192.0.2.2 \
+		   action drop"
+	tp_check_hits "mlxsw:mlxsw_sp_acl_atcam_entry_add_ctcam_spill" 0
+	check_err $? "incorrect C-TCAM spill while inserting the second rule"
+
+	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac -A 192.0.2.1 -B 192.0.2.2 \
+		-t ip -q
+
+	tc_check_packets "dev $h2 ingress" 101 1
+	check_err $? "Did not match on correct filter"
+
+	tc filter del dev $h2 ingress protocol ip pref 1 handle 101 flower
+
+	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac -A 192.0.2.1 -B 192.0.2.2 \
+		-t ip -q
+
+	tc_check_packets "dev $h2 ingress" 102 1
+	check_err $? "Did not match on correct filter"
+
+	tc filter del dev $h2 ingress protocol ip pref 2 handle 102 flower
+
+	log_test "delta two masks one key test ($tcflags)"
 }
 
 bloom_simple_test()
