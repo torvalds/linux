@@ -386,6 +386,15 @@ config ARC_HAS_SWAPE
 
 if ISA_ARCV2
 
+config ARC_USE_UNALIGNED_MEM_ACCESS
+	bool "Enable unaligned access in HW"
+	default y
+	select HAVE_EFFICIENT_UNALIGNED_ACCESS
+	help
+	  The ARC HS architecture supports unaligned memory access
+	  which is disabled by default. Enable unaligned access in
+	  hardware and use software to use it
+
 config ARC_HAS_LL64
 	bool "Insn: 64bit LDD/STD"
 	help

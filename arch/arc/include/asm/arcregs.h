@@ -82,6 +82,7 @@
 #define ECR_V_DTLB_MISS			0x05
 #define ECR_V_PROTV			0x06
 #define ECR_V_TRAP			0x09
+#define ECR_V_MISALIGN			0x0d
 #endif
 
 /* DTLB Miss and Protection Violation Cause Codes */

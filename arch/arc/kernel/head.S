@@ -54,7 +54,12 @@
 	; gcc 7.3.1 (ARC GNU 2018.03) onwards generates unaligned access
 	; by default
 	lr	r5, [status32]
+#ifdef CONFIG_ARC_USE_UNALIGNED_MEM_ACCESS
 	bset	r5, r5, STATUS_AD_BIT
+#else
+	; Although disabled at reset, bootloader might have enabled it
+	bclr	r5, r5, STATUS_AD_BIT
+#endif
 	kflag	r5
 #endif
 .endm
