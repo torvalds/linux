@@ -177,17 +177,6 @@ static void rdma_restrack_add(struct rdma_restrack_entry *res)
 	if (!dev)
 		return;
 
-	if (res->type != RDMA_RESTRACK_CM_ID || rdma_is_kernel_res(res))
-		res->task = NULL;
-
-	if (!rdma_is_kernel_res(res)) {
-		if (!res->task)
-			rdma_restrack_set_task(res, NULL);
-		res->kern_name = NULL;
-	} else {
-		set_kern_name(res);
-	}
-
 	kref_init(&res->kref);
 	init_completion(&res->comp);
 	res->valid = true;
@@ -203,6 +192,8 @@ static void rdma_restrack_add(struct rdma_restrack_entry *res)
  */
 void rdma_restrack_kadd(struct rdma_restrack_entry *res)
 {
+	res->task = NULL;
+	set_kern_name(res);
 	res->user = false;
 	rdma_restrack_add(res);
 }
@@ -214,6 +205,13 @@ EXPORT_SYMBOL(rdma_restrack_kadd);
  */
 void rdma_restrack_uadd(struct rdma_restrack_entry *res)
 {
+	if (res->type != RDMA_RESTRACK_CM_ID)
+		res->task = NULL;
+
+	if (!res->task)
+		rdma_restrack_set_task(res, NULL);
+	res->kern_name = NULL;
+
 	res->user = true;
 	rdma_restrack_add(res);
 }
