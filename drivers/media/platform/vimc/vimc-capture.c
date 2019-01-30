@@ -70,12 +70,10 @@ struct vimc_cap_buffer {
 static int vimc_cap_querycap(struct file *file, void *priv,
 			     struct v4l2_capability *cap)
 {
-	struct vimc_cap_device *vcap = video_drvdata(file);
-
 	strscpy(cap->driver, VIMC_PDEV_NAME, sizeof(cap->driver));
 	strscpy(cap->card, KBUILD_MODNAME, sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info),
-		 "platform:%s", vcap->vdev.v4l2_dev->name);
+		 "platform:%s", VIMC_PDEV_NAME);
 
 	return 0;
 }
