@@ -245,7 +245,7 @@ Linux カーネルソースツリーの中に含まれる、きれいにし、�
 できます。この最新の素晴しいカーネルコードのリポジトリは以下で見つかり
 ます -
 
-	http://lxr.free-electrons.com/
+	https://elixir.bootlin.com/
 
 開発プロセス
 ------------
