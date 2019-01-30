@@ -93,13 +93,11 @@ static int hclge_dcb_common_validate(struct hclge_dev *hdev, u8 num_tc,
 		}
 	}
 
-	for (i = 0; i < hdev->num_alloc_vport; i++) {
-		if (num_tc > hdev->vport[i].alloc_tqps) {
-			dev_err(&hdev->pdev->dev,
-				"allocated tqp(%u) checking failed, %u > tqp(%u)\n",
-				i, num_tc, hdev->vport[i].alloc_tqps);
-			return -EINVAL;
-		}
+	if (num_tc > hdev->vport[0].alloc_tqps) {
+		dev_err(&hdev->pdev->dev,
+			"allocated tqp checking failed, %u > tqp(%u)\n",
+			num_tc, hdev->vport[0].alloc_tqps);
+		return -EINVAL;
 	}
 
 	return 0;

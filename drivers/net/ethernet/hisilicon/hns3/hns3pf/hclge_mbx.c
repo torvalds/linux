@@ -319,10 +319,14 @@ static int hclge_get_vf_tcinfo(struct hclge_vport *vport,
 			       struct hclge_mbx_vf_to_pf_cmd *mbx_req,
 			       bool gen_resp)
 {
-	struct hclge_dev *hdev = vport->back;
-	int ret;
+	struct hnae3_knic_private_info *kinfo = &vport->nic.kinfo;
+	u8 vf_tc_map = 0;
+	int i, ret;
 
-	ret = hclge_gen_resp_to_vf(vport, mbx_req, 0, &hdev->hw_tc_map,
+	for (i = 0; i < kinfo->num_tc; i++)
+		vf_tc_map |= BIT(i);
+
+	ret = hclge_gen_resp_to_vf(vport, mbx_req, 0, &vf_tc_map,
 				   sizeof(u8));
 
 	return ret;

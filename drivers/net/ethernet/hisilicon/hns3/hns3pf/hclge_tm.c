@@ -520,8 +520,14 @@ static void hclge_tm_vport_tc_info_update(struct hclge_vport *vport)
 	u16 max_rss_size;
 	u8 i;
 
-	vport->bw_limit = hdev->tm_info.pg_info[0].bw_limit;
-	kinfo->num_tc = min_t(u16, vport->alloc_tqps, hdev->tm_info.num_tc);
+	/* TC configuration is shared by PF/VF in one port, only allow
+	 * one tc for VF for simplicity. VF's vport_id is non zero.
+	 */
+	kinfo->num_tc = vport->vport_id ? 1 :
+			min_t(u16, vport->alloc_tqps, hdev->tm_info.num_tc);
+	vport->qs_offset = (vport->vport_id ? hdev->tm_info.num_tc : 0) +
+				(vport->vport_id ? (vport->vport_id - 1) : 0);
+
 	max_rss_size = min_t(u16, hdev->rss_size_max,
 			     vport->alloc_tqps / kinfo->num_tc);
 
@@ -538,12 +544,12 @@ static void hclge_tm_vport_tc_info_update(struct hclge_vport *vport)
 	}
 
 	kinfo->num_tqps = kinfo->num_tc * kinfo->rss_size;
-	vport->qs_offset = hdev->tm_info.num_tc * vport->vport_id;
 	vport->dwrr = 100;  /* 100 percent as init */
 	vport->alloc_rss_size = kinfo->rss_size;
+	vport->bw_limit = hdev->tm_info.pg_info[0].bw_limit;
 
 	for (i = 0; i < HNAE3_MAX_TC; i++) {
-		if (hdev->hw_tc_map & BIT(i)) {
+		if (hdev->hw_tc_map & BIT(i) && i < kinfo->num_tc) {
 			kinfo->tc_info[i].enable = true;
 			kinfo->tc_info[i].tqp_offset = i * kinfo->rss_size;
 			kinfo->tc_info[i].tqp_count = kinfo->rss_size;
@@ -766,13 +772,17 @@ static int hclge_tm_pri_q_qs_cfg(struct hclge_dev *hdev)
 
 	if (hdev->tx_sch_mode == HCLGE_FLAG_TC_BASE_SCH_MODE) {
 		/* Cfg qs -> pri mapping, one by one mapping */
-		for (k = 0; k < hdev->num_alloc_vport; k++)
-			for (i = 0; i < hdev->tm_info.num_tc; i++) {
+		for (k = 0; k < hdev->num_alloc_vport; k++) {
+			struct hnae3_knic_private_info *kinfo =
+				&vport[k].nic.kinfo;
+
+			for (i = 0; i < kinfo->num_tc; i++) {
 				ret = hclge_tm_qs_to_pri_map_cfg(
 					hdev, vport[k].qs_offset + i, i);
 				if (ret)
 					return ret;
 			}
+		}
 	} else if (hdev->tx_sch_mode == HCLGE_FLAG_VNET_BASE_SCH_MODE) {
 		/* Cfg qs -> pri mapping,  qs = tc, pri = vf, 8 qs -> 1 pri */
 		for (k = 0; k < hdev->num_alloc_vport; k++)
