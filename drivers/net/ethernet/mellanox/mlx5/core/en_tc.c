@@ -799,7 +799,7 @@ mlx5e_tc_add_nic_flow(struct mlx5e_priv *priv,
 	}
 
 	if (attr->match_level != MLX5_MATCH_NONE)
-		parse_attr->spec.match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
+		parse_attr->spec.match_criteria_enable |= MLX5_MATCH_OUTER_HEADERS;
 
 	flow->rule[0] = mlx5_add_flow_rules(priv->fs.tc.t, &parse_attr->spec,
 					    &flow_act, dest, dest_ix);
