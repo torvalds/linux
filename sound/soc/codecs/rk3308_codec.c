@@ -681,6 +681,12 @@ static const struct snd_kcontrol_new rk3308_codec_dapm_controls[] = {
 	SOC_ENUM_EXT("AGC Group 3 Right Approximate Sample Rate", rk3308_agc_asr_enum_array[7],
 		     rk3308_codec_agc_asr_get, rk3308_codec_agc_asr_put),
 
+	/* ADC MICBIAS1 and MICBIAS2 Switch */
+	SOC_SINGLE("ADC MICBIAS1", RK3308_ADC_ANA_CON07(1),
+		   RK3308_ADC_MIC_BIAS_BUF_SFT, 1, 0),
+	SOC_SINGLE("ADC MICBIAS2", RK3308_ADC_ANA_CON07(2),
+		   RK3308_ADC_MIC_BIAS_BUF_SFT, 1, 0),
+
 	/* ADC MIC Mute/Work Switch */
 	SOC_ENUM_EXT("ADC MIC Group 0 Left Switch", rk3308_mic_mute_enum_array[0],
 		     rk3308_codec_mic_mute_get, rk3308_codec_mic_mute_put),
