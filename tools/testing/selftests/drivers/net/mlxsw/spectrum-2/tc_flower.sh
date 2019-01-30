@@ -38,6 +38,55 @@ h2_destroy()
 	simple_if_fini $h2 192.0.2.2/24 198.51.100.2/24
 }
 
+tp_record()
+{
+	local tracepoint=$1
+	local cmd=$2
+
+	perf record -q -e $tracepoint $cmd
+	return $?
+}
+
+tp_record_all()
+{
+	local tracepoint=$1
+	local seconds=$2
+
+	perf record -a -q -e $tracepoint sleep $seconds
+	return $?
+}
+
+__tp_hit_count()
+{
+	local tracepoint=$1
+
+	local perf_output=`perf script -F trace:event,trace`
+	return `echo $perf_output | grep "$tracepoint:" | wc -l`
+}
+
+tp_check_hits()
+{
+	local tracepoint=$1
+	local count=$2
+
+	__tp_hit_count $tracepoint
+	if [[ "$?" -ne "$count" ]]; then
+		return 1
+	fi
+	return 0
+}
+
+tp_check_hits_any()
+{
+	local tracepoint=$1
+
+	__tp_hit_count $tracepoint
+	if [[ "$?" -eq "0" ]]; then
+		return 1
+	fi
+	return 0
+}
+
 single_mask_test()
 {
 	# When only a single mask is required, the device uses the master
@@ -323,28 +372,6 @@ ctcam_edge_cases_test()
 	ctcam_two_atcam_masks_test
 	ctcam_one_atcam_mask_test
 	ctcam_no_atcam_masks_test
-}
-
-tp_record()
-{
-	local tracepoint=$1
-	local cmd=$2
-
-	perf record -q -e $tracepoint $cmd
-	return $?
-}
-
-tp_check_hits()
-{
-	local tracepoint=$1
-	local count=$2
-
-	perf_output=`perf script -F trace:event,trace`
-	hits=`echo $perf_output | grep "$tracepoint:" | wc -l`
-	if [[ "$count" -ne "$hits" ]]; then
-		return 1
-	fi
-	return 0
 }
 
 delta_simple_test()
