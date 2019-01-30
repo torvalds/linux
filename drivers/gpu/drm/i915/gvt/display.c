@@ -342,6 +342,7 @@ static int setup_virtual_dp_monitor(struct intel_vgpu *vgpu, int port_num,
 	port->dpcd->data_valid = true;
 	port->dpcd->data[DPCD_SINK_COUNT] = 0x1;
 	port->type = type;
+	port->id = resolution;
 
 	emulate_monitor_status_change(vgpu);
 
