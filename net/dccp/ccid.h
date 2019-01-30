@@ -202,7 +202,7 @@ static inline void ccid_hc_tx_packet_recv(struct ccid *ccid, struct sock *sk,
 static inline int ccid_hc_tx_parse_options(struct ccid *ccid, struct sock *sk,
 					   u8 pkt, u8 opt, u8 *val, u8 len)
 {
-	if (ccid->ccid_ops->ccid_hc_tx_parse_options == NULL)
+	if (!ccid || !ccid->ccid_ops->ccid_hc_tx_parse_options)
 		return 0;
 	return ccid->ccid_ops->ccid_hc_tx_parse_options(sk, pkt, opt, val, len);
 }
@@ -214,7 +214,7 @@ static inline int ccid_hc_tx_parse_options(struct ccid *ccid, struct sock *sk,
 static inline int ccid_hc_rx_parse_options(struct ccid *ccid, struct sock *sk,
 					   u8 pkt, u8 opt, u8 *val, u8 len)
 {
-	if (ccid->ccid_ops->ccid_hc_rx_parse_options == NULL)
+	if (!ccid || !ccid->ccid_ops->ccid_hc_rx_parse_options)
 		return 0;
 	return ccid->ccid_ops->ccid_hc_rx_parse_options(sk, pkt, opt, val, len);
 }
