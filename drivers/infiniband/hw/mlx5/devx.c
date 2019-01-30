@@ -1107,12 +1107,10 @@ static void devx_free_indirect_mkey(struct rcu_head *rcu)
 static void devx_cleanup_mkey(struct devx_obj *obj)
 {
 	struct mlx5_mkey_table *table = &obj->mdev->priv.mkey_table;
-	struct mlx5_core_mkey *del_mkey;
 	unsigned long flags;
 
 	write_lock_irqsave(&table->lock, flags);
-	del_mkey = radix_tree_delete(&table->tree,
-				     mlx5_base_mkey(obj->devx_mr.mmkey.key));
+	radix_tree_delete(&table->tree, mlx5_base_mkey(obj->devx_mr.mmkey.key));
 	write_unlock_irqrestore(&table->lock, flags);
 }
 
