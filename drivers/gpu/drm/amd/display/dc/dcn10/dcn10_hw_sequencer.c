@@ -889,22 +889,23 @@ void hwss1_plane_atomic_disconnect(struct dc *dc, struct pipe_ctx *pipe_ctx)
 		dcn10_verify_allow_pstate_change_high(dc);
 }
 
-static void plane_atomic_power_down(struct dc *dc, struct pipe_ctx *pipe_ctx)
+static void plane_atomic_power_down(struct dc *dc,
+		struct dpp *dpp,
+		struct hubp *hubp)
 {
 	struct dce_hwseq *hws = dc->hwseq;
-	struct dpp *dpp = pipe_ctx->plane_res.dpp;
 	DC_LOGGER_INIT(dc->ctx->logger);
 
 	if (REG(DC_IP_REQUEST_CNTL)) {
 		REG_SET(DC_IP_REQUEST_CNTL, 0,
 				IP_REQUEST_EN, 1);
 		dpp_pg_control(hws, dpp->inst, false);
-		hubp_pg_control(hws, pipe_ctx->plane_res.hubp->inst, false);
+		hubp_pg_control(hws, hubp->inst, false);
 		dpp->funcs->dpp_reset(dpp);
 		REG_SET(DC_IP_REQUEST_CNTL, 0,
 				IP_REQUEST_EN, 0);
 		DC_LOG_DEBUG(
-				"Power gated front end %d\n", pipe_ctx->pipe_idx);
+				"Power gated front end %d\n", hubp->inst);
 	}
 }
 
@@ -931,7 +932,9 @@ static void plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	hubp->power_gated = true;
 	dc->optimized_required = false; /* We're powering off, no need to optimize */
 
-	plane_atomic_power_down(dc, pipe_ctx);
+	plane_atomic_power_down(dc,
+			pipe_ctx->plane_res.dpp,
+			pipe_ctx->plane_res.hubp);
 
 	pipe_ctx->stream = NULL;
 	memset(&pipe_ctx->stream_res, 0, sizeof(pipe_ctx->stream_res));
@@ -1000,9 +1003,6 @@ static void dcn10_init_pipes(struct dc *dc, struct dc_state *context)
 		struct hubp *hubp = dc->res_pool->hubps[i];
 		struct dpp *dpp = dc->res_pool->dpps[i];
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
-
-		// W/A for issue with dc_post_update_surfaces_to_stream
-		hubp->power_gated = true;
 
 		/* There is assumption that pipe_ctx is not mapping irregularly
 		 * to non-preferred front end. If pipe_ctx->stream is not NULL,
@@ -1108,6 +1108,22 @@ static void dcn10_init_hw(struct dc *dc)
 			link->link_status.link_active = true;
 	}
 
+	/* If taking control over from VBIOS, we may want to optimize our first
+	 * mode set, so we need to skip powering down pipes until we know which
+	 * pipes we want to use.
+	 * Otherwise, if taking control is not possible, we need to power
+	 * everything down.
+	 */
+	if (dcb->funcs->is_accelerated_mode(dcb)) {
+		for (i = 0; i < dc->res_pool->pipe_count; i++) {
+			struct hubp *hubp = dc->res_pool->hubps[i];
+			struct dpp *dpp = dc->res_pool->dpps[i];
+
+			dc->res_pool->opps[i]->mpc_tree_params.opp_id = dc->res_pool->opps[i]->inst;
+			plane_atomic_power_down(dc, dpp, hubp);
+		}
+	}
+
 	for (i = 0; i < dc->res_pool->audio_count; i++) {
 		struct audio *audio = dc->res_pool->audios[i];
 
@@ -1137,9 +1153,6 @@ static void dcn10_init_hw(struct dc *dc)
 	enable_power_gating_plane(dc->hwseq, true);
 
 	memset(&dc->res_pool->clk_mgr->clks, 0, sizeof(dc->res_pool->clk_mgr->clks));
-
-	if (dc->hwss.init_pipes)
-		dc->hwss.init_pipes(dc, dc->current_state);
 }
 
 static void reset_hw_ctx_wrap(

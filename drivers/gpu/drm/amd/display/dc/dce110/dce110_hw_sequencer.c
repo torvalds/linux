@@ -1551,6 +1551,9 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 		}
 	}
 
+	if (dc->hwss.init_pipes)
+		dc->hwss.init_pipes(dc, context);
+
 	if (edp_link) {
 		/* this seems to cause blank screens on DCE8 */
 		if ((dc->ctx->dce_version == DCE_VERSION_8_0) ||
