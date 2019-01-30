@@ -1608,7 +1608,6 @@ static int do_insn_ioctl(struct comedi_device *dev,
 	if (copy_from_user(&insn, arg, sizeof(insn)))
 		return -EFAULT;
 
-
 	n_data = max(n_data, insn.n);
 
 	/* This is where the behavior of insn and insnlist deviate. */
