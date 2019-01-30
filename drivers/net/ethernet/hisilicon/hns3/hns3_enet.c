@@ -1604,9 +1604,13 @@ static int hns3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	ae_dev->dev_type = HNAE3_DEV_KNIC;
 	pci_set_drvdata(pdev, ae_dev);
 
-	hnae3_register_ae_dev(ae_dev);
+	ret = hnae3_register_ae_dev(ae_dev);
+	if (ret) {
+		devm_kfree(&pdev->dev, ae_dev);
+		pci_set_drvdata(pdev, NULL);
+	}
 
-	return 0;
+	return ret;
 }
 
 /* hns3_remove - Device removal routine

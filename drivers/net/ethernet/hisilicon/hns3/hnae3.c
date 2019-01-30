@@ -239,7 +239,7 @@ EXPORT_SYMBOL(hnae3_unregister_ae_algo);
  * @ae_dev: the AE device
  * NOTE: the duplicated name will not be checked
  */
-void hnae3_register_ae_dev(struct hnae3_ae_dev *ae_dev)
+int hnae3_register_ae_dev(struct hnae3_ae_dev *ae_dev)
 {
 	const struct pci_device_id *id;
 	struct hnae3_ae_algo *ae_algo;
@@ -260,6 +260,7 @@ void hnae3_register_ae_dev(struct hnae3_ae_dev *ae_dev)
 
 		if (!ae_dev->ops) {
 			dev_err(&ae_dev->pdev->dev, "ae_dev ops are null\n");
+			ret = -EOPNOTSUPP;
 			goto out_err;
 		}
 
@@ -286,8 +287,15 @@ void hnae3_register_ae_dev(struct hnae3_ae_dev *ae_dev)
 				ret);
 	}
 
-out_err:
 	mutex_unlock(&hnae3_common_lock);
+
+	return 0;
+
+out_err:
+	list_del(&ae_dev->node);
+	mutex_unlock(&hnae3_common_lock);
+
+	return ret;
 }
 EXPORT_SYMBOL(hnae3_register_ae_dev);
 
