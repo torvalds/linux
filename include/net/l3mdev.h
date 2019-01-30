@@ -142,7 +142,8 @@ struct sk_buff *l3mdev_l3_rcv(struct sk_buff *skb, u16 proto)
 
 	if (netif_is_l3_slave(skb->dev))
 		master = netdev_master_upper_dev_get_rcu(skb->dev);
-	else if (netif_is_l3_master(skb->dev))
+	else if (netif_is_l3_master(skb->dev) ||
+		 netif_has_l3_rx_handler(skb->dev))
 		master = skb->dev;
 
 	if (master && master->l3mdev_ops->l3mdev_l3_rcv)
