@@ -3741,6 +3741,8 @@ static noinline_for_stack int scrub_workers_get(struct btrfs_fs_info *fs_info,
 	unsigned int flags = WQ_FREEZABLE | WQ_UNBOUND;
 	int max_active = fs_info->thread_pool_size;
 
+	lockdep_assert_held(&fs_info->scrub_lock);
+
 	if (fs_info->scrub_workers_refcnt == 0) {
 		fs_info->scrub_workers = btrfs_alloc_workqueue(fs_info, "scrub",
 				flags, is_dev_replace ? 1 : max_active, 4);
