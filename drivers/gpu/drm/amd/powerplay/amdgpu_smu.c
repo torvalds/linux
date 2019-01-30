@@ -310,6 +310,19 @@ static int smu_early_init(void *handle)
 	return smu_set_funcs(adev);
 }
 
+static int smu_late_init(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct smu_context *smu = &adev->smu;
+	mutex_lock(&smu->mutex);
+	smu_handle_task(&adev->smu,
+			smu->smu_dpm.dpm_level,
+			AMD_PP_TASK_COMPLETE_INIT);
+	mutex_unlock(&smu->mutex);
+
+	return 0;
+}
+
 int smu_get_atom_data_table(struct smu_context *smu, uint32_t table,
 			    uint16_t *size, uint8_t *frev, uint8_t *crev,
 			    uint8_t **addr)
@@ -1181,7 +1194,7 @@ int smu_handle_task(struct smu_context *smu,
 const struct amd_ip_funcs smu_ip_funcs = {
 	.name = "smu",
 	.early_init = smu_early_init,
-	.late_init = NULL,
+	.late_init = smu_late_init,
 	.sw_init = smu_sw_init,
 	.sw_fini = smu_sw_fini,
 	.hw_init = smu_hw_init,
