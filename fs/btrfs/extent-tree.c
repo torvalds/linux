@@ -9605,6 +9605,7 @@ static int inc_block_group_ro(struct btrfs_block_group_cache *cache, int force)
 {
 	struct btrfs_space_info *sinfo = cache->space_info;
 	u64 num_bytes;
+	u64 sinfo_used;
 	u64 min_allocable_bytes;
 	int ret = -ENOSPC;
 
@@ -9631,9 +9632,10 @@ static int inc_block_group_ro(struct btrfs_block_group_cache *cache, int force)
 
 	num_bytes = cache->key.offset - cache->reserved - cache->pinned -
 		    cache->bytes_super - btrfs_block_group_used(&cache->item);
+	sinfo_used = btrfs_space_info_used(sinfo, true);
 
-	if (btrfs_space_info_used(sinfo, true) + num_bytes +
-	    min_allocable_bytes <= sinfo->total_bytes) {
+	if (sinfo_used + num_bytes + min_allocable_bytes <=
+	    sinfo->total_bytes) {
 		sinfo->bytes_readonly += num_bytes;
 		cache->ro++;
 		list_add_tail(&cache->ro_list, &sinfo->ro_bgs);
@@ -9642,6 +9644,15 @@ static int inc_block_group_ro(struct btrfs_block_group_cache *cache, int force)
 out:
 	spin_unlock(&cache->lock);
 	spin_unlock(&sinfo->lock);
+	if (ret == -ENOSPC && btrfs_test_opt(cache->fs_info, ENOSPC_DEBUG)) {
+		btrfs_info(cache->fs_info,
+			"unable to make block group %llu ro",
+			cache->key.objectid);
+		btrfs_info(cache->fs_info,
+			"sinfo_used=%llu bg_num_bytes=%llu min_allocable=%llu",
+			sinfo_used, num_bytes, min_allocable_bytes);
+		dump_space_info(cache->fs_info, cache->space_info, 0, 0);
+	}
 	return ret;
 }
 
