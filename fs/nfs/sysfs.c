@@ -9,7 +9,12 @@
 #include <linux/fs.h>
 #include <linux/slab.h>
 #include <linux/netdevice.h>
+#include <linux/string.h>
+#include <linux/nfs_fs.h>
+#include <linux/rcupdate.h>
 
+#include "nfs4_fs.h"
+#include "netns.h"
 #include "sysfs.h"
 
 struct kobject *nfs_client_kobj;
@@ -66,4 +71,117 @@ void nfs_sysfs_exit(void)
 {
 	kobject_put(nfs_client_kobj);
 	kset_unregister(nfs_client_kset);
+}
+
+static ssize_t nfs_netns_identifier_show(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
+{
+	struct nfs_netns_client *c = container_of(kobj,
+			struct nfs_netns_client,
+			kobject);
+	return scnprintf(buf, PAGE_SIZE, "%s\n", c->identifier);
+}
+
+/* Strip trailing '\n' */
+static size_t nfs_string_strip(const char *c, size_t len)
+{
+	while (len > 0 && c[len-1] == '\n')
+		--len;
+	return len;
+}
+
+static ssize_t nfs_netns_identifier_store(struct kobject *kobj,
+		struct kobj_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct nfs_netns_client *c = container_of(kobj,
+			struct nfs_netns_client,
+			kobject);
+	const char *old;
+	char *p;
+	size_t len;
+
+	len = nfs_string_strip(buf, min_t(size_t, count, CONTAINER_ID_MAXLEN));
+	if (!len)
+		return 0;
+	p = kmemdup_nul(buf, len, GFP_KERNEL);
+	if (!p)
+		return -ENOMEM;
+	old = xchg(&c->identifier, p);
+	if (old) {
+		synchronize_rcu();
+		kfree(old);
+	}
+	return count;
+}
+
+static void nfs_netns_client_release(struct kobject *kobj)
+{
+	struct nfs_netns_client *c = container_of(kobj,
+			struct nfs_netns_client,
+			kobject);
+
+	if (c->identifier)
+		kfree(c->identifier);
+	kfree(c);
+}
+
+static const void *nfs_netns_client_namespace(struct kobject *kobj)
+{
+	return container_of(kobj, struct nfs_netns_client, kobject)->net;
+}
+
+static struct kobj_attribute nfs_netns_client_id = __ATTR(identifier,
+		0644, nfs_netns_identifier_show, nfs_netns_identifier_store);
+
+static struct attribute *nfs_netns_client_attrs[] = {
+	&nfs_netns_client_id.attr,
+	NULL,
+};
+
+static struct kobj_type nfs_netns_client_type = {
+	.release = nfs_netns_client_release,
+	.default_attrs = nfs_netns_client_attrs,
+	.sysfs_ops = &kobj_sysfs_ops,
+	.namespace = nfs_netns_client_namespace,
+};
+
+static struct nfs_netns_client *nfs_netns_client_alloc(struct kobject *parent,
+		struct net *net)
+{
+	struct nfs_netns_client *p;
+
+	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	if (p) {
+		p->net = net;
+		p->kobject.kset = nfs_client_kset;
+		if (kobject_init_and_add(&p->kobject, &nfs_netns_client_type,
+					parent, "nfs_client") == 0)
+			return p;
+		kobject_put(&p->kobject);
+	}
+	return NULL;
+}
+
+void nfs_netns_sysfs_setup(struct nfs_net *netns, struct net *net)
+{
+	struct nfs_netns_client *clp;
+
+	clp = nfs_netns_client_alloc(nfs_client_kobj, net);
+	if (clp) {
+		netns->nfs_client = clp;
+		kobject_uevent(&clp->kobject, KOBJ_ADD);
+	}
+}
+
+void nfs_netns_sysfs_destroy(struct nfs_net *netns)
+{
+	struct nfs_netns_client *clp = netns->nfs_client;
+
+	if (clp) {
+		kobject_uevent(&clp->kobject, KOBJ_REMOVE);
+		kobject_del(&clp->kobject);
+		kobject_put(&clp->kobject);
+		netns->nfs_client = NULL;
+	}
 }

@@ -49,6 +49,7 @@
 #include "pnfs.h"
 #include "nfs.h"
 #include "netns.h"
+#include "sysfs.h"
 
 #define NFSDBG_FACILITY		NFSDBG_CLIENT
 
@@ -1072,12 +1073,15 @@ void nfs_clients_init(struct net *net)
 #endif
 	spin_lock_init(&nn->nfs_client_lock);
 	nn->boot_time = ktime_get_real();
+
+	nfs_netns_sysfs_setup(nn, net);
 }
 
 void nfs_clients_exit(struct net *net)
 {
 	struct nfs_net *nn = net_generic(net, nfs_net_id);
 
+	nfs_netns_sysfs_destroy(nn);
 	nfs_cleanup_cb_ident_idr(net);
 	WARN_ON_ONCE(!list_empty(&nn->nfs_client_list));
 	WARN_ON_ONCE(!list_empty(&nn->nfs_volume_list));
