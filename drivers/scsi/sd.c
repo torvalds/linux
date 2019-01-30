@@ -2565,25 +2565,25 @@ sd_print_capacity(struct scsi_disk *sdkp,
 	int sector_size = sdkp->device->sector_size;
 	char cap_str_2[10], cap_str_10[10];
 
+	if (!sdkp->first_scan && old_capacity == sdkp->capacity)
+		return;
+
 	string_get_size(sdkp->capacity, sector_size,
 			STRING_UNITS_2, cap_str_2, sizeof(cap_str_2));
 	string_get_size(sdkp->capacity, sector_size,
-			STRING_UNITS_10, cap_str_10,
-			sizeof(cap_str_10));
+			STRING_UNITS_10, cap_str_10, sizeof(cap_str_10));
 
-	if (sdkp->first_scan || old_capacity != sdkp->capacity) {
+	sd_printk(KERN_NOTICE, sdkp,
+		  "%llu %d-byte logical blocks: (%s/%s)\n",
+		  (unsigned long long)sdkp->capacity,
+		  sector_size, cap_str_10, cap_str_2);
+
+	if (sdkp->physical_block_size != sector_size)
 		sd_printk(KERN_NOTICE, sdkp,
-			  "%llu %d-byte logical blocks: (%s/%s)\n",
-			  (unsigned long long)sdkp->capacity,
-			  sector_size, cap_str_10, cap_str_2);
+			  "%u-byte physical blocks\n",
+			  sdkp->physical_block_size);
 
-		if (sdkp->physical_block_size != sector_size)
-			sd_printk(KERN_NOTICE, sdkp,
-				  "%u-byte physical blocks\n",
-				  sdkp->physical_block_size);
-
-		sd_zbc_print_zones(sdkp);
-	}
+	sd_zbc_print_zones(sdkp);
 }
 
 /* called with buffer of length 512 */
