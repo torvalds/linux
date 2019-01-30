@@ -10,13 +10,17 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_probe_helper.h>
 
-static void _vblank_handle(struct vkms_output *output)
+static enum hrtimer_restart vkms_vblank_simulate(struct hrtimer *timer)
 {
+	struct vkms_output *output = container_of(timer, struct vkms_output,
+						  vblank_hrtimer);
 	struct drm_crtc *crtc = &output->crtc;
 	struct vkms_crtc_state *state = to_vkms_crtc_state(crtc->state);
+	int ret_overrun;
 	bool ret;
 
 	spin_lock(&output->lock);
+
 	ret = drm_crtc_handle_vblank(crtc);
 	if (!ret)
 		DRM_ERROR("vkms failure on handling vblank");
@@ -37,19 +41,9 @@ static void _vblank_handle(struct vkms_output *output)
 			DRM_WARN("failed to queue vkms_crc_work_handle");
 	}
 
-	spin_unlock(&output->lock);
-}
-
-static enum hrtimer_restart vkms_vblank_simulate(struct hrtimer *timer)
-{
-	struct vkms_output *output = container_of(timer, struct vkms_output,
-						  vblank_hrtimer);
-	int ret_overrun;
-
-	_vblank_handle(output);
-
 	ret_overrun = hrtimer_forward_now(&output->vblank_hrtimer,
 					  output->period_ns);
+	spin_unlock(&output->lock);
 
 	return HRTIMER_RESTART;
 }
