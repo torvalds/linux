@@ -23,6 +23,8 @@
 };
 
 &acodec {
+	rockchip,micbias1;
+	rockchip,micbias2;
 	rockchip,en-always-grps = <1 2 3>;
 	rockchip,adc-grps-route = <1 2 3 0>;
 };
