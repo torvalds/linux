@@ -54,8 +54,10 @@ setup()
 
 	$IP link add dummy0 type dummy
 	$IP link set dev dummy0 up
-	$IP address add 198.51.100.1/24 dev dummy0
+	$IP address add 192.51.100.1/24 dev dummy0
 	$IP -6 address add 2001:db8:1::1/64 dev dummy0
+
+	ip netns exec testns sysctl -w net.ipv4.ip_forward=1
 
 	set +e
 }
