@@ -3714,8 +3714,8 @@ int kvm_io_bus_register_dev(struct kvm *kvm, enum kvm_bus bus_idx, gpa_t addr,
 	if (bus->dev_count - bus->ioeventfd_count > NR_IOBUS_DEVS - 1)
 		return -ENOSPC;
 
-	new_bus = kmalloc(sizeof(*bus) + ((bus->dev_count + 1) *
-			  sizeof(struct kvm_io_range)), GFP_KERNEL);
+	new_bus = kmalloc(struct_size(bus, range, bus->dev_count + 1),
+			  GFP_KERNEL);
 	if (!new_bus)
 		return -ENOMEM;
 
@@ -3760,8 +3760,8 @@ void kvm_io_bus_unregister_dev(struct kvm *kvm, enum kvm_bus bus_idx,
 	if (i == bus->dev_count)
 		return;
 
-	new_bus = kmalloc(sizeof(*bus) + ((bus->dev_count - 1) *
-			  sizeof(struct kvm_io_range)), GFP_KERNEL);
+	new_bus = kmalloc(struct_size(bus, range, bus->dev_count - 1),
+			  GFP_KERNEL);
 	if (!new_bus)  {
 		pr_err("kvm: failed to shrink bus, removing it completely\n");
 		goto broken;
