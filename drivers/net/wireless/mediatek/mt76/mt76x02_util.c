@@ -309,6 +309,15 @@ mt76x02_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	if (vif->type == NL80211_IFTYPE_STATION)
 		idx += 8;
 
+	if (dev->vif_mask & BIT(idx))
+		return -EBUSY;
+
+	/* Allow to change address in HW if we create first interface. */
+	if (!dev->vif_mask && !ether_addr_equal(dev->mt76.macaddr, vif->addr))
+                mt76x02_mac_setaddr(dev, vif->addr);
+
+	dev->vif_mask |= BIT(idx);
+
 	mt76x02_vif_init(dev, vif, idx);
 	return 0;
 }
@@ -318,8 +327,10 @@ void mt76x02_remove_interface(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif)
 {
 	struct mt76x02_dev *dev = hw->priv;
+	struct mt76x02_vif *mvif = (struct mt76x02_vif *)vif->drv_priv;
 
 	mt76_txq_remove(&dev->mt76, vif->txq);
+	dev->vif_mask &= ~BIT(mvif->idx);
 }
 EXPORT_SYMBOL_GPL(mt76x02_remove_interface);
 
