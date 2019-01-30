@@ -14,7 +14,6 @@
 
 #define pr_fmt(fmt) "SafeSetID: " fmt
 
-#include <asm/syscall.h>
 #include <linux/hashtable.h>
 #include <linux/lsm_hooks.h>
 #include <linux/module.h>
