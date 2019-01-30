@@ -605,48 +605,48 @@ void intel_color_load_luts(struct intel_crtc_state *crtc_state)
 	dev_priv->display.load_luts(crtc_state);
 }
 
+static int check_lut_size(const struct drm_property_blob *lut, int expected)
+{
+	int len;
+
+	if (!lut)
+		return 0;
+
+	len = drm_color_lut_size(lut);
+	if (len != expected) {
+		DRM_DEBUG_KMS("Invalid LUT size; got %d, expected %d\n",
+			      len, expected);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 int intel_color_check(struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
-	size_t gamma_length, degamma_length;
-	uint32_t tests = DRM_COLOR_LUT_NON_DECREASING;
+	int gamma_length, degamma_length;
+	u32 gamma_tests, degamma_tests;
 
 	degamma_length = INTEL_INFO(dev_priv)->color.degamma_lut_size;
 	gamma_length = INTEL_INFO(dev_priv)->color.gamma_lut_size;
+	degamma_tests = INTEL_INFO(dev_priv)->color.degamma_lut_tests;
+	gamma_tests = INTEL_INFO(dev_priv)->color.gamma_lut_tests;
 
-	/*
-	 * All of our platforms mandate that the degamma curve be
-	 * non-decreasing.  Additionally, GLK and gen11 only accept a single
-	 * value for red, green, and blue in the degamma table.  Make sure
-	 * userspace didn't try to pass us something we can't handle.
-	 *
-	 * We don't have any extra hardware constraints on the gamma table,
-	 * so no need to explicitly check it.
-	 */
-	if (IS_GEMINILAKE(dev_priv) || INTEL_GEN(dev_priv) >= 10)
-		tests |= DRM_COLOR_LUT_EQUAL_CHANNELS;
-
-	if (drm_color_lut_check(crtc_state->base.degamma_lut, tests) != 0)
-		return -EINVAL;
-
-	/*
-	 * We allow both degamma & gamma luts at the right size or
-	 * NULL.
-	 */
-	if ((!crtc_state->base.degamma_lut ||
-	     drm_color_lut_size(crtc_state->base.degamma_lut) == degamma_length) &&
-	    (!crtc_state->base.gamma_lut ||
-	     drm_color_lut_size(crtc_state->base.gamma_lut) == gamma_length))
-		return 0;
-
-	/*
-	 * We also allow no degamma lut/ctm and a gamma lut at the legacy
-	 * size (256 entries).
-	 */
+	/* Always allow legacy gamma LUT with no further checking. */
 	if (crtc_state_is_legacy_gamma(crtc_state))
 		return 0;
 
-	return -EINVAL;
+	if (check_lut_size(crtc_state->base.degamma_lut, degamma_length) ||
+	    check_lut_size(crtc_state->base.gamma_lut, gamma_length))
+		return -EINVAL;
+
+	if (drm_color_lut_check(crtc_state->base.degamma_lut, degamma_tests) ||
+	    drm_color_lut_check(crtc_state->base.gamma_lut, gamma_tests))
+		return -EINVAL;
+
+
+	return 0;
 }
 
 void intel_color_init(struct intel_crtc *crtc)

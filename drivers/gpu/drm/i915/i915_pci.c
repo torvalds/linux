@@ -67,9 +67,15 @@
 #define BDW_COLORS \
 	.color = { .degamma_lut_size = 512, .gamma_lut_size = 512 }
 #define CHV_COLORS \
-	.color = { .degamma_lut_size = 65, .gamma_lut_size = 257 }
+	.color = { .degamma_lut_size = 65, .gamma_lut_size = 257, \
+		   .degamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING, \
+		   .gamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING, \
+	}
 #define GLK_COLORS \
-	.color = { .degamma_lut_size = 0, .gamma_lut_size = 1024 }
+	.color = { .degamma_lut_size = 0, .gamma_lut_size = 1024, \
+		   .degamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING | \
+					DRM_COLOR_LUT_EQUAL_CHANNELS, \
+	}
 
 /* Keep in gen based order, and chronological order within a gen */
 
