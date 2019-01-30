@@ -22,6 +22,12 @@ enum {
 	NUM_REP_TYPES,
 };
 
+enum {
+	REP_UNREGISTERED,
+	REP_REGISTERED,
+	REP_LOADED,
+};
+
 struct mlx5_eswitch_rep;
 struct mlx5_eswitch_rep_if {
 	int		       (*load)(struct mlx5_core_dev *dev,
@@ -29,7 +35,7 @@ struct mlx5_eswitch_rep_if {
 	void		       (*unload)(struct mlx5_eswitch_rep *rep);
 	void		       *(*get_proto_dev)(struct mlx5_eswitch_rep *rep);
 	void			*priv;
-	bool		       valid;
+	u8			state;
 };
 
 struct mlx5_eswitch_rep {
