@@ -241,6 +241,11 @@ static inline pte_t pte_mkyoung(pte_t pte)
 
 #define pgd_index(address)	((address) >> PGDIR_SHIFT)
 
+#define __HAVE_PHYS_MEM_ACCESS_PROT
+struct file;
+extern pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
+				     unsigned long size, pgprot_t vma_prot);
+
 /*
  * Macro to make mark a page protection value as "uncacheable".  Note
  * that "protection" is really a misnomer here as the protection value
