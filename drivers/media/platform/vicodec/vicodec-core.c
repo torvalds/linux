@@ -953,6 +953,9 @@ static int vidioc_g_selection(struct file *file, void *priv,
 		valid_out_type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
 	}
 
+	if (s->type != valid_cap_type && s->type != valid_out_type)
+		return -EINVAL;
+
 	q_data = get_q_data(ctx, s->type);
 	if (!q_data)
 		return -EINVAL;
@@ -994,12 +997,14 @@ static int vidioc_s_selection(struct file *file, void *priv,
 	if (multiplanar)
 		out_type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
 
+	if (s->type != out_type)
+		return -EINVAL;
+
 	q_data = get_q_data(ctx, s->type);
 	if (!q_data)
 		return -EINVAL;
 
-	if (!ctx->is_enc || s->type != out_type ||
-	    s->target != V4L2_SEL_TGT_CROP)
+	if (!ctx->is_enc || s->target != V4L2_SEL_TGT_CROP)
 		return -EINVAL;
 
 	s->r.left = 0;
