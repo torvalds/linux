@@ -10869,13 +10869,10 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 	}
 
 	spin_lock(&trans->transaction->dirty_bgs_lock);
-	if (!list_empty(&block_group->dirty_list)) {
-		WARN_ON(1);
-	}
-	if (!list_empty(&block_group->io_list)) {
-		WARN_ON(1);
-	}
+	WARN_ON(!list_empty(&block_group->dirty_list));
+	WARN_ON(!list_empty(&block_group->io_list));
 	spin_unlock(&trans->transaction->dirty_bgs_lock);
+
 	btrfs_remove_free_space_cache(block_group);
 
 	spin_lock(&block_group->space_info->lock);
