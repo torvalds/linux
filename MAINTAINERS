@@ -1037,26 +1037,26 @@ F:	drivers/net/appletalk/
 F:	net/appletalk/
 
 APPLIED MICRO (APM) X-GENE DEVICE TREE SUPPORT
-M:	Duc Dang <dhdang@apm.com>
+M:	Khuong Dinh <khuong@os.amperecomputing.com>
 S:	Supported
 F:	arch/arm64/boot/dts/apm/
 
 APPLIED MICRO (APM) X-GENE SOC EDAC
-M:	Loc Ho <lho@apm.com>
+M:	Khuong Dinh <khuong@os.amperecomputing.com>
 S:	Supported
 F:	drivers/edac/xgene_edac.c
 F:	Documentation/devicetree/bindings/edac/apm-xgene-edac.txt
 
 APPLIED MICRO (APM) X-GENE SOC ETHERNET (V2) DRIVER
-M:	Iyappan Subramanian <isubramanian@apm.com>
-M:	Keyur Chudgar <kchudgar@apm.com>
+M:	Iyappan Subramanian <iyappan@os.amperecomputing.com>
+M:	Keyur Chudgar <keyur@os.amperecomputing.com>
 S:	Supported
 F:	drivers/net/ethernet/apm/xgene-v2/
 
 APPLIED MICRO (APM) X-GENE SOC ETHERNET DRIVER
-M:	Iyappan Subramanian <isubramanian@apm.com>
-M:	Keyur Chudgar <kchudgar@apm.com>
-M:	Quan Nguyen <qnguyen@apm.com>
+M:	Iyappan Subramanian <iyappan@os.amperecomputing.com>
+M:	Keyur Chudgar <keyur@os.amperecomputing.com>
+M:	Quan Nguyen <quan@os.amperecomputing.com>
 S:	Supported
 F:	drivers/net/ethernet/apm/xgene/
 F:	drivers/net/phy/mdio-xgene.c
@@ -1064,7 +1064,7 @@ F:	Documentation/devicetree/bindings/net/apm-xgene-enet.txt
 F:	Documentation/devicetree/bindings/net/apm-xgene-mdio.txt
 
 APPLIED MICRO (APM) X-GENE SOC PMU
-M:	Tai Nguyen <ttnguyen@apm.com>
+M:	Khuong Dinh <khuong@os.amperecomputing.com>
 S:	Supported
 F:	drivers/perf/xgene_pmu.c
 F:	Documentation/perf/xgene-pmu.txt
@@ -11561,7 +11561,7 @@ F:	Documentation/devicetree/bindings/pci/altera-pcie.txt
 F:	drivers/pci/controller/pcie-altera.c
 
 PCI DRIVER FOR APPLIEDMICRO XGENE
-M:	Tanmay Inamdar <tinamdar@apm.com>
+M:	Toan Le <toan@os.amperecomputing.com>
 L:	linux-pci@vger.kernel.org
 L:	linux-arm-kernel@lists.infradead.org
 S:	Maintained
@@ -11739,7 +11739,7 @@ F:	Documentation/devicetree/bindings/pci/altera-pcie-msi.txt
 F:	drivers/pci/controller/pcie-altera-msi.c
 
 PCI MSI DRIVER FOR APPLIEDMICRO XGENE
-M:	Duc Dang <dhdang@apm.com>
+M:	Toan Le <toan@os.amperecomputing.com>
 L:	linux-pci@vger.kernel.org
 L:	linux-arm-kernel@lists.infradead.org
 S:	Maintained
@@ -14681,7 +14681,7 @@ S:	Maintained
 F:	drivers/tty/serial/8250/8250_dw.c
 
 SYNOPSYS DESIGNWARE APB GPIO DRIVER
-M:	Hoan Tran <hotran@apm.com>
+M:	Hoan Tran <hoan@os.amperecomputing.com>
 L:	linux-gpio@vger.kernel.org
 S:	Maintained
 F:	drivers/gpio/gpio-dwapb.c
