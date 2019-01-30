@@ -195,8 +195,10 @@ static void hclge_mac_adjust_link(struct net_device *netdev)
 		netdev_err(netdev, "failed to configure flow control.\n");
 }
 
-int hclge_mac_connect_phy(struct hclge_dev *hdev)
+int hclge_mac_connect_phy(struct hnae3_handle *handle)
 {
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
 	struct net_device *netdev = hdev->vport[0].nic.netdev;
 	struct phy_device *phydev = hdev->hw.mac.phydev;
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
@@ -229,8 +231,10 @@ int hclge_mac_connect_phy(struct hclge_dev *hdev)
 	return 0;
 }
 
-void hclge_mac_disconnect_phy(struct hclge_dev *hdev)
+void hclge_mac_disconnect_phy(struct hnae3_handle *handle)
 {
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
 	struct phy_device *phydev = hdev->hw.mac.phydev;
 
 	if (!phydev)

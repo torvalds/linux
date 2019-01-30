@@ -7050,16 +7050,6 @@ static void hclge_get_mdix_mode(struct hnae3_handle *handle,
 		*tp_mdix = ETH_TP_MDI;
 }
 
-static int hclge_init_instance_hw(struct hclge_dev *hdev)
-{
-	return hclge_mac_connect_phy(hdev);
-}
-
-static void hclge_uninit_instance_hw(struct hclge_dev *hdev)
-{
-	hclge_mac_disconnect_phy(hdev);
-}
-
 static int hclge_init_client_instance(struct hnae3_client *client,
 				      struct hnae3_ae_dev *ae_dev)
 {
@@ -7078,13 +7068,6 @@ static int hclge_init_client_instance(struct hnae3_client *client,
 			ret = client->ops->init_instance(&vport->nic);
 			if (ret)
 				goto clear_nic;
-
-			ret = hclge_init_instance_hw(hdev);
-			if (ret) {
-			        client->ops->uninit_instance(&vport->nic,
-			                                     0);
-				goto clear_nic;
-			}
 
 			hnae3_set_client_init_flag(client, ae_dev, 1);
 
@@ -7170,7 +7153,6 @@ static void hclge_uninit_client_instance(struct hnae3_client *client,
 		if (client->type == HNAE3_CLIENT_ROCE)
 			return;
 		if (hdev->nic_client && client->ops->uninit_instance) {
-			hclge_uninit_instance_hw(hdev);
 			client->ops->uninit_instance(&vport->nic, 0);
 			hdev->nic_client = NULL;
 			vport->nic.client = NULL;
@@ -8076,6 +8058,8 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.set_gro_en = hclge_gro_en,
 	.get_global_queue_id = hclge_covert_handle_qid_global,
 	.set_timer_task = hclge_set_timer_task,
+	.mac_connect_phy = hclge_mac_connect_phy,
+	.mac_disconnect_phy = hclge_mac_disconnect_phy,
 };
 
 static struct hnae3_ae_algo ae_algo = {
