@@ -718,6 +718,7 @@ static int tls_push_record(struct sock *sk, int flags,
 				tls_merge_open_record(sk, rec, tmp, orig_end);
 			}
 		}
+		ctx->async_capable = 1;
 		return rc;
 	} else if (split) {
 		msg_pl = &tmp->msg_plaintext;
@@ -859,8 +860,7 @@ int tls_sw_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 	long timeo = sock_sndtimeo(sk, msg->msg_flags & MSG_DONTWAIT);
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct tls_sw_context_tx *ctx = tls_sw_ctx_tx(tls_ctx);
-	struct crypto_tfm *tfm = crypto_aead_tfm(ctx->aead_send);
-	bool async_capable = tfm->__crt_alg->cra_flags & CRYPTO_ALG_ASYNC;
+	bool async_capable = ctx->async_capable;
 	unsigned char record_type = TLS_RECORD_TYPE_DATA;
 	bool is_kvec = iov_iter_is_kvec(&msg->msg_iter);
 	bool eor = !(msg->msg_flags & MSG_MORE);

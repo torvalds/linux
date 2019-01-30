@@ -142,6 +142,7 @@ struct tls_sw_context_tx {
 	struct list_head tx_list;
 	atomic_t encrypt_pending;
 	int async_notify;
+	int async_capable;
 
 #define BIT_TX_SCHEDULED	0
 	unsigned long tx_bitmask;
