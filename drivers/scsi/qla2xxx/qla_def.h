@@ -3966,6 +3966,9 @@ struct qla_hw_data {
 	uint16_t	fw_subminor_version;
 	uint16_t	fw_attributes;
 	uint16_t	fw_attributes_h;
+#define FW_ATTR_H_NVME		BIT_10
+#define FW_ATTR_H_NVME_UPDATED  BIT_14
+
 	uint16_t	fw_attributes_ext[2];
 	uint32_t	fw_memory_size;
 	uint32_t	fw_transfer_size;
