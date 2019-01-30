@@ -40,6 +40,8 @@
 #include "en.h"
 #include "fs_core.h"
 #include "lib/devcom.h"
+#include "ecpf.h"
+#include "lib/eq.h"
 
 enum {
 	FDB_FAST_PATH = 0,
@@ -1640,6 +1642,57 @@ static void esw_offloads_steering_cleanup(struct mlx5_eswitch *esw)
 	esw_destroy_offloads_fdb_tables(esw);
 }
 
+static void esw_host_params_event_handler(struct work_struct *work)
+{
+	struct mlx5_host_work *host_work;
+	struct mlx5_eswitch *esw;
+	int err, num_vf = 0;
+
+	host_work = container_of(work, struct mlx5_host_work, work);
+	esw = host_work->esw;
+
+	err = mlx5_query_host_params_num_vfs(esw->dev, &num_vf);
+	if (err || num_vf == esw->host_info.num_vfs)
+		goto out;
+
+	/* Number of VFs can only change from "0 to x" or "x to 0". */
+	if (esw->host_info.num_vfs > 0) {
+		esw_offloads_unload_vf_reps(esw, esw->host_info.num_vfs);
+	} else {
+		err = esw_offloads_load_vf_reps(esw, num_vf);
+
+		if (err)
+			goto out;
+	}
+
+	esw->host_info.num_vfs = num_vf;
+
+out:
+	kfree(host_work);
+}
+
+static int esw_host_params_event(struct notifier_block *nb,
+				 unsigned long type, void *data)
+{
+	struct mlx5_host_work *host_work;
+	struct mlx5_host_info *host_info;
+	struct mlx5_eswitch *esw;
+
+	host_work = kzalloc(sizeof(*host_work), GFP_ATOMIC);
+	if (!host_work)
+		return NOTIFY_DONE;
+
+	host_info = mlx5_nb_cof(nb, struct mlx5_host_info, nb);
+	esw = container_of(host_info, struct mlx5_eswitch, host_info);
+
+	host_work->esw = esw;
+
+	INIT_WORK(&host_work->work, esw_host_params_event_handler);
+	queue_work(esw->work_queue, &host_work->work);
+
+	return NOTIFY_OK;
+}
+
 int esw_offloads_init(struct mlx5_eswitch *esw, int vf_nvports,
 		      int total_nvports)
 {
@@ -1656,6 +1709,14 @@ int esw_offloads_init(struct mlx5_eswitch *esw, int vf_nvports,
 		goto err_reps;
 
 	esw_offloads_devcom_init(esw);
+
+	if (mlx5_core_is_ecpf_esw_manager(esw->dev)) {
+		MLX5_NB_INIT(&esw->host_info.nb, esw_host_params_event,
+			     HOST_PARAMS_CHANGE);
+		mlx5_eq_notifier_register(esw->dev, &esw->host_info.nb);
+		esw->host_info.num_vfs = vf_nvports;
+	}
+
 	return 0;
 
 err_reps:
@@ -1684,7 +1745,15 @@ static int esw_offloads_stop(struct mlx5_eswitch *esw,
 
 void esw_offloads_cleanup(struct mlx5_eswitch *esw)
 {
-	u16 num_vfs = esw->dev->priv.sriov.num_vfs;
+	u16 num_vfs;
+
+	if (mlx5_core_is_ecpf_esw_manager(esw->dev)) {
+		mlx5_eq_notifier_unregister(esw->dev, &esw->host_info.nb);
+		flush_workqueue(esw->work_queue);
+		num_vfs = esw->host_info.num_vfs;
+	} else {
+		num_vfs = esw->dev->priv.sriov.num_vfs;
+	}
 
 	esw_offloads_devcom_cleanup(esw);
 	esw_offloads_unload_all_reps(esw, num_vfs);

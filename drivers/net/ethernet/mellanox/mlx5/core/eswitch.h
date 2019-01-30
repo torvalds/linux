@@ -182,6 +182,16 @@ struct esw_mc_addr { /* SRIOV only */
 	u32                    refcnt;
 };
 
+struct mlx5_host_work {
+	struct work_struct	work;
+	struct mlx5_eswitch	*esw;
+};
+
+struct mlx5_host_info {
+	struct mlx5_nb		nb;
+	u16			num_vfs;
+};
+
 struct mlx5_eswitch {
 	struct mlx5_core_dev    *dev;
 	struct mlx5_nb          nb;
@@ -206,6 +216,7 @@ struct mlx5_eswitch {
 	int                     mode;
 	int                     nvports;
 	u16                     manager_vport;
+	struct mlx5_host_info	host_info;
 };
 
 void esw_offloads_cleanup(struct mlx5_eswitch *esw);
