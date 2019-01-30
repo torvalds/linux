@@ -159,12 +159,6 @@
 		};
 	};
 
-	de: display-engine {
-		compatible = "allwinner,sun8i-a33-display-engine";
-		allwinner,pipelines = <&fe0>;
-		status = "disabled";
-	};
-
 	iio-hwmon {
 		compatible = "iio-hwmon";
 		io-channels = <&ths>;
@@ -209,47 +203,6 @@
 	};
 
 	soc {
-		tcon0: lcd-controller@1c0c000 {
-			compatible = "allwinner,sun8i-a33-tcon";
-			reg = <0x01c0c000 0x1000>;
-			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&ccu CLK_BUS_LCD>,
-				 <&ccu CLK_LCD_CH0>;
-			clock-names = "ahb",
-				      "tcon-ch0";
-			clock-output-names = "tcon-pixel-clock";
-			resets = <&ccu RST_BUS_LCD>;
-			reset-names = "lcd";
-			status = "disabled";
-
-			ports {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				tcon0_in: port@0 {
-					#address-cells = <1>;
-					#size-cells = <0>;
-					reg = <0>;
-
-					tcon0_in_drc0: endpoint@0 {
-						reg = <0>;
-						remote-endpoint = <&drc0_out_tcon0>;
-					};
-				};
-
-				tcon0_out: port@1 {
-					#address-cells = <1>;
-					#size-cells = <0>;
-					reg = <1>;
-
-					tcon0_out_dsi: endpoint@1 {
-						reg = <1>;
-						remote-endpoint = <&dsi_in_tcon0>;
-					};
-				};
-			};
-		};
-
 		video-codec@1c0e000 {
 			compatible = "allwinner,sun8i-a33-video-engine";
 			reg = <0x01c0e000 0x1000>;
@@ -339,115 +292,6 @@
 			status = "disabled";
 			#phy-cells = <0>;
 		};
-
-		fe0: display-frontend@1e00000 {
-			compatible = "allwinner,sun8i-a33-display-frontend";
-			reg = <0x01e00000 0x20000>;
-			interrupts = <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&ccu CLK_BUS_DE_FE>, <&ccu CLK_DE_FE>,
-				 <&ccu CLK_DRAM_DE_FE>;
-			clock-names = "ahb", "mod",
-				      "ram";
-			resets = <&ccu RST_BUS_DE_FE>;
-
-			ports {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				fe0_out: port@1 {
-					#address-cells = <1>;
-					#size-cells = <0>;
-					reg = <1>;
-
-					fe0_out_be0: endpoint@0 {
-						reg = <0>;
-						remote-endpoint = <&be0_in_fe0>;
-					};
-				};
-			};
-		};
-
-		be0: display-backend@1e60000 {
-			compatible = "allwinner,sun8i-a33-display-backend";
-			reg = <0x01e60000 0x10000>, <0x01e80000 0x1000>;
-			reg-names = "be", "sat";
-			interrupts = <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&ccu CLK_BUS_DE_BE>, <&ccu CLK_DE_BE>,
-				 <&ccu CLK_DRAM_DE_BE>, <&ccu CLK_BUS_SAT>;
-			clock-names = "ahb", "mod",
-				      "ram", "sat";
-			resets = <&ccu RST_BUS_DE_BE>, <&ccu RST_BUS_SAT>;
-			reset-names = "be", "sat";
-			assigned-clocks = <&ccu CLK_DE_BE>;
-			assigned-clock-rates = <300000000>;
-
-			ports {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				be0_in: port@0 {
-					#address-cells = <1>;
-					#size-cells = <0>;
-					reg = <0>;
-
-					be0_in_fe0: endpoint@0 {
-						reg = <0>;
-						remote-endpoint = <&fe0_out_be0>;
-					};
-				};
-
-				be0_out: port@1 {
-					#address-cells = <1>;
-					#size-cells = <0>;
-					reg = <1>;
-
-					be0_out_drc0: endpoint@0 {
-						reg = <0>;
-						remote-endpoint = <&drc0_in_be0>;
-					};
-				};
-			};
-		};
-
-		drc0: drc@1e70000 {
-			compatible = "allwinner,sun8i-a33-drc";
-			reg = <0x01e70000 0x10000>;
-			interrupts = <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&ccu CLK_BUS_DRC>, <&ccu CLK_DRC>,
-				 <&ccu CLK_DRAM_DRC>;
-			clock-names = "ahb", "mod", "ram";
-			resets = <&ccu RST_BUS_DRC>;
-
-			assigned-clocks = <&ccu CLK_DRC>;
-			assigned-clock-rates = <300000000>;
-
-			ports {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				drc0_in: port@0 {
-					#address-cells = <1>;
-					#size-cells = <0>;
-					reg = <0>;
-
-					drc0_in_be0: endpoint@0 {
-						reg = <0>;
-						remote-endpoint = <&be0_out_drc0>;
-					};
-				};
-
-				drc0_out: port@1 {
-					#address-cells = <1>;
-					#size-cells = <0>;
-					reg = <1>;
-
-					drc0_out_tcon0: endpoint@0 {
-						reg = <0>;
-						remote-endpoint = <&tcon0_in_drc0>;
-					};
-				};
-			};
-		};
 	};
 
 	thermal-zones {
@@ -524,8 +368,35 @@
 	};
 };
 
+&be0 {
+	compatible = "allwinner,sun8i-a33-display-backend";
+	/* A33 has an extra "SAT" module packed inside the display backend */
+	reg = <0x01e60000 0x10000>, <0x01e80000 0x1000>;
+	reg-names = "be", "sat";
+	clocks = <&ccu CLK_BUS_DE_BE>, <&ccu CLK_DE_BE>,
+		 <&ccu CLK_DRAM_DE_BE>, <&ccu CLK_BUS_SAT>;
+	clock-names = "ahb", "mod",
+		      "ram", "sat";
+	resets = <&ccu RST_BUS_DE_BE>, <&ccu RST_BUS_SAT>;
+	reset-names = "be", "sat";
+	assigned-clocks = <&ccu CLK_DE_BE>;
+	assigned-clock-rates = <300000000>;
+};
+
 &ccu {
 	compatible = "allwinner,sun8i-a33-ccu";
+};
+
+&de {
+	compatible = "allwinner,sun8i-a33-display-engine";
+};
+
+&drc0 {
+	compatible = "allwinner,sun8i-a33-drc";
+};
+
+&fe0 {
+	compatible = "allwinner,sun8i-a33-display-frontend";
 };
 
 &mali {
@@ -542,6 +413,17 @@
 		function = "uart0";
 	};
 
+};
+
+&tcon0 {
+	compatible = "allwinner,sun8i-a33-tcon";
+};
+
+&tcon0_out {
+	tcon0_out_dsi: endpoint@1 {
+		reg = <1>;
+		remote-endpoint = <&dsi_in_tcon0>;
+	};
 };
 
 &usb_otg {
