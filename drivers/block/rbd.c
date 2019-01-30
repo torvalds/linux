@@ -733,6 +733,7 @@ static struct rbd_client *rbd_client_find(struct ceph_options *ceph_opts)
  */
 enum {
 	Opt_queue_depth,
+	Opt_alloc_size,
 	Opt_lock_timeout,
 	Opt_last_int,
 	/* int args above */
@@ -749,6 +750,7 @@ enum {
 
 static match_table_t rbd_opts_tokens = {
 	{Opt_queue_depth, "queue_depth=%d"},
+	{Opt_alloc_size, "alloc_size=%d"},
 	{Opt_lock_timeout, "lock_timeout=%d"},
 	/* int args above */
 	{Opt_pool_ns, "_pool_ns=%s"},
@@ -765,6 +767,7 @@ static match_table_t rbd_opts_tokens = {
 
 struct rbd_options {
 	int	queue_depth;
+	int	alloc_size;
 	unsigned long	lock_timeout;
 	bool	read_only;
 	bool	lock_on_read;
@@ -773,6 +776,7 @@ struct rbd_options {
 };
 
 #define RBD_QUEUE_DEPTH_DEFAULT	BLKDEV_MAX_RQ
+#define RBD_ALLOC_SIZE_DEFAULT	(64 * 1024)
 #define RBD_LOCK_TIMEOUT_DEFAULT 0  /* no timeout */
 #define RBD_READ_ONLY_DEFAULT	false
 #define RBD_LOCK_ON_READ_DEFAULT false
@@ -811,6 +815,17 @@ static int parse_rbd_opts_token(char *c, void *private)
 			return -EINVAL;
 		}
 		pctx->opts->queue_depth = intval;
+		break;
+	case Opt_alloc_size:
+		if (intval < 1) {
+			pr_err("alloc_size out of range\n");
+			return -EINVAL;
+		}
+		if (!is_power_of_2(intval)) {
+			pr_err("alloc_size must be a power of 2\n");
+			return -EINVAL;
+		}
+		pctx->opts->alloc_size = intval;
 		break;
 	case Opt_lock_timeout:
 		/* 0 is "wait forever" (i.e. infinite timeout) */
@@ -1853,7 +1868,26 @@ static u16 truncate_or_zero_opcode(struct rbd_obj_request *obj_req)
 
 static int rbd_obj_setup_discard(struct rbd_obj_request *obj_req)
 {
+	struct rbd_device *rbd_dev = obj_req->img_request->rbd_dev;
+	u64 off = obj_req->ex.oe_off;
+	u64 next_off = obj_req->ex.oe_off + obj_req->ex.oe_len;
 	int ret;
+
+	/*
+	 * Align the range to alloc_size boundary and punt on discards
+	 * that are too small to free up any space.
+	 *
+	 * alloc_size == object_size && is_tail() is a special case for
+	 * filestore with filestore_punch_hole = false, needed to allow
+	 * truncate (in addition to delete).
+	 */
+	if (rbd_dev->opts->alloc_size != rbd_dev->layout.object_size ||
+	    !rbd_obj_is_tail(obj_req)) {
+		off = round_up(off, rbd_dev->opts->alloc_size);
+		next_off = round_down(next_off, rbd_dev->opts->alloc_size);
+		if (off >= next_off)
+			return 1;
+	}
 
 	/* reverse map the entire object onto the parent */
 	ret = rbd_obj_calc_img_extents(obj_req, true);
@@ -1867,10 +1901,12 @@ static int rbd_obj_setup_discard(struct rbd_obj_request *obj_req)
 	if (rbd_obj_is_entire(obj_req) && !obj_req->num_img_extents) {
 		osd_req_op_init(obj_req->osd_req, 0, CEPH_OSD_OP_DELETE, 0);
 	} else {
+		dout("%s %p %llu~%llu -> %llu~%llu\n", __func__,
+		     obj_req, obj_req->ex.oe_off, obj_req->ex.oe_len,
+		     off, next_off - off);
 		osd_req_op_extent_init(obj_req->osd_req, 0,
 				       truncate_or_zero_opcode(obj_req),
-				       obj_req->ex.oe_off, obj_req->ex.oe_len,
-				       0, 0);
+				       off, next_off - off, 0, 0);
 	}
 
 	obj_req->write_state = RBD_OBJ_WRITE_FLAT;
@@ -1953,10 +1989,10 @@ static int rbd_obj_setup_zeroout(struct rbd_obj_request *obj_req)
  */
 static int __rbd_img_fill_request(struct rbd_img_request *img_req)
 {
-	struct rbd_obj_request *obj_req;
+	struct rbd_obj_request *obj_req, *next_obj_req;
 	int ret;
 
-	for_each_obj_request(img_req, obj_req) {
+	for_each_obj_request_safe(img_req, obj_req, next_obj_req) {
 		switch (img_req->op_type) {
 		case OBJ_OP_READ:
 			ret = rbd_obj_setup_read(obj_req);
@@ -1973,8 +2009,14 @@ static int __rbd_img_fill_request(struct rbd_img_request *img_req)
 		default:
 			rbd_assert(0);
 		}
-		if (ret)
+		if (ret < 0)
 			return ret;
+		if (ret > 0) {
+			img_req->xferred += obj_req->ex.oe_len;
+			img_req->pending_count--;
+			rbd_img_obj_request_del(img_req, obj_req);
+			continue;
+		}
 
 		ret = ceph_osdc_alloc_messages(obj_req->osd_req, GFP_NOIO);
 		if (ret)
@@ -3764,7 +3806,7 @@ static void rbd_queue_workfn(struct work_struct *work)
 	else
 		result = rbd_img_fill_from_bio(img_request, offset, length,
 					       rq->bio);
-	if (result)
+	if (result || !img_request->pending_count)
 		goto err_img_request;
 
 	rbd_img_request_submit(img_request);
@@ -5425,6 +5467,7 @@ static int rbd_add_parse_args(const char *buf,
 
 	pctx.opts->read_only = RBD_READ_ONLY_DEFAULT;
 	pctx.opts->queue_depth = RBD_QUEUE_DEPTH_DEFAULT;
+	pctx.opts->alloc_size = RBD_ALLOC_SIZE_DEFAULT;
 	pctx.opts->lock_timeout = RBD_LOCK_TIMEOUT_DEFAULT;
 	pctx.opts->lock_on_read = RBD_LOCK_ON_READ_DEFAULT;
 	pctx.opts->exclusive = RBD_EXCLUSIVE_DEFAULT;
@@ -5921,6 +5964,12 @@ static ssize_t do_rbd_add(struct bus_type *bus,
 	/* If we are mapping a snapshot it must be marked read-only */
 	if (rbd_dev->spec->snap_id != CEPH_NOSNAP)
 		rbd_dev->opts->read_only = true;
+
+	if (rbd_dev->opts->alloc_size > rbd_dev->layout.object_size) {
+		rbd_warn(rbd_dev, "alloc_size adjusted to %u",
+			 rbd_dev->layout.object_size);
+		rbd_dev->opts->alloc_size = rbd_dev->layout.object_size;
+	}
 
 	rc = rbd_dev_device_setup(rbd_dev);
 	if (rc)
