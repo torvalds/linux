@@ -7383,7 +7383,7 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 	ret = hclge_init_umv_space(hdev);
 	if (ret) {
 		dev_err(&pdev->dev, "umv space init error, ret=%d.\n", ret);
-		goto err_msi_irq_uninit;
+		goto err_mdiobus_unreg;
 	}
 
 	ret = hclge_mac_init(hdev);
