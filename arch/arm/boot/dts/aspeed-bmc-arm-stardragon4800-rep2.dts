@@ -173,6 +173,16 @@
 			};
 		};
 	};
+
+	dps650ab@58 {
+		compatible = "delta,dps650ab";
+		reg = <0x58>;
+	};
+
+	dps650ab@59 {
+		compatible = "delta,dps650ab";
+		reg = <0x59>;
+	};
 };
 
 &i2c9 {
