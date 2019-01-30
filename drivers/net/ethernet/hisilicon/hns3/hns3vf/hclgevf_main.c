@@ -26,7 +26,12 @@ MODULE_DEVICE_TABLE(pci, ae_algovf_pci_tbl);
 static inline struct hclgevf_dev *hclgevf_ae_get_hdev(
 	struct hnae3_handle *handle)
 {
-	return container_of(handle, struct hclgevf_dev, nic);
+	if (!handle->client)
+		return container_of(handle, struct hclgevf_dev, nic);
+	else if (handle->client->type == HNAE3_CLIENT_ROCE)
+		return container_of(handle, struct hclgevf_dev, roce);
+	else
+		return container_of(handle, struct hclgevf_dev, nic);
 }
 
 static int hclgevf_tqps_update_stats(struct hnae3_handle *handle)
