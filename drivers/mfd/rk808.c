@@ -565,6 +565,7 @@ static const struct rk808_reg_data rk818_pre_init_reg[] = {
 	{ RK818_SLEEP_SET_OFF_REG1, OTG_SLP_SET_MASK, OTG_SLP_SET_OFF },
 	{ RK818_BUCK4_CONFIG_REG, BUCK_ILMIN_MASK,  BUCK_ILMIN_250MA },
 	{ RK808_RTC_CTRL_REG, RTC_STOP, RTC_STOP},
+	{RK808_CLK32OUT_REG, CLK32KOUT2_FUNC_MASK, CLK32KOUT2_FUNC},
 };
 
 static struct rk808_reg_data rk818_suspend_reg[] = {

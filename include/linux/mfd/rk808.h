@@ -347,6 +347,8 @@ enum rk805_reg {
 
 #define VOUT_LO_INT	BIT(0)
 #define CLK32KOUT2_EN	BIT(0)
+#define CLK32KOUT2_FUNC		(0 << 1)
+#define CLK32KOUT2_FUNC_MASK	BIT(1)
 #define H5V_EN_MASK		BIT(0)
 #define H5V_EN_ENABLE		BIT(0)
 #define REF_RDY_CTRL_MASK	BIT(1)
