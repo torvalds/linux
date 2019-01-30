@@ -304,6 +304,9 @@ struct mt76_driver_ops {
 	int (*sta_add)(struct mt76_dev *dev, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta);
 
+	void (*sta_assoc)(struct mt76_dev *dev, struct ieee80211_vif *vif,
+			  struct ieee80211_sta *sta);
+
 	void (*sta_remove)(struct mt76_dev *dev, struct ieee80211_vif *vif,
 			   struct ieee80211_sta *sta);
 };
