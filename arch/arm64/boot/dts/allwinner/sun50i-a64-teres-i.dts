@@ -239,7 +239,7 @@
 };
 
 /*
- * The A64 chip cannot work without this regulator off, although
+ * The A64 chip cannot work with this regulator off, although
  * it seems to be only driving the AR100 core.
  * Maybe we don't still know well about CPUs domain.
  */
