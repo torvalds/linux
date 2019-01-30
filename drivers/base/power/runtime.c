@@ -145,24 +145,21 @@ static void pm_runtime_cancel_pending(struct device *dev)
 u64 pm_runtime_autosuspend_expiration(struct device *dev)
 {
 	int autosuspend_delay;
-	u64 last_busy, expires = 0;
-	u64 now = ktime_get_mono_fast_ns();
+	u64 expires;
 
 	if (!dev->power.use_autosuspend)
-		goto out;
+		return 0;
 
 	autosuspend_delay = READ_ONCE(dev->power.autosuspend_delay);
 	if (autosuspend_delay < 0)
-		goto out;
+		return 0;
 
-	last_busy = READ_ONCE(dev->power.last_busy);
+	expires  = READ_ONCE(dev->power.last_busy);
+	expires += (u64)autosuspend_delay * NSEC_PER_MSEC;
+	if (expires > ktime_get_mono_fast_ns())
+		return expires;	/* Expires in the future */
 
-	expires = last_busy + (u64)autosuspend_delay * NSEC_PER_MSEC;
-	if (expires <= now)
-		expires = 0;	/* Already expired. */
-
- out:
-	return expires;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(pm_runtime_autosuspend_expiration);
 
