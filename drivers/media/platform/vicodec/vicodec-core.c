@@ -1669,6 +1669,8 @@ static int vicodec_probe(struct platform_device *pdev)
 #ifdef CONFIG_MEDIA_CONTROLLER
 	dev->mdev.dev = &pdev->dev;
 	strscpy(dev->mdev.model, "vicodec", sizeof(dev->mdev.model));
+	strscpy(dev->mdev.bus_info, "platform:vicodec",
+		sizeof(dev->mdev.bus_info));
 	media_device_init(&dev->mdev);
 	dev->v4l2_dev.mdev = &dev->mdev;
 #endif
