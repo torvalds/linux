@@ -574,6 +574,7 @@ union l3_hdr_info {
 union l4_hdr_info {
 	struct tcphdr *tcp;
 	struct udphdr *udp;
+	struct gre_base_hdr *gre;
 	unsigned char *hdr;
 };
 
