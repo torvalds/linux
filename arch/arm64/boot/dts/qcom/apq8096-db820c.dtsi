@@ -452,6 +452,33 @@
 				perst-gpio = <&msmgpio 114 GPIO_ACTIVE_LOW>;
 			};
 		};
+
+		mdss@900000 {
+			status = "okay";
+
+			mdp@901000 {
+				status = "okay";
+			};
+
+			hdmi-phy@9a0600 {
+				status = "okay";
+
+				vddio-supply = <&pm8994_l12>;
+				vcca-supply = <&pm8994_l28>;
+				#phy-cells = <0>;
+			};
+
+			hdmi-tx@9a0000 {
+				status = "okay";
+
+				pinctrl-names = "default", "sleep";
+				pinctrl-0 = <&hdmi_hpd_active &hdmi_ddc_active>;
+				pinctrl-1 = <&hdmi_hpd_suspend &hdmi_ddc_suspend>;
+
+				core-vdda-supply = <&pm8994_l12>;
+				core-vcc-supply = <&pm8994_s4>;
+			};
+		};
 	};
 
 
