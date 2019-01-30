@@ -4056,7 +4056,7 @@ int get_vmx_mem_address(struct kvm_vcpu *vcpu, unsigned long exit_qualification,
 		 * destination for long mode!
 		 */
 		exn = is_noncanonical_address(*ret, vcpu);
-	} else if (is_protmode(vcpu)) {
+	} else {
 		/*
 		 * When not in long mode, the virtual/linear address is
 		 * unconditionally truncated to 32 bits regardless of the
