@@ -24,6 +24,8 @@
 
 &acodec {
 	status = "okay";
+	rockchip,micbias1;
+	rockchip,micbias2;
 	rockchip,no-deep-low-power;
 	/* ADC5-6 for 2ch capture, loopback to ADC3-4 */
 	rockchip,adc-grps-route = <2 1 3 0>;

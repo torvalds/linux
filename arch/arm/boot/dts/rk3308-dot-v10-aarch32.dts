@@ -175,6 +175,8 @@
 
 &acodec {
 	status = "okay";
+	rockchip,micbias1;
+	rockchip,micbias2;
 	rockchip,no-deep-low-power;
 	rockchip,no-hp-det;
 	rockchip,loopback-grp = <1>;
