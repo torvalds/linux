@@ -488,25 +488,23 @@ static int smcr_tx_sndbuf_nonempty(struct smc_connection *conn)
 	struct smc_wr_buf *wr_buf;
 	int rc;
 
-	spin_lock_bh(&conn->send_lock);
 	rc = smc_cdc_get_free_slot(conn, &wr_buf, &pend);
 	if (rc < 0) {
 		if (rc == -EBUSY) {
 			struct smc_sock *smc =
 				container_of(conn, struct smc_sock, conn);
 
-			if (smc->sk.sk_err == ECONNABORTED) {
-				rc = sock_error(&smc->sk);
-				goto out_unlock;
-			}
+			if (smc->sk.sk_err == ECONNABORTED)
+				return sock_error(&smc->sk);
 			rc = 0;
 			if (conn->alert_token_local) /* connection healthy */
 				mod_delayed_work(system_wq, &conn->tx_work,
 						 SMC_TX_WORK_DELAY);
 		}
-		goto out_unlock;
+		return rc;
 	}
 
+	spin_lock_bh(&conn->send_lock);
 	if (!conn->local_tx_ctrl.prod_flags.urg_data_present) {
 		rc = smc_tx_rdma_writes(conn);
 		if (rc) {
