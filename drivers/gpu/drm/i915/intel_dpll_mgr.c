@@ -258,7 +258,8 @@ intel_find_shared_dpll(struct intel_crtc *crtc,
 
 		/* Only want to check enabled timings first */
 		if (shared_dpll[i].crtc_mask == 0) {
-			unused_pll = pll;
+			if (!unused_pll)
+				unused_pll = pll;
 			continue;
 		}
 
