@@ -12,12 +12,6 @@
 
 #include "cma_priv.h"
 
-static int fill_res_noop(struct sk_buff *msg,
-			 struct rdma_restrack_entry *entry)
-{
-	return 0;
-}
-
 /**
  * rdma_restrack_init() - initialize resource tracking
  * @dev:  IB device
@@ -27,7 +21,6 @@ void rdma_restrack_init(struct ib_device *dev)
 	struct rdma_restrack_root *res = &dev->res;
 
 	init_rwsem(&res->rwsem);
-	res->fill_res_entry = fill_res_noop;
 }
 
 static const char *type2str(enum rdma_restrack_type type)

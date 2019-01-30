@@ -2510,6 +2510,11 @@ struct ib_device_ops {
 	 */
 	int (*init_port)(struct ib_device *device, u8 port_num,
 			 struct kobject *port_sysfs);
+	/**
+	 * Allows rdma drivers to add their own restrack attributes.
+	 */
+	int (*fill_res_entry)(struct sk_buff *msg,
+			      struct rdma_restrack_entry *entry);
 };
 
 struct ib_device {

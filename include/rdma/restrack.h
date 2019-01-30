@@ -65,13 +65,6 @@ struct rdma_restrack_root {
 	 * @hash: global database for all resources per-device
 	 */
 	DECLARE_HASHTABLE(hash, RDMA_RESTRACK_HASH_BITS);
-	/**
-	 * @fill_res_entry: driver-specific fill function
-	 *
-	 * Allows rdma drivers to add their own restrack attributes.
-	 */
-	int (*fill_res_entry)(struct sk_buff *msg,
-			      struct rdma_restrack_entry *entry);
 };
 
 /**

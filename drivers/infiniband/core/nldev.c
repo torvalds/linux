@@ -361,11 +361,19 @@ static int fill_res_name_pid(struct sk_buff *msg,
 	return 0;
 }
 
+static bool fill_res_entry(struct ib_device *dev, struct sk_buff *msg,
+			   struct rdma_restrack_entry *res)
+{
+	if (!dev->ops.fill_res_entry)
+		return false;
+	return dev->ops.fill_res_entry(msg, res);
+}
+
 static int fill_res_qp_entry(struct sk_buff *msg, bool has_cap_net_admin,
 			     struct rdma_restrack_entry *res, uint32_t port)
 {
 	struct ib_qp *qp = container_of(res, struct ib_qp, res);
-	struct rdma_restrack_root *resroot = &qp->device->res;
+	struct ib_device *dev = qp->device;
 	struct ib_qp_init_attr qp_init_attr;
 	struct nlattr *entry_attr;
 	struct ib_qp_attr qp_attr;
@@ -415,7 +423,7 @@ static int fill_res_qp_entry(struct sk_buff *msg, bool has_cap_net_admin,
 	if (fill_res_name_pid(msg, res))
 		goto err;
 
-	if (resroot->fill_res_entry(msg, res))
+	if (fill_res_entry(dev, msg, res))
 		goto err;
 
 	nla_nest_end(msg, entry_attr);
@@ -432,7 +440,7 @@ static int fill_res_cm_id_entry(struct sk_buff *msg, bool has_cap_net_admin,
 {
 	struct rdma_id_private *id_priv =
 				container_of(res, struct rdma_id_private, res);
-	struct rdma_restrack_root *resroot = &id_priv->id.device->res;
+	struct ib_device *dev = id_priv->id.device;
 	struct rdma_cm_id *cm_id = &id_priv->id;
 	struct nlattr *entry_attr;
 
@@ -474,7 +482,7 @@ static int fill_res_cm_id_entry(struct sk_buff *msg, bool has_cap_net_admin,
 	if (fill_res_name_pid(msg, res))
 		goto err;
 
-	if (resroot->fill_res_entry(msg, res))
+	if (fill_res_entry(dev, msg, res))
 		goto err;
 
 	nla_nest_end(msg, entry_attr);
@@ -490,7 +498,7 @@ static int fill_res_cq_entry(struct sk_buff *msg, bool has_cap_net_admin,
 			     struct rdma_restrack_entry *res, uint32_t port)
 {
 	struct ib_cq *cq = container_of(res, struct ib_cq, res);
-	struct rdma_restrack_root *resroot = &cq->device->res;
+	struct ib_device *dev = cq->device;
 	struct nlattr *entry_attr;
 
 	entry_attr = nla_nest_start(msg, RDMA_NLDEV_ATTR_RES_CQ_ENTRY);
@@ -511,7 +519,7 @@ static int fill_res_cq_entry(struct sk_buff *msg, bool has_cap_net_admin,
 	if (fill_res_name_pid(msg, res))
 		goto err;
 
-	if (resroot->fill_res_entry(msg, res))
+	if (fill_res_entry(dev, msg, res))
 		goto err;
 
 	nla_nest_end(msg, entry_attr);
@@ -527,7 +535,7 @@ static int fill_res_mr_entry(struct sk_buff *msg, bool has_cap_net_admin,
 			     struct rdma_restrack_entry *res, uint32_t port)
 {
 	struct ib_mr *mr = container_of(res, struct ib_mr, res);
-	struct rdma_restrack_root *resroot = &mr->pd->device->res;
+	struct ib_device *dev = mr->pd->device;
 	struct nlattr *entry_attr;
 
 	entry_attr = nla_nest_start(msg, RDMA_NLDEV_ATTR_RES_MR_ENTRY);
@@ -548,7 +556,7 @@ static int fill_res_mr_entry(struct sk_buff *msg, bool has_cap_net_admin,
 	if (fill_res_name_pid(msg, res))
 		goto err;
 
-	if (resroot->fill_res_entry(msg, res))
+	if (fill_res_entry(dev, msg, res))
 		goto err;
 
 	nla_nest_end(msg, entry_attr);
@@ -564,7 +572,7 @@ static int fill_res_pd_entry(struct sk_buff *msg, bool has_cap_net_admin,
 			     struct rdma_restrack_entry *res, uint32_t port)
 {
 	struct ib_pd *pd = container_of(res, struct ib_pd, res);
-	struct rdma_restrack_root *resroot = &pd->device->res;
+	struct ib_device *dev = pd->device;
 	struct nlattr *entry_attr;
 
 	entry_attr = nla_nest_start(msg, RDMA_NLDEV_ATTR_RES_PD_ENTRY);
@@ -591,7 +599,7 @@ static int fill_res_pd_entry(struct sk_buff *msg, bool has_cap_net_admin,
 	if (fill_res_name_pid(msg, res))
 		goto err;
 
-	if (resroot->fill_res_entry(msg, res))
+	if (fill_res_entry(dev, msg, res))
 		goto err;
 
 	nla_nest_end(msg, entry_attr);
