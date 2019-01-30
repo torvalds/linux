@@ -585,7 +585,6 @@ int __clear_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 
 	if (delete)
 		bits |= ~EXTENT_CTLBITS;
-	bits |= EXTENT_FIRST_DELALLOC;
 
 	if (bits & (EXTENT_IOBITS | EXTENT_BOUNDARY))
 		clear = 1;
@@ -850,7 +849,6 @@ __set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 
 	btrfs_debug_check_extent_io_range(tree, start, end);
 
-	bits |= EXTENT_FIRST_DELALLOC;
 again:
 	if (!prealloc && gfpflags_allow_blocking(mask)) {
 		/*
