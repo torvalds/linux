@@ -218,6 +218,7 @@ CONFIG_I2C_CHARDEV=m
 # CONFIG_I2C_VIA is not set
 # CONFIG_I2C_VIAPRO is not set
 # CONFIG_I2C_XILINX is not set
+# CONFIG_I3C is not set
 # CONFIG_I6300ESB_WDT is not set
 # CONFIG_IEEE802154 is not set
 # CONFIG_IIO is not set
