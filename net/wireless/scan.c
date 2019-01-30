@@ -1576,10 +1576,8 @@ cfg80211_update_notlisted_nontrans(struct wiphy *wiphy,
 	if (!new_ie)
 		return;
 	new_ies = kzalloc(sizeof(*new_ies) + new_ie_len, gfp);
-	if (!new_ies) {
-		kfree(new_ie);
-		return;
-	}
+	if (!new_ies)
+		goto out_free;
 
 	pos = new_ie;
 
@@ -1613,6 +1611,9 @@ cfg80211_update_notlisted_nontrans(struct wiphy *wiphy,
 		if (old)
 			kfree_rcu((struct cfg80211_bss_ies *)old, rcu_head);
 	}
+
+out_free:
+	kfree(new_ie);
 }
 
 /* cfg80211_inform_bss_width_frame helper */
