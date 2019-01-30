@@ -287,7 +287,7 @@ struct ib_device *_ib_alloc_device(size_t size)
 	if (!device)
 		return NULL;
 
-	rdma_restrack_init(&device->res);
+	rdma_restrack_init(device);
 
 	device->dev.class = &ib_class;
 	device_initialize(&device->dev);
@@ -315,7 +315,7 @@ void ib_dealloc_device(struct ib_device *device)
 	WARN_ON(!list_empty(&device->client_data_list));
 	WARN_ON(device->reg_state != IB_DEV_UNREGISTERED &&
 		device->reg_state != IB_DEV_UNINITIALIZED);
-	rdma_restrack_clean(&device->res);
+	rdma_restrack_clean(device);
 	put_device(&device->dev);
 }
 EXPORT_SYMBOL(ib_dealloc_device);

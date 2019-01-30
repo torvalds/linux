@@ -18,8 +18,14 @@ static int fill_res_noop(struct sk_buff *msg,
 	return 0;
 }
 
-void rdma_restrack_init(struct rdma_restrack_root *res)
+/**
+ * rdma_restrack_init() - initialize resource tracking
+ * @dev:  IB device
+ */
+void rdma_restrack_init(struct ib_device *dev)
 {
+	struct rdma_restrack_root *res = &dev->res;
+
 	init_rwsem(&res->rwsem);
 	res->fill_res_entry = fill_res_noop;
 }
@@ -38,11 +44,15 @@ static const char *type2str(enum rdma_restrack_type type)
 	return names[type];
 };
 
-void rdma_restrack_clean(struct rdma_restrack_root *res)
+/**
+ * rdma_restrack_clean() - clean resource tracking
+ * @dev:  IB device
+ */
+void rdma_restrack_clean(struct ib_device *dev)
 {
+	struct rdma_restrack_root *res = &dev->res;
 	struct rdma_restrack_entry *e;
 	char buf[TASK_COMM_LEN];
-	struct ib_device *dev;
 	const char *owner;
 	int bkt;
 
@@ -72,10 +82,16 @@ void rdma_restrack_clean(struct rdma_restrack_root *res)
 	pr_err("restrack: %s", CUT_HERE);
 }
 
-int rdma_restrack_count(struct rdma_restrack_root *res,
-			enum rdma_restrack_type type,
+/**
+ * rdma_restrack_count() - the current usage of specific object
+ * @dev:  IB device
+ * @type: actual type of object to operate
+ * @ns:   PID namespace
+ */
+int rdma_restrack_count(struct ib_device *dev, enum rdma_restrack_type type,
 			struct pid_namespace *ns)
 {
+	struct rdma_restrack_root *res = &dev->res;
 	struct rdma_restrack_entry *e;
 	u32 cnt = 0;
 
