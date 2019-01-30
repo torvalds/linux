@@ -3743,7 +3743,7 @@ static noinline_for_stack int scrub_workers_get(struct btrfs_fs_info *fs_info,
 
 	lockdep_assert_held(&fs_info->scrub_lock);
 
-	if (fs_info->scrub_workers_refcnt == 0) {
+	if (refcount_read(&fs_info->scrub_workers_refcnt) == 0) {
 		fs_info->scrub_workers = btrfs_alloc_workqueue(fs_info, "scrub",
 				flags, is_dev_replace ? 1 : max_active, 4);
 		if (!fs_info->scrub_workers)
@@ -3760,8 +3760,11 @@ static noinline_for_stack int scrub_workers_get(struct btrfs_fs_info *fs_info,
 					      max_active, 2);
 		if (!fs_info->scrub_parity_workers)
 			goto fail_scrub_parity_workers;
+
+		refcount_set(&fs_info->scrub_workers_refcnt, 1);
+	} else {
+		refcount_inc(&fs_info->scrub_workers_refcnt);
 	}
-	++fs_info->scrub_workers_refcnt;
 	return 0;
 
 fail_scrub_parity_workers:
@@ -3927,7 +3930,7 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 
 	mutex_lock(&fs_info->scrub_lock);
 	dev->scrub_ctx = NULL;
-	if (--fs_info->scrub_workers_refcnt == 0) {
+	if (refcount_dec_and_test(&fs_info->scrub_workers_refcnt)) {
 		scrub_workers = fs_info->scrub_workers;
 		scrub_wr_comp = fs_info->scrub_wr_completion_workers;
 		scrub_parity = fs_info->scrub_parity_workers;

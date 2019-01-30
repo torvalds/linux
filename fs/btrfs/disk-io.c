@@ -2109,7 +2109,7 @@ static void btrfs_init_scrub(struct btrfs_fs_info *fs_info)
 	atomic_set(&fs_info->scrubs_paused, 0);
 	atomic_set(&fs_info->scrub_cancel_req, 0);
 	init_waitqueue_head(&fs_info->scrub_pause_wait);
-	fs_info->scrub_workers_refcnt = 0;
+	refcount_set(&fs_info->scrub_workers_refcnt, 0);
 }
 
 static void btrfs_init_balance(struct btrfs_fs_info *fs_info)
