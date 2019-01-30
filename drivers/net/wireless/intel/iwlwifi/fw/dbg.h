@@ -269,19 +269,19 @@ _iwl_fw_dbg_trigger_simple_stop(struct iwl_fw_runtime *fwrt,
 					iwl_fw_dbg_get_trigger((fwrt)->fw,\
 							       (trig)))
 
-static int iwl_fw_dbg_start_stop_hcmd(struct iwl_fw_runtime *fwrt, bool start)
+static inline int
+iwl_fw_dbg_start_stop_hcmd(struct iwl_fw_runtime *fwrt, bool start)
 {
-	struct iwl_continuous_record_cmd cont_rec = {};
+	struct iwl_ldbg_config_cmd cmd = {
+		.type = start ? cpu_to_le32(START_DEBUG_RECORDING) :
+				cpu_to_le32(STOP_DEBUG_RECORDING),
+	};
 	struct iwl_host_cmd hcmd = {
 		.id = LDBG_CONFIG_CMD,
 		.flags = CMD_ASYNC,
-		.data[0] = &cont_rec,
-		.len[0] = sizeof(cont_rec),
+		.data[0] = &cmd,
+		.len[0] = sizeof(cmd),
 	};
-
-	cont_rec.record_mode.enable_recording = start ?
-		cpu_to_le16(START_DEBUG_RECORDING) :
-		cpu_to_le16(STOP_DEBUG_RECORDING);
 
 	return iwl_trans_send_cmd(fwrt->trans, &hcmd);
 }
@@ -381,6 +381,7 @@ static inline bool iwl_fw_dbg_is_paging_enabled(struct iwl_fw_runtime *fwrt)
 {
 	return iwl_fw_dbg_type_on(fwrt, IWL_FW_ERROR_DUMP_PAGING) &&
 		!fwrt->trans->cfg->gen2 &&
+		fwrt->cur_fw_img < IWL_UCODE_TYPE_MAX &&
 		fwrt->fw->img[fwrt->cur_fw_img].paging_mem_size &&
 		fwrt->fw_paging_db[0].fw_paging_block;
 }

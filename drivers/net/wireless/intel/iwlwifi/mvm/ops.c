@@ -301,8 +301,6 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 		   RX_HANDLER_ASYNC_LOCKED),
 	RX_HANDLER(MFUART_LOAD_NOTIFICATION, iwl_mvm_rx_mfuart_notif,
 		   RX_HANDLER_SYNC),
-	RX_HANDLER(TOF_NOTIFICATION, iwl_mvm_tof_resp_handler,
-		   RX_HANDLER_ASYNC_LOCKED),
 	RX_HANDLER_GRP(DEBUG_GROUP, MFU_ASSERT_DUMP_NTF,
 		       iwl_mvm_mfu_assert_dump_notif, RX_HANDLER_SYNC),
 	RX_HANDLER_GRP(PROT_OFFLOAD_GROUP, STORED_BEACON_NTF,
@@ -329,8 +327,6 @@ static const struct iwl_hcmd_names iwl_mvm_legacy_names[] = {
 	HCMD_NAME(SCAN_REQ_UMAC),
 	HCMD_NAME(SCAN_ABORT_UMAC),
 	HCMD_NAME(SCAN_COMPLETE_UMAC),
-	HCMD_NAME(TOF_CMD),
-	HCMD_NAME(TOF_NOTIFICATION),
 	HCMD_NAME(BA_WINDOW_STATUS_NOTIFICATION_ID),
 	HCMD_NAME(ADD_STA_KEY),
 	HCMD_NAME(ADD_STA),
@@ -449,6 +445,7 @@ static const struct iwl_hcmd_names iwl_mvm_data_path_names[] = {
 	HCMD_NAME(TRIGGER_RX_QUEUES_NOTIF_CMD),
 	HCMD_NAME(STA_HE_CTXT_CMD),
 	HCMD_NAME(RFH_QUEUE_CONFIG_CMD),
+	HCMD_NAME(CHEST_COLLECTOR_FILTER_CONFIG_CMD),
 	HCMD_NAME(STA_PM_NOTIF),
 	HCMD_NAME(MU_GROUP_MGMT_NOTIF),
 	HCMD_NAME(RX_QUEUES_NOTIFICATION),
@@ -459,6 +456,22 @@ static const struct iwl_hcmd_names iwl_mvm_data_path_names[] = {
  */
 static const struct iwl_hcmd_names iwl_mvm_debug_names[] = {
 	HCMD_NAME(MFU_ASSERT_DUMP_NTF),
+};
+
+/* Please keep this array *SORTED* by hex value.
+ * Access is done through binary search
+ */
+static const struct iwl_hcmd_names iwl_mvm_location_names[] = {
+	HCMD_NAME(TOF_RANGE_REQ_CMD),
+	HCMD_NAME(TOF_CONFIG_CMD),
+	HCMD_NAME(TOF_RANGE_ABORT_CMD),
+	HCMD_NAME(TOF_RANGE_REQ_EXT_CMD),
+	HCMD_NAME(TOF_RESPONDER_CONFIG_CMD),
+	HCMD_NAME(TOF_RESPONDER_DYN_CONFIG_CMD),
+	HCMD_NAME(TOF_LC_NOTIF),
+	HCMD_NAME(TOF_RESPONDER_STATS),
+	HCMD_NAME(TOF_MCSI_DEBUG_NOTIF),
+	HCMD_NAME(TOF_RANGE_RESPONSE_NOTIF),
 };
 
 /* Please keep this array *SORTED* by hex value.
@@ -483,6 +496,7 @@ static const struct iwl_hcmd_arr iwl_mvm_groups[] = {
 	[MAC_CONF_GROUP] = HCMD_ARR(iwl_mvm_mac_conf_names),
 	[PHY_OPS_GROUP] = HCMD_ARR(iwl_mvm_phy_names),
 	[DATA_PATH_GROUP] = HCMD_ARR(iwl_mvm_data_path_names),
+	[LOCATION_GROUP] = HCMD_ARR(iwl_mvm_location_names),
 	[PROT_OFFLOAD_GROUP] = HCMD_ARR(iwl_mvm_prot_offload_names),
 	[REGULATORY_AND_NVM_GROUP] =
 		HCMD_ARR(iwl_mvm_regulatory_and_nvm_names),
@@ -737,6 +751,9 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		trans_cfg.rx_buf_size = rb_size_default;
 	}
 
+	BUILD_BUG_ON(sizeof(struct iwl_ldbg_config_cmd) !=
+		     LDBG_CFG_COMMAND_SIZE);
+
 	trans->wide_cmd_header = true;
 	trans_cfg.bc_table_dword =
 		mvm->trans->cfg->device_family < IWL_DEVICE_FAMILY_22560;
@@ -843,8 +860,6 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	if (iwl_mvm_is_d0i3_supported(mvm))
 		iwl_trans_unref(mvm->trans);
 
-	iwl_mvm_tof_init(mvm);
-
 	iwl_mvm_toggle_tx_ant(mvm, &mvm->mgmt_last_antenna_idx);
 
 	return op_mode;
@@ -909,8 +924,6 @@ static void iwl_op_mode_mvm_stop(struct iwl_op_mode *op_mode)
 		kfree(mvm->nvm_sections[i].data);
 
 	cancel_delayed_work_sync(&mvm->tcm.work);
-
-	iwl_mvm_tof_clean(mvm);
 
 	iwl_fw_runtime_free(&mvm->fwrt);
 	mutex_destroy(&mvm->mutex);

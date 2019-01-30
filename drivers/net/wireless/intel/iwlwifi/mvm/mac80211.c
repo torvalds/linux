@@ -878,25 +878,45 @@ void iwl_mvm_mac_itxq_xmit(struct ieee80211_hw *hw, struct ieee80211_txq *txq)
 	struct iwl_mvm_txq *mvmtxq = iwl_mvm_txq_from_mac80211(txq);
 	struct sk_buff *skb = NULL;
 
-	spin_lock(&mvmtxq->tx_path_lock);
+	/*
+	 * No need for threads to be pending here, they can leave the first
+	 * taker all the work.
+	 *
+	 * mvmtxq->tx_request logic:
+	 *
+	 * If 0, no one is currently TXing, set to 1 to indicate current thread
+	 * will now start TX and other threads should quit.
+	 *
+	 * If 1, another thread is currently TXing, set to 2 to indicate to
+	 * that thread that there was another request. Since that request may
+	 * have raced with the check whether the queue is empty, the TXing
+	 * thread should check the queue's status one more time before leaving.
+	 * This check is done in order to not leave any TX hanging in the queue
+	 * until the next TX invocation (which may not even happen).
+	 *
+	 * If 2, another thread is currently TXing, and it will already double
+	 * check the queue, so do nothing.
+	 */
+	if (atomic_fetch_add_unless(&mvmtxq->tx_request, 1, 2))
+		return;
 
 	rcu_read_lock();
-	while (likely(!mvmtxq->stopped &&
-		      (mvm->trans->system_pm_mode ==
-		       IWL_PLAT_PM_MODE_DISABLED))) {
-		skb = ieee80211_tx_dequeue(hw, txq);
+	do {
+		while (likely(!mvmtxq->stopped &&
+			      (mvm->trans->system_pm_mode ==
+			       IWL_PLAT_PM_MODE_DISABLED))) {
+			skb = ieee80211_tx_dequeue(hw, txq);
 
-		if (!skb)
-			break;
+			if (!skb)
+				break;
 
-		if (!txq->sta)
-			iwl_mvm_tx_skb_non_sta(mvm, skb);
-		else
-			iwl_mvm_tx_skb(mvm, skb, txq->sta);
-	}
+			if (!txq->sta)
+				iwl_mvm_tx_skb_non_sta(mvm, skb);
+			else
+				iwl_mvm_tx_skb(mvm, skb, txq->sta);
+		}
+	} while (atomic_dec_return(&mvmtxq->tx_request));
 	rcu_read_unlock();
-
-	spin_unlock(&mvmtxq->tx_path_lock);
 }
 
 static void iwl_mvm_mac_wake_tx_queue(struct ieee80211_hw *hw,
@@ -941,24 +961,6 @@ static void iwl_mvm_mac_wake_tx_queue(struct ieee80211_hw *hw,
 
 	list_add_tail(&mvmtxq->list, &mvm->add_stream_txqs);
 	schedule_work(&mvm->add_stream_wk);
-}
-
-static inline bool iwl_enable_rx_ampdu(const struct iwl_cfg *cfg)
-{
-	if (iwlwifi_mod_params.disable_11n & IWL_DISABLE_HT_RXAGG)
-		return false;
-	return true;
-}
-
-static inline bool iwl_enable_tx_ampdu(const struct iwl_cfg *cfg)
-{
-	if (iwlwifi_mod_params.disable_11n & IWL_DISABLE_HT_TXAGG)
-		return false;
-	if (iwlwifi_mod_params.disable_11n & IWL_ENABLE_HT_TXAGG)
-		return true;
-
-	/* enabled by default */
-	return true;
 }
 
 #define CHECK_BA_TRIGGER(_mvm, _trig, _tid_bm, _tid, _fmt...)		\
@@ -1073,7 +1075,7 @@ static int iwl_mvm_mac_ampdu_action(struct ieee80211_hw *hw,
 			mvmvif = iwl_mvm_vif_from_mac80211(vif);
 			cancel_delayed_work(&mvmvif->uapsd_nonagg_detected_wk);
 		}
-		if (!iwl_enable_rx_ampdu(mvm->cfg)) {
+		if (!iwl_enable_rx_ampdu()) {
 			ret = -EINVAL;
 			break;
 		}
@@ -1085,7 +1087,7 @@ static int iwl_mvm_mac_ampdu_action(struct ieee80211_hw *hw,
 					 timeout);
 		break;
 	case IEEE80211_AMPDU_TX_START:
-		if (!iwl_enable_tx_ampdu(mvm->cfg)) {
+		if (!iwl_enable_tx_ampdu()) {
 			ret = -EINVAL;
 			break;
 		}
@@ -1164,6 +1166,8 @@ static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
 	iwl_mvm_unref_all_except(mvm, IWL_MVM_REF_UCODE_DOWN);
 
 	iwl_mvm_stop_device(mvm);
+
+	mvm->cur_aid = 0;
 
 	mvm->scan_status = 0;
 	mvm->ps_disabled = false;
@@ -1489,6 +1493,8 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 	if (ret)
 		goto out_unlock;
 
+	rcu_assign_pointer(mvm->vif_id_to_mac[mvmvif->id], vif);
+
 	/* Counting number of interfaces is needed for legacy PM */
 	if (vif->type != NL80211_IFTYPE_P2P_DEVICE)
 		mvm->vif_count++;
@@ -1679,6 +1685,8 @@ static void iwl_mvm_mac_remove_interface(struct ieee80211_hw *hw,
 
 	iwl_mvm_power_update_mac(mvm);
 	iwl_mvm_mac_ctxt_remove(mvm, vif);
+
+	RCU_INIT_POINTER(mvm->vif_id_to_mac[mvmvif->id], NULL);
 
 	if (vif->type == NL80211_IFTYPE_MONITOR)
 		mvm->monitor_on = false;
@@ -2244,6 +2252,12 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 		iwl_mvm_mac_ctxt_recalc_tsf_id(mvm, vif);
 	}
 
+	/* Update MU EDCA params */
+	if (changes & BSS_CHANGED_QOS && mvmvif->associated &&
+	    bss_conf->assoc && vif->bss_conf.he_support &&
+	    !iwlwifi_mod_params.disable_11ax)
+		iwl_mvm_cfg_he_sta(mvm, vif, mvmvif->ap_sta_id);
+
 	/*
 	 * If we're not associated yet, take the (new) BSSID before associating
 	 * so the firmware knows. If we're already associated, then use the old
@@ -2770,7 +2784,7 @@ static void __iwl_mvm_mac_sta_notify(struct ieee80211_hw *hw,
 		return;
 
 	spin_lock_bh(&mvmsta->lock);
-	for (tid = 0; tid < IWL_MAX_TID_COUNT; tid++) {
+	for (tid = 0; tid < ARRAY_SIZE(mvmsta->tid_data); tid++) {
 		struct iwl_mvm_tid_data *tid_data = &mvmsta->tid_data[tid];
 
 		if (tid_data->txq_id == IWL_MVM_INVALID_QUEUE)
@@ -3109,6 +3123,16 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 			iwl_mvm_tdls_check_trigger(mvm, vif, sta->addr,
 						   NL80211_TDLS_DISABLE_LINK);
 		}
+
+		/* Remove STA key if this is an AP using WEP */
+		if (vif->type == NL80211_IFTYPE_AP && mvmvif->ap_wep_key) {
+			int rm_ret = iwl_mvm_remove_sta_key(mvm, vif, sta,
+							    mvmvif->ap_wep_key);
+
+			if (!ret)
+				ret = rm_ret;
+		}
+
 	} else {
 		ret = -EIO;
 	}
@@ -3504,14 +3528,20 @@ static int iwl_mvm_send_aux_roc_cmd(struct iwl_mvm *mvm,
 		.id_and_color =
 			cpu_to_le32(FW_CMD_ID_AND_COLOR(MAC_INDEX_AUX, 0)),
 		.sta_id_and_color = cpu_to_le32(mvm->aux_sta.sta_id),
-		/* Set the channel info data */
-		.channel_info.band = (channel->band == NL80211_BAND_2GHZ) ?
-			PHY_BAND_24 : PHY_BAND_5,
-		.channel_info.channel = channel->hw_value,
-		.channel_info.width = PHY_VHT_CHANNEL_MODE20,
-		/* Set the time and duration */
-		.apply_time = cpu_to_le32(iwl_read_prph(mvm->trans, time_reg)),
-	 };
+	};
+	struct iwl_hs20_roc_req_tail *tail = iwl_mvm_chan_info_cmd_tail(mvm,
+		&aux_roc_req.channel_info);
+	u16 len = sizeof(aux_roc_req) - iwl_mvm_chan_info_padding(mvm);
+
+	/* Set the channel info data */
+	iwl_mvm_set_chan_info(mvm, &aux_roc_req.channel_info, channel->hw_value,
+			      (channel->band == NL80211_BAND_2GHZ) ?
+			       PHY_BAND_24 : PHY_BAND_5,
+			      PHY_VHT_CHANNEL_MODE20,
+			      0);
+
+	/* Set the time and duration */
+	tail->apply_time = cpu_to_le32(iwl_read_prph(mvm->trans, time_reg));
 
 	delay = AUX_ROC_MIN_DELAY;
 	req_dur = MSEC_TO_TU(duration);
@@ -3536,15 +3566,15 @@ static int iwl_mvm_send_aux_roc_cmd(struct iwl_mvm *mvm,
 		}
 	}
 
-	aux_roc_req.duration = cpu_to_le32(req_dur);
-	aux_roc_req.apply_time_max_delay = cpu_to_le32(delay);
+	tail->duration = cpu_to_le32(req_dur);
+	tail->apply_time_max_delay = cpu_to_le32(delay);
 
 	IWL_DEBUG_TE(mvm,
 		     "ROC: Requesting to remain on channel %u for %ums (requested = %ums, max_delay = %ums, dtim_interval = %ums)\n",
 		     channel->hw_value, req_dur, duration, delay,
 		     dtim_interval);
 	/* Set the node address */
-	memcpy(aux_roc_req.node_addr, vif->addr, ETH_ALEN);
+	memcpy(tail->node_addr, vif->addr, ETH_ALEN);
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -3575,7 +3605,7 @@ static int iwl_mvm_send_aux_roc_cmd(struct iwl_mvm *mvm,
 				   ARRAY_SIZE(time_event_response),
 				   iwl_mvm_rx_aux_roc, te_data);
 
-	res = iwl_mvm_send_cmd_pdu(mvm, HOT_SPOT_CMD, 0, sizeof(aux_roc_req),
+	res = iwl_mvm_send_cmd_pdu(mvm, HOT_SPOT_CMD, 0, len,
 				   &aux_roc_req);
 
 	if (res) {

@@ -1216,13 +1216,13 @@ static void iwl_fw_ini_dump_trigger(struct iwl_fw_runtime *fwrt,
 			iwl_dump_prph_ini(fwrt->trans, data, reg);
 			break;
 		case IWL_FW_INI_REGION_DRAM_BUFFER:
-			*dump_mask |= IWL_FW_ERROR_DUMP_FW_MONITOR;
+			*dump_mask |= BIT(IWL_FW_ERROR_DUMP_FW_MONITOR);
 			break;
 		case IWL_FW_INI_REGION_PAGING:
 			if (iwl_fw_dbg_is_paging_enabled(fwrt))
 				iwl_dump_paging(fwrt, data);
 			else
-				*dump_mask |= IWL_FW_ERROR_DUMP_PAGING;
+				*dump_mask |= BIT(IWL_FW_ERROR_DUMP_PAGING);
 			break;
 		case IWL_FW_INI_REGION_TXF:
 			iwl_fw_dump_txf(fwrt, data);
@@ -1254,10 +1254,6 @@ _iwl_fw_error_ini_dump(struct iwl_fw_runtime *fwrt,
 
 	if (id == FW_DBG_TRIGGER_FW_ASSERT)
 		id = IWL_FW_TRIGGER_ID_FW_ASSERT;
-	else if (id == FW_DBG_TRIGGER_USER)
-		id = IWL_FW_TRIGGER_ID_USER_TRIGGER;
-	else if (id < FW_DBG_TRIGGER_MAX)
-		return NULL;
 
 	if (WARN_ON(id >= ARRAY_SIZE(fwrt->dump.active_trigs)))
 		return NULL;
@@ -1493,7 +1489,7 @@ int iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
 	if (WARN_ON(!fwrt->dump.active_trigs[id].active))
 		return -EINVAL;
 
-	delay = le32_to_cpu(fwrt->dump.active_trigs[id].conf->ignore_consec);
+	delay = le32_to_cpu(fwrt->dump.active_trigs[id].conf->dump_delay);
 	occur = le32_to_cpu(fwrt->dump.active_trigs[id].conf->occurrences);
 	if (!occur)
 		return 0;
@@ -1678,27 +1674,29 @@ iwl_fw_dbg_buffer_allocation(struct iwl_fw_runtime *fwrt,
 			     struct iwl_fw_ini_allocation_tlv *alloc)
 {
 	struct iwl_trans *trans = fwrt->trans;
-	struct iwl_continuous_record_cmd cont_rec = {};
-	struct iwl_buffer_allocation_cmd *cmd = (void *)&cont_rec.pad[0];
+	struct iwl_ldbg_config_cmd ldbg_cmd = {
+		.type = cpu_to_le32(BUFFER_ALLOCATION),
+	};
+	struct iwl_buffer_allocation_cmd *cmd = &ldbg_cmd.buffer_allocation;
 	struct iwl_host_cmd hcmd = {
 		.id = LDBG_CONFIG_CMD,
 		.flags = CMD_ASYNC,
-		.data[0] = &cont_rec,
-		.len[0] = sizeof(cont_rec),
+		.data[0] = &ldbg_cmd,
+		.len[0] = sizeof(ldbg_cmd),
 	};
 	void *virtual_addr = NULL;
 	u32 size = le32_to_cpu(alloc->size);
 	dma_addr_t phys_addr;
-
-	cont_rec.record_mode.enable_recording = cpu_to_le16(BUFFER_ALLOCATION);
 
 	if (!trans->num_blocks &&
 	    le32_to_cpu(alloc->buffer_location) !=
 	    IWL_FW_INI_LOCATION_DRAM_PATH)
 		return;
 
-	virtual_addr = dma_alloc_coherent(fwrt->trans->dev, size,
-					  &phys_addr, GFP_KERNEL);
+	virtual_addr =
+		dma_alloc_coherent(fwrt->trans->dev, size, &phys_addr,
+				   GFP_KERNEL | __GFP_NOWARN | __GFP_ZERO |
+				   __GFP_COMP);
 
 	/* TODO: alloc fragments if needed */
 	if (!virtual_addr)
