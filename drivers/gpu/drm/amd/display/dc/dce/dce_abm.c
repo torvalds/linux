@@ -53,6 +53,27 @@
 
 #define MCP_DISABLE_ABM_IMMEDIATELY 255
 
+static bool dce_abm_set_pipe(struct abm *abm, uint32_t controller_id)
+{
+	struct dce_abm *abm_dce = TO_DCE_ABM(abm);
+	uint32_t rampingBoundary = 0xFFFF;
+
+	REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 0,
+			1, 80000);
+
+	/* set ramping boundary */
+	REG_WRITE(MASTER_COMM_DATA_REG1, rampingBoundary);
+
+	/* setDMCUParam_Pipe */
+	REG_UPDATE_2(MASTER_COMM_CMD_REG,
+			MASTER_COMM_CMD_REG_BYTE0, MCP_ABM_PIPE_SET,
+			MASTER_COMM_CMD_REG_BYTE1, controller_id);
+
+	/* notifyDMCUMsg */
+	REG_UPDATE(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 1);
+
+	return true;
+}
 
 static unsigned int calculate_16_bit_backlight_from_pwm(struct dce_abm *abm_dce)
 {
@@ -184,6 +205,8 @@ static void dmcu_set_backlight_level(
 		// Take MSB of fractional part since backlight is not max
 		backlight_8_bit = (backlight_pwm_u16_16 >> 8) & 0xFF;
 
+	dce_abm_set_pipe(&abm_dce->base, controller_id);
+
 	/* waitDMCUReadyForCmd */
 	REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT,
 			0, 1, 80000);
@@ -286,28 +309,6 @@ static bool dce_abm_set_level(struct abm *abm, uint32_t level)
 	REG_UPDATE_2(MASTER_COMM_CMD_REG,
 			MASTER_COMM_CMD_REG_BYTE0, MCP_ABM_LEVEL_SET,
 			MASTER_COMM_CMD_REG_BYTE2, level);
-
-	/* notifyDMCUMsg */
-	REG_UPDATE(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 1);
-
-	return true;
-}
-
-static bool dce_abm_set_pipe(struct abm *abm, uint32_t controller_id)
-{
-	struct dce_abm *abm_dce = TO_DCE_ABM(abm);
-	uint32_t rampingBoundary = 0xFFFF;
-
-	REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 0,
-			1, 80000);
-
-	/* set ramping boundary */
-	REG_WRITE(MASTER_COMM_DATA_REG1, rampingBoundary);
-
-	/* setDMCUParam_Pipe */
-	REG_UPDATE_2(MASTER_COMM_CMD_REG,
-			MASTER_COMM_CMD_REG_BYTE0, MCP_ABM_PIPE_SET,
-			MASTER_COMM_CMD_REG_BYTE1, controller_id);
 
 	/* notifyDMCUMsg */
 	REG_UPDATE(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 1);
