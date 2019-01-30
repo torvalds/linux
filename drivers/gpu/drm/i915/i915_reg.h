@@ -5710,6 +5710,12 @@ enum {
 #define   PIPEMISC_DITHER_TYPE_SP	(0 << 2)
 #define PIPEMISC(pipe)			_MMIO_PIPE2(pipe, _PIPE_MISC_A)
 
+/* Skylake+ pipe bottom (background) color */
+#define _SKL_BOTTOM_COLOR_A		0x70034
+#define   SKL_BOTTOM_COLOR_GAMMA_ENABLE	(1 << 31)
+#define   SKL_BOTTOM_COLOR_CSC_ENABLE	(1 << 30)
+#define SKL_BOTTOM_COLOR(pipe)		_MMIO_PIPE2(pipe, _SKL_BOTTOM_COLOR_A)
+
 #define VLV_DPFLIPSTAT				_MMIO(VLV_DISPLAY_BASE + 0x70028)
 #define   PIPEB_LINE_COMPARE_INT_EN		(1 << 29)
 #define   PIPEB_HLINE_INT_EN			(1 << 28)
