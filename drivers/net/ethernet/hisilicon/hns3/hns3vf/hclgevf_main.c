@@ -21,6 +21,14 @@ static const struct pci_device_id ae_algovf_pci_tbl[] = {
 	{0, }
 };
 
+static const u8 hclgevf_hash_key[] = {
+	0x6D, 0x5A, 0x56, 0xDA, 0x25, 0x5B, 0x0E, 0xC2,
+	0x41, 0x67, 0x25, 0x3D, 0x43, 0xA3, 0x8F, 0xB0,
+	0xD0, 0xCA, 0x2B, 0xCB, 0xAE, 0x7B, 0x30, 0xB4,
+	0x77, 0xCB, 0x2D, 0xA3, 0x80, 0x30, 0xF2, 0x0C,
+	0x6A, 0x42, 0xB7, 0x3B, 0xBE, 0xAC, 0x01, 0xFA
+};
+
 MODULE_DEVICE_TABLE(pci, ae_algovf_pci_tbl);
 
 static const u32 cmdq_reg_addr_list[] = {HCLGEVF_CMDQ_TX_ADDR_L_REG,
@@ -78,7 +86,12 @@ static const u32 tqp_intr_reg_addr_list[] = {HCLGEVF_TQP_INTR_CTRL_REG,
 static inline struct hclgevf_dev *hclgevf_ae_get_hdev(
 	struct hnae3_handle *handle)
 {
-	return container_of(handle, struct hclgevf_dev, nic);
+	if (!handle->client)
+		return container_of(handle, struct hclgevf_dev, nic);
+	else if (handle->client->type == HNAE3_CLIENT_ROCE)
+		return container_of(handle, struct hclgevf_dev, roce);
+	else
+		return container_of(handle, struct hclgevf_dev, nic);
 }
 
 static int hclgevf_tqps_update_stats(struct hnae3_handle *handle)
@@ -1611,6 +1624,10 @@ static void hclgevf_keep_alive_task(struct work_struct *work)
 	int ret;
 
 	hdev = container_of(work, struct hclgevf_dev, keep_alive_task);
+
+	if (test_bit(HCLGEVF_STATE_RST_HANDLING, &hdev->state))
+		return;
+
 	ret = hclgevf_send_mbx_msg(hdev, HCLGE_MBX_KEEP_ALIVE, 0, NULL,
 				   0, false, &respmsg, sizeof(u8));
 	if (ret)
@@ -1789,9 +1806,9 @@ static int hclgevf_rss_init_hw(struct hclgevf_dev *hdev)
 	rss_cfg->rss_size = hdev->rss_size_max;
 
 	if (hdev->pdev->revision >= 0x21) {
-		rss_cfg->hash_algo = HCLGEVF_RSS_HASH_ALGO_TOEPLITZ;
-		netdev_rss_key_fill(rss_cfg->rss_hash_key,
-				    HCLGEVF_RSS_KEY_SIZE);
+		rss_cfg->hash_algo = HCLGEVF_RSS_HASH_ALGO_SIMPLE;
+		memcpy(rss_cfg->rss_hash_key, hclgevf_hash_key,
+		       HCLGEVF_RSS_KEY_SIZE);
 
 		ret = hclgevf_set_rss_algo_key(hdev, rss_cfg->hash_algo,
 					       rss_cfg->rss_hash_key);

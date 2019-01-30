@@ -805,7 +805,7 @@ static int hns3_set_ringparam(struct net_device *ndev,
 		    old_desc_num, new_desc_num);
 
 	if (if_running)
-		dev_close(ndev);
+		ndev->netdev_ops->ndo_stop(ndev);
 
 	ret = hns3_uninit_all_ring(priv);
 	if (ret)
@@ -822,7 +822,7 @@ static int hns3_set_ringparam(struct net_device *ndev,
 	}
 
 	if (if_running)
-		ret = dev_open(ndev, NULL);
+		ret = ndev->netdev_ops->ndo_open(ndev);
 
 	return ret;
 }
@@ -1115,6 +1115,8 @@ static const struct ethtool_ops hns3vf_ethtool_ops = {
 	.get_channels = hns3_get_channels,
 	.get_coalesce = hns3_get_coalesce,
 	.set_coalesce = hns3_set_coalesce,
+	.get_regs_len = hns3_get_regs_len,
+	.get_regs = hns3_get_regs,
 	.get_link = hns3_get_link,
 };
 

@@ -583,7 +583,6 @@ struct hclge_fd_key_cfg {
 
 struct hclge_fd_cfg {
 	u8 fd_mode;
-	u8 fd_en;
 	u16 max_key_length;
 	u32 proto_support;
 	u32 rule_num[2]; /* rule entry number */
@@ -758,6 +757,7 @@ struct hclge_dev {
 	struct hclge_fd_cfg fd_cfg;
 	struct hlist_head fd_rule_list;
 	u16 hclge_fd_rule_num;
+	u8 fd_en;
 
 	u16 wanted_umv_size;
 	/* max available unicast mac vlan space */

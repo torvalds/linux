@@ -655,11 +655,7 @@ static int hns3_set_tso(struct sk_buff *skb, u32 *paylen,
 static int hns3_get_l4_protocol(struct sk_buff *skb, u8 *ol4_proto,
 				u8 *il4_proto)
 {
-	union {
-		struct iphdr *v4;
-		struct ipv6hdr *v6;
-		unsigned char *hdr;
-	} l3;
+	union l3_hdr_info l3;
 	unsigned char *l4_hdr;
 	unsigned char *exthdr;
 	u8 l4_proto_tmp;
@@ -712,17 +708,8 @@ static void hns3_set_l2l3l4_len(struct sk_buff *skb, u8 ol4_proto,
 				u8 il4_proto, u32 *type_cs_vlan_tso,
 				u32 *ol_type_vlan_len_msec)
 {
-	union {
-		struct iphdr *v4;
-		struct ipv6hdr *v6;
-		unsigned char *hdr;
-	} l3;
-	union {
-		struct tcphdr *tcp;
-		struct udphdr *udp;
-		struct gre_base_hdr *gre;
-		unsigned char *hdr;
-	} l4;
+	union l3_hdr_info l3;
+	union l4_hdr_info l4;
 	unsigned char *l2_hdr;
 	u8 l4_proto = ol4_proto;
 	u32 ol2_len;
@@ -821,12 +808,7 @@ static void hns3_set_l2l3l4_len(struct sk_buff *skb, u8 ol4_proto,
 static bool hns3_tunnel_csum_bug(struct sk_buff *skb)
 {
 #define IANA_VXLAN_PORT	4789
-	union {
-		struct tcphdr *tcp;
-		struct udphdr *udp;
-		struct gre_base_hdr *gre;
-		unsigned char *hdr;
-	} l4;
+	union l4_hdr_info l4;
 
 	l4.hdr = skb_transport_header(skb);
 
@@ -842,11 +824,7 @@ static int hns3_set_l3l4_type_csum(struct sk_buff *skb, u8 ol4_proto,
 				   u8 il4_proto, u32 *type_cs_vlan_tso,
 				   u32 *ol_type_vlan_len_msec)
 {
-	union {
-		struct iphdr *v4;
-		struct ipv6hdr *v6;
-		unsigned char *hdr;
-	} l3;
+	union l3_hdr_info l3;
 	u32 l4_proto = ol4_proto;
 
 	l3.hdr = skb_network_header(skb);
@@ -1774,9 +1752,13 @@ static int hns3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	hns3_get_dev_capability(pdev, ae_dev);
 	pci_set_drvdata(pdev, ae_dev);
 
-	hnae3_register_ae_dev(ae_dev);
+	ret = hnae3_register_ae_dev(ae_dev);
+	if (ret) {
+		devm_kfree(&pdev->dev, ae_dev);
+		pci_set_drvdata(pdev, NULL);
+	}
 
-	return 0;
+	return ret;
 }
 
 /* hns3_remove - Device removal routine
@@ -3201,12 +3183,12 @@ static void hns3_clear_ring_group(struct hns3_enet_ring_group *group)
 	group->count = 0;
 }
 
-static int hns3_nic_uninit_vector_data(struct hns3_nic_priv *priv)
+static void hns3_nic_uninit_vector_data(struct hns3_nic_priv *priv)
 {
 	struct hnae3_ring_chain_node vector_ring_chain;
 	struct hnae3_handle *h = priv->ae_handle;
 	struct hns3_enet_tqp_vector *tqp_vector;
-	int i, ret;
+	int i;
 
 	for (i = 0; i < priv->vector_num; i++) {
 		tqp_vector = &priv->tqp_vector[i];
@@ -3214,15 +3196,10 @@ static int hns3_nic_uninit_vector_data(struct hns3_nic_priv *priv)
 		if (!tqp_vector->rx_group.ring && !tqp_vector->tx_group.ring)
 			continue;
 
-		ret = hns3_get_vector_ring_chain(tqp_vector,
-						 &vector_ring_chain);
-		if (ret)
-			return ret;
+		hns3_get_vector_ring_chain(tqp_vector, &vector_ring_chain);
 
-		ret = h->ae_algo->ops->unmap_ring_from_vector(h,
+		h->ae_algo->ops->unmap_ring_from_vector(h,
 			tqp_vector->vector_irq, &vector_ring_chain);
-		if (ret)
-			return ret;
 
 		hns3_free_vector_ring_chain(tqp_vector, &vector_ring_chain);
 
@@ -3238,8 +3215,6 @@ static int hns3_nic_uninit_vector_data(struct hns3_nic_priv *priv)
 		hns3_clear_ring_group(&tqp_vector->tx_group);
 		netif_napi_del(&priv->tqp_vector[i].napi);
 	}
-
-	return 0;
 }
 
 static int hns3_nic_dealloc_vector_data(struct hns3_nic_priv *priv)
@@ -3549,6 +3524,25 @@ static int hns3_init_mac_addr(struct net_device *netdev, bool init)
 	return ret;
 }
 
+static int hns3_init_phy(struct net_device *netdev)
+{
+	struct hnae3_handle *h = hns3_get_handle(netdev);
+	int ret = 0;
+
+	if (h->ae_algo->ops->mac_connect_phy)
+		ret = h->ae_algo->ops->mac_connect_phy(h);
+
+	return ret;
+}
+
+static void hns3_uninit_phy(struct net_device *netdev)
+{
+	struct hnae3_handle *h = hns3_get_handle(netdev);
+
+	if (h->ae_algo->ops->mac_disconnect_phy)
+		h->ae_algo->ops->mac_disconnect_phy(h);
+}
+
 static int hns3_restore_fd_rules(struct net_device *netdev)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
@@ -3658,6 +3652,10 @@ static int hns3_client_init(struct hnae3_handle *handle)
 		goto out_init_ring_data;
 	}
 
+	ret = hns3_init_phy(netdev);
+	if (ret)
+		goto out_init_phy;
+
 	ret = register_netdev(netdev);
 	if (ret) {
 		dev_err(priv->dev, "probe register netdev fail!\n");
@@ -3682,8 +3680,11 @@ static int hns3_client_init(struct hnae3_handle *handle)
 	return ret;
 
 out_reg_netdev_fail:
+	hns3_uninit_phy(netdev);
+out_init_phy:
+	hns3_uninit_all_ring(priv);
 out_init_ring_data:
-	(void)hns3_nic_uninit_vector_data(priv);
+	hns3_nic_uninit_vector_data(priv);
 out_init_vector_data:
 	hns3_nic_dealloc_vector_data(priv);
 out_alloc_vector_data:
@@ -3716,9 +3717,9 @@ static void hns3_client_uninit(struct hnae3_handle *handle, bool reset)
 
 	hns3_force_clear_all_rx_ring(handle);
 
-	ret = hns3_nic_uninit_vector_data(priv);
-	if (ret)
-		netdev_err(netdev, "uninit vector error\n");
+	hns3_uninit_phy(netdev);
+
+	hns3_nic_uninit_vector_data(priv);
 
 	ret = hns3_nic_dealloc_vector_data(priv);
 	if (ret)
@@ -4111,11 +4112,7 @@ static int hns3_reset_notify_uninit_enet(struct hnae3_handle *handle)
 
 	hns3_force_clear_all_rx_ring(handle);
 
-	ret = hns3_nic_uninit_vector_data(priv);
-	if (ret) {
-		netdev_err(netdev, "uninit vector error\n");
-		return ret;
-	}
+	hns3_nic_uninit_vector_data(priv);
 
 	hns3_store_coal(priv);
 
