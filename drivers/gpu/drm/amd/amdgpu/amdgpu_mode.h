@@ -405,6 +405,7 @@ struct amdgpu_crtc {
 	struct amdgpu_flip_work *pflip_works;
 	enum amdgpu_flip_status pflip_status;
 	int deferred_flip_completion;
+	u64 last_flip_vblank;
 	/* pll sharing */
 	struct amdgpu_atom_ss ss;
 	bool ss_enabled;
