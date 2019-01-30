@@ -231,20 +231,38 @@ multiple_masks_test()
 	# spillage is performed correctly and that the right filter is
 	# matched
 
+	if [[ "$tcflags" != "skip_sw" ]]; then
+		return 0;
+	fi
+
 	local index
 
 	RET=0
 
 	NUM_MASKS=32
+	NUM_ERPS=16
 	BASE_INDEX=100
 
 	for i in $(eval echo {1..$NUM_MASKS}); do
 		index=$((BASE_INDEX - i))
 
-		tc filter add dev $h2 ingress protocol ip pref $index \
-			handle $index \
-			flower $tcflags dst_ip 192.0.2.2/${i} src_ip 192.0.2.1 \
-			action drop
+		if ((i > NUM_ERPS)); then
+			exp_hits=1
+			err_msg="$i filters - C-TCAM spill did not happen when it was expected"
+		else
+			exp_hits=0
+			err_msg="$i filters - C-TCAM spill happened when it should not"
+		fi
+
+		tp_record "mlxsw:mlxsw_sp_acl_atcam_entry_add_ctcam_spill" \
+			"tc filter add dev $h2 ingress protocol ip pref $index \
+				handle $index \
+				flower $tcflags \
+				dst_ip 192.0.2.2/${i} src_ip 192.0.2.1/${i} \
+				action drop"
+		tp_check_hits "mlxsw:mlxsw_sp_acl_atcam_entry_add_ctcam_spill" \
+				$exp_hits
+		check_err $? "$err_msg"
 
 		$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac -A 192.0.2.1 \
 			-B 192.0.2.2 -t ip -q
