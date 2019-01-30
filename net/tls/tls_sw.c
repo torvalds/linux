@@ -1421,15 +1421,14 @@ static int decrypt_skb_update(struct sock *sk, struct sk_buff *skb,
 
 			return err;
 		}
+		rxm->offset += tls_ctx->rx.prepend_size;
+		rxm->full_len -= tls_ctx->rx.overhead_size;
+		tls_advance_record_sn(sk, &tls_ctx->rx);
+		ctx->decrypted = true;
+		ctx->saved_data_ready(sk);
 	} else {
 		*zc = false;
 	}
-
-	rxm->offset += tls_ctx->rx.prepend_size;
-	rxm->full_len -= tls_ctx->rx.overhead_size;
-	tls_advance_record_sn(sk, &tls_ctx->rx);
-	ctx->decrypted = true;
-	ctx->saved_data_ready(sk);
 
 	return err;
 }
@@ -1609,6 +1608,25 @@ int tls_sw_recvmsg(struct sock *sk,
 
 		rxm = strp_msg(skb);
 
+		to_decrypt = rxm->full_len - tls_ctx->rx.overhead_size;
+
+		if (to_decrypt <= len && !is_kvec && !is_peek &&
+		    ctx->control == TLS_RECORD_TYPE_DATA)
+			zc = true;
+
+		err = decrypt_skb_update(sk, skb, &msg->msg_iter,
+					 &chunk, &zc, ctx->async_capable);
+		if (err < 0 && err != -EINPROGRESS) {
+			tls_err_abort(sk, EBADMSG);
+			goto recv_end;
+		}
+
+		if (err == -EINPROGRESS) {
+			async = true;
+			num_async++;
+			goto pick_next_record;
+		}
+
 		if (!cmsg) {
 			int cerr;
 
@@ -1626,40 +1644,22 @@ int tls_sw_recvmsg(struct sock *sk,
 			goto recv_end;
 		}
 
-		to_decrypt = rxm->full_len - tls_ctx->rx.overhead_size;
+		if (!zc) {
+			if (rxm->full_len > len) {
+				retain_skb = true;
+				chunk = len;
+			} else {
+				chunk = rxm->full_len;
+			}
 
-		if (to_decrypt <= len && !is_kvec && !is_peek)
-			zc = true;
+			err = skb_copy_datagram_msg(skb, rxm->offset,
+						    msg, chunk);
+			if (err < 0)
+				goto recv_end;
 
-		err = decrypt_skb_update(sk, skb, &msg->msg_iter,
-					 &chunk, &zc, ctx->async_capable);
-		if (err < 0 && err != -EINPROGRESS) {
-			tls_err_abort(sk, EBADMSG);
-			goto recv_end;
-		}
-
-		if (err == -EINPROGRESS) {
-			async = true;
-			num_async++;
-			goto pick_next_record;
-		} else {
-			if (!zc) {
-				if (rxm->full_len > len) {
-					retain_skb = true;
-					chunk = len;
-				} else {
-					chunk = rxm->full_len;
-				}
-
-				err = skb_copy_datagram_msg(skb, rxm->offset,
-							    msg, chunk);
-				if (err < 0)
-					goto recv_end;
-
-				if (!is_peek) {
-					rxm->offset = rxm->offset + chunk;
-					rxm->full_len = rxm->full_len - chunk;
-				}
+			if (!is_peek) {
+				rxm->offset = rxm->offset + chunk;
+				rxm->full_len = rxm->full_len - chunk;
 			}
 		}
 
@@ -1759,14 +1759,14 @@ ssize_t tls_sw_splice_read(struct socket *sock,  loff_t *ppos,
 	if (!skb)
 		goto splice_read_end;
 
-	/* splice does not support reading control messages */
-	if (ctx->control != TLS_RECORD_TYPE_DATA) {
-		err = -ENOTSUPP;
-		goto splice_read_end;
-	}
-
 	if (!ctx->decrypted) {
 		err = decrypt_skb_update(sk, skb, NULL, &chunk, &zc, false);
+
+		/* splice does not support reading control messages */
+		if (ctx->control != TLS_RECORD_TYPE_DATA) {
+			err = -ENOTSUPP;
+			goto splice_read_end;
+		}
 
 		if (err < 0) {
 			tls_err_abort(sk, EBADMSG);
