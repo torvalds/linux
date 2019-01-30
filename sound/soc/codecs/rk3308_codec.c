@@ -245,6 +245,10 @@ static const DECLARE_TLV_DB_RANGE(rk3308_codec_adc_mic_gain_tlv_b,
 
 static bool handle_loopback(struct rk3308_codec_priv *rk3308);
 
+static int rk3308_codec_micbias_enable(struct rk3308_codec_priv *rk3308,
+				       int micbias);
+static int rk3308_codec_micbias_disable(struct rk3308_codec_priv *rk3308);
+
 static int rk3308_codec_hpout_l_get_tlv(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol);
 static int rk3308_codec_hpout_l_put_tlv(struct snd_kcontrol *kcontrol,
@@ -273,6 +277,10 @@ static int rk3308_codec_mic_gain_get(struct snd_kcontrol *kcontrol,
 				     struct snd_ctl_elem_value *ucontrol);
 static int rk3308_codec_mic_gain_put(struct snd_kcontrol *kcontrol,
 				     struct snd_ctl_elem_value *ucontrol);
+static int rk3308_codec_main_micbias_get(struct snd_kcontrol *kcontrol,
+					 struct snd_ctl_elem_value *ucontrol);
+static int rk3308_codec_main_micbias_put(struct snd_kcontrol *kcontrol,
+					 struct snd_ctl_elem_value *ucontrol);
 
 static const char *offon_text[2] = {
 	[0] = "Off",
@@ -282,6 +290,11 @@ static const char *offon_text[2] = {
 static const char *mute_text[2] = {
 	[0] = "Work",
 	[1] = "Mute",
+};
+
+/* ADC MICBIAS1 and MICBIAS2 Main Switch */
+static const struct soc_enum rk3308_main_micbias_enum_array[] = {
+	SOC_ENUM_SINGLE(0, 0, ARRAY_SIZE(offon_text), offon_text),
 };
 
 static const struct soc_enum rk3308_hpf_enum_array[] = {
@@ -681,6 +694,10 @@ static const struct snd_kcontrol_new rk3308_codec_dapm_controls[] = {
 	SOC_ENUM_EXT("AGC Group 3 Right Approximate Sample Rate", rk3308_agc_asr_enum_array[7],
 		     rk3308_codec_agc_asr_get, rk3308_codec_agc_asr_put),
 
+	/* ADC Main MICBIAS Switch */
+	SOC_ENUM_EXT("ADC Main MICBIAS", rk3308_main_micbias_enum_array[0],
+		     rk3308_codec_main_micbias_get, rk3308_codec_main_micbias_put),
+
 	/* ADC MICBIAS1 and MICBIAS2 Switch */
 	SOC_SINGLE("ADC MICBIAS1", RK3308_ADC_ANA_CON07(1),
 		   RK3308_ADC_MIC_BIAS_BUF_SFT, 1, 0),
@@ -1020,6 +1037,35 @@ static int rk3308_codec_mic_mute_put(struct snd_kcontrol *kcontrol,
 				   RK3308_ADC_L_CH_BIST_SINE,
 				   value);
 		rk3308->mic_mute_l[e->reg] = ucontrol->value.integer.value[0];
+	}
+
+	return 0;
+}
+
+static int rk3308_codec_main_micbias_get(struct snd_kcontrol *kcontrol,
+					 struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct rk3308_codec_priv *rk3308 = snd_soc_codec_get_drvdata(codec);
+
+	ucontrol->value.integer.value[0] = rk3308->enable_micbias;
+
+	return 0;
+}
+
+static int rk3308_codec_main_micbias_put(struct snd_kcontrol *kcontrol,
+					 struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct rk3308_codec_priv *rk3308 = snd_soc_codec_get_drvdata(codec);
+	unsigned int on = ucontrol->value.integer.value[0];
+
+	if (on) {
+		if (!rk3308->enable_micbias)
+			rk3308_codec_micbias_enable(rk3308, RK3308_ADC_MICBIAS_VOLT_0_85);
+	} else {
+		if (rk3308->enable_micbias)
+			rk3308_codec_micbias_disable(rk3308);
 	}
 
 	return 0;
