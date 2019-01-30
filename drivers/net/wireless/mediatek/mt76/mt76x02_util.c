@@ -268,8 +268,9 @@ void mt76x02_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 }
 EXPORT_SYMBOL_GPL(mt76x02_sta_remove);
 
-void mt76x02_vif_init(struct mt76x02_dev *dev, struct ieee80211_vif *vif,
-		      unsigned int idx)
+static void
+mt76x02_vif_init(struct mt76x02_dev *dev, struct ieee80211_vif *vif,
+		 unsigned int idx)
 {
 	struct mt76x02_vif *mvif = (struct mt76x02_vif *)vif->drv_priv;
 	struct mt76_txq *mtxq;
@@ -282,7 +283,6 @@ void mt76x02_vif_init(struct mt76x02_dev *dev, struct ieee80211_vif *vif,
 
 	mt76_txq_init(&dev->mt76, vif->txq);
 }
-EXPORT_SYMBOL_GPL(mt76x02_vif_init);
 
 int
 mt76x02_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
