@@ -943,6 +943,17 @@ static const struct nldev_fill_res_entry fill_entries[RDMA_RESTRACK_MAX] = {
 	},
 };
 
+static bool is_visible_in_pid_ns(struct rdma_restrack_entry *res)
+{
+	/*
+	 * 1. Kern resources should be visible in init name space only
+	 * 2. Present only resources visible in the current namespace
+	 */
+	if (rdma_is_kernel_res(res))
+		return task_active_pid_ns(current) == &init_pid_ns;
+	return task_active_pid_ns(current) == task_active_pid_ns(res->task);
+}
+
 static int res_get_common_dumpit(struct sk_buff *skb,
 				 struct netlink_callback *cb,
 				 enum rdma_restrack_type res_type)
@@ -1007,16 +1018,7 @@ static int res_get_common_dumpit(struct sk_buff *skb,
 		if (idx < start)
 			goto next;
 
-		if ((rdma_is_kernel_res(res) &&
-		     task_active_pid_ns(current) != &init_pid_ns) ||
-		    (!rdma_is_kernel_res(res) && task_active_pid_ns(current) !=
-		     task_active_pid_ns(res->task)))
-			/*
-			 * 1. Kern resources should be visible in init
-			 *    namspace only
-			 * 2. Present only resources visible in the current
-			 *    namespace
-			 */
+		if (!is_visible_in_pid_ns(res))
 			goto next;
 
 		if (!rdma_restrack_get(res))
