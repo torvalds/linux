@@ -1814,8 +1814,6 @@ static const struct action_ops snd_pcm_action_drain_init = {
 	.post_action = snd_pcm_post_drain_init
 };
 
-static int snd_pcm_drop(struct snd_pcm_substream *substream);
-
 /*
  * Drain the stream(s).
  * When the substream is linked, sync until the draining of all playback streams
