@@ -1077,35 +1077,18 @@ err_index:
 	return ret;
 }
 
-static int nldev_res_get_qp_dumpit(struct sk_buff *skb,
-				   struct netlink_callback *cb)
-{
-	return res_get_common_dumpit(skb, cb, RDMA_RESTRACK_QP);
-}
+#define RES_GET_FUNCS(name, type)                                              \
+	static int nldev_res_get_##name##_dumpit(struct sk_buff *skb,          \
+						 struct netlink_callback *cb)  \
+	{                                                                      \
+		return res_get_common_dumpit(skb, cb, type);                   \
+	}
 
-static int nldev_res_get_cm_id_dumpit(struct sk_buff *skb,
-				      struct netlink_callback *cb)
-{
-	return res_get_common_dumpit(skb, cb, RDMA_RESTRACK_CM_ID);
-}
-
-static int nldev_res_get_cq_dumpit(struct sk_buff *skb,
-				   struct netlink_callback *cb)
-{
-	return res_get_common_dumpit(skb, cb, RDMA_RESTRACK_CQ);
-}
-
-static int nldev_res_get_mr_dumpit(struct sk_buff *skb,
-				   struct netlink_callback *cb)
-{
-	return res_get_common_dumpit(skb, cb, RDMA_RESTRACK_MR);
-}
-
-static int nldev_res_get_pd_dumpit(struct sk_buff *skb,
-				   struct netlink_callback *cb)
-{
-	return res_get_common_dumpit(skb, cb, RDMA_RESTRACK_PD);
-}
+RES_GET_FUNCS(qp, RDMA_RESTRACK_QP);
+RES_GET_FUNCS(cm_id, RDMA_RESTRACK_CM_ID);
+RES_GET_FUNCS(cq, RDMA_RESTRACK_CQ);
+RES_GET_FUNCS(pd, RDMA_RESTRACK_PD);
+RES_GET_FUNCS(mr, RDMA_RESTRACK_MR);
 
 static const struct rdma_nl_cbs nldev_cb_table[RDMA_NLDEV_NUM_OPS] = {
 	[RDMA_NLDEV_CMD_GET] = {
