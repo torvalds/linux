@@ -206,7 +206,10 @@ struct cipher_context {
 
 union tls_crypto_context {
 	struct tls_crypto_info info;
-	struct tls12_crypto_info_aes_gcm_128 aes_gcm_128;
+	union {
+		struct tls12_crypto_info_aes_gcm_128 aes_gcm_128;
+		struct tls12_crypto_info_aes_gcm_256 aes_gcm_256;
+	};
 };
 
 struct tls_context {
