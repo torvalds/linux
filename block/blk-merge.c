@@ -272,6 +272,16 @@ void blk_queue_split(struct request_queue *q, struct bio **bio)
 		/* there isn't chance to merge the splitted bio */
 		split->bi_opf |= REQ_NOMERGE;
 
+		/*
+		 * Since we're recursing into make_request here, ensure
+		 * that we mark this bio as already having entered the queue.
+		 * If not, and the queue is going away, we can get stuck
+		 * forever on waiting for the queue reference to drop. But
+		 * that will never happen, as we're already holding a
+		 * reference to it.
+		 */
+		bio_set_flag(*bio, BIO_QUEUE_ENTERED);
+
 		bio_chain(split, *bio);
 		trace_block_split(q, split, (*bio)->bi_iter.bi_sector);
 		generic_make_request(*bio);
