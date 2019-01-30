@@ -80,6 +80,9 @@
 /* MSI-X Table Register Descriptions */
 #define IGC_PBACL		0x05B68  /* MSIx PBA Clear - R/W 1 to clear */
 
+/* Redirection Table - RW Array */
+#define IGC_RETA(_i)		(0x05C00 + ((_i) * 4))
+
 /* Receive Register Descriptions */
 #define IGC_RCTL		0x00100  /* Rx Control - RW */
 #define IGC_SRRCTL(_n)		(0x0C00C + ((_n) * 0x40))

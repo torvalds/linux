@@ -131,6 +131,7 @@ static s32 igc_init_nvm_params_base(struct igc_hw *hw)
 	if (size > 15)
 		size = 15;
 
+	nvm->type = igc_nvm_eeprom_spi;
 	nvm->word_size = BIT(size);
 	nvm->opcode_bits = 8;
 	nvm->delay_usec = 1;
