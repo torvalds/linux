@@ -1013,27 +1013,6 @@ static struct mount *clone_mnt(struct mount *old, struct dentry *root,
 
 	mnt->mnt.mnt_flags = old->mnt.mnt_flags;
 	mnt->mnt.mnt_flags &= ~(MNT_WRITE_HOLD|MNT_MARKED|MNT_INTERNAL);
-	/* Don't allow unprivileged users to change mount flags */
-	if (flag & CL_UNPRIVILEGED) {
-		mnt->mnt.mnt_flags |= MNT_LOCK_ATIME;
-
-		if (mnt->mnt.mnt_flags & MNT_READONLY)
-			mnt->mnt.mnt_flags |= MNT_LOCK_READONLY;
-
-		if (mnt->mnt.mnt_flags & MNT_NODEV)
-			mnt->mnt.mnt_flags |= MNT_LOCK_NODEV;
-
-		if (mnt->mnt.mnt_flags & MNT_NOSUID)
-			mnt->mnt.mnt_flags |= MNT_LOCK_NOSUID;
-
-		if (mnt->mnt.mnt_flags & MNT_NOEXEC)
-			mnt->mnt.mnt_flags |= MNT_LOCK_NOEXEC;
-	}
-
-	/* Don't allow unprivileged users to reveal what is under a mount */
-	if ((flag & CL_UNPRIVILEGED) &&
-	    (!(flag & CL_EXPIRE) || list_empty(&old->mnt_expire)))
-		mnt->mnt.mnt_flags |= MNT_LOCKED;
 
 	atomic_inc(&sb->s_active);
 	mnt->mnt.mnt_sb = sb;
@@ -1837,6 +1816,33 @@ int iterate_mounts(int (*f)(struct vfsmount *, void *), void *arg,
 	return 0;
 }
 
+static void lock_mnt_tree(struct mount *mnt)
+{
+	struct mount *p;
+
+	for (p = mnt; p; p = next_mnt(p, mnt)) {
+		int flags = p->mnt.mnt_flags;
+		/* Don't allow unprivileged users to change mount flags */
+		flags |= MNT_LOCK_ATIME;
+
+		if (flags & MNT_READONLY)
+			flags |= MNT_LOCK_READONLY;
+
+		if (flags & MNT_NODEV)
+			flags |= MNT_LOCK_NODEV;
+
+		if (flags & MNT_NOSUID)
+			flags |= MNT_LOCK_NOSUID;
+
+		if (flags & MNT_NOEXEC)
+			flags |= MNT_LOCK_NOEXEC;
+		/* Don't allow unprivileged users to reveal what is under a mount */
+		if (list_empty(&p->mnt_expire))
+			flags |= MNT_LOCKED;
+		p->mnt.mnt_flags = flags;
+	}
+}
+
 static void cleanup_group_ids(struct mount *mnt, struct mount *end)
 {
 	struct mount *p;
@@ -1954,6 +1960,7 @@ static int attach_recursive_mnt(struct mount *source_mnt,
 			struct mountpoint *dest_mp,
 			struct path *parent_path)
 {
+	struct user_namespace *user_ns = current->nsproxy->mnt_ns->user_ns;
 	HLIST_HEAD(tree_list);
 	struct mnt_namespace *ns = dest_mnt->mnt_ns;
 	struct mountpoint *smp;
@@ -2004,6 +2011,9 @@ static int attach_recursive_mnt(struct mount *source_mnt,
 				 child->mnt_mountpoint);
 		if (q)
 			mnt_change_mountpoint(child, smp, q);
+		/* Notice when we are propagating across user namespaces */
+		if (child->mnt_parent->mnt_ns->user_ns != user_ns)
+			lock_mnt_tree(child);
 		commit_tree(child);
 	}
 	put_mountpoint(smp);
@@ -2941,12 +2951,17 @@ struct mnt_namespace *copy_mnt_ns(unsigned long flags, struct mnt_namespace *ns,
 	/* First pass: copy the tree topology */
 	copy_flags = CL_COPY_UNBINDABLE | CL_EXPIRE;
 	if (user_ns != ns->user_ns)
-		copy_flags |= CL_SHARED_TO_SLAVE | CL_UNPRIVILEGED;
+		copy_flags |= CL_SHARED_TO_SLAVE;
 	new = copy_tree(old, old->mnt.mnt_root, copy_flags);
 	if (IS_ERR(new)) {
 		namespace_unlock();
 		free_mnt_ns(new_ns);
 		return ERR_CAST(new);
+	}
+	if (user_ns != ns->user_ns) {
+		lock_mount_hash();
+		lock_mnt_tree(new);
+		unlock_mount_hash();
 	}
 	new_ns->root = new;
 	list_add_tail(&new_ns->list, &new->mnt_list);
