@@ -55,6 +55,9 @@ bool vkms_get_vblank_timestamp(struct drm_device *dev, unsigned int pipe,
 
 	*vblank_time = output->vblank_hrtimer.node.expires;
 
+	if (!in_vblank_irq)
+		*vblank_time -= output->period_ns;
+
 	return true;
 }
 
