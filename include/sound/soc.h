@@ -802,6 +802,9 @@ struct snd_soc_component_driver {
 	int probe_order;
 	int remove_order;
 
+	/* signal if the module handling the component cannot be removed */
+	unsigned int ignore_module_refcount:1;
+
 	/* bits */
 	unsigned int idle_bias_on:1;
 	unsigned int suspend_bias_off:1;
