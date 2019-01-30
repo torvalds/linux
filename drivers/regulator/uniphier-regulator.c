@@ -87,8 +87,10 @@ static int uniphier_regulator_probe(struct platform_device *pdev)
 	}
 
 	regmap = devm_regmap_init_mmio(dev, base, priv->data->regconf);
-	if (IS_ERR(regmap))
-		return PTR_ERR(regmap);
+	if (IS_ERR(regmap)) {
+		ret = PTR_ERR(regmap);
+		goto out_rst_assert;
+	}
 
 	config.dev = dev;
 	config.driver_data = priv;
