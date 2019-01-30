@@ -254,6 +254,8 @@ int mt76x2_phy_set_channel(struct mt76x02_dev *dev,
 			       0x38);
 	}
 
+	mt76x02_edcca_init(dev);
+
 	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->cal_work,
 				     MT_CALIBRATE_INTERVAL);
 

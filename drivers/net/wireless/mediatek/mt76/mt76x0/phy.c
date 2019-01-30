@@ -1013,6 +1013,8 @@ int mt76x0_phy_set_channel(struct mt76x02_dev *dev,
 	mt76x0_phy_calibrate(dev, false);
 	mt76x0_phy_set_txpower(dev);
 
+	mt76x02_edcca_init(dev);
+
 	ieee80211_queue_delayed_work(dev->mt76.hw, &dev->cal_work,
 				     MT_CALIBRATE_INTERVAL);
 
@@ -1075,7 +1077,9 @@ mt76x0_phy_update_channel_gain(struct mt76x02_dev *dev)
 	u8 gain_delta;
 	int low_gain;
 
-	dev->cal.avg_rssi_all = mt76x02_phy_get_min_avg_rssi(dev);
+	dev->cal.avg_rssi_all = mt76_get_min_avg_rssi(&dev->mt76);
+	if (!dev->cal.avg_rssi_all)
+		dev->cal.avg_rssi_all = -75;
 
 	low_gain = (dev->cal.avg_rssi_all > mt76x02_get_rssi_gain_thresh(dev)) +
 		   (dev->cal.avg_rssi_all > mt76x02_get_low_rssi_gain_thresh(dev));
