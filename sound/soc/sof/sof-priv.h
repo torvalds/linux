@@ -337,7 +337,6 @@ struct snd_sof_dev {
 	struct dentry *debugfs_root;
 
 	/* firmware loader */
-	int cl_bar;
 	struct snd_dma_buffer dmab;
 	struct snd_dma_buffer dmab_bdl;
 	struct sof_ipc_fw_ready fw_ready;

@@ -578,9 +578,6 @@ irq:
 	snd_sof_dsp_update_bits64(sdev, BYT_DSP_BAR, SHIM_IMRX, 0x3, 0x0);
 	snd_sof_dsp_update_bits64(sdev, BYT_DSP_BAR, SHIM_IMRD, 0x3, 0x0);
 
-	/* set BARS */
-	sdev->cl_bar = BYT_DSP_BAR;
-
 	/* set default mailbox offset for FW ready message */
 	sdev->dsp_box.offset = MBOX_OFFSET;
 
@@ -741,9 +738,6 @@ irq:
 	/* enable Interrupt from both sides */
 	snd_sof_dsp_update_bits64(sdev, BYT_DSP_BAR, SHIM_IMRX, 0x3, 0x0);
 	snd_sof_dsp_update_bits64(sdev, BYT_DSP_BAR, SHIM_IMRD, 0x3, 0x0);
-
-	/* set BARS */
-	sdev->cl_bar = BYT_DSP_BAR;
 
 	/* set default mailbox offset for FW ready message */
 	sdev->dsp_box.offset = MBOX_OFFSET;

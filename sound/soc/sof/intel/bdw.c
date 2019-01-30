@@ -618,9 +618,6 @@ static int bdw_probe(struct snd_sof_dev *sdev)
 		return ret;
 	}
 
-	/* set BARS */
-	sdev->cl_bar = BDW_DSP_BAR;
-
 	/* set default mailbox */
 	snd_sof_dsp_mailbox_init(sdev, MBOX_OFFSET, MBOX_SIZE, 0, 0);
 
