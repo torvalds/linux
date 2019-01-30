@@ -48,6 +48,7 @@ struct devlink_port_attrs {
 
 struct devlink_port {
 	struct list_head list;
+	struct list_head param_list;
 	struct devlink *devlink;
 	unsigned index;
 	bool registered;
@@ -366,10 +367,15 @@ enum devlink_param_generic_id {
 	DEVLINK_PARAM_GENERIC_ID_MSIX_VEC_PER_PF_MAX,
 	DEVLINK_PARAM_GENERIC_ID_MSIX_VEC_PER_PF_MIN,
 	DEVLINK_PARAM_GENERIC_ID_FW_LOAD_POLICY,
+	DEVLINK_PARAM_GENERIC_ID_WOL,
 
 	/* add new param generic ids above here*/
 	__DEVLINK_PARAM_GENERIC_ID_MAX,
 	DEVLINK_PARAM_GENERIC_ID_MAX = __DEVLINK_PARAM_GENERIC_ID_MAX - 1,
+};
+
+enum devlink_param_wol_types {
+	DEVLINK_PARAM_WAKE_MAGIC = (1 << 0),
 };
 
 #define DEVLINK_PARAM_GENERIC_INT_ERR_RESET_NAME "internal_error_reset"
@@ -395,6 +401,9 @@ enum devlink_param_generic_id {
 
 #define DEVLINK_PARAM_GENERIC_FW_LOAD_POLICY_NAME "fw_load_policy"
 #define DEVLINK_PARAM_GENERIC_FW_LOAD_POLICY_TYPE DEVLINK_PARAM_TYPE_U8
+
+#define DEVLINK_PARAM_GENERIC_WOL_NAME "wake_on_lan"
+#define DEVLINK_PARAM_GENERIC_WOL_TYPE DEVLINK_PARAM_TYPE_U8
 
 #define DEVLINK_PARAM_GENERIC(_id, _cmodes, _get, _set, _validate)	\
 {									\
@@ -567,11 +576,26 @@ int devlink_params_register(struct devlink *devlink,
 void devlink_params_unregister(struct devlink *devlink,
 			       const struct devlink_param *params,
 			       size_t params_count);
+int devlink_port_params_register(struct devlink_port *devlink_port,
+				 const struct devlink_param *params,
+				 size_t params_count);
+void devlink_port_params_unregister(struct devlink_port *devlink_port,
+				    const struct devlink_param *params,
+				    size_t params_count);
 int devlink_param_driverinit_value_get(struct devlink *devlink, u32 param_id,
 				       union devlink_param_value *init_val);
 int devlink_param_driverinit_value_set(struct devlink *devlink, u32 param_id,
 				       union devlink_param_value init_val);
+int
+devlink_port_param_driverinit_value_get(struct devlink_port *devlink_port,
+					u32 param_id,
+					union devlink_param_value *init_val);
+int devlink_port_param_driverinit_value_set(struct devlink_port *devlink_port,
+					    u32 param_id,
+					    union devlink_param_value init_val);
 void devlink_param_value_changed(struct devlink *devlink, u32 param_id);
+void devlink_port_param_value_changed(struct devlink_port *devlink_port,
+				      u32 param_id);
 void devlink_param_value_str_fill(union devlink_param_value *dst_val,
 				  const char *src);
 struct devlink_region *devlink_region_create(struct devlink *devlink,
@@ -792,6 +816,21 @@ devlink_params_unregister(struct devlink *devlink,
 }
 
 static inline int
+devlink_port_params_register(struct devlink_port *devlink_port,
+			     const struct devlink_param *params,
+			     size_t params_count)
+{
+	return 0;
+}
+
+static inline void
+devlink_port_params_unregister(struct devlink_port *devlink_port,
+			       const struct devlink_param *params,
+			       size_t params_count)
+{
+}
+
+static inline int
 devlink_param_driverinit_value_get(struct devlink *devlink, u32 param_id,
 				   union devlink_param_value *init_val)
 {
@@ -805,8 +844,30 @@ devlink_param_driverinit_value_set(struct devlink *devlink, u32 param_id,
 	return -EOPNOTSUPP;
 }
 
+static inline int
+devlink_port_param_driverinit_value_get(struct devlink_port *devlink_port,
+					u32 param_id,
+					union devlink_param_value *init_val)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int
+devlink_port_param_driverinit_value_set(struct devlink_port *devlink_port,
+					u32 param_id,
+					union devlink_param_value init_val)
+{
+	return -EOPNOTSUPP;
+}
+
 static inline void
 devlink_param_value_changed(struct devlink *devlink, u32 param_id)
+{
+}
+
+static inline void
+devlink_port_param_value_changed(struct devlink_port *devlink_port,
+				 u32 param_id)
 {
 }
 

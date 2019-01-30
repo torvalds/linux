@@ -1609,6 +1609,7 @@ struct bnxt {
 
 	/* devlink interface and vf-rep structs */
 	struct devlink		*dl;
+	struct devlink_port	dl_port;
 	enum devlink_eswitch_mode eswitch_mode;
 	struct bnxt_vf_rep	**vf_reps; /* array of vf-rep ptrs */
 	u16			*cfa_code_map; /* cfa_code -> vf_idx map */
