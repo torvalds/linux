@@ -330,6 +330,7 @@ CONFIG_MFD_CORE=m
 # CONFIG_MINIX_SUBPARTITION is not set
 # CONFIG_MISC_ALCOR_PCI is not set
 # CONFIG_MISC_RTSX_PCI is not set
+# CONFIG_MLXSW_I2C is not set
 # CONFIG_MMC is not set
 # CONFIG_MTD is not set
 # CONFIG_NET_SWITCHDEV is not set
