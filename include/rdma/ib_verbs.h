@@ -2621,7 +2621,13 @@ struct ib_client {
 	struct list_head list;
 };
 
-struct ib_device *ib_alloc_device(size_t size);
+struct ib_device *_ib_alloc_device(size_t size);
+#define ib_alloc_device(drv_struct, member)                                    \
+	container_of(_ib_alloc_device(sizeof(struct drv_struct) +              \
+				      BUILD_BUG_ON_ZERO(offsetof(              \
+					      struct drv_struct, member))),    \
+		     struct drv_struct, member)
+
 void ib_dealloc_device(struct ib_device *device);
 
 void ib_get_device_fw_str(struct ib_device *device, char *str);

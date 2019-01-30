@@ -6508,7 +6508,7 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 	if (mlx5_core_is_mp_slave(mdev) && ll == IB_LINK_LAYER_ETHERNET)
 		return mlx5_ib_add_slave_port(mdev);
 
-	dev = (struct mlx5_ib_dev *)ib_alloc_device(sizeof(*dev));
+	dev = ib_alloc_device(mlx5_ib_dev, ib_dev);
 	if (!dev)
 		return NULL;
 

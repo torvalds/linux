@@ -555,7 +555,7 @@ struct rxe_dev *rxe_net_add(struct net_device *ndev)
 	int err;
 	struct rxe_dev *rxe = NULL;
 
-	rxe = (struct rxe_dev *)ib_alloc_device(sizeof(*rxe));
+	rxe = ib_alloc_device(rxe_dev, ib_dev);
 	if (!rxe)
 		return NULL;
 

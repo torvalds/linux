@@ -3669,7 +3669,7 @@ struct nes_ib_device *nes_init_ofa_device(struct net_device *netdev)
 	struct nes_vnic *nesvnic = netdev_priv(netdev);
 	struct nes_device *nesdev = nesvnic->nesdev;
 
-	nesibdev = (struct nes_ib_device *)ib_alloc_device(sizeof(struct nes_ib_device));
+	nesibdev = ib_alloc_device(nes_ib_device, ibdev);
 	if (nesibdev == NULL) {
 		return NULL;
 	}

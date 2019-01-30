@@ -372,7 +372,7 @@ static void *usnic_ib_device_add(struct pci_dev *dev)
 	usnic_dbg("\n");
 	netdev = pci_get_drvdata(dev);
 
-	us_ibdev = (struct usnic_ib_dev *)ib_alloc_device(sizeof(*us_ibdev));
+	us_ibdev = ib_alloc_device(usnic_ib_dev, ib_dev);
 	if (!us_ibdev) {
 		usnic_err("Device %s context alloc failed\n",
 				netdev_name(pci_get_drvdata(dev)));

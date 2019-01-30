@@ -6059,7 +6059,7 @@ static int hns_roce_hw_v2_init_instance(struct hnae3_handle *handle)
 	struct hns_roce_dev *hr_dev;
 	int ret;
 
-	hr_dev = (struct hns_roce_dev *)ib_alloc_device(sizeof(*hr_dev));
+	hr_dev = ib_alloc_device(hns_roce_dev, ib_dev);
 	if (!hr_dev)
 		return -ENOMEM;
 

@@ -853,7 +853,7 @@ static struct qedr_dev *qedr_add(struct qed_dev *cdev, struct pci_dev *pdev,
 	struct qedr_dev *dev;
 	int rc = 0;
 
-	dev = (struct qedr_dev *)ib_alloc_device(sizeof(*dev));
+	dev = ib_alloc_device(qedr_dev, ibdev);
 	if (!dev) {
 		pr_err("Unable to allocate ib device\n");
 		return NULL;

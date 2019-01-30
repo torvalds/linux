@@ -91,7 +91,7 @@ struct rvt_dev_info *rvt_alloc_device(size_t size, int nports)
 {
 	struct rvt_dev_info *rdi;
 
-	rdi = (struct rvt_dev_info *)ib_alloc_device(size);
+	rdi = container_of(_ib_alloc_device(size), struct rvt_dev_info, ibdev);
 	if (!rdi)
 		return rdi;
 

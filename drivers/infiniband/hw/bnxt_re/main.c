@@ -688,7 +688,7 @@ static struct bnxt_re_dev *bnxt_re_dev_add(struct net_device *netdev,
 	struct bnxt_re_dev *rdev;
 
 	/* Allocate bnxt_re_dev instance here */
-	rdev = (struct bnxt_re_dev *)ib_alloc_device(sizeof(*rdev));
+	rdev = ib_alloc_device(bnxt_re_dev, ibdev);
 	if (!rdev) {
 		dev_err(NULL, "%s: bnxt_re_dev allocation failure!",
 			ROCE_DRV_MODULE_NAME);

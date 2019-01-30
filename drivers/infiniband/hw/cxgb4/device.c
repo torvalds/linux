@@ -966,7 +966,7 @@ static struct c4iw_dev *c4iw_alloc(const struct cxgb4_lld_info *infop)
 		pr_info("%s: On-Chip Queues not supported on this device\n",
 			pci_name(infop->pdev));
 
-	devp = (struct c4iw_dev *)ib_alloc_device(sizeof(*devp));
+	devp = ib_alloc_device(c4iw_dev, ibdev);
 	if (!devp) {
 		pr_err("Cannot allocate ib device\n");
 		return ERR_PTR(-ENOMEM);

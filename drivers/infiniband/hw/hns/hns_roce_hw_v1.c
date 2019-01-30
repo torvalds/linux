@@ -5002,7 +5002,7 @@ static int hns_roce_probe(struct platform_device *pdev)
 	struct hns_roce_dev *hr_dev;
 	struct device *dev = &pdev->dev;
 
-	hr_dev = (struct hns_roce_dev *)ib_alloc_device(sizeof(*hr_dev));
+	hr_dev = ib_alloc_device(hns_roce_dev, ib_dev);
 	if (!hr_dev)
 		return -ENOMEM;
 

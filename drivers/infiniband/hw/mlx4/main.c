@@ -2635,7 +2635,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	if (num_ports == 0)
 		return NULL;
 
-	ibdev = (struct mlx4_ib_dev *) ib_alloc_device(sizeof *ibdev);
+	ibdev = ib_alloc_device(mlx4_ib_dev, ib_dev);
 	if (!ibdev) {
 		dev_err(&dev->persist->pdev->dev,
 			"Device struct alloc failed\n");

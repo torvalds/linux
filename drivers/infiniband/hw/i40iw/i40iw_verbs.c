@@ -2762,7 +2762,7 @@ static struct i40iw_ib_device *i40iw_init_rdma_device(struct i40iw_device *iwdev
 	struct net_device *netdev = iwdev->netdev;
 	struct pci_dev *pcidev = (struct pci_dev *)iwdev->hw.dev_context;
 
-	iwibdev = (struct i40iw_ib_device *)ib_alloc_device(sizeof(*iwibdev));
+	iwibdev = ib_alloc_device(i40iw_ib_device, ibdev);
 	if (!iwibdev) {
 		i40iw_pr_err("iwdev == NULL\n");
 		return NULL;

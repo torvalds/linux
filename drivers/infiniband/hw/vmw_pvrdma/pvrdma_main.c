@@ -795,7 +795,7 @@ static int pvrdma_pci_probe(struct pci_dev *pdev,
 	dev_dbg(&pdev->dev, "initializing driver %s\n", pci_name(pdev));
 
 	/* Allocate zero-out device */
-	dev = (struct pvrdma_dev *)ib_alloc_device(sizeof(*dev));
+	dev = ib_alloc_device(pvrdma_dev, ib_dev);
 	if (!dev) {
 		dev_err(&pdev->dev, "failed to allocate IB device\n");
 		return -ENOMEM;
