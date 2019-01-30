@@ -380,8 +380,7 @@ int tpm1_get_timeouts(struct tpm_chip *chip)
 	 * of misreporting.
 	 */
 	if (chip->ops->update_timeouts)
-		chip->timeout_adjusted =
-			chip->ops->update_timeouts(chip, timeout_eff);
+		chip->ops->update_timeouts(chip, timeout_eff);
 
 	if (!chip->timeout_adjusted) {
 		/* Restore default if chip reported 0 */
