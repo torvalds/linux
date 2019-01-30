@@ -7,6 +7,8 @@
 #include <linux/gfp.h>
 #include <linux/refcount.h>
 #include <linux/rhashtable.h>
+#define CREATE_TRACE_POINTS
+#include <trace/events/mlxsw.h>
 
 #include "reg.h"
 #include "core.h"
@@ -578,6 +580,7 @@ int mlxsw_sp_acl_atcam_entry_add(struct mlxsw_sp *mlxsw_sp,
 	/* It is possible we failed to add the rule to the A-TCAM due to
 	 * exceeded number of masks. Try to spill into C-TCAM.
 	 */
+	trace_mlxsw_sp_acl_atcam_entry_add_ctcam_spill(mlxsw_sp, aregion);
 	err = mlxsw_sp_acl_ctcam_entry_add(mlxsw_sp, &aregion->cregion,
 					   &achunk->cchunk, &aentry->centry,
 					   rulei, true);
