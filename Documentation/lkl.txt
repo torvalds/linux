@@ -62,12 +62,13 @@ Building LKL on Ubuntu
     
     # Optional, if you would like to be able to run tests
     $ sudo apt-get install btrfs-tools
+    $ pip install yamlish junit_xml
     
     $ make -C tools/lkl
     
     # To check that everything works:
     $ cd tools/lkl
-    $ make test
+    $ make run-tests
 
 
 Building LKL for Windows
