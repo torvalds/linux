@@ -291,7 +291,7 @@ static void ipc_tx_next_msg(struct work_struct *work)
 
 	spin_lock_irq(&sdev->ipc_lock);
 
-	/* send message if HW read and message in TX list */
+	/* send message if HW ready and message in TX list */
 	if (!list_empty(&ipc->tx_list) && snd_sof_dsp_is_ready(sdev)) {
 		/* send first message in TX list */
 		msg = list_first_entry(&ipc->tx_list, struct snd_sof_ipc_msg,
