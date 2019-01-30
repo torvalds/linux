@@ -1781,10 +1781,15 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 		if (pages_addr)
 			params.src = ~0;
 
-		/* Wait for PT BOs to be free. PTs share the same resv. object
+		/* Wait for PT BOs to be idle. PTs share the same resv. object
 		 * as the root PD BO
 		 */
 		r = amdgpu_vm_wait_pd(adev, vm, owner);
+		if (unlikely(r))
+			return r;
+
+		/* Wait for any BO move to be completed */
+		r = dma_fence_wait(exclusive, true);
 		if (unlikely(r))
 			return r;
 
