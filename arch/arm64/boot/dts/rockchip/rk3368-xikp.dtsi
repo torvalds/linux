@@ -290,8 +290,8 @@
 	>;
 	vop-bw-dmc-freq = <
 	/* min_bw(MB/s) max_bw(MB/s) freq(KHz) */
-		0       531      240000
-		532     99999    396000
+		0       582      240000
+		583     99999    396000
 	>;
 	auto-min-freq = <240000>;
 	auto-freq-en = <1>;
