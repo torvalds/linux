@@ -655,11 +655,7 @@ static int hns3_set_tso(struct sk_buff *skb, u32 *paylen,
 static int hns3_get_l4_protocol(struct sk_buff *skb, u8 *ol4_proto,
 				u8 *il4_proto)
 {
-	union {
-		struct iphdr *v4;
-		struct ipv6hdr *v6;
-		unsigned char *hdr;
-	} l3;
+	union l3_hdr_info l3;
 	unsigned char *l4_hdr;
 	unsigned char *exthdr;
 	u8 l4_proto_tmp;
@@ -712,17 +708,8 @@ static void hns3_set_l2l3l4_len(struct sk_buff *skb, u8 ol4_proto,
 				u8 il4_proto, u32 *type_cs_vlan_tso,
 				u32 *ol_type_vlan_len_msec)
 {
-	union {
-		struct iphdr *v4;
-		struct ipv6hdr *v6;
-		unsigned char *hdr;
-	} l3;
-	union {
-		struct tcphdr *tcp;
-		struct udphdr *udp;
-		struct gre_base_hdr *gre;
-		unsigned char *hdr;
-	} l4;
+	union l3_hdr_info l3;
+	union l4_hdr_info l4;
 	unsigned char *l2_hdr;
 	u8 l4_proto = ol4_proto;
 	u32 ol2_len;
@@ -821,12 +808,7 @@ static void hns3_set_l2l3l4_len(struct sk_buff *skb, u8 ol4_proto,
 static bool hns3_tunnel_csum_bug(struct sk_buff *skb)
 {
 #define IANA_VXLAN_PORT	4789
-	union {
-		struct tcphdr *tcp;
-		struct udphdr *udp;
-		struct gre_base_hdr *gre;
-		unsigned char *hdr;
-	} l4;
+	union l4_hdr_info l4;
 
 	l4.hdr = skb_transport_header(skb);
 
@@ -842,11 +824,7 @@ static int hns3_set_l3l4_type_csum(struct sk_buff *skb, u8 ol4_proto,
 				   u8 il4_proto, u32 *type_cs_vlan_tso,
 				   u32 *ol_type_vlan_len_msec)
 {
-	union {
-		struct iphdr *v4;
-		struct ipv6hdr *v6;
-		unsigned char *hdr;
-	} l3;
+	union l3_hdr_info l3;
 	u32 l4_proto = ol4_proto;
 
 	l3.hdr = skb_network_header(skb);
