@@ -295,6 +295,14 @@ static const struct hclge_mac_mgr_tbl_entry_cmd hclge_mgr_table[] = {
 	},
 };
 
+static const u8 hclge_hash_key[] = {
+	0x6D, 0x5A, 0x56, 0xDA, 0x25, 0x5B, 0x0E, 0xC2,
+	0x41, 0x67, 0x25, 0x3D, 0x43, 0xA3, 0x8F, 0xB0,
+	0xD0, 0xCA, 0x2B, 0xCB, 0xAE, 0x7B, 0x30, 0xB4,
+	0x77, 0xCB, 0x2D, 0xA3, 0x80, 0x30, 0xF2, 0x0C,
+	0x6A, 0x42, 0xB7, 0x3B, 0xBE, 0xAC, 0x01, 0xFA
+};
+
 static int hclge_mac_update_stats_defective(struct hclge_dev *hdev)
 {
 #define HCLGE_MAC_CMD_NUM 21
@@ -3652,8 +3660,11 @@ void hclge_rss_indir_init_cfg(struct hclge_dev *hdev)
 
 static void hclge_rss_init_cfg(struct hclge_dev *hdev)
 {
+	int i, rss_algo = HCLGE_RSS_HASH_ALGO_TOEPLITZ;
 	struct hclge_vport *vport = hdev->vport;
-	int i;
+
+	if (hdev->pdev->revision >= 0x21)
+		rss_algo = HCLGE_RSS_HASH_ALGO_SIMPLE;
 
 	for (i = 0; i < hdev->num_vmdq_vport + 1; i++) {
 		vport[i].rss_tuple_sets.ipv4_tcp_en =
@@ -3673,9 +3684,10 @@ static void hclge_rss_init_cfg(struct hclge_dev *hdev)
 		vport[i].rss_tuple_sets.ipv6_fragment_en =
 			HCLGE_RSS_INPUT_TUPLE_OTHER;
 
-		vport[i].rss_algo = HCLGE_RSS_HASH_ALGO_TOEPLITZ;
+		vport[i].rss_algo = rss_algo;
 
-		netdev_rss_key_fill(vport[i].rss_hash_key, HCLGE_RSS_KEY_SIZE);
+		memcpy(vport[i].rss_hash_key, hclge_hash_key,
+		       HCLGE_RSS_KEY_SIZE);
 	}
 
 	hclge_rss_indir_init_cfg(hdev);
