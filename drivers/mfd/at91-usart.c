@@ -15,15 +15,15 @@
 #include <linux/of.h>
 #include <linux/property.h>
 
-static struct mfd_cell at91_usart_spi_subdev = {
-		.name = "at91_usart_spi",
-		.of_compatible = "microchip,at91sam9g45-usart-spi",
-	};
+static const struct mfd_cell at91_usart_spi_subdev = {
+	.name = "at91_usart_spi",
+	.of_compatible = "microchip,at91sam9g45-usart-spi",
+};
 
-static struct mfd_cell at91_usart_serial_subdev = {
-		.name = "atmel_usart_serial",
-		.of_compatible = "atmel,at91rm9200-usart-serial",
-	};
+static const struct mfd_cell at91_usart_serial_subdev = {
+	.name = "atmel_usart_serial",
+	.of_compatible = "atmel,at91rm9200-usart-serial",
+};
 
 static int at91_usart_mode_probe(struct platform_device *pdev)
 {
