@@ -356,6 +356,11 @@ static asmlinkage void __exception_irq_entry gic_handle_irq(struct pt_regs *regs
 
 	irqnr = gic_read_iar();
 
+	if (gic_prio_masking_enabled()) {
+		gic_pmr_mask_irqs();
+		gic_arch_enable_irqs();
+	}
+
 	if (likely(irqnr > 15 && irqnr < 1020) || irqnr >= 8192) {
 		int err;
 

@@ -155,5 +155,22 @@ static inline u32 gic_read_rpr(void)
 #define gits_write_vpendbaser(v, c)	writeq_relaxed(v, c)
 #define gits_read_vpendbaser(c)		readq_relaxed(c)
 
+static inline bool gic_prio_masking_enabled(void)
+{
+	return system_uses_irq_prio_masking();
+}
+
+static inline void gic_pmr_mask_irqs(void)
+{
+	/* Should not get called yet. */
+	WARN_ON_ONCE(true);
+}
+
+static inline void gic_arch_enable_irqs(void)
+{
+	/* Should not get called yet. */
+	WARN_ON_ONCE(true);
+}
+
 #endif /* __ASSEMBLY__ */
 #endif /* __ASM_ARCH_GICV3_H */

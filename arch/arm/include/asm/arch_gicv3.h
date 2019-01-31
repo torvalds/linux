@@ -363,5 +363,22 @@ static inline void gits_write_vpendbaser(u64 val, void * __iomem addr)
 
 #define gits_read_vpendbaser(c)		__gic_readq_nonatomic(c)
 
+static inline bool gic_prio_masking_enabled(void)
+{
+	return false;
+}
+
+static inline void gic_pmr_mask_irqs(void)
+{
+	/* Should not get called. */
+	WARN_ON_ONCE(true);
+}
+
+static inline void gic_arch_enable_irqs(void)
+{
+	/* Should not get called. */
+	WARN_ON_ONCE(true);
+}
+
 #endif /* !__ASSEMBLY__ */
 #endif /* !__ASM_ARCH_GICV3_H */
