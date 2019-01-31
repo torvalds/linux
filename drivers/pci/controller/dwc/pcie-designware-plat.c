@@ -16,7 +16,6 @@
 #include <linux/pci.h>
 #include <linux/platform_device.h>
 #include <linux/resource.h>
-#include <linux/signal.h>
 #include <linux/types.h>
 #include <linux/regmap.h>
 
