@@ -31,6 +31,7 @@
 #include "soc15_common.h"
 #include "atom.h"
 #include "vega20_ppt.h"
+#include "navi10_ppt.h"
 #include "pp_thermal.h"
 
 #include "asic_reg/thm/thm_11_0_2_offset.h"
@@ -164,6 +165,9 @@ static int smu_v11_0_init_microcode(struct smu_context *smu)
 	switch (adev->asic_type) {
 	case CHIP_VEGA20:
 		chip_name = "vega20";
+		break;
+	case CHIP_NAVI10:
+		chip_name = "navi10";
 		break;
 	default:
 		BUG();
@@ -2095,6 +2099,9 @@ void smu_v11_0_set_smu_funcs(struct smu_context *smu)
 	switch (adev->asic_type) {
 	case CHIP_VEGA20:
 		vega20_set_ppt_funcs(smu);
+		break;
+	case CHIP_NAVI10:
+		navi10_set_ppt_funcs(smu);
 		break;
 	default:
 		pr_warn("Unknown asic for smu11\n");
