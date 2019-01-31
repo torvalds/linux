@@ -158,7 +158,6 @@ static int sof_pci_probe(struct pci_dev *pci,
 		(const struct sof_dev_desc *)pci_id->driver_data;
 	struct snd_soc_acpi_mach *mach;
 	struct snd_sof_pdata *sof_pdata;
-	struct sof_platform_priv *priv;
 	const struct snd_sof_dsp_ops *ops;
 	int ret = 0;
 
@@ -170,12 +169,6 @@ static int sof_pci_probe(struct pci_dev *pci,
 		dev_err(dev, "error: no matching PCI descriptor ops\n");
 		return -ENODEV;
 	}
-
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv)
-		return -ENOMEM;
-
-	pci_set_drvdata(pci, priv);
 
 	sof_pdata = devm_kzalloc(dev, sizeof(*sof_pdata), GFP_KERNEL);
 	if (!sof_pdata)
@@ -206,21 +199,20 @@ static int sof_pci_probe(struct pci_dev *pci,
 	if (!mach)
 		dev_warn(dev, "warning: No matching ASoC machine driver found\n");
 	else
-		mach->mach_params.platform = "sof-audio";
+		mach->mach_params.platform = dev_name(dev);
 #endif /* CONFIG_SND_SOC_SOF_FORCE_NOCODEC_MODE */
 
 	sof_pdata->id = pci_id->device;
 	sof_pdata->name = pci_name(pci);
 	sof_pdata->machine = mach;
 	sof_pdata->desc = (struct sof_dev_desc *)pci_id->driver_data;
-	priv->sof_pdata = sof_pdata;
-	sof_pdata->dev = &pci->dev;
-	sof_pdata->platform = "sof-audio";
+	sof_pdata->dev = dev;
+	sof_pdata->platform = dev_name(dev);
 
-	/* register sof-audio platform driver */
-	ret = sof_create_platform_device(priv);
+	/* call sof helper for DSP hardware probe */
+	ret = snd_sof_device_probe(dev, sof_pdata);
 	if (ret) {
-		dev_err(dev, "error: failed to create platform device!\n");
+		dev_err(dev, "error: failed to probe DSP hardware!\n");
 		goto release_regions;
 	}
 
@@ -247,11 +239,8 @@ release_regions:
 
 static void sof_pci_remove(struct pci_dev *pci)
 {
-	struct sof_platform_priv *priv = pci_get_drvdata(pci);
-
-	/* unregister sof-audio platform driver */
-	if (!IS_ERR_OR_NULL(priv->pdev_pcm))
-		platform_device_unregister(priv->pdev_pcm);
+	/* call sof helper for DSP hardware remove */
+	snd_sof_device_remove(&pci->dev);
 
 	/* follow recommendation in pci-driver.c to increment usage counter */
 	pm_runtime_get_noresume(&pci->dev);

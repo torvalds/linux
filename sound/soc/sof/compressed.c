@@ -15,7 +15,7 @@
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_COMPRESS)
 
-#define DRV_NAME	"sof-audio"
+#define DRV_NAME	"sof-audio-component"
 
 static int sof_compressed_open(struct snd_compr_stream *cstream)
 {

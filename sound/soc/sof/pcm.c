@@ -16,7 +16,7 @@
 #include "sof-priv.h"
 #include "ops.h"
 
-#define DRV_NAME	"sof-audio"
+#define DRV_NAME	"sof-audio-component"
 
 /* Create DMA buffer page table for DSP */
 static int create_page_table(struct snd_pcm_substream *substream,
@@ -513,7 +513,7 @@ static int sof_pcm_new(struct snd_soc_pcm_runtime *rtd)
 		caps->name, caps->buffer_size_min, caps->buffer_size_max);
 
 	ret = snd_pcm_lib_preallocate_pages(pcm->streams[stream].substream,
-					    SNDRV_DMA_TYPE_DEV_SG, sdev->parent,
+					    SNDRV_DMA_TYPE_DEV_SG, sdev->dev,
 					    le32_to_cpu(caps->buffer_size_min),
 					    le32_to_cpu(caps->buffer_size_max));
 	if (ret) {
@@ -537,7 +537,7 @@ capture:
 		caps->name, caps->buffer_size_min, caps->buffer_size_max);
 
 	ret = snd_pcm_lib_preallocate_pages(pcm->streams[stream].substream,
-					    SNDRV_DMA_TYPE_DEV_SG, sdev->parent,
+					    SNDRV_DMA_TYPE_DEV_SG, sdev->dev,
 					    le32_to_cpu(caps->buffer_size_min),
 					    le32_to_cpu(caps->buffer_size_max));
 	if (ret)
@@ -641,7 +641,7 @@ static int sof_pcm_probe(struct snd_soc_component *component)
 {
 	struct snd_sof_dev *sdev =
 		snd_soc_component_get_drvdata(component);
-	struct snd_sof_pdata *plat_data = dev_get_platdata(component->dev);
+	struct snd_sof_pdata *plat_data = sdev->pdata;
 	const char *tplg_filename;
 	int ret, err;
 
@@ -679,14 +679,11 @@ void snd_sof_new_platform_drv(struct snd_sof_dev *sdev)
 {
 	struct snd_soc_component_driver *pd = &sdev->plat_drv;
 	struct snd_sof_pdata *plat_data = sdev->pdata;
-	const char *plat_name, *drv_name;
+	const char *drv_name;
 
-	plat_name = plat_data->machine->asoc_plat_name;
 	drv_name = plat_data->machine->drv_name;
 
-	dev_dbg(sdev->dev, "using platform alias %s\n", plat_name);
-
-	pd->name = "sof-audio";
+	pd->name = "sof-audio-component";
 	pd->probe = sof_pcm_probe;
 	pd->remove = sof_pcm_remove;
 	pd->ops	= &sof_pcm_ops;

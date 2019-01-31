@@ -160,15 +160,10 @@ static int sof_acpi_probe(struct platform_device *pdev)
 	const struct sof_dev_desc *desc;
 	struct snd_soc_acpi_mach *mach;
 	struct snd_sof_pdata *sof_pdata;
-	struct sof_platform_priv *priv;
 	const struct snd_sof_dsp_ops *ops;
 	int ret = 0;
 
 	dev_dbg(&pdev->dev, "ACPI DSP detected");
-
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv)
-		return -ENOMEM;
 
 	sof_pdata = devm_kzalloc(dev, sizeof(*sof_pdata), GFP_KERNEL);
 	if (!sof_pdata)
@@ -217,20 +212,18 @@ static int sof_acpi_probe(struct platform_device *pdev)
 	}
 #endif
 
-	mach->mach_params.platform = "sof-audio";
+	mach->mach_params.platform = dev_name(dev);
 	mach->mach_params.acpi_ipc_irq_index = desc->irqindex_host_ipc;
 
 	sof_pdata->machine = mach;
 	sof_pdata->desc = desc;
-	priv->sof_pdata = sof_pdata;
 	sof_pdata->dev = &pdev->dev;
-	sof_pdata->platform = "sof-audio";
-	dev_set_drvdata(&pdev->dev, priv);
+	sof_pdata->platform = dev_name(dev);
 
-	/* register sof-audio platform driver */
-	ret = sof_create_platform_device(priv);
+	/* call sof helper for DSP hardware probe */
+	ret = snd_sof_device_probe(dev, sof_pdata);
 	if (ret) {
-		dev_err(dev, "error: failed to create platform device!\n");
+		dev_err(dev, "error: failed to probe DSP hardware!\n");
 		return ret;
 	}
 
@@ -244,10 +237,8 @@ static int sof_acpi_probe(struct platform_device *pdev)
 
 static int sof_acpi_remove(struct platform_device *pdev)
 {
-	struct sof_platform_priv *priv = dev_get_drvdata(&pdev->dev);
-
-	if (!IS_ERR_OR_NULL(priv->pdev_pcm))
-		platform_device_unregister(priv->pdev_pcm);
+	/* call sof helper for DSP hardware remove */
+	snd_sof_device_remove(&pdev->dev);
 
 	return 0;
 }

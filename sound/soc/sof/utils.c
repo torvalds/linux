@@ -14,26 +14,6 @@
 #include <sound/sof.h>
 #include "sof-priv.h"
 
-/* register sof platform device */
-int sof_create_platform_device(struct sof_platform_priv *priv)
-{
-	struct snd_sof_pdata *sof_pdata = priv->sof_pdata;
-	struct device *dev = sof_pdata->dev;
-
-	priv->pdev_pcm =
-		platform_device_register_data(dev, "sof-audio",
-					      PLATFORM_DEVID_NONE,
-					      sof_pdata, sizeof(*sof_pdata));
-	if (IS_ERR(priv->pdev_pcm)) {
-		dev_err(dev, "error: cannot register device sof-audio. Error %ld\n",
-			PTR_ERR(priv->pdev_pcm));
-		return PTR_ERR(priv->pdev_pcm);
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL(sof_create_platform_device);
-
 /*
  * Register IO
  */

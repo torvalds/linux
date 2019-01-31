@@ -271,7 +271,6 @@ int snd_sof_device_probe(struct device *dev, struct snd_sof_pdata *plat_data)
 
 	/* initialize sof device */
 	sdev->dev = dev;
-	sdev->parent = plat_data->dev;
 	if dev_is_pci(plat_data->dev)
 		sdev->pci = to_pci_dev(plat_data->dev);
 
@@ -405,13 +404,6 @@ dbg_err:
 }
 EXPORT_SYMBOL(snd_sof_device_probe);
 
-static int sof_probe(struct platform_device *pdev)
-{
-	struct snd_sof_pdata *plat_data = dev_get_platdata(&pdev->dev);
-
-	return snd_sof_device_probe(&pdev->dev, plat_data);
-}
-
 int snd_sof_device_remove(struct device *dev)
 {
 	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
@@ -437,21 +429,6 @@ int snd_sof_device_remove(struct device *dev)
 	return 0;
 }
 EXPORT_SYMBOL(snd_sof_device_remove);
-
-static int sof_remove(struct platform_device *pdev)
-{
-	return snd_sof_device_remove(&pdev->dev);
-}
-
-static struct platform_driver sof_driver = {
-	.driver = {
-		.name = "sof-audio",
-	},
-
-	.probe = sof_probe,
-	.remove = sof_remove,
-};
-module_platform_driver(sof_driver);
 
 MODULE_AUTHOR("Liam Girdwood");
 MODULE_DESCRIPTION("Sound Open Firmware (SOF) Core");

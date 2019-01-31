@@ -211,8 +211,7 @@ static void sof_set_restore_stream(struct snd_sof_dev *sdev)
 
 static int sof_resume(struct device *dev, bool runtime_resume)
 {
-	struct sof_platform_priv *priv = dev_get_drvdata(dev);
-	struct snd_sof_dev *sdev = dev_get_drvdata(&priv->pdev_pcm->dev);
+	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
 	int ret = 0;
 
 	/* do nothing if dsp resume callbacks are not set */
@@ -281,8 +280,7 @@ static int sof_resume(struct device *dev, bool runtime_resume)
 
 static int sof_suspend(struct device *dev, bool runtime_suspend)
 {
-	struct sof_platform_priv *priv = dev_get_drvdata(dev);
-	struct snd_sof_dev *sdev = dev_get_drvdata(&priv->pdev_pcm->dev);
+	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
 	int ret = 0;
 
 	/* do nothing if dsp suspend callback is not set */

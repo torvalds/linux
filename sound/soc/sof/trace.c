@@ -191,7 +191,7 @@ int snd_sof_init_trace(struct snd_sof_dev *sdev)
 	sdev->dtrace_is_enabled = false;
 
 	/* allocate trace page table buffer */
-	ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, sdev->parent,
+	ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, sdev->dev,
 				  PAGE_SIZE, &sdev->dmatp);
 	if (ret < 0) {
 		dev_err(sdev->dev,
@@ -200,7 +200,7 @@ int snd_sof_init_trace(struct snd_sof_dev *sdev)
 	}
 
 	/* allocate trace data buffer */
-	ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV_SG, sdev->parent,
+	ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV_SG, sdev->dev,
 				  DMA_BUF_SIZE_FOR_TRACE, &sdev->dmatb);
 	if (ret < 0) {
 		dev_err(sdev->dev,

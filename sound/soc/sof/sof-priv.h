@@ -302,7 +302,6 @@ struct snd_sof_dai {
  */
 struct snd_sof_dev {
 	struct device *dev;
-	struct device *parent;
 	spinlock_t ipc_lock;	/* lock for IPC users */
 	spinlock_t hw_lock;	/* lock for HW IO access */
 	struct pci_dev *pci;
@@ -374,15 +373,6 @@ struct snd_sof_dev {
 	u32 msi_enabled;
 
 	void *private;			/* core does not touch this */
-};
-
-/*
- * SOF platform private struct used as drvdata of
- * platform dev (e.g. pci/acpi/spi...) drvdata.
- */
-struct sof_platform_priv {
-	struct snd_sof_pdata *sof_pdata;
-	struct platform_device *pdev_pcm;
 };
 
 /*
@@ -547,7 +537,6 @@ extern const struct sof_arch_ops sof_xtensa_arch_ops;
 /*
  * Utilities
  */
-int sof_create_platform_device(struct sof_platform_priv *priv);
 void sof_io_write(struct snd_sof_dev *sdev, void __iomem *addr, u32 value);
 void sof_io_write64(struct snd_sof_dev *sdev, void __iomem *addr, u64 value);
 u32 sof_io_read(struct snd_sof_dev *sdev, void __iomem *addr);

@@ -649,7 +649,7 @@ static int byt_acpi_probe(struct snd_sof_dev *sdev)
 	struct snd_sof_pdata *pdata = sdev->pdata;
 	const struct sof_dev_desc *desc = pdata->desc;
 	struct platform_device *pdev =
-		container_of(sdev->parent, struct platform_device, dev);
+		container_of(sdev->dev, struct platform_device, dev);
 	struct resource *mmio;
 	u32 base, size;
 	int ret = 0;

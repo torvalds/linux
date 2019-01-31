@@ -304,7 +304,7 @@ static int hda_init_caps(struct snd_sof_dev *sdev)
 		mach_params = (struct snd_soc_acpi_mach_params *)
 			&pdata->machine->mach_params;
 		mach_params->codec_mask = bus->codec_mask;
-		mach_params->platform = "sof-audio";
+		mach_params->platform = dev_name(sdev->dev);
 	}
 
 	/* create codec instances */
