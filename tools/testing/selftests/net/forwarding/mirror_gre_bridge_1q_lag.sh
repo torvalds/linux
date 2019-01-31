@@ -225,6 +225,7 @@ test_lag_slave()
 
 	# Test connectivity through $up_dev when $down_dev is set down.
 	ip link set dev $down_dev down
+	ip neigh flush dev br1
 	setup_wait_dev $up_dev
 	setup_wait_dev $host_dev
 	$ARPING -I br1 192.0.2.130 -qfc 1
