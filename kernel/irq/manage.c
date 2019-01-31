@@ -2182,6 +2182,11 @@ out:
 }
 EXPORT_SYMBOL_GPL(enable_percpu_irq);
 
+void enable_percpu_nmi(unsigned int irq, unsigned int type)
+{
+	enable_percpu_irq(irq, type);
+}
+
 /**
  * irq_percpu_is_enabled - Check whether the per cpu irq is enabled
  * @irq:	Linux irq number to check for
@@ -2221,6 +2226,11 @@ void disable_percpu_irq(unsigned int irq)
 }
 EXPORT_SYMBOL_GPL(disable_percpu_irq);
 
+void disable_percpu_nmi(unsigned int irq)
+{
+	disable_percpu_irq(irq);
+}
+
 /*
  * Internal function to unregister a percpu irqaction.
  */
@@ -2251,6 +2261,8 @@ static struct irqaction *__free_percpu_irq(unsigned int irq, void __percpu *dev_
 
 	/* Found it - now remove it from the list of entries: */
 	desc->action = NULL;
+
+	desc->istate &= ~IRQS_NMI;
 
 	raw_spin_unlock_irqrestore(&desc->lock, flags);
 
@@ -2304,6 +2316,19 @@ void free_percpu_irq(unsigned int irq, void __percpu *dev_id)
 	chip_bus_sync_unlock(desc);
 }
 EXPORT_SYMBOL_GPL(free_percpu_irq);
+
+void free_percpu_nmi(unsigned int irq, void __percpu *dev_id)
+{
+	struct irq_desc *desc = irq_to_desc(irq);
+
+	if (!desc || !irq_settings_is_per_cpu_devid(desc))
+		return;
+
+	if (WARN_ON(!(desc->istate & IRQS_NMI)))
+		return;
+
+	kfree(__free_percpu_irq(irq, dev_id));
+}
 
 /**
  *	setup_percpu_irq - setup a per-cpu interrupt
@@ -2393,6 +2418,158 @@ int __request_percpu_irq(unsigned int irq, irq_handler_t handler,
 	return retval;
 }
 EXPORT_SYMBOL_GPL(__request_percpu_irq);
+
+/**
+ *	request_percpu_nmi - allocate a percpu interrupt line for NMI delivery
+ *	@irq: Interrupt line to allocate
+ *	@handler: Function to be called when the IRQ occurs.
+ *	@name: An ascii name for the claiming device
+ *	@dev_id: A percpu cookie passed back to the handler function
+ *
+ *	This call allocates interrupt resources for a per CPU NMI. Per CPU NMIs
+ *	have to be setup on each CPU by calling ready_percpu_nmi() before being
+ *	enabled on the same CPU by using enable_percpu_nmi().
+ *
+ *	Dev_id must be globally unique. It is a per-cpu variable, and
+ *	the handler gets called with the interrupted CPU's instance of
+ *	that variable.
+ *
+ *	Interrupt lines requested for NMI delivering should have auto enabling
+ *	setting disabled.
+ *
+ *	If the interrupt line cannot be used to deliver NMIs, function
+ *	will fail returning a negative value.
+ */
+int request_percpu_nmi(unsigned int irq, irq_handler_t handler,
+		       const char *name, void __percpu *dev_id)
+{
+	struct irqaction *action;
+	struct irq_desc *desc;
+	unsigned long flags;
+	int retval;
+
+	if (!handler)
+		return -EINVAL;
+
+	desc = irq_to_desc(irq);
+
+	if (!desc || !irq_settings_can_request(desc) ||
+	    !irq_settings_is_per_cpu_devid(desc) ||
+	    irq_settings_can_autoenable(desc) ||
+	    !irq_supports_nmi(desc))
+		return -EINVAL;
+
+	/* The line cannot already be NMI */
+	if (desc->istate & IRQS_NMI)
+		return -EINVAL;
+
+	action = kzalloc(sizeof(struct irqaction), GFP_KERNEL);
+	if (!action)
+		return -ENOMEM;
+
+	action->handler = handler;
+	action->flags = IRQF_PERCPU | IRQF_NO_SUSPEND | IRQF_NO_THREAD
+		| IRQF_NOBALANCING;
+	action->name = name;
+	action->percpu_dev_id = dev_id;
+
+	retval = irq_chip_pm_get(&desc->irq_data);
+	if (retval < 0)
+		goto err_out;
+
+	retval = __setup_irq(irq, desc, action);
+	if (retval)
+		goto err_irq_setup;
+
+	raw_spin_lock_irqsave(&desc->lock, flags);
+	desc->istate |= IRQS_NMI;
+	raw_spin_unlock_irqrestore(&desc->lock, flags);
+
+	return 0;
+
+err_irq_setup:
+	irq_chip_pm_put(&desc->irq_data);
+err_out:
+	kfree(action);
+
+	return retval;
+}
+
+/**
+ *	prepare_percpu_nmi - performs CPU local setup for NMI delivery
+ *	@irq: Interrupt line to prepare for NMI delivery
+ *
+ *	This call prepares an interrupt line to deliver NMI on the current CPU,
+ *	before that interrupt line gets enabled with enable_percpu_nmi().
+ *
+ *	As a CPU local operation, this should be called from non-preemptible
+ *	context.
+ *
+ *	If the interrupt line cannot be used to deliver NMIs, function
+ *	will fail returning a negative value.
+ */
+int prepare_percpu_nmi(unsigned int irq)
+{
+	unsigned long flags;
+	struct irq_desc *desc;
+	int ret = 0;
+
+	WARN_ON(preemptible());
+
+	desc = irq_get_desc_lock(irq, &flags,
+				 IRQ_GET_DESC_CHECK_PERCPU);
+	if (!desc)
+		return -EINVAL;
+
+	if (WARN(!(desc->istate & IRQS_NMI),
+		 KERN_ERR "prepare_percpu_nmi called for a non-NMI interrupt: irq %u\n",
+		 irq)) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ret = irq_nmi_setup(desc);
+	if (ret) {
+		pr_err("Failed to setup NMI delivery: irq %u\n", irq);
+		goto out;
+	}
+
+out:
+	irq_put_desc_unlock(desc, flags);
+	return ret;
+}
+
+/**
+ *	teardown_percpu_nmi - undoes NMI setup of IRQ line
+ *	@irq: Interrupt line from which CPU local NMI configuration should be
+ *	      removed
+ *
+ *	This call undoes the setup done by prepare_percpu_nmi().
+ *
+ *	IRQ line should not be enabled for the current CPU.
+ *
+ *	As a CPU local operation, this should be called from non-preemptible
+ *	context.
+ */
+void teardown_percpu_nmi(unsigned int irq)
+{
+	unsigned long flags;
+	struct irq_desc *desc;
+
+	WARN_ON(preemptible());
+
+	desc = irq_get_desc_lock(irq, &flags,
+				 IRQ_GET_DESC_CHECK_PERCPU);
+	if (!desc)
+		return;
+
+	if (WARN_ON(!(desc->istate & IRQS_NMI)))
+		goto out;
+
+	irq_nmi_teardown(desc);
+out:
+	irq_put_desc_unlock(desc, flags);
+}
 
 /**
  *	irq_get_irqchip_state - returns the irqchip state of a interrupt.
