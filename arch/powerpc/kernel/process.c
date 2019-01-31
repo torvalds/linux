@@ -2027,7 +2027,7 @@ int validate_sp(unsigned long sp, struct task_struct *p,
 
 EXPORT_SYMBOL(validate_sp);
 
-unsigned long get_wchan(struct task_struct *p)
+static unsigned long __get_wchan(struct task_struct *p)
 {
 	unsigned long ip, sp;
 	int count = 0;
@@ -2053,6 +2053,20 @@ unsigned long get_wchan(struct task_struct *p)
 	return 0;
 }
 
+unsigned long get_wchan(struct task_struct *p)
+{
+	unsigned long ret;
+
+	if (!try_get_task_stack(p))
+		return 0;
+
+	ret = __get_wchan(p);
+
+	put_task_stack(p);
+
+	return ret;
+}
+
 static int kstack_depth_to_print = CONFIG_PRINT_STACK_DEPTH;
 
 void show_stack(struct task_struct *tsk, unsigned long *stack)
@@ -2067,9 +2081,13 @@ void show_stack(struct task_struct *tsk, unsigned long *stack)
 	int curr_frame = 0;
 #endif
 
-	sp = (unsigned long) stack;
 	if (tsk == NULL)
 		tsk = current;
+
+	if (!try_get_task_stack(tsk))
+		return;
+
+	sp = (unsigned long) stack;
 	if (sp == 0) {
 		if (tsk == current)
 			sp = current_stack_pointer();
@@ -2081,7 +2099,7 @@ void show_stack(struct task_struct *tsk, unsigned long *stack)
 	printk("Call Trace:\n");
 	do {
 		if (!validate_sp(sp, tsk, STACK_FRAME_OVERHEAD))
-			return;
+			break;
 
 		stack = (unsigned long *) sp;
 		newsp = stack[0];
@@ -2121,6 +2139,8 @@ void show_stack(struct task_struct *tsk, unsigned long *stack)
 
 		sp = newsp;
 	} while (count++ < kstack_depth_to_print);
+
+	put_task_stack(tsk);
 }
 
 #ifdef CONFIG_PPC64
