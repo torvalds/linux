@@ -269,12 +269,25 @@ test_span_gre_fdb_roaming()
 	mirror_install $swp1 ingress $tundev "matchall $tcflags"
 	quick_test_span_gre_dir $tundev ingress
 
-	bridge fdb del dev $swp3 $h3mac vlan 555 master
-	bridge fdb add dev $swp2 $h3mac vlan 555 master
-	sleep 1
-	fail_test_span_gre_dir $tundev ingress
+	while ((RET == 0)); do
+		bridge fdb del dev $swp3 $h3mac vlan 555 master 2>/dev/null
+		bridge fdb add dev $swp2 $h3mac vlan 555 master
+		sleep 1
+		fail_test_span_gre_dir $tundev ingress
 
-	bridge fdb del dev $swp2 $h3mac vlan 555 master
+		if ! bridge fdb sh dev $swp2 vlan 555 master \
+		    | grep -q $h3mac; then
+			printf "TEST: %-60s  [RETRY]\n" \
+				"$what: MAC roaming ($tcflags)"
+			# ARP or ND probably reprimed the FDB while the test
+			# was running. We would get a spurious failure.
+			RET=0
+			continue
+		fi
+		break
+	done
+
+	bridge fdb del dev $swp2 $h3mac vlan 555 master 2>/dev/null
 	# Re-prime FDB
 	$ARPING -I br1.555 192.0.2.130 -fqc 1
 	sleep 1
