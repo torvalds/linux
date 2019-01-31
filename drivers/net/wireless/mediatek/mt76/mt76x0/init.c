@@ -262,25 +262,6 @@ int mt76x0_init_hardware(struct mt76x02_dev *dev)
 }
 EXPORT_SYMBOL_GPL(mt76x0_init_hardware);
 
-struct mt76x02_dev *
-mt76x0_alloc_device(struct device *pdev,
-		    const struct mt76_driver_ops *drv_ops,
-		    const struct ieee80211_ops *ops)
-{
-	struct mt76x02_dev *dev;
-	struct mt76_dev *mdev;
-
-	mdev = mt76_alloc_device(pdev, sizeof(*dev), ops, drv_ops);
-	if (!mdev)
-		return NULL;
-
-	dev = container_of(mdev, struct mt76x02_dev, mt76);
-	mutex_init(&dev->phy_mutex);
-
-	return dev;
-}
-EXPORT_SYMBOL_GPL(mt76x0_alloc_device);
-
 int mt76x0_register_device(struct mt76x02_dev *dev)
 {
 	int ret;
