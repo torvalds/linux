@@ -266,10 +266,16 @@ if (!EMU_RUN_HACK)
 
 L_HALT_WAVE:
     // If STATUS.HALT is set then this fault must come from SQC instruction fetch.
-    // We cannot prevent further faults so just terminate the wavefront.
+    // We cannot prevent further faults. Spin wait until context saved.
     s_and_b32       ttmp2, s_save_status, SQ_WAVE_STATUS_HALT_MASK
     s_cbranch_scc0  L_NOT_ALREADY_HALTED
-    s_endpgm
+
+L_WAIT_CTX_SAVE:
+    s_sleep         0x10
+    s_getreg_b32    ttmp2, hwreg(HW_REG_TRAPSTS)
+    s_and_b32       ttmp2, ttmp2, SQ_WAVE_TRAPSTS_SAVECTX_MASK
+    s_cbranch_scc0  L_WAIT_CTX_SAVE
+
 L_NOT_ALREADY_HALTED:
     s_or_b32        s_save_status, s_save_status, SQ_WAVE_STATUS_HALT_MASK
 
