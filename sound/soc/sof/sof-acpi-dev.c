@@ -230,13 +230,15 @@ static int sof_acpi_probe(struct platform_device *pdev)
 	/* allow runtime_pm */
 	pm_runtime_set_autosuspend_delay(dev, SND_SOF_SUSPEND_DELAY_MS);
 	pm_runtime_use_autosuspend(dev);
-	pm_runtime_allow(dev);
+	pm_runtime_enable(dev);
 
 	return ret;
 }
 
 static int sof_acpi_remove(struct platform_device *pdev)
 {
+	pm_runtime_disable(&pdev->dev);
+
 	/* call sof helper for DSP hardware remove */
 	snd_sof_device_remove(&pdev->dev);
 

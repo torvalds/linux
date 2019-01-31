@@ -643,7 +643,7 @@ static int sof_pcm_probe(struct snd_soc_component *component)
 		snd_soc_component_get_drvdata(component);
 	struct snd_sof_pdata *plat_data = sdev->pdata;
 	const char *tplg_filename;
-	int ret, err;
+	int ret;
 
 	/* load the default topology */
 	sdev->component = component;
@@ -655,6 +655,20 @@ static int sof_pcm_probe(struct snd_soc_component *component)
 			ret);
 		return ret;
 	}
+
+	/*
+	 * Some platforms in SOF, ex: BYT, may not have their platform PM
+	 * callbacks set. Skip decrementing the usage count so as to
+	 * prevent their runtime PM callbacks from being invoked.
+	 */
+	if (!sof_ops(sdev)->runtime_suspend || !sof_ops(sdev)->runtime_resume)
+		return ret;
+
+	/*
+	 * Decrement the usage count to enable the device to enter
+	 * runtime suspend after probe() completes.
+	 */
+	pm_runtime_put_noidle(sdev->dev);
 
 	return ret;
 }
