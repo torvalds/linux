@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-15 Advanced Micro Devices, Inc.
+ * Copyright 2018 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,34 +19,14 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * Authors: AMD
- *
  */
+#ifndef __VEGA20_BOCO_H__
+#define __VEGA20_BOCO_H__
+#include "hwmgr.h"
+#include "common_baco.h"
 
-#include "dm_services.h"
+extern int vega20_baco_get_capability(struct pp_hwmgr *hwmgr, bool *cap);
+extern int vega20_baco_get_state(struct pp_hwmgr *hwmgr, enum BACO_STATE *state);
+extern int vega20_baco_set_state(struct pp_hwmgr *hwmgr, enum BACO_STATE state);
 
-/*
- * Pre-requisites: headers required by header of this unit
- */
-#include "include/i2caux_interface.h"
-
-/*
- * Header of this unit
- */
-
-#include "engine.h"
-
-void dal_i2caux_construct_engine(
-	struct engine *engine,
-	struct dc_context *ctx)
-{
-	engine->ddc = NULL;
-	engine->ctx = ctx;
-}
-
-void dal_i2caux_destruct_engine(
-	struct engine *engine)
-{
-	/* nothing to do */
-}
-
+#endif

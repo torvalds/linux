@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-15 Advanced Micro Devices, Inc.
+ * Copyright 2018 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,36 +19,14 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * Authors: AMD
- *
  */
+#ifndef __VEGA10_BOCO_H__
+#define __VEGA10_BOCO_H__
+#include "hwmgr.h"
+#include "common_baco.h"
 
-#ifndef __DAL_I2C_HW_ENGINE_DCE80_H__
-#define __DAL_I2C_HW_ENGINE_DCE80_H__
+extern int vega10_baco_get_capability(struct pp_hwmgr *hwmgr, bool *cap);
+extern int vega10_baco_get_state(struct pp_hwmgr *hwmgr, enum BACO_STATE *state);
+extern int vega10_baco_set_state(struct pp_hwmgr *hwmgr, enum BACO_STATE state);
 
-struct i2c_hw_engine_dce80 {
-	struct i2c_hw_engine base;
-	struct {
-		uint32_t DC_I2C_DDCX_SETUP;
-		uint32_t DC_I2C_DDCX_SPEED;
-	} addr;
-	uint32_t engine_id;
-	/* expressed in kilohertz */
-	uint32_t reference_frequency;
-	/* number of bytes currently used in HW buffer */
-	uint32_t buffer_used_bytes;
-	/* number of pending transactions (before GO) */
-	uint32_t transaction_count;
-	uint32_t engine_keep_power_up_count;
-};
-
-struct i2c_hw_engine_dce80_create_arg {
-	uint32_t engine_id;
-	uint32_t reference_frequency;
-	uint32_t default_speed;
-	struct dc_context *ctx;
-};
-
-struct i2c_engine *dal_i2c_hw_engine_dce80_create(
-	const struct i2c_hw_engine_dce80_create_arg *arg);
 #endif

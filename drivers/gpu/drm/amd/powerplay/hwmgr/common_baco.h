@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-15 Advanced Micro Devices, Inc.
+ * Copyright 2018 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,25 +19,32 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * Authors: AMD
- *
  */
+#ifndef __COMMON_BOCO_H__
+#define __COMMON_BOCO_H__
+#include "hwmgr.h"
 
-#ifndef __DAL_I2C_SW_ENGINE_DCE80_H__
-#define __DAL_I2C_SW_ENGINE_DCE80_H__
 
-struct i2c_sw_engine_dce80 {
-	struct i2c_sw_engine base;
-	uint32_t engine_id;
+enum baco_cmd_type {
+	CMD_WRITE = 0,
+	CMD_READMODIFYWRITE,
+	CMD_WAITFOR,
+	CMD_DELAY_MS,
+	CMD_DELAY_US,
 };
 
-struct i2c_sw_engine_dce80_create_arg {
-	uint32_t engine_id;
-	uint32_t default_speed;
-	struct dc_context *ctx;
+struct soc15_baco_cmd_entry {
+	enum baco_cmd_type cmd;
+	uint32_t 	hwip;
+	uint32_t 	inst;
+	uint32_t 	seg;
+	uint32_t 	reg_offset;
+	uint32_t     	mask;
+	uint32_t     	shift;
+	uint32_t     	timeout;
+	uint32_t     	val;
 };
-
-struct i2c_engine *dal_i2c_sw_engine_dce80_create(
-	const struct i2c_sw_engine_dce80_create_arg *arg);
-
+extern bool soc15_baco_program_registers(struct pp_hwmgr *hwmgr,
+					const struct soc15_baco_cmd_entry *entry,
+					const u32 array_size);
 #endif

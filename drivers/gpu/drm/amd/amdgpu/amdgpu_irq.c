@@ -148,6 +148,8 @@ static void amdgpu_irq_callback(struct amdgpu_device *adev,
 	entry.iv_entry = (const uint32_t *)&ih->ring[ring_index];
 	amdgpu_ih_decode_iv(adev, &entry);
 
+	trace_amdgpu_iv(ih - &adev->irq.ih, &entry);
+
 	amdgpu_irq_dispatch(adev, &entry);
 }
 
@@ -172,6 +174,36 @@ irqreturn_t amdgpu_irq_handler(int irq, void *arg)
 	if (ret == IRQ_HANDLED)
 		pm_runtime_mark_last_busy(dev->dev);
 	return ret;
+}
+
+/**
+ * amdgpu_irq_handle_ih1 - kick of processing for IH1
+ *
+ * @work: work structure in struct amdgpu_irq
+ *
+ * Kick of processing IH ring 1.
+ */
+static void amdgpu_irq_handle_ih1(struct work_struct *work)
+{
+	struct amdgpu_device *adev = container_of(work, struct amdgpu_device,
+						  irq.ih1_work);
+
+	amdgpu_ih_process(adev, &adev->irq.ih1, amdgpu_irq_callback);
+}
+
+/**
+ * amdgpu_irq_handle_ih2 - kick of processing for IH2
+ *
+ * @work: work structure in struct amdgpu_irq
+ *
+ * Kick of processing IH ring 2.
+ */
+static void amdgpu_irq_handle_ih2(struct work_struct *work)
+{
+	struct amdgpu_device *adev = container_of(work, struct amdgpu_device,
+						  irq.ih2_work);
+
+	amdgpu_ih_process(adev, &adev->irq.ih2, amdgpu_irq_callback);
 }
 
 /**
@@ -237,6 +269,9 @@ int amdgpu_irq_init(struct amdgpu_device *adev)
 		INIT_WORK(&adev->hotplug_work,
 				amdgpu_hotplug_work_func);
 	}
+
+	INIT_WORK(&adev->irq.ih1_work, amdgpu_irq_handle_ih1);
+	INIT_WORK(&adev->irq.ih2_work, amdgpu_irq_handle_ih2);
 
 	adev->irq.installed = true;
 	r = drm_irq_install(adev->ddev, adev->ddev->pdev->irq);
@@ -366,8 +401,6 @@ void amdgpu_irq_dispatch(struct amdgpu_device *adev,
 	struct amdgpu_irq_src *src;
 	bool handled = false;
 	int r;
-
-	trace_amdgpu_iv(entry);
 
 	if (client_id >= AMDGPU_IRQ_CLIENTID_MAX) {
 		DRM_DEBUG("Invalid client_id in IV: %d\n", client_id);

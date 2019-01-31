@@ -40,7 +40,6 @@
 #include "ipp.h"
 #include "mpc.h"
 #include "reg_helper.h"
-#include "custom_float.h"
 #include "dcn10_hubp.h"
 #include "dcn10_hubbub.h"
 #include "dcn10_cm_common.h"
@@ -92,10 +91,11 @@ static void log_mpc_crc(struct dc *dc,
 void dcn10_log_hubbub_state(struct dc *dc, struct dc_log_buffer_ctx *log_ctx)
 {
 	struct dc_context *dc_ctx = dc->ctx;
-	struct dcn_hubbub_wm wm = {0};
+	struct dcn_hubbub_wm wm;
 	int i;
 
-	hubbub1_wm_read_state(dc->res_pool->hubbub, &wm);
+	memset(&wm, 0, sizeof(struct dcn_hubbub_wm));
+	dc->res_pool->hubbub->funcs->wm_read_state(dc->res_pool->hubbub, &wm);
 
 	DTN_INFO("HUBBUB WM:      data_urgent  pte_meta_urgent"
 			"         sr_enter          sr_exit  dram_clk_change\n");
@@ -1202,7 +1202,8 @@ static void dcn10_update_plane_addr(const struct dc *dc, struct pipe_ctx *pipe_c
 	pipe_ctx->plane_res.hubp->funcs->hubp_program_surface_flip_and_addr(
 			pipe_ctx->plane_res.hubp,
 			&plane_state->address,
-			plane_state->flip_immediate);
+			plane_state->flip_immediate,
+			0);
 
 	plane_state->status.requested_address = plane_state->address;
 
@@ -2048,7 +2049,7 @@ void update_dchubp_dpp(
 			dc->res_pool->dccg->funcs->update_dpp_dto(
 					dc->res_pool->dccg,
 					dpp->inst,
-					pipe_ctx->plane_res.bw.calc.dppclk_khz);
+					pipe_ctx->plane_res.bw.dppclk_khz);
 		else
 			dc->res_pool->clk_mgr->clks.dppclk_khz = should_divided_by_2 ?
 						dc->res_pool->clk_mgr->clks.dispclk_khz / 2 :
@@ -2125,7 +2126,8 @@ void update_dchubp_dpp(
 		plane_state->update_flags.bits.swizzle_change ||
 		plane_state->update_flags.bits.dcc_change ||
 		plane_state->update_flags.bits.bpp_change ||
-		plane_state->update_flags.bits.scaling_change) {
+		plane_state->update_flags.bits.scaling_change ||
+		plane_state->update_flags.bits.plane_size_change) {
 		hubp->funcs->hubp_program_surface_config(
 			hubp,
 			plane_state->format,
@@ -2252,13 +2254,11 @@ static void program_all_pipe_in_tree(
 
 	}
 
-	if (pipe_ctx->plane_state != NULL) {
+	if (pipe_ctx->plane_state != NULL)
 		dcn10_program_pipe(dc, pipe_ctx, context);
-	}
 
-	if (pipe_ctx->bottom_pipe != NULL && pipe_ctx->bottom_pipe != pipe_ctx) {
+	if (pipe_ctx->bottom_pipe != NULL && pipe_ctx->bottom_pipe != pipe_ctx)
 		program_all_pipe_in_tree(dc, pipe_ctx->bottom_pipe, context);
-	}
 }
 
 struct pipe_ctx *find_top_pipe_for_stream(
@@ -2355,29 +2355,22 @@ static void dcn10_apply_ctx_for_surface(
 			top_pipe_to_program->plane_state->update_flags.bits.full_update)
 		for (i = 0; i < dc->res_pool->pipe_count; i++) {
 			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
-
+			tg = pipe_ctx->stream_res.tg;
 			/* Skip inactive pipes and ones already updated */
 			if (!pipe_ctx->stream || pipe_ctx->stream == stream
-					|| !pipe_ctx->plane_state)
+					|| !pipe_ctx->plane_state
+					|| !tg->funcs->is_tg_enabled(tg))
 				continue;
 
-			pipe_ctx->stream_res.tg->funcs->lock(pipe_ctx->stream_res.tg);
+			tg->funcs->lock(tg);
 
 			pipe_ctx->plane_res.hubp->funcs->hubp_setup_interdependent(
 				pipe_ctx->plane_res.hubp,
 				&pipe_ctx->dlg_regs,
 				&pipe_ctx->ttu_regs);
+
+			tg->funcs->unlock(tg);
 		}
-
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
-
-		if (!pipe_ctx->stream || pipe_ctx->stream == stream
-				|| !pipe_ctx->plane_state)
-			continue;
-
-		dcn10_pipe_control_lock(dc, pipe_ctx, false);
-	}
 
 	if (num_planes == 0)
 		false_optc_underflow_wa(dc, stream, tg);
@@ -2525,7 +2518,7 @@ static void dcn10_config_stereo_parameters(
 			timing_3d_format == TIMING_3D_FORMAT_DP_HDMI_INBAND_FA ||
 			timing_3d_format == TIMING_3D_FORMAT_SIDEBAND_FA) {
 			enum display_dongle_type dongle = \
-					stream->sink->link->ddc->dongle_type;
+					stream->link->ddc->dongle_type;
 			if (dongle == DISPLAY_DONGLE_DP_VGA_CONVERTER ||
 				dongle == DISPLAY_DONGLE_DP_DVI_CONVERTER ||
 				dongle == DISPLAY_DONGLE_DP_HDMI_CONVERTER)
@@ -2656,7 +2649,7 @@ static void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
 	struct hubp *hubp = pipe_ctx->plane_res.hubp;
 	struct dpp *dpp = pipe_ctx->plane_res.dpp;
 	struct dc_cursor_mi_param param = {
-		.pixel_clk_khz = pipe_ctx->stream->timing.pix_clk_khz,
+		.pixel_clk_khz = pipe_ctx->stream->timing.pix_clk_100hz / 10,
 		.ref_clk_khz = pipe_ctx->stream->ctx->dc->res_pool->ref_clock_inKhz,
 		.viewport = pipe_ctx->plane_res.scl_data.viewport,
 		.h_scale_ratio = pipe_ctx->plane_res.scl_data.ratios.horz,

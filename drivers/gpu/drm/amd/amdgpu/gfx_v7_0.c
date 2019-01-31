@@ -2228,13 +2228,13 @@ static void gfx_v7_0_ring_emit_fence_compute(struct amdgpu_ring *ring,
 static void gfx_v7_0_ring_emit_ib_gfx(struct amdgpu_ring *ring,
 					struct amdgpu_job *job,
 					struct amdgpu_ib *ib,
-					bool ctx_switch)
+					uint32_t flags)
 {
 	unsigned vmid = AMDGPU_JOB_GET_VMID(job);
 	u32 header, control = 0;
 
 	/* insert SWITCH_BUFFER packet before first IB in the ring frame */
-	if (ctx_switch) {
+	if (flags & AMDGPU_HAVE_CTX_SWITCH) {
 		amdgpu_ring_write(ring, PACKET3(PACKET3_SWITCH_BUFFER, 0));
 		amdgpu_ring_write(ring, 0);
 	}
@@ -2259,7 +2259,7 @@ static void gfx_v7_0_ring_emit_ib_gfx(struct amdgpu_ring *ring,
 static void gfx_v7_0_ring_emit_ib_compute(struct amdgpu_ring *ring,
 					  struct amdgpu_job *job,
 					  struct amdgpu_ib *ib,
-					  bool ctx_switch)
+					  uint32_t flags)
 {
 	unsigned vmid = AMDGPU_JOB_GET_VMID(job);
 	u32 control = INDIRECT_BUFFER_VALID | ib->length_dw | (vmid << 24);

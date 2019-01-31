@@ -28,8 +28,6 @@
 #include <linux/module.h>
 #include <linux/dma-buf.h>
 
-const struct kgd2kfd_calls *kgd2kfd;
-
 static const unsigned int compute_vmid_bitmap = 0xFF00;
 
 /* Total memory size in system memory and all GPU VRAM. Used to
@@ -47,12 +45,9 @@ int amdgpu_amdkfd_init(void)
 	amdgpu_amdkfd_total_mem_size *= si.mem_unit;
 
 #ifdef CONFIG_HSA_AMD
-	ret = kgd2kfd_init(KFD_INTERFACE_VERSION, &kgd2kfd);
-	if (ret)
-		kgd2kfd = NULL;
+	ret = kgd2kfd_init();
 	amdgpu_amdkfd_gpuvm_init_mem_limits();
 #else
-	kgd2kfd = NULL;
 	ret = -ENOENT;
 #endif
 
@@ -61,16 +56,12 @@ int amdgpu_amdkfd_init(void)
 
 void amdgpu_amdkfd_fini(void)
 {
-	if (kgd2kfd)
-		kgd2kfd->exit();
+	kgd2kfd_exit();
 }
 
 void amdgpu_amdkfd_device_probe(struct amdgpu_device *adev)
 {
 	const struct kfd2kgd_calls *kfd2kgd;
-
-	if (!kgd2kfd)
-		return;
 
 	switch (adev->asic_type) {
 #ifdef CONFIG_DRM_AMDGPU_CIK
@@ -98,8 +89,8 @@ void amdgpu_amdkfd_device_probe(struct amdgpu_device *adev)
 		return;
 	}
 
-	adev->kfd.dev = kgd2kfd->probe((struct kgd_dev *)adev,
-				       adev->pdev, kfd2kgd);
+	adev->kfd.dev = kgd2kfd_probe((struct kgd_dev *)adev,
+				      adev->pdev, kfd2kgd);
 
 	if (adev->kfd.dev)
 		amdgpu_amdkfd_total_mem_size += adev->gmc.real_vram_size;
@@ -182,7 +173,7 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 				&gpu_resources.doorbell_start_offset);
 
 		if (adev->asic_type < CHIP_VEGA10) {
-			kgd2kfd->device_init(adev->kfd.dev, &gpu_resources);
+			kgd2kfd_device_init(adev->kfd.dev, &gpu_resources);
 			return;
 		}
 
@@ -197,13 +188,13 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 			 * can use each doorbell assignment twice.
 			 */
 			gpu_resources.sdma_doorbell[0][i] =
-				adev->doorbell_index.sdma_engine0 + (i >> 1);
+				adev->doorbell_index.sdma_engine[0] + (i >> 1);
 			gpu_resources.sdma_doorbell[0][i+1] =
-				adev->doorbell_index.sdma_engine0 + 0x200 + (i >> 1);
+				adev->doorbell_index.sdma_engine[0] + 0x200 + (i >> 1);
 			gpu_resources.sdma_doorbell[1][i] =
-				adev->doorbell_index.sdma_engine1 + (i >> 1);
+				adev->doorbell_index.sdma_engine[1] + (i >> 1);
 			gpu_resources.sdma_doorbell[1][i+1] =
-				adev->doorbell_index.sdma_engine1 + 0x200 + (i >> 1);
+				adev->doorbell_index.sdma_engine[1] + 0x200 + (i >> 1);
 		}
 		/* Doorbells 0x0e0-0ff and 0x2e0-2ff are reserved for
 		 * SDMA, IH and VCN. So don't use them for the CP.
@@ -211,14 +202,14 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 		gpu_resources.reserved_doorbell_mask = 0x1e0;
 		gpu_resources.reserved_doorbell_val  = 0x0e0;
 
-		kgd2kfd->device_init(adev->kfd.dev, &gpu_resources);
+		kgd2kfd_device_init(adev->kfd.dev, &gpu_resources);
 	}
 }
 
 void amdgpu_amdkfd_device_fini(struct amdgpu_device *adev)
 {
 	if (adev->kfd.dev) {
-		kgd2kfd->device_exit(adev->kfd.dev);
+		kgd2kfd_device_exit(adev->kfd.dev);
 		adev->kfd.dev = NULL;
 	}
 }
@@ -227,13 +218,13 @@ void amdgpu_amdkfd_interrupt(struct amdgpu_device *adev,
 		const void *ih_ring_entry)
 {
 	if (adev->kfd.dev)
-		kgd2kfd->interrupt(adev->kfd.dev, ih_ring_entry);
+		kgd2kfd_interrupt(adev->kfd.dev, ih_ring_entry);
 }
 
 void amdgpu_amdkfd_suspend(struct amdgpu_device *adev)
 {
 	if (adev->kfd.dev)
-		kgd2kfd->suspend(adev->kfd.dev);
+		kgd2kfd_suspend(adev->kfd.dev);
 }
 
 int amdgpu_amdkfd_resume(struct amdgpu_device *adev)
@@ -241,7 +232,7 @@ int amdgpu_amdkfd_resume(struct amdgpu_device *adev)
 	int r = 0;
 
 	if (adev->kfd.dev)
-		r = kgd2kfd->resume(adev->kfd.dev);
+		r = kgd2kfd_resume(adev->kfd.dev);
 
 	return r;
 }
@@ -251,7 +242,7 @@ int amdgpu_amdkfd_pre_reset(struct amdgpu_device *adev)
 	int r = 0;
 
 	if (adev->kfd.dev)
-		r = kgd2kfd->pre_reset(adev->kfd.dev);
+		r = kgd2kfd_pre_reset(adev->kfd.dev);
 
 	return r;
 }
@@ -261,7 +252,7 @@ int amdgpu_amdkfd_post_reset(struct amdgpu_device *adev)
 	int r = 0;
 
 	if (adev->kfd.dev)
-		r = kgd2kfd->post_reset(adev->kfd.dev);
+		r = kgd2kfd_post_reset(adev->kfd.dev);
 
 	return r;
 }
@@ -618,5 +609,48 @@ struct kfd2kgd_calls *amdgpu_amdkfd_gfx_8_0_get_functions(void)
 struct kfd2kgd_calls *amdgpu_amdkfd_gfx_9_0_get_functions(void)
 {
 	return NULL;
+}
+
+struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd, struct pci_dev *pdev,
+			      const struct kfd2kgd_calls *f2g)
+{
+	return NULL;
+}
+
+bool kgd2kfd_device_init(struct kfd_dev *kfd,
+			 const struct kgd2kfd_shared_resources *gpu_resources)
+{
+	return false;
+}
+
+void kgd2kfd_device_exit(struct kfd_dev *kfd)
+{
+}
+
+void kgd2kfd_exit(void)
+{
+}
+
+void kgd2kfd_suspend(struct kfd_dev *kfd)
+{
+}
+
+int kgd2kfd_resume(struct kfd_dev *kfd)
+{
+	return 0;
+}
+
+int kgd2kfd_pre_reset(struct kfd_dev *kfd)
+{
+	return 0;
+}
+
+int kgd2kfd_post_reset(struct kfd_dev *kfd)
+{
+	return 0;
+}
+
+void kgd2kfd_interrupt(struct kfd_dev *kfd, const void *ih_ring_entry)
+{
 }
 #endif

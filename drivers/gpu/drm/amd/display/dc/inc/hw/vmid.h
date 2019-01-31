@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-15 Advanced Micro Devices, Inc.
+ * Copyright 2018 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,16 +23,27 @@
  *
  */
 
-#ifndef __DAL_I2C_AUX_DCE80_H__
-#define __DAL_I2C_AUX_DCE80_H__
+#ifndef DAL_DC_INC_HW_VMID_H_
+#define DAL_DC_INC_HW_VMID_H_
 
-struct i2caux_dce80 {
-	struct i2caux base;
-	/* indicate the I2C HW circular buffer is in use */
-	bool i2c_hw_buffer_in_use;
+#include "core_types.h"
+#include "dchubbub.h"
+
+struct dcn_vmid_registers {
+	uint32_t CNTL;
+	uint32_t PAGE_TABLE_BASE_ADDR_HI32;
+	uint32_t PAGE_TABLE_BASE_ADDR_LO32;
+	uint32_t PAGE_TABLE_START_ADDR_HI32;
+	uint32_t PAGE_TABLE_START_ADDR_LO32;
+	uint32_t PAGE_TABLE_END_ADDR_HI32;
+	uint32_t PAGE_TABLE_END_ADDR_LO32;
 };
 
-struct i2caux *dal_i2caux_dce80_create(
-	struct dc_context *ctx);
+struct dcn_vmid_page_table_config {
+	uint64_t	page_table_start_addr;
+	uint64_t	page_table_end_addr;
+	enum dcn_hubbub_page_table_depth	depth;
+	enum dcn_hubbub_page_table_block_size	block_size;
+};
 
-#endif
+#endif /* DAL_DC_INC_HW_VMID_H_ */

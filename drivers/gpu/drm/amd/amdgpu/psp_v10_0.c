@@ -38,75 +38,6 @@ MODULE_FIRMWARE("amdgpu/raven_asd.bin");
 MODULE_FIRMWARE("amdgpu/picasso_asd.bin");
 MODULE_FIRMWARE("amdgpu/raven2_asd.bin");
 
-static int
-psp_v10_0_get_fw_type(struct amdgpu_firmware_info *ucode, enum psp_gfx_fw_type *type)
-{
-	switch(ucode->ucode_id) {
-	case AMDGPU_UCODE_ID_SDMA0:
-		*type = GFX_FW_TYPE_SDMA0;
-		break;
-	case AMDGPU_UCODE_ID_SDMA1:
-		*type = GFX_FW_TYPE_SDMA1;
-		break;
-	case AMDGPU_UCODE_ID_CP_CE:
-		*type = GFX_FW_TYPE_CP_CE;
-		break;
-	case AMDGPU_UCODE_ID_CP_PFP:
-		*type = GFX_FW_TYPE_CP_PFP;
-		break;
-	case AMDGPU_UCODE_ID_CP_ME:
-		*type = GFX_FW_TYPE_CP_ME;
-		break;
-	case AMDGPU_UCODE_ID_CP_MEC1:
-		*type = GFX_FW_TYPE_CP_MEC;
-		break;
-	case AMDGPU_UCODE_ID_CP_MEC1_JT:
-		*type = GFX_FW_TYPE_CP_MEC_ME1;
-		break;
-	case AMDGPU_UCODE_ID_CP_MEC2:
-		*type = GFX_FW_TYPE_CP_MEC;
-		break;
-	case AMDGPU_UCODE_ID_CP_MEC2_JT:
-		*type = GFX_FW_TYPE_CP_MEC_ME2;
-		break;
-	case AMDGPU_UCODE_ID_RLC_G:
-		*type = GFX_FW_TYPE_RLC_G;
-		break;
-	case AMDGPU_UCODE_ID_RLC_RESTORE_LIST_CNTL:
-		*type = GFX_FW_TYPE_RLC_RESTORE_LIST_CNTL;
-		break;
-	case AMDGPU_UCODE_ID_RLC_RESTORE_LIST_GPM_MEM:
-		*type = GFX_FW_TYPE_RLC_RESTORE_LIST_GPM_MEM;
-		break;
-	case AMDGPU_UCODE_ID_RLC_RESTORE_LIST_SRM_MEM:
-		*type = GFX_FW_TYPE_RLC_RESTORE_LIST_SRM_MEM;
-		break;
-	case AMDGPU_UCODE_ID_SMC:
-		*type = GFX_FW_TYPE_SMU;
-		break;
-	case AMDGPU_UCODE_ID_UVD:
-		*type = GFX_FW_TYPE_UVD;
-		break;
-	case AMDGPU_UCODE_ID_VCE:
-		*type = GFX_FW_TYPE_VCE;
-		break;
-	case AMDGPU_UCODE_ID_VCN:
-		*type = GFX_FW_TYPE_VCN;
-		break;
-	case AMDGPU_UCODE_ID_DMCU_ERAM:
-		*type = GFX_FW_TYPE_DMCU_ERAM;
-		break;
-	case AMDGPU_UCODE_ID_DMCU_INTV:
-		*type = GFX_FW_TYPE_DMCU_ISR;
-		break;
-	case AMDGPU_UCODE_ID_MAXIMUM:
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 static int psp_v10_0_init_microcode(struct psp_context *psp)
 {
 	struct amdgpu_device *adev = psp->adev;
@@ -156,26 +87,6 @@ out:
 	}
 
 	return err;
-}
-
-static int psp_v10_0_prep_cmd_buf(struct amdgpu_firmware_info *ucode,
-				  struct psp_gfx_cmd_resp *cmd)
-{
-	int ret;
-	uint64_t fw_mem_mc_addr = ucode->mc_addr;
-
-	memset(cmd, 0, sizeof(struct psp_gfx_cmd_resp));
-
-	cmd->cmd_id = GFX_CMD_ID_LOAD_IP_FW;
-	cmd->cmd.cmd_load_ip_fw.fw_phy_addr_lo = lower_32_bits(fw_mem_mc_addr);
-	cmd->cmd.cmd_load_ip_fw.fw_phy_addr_hi = upper_32_bits(fw_mem_mc_addr);
-	cmd->cmd.cmd_load_ip_fw.fw_size = ucode->ucode_size;
-
-	ret = psp_v10_0_get_fw_type(ucode, &cmd->cmd.cmd_load_ip_fw.fw_type);
-	if (ret)
-		DRM_ERROR("Unknown firmware type\n");
-
-	return ret;
 }
 
 static int psp_v10_0_ring_init(struct psp_context *psp,
@@ -454,7 +365,6 @@ static int psp_v10_0_mode1_reset(struct psp_context *psp)
 
 static const struct psp_funcs psp_v10_0_funcs = {
 	.init_microcode = psp_v10_0_init_microcode,
-	.prep_cmd_buf = psp_v10_0_prep_cmd_buf,
 	.ring_init = psp_v10_0_ring_init,
 	.ring_create = psp_v10_0_ring_create,
 	.ring_stop = psp_v10_0_ring_stop,

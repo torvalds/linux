@@ -623,6 +623,28 @@ void amdgpu_vm_get_pd_bo(struct amdgpu_vm *vm,
 	list_add(&entry->tv.head, validated);
 }
 
+void amdgpu_vm_del_from_lru_notify(struct ttm_buffer_object *bo)
+{
+	struct amdgpu_bo *abo;
+	struct amdgpu_vm_bo_base *bo_base;
+
+	if (!amdgpu_bo_is_amdgpu_bo(bo))
+		return;
+
+	if (bo->mem.placement & TTM_PL_FLAG_NO_EVICT)
+		return;
+
+	abo = ttm_to_amdgpu_bo(bo);
+	if (!abo->parent)
+		return;
+	for (bo_base = abo->vm_bo; bo_base; bo_base = bo_base->next) {
+		struct amdgpu_vm *vm = bo_base->vm;
+
+		if (abo->tbo.resv == vm->root.base.bo->tbo.resv)
+			vm->bulk_moveable = false;
+	}
+
+}
 /**
  * amdgpu_vm_move_to_lru_tail - move all BOs to the end of LRU
  *
@@ -799,9 +821,16 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 		addr += ats_entries * 8;
 	}
 
-	if (entries)
+	if (entries) {
+		uint64_t value = 0;
+
+		/* Workaround for fault priority problem on GMC9 */
+		if (level == AMDGPU_VM_PTB && adev->asic_type >= CHIP_VEGA10)
+			value = AMDGPU_PTE_EXECUTABLE;
+
 		amdgpu_vm_set_pte_pde(adev, &job->ibs[0], addr, 0,
-				      entries, 0, 0);
+				      entries, 0, value);
+	}
 
 	amdgpu_ring_pad_ib(ring, &job->ibs[0]);
 
@@ -847,9 +876,6 @@ static void amdgpu_vm_bo_param(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	bp->size = amdgpu_vm_bo_size(adev, level);
 	bp->byte_align = AMDGPU_GPU_PAGE_SIZE;
 	bp->domain = AMDGPU_GEM_DOMAIN_VRAM;
-	if (bp->size <= PAGE_SIZE && adev->asic_type >= CHIP_VEGA10 &&
-	    adev->flags & AMD_IS_APU)
-		bp->domain |= AMDGPU_GEM_DOMAIN_GTT;
 	bp->domain = amdgpu_bo_get_preferred_pin_domain(adev, bp->domain);
 	bp->flags = AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS |
 		AMDGPU_GEM_CREATE_CPU_GTT_USWC;
@@ -1506,20 +1532,27 @@ error:
 }
 
 /**
- * amdgpu_vm_update_huge - figure out parameters for PTE updates
+ * amdgpu_vm_update_flags - figure out flags for PTE updates
  *
  * Make sure to set the right flags for the PTEs at the desired level.
  */
-static void amdgpu_vm_update_huge(struct amdgpu_pte_update_params *params,
-				  struct amdgpu_bo *bo, unsigned level,
-				  uint64_t pe, uint64_t addr,
-				  unsigned count, uint32_t incr,
-				  uint64_t flags)
+static void amdgpu_vm_update_flags(struct amdgpu_pte_update_params *params,
+				   struct amdgpu_bo *bo, unsigned level,
+				   uint64_t pe, uint64_t addr,
+				   unsigned count, uint32_t incr,
+				   uint64_t flags)
 
 {
 	if (level != AMDGPU_VM_PTB) {
 		flags |= AMDGPU_PDE_PTE;
 		amdgpu_gmc_get_vm_pde(params->adev, level, &addr, &flags);
+
+	} else if (params->adev->asic_type >= CHIP_VEGA10 &&
+		   !(flags & AMDGPU_PTE_VALID) &&
+		   !(flags & AMDGPU_PTE_PRT)) {
+
+		/* Workaround for fault priority problem on GMC9 */
+		flags |= AMDGPU_PTE_EXECUTABLE;
 	}
 
 	amdgpu_vm_update_func(params, bo, pe, addr, count, incr, flags);
@@ -1676,9 +1709,9 @@ static int amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 			uint64_t upd_end = min(entry_end, frag_end);
 			unsigned nptes = (upd_end - frag_start) >> shift;
 
-			amdgpu_vm_update_huge(params, pt, cursor.level,
-					      pe_start, dst, nptes, incr,
-					      flags | AMDGPU_PTE_FRAG(frag));
+			amdgpu_vm_update_flags(params, pt, cursor.level,
+					       pe_start, dst, nptes, incr,
+					       flags | AMDGPU_PTE_FRAG(frag));
 
 			pe_start += nptes * 8;
 			dst += (uint64_t)nptes * AMDGPU_GPU_PAGE_SIZE << shift;
@@ -3006,7 +3039,7 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	}
 	DRM_DEBUG_DRIVER("VM update mode is %s\n",
 			 vm->use_cpu_for_update ? "CPU" : "SDMA");
-	WARN_ONCE((vm->use_cpu_for_update & !amdgpu_gmc_vram_full_visible(&adev->gmc)),
+	WARN_ONCE((vm->use_cpu_for_update && !amdgpu_gmc_vram_full_visible(&adev->gmc)),
 		  "CPU update of VM recommended only for large BAR system\n");
 	vm->last_update = NULL;
 
@@ -3136,7 +3169,7 @@ int amdgpu_vm_make_compute(struct amdgpu_device *adev, struct amdgpu_vm *vm, uns
 	vm->pte_support_ats = pte_support_ats;
 	DRM_DEBUG_DRIVER("VM update mode is %s\n",
 			 vm->use_cpu_for_update ? "CPU" : "SDMA");
-	WARN_ONCE((vm->use_cpu_for_update & !amdgpu_gmc_vram_full_visible(&adev->gmc)),
+	WARN_ONCE((vm->use_cpu_for_update && !amdgpu_gmc_vram_full_visible(&adev->gmc)),
 		  "CPU update of VM recommended only for large BAR system\n");
 
 	if (vm->pasid) {

@@ -1645,7 +1645,7 @@ static int amdgpu_device_ip_init(struct amdgpu_device *adev)
 		if (r) {
 			DRM_ERROR("sw_init of IP block <%s> failed %d\n",
 				  adev->ip_blocks[i].version->funcs->name, r);
-			return r;
+			goto init_failed;
 		}
 		adev->ip_blocks[i].status.sw = true;
 
@@ -1654,17 +1654,17 @@ static int amdgpu_device_ip_init(struct amdgpu_device *adev)
 			r = amdgpu_device_vram_scratch_init(adev);
 			if (r) {
 				DRM_ERROR("amdgpu_vram_scratch_init failed %d\n", r);
-				return r;
+				goto init_failed;
 			}
 			r = adev->ip_blocks[i].version->funcs->hw_init((void *)adev);
 			if (r) {
 				DRM_ERROR("hw_init %d failed %d\n", i, r);
-				return r;
+				goto init_failed;
 			}
 			r = amdgpu_device_wb_init(adev);
 			if (r) {
 				DRM_ERROR("amdgpu_device_wb_init failed %d\n", r);
-				return r;
+				goto init_failed;
 			}
 			adev->ip_blocks[i].status.hw = true;
 
@@ -1675,7 +1675,7 @@ static int amdgpu_device_ip_init(struct amdgpu_device *adev)
 								AMDGPU_CSA_SIZE);
 				if (r) {
 					DRM_ERROR("allocate CSA failed %d\n", r);
-					return r;
+					goto init_failed;
 				}
 			}
 		}
@@ -1683,28 +1683,32 @@ static int amdgpu_device_ip_init(struct amdgpu_device *adev)
 
 	r = amdgpu_ucode_create_bo(adev); /* create ucode bo when sw_init complete*/
 	if (r)
-		return r;
+		goto init_failed;
 
 	r = amdgpu_device_ip_hw_init_phase1(adev);
 	if (r)
-		return r;
+		goto init_failed;
 
 	r = amdgpu_device_fw_loading(adev);
 	if (r)
-		return r;
+		goto init_failed;
 
 	r = amdgpu_device_ip_hw_init_phase2(adev);
 	if (r)
-		return r;
+		goto init_failed;
 
 	if (adev->gmc.xgmi.num_physical_nodes > 1)
 		amdgpu_xgmi_add_device(adev);
 	amdgpu_amdkfd_device_init(adev);
 
-	if (amdgpu_sriov_vf(adev))
+init_failed:
+	if (amdgpu_sriov_vf(adev)) {
+		if (!r)
+			amdgpu_virt_init_data_exchange(adev);
 		amdgpu_virt_release_full_gpu(adev, true);
+	}
 
-	return 0;
+	return r;
 }
 
 /**
@@ -2131,7 +2135,7 @@ static int amdgpu_device_ip_reinit_early_sriov(struct amdgpu_device *adev)
 				continue;
 
 			r = block->version->funcs->hw_init(adev);
-			DRM_INFO("RE-INIT: %s %s\n", block->version->funcs->name, r?"failed":"succeeded");
+			DRM_INFO("RE-INIT-early: %s %s\n", block->version->funcs->name, r?"failed":"succeeded");
 			if (r)
 				return r;
 		}
@@ -2165,7 +2169,7 @@ static int amdgpu_device_ip_reinit_late_sriov(struct amdgpu_device *adev)
 				continue;
 
 			r = block->version->funcs->hw_init(adev);
-			DRM_INFO("RE-INIT: %s %s\n", block->version->funcs->name, r?"failed":"succeeded");
+			DRM_INFO("RE-INIT-late: %s %s\n", block->version->funcs->name, r?"failed":"succeeded");
 			if (r)
 				return r;
 		}
@@ -2546,6 +2550,17 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	/* detect if we are with an SRIOV vbios */
 	amdgpu_device_detect_sriov_bios(adev);
 
+	/* check if we need to reset the asic
+	 *  E.g., driver was not cleanly unloaded previously, etc.
+	 */
+	if (!amdgpu_sriov_vf(adev) && amdgpu_asic_need_reset_on_init(adev)) {
+		r = amdgpu_asic_reset(adev);
+		if (r) {
+			dev_err(adev->dev, "asic reset on init failed\n");
+			goto failed;
+		}
+	}
+
 	/* Post card if necessary */
 	if (amdgpu_device_need_post(adev)) {
 		if (!adev->bios) {
@@ -2610,6 +2625,8 @@ fence_driver_init:
 		}
 		dev_err(adev->dev, "amdgpu_device_ip_init failed\n");
 		amdgpu_vf_error_put(adev, AMDGIM_ERROR_VF_AMDGPU_INIT_FAIL, 0, 0);
+		if (amdgpu_virt_request_full_gpu(adev, false))
+			amdgpu_virt_release_full_gpu(adev, false);
 		goto failed;
 	}
 
@@ -2631,9 +2648,6 @@ fence_driver_init:
 		amdgpu_vf_error_put(adev, AMDGIM_ERROR_VF_IB_INIT_FAIL, 0, r);
 		goto failed;
 	}
-
-	if (amdgpu_sriov_vf(adev))
-		amdgpu_virt_init_data_exchange(adev);
 
 	amdgpu_fbdev_init(adev);
 
@@ -2798,7 +2812,7 @@ int amdgpu_device_suspend(struct drm_device *dev, bool suspend, bool fbcon)
 			struct drm_framebuffer *fb = crtc->primary->fb;
 			struct amdgpu_bo *robj;
 
-			if (amdgpu_crtc->cursor_bo) {
+			if (amdgpu_crtc->cursor_bo && !adev->enable_virtual_display) {
 				struct amdgpu_bo *aobj = gem_to_amdgpu_bo(amdgpu_crtc->cursor_bo);
 				r = amdgpu_bo_reserve(aobj, true);
 				if (r == 0) {
@@ -2906,7 +2920,7 @@ int amdgpu_device_resume(struct drm_device *dev, bool resume, bool fbcon)
 		list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 			struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
 
-			if (amdgpu_crtc->cursor_bo) {
+			if (amdgpu_crtc->cursor_bo && !adev->enable_virtual_display) {
 				struct amdgpu_bo *aobj = gem_to_amdgpu_bo(amdgpu_crtc->cursor_bo);
 				r = amdgpu_bo_reserve(aobj, true);
 				if (r == 0) {
@@ -3226,6 +3240,7 @@ static int amdgpu_device_reset_sriov(struct amdgpu_device *adev,
 	r = amdgpu_ib_ring_tests(adev);
 
 error:
+	amdgpu_virt_init_data_exchange(adev);
 	amdgpu_virt_release_full_gpu(adev, true);
 	if (!r && adev->virt.gim_feature & AMDGIM_FEATURE_GIM_FLR_VRAMLOST) {
 		atomic_inc(&adev->vram_lost_counter);
@@ -3298,16 +3313,14 @@ static int amdgpu_device_pre_asic_reset(struct amdgpu_device *adev,
 		if (!ring || !ring->sched.thread)
 			continue;
 
-		kthread_park(ring->sched.thread);
-
-		if (job && job->base.sched != &ring->sched)
-			continue;
-
-		drm_sched_hw_job_reset(&ring->sched, job ? &job->base : NULL);
+		drm_sched_stop(&ring->sched);
 
 		/* after all hw jobs are reset, hw fence is meaningless, so force_completion */
 		amdgpu_fence_driver_force_completion(ring);
 	}
+
+	if(job)
+		drm_sched_increase_karma(&job->base);
 
 
 
@@ -3454,14 +3467,10 @@ static void amdgpu_device_post_asic_reset(struct amdgpu_device *adev,
 		if (!ring || !ring->sched.thread)
 			continue;
 
-		/* only need recovery sched of the given job's ring
-		 * or all rings (in the case @job is NULL)
-		 * after above amdgpu_reset accomplished
-		 */
-		if ((!job || job->base.sched == &ring->sched) && !adev->asic_reset_res)
-			drm_sched_job_recovery(&ring->sched);
+		if (!adev->asic_reset_res)
+			drm_sched_resubmit_jobs(&ring->sched);
 
-		kthread_unpark(ring->sched.thread);
+		drm_sched_start(&ring->sched, !adev->asic_reset_res);
 	}
 
 	if (!amdgpu_device_has_dc_support(adev)) {
@@ -3521,9 +3530,9 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 	 * by different nodes. No point also since the one node already executing
 	 * reset will also reset all the other nodes in the hive.
 	 */
-	hive = amdgpu_get_xgmi_hive(adev);
+	hive = amdgpu_get_xgmi_hive(adev, 0);
 	if (hive && adev->gmc.xgmi.num_physical_nodes > 1 &&
-	    !mutex_trylock(&hive->hive_lock))
+	    !mutex_trylock(&hive->reset_lock))
 		return 0;
 
 	/* Start with adev pre asic reset first for soft reset check.*/
@@ -3602,7 +3611,7 @@ retry:	/* Rest of adevs pre asic reset from XGMI hive. */
 	}
 
 	if (hive && adev->gmc.xgmi.num_physical_nodes > 1)
-		mutex_unlock(&hive->hive_lock);
+		mutex_unlock(&hive->reset_lock);
 
 	if (r)
 		dev_info(adev->dev, "GPU reset end with ret = %d\n", r);

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-15 Advanced Micro Devices, Inc.
+ * Copyright 2018 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,10 +23,33 @@
  *
  */
 
-#ifndef __DAL_I2C_AUX_DCE100_H__
-#define __DAL_I2C_AUX_DCE100_H__
+#ifndef DC_INC_VM_HELPER_H_
+#define DC_INC_VM_HELPER_H_
 
-struct i2caux *dal_i2caux_dce100_create(
-	struct dc_context *ctx);
+#include "dc_types.h"
 
-#endif /* __DAL_I2C_AUX_DCE100_H__ */
+#define MAX_VMID 16
+#define MAX_HUBP 6
+
+struct vmid_usage {
+	uint16_t vmid_usage[2];
+};
+
+struct vm_helper {
+	unsigned int num_vmid;
+	unsigned int num_hubp;
+	unsigned int num_vmids_available;
+	uint64_t *ptb_assigned_to_vmid;
+	struct vmid_usage *hubp_vmid_usage;
+};
+
+uint8_t get_vmid_for_ptb(
+		struct vm_helper *vm_helper,
+		int64_t ptb,
+		uint8_t pipe_idx);
+
+struct vm_helper init_vm_helper(
+	unsigned int num_vmid,
+	unsigned int num_hubp);
+
+#endif /* DC_INC_VM_HELPER_H_ */

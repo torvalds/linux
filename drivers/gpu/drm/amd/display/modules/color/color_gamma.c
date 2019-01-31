@@ -823,7 +823,7 @@ static bool build_freesync_hdr(struct pwl_float_data_ex *rgb_regamma,
 	bool is_clipped = false;
 	struct fixed31_32 sdr_white_level;
 
-	if (fs_params == NULL || fs_params->max_content == 0 ||
+	if (fs_params->max_content == 0 ||
 			fs_params->max_display == 0)
 		return false;
 
@@ -1508,7 +1508,7 @@ static bool map_regamma_hw_to_x_user(
 	struct hw_x_point *coords = coords_x;
 	const struct pwl_float_data_ex *regamma = rgb_regamma;
 
-	if (mapUserRamp) {
+	if (ramp && mapUserRamp) {
 		copy_rgb_regamma_to_coordinates_x(coords,
 				hw_points_num,
 				rgb_regamma);
@@ -1545,7 +1545,7 @@ bool mod_color_calculate_regamma_params(struct dc_transfer_func *output_tf,
 
 	struct pwl_float_data *rgb_user = NULL;
 	struct pwl_float_data_ex *rgb_regamma = NULL;
-	struct gamma_pixel *axix_x = NULL;
+	struct gamma_pixel *axis_x = NULL;
 	struct pixel_gamma_point *coeff = NULL;
 	enum dc_transfer_func_predefined tf = TRANSFER_FUNCTION_SRGB;
 	bool ret = false;
@@ -1555,47 +1555,54 @@ bool mod_color_calculate_regamma_params(struct dc_transfer_func *output_tf,
 
 	/* we can use hardcoded curve for plain SRGB TF */
 	if (output_tf->type == TF_TYPE_PREDEFINED && canRomBeUsed == true &&
-			output_tf->tf == TRANSFER_FUNCTION_SRGB &&
-			(ramp->is_identity || (!mapUserRamp && ramp->type == GAMMA_RGB_256)))
-		return true;
+			output_tf->tf == TRANSFER_FUNCTION_SRGB) {
+		if (ramp == NULL)
+			return true;
+		if (ramp->is_identity || (!mapUserRamp && ramp->type == GAMMA_RGB_256))
+			return true;
+	}
 
 	output_tf->type = TF_TYPE_DISTRIBUTED_POINTS;
 
-	rgb_user = kvcalloc(ramp->num_entries + _EXTRA_POINTS,
+	if (ramp && (mapUserRamp || ramp->type != GAMMA_RGB_256)) {
+		rgb_user = kvcalloc(ramp->num_entries + _EXTRA_POINTS,
 			    sizeof(*rgb_user),
 			    GFP_KERNEL);
-	if (!rgb_user)
-		goto rgb_user_alloc_fail;
+		if (!rgb_user)
+			goto rgb_user_alloc_fail;
+
+		axis_x = kvcalloc(ramp->num_entries + 3, sizeof(*axis_x),
+				GFP_KERNEL);
+		if (!axis_x)
+			goto axis_x_alloc_fail;
+
+		dividers.divider1 = dc_fixpt_from_fraction(3, 2);
+		dividers.divider2 = dc_fixpt_from_int(2);
+		dividers.divider3 = dc_fixpt_from_fraction(5, 2);
+
+		build_evenly_distributed_points(
+				axis_x,
+				ramp->num_entries,
+				dividers);
+
+		if (ramp->type == GAMMA_RGB_256 && mapUserRamp)
+			scale_gamma(rgb_user, ramp, dividers);
+		else if (ramp->type == GAMMA_RGB_FLOAT_1024)
+			scale_gamma_dx(rgb_user, ramp, dividers);
+	}
+
 	rgb_regamma = kvcalloc(MAX_HW_POINTS + _EXTRA_POINTS,
 			       sizeof(*rgb_regamma),
 			       GFP_KERNEL);
 	if (!rgb_regamma)
 		goto rgb_regamma_alloc_fail;
-	axix_x = kvcalloc(ramp->num_entries + 3, sizeof(*axix_x),
-			  GFP_KERNEL);
-	if (!axix_x)
-		goto axix_x_alloc_fail;
+
 	coeff = kvcalloc(MAX_HW_POINTS + _EXTRA_POINTS, sizeof(*coeff),
 			 GFP_KERNEL);
 	if (!coeff)
 		goto coeff_alloc_fail;
 
-	dividers.divider1 = dc_fixpt_from_fraction(3, 2);
-	dividers.divider2 = dc_fixpt_from_int(2);
-	dividers.divider3 = dc_fixpt_from_fraction(5, 2);
-
 	tf = output_tf->tf;
-
-	build_evenly_distributed_points(
-			axix_x,
-			ramp->num_entries,
-			dividers);
-
-	if (ramp->type == GAMMA_RGB_256 && mapUserRamp)
-		scale_gamma(rgb_user, ramp, dividers);
-	else if (ramp->type == GAMMA_RGB_FLOAT_1024)
-		scale_gamma_dx(rgb_user, ramp, dividers);
-
 	if (tf == TRANSFER_FUNCTION_PQ) {
 		tf_pts->end_exponent = 7;
 		tf_pts->x_point_at_y1_red = 125;
@@ -1623,22 +1630,22 @@ bool mod_color_calculate_regamma_params(struct dc_transfer_func *output_tf,
 				coordinates_x, tf == TRANSFER_FUNCTION_SRGB ? true:false);
 	}
 	map_regamma_hw_to_x_user(ramp, coeff, rgb_user,
-			coordinates_x, axix_x, rgb_regamma,
+			coordinates_x, axis_x, rgb_regamma,
 			MAX_HW_POINTS, tf_pts,
-			(mapUserRamp || ramp->type != GAMMA_RGB_256) &&
-			ramp->type != GAMMA_CS_TFM_1D);
+			(mapUserRamp || (ramp && ramp->type != GAMMA_RGB_256)) &&
+			(ramp && ramp->type != GAMMA_CS_TFM_1D));
 
-	if (ramp->type == GAMMA_CS_TFM_1D)
+	if (ramp && ramp->type == GAMMA_CS_TFM_1D)
 		apply_lut_1d(ramp, MAX_HW_POINTS, tf_pts);
 
 	ret = true;
 
 	kvfree(coeff);
 coeff_alloc_fail:
-	kvfree(axix_x);
-axix_x_alloc_fail:
 	kvfree(rgb_regamma);
 rgb_regamma_alloc_fail:
+	kvfree(axis_x);
+axis_x_alloc_fail:
 	kvfree(rgb_user);
 rgb_user_alloc_fail:
 	return ret;
@@ -1772,8 +1779,7 @@ bool mod_color_calculate_degamma_params(struct dc_transfer_func *input_tf,
 	/* we can use hardcoded curve for plain SRGB TF */
 	if (input_tf->type == TF_TYPE_PREDEFINED &&
 			input_tf->tf == TRANSFER_FUNCTION_SRGB &&
-			(!mapUserRamp &&
-			(ramp->type == GAMMA_RGB_256 || ramp->num_entries == 0)))
+			!mapUserRamp)
 		return true;
 
 	input_tf->type = TF_TYPE_DISTRIBUTED_POINTS;

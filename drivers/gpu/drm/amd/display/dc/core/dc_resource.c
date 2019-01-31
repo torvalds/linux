@@ -355,8 +355,8 @@ bool resource_are_streams_timing_synchronizable(
 				!= stream2->timing.v_addressable)
 		return false;
 
-	if (stream1->timing.pix_clk_khz
-				!= stream2->timing.pix_clk_khz)
+	if (stream1->timing.pix_clk_100hz
+				!= stream2->timing.pix_clk_100hz)
 		return false;
 
 	if (stream1->clamping.c_depth != stream2->clamping.c_depth)
@@ -1559,7 +1559,7 @@ static struct stream_encoder *find_first_free_match_stream_enc_for_link(
 {
 	int i;
 	int j = -1;
-	struct dc_link *link = stream->sink->link;
+	struct dc_link *link = stream->link;
 
 	for (i = 0; i < pool->stream_enc_count; i++) {
 		if (!res_ctx->is_stream_enc_acquired[i] &&
@@ -1748,7 +1748,7 @@ static struct dc_stream_state *find_pll_sharable_stream(
 		if (resource_are_streams_timing_synchronizable(
 			stream_needs_pll, stream_has_pll)
 			&& !dc_is_dp_signal(stream_has_pll->signal)
-			&& stream_has_pll->sink->link->connector_signal
+			&& stream_has_pll->link->connector_signal
 			!= SIGNAL_TYPE_VIRTUAL)
 			return stream_has_pll;
 
@@ -1759,7 +1759,7 @@ static struct dc_stream_state *find_pll_sharable_stream(
 
 static int get_norm_pix_clk(const struct dc_crtc_timing *timing)
 {
-	uint32_t pix_clk = timing->pix_clk_khz;
+	uint32_t pix_clk = timing->pix_clk_100hz;
 	uint32_t normalized_pix_clk = pix_clk;
 
 	if (timing->pixel_encoding == PIXEL_ENCODING_YCBCR420)
@@ -1791,10 +1791,10 @@ static void calculate_phy_pix_clks(struct dc_stream_state *stream)
 	/* update actual pixel clock on all streams */
 	if (dc_is_hdmi_signal(stream->signal))
 		stream->phy_pix_clk = get_norm_pix_clk(
-			&stream->timing);
+			&stream->timing) / 10;
 	else
 		stream->phy_pix_clk =
-			stream->timing.pix_clk_khz;
+			stream->timing.pix_clk_100hz / 10;
 
 	if (stream->timing.timing_3d_format == TIMING_3D_FORMAT_HW_FRAME_PACKING)
 		stream->phy_pix_clk *= 2;
@@ -1842,7 +1842,7 @@ enum dc_status resource_map_pool_resources(
 			&context->res_ctx, pool, stream);
 
 	if (!pipe_ctx->stream_res.stream_enc)
-		return DC_NO_STREAM_ENG_RESOURCE;
+		return DC_NO_STREAM_ENC_RESOURCE;
 
 	update_stream_engine_usage(
 		&context->res_ctx, pool,
@@ -1850,7 +1850,7 @@ enum dc_status resource_map_pool_resources(
 		true);
 
 	/* TODO: Add check if ASIC support and EDID audio */
-	if (!stream->sink->converter_disable_audio &&
+	if (!stream->converter_disable_audio &&
 	    dc_is_audio_capable_signal(pipe_ctx->stream->signal) &&
 	    stream->audio_info.mode_count) {
 		pipe_ctx->stream_res.audio = find_first_free_audio(
@@ -2112,7 +2112,7 @@ static void set_avi_info_frame(
 	itc = true;
 	itc_value = 1;
 
-	support = stream->sink->edid_caps.content_support;
+	support = stream->content_support;
 
 	if (itc) {
 		if (!support.bits.valid_content_type) {
@@ -2151,8 +2151,8 @@ static void set_avi_info_frame(
 
 	/* TODO : We should handle YCC quantization */
 	/* but we do not have matrix calculation */
-	if (stream->sink->edid_caps.qs_bit == 1 &&
-			stream->sink->edid_caps.qy_bit == 1) {
+	if (stream->qs_bit == 1 &&
+			stream->qy_bit == 1) {
 		if (color_space == COLOR_SPACE_SRGB ||
 			color_space == COLOR_SPACE_2020_RGB_FULLRANGE) {
 			hdmi_info.bits.Q0_Q1   = RGB_QUANTIZATION_FULL_RANGE;
@@ -2596,7 +2596,7 @@ void resource_build_bit_depth_reduction_params(struct dc_stream_state *stream,
 enum dc_status dc_validate_stream(struct dc *dc, struct dc_stream_state *stream)
 {
 	struct dc  *core_dc = dc;
-	struct dc_link *link = stream->sink->link;
+	struct dc_link *link = stream->link;
 	struct timing_generator *tg = core_dc->res_pool->timing_generators[0];
 	enum dc_status res = DC_OK;
 

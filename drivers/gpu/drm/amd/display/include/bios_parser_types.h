@@ -211,8 +211,8 @@ struct bp_pixel_clock_parameters {
 	/* signal_type -> Encoder Mode - needed by VBIOS Exec table */
 	enum signal_type signal_type;
 	/* Adjusted Pixel Clock (after VBIOS exec table)
-	 * that becomes Target Pixel Clock (KHz) */
-	uint32_t target_pixel_clock;
+	 * that becomes Target Pixel Clock (100 Hz units) */
+	uint32_t target_pixel_clock_100hz;
 	/* Calculated Reference divider of Display PLL */
 	uint32_t reference_divider;
 	/* Calculated Feedback divider of Display PLL */

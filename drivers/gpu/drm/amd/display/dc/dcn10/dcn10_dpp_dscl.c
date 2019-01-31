@@ -597,11 +597,13 @@ static void dpp1_dscl_set_manual_ratio_init(
 		SCL_V_INIT_FRAC, init_frac,
 		SCL_V_INIT_INT, init_int);
 
-	init_frac = dc_fixpt_u0d19(data->inits.v_bot) << 5;
-	init_int = dc_fixpt_floor(data->inits.v_bot);
-	REG_SET_2(SCL_VERT_FILTER_INIT_BOT, 0,
-		SCL_V_INIT_FRAC_BOT, init_frac,
-		SCL_V_INIT_INT_BOT, init_int);
+	if (REG(SCL_VERT_FILTER_INIT_BOT)) {
+		init_frac = dc_fixpt_u0d19(data->inits.v_bot) << 5;
+		init_int = dc_fixpt_floor(data->inits.v_bot);
+		REG_SET_2(SCL_VERT_FILTER_INIT_BOT, 0,
+			SCL_V_INIT_FRAC_BOT, init_frac,
+			SCL_V_INIT_INT_BOT, init_int);
+	}
 
 	init_frac = dc_fixpt_u0d19(data->inits.v_c) << 5;
 	init_int = dc_fixpt_floor(data->inits.v_c);
@@ -609,11 +611,13 @@ static void dpp1_dscl_set_manual_ratio_init(
 		SCL_V_INIT_FRAC_C, init_frac,
 		SCL_V_INIT_INT_C, init_int);
 
-	init_frac = dc_fixpt_u0d19(data->inits.v_c_bot) << 5;
-	init_int = dc_fixpt_floor(data->inits.v_c_bot);
-	REG_SET_2(SCL_VERT_FILTER_INIT_BOT_C, 0,
-		SCL_V_INIT_FRAC_BOT_C, init_frac,
-		SCL_V_INIT_INT_BOT_C, init_int);
+	if (REG(SCL_VERT_FILTER_INIT_BOT_C)) {
+		init_frac = dc_fixpt_u0d19(data->inits.v_c_bot) << 5;
+		init_int = dc_fixpt_floor(data->inits.v_c_bot);
+		REG_SET_2(SCL_VERT_FILTER_INIT_BOT_C, 0,
+			SCL_V_INIT_FRAC_BOT_C, init_frac,
+			SCL_V_INIT_INT_BOT_C, init_int);
+	}
 }
 
 
@@ -688,15 +692,17 @@ void dpp1_dscl_set_scaler_manual_scale(
 		return;
 
 	/* Black offsets */
-	if (ycbcr)
-		REG_SET_2(SCL_BLACK_OFFSET, 0,
-				SCL_BLACK_OFFSET_RGB_Y, BLACK_OFFSET_RGB_Y,
-				SCL_BLACK_OFFSET_CBCR, BLACK_OFFSET_CBCR);
-	else
+	if (REG(SCL_BLACK_OFFSET)) {
+		if (ycbcr)
+			REG_SET_2(SCL_BLACK_OFFSET, 0,
+					SCL_BLACK_OFFSET_RGB_Y, BLACK_OFFSET_RGB_Y,
+					SCL_BLACK_OFFSET_CBCR, BLACK_OFFSET_CBCR);
+		else
 
-		REG_SET_2(SCL_BLACK_OFFSET, 0,
-				SCL_BLACK_OFFSET_RGB_Y, BLACK_OFFSET_RGB_Y,
-				SCL_BLACK_OFFSET_CBCR, BLACK_OFFSET_RGB_Y);
+			REG_SET_2(SCL_BLACK_OFFSET, 0,
+					SCL_BLACK_OFFSET_RGB_Y, BLACK_OFFSET_RGB_Y,
+					SCL_BLACK_OFFSET_CBCR, BLACK_OFFSET_RGB_Y);
+	}
 
 	/* Manually calculate scale ratio and init values */
 	dpp1_dscl_set_manual_ratio_init(dpp, scl_data);

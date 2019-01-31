@@ -38,7 +38,8 @@ enum pp_smu_ver {
 	 * of interface sharing between families of ASIcs.
 	 */
 	PP_SMU_UNSUPPORTED,
-	PP_SMU_VER_RV
+	PP_SMU_VER_RV,
+	PP_SMU_VER_MAX
 };
 
 struct pp_smu {

@@ -35,6 +35,8 @@
 
 #include "dc_link_ddc.h"
 
+#include "i2caux_interface.h"
+
 /* #define TRACE_DPCD */
 
 #ifdef TRACE_DPCD
@@ -81,80 +83,24 @@ static ssize_t dm_dp_aux_transfer(struct drm_dp_aux *aux,
 				  struct drm_dp_aux_msg *msg)
 {
 	ssize_t result = 0;
-	enum i2caux_transaction_action action;
-	enum aux_transaction_type type;
+	struct aux_payload payload;
 
 	if (WARN_ON(msg->size > 16))
 		return -E2BIG;
 
-	switch (msg->request & ~DP_AUX_I2C_MOT) {
-	case DP_AUX_NATIVE_READ:
-		type = AUX_TRANSACTION_TYPE_DP;
-		action = I2CAUX_TRANSACTION_ACTION_DP_READ;
+	payload.address = msg->address;
+	payload.data = msg->buffer;
+	payload.length = msg->size;
+	payload.reply = &msg->reply;
+	payload.i2c_over_aux = (msg->request & DP_AUX_NATIVE_WRITE) == 0;
+	payload.write = (msg->request & DP_AUX_I2C_READ) == 0;
+	payload.mot = (msg->request & DP_AUX_I2C_MOT) != 0;
+	payload.defer_delay = 0;
 
-		result = dc_link_aux_transfer(TO_DM_AUX(aux)->ddc_service,
-					      msg->address,
-					      &msg->reply,
-					      msg->buffer,
-					      msg->size,
-					      type,
-					      action);
-		break;
-	case DP_AUX_NATIVE_WRITE:
-		type = AUX_TRANSACTION_TYPE_DP;
-		action = I2CAUX_TRANSACTION_ACTION_DP_WRITE;
+	result = dc_link_aux_transfer(TO_DM_AUX(aux)->ddc_service, &payload);
 
-		dc_link_aux_transfer(TO_DM_AUX(aux)->ddc_service,
-				     msg->address,
-				     &msg->reply,
-				     msg->buffer,
-				     msg->size,
-				     type,
-				     action);
+	if (payload.write)
 		result = msg->size;
-		break;
-	case DP_AUX_I2C_READ:
-		type = AUX_TRANSACTION_TYPE_I2C;
-		if (msg->request & DP_AUX_I2C_MOT)
-			action = I2CAUX_TRANSACTION_ACTION_I2C_READ_MOT;
-		else
-			action = I2CAUX_TRANSACTION_ACTION_I2C_READ;
-
-		result = dc_link_aux_transfer(TO_DM_AUX(aux)->ddc_service,
-					      msg->address,
-					      &msg->reply,
-					      msg->buffer,
-					      msg->size,
-					      type,
-					      action);
-		break;
-	case DP_AUX_I2C_WRITE:
-		type = AUX_TRANSACTION_TYPE_I2C;
-		if (msg->request & DP_AUX_I2C_MOT)
-			action = I2CAUX_TRANSACTION_ACTION_I2C_WRITE_MOT;
-		else
-			action = I2CAUX_TRANSACTION_ACTION_I2C_WRITE;
-
-		dc_link_aux_transfer(TO_DM_AUX(aux)->ddc_service,
-				     msg->address,
-				     &msg->reply,
-				     msg->buffer,
-				     msg->size,
-				     type,
-				     action);
-		result = msg->size;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-#ifdef TRACE_DPCD
-	log_dpcd(msg->request,
-		 msg->address,
-		 msg->buffer,
-		 msg->size,
-		 r == DDC_RESULT_SUCESSFULL);
-#endif
 
 	if (result < 0) /* DC doesn't know about kernel error codes */
 		result = -EIO;

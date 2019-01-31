@@ -381,6 +381,15 @@ struct ttm_bo_driver {
 	 */
 	int (*access_memory)(struct ttm_buffer_object *bo, unsigned long offset,
 			     void *buf, int len, int write);
+
+	/**
+	 * struct ttm_bo_driver member del_from_lru_notify
+	 *
+	 * @bo: the buffer object deleted from lru
+	 *
+	 * notify driver that a BO was deleted from LRU.
+	 */
+	void (*del_from_lru_notify)(struct ttm_buffer_object *bo);
 };
 
 /**
