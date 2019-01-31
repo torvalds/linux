@@ -172,6 +172,40 @@ static int nfp_devlink_eswitch_mode_set(struct devlink *devlink, u16 mode,
 	return ret;
 }
 
+static const struct nfp_devlink_versions_simple {
+	const char *key;
+	const char *hwinfo;
+} nfp_devlink_versions_hwinfo[] = {
+	{ DEVLINK_INFO_VERSION_GENERIC_BOARD_ID,	"assembly.partno", },
+	{ DEVLINK_INFO_VERSION_GENERIC_BOARD_REV,	"assembly.revision", },
+	{ "board.vendor", /* fab */			"assembly.vendor", },
+	{ "board.model", /* code name */		"assembly.model", },
+};
+
+static int
+nfp_devlink_versions_get_hwinfo(struct nfp_pf *pf, struct devlink_info_req *req)
+{
+	unsigned int i;
+	int err;
+
+	for (i = 0; i < ARRAY_SIZE(nfp_devlink_versions_hwinfo); i++) {
+		const struct nfp_devlink_versions_simple *info;
+		const char *val;
+
+		info = &nfp_devlink_versions_hwinfo[i];
+
+		val = nfp_hwinfo_lookup(pf->hwinfo, info->hwinfo);
+		if (!val)
+			continue;
+
+		err = devlink_info_version_fixed_put(req, info->key, val);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 static int
 nfp_devlink_info_get(struct devlink *devlink, struct devlink_info_req *req,
 		     struct netlink_ext_ack *extack)
@@ -191,7 +225,7 @@ nfp_devlink_info_get(struct devlink *devlink, struct devlink_info_req *req,
 			return err;
 	}
 
-	return 0;
+	return nfp_devlink_versions_get_hwinfo(pf, req);
 }
 
 const struct devlink_ops nfp_devlink_ops = {
