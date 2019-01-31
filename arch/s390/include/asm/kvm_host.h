@@ -803,6 +803,10 @@ struct kvm_s390_vsie {
 	struct page *pages[KVM_MAX_VCPUS];
 };
 
+struct kvm_s390_gisa_interrupt {
+	struct kvm_s390_gisa *origin;
+};
+
 struct kvm_arch{
 	void *sca;
 	int use_esca;
@@ -836,8 +840,8 @@ struct kvm_arch{
 	atomic64_t cmma_dirty_pages;
 	/* subset of available cpu features enabled by user space */
 	DECLARE_BITMAP(cpu_feat, KVM_S390_VM_CPU_FEAT_NR_BITS);
-	struct kvm_s390_gisa *gisa;
 	DECLARE_BITMAP(idle_mask, KVM_MAX_VCPUS);
+	struct kvm_s390_gisa_interrupt gisa_int;
 };
 
 #define KVM_HVA_ERR_BAD		(-1UL)
