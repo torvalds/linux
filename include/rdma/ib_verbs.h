@@ -3705,33 +3705,6 @@ static inline void ib_dma_unmap_sg_attrs(struct ib_device *dev,
 {
 	dma_unmap_sg_attrs(dev->dma_device, sg, nents, direction, dma_attrs);
 }
-/**
- * ib_sg_dma_address - Return the DMA address from a scatter/gather entry
- * @dev: The device for which the DMA addresses were created
- * @sg: The scatter/gather entry
- *
- * Note: this function is obsolete. To do: change all occurrences of
- * ib_sg_dma_address() into sg_dma_address().
- */
-static inline u64 ib_sg_dma_address(struct ib_device *dev,
-				    struct scatterlist *sg)
-{
-	return sg_dma_address(sg);
-}
-
-/**
- * ib_sg_dma_len - Return the DMA length from a scatter/gather entry
- * @dev: The device for which the DMA addresses were created
- * @sg: The scatter/gather entry
- *
- * Note: this function is obsolete. To do: change all occurrences of
- * ib_sg_dma_len() into sg_dma_len().
- */
-static inline unsigned int ib_sg_dma_len(struct ib_device *dev,
-					 struct scatterlist *sg)
-{
-	return sg_dma_len(sg);
-}
 
 /**
  * ib_dma_max_seg_size - Return the size limit of a single DMA transfer
