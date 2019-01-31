@@ -224,8 +224,11 @@ test_lag_slave()
 
 	RET=0
 
+	tc filter add dev $swp1 ingress pref 999 \
+		proto 802.1q flower vlan_ethtype arp $tcflags \
+		action pass
 	mirror_install $swp1 ingress gt4 \
-		       "proto 802.1q flower vlan_id 333 $tcflags"
+		"proto 802.1q flower vlan_id 333 $tcflags"
 
 	# Test connectivity through $up_dev when $down_dev is set down.
 	ip link set dev $down_dev down
@@ -245,6 +248,7 @@ test_lag_slave()
 	ip link set dev $up_dev up
 	ip link set dev $down_dev up
 	mirror_uninstall $swp1 ingress
+	tc filter del dev $swp1 ingress pref 999
 
 	log_test "$what ($tcflags)"
 }
