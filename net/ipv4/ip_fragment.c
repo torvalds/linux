@@ -425,6 +425,7 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 	 * fragment.
 	 */
 
+	err = -EINVAL;
 	/* Find out where to put this fragment.  */
 	prev_tail = qp->q.fragments_tail;
 	if (!prev_tail)
@@ -501,7 +502,6 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 
 discard_qp:
 	inet_frag_kill(&qp->q);
-	err = -EINVAL;
 	__IP_INC_STATS(net, IPSTATS_MIB_REASM_OVERLAPS);
 err:
 	kfree_skb(skb);
