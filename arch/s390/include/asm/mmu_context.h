@@ -89,8 +89,6 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 {
 	int cpu = smp_processor_id();
 
-	if (prev == next)
-		return;
 	S390_lowcore.user_asce = next->context.asce;
 	cpumask_set_cpu(cpu, &next->context.cpu_attach_mask);
 	/* Clear previous user-ASCE from CR1 and CR7 */
@@ -102,7 +100,8 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 		__ctl_load(S390_lowcore.vdso_asce, 7, 7);
 		clear_cpu_flag(CIF_ASCE_SECONDARY);
 	}
-	cpumask_clear_cpu(cpu, &prev->context.cpu_attach_mask);
+	if (prev != next)
+		cpumask_clear_cpu(cpu, &prev->context.cpu_attach_mask);
 }
 
 #define finish_arch_post_lock_switch finish_arch_post_lock_switch

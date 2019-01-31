@@ -82,6 +82,10 @@ static const struct drm_mode_config_funcs meson_mode_config_funcs = {
 	.fb_create           = drm_gem_fb_create,
 };
 
+static const struct drm_mode_config_helper_funcs meson_mode_config_helpers = {
+	.atomic_commit_tail = drm_atomic_helper_commit_tail_rpm,
+};
+
 static irqreturn_t meson_irq(int irq, void *arg)
 {
 	struct drm_device *dev = arg;
@@ -246,6 +250,7 @@ static int meson_drv_bind_master(struct device *dev, bool has_components)
 	drm->mode_config.max_width = 3840;
 	drm->mode_config.max_height = 2160;
 	drm->mode_config.funcs = &meson_mode_config_funcs;
+	drm->mode_config.helper_private	= &meson_mode_config_helpers;
 
 	/* Hardware Initialization */
 

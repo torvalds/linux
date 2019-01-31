@@ -230,7 +230,7 @@ int fib_table_delete(struct net *, struct fib_table *, struct fib_config *,
 		     struct netlink_ext_ack *extack);
 int fib_table_dump(struct fib_table *table, struct sk_buff *skb,
 		   struct netlink_callback *cb);
-int fib_table_flush(struct net *net, struct fib_table *table);
+int fib_table_flush(struct net *net, struct fib_table *table, bool flush_all);
 struct fib_table *fib_trie_unmerge(struct fib_table *main_tb);
 void fib_table_flush_external(struct fib_table *table);
 void fib_free_table(struct fib_table *tb);

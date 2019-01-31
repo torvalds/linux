@@ -1063,6 +1063,39 @@ static int m88e1145_config_init(struct phy_device *phydev)
 	return 0;
 }
 
+/* The VOD can be out of specification on link up. Poke an
+ * undocumented register, in an undocumented page, with a magic value
+ * to fix this.
+ */
+static int m88e6390_errata(struct phy_device *phydev)
+{
+	int err;
+
+	err = phy_write(phydev, MII_BMCR,
+			BMCR_ANENABLE | BMCR_SPEED1000 | BMCR_FULLDPLX);
+	if (err)
+		return err;
+
+	usleep_range(300, 400);
+
+	err = phy_write_paged(phydev, 0xf8, 0x08, 0x36);
+	if (err)
+		return err;
+
+	return genphy_soft_reset(phydev);
+}
+
+static int m88e6390_config_aneg(struct phy_device *phydev)
+{
+	int err;
+
+	err = m88e6390_errata(phydev);
+	if (err)
+		return err;
+
+	return m88e1510_config_aneg(phydev);
+}
+
 /**
  * fiber_lpa_to_ethtool_lpa_t
  * @lpa: value of the MII_LPA register for fiber link
@@ -1418,7 +1451,7 @@ static int m88e1318_set_wol(struct phy_device *phydev,
 		 * before enabling it if !phy_interrupt_is_valid()
 		 */
 		if (!phy_interrupt_is_valid(phydev))
-			phy_read(phydev, MII_M1011_IEVENT);
+			__phy_read(phydev, MII_M1011_IEVENT);
 
 		/* Enable the WOL interrupt */
 		err = __phy_modify(phydev, MII_88E1318S_PHY_CSIER, 0,
@@ -2313,7 +2346,7 @@ static struct phy_driver marvell_drivers[] = {
 		.flags = PHY_HAS_INTERRUPT,
 		.probe = m88e6390_probe,
 		.config_init = &marvell_config_init,
-		.config_aneg = &m88e1510_config_aneg,
+		.config_aneg = &m88e6390_config_aneg,
 		.read_status = &marvell_read_status,
 		.ack_interrupt = &marvell_ack_interrupt,
 		.config_intr = &marvell_config_intr,
