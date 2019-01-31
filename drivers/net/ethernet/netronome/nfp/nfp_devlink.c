@@ -4,6 +4,7 @@
 #include <linux/rtnetlink.h>
 #include <net/devlink.h>
 
+#include "nfpcore/nfp.h"
 #include "nfpcore/nfp_nsp.h"
 #include "nfp_app.h"
 #include "nfp_main.h"
@@ -171,6 +172,28 @@ static int nfp_devlink_eswitch_mode_set(struct devlink *devlink, u16 mode,
 	return ret;
 }
 
+static int
+nfp_devlink_info_get(struct devlink *devlink, struct devlink_info_req *req,
+		     struct netlink_ext_ack *extack)
+{
+	struct nfp_pf *pf = devlink_priv(devlink);
+	const char *sn;
+	int err;
+
+	err = devlink_info_driver_name_put(req, "nfp");
+	if (err)
+		return err;
+
+	sn = nfp_hwinfo_lookup(pf->hwinfo, "assembly.serial");
+	if (sn) {
+		err = devlink_info_serial_number_put(req, sn);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 const struct devlink_ops nfp_devlink_ops = {
 	.port_split		= nfp_devlink_port_split,
 	.port_unsplit		= nfp_devlink_port_unsplit,
@@ -178,6 +201,7 @@ const struct devlink_ops nfp_devlink_ops = {
 	.sb_pool_set		= nfp_devlink_sb_pool_set,
 	.eswitch_mode_get	= nfp_devlink_eswitch_mode_get,
 	.eswitch_mode_set	= nfp_devlink_eswitch_mode_set,
+	.info_get		= nfp_devlink_info_get,
 };
 
 int nfp_devlink_port_register(struct nfp_app *app, struct nfp_port *port)
