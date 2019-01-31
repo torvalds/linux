@@ -27,7 +27,7 @@
 #include "atomfirmware.h"
 #include "amdgpu_atomfirmware.h"
 #include "smu_v11_0.h"
-#include "smu11_driver_if.h"
+#include "smu_11_0_driver_if.h"
 #include "soc15_common.h"
 #include "atom.h"
 #include "vega20_ppt.h"
