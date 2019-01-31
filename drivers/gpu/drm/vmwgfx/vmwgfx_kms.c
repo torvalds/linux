@@ -2554,8 +2554,8 @@ void vmw_kms_helper_validation_finish(struct vmw_private *dev_priv,
 				      user_fence_rep)
 {
 	struct vmw_fence_obj *fence = NULL;
-	uint32_t handle;
-	int ret;
+	uint32_t handle = 0;
+	int ret = 0;
 
 	if (file_priv || user_fence_rep || vmw_validation_has_bos(ctx) ||
 	    out_fence)
