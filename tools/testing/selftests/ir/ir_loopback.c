@@ -76,7 +76,7 @@ int lirc_open(const char *rc)
 	}
 
 	if (!dent)
-		ksft_exit_fail_msg("cannot find lirc device for %s\n", rc);
+		ksft_exit_skip("cannot find lirc device for %s\n", rc);
 
 	closedir(d);
 
