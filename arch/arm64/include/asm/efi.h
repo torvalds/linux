@@ -44,6 +44,17 @@ efi_status_t __efi_rt_asm_wrapper(void *, const char *, ...);
 
 #define ARCH_EFI_IRQ_FLAGS_MASK (PSR_D_BIT | PSR_A_BIT | PSR_I_BIT | PSR_F_BIT)
 
+/*
+ * Even when Linux uses IRQ priorities for IRQ disabling, EFI does not.
+ * And EFI shouldn't really play around with priority masking as it is not aware
+ * which priorities the OS has assigned to its interrupts.
+ */
+#define arch_efi_save_flags(state_flags)		\
+	((void)((state_flags) = read_sysreg(daif)))
+
+#define arch_efi_restore_flags(state_flags)	write_sysreg(state_flags, daif)
+
+
 /* arch specific definitions used by the stub code */
 
 /*
