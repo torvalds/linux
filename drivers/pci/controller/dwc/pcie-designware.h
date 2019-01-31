@@ -177,7 +177,7 @@ struct pcie_port {
 	struct irq_domain	*msi_domain;
 	dma_addr_t		msi_data;
 	u32			num_vectors;
-	u32			irq_status[MAX_MSI_CTRLS];
+	u32			irq_mask[MAX_MSI_CTRLS];
 	raw_spinlock_t		lock;
 	DECLARE_BITMAP(msi_irq_in_use, MAX_MSI_IRQS);
 };
