@@ -1000,7 +1000,7 @@
 			clock-names = "iface",
 				      "bus";
 			#iommu-cells = <1>;
-			status = "ok";
+			status = "disabled";
 		};
 
 		camss: camss@a00000 {
