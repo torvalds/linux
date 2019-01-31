@@ -301,6 +301,22 @@ const struct bpf_func_proto bpf_spin_unlock_proto = {
 	.arg1_type	= ARG_PTR_TO_SPIN_LOCK,
 };
 
+void copy_map_value_locked(struct bpf_map *map, void *dst, void *src,
+			   bool lock_src)
+{
+	struct bpf_spin_lock *lock;
+
+	if (lock_src)
+		lock = src + map->spin_lock_off;
+	else
+		lock = dst + map->spin_lock_off;
+	preempt_disable();
+	____bpf_spin_lock(lock);
+	copy_map_value(map, dst, src);
+	____bpf_spin_unlock(lock);
+	preempt_enable();
+}
+
 #ifdef CONFIG_CGROUPS
 BPF_CALL_0(bpf_get_current_cgroup_id)
 {

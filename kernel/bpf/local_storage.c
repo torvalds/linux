@@ -131,13 +131,25 @@ static int cgroup_storage_update_elem(struct bpf_map *map, void *_key,
 	struct bpf_cgroup_storage *storage;
 	struct bpf_storage_buffer *new;
 
-	if (flags != BPF_ANY && flags != BPF_EXIST)
+	if (unlikely(flags & ~(BPF_F_LOCK | BPF_EXIST | BPF_NOEXIST)))
+		return -EINVAL;
+
+	if (unlikely(flags & BPF_NOEXIST))
+		return -EINVAL;
+
+	if (unlikely((flags & BPF_F_LOCK) &&
+		     !map_value_has_spin_lock(map)))
 		return -EINVAL;
 
 	storage = cgroup_storage_lookup((struct bpf_cgroup_storage_map *)map,
 					key, false);
 	if (!storage)
 		return -ENOENT;
+
+	if (flags & BPF_F_LOCK) {
+		copy_map_value_locked(map, storage->buf->data, value, false);
+		return 0;
+	}
 
 	new = kmalloc_node(sizeof(struct bpf_storage_buffer) +
 			   map->value_size,
