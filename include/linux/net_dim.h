@@ -77,28 +77,28 @@
 	{64, 32}   \
 }
 
-static const struct net_dim_cq_moder
+static const struct dim_cq_moder
 rx_profile[DIM_CQ_PERIOD_NUM_MODES][NET_DIM_PARAMS_NUM_PROFILES] = {
 	NET_DIM_RX_EQE_PROFILES,
 	NET_DIM_RX_CQE_PROFILES,
 };
 
-static const struct net_dim_cq_moder
+static const struct dim_cq_moder
 tx_profile[DIM_CQ_PERIOD_NUM_MODES][NET_DIM_PARAMS_NUM_PROFILES] = {
 	NET_DIM_TX_EQE_PROFILES,
 	NET_DIM_TX_CQE_PROFILES,
 };
 
-static inline struct net_dim_cq_moder
+static inline struct dim_cq_moder
 net_dim_get_rx_moderation(u8 cq_period_mode, int ix)
 {
-	struct net_dim_cq_moder cq_moder = rx_profile[cq_period_mode][ix];
+	struct dim_cq_moder cq_moder = rx_profile[cq_period_mode][ix];
 
 	cq_moder.cq_period_mode = cq_period_mode;
 	return cq_moder;
 }
 
-static inline struct net_dim_cq_moder
+static inline struct dim_cq_moder
 net_dim_get_def_rx_moderation(u8 cq_period_mode)
 {
 	u8 profile_ix = cq_period_mode == DIM_CQ_PERIOD_MODE_START_FROM_CQE ?
@@ -107,16 +107,16 @@ net_dim_get_def_rx_moderation(u8 cq_period_mode)
 	return net_dim_get_rx_moderation(cq_period_mode, profile_ix);
 }
 
-static inline struct net_dim_cq_moder
+static inline struct dim_cq_moder
 net_dim_get_tx_moderation(u8 cq_period_mode, int ix)
 {
-	struct net_dim_cq_moder cq_moder = tx_profile[cq_period_mode][ix];
+	struct dim_cq_moder cq_moder = tx_profile[cq_period_mode][ix];
 
 	cq_moder.cq_period_mode = cq_period_mode;
 	return cq_moder;
 }
 
-static inline struct net_dim_cq_moder
+static inline struct dim_cq_moder
 net_dim_get_def_tx_moderation(u8 cq_period_mode)
 {
 	u8 profile_ix = cq_period_mode == DIM_CQ_PERIOD_MODE_START_FROM_CQE ?
@@ -125,7 +125,7 @@ net_dim_get_def_tx_moderation(u8 cq_period_mode)
 	return net_dim_get_tx_moderation(cq_period_mode, profile_ix);
 }
 
-static inline int net_dim_step(struct net_dim *dim)
+static inline int net_dim_step(struct dim *dim)
 {
 	if (dim->tired == (NET_DIM_PARAMS_NUM_PROFILES * 2))
 		return DIM_TOO_TIRED;
@@ -152,7 +152,7 @@ static inline int net_dim_step(struct net_dim *dim)
 	return DIM_STEPPED;
 }
 
-static inline void net_dim_exit_parking(struct net_dim *dim)
+static inline void net_dim_exit_parking(struct dim *dim)
 {
 	dim->tune_state = dim->profile_ix ? DIM_GOING_LEFT :
 					  DIM_GOING_RIGHT;
@@ -189,7 +189,7 @@ static inline int net_dim_stats_compare(struct dim_stats *curr,
 }
 
 static inline bool net_dim_decision(struct dim_stats *curr_stats,
-				    struct net_dim *dim)
+				    struct dim *dim)
 {
 	int prev_state = dim->tune_state;
 	int prev_ix = dim->profile_ix;
@@ -240,8 +240,8 @@ static inline bool net_dim_decision(struct dim_stats *curr_stats,
 	return dim->profile_ix != prev_ix;
 }
 
-static inline void net_dim(struct net_dim *dim,
-			   struct net_dim_sample end_sample)
+static inline void net_dim(struct dim *dim,
+			   struct dim_sample end_sample)
 {
 	struct dim_stats curr_stats;
 	u16 nevents;
@@ -261,8 +261,8 @@ static inline void net_dim(struct net_dim *dim,
 		}
 		/* fall through */
 	case DIM_START_MEASURE:
-		net_dim_update_sample(end_sample.event_ctr, end_sample.pkt_ctr,
-				      end_sample.byte_ctr, &dim->start_sample);
+		dim_update_sample(end_sample.event_ctr, end_sample.pkt_ctr,
+				  end_sample.byte_ctr, &dim->start_sample);
 		dim->state = DIM_MEASURE_IN_PROGRESS;
 		break;
 	case DIM_APPLY_NEW_PROFILE:

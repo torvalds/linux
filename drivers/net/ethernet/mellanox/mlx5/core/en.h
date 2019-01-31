@@ -238,9 +238,9 @@ struct mlx5e_params {
 	u16 num_channels;
 	u8  num_tc;
 	bool rx_cqe_compress_def;
-	struct net_dim_cq_moder rx_cq_moderation;
-	struct net_dim_cq_moder tx_cq_moderation;
 	bool tunneled_offload_en;
+	struct dim_cq_moder rx_cq_moderation;
+	struct dim_cq_moder tx_cq_moderation;
 	bool lro_en;
 	u8  tx_min_inline_mode;
 	bool vlan_strip_disable;
@@ -356,7 +356,7 @@ struct mlx5e_txqsq {
 	/* dirtied @completion */
 	u16                        cc;
 	u32                        dma_fifo_cc;
-	struct net_dim             dim; /* Adaptive Moderation */
+	struct dim                 dim; /* Adaptive Moderation */
 
 	/* dirtied @xmit */
 	u16                        pc ____cacheline_aligned_in_smp;
@@ -595,7 +595,7 @@ struct mlx5e_rq {
 	int                    ix;
 	unsigned int           hw_mtu;
 
-	struct net_dim         dim; /* Dynamic Interrupt Moderation */
+	struct dim         dim; /* Dynamic Interrupt Moderation */
 
 	/* XDP */
 	struct bpf_prog       *xdp_prog;

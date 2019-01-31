@@ -581,7 +581,7 @@ struct bcmgenet_net_dim {
 	u16		event_ctr;
 	unsigned long	packets;
 	unsigned long	bytes;
-	struct net_dim	dim;
+	struct dim	dim;
 };
 
 struct bcmgenet_rx_ring {

@@ -705,7 +705,7 @@ struct bcm_sysport_net_dim {
 	u16			event_ctr;
 	unsigned long		packets;
 	unsigned long		bytes;
-	struct net_dim		dim;
+	struct dim		dim;
 };
 
 /* Software view of the TX ring */

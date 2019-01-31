@@ -466,7 +466,7 @@ static int mlx5e_set_channels(struct net_device *dev,
 int mlx5e_ethtool_get_coalesce(struct mlx5e_priv *priv,
 			       struct ethtool_coalesce *coal)
 {
-	struct net_dim_cq_moder *rx_moder, *tx_moder;
+	struct dim_cq_moder *rx_moder, *tx_moder;
 
 	if (!MLX5_CAP_GEN(priv->mdev, cq_moderation))
 		return -EOPNOTSUPP;
@@ -521,7 +521,7 @@ mlx5e_set_priv_channels_coalesce(struct mlx5e_priv *priv, struct ethtool_coalesc
 int mlx5e_ethtool_set_coalesce(struct mlx5e_priv *priv,
 			       struct ethtool_coalesce *coal)
 {
-	struct net_dim_cq_moder *rx_moder, *tx_moder;
+	struct dim_cq_moder *rx_moder, *tx_moder;
 	struct mlx5_core_dev *mdev = priv->mdev;
 	struct mlx5e_channels new_channels = {};
 	int err = 0;

@@ -809,7 +809,7 @@ struct bnxt_cp_ring_info {
 	u64			rx_bytes;
 	u64			event_ctr;
 
-	struct net_dim		dim;
+	struct dim		dim;
 
 	union {
 		struct tx_cmp	*cp_desc_ring[MAX_CP_PAGES];
