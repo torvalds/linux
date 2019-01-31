@@ -825,6 +825,9 @@ struct kvm_s390_gisa_iam {
 struct kvm_s390_gisa_interrupt {
 	struct kvm_s390_gisa *origin;
 	struct kvm_s390_gisa_iam alert;
+	struct hrtimer timer;
+	u64 expires;
+	DECLARE_BITMAP(kicked_mask, KVM_MAX_VCPUS);
 };
 
 struct kvm_arch{

@@ -26,6 +26,7 @@
 #include <asm/gmap.h>
 #include <asm/switch_to.h>
 #include <asm/nmi.h>
+#include <asm/airq.h>
 #include "kvm-s390.h"
 #include "gaccess.h"
 #include "trace-s390.h"
@@ -266,6 +267,38 @@ static inline void gisa_clear_ipm(struct kvm_s390_gisa *gisa)
 		word = READ_ONCE(gisa->u64.word[0]);
 		_word = word & ~(0xffUL << 24);
 	} while (cmpxchg(&gisa->u64.word[0], word, _word) != word);
+}
+
+/**
+ * gisa_get_ipm_or_restore_iam - return IPM or restore GISA IAM
+ *
+ * @gi: gisa interrupt struct to work on
+ *
+ * Atomically restores the interruption alert mask if none of the
+ * relevant ISCs are pending and return the IPM.
+ *
+ * Returns: the relevant pending ISCs
+ */
+static inline u8 gisa_get_ipm_or_restore_iam(struct kvm_s390_gisa_interrupt *gi)
+{
+	u8 pending_mask, alert_mask;
+	u64 word, _word;
+
+	do {
+		word = READ_ONCE(gi->origin->u64.word[0]);
+		alert_mask = READ_ONCE(gi->alert.mask);
+		pending_mask = (u8)(word >> 24) & alert_mask;
+		if (pending_mask)
+			return pending_mask;
+		_word = (word & ~0xffUL) | alert_mask;
+	} while (cmpxchg(&gi->origin->u64.word[0], word, _word) != word);
+
+	return 0;
+}
+
+static inline int gisa_in_alert_list(struct kvm_s390_gisa *gisa)
+{
+	return READ_ONCE(gisa->next_alert) != (u32)(u64)gisa;
 }
 
 static inline void gisa_set_ipm_gisc(struct kvm_s390_gisa *gisa, u32 gisc)
@@ -1141,6 +1174,7 @@ static u64 __calculate_sltime(struct kvm_vcpu *vcpu)
 
 int kvm_s390_handle_wait(struct kvm_vcpu *vcpu)
 {
+	struct kvm_s390_gisa_interrupt *gi = &vcpu->kvm->arch.gisa_int;
 	u64 sltime;
 
 	vcpu->stat.exit_wait_state++;
@@ -1153,6 +1187,11 @@ int kvm_s390_handle_wait(struct kvm_vcpu *vcpu)
 		VCPU_EVENT(vcpu, 3, "%s", "disabled wait");
 		return -EOPNOTSUPP; /* disabled wait */
 	}
+
+	if (gi->origin &&
+	    (gisa_get_ipm_or_restore_iam(gi) &
+	     vcpu->arch.sie_block->gcr[6] >> 24))
+		return 0;
 
 	if (!ckc_interrupts_enabled(vcpu) &&
 	    !cpu_timer_interrupts_enabled(vcpu)) {
@@ -2939,6 +2978,93 @@ int kvm_s390_get_irq_state(struct kvm_vcpu *vcpu, __u8 __user *buf, int len)
 	return n;
 }
 
+static void __airqs_kick_single_vcpu(struct kvm *kvm, u8 deliverable_mask)
+{
+	int vcpu_id, online_vcpus = atomic_read(&kvm->online_vcpus);
+	struct kvm_s390_gisa_interrupt *gi = &kvm->arch.gisa_int;
+	struct kvm_vcpu *vcpu;
+
+	for_each_set_bit(vcpu_id, kvm->arch.idle_mask, online_vcpus) {
+		vcpu = kvm_get_vcpu(kvm, vcpu_id);
+		if (psw_ioint_disabled(vcpu))
+			continue;
+		deliverable_mask &= (u8)(vcpu->arch.sie_block->gcr[6] >> 24);
+		if (deliverable_mask) {
+			/* lately kicked but not yet running */
+			if (test_and_set_bit(vcpu_id, gi->kicked_mask))
+				return;
+			kvm_s390_vcpu_wakeup(vcpu);
+			return;
+		}
+	}
+}
+
+static enum hrtimer_restart gisa_vcpu_kicker(struct hrtimer *timer)
+{
+	struct kvm_s390_gisa_interrupt *gi =
+		container_of(timer, struct kvm_s390_gisa_interrupt, timer);
+	struct kvm *kvm =
+		container_of(gi->origin, struct sie_page2, gisa)->kvm;
+	u8 pending_mask;
+
+	pending_mask = gisa_get_ipm_or_restore_iam(gi);
+	if (pending_mask) {
+		__airqs_kick_single_vcpu(kvm, pending_mask);
+		hrtimer_forward_now(timer, ns_to_ktime(gi->expires));
+		return HRTIMER_RESTART;
+	};
+
+	return HRTIMER_NORESTART;
+}
+
+#define NULL_GISA_ADDR 0x00000000UL
+#define NONE_GISA_ADDR 0x00000001UL
+#define GISA_ADDR_MASK 0xfffff000UL
+
+static void process_gib_alert_list(void)
+{
+	struct kvm_s390_gisa_interrupt *gi;
+	struct kvm_s390_gisa *gisa;
+	struct kvm *kvm;
+	u32 final, origin = 0UL;
+
+	do {
+		/*
+		 * If the NONE_GISA_ADDR is still stored in the alert list
+		 * origin, we will leave the outer loop. No further GISA has
+		 * been added to the alert list by millicode while processing
+		 * the current alert list.
+		 */
+		final = (origin & NONE_GISA_ADDR);
+		/*
+		 * Cut off the alert list and store the NONE_GISA_ADDR in the
+		 * alert list origin to avoid further GAL interruptions.
+		 * A new alert list can be build up by millicode in parallel
+		 * for guests not in the yet cut-off alert list. When in the
+		 * final loop, store the NULL_GISA_ADDR instead. This will re-
+		 * enable GAL interruptions on the host again.
+		 */
+		origin = xchg(&gib->alert_list_origin,
+			      (!final) ? NONE_GISA_ADDR : NULL_GISA_ADDR);
+		/*
+		 * Loop through the just cut-off alert list and start the
+		 * gisa timers to kick idle vcpus to consume the pending
+		 * interruptions asap.
+		 */
+		while (origin & GISA_ADDR_MASK) {
+			gisa = (struct kvm_s390_gisa *)(u64)origin;
+			origin = gisa->next_alert;
+			gisa->next_alert = (u32)(u64)gisa;
+			kvm = container_of(gisa, struct sie_page2, gisa)->kvm;
+			gi = &kvm->arch.gisa_int;
+			if (hrtimer_active(&gi->timer))
+				hrtimer_cancel(&gi->timer);
+			hrtimer_start(&gi->timer, 0, HRTIMER_MODE_REL);
+		}
+	} while (!final);
+
+}
+
 void kvm_s390_gisa_clear(struct kvm *kvm)
 {
 	struct kvm_s390_gisa_interrupt *gi = &kvm->arch.gisa_int;
@@ -2958,6 +3084,9 @@ void kvm_s390_gisa_init(struct kvm *kvm)
 	gi->origin = &kvm->arch.sie_page2->gisa;
 	gi->alert.mask = 0;
 	spin_lock_init(&gi->alert.ref_lock);
+	gi->expires = 50 * 1000; /* 50 usec */
+	hrtimer_init(&gi->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	gi->timer.function = gisa_vcpu_kicker;
 	memset(gi->origin, 0, sizeof(struct kvm_s390_gisa));
 	gi->origin->next_alert = (u32)(u64)gi->origin;
 	VM_EVENT(kvm, 3, "gisa 0x%pK initialized", gi->origin);
@@ -2965,7 +3094,17 @@ void kvm_s390_gisa_init(struct kvm *kvm)
 
 void kvm_s390_gisa_destroy(struct kvm *kvm)
 {
-	kvm->arch.gisa_int.origin = NULL;
+	struct kvm_s390_gisa_interrupt *gi = &kvm->arch.gisa_int;
+
+	if (!gi->origin)
+		return;
+	if (gi->alert.mask)
+		KVM_EVENT(3, "vm 0x%pK has unexpected iam 0x%02x",
+			  kvm, gi->alert.mask);
+	while (gisa_in_alert_list(gi->origin))
+		cpu_relax();
+	hrtimer_cancel(&gi->timer);
+	gi->origin = NULL;
 }
 
 /**
@@ -3051,11 +3190,23 @@ out:
 }
 EXPORT_SYMBOL_GPL(kvm_s390_gisc_unregister);
 
+static void gib_alert_irq_handler(struct airq_struct *airq)
+{
+	inc_irq_stat(IRQIO_GAL);
+	process_gib_alert_list();
+}
+
+static struct airq_struct gib_alert_irq = {
+	.handler = gib_alert_irq_handler,
+	.lsi_ptr = &gib_alert_irq.lsi_mask,
+};
+
 void kvm_s390_gib_destroy(void)
 {
 	if (!gib)
 		return;
 	chsc_sgib(0);
+	unregister_adapter_interrupt(&gib_alert_irq);
 	free_page((unsigned long)gib);
 	gib = NULL;
 }
@@ -3075,16 +3226,30 @@ int kvm_s390_gib_init(u8 nisc)
 		goto out;
 	}
 
+	gib_alert_irq.isc = nisc;
+	if (register_adapter_interrupt(&gib_alert_irq)) {
+		pr_err("Registering the GIB alert interruption handler failed\n");
+		rc = -EIO;
+		goto out_free_gib;
+	}
+
 	gib->nisc = nisc;
 	if (chsc_sgib((u32)(u64)gib)) {
 		pr_err("Associating the GIB with the AIV facility failed\n");
 		free_page((unsigned long)gib);
 		gib = NULL;
 		rc = -EIO;
-		goto out;
+		goto out_unreg_gal;
 	}
 
 	KVM_EVENT(3, "gib 0x%pK (nisc=%d) initialized", gib, gib->nisc);
+	goto out;
+
+out_unreg_gal:
+	unregister_adapter_interrupt(&gib_alert_irq);
+out_free_gib:
+	free_page((unsigned long)gib);
+	gib = NULL;
 out:
 	return rc;
 }
