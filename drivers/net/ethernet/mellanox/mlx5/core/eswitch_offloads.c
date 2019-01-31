@@ -1923,40 +1923,39 @@ int mlx5_devlink_eswitch_encap_mode_get(struct devlink *devlink, u8 *encap)
 	return 0;
 }
 
-void mlx5_eswitch_register_vport_rep(struct mlx5_eswitch *esw,
-				     int vport_index,
-				     struct mlx5_eswitch_rep_if *__rep_if,
-				     u8 rep_type)
+void mlx5_eswitch_register_vport_reps(struct mlx5_eswitch *esw,
+				      struct mlx5_eswitch_rep_if *__rep_if,
+				      u8 rep_type)
 {
-	struct mlx5_esw_offload *offloads = &esw->offloads;
 	struct mlx5_eswitch_rep_if *rep_if;
-
-	rep_if = &offloads->vport_reps[vport_index].rep_if[rep_type];
-
-	rep_if->load   = __rep_if->load;
-	rep_if->unload = __rep_if->unload;
-	rep_if->get_proto_dev = __rep_if->get_proto_dev;
-	rep_if->priv = __rep_if->priv;
-
-	rep_if->state = REP_REGISTERED;
-}
-EXPORT_SYMBOL(mlx5_eswitch_register_vport_rep);
-
-void mlx5_eswitch_unregister_vport_rep(struct mlx5_eswitch *esw,
-				       int vport_index, u8 rep_type)
-{
-	struct mlx5_esw_offload *offloads = &esw->offloads;
 	struct mlx5_eswitch_rep *rep;
+	int i;
 
-	rep = &offloads->vport_reps[vport_index];
+	mlx5_esw_for_all_reps(esw, i, rep) {
+		rep_if = &rep->rep_if[rep_type];
+		rep_if->load   = __rep_if->load;
+		rep_if->unload = __rep_if->unload;
+		rep_if->get_proto_dev = __rep_if->get_proto_dev;
+		rep_if->priv = __rep_if->priv;
 
-	if (esw->mode == SRIOV_OFFLOADS &&
-	    rep->rep_if[rep_type].state == REP_LOADED)
-		rep->rep_if[rep_type].unload(rep);
-
-	rep->rep_if[rep_type].state = REP_UNREGISTERED;
+		rep_if->state = REP_REGISTERED;
+	}
 }
-EXPORT_SYMBOL(mlx5_eswitch_unregister_vport_rep);
+EXPORT_SYMBOL(mlx5_eswitch_register_vport_reps);
+
+void mlx5_eswitch_unregister_vport_reps(struct mlx5_eswitch *esw, u8 rep_type)
+{
+	u16 max_vf = mlx5_core_max_vfs(esw->dev);
+	struct mlx5_eswitch_rep *rep;
+	int i;
+
+	if (esw->mode == SRIOV_OFFLOADS)
+		__unload_reps_all_vport(esw, max_vf, rep_type);
+
+	mlx5_esw_for_all_reps(esw, i, rep)
+		rep->rep_if[rep_type].state = REP_UNREGISTERED;
+}
+EXPORT_SYMBOL(mlx5_eswitch_unregister_vport_reps);
 
 void *mlx5_eswitch_get_uplink_priv(struct mlx5_eswitch *esw, u8 rep_type)
 {

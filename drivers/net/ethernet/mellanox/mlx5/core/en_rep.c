@@ -1798,25 +1798,18 @@ static void *mlx5e_vport_rep_get_proto_dev(struct mlx5_eswitch_rep *rep)
 void mlx5e_rep_register_vport_reps(struct mlx5_core_dev *mdev)
 {
 	struct mlx5_eswitch *esw = mdev->priv.eswitch;
-	int total_vfs = MLX5_TOTAL_VPORTS(mdev);
-	int vport;
+	struct mlx5_eswitch_rep_if rep_if = {};
 
-	for (vport = 0; vport < total_vfs; vport++) {
-		struct mlx5_eswitch_rep_if rep_if = {};
+	rep_if.load = mlx5e_vport_rep_load;
+	rep_if.unload = mlx5e_vport_rep_unload;
+	rep_if.get_proto_dev = mlx5e_vport_rep_get_proto_dev;
 
-		rep_if.load = mlx5e_vport_rep_load;
-		rep_if.unload = mlx5e_vport_rep_unload;
-		rep_if.get_proto_dev = mlx5e_vport_rep_get_proto_dev;
-		mlx5_eswitch_register_vport_rep(esw, vport, &rep_if, REP_ETH);
-	}
+	mlx5_eswitch_register_vport_reps(esw, &rep_if, REP_ETH);
 }
 
 void mlx5e_rep_unregister_vport_reps(struct mlx5_core_dev *mdev)
 {
 	struct mlx5_eswitch *esw = mdev->priv.eswitch;
-	int total_vfs = MLX5_TOTAL_VPORTS(mdev);
-	int vport;
 
-	for (vport = total_vfs - 1; vport >= 0; vport--)
-		mlx5_eswitch_unregister_vport_rep(esw, vport, REP_ETH);
+	mlx5_eswitch_unregister_vport_reps(esw, REP_ETH);
 }

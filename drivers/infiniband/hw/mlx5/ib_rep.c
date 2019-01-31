@@ -95,26 +95,20 @@ static void *mlx5_ib_vport_get_proto_dev(struct mlx5_eswitch_rep *rep)
 void mlx5_ib_register_vport_reps(struct mlx5_core_dev *mdev)
 {
 	struct mlx5_eswitch *esw = mdev->priv.eswitch;
-	int total_vports = MLX5_TOTAL_VPORTS(mdev);
 	struct mlx5_eswitch_rep_if rep_if = {};
-	int vport;
 
-	for (vport = 0; vport < total_vports; vport++) {
-		rep_if.load = mlx5_ib_vport_rep_load;
-		rep_if.unload = mlx5_ib_vport_rep_unload;
-		rep_if.get_proto_dev = mlx5_ib_vport_get_proto_dev;
-		mlx5_eswitch_register_vport_rep(esw, vport, &rep_if, REP_IB);
-	}
+	rep_if.load = mlx5_ib_vport_rep_load;
+	rep_if.unload = mlx5_ib_vport_rep_unload;
+	rep_if.get_proto_dev = mlx5_ib_vport_get_proto_dev;
+
+	mlx5_eswitch_register_vport_reps(esw, &rep_if, REP_IB);
 }
 
 void mlx5_ib_unregister_vport_reps(struct mlx5_core_dev *mdev)
 {
 	struct mlx5_eswitch *esw = mdev->priv.eswitch;
-	int total_vports = MLX5_TOTAL_VPORTS(mdev);
-	int vport;
 
-	for (vport = total_vports - 1; vport >= 0; vport--)
-		mlx5_eswitch_unregister_vport_rep(esw, vport, REP_IB);
+	mlx5_eswitch_unregister_vport_reps(esw, REP_IB);
 }
 
 u8 mlx5_ib_eswitch_mode(struct mlx5_eswitch *esw)
