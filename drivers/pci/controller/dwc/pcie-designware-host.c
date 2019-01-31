@@ -143,7 +143,7 @@ static void dw_pci_setup_msi_msg(struct irq_data *d, struct msi_msg *msg)
 		(int)d->hwirq, msg->address_hi, msg->address_lo);
 }
 
-static int dw_pci_msi_set_affinity(struct irq_data *irq_data,
+static int dw_pci_msi_set_affinity(struct irq_data *d,
 				   const struct cpumask *mask, bool force)
 {
 	return -EINVAL;
