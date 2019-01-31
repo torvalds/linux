@@ -58,6 +58,7 @@ struct ceph_reconnect_state {
 static void __wake_requests(struct ceph_mds_client *mdsc,
 			    struct list_head *head);
 static void ceph_cap_release_work(struct work_struct *work);
+static void ceph_cap_reclaim_work(struct work_struct *work);
 
 static const struct ceph_connection_operations mds_con_ops;
 
@@ -1941,6 +1942,27 @@ void __ceph_queue_cap_release(struct ceph_mds_session *session,
 
 	if (!(session->s_num_cap_releases % CEPH_CAPS_PER_RELEASE))
 		ceph_flush_cap_releases(session->s_mdsc, session);
+}
+
+static void ceph_cap_reclaim_work(struct work_struct *work)
+{
+	struct ceph_mds_client *mdsc =
+		container_of(work, struct ceph_mds_client, cap_reclaim_work);
+	int ret = ceph_trim_dentries(mdsc);
+	if (ret == -EAGAIN)
+		ceph_queue_cap_reclaim_work(mdsc);
+}
+
+void ceph_queue_cap_reclaim_work(struct ceph_mds_client *mdsc)
+{
+	if (mdsc->stopping)
+		return;
+
+        if (queue_work(mdsc->fsc->cap_wq, &mdsc->cap_reclaim_work)) {
+                dout("caps reclaim work queued\n");
+        } else {
+                dout("failed to queue caps release work\n");
+        }
 }
 
 /*
@@ -3957,9 +3979,6 @@ static void delayed_work(struct work_struct *work)
 	int renew_caps;
 
 	dout("mdsc delayed_work\n");
-	ceph_check_delayed_caps(mdsc);
-
-	ceph_trim_snapid_map(mdsc);
 
 	mutex_lock(&mdsc->mutex);
 	renew_interval = mdsc->mdsmap->m_session_timeout >> 2;
@@ -4006,6 +4025,12 @@ static void delayed_work(struct work_struct *work)
 		mutex_lock(&mdsc->mutex);
 	}
 	mutex_unlock(&mdsc->mutex);
+
+	ceph_check_delayed_caps(mdsc);
+
+	ceph_queue_cap_reclaim_work(mdsc);
+
+	ceph_trim_snapid_map(mdsc);
 
 	schedule_delayed(mdsc);
 }
@@ -4057,8 +4082,11 @@ int ceph_mdsc_init(struct ceph_fs_client *fsc)
 	mdsc->num_cap_flushing = 0;
 	spin_lock_init(&mdsc->cap_dirty_lock);
 	init_waitqueue_head(&mdsc->cap_flushing_wq);
-	spin_lock_init(&mdsc->dentry_lru_lock);
-	INIT_LIST_HEAD(&mdsc->dentry_lru);
+	INIT_WORK(&mdsc->cap_reclaim_work, ceph_cap_reclaim_work);
+
+	spin_lock_init(&mdsc->dentry_list_lock);
+	INIT_LIST_HEAD(&mdsc->dentry_leases);
+	INIT_LIST_HEAD(&mdsc->dentry_dir_leases);
 
 	ceph_caps_init(mdsc);
 	ceph_adjust_min_caps(mdsc, fsc->min_caps);
@@ -4261,9 +4289,9 @@ void ceph_mdsc_close_sessions(struct ceph_mds_client *mdsc)
 	mutex_unlock(&mdsc->mutex);
 
 	ceph_cleanup_snapid_map(mdsc);
-
 	ceph_cleanup_empty_realms(mdsc);
 
+	cancel_work_sync(&mdsc->cap_reclaim_work);
 	cancel_delayed_work_sync(&mdsc->delayed_work); /* cancel timer */
 
 	dout("stopped\n");

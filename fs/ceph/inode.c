@@ -1076,9 +1076,10 @@ static void update_dentry_lease(struct dentry *dentry,
 		goto out_unlock;
 
 	di->lease_shared_gen = atomic_read(&ceph_inode(dir)->i_shared_gen);
-
-	if (duration == 0)
+	if (duration == 0) {
+		__ceph_dentry_dir_lease_touch(di);
 		goto out_unlock;
+	}
 
 	if (di->lease_gen == session->s_cap_gen &&
 	    time_before(ttl, di->time))
@@ -1089,8 +1090,6 @@ static void update_dentry_lease(struct dentry *dentry,
 		di->lease_session = NULL;
 	}
 
-	ceph_dentry_lru_touch(dentry);
-
 	if (!di->lease_session)
 		di->lease_session = ceph_get_mds_session(session);
 	di->lease_gen = session->s_cap_gen;
@@ -1098,6 +1097,8 @@ static void update_dentry_lease(struct dentry *dentry,
 	di->lease_renew_after = half_ttl;
 	di->lease_renew_from = 0;
 	di->time = ttl;
+
+	__ceph_dentry_lease_touch(di);
 out_unlock:
 	spin_unlock(&dentry->d_lock);
 	if (old_lease_session)

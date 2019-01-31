@@ -378,6 +378,8 @@ struct ceph_mds_client {
 	spinlock_t        cap_dirty_lock;   /* protects above items */
 	wait_queue_head_t cap_flushing_wq;
 
+	struct work_struct cap_reclaim_work;
+
 	/*
 	 * Cap reservations
 	 *
@@ -398,9 +400,9 @@ struct ceph_mds_client {
 	int		caps_avail_count;    /* unused, unreserved */
 	int		caps_min_count;      /* keep at least this many
 						(unreserved) */
-	spinlock_t	  dentry_lru_lock;
-	struct list_head  dentry_lru;
-	int		  num_dentry;
+	spinlock_t	  dentry_list_lock;
+	struct list_head  dentry_leases;     /* fifo list */
+	struct list_head  dentry_dir_leases; /* lru list */
 
 	spinlock_t		snapid_map_lock;
 	struct rb_root		snapid_map_tree;
@@ -462,6 +464,7 @@ extern void __ceph_queue_cap_release(struct ceph_mds_session *session,
 				    struct ceph_cap *cap);
 extern void ceph_flush_cap_releases(struct ceph_mds_client *mdsc,
 				    struct ceph_mds_session *session);
+extern void ceph_queue_cap_reclaim_work(struct ceph_mds_client *mdsc);
 extern void ceph_mdsc_pre_umount(struct ceph_mds_client *mdsc);
 
 extern char *ceph_mdsc_build_path(struct dentry *dentry, int *plen, u64 *base,

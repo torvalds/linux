@@ -262,16 +262,21 @@ struct ceph_inode_xattr {
  * Ceph dentry state
  */
 struct ceph_dentry_info {
+	struct dentry *dentry;
 	struct ceph_mds_session *lease_session;
+	struct list_head lease_list;
+	unsigned flags;
 	int lease_shared_gen;
 	u32 lease_gen;
 	u32 lease_seq;
 	unsigned long lease_renew_after, lease_renew_from;
-	struct list_head lru;
-	struct dentry *dentry;
 	unsigned long time;
 	u64 offset;
 };
+
+#define CEPH_DENTRY_REFERENCED		1
+#define CEPH_DENTRY_LEASE_LIST		2
+#define CEPH_DENTRY_SHRINK_LIST		4
 
 struct ceph_inode_xattrs_info {
 	/*
@@ -1064,10 +1069,10 @@ extern int ceph_handle_snapdir(struct ceph_mds_request *req,
 extern struct dentry *ceph_finish_lookup(struct ceph_mds_request *req,
 					 struct dentry *dentry, int err);
 
-extern void ceph_dentry_lru_add(struct dentry *dn);
-extern void ceph_dentry_lru_touch(struct dentry *dn);
-extern void ceph_dentry_lru_del(struct dentry *dn);
+extern void __ceph_dentry_lease_touch(struct ceph_dentry_info *di);
+extern void __ceph_dentry_dir_lease_touch(struct ceph_dentry_info *di);
 extern void ceph_invalidate_dentry_lease(struct dentry *dentry);
+extern int ceph_trim_dentries(struct ceph_mds_client *mdsc);
 extern unsigned ceph_dentry_hash(struct inode *dir, struct dentry *dn);
 extern void ceph_readdir_cache_release(struct ceph_readdir_cache_control *ctl);
 

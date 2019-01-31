@@ -29,6 +29,9 @@
 
 const struct dentry_operations ceph_dentry_ops;
 
+static bool __dentry_lease_is_valid(struct ceph_dentry_info *di);
+static int __dir_lease_try_check(const struct dentry *dentry);
+
 /*
  * Initialize ceph dentry state.
  */
@@ -44,7 +47,7 @@ static int ceph_d_init(struct dentry *dentry)
 	di->lease_session = NULL;
 	di->time = jiffies;
 	dentry->d_fsdata = di;
-	ceph_dentry_lru_add(dentry);
+	INIT_LIST_HEAD(&di->lease_list);
 	return 0;
 }
 
@@ -241,6 +244,7 @@ static int __dcache_readdir(struct file *file,  struct dir_context *ctx,
 			goto out;
 		}
 		if (fpos_cmp(ctx->pos, di->offset) <= 0) {
+			__ceph_dentry_dir_lease_touch(di);
 			emit_dentry = true;
 		}
 		spin_unlock(&dentry->d_lock);
@@ -1125,13 +1129,259 @@ static int ceph_rename(struct inode *old_dir, struct dentry *old_dentry,
 }
 
 /*
+ * Move dentry to tail of mdsc->dentry_leases list when lease is updated.
+ * Leases at front of the list will expire first. (Assume all leases have
+ * similar duration)
+ *
+ * Called under dentry->d_lock.
+ */
+void __ceph_dentry_lease_touch(struct ceph_dentry_info *di)
+{
+	struct dentry *dn = di->dentry;
+	struct ceph_mds_client *mdsc;
+
+	dout("dentry_lease_touch %p %p '%pd'\n", di, dn, dn);
+
+	di->flags |= CEPH_DENTRY_LEASE_LIST;
+	if (di->flags & CEPH_DENTRY_SHRINK_LIST) {
+		di->flags |= CEPH_DENTRY_REFERENCED;
+		return;
+	}
+
+	mdsc = ceph_sb_to_client(dn->d_sb)->mdsc;
+	spin_lock(&mdsc->dentry_list_lock);
+	list_move_tail(&di->lease_list, &mdsc->dentry_leases);
+	spin_unlock(&mdsc->dentry_list_lock);
+}
+
+static void __dentry_dir_lease_touch(struct ceph_mds_client* mdsc,
+				     struct ceph_dentry_info *di)
+{
+	di->flags &= ~(CEPH_DENTRY_LEASE_LIST | CEPH_DENTRY_REFERENCED);
+	di->lease_gen = 0;
+	di->time = jiffies;
+	list_move_tail(&di->lease_list, &mdsc->dentry_dir_leases);
+}
+
+/*
+ * When dir lease is used, add dentry to tail of mdsc->dentry_dir_leases
+ * list if it's not in the list, otherwise set 'referenced' flag.
+ *
+ * Called under dentry->d_lock.
+ */
+void __ceph_dentry_dir_lease_touch(struct ceph_dentry_info *di)
+{
+	struct dentry *dn = di->dentry;
+	struct ceph_mds_client *mdsc;
+
+	dout("dentry_dir_lease_touch %p %p '%pd' (offset %lld)\n",
+	     di, dn, dn, di->offset);
+
+	if (!list_empty(&di->lease_list)) {
+		if (di->flags & CEPH_DENTRY_LEASE_LIST) {
+			/* don't remove dentry from dentry lease list
+			 * if its lease is valid */
+			if (__dentry_lease_is_valid(di))
+				return;
+		} else {
+			di->flags |= CEPH_DENTRY_REFERENCED;
+			return;
+		}
+	}
+
+	if (di->flags & CEPH_DENTRY_SHRINK_LIST) {
+		di->flags |= CEPH_DENTRY_REFERENCED;
+		di->flags &= ~CEPH_DENTRY_LEASE_LIST;
+		return;
+	}
+
+	mdsc = ceph_sb_to_client(dn->d_sb)->mdsc;
+	spin_lock(&mdsc->dentry_list_lock);
+	__dentry_dir_lease_touch(mdsc, di),
+	spin_unlock(&mdsc->dentry_list_lock);
+}
+
+static void __dentry_lease_unlist(struct ceph_dentry_info *di)
+{
+	struct ceph_mds_client *mdsc;
+	if (di->flags & CEPH_DENTRY_SHRINK_LIST)
+		return;
+	if (list_empty(&di->lease_list))
+		return;
+
+	mdsc = ceph_sb_to_client(di->dentry->d_sb)->mdsc;
+	spin_lock(&mdsc->dentry_list_lock);
+	list_del_init(&di->lease_list);
+	spin_unlock(&mdsc->dentry_list_lock);
+}
+
+enum {
+	KEEP	= 0,
+	DELETE	= 1,
+	TOUCH	= 2,
+	STOP	= 4,
+};
+
+struct ceph_lease_walk_control {
+	bool dir_lease;
+	unsigned long nr_to_scan;
+	unsigned long dir_lease_ttl;
+};
+
+static unsigned long
+__dentry_leases_walk(struct ceph_mds_client *mdsc,
+		     struct ceph_lease_walk_control *lwc,
+		     int (*check)(struct dentry*, void*))
+{
+	struct ceph_dentry_info *di, *tmp;
+	struct dentry *dentry, *last = NULL;
+	struct list_head* list;
+        LIST_HEAD(dispose);
+	unsigned long freed = 0;
+	int ret = 0;
+
+	list = lwc->dir_lease ? &mdsc->dentry_dir_leases : &mdsc->dentry_leases;
+	spin_lock(&mdsc->dentry_list_lock);
+	list_for_each_entry_safe(di, tmp, list, lease_list) {
+		if (!lwc->nr_to_scan)
+			break;
+		--lwc->nr_to_scan;
+
+		dentry = di->dentry;
+		if (last == dentry)
+			break;
+
+		if (!spin_trylock(&dentry->d_lock))
+			continue;
+
+		if (dentry->d_lockref.count < 0) {
+			list_del_init(&di->lease_list);
+			goto next;
+		}
+
+		ret = check(dentry, lwc);
+		if (ret & TOUCH) {
+			/* move it into tail of dir lease list */
+			__dentry_dir_lease_touch(mdsc, di);
+			if (!last)
+				last = dentry;
+		}
+		if (ret & DELETE) {
+			/* stale lease */
+			di->flags &= ~CEPH_DENTRY_REFERENCED;
+			if (dentry->d_lockref.count > 0) {
+				/* update_dentry_lease() will re-add
+				 * it to lease list, or
+				 * ceph_d_delete() will return 1 when
+				 * last reference is dropped */
+				list_del_init(&di->lease_list);
+			} else {
+				di->flags |= CEPH_DENTRY_SHRINK_LIST;
+				list_move_tail(&di->lease_list, &dispose);
+				dget_dlock(dentry);
+			}
+		}
+next:
+		spin_unlock(&dentry->d_lock);
+		if (ret & STOP)
+			break;
+	}
+	spin_unlock(&mdsc->dentry_list_lock);
+
+	while (!list_empty(&dispose)) {
+		di = list_first_entry(&dispose, struct ceph_dentry_info,
+				      lease_list);
+		dentry = di->dentry;
+		spin_lock(&dentry->d_lock);
+
+		list_del_init(&di->lease_list);
+		di->flags &= ~CEPH_DENTRY_SHRINK_LIST;
+		if (di->flags & CEPH_DENTRY_REFERENCED) {
+			spin_lock(&mdsc->dentry_list_lock);
+			if (di->flags & CEPH_DENTRY_LEASE_LIST) {
+				list_add_tail(&di->lease_list,
+					      &mdsc->dentry_leases);
+			} else {
+				__dentry_dir_lease_touch(mdsc, di);
+			}
+			spin_unlock(&mdsc->dentry_list_lock);
+		} else {
+			freed++;
+		}
+
+		spin_unlock(&dentry->d_lock);
+		/* ceph_d_delete() does the trick */
+		dput(dentry);
+	}
+	return freed;
+}
+
+static int __dentry_lease_check(struct dentry *dentry, void *arg)
+{
+	struct ceph_dentry_info *di = ceph_dentry(dentry);
+	int ret;
+
+	if (__dentry_lease_is_valid(di))
+		return STOP;
+	ret = __dir_lease_try_check(dentry);
+	if (ret == -EBUSY)
+		return KEEP;
+	if (ret > 0)
+		return TOUCH;
+	return DELETE;
+}
+
+static int __dir_lease_check(struct dentry *dentry, void *arg)
+{
+	struct ceph_lease_walk_control *lwc = arg;
+	struct ceph_dentry_info *di = ceph_dentry(dentry);
+
+	int ret = __dir_lease_try_check(dentry);
+	if (ret == -EBUSY)
+		return KEEP;
+	if (ret > 0) {
+		if (time_before(jiffies, di->time + lwc->dir_lease_ttl))
+			return STOP;
+		/* Move dentry to tail of dir lease list if we don't want
+		 * to delete it. So dentries in the list are checked in a
+		 * round robin manner */
+		return TOUCH;
+	}
+	return DELETE;
+}
+
+int ceph_trim_dentries(struct ceph_mds_client *mdsc)
+{
+	struct ceph_lease_walk_control lwc;
+	unsigned long freed;
+
+	lwc.dir_lease = false;
+	lwc.nr_to_scan  = CEPH_CAPS_PER_RELEASE * 2;
+	freed = __dentry_leases_walk(mdsc, &lwc, __dentry_lease_check);
+	if (!lwc.nr_to_scan) /* more invalid leases */
+		return -EAGAIN;
+
+	if (lwc.nr_to_scan < CEPH_CAPS_PER_RELEASE)
+		lwc.nr_to_scan = CEPH_CAPS_PER_RELEASE;
+
+	lwc.dir_lease = true;
+	freed +=__dentry_leases_walk(mdsc, &lwc, __dir_lease_check);
+	if (!lwc.nr_to_scan) /* more to check */
+		return -EAGAIN;
+
+	return freed > 0 ? 1 : 0;
+}
+
+/*
  * Ensure a dentry lease will no longer revalidate.
  */
 void ceph_invalidate_dentry_lease(struct dentry *dentry)
 {
+	struct ceph_dentry_info *di = ceph_dentry(dentry);
 	spin_lock(&dentry->d_lock);
-	ceph_dentry(dentry)->time = jiffies;
-	ceph_dentry(dentry)->lease_shared_gen = 0;
+	di->time = jiffies;
+	di->lease_shared_gen = 0;
+	__dentry_lease_unlist(di);
 	spin_unlock(&dentry->d_lock);
 }
 
@@ -1251,6 +1501,8 @@ static int dir_lease_is_valid(struct inode *dir, struct dentry *dentry)
 	if (atomic_read(&ci->i_shared_gen) == di->lease_shared_gen)
 		valid = __ceph_caps_issued_mask(ci, CEPH_CAP_FILE_SHARED, 1);
 	spin_unlock(&ci->i_ceph_lock);
+	if (valid)
+		__ceph_dentry_dir_lease_touch(di);
 	dout("dir_lease_is_valid dir %p v%u dentry %p v%u = %d\n",
 	     dir, (unsigned)atomic_read(&ci->i_shared_gen),
 	     dentry, (unsigned)di->lease_shared_gen, valid);
@@ -1343,11 +1595,8 @@ static int ceph_d_revalidate(struct dentry *dentry, unsigned int flags)
 	}
 
 	dout("d_revalidate %p %s\n", dentry, valid ? "valid" : "invalid");
-	if (valid) {
-		ceph_dentry_lru_touch(dentry);
-	} else {
+	if (!valid)
 		ceph_dir_clear_complete(dir);
-	}
 
 	if (!(flags & LOOKUP_RCU))
 		dput(parent);
@@ -1387,9 +1636,9 @@ static void ceph_d_release(struct dentry *dentry)
 	struct ceph_dentry_info *di = ceph_dentry(dentry);
 
 	dout("d_release %p\n", dentry);
-	ceph_dentry_lru_del(dentry);
 
 	spin_lock(&dentry->d_lock);
+	__dentry_lease_unlist(di);
 	dentry->d_fsdata = NULL;
 	spin_unlock(&dentry->d_lock);
 
@@ -1490,49 +1739,7 @@ static ssize_t ceph_read_dir(struct file *file, char __user *buf, size_t size,
 	return size - left;
 }
 
-/*
- * We maintain a private dentry LRU.
- *
- * FIXME: this needs to be changed to a per-mds lru to be useful.
- */
-void ceph_dentry_lru_add(struct dentry *dn)
-{
-	struct ceph_dentry_info *di = ceph_dentry(dn);
-	struct ceph_mds_client *mdsc;
 
-	dout("dentry_lru_add %p %p '%pd'\n", di, dn, dn);
-	mdsc = ceph_sb_to_client(dn->d_sb)->mdsc;
-	spin_lock(&mdsc->dentry_lru_lock);
-	list_add_tail(&di->lru, &mdsc->dentry_lru);
-	mdsc->num_dentry++;
-	spin_unlock(&mdsc->dentry_lru_lock);
-}
-
-void ceph_dentry_lru_touch(struct dentry *dn)
-{
-	struct ceph_dentry_info *di = ceph_dentry(dn);
-	struct ceph_mds_client *mdsc;
-
-	dout("dentry_lru_touch %p %p '%pd' (offset %lld)\n", di, dn, dn,
-	     di->offset);
-	mdsc = ceph_sb_to_client(dn->d_sb)->mdsc;
-	spin_lock(&mdsc->dentry_lru_lock);
-	list_move_tail(&di->lru, &mdsc->dentry_lru);
-	spin_unlock(&mdsc->dentry_lru_lock);
-}
-
-void ceph_dentry_lru_del(struct dentry *dn)
-{
-	struct ceph_dentry_info *di = ceph_dentry(dn);
-	struct ceph_mds_client *mdsc;
-
-	dout("dentry_lru_del %p %p '%pd'\n", di, dn, dn);
-	mdsc = ceph_sb_to_client(dn->d_sb)->mdsc;
-	spin_lock(&mdsc->dentry_lru_lock);
-	list_del_init(&di->lru);
-	mdsc->num_dentry--;
-	spin_unlock(&mdsc->dentry_lru_lock);
-}
 
 /*
  * Return name hash for a given dentry.  This is dependent on
