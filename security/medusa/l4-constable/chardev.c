@@ -440,7 +440,7 @@ static int l4_add_evtype(struct medusa_evtype_s * at)
 	local_tele_item->tele = tele_mem_evtype;
 	local_tele_item->post = med_cache_free;
 	down(&queue_lock);
-	list_add_tail(&(local_tele_item->list), &tele_queue);
+	list_add_tail(&local_tele_item->list, &tele_queue);
 	up(&queue_lock);
 	up(&queue_items);
 	wake_up(&userspace_chardev);
@@ -1081,7 +1081,7 @@ static int user_open(struct inode *inode, struct file *file)
 	local_tele_item->tele = tele_mem_open;
 	local_tele_item->post = med_cache_free;
 	down(&queue_lock);
-	list_add_tail(&(local_tele_item->list), &tele_queue);
+	list_add_tail(&local_tele_item->list, &tele_queue);
 	up(&queue_lock);
 	up(&queue_items);
 	wake_up(&userspace_chardev);
