@@ -4275,7 +4275,7 @@ static int handle_vmon(struct kvm_vcpu *vcpu)
 	 * Note - IA32_VMX_BASIC[48] will never be 1 for the nested case;
 	 * which replaces physical address width with 32
 	 */
-	if (!PAGE_ALIGNED(vmptr) || (vmptr >> cpuid_maxphyaddr(vcpu)))
+	if (!page_address_valid(vcpu, vmptr))
 		return nested_vmx_failInvalid(vcpu);
 
 	if (kvm_read_guest(vcpu->kvm, vmptr, &revision, sizeof(revision)) ||
@@ -4338,7 +4338,7 @@ static int handle_vmclear(struct kvm_vcpu *vcpu)
 	if (nested_vmx_get_vmptr(vcpu, &vmptr))
 		return 1;
 
-	if (!PAGE_ALIGNED(vmptr) || (vmptr >> cpuid_maxphyaddr(vcpu)))
+	if (!page_address_valid(vcpu, vmptr))
 		return nested_vmx_failValid(vcpu,
 			VMXERR_VMCLEAR_INVALID_ADDRESS);
 
@@ -4545,7 +4545,7 @@ static int handle_vmptrld(struct kvm_vcpu *vcpu)
 	if (nested_vmx_get_vmptr(vcpu, &vmptr))
 		return 1;
 
-	if (!PAGE_ALIGNED(vmptr) || (vmptr >> cpuid_maxphyaddr(vcpu)))
+	if (!page_address_valid(vcpu, vmptr))
 		return nested_vmx_failValid(vcpu,
 			VMXERR_VMPTRLD_INVALID_ADDRESS);
 
