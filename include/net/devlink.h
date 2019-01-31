@@ -428,6 +428,20 @@ enum devlink_param_wol_types {
 	.validate = _validate,						\
 }
 
+/* Part number, identifier of board design */
+#define DEVLINK_INFO_VERSION_GENERIC_BOARD_ID	"board.id"
+/* Revision of board design */
+#define DEVLINK_INFO_VERSION_GENERIC_BOARD_REV	"board.rev"
+
+/* Control processor FW version */
+#define DEVLINK_INFO_VERSION_GENERIC_FW_MGMT	"fw.mgmt"
+/* Data path microcode controlling high-speed packet processing */
+#define DEVLINK_INFO_VERSION_GENERIC_FW_APP	"fw.app"
+/* UNDI software version */
+#define DEVLINK_INFO_VERSION_GENERIC_FW_UNDI	"fw.undi"
+/* NCSI support/handler version */
+#define DEVLINK_INFO_VERSION_GENERIC_FW_NCSI	"fw.ncsi"
+
 struct devlink_region;
 struct devlink_info_req;
 
