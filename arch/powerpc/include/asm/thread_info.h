@@ -19,8 +19,6 @@
 
 #ifdef CONFIG_PPC64
 #define CURRENT_THREAD_INFO(dest, sp)	stringify_in_c(ld dest, PACACURRENT(r13))
-#else
-#define CURRENT_THREAD_INFO(dest, sp)	stringify_in_c(mr dest, r2)
 #endif
 
 #ifndef __ASSEMBLY__

@@ -183,8 +183,7 @@ _GLOBAL(add_hash_page)
 	add	r3,r3,r0		/* note create_hpte trims to 24 bits */
 
 #ifdef CONFIG_SMP
-	CURRENT_THREAD_INFO(r8, r1)	/* use cpu number to make tag */
-	lwz	r8,TI_CPU(r8)		/* to go in mmu_hash_lock */
+	lwz	r8,TASK_CPU(r2)		/* to go in mmu_hash_lock */
 	oris	r8,r8,12
 #endif /* CONFIG_SMP */
 
@@ -540,9 +539,7 @@ _GLOBAL(flush_hash_pages)
 #ifdef CONFIG_SMP
 	lis	r9, (mmu_hash_lock - PAGE_OFFSET)@ha
 	addi	r9, r9, (mmu_hash_lock - PAGE_OFFSET)@l
-	CURRENT_THREAD_INFO(r8, r1)
-	tophys(r8, r8)
-	lwz	r8,TI_CPU(r8)
+	lwz	r8,TASK_CPU(r2)
 	oris	r8,r8,9
 10:	lwarx	r0,0,r9
 	cmpi	0,r0,0
@@ -637,8 +634,7 @@ EXPORT_SYMBOL(flush_hash_pages)
  */
 _GLOBAL(_tlbie)
 #ifdef CONFIG_SMP
-	CURRENT_THREAD_INFO(r8, r1)
-	lwz	r8,TI_CPU(r8)
+	lwz	r8,TASK_CPU(r2)
 	oris	r8,r8,11
 	mfmsr	r10
 	SYNC
@@ -675,8 +671,7 @@ _GLOBAL(_tlbie)
  */
 _GLOBAL(_tlbia)
 #if defined(CONFIG_SMP)
-	CURRENT_THREAD_INFO(r8, r1)
-	lwz	r8,TI_CPU(r8)
+	lwz	r8,TASK_CPU(r2)
 	oris	r8,r8,10
 	mfmsr	r10
 	SYNC

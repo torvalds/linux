@@ -183,8 +183,7 @@ _GLOBAL(low_choose_750fx_pll)
 
 #ifdef CONFIG_SMP
 	/* Store new HID1 image */
-	CURRENT_THREAD_INFO(r6, r1)
-	lwz	r6,TI_CPU(r6)
+	lwz	r6,TASK_CPU(r2)
 	slwi	r6,r6,2
 #else
 	li	r6, 0

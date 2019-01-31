@@ -244,8 +244,7 @@ set_ivor:
 	stwu	r0,THREAD_SIZE-STACK_FRAME_OVERHEAD(r1)
 
 #ifdef CONFIG_SMP
-	CURRENT_THREAD_INFO(r22, r1)
-	stw	r24, TI_CPU(r22)
+	stw	r24, TASK_CPU(r2)
 #endif
 
 	bl	early_init
@@ -719,7 +718,7 @@ finish_tlb_load:
 
 	/* Get the next_tlbcam_idx percpu var */
 #ifdef CONFIG_SMP
-	lwz	r15, TI_CPU-THREAD(r12)
+	lwz	r15, TASK_CPU-THREAD(r12)
 	lis     r14, __per_cpu_offset@h
 	ori     r14, r14, __per_cpu_offset@l
 	rlwinm  r15, r15, 2, 0, 29

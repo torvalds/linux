@@ -99,7 +99,7 @@ int main(void)
 #endif /* CONFIG_PPC64 */
 	OFFSET(TASK_STACK, task_struct, stack);
 #ifdef CONFIG_SMP
-	OFFSET(TI_CPU, task_struct, cpu);
+	OFFSET(TASK_CPU, task_struct, cpu);
 #endif
 
 #ifdef CONFIG_LIVEPATCH
