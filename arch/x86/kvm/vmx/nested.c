@@ -4593,11 +4593,10 @@ static int handle_vmptrld(struct kvm_vcpu *vcpu)
 		return 1;
 
 	if (vmx->nested.current_vmptr != vmptr) {
+		struct kvm_host_map map;
 		struct vmcs12 *new_vmcs12;
-		struct page *page;
 
-		page = kvm_vcpu_gpa_to_page(vcpu, vmptr);
-		if (is_error_page(page)) {
+		if (kvm_vcpu_map(vcpu, gpa_to_gfn(vmptr), &map)) {
 			/*
 			 * Reads from an unbacked page return all 1s,
 			 * which means that the 32 bits located at the
@@ -4607,12 +4606,13 @@ static int handle_vmptrld(struct kvm_vcpu *vcpu)
 			return nested_vmx_failValid(vcpu,
 				VMXERR_VMPTRLD_INCORRECT_VMCS_REVISION_ID);
 		}
-		new_vmcs12 = kmap(page);
+
+		new_vmcs12 = map.hva;
+
 		if (new_vmcs12->hdr.revision_id != VMCS12_REVISION ||
 		    (new_vmcs12->hdr.shadow_vmcs &&
 		     !nested_cpu_has_vmx_shadow_vmcs(vcpu))) {
-			kunmap(page);
-			kvm_release_page_clean(page);
+			kvm_vcpu_unmap(vcpu, &map, false);
 			return nested_vmx_failValid(vcpu,
 				VMXERR_VMPTRLD_INCORRECT_VMCS_REVISION_ID);
 		}
@@ -4624,8 +4624,7 @@ static int handle_vmptrld(struct kvm_vcpu *vcpu)
 		 * cached.
 		 */
 		memcpy(vmx->nested.cached_vmcs12, new_vmcs12, VMCS12_SIZE);
-		kunmap(page);
-		kvm_release_page_clean(page);
+		kvm_vcpu_unmap(vcpu, &map, false);
 
 		set_current_vmptr(vmx, vmptr);
 	}
