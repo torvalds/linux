@@ -126,21 +126,10 @@
 **   o disable IRdT - call disable_irq(vector[line]->processor_irq)
 */
 
-
-/* FIXME: determine which include files are really needed */
-#include <linux/types.h>
-#include <linux/kernel.h>
-#include <linux/spinlock.h>
 #include <linux/pci.h>
-#include <linux/init.h>
-#include <linux/slab.h>
-#include <linux/interrupt.h>
 
-#include <asm/byteorder.h>	/* get in-line asm for swab */
 #include <asm/pdc.h>
 #include <asm/pdcpat.h>
-#include <asm/page.h>
-#include <asm/io.h>		/* read/write functions */
 #ifdef CONFIG_SUPERIO
 #include <asm/superio.h>
 #endif
@@ -168,12 +157,8 @@
 #define DBG_IRT(x...)
 #endif
 
-#ifdef CONFIG_64BIT
-#define COMPARE_IRTE_ADDR(irte, hpa)	((irte)->dest_iosapic_addr == (hpa))
-#else
 #define COMPARE_IRTE_ADDR(irte, hpa)	\
-		((irte)->dest_iosapic_addr == ((hpa) | 0xffffffff00000000ULL))
-#endif
+		((irte)->dest_iosapic_addr == F_EXTEND(hpa))
 
 #define IOSAPIC_REG_SELECT              0x00
 #define IOSAPIC_REG_WINDOW              0x10
