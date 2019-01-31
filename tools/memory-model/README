@@ -20,12 +20,16 @@ that litmus test to be exercised within the Linux kernel.
 REQUIREMENTS
 ============
 
-Version 7.49 of the "herd7" and "klitmus7" tools must be downloaded
-separately:
+Version 7.52 or higher of the "herd7" and "klitmus7" tools must be
+downloaded separately:
 
   https://github.com/herd/herdtools7
 
 See "herdtools7/INSTALL.md" for installation instructions.
+
+Note that although these tools usually provide backwards compatibility,
+this is not absolutely guaranteed.  Therefore, if a later version does
+not work, please try using the exact version called out above.
 
 
 ==================
