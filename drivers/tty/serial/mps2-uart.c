@@ -348,7 +348,7 @@ static void mps2_uart_shutdown(struct uart_port *port)
 
 	mps2_uart_write8(port, control, UARTn_CTRL);
 
-	if (!mps_port->flags & UART_PORT_COMBINED_IRQ) {
+	if (!(mps_port->flags & UART_PORT_COMBINED_IRQ)) {
 		free_irq(mps_port->rx_irq, mps_port);
 		free_irq(mps_port->tx_irq, mps_port);
 	}
