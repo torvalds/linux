@@ -313,32 +313,6 @@ void mt76x2_cleanup(struct mt76x02_dev *dev)
 	mt76x02_mcu_cleanup(dev);
 }
 
-struct mt76x02_dev *mt76x2_alloc_device(struct device *pdev)
-{
-	static const struct mt76_driver_ops drv_ops = {
-		.txwi_size = sizeof(struct mt76x02_txwi),
-		.update_survey = mt76x02_update_channel,
-		.tx_prepare_skb = mt76x02_tx_prepare_skb,
-		.tx_complete_skb = mt76x02_tx_complete_skb,
-		.rx_skb = mt76x02_queue_rx_skb,
-		.rx_poll_complete = mt76x02_rx_poll_complete,
-		.sta_ps = mt76x02_sta_ps,
-		.sta_add = mt76x02_sta_add,
-		.sta_remove = mt76x02_sta_remove,
-	};
-	struct mt76x02_dev *dev;
-	struct mt76_dev *mdev;
-
-	mdev = mt76_alloc_device(pdev, sizeof(*dev), &mt76x2_ops,
-				 &drv_ops);
-	if (!mdev)
-		return NULL;
-
-	dev = container_of(mdev, struct mt76x02_dev, mt76);
-
-	return dev;
-}
-
 int mt76x2_register_device(struct mt76x02_dev *dev)
 {
 	int ret;
