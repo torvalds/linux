@@ -5278,6 +5278,69 @@ unlock:
 }
 EXPORT_SYMBOL_GPL(devlink_region_snapshot_create);
 
+static void __devlink_compat_running_version(struct devlink *devlink,
+					     char *buf, size_t len)
+{
+	const struct nlattr *nlattr;
+	struct devlink_info_req req;
+	struct sk_buff *msg;
+	int rem, err;
+
+	if (!devlink->ops->info_get)
+		return;
+
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!msg)
+		return;
+
+	req.msg = msg;
+	err = devlink->ops->info_get(devlink, &req, NULL);
+	if (err)
+		goto free_msg;
+
+	nla_for_each_attr(nlattr, (void *)msg->data, msg->len, rem) {
+		const struct nlattr *kv;
+		int rem_kv;
+
+		if (nla_type(nlattr) != DEVLINK_ATTR_INFO_VERSION_RUNNING)
+			continue;
+
+		nla_for_each_nested(kv, nlattr, rem_kv) {
+			if (nla_type(kv) != DEVLINK_ATTR_INFO_VERSION_VALUE)
+				continue;
+
+			strlcat(buf, nla_data(kv), len);
+			strlcat(buf, " ", len);
+		}
+	}
+free_msg:
+	nlmsg_free(msg);
+}
+
+void devlink_compat_running_version(struct net_device *dev,
+				    char *buf, size_t len)
+{
+	struct devlink_port *devlink_port;
+	struct devlink *devlink;
+
+	mutex_lock(&devlink_mutex);
+	list_for_each_entry(devlink, &devlink_list, list) {
+		mutex_lock(&devlink->lock);
+		list_for_each_entry(devlink_port, &devlink->port_list, list) {
+			if (devlink_port->type == DEVLINK_PORT_TYPE_ETH ||
+			    devlink_port->type_dev == dev) {
+				__devlink_compat_running_version(devlink,
+								 buf, len);
+				mutex_unlock(&devlink->lock);
+				goto out;
+			}
+		}
+		mutex_unlock(&devlink->lock);
+	}
+out:
+	mutex_unlock(&devlink_mutex);
+}
+
 static int __init devlink_module_init(void)
 {
 	return genl_register_family(&devlink_nl_family);

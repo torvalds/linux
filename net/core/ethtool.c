@@ -27,6 +27,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/sched/signal.h>
 #include <linux/net.h>
+#include <net/devlink.h>
 #include <net/xdp_sock.h>
 
 /*
@@ -802,6 +803,12 @@ static noinline_for_stack int ethtool_get_drvinfo(struct net_device *dev,
 
 	if (ops->get_eeprom_len)
 		info.eedump_len = ops->get_eeprom_len(dev);
+
+	rtnl_unlock();
+	if (!info.fw_version[0])
+		devlink_compat_running_version(dev, info.fw_version,
+					       sizeof(info.fw_version));
+	rtnl_lock();
 
 	if (copy_to_user(useraddr, &info, sizeof(info)))
 		return -EFAULT;

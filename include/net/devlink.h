@@ -972,4 +972,14 @@ devlink_info_version_running_put(struct devlink_info_req *req,
 }
 #endif
 
+#if IS_REACHABLE(CONFIG_NET_DEVLINK)
+void devlink_compat_running_version(struct net_device *dev,
+				    char *buf, size_t len);
+#else
+static inline void
+devlink_compat_running_version(struct net_device *dev, char *buf, size_t len)
+{
+}
+#endif
+
 #endif /* _NET_DEVLINK_H_ */
