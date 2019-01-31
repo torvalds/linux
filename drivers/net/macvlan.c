@@ -119,8 +119,6 @@ static struct macvlan_port *macvlan_port_get_rtnl(const struct net_device *dev)
 	return rtnl_dereference(dev->rx_handler_data);
 }
 
-#define macvlan_port_exists(dev) (dev->priv_flags & IFF_MACVLAN_PORT)
-
 static struct macvlan_dev *macvlan_hash_lookup(const struct macvlan_port *port,
 					       const unsigned char *addr)
 {
@@ -1378,7 +1376,7 @@ int macvlan_common_newlink(struct net *src_net, struct net_device *dev,
 	if (!tb[IFLA_ADDRESS])
 		eth_hw_addr_random(dev);
 
-	if (!macvlan_port_exists(lowerdev)) {
+	if (!netif_is_macvlan_port(lowerdev)) {
 		err = macvlan_port_create(lowerdev);
 		if (err < 0)
 			return err;
@@ -1638,7 +1636,7 @@ static int macvlan_device_event(struct notifier_block *unused,
 	struct macvlan_port *port;
 	LIST_HEAD(list_kill);
 
-	if (!macvlan_port_exists(dev))
+	if (!netif_is_macvlan_port(dev))
 		return NOTIFY_DONE;
 
 	port = macvlan_port_get_rtnl(dev);
