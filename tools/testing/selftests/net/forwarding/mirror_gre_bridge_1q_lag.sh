@@ -190,6 +190,8 @@ setup_prepare()
 	h4_create
 	switch_create
 
+	forwarding_enable
+
 	trap_install $h3 ingress
 	trap_install $h4 ingress
 }
@@ -200,6 +202,8 @@ cleanup()
 
 	trap_uninstall $h4 ingress
 	trap_uninstall $h3 ingress
+
+	forwarding_restore
 
 	switch_destroy
 	h4_destroy
