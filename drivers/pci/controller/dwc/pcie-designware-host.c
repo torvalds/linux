@@ -164,7 +164,7 @@ static void dw_pci_bottom_mask(struct irq_data *d)
 		res = ctrl * MSI_REG_CTRL_BLOCK_SIZE;
 		bit = d->hwirq % MAX_MSI_IRQS_PER_CTRL;
 
-		pp->irq_mask[ctrl] |= (1 << bit);
+		pp->irq_mask[ctrl] |= BIT(bit);
 		dw_pcie_wr_own_conf(pp, PCIE_MSI_INTR0_MASK + res, 4,
 				    pp->irq_mask[ctrl]);
 	}
@@ -187,7 +187,7 @@ static void dw_pci_bottom_unmask(struct irq_data *d)
 		res = ctrl * MSI_REG_CTRL_BLOCK_SIZE;
 		bit = d->hwirq % MAX_MSI_IRQS_PER_CTRL;
 
-		pp->irq_mask[ctrl] &= ~(1 << bit);
+		pp->irq_mask[ctrl] &= ~BIT(bit);
 		dw_pcie_wr_own_conf(pp, PCIE_MSI_INTR0_MASK + res, 4,
 				    pp->irq_mask[ctrl]);
 	}
@@ -207,7 +207,7 @@ static void dw_pci_bottom_ack(struct irq_data *d)
 
 	raw_spin_lock_irqsave(&pp->lock, flags);
 
-	dw_pcie_wr_own_conf(pp, PCIE_MSI_INTR0_STATUS + res, 4, 1 << bit);
+	dw_pcie_wr_own_conf(pp, PCIE_MSI_INTR0_STATUS + res, 4, BIT(bit));
 
 	if (pp->ops->msi_irq_ack)
 		pp->ops->msi_irq_ack(d->hwirq, pp);
