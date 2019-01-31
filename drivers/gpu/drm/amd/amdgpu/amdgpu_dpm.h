@@ -445,6 +445,9 @@ struct amdgpu_pm {
 	uint32_t                smu_prv_buffer_size;
 	struct amdgpu_bo        *smu_prv_buffer;
 	bool ac_power;
+	/* powerplay feature */
+	uint32_t pp_feature;
+
 };
 
 #define R600_SSTU_DFLT                               0

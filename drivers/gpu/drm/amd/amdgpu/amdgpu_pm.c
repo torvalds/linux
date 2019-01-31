@@ -2569,7 +2569,8 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 				"pp_power_profile_mode\n");
 		return ret;
 	}
-	if (is_support_sw_smu(adev) || hwmgr->od_enabled) {
+	if ((is_support_sw_smu(adev) && adev->smu.od_enabled) ||
+	    (!is_support_sw_smu(adev) && hwmgr->od_enabled)) {
 		ret = device_create_file(adev->dev,
 				&dev_attr_pp_od_clk_voltage);
 		if (ret) {
@@ -2645,7 +2646,8 @@ void amdgpu_pm_sysfs_fini(struct amdgpu_device *adev)
 	device_remove_file(adev->dev, &dev_attr_pp_mclk_od);
 	device_remove_file(adev->dev,
 			&dev_attr_pp_power_profile_mode);
-	if (hwmgr->od_enabled)
+	if ((is_support_sw_smu(adev) && adev->smu.od_enabled) ||
+	    (!is_support_sw_smu(adev) && hwmgr->od_enabled))
 		device_remove_file(adev->dev,
 				&dev_attr_pp_od_clk_voltage);
 	device_remove_file(adev->dev, &dev_attr_gpu_busy_percent);

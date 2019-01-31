@@ -291,6 +291,9 @@ static int smu_set_funcs(struct amdgpu_device *adev)
 
 	switch (adev->asic_type) {
 	case CHIP_VEGA20:
+		adev->pm.pp_feature &= ~PP_GFXOFF_MASK;
+		if (adev->pm.pp_feature & PP_OVERDRIVE_MASK)
+			smu->od_enabled = true;
 		smu_v11_0_set_smu_funcs(smu);
 		break;
 	default:
