@@ -860,13 +860,41 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 	if (ses->server->tcpStatus == CifsExiting)
 		return -ENOENT;
 
+	spin_lock(&ses->server->req_lock);
+	if (ses->server->credits < num_rqst) {
+		/*
+		 * Return immediately if not too many requests in flight since
+		 * we will likely be stuck on waiting for credits.
+		 */
+		if (ses->server->in_flight < num_rqst - ses->server->credits) {
+			spin_unlock(&ses->server->req_lock);
+			return -ENOTSUPP;
+		}
+	} else {
+		/* enough credits to send the whole compounded request */
+		ses->server->credits -= num_rqst;
+		ses->server->in_flight += num_rqst;
+		first_instance = ses->server->reconnect_instance;
+	}
+	spin_unlock(&ses->server->req_lock);
+
+	if (first_instance) {
+		cifs_dbg(FYI, "Acquired %d credits at once\n", num_rqst);
+		for (i = 0; i < num_rqst; i++) {
+			credits[i].value = 1;
+			credits[i].instance = first_instance;
+		}
+		goto setup_rqsts;
+	}
+
 	/*
+	 * There are not enough credits to send the whole compound request but
+	 * there are requests in flight that may bring credits from the server.
+	 * This approach still leaves the possibility to be stuck waiting for
+	 * credits if the server doesn't grant credits to the outstanding
+	 * requests. This should be fixed by returning immediately and letting
+	 * a caller fallback to sequential commands instead of compounding.
 	 * Ensure we obtain 1 credit per request in the compound chain.
-	 * It can be optimized further by waiting for all the credits
-	 * at once but this can wait long enough if we don't have enough
-	 * credits due to some heavy operations in progress or the server
-	 * not granting us much, so a fallback to the current approach is
-	 * needed anyway.
 	 */
 	for (i = 0; i < num_rqst; i++) {
 		rc = wait_for_free_request(ses->server, timeout, optype,
@@ -906,6 +934,7 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 		}
 	}
 
+setup_rqsts:
 	/*
 	 * Make sure that we sign in the same order that we send on this socket
 	 * and avoid races inside tcp sendmsg code that could cause corruption
