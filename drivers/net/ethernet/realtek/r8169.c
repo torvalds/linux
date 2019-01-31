@@ -4247,17 +4247,6 @@ static void rtl_wol_suspend_quirk(struct rtl8169_private *tp)
 	}
 }
 
-static bool rtl_wol_pll_power_down(struct rtl8169_private *tp)
-{
-	if (!device_may_wakeup(tp_to_dev(tp)))
-		return false;
-
-	phy_speed_down(tp->phydev, false);
-	rtl_wol_suspend_quirk(tp);
-
-	return true;
-}
-
 static void r8168_pll_power_down(struct rtl8169_private *tp)
 {
 	if (r8168_check_dash(tp))
@@ -4267,8 +4256,11 @@ static void r8168_pll_power_down(struct rtl8169_private *tp)
 	    tp->mac_version == RTL_GIGA_MAC_VER_33)
 		rtl_ephy_write(tp, 0x19, 0xff64);
 
-	if (rtl_wol_pll_power_down(tp))
+	if (device_may_wakeup(tp_to_dev(tp))) {
+		phy_speed_down(tp->phydev, false);
+		rtl_wol_suspend_quirk(tp);
 		return;
+	}
 
 	switch (tp->mac_version) {
 	case RTL_GIGA_MAC_VER_25 ... RTL_GIGA_MAC_VER_33:
