@@ -1994,6 +1994,7 @@ config TEST_MEMCAT_P
 config TEST_LIVEPATCH
 	tristate "Test livepatching"
 	default n
+	depends on DYNAMIC_DEBUG
 	depends on LIVEPATCH
 	depends on m
 	help
