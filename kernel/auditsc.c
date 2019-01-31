@@ -631,9 +631,8 @@ static int audit_filter_rules(struct task_struct *tsk,
 					need_sid = 0;
 				}
 				result = security_audit_rule_match(sid, f->type,
-				                                  f->op,
-				                                  f->lsm_rule,
-				                                  ctx);
+								   f->op,
+								   f->lsm_rule);
 			}
 			break;
 		case AUDIT_OBJ_USER:
@@ -647,13 +646,17 @@ static int audit_filter_rules(struct task_struct *tsk,
 				/* Find files that match */
 				if (name) {
 					result = security_audit_rule_match(
-					           name->osid, f->type, f->op,
-					           f->lsm_rule, ctx);
+								name->osid,
+								f->type,
+								f->op,
+								f->lsm_rule);
 				} else if (ctx) {
 					list_for_each_entry(n, &ctx->names_list, list) {
-						if (security_audit_rule_match(n->osid, f->type,
-									      f->op, f->lsm_rule,
-									      ctx)) {
+						if (security_audit_rule_match(
+								n->osid,
+								f->type,
+								f->op,
+								f->lsm_rule)) {
 							++result;
 							break;
 						}
@@ -664,7 +667,7 @@ static int audit_filter_rules(struct task_struct *tsk,
 					break;
 				if (security_audit_rule_match(ctx->ipc.osid,
 							      f->type, f->op,
-							      f->lsm_rule, ctx))
+							      f->lsm_rule))
 					++result;
 			}
 			break;

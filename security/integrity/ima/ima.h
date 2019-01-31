@@ -307,8 +307,7 @@ static inline int security_filter_rule_init(u32 field, u32 op, char *rulestr,
 }
 
 static inline int security_filter_rule_match(u32 secid, u32 field, u32 op,
-					     void *lsmrule,
-					     struct audit_context *actx)
+					     void *lsmrule)
 {
 	return -EINVAL;
 }

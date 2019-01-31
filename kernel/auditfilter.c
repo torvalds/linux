@@ -1355,7 +1355,7 @@ int audit_filter(int msgtype, unsigned int listtype)
 				if (f->lsm_rule) {
 					security_task_getsecid(current, &sid);
 					result = security_audit_rule_match(sid,
-							f->type, f->op, f->lsm_rule, NULL);
+						   f->type, f->op, f->lsm_rule);
 				}
 				break;
 			case AUDIT_EXE:
