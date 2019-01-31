@@ -35,7 +35,7 @@ BPF_OBJ_FILES = \
 	sendmsg4_prog.o sendmsg6_prog.o test_lirc_mode2_kern.o \
 	get_cgroup_id_kern.o socket_cookie_prog.o test_select_reuseport_kern.o \
 	test_skb_cgroup_id_kern.o bpf_flow.o netcnt_prog.o test_xdp_vlan.o \
-	xdp_dummy.o test_map_in_map.o
+	xdp_dummy.o test_map_in_map.o test_spin_lock.o
 
 # Objects are built with default compilation flags and with sub-register
 # code-gen enabled.

@@ -28,7 +28,7 @@ typedef __u16 __sum16;
 #include <sys/wait.h>
 #include <sys/types.h>
 #include <fcntl.h>
-
+#include <pthread.h>
 #include <linux/bpf.h>
 #include <linux/err.h>
 #include <bpf/bpf.h>
@@ -1985,6 +1985,46 @@ static void test_flow_dissector(void)
 	bpf_object__close(obj);
 }
 
+static void *test_spin_lock(void *arg)
+{
+	__u32 duration, retval;
+	int err, prog_fd = *(u32 *) arg;
+
+	err = bpf_prog_test_run(prog_fd, 10000, &pkt_v4, sizeof(pkt_v4),
+				NULL, NULL, &retval, &duration);
+	CHECK(err || retval, "",
+	      "err %d errno %d retval %d duration %d\n",
+	      err, errno, retval, duration);
+	pthread_exit(arg);
+}
+
+static void test_spinlock(void)
+{
+	const char *file = "./test_spin_lock.o";
+	pthread_t thread_id[4];
+	struct bpf_object *obj;
+	int prog_fd;
+	int err = 0, i;
+	void *ret;
+
+	err = bpf_prog_load(file, BPF_PROG_TYPE_CGROUP_SKB, &obj, &prog_fd);
+	if (err) {
+		printf("test_spin_lock:bpf_prog_load errno %d\n", errno);
+		goto close_prog;
+	}
+	for (i = 0; i < 4; i++)
+		assert(pthread_create(&thread_id[i], NULL,
+				      &test_spin_lock, &prog_fd) == 0);
+	for (i = 0; i < 4; i++)
+		assert(pthread_join(thread_id[i], &ret) == 0 &&
+		       ret == (void *)&prog_fd);
+	goto close_prog_noerr;
+close_prog:
+	error_cnt++;
+close_prog_noerr:
+	bpf_object__close(obj);
+}
+
 int main(void)
 {
 	srand(time(NULL));
@@ -2013,6 +2053,7 @@ int main(void)
 	test_queue_stack_map(QUEUE);
 	test_queue_stack_map(STACK);
 	test_flow_dissector();
+	test_spinlock();
 
 	printf("Summary: %d PASSED, %d FAILED\n", pass_cnt, error_cnt);
 	return error_cnt ? EXIT_FAILURE : EXIT_SUCCESS;
