@@ -150,7 +150,7 @@ dscp_ping_test()
 
 	ip vrf exec $vrf_name \
 	   ${PING} -Q $dscp_10 ${sip:+-I $sip} $dip \
-		   -c 10 -i 0.1 -w 2 &> /dev/null
+		   -c 10 -i 0.1 -w $PING_TIMEOUT &> /dev/null
 
 	local -A t1s
 	eval "t1s=($(dscp_fetch_stats $dev_10 10)
