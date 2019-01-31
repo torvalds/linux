@@ -269,8 +269,7 @@ __nfp_eth_read_ports(struct nfp_cpp *cpp, struct nfp_nsp *nsp)
 		goto err;
 	}
 
-	table = kzalloc(sizeof(*table) +
-			sizeof(struct nfp_eth_table_port) * cnt, GFP_KERNEL);
+	table = kzalloc(struct_size(table, ports, cnt), GFP_KERNEL);
 	if (!table)
 		goto err;
 
