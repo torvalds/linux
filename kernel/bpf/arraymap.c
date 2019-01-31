@@ -270,9 +270,10 @@ static int array_map_update_elem(struct bpf_map *map, void *key, void *value,
 		memcpy(this_cpu_ptr(array->pptrs[index & array->index_mask]),
 		       value, map->value_size);
 	else
-		memcpy(array->value +
-		       array->elem_size * (index & array->index_mask),
-		       value, map->value_size);
+		copy_map_value(map,
+			       array->value +
+			       array->elem_size * (index & array->index_mask),
+			       value);
 	return 0;
 }
 

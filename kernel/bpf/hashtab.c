@@ -718,21 +718,12 @@ static bool fd_htab_map_needs_adjust(const struct bpf_htab *htab)
 	       BITS_PER_LONG == 64;
 }
 
-static u32 htab_size_value(const struct bpf_htab *htab, bool percpu)
-{
-	u32 size = htab->map.value_size;
-
-	if (percpu || fd_htab_map_needs_adjust(htab))
-		size = round_up(size, 8);
-	return size;
-}
-
 static struct htab_elem *alloc_htab_elem(struct bpf_htab *htab, void *key,
 					 void *value, u32 key_size, u32 hash,
 					 bool percpu, bool onallcpus,
 					 struct htab_elem *old_elem)
 {
-	u32 size = htab_size_value(htab, percpu);
+	u32 size = htab->map.value_size;
 	bool prealloc = htab_is_prealloc(htab);
 	struct htab_elem *l_new, **pl_new;
 	void __percpu *pptr;
@@ -770,10 +761,13 @@ static struct htab_elem *alloc_htab_elem(struct bpf_htab *htab, void *key,
 			l_new = ERR_PTR(-ENOMEM);
 			goto dec_count;
 		}
+		check_and_init_map_lock(&htab->map,
+					l_new->key + round_up(key_size, 8));
 	}
 
 	memcpy(l_new->key, key, key_size);
 	if (percpu) {
+		size = round_up(size, 8);
 		if (prealloc) {
 			pptr = htab_elem_get_ptr(l_new, key_size);
 		} else {
@@ -791,8 +785,13 @@ static struct htab_elem *alloc_htab_elem(struct bpf_htab *htab, void *key,
 
 		if (!prealloc)
 			htab_elem_set_ptr(l_new, key_size, pptr);
-	} else {
+	} else if (fd_htab_map_needs_adjust(htab)) {
+		size = round_up(size, 8);
 		memcpy(l_new->key + round_up(key_size, 8), value, size);
+	} else {
+		copy_map_value(&htab->map,
+			       l_new->key + round_up(key_size, 8),
+			       value);
 	}
 
 	l_new->hash = hash;
