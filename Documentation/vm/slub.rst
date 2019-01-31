@@ -141,7 +141,7 @@ can be influenced by kernel parameters:
 	(list_lock) where contention may occur.
 
 ``slub_min_order``
-	specifies a minim order of slabs. A similar effect like
+	specifies a minimum order of slabs. A similar effect like
 	``slub_min_objects``.
 
 ``slub_max_order``
