@@ -72,6 +72,7 @@ struct hfi1_packet;
 
 #include "iowait.h"
 #include "tid_rdma.h"
+#include "opfn.h"
 
 #define HFI1_MAX_RDMA_ATOMIC     16
 
@@ -160,8 +161,13 @@ struct hfi1_qp_priv {
 	struct hfi1_ctxtdata *rcd;                /* QP's receive context */
 	u8 s_sc;		                  /* SC[0..4] for next packet */
 	struct iowait s_iowait;
+	struct hfi1_opfn_data opfn;
+	struct tid_rdma_qp_params tid_rdma;
 	struct rvt_qp *owner;
 	u8 hdr_type; /* 9B or 16B */
+	unsigned long tid_timer_timeout_jiffies;
+	u16 pkts_ps;            /* packets per segment */
+	u8 timeout_shift;       /* account for number of packets per segment */
 };
 
 /*
@@ -356,7 +362,7 @@ u32 hfi1_make_grh(struct hfi1_ibport *ibp, struct ib_grh *hdr,
 		  const struct ib_global_route *grh, u32 hwords, u32 nwords);
 
 void hfi1_make_ruc_header(struct rvt_qp *qp, struct ib_other_headers *ohdr,
-			  u32 bth0, u32 bth2, int middle,
+			  u32 bth0, u32 bth1, u32 bth2, int middle,
 			  struct hfi1_pkt_state *ps);
 
 void _hfi1_do_send(struct work_struct *work);

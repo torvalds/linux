@@ -73,6 +73,7 @@
 
 #include "chip_registers.h"
 #include "common.h"
+#include "opfn.h"
 #include "verbs.h"
 #include "pio.h"
 #include "chip.h"
@@ -97,6 +98,8 @@
 
 #define NEIGHBOR_TYPE_HFI		0
 #define NEIGHBOR_TYPE_SWITCH	1
+
+#define HFI1_MAX_ACTIVE_WORKQUEUE_ENTRIES 5
 
 extern unsigned long hfi1_cap_mask;
 #define HFI1_CAP_KGET_MASK(mask, cap) ((mask) & HFI1_CAP_##cap)

@@ -57,6 +57,10 @@
 /* cut down ridiculously long IB macro names */
 #define OP(x) RC_OP(x)
 
+static struct rvt_swqe *do_rc_completion(struct rvt_qp *qp,
+					 struct rvt_swqe *wqe,
+					 struct hfi1_ibport *ibp);
+
 static u32 restart_sge(struct rvt_sge_state *ss, struct rvt_swqe *wqe,
 		       u32 psn, u32 pmtu)
 {
@@ -89,8 +93,8 @@ static int make_rc_ack(struct hfi1_ibdev *dev, struct rvt_qp *qp,
 	struct rvt_ack_entry *e;
 	u32 hwords;
 	u32 len;
-	u32 bth0;
-	u32 bth2;
+	u32 bth0, bth2;
+	u32 bth1 = qp->remote_qpn | (HFI1_CAP_IS_KSET(OPFN) << IB_BTHE_E_SHIFT);
 	int middle = 0;
 	u32 pmtu = qp->pmtu;
 	struct hfi1_qp_priv *priv = qp->priv;
@@ -122,7 +126,8 @@ static int make_rc_ack(struct hfi1_ibdev *dev, struct rvt_qp *qp,
 		 * response has been sent instead of only being
 		 * constructed.
 		 */
-		if (++qp->s_tail_ack_queue > HFI1_MAX_RDMA_ATOMIC)
+		if (++qp->s_tail_ack_queue >
+		    rvt_size_atomic(ib_to_rvt(qp->ibqp.device)))
 			qp->s_tail_ack_queue = 0;
 		/* FALLTHROUGH */
 	case OP(SEND_ONLY):
@@ -229,7 +234,7 @@ normal:
 	ps->s_txreq->sde = priv->s_sde;
 	ps->s_txreq->s_cur_size = len;
 	ps->s_txreq->hdr_dwords = hwords;
-	hfi1_make_ruc_header(qp, ohdr, bth0, bth2, middle, ps);
+	hfi1_make_ruc_header(qp, ohdr, bth0, bth1, bth2, middle, ps);
 	return 1;
 
 bail:
@@ -262,8 +267,8 @@ int hfi1_make_rc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 	struct rvt_swqe *wqe;
 	u32 hwords;
 	u32 len;
-	u32 bth0 = 0;
-	u32 bth2;
+	u32 bth0 = 0, bth2;
+	u32 bth1 = qp->remote_qpn | (HFI1_CAP_IS_KSET(OPFN) << IB_BTHE_E_SHIFT);
 	u32 pmtu = qp->pmtu;
 	char newreq;
 	int middle = 0;
@@ -516,10 +521,14 @@ no_flow_control:
 					goto bail;
 				}
 				qp->s_num_rd_atomic++;
-				if (!(qp->s_flags & RVT_S_UNLIMITED_CREDIT))
-					qp->s_lsn++;
 			}
-			if (wqe->wr.opcode == IB_WR_ATOMIC_CMP_AND_SWP) {
+
+			/* FALLTHROUGH */
+		case IB_WR_OPFN:
+			if (newreq && !(qp->s_flags & RVT_S_UNLIMITED_CREDIT))
+				qp->s_lsn++;
+			if (wqe->wr.opcode == IB_WR_ATOMIC_CMP_AND_SWP ||
+			    wqe->wr.opcode == IB_WR_OPFN) {
 				qp->s_state = OP(COMPARE_SWAP);
 				put_ib_ateth_swap(wqe->atomic_wr.swap,
 						  &ohdr->u.atomic_eth);
@@ -693,6 +702,7 @@ no_flow_control:
 		qp,
 		ohdr,
 		bth0 | (qp->s_state << 24),
+		bth1,
 		bth2,
 		middle,
 		ps);
@@ -796,6 +806,11 @@ static inline void hfi1_make_rc_ack_9B(struct hfi1_packet *packet,
 	if (qp->s_mig_state == IB_MIG_MIGRATED)
 		bth0 |= IB_BTH_MIG_REQ;
 	bth1 = (!!is_fecn) << IB_BECN_SHIFT;
+	/*
+	 * Inline ACKs go out without the use of the Verbs send engine, so
+	 * we need to set the STL Verbs Extended bit here
+	 */
+	bth1 |= HFI1_CAP_IS_KSET(OPFN) << IB_BTHE_E_SHIFT;
 	hfi1_make_bth_aeth(qp, ohdr, bth0, bth1);
 }
 
@@ -1033,6 +1048,7 @@ done:
  */
 void hfi1_restart_rc(struct rvt_qp *qp, u32 psn, int wait)
 {
+	struct hfi1_qp_priv *priv = qp->priv;
 	struct rvt_swqe *wqe = rvt_get_swqe_ptr(qp, qp->s_acked);
 	struct hfi1_ibport *ibp;
 
@@ -1043,8 +1059,26 @@ void hfi1_restart_rc(struct rvt_qp *qp, u32 psn, int wait)
 			hfi1_migrate_qp(qp);
 			qp->s_retry = qp->s_retry_cnt;
 		} else if (qp->s_last == qp->s_acked) {
-			rvt_send_complete(qp, wqe, IB_WC_RETRY_EXC_ERR);
-			rvt_error_qp(qp, IB_WC_WR_FLUSH_ERR);
+			/*
+			 * We need special handling for the OPFN request WQEs as
+			 * they are not allowed to generate real user errors
+			 */
+			if (wqe->wr.opcode == IB_WR_OPFN) {
+				struct hfi1_ibport *ibp =
+					to_iport(qp->ibqp.device, qp->port_num);
+				/*
+				 * Call opfn_conn_reply() with capcode and
+				 * remaining data as 0 to close out the
+				 * current request
+				 */
+				opfn_conn_reply(qp, priv->opfn.curr);
+				wqe = do_rc_completion(qp, wqe, ibp);
+				qp->s_flags &= ~RVT_S_WAIT_ACK;
+			} else {
+				rvt_send_complete(qp, wqe,
+						  IB_WC_RETRY_EXC_ERR);
+				rvt_error_qp(qp, IB_WC_WR_FLUSH_ERR);
+			}
 			return;
 		} else { /* need to handle delayed completion */
 			return;
@@ -1356,6 +1390,9 @@ static int do_rc_ack(struct rvt_qp *qp, u32 aeth, u32 psn, int opcode,
 			u64 *vaddr = wqe->sg_list[0].vaddr;
 			*vaddr = val;
 		}
+		if (wqe->wr.opcode == IB_WR_OPFN)
+			opfn_conn_reply(qp, val);
+
 		if (qp->s_num_rd_atomic &&
 		    (wqe->wr.opcode == IB_WR_RDMA_READ ||
 		     wqe->wr.opcode == IB_WR_ATOMIC_CMP_AND_SWP ||
@@ -1812,7 +1849,7 @@ static noinline int rc_rcv_error(struct ib_other_headers *ohdr, void *data,
 		if (i)
 			prev = i - 1;
 		else
-			prev = HFI1_MAX_RDMA_ATOMIC;
+			prev = rvt_size_atomic(ib_to_rvt(qp->ibqp.device));
 		if (prev == qp->r_head_ack_queue) {
 			e = NULL;
 			break;
@@ -1936,7 +1973,7 @@ static inline void update_ack_queue(struct rvt_qp *qp, unsigned n)
 	unsigned next;
 
 	next = n + 1;
-	if (next > HFI1_MAX_RDMA_ATOMIC)
+	if (next > rvt_size_atomic(ib_to_rvt(qp->ibqp.device)))
 		next = 0;
 	qp->s_tail_ack_queue = next;
 	qp->s_ack_state = OP(ACKNOWLEDGE);
@@ -2061,6 +2098,7 @@ void hfi1_rc_rcv(struct hfi1_packet *packet)
 		return;
 
 	fecn = process_ecn(qp, packet);
+	opfn_trigger_conn_request(qp, be32_to_cpu(ohdr->bth[1]));
 
 	/*
 	 * Process responses (ACKs) before anything else.  Note that the
@@ -2292,8 +2330,8 @@ send_last:
 		if (unlikely(!(qp->qp_access_flags & IB_ACCESS_REMOTE_READ)))
 			goto nack_inv;
 		next = qp->r_head_ack_queue + 1;
-		/* s_ack_queue is size HFI1_MAX_RDMA_ATOMIC+1 so use > not >= */
-		if (next > HFI1_MAX_RDMA_ATOMIC)
+		/* s_ack_queue is size rvt_size_atomic()+1 so use > not >= */
+		if (next > rvt_size_atomic(ib_to_rvt(qp->ibqp.device)))
 			next = 0;
 		spin_lock_irqsave(&qp->s_lock, flags);
 		if (unlikely(next == qp->s_tail_ack_queue)) {
@@ -2356,18 +2394,21 @@ send_last:
 
 	case OP(COMPARE_SWAP):
 	case OP(FETCH_ADD): {
-		struct ib_atomic_eth *ateth;
+		struct ib_atomic_eth *ateth = &ohdr->u.atomic_eth;
+		u64 vaddr = get_ib_ateth_vaddr(ateth);
+		bool opfn = opcode == OP(COMPARE_SWAP) &&
+			vaddr == HFI1_VERBS_E_ATOMIC_VADDR;
 		struct rvt_ack_entry *e;
-		u64 vaddr;
 		atomic64_t *maddr;
 		u64 sdata;
 		u32 rkey;
 		u8 next;
 
-		if (unlikely(!(qp->qp_access_flags & IB_ACCESS_REMOTE_ATOMIC)))
+		if (unlikely(!(qp->qp_access_flags & IB_ACCESS_REMOTE_ATOMIC) &&
+			     !opfn))
 			goto nack_inv;
 		next = qp->r_head_ack_queue + 1;
-		if (next > HFI1_MAX_RDMA_ATOMIC)
+		if (next > rvt_size_atomic(ib_to_rvt(qp->ibqp.device)))
 			next = 0;
 		spin_lock_irqsave(&qp->s_lock, flags);
 		if (unlikely(next == qp->s_tail_ack_queue)) {
@@ -2380,8 +2421,11 @@ send_last:
 			rvt_put_mr(e->rdma_sge.mr);
 			e->rdma_sge.mr = NULL;
 		}
-		ateth = &ohdr->u.atomic_eth;
-		vaddr = get_ib_ateth_vaddr(ateth);
+		/* Process OPFN special virtual address */
+		if (opfn) {
+			opfn_conn_response(qp, e, ateth);
+			goto ack;
+		}
 		if (unlikely(vaddr & (sizeof(u64) - 1)))
 			goto nack_inv_unlck;
 		rkey = be32_to_cpu(ateth->rkey);
@@ -2400,6 +2444,7 @@ send_last:
 				      sdata);
 		rvt_put_mr(qp->r_sge.sge.mr);
 		qp->r_sge.num_sge = 0;
+ack:
 		e->opcode = opcode;
 		e->sent = 0;
 		e->psn = psn;

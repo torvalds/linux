@@ -72,7 +72,6 @@
 #undef pr_fmt
 #define pr_fmt(fmt) DRIVER_NAME ": " fmt
 
-#define HFI1_MAX_ACTIVE_WORKQUEUE_ENTRIES 5
 /*
  * min buffers we want to have per context, after driver
  */
@@ -927,6 +926,8 @@ int hfi1_init(struct hfi1_devdata *dd, int reinit)
 		lastfail = hfi1_create_rcvhdrq(dd, rcd);
 		if (!lastfail)
 			lastfail = hfi1_setup_eagerbufs(rcd);
+		if (!lastfail)
+			lastfail = hfi1_kern_exp_rcv_init(rcd, reinit);
 		if (lastfail) {
 			dd_dev_err(dd,
 				   "failed to allocate kernel ctxt's rcvhdrq and/or egr bufs\n");
@@ -1497,6 +1498,12 @@ static int __init hfi1_mod_init(void)
 	/* sanitize link CRC options */
 	link_crc_mask &= SUPPORTED_CRCS;
 
+	ret = opfn_init();
+	if (ret < 0) {
+		pr_err("Failed to allocate opfn_wq");
+		goto bail_dev;
+	}
+
 	/*
 	 * These must be called before the driver is registered with
 	 * the PCI subsystem.
@@ -1527,6 +1534,7 @@ module_init(hfi1_mod_init);
 static void __exit hfi1_mod_cleanup(void)
 {
 	pci_unregister_driver(&hfi1_pci_driver);
+	opfn_exit();
 	node_affinity_destroy_all();
 	hfi1_dbg_exit();
 

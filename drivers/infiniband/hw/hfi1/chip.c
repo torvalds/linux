@@ -5222,6 +5222,17 @@ int is_bx(struct hfi1_devdata *dd)
 	return (chip_rev_minor & 0xF0) == 0x10;
 }
 
+/* return true is kernel urg disabled for rcd */
+bool is_urg_masked(struct hfi1_ctxtdata *rcd)
+{
+	u64 mask;
+	u32 is = IS_RCVURGENT_START + rcd->ctxt;
+	u8 bit = is % 64;
+
+	mask = read_csr(rcd->dd, CCE_INT_MASK + (8 * (is / 64)));
+	return !(mask & BIT_ULL(bit));
+}
+
 /*
  * Append string s to buffer buf.  Arguments curp and len are the current
  * position and remaining length, respectively.
