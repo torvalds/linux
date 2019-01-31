@@ -68,7 +68,7 @@ static teleport_t teleport = {
 static atomic_t constable_present = ATOMIC_INIT(0);
 static struct task_struct * constable = NULL;
 static struct task_struct * gdb = NULL;
-static MED_LOCK_DATA(constable_openclose);
+static DEFINE_SEMAPHORE(constable_openclose);
 
 
 /* fetch or update answer */
@@ -1028,7 +1028,7 @@ static int user_open(struct inode *inode, struct file *file)
 
 	//MOD_INC_USE_COUNT; Not needed anymore JK
 
-	MED_LOCK_W(constable_openclose);
+	down(&constable_openclose);
 	if (atomic_read(&constable_present))
 		goto good_out;
 
@@ -1089,9 +1089,8 @@ static int user_open(struct inode *inode, struct file *file)
 
 	/* this must be the last thing done */
 	atomic_set(&constable_present, 1);
-	MED_UNLOCK_W(constable_openclose);
-
 	init_waitqueue_head(&userspace_answer);
+	up(&constable_openclose);
 
 	MED_REGISTER_AUTHSERVER(chardev_medusa);
 	return 0; /* success */
@@ -1100,7 +1099,7 @@ out:
 		med_cache_free(tele_mem_open);
 	med_cache_destroy();
 good_out:
-	MED_UNLOCK_W(constable_openclose);
+	up(&constable_openclose);
 	return retval;
 }
 
@@ -1167,7 +1166,7 @@ static int user_release(struct inode *inode, struct file *file)
 	add_wait_queue(&close_wait, &wait);
 	set_current_state(TASK_UNINTERRUPTIBLE);
 	MED_UNREGISTER_AUTHSERVER(chardev_medusa);
-	MED_LOCK_W(constable_openclose);
+	down(&constable_openclose);
 
 	// All threads waiting for an answer will get an error, order of these
 	// functions is important!
@@ -1198,7 +1197,7 @@ static int user_release(struct inode *inode, struct file *file)
 
 	free_med_cache_array();
 
-	MED_UNLOCK_W(constable_openclose);
+	up(&constable_openclose);
 	// wake up waiting processes, this has to be outside of constable_openclose
 	// lock because wake_up_all causes context switch (locking and unlocking
 	// cpu may not be the same)
