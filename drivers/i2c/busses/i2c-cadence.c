@@ -208,6 +208,7 @@ static irqreturn_t cdns_i2c_isr(int irq, void *ptr)
 
 	isr_status = cdns_i2c_readreg(CDNS_I2C_ISR_OFFSET);
 	cdns_i2c_writereg(isr_status, CDNS_I2C_ISR_OFFSET);
+	id->err_status = 0;
 
 	/* Handling nack and arbitration lost interrupt */
 	if (isr_status & (CDNS_I2C_IXR_NACK | CDNS_I2C_IXR_ARB_LOST)) {
@@ -241,10 +242,17 @@ static irqreturn_t cdns_i2c_isr(int irq, void *ptr)
 			    !id->bus_hold_flag)
 				cdns_i2c_clear_bus_hold(id);
 
-			*(id->p_recv_buf)++ =
-				cdns_i2c_readreg(CDNS_I2C_DATA_OFFSET);
-			id->recv_count--;
-			id->curr_recv_count--;
+			if (id->recv_count > 0) {
+				*(id->p_recv_buf)++ =
+					cdns_i2c_readreg(CDNS_I2C_DATA_OFFSET);
+				id->recv_count--;
+				id->curr_recv_count--;
+			} else {
+				dev_err(id->adap.dev.parent,
+					"xfer_size reg rollover. xfer aborted!\n");
+				id->err_status |= CDNS_I2C_IXR_TO;
+				break;
+			}
 
 			if (cdns_is_holdquirk(id, hold_quirk))
 				break;
@@ -342,7 +350,7 @@ static irqreturn_t cdns_i2c_isr(int irq, void *ptr)
 	}
 
 	/* Update the status for errors */
-	id->err_status = isr_status & CDNS_I2C_IXR_ERR_INTR_MASK;
+	id->err_status |= isr_status & CDNS_I2C_IXR_ERR_INTR_MASK;
 	if (id->err_status)
 		status = IRQ_HANDLED;
 
