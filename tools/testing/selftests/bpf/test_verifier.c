@@ -34,6 +34,7 @@
 #include <linux/if_ether.h>
 
 #include <bpf/bpf.h>
+#include <bpf/libbpf.h>
 
 #ifdef HAVE_GENHDR
 # include "autoconf.h"
@@ -59,6 +60,7 @@
 
 #define UNPRIV_SYSCTL "kernel/unprivileged_bpf_disabled"
 static bool unpriv_disabled = false;
+static int skips;
 
 struct bpf_test {
 	const char *descr;
@@ -263,6 +265,16 @@ static int probe_filter_length(const struct bpf_insn *fp)
 	return len + 1;
 }
 
+static bool skip_unsupported_map(enum bpf_map_type map_type)
+{
+	if (!bpf_probe_map_type(map_type, 0)) {
+		printf("SKIP (unsupported map type %d)\n", map_type);
+		skips++;
+		return true;
+	}
+	return false;
+}
+
 static int create_map(uint32_t type, uint32_t size_key,
 		      uint32_t size_value, uint32_t max_elem)
 {
@@ -270,8 +282,11 @@ static int create_map(uint32_t type, uint32_t size_key,
 
 	fd = bpf_create_map(type, size_key, size_value, max_elem,
 			    type == BPF_MAP_TYPE_HASH ? BPF_F_NO_PREALLOC : 0);
-	if (fd < 0)
+	if (fd < 0) {
+		if (skip_unsupported_map(type))
+			return -1;
 		printf("Failed to create hash map '%s'!\n", strerror(errno));
+	}
 
 	return fd;
 }
@@ -321,6 +336,8 @@ static int create_prog_array(enum bpf_prog_type prog_type, uint32_t max_elem,
 	mfd = bpf_create_map(BPF_MAP_TYPE_PROG_ARRAY, sizeof(int),
 			     sizeof(int), max_elem, 0);
 	if (mfd < 0) {
+		if (skip_unsupported_map(BPF_MAP_TYPE_PROG_ARRAY))
+			return -1;
 		printf("Failed to create prog array '%s'!\n", strerror(errno));
 		return -1;
 	}
@@ -351,15 +368,20 @@ static int create_map_in_map(void)
 	inner_map_fd = bpf_create_map(BPF_MAP_TYPE_ARRAY, sizeof(int),
 				      sizeof(int), 1, 0);
 	if (inner_map_fd < 0) {
+		if (skip_unsupported_map(BPF_MAP_TYPE_ARRAY))
+			return -1;
 		printf("Failed to create array '%s'!\n", strerror(errno));
 		return inner_map_fd;
 	}
 
 	outer_map_fd = bpf_create_map_in_map(BPF_MAP_TYPE_ARRAY_OF_MAPS, NULL,
 					     sizeof(int), inner_map_fd, 1, 0);
-	if (outer_map_fd < 0)
+	if (outer_map_fd < 0) {
+		if (skip_unsupported_map(BPF_MAP_TYPE_ARRAY_OF_MAPS))
+			return -1;
 		printf("Failed to create array of maps '%s'!\n",
 		       strerror(errno));
+	}
 
 	close(inner_map_fd);
 
@@ -374,9 +396,12 @@ static int create_cgroup_storage(bool percpu)
 
 	fd = bpf_create_map(type, sizeof(struct bpf_cgroup_storage_key),
 			    TEST_DATA_LEN, 0, 0);
-	if (fd < 0)
+	if (fd < 0) {
+		if (skip_unsupported_map(type))
+			return -1;
 		printf("Failed to create cgroup storage '%s'!\n",
 		       strerror(errno));
+	}
 
 	return fd;
 }
@@ -580,6 +605,7 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 	int run_errs, run_successes;
 	int map_fds[MAX_NR_MAPS];
 	const char *expected_err;
+	int fixup_skips;
 	__u32 pflags;
 	int i, err;
 
@@ -588,7 +614,13 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 
 	if (!prog_type)
 		prog_type = BPF_PROG_TYPE_SOCKET_FILTER;
+	fixup_skips = skips;
 	do_test_fixup(test, prog_type, prog, map_fds);
+	/* If there were some map skips during fixup due to missing bpf
+	 * features, skip this test.
+	 */
+	if (fixup_skips != skips)
+		return;
 	prog_len = probe_filter_length(prog);
 
 	pflags = 0;
@@ -598,6 +630,11 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 		pflags |= BPF_F_ANY_ALIGNMENT;
 	fd_prog = bpf_verify_program(prog_type, prog, prog_len, pflags,
 				     "GPL", 0, bpf_vlog, sizeof(bpf_vlog), 1);
+	if (fd_prog < 0 && !bpf_probe_prog_type(prog_type, 0)) {
+		printf("SKIP (unsupported program type %d)\n", prog_type);
+		skips++;
+		goto close_fds;
+	}
 
 	expected_ret = unpriv && test->result_unpriv != UNDEF ?
 		       test->result_unpriv : test->result;
@@ -751,7 +788,7 @@ static bool test_as_unpriv(struct bpf_test *test)
 
 static int do_test(bool unpriv, unsigned int from, unsigned int to)
 {
-	int i, passes = 0, errors = 0, skips = 0;
+	int i, passes = 0, errors = 0;
 
 	for (i = from; i < to; i++) {
 		struct bpf_test *test = &tests[i];
