@@ -3730,6 +3730,63 @@ int devlink_info_serial_number_put(struct devlink_info_req *req, const char *sn)
 }
 EXPORT_SYMBOL_GPL(devlink_info_serial_number_put);
 
+static int devlink_info_version_put(struct devlink_info_req *req, int attr,
+				    const char *version_name,
+				    const char *version_value)
+{
+	struct nlattr *nest;
+	int err;
+
+	nest = nla_nest_start(req->msg, attr);
+	if (!nest)
+		return -EMSGSIZE;
+
+	err = nla_put_string(req->msg, DEVLINK_ATTR_INFO_VERSION_NAME,
+			     version_name);
+	if (err)
+		goto nla_put_failure;
+
+	err = nla_put_string(req->msg, DEVLINK_ATTR_INFO_VERSION_VALUE,
+			     version_value);
+	if (err)
+		goto nla_put_failure;
+
+	nla_nest_end(req->msg, nest);
+
+	return 0;
+
+nla_put_failure:
+	nla_nest_cancel(req->msg, nest);
+	return err;
+}
+
+int devlink_info_version_fixed_put(struct devlink_info_req *req,
+				   const char *version_name,
+				   const char *version_value)
+{
+	return devlink_info_version_put(req, DEVLINK_ATTR_INFO_VERSION_FIXED,
+					version_name, version_value);
+}
+EXPORT_SYMBOL_GPL(devlink_info_version_fixed_put);
+
+int devlink_info_version_stored_put(struct devlink_info_req *req,
+				    const char *version_name,
+				    const char *version_value)
+{
+	return devlink_info_version_put(req, DEVLINK_ATTR_INFO_VERSION_STORED,
+					version_name, version_value);
+}
+EXPORT_SYMBOL_GPL(devlink_info_version_stored_put);
+
+int devlink_info_version_running_put(struct devlink_info_req *req,
+				     const char *version_name,
+				     const char *version_value)
+{
+	return devlink_info_version_put(req, DEVLINK_ATTR_INFO_VERSION_RUNNING,
+					version_name, version_value);
+}
+EXPORT_SYMBOL_GPL(devlink_info_version_running_put);
+
 static int
 devlink_nl_info_fill(struct sk_buff *msg, struct devlink *devlink,
 		     enum devlink_command cmd, u32 portid,

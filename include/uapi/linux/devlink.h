@@ -294,6 +294,11 @@ enum devlink_attr {
 
 	DEVLINK_ATTR_INFO_DRIVER_NAME,		/* string */
 	DEVLINK_ATTR_INFO_SERIAL_NUMBER,	/* string */
+	DEVLINK_ATTR_INFO_VERSION_FIXED,	/* nested */
+	DEVLINK_ATTR_INFO_VERSION_RUNNING,	/* nested */
+	DEVLINK_ATTR_INFO_VERSION_STORED,	/* nested */
+	DEVLINK_ATTR_INFO_VERSION_NAME,		/* string */
+	DEVLINK_ATTR_INFO_VERSION_VALUE,	/* string */
 
 	/* add new attributes above here, update the policy in devlink.c */
 

@@ -614,6 +614,15 @@ int devlink_info_serial_number_put(struct devlink_info_req *req,
 				   const char *sn);
 int devlink_info_driver_name_put(struct devlink_info_req *req,
 				 const char *name);
+int devlink_info_version_fixed_put(struct devlink_info_req *req,
+				   const char *version_name,
+				   const char *version_value);
+int devlink_info_version_stored_put(struct devlink_info_req *req,
+				    const char *version_name,
+				    const char *version_value);
+int devlink_info_version_running_put(struct devlink_info_req *req,
+				     const char *version_name,
+				     const char *version_value);
 
 #else
 
@@ -920,6 +929,30 @@ devlink_info_driver_name_put(struct devlink_info_req *req, const char *name)
 
 static inline int
 devlink_info_serial_number_put(struct devlink_info_req *req, const char *sn)
+{
+	return 0;
+}
+
+static inline int
+devlink_info_version_fixed_put(struct devlink_info_req *req,
+			       const char *version_name,
+			       const char *version_value)
+{
+	return 0;
+}
+
+static inline int
+devlink_info_version_stored_put(struct devlink_info_req *req,
+				const char *version_name,
+				const char *version_value)
+{
+	return 0;
+}
+
+static inline int
+devlink_info_version_running_put(struct devlink_info_req *req,
+				 const char *version_name,
+				 const char *version_value)
 {
 	return 0;
 }
