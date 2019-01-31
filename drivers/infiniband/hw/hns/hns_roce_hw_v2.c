@@ -4381,7 +4381,7 @@ static int hns_roce_v2_destroy_qp(struct ib_qp *ibqp)
 static int hns_roce_v2_qp_flow_control_init(struct hns_roce_dev *hr_dev,
 						struct hns_roce_qp *hr_qp)
 {
-	struct hns_roce_sccc_clr_done *rst, *resp;
+	struct hns_roce_sccc_clr_done *resp;
 	struct hns_roce_sccc_clr *clr;
 	struct hns_roce_cmq_desc desc;
 	int ret, i;
@@ -4390,7 +4390,6 @@ static int hns_roce_v2_qp_flow_control_init(struct hns_roce_dev *hr_dev,
 
 	/* set scc ctx clear done flag */
 	hns_roce_cmq_setup_basic_desc(&desc, HNS_ROCE_OPC_RESET_SCCC, false);
-	rst = (struct hns_roce_sccc_clr_done *)desc.data;
 	ret =  hns_roce_cmq_send(hr_dev, &desc, 1);
 	if (ret) {
 		dev_err(hr_dev->dev, "Reset SCC ctx  failed(%d)\n", ret);
