@@ -628,12 +628,12 @@ static int smu_smc_table_hw_init(struct smu_context *smu,
 		return ret;
 
 	if (initialize) {
-		ret = smu_read_pptable_from_vbios(smu);
+		/* get boot_values from vbios to set revision, gfxclk, and etc. */
+		ret = smu_get_vbios_bootup_values(smu);
 		if (ret)
 			return ret;
 
-		/* get boot_values from vbios to set revision, gfxclk, and etc. */
-		ret = smu_get_vbios_bootup_values(smu);
+		ret = smu_read_pptable_from_vbios(smu);
 		if (ret)
 			return ret;
 
