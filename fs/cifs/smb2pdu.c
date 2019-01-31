@@ -4441,8 +4441,8 @@ SMB2_lease_break(const unsigned int xid, struct cifs_tcon *tcon,
 	rc = cifs_send_recv(xid, ses, &rqst, &resp_buf_type, flags, &rsp_iov);
 	cifs_small_buf_release(req);
 
-	please_key_low = (__u64 *)req->LeaseKey;
-	please_key_high = (__u64 *)(req->LeaseKey+8);
+	please_key_low = (__u64 *)lease_key;
+	please_key_high = (__u64 *)(lease_key+8);
 	if (rc) {
 		cifs_stats_fail_inc(tcon, SMB2_OPLOCK_BREAK_HE);
 		trace_smb3_lease_err(le32_to_cpu(lease_state), tcon->tid,
