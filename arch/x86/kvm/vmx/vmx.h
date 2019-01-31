@@ -172,7 +172,7 @@ struct nested_vmx {
 	} smm;
 
 	gpa_t hv_evmcs_vmptr;
-	struct page *hv_evmcs_page;
+	struct kvm_host_map hv_evmcs_map;
 	struct hv_enlightened_vmcs *hv_evmcs;
 };
 

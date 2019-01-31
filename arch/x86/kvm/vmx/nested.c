@@ -193,10 +193,8 @@ static inline void nested_release_evmcs(struct kvm_vcpu *vcpu)
 	if (!vmx->nested.hv_evmcs)
 		return;
 
-	kunmap(vmx->nested.hv_evmcs_page);
-	kvm_release_page_dirty(vmx->nested.hv_evmcs_page);
+	kvm_vcpu_unmap(vcpu, &vmx->nested.hv_evmcs_map, true);
 	vmx->nested.hv_evmcs_vmptr = -1ull;
-	vmx->nested.hv_evmcs_page = NULL;
 	vmx->nested.hv_evmcs = NULL;
 }
 
@@ -1786,13 +1784,11 @@ static int nested_vmx_handle_enlightened_vmptrld(struct kvm_vcpu *vcpu,
 
 		nested_release_evmcs(vcpu);
 
-		vmx->nested.hv_evmcs_page = kvm_vcpu_gpa_to_page(
-			vcpu, assist_page.current_nested_vmcs);
-
-		if (unlikely(is_error_page(vmx->nested.hv_evmcs_page)))
+		if (kvm_vcpu_map(vcpu, gpa_to_gfn(assist_page.current_nested_vmcs),
+				 &vmx->nested.hv_evmcs_map))
 			return 0;
 
-		vmx->nested.hv_evmcs = kmap(vmx->nested.hv_evmcs_page);
+		vmx->nested.hv_evmcs = vmx->nested.hv_evmcs_map.hva;
 
 		/*
 		 * Currently, KVM only supports eVMCS version 1
@@ -4350,7 +4346,7 @@ static int handle_vmclear(struct kvm_vcpu *vcpu)
 		return nested_vmx_failValid(vcpu,
 			VMXERR_VMCLEAR_VMXON_POINTER);
 
-	if (vmx->nested.hv_evmcs_page) {
+	if (vmx->nested.hv_evmcs_map.hva) {
 		if (vmptr == vmx->nested.hv_evmcs_vmptr)
 			nested_release_evmcs(vcpu);
 	} else {
