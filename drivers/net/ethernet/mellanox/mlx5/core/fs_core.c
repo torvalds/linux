@@ -263,10 +263,11 @@ static void nested_down_write_ref_node(struct fs_node *node,
 	}
 }
 
-static void down_write_ref_node(struct fs_node *node)
+static void down_write_ref_node(struct fs_node *node, bool locked)
 {
 	if (node) {
-		down_write(&node->lock);
+		if (!locked)
+			down_write(&node->lock);
 		refcount_inc(&node->refcount);
 	}
 }
@@ -277,13 +278,14 @@ static void up_read_ref_node(struct fs_node *node)
 	up_read(&node->lock);
 }
 
-static void up_write_ref_node(struct fs_node *node)
+static void up_write_ref_node(struct fs_node *node, bool locked)
 {
 	refcount_dec(&node->refcount);
-	up_write(&node->lock);
+	if (!locked)
+		up_write(&node->lock);
 }
 
-static void tree_put_node(struct fs_node *node)
+static void tree_put_node(struct fs_node *node, bool locked)
 {
 	struct fs_node *parent_node = node->parent;
 
@@ -294,27 +296,27 @@ static void tree_put_node(struct fs_node *node)
 			/* Only root namespace doesn't have parent and we just
 			 * need to free its node.
 			 */
-			down_write_ref_node(parent_node);
+			down_write_ref_node(parent_node, locked);
 			list_del_init(&node->list);
 			if (node->del_sw_func)
 				node->del_sw_func(node);
-			up_write_ref_node(parent_node);
+			up_write_ref_node(parent_node, locked);
 		} else {
 			kfree(node);
 		}
 		node = NULL;
 	}
 	if (!node && parent_node)
-		tree_put_node(parent_node);
+		tree_put_node(parent_node, locked);
 }
 
-static int tree_remove_node(struct fs_node *node)
+static int tree_remove_node(struct fs_node *node, bool locked)
 {
 	if (refcount_read(&node->refcount) > 1) {
 		refcount_dec(&node->refcount);
 		return -EEXIST;
 	}
-	tree_put_node(node);
+	tree_put_node(node, locked);
 	return 0;
 }
 
@@ -867,7 +869,7 @@ static int _mlx5_modify_rule_destination(struct mlx5_flow_rule *rule,
 	fs_get_obj(fte, rule->node.parent);
 	if (!(fte->action.action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST))
 		return -EINVAL;
-	down_write_ref_node(&fte->node);
+	down_write_ref_node(&fte->node, false);
 	fs_get_obj(fg, fte->node.parent);
 	fs_get_obj(ft, fg->node.parent);
 
@@ -875,7 +877,7 @@ static int _mlx5_modify_rule_destination(struct mlx5_flow_rule *rule,
 	root = find_root(&ft->node);
 	err = root->cmds->update_fte(get_dev(&ft->node), ft, fg->id,
 				     modify_mask, fte);
-	up_write_ref_node(&fte->node);
+	up_write_ref_node(&fte->node, false);
 
 	return err;
 }
@@ -1025,11 +1027,11 @@ static struct mlx5_flow_table *__mlx5_create_flow_table(struct mlx5_flow_namespa
 	if (err)
 		goto destroy_ft;
 	ft->node.active = true;
-	down_write_ref_node(&fs_prio->node);
+	down_write_ref_node(&fs_prio->node, false);
 	tree_add_node(&ft->node, &fs_prio->node);
 	list_add_flow_table(ft, fs_prio);
 	fs_prio->num_ft++;
-	up_write_ref_node(&fs_prio->node);
+	up_write_ref_node(&fs_prio->node, false);
 	mutex_unlock(&root->chain_lock);
 	trace_mlx5_fs_add_ft(ft);
 	return ft;
@@ -1123,17 +1125,17 @@ struct mlx5_flow_group *mlx5_create_flow_group(struct mlx5_flow_table *ft,
 	if (ft->autogroup.active)
 		return ERR_PTR(-EPERM);
 
-	down_write_ref_node(&ft->node);
+	down_write_ref_node(&ft->node, false);
 	fg = alloc_insert_flow_group(ft, match_criteria_enable, match_criteria,
 				     start_index, end_index,
 				     ft->node.children.prev);
-	up_write_ref_node(&ft->node);
+	up_write_ref_node(&ft->node, false);
 	if (IS_ERR(fg))
 		return fg;
 
 	err = root->cmds->create_flow_group(dev, ft, fg_in, &fg->id);
 	if (err) {
-		tree_put_node(&fg->node);
+		tree_put_node(&fg->node, false);
 		return ERR_PTR(err);
 	}
 	trace_mlx5_fs_add_fg(fg);
@@ -1530,10 +1532,10 @@ static void free_match_list(struct match_list_head *head)
 		struct match_list *iter, *match_tmp;
 
 		list_del(&head->first.list);
-		tree_put_node(&head->first.g->node);
+		tree_put_node(&head->first.g->node, false);
 		list_for_each_entry_safe(iter, match_tmp, &head->list,
 					 list) {
-			tree_put_node(&iter->g->node);
+			tree_put_node(&iter->g->node, false);
 			list_del(&iter->list);
 			kfree(iter);
 		}
@@ -1611,7 +1613,7 @@ lookup_fte_locked(struct mlx5_flow_group *g,
 		goto out;
 	}
 	if (!fte_tmp->node.active) {
-		tree_put_node(&fte_tmp->node);
+		tree_put_node(&fte_tmp->node, false);
 		fte_tmp = NULL;
 		goto out;
 	}
@@ -1619,7 +1621,7 @@ lookup_fte_locked(struct mlx5_flow_group *g,
 	nested_down_write_ref_node(&fte_tmp->node, FS_LOCK_CHILD);
 out:
 	if (take_write)
-		up_write_ref_node(&g->node);
+		up_write_ref_node(&g->node, false);
 	else
 		up_read_ref_node(&g->node);
 	return fte_tmp;
@@ -1661,8 +1663,8 @@ search_again_locked:
 			continue;
 		rule = add_rule_fg(g, spec->match_value,
 				   flow_act, dest, dest_num, fte_tmp);
-		up_write_ref_node(&fte_tmp->node);
-		tree_put_node(&fte_tmp->node);
+		up_write_ref_node(&fte_tmp->node, false);
+		tree_put_node(&fte_tmp->node, false);
 		kmem_cache_free(steering->ftes_cache, fte);
 		return rule;
 	}
@@ -1698,7 +1700,7 @@ skip_search:
 
 		err = insert_fte(g, fte);
 		if (err) {
-			up_write_ref_node(&g->node);
+			up_write_ref_node(&g->node, false);
 			if (err == -ENOSPC)
 				continue;
 			kmem_cache_free(steering->ftes_cache, fte);
@@ -1706,11 +1708,11 @@ skip_search:
 		}
 
 		nested_down_write_ref_node(&fte->node, FS_LOCK_CHILD);
-		up_write_ref_node(&g->node);
+		up_write_ref_node(&g->node, false);
 		rule = add_rule_fg(g, spec->match_value,
 				   flow_act, dest, dest_num, fte);
-		up_write_ref_node(&fte->node);
-		tree_put_node(&fte->node);
+		up_write_ref_node(&fte->node, false);
+		tree_put_node(&fte->node, false);
 		return rule;
 	}
 	rule = ERR_PTR(-ENOENT);
@@ -1752,7 +1754,7 @@ search_again_locked:
 	err = build_match_list(&match_head, ft, spec);
 	if (err) {
 		if (take_write)
-			up_write_ref_node(&ft->node);
+			up_write_ref_node(&ft->node, false);
 		else
 			up_read_ref_node(&ft->node);
 		return ERR_PTR(err);
@@ -1767,7 +1769,7 @@ search_again_locked:
 	if (!IS_ERR(rule) ||
 	    (PTR_ERR(rule) != -ENOENT && PTR_ERR(rule) != -EAGAIN)) {
 		if (take_write)
-			up_write_ref_node(&ft->node);
+			up_write_ref_node(&ft->node, false);
 		return rule;
 	}
 
@@ -1783,12 +1785,12 @@ search_again_locked:
 	g = alloc_auto_flow_group(ft, spec);
 	if (IS_ERR(g)) {
 		rule = ERR_CAST(g);
-		up_write_ref_node(&ft->node);
+		up_write_ref_node(&ft->node, false);
 		return rule;
 	}
 
 	nested_down_write_ref_node(&g->node, FS_LOCK_PARENT);
-	up_write_ref_node(&ft->node);
+	up_write_ref_node(&ft->node, false);
 
 	err = create_auto_flow_group(ft, g);
 	if (err)
@@ -1807,17 +1809,17 @@ search_again_locked:
 	}
 
 	nested_down_write_ref_node(&fte->node, FS_LOCK_CHILD);
-	up_write_ref_node(&g->node);
+	up_write_ref_node(&g->node, false);
 	rule = add_rule_fg(g, spec->match_value, flow_act, dest,
 			   dest_num, fte);
-	up_write_ref_node(&fte->node);
-	tree_put_node(&fte->node);
-	tree_put_node(&g->node);
+	up_write_ref_node(&fte->node, false);
+	tree_put_node(&fte->node, false);
+	tree_put_node(&g->node, false);
 	return rule;
 
 err_release_fg:
-	up_write_ref_node(&g->node);
-	tree_put_node(&g->node);
+	up_write_ref_node(&g->node, false);
+	tree_put_node(&g->node, false);
 	return ERR_PTR(err);
 }
 
@@ -1883,7 +1885,7 @@ void mlx5_del_flow_rules(struct mlx5_flow_handle *handle)
 	int i;
 
 	for (i = handle->num_rules - 1; i >= 0; i--)
-		tree_remove_node(&handle->rule[i]->node);
+		tree_remove_node(&handle->rule[i]->node, false);
 	kfree(handle);
 }
 EXPORT_SYMBOL(mlx5_del_flow_rules);
@@ -1986,7 +1988,7 @@ int mlx5_destroy_flow_table(struct mlx5_flow_table *ft)
 		mutex_unlock(&root->chain_lock);
 		return err;
 	}
-	if (tree_remove_node(&ft->node))
+	if (tree_remove_node(&ft->node, false))
 		mlx5_core_warn(get_dev(&ft->node), "Flow table %d wasn't destroyed, refcount > 1\n",
 			       ft->id);
 	mutex_unlock(&root->chain_lock);
@@ -1997,7 +1999,7 @@ EXPORT_SYMBOL(mlx5_destroy_flow_table);
 
 void mlx5_destroy_flow_group(struct mlx5_flow_group *fg)
 {
-	if (tree_remove_node(&fg->node))
+	if (tree_remove_node(&fg->node, false))
 		mlx5_core_warn(get_dev(&fg->node), "Flow group %d wasn't destroyed, refcount > 1\n",
 			       fg->id);
 }
@@ -2381,8 +2383,8 @@ static void clean_tree(struct fs_node *node)
 		tree_get_node(node);
 		list_for_each_entry_safe(iter, temp, &node->children, list)
 			clean_tree(iter);
-		tree_put_node(node);
-		tree_remove_node(node);
+		tree_put_node(node, false);
+		tree_remove_node(node, false);
 	}
 }
 
