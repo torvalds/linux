@@ -739,7 +739,6 @@ int mt76x02_mac_process_rx(struct mt76x02_dev *dev, struct sk_buff *skb,
 void mt76x02_mac_poll_tx_status(struct mt76x02_dev *dev, bool irq)
 {
 	struct mt76x02_tx_status stat = {};
-	unsigned long flags;
 	u8 update = 1;
 	bool ret;
 
@@ -749,9 +748,11 @@ void mt76x02_mac_poll_tx_status(struct mt76x02_dev *dev, bool irq)
 	trace_mac_txstat_poll(dev);
 
 	while (!irq || !kfifo_is_full(&dev->txstatus_fifo)) {
-		spin_lock_irqsave(&dev->mt76.mmio.irq_lock, flags);
+		if (!spin_trylock(&dev->txstatus_fifo_lock))
+			break;
+
 		ret = mt76x02_mac_load_tx_status(dev, &stat);
-		spin_unlock_irqrestore(&dev->mt76.mmio.irq_lock, flags);
+		spin_unlock(&dev->txstatus_fifo_lock);
 
 		if (!ret)
 			break;
