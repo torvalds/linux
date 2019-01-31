@@ -1371,41 +1371,6 @@ static void rtl_link_chg_patch(struct rtl8169_private *tp)
 
 #define WAKE_ANY (WAKE_PHY | WAKE_MAGIC | WAKE_UCAST | WAKE_BCAST | WAKE_MCAST)
 
-static u32 __rtl8169_get_wol(struct rtl8169_private *tp)
-{
-	u8 options;
-	u32 wolopts = 0;
-
-	options = RTL_R8(tp, Config1);
-	if (!(options & PMEnable))
-		return 0;
-
-	options = RTL_R8(tp, Config3);
-	if (options & LinkUp)
-		wolopts |= WAKE_PHY;
-	switch (tp->mac_version) {
-	case RTL_GIGA_MAC_VER_34 ... RTL_GIGA_MAC_VER_38:
-	case RTL_GIGA_MAC_VER_40 ... RTL_GIGA_MAC_VER_51:
-		if (rtl_eri_read(tp, 0xdc, ERIAR_EXGMAC) & MagicPacket_v2)
-			wolopts |= WAKE_MAGIC;
-		break;
-	default:
-		if (options & MagicPacket)
-			wolopts |= WAKE_MAGIC;
-		break;
-	}
-
-	options = RTL_R8(tp, Config5);
-	if (options & UWF)
-		wolopts |= WAKE_UCAST;
-	if (options & BWF)
-		wolopts |= WAKE_BCAST;
-	if (options & MWF)
-		wolopts |= WAKE_MCAST;
-
-	return wolopts;
-}
-
 static void rtl8169_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
@@ -4284,7 +4249,7 @@ static void rtl_wol_suspend_quirk(struct rtl8169_private *tp)
 
 static bool rtl_wol_pll_power_down(struct rtl8169_private *tp)
 {
-	if (!__rtl8169_get_wol(tp))
+	if (!device_may_wakeup(tp_to_dev(tp)))
 		return false;
 
 	phy_speed_down(tp->phydev, false);
@@ -7440,8 +7405,6 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev_err(&pdev->dev, "Can't allocate interrupt\n");
 		return rc;
 	}
-
-	tp->saved_wolopts = __rtl8169_get_wol(tp);
 
 	mutex_init(&tp->wk.mutex);
 	INIT_WORK(&tp->wk.work, rtl_task);
