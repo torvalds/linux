@@ -66,7 +66,7 @@ Trying to find an issue in the dentry cache? Try::
 to only enable debugging on the dentry cache.  You may use an asterisk at the
 end of the slab name, in order to cover all slabs with the same prefix.  For
 example, here's how you can poison the dentry cache as well as all kmalloc
-slabs:
+slabs::
 
 	slub_debug=P,kmalloc-*,dentry
 
