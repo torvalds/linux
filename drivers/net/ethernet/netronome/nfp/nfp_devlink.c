@@ -206,11 +206,60 @@ nfp_devlink_versions_get_hwinfo(struct nfp_pf *pf, struct devlink_info_req *req)
 	return 0;
 }
 
+static const struct nfp_devlink_versions {
+	enum nfp_nsp_versions id;
+	const char *key;
+} nfp_devlink_versions_nsp[] = {
+	{ NFP_VERSIONS_BUNDLE,	"fw.bundle_id", },
+	{ NFP_VERSIONS_BSP,	DEVLINK_INFO_VERSION_GENERIC_FW_MGMT, },
+	{ NFP_VERSIONS_CPLD,	"fw.cpld", },
+	{ NFP_VERSIONS_APP,	DEVLINK_INFO_VERSION_GENERIC_FW_APP, },
+	{ NFP_VERSIONS_UNDI,	DEVLINK_INFO_VERSION_GENERIC_FW_UNDI, },
+	{ NFP_VERSIONS_NCSI,	DEVLINK_INFO_VERSION_GENERIC_FW_NCSI, },
+	{ NFP_VERSIONS_CFGR,	"chip.init", },
+};
+
+static int
+nfp_devlink_versions_get_nsp(struct devlink_info_req *req, bool flash,
+			     const u8 *buf, unsigned int size)
+{
+	unsigned int i;
+	int err;
+
+	for (i = 0; i < ARRAY_SIZE(nfp_devlink_versions_nsp); i++) {
+		const struct nfp_devlink_versions *info;
+		const char *version;
+
+		info = &nfp_devlink_versions_nsp[i];
+
+		version = nfp_nsp_versions_get(info->id, flash, buf, size);
+		if (IS_ERR(version)) {
+			if (PTR_ERR(version) == -ENOENT)
+				continue;
+			else
+				return PTR_ERR(version);
+		}
+
+		if (flash)
+			err = devlink_info_version_stored_put(req, info->key,
+							      version);
+		else
+			err = devlink_info_version_running_put(req, info->key,
+							       version);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 static int
 nfp_devlink_info_get(struct devlink *devlink, struct devlink_info_req *req,
 		     struct netlink_ext_ack *extack)
 {
 	struct nfp_pf *pf = devlink_priv(devlink);
+	struct nfp_nsp *nsp;
+	char *buf = NULL;
 	const char *sn;
 	int err;
 
@@ -225,7 +274,45 @@ nfp_devlink_info_get(struct devlink *devlink, struct devlink_info_req *req,
 			return err;
 	}
 
+	nsp = nfp_nsp_open(pf->cpp);
+	if (IS_ERR(nsp)) {
+		NL_SET_ERR_MSG_MOD(extack, "can't access NSP");
+		return PTR_ERR(nsp);
+	}
+
+	if (nfp_nsp_has_versions(nsp)) {
+		buf = kzalloc(NFP_NSP_VERSION_BUFSZ, GFP_KERNEL);
+		if (!buf) {
+			err = -ENOMEM;
+			goto err_close_nsp;
+		}
+
+		err = nfp_nsp_versions(nsp, buf, NFP_NSP_VERSION_BUFSZ);
+		if (err)
+			goto err_free_buf;
+
+		err = nfp_devlink_versions_get_nsp(req, false,
+						   buf, NFP_NSP_VERSION_BUFSZ);
+		if (err)
+			goto err_free_buf;
+
+		err = nfp_devlink_versions_get_nsp(req, true,
+						   buf, NFP_NSP_VERSION_BUFSZ);
+		if (err)
+			goto err_free_buf;
+
+		kfree(buf);
+	}
+
+	nfp_nsp_close(nsp);
+
 	return nfp_devlink_versions_get_hwinfo(pf, req);
+
+err_free_buf:
+	kfree(buf);
+err_close_nsp:
+	nfp_nsp_close(nsp);
+	return err;
 }
 
 const struct devlink_ops nfp_devlink_ops = {
