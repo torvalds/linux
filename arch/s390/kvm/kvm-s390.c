@@ -435,8 +435,15 @@ int kvm_arch_init(void *opaque)
 		pr_err("A FLIC registration call failed with rc=%d\n", rc);
 		goto out_debug_unreg;
 	}
+
+	rc = kvm_s390_gib_init(GAL_ISC);
+	if (rc)
+		goto out_gib_destroy;
+
 	return 0;
 
+out_gib_destroy:
+	kvm_s390_gib_destroy();
 out_debug_unreg:
 	debug_unregister(kvm_s390_dbf);
 	return rc;
