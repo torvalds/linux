@@ -1641,7 +1641,8 @@ int mlx5_eswitch_enable_sriov(struct mlx5_eswitch *esw, int nvfs, int mode)
 	} else {
 		mlx5_reload_interface(esw->dev, MLX5_INTERFACE_PROTOCOL_ETH);
 		mlx5_reload_interface(esw->dev, MLX5_INTERFACE_PROTOCOL_IB);
-		err = esw_offloads_init(esw, nvfs + MLX5_SPECIAL_VPORTS);
+		err = esw_offloads_init(esw, nvfs,
+					nvfs + MLX5_SPECIAL_VPORTS);
 	}
 
 	if (err)
@@ -1683,7 +1684,6 @@ void mlx5_eswitch_disable_sriov(struct mlx5_eswitch *esw)
 {
 	struct esw_mc_addr *mc_promisc;
 	int old_mode;
-	int nvports;
 	int i;
 
 	if (!ESW_ALLOWED(esw) || esw->mode == SRIOV_NONE)
@@ -1693,7 +1693,6 @@ void mlx5_eswitch_disable_sriov(struct mlx5_eswitch *esw)
 		 esw->enabled_vports, esw->mode);
 
 	mc_promisc = &esw->mc_promisc;
-	nvports = esw->enabled_vports;
 
 	if (esw->mode == SRIOV_LEGACY)
 		mlx5_eq_notifier_unregister(esw->dev, &esw->nb);
@@ -1709,7 +1708,7 @@ void mlx5_eswitch_disable_sriov(struct mlx5_eswitch *esw)
 	if (esw->mode == SRIOV_LEGACY)
 		esw_destroy_legacy_fdb_table(esw);
 	else if (esw->mode == SRIOV_OFFLOADS)
-		esw_offloads_cleanup(esw, nvports);
+		esw_offloads_cleanup(esw);
 
 	old_mode = esw->mode;
 	esw->mode = SRIOV_NONE;

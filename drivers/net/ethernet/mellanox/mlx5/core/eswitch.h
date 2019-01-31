@@ -208,8 +208,9 @@ struct mlx5_eswitch {
 	u16                     manager_vport;
 };
 
-void esw_offloads_cleanup(struct mlx5_eswitch *esw, int nvports);
-int esw_offloads_init(struct mlx5_eswitch *esw, int nvports);
+void esw_offloads_cleanup(struct mlx5_eswitch *esw);
+int esw_offloads_init(struct mlx5_eswitch *esw, int vf_nvports,
+		      int total_nvports);
 void esw_offloads_cleanup_reps(struct mlx5_eswitch *esw);
 int esw_offloads_init_reps(struct mlx5_eswitch *esw);
 

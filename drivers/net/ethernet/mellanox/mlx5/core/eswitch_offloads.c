@@ -54,6 +54,8 @@ enum {
 #define fdb_prio_table(esw, chain, prio, level) \
 	(esw)->fdb_table.offloads.fdb_prio[(chain)][(prio)][(level)]
 
+#define UPLINK_REP_INDEX 0
+
 static struct mlx5_flow_table *
 esw_get_prio_table(struct mlx5_eswitch *esw, u32 chain, u16 prio, int level);
 static void
@@ -1239,19 +1241,28 @@ int esw_offloads_init_reps(struct mlx5_eswitch *esw)
 	return 0;
 }
 
+static void __esw_offloads_unload_rep(struct mlx5_eswitch *esw,
+				      struct mlx5_eswitch_rep *rep, u8 rep_type)
+{
+	if (!rep->rep_if[rep_type].valid)
+		return;
+
+	rep->rep_if[rep_type].unload(rep);
+}
+
 static void esw_offloads_unload_reps_type(struct mlx5_eswitch *esw, int nvports,
 					  u8 rep_type)
 {
 	struct mlx5_eswitch_rep *rep;
 	int vport;
 
-	for (vport = nvports - 1; vport >= 0; vport--) {
+	for (vport = nvports; vport >= MLX5_VPORT_FIRST_VF; vport--) {
 		rep = &esw->offloads.vport_reps[vport];
-		if (!rep->rep_if[rep_type].valid)
-			continue;
-
-		rep->rep_if[rep_type].unload(rep);
+		__esw_offloads_unload_rep(esw, rep, rep_type);
 	}
+
+	rep = &esw->offloads.vport_reps[UPLINK_REP_INDEX];
+	__esw_offloads_unload_rep(esw, rep, rep_type);
 }
 
 static void esw_offloads_unload_reps(struct mlx5_eswitch *esw, int nvports)
@@ -1262,6 +1273,15 @@ static void esw_offloads_unload_reps(struct mlx5_eswitch *esw, int nvports)
 		esw_offloads_unload_reps_type(esw, nvports, rep_type);
 }
 
+static int __esw_offloads_load_rep(struct mlx5_eswitch *esw,
+				   struct mlx5_eswitch_rep *rep, u8 rep_type)
+{
+	if (!rep->rep_if[rep_type].valid)
+		return 0;
+
+	return rep->rep_if[rep_type].load(esw->dev, rep);
+}
+
 static int esw_offloads_load_reps_type(struct mlx5_eswitch *esw, int nvports,
 				       u8 rep_type)
 {
@@ -1269,12 +1289,14 @@ static int esw_offloads_load_reps_type(struct mlx5_eswitch *esw, int nvports,
 	int vport;
 	int err;
 
-	for (vport = 0; vport < nvports; vport++) {
-		rep = &esw->offloads.vport_reps[vport];
-		if (!rep->rep_if[rep_type].valid)
-			continue;
+	rep = &esw->offloads.vport_reps[UPLINK_REP_INDEX];
+	err = __esw_offloads_load_rep(esw, rep, rep_type);
+	if (err)
+		goto out;
 
-		err = rep->rep_if[rep_type].load(esw->dev, rep);
+	for (vport = MLX5_VPORT_FIRST_VF; vport <= nvports; vport++) {
+		rep = &esw->offloads.vport_reps[vport];
+		err = __esw_offloads_load_rep(esw, rep, rep_type);
 		if (err)
 			goto err_reps;
 	}
@@ -1283,6 +1305,7 @@ static int esw_offloads_load_reps_type(struct mlx5_eswitch *esw, int nvports,
 
 err_reps:
 	esw_offloads_unload_reps_type(esw, vport, rep_type);
+out:
 	return err;
 }
 
@@ -1440,17 +1463,18 @@ static void esw_offloads_steering_cleanup(struct mlx5_eswitch *esw)
 	esw_destroy_offloads_fdb_tables(esw);
 }
 
-int esw_offloads_init(struct mlx5_eswitch *esw, int nvports)
+int esw_offloads_init(struct mlx5_eswitch *esw, int vf_nvports,
+		      int total_nvports)
 {
 	int err;
 
 	mutex_init(&esw->fdb_table.offloads.fdb_prio_lock);
 
-	err = esw_offloads_steering_init(esw, nvports);
+	err = esw_offloads_steering_init(esw, total_nvports);
 	if (err)
 		return err;
 
-	err = esw_offloads_load_reps(esw, nvports);
+	err = esw_offloads_load_reps(esw, vf_nvports);
 	if (err)
 		goto err_reps;
 
@@ -1481,10 +1505,12 @@ static int esw_offloads_stop(struct mlx5_eswitch *esw,
 	return err;
 }
 
-void esw_offloads_cleanup(struct mlx5_eswitch *esw, int nvports)
+void esw_offloads_cleanup(struct mlx5_eswitch *esw)
 {
+	u16 num_vfs = esw->dev->priv.sriov.num_vfs;
+
 	esw_offloads_devcom_cleanup(esw);
-	esw_offloads_unload_reps(esw, nvports);
+	esw_offloads_unload_reps(esw, num_vfs);
 	esw_offloads_steering_cleanup(esw);
 }
 
@@ -1822,7 +1848,6 @@ EXPORT_SYMBOL(mlx5_eswitch_unregister_vport_rep);
 
 void *mlx5_eswitch_get_uplink_priv(struct mlx5_eswitch *esw, u8 rep_type)
 {
-#define UPLINK_REP_INDEX 0
 	struct mlx5_esw_offload *offloads = &esw->offloads;
 	struct mlx5_eswitch_rep *rep;
 
