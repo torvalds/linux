@@ -140,6 +140,9 @@ static struct dentry *create_buf_file_callback(const char *filename,
 
 	buf_file = debugfs_create_file(filename, mode,
 				       parent, buf, &relay_file_operations);
+	if (IS_ERR(buf_file))
+		return NULL;
+
 	return buf_file;
 }
 
