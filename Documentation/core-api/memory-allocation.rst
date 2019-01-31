@@ -1,4 +1,4 @@
-.. _memory-allocation:
+.. _memory_allocation:
 
 =======================
 Memory Allocation Guide
