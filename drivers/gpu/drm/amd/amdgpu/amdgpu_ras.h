@@ -86,6 +86,8 @@ struct amdgpu_ras {
 	struct list_head head;
 	/* debugfs */
 	struct dentry *dir;
+	/* debugfs ctrl */
+	struct dentry *ent;
 	/* sysfs */
 	struct device_attribute features_attr;
 	/* block array */
@@ -135,6 +137,13 @@ struct ras_dispatch_if {
 	struct amdgpu_iv_entry *entry;
 };
 
+struct ras_debug_if {
+	union {
+		struct ras_common_if head;
+		struct ras_inject_if inject;
+	};
+	int op;
+};
 /* work flow
  * vbios
  * 1: ras feature enable (enabled by default)

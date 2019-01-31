@@ -200,6 +200,90 @@ static const struct file_operations amdgpu_ras_debugfs_ops = {
 	.llseek = default_llseek
 };
 
+/*
+ * DOC: ras debugfs control interface
+ *
+ * It accepts struct ras_debug_if who has two members.
+ *
+ * First member: ras_debug_if::head or ras_debug_if::inject.
+ * It is used to indicate which IP block will be under control.
+ * Its contents are not human readable, IOW, write it by your programs.
+ *
+ * head has four members, they are block, type, sub_block_index, name.
+ * block: which IP will be under control.
+ * type: what kind of error will be enabled/disabled/injected.
+ * sub_block_index: some IPs have subcomponets. say, GFX, sDMA.
+ * name: the name of IP.
+ *
+ * inject has two more members than head, they are address, value.
+ * As their names indicate, inject operation will write the
+ * value to the address.
+ *
+ * Second member: struct ras_debug_if::op.
+ * It has three kinds of operations.
+ *  0: disable RAS on the block. Take ::head as its data.
+ *  1: enable RAS on the block. Take ::head as its data.
+ *  2: inject errors on the block. Take ::inject as its data.
+ *
+ * How to check the result?
+ *
+ * For disable/enable, please check ras features at
+ * /sys/class/drm/card[0/1/2...]/device/ras/features
+ *
+ * For inject, please check corresponding err count at
+ * /sys/class/drm/card[0/1/2...]/device/ras/[gfx/sdma/...]_err_count
+ *
+ * NOTE: operation is only allowed on blocks which are supported.
+ * Please check ras mask at /sys/module/amdgpu/parameters/ras_mask
+ */
+static ssize_t amdgpu_ras_debugfs_ctrl_write(struct file *f, const char __user *buf,
+		size_t size, loff_t *pos)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)file_inode(f)->i_private;
+	struct ras_debug_if data;
+	int ret = 0;
+
+	if (size < sizeof(data))
+		return -EINVAL;
+
+	memset(&data, 0, sizeof(data));
+
+	if (*pos)
+		return -EINVAL;
+
+	if (copy_from_user(&data, buf, sizeof(data)))
+		return -EINVAL;
+
+	*pos = size;
+
+	if (!amdgpu_ras_is_supported(adev, data.head.block))
+		return -EINVAL;
+
+	switch (data.op) {
+	case 0:
+		ret = amdgpu_ras_feature_enable(adev, &data.head, 0);
+		break;
+	case 1:
+		ret = amdgpu_ras_feature_enable(adev, &data.head, 1);
+		break;
+	case 2:
+		ret = amdgpu_ras_error_inject(adev, &data.inject);
+		break;
+	};
+
+	if (ret)
+		return -EINVAL;
+
+	return size;
+}
+
+static const struct file_operations amdgpu_ras_debugfs_ctrl_ops = {
+	.owner = THIS_MODULE,
+	.read = NULL,
+	.write = amdgpu_ras_debugfs_ctrl_write,
+	.llseek = default_llseek
+};
+
 static ssize_t amdgpu_ras_sysfs_read(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -657,6 +741,31 @@ static int amdgpu_ras_sysfs_remove_all(struct amdgpu_device *adev)
 /* sysfs end */
 
 /* debugfs begin */
+static int amdgpu_ras_debugfs_create_ctrl_node(struct amdgpu_device *adev)
+{
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	struct drm_minor *minor = adev->ddev->primary;
+	struct dentry *root = minor->debugfs_root, *dir;
+	struct dentry *ent;
+
+	dir = debugfs_create_dir("ras", root);
+	if (IS_ERR(dir))
+		return -EINVAL;
+
+	con->dir = dir;
+
+	ent = debugfs_create_file("ras_ctrl",
+			S_IWUGO | S_IRUGO, con->dir,
+			adev, &amdgpu_ras_debugfs_ctrl_ops);
+	if (IS_ERR(ent)) {
+		debugfs_remove(con->dir);
+		return -EINVAL;
+	}
+
+	con->ent = ent;
+	return 0;
+}
+
 int amdgpu_ras_debugfs_create(struct amdgpu_device *adev,
 		struct ras_fs_if *head)
 {
@@ -709,8 +818,10 @@ static int amdgpu_ras_debugfs_remove_all(struct amdgpu_device *adev)
 		amdgpu_ras_debugfs_remove(adev, &obj->head);
 	}
 
+	debugfs_remove(con->ent);
 	debugfs_remove(con->dir);
 	con->dir = NULL;
+	con->ent = NULL;
 
 	return 0;
 }
@@ -720,17 +831,8 @@ static int amdgpu_ras_debugfs_remove_all(struct amdgpu_device *adev)
 
 static int amdgpu_ras_fs_init(struct amdgpu_device *adev)
 {
-	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
-	struct drm_minor *minor = adev->ddev->primary;
-	struct dentry *root = minor->debugfs_root, *dir;
-
-	dir = debugfs_create_dir("ras", root);
-	if (IS_ERR(dir))
-		return -EINVAL;
-
-	con->dir = dir;
-
 	amdgpu_ras_sysfs_create_feature_node(adev);
+	amdgpu_ras_debugfs_create_ctrl_node(adev);
 
 	return 0;
 }
