@@ -503,6 +503,8 @@ static int virtnet_xdp_xmit(struct net_device *dev,
 	struct bpf_prog *xdp_prog;
 	struct send_queue *sq;
 	unsigned int len;
+	int packets = 0;
+	int bytes = 0;
 	int drops = 0;
 	int kicks = 0;
 	int ret, err;
@@ -526,10 +528,18 @@ static int virtnet_xdp_xmit(struct net_device *dev,
 
 	/* Free up any pending old buffers before queueing new ones. */
 	while ((ptr = virtqueue_get_buf(sq->vq, &len)) != NULL) {
-		if (likely(is_xdp_frame(ptr)))
-			xdp_return_frame(ptr_to_xdp(ptr));
-		else
-			napi_consume_skb(ptr, false);
+		if (likely(is_xdp_frame(ptr))) {
+			struct xdp_frame *frame = ptr_to_xdp(ptr);
+
+			bytes += frame->len;
+			xdp_return_frame(frame);
+		} else {
+			struct sk_buff *skb = ptr;
+
+			bytes += skb->len;
+			napi_consume_skb(skb, false);
+		}
+		packets++;
 	}
 
 	for (i = 0; i < n; i++) {
@@ -549,6 +559,8 @@ static int virtnet_xdp_xmit(struct net_device *dev,
 	}
 out:
 	u64_stats_update_begin(&sq->stats.syncp);
+	sq->stats.bytes += bytes;
+	sq->stats.packets += packets;
 	sq->stats.xdp_tx += n;
 	sq->stats.xdp_tx_drops += drops;
 	sq->stats.kicks += kicks;
