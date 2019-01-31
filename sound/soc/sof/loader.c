@@ -228,7 +228,7 @@ static int load_modules(struct snd_sof_dev *sdev, const struct firmware *fw)
 
 int snd_sof_load_firmware_memcpy(struct snd_sof_dev *sdev)
 {
-	struct snd_sof_pdata *plat_data = dev_get_platdata(sdev->dev);
+	struct snd_sof_pdata *plat_data = sdev->pdata;
 	const char *fw_filename;
 	int ret;
 

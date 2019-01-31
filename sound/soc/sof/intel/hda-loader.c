@@ -247,7 +247,7 @@ static int cl_copy_fw(struct snd_sof_dev *sdev, struct hdac_ext_stream *stream)
 
 int hda_dsp_cl_load_fw(struct snd_sof_dev *sdev)
 {
-	struct snd_sof_pdata *plat_data = dev_get_platdata(sdev->dev);
+	struct snd_sof_pdata *plat_data = sdev->pdata;
 	const char *fw_filename;
 
 	/* set code loading condition to true */
@@ -259,7 +259,7 @@ int hda_dsp_cl_load_fw(struct snd_sof_dev *sdev)
 
 int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 {
-	struct snd_sof_pdata *plat_data = dev_get_platdata(sdev->dev);
+	struct snd_sof_pdata *plat_data = sdev->pdata;
 	struct hdac_ext_stream *stream;
 	struct firmware stripped_firmware;
 	int ret, ret1, tag, i;

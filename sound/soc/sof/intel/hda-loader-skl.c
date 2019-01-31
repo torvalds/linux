@@ -445,7 +445,7 @@ cl_skl_cldma_copy_to_buf(struct snd_sof_dev *sdev, const void *bin,
 
 static int cl_copy_fw_skl(struct snd_sof_dev *sdev)
 {
-	struct snd_sof_pdata *plat_data = dev_get_platdata(sdev->dev);
+	struct snd_sof_pdata *plat_data = sdev->pdata;
 	const struct firmware *fw =  plat_data->fw;
 	unsigned int bufsize = HDA_SKL_CLDMA_MAX_BUFFER_SIZE;
 	int ret = 0;

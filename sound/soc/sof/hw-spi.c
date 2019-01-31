@@ -152,9 +152,7 @@ static void spi_mailbox_read(struct snd_sof_dev *sdev __maybe_unused,
 static irqreturn_t spi_irq_handler(int irq __maybe_unused, void *context)
 {
 	const struct snd_sof_dev *sdev = context;
-	const struct platform_device *pdev =
-		container_of(sdev->parent, struct platform_device, dev);
-	struct snd_sof_pdata *sof_pdata = dev_get_platdata(&pdev->dev);
+	struct snd_sof_pdata *sof_pdata = sdev->pdata;
 	struct sof_spi_dev *sof_spi =
 		(struct sof_spi_dev *)sof_pdata->hw_pdata;
 
@@ -237,8 +235,8 @@ static int spi_get_reply(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
 static int spi_sof_probe(struct snd_sof_dev *sdev)
 {
 	struct platform_device *pdev =
-		container_of(sdev->parent, struct platform_device, dev);
-	struct snd_sof_pdata *sof_pdata = dev_get_platdata(&pdev->dev);
+		container_of(sdev->dev, struct platform_device, dev);
+	struct snd_sof_pdata *sof_pdata = sdev->pdata;
 	struct sof_spi_dev *sof_spi =
 		(struct sof_spi_dev *)sof_pdata->hw_pdata;
 	/* get IRQ from Device tree or ACPI - register our IRQ */
