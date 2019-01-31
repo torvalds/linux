@@ -585,8 +585,9 @@ mt76_channel_state(struct mt76_dev *dev, struct ieee80211_channel *c)
 	return &msband->chan[idx];
 }
 
-struct mt76_dev *mt76_alloc_device(unsigned int size,
-				   const struct ieee80211_ops *ops);
+struct mt76_dev *mt76_alloc_device(struct device *pdev, unsigned int size,
+				   const struct ieee80211_ops *ops,
+				   const struct mt76_driver_ops *drv_ops);
 int mt76_register_device(struct mt76_dev *dev, bool vht,
 			 struct ieee80211_rate *rates, int n_rates);
 void mt76_unregister_device(struct mt76_dev *dev);

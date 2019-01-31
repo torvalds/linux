@@ -269,7 +269,9 @@ mt76_check_sband(struct mt76_dev *dev, int band)
 }
 
 struct mt76_dev *
-mt76_alloc_device(unsigned int size, const struct ieee80211_ops *ops)
+mt76_alloc_device(struct device *pdev, unsigned int size,
+		  const struct ieee80211_ops *ops,
+		  const struct mt76_driver_ops *drv_ops)
 {
 	struct ieee80211_hw *hw;
 	struct mt76_dev *dev;
@@ -280,6 +282,9 @@ mt76_alloc_device(unsigned int size, const struct ieee80211_ops *ops)
 
 	dev = hw->priv;
 	dev->hw = hw;
+	dev->dev = pdev;
+	dev->drv = drv_ops;
+
 	spin_lock_init(&dev->rx_lock);
 	spin_lock_init(&dev->lock);
 	spin_lock_init(&dev->cc_lock);

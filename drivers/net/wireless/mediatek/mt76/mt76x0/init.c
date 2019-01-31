@@ -270,12 +270,9 @@ mt76x0_alloc_device(struct device *pdev,
 	struct mt76x02_dev *dev;
 	struct mt76_dev *mdev;
 
-	mdev = mt76_alloc_device(sizeof(*dev), ops);
+	mdev = mt76_alloc_device(pdev, sizeof(*dev), ops, drv_ops);
 	if (!mdev)
 		return NULL;
-
-	mdev->dev = pdev;
-	mdev->drv = drv_ops;
 
 	dev = container_of(mdev, struct mt76x02_dev, mt76);
 	mutex_init(&dev->phy_mutex);

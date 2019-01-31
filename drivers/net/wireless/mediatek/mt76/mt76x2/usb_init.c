@@ -147,13 +147,12 @@ struct mt76x02_dev *mt76x2u_alloc_device(struct device *pdev)
 	struct mt76x02_dev *dev;
 	struct mt76_dev *mdev;
 
-	mdev = mt76_alloc_device(sizeof(*dev), &mt76x2u_ops);
+	mdev = mt76_alloc_device(pdev, sizeof(*dev), &mt76x2u_ops,
+				 &drv_ops);
 	if (!mdev)
 		return NULL;
 
 	dev = container_of(mdev, struct mt76x02_dev, mt76);
-	mdev->dev = pdev;
-	mdev->drv = &drv_ops;
 
 	return dev;
 }
