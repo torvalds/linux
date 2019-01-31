@@ -836,8 +836,7 @@ static void cancel_requests(struct intel_engine_cs *engine)
 	list_for_each_entry(request, &engine->timeline.requests, link) {
 		GEM_BUG_ON(!request->global_seqno);
 
-		if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT,
-			     &request->fence.flags))
+		if (i915_request_signaled(request))
 			continue;
 
 		dma_fence_set_error(&request->fence, -EIO);

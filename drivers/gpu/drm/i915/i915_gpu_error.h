@@ -271,8 +271,8 @@ struct i915_gpu_error {
 #define I915_RESET_BACKOFF	0
 #define I915_RESET_HANDOFF	1
 #define I915_RESET_MODESET	2
+#define I915_RESET_ENGINE	3
 #define I915_WEDGED		(BITS_PER_LONG - 1)
-#define I915_RESET_ENGINE	(I915_WEDGED - I915_NUM_ENGINES)
 
 	/** Number of times an engine has been reset */
 	u32 reset_engine_count[I915_NUM_ENGINES];
@@ -282,6 +282,8 @@ struct i915_gpu_error {
 
 	/** Reason for the current *global* reset */
 	const char *reason;
+
+	struct mutex wedge_mutex; /* serialises wedging/unwedging */
 
 	/**
 	 * Waitqueue to signal when a hang is detected. Used to for waiters

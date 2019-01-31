@@ -192,4 +192,7 @@ static inline void intel_guc_disable_msg(struct intel_guc *guc, u32 mask)
 	spin_unlock_irq(&guc->irq_lock);
 }
 
+int intel_guc_reset_engine(struct intel_guc *guc,
+			   struct intel_engine_cs *engine);
+
 #endif

@@ -25,6 +25,7 @@
 #include <linux/prime_numbers.h>
 
 #include "../i915_selftest.h"
+#include "igt_live_test.h"
 
 #include "mock_context.h"
 #include "mock_gem_device.h"
@@ -255,84 +256,27 @@ int i915_request_mock_selftests(void)
 		SUBTEST(igt_request_rewind),
 	};
 	struct drm_i915_private *i915;
-	int err;
+	intel_wakeref_t wakeref;
+	int err = 0;
 
 	i915 = mock_gem_device();
 	if (!i915)
 		return -ENOMEM;
 
-	err = i915_subtests(tests, i915);
+	with_intel_runtime_pm(i915, wakeref)
+		err = i915_subtests(tests, i915);
+
 	drm_dev_put(&i915->drm);
 
 	return err;
-}
-
-struct live_test {
-	struct drm_i915_private *i915;
-	const char *func;
-	const char *name;
-
-	unsigned int reset_count;
-};
-
-static int begin_live_test(struct live_test *t,
-			   struct drm_i915_private *i915,
-			   const char *func,
-			   const char *name)
-{
-	int err;
-
-	t->i915 = i915;
-	t->func = func;
-	t->name = name;
-
-	err = i915_gem_wait_for_idle(i915,
-				     I915_WAIT_LOCKED,
-				     MAX_SCHEDULE_TIMEOUT);
-	if (err) {
-		pr_err("%s(%s): failed to idle before, with err=%d!",
-		       func, name, err);
-		return err;
-	}
-
-	i915->gpu_error.missed_irq_rings = 0;
-	t->reset_count = i915_reset_count(&i915->gpu_error);
-
-	return 0;
-}
-
-static int end_live_test(struct live_test *t)
-{
-	struct drm_i915_private *i915 = t->i915;
-
-	i915_retire_requests(i915);
-
-	if (wait_for(intel_engines_are_idle(i915), 10)) {
-		pr_err("%s(%s): GPU not idle\n", t->func, t->name);
-		return -EIO;
-	}
-
-	if (t->reset_count != i915_reset_count(&i915->gpu_error)) {
-		pr_err("%s(%s): GPU was reset %d times!\n",
-		       t->func, t->name,
-		       i915_reset_count(&i915->gpu_error) - t->reset_count);
-		return -EIO;
-	}
-
-	if (i915->gpu_error.missed_irq_rings) {
-		pr_err("%s(%s): Missed interrupts on engines %lx\n",
-		       t->func, t->name, i915->gpu_error.missed_irq_rings);
-		return -EIO;
-	}
-
-	return 0;
 }
 
 static int live_nop_request(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
 	struct intel_engine_cs *engine;
-	struct live_test t;
+	intel_wakeref_t wakeref;
+	struct igt_live_test t;
 	unsigned int id;
 	int err = -ENODEV;
 
@@ -342,7 +286,7 @@ static int live_nop_request(void *arg)
 	 */
 
 	mutex_lock(&i915->drm.struct_mutex);
-	intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(i915);
 
 	for_each_engine(engine, i915, id) {
 		struct i915_request *request = NULL;
@@ -350,7 +294,7 @@ static int live_nop_request(void *arg)
 		IGT_TIMEOUT(end_time);
 		ktime_t times[2] = {};
 
-		err = begin_live_test(&t, i915, __func__, engine->name);
+		err = igt_live_test_begin(&t, i915, __func__, engine->name);
 		if (err)
 			goto out_unlock;
 
@@ -392,7 +336,7 @@ static int live_nop_request(void *arg)
 				break;
 		}
 
-		err = end_live_test(&t);
+		err = igt_live_test_end(&t);
 		if (err)
 			goto out_unlock;
 
@@ -403,7 +347,7 @@ static int live_nop_request(void *arg)
 	}
 
 out_unlock:
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put(i915, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
 	return err;
 }
@@ -478,7 +422,8 @@ static int live_empty_request(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
 	struct intel_engine_cs *engine;
-	struct live_test t;
+	intel_wakeref_t wakeref;
+	struct igt_live_test t;
 	struct i915_vma *batch;
 	unsigned int id;
 	int err = 0;
@@ -489,7 +434,7 @@ static int live_empty_request(void *arg)
 	 */
 
 	mutex_lock(&i915->drm.struct_mutex);
-	intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(i915);
 
 	batch = empty_batch(i915);
 	if (IS_ERR(batch)) {
@@ -503,7 +448,7 @@ static int live_empty_request(void *arg)
 		unsigned long n, prime;
 		ktime_t times[2] = {};
 
-		err = begin_live_test(&t, i915, __func__, engine->name);
+		err = igt_live_test_begin(&t, i915, __func__, engine->name);
 		if (err)
 			goto out_batch;
 
@@ -539,7 +484,7 @@ static int live_empty_request(void *arg)
 				break;
 		}
 
-		err = end_live_test(&t);
+		err = igt_live_test_end(&t);
 		if (err)
 			goto out_batch;
 
@@ -553,7 +498,7 @@ out_batch:
 	i915_vma_unpin(batch);
 	i915_vma_put(batch);
 out_unlock:
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put(i915, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
 	return err;
 }
@@ -637,8 +582,9 @@ static int live_all_engines(void *arg)
 	struct drm_i915_private *i915 = arg;
 	struct intel_engine_cs *engine;
 	struct i915_request *request[I915_NUM_ENGINES];
+	intel_wakeref_t wakeref;
+	struct igt_live_test t;
 	struct i915_vma *batch;
-	struct live_test t;
 	unsigned int id;
 	int err;
 
@@ -648,9 +594,9 @@ static int live_all_engines(void *arg)
 	 */
 
 	mutex_lock(&i915->drm.struct_mutex);
-	intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(i915);
 
-	err = begin_live_test(&t, i915, __func__, "");
+	err = igt_live_test_begin(&t, i915, __func__, "");
 	if (err)
 		goto out_unlock;
 
@@ -722,7 +668,7 @@ static int live_all_engines(void *arg)
 		request[id] = NULL;
 	}
 
-	err = end_live_test(&t);
+	err = igt_live_test_end(&t);
 
 out_request:
 	for_each_engine(engine, i915, id)
@@ -731,7 +677,7 @@ out_request:
 	i915_vma_unpin(batch);
 	i915_vma_put(batch);
 out_unlock:
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put(i915, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
 	return err;
 }
@@ -742,7 +688,8 @@ static int live_sequential_engines(void *arg)
 	struct i915_request *request[I915_NUM_ENGINES] = {};
 	struct i915_request *prev = NULL;
 	struct intel_engine_cs *engine;
-	struct live_test t;
+	intel_wakeref_t wakeref;
+	struct igt_live_test t;
 	unsigned int id;
 	int err;
 
@@ -753,9 +700,9 @@ static int live_sequential_engines(void *arg)
 	 */
 
 	mutex_lock(&i915->drm.struct_mutex);
-	intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(i915);
 
-	err = begin_live_test(&t, i915, __func__, "");
+	err = igt_live_test_begin(&t, i915, __func__, "");
 	if (err)
 		goto out_unlock;
 
@@ -838,7 +785,7 @@ static int live_sequential_engines(void *arg)
 		GEM_BUG_ON(!i915_request_completed(request[id]));
 	}
 
-	err = end_live_test(&t);
+	err = igt_live_test_end(&t);
 
 out_request:
 	for_each_engine(engine, i915, id) {
@@ -860,7 +807,7 @@ out_request:
 		i915_request_put(request[id]);
 	}
 out_unlock:
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put(i915, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
 	return err;
 }

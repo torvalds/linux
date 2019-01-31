@@ -697,12 +697,13 @@ out:
 static int
 gmbus_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num)
 {
-	struct intel_gmbus *bus = container_of(adapter, struct intel_gmbus,
-					       adapter);
+	struct intel_gmbus *bus =
+		container_of(adapter, struct intel_gmbus, adapter);
 	struct drm_i915_private *dev_priv = bus->dev_priv;
+	intel_wakeref_t wakeref;
 	int ret;
 
-	intel_display_power_get(dev_priv, POWER_DOMAIN_GMBUS);
+	wakeref = intel_display_power_get(dev_priv, POWER_DOMAIN_GMBUS);
 
 	if (bus->force_bit) {
 		ret = i2c_bit_algo.master_xfer(adapter, msgs, num);
@@ -714,17 +715,16 @@ gmbus_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num)
 			bus->force_bit |= GMBUS_FORCE_BIT_RETRY;
 	}
 
-	intel_display_power_put(dev_priv, POWER_DOMAIN_GMBUS);
+	intel_display_power_put(dev_priv, POWER_DOMAIN_GMBUS, wakeref);
 
 	return ret;
 }
 
 int intel_gmbus_output_aksv(struct i2c_adapter *adapter)
 {
-	struct intel_gmbus *bus = container_of(adapter, struct intel_gmbus,
-					       adapter);
+	struct intel_gmbus *bus =
+		container_of(adapter, struct intel_gmbus, adapter);
 	struct drm_i915_private *dev_priv = bus->dev_priv;
-	int ret;
 	u8 cmd = DRM_HDCP_DDC_AKSV;
 	u8 buf[DRM_HDCP_KSV_LEN] = { 0 };
 	struct i2c_msg msgs[] = {
@@ -741,8 +741,10 @@ int intel_gmbus_output_aksv(struct i2c_adapter *adapter)
 			.buf = buf,
 		}
 	};
+	intel_wakeref_t wakeref;
+	int ret;
 
-	intel_display_power_get(dev_priv, POWER_DOMAIN_GMBUS);
+	wakeref = intel_display_power_get(dev_priv, POWER_DOMAIN_GMBUS);
 	mutex_lock(&dev_priv->gmbus_mutex);
 
 	/*
@@ -753,7 +755,7 @@ int intel_gmbus_output_aksv(struct i2c_adapter *adapter)
 	ret = do_gmbus_xfer(adapter, msgs, ARRAY_SIZE(msgs), GMBUS_AKSV_SELECT);
 
 	mutex_unlock(&dev_priv->gmbus_mutex);
-	intel_display_power_put(dev_priv, POWER_DOMAIN_GMBUS);
+	intel_display_power_put(dev_priv, POWER_DOMAIN_GMBUS, wakeref);
 
 	return ret;
 }

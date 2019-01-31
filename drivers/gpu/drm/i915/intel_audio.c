@@ -748,7 +748,8 @@ static void i915_audio_component_get_power(struct device *kdev)
 
 static void i915_audio_component_put_power(struct device *kdev)
 {
-	intel_display_power_put(kdev_to_i915(kdev), POWER_DOMAIN_AUDIO);
+	intel_display_power_put_unchecked(kdev_to_i915(kdev),
+					  POWER_DOMAIN_AUDIO);
 }
 
 static void i915_audio_component_codec_wake_override(struct device *kdev,

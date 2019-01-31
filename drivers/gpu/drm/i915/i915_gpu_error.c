@@ -1082,7 +1082,7 @@ i915_error_object_create(struct drm_i915_private *i915,
 /* The error capture is special as tries to run underneath the normal
  * locking rules - so we use the raw version of the i915_gem_active lookup.
  */
-static inline uint32_t
+static inline u32
 __active_get_seqno(struct i915_gem_active *active)
 {
 	struct i915_request *request;
@@ -1153,11 +1153,11 @@ static u32 capture_error_bo(struct drm_i915_error_buffer *err,
  *
  * It's only a small step better than a random number in its current form.
  */
-static uint32_t i915_error_generate_code(struct drm_i915_private *dev_priv,
-					 struct i915_gpu_state *error,
-					 int *engine_id)
+static u32 i915_error_generate_code(struct drm_i915_private *dev_priv,
+				    struct i915_gpu_state *error,
+				    int *engine_id)
 {
-	uint32_t error_code = 0;
+	u32 error_code = 0;
 	int i;
 
 	/* IPEHR would be an ideal way to detect errors, as it's the gross

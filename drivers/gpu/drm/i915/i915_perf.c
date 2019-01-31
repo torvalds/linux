@@ -1365,7 +1365,7 @@ static void i915_oa_stream_destroy(struct i915_perf_stream *stream)
 	free_oa_buffer(dev_priv);
 
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put(dev_priv, stream->wakeref);
 
 	if (stream->ctx)
 		oa_put_render_ctx_id(stream);
@@ -2087,7 +2087,7 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 	 *   In our case we are expecting that taking pm + FORCEWAKE
 	 *   references will effectively disable RC6.
 	 */
-	intel_runtime_pm_get(dev_priv);
+	stream->wakeref = intel_runtime_pm_get(dev_priv);
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 
 	ret = alloc_oa_buffer(dev_priv);
@@ -2123,7 +2123,7 @@ err_oa_buf_alloc:
 	put_oa_config(dev_priv, stream->oa_config);
 
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put(dev_priv, stream->wakeref);
 
 err_config:
 	if (stream->ctx)
@@ -3021,7 +3021,7 @@ static bool chv_is_valid_mux_addr(struct drm_i915_private *dev_priv, u32 addr)
 		(addr >= 0x182300 && addr <= 0x1823A4);
 }
 
-static uint32_t mask_reg_value(u32 reg, u32 val)
+static u32 mask_reg_value(u32 reg, u32 val)
 {
 	/* HALF_SLICE_CHICKEN2 is programmed with a the
 	 * WaDisableSTUnitPowerOptimization workaround. Make sure the value

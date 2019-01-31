@@ -1946,6 +1946,15 @@ bool intel_bios_is_port_present(struct drm_i915_private *dev_priv, enum port por
 	};
 	int i;
 
+	if (HAS_DDI(dev_priv)) {
+		const struct ddi_vbt_port_info *port_info =
+			&dev_priv->vbt.ddi_port_info[port];
+
+		return port_info->supports_dp ||
+		       port_info->supports_dvi ||
+		       port_info->supports_hdmi;
+	}
+
 	/* FIXME maybe deal with port A as well? */
 	if (WARN_ON(port == PORT_A) || port >= ARRAY_SIZE(port_mapping))
 		return false;

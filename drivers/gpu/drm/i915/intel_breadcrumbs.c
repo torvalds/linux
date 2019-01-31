@@ -158,30 +158,24 @@ static void intel_breadcrumbs_fake_irq(struct timer_list *t)
 
 static void irq_enable(struct intel_engine_cs *engine)
 {
-	/*
-	 * FIXME: Ideally we want this on the API boundary, but for the
-	 * sake of testing with mock breadcrumbs (no HW so unable to
-	 * enable irqs) we place it deep within the bowels, at the point
-	 * of no return.
-	 */
-	GEM_BUG_ON(!intel_irqs_enabled(engine->i915));
+	if (!engine->irq_enable)
+		return;
 
 	/* Caller disables interrupts */
-	if (engine->irq_enable) {
-		spin_lock(&engine->i915->irq_lock);
-		engine->irq_enable(engine);
-		spin_unlock(&engine->i915->irq_lock);
-	}
+	spin_lock(&engine->i915->irq_lock);
+	engine->irq_enable(engine);
+	spin_unlock(&engine->i915->irq_lock);
 }
 
 static void irq_disable(struct intel_engine_cs *engine)
 {
+	if (!engine->irq_disable)
+		return;
+
 	/* Caller disables interrupts */
-	if (engine->irq_disable) {
-		spin_lock(&engine->i915->irq_lock);
-		engine->irq_disable(engine);
-		spin_unlock(&engine->i915->irq_lock);
-	}
+	spin_lock(&engine->i915->irq_lock);
+	engine->irq_disable(engine);
+	spin_unlock(&engine->i915->irq_lock);
 }
 
 void __intel_engine_disarm_breadcrumbs(struct intel_engine_cs *engine)
@@ -293,25 +287,16 @@ static bool __intel_breadcrumbs_enable_irq(struct intel_breadcrumbs *b)
 	if (b->irq_armed)
 		return false;
 
-	/* The breadcrumb irq will be disarmed on the interrupt after the
+	/*
+	 * The breadcrumb irq will be disarmed on the interrupt after the
 	 * waiters are signaled. This gives us a single interrupt window in
 	 * which we can add a new waiter and avoid the cost of re-enabling
 	 * the irq.
 	 */
 	b->irq_armed = true;
 
-	if (I915_SELFTEST_ONLY(b->mock)) {
-		/* For our mock objects we want to avoid interaction
-		 * with the real hardware (which is not set up). So
-		 * we simply pretend we have enabled the powerwell
-		 * and the irq, and leave it up to the mock
-		 * implementation to call intel_engine_wakeup()
-		 * itself when it wants to simulate a user interrupt,
-		 */
-		return true;
-	}
-
-	/* Since we are waiting on a request, the GPU should be busy
+	/*
+	 * Since we are waiting on a request, the GPU should be busy
 	 * and should have its own rpm reference. This is tracked
 	 * by i915->gt.awake, we can forgo holding our own wakref
 	 * for the interrupt as before i915->gt.awake is released (when
@@ -646,8 +631,7 @@ static int intel_breadcrumbs_signaler(void *arg)
 				rq->signaling.wait.seqno = 0;
 				__list_del_entry(&rq->signaling.link);
 
-				if (!test_bit(DMA_FENCE_FLAG_SIGNALED_BIT,
-					      &rq->fence.flags)) {
+				if (!i915_request_signaled(rq)) {
 					list_add_tail(&rq->signaling.link,
 						      &list);
 					i915_request_get(rq);

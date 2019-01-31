@@ -45,6 +45,7 @@
 #include <linux/pm_qos.h>
 #include <linux/reservation.h>
 #include <linux/shmem_fs.h>
+#include <linux/stackdepot.h>
 
 #include <drm/intel-gtt.h>
 #include <drm/drm_legacy.h> /* for struct drm_dma_handle */
@@ -90,8 +91,8 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20190110"
-#define DRIVER_TIMESTAMP	1547162337
+#define DRIVER_DATE		"20190124"
+#define DRIVER_TIMESTAMP	1548370857
 
 /* Use I915_STATE_WARN(x) and I915_STATE_WARN_ON() (rather than WARN() and
  * WARN_ON()) for hw state sanity checks to check for unexpected conditions
@@ -129,6 +130,8 @@ bool i915_error_injected(void);
 #define i915_load_error(i915, fmt, ...)					 \
 	__i915_printk(i915, i915_error_injected() ? KERN_DEBUG : KERN_ERR, \
 		      fmt, ##__VA_ARGS__)
+
+typedef depot_stack_handle_t intel_wakeref_t;
 
 enum hpd_pin {
 	HPD_NONE = 0,
@@ -331,16 +334,17 @@ struct drm_i915_display_funcs {
 struct intel_csr {
 	struct work_struct work;
 	const char *fw_path;
-	uint32_t required_version;
-	uint32_t max_fw_size; /* bytes */
-	uint32_t *dmc_payload;
-	uint32_t dmc_fw_size; /* dwords */
-	uint32_t version;
-	uint32_t mmio_count;
+	u32 required_version;
+	u32 max_fw_size; /* bytes */
+	u32 *dmc_payload;
+	u32 dmc_fw_size; /* dwords */
+	u32 version;
+	u32 mmio_count;
 	i915_reg_t mmioaddr[8];
-	uint32_t mmiodata[8];
-	uint32_t dc_state;
-	uint32_t allowed_dc_mask;
+	u32 mmiodata[8];
+	u32 dc_state;
+	u32 allowed_dc_mask;
+	intel_wakeref_t wakeref;
 };
 
 enum i915_cache_level {
@@ -396,7 +400,7 @@ struct intel_fbc {
 
 		struct {
 			unsigned int mode_flags;
-			uint32_t hsw_bdw_pixel_rate;
+			u32 hsw_bdw_pixel_rate;
 		} crtc;
 
 		struct {
@@ -415,7 +419,7 @@ struct intel_fbc {
 
 			int y;
 
-			uint16_t pixel_blend_mode;
+			u16 pixel_blend_mode;
 		} plane;
 
 		struct {
@@ -555,7 +559,7 @@ struct i915_suspend_saved_registers {
 	u32 saveSWF0[16];
 	u32 saveSWF1[16];
 	u32 saveSWF3[3];
-	uint64_t saveFENCE[I915_MAX_NUM_FENCES];
+	u64 saveFENCE[I915_MAX_NUM_FENCES];
 	u32 savePCH_PORT_HOTPLUG;
 	u16 saveGCDGMBUS;
 };
@@ -818,6 +822,8 @@ struct i915_power_domains {
 	bool display_core_suspended;
 	int power_well_count;
 
+	intel_wakeref_t wakeref;
+
 	struct mutex lock;
 	int domain_use_count[POWER_DOMAIN_NUM];
 	struct i915_power_well *power_wells;
@@ -900,9 +906,9 @@ struct i915_gem_mm {
 	atomic_t bsd_engine_dispatch_index;
 
 	/** Bit 6 swizzling required for X tiling */
-	uint32_t bit_6_swizzle_x;
+	u32 bit_6_swizzle_x;
 	/** Bit 6 swizzling required for Y tiling */
-	uint32_t bit_6_swizzle_y;
+	u32 bit_6_swizzle_y;
 
 	/* accounting, useful for userland debugging */
 	spinlock_t object_stat_lock;
@@ -929,20 +935,20 @@ struct ddi_vbt_port_info {
 	 * populate this field.
 	 */
 #define HDMI_LEVEL_SHIFT_UNKNOWN	0xff
-	uint8_t hdmi_level_shift;
+	u8 hdmi_level_shift;
 
-	uint8_t supports_dvi:1;
-	uint8_t supports_hdmi:1;
-	uint8_t supports_dp:1;
-	uint8_t supports_edp:1;
-	uint8_t supports_typec_usb:1;
-	uint8_t supports_tbt:1;
+	u8 supports_dvi:1;
+	u8 supports_hdmi:1;
+	u8 supports_dp:1;
+	u8 supports_edp:1;
+	u8 supports_typec_usb:1;
+	u8 supports_tbt:1;
 
-	uint8_t alternate_aux_channel;
-	uint8_t alternate_ddc_pin;
+	u8 alternate_aux_channel;
+	u8 alternate_ddc_pin;
 
-	uint8_t dp_boost_level;
-	uint8_t hdmi_boost_level;
+	u8 dp_boost_level;
+	u8 hdmi_boost_level;
 	int dp_max_link_rate;		/* 0 for not limited by VBT */
 };
 
@@ -1033,41 +1039,41 @@ enum intel_ddb_partitioning {
 
 struct intel_wm_level {
 	bool enable;
-	uint32_t pri_val;
-	uint32_t spr_val;
-	uint32_t cur_val;
-	uint32_t fbc_val;
+	u32 pri_val;
+	u32 spr_val;
+	u32 cur_val;
+	u32 fbc_val;
 };
 
 struct ilk_wm_values {
-	uint32_t wm_pipe[3];
-	uint32_t wm_lp[3];
-	uint32_t wm_lp_spr[3];
-	uint32_t wm_linetime[3];
+	u32 wm_pipe[3];
+	u32 wm_lp[3];
+	u32 wm_lp_spr[3];
+	u32 wm_linetime[3];
 	bool enable_fbc_wm;
 	enum intel_ddb_partitioning partitioning;
 };
 
 struct g4x_pipe_wm {
-	uint16_t plane[I915_MAX_PLANES];
-	uint16_t fbc;
+	u16 plane[I915_MAX_PLANES];
+	u16 fbc;
 };
 
 struct g4x_sr_wm {
-	uint16_t plane;
-	uint16_t cursor;
-	uint16_t fbc;
+	u16 plane;
+	u16 cursor;
+	u16 fbc;
 };
 
 struct vlv_wm_ddl_values {
-	uint8_t plane[I915_MAX_PLANES];
+	u8 plane[I915_MAX_PLANES];
 };
 
 struct vlv_wm_values {
 	struct g4x_pipe_wm pipe[3];
 	struct g4x_sr_wm sr;
 	struct vlv_wm_ddl_values ddl[3];
-	uint8_t level;
+	u8 level;
 	bool cxsr;
 };
 
@@ -1081,10 +1087,10 @@ struct g4x_wm_values {
 };
 
 struct skl_ddb_entry {
-	uint16_t start, end;	/* in number of blocks, 'end' is exclusive */
+	u16 start, end;	/* in number of blocks, 'end' is exclusive */
 };
 
-static inline uint16_t skl_ddb_entry_size(const struct skl_ddb_entry *entry)
+static inline u16 skl_ddb_entry_size(const struct skl_ddb_entry *entry)
 {
 	return entry->end - entry->start;
 }
@@ -1108,8 +1114,8 @@ struct skl_ddb_values {
 };
 
 struct skl_wm_level {
-	uint16_t plane_res_b;
-	uint8_t plane_res_l;
+	u16 plane_res_b;
+	u8 plane_res_l;
 	bool plane_en;
 };
 
@@ -1118,15 +1124,15 @@ struct skl_wm_params {
 	bool x_tiled, y_tiled;
 	bool rc_surface;
 	bool is_planar;
-	uint32_t width;
-	uint8_t cpp;
-	uint32_t plane_pixel_rate;
-	uint32_t y_min_scanlines;
-	uint32_t plane_bytes_per_line;
+	u32 width;
+	u8 cpp;
+	u32 plane_pixel_rate;
+	u32 y_min_scanlines;
+	u32 plane_bytes_per_line;
 	uint_fixed_16_16_t plane_blocks_per_line;
 	uint_fixed_16_16_t y_tile_minimum;
-	uint32_t linetime_us;
-	uint32_t dbuf_block_size;
+	u32 linetime_us;
+	u32 dbuf_block_size;
 };
 
 /*
@@ -1156,6 +1162,25 @@ struct i915_runtime_pm {
 	atomic_t wakeref_count;
 	bool suspended;
 	bool irqs_enabled;
+
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)
+	/*
+	 * To aide detection of wakeref leaks and general misuse, we
+	 * track all wakeref holders. With manual markup (i.e. returning
+	 * a cookie to each rpm_get caller which they then supply to their
+	 * paired rpm_put) we can remove corresponding pairs of and keep
+	 * the array trimmed to active wakerefs.
+	 */
+	struct intel_runtime_pm_debug {
+		spinlock_t lock;
+
+		depot_stack_handle_t last_acquire;
+		depot_stack_handle_t last_release;
+
+		depot_stack_handle_t *owners;
+		unsigned long count;
+	} debug;
+#endif
 };
 
 enum intel_pipe_crc_source {
@@ -1310,6 +1335,12 @@ struct i915_perf_stream {
 	 * @link: Links the stream into ``&drm_i915_private->streams``
 	 */
 	struct list_head link;
+
+	/**
+	 * @wakeref: As we keep the device awake while the perf stream is
+	 * active, we track our runtime pm reference for later release.
+	 */
+	intel_wakeref_t wakeref;
 
 	/**
 	 * @sample_flags: Flags representing the `DRM_I915_PERF_PROP_SAMPLE_*`
@@ -1484,14 +1515,14 @@ struct drm_i915_private {
 	 * Base address of where the gmbus and gpio blocks are located (either
 	 * on PCH or on SoC for platforms without PCH).
 	 */
-	uint32_t gpio_mmio_base;
+	u32 gpio_mmio_base;
 
 	/* MMIO base address for MIPI regs */
-	uint32_t mipi_mmio_base;
+	u32 mipi_mmio_base;
 
-	uint32_t psr_mmio_base;
+	u32 psr_mmio_base;
 
-	uint32_t pps_mmio_base;
+	u32 pps_mmio_base;
 
 	wait_queue_head_t gmbus_wait_queue;
 
@@ -1746,17 +1777,17 @@ struct drm_i915_private {
 		 * in 0.5us units for WM1+.
 		 */
 		/* primary */
-		uint16_t pri_latency[5];
+		u16 pri_latency[5];
 		/* sprite */
-		uint16_t spr_latency[5];
+		u16 spr_latency[5];
 		/* cursor */
-		uint16_t cur_latency[5];
+		u16 cur_latency[5];
 		/*
 		 * Raw watermark memory latency values
 		 * for SKL for all 8 levels
 		 * in 1us units.
 		 */
-		uint16_t skl_latency[8];
+		u16 skl_latency[8];
 
 		/* current hardware state */
 		union {
@@ -1766,7 +1797,7 @@ struct drm_i915_private {
 			struct g4x_wm_values g4x;
 		};
 
-		uint8_t max_level;
+		u8 max_level;
 
 		/*
 		 * Should be held around atomic WM register writing; also
@@ -1957,7 +1988,7 @@ struct drm_i915_private {
 		 * In order to reduce the effect on performance, there
 		 * is a slight delay before we do so.
 		 */
-		bool awake;
+		intel_wakeref_t awake;
 
 		/**
 		 * The number of times we have woken up.
@@ -2584,19 +2615,7 @@ extern const struct dev_pm_ops i915_pm_ops;
 extern int i915_driver_load(struct pci_dev *pdev,
 			    const struct pci_device_id *ent);
 extern void i915_driver_unload(struct drm_device *dev);
-extern int intel_gpu_reset(struct drm_i915_private *dev_priv, u32 engine_mask);
-extern bool intel_has_gpu_reset(struct drm_i915_private *dev_priv);
 
-extern void i915_reset(struct drm_i915_private *i915,
-		       unsigned int stalled_mask,
-		       const char *reason);
-extern int i915_reset_engine(struct intel_engine_cs *engine,
-			     const char *reason);
-
-extern bool intel_has_reset_engine(struct drm_i915_private *dev_priv);
-extern int intel_reset_guc(struct drm_i915_private *dev_priv);
-extern int intel_guc_reset_engine(struct intel_guc *guc,
-				  struct intel_engine_cs *engine);
 extern void intel_engine_init_hangcheck(struct intel_engine_cs *engine);
 extern void intel_hangcheck_init(struct drm_i915_private *dev_priv);
 extern unsigned long i915_chipset_val(struct drm_i915_private *dev_priv);
@@ -2639,19 +2658,10 @@ static inline void i915_queue_hangcheck(struct drm_i915_private *dev_priv)
 			   &dev_priv->gpu_error.hangcheck_work, delay);
 }
 
-__printf(4, 5)
-void i915_handle_error(struct drm_i915_private *dev_priv,
-		       u32 engine_mask,
-		       unsigned long flags,
-		       const char *fmt, ...);
-#define I915_ERROR_CAPTURE BIT(0)
-
 extern void intel_irq_init(struct drm_i915_private *dev_priv);
 extern void intel_irq_fini(struct drm_i915_private *dev_priv);
 int intel_irq_install(struct drm_i915_private *dev_priv);
 void intel_irq_uninstall(struct drm_i915_private *dev_priv);
-
-void i915_clear_error_registers(struct drm_i915_private *dev_priv);
 
 static inline bool intel_gvt_active(struct drm_i915_private *dev_priv)
 {
@@ -2676,45 +2686,45 @@ i915_disable_pipestat(struct drm_i915_private *dev_priv, enum pipe pipe,
 void valleyview_enable_display_irqs(struct drm_i915_private *dev_priv);
 void valleyview_disable_display_irqs(struct drm_i915_private *dev_priv);
 void i915_hotplug_interrupt_update(struct drm_i915_private *dev_priv,
-				   uint32_t mask,
-				   uint32_t bits);
+				   u32 mask,
+				   u32 bits);
 void ilk_update_display_irq(struct drm_i915_private *dev_priv,
-			    uint32_t interrupt_mask,
-			    uint32_t enabled_irq_mask);
+			    u32 interrupt_mask,
+			    u32 enabled_irq_mask);
 static inline void
-ilk_enable_display_irq(struct drm_i915_private *dev_priv, uint32_t bits)
+ilk_enable_display_irq(struct drm_i915_private *dev_priv, u32 bits)
 {
 	ilk_update_display_irq(dev_priv, bits, bits);
 }
 static inline void
-ilk_disable_display_irq(struct drm_i915_private *dev_priv, uint32_t bits)
+ilk_disable_display_irq(struct drm_i915_private *dev_priv, u32 bits)
 {
 	ilk_update_display_irq(dev_priv, bits, 0);
 }
 void bdw_update_pipe_irq(struct drm_i915_private *dev_priv,
 			 enum pipe pipe,
-			 uint32_t interrupt_mask,
-			 uint32_t enabled_irq_mask);
+			 u32 interrupt_mask,
+			 u32 enabled_irq_mask);
 static inline void bdw_enable_pipe_irq(struct drm_i915_private *dev_priv,
-				       enum pipe pipe, uint32_t bits)
+				       enum pipe pipe, u32 bits)
 {
 	bdw_update_pipe_irq(dev_priv, pipe, bits, bits);
 }
 static inline void bdw_disable_pipe_irq(struct drm_i915_private *dev_priv,
-					enum pipe pipe, uint32_t bits)
+					enum pipe pipe, u32 bits)
 {
 	bdw_update_pipe_irq(dev_priv, pipe, bits, 0);
 }
 void ibx_display_interrupt_update(struct drm_i915_private *dev_priv,
-				  uint32_t interrupt_mask,
-				  uint32_t enabled_irq_mask);
+				  u32 interrupt_mask,
+				  u32 enabled_irq_mask);
 static inline void
-ibx_enable_display_interrupt(struct drm_i915_private *dev_priv, uint32_t bits)
+ibx_enable_display_interrupt(struct drm_i915_private *dev_priv, u32 bits)
 {
 	ibx_display_interrupt_update(dev_priv, bits, bits);
 }
 static inline void
-ibx_disable_display_interrupt(struct drm_i915_private *dev_priv, uint32_t bits)
+ibx_disable_display_interrupt(struct drm_i915_private *dev_priv, u32 bits)
 {
 	ibx_display_interrupt_update(dev_priv, bits, 0);
 }
@@ -2904,8 +2914,8 @@ enum i915_mm_subclass { /* lockdep subclass for obj->mm.lock/struct_mutex */
 	I915_MM_SHRINKER /* called "recursively" from direct-reclaim-esque */
 };
 
-void __i915_gem_object_put_pages(struct drm_i915_gem_object *obj,
-				 enum i915_mm_subclass subclass);
+int __i915_gem_object_put_pages(struct drm_i915_gem_object *obj,
+				enum i915_mm_subclass subclass);
 void __i915_gem_object_invalidate(struct drm_i915_gem_object *obj);
 
 enum i915_map_type {
@@ -2974,7 +2984,7 @@ int i915_gem_dumb_create(struct drm_file *file_priv,
 			 struct drm_device *dev,
 			 struct drm_mode_create_dumb *args);
 int i915_gem_mmap_gtt(struct drm_file *file_priv, struct drm_device *dev,
-		      uint32_t handle, uint64_t *offset);
+		      u32 handle, u64 *offset);
 int i915_gem_mmap_gtt_version(void);
 
 void i915_gem_track_fb(struct drm_i915_gem_object *old,
@@ -3017,18 +3027,8 @@ static inline u32 i915_reset_engine_count(struct i915_gpu_error *error,
 	return READ_ONCE(error->reset_engine_count[engine->id]);
 }
 
-struct i915_request *
-i915_gem_reset_prepare_engine(struct intel_engine_cs *engine);
-int i915_gem_reset_prepare(struct drm_i915_private *dev_priv);
-void i915_gem_reset(struct drm_i915_private *dev_priv,
-		    unsigned int stalled_mask);
-void i915_gem_reset_finish_engine(struct intel_engine_cs *engine);
-void i915_gem_reset_finish(struct drm_i915_private *dev_priv);
 void i915_gem_set_wedged(struct drm_i915_private *dev_priv);
 bool i915_gem_unset_wedged(struct drm_i915_private *dev_priv);
-void i915_gem_reset_engine(struct intel_engine_cs *engine,
-			   struct i915_request *request,
-			   bool stalled);
 
 void i915_gem_init_mmio(struct drm_i915_private *i915);
 int __must_check i915_gem_init(struct drm_i915_private *dev_priv);
@@ -3125,7 +3125,7 @@ int i915_perf_remove_config_ioctl(struct drm_device *dev, void *data,
 				  struct drm_file *file);
 void i915_oa_init_reg_state(struct intel_engine_cs *engine,
 			    struct i915_gem_context *ctx,
-			    uint32_t *reg_state);
+			    u32 *reg_state);
 
 /* i915_gem_evict.c */
 int __must_check i915_gem_evict_something(struct i915_address_space *vm,
@@ -3377,10 +3377,10 @@ bool bxt_ddi_phy_is_enabled(struct drm_i915_private *dev_priv,
 			    enum dpio_phy phy);
 bool bxt_ddi_phy_verify_state(struct drm_i915_private *dev_priv,
 			      enum dpio_phy phy);
-uint8_t bxt_ddi_phy_calc_lane_lat_optim_mask(uint8_t lane_count);
+u8 bxt_ddi_phy_calc_lane_lat_optim_mask(u8 lane_count);
 void bxt_ddi_phy_set_lane_optim_mask(struct intel_encoder *encoder,
-				     uint8_t lane_lat_optim_mask);
-uint8_t bxt_ddi_phy_get_lane_lat_optim_mask(struct intel_encoder *encoder);
+				     u8 lane_lat_optim_mask);
+u8 bxt_ddi_phy_get_lane_lat_optim_mask(struct intel_encoder *encoder);
 
 void chv_set_phy_signal_level(struct intel_encoder *encoder,
 			      u32 deemph_reg_value, u32 margin_reg_value,

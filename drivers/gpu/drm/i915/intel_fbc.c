@@ -594,7 +594,7 @@ static bool stride_is_valid(struct drm_i915_private *dev_priv,
 }
 
 static bool pixel_format_is_valid(struct drm_i915_private *dev_priv,
-				  uint32_t pixel_format)
+				  u32 pixel_format)
 {
 	switch (pixel_format) {
 	case DRM_FORMAT_XRGB8888:

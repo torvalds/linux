@@ -838,8 +838,8 @@ void intel_hdcp_atomic_check(struct drm_connector *connector,
 			     struct drm_connector_state *old_state,
 			     struct drm_connector_state *new_state)
 {
-	uint64_t old_cp = old_state->content_protection;
-	uint64_t new_cp = new_state->content_protection;
+	u64 old_cp = old_state->content_protection;
+	u64 new_cp = new_state->content_protection;
 	struct drm_crtc_state *crtc_state;
 
 	if (!new_state->crtc) {

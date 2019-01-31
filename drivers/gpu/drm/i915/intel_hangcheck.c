@@ -23,6 +23,7 @@
  */
 
 #include "i915_drv.h"
+#include "i915_reset.h"
 
 static bool instdone_unchanged(u32 current_instdone, u32 *old_instdone)
 {
@@ -194,10 +195,6 @@ static void hangcheck_accumulate_sample(struct intel_engine_cs *engine,
 		break;
 
 	case ENGINE_DEAD:
-		if (GEM_SHOW_DEBUG()) {
-			struct drm_printer p = drm_debug_printer("hangcheck");
-			intel_engine_dump(engine, &p, "%s\n", engine->name);
-		}
 		break;
 
 	default:
@@ -282,6 +279,17 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 
 		if (engine->hangcheck.wedged)
 			wedged |= intel_engine_flag(engine);
+	}
+
+	if (GEM_SHOW_DEBUG() && (hung | stuck)) {
+		struct drm_printer p = drm_debug_printer("hangcheck");
+
+		for_each_engine(engine, dev_priv, id) {
+			if (intel_engine_is_idle(engine))
+				continue;
+
+			intel_engine_dump(engine, &p, "%s\n", engine->name);
+		}
 	}
 
 	if (wedged) {

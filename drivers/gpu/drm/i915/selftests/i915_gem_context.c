@@ -27,90 +27,13 @@
 #include "../i915_selftest.h"
 #include "i915_random.h"
 #include "igt_flush_test.h"
+#include "igt_live_test.h"
 
 #include "mock_drm.h"
 #include "mock_gem_device.h"
 #include "huge_gem_object.h"
 
 #define DW_PER_PAGE (PAGE_SIZE / sizeof(u32))
-
-struct live_test {
-	struct drm_i915_private *i915;
-	const char *func;
-	const char *name;
-
-	unsigned int reset_global;
-	unsigned int reset_engine[I915_NUM_ENGINES];
-};
-
-static int begin_live_test(struct live_test *t,
-			   struct drm_i915_private *i915,
-			   const char *func,
-			   const char *name)
-{
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-	int err;
-
-	t->i915 = i915;
-	t->func = func;
-	t->name = name;
-
-	err = i915_gem_wait_for_idle(i915,
-				     I915_WAIT_LOCKED,
-				     MAX_SCHEDULE_TIMEOUT);
-	if (err) {
-		pr_err("%s(%s): failed to idle before, with err=%d!",
-		       func, name, err);
-		return err;
-	}
-
-	i915->gpu_error.missed_irq_rings = 0;
-	t->reset_global = i915_reset_count(&i915->gpu_error);
-
-	for_each_engine(engine, i915, id)
-		t->reset_engine[id] =
-			i915_reset_engine_count(&i915->gpu_error, engine);
-
-	return 0;
-}
-
-static int end_live_test(struct live_test *t)
-{
-	struct drm_i915_private *i915 = t->i915;
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-
-	if (igt_flush_test(i915, I915_WAIT_LOCKED))
-		return -EIO;
-
-	if (t->reset_global != i915_reset_count(&i915->gpu_error)) {
-		pr_err("%s(%s): GPU was reset %d times!\n",
-		       t->func, t->name,
-		       i915_reset_count(&i915->gpu_error) - t->reset_global);
-		return -EIO;
-	}
-
-	for_each_engine(engine, i915, id) {
-		if (t->reset_engine[id] ==
-		    i915_reset_engine_count(&i915->gpu_error, engine))
-			continue;
-
-		pr_err("%s(%s): engine '%s' was reset %d times!\n",
-		       t->func, t->name, engine->name,
-		       i915_reset_engine_count(&i915->gpu_error, engine) -
-		       t->reset_engine[id]);
-		return -EIO;
-	}
-
-	if (i915->gpu_error.missed_irq_rings) {
-		pr_err("%s(%s): Missed interrupts on engines %lx\n",
-		       t->func, t->name, i915->gpu_error.missed_irq_rings);
-		return -EIO;
-	}
-
-	return 0;
-}
 
 static int live_nop_switch(void *arg)
 {
@@ -119,8 +42,9 @@ static int live_nop_switch(void *arg)
 	struct intel_engine_cs *engine;
 	struct i915_gem_context **ctx;
 	enum intel_engine_id id;
+	intel_wakeref_t wakeref;
+	struct igt_live_test t;
 	struct drm_file *file;
-	struct live_test t;
 	unsigned long n;
 	int err = -ENODEV;
 
@@ -140,7 +64,7 @@ static int live_nop_switch(void *arg)
 		return PTR_ERR(file);
 
 	mutex_lock(&i915->drm.struct_mutex);
-	intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(i915);
 
 	ctx = kcalloc(nctx, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
@@ -184,7 +108,7 @@ static int live_nop_switch(void *arg)
 		pr_info("Populated %d contexts on %s in %lluns\n",
 			nctx, engine->name, ktime_to_ns(times[1] - times[0]));
 
-		err = begin_live_test(&t, i915, __func__, engine->name);
+		err = igt_live_test_begin(&t, i915, __func__, engine->name);
 		if (err)
 			goto out_unlock;
 
@@ -232,7 +156,7 @@ static int live_nop_switch(void *arg)
 				break;
 		}
 
-		err = end_live_test(&t);
+		err = igt_live_test_end(&t);
 		if (err)
 			goto out_unlock;
 
@@ -243,7 +167,7 @@ static int live_nop_switch(void *arg)
 	}
 
 out_unlock:
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put(i915, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
 	mock_file_free(i915, file);
 	return err;
@@ -553,10 +477,10 @@ static int igt_ctx_exec(void *arg)
 	struct drm_i915_private *i915 = arg;
 	struct drm_i915_gem_object *obj = NULL;
 	unsigned long ncontexts, ndwords, dw;
+	struct igt_live_test t;
 	struct drm_file *file;
 	IGT_TIMEOUT(end_time);
 	LIST_HEAD(objects);
-	struct live_test t;
 	int err = -ENODEV;
 
 	/*
@@ -574,7 +498,7 @@ static int igt_ctx_exec(void *arg)
 
 	mutex_lock(&i915->drm.struct_mutex);
 
-	err = begin_live_test(&t, i915, __func__, "");
+	err = igt_live_test_begin(&t, i915, __func__, "");
 	if (err)
 		goto out_unlock;
 
@@ -593,6 +517,8 @@ static int igt_ctx_exec(void *arg)
 		}
 
 		for_each_engine(engine, i915, id) {
+			intel_wakeref_t wakeref;
+
 			if (!engine->context_size)
 				continue; /* No logical context support in HW */
 
@@ -607,9 +533,9 @@ static int igt_ctx_exec(void *arg)
 				}
 			}
 
-			intel_runtime_pm_get(i915);
-			err = gpu_fill(obj, ctx, engine, dw);
-			intel_runtime_pm_put(i915);
+			err = 0;
+			with_intel_runtime_pm(i915, wakeref)
+				err = gpu_fill(obj, ctx, engine, dw);
 			if (err) {
 				pr_err("Failed to fill dword %lu [%lu/%lu] with gpu (%s) in ctx %u [full-ppgtt? %s], err=%d\n",
 				       ndwords, dw, max_dwords(obj),
@@ -642,7 +568,7 @@ static int igt_ctx_exec(void *arg)
 	}
 
 out_unlock:
-	if (end_live_test(&t))
+	if (igt_live_test_end(&t))
 		err = -EIO;
 	mutex_unlock(&i915->drm.struct_mutex);
 
@@ -657,11 +583,11 @@ static int igt_ctx_readonly(void *arg)
 	struct i915_gem_context *ctx;
 	struct i915_hw_ppgtt *ppgtt;
 	unsigned long ndwords, dw;
+	struct igt_live_test t;
 	struct drm_file *file;
 	I915_RND_STATE(prng);
 	IGT_TIMEOUT(end_time);
 	LIST_HEAD(objects);
-	struct live_test t;
 	int err = -ENODEV;
 
 	/*
@@ -676,7 +602,7 @@ static int igt_ctx_readonly(void *arg)
 
 	mutex_lock(&i915->drm.struct_mutex);
 
-	err = begin_live_test(&t, i915, __func__, "");
+	err = igt_live_test_begin(&t, i915, __func__, "");
 	if (err)
 		goto out_unlock;
 
@@ -699,6 +625,8 @@ static int igt_ctx_readonly(void *arg)
 		unsigned int id;
 
 		for_each_engine(engine, i915, id) {
+			intel_wakeref_t wakeref;
+
 			if (!intel_engine_can_store_dword(engine))
 				continue;
 
@@ -713,9 +641,9 @@ static int igt_ctx_readonly(void *arg)
 					i915_gem_object_set_readonly(obj);
 			}
 
-			intel_runtime_pm_get(i915);
-			err = gpu_fill(obj, ctx, engine, dw);
-			intel_runtime_pm_put(i915);
+			err = 0;
+			with_intel_runtime_pm(i915, wakeref)
+				err = gpu_fill(obj, ctx, engine, dw);
 			if (err) {
 				pr_err("Failed to fill dword %lu [%lu/%lu] with gpu (%s) in ctx %u [full-ppgtt? %s], err=%d\n",
 				       ndwords, dw, max_dwords(obj),
@@ -752,7 +680,7 @@ static int igt_ctx_readonly(void *arg)
 	}
 
 out_unlock:
-	if (end_live_test(&t))
+	if (igt_live_test_end(&t))
 		err = -EIO;
 	mutex_unlock(&i915->drm.struct_mutex);
 
@@ -976,10 +904,11 @@ static int igt_vm_isolation(void *arg)
 	struct drm_i915_private *i915 = arg;
 	struct i915_gem_context *ctx_a, *ctx_b;
 	struct intel_engine_cs *engine;
+	intel_wakeref_t wakeref;
+	struct igt_live_test t;
 	struct drm_file *file;
 	I915_RND_STATE(prng);
 	unsigned long count;
-	struct live_test t;
 	unsigned int id;
 	u64 vm_total;
 	int err;
@@ -998,7 +927,7 @@ static int igt_vm_isolation(void *arg)
 
 	mutex_lock(&i915->drm.struct_mutex);
 
-	err = begin_live_test(&t, i915, __func__, "");
+	err = igt_live_test_begin(&t, i915, __func__, "");
 	if (err)
 		goto out_unlock;
 
@@ -1022,7 +951,7 @@ static int igt_vm_isolation(void *arg)
 	GEM_BUG_ON(ctx_b->ppgtt->vm.total != vm_total);
 	vm_total -= I915_GTT_PAGE_SIZE;
 
-	intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(i915);
 
 	count = 0;
 	for_each_engine(engine, i915, id) {
@@ -1067,9 +996,9 @@ static int igt_vm_isolation(void *arg)
 		count, RUNTIME_INFO(i915)->num_rings);
 
 out_rpm:
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put(i915, wakeref);
 out_unlock:
-	if (end_live_test(&t))
+	if (igt_live_test_end(&t))
 		err = -EIO;
 	mutex_unlock(&i915->drm.struct_mutex);
 
@@ -1165,6 +1094,7 @@ static int igt_switch_to_kernel_context(void *arg)
 	struct intel_engine_cs *engine;
 	struct i915_gem_context *ctx;
 	enum intel_engine_id id;
+	intel_wakeref_t wakeref;
 	int err;
 
 	/*
@@ -1175,7 +1105,7 @@ static int igt_switch_to_kernel_context(void *arg)
 	 */
 
 	mutex_lock(&i915->drm.struct_mutex);
-	intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(i915);
 
 	ctx = kernel_context(i915);
 	if (IS_ERR(ctx)) {
@@ -1200,7 +1130,7 @@ out_unlock:
 	if (igt_flush_test(i915, I915_WAIT_LOCKED))
 		err = -EIO;
 
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put(i915, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
 
 	kernel_context_close(ctx);

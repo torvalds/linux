@@ -37,6 +37,7 @@
 
 #include "i915_drv.h"
 #include "i915_vgpu.h"
+#include "i915_reset.h"
 #include "i915_trace.h"
 #include "intel_drv.h"
 #include "intel_frontbuffer.h"
@@ -473,8 +474,7 @@ static void vm_free_page(struct i915_address_space *vm, struct page *page)
 	spin_unlock(&vm->free_pages.lock);
 }
 
-static void i915_address_space_init(struct i915_address_space *vm,
-				    struct drm_i915_private *dev_priv)
+static void i915_address_space_init(struct i915_address_space *vm, int subclass)
 {
 	/*
 	 * The vm->mutex must be reclaim safe (for use in the shrinker).
@@ -482,6 +482,7 @@ static void i915_address_space_init(struct i915_address_space *vm,
 	 * attempt holding the lock is immediately reported by lockdep.
 	 */
 	mutex_init(&vm->mutex);
+	lockdep_set_subclass(&vm->mutex, subclass);
 	i915_gem_shrinker_taints_mutex(vm->i915, &vm->mutex);
 
 	GEM_BUG_ON(!vm->total);
@@ -1547,7 +1548,7 @@ static struct i915_hw_ppgtt *gen8_ppgtt_create(struct drm_i915_private *i915)
 	/* From bdw, there is support for read-only pages in the PPGTT. */
 	ppgtt->vm.has_read_only = true;
 
-	i915_address_space_init(&ppgtt->vm, i915);
+	i915_address_space_init(&ppgtt->vm, VM_CLASS_PPGTT);
 
 	/* There are only few exceptions for gen >=6. chv and bxt.
 	 * And we are not sure about the latter so play safe for now.
@@ -1996,7 +1997,7 @@ static struct i915_hw_ppgtt *gen6_ppgtt_create(struct drm_i915_private *i915)
 
 	ppgtt->base.vm.total = I915_PDES * GEN6_PTES * I915_GTT_PAGE_SIZE;
 
-	i915_address_space_init(&ppgtt->base.vm, i915);
+	i915_address_space_init(&ppgtt->base.vm, VM_CLASS_PPGTT);
 
 	ppgtt->base.vm.allocate_va_range = gen6_alloc_va_range;
 	ppgtt->base.vm.clear_range = gen6_ppgtt_clear_range;
@@ -2527,6 +2528,7 @@ static int ggtt_bind_vma(struct i915_vma *vma,
 {
 	struct drm_i915_private *i915 = vma->vm->i915;
 	struct drm_i915_gem_object *obj = vma->obj;
+	intel_wakeref_t wakeref;
 	u32 pte_flags;
 
 	/* Applicable to VLV (gen8+ do not support RO in the GGTT) */
@@ -2534,9 +2536,8 @@ static int ggtt_bind_vma(struct i915_vma *vma,
 	if (i915_gem_object_is_readonly(obj))
 		pte_flags |= PTE_READ_ONLY;
 
-	intel_runtime_pm_get(i915);
-	vma->vm->insert_entries(vma->vm, vma, cache_level, pte_flags);
-	intel_runtime_pm_put(i915);
+	with_intel_runtime_pm(i915, wakeref)
+		vma->vm->insert_entries(vma->vm, vma, cache_level, pte_flags);
 
 	vma->page_sizes.gtt = I915_GTT_PAGE_SIZE;
 
@@ -2553,10 +2554,10 @@ static int ggtt_bind_vma(struct i915_vma *vma,
 static void ggtt_unbind_vma(struct i915_vma *vma)
 {
 	struct drm_i915_private *i915 = vma->vm->i915;
+	intel_wakeref_t wakeref;
 
-	intel_runtime_pm_get(i915);
-	vma->vm->clear_range(vma->vm, vma->node.start, vma->size);
-	intel_runtime_pm_put(i915);
+	with_intel_runtime_pm(i915, wakeref)
+		vma->vm->clear_range(vma->vm, vma->node.start, vma->size);
 }
 
 static int aliasing_gtt_bind_vma(struct i915_vma *vma,
@@ -2588,9 +2589,12 @@ static int aliasing_gtt_bind_vma(struct i915_vma *vma,
 	}
 
 	if (flags & I915_VMA_GLOBAL_BIND) {
-		intel_runtime_pm_get(i915);
-		vma->vm->insert_entries(vma->vm, vma, cache_level, pte_flags);
-		intel_runtime_pm_put(i915);
+		intel_wakeref_t wakeref;
+
+		with_intel_runtime_pm(i915, wakeref) {
+			vma->vm->insert_entries(vma->vm, vma,
+						cache_level, pte_flags);
+		}
 	}
 
 	return 0;
@@ -2601,9 +2605,11 @@ static void aliasing_gtt_unbind_vma(struct i915_vma *vma)
 	struct drm_i915_private *i915 = vma->vm->i915;
 
 	if (vma->flags & I915_VMA_GLOBAL_BIND) {
-		intel_runtime_pm_get(i915);
-		vma->vm->clear_range(vma->vm, vma->node.start, vma->size);
-		intel_runtime_pm_put(i915);
+		struct i915_address_space *vm = vma->vm;
+		intel_wakeref_t wakeref;
+
+		with_intel_runtime_pm(i915, wakeref)
+			vm->clear_range(vm, vma->node.start, vma->size);
 	}
 
 	if (vma->flags & I915_VMA_LOCAL_BIND) {
@@ -3227,7 +3233,8 @@ static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 	ggtt->vm.insert_entries = gen8_ggtt_insert_entries;
 
 	/* Serialize GTT updates with aperture access on BXT if VT-d is on. */
-	if (intel_ggtt_update_needs_vtd_wa(dev_priv)) {
+	if (intel_ggtt_update_needs_vtd_wa(dev_priv) ||
+	    IS_CHERRYVIEW(dev_priv) /* fails with concurrent use/update */) {
 		ggtt->vm.insert_entries = bxt_vtd_ggtt_insert_entries__BKL;
 		ggtt->vm.insert_page    = bxt_vtd_ggtt_insert_page__BKL;
 		if (ggtt->vm.clear_range != nop_clear_range)
@@ -3428,7 +3435,7 @@ int i915_ggtt_init_hw(struct drm_i915_private *dev_priv)
 	 * and beyond the end of the GTT if we do not provide a guard.
 	 */
 	mutex_lock(&dev_priv->drm.struct_mutex);
-	i915_address_space_init(&ggtt->vm, dev_priv);
+	i915_address_space_init(&ggtt->vm, VM_CLASS_GGTT);
 
 	ggtt->vm.is_ggtt = true;
 

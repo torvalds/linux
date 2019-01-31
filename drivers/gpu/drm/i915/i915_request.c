@@ -29,6 +29,7 @@
 #include <linux/sched/signal.h>
 
 #include "i915_drv.h"
+#include "i915_reset.h"
 
 static const char *i915_fence_get_driver_name(struct dma_fence *fence)
 {
@@ -197,7 +198,7 @@ static void __retire_engine_request(struct intel_engine_cs *engine,
 	spin_unlock(&engine->timeline.lock);
 
 	spin_lock(&rq->lock);
-	if (!test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &rq->fence.flags))
+	if (!i915_request_signaled(rq))
 		dma_fence_signal_locked(&rq->fence);
 	if (test_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT, &rq->fence.flags))
 		intel_engine_cancel_signaling(rq);
@@ -342,6 +343,13 @@ static void move_to_timeline(struct i915_request *request,
 	spin_unlock(&request->timeline->lock);
 }
 
+static u32 next_global_seqno(struct i915_timeline *tl)
+{
+	if (!++tl->seqno)
+		++tl->seqno;
+	return tl->seqno;
+}
+
 void __i915_request_submit(struct i915_request *request)
 {
 	struct intel_engine_cs *engine = request->engine;
@@ -358,7 +366,7 @@ void __i915_request_submit(struct i915_request *request)
 
 	GEM_BUG_ON(request->global_seqno);
 
-	seqno = timeline_get_seqno(&engine->timeline);
+	seqno = next_global_seqno(&engine->timeline);
 	GEM_BUG_ON(!seqno);
 	GEM_BUG_ON(intel_engine_signaled(engine, seqno));
 

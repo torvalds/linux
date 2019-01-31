@@ -28,7 +28,7 @@ struct i915_sched_attr;
  * workarounds!
  */
 #define CACHELINE_BYTES 64
-#define CACHELINE_DWORDS (CACHELINE_BYTES / sizeof(uint32_t))
+#define CACHELINE_DWORDS (CACHELINE_BYTES / sizeof(u32))
 
 struct intel_hw_status_page {
 	struct i915_vma *vma;
@@ -398,7 +398,6 @@ struct intel_engine_cs {
 		unsigned int irq_count;
 
 		bool irq_armed : 1;
-		I915_SELFTEST_DECLARE(bool mock : 1);
 	} breadcrumbs;
 
 	struct {

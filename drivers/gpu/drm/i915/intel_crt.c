@@ -83,15 +83,17 @@ static bool intel_crt_get_hw_state(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_crt *crt = intel_encoder_to_crt(encoder);
+	intel_wakeref_t wakeref;
 	bool ret;
 
-	if (!intel_display_power_get_if_enabled(dev_priv,
-						encoder->power_domain))
+	wakeref = intel_display_power_get_if_enabled(dev_priv,
+						     encoder->power_domain);
+	if (!wakeref)
 		return false;
 
 	ret = intel_crt_port_enabled(dev_priv, crt->adpa_reg, pipe);
 
-	intel_display_power_put(dev_priv, encoder->power_domain);
+	intel_display_power_put(dev_priv, encoder->power_domain, wakeref);
 
 	return ret;
 }
@@ -629,19 +631,19 @@ static bool intel_crt_detect_ddc(struct drm_connector *connector)
 }
 
 static enum drm_connector_status
-intel_crt_load_detect(struct intel_crt *crt, uint32_t pipe)
+intel_crt_load_detect(struct intel_crt *crt, u32 pipe)
 {
 	struct drm_device *dev = crt->base.base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	uint32_t save_bclrpat;
-	uint32_t save_vtotal;
-	uint32_t vtotal, vactive;
-	uint32_t vsample;
-	uint32_t vblank, vblank_start, vblank_end;
-	uint32_t dsl;
+	u32 save_bclrpat;
+	u32 save_vtotal;
+	u32 vtotal, vactive;
+	u32 vsample;
+	u32 vblank, vblank_start, vblank_end;
+	u32 dsl;
 	i915_reg_t bclrpat_reg, vtotal_reg,
 		vblank_reg, vsync_reg, pipeconf_reg, pipe_dsl_reg;
-	uint8_t	st00;
+	u8 st00;
 	enum drm_connector_status status;
 
 	DRM_DEBUG_KMS("starting load-detect on CRT\n");
@@ -667,7 +669,7 @@ intel_crt_load_detect(struct intel_crt *crt, uint32_t pipe)
 	I915_WRITE(bclrpat_reg, 0x500050);
 
 	if (!IS_GEN(dev_priv, 2)) {
-		uint32_t pipeconf = I915_READ(pipeconf_reg);
+		u32 pipeconf = I915_READ(pipeconf_reg);
 		I915_WRITE(pipeconf_reg, pipeconf | PIPECONF_FORCE_BORDER);
 		POSTING_READ(pipeconf_reg);
 		/* Wait for next Vblank to substitue
@@ -688,8 +690,8 @@ intel_crt_load_detect(struct intel_crt *crt, uint32_t pipe)
 		* Yes, this will flicker
 		*/
 		if (vblank_start <= vactive && vblank_end >= vtotal) {
-			uint32_t vsync = I915_READ(vsync_reg);
-			uint32_t vsync_start = (vsync & 0xffff) + 1;
+			u32 vsync = I915_READ(vsync_reg);
+			u32 vsync_start = (vsync & 0xffff) + 1;
 
 			vblank_start = vsync_start;
 			I915_WRITE(vblank_reg,
@@ -777,6 +779,7 @@ intel_crt_detect(struct drm_connector *connector,
 	struct drm_i915_private *dev_priv = to_i915(connector->dev);
 	struct intel_crt *crt = intel_attached_crt(connector);
 	struct intel_encoder *intel_encoder = &crt->base;
+	intel_wakeref_t wakeref;
 	int status, ret;
 	struct intel_load_detect_pipe tmp;
 
@@ -785,7 +788,8 @@ intel_crt_detect(struct drm_connector *connector,
 		      force);
 
 	if (i915_modparams.load_detect_test) {
-		intel_display_power_get(dev_priv, intel_encoder->power_domain);
+		wakeref = intel_display_power_get(dev_priv,
+						  intel_encoder->power_domain);
 		goto load_detect;
 	}
 
@@ -793,7 +797,8 @@ intel_crt_detect(struct drm_connector *connector,
 	if (dmi_check_system(intel_spurious_crt_detect))
 		return connector_status_disconnected;
 
-	intel_display_power_get(dev_priv, intel_encoder->power_domain);
+	wakeref = intel_display_power_get(dev_priv,
+					  intel_encoder->power_domain);
 
 	if (I915_HAS_HOTPLUG(dev_priv)) {
 		/* We can not rely on the HPD pin always being correctly wired
@@ -848,7 +853,7 @@ load_detect:
 	}
 
 out:
-	intel_display_power_put(dev_priv, intel_encoder->power_domain);
+	intel_display_power_put(dev_priv, intel_encoder->power_domain, wakeref);
 	return status;
 }
 
@@ -858,10 +863,12 @@ static int intel_crt_get_modes(struct drm_connector *connector)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crt *crt = intel_attached_crt(connector);
 	struct intel_encoder *intel_encoder = &crt->base;
-	int ret;
+	intel_wakeref_t wakeref;
 	struct i2c_adapter *i2c;
+	int ret;
 
-	intel_display_power_get(dev_priv, intel_encoder->power_domain);
+	wakeref = intel_display_power_get(dev_priv,
+					  intel_encoder->power_domain);
 
 	i2c = intel_gmbus_get_adapter(dev_priv, dev_priv->vbt.crt_ddc_pin);
 	ret = intel_crt_ddc_get_modes(connector, i2c);
@@ -873,7 +880,7 @@ static int intel_crt_get_modes(struct drm_connector *connector)
 	ret = intel_crt_ddc_get_modes(connector, i2c);
 
 out:
-	intel_display_power_put(dev_priv, intel_encoder->power_domain);
+	intel_display_power_put(dev_priv, intel_encoder->power_domain, wakeref);
 
 	return ret;
 }

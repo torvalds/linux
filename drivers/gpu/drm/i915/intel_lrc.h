@@ -97,11 +97,19 @@ int logical_xcs_ring_init(struct intel_engine_cs *engine);
  */
 #define LRC_HEADER_PAGES LRC_PPHWSP_PN
 
+struct drm_printer;
+
 struct drm_i915_private;
 struct i915_gem_context;
 
 void intel_lr_context_resume(struct drm_i915_private *dev_priv);
-
 void intel_execlists_set_default_submission(struct intel_engine_cs *engine);
+
+void intel_execlists_show_requests(struct intel_engine_cs *engine,
+				   struct drm_printer *m,
+				   void (*show_request)(struct drm_printer *m,
+							struct i915_request *rq,
+							const char *prefix),
+				   unsigned int max);
 
 #endif /* _INTEL_LRC_H_ */

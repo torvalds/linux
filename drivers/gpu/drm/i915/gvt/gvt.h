@@ -52,12 +52,8 @@
 
 #define GVT_MAX_VGPU 8
 
-enum {
-	INTEL_GVT_HYPERVISOR_XEN = 0,
-	INTEL_GVT_HYPERVISOR_KVM,
-};
-
 struct intel_gvt_host {
+	struct device *dev;
 	bool initialized;
 	int hypervisor_type;
 	struct intel_gvt_mpt *mpt;
@@ -597,7 +593,7 @@ static inline void mmio_hw_access_pre(struct drm_i915_private *dev_priv)
 
 static inline void mmio_hw_access_post(struct drm_i915_private *dev_priv)
 {
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put_unchecked(dev_priv);
 }
 
 /**

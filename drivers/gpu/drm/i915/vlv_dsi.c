@@ -289,6 +289,11 @@ static int intel_dsi_compute_config(struct intel_encoder *encoder,
 	/* DSI uses short packets for sync events, so clear mode flags for DSI */
 	adjusted_mode->flags = 0;
 
+	if (intel_dsi->pixel_format == MIPI_DSI_FMT_RGB888)
+		pipe_config->pipe_bpp = 24;
+	else
+		pipe_config->pipe_bpp = 18;
+
 	if (IS_GEN9_LP(dev_priv)) {
 		/* Enable Frame time stamp based scanline reporting */
 		adjusted_mode->private_flags |=
@@ -673,6 +678,10 @@ static void intel_dsi_port_enable(struct intel_encoder *encoder,
 					LANE_CONFIGURATION_DUAL_LINK_B :
 					LANE_CONFIGURATION_DUAL_LINK_A;
 		}
+
+		if (intel_dsi->pixel_format != MIPI_DSI_FMT_RGB888)
+			temp |= DITHERING_ENABLE;
+
 		/* assert ip_tg_enable signal */
 		I915_WRITE(port_ctrl, temp | DPI_ENABLE);
 		POSTING_READ(port_ctrl);
@@ -959,13 +968,15 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	intel_wakeref_t wakeref;
 	enum port port;
 	bool active = false;
 
 	DRM_DEBUG_KMS("\n");
 
-	if (!intel_display_power_get_if_enabled(dev_priv,
-						encoder->power_domain))
+	wakeref = intel_display_power_get_if_enabled(dev_priv,
+						     encoder->power_domain);
+	if (!wakeref)
 		return false;
 
 	/*
@@ -1021,7 +1032,7 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 	}
 
 out_put_power:
-	intel_display_power_put(dev_priv, encoder->power_domain);
+	intel_display_power_put(dev_priv, encoder->power_domain, wakeref);
 
 	return active;
 }
@@ -1057,10 +1068,8 @@ static void bxt_dsi_get_pipe_config(struct intel_encoder *encoder,
 	}
 
 	fmt = I915_READ(MIPI_DSI_FUNC_PRG(port)) & VID_MODE_FORMAT_MASK;
-	pipe_config->pipe_bpp =
-			mipi_dsi_pixel_format_to_bpp(
-				pixel_format_from_register_bits(fmt));
-	bpp = pipe_config->pipe_bpp;
+	bpp = mipi_dsi_pixel_format_to_bpp(
+			pixel_format_from_register_bits(fmt));
 
 	/* Enable Frame time stamo based scanline reporting */
 	adjusted_mode->private_flags |=
@@ -1198,11 +1207,9 @@ static void intel_dsi_get_config(struct intel_encoder *encoder,
 
 	if (IS_GEN9_LP(dev_priv)) {
 		bxt_dsi_get_pipe_config(encoder, pipe_config);
-		pclk = bxt_dsi_get_pclk(encoder, pipe_config->pipe_bpp,
-					pipe_config);
+		pclk = bxt_dsi_get_pclk(encoder, pipe_config);
 	} else {
-		pclk = vlv_dsi_get_pclk(encoder, pipe_config->pipe_bpp,
-					pipe_config);
+		pclk = vlv_dsi_get_pclk(encoder, pipe_config);
 	}
 
 	if (pclk) {
@@ -1574,6 +1581,7 @@ vlv_dsi_get_hw_panel_orientation(struct intel_connector *connector)
 	enum drm_panel_orientation orientation;
 	struct intel_plane *plane;
 	struct intel_crtc *crtc;
+	intel_wakeref_t wakeref;
 	enum pipe pipe;
 	u32 val;
 
@@ -1584,7 +1592,8 @@ vlv_dsi_get_hw_panel_orientation(struct intel_connector *connector)
 	plane = to_intel_plane(crtc->base.primary);
 
 	power_domain = POWER_DOMAIN_PIPE(pipe);
-	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
+	wakeref = intel_display_power_get_if_enabled(dev_priv, power_domain);
+	if (!wakeref)
 		return DRM_MODE_PANEL_ORIENTATION_UNKNOWN;
 
 	val = I915_READ(DSPCNTR(plane->i9xx_plane));
@@ -1596,7 +1605,7 @@ vlv_dsi_get_hw_panel_orientation(struct intel_connector *connector)
 	else
 		orientation = DRM_MODE_PANEL_ORIENTATION_NORMAL;
 
-	intel_display_power_put(dev_priv, power_domain);
+	intel_display_power_put(dev_priv, power_domain, wakeref);
 
 	return orientation;
 }
@@ -1688,6 +1697,7 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 	intel_encoder->post_disable = intel_dsi_post_disable;
 	intel_encoder->get_hw_state = intel_dsi_get_hw_state;
 	intel_encoder->get_config = intel_dsi_get_config;
+	intel_encoder->update_pipe = intel_panel_update_backlight;
 
 	intel_connector->get_hw_state = intel_connector_get_hw_state;
 

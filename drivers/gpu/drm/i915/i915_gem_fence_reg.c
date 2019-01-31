@@ -209,6 +209,7 @@ static void fence_write(struct drm_i915_fence_reg *fence,
 static int fence_update(struct drm_i915_fence_reg *fence,
 			struct i915_vma *vma)
 {
+	intel_wakeref_t wakeref;
 	int ret;
 
 	if (vma) {
@@ -256,9 +257,10 @@ static int fence_update(struct drm_i915_fence_reg *fence,
 	 * If the device is currently powered down, we will defer the write
 	 * to the runtime resume, see i915_gem_restore_fences().
 	 */
-	if (intel_runtime_pm_get_if_in_use(fence->i915)) {
+	wakeref = intel_runtime_pm_get_if_in_use(fence->i915);
+	if (wakeref) {
 		fence_write(fence, vma);
-		intel_runtime_pm_put(fence->i915);
+		intel_runtime_pm_put(fence->i915, wakeref);
 	}
 
 	if (vma) {
@@ -553,8 +555,8 @@ void i915_gem_restore_fences(struct drm_i915_private *dev_priv)
 void
 i915_gem_detect_bit_6_swizzle(struct drm_i915_private *dev_priv)
 {
-	uint32_t swizzle_x = I915_BIT_6_SWIZZLE_UNKNOWN;
-	uint32_t swizzle_y = I915_BIT_6_SWIZZLE_UNKNOWN;
+	u32 swizzle_x = I915_BIT_6_SWIZZLE_UNKNOWN;
+	u32 swizzle_y = I915_BIT_6_SWIZZLE_UNKNOWN;
 
 	if (INTEL_GEN(dev_priv) >= 8 || IS_VALLEYVIEW(dev_priv)) {
 		/*
@@ -577,7 +579,7 @@ i915_gem_detect_bit_6_swizzle(struct drm_i915_private *dev_priv)
 				swizzle_y = I915_BIT_6_SWIZZLE_NONE;
 			}
 		} else {
-			uint32_t dimm_c0, dimm_c1;
+			u32 dimm_c0, dimm_c1;
 			dimm_c0 = I915_READ(MAD_DIMM_C0);
 			dimm_c1 = I915_READ(MAD_DIMM_C1);
 			dimm_c0 &= MAD_DIMM_A_SIZE_MASK | MAD_DIMM_B_SIZE_MASK;
@@ -609,7 +611,7 @@ i915_gem_detect_bit_6_swizzle(struct drm_i915_private *dev_priv)
 		swizzle_y = I915_BIT_6_SWIZZLE_NONE;
 	} else if (IS_MOBILE(dev_priv) ||
 		   IS_I915G(dev_priv) || IS_I945G(dev_priv)) {
-		uint32_t dcc;
+		u32 dcc;
 
 		/* On 9xx chipsets, channel interleave by the CPU is
 		 * determined by DCC.  For single-channel, neither the CPU

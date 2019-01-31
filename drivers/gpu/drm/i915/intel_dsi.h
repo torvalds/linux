@@ -39,6 +39,7 @@ struct intel_dsi {
 	struct intel_encoder base;
 
 	struct intel_dsi_host *dsi_hosts[I915_MAX_PORTS];
+	intel_wakeref_t io_wakeref[I915_MAX_PORTS];
 
 	/* GPIO Desc for CRC based Panel control */
 	struct gpio_desc *gpio_panel;
@@ -172,7 +173,7 @@ int vlv_dsi_pll_compute(struct intel_encoder *encoder,
 void vlv_dsi_pll_enable(struct intel_encoder *encoder,
 			const struct intel_crtc_state *config);
 void vlv_dsi_pll_disable(struct intel_encoder *encoder);
-u32 vlv_dsi_get_pclk(struct intel_encoder *encoder, int pipe_bpp,
+u32 vlv_dsi_get_pclk(struct intel_encoder *encoder,
 		     struct intel_crtc_state *config);
 void vlv_dsi_reset_clocks(struct intel_encoder *encoder, enum port port);
 
@@ -182,7 +183,7 @@ int bxt_dsi_pll_compute(struct intel_encoder *encoder,
 void bxt_dsi_pll_enable(struct intel_encoder *encoder,
 			const struct intel_crtc_state *config);
 void bxt_dsi_pll_disable(struct intel_encoder *encoder);
-u32 bxt_dsi_get_pclk(struct intel_encoder *encoder, int pipe_bpp,
+u32 bxt_dsi_get_pclk(struct intel_encoder *encoder,
 		     struct intel_crtc_state *config);
 void bxt_dsi_reset_clocks(struct intel_encoder *encoder, enum port port);
 

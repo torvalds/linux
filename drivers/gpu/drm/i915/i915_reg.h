@@ -117,14 +117,14 @@
  */
 
 typedef struct {
-	uint32_t reg;
+	u32 reg;
 } i915_reg_t;
 
 #define _MMIO(r) ((const i915_reg_t){ .reg = (r) })
 
 #define INVALID_MMIO_REG _MMIO(0)
 
-static inline uint32_t i915_mmio_reg_offset(i915_reg_t reg)
+static inline u32 i915_mmio_reg_offset(i915_reg_t reg)
 {
 	return reg.reg;
 }
@@ -1814,7 +1814,7 @@ enum i915_power_well_id {
 #define _CNL_PORT_TX_C_LN0_OFFSET		0x162C40
 #define _CNL_PORT_TX_D_LN0_OFFSET		0x162E40
 #define _CNL_PORT_TX_F_LN0_OFFSET		0x162840
-#define _CNL_PORT_TX_DW_GRP(port, dw)	(_PICK((port), \
+#define _CNL_PORT_TX_DW_GRP(dw, port)	(_PICK((port), \
 					       _CNL_PORT_TX_AE_GRP_OFFSET, \
 					       _CNL_PORT_TX_B_GRP_OFFSET, \
 					       _CNL_PORT_TX_B_GRP_OFFSET, \
@@ -1822,7 +1822,7 @@ enum i915_power_well_id {
 					       _CNL_PORT_TX_AE_GRP_OFFSET, \
 					       _CNL_PORT_TX_F_GRP_OFFSET) + \
 					       4 * (dw))
-#define _CNL_PORT_TX_DW_LN0(port, dw)	(_PICK((port), \
+#define _CNL_PORT_TX_DW_LN0(dw, port)	(_PICK((port), \
 					       _CNL_PORT_TX_AE_LN0_OFFSET, \
 					       _CNL_PORT_TX_B_LN0_OFFSET, \
 					       _CNL_PORT_TX_B_LN0_OFFSET, \
@@ -1858,9 +1858,9 @@ enum i915_power_well_id {
 
 #define _CNL_PORT_TX_DW4_LN0_AE		0x162450
 #define _CNL_PORT_TX_DW4_LN1_AE		0x1624D0
-#define CNL_PORT_TX_DW4_GRP(port)	_MMIO(_CNL_PORT_TX_DW_GRP((port), 4))
-#define CNL_PORT_TX_DW4_LN0(port)	_MMIO(_CNL_PORT_TX_DW_LN0((port), 4))
-#define CNL_PORT_TX_DW4_LN(port, ln)   _MMIO(_CNL_PORT_TX_DW_LN0((port), 4) + \
+#define CNL_PORT_TX_DW4_GRP(port)	_MMIO(_CNL_PORT_TX_DW_GRP(4, (port)))
+#define CNL_PORT_TX_DW4_LN0(port)	_MMIO(_CNL_PORT_TX_DW_LN0(4, (port)))
+#define CNL_PORT_TX_DW4_LN(port, ln)   _MMIO(_CNL_PORT_TX_DW_LN0(4, (port)) + \
 					   ((ln) * (_CNL_PORT_TX_DW4_LN1_AE - \
 						    _CNL_PORT_TX_DW4_LN0_AE)))
 #define ICL_PORT_TX_DW4_AUX(port)	_MMIO(_ICL_PORT_TX_DW_AUX(4, port))
@@ -1888,8 +1888,8 @@ enum i915_power_well_id {
 #define   RTERM_SELECT(x)		((x) << 3)
 #define   RTERM_SELECT_MASK		(0x7 << 3)
 
-#define CNL_PORT_TX_DW7_GRP(port)	_MMIO(_CNL_PORT_TX_DW_GRP((port), 7))
-#define CNL_PORT_TX_DW7_LN0(port)	_MMIO(_CNL_PORT_TX_DW_LN0((port), 7))
+#define CNL_PORT_TX_DW7_GRP(port)	_MMIO(_CNL_PORT_TX_DW_GRP(7, (port)))
+#define CNL_PORT_TX_DW7_LN0(port)	_MMIO(_CNL_PORT_TX_DW_LN0(7, (port)))
 #define ICL_PORT_TX_DW7_AUX(port)	_MMIO(_ICL_PORT_TX_DW_AUX(7, port))
 #define ICL_PORT_TX_DW7_GRP(port)	_MMIO(_ICL_PORT_TX_DW_GRP(7, port))
 #define ICL_PORT_TX_DW7_LN0(port)	_MMIO(_ICL_PORT_TX_DW_LN(7, 0, port))
@@ -4272,6 +4272,15 @@ enum {
 #define EDP_PSR2_STATUS_STATE_MASK     (0xf << 28)
 #define EDP_PSR2_STATUS_STATE_SHIFT    28
 
+#define _PSR2_SU_STATUS_0		0x6F914
+#define _PSR2_SU_STATUS_1		0x6F918
+#define _PSR2_SU_STATUS_2		0x6F91C
+#define _PSR2_SU_STATUS(index)		_MMIO(_PICK_EVEN((index), _PSR2_SU_STATUS_0, _PSR2_SU_STATUS_1))
+#define PSR2_SU_STATUS(frame)		(_PSR2_SU_STATUS((frame) / 3))
+#define PSR2_SU_STATUS_SHIFT(frame)	(((frame) % 3) * 10)
+#define PSR2_SU_STATUS_MASK(frame)	(0x3ff << PSR2_SU_STATUS_SHIFT(frame))
+#define PSR2_SU_STATUS_FRAMES		8
+
 /* VGA port control */
 #define ADPA			_MMIO(0x61100)
 #define PCH_ADPA                _MMIO(0xe1100)
@@ -4687,7 +4696,6 @@ enum {
 #define  EDP_FORCE_VDD			(1 << 3)
 #define  EDP_BLC_ENABLE			(1 << 2)
 #define  PANEL_POWER_RESET		(1 << 1)
-#define  PANEL_POWER_OFF		(0 << 0)
 #define  PANEL_POWER_ON			(1 << 0)
 
 #define _PP_ON_DELAYS			0x61208

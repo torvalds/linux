@@ -288,6 +288,8 @@ struct i915_address_space {
 	bool closed;
 
 	struct mutex mutex; /* protects vma and our lists */
+#define VM_CLASS_GGTT 0
+#define VM_CLASS_PPGTT 1
 
 	u64 scratch_pte;
 	struct i915_page_dma scratch_page;

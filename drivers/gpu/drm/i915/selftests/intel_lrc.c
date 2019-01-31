@@ -4,6 +4,8 @@
  * Copyright © 2018 Intel Corporation
  */
 
+#include "../i915_reset.h"
+
 #include "../i915_selftest.h"
 #include "igt_flush_test.h"
 #include "igt_spinner.h"
@@ -18,13 +20,14 @@ static int live_sanitycheck(void *arg)
 	struct i915_gem_context *ctx;
 	enum intel_engine_id id;
 	struct igt_spinner spin;
+	intel_wakeref_t wakeref;
 	int err = -ENOMEM;
 
 	if (!HAS_LOGICAL_RING_CONTEXTS(i915))
 		return 0;
 
 	mutex_lock(&i915->drm.struct_mutex);
-	intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(i915);
 
 	if (igt_spinner_init(&spin, i915))
 		goto err_unlock;
@@ -65,7 +68,7 @@ err_spin:
 	igt_spinner_fini(&spin);
 err_unlock:
 	igt_flush_test(i915, I915_WAIT_LOCKED);
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put(i915, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
 	return err;
 }
@@ -77,13 +80,14 @@ static int live_preempt(void *arg)
 	struct igt_spinner spin_hi, spin_lo;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
+	intel_wakeref_t wakeref;
 	int err = -ENOMEM;
 
 	if (!HAS_LOGICAL_RING_PREEMPTION(i915))
 		return 0;
 
 	mutex_lock(&i915->drm.struct_mutex);
-	intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(i915);
 
 	if (igt_spinner_init(&spin_hi, i915))
 		goto err_unlock;
@@ -158,7 +162,7 @@ err_spin_hi:
 	igt_spinner_fini(&spin_hi);
 err_unlock:
 	igt_flush_test(i915, I915_WAIT_LOCKED);
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put(i915, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
 	return err;
 }
@@ -171,13 +175,14 @@ static int live_late_preempt(void *arg)
 	struct intel_engine_cs *engine;
 	struct i915_sched_attr attr = {};
 	enum intel_engine_id id;
+	intel_wakeref_t wakeref;
 	int err = -ENOMEM;
 
 	if (!HAS_LOGICAL_RING_PREEMPTION(i915))
 		return 0;
 
 	mutex_lock(&i915->drm.struct_mutex);
-	intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(i915);
 
 	if (igt_spinner_init(&spin_hi, i915))
 		goto err_unlock;
@@ -251,7 +256,7 @@ err_spin_hi:
 	igt_spinner_fini(&spin_hi);
 err_unlock:
 	igt_flush_test(i915, I915_WAIT_LOCKED);
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put(i915, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
 	return err;
 
@@ -270,6 +275,7 @@ static int live_preempt_hang(void *arg)
 	struct igt_spinner spin_hi, spin_lo;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
+	intel_wakeref_t wakeref;
 	int err = -ENOMEM;
 
 	if (!HAS_LOGICAL_RING_PREEMPTION(i915))
@@ -279,7 +285,7 @@ static int live_preempt_hang(void *arg)
 		return 0;
 
 	mutex_lock(&i915->drm.struct_mutex);
-	intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(i915);
 
 	if (igt_spinner_init(&spin_hi, i915))
 		goto err_unlock;
@@ -374,7 +380,7 @@ err_spin_hi:
 	igt_spinner_fini(&spin_hi);
 err_unlock:
 	igt_flush_test(i915, I915_WAIT_LOCKED);
-	intel_runtime_pm_put(i915);
+	intel_runtime_pm_put(i915, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
 	return err;
 }
@@ -562,6 +568,7 @@ static int live_preempt_smoke(void *arg)
 		.ncontext = 1024,
 	};
 	const unsigned int phase[] = { 0, BATCH };
+	intel_wakeref_t wakeref;
 	int err = -ENOMEM;
 	u32 *cs;
 	int n;
@@ -576,7 +583,7 @@ static int live_preempt_smoke(void *arg)
 		return -ENOMEM;
 
 	mutex_lock(&smoke.i915->drm.struct_mutex);
-	intel_runtime_pm_get(smoke.i915);
+	wakeref = intel_runtime_pm_get(smoke.i915);
 
 	smoke.batch = i915_gem_object_create_internal(smoke.i915, PAGE_SIZE);
 	if (IS_ERR(smoke.batch)) {
@@ -627,7 +634,7 @@ err_ctx:
 err_batch:
 	i915_gem_object_put(smoke.batch);
 err_unlock:
-	intel_runtime_pm_put(smoke.i915);
+	intel_runtime_pm_put(smoke.i915, wakeref);
 	mutex_unlock(&smoke.i915->drm.struct_mutex);
 	kfree(smoke.contexts);
 
