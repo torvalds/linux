@@ -474,6 +474,7 @@ CONFIG_SCHED_SMT=y
 # CONFIG_SCSI_LPFC is not set
 # CONFIG_SCSI_MVSAS is not set
 # CONFIG_SCSI_MVUMI is not set
+# CONFIG_SCSI_MYRB is not set
 # CONFIG_SCSI_PM8001 is not set
 # CONFIG_SCSI_PMCRAID is not set
 # CONFIG_SCSI_QLA_FC is not set
