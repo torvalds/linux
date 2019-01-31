@@ -3843,7 +3843,7 @@ int vmw_execbuf_fence_commands(struct drm_file *file_priv,
 		*p_fence = NULL;
 	}
 
-	return 0;
+	return ret;
 }
 
 /**
