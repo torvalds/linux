@@ -29,10 +29,11 @@ mirror_test()
 	local pref=$1; shift
 	local expect=$1; shift
 
+	local ping_timeout=$((PING_TIMEOUT * 5))
 	local t0=$(tc_rule_stats_get $dev $pref)
 	ip vrf exec $vrf_name \
-	   ${PING} ${sip:+-I $sip} $dip -c 10 -i 0.1 -w $PING_TIMEOUT \
-	   &> /dev/null
+	   ${PING} ${sip:+-I $sip} $dip -c 10 -i 0.5 -w $ping_timeout \
+		   &> /dev/null
 	local t1=$(tc_rule_stats_get $dev $pref)
 	local delta=$((t1 - t0))
 	# Tolerate a couple stray extra packets.
