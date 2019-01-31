@@ -427,6 +427,13 @@ else
 endif
 endif
 
+ifdef CONFIG_SMP
+prepare: task_cpu_prepare
+
+task_cpu_prepare: prepare0
+	$(eval KBUILD_CFLAGS += -D_TASK_CPU=$(shell awk '{if ($$2 == "TI_CPU") print $$3;}' include/generated/asm-offsets.h))
+endif
+
 # Check toolchain versions:
 # - gcc-4.6 is the minimum kernel-wide version so nothing required.
 checkbin:

@@ -13,6 +13,8 @@
  * 2 of the License, or (at your option) any later version.
  */
 
+#define GENERATING_ASM_OFFSETS	/* asm/smp.h */
+
 #include <linux/compat.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
@@ -97,6 +99,9 @@ int main(void)
 #endif
 #endif /* CONFIG_PPC64 */
 	OFFSET(TASK_STACK, task_struct, stack);
+#ifdef CONFIG_SMP
+	OFFSET(TI_CPU, task_struct, cpu);
+#endif
 
 #ifdef CONFIG_LIVEPATCH
 	OFFSET(TI_livepatch_sp, thread_info, livepatch_sp);
@@ -164,8 +169,6 @@ int main(void)
 	OFFSET(TI_FLAGS, thread_info, flags);
 	OFFSET(TI_LOCAL_FLAGS, thread_info, local_flags);
 	OFFSET(TI_PREEMPT, thread_info, preempt_count);
-	OFFSET(TI_TASK, thread_info, task);
-	OFFSET(TI_CPU, thread_info, cpu);
 
 #ifdef CONFIG_PPC64
 	OFFSET(DCACHEL1BLOCKSIZE, ppc64_caches, l1d.block_size);

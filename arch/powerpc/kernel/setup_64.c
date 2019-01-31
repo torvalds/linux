@@ -690,24 +690,6 @@ void __init exc_lvl_early_init(void)
 #endif
 
 /*
- * Emergency stacks are used for a range of things, from asynchronous
- * NMIs (system reset, machine check) to synchronous, process context.
- * We set preempt_count to zero, even though that isn't necessarily correct. To
- * get the right value we'd need to copy it from the previous thread_info, but
- * doing that might fault causing more problems.
- * TODO: what to do with accounting?
- */
-static void emerg_stack_init_thread_info(struct thread_info *ti, int cpu)
-{
-	ti->task = NULL;
-	ti->cpu = cpu;
-	ti->preempt_count = 0;
-	ti->local_flags = 0;
-	ti->flags = 0;
-	klp_init_thread_info(ti);
-}
-
-/*
  * Stack space used when we detect a bad kernel stack pointer, and
  * early in SMP boots before relocation is enabled. Exclusive emergency
  * stack for machine checks.
@@ -737,18 +719,15 @@ void __init emergency_stack_init(void)
 		struct thread_info *ti;
 
 		ti = alloc_stack(limit, i);
-		emerg_stack_init_thread_info(ti, i);
 		paca_ptrs[i]->emergency_sp = (void *)ti + THREAD_SIZE;
 
 #ifdef CONFIG_PPC_BOOK3S_64
 		/* emergency stack for NMI exception handling. */
 		ti = alloc_stack(limit, i);
-		emerg_stack_init_thread_info(ti, i);
 		paca_ptrs[i]->nmi_emergency_sp = (void *)ti + THREAD_SIZE;
 
 		/* emergency stack for machine check exception handling. */
 		ti = alloc_stack(limit, i);
-		emerg_stack_init_thread_info(ti, i);
 		paca_ptrs[i]->mc_emergency_sp = (void *)ti + THREAD_SIZE;
 #endif
 	}

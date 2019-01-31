@@ -77,17 +77,6 @@ special_reg_save:
 	andi.	r3,r3,MSR_PR
 	bnelr
 
-	/* Copy info into temporary exception thread info */
-	ld	r11,PACAKSAVE(r13)
-	CURRENT_THREAD_INFO(r11, r11)
-	CURRENT_THREAD_INFO(r12, r1)
-	ld	r10,TI_FLAGS(r11)
-	std	r10,TI_FLAGS(r12)
-	ld	r10,TI_PREEMPT(r11)
-	std	r10,TI_PREEMPT(r12)
-	ld	r10,TI_TASK(r11)
-	std	r10,TI_TASK(r12)
-
 	/*
 	 * Advance to the next TLB exception frame for handler
 	 * types that don't do it automatically.

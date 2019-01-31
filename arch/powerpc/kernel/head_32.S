@@ -834,9 +834,9 @@ __secondary_start:
 	/* get current's stack and current */
 	lis	r1,secondary_ti@ha
 	tophys(r1,r1)
-	lwz	r1,secondary_ti@l(r1)
-	tophys(r2,r1)
-	lwz	r2,TI_TASK(r2)
+	lwz	r2,secondary_ti@l(r1)
+	tophys(r1,r2)
+	lwz	r1,TASK_STACK(r1)
 
 	/* stack */
 	addi	r1,r1,THREAD_SIZE-STACK_FRAME_OVERHEAD

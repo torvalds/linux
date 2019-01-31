@@ -155,13 +155,7 @@ END_BTB_FLUSH_SECTION
 	stw	r10,GPR11(r11);						     \
 	b	2f;							     \
 	/* COMING FROM PRIV MODE */					     \
-1:	lwz	r9,TI_FLAGS-EXC_LVL_FRAME_OVERHEAD(r11);		     \
-	lwz	r10,TI_PREEMPT-EXC_LVL_FRAME_OVERHEAD(r11);		     \
-	stw	r9,TI_FLAGS-EXC_LVL_FRAME_OVERHEAD(r8);			     \
-	stw	r10,TI_PREEMPT-EXC_LVL_FRAME_OVERHEAD(r8);		     \
-	lwz	r9,TI_TASK-EXC_LVL_FRAME_OVERHEAD(r11);			     \
-	stw	r9,TI_TASK-EXC_LVL_FRAME_OVERHEAD(r8);			     \
-	mr	r11,r8;							     \
+1:	mr	r11, r8;							     \
 2:	mfspr	r8,SPRN_SPRG_RSCRATCH_##exc_level;			     \
 	stw	r12,GPR12(r11);		/* save various registers	   */\
 	mflr	r10;							     \

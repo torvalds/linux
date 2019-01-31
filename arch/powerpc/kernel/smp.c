@@ -988,7 +988,7 @@ static void cpu_idle_thread_init(unsigned int cpu, struct task_struct *idle)
 	paca_ptrs[cpu]->kstack = (unsigned long)task_stack_page(idle) +
 				 THREAD_SIZE - STACK_FRAME_OVERHEAD;
 #endif
-	ti->cpu = cpu;
+	idle->cpu = cpu;
 	secondary_ti = current_set[cpu] = ti;
 }
 

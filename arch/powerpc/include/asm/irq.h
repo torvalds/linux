@@ -51,9 +51,6 @@ struct pt_regs;
 extern struct thread_info *critirq_ctx[NR_CPUS];
 extern struct thread_info *dbgirq_ctx[NR_CPUS];
 extern struct thread_info *mcheckirq_ctx[NR_CPUS];
-extern void exc_lvl_ctx_init(void);
-#else
-#define exc_lvl_ctx_init()
 #endif
 
 /*
@@ -62,7 +59,6 @@ extern void exc_lvl_ctx_init(void);
 extern struct thread_info *hardirq_ctx[NR_CPUS];
 extern struct thread_info *softirq_ctx[NR_CPUS];
 
-extern void irq_ctx_init(void);
 void call_do_softirq(void *sp);
 void call_do_irq(struct pt_regs *regs, void *sp);
 extern void do_IRQ(struct pt_regs *regs);

@@ -1021,8 +1021,8 @@ _GLOBAL(start_secondary_47x)
 
 	/* Get current's stack and current */
 	lis	r1,secondary_ti@ha
-	lwz	r1,secondary_ti@l(r1)
-	lwz	r2,TI_TASK(r1)
+	lwz	r2,secondary_ti@l(r1)
+	lwz	r1,TASK_STACK(r2)
 
 	/* Current stack pointer */
 	addi	r1,r1,THREAD_SIZE-STACK_FRAME_OVERHEAD
