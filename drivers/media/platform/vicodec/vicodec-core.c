@@ -1118,9 +1118,14 @@ static int vicodec_enum_framesizes(struct file *file, void *fh,
 static int vicodec_subscribe_event(struct v4l2_fh *fh,
 				const struct v4l2_event_subscription *sub)
 {
+	struct vicodec_ctx *ctx = container_of(fh, struct vicodec_ctx, fh);
+
 	switch (sub->type) {
-	case V4L2_EVENT_EOS:
 	case V4L2_EVENT_SOURCE_CHANGE:
+		if (ctx->is_enc)
+			return -EINVAL;
+		/* fall through */
+	case V4L2_EVENT_EOS:
 		return v4l2_event_subscribe(fh, sub, 0, NULL);
 	default:
 		return v4l2_ctrl_subscribe_event(fh, sub);
