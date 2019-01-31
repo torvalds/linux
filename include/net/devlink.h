@@ -429,6 +429,7 @@ enum devlink_param_wol_types {
 }
 
 struct devlink_region;
+struct devlink_info_req;
 
 typedef void devlink_snapshot_data_dest_t(const void *data);
 
@@ -484,6 +485,8 @@ struct devlink_ops {
 	int (*eswitch_encap_mode_get)(struct devlink *devlink, u8 *p_encap_mode);
 	int (*eswitch_encap_mode_set)(struct devlink *devlink, u8 encap_mode,
 				      struct netlink_ext_ack *extack);
+	int (*info_get)(struct devlink *devlink, struct devlink_info_req *req,
+			struct netlink_ext_ack *extack);
 };
 
 static inline void *devlink_priv(struct devlink *devlink)
@@ -607,6 +610,10 @@ u32 devlink_region_shapshot_id_get(struct devlink *devlink);
 int devlink_region_snapshot_create(struct devlink_region *region, u64 data_len,
 				   u8 *data, u32 snapshot_id,
 				   devlink_snapshot_data_dest_t *data_destructor);
+int devlink_info_serial_number_put(struct devlink_info_req *req,
+				   const char *sn);
+int devlink_info_driver_name_put(struct devlink_info_req *req,
+				 const char *name);
 
 #else
 
@@ -905,6 +912,17 @@ devlink_region_snapshot_create(struct devlink_region *region, u64 data_len,
 	return 0;
 }
 
+static inline int
+devlink_info_driver_name_put(struct devlink_info_req *req, const char *name)
+{
+	return 0;
+}
+
+static inline int
+devlink_info_serial_number_put(struct devlink_info_req *req, const char *sn)
+{
+	return 0;
+}
 #endif
 
 #endif /* _NET_DEVLINK_H_ */
