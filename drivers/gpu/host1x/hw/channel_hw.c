@@ -61,15 +61,37 @@ static void trace_write_gather(struct host1x_cdma *cdma, struct host1x_bo *bo,
 static void submit_gathers(struct host1x_job *job)
 {
 	struct host1x_cdma *cdma = &job->channel->cdma;
+#if HOST1X_HW < 6
+	struct device *dev = job->channel->dev;
+#endif
 	unsigned int i;
 
 	for (i = 0; i < job->num_gathers; i++) {
 		struct host1x_job_gather *g = &job->gathers[i];
-		u32 op1 = host1x_opcode_gather(g->words);
-		u32 op2 = g->base + g->offset;
+		dma_addr_t addr = g->base + g->offset;
+		u32 op2, op3;
 
-		trace_write_gather(cdma, g->bo, g->offset, op1 & 0xffff);
-		host1x_cdma_push(cdma, op1, op2);
+		op2 = lower_32_bits(addr);
+		op3 = upper_32_bits(addr);
+
+		trace_write_gather(cdma, g->bo, g->offset, g->words);
+
+		if (op3 != 0) {
+#if HOST1X_HW >= 6
+			u32 op1 = host1x_opcode_gather_wide(g->words);
+			u32 op4 = HOST1X_OPCODE_NOP;
+
+			host1x_cdma_push_wide(cdma, op1, op2, op3, op4);
+#else
+			dev_err(dev, "invalid gather for push buffer %pad\n",
+				&addr);
+			continue;
+#endif
+		} else {
+			u32 op1 = host1x_opcode_gather(g->words);
+
+			host1x_cdma_push(cdma, op1, op2);
+		}
 	}
 }
 

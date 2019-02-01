@@ -138,6 +138,11 @@ static inline u32 host1x_opcode_gather_incr(unsigned offset, unsigned count)
 	return (6 << 28) | (offset << 16) | BIT(15) | BIT(14) | count;
 }
 
+static inline u32 host1x_opcode_gather_wide(unsigned count)
+{
+	return (12 << 28) | count;
+}
+
 #define HOST1X_OPCODE_NOP host1x_opcode_nonincr(0, 0)
 
 #endif

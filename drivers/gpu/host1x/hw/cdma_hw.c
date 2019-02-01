@@ -68,20 +68,31 @@ static void cdma_timeout_cpu_incr(struct host1x_cdma *cdma, u32 getptr,
 static void cdma_start(struct host1x_cdma *cdma)
 {
 	struct host1x_channel *ch = cdma_to_channel(cdma);
+	u64 start, end;
 
 	if (cdma->running)
 		return;
 
 	cdma->last_pos = cdma->push_buffer.pos;
+	start = cdma->push_buffer.dma;
+	end = start + cdma->push_buffer.size + 4;
 
 	host1x_ch_writel(ch, HOST1X_CHANNEL_DMACTRL_DMASTOP,
 			 HOST1X_CHANNEL_DMACTRL);
 
 	/* set base, put and end pointer */
-	host1x_ch_writel(ch, cdma->push_buffer.dma, HOST1X_CHANNEL_DMASTART);
+	host1x_ch_writel(ch, lower_32_bits(start), HOST1X_CHANNEL_DMASTART);
+#if HOST1X_HW >= 6
+	host1x_ch_writel(ch, upper_32_bits(start), HOST1X_CHANNEL_DMASTART_HI);
+#endif
 	host1x_ch_writel(ch, cdma->push_buffer.pos, HOST1X_CHANNEL_DMAPUT);
-	host1x_ch_writel(ch, cdma->push_buffer.dma + cdma->push_buffer.size + 4,
-			 HOST1X_CHANNEL_DMAEND);
+#if HOST1X_HW >= 6
+	host1x_ch_writel(ch, 0, HOST1X_CHANNEL_DMAPUT_HI);
+#endif
+	host1x_ch_writel(ch, lower_32_bits(end), HOST1X_CHANNEL_DMAEND);
+#if HOST1X_HW >= 6
+	host1x_ch_writel(ch, upper_32_bits(end), HOST1X_CHANNEL_DMAEND_HI);
+#endif
 
 	/* reset GET */
 	host1x_ch_writel(ch, HOST1X_CHANNEL_DMACTRL_DMASTOP |
@@ -104,6 +115,7 @@ static void cdma_timeout_restart(struct host1x_cdma *cdma, u32 getptr)
 {
 	struct host1x *host1x = cdma_to_host1x(cdma);
 	struct host1x_channel *ch = cdma_to_channel(cdma);
+	u64 start, end;
 
 	if (cdma->running)
 		return;
@@ -113,10 +125,18 @@ static void cdma_timeout_restart(struct host1x_cdma *cdma, u32 getptr)
 	host1x_ch_writel(ch, HOST1X_CHANNEL_DMACTRL_DMASTOP,
 			 HOST1X_CHANNEL_DMACTRL);
 
+	start = cdma->push_buffer.dma;
+	end = start + cdma->push_buffer.size + 4;
+
 	/* set base, end pointer (all of memory) */
-	host1x_ch_writel(ch, cdma->push_buffer.dma, HOST1X_CHANNEL_DMASTART);
-	host1x_ch_writel(ch, cdma->push_buffer.dma + cdma->push_buffer.size,
-			 HOST1X_CHANNEL_DMAEND);
+	host1x_ch_writel(ch, lower_32_bits(start), HOST1X_CHANNEL_DMASTART);
+#if HOST1X_HW >= 6
+	host1x_ch_writel(ch, upper_32_bits(start), HOST1X_CHANNEL_DMASTART_HI);
+#endif
+	host1x_ch_writel(ch, lower_32_bits(end), HOST1X_CHANNEL_DMAEND);
+#if HOST1X_HW >= 6
+	host1x_ch_writel(ch, upper_32_bits(end), HOST1X_CHANNEL_DMAEND_HI);
+#endif
 
 	/* set GET, by loading the value in PUT (then reset GET) */
 	host1x_ch_writel(ch, getptr, HOST1X_CHANNEL_DMAPUT);
