@@ -232,11 +232,6 @@ static int sf_read_super_aux(struct super_block *sb, void *data, int flags)
 
 	info = data;
 
-	if (flags & MS_REMOUNT) {
-		LogFunc(("remounting is not supported\n"));
-		return -ENOSYS;
-	}
-
 	err = sf_glob_alloc(info, &sf_g);
 	if (err)
 		goto fail0;
