@@ -942,8 +942,32 @@ ieee80211_rate_get_vht_nss(const struct ieee80211_tx_rate *rate)
  * @band: the band to transmit on (use for checking for races)
  * @hw_queue: HW queue to put the frame on, skb_get_queue_mapping() gives the AC
  * @ack_frame_id: internal frame ID for TX status, used internally
- * @control: union for control data
- * @status: union for status data
+ * @control: union part for control data
+ * @control.rates: TX rates array to try
+ * @control.rts_cts_rate_idx: rate for RTS or CTS
+ * @control.use_rts: use RTS
+ * @control.use_cts_prot: use RTS/CTS
+ * @control.short_preamble: use short preamble (CCK only)
+ * @control.skip_table: skip externally configured rate table
+ * @control.jiffies: timestamp for expiry on powersave clients
+ * @control.vif: virtual interface (may be NULL)
+ * @control.hw_key: key to encrypt with (may be NULL)
+ * @control.flags: control flags, see &enum mac80211_tx_control_flags
+ * @control.enqueue_time: enqueue time (for iTXQs)
+ * @driver_rates: alias to @control.rates to reserve space
+ * @pad: padding
+ * @rate_driver_data: driver use area if driver needs @control.rates
+ * @status: union part for status data
+ * @status.rates: attempted rates
+ * @status.ack_signal: ACK signal
+ * @status.ampdu_ack_len: AMPDU ack length
+ * @status.ampdu_len: AMPDU length
+ * @status.antenna: (legacy, kept only for iwlegacy)
+ * @status.tx_time: airtime consumed for transmission
+ * @status.is_valid_ack_signal: ACK signal is valid
+ * @status.status_driver_data: driver use area
+ * @ack: union part for pure ACK data
+ * @ack.cookie: cookie for the ACK
  * @driver_data: array of driver_data pointers
  * @ampdu_ack_len: number of acked aggregated frames.
  * 	relevant only if IEEE80211_TX_STAT_AMPDU was set.
@@ -1163,6 +1187,7 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
  * @RX_FLAG_AMPDU_EOF_BIT_KNOWN: The EOF value is known
  * @RX_FLAG_RADIOTAP_HE: HE radiotap data is present
  *	(&struct ieee80211_radiotap_he, mac80211 will fill in
+ *	
  *	 - DATA3_DATA_MCS
  *	 - DATA3_DATA_DCM
  *	 - DATA3_CODING
@@ -1170,6 +1195,7 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
  *	 - DATA5_DATA_BW_RU_ALLOC
  *	 - DATA6_NSTS
  *	 - DATA3_STBC
+ *	
  *	from the RX info data, so leave those zeroed when building this data)
  * @RX_FLAG_RADIOTAP_HE_MU: HE MU radiotap data is present
  *	(&struct ieee80211_radiotap_he_mu)
@@ -1220,7 +1246,7 @@ enum mac80211_rx_flags {
  * @RX_ENC_FLAG_HT_GF: This frame was received in a HT-greenfield transmission,
  *	if the driver fills this value it should add
  *	%IEEE80211_RADIOTAP_MCS_HAVE_FMT
- *	to hw.radiotap_mcs_details to advertise that fact
+ *	to @hw.radiotap_mcs_details to advertise that fact.
  * @RX_ENC_FLAG_LDPC: LDPC was used
  * @RX_ENC_FLAG_STBC_MASK: STBC 2 bit bitmask. 1 - Nss=1, 2 - Nss=2, 3 - Nss=3
  * @RX_ENC_FLAG_BF: packet was beamformed
@@ -2333,12 +2359,14 @@ enum ieee80211_hw_flags {
  * @radiotap_he: HE radiotap validity flags
  *
  * @radiotap_timestamp: Information for the radiotap timestamp field; if the
- *	'units_pos' member is set to a non-negative value it must be set to
- *	a combination of a IEEE80211_RADIOTAP_TIMESTAMP_UNIT_* and a
- *	IEEE80211_RADIOTAP_TIMESTAMP_SPOS_* value, and then the timestamp
+ *	@units_pos member is set to a non-negative value then the timestamp
  *	field will be added and populated from the &struct ieee80211_rx_status
- *	device_timestamp. If the 'accuracy' member is non-negative, it's put
- *	into the accuracy radiotap field and the accuracy known flag is set.
+ *	device_timestamp.
+ * @radiotap_timestamp.units_pos: Must be set to a combination of a
+ *	IEEE80211_RADIOTAP_TIMESTAMP_UNIT_* and a
+ *	IEEE80211_RADIOTAP_TIMESTAMP_SPOS_* value.
+ * @radiotap_timestamp.accuracy: If non-negative, fills the accuracy in the
+ *	radiotap field and the accuracy known flag will be set.
  *
  * @netdev_features: netdev features to be set in each netdev created
  *	from this HW. Note that not all features are usable with mac80211,
