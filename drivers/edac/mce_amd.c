@@ -155,7 +155,7 @@ static const char * const smca_ls_mce_desc[] = {
 	"Store queue parity",
 	"Miss address buffer payload parity",
 	"L1 TLB parity",
-	"Reserved",
+	"DC Tag error type 5",
 	"DC tag error type 6",
 	"DC tag error type 1",
 	"Internal error type 1",
@@ -222,6 +222,7 @@ static const char * const smca_ex_mce_desc[] = {
 	"Retire status queue parity error",
 	"Scheduling queue parity error",
 	"Branch buffer queue parity error",
+	"Hardware Assertion error",
 };
 
 static const char * const smca_fp_mce_desc[] = {
@@ -279,6 +280,7 @@ static const char * const smca_pie_mce_desc[] = {
 	"Internal PIE register security violation",
 	"Error on GMI link",
 	"Poison data written to internal PIE register",
+	"A deferred error was detected in the DF"
 };
 
 static const char * const smca_umc_mce_desc[] = {
@@ -288,6 +290,8 @@ static const char * const smca_umc_mce_desc[] = {
 	"Advanced peripheral bus error",
 	"Command/address parity error",
 	"Write data CRC error",
+	"DCQ SRAM ECC error",
+	"AES SRAM ECC error",
 };
 
 static const char * const smca_pb_mce_desc[] = {
