@@ -41,7 +41,17 @@
  * means that the push buffer is full, not empty.
  */
 
-#define HOST1X_PUSHBUFFER_SLOTS	512
+/*
+ * Typically the commands written into the push buffer are a pair of words. We
+ * use slots to represent each of these pairs and to simplify things. Note the
+ * strange number of slots allocated here. 512 slots will fit exactly within a
+ * single memory page. We also need one additional word at the end of the push
+ * buffer for the RESTART opcode that will instruct the CDMA to jump back to
+ * the beginning of the push buffer. With 512 slots, this means that we'll use
+ * 2 memory pages and waste 4092 bytes of the second page that will never be
+ * used.
+ */
+#define HOST1X_PUSHBUFFER_SLOTS	511
 
 /*
  * Clean up push buffer resources
@@ -143,7 +153,10 @@ static void host1x_pushbuffer_push(struct push_buffer *pb, u32 op1, u32 op2)
 	WARN_ON(pb->pos == pb->fence);
 	*(p++) = op1;
 	*(p++) = op2;
-	pb->pos = (pb->pos + 8) & (pb->size - 1);
+	pb->pos += 8;
+
+	if (pb->pos >= pb->size)
+		pb->pos -= pb->size;
 }
 
 /*
@@ -153,7 +166,10 @@ static void host1x_pushbuffer_push(struct push_buffer *pb, u32 op1, u32 op2)
 static void host1x_pushbuffer_pop(struct push_buffer *pb, unsigned int slots)
 {
 	/* Advance the next write position */
-	pb->fence = (pb->fence + slots * 8) & (pb->size - 1);
+	pb->fence += slots * 8;
+
+	if (pb->fence >= pb->size)
+		pb->fence -= pb->size;
 }
 
 /*
@@ -161,7 +177,12 @@ static void host1x_pushbuffer_pop(struct push_buffer *pb, unsigned int slots)
  */
 static u32 host1x_pushbuffer_space(struct push_buffer *pb)
 {
-	return ((pb->fence - pb->pos) & (pb->size - 1)) / 8;
+	unsigned int fence = pb->fence;
+
+	if (pb->fence < pb->pos)
+		fence += pb->size;
+
+	return (fence - pb->pos) / 8;
 }
 
 /*
