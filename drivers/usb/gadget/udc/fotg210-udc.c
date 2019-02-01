@@ -356,10 +356,6 @@ static void fotg210_start_dma(struct fotg210_ep *ep,
 		return;
 	}
 
-	dma_sync_single_for_device(NULL, d, length,
-				   ep->dir_in ? DMA_TO_DEVICE :
-					DMA_FROM_DEVICE);
-
 	fotg210_enable_dma(ep, d, length);
 
 	/* check if dma is done */
