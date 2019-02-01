@@ -32,6 +32,7 @@
 #include <linux/bpf_perf_event.h>
 #include <linux/bpf.h>
 #include <linux/if_ether.h>
+#include <linux/btf.h>
 
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
@@ -50,7 +51,7 @@
 
 #define MAX_INSNS	BPF_MAXINSNS
 #define MAX_FIXUPS	8
-#define MAX_NR_MAPS	13
+#define MAX_NR_MAPS	14
 #define MAX_TEST_RUNS	8
 #define POINTER_VALUE	0xcafe4all
 #define TEST_DATA_LEN	64
@@ -78,6 +79,7 @@ struct bpf_test {
 	int fixup_map_in_map[MAX_FIXUPS];
 	int fixup_cgroup_storage[MAX_FIXUPS];
 	int fixup_percpu_cgroup_storage[MAX_FIXUPS];
+	int fixup_map_spin_lock[MAX_FIXUPS];
 	const char *errstr;
 	const char *errstr_unpriv;
 	uint32_t retval, retval_unpriv, insn_processed;
@@ -406,6 +408,98 @@ static int create_cgroup_storage(bool percpu)
 	return fd;
 }
 
+#define BTF_INFO_ENC(kind, kind_flag, vlen) \
+	((!!(kind_flag) << 31) | ((kind) << 24) | ((vlen) & BTF_MAX_VLEN))
+#define BTF_TYPE_ENC(name, info, size_or_type) \
+	(name), (info), (size_or_type)
+#define BTF_INT_ENC(encoding, bits_offset, nr_bits) \
+	((encoding) << 24 | (bits_offset) << 16 | (nr_bits))
+#define BTF_TYPE_INT_ENC(name, encoding, bits_offset, bits, sz) \
+	BTF_TYPE_ENC(name, BTF_INFO_ENC(BTF_KIND_INT, 0, 0), sz), \
+	BTF_INT_ENC(encoding, bits_offset, bits)
+#define BTF_MEMBER_ENC(name, type, bits_offset) \
+	(name), (type), (bits_offset)
+
+struct btf_raw_data {
+	__u32 raw_types[64];
+	const char *str_sec;
+	__u32 str_sec_size;
+};
+
+/* struct bpf_spin_lock {
+ *   int val;
+ * };
+ * struct val {
+ *   int cnt;
+ *   struct bpf_spin_lock l;
+ * };
+ */
+static const char btf_str_sec[] = "\0bpf_spin_lock\0val\0cnt\0l";
+static __u32 btf_raw_types[] = {
+	/* int */
+	BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),  /* [1] */
+	/* struct bpf_spin_lock */                      /* [2] */
+	BTF_TYPE_ENC(1, BTF_INFO_ENC(BTF_KIND_STRUCT, 0, 1), 4),
+	BTF_MEMBER_ENC(15, 1, 0), /* int val; */
+	/* struct val */                                /* [3] */
+	BTF_TYPE_ENC(15, BTF_INFO_ENC(BTF_KIND_STRUCT, 0, 2), 8),
+	BTF_MEMBER_ENC(19, 1, 0), /* int cnt; */
+	BTF_MEMBER_ENC(23, 2, 32),/* struct bpf_spin_lock l; */
+};
+
+static int load_btf(void)
+{
+	struct btf_header hdr = {
+		.magic = BTF_MAGIC,
+		.version = BTF_VERSION,
+		.hdr_len = sizeof(struct btf_header),
+		.type_len = sizeof(btf_raw_types),
+		.str_off = sizeof(btf_raw_types),
+		.str_len = sizeof(btf_str_sec),
+	};
+	void *ptr, *raw_btf;
+	int btf_fd;
+
+	ptr = raw_btf = malloc(sizeof(hdr) + sizeof(btf_raw_types) +
+			       sizeof(btf_str_sec));
+
+	memcpy(ptr, &hdr, sizeof(hdr));
+	ptr += sizeof(hdr);
+	memcpy(ptr, btf_raw_types, hdr.type_len);
+	ptr += hdr.type_len;
+	memcpy(ptr, btf_str_sec, hdr.str_len);
+	ptr += hdr.str_len;
+
+	btf_fd = bpf_load_btf(raw_btf, ptr - raw_btf, 0, 0, 0);
+	free(raw_btf);
+	if (btf_fd < 0)
+		return -1;
+	return btf_fd;
+}
+
+static int create_map_spin_lock(void)
+{
+	struct bpf_create_map_attr attr = {
+		.name = "test_map",
+		.map_type = BPF_MAP_TYPE_ARRAY,
+		.key_size = 4,
+		.value_size = 8,
+		.max_entries = 1,
+		.btf_key_type_id = 1,
+		.btf_value_type_id = 3,
+	};
+	int fd, btf_fd;
+
+	btf_fd = load_btf();
+	if (btf_fd < 0)
+		return -1;
+	attr.btf_fd = btf_fd;
+	fd = bpf_create_map_xattr(&attr);
+	if (fd < 0)
+		printf("Failed to create map with spin_lock\n");
+	return fd;
+}
+
 static char bpf_vlog[UINT_MAX >> 8];
 
 static void do_test_fixup(struct bpf_test *test, enum bpf_prog_type prog_type,
@@ -424,6 +518,7 @@ static void do_test_fixup(struct bpf_test *test, enum bpf_prog_type prog_type,
 	int *fixup_map_in_map = test->fixup_map_in_map;
 	int *fixup_cgroup_storage = test->fixup_cgroup_storage;
 	int *fixup_percpu_cgroup_storage = test->fixup_percpu_cgroup_storage;
+	int *fixup_map_spin_lock = test->fixup_map_spin_lock;
 
 	if (test->fill_helper)
 		test->fill_helper(test);
@@ -539,6 +634,13 @@ static void do_test_fixup(struct bpf_test *test, enum bpf_prog_type prog_type,
 			prog[*fixup_map_stacktrace].imm = map_fds[12];
 			fixup_map_stacktrace++;
 		} while (*fixup_map_stacktrace);
+	}
+	if (*fixup_map_spin_lock) {
+		map_fds[13] = create_map_spin_lock();
+		do {
+			prog[*fixup_map_spin_lock].imm = map_fds[13];
+			fixup_map_spin_lock++;
+		} while (*fixup_map_spin_lock);
 	}
 }
 

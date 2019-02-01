@@ -267,6 +267,7 @@ enum bpf_attach_type {
 #define BPF_ANY		0 /* create new element or update existing */
 #define BPF_NOEXIST	1 /* create new element if it didn't exist */
 #define BPF_EXIST	2 /* update existing element */
+#define BPF_F_LOCK	4 /* spin_lock-ed map_lookup/map_update */
 
 /* flags for BPF_MAP_CREATE command */
 #define BPF_F_NO_PREALLOC	(1U << 0)
@@ -2422,7 +2423,9 @@ union bpf_attr {
 	FN(map_peek_elem),		\
 	FN(msg_push_data),		\
 	FN(msg_pop_data),		\
-	FN(rc_pointer_rel),
+	FN(rc_pointer_rel),		\
+	FN(spin_lock),			\
+	FN(spin_unlock),
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper
  * function eBPF program intends to call
@@ -3056,4 +3059,7 @@ struct bpf_line_info {
 	__u32	line_col;
 };
 
+struct bpf_spin_lock {
+	__u32	val;
+};
 #endif /* _UAPI__LINUX_BPF_H__ */
