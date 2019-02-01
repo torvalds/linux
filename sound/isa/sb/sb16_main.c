@@ -889,7 +889,7 @@ int snd_sb16dsp_pcm(struct snd_sb *chip, int device)
 	}
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_isa_data(),
+					      card->dev,
 					      64*1024, 128*1024);
 	return 0;
 }
