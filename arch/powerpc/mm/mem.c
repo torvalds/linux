@@ -80,11 +80,6 @@ static inline pte_t *virt_to_kpte(unsigned long vaddr)
 #define TOP_ZONE ZONE_NORMAL
 #endif
 
-int page_is_ram(unsigned long pfn)
-{
-	return memblock_is_memory(__pfn_to_phys(pfn));
-}
-
 pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 			      unsigned long size, pgprot_t vma_prot)
 {
@@ -175,34 +170,6 @@ int __meminit arch_remove_memory(int nid, u64 start, u64 size,
 }
 #endif
 #endif /* CONFIG_MEMORY_HOTPLUG */
-
-/*
- * walk_memory_resource() needs to make sure there is no holes in a given
- * memory range.  PPC64 does not maintain the memory layout in /proc/iomem.
- * Instead it maintains it in memblock.memory structures.  Walk through the
- * memory regions, find holes and callback for contiguous regions.
- */
-int
-walk_system_ram_range(unsigned long start_pfn, unsigned long nr_pages,
-		void *arg, int (*func)(unsigned long, unsigned long, void *))
-{
-	struct memblock_region *reg;
-	unsigned long end_pfn = start_pfn + nr_pages;
-	unsigned long tstart, tend;
-	int ret = -1;
-
-	for_each_memblock(memory, reg) {
-		tstart = max(start_pfn, memblock_region_memory_base_pfn(reg));
-		tend = min(end_pfn, memblock_region_memory_end_pfn(reg));
-		if (tstart >= tend)
-			continue;
-		ret = (*func)(tstart, tend - tstart, arg);
-		if (ret)
-			break;
-	}
-	return ret;
-}
-EXPORT_SYMBOL_GPL(walk_system_ram_range);
 
 #ifndef CONFIG_NEED_MULTIPLE_NODES
 void __init mem_topology_setup(void)
@@ -585,3 +552,9 @@ int devmem_is_allowed(unsigned long pfn)
 	return 0;
 }
 #endif /* CONFIG_STRICT_DEVMEM */
+
+/*
+ * This is defined in kernel/resource.c but only powerpc needs to export it, for
+ * the EHEA driver. Drop this when drivers/net/ethernet/ibm/ehea is removed.
+ */
+EXPORT_SYMBOL_GPL(walk_system_ram_range);

@@ -478,9 +478,6 @@ config ARCH_CPU_PROBE_RELEASE
 config ARCH_ENABLE_MEMORY_HOTPLUG
 	def_bool y
 
-config ARCH_HAS_WALK_MEMORY
-	def_bool y
-
 config ARCH_ENABLE_MEMORY_HOTREMOVE
 	def_bool y
 
