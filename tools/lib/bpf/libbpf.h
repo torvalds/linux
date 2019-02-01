@@ -264,6 +264,9 @@ struct bpf_map;
 LIBBPF_API struct bpf_map *
 bpf_object__find_map_by_name(struct bpf_object *obj, const char *name);
 
+LIBBPF_API int
+bpf_object__find_map_fd_by_name(struct bpf_object *obj, const char *name);
+
 /*
  * Get bpf_map through the offset of corresponding struct bpf_map_def
  * in the BPF object file.
@@ -314,6 +317,7 @@ LIBBPF_API int bpf_prog_load(const char *file, enum bpf_prog_type type,
 			     struct bpf_object **pobj, int *prog_fd);
 
 LIBBPF_API int bpf_set_link_xdp_fd(int ifindex, int fd, __u32 flags);
+LIBBPF_API int bpf_get_link_xdp_id(int ifindex, __u32 *prog_id, __u32 flags);
 
 enum bpf_perf_event_ret {
 	LIBBPF_PERF_EVENT_DONE	= 0,
