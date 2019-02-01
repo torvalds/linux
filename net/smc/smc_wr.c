@@ -218,10 +218,10 @@ int smc_wr_tx_put_slot(struct smc_link *link,
 		u32 idx = pend->idx;
 
 		/* clear the full struct smc_wr_tx_pend including .priv */
-		memset(&link->wr_tx_pends[pend->idx], 0,
-		       sizeof(link->wr_tx_pends[pend->idx]));
-		memset(&link->wr_tx_bufs[pend->idx], 0,
-		       sizeof(link->wr_tx_bufs[pend->idx]));
+		memset(&link->wr_tx_pends[idx], 0,
+		       sizeof(link->wr_tx_pends[idx]));
+		memset(&link->wr_tx_bufs[idx], 0,
+		       sizeof(link->wr_tx_bufs[idx]));
 		test_and_clear_bit(idx, link->wr_tx_mask);
 		return 1;
 	}
