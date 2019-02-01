@@ -531,10 +531,29 @@ static void amdgpu_vm_pt_next(struct amdgpu_device *adev,
  */
 static void amdgpu_vm_pt_first_dfs(struct amdgpu_device *adev,
 				   struct amdgpu_vm *vm,
+				   struct amdgpu_vm_pt_cursor *start,
 				   struct amdgpu_vm_pt_cursor *cursor)
 {
-	amdgpu_vm_pt_start(adev, vm, 0, cursor);
+	if (start)
+		*cursor = *start;
+	else
+		amdgpu_vm_pt_start(adev, vm, 0, cursor);
 	while (amdgpu_vm_pt_descendant(adev, cursor));
+}
+
+/**
+ * amdgpu_vm_pt_continue_dfs - check if the deep first search should continue
+ *
+ * @start: starting point for the search
+ * @entry: current entry
+ *
+ * Returns:
+ * True when the search should continue, false otherwise.
+ */
+static bool amdgpu_vm_pt_continue_dfs(struct amdgpu_vm_pt_cursor *start,
+				      struct amdgpu_vm_pt *entry)
+{
+	return entry && (!start || entry != start->entry);
 }
 
 /**
@@ -562,11 +581,11 @@ static void amdgpu_vm_pt_next_dfs(struct amdgpu_device *adev,
 /**
  * for_each_amdgpu_vm_pt_dfs_safe - safe deep first search of all PDs/PTs
  */
-#define for_each_amdgpu_vm_pt_dfs_safe(adev, vm, cursor, entry)			\
-	for (amdgpu_vm_pt_first_dfs((adev), (vm), &(cursor)),			\
+#define for_each_amdgpu_vm_pt_dfs_safe(adev, vm, start, cursor, entry)		\
+	for (amdgpu_vm_pt_first_dfs((adev), (vm), (start), &(cursor)),		\
 	     (entry) = (cursor).entry, amdgpu_vm_pt_next_dfs((adev), &(cursor));\
-	     (entry); (entry) = (cursor).entry,					\
-	     amdgpu_vm_pt_next_dfs((adev), &(cursor)))
+	     amdgpu_vm_pt_continue_dfs((start), (entry));			\
+	     (entry) = (cursor).entry, amdgpu_vm_pt_next_dfs((adev), &(cursor)))
 
 /**
  * amdgpu_vm_get_pd_bo - add the VM PD to a validation list
@@ -945,31 +964,45 @@ error_free_pt:
 }
 
 /**
+ * amdgpu_vm_free_table - fre one PD/PT
+ *
+ * @entry: PDE to free
+ */
+static void amdgpu_vm_free_table(struct amdgpu_vm_pt *entry)
+{
+	if (entry->base.bo) {
+		entry->base.bo->vm_bo = NULL;
+		list_del(&entry->base.vm_status);
+		amdgpu_bo_unref(&entry->base.bo->shadow);
+		amdgpu_bo_unref(&entry->base.bo);
+	}
+	kvfree(entry->entries);
+	entry->entries = NULL;
+}
+
+/**
  * amdgpu_vm_free_pts - free PD/PT levels
  *
  * @adev: amdgpu device structure
  * @vm: amdgpu vm structure
+ * @start: optional cursor where to start freeing PDs/PTs
  *
  * Free the page directory or page table level and all sub levels.
  */
 static void amdgpu_vm_free_pts(struct amdgpu_device *adev,
-			       struct amdgpu_vm *vm)
+			       struct amdgpu_vm *vm,
+			       struct amdgpu_vm_pt_cursor *start)
 {
 	struct amdgpu_vm_pt_cursor cursor;
 	struct amdgpu_vm_pt *entry;
 
-	for_each_amdgpu_vm_pt_dfs_safe(adev, vm, cursor, entry) {
+	vm->bulk_moveable = false;
 
-		if (entry->base.bo) {
-			entry->base.bo->vm_bo = NULL;
-			list_del(&entry->base.vm_status);
-			amdgpu_bo_unref(&entry->base.bo->shadow);
-			amdgpu_bo_unref(&entry->base.bo);
-		}
-		kvfree(entry->entries);
-	}
+	for_each_amdgpu_vm_pt_dfs_safe(adev, vm, start, cursor, entry)
+		amdgpu_vm_free_table(entry);
 
-	BUG_ON(vm->root.base.bo);
+	if (start)
+		amdgpu_vm_free_table(start->entry);
 }
 
 /**
@@ -1365,7 +1398,7 @@ static void amdgpu_vm_invalidate_pds(struct amdgpu_device *adev,
 	struct amdgpu_vm_pt_cursor cursor;
 	struct amdgpu_vm_pt *entry;
 
-	for_each_amdgpu_vm_pt_dfs_safe(adev, vm, cursor, entry)
+	for_each_amdgpu_vm_pt_dfs_safe(adev, vm, NULL, cursor, entry)
 		if (entry->base.bo && !entry->base.moved)
 			amdgpu_vm_bo_relocated(&entry->base);
 }
@@ -1673,6 +1706,7 @@ static int amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 			/* Mark all child entries as huge */
 			while (cursor.pfn < frag_start) {
 				cursor.entry->huge = true;
+				amdgpu_vm_free_pts(adev, params->vm, &cursor);
 				amdgpu_vm_pt_next(adev, &cursor);
 			}
 
@@ -3236,10 +3270,11 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 	if (r) {
 		dev_err(adev->dev, "Leaking page tables because BO reservation failed\n");
 	} else {
-		amdgpu_vm_free_pts(adev, vm);
+		amdgpu_vm_free_pts(adev, vm, NULL);
 		amdgpu_bo_unreserve(root);
 	}
 	amdgpu_bo_unref(&root);
+	WARN_ON(vm->root.base.bo);
 	dma_fence_put(vm->last_update);
 	for (i = 0; i < AMDGPU_MAX_VMHUBS; i++)
 		amdgpu_vmid_free_reserved(adev, vm, i);
