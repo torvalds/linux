@@ -618,11 +618,20 @@ nl80211_rekey_policy[NUM_NL80211_REKEY_DATA] = {
 };
 
 static const struct nla_policy
+nl80211_match_band_rssi_policy[NUM_NL80211_BANDS] = {
+	[NL80211_BAND_2GHZ] = { .type = NLA_S32 },
+	[NL80211_BAND_5GHZ] = { .type = NLA_S32 },
+	[NL80211_BAND_60GHZ] = { .type = NLA_S32 },
+};
+
+static const struct nla_policy
 nl80211_match_policy[NL80211_SCHED_SCAN_MATCH_ATTR_MAX + 1] = {
 	[NL80211_SCHED_SCAN_MATCH_ATTR_SSID] = { .type = NLA_BINARY,
 						 .len = IEEE80211_MAX_SSID_LEN },
 	[NL80211_SCHED_SCAN_MATCH_ATTR_BSSID] = { .len = ETH_ALEN },
 	[NL80211_SCHED_SCAN_MATCH_ATTR_RSSI] = { .type = NLA_U32 },
+	[NL80211_SCHED_SCAN_MATCH_PER_BAND_RSSI] =
+		NLA_POLICY_NESTED(nl80211_match_band_rssi_policy),
 };
 
 static const struct nla_policy
@@ -7537,6 +7546,41 @@ nl80211_parse_sched_scan_plans(struct wiphy *wiphy, int n_plans,
 	return 0;
 }
 
+static int
+nl80211_parse_sched_scan_per_band_rssi(struct wiphy *wiphy,
+				       struct cfg80211_match_set *match_sets,
+				       struct nlattr *tb_band_rssi,
+				       s32 rssi_thold)
+{
+	struct nlattr *attr;
+	int i, tmp, ret = 0;
+
+	if (!wiphy_ext_feature_isset(wiphy,
+		    NL80211_EXT_FEATURE_SCHED_SCAN_BAND_SPECIFIC_RSSI_THOLD)) {
+		if (tb_band_rssi)
+			ret = -EOPNOTSUPP;
+		else
+			for (i = 0; i < NUM_NL80211_BANDS; i++)
+				match_sets->per_band_rssi_thold[i] =
+					NL80211_SCAN_RSSI_THOLD_OFF;
+		return ret;
+	}
+
+	for (i = 0; i < NUM_NL80211_BANDS; i++)
+		match_sets->per_band_rssi_thold[i] = rssi_thold;
+
+	nla_for_each_nested(attr, tb_band_rssi, tmp) {
+		enum nl80211_band band = nla_type(attr);
+
+		if (band < 0 || band >= NUM_NL80211_BANDS)
+			return -EINVAL;
+
+		match_sets->per_band_rssi_thold[band] =	nla_get_s32(attr);
+	}
+
+	return 0;
+}
+
 static struct cfg80211_sched_scan_request *
 nl80211_parse_sched_scan(struct wiphy *wiphy, struct wireless_dev *wdev,
 			 struct nlattr **attrs, int max_match_sets)
@@ -7816,6 +7860,15 @@ nl80211_parse_sched_scan(struct wiphy *wiphy, struct wireless_dev *wdev,
 			if (rssi)
 				request->match_sets[i].rssi_thold =
 					nla_get_s32(rssi);
+
+			/* Parse per band RSSI attribute */
+			err = nl80211_parse_sched_scan_per_band_rssi(wiphy,
+				&request->match_sets[i],
+				tb[NL80211_SCHED_SCAN_MATCH_PER_BAND_RSSI],
+				request->match_sets[i].rssi_thold);
+			if (err)
+				goto out_free;
+
 			i++;
 		}
 
