@@ -140,7 +140,6 @@ struct amdgpu_vm_bo_base {
 
 struct amdgpu_vm_pt {
 	struct amdgpu_vm_bo_base	base;
-	bool				huge;
 
 	/* array of page tables, one for each directory entry */
 	struct amdgpu_vm_pt		*entries;

@@ -1371,10 +1371,6 @@ static void amdgpu_vm_update_pde(struct amdgpu_pte_update_params *params,
 	uint64_t pde, pt, flags;
 	unsigned level;
 
-	/* Don't update huge pages here */
-	if (entry->huge)
-		return;
-
 	for (level = 0, pbo = bo->parent; pbo; ++level)
 		pbo = pbo->parent;
 
@@ -1638,13 +1634,6 @@ static int amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 			continue;
 		}
 
-		/* If it isn't already handled it can't be a huge page */
-		if (cursor.entry->huge) {
-			/* Add the entry to the relocated list to update it. */
-			cursor.entry->huge = false;
-			amdgpu_vm_bo_relocated(&cursor.entry->base);
-		}
-
 		shift = amdgpu_vm_level_shift(adev, cursor.level);
 		parent_shift = amdgpu_vm_level_shift(adev, cursor.level - 1);
 		if (adev->asic_type < CHIP_VEGA10) {
@@ -1703,9 +1692,8 @@ static int amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 		} while (frag_start < entry_end);
 
 		if (amdgpu_vm_pt_descendant(adev, &cursor)) {
-			/* Mark all child entries as huge */
+			/* Free all child entries */
 			while (cursor.pfn < frag_start) {
-				cursor.entry->huge = true;
 				amdgpu_vm_free_pts(adev, params->vm, &cursor);
 				amdgpu_vm_pt_next(adev, &cursor);
 			}
