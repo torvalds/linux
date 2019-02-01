@@ -78,10 +78,6 @@ struct cipher_testvec {
  * @ctext:	Pointer to the full authenticated ciphertext.  For AEADs that
  *		produce a separate "ciphertext" and "authentication tag", these
  *		two parts are concatenated: ciphertext || tag.
- * @tap:	How to distribute ptext data in @np SGs
- * @atap:	How to distribute assoc data in @anp SGs
- * @np:		Numbers of SG to distribute ptext data in
- * @anp:	Numbers of SG to distribute assoc data in
  * @fail:	setkey() failure expected?
  * @novrfy:	Decryption verification failure expected?
  * @wk:		Does the test need CRYPTO_TFM_REQ_FORBID_WEAK_KEYS?
@@ -97,10 +93,6 @@ struct aead_testvec {
 	const char *ptext;
 	const char *assoc;
 	const char *ctext;
-	unsigned char tap[MAX_TAP];
-	unsigned char atap[MAX_TAP];
-	int np;
-	int anp;
 	bool fail;
 	unsigned char novrfy;
 	unsigned char wk;
@@ -16606,41 +16598,6 @@ static const struct aead_testvec aes_gcm_tv_template[] = {
 			  "\xb1\x18\x02\x4d\xb8\x67\x4a\x14",
 		.clen	= 80,
 	}, {
-		.key	= "\xfe\xff\xe9\x92\x86\x65\x73\x1c"
-			  "\x6d\x6a\x8f\x94\x67\x30\x83\x08"
-			  "\xfe\xff\xe9\x92\x86\x65\x73\x1c",
-		.klen	= 24,
-		.iv	= "\xca\xfe\xba\xbe\xfa\xce\xdb\xad"
-			  "\xde\xca\xf8\x88",
-		.ptext	= "\xd9\x31\x32\x25\xf8\x84\x06\xe5"
-			  "\xa5\x59\x09\xc5\xaf\xf5\x26\x9a"
-			  "\x86\xa7\xa9\x53\x15\x34\xf7\xda"
-			  "\x2e\x4c\x30\x3d\x8a\x31\x8a\x72"
-			  "\x1c\x3c\x0c\x95\x95\x68\x09\x53"
-			  "\x2f\xcf\x0e\x24\x49\xa6\xb5\x25"
-			  "\xb1\x6a\xed\xf5\xaa\x0d\xe6\x57"
-			  "\xba\x63\x7b\x39",
-		.plen	= 60,
-		.assoc	= "\xfe\xed\xfa\xce\xde\xad\xbe\xef"
-			  "\xfe\xed\xfa\xce\xde\xad\xbe\xef"
-			  "\xab\xad\xda\xd2",
-		.alen	= 20,
-		.ctext	= "\x39\x80\xca\x0b\x3c\x00\xe8\x41"
-			  "\xeb\x06\xfa\xc4\x87\x2a\x27\x57"
-			  "\x85\x9e\x1c\xea\xa6\xef\xd9\x84"
-			  "\x62\x85\x93\xb4\x0c\xa1\xe1\x9c"
-			  "\x7d\x77\x3d\x00\xc1\x44\xc5\x25"
-			  "\xac\x61\x9d\x18\xc8\x4a\x3f\x47"
-			  "\x18\xe2\x44\x8b\x2f\xe3\x24\xd9"
-			  "\xcc\xda\x27\x10"
-			  "\x25\x19\x49\x8e\x80\xf1\x47\x8f"
-			  "\x37\xba\x55\xbd\x6d\x27\x61\x8c",
-		.clen	= 76,
-		.np	= 2,
-		.tap	= { 32, 28 },
-		.anp	= 2,
-		.atap	= { 8, 12 }
-	}, {
 		.key    = zeroed_string,
 		.klen	= 32,
 		.ctext	= "\x53\x0f\x8a\xfb\xc7\x45\x36\xb9"
@@ -16716,10 +16673,6 @@ static const struct aead_testvec aes_gcm_tv_template[] = {
 			  "\x76\xfc\x6e\xce\x0f\x4e\x17\x68"
 			  "\xcd\xdf\x88\x53\xbb\x2d\x55\x1b",
 		.clen	= 76,
-		.np     = 2,
-		.tap    = { 48, 12 },
-		.anp	= 3,
-		.atap	= { 8, 8, 4 }
 	}, {
 		.key	= "\xfe\xff\xe9\x92\x86\x65\x73\x1c"
 			  "\x6d\x6a\x8f\x94\x67\x30\x83\x08"
