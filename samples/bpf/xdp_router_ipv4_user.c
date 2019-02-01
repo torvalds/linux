@@ -25,6 +25,7 @@
 #include <sys/syscall.h>
 #include "bpf_util.h"
 #include "bpf/libbpf.h"
+#include <sys/resource.h>
 
 int sock, sock_arp, flags = 0;
 static int total_ifindex;
@@ -609,6 +610,7 @@ cleanup:
 
 int main(int ac, char **argv)
 {
+	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
 	struct bpf_prog_load_attr prog_load_attr = {
 		.prog_type	= BPF_PROG_TYPE_XDP,
 	};
@@ -633,6 +635,11 @@ int main(int ac, char **argv)
 		flags = 0;
 		total_ifindex = ac - 1;
 		ifname_list = (argv + 1);
+	}
+
+	if (setrlimit(RLIMIT_MEMLOCK, &r)) {
+		perror("setrlimit(RLIMIT_MEMLOCK)");
+		return 1;
 	}
 
 	if (bpf_prog_load_xattr(&prog_load_attr, &obj, &prog_fd))

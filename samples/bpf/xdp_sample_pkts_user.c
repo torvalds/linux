@@ -12,6 +12,7 @@
 #include <signal.h>
 #include <libbpf.h>
 #include <bpf/bpf.h>
+#include <sys/resource.h>
 
 #include "perf-sys.h"
 #include "trace_helpers.h"
@@ -99,6 +100,7 @@ static void sig_handler(int signo)
 
 int main(int argc, char **argv)
 {
+	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
 	struct bpf_prog_load_attr prog_load_attr = {
 		.prog_type	= BPF_PROG_TYPE_XDP,
 	};
@@ -111,6 +113,11 @@ int main(int argc, char **argv)
 
 	if (argc < 2) {
 		printf("Usage: %s <ifname>\n", argv[0]);
+		return 1;
+	}
+
+	if (setrlimit(RLIMIT_MEMLOCK, &r)) {
+		perror("setrlimit(RLIMIT_MEMLOCK)");
 		return 1;
 	}
 
