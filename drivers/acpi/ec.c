@@ -1768,9 +1768,16 @@ void __init acpi_ec_dsdt_probe(void)
 	 * At this point, the GPE is not fully initialized, so do not to
 	 * handle the events.
 	 */
-	ret = acpi_config_boot_ec(ec, ec->handle, false, false);
-	if (ret)
+	ret = acpi_ec_setup(ec, false);
+	if (ret) {
 		acpi_ec_free(ec);
+		return;
+	}
+
+	boot_ec = ec;
+
+	acpi_handle_info(ec->handle,
+			 "Boot DSDT EC used to handle transactions\n");
 }
 
 /*
