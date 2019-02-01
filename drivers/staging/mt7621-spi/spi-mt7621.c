@@ -11,19 +11,13 @@
  *   Copyright (C) 2007-2008 Marvell Ltd.
  */
 
-#include <linux/init.h>
-#include <linux/module.h>
 #include <linux/clk.h>
-#include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/reset.h>
 #include <linux/spi/spi.h>
-#include <linux/of_device.h>
-#include <linux/platform_device.h>
-#include <linux/swab.h>
-
-#include <ralink_regs.h>
 
 #define SPI_BPW_MASK(bits) BIT((bits) - 1)
 
