@@ -120,6 +120,15 @@ static const struct host1x_info host1x05_info = {
 	.dma_mask = DMA_BIT_MASK(34),
 };
 
+static const struct host1x_sid_entry tegra186_sid_table[] = {
+	{
+		/* VIC */
+		.base = 0x1af0,
+		.offset = 0x30,
+		.limit = 0x34
+	},
+};
+
 static const struct host1x_info host1x06_info = {
 	.nb_channels = 63,
 	.nb_pts = 576,
@@ -129,6 +138,17 @@ static const struct host1x_info host1x06_info = {
 	.sync_offset = 0x0,
 	.dma_mask = DMA_BIT_MASK(34),
 	.has_hypervisor = true,
+	.num_sid_entries = ARRAY_SIZE(tegra186_sid_table),
+	.sid_table = tegra186_sid_table,
+};
+
+static const struct host1x_sid_entry tegra194_sid_table[] = {
+	{
+		/* VIC */
+		.base = 0x1af0,
+		.offset = 0x30,
+		.limit = 0x34
+	},
 };
 
 static const struct host1x_info host1x07_info = {
@@ -140,6 +160,8 @@ static const struct host1x_info host1x07_info = {
 	.sync_offset = 0x0,
 	.dma_mask = DMA_BIT_MASK(40),
 	.has_hypervisor = true,
+	.num_sid_entries = ARRAY_SIZE(tegra194_sid_table),
+	.sid_table = tegra194_sid_table,
 };
 
 static const struct of_device_id host1x_of_match[] = {
@@ -153,6 +175,19 @@ static const struct of_device_id host1x_of_match[] = {
 	{ },
 };
 MODULE_DEVICE_TABLE(of, host1x_of_match);
+
+static void host1x_setup_sid_table(struct host1x *host)
+{
+	const struct host1x_info *info = host->info;
+	unsigned int i;
+
+	for (i = 0; i < info->num_sid_entries; i++) {
+		const struct host1x_sid_entry *entry = &info->sid_table[i];
+
+		host1x_hypervisor_writel(host, entry->offset, entry->base);
+		host1x_hypervisor_writel(host, entry->limit, entry->base + 4);
+	}
+}
 
 static int host1x_probe(struct platform_device *pdev)
 {
@@ -315,6 +350,9 @@ skip_iommu:
 	}
 
 	host1x_debug_init(host);
+
+	if (host->info->has_hypervisor)
+		host1x_setup_sid_table(host);
 
 	err = host1x_register(host);
 	if (err < 0)
