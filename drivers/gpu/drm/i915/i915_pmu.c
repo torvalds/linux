@@ -5,6 +5,7 @@
  */
 
 #include <linux/irq.h>
+#include <linux/pm_runtime.h>
 #include "i915_pmu.h"
 #include "intel_ringbuffer.h"
 #include "i915_drv.h"
@@ -478,7 +479,6 @@ static u64 get_rc6(struct drm_i915_private *i915)
 		 * counter value.
 		 */
 		spin_lock_irqsave(&i915->pmu.lock, flags);
-		spin_lock(&kdev->power.lock);
 
 		/*
 		 * After the above branch intel_runtime_pm_get_if_in_use failed
@@ -491,16 +491,13 @@ static u64 get_rc6(struct drm_i915_private *i915)
 		 * suspended and if not we cannot do better than report the last
 		 * known RC6 value.
 		 */
-		if (kdev->power.runtime_status == RPM_SUSPENDED) {
+		if (pm_runtime_status_suspended(kdev)) {
+			val = pm_runtime_suspended_time(kdev);
+
 			if (!i915->pmu.sample[__I915_SAMPLE_RC6_ESTIMATED].cur)
-				i915->pmu.suspended_jiffies_last =
-						  kdev->power.suspended_jiffies;
+				i915->pmu.suspended_time_last = val;
 
-			val = kdev->power.suspended_jiffies -
-			      i915->pmu.suspended_jiffies_last;
-			val += jiffies - kdev->power.accounting_timestamp;
-
-			val = jiffies_to_nsecs(val);
+			val -= i915->pmu.suspended_time_last;
 			val += i915->pmu.sample[__I915_SAMPLE_RC6].cur;
 
 			i915->pmu.sample[__I915_SAMPLE_RC6_ESTIMATED].cur = val;
@@ -510,7 +507,6 @@ static u64 get_rc6(struct drm_i915_private *i915)
 			val = i915->pmu.sample[__I915_SAMPLE_RC6].cur;
 		}
 
-		spin_unlock(&kdev->power.lock);
 		spin_unlock_irqrestore(&i915->pmu.lock, flags);
 	}
 
