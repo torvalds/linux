@@ -43,6 +43,16 @@ static bool notests;
 module_param(notests, bool, 0644);
 MODULE_PARM_DESC(notests, "disable crypto self-tests");
 
+#ifdef CONFIG_CRYPTO_MANAGER_EXTRA_TESTS
+static bool noextratests;
+module_param(noextratests, bool, 0644);
+MODULE_PARM_DESC(noextratests, "disable expensive crypto self-tests");
+
+static unsigned int fuzz_iterations = 100;
+module_param(fuzz_iterations, uint, 0644);
+MODULE_PARM_DESC(fuzz_iterations, "number of fuzz test iterations");
+#endif
+
 #ifdef CONFIG_CRYPTO_MANAGER_DISABLE_TESTS
 
 /* a perfect nop */
@@ -4103,6 +4113,10 @@ static void testmgr_onetime_init(void)
 {
 	alg_check_test_descs_order();
 	alg_check_testvec_configs();
+
+#ifdef CONFIG_CRYPTO_MANAGER_EXTRA_TESTS
+	pr_warn("alg: extra crypto tests enabled.  This is intended for developer use only.\n");
+#endif
 }
 
 static int alg_find_test(const char *alg)
