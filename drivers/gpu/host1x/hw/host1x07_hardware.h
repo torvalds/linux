@@ -22,6 +22,7 @@
 #include <linux/types.h>
 #include <linux/bitops.h>
 
+#include "hw_host1x07_channel.h"
 #include "hw_host1x07_uclass.h"
 #include "hw_host1x07_vm.h"
 #include "hw_host1x07_hypervisor.h"
