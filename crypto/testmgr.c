@@ -28,6 +28,7 @@
 #include <linux/fips.h>
 #include <linux/module.h>
 #include <linux/once.h>
+#include <linux/random.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
 #include <linux/string.h>
@@ -602,6 +603,122 @@ static int build_cipher_test_sglists(struct cipher_test_sglists *tsgls,
 					cfg->dst_divs : cfg->src_divs,
 				 alignmask, dst_total_len, NULL, NULL);
 }
+
+#ifdef CONFIG_CRYPTO_MANAGER_EXTRA_TESTS
+static char *generate_random_sgl_divisions(struct test_sg_division *divs,
+					   size_t max_divs, char *p, char *end,
+					   bool gen_flushes)
+{
+	struct test_sg_division *div = divs;
+	unsigned int remaining = TEST_SG_TOTAL;
+
+	do {
+		unsigned int this_len;
+
+		if (div == &divs[max_divs - 1] || prandom_u32() % 2 == 0)
+			this_len = remaining;
+		else
+			this_len = 1 + (prandom_u32() % remaining);
+		div->proportion_of_total = this_len;
+
+		if (prandom_u32() % 4 == 0)
+			div->offset = (PAGE_SIZE - 128) + (prandom_u32() % 128);
+		else if (prandom_u32() % 2 == 0)
+			div->offset = prandom_u32() % 32;
+		else
+			div->offset = prandom_u32() % PAGE_SIZE;
+		if (prandom_u32() % 8 == 0)
+			div->offset_relative_to_alignmask = true;
+
+		div->flush_type = FLUSH_TYPE_NONE;
+		if (gen_flushes) {
+			switch (prandom_u32() % 4) {
+			case 0:
+				div->flush_type = FLUSH_TYPE_REIMPORT;
+				break;
+			case 1:
+				div->flush_type = FLUSH_TYPE_FLUSH;
+				break;
+			}
+		}
+
+		BUILD_BUG_ON(TEST_SG_TOTAL != 10000); /* for "%u.%u%%" */
+		p += scnprintf(p, end - p, "%s%u.%u%%@%s+%u%s",
+			       div->flush_type == FLUSH_TYPE_NONE ? "" :
+			       div->flush_type == FLUSH_TYPE_FLUSH ?
+			       "<flush> " : "<reimport> ",
+			       this_len / 100, this_len % 100,
+			       div->offset_relative_to_alignmask ?
+					"alignmask" : "",
+			       div->offset, this_len == remaining ? "" : ", ");
+		remaining -= this_len;
+		div++;
+	} while (remaining);
+
+	return p;
+}
+
+/* Generate a random testvec_config for fuzz testing */
+static void generate_random_testvec_config(struct testvec_config *cfg,
+					   char *name, size_t max_namelen)
+{
+	char *p = name;
+	char * const end = name + max_namelen;
+
+	memset(cfg, 0, sizeof(*cfg));
+
+	cfg->name = name;
+
+	p += scnprintf(p, end - p, "random:");
+
+	if (prandom_u32() % 2 == 0) {
+		cfg->inplace = true;
+		p += scnprintf(p, end - p, " inplace");
+	}
+
+	if (prandom_u32() % 2 == 0) {
+		cfg->req_flags |= CRYPTO_TFM_REQ_MAY_SLEEP;
+		p += scnprintf(p, end - p, " may_sleep");
+	}
+
+	switch (prandom_u32() % 4) {
+	case 0:
+		cfg->finalization_type = FINALIZATION_TYPE_FINAL;
+		p += scnprintf(p, end - p, " use_final");
+		break;
+	case 1:
+		cfg->finalization_type = FINALIZATION_TYPE_FINUP;
+		p += scnprintf(p, end - p, " use_finup");
+		break;
+	default:
+		cfg->finalization_type = FINALIZATION_TYPE_DIGEST;
+		p += scnprintf(p, end - p, " use_digest");
+		break;
+	}
+
+	p += scnprintf(p, end - p, " src_divs=[");
+	p = generate_random_sgl_divisions(cfg->src_divs,
+					  ARRAY_SIZE(cfg->src_divs), p, end,
+					  (cfg->finalization_type !=
+					   FINALIZATION_TYPE_DIGEST));
+	p += scnprintf(p, end - p, "]");
+
+	if (!cfg->inplace && prandom_u32() % 2 == 0) {
+		p += scnprintf(p, end - p, " dst_divs=[");
+		p = generate_random_sgl_divisions(cfg->dst_divs,
+						  ARRAY_SIZE(cfg->dst_divs),
+						  p, end, false);
+		p += scnprintf(p, end - p, "]");
+	}
+
+	if (prandom_u32() % 2 == 0) {
+		cfg->iv_offset = 1 + (prandom_u32() % MAX_ALGAPI_ALIGNMASK);
+		p += scnprintf(p, end - p, " iv_offset=%u", cfg->iv_offset);
+	}
+
+	WARN_ON_ONCE(!valid_testvec_config(cfg));
+}
+#endif /* CONFIG_CRYPTO_MANAGER_EXTRA_TESTS */
 
 static int ahash_guard_result(char *result, char c, int size)
 {
