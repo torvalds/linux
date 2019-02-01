@@ -84,6 +84,8 @@ struct gf100_gr {
 
 	struct {
 		struct nvkm_falcon *falcon;
+		struct mutex mutex;
+		u32 disable;
 	} fecs;
 
 	struct {

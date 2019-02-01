@@ -25,6 +25,24 @@
 
 #include <engine/fifo.h>
 
+int
+nvkm_gr_ctxsw_resume(struct nvkm_device *device)
+{
+	struct nvkm_gr *gr = device->gr;
+	if (gr && gr->func->ctxsw.resume)
+		return gr->func->ctxsw.resume(gr);
+	return 0;
+}
+
+int
+nvkm_gr_ctxsw_pause(struct nvkm_device *device)
+{
+	struct nvkm_gr *gr = device->gr;
+	if (gr && gr->func->ctxsw.pause)
+		return gr->func->ctxsw.pause(gr);
+	return 0;
+}
+
 static bool
 nvkm_gr_chsw_load(struct nvkm_engine *engine)
 {

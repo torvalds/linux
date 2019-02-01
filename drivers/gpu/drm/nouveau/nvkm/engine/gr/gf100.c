@@ -715,6 +715,56 @@ gf100_gr_pack_mmio[] = {
  * PGRAPH engine/subdev functions
  ******************************************************************************/
 
+static int
+gf100_gr_fecs_ctrl_ctxsw(struct gf100_gr *gr, u32 mthd)
+{
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+
+	nvkm_wr32(device, 0x409804, 0xffffffff);
+	nvkm_wr32(device, 0x409840, 0xffffffff);
+	nvkm_wr32(device, 0x409500, 0xffffffff);
+	nvkm_wr32(device, 0x409504, mthd);
+	nvkm_msec(device, 2000,
+		u32 stat = nvkm_rd32(device, 0x409804);
+		if (stat == 0x00000002)
+			return -EIO;
+		if (stat == 0x00000001)
+			return 0;
+	);
+
+	return -ETIMEDOUT;
+}
+
+int
+gf100_gr_fecs_start_ctxsw(struct nvkm_gr *base)
+{
+	struct gf100_gr *gr = gf100_gr(base);
+	int ret = 0;
+
+	mutex_lock(&gr->fecs.mutex);
+	if (!--gr->fecs.disable) {
+		if (WARN_ON(ret = gf100_gr_fecs_ctrl_ctxsw(gr, 0x39)))
+			gr->fecs.disable++;
+	}
+	mutex_unlock(&gr->fecs.mutex);
+	return ret;
+}
+
+int
+gf100_gr_fecs_stop_ctxsw(struct nvkm_gr *base)
+{
+	struct gf100_gr *gr = gf100_gr(base);
+	int ret = 0;
+
+	mutex_lock(&gr->fecs.mutex);
+	if (!gr->fecs.disable++) {
+		if (WARN_ON(ret = gf100_gr_fecs_ctrl_ctxsw(gr, 0x38)))
+			gr->fecs.disable--;
+	}
+	mutex_unlock(&gr->fecs.mutex);
+	return ret;
+}
+
 int
 gf100_gr_fecs_bind_pointer(struct gf100_gr *gr, u32 inst)
 {
@@ -1891,6 +1941,8 @@ gf100_gr_oneinit(struct nvkm_gr *base)
 	if (ret)
 		return ret;
 
+	mutex_init(&gr->fecs.mutex);
+
 	ret = nvkm_falcon_v1_new(subdev, "GPCCS", 0x41a000, &gr->gpccs.falcon);
 	if (ret)
 		return ret;
@@ -2004,6 +2056,8 @@ gf100_gr_ = {
 	.chan_new = gf100_gr_chan_new,
 	.object_get = gf100_gr_object_get,
 	.chsw_load = gf100_gr_chsw_load,
+	.ctxsw.pause = gf100_gr_fecs_stop_ctxsw,
+	.ctxsw.resume = gf100_gr_fecs_start_ctxsw,
 };
 
 int

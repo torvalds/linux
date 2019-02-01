@@ -27,6 +27,10 @@ struct nvkm_gr_func {
 	 */
 	u64 (*units)(struct nvkm_gr *);
 	bool (*chsw_load)(struct nvkm_gr *);
+	struct {
+		int (*pause)(struct nvkm_gr *);
+		int (*resume)(struct nvkm_gr *);
+	} ctxsw;
 	struct nvkm_sclass sclass[];
 };
 
