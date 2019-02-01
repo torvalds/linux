@@ -118,6 +118,10 @@ Mount Options
 	of a non-responsive Ceph file system.  The default is 30
 	seconds.
 
+  caps_max=X
+	Specify the maximum number of caps to hold. Unused caps are released
+	when number of caps exceeds the limit. The default is 0 (no limit)
+
   rbytes
 	When stat() is called on a directory, set st_size to 'rbytes',
 	the summation of file sizes over all files nested beneath that

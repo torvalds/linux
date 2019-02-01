@@ -379,6 +379,7 @@ struct ceph_mds_client {
 	wait_queue_head_t cap_flushing_wq;
 
 	struct work_struct cap_reclaim_work;
+	atomic_t	   cap_reclaim_pending;
 
 	/*
 	 * Cap reservations
@@ -396,6 +397,7 @@ struct ceph_mds_client {
 						unreserved) */
 	int		caps_total_count;    /* total caps allocated */
 	int		caps_use_count;      /* in use */
+	int		caps_use_max;	     /* max used caps */
 	int		caps_reserve_count;  /* unused, reserved */
 	int		caps_avail_count;    /* unused, unreserved */
 	int		caps_min_count;      /* keep at least this many
@@ -465,6 +467,7 @@ extern void __ceph_queue_cap_release(struct ceph_mds_session *session,
 extern void ceph_flush_cap_releases(struct ceph_mds_client *mdsc,
 				    struct ceph_mds_session *session);
 extern void ceph_queue_cap_reclaim_work(struct ceph_mds_client *mdsc);
+extern void ceph_reclaim_caps_nr(struct ceph_mds_client *mdsc, int nr);
 extern void ceph_mdsc_pre_umount(struct ceph_mds_client *mdsc);
 
 extern char *ceph_mdsc_build_path(struct dentry *dentry, int *plen, u64 *base,

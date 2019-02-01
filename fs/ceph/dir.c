@@ -1224,6 +1224,7 @@ enum {
 
 struct ceph_lease_walk_control {
 	bool dir_lease;
+	bool expire_dir_lease;
 	unsigned long nr_to_scan;
 	unsigned long dir_lease_ttl;
 };
@@ -1345,7 +1346,13 @@ static int __dir_lease_check(struct dentry *dentry, void *arg)
 		/* Move dentry to tail of dir lease list if we don't want
 		 * to delete it. So dentries in the list are checked in a
 		 * round robin manner */
-		return TOUCH;
+		if (!lwc->expire_dir_lease)
+			return TOUCH;
+		if (dentry->d_lockref.count > 0 ||
+		    (di->flags & CEPH_DENTRY_REFERENCED))
+			return TOUCH;
+		/* invalidate dir lease */
+		di->lease_shared_gen = 0;
 	}
 	return DELETE;
 }
@@ -1353,7 +1360,16 @@ static int __dir_lease_check(struct dentry *dentry, void *arg)
 int ceph_trim_dentries(struct ceph_mds_client *mdsc)
 {
 	struct ceph_lease_walk_control lwc;
+	unsigned long count;
 	unsigned long freed;
+
+	spin_lock(&mdsc->caps_list_lock);
+        if (mdsc->caps_use_max > 0 &&
+            mdsc->caps_use_count > mdsc->caps_use_max)
+		count = mdsc->caps_use_count - mdsc->caps_use_max;
+	else
+		count = 0;
+        spin_unlock(&mdsc->caps_list_lock);
 
 	lwc.dir_lease = false;
 	lwc.nr_to_scan  = CEPH_CAPS_PER_RELEASE * 2;
@@ -1365,6 +1381,8 @@ int ceph_trim_dentries(struct ceph_mds_client *mdsc)
 		lwc.nr_to_scan = CEPH_CAPS_PER_RELEASE;
 
 	lwc.dir_lease = true;
+	lwc.expire_dir_lease = freed < count;
+	lwc.dir_lease_ttl = mdsc->fsc->mount_options->caps_wanted_delay_max * HZ;
 	freed +=__dentry_leases_walk(mdsc, &lwc, __dir_lease_check);
 	if (!lwc.nr_to_scan) /* more to check */
 		return -EAGAIN;
