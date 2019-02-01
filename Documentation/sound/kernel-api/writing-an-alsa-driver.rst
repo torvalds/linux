@@ -3520,14 +3520,14 @@ allocator will try to get an area as large as possible within the
 given size.
 
 The second argument (type) and the third argument (device pointer) are
-dependent on the bus. In the case of the ISA bus, pass
-:c:func:`snd_dma_isa_data()` as the third argument with
+dependent on the bus. For normal devices, pass the device pointer
+(typically identical as ``card->dev``) to the third argument with
 ``SNDRV_DMA_TYPE_DEV`` type. For the continuous buffer unrelated to the
 bus can be pre-allocated with ``SNDRV_DMA_TYPE_CONTINUOUS`` type and the
 ``snd_dma_continuous_data(GFP_KERNEL)`` device pointer, where
-``GFP_KERNEL`` is the kernel allocation flag to use. For the PCI
-scatter-gather buffers, use ``SNDRV_DMA_TYPE_DEV_SG`` with
-``snd_dma_pci_data(pci)`` (see the `Non-Contiguous Buffers`_
+``GFP_KERNEL`` is the kernel allocation flag to use. For the
+scatter-gather buffers, use ``SNDRV_DMA_TYPE_DEV_SG`` with the device
+pointer (see the `Non-Contiguous Buffers`_
 section).
 
 Once the buffer is pre-allocated, you can use the allocator in the
