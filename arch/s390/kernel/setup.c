@@ -49,7 +49,6 @@
 #include <linux/memory.h>
 #include <linux/compat.h>
 #include <linux/start_kernel.h>
-#include <linux/version.h>
 
 #include <asm/ipl.h>
 #include <asm/facility.h>
