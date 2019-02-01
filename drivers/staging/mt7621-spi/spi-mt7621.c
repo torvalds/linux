@@ -51,8 +51,6 @@
 #define MT7621_CPOL		BIT(4)
 #define MT7621_LSB_FIRST	BIT(3)
 
-struct mt7621_spi;
-
 struct mt7621_spi {
 	struct spi_master	*master;
 	void __iomem		*base;
