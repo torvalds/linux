@@ -25,8 +25,8 @@
 
 static const unsigned int nf_ct_icmp_timeout = 30*HZ;
 
-static bool icmp_pkt_to_tuple(const struct sk_buff *skb, unsigned int dataoff,
-			      struct net *net, struct nf_conntrack_tuple *tuple)
+bool icmp_pkt_to_tuple(const struct sk_buff *skb, unsigned int dataoff,
+		       struct net *net, struct nf_conntrack_tuple *tuple)
 {
 	const struct icmphdr *hp;
 	struct icmphdr _hdr;
@@ -54,8 +54,8 @@ static const u_int8_t invmap[] = {
 	[ICMP_ADDRESSREPLY] = ICMP_ADDRESS + 1
 };
 
-static bool icmp_invert_tuple(struct nf_conntrack_tuple *tuple,
-			      const struct nf_conntrack_tuple *orig)
+bool nf_conntrack_invert_icmp_tuple(struct nf_conntrack_tuple *tuple,
+				    const struct nf_conntrack_tuple *orig)
 {
 	if (orig->dst.u.icmp.type >= sizeof(invmap) ||
 	    !invmap[orig->dst.u.icmp.type])
@@ -68,11 +68,10 @@ static bool icmp_invert_tuple(struct nf_conntrack_tuple *tuple,
 }
 
 /* Returns verdict for packet, or -1 for invalid. */
-static int icmp_packet(struct nf_conn *ct,
-		       struct sk_buff *skb,
-		       unsigned int dataoff,
-		       enum ip_conntrack_info ctinfo,
-		       const struct nf_hook_state *state)
+int nf_conntrack_icmp_packet(struct nf_conn *ct,
+			     struct sk_buff *skb,
+			     enum ip_conntrack_info ctinfo,
+			     const struct nf_hook_state *state)
 {
 	/* Do not immediately delete the connection after the first
 	   successful reply to avoid excessive conntrackd traffic
@@ -110,7 +109,6 @@ icmp_error_message(struct nf_conn *tmpl, struct sk_buff *skb,
 		   const struct nf_hook_state *state)
 {
 	struct nf_conntrack_tuple innertuple, origtuple;
-	const struct nf_conntrack_l4proto *innerproto;
 	const struct nf_conntrack_tuple_hash *h;
 	const struct nf_conntrack_zone *zone;
 	enum ip_conntrack_info ctinfo;
@@ -128,12 +126,9 @@ icmp_error_message(struct nf_conn *tmpl, struct sk_buff *skb,
 		return -NF_ACCEPT;
 	}
 
-	/* rcu_read_lock()ed by nf_hook_thresh */
-	innerproto = __nf_ct_l4proto_find(origtuple.dst.protonum);
-
 	/* Ordinarily, we'd expect the inverted tupleproto, but it's
 	   been preserved inside the ICMP. */
-	if (!nf_ct_invert_tuple(&innertuple, &origtuple, innerproto)) {
+	if (!nf_ct_invert_tuple(&innertuple, &origtuple)) {
 		pr_debug("icmp_error_message: no match\n");
 		return -NF_ACCEPT;
 	}
@@ -303,56 +298,16 @@ icmp_timeout_nla_policy[CTA_TIMEOUT_ICMP_MAX+1] = {
 };
 #endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
 
-#ifdef CONFIG_SYSCTL
-static struct ctl_table icmp_sysctl_table[] = {
-	{
-		.procname	= "nf_conntrack_icmp_timeout",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{ }
-};
-#endif /* CONFIG_SYSCTL */
-
-static int icmp_kmemdup_sysctl_table(struct nf_proto_net *pn,
-				     struct nf_icmp_net *in)
-{
-#ifdef CONFIG_SYSCTL
-	pn->ctl_table = kmemdup(icmp_sysctl_table,
-				sizeof(icmp_sysctl_table),
-				GFP_KERNEL);
-	if (!pn->ctl_table)
-		return -ENOMEM;
-
-	pn->ctl_table[0].data = &in->timeout;
-#endif
-	return 0;
-}
-
-static int icmp_init_net(struct net *net)
+void nf_conntrack_icmp_init_net(struct net *net)
 {
 	struct nf_icmp_net *in = nf_icmp_pernet(net);
-	struct nf_proto_net *pn = &in->pn;
 
 	in->timeout = nf_ct_icmp_timeout;
-
-	return icmp_kmemdup_sysctl_table(pn, in);
-}
-
-static struct nf_proto_net *icmp_get_net_proto(struct net *net)
-{
-	return &net->ct.nf_ct_proto.icmp.pn;
 }
 
 const struct nf_conntrack_l4proto nf_conntrack_l4proto_icmp =
 {
 	.l4proto		= IPPROTO_ICMP,
-	.pkt_to_tuple		= icmp_pkt_to_tuple,
-	.invert_tuple		= icmp_invert_tuple,
-	.packet			= icmp_packet,
-	.destroy		= NULL,
-	.me			= NULL,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.tuple_to_nlattr	= icmp_tuple_to_nlattr,
 	.nlattr_tuple_size	= icmp_nlattr_tuple_size,
@@ -368,6 +323,4 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_icmp =
 		.nla_policy	= icmp_timeout_nla_policy,
 	},
 #endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
-	.init_net		= icmp_init_net,
-	.get_net_proto		= icmp_get_net_proto,
 };

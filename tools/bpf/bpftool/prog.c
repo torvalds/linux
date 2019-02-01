@@ -930,10 +930,9 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 			err = libbpf_prog_type_by_name(type, &attr.prog_type,
 						       &expected_attach_type);
 			free(type);
-			if (err < 0) {
-				p_err("unknown program type '%s'", *argv);
+			if (err < 0)
 				goto err_free_reuse_maps;
-			}
+
 			NEXT_ARG();
 		} else if (is_prefix(*argv, "map")) {
 			void *new_map_replace;
@@ -1028,11 +1027,8 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 
 			err = libbpf_prog_type_by_name(sec_name, &prog_type,
 						       &expected_attach_type);
-			if (err < 0) {
-				p_err("failed to guess program type based on section name %s\n",
-				      sec_name);
+			if (err < 0)
 				goto err_close_obj;
-			}
 		}
 
 		bpf_program__set_ifindex(pos, ifindex);

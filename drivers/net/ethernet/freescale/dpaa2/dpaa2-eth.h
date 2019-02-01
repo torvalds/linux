@@ -16,6 +16,7 @@
 #include "dpni-cmd.h"
 
 #include "dpaa2-eth-trace.h"
+#include "dpaa2-eth-debugfs.h"
 
 #define DPAA2_WRIOP_VERSION(x, y, z) ((x) << 10 | (y) << 5 | (z) << 0)
 
@@ -365,6 +366,9 @@ struct dpaa2_eth_priv {
 	struct dpaa2_eth_cls_rule *cls_rules;
 	u8 rx_cls_enabled;
 	struct bpf_prog *xdp_prog;
+#ifdef CONFIG_DEBUG_FS
+	struct dpaa2_debugfs dbg;
+#endif
 };
 
 #define DPAA2_RXH_SUPPORTED	(RXH_L2DA | RXH_VLAN | RXH_L3_PROTO \
@@ -404,6 +408,10 @@ static inline int dpaa2_eth_cmp_dpni_ver(struct dpaa2_eth_priv *priv,
 
 #define dpaa2_eth_fs_count(priv)        \
 	((priv)->dpni_attrs.fs_entries)
+
+/* We have exactly one {Rx, Tx conf} queue per channel */
+#define dpaa2_eth_queue_count(priv)     \
+	((priv)->num_channels)
 
 enum dpaa2_eth_rx_dist {
 	DPAA2_ETH_RX_DIST_HASH,
@@ -445,12 +453,6 @@ static inline unsigned int dpaa2_eth_rx_head_room(struct dpaa2_eth_priv *priv)
 {
 	return priv->tx_data_offset + DPAA2_ETH_TX_BUF_ALIGN -
 	       DPAA2_ETH_RX_HWA_SIZE;
-}
-
-/* We have exactly one {Rx, Tx conf} queue per channel */
-static int dpaa2_eth_queue_count(struct dpaa2_eth_priv *priv)
-{
-	return priv->num_channels;
 }
 
 int dpaa2_eth_set_hash(struct net_device *net_dev, u64 flags);

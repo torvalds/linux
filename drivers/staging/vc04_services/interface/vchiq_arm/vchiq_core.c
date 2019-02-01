@@ -446,6 +446,7 @@ remote_event_wait(wait_queue_head_t *wq, struct remote_event *event)
 static inline void
 remote_event_signal_local(wait_queue_head_t *wq, struct remote_event *event)
 {
+	event->fired = 1;
 	event->armed = 0;
 	wake_up_all(wq);
 }

@@ -61,6 +61,8 @@ static LIST_HEAD(device_list);
 static DEFINE_SPINLOCK(device_spinlock);
 static struct proto tls_prots[TLS_NUM_PROTS][TLS_NUM_CONFIG][TLS_NUM_CONFIG];
 static struct proto_ops tls_sw_proto_ops;
+static void build_protos(struct proto prot[TLS_NUM_CONFIG][TLS_NUM_CONFIG],
+			 struct proto *base);
 
 static void update_sk_prot(struct sock *sk, struct tls_context *ctx)
 {
@@ -264,8 +266,10 @@ static void tls_sk_proto_close(struct sock *sk, long timeout)
 	lock_sock(sk);
 	sk_proto_close = ctx->sk_proto_close;
 
-	if ((ctx->tx_conf == TLS_HW_RECORD && ctx->rx_conf == TLS_HW_RECORD) ||
-	    (ctx->tx_conf == TLS_BASE && ctx->rx_conf == TLS_BASE)) {
+	if (ctx->tx_conf == TLS_HW_RECORD && ctx->rx_conf == TLS_HW_RECORD)
+		goto skip_tx_cleanup;
+
+	if (ctx->tx_conf == TLS_BASE && ctx->rx_conf == TLS_BASE) {
 		free_ctx = true;
 		goto skip_tx_cleanup;
 	}
@@ -551,6 +555,43 @@ static struct tls_context *create_ctx(struct sock *sk)
 	return ctx;
 }
 
+static void tls_build_proto(struct sock *sk)
+{
+	int ip_ver = sk->sk_family == AF_INET6 ? TLSV6 : TLSV4;
+
+	/* Build IPv6 TLS whenever the address of tcpv6 _prot changes */
+	if (ip_ver == TLSV6 &&
+	    unlikely(sk->sk_prot != smp_load_acquire(&saved_tcpv6_prot))) {
+		mutex_lock(&tcpv6_prot_mutex);
+		if (likely(sk->sk_prot != saved_tcpv6_prot)) {
+			build_protos(tls_prots[TLSV6], sk->sk_prot);
+			smp_store_release(&saved_tcpv6_prot, sk->sk_prot);
+		}
+		mutex_unlock(&tcpv6_prot_mutex);
+	}
+
+	if (ip_ver == TLSV4 &&
+	    unlikely(sk->sk_prot != smp_load_acquire(&saved_tcpv4_prot))) {
+		mutex_lock(&tcpv4_prot_mutex);
+		if (likely(sk->sk_prot != saved_tcpv4_prot)) {
+			build_protos(tls_prots[TLSV4], sk->sk_prot);
+			smp_store_release(&saved_tcpv4_prot, sk->sk_prot);
+		}
+		mutex_unlock(&tcpv4_prot_mutex);
+	}
+}
+
+static void tls_hw_sk_destruct(struct sock *sk)
+{
+	struct tls_context *ctx = tls_get_ctx(sk);
+	struct inet_connection_sock *icsk = inet_csk(sk);
+
+	ctx->sk_destruct(sk);
+	/* Free ctx */
+	kfree(ctx);
+	icsk->icsk_ulp_data = NULL;
+}
+
 static int tls_hw_prot(struct sock *sk)
 {
 	struct tls_context *ctx;
@@ -564,12 +605,17 @@ static int tls_hw_prot(struct sock *sk)
 			if (!ctx)
 				goto out;
 
+			spin_unlock_bh(&device_spinlock);
+			tls_build_proto(sk);
 			ctx->hash = sk->sk_prot->hash;
 			ctx->unhash = sk->sk_prot->unhash;
 			ctx->sk_proto_close = sk->sk_prot->close;
+			ctx->sk_destruct = sk->sk_destruct;
+			sk->sk_destruct = tls_hw_sk_destruct;
 			ctx->rx_conf = TLS_HW_RECORD;
 			ctx->tx_conf = TLS_HW_RECORD;
 			update_sk_prot(sk, ctx);
+			spin_lock_bh(&device_spinlock);
 			rc = 1;
 			break;
 		}
@@ -668,7 +714,6 @@ static void build_protos(struct proto prot[TLS_NUM_CONFIG][TLS_NUM_CONFIG],
 
 static int tls_init(struct sock *sk)
 {
-	int ip_ver = sk->sk_family == AF_INET6 ? TLSV6 : TLSV4;
 	struct tls_context *ctx;
 	int rc = 0;
 
@@ -691,27 +736,7 @@ static int tls_init(struct sock *sk)
 		goto out;
 	}
 
-	/* Build IPv6 TLS whenever the address of tcpv6	_prot changes */
-	if (ip_ver == TLSV6 &&
-	    unlikely(sk->sk_prot != smp_load_acquire(&saved_tcpv6_prot))) {
-		mutex_lock(&tcpv6_prot_mutex);
-		if (likely(sk->sk_prot != saved_tcpv6_prot)) {
-			build_protos(tls_prots[TLSV6], sk->sk_prot);
-			smp_store_release(&saved_tcpv6_prot, sk->sk_prot);
-		}
-		mutex_unlock(&tcpv6_prot_mutex);
-	}
-
-	if (ip_ver == TLSV4 &&
-	    unlikely(sk->sk_prot != smp_load_acquire(&saved_tcpv4_prot))) {
-		mutex_lock(&tcpv4_prot_mutex);
-		if (likely(sk->sk_prot != saved_tcpv4_prot)) {
-			build_protos(tls_prots[TLSV4], sk->sk_prot);
-			smp_store_release(&saved_tcpv4_prot, sk->sk_prot);
-		}
-		mutex_unlock(&tcpv4_prot_mutex);
-	}
-
+	tls_build_proto(sk);
 	ctx->tx_conf = TLS_BASE;
 	ctx->rx_conf = TLS_BASE;
 	update_sk_prot(sk, ctx);

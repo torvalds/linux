@@ -1,15 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /* Framework for finding and configuring PHYs.
  * Also contains generic PHY driver
  *
  * Author: Andy Fleming
  *
  * Copyright (c) 2004 Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -59,6 +54,9 @@ EXPORT_SYMBOL_GPL(phy_gbit_all_ports_features);
 __ETHTOOL_DECLARE_LINK_MODE_MASK(phy_10gbit_features) __ro_after_init;
 EXPORT_SYMBOL_GPL(phy_10gbit_features);
 
+__ETHTOOL_DECLARE_LINK_MODE_MASK(phy_10gbit_fec_features) __ro_after_init;
+EXPORT_SYMBOL_GPL(phy_10gbit_fec_features);
+
 static const int phy_basic_ports_array[] = {
 	ETHTOOL_LINK_MODE_Autoneg_BIT,
 	ETHTOOL_LINK_MODE_TP_BIT,
@@ -106,6 +104,11 @@ const int phy_10gbit_features_array[1] = {
 	ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
 };
 EXPORT_SYMBOL_GPL(phy_10gbit_features_array);
+
+const int phy_10gbit_fec_features_array[1] = {
+	ETHTOOL_LINK_MODE_10000baseR_FEC_BIT,
+};
+EXPORT_SYMBOL_GPL(phy_10gbit_fec_features_array);
 
 __ETHTOOL_DECLARE_LINK_MODE_MASK(phy_10gbit_full_features) __ro_after_init;
 EXPORT_SYMBOL_GPL(phy_10gbit_full_features);
@@ -189,6 +192,10 @@ static void features_init(void)
 	linkmode_set_bit_array(phy_10gbit_full_features_array,
 			       ARRAY_SIZE(phy_10gbit_full_features_array),
 			       phy_10gbit_full_features);
+	/* 10G FEC only */
+	linkmode_set_bit_array(phy_10gbit_fec_features_array,
+			       ARRAY_SIZE(phy_10gbit_fec_features_array),
+			       phy_10gbit_fec_features);
 }
 
 void phy_device_free(struct phy_device *phydev)
@@ -552,10 +559,12 @@ static int phy_request_driver_module(struct phy_device *dev, int phy_id)
 
 	ret = request_module(MDIO_MODULE_PREFIX MDIO_ID_FMT,
 			     MDIO_ID_ARGS(phy_id));
-	/* we only check for failures in executing the usermode binary,
-	 * not whether a PHY driver module exists for the PHY ID
+	/* We only check for failures in executing the usermode binary,
+	 * not whether a PHY driver module exists for the PHY ID.
+	 * Accept -ENOENT because this may occur in case no initramfs exists,
+	 * then modprobe isn't available.
 	 */
-	if (IS_ENABLED(CONFIG_MODULES) && ret < 0) {
+	if (IS_ENABLED(CONFIG_MODULES) && ret < 0 && ret != -ENOENT) {
 		phydev_err(dev, "error %d loading PHY driver module for ID 0x%08x\n",
 			   ret, phy_id);
 		return ret;
@@ -942,9 +951,8 @@ int phy_connect_direct(struct net_device *dev, struct phy_device *phydev,
 		return rc;
 
 	phy_prepare_link(phydev, handler);
-	phy_start_machine(phydev);
-	if (phydev->irq > 0)
-		phy_start_interrupts(phydev);
+	if (phy_interrupt_is_valid(phydev))
+		phy_request_interrupt(phydev);
 
 	return 0;
 }
@@ -1058,7 +1066,7 @@ int phy_init_hw(struct phy_device *phydev)
 	/* Deassert the reset signal */
 	phy_device_reset(phydev, 0);
 
-	if (!phydev->drv || !phydev->drv->config_init)
+	if (!phydev->drv)
 		return 0;
 
 	if (phydev->drv->soft_reset)
@@ -1071,7 +1079,10 @@ int phy_init_hw(struct phy_device *phydev)
 	if (ret < 0)
 		return ret;
 
-	return phydev->drv->config_init(phydev);
+	if (phydev->drv->config_init)
+		ret = phydev->drv->config_init(phydev);
+
+	return ret;
 }
 EXPORT_SYMBOL(phy_init_hw);
 
@@ -2289,6 +2300,11 @@ static int phy_remove(struct device *dev)
 int phy_driver_register(struct phy_driver *new_driver, struct module *owner)
 {
 	int retval;
+
+	if (WARN_ON(!new_driver->features)) {
+		pr_err("%s: Driver features are missing\n", new_driver->name);
+		return -EINVAL;
+	}
 
 	new_driver->mdiodrv.flags |= MDIO_DEVICE_IS_PHY;
 	new_driver->mdiodrv.driver.name = new_driver->name;

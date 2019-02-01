@@ -753,6 +753,22 @@ static int vega12_init_smc_table(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
+static int vega12_run_acg_btc(struct pp_hwmgr *hwmgr)
+{
+	uint32_t result;
+
+	PP_ASSERT_WITH_CODE(
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_RunAcgBtc) == 0,
+		"[Run_ACG_BTC] Attempt to run ACG BTC failed!",
+		return -EINVAL);
+
+	result = smum_get_argument(hwmgr);
+	PP_ASSERT_WITH_CODE(result == 1,
+			"Failed to run ACG BTC!", return -EINVAL);
+
+	return 0;
+}
+
 static int vega12_set_allowed_featuresmask(struct pp_hwmgr *hwmgr)
 {
 	struct vega12_hwmgr *data =
@@ -929,6 +945,11 @@ static int vega12_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 	tmp_result = vega12_init_smc_table(hwmgr);
 	PP_ASSERT_WITH_CODE(!tmp_result,
 			"Failed to initialize SMC table!",
+			result = tmp_result);
+
+	tmp_result = vega12_run_acg_btc(hwmgr);
+	PP_ASSERT_WITH_CODE(!tmp_result,
+			"Failed to run ACG BTC!",
 			result = tmp_result);
 
 	result = vega12_enable_all_smu_features(hwmgr);

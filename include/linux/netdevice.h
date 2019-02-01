@@ -630,6 +630,7 @@ struct netdev_queue {
 } ____cacheline_aligned_in_smp;
 
 extern int sysctl_fb_tunnels_only_for_init_net;
+extern int sysctl_devconf_inherit_init_net;
 
 static inline bool net_has_fallback_tunnels(const struct net *net)
 {

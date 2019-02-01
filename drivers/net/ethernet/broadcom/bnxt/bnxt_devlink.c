@@ -37,6 +37,8 @@ static const struct bnxt_dl_nvm_param nvm_params[] = {
 	 NVM_OFF_MSIX_VEC_PER_PF_MIN, BNXT_NVM_SHARED_CFG, 7},
 	{BNXT_DEVLINK_PARAM_ID_GRE_VER_CHECK, NVM_OFF_DIS_GRE_VER_CHECK,
 	 BNXT_NVM_SHARED_CFG, 1},
+
+	{DEVLINK_PARAM_GENERIC_ID_WOL, NVM_OFF_WOL, BNXT_NVM_PORT_CFG, 1},
 };
 
 static int bnxt_hwrm_nvm_req(struct bnxt *bp, u32 param_id, void *msg,
@@ -70,7 +72,8 @@ static int bnxt_hwrm_nvm_req(struct bnxt *bp, u32 param_id, void *msg,
 	bytesize = roundup(nvm_param.num_bits, BITS_PER_BYTE) / BITS_PER_BYTE;
 	switch (bytesize) {
 	case 1:
-		if (nvm_param.num_bits == 1)
+		if (nvm_param.num_bits == 1 &&
+		    nvm_param.id != DEVLINK_PARAM_GENERIC_ID_WOL)
 			buf = &val->vbool;
 		else
 			buf = &val->vu8;
@@ -164,6 +167,17 @@ static int bnxt_dl_msix_validate(struct devlink *dl, u32 id,
 	return 0;
 }
 
+static int bnxt_dl_wol_validate(struct devlink *dl, u32 id,
+				union devlink_param_value val,
+				struct netlink_ext_ack *extack)
+{
+	if (val.vu8 && val.vu8 != DEVLINK_PARAM_WAKE_MAGIC) {
+		NL_SET_ERR_MSG_MOD(extack, "WOL type is not supported");
+		return -EINVAL;
+	}
+	return 0;
+}
+
 static const struct devlink_param bnxt_dl_params[] = {
 	DEVLINK_PARAM_GENERIC(ENABLE_SRIOV,
 			      BIT(DEVLINK_PARAM_CMODE_PERMANENT),
@@ -186,6 +200,12 @@ static const struct devlink_param bnxt_dl_params[] = {
 			     BIT(DEVLINK_PARAM_CMODE_PERMANENT),
 			     bnxt_dl_nvm_param_get, bnxt_dl_nvm_param_set,
 			     NULL),
+};
+
+static const struct devlink_param bnxt_dl_port_params[] = {
+	DEVLINK_PARAM_GENERIC(WOL, BIT(DEVLINK_PARAM_CMODE_PERMANENT),
+			      bnxt_dl_nvm_param_get, bnxt_dl_nvm_param_set,
+			      bnxt_dl_wol_validate),
 };
 
 int bnxt_dl_register(struct bnxt *bp)
@@ -225,8 +245,26 @@ int bnxt_dl_register(struct bnxt *bp)
 		goto err_dl_unreg;
 	}
 
+	rc = devlink_port_register(dl, &bp->dl_port, bp->pf.port_id);
+	if (rc) {
+		netdev_err(bp->dev, "devlink_port_register failed");
+		goto err_dl_param_unreg;
+	}
+	devlink_port_type_eth_set(&bp->dl_port, bp->dev);
+
+	rc = devlink_port_params_register(&bp->dl_port, bnxt_dl_port_params,
+					  ARRAY_SIZE(bnxt_dl_port_params));
+	if (rc) {
+		netdev_err(bp->dev, "devlink_port_params_register failed");
+		goto err_dl_port_unreg;
+	}
 	return 0;
 
+err_dl_port_unreg:
+	devlink_port_unregister(&bp->dl_port);
+err_dl_param_unreg:
+	devlink_params_unregister(dl, bnxt_dl_params,
+				  ARRAY_SIZE(bnxt_dl_params));
 err_dl_unreg:
 	devlink_unregister(dl);
 err_dl_free:
@@ -242,6 +280,9 @@ void bnxt_dl_unregister(struct bnxt *bp)
 	if (!dl)
 		return;
 
+	devlink_port_params_unregister(&bp->dl_port, bnxt_dl_port_params,
+				       ARRAY_SIZE(bnxt_dl_port_params));
+	devlink_port_unregister(&bp->dl_port);
 	devlink_params_unregister(dl, bnxt_dl_params,
 				  ARRAY_SIZE(bnxt_dl_params));
 	devlink_unregister(dl);

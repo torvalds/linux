@@ -47,10 +47,6 @@ extern unsigned int nf_nat_alloc_null_binding(struct nf_conn *ct,
 
 struct nf_conn_nat *nf_ct_nat_ext_add(struct nf_conn *ct);
 
-/* Is this tuple already taken? (not by us)*/
-int nf_nat_used_tuple(const struct nf_conntrack_tuple *tuple,
-		      const struct nf_conn *ignored_conntrack);
-
 static inline struct nf_conn_nat *nfct_nat(const struct nf_conn *ct)
 {
 #if defined(CONFIG_NF_NAT) || defined(CONFIG_NF_NAT_MODULE)

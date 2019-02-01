@@ -433,7 +433,8 @@ struct hnae3_ae_ops {
 			     struct ethtool_channels *ch);
 	void (*get_tqps_and_rss_info)(struct hnae3_handle *h,
 				      u16 *alloc_tqps, u16 *max_rss_size);
-	int (*set_channels)(struct hnae3_handle *handle, u32 new_tqps_num);
+	int (*set_channels)(struct hnae3_handle *handle, u32 new_tqps_num,
+			    bool rxfh_configured);
 	void (*get_flowctrl_adv)(struct hnae3_handle *handle,
 				 u32 *flowctrl_adv);
 	int (*set_led_id)(struct hnae3_handle *handle,
@@ -463,6 +464,8 @@ struct hnae3_ae_ops {
 	int (*set_gro_en)(struct hnae3_handle *handle, int enable);
 	u16 (*get_global_queue_id)(struct hnae3_handle *handle, u16 queue_id);
 	void (*set_timer_task)(struct hnae3_handle *handle, bool enable);
+	int (*mac_connect_phy)(struct hnae3_handle *handle);
+	void (*mac_disconnect_phy)(struct hnae3_handle *handle);
 };
 
 struct hnae3_dcb_ops {
@@ -476,7 +479,6 @@ struct hnae3_dcb_ops {
 	u8   (*getdcbx)(struct hnae3_handle *);
 	u8   (*setdcbx)(struct hnae3_handle *, u8);
 
-	int (*map_update)(struct hnae3_handle *);
 	int (*setup_tc)(struct hnae3_handle *, u8, u8 *);
 };
 
@@ -587,7 +589,7 @@ struct hnae3_handle {
 #define hnae3_get_bit(origin, shift) \
 	hnae3_get_field((origin), (0x1 << (shift)), (shift))
 
-void hnae3_register_ae_dev(struct hnae3_ae_dev *ae_dev);
+int hnae3_register_ae_dev(struct hnae3_ae_dev *ae_dev);
 void hnae3_unregister_ae_dev(struct hnae3_ae_dev *ae_dev);
 
 void hnae3_unregister_ae_algo(struct hnae3_ae_algo *ae_algo);

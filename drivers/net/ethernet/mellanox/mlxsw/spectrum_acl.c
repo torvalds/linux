@@ -742,8 +742,7 @@ int mlxsw_sp_acl_rule_action_replace(struct mlxsw_sp *mlxsw_sp,
 	rulei = mlxsw_sp_acl_rule_rulei(rule);
 	rulei->act_block = afa_block;
 
-	return ops->rule_action_replace(mlxsw_sp, ruleset->priv, rule->priv,
-					rule->rulei);
+	return ops->rule_action_replace(mlxsw_sp, rule->priv, rule->rulei);
 }
 
 struct mlxsw_sp_acl_rule *
@@ -806,7 +805,7 @@ static void mlxsw_sp_acl_rule_activity_work_schedule(struct mlxsw_sp_acl *acl)
 			       msecs_to_jiffies(interval));
 }
 
-static void mlxsw_sp_acl_rul_activity_update_work(struct work_struct *work)
+static void mlxsw_sp_acl_rule_activity_update_work(struct work_struct *work)
 {
 	struct mlxsw_sp_acl *acl = container_of(work, struct mlxsw_sp_acl,
 						rule_activity_update.dw.work);
@@ -885,7 +884,7 @@ int mlxsw_sp_acl_init(struct mlxsw_sp *mlxsw_sp)
 
 	/* Create the delayed work for the rule activity_update */
 	INIT_DELAYED_WORK(&acl->rule_activity_update.dw,
-			  mlxsw_sp_acl_rul_activity_update_work);
+			  mlxsw_sp_acl_rule_activity_update_work);
 	acl->rule_activity_update.interval = MLXSW_SP_ACL_RULE_ACTIVITY_UPDATE_PERIOD_MS;
 	mlxsw_core_schedule_dw(&acl->rule_activity_update.dw, 0);
 	return 0;

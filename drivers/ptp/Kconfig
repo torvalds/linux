@@ -53,7 +53,7 @@ config PTP_1588_CLOCK_QORIQ
 	  packets using the SO_TIMESTAMPING API.
 
 	  To compile this driver as a module, choose M here: the module
-	  will be called ptp_qoriq.
+	  will be called ptp-qoriq.
 
 config PTP_1588_CLOCK_IXP46X
 	tristate "Intel IXP46x as PTP clock"

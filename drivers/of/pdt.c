@@ -155,7 +155,6 @@ static struct device_node * __init of_pdt_create_node(phandle node,
 	dp->parent = parent;
 
 	dp->name = of_pdt_get_one_property(node, "name");
-	dp->type = of_pdt_get_one_property(node, "device_type");
 	dp->phandle = node;
 
 	dp->properties = of_pdt_build_prop_list(node);

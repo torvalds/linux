@@ -348,6 +348,8 @@ static int hns3_nic_net_up(struct net_device *netdev)
 		return ret;
 	}
 
+	clear_bit(HNS3_NIC_STATE_DOWN, &priv->state);
+
 	/* enable the vectors */
 	for (i = 0; i < priv->vector_num; i++)
 		hns3_vector_enable(&priv->tqp_vector[i]);
@@ -361,11 +363,10 @@ static int hns3_nic_net_up(struct net_device *netdev)
 	if (ret)
 		goto out_start_err;
 
-	clear_bit(HNS3_NIC_STATE_DOWN, &priv->state);
-
 	return 0;
 
 out_start_err:
+	set_bit(HNS3_NIC_STATE_DOWN, &priv->state);
 	while (j--)
 		hns3_tqp_disable(h->kinfo.tqp[j]);
 
@@ -506,7 +507,7 @@ static u8 hns3_get_netdev_flags(struct net_device *netdev)
 	u8 flags = 0;
 
 	if (netdev->flags & IFF_PROMISC) {
-		flags = HNAE3_USER_UPE | HNAE3_USER_MPE;
+		flags = HNAE3_USER_UPE | HNAE3_USER_MPE | HNAE3_BPE;
 	} else {
 		flags |= HNAE3_VLAN_FLTR;
 		if (netdev->flags & IFF_ALLMULTI)
@@ -541,13 +542,13 @@ static void hns3_nic_set_rx_mode(struct net_device *netdev)
 		}
 	}
 
-	hns3_update_promisc_mode(netdev, new_flags);
 	/* User mode Promisc mode enable and vlan filtering is disabled to
 	 * let all packets in. MAC-VLAN Table overflow Promisc enabled and
 	 * vlan fitering is enabled
 	 */
 	hns3_enable_vlan_filter(netdev, new_flags & HNAE3_VLAN_FLTR);
 	h->netdev_flags = new_flags;
+	hns3_update_promisc_mode(netdev, new_flags);
 }
 
 int hns3_update_promisc_mode(struct net_device *netdev, u8 promisc_flags)
@@ -654,11 +655,7 @@ static int hns3_set_tso(struct sk_buff *skb, u32 *paylen,
 static int hns3_get_l4_protocol(struct sk_buff *skb, u8 *ol4_proto,
 				u8 *il4_proto)
 {
-	union {
-		struct iphdr *v4;
-		struct ipv6hdr *v6;
-		unsigned char *hdr;
-	} l3;
+	union l3_hdr_info l3;
 	unsigned char *l4_hdr;
 	unsigned char *exthdr;
 	u8 l4_proto_tmp;
@@ -711,17 +708,8 @@ static void hns3_set_l2l3l4_len(struct sk_buff *skb, u8 ol4_proto,
 				u8 il4_proto, u32 *type_cs_vlan_tso,
 				u32 *ol_type_vlan_len_msec)
 {
-	union {
-		struct iphdr *v4;
-		struct ipv6hdr *v6;
-		unsigned char *hdr;
-	} l3;
-	union {
-		struct tcphdr *tcp;
-		struct udphdr *udp;
-		struct gre_base_hdr *gre;
-		unsigned char *hdr;
-	} l4;
+	union l3_hdr_info l3;
+	union l4_hdr_info l4;
 	unsigned char *l2_hdr;
 	u8 l4_proto = ol4_proto;
 	u32 ol2_len;
@@ -820,12 +808,7 @@ static void hns3_set_l2l3l4_len(struct sk_buff *skb, u8 ol4_proto,
 static bool hns3_tunnel_csum_bug(struct sk_buff *skb)
 {
 #define IANA_VXLAN_PORT	4789
-	union {
-		struct tcphdr *tcp;
-		struct udphdr *udp;
-		struct gre_base_hdr *gre;
-		unsigned char *hdr;
-	} l4;
+	union l4_hdr_info l4;
 
 	l4.hdr = skb_transport_header(skb);
 
@@ -841,11 +824,7 @@ static int hns3_set_l3l4_type_csum(struct sk_buff *skb, u8 ol4_proto,
 				   u8 il4_proto, u32 *type_cs_vlan_tso,
 				   u32 *ol_type_vlan_len_msec)
 {
-	union {
-		struct iphdr *v4;
-		struct ipv6hdr *v6;
-		unsigned char *hdr;
-	} l3;
+	union l3_hdr_info l3;
 	u32 l4_proto = ol4_proto;
 
 	l3.hdr = skb_network_header(skb);
@@ -1133,6 +1112,7 @@ static int hns3_nic_maybe_stop_tso(struct sk_buff **out_skb, int *bnum,
 				   struct hns3_enet_ring *ring)
 {
 	struct sk_buff *skb = *out_skb;
+	struct sk_buff *new_skb = NULL;
 	struct skb_frag_struct *frag;
 	int bdnum_for_frag;
 	int frag_num;
@@ -1155,7 +1135,19 @@ static int hns3_nic_maybe_stop_tso(struct sk_buff **out_skb, int *bnum,
 		buf_num += bdnum_for_frag;
 	}
 
-	if (buf_num > ring_space(ring))
+	if (unlikely(buf_num > HNS3_MAX_BD_PER_FRAG)) {
+		buf_num = (skb->len + HNS3_MAX_BD_SIZE - 1) / HNS3_MAX_BD_SIZE;
+		if (ring_space(ring) < buf_num)
+			return -EBUSY;
+		/* manual split the send packet */
+		new_skb = skb_copy(skb, GFP_ATOMIC);
+		if (!new_skb)
+			return -ENOMEM;
+		dev_kfree_skb_any(skb);
+		*out_skb = new_skb;
+	}
+
+	if (unlikely(ring_space(ring) < buf_num))
 		return -EBUSY;
 
 	*bnum = buf_num;
@@ -1166,10 +1158,23 @@ static int hns3_nic_maybe_stop_tx(struct sk_buff **out_skb, int *bnum,
 				  struct hns3_enet_ring *ring)
 {
 	struct sk_buff *skb = *out_skb;
+	struct sk_buff *new_skb = NULL;
 	int buf_num;
 
 	/* No. of segments (plus a header) */
 	buf_num = skb_shinfo(skb)->nr_frags + 1;
+
+	if (unlikely(buf_num > HNS3_MAX_BD_PER_FRAG)) {
+		buf_num = (skb->len + HNS3_MAX_BD_SIZE - 1) / HNS3_MAX_BD_SIZE;
+		if (ring_space(ring) < buf_num)
+			return -EBUSY;
+		/* manual split the send packet */
+		new_skb = skb_copy(skb, GFP_ATOMIC);
+		if (!new_skb)
+			return -ENOMEM;
+		dev_kfree_skb_any(skb);
+		*out_skb = new_skb;
+	}
 
 	if (unlikely(ring_space(ring) < buf_num))
 		return -EBUSY;
@@ -1399,7 +1404,12 @@ static void hns3_nic_get_stats64(struct net_device *netdev,
 	int queue_num = priv->ae_handle->kinfo.num_tqps;
 	struct hnae3_handle *handle = priv->ae_handle;
 	struct hns3_enet_ring *ring;
+	u64 rx_length_errors = 0;
+	u64 rx_crc_errors = 0;
+	u64 rx_multicast = 0;
 	unsigned int start;
+	u64 tx_errors = 0;
+	u64 rx_errors = 0;
 	unsigned int idx;
 	u64 tx_bytes = 0;
 	u64 rx_bytes = 0;
@@ -1420,8 +1430,8 @@ static void hns3_nic_get_stats64(struct net_device *netdev,
 			start = u64_stats_fetch_begin_irq(&ring->syncp);
 			tx_bytes += ring->stats.tx_bytes;
 			tx_pkts += ring->stats.tx_pkts;
-			tx_drop += ring->stats.tx_busy;
 			tx_drop += ring->stats.sw_err_cnt;
+			tx_errors += ring->stats.sw_err_cnt;
 		} while (u64_stats_fetch_retry_irq(&ring->syncp, start));
 
 		/* fetch the rx stats */
@@ -1431,8 +1441,13 @@ static void hns3_nic_get_stats64(struct net_device *netdev,
 			rx_bytes += ring->stats.rx_bytes;
 			rx_pkts += ring->stats.rx_pkts;
 			rx_drop += ring->stats.non_vld_descs;
-			rx_drop += ring->stats.err_pkt_len;
 			rx_drop += ring->stats.l2_err;
+			rx_errors += ring->stats.non_vld_descs;
+			rx_errors += ring->stats.l2_err;
+			rx_crc_errors += ring->stats.l2_err;
+			rx_crc_errors += ring->stats.l3l4_csum_err;
+			rx_multicast += ring->stats.rx_multicast;
+			rx_length_errors += ring->stats.err_pkt_len;
 		} while (u64_stats_fetch_retry_irq(&ring->syncp, start));
 	}
 
@@ -1441,15 +1456,15 @@ static void hns3_nic_get_stats64(struct net_device *netdev,
 	stats->rx_bytes = rx_bytes;
 	stats->rx_packets = rx_pkts;
 
-	stats->rx_errors = netdev->stats.rx_errors;
-	stats->multicast = netdev->stats.multicast;
-	stats->rx_length_errors = netdev->stats.rx_length_errors;
-	stats->rx_crc_errors = netdev->stats.rx_crc_errors;
+	stats->rx_errors = rx_errors;
+	stats->multicast = rx_multicast;
+	stats->rx_length_errors = rx_length_errors;
+	stats->rx_crc_errors = rx_crc_errors;
 	stats->rx_missed_errors = netdev->stats.rx_missed_errors;
 
-	stats->tx_errors = netdev->stats.tx_errors;
-	stats->rx_dropped = rx_drop + netdev->stats.rx_dropped;
-	stats->tx_dropped = tx_drop + netdev->stats.tx_dropped;
+	stats->tx_errors = tx_errors;
+	stats->rx_dropped = rx_drop;
+	stats->tx_dropped = tx_drop;
 	stats->collisions = netdev->stats.collisions;
 	stats->rx_over_errors = netdev->stats.rx_over_errors;
 	stats->rx_frame_errors = netdev->stats.rx_frame_errors;
@@ -1472,8 +1487,6 @@ static int hns3_setup_tc(struct net_device *netdev, void *type_data)
 	u8 tc = mqprio_qopt->qopt.num_tc;
 	u16 mode = mqprio_qopt->mode;
 	u8 hw = mqprio_qopt->qopt.hw;
-	bool if_running;
-	int ret;
 
 	if (!((hw == TC_MQPRIO_HW_OFFLOAD_TCS &&
 	       mode == TC_MQPRIO_MODE_CHANNEL) || (!hw && tc == 0)))
@@ -1485,24 +1498,8 @@ static int hns3_setup_tc(struct net_device *netdev, void *type_data)
 	if (!netdev)
 		return -EINVAL;
 
-	if_running = netif_running(netdev);
-	if (if_running) {
-		hns3_nic_net_stop(netdev);
-		msleep(100);
-	}
-
-	ret = (kinfo->dcb_ops && kinfo->dcb_ops->setup_tc) ?
+	return (kinfo->dcb_ops && kinfo->dcb_ops->setup_tc) ?
 		kinfo->dcb_ops->setup_tc(h, tc, prio_tc) : -EOPNOTSUPP;
-	if (ret)
-		goto out;
-
-	ret = hns3_nic_set_real_num_queue(netdev);
-
-out:
-	if (if_running)
-		hns3_nic_net_open(netdev);
-
-	return ret;
 }
 
 static int hns3_nic_setup_tc(struct net_device *dev, enum tc_setup_type type,
@@ -1755,9 +1752,13 @@ static int hns3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	hns3_get_dev_capability(pdev, ae_dev);
 	pci_set_drvdata(pdev, ae_dev);
 
-	hnae3_register_ae_dev(ae_dev);
+	ret = hnae3_register_ae_dev(ae_dev);
+	if (ret) {
+		devm_kfree(&pdev->dev, ae_dev);
+		pci_set_drvdata(pdev, NULL);
+	}
 
-	return 0;
+	return ret;
 }
 
 /* hns3_remove - Device removal routine
@@ -1771,6 +1772,7 @@ static void hns3_remove(struct pci_dev *pdev)
 		hns3_disable_sriov(pdev);
 
 	hnae3_unregister_ae_dev(ae_dev);
+	pci_set_drvdata(pdev, NULL);
 }
 
 /**
@@ -2572,6 +2574,7 @@ static int hns3_handle_rx_bd(struct hns3_enet_ring *ring,
 			     struct sk_buff **out_skb)
 {
 	struct net_device *netdev = ring->tqp->handle->kinfo.netdev;
+	enum hns3_pkt_l2t_type l2_frame_type;
 	struct sk_buff *skb = ring->skb;
 	struct hns3_desc_cb *desc_cb;
 	struct hns3_desc *desc;
@@ -2680,7 +2683,12 @@ static int hns3_handle_rx_bd(struct hns3_enet_ring *ring,
 		return -EFAULT;
 	}
 
+	l2_frame_type = hnae3_get_field(l234info, HNS3_RXD_DMAC_M,
+					HNS3_RXD_DMAC_S);
 	u64_stats_update_begin(&ring->syncp);
+	if (l2_frame_type == HNS3_L2_TYPE_MULTICAST)
+		ring->stats.rx_multicast++;
+
 	ring->stats.rx_pkts++;
 	ring->stats.rx_bytes += skb->len;
 	u64_stats_update_end(&ring->syncp);
@@ -3175,12 +3183,12 @@ static void hns3_clear_ring_group(struct hns3_enet_ring_group *group)
 	group->count = 0;
 }
 
-static int hns3_nic_uninit_vector_data(struct hns3_nic_priv *priv)
+static void hns3_nic_uninit_vector_data(struct hns3_nic_priv *priv)
 {
 	struct hnae3_ring_chain_node vector_ring_chain;
 	struct hnae3_handle *h = priv->ae_handle;
 	struct hns3_enet_tqp_vector *tqp_vector;
-	int i, ret;
+	int i;
 
 	for (i = 0; i < priv->vector_num; i++) {
 		tqp_vector = &priv->tqp_vector[i];
@@ -3188,15 +3196,10 @@ static int hns3_nic_uninit_vector_data(struct hns3_nic_priv *priv)
 		if (!tqp_vector->rx_group.ring && !tqp_vector->tx_group.ring)
 			continue;
 
-		ret = hns3_get_vector_ring_chain(tqp_vector,
-						 &vector_ring_chain);
-		if (ret)
-			return ret;
+		hns3_get_vector_ring_chain(tqp_vector, &vector_ring_chain);
 
-		ret = h->ae_algo->ops->unmap_ring_from_vector(h,
+		h->ae_algo->ops->unmap_ring_from_vector(h,
 			tqp_vector->vector_irq, &vector_ring_chain);
-		if (ret)
-			return ret;
 
 		hns3_free_vector_ring_chain(tqp_vector, &vector_ring_chain);
 
@@ -3212,8 +3215,6 @@ static int hns3_nic_uninit_vector_data(struct hns3_nic_priv *priv)
 		hns3_clear_ring_group(&tqp_vector->tx_group);
 		netif_napi_del(&priv->tqp_vector[i].napi);
 	}
-
-	return 0;
 }
 
 static int hns3_nic_dealloc_vector_data(struct hns3_nic_priv *priv)
@@ -3378,6 +3379,11 @@ static void hns3_fini_ring(struct hns3_enet_ring *ring)
 	ring->desc_cb = NULL;
 	ring->next_to_clean = 0;
 	ring->next_to_use = 0;
+	ring->pending_buf = 0;
+	if (ring->skb) {
+		dev_kfree_skb_any(ring->skb);
+		ring->skb = NULL;
+	}
 }
 
 static int hns3_buf_size2type(u32 buf_size)
@@ -3518,6 +3524,25 @@ static int hns3_init_mac_addr(struct net_device *netdev, bool init)
 	return ret;
 }
 
+static int hns3_init_phy(struct net_device *netdev)
+{
+	struct hnae3_handle *h = hns3_get_handle(netdev);
+	int ret = 0;
+
+	if (h->ae_algo->ops->mac_connect_phy)
+		ret = h->ae_algo->ops->mac_connect_phy(h);
+
+	return ret;
+}
+
+static void hns3_uninit_phy(struct net_device *netdev)
+{
+	struct hnae3_handle *h = hns3_get_handle(netdev);
+
+	if (h->ae_algo->ops->mac_disconnect_phy)
+		h->ae_algo->ops->mac_disconnect_phy(h);
+}
+
 static int hns3_restore_fd_rules(struct net_device *netdev)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
@@ -3584,6 +3609,7 @@ static int hns3_client_init(struct hnae3_handle *handle)
 	priv->netdev = netdev;
 	priv->ae_handle = handle;
 	priv->tx_timeout_count = 0;
+	set_bit(HNS3_NIC_STATE_DOWN, &priv->state);
 
 	handle->kinfo.netdev = netdev;
 	handle->priv = (void *)priv;
@@ -3626,6 +3652,10 @@ static int hns3_client_init(struct hnae3_handle *handle)
 		goto out_init_ring_data;
 	}
 
+	ret = hns3_init_phy(netdev);
+	if (ret)
+		goto out_init_phy;
+
 	ret = register_netdev(netdev);
 	if (ret) {
 		dev_err(priv->dev, "probe register netdev fail!\n");
@@ -3650,8 +3680,11 @@ static int hns3_client_init(struct hnae3_handle *handle)
 	return ret;
 
 out_reg_netdev_fail:
+	hns3_uninit_phy(netdev);
+out_init_phy:
+	hns3_uninit_all_ring(priv);
 out_init_ring_data:
-	(void)hns3_nic_uninit_vector_data(priv);
+	hns3_nic_uninit_vector_data(priv);
 out_init_vector_data:
 	hns3_nic_dealloc_vector_data(priv);
 out_alloc_vector_data:
@@ -3684,9 +3717,9 @@ static void hns3_client_uninit(struct hnae3_handle *handle, bool reset)
 
 	hns3_force_clear_all_rx_ring(handle);
 
-	ret = hns3_nic_uninit_vector_data(priv);
-	if (ret)
-		netdev_err(netdev, "uninit vector error\n");
+	hns3_uninit_phy(netdev);
+
+	hns3_nic_uninit_vector_data(priv);
 
 	ret = hns3_nic_dealloc_vector_data(priv);
 	if (ret)
@@ -3728,7 +3761,6 @@ static int hns3_client_setup_tc(struct hnae3_handle *handle, u8 tc)
 {
 	struct hnae3_knic_private_info *kinfo = &handle->kinfo;
 	struct net_device *ndev = kinfo->netdev;
-	int ret;
 
 	if (tc > HNAE3_MAX_TC)
 		return -EINVAL;
@@ -3736,14 +3768,7 @@ static int hns3_client_setup_tc(struct hnae3_handle *handle, u8 tc)
 	if (!ndev)
 		return -ENODEV;
 
-	ret = (kinfo->dcb_ops && kinfo->dcb_ops->map_update) ?
-		kinfo->dcb_ops->map_update(handle) : -EOPNOTSUPP;
-	if (ret)
-		return ret;
-
-	ret = hns3_nic_set_real_num_queue(ndev);
-
-	return ret;
+	return hns3_nic_set_real_num_queue(ndev);
 }
 
 static int hns3_recover_hw_addr(struct net_device *ndev)
@@ -4087,11 +4112,7 @@ static int hns3_reset_notify_uninit_enet(struct hnae3_handle *handle)
 
 	hns3_force_clear_all_rx_ring(handle);
 
-	ret = hns3_nic_uninit_vector_data(priv);
-	if (ret) {
-		netdev_err(netdev, "uninit vector error\n");
-		return ret;
-	}
+	hns3_nic_uninit_vector_data(priv);
 
 	hns3_store_coal(priv);
 
@@ -4144,6 +4165,7 @@ int hns3_set_channels(struct net_device *netdev,
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
 	struct hnae3_knic_private_info *kinfo = &h->kinfo;
+	bool rxfh_configured = netif_is_rxfh_configured(netdev);
 	u32 new_tqp_num = ch->combined_count;
 	u16 org_tqp_num;
 	int ret;
@@ -4171,9 +4193,10 @@ int hns3_set_channels(struct net_device *netdev,
 		return ret;
 
 	org_tqp_num = h->kinfo.num_tqps;
-	ret = h->ae_algo->ops->set_channels(h, new_tqp_num);
+	ret = h->ae_algo->ops->set_channels(h, new_tqp_num, rxfh_configured);
 	if (ret) {
-		ret = h->ae_algo->ops->set_channels(h, org_tqp_num);
+		ret = h->ae_algo->ops->set_channels(h, org_tqp_num,
+						    rxfh_configured);
 		if (ret) {
 			/* If revert to old tqp failed, fatal error occurred */
 			dev_err(&netdev->dev,

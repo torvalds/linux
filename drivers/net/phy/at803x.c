@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * drivers/net/phy/at803x.c
  *
  * Driver for Atheros 803x PHY
  *
  * Author: Matus Ujhelyi <ujhelyi.m@gmail.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/phy.h>
@@ -39,9 +35,6 @@
 #define AT803X_LOC_MAC_ADDR_0_15_OFFSET		0x804C
 #define AT803X_LOC_MAC_ADDR_16_31_OFFSET	0x804B
 #define AT803X_LOC_MAC_ADDR_32_47_OFFSET	0x804A
-#define AT803X_MMD_ACCESS_CONTROL		0x0D
-#define AT803X_MMD_ACCESS_CONTROL_DATA		0x0E
-#define AT803X_FUNC_DATA			0x4003
 #define AT803X_REG_CHIP_CONFIG			0x1f
 #define AT803X_BT_BX_REG_SEL			0x8000
 
@@ -110,16 +103,16 @@ static int at803x_debug_reg_mask(struct phy_device *phydev, u16 reg,
 	return phy_write(phydev, AT803X_DEBUG_DATA, val);
 }
 
-static inline int at803x_enable_rx_delay(struct phy_device *phydev)
+static inline int at803x_disable_rx_delay(struct phy_device *phydev)
 {
-	return at803x_debug_reg_mask(phydev, AT803X_DEBUG_REG_0, 0,
-					AT803X_DEBUG_RX_CLK_DLY_EN);
+	return at803x_debug_reg_mask(phydev, AT803X_DEBUG_REG_0,
+				     AT803X_DEBUG_RX_CLK_DLY_EN, 0);
 }
 
-static inline int at803x_enable_tx_delay(struct phy_device *phydev)
+static inline int at803x_disable_tx_delay(struct phy_device *phydev)
 {
-	return at803x_debug_reg_mask(phydev, AT803X_DEBUG_REG_5, 0,
-					AT803X_DEBUG_TX_CLK_DLY_EN);
+	return at803x_debug_reg_mask(phydev, AT803X_DEBUG_REG_5,
+				     AT803X_DEBUG_TX_CLK_DLY_EN, 0);
 }
 
 /* save relevant PHY registers to private copy */
@@ -168,16 +161,9 @@ static int at803x_set_wol(struct phy_device *phydev,
 		if (!is_valid_ether_addr(mac))
 			return -EINVAL;
 
-		for (i = 0; i < 3; i++) {
-			phy_write(phydev, AT803X_MMD_ACCESS_CONTROL,
-				  AT803X_DEVICE_ADDR);
-			phy_write(phydev, AT803X_MMD_ACCESS_CONTROL_DATA,
-				  offsets[i]);
-			phy_write(phydev, AT803X_MMD_ACCESS_CONTROL,
-				  AT803X_FUNC_DATA);
-			phy_write(phydev, AT803X_MMD_ACCESS_CONTROL_DATA,
-				  mac[(i * 2) + 1] | (mac[(i * 2)] << 8));
-		}
+		for (i = 0; i < 3; i++)
+			phy_write_mmd(phydev, AT803X_DEVICE_ADDR, offsets[i],
+				      mac[(i * 2) + 1] | (mac[(i * 2)] << 8));
 
 		value = phy_read(phydev, AT803X_INTR_ENABLE);
 		value |= AT803X_INTR_ENABLE_WOL;
@@ -256,15 +242,17 @@ static int at803x_config_init(struct phy_device *phydev)
 		return ret;
 
 	if (phydev->interface == PHY_INTERFACE_MODE_RGMII_RXID ||
-			phydev->interface == PHY_INTERFACE_MODE_RGMII_ID) {
-		ret = at803x_enable_rx_delay(phydev);
+			phydev->interface == PHY_INTERFACE_MODE_RGMII_ID ||
+			phydev->interface == PHY_INTERFACE_MODE_RGMII) {
+		ret = at803x_disable_rx_delay(phydev);
 		if (ret < 0)
 			return ret;
 	}
 
 	if (phydev->interface == PHY_INTERFACE_MODE_RGMII_TXID ||
-			phydev->interface == PHY_INTERFACE_MODE_RGMII_ID) {
-		ret = at803x_enable_tx_delay(phydev);
+			phydev->interface == PHY_INTERFACE_MODE_RGMII_ID ||
+			phydev->interface == PHY_INTERFACE_MODE_RGMII) {
+		ret = at803x_disable_tx_delay(phydev);
 		if (ret < 0)
 			return ret;
 	}

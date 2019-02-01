@@ -47,6 +47,7 @@ static const struct hns3_stats hns3_rxq_stats[] = {
 	HNS3_TQP_STAT("err_bd_num", err_bd_num),
 	HNS3_TQP_STAT("l2_err", l2_err),
 	HNS3_TQP_STAT("l3l4_csum_err", l3l4_csum_err),
+	HNS3_TQP_STAT("multicast", rx_multicast),
 };
 
 #define HNS3_RXQ_STATS_COUNT ARRAY_SIZE(hns3_rxq_stats)
@@ -116,7 +117,7 @@ static int hns3_lp_up(struct net_device *ndev, enum hnae3_loop loop_mode)
 	ret = hns3_lp_setup(ndev, loop_mode, true);
 	usleep_range(10000, 20000);
 
-	return 0;
+	return ret;
 }
 
 static int hns3_lp_down(struct net_device *ndev, enum hnae3_loop loop_mode)
@@ -333,10 +334,10 @@ static void hns3_self_test(struct net_device *ndev,
 			continue;
 
 		data[test_index] = hns3_lp_up(ndev, loop_type);
-		if (!data[test_index]) {
+		if (!data[test_index])
 			data[test_index] = hns3_lp_run_test(ndev, loop_type);
-			hns3_lp_down(ndev, loop_type);
-		}
+
+		hns3_lp_down(ndev, loop_type);
 
 		if (data[test_index])
 			eth_test->flags |= ETH_TEST_FL_FAILED;
@@ -804,7 +805,7 @@ static int hns3_set_ringparam(struct net_device *ndev,
 		    old_desc_num, new_desc_num);
 
 	if (if_running)
-		dev_close(ndev);
+		ndev->netdev_ops->ndo_stop(ndev);
 
 	ret = hns3_uninit_all_ring(priv);
 	if (ret)
@@ -821,7 +822,7 @@ static int hns3_set_ringparam(struct net_device *ndev,
 	}
 
 	if (if_running)
-		ret = dev_open(ndev, NULL);
+		ret = ndev->netdev_ops->ndo_open(ndev);
 
 	return ret;
 }
@@ -1114,6 +1115,8 @@ static const struct ethtool_ops hns3vf_ethtool_ops = {
 	.get_channels = hns3_get_channels,
 	.get_coalesce = hns3_get_coalesce,
 	.set_coalesce = hns3_set_coalesce,
+	.get_regs_len = hns3_get_regs_len,
+	.get_regs = hns3_get_regs,
 	.get_link = hns3_get_link,
 };
 

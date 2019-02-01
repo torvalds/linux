@@ -81,6 +81,7 @@ enum qeth_card_types {
 
 #define IS_IQD(card)	((card)->info.type == QETH_CARD_TYPE_IQD)
 #define IS_OSD(card)	((card)->info.type == QETH_CARD_TYPE_OSD)
+#define IS_OSM(card)	((card)->info.type == QETH_CARD_TYPE_OSM)
 #define IS_OSN(card)	((card)->info.type == QETH_CARD_TYPE_OSN)
 #define IS_VM_NIC(card)	((card)->info.guestlan)
 

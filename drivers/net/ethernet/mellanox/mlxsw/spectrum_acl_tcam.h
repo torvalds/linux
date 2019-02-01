@@ -48,8 +48,7 @@ struct mlxsw_sp_acl_profile_ops {
 			void *ruleset_priv, void *rule_priv,
 			struct mlxsw_sp_acl_rule_info *rulei);
 	void (*rule_del)(struct mlxsw_sp *mlxsw_sp, void *rule_priv);
-	int (*rule_action_replace)(struct mlxsw_sp *mlxsw_sp,
-				   void *ruleset_priv, void *rule_priv,
+	int (*rule_action_replace)(struct mlxsw_sp *mlxsw_sp, void *rule_priv,
 				   struct mlxsw_sp_acl_rule_info *rulei);
 	int (*rule_activity_get)(struct mlxsw_sp *mlxsw_sp, void *rule_priv,
 				 bool *activity);
@@ -126,7 +125,6 @@ void mlxsw_sp_acl_ctcam_entry_del(struct mlxsw_sp *mlxsw_sp,
 				  struct mlxsw_sp_acl_ctcam_entry *centry);
 int mlxsw_sp_acl_ctcam_entry_action_replace(struct mlxsw_sp *mlxsw_sp,
 					    struct mlxsw_sp_acl_ctcam_region *cregion,
-					    struct mlxsw_sp_acl_ctcam_chunk *cchunk,
 					    struct mlxsw_sp_acl_ctcam_entry *centry,
 					    struct mlxsw_sp_acl_rule_info *rulei);
 static inline unsigned int
@@ -163,9 +161,9 @@ struct mlxsw_sp_acl_atcam_region {
 };
 
 struct mlxsw_sp_acl_atcam_entry_ht_key {
-	char enc_key[MLXSW_REG_PTCEX_FLEX_KEY_BLOCKS_LEN]; /* Encoded key,
-							    * minus delta bits.
-							    */
+	char full_enc_key[MLXSW_REG_PTCEX_FLEX_KEY_BLOCKS_LEN]; /* Encoded
+								 * key.
+								 */
 	u8 erp_id;
 };
 
@@ -177,7 +175,9 @@ struct mlxsw_sp_acl_atcam_entry {
 	struct rhash_head ht_node;
 	struct list_head list; /* Member in entries_list */
 	struct mlxsw_sp_acl_atcam_entry_ht_key ht_key;
-	char full_enc_key[MLXSW_REG_PTCEX_FLEX_KEY_BLOCKS_LEN]; /* Encoded key */
+	char enc_key[MLXSW_REG_PTCEX_FLEX_KEY_BLOCKS_LEN]; /* Encoded key,
+							    * minus delta bits.
+							    */
 	struct {
 		u16 start;
 		u8 mask;
@@ -224,7 +224,6 @@ void mlxsw_sp_acl_atcam_entry_del(struct mlxsw_sp *mlxsw_sp,
 				  struct mlxsw_sp_acl_atcam_entry *aentry);
 int mlxsw_sp_acl_atcam_entry_action_replace(struct mlxsw_sp *mlxsw_sp,
 					    struct mlxsw_sp_acl_atcam_region *aregion,
-					    struct mlxsw_sp_acl_atcam_chunk *achunk,
 					    struct mlxsw_sp_acl_atcam_entry *aentry,
 					    struct mlxsw_sp_acl_rule_info *rulei);
 int mlxsw_sp_acl_atcam_init(struct mlxsw_sp *mlxsw_sp,

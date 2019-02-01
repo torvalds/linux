@@ -180,6 +180,19 @@ struct port;
 #pragma pack(8)
 #endif
 
+struct bond_3ad_stats {
+	atomic64_t lacpdu_rx;
+	atomic64_t lacpdu_tx;
+	atomic64_t lacpdu_unknown_rx;
+	atomic64_t lacpdu_illegal_rx;
+
+	atomic64_t marker_rx;
+	atomic64_t marker_tx;
+	atomic64_t marker_resp_rx;
+	atomic64_t marker_resp_tx;
+	atomic64_t marker_unknown_rx;
+};
+
 /* aggregator structure(43.4.5 in the 802.3ad standard) */
 typedef struct aggregator {
 	struct mac_addr aggregator_mac_address;
@@ -265,6 +278,7 @@ struct ad_system {
 
 struct ad_bond_info {
 	struct ad_system system;	/* 802.3ad system structure */
+	struct bond_3ad_stats stats;
 	u32 agg_select_timer;		/* Timer to select aggregator after all adapter's hand shakes */
 	u16 aggregator_identifier;
 };
@@ -272,6 +286,7 @@ struct ad_bond_info {
 struct ad_slave_info {
 	struct aggregator aggregator;	/* 802.3ad aggregator structure */
 	struct port port;		/* 802.3ad port structure */
+	struct bond_3ad_stats stats;
 	u16 id;
 };
 
@@ -307,5 +322,7 @@ int bond_3ad_lacpdu_recv(const struct sk_buff *skb, struct bonding *bond,
 int bond_3ad_set_carrier(struct bonding *bond);
 void bond_3ad_update_lacp_rate(struct bonding *bond);
 void bond_3ad_update_ad_actor_settings(struct bonding *bond);
+int bond_3ad_stats_fill(struct sk_buff *skb, struct bond_3ad_stats *stats);
+size_t bond_3ad_stats_size(void);
 #endif /* _NET_BOND_3AD_H */
 

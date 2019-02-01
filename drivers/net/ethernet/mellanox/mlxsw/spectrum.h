@@ -75,6 +75,11 @@ enum mlxsw_sp_rif_type {
 	MLXSW_SP_RIF_TYPE_MAX,
 };
 
+struct mlxsw_sp_rif_ops;
+
+extern const struct mlxsw_sp_rif_ops *mlxsw_sp1_rif_ops_arr[];
+extern const struct mlxsw_sp_rif_ops *mlxsw_sp2_rif_ops_arr[];
+
 enum mlxsw_sp_fid_type {
 	MLXSW_SP_FID_TYPE_8021Q,
 	MLXSW_SP_FID_TYPE_8021D,
@@ -161,6 +166,7 @@ struct mlxsw_sp {
 	const struct mlxsw_sp_mr_tcam_ops *mr_tcam_ops;
 	const struct mlxsw_sp_acl_tcam_ops *acl_tcam_ops;
 	const struct mlxsw_sp_nve_ops **nve_ops_arr;
+	const struct mlxsw_sp_rif_ops **rif_ops_arr;
 };
 
 static inline struct mlxsw_sp_upper *
@@ -501,6 +507,9 @@ void mlxsw_sp_router_nve_demote_decap(struct mlxsw_sp *mlxsw_sp, u32 ul_tb_id,
 				      const union mlxsw_sp_l3addr *ul_sip);
 int mlxsw_sp_router_tb_id_vr_id(struct mlxsw_sp *mlxsw_sp, u32 tb_id,
 				u16 *vr_id);
+int mlxsw_sp_router_ul_rif_get(struct mlxsw_sp *mlxsw_sp, u32 ul_tb_id,
+			       u16 *ul_rif_index);
+void mlxsw_sp_router_ul_rif_put(struct mlxsw_sp *mlxsw_sp, u16 ul_rif_index);
 
 /* spectrum_kvdl.c */
 enum mlxsw_sp_kvdl_entry_type {
@@ -712,8 +721,7 @@ struct mlxsw_sp_acl_tcam_ops {
 			  void *region_priv, void *chunk_priv,
 			  void *entry_priv);
 	int (*entry_action_replace)(struct mlxsw_sp *mlxsw_sp,
-				    void *region_priv, void *chunk_priv,
-				    void *entry_priv,
+				    void *region_priv, void *entry_priv,
 				    struct mlxsw_sp_acl_rule_info *rulei);
 	int (*entry_activity_get)(struct mlxsw_sp *mlxsw_sp,
 				  void *region_priv, void *entry_priv,

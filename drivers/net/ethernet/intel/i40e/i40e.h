@@ -34,6 +34,7 @@
 #include <net/pkt_cls.h>
 #include <net/tc_act/tc_gact.h>
 #include <net/tc_act/tc_mirred.h>
+#include <net/xdp_sock.h>
 #include "i40e_type.h"
 #include "i40e_prototype.h"
 #include "i40e_client.h"
@@ -523,6 +524,8 @@ struct i40e_pf {
 #define I40E_FLAG_FD_SB_INACTIVE		BIT(22)
 #define I40E_FLAG_FD_SB_TO_CLOUD_FILTER		BIT(23)
 #define I40E_FLAG_DISABLE_FW_LLDP		BIT(24)
+#define I40E_FLAG_RS_FEC			BIT(25)
+#define I40E_FLAG_BASE_R_FEC			BIT(26)
 
 	struct i40e_client_instance *cinst;
 	bool stat_offsets_loaded;
@@ -787,11 +790,6 @@ struct i40e_vsi {
 
 	/* VSI specific handlers */
 	irqreturn_t (*irq_handler)(int irq, void *data);
-
-	/* AF_XDP zero-copy */
-	struct xdp_umem **xsk_umems;
-	u16 num_xsk_umems_used;
-	u16 num_xsk_umems;
 } ____cacheline_internodealigned_in_smp;
 
 struct i40e_netdev_priv {
@@ -1091,6 +1089,8 @@ i40e_status i40e_set_partition_bw_setting(struct i40e_pf *pf);
 i40e_status i40e_commit_partition_bw_setting(struct i40e_pf *pf);
 void i40e_print_link_message(struct i40e_vsi *vsi, bool isup);
 
+void i40e_set_fec_in_flags(u8 fec_cfg, u32 *flags);
+
 static inline bool i40e_enabled_xdp_vsi(struct i40e_vsi *vsi)
 {
 	return !!vsi->xdp_prog;
@@ -1104,10 +1104,10 @@ static inline struct xdp_umem *i40e_xsk_umem(struct i40e_ring *ring)
 	if (ring_is_xdp(ring))
 		qid -= ring->vsi->alloc_queue_pairs;
 
-	if (!ring->vsi->xsk_umems || !ring->vsi->xsk_umems[qid] || !xdp_on)
+	if (!xdp_on)
 		return NULL;
 
-	return ring->vsi->xsk_umems[qid];
+	return xdp_get_umem_from_qid(ring->vsi->netdev, qid);
 }
 
 int i40e_create_queue_channel(struct i40e_vsi *vsi, struct i40e_channel *ch);

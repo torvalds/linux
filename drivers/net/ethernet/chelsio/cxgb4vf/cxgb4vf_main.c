@@ -791,6 +791,13 @@ static int cxgb4vf_open(struct net_device *dev)
 			return err;
 	}
 
+	/* It's possible that the basic port information could have
+	 * changed since we first read it.
+	 */
+	err = t4vf_update_port_info(pi);
+	if (err < 0)
+		return err;
+
 	/*
 	 * Note that this interface is up and start everything up ...
 	 */

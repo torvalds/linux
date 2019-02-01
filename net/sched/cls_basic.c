@@ -18,6 +18,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/skbuff.h>
 #include <linux/idr.h>
+#include <linux/percpu.h>
 #include <net/netlink.h>
 #include <net/act_api.h>
 #include <net/pkt_cls.h>
@@ -35,6 +36,7 @@ struct basic_filter {
 	struct tcf_result	res;
 	struct tcf_proto	*tp;
 	struct list_head	link;
+	struct tc_basic_pcnt __percpu *pf;
 	struct rcu_work		rwork;
 };
 
@@ -46,8 +48,10 @@ static int basic_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 	struct basic_filter *f;
 
 	list_for_each_entry_rcu(f, &head->flist, link) {
+		__this_cpu_inc(f->pf->rcnt);
 		if (!tcf_em_tree_match(skb, &f->ematches, NULL))
 			continue;
+		__this_cpu_inc(f->pf->rhit);
 		*res = f->res;
 		r = tcf_exts_exec(skb, &f->exts, res);
 		if (r < 0)
@@ -89,6 +93,7 @@ static void __basic_delete_filter(struct basic_filter *f)
 	tcf_exts_destroy(&f->exts);
 	tcf_em_tree_destroy(&f->ematches);
 	tcf_exts_put_net(&f->exts);
+	free_percpu(f->pf);
 	kfree(f);
 }
 
@@ -208,6 +213,11 @@ static int basic_change(struct net *net, struct sk_buff *in_skb,
 	if (err)
 		goto errout;
 	fnew->handle = handle;
+	fnew->pf = alloc_percpu(struct tc_basic_pcnt);
+	if (!fnew->pf) {
+		err = -ENOMEM;
+		goto errout;
+	}
 
 	err = basic_set_parms(net, tp, fnew, base, tb, tca[TCA_RATE], ovr,
 			      extack);
@@ -231,6 +241,7 @@ static int basic_change(struct net *net, struct sk_buff *in_skb,
 
 	return 0;
 errout:
+	free_percpu(fnew->pf);
 	tcf_exts_destroy(&fnew->exts);
 	kfree(fnew);
 	return err;
@@ -265,8 +276,10 @@ static void basic_bind_class(void *fh, u32 classid, unsigned long cl)
 static int basic_dump(struct net *net, struct tcf_proto *tp, void *fh,
 		      struct sk_buff *skb, struct tcmsg *t)
 {
+	struct tc_basic_pcnt gpf = {};
 	struct basic_filter *f = fh;
 	struct nlattr *nest;
+	int cpu;
 
 	if (f == NULL)
 		return skb->len;
@@ -279,6 +292,18 @@ static int basic_dump(struct net *net, struct tcf_proto *tp, void *fh,
 
 	if (f->res.classid &&
 	    nla_put_u32(skb, TCA_BASIC_CLASSID, f->res.classid))
+		goto nla_put_failure;
+
+	for_each_possible_cpu(cpu) {
+		struct tc_basic_pcnt *pf = per_cpu_ptr(f->pf, cpu);
+
+		gpf.rcnt += pf->rcnt;
+		gpf.rhit += pf->rhit;
+	}
+
+	if (nla_put_64bit(skb, TCA_BASIC_PCNT,
+			  sizeof(struct tc_basic_pcnt),
+			  &gpf, TCA_BASIC_PAD))
 		goto nla_put_failure;
 
 	if (tcf_exts_dump(skb, &f->exts) < 0 ||

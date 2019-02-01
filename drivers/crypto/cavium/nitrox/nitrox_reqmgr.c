@@ -567,10 +567,10 @@ static void process_response_list(struct nitrox_cmdq *cmdq)
 
 		/* ORH error code */
 		err = READ_ONCE(*sr->resp.orh) & 0xff;
-		softreq_destroy(sr);
 
 		if (sr->callback)
 			sr->callback(sr->cb_arg, err);
+		softreq_destroy(sr);
 
 		req_completed++;
 	}

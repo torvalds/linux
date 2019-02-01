@@ -1752,7 +1752,6 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 		newsk->sk_err_soft = 0;
 		newsk->sk_priority = 0;
 		newsk->sk_incoming_cpu = raw_smp_processor_id();
-		atomic64_set(&newsk->sk_cookie, 0);
 		if (likely(newsk->sk_net_refcnt))
 			sock_inuse_add(sock_net(newsk), 1);
 

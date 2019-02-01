@@ -21,6 +21,14 @@ static const struct pci_device_id ae_algovf_pci_tbl[] = {
 	{0, }
 };
 
+static const u8 hclgevf_hash_key[] = {
+	0x6D, 0x5A, 0x56, 0xDA, 0x25, 0x5B, 0x0E, 0xC2,
+	0x41, 0x67, 0x25, 0x3D, 0x43, 0xA3, 0x8F, 0xB0,
+	0xD0, 0xCA, 0x2B, 0xCB, 0xAE, 0x7B, 0x30, 0xB4,
+	0x77, 0xCB, 0x2D, 0xA3, 0x80, 0x30, 0xF2, 0x0C,
+	0x6A, 0x42, 0xB7, 0x3B, 0xBE, 0xAC, 0x01, 0xFA
+};
+
 MODULE_DEVICE_TABLE(pci, ae_algovf_pci_tbl);
 
 static const u32 cmdq_reg_addr_list[] = {HCLGEVF_CMDQ_TX_ADDR_L_REG,
@@ -78,7 +86,12 @@ static const u32 tqp_intr_reg_addr_list[] = {HCLGEVF_TQP_INTR_CTRL_REG,
 static inline struct hclgevf_dev *hclgevf_ae_get_hdev(
 	struct hnae3_handle *handle)
 {
-	return container_of(handle, struct hclgevf_dev, nic);
+	if (!handle->client)
+		return container_of(handle, struct hclgevf_dev, nic);
+	else if (handle->client->type == HNAE3_CLIENT_ROCE)
+		return container_of(handle, struct hclgevf_dev, roce);
+	else
+		return container_of(handle, struct hclgevf_dev, nic);
 }
 
 static int hclgevf_tqps_update_stats(struct hnae3_handle *handle)
@@ -349,16 +362,21 @@ static void hclgevf_request_link_info(struct hclgevf_dev *hdev)
 
 void hclgevf_update_link_status(struct hclgevf_dev *hdev, int link_state)
 {
+	struct hnae3_handle *rhandle = &hdev->roce;
 	struct hnae3_handle *handle = &hdev->nic;
+	struct hnae3_client *rclient;
 	struct hnae3_client *client;
 
 	client = handle->client;
+	rclient = hdev->roce_client;
 
 	link_state =
 		test_bit(HCLGEVF_STATE_DOWN, &hdev->state) ? 0 : link_state;
 
 	if (link_state != hdev->hw.mac.link) {
 		client->ops->link_status_change(handle, !!link_state);
+		if (rclient && rclient->ops->link_status_change)
+			rclient->ops->link_status_change(rhandle, !!link_state);
 		hdev->hw.mac.link = link_state;
 	}
 }
@@ -964,33 +982,29 @@ static int hclgevf_put_vector(struct hnae3_handle *handle, int vector)
 }
 
 static int hclgevf_cmd_set_promisc_mode(struct hclgevf_dev *hdev,
-					bool en_uc_pmc, bool en_mc_pmc)
+					bool en_bc_pmc)
 {
 	struct hclge_mbx_vf_to_pf_cmd *req;
 	struct hclgevf_desc desc;
-	int status;
+	int ret;
 
 	req = (struct hclge_mbx_vf_to_pf_cmd *)desc.data;
 
 	hclgevf_cmd_setup_basic_desc(&desc, HCLGEVF_OPC_MBX_VF_TO_PF, false);
 	req->msg[0] = HCLGE_MBX_SET_PROMISC_MODE;
-	req->msg[1] = en_uc_pmc ? 1 : 0;
-	req->msg[2] = en_mc_pmc ? 1 : 0;
+	req->msg[1] = en_bc_pmc ? 1 : 0;
 
-	status = hclgevf_cmd_send(&hdev->hw, &desc, 1);
-	if (status)
+	ret = hclgevf_cmd_send(&hdev->hw, &desc, 1);
+	if (ret)
 		dev_err(&hdev->pdev->dev,
-			"Set promisc mode fail, status is %d.\n", status);
+			"Set promisc mode fail, status is %d.\n", ret);
 
-	return status;
+	return ret;
 }
 
-static int hclgevf_set_promisc_mode(struct hnae3_handle *handle,
-				    bool en_uc_pmc, bool en_mc_pmc)
+static int hclgevf_set_promisc_mode(struct hclgevf_dev *hdev, bool en_bc_pmc)
 {
-	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
-
-	return hclgevf_cmd_set_promisc_mode(hdev, en_uc_pmc, en_mc_pmc);
+	return hclgevf_cmd_set_promisc_mode(hdev, en_bc_pmc);
 }
 
 static int hclgevf_tqp_enable(struct hclgevf_dev *hdev, int tqp_id,
@@ -1610,6 +1624,10 @@ static void hclgevf_keep_alive_task(struct work_struct *work)
 	int ret;
 
 	hdev = container_of(work, struct hclgevf_dev, keep_alive_task);
+
+	if (test_bit(HCLGEVF_STATE_RST_HANDLING, &hdev->state))
+		return;
+
 	ret = hclgevf_send_mbx_msg(hdev, HCLGE_MBX_KEEP_ALIVE, 0, NULL,
 				   0, false, &respmsg, sizeof(u8));
 	if (ret)
@@ -1788,9 +1806,9 @@ static int hclgevf_rss_init_hw(struct hclgevf_dev *hdev)
 	rss_cfg->rss_size = hdev->rss_size_max;
 
 	if (hdev->pdev->revision >= 0x21) {
-		rss_cfg->hash_algo = HCLGEVF_RSS_HASH_ALGO_TOEPLITZ;
-		netdev_rss_key_fill(rss_cfg->rss_hash_key,
-				    HCLGEVF_RSS_KEY_SIZE);
+		rss_cfg->hash_algo = HCLGEVF_RSS_HASH_ALGO_SIMPLE;
+		memcpy(rss_cfg->rss_hash_key, hclgevf_hash_key,
+		       HCLGEVF_RSS_KEY_SIZE);
 
 		ret = hclgevf_set_rss_algo_key(hdev, rss_cfg->hash_algo,
 					       rss_cfg->rss_hash_key);
@@ -2377,6 +2395,15 @@ static int hclgevf_init_hdev(struct hclgevf_dev *hdev)
 	if (ret)
 		goto err_config;
 
+	/* vf is not allowed to enable unicast/multicast promisc mode.
+	 * For revision 0x20, default to disable broadcast promisc mode,
+	 * firmware makes sure broadcast packets can be accepted.
+	 * For revision 0x21, default to enable broadcast promisc mode.
+	 */
+	ret = hclgevf_set_promisc_mode(hdev, true);
+	if (ret)
+		goto err_config;
+
 	/* Initialize RSS for this VF */
 	ret = hclgevf_rss_init_hw(hdev);
 	if (ret) {
@@ -2461,7 +2488,8 @@ static u32 hclgevf_get_max_channels(struct hclgevf_dev *hdev)
 	struct hnae3_handle *nic = &hdev->nic;
 	struct hnae3_knic_private_info *kinfo = &nic->kinfo;
 
-	return min_t(u32, hdev->rss_size_max * kinfo->num_tc, hdev->num_tqps);
+	return min_t(u32, hdev->rss_size_max,
+		     hdev->num_tqps / kinfo->num_tc);
 }
 
 /**
@@ -2482,7 +2510,7 @@ static void hclgevf_get_channels(struct hnae3_handle *handle,
 	ch->max_combined = hclgevf_get_max_channels(hdev);
 	ch->other_count = 0;
 	ch->max_other = 0;
-	ch->combined_count = hdev->num_tqps;
+	ch->combined_count = handle->kinfo.rss_size;
 }
 
 static void hclgevf_get_tqps_and_rss_info(struct hnae3_handle *handle,
@@ -2640,7 +2668,6 @@ static const struct hnae3_ae_ops hclgevf_ops = {
 	.get_vector = hclgevf_get_vector,
 	.put_vector = hclgevf_put_vector,
 	.reset_queue = hclgevf_reset_tqp,
-	.set_promisc_mode = hclgevf_set_promisc_mode,
 	.get_mac_addr = hclgevf_get_mac_addr,
 	.set_mac_addr = hclgevf_set_mac_addr,
 	.add_uc_addr = hclgevf_add_uc_addr,

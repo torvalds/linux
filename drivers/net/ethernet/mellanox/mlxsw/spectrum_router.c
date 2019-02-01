@@ -80,7 +80,7 @@ struct mlxsw_sp_router {
 struct mlxsw_sp_rif {
 	struct list_head nexthop_list;
 	struct list_head neigh_list;
-	struct net_device *dev;
+	struct net_device *dev; /* NULL for underlay RIF */
 	struct mlxsw_sp_fid *fid;
 	unsigned char addr[ETH_ALEN];
 	int mtu;
@@ -120,6 +120,7 @@ struct mlxsw_sp_rif_ipip_lb {
 	struct mlxsw_sp_rif common;
 	struct mlxsw_sp_rif_ipip_lb_config lb_config;
 	u16 ul_vr_id; /* Reserved for Spectrum-2. */
+	u16 ul_rif_id; /* Reserved for Spectrum. */
 };
 
 struct mlxsw_sp_rif_params_ipip_lb {
@@ -440,6 +441,8 @@ struct mlxsw_sp_vr {
 	struct mlxsw_sp_fib *fib4;
 	struct mlxsw_sp_fib *fib6;
 	struct mlxsw_sp_mr_table *mr_table[MLXSW_SP_L3_PROTO_MAX];
+	struct mlxsw_sp_rif *ul_rif;
+	refcount_t ul_rif_refcnt;
 };
 
 static const struct rhashtable_params mlxsw_sp_fib_ht_params;
@@ -1437,8 +1440,8 @@ mlxsw_sp_ipip_entry_ol_up_event(struct mlxsw_sp *mlxsw_sp,
 }
 
 static int
-mlxsw_sp_rif_ipip_lb_op(struct mlxsw_sp_rif_ipip_lb *lb_rif,
-			struct mlxsw_sp_vr *ul_vr, bool enable)
+mlxsw_sp_rif_ipip_lb_op(struct mlxsw_sp_rif_ipip_lb *lb_rif, u16 ul_vr_id,
+			u16 ul_rif_id, bool enable)
 {
 	struct mlxsw_sp_rif_ipip_lb_config lb_cf = lb_rif->lb_config;
 	struct mlxsw_sp_rif *rif = &lb_rif->common;
@@ -1453,7 +1456,7 @@ mlxsw_sp_rif_ipip_lb_op(struct mlxsw_sp_rif_ipip_lb *lb_rif,
 				    rif->rif_index, rif->vr_id, rif->dev->mtu);
 		mlxsw_reg_ritr_loopback_ipip4_pack(ritr_pl, lb_cf.lb_ipipt,
 			    MLXSW_REG_RITR_LOOPBACK_IPIP_OPTIONS_GRE_KEY_PRESET,
-			    ul_vr->id, saddr4, lb_cf.okey);
+			    ul_vr_id, ul_rif_id, saddr4, lb_cf.okey);
 		break;
 
 	case MLXSW_SP_L3_PROTO_IPV6:
@@ -1468,14 +1471,13 @@ static int mlxsw_sp_netdevice_ipip_ol_update_mtu(struct mlxsw_sp *mlxsw_sp,
 {
 	struct mlxsw_sp_ipip_entry *ipip_entry;
 	struct mlxsw_sp_rif_ipip_lb *lb_rif;
-	struct mlxsw_sp_vr *ul_vr;
 	int err = 0;
 
 	ipip_entry = mlxsw_sp_ipip_entry_find_by_ol_dev(mlxsw_sp, ol_dev);
 	if (ipip_entry) {
 		lb_rif = ipip_entry->ol_lb;
-		ul_vr = &mlxsw_sp->router->vrs[lb_rif->ul_vr_id];
-		err = mlxsw_sp_rif_ipip_lb_op(lb_rif, ul_vr, true);
+		err = mlxsw_sp_rif_ipip_lb_op(lb_rif, lb_rif->ul_vr_id,
+					      lb_rif->ul_rif_id, true);
 		if (err)
 			goto out;
 		lb_rif->common.mtu = ol_dev->mtu;
@@ -6224,10 +6226,12 @@ static struct mlxsw_sp_rif *mlxsw_sp_rif_alloc(size_t rif_size, u16 rif_index,
 
 	INIT_LIST_HEAD(&rif->nexthop_list);
 	INIT_LIST_HEAD(&rif->neigh_list);
-	ether_addr_copy(rif->addr, l3_dev->dev_addr);
-	rif->mtu = l3_dev->mtu;
+	if (l3_dev) {
+		ether_addr_copy(rif->addr, l3_dev->dev_addr);
+		rif->mtu = l3_dev->mtu;
+		rif->dev = l3_dev;
+	}
 	rif->vr_id = vr_id;
-	rif->dev = l3_dev;
 	rif->rif_index = rif_index;
 
 	return rif;
@@ -6251,7 +6255,19 @@ u16 mlxsw_sp_ipip_lb_rif_index(const struct mlxsw_sp_rif_ipip_lb *lb_rif)
 
 u16 mlxsw_sp_ipip_lb_ul_vr_id(const struct mlxsw_sp_rif_ipip_lb *lb_rif)
 {
-	return lb_rif->ul_vr_id;
+	u32 ul_tb_id = mlxsw_sp_ipip_dev_ul_tb_id(lb_rif->common.dev);
+	struct mlxsw_sp_vr *ul_vr;
+
+	ul_vr = mlxsw_sp_vr_get(lb_rif->common.mlxsw_sp, ul_tb_id, NULL);
+	if (WARN_ON(IS_ERR(ul_vr)))
+		return 0;
+
+	return ul_vr->id;
+}
+
+u16 mlxsw_sp_ipip_lb_ul_rif_id(const struct mlxsw_sp_rif_ipip_lb *lb_rif)
+{
+	return lb_rif->ul_rif_id;
 }
 
 int mlxsw_sp_rif_dev_ifindex(const struct mlxsw_sp_rif *rif)
@@ -6284,7 +6300,7 @@ mlxsw_sp_rif_create(struct mlxsw_sp *mlxsw_sp,
 	int i, err;
 
 	type = mlxsw_sp_dev_rif_type(mlxsw_sp, params->dev);
-	ops = mlxsw_sp->router->rif_ops_arr[type];
+	ops = mlxsw_sp->rif_ops_arr[type];
 
 	vr = mlxsw_sp_vr_get(mlxsw_sp, tb_id ? : RT_TABLE_MAIN, extack);
 	if (IS_ERR(vr))
@@ -6303,6 +6319,7 @@ mlxsw_sp_rif_create(struct mlxsw_sp *mlxsw_sp,
 		goto err_rif_alloc;
 	}
 	dev_hold(rif->dev);
+	mlxsw_sp->router->rifs[rif_index] = rif;
 	rif->mlxsw_sp = mlxsw_sp;
 	rif->ops = ops;
 
@@ -6329,7 +6346,6 @@ mlxsw_sp_rif_create(struct mlxsw_sp *mlxsw_sp,
 	}
 
 	mlxsw_sp_rif_counters_alloc(rif);
-	mlxsw_sp->router->rifs[rif_index] = rif;
 
 	return rif;
 
@@ -6341,6 +6357,7 @@ err_configure:
 	if (fid)
 		mlxsw_sp_fid_put(fid);
 err_fid_get:
+	mlxsw_sp->router->rifs[rif_index] = NULL;
 	dev_put(rif->dev);
 	kfree(rif);
 err_rif_alloc:
@@ -6361,7 +6378,6 @@ static void mlxsw_sp_rif_destroy(struct mlxsw_sp_rif *rif)
 	mlxsw_sp_router_rif_gone_sync(mlxsw_sp, rif);
 	vr = &mlxsw_sp->router->vrs[rif->vr_id];
 
-	mlxsw_sp->router->rifs[rif->rif_index] = NULL;
 	mlxsw_sp_rif_counters_free(rif);
 	for (i = 0; i < MLXSW_SP_L3_PROTO_MAX; i++)
 		mlxsw_sp_mr_rif_del(vr->mr_table[i], rif);
@@ -6369,6 +6385,7 @@ static void mlxsw_sp_rif_destroy(struct mlxsw_sp_rif *rif)
 	if (fid)
 		/* Loopback RIFs are not associated with a FID. */
 		mlxsw_sp_fid_put(fid);
+	mlxsw_sp->router->rifs[rif->rif_index] = NULL;
 	dev_put(rif->dev);
 	kfree(rif);
 	vr->rif_count--;
@@ -6750,7 +6767,7 @@ static int mlxsw_sp_router_port_check_rif_addr(struct mlxsw_sp *mlxsw_sp,
 
 	for (i = 0; i < MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_RIFS); i++) {
 		rif = mlxsw_sp->router->rifs[i];
-		if (rif && rif->dev != dev &&
+		if (rif && rif->dev && rif->dev != dev &&
 		    !ether_addr_equal_masked(rif->dev->dev_addr, dev_addr,
 					     mlxsw_sp->mac_mask)) {
 			NL_SET_ERR_MSG_MOD(extack, "All router interface MAC addresses must have the same prefix");
@@ -7424,7 +7441,7 @@ mlxsw_sp_rif_ipip_lb_setup(struct mlxsw_sp_rif *rif,
 }
 
 static int
-mlxsw_sp_rif_ipip_lb_configure(struct mlxsw_sp_rif *rif)
+mlxsw_sp1_rif_ipip_lb_configure(struct mlxsw_sp_rif *rif)
 {
 	struct mlxsw_sp_rif_ipip_lb *lb_rif = mlxsw_sp_rif_ipip_lb_rif(rif);
 	u32 ul_tb_id = mlxsw_sp_ipip_dev_ul_tb_id(rif->dev);
@@ -7436,11 +7453,12 @@ mlxsw_sp_rif_ipip_lb_configure(struct mlxsw_sp_rif *rif)
 	if (IS_ERR(ul_vr))
 		return PTR_ERR(ul_vr);
 
-	err = mlxsw_sp_rif_ipip_lb_op(lb_rif, ul_vr, true);
+	err = mlxsw_sp_rif_ipip_lb_op(lb_rif, ul_vr->id, 0, true);
 	if (err)
 		goto err_loopback_op;
 
 	lb_rif->ul_vr_id = ul_vr->id;
+	lb_rif->ul_rif_id = 0;
 	++ul_vr->rif_count;
 	return 0;
 
@@ -7449,32 +7467,213 @@ err_loopback_op:
 	return err;
 }
 
-static void mlxsw_sp_rif_ipip_lb_deconfigure(struct mlxsw_sp_rif *rif)
+static void mlxsw_sp1_rif_ipip_lb_deconfigure(struct mlxsw_sp_rif *rif)
 {
 	struct mlxsw_sp_rif_ipip_lb *lb_rif = mlxsw_sp_rif_ipip_lb_rif(rif);
 	struct mlxsw_sp *mlxsw_sp = rif->mlxsw_sp;
 	struct mlxsw_sp_vr *ul_vr;
 
 	ul_vr = &mlxsw_sp->router->vrs[lb_rif->ul_vr_id];
-	mlxsw_sp_rif_ipip_lb_op(lb_rif, ul_vr, false);
+	mlxsw_sp_rif_ipip_lb_op(lb_rif, ul_vr->id, 0, false);
 
 	--ul_vr->rif_count;
 	mlxsw_sp_vr_put(mlxsw_sp, ul_vr);
 }
 
-static const struct mlxsw_sp_rif_ops mlxsw_sp_rif_ipip_lb_ops = {
+static const struct mlxsw_sp_rif_ops mlxsw_sp1_rif_ipip_lb_ops = {
 	.type			= MLXSW_SP_RIF_TYPE_IPIP_LB,
 	.rif_size		= sizeof(struct mlxsw_sp_rif_ipip_lb),
 	.setup                  = mlxsw_sp_rif_ipip_lb_setup,
-	.configure		= mlxsw_sp_rif_ipip_lb_configure,
-	.deconfigure		= mlxsw_sp_rif_ipip_lb_deconfigure,
+	.configure		= mlxsw_sp1_rif_ipip_lb_configure,
+	.deconfigure		= mlxsw_sp1_rif_ipip_lb_deconfigure,
 };
 
-static const struct mlxsw_sp_rif_ops *mlxsw_sp_rif_ops_arr[] = {
+const struct mlxsw_sp_rif_ops *mlxsw_sp1_rif_ops_arr[] = {
 	[MLXSW_SP_RIF_TYPE_SUBPORT]	= &mlxsw_sp_rif_subport_ops,
 	[MLXSW_SP_RIF_TYPE_VLAN]	= &mlxsw_sp_rif_vlan_emu_ops,
 	[MLXSW_SP_RIF_TYPE_FID]		= &mlxsw_sp_rif_fid_ops,
-	[MLXSW_SP_RIF_TYPE_IPIP_LB]	= &mlxsw_sp_rif_ipip_lb_ops,
+	[MLXSW_SP_RIF_TYPE_IPIP_LB]	= &mlxsw_sp1_rif_ipip_lb_ops,
+};
+
+static int
+mlxsw_sp_rif_ipip_lb_ul_rif_op(struct mlxsw_sp_rif *ul_rif, bool enable)
+{
+	struct mlxsw_sp *mlxsw_sp = ul_rif->mlxsw_sp;
+	char ritr_pl[MLXSW_REG_RITR_LEN];
+
+	mlxsw_reg_ritr_pack(ritr_pl, enable, MLXSW_REG_RITR_LOOPBACK_IF,
+			    ul_rif->rif_index, ul_rif->vr_id, IP_MAX_MTU);
+	mlxsw_reg_ritr_loopback_protocol_set(ritr_pl,
+					     MLXSW_REG_RITR_LOOPBACK_GENERIC);
+
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ritr), ritr_pl);
+}
+
+static struct mlxsw_sp_rif *
+mlxsw_sp_ul_rif_create(struct mlxsw_sp *mlxsw_sp, struct mlxsw_sp_vr *vr,
+		       struct netlink_ext_ack *extack)
+{
+	struct mlxsw_sp_rif *ul_rif;
+	u16 rif_index;
+	int err;
+
+	err = mlxsw_sp_rif_index_alloc(mlxsw_sp, &rif_index);
+	if (err) {
+		NL_SET_ERR_MSG_MOD(extack, "Exceeded number of supported router interfaces");
+		return ERR_PTR(err);
+	}
+
+	ul_rif = mlxsw_sp_rif_alloc(sizeof(*ul_rif), rif_index, vr->id, NULL);
+	if (!ul_rif)
+		return ERR_PTR(-ENOMEM);
+
+	mlxsw_sp->router->rifs[rif_index] = ul_rif;
+	ul_rif->mlxsw_sp = mlxsw_sp;
+	err = mlxsw_sp_rif_ipip_lb_ul_rif_op(ul_rif, true);
+	if (err)
+		goto ul_rif_op_err;
+
+	return ul_rif;
+
+ul_rif_op_err:
+	mlxsw_sp->router->rifs[rif_index] = NULL;
+	kfree(ul_rif);
+	return ERR_PTR(err);
+}
+
+static void mlxsw_sp_ul_rif_destroy(struct mlxsw_sp_rif *ul_rif)
+{
+	struct mlxsw_sp *mlxsw_sp = ul_rif->mlxsw_sp;
+
+	mlxsw_sp_rif_ipip_lb_ul_rif_op(ul_rif, false);
+	mlxsw_sp->router->rifs[ul_rif->rif_index] = NULL;
+	kfree(ul_rif);
+}
+
+static struct mlxsw_sp_rif *
+mlxsw_sp_ul_rif_get(struct mlxsw_sp *mlxsw_sp, u32 tb_id,
+		    struct netlink_ext_ack *extack)
+{
+	struct mlxsw_sp_vr *vr;
+	int err;
+
+	vr = mlxsw_sp_vr_get(mlxsw_sp, tb_id, extack);
+	if (IS_ERR(vr))
+		return ERR_CAST(vr);
+
+	if (refcount_inc_not_zero(&vr->ul_rif_refcnt))
+		return vr->ul_rif;
+
+	vr->ul_rif = mlxsw_sp_ul_rif_create(mlxsw_sp, vr, extack);
+	if (IS_ERR(vr->ul_rif)) {
+		err = PTR_ERR(vr->ul_rif);
+		goto err_ul_rif_create;
+	}
+
+	vr->rif_count++;
+	refcount_set(&vr->ul_rif_refcnt, 1);
+
+	return vr->ul_rif;
+
+err_ul_rif_create:
+	mlxsw_sp_vr_put(mlxsw_sp, vr);
+	return ERR_PTR(err);
+}
+
+static void mlxsw_sp_ul_rif_put(struct mlxsw_sp_rif *ul_rif)
+{
+	struct mlxsw_sp *mlxsw_sp = ul_rif->mlxsw_sp;
+	struct mlxsw_sp_vr *vr;
+
+	vr = &mlxsw_sp->router->vrs[ul_rif->vr_id];
+
+	if (!refcount_dec_and_test(&vr->ul_rif_refcnt))
+		return;
+
+	vr->rif_count--;
+	mlxsw_sp_ul_rif_destroy(ul_rif);
+	mlxsw_sp_vr_put(mlxsw_sp, vr);
+}
+
+int mlxsw_sp_router_ul_rif_get(struct mlxsw_sp *mlxsw_sp, u32 ul_tb_id,
+			       u16 *ul_rif_index)
+{
+	struct mlxsw_sp_rif *ul_rif;
+
+	ASSERT_RTNL();
+
+	ul_rif = mlxsw_sp_ul_rif_get(mlxsw_sp, ul_tb_id, NULL);
+	if (IS_ERR(ul_rif))
+		return PTR_ERR(ul_rif);
+	*ul_rif_index = ul_rif->rif_index;
+
+	return 0;
+}
+
+void mlxsw_sp_router_ul_rif_put(struct mlxsw_sp *mlxsw_sp, u16 ul_rif_index)
+{
+	struct mlxsw_sp_rif *ul_rif;
+
+	ASSERT_RTNL();
+
+	ul_rif = mlxsw_sp->router->rifs[ul_rif_index];
+	if (WARN_ON(!ul_rif))
+		return;
+
+	mlxsw_sp_ul_rif_put(ul_rif);
+}
+
+static int
+mlxsw_sp2_rif_ipip_lb_configure(struct mlxsw_sp_rif *rif)
+{
+	struct mlxsw_sp_rif_ipip_lb *lb_rif = mlxsw_sp_rif_ipip_lb_rif(rif);
+	u32 ul_tb_id = mlxsw_sp_ipip_dev_ul_tb_id(rif->dev);
+	struct mlxsw_sp *mlxsw_sp = rif->mlxsw_sp;
+	struct mlxsw_sp_rif *ul_rif;
+	int err;
+
+	ul_rif = mlxsw_sp_ul_rif_get(mlxsw_sp, ul_tb_id, NULL);
+	if (IS_ERR(ul_rif))
+		return PTR_ERR(ul_rif);
+
+	err = mlxsw_sp_rif_ipip_lb_op(lb_rif, 0, ul_rif->rif_index, true);
+	if (err)
+		goto err_loopback_op;
+
+	lb_rif->ul_vr_id = 0;
+	lb_rif->ul_rif_id = ul_rif->rif_index;
+
+	return 0;
+
+err_loopback_op:
+	mlxsw_sp_ul_rif_put(ul_rif);
+	return err;
+}
+
+static void mlxsw_sp2_rif_ipip_lb_deconfigure(struct mlxsw_sp_rif *rif)
+{
+	struct mlxsw_sp_rif_ipip_lb *lb_rif = mlxsw_sp_rif_ipip_lb_rif(rif);
+	struct mlxsw_sp *mlxsw_sp = rif->mlxsw_sp;
+	struct mlxsw_sp_rif *ul_rif;
+
+	ul_rif = mlxsw_sp_rif_by_index(mlxsw_sp, lb_rif->ul_rif_id);
+	mlxsw_sp_rif_ipip_lb_op(lb_rif, 0, lb_rif->ul_rif_id, false);
+	mlxsw_sp_ul_rif_put(ul_rif);
+}
+
+static const struct mlxsw_sp_rif_ops mlxsw_sp2_rif_ipip_lb_ops = {
+	.type			= MLXSW_SP_RIF_TYPE_IPIP_LB,
+	.rif_size		= sizeof(struct mlxsw_sp_rif_ipip_lb),
+	.setup                  = mlxsw_sp_rif_ipip_lb_setup,
+	.configure		= mlxsw_sp2_rif_ipip_lb_configure,
+	.deconfigure		= mlxsw_sp2_rif_ipip_lb_deconfigure,
+};
+
+const struct mlxsw_sp_rif_ops *mlxsw_sp2_rif_ops_arr[] = {
+	[MLXSW_SP_RIF_TYPE_SUBPORT]	= &mlxsw_sp_rif_subport_ops,
+	[MLXSW_SP_RIF_TYPE_VLAN]	= &mlxsw_sp_rif_vlan_emu_ops,
+	[MLXSW_SP_RIF_TYPE_FID]		= &mlxsw_sp_rif_fid_ops,
+	[MLXSW_SP_RIF_TYPE_IPIP_LB]	= &mlxsw_sp2_rif_ipip_lb_ops,
 };
 
 static int mlxsw_sp_rifs_init(struct mlxsw_sp *mlxsw_sp)
@@ -7486,8 +7685,6 @@ static int mlxsw_sp_rifs_init(struct mlxsw_sp *mlxsw_sp)
 					 GFP_KERNEL);
 	if (!mlxsw_sp->router->rifs)
 		return -ENOMEM;
-
-	mlxsw_sp->router->rif_ops_arr = mlxsw_sp_rif_ops_arr;
 
 	return 0;
 }

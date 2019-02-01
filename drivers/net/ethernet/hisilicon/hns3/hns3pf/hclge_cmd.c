@@ -170,8 +170,12 @@ static bool hclge_is_special_opcode(u16 opcode)
 	/* these commands have several descriptors,
 	 * and use the first one to save opcode and return value
 	 */
-	u16 spec_opcode[3] = {HCLGE_OPC_STATS_64_BIT,
-		HCLGE_OPC_STATS_32_BIT, HCLGE_OPC_STATS_MAC};
+	u16 spec_opcode[] = {HCLGE_OPC_STATS_64_BIT,
+			     HCLGE_OPC_STATS_32_BIT,
+			     HCLGE_OPC_STATS_MAC,
+			     HCLGE_OPC_STATS_MAC_ALL,
+			     HCLGE_OPC_QUERY_32_BIT_REG,
+			     HCLGE_OPC_QUERY_64_BIT_REG};
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(spec_opcode); i++) {
@@ -259,6 +263,10 @@ int hclge_cmd_send(struct hclge_hw *hw, struct hclge_desc *desc, int num)
 
 			if (desc_ret == HCLGE_CMD_EXEC_SUCCESS)
 				retval = 0;
+			else if (desc_ret == HCLGE_CMD_NO_AUTH)
+				retval = -EPERM;
+			else if (desc_ret == HCLGE_CMD_NOT_SUPPORTED)
+				retval = -EOPNOTSUPP;
 			else
 				retval = -EIO;
 			hw->cmq.last_status = desc_ret;

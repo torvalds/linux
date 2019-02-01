@@ -706,6 +706,7 @@
 			fsl,tmr-fiper1  = <999999995>;
 			fsl,tmr-fiper2  = <99990>;
 			fsl,max-adj     = <499999999>;
+			fsl,extts-fifo;
 		};
 
 		enet0: ethernet@2d10000 {

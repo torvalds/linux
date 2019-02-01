@@ -72,7 +72,7 @@ isdnloop_bchan_send(isdnloop_card *card, int ch)
 				printk(KERN_WARNING "isdnloop: no rcard, skb dropped\n");
 				dev_kfree_skb(skb);
 
-			};
+			}
 			cmd.command = ISDN_STAT_BSENT;
 			cmd.parm.length = len;
 			card->interface.statcallb(&cmd);

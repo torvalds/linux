@@ -446,8 +446,10 @@ static void fw_caps_to_lmm(enum fw_port_type port_type,
 			   unsigned long *link_mode_mask)
 {
 	#define SET_LMM(__lmm_name) \
-		__set_bit(ETHTOOL_LINK_MODE_ ## __lmm_name ## _BIT, \
-			  link_mode_mask)
+		do { \
+			__set_bit(ETHTOOL_LINK_MODE_ ## __lmm_name ## _BIT, \
+				  link_mode_mask); \
+		} while (0)
 
 	#define FW_CAPS_TO_LMM(__fw_name, __lmm_name) \
 		do { \
@@ -541,7 +543,7 @@ static void fw_caps_to_lmm(enum fw_port_type port_type,
 	case FW_PORT_TYPE_CR4_QSFP:
 		SET_LMM(FIBRE);
 		FW_CAPS_TO_LMM(SPEED_1G,  1000baseT_Full);
-		FW_CAPS_TO_LMM(SPEED_10G, 10000baseSR_Full);
+		FW_CAPS_TO_LMM(SPEED_10G, 10000baseKR_Full);
 		FW_CAPS_TO_LMM(SPEED_40G, 40000baseSR4_Full);
 		FW_CAPS_TO_LMM(SPEED_25G, 25000baseCR_Full);
 		FW_CAPS_TO_LMM(SPEED_50G, 50000baseCR2_Full);
@@ -550,6 +552,13 @@ static void fw_caps_to_lmm(enum fw_port_type port_type,
 
 	default:
 		break;
+	}
+
+	if (fw_caps & FW_PORT_CAP32_FEC_V(FW_PORT_CAP32_FEC_M)) {
+		FW_CAPS_TO_LMM(FEC_RS, FEC_RS);
+		FW_CAPS_TO_LMM(FEC_BASER_RS, FEC_BASER);
+	} else {
+		SET_LMM(FEC_NONE);
 	}
 
 	FW_CAPS_TO_LMM(ANEG, Autoneg);
@@ -679,18 +688,15 @@ static int set_link_ksettings(struct net_device *dev,
 	    base->autoneg == AUTONEG_DISABLE) {
 		fw_caps = speed_to_fw_caps(base->speed);
 
-		/* Must only specify a single speed which must be supported
-		 * as part of the Physical Port Capabilities.
-		 */
-		if ((fw_caps & (fw_caps - 1)) != 0 ||
-		    !(lc->pcaps & fw_caps))
+		/* Speed must be supported by Physical Port Capabilities. */
+		if (!(lc->pcaps & fw_caps))
 			return -EINVAL;
 
 		lc->speed_caps = fw_caps;
 		lc->acaps = fw_caps;
 	} else {
 		fw_caps =
-			 lmm_to_fw_caps(link_ksettings->link_modes.advertising);
+			lmm_to_fw_caps(link_ksettings->link_modes.advertising);
 		if (!(lc->pcaps & fw_caps))
 			return -EINVAL;
 		lc->speed_caps = 0;

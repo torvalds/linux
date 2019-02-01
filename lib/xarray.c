@@ -232,6 +232,8 @@ void *xas_load(struct xa_state *xas)
 		if (xas->xa_shift > node->shift)
 			break;
 		entry = xas_descend(xas, node);
+		if (node->shift == 0)
+			break;
 	}
 	return entry;
 }
@@ -506,7 +508,7 @@ static void xas_free_nodes(struct xa_state *xas, struct xa_node *top)
 	for (;;) {
 		void *entry = xa_entry_locked(xas->xa, node, offset);
 
-		if (xa_is_node(entry)) {
+		if (node->shift && xa_is_node(entry)) {
 			node = xa_to_node(entry);
 			offset = 0;
 			continue;
@@ -604,6 +606,7 @@ static int xas_expand(struct xa_state *xas, void *head)
 /*
  * xas_create() - Create a slot to store an entry in.
  * @xas: XArray operation state.
+ * @allow_root: %true if we can store the entry in the root directly
  *
  * Most users will not need to call this function directly, as it is called
  * by xas_store().  It is useful for doing conditional store operations
@@ -613,7 +616,7 @@ static int xas_expand(struct xa_state *xas, void *head)
  * If the slot was newly created, returns %NULL.  If it failed to create the
  * slot, returns %NULL and indicates the error in @xas.
  */
-static void *xas_create(struct xa_state *xas)
+static void *xas_create(struct xa_state *xas, bool allow_root)
 {
 	struct xarray *xa = xas->xa;
 	void *entry;
@@ -628,6 +631,8 @@ static void *xas_create(struct xa_state *xas)
 		shift = xas_expand(xas, entry);
 		if (shift < 0)
 			return NULL;
+		if (!shift && !allow_root)
+			shift = XA_CHUNK_SHIFT;
 		entry = xa_head_locked(xa);
 		slot = &xa->xa_head;
 	} else if (xas_error(xas)) {
@@ -687,7 +692,7 @@ void xas_create_range(struct xa_state *xas)
 	xas->xa_sibs = 0;
 
 	for (;;) {
-		xas_create(xas);
+		xas_create(xas, true);
 		if (xas_error(xas))
 			goto restore;
 		if (xas->xa_index <= (index | XA_CHUNK_MASK))
@@ -754,7 +759,7 @@ void *xas_store(struct xa_state *xas, void *entry)
 	bool value = xa_is_value(entry);
 
 	if (entry)
-		first = xas_create(xas);
+		first = xas_create(xas, !xa_is_node(entry));
 	else
 		first = xas_load(xas);
 
@@ -1251,35 +1256,6 @@ void *xas_find_conflict(struct xa_state *xas)
 EXPORT_SYMBOL_GPL(xas_find_conflict);
 
 /**
- * xa_init_flags() - Initialise an empty XArray with flags.
- * @xa: XArray.
- * @flags: XA_FLAG values.
- *
- * If you need to initialise an XArray with special flags (eg you need
- * to take the lock from interrupt context), use this function instead
- * of xa_init().
- *
- * Context: Any context.
- */
-void xa_init_flags(struct xarray *xa, gfp_t flags)
-{
-	unsigned int lock_type;
-	static struct lock_class_key xa_lock_irq;
-	static struct lock_class_key xa_lock_bh;
-
-	spin_lock_init(&xa->xa_lock);
-	xa->xa_flags = flags;
-	xa->xa_head = NULL;
-
-	lock_type = xa_lock_type(xa);
-	if (lock_type == XA_LOCK_IRQ)
-		lockdep_set_class(&xa->xa_lock, &xa_lock_irq);
-	else if (lock_type == XA_LOCK_BH)
-		lockdep_set_class(&xa->xa_lock, &xa_lock_bh);
-}
-EXPORT_SYMBOL(xa_init_flags);
-
-/**
  * xa_load() - Load an entry from an XArray.
  * @xa: XArray.
  * @index: index into array.
@@ -1308,7 +1284,6 @@ static void *xas_result(struct xa_state *xas, void *curr)
 {
 	if (xa_is_zero(curr))
 		return NULL;
-	XA_NODE_BUG_ON(xas->xa_node, xa_is_internal(curr));
 	if (xas_error(xas))
 		curr = xas->xa_node;
 	return curr;
@@ -1378,7 +1353,7 @@ void *__xa_store(struct xarray *xa, unsigned long index, void *entry, gfp_t gfp)
 	XA_STATE(xas, xa, index);
 	void *curr;
 
-	if (WARN_ON_ONCE(xa_is_internal(entry)))
+	if (WARN_ON_ONCE(xa_is_advanced(entry)))
 		return XA_ERROR(-EINVAL);
 	if (xa_track_free(xa) && !entry)
 		entry = XA_ZERO_ENTRY;
@@ -1444,7 +1419,7 @@ void *__xa_cmpxchg(struct xarray *xa, unsigned long index,
 	XA_STATE(xas, xa, index);
 	void *curr;
 
-	if (WARN_ON_ONCE(xa_is_internal(entry)))
+	if (WARN_ON_ONCE(xa_is_advanced(entry)))
 		return XA_ERROR(-EINVAL);
 	if (xa_track_free(xa) && !entry)
 		entry = XA_ZERO_ENTRY;
@@ -1463,6 +1438,47 @@ void *__xa_cmpxchg(struct xarray *xa, unsigned long index,
 	return xas_result(&xas, curr);
 }
 EXPORT_SYMBOL(__xa_cmpxchg);
+
+/**
+ * __xa_insert() - Store this entry in the XArray if no entry is present.
+ * @xa: XArray.
+ * @index: Index into array.
+ * @entry: New entry.
+ * @gfp: Memory allocation flags.
+ *
+ * Inserting a NULL entry will store a reserved entry (like xa_reserve())
+ * if no entry is present.  Inserting will fail if a reserved entry is
+ * present, even though loading from this index will return NULL.
+ *
+ * Context: Any context.  Expects xa_lock to be held on entry.  May
+ * release and reacquire xa_lock if @gfp flags permit.
+ * Return: 0 if the store succeeded.  -EEXIST if another entry was present.
+ * -ENOMEM if memory could not be allocated.
+ */
+int __xa_insert(struct xarray *xa, unsigned long index, void *entry, gfp_t gfp)
+{
+	XA_STATE(xas, xa, index);
+	void *curr;
+
+	if (WARN_ON_ONCE(xa_is_advanced(entry)))
+		return -EINVAL;
+	if (!entry)
+		entry = XA_ZERO_ENTRY;
+
+	do {
+		curr = xas_load(&xas);
+		if (!curr) {
+			xas_store(&xas, entry);
+			if (xa_track_free(xa))
+				xas_clear_mark(&xas, XA_FREE_MARK);
+		} else {
+			xas_set_err(&xas, -EEXIST);
+		}
+	} while (__xas_nomem(&xas, gfp));
+
+	return xas_error(&xas);
+}
+EXPORT_SYMBOL(__xa_insert);
 
 /**
  * __xa_reserve() - Reserve this index in the XArray.
@@ -1567,7 +1583,7 @@ void *xa_store_range(struct xarray *xa, unsigned long first,
 			if (last + 1)
 				order = __ffs(last + 1);
 			xas_set_order(&xas, last, order);
-			xas_create(&xas);
+			xas_create(&xas, true);
 			if (xas_error(&xas))
 				goto unlock;
 		}
@@ -1609,7 +1625,7 @@ int __xa_alloc(struct xarray *xa, u32 *id, u32 max, void *entry, gfp_t gfp)
 	XA_STATE(xas, xa, 0);
 	int err;
 
-	if (WARN_ON_ONCE(xa_is_internal(entry)))
+	if (WARN_ON_ONCE(xa_is_advanced(entry)))
 		return -EINVAL;
 	if (WARN_ON_ONCE(!xa_track_free(xa)))
 		return -EINVAL;

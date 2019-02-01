@@ -2129,6 +2129,7 @@ int qed_cxt_set_pf_params(struct qed_hwfn *p_hwfn, u32 rdma_tasks)
 					       rdma_tasks);
 		/* no need for break since RoCE coexist with Ethernet */
 	}
+	/* fall through */
 	case QED_PCI_ETH:
 	{
 		struct qed_eth_pf_params *p_params =

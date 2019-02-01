@@ -39,6 +39,7 @@ typedef __u16 __sum16;
 #include "bpf_endian.h"
 #include "bpf_rlimit.h"
 #include "trace_helpers.h"
+#include "flow_dissector_load.h"
 
 static int error_cnt, pass_cnt;
 static bool jit_enabled;
@@ -53,9 +54,10 @@ static struct {
 } __packed pkt_v4 = {
 	.eth.h_proto = __bpf_constant_htons(ETH_P_IP),
 	.iph.ihl = 5,
-	.iph.protocol = 6,
+	.iph.protocol = IPPROTO_TCP,
 	.iph.tot_len = __bpf_constant_htons(MAGIC_BYTES),
 	.tcp.urg_ptr = 123,
+	.tcp.doff = 5,
 };
 
 /* ipv6 test vector */
@@ -65,9 +67,10 @@ static struct {
 	struct tcphdr tcp;
 } __packed pkt_v6 = {
 	.eth.h_proto = __bpf_constant_htons(ETH_P_IPV6),
-	.iph.nexthdr = 6,
+	.iph.nexthdr = IPPROTO_TCP,
 	.iph.payload_len = __bpf_constant_htons(MAGIC_BYTES),
 	.tcp.urg_ptr = 123,
+	.tcp.doff = 5,
 };
 
 #define _CHECK(condition, tag, duration, format...) ({			\
@@ -1188,7 +1191,9 @@ static void test_stacktrace_build_id(void)
 	int i, j;
 	struct bpf_stack_build_id id_offs[PERF_MAX_STACK_DEPTH];
 	int build_id_matches = 0;
+	int retry = 1;
 
+retry:
 	err = bpf_prog_load(file, BPF_PROG_TYPE_TRACEPOINT, &obj, &prog_fd);
 	if (CHECK(err, "prog_load", "err %d errno %d\n", err, errno))
 		goto out;
@@ -1301,6 +1306,19 @@ static void test_stacktrace_build_id(void)
 		previous_key = key;
 	} while (bpf_map_get_next_key(stackmap_fd, &previous_key, &key) == 0);
 
+	/* stack_map_get_build_id_offset() is racy and sometimes can return
+	 * BPF_STACK_BUILD_ID_IP instead of BPF_STACK_BUILD_ID_VALID;
+	 * try it one more time.
+	 */
+	if (build_id_matches < 1 && retry--) {
+		ioctl(pmu_fd, PERF_EVENT_IOC_DISABLE);
+		close(pmu_fd);
+		bpf_object__close(obj);
+		printf("%s:WARN:Didn't find expected build ID from the map, retrying\n",
+		       __func__);
+		goto retry;
+	}
+
 	if (CHECK(build_id_matches < 1, "build id match",
 		  "Didn't find expected build ID from the map\n"))
 		goto disable_pmu;
@@ -1341,7 +1359,9 @@ static void test_stacktrace_build_id_nmi(void)
 	int i, j;
 	struct bpf_stack_build_id id_offs[PERF_MAX_STACK_DEPTH];
 	int build_id_matches = 0;
+	int retry = 1;
 
+retry:
 	err = bpf_prog_load(file, BPF_PROG_TYPE_PERF_EVENT, &obj, &prog_fd);
 	if (CHECK(err, "prog_load", "err %d errno %d\n", err, errno))
 		return;
@@ -1435,6 +1455,19 @@ static void test_stacktrace_build_id_nmi(void)
 			}
 		previous_key = key;
 	} while (bpf_map_get_next_key(stackmap_fd, &previous_key, &key) == 0);
+
+	/* stack_map_get_build_id_offset() is racy and sometimes can return
+	 * BPF_STACK_BUILD_ID_IP instead of BPF_STACK_BUILD_ID_VALID;
+	 * try it one more time.
+	 */
+	if (build_id_matches < 1 && retry--) {
+		ioctl(pmu_fd, PERF_EVENT_IOC_DISABLE);
+		close(pmu_fd);
+		bpf_object__close(obj);
+		printf("%s:WARN:Didn't find expected build ID from the map, retrying\n",
+		       __func__);
+		goto retry;
+	}
 
 	if (CHECK(build_id_matches < 1, "build id match",
 		  "Didn't find expected build ID from the map\n"))
@@ -1882,6 +1915,76 @@ out:
 	bpf_object__close(obj);
 }
 
+#define CHECK_FLOW_KEYS(desc, got, expected)				\
+	CHECK(memcmp(&got, &expected, sizeof(got)) != 0,		\
+	      desc,							\
+	      "nhoff=%u/%u "						\
+	      "thoff=%u/%u "						\
+	      "addr_proto=0x%x/0x%x "					\
+	      "is_frag=%u/%u "						\
+	      "is_first_frag=%u/%u "					\
+	      "is_encap=%u/%u "						\
+	      "n_proto=0x%x/0x%x "					\
+	      "sport=%u/%u "						\
+	      "dport=%u/%u\n",						\
+	      got.nhoff, expected.nhoff,				\
+	      got.thoff, expected.thoff,				\
+	      got.addr_proto, expected.addr_proto,			\
+	      got.is_frag, expected.is_frag,				\
+	      got.is_first_frag, expected.is_first_frag,		\
+	      got.is_encap, expected.is_encap,				\
+	      got.n_proto, expected.n_proto,				\
+	      got.sport, expected.sport,				\
+	      got.dport, expected.dport)
+
+static struct bpf_flow_keys pkt_v4_flow_keys = {
+	.nhoff = 0,
+	.thoff = sizeof(struct iphdr),
+	.addr_proto = ETH_P_IP,
+	.ip_proto = IPPROTO_TCP,
+	.n_proto = bpf_htons(ETH_P_IP),
+};
+
+static struct bpf_flow_keys pkt_v6_flow_keys = {
+	.nhoff = 0,
+	.thoff = sizeof(struct ipv6hdr),
+	.addr_proto = ETH_P_IPV6,
+	.ip_proto = IPPROTO_TCP,
+	.n_proto = bpf_htons(ETH_P_IPV6),
+};
+
+static void test_flow_dissector(void)
+{
+	struct bpf_flow_keys flow_keys;
+	struct bpf_object *obj;
+	__u32 duration, retval;
+	int err, prog_fd;
+	__u32 size;
+
+	err = bpf_flow_load(&obj, "./bpf_flow.o", "flow_dissector",
+			    "jmp_table", &prog_fd);
+	if (err) {
+		error_cnt++;
+		return;
+	}
+
+	err = bpf_prog_test_run(prog_fd, 10, &pkt_v4, sizeof(pkt_v4),
+				&flow_keys, &size, &retval, &duration);
+	CHECK(size != sizeof(flow_keys) || err || retval != 1, "ipv4",
+	      "err %d errno %d retval %d duration %d size %u/%lu\n",
+	      err, errno, retval, duration, size, sizeof(flow_keys));
+	CHECK_FLOW_KEYS("ipv4_flow_keys", flow_keys, pkt_v4_flow_keys);
+
+	err = bpf_prog_test_run(prog_fd, 10, &pkt_v6, sizeof(pkt_v6),
+				&flow_keys, &size, &retval, &duration);
+	CHECK(size != sizeof(flow_keys) || err || retval != 1, "ipv6",
+	      "err %d errno %d retval %d duration %d size %u/%lu\n",
+	      err, errno, retval, duration, size, sizeof(flow_keys));
+	CHECK_FLOW_KEYS("ipv6_flow_keys", flow_keys, pkt_v6_flow_keys);
+
+	bpf_object__close(obj);
+}
+
 int main(void)
 {
 	srand(time(NULL));
@@ -1909,6 +2012,7 @@ int main(void)
 	test_reference_tracking();
 	test_queue_stack_map(QUEUE);
 	test_queue_stack_map(STACK);
+	test_flow_dissector();
 
 	printf("Summary: %d PASSED, %d FAILED\n", pass_cnt, error_cnt);
 	return error_cnt ? EXIT_FAILURE : EXIT_SUCCESS;
