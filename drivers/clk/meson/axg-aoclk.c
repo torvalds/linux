@@ -12,9 +12,11 @@
 #include <linux/platform_device.h>
 #include <linux/reset-controller.h>
 #include <linux/mfd/syscon.h>
-#include "clkc.h"
 #include "meson-aoclk.h"
 #include "axg-aoclk.h"
+
+#include "clk-regmap.h"
+#include "clk-dualdiv.h"
 
 #define IN_PREFIX "ao-in-"
 

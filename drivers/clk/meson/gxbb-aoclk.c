@@ -5,9 +5,11 @@
  */
 #include <linux/platform_device.h>
 #include <linux/mfd/syscon.h>
-#include "clkc.h"
 #include "meson-aoclk.h"
 #include "gxbb-aoclk.h"
+
+#include "clk-regmap.h"
+#include "clk-dualdiv.h"
 
 #define IN_PREFIX "ao-in-"
 

@@ -17,7 +17,10 @@
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 
-#include "clkc.h"
+#include "clk-input.h"
+#include "clk-regmap.h"
+#include "clk-pll.h"
+#include "clk-mpll.h"
 #include "axg.h"
 
 #define IN_PREFIX "ee-in-"
