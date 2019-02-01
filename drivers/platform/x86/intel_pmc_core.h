@@ -46,6 +46,7 @@
 #define SPT_PMC_LTR_SATA			0x368
 #define SPT_PMC_LTR_GBE				0x36C
 #define SPT_PMC_LTR_XHCI			0x370
+#define SPT_PMC_LTR_RESERVED			0x374
 #define SPT_PMC_LTR_ME				0x378
 #define SPT_PMC_LTR_EVA				0x37C
 #define SPT_PMC_LTR_SPC				0x380
@@ -156,6 +157,7 @@ enum ppfear_regs {
 #define CNP_PMC_LTR_SATA			0x1B68
 #define CNP_PMC_LTR_GBE				0x1B6C
 #define CNP_PMC_LTR_XHCI			0x1B70
+#define CNP_PMC_LTR_RESERVED			0x1B74
 #define CNP_PMC_LTR_ME				0x1B78
 #define CNP_PMC_LTR_EVA				0x1B7C
 #define CNP_PMC_LTR_SPC				0x1B80

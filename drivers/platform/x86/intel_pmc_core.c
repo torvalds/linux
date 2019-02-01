@@ -108,6 +108,7 @@ static const struct pmc_bit_map spt_ltr_show_map[] = {
 	{"SATA",		SPT_PMC_LTR_SATA},
 	{"GIGABIT_ETHERNET",	SPT_PMC_LTR_GBE},
 	{"XHCI",		SPT_PMC_LTR_XHCI},
+	{"Reserved",		SPT_PMC_LTR_RESERVED},
 	{"ME",			SPT_PMC_LTR_ME},
 	/* EVA is Enterprise Value Add, doesn't really exist on PCH */
 	{"EVA",			SPT_PMC_LTR_EVA},
@@ -276,6 +277,7 @@ static const struct pmc_bit_map cnp_ltr_show_map[] = {
 	{"SATA",		CNP_PMC_LTR_SATA},
 	{"GIGABIT_ETHERNET",	CNP_PMC_LTR_GBE},
 	{"XHCI",		CNP_PMC_LTR_XHCI},
+	{"Reserved",		CNP_PMC_LTR_RESERVED},
 	{"ME",			CNP_PMC_LTR_ME},
 	/* EVA is Enterprise Value Add, doesn't really exist on PCH */
 	{"EVA",			CNP_PMC_LTR_EVA},
