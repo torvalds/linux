@@ -428,7 +428,22 @@ enum devlink_param_wol_types {
 	.validate = _validate,						\
 }
 
+/* Part number, identifier of board design */
+#define DEVLINK_INFO_VERSION_GENERIC_BOARD_ID	"board.id"
+/* Revision of board design */
+#define DEVLINK_INFO_VERSION_GENERIC_BOARD_REV	"board.rev"
+
+/* Control processor FW version */
+#define DEVLINK_INFO_VERSION_GENERIC_FW_MGMT	"fw.mgmt"
+/* Data path microcode controlling high-speed packet processing */
+#define DEVLINK_INFO_VERSION_GENERIC_FW_APP	"fw.app"
+/* UNDI software version */
+#define DEVLINK_INFO_VERSION_GENERIC_FW_UNDI	"fw.undi"
+/* NCSI support/handler version */
+#define DEVLINK_INFO_VERSION_GENERIC_FW_NCSI	"fw.ncsi"
+
 struct devlink_region;
+struct devlink_info_req;
 
 typedef void devlink_snapshot_data_dest_t(const void *data);
 
@@ -484,6 +499,8 @@ struct devlink_ops {
 	int (*eswitch_encap_mode_get)(struct devlink *devlink, u8 *p_encap_mode);
 	int (*eswitch_encap_mode_set)(struct devlink *devlink, u8 encap_mode,
 				      struct netlink_ext_ack *extack);
+	int (*info_get)(struct devlink *devlink, struct devlink_info_req *req,
+			struct netlink_ext_ack *extack);
 };
 
 static inline void *devlink_priv(struct devlink *devlink)
@@ -607,6 +624,19 @@ u32 devlink_region_shapshot_id_get(struct devlink *devlink);
 int devlink_region_snapshot_create(struct devlink_region *region, u64 data_len,
 				   u8 *data, u32 snapshot_id,
 				   devlink_snapshot_data_dest_t *data_destructor);
+int devlink_info_serial_number_put(struct devlink_info_req *req,
+				   const char *sn);
+int devlink_info_driver_name_put(struct devlink_info_req *req,
+				 const char *name);
+int devlink_info_version_fixed_put(struct devlink_info_req *req,
+				   const char *version_name,
+				   const char *version_value);
+int devlink_info_version_stored_put(struct devlink_info_req *req,
+				    const char *version_name,
+				    const char *version_value);
+int devlink_info_version_running_put(struct devlink_info_req *req,
+				     const char *version_name,
+				     const char *version_value);
 
 #else
 
@@ -905,6 +935,51 @@ devlink_region_snapshot_create(struct devlink_region *region, u64 data_len,
 	return 0;
 }
 
+static inline int
+devlink_info_driver_name_put(struct devlink_info_req *req, const char *name)
+{
+	return 0;
+}
+
+static inline int
+devlink_info_serial_number_put(struct devlink_info_req *req, const char *sn)
+{
+	return 0;
+}
+
+static inline int
+devlink_info_version_fixed_put(struct devlink_info_req *req,
+			       const char *version_name,
+			       const char *version_value)
+{
+	return 0;
+}
+
+static inline int
+devlink_info_version_stored_put(struct devlink_info_req *req,
+				const char *version_name,
+				const char *version_value)
+{
+	return 0;
+}
+
+static inline int
+devlink_info_version_running_put(struct devlink_info_req *req,
+				 const char *version_name,
+				 const char *version_value)
+{
+	return 0;
+}
+#endif
+
+#if IS_REACHABLE(CONFIG_NET_DEVLINK)
+void devlink_compat_running_version(struct net_device *dev,
+				    char *buf, size_t len);
+#else
+static inline void
+devlink_compat_running_version(struct net_device *dev, char *buf, size_t len)
+{
+}
 #endif
 
 #endif /* _NET_DEVLINK_H_ */

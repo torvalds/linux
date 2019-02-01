@@ -7,6 +7,7 @@
  *         Jason McMullan <jason.mcmullan@netronome.com>
  */
 
+#include <asm/unaligned.h>
 #include <linux/bitfield.h>
 #include <linux/delay.h>
 #include <linux/firmware.h>
@@ -62,6 +63,16 @@
 
 #define NFP_HWINFO_LOOKUP_SIZE	GENMASK(11, 0)
 
+#define NFP_VERSIONS_SIZE	GENMASK(11, 0)
+#define NFP_VERSIONS_CNT_OFF	0
+#define NFP_VERSIONS_BSP_OFF	2
+#define NFP_VERSIONS_CPLD_OFF	6
+#define NFP_VERSIONS_APP_OFF	10
+#define NFP_VERSIONS_BUNDLE_OFF	14
+#define NFP_VERSIONS_UNDI_OFF	18
+#define NFP_VERSIONS_NCSI_OFF	22
+#define NFP_VERSIONS_CFGR_OFF	26
+
 enum nfp_nsp_cmd {
 	SPCODE_NOOP		= 0, /* No operation */
 	SPCODE_SOFT_RESET	= 1, /* Soft reset the NFP */
@@ -77,6 +88,7 @@ enum nfp_nsp_cmd {
 	SPCODE_NSP_IDENTIFY	= 13, /* Read NSP version */
 	SPCODE_FW_STORED	= 16, /* If no FW loaded, load flash app FW */
 	SPCODE_HWINFO_LOOKUP	= 17, /* Lookup HWinfo with overwrites etc. */
+	SPCODE_VERSIONS		= 21, /* Report FW versions */
 };
 
 static const struct {
@@ -710,4 +722,53 @@ int nfp_nsp_hwinfo_lookup(struct nfp_nsp *state, void *buf, unsigned int size)
 	}
 
 	return 0;
+}
+
+int nfp_nsp_versions(struct nfp_nsp *state, void *buf, unsigned int size)
+{
+	struct nfp_nsp_command_buf_arg versions = {
+		{
+			.code		= SPCODE_VERSIONS,
+			.option		= min_t(u32, size, NFP_VERSIONS_SIZE),
+		},
+		.out_buf	= buf,
+		.out_size	= min_t(u32, size, NFP_VERSIONS_SIZE),
+	};
+
+	return nfp_nsp_command_buf(state, &versions);
+}
+
+const char *nfp_nsp_versions_get(enum nfp_nsp_versions id, bool flash,
+				 const u8 *buf, unsigned int size)
+{
+	static const u32 id2off[] = {
+		[NFP_VERSIONS_BSP] =	NFP_VERSIONS_BSP_OFF,
+		[NFP_VERSIONS_CPLD] =	NFP_VERSIONS_CPLD_OFF,
+		[NFP_VERSIONS_APP] =	NFP_VERSIONS_APP_OFF,
+		[NFP_VERSIONS_BUNDLE] =	NFP_VERSIONS_BUNDLE_OFF,
+		[NFP_VERSIONS_UNDI] =	NFP_VERSIONS_UNDI_OFF,
+		[NFP_VERSIONS_NCSI] =	NFP_VERSIONS_NCSI_OFF,
+		[NFP_VERSIONS_CFGR] =	NFP_VERSIONS_CFGR_OFF,
+	};
+	unsigned int field, buf_field_cnt, buf_off;
+
+	if (id >= ARRAY_SIZE(id2off) || !id2off[id])
+		return ERR_PTR(-EINVAL);
+
+	field = id * 2 + flash;
+
+	buf_field_cnt = get_unaligned_le16(buf);
+	if (buf_field_cnt <= field)
+		return ERR_PTR(-ENOENT);
+
+	buf_off = get_unaligned_le16(buf + id2off[id] + flash * 2);
+	if (!buf_off)
+		return ERR_PTR(-ENOENT);
+
+	if (buf_off >= size)
+		return ERR_PTR(-EINVAL);
+	if (strnlen(&buf[buf_off], size - buf_off) == size - buf_off)
+		return ERR_PTR(-EINVAL);
+
+	return (const char *)&buf[buf_off];
 }

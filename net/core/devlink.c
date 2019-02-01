@@ -3714,6 +3714,167 @@ out:
 	return 0;
 }
 
+struct devlink_info_req {
+	struct sk_buff *msg;
+};
+
+int devlink_info_driver_name_put(struct devlink_info_req *req, const char *name)
+{
+	return nla_put_string(req->msg, DEVLINK_ATTR_INFO_DRIVER_NAME, name);
+}
+EXPORT_SYMBOL_GPL(devlink_info_driver_name_put);
+
+int devlink_info_serial_number_put(struct devlink_info_req *req, const char *sn)
+{
+	return nla_put_string(req->msg, DEVLINK_ATTR_INFO_SERIAL_NUMBER, sn);
+}
+EXPORT_SYMBOL_GPL(devlink_info_serial_number_put);
+
+static int devlink_info_version_put(struct devlink_info_req *req, int attr,
+				    const char *version_name,
+				    const char *version_value)
+{
+	struct nlattr *nest;
+	int err;
+
+	nest = nla_nest_start(req->msg, attr);
+	if (!nest)
+		return -EMSGSIZE;
+
+	err = nla_put_string(req->msg, DEVLINK_ATTR_INFO_VERSION_NAME,
+			     version_name);
+	if (err)
+		goto nla_put_failure;
+
+	err = nla_put_string(req->msg, DEVLINK_ATTR_INFO_VERSION_VALUE,
+			     version_value);
+	if (err)
+		goto nla_put_failure;
+
+	nla_nest_end(req->msg, nest);
+
+	return 0;
+
+nla_put_failure:
+	nla_nest_cancel(req->msg, nest);
+	return err;
+}
+
+int devlink_info_version_fixed_put(struct devlink_info_req *req,
+				   const char *version_name,
+				   const char *version_value)
+{
+	return devlink_info_version_put(req, DEVLINK_ATTR_INFO_VERSION_FIXED,
+					version_name, version_value);
+}
+EXPORT_SYMBOL_GPL(devlink_info_version_fixed_put);
+
+int devlink_info_version_stored_put(struct devlink_info_req *req,
+				    const char *version_name,
+				    const char *version_value)
+{
+	return devlink_info_version_put(req, DEVLINK_ATTR_INFO_VERSION_STORED,
+					version_name, version_value);
+}
+EXPORT_SYMBOL_GPL(devlink_info_version_stored_put);
+
+int devlink_info_version_running_put(struct devlink_info_req *req,
+				     const char *version_name,
+				     const char *version_value)
+{
+	return devlink_info_version_put(req, DEVLINK_ATTR_INFO_VERSION_RUNNING,
+					version_name, version_value);
+}
+EXPORT_SYMBOL_GPL(devlink_info_version_running_put);
+
+static int
+devlink_nl_info_fill(struct sk_buff *msg, struct devlink *devlink,
+		     enum devlink_command cmd, u32 portid,
+		     u32 seq, int flags, struct netlink_ext_ack *extack)
+{
+	struct devlink_info_req req;
+	void *hdr;
+	int err;
+
+	hdr = genlmsg_put(msg, portid, seq, &devlink_nl_family, flags, cmd);
+	if (!hdr)
+		return -EMSGSIZE;
+
+	err = -EMSGSIZE;
+	if (devlink_nl_put_handle(msg, devlink))
+		goto err_cancel_msg;
+
+	req.msg = msg;
+	err = devlink->ops->info_get(devlink, &req, extack);
+	if (err)
+		goto err_cancel_msg;
+
+	genlmsg_end(msg, hdr);
+	return 0;
+
+err_cancel_msg:
+	genlmsg_cancel(msg, hdr);
+	return err;
+}
+
+static int devlink_nl_cmd_info_get_doit(struct sk_buff *skb,
+					struct genl_info *info)
+{
+	struct devlink *devlink = info->user_ptr[0];
+	struct sk_buff *msg;
+	int err;
+
+	if (!devlink->ops || !devlink->ops->info_get)
+		return -EOPNOTSUPP;
+
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!msg)
+		return -ENOMEM;
+
+	err = devlink_nl_info_fill(msg, devlink, DEVLINK_CMD_INFO_GET,
+				   info->snd_portid, info->snd_seq, 0,
+				   info->extack);
+	if (err) {
+		nlmsg_free(msg);
+		return err;
+	}
+
+	return genlmsg_reply(msg, info);
+}
+
+static int devlink_nl_cmd_info_get_dumpit(struct sk_buff *msg,
+					  struct netlink_callback *cb)
+{
+	struct devlink *devlink;
+	int start = cb->args[0];
+	int idx = 0;
+	int err;
+
+	mutex_lock(&devlink_mutex);
+	list_for_each_entry(devlink, &devlink_list, list) {
+		if (!net_eq(devlink_net(devlink), sock_net(msg->sk)))
+			continue;
+		if (idx < start) {
+			idx++;
+			continue;
+		}
+
+		mutex_lock(&devlink->lock);
+		err = devlink_nl_info_fill(msg, devlink, DEVLINK_CMD_INFO_GET,
+					   NETLINK_CB(cb->skb).portid,
+					   cb->nlh->nlmsg_seq, NLM_F_MULTI,
+					   cb->extack);
+		mutex_unlock(&devlink->lock);
+		if (err)
+			break;
+		idx++;
+	}
+	mutex_unlock(&devlink_mutex);
+
+	cb->args[0] = idx;
+	return msg->len;
+}
+
 static const struct nla_policy devlink_nl_policy[DEVLINK_ATTR_MAX + 1] = {
 	[DEVLINK_ATTR_BUS_NAME] = { .type = NLA_NUL_STRING },
 	[DEVLINK_ATTR_DEV_NAME] = { .type = NLA_NUL_STRING },
@@ -3973,6 +4134,14 @@ static const struct genl_ops devlink_nl_ops[] = {
 		.policy = devlink_nl_policy,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = DEVLINK_NL_FLAG_NEED_DEVLINK,
+	},
+	{
+		.cmd = DEVLINK_CMD_INFO_GET,
+		.doit = devlink_nl_cmd_info_get_doit,
+		.dumpit = devlink_nl_cmd_info_get_dumpit,
+		.policy = devlink_nl_policy,
+		.internal_flags = DEVLINK_NL_FLAG_NEED_DEVLINK,
+		/* can be retrieved by unprivileged users */
 	},
 };
 
@@ -5108,6 +5277,69 @@ unlock:
 	return err;
 }
 EXPORT_SYMBOL_GPL(devlink_region_snapshot_create);
+
+static void __devlink_compat_running_version(struct devlink *devlink,
+					     char *buf, size_t len)
+{
+	const struct nlattr *nlattr;
+	struct devlink_info_req req;
+	struct sk_buff *msg;
+	int rem, err;
+
+	if (!devlink->ops->info_get)
+		return;
+
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!msg)
+		return;
+
+	req.msg = msg;
+	err = devlink->ops->info_get(devlink, &req, NULL);
+	if (err)
+		goto free_msg;
+
+	nla_for_each_attr(nlattr, (void *)msg->data, msg->len, rem) {
+		const struct nlattr *kv;
+		int rem_kv;
+
+		if (nla_type(nlattr) != DEVLINK_ATTR_INFO_VERSION_RUNNING)
+			continue;
+
+		nla_for_each_nested(kv, nlattr, rem_kv) {
+			if (nla_type(kv) != DEVLINK_ATTR_INFO_VERSION_VALUE)
+				continue;
+
+			strlcat(buf, nla_data(kv), len);
+			strlcat(buf, " ", len);
+		}
+	}
+free_msg:
+	nlmsg_free(msg);
+}
+
+void devlink_compat_running_version(struct net_device *dev,
+				    char *buf, size_t len)
+{
+	struct devlink_port *devlink_port;
+	struct devlink *devlink;
+
+	mutex_lock(&devlink_mutex);
+	list_for_each_entry(devlink, &devlink_list, list) {
+		mutex_lock(&devlink->lock);
+		list_for_each_entry(devlink_port, &devlink->port_list, list) {
+			if (devlink_port->type == DEVLINK_PORT_TYPE_ETH ||
+			    devlink_port->type_dev == dev) {
+				__devlink_compat_running_version(devlink,
+								 buf, len);
+				mutex_unlock(&devlink->lock);
+				goto out;
+			}
+		}
+		mutex_unlock(&devlink->lock);
+	}
+out:
+	mutex_unlock(&devlink_mutex);
+}
 
 static int __init devlink_module_init(void)
 {
