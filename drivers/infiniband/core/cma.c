@@ -2466,6 +2466,8 @@ static void cma_listen_on_dev(struct rdma_id_private *id_priv,
 	atomic_inc(&id_priv->refcount);
 	dev_id_priv->internal_id = 1;
 	dev_id_priv->afonly = id_priv->afonly;
+	dev_id_priv->tos_set = id_priv->tos_set;
+	dev_id_priv->tos = id_priv->tos;
 
 	ret = rdma_listen(id, id_priv->backlog);
 	if (ret)
