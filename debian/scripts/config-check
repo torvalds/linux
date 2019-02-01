@@ -3,6 +3,8 @@
 # check-config -- check the current config for issues
 #
 use strict;
+use File::Basename;
+use File::Spec;
 
 my $P = 'check-config';
 
@@ -13,7 +15,7 @@ if ($ARGV[0] eq '--test') {
 	die "Usage: $P <config> <arch> <flavour> <commonconfig> <warn-only>\n";
 }
 
-my ($config, $arch, $flavour, $commonconfig, $warn_only) = @ARGV;
+my ($configfile, $arch, $flavour, $commonconfig, $warn_only) = @ARGV;
 
 my %values = ();
 
@@ -25,8 +27,8 @@ $fail_exit = 0 if ($warn_only eq 'true' || $warn_only eq '1');
 my $exit_val = 0;
 
 # Load up the current configuration values -- FATAL if this fails
-print "$P: $config: loading config\n";
-open(CONFIG, "<$config") || die "$P: $config: open failed -- $! -- aborting\n";
+print "$P: $configfile: loading config\n";
+open(CONFIG, "<$configfile") || die "$P: $configfile: open failed -- $! -- aborting\n";
 while (<CONFIG>) {
 	# Pull out values.
 	/^#*\s*(CONFIG_\w+)[\s=](.*)$/ or next;
@@ -38,38 +40,74 @@ while (<CONFIG>) {
 }
 close(CONFIG);
 
-# ANNOTATIONS: check any annotations marked for enforcement
-my $pass = 0;
-my $total = 0;
-my $annotations = "$commonconfig/annotations";
-my ($config, $value, $options, $option, $value, $check, $policy);
-print "$P: $annotations loading annotations\n";
-my %annot;
-my $form = 1;
-open(ANNOTATIONS, "<$annotations") || die "$P: $annotations: open failed -- $! -- aborting\n";
-while (<ANNOTATIONS>) {
+sub read_annotations {
+    my ($filename) = @_;
+    my %annot;
+    my $form = 1;
+    my ($config, $value, $options);
+
+    # Keep track of the configs that shouldn't be appended because
+    # they were include_annot from another annotations file.
+    # That's a hash of undefs, aka a set.
+    my %noappend;
+
+    print "$P: $filename loading annotations\n";
+    open(my $fd, "<$filename") ||
+	die "$P: $filename: open failed -- $! -- aborting\n";
+    while (<$fd>) {
 	if (/^# FORMAT: (\S+)/) {
-		die "$P: $1: unknown annotations format\n" if ($1 != 2);
-		$form = $1;
+	    die "$P: $1: unknown annotations format\n" if ($1 != 2 && $1 != 3);
+	    $form = $1;
+	}
+
+	# Format #3 adds the include directive on top of format #2:
+	if ($form == 3 && /^\s*include(\s|$)/) {
+	    # Include quoted or unquoted files:
+	    if (/^\s*include\s+"(.*)"\s*$/ || /^\s*include\s+(.*)$/) {
+		# The include is relative to the current file
+		my $include_filename = File::Spec->join(dirname($filename), $1);
+		# Append the include files
+		my %include_annot = read_annotations($include_filename);
+		%annot = ( %annot, %include_annot );
+		# And marked them to not be appended:
+		my %included_noappend;
+		# Discard the values and keep only the keys
+		@included_noappend{keys %include_annot} = ();
+		%noappend = ( %noappend, %included_noappend );
+		next;
+	    } else {
+		die "$P: Invalid include: $_";
+	    }
 	}
 
 	/^#/ && next;
 	chomp;
 	/^$/ && next;
-
 	/^CONFIG_/ || next;
 
 	if ($form == 1) {
-		($config, $value, $options) = split(' ', $_, 3);
-	} elsif ($form == 2) {
-		($config, $options) = split(' ', $_, 2);
+	    ($config, $value, $options) = split(' ', $_, 3);
+	} elsif ($form >= 2) {
+	    ($config, $options) = split(' ', $_, 2);
 	}
 
+	if (exists $noappend{$config}) {
+	    delete $annot{$config};
+	    delete $noappend{$config};
+	}
 	$annot{$config} = $annot{$config} . ' ' . $options;
+    }
+    close($fd);
+    return %annot;
 }
-close(ANNOTATIONS);
 
-my $config;
+# ANNOTATIONS: check any annotations marked for enforcement
+my $annotations = "$commonconfig/annotations";
+my %annot = read_annotations($annotations);
+
+my $pass = 0;
+my $total = 0;
+my ($config, $value, $options, $option, $check, $policy);
 for $config (keys %annot) {
 	$check = 0;
 	$options = $annot{$config};
