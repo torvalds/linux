@@ -90,6 +90,8 @@ int host1x_cdma_init(struct host1x_cdma *cdma);
 int host1x_cdma_deinit(struct host1x_cdma *cdma);
 int host1x_cdma_begin(struct host1x_cdma *cdma, struct host1x_job *job);
 void host1x_cdma_push(struct host1x_cdma *cdma, u32 op1, u32 op2);
+void host1x_cdma_push_wide(struct host1x_cdma *cdma, u32 op1, u32 op2,
+			   u32 op3, u32 op4);
 void host1x_cdma_end(struct host1x_cdma *cdma, struct host1x_job *job);
 void host1x_cdma_update(struct host1x_cdma *cdma);
 void host1x_cdma_peek(struct host1x_cdma *cdma, u32 dmaget, int slot,

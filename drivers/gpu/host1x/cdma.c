@@ -218,6 +218,45 @@ unsigned int host1x_cdma_wait_locked(struct host1x_cdma *cdma,
 }
 
 /*
+ * Sleep (if necessary) until the push buffer has enough free space.
+ *
+ * Must be called with the cdma lock held.
+ */
+int host1x_cdma_wait_pushbuffer_space(struct host1x *host1x,
+				      struct host1x_cdma *cdma,
+				      unsigned int needed)
+{
+	while (true) {
+		struct push_buffer *pb = &cdma->push_buffer;
+		unsigned int space;
+
+		space = host1x_pushbuffer_space(pb);
+		if (space >= needed)
+			break;
+
+		trace_host1x_wait_cdma(dev_name(cdma_to_channel(cdma)->dev),
+				       CDMA_EVENT_PUSH_BUFFER_SPACE);
+
+		host1x_hw_cdma_flush(host1x, cdma);
+
+		/* If somebody has managed to already start waiting, yield */
+		if (cdma->event != CDMA_EVENT_NONE) {
+			mutex_unlock(&cdma->lock);
+			schedule();
+			mutex_lock(&cdma->lock);
+			continue;
+		}
+
+		cdma->event = CDMA_EVENT_PUSH_BUFFER_SPACE;
+
+		mutex_unlock(&cdma->lock);
+		wait_for_completion(&cdma->complete);
+		mutex_lock(&cdma->lock);
+	}
+
+	return 0;
+}
+/*
  * Start timer that tracks the time spent by the job.
  * Must be called with the cdma lock held.
  */
@@ -507,6 +546,59 @@ void host1x_cdma_push(struct host1x_cdma *cdma, u32 op1, u32 op2)
 	cdma->slots_free = slots_free - 1;
 	cdma->slots_used++;
 	host1x_pushbuffer_push(pb, op1, op2);
+}
+
+/*
+ * Push four words into two consecutive push buffer slots. Note that extra
+ * care needs to be taken not to split the two slots across the end of the
+ * push buffer. Otherwise the RESTART opcode at the end of the push buffer
+ * that ensures processing will restart at the beginning will break up the
+ * four words.
+ *
+ * Blocks as necessary if the push buffer is full.
+ */
+void host1x_cdma_push_wide(struct host1x_cdma *cdma, u32 op1, u32 op2,
+			   u32 op3, u32 op4)
+{
+	struct host1x_channel *channel = cdma_to_channel(cdma);
+	struct host1x *host1x = cdma_to_host1x(cdma);
+	struct push_buffer *pb = &cdma->push_buffer;
+	unsigned int needed = 2, extra = 0, i;
+	unsigned int space = cdma->slots_free;
+
+	if (host1x_debug_trace_cmdbuf)
+		trace_host1x_cdma_push_wide(dev_name(channel->dev), op1, op2,
+					    op3, op4);
+
+	/* compute number of extra slots needed for padding */
+	if (pb->pos + 16 > pb->size) {
+		extra = (pb->size - pb->pos) / 8;
+		needed += extra;
+	}
+
+	host1x_cdma_wait_pushbuffer_space(host1x, cdma, needed);
+	space = host1x_pushbuffer_space(pb);
+
+	cdma->slots_free = space - needed;
+	cdma->slots_used += needed;
+
+	/*
+	 * Note that we rely on the fact that this is only used to submit wide
+	 * gather opcodes, which consist of 3 words, and they are padded with
+	 * a NOP to avoid having to deal with fractional slots (a slot always
+	 * represents 2 words). The fourth opcode passed to this function will
+	 * therefore always be a NOP.
+	 *
+	 * This works around a slight ambiguity when it comes to opcodes. For
+	 * all current host1x incarnations the NOP opcode uses the exact same
+	 * encoding (0x20000000), so we could hard-code the value here, but a
+	 * new incarnation may change it and break that assumption.
+	 */
+	for (i = 0; i < extra; i++)
+		host1x_pushbuffer_push(pb, op4, op4);
+
+	host1x_pushbuffer_push(pb, op1, op2);
+	host1x_pushbuffer_push(pb, op3, op4);
 }
 
 /*
