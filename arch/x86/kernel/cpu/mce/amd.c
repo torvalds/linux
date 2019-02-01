@@ -88,11 +88,14 @@ static struct smca_bank_name smca_names[] = {
 	[SMCA_FP]	= { "floating_point",	"Floating Point Unit" },
 	[SMCA_L3_CACHE]	= { "l3_cache",		"L3 Cache" },
 	[SMCA_CS]	= { "coherent_slave",	"Coherent Slave" },
+	[SMCA_CS_V2]	= { "coherent_slave",	"Coherent Slave" },
 	[SMCA_PIE]	= { "pie",		"Power, Interrupts, etc." },
 	[SMCA_UMC]	= { "umc",		"Unified Memory Controller" },
 	[SMCA_PB]	= { "param_block",	"Parameter Block" },
 	[SMCA_PSP]	= { "psp",		"Platform Security Processor" },
+	[SMCA_PSP_V2]	= { "psp",		"Platform Security Processor" },
 	[SMCA_SMU]	= { "smu",		"System Management Unit" },
+	[SMCA_SMU_V2]	= { "smu",		"System Management Unit" },
 	[SMCA_MP5]	= { "mp5",		"Microprocessor 5 Unit" },
 	[SMCA_NBIO]	= { "nbio",		"Northbridge IO Unit" },
 	[SMCA_PCIE]	= { "pcie",		"PCI Express Unit" },
@@ -153,6 +156,7 @@ static struct smca_hwid smca_hwid_mcatypes[] = {
 	/* Data Fabric MCA types */
 	{ SMCA_CS,	 HWID_MCATYPE(0x2E, 0x0), 0x1FF },
 	{ SMCA_PIE,	 HWID_MCATYPE(0x2E, 0x1), 0xF },
+	{ SMCA_CS_V2,	 HWID_MCATYPE(0x2E, 0x2), 0x3FFF },
 
 	/* Unified Memory Controller MCA type */
 	{ SMCA_UMC,	 HWID_MCATYPE(0x96, 0x0), 0x3F },
@@ -162,9 +166,11 @@ static struct smca_hwid smca_hwid_mcatypes[] = {
 
 	/* Platform Security Processor MCA type */
 	{ SMCA_PSP,	 HWID_MCATYPE(0xFF, 0x0), 0x1 },
+	{ SMCA_PSP_V2,	 HWID_MCATYPE(0xFF, 0x1), 0x3FFFF },
 
 	/* System Management Unit MCA type */
 	{ SMCA_SMU,	 HWID_MCATYPE(0x01, 0x0), 0x1 },
+	{ SMCA_SMU_V2,	 HWID_MCATYPE(0x01, 0x1), 0x7FF },
 
 	/* Microprocessor 5 Unit MCA type */
 	{ SMCA_MP5,	 HWID_MCATYPE(0x01, 0x2), 0x3FF },
