@@ -5818,7 +5818,7 @@ static int hns_roce_v2_modify_srq(struct ib_srq *ibsrq,
 	return 0;
 }
 
-int hns_roce_v2_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr)
+static int hns_roce_v2_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibsrq->device);
 	struct hns_roce_srq *srq = to_hr_srq(ibsrq);
