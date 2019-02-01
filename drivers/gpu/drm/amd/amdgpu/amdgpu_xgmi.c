@@ -125,7 +125,7 @@ int amdgpu_xgmi_add_device(struct amdgpu_device *adev)
 	if (!hive) {
 		ret = -EINVAL;
 		dev_err(adev->dev,
-			"XGMI: node 0x%llx, can not matech hive 0x%llx in the hive list.\n",
+			"XGMI: node 0x%llx, can not match hive 0x%llx in the hive list.\n",
 			adev->gmc.xgmi.node_id, adev->gmc.xgmi.hive_id);
 		goto exit;
 	}
