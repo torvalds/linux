@@ -203,7 +203,8 @@ xchk_iallocbt_check_freemask(
 	int				error = 0;
 
 	/* Make sure the freemask matches the inode records. */
-	nr_inodes = mp->m_inodes_per_cluster;
+	nr_inodes = min_t(unsigned int, XFS_INODES_PER_CHUNK,
+			mp->m_inodes_per_cluster);
 
 	for (agino = irec->ir_startino;
 	     agino < irec->ir_startino + XFS_INODES_PER_CHUNK;
