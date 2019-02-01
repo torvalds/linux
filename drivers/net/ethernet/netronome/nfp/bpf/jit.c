@@ -2441,16 +2441,75 @@ static int ashr_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	return __ashr_imm(nfp_prog, dst, insn->imm);
 }
 
+static int __shr_imm(struct nfp_prog *nfp_prog, u8 dst, u8 shift_amt)
+{
+	if (shift_amt)
+		emit_shf(nfp_prog, reg_both(dst), reg_none(), SHF_OP_NONE,
+			 reg_b(dst), SHF_SC_R_SHF, shift_amt);
+	wrp_immed(nfp_prog, reg_both(dst + 1), 0);
+	return 0;
+}
+
+static int shr_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	const struct bpf_insn *insn = &meta->insn;
+	u8 dst = insn->dst_reg * 2;
+
+	return __shr_imm(nfp_prog, dst, insn->imm);
+}
+
+static int shr_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	const struct bpf_insn *insn = &meta->insn;
+	u64 umin, umax;
+	u8 dst, src;
+
+	dst = insn->dst_reg * 2;
+	umin = meta->umin_src;
+	umax = meta->umax_src;
+	if (umin == umax)
+		return __shr_imm(nfp_prog, dst, umin);
+
+	src = insn->src_reg * 2;
+	emit_alu(nfp_prog, reg_none(), reg_a(src), ALU_OP_OR, reg_imm(0));
+	emit_shf_indir(nfp_prog, reg_both(dst), reg_none(), SHF_OP_NONE,
+		       reg_b(dst), SHF_SC_R_SHF);
+	wrp_immed(nfp_prog, reg_both(dst + 1), 0);
+	return 0;
+}
+
+static int __shl_imm(struct nfp_prog *nfp_prog, u8 dst, u8 shift_amt)
+{
+	if (shift_amt)
+		emit_shf(nfp_prog, reg_both(dst), reg_none(), SHF_OP_NONE,
+			 reg_b(dst), SHF_SC_L_SHF, shift_amt);
+	wrp_immed(nfp_prog, reg_both(dst + 1), 0);
+	return 0;
+}
+
 static int shl_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	const struct bpf_insn *insn = &meta->insn;
+	u8 dst = insn->dst_reg * 2;
 
-	if (insn->imm)
-		emit_shf(nfp_prog, reg_both(insn->dst_reg * 2),
-			 reg_none(), SHF_OP_NONE, reg_b(insn->dst_reg * 2),
-			 SHF_SC_L_SHF, insn->imm);
-	wrp_immed(nfp_prog, reg_both(insn->dst_reg * 2 + 1), 0);
+	return __shl_imm(nfp_prog, dst, insn->imm);
+}
 
+static int shl_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	const struct bpf_insn *insn = &meta->insn;
+	u64 umin, umax;
+	u8 dst, src;
+
+	dst = insn->dst_reg * 2;
+	umin = meta->umin_src;
+	umax = meta->umax_src;
+	if (umin == umax)
+		return __shl_imm(nfp_prog, dst, umin);
+
+	src = insn->src_reg * 2;
+	shl_reg64_lt32_low(nfp_prog, dst, src);
+	wrp_immed(nfp_prog, reg_both(dst + 1), 0);
 	return 0;
 }
 
@@ -3360,7 +3419,10 @@ static const instr_cb_t instr_cb[256] = {
 	[BPF_ALU | BPF_DIV | BPF_X] =	div_reg,
 	[BPF_ALU | BPF_DIV | BPF_K] =	div_imm,
 	[BPF_ALU | BPF_NEG] =		neg_reg,
+	[BPF_ALU | BPF_LSH | BPF_X] =	shl_reg,
 	[BPF_ALU | BPF_LSH | BPF_K] =	shl_imm,
+	[BPF_ALU | BPF_RSH | BPF_X] =	shr_reg,
+	[BPF_ALU | BPF_RSH | BPF_K] =	shr_imm,
 	[BPF_ALU | BPF_ARSH | BPF_X] =	ashr_reg,
 	[BPF_ALU | BPF_ARSH | BPF_K] =	ashr_imm,
 	[BPF_ALU | BPF_END | BPF_X] =	end_reg32,
