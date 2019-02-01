@@ -12,8 +12,13 @@
 #include "parm.h"
 
 struct pll_params_table {
-	u16		m;
-	u16		n;
+	unsigned int	m;
+	unsigned int	n;
+};
+
+struct pll_mult_range {
+	unsigned int	min;
+	unsigned int	max;
 };
 
 #define PLL_PARAMS(_m, _n)						\
@@ -34,6 +39,7 @@ struct meson_clk_pll_data {
 	const struct reg_sequence *init_regs;
 	unsigned int init_count;
 	const struct pll_params_table *table;
+	const struct pll_mult_range *range;
 	u8 flags;
 };
 
