@@ -1603,11 +1603,9 @@ static void raid1_error(struct mddev *mddev, struct md_rdev *rdev)
 		return;
 	}
 	set_bit(Blocked, &rdev->flags);
-	if (test_and_clear_bit(In_sync, &rdev->flags)) {
+	if (test_and_clear_bit(In_sync, &rdev->flags))
 		mddev->degraded++;
-		set_bit(Faulty, &rdev->flags);
-	} else
-		set_bit(Faulty, &rdev->flags);
+	set_bit(Faulty, &rdev->flags);
 	spin_unlock_irqrestore(&conf->device_lock, flags);
 	/*
 	 * if recovery is running, make sure it aborts.
