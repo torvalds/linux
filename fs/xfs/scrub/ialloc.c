@@ -188,19 +188,19 @@ out:
 	return 0;
 }
 
-/* Make sure the free mask is consistent with what the inodes think. */
+/* Check an inode cluster. */
 STATIC int
-xchk_iallocbt_check_freemask(
+xchk_iallocbt_check_cluster(
 	struct xchk_btree		*bs,
-	struct xfs_inobt_rec_incore	*irec)
+	struct xfs_inobt_rec_incore	*irec,
+	xfs_agino_t			agino)
 {
 	struct xfs_imap			imap;
 	struct xfs_mount		*mp = bs->cur->bc_mp;
 	struct xfs_dinode		*dip;
 	struct xfs_buf			*bp;
 	xfs_ino_t			fsino;
-	xfs_agino_t			nr_inodes;
-	xfs_agino_t			agino;
+	unsigned int			nr_inodes;
 	xfs_agino_t			chunkino;
 	xfs_agino_t			clusterino;
 	xfs_agblock_t			agbno;
@@ -212,60 +212,71 @@ xchk_iallocbt_check_freemask(
 	nr_inodes = min_t(unsigned int, XFS_INODES_PER_CHUNK,
 			mp->m_inodes_per_cluster);
 
+	fsino = XFS_AGINO_TO_INO(mp, bs->cur->bc_private.a.agno, agino);
+	chunkino = agino - irec->ir_startino;
+	agbno = XFS_AGINO_TO_AGBNO(mp, agino);
+
+	/* Compute the holemask mask for this cluster. */
+	for (clusterino = 0, holemask = 0; clusterino < nr_inodes;
+	     clusterino += XFS_INODES_PER_HOLEMASK_BIT)
+		holemask |= XFS_INOBT_MASK((chunkino + clusterino) /
+				XFS_INODES_PER_HOLEMASK_BIT);
+
+	/* The whole cluster must be a hole or not a hole. */
+	ir_holemask = (irec->ir_holemask & holemask);
+	if (ir_holemask != holemask && ir_holemask != 0) {
+		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
+		return 0;
+	}
+
+	/* If any part of this is a hole, skip it. */
+	if (ir_holemask) {
+		xchk_xref_is_not_owned_by(bs->sc, agbno,
+				mp->m_blocks_per_cluster,
+				&XFS_RMAP_OINFO_INODES);
+		return 0;
+	}
+
+	xchk_xref_is_owned_by(bs->sc, agbno, mp->m_blocks_per_cluster,
+			&XFS_RMAP_OINFO_INODES);
+
+	/* Grab the inode cluster buffer. */
+	imap.im_blkno = XFS_AGB_TO_DADDR(mp, bs->cur->bc_private.a.agno, agbno);
+	imap.im_len = XFS_FSB_TO_BB(mp, mp->m_blocks_per_cluster);
+	imap.im_boffset = 0;
+
+	error = xfs_imap_to_bp(mp, bs->cur->bc_tp, &imap, &dip, &bp, 0, 0);
+	if (!xchk_btree_xref_process_error(bs->sc, bs->cur, 0, &error))
+		return 0;
+
+	/* Which inodes are free? */
+	for (clusterino = 0; clusterino < nr_inodes; clusterino++) {
+		error = xchk_iallocbt_check_cluster_freemask(bs, fsino,
+				chunkino, clusterino, irec, bp);
+		if (error)
+			break;
+	}
+
+	xfs_trans_brelse(bs->cur->bc_tp, bp);
+	return error;
+}
+
+/* Make sure the free mask is consistent with what the inodes think. */
+STATIC int
+xchk_iallocbt_check_freemask(
+	struct xchk_btree		*bs,
+	struct xfs_inobt_rec_incore	*irec)
+{
+	struct xfs_mount		*mp = bs->cur->bc_mp;
+	xfs_agino_t			agino;
+	int				error = 0;
+
 	for (agino = irec->ir_startino;
 	     agino < irec->ir_startino + XFS_INODES_PER_CHUNK;
 	     agino += mp->m_inodes_per_cluster) {
-		fsino = XFS_AGINO_TO_INO(mp, bs->cur->bc_private.a.agno, agino);
-		chunkino = agino - irec->ir_startino;
-		agbno = XFS_AGINO_TO_AGBNO(mp, agino);
-
-		/* Compute the holemask mask for this cluster. */
-		for (clusterino = 0, holemask = 0; clusterino < nr_inodes;
-		     clusterino += XFS_INODES_PER_HOLEMASK_BIT)
-			holemask |= XFS_INOBT_MASK((chunkino + clusterino) /
-					XFS_INODES_PER_HOLEMASK_BIT);
-
-		/* The whole cluster must be a hole or not a hole. */
-		ir_holemask = (irec->ir_holemask & holemask);
-		if (ir_holemask != holemask && ir_holemask != 0) {
-			xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
-			continue;
-		}
-
-		/* If any part of this is a hole, skip it. */
-		if (ir_holemask) {
-			xchk_xref_is_not_owned_by(bs->sc, agbno,
-					mp->m_blocks_per_cluster,
-					&XFS_RMAP_OINFO_INODES);
-			continue;
-		}
-
-		xchk_xref_is_owned_by(bs->sc, agbno, mp->m_blocks_per_cluster,
-				&XFS_RMAP_OINFO_INODES);
-
-		/* Grab the inode cluster buffer. */
-		imap.im_blkno = XFS_AGB_TO_DADDR(mp, bs->cur->bc_private.a.agno,
-				agbno);
-		imap.im_len = XFS_FSB_TO_BB(mp, mp->m_blocks_per_cluster);
-		imap.im_boffset = 0;
-
-		error = xfs_imap_to_bp(mp, bs->cur->bc_tp, &imap,
-				&dip, &bp, 0, 0);
-		if (!xchk_btree_xref_process_error(bs->sc, bs->cur, 0,
-				&error))
-			continue;
-
-		/* Which inodes are free? */
-		for (clusterino = 0; clusterino < nr_inodes; clusterino++) {
-			error = xchk_iallocbt_check_cluster_freemask(bs,
-					fsino, chunkino, clusterino, irec, bp);
-			if (error) {
-				xfs_trans_brelse(bs->cur->bc_tp, bp);
-				return error;
-			}
-		}
-
-		xfs_trans_brelse(bs->cur->bc_tp, bp);
+		error = xchk_iallocbt_check_cluster(bs, irec, agino);
+		if (error)
+			break;
 	}
 
 	return error;
