@@ -425,6 +425,9 @@ static int notrace ramoops_pstore_write(struct pstore_record *record)
 
 	/* Build header and append record contents. */
 	hlen = ramoops_write_kmsg_hdr(prz, record);
+	if (!hlen)
+		return -ENOMEM;
+
 	size = record->size;
 	if (size + hlen > prz->buffer_size)
 		size = prz->buffer_size - hlen;
