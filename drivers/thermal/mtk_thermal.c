@@ -213,6 +213,7 @@ struct mtk_thermal_data {
 	const int cali_val;
 	const int num_controller;
 	const int *controller_offset;
+	bool need_switch_bank;
 	struct thermal_bank_cfg bank_data[];
 };
 
@@ -327,6 +328,7 @@ static const struct mtk_thermal_data mt8173_thermal_data = {
 	.cali_val = MT8173_CALIBRATION,
 	.num_controller = MT8173_NUM_CONTROLLER,
 	.controller_offset = mt8173_tc_offset,
+	.need_switch_bank = true,
 	.bank_data = {
 		{
 			.num_sensors = 2,
@@ -365,6 +367,7 @@ static const struct mtk_thermal_data mt2701_thermal_data = {
 	.cali_val = MT2701_CALIBRATION,
 	.num_controller = MT2701_NUM_CONTROLLER,
 	.controller_offset = mt2701_tc_offset,
+	.need_switch_bank = true,
 	.bank_data = {
 		{
 			.num_sensors = 3,
@@ -394,6 +397,7 @@ static const struct mtk_thermal_data mt2712_thermal_data = {
 	.cali_val = MT2712_CALIBRATION,
 	.num_controller = MT2712_NUM_CONTROLLER,
 	.controller_offset = mt2712_tc_offset,
+	.need_switch_bank = true,
 	.bank_data = {
 		{
 			.num_sensors = 4,
@@ -417,6 +421,7 @@ static const struct mtk_thermal_data mt7622_thermal_data = {
 	.cali_val = MT7622_CALIBRATION,
 	.num_controller = MT7622_NUM_CONTROLLER,
 	.controller_offset = mt7622_tc_offset,
+	.need_switch_bank = true,
 	.bank_data = {
 		{
 			.num_sensors = 1,
@@ -463,12 +468,14 @@ static void mtk_thermal_get_bank(struct mtk_thermal_bank *bank)
 	struct mtk_thermal *mt = bank->mt;
 	u32 val;
 
-	mutex_lock(&mt->lock);
+	if (mt->conf->need_switch_bank) {
+		mutex_lock(&mt->lock);
 
-	val = readl(mt->thermal_base + PTPCORESEL);
-	val &= ~0xf;
-	val |= bank->id;
-	writel(val, mt->thermal_base + PTPCORESEL);
+		val = readl(mt->thermal_base + PTPCORESEL);
+		val &= ~0xf;
+		val |= bank->id;
+		writel(val, mt->thermal_base + PTPCORESEL);
+	}
 }
 
 /**
@@ -481,7 +488,8 @@ static void mtk_thermal_put_bank(struct mtk_thermal_bank *bank)
 {
 	struct mtk_thermal *mt = bank->mt;
 
-	mutex_unlock(&mt->lock);
+	if (mt->conf->need_switch_bank)
+		mutex_unlock(&mt->lock);
 }
 
 /**
