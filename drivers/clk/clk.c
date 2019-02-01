@@ -345,23 +345,18 @@ unsigned int __clk_get_enable_count(struct clk *clk)
 
 static unsigned long clk_core_get_rate_nolock(struct clk_core *core)
 {
-	unsigned long ret;
+	if (!core)
+		return 0;
 
-	if (!core) {
-		ret = 0;
-		goto out;
-	}
+	if (!core->num_parents || core->parent)
+		return core->rate;
 
-	ret = core->rate;
-
-	if (!core->num_parents)
-		goto out;
-
-	if (!core->parent)
-		ret = 0;
-
-out:
-	return ret;
+	/*
+	 * Clk must have a parent because num_parents > 0 but the parent isn't
+	 * known yet. Best to return 0 as the rate of this clk until we can
+	 * properly recalc the rate based on the parent's rate.
+	 */
+	return 0;
 }
 
 unsigned long clk_hw_get_rate(const struct clk_hw *hw)
