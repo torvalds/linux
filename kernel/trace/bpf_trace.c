@@ -1204,22 +1204,12 @@ static int __bpf_probe_register(struct bpf_raw_event_map *btp, struct bpf_prog *
 
 int bpf_probe_register(struct bpf_raw_event_map *btp, struct bpf_prog *prog)
 {
-	int err;
-
-	mutex_lock(&bpf_event_mutex);
-	err = __bpf_probe_register(btp, prog);
-	mutex_unlock(&bpf_event_mutex);
-	return err;
+	return __bpf_probe_register(btp, prog);
 }
 
 int bpf_probe_unregister(struct bpf_raw_event_map *btp, struct bpf_prog *prog)
 {
-	int err;
-
-	mutex_lock(&bpf_event_mutex);
-	err = tracepoint_probe_unregister(btp->tp, (void *)btp->bpf_func, prog);
-	mutex_unlock(&bpf_event_mutex);
-	return err;
+	return tracepoint_probe_unregister(btp->tp, (void *)btp->bpf_func, prog);
 }
 
 int bpf_get_perf_event_info(const struct perf_event *event, u32 *prog_id,
