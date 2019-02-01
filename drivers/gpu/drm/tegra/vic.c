@@ -181,13 +181,6 @@ static int vic_init(struct host1x_client *client)
 		vic->domain = tegra->domain;
 	}
 
-	if (!vic->falcon.data) {
-		vic->falcon.data = tegra;
-		err = falcon_load_firmware(&vic->falcon);
-		if (err < 0)
-			goto detach;
-	}
-
 	vic->channel = host1x_channel_request(client->dev);
 	if (!vic->channel) {
 		err = -ENOMEM;
@@ -246,6 +239,30 @@ static const struct host1x_client_ops vic_client_ops = {
 	.exit = vic_exit,
 };
 
+static int vic_load_firmware(struct vic *vic)
+{
+	int err;
+
+	if (vic->falcon.data)
+		return 0;
+
+	vic->falcon.data = vic->client.drm;
+
+	err = falcon_read_firmware(&vic->falcon, vic->config->firmware);
+	if (err < 0)
+		goto cleanup;
+
+	err = falcon_load_firmware(&vic->falcon);
+	if (err < 0)
+		goto cleanup;
+
+	return 0;
+
+cleanup:
+	vic->falcon.data = NULL;
+	return err;
+}
+
 static int vic_open_channel(struct tegra_drm_client *client,
 			    struct tegra_drm_context *context)
 {
@@ -256,19 +273,25 @@ static int vic_open_channel(struct tegra_drm_client *client,
 	if (err < 0)
 		return err;
 
+	err = vic_load_firmware(vic);
+	if (err < 0)
+		goto rpm_put;
+
 	err = vic_boot(vic);
-	if (err < 0) {
-		pm_runtime_put(vic->dev);
-		return err;
-	}
+	if (err < 0)
+		goto rpm_put;
 
 	context->channel = host1x_channel_get(vic->channel);
 	if (!context->channel) {
-		pm_runtime_put(vic->dev);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto rpm_put;
 	}
 
 	return 0;
+
+rpm_put:
+	pm_runtime_put(vic->dev);
+	return err;
 }
 
 static void vic_close_channel(struct tegra_drm_context *context)
@@ -371,10 +394,6 @@ static int vic_probe(struct platform_device *pdev)
 	err = falcon_init(&vic->falcon);
 	if (err < 0)
 		return err;
-
-	err = falcon_read_firmware(&vic->falcon, vic->config->firmware);
-	if (err < 0)
-		goto exit_falcon;
 
 	platform_set_drvdata(pdev, vic);
 
