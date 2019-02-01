@@ -152,7 +152,12 @@ struct vring_virtqueue {
 		/* Available for packed ring */
 		struct {
 			/* Actual memory layout for this queue. */
-			struct vring_packed vring;
+			struct {
+				unsigned int num;
+				struct vring_packed_desc *desc;
+				struct vring_packed_desc_event *driver;
+				struct vring_packed_desc_event *device;
+			} vring;
 
 			/* Driver ring wrap counter. */
 			bool avail_wrap_counter;
