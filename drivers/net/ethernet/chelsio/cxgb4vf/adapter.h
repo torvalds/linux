@@ -94,7 +94,7 @@ struct port_info {
 	struct adapter *adapter;	/* our adapter */
 	u32 vlan_id;			/* vlan id for VST */
 	u16 viid;			/* virtual interface ID */
-	s16 xact_addr_filt;		/* index of our MAC address filter */
+	int xact_addr_filt;		/* index of our MAC address filter */
 	u16 rss_size;			/* size of VI's RSS table slice */
 	u8 pidx;			/* index into adapter port[] */
 	s8 mdio_addr;
@@ -352,6 +352,7 @@ struct sge {
 struct hash_mac_addr {
 	struct list_head list;
 	u8 addr[ETH_ALEN];
+	unsigned int iface_mac;
 };
 
 struct mbox_list {

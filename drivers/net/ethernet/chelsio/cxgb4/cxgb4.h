@@ -568,7 +568,7 @@ struct sge_rspq;
 struct port_info {
 	struct adapter *adapter;
 	u16    viid;
-	s16    xact_addr_filt;        /* index of exact MAC address filter */
+	int    xact_addr_filt;        /* index of exact MAC address filter */
 	u16    rss_size;              /* size of VI's RSS table slice */
 	s8     mdio_addr;
 	enum fw_port_type port_type;
@@ -860,6 +860,7 @@ struct doorbell_stats {
 struct hash_mac_addr {
 	struct list_head list;
 	u8 addr[ETH_ALEN];
+	unsigned int iface_mac;
 };
 
 struct uld_msix_bmap {
