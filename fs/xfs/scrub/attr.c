@@ -93,6 +93,12 @@ xchk_xattr_listent(
 		return;
 	}
 
+	/* Does this name make sense? */
+	if (!xfs_attr_namecheck(name, namelen)) {
+		xchk_fblock_set_corrupt(sx->sc, XFS_ATTR_FORK, args.blkno);
+		return;
+	}
+
 	args.flags = ATTR_KERNOTIME;
 	if (flags & XFS_ATTR_ROOT)
 		args.flags |= ATTR_ROOT;
