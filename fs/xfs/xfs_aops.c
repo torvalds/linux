@@ -29,6 +29,7 @@
 struct xfs_writepage_ctx {
 	struct xfs_bmbt_irec    imap;
 	unsigned int		io_type;
+	unsigned int		data_seq;
 	unsigned int		cow_seq;
 	struct xfs_ioend	*ioend;
 };
@@ -301,6 +302,42 @@ xfs_end_bio(
 		xfs_destroy_ioend(ioend, blk_status_to_errno(bio->bi_status));
 }
 
+/*
+ * Fast revalidation of the cached writeback mapping. Return true if the current
+ * mapping is valid, false otherwise.
+ */
+static bool
+xfs_imap_valid(
+	struct xfs_writepage_ctx	*wpc,
+	struct xfs_inode		*ip,
+	xfs_fileoff_t			offset_fsb)
+{
+	if (offset_fsb < wpc->imap.br_startoff ||
+	    offset_fsb >= wpc->imap.br_startoff + wpc->imap.br_blockcount)
+		return false;
+	/*
+	 * If this is a COW mapping, it is sufficient to check that the mapping
+	 * covers the offset. Be careful to check this first because the caller
+	 * can revalidate a COW mapping without updating the data seqno.
+	 */
+	if (wpc->io_type == XFS_IO_COW)
+		return true;
+
+	/*
+	 * This is not a COW mapping. Check the sequence number of the data fork
+	 * because concurrent changes could have invalidated the extent. Check
+	 * the COW fork because concurrent changes since the last time we
+	 * checked (and found nothing at this offset) could have added
+	 * overlapping blocks.
+	 */
+	if (wpc->data_seq != READ_ONCE(ip->i_df.if_seq))
+		return false;
+	if (xfs_inode_has_cow_data(ip) &&
+	    wpc->cow_seq != READ_ONCE(ip->i_cowfp->if_seq))
+		return false;
+	return true;
+}
+
 STATIC int
 xfs_map_blocks(
 	struct xfs_writepage_ctx *wpc,
@@ -315,8 +352,10 @@ xfs_map_blocks(
 	struct xfs_bmbt_irec	imap;
 	int			whichfork = XFS_DATA_FORK;
 	struct xfs_iext_cursor	icur;
-	bool			imap_valid;
 	int			error = 0;
+
+	if (XFS_FORCED_SHUTDOWN(mp))
+		return -EIO;
 
 	/*
 	 * We have to make sure the cached mapping is within EOF to protect
@@ -346,16 +385,8 @@ xfs_map_blocks(
 	 * against concurrent updates and provides a memory barrier on the way
 	 * out that ensures that we always see the current value.
 	 */
-	imap_valid = offset_fsb >= wpc->imap.br_startoff &&
-		     offset_fsb < wpc->imap.br_startoff + wpc->imap.br_blockcount;
-	if (imap_valid &&
-	    (!xfs_inode_has_cow_data(ip) ||
-	     wpc->io_type == XFS_IO_COW ||
-	     wpc->cow_seq == READ_ONCE(ip->i_cowfp->if_seq)))
+	if (xfs_imap_valid(wpc, ip, offset_fsb))
 		return 0;
-
-	if (XFS_FORCED_SHUTDOWN(mp))
-		return -EIO;
 
 	/*
 	 * If we don't have a valid map, now it's time to get a new one for this
@@ -403,9 +434,10 @@ xfs_map_blocks(
 	}
 
 	/*
-	 * Map valid and no COW extent in the way?  We're done.
+	 * No COW extent overlap. Revalidate now that we may have updated
+	 * ->cow_seq. If the data mapping is still valid, we're done.
 	 */
-	if (imap_valid) {
+	if (xfs_imap_valid(wpc, ip, offset_fsb)) {
 		xfs_iunlock(ip, XFS_ILOCK_SHARED);
 		return 0;
 	}
@@ -417,6 +449,7 @@ xfs_map_blocks(
 	 */
 	if (!xfs_iext_lookup_extent(ip, &ip->i_df, offset_fsb, &icur, &imap))
 		imap.br_startoff = end_fsb;	/* fake a hole past EOF */
+	wpc->data_seq = READ_ONCE(ip->i_df.if_seq);
 	xfs_iunlock(ip, XFS_ILOCK_SHARED);
 
 	if (imap.br_startoff > offset_fsb) {
@@ -454,7 +487,8 @@ xfs_map_blocks(
 	return 0;
 allocate_blocks:
 	error = xfs_iomap_write_allocate(ip, whichfork, offset, &imap,
-			&wpc->cow_seq);
+			whichfork == XFS_COW_FORK ?
+					 &wpc->cow_seq : &wpc->data_seq);
 	if (error)
 		return error;
 	ASSERT(whichfork == XFS_COW_FORK || cow_fsb == NULLFILEOFF ||
