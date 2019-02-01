@@ -186,8 +186,10 @@ static void advance_transaction(struct acpi_ec *ec);
 static void acpi_ec_event_handler(struct work_struct *work);
 static void acpi_ec_event_processor(struct work_struct *work);
 
-struct acpi_ec *boot_ec, *first_ec;
+struct acpi_ec *first_ec;
 EXPORT_SYMBOL(first_ec);
+
+static struct acpi_ec *boot_ec;
 static bool boot_ec_is_ecdt = false;
 static struct workqueue_struct *ec_query_wq;
 
