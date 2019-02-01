@@ -71,7 +71,6 @@
 #define MMP2_CLK_CCIC1_MIX		117
 #define MMP2_CLK_CCIC1_PHY		118
 #define MMP2_CLK_CCIC1_SPHY		119
-#define MMP2_CLK_SP			120
 
 #define MMP2_NR_CLKS			200
 #endif
