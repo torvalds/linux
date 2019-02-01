@@ -4,7 +4,7 @@
  */
 
 /*
- * Copyright (C) 2008-2017 Oracle Corporation
+ * Copyright (C) 2008-2019 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -43,6 +43,7 @@
 #else
 # define VBOX_NR_CPUMASK_BITS   NR_CPUS
 #endif
+
 
 RTDECL(RTCPUID) RTMpCpuId(void)
 {
@@ -216,7 +217,9 @@ static void rtmpLinuxWrapper(void *pvInfo)
     pArgs->pfnWorker(RTMpCpuId(), pArgs->pvUser1, pArgs->pvUser2);
 }
 
+#ifdef CONFIG_SMP
 
+# if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)
 /**
  * Wrapper between the native linux per-cpu callbacks and PFNRTWORKER, does hit
  * increment after calling the worker.
@@ -229,6 +232,7 @@ static void rtmpLinuxWrapperPostInc(void *pvInfo)
     pArgs->pfnWorker(RTMpCpuId(), pArgs->pvUser1, pArgs->pvUser2);
     ASMAtomicIncU32(&pArgs->cHits);
 }
+# endif
 
 
 /**
@@ -250,15 +254,17 @@ static void rtmpLinuxAllWrapper(void *pvInfo)
     }
 }
 
+#endif /* CONFIG_SMP */
 
 RTDECL(int) RTMpOnAll(PFNRTMPWORKER pfnWorker, void *pvUser1, void *pvUser2)
 {
     IPRT_LINUX_SAVE_EFL_AC();
-    int rc;
     RTMPARGS Args;
     RTCPUSET OnlineSet;
     RTCPUID  idCpu;
+#ifdef CONFIG_SMP
     uint32_t cLoops;
+#endif
 
     RTTHREADPREEMPTSTATE PreemptState = RTTHREADPREEMPTSTATE_INITIALIZER;
 
@@ -273,21 +279,24 @@ RTDECL(int) RTMpOnAll(PFNRTMPWORKER pfnWorker, void *pvUser1, void *pvUser2)
     Args.pWorkerSet = &OnlineSet;
     idCpu = RTMpCpuId();
 
+#ifdef CONFIG_SMP
     if (RTCpuSetCount(&OnlineSet) > 1)
     {
         /* Fire the function on all other CPUs without waiting for completion. */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)
-        rc = smp_call_function(rtmpLinuxAllWrapper, &Args, 0 /* wait */);
-#else
-        rc = smp_call_function(rtmpLinuxAllWrapper, &Args, 0 /* retry */, 0 /* wait */);
-#endif
+# if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)
+        int rc = smp_call_function(rtmpLinuxAllWrapper, &Args, 0 /* wait */);
+# else
+        int rc = smp_call_function(rtmpLinuxAllWrapper, &Args, 0 /* retry */, 0 /* wait */);
+# endif
         Assert(!rc); NOREF(rc);
     }
+#endif
 
     /* Fire the function on this CPU. */
     Args.pfnWorker(idCpu, Args.pvUser1, Args.pvUser2);
     RTCpuSetDel(Args.pWorkerSet, idCpu);
 
+#ifdef CONFIG_SMP
     /* Wait for all of them finish. */
     cLoops = 64000;
     while (!RTCpuSetIsEmpty(Args.pWorkerSet))
@@ -304,6 +313,7 @@ RTDECL(int) RTMpOnAll(PFNRTMPWORKER pfnWorker, void *pvUser1, void *pvUser2)
 
         ASMNopPause();
     }
+#endif
 
     RTThreadPreemptRestore(&PreemptState);
     IPRT_LINUX_RESTORE_EFL_AC();
@@ -314,6 +324,7 @@ RT_EXPORT_SYMBOL(RTMpOnAll);
 
 RTDECL(int) RTMpOnOthers(PFNRTMPWORKER pfnWorker, void *pvUser1, void *pvUser2)
 {
+#ifdef CONFIG_SMP
     IPRT_LINUX_SAVE_EFL_AC();
     int rc;
     RTMPARGS Args;
@@ -326,21 +337,24 @@ RTDECL(int) RTMpOnOthers(PFNRTMPWORKER pfnWorker, void *pvUser1, void *pvUser2)
     Args.cHits = 0;
 
     RTThreadPreemptDisable(&PreemptState);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)
+# if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)
     rc = smp_call_function(rtmpLinuxWrapper, &Args, 1 /* wait */);
-#else /* older kernels */
+# else /* older kernels */
     rc = smp_call_function(rtmpLinuxWrapper, &Args, 0 /* retry */, 1 /* wait */);
-#endif /* older kernels */
+# endif /* older kernels */
     RTThreadPreemptRestore(&PreemptState);
 
     Assert(rc == 0); NOREF(rc);
     IPRT_LINUX_RESTORE_EFL_AC();
+#else
+    RT_NOREF(pfnWorker, pvUser1, pvUser2);
+#endif
     return VINF_SUCCESS;
 }
 RT_EXPORT_SYMBOL(RTMpOnOthers);
 
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 27)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 27) && defined(CONFIG_SMP)
 /**
  * Wrapper between the native linux per-cpu callbacks and PFNRTWORKER
  * employed by RTMpOnPair on older kernels that lacks smp_call_function_many.
@@ -364,6 +378,7 @@ static void rtMpLinuxOnPairWrapper(void *pvInfo)
 
 RTDECL(int) RTMpOnPair(RTCPUID idCpu1, RTCPUID idCpu2, uint32_t fFlags, PFNRTMPWORKER pfnWorker, void *pvUser1, void *pvUser2)
 {
+#ifdef CONFIG_SMP
     IPRT_LINUX_SAVE_EFL_AC();
     int rc;
     RTTHREADPREEMPTSTATE PreemptState = RTTHREADPREEMPTSTATE_INITIALIZER;
@@ -384,12 +399,12 @@ RTDECL(int) RTMpOnPair(RTCPUID idCpu1, RTCPUID idCpu2, uint32_t fFlags, PFNRTMPW
          * CPUs is the one we're running on, we must do the call and the post
          * call wait ourselves.
          */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 28)
+# if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 28)
         /* 2.6.28 introduces CONFIG_CPUMASK_OFFSTACK */
         cpumask_var_t DstCpuMask;
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)
+# elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)
         cpumask_t   DstCpuMask;
-#endif
+# endif
         RTCPUID     idCpuSelf = RTMpCpuId();
         bool const  fCallSelf = idCpuSelf == idCpu1 || idCpuSelf == idCpu2;
         RTMPARGS    Args;
@@ -400,31 +415,31 @@ RTDECL(int) RTMpOnPair(RTCPUID idCpu1, RTCPUID idCpu2, uint32_t fFlags, PFNRTMPW
         Args.idCpu2  = idCpu2;
         Args.cHits   = 0;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 30)
+# if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 30)
         if (!zalloc_cpumask_var(&DstCpuMask, GFP_KERNEL))
             return VERR_NO_MEMORY;
         cpumask_set_cpu(idCpu1, DstCpuMask);
         cpumask_set_cpu(idCpu2, DstCpuMask);
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 28)
+# elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 28)
         if (!alloc_cpumask_var(&DstCpuMask, GFP_KERNEL))
             return VERR_NO_MEMORY;
         cpumask_clear(DstCpuMask);
         cpumask_set_cpu(idCpu1, DstCpuMask);
         cpumask_set_cpu(idCpu2, DstCpuMask);
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)
+# elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)
         cpus_clear(DstCpuMask);
         cpu_set(idCpu1, DstCpuMask);
         cpu_set(idCpu2, DstCpuMask);
-#endif
+# endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 28)
+# if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 28)
         smp_call_function_many(DstCpuMask, rtmpLinuxWrapperPostInc, &Args, !fCallSelf /* wait */);
         rc = 0;
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)
+# elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)
         rc = smp_call_function_mask(DstCpuMask, rtmpLinuxWrapperPostInc, &Args, !fCallSelf /* wait */);
-#else /* older kernels */
+# else /* older kernels */
         rc = smp_call_function(rtMpLinuxOnPairWrapper, &Args, 0 /* retry */, !fCallSelf /* wait */);
-#endif /* older kernels */
+# endif /* older kernels */
         Assert(rc == 0);
 
         /* Call ourselves if necessary and wait for the other party to be done. */
@@ -451,9 +466,9 @@ RTDECL(int) RTMpOnPair(RTCPUID idCpu1, RTCPUID idCpu2, uint32_t fFlags, PFNRTMPW
         else
             rc = VERR_CPU_IPE_1;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 28)
+# if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 28)
         free_cpumask_var(DstCpuMask);
-#endif
+# endif
     }
     /*
      * A CPU must be present to be considered just offline.
@@ -466,6 +481,11 @@ RTDECL(int) RTMpOnPair(RTCPUID idCpu1, RTCPUID idCpu2, uint32_t fFlags, PFNRTMPW
     RTThreadPreemptRestore(&PreemptState);;
     IPRT_LINUX_RESTORE_EFL_AC();
     return rc;
+
+#else /* !CONFIG_SMP */
+    RT_NOREF(idCpu1, idCpu2, fFlags, pfnWorker, pvUser1, pvUser2);
+    return VERR_CPU_NOT_FOUND;
+#endif /* !CONFIG_SMP */
 }
 RT_EXPORT_SYMBOL(RTMpOnPair);
 
@@ -477,7 +497,7 @@ RTDECL(bool) RTMpOnPairIsConcurrentExecSupported(void)
 RT_EXPORT_SYMBOL(RTMpOnPairIsConcurrentExecSupported);
 
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 19)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 19) && defined(CONFIG_SMP)
 /**
  * Wrapper between the native linux per-cpu callbacks and PFNRTWORKER
  * employed by RTMpOnSpecific on older kernels that lacks smp_call_function_single.
@@ -517,19 +537,21 @@ RTDECL(int) RTMpOnSpecific(RTCPUID idCpu, PFNRTMPWORKER pfnWorker, void *pvUser1
     RTThreadPreemptDisable(&PreemptState);
     if (idCpu != RTMpCpuId())
     {
+#ifdef CONFIG_SMP
         if (RTMpIsCpuOnline(idCpu))
         {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)
+# if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)
             rc = smp_call_function_single(idCpu, rtmpLinuxWrapper, &Args, 1 /* wait */);
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 19)
+# elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 19)
             rc = smp_call_function_single(idCpu, rtmpLinuxWrapper, &Args, 0 /* retry */, 1 /* wait */);
-#else /* older kernels */
+# else /* older kernels */
             rc = smp_call_function(rtmpOnSpecificLinuxWrapper, &Args, 0 /* retry */, 1 /* wait */);
-#endif /* older kernels */
+# endif /* older kernels */
             Assert(rc == 0);
             rc = Args.cHits ? VINF_SUCCESS : VERR_CPU_OFFLINE;
         }
         else
+#endif /* CONFIG_SMP */
             rc = VERR_CPU_OFFLINE;
     }
     else
@@ -546,7 +568,7 @@ RTDECL(int) RTMpOnSpecific(RTCPUID idCpu, PFNRTMPWORKER pfnWorker, void *pvUser1
 RT_EXPORT_SYMBOL(RTMpOnSpecific);
 
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 19)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 19) && defined(CONFIG_SMP)
 /**
  * Dummy callback used by RTMpPokeCpu.
  *
@@ -562,25 +584,31 @@ static void rtmpLinuxPokeCpuCallback(void *pvInfo)
 RTDECL(int) RTMpPokeCpu(RTCPUID idCpu)
 {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 19)
-    int rc;
     IPRT_LINUX_SAVE_EFL_AC();
-
-    if (!RTMpIsCpuPossible(idCpu))
-        return VERR_CPU_NOT_FOUND;
-    if (!RTMpIsCpuOnline(idCpu))
-        return VERR_CPU_OFFLINE;
-
-# if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)
-    rc = smp_call_function_single(idCpu, rtmpLinuxPokeCpuCallback, NULL, 0 /* wait */);
-# elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 19)
-    rc = smp_call_function_single(idCpu, rtmpLinuxPokeCpuCallback, NULL, 0 /* retry */, 0 /* wait */);
-# else  /* older kernels */
-#  error oops
-# endif /* older kernels */
-    NOREF(rc);
-    Assert(rc == 0);
+    int rc;
+    if (RTMpIsCpuPossible(idCpu))
+    {
+        if (RTMpIsCpuOnline(idCpu))
+        {
+# ifdef CONFIG_SMP
+#  if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)
+            rc = smp_call_function_single(idCpu, rtmpLinuxPokeCpuCallback, NULL, 0 /* wait */);
+#  elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 19)
+            rc = smp_call_function_single(idCpu, rtmpLinuxPokeCpuCallback, NULL, 0 /* retry */, 0 /* wait */);
+#  else  /* older kernels */
+#   error oops
+#  endif /* older kernels */
+            Assert(rc == 0);
+# endif /* CONFIG_SMP */
+            rc = VINF_SUCCESS;
+        }
+        else
+            rc = VERR_CPU_OFFLINE;
+    }
+    else
+        rc = VERR_CPU_NOT_FOUND;
     IPRT_LINUX_RESTORE_EFL_AC();
-    return VINF_SUCCESS;
+    return rc;
 
 #else  /* older kernels */
     /* no unicast here? */

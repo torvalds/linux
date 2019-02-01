@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006-2017 Oracle Corporation
+ * Copyright (C) 2006-2019 Oracle Corporation
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -52,13 +52,55 @@ u32 VBoxHGSMIGetMonitorCount(struct gen_pool * ctx)
 
 
 /**
+ * Query whether the virtual hardware supports VBE_DISPI_ID_CFG
+ * and set the interface.
+ *
+ * @returns Whether the interface is supported.
+ */
+bool VBoxVGACfgAvailable(void)
+{
+	u16 DispiId;
+	outw(VBE_DISPI_INDEX_ID, VBE_DISPI_IOPORT_INDEX);
+	outw(VBE_DISPI_ID_CFG, VBE_DISPI_IOPORT_DATA);
+	DispiId = inw(VBE_DISPI_IOPORT_DATA);
+	return (DispiId == VBE_DISPI_ID_CFG);
+}
+
+
+/**
+ * Query a configuration value from the virtual hardware which supports VBE_DISPI_ID_CFG.
+ * I.e. use this function only if VBoxVGACfgAvailable returns true.
+ *
+ * @returns Whether the value is supported.
+ * @param  u16Id       Identifier of the configuration value (VBE_DISPI_CFG_ID_*).
+ * @param  pu32Value   Where to store value from the host.
+ * @param  u32DefValue What to assign to *pu32Value if the value is not supported.
+ */
+bool VBoxVGACfgQuery(u16 u16Id, u32 *pu32Value, u32 u32DefValue)
+{
+	u32 u32;
+	outw(VBE_DISPI_INDEX_CFG, VBE_DISPI_IOPORT_INDEX);
+	outw(VBE_DISPI_CFG_MASK_SUPPORT | u16Id, VBE_DISPI_IOPORT_DATA);
+	u32 = inl(VBE_DISPI_IOPORT_DATA);
+	if (u32) {
+		outw(u16Id, VBE_DISPI_IOPORT_DATA);
+		*pu32Value = inl(VBE_DISPI_IOPORT_DATA);
+		return true;
+	}
+
+	*pu32Value = u32DefValue;
+	return false;
+}
+
+
+/**
  * Returns the size of the video RAM in bytes.
  *
  * @returns the size
  */
 u32 VBoxVideoGetVRAMSize(void)
 {
-	/** @note A 32bit read on this port returns the VRAM size. */
+	/** @note A 32bit read on this port returns the VRAM size if interface is older than VBE_DISPI_ID_CFG. */
 	return inl(VBE_DISPI_IOPORT_DATA);
 }
 

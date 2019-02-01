@@ -4,7 +4,7 @@
  */
 
 /*
- * Copyright (C) 2010-2017 Oracle Corporation
+ * Copyright (C) 2010-2019 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -24,8 +24,11 @@
  * terms and conditions of either the GPL or the CDDL or both.
  */
 
-#ifndef ___VBoxGuestInternal_h
-#define ___VBoxGuestInternal_h
+#ifndef GA_INCLUDED_SRC_common_VBoxGuest_VBoxGuestInternal_h
+#define GA_INCLUDED_SRC_common_VBoxGuest_VBoxGuestInternal_h
+#ifndef RT_WITHOUT_PRAGMA_ONCE
+# pragma once
+#endif
 
 #include <iprt/types.h>
 #include <iprt/list.h>
@@ -38,7 +41,7 @@
 
 /** @def VBOXGUEST_USE_DEFERRED_WAKE_UP
  * Defer wake-up of waiting thread when defined. */
-#if defined(RT_OS_DARWIN) || defined(RT_OS_SOLARIS) || defined(RT_OS_WINDOWS) || defined(DOXYGEN_RUNNING)
+#if defined(RT_OS_SOLARIS) || defined(RT_OS_WINDOWS) || defined(DOXYGEN_RUNNING)
 # define VBOXGUEST_USE_DEFERRED_WAKE_UP
 #endif
 
@@ -139,6 +142,8 @@ typedef VBOXGUESTBITUSAGETRACER const *PCVBOXGUESTBITUSAGETRACER;
  */
 typedef struct VBOXGUESTDEVEXT
 {
+    /** VBOXGUESTDEVEXT_INIT_STATE_XXX.   */
+    uint32_t                    uInitState;
     /** The base of the adapter I/O ports. */
     RTIOPORT                    IOPortBase;
     /** Pointer to the mapping of the VMMDev adapter memory. */
@@ -148,6 +153,8 @@ typedef struct VBOXGUESTDEVEXT
     /** Spinlock protecting the signaling and resetting of the wait-for-event
      * semaphores as well as the event acking in the ISR. */
     RTSPINLOCK                  EventSpinlock;
+    /** Host feature flags (VMMDEV_HVF_XXX).   */
+    uint32_t                    fHostFeatures;
     /** Preallocated VMMDevEvents for the IRQ handler. */
     VMMDevEvents               *pIrqAckEvents;
     /** The physical address of pIrqAckEvents. */
@@ -250,6 +257,13 @@ typedef struct VBOXGUESTDEVEXT
 /** Pointer to the VBoxGuest driver data. */
 typedef VBOXGUESTDEVEXT *PVBOXGUESTDEVEXT;
 
+/** @name VBOXGUESTDEVEXT_INIT_STATE_XXX - magic values for validating init
+ *        state of the device extension structur.
+ * @{ */
+#define VBOXGUESTDEVEXT_INIT_STATE_FUNDAMENT        UINT32_C(0x0badcafe)
+#define VBOXGUESTDEVEXT_INIT_STATE_RESOURCES        UINT32_C(0xcafebabe)
+#define VBOXGUESTDEVEXT_INIT_STATE_DELETED          UINT32_C(0xdeadd0d0)
+/** @} */
 
 /**
  * The VBoxGuest per session data.
@@ -267,6 +281,9 @@ typedef struct VBOXGUESTSESSION
     uint16_t                    sfn;
     uint16_t                    Alignment; /**< Alignment */
 #endif
+    /** The requestor information to pass to the host for this session.
+     * @sa VMMDevRequestHeader::fRequestor */
+    uint32_t                    fRequestor;
     /** The process (id) of the session.
      * This is NIL if it's a kernel session. */
     RTPROCESS                   Process;
@@ -324,15 +341,28 @@ RT_C_DECLS_BEGIN
 
 int  VGDrvCommonInitDevExt(PVBOXGUESTDEVEXT pDevExt, uint16_t IOPortBase, void *pvMMIOBase, uint32_t cbMMIO,
                            VBOXOSTYPE enmOSType, uint32_t fEvents);
+void VGDrvCommonDeleteDevExt(PVBOXGUESTDEVEXT pDevExt);
+
+int  VGDrvCommonInitLoggers(void);
+void VGDrvCommonDestroyLoggers(void);
+int  VGDrvCommonInitDevExtFundament(PVBOXGUESTDEVEXT pDevExt);
+void VGDrvCommonDeleteDevExtFundament(PVBOXGUESTDEVEXT pDevExt);
+int  VGDrvCommonInitDevExtResources(PVBOXGUESTDEVEXT pDevExt, uint16_t IOPortBase,
+                                    void *pvMMIOBase, uint32_t cbMMIO, VBOXOSTYPE enmOSType, uint32_t fFixedEvents);
+void VGDrvCommonDeleteDevExtResources(PVBOXGUESTDEVEXT pDevExt);
+int  VGDrvCommonReinitDevExtAfterHibernation(PVBOXGUESTDEVEXT pDevExt, VBOXOSTYPE enmOSType);
+
+bool VBDrvCommonIsOptionValueTrue(const char *pszValue);
+void VGDrvCommonProcessOption(PVBOXGUESTDEVEXT pDevExt, const char *pszName, const char *pszValue);
+void VGDrvCommonProcessOptionsFromHost(PVBOXGUESTDEVEXT pDevExt);
 bool VGDrvCommonIsOurIRQ(PVBOXGUESTDEVEXT pDevExt);
 bool VGDrvCommonISR(PVBOXGUESTDEVEXT pDevExt);
-void VGDrvCommonDeleteDevExt(PVBOXGUESTDEVEXT pDevExt);
-int  VGDrvCommonReinitDevExtAfterHibernation(PVBOXGUESTDEVEXT pDevExt, VBOXOSTYPE enmOSType);
+
 #ifdef VBOXGUEST_USE_DEFERRED_WAKE_UP
 void VGDrvCommonWaitDoWakeUps(PVBOXGUESTDEVEXT pDevExt);
 #endif
 
-int  VGDrvCommonCreateUserSession(PVBOXGUESTDEVEXT pDevExt, PVBOXGUESTSESSION *ppSession);
+int  VGDrvCommonCreateUserSession(PVBOXGUESTDEVEXT pDevExt, uint32_t fRequestor, PVBOXGUESTSESSION *ppSession);
 int  VGDrvCommonCreateKernelSession(PVBOXGUESTDEVEXT pDevExt, PVBOXGUESTSESSION *ppSession);
 void VGDrvCommonCloseSession(PVBOXGUESTDEVEXT pDevExt, PVBOXGUESTSESSION pSession);
 
@@ -350,6 +380,16 @@ int  VGDrvCommonIoCtl(uintptr_t iFunction, PVBOXGUESTDEVEXT pDevExt, PVBOXGUESTS
  */
 void VGDrvNativeISRMousePollEvent(PVBOXGUESTDEVEXT pDevExt);
 
+/**
+ * Hook for handling OS specfic options from the host.
+ *
+ * @returns true if handled, false if not.
+ * @param   pDevExt         The device extension.
+ * @param   pszName         The option name.
+ * @param   pszValue        The option value.
+ */
+bool VGDrvNativeProcessOption(PVBOXGUESTDEVEXT pDevExt, const char *pszName, const char *pszValue);
+
 
 #ifdef VBOX_WITH_DPC_LATENCY_CHECKER
 int VGDrvNtIOCtl_DpcLatencyChecker(void);
@@ -361,5 +401,5 @@ int VGDrvNativeSetMouseNotifyCallback(PVBOXGUESTDEVEXT pDevExt, PVBGLIOCSETMOUSE
 
 RT_C_DECLS_END
 
-#endif
+#endif /* !GA_INCLUDED_SRC_common_VBoxGuest_VBoxGuestInternal_h */
 

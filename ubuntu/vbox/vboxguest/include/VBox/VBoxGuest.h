@@ -5,28 +5,35 @@
  */
 
 /*
- * Copyright (C) 2006-2017 Oracle Corporation
+ * Copyright (C) 2006-2019 Oracle Corporation
  *
- * This file is part of VirtualBox Open Source Edition (OSE), as
- * available from http://www.virtualbox.org. This file is free software;
- * you can redistribute it and/or modify it under the terms of the GNU
- * General Public License (GPL) as published by the Free Software
- * Foundation, in version 2 as it comes in the "COPYING" file of the
- * VirtualBox OSE distribution. VirtualBox OSE is distributed in the
- * hope that it will be useful, but WITHOUT ANY WARRANTY of any kind.
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
  *
- * The contents of this file may alternatively be used under the terms
- * of the Common Development and Distribution License Version 1.0
- * (CDDL) only, as it comes in the "COPYING.CDDL" file of the
- * VirtualBox OSE distribution, in which case the provisions of the
- * CDDL are applicable instead of those of the GPL.
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
  *
- * You may elect to license modified versions of this file under the
- * terms and conditions of either the GPL or the CDDL or both.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT.  IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef ___VBox_VBoxGuest_h
-#define ___VBox_VBoxGuest_h
+#ifndef VBOX_INCLUDED_VBoxGuest_h
+#define VBOX_INCLUDED_VBoxGuest_h
+#ifndef RT_WITHOUT_PRAGMA_ONCE
+# pragma once
+#endif
 
 #include <VBox/types.h>
 #include <iprt/assertcompile.h>
@@ -47,7 +54,7 @@
  * @note This is considered internal in ring-3, please use the VbglR3 functions.
  *
  * - I/O controls for user and/or kernel mode starts at 0.
- * - IDC specific requests descends from 127.
+ * - IDC specific requests descends from 63.
  * - Bits 7 and 6 are currently reserved for future hacks.
  *
  * @remarks When creating new IOCtl interfaces keep in mind that not all OSes supports
@@ -150,8 +157,12 @@
 # define VBGL_IOCTL_CODE_FAST(Function)             _IO('F', (Function))
 # define VBGL_IOCTL_CODE_STRIPPED(a_uIOCtl)         ((a_uIOCtl) & ~(_IOC(0,0,0,IOCPARM_MASK)))
 # define VBGL_IOCTL_IS_FAST(a_uIOCtl)               ( IOCGROUP(a_uIOCtl) == 'F' )
-#endif
+# if defined(RT_OS_DARWIN)
+#  define VBOXGUEST_DEVICE_NAME                     "/dev/vboxguest"
+#  define VBOXGUEST_USER_DEVICE_NAME                "/dev/vboxguestu"
+# endif
 
+#endif
 
 /** @todo It would be nice if we could have two defines without paths. */
 
@@ -280,8 +291,8 @@ AssertCompileSize(VBGLIOCGETVMMDEVIOINFO, 24 + (HC_ARCH_BITS == 64 ? 16 : 8));
 #define VBGL_IOCTL_VMMDEV_REQUEST_BIG               VBGL_IOCTL_CODE_BIG(3)
 /** @} */
 
-
 #ifdef VBOX_WITH_HGCM
+
 /** @name VBGL_IOCTL_HGCM_CONNECT
  * Connect to a HGCM service.
  * @{ */
@@ -339,7 +350,7 @@ AssertCompileSize(VBGLIOCHGCMDISCONNECT, 24 + 4);
 
 /** @name VBGL_IOCTL_HGCM_CALL, VBGL_IOCTL_HGCM_CALL_WITH_USER_DATA
  *
- * Make a call to a HGCM servicesure.  There are several variations here.
+ * Make a call to a HGCM service.  There are several variations here.
  *
  * The VBGL_IOCTL_HGCM_CALL_WITH_USER_DATA variation is for other drivers (like
  * the graphics ones) passing on requests from user land that contains user
@@ -355,6 +366,77 @@ AssertCompileSize(VBGLIOCHGCMDISCONNECT, 24 + 4);
 # endif
 # define VBGL_IOCTL_HGCM_CALL_WITH_USER_DATA(a_cb)  VBGL_IOCTL_CODE_SIZE(8, (a_cb))
 /** @} */
+
+
+/** @name VBGL_IOCTL_IDC_HGCM_FAST_CALL
+ *
+ * Variant of VBGL_IOCTL_HGCM_CALL for drivers that submits the request as-is to
+ * the host and handles the waiting, the caller does all the rest.
+ *
+ * @note ring-0 only.
+ * @note Size is not encoded in the I/O control code.
+ * @{
+ */
+#define VBGL_IOCTL_IDC_HGCM_FAST_CALL               VBGL_IOCTL_CODE_SIZE(62, sizeof(VBGLIOCIDCHGCMFASTCALL))
+#define VBGL_IOCTL_IDC_HGCM_FAST_CALL_SIZE(a_cb)    (a_cb)
+#define VBGL_IOCTL_IDC_HGCM_FAST_CALL_SIZE_IN(a_cb) (a_cb)
+#define VBGL_IOCTL_IDC_HGCM_FAST_CALL_SIZE_OUT(a_cb) (a_cb)
+#pragma pack(4) /* Want it to fit nicely with the 44 byte VMMDevHGCMCall and optimally align 64-bit parameters structures.  */
+typedef struct VBGLIOCIDCHGCMFASTCALL
+{
+    /** The header. */
+    VBGLREQHDR      Hdr;
+    /** The physical address of the following VMMDevHGCMCall structure. */
+    RTGCPHYS32      GCPhysReq;
+    /** Set if interruptible. */
+    bool            fInterruptible;
+    /** Reserved. */
+    uint8_t         abReserved0[3];
+    uint64_t        uTimestamp[2];
+    uint8_t         abReserved1[4];
+    /* After this structure follows a VMMDevHGCMCall strcuture (44 bytes), then
+       zero or more HGCMFunctionParameter structures (12 or 16 bytes), and finally
+       page lists and embedded buffers. */
+} VBGLIOCIDCHGCMFASTCALL, RT_FAR *PVBGLIOCIDCHGCMFASTCALL;
+#pragma pack()
+AssertCompileSize(VBGLIOCIDCHGCMFASTCALL, /* 24 + 4 + 1 + 3 + 2*8 + 4 = 0x34 (52) = */ 0x34);
+
+/**
+ * Macro for initializing VBGLIOCIDCHGCMFASTCALL and the following
+ * VMMDevHGCMCall structures.
+ *
+ * @param   a_pHdr      The request header to initialize.
+ * @param   a_HdrPhys   The 32-bit physical address corresponding to @a a_pHdr.
+ * @param   a_pCall     Pointer to the VMMDevHGCMCall structure.
+ * @param   a_idClient  The HGCM client ID.
+ * @param   a_uFunction The HGCM function number.
+ * @param   a_cParms    The number of parameters following @a a_pCall.
+ * @param   a_cbReq     The size of the whole request.
+ */
+#define VBGLIOCIDCHGCMFASTCALL_INIT(a_pHdr, a_HdrPhys, a_pCall, a_idClient, a_uFunction, a_cParms, a_cbReq) \
+    do { \
+        Assert((uintptr_t)(a_pHdr) + sizeof(VBGLIOCIDCHGCMFASTCALL) == (uintptr_t)(a_pCall)); \
+        VBGLREQHDR_INIT_EX(&(a_pHdr)->Hdr, a_cbReq, a_cbReq); \
+        pReq->Hdr.GCPhysReq      = (a_HdrPhys) + sizeof(VBGLIOCIDCHGCMFASTCALL); \
+        pReq->Hdr.fInterruptible = false; \
+        \
+        (a_pCall)->header.header.size       = (a_cbReq) - sizeof(VBGLIOCIDCHGCMFASTCALL); \
+        (a_pCall)->header.header.version    = VBGLREQHDR_VERSION; \
+        (a_pCall)->header.header.requestType= (ARCH_BITS == 32 ? VMMDevReq_HGCMCall32 : VMMDevReq_HGCMCall64); \
+        (a_pCall)->header.header.rc         = VERR_INTERNAL_ERROR; \
+        (a_pCall)->header.header.reserved1  = 0; \
+        (a_pCall)->header.header.fRequestor = VMMDEV_REQUESTOR_KERNEL        | VMMDEV_REQUESTOR_USR_DRV_OTHER \
+                                            | VMMDEV_REQUESTOR_CON_DONT_KNOW | VMMDEV_REQUESTOR_TRUST_NOT_GIVEN; \
+        (a_pCall)->header.fu32Flags         = 0; \
+        (a_pCall)->header.result            = VERR_INTERNAL_ERROR; \
+        (a_pCall)->u32ClientID              = (a_idClient); \
+        (a_pCall)->u32Function              = (a_uFunction); \
+        (a_pCall)->cParms                   = (a_cParms); \
+    } while (0)
+
+
+/** @} */
+
 #endif /* VBOX_WITH_HGCM */
 
 
@@ -793,6 +875,7 @@ typedef void (__cdecl RT_FAR_CODE *PFNVBGLOS2ATTACHDD)(PVBGLOS2ATTACHDD pAttachI
  * session for the caller.
  *
  * @note ring-0 only.
+ * @{
  */
 #define VBGL_IOCTL_IDC_CONNECT                      VBGL_IOCTL_CODE_SIZE(63, VBGL_IOCTL_IDC_CONNECT_SIZE)
 #define VBGL_IOCTL_IDC_CONNECT_SIZE                 sizeof(VBGLIOCIDCCONNECT)
@@ -854,6 +937,7 @@ AssertCompile(VBGL_IOCTL_IDC_CONNECT_SIZE_IN == 24 + 16);
  * This will destroy the kernel session associated with the IDC connection.
  *
  * @note ring-0 only.
+ * @{
  */
 #define VBGL_IOCTL_IDC_DISCONNECT                   VBGL_IOCTL_CODE_SIZE(62, VBGL_IOCTL_IDC_DISCONNECT_SIZE)
 #define VBGL_IOCTL_IDC_DISCONNECT_SIZE              sizeof(VBGLIOCIDCDISCONNECT)
@@ -923,5 +1007,5 @@ RT_C_DECLS_END
 /** @} */
 
 /** @} */
-#endif
+#endif /* !VBOX_INCLUDED_VBoxGuest_h */
 

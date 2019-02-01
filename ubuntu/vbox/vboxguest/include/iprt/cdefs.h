@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2017 Oracle Corporation
+ * Copyright (C) 2006-2019 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -23,8 +23,11 @@
  * terms and conditions of either the GPL or the CDDL or both.
  */
 
-#ifndef ___iprt_cdefs_h
-#define ___iprt_cdefs_h
+#ifndef IPRT_INCLUDED_cdefs_h
+#define IPRT_INCLUDED_cdefs_h
+#ifndef RT_WITHOUT_PRAGMA_ONCE
+# pragma once
+#endif
 
 
 /** @defgroup grp_rt_cdefs  IPRT Common Definitions and Macros
@@ -296,7 +299,7 @@
  * Used to indicate that we're compiling code which is running
  * in the Raw-mode Context (implies R0).
  */
-#if !defined(IN_RING3) && !defined(IN_RING0) && !defined(IN_RC) && !defined(IN_RC)
+#if !defined(IN_RING3) && !defined(IN_RING0) && !defined(IN_RC)
 # error "You must define which context the compiled code should run in; IN_RING3, IN_RING0 or IN_RC"
 #endif
 #if (defined(IN_RING3) && (defined(IN_RING0) || defined(IN_RC)) ) \
@@ -1109,6 +1112,56 @@
 #endif
 
 
+/** @def RT_OVERRIDE
+ * Wrapper for the C++11 override keyword.
+ *
+ * @remarks Recognized by g++ starting 4.7, however causes pedantic warnings
+ *          when used without officially enabling the C++11 features.
+ */
+#ifdef __cplusplus
+# if RT_MSC_PREREQ_EX(RT_MSC_VER_VS2012, 0)
+#  define RT_OVERRIDE           override
+# elif RT_GNUC_PREREQ(4, 7)
+#  if __cplusplus >= 201100
+#   define RT_OVERRIDE          override
+#  else
+#   define RT_OVERRIDE
+#  endif
+# else
+#  define RT_OVERRIDE
+# endif
+#else
+# define RT_OVERRIDE
+#endif
+
+/** @def RT_NOEXCEPT
+ * Wrapper for the C++11 noexcept keyword (only true form).
+ */
+/** @def RT_NOEXCEPT_EX
+ * Wrapper for the C++11 noexcept keyword with expression.
+ */
+#ifdef __cplusplus
+# if RT_MSC_PREREQ_EX(RT_MSC_VER_VS2015, 0)
+#  define RT_NOEXCEPT           noexcept
+#  define RT_NOEXCEPT_EX(expr)  noexcept(expr)
+# elif RT_GNUC_PREREQ(7, 0)
+#  if __cplusplus >= 201100
+#   define RT_NOEXCEPT          noexcept
+#   define RT_NOEXCEPT_EX(expr) noexcept(expr)
+#  else
+#   define RT_NOEXCEPT
+#   define RT_NOEXCEPT_EX(expr)
+#  endif
+# else
+#  define RT_NOEXCEPT
+#  define RT_NOEXCEPT_EX(expr)
+# endif
+#else
+# define RT_NOEXCEPT
+# define RT_NOEXCEPT_EX(expr)
+#endif
+
+
 /** @def RT_FALL_THROUGH
  * Tell the compiler that we're falling through to the next case in a switch.
  * @sa RT_FALL_THRU  */
@@ -1166,6 +1219,8 @@
 # if __GNUC__ >= 3 /* not entirely sure when this was added */
 #  define RT_COMPILER_SUPPORTS_VA_ARGS
 # endif
+#elif defined(__WATCOMC__)
+# define RT_COMPILER_SUPPORTS_VA_ARGS
 #endif
 
 
@@ -1259,6 +1314,26 @@
  * @param   type    The return type of the function.
  */
 #define DECLASMTYPE(type)       type RTCALL
+
+/** @def RT_ASM_DECL_PRAGMA_WATCOM
+ * How to declare a assembly method prototype with watcom \#pragma aux definition.  */
+/** @def RT_ASM_DECL_PRAGMA_WATCOM_386
+ * Same as RT_ASM_DECL_PRAGMA_WATCOM, but there is no 16-bit version when
+ * 8086, 80186 or 80286 is selected as the target CPU. */
+#if defined(__WATCOMC__) && ARCH_BITS == 16 && defined(RT_ARCH_X86)
+# define RT_ASM_DECL_PRAGMA_WATCOM(type) type
+# if defined(__SW_0) || defined(__SW_1) || defined(__SW_2)
+#  define RT_ASM_DECL_PRAGMA_WATCOM_386(type)   DECLASM(type)
+# else
+#  define RT_ASM_DECL_PRAGMA_WATCOM_386(type)   type
+# endif
+#elif defined(__WATCOMC__) && ARCH_BITS == 32 && defined(RT_ARCH_X86)
+# define RT_ASM_DECL_PRAGMA_WATCOM(type)        type
+# define RT_ASM_DECL_PRAGMA_WATCOM_386(type)    type
+#else
+# define RT_ASM_DECL_PRAGMA_WATCOM(type)        DECLASM(type)
+# define RT_ASM_DECL_PRAGMA_WATCOM_386(type)    DECLASM(type)
+#endif
 
 /** @def DECL_NO_RETURN
  * How to declare a function which does not return.
@@ -3107,7 +3182,7 @@
 /** @def RT_NOREF11
  * RT_NOREF_PV shorthand taking eleven parameters.  */
 #define RT_NOREF11(var1, var2, var3, var4, var5, var6, var7, var8, var9, var10, var11) \
-    RT_NOREF_PV(var1); RT_NOREF10(var2, var3, var4, var5, var6, var7, var8, var9, var10)
+    RT_NOREF_PV(var1); RT_NOREF10(var2, var3, var4, var5, var6, var7, var8, var9, var10, var11)
 /** @def RT_NOREF12
  * RT_NOREF_PV shorthand taking twelve parameters.  */
 #define RT_NOREF12(var1, var2, var3, var4, var5, var6, var7, var8, var9, var10, var11, var12) \
@@ -3957,5 +4032,5 @@
 
 /** @} */
 
-#endif
+#endif /* !IPRT_INCLUDED_cdefs_h */
 

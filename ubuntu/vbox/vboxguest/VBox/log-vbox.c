@@ -4,7 +4,7 @@
  */
 
 /*
- * Copyright (C) 2006-2017 Oracle Corporation
+ * Copyright (C) 2006-2019 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -153,7 +153,7 @@
 
 #include <VBox/log.h>
 #include <iprt/asm.h>
-#include <iprt/err.h>
+#include <iprt/errcore.h>
 #include <iprt/time.h>
 #ifdef IN_RING3
 # include <iprt/param.h>
@@ -352,6 +352,7 @@ RTDECL(PRTLOGGER) RTLogDefaultInit(void)
     ASSERT_LOG_GROUP(MAIN_CONSOLE);
     ASSERT_LOG_GROUP(MAIN_CPUCHANGEDEVENT);
     ASSERT_LOG_GROUP(MAIN_CPUEXECUTIONCAPCHANGEDEVENT);
+    ASSERT_LOG_GROUP(MAIN_CURSORPOSITIONCHANGEDEVENT);
     ASSERT_LOG_GROUP(MAIN_DHCPSERVER);
     ASSERT_LOG_GROUP(MAIN_DIRECTORY);
     ASSERT_LOG_GROUP(MAIN_DISPLAY);
@@ -748,7 +749,7 @@ RTDECL(PRTLOGGER) RTLogDefaultInit(void)
         pLogger->fDestFlags |= RTLOGDEST_DEBUGGER;
 # endif
 # if defined(DEBUG_aleksey)  /* Guest ring-0 as well */
-        RTLogGroupSettings(pLogger, "net_flt_drv.e.l.f.l3.l4.l5 +net_adp_drv.e.l.f.l3.l4.l5.l6");
+        RTLogGroupSettings(pLogger, "net_flt_drv.e.l.f.l3.l4.l5.l6 +net_adp_drv.e.l.f.l3.l4.l5.l6");
         RTLogFlags(pLogger, "enabled unbuffered");
         pLogger->fDestFlags |= RTLOGDEST_DEBUGGER | RTLOGDEST_STDOUT;
 # endif

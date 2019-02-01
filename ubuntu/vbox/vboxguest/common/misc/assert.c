@@ -4,7 +4,7 @@
  */
 
 /*
- * Copyright (C) 2006-2017 Oracle Corporation
+ * Copyright (C) 2006-2019 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -32,12 +32,22 @@
 #include "internal/iprt.h"
 
 #include <iprt/asm.h>
-#include <iprt/err.h>
+#ifdef IPRT_WITH_ASSERT_STACK
+# ifndef IN_RING3
+#  error "IPRT_WITH_ASSERT_STACK is only for ring-3 at present."
+# endif
+# include <iprt/dbg.h>
+#endif
+#include <iprt/errcore.h>
 #include <iprt/log.h>
 #include <iprt/string.h>
 #include <iprt/stdarg.h>
 #ifdef IN_RING3
+# include <iprt/env.h>
 # include <stdio.h>
+# ifdef RT_OS_WINDOWS
+#  include <iprt/win/windows.h>
+# endif
 #endif
 #include "internal/assert.h"
 
@@ -45,25 +55,30 @@
 /*********************************************************************************************************************************
 *   Global Variables                                                                                                             *
 *********************************************************************************************************************************/
-/** The last assert message, 1st part. */
+/** The last assertion message, 1st part. */
 RTDATADECL(char)                    g_szRTAssertMsg1[1024];
 RT_EXPORT_SYMBOL(g_szRTAssertMsg1);
-/** The last assert message, 2nd part. */
+/** The last assertion message, 2nd part. */
 RTDATADECL(char)                    g_szRTAssertMsg2[4096];
 RT_EXPORT_SYMBOL(g_szRTAssertMsg2);
+#ifdef IPRT_WITH_ASSERT_STACK
+/** The last assertion message, stack part. */
+RTDATADECL(char)                    g_szRTAssertStack[4096];
+RT_EXPORT_SYMBOL(g_szRTAssertStack);
+#endif
 /** The length of the g_szRTAssertMsg2 content.
  * @remarks Race.  */
 static uint32_t volatile            g_cchRTAssertMsg2;
-/** The last assert message, expression. */
+/** The last assertion message, expression. */
 RTDATADECL(const char * volatile)   g_pszRTAssertExpr;
 RT_EXPORT_SYMBOL(g_pszRTAssertExpr);
-/** The last assert message, function name. */
+/** The last assertion message, function name. */
 RTDATADECL(const char *  volatile)  g_pszRTAssertFunction;
 RT_EXPORT_SYMBOL(g_pszRTAssertFunction);
-/** The last assert message, file name. */
+/** The last assertion message, file name. */
 RTDATADECL(const char * volatile)   g_pszRTAssertFile;
 RT_EXPORT_SYMBOL(g_pszRTAssertFile);
-/** The last assert message, line number. */
+/** The last assertion message, line number. */
 RTDATADECL(uint32_t volatile)       g_u32RTAssertLine;
 RT_EXPORT_SYMBOL(g_u32RTAssertLine);
 
@@ -125,6 +140,28 @@ RTDECL(void) RTAssertMsg1(const char *pszExpr, unsigned uLine, const char *pszFi
         RTERRVARS SavedErrVars;
         RTErrVarsSave(&SavedErrVars);
 
+#ifdef IPRT_WITH_ASSERT_STACK
+        /* The stack dump. */
+        static volatile bool s_fDumpingStackAlready = false; /* for simple recursion prevention */
+        char   szStack[sizeof(g_szRTAssertStack)];
+        size_t cchStack = 0;
+# if defined(IN_RING3) && defined(RT_OS_WINDOWS) /** @todo make this stack on/off thing more modular. */
+        bool   fStack = !IsDebuggerPresent() && !RTEnvExist("IPRT_ASSERT_NO_STACK");
+# elif defined(IN_RING3)
+        bool   fStack = !RTEnvExist("IPRT_ASSERT_NO_STACK");
+# else
+        bool   fStack = true;
+# endif
+        szStack[0] = '\0';
+        if (fStack && !s_fDumpingStackAlready)
+        {
+            s_fDumpingStackAlready = true;
+            cchStack = RTDbgStackDumpSelf(szStack, sizeof(szStack), 0);
+            s_fDumpingStackAlready = false;
+        }
+        memcpy(g_szRTAssertStack, szStack, cchStack + 1);
+#endif
+
 #ifdef IN_RING0
 # ifdef IN_GUEST_R0
         RTLogBackdoorPrintf("\n!!Assertion Failed!!\n"
@@ -152,6 +189,9 @@ RTDECL(void) RTAssertMsg1(const char *pszExpr, unsigned uLine, const char *pszFi
                            "Expression: %s\n"
                            "Location  : %s(%d) %s\n",
                            pszExpr, pszFile, uLine, pszFunction);
+# ifdef IPRT_WITH_ASSERT_STACK
+            RTLogRelPrintf("Stack     :\n%s\n", szStack);
+# endif
 # ifndef IN_RC /* flushing is done automatically in RC */
             RTLogFlush(pLog);
 # endif
@@ -168,6 +208,9 @@ RTDECL(void) RTAssertMsg1(const char *pszExpr, unsigned uLine, const char *pszFi
                             "Expression: %s\n"
                             "Location  : %s(%d) %s\n",
                             pszExpr, pszFile, uLine, pszFunction);
+# ifdef IPRT_WITH_ASSERT_STACK
+                RTLogPrintf("Stack     :\n%s\n", szStack);
+# endif
 # ifndef IN_RC /* flushing is done automatically in RC */
                 RTLogFlush(pLog);
 # endif
@@ -184,6 +227,9 @@ RTDECL(void) RTAssertMsg1(const char *pszExpr, unsigned uLine, const char *pszFi
                 VALID_PTR(pszFile) ? pszFile : "<none>",
                 uLine,
                 VALID_PTR(pszFunction) ? pszFunction : "");
+# ifdef IPRT_WITH_ASSERT_STACK
+        fprintf(stderr, "Stack     :\n%s\n", szStack);
+# endif
         fflush(stderr);
 # endif
 #endif /* !IN_RING0 */

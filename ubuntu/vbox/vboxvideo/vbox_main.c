@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013-2017 Oracle Corporation
+ * Copyright (C) 2013-2019 Oracle Corporation
  * This file is based on ast_main.c
  * Copyright 2012 Red Hat Inc.
  *
@@ -28,12 +28,11 @@
  *          Hans de Goede <hdegoede@redhat.com>
  */
 #include "vbox_drv.h"
+#include <drm/drm_fb_helper.h>
+#include <drm/drm_crtc_helper.h>
 
 #include "vboxvideo_guest.h"
 #include "vboxvideo_vbe.h"
-
-#include <drm/drm_fb_helper.h>
-#include <drm/drm_crtc_helper.h>
 
 #include "hgsmi_channels.h"
 
@@ -42,7 +41,7 @@ static void vbox_user_framebuffer_destroy(struct drm_framebuffer *fb)
 	struct vbox_framebuffer *vbox_fb = to_vbox_framebuffer(fb);
 
 	if (vbox_fb->obj)
-		drm_gem_object_unreference_unlocked(vbox_fb->obj);
+		drm_gem_object_put_unlocked(vbox_fb->obj);
 
 	drm_framebuffer_cleanup(fb);
 	kfree(fb);
@@ -60,16 +59,15 @@ void vbox_enable_accel(struct vbox_private *vbox)
 	}
 
 	for (i = 0; i < vbox->num_crtcs; ++i) {
-		if (!vbox->vbva_info[i].vbva) {
-			vbva = (struct VBVABUFFER *)
-				((u8 *)vbox->vbva_buffers +
-						     i * VBVA_MIN_BUFFER_SIZE);
-			if (!vbva_enable(&vbox->vbva_info[i],
-					    vbox->guest_pool, vbva, i)) {
-				/* very old host or driver error. */
-				DRM_ERROR("vboxvideo: vbva_enable failed - heap allocation error.\n");
-				return;
-			}
+		if (vbox->vbva_info[i].vbva)
+			continue;
+
+		vbva = (void *)vbox->vbva_buffers + i * VBVA_MIN_BUFFER_SIZE;
+		if (!vbva_enable(&vbox->vbva_info[i],
+				 vbox->guest_pool, vbva, i)) {
+			/* very old host or driver error. */
+			DRM_ERROR("vboxvideo: vbva_enable failed\n");
+			return;
 		}
 	}
 }
@@ -84,10 +82,12 @@ void vbox_disable_accel(struct vbox_private *vbox)
 
 void vbox_report_caps(struct vbox_private *vbox)
 {
-	u32 caps = VBVACAPS_DISABLE_CURSOR_INTEGRATION
-	    | VBVACAPS_IRQ | VBVACAPS_USE_VBVA_ONLY;
+	u32 caps = VBVACAPS_DISABLE_CURSOR_INTEGRATION |
+		   VBVACAPS_IRQ | VBVACAPS_USE_VBVA_ONLY;
+
 	if (vbox->initial_mode_queried)
 		caps |= VBVACAPS_VIDEO_MODE_HINTS;
+
 	hgsmi_send_caps_info(vbox->guest_pool, caps);
 }
 
@@ -109,36 +109,31 @@ void vbox_framebuffer_dirty_rectangles(struct drm_framebuffer *fb,
 	vbox->need_refresh_timer = false;
 	mutex_lock(&vbox->hw_mutex);
 	list_for_each_entry(crtc, &fb->dev->mode_config.crtc_list, head) {
-		if (CRTC_FB(crtc) == fb) {
-			for (i = 0; i < num_rects; ++i) {
-				VBVACMDHDR cmd_hdr;
-				unsigned int crtc_id =
-				    to_vbox_crtc(crtc)->crtc_id;
+		if (CRTC_FB(crtc) != fb)
+			continue;
 
-				if ((rects[i].x1 >
-					 crtc->x + crtc->hwmode.hdisplay) ||
-				    (rects[i].y1 >
-					 crtc->y + crtc->hwmode.vdisplay) ||
-				    (rects[i].x2 < crtc->x) ||
-				    (rects[i].y2 < crtc->y))
-					continue;
+		for (i = 0; i < num_rects; ++i) {
+			VBVACMDHDR cmd_hdr;
+			unsigned int crtc_id = to_vbox_crtc(crtc)->crtc_id;
 
-				cmd_hdr.x = (s16)rects[i].x1;
-				cmd_hdr.y = (s16)rects[i].y1;
-				cmd_hdr.w = (u16)rects[i].x2 - rects[i].x1;
-				cmd_hdr.h = (u16)rects[i].y2 - rects[i].y1;
+			if ((rects[i].x1 > crtc->x + crtc->hwmode.hdisplay) ||
+			    (rects[i].y1 > crtc->y + crtc->hwmode.vdisplay) ||
+			    (rects[i].x2 < crtc->x) ||
+			    (rects[i].y2 < crtc->y))
+				continue;
 
-				if (vbva_buffer_begin_update(
-						&vbox->vbva_info[crtc_id],
-						vbox->guest_pool)) {
-					VBoxVBVAWrite(&vbox->vbva_info[crtc_id],
-						      vbox->guest_pool,
-						      &cmd_hdr,
-						      sizeof(cmd_hdr));
-					vbva_buffer_end_update(
-						&vbox->vbva_info[crtc_id]);
-				}
-			}
+			cmd_hdr.x = (s16)rects[i].x1;
+			cmd_hdr.y = (s16)rects[i].y1;
+			cmd_hdr.w = (u16)rects[i].x2 - rects[i].x1;
+			cmd_hdr.h = (u16)rects[i].y2 - rects[i].y1;
+
+			if (!vbva_buffer_begin_update(&vbox->vbva_info[crtc_id],
+						      vbox->guest_pool))
+				continue;
+
+			VBoxVBVAWrite(&vbox->vbva_info[crtc_id], vbox->guest_pool,
+				   &cmd_hdr, sizeof(cmd_hdr));
+			vbva_buffer_end_update(&vbox->vbva_info[crtc_id]);
 		}
 	}
 	mutex_unlock(&vbox->hw_mutex);
@@ -163,9 +158,10 @@ static const struct drm_framebuffer_funcs vbox_fb_funcs = {
 int vbox_framebuffer_init(struct drm_device *dev,
 			  struct vbox_framebuffer *vbox_fb,
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 5, 0) || defined(RHEL_73)
-			  const
-#endif
+			  const struct DRM_MODE_FB_CMD *mode_cmd,
+#else
 			  struct DRM_MODE_FB_CMD *mode_cmd,
+#endif
 			  struct drm_gem_object *obj)
 {
 	int ret;
@@ -196,7 +192,7 @@ static struct drm_framebuffer *vbox_user_framebuffer_create(
 {
 	struct drm_gem_object *obj;
 	struct vbox_framebuffer *vbox_fb;
-	int ret;
+	int ret = -ENOMEM;
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 7, 0) || defined(RHEL_74)
 	obj = drm_gem_object_lookup(filp, mode_cmd->handles[0]);
@@ -207,37 +203,25 @@ static struct drm_framebuffer *vbox_user_framebuffer_create(
 		return ERR_PTR(-ENOENT);
 
 	vbox_fb = kzalloc(sizeof(*vbox_fb), GFP_KERNEL);
-	if (!vbox_fb) {
-		drm_gem_object_unreference_unlocked(obj);
-		return ERR_PTR(-ENOMEM);
-	}
+	if (!vbox_fb)
+		goto err_unref_obj;
 
 	ret = vbox_framebuffer_init(dev, vbox_fb, mode_cmd, obj);
-	if (ret) {
-		drm_gem_object_unreference_unlocked(obj);
-		kfree(vbox_fb);
-		return ERR_PTR(ret);
-	}
+	if (ret)
+		goto err_free_vbox_fb;
 
 	return &vbox_fb->base;
+
+err_free_vbox_fb:
+	kfree(vbox_fb);
+err_unref_obj:
+	drm_gem_object_put_unlocked(obj);
+	return ERR_PTR(ret);
 }
 
 static const struct drm_mode_config_funcs vbox_mode_funcs = {
 	.fb_create = vbox_user_framebuffer_create,
 };
-
-static void vbox_accel_fini(struct vbox_private *vbox)
-{
-	if (vbox->vbva_info) {
-		vbox_disable_accel(vbox);
-		kfree(vbox->vbva_info);
-		vbox->vbva_info = NULL;
-	}
-	if (vbox->vbva_buffers) {
-		pci_iounmap(vbox->dev->pdev, vbox->vbva_buffers);
-		vbox->vbva_buffers = NULL;
-	}
-}
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0) && !defined(RHEL_73)
 #define pci_iomap_range(dev, bar, offset, maxlen) \
@@ -284,8 +268,8 @@ static int vbox_accel_init(struct vbox_private *vbox)
 {
 	unsigned int i, ret;
 
-	vbox->vbva_info = kcalloc(vbox->num_crtcs, sizeof(*vbox->vbva_info),
-				  GFP_KERNEL);
+	vbox->vbva_info = devm_kcalloc(vbox->dev->dev, vbox->num_crtcs,
+				       sizeof(*vbox->vbva_info), GFP_KERNEL);
 	if (!vbox->vbva_info)
 		return -ENOMEM;
 
@@ -301,9 +285,9 @@ static int vbox_accel_init(struct vbox_private *vbox)
 
 	for (i = 0; i < vbox->num_crtcs; ++i)
 		VBoxVBVASetupBufferContext(&vbox->vbva_info[i],
-					   vbox->available_vram_size +
-					   i * VBVA_MIN_BUFFER_SIZE,
-					   VBVA_MIN_BUFFER_SIZE);
+					  vbox->available_vram_size +
+					  i * VBVA_MIN_BUFFER_SIZE,
+					  VBVA_MIN_BUFFER_SIZE);
 
 	vbox_enable_accel(vbox);
 	ret = vbox_set_views(vbox);
@@ -317,6 +301,12 @@ err_pci_iounmap:
 	return ret;
 }
 
+static void vbox_accel_fini(struct vbox_private *vbox)
+{
+	vbox_disable_accel(vbox);
+	pci_iounmap(vbox->dev->pdev, vbox->vbva_buffers);
+}
+
 /** Do we support the 4.3 plus mode hint reporting interface? */
 static bool have_hgsmi_mode_hints(struct vbox_private *vbox)
 {
@@ -324,15 +314,15 @@ static bool have_hgsmi_mode_hints(struct vbox_private *vbox)
 	int ret;
 
 	ret = hgsmi_query_conf(vbox->guest_pool,
-				 VBOX_VBVA_CONF32_MODE_HINT_REPORTING,
-				 &have_hints);
-	if (RT_FAILURE(ret))
+			       VBOX_VBVA_CONF32_MODE_HINT_REPORTING,
+			       &have_hints);
+	if (ret)
 		return false;
 
 	ret = hgsmi_query_conf(vbox->guest_pool,
-				 VBOX_VBVA_CONF32_GUEST_CURSOR_REPORTING,
-				 &have_cursor);
-	if (RT_FAILURE(ret))
+			       VBOX_VBVA_CONF32_GUEST_CURSOR_REPORTING,
+			       &have_cursor);
+	if (ret)
 		return false;
 
 	return have_hints == VINF_SUCCESS && have_cursor == VINF_SUCCESS;
@@ -364,16 +354,26 @@ static void vbox_refresh_timer(struct work_struct *work)
 	schedule_delayed_work(&vbox->refresh_work, VBOX_REFRESH_PERIOD);
 }
 
+static bool vbox_check_supported(u16 id)
+{
+	u16 dispi_id;
+
+	vbox_write_ioport(VBE_DISPI_INDEX_ID, id);
+	dispi_id = inw(VBE_DISPI_IOPORT_DATA);
+
+	return dispi_id == id;
+}
+
 /**
  * Set up our heaps and data exchange buffers in VRAM before handing the rest
  * to the memory manager.
  */
 static int vbox_hw_init(struct vbox_private *vbox)
 {
-	int ret;
+	int ret = -ENOMEM;
 
-	vbox->full_vram_size = VBoxVideoGetVRAMSize();
-	vbox->any_pitch = VBoxVideoAnyWidthAllowed();
+	vbox->full_vram_size = inl(VBE_DISPI_IOPORT_DATA);
+	vbox->any_pitch = vbox_check_supported(VBE_DISPI_ID_ANYX);
 
 	DRM_INFO("VRAM %08x\n", vbox->full_vram_size);
 
@@ -387,35 +387,49 @@ static int vbox_hw_init(struct vbox_private *vbox)
 	/* Create guest-heap mem-pool use 2^4 = 16 byte chunks */
 	vbox->guest_pool = gen_pool_create(4, -1);
 	if (!vbox->guest_pool)
-		return -ENOMEM;
+		goto err_unmap_guest_heap;
 
 	ret = gen_pool_add_virt(vbox->guest_pool,
 				(unsigned long)vbox->guest_heap,
 				GUEST_HEAP_OFFSET(vbox),
 				GUEST_HEAP_USABLE_SIZE, -1);
 	if (ret)
-		return ret;
+		goto err_destroy_guest_pool;
 
 	/* Reduce available VRAM size to reflect the guest heap. */
 	vbox->available_vram_size = GUEST_HEAP_OFFSET(vbox);
 	/* Linux drm represents monitors as a 32-bit array. */
-	vbox->num_crtcs = min_t(u32, VBoxHGSMIGetMonitorCount(vbox->guest_pool),
-				VBOX_MAX_SCREENS);
+	hgsmi_query_conf(vbox->guest_pool, VBOX_VBVA_CONF32_MONITOR_COUNT,
+			 &vbox->num_crtcs);
+	vbox->num_crtcs = clamp_t(u32, vbox->num_crtcs, 1, VBOX_MAX_SCREENS);
 
-	if (!have_hgsmi_mode_hints(vbox))
-		return -ENOTSUPP;
+	if (!have_hgsmi_mode_hints(vbox)) {
+		ret = -ENOTSUPP;
+		goto err_destroy_guest_pool;
+	}
 
-	vbox->last_mode_hints =
-	    kcalloc(vbox->num_crtcs, sizeof(struct vbva_modehint), GFP_KERNEL);
-	if (!vbox->last_mode_hints)
-		return -ENOMEM;
+	vbox->last_mode_hints = devm_kcalloc(vbox->dev->dev, vbox->num_crtcs,
+					     sizeof(struct vbva_modehint),
+					     GFP_KERNEL);
+	if (!vbox->last_mode_hints) {
+		ret = -ENOMEM;
+		goto err_destroy_guest_pool;
+	}
 
 	ret = vbox_accel_init(vbox);
 	if (ret)
-		return ret;
+		goto err_destroy_guest_pool;
+
 	/* Set up the refresh timer for users which do not send dirty rectangles. */
 	INIT_DELAYED_WORK(&vbox->refresh_work, vbox_refresh_timer);
+
 	return 0;
+
+err_destroy_guest_pool:
+	gen_pool_destroy(vbox->guest_pool);
+err_unmap_guest_heap:
+	pci_iounmap(vbox->dev->pdev, vbox->guest_heap);
+	return ret;
 }
 
 static void vbox_hw_fini(struct vbox_private *vbox)
@@ -423,8 +437,8 @@ static void vbox_hw_fini(struct vbox_private *vbox)
 	vbox->need_refresh_timer = false;
 	cancel_delayed_work(&vbox->refresh_work);
 	vbox_accel_fini(vbox);
-	kfree(vbox->last_mode_hints);
-	vbox->last_mode_hints = NULL;
+	gen_pool_destroy(vbox->guest_pool);
+	pci_iounmap(vbox->dev->pdev, vbox->guest_heap);
 }
 
 int vbox_driver_load(struct drm_device *dev, unsigned long flags)
@@ -432,10 +446,10 @@ int vbox_driver_load(struct drm_device *dev, unsigned long flags)
 	struct vbox_private *vbox;
 	int ret = 0;
 
-	if (!VBoxHGSMIIsSupported())
+	if (!vbox_check_supported(VBE_DISPI_ID_HGSMI))
 		return -ENODEV;
 
-	vbox = kzalloc(sizeof(*vbox), GFP_KERNEL);
+	vbox = devm_kzalloc(dev->dev, sizeof(*vbox), GFP_KERNEL);
 	if (!vbox)
 		return -ENOMEM;
 
@@ -446,11 +460,11 @@ int vbox_driver_load(struct drm_device *dev, unsigned long flags)
 
 	ret = vbox_hw_init(vbox);
 	if (ret)
-		goto out_free;
+		return ret;
 
 	ret = vbox_mm_init(vbox);
 	if (ret)
-		goto out_free;
+		goto err_hw_fini;
 
 	drm_mode_config_init(dev);
 
@@ -463,20 +477,27 @@ int vbox_driver_load(struct drm_device *dev, unsigned long flags)
 
 	ret = vbox_mode_init(dev);
 	if (ret)
-		goto out_free;
+		goto err_drm_mode_cleanup;
 
 	ret = vbox_irq_init(vbox);
 	if (ret)
-		goto out_free;
+		goto err_mode_fini;
 
 	ret = vbox_fbdev_init(dev);
 	if (ret)
-		goto out_free;
+		goto err_irq_fini;
 
 	return 0;
 
-out_free:
-	vbox_driver_unload(dev);
+err_irq_fini:
+	vbox_irq_fini(vbox);
+err_mode_fini:
+	vbox_mode_fini(dev);
+err_drm_mode_cleanup:
+	drm_mode_config_cleanup(dev);
+	vbox_mm_fini(vbox);
+err_hw_fini:
+	vbox_hw_fini(vbox);
 	return ret;
 }
 
@@ -491,17 +512,9 @@ int vbox_driver_unload(struct drm_device *dev)
 	vbox_fbdev_fini(dev);
 	vbox_irq_fini(vbox);
 	vbox_mode_fini(dev);
-	if (dev->mode_config.funcs)
-		drm_mode_config_cleanup(dev);
-
-	vbox_hw_fini(vbox);
+	drm_mode_config_cleanup(dev);
 	vbox_mm_fini(vbox);
-	if (vbox->guest_pool)
-		gen_pool_destroy(vbox->guest_pool);
-	if (vbox->guest_heap)
-		pci_iounmap(dev->pdev, vbox->guest_heap);
-	kfree(vbox);
-	dev->dev_private = NULL;
+	vbox_hw_fini(vbox);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 0) && !defined(RHEL_75)
 	return 0;
 #endif
@@ -565,7 +578,7 @@ int vbox_dumb_create(struct drm_file *file,
 		return ret;
 
 	ret = drm_gem_handle_create(file, gobj, &handle);
-	drm_gem_object_unreference_unlocked(gobj);
+	drm_gem_object_put_unlocked(gobj);
 	if (ret)
 		return ret;
 

@@ -4,28 +4,35 @@
  */
 
 /*
- * Copyright (C) 2006-2017 Oracle Corporation
+ * Copyright (C) 2006-2019 Oracle Corporation
  *
- * This file is part of VirtualBox Open Source Edition (OSE), as
- * available from http://www.virtualbox.org. This file is free software;
- * you can redistribute it and/or modify it under the terms of the GNU
- * General Public License (GPL) as published by the Free Software
- * Foundation, in version 2 as it comes in the "COPYING" file of the
- * VirtualBox OSE distribution. VirtualBox OSE is distributed in the
- * hope that it will be useful, but WITHOUT ANY WARRANTY of any kind.
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
  *
- * The contents of this file may alternatively be used under the terms
- * of the Common Development and Distribution License Version 1.0
- * (CDDL) only, as it comes in the "COPYING.CDDL" file of the
- * VirtualBox OSE distribution, in which case the provisions of the
- * CDDL are applicable instead of those of the GPL.
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
  *
- * You may elect to license modified versions of this file under the
- * terms and conditions of either the GPL or the CDDL or both.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT.  IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef ___VBoxGuestLib_VBoxGuestR0LibInternal_h
-#define ___VBoxGuestLib_VBoxGuestR0LibInternal_h
+#ifndef GA_INCLUDED_SRC_common_VBoxGuest_lib_VBoxGuestR0LibInternal_h
+#define GA_INCLUDED_SRC_common_VBoxGuest_lib_VBoxGuestR0LibInternal_h
+#ifndef RT_WITHOUT_PRAGMA_ONCE
+# pragma once
+#endif
 
 /*
  * Define the private IDC handle structure before we include the VBoxGuestLib.h header.
@@ -42,7 +49,7 @@ struct VBGLIDCHANDLEPRIVATE
 {
     /** Pointer to the session handle. */
     void           *pvSession;
-# if defined(RT_OS_WINDOWS) && (defined(___iprt_nt_ntddk_h___) || defined(___iprt_nt_nt_h___))
+# if defined(RT_OS_WINDOWS) && (defined(IPRT_INCLUDED_nt_ntddk_h) || defined(IPRT_INCLUDED_nt_nt_h))
     /** Pointer to the NT device object. */
     PDEVICE_OBJECT  pDeviceObject;
     /** Pointer to the NT file object. */
@@ -101,14 +108,6 @@ struct _VBGLPHYSHEAPBLOCK;
 typedef struct _VBGLPHYSHEAPBLOCK VBGLPHYSHEAPBLOCK;
 struct _VBGLPHYSHEAPCHUNK;
 typedef struct _VBGLPHYSHEAPCHUNK VBGLPHYSHEAPCHUNK;
-
-#ifndef VBGL_VBOXGUEST
-struct VBGLHGCMHANDLEDATA
-{
-    uint32_t fAllocated;
-    VBGLIDCHANDLE IdcHandle;
-};
-#endif
 
 enum VbglLibStatus
 {
@@ -199,5 +198,5 @@ int VBOXCALL vbglR0QueryIdcHandle(PVBGLIDCHANDLE *ppIdcHandle);
 
 RT_C_DECLS_END
 
-#endif /* !___VBoxGuestLib_VBoxGuestR0LibInternal_h */
+#endif /* !GA_INCLUDED_SRC_common_VBoxGuest_lib_VBoxGuestR0LibInternal_h */
 

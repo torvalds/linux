@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006-2017 Oracle Corporation
+ * Copyright (C) 2006-2019 Oracle Corporation
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -23,9 +23,11 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-
-#ifndef ___VBox_Graphics_VBoxVideoGuest_h___
-#define ___VBox_Graphics_VBoxVideoGuest_h___
+#ifndef VBOX_INCLUDED_Graphics_VBoxVideoGuest_h
+#define VBOX_INCLUDED_Graphics_VBoxVideoGuest_h
+#ifndef RT_WITHOUT_PRAGMA_ONCE
+# pragma once
+#endif
 
 #include "vbox_err.h"
 #include "vbox_drv.h"
@@ -118,6 +120,8 @@ void VBoxVBVASetupBufferContext(struct vbva_buf_context * ctx,
  * @{ */
 
 u32 VBoxHGSMIGetMonitorCount(struct gen_pool * ctx);
+bool     VBoxVGACfgAvailable(void);
+bool     VBoxVGACfgQuery(u16 u16Id, u32 *pu32Value, u32 u32DefValue);
 u32 VBoxVideoGetVRAMSize(void);
 bool     VBoxVideoAnyWidthAllowed(void);
 u16 VBoxHGSMIGetScreenFlags(struct gen_pool * ctx);
@@ -171,5 +175,5 @@ int hgsmi_get_mode_hints(struct gen_pool * ctx,
 /** @}  */
 
 
-#endif
+#endif /* !VBOX_INCLUDED_Graphics_VBoxVideoGuest_h */
 

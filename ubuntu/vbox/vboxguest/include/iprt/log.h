@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2017 Oracle Corporation
+ * Copyright (C) 2006-2019 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -23,8 +23,11 @@
  * terms and conditions of either the GPL or the CDDL or both.
  */
 
-#ifndef ___iprt_log_h
-#define ___iprt_log_h
+#ifndef IPRT_INCLUDED_log_h
+#define IPRT_INCLUDED_log_h
+#ifndef RT_WITHOUT_PRAGMA_ONCE
+# pragma once
+#endif
 
 #include <iprt/cdefs.h>
 #include <iprt/types.h>
@@ -60,13 +63,14 @@ typedef enum RTLOGGROUP
     RTLOGGROUP_FS,
     RTLOGGROUP_HTTP,
     RTLOGGROUP_LDR,
+    RTLOGGROUP_LOCALIPC,
     RTLOGGROUP_PATH,
     RTLOGGROUP_PROCESS,
+    RTLOGGROUP_REST,
     RTLOGGROUP_SYMLINK,
     RTLOGGROUP_THREAD,
     RTLOGGROUP_TIME,
     RTLOGGROUP_TIMER,
-    RTLOGGROUP_LOCALIPC,
     RTLOGGROUP_VFS,
     RTLOGGROUP_ZIP = 31,
     RTLOGGROUP_FIRST_USER = 32
@@ -86,24 +90,24 @@ typedef enum RTLOGGROUP
  *              a b c d e f g h i j k l m n o p q r s t u v w x y z
  */
 #define RT_LOGGROUP_NAMES \
-    "DEFAULT",      \
-    "RT_CRYPTO",    \
-    "RT_DBG",       \
+    "DEFAULT", \
+    "RT_CRYPTO", \
+    "RT_DBG", \
     "RT_DBG_DWARF", \
-    "RT_DIR",       \
-    "RT_FILE",      \
-    "RT_FS",        \
+    "RT_DIR", \
+    "RT_FILE", \
+    "RT_FS", \
     "RT_HTTP", \
-    "RT_LDR",       \
-    "RT_PATH",      \
-    "RT_PROCESS",   \
-    "RT_SYMLINK",   \
-    "RT_THREAD",    \
-    "RT_TIME",      \
-    "RT_TIMER",     \
+    "RT_LDR", \
     "RT_LOCALIPC", \
+    "RT_PATH", \
+    "RT_PROCESS", \
+    "RT_REST", \
+    "RT_SYMLINK", \
+    "RT_THREAD", \
+    "RT_TIME", \
+    "RT_TIMER", \
     "RT_VFS", \
-    "RT_17", \
     "RT_18", \
     "RT_19", \
     "RT_20", \
@@ -128,7 +132,7 @@ typedef enum RTLOGGROUP
 #endif
 
 /** @def LOG_FN_FMT
- * You can use this to specify you desired way of printing __PRETTY_FUNCTION__
+ * You can use this to specify your desired way of printing __PRETTY_FUNCTION__
  * if you dislike the default one.
  */
 #ifndef LOG_FN_FMT
@@ -2080,10 +2084,12 @@ RTDECL(int) RTLogCreateExV(PRTLOGGER *ppLogger, uint32_t fFlags, const char *psz
  * @param   pfnFlushR0Ptr       Pointer to flush function.
  * @param   fFlags              Logger instance flags, a combination of the RTLOGFLAGS_* values.
  * @param   fDestFlags          The destination flags.
+ * @param   pszThreadName       The thread name to report in ring-0 when
+ *                              RTLOGFLAGS_PREFIX_THREAD is set.
  */
 RTDECL(int) RTLogCreateForR0(PRTLOGGER pLogger, size_t cbLogger,
                              RTR0PTR pLoggerR0Ptr, RTR0PTR pfnLoggerR0Ptr, RTR0PTR pfnFlushR0Ptr,
-                             uint32_t fFlags, uint32_t fDestFlags);
+                             uint32_t fFlags, uint32_t fDestFlags, char const *pszThreadName);
 
 /**
  * Calculates the minimum size of a ring-0 logger instance.
@@ -2564,5 +2570,5 @@ RT_C_DECLS_END
 
 /** @} */
 
-#endif
+#endif /* !IPRT_INCLUDED_log_h */
 

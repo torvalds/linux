@@ -4,24 +4,28 @@
  */
 
 /*
- * Copyright (C) 2006-2017 Oracle Corporation
+ * Copyright (C) 2006-2019 Oracle Corporation
  *
- * This file is part of VirtualBox Open Source Edition (OSE), as
- * available from http://www.virtualbox.org. This file is free software;
- * you can redistribute it and/or modify it under the terms of the GNU
- * General Public License (GPL) as published by the Free Software
- * Foundation, in version 2 as it comes in the "COPYING" file of the
- * VirtualBox OSE distribution. VirtualBox OSE is distributed in the
- * hope that it will be useful, but WITHOUT ANY WARRANTY of any kind.
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
  *
- * The contents of this file may alternatively be used under the terms
- * of the Common Development and Distribution License Version 1.0
- * (CDDL) only, as it comes in the "COPYING.CDDL" file of the
- * VirtualBox OSE distribution, in which case the provisions of the
- * CDDL are applicable instead of those of the GPL.
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
  *
- * You may elect to license modified versions of this file under the
- * terms and conditions of either the GPL or the CDDL or both.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT.  IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
  */
 
 
@@ -33,6 +37,7 @@
 #include <iprt/string.h>
 #include <iprt/assert.h>
 #include <iprt/semaphore.h>
+#include <VBox/err.h>
 
 
 /*********************************************************************************************************************************
@@ -77,7 +82,7 @@ static void vbglR0QueryHostVersion(void)
  * The VbglEnter checks the current library status, tries to retrieve these
  * values and fails if they are unavailable.
  */
-static void vbglR0QueryDriverInfo(void)
+static int vbglR0QueryDriverInfo(void)
 {
 # ifdef VBGLDATA_USE_FAST_MUTEX
     int rc = RTSemFastMutexRequest(g_vbgldata.hMtxIdcSetup);
@@ -124,6 +129,7 @@ static void vbglR0QueryDriverInfo(void)
         RTSemMutexRelease(g_vbgldata.hMtxIdcSetup);
 # endif
     }
+    return rc;
 }
 #endif /* !VBGL_VBOXGUEST */
 
@@ -179,7 +185,7 @@ static void vbglR0TerminateCommon(void)
 
 #ifdef VBGL_VBOXGUEST
 
-DECLVBGL(int) VbglR0InitPrimary(RTIOPORT portVMMDev, VMMDevMemory *pVMMDevMemory)
+DECLR0VBGL(int) VbglR0InitPrimary(RTIOPORT portVMMDev, VMMDevMemory *pVMMDevMemory, uint32_t *pfFeatures)
 {
     int rc;
 
@@ -204,6 +210,7 @@ DECLVBGL(int) VbglR0InitPrimary(RTIOPORT portVMMDev, VMMDevMemory *pVMMDevMemory
         g_vbgldata.status        = VbglStatusReady;
 
         vbglR0QueryHostVersion();
+        *pfFeatures = g_vbgldata.hostVersion.features;
         return VINF_SUCCESS;
     }
 
@@ -211,7 +218,7 @@ DECLVBGL(int) VbglR0InitPrimary(RTIOPORT portVMMDev, VMMDevMemory *pVMMDevMemory
     return rc;
 }
 
-DECLVBGL(void) VbglR0TerminatePrimary(void)
+DECLR0VBGL(void) VbglR0TerminatePrimary(void)
 {
     vbglR0TerminateCommon();
 }
@@ -219,7 +226,7 @@ DECLVBGL(void) VbglR0TerminatePrimary(void)
 
 #else /* !VBGL_VBOXGUEST */
 
-DECLVBGL(int) VbglR0InitClient(void)
+DECLR0VBGL(int) VbglR0InitClient(void)
 {
     int rc;
 
@@ -264,7 +271,7 @@ DECLVBGL(int) VbglR0InitClient(void)
     return rc;
 }
 
-DECLVBGL(void) VbglR0TerminateClient(void)
+DECLR0VBGL(void) VbglR0TerminateClient(void)
 {
 # ifdef VBOX_WITH_HGCM
     VbglR0HGCMTerminate();
@@ -303,6 +310,22 @@ int VBOXCALL vbglR0QueryIdcHandle(PVBGLIDCHANDLE *ppIdcHandle)
     }
 
     *ppIdcHandle = &g_vbgldata.IdcHandle;
+    return VINF_SUCCESS;
+}
+
+
+DECLR0VBGL(int) VbglR0QueryHostFeatures(uint32_t *pfHostFeatures)
+{
+    if (g_vbgldata.status == VbglStatusReady)
+        *pfHostFeatures = g_vbgldata.hostVersion.features;
+    else
+    {
+        int rc = vbglR0QueryDriverInfo();
+        if (g_vbgldata.status != VbglStatusReady)
+            return rc;
+        *pfHostFeatures = g_vbgldata.hostVersion.features;
+    }
+
     return VINF_SUCCESS;
 }
 

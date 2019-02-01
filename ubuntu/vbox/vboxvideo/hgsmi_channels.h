@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006-2017 Oracle Corporation
+ * Copyright (C) 2006-2019 Oracle Corporation
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -23,9 +23,11 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-
-#ifndef __HGSMI_CHANNELS_H__
-#define __HGSMI_CHANNELS_H__
+#ifndef VBOX_INCLUDED_Graphics_HGSMIChannels_h
+#define VBOX_INCLUDED_Graphics_HGSMIChannels_h
+#ifndef RT_WITHOUT_PRAGMA_ONCE
+# pragma once
+#endif
 
 
 /*
@@ -64,4 +66,4 @@
 #define HGSMI_IS_DYNAMIC_CHANNEL(_channel) (((u8)(_channel) & 0xE0) != 0)
 
 
-#endif /* !__HGSMI_CHANNELS_H__*/
+#endif /* !VBOX_INCLUDED_Graphics_HGSMIChannels_h */

@@ -4,7 +4,7 @@
  */
 
 /*
- * Copyright (C) 2006-2017 Oracle Corporation
+ * Copyright (C) 2006-2019 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -389,10 +389,14 @@ RTDECL(int)  RTErrConvertFromErrno(unsigned uNativeCode)
         case EHOSTUNREACH:      return VERR_NET_HOST_UNREACHABLE;
 #endif
 #ifdef EALREADY
+# if !defined(ENOLCK) || (EALREADY != ENOLCK)
         case EALREADY:          return VERR_NET_ALREADY_IN_PROGRESS;
+# endif
 #endif
 #ifdef EINPROGRESS
+# if !defined(ENODEV) || (EINPROGRESS != ENODEV)
         case EINPROGRESS:       return VERR_NET_IN_PROGRESS;
+# endif
 #endif
 #ifdef ESTALE
         //case ESTALE           116     /* Stale NFS file handle */

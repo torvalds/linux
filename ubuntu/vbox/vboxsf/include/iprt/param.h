@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2017 Oracle Corporation
+ * Copyright (C) 2006-2019 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -23,8 +23,11 @@
  * terms and conditions of either the GPL or the CDDL or both.
  */
 
-#ifndef ___iprt_param_h
-#define ___iprt_param_h
+#ifndef IPRT_INCLUDED_param_h
+#define IPRT_INCLUDED_param_h
+#ifndef RT_WITHOUT_PRAGMA_ONCE
+# pragma once
+#endif
 
 /** @todo Much of the PAGE_* stuff here is obsolete and highly risky to have around.
  * As for component configs (MM_*), either we gather all in here or we move those bits away! */
@@ -118,7 +121,7 @@
  * Host max path (the reasonable value).
  * @remarks defined both by iprt/param.h and iprt/path.h.
  */
-#if !defined(___iprt_path_h) || defined(DOXYGEN_RUNNING)
+#if !defined(IPRT_INCLUDED_path_h) || defined(DOXYGEN_RUNNING)
 # define RTPATH_MAX         (4096 + 4)    /* (PATH_MAX + 1) on linux w/ some alignment */
 #endif
 
@@ -127,5 +130,5 @@
 
 /** @} */
 
-#endif
+#endif /* !IPRT_INCLUDED_param_h */
 

@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2017 Oracle Corporation
+ * Copyright (C) 2006-2019 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -23,8 +23,11 @@
  * terms and conditions of either the GPL or the CDDL or both.
  */
 
-#ifndef ___iprt_types_h
-#define ___iprt_types_h
+#ifndef IPRT_INCLUDED_types_h
+#define IPRT_INCLUDED_types_h
+#ifndef RT_WITHOUT_PRAGMA_ONCE
+# pragma once
+#endif
 
 #include <iprt/cdefs.h>
 #include <iprt/stdint.h>
@@ -2086,6 +2089,13 @@ typedef RTCRDIGEST                          RT_FAR *PRTCRDIGEST;
 /** NIL cryptographic message digest handle. */
 #define NIL_RTCRDIGEST                              (0)
 
+/** Cryptographic key handle. */
+typedef R3R0PTRTYPE(struct RTCRKEYINT RT_FAR *)     RTCRKEY;
+/** Pointer to a cryptographic key handle. */
+typedef RTCRKEY                             RT_FAR *PRTCRKEY;
+/** Cryptographic key handle nil value. */
+#define NIL_RTCRKEY                                 (0)
+
 /** Public key encryption schema handle. */
 typedef R3R0PTRTYPE(struct RTCRPKIXENCRYPTIONINT RT_FAR *) RTCRPKIXENCRYPTION;
 /** Pointer to a public key encryption schema handle. */
@@ -2419,6 +2429,11 @@ typedef RTDBGMOD                            RT_FAR *PRTDBGMOD;
 /** NIL debug module handle. */
 #define NIL_RTDBGMOD                                ((RTDBGMOD)0)
 
+/** Pointer to an unwind machine state. */
+typedef struct RTDBGUNWINDSTATE RT_FAR              *PRTDBGUNWINDSTATE;
+/** Pointer to a const unwind machine state. */
+typedef struct RTDBGUNWINDSTATE const RT_FAR        *PCRTDBGUNWINDSTATE;
+
 /** Manifest handle. */
 typedef struct RTMANIFESTINT                RT_FAR *RTMANIFEST;
 /** Pointer to a manifest handle. */
@@ -2514,6 +2529,13 @@ typedef struct RTKRNLMODINFOINT             RT_FAR *RTKRNLMODINFO;
 typedef RTKRNLMODINFO                       RT_FAR *PRTKRNLMODINFO;
 /** A NIL kernel module information record handle. */
 #define NIL_RTKRNLMODINFO                          ((RTKRNLMODINFO)~(uintptr_t)0);
+
+/** Shared memory object handle. */
+typedef struct RTSHMEMINT                   RT_FAR *RTSHMEM;
+/** Pointer to a shared memory object handle. */
+typedef RTSHMEM                             RT_FAR *PRTSHMEM;
+/** A NIL shared memory object handle. */
+#define NIL_RTSHMEM                                ((RTSHMEM)~(uintptr_t)0)
 
 /**
  * Handle type.
@@ -2978,7 +3000,7 @@ typedef union RTPTRUNION
     /** As a signed integer. */
     intptr_t                i;
     /** As an unsigned integer. */
-    intptr_t                u;
+    uintptr_t               u;
     /** Pointer to char value. */
     char            RT_FAR *pch;
     /** Pointer to char value. */
@@ -2999,6 +3021,14 @@ typedef union RTPTRUNION
     uint32_t        RT_FAR *pu32;
     /** Pointer to a 64-bit unsigned value. */
     uint64_t        RT_FAR *pu64;
+    /** Pointer to a 8-bit signed value. */
+    int8_t          RT_FAR *pi8;
+    /** Pointer to a 16-bit signed value. */
+    int16_t         RT_FAR *pi16;
+    /** Pointer to a 32-bit signed value. */
+    int32_t         RT_FAR *pi32;
+    /** Pointer to a 64-bit signed value. */
+    int64_t         RT_FAR *pi64;
     /** Pointer to a UTF-16 character. */
     PRTUTF16                pwc;
     /** Pointer to a UUID character. */
@@ -3017,7 +3047,7 @@ typedef union RTCPTRUNION
     /** As a signed integer. */
     intptr_t                i;
     /** As an unsigned integer. */
-    intptr_t                u;
+    uintptr_t               u;
     /** Pointer to char value. */
     char const      RT_FAR *pch;
     /** Pointer to char value. */
@@ -3038,6 +3068,14 @@ typedef union RTCPTRUNION
     uint32_t const  RT_FAR *pu32;
     /** Pointer to a 64-bit unsigned value. */
     uint64_t const  RT_FAR *pu64;
+    /** Pointer to a 8-bit signed value. */
+    int8_t const    RT_FAR *pi8;
+    /** Pointer to a 16-bit signed value. */
+    int16_t const   RT_FAR *pi16;
+    /** Pointer to a 32-bit signed value. */
+    int32_t const   RT_FAR *pi32;
+    /** Pointer to a 64-bit signed value. */
+    int64_t const   RT_FAR *pi64;
     /** Pointer to a UTF-16 character. */
     PCRTUTF16               pwc;
     /** Pointer to a UUID character. */
@@ -3056,7 +3094,7 @@ typedef union RTVPTRUNION
     /** As a signed integer. */
     intptr_t                i;
     /** As an unsigned integer. */
-    intptr_t                u;
+    uintptr_t               u;
     /** Pointer to char value. */
     char volatile  RT_FAR *pch;
     /** Pointer to char value. */
@@ -3070,13 +3108,21 @@ typedef union RTVPTRUNION
     /** Pointer to a long value. */
     unsigned long volatile RT_FAR *pul;
     /** Pointer to a 8-bit unsigned value. */
-    uint8_t volatile RT_FAR *pu8;
+    uint8_t volatile RT_FAR  *pu8;
     /** Pointer to a 16-bit unsigned value. */
     uint16_t volatile RT_FAR *pu16;
     /** Pointer to a 32-bit unsigned value. */
     uint32_t volatile RT_FAR *pu32;
     /** Pointer to a 64-bit unsigned value. */
     uint64_t volatile RT_FAR *pu64;
+    /** Pointer to a 8-bit signed value. */
+    int8_t volatile RT_FAR   *pi8;
+    /** Pointer to a 16-bit signed value. */
+    int16_t volatile RT_FAR  *pi16;
+    /** Pointer to a 32-bit signed value. */
+    int32_t volatile RT_FAR  *pi32;
+    /** Pointer to a 64-bit signed value. */
+    int64_t volatile RT_FAR  *pi64;
     /** Pointer to a UTF-16 character. */
     RTUTF16 volatile RT_FAR *pwc;
     /** Pointer to a UUID character. */
@@ -3095,7 +3141,7 @@ typedef union RTCVPTRUNION
     /** As a signed integer. */
     intptr_t                                i;
     /** As an unsigned integer. */
-    intptr_t                                u;
+    uintptr_t                               u;
     /** Pointer to char value. */
     char const volatile             RT_FAR *pch;
     /** Pointer to char value. */
@@ -3116,6 +3162,14 @@ typedef union RTCVPTRUNION
     uint32_t const volatile         RT_FAR *pu32;
     /** Pointer to a 64-bit unsigned value. */
     uint64_t const volatile         RT_FAR *pu64;
+    /** Pointer to a 8-bit signed value. */
+    int8_t const volatile           RT_FAR *pi8;
+    /** Pointer to a 16-bit signed value. */
+    int16_t const volatile          RT_FAR *pi16;
+    /** Pointer to a 32-bit signed value. */
+    int32_t const volatile          RT_FAR *pi32;
+    /** Pointer to a 64-bit signed value. */
+    int64_t const volatile          RT_FAR *pi64;
     /** Pointer to a UTF-16 character. */
     RTUTF16 const volatile          RT_FAR *pwc;
     /** Pointer to a UUID character. */
@@ -3159,5 +3213,5 @@ public:
 #endif /* __cplusplus */
 /** @} */
 
-#endif
+#endif /* !IPRT_INCLUDED_types_h */
 

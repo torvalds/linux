@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006-2017 Oracle Corporation
+ * Copyright (C) 2006-2019 Oracle Corporation
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -25,6 +25,9 @@
 
 #ifndef __HGSMI_CH_SETUP_H__
 #define __HGSMI_CH_SETUP_H__
+#ifndef RT_WITHOUT_PRAGMA_ONCE
+# pragma once
+#endif
 
 #include "hgsmi_defs.h"
 
@@ -77,4 +80,4 @@ struct hgsmi_host_flags {
 };
 assert_compile_size(struct hgsmi_host_flags, 16);
 
-#endif
+#endif /* !__HGSMI_CH_SETUP_H__ */

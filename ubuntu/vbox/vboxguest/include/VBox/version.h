@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2017 Oracle Corporation
+ * Copyright (C) 2006-2019 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -23,8 +23,11 @@
  * terms and conditions of either the GPL or the CDDL or both.
  */
 
-#ifndef ___VBox_version_h
-#define ___VBox_version_h
+#ifndef VBOX_INCLUDED_version_h
+#define VBOX_INCLUDED_version_h
+#ifndef RT_WITHOUT_PRAGMA_ONCE
+# pragma once
+#endif
 
 /* Product info. */
 #include <product-generated.h>
@@ -149,5 +152,5 @@
 #define VBOX_RC_FILE_FLAGS              (VBOX_RC_FILE_FLAGS_DEBUG | VBOX_RC_FILE_FLAGS_PRERELEASE | VBOX_RC_FILE_FLAGS_BUILD)
 /** @} */
 
-#endif
+#endif /* !VBOX_INCLUDED_version_h */
 

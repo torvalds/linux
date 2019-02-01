@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2017 Oracle Corporation
+ * Copyright (C) 2006-2019 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -23,8 +23,11 @@
  * terms and conditions of either the GPL or the CDDL or both.
  */
 
-#ifndef ___iprt_path_h
-#define ___iprt_path_h
+#ifndef IPRT_INCLUDED_path_h
+#define IPRT_INCLUDED_path_h
+#ifndef RT_WITHOUT_PRAGMA_ONCE
+# pragma once
+#endif
 
 #include <iprt/cdefs.h>
 #include <iprt/types.h>
@@ -45,7 +48,7 @@ RT_C_DECLS_BEGIN
  * Host max path (the reasonable value).
  * @remarks defined both by iprt/param.h and iprt/path.h.
  */
-#if !defined(___iprt_param_h) || defined(DOXYGEN_RUNNING)
+#if !defined(IPRT_INCLUDED_param_h) || defined(DOXYGEN_RUNNING)
 # define RTPATH_MAX         (4096 + 4)    /* (PATH_MAX + 1) on linux w/ some alignment */
 #endif
 
@@ -64,12 +67,14 @@ RT_C_DECLS_BEGIN
 /** @name RTPATH_F_XXX - Generic flags for APIs working on the file system.
  * @{ */
 /** Last component: Work on the link. */
-#define RTPATH_F_ON_LINK          RT_BIT_32(0)
+#define RTPATH_F_ON_LINK            RT_BIT_32(0)
 /** Last component: Follow if link. */
-#define RTPATH_F_FOLLOW_LINK      RT_BIT_32(1)
+#define RTPATH_F_FOLLOW_LINK        RT_BIT_32(1)
 /** Don't allow symbolic links as part of the path.
  * @remarks this flag is currently not implemented and will be ignored. */
-#define RTPATH_F_NO_SYMLINKS      RT_BIT_32(2)
+#define RTPATH_F_NO_SYMLINKS        RT_BIT_32(2)
+/** Current RTPATH_F_XXX flag mask. */
+#define RTPATH_F_MASK               UINT32_C(0x00000007)
 /** @} */
 
 /** Validates a flags parameter containing RTPATH_F_*.
@@ -201,6 +206,12 @@ RT_C_DECLS_BEGIN
  */
 #define RTPATH_IS_SEP(a_ch)     ( RTPATH_IS_SLASH(a_ch) || RTPATH_IS_VOLSEP(a_ch) )
 
+#if defined(RT_OS_WINDOWS) || defined(DOXYGEN_RUNNING)
+/** @def RTPATH_NT_PASSTHRU_PREFIX
+ * Prefix used to access the NT namespace directly.
+ * This forms an invalid UNC name. */
+# define RTPATH_NT_PASSTHRU_PREFIX      "\\\\:iprtnt:\\"
+#endif
 
 /**
  * Checks if the path exists.
@@ -285,13 +296,18 @@ RTDECL(char *) RTPathRealDup(const char *pszPath);
 
 /**
  * Get the absolute path (starts from root, no . or .. components), doesn't have
- * to exist. Note that this method is designed to never perform actual file
- * system access, therefore symlinks are not resolved.
+ * to exist.
+ *
+ * Note that this method is designed to never perform actual file system access,
+ * therefore symlinks are not resolved.
  *
  * @returns iprt status code.
  * @param   pszPath         The path to resolve.
  * @param   pszAbsPath      Where to store the absolute path.
  * @param   cchAbsPath      Size of the buffer.
+ *
+ * @note    Current implementation is buggy and will remove trailing slashes
+ *          that would normally specify a directory.  Don't depend on this.
  */
 RTDECL(int) RTPathAbs(const char *pszPath, char *pszAbsPath, size_t cchAbsPath);
 
@@ -301,6 +317,9 @@ RTDECL(int) RTPathAbs(const char *pszPath, char *pszAbsPath, size_t cchAbsPath);
  * @returns Pointer to the absolute path. Use RTStrFree() to free this string.
  * @returns NULL if RTPathAbs() or RTStrDup() fails.
  * @param   pszPath         The path to resolve.
+ *
+ * @note    Current implementation is buggy and will remove trailing slashes
+ *          that would normally specify a directory.  Don't depend on this.
  */
 RTDECL(char *) RTPathAbsDup(const char *pszPath);
 
@@ -316,6 +335,9 @@ RTDECL(char *) RTPathAbsDup(const char *pszPath);
  * @param   pszPath         The path to resolve.
  * @param   pszAbsPath      Where to store the absolute path.
  * @param   cchAbsPath      Size of the buffer.
+ *
+ * @note    Current implementation is buggy and will remove trailing slashes
+ *          that would normally specify a directory.  Don't depend on this.
  */
 RTDECL(int) RTPathAbsEx(const char *pszBase, const char *pszPath, char *pszAbsPath, size_t cchAbsPath);
 
@@ -328,6 +350,9 @@ RTDECL(int) RTPathAbsEx(const char *pszBase, const char *pszPath, char *pszAbsPa
  *                          When NULL, the actual cwd is used (i.e. the call
  *                          is equivalent to RTPathAbs(pszPath, ...).
  * @param   pszPath         The path to resolve.
+ *
+ * @note    Current implementation is buggy and will remove trailing slashes
+ *          that would normally specify a directory.  Don't depend on this.
  */
 RTDECL(char *) RTPathAbsExDup(const char *pszBase, const char *pszPath);
 
@@ -434,6 +459,7 @@ RTDECL(size_t) RTPathParseSimple(const char *pszPath, size_t *pcchDir, ssize_t *
  * @param   pszPath     Path to find filename in.
  */
 RTDECL(char *) RTPathFilename(const char *pszPath);
+RTDECL(PRTUTF16) RTPathFilenameUtf16(PCRTUTF16 pwszPath);
 
 /**
  * Finds the filename in a path, extended version.
@@ -445,6 +471,7 @@ RTDECL(char *) RTPathFilename(const char *pszPath);
  *                      will be ignored.
  */
 RTDECL(char *) RTPathFilenameEx(const char *pszPath, uint32_t fFlags);
+RTDECL(PRTUTF16) RTPathFilenameExUtf16(PCRTUTF16 pwszPath, uint32_t fFlags);
 
 /**
  * Finds the suffix part of in a path (last dot and onwards).
@@ -1058,11 +1085,13 @@ RTDECL(int) RTPathTraverseList(const char *pszPathList, char chSep, PFNRTPATHTRA
  * @param   cbPathDst       The size of the buffer pszPathDst points to,
  *                          terminator included.
  * @param   pszPathFrom     The path to start from creating the relative path.
+ * @param   fFromFile       Whether @a pszPathFrom is a file and we should work
+ *                          relative to it's parent directory (@c true), or if
+ *                          we should assume @a pszPathFrom is a directory and
+ *                          work relative to it.
  * @param   pszPathTo       The path to reach with the created relative path.
  */
-RTDECL(int) RTPathCalcRelative(char *pszPathDst, size_t cbPathDst,
-                               const char *pszPathFrom,
-                               const char *pszPathTo);
+RTDECL(int) RTPathCalcRelative(char *pszPathDst, size_t cbPathDst, const char *pszPathFrom, bool fFromFile, const char *pszPathTo);
 
 #ifdef IN_RING3
 
@@ -1510,5 +1539,5 @@ RTDECL(void) RTPathWinFree(PRTUTF16 pwszPath);
 
 RT_C_DECLS_END
 
-#endif
+#endif /* !IPRT_INCLUDED_path_h */
 

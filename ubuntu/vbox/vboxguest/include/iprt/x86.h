@@ -5,7 +5,7 @@
  */
 
 /*
- * Copyright (C) 2006-2017 Oracle Corporation
+ * Copyright (C) 2006-2019 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -25,8 +25,11 @@
  * terms and conditions of either the GPL or the CDDL or both.
  */
 
-#ifndef ___iprt_x86_h
-#define ___iprt_x86_h
+#ifndef IPRT_INCLUDED_x86_h
+#define IPRT_INCLUDED_x86_h
+#ifndef RT_WITHOUT_PRAGMA_ONCE
+# pragma once
+#endif
 
 #ifndef VBOX_FOR_DTRACE_LIB
 # include <iprt/types.h>
@@ -393,6 +396,10 @@ typedef const X86CPUIDFEATEDX *PCX86CPUIDFEATEDX;
 #define X86_CPUID_VENDOR_VIA_EBX        0x746e6543      /* Cent */
 #define X86_CPUID_VENDOR_VIA_ECX        0x736c7561      /* auls */
 #define X86_CPUID_VENDOR_VIA_EDX        0x48727561      /* aurH */
+
+#define X86_CPUID_VENDOR_SHANGHAI_EBX   0x68532020      /*   Sh */
+#define X86_CPUID_VENDOR_SHANGHAI_ECX   0x20206961      /* ai   */
+#define X86_CPUID_VENDOR_SHANGHAI_EDX   0x68676e61      /* angh */
 /** @} */
 
 
@@ -799,8 +806,8 @@ typedef const X86CPUIDFEATEDX *PCX86CPUIDFEATEDX;
 /** Bit 6 - FlushByAsid - Indicate TLB flushing for current ASID only, and that
  *  VMCB.TLB_Control is supported. */
 #define X86_CPUID_SVM_FEATURE_EDX_FLUSH_BY_ASID             RT_BIT(6)
-/** Bit 7 - DecodeAssist - Indicate decode assist is supported. */
-#define X86_CPUID_SVM_FEATURE_EDX_DECODE_ASSIST             RT_BIT(7)
+/** Bit 7 - DecodeAssists - Indicate decode assists is supported. */
+#define X86_CPUID_SVM_FEATURE_EDX_DECODE_ASSISTS            RT_BIT(7)
 /** Bit 10 - PauseFilter - Indicates support for the PAUSE intercept filter. */
 #define X86_CPUID_SVM_FEATURE_EDX_PAUSE_FILTER              RT_BIT(10)
 /** Bit 12 - PauseFilterThreshold - Indicates support for the PAUSE
@@ -852,6 +859,7 @@ typedef const X86CPUIDFEATEDX *PCX86CPUIDFEATEDX;
 /** Bit 31 - PG - Paging. */
 #define X86_CR0_PG                          RT_BIT_32(31)
 #define X86_CR0_PAGING                      RT_BIT_32(31)
+#define X86_CR0_BIT_PG                      31 /**< Bit number of X86_CR0_PG */
 /** @} */
 
 
@@ -932,10 +940,14 @@ typedef const X86CPUIDFEATEDX *PCX86CPUIDFEATEDX;
 #define X86_DR6_BS                          RT_BIT_32(14)
 /** Bit 15 - BT - Task switch. (TSS T bit.) */
 #define X86_DR6_BT                          RT_BIT_32(15)
+/** Bit 16 - RTM - Cleared if debug exception inside RTM (@sa X86_DR7_RTM). */
+#define X86_DR6_RTM                         RT_BIT_32(16)
 /** Value of DR6 after powerup/reset. */
-#define X86_DR6_INIT_VAL                    UINT64_C(0xFFFF0FF0)
+#define X86_DR6_INIT_VAL                    UINT64_C(0xffff0ff0)
 /** Bits which must be 1s in DR6. */
 #define X86_DR6_RA1_MASK                    UINT64_C(0xffff0ff0)
+/** Bits which must be 1s in DR6, when RTM is supported. */
+#define X86_DR6_RA1_MASK_RTM                UINT64_C(0xfffe0ff0)
 /** Bits which must be 0s in DR6. */
 #define X86_DR6_RAZ_MASK                    RT_BIT_64(12)
 /** Bits which must be 0s on writes to DR6. */
@@ -966,7 +978,7 @@ typedef const X86CPUIDFEATEDX *PCX86CPUIDFEATEDX;
 #define X86_DR7_G3                          RT_BIT_32(7)
 /** Bit 8 - LE - Local breakpoint exact. (Not supported (read ignored) by P6 and later.) */
 #define X86_DR7_LE                          RT_BIT_32(8)
-/** Bit 9 - GE - Local breakpoint exact. (Not supported (read ignored) by P6 and later.) */
+/** Bit 9 - GE - Global breakpoint exact. (Not supported (read ignored) by P6 and later.) */
 #define X86_DR7_GE                          RT_BIT_32(9)
 
 /** L0, L1, L2, and L3.  */
@@ -974,6 +986,9 @@ typedef const X86CPUIDFEATEDX *PCX86CPUIDFEATEDX;
 /** L0, L1, L2, and L3.  */
 #define X86_DR7_GE_ALL                      UINT64_C(0x00000000000000aa)
 
+/** Bit 11 - RTM - Enable advanced debugging of RTM transactions.
+ * Requires IA32_DEBUGCTL.RTM=1 too, and RTM HW support of course.  */
+#define X86_DR7_RTM                         RT_BIT_32(11)
 /** Bit 12 - IR (ICE) - Interrupt redirection on Pentium.  When set, the in
  * Circuit Emulator (ICE) will break emulation on breakpoints and stuff.
  * May cause CPU hang if enabled without ICE attached when the ICEBP/INT1
@@ -1030,13 +1045,13 @@ typedef const X86CPUIDFEATEDX *PCX86CPUIDFEATEDX;
 /** @name Read/Write values.
  * @{ */
 /** Break on instruction fetch only. */
-#define X86_DR7_RW_EO                       0U
+#define X86_DR7_RW_EO                       UINT32_C(0)
 /** Break on write only. */
-#define X86_DR7_RW_WO                       1U
+#define X86_DR7_RW_WO                       UINT32_C(1)
 /** Break on I/O read/write. This is only defined if CR4.DE is set. */
-#define X86_DR7_RW_IO                       2U
+#define X86_DR7_RW_IO                       UINT32_C(2)
 /** Break on read or write (but not instruction fetches). */
-#define X86_DR7_RW_RW                       3U
+#define X86_DR7_RW_RW                       UINT32_C(3)
 /** @} */
 
 /** Shifts a X86_DR7_RW_* value to its right place.
@@ -1076,10 +1091,10 @@ AssertCompile(X86_DR7_ANY_RW_IO(UINT32_C(0x00040000)) == 0);
 
 /** @name Length values.
  * @{ */
-#define X86_DR7_LEN_BYTE                    0U
-#define X86_DR7_LEN_WORD                    1U
-#define X86_DR7_LEN_QWORD                   2U /**< AMD64 long mode only. */
-#define X86_DR7_LEN_DWORD                   3U
+#define X86_DR7_LEN_BYTE                    UINT32_C(0)
+#define X86_DR7_LEN_WORD                    UINT32_C(1)
+#define X86_DR7_LEN_QWORD                   UINT32_C(2) /**< AMD64 long mode only. */
+#define X86_DR7_LEN_DWORD                   UINT32_C(3)
 /** @} */
 
 /** Shifts a X86_DR7_LEN_* value to its right place.
@@ -1146,10 +1161,29 @@ AssertCompile(X86_DR7_ANY_RW_IO(UINT32_C(0x00040000)) == 0);
 #define MSR_CORE_THREAD_COUNT               0x35
 
 /** CPU Feature control. */
-#define MSR_IA32_FEATURE_CONTROL            0x3A
-#define MSR_IA32_FEATURE_CONTROL_LOCK       RT_BIT_32(0)
-#define MSR_IA32_FEATURE_CONTROL_SMX_VMXON  RT_BIT_32(1)
-#define MSR_IA32_FEATURE_CONTROL_VMXON      RT_BIT_32(2)
+#define MSR_IA32_FEATURE_CONTROL                      0x3A
+/** Feature control - Lock MSR from writes (R/W0). */
+#define MSR_IA32_FEATURE_CONTROL_LOCK                 RT_BIT_64(0)
+/** Feature control - Enable VMX inside SMX operation (R/WL). */
+#define MSR_IA32_FEATURE_CONTROL_SMX_VMXON            RT_BIT_64(1)
+/** Feature control - Enable VMX outside SMX operation (R/WL). */
+#define MSR_IA32_FEATURE_CONTROL_VMXON                RT_BIT_64(2)
+/** Feature control - SENTER local functions enable (R/WL).  */
+#define MSR_IA32_FEATURE_CONTROL_SENTER_LOCAL_FN_0    RT_BIT_64(8)
+#define MSR_IA32_FEATURE_CONTROL_SENTER_LOCAL_FN_1    RT_BIT_64(9)
+#define MSR_IA32_FEATURE_CONTROL_SENTER_LOCAL_FN_2    RT_BIT_64(10)
+#define MSR_IA32_FEATURE_CONTROL_SENTER_LOCAL_FN_3    RT_BIT_64(11)
+#define MSR_IA32_FEATURE_CONTROL_SENTER_LOCAL_FN_4    RT_BIT_64(12)
+#define MSR_IA32_FEATURE_CONTROL_SENTER_LOCAL_FN_5    RT_BIT_64(13)
+#define MSR_IA32_FEATURE_CONTROL_SENTER_LOCAL_FN_6    RT_BIT_64(14)
+/** Feature control - SENTER global enable (R/WL). */
+#define MSR_IA32_FEATURE_CONTROL_SENTER_GLOBAL_EN     RT_BIT_64(15)
+/** Feature control - SGX launch control enable (R/WL). */
+#define MSR_IA32_FEATURE_CONTROL_SGX_LAUNCH_EN        RT_BIT_64(17)
+/** Feature control - SGX global enable (R/WL). */
+#define MSR_IA32_FEATURE_CONTROL_SGX_GLOBAL_EN        RT_BIT_64(18)
+/** Feature control - LMCE on (R/WL). */
+#define MSR_IA32_FEATURE_CONTROL_LMCE                 RT_BIT_64(20)
 
 /** Per-processor TSC adjust MSR. */
 #define MSR_IA32_TSC_ADJUST                 0x3B
@@ -1176,6 +1210,15 @@ AssertCompile(X86_DR7_ANY_RW_IO(UINT32_C(0x00040000)) == 0);
 
 /** SMM monitor control. */
 #define MSR_IA32_SMM_MONITOR_CTL            0x9B
+/** SMM control - Valid. */
+#define MSR_IA32_SMM_MONITOR_VALID                  RT_BIT_64(0)
+/** SMM control - VMXOFF unblocks SMI. */
+#define MSR_IA32_SMM_MONITOR_VMXOFF_UNBLOCK_SMI     RT_BIT_64(2)
+/** SMM control - MSEG base physical address. */
+#define MSR_IA32_SMM_MONITOR_MSGEG_PHYSADDR(a)      (((a) >> 12) & UINT64_C(0xfffff))
+
+/** SMBASE - Base address of SMRANGE image (Read-only, SMM only). */
+#define MSR_IA32_SMBASE                     0x9E
 
 /** General performance counter no. 0. */
 #define MSR_IA32_PMC0                       0xC1
@@ -1245,6 +1288,9 @@ AssertCompile(X86_DR7_ANY_RW_IO(UINT32_C(0x00040000)) == 0);
 
 /** Page Attribute Table. */
 #define MSR_IA32_CR_PAT                     0x277
+/** Default PAT MSR value on processor powerup / reset (see Intel spec. 11.12.4
+ *  "Programming the PAT", AMD spec. 7.8.2 "PAT Indexing") */
+#define MSR_IA32_CR_PAT_INIT_VAL            UINT64_C(0x0007040600070406)
 
 /** Performance counter MSRs. (Intel only) */
 #define MSR_IA32_PERFEVTSEL0                0x186
@@ -1286,6 +1332,40 @@ AssertCompile(X86_DR7_ANY_RW_IO(UINT32_C(0x00040000)) == 0);
 
 /** Trace/Profile Resource Control (R/W) */
 #define MSR_IA32_DEBUGCTL                   UINT32_C(0x000001d9)
+/** Last branch record. */
+#define MSR_IA32_DEBUGCTL_LBR               RT_BIT_64(0)
+/** Branch trace flag (single step on branches). */
+#define MSR_IA32_DEBUGCTL_BTF               RT_BIT_64(1)
+/** Performance monitoring pin control (AMD only). */
+#define MSR_IA32_DEBUGCTL_PB0               RT_BIT_64(2)
+#define MSR_IA32_DEBUGCTL_PB1               RT_BIT_64(3)
+#define MSR_IA32_DEBUGCTL_PB2               RT_BIT_64(4)
+#define MSR_IA32_DEBUGCTL_PB3               RT_BIT_64(5)
+/** Trace message enable (Intel only). */
+#define MSR_IA32_DEBUGCTL_TR                RT_BIT_64(6)
+/** Branch trace store (Intel only). */
+#define MSR_IA32_DEBUGCTL_BTS               RT_BIT_64(7)
+/** Branch trace interrupt (Intel only). */
+#define MSR_IA32_DEBUGCTL_BTINT             RT_BIT_64(8)
+/** Branch trace off in privileged code (Intel only). */
+#define MSR_IA32_DEBUGCTL_BTS_OFF_OS        RT_BIT_64(9)
+/** Branch trace off in user code (Intel only). */
+#define MSR_IA32_DEBUGCTL_BTS_OFF_USER      RT_BIT_64(10)
+/** Freeze LBR on PMI flag (Intel only). */
+#define MSR_IA32_DEBUGCTL_FREEZE_LBR_ON_PMI       RT_BIT_64(11)
+/** Freeze PERFMON on PMI flag (Intel only). */
+#define MSR_IA32_DEBUGCTL_FREEZE_PERFMON_ON_PMI   RT_BIT_64(12)
+/** Freeze while SMM enabled (Intel only). */
+#define MSR_IA32_DEBUGCTL_FREEZE_WHILE_SMM_EM     RT_BIT_64(14)
+/** Advanced debugging of RTM regions (Intel only). */
+#define MSR_IA32_DEBUGCTL_RTM               RT_BIT_64(15)
+/** Debug control MSR valid bits (Intel only). */
+#define MSR_IA32_DEBUGCTL_VALID_MASK_INTEL  (  MSR_IA32_DEBUGCTL_LBR | MSR_IA32_DEBUGCTL_BTF   | MSR_IA32_DEBUGCTL_TR  \
+                                             | MSR_IA32_DEBUGCTL_BTS | MSR_IA32_DEBUGCTL_BTINT | MSR_IA32_DEBUGCTL_BTS_OFF_OS \
+                                             | MSR_IA32_DEBUGCTL_BTS_OFF_USER | MSR_IA32_DEBUGCTL_FREEZE_LBR_ON_PMI \
+                                             | MSR_IA32_DEBUGCTL_FREEZE_PERFMON_ON_PMI | MSR_IA32_DEBUGCTL_FREEZE_WHILE_SMM_EM \
+                                             | MSR_IA32_DEBUGCTL_RTM)
+
 /** The number (0..3 or 0..15) of the last branch record register on P4 and
  * related Xeons. */
 #define MSR_P4_LASTBRANCH_TOS               UINT32_C(0x000001da)
@@ -1349,14 +1429,14 @@ AssertCompile(X86_DR7_ANY_RW_IO(UINT32_C(0x00040000)) == 0);
 #define MSR_IA32_MC0_STATUS                 0x401
 
 /** Basic VMX information. */
-#define MSR_IA32_VMX_BASIC_INFO             0x480
-/** Allowed settings for pin-based VM execution controls */
+#define MSR_IA32_VMX_BASIC                  0x480
+/** Allowed settings for pin-based VM execution controls. */
 #define MSR_IA32_VMX_PINBASED_CTLS          0x481
-/** Allowed settings for proc-based VM execution controls */
+/** Allowed settings for proc-based VM execution controls. */
 #define MSR_IA32_VMX_PROCBASED_CTLS         0x482
-/** Allowed settings for the VMX exit controls. */
+/** Allowed settings for the VM-exit controls. */
 #define MSR_IA32_VMX_EXIT_CTLS              0x483
-/** Allowed settings for the VMX entry controls. */
+/** Allowed settings for the VM-entry controls. */
 #define MSR_IA32_VMX_ENTRY_CTLS             0x484
 /** Misc VMX info. */
 #define MSR_IA32_VMX_MISC                   0x485
@@ -1370,8 +1450,6 @@ AssertCompile(X86_DR7_ANY_RW_IO(UINT32_C(0x00040000)) == 0);
 #define MSR_IA32_VMX_CR4_FIXED1             0x489
 /** Information for enumerating fields in the VMCS. */
 #define MSR_IA32_VMX_VMCS_ENUM              0x48A
-/** Allowed settings for the VM-functions controls. */
-#define MSR_IA32_VMX_VMFUNC                 0x491
 /** Allowed settings for secondary proc-based VM execution controls */
 #define MSR_IA32_VMX_PROCBASED_CTLS2        0x48B
 /** EPT capabilities. */
@@ -1384,6 +1462,11 @@ AssertCompile(X86_DR7_ANY_RW_IO(UINT32_C(0x00040000)) == 0);
 #define MSR_IA32_VMX_TRUE_EXIT_CTLS         0x48F
 /** Allowed settings of all VMX entry controls. */
 #define MSR_IA32_VMX_TRUE_ENTRY_CTLS        0x490
+/** Allowed settings for the VM-function controls. */
+#define MSR_IA32_VMX_VMFUNC                 0x491
+
+/** Intel PT - Enable and control for trace packet generation. */
+#define MSR_IA32_RTIT_CTL                   0x570
 
 /** DS Save Area (R/W). */
 #define MSR_IA32_DS_AREA                    0x600
@@ -1494,8 +1577,10 @@ AssertCompile(X86_DR7_ANY_RW_IO(UINT32_C(0x00040000)) == 0);
 #define  MSR_K6_EFER_SCE                     RT_BIT_32(0)
 /** Bit 8 - LME - Long mode enabled. (R/W) */
 #define  MSR_K6_EFER_LME                     RT_BIT_32(8)
+#define  MSR_K6_EFER_BIT_LME                 8 /**< Bit number of MSR_K6_EFER_LME */
 /** Bit 10 - LMA - Long mode active. (R) */
 #define  MSR_K6_EFER_LMA                     RT_BIT_32(10)
+#define  MSR_K6_EFER_BIT_LMA                 10 /**< Bit number of MSR_K6_EFER_LMA */
 /** Bit 11 - NXE - No-Execute Page Protection Enabled. (R/W) */
 #define  MSR_K6_EFER_NXE                     RT_BIT_32(11)
 #define  MSR_K6_EFER_BIT_NXE                 11 /**< Bit number of MSR_K6_EFER_NXE */
@@ -1667,6 +1752,15 @@ typedef X86PGPAEUINT const *PCX86PGPAEUINT;
 #define X86_PAGE_4M_BASE_MASK               0xffffffffffc00000ULL
 /** The 4MB page base mask for virtual addresses - 32bit version. */
 #define X86_PAGE_4M_BASE_MASK_32            0xffc00000U
+
+/** The size of a 1GB page. */
+#define X86_PAGE_1G_SIZE                    _1G
+/** The page shift of a 1GB page. */
+#define X86_PAGE_1G_SHIFT                   30
+/** The 1GB page offset mask. */
+#define X86_PAGE_1G_OFFSET_MASK             0x3fffffff
+/** The 1GB page base mask for virtual addresses. */
+#define X86_PAGE_1G_BASE_MASK               UINT64_C(0xffffffffc0000000)
 
 /**
  * Check if the given address is canonical.
@@ -2696,8 +2790,10 @@ typedef union X86XMMREG
     uint64_t    au64[2];
     /** 128-bit view. (yeah, very helpful) */
     uint128_t   au128[1];
+#ifndef VBOX_FOR_DTRACE_LIB
     /** Confusing nested 128-bit union view (this is what xmm should've been). */
     RTUINT128U  uXmm;
+#endif
 } X86XMMREG;
 #ifndef VBOX_FOR_DTRACE_LIB
 AssertCompileSize(X86XMMREG, 16);
@@ -4307,5 +4403,5 @@ AssertCompile((X86_SIB_SCALE_MASK >> X86_SIB_SCALE_SHIFT) == X86_SIB_SCALE_SMASK
 
 /** @} */
 
-#endif
+#endif /* !IPRT_INCLUDED_x86_h */
 

@@ -4,7 +4,7 @@
  */
 
 /*
- * Copyright (C) 2006-2017 Oracle Corporation
+ * Copyright (C) 2006-2019 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -30,7 +30,7 @@
 *********************************************************************************************************************************/
 #include "the-linux-kernel.h"
 #include "internal/iprt.h"
-#include <iprt/err.h>
+#include <iprt/errcore.h>
 #include <iprt/assert.h>
 #include "internal/initterm.h"
 
@@ -68,7 +68,7 @@ DECLHIDDEN(void) rtR0LnxWorkqueuePush(RTR0LNXWORKQUEUEITEM *pWork, void (*pfnWor
 # if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 20)
     INIT_WORK(pWork, pfnWorker);
 # else
-    INIT_WORK(pWork, pfnWorker, pWork);
+    INIT_WORK(pWork, (void (*)(void *))pfnWorker, pWork);
 # endif
     queue_work(g_prtR0LnxWorkQueue, pWork);
 #else

@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2008-2017 Oracle Corporation
+ * Copyright (C) 2008-2019 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -23,8 +23,11 @@
  * terms and conditions of either the GPL or the CDDL or both.
  */
 
-#ifndef ___iprt_cpuset_h
-#define ___iprt_cpuset_h
+#ifndef IPRT_INCLUDED_cpuset_h
+#define IPRT_INCLUDED_cpuset_h
+#ifndef RT_WITHOUT_PRAGMA_ONCE
+# pragma once
+#endif
 
 #include <iprt/types.h>
 #include <iprt/mp.h> /* RTMpCpuIdToSetIndex */
@@ -336,5 +339,5 @@ DECLINLINE(int) RTCpuLastIndex(PCRTCPUSET pSet)
 
 RT_C_DECLS_END
 
-#endif
+#endif /* !IPRT_INCLUDED_cpuset_h */
 

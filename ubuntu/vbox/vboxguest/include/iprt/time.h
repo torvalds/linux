@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2017 Oracle Corporation
+ * Copyright (C) 2006-2019 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -23,11 +23,15 @@
  * terms and conditions of either the GPL or the CDDL or both.
  */
 
-#ifndef ___iprt_time_h
-#define ___iprt_time_h
+#ifndef IPRT_INCLUDED_time_h
+#define IPRT_INCLUDED_time_h
+#ifndef RT_WITHOUT_PRAGMA_ONCE
+# pragma once
+#endif
 
 #include <iprt/cdefs.h>
 #include <iprt/types.h>
+#include <iprt/assertcompile.h>
 
 RT_C_DECLS_BEGIN
 
@@ -427,6 +431,14 @@ DECLINLINE(PRTTIMESPEC) RTTimeSpecSetTimespec(PRTTIMESPEC pTime, const struct ti
 {
     return RTTimeSpecAddNano(RTTimeSpecSetSeconds(pTime, pTimespec->tv_sec), pTimespec->tv_nsec);
 }
+
+
+# ifdef _LINUX_TIME64_H
+DECLINLINE(PRTTIMESPEC) RTTimeSpecSetTimespec64(PRTTIMESPEC pTime, const struct timespec64 *pTimeval)
+{
+    return RTTimeSpecAddNano(RTTimeSpecSetSeconds(pTime, pTimeval->tv_sec), pTimeval->tv_nsec);
+}
+# endif
 #endif /* various ways of detecting struct timespec */
 
 
@@ -585,7 +597,6 @@ RTDECL(PRTTIMESPEC) RTTimeSpecFromString(PRTTIMESPEC pTime, const char *pszStrin
 /**
  * Exploded time.
  */
-#pragma pack(1)
 typedef struct RTTIME
 {
     /** The year number. */
@@ -609,10 +620,12 @@ typedef struct RTTIME
     uint32_t    u32Nanosecond;
     /** Flags, of the RTTIME_FLAGS_* \#defines. */
     uint32_t    fFlags;
-    /** UCT time offset in minutes (-840-840). */
+    /** UCT time offset in minutes (-840-840).  Positive for timezones east of
+     * UTC, negative for zones to the west.  Same as what RTTimeLocalDeltaNano
+     * & RTTimeLocalDeltaNanoFor returns, just different unit. */
     int32_t     offUTC;
 } RTTIME;
-#pragma pack()
+AssertCompileSize(RTTIME, 24);
 /** Pointer to a exploded time structure. */
 typedef RTTIME *PRTTIME;
 /** Pointer to a const exploded time structure. */
@@ -720,7 +733,7 @@ RTDECL(PRTTIME) RTTimeNormalize(PRTTIME pTime);
 RTDECL(PRTTIMESPEC) RTTimeLocalNow(PRTTIMESPEC pTime);
 
 /**
- * Gets the delta between UTC and local time.
+ * Gets the current delta between UTC and local time.
  *
  * @code
  *      RTTIMESPEC LocalTime;
@@ -730,6 +743,20 @@ RTDECL(PRTTIMESPEC) RTTimeLocalNow(PRTTIMESPEC pTime);
  * @returns Returns the nanosecond delta between UTC and local time.
  */
 RTDECL(int64_t) RTTimeLocalDeltaNano(void);
+
+/**
+ * Gets the delta between UTC and local time at the given time.
+ *
+ * @code
+ *      RTTIMESPEC LocalTime;
+ *      RTTimeNow(&LocalTime);
+ *      RTTimeSpecAddNano(&LocalTime, RTTimeLocalDeltaNanoFor(&LocalTime));
+ * @endcode
+ *
+ * @param   pTimeSpec   The time spec giving the time to get the delta for.
+ * @returns Returns the nanosecond delta between UTC and local time.
+ */
+RTDECL(int64_t) RTTimeLocalDeltaNanoFor(PCRTTIMESPEC pTimeSpec);
 
 /**
  * Explodes a time spec to the localized timezone.
@@ -773,6 +800,21 @@ RTDECL(PRTTIME) RTTimeConvertToZulu(PRTTIME pTime);
 RTDECL(char *) RTTimeToString(PCRTTIME pTime, char *psz, size_t cb);
 
 /**
+ * Converts a time spec to a ISO date string, extended version.
+ *
+ * @returns Output string length on success (positive), VERR_BUFFER_OVERFLOW
+ *          (negative) or VERR_OUT_OF_RANGE (negative) on failure.
+ * @param   pTime           The time. Caller should've normalized this.
+ * @param   psz             Where to store the string.
+ * @param   cb              The size of the buffer.
+ * @param   cFractionDigits Number of digits in the fraction.  Max is 9.
+ */
+RTDECL(ssize_t) RTTimeToStringEx(PCRTTIME pTime, char *psz, size_t cb, unsigned cFractionDigits);
+
+/** Suggested buffer length for RTTimeToString and RTTimeToStringEx output, including terminator. */
+#define RTTIME_STR_LEN      40
+
+/**
  * Attempts to convert an ISO date string to a time structure.
  *
  * We're a little forgiving with zero padding, unspecified parts, and leading
@@ -784,6 +826,41 @@ RTDECL(char *) RTTimeToString(PCRTTIME pTime, char *psz, size_t cb);
  * @param   pszString   The ISO date string to convert.
  */
 RTDECL(PRTTIME) RTTimeFromString(PRTTIME pTime, const char *pszString);
+
+/**
+ * Formats the given time on a RTC-2822 compliant format.
+ *
+ * @returns Output string length on success (positive), VERR_BUFFER_OVERFLOW
+ *          (negative) on failure.
+ * @param   pTime       The time. Caller should've normalized this.
+ * @param   psz         Where to store the string.
+ * @param   cb          The size of the buffer.
+ * @param   fFlags      RTTIME_RFC2822_F_XXX
+ * @sa      RTTIME_RFC2822_LEN
+ */
+RTDECL(ssize_t) RTTimeToRfc2822(PRTTIME pTime, char *psz, size_t cb, uint32_t fFlags);
+
+/** Suggested buffer length for RTTimeToRfc2822 output, including terminator. */
+#define RTTIME_RFC2822_LEN      40
+/** @name RTTIME_RFC2822_F_XXX
+ * @{ */
+/** Use the deprecated GMT timezone instead of +/-0000.
+ * This is required by the HTTP RFC-7231 7.1.1.1. */
+#define RTTIME_RFC2822_F_GMT    RT_BIT_32(0)
+/** @} */
+
+/**
+ * Attempts to convert an RFC-2822 date string to a time structure.
+ *
+ * We're a little forgiving with zero padding, unspecified parts, and leading
+ * and trailing spaces.
+ *
+ * @retval  pTime on success,
+ * @retval  NULL on failure.
+ * @param   pTime       Where to store the time on success.
+ * @param   pszString   The ISO date string to convert.
+ */
+RTDECL(PRTTIME) RTTimeFromRfc2822(PRTTIME pTime, const char *pszString);
 
 /**
  * Checks if a year is a leap year or not.
@@ -1130,5 +1207,5 @@ RTDECL(int) RTTimeZoneGetCurrent(char *pszName, size_t cbName);
 
 RT_C_DECLS_END
 
-#endif
+#endif /* !IPRT_INCLUDED_time_h */
 

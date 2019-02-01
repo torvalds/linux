@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Oracle Corporation
+ * Copyright (C) 2017-2019 Oracle Corporation
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -23,8 +23,11 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef __VBOX_ERR_H__
-#define __VBOX_ERR_H__
+#ifndef VBOX_INCLUDED_Graphics_VBoxVideoErr_h
+#define VBOX_INCLUDED_Graphics_VBoxVideoErr_h
+#ifndef RT_WITHOUT_PRAGMA_ONCE
+# pragma once
+#endif
 
 /** @name VirtualBox error macros
  * @{ */
@@ -64,4 +67,4 @@ extern int vbox_assert_var[1];
 
 /** @}  */
 
-#endif
+#endif /* !VBOX_INCLUDED_Graphics_VBoxVideoErr_h */

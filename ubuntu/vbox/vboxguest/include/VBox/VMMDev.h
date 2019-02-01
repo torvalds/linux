@@ -3,36 +3,43 @@
  */
 
 /*
- * Copyright (C) 2006-2017 Oracle Corporation
+ * Copyright (C) 2006-2019 Oracle Corporation
  *
- * This file is part of VirtualBox Open Source Edition (OSE), as
- * available from http://www.virtualbox.org. This file is free software;
- * you can redistribute it and/or modify it under the terms of the GNU
- * General Public License (GPL) as published by the Free Software
- * Foundation, in version 2 as it comes in the "COPYING" file of the
- * VirtualBox OSE distribution. VirtualBox OSE is distributed in the
- * hope that it will be useful, but WITHOUT ANY WARRANTY of any kind.
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
  *
- * The contents of this file may alternatively be used under the terms
- * of the Common Development and Distribution License Version 1.0
- * (CDDL) only, as it comes in the "COPYING.CDDL" file of the
- * VirtualBox OSE distribution, in which case the provisions of the
- * CDDL are applicable instead of those of the GPL.
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
  *
- * You may elect to license modified versions of this file under the
- * terms and conditions of either the GPL or the CDDL or both.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT.  IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef ___VBox_VMMDev_h
-#define ___VBox_VMMDev_h
+#ifndef VBOX_INCLUDED_VMMDev_h
+#define VBOX_INCLUDED_VMMDev_h
+#ifndef RT_WITHOUT_PRAGMA_ONCE
+# pragma once
+#endif
 
 #include <VBox/cdefs.h>
 #include <VBox/param.h>                 /* for the PCI IDs. */
 #include <VBox/types.h>
-#include <VBox/err.h>
 #include <VBox/ostypes.h>
 #include <VBox/VMMDevCoreTypes.h>
 #include <iprt/assertcompile.h>
+#include <iprt/errcore.h>
 
 
 #pragma pack(4) /* force structure dword packing here. */
@@ -60,6 +67,9 @@ RT_C_DECLS_BEGIN
 
 /** Port for generic request interface (relative offset). */
 #define VMMDEV_PORT_OFF_REQUEST                             0
+/** Port for requests that can be handled w/o going to ring-3 (relative offset).
+ * This works like VMMDevReq_AcknowledgeEvents when read.  */
+#define VMMDEV_PORT_OFF_REQUEST_FAST                        8
 
 
 /** @defgroup grp_vmmdev_req    VMMDev Generic Request Interface
@@ -83,11 +93,13 @@ RT_C_DECLS_BEGIN
 /** Maximum request packet size. */
 #define VMMDEV_MAX_VMMDEVREQ_SIZE           _1M
 /** Maximum number of HGCM parameters.
- * @todo r=bird: This is wrong wrt user land calls. For them it iss 61.
+ * @note This used to be 1024, which is kind of insane.  Was changed to 32,
+ *       given that (guest) user land can only pass 61 anyway.
  *       See comments on VBGLIOCHGCMCALL::cParms. */
-#define VMMDEV_MAX_HGCM_PARMS               1024
-/** Maximum total size of hgcm buffers in one call. */
-#define VMMDEV_MAX_HGCM_DATA_SIZE           UINT32_C(0x7FFFFFFF)
+#define VMMDEV_MAX_HGCM_PARMS               32
+/** Maximum total size of hgcm buffers in one call.
+ * @note Used to be 2G, since reduced to 128MB.  */
+#define VMMDEV_MAX_HGCM_DATA_SIZE           _128M
 
 /**
  * VMMDev request types.
@@ -146,6 +158,7 @@ typedef enum VMMDevRequestType
     VMMDevReq_SetGuestCapabilities       = 56,
     VMMDevReq_VideoModeSupported2        = 57, /**< @since version 3.2.0 */
     VMMDevReq_GetDisplayChangeRequestEx  = 80, /**< @since version 4.2.4 */
+    VMMDevReq_GetDisplayChangeRequestMulti = 81,
 #ifdef VBOX_WITH_HGCM
     VMMDevReq_HGCMConnect                = 60,
     VMMDevReq_HGCMDisconnect             = 61,
@@ -181,6 +194,7 @@ typedef enum VMMDevRequestType
     VMMDevReq_WriteCoreDump              = 218,
     VMMDevReq_GuestHeartbeat             = 219,
     VMMDevReq_HeartbeatConfigure         = 220,
+    VMMDevReq_NtBugCheck                 = 221,
     VMMDevReq_SizeHack                   = 0x7fffffff
 } VMMDevRequestType;
 
@@ -234,21 +248,112 @@ typedef struct VMMDevRequestHeader
      * @note VBGLREQHDR uses this for optional output size, however never for a
      *       real VMMDev request, only in the I/O control interface. */
     uint32_t reserved1;
-    /** Reserved field no.2. MBZ. */
-    uint32_t reserved2;
+    /** IN: Requestor information (VMMDEV_REQUESTOR_XXX) when
+     * VBOXGSTINFO2_F_REQUESTOR_INFO is set, otherwise ignored by the host. */
+    uint32_t fRequestor;
 } VMMDevRequestHeader;
 AssertCompileSize(VMMDevRequestHeader, 24);
+
+/** @name VMMDEV_REQUESTOR_XXX - Requestor information.
+ *
+ * This is information provided to the host by the VBoxGuest device driver, so
+ * the host can implemented fine grained access to functionality if it likes.
+ * @bugref{9105}
+ *
+ * @{ */
+/** Requestor user not given. */
+#define VMMDEV_REQUESTOR_USR_NOT_GIVEN              UINT32_C(0x00000000)
+/** The kernel driver (VBoxGuest) is the requestor. */
+#define VMMDEV_REQUESTOR_USR_DRV                    UINT32_C(0x00000001)
+/** Some other kernel driver is the requestor. */
+#define VMMDEV_REQUESTOR_USR_DRV_OTHER              UINT32_C(0x00000002)
+/** The root or a admin user is the requestor. */
+#define VMMDEV_REQUESTOR_USR_ROOT                   UINT32_C(0x00000003)
+/** Requestor is the windows system user (SID S-1-5-18). */
+#define VMMDEV_REQUESTOR_USR_SYSTEM                 UINT32_C(0x00000004)
+/** Reserved requestor user \#1, treat like VMMDEV_REQUESTOR_USR_USER. */
+#define VMMDEV_REQUESTOR_USR_RESERVED1              UINT32_C(0x00000005)
+/** Regular joe user is making the request. */
+#define VMMDEV_REQUESTOR_USR_USER                   UINT32_C(0x00000006)
+/** Requestor is a guest user (or in a guest user group). */
+#define VMMDEV_REQUESTOR_USR_GUEST                  UINT32_C(0x00000007)
+/** User classification mask. */
+#define VMMDEV_REQUESTOR_USR_MASK                   UINT32_C(0x00000007)
+
+/** Kernel mode request.
+ * @note This is zero, so test for VMMDEV_REQUESTOR_USERMODE instead.  */
+#define VMMDEV_REQUESTOR_KERNEL                     UINT32_C(0x00000000)
+/** User mode request. */
+#define VMMDEV_REQUESTOR_USERMODE                   UINT32_C(0x00000008)
+
+/** Don't know the physical console association of the requestor. */
+#define VMMDEV_REQUESTOR_CON_DONT_KNOW              UINT32_C(0x00000000)
+/** The request originates with a process that is NOT associated with the
+ * physical console. */
+#define VMMDEV_REQUESTOR_CON_NO                     UINT32_C(0x00000010)
+/** Requestor process DOES is associated with the physical console. */
+#define VMMDEV_REQUESTOR_CON_YES                    UINT32_C(0x00000020)
+/** Requestor process belongs to user on the physical console, but cannot
+ * ascertain that it is associated with that login. */
+#define VMMDEV_REQUESTOR_CON_USER                   UINT32_C(0x00000030)
+/** Requestor process belongs to user on the physical console, but cannot
+ * ascertain that it is associated with that login. */
+#define VMMDEV_REQUESTOR_CON_MASK                   UINT32_C(0x00000040)
+
+/** Requestor is member of special VirtualBox user group (not on windows). */
+#define VMMDEV_REQUESTOR_GRP_VBOX                   UINT32_C(0x00000080)
+/** Requestor is member of wheel / administrators group (SID S-1-5-32-544). */
+#define VMMDEV_REQUESTOR_GRP_WHEEL                  UINT32_C(0x00000100)
+
+/** Requestor trust level: Unspecified */
+#define VMMDEV_REQUESTOR_TRUST_NOT_GIVEN            UINT32_C(0x00000000)
+/** Requestor trust level: Untrusted (SID S-1-16-0) */
+#define VMMDEV_REQUESTOR_TRUST_UNTRUSTED            UINT32_C(0x00001000)
+/** Requestor trust level: Untrusted (SID S-1-16-4096) */
+#define VMMDEV_REQUESTOR_TRUST_LOW                  UINT32_C(0x00002000)
+/** Requestor trust level: Medium (SID S-1-16-8192) */
+#define VMMDEV_REQUESTOR_TRUST_MEDIUM               UINT32_C(0x00003000)
+/** Requestor trust level: Medium plus (SID S-1-16-8448) */
+#define VMMDEV_REQUESTOR_TRUST_MEDIUM_PLUS          UINT32_C(0x00004000)
+/** Requestor trust level: High (SID S-1-16-12288) */
+#define VMMDEV_REQUESTOR_TRUST_HIGH                 UINT32_C(0x00005000)
+/** Requestor trust level: System (SID S-1-16-16384) */
+#define VMMDEV_REQUESTOR_TRUST_SYSTEM               UINT32_C(0x00006000)
+/** Requestor trust level: Protected or higher (SID S-1-16-20480, S-1-16-28672)
+ * @note To avoid wasting an unnecessary bit, we combine the two top most
+ *       mandatory security labels on Windows (protected and secure). */
+#define VMMDEV_REQUESTOR_TRUST_PROTECTED            UINT32_C(0x00007000)
+/** Requestor trust level mask.
+ * The higher the value, the more the guest trusts the process. */
+#define VMMDEV_REQUESTOR_TRUST_MASK                 UINT32_C(0x00007000)
+
+/** Requestor is using the less trusted user device node (/dev/vboxuser). */
+#define VMMDEV_REQUESTOR_USER_DEVICE                UINT32_C(0x00008000)
+/** There is no user device node (/dev/vboxuser). */
+#define VMMDEV_REQUESTOR_NO_USER_DEVICE             UINT32_C(0x00010000)
+
+/** Legacy value for when VBOXGSTINFO2_F_REQUESTOR_INFO is clear.
+ * @internal Host only. */
+#define VMMDEV_REQUESTOR_LEGACY                     UINT32_MAX
+/** Lowest conceivable trust level, for error situations of getters.
+ * @internal Host only. */
+#define VMMDEV_REQUESTOR_LOWEST                     (  VMMDEV_REQUESTOR_TRUST_UNTRUSTED | VMMDEV_REQUESTOR_USER_DEVICE \
+                                                     | VMMDEV_REQUESTOR_CON_NO | VMMDEV_REQUESTOR_USERMODE \
+                                                     | VMMDEV_REQUESTOR_USR_GUEST)
+/** Used on the host to check whether a requestor value is present or not. */
+#define VMMDEV_REQUESTOR_IS_PRESENT(a_fRequestor)   ((a_fRequestor) != VMMDEV_REQUESTOR_LEGACY)
+/** @} */
 
 /** Initialize a VMMDevRequestHeader structure.
  * Same as VBGLREQHDR_INIT_VMMDEV(). */
 #define VMMDEV_REQ_HDR_INIT(a_pHdr, a_cb, a_enmType) \
     do { \
-        (a_pHdr)->size        = (a_cb); \
-        (a_pHdr)->version     = VMMDEV_REQUEST_HEADER_VERSION; \
-        (a_pHdr)->requestType = (a_enmType); \
-        (a_pHdr)->rc          = VERR_INTERNAL_ERROR; \
-        (a_pHdr)->reserved1   = 0; \
-        (a_pHdr)->reserved2   = 0; \
+        (a_pHdr)->size         = (a_cb); \
+        (a_pHdr)->version      = VMMDEV_REQUEST_HEADER_VERSION; \
+        (a_pHdr)->requestType  = (a_enmType); \
+        (a_pHdr)->rc           = VERR_INTERNAL_ERROR; \
+        (a_pHdr)->reserved1    = 0; \
+        (a_pHdr)->fRequestor   = 0; \
     } while (0)
 
 
@@ -435,10 +540,16 @@ typedef struct
 } VMMDevReqHostVersion;
 AssertCompileSize(VMMDevReqHostVersion, 24+16);
 
-/** @name VMMDevReqHostVersion::features
+/** @name VMMDEV_HVF_XXX - VMMDevReqHostVersion::features
  * @{ */
 /** Physical page lists are supported by HGCM. */
-#define VMMDEV_HVF_HGCM_PHYS_PAGE_LIST  RT_BIT(0)
+#define VMMDEV_HVF_HGCM_PHYS_PAGE_LIST          RT_BIT_32(0)
+/** HGCM supports the embedded buffer parameter type. */
+#define VMMDEV_HVF_HGCM_EMBEDDED_BUFFERS        RT_BIT_32(1)
+/** HGCM supports the contiguous page list parameter type. */
+#define VMMDEV_HVF_HGCM_CONTIGUOUS_PAGE_LIST    RT_BIT_32(2)
+/** VMMDev supports fast IRQ acknowledgements. */
+#define VMMDEV_HVF_FAST_IRQ_ACK                 RT_BIT_32(31)
 /** @} */
 
 
@@ -650,7 +761,7 @@ typedef struct VBoxGuestInfo2
     uint32_t additionsBuild;
     /** SVN revision. */
     uint32_t additionsRevision;
-    /** Feature mask, currently unused. */
+    /** Feature mask, VBOXGSTINFO2_F_XXX. */
     uint32_t additionsFeatures;
     /** The intentional meaning of this field was:
      * Some additional information, for example 'Beta 1' or something like that.
@@ -664,6 +775,13 @@ typedef struct VBoxGuestInfo2
     char     szName[128];
 } VBoxGuestInfo2;
 AssertCompileSize(VBoxGuestInfo2, 144);
+
+/** @name VBOXGSTINFO2_F_XXX - Features
+ * @{ */
+/** Request header carries requestor information. */
+#define VBOXGSTINFO2_F_REQUESTOR_INFO       RT_BIT_32(0)
+/** @} */
+
 
 /**
  * Guest information report, version 2.
@@ -1067,6 +1185,41 @@ typedef struct
 AssertCompileSize(VMMDevDisplayChangeRequestEx, 24+32);
 
 
+/** Flags for VMMDevDisplayDef::fDisplayFlags */
+#define VMMDEV_DISPLAY_PRIMARY  UINT32_C(0x00000001) /**< Primary display. */
+#define VMMDEV_DISPLAY_DISABLED UINT32_C(0x00000002) /**< Display is disabled. */
+#define VMMDEV_DISPLAY_ORIGIN   UINT32_C(0x00000004) /**< Change position of the diplay. */
+#define VMMDEV_DISPLAY_CX       UINT32_C(0x00000008) /**< Change the horizontal resolution of the display. */
+#define VMMDEV_DISPLAY_CY       UINT32_C(0x00000010) /**< Change the vertical resolution of the display. */
+#define VMMDEV_DISPLAY_BPP      UINT32_C(0x00000020) /**< Change the color depth of the display. */
+
+/** Definition of one monitor. Used by VMMDevReq_GetDisplayChangeRequestMulti. */
+typedef struct VMMDevDisplayDef
+{
+    uint32_t fDisplayFlags;             /**< VMMDEV_DISPLAY_* flags. */
+    uint32_t idDisplay;                 /**< The display number. */
+    int32_t  xOrigin;                   /**< New OriginX of the guest screen. */
+    int32_t  yOrigin;                   /**< New OriginY of the guest screen.  */
+    uint32_t cx;                        /**< Horizontal pixel resolution. */
+    uint32_t cy;                        /**< Vertical pixel resolution. */
+    uint32_t cBitsPerPixel;             /**< Bits per pixel. */
+} VMMDevDisplayDef;
+AssertCompileSize(VMMDevDisplayDef, 28);
+
+/** Multimonitor display change request structure. Used by VMMDevReq_GetDisplayChangeRequestMulti. */
+typedef struct VMMDevDisplayChangeRequestMulti
+{
+    VMMDevRequestHeader header;         /**< Header. */
+    uint32_t eventAck;                  /**< Setting this to VMMDEV_EVENT_DISPLAY_CHANGE_REQUEST indicates
+                                         * that the request is a response to that event.
+                                         * (Don't confuse this with VMMDevReq_AcknowledgeEvents.) */
+    uint32_t cDisplays;                 /**< Number of monitors. In: how many the guest expects.
+                                         *                      Out: how many the host provided. */
+    VMMDevDisplayDef aDisplays[1];      /**< Layout of monitors. */
+} VMMDevDisplayChangeRequestMulti;
+AssertCompileSize(VMMDevDisplayChangeRequestMulti, 24+8+28);
+
+
 /**
  * Video mode supported request structure.
  *
@@ -1251,16 +1404,7 @@ typedef struct
 AssertCompileSize(VMMDevGetCpuHotPlugRequest, 24+4+4+4);
 
 
-/**
- * Shared region description
- */
-typedef struct VMMDEVSHAREDREGIONDESC
-{
-    RTGCPTR64           GCRegionAddr;
-    uint32_t            cbRegion;
-    uint32_t            u32Alignment;
-} VMMDEVSHAREDREGIONDESC;
-AssertCompileSize(VMMDEVSHAREDREGIONDESC, 16);
+AssertCompileSize(VMMDEVSHAREDREGIONDESC, 16); /* structure was promoted to VBox/types.h. */
 
 #define VMMDEVSHAREDREGIONDESC_MAX          32
 
@@ -1383,8 +1527,11 @@ typedef struct
 } VMMDevReqWriteCoreDump;
 AssertCompileSize(VMMDevReqWriteCoreDump, 24+4);
 
-/** Heart beat check state structure.
- *  Used by VMMDevReq_HeartbeatConfigure. */
+
+/**
+ * Heart beat check state structure.
+ * Used by VMMDevReq_HeartbeatConfigure.
+ */
 typedef struct
 {
     /** Header. */
@@ -1395,6 +1542,23 @@ typedef struct
     bool                        fEnabled;
 } VMMDevReqHeartbeat;
 AssertCompileSize(VMMDevReqHeartbeat, 24+12);
+
+
+/**
+ * NT bug check report.
+ * Used by VMMDevReq_NtBugCheck.
+ * @remarks  Can be issued with just the header if no more data is available.
+ */
+typedef struct
+{
+    /** Header. */
+    VMMDevRequestHeader         header;
+    /** The bug check number (P0). */
+    uint64_t                    uBugCheck;
+    /** The four bug check parameters. */
+    uint64_t                    auParameters[4];
+} VMMDevReqNtBugCheck;
+AssertCompileSize(VMMDevReqNtBugCheck, 24+40);
 
 
 
@@ -1487,7 +1651,7 @@ AssertCompileSize(VMMDevHGCMCall, 32+12);
 /** Macro for validating that the specified flags are valid. */
 #define VBOX_HGCM_F_PARM_ARE_VALID(fFlags) \
     (   (fFlags) > VBOX_HGCM_F_PARM_DIRECTION_NONE \
-     && (fFlags) < VBOX_HGCM_F_PARM_DIRECTION_BOTH )
+     && (fFlags) <= VBOX_HGCM_F_PARM_DIRECTION_BOTH )
 /** @} */
 
 /**
@@ -1601,6 +1765,8 @@ DECLINLINE(size_t) vmmdevGetRequestSize(VMMDevRequestType requestType)
             return sizeof(VMMDevDisplayChangeRequest2);
         case VMMDevReq_GetDisplayChangeRequestEx:
             return sizeof(VMMDevDisplayChangeRequestEx);
+        case VMMDevReq_GetDisplayChangeRequestMulti:
+            return RT_UOFFSETOF(VMMDevDisplayChangeRequestMulti, aDisplays[0]);
         case VMMDevReq_VideoModeSupported:
             return sizeof(VMMDevVideoModeSupportedRequest);
         case VMMDevReq_GetHeightReduction:
@@ -1700,7 +1866,7 @@ DECLINLINE(int) vmmdevInitRequest(VMMDevRequestHeader *req, VMMDevRequestType ty
     req->requestType = type;
     req->rc          = VERR_GENERAL_FAILURE;
     req->reserved1   = 0;
-    req->reserved2   = 0;
+    req->fRequestor  = 0;
     return VINF_SUCCESS;
 }
 
@@ -1819,5 +1985,5 @@ AssertCompileMemberOffset(VMMDevMemory, vbvaMemory, 16);
 RT_C_DECLS_END
 #pragma pack()
 
-#endif
+#endif /* !VBOX_INCLUDED_VMMDev_h */
 

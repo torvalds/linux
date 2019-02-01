@@ -4,7 +4,7 @@
  */
 
 /*
- * Copyright (C) 2006-2017 Oracle Corporation
+ * Copyright (C) 2006-2019 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -41,8 +41,9 @@
 #include <iprt/string.h>
 #include <iprt/stdarg.h>
 #ifdef IN_RING3
+# include <iprt/errcore.h>
 # include <iprt/thread.h>
-# include <iprt/err.h>
+# include <iprt/utf16.h>
 #endif
 #include <iprt/ctype.h>
 #include <iprt/time.h>
@@ -60,6 +61,9 @@
 *   Global Variables                                                                                                             *
 *********************************************************************************************************************************/
 static char g_szHexDigits[17] = "0123456789abcdef";
+#ifdef IN_RING3
+static char g_szHexDigitsUpper[17] = "0123456789ABCDEF";
+#endif
 
 
 /**
@@ -816,11 +820,12 @@ DECLHIDDEN(size_t) rtstrFormatRt(PFNRTSTROUTPUT pfnOutput, void *pvArgOutput, co
 
 
             /*
-             * hex dumping and COM/XPCOM.
+             * hex dumping, COM/XPCOM, human readable sizes.
              */
             case 'h':
             {
-                switch (*(*ppszFormat)++)
+                ch = *(*ppszFormat)++;
+                switch (ch)
                 {
                     /*
                      * Hex stuff.
@@ -982,6 +987,125 @@ DECLHIDDEN(size_t) rtstrFormatRt(PFNRTSTROUTPUT pfnOutput, void *pvArgOutput, co
                         break;
                     }
 #endif /* IN_RING3 */
+
+                    case 'c':
+                    case 'u':
+                    {
+                        unsigned    i;
+                        ssize_t     cchBuf;
+                        uint64_t    uValue;
+                        uint64_t    uFraction = 0;
+                        const char *pszPrefix = NULL;
+                        unsigned    cchFixedPart;
+                        char        ch2 = *(*ppszFormat)++;
+                        AssertMsgReturn(ch2 == 'b' || ch2 == 'i', ("invalid type '%.10s'!\n", pszFormatOrg), 0);
+                        uValue = va_arg(*pArgs, uint64_t);
+
+                        if (!(fFlags & RTSTR_F_PRECISION))
+                            cchPrecision = 1;
+                        else if (cchPrecision > 3)
+                            cchPrecision = 3;
+                        else if (cchPrecision < 0)
+                            cchPrecision = 0;
+
+                        cchFixedPart = cchPrecision + (cchPrecision != 0) + (ch == 'c');
+
+                        if (ch2 == 'b')
+                        {
+                            static const struct
+                            {
+                                const char *pszPrefix;
+                                uint8_t     cShift;
+                                uint64_t    cbMin;
+                                uint64_t    cbMinZeroPrecision;
+                            } s_aUnits[] =
+                            {
+                                {  "Ei", 60, _1E,  _1E*2 },
+                                {  "Pi", 50, _1P,  _1P*2 },
+                                {  "Ti", 40, _1T,  _1T*2 },
+                                {  "Gi", 30, _1G,  _1G64*2 },
+                                {  "Mi", 20, _1M,  _1M*2 },
+                                {  "Ki", 10, _1K,  _1K*2 },
+                            };
+                            for (i = 0; i < RT_ELEMENTS(s_aUnits); i++)
+                                if (   uValue >= s_aUnits[i].cbMin
+                                    && (cchPrecision > 0 || uValue >= s_aUnits[i].cbMinZeroPrecision))
+                                {
+                                    if (cchPrecision != 0)
+                                    {
+                                        uFraction   = uValue & (RT_BIT_64(s_aUnits[i].cShift) - 1);
+                                        uFraction  *= cchPrecision == 1 ? 10 : cchPrecision == 2 ? 100 : 1000;
+                                        uFraction >>= s_aUnits[i].cShift;
+                                    }
+                                    uValue  >>= s_aUnits[i].cShift;
+                                    pszPrefix = s_aUnits[i].pszPrefix;
+                                    cchFixedPart += 2;
+                                    break;
+                                }
+                        }
+                        else
+                        {
+                            static const struct
+                            {
+                                const char *pszPrefix;
+                                uint64_t    cbFactor;
+                                uint64_t    cbMinZeroPrecision;
+                            } s_aUnits[] =
+                            {
+                                {  "E", UINT64_C(1000000000000000000), UINT64_C(1010000000000000000),  },
+                                {  "P", UINT64_C(1000000000000000),    UINT64_C(1010000000000000),     },
+                                {  "T", UINT64_C(1000000000000),       UINT64_C(1010000000000),        },
+                                {  "G", UINT64_C(1000000000),          UINT64_C(1010000000),           },
+                                {  "M", UINT64_C(1000000),             UINT64_C(1010000),              },
+                                {  "k", UINT64_C(1000),                UINT64_C(1010),                 },
+                            };
+                            for (i = 0; i < RT_ELEMENTS(s_aUnits); i++)
+                                if (   uValue >= s_aUnits[i].cbFactor
+                                    && (cchPrecision > 0 || uValue >= s_aUnits[i].cbMinZeroPrecision))
+                                {
+                                    if (cchPrecision == 0)
+                                        uValue /= s_aUnits[i].cbFactor;
+                                    else
+                                    {
+                                        uFraction   = uValue % s_aUnits[i].cbFactor;
+                                        uValue      = uValue / s_aUnits[i].cbFactor;
+                                        uFraction  *= cchPrecision == 1 ? 10 : cchPrecision == 2 ? 100 : 1000;
+                                        uFraction  += s_aUnits[i].cbFactor >> 1;
+                                        uFraction  /= s_aUnits[i].cbFactor;
+                                    }
+                                    pszPrefix = s_aUnits[i].pszPrefix;
+                                    cchFixedPart += 1;
+                                    break;
+                                }
+                        }
+
+                        cchBuf = RTStrFormatU64(szBuf, sizeof(szBuf), uValue, 10, 0, 0, 0);
+                        if (pszPrefix)
+                        {
+                            if (cchPrecision)
+                            {
+                                szBuf[cchBuf++] = '.';
+                                cchBuf += RTStrFormatU64(&szBuf[cchBuf], sizeof(szBuf) - cchBuf, uFraction, 10, cchPrecision, 0,
+                                                         RTSTR_F_ZEROPAD | RTSTR_F_WIDTH);
+                            }
+                            szBuf[cchBuf++] = *pszPrefix++;
+                            if (*pszPrefix)
+                                szBuf[cchBuf++] = *pszPrefix;
+                        }
+                        if (ch == 'c')
+                            szBuf[cchBuf++] = 'B';
+                        szBuf[cchBuf] = '\0';
+
+                        cch = 0;
+                        if ((fFlags & RTSTR_F_WIDTH) && !(fFlags & RTSTR_F_LEFT))
+                            while (cchBuf < cchWidth)
+                            {
+                                cch += pfnOutput(pvArgOutput, fFlags & RTSTR_F_ZEROPAD ? "0" : " ", 1);
+                                cchWidth--;
+                            }
+                        cch += pfnOutput(pvArgOutput, szBuf, cchBuf);
+                        return cch;
+                    }
 
                     default:
                         AssertMsgFailed(("Invalid status code format type '%.10s'!\n", pszFormatOrg));
@@ -1167,80 +1291,226 @@ DECLHIDDEN(size_t) rtstrFormatRt(PFNRTSTROUTPUT pfnOutput, void *pvArgOutput, co
             }
 
 #ifdef IN_RING3
+
             /*
-             * Group 5, XML / HTML escapers.
+             * Group 5, XML / HTML, JSON and URI escapers.
              */
             case 'M':
             {
                 char chWhat = (*ppszFormat)[0];
-                bool fAttr  = chWhat == 'a';
-                char chType = (*ppszFormat)[1];
-                AssertMsgBreak(chWhat == 'a' || chWhat == 'e', ("Invalid IPRT format type '%.10s'!\n", pszFormatOrg));
-                *ppszFormat += 2;
-                switch (chType)
+                if (chWhat == 'a' || chWhat == 'e')
                 {
-                    case 's':
+                    /* XML attributes and element values. */
+                    bool fAttr  = chWhat == 'a';
+                    char chType = (*ppszFormat)[1];
+                    *ppszFormat += 2;
+                    switch (chType)
                     {
-                        static const char   s_szElemEscape[] = "<>&\"'";
-                        static const char   s_szAttrEscape[] = "<>&\"\n\r"; /* more? */
-                        const char * const  pszEscape =  fAttr ?             s_szAttrEscape  :             s_szElemEscape;
-                        size_t       const  cchEscape = (fAttr ? RT_ELEMENTS(s_szAttrEscape) : RT_ELEMENTS(s_szElemEscape)) - 1;
-                        size_t      cchOutput = 0;
-                        const char *pszStr    = va_arg(*pArgs, char *);
-                        ssize_t     cchStr;
-                        ssize_t     offCur;
-                        ssize_t     offLast;
+                        case 's':
+                        {
+                            static const char   s_szElemEscape[] = "<>&\"'";
+                            static const char   s_szAttrEscape[] = "<>&\"\n\r"; /* more? */
+                            const char * const  pszEscape =  fAttr ?             s_szAttrEscape  :             s_szElemEscape;
+                            size_t       const  cchEscape = (fAttr ? RT_ELEMENTS(s_szAttrEscape) : RT_ELEMENTS(s_szElemEscape)) - 1;
+                            size_t      cchOutput = 0;
+                            const char *pszStr    = va_arg(*pArgs, char *);
+                            ssize_t     cchStr;
+                            ssize_t     offCur;
+                            ssize_t     offLast;
 
-                        if (!VALID_PTR(pszStr))
-                            pszStr = "<NULL>";
-                        cchStr = RTStrNLen(pszStr, (unsigned)cchPrecision);
+                            if (!VALID_PTR(pszStr))
+                                pszStr = "<NULL>";
+                            cchStr = RTStrNLen(pszStr, (unsigned)cchPrecision);
 
-                        if (fAttr)
-                            cchOutput += pfnOutput(pvArgOutput, "\"", 1);
-                        if (!(fFlags & RTSTR_F_LEFT))
+                            if (fAttr)
+                                cchOutput += pfnOutput(pvArgOutput, "\"", 1);
+                            if (!(fFlags & RTSTR_F_LEFT))
+                                while (--cchWidth >= cchStr)
+                                    cchOutput += pfnOutput(pvArgOutput, " ", 1);
+
+                            offLast = offCur = 0;
+                            while (offCur < cchStr)
+                            {
+                                if (memchr(pszEscape, pszStr[offCur], cchEscape))
+                                {
+                                    if (offLast < offCur)
+                                        cchOutput += pfnOutput(pvArgOutput, &pszStr[offLast], offCur - offLast);
+                                    switch (pszStr[offCur])
+                                    {
+                                        case '<':   cchOutput += pfnOutput(pvArgOutput, "&lt;", 4); break;
+                                        case '>':   cchOutput += pfnOutput(pvArgOutput, "&gt;", 4); break;
+                                        case '&':   cchOutput += pfnOutput(pvArgOutput, "&amp;", 5); break;
+                                        case '\'':  cchOutput += pfnOutput(pvArgOutput, "&apos;", 6); break;
+                                        case '"':   cchOutput += pfnOutput(pvArgOutput, "&quot;", 6); break;
+                                        case '\n':  cchOutput += pfnOutput(pvArgOutput, "&#xA;", 5); break;
+                                        case '\r':  cchOutput += pfnOutput(pvArgOutput, "&#xD;", 5); break;
+                                        default:
+                                            AssertFailed();
+                                    }
+                                    offLast = offCur + 1;
+                                }
+                                offCur++;
+                            }
+                            if (offLast < offCur)
+                                cchOutput += pfnOutput(pvArgOutput, &pszStr[offLast], offCur - offLast);
+
                             while (--cchWidth >= cchStr)
                                 cchOutput += pfnOutput(pvArgOutput, " ", 1);
-
-                        offLast = offCur = 0;
-                        while (offCur < cchStr)
-                        {
-                            if (memchr(pszEscape, pszStr[offCur], cchEscape))
-                            {
-                                if (offLast < offCur)
-                                    cchOutput += pfnOutput(pvArgOutput, &pszStr[offLast], offCur - offLast);
-                                switch (pszStr[offCur])
-                                {
-                                    case '<':   cchOutput += pfnOutput(pvArgOutput, "&lt;", 4); break;
-                                    case '>':   cchOutput += pfnOutput(pvArgOutput, "&gt;", 4); break;
-                                    case '&':   cchOutput += pfnOutput(pvArgOutput, "&amp;", 5); break;
-                                    case '\'':  cchOutput += pfnOutput(pvArgOutput, "&apos;", 6); break;
-                                    case '"':   cchOutput += pfnOutput(pvArgOutput, "&quot;", 6); break;
-                                    case '\n':  cchOutput += pfnOutput(pvArgOutput, "&#xA;", 5); break;
-                                    case '\r':  cchOutput += pfnOutput(pvArgOutput, "&#xD;", 5); break;
-                                    default:
-                                        AssertFailed();
-                                }
-                                offLast = offCur + 1;
-                            }
-                            offCur++;
+                            if (fAttr)
+                                cchOutput += pfnOutput(pvArgOutput, "\"", 1);
+                            return cchOutput;
                         }
-                        if (offLast < offCur)
-                            cchOutput += pfnOutput(pvArgOutput, &pszStr[offLast], offCur - offLast);
 
-                        while (--cchWidth >= cchStr)
-                            cchOutput += pfnOutput(pvArgOutput, " ", 1);
-                        if (fAttr)
-                            cchOutput += pfnOutput(pvArgOutput, "\"", 1);
-                        return cchOutput;
+                        default:
+                            AssertMsgFailed(("Invalid IPRT format type '%.10s'!\n", pszFormatOrg));
                     }
-
-                    default:
-                        AssertMsgFailed(("Invalid IPRT format type '%.10s'!\n", pszFormatOrg));
                 }
+                else if (chWhat == 'j')
+                {
+                    /* JSON string escaping. */
+                    char const chType = (*ppszFormat)[1];
+                    *ppszFormat += 2;
+                    switch (chType)
+                    {
+                        case 's':
+                        {
+                            const char *pszStr = va_arg(*pArgs, char *);
+                            size_t      cchOutput;
+                            ssize_t     cchStr;
+                            ssize_t     offCur;
+                            ssize_t     offLast;
+
+                            if (!VALID_PTR(pszStr))
+                                pszStr = "<NULL>";
+                            cchStr = RTStrNLen(pszStr, (unsigned)cchPrecision);
+
+                            cchOutput = pfnOutput(pvArgOutput, "\"", 1);
+                            if (!(fFlags & RTSTR_F_LEFT))
+                                while (--cchWidth >= cchStr)
+                                    cchOutput += pfnOutput(pvArgOutput, " ", 1);
+
+                            offLast = offCur = 0;
+                            while (offCur < cchStr)
+                            {
+                                unsigned int const uch = pszStr[offCur];
+                                if (   uch >= 0x5d
+                                    || (uch >= 0x20 && uch != 0x22 && uch != 0x5c))
+                                    offCur++;
+                                else
+                                {
+                                    if (offLast < offCur)
+                                        cchOutput += pfnOutput(pvArgOutput, &pszStr[offLast], offCur - offLast);
+                                    switch ((char)uch)
+                                    {
+                                        case '"':   cchOutput += pfnOutput(pvArgOutput, "\\\"", 2); break;
+                                        case '\\':  cchOutput += pfnOutput(pvArgOutput, "\\\\", 2); break;
+                                        case '/':   cchOutput += pfnOutput(pvArgOutput, "\\/", 2); break;
+                                        case '\b':  cchOutput += pfnOutput(pvArgOutput, "\\b", 2); break;
+                                        case '\f':  cchOutput += pfnOutput(pvArgOutput, "\\f", 2); break;
+                                        case '\n':  cchOutput += pfnOutput(pvArgOutput, "\\n", 2); break;
+                                        case '\t':  cchOutput += pfnOutput(pvArgOutput, "\\t", 2); break;
+                                        default:
+                                        {
+                                            RTUNICP     uc     = 0xfffd; /* replacement character */
+                                            const char *pszCur = &pszStr[offCur];
+                                            int rc = RTStrGetCpEx(&pszCur, &uc);
+                                            if (RT_SUCCESS(rc))
+                                                offCur += pszCur - &pszStr[offCur] - 1;
+                                            if (uc >= 0xfffe)
+                                                uc = 0xfffd;             /* replacement character */
+                                            szBuf[0] = '\\';
+                                            szBuf[1] = 'u';
+                                            szBuf[2] = g_szHexDigits[(uc >> 12) & 0xf];
+                                            szBuf[3] = g_szHexDigits[(uc >>  8) & 0xf];
+                                            szBuf[4] = g_szHexDigits[(uc >>  4) & 0xf];
+                                            szBuf[5] = g_szHexDigits[ uc        & 0xf];
+                                            szBuf[6] = '\0';
+                                            cchOutput += pfnOutput(pvArgOutput, szBuf, 6);
+                                            break;
+                                        }
+                                    }
+                                    offLast = ++offCur;
+                                }
+                            }
+                            if (offLast < offCur)
+                                cchOutput += pfnOutput(pvArgOutput, &pszStr[offLast], offCur - offLast);
+
+                            while (--cchWidth >= cchStr)
+                                cchOutput += pfnOutput(pvArgOutput, " ", 1);
+                            cchOutput += pfnOutput(pvArgOutput, "\"", 1);
+                            return cchOutput;
+                        }
+
+                        default:
+                            AssertMsgFailed(("Invalid IPRT format type '%.10s'!\n", pszFormatOrg));
+                    }
+                }
+                else if (chWhat == 'p')
+                {
+                    /* Percent encoded string (RTC-3986). */
+                    char const  chVariant = (*ppszFormat)[1];
+                    char const  chAddSafe = chVariant == 'p' ? '/'
+                                          : chVariant == 'q' ? '+' /* '+' in queries is problematic, so no escape. */
+                                          :                    '~' /* whatever */;
+                    size_t      cchOutput = 0;
+                    const char *pszStr    = va_arg(*pArgs, char *);
+                    ssize_t     cchStr;
+                    ssize_t     offCur;
+                    ssize_t     offLast;
+
+                    *ppszFormat += 2;
+                    AssertMsgBreak(chVariant == 'a' || chVariant == 'p' || chVariant == 'q' || chVariant == 'f',
+                                   ("Invalid IPRT format type '%.10s'!\n", pszFormatOrg));
+
+                    if (!VALID_PTR(pszStr))
+                        pszStr = "<NULL>";
+                    cchStr = RTStrNLen(pszStr, (unsigned)cchPrecision);
+
+                    if (!(fFlags & RTSTR_F_LEFT))
+                        while (--cchWidth >= cchStr)
+                            cchOutput += pfnOutput(pvArgOutput, "%20", 3);
+
+                    offLast = offCur = 0;
+                    while (offCur < cchStr)
+                    {
+                        ch = pszStr[offCur];
+                        if (   RT_C_IS_ALPHA(ch)
+                            || RT_C_IS_DIGIT(ch)
+                            || ch == '-'
+                            || ch == '.'
+                            || ch == '_'
+                            || ch == '~'
+                            || ch == chAddSafe)
+                            offCur++;
+                        else
+                        {
+                            if (offLast < offCur)
+                                cchOutput += pfnOutput(pvArgOutput, &pszStr[offLast], offCur - offLast);
+                            if (ch != ' ' || chVariant != 'f')
+                            {
+                                szBuf[0] = '%';
+                                szBuf[1] = g_szHexDigitsUpper[((uint8_t)ch >> 4) & 0xf];
+                                szBuf[2] = g_szHexDigitsUpper[(uint8_t)ch & 0xf];
+                                szBuf[3] = '\0';
+                                cchOutput += pfnOutput(pvArgOutput, szBuf, 3);
+                            }
+                            else
+                                cchOutput += pfnOutput(pvArgOutput, "+", 1);
+                            offLast = ++offCur;
+                        }
+                    }
+                    if (offLast < offCur)
+                        cchOutput += pfnOutput(pvArgOutput, &pszStr[offLast], offCur - offLast);
+
+                    while (--cchWidth >= cchStr)
+                        cchOutput += pfnOutput(pvArgOutput, "%20", 3);
+                }
+                else
+                    AssertMsgFailed(("Invalid IPRT format type '%.10s'!\n", pszFormatOrg));
                 break;
             }
-#endif /* IN_RING3 */
 
+#endif /* IN_RING3 */
 
             /*
              * Groups 6 - CPU Architecture Register Formatters.

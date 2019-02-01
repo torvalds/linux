@@ -4,7 +4,7 @@
  */
 
 /*
- * Copyright (C) 2007-2017 Oracle Corporation
+ * Copyright (C) 2007-2019 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -53,7 +53,10 @@
 #define LOG_GROUP   LOG_GROUP_DEFAULT
 #include "VBoxGuestInternal.h"
 #include <VBox/VMMDev.h> /* for VMMDEV_RAM_SIZE */
+#include <VBox/err.h>
 #include <VBox/log.h>
+#include <VBox/HostServices/GuestPropertySvc.h>
+#include <iprt/ctype.h>
 #include <iprt/mem.h>
 #include <iprt/time.h>
 #include <iprt/memobj.h>
@@ -331,7 +334,7 @@ static int vgdrvReportGuestInfo(VBOXOSTYPE enmOSType)
         pReqInfo2->guestInfo.additionsMinor    = VBOX_VERSION_MINOR;
         pReqInfo2->guestInfo.additionsBuild    = VBOX_VERSION_BUILD;
         pReqInfo2->guestInfo.additionsRevision = VBOX_SVN_REV;
-        pReqInfo2->guestInfo.additionsFeatures = 0; /* (no features defined yet) */
+        pReqInfo2->guestInfo.additionsFeatures = VBOXGSTINFO2_F_REQUESTOR_INFO;
         RTStrCopy(pReqInfo2->guestInfo.szName, sizeof(pReqInfo2->guestInfo.szName), VBOX_VERSION_STRING);
 
         rc = VbglR0GRAlloc((VMMDevRequestHeader **)&pReqInfo1, sizeof (VMMDevReportGuestInfo), VMMDevReq_ReportGuestInfo);
@@ -683,6 +686,7 @@ static int vgdrvSetBalloonSizeFromUser(PVBOXGUESTDEVEXT pDevExt, PVBOXGUESTSESSI
     rc = VbglR0GRAlloc((VMMDevRequestHeader **)&pReq, g_cbChangeMemBalloonReq, VMMDevReq_ChangeMemBalloon);
     if (RT_FAILURE(rc))
         return rc;
+    pReq->header.fRequestor = pSession->fRequestor;
 
     if (fInflate)
     {
@@ -736,6 +740,8 @@ static void vgdrvCloseMemBalloon(PVBOXGUESTDEVEXT pDevExt, PVBOXGUESTSESSION pSe
             int rc = VbglR0GRAlloc((VMMDevRequestHeader **)&pReq, g_cbChangeMemBalloonReq, VMMDevReq_ChangeMemBalloon);
             if (RT_SUCCESS(rc))
             {
+                /* fRequestor is kernel here, as we're cleaning up. */
+
                 uint32_t i;
                 for (i = pDevExt->MemBalloon.cChunks; i-- > 0;)
                 {
@@ -921,59 +927,66 @@ int VGDrvCommonReinitDevExtAfterHibernation(PVBOXGUESTDEVEXT pDevExt, VBOXOSTYPE
 
 
 /**
- * Initializes the VBoxGuest device extension when the
- * device driver is loaded.
+ * Initializes the release logger (debug is implicit), if configured.
  *
- * The native code locates the VMMDev on the PCI bus and retrieve
- * the MMIO and I/O port ranges, this function will take care of
- * mapping the MMIO memory (if present). Upon successful return
- * the native code should set up the interrupt handler.
- *
- * @returns VBox status code.
- *
- * @param   pDevExt         The device extension. Allocated by the native code.
- * @param   IOPortBase      The base of the I/O port range.
- * @param   pvMMIOBase      The base of the MMIO memory mapping.
- *                          This is optional, pass NULL if not present.
- * @param   cbMMIO          The size of the MMIO memory mapping.
- *                          This is optional, pass 0 if not present.
- * @param   enmOSType       The guest OS type to report to the VMMDev.
- * @param   fFixedEvents    Events that will be enabled upon init and no client
- *                          will ever be allowed to mask.
+ * @returns IPRT status code.
  */
-int VGDrvCommonInitDevExt(PVBOXGUESTDEVEXT pDevExt, uint16_t IOPortBase,
-                          void *pvMMIOBase, uint32_t cbMMIO, VBOXOSTYPE enmOSType, uint32_t fFixedEvents)
+int VGDrvCommonInitLoggers(void)
 {
-    int rc, rc2;
-
 #ifdef VBOX_GUESTDRV_WITH_RELEASE_LOGGER
     /*
      * Create the release log.
      */
     static const char * const s_apszGroups[] = VBOX_LOGGROUP_NAMES;
     PRTLOGGER pRelLogger;
-    rc = RTLogCreate(&pRelLogger, 0 /*fFlags*/, "all", "VBOXGUEST_RELEASE_LOG", RT_ELEMENTS(s_apszGroups), s_apszGroups,
-                     RTLOGDEST_STDOUT | RTLOGDEST_DEBUGGER, NULL);
+    int rc = RTLogCreate(&pRelLogger, 0 /*fFlags*/, "all", "VBOXGUEST_RELEASE_LOG", RT_ELEMENTS(s_apszGroups), s_apszGroups,
+                         RTLOGDEST_STDOUT | RTLOGDEST_DEBUGGER, NULL);
     if (RT_SUCCESS(rc))
         RTLogRelSetDefaultInstance(pRelLogger);
     /** @todo Add native hook for getting logger config parameters and setting
      *        them.  On linux we should use the module parameter stuff... */
+    return rc;
+#else
+    return VINF_SUCCESS;
 #endif
+}
 
-    /*
-     * Adjust fFixedEvents.
-     */
-#ifdef VBOX_WITH_HGCM
-    fFixedEvents |= VMMDEV_EVENT_HGCM;
+
+/**
+ * Destroys the loggers.
+ */
+void VGDrvCommonDestroyLoggers(void)
+{
+#ifdef VBOX_GUESTDRV_WITH_RELEASE_LOGGER
+    RTLogDestroy(RTLogRelSetDefaultInstance(NULL));
+    RTLogDestroy(RTLogSetDefaultInstance(NULL));
 #endif
+}
+
+
+/**
+ * Initialize the device extension fundament.
+ *
+ * There are no device resources at this point, VGDrvCommonInitDevExtResources
+ * should be called when they are available.
+ *
+ * @returns VBox status code.
+ * @param   pDevExt         The device extension to init.
+ */
+int VGDrvCommonInitDevExtFundament(PVBOXGUESTDEVEXT pDevExt)
+{
+    int rc;
+    AssertMsg(   pDevExt->uInitState != VBOXGUESTDEVEXT_INIT_STATE_FUNDAMENT
+              && pDevExt->uInitState != VBOXGUESTDEVEXT_INIT_STATE_RESOURCES, ("uInitState=%#x\n", pDevExt->uInitState));
 
     /*
      * Initialize the data.
      */
-    pDevExt->IOPortBase = IOPortBase;
+    pDevExt->IOPortBase = UINT16_MAX;
     pDevExt->pVMMDevMemory = NULL;
     pDevExt->hGuestMappings = NIL_RTR0MEMOBJ;
     pDevExt->EventSpinlock = NIL_RTSPINLOCK;
+    pDevExt->fHostFeatures = 0;
     pDevExt->pIrqAckEvents = NULL;
     pDevExt->PhysIrqAckEvents = NIL_RTCCPHYS;
     RTListInit(&pDevExt->WaitList);
@@ -1001,7 +1014,7 @@ int VGDrvCommonInitDevExt(PVBOXGUESTDEVEXT pDevExt, uint16_t IOPortBase,
     pDevExt->pvMouseNotifyCallbackArg = NULL;
     pDevExt->pReqGuestHeartbeat = NULL;
 
-    pDevExt->fFixedEvents = fFixedEvents;
+    pDevExt->fFixedEvents = 0;
     vgdrvBitUsageTrackerClear(&pDevExt->EventFilterTracker);
     pDevExt->fEventFilterHost = UINT32_MAX;  /* forces a report */
 
@@ -1015,6 +1028,81 @@ int VGDrvCommonInitDevExt(PVBOXGUESTDEVEXT pDevExt, uint16_t IOPortBase,
     pDevExt->fGuestCapsHost = UINT32_MAX; /* forces a report */
 
     /*
+     * Create the wait and session spinlocks as well as the ballooning mutex.
+     */
+    rc = RTSpinlockCreate(&pDevExt->EventSpinlock, RTSPINLOCK_FLAGS_INTERRUPT_SAFE, "VBoxGuestEvent");
+    if (RT_SUCCESS(rc))
+    {
+        rc = RTSpinlockCreate(&pDevExt->SessionSpinlock, RTSPINLOCK_FLAGS_INTERRUPT_SAFE, "VBoxGuestSession");
+        if (RT_SUCCESS(rc))
+        {
+            rc = RTSemFastMutexCreate(&pDevExt->MemBalloon.hMtx);
+            if (RT_SUCCESS(rc))
+            {
+                pDevExt->uInitState = VBOXGUESTDEVEXT_INIT_STATE_FUNDAMENT;
+                return VINF_SUCCESS;
+            }
+
+            LogRel(("VGDrvCommonInitDevExt: failed to create mutex, rc=%Rrc!\n", rc));
+            RTSpinlockDestroy(pDevExt->SessionSpinlock);
+        }
+        else
+            LogRel(("VGDrvCommonInitDevExt: failed to create spinlock, rc=%Rrc!\n", rc));
+        RTSpinlockDestroy(pDevExt->EventSpinlock);
+    }
+    else
+        LogRel(("VGDrvCommonInitDevExt: failed to create spinlock, rc=%Rrc!\n", rc));
+
+    pDevExt->uInitState = 0;
+    return rc;
+}
+
+
+/**
+ * Counter to VGDrvCommonInitDevExtFundament.
+ *
+ * @param   pDevExt         The device extension.
+ */
+void VGDrvCommonDeleteDevExtFundament(PVBOXGUESTDEVEXT pDevExt)
+{
+    int rc2;
+    AssertMsgReturnVoid(pDevExt->uInitState == VBOXGUESTDEVEXT_INIT_STATE_FUNDAMENT, ("uInitState=%#x\n", pDevExt->uInitState));
+    pDevExt->uInitState = VBOXGUESTDEVEXT_INIT_STATE_DELETED;
+
+    rc2 = RTSemFastMutexDestroy(pDevExt->MemBalloon.hMtx); AssertRC(rc2);
+    rc2 = RTSpinlockDestroy(pDevExt->EventSpinlock); AssertRC(rc2);
+    rc2 = RTSpinlockDestroy(pDevExt->SessionSpinlock); AssertRC(rc2);
+}
+
+
+/**
+ * Initializes the VBoxGuest device extension resource parts.
+ *
+ * The native code locates the VMMDev on the PCI bus and retrieve the MMIO and
+ * I/O port ranges, this function will take care of mapping the MMIO memory (if
+ * present).  Upon successful return the native code should set up the interrupt
+ * handler.
+ *
+ * @returns VBox status code.
+ *
+ * @param   pDevExt         The device extension. Allocated by the native code.
+ * @param   IOPortBase      The base of the I/O port range.
+ * @param   pvMMIOBase      The base of the MMIO memory mapping.
+ *                          This is optional, pass NULL if not present.
+ * @param   cbMMIO          The size of the MMIO memory mapping.
+ *                          This is optional, pass 0 if not present.
+ * @param   enmOSType       The guest OS type to report to the VMMDev.
+ * @param   fFixedEvents    Events that will be enabled upon init and no client
+ *                          will ever be allowed to mask.
+ */
+int VGDrvCommonInitDevExtResources(PVBOXGUESTDEVEXT pDevExt, uint16_t IOPortBase,
+                                   void *pvMMIOBase, uint32_t cbMMIO, VBOXOSTYPE enmOSType, uint32_t fFixedEvents)
+{
+    int rc;
+    AssertMsgReturn(pDevExt->uInitState == VBOXGUESTDEVEXT_INIT_STATE_FUNDAMENT, ("uInitState=%#x\n", pDevExt->uInitState),
+                    VERR_INVALID_STATE);
+
+    /*
      * If there is an MMIO region validate the version and size.
      */
     if (pvMMIOBase)
@@ -1026,35 +1114,12 @@ int VGDrvCommonInitDevExt(PVBOXGUESTDEVEXT pDevExt, uint16_t IOPortBase,
             &&  pVMMDev->u32Size <= cbMMIO)
         {
             pDevExt->pVMMDevMemory = pVMMDev;
-            Log(("VGDrvCommonInitDevExt: VMMDevMemory: mapping=%p size=%#RX32 (%#RX32) version=%#RX32\n",
+            Log(("VGDrvCommonInitDevExtResources: VMMDevMemory: mapping=%p size=%#RX32 (%#RX32) version=%#RX32\n",
                  pVMMDev, pVMMDev->u32Size, cbMMIO, pVMMDev->u32Version));
         }
         else /* try live without it. */
-            LogRel(("VGDrvCommonInitDevExt: Bogus VMMDev memory; u32Version=%RX32 (expected %RX32) u32Size=%RX32 (expected <= %RX32)\n",
+            LogRel(("VGDrvCommonInitDevExtResources: Bogus VMMDev memory; u32Version=%RX32 (expected %RX32) u32Size=%RX32 (expected <= %RX32)\n",
                     pVMMDev->u32Version, VMMDEV_MEMORY_VERSION, pVMMDev->u32Size, cbMMIO));
-    }
-
-    /*
-     * Create the wait and session spinlocks as well as the ballooning mutex.
-     */
-    rc = RTSpinlockCreate(&pDevExt->EventSpinlock, RTSPINLOCK_FLAGS_INTERRUPT_SAFE, "VBoxGuestEvent");
-    if (RT_SUCCESS(rc))
-        rc = RTSpinlockCreate(&pDevExt->SessionSpinlock, RTSPINLOCK_FLAGS_INTERRUPT_SAFE, "VBoxGuestSession");
-    if (RT_FAILURE(rc))
-    {
-        LogRel(("VGDrvCommonInitDevExt: failed to create spinlock, rc=%Rrc!\n", rc));
-        if (pDevExt->EventSpinlock != NIL_RTSPINLOCK)
-            RTSpinlockDestroy(pDevExt->EventSpinlock);
-        return rc;
-    }
-
-    rc = RTSemFastMutexCreate(&pDevExt->MemBalloon.hMtx);
-    if (RT_FAILURE(rc))
-    {
-        LogRel(("VGDrvCommonInitDevExt: failed to create mutex, rc=%Rrc!\n", rc));
-        RTSpinlockDestroy(pDevExt->SessionSpinlock);
-        RTSpinlockDestroy(pDevExt->EventSpinlock);
-        return rc;
     }
 
     /*
@@ -1062,14 +1127,18 @@ int VGDrvCommonInitDevExt(PVBOXGUESTDEVEXT pDevExt, uint16_t IOPortBase,
      * set the interrupt control filter mask, and fixate the guest mappings
      * made by the VMM.
      */
-    rc = VbglR0InitPrimary(pDevExt->IOPortBase, (VMMDevMemory *)pDevExt->pVMMDevMemory);
+    pDevExt->IOPortBase = IOPortBase;
+    rc = VbglR0InitPrimary(pDevExt->IOPortBase, (VMMDevMemory *)pDevExt->pVMMDevMemory, &pDevExt->fHostFeatures);
     if (RT_SUCCESS(rc))
     {
-        rc = VbglR0GRAlloc((VMMDevRequestHeader **)&pDevExt->pIrqAckEvents, sizeof(VMMDevEvents), VMMDevReq_AcknowledgeEvents);
+        VMMDevRequestHeader *pAckReq = NULL;
+        rc = VbglR0GRAlloc(&pAckReq, sizeof(VMMDevEvents), VMMDevReq_AcknowledgeEvents);
         if (RT_SUCCESS(rc))
         {
-            pDevExt->PhysIrqAckEvents = VbglR0PhysHeapGetPhysAddr(pDevExt->pIrqAckEvents);
+            pDevExt->PhysIrqAckEvents = VbglR0PhysHeapGetPhysAddr(pAckReq);
             Assert(pDevExt->PhysIrqAckEvents != 0);
+            ASMCompilerBarrier(); /* linux + solaris already have IRQs hooked up at this point, so take care. */
+            pDevExt->pIrqAckEvents = (VMMDevEvents *)pAckReq;
 
             rc = vgdrvReportGuestInfo(enmOSType);
             if (RT_SUCCESS(rc))
@@ -1078,7 +1147,11 @@ int VGDrvCommonInitDevExt(PVBOXGUESTDEVEXT pDevExt, uint16_t IOPortBase,
                  * Set the fixed event and make sure the host doesn't have any lingering
                  * the guest capabilities or mouse status bits set.
                  */
-                rc = vgdrvResetEventFilterOnHost(pDevExt, pDevExt->fFixedEvents);
+#ifdef VBOX_WITH_HGCM
+                fFixedEvents |= VMMDEV_EVENT_HGCM;
+#endif
+                pDevExt->fFixedEvents = fFixedEvents;
+                rc = vgdrvResetEventFilterOnHost(pDevExt, fFixedEvents);
                 if (RT_SUCCESS(rc))
                 {
                     rc = vgdrvResetCapabilitiesOnHost(pDevExt);
@@ -1098,40 +1171,34 @@ int VGDrvCommonInitDevExt(PVBOXGUESTDEVEXT pDevExt, uint16_t IOPortBase,
                              */
                             rc = vgdrvReportDriverStatus(true /* Driver is active */);
                             if (RT_FAILURE(rc))
-                                LogRel(("VGDrvCommonInitDevExt: VBoxReportGuestDriverStatus failed, rc=%Rrc\n", rc));
+                                LogRel(("VGDrvCommonInitDevExtResources: VBoxReportGuestDriverStatus failed, rc=%Rrc\n", rc));
 
-                            LogFlowFunc(("VGDrvCommonInitDevExt: returns success\n"));
+                            pDevExt->uInitState = VBOXGUESTDEVEXT_INIT_STATE_RESOURCES;
+                            LogFlowFunc(("VGDrvCommonInitDevExtResources: returns success\n"));
                             return VINF_SUCCESS;
                         }
-                        LogRel(("VGDrvCommonInitDevExt: failed to clear mouse status: rc=%Rrc\n", rc));
+                        LogRel(("VGDrvCommonInitDevExtResources: failed to clear mouse status: rc=%Rrc\n", rc));
                     }
                     else
-                        LogRel(("VGDrvCommonInitDevExt: failed to clear guest capabilities: rc=%Rrc\n", rc));
+                        LogRel(("VGDrvCommonInitDevExtResources: failed to clear guest capabilities: rc=%Rrc\n", rc));
                 }
                 else
-                    LogRel(("VGDrvCommonInitDevExt: failed to set fixed event filter: rc=%Rrc\n", rc));
+                    LogRel(("VGDrvCommonInitDevExtResources: failed to set fixed event filter: rc=%Rrc\n", rc));
+                pDevExt->fFixedEvents = 0;
             }
             else
-                LogRel(("VGDrvCommonInitDevExt: vgdrvReportGuestInfo failed: rc=%Rrc\n", rc));
+                LogRel(("VGDrvCommonInitDevExtResources: vgdrvReportGuestInfo failed: rc=%Rrc\n", rc));
             VbglR0GRFree((VMMDevRequestHeader *)pDevExt->pIrqAckEvents);
         }
         else
-            LogRel(("VGDrvCommonInitDevExt: VbglR0GRAlloc failed: rc=%Rrc\n", rc));
+            LogRel(("VGDrvCommonInitDevExtResources: VbglR0GRAlloc failed: rc=%Rrc\n", rc));
 
         VbglR0TerminatePrimary();
     }
     else
-        LogRel(("VGDrvCommonInitDevExt: VbglR0InitPrimary failed: rc=%Rrc\n", rc));
-
-    rc2 = RTSemFastMutexDestroy(pDevExt->MemBalloon.hMtx); AssertRC(rc2);
-    rc2 = RTSpinlockDestroy(pDevExt->EventSpinlock); AssertRC(rc2);
-    rc2 = RTSpinlockDestroy(pDevExt->SessionSpinlock); AssertRC(rc2);
-
-#ifdef VBOX_GUESTDRV_WITH_RELEASE_LOGGER
-    RTLogDestroy(RTLogRelSetDefaultInstance(NULL));
-    RTLogDestroy(RTLogSetDefaultInstance(NULL));
-#endif
-    return rc; /* (failed) */
+        LogRel(("VGDrvCommonInitDevExtResources: VbglR0InitPrimary failed: rc=%Rrc\n", rc));
+    pDevExt->IOPortBase = UINT16_MAX;
+    return rc;
 }
 
 
@@ -1156,22 +1223,18 @@ static void vgdrvDeleteWaitList(PRTLISTNODE pList)
 
 
 /**
- * Destroys the VBoxGuest device extension.
- *
- * The native code should call this before the driver is loaded,
- * but don't call this on shutdown.
+ * Counter to VGDrvCommonInitDevExtResources.
  *
  * @param   pDevExt         The device extension.
  */
-void VGDrvCommonDeleteDevExt(PVBOXGUESTDEVEXT pDevExt)
+void VGDrvCommonDeleteDevExtResources(PVBOXGUESTDEVEXT pDevExt)
 {
-    int rc2;
-    Log(("VGDrvCommonDeleteDevExt:\n"));
-    Log(("VBoxGuest: The additions driver is terminating.\n"));
+    Log(("VGDrvCommonDeleteDevExtResources:\n"));
+    AssertMsgReturnVoid(pDevExt->uInitState == VBOXGUESTDEVEXT_INIT_STATE_RESOURCES, ("uInitState=%#x\n", pDevExt->uInitState));
+    pDevExt->uInitState = VBOXGUESTDEVEXT_INIT_STATE_FUNDAMENT;
 
     /*
-     * Stop and destroy HB timer and
-     * disable host heartbeat checking.
+     * Stop and destroy HB timer and disable host heartbeat checking.
      */
     if (pDevExt->pHeartbeatTimer)
     {
@@ -1191,7 +1254,10 @@ void VGDrvCommonDeleteDevExt(PVBOXGUESTDEVEXT pDevExt)
         LogRelFunc(("session list not empty!\n"));
         RTListInit(&pDevExt->SessionList);
     }
-    /* Update the host flags (mouse status etc) not to reflect this session. */
+
+    /*
+     * Update the host flags (mouse status etc) not to reflect this session.
+     */
     pDevExt->fFixedEvents = 0;
     vgdrvResetEventFilterOnHost(pDevExt, 0 /*fFixedEvents*/);
     vgdrvResetCapabilitiesOnHost(pDevExt);
@@ -1200,12 +1266,14 @@ void VGDrvCommonDeleteDevExt(PVBOXGUESTDEVEXT pDevExt)
     vgdrvCloseMemBalloon(pDevExt, (PVBOXGUESTSESSION)NULL);
 
     /*
+     * No more IRQs.
+     */
+    pDevExt->pIrqAckEvents = NULL; /* Will be freed by VbglR0TerminatePrimary. */
+    ASMAtomicWriteU32(&pDevExt->fHostFeatures, 0);
+
+    /*
      * Cleanup all the other resources.
      */
-    rc2 = RTSpinlockDestroy(pDevExt->EventSpinlock); AssertRC(rc2);
-    rc2 = RTSpinlockDestroy(pDevExt->SessionSpinlock); AssertRC(rc2);
-    rc2 = RTSemFastMutexDestroy(pDevExt->MemBalloon.hMtx); AssertRC(rc2);
-
     vgdrvDeleteWaitList(&pDevExt->WaitList);
 #ifdef VBOX_WITH_HGCM
     vgdrvDeleteWaitList(&pDevExt->HGCMWaitList);
@@ -1218,16 +1286,324 @@ void VGDrvCommonDeleteDevExt(PVBOXGUESTDEVEXT pDevExt)
 
     VbglR0TerminatePrimary();
 
+
     pDevExt->pVMMDevMemory = NULL;
-
     pDevExt->IOPortBase = 0;
-    pDevExt->pIrqAckEvents = NULL;
+}
 
-#ifdef VBOX_GUESTDRV_WITH_RELEASE_LOGGER
-    RTLogDestroy(RTLogRelSetDefaultInstance(NULL));
-    RTLogDestroy(RTLogSetDefaultInstance(NULL));
-#endif
 
+/**
+ * Initializes the VBoxGuest device extension when the device driver is loaded.
+ *
+ * The native code locates the VMMDev on the PCI bus and retrieve the MMIO and
+ * I/O port ranges, this function will take care of mapping the MMIO memory (if
+ * present). Upon successful return the native code should set up the interrupt
+ * handler.
+ *
+ * Instead of calling this method, the host specific code choose to perform a
+ * more granular initialization using:
+ *      1. VGDrvCommonInitLoggers
+ *      2. VGDrvCommonInitDevExtFundament
+ *      3. VGDrvCommonInitDevExtResources
+ *
+ * @returns VBox status code.
+ *
+ * @param   pDevExt         The device extension. Allocated by the native code.
+ * @param   IOPortBase      The base of the I/O port range.
+ * @param   pvMMIOBase      The base of the MMIO memory mapping.
+ *                          This is optional, pass NULL if not present.
+ * @param   cbMMIO          The size of the MMIO memory mapping.
+ *                          This is optional, pass 0 if not present.
+ * @param   enmOSType       The guest OS type to report to the VMMDev.
+ * @param   fFixedEvents    Events that will be enabled upon init and no client
+ *                          will ever be allowed to mask.
+ */
+int VGDrvCommonInitDevExt(PVBOXGUESTDEVEXT pDevExt, uint16_t IOPortBase,
+                          void *pvMMIOBase, uint32_t cbMMIO, VBOXOSTYPE enmOSType, uint32_t fFixedEvents)
+{
+    int rc;
+    VGDrvCommonInitLoggers();
+
+    rc = VGDrvCommonInitDevExtFundament(pDevExt);
+    if (RT_SUCCESS(rc))
+    {
+        rc = VGDrvCommonInitDevExtResources(pDevExt, IOPortBase, pvMMIOBase, cbMMIO, enmOSType, fFixedEvents);
+        if (RT_SUCCESS(rc))
+            return rc;
+
+        VGDrvCommonDeleteDevExtFundament(pDevExt);
+    }
+    VGDrvCommonDestroyLoggers();
+    return rc; /* (failed) */
+}
+
+
+/**
+ * Checks if the given option can be taken to not mean 'false'.
+ *
+ * @returns true or false accordingly.
+ * @param   pszValue            The value to consider.
+ */
+bool VBDrvCommonIsOptionValueTrue(const char *pszValue)
+{
+    if (pszValue)
+    {
+        char ch;
+        while (  (ch = *pszValue) != '\0'
+               && RT_C_IS_SPACE(ch))
+            pszValue++;
+
+        return ch != '\0'
+            && ch != 'n' /* no */
+            && ch != 'N' /* NO */
+            && ch != 'd' /* disabled */
+            && ch != 'f' /* false*/
+            && ch != 'F' /* FALSE */
+            && ch != 'D' /* DISABLED */
+            && (   (ch != 'o' && ch != 'O') /* off, OFF, Off */
+                || (pszValue[1] != 'f' && pszValue[1] != 'F') )
+            && (ch != '0' || pszValue[1] != '\0') /* '0' */
+            ;
+    }
+    return false;
+}
+
+
+/**
+ * Processes a option.
+ *
+ * This will let the OS specific code have a go at it too.
+ *
+ * @param   pDevExt         The device extension.
+ * @param   pszName         The option name, sans prefix.
+ * @param   pszValue        The option value.
+ */
+void VGDrvCommonProcessOption(PVBOXGUESTDEVEXT pDevExt, const char *pszName, const char *pszValue)
+{
+    Log(("VGDrvCommonProcessOption: pszName='%s' pszValue='%s'\n", pszName, pszValue));
+
+    if (   RTStrICmpAscii(pszName, "r3_log_to_host") == 0
+        || RTStrICmpAscii(pszName, "LoggingEnabled") == 0 /*legacy*/ )
+        pDevExt->fLoggingEnabled = VBDrvCommonIsOptionValueTrue(pszValue);
+    else if (   RTStrNICmpAscii(pszName, RT_STR_TUPLE("log")) == 0
+             || RTStrNICmpAscii(pszName, RT_STR_TUPLE("dbg_log")) == 0)
+    {
+        bool const  fLogRel    = *pszName == 'd' || *pszName == 'D';
+        const char *pszSubName = &pszName[fLogRel ? 4 + 3 : 3];
+        if (   !*pszSubName
+            || RTStrICmpAscii(pszSubName, "_flags") == 0
+            || RTStrICmpAscii(pszSubName, "_dest") == 0)
+        {
+            PRTLOGGER pLogger = fLogRel ? RTLogRelGetDefaultInstance() : RTLogDefaultInstance();
+            if (pLogger)
+            {
+                if (!*pszSubName)
+                    RTLogGroupSettings(pLogger, pszValue);
+                else if (RTStrICmpAscii(pszSubName, "_flags"))
+                    RTLogFlags(pLogger, pszValue);
+                else
+                    RTLogDestinations(pLogger, pszValue);
+            }
+        }
+        else if (!VGDrvNativeProcessOption(pDevExt, pszName, pszValue))
+            LogRel(("VBoxGuest: Ignoring unknown option '%s' (value '%s')\n", pszName, pszValue));
+    }
+    else if (!VGDrvNativeProcessOption(pDevExt, pszName, pszValue))
+        LogRel(("VBoxGuest: Ignoring unknown option '%s' (value '%s')\n", pszName, pszValue));
+}
+
+
+/**
+ * Read driver configuration from the host.
+ *
+ * This involves connecting to the guest properties service, which means that
+ * interrupts needs to work and that the calling thread must be able to block.
+ *
+ * @param   pDevExt     The device extension.
+ */
+void VGDrvCommonProcessOptionsFromHost(PVBOXGUESTDEVEXT pDevExt)
+{
+    /*
+     * Create a kernel session without our selves, then connect to the HGCM service.
+     */
+    PVBOXGUESTSESSION pSession;
+    int rc = VGDrvCommonCreateKernelSession(pDevExt, &pSession);
+    if (RT_SUCCESS(rc))
+    {
+        union
+        {
+            VBGLIOCHGCMCONNECT          Connect;
+            VBGLIOCHGCMDISCONNECT       Disconnect;
+            GuestPropMsgEnumProperties  EnumMsg;
+        } uBuf;
+
+        RT_ZERO(uBuf.Connect);
+        VBGLREQHDR_INIT(&uBuf.Connect.Hdr, HGCM_CONNECT);
+        uBuf.Connect.u.In.Loc.type = VMMDevHGCMLoc_LocalHost_Existing;
+        RTStrCopy(uBuf.Connect.u.In.Loc.u.host.achName, sizeof(uBuf.Connect.u.In.Loc.u.host.achName),
+                  "VBoxGuestPropSvc"); /** @todo Add a define to the header for the name. */
+        rc = VGDrvCommonIoCtl(VBGL_IOCTL_HGCM_CONNECT, pDevExt, pSession, &uBuf.Connect.Hdr, sizeof(uBuf.Connect));
+        if (RT_SUCCESS(rc))
+        {
+            static const char   g_szzPattern[] = "/VirtualBox/GuestAdd/VBoxGuest/*\0";
+            uint32_t const      idClient       = uBuf.Connect.u.Out.idClient;
+            char               *pszzStrings    = NULL;
+            uint32_t            cbStrings;
+
+            /*
+             * Enumerate all the relevant properties.  We try with a 1KB buffer, but
+             * will double it until we get what we want or go beyond 16KB.
+             */
+            for (cbStrings = _1K; cbStrings <= _16K; cbStrings *= 2)
+            {
+                pszzStrings = (char *)RTMemAllocZ(cbStrings);
+                if (pszzStrings)
+                {
+                    VBGL_HGCM_HDR_INIT(&uBuf.EnumMsg.hdr, idClient, GUEST_PROP_FN_ENUM_PROPS, 3);
+
+                    uBuf.EnumMsg.patterns.type                    = VMMDevHGCMParmType_LinAddr;
+                    uBuf.EnumMsg.patterns.u.Pointer.size          = sizeof(g_szzPattern);
+                    uBuf.EnumMsg.patterns.u.Pointer.u.linearAddr  = (uintptr_t)g_szzPattern;
+
+                    uBuf.EnumMsg.strings.type                     = VMMDevHGCMParmType_LinAddr;
+                    uBuf.EnumMsg.strings.u.Pointer.size           = cbStrings;
+                    uBuf.EnumMsg.strings.u.Pointer.u.linearAddr   = (uintptr_t)pszzStrings;
+
+                    uBuf.EnumMsg.size.type                        = VMMDevHGCMParmType_32bit;
+                    uBuf.EnumMsg.size.u.value32                   = 0;
+
+                    rc = VGDrvCommonIoCtl(VBGL_IOCTL_HGCM_CALL(sizeof(uBuf.EnumMsg)), pDevExt, pSession,
+                                          &uBuf.EnumMsg.hdr.Hdr, sizeof(uBuf.EnumMsg));
+                    if (RT_SUCCESS(rc))
+                    {
+                        if (   uBuf.EnumMsg.size.type == VMMDevHGCMParmType_32bit
+                            && uBuf.EnumMsg.size.u.value32 <= cbStrings
+                            && uBuf.EnumMsg.size.u.value32 > 0)
+                            cbStrings = uBuf.EnumMsg.size.u.value32;
+                        Log(("VGDrvCommonReadConfigurationFromHost: GUEST_PROP_FN_ENUM_PROPS -> %#x bytes (cbStrings=%#x)\n",
+                             uBuf.EnumMsg.size.u.value32, cbStrings));
+                        break;
+                    }
+
+                    RTMemFree(pszzStrings);
+                    pszzStrings = NULL;
+                }
+                else
+                {
+                    LogRel(("VGDrvCommonReadConfigurationFromHost: failed to allocate %#x bytes\n", cbStrings));
+                    break;
+                }
+            }
+
+            /*
+             * Disconnect and destroy the session.
+             */
+            VBGLREQHDR_INIT(&uBuf.Disconnect.Hdr, HGCM_DISCONNECT);
+            uBuf.Disconnect.u.In.idClient = idClient;
+            VGDrvCommonIoCtl(VBGL_IOCTL_HGCM_DISCONNECT, pDevExt, pSession, &uBuf.Disconnect.Hdr, sizeof(uBuf.Disconnect));
+
+            VGDrvCommonCloseSession(pDevExt, pSession);
+
+            /*
+             * Process the properties if we got any.
+             *
+             * The string buffer contains packed strings in groups of four - name, value,
+             * timestamp (as a decimal string) and flags.  It is terminated by four empty
+             * strings.  Layout:
+             *   Name\0Value\0Timestamp\0Flags\0
+             */
+            if (pszzStrings)
+            {
+                uint32_t off;
+                for (off = 0; off < cbStrings; off++)
+                {
+                    /*
+                     * Parse the four fields, checking that it's all plain ASCII w/o any control characters.
+                     */
+                    const char *apszFields[4] = { NULL, NULL, NULL, NULL };
+                    bool        fValidFields  = true;
+                    unsigned    iField;
+                    for (iField = 0; iField < RT_ELEMENTS(apszFields); iField++)
+                    {
+                        apszFields[0] = &pszzStrings[off];
+                        while (off < cbStrings)
+                        {
+                            char ch = pszzStrings[off++];
+                            if ((unsigned)ch < 0x20U || (unsigned)ch > 0x7fU)
+                            {
+                                if (!ch)
+                                    break;
+                                if (fValidFields)
+                                    Log(("VGDrvCommonReadConfigurationFromHost: Invalid char %#x at %#x (field %u)\n",
+                                         ch, off - 1, iField));
+                                fValidFields = false;
+                            }
+                        }
+                    }
+                    if (   off <= cbStrings
+                        && fValidFields
+                        && *apszFields[0] != '\0')
+                    {
+                        /*
+                         * Validate and convert the flags to integer, then process the option.
+                         */
+                        uint32_t fFlags = 0;
+                        rc = GuestPropValidateFlags(apszFields[3], &fFlags);
+                        if (RT_SUCCESS(rc))
+                        {
+                            if (fFlags & GUEST_PROP_F_RDONLYGUEST)
+                            {
+                                apszFields[0] += sizeof(g_szzPattern) - 2;
+                                VGDrvCommonProcessOption(pDevExt, apszFields[0], apszFields[1]);
+                            }
+                            else
+                                LogRel(("VBoxGuest: Ignoring '%s' as it does not have RDONLYGUEST set\n", apszFields[0]));
+                        }
+                        else
+                            LogRel(("VBoxGuest: Invalid flags '%s' for '%s': %Rrc\n", apszFields[2], apszFields[0], rc));
+                    }
+                    else if (off < cbStrings)
+                    {
+                        LogRel(("VBoxGuest: Malformed guest properties enum result!\n"));
+                        Log(("VBoxGuest: off=%#x cbStrings=%#x\n%.*Rhxd\n", off, cbStrings, cbStrings, pszzStrings));
+                        break;
+                    }
+                    else if (!fValidFields)
+                        LogRel(("VBoxGuest: Ignoring %.*Rhxs as it has invalid characters in one or more fields\n",
+                                (int)strlen(apszFields[0]), apszFields[0]));
+                    else
+                        break;
+                }
+
+                RTMemFree(pszzStrings);
+            }
+            else
+                LogRel(("VGDrvCommonReadConfigurationFromHost: failed to enumerate '%s': %Rrc\n", g_szzPattern, rc));
+
+        }
+        else
+            LogRel(("VGDrvCommonReadConfigurationFromHost: failed to connect: %Rrc\n", rc));
+    }
+    else
+        LogRel(("VGDrvCommonReadConfigurationFromHost: failed to connect: %Rrc\n", rc));
+}
+
+
+/**
+ * Destroys the VBoxGuest device extension.
+ *
+ * The native code should call this before the driver is unloaded,
+ * but don't call this on shutdown.
+ *
+ * @param   pDevExt         The device extension.
+ */
+void VGDrvCommonDeleteDevExt(PVBOXGUESTDEVEXT pDevExt)
+{
+    Log(("VGDrvCommonDeleteDevExt:\n"));
+    Log(("VBoxGuest: The additions driver is terminating.\n"));
+    VGDrvCommonDeleteDevExtResources(pDevExt);
+    VGDrvCommonDeleteDevExtFundament(pDevExt);
+    VGDrvCommonDestroyLoggers();
 }
 
 
@@ -1239,9 +1615,10 @@ void VGDrvCommonDeleteDevExt(PVBOXGUESTDEVEXT pDevExt)
  *
  * @returns VBox status code.
  * @param   pDevExt         The device extension.
+ * @param   fRequestor      VMMDEV_REQUESTOR_XXX.
  * @param   ppSession       Where to store the session on success.
  */
-int VGDrvCommonCreateUserSession(PVBOXGUESTDEVEXT pDevExt, PVBOXGUESTSESSION *ppSession)
+int VGDrvCommonCreateUserSession(PVBOXGUESTDEVEXT pDevExt, uint32_t fRequestor, PVBOXGUESTSESSION *ppSession)
 {
     PVBOXGUESTSESSION pSession = (PVBOXGUESTSESSION)RTMemAllocZ(sizeof(*pSession));
     if (RT_UNLIKELY(!pSession))
@@ -1253,6 +1630,8 @@ int VGDrvCommonCreateUserSession(PVBOXGUESTDEVEXT pDevExt, PVBOXGUESTSESSION *pp
     pSession->Process = RTProcSelf();
     pSession->R0Process = RTR0ProcHandleSelf();
     pSession->pDevExt = pDevExt;
+    pSession->fRequestor = fRequestor;
+    pSession->fUserSession = RT_BOOL(fRequestor & VMMDEV_REQUESTOR_USER_DEVICE);
     RTSpinlockAcquire(pDevExt->SessionSpinlock);
     RTListAppend(&pDevExt->SessionList, &pSession->ListNode);
     pDevExt->cSessions++;
@@ -1287,6 +1666,8 @@ int VGDrvCommonCreateKernelSession(PVBOXGUESTDEVEXT pDevExt, PVBOXGUESTSESSION *
     pSession->Process = NIL_RTPROCESS;
     pSession->R0Process = NIL_RTR0PROCESS;
     pSession->pDevExt = pDevExt;
+    pSession->fRequestor = VMMDEV_REQUESTOR_KERNEL        | VMMDEV_REQUESTOR_USR_DRV_OTHER
+                         | VMMDEV_REQUESTOR_CON_DONT_KNOW | VMMDEV_REQUESTOR_TRUST_NOT_GIVEN;
     RTSpinlockAcquire(pDevExt->SessionSpinlock);
     RTListAppend(&pDevExt->SessionList, &pSession->ListNode);
     pDevExt->cSessions++;
@@ -1332,7 +1713,8 @@ void VGDrvCommonCloseSession(PVBOXGUESTDEVEXT pDevExt, PVBOXGUESTSESSION pSessio
             uint32_t idClient = pSession->aHGCMClientIds[i];
             pSession->aHGCMClientIds[i] = 0;
             Log(("VGDrvCommonCloseSession: disconnecting client id %#RX32\n", idClient));
-            VbglR0HGCMInternalDisconnect(idClient, vgdrvHgcmAsyncWaitCallback, pDevExt, RT_INDEFINITE_WAIT);
+            VbglR0HGCMInternalDisconnect(idClient, VMMDEV_REQUESTOR_KERNEL | VMMDEV_REQUESTOR_USR_DRV,
+                                         vgdrvHgcmAsyncWaitCallback, pDevExt, RT_INDEFINITE_WAIT);
         }
 #endif
 
@@ -2008,6 +2390,7 @@ static int vgdrvCheckIfVmmReqIsAllowed(PVBOXGUESTDEVEXT pDevExt, PVBOXGUESTSESSI
         case VMMDevReq_VideoAccelFlush:
         case VMMDevReq_VideoSetVisibleRegion:
         case VMMDevReq_GetDisplayChangeRequestEx:
+        case VMMDevReq_GetDisplayChangeRequestMulti:
         case VMMDevReq_GetSeamlessChangeRequest:
         case VMMDevReq_GetVRDPChangeRequest:
         case VMMDevReq_LogString:
@@ -2125,6 +2508,7 @@ static int vgdrvIoCtl_VMMDevRequest(PVBOXGUESTDEVEXT pDevExt, PVBOXGUESTSESSION 
     memcpy(pReqCopy, pReqHdr, cbReq);
     Assert(pReqCopy->reserved1 == cbReq);
     pReqCopy->reserved1 = 0;            /* VGDrvCommonIoCtl or caller sets cbOut, so clear it. */
+    pReqCopy->fRequestor = pSession->fRequestor;
 
     if (enmType == VMMDevReq_GetMouseStatus) /* clear poll condition. */
         pSession->u32MousePosChangedSeq = ASMAtomicUoReadU32(&pDevExt->u32MousePosChangedSeq);
@@ -2268,7 +2652,8 @@ static int vgdrvIoCtl_HGCMConnect(PVBOXGUESTDEVEXT pDevExt, PVBOXGUESTSESSION pS
          pInfo->u.In.Loc.type == VMMDevHGCMLoc_LocalHost || pInfo->u.In.Loc.type == VMMDevHGCMLoc_LocalHost_Existing
          ? pInfo->u.In.Loc.u.host.achName : "<not local host>"));
 
-    rc = VbglR0HGCMInternalConnect(&pInfo->u.In.Loc, &idClient, vgdrvHgcmAsyncWaitCallback, pDevExt, RT_INDEFINITE_WAIT);
+    rc = VbglR0HGCMInternalConnect(&pInfo->u.In.Loc, pSession->fRequestor, &idClient,
+                                   vgdrvHgcmAsyncWaitCallback, pDevExt, RT_INDEFINITE_WAIT);
     Log(("VBOXGUEST_IOCTL_HGCM_CONNECT: idClient=%RX32 (rc=%Rrc)\n", idClient, rc));
     if (RT_SUCCESS(rc))
     {
@@ -2288,7 +2673,7 @@ static int vgdrvIoCtl_HGCMConnect(PVBOXGUESTDEVEXT pDevExt, PVBOXGUESTSESSION pS
         if (i >= RT_ELEMENTS(pSession->aHGCMClientIds))
         {
             LogRelMax(32, ("VBOXGUEST_IOCTL_HGCM_CONNECT: too many HGCMConnect calls for one session!\n"));
-            VbglR0HGCMInternalDisconnect(idClient, vgdrvHgcmAsyncWaitCallback, pDevExt, RT_INDEFINITE_WAIT);
+            VbglR0HGCMInternalDisconnect(idClient, pSession->fRequestor, vgdrvHgcmAsyncWaitCallback, pDevExt, RT_INDEFINITE_WAIT);
 
             pInfo->u.Out.idClient = 0;
             return VERR_TOO_MANY_OPEN_FILES;
@@ -2327,7 +2712,7 @@ static int vgdrvIoCtl_HGCMDisconnect(PVBOXGUESTDEVEXT pDevExt, PVBOXGUESTSESSION
      * to deal with cancelled requests.
      */
     Log(("VBOXGUEST_IOCTL_HGCM_DISCONNECT: idClient=%RX32\n", idClient));
-    rc = VbglR0HGCMInternalDisconnect(idClient, vgdrvHgcmAsyncWaitCallback, pDevExt, RT_INDEFINITE_WAIT);
+    rc = VbglR0HGCMInternalDisconnect(idClient, pSession->fRequestor, vgdrvHgcmAsyncWaitCallback, pDevExt, RT_INDEFINITE_WAIT);
     LogFlow(("VBOXGUEST_IOCTL_HGCM_DISCONNECT: rc=%Rrc\n", rc));
 
     /* Update the client id array according to the result. */
@@ -2353,7 +2738,9 @@ static int vgdrvIoCtl_HGCMCallInner(PVBOXGUESTDEVEXT pDevExt, PVBOXGUESTSESSION 
     /*
      * Some more validations.
      */
-    if (pInfo->cParms > 4096) /* (Just make sure it doesn't overflow the next check.) */
+    if (RT_LIKELY(pInfo->cParms <= VMMDEV_MAX_HGCM_PARMS)) /* (Just make sure it doesn't overflow the next check.) */
+    { /* likely */}
+    else
     {
         LogRel(("VBOXGUEST_IOCTL_HGCM_CALL: cParm=%RX32 is not sane\n", pInfo->cParms));
         return VERR_INVALID_PARAMETER;
@@ -2366,7 +2753,9 @@ static int vgdrvIoCtl_HGCMCallInner(PVBOXGUESTDEVEXT pDevExt, PVBOXGUESTSESSION 
     else
 #endif
         cbActual += pInfo->cParms * sizeof(HGCMFunctionParameter);
-    if (cbData < cbActual)
+    if (RT_LIKELY(cbData >= cbActual))
+    { /* likely */}
+    else
     {
         LogRel(("VBOXGUEST_IOCTL_HGCM_CALL: cbData=%#zx (%zu) required size is %#zx (%zu)\n",
                cbData, cbData, cbActual, cbActual));
@@ -2382,7 +2771,9 @@ static int vgdrvIoCtl_HGCMCallInner(PVBOXGUESTDEVEXT pDevExt, PVBOXGUESTSESSION 
         if (pSession->aHGCMClientIds[i] == u32ClientId)
             break;
     RTSpinlockRelease(pDevExt->SessionSpinlock);
-    if (RT_UNLIKELY(i >= RT_ELEMENTS(pSession->aHGCMClientIds)))
+    if (RT_LIKELY(i < RT_ELEMENTS(pSession->aHGCMClientIds)))
+    { /* likely */}
+    else
     {
         LogRelMax(32, ("VBOXGUEST_IOCTL_HGCM_CALL: Invalid handle. u32Client=%RX32\n", u32ClientId));
         return VERR_INVALID_HANDLE;
@@ -2401,17 +2792,21 @@ static int vgdrvIoCtl_HGCMCallInner(PVBOXGUESTDEVEXT pDevExt, PVBOXGUESTSESSION 
     if (f32bit)
     {
         if (fInterruptible)
-            rc = VbglR0HGCMInternalCall32(pInfo, cbInfo, fFlags, vgdrvHgcmAsyncWaitCallbackInterruptible, pDevExt, cMillies);
+            rc = VbglR0HGCMInternalCall32(pInfo, cbInfo, fFlags, pSession->fRequestor,
+                                          vgdrvHgcmAsyncWaitCallbackInterruptible, pDevExt, cMillies);
         else
-            rc = VbglR0HGCMInternalCall32(pInfo, cbInfo, fFlags, vgdrvHgcmAsyncWaitCallback, pDevExt, cMillies);
+            rc = VbglR0HGCMInternalCall32(pInfo, cbInfo, fFlags, pSession->fRequestor,
+                                          vgdrvHgcmAsyncWaitCallback, pDevExt, cMillies);
     }
     else
 #endif
     {
         if (fInterruptible)
-            rc = VbglR0HGCMInternalCall(pInfo, cbInfo, fFlags, vgdrvHgcmAsyncWaitCallbackInterruptible, pDevExt, cMillies);
+            rc = VbglR0HGCMInternalCall(pInfo, cbInfo, fFlags, pSession->fRequestor,
+                                        vgdrvHgcmAsyncWaitCallbackInterruptible, pDevExt, cMillies);
         else
-            rc = VbglR0HGCMInternalCall(pInfo, cbInfo, fFlags, vgdrvHgcmAsyncWaitCallback, pDevExt, cMillies);
+            rc = VbglR0HGCMInternalCall(pInfo, cbInfo, fFlags, pSession->fRequestor,
+                                        vgdrvHgcmAsyncWaitCallback, pDevExt, cMillies);
     }
     if (RT_SUCCESS(rc))
     {
@@ -2438,6 +2833,68 @@ static int vgdrvIoCtl_HGCMCallWrapper(PVBOXGUESTDEVEXT pDevExt, PVBOXGUESTSESSIO
                                     f32bit, fUserData, 0 /*cbExtra*/, cbData);
 }
 
+
+/**
+ * Handles a fast HGCM call from another driver.
+ *
+ * The driver has provided a fully assembled HGCM call request and all we need
+ * to do is send it to the host and do the wait processing.
+ *
+ * @returns VBox status code of the request submission part.
+ * @param   pDevExt     The device extension.
+ * @param   pCallReq    The call request.
+ */
+static int vgdrvIoCtl_HGCMFastCall(PVBOXGUESTDEVEXT pDevExt, VBGLIOCIDCHGCMFASTCALL volatile *pCallReq)
+{
+    VMMDevHGCMCall volatile *pHgcmCall = (VMMDevHGCMCall volatile *)(pCallReq + 1);
+    int rc;
+
+    /*
+     * Check out the physical address.
+     */
+    Assert((pCallReq->GCPhysReq & PAGE_OFFSET_MASK) == ((uintptr_t)pHgcmCall & PAGE_OFFSET_MASK));
+
+    AssertReturn(!pCallReq->fInterruptible, VERR_NOT_IMPLEMENTED);
+
+    /*
+     * Submit the request.
+     */
+    Log(("vgdrvIoCtl_HGCMFastCall -> host\n"));
+    ASMOutU32(pDevExt->IOPortBase + VMMDEV_PORT_OFF_REQUEST, (uint32_t)pCallReq->GCPhysReq);
+
+    /* Make the compiler aware that the host has changed memory. */
+    ASMCompilerBarrier();
+
+    pCallReq->Hdr.rc = rc = pHgcmCall->header.header.rc;
+    Log(("vgdrvIoCtl_HGCMFastCall -> %Rrc (header rc=%Rrc)\n", rc, pHgcmCall->header.result));
+
+    /*
+     * The host is likely to engage in asynchronous execution of HGCM, unless it fails.
+     */
+    if (rc == VINF_HGCM_ASYNC_EXECUTE)
+    {
+        rc = vgdrvHgcmAsyncWaitCallbackWorker(&pHgcmCall->header, pDevExt, false /* fInterruptible */, RT_INDEFINITE_WAIT);
+        if (pHgcmCall->header.fu32Flags & VBOX_HGCM_REQ_DONE)
+        {
+            Assert(!(pHgcmCall->header.fu32Flags & VBOX_HGCM_REQ_CANCELLED));
+            rc = VINF_SUCCESS;
+        }
+        else
+        {
+            /*
+             * Timeout and interrupt scenarios are messy and requires
+             * cancelation, so implement later.
+             */
+            AssertReleaseMsgFailed(("rc=%Rrc\n", rc));
+        }
+    }
+    else
+        Assert((pHgcmCall->header.fu32Flags & VBOX_HGCM_REQ_DONE) || RT_FAILURE_NP(rc));
+
+    Log(("vgdrvIoCtl_HGCMFastCall: rc=%Rrc result=%Rrc fu32Flags=%#x\n", rc, pHgcmCall->header.result, pHgcmCall->header.fu32Flags));
+    return rc;
+
+}
 
 #endif /* VBOX_WITH_HGCM */
 
@@ -2473,14 +2930,15 @@ static int vgdrvIoCtl_CheckMemoryBalloon(PVBOXGUESTDEVEXT pDevExt, PVBOXGUESTSES
 
     if (pDevExt->MemBalloon.pOwner == pSession)
     {
+        /*
+         * This is a response to that event. Setting this bit means that
+         * we request the value from the host and change the guest memory
+         * balloon according to this value.
+         */
         rc = VbglR0GRAlloc((VMMDevRequestHeader **)&pReq, sizeof(VMMDevGetMemBalloonChangeRequest), VMMDevReq_GetMemBalloonChangeRequest);
         if (RT_SUCCESS(rc))
         {
-            /*
-             * This is a response to that event. Setting this bit means that
-             * we request the value from the host and change the guest memory
-             * balloon according to this value.
-             */
+            pReq->header.fRequestor = pSession->fRequestor;
             pReq->eventAck = VMMDEV_EVENT_BALLOON_CHANGE_REQUEST;
             rc = VbglR0GRPerform(&pReq->header);
             if (RT_SUCCESS(rc))
@@ -2577,10 +3035,11 @@ static int vgdrvIoCtl_ChangeMemoryBalloon(PVBOXGUESTDEVEXT pDevExt, PVBOXGUESTSE
  *
  * @returns VBox status code.
  *
- * @param pDevExt               The device extension.
- * @param pInfo                 The output buffer.
+ * @param   pDevExt             The device extension.
+ * @param   pSession            The session.
+ * @param   pInfo               The output buffer.
  */
-static int vgdrvIoCtl_WriteCoreDump(PVBOXGUESTDEVEXT pDevExt, PVBGLIOCWRITECOREDUMP pInfo)
+static int vgdrvIoCtl_WriteCoreDump(PVBOXGUESTDEVEXT pDevExt, PVBOXGUESTSESSION pSession, PVBGLIOCWRITECOREDUMP pInfo)
 {
     VMMDevReqWriteCoreDump *pReq = NULL;
     int rc;
@@ -2590,6 +3049,7 @@ static int vgdrvIoCtl_WriteCoreDump(PVBOXGUESTDEVEXT pDevExt, PVBGLIOCWRITECORED
     rc = VbglR0GRAlloc((VMMDevRequestHeader **)&pReq, sizeof(*pReq), VMMDevReq_WriteCoreDump);
     if (RT_SUCCESS(rc))
     {
+        pReq->header.fRequestor = pSession->fRequestor;
         pReq->fFlags = pInfo->u.In.fFlags;
         rc = VbglR0GRPerform(&pReq->header);
         if (RT_FAILURE(rc))
@@ -2940,7 +3400,10 @@ static int vgdrvSetSessionMouseStatus(PVBOXGUESTDEVEXT pDevExt, PVBOXGUESTSESSIO
      */
     rc = VbglR0GRAlloc((VMMDevRequestHeader **)&pReq, sizeof(*pReq), VMMDevReq_SetMouseStatus);
     if (RT_SUCCESS(rc))
-    { /* nothing */ }
+    {
+        if (!fSessionTermination)
+            pReq->header.fRequestor = pSession->fRequestor;
+    }
     else if (!fSessionTermination)
     {
         LogRel(("vgdrvSetSessionMouseStatus: VbglR0GRAlloc failure: %Rrc\n", rc));
@@ -3206,7 +3669,10 @@ static int vgdrvAcquireSessionCapabilities(PVBOXGUESTDEVEXT pDevExt, PVBOXGUESTS
     {
         rc = VbglR0GRAlloc((VMMDevRequestHeader **)&pReq, sizeof(*pReq), VMMDevReq_SetGuestCapabilities);
         if (RT_SUCCESS(rc))
-        { /* do nothing */ }
+        {
+            if (!fSessionTermination)
+                pReq->header.fRequestor = pSession->fRequestor;
+        }
         else if (!fSessionTermination)
         {
             LogRel(("vgdrvAcquireSessionCapabilities: pSession=%p fOrMask=%#x fNotMask=%#x fFlags=%#x: VbglR0GRAlloc failure: %Rrc\n",
@@ -3406,7 +3872,10 @@ static int vgdrvSetSessionCapabilities(PVBOXGUESTDEVEXT pDevExt, PVBOXGUESTSESSI
     VMMDevReqGuestCapabilities2 *pReq;
     int rc = VbglR0GRAlloc((VMMDevRequestHeader **)&pReq, sizeof(*pReq), VMMDevReq_SetGuestCapabilities);
     if (RT_SUCCESS(rc))
-    { /* nothing */ }
+    {
+        if (!fSessionTermination)
+            pReq->header.fRequestor = pSession->fRequestor;
+    }
     else if (!fSessionTermination)
     {
         if (pfSessionCaps)
@@ -3668,6 +4137,12 @@ int VGDrvCommonIoCtl(uintptr_t iFunction, PVBOXGUESTDEVEXT pDevExt, PVBOXGUESTSE
                                          pSession->fUserSession);
         }
 #ifdef VBOX_WITH_HGCM
+        else if (iFunction == VBGL_IOCTL_IDC_HGCM_FAST_CALL) /* (is variable size, but we don't bother encoding it) */
+        {
+            REQ_CHECK_RING0("VBGL_IOCTL_IDC_HGCM_FAST_CALL");
+            REQ_CHECK_EXPR(VBGL_IOCTL_IDC_HGCM_FAST_CALL, cbReq >= sizeof(VBGLIOCIDCHGCMFASTCALL) + sizeof(VMMDevHGCMCall));
+            vgdrvIoCtl_HGCMFastCall(pDevExt, (VBGLIOCIDCHGCMFASTCALL volatile *)pReqHdr);
+        }
         else if (   iFunctionStripped == VBGL_IOCTL_CODE_STRIPPED(VBGL_IOCTL_HGCM_CALL(0))
 # if ARCH_BITS == 64
                  || iFunctionStripped == VBGL_IOCTL_CODE_STRIPPED(VBGL_IOCTL_HGCM_CALL_32(0))
@@ -3771,7 +4246,7 @@ int VGDrvCommonIoCtl(uintptr_t iFunction, PVBOXGUESTDEVEXT pDevExt, PVBOXGUESTSE
 
                 case VBGL_IOCTL_WRITE_CORE_DUMP:
                     REQ_CHECK_SIZES(VBGL_IOCTL_WRITE_CORE_DUMP);
-                    pReqHdr->rc = vgdrvIoCtl_WriteCoreDump(pDevExt, (PVBGLIOCWRITECOREDUMP)pReqHdr);
+                    pReqHdr->rc = vgdrvIoCtl_WriteCoreDump(pDevExt, pSession, (PVBGLIOCWRITECOREDUMP)pReqHdr);
                     break;
 
                 case VBGL_IOCTL_SET_MOUSE_STATUS:
@@ -3874,8 +4349,12 @@ static int vgdrvDispatchEventsLocked(PVBOXGUESTDEVEXT pDevExt, uint32_t fEvents)
  */
 bool VGDrvCommonIsOurIRQ(PVBOXGUESTDEVEXT pDevExt)
 {
+    VMMDevMemory volatile *pVMMDevMemory;
+    bool fOurIrq;
+
     RTSpinlockAcquire(pDevExt->EventSpinlock);
-    bool const fOurIrq = pDevExt->pVMMDevMemory->V.V1_04.fHaveEvents;
+    pVMMDevMemory = pDevExt->pVMMDevMemory;
+    fOurIrq = pVMMDevMemory ? pVMMDevMemory->V.V1_04.fHaveEvents : false;
     RTSpinlockRelease(pDevExt->EventSpinlock);
 
     return fOurIrq;
@@ -3892,37 +4371,53 @@ bool VGDrvCommonIsOurIRQ(PVBOXGUESTDEVEXT pDevExt)
  */
 bool VGDrvCommonISR(PVBOXGUESTDEVEXT pDevExt)
 {
-    VMMDevEvents volatile  *pReq                  = pDevExt->pIrqAckEvents;
+    VMMDevEvents volatile  *pReq;
     bool                    fMousePositionChanged = false;
     int                     rc                    = 0;
+    VMMDevMemory volatile  *pVMMDevMemory;
     bool                    fOurIrq;
 
     /*
      * Make sure we've initialized the device extension.
      */
-    if (RT_UNLIKELY(!pReq))
+    if (RT_LIKELY(pDevExt->fHostFeatures & VMMDEV_HVF_FAST_IRQ_ACK))
+        pReq = NULL;
+    else if (RT_LIKELY((pReq = pDevExt->pIrqAckEvents) != NULL))
+    { /* likely */ }
+    else
         return false;
 
     /*
      * Enter the spinlock and check if it's our IRQ or not.
      */
     RTSpinlockAcquire(pDevExt->EventSpinlock);
-    fOurIrq = pDevExt->pVMMDevMemory->V.V1_04.fHaveEvents;
+    pVMMDevMemory = pDevExt->pVMMDevMemory;
+    fOurIrq = pVMMDevMemory ? pVMMDevMemory->V.V1_04.fHaveEvents : false;
     if (fOurIrq)
     {
         /*
-         * Acknowlegde events.
+         * Acknowledge events.
          * We don't use VbglR0GRPerform here as it may take another spinlocks.
          */
-        pReq->header.rc = VERR_INTERNAL_ERROR;
-        pReq->events    = 0;
-        ASMCompilerBarrier();
-        ASMOutU32(pDevExt->IOPortBase + VMMDEV_PORT_OFF_REQUEST, (uint32_t)pDevExt->PhysIrqAckEvents);
-        ASMCompilerBarrier();   /* paranoia */
-        if (RT_SUCCESS(pReq->header.rc))
+        uint32_t fEvents;
+        if (!pReq)
         {
-            uint32_t        fEvents = pReq->events;
-
+            fEvents = ASMInU32(pDevExt->IOPortBase + VMMDEV_PORT_OFF_REQUEST_FAST);
+            ASMCompilerBarrier();   /* paranoia */
+            rc = fEvents != UINT32_MAX ? VINF_SUCCESS : VERR_INTERNAL_ERROR;
+        }
+        else
+        {
+            pReq->header.rc = VERR_INTERNAL_ERROR;
+            pReq->events    = 0;
+            ASMCompilerBarrier();
+            ASMOutU32(pDevExt->IOPortBase + VMMDEV_PORT_OFF_REQUEST, (uint32_t)pDevExt->PhysIrqAckEvents);
+            ASMCompilerBarrier();   /* paranoia */
+            fEvents = pReq->events;
+            rc = pReq->header.rc;
+        }
+        if (RT_SUCCESS(rc))
+        {
             Log3(("VGDrvCommonISR: acknowledge events succeeded %#RX32\n", fEvents));
 
             /*
@@ -3970,8 +4465,7 @@ bool VGDrvCommonISR(PVBOXGUESTDEVEXT pDevExt)
             rc |= vgdrvDispatchEventsLocked(pDevExt, fEvents);
         }
         else /* something is serious wrong... */
-            Log(("VGDrvCommonISR: acknowledge events failed rc=%Rrc (events=%#x)!!\n",
-                 pReq->header.rc, pReq->events));
+            Log(("VGDrvCommonISR: acknowledge events failed rc=%Rrc (events=%#x)!!\n", rc, fEvents));
     }
     else
         Log3(("VGDrvCommonISR: not ours\n"));
@@ -3988,7 +4482,7 @@ bool VGDrvCommonISR(PVBOXGUESTDEVEXT pDevExt)
         pDevExt->pfnMouseNotifyCallback(pDevExt->pvMouseNotifyCallbackArg);
 #endif
 
-#if defined(VBOXGUEST_USE_DEFERRED_WAKE_UP) && !defined(RT_OS_DARWIN) && !defined(RT_OS_WINDOWS)
+#if defined(VBOXGUEST_USE_DEFERRED_WAKE_UP) && !defined(RT_OS_WINDOWS)
     /*
      * Do wake-ups.
      * Note. On Windows this isn't possible at this IRQL, so a DPC will take
@@ -4007,8 +4501,7 @@ bool VGDrvCommonISR(PVBOXGUESTDEVEXT pDevExt)
         VGDrvNativeISRMousePollEvent(pDevExt);
     }
 
-    Assert(rc == 0);
-    NOREF(rc);
+    AssertMsg(rc == 0, ("rc=%#x (%d)\n", rc, rc));
     return fOurIrq;
 }
 

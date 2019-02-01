@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2017 Oracle Corporation
- * This file is based on ????.c?
+ * Copyright (C) 2017-2019 Oracle Corporation
+ * This file is based on qxl_prime.c
  * Copyright 2017 Canonical
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -49,14 +49,14 @@ struct sg_table *vbox_gem_prime_get_sg_table(struct drm_gem_object *obj)
 	return ERR_PTR(-ENOSYS);
 }
 
-struct drm_gem_object *vbox_gem_prime_import_sg_table(struct drm_device *dev,
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 18, 0) && !defined(RHEL_72)
-						      size_t size,
+struct drm_gem_object *vbox_gem_prime_import_sg_table(
+	struct drm_device *dev, size_t size, struct sg_table *table)
 #else
-						      struct dma_buf_attachment
-						      *attach,
+struct drm_gem_object *vbox_gem_prime_import_sg_table(
+	struct drm_device *dev, struct dma_buf_attachment *attach,
+	struct sg_table *table)
 #endif
-						      struct sg_table *table)
 {
 	WARN_ONCE(1, "not implemented");
 	return ERR_PTR(-ENOSYS);

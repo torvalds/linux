@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2017 Oracle Corporation
+ * Copyright (C) 2006-2019 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -23,8 +23,11 @@
  * terms and conditions of either the GPL or the CDDL or both.
  */
 
-#ifndef ___VBox_types_h
-#define ___VBox_types_h
+#ifndef VBOX_INCLUDED_types_h
+#define VBOX_INCLUDED_types_h
+#ifndef RT_WITHOUT_PRAGMA_ONCE
+# pragma once
+#endif
 
 #include <VBox/cdefs.h>
 #include <iprt/types.h>
@@ -96,6 +99,8 @@ typedef RCPTRTYPE(struct VMCPU *)   PVMCPURC;
 
 /** Pointer to a ring-0 (global) VM structure. */
 typedef R0PTRTYPE(struct GVM *)     PGVM;
+/** Pointer to the GVMCPU data. */
+typedef R0PTRTYPE(struct GVMCPU *)  PGVMCPU;
 
 /** Pointer to a ring-3 (user mode) VM structure. */
 typedef R3PTRTYPE(struct UVM *)     PUVM;
@@ -938,6 +943,8 @@ typedef enum PDMNETWORKGSOTYPE
  *
  * @remarks This is part of the internal network GSO packets.  Take great care
  *          when making changes.  The size is expected to be exactly 8 bytes.
+ *
+ * @ingroup grp_pdm
  */
 typedef struct PDMNETWORKGSO
 {
@@ -957,16 +964,26 @@ typedef struct PDMNETWORKGSO
     /** Unused. */
     uint8_t             u8Unused;
 } PDMNETWORKGSO;
-/** Pointer to a GSO context. */
+/** Pointer to a GSO context.
+ * @ingroup grp_pdm */
 typedef PDMNETWORKGSO *PPDMNETWORKGSO;
-/** Pointer to a const GSO context. */
+/** Pointer to a const GSO context.
+ * @ingroup grp_pdm */
 typedef PDMNETWORKGSO const *PCPDMNETWORKGSO;
+
+/** Pointer to a PDM filter handle.
+ * @ingroup grp_pdm_net_shaper  */
+typedef struct PDMNSFILTER *PPDMNSFILTER;
+/** Pointer to a network shaper.
+ * @ingroup grp_pdm_net_shaper */
+typedef struct PDMNETSHAPER *PPDMNETSHAPER;
 
 
 /**
  * The current ROM page protection.
  *
  * @remarks This is part of the saved state.
+ * @ingroup grp_pgm
  */
 typedef enum PGMROMPROT
 {
@@ -993,6 +1010,7 @@ typedef enum PGMROMPROT
 
 /**
  * Page mapping lock.
+ * @ingroup grp_pgm
  */
 typedef struct PGMPAGEMAPLOCK
 {
@@ -1017,7 +1035,8 @@ typedef struct PGMPAGEMAPLOCK
     void       *pvMap;
 #endif
 } PGMPAGEMAPLOCK;
-/** Pointer to a page mapping lock. */
+/** Pointer to a page mapping lock.
+ * @ingroup grp_pgm */
 typedef PGMPAGEMAPLOCK *PPGMPAGEMAPLOCK;
 
 
@@ -1077,6 +1096,18 @@ typedef PDISSTATE PDISCPUSTATE;
 typedef PCDISSTATE PCDISCPUSTATE;
 
 
+/**
+ * Shared region description (needed by GMM and others, thus global).
+ * @ingroup grp_vmmdev
+ */
+typedef struct VMMDEVSHAREDREGIONDESC
+{
+    RTGCPTR64           GCRegionAddr;
+    uint32_t            cbRegion;
+    uint32_t            u32Alignment;
+} VMMDEVSHAREDREGIONDESC;
+
+
 /** @} */
 
-#endif
+#endif /* !VBOX_INCLUDED_types_h */

@@ -3,32 +3,42 @@
  */
 
 /*
- * Copyright (C) 2006-2017 Oracle Corporation
+ * Copyright (C) 2006-2019 Oracle Corporation
  *
- * This file is part of VirtualBox Open Source Edition (OSE), as
- * available from http://www.virtualbox.org. This file is free software;
- * you can redistribute it and/or modify it under the terms of the GNU
- * General Public License (GPL) as published by the Free Software
- * Foundation, in version 2 as it comes in the "COPYING" file of the
- * VirtualBox OSE distribution. VirtualBox OSE is distributed in the
- * hope that it will be useful, but WITHOUT ANY WARRANTY of any kind.
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
  *
- * The contents of this file may alternatively be used under the terms
- * of the Common Development and Distribution License Version 1.0
- * (CDDL) only, as it comes in the "COPYING.CDDL" file of the
- * VirtualBox OSE distribution, in which case the provisions of the
- * CDDL are applicable instead of those of the GPL.
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
  *
- * You may elect to license modified versions of this file under the
- * terms and conditions of either the GPL or the CDDL or both.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT.  IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef ___VBox_VBoxGuestLib_h
-#define ___VBox_VBoxGuestLib_h
+#ifndef VBOX_INCLUDED_VBoxGuestLib_h
+#define VBOX_INCLUDED_VBoxGuestLib_h
+#ifndef RT_WITHOUT_PRAGMA_ONCE
+# pragma once
+#endif
 
 #include <VBox/types.h>
-#include <VBox/VMMDevCoreTypes.h>
+#include <VBox/VMMDev.h>
 #include <VBox/VBoxGuestCoreTypes.h>
+# ifdef VBOX_WITH_DRAG_AND_DROP
+#  include <VBox/GuestHost/DragAndDropDefs.h>
+# endif
 
 /** @defgroup grp_vboxguest_lib     VirtualBox Guest Additions Library
  * @ingroup grp_vboxguest
@@ -99,7 +109,7 @@ typedef uint32_t HGCMCLIENTID;
  *
  * @return VBox status code.
  */
-DECLR0VBGL(int)     VbglR0InitPrimary(RTIOPORT portVMMDev, struct VMMDevMemory *pVMMDevMemory);
+DECLR0VBGL(int)     VbglR0InitPrimary(RTIOPORT portVMMDev, VMMDevMemory *pVMMDevMemory, uint32_t *pfFeatures);
 
 /**
  * The library termination function to be used by the main VBoxGuest driver.
@@ -120,6 +130,16 @@ DECLR0VBGL(int)     VbglR0InitClient(void);
  * The library termination function.
  */
 DECLR0VBGL(void)    VbglR0TerminateClient(void);
+
+/**
+ * Query the host feature mask.
+ *
+ * @returns VBox status code.
+ * @param   pfHostFeatures      Where to return the host feature mask,
+ *                              VMMDEV_HVF_XXX.
+ * @note    Client only. May fail we're unable to connect VBoxGuest.
+ */
+DECLR0VBGL(int)     VbglR0QueryHostFeatures(uint32_t *pfHostFeatures);
 
 
 /** @name The IDC Client Interface
@@ -164,7 +184,7 @@ DECLR0VBGL(int) VbglR0IdcClose(PVBGLIDCHANDLE pHandle);
  * @param   cbReq       Size of memory block required for the request.
  * @param   enmReqType  the generic request type.
  */
-# if defined(___VBox_VMMDev_h) || defined(DOXYGEN_RUNNING)
+# if defined(VBOX_INCLUDED_VMMDev_h) || defined(DOXYGEN_RUNNING)
 DECLR0VBGL(int) VbglR0GRAlloc(struct VMMDevRequestHeader **ppReq, size_t cbReq, VMMDevRequestType enmReqType);
 # else
 DECLR0VBGL(int) VbglR0GRAlloc(struct VMMDevRequestHeader **ppReq, size_t cbReq, int32_t enmReqType);
@@ -204,6 +224,7 @@ DECLR0VBGL(int) VbglGR0Verify(const struct VMMDevRequestHeader *pReq, size_t cbR
 
 # ifdef VBOX_WITH_HGCM
 struct VBGLIOCHGCMCALL;
+struct VBGLIOCIDCHGCMFASTCALL;
 
 #  ifdef VBGL_VBOXGUEST
 
@@ -228,6 +249,7 @@ typedef FNVBGLHGCMCALLBACK *PFNVBGLHGCMCALLBACK;
  * @note This function can NOT handle cancelled requests!
  *
  * @param   pLoc                The service to connect to.
+ * @param   fRequestor          VMMDEV_REQUESTOR_XXX.
  * @param   pidClient           Where to return the client ID on success.
  * @param   pfnAsyncCallback    Required pointer to function that is calledwhen
  *                              host returns VINF_HGCM_ASYNC_EXECUTE. VBoxGuest
@@ -237,7 +259,7 @@ typedef FNVBGLHGCMCALLBACK *PFNVBGLHGCMCALLBACK;
  *
  * @return  VBox status code.
  */
-DECLR0VBGL(int) VbglR0HGCMInternalConnect(HGCMServiceLocation const *pLoc, HGCMCLIENTID *pidClient,
+DECLR0VBGL(int) VbglR0HGCMInternalConnect(HGCMServiceLocation const *pLoc, uint32_t fRequestor, HGCMCLIENTID *pidClient,
                                           PFNVBGLHGCMCALLBACK pfnAsyncCallback, void *pvAsyncData, uint32_t u32AsyncData);
 
 
@@ -249,6 +271,7 @@ DECLR0VBGL(int) VbglR0HGCMInternalConnect(HGCMServiceLocation const *pLoc, HGCMC
  * @note This function can NOT handle cancelled requests!
  *
  * @param   idClient            The client ID to disconnect.
+ * @param   fRequestor          VMMDEV_REQUESTOR_XXX.
  * @param   pfnAsyncCallback    Required pointer to function that is called when
  *                              host returns VINF_HGCM_ASYNC_EXECUTE. VBoxGuest
  *                              implements waiting for an IRQ in this function.
@@ -259,7 +282,7 @@ DECLR0VBGL(int) VbglR0HGCMInternalConnect(HGCMServiceLocation const *pLoc, HGCMC
  * @return  VBox status code.
  */
 
-DECLR0VBGL(int) VbglR0HGCMInternalDisconnect(HGCMCLIENTID idClient,
+DECLR0VBGL(int) VbglR0HGCMInternalDisconnect(HGCMCLIENTID idClient, uint32_t fRequestor,
                                              PFNVBGLHGCMCALLBACK pfnAsyncCallback, void *pvAsyncData, uint32_t u32AsyncData);
 
 /** Call a HGCM service.
@@ -268,6 +291,7 @@ DECLR0VBGL(int) VbglR0HGCMInternalDisconnect(HGCMCLIENTID idClient,
  *
  * @param   pCallInfo           The request data.
  * @param   fFlags              Flags, see VBGLR0_HGCMCALL_F_XXX.
+ * @param   fRequestor          VMMDEV_REQUESTOR_XXX.
  * @param   pfnAsyncCallback    Required pointer to function that is called when
  *                              host returns VINF_HGCM_ASYNC_EXECUTE. VBoxGuest
  *                              implements waiting for an IRQ in this function.
@@ -276,7 +300,7 @@ DECLR0VBGL(int) VbglR0HGCMInternalDisconnect(HGCMCLIENTID idClient,
  *
  * @return VBox status code.
  */
-DECLR0VBGL(int) VbglR0HGCMInternalCall(struct VBGLIOCHGCMCALL *pCallInfo, uint32_t cbCallInfo, uint32_t fFlags,
+DECLR0VBGL(int) VbglR0HGCMInternalCall(struct VBGLIOCHGCMCALL *pCallInfo, uint32_t cbCallInfo, uint32_t fFlags, uint32_t fRequestor,
                                        PFNVBGLHGCMCALLBACK pfnAsyncCallback, void *pvAsyncData, uint32_t u32AsyncData);
 
 /** Call a HGCM service. (32 bits packet structure in a 64 bits guest)
@@ -285,6 +309,7 @@ DECLR0VBGL(int) VbglR0HGCMInternalCall(struct VBGLIOCHGCMCALL *pCallInfo, uint32
  *
  * @param   pCallInfo           The request data.
  * @param   fFlags              Flags, see VBGLR0_HGCMCALL_F_XXX.
+ * @param   fRequestor          VMMDEV_REQUESTOR_XXX.
  * @param   pfnAsyncCallback    Required pointer to function that is called when
  *                              host returns VINF_HGCM_ASYNC_EXECUTE. VBoxGuest
  *                              implements waiting for an IRQ in this function.
@@ -293,7 +318,7 @@ DECLR0VBGL(int) VbglR0HGCMInternalCall(struct VBGLIOCHGCMCALL *pCallInfo, uint32
  *
  * @return  VBox status code.
  */
-DECLR0VBGL(int) VbglR0HGCMInternalCall32(struct VBGLIOCHGCMCALL *pCallInfo, uint32_t cbCallInfo, uint32_t fFlags,
+DECLR0VBGL(int) VbglR0HGCMInternalCall32(struct VBGLIOCHGCMCALL *pCallInfo, uint32_t cbCallInfo, uint32_t fFlags, uint32_t fRequestor,
                                          PFNVBGLHGCMCALLBACK pfnAsyncCallback, void *pvAsyncData, uint32_t u32AsyncData);
 
 /** @name VbglR0HGCMInternalCall flags
@@ -313,7 +338,17 @@ DECLR0VBGL(int) VbglR0HGCMInternalCall32(struct VBGLIOCHGCMCALL *pCallInfo, uint
 
 #  else  /* !VBGL_VBOXGUEST */
 
+#ifndef VBGL_VBOXGUEST
+/** @internal  */
+typedef struct VBGLHGCMHANDLEDATA
+{
+    uint32_t fAllocated;
+    VBGLIDCHANDLE IdcHandle;
+} VBGLHGCMHANDLEDATA;
+#else
 struct VBGLHGCMHANDLEDATA;
+#endif
+
 typedef struct VBGLHGCMHANDLEDATA *VBGLHGCMHANDLE;
 
 /** @name HGCM functions
@@ -370,7 +405,7 @@ DECLR0VBGL(int) VbglR0HGCMDisconnect(VBGLHGCMHANDLE handle, HGCMCLIENTID idClien
  *
  * @return VBox status code.
  */
-DECLR0VBGL(int) VbglR0HGCMCallRaw(VBGLHGCMHANDLE handle, struct VBGLIOCHGCMCALL*pData, uint32_t cbData);
+DECLR0VBGL(int) VbglR0HGCMCallRaw(VBGLHGCMHANDLE handle, struct VBGLIOCHGCMCALL *pData, uint32_t cbData);
 
 /**
  * Call to a service, returning the HGCM status code.
@@ -382,7 +417,7 @@ DECLR0VBGL(int) VbglR0HGCMCallRaw(VBGLHGCMHANDLE handle, struct VBGLIOCHGCMCALL*
  * @return VBox status code.  Either the I/O control status code if that failed,
  *         or the HGCM status code (pData->Hdr.rc).
  */
-DECLR0VBGL(int) VbglR0HGCMCall(VBGLHGCMHANDLE handle, struct VBGLIOCHGCMCALL*pData, uint32_t cbData);
+DECLR0VBGL(int) VbglR0HGCMCall(VBGLHGCMHANDLE handle, struct VBGLIOCHGCMCALL *pData, uint32_t cbData);
 
 /**
  * Call to a service with user-mode data received by the calling driver from the User-Mode process.
@@ -394,7 +429,26 @@ DECLR0VBGL(int) VbglR0HGCMCall(VBGLHGCMHANDLE handle, struct VBGLIOCHGCMCALL*pDa
  *
  * @return VBox status code.
  */
-DECLR0VBGL(int) VbglR0HGCMCallUserDataRaw(VBGLHGCMHANDLE handle, struct VBGLIOCHGCMCALL*pData, uint32_t cbData);
+DECLR0VBGL(int) VbglR0HGCMCallUserDataRaw(VBGLHGCMHANDLE handle, struct VBGLIOCHGCMCALL *pData, uint32_t cbData);
+
+/**
+ * Call to a service, w/o any repacking and buffer locking in VBoxGuest,
+ * returning the only request related status code (not HGCM).
+ *
+ * The driver only submits the request and waits for completion, nothing else.
+ *
+ * @param   hHandle     The connection handle.
+ * @param   pCallReq    The call request.  Will be passed directly to the host.
+ * @param   cbCallReq   The size of the whole call request.
+ *
+ * @return VBox status code.
+ *
+ * @remarks The result of the HGCM call is found in
+ *          @a pCallReq->HgcmCallReq.header.result on a successful return.  The
+ *          @a pCallReq->Hdr.rc and @a pCallReq->HgcmCallReq.header.header.rc
+ *          fields are the same as the return value and can safely be ignored.
+ */
+DECLR0VBGL(int) VbglR0HGCMFastCall(VBGLHGCMHANDLE hHandle, struct VBGLIOCIDCHGCMFASTCALL *pCallReq, uint32_t cbCallReq);
 
 /** @} */
 
@@ -490,7 +544,7 @@ DECLR0VBGL(int)     VbglR0SetMouseStatus(uint32_t fFeatures);
 VBGLR3DECL(int)     VbglR3Init(void);
 VBGLR3DECL(int)     VbglR3InitUser(void);
 VBGLR3DECL(void)    VbglR3Term(void);
-# ifdef ___iprt_time_h
+# ifdef IPRT_INCLUDED_time_h
 VBGLR3DECL(int)     VbglR3GetHostTime(PRTTIMESPEC pTime);
 # endif
 VBGLR3DECL(int)     VbglR3InterruptEventWaits(void);
@@ -560,6 +614,8 @@ VBGLR3DECL(int)     VbglR3SetPointerShapeReq(struct VMMDevReqMousePointer *pReq)
 
 VBGLR3DECL(int)     VbglR3GetDisplayChangeRequest(uint32_t *pcx, uint32_t *pcy, uint32_t *pcBits, uint32_t *piDisplay,
                                                   uint32_t *pdx, uint32_t *pdy, bool *pfEnabled, bool *pfChangeOrigin, bool fAck);
+VBGLR3DECL(int)     VbglR3GetDisplayChangeRequestMulti(uint32_t cDisplaysIn, uint32_t *pcDisplaysOut,
+                                                       VMMDevDisplayDef *paDisplays, bool fAck);
 VBGLR3DECL(bool)    VbglR3HostLikesVideoMode(uint32_t cx, uint32_t cy, uint32_t cBits);
 VBGLR3DECL(int)     VbglR3VideoModeGetHighestSavedScreen(unsigned *pcScreen);
 VBGLR3DECL(int)     VbglR3SaveVideoMode(unsigned cScreen, unsigned cx, unsigned cy, unsigned cBits,
@@ -576,7 +632,7 @@ VBGLR3DECL(int)     VbglR3VrdpGetChangeRequest(bool *pfActive, uint32_t *puExper
 /** @name VM Statistics
  * @{ */
 VBGLR3DECL(int)     VbglR3StatQueryInterval(uint32_t *pu32Interval);
-# if defined(___VBox_VMMDev_h) || defined(DOXYGEN_RUNNING)
+# if defined(VBOX_INCLUDED_VMMDev_h) || defined(DOXYGEN_RUNNING)
 VBGLR3DECL(int)     VbglR3StatReport(VMMDevReportGuestStats *pReq);
 # endif
 /** @}  */
@@ -668,9 +724,15 @@ VBGLR3DECL(bool)    VbglR3SharedFolderExists(HGCMCLIENTID idClient, const char *
 VBGLR3DECL(int)     VbglR3SharedFolderGetMappings(HGCMCLIENTID idClient, bool fAutoMountOnly,
                                                   PVBGLR3SHAREDFOLDERMAPPING *ppaMappings, uint32_t *pcMappings);
 VBGLR3DECL(void)    VbglR3SharedFolderFreeMappings(PVBGLR3SHAREDFOLDERMAPPING paMappings);
-VBGLR3DECL(int)     VbglR3SharedFolderGetName(HGCMCLIENTID  idClient,uint32_t u32Root, char **ppszName);
-VBGLR3DECL(int)     VbglR3SharedFolderGetMountPrefix(char **ppszPrefix);
-VBGLR3DECL(int)     VbglR3SharedFolderGetMountDir(char **ppszDir);
+VBGLR3DECL(int)     VbglR3SharedFolderGetName(HGCMCLIENTID  idClient,uint32_t u32Root, char **ppszName); /**< @todo r=bird: GET functions return the value, not a status code!*/
+VBGLR3DECL(int)     VbglR3SharedFolderQueryFolderInfo(HGCMCLIENTID idClient, uint32_t idRoot, uint64_t fQueryFlags,
+                                                      char **ppszName, char **ppszMountPoint,
+                                                      uint64_t *pfFlags, uint32_t *puRootIdVersion);
+VBGLR3DECL(int)     VbglR3SharedFolderWaitForMappingsChanges(HGCMCLIENTID idClient, uint32_t uPrevVersion, uint32_t *puCurVersion);
+VBGLR3DECL(int)     VbglR3SharedFolderCancelMappingsChangesWaits(HGCMCLIENTID idClient);
+
+VBGLR3DECL(int)     VbglR3SharedFolderGetMountPrefix(char **ppszPrefix); /**< @todo r=bird: GET functions return the value, not a status code! */
+VBGLR3DECL(int)     VbglR3SharedFolderGetMountDir(char **ppszDir);       /**< @todo r=bird: GET functions return the value, not a status code! */
 /** @}  */
 # endif /* VBOX_WITH_SHARED_FOLDERS defined */
 
@@ -692,11 +754,9 @@ typedef struct VBGLR3GUESTCTRLCMDCTX
      *        a second communication channel, e.g. via TCP/IP.
      *        Use a union for the HGCM stuff then. */
 
-    /** IN: HGCM client ID to use for
-     *      communication. */
+    /** IN: HGCM client ID to use for communication. */
     uint32_t uClientID;
-    /** IN/OUT: Context ID to retrieve
-     *          or to use. */
+    /** IN/OUT: Context ID to retrieve or to use. */
     uint32_t uContextID;
     /** IN: Protocol version to use. */
     uint32_t uProtocol;
@@ -707,17 +767,22 @@ typedef struct VBGLR3GUESTCTRLCMDCTX
 /* General message handling on the guest. */
 VBGLR3DECL(int) VbglR3GuestCtrlConnect(uint32_t *pidClient);
 VBGLR3DECL(int) VbglR3GuestCtrlDisconnect(uint32_t idClient);
+VBGLR3DECL(bool) VbglR3GuestCtrlSupportsOptimizations(uint32_t idClient);
+VBGLR3DECL(int) VbglR3GuestCtrlMakeMeMaster(uint32_t idClient);
 VBGLR3DECL(int) VbglR3GuestCtrlMsgFilterSet(uint32_t uClientId, uint32_t uValue, uint32_t uMaskAdd, uint32_t uMaskRemove);
-VBGLR3DECL(int) VbglR3GuestCtrlMsgFilterUnset(uint32_t uClientId);
 VBGLR3DECL(int) VbglR3GuestCtrlMsgReply(PVBGLR3GUESTCTRLCMDCTX pCtx, int rc);
 VBGLR3DECL(int) VbglR3GuestCtrlMsgReplyEx(PVBGLR3GUESTCTRLCMDCTX pCtx, int rc, uint32_t uType,
                                           void *pvPayload, uint32_t cbPayload);
-VBGLR3DECL(int) VbglR3GuestCtrlMsgSkip(uint32_t uClientId);
-VBGLR3DECL(int) VbglR3GuestCtrlMsgWaitFor(uint32_t uClientId, uint32_t *puMsg, uint32_t *puNumParms);
+VBGLR3DECL(int) VbglR3GuestCtrlMsgSkip(uint32_t idClient, int rcSkip, uint32_t idMsg);
+VBGLR3DECL(int) VbglR3GuestCtrlMsgSkipOld(uint32_t uClientId);
+VBGLR3DECL(int) VbglR3GuestCtrlMsgPeekWait(uint32_t idClient, uint32_t *pidMsg, uint32_t *pcParameters, uint64_t *pidRestoreCheck);
 VBGLR3DECL(int) VbglR3GuestCtrlCancelPendingWaits(HGCMCLIENTID idClient);
 /* Guest session handling. */
+VBGLR3DECL(int) VbglR3GuestCtrlSessionPrepare(uint32_t idClient, uint32_t idSession, void const *pvKey, uint32_t cbKey);
+VBGLR3DECL(int) VbglR3GuestCtrlSessionAccept(uint32_t idClient, uint32_t idSession, void const *pvKey, uint32_t cbKey);
+VBGLR3DECL(int) VbglR3GuestCtrlSessionCancelPrepared(uint32_t idClient, uint32_t idSession);
 VBGLR3DECL(int) VbglR3GuestCtrlSessionClose(PVBGLR3GUESTCTRLCMDCTX pCtx, uint32_t fFlags);
-VBGLR3DECL(int) VbglR3GuestCtrlSessionNotify(PVBGLR3GUESTCTRLCMDCTX pCtx, uint32_t uType, uint32_t uResult);
+VBGLR3DECL(int) VbglR3GuestCtrlSessionNotify(PVBGLR3GUESTCTRLCMDCTX pCtx, uint32_t uType, int32_t iResult);
 VBGLR3DECL(int) VbglR3GuestCtrlSessionGetOpen(PVBGLR3GUESTCTRLCMDCTX pCtx, uint32_t *puProtocol, char *pszUser, uint32_t cbUser,
                                               char *pszPassword, uint32_t  cbPassword, char *pszDomain, uint32_t cbDomain,
                                               uint32_t *pfFlags, uint32_t *pidSession);
@@ -725,6 +790,8 @@ VBGLR3DECL(int) VbglR3GuestCtrlSessionGetClose(PVBGLR3GUESTCTRLCMDCTX pCtx, uint
 /* Guest path handling. */
 VBGLR3DECL(int) VbglR3GuestCtrlPathGetRename(PVBGLR3GUESTCTRLCMDCTX pCtx, char *pszSource, uint32_t cbSource, char *pszDest,
                                              uint32_t cbDest, uint32_t *pfFlags);
+VBGLR3DECL(int) VbglR3GuestCtrlPathGetUserDocuments(PVBGLR3GUESTCTRLCMDCTX pCtx);
+VBGLR3DECL(int) VbglR3GuestCtrlPathGetUserHome(PVBGLR3GUESTCTRLCMDCTX pCtx);
 /* Guest process execution. */
 VBGLR3DECL(int) VbglR3GuestCtrlProcGetStart(PVBGLR3GUESTCTRLCMDCTX pCtx, char *pszCmd, uint32_t cbCmd, uint32_t *pfFlags,
                                             char *pszArgs, uint32_t cbArgs, uint32_t *puNumArgs, char *pszEnv, uint32_t *pcbEnv,
@@ -835,40 +902,141 @@ typedef struct VBGLR3GUESTDNDCMDCTX
     uint32_t cbMaxChunkSize;
 } VBGLR3GUESTDNDCMDCTX, *PVBGLR3GUESTDNDCMDCTX;
 
-typedef struct VBGLR3DNDHGCMEVENT
+/**
+ * Enumeration for specifying the DnD meta data type.
+ */
+typedef enum VBGLR3GUESTDNDMETADATATYPE
 {
-    uint32_t uType;               /** The event type this struct contains. */
-    uint32_t uScreenId;           /** Screen ID this request belongs to. */
-    char    *pszFormats;          /** Format list (\r\n separated). */
-    uint32_t cbFormats;           /** Size (in bytes) of pszFormats (\0 included). */
+    /** Unknown meta data type; don't use. */
+    VBGLR3GUESTDNDMETADATATYPE_UNKNOWN = 0,
+    /** Raw meta data; can be everything. */
+    VBGLR3GUESTDNDMETADATATYPE_RAW,
+    /** Meta data is an URI list, specifying objects. */
+    VBGLR3GUESTDNDMETADATATYPE_URI_LIST,
+    /** Blow the type up to 32-bit. */
+    VBGLR3GUESTDNDMETADATATYPE_32BIT_HACK = 0x7fffffff
+} VBGLR3GUESTDNDMETADATATYPE;
+
+/**
+ * Structure for keeping + handling DnD meta data.
+ *
+ * Note: Don't treat this struct as POD object, as the union has classes in it.
+ */
+typedef struct VBGLR3GUESTDNDMETADATA
+{
+    /** The meta data type the union contains. */
+    VBGLR3GUESTDNDMETADATATYPE enmType;
+    /** Pointer to actual meta data. */
+    void    *pvMeta;
+    /** Size (in bytes) of meta data. */
+    uint32_t cbMeta;
+} VBGLR3GUESTDNDMETADATA;
+
+/** Pointer to VBGLR3GUESTDNDMETADATA. */
+typedef VBGLR3GUESTDNDMETADATA *PVBGLR3GUESTDNDMETADATA;
+
+/** Const pointer to VBGLR3GUESTDNDMETADATA. */
+typedef const PVBGLR3GUESTDNDMETADATA CPVBGLR3GUESTDNDMETADATA;
+
+/**
+ * Enumeration specifying a DnD event type.
+ */
+typedef enum VBGLR3DNDEVENTTYPE
+{
+    VBGLR3DNDEVENTTYPE_INVALID        = 0,
+    VBGLR3DNDEVENTTYPE_HG_ERROR       = 1,
+    VBGLR3DNDEVENTTYPE_HG_ENTER       = 2,
+    VBGLR3DNDEVENTTYPE_HG_MOVE        = 3,
+    VBGLR3DNDEVENTTYPE_HG_LEAVE       = 4,
+    VBGLR3DNDEVENTTYPE_HG_DROP        = 5,
+    VBGLR3DNDEVENTTYPE_HG_RECEIVE     = 6,
+    VBGLR3DNDEVENTTYPE_HG_CANCEL      = 7,
+# ifdef VBOX_WITH_DRAG_AND_DROP_GH
+    VBGLR3DNDEVENTTYPE_GH_ERROR       = 100,
+    VBGLR3DNDEVENTTYPE_GH_REQ_PENDING = 101,
+    VBGLR3DNDEVENTTYPE_GH_DROP        = 102,
+# endif
+    /** Blow the type up to 32-bit. */
+    VBGLR3DNDEVENTTYPE_32BIT_HACK = 0x7fffffff
+} VBGLR3DNDEVENTTYPE;
+
+typedef struct VBGLR3DNDEVENT
+{
+    /** The event type the union contains. */
+    VBGLR3DNDEVENTTYPE enmType;
     union
     {
         struct
         {
-            uint32_t uXpos;       /** X position of guest screen. */
-            uint32_t uYpos;       /** Y position of guest screen. */
-            uint32_t uDefAction;  /** Proposed DnD action. */
-            uint32_t uAllActions; /** Allowed DnD actions. */
-        } a; /** Values used in init, move and drop event type. */
+            /** Screen ID this request belongs to. */
+            uint32_t uScreenID;
+            /** Format list (UTF-8, \r\n separated). */
+            char    *pszFormats;
+            /** Size (in bytes) of pszFormats (\0 included). */
+            uint32_t cbFormats;
+            /** List of allowed DnD actions. */
+            VBOXDNDACTIONLIST dndLstActionsAllowed;
+        } HG_Enter;
         struct
         {
-            void    *pvData;      /** Data request. */
-            uint32_t cbData;      /** Size (in bytes) of pvData. */
-        } b; /** Values used in drop data event type. */
+            /** Absolute X position of guest screen. */
+            uint32_t uXpos;
+            /** Absolute Y position of guest screen. */
+            uint32_t uYpos;
+            /** Default DnD action. */
+            VBOXDNDACTION dndActionDefault;
+        } HG_Move;
+        struct
+        {
+            /** Absolute X position of guest screen. */
+            uint32_t uXpos;
+            /** Absolute Y position of guest screen. */
+            uint32_t uYpos;
+            /** Default DnD action. */
+            VBOXDNDACTION dndActionDefault;
+        } HG_Drop;
+        struct
+        {
+            /** Meta data for the operation. */
+            VBGLR3GUESTDNDMETADATA Meta;
+        } HG_Received;
+        struct
+        {
+            /** IPRT-style error code. */
+            int rc;
+        } HG_Error;
+# ifdef VBOX_WITH_DRAG_AND_DROP_GH
+        struct
+        {
+            /** Screen ID this request belongs to. */
+            uint32_t uScreenID;
+        } GH_IsPending;
+        struct
+        {
+            /** Requested format by the host. */
+            char    *pszFormat;
+            /** Size (in bytes) of pszFormat (\0 included). */
+            uint32_t cbFormat;
+            /** Requested DnD action. */
+            VBOXDNDACTION dndActionRequested;
+        } GH_Drop;
+# endif
     } u;
-} VBGLR3DNDHGCMEVENT;
-typedef VBGLR3DNDHGCMEVENT *PVBGLR3DNDHGCMEVENT;
-typedef const PVBGLR3DNDHGCMEVENT CPVBGLR3DNDHGCMEVENT;
+} VBGLR3DNDEVENT;
+typedef VBGLR3DNDEVENT *PVBGLR3DNDEVENT;
+typedef const PVBGLR3DNDEVENT CPVBGLR3DNDEVENT;
+
 VBGLR3DECL(int)     VbglR3DnDConnect(PVBGLR3GUESTDNDCMDCTX pCtx);
 VBGLR3DECL(int)     VbglR3DnDDisconnect(PVBGLR3GUESTDNDCMDCTX pCtx);
 
-VBGLR3DECL(int)     VbglR3DnDRecvNextMsg(PVBGLR3GUESTDNDCMDCTX pCtx, CPVBGLR3DNDHGCMEVENT pEvent);
+VBGLR3DECL(int)     VbglR3DnDEventGetNext(PVBGLR3GUESTDNDCMDCTX pCtx, PVBGLR3DNDEVENT *ppEvent);
+VBGLR3DECL(void)    VbglR3DnDEventFree(PVBGLR3DNDEVENT pEvent);
 
-VBGLR3DECL(int)     VbglR3DnDHGSendAckOp(PVBGLR3GUESTDNDCMDCTX pCtx, uint32_t uAction);
+VBGLR3DECL(int)     VbglR3DnDHGSendAckOp(PVBGLR3GUESTDNDCMDCTX pCtx, VBOXDNDACTION dndAction);
 VBGLR3DECL(int)     VbglR3DnDHGSendReqData(PVBGLR3GUESTDNDCMDCTX pCtx, const char *pcszFormat);
 VBGLR3DECL(int)     VbglR3DnDHGSendProgress(PVBGLR3GUESTDNDCMDCTX pCtx, uint32_t uStatus, uint8_t uPercent, int rcErr);
 #  ifdef VBOX_WITH_DRAG_AND_DROP_GH
-VBGLR3DECL(int)     VbglR3DnDGHSendAckPending(PVBGLR3GUESTDNDCMDCTX pCtx, uint32_t uDefAction, uint32_t uAllActions, const char* pcszFormats, uint32_t cbFormats);
+VBGLR3DECL(int)     VbglR3DnDGHSendAckPending(PVBGLR3GUESTDNDCMDCTX pCtx, VBOXDNDACTION dndActionDefault, VBOXDNDACTIONLIST dndLstActionsAllowed, const char* pcszFormats, uint32_t cbFormats);
 VBGLR3DECL(int)     VbglR3DnDGHSendData(PVBGLR3GUESTDNDCMDCTX pCtx, const char *pszFormat, void *pvData, uint32_t cbData);
 VBGLR3DECL(int)     VbglR3DnDGHSendError(PVBGLR3GUESTDNDCMDCTX pCtx, int rcOp);
 #  endif /* VBOX_WITH_DRAG_AND_DROP_GH */
@@ -922,5 +1090,5 @@ RT_C_DECLS_END
 
 /** @} */
 
-#endif
+#endif /* !VBOX_INCLUDED_VBoxGuestLib_h */
 

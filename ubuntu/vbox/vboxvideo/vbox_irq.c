@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2017 Oracle Corporation
+ * Copyright (C) 2016-2019 Oracle Corporation
  * This file is based on qxl_irq.c
  * Copyright 2013 Red Hat Inc.
  *
@@ -26,12 +26,10 @@
  *          Michael Thayer <michael.thayer@oracle.com,
  *          Hans de Goede <hdegoede@redhat.com>
  */
-
 #include "vbox_drv.h"
 
-#include "vboxvideo.h"
-
 #include <drm/drm_crtc_helper.h>
+#include "vboxvideo.h"
 
 static void vbox_clear_irq(void)
 {
@@ -81,14 +79,15 @@ irqreturn_t vbox_irq_handler(int irq, void *arg)
  */
 static void validate_or_set_position_hints(struct vbox_private *vbox)
 {
-	int i, j;
-	u16 currentx = 0;
+	struct vbva_modehint *hintsi, *hintsj;
 	bool valid = true;
+	u16 currentx = 0;
+	int i, j;
 
 	for (i = 0; i < vbox->num_crtcs; ++i) {
 		for (j = 0; j < i; ++j) {
-			struct vbva_modehint *hintsi = &vbox->last_mode_hints[i];
-			struct vbva_modehint *hintsj = &vbox->last_mode_hints[j];
+			hintsi = &vbox->last_mode_hints[i];
+			hintsj = &vbox->last_mode_hints[j];
 
 			if (hintsi->fEnabled && hintsj->fEnabled) {
 				if (hintsi->dx >= 0xffff ||
@@ -125,20 +124,20 @@ static void vbox_update_mode_hints(struct vbox_private *vbox)
 {
 	struct drm_device *dev = vbox->dev;
 	struct drm_connector *connector;
-	struct vbox_connector *vbox_connector;
+	struct vbox_connector *vbox_conn;
 	struct vbva_modehint *hints;
 	u16 flags;
 	bool disconnected;
 	unsigned int crtc_id;
-	int rc;
+	int ret;
 
-	rc = hgsmi_get_mode_hints(vbox->guest_pool, vbox->num_crtcs,
+	ret = hgsmi_get_mode_hints(vbox->guest_pool, vbox->num_crtcs,
 				   vbox->last_mode_hints);
-	if (RT_FAILURE(rc)) {
-		DRM_ERROR("vboxvideo: hgsmi_get_mode_hints failed, rc=%i.\n",
-			  rc);
+	if (ret) {
+		DRM_ERROR("vboxvideo: hgsmi_get_mode_hints failed: %d\n", ret);
 		return;
 	}
+
 	validate_or_set_position_hints(vbox);
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 9, 0)
 	drm_modeset_lock_all(dev);
@@ -146,32 +145,33 @@ static void vbox_update_mode_hints(struct vbox_private *vbox)
 	mutex_lock(&dev->mode_config.mutex);
 #endif
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		vbox_connector = to_vbox_connector(connector);
-		hints =
-		    &vbox->last_mode_hints[vbox_connector->vbox_crtc->crtc_id];
-		if (hints->magic == VBVAMODEHINT_MAGIC) {
-			disconnected = !(hints->fEnabled);
-			crtc_id = vbox_connector->vbox_crtc->crtc_id;
-			flags = VBVA_SCREEN_F_ACTIVE
-			    | (disconnected ? VBVA_SCREEN_F_DISABLED :
-			       VBVA_SCREEN_F_BLANK);
-			vbox_connector->mode_hint.width = hints->cx;
-			vbox_connector->mode_hint.height = hints->cy;
-			vbox_connector->vbox_crtc->x_hint = hints->dx;
-			vbox_connector->vbox_crtc->y_hint = hints->dy;
-			vbox_connector->mode_hint.disconnected = disconnected;
-			if (vbox_connector->vbox_crtc->disconnected !=
-			    disconnected) {
-				hgsmi_process_display_info(vbox->guest_pool,
-							    crtc_id, 0, 0, 0,
-							    hints->cx * 4,
-							    hints->cx,
-							    hints->cy, 0,
-							    flags);
-				vbox_connector->vbox_crtc->disconnected =
-				    disconnected;
-			}
-		}
+		vbox_conn = to_vbox_connector(connector);
+
+		hints = &vbox->last_mode_hints[vbox_conn->vbox_crtc->crtc_id];
+		if (hints->magic != VBVAMODEHINT_MAGIC)
+			continue;
+
+		disconnected = !(hints->fEnabled);
+		crtc_id = vbox_conn->vbox_crtc->crtc_id;
+		vbox_conn->mode_hint.width = hints->cx & 0x8fff;
+		vbox_conn->mode_hint.height = hints->cy & 0x8fff;
+		vbox_conn->vbox_crtc->x_hint = hints->dx;
+		vbox_conn->vbox_crtc->y_hint = hints->dy;
+		vbox_conn->mode_hint.disconnected = disconnected;
+
+		if (vbox_conn->vbox_crtc->disconnected == disconnected)
+			continue;
+
+		if (disconnected)
+			flags = VBVA_SCREEN_F_ACTIVE | VBVA_SCREEN_F_DISABLED;
+		else
+			flags = VBVA_SCREEN_F_ACTIVE | VBVA_SCREEN_F_BLANK;
+
+		hgsmi_process_display_info(vbox->guest_pool, crtc_id, 0, 0, 0,
+					   hints->cx * 4, hints->cx,
+					   hints->cy, 0, flags);
+
+		vbox_conn->vbox_crtc->disconnected = disconnected;
 	}
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 9, 0)
 	drm_modeset_unlock_all(dev);
@@ -191,29 +191,17 @@ static void vbox_hotplug_worker(struct work_struct *work)
 
 int vbox_irq_init(struct vbox_private *vbox)
 {
-	int ret;
-
+	INIT_WORK(&vbox->hotplug_work, vbox_hotplug_worker);
 	vbox_update_mode_hints(vbox);
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0) || defined(RHEL_71)
-	ret = drm_irq_install(vbox->dev, vbox->dev->pdev->irq);
+	return drm_irq_install(vbox->dev, vbox->dev->pdev->irq);
 #else
-	ret = drm_irq_install(vbox->dev);
+	return drm_irq_install(vbox->dev);
 #endif
-	if (unlikely(ret != 0)) {
-		vbox_irq_fini(vbox);
-		DRM_ERROR("Failed installing irq: %d\n", ret);
-		return 1;
-	}
-	INIT_WORK(&vbox->hotplug_work, vbox_hotplug_worker);
-	vbox->isr_installed = true;
-	return 0;
 }
 
 void vbox_irq_fini(struct vbox_private *vbox)
 {
-	if (vbox->isr_installed) {
-		drm_irq_uninstall(vbox->dev);
-		flush_work(&vbox->hotplug_work);
-		vbox->isr_installed = false;
-	}
+	drm_irq_uninstall(vbox->dev);
+	flush_work(&vbox->hotplug_work);
 }

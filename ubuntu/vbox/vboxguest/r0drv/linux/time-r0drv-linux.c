@@ -4,7 +4,7 @@
  */
 
 /*
- * Copyright (C) 2006-2017 Oracle Corporation
+ * Copyright (C) 2006-2019 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -171,11 +171,20 @@ RTDECL(PRTTIMESPEC) RTTimeNow(PRTTIMESPEC pTime)
 {
     IPRT_LINUX_SAVE_EFL_AC();
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 16)
+/* On Linux 4.20, time.h includes time64.h and we have to use 64-bit times. */
+# ifdef _LINUX_TIME64_H
+    struct timespec64 Ts;
+    ktime_get_real_ts64(&Ts);
+# else
     struct timespec Ts;
     ktime_get_real_ts(&Ts);
+# endif
     IPRT_LINUX_RESTORE_EFL_AC();
+# ifdef _LINUX_TIME64_H
+    return RTTimeSpecSetTimespec64(pTime, &Ts);
+#else
     return RTTimeSpecSetTimespec(pTime, &Ts);
-
+#endif
 #else   /* < 2.6.16 */
     struct timeval Tv;
     do_gettimeofday(&Tv);

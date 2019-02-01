@@ -1,4 +1,4 @@
-/* $Rev: 120349 $ */
+/* $Rev: 127855 $ */
 /** @file
  * VBoxGuest - Linux specifics.
  *
@@ -7,7 +7,7 @@
  */
 
 /*
- * Copyright (C) 2006-2017 Oracle Corporation
+ * Copyright (C) 2006-2019 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -51,12 +51,15 @@
 #endif
 #include <linux/miscdevice.h>
 #include <linux/poll.h>
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 28)
+# include <linux/tty.h>
+#endif
 #include <VBox/version.h>
 #include "revision-generated.h"
 
 #include <iprt/assert.h>
 #include <iprt/asm.h>
-#include <iprt/err.h>
+#include <iprt/ctype.h>
 #include <iprt/initterm.h>
 #include <iprt/mem.h>
 #include <iprt/mp.h>
@@ -64,6 +67,7 @@
 #include <iprt/spinlock.h>
 #include <iprt/semaphore.h>
 #include <iprt/string.h>
+#include <VBox/err.h>
 #include <VBox/log.h>
 
 
@@ -82,6 +86,12 @@
 #ifndef IRQ_RETVAL
 # define irqreturn_t            void
 # define IRQ_RETVAL(n)
+#endif
+
+/* uidgid.h was introduced in 3.5.0. */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 5, 0)
+# define kgid_t gid_t
+# define kuid_t uid_t
 #endif
 
 
@@ -205,11 +215,7 @@ static struct miscdevice        g_MiscDeviceUser =
 
 
 /** PCI hotplug structure. */
-static const struct pci_device_id
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 8, 0)
-__devinitdata
-#endif
-g_VBoxGuestPciId[] =
+static const struct pci_device_id g_VBoxGuestPciId[] =
 {
     {
         vendor:     VMMDEV_VENDORID,
@@ -231,7 +237,10 @@ static struct pci_driver  g_PciDriver =
     remove:         vgdrvLinuxTermPci
 };
 
+#ifdef VBOXGUEST_WITH_INPUT_DRIVER
+/** Kernel IDC session to ourselves for use with the mouse events. */
 static PVBOXGUESTSESSION        g_pKernelSession = NULL;
+#endif
 
 
 
@@ -517,7 +526,6 @@ static void vgdrvLinuxTermInputDevice(void)
 
 #endif /* VBOXGUEST_WITH_INPUT_DRIVER */
 
-
 /**
  * Creates the device nodes.
  *
@@ -605,34 +613,35 @@ static int __init vgdrvLinuxModInit(void)
     if (rc >= 0 && g_pPciDev)
     {
         /*
-         * Register the interrupt service routine for it.
+         * Call the common device extension initializer.
          */
-        rc = vgdrvLinuxInitISR();
-        if (rc >= 0)
-        {
-            /*
-             * Call the common device extension initializer.
-             */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0) && defined(RT_ARCH_X86)
-            VBOXOSTYPE enmOSType = VBOXOSTYPE_Linux26;
+        VBOXOSTYPE enmOSType = VBOXOSTYPE_Linux26;
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0) && defined(RT_ARCH_AMD64)
-            VBOXOSTYPE enmOSType = VBOXOSTYPE_Linux26_x64;
+        VBOXOSTYPE enmOSType = VBOXOSTYPE_Linux26_x64;
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 4, 0) && defined(RT_ARCH_X86)
-            VBOXOSTYPE enmOSType = VBOXOSTYPE_Linux24;
+        VBOXOSTYPE enmOSType = VBOXOSTYPE_Linux24;
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 4, 0) && defined(RT_ARCH_AMD64)
-            VBOXOSTYPE enmOSType = VBOXOSTYPE_Linux24_x64;
+        VBOXOSTYPE enmOSType = VBOXOSTYPE_Linux24_x64;
 #else
 # warning "huh? which arch + version is this?"
-            VBOXOSTYPE enmOsType = VBOXOSTYPE_Linux;
+        VBOXOSTYPE enmOsType = VBOXOSTYPE_Linux;
 #endif
-            rc = VGDrvCommonInitDevExt(&g_DevExt,
-                                       g_IOPortBase,
-                                       g_pvMMIOBase,
-                                       g_cbMMIO,
-                                       enmOSType,
-                                       VMMDEV_EVENT_MOUSE_POSITION_CHANGED);
-            if (RT_SUCCESS(rc))
+        rc = VGDrvCommonInitDevExt(&g_DevExt,
+                                   g_IOPortBase,
+                                   g_pvMMIOBase,
+                                   g_cbMMIO,
+                                   enmOSType,
+                                   VMMDEV_EVENT_MOUSE_POSITION_CHANGED);
+        if (RT_SUCCESS(rc))
+        {
+            /*
+             * Register the interrupt service routine for it now that g_DevExt can handle IRQs.
+             */
+            rc = vgdrvLinuxInitISR();
+            if (rc >= 0) /** @todo r=bird: status check differs from that inside vgdrvLinuxInitISR. */
             {
+#ifdef VBOXGUEST_WITH_INPUT_DRIVER
                 /*
                  * Create the kernel session for this driver.
                  */
@@ -642,11 +651,15 @@ static int __init vgdrvLinuxModInit(void)
                     /*
                      * Create the kernel input device.
                      */
-#ifdef VBOXGUEST_WITH_INPUT_DRIVER
                     rc = vgdrvLinuxCreateInputDevice();
                     if (rc >= 0)
                     {
 #endif
+                        /*
+                         * Read host configuration.
+                         */
+                        VGDrvCommonProcessOptionsFromHost(&g_DevExt);
+
                         /*
                          * Finally, create the device nodes.
                          */
@@ -670,17 +683,17 @@ static int __init vgdrvLinuxModInit(void)
                         LogRel((DEVICE_NAME ": vboxguestCreateInputDevice failed with rc=%Rrc\n", rc));
                         rc = RTErrConvertFromErrno(rc);
                     }
-#endif
                     VGDrvCommonCloseSession(&g_DevExt, g_pKernelSession);
                 }
-                VGDrvCommonDeleteDevExt(&g_DevExt);
+#endif
+                vgdrvLinuxTermISR();
             }
-            else
-            {
-                LogRel((DEVICE_NAME ": VGDrvCommonInitDevExt failed with rc=%Rrc\n", rc));
-                rc = RTErrConvertFromErrno(rc);
-            }
-            vgdrvLinuxTermISR();
+            VGDrvCommonDeleteDevExt(&g_DevExt);
+        }
+        else
+        {
+            LogRel((DEVICE_NAME ": VGDrvCommonInitDevExt failed with rc=%Rrc\n", rc));
+            rc = RTErrConvertFromErrno(rc);
         }
     }
     else
@@ -707,14 +720,105 @@ static void __exit vgdrvLinuxModExit(void)
     vgdrvLinuxTermDeviceNodes();
 #ifdef VBOXGUEST_WITH_INPUT_DRIVER
     vgdrvLinuxTermInputDevice();
-#endif
     VGDrvCommonCloseSession(&g_DevExt, g_pKernelSession);
-    VGDrvCommonDeleteDevExt(&g_DevExt);
+#endif
     vgdrvLinuxTermISR();
+    VGDrvCommonDeleteDevExt(&g_DevExt);
     pci_unregister_driver(&g_PciDriver);
     RTLogDestroy(RTLogRelSetDefaultInstance(NULL));
     RTLogDestroy(RTLogSetDefaultInstance(NULL));
     RTR0Term();
+}
+
+
+/**
+ * Get the process user ID.
+ *
+ * @returns UID.
+ */
+DECLINLINE(RTUID) vgdrvLinuxGetUid(void)
+{
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 29)
+# if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0)
+    return from_kuid(current_user_ns(), current->cred->uid);
+# else
+    return current->cred->uid;
+# endif
+#else
+    return current->uid;
+#endif
+}
+
+
+/**
+ * Checks if the given group number is zero or not.
+ *
+ * @returns true / false.
+ * @param   gid                 The group to check for.
+ */
+DECLINLINE(bool) vgdrvLinuxIsGroupZero(kgid_t gid)
+{
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0)
+    return from_kgid(current_user_ns(), gid);
+#else
+    return gid == 0;
+#endif
+}
+
+
+/**
+ * Searches the effective group and supplementary groups for @a gid.
+ *
+ * @returns true if member, false if not.
+ * @param   gid                 The group to check for.
+ */
+DECLINLINE(RTGID) vgdrvLinuxIsInGroupEff(kgid_t gid)
+{
+    return in_egroup_p(gid) != 0;
+}
+
+
+/**
+ * Check if we can positively or negatively determine that the process is
+ * running under a login on the physical machine console.
+ *
+ * Havne't found a good way to figure this out for graphical sessions, so this
+ * is mostly pointless.  But let us try do what we can do.
+ *
+ * @returns VMMDEV_REQUESTOR_CON_XXX.
+ */
+static uint32_t vgdrvLinuxRequestorOnConsole(void)
+{
+    uint32_t           fRet = VMMDEV_REQUESTOR_CON_DONT_KNOW;
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 28) /* First with tty_kref_put(). */
+    /*
+     * Check for tty0..63, ASSUMING that these are only used for the physical console.
+     */
+    struct tty_struct *pTty = get_current_tty();
+    if (pTty)
+    {
+# if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0)
+        const char *pszName = tty_name(pTty);
+# else
+        char szBuf[64];
+        const char *pszName = tty_name(pTty, szBuf);
+# endif
+        if (   pszName
+            && pszName[0] == 't'
+            && pszName[1] == 't'
+            && pszName[2] == 'y'
+            && RT_C_IS_DIGIT(pszName[3])
+            && (   pszName[4] == '\0'
+                || (   RT_C_IS_DIGIT(pszName[4])
+                    && pszName[5] == '\0'
+                    && (pszName[3] - '0') * 10 + (pszName[4] - '0') <= 63)) )
+               fRet = VMMDEV_REQUESTOR_CON_YES;
+        tty_kref_put(pTty);
+    }
+#endif
+
+    return fRet;
 }
 
 
@@ -728,19 +832,33 @@ static int vgdrvLinuxOpen(struct inode *pInode, struct file *pFilp)
 {
     int                 rc;
     PVBOXGUESTSESSION   pSession;
+    uint32_t            fRequestor;
     Log((DEVICE_NAME ": pFilp=%p pid=%d/%d %s\n", pFilp, RTProcSelf(), current->pid, current->comm));
+
+    /*
+     * Figure out the requestor flags.
+     * ASSUMES that the gid of /dev/vboxuser is what we should consider the special vbox group.
+     */
+    fRequestor = VMMDEV_REQUESTOR_USERMODE | VMMDEV_REQUESTOR_TRUST_NOT_GIVEN;
+    if (vgdrvLinuxGetUid() == 0)
+        fRequestor |= VMMDEV_REQUESTOR_USR_ROOT;
+    else
+        fRequestor |= VMMDEV_REQUESTOR_USR_USER;
+    if (MINOR(pInode->i_rdev) == g_MiscDeviceUser.minor)
+    {
+        fRequestor |= VMMDEV_REQUESTOR_USER_DEVICE;
+        if (!vgdrvLinuxIsGroupZero(pInode->i_gid) && vgdrvLinuxIsInGroupEff(pInode->i_gid))
+            fRequestor |= VMMDEV_REQUESTOR_GRP_VBOX;
+    }
+    fRequestor |= vgdrvLinuxRequestorOnConsole();
 
     /*
      * Call common code to create the user session. Associate it with
      * the file so we can access it in the other methods.
      */
-    rc = VGDrvCommonCreateUserSession(&g_DevExt, &pSession);
+    rc = VGDrvCommonCreateUserSession(&g_DevExt, fRequestor, &pSession);
     if (RT_SUCCESS(rc))
-    {
         pFilp->private_data = pSession;
-        if (MINOR(pInode->i_rdev) == g_MiscDeviceUser.minor)
-            pSession->fUserSession = true;
-    }
 
     Log(("vgdrvLinuxOpen: g_DevExt=%p pSession=%p rc=%d/%d (pid=%d/%d %s)\n",
          &g_DevExt, pSession, rc, vgdrvLinuxConvertToNegErrno(rc), RTProcSelf(), current->pid, current->comm));
@@ -1061,6 +1179,13 @@ void VGDrvNativeISRMousePollEvent(PVBOXGUESTDEVEXT pDevExt)
 }
 
 
+bool VGDrvNativeProcessOption(PVBOXGUESTDEVEXT pDevExt, const char *pszName, const char *pszValue)
+{
+    RT_NOREF(pDevExt); RT_NOREF(pszName); RT_NOREF(pszValue);
+    return false;
+}
+
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0)
 
 /** log and dbg_log parameter setter. */
@@ -1142,18 +1267,7 @@ static int vgdrvLinuxParamLogDstGet(char *pszBuf, CONST_4_15 struct kernel_param
 /** r3_log_to_host parameter setter. */
 static int vgdrvLinuxParamR3LogToHostSet(const char *pszValue, CONST_4_15 struct kernel_param *pParam)
 {
-    if (    pszValue == NULL
-        || *pszValue == '\0'
-        || *pszValue == 'n'
-        || *pszValue == 'N'
-        || *pszValue == 'd'
-        || *pszValue == 'D'
-        || (   (*pszValue == 'o' || *pszValue == 'O')
-            && (*pszValue == 'f' || *pszValue == 'F') )
-       )
-        g_DevExt.fLoggingEnabled = false;
-    else
-        g_DevExt.fLoggingEnabled = true;
+    g_DevExt.fLoggingEnabled = VBDrvCommonIsOptionValueTrue(pszValue);
     return 0;
 }
 

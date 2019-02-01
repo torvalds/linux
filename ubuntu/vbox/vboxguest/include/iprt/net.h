@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2008-2017 Oracle Corporation
+ * Copyright (C) 2008-2019 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -23,8 +23,11 @@
  * terms and conditions of either the GPL or the CDDL or both.
  */
 
-#ifndef ___iprt_net_h
-#define ___iprt_net_h
+#ifndef IPRT_INCLUDED_net_h
+#define IPRT_INCLUDED_net_h
+#ifndef RT_WITHOUT_PRAGMA_ONCE
+# pragma once
+#endif
 
 #include <iprt/cdefs.h>
 #include <iprt/types.h>
@@ -101,6 +104,21 @@ RTDECL(int) RTNetStrToIPv4AddrEx(const char *pcszAddr, PRTNETADDRIPV4 pAddr, cha
  * @param   pAddr           Where to store the result.
  */
 RTDECL(int) RTNetStrToIPv4Addr(const char *pcszAddr, PRTNETADDRIPV4 pAddr);
+
+/**
+ * Parses dotted-decimal IPv4 CIDR notation into RTNETADDRIPV4
+ * representation and prefix length.  Missing prefix specification is
+ * treated as exact address specification (prefix length 32).  Leading
+ * and trailing whitespace is ignored.
+ *
+ * @returns VINF_SUCCESS on success, VERR_INVALID_PARAMETER on
+ *          failure.
+ *
+ * @param   pcszAddr        The value to convert.
+ * @param   pAddr           Where to store the address.
+ * @param   piPrefix        Where to store the prefix length;
+ */
+RTDECL(int) RTNetStrToIPv4Cidr(const char *pcszAddr, PRTNETADDRIPV4 pAddr, int *piPrefix);
 
 /**
  * Verifies that RTNETADDRIPV4 is a valid contiguous netmask and
@@ -1006,5 +1024,5 @@ typedef RTNETARPIPV4 const *PCRTNETARPIPV4;
 
 RT_C_DECLS_END
 
-#endif
+#endif /* !IPRT_INCLUDED_net_h */
 

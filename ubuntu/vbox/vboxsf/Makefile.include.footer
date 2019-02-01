@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright (C) 2006-2017 Oracle Corporation
+# Copyright (C) 2006-2019 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -35,9 +35,14 @@ ifndef INCL
  INCL    += $(MOD_INCL)
  export INCL
 endif
-KFLAGS   := -D__KERNEL__ -DMODULE $(MOD_DEFS)
+KFLAGS   := -D__KERNEL__ -DMODULE -DRT_WITHOUT_PRAGMA_ONCE $(MOD_DEFS)
 ifeq ($(BUILD_TYPE),debug)
+# The -Wno-array-bounds is because of a bug in gcc 4.something, see
+# https://sourceware.org/bugzilla/show_bug.cgi?id=10001
  KFLAGS  += -DDEBUG -DDEBUG_$(subst $(subst _, ,_),_,$(USERNAME)) -DDEBUG_USERNAME=$(subst $(subst _, ,_),_,$(USERNAME))
+ ifeq ($(shell expr $(KERN_VER) : '[23]\.'),0)
+  KFLAGS  += -Werror -Wall -Wno-array-bounds
+ endif
 endif
 
 ifeq ($(KERN_VERSION), 24)
@@ -68,7 +73,7 @@ $(MODULE): $(MODULE).o
 install: $(MODULE)
 	@mkdir -p $(MODULE_DIR); \
 	install -m 0644 -o root -g root $(MODULE).$(MODULE_EXT) $(MODULE_DIR); \
-	PATH="$(PATH):/bin:/sbin" depmod -a;
+	PATH="$(PATH):/bin:/sbin" depmod -a; sync
 
 clean:
 	for f in $(sort $(dir $(OBJS))); do rm -f $$f/*.o $$f/.*.cmd $$f/.*.flags; done
@@ -93,7 +98,7 @@ obj-m += $(MODULE).o
 
 JOBS := $(shell (getconf _NPROCESSORS_ONLN || grep -Ec '^processor|^CPU[0-9]' /proc/cpuinfo) 2>/dev/null)
 ifeq ($(JOBS),0)
-  JOBS := 1
+  override JOBS := 1
 endif
 
 # OL/UEK: disable module signing for external modules -- we don't have any private key

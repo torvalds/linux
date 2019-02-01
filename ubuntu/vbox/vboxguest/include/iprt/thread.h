@@ -3,7 +3,7 @@
  */
 
 /*
- * Copyright (C) 2006-2017 Oracle Corporation
+ * Copyright (C) 2006-2019 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -23,8 +23,11 @@
  * terms and conditions of either the GPL or the CDDL or both.
  */
 
-#ifndef ___iprt_thread_h
-#define ___iprt_thread_h
+#ifndef IPRT_INCLUDED_thread_h
+#define IPRT_INCLUDED_thread_h
+#ifndef RT_WITHOUT_PRAGMA_ONCE
+# pragma once
+#endif
 
 #include <iprt/cdefs.h>
 #include <iprt/types.h>
@@ -327,6 +330,17 @@ RTDECL(int) RTThreadCreateF(PRTTHREAD pThread, PFNRTTHREAD pfnThread, void *pvUs
 RTDECL(RTNATIVETHREAD) RTThreadGetNative(RTTHREAD Thread);
 
 /**
+ * Gets the native thread handle for a IPRT thread.
+ *
+ * @returns The thread handle. INVALID_HANDLE_VALUE on failure.
+ * @param   hThread     The IPRT thread handle.
+ *
+ * @note    Windows only.
+ * @note    Only valid after parent returns from the thread creation call.
+ */
+RTDECL(uintptr_t) RTThreadGetNativeHandle(RTTHREAD hThread);
+
+/**
  * Gets the IPRT thread of a native thread.
  *
  * @returns The IPRT thread handle
@@ -471,14 +485,26 @@ RTDECL(int) RTThreadUserReset(RTTHREAD Thread);
 /**
  * Pokes the thread.
  *
- * This will signal the thread, attempting to interrupt whatever it's currently
- * doing.  This is *NOT* implemented on all platforms and may cause unresolved
- * symbols during linking or VERR_NOT_IMPLEMENTED at runtime.
+ * This will wake up or/and signal the thread, attempting to interrupt whatever
+ * it's currently doing.
+ *
+ * The posixy version of this will send a signal to the thread, quite likely
+ * waking it up from normal sleeps, waits, and I/O.  When IPRT is in
+ * non-obtrusive mode, the posixy version will definitely return
+ * VERR_NOT_IMPLEMENTED, and it may also do so if no usable signal was found.
+ *
+ * On Windows the thread will be alerted, waking it up from most sleeps and
+ * waits, but not probably very little in the I/O area (needs testing).  On NT
+ * 3.50 and 3.1 VERR_NOT_IMPLEMENTED will be returned.
  *
  * @returns IPRT status code.
  *
  * @param   hThread             The thread to poke.  This must not be the
  *                              calling thread.
+ *
+ * @note    This is *NOT* implemented on all platforms and may cause unresolved
+ *          symbols during linking or VERR_NOT_IMPLEMENTED at runtime.
+ *
  */
 RTDECL(int) RTThreadPoke(RTTHREAD hThread);
 
@@ -503,7 +529,10 @@ RTDECL(bool) RTThreadPreemptIsEnabled(RTTHREAD hThread);
  * code with preemption disabled.
  *
  * @returns true if pending, false if not.
- * @param       hThread         Must be NIL_RTTHREAD for now.
+ * @param   hThread         Must be NIL_RTTHREAD for now.
+ *
+ * @note    If called with interrupts disabled, the NT kernel may temporarily
+ *          re-enable them while checking.
  */
 RTDECL(bool) RTThreadPreemptIsPending(RTTHREAD hThread);
 
@@ -939,5 +968,5 @@ RTR3DECL(int) RTTlsSet(RTTLS iTls, void *pvValue);
 
 RT_C_DECLS_END
 
-#endif
+#endif /* !IPRT_INCLUDED_thread_h */
 
