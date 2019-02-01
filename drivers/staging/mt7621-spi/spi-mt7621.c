@@ -37,6 +37,12 @@
 #define SPI_CTL_START		BIT(8)
 
 #define MT7621_SPI_MASTER	0x28
+#define MASTER_MORE_BUFMODE	BIT(2)
+#define MASTER_FULL_DUPLEX	BIT(10)
+#define MASTER_RS_CLK_SEL	GENMASK(27, 16)
+#define MASTER_RS_CLK_SEL_SHIFT	16
+#define MASTER_RS_SLAVE_SEL	GENMASK(31, 29)
+
 #define MT7621_SPI_MOREBUF	0x2c
 #define MT7621_SPI_POLAR	0x38
 #define MT7621_SPI_SPACE	0x3c
@@ -77,9 +83,13 @@ static void mt7621_spi_reset(struct mt7621_spi *rs)
 {
 	u32 master = mt7621_spi_read(rs, MT7621_SPI_MASTER);
 
-	master |= 7 << 29;
-	master |= 1 << 2;
-	master &= ~(1 << 10);
+	/*
+	 * Select SPI device 7, enable "more buffer mode" and disable
+	 * full-duplex (only half-duplex really works on this chip
+	 * reliably)
+	 */
+	master |= MASTER_RS_SLAVE_SEL | MASTER_MORE_BUFMODE;
+	master &= ~MASTER_FULL_DUPLEX;
 
 	mt7621_spi_write(rs, MT7621_SPI_MASTER, master);
 	rs->pending_write = 0;
@@ -115,8 +125,8 @@ static int mt7621_spi_prepare(struct spi_device *spi, unsigned int speed)
 		rate = 2;
 
 	reg = mt7621_spi_read(rs, MT7621_SPI_MASTER);
-	reg &= ~(0xfff << 16);
-	reg |= (rate - 2) << 16;
+	reg &= ~MASTER_RS_CLK_SEL;
+	reg |= (rate - 2) << MASTER_RS_CLK_SEL_SHIFT;
 	rs->speed = speed;
 
 	reg &= ~MT7621_LSB_FIRST;
