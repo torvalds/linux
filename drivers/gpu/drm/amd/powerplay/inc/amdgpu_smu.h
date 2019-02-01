@@ -307,6 +307,7 @@ struct smu_table_context
 	struct smu_table		memory_pool;
 	uint16_t                        software_shutdown_temp;
 	uint8_t                         thermal_controller_type;
+	uint16_t			TDPODLimit;
 
 	uint8_t				*od_feature_capabilities;
 	uint32_t			*od_settings_max;

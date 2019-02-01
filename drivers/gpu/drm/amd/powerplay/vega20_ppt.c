@@ -274,6 +274,7 @@ static int vega20_store_powerplay_table(struct smu_context *smu)
 
 	table_context->software_shutdown_temp = powerplay_table->usSoftwareShutdownTemp;
 	table_context->thermal_controller_type = powerplay_table->ucThermalControllerType;
+	table_context->TDPODLimit = le32_to_cpu(powerplay_table->OverDrive8Table.ODSettingsMax[ATOM_VEGA20_ODSETTING_POWERPERCENTAGE]);
 
 	ret = vega20_setup_od8_information(smu);
 

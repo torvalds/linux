@@ -925,6 +925,10 @@ static int smu_v11_0_get_power_limit(struct smu_context *smu,
 	if (get_default) {
 		mutex_lock(&smu->mutex);
 		*limit = smu->default_power_limit;
+		if (smu->od_enabled) {
+			*limit *= (100 + smu->smu_table.TDPODLimit);
+			*limit /= 100;
+		}
 		mutex_unlock(&smu->mutex);
 	} else {
 		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_GetPptLimit,
@@ -942,7 +946,18 @@ static int smu_v11_0_get_power_limit(struct smu_context *smu,
 
 static int smu_v11_0_set_power_limit(struct smu_context *smu, uint32_t n)
 {
+	uint32_t max_power_limit;
 	int ret = 0;
+
+	if (n == 0)
+		n = smu->default_power_limit;
+
+	max_power_limit = smu->default_power_limit;
+
+	if (smu->od_enabled) {
+		max_power_limit *= (100 + smu->smu_table.TDPODLimit);
+		max_power_limit /= 100;
+	}
 
 	if (smu_feature_is_enabled(smu, FEATURE_PPT_BIT))
 		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetPptLimit, n);
