@@ -1041,6 +1041,7 @@ int tegra_drm_register_client(struct tegra_drm *tegra,
 {
 	mutex_lock(&tegra->clients_lock);
 	list_add_tail(&client->list, &tegra->clients);
+	client->drm = tegra;
 	mutex_unlock(&tegra->clients_lock);
 
 	return 0;
@@ -1051,6 +1052,7 @@ int tegra_drm_unregister_client(struct tegra_drm *tegra,
 {
 	mutex_lock(&tegra->clients_lock);
 	list_del_init(&client->list);
+	client->drm = NULL;
 	mutex_unlock(&tegra->clients_lock);
 
 	return 0;

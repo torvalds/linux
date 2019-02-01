@@ -88,6 +88,7 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 struct tegra_drm_client {
 	struct host1x_client base;
 	struct list_head list;
+	struct tegra_drm *drm;
 
 	unsigned int version;
 	const struct tegra_drm_client_ops *ops;
