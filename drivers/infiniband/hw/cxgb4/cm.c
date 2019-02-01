@@ -2476,7 +2476,7 @@ static int pass_accept_req(struct c4iw_dev *dev, struct sk_buff *skb)
 	u16 peer_mss = ntohs(req->tcpopt.mss);
 	int iptype;
 	unsigned short hdrs;
-	u8 tos = PASS_OPEN_TOS_G(ntohl(req->tos_stid));
+	u8 tos;
 
 	parent_ep = (struct c4iw_ep *)get_ep_from_stid(dev, stid);
 	if (!parent_ep) {
@@ -2489,6 +2489,11 @@ static int pass_accept_req(struct c4iw_dev *dev, struct sk_buff *skb)
 		pr_err("%s - listening ep not in LISTEN\n", __func__);
 		goto reject;
 	}
+
+	if (parent_ep->com.cm_id->tos_set)
+		tos = parent_ep->com.cm_id->tos;
+	else
+		tos = PASS_OPEN_TOS_G(ntohl(req->tos_stid));
 
 	cxgb_get_4tuple(req, parent_ep->com.dev->rdev.lldi.adapter_type,
 			&iptype, local_ip, peer_ip, &local_port, &peer_port);
@@ -2509,7 +2514,7 @@ static int pass_accept_req(struct c4iw_dev *dev, struct sk_buff *skb)
 			 ntohs(peer_port), peer_mss);
 		dst = cxgb_find_route6(&dev->rdev.lldi, get_real_dev,
 				local_ip, peer_ip, local_port, peer_port,
-				PASS_OPEN_TOS_G(ntohl(req->tos_stid)),
+				tos,
 				((struct sockaddr_in6 *)
 				 &parent_ep->com.local_addr)->sin6_scope_id);
 	}
