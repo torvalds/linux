@@ -16,7 +16,6 @@
 #include "xfs_refcount_item.h"
 #include "xfs_alloc.h"
 #include "xfs_refcount.h"
-#include "xfs_defer.h"
 
 /*
  * This routine is called to allocate a "refcount update done"
