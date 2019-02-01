@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * spi-mt7621.c -- MediaTek MT7621 SPI controller driver
  *
@@ -8,10 +9,6 @@
  * Some parts are based on spi-orion.c:
  *   Author: Shadi Ammouri <shadi@marvell.com>
  *   Copyright (C) 2007-2008 Marvell Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/init.h>
