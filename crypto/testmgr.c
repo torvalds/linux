@@ -284,6 +284,68 @@ struct testvec_config {
 
 #define TESTVEC_CONFIG_NAMELEN	192
 
+/*
+ * The following are the lists of testvec_configs to test for each algorithm
+ * type when the basic crypto self-tests are enabled, i.e. when
+ * CONFIG_CRYPTO_MANAGER_DISABLE_TESTS is unset.  They aim to provide good test
+ * coverage, while keeping the test time much shorter than the full fuzz tests
+ * so that the basic tests can be enabled in a wider range of circumstances.
+ */
+
+/* Configs for skciphers and aeads */
+static const struct testvec_config default_cipher_testvec_configs[] = {
+	{
+		.name = "in-place",
+		.inplace = true,
+		.src_divs = { { .proportion_of_total = 10000 } },
+	}, {
+		.name = "out-of-place",
+		.src_divs = { { .proportion_of_total = 10000 } },
+	}, {
+		.name = "unaligned buffer, offset=1",
+		.src_divs = { { .proportion_of_total = 10000, .offset = 1 } },
+		.iv_offset = 1,
+	}, {
+		.name = "buffer aligned only to alignmask",
+		.src_divs = {
+			{
+				.proportion_of_total = 10000,
+				.offset = 1,
+				.offset_relative_to_alignmask = true,
+			},
+		},
+		.iv_offset = 1,
+		.iv_offset_relative_to_alignmask = true,
+	}, {
+		.name = "two even aligned splits",
+		.src_divs = {
+			{ .proportion_of_total = 5000 },
+			{ .proportion_of_total = 5000 },
+		},
+	}, {
+		.name = "uneven misaligned splits, may sleep",
+		.req_flags = CRYPTO_TFM_REQ_MAY_SLEEP,
+		.src_divs = {
+			{ .proportion_of_total = 1900, .offset = 33 },
+			{ .proportion_of_total = 3300, .offset = 7  },
+			{ .proportion_of_total = 4800, .offset = 18 },
+		},
+		.iv_offset = 3,
+	}, {
+		.name = "misaligned splits crossing pages, inplace",
+		.inplace = true,
+		.src_divs = {
+			{
+				.proportion_of_total = 7500,
+				.offset = PAGE_SIZE - 32
+			}, {
+				.proportion_of_total = 2500,
+				.offset = PAGE_SIZE - 7
+			},
+		},
+	}
+};
+
 static unsigned int count_test_sg_divisions(const struct test_sg_division *divs)
 {
 	unsigned int remaining = TEST_SG_TOTAL;
@@ -1608,8 +1670,6 @@ static int test_cipher(struct crypto_cipher *tfm, int enc,
 
 	j = 0;
 	for (i = 0; i < tcount; i++) {
-		if (template[i].np)
-			continue;
 
 		if (fips_enabled && template[i].fips_skip)
 			continue;
@@ -1667,282 +1727,214 @@ out_nobuf:
 	return ret;
 }
 
-static int __test_skcipher(struct crypto_skcipher *tfm, int enc,
-			   const struct cipher_testvec *template,
-			   unsigned int tcount,
-			   const bool diff_dst, const int align_offset)
+static int test_skcipher_vec_cfg(const char *driver, int enc,
+				 const struct cipher_testvec *vec,
+				 unsigned int vec_num,
+				 const struct testvec_config *cfg,
+				 struct skcipher_request *req,
+				 struct cipher_test_sglists *tsgls)
 {
-	const char *algo =
-		crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm));
-	unsigned int i, j, k, n, temp;
-	char *q;
-	struct skcipher_request *req;
-	struct scatterlist sg[8];
-	struct scatterlist sgout[8];
-	const char *e, *d;
-	struct crypto_wait wait;
-	const char *input, *result;
-	void *data;
-	char iv[MAX_IVLEN];
-	char *xbuf[XBUFSIZE];
-	char *xoutbuf[XBUFSIZE];
-	int ret = -ENOMEM;
-	unsigned int ivsize = crypto_skcipher_ivsize(tfm);
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+	const unsigned int alignmask = crypto_skcipher_alignmask(tfm);
+	const unsigned int ivsize = crypto_skcipher_ivsize(tfm);
+	const u32 req_flags = CRYPTO_TFM_REQ_MAY_BACKLOG | cfg->req_flags;
+	const char *op = enc ? "encryption" : "decryption";
+	DECLARE_CRYPTO_WAIT(wait);
+	u8 _iv[3 * (MAX_ALGAPI_ALIGNMASK + 1) + MAX_IVLEN];
+	u8 *iv = PTR_ALIGN(&_iv[0], 2 * (MAX_ALGAPI_ALIGNMASK + 1)) +
+		 cfg->iv_offset +
+		 (cfg->iv_offset_relative_to_alignmask ? alignmask : 0);
+	struct kvec input;
+	int err;
 
-	if (testmgr_alloc_buf(xbuf))
-		goto out_nobuf;
-
-	if (diff_dst && testmgr_alloc_buf(xoutbuf))
-		goto out_nooutbuf;
-
-	if (diff_dst)
-		d = "-ddst";
+	/* Set the key */
+	if (vec->wk)
+		crypto_skcipher_set_flags(tfm, CRYPTO_TFM_REQ_FORBID_WEAK_KEYS);
 	else
-		d = "";
-
-	if (enc == ENCRYPT)
-	        e = "encryption";
-	else
-		e = "decryption";
-
-	crypto_init_wait(&wait);
-
-	req = skcipher_request_alloc(tfm, GFP_KERNEL);
-	if (!req) {
-		pr_err("alg: skcipher%s: Failed to allocate request for %s\n",
-		       d, algo);
-		goto out;
+		crypto_skcipher_clear_flags(tfm,
+					    CRYPTO_TFM_REQ_FORBID_WEAK_KEYS);
+	err = crypto_skcipher_setkey(tfm, vec->key, vec->klen);
+	if (err) {
+		if (vec->fail) /* expectedly failed to set key? */
+			return 0;
+		pr_err("alg: skcipher: %s setkey failed with err %d on test vector %u; flags=%#x\n",
+		       driver, err, vec_num, crypto_skcipher_get_flags(tfm));
+		return err;
+	}
+	if (vec->fail) {
+		pr_err("alg: skcipher: %s setkey unexpectedly succeeded on test vector %u\n",
+		       driver, vec_num);
+		return -EINVAL;
 	}
 
-	skcipher_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
-				      crypto_req_done, &wait);
-
-	j = 0;
-	for (i = 0; i < tcount; i++) {
-		if (template[i].np && !template[i].also_non_np)
-			continue;
-
-		if (fips_enabled && template[i].fips_skip)
-			continue;
-
-		if (template[i].iv && !(template[i].generates_iv && enc))
-			memcpy(iv, template[i].iv, ivsize);
+	/* The IV must be copied to a buffer, as the algorithm may modify it */
+	if (ivsize) {
+		if (WARN_ON(ivsize > MAX_IVLEN))
+			return -EINVAL;
+		if (vec->iv && !(vec->generates_iv && enc))
+			memcpy(iv, vec->iv, ivsize);
 		else
-			memset(iv, 0, MAX_IVLEN);
-
-		input  = enc ? template[i].ptext : template[i].ctext;
-		result = enc ? template[i].ctext : template[i].ptext;
-		j++;
-		ret = -EINVAL;
-		if (WARN_ON(align_offset + template[i].len > PAGE_SIZE))
-			goto out;
-
-		data = xbuf[0];
-		data += align_offset;
-		memcpy(data, input, template[i].len);
-
-		crypto_skcipher_clear_flags(tfm, ~0);
-		if (template[i].wk)
-			crypto_skcipher_set_flags(tfm, CRYPTO_TFM_REQ_FORBID_WEAK_KEYS);
-
-		ret = crypto_skcipher_setkey(tfm, template[i].key,
-					     template[i].klen);
-		if (template[i].fail == !ret) {
-			pr_err("alg: skcipher%s: setkey failed on test %d for %s: flags=%x\n",
-			       d, j, algo, crypto_skcipher_get_flags(tfm));
-			goto out;
-		} else if (ret)
-			continue;
-
-		sg_init_one(&sg[0], data, template[i].len);
-		if (diff_dst) {
-			data = xoutbuf[0];
-			data += align_offset;
-			sg_init_one(&sgout[0], data, template[i].len);
+			memset(iv, 0, ivsize);
+	} else {
+		if (vec->generates_iv) {
+			pr_err("alg: skcipher: %s has ivsize=0 but test vector %u generates IV!\n",
+			       driver, vec_num);
+			return -EINVAL;
 		}
-
-		skcipher_request_set_crypt(req, sg, (diff_dst) ? sgout : sg,
-					   template[i].len, iv);
-		ret = crypto_wait_req(enc ? crypto_skcipher_encrypt(req) :
-				      crypto_skcipher_decrypt(req), &wait);
-
-		if (ret) {
-			pr_err("alg: skcipher%s: %s failed on test %d for %s: ret=%d\n",
-			       d, e, j, algo, -ret);
-			goto out;
-		}
-
-		q = data;
-		if (memcmp(q, result, template[i].len)) {
-			pr_err("alg: skcipher%s: Test %d failed (invalid result) on %s for %s\n",
-			       d, j, e, algo);
-			hexdump(q, template[i].len);
-			ret = -EINVAL;
-			goto out;
-		}
-
-		if (template[i].generates_iv && enc &&
-		    memcmp(iv, template[i].iv, crypto_skcipher_ivsize(tfm))) {
-			pr_err("alg: skcipher%s: Test %d failed (invalid output IV) on %s for %s\n",
-			       d, j, e, algo);
-			hexdump(iv, crypto_skcipher_ivsize(tfm));
-			ret = -EINVAL;
-			goto out;
-		}
+		iv = NULL;
 	}
 
-	j = 0;
-	for (i = 0; i < tcount; i++) {
-		/* alignment tests are only done with continuous buffers */
-		if (align_offset != 0)
-			break;
-
-		if (!template[i].np)
-			continue;
-
-		if (fips_enabled && template[i].fips_skip)
-			continue;
-
-		if (template[i].iv && !(template[i].generates_iv && enc))
-			memcpy(iv, template[i].iv, ivsize);
-		else
-			memset(iv, 0, MAX_IVLEN);
-
-		input  = enc ? template[i].ptext : template[i].ctext;
-		result = enc ? template[i].ctext : template[i].ptext;
-		j++;
-		crypto_skcipher_clear_flags(tfm, ~0);
-		if (template[i].wk)
-			crypto_skcipher_set_flags(tfm, CRYPTO_TFM_REQ_FORBID_WEAK_KEYS);
-
-		ret = crypto_skcipher_setkey(tfm, template[i].key,
-					     template[i].klen);
-		if (template[i].fail == !ret) {
-			pr_err("alg: skcipher%s: setkey failed on chunk test %d for %s: flags=%x\n",
-			       d, j, algo, crypto_skcipher_get_flags(tfm));
-			goto out;
-		} else if (ret)
-			continue;
-
-		temp = 0;
-		ret = -EINVAL;
-		sg_init_table(sg, template[i].np);
-		if (diff_dst)
-			sg_init_table(sgout, template[i].np);
-		for (k = 0; k < template[i].np; k++) {
-			if (WARN_ON(offset_in_page(IDX[k]) +
-				    template[i].tap[k] > PAGE_SIZE))
-				goto out;
-
-			q = xbuf[IDX[k] >> PAGE_SHIFT] + offset_in_page(IDX[k]);
-
-			memcpy(q, input + temp, template[i].tap[k]);
-
-			if (offset_in_page(q) + template[i].tap[k] < PAGE_SIZE)
-				q[template[i].tap[k]] = 0;
-
-			sg_set_buf(&sg[k], q, template[i].tap[k]);
-			if (diff_dst) {
-				q = xoutbuf[IDX[k] >> PAGE_SHIFT] +
-				    offset_in_page(IDX[k]);
-
-				sg_set_buf(&sgout[k], q, template[i].tap[k]);
-
-				memset(q, 0, template[i].tap[k]);
-				if (offset_in_page(q) +
-				    template[i].tap[k] < PAGE_SIZE)
-					q[template[i].tap[k]] = 0;
-			}
-
-			temp += template[i].tap[k];
-		}
-
-		skcipher_request_set_crypt(req, sg, (diff_dst) ? sgout : sg,
-					   template[i].len, iv);
-
-		ret = crypto_wait_req(enc ? crypto_skcipher_encrypt(req) :
-				      crypto_skcipher_decrypt(req), &wait);
-
-		if (ret) {
-			pr_err("alg: skcipher%s: %s failed on chunk test %d for %s: ret=%d\n",
-			       d, e, j, algo, -ret);
-			goto out;
-		}
-
-		temp = 0;
-		ret = -EINVAL;
-		for (k = 0; k < template[i].np; k++) {
-			if (diff_dst)
-				q = xoutbuf[IDX[k] >> PAGE_SHIFT] +
-				    offset_in_page(IDX[k]);
-			else
-				q = xbuf[IDX[k] >> PAGE_SHIFT] +
-				    offset_in_page(IDX[k]);
-
-			if (memcmp(q, result + temp, template[i].tap[k])) {
-				pr_err("alg: skcipher%s: Chunk test %d failed on %s at page %u for %s\n",
-				       d, j, e, k, algo);
-				hexdump(q, template[i].tap[k]);
-				goto out;
-			}
-
-			q += template[i].tap[k];
-			for (n = 0; offset_in_page(q + n) && q[n]; n++)
-				;
-			if (n) {
-				pr_err("alg: skcipher%s: Result buffer corruption in chunk test %d on %s at page %u for %s: %u bytes:\n",
-				       d, j, e, k, algo, n);
-				hexdump(q, n);
-				goto out;
-			}
-			temp += template[i].tap[k];
-		}
+	/* Build the src/dst scatterlists */
+	input.iov_base = enc ? (void *)vec->ptext : (void *)vec->ctext;
+	input.iov_len = vec->len;
+	err = build_cipher_test_sglists(tsgls, cfg, alignmask,
+					vec->len, vec->len, &input, 1);
+	if (err) {
+		pr_err("alg: skcipher: %s %s: error preparing scatterlists for test vector %u, cfg=\"%s\"\n",
+		       driver, op, vec_num, cfg->name);
+		return err;
 	}
 
-	ret = 0;
+	/* Do the actual encryption or decryption */
+	testmgr_poison(req->__ctx, crypto_skcipher_reqsize(tfm));
+	skcipher_request_set_callback(req, req_flags, crypto_req_done, &wait);
+	skcipher_request_set_crypt(req, tsgls->src.sgl_ptr, tsgls->dst.sgl_ptr,
+				   vec->len, iv);
+	err = crypto_wait_req(enc ? crypto_skcipher_encrypt(req) :
+			      crypto_skcipher_decrypt(req), &wait);
+	if (err) {
+		pr_err("alg: skcipher: %s %s failed with err %d on test vector %u, cfg=\"%s\"\n",
+		       driver, op, err, vec_num, cfg->name);
+		return err;
+	}
 
-out:
-	skcipher_request_free(req);
-	if (diff_dst)
-		testmgr_free_buf(xoutbuf);
-out_nooutbuf:
-	testmgr_free_buf(xbuf);
-out_nobuf:
-	return ret;
-}
+	/* Check for the correct output (ciphertext or plaintext) */
+	err = verify_correct_output(&tsgls->dst, enc ? vec->ctext : vec->ptext,
+				    vec->len, 0, true);
+	if (err == -EOVERFLOW) {
+		pr_err("alg: skcipher: %s %s overran dst buffer on test vector %u, cfg=\"%s\"\n",
+		       driver, op, vec_num, cfg->name);
+		return err;
+	}
+	if (err) {
+		pr_err("alg: skcipher: %s %s test failed (wrong result) on test vector %u, cfg=\"%s\"\n",
+		       driver, op, vec_num, cfg->name);
+		return err;
+	}
 
-static int test_skcipher(struct crypto_skcipher *tfm, int enc,
-			 const struct cipher_testvec *template,
-			 unsigned int tcount)
-{
-	unsigned int alignmask;
-	int ret;
-
-	/* test 'dst == src' case */
-	ret = __test_skcipher(tfm, enc, template, tcount, false, 0);
-	if (ret)
-		return ret;
-
-	/* test 'dst != src' case */
-	ret = __test_skcipher(tfm, enc, template, tcount, true, 0);
-	if (ret)
-		return ret;
-
-	/* test unaligned buffers, check with one byte offset */
-	ret = __test_skcipher(tfm, enc, template, tcount, true, 1);
-	if (ret)
-		return ret;
-
-	alignmask = crypto_tfm_alg_alignmask(&tfm->base);
-	if (alignmask) {
-		/* Check if alignment mask for tfm is correctly set. */
-		ret = __test_skcipher(tfm, enc, template, tcount, true,
-				      alignmask + 1);
-		if (ret)
-			return ret;
+	/* If applicable, check that the algorithm generated the correct IV */
+	if (vec->generates_iv && enc && memcmp(iv, vec->iv, ivsize) != 0) {
+		pr_err("alg: skcipher: %s %s test failed (wrong output IV) on test vector %u, cfg=\"%s\"\n",
+		       driver, op, vec_num, cfg->name);
+		hexdump(iv, ivsize);
+		return -EINVAL;
 	}
 
 	return 0;
+}
+
+static int test_skcipher_vec(const char *driver, int enc,
+			     const struct cipher_testvec *vec,
+			     unsigned int vec_num,
+			     struct skcipher_request *req,
+			     struct cipher_test_sglists *tsgls)
+{
+	unsigned int i;
+	int err;
+
+	if (fips_enabled && vec->fips_skip)
+		return 0;
+
+	for (i = 0; i < ARRAY_SIZE(default_cipher_testvec_configs); i++) {
+		err = test_skcipher_vec_cfg(driver, enc, vec, vec_num,
+					    &default_cipher_testvec_configs[i],
+					    req, tsgls);
+		if (err)
+			return err;
+	}
+
+#ifdef CONFIG_CRYPTO_MANAGER_EXTRA_TESTS
+	if (!noextratests) {
+		struct testvec_config cfg;
+		char cfgname[TESTVEC_CONFIG_NAMELEN];
+
+		for (i = 0; i < fuzz_iterations; i++) {
+			generate_random_testvec_config(&cfg, cfgname,
+						       sizeof(cfgname));
+			err = test_skcipher_vec_cfg(driver, enc, vec, vec_num,
+						    &cfg, req, tsgls);
+			if (err)
+				return err;
+		}
+	}
+#endif
+	return 0;
+}
+
+static int test_skcipher(const char *driver, int enc,
+			 const struct cipher_test_suite *suite,
+			 struct skcipher_request *req,
+			 struct cipher_test_sglists *tsgls)
+{
+	unsigned int i;
+	int err;
+
+	for (i = 0; i < suite->count; i++) {
+		err = test_skcipher_vec(driver, enc, &suite->vecs[i], i, req,
+					tsgls);
+		if (err)
+			return err;
+	}
+	return 0;
+}
+
+static int alg_test_skcipher(const struct alg_test_desc *desc,
+			     const char *driver, u32 type, u32 mask)
+{
+	const struct cipher_test_suite *suite = &desc->suite.cipher;
+	struct crypto_skcipher *tfm;
+	struct skcipher_request *req = NULL;
+	struct cipher_test_sglists *tsgls = NULL;
+	int err;
+
+	if (suite->count <= 0) {
+		pr_err("alg: skcipher: empty test suite for %s\n", driver);
+		return -EINVAL;
+	}
+
+	tfm = crypto_alloc_skcipher(driver, type, mask);
+	if (IS_ERR(tfm)) {
+		pr_err("alg: skcipher: failed to allocate transform for %s: %ld\n",
+		       driver, PTR_ERR(tfm));
+		return PTR_ERR(tfm);
+	}
+
+	req = skcipher_request_alloc(tfm, GFP_KERNEL);
+	if (!req) {
+		pr_err("alg: skcipher: failed to allocate request for %s\n",
+		       driver);
+		err = -ENOMEM;
+		goto out;
+	}
+
+	tsgls = alloc_cipher_test_sglists();
+	if (!tsgls) {
+		pr_err("alg: skcipher: failed to allocate test buffers for %s\n",
+		       driver);
+		err = -ENOMEM;
+		goto out;
+	}
+
+	err = test_skcipher(driver, ENCRYPT, suite, req, tsgls);
+	if (err)
+		goto out;
+
+	err = test_skcipher(driver, DECRYPT, suite, req, tsgls);
+out:
+	free_cipher_test_sglists(tsgls);
+	skcipher_request_free(req);
+	crypto_free_skcipher(tfm);
+	return err;
 }
 
 static int test_comp(struct crypto_comp *tfm,
@@ -2323,28 +2315,6 @@ static int alg_test_cipher(const struct alg_test_desc *desc,
 		err = test_cipher(tfm, DECRYPT, suite->vecs, suite->count);
 
 	crypto_free_cipher(tfm);
-	return err;
-}
-
-static int alg_test_skcipher(const struct alg_test_desc *desc,
-			     const char *driver, u32 type, u32 mask)
-{
-	const struct cipher_test_suite *suite = &desc->suite.cipher;
-	struct crypto_skcipher *tfm;
-	int err;
-
-	tfm = crypto_alloc_skcipher(driver, type, mask);
-	if (IS_ERR(tfm)) {
-		printk(KERN_ERR "alg: skcipher: Failed to load transform for "
-		       "%s: %ld\n", driver, PTR_ERR(tfm));
-		return PTR_ERR(tfm);
-	}
-
-	err = test_skcipher(tfm, ENCRYPT, suite->vecs, suite->count);
-	if (!err)
-		err = test_skcipher(tfm, DECRYPT, suite->vecs, suite->count);
-
-	crypto_free_skcipher(tfm);
 	return err;
 }
 
@@ -4224,6 +4194,11 @@ static void alg_check_test_descs_order(void)
 
 static void alg_check_testvec_configs(void)
 {
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(default_cipher_testvec_configs); i++)
+		WARN_ON(!valid_testvec_config(
+				&default_cipher_testvec_configs[i]));
 }
 
 static void testmgr_onetime_init(void)
