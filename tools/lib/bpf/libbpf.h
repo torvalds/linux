@@ -264,6 +264,9 @@ struct bpf_map;
 LIBBPF_API struct bpf_map *
 bpf_object__find_map_by_name(struct bpf_object *obj, const char *name);
 
+LIBBPF_API int
+bpf_object__find_map_fd_by_name(struct bpf_object *obj, const char *name);
+
 /*
  * Get bpf_map through the offset of corresponding struct bpf_map_def
  * in the BPF object file.
