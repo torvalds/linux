@@ -412,7 +412,6 @@ static int vic_probe(struct platform_device *pdev)
 	err = host1x_client_register(&vic->client.base);
 	if (err < 0) {
 		dev_err(dev, "failed to register host1x client: %d\n", err);
-		platform_set_drvdata(pdev, NULL);
 		goto exit_falcon;
 	}
 
