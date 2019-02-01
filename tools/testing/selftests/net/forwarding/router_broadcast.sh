@@ -170,7 +170,8 @@ ping_test_from()
 
 	log_info "ping $dip, expected reply from $from"
 	ip vrf exec $(master_name_get $oif) \
-	$PING -I $oif $dip -c 10 -i 0.1 -w 2 -b 2>&1 | grep $from &> /dev/null
+		$PING -I $oif $dip -c 10 -i 0.1 -w $PING_TIMEOUT -b 2>&1 \
+		| grep $from &> /dev/null
 	check_err_fail $fail $?
 }
 
