@@ -283,6 +283,8 @@ static int host1x_probe(struct platform_device *pdev)
 	host->group = iommu_group_get(&pdev->dev);
 	if (host->group) {
 		struct iommu_domain_geometry *geometry;
+		u64 mask = dma_get_mask(host->dev);
+		dma_addr_t start, end;
 		unsigned long order;
 
 		err = iova_cache_get();
@@ -310,11 +312,12 @@ static int host1x_probe(struct platform_device *pdev)
 		}
 
 		geometry = &host->domain->geometry;
+		start = geometry->aperture_start & mask;
+		end = geometry->aperture_end & mask;
 
 		order = __ffs(host->domain->pgsize_bitmap);
-		init_iova_domain(&host->iova, 1UL << order,
-				 geometry->aperture_start >> order);
-		host->iova_end = geometry->aperture_end;
+		init_iova_domain(&host->iova, 1UL << order, start >> order);
+		host->iova_end = end;
 	}
 
 skip_iommu:
