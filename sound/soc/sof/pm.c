@@ -143,6 +143,12 @@ static int sof_restore_pipelines(struct snd_sof_dev *sdev)
 		struct sof_ipc_reply reply;
 		struct sof_ipc_dai_config *config = dai->dai_config;
 
+		if (!config) {
+			dev_err(sdev->dev, "error: no config for DAI %s\n",
+				dai->name);
+			continue;
+		}
+
 		ret = sof_ipc_tx_message(sdev->ipc,
 					 config->hdr.cmd, config,
 					 config->hdr.size,
