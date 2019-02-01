@@ -4016,6 +4016,7 @@ S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rafael/linux-pm.git
 B:	https://bugzilla.kernel.org
 F:	Documentation/admin-guide/pm/cpuidle.rst
+F:	Documentation/driver-api/pm/cpuidle.rst
 F:	drivers/cpuidle/*
 F:	include/linux/cpuidle.h
 

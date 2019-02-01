@@ -155,14 +155,14 @@ governor uses that information depends on what algorithm is implemented by it
 and that is the primary reason for having more than one governor in the
 ``CPUIdle`` subsystem.
 
-There are two ``CPUIdle`` governors available, ``menu`` and ``ladder``.  Which
-of them is used depends on the configuration of the kernel and in particular on
-whether or not the scheduler tick can be `stopped by the idle
-loop <idle-cpus-and-tick_>`_.  It is possible to change the governor at run time
-if the ``cpuidle_sysfs_switch`` command line parameter has been passed to the
-kernel, but that is not safe in general, so it should not be done on production
-systems (that may change in the future, though).  The name of the ``CPUIdle``
-governor currently used by the kernel can be read from the
+There are three ``CPUIdle`` governors available, ``menu``, `TEO <teo-gov_>`_
+and ``ladder``.  Which of them is used by default depends on the configuration
+of the kernel and in particular on whether or not the scheduler tick can be
+`stopped by the idle loop <idle-cpus-and-tick_>`_.  It is possible to change the
+governor at run time if the ``cpuidle_sysfs_switch`` command line parameter has
+been passed to the kernel, but that is not safe in general, so it should not be
+done on production systems (that may change in the future, though).  The name of
+the ``CPUIdle`` governor currently used by the kernel can be read from the
 :file:`current_governor_ro` (or :file:`current_governor` if
 ``cpuidle_sysfs_switch`` is present in the kernel command line) file under
 :file:`/sys/devices/system/cpu/cpuidle/` in ``sysfs``.
@@ -256,6 +256,8 @@ the ``menu`` governor by default and if it is not tickless, the default
 ``CPUIdle`` governor on it will be ``ladder``.
 
 
+.. _menu-gov:
+
 The ``menu`` Governor
 =====================
 
@@ -331,6 +333,92 @@ loop).  Then, the sleep length used in the previous computations may not reflect
 the real time until the closest timer event and if it really is greater than
 that time, the governor may need to select a shallower state with a suitable
 target residency.
+
+
+.. _teo-gov:
+
+The Timer Events Oriented (TEO) Governor
+========================================
+
+The timer events oriented (TEO) governor is an alternative ``CPUIdle`` governor
+for tickless systems.  It follows the same basic strategy as the ``menu`` `one
+<menu-gov_>`_: it always tries to find the deepest idle state suitable for the
+given conditions.  However, it applies a different approach to that problem.
+
+First, it does not use sleep length correction factors, but instead it attempts
+to correlate the observed idle duration values with the available idle states
+and use that information to pick up the idle state that is most likely to
+"match" the upcoming CPU idle interval.   Second, it does not take the tasks
+that were running on the given CPU in the past and are waiting on some I/O
+operations to complete now at all (there is no guarantee that they will run on
+the same CPU when they become runnable again) and the pattern detection code in
+it avoids taking timer wakeups into account.  It also only uses idle duration
+values less than the current time till the closest timer (with the scheduler
+tick excluded) for that purpose.
+
+Like in the ``menu`` governor `case <menu-gov_>`_, the first step is to obtain
+the *sleep length*, which is the time until the closest timer event with the
+assumption that the scheduler tick will be stopped (that also is the upper bound
+on the time until the next CPU wakeup).  That value is then used to preselect an
+idle state on the basis of three metrics maintained for each idle state provided
+by the ``CPUIdle`` driver: ``hits``, ``misses`` and ``early_hits``.
+
+The ``hits`` and ``misses`` metrics measure the likelihood that a given idle
+state will "match" the observed (post-wakeup) idle duration if it "matches" the
+sleep length.  They both are subject to decay (after a CPU wakeup) every time
+the target residency of the idle state corresponding to them is less than or
+equal to the sleep length and the target residency of the next idle state is
+greater than the sleep length (that is, when the idle state corresponding to
+them "matches" the sleep length).  The ``hits`` metric is increased if the
+former condition is satisfied and the target residency of the given idle state
+is less than or equal to the observed idle duration and the target residency of
+the next idle state is greater than the observed idle duration at the same time
+(that is, it is increased when the given idle state "matches" both the sleep
+length and the observed idle duration).  In turn, the ``misses`` metric is
+increased when the given idle state "matches" the sleep length only and the
+observed idle duration is too short for its target residency.
+
+The ``early_hits`` metric measures the likelihood that a given idle state will
+"match" the observed (post-wakeup) idle duration if it does not "match" the
+sleep length.  It is subject to decay on every CPU wakeup and it is increased
+when the idle state corresponding to it "matches" the observed (post-wakeup)
+idle duration and the target residency of the next idle state is less than or
+equal to the sleep length (i.e. the idle state "matching" the sleep length is
+deeper than the given one).
+
+The governor walks the list of idle states provided by the ``CPUIdle`` driver
+and finds the last (deepest) one with the target residency less than or equal
+to the sleep length.  Then, the ``hits`` and ``misses`` metrics of that idle
+state are compared with each other and it is preselected if the ``hits`` one is
+greater (which means that that idle state is likely to "match" the observed idle
+duration after CPU wakeup).  If the ``misses`` one is greater, the governor
+preselects the shallower idle state with the maximum ``early_hits`` metric
+(or if there are multiple shallower idle states with equal ``early_hits``
+metric which also is the maximum, the shallowest of them will be preselected).
+[If there is a wakeup latency constraint coming from the `PM QoS framework
+<cpu-pm-qos_>`_ which is hit before reaching the deepest idle state with the
+target residency within the sleep length, the deepest idle state with the exit
+latency within the constraint is preselected without consulting the ``hits``,
+``misses`` and ``early_hits`` metrics.]
+
+Next, the governor takes several idle duration values observed most recently
+into consideration and if at least a half of them are greater than or equal to
+the target residency of the preselected idle state, that idle state becomes the
+final candidate to ask for.  Otherwise, the average of the most recent idle
+duration values below the target residency of the preselected idle state is
+computed and the governor walks the idle states shallower than the preselected
+one and finds the deepest of them with the target residency within that average.
+That idle state is then taken as the final candidate to ask for.
+
+Still, at this point the governor may need to refine the idle state selection if
+it has not decided to `stop the scheduler tick <idle-cpus-and-tick_>`_.  That
+generally happens if the target residency of the idle state selected so far is
+less than the tick period and the tick has not been stopped already (in a
+previous iteration of the idle loop).  Then, like in the ``menu`` governor
+`case <menu-gov_>`_, the sleep length used in the previous computations may not
+reflect the real time until the closest timer event and if it really is greater
+than that time, a shallower state with a suitable target residency may need to
+be selected.
 
 
 .. _idle-states-representation:
