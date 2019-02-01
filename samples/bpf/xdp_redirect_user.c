@@ -30,7 +30,7 @@ static int ifindex_in;
 static int ifindex_out;
 static bool ifindex_out_xdp_dummy_attached = true;
 
-static __u32 xdp_flags;
+static __u32 xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST;
 static int rxcnt_map_fd;
 
 static void int_exit(int sig)
@@ -70,7 +70,8 @@ static void usage(const char *prog)
 		"usage: %s [OPTS] IFINDEX_IN IFINDEX_OUT\n\n"
 		"OPTS:\n"
 		"    -S    use skb-mode\n"
-		"    -N    enforce native mode\n",
+		"    -N    enforce native mode\n"
+		"    -F    force loading prog\n",
 		prog);
 }
 
@@ -83,7 +84,7 @@ int main(int argc, char **argv)
 	};
 	struct bpf_program *prog, *dummy_prog;
 	int prog_fd, tx_port_map_fd, opt;
-	const char *optstr = "SN";
+	const char *optstr = "FSN";
 	struct bpf_object *obj;
 	char filename[256];
 	int dummy_prog_fd;
@@ -96,6 +97,9 @@ int main(int argc, char **argv)
 			break;
 		case 'N':
 			xdp_flags |= XDP_FLAGS_DRV_MODE;
+			break;
+		case 'F':
+			xdp_flags &= ~XDP_FLAGS_UPDATE_IF_NOEXIST;
 			break;
 		default:
 			usage(basename(argv[0]));

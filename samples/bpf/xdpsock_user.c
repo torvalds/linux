@@ -68,7 +68,7 @@ enum benchmark_type {
 };
 
 static enum benchmark_type opt_bench = BENCH_RXDROP;
-static u32 opt_xdp_flags;
+static u32 opt_xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST;
 static const char *opt_if = "";
 static int opt_ifindex;
 static int opt_queue;
@@ -682,7 +682,7 @@ static void parse_command_line(int argc, char **argv)
 	opterr = 0;
 
 	for (;;) {
-		c = getopt_long(argc, argv, "rtli:q:psSNn:cz", long_options,
+		c = getopt_long(argc, argv, "Frtli:q:psSNn:cz", long_options,
 				&option_index);
 		if (c == -1)
 			break;
@@ -724,6 +724,9 @@ static void parse_command_line(int argc, char **argv)
 			break;
 		case 'c':
 			opt_xdp_bind_flags |= XDP_COPY;
+			break;
+		case 'F':
+			opt_xdp_flags &= ~XDP_FLAGS_UPDATE_IF_NOEXIST;
 			break;
 		default:
 			usage(basename(argv[0]));

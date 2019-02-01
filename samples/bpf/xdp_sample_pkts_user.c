@@ -13,6 +13,8 @@
 #include <libbpf.h>
 #include <bpf/bpf.h>
 #include <sys/resource.h>
+#include <libgen.h>
+#include <linux/if_link.h>
 
 #include "perf-sys.h"
 #include "trace_helpers.h"
@@ -21,12 +23,13 @@
 static int pmu_fds[MAX_CPUS], if_idx;
 static struct perf_event_mmap_page *headers[MAX_CPUS];
 static char *if_name;
+static __u32 xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST;
 
 static int do_attach(int idx, int fd, const char *name)
 {
 	int err;
 
-	err = bpf_set_link_xdp_fd(idx, fd, 0);
+	err = bpf_set_link_xdp_fd(idx, fd, xdp_flags);
 	if (err < 0)
 		printf("ERROR: failed to attach program to %s\n", name);
 
@@ -98,21 +101,42 @@ static void sig_handler(int signo)
 	exit(0);
 }
 
+static void usage(const char *prog)
+{
+	fprintf(stderr,
+		"%s: %s [OPTS] <ifname|ifindex>\n\n"
+		"OPTS:\n"
+		"    -F    force loading prog\n",
+		__func__, prog);
+}
+
 int main(int argc, char **argv)
 {
 	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
 	struct bpf_prog_load_attr prog_load_attr = {
 		.prog_type	= BPF_PROG_TYPE_XDP,
 	};
+	const char *optstr = "F";
+	int prog_fd, map_fd, opt;
 	struct bpf_object *obj;
 	struct bpf_map *map;
-	int prog_fd, map_fd;
 	char filename[256];
 	int ret, err, i;
 	int numcpus;
 
-	if (argc < 2) {
-		printf("Usage: %s <ifname>\n", argv[0]);
+	while ((opt = getopt(argc, argv, optstr)) != -1) {
+		switch (opt) {
+		case 'F':
+			xdp_flags &= ~XDP_FLAGS_UPDATE_IF_NOEXIST;
+			break;
+		default:
+			usage(basename(argv[0]));
+			return 1;
+		}
+	}
+
+	if (optind == argc) {
+		usage(basename(argv[0]));
 		return 1;
 	}
 
@@ -143,16 +167,16 @@ int main(int argc, char **argv)
 	}
 	map_fd = bpf_map__fd(map);
 
-	if_idx = if_nametoindex(argv[1]);
+	if_idx = if_nametoindex(argv[optind]);
 	if (!if_idx)
-		if_idx = strtoul(argv[1], NULL, 0);
+		if_idx = strtoul(argv[optind], NULL, 0);
 
 	if (!if_idx) {
 		fprintf(stderr, "Invalid ifname\n");
 		return 1;
 	}
-	if_name = argv[1];
-	err = do_attach(if_idx, prog_fd, argv[1]);
+	if_name = argv[optind];
+	err = do_attach(if_idx, prog_fd, if_name);
 	if (err)
 		return err;
 

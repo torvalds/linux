@@ -33,7 +33,7 @@ static int ifindex = -1;
 static char ifname_buf[IF_NAMESIZE];
 static char *ifname;
 
-static __u32 xdp_flags;
+static __u32 xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST;
 static int cpu_map_fd;
 static int rx_cnt_map_fd;
 static int redirect_err_cnt_map_fd;
@@ -62,6 +62,7 @@ static const struct option long_options[] = {
 	{"cpu",		required_argument,	NULL, 'c' },
 	{"stress-mode", no_argument,		NULL, 'x' },
 	{"no-separators", no_argument,		NULL, 'z' },
+	{"force",	no_argument,		NULL, 'F' },
 	{0, 0, NULL,  0 }
 };
 
@@ -651,7 +652,7 @@ int main(int argc, char **argv)
 	mark_cpus_unavailable();
 
 	/* Parse commands line args */
-	while ((opt = getopt_long(argc, argv, "hSd:",
+	while ((opt = getopt_long(argc, argv, "hSd:s:p:q:c:xzF",
 				  long_options, &longindex)) != -1) {
 		switch (opt) {
 		case 'd':
@@ -699,6 +700,9 @@ int main(int argc, char **argv)
 			break;
 		case 'q':
 			qsize = atoi(optarg);
+			break;
+		case 'F':
+			xdp_flags &= ~XDP_FLAGS_UPDATE_IF_NOEXIST;
 			break;
 		case 'h':
 		error:

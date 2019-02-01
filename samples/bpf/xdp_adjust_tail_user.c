@@ -24,7 +24,7 @@
 #define STATS_INTERVAL_S 2U
 
 static int ifindex = -1;
-static __u32 xdp_flags;
+static __u32 xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST;
 
 static void int_exit(int sig)
 {
@@ -60,6 +60,7 @@ static void usage(const char *cmd)
 	printf("    -T <stop-after-X-seconds> Default: 0 (forever)\n");
 	printf("    -S use skb-mode\n");
 	printf("    -N enforce native mode\n");
+	printf("    -F force loading prog\n");
 	printf("    -h Display this help\n");
 }
 
@@ -70,8 +71,8 @@ int main(int argc, char **argv)
 		.prog_type	= BPF_PROG_TYPE_XDP,
 	};
 	unsigned char opt_flags[256] = {};
+	const char *optstr = "i:T:SNFh";
 	unsigned int kill_after_s = 0;
-	const char *optstr = "i:T:SNh";
 	int i, prog_fd, map_fd, opt;
 	struct bpf_object *obj;
 	struct bpf_map *map;
@@ -95,6 +96,9 @@ int main(int argc, char **argv)
 			break;
 		case 'N':
 			xdp_flags |= XDP_FLAGS_DRV_MODE;
+			break;
+		case 'F':
+			xdp_flags &= ~XDP_FLAGS_UPDATE_IF_NOEXIST;
 			break;
 		default:
 			usage(argv[0]);

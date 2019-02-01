@@ -30,7 +30,7 @@ static int ifindex = -1;
 static char ifname_buf[IF_NAMESIZE];
 static char *ifname;
 
-static __u32 xdp_flags;
+static __u32 xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST;
 
 static struct bpf_map *stats_global_map;
 static struct bpf_map *rx_queue_index_map;
@@ -52,6 +52,7 @@ static const struct option long_options[] = {
 	{"action",	required_argument,	NULL, 'a' },
 	{"readmem", 	no_argument,		NULL, 'r' },
 	{"swapmac", 	no_argument,		NULL, 'm' },
+	{"force",	no_argument,		NULL, 'F' },
 	{0, 0, NULL,  0 }
 };
 
@@ -487,7 +488,7 @@ int main(int argc, char **argv)
 	}
 
 	/* Parse commands line args */
-	while ((opt = getopt_long(argc, argv, "hSd:",
+	while ((opt = getopt_long(argc, argv, "FhSrmzd:s:a:",
 				  long_options, &longindex)) != -1) {
 		switch (opt) {
 		case 'd':
@@ -523,6 +524,9 @@ int main(int argc, char **argv)
 			break;
 		case 'm':
 			cfg_options |= SWAP_MAC;
+			break;
+		case 'F':
+			xdp_flags &= ~XDP_FLAGS_UPDATE_IF_NOEXIST;
 			break;
 		case 'h':
 		error:

@@ -26,8 +26,9 @@
 #include "bpf_util.h"
 #include "bpf/libbpf.h"
 #include <sys/resource.h>
+#include <libgen.h>
 
-int sock, sock_arp, flags = 0;
+int sock, sock_arp, flags = XDP_FLAGS_UPDATE_IF_NOEXIST;
 static int total_ifindex;
 int *ifindex_list;
 char buf[8192];
@@ -608,33 +609,56 @@ cleanup:
 	return ret;
 }
 
+static void usage(const char *prog)
+{
+	fprintf(stderr,
+		"%s: %s [OPTS] interface name list\n\n"
+		"OPTS:\n"
+		"    -S    use skb-mode\n"
+		"    -F    force loading prog\n",
+		__func__, prog);
+}
+
 int main(int ac, char **argv)
 {
 	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
 	struct bpf_prog_load_attr prog_load_attr = {
 		.prog_type	= BPF_PROG_TYPE_XDP,
 	};
+	const char *optstr = "SF";
 	struct bpf_object *obj;
 	char filename[256];
 	char **ifname_list;
-	int prog_fd;
+	int prog_fd, opt;
 	int i = 1;
 
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
 	prog_load_attr.file = filename;
 
-	if (ac < 2) {
-		printf("usage: %s [-S] Interface name list\n", argv[0]);
-		return 1;
+	total_ifindex = ac - 1;
+	ifname_list = (argv + 1);
+
+	while ((opt = getopt(ac, argv, optstr)) != -1) {
+		switch (opt) {
+		case 'S':
+			flags |= XDP_FLAGS_SKB_MODE;
+			total_ifindex--;
+			ifname_list++;
+			break;
+		case 'F':
+			flags &= ~XDP_FLAGS_UPDATE_IF_NOEXIST;
+			total_ifindex--;
+			ifname_list++;
+			break;
+		default:
+			usage(basename(argv[0]));
+			return 1;
+		}
 	}
-	if (!strcmp(argv[1], "-S")) {
-		flags = XDP_FLAGS_SKB_MODE;
-		total_ifindex = ac - 2;
-		ifname_list = (argv + 2);
-	} else {
-		flags = 0;
-		total_ifindex = ac - 1;
-		ifname_list = (argv + 1);
+
+	if (optind == ac) {
+		usage(basename(argv[0]));
+		return 1;
 	}
 
 	if (setrlimit(RLIMIT_MEMLOCK, &r)) {

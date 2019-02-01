@@ -25,7 +25,7 @@
 #define STATS_INTERVAL_S 2U
 
 static int ifindex = -1;
-static __u32 xdp_flags = 0;
+static __u32 xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST;
 static int rxcnt_map_fd;
 
 static void int_exit(int sig)
@@ -83,6 +83,7 @@ static void usage(const char *cmd)
 	printf("    -P <IP-Protocol> Default is TCP\n");
 	printf("    -S use skb-mode\n");
 	printf("    -N enforce native mode\n");
+	printf("    -F Force loading the XDP prog\n");
 	printf("    -h Display this help\n");
 }
 
@@ -145,7 +146,7 @@ int main(int argc, char **argv)
 	};
 	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
 	int min_port = 0, max_port = 0, vip2tnl_map_fd;
-	const char *optstr = "i:a:p:s:d:m:T:P:SNh";
+	const char *optstr = "i:a:p:s:d:m:T:P:FSNh";
 	unsigned char opt_flags[256] = {};
 	unsigned int kill_after_s = 0;
 	struct iptnl_info tnl = {};
@@ -216,6 +217,9 @@ int main(int argc, char **argv)
 			break;
 		case 'N':
 			xdp_flags |= XDP_FLAGS_DRV_MODE;
+			break;
+		case 'F':
+			xdp_flags &= ~XDP_FLAGS_UPDATE_IF_NOEXIST;
 			break;
 		default:
 			usage(argv[0]);

@@ -22,7 +22,7 @@
 #include "bpf/libbpf.h"
 
 static int ifindex;
-static __u32 xdp_flags;
+static __u32 xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST;
 
 static void int_exit(int sig)
 {
@@ -63,7 +63,8 @@ static void usage(const char *prog)
 		"usage: %s [OPTS] IFACE\n\n"
 		"OPTS:\n"
 		"    -S    use skb-mode\n"
-		"    -N    enforce native mode\n",
+		"    -N    enforce native mode\n"
+		"    -F    force loading prog\n",
 		prog);
 }
 
@@ -73,7 +74,7 @@ int main(int argc, char **argv)
 	struct bpf_prog_load_attr prog_load_attr = {
 		.prog_type	= BPF_PROG_TYPE_XDP,
 	};
-	const char *optstr = "SN";
+	const char *optstr = "FSN";
 	int prog_fd, map_fd, opt;
 	struct bpf_object *obj;
 	struct bpf_map *map;
@@ -86,6 +87,9 @@ int main(int argc, char **argv)
 			break;
 		case 'N':
 			xdp_flags |= XDP_FLAGS_DRV_MODE;
+			break;
+		case 'F':
+			xdp_flags &= ~XDP_FLAGS_UPDATE_IF_NOEXIST;
 			break;
 		default:
 			usage(basename(argv[0]));
