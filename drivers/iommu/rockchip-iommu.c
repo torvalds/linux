@@ -1071,7 +1071,8 @@ static int rk_iommu_add_device(struct device *dev)
 	iommu_group_put(group);
 
 	iommu_device_link(&iommu->iommu, dev);
-	data->link = device_link_add(dev, iommu->dev, DL_FLAG_PM_RUNTIME);
+	data->link = device_link_add(dev, iommu->dev,
+				     DL_FLAG_STATELESS | DL_FLAG_PM_RUNTIME);
 
 	return 0;
 }
