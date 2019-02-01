@@ -589,6 +589,8 @@ static int _vop_remove_device(struct mic_device_desc __iomem *d,
 	int ret = -1;
 
 	if (ioread8(&dc->config_change) == MIC_VIRTIO_PARAM_DEV_REMOVE) {
+		struct device *dev = get_device(&vdev->vdev.dev);
+
 		dev_dbg(&vpdev->dev,
 			"%s %d config_change %d type %d vdev %p\n",
 			__func__, __LINE__,
@@ -600,7 +602,7 @@ static int _vop_remove_device(struct mic_device_desc __iomem *d,
 		iowrite8(-1, &dc->h2c_vdev_db);
 		if (status & VIRTIO_CONFIG_S_DRIVER_OK)
 			wait_for_completion(&vdev->reset_done);
-		put_device(&vdev->vdev.dev);
+		put_device(dev);
 		iowrite8(1, &dc->guest_ack);
 		dev_dbg(&vpdev->dev, "%s %d guest_ack %d\n",
 			__func__, __LINE__, ioread8(&dc->guest_ack));
