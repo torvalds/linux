@@ -1031,7 +1031,7 @@ static const struct snd_soc_dai_ops rsnd_soc_dai_ops = {
 	.prepare	= rsnd_soc_dai_prepare,
 };
 
-static void rsnd_parse_connect_simple(struct rsnd_priv *priv,
+static void rsnd_parse_tdm_split_mode(struct rsnd_priv *priv,
 				      struct rsnd_dai_stream *io,
 				      struct device_node *dai_np)
 {
@@ -1042,9 +1042,6 @@ static void rsnd_parse_connect_simple(struct rsnd_priv *priv,
 	int i, j;
 
 	if (!ssiu_np)
-		return;
-
-	if (!rsnd_io_to_mod_ssi(io))
 		return;
 
 	/*
@@ -1071,12 +1068,21 @@ static void rsnd_parse_connect_simple(struct rsnd_priv *priv,
 	}
 }
 
+static void rsnd_parse_connect_simple(struct rsnd_priv *priv,
+				      struct rsnd_dai_stream *io,
+				      struct device_node *dai_np)
+{
+	if (!rsnd_io_to_mod_ssi(io))
+		return;
+
+	rsnd_parse_tdm_split_mode(priv, io, dai_np);
+}
+
 static void rsnd_parse_connect_graph(struct rsnd_priv *priv,
 				     struct rsnd_dai_stream *io,
 				     struct device_node *endpoint)
 {
 	struct device *dev = rsnd_priv_to_dev(priv);
-	struct device_node *remote_port = of_graph_get_remote_port(endpoint);
 	struct device_node *remote_node = of_graph_get_remote_port_parent(endpoint);
 
 	if (!rsnd_io_to_mod_ssi(io))
@@ -1094,14 +1100,7 @@ static void rsnd_parse_connect_graph(struct rsnd_priv *priv,
 		dev_dbg(dev, "%s connected to HDMI1\n", io->name);
 	}
 
-	/*
-	 * This driver assumes that it is TDM Split mode
-	 * if remote node has multi endpoint
-	 */
-	if (of_get_child_count(remote_port) > 1) {
-		rsnd_flags_set(io, RSND_STREAM_TDM_SPLIT);
-		dev_dbg(dev, "%s is part of TDM Split\n", io->name);
-	}
+	rsnd_parse_tdm_split_mode(priv, io, endpoint);
 }
 
 void rsnd_parse_connect_common(struct rsnd_dai *rdai,
