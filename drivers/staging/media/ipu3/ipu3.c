@@ -489,12 +489,11 @@ static irqreturn_t imgu_isr_threaded(int irq, void *imgu_ptr)
 			mutex_unlock(&imgu->lock);
 		} while (PTR_ERR(b) == -EAGAIN);
 
-		if (IS_ERR_OR_NULL(b)) {
-			if (!b || PTR_ERR(b) == -EBUSY)	/* All done */
-				break;
-			dev_err(&imgu->pci_dev->dev,
-				"failed to dequeue buffers (%ld)\n",
-				PTR_ERR(b));
+		if (IS_ERR(b)) {
+			if (PTR_ERR(b) != -EBUSY)	/* All done */
+				dev_err(&imgu->pci_dev->dev,
+					"failed to dequeue buffers (%ld)\n",
+					PTR_ERR(b));
 			break;
 		}
 
