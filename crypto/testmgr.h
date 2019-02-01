@@ -5,6 +5,7 @@
  * Copyright (c) 2002 Jean-Francois Dive <jef@linuxbe.org>
  * Copyright (c) 2007 Nokia Siemens Networks
  * Copyright (c) 2008 Herbert Xu <herbert@gondor.apana.org.au>
+ * Copyright (c) 2019 Google LLC
  *
  * Updated RFC4106 AES-GCM testing. Some test vectors were taken from
  * http://csrc.nist.gov/groups/ST/toolkit/BCM/documents/proposedmodes/
@@ -24,19 +25,20 @@
 #ifndef _CRYPTO_TESTMGR_H
 #define _CRYPTO_TESTMGR_H
 
-#define MAX_DIGEST_SIZE		64
-#define MAX_TAP			8
-
-#define MAX_KEYLEN		1088
 #define MAX_IVLEN		32
 
+/*
+ * hash_testvec:	structure to describe a hash (message digest) test
+ * @key:	Pointer to key (NULL if none)
+ * @plaintext:	Pointer to source data
+ * @digest:	Pointer to expected digest
+ * @psize:	Length of source data in bytes
+ * @ksize:	Length of @key in bytes (0 if no key)
+ */
 struct hash_testvec {
-	/* only used with keyed hash algorithms */
 	const char *key;
 	const char *plaintext;
 	const char *digest;
-	unsigned short tap[MAX_TAP];
-	unsigned short np;
 	unsigned short psize;
 	unsigned short ksize;
 };
@@ -1022,8 +1024,6 @@ static const struct hash_testvec md4_tv_template[] = {
 		.psize	= 26,
 		.digest	= "\xd7\x9e\x1c\x30\x8a\xa5\xbb\xcd"
 			  "\xee\xa8\xed\x63\xdf\x41\x2d\xa9",
-		.np	= 2,
-		.tap	= { 13, 13 },
 	}, {
 		.plaintext = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
 		.psize	= 62,
@@ -1060,8 +1060,6 @@ static const struct hash_testvec sha3_224_tv_template[] = {
 				"\xc9\xfd\x55\x74\x49\x44\x79\xba"
 				"\x5c\x7e\x7a\xb7\x6e\xf2\x64\xea"
 				"\xd0\xfc\xce\x33",
-		.np	= 2,
-		.tap	= { 28, 28 },
 	}, {
 		.plaintext = "\x08\x9f\x13\xaa\x41\xd8\x4c\xe3"
 			     "\x7a\x11\x85\x1c\xb3\x27\xbe\x55"
@@ -1221,8 +1219,6 @@ static const struct hash_testvec sha3_256_tv_template[] = {
 				"\x49\x10\x03\x76\xa8\x23\x5e\x2c"
 				"\x82\xe1\xb9\x99\x8a\x99\x9e\x21"
 				"\xdb\x32\xdd\x97\x49\x6d\x33\x76",
-		.np	= 2,
-		.tap	= { 28, 28 },
 	}, {
 		.plaintext = "\x08\x9f\x13\xaa\x41\xd8\x4c\xe3"
 			     "\x7a\x11\x85\x1c\xb3\x27\xbe\x55"
@@ -1389,8 +1385,6 @@ static const struct hash_testvec sha3_384_tv_template[] = {
 				"\x9b\xfd\xbc\x32\xb9\xd4\xad\x5a"
 				"\xa0\x4a\x1f\x07\x6e\x62\xfe\xa1"
 				"\x9e\xef\x51\xac\xd0\x65\x7c\x22",
-		.np	= 2,
-		.tap	= { 28, 28 },
 	}, {
 		.plaintext = "\x08\x9f\x13\xaa\x41\xd8\x4c\xe3"
 			     "\x7a\x11\x85\x1c\xb3\x27\xbe\x55"
@@ -1565,8 +1559,6 @@ static const struct hash_testvec sha3_512_tv_template[] = {
 				"\xba\x1b\x0d\x8d\xc7\x8c\x08\x63"
 				"\x46\xb5\x33\xb4\x9c\x03\x0d\x99"
 				"\xa2\x7d\xaf\x11\x39\xd6\xe7\x5e",
-		.np	= 2,
-		.tap	= { 28, 28 },
 	}, {
 		.plaintext = "\x08\x9f\x13\xaa\x41\xd8\x4c\xe3"
 			     "\x7a\x11\x85\x1c\xb3\x27\xbe\x55"
@@ -1736,8 +1728,6 @@ static const struct hash_testvec md5_tv_template[] = {
 		.psize	= 26,
 		.digest	= "\xc3\xfc\xd3\xd7\x61\x92\xe4\x00"
 			  "\x7d\xfb\x49\x6c\xca\x67\xe1\x3b",
-		.np	= 2,
-		.tap	= {13, 13}
 	}, {
 		.plaintext = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
 		.psize	= 62,
@@ -1798,8 +1788,6 @@ static const struct hash_testvec rmd128_tv_template[] = {
 		.psize	= 56,
 		.digest	= "\xa1\xaa\x06\x89\xd0\xfa\xfa\x2d"
 			  "\xdc\x22\xe8\x8b\x49\x13\x3a\x06",
-		.np	= 2,
-		.tap	= { 28, 28 },
 	}, {
 		.plaintext = "abcdefghbcdefghicdefghijdefghijkefghijklfghi"
 			     "jklmghijklmnhijklmnoijklmnopjklmnopqklmnopqr"
@@ -1860,8 +1848,6 @@ static const struct hash_testvec rmd160_tv_template[] = {
 		.psize	= 56,
 		.digest	= "\x12\xa0\x53\x38\x4a\x9c\x0c\x88\xe4\x05"
 			  "\xa0\x6c\x27\xdc\xf4\x9a\xda\x62\xeb\x2b",
-		.np	= 2,
-		.tap	= { 28, 28 },
 	}, {
 		.plaintext = "abcdefghbcdefghicdefghijdefghijkefghijklfghi"
 			     "jklmghijklmnhijklmnoijklmnopjklmnopqklmnopqr"
@@ -1938,8 +1924,6 @@ static const struct hash_testvec rmd256_tv_template[] = {
 			  "\xc8\xd9\x12\x85\x73\xe7\xa9\x80"
 			  "\x9a\xfb\x2a\x0f\x34\xcc\xc3\x6e"
 			  "\xa9\xe7\x2f\x16\xf6\x36\x8e\x3f",
-		.np	= 2,
-		.tap	= { 28, 28 },
 	}
 };
 
@@ -2004,8 +1988,6 @@ static const struct hash_testvec rmd320_tv_template[] = {
 			  "\xb8\x4d\xf7\x69\xa5\xde\x20\x60\xe2\x59"
 			  "\xdf\x4c\x9b\xb4\xa4\x26\x8c\x0e\x93\x5b"
 			  "\xbc\x74\x70\xa9\x69\xc9\xd0\x72\xa1\xac",
-		.np	= 2,
-		.tap	= { 28, 28 },
 	}
 };
 
@@ -2019,15 +2001,11 @@ static const struct hash_testvec crct10dif_tv_template[] = {
 				  "123456789012345678901234567890123456789",
 		.psize		= 79,
 		.digest 	= (u8 *)(u16 []){ 0x4b70 },
-		.np		= 2,
-		.tap		= { 63, 16 },
 	}, {
 		.plaintext	= "abcdddddddddddddddddddddddddddddddddddddddd"
 				  "ddddddddddddd",
 		.psize		= 56,
 		.digest		= (u8 *)(u16 []){ 0x9ce3 },
-		.np		= 8,
-		.tap		= { 1, 2, 28, 7, 6, 5, 4, 3 },
 	}, {
 		.plaintext 	= "1234567890123456789012345678901234567890"
 				  "1234567890123456789012345678901234567890"
@@ -2039,19 +2017,6 @@ static const struct hash_testvec crct10dif_tv_template[] = {
 				  "123456789012345678901234567890123456789",
 		.psize		= 319,
 		.digest		= (u8 *)(u16 []){ 0x44c6 },
-	}, {
-		.plaintext 	= "1234567890123456789012345678901234567890"
-				  "1234567890123456789012345678901234567890"
-				  "1234567890123456789012345678901234567890"
-				  "1234567890123456789012345678901234567890"
-				  "1234567890123456789012345678901234567890"
-				  "1234567890123456789012345678901234567890"
-				  "1234567890123456789012345678901234567890"
-				  "123456789012345678901234567890123456789",
-		.psize		= 319,
-		.digest		= (u8 *)(u16 []){ 0x44c6 },
-		.np		= 4,
-		.tap		= { 1, 255, 57, 6 },
 	}, {
 		.plaintext =	"\x6e\x05\x79\x10\xa7\x1b\xb2\x49"
 				"\xe0\x54\xeb\x82\x19\x8d\x24\xbb"
@@ -2517,8 +2482,6 @@ static const struct hash_testvec sha1_tv_template[] = {
 		.psize	= 56,
 		.digest	= "\x84\x98\x3e\x44\x1c\x3b\xd2\x6e\xba\xae"
 			  "\x4a\xa1\xf9\x51\x29\xe5\xe5\x46\x70\xf1",
-		.np	= 2,
-		.tap	= { 28, 28 }
 	}, {
 		.plaintext = "\xec\x29\x56\x12\x44\xed\xe7\x06"
 			     "\xb6\xeb\x30\xa1\xc3\x71\xd7\x44"
@@ -2544,8 +2507,6 @@ static const struct hash_testvec sha1_tv_template[] = {
 		.psize	= 163,
 		.digest	= "\x97\x01\x11\xc4\xe7\x7b\xcc\x88\xcc\x20"
 			  "\x45\x9c\x02\xb6\x9b\x4a\xa8\xf5\x82\x17",
-		.np	= 4,
-		.tap	= { 63, 64, 31, 5 }
 	}, {
 		.plaintext = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-",
 		.psize	= 64,
@@ -2714,8 +2675,6 @@ static const struct hash_testvec sha224_tv_template[] = {
 			  "\x5D\xBA\x5D\xA1\xFD\x89\x01\x50"
 			  "\xB0\xC6\x45\x5C\xB4\xF5\x8B\x19"
 			  "\x52\x52\x25\x25",
-		.np     = 2,
-		.tap    = { 28, 28 }
 	}, {
 		.plaintext = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-",
 		.psize	= 64,
@@ -2885,8 +2844,6 @@ static const struct hash_testvec sha256_tv_template[] = {
 			  "\xe5\xc0\x26\x93\x0c\x3e\x60\x39"
 			  "\xa3\x3c\xe4\x59\x64\xff\x21\x67"
 			  "\xf6\xec\xed\xd4\x19\xdb\x06\xc1",
-		.np	= 2,
-		.tap	= { 28, 28 }
 	}, {
 		.plaintext = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-",
 		.psize	= 64,
@@ -3082,8 +3039,6 @@ static const struct hash_testvec sha384_tv_template[] = {
 			  "\x4d\x8f\xd0\x14\xe5\x82\x82\x3a"
 			  "\x89\xe1\x6f\x9b\x2a\x7b\xbc\x1a"
 			  "\xc9\x38\xe2\xd1\x99\xe8\xbe\xa4",
-		.np	= 4,
-		.tap	= { 26, 26, 26, 26 }
 	}, {
 		.plaintext = "\x08\x9f\x13\xaa\x41\xd8\x4c\xe3"
 			     "\x7a\x11\x85\x1c\xb3\x27\xbe\x55"
@@ -3284,8 +3239,6 @@ static const struct hash_testvec sha512_tv_template[] = {
 			  "\xb2\x78\xe6\x6d\xff\x8b\x84\xfe"
 			  "\x2b\x28\x70\xf7\x42\xa5\x80\xd8"
 			  "\xed\xb4\x19\x87\x23\x28\x50\xc9",
-		.np	= 4,
-		.tap	= { 26, 26, 26, 26 }
 	}, {
 		.plaintext = "\x08\x9f\x13\xaa\x41\xd8\x4c\xe3"
 			     "\x7a\x11\x85\x1c\xb3\x27\xbe\x55"
@@ -3818,8 +3771,6 @@ static const struct hash_testvec ghash_tv_template[] =
 		.psize	= 28,
 		.digest	= "\x3e\x1f\x5c\x4d\x65\xf0\xef\xce"
 			  "\x0d\x61\x06\x27\x66\x51\xd5\xe2",
-		.np	= 2,
-		.tap	= {14, 14}
 	}, {
 		.key	= "\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa"
 			  "\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa",
@@ -3930,8 +3881,6 @@ static const struct hash_testvec hmac_md5_tv_template[] =
 		.psize	= 28,
 		.digest	= "\x75\x0c\x78\x3e\x6a\xb0\xb5\x03"
 			  "\xea\xa8\x6e\x31\x0a\x5d\xb7\x38",
-		.np	= 2,
-		.tap	= {14, 14}
 	}, {
 		.key	= "\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa",
 		.ksize	= 16,
@@ -4009,8 +3958,6 @@ static const struct hash_testvec hmac_rmd128_tv_template[] = {
 		.psize	= 28,
 		.digest	= "\x87\x5f\x82\x88\x62\xb6\xb3\x34"
 			  "\xb4\x27\xc5\x5f\x9f\x7f\xf0\x9b",
-		.np	= 2,
-		.tap	= { 14, 14 },
 	}, {
 		.key	= "\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa",
 		.ksize	= 16,
@@ -4088,8 +4035,6 @@ static const struct hash_testvec hmac_rmd160_tv_template[] = {
 		.psize	= 28,
 		.digest	= "\xdd\xa6\xc0\x21\x3a\x48\x5a\x9e\x24\xf4"
 			  "\x74\x20\x64\xa7\xf0\x33\xb4\x3c\x40\x69",
-		.np	= 2,
-		.tap	= { 14, 14 },
 	}, {
 		.key	= "\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa",
 		.ksize	= 20,
@@ -4168,8 +4113,6 @@ static const struct hash_testvec hmac_sha1_tv_template[] = {
 		.psize	= 28,
 		.digest	= "\xef\xfc\xdf\x6a\xe5\xeb\x2f\xa2\xd2\x74"
 			  "\x16\xd5\xf1\x84\xdf\x9c\x25\x9a\x7c\x79",
-		.np	= 2,
-		.tap	= { 14, 14 }
 	}, {
 		.key	= "\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa",
 		.ksize	= 20,
@@ -4259,8 +4202,6 @@ static const struct hash_testvec hmac_sha224_tv_template[] = {
 			"\x45\x69\x0f\x3a\x7e\x9e\x6d\x0f"
 			"\x8b\xbe\xa2\xa3\x9e\x61\x48\x00"
 			"\x8f\xd0\x5e\x44",
-		.np = 4,
-		.tap    = { 7, 7, 7, 7 }
 	}, {
 		.key    = "\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa"
 			"\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa"
@@ -4404,8 +4345,6 @@ static const struct hash_testvec hmac_sha256_tv_template[] = {
 			  "\x6a\x04\x24\x26\x08\x95\x75\xc7"
 			  "\x5a\x00\x3f\x08\x9d\x27\x39\x83"
 			  "\x9d\xec\x58\xb9\x64\xec\x38\x43",
-		.np	= 2,
-		.tap	= { 14, 14 }
 	}, {
 		.key	= "\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa"
 			"\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa"
@@ -4578,8 +4517,6 @@ static const struct hash_testvec aes_cbcmac_tv_template[] = {
 				  "\xf8\xf2\x76\x03\xac\x39\xb0\x9d",
 		.psize		= 33,
 		.ksize		= 16,
-		.np		= 2,
-		.tap		= { 7, 26 },
 	}, {
 		.key		= "\x2b\x7e\x15\x16\x28\xae\xd2\xa6"
 				  "\xab\xf7\x15\x88\x09\xcf\x4f\x3c",
@@ -4696,9 +4633,7 @@ static const struct hash_testvec aes_xcbc128_tv_template[] = {
 			     "\x10\x11\x12\x13",
 		.digest = "\x47\xf5\x1b\x45\x64\x96\x62\x15"
 			  "\xb8\x98\x5c\x63\x05\x5e\xd3\x08",
-		.tap	= { 10, 10 },
 		.psize	= 20,
-		.np	= 2,
 		.ksize	= 16,
 	}, {
 		.key	= "\x00\x01\x02\x03\x04\x05\x06\x07"
@@ -4721,9 +4656,7 @@ static const struct hash_testvec aes_xcbc128_tv_template[] = {
 			     "\x20\x21",
 		.digest = "\xbe\xcb\xb3\xbc\xcd\xb5\x18\xa3"
 			  "\x06\x77\xd5\x48\x1f\xb6\xb4\xd8",
-		.tap	= { 17, 17 },
 		.psize	= 34,
-		.np	= 2,
 		.ksize	= 16,
 	}
 };
@@ -4806,8 +4739,6 @@ static const struct hash_testvec vmac64_aes_tv_template[] = {
 			  "abcabcabcabcabcabcabcabcabcabcabcabcabcabcabc",
 		.psize	= 316,
 		.digest	= "\x44\x92\xdf\x6c\x5c\xac\x1b\xbe",
-		.tap	= { 1, 100, 200, 15 },
-		.np	= 4,
 	}, {
 		.key	= "\x00\x01\x02\x03\x04\x05\x06\x07"
 			  "\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f",
@@ -4912,8 +4843,6 @@ static const struct hash_testvec hmac_sha384_tv_template[] = {
 			  "\xe4\x2e\xc3\x73\x63\x22\x44\x5e"
 			  "\x8e\x22\x40\xca\x5e\x69\xe2\xc7"
 			  "\x8b\x32\x39\xec\xfa\xb2\x16\x49",
-		.np	= 4,
-		.tap	= { 7, 7, 7, 7 }
 	}, {
 		.key	= "\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa"
 			  "\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa"
@@ -5014,8 +4943,6 @@ static const struct hash_testvec hmac_sha512_tv_template[] = {
 			  "\x6d\x03\x4f\x65\xf8\xf0\xe6\xfd"
 			  "\xca\xea\xb1\xa3\x4d\x4a\x6b\x4b"
 			  "\x63\x6e\x07\x0a\x38\xbc\xe7\x37",
-		.np	= 4,
-		.tap	= { 7, 7, 7, 7 }
 	}, {
 		.key	= "\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa"
 			  "\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa"
@@ -5111,8 +5038,6 @@ static const struct hash_testvec hmac_sha3_224_tv_template[] = {
 			  "\x1b\x79\x86\x34\xad\x38\x68\x11"
 			  "\xc2\xcf\xc8\x5b\xfa\xf5\xd5\x2b"
 			  "\xba\xce\x5e\x66",
-		.np	= 4,
-		.tap	= { 7, 7, 7, 7 }
 	}, {
 		.key	= "\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa"
 			  "\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa"
@@ -5200,8 +5125,6 @@ static const struct hash_testvec hmac_sha3_256_tv_template[] = {
 			  "\x35\x96\xbb\xb0\xda\x73\xb8\x87"
 			  "\xc9\x17\x1f\x93\x09\x5b\x29\x4a"
 			  "\xe8\x57\xfb\xe2\x64\x5e\x1b\xa5",
-		.np	= 4,
-		.tap	= { 7, 7, 7, 7 }
 	}, {
 		.key	= "\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa"
 			  "\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa"
@@ -5293,8 +5216,6 @@ static const struct hash_testvec hmac_sha3_384_tv_template[] = {
 			  "\x3c\xa1\x35\x08\xa9\x32\x43\xce"
 			  "\x48\xc0\x45\xdc\x00\x7f\x26\xa2"
 			  "\x1b\x3f\x5e\x0e\x9d\xf4\xc2\x0a",
-		.np	= 4,
-		.tap	= { 7, 7, 7, 7 }
 	}, {
 		.key	= "\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa"
 			  "\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa"
@@ -5394,8 +5315,6 @@ static const struct hash_testvec hmac_sha3_512_tv_template[] = {
 			  "\xee\x7a\x0c\x31\xd0\x22\xa9\x5e"
 			  "\x1f\xc9\x2b\xa9\xd7\x7d\xf8\x83"
 			  "\x96\x02\x75\xbe\xb4\xe6\x20\x24",
-		.np	= 4,
-		.tap	= { 7, 7, 7, 7 }
 	}, {
 		.key	= "\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa"
 			  "\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa"
@@ -6003,8 +5922,6 @@ static const struct hash_testvec nhpoly1305_tv_template[] = {
 		.psize	= 16,
 		.digest	= "\x04\xbf\x7f\x6a\xce\x72\xea\x6a"
 			  "\x79\xdb\xb0\xc9\x60\xf6\x12\xcc",
-		.np	= 6,
-		.tap	= { 4, 4, 1, 1, 1, 5 },
 	}, {
 		.key	= "\x65\x4d\xe3\xf8\xd2\x4c\xac\x28"
 			  "\x68\xf5\xb3\x81\x71\x4b\xa1\xfa"
@@ -6274,8 +6191,6 @@ static const struct hash_testvec nhpoly1305_tv_template[] = {
 		.psize	= 1024,
 		.digest	= "\x64\x3a\xbc\xc3\x3f\x74\x40\x51"
 			  "\x6e\x56\x01\x1a\x51\xec\x36\xde",
-		.np	= 8,
-		.tap	= { 64, 203, 267, 28, 263, 62, 54, 83 },
 	}, {
 		.key	= "\x1b\x82\x2e\x1b\x17\x23\xb9\x6d"
 			  "\xdc\x9c\xda\x99\x07\xe3\x5f\xd8"
@@ -29461,8 +29376,6 @@ static const struct hash_testvec crc32_tv_template[] = {
 			     "\xe9\xea\xeb\xec\xed\xee\xef\xf0",
 		.psize = 240,
 		.digest = "\x6c\xc6\x56\xde",
-		.np = 2,
-		.tap = { 31, 209 }
 	}, {
 		.key = "\xff\xff\xff\xff",
 		.ksize = 4,
@@ -29902,8 +29815,6 @@ static const struct hash_testvec crc32c_tv_template[] = {
 			     "\xe9\xea\xeb\xec\xed\xee\xef\xf0",
 		.psize = 240,
 		.digest = "\x75\xd3\xc5\x24",
-		.np = 2,
-		.tap = { 31, 209 }
 	}, {
 		.key = "\xff\xff\xff\xff",
 		.ksize = 4,

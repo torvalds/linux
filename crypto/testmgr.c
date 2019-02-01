@@ -72,18 +72,6 @@ int alg_test(const char *driver, const char *alg, u32 type, u32 mask)
 #define XBUFSIZE	8
 
 /*
- * Indexes into the xbuf to simulate cross-page access.
- */
-#define IDX1		32
-#define IDX2		32400
-#define IDX3		1511
-#define IDX4		8193
-#define IDX5		22222
-#define IDX6		17101
-#define IDX7		27333
-#define IDX8		3000
-
-/*
 * Used by test_cipher()
 */
 #define ENCRYPT 1
@@ -148,9 +136,6 @@ struct alg_test_desc {
 		struct kpp_test_suite kpp;
 	} suite;
 };
-
-static const unsigned int IDX[8] = {
-	IDX1, IDX2, IDX3, IDX4, IDX5, IDX6, IDX7, IDX8 };
 
 static void hexdump(unsigned char *buf, unsigned int len)
 {
@@ -343,6 +328,79 @@ static const struct testvec_config default_cipher_testvec_configs[] = {
 				.offset = PAGE_SIZE - 7
 			},
 		},
+	}
+};
+
+static const struct testvec_config default_hash_testvec_configs[] = {
+	{
+		.name = "init+update+final aligned buffer",
+		.src_divs = { { .proportion_of_total = 10000 } },
+		.finalization_type = FINALIZATION_TYPE_FINAL,
+	}, {
+		.name = "init+finup aligned buffer",
+		.src_divs = { { .proportion_of_total = 10000 } },
+		.finalization_type = FINALIZATION_TYPE_FINUP,
+	}, {
+		.name = "digest aligned buffer",
+		.src_divs = { { .proportion_of_total = 10000 } },
+		.finalization_type = FINALIZATION_TYPE_DIGEST,
+	}, {
+		.name = "init+update+final misaligned buffer",
+		.src_divs = { { .proportion_of_total = 10000, .offset = 1 } },
+		.finalization_type = FINALIZATION_TYPE_FINAL,
+	}, {
+		.name = "digest buffer aligned only to alignmask",
+		.src_divs = {
+			{
+				.proportion_of_total = 10000,
+				.offset = 1,
+				.offset_relative_to_alignmask = true,
+			},
+		},
+		.finalization_type = FINALIZATION_TYPE_DIGEST,
+	}, {
+		.name = "init+update+update+final two even splits",
+		.src_divs = {
+			{ .proportion_of_total = 5000 },
+			{
+				.proportion_of_total = 5000,
+				.flush_type = FLUSH_TYPE_FLUSH,
+			},
+		},
+		.finalization_type = FINALIZATION_TYPE_FINAL,
+	}, {
+		.name = "digest uneven misaligned splits, may sleep",
+		.req_flags = CRYPTO_TFM_REQ_MAY_SLEEP,
+		.src_divs = {
+			{ .proportion_of_total = 1900, .offset = 33 },
+			{ .proportion_of_total = 3300, .offset = 7  },
+			{ .proportion_of_total = 4800, .offset = 18 },
+		},
+		.finalization_type = FINALIZATION_TYPE_DIGEST,
+	}, {
+		.name = "digest misaligned splits crossing pages",
+		.src_divs = {
+			{
+				.proportion_of_total = 7500,
+				.offset = PAGE_SIZE - 32,
+			}, {
+				.proportion_of_total = 2500,
+				.offset = PAGE_SIZE - 7,
+			},
+		},
+		.finalization_type = FINALIZATION_TYPE_DIGEST,
+	}, {
+		.name = "import/export",
+		.src_divs = {
+			{
+				.proportion_of_total = 6500,
+				.flush_type = FLUSH_TYPE_REIMPORT,
+			}, {
+				.proportion_of_total = 3500,
+				.flush_type = FLUSH_TYPE_REIMPORT,
+			},
+		},
+		.finalization_type = FINALIZATION_TYPE_FINAL,
 	}
 };
 
@@ -782,430 +840,320 @@ static void generate_random_testvec_config(struct testvec_config *cfg,
 }
 #endif /* CONFIG_CRYPTO_MANAGER_EXTRA_TESTS */
 
-static int ahash_guard_result(char *result, char c, int size)
+static int check_nonfinal_hash_op(const char *op, int err,
+				  u8 *result, unsigned int digestsize,
+				  const char *driver, unsigned int vec_num,
+				  const struct testvec_config *cfg)
 {
-	int i;
+	if (err) {
+		pr_err("alg: hash: %s %s() failed with err %d on test vector %u, cfg=\"%s\"\n",
+		       driver, op, err, vec_num, cfg->name);
+		return err;
+	}
+	if (!testmgr_is_poison(result, digestsize)) {
+		pr_err("alg: hash: %s %s() used result buffer on test vector %u, cfg=\"%s\"\n",
+		       driver, op, vec_num, cfg->name);
+		return -EINVAL;
+	}
+	return 0;
+}
 
-	for (i = 0; i < size; i++) {
-		if (result[i] != c)
+static int test_hash_vec_cfg(const char *driver,
+			     const struct hash_testvec *vec,
+			     unsigned int vec_num,
+			     const struct testvec_config *cfg,
+			     struct ahash_request *req,
+			     struct test_sglist *tsgl,
+			     u8 *hashstate)
+{
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+	const unsigned int alignmask = crypto_ahash_alignmask(tfm);
+	const unsigned int digestsize = crypto_ahash_digestsize(tfm);
+	const unsigned int statesize = crypto_ahash_statesize(tfm);
+	const u32 req_flags = CRYPTO_TFM_REQ_MAY_BACKLOG | cfg->req_flags;
+	const struct test_sg_division *divs[XBUFSIZE];
+	DECLARE_CRYPTO_WAIT(wait);
+	struct kvec _input;
+	struct iov_iter input;
+	unsigned int i;
+	struct scatterlist *pending_sgl;
+	unsigned int pending_len;
+	u8 result[HASH_MAX_DIGESTSIZE + TESTMGR_POISON_LEN];
+	int err;
+
+	/* Set the key, if specified */
+	if (vec->ksize) {
+		err = crypto_ahash_setkey(tfm, vec->key, vec->ksize);
+		if (err) {
+			pr_err("alg: hash: %s setkey failed with err %d on test vector %u; flags=%#x\n",
+			       driver, err, vec_num,
+			       crypto_ahash_get_flags(tfm));
+			return err;
+		}
+	}
+
+	/* Build the scatterlist for the source data */
+	_input.iov_base = (void *)vec->plaintext;
+	_input.iov_len = vec->psize;
+	iov_iter_kvec(&input, WRITE, &_input, 1, vec->psize);
+	err = build_test_sglist(tsgl, cfg->src_divs, alignmask, vec->psize,
+				&input, divs);
+	if (err) {
+		pr_err("alg: hash: %s: error preparing scatterlist for test vector %u, cfg=\"%s\"\n",
+		       driver, vec_num, cfg->name);
+		return err;
+	}
+
+	/* Do the actual hashing */
+
+	testmgr_poison(req->__ctx, crypto_ahash_reqsize(tfm));
+	testmgr_poison(result, digestsize + TESTMGR_POISON_LEN);
+
+	if (cfg->finalization_type == FINALIZATION_TYPE_DIGEST) {
+		/* Just using digest() */
+		ahash_request_set_callback(req, req_flags, crypto_req_done,
+					   &wait);
+		ahash_request_set_crypt(req, tsgl->sgl, result, vec->psize);
+		err = crypto_wait_req(crypto_ahash_digest(req), &wait);
+		if (err) {
+			pr_err("alg: hash: %s digest() failed with err %d on test vector %u, cfg=\"%s\"\n",
+			       driver, err, vec_num, cfg->name);
+			return err;
+		}
+		goto result_ready;
+	}
+
+	/* Using init(), zero or more update(), then final() or finup() */
+
+	ahash_request_set_callback(req, req_flags, crypto_req_done, &wait);
+	ahash_request_set_crypt(req, NULL, result, 0);
+	err = crypto_wait_req(crypto_ahash_init(req), &wait);
+	err = check_nonfinal_hash_op("init", err, result, digestsize,
+				     driver, vec_num, cfg);
+	if (err)
+		return err;
+
+	pending_sgl = NULL;
+	pending_len = 0;
+	for (i = 0; i < tsgl->nents; i++) {
+		if (divs[i]->flush_type != FLUSH_TYPE_NONE &&
+		    pending_sgl != NULL) {
+			/* update() with the pending data */
+			ahash_request_set_callback(req, req_flags,
+						   crypto_req_done, &wait);
+			ahash_request_set_crypt(req, pending_sgl, result,
+						pending_len);
+			err = crypto_wait_req(crypto_ahash_update(req), &wait);
+			err = check_nonfinal_hash_op("update", err,
+						     result, digestsize,
+						     driver, vec_num, cfg);
+			if (err)
+				return err;
+			pending_sgl = NULL;
+			pending_len = 0;
+		}
+		if (divs[i]->flush_type == FLUSH_TYPE_REIMPORT) {
+			/* Test ->export() and ->import() */
+			testmgr_poison(hashstate + statesize,
+				       TESTMGR_POISON_LEN);
+			err = crypto_ahash_export(req, hashstate);
+			err = check_nonfinal_hash_op("export", err,
+						     result, digestsize,
+						     driver, vec_num, cfg);
+			if (err)
+				return err;
+			if (!testmgr_is_poison(hashstate + statesize,
+					       TESTMGR_POISON_LEN)) {
+				pr_err("alg: hash: %s export() overran state buffer on test vector %u, cfg=\"%s\"\n",
+				       driver, vec_num, cfg->name);
+				return -EOVERFLOW;
+			}
+
+			testmgr_poison(req->__ctx, crypto_ahash_reqsize(tfm));
+			err = crypto_ahash_import(req, hashstate);
+			err = check_nonfinal_hash_op("import", err,
+						     result, digestsize,
+						     driver, vec_num, cfg);
+			if (err)
+				return err;
+		}
+		if (pending_sgl == NULL)
+			pending_sgl = &tsgl->sgl[i];
+		pending_len += tsgl->sgl[i].length;
+	}
+
+	ahash_request_set_callback(req, req_flags, crypto_req_done, &wait);
+	ahash_request_set_crypt(req, pending_sgl, result, pending_len);
+	if (cfg->finalization_type == FINALIZATION_TYPE_FINAL) {
+		/* finish with update() and final() */
+		err = crypto_wait_req(crypto_ahash_update(req), &wait);
+		err = check_nonfinal_hash_op("update", err, result, digestsize,
+					     driver, vec_num, cfg);
+		if (err)
+			return err;
+		err = crypto_wait_req(crypto_ahash_final(req), &wait);
+		if (err) {
+			pr_err("alg: hash: %s final() failed with err %d on test vector %u, cfg=\"%s\"\n",
+			       driver, err, vec_num, cfg->name);
+			return err;
+		}
+	} else {
+		/* finish with finup() */
+		err = crypto_wait_req(crypto_ahash_finup(req), &wait);
+		if (err) {
+			pr_err("alg: hash: %s finup() failed with err %d on test vector %u, cfg=\"%s\"\n",
+			       driver, err, vec_num, cfg->name);
+			return err;
+		}
+	}
+
+result_ready:
+	/* Check that the algorithm produced the correct digest */
+	if (memcmp(result, vec->digest, digestsize) != 0) {
+		pr_err("alg: hash: %s test failed (wrong result) on test vector %u, cfg=\"%s\"\n",
+		       driver, vec_num, cfg->name);
+		return -EINVAL;
+	}
+	if (!testmgr_is_poison(&result[digestsize], TESTMGR_POISON_LEN)) {
+		pr_err("alg: hash: %s overran result buffer on test vector %u, cfg=\"%s\"\n",
+		       driver, vec_num, cfg->name);
+		return -EOVERFLOW;
+	}
+
+	return 0;
+}
+
+static int test_hash_vec(const char *driver, const struct hash_testvec *vec,
+			 unsigned int vec_num, struct ahash_request *req,
+			 struct test_sglist *tsgl, u8 *hashstate)
+{
+	unsigned int i;
+	int err;
+
+	for (i = 0; i < ARRAY_SIZE(default_hash_testvec_configs); i++) {
+		err = test_hash_vec_cfg(driver, vec, vec_num,
+					&default_hash_testvec_configs[i],
+					req, tsgl, hashstate);
+		if (err)
+			return err;
+	}
+
+#ifdef CONFIG_CRYPTO_MANAGER_EXTRA_TESTS
+	if (!noextratests) {
+		struct testvec_config cfg;
+		char cfgname[TESTVEC_CONFIG_NAMELEN];
+
+		for (i = 0; i < fuzz_iterations; i++) {
+			generate_random_testvec_config(&cfg, cfgname,
+						       sizeof(cfgname));
+			err = test_hash_vec_cfg(driver, vec, vec_num, &cfg,
+						req, tsgl, hashstate);
+			if (err)
+				return err;
+		}
+	}
+#endif
+	return 0;
+}
+
+static int __alg_test_hash(const struct hash_testvec *vecs,
+			   unsigned int num_vecs, const char *driver,
+			   u32 type, u32 mask)
+{
+	struct crypto_ahash *tfm;
+	struct ahash_request *req = NULL;
+	struct test_sglist *tsgl = NULL;
+	u8 *hashstate = NULL;
+	unsigned int i;
+	int err;
+
+	tfm = crypto_alloc_ahash(driver, type, mask);
+	if (IS_ERR(tfm)) {
+		pr_err("alg: hash: failed to allocate transform for %s: %ld\n",
+		       driver, PTR_ERR(tfm));
+		return PTR_ERR(tfm);
+	}
+
+	req = ahash_request_alloc(tfm, GFP_KERNEL);
+	if (!req) {
+		pr_err("alg: hash: failed to allocate request for %s\n",
+		       driver);
+		err = -ENOMEM;
+		goto out;
+	}
+
+	tsgl = kmalloc(sizeof(*tsgl), GFP_KERNEL);
+	if (!tsgl || init_test_sglist(tsgl) != 0) {
+		pr_err("alg: hash: failed to allocate test buffers for %s\n",
+		       driver);
+		kfree(tsgl);
+		tsgl = NULL;
+		err = -ENOMEM;
+		goto out;
+	}
+
+	hashstate = kmalloc(crypto_ahash_statesize(tfm) + TESTMGR_POISON_LEN,
+			    GFP_KERNEL);
+	if (!hashstate) {
+		pr_err("alg: hash: failed to allocate hash state buffer for %s\n",
+		       driver);
+		err = -ENOMEM;
+		goto out;
+	}
+
+	for (i = 0; i < num_vecs; i++) {
+		err = test_hash_vec(driver, &vecs[i], i, req, tsgl, hashstate);
+		if (err)
+			goto out;
+	}
+	err = 0;
+out:
+	kfree(hashstate);
+	if (tsgl) {
+		destroy_test_sglist(tsgl);
+		kfree(tsgl);
+	}
+	ahash_request_free(req);
+	crypto_free_ahash(tfm);
+	return err;
+}
+
+static int alg_test_hash(const struct alg_test_desc *desc, const char *driver,
+			 u32 type, u32 mask)
+{
+	const struct hash_testvec *template = desc->suite.hash.vecs;
+	unsigned int tcount = desc->suite.hash.count;
+	unsigned int nr_unkeyed, nr_keyed;
+	int err;
+
+	/*
+	 * For OPTIONAL_KEY algorithms, we have to do all the unkeyed tests
+	 * first, before setting a key on the tfm.  To make this easier, we
+	 * require that the unkeyed test vectors (if any) are listed first.
+	 */
+
+	for (nr_unkeyed = 0; nr_unkeyed < tcount; nr_unkeyed++) {
+		if (template[nr_unkeyed].ksize)
+			break;
+	}
+	for (nr_keyed = 0; nr_unkeyed + nr_keyed < tcount; nr_keyed++) {
+		if (!template[nr_unkeyed + nr_keyed].ksize) {
+			pr_err("alg: hash: test vectors for %s out of order, "
+			       "unkeyed ones must come first\n", desc->alg);
 			return -EINVAL;
-	}
-
-	return 0;
-}
-
-static int ahash_partial_update(struct ahash_request **preq,
-	struct crypto_ahash *tfm, const struct hash_testvec *template,
-	void *hash_buff, int k, int temp, struct scatterlist *sg,
-	const char *algo, char *result, struct crypto_wait *wait)
-{
-	char *state;
-	struct ahash_request *req;
-	int statesize, ret = -EINVAL;
-	static const unsigned char guard[] = { 0x00, 0xba, 0xad, 0x00 };
-	int digestsize = crypto_ahash_digestsize(tfm);
-
-	req = *preq;
-	statesize = crypto_ahash_statesize(
-			crypto_ahash_reqtfm(req));
-	state = kmalloc(statesize + sizeof(guard), GFP_KERNEL);
-	if (!state) {
-		pr_err("alg: hash: Failed to alloc state for %s\n", algo);
-		goto out_nostate;
-	}
-	memcpy(state + statesize, guard, sizeof(guard));
-	memset(result, 1, digestsize);
-	ret = crypto_ahash_export(req, state);
-	WARN_ON(memcmp(state + statesize, guard, sizeof(guard)));
-	if (ret) {
-		pr_err("alg: hash: Failed to export() for %s\n", algo);
-		goto out;
-	}
-	ret = ahash_guard_result(result, 1, digestsize);
-	if (ret) {
-		pr_err("alg: hash: Failed, export used req->result for %s\n",
-		       algo);
-		goto out;
-	}
-	ahash_request_free(req);
-	req = ahash_request_alloc(tfm, GFP_KERNEL);
-	if (!req) {
-		pr_err("alg: hash: Failed to alloc request for %s\n", algo);
-		goto out_noreq;
-	}
-	ahash_request_set_callback(req,
-		CRYPTO_TFM_REQ_MAY_BACKLOG,
-		crypto_req_done, wait);
-
-	memcpy(hash_buff, template->plaintext + temp,
-		template->tap[k]);
-	sg_init_one(&sg[0], hash_buff, template->tap[k]);
-	ahash_request_set_crypt(req, sg, result, template->tap[k]);
-	ret = crypto_ahash_import(req, state);
-	if (ret) {
-		pr_err("alg: hash: Failed to import() for %s\n", algo);
-		goto out;
-	}
-	ret = ahash_guard_result(result, 1, digestsize);
-	if (ret) {
-		pr_err("alg: hash: Failed, import used req->result for %s\n",
-		       algo);
-		goto out;
-	}
-	ret = crypto_wait_req(crypto_ahash_update(req), wait);
-	if (ret)
-		goto out;
-	*preq = req;
-	ret = 0;
-	goto out_noreq;
-out:
-	ahash_request_free(req);
-out_noreq:
-	kfree(state);
-out_nostate:
-	return ret;
-}
-
-enum hash_test {
-	HASH_TEST_DIGEST,
-	HASH_TEST_FINAL,
-	HASH_TEST_FINUP
-};
-
-static int __test_hash(struct crypto_ahash *tfm,
-		       const struct hash_testvec *template, unsigned int tcount,
-		       enum hash_test test_type, const int align_offset)
-{
-	const char *algo = crypto_tfm_alg_driver_name(crypto_ahash_tfm(tfm));
-	size_t digest_size = crypto_ahash_digestsize(tfm);
-	unsigned int i, j, k, temp;
-	struct scatterlist sg[8];
-	char *result;
-	char *key;
-	struct ahash_request *req;
-	struct crypto_wait wait;
-	void *hash_buff;
-	char *xbuf[XBUFSIZE];
-	int ret = -ENOMEM;
-
-	result = kmalloc(digest_size, GFP_KERNEL);
-	if (!result)
-		return ret;
-	key = kmalloc(MAX_KEYLEN, GFP_KERNEL);
-	if (!key)
-		goto out_nobuf;
-	if (testmgr_alloc_buf(xbuf))
-		goto out_nobuf;
-
-	crypto_init_wait(&wait);
-
-	req = ahash_request_alloc(tfm, GFP_KERNEL);
-	if (!req) {
-		printk(KERN_ERR "alg: hash: Failed to allocate request for "
-		       "%s\n", algo);
-		goto out_noreq;
-	}
-	ahash_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
-				   crypto_req_done, &wait);
-
-	j = 0;
-	for (i = 0; i < tcount; i++) {
-		if (template[i].np)
-			continue;
-
-		ret = -EINVAL;
-		if (WARN_ON(align_offset + template[i].psize > PAGE_SIZE))
-			goto out;
-
-		j++;
-		memset(result, 0, digest_size);
-
-		hash_buff = xbuf[0];
-		hash_buff += align_offset;
-
-		memcpy(hash_buff, template[i].plaintext, template[i].psize);
-		sg_init_one(&sg[0], hash_buff, template[i].psize);
-
-		if (template[i].ksize) {
-			crypto_ahash_clear_flags(tfm, ~0);
-			if (template[i].ksize > MAX_KEYLEN) {
-				pr_err("alg: hash: setkey failed on test %d for %s: key size %d > %d\n",
-				       j, algo, template[i].ksize, MAX_KEYLEN);
-				ret = -EINVAL;
-				goto out;
-			}
-			memcpy(key, template[i].key, template[i].ksize);
-			ret = crypto_ahash_setkey(tfm, key, template[i].ksize);
-			if (ret) {
-				printk(KERN_ERR "alg: hash: setkey failed on "
-				       "test %d for %s: ret=%d\n", j, algo,
-				       -ret);
-				goto out;
-			}
-		}
-
-		ahash_request_set_crypt(req, sg, result, template[i].psize);
-		switch (test_type) {
-		case HASH_TEST_DIGEST:
-			ret = crypto_wait_req(crypto_ahash_digest(req), &wait);
-			if (ret) {
-				pr_err("alg: hash: digest failed on test %d "
-				       "for %s: ret=%d\n", j, algo, -ret);
-				goto out;
-			}
-			break;
-
-		case HASH_TEST_FINAL:
-			memset(result, 1, digest_size);
-			ret = crypto_wait_req(crypto_ahash_init(req), &wait);
-			if (ret) {
-				pr_err("alg: hash: init failed on test %d "
-				       "for %s: ret=%d\n", j, algo, -ret);
-				goto out;
-			}
-			ret = ahash_guard_result(result, 1, digest_size);
-			if (ret) {
-				pr_err("alg: hash: init failed on test %d "
-				       "for %s: used req->result\n", j, algo);
-				goto out;
-			}
-			ret = crypto_wait_req(crypto_ahash_update(req), &wait);
-			if (ret) {
-				pr_err("alg: hash: update failed on test %d "
-				       "for %s: ret=%d\n", j, algo, -ret);
-				goto out;
-			}
-			ret = ahash_guard_result(result, 1, digest_size);
-			if (ret) {
-				pr_err("alg: hash: update failed on test %d "
-				       "for %s: used req->result\n", j, algo);
-				goto out;
-			}
-			ret = crypto_wait_req(crypto_ahash_final(req), &wait);
-			if (ret) {
-				pr_err("alg: hash: final failed on test %d "
-				       "for %s: ret=%d\n", j, algo, -ret);
-				goto out;
-			}
-			break;
-
-		case HASH_TEST_FINUP:
-			memset(result, 1, digest_size);
-			ret = crypto_wait_req(crypto_ahash_init(req), &wait);
-			if (ret) {
-				pr_err("alg: hash: init failed on test %d "
-				       "for %s: ret=%d\n", j, algo, -ret);
-				goto out;
-			}
-			ret = ahash_guard_result(result, 1, digest_size);
-			if (ret) {
-				pr_err("alg: hash: init failed on test %d "
-				       "for %s: used req->result\n", j, algo);
-				goto out;
-			}
-			ret = crypto_wait_req(crypto_ahash_finup(req), &wait);
-			if (ret) {
-				pr_err("alg: hash: final failed on test %d "
-				       "for %s: ret=%d\n", j, algo, -ret);
-				goto out;
-			}
-			break;
-		}
-
-		if (memcmp(result, template[i].digest,
-			   crypto_ahash_digestsize(tfm))) {
-			printk(KERN_ERR "alg: hash: Test %d failed for %s\n",
-			       j, algo);
-			hexdump(result, crypto_ahash_digestsize(tfm));
-			ret = -EINVAL;
-			goto out;
 		}
 	}
 
-	if (test_type)
-		goto out;
-
-	j = 0;
-	for (i = 0; i < tcount; i++) {
-		/* alignment tests are only done with continuous buffers */
-		if (align_offset != 0)
-			break;
-
-		if (!template[i].np)
-			continue;
-
-		j++;
-		memset(result, 0, digest_size);
-
-		temp = 0;
-		sg_init_table(sg, template[i].np);
-		ret = -EINVAL;
-		for (k = 0; k < template[i].np; k++) {
-			if (WARN_ON(offset_in_page(IDX[k]) +
-				    template[i].tap[k] > PAGE_SIZE))
-				goto out;
-			sg_set_buf(&sg[k],
-				   memcpy(xbuf[IDX[k] >> PAGE_SHIFT] +
-					  offset_in_page(IDX[k]),
-					  template[i].plaintext + temp,
-					  template[i].tap[k]),
-				   template[i].tap[k]);
-			temp += template[i].tap[k];
-		}
-
-		if (template[i].ksize) {
-			if (template[i].ksize > MAX_KEYLEN) {
-				pr_err("alg: hash: setkey failed on test %d for %s: key size %d > %d\n",
-				       j, algo, template[i].ksize, MAX_KEYLEN);
-				ret = -EINVAL;
-				goto out;
-			}
-			crypto_ahash_clear_flags(tfm, ~0);
-			memcpy(key, template[i].key, template[i].ksize);
-			ret = crypto_ahash_setkey(tfm, key, template[i].ksize);
-
-			if (ret) {
-				printk(KERN_ERR "alg: hash: setkey "
-				       "failed on chunking test %d "
-				       "for %s: ret=%d\n", j, algo, -ret);
-				goto out;
-			}
-		}
-
-		ahash_request_set_crypt(req, sg, result, template[i].psize);
-		ret = crypto_wait_req(crypto_ahash_digest(req), &wait);
-		if (ret) {
-			pr_err("alg: hash: digest failed on chunking test %d for %s: ret=%d\n",
-			       j, algo, -ret);
-			goto out;
-		}
-
-		if (memcmp(result, template[i].digest,
-			   crypto_ahash_digestsize(tfm))) {
-			printk(KERN_ERR "alg: hash: Chunking test %d "
-			       "failed for %s\n", j, algo);
-			hexdump(result, crypto_ahash_digestsize(tfm));
-			ret = -EINVAL;
-			goto out;
-		}
+	err = 0;
+	if (nr_unkeyed) {
+		err = __alg_test_hash(template, nr_unkeyed, driver, type, mask);
+		template += nr_unkeyed;
 	}
 
-	/* partial update exercise */
-	j = 0;
-	for (i = 0; i < tcount; i++) {
-		/* alignment tests are only done with continuous buffers */
-		if (align_offset != 0)
-			break;
+	if (!err && nr_keyed)
+		err = __alg_test_hash(template, nr_keyed, driver, type, mask);
 
-		if (template[i].np < 2)
-			continue;
-
-		j++;
-		memset(result, 0, digest_size);
-
-		ret = -EINVAL;
-		hash_buff = xbuf[0];
-		memcpy(hash_buff, template[i].plaintext,
-			template[i].tap[0]);
-		sg_init_one(&sg[0], hash_buff, template[i].tap[0]);
-
-		if (template[i].ksize) {
-			crypto_ahash_clear_flags(tfm, ~0);
-			if (template[i].ksize > MAX_KEYLEN) {
-				pr_err("alg: hash: setkey failed on test %d for %s: key size %d > %d\n",
-					j, algo, template[i].ksize, MAX_KEYLEN);
-				ret = -EINVAL;
-				goto out;
-			}
-			memcpy(key, template[i].key, template[i].ksize);
-			ret = crypto_ahash_setkey(tfm, key, template[i].ksize);
-			if (ret) {
-				pr_err("alg: hash: setkey failed on test %d for %s: ret=%d\n",
-					j, algo, -ret);
-				goto out;
-			}
-		}
-
-		ahash_request_set_crypt(req, sg, result, template[i].tap[0]);
-		ret = crypto_wait_req(crypto_ahash_init(req), &wait);
-		if (ret) {
-			pr_err("alg: hash: init failed on test %d for %s: ret=%d\n",
-				j, algo, -ret);
-			goto out;
-		}
-		ret = crypto_wait_req(crypto_ahash_update(req), &wait);
-		if (ret) {
-			pr_err("alg: hash: update failed on test %d for %s: ret=%d\n",
-				j, algo, -ret);
-			goto out;
-		}
-
-		temp = template[i].tap[0];
-		for (k = 1; k < template[i].np; k++) {
-			ret = ahash_partial_update(&req, tfm, &template[i],
-				hash_buff, k, temp, &sg[0], algo, result,
-				&wait);
-			if (ret) {
-				pr_err("alg: hash: partial update failed on test %d for %s: ret=%d\n",
-					j, algo, -ret);
-				goto out_noreq;
-			}
-			temp += template[i].tap[k];
-		}
-		ret = crypto_wait_req(crypto_ahash_final(req), &wait);
-		if (ret) {
-			pr_err("alg: hash: final failed on test %d for %s: ret=%d\n",
-				j, algo, -ret);
-			goto out;
-		}
-		if (memcmp(result, template[i].digest,
-			   crypto_ahash_digestsize(tfm))) {
-			pr_err("alg: hash: Partial Test %d failed for %s\n",
-			       j, algo);
-			hexdump(result, crypto_ahash_digestsize(tfm));
-			ret = -EINVAL;
-			goto out;
-		}
-	}
-
-	ret = 0;
-
-out:
-	ahash_request_free(req);
-out_noreq:
-	testmgr_free_buf(xbuf);
-out_nobuf:
-	kfree(key);
-	kfree(result);
-	return ret;
-}
-
-static int test_hash(struct crypto_ahash *tfm,
-		     const struct hash_testvec *template,
-		     unsigned int tcount, enum hash_test test_type)
-{
-	unsigned int alignmask;
-	int ret;
-
-	ret = __test_hash(tfm, template, tcount, test_type, 0);
-	if (ret)
-		return ret;
-
-	/* test unaligned buffers, check with one byte offset */
-	ret = __test_hash(tfm, template, tcount, test_type, 1);
-	if (ret)
-		return ret;
-
-	alignmask = crypto_tfm_alg_alignmask(&tfm->base);
-	if (alignmask) {
-		/* Check if alignment mask for tfm is correctly set. */
-		ret = __test_hash(tfm, template, tcount, test_type,
-				  alignmask + 1);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
+	return err;
 }
 
 static int test_aead_vec_cfg(const char *driver, int enc,
@@ -2110,67 +2058,6 @@ static int alg_test_comp(const struct alg_test_desc *desc, const char *driver,
 
 		crypto_free_comp(comp);
 	}
-	return err;
-}
-
-static int __alg_test_hash(const struct hash_testvec *template,
-			   unsigned int tcount, const char *driver,
-			   u32 type, u32 mask)
-{
-	struct crypto_ahash *tfm;
-	int err;
-
-	tfm = crypto_alloc_ahash(driver, type, mask);
-	if (IS_ERR(tfm)) {
-		printk(KERN_ERR "alg: hash: Failed to load transform for %s: "
-		       "%ld\n", driver, PTR_ERR(tfm));
-		return PTR_ERR(tfm);
-	}
-
-	err = test_hash(tfm, template, tcount, HASH_TEST_DIGEST);
-	if (!err)
-		err = test_hash(tfm, template, tcount, HASH_TEST_FINAL);
-	if (!err)
-		err = test_hash(tfm, template, tcount, HASH_TEST_FINUP);
-	crypto_free_ahash(tfm);
-	return err;
-}
-
-static int alg_test_hash(const struct alg_test_desc *desc, const char *driver,
-			 u32 type, u32 mask)
-{
-	const struct hash_testvec *template = desc->suite.hash.vecs;
-	unsigned int tcount = desc->suite.hash.count;
-	unsigned int nr_unkeyed, nr_keyed;
-	int err;
-
-	/*
-	 * For OPTIONAL_KEY algorithms, we have to do all the unkeyed tests
-	 * first, before setting a key on the tfm.  To make this easier, we
-	 * require that the unkeyed test vectors (if any) are listed first.
-	 */
-
-	for (nr_unkeyed = 0; nr_unkeyed < tcount; nr_unkeyed++) {
-		if (template[nr_unkeyed].ksize)
-			break;
-	}
-	for (nr_keyed = 0; nr_unkeyed + nr_keyed < tcount; nr_keyed++) {
-		if (!template[nr_unkeyed + nr_keyed].ksize) {
-			pr_err("alg: hash: test vectors for %s out of order, "
-			       "unkeyed ones must come first\n", desc->alg);
-			return -EINVAL;
-		}
-	}
-
-	err = 0;
-	if (nr_unkeyed) {
-		err = __alg_test_hash(template, nr_unkeyed, driver, type, mask);
-		template += nr_unkeyed;
-	}
-
-	if (!err && nr_keyed)
-		err = __alg_test_hash(template, nr_keyed, driver, type, mask);
-
 	return err;
 }
 
@@ -3956,6 +3843,10 @@ static void alg_check_testvec_configs(void)
 	for (i = 0; i < ARRAY_SIZE(default_cipher_testvec_configs); i++)
 		WARN_ON(!valid_testvec_config(
 				&default_cipher_testvec_configs[i]));
+
+	for (i = 0; i < ARRAY_SIZE(default_hash_testvec_configs); i++)
+		WARN_ON(!valid_testvec_config(
+				&default_hash_testvec_configs[i]));
 }
 
 static void testmgr_onetime_init(void)
