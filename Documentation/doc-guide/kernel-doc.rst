@@ -490,7 +490,7 @@ doc: *title*
 
 functions: *[ function ...]*
   Include documentation for each *function* in *source*.
-  If no *function* if specified, the documentaion for all functions
+  If no *function* if specified, the documentation for all functions
   and types in the *source* will be included.
 
   Examples::
