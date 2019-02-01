@@ -31,8 +31,6 @@
 
 #define IOH_IRQ_BASE		0
 
-#define PCI_VENDOR_ID_ROHM             0x10DB
-
 struct ioh_reg_comn {
 	u32	ien;
 	u32	istatus;
