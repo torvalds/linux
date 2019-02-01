@@ -31,20 +31,20 @@ static void cpufreq_stats_update(struct cpufreq_stats *stats)
 {
 	unsigned long long cur_time = get_jiffies_64();
 
-	spin_lock(&cpufreq_stats_lock);
 	stats->time_in_state[stats->last_index] += cur_time - stats->last_time;
 	stats->last_time = cur_time;
-	spin_unlock(&cpufreq_stats_lock);
 }
 
 static void cpufreq_stats_clear_table(struct cpufreq_stats *stats)
 {
 	unsigned int count = stats->max_state;
 
+	spin_lock(&cpufreq_stats_lock);
 	memset(stats->time_in_state, 0, count * sizeof(u64));
 	memset(stats->trans_table, 0, count * count * sizeof(int));
 	stats->last_time = get_jiffies_64();
 	stats->total_trans = 0;
+	spin_unlock(&cpufreq_stats_lock);
 }
 
 static ssize_t show_total_trans(struct cpufreq_policy *policy, char *buf)
@@ -62,7 +62,10 @@ static ssize_t show_time_in_state(struct cpufreq_policy *policy, char *buf)
 	if (policy->fast_switch_enabled)
 		return 0;
 
+	spin_lock(&cpufreq_stats_lock);
 	cpufreq_stats_update(stats);
+	spin_unlock(&cpufreq_stats_lock);
+
 	for (i = 0; i < stats->state_num; i++) {
 		len += sprintf(buf + len, "%u %llu\n", stats->freq_table[i],
 			(unsigned long long)
@@ -239,9 +242,11 @@ void cpufreq_stats_record_transition(struct cpufreq_policy *policy,
 	if (old_index == -1 || new_index == -1 || old_index == new_index)
 		return;
 
+	spin_lock(&cpufreq_stats_lock);
 	cpufreq_stats_update(stats);
 
 	stats->last_index = new_index;
 	stats->trans_table[old_index * stats->max_state + new_index]++;
 	stats->total_trans++;
+	spin_unlock(&cpufreq_stats_lock);
 }
