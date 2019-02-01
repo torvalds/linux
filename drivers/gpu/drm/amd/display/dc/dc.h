@@ -257,6 +257,7 @@ struct dc_debug_options {
 	bool skip_detection_link_training;
 	unsigned int force_odm_combine; //bit vector based on otg inst
 	unsigned int force_fclk_khz;
+	bool disable_tri_buf;
 };
 
 struct dc_debug_data {
