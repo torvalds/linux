@@ -372,6 +372,30 @@ static int do_tls_getsockopt_tx(struct sock *sk, char __user *optval,
 			rc = -EFAULT;
 		break;
 	}
+	case TLS_CIPHER_AES_GCM_256: {
+		struct tls12_crypto_info_aes_gcm_256 *
+		  crypto_info_aes_gcm_256 =
+		  container_of(crypto_info,
+			       struct tls12_crypto_info_aes_gcm_256,
+			       info);
+
+		if (len != sizeof(*crypto_info_aes_gcm_256)) {
+			rc = -EINVAL;
+			goto out;
+		}
+		lock_sock(sk);
+		memcpy(crypto_info_aes_gcm_256->iv,
+		       ctx->tx.iv + TLS_CIPHER_AES_GCM_256_SALT_SIZE,
+		       TLS_CIPHER_AES_GCM_256_IV_SIZE);
+		memcpy(crypto_info_aes_gcm_256->rec_seq, ctx->tx.rec_seq,
+		       TLS_CIPHER_AES_GCM_256_REC_SEQ_SIZE);
+		release_sock(sk);
+		if (copy_to_user(optval,
+				 crypto_info_aes_gcm_256,
+				 sizeof(*crypto_info_aes_gcm_256)))
+			rc = -EFAULT;
+		break;
+	}
 	default:
 		rc = -EINVAL;
 	}
@@ -412,6 +436,7 @@ static int do_tls_setsockopt_conf(struct sock *sk, char __user *optval,
 {
 	struct tls_crypto_info *crypto_info;
 	struct tls_context *ctx = tls_get_ctx(sk);
+	size_t optsize;
 	int rc = 0;
 	int conf;
 
@@ -438,14 +463,19 @@ static int do_tls_setsockopt_conf(struct sock *sk, char __user *optval,
 	}
 
 	/* check version */
-	if (crypto_info->version != TLS_1_2_VERSION) {
+	if (crypto_info->version != TLS_1_2_VERSION &&
+	    crypto_info->version != TLS_1_3_VERSION) {
 		rc = -ENOTSUPP;
 		goto err_crypto_info;
 	}
 
 	switch (crypto_info->cipher_type) {
-	case TLS_CIPHER_AES_GCM_128: {
-		if (optlen != sizeof(struct tls12_crypto_info_aes_gcm_128)) {
+	case TLS_CIPHER_AES_GCM_128:
+	case TLS_CIPHER_AES_GCM_256: {
+		optsize = crypto_info->cipher_type == TLS_CIPHER_AES_GCM_128 ?
+			sizeof(struct tls12_crypto_info_aes_gcm_128) :
+			sizeof(struct tls12_crypto_info_aes_gcm_256);
+		if (optlen != optsize) {
 			rc = -EINVAL;
 			goto err_crypto_info;
 		}

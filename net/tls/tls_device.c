@@ -257,7 +257,8 @@ static int tls_push_record(struct sock *sk,
 	tls_fill_prepend(ctx,
 			 skb_frag_address(frag),
 			 record->len - ctx->tx.prepend_size,
-			 record_type);
+			 record_type,
+			 ctx->crypto_send.info.version);
 
 	/* HW doesn't care about the data in the tag, because it fills it. */
 	dummy_tag_frag.page = skb_frag_page(frag);
@@ -270,7 +271,7 @@ static int tls_push_record(struct sock *sk,
 	spin_unlock_irq(&offload_ctx->lock);
 	offload_ctx->open_record = NULL;
 	set_bit(TLS_PENDING_CLOSED_RECORD, &ctx->flags);
-	tls_advance_record_sn(sk, &ctx->tx);
+	tls_advance_record_sn(sk, &ctx->tx, ctx->crypto_send.info.version);
 
 	for (i = 0; i < record->num_frags; i++) {
 		frag = &record->frags[i];

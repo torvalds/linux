@@ -120,6 +120,34 @@ static int skb_nsg(struct sk_buff *skb, int offset, int len)
         return __skb_nsg(skb, offset, len, 0);
 }
 
+static int padding_length(struct tls_sw_context_rx *ctx,
+			  struct tls_context *tls_ctx, struct sk_buff *skb)
+{
+	struct strp_msg *rxm = strp_msg(skb);
+	int sub = 0;
+
+	/* Determine zero-padding length */
+	if (tls_ctx->crypto_recv.info.version == TLS_1_3_VERSION) {
+		char content_type = 0;
+		int err;
+		int back = 17;
+
+		while (content_type == 0) {
+			if (back > rxm->full_len)
+				return -EBADMSG;
+			err = skb_copy_bits(skb,
+					    rxm->offset + rxm->full_len - back,
+					    &content_type, 1);
+			if (content_type)
+				break;
+			sub++;
+			back++;
+		}
+		ctx->control = content_type;
+	}
+	return sub;
+}
+
 static void tls_decrypt_done(struct crypto_async_request *req, int err)
 {
 	struct aead_request *aead_req = (struct aead_request *)req;
@@ -142,7 +170,7 @@ static void tls_decrypt_done(struct crypto_async_request *req, int err)
 		tls_err_abort(skb->sk, err);
 	} else {
 		struct strp_msg *rxm = strp_msg(skb);
-
+		rxm->full_len -= padding_length(ctx, tls_ctx, skb);
 		rxm->offset += tls_ctx->rx.prepend_size;
 		rxm->full_len -= tls_ctx->rx.overhead_size;
 	}
@@ -185,7 +213,7 @@ static int tls_do_decryption(struct sock *sk,
 	int ret;
 
 	aead_request_set_tfm(aead_req, ctx->aead_recv);
-	aead_request_set_ad(aead_req, TLS_AAD_SPACE_SIZE);
+	aead_request_set_ad(aead_req, tls_ctx->rx.aad_size);
 	aead_request_set_crypt(aead_req, sgin, sgout,
 			       data_len + tls_ctx->rx.tag_size,
 			       (u8 *)iv_recv);
@@ -289,12 +317,12 @@ static struct tls_rec *tls_get_rec(struct sock *sk)
 
 	sg_init_table(rec->sg_aead_in, 2);
 	sg_set_buf(&rec->sg_aead_in[0], rec->aad_space,
-		   sizeof(rec->aad_space));
+		   tls_ctx->tx.aad_size);
 	sg_unmark_end(&rec->sg_aead_in[1]);
 
 	sg_init_table(rec->sg_aead_out, 2);
 	sg_set_buf(&rec->sg_aead_out[0], rec->aad_space,
-		   sizeof(rec->aad_space));
+		   tls_ctx->tx.aad_size);
 	sg_unmark_end(&rec->sg_aead_out[1]);
 
 	return rec;
@@ -448,6 +476,8 @@ static int tls_do_encryption(struct sock *sk,
 	int rc;
 
 	memcpy(rec->iv_data, tls_ctx->tx.iv, sizeof(rec->iv_data));
+	xor_iv_with_seq(tls_ctx->crypto_send.info.version, rec->iv_data,
+			tls_ctx->tx.rec_seq);
 
 	sge->offset += tls_ctx->tx.prepend_size;
 	sge->length -= tls_ctx->tx.prepend_size;
@@ -455,7 +485,7 @@ static int tls_do_encryption(struct sock *sk,
 	msg_en->sg.curr = start;
 
 	aead_request_set_tfm(aead_req, ctx->aead_send);
-	aead_request_set_ad(aead_req, TLS_AAD_SPACE_SIZE);
+	aead_request_set_ad(aead_req, tls_ctx->tx.aad_size);
 	aead_request_set_crypt(aead_req, rec->sg_aead_in,
 			       rec->sg_aead_out,
 			       data_len, rec->iv_data);
@@ -483,7 +513,8 @@ static int tls_do_encryption(struct sock *sk,
 
 	/* Unhook the record from context if encryption is not failure */
 	ctx->open_rec = NULL;
-	tls_advance_record_sn(sk, &tls_ctx->tx);
+	tls_advance_record_sn(sk, &tls_ctx->tx,
+			      tls_ctx->crypto_send.info.version);
 	return rc;
 }
 
@@ -640,7 +671,17 @@ static int tls_push_record(struct sock *sk, int flags,
 
 	i = msg_pl->sg.end;
 	sk_msg_iter_var_prev(i);
-	sg_mark_end(sk_msg_elem(msg_pl, i));
+
+	rec->content_type = record_type;
+	if (tls_ctx->crypto_send.info.version == TLS_1_3_VERSION) {
+		/* Add content type to end of message.  No padding added */
+		sg_set_buf(&rec->sg_content_type, &rec->content_type, 1);
+		sg_mark_end(&rec->sg_content_type);
+		sg_chain(msg_pl->sg.data, msg_pl->sg.end + 1,
+			 &rec->sg_content_type);
+	} else {
+		sg_mark_end(sk_msg_elem(msg_pl, i));
+	}
 
 	i = msg_pl->sg.start;
 	sg_chain(rec->sg_aead_in, 2, rec->inplace_crypto ?
@@ -653,18 +694,22 @@ static int tls_push_record(struct sock *sk, int flags,
 	i = msg_en->sg.start;
 	sg_chain(rec->sg_aead_out, 2, &msg_en->sg.data[i]);
 
-	tls_make_aad(rec->aad_space, msg_pl->sg.size,
+	tls_make_aad(rec->aad_space, msg_pl->sg.size + tls_ctx->tx.tail_size,
 		     tls_ctx->tx.rec_seq, tls_ctx->tx.rec_seq_size,
-		     record_type);
+		     record_type,
+		     tls_ctx->crypto_send.info.version);
 
 	tls_fill_prepend(tls_ctx,
 			 page_address(sg_page(&msg_en->sg.data[i])) +
-			 msg_en->sg.data[i].offset, msg_pl->sg.size,
-			 record_type);
+			 msg_en->sg.data[i].offset,
+			 msg_pl->sg.size + tls_ctx->tx.tail_size,
+			 record_type,
+			 tls_ctx->crypto_send.info.version);
 
 	tls_ctx->pending_open_record_frags = false;
 
-	rc = tls_do_encryption(sk, tls_ctx, ctx, req, msg_pl->sg.size, i);
+	rc = tls_do_encryption(sk, tls_ctx, ctx, req,
+			       msg_pl->sg.size + tls_ctx->tx.tail_size, i);
 	if (rc < 0) {
 		if (rc != -EINPROGRESS) {
 			tls_err_abort(sk, EBADMSG);
@@ -1292,7 +1337,8 @@ static int decrypt_internal(struct sock *sk, struct sk_buff *skb,
 	u8 *aad, *iv, *mem = NULL;
 	struct scatterlist *sgin = NULL;
 	struct scatterlist *sgout = NULL;
-	const int data_len = rxm->full_len - tls_ctx->rx.overhead_size;
+	const int data_len = rxm->full_len - tls_ctx->rx.overhead_size +
+		tls_ctx->rx.tail_size;
 
 	if (*zc && (out_iov || out_sg)) {
 		if (out_iov)
@@ -1317,7 +1363,7 @@ static int decrypt_internal(struct sock *sk, struct sk_buff *skb,
 
 	aead_size = sizeof(*aead_req) + crypto_aead_reqsize(ctx->aead_recv);
 	mem_size = aead_size + (nsg * sizeof(struct scatterlist));
-	mem_size = mem_size + TLS_AAD_SPACE_SIZE;
+	mem_size = mem_size + tls_ctx->rx.aad_size;
 	mem_size = mem_size + crypto_aead_ivsize(ctx->aead_recv);
 
 	/* Allocate a single block of memory which contains
@@ -1333,7 +1379,7 @@ static int decrypt_internal(struct sock *sk, struct sk_buff *skb,
 	sgin = (struct scatterlist *)(mem + aead_size);
 	sgout = sgin + n_sgin;
 	aad = (u8 *)(sgout + n_sgout);
-	iv = aad + TLS_AAD_SPACE_SIZE;
+	iv = aad + tls_ctx->rx.aad_size;
 
 	/* Prepare IV */
 	err = skb_copy_bits(skb, rxm->offset + TLS_HEADER_SIZE,
@@ -1343,16 +1389,24 @@ static int decrypt_internal(struct sock *sk, struct sk_buff *skb,
 		kfree(mem);
 		return err;
 	}
-	memcpy(iv, tls_ctx->rx.iv, TLS_CIPHER_AES_GCM_128_SALT_SIZE);
+	if (tls_ctx->crypto_recv.info.version == TLS_1_3_VERSION)
+		memcpy(iv, tls_ctx->rx.iv, crypto_aead_ivsize(ctx->aead_recv));
+	else
+		memcpy(iv, tls_ctx->rx.iv, TLS_CIPHER_AES_GCM_128_SALT_SIZE);
+
+	xor_iv_with_seq(tls_ctx->crypto_recv.info.version, iv,
+			tls_ctx->rx.rec_seq);
 
 	/* Prepare AAD */
-	tls_make_aad(aad, rxm->full_len - tls_ctx->rx.overhead_size,
+	tls_make_aad(aad, rxm->full_len - tls_ctx->rx.overhead_size +
+		     tls_ctx->rx.tail_size,
 		     tls_ctx->rx.rec_seq, tls_ctx->rx.rec_seq_size,
-		     ctx->control);
+		     ctx->control,
+		     tls_ctx->crypto_recv.info.version);
 
 	/* Prepare sgin */
 	sg_init_table(sgin, n_sgin);
-	sg_set_buf(&sgin[0], aad, TLS_AAD_SPACE_SIZE);
+	sg_set_buf(&sgin[0], aad, tls_ctx->rx.aad_size);
 	err = skb_to_sgvec(skb, &sgin[1],
 			   rxm->offset + tls_ctx->rx.prepend_size,
 			   rxm->full_len - tls_ctx->rx.prepend_size);
@@ -1364,7 +1418,7 @@ static int decrypt_internal(struct sock *sk, struct sk_buff *skb,
 	if (n_sgout) {
 		if (out_iov) {
 			sg_init_table(sgout, n_sgout);
-			sg_set_buf(&sgout[0], aad, TLS_AAD_SPACE_SIZE);
+			sg_set_buf(&sgout[0], aad, tls_ctx->rx.aad_size);
 
 			*chunk = 0;
 			err = tls_setup_from_iter(sk, out_iov, data_len,
@@ -1405,6 +1459,7 @@ static int decrypt_skb_update(struct sock *sk, struct sk_buff *skb,
 {
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct tls_sw_context_rx *ctx = tls_sw_ctx_rx(tls_ctx);
+	int version = tls_ctx->crypto_recv.info.version;
 	struct strp_msg *rxm = strp_msg(skb);
 	int err = 0;
 
@@ -1417,19 +1472,22 @@ static int decrypt_skb_update(struct sock *sk, struct sk_buff *skb,
 		err = decrypt_internal(sk, skb, dest, NULL, chunk, zc, async);
 		if (err < 0) {
 			if (err == -EINPROGRESS)
-				tls_advance_record_sn(sk, &tls_ctx->rx);
+				tls_advance_record_sn(sk, &tls_ctx->rx,
+						      version);
 
 			return err;
 		}
+
+		rxm->full_len -= padding_length(ctx, tls_ctx, skb);
+
+		rxm->offset += tls_ctx->rx.prepend_size;
+		rxm->full_len -= tls_ctx->rx.overhead_size;
+		tls_advance_record_sn(sk, &tls_ctx->rx, version);
+		ctx->decrypted = true;
+		ctx->saved_data_ready(sk);
 	} else {
 		*zc = false;
 	}
-
-	rxm->offset += tls_ctx->rx.prepend_size;
-	rxm->full_len -= tls_ctx->rx.overhead_size;
-	tls_advance_record_sn(sk, &tls_ctx->rx);
-	ctx->decrypted = true;
-	ctx->saved_data_ready(sk);
 
 	return err;
 }
@@ -1609,6 +1667,26 @@ int tls_sw_recvmsg(struct sock *sk,
 
 		rxm = strp_msg(skb);
 
+		to_decrypt = rxm->full_len - tls_ctx->rx.overhead_size;
+
+		if (to_decrypt <= len && !is_kvec && !is_peek &&
+		    ctx->control == TLS_RECORD_TYPE_DATA &&
+		    tls_ctx->crypto_recv.info.version != TLS_1_3_VERSION)
+			zc = true;
+
+		err = decrypt_skb_update(sk, skb, &msg->msg_iter,
+					 &chunk, &zc, ctx->async_capable);
+		if (err < 0 && err != -EINPROGRESS) {
+			tls_err_abort(sk, EBADMSG);
+			goto recv_end;
+		}
+
+		if (err == -EINPROGRESS) {
+			async = true;
+			num_async++;
+			goto pick_next_record;
+		}
+
 		if (!cmsg) {
 			int cerr;
 
@@ -1626,40 +1704,22 @@ int tls_sw_recvmsg(struct sock *sk,
 			goto recv_end;
 		}
 
-		to_decrypt = rxm->full_len - tls_ctx->rx.overhead_size;
+		if (!zc) {
+			if (rxm->full_len > len) {
+				retain_skb = true;
+				chunk = len;
+			} else {
+				chunk = rxm->full_len;
+			}
 
-		if (to_decrypt <= len && !is_kvec && !is_peek)
-			zc = true;
+			err = skb_copy_datagram_msg(skb, rxm->offset,
+						    msg, chunk);
+			if (err < 0)
+				goto recv_end;
 
-		err = decrypt_skb_update(sk, skb, &msg->msg_iter,
-					 &chunk, &zc, ctx->async_capable);
-		if (err < 0 && err != -EINPROGRESS) {
-			tls_err_abort(sk, EBADMSG);
-			goto recv_end;
-		}
-
-		if (err == -EINPROGRESS) {
-			async = true;
-			num_async++;
-			goto pick_next_record;
-		} else {
-			if (!zc) {
-				if (rxm->full_len > len) {
-					retain_skb = true;
-					chunk = len;
-				} else {
-					chunk = rxm->full_len;
-				}
-
-				err = skb_copy_datagram_msg(skb, rxm->offset,
-							    msg, chunk);
-				if (err < 0)
-					goto recv_end;
-
-				if (!is_peek) {
-					rxm->offset = rxm->offset + chunk;
-					rxm->full_len = rxm->full_len - chunk;
-				}
+			if (!is_peek) {
+				rxm->offset = rxm->offset + chunk;
+				rxm->full_len = rxm->full_len - chunk;
 			}
 		}
 
@@ -1759,14 +1819,14 @@ ssize_t tls_sw_splice_read(struct socket *sock,  loff_t *ppos,
 	if (!skb)
 		goto splice_read_end;
 
-	/* splice does not support reading control messages */
-	if (ctx->control != TLS_RECORD_TYPE_DATA) {
-		err = -ENOTSUPP;
-		goto splice_read_end;
-	}
-
 	if (!ctx->decrypted) {
 		err = decrypt_skb_update(sk, skb, NULL, &chunk, &zc, false);
+
+		/* splice does not support reading control messages */
+		if (ctx->control != TLS_RECORD_TYPE_DATA) {
+			err = -ENOTSUPP;
+			goto splice_read_end;
+		}
 
 		if (err < 0) {
 			tls_err_abort(sk, EBADMSG);
@@ -1835,9 +1895,12 @@ static int tls_read_size(struct strparser *strp, struct sk_buff *skb)
 
 	data_len = ((header[4] & 0xFF) | (header[3] << 8));
 
-	cipher_overhead = tls_ctx->rx.tag_size + tls_ctx->rx.iv_size;
+	cipher_overhead = tls_ctx->rx.tag_size;
+	if (tls_ctx->crypto_recv.info.version != TLS_1_3_VERSION)
+		cipher_overhead += tls_ctx->rx.iv_size;
 
-	if (data_len > TLS_MAX_PAYLOAD_SIZE + cipher_overhead) {
+	if (data_len > TLS_MAX_PAYLOAD_SIZE + cipher_overhead +
+	    tls_ctx->rx.tail_size) {
 		ret = -EMSGSIZE;
 		goto read_failure;
 	}
@@ -1846,12 +1909,12 @@ static int tls_read_size(struct strparser *strp, struct sk_buff *skb)
 		goto read_failure;
 	}
 
-	if (header[1] != TLS_VERSION_MINOR(tls_ctx->crypto_recv.info.version) ||
-	    header[2] != TLS_VERSION_MAJOR(tls_ctx->crypto_recv.info.version)) {
+	/* Note that both TLS1.3 and TLS1.2 use TLS_1_2 version here */
+	if (header[1] != TLS_1_2_VERSION_MINOR ||
+	    header[2] != TLS_1_2_VERSION_MAJOR) {
 		ret = -EINVAL;
 		goto read_failure;
 	}
-
 #ifdef CONFIG_TLS_DEVICE
 	handle_device_resync(strp->sk, TCP_SKB_CB(skb)->seq + rxm->offset,
 			     *(u64*)tls_ctx->rx.rec_seq);
@@ -1999,6 +2062,7 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)
 {
 	struct tls_crypto_info *crypto_info;
 	struct tls12_crypto_info_aes_gcm_128 *gcm_128_info;
+	struct tls12_crypto_info_aes_gcm_256 *gcm_256_info;
 	struct tls_sw_context_tx *sw_ctx_tx = NULL;
 	struct tls_sw_context_rx *sw_ctx_rx = NULL;
 	struct cipher_context *cctx;
@@ -2006,7 +2070,8 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)
 	struct strp_callbacks cb;
 	u16 nonce_size, tag_size, iv_size, rec_seq_size;
 	struct crypto_tfm *tfm;
-	char *iv, *rec_seq;
+	char *iv, *rec_seq, *key, *salt;
+	size_t keysize;
 	int rc = 0;
 
 	if (!ctx) {
@@ -2067,6 +2132,24 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)
 		 ((struct tls12_crypto_info_aes_gcm_128 *)crypto_info)->rec_seq;
 		gcm_128_info =
 			(struct tls12_crypto_info_aes_gcm_128 *)crypto_info;
+		keysize = TLS_CIPHER_AES_GCM_128_KEY_SIZE;
+		key = gcm_128_info->key;
+		salt = gcm_128_info->salt;
+		break;
+	}
+	case TLS_CIPHER_AES_GCM_256: {
+		nonce_size = TLS_CIPHER_AES_GCM_256_IV_SIZE;
+		tag_size = TLS_CIPHER_AES_GCM_256_TAG_SIZE;
+		iv_size = TLS_CIPHER_AES_GCM_256_IV_SIZE;
+		iv = ((struct tls12_crypto_info_aes_gcm_256 *)crypto_info)->iv;
+		rec_seq_size = TLS_CIPHER_AES_GCM_256_REC_SEQ_SIZE;
+		rec_seq =
+		 ((struct tls12_crypto_info_aes_gcm_256 *)crypto_info)->rec_seq;
+		gcm_256_info =
+			(struct tls12_crypto_info_aes_gcm_256 *)crypto_info;
+		keysize = TLS_CIPHER_AES_GCM_256_KEY_SIZE;
+		key = gcm_256_info->key;
+		salt = gcm_256_info->salt;
 		break;
 	}
 	default:
@@ -2080,9 +2163,19 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)
 		goto free_priv;
 	}
 
+	if (crypto_info->version == TLS_1_3_VERSION) {
+		nonce_size = 0;
+		cctx->aad_size = TLS_HEADER_SIZE;
+		cctx->tail_size = 1;
+	} else {
+		cctx->aad_size = TLS_AAD_SPACE_SIZE;
+		cctx->tail_size = 0;
+	}
+
 	cctx->prepend_size = TLS_HEADER_SIZE + nonce_size;
 	cctx->tag_size = tag_size;
-	cctx->overhead_size = cctx->prepend_size + cctx->tag_size;
+	cctx->overhead_size = cctx->prepend_size + cctx->tag_size +
+		cctx->tail_size;
 	cctx->iv_size = iv_size;
 	cctx->iv = kmalloc(iv_size + TLS_CIPHER_AES_GCM_128_SALT_SIZE,
 			   GFP_KERNEL);
@@ -2090,7 +2183,8 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)
 		rc = -ENOMEM;
 		goto free_priv;
 	}
-	memcpy(cctx->iv, gcm_128_info->salt, TLS_CIPHER_AES_GCM_128_SALT_SIZE);
+	/* Note: 128 & 256 bit salt are the same size */
+	memcpy(cctx->iv, salt, TLS_CIPHER_AES_GCM_128_SALT_SIZE);
 	memcpy(cctx->iv + TLS_CIPHER_AES_GCM_128_SALT_SIZE, iv, iv_size);
 	cctx->rec_seq_size = rec_seq_size;
 	cctx->rec_seq = kmemdup(rec_seq, rec_seq_size, GFP_KERNEL);
@@ -2110,8 +2204,8 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)
 
 	ctx->push_pending_record = tls_sw_push_pending_record;
 
-	rc = crypto_aead_setkey(*aead, gcm_128_info->key,
-				TLS_CIPHER_AES_GCM_128_KEY_SIZE);
+	rc = crypto_aead_setkey(*aead, key, keysize);
+
 	if (rc)
 		goto free_aead;
 
