@@ -4296,15 +4296,14 @@ xfs_bmapi_write(
 	bma.datatype = 0;
 
 	/*
-	 * The reval flag means the caller wants to allocate the entire delalloc
-	 * extent backing bno where bno may not necessarily match the startoff.
-	 * Now that we've looked up the extent, reset the range to map based on
-	 * the extent in the file. If we're in a hole, this may be an error so
-	 * don't adjust anything.
+	 * The delalloc flag means the caller wants to allocate the entire
+	 * delalloc extent backing bno where bno may not necessarily match the
+	 * startoff. Now that we've looked up the extent, reset the range to
+	 * map based on the extent in the file. If we're in a hole, this may be
+	 * an error so don't adjust anything.
 	 */
-	if ((flags & XFS_BMAPI_REVALRANGE) &&
+	if ((flags & XFS_BMAPI_DELALLOC) &&
 	    !eof && bno >= bma.got.br_startoff) {
-		ASSERT(flags & XFS_BMAPI_DELALLOC);
 		bno = bma.got.br_startoff;
 		len = bma.got.br_blockcount;
 #ifdef DEBUG
@@ -4495,10 +4494,9 @@ xfs_bmapi_convert_delalloc(
 		flags |= XFS_BMAPI_COWFORK | XFS_BMAPI_PREALLOC;
 
 	/*
-	 * The reval flag means to allocate the entire extent; pass a dummy
+	 * The delalloc flag means to allocate the entire extent; pass a dummy
 	 * length of 1.
 	 */
-	flags |= XFS_BMAPI_REVALRANGE;
 	error = xfs_bmapi_write(tp, ip, offset_fsb, 1, flags, total, imap,
 				&nimaps);
 	if (!error && !nimaps)

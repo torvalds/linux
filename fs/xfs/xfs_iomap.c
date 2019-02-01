@@ -677,25 +677,19 @@ out_unlock:
  */
 int
 xfs_iomap_write_allocate(
-	xfs_inode_t	*ip,
-	int		whichfork,
-	xfs_off_t	offset,
-	xfs_bmbt_irec_t *imap,
-	unsigned int	*seq)
+	struct xfs_inode	*ip,
+	int			whichfork,
+	xfs_off_t		offset,
+	struct xfs_bmbt_irec	*imap,
+	unsigned int		*seq)
 {
-	xfs_mount_t	*mp = ip->i_mount;
-	struct xfs_ifork *ifp = XFS_IFORK_PTR(ip, whichfork);
-	xfs_fileoff_t	offset_fsb, last_block;
-	xfs_fileoff_t	end_fsb, map_start_fsb;
-	xfs_filblks_t	count_fsb;
-	xfs_trans_t	*tp;
-	int		nimaps;
-	int		error = 0;
-	int		flags = XFS_BMAPI_DELALLOC;
-	int		nres;
-
-	if (whichfork == XFS_COW_FORK)
-		flags |= XFS_BMAPI_COWFORK | XFS_BMAPI_PREALLOC;
+	struct xfs_mount	*mp = ip->i_mount;
+	struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, whichfork);
+	xfs_fileoff_t		offset_fsb;
+	xfs_fileoff_t		map_start_fsb;
+	xfs_extlen_t		map_count_fsb;
+	struct xfs_trans	*tp;
+	int			error = 0;
 
 	/*
 	 * Make sure that the dquots are there.
@@ -704,106 +698,60 @@ xfs_iomap_write_allocate(
 	if (error)
 		return error;
 
+	/*
+	 * Store the file range the caller is interested in because it encodes
+	 * state such as potential overlap with COW fork blocks. We must trim
+	 * the allocated extent down to this range to maintain consistency with
+	 * what the caller expects. Revalidation of the range itself is the
+	 * responsibility of the caller.
+	 */
 	offset_fsb = XFS_B_TO_FSBT(mp, offset);
-	count_fsb = imap->br_blockcount;
 	map_start_fsb = imap->br_startoff;
+	map_count_fsb = imap->br_blockcount;
 
-	XFS_STATS_ADD(mp, xs_xstrat_bytes, XFS_FSB_TO_B(mp, count_fsb));
+	XFS_STATS_ADD(mp, xs_xstrat_bytes,
+		      XFS_FSB_TO_B(mp, imap->br_blockcount));
 
-	while (count_fsb != 0) {
+	while (true) {
 		/*
-		 * Set up a transaction with which to allocate the
-		 * backing store for the file.  Do allocations in a
-		 * loop until we get some space in the range we are
-		 * interested in.  The other space that might be allocated
-		 * is in the delayed allocation extent on which we sit
-		 * but before our buffer starts.
+		 * Allocate in a loop because it may take several attempts to
+		 * allocate real blocks for a contiguous delalloc extent if free
+		 * space is sufficiently fragmented. Note that space for the
+		 * extent and indirect blocks was reserved when the delalloc
+		 * extent was created so there's no need to do so here.
 		 */
-		nimaps = 0;
-		while (nimaps == 0) {
-			nres = XFS_EXTENTADD_SPACE_RES(mp, XFS_DATA_FORK);
-			/*
-			 * We have already reserved space for the extent and any
-			 * indirect blocks when creating the delalloc extent,
-			 * there is no need to reserve space in this transaction
-			 * again.
-			 */
-			error = xfs_trans_alloc(mp, &M_RES(mp)->tr_write, 0,
-					0, XFS_TRANS_RESERVE, &tp);
-			if (error)
-				return error;
+		error = xfs_trans_alloc(mp, &M_RES(mp)->tr_write, 0, 0,
+					XFS_TRANS_RESERVE, &tp);
+		if (error)
+			return error;
 
-			xfs_ilock(ip, XFS_ILOCK_EXCL);
-			xfs_trans_ijoin(tp, ip, 0);
-
-			/*
-			 * it is possible that the extents have changed since
-			 * we did the read call as we dropped the ilock for a
-			 * while. We have to be careful about truncates or hole
-			 * punchs here - we are not allowed to allocate
-			 * non-delalloc blocks here.
-			 *
-			 * The only protection against truncation is the pages
-			 * for the range we are being asked to convert are
-			 * locked and hence a truncate will block on them
-			 * first.
-			 *
-			 * As a result, if we go beyond the range we really
-			 * need and hit an delalloc extent boundary followed by
-			 * a hole while we have excess blocks in the map, we
-			 * will fill the hole incorrectly and overrun the
-			 * transaction reservation.
-			 *
-			 * Using a single map prevents this as we are forced to
-			 * check each map we look for overlap with the desired
-			 * range and abort as soon as we find it. Also, given
-			 * that we only return a single map, having one beyond
-			 * what we can return is probably a bit silly.
-			 *
-			 * We also need to check that we don't go beyond EOF;
-			 * this is a truncate optimisation as a truncate sets
-			 * the new file size before block on the pages we
-			 * currently have locked under writeback. Because they
-			 * are about to be tossed, we don't need to write them
-			 * back....
-			 */
-			nimaps = 1;
-			end_fsb = XFS_B_TO_FSB(mp, XFS_ISIZE(ip));
-			error = xfs_bmap_last_offset(ip, &last_block,
-							XFS_DATA_FORK);
-			if (error)
-				goto trans_cancel;
-
-			last_block = XFS_FILEOFF_MAX(last_block, end_fsb);
-			if ((map_start_fsb + count_fsb) > last_block) {
-				count_fsb = last_block - map_start_fsb;
-				if (count_fsb == 0) {
-					error = -EAGAIN;
-					goto trans_cancel;
-				}
-			}
-
-			/*
-			 * From this point onwards we overwrite the imap
-			 * pointer that the caller gave to us.
-			 */
-			error = xfs_bmapi_write(tp, ip, map_start_fsb,
-						count_fsb, flags, nres, imap,
-						&nimaps);
-			if (error)
-				goto trans_cancel;
-
-			error = xfs_trans_commit(tp);
-			if (error)
-				goto error0;
-
-			*seq = READ_ONCE(ifp->if_seq);
-			xfs_iunlock(ip, XFS_ILOCK_EXCL);
-		}
+		xfs_ilock(ip, XFS_ILOCK_EXCL);
+		xfs_trans_ijoin(tp, ip, 0);
 
 		/*
-		 * See if we were able to allocate an extent that
-		 * covers at least part of the callers request
+		 * ilock was dropped since imap was populated which means it
+		 * might no longer be valid. The current page is held locked so
+		 * nothing could have removed the block backing offset_fsb.
+		 * Attempt to allocate whatever delalloc extent currently backs
+		 * offset_fsb and put the result in the imap pointer from the
+		 * caller. We'll trim it down to the caller's most recently
+		 * validated range before we return.
+		 */
+		error = xfs_bmapi_convert_delalloc(tp, ip, offset_fsb,
+						   whichfork, imap);
+		if (error)
+			goto trans_cancel;
+
+		error = xfs_trans_commit(tp);
+		if (error)
+			goto error0;
+
+		*seq = READ_ONCE(ifp->if_seq);
+		xfs_iunlock(ip, XFS_ILOCK_EXCL);
+
+		/*
+		 * See if we were able to allocate an extent that covers at
+		 * least part of the callers request.
 		 */
 		if (!(imap->br_startblock || XFS_IS_REALTIME_INODE(ip)))
 			return xfs_alert_fsblock_zero(ip, imap);
@@ -812,15 +760,11 @@ xfs_iomap_write_allocate(
 		    (offset_fsb < (imap->br_startoff +
 				   imap->br_blockcount))) {
 			XFS_STATS_INC(mp, xs_xstrat_quick);
+			xfs_trim_extent(imap, map_start_fsb, map_count_fsb);
+			ASSERT(offset_fsb >= imap->br_startoff &&
+			       offset_fsb < imap->br_startoff + imap->br_blockcount);
 			return 0;
 		}
-
-		/*
-		 * So far we have not mapped the requested part of the
-		 * file, just surrounding data, try again.
-		 */
-		count_fsb -= imap->br_blockcount;
-		map_start_fsb = imap->br_startoff + imap->br_blockcount;
 	}
 
 trans_cancel:
