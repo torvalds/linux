@@ -1907,14 +1907,22 @@ void __init acpi_ec_ecdt_probe(void)
 		ec->data_addr = ecdt_ptr->data.address;
 	}
 	ec->gpe = ecdt_ptr->gpe;
+	ec->handle = ACPI_ROOT_OBJECT;
 
 	/*
 	 * At this point, the namespace is not initialized, so do not find
 	 * the namespace objects, or handle the events.
 	 */
-	ret = acpi_config_boot_ec(ec, ACPI_ROOT_OBJECT, false, true);
-	if (ret)
+	ret = acpi_ec_setup(ec, false);
+	if (ret) {
 		acpi_ec_free(ec);
+		return;
+	}
+
+	boot_ec = ec;
+	boot_ec_is_ecdt = true;
+
+	pr_info("Boot ECDT EC used to handle transactions\n");
 }
 
 #ifdef CONFIG_PM_SLEEP
