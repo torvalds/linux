@@ -314,6 +314,9 @@ struct snd_sof_dev {
 	u32 boot_complete;
 	u32 first_boot;
 
+	/* work queue in case the probe is implemented in two steps */
+	struct work_struct probe_work;
+
 	/* DSP HW differentiation */
 	struct snd_sof_pdata *pdata;
 
