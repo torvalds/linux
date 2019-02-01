@@ -389,16 +389,11 @@ static const struct iio_info ad9833_info = {
 
 static int ad9834_probe(struct spi_device *spi)
 {
-	struct ad9834_platform_data *pdata = dev_get_platdata(&spi->dev);
 	struct ad9834_state *st;
 	struct iio_dev *indio_dev;
 	struct regulator *reg;
 	int ret;
 
-	if (!pdata) {
-		dev_dbg(&spi->dev, "no platform data?\n");
-		return -ENODEV;
-	}
 
 	reg = devm_regulator_get(&spi->dev, "avdd");
 	if (IS_ERR(reg))
@@ -418,7 +413,7 @@ static int ad9834_probe(struct spi_device *spi)
 	spi_set_drvdata(spi, indio_dev);
 	st = iio_priv(indio_dev);
 	mutex_init(&st->lock);
-	st->mclk = pdata->mclk;
+	st->mclk = 25000000;
 	st->spi = spi;
 	st->devid = spi_get_device_id(spi)->driver_data;
 	st->reg = reg;
@@ -454,11 +449,9 @@ static int ad9834_probe(struct spi_device *spi)
 	spi_message_add_tail(&st->freq_xfer[1], &st->freq_msg);
 
 	st->control = AD9834_B28 | AD9834_RESET;
+	st->control |= AD9834_DIV2;
 
-	if (!pdata->en_div2)
-		st->control |= AD9834_DIV2;
-
-	if (!pdata->en_signbit_msb_out && (st->devid == ID_AD9834))
+	if (st->devid == ID_AD9834)
 		st->control |= AD9834_SIGN_PIB;
 
 	st->data = cpu_to_be16(AD9834_REG_CMD | st->control);
@@ -468,19 +461,19 @@ static int ad9834_probe(struct spi_device *spi)
 		goto error_disable_reg;
 	}
 
-	ret = ad9834_write_frequency(st, AD9834_REG_FREQ0, pdata->freq0);
+	ret = ad9834_write_frequency(st, AD9834_REG_FREQ0, 1000000);
 	if (ret)
 		goto error_disable_reg;
 
-	ret = ad9834_write_frequency(st, AD9834_REG_FREQ1, pdata->freq1);
+	ret = ad9834_write_frequency(st, AD9834_REG_FREQ1, 5000000);
 	if (ret)
 		goto error_disable_reg;
 
-	ret = ad9834_write_phase(st, AD9834_REG_PHASE0, pdata->phase0);
+	ret = ad9834_write_phase(st, AD9834_REG_PHASE0, 512);
 	if (ret)
 		goto error_disable_reg;
 
-	ret = ad9834_write_phase(st, AD9834_REG_PHASE1, pdata->phase1);
+	ret = ad9834_write_phase(st, AD9834_REG_PHASE1, 1024);
 	if (ret)
 		goto error_disable_reg;
 
