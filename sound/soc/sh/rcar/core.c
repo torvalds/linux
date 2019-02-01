@@ -1032,16 +1032,13 @@ static const struct snd_soc_dai_ops rsnd_soc_dai_ops = {
 };
 
 static void rsnd_parse_connect_simple(struct rsnd_priv *priv,
-				      struct device_node *dai_np,
-				      int dai_i, int is_play)
+				      struct rsnd_dai_stream *io,
+				      struct device_node *dai_np)
 {
 	struct device *dev = rsnd_priv_to_dev(priv);
-	struct rsnd_dai *rdai = rsnd_rdai_get(priv, dai_i);
-	struct rsnd_dai_stream *io = is_play ?
-		&rdai->playback :
-		&rdai->capture;
 	struct device_node *ssiu_np = rsnd_ssiu_of_node(priv);
 	struct device_node *np;
+	int is_play = rsnd_io_is_play(io);
 	int i, j;
 
 	if (!ssiu_np)
@@ -1292,8 +1289,10 @@ static int rsnd_dai_probe(struct rsnd_priv *priv)
 		for_each_child_of_node(dai_node, dai_np) {
 			__rsnd_dai_probe(priv, dai_np, dai_i);
 			if (rsnd_is_gen3(priv)) {
-				rsnd_parse_connect_simple(priv, dai_np, dai_i, 1);
-				rsnd_parse_connect_simple(priv, dai_np, dai_i, 0);
+				struct rsnd_dai *rdai = rsnd_rdai_get(priv, dai_i);
+
+				rsnd_parse_connect_simple(priv, &rdai->playback, dai_np);
+				rsnd_parse_connect_simple(priv, &rdai->capture,  dai_np);
 			}
 			dai_i++;
 		}
