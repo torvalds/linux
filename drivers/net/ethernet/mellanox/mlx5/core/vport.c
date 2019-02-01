@@ -64,7 +64,7 @@ u8 mlx5_query_vport_state(struct mlx5_core_dev *mdev, u8 opmod, u16 vport)
 }
 
 int mlx5_modify_vport_admin_state(struct mlx5_core_dev *mdev, u8 opmod,
-				  u16 vport, u8 state)
+				  u16 vport, u8 other_vport, u8 state)
 {
 	u32 in[MLX5_ST_SZ_DW(modify_vport_state_in)]   = {0};
 	u32 out[MLX5_ST_SZ_DW(modify_vport_state_out)] = {0};
@@ -73,8 +73,7 @@ int mlx5_modify_vport_admin_state(struct mlx5_core_dev *mdev, u8 opmod,
 		 MLX5_CMD_OP_MODIFY_VPORT_STATE);
 	MLX5_SET(modify_vport_state_in, in, op_mod, opmod);
 	MLX5_SET(modify_vport_state_in, in, vport_number, vport);
-	if (vport)
-		MLX5_SET(modify_vport_state_in, in, other_vport, 1);
+	MLX5_SET(modify_vport_state_in, in, other_vport, other_vport);
 	MLX5_SET(modify_vport_state_in, in, admin_state, state);
 
 	return mlx5_cmd_exec(mdev, in, sizeof(in), out, sizeof(out));
@@ -1057,7 +1056,7 @@ free:
 EXPORT_SYMBOL_GPL(mlx5_core_query_vport_counter);
 
 int mlx5_query_vport_down_stats(struct mlx5_core_dev *mdev, u16 vport,
-				u64 *rx_discard_vport_down,
+				u8 other_vport, u64 *rx_discard_vport_down,
 				u64 *tx_discard_vport_down)
 {
 	u32 out[MLX5_ST_SZ_DW(query_vnic_env_out)] = {0};
@@ -1068,8 +1067,7 @@ int mlx5_query_vport_down_stats(struct mlx5_core_dev *mdev, u16 vport,
 		 MLX5_CMD_OP_QUERY_VNIC_ENV);
 	MLX5_SET(query_vnic_env_in, in, op_mod, 0);
 	MLX5_SET(query_vnic_env_in, in, vport_number, vport);
-	if (vport)
-		MLX5_SET(query_vnic_env_in, in, other_vport, 1);
+	MLX5_SET(query_vnic_env_in, in, other_vport, other_vport);
 
 	err = mlx5_cmd_exec(mdev, in, sizeof(in), out, sizeof(out));
 	if (err)

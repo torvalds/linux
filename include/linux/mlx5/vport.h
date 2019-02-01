@@ -59,7 +59,7 @@ enum {
 
 u8 mlx5_query_vport_state(struct mlx5_core_dev *mdev, u8 opmod, u16 vport);
 int mlx5_modify_vport_admin_state(struct mlx5_core_dev *mdev, u8 opmod,
-				  u16 vport, u8 state);
+				  u16 vport, u8 other_vport, u8 state);
 int mlx5_query_nic_vport_mac_address(struct mlx5_core_dev *mdev,
 				     u16 vport, u8 *addr);
 int mlx5_query_nic_vport_min_inline(struct mlx5_core_dev *mdev,
@@ -121,7 +121,7 @@ int mlx5_modify_nic_vport_vlans(struct mlx5_core_dev *dev,
 int mlx5_nic_vport_enable_roce(struct mlx5_core_dev *mdev);
 int mlx5_nic_vport_disable_roce(struct mlx5_core_dev *mdev);
 int mlx5_query_vport_down_stats(struct mlx5_core_dev *mdev, u16 vport,
-				u64 *rx_discard_vport_down,
+				u8 other_vport, u64 *rx_discard_vport_down,
 				u64 *tx_discard_vport_down);
 int mlx5_core_query_vport_counter(struct mlx5_core_dev *dev, u8 other_vport,
 				  int vf, u8 port_num, void *out,

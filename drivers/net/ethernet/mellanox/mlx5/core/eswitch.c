@@ -1462,7 +1462,7 @@ static void esw_apply_vport_conf(struct mlx5_eswitch *esw,
 
 	mlx5_modify_vport_admin_state(esw->dev,
 				      MLX5_VPORT_STATE_OP_MOD_ESW_VPORT,
-				      vport_num,
+				      vport_num, 1,
 				      vport->info.link_state);
 
 	/* Host PF has its own mac/guid. */
@@ -1581,10 +1581,10 @@ static void esw_disable_vport(struct mlx5_eswitch *esw, int vport_num)
 	esw_vport_change_handle_locked(vport);
 	vport->enabled_events = 0;
 	esw_vport_disable_qos(esw, vport_num);
-	if (vport_num && esw->mode == SRIOV_LEGACY) {
+	if (esw->mode == SRIOV_LEGACY) {
 		mlx5_modify_vport_admin_state(esw->dev,
 					      MLX5_VPORT_STATE_OP_MOD_ESW_VPORT,
-					      vport_num,
+					      vport_num, 1,
 					      MLX5_VPORT_ADMIN_STATE_DOWN);
 		esw_vport_disable_egress_acl(esw, vport);
 		esw_vport_disable_ingress_acl(esw, vport);
@@ -1875,7 +1875,7 @@ int mlx5_eswitch_set_vport_state(struct mlx5_eswitch *esw,
 
 	err = mlx5_modify_vport_admin_state(esw->dev,
 					    MLX5_VPORT_STATE_OP_MOD_ESW_VPORT,
-					    vport, link_state);
+					    vport, 1, link_state);
 	if (err) {
 		mlx5_core_warn(esw->dev,
 			       "Failed to set vport %d link state, err = %d",
@@ -2137,7 +2137,7 @@ static int mlx5_eswitch_query_vport_drop_stats(struct mlx5_core_dev *dev,
 	    !MLX5_CAP_GEN(dev, transmit_discard_vport_down))
 		return 0;
 
-	err = mlx5_query_vport_down_stats(dev, vport_idx,
+	err = mlx5_query_vport_down_stats(dev, vport_idx, 1,
 					  &rx_discard_vport_down,
 					  &tx_discard_vport_down);
 	if (err)
@@ -2174,8 +2174,7 @@ int mlx5_eswitch_get_vport_stats(struct mlx5_eswitch *esw,
 		 MLX5_CMD_OP_QUERY_VPORT_COUNTER);
 	MLX5_SET(query_vport_counter_in, in, op_mod, 0);
 	MLX5_SET(query_vport_counter_in, in, vport_number, vport);
-	if (vport)
-		MLX5_SET(query_vport_counter_in, in, other_vport, 1);
+	MLX5_SET(query_vport_counter_in, in, other_vport, 1);
 
 	memset(out, 0, outlen);
 	err = mlx5_cmd_exec(esw->dev, in, sizeof(in), out, outlen);
