@@ -30,7 +30,8 @@
 
 int sock, sock_arp, flags = XDP_FLAGS_UPDATE_IF_NOEXIST;
 static int total_ifindex;
-int *ifindex_list;
+static int *ifindex_list;
+static __u32 *prog_id_list;
 char buf[8192];
 static int lpm_map_fd;
 static int rxcnt_map_fd;
@@ -41,23 +42,34 @@ static int tx_port_map_fd;
 static int get_route_table(int rtm_family);
 static void int_exit(int sig)
 {
+	__u32 prog_id = 0;
 	int i = 0;
 
-	for (i = 0; i < total_ifindex; i++)
-		bpf_set_link_xdp_fd(ifindex_list[i], -1, flags);
+	for (i = 0; i < total_ifindex; i++) {
+		if (bpf_get_link_xdp_id(ifindex_list[i], &prog_id, flags)) {
+			printf("bpf_get_link_xdp_id on iface %d failed\n",
+			       ifindex_list[i]);
+			exit(1);
+		}
+		if (prog_id_list[i] == prog_id)
+			bpf_set_link_xdp_fd(ifindex_list[i], -1, flags);
+		else if (!prog_id)
+			printf("couldn't find a prog id on iface %d\n",
+			       ifindex_list[i]);
+		else
+			printf("program on iface %d changed, not removing\n",
+			       ifindex_list[i]);
+		prog_id = 0;
+	}
 	exit(0);
 }
 
 static void close_and_exit(int sig)
 {
-	int i = 0;
-
 	close(sock);
 	close(sock_arp);
 
-	for (i = 0; i < total_ifindex; i++)
-		bpf_set_link_xdp_fd(ifindex_list[i], -1, flags);
-	exit(0);
+	int_exit(0);
 }
 
 /* Get the mac address of the interface given interface name */
@@ -186,13 +198,8 @@ static void read_route(struct nlmsghdr *nh, int nll)
 		route.iface_name = alloca(sizeof(char *) * IFNAMSIZ);
 		route.iface_name = if_indextoname(route.iface, route.iface_name);
 		route.mac = getmac(route.iface_name);
-		if (route.mac == -1) {
-			int i = 0;
-
-			for (i = 0; i < total_ifindex; i++)
-				bpf_set_link_xdp_fd(ifindex_list[i], -1, flags);
-			exit(0);
-		}
+		if (route.mac == -1)
+			int_exit(0);
 		assert(bpf_map_update_elem(tx_port_map_fd,
 					   &route.iface, &route.iface, 0) == 0);
 		if (rtm_family == AF_INET) {
@@ -625,12 +632,14 @@ int main(int ac, char **argv)
 	struct bpf_prog_load_attr prog_load_attr = {
 		.prog_type	= BPF_PROG_TYPE_XDP,
 	};
+	struct bpf_prog_info info = {};
+	__u32 info_len = sizeof(info);
 	const char *optstr = "SF";
 	struct bpf_object *obj;
 	char filename[256];
 	char **ifname_list;
 	int prog_fd, opt;
-	int i = 1;
+	int err, i = 1;
 
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
 	prog_load_attr.file = filename;
@@ -687,7 +696,7 @@ int main(int ac, char **argv)
 		return 1;
 	}
 
-	ifindex_list = (int *)malloc(total_ifindex * sizeof(int *));
+	ifindex_list = (int *)calloc(total_ifindex, sizeof(int *));
 	for (i = 0; i < total_ifindex; i++) {
 		ifindex_list[i] = if_nametoindex(ifname_list[i]);
 		if (!ifindex_list[i]) {
@@ -696,6 +705,7 @@ int main(int ac, char **argv)
 			return 1;
 		}
 	}
+	prog_id_list = (__u32 *)calloc(total_ifindex, sizeof(__u32 *));
 	for (i = 0; i < total_ifindex; i++) {
 		if (bpf_set_link_xdp_fd(ifindex_list[i], prog_fd, flags) < 0) {
 			printf("link set xdp fd failed\n");
@@ -706,6 +716,13 @@ int main(int ac, char **argv)
 
 			return 1;
 		}
+		err = bpf_obj_get_info_by_fd(prog_fd, &info, &info_len);
+		if (err) {
+			printf("can't get prog info - %s\n", strerror(errno));
+			return err;
+		}
+		prog_id_list[i] = info.id;
+		memset(&info, 0, sizeof(info));
 		printf("Attached to %d\n", ifindex_list[i]);
 	}
 	signal(SIGINT, int_exit);

@@ -25,11 +25,24 @@
 
 static int ifindex = -1;
 static __u32 xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST;
+static __u32 prog_id;
 
 static void int_exit(int sig)
 {
-	if (ifindex > -1)
-		bpf_set_link_xdp_fd(ifindex, -1, xdp_flags);
+	__u32 curr_prog_id = 0;
+
+	if (ifindex > -1) {
+		if (bpf_get_link_xdp_id(ifindex, &curr_prog_id, xdp_flags)) {
+			printf("bpf_get_link_xdp_id failed\n");
+			exit(1);
+		}
+		if (prog_id == curr_prog_id)
+			bpf_set_link_xdp_fd(ifindex, -1, xdp_flags);
+		else if (!curr_prog_id)
+			printf("couldn't find a prog id on a given iface\n");
+		else
+			printf("program on interface changed, not removing\n");
+	}
 	exit(0);
 }
 
@@ -72,11 +85,14 @@ int main(int argc, char **argv)
 	};
 	unsigned char opt_flags[256] = {};
 	const char *optstr = "i:T:SNFh";
+	struct bpf_prog_info info = {};
+	__u32 info_len = sizeof(info);
 	unsigned int kill_after_s = 0;
 	int i, prog_fd, map_fd, opt;
 	struct bpf_object *obj;
 	struct bpf_map *map;
 	char filename[256];
+	int err;
 
 	for (i = 0; i < strlen(optstr); i++)
 		if (optstr[i] != 'h' && 'a' <= optstr[i] && optstr[i] <= 'z')
@@ -146,9 +162,15 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	poll_stats(map_fd, kill_after_s);
+	err = bpf_obj_get_info_by_fd(prog_fd, &info, &info_len);
+	if (err) {
+		printf("can't get prog info - %s\n", strerror(errno));
+		return 1;
+	}
+	prog_id = info.id;
 
-	bpf_set_link_xdp_fd(ifindex, -1, xdp_flags);
+	poll_stats(map_fd, kill_after_s);
+	int_exit(0);
 
 	return 0;
 }

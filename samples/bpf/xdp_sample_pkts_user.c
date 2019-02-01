@@ -24,25 +24,49 @@ static int pmu_fds[MAX_CPUS], if_idx;
 static struct perf_event_mmap_page *headers[MAX_CPUS];
 static char *if_name;
 static __u32 xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST;
+static __u32 prog_id;
 
 static int do_attach(int idx, int fd, const char *name)
 {
+	struct bpf_prog_info info = {};
+	__u32 info_len = sizeof(info);
 	int err;
 
 	err = bpf_set_link_xdp_fd(idx, fd, xdp_flags);
-	if (err < 0)
+	if (err < 0) {
 		printf("ERROR: failed to attach program to %s\n", name);
+		return err;
+	}
+
+	err = bpf_obj_get_info_by_fd(fd, &info, &info_len);
+	if (err) {
+		printf("can't get prog info - %s\n", strerror(errno));
+		return err;
+	}
+	prog_id = info.id;
 
 	return err;
 }
 
 static int do_detach(int idx, const char *name)
 {
-	int err;
+	__u32 curr_prog_id = 0;
+	int err = 0;
 
-	err = bpf_set_link_xdp_fd(idx, -1, 0);
-	if (err < 0)
-		printf("ERROR: failed to detach program from %s\n", name);
+	err = bpf_get_link_xdp_id(idx, &curr_prog_id, 0);
+	if (err) {
+		printf("bpf_get_link_xdp_id failed\n");
+		return err;
+	}
+	if (prog_id == curr_prog_id) {
+		err = bpf_set_link_xdp_fd(idx, -1, 0);
+		if (err < 0)
+			printf("ERROR: failed to detach prog from %s\n", name);
+	} else if (!curr_prog_id) {
+		printf("couldn't find a prog id on a %s\n", name);
+	} else {
+		printf("program on interface changed, not removing\n");
+	}
 
 	return err;
 }

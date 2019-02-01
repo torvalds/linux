@@ -76,6 +76,7 @@ static int opt_poll;
 static int opt_shared_packet_buffer;
 static int opt_interval = 1;
 static u32 opt_xdp_bind_flags;
+static __u32 prog_id;
 
 struct xdp_umem_uqueue {
 	u32 cached_prod;
@@ -631,9 +632,20 @@ static void *poller(void *arg)
 
 static void int_exit(int sig)
 {
+	__u32 curr_prog_id = 0;
+
 	(void)sig;
 	dump_stats();
-	bpf_set_link_xdp_fd(opt_ifindex, -1, opt_xdp_flags);
+	if (bpf_get_link_xdp_id(opt_ifindex, &curr_prog_id, opt_xdp_flags)) {
+		printf("bpf_get_link_xdp_id failed\n");
+		exit(EXIT_FAILURE);
+	}
+	if (prog_id == curr_prog_id)
+		bpf_set_link_xdp_fd(opt_ifindex, -1, opt_xdp_flags);
+	else if (!curr_prog_id)
+		printf("couldn't find a prog id on a given interface\n");
+	else
+		printf("program on interface changed, not removing\n");
 	exit(EXIT_SUCCESS);
 }
 
@@ -907,6 +919,8 @@ int main(int argc, char **argv)
 		.prog_type	= BPF_PROG_TYPE_XDP,
 	};
 	int prog_fd, qidconf_map, xsks_map;
+	struct bpf_prog_info info = {};
+	__u32 info_len = sizeof(info);
 	struct bpf_object *obj;
 	char xdp_filename[256];
 	struct bpf_map *map;
@@ -952,6 +966,13 @@ int main(int argc, char **argv)
 		fprintf(stderr, "ERROR: link set xdp fd failed\n");
 		exit(EXIT_FAILURE);
 	}
+
+	ret = bpf_obj_get_info_by_fd(prog_fd, &info, &info_len);
+	if (ret) {
+		printf("can't get prog info - %s\n", strerror(errno));
+		return 1;
+	}
+	prog_id = info.id;
 
 	ret = bpf_map_update_elem(qidconf_map, &key, &opt_queue, 0);
 	if (ret) {
