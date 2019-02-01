@@ -82,24 +82,47 @@ static struct platform_device vim2m_pdev = {
 struct vim2m_fmt {
 	u32	fourcc;
 	int	depth;
+	/* Types the format can be used for */
+	u32     types;
 };
 
 static struct vim2m_fmt formats[] = {
 	{
 		.fourcc	= V4L2_PIX_FMT_RGB565,  /* rrrrrggg gggbbbbb */
 		.depth	= 16,
+		.types  = MEM2MEM_CAPTURE | MEM2MEM_OUTPUT,
 	}, {
 		.fourcc	= V4L2_PIX_FMT_RGB565X, /* gggbbbbb rrrrrggg */
 		.depth	= 16,
+		.types  = MEM2MEM_CAPTURE | MEM2MEM_OUTPUT,
 	}, {
 		.fourcc	= V4L2_PIX_FMT_RGB24,
 		.depth	= 24,
+		.types  = MEM2MEM_CAPTURE | MEM2MEM_OUTPUT,
 	}, {
 		.fourcc	= V4L2_PIX_FMT_BGR24,
 		.depth	= 24,
+		.types  = MEM2MEM_CAPTURE | MEM2MEM_OUTPUT,
 	}, {
 		.fourcc	= V4L2_PIX_FMT_YUYV,
 		.depth	= 16,
+		.types  = MEM2MEM_CAPTURE | MEM2MEM_OUTPUT,
+	}, {
+		.fourcc	= V4L2_PIX_FMT_SBGGR8,
+		.depth	= 8,
+		.types  = MEM2MEM_CAPTURE,
+	}, {
+		.fourcc	= V4L2_PIX_FMT_SGBRG8,
+		.depth	= 8,
+		.types  = MEM2MEM_CAPTURE,
+	}, {
+		.fourcc	= V4L2_PIX_FMT_SGRBG8,
+		.depth	= 8,
+		.types  = MEM2MEM_CAPTURE,
+	}, {
+		.fourcc	= V4L2_PIX_FMT_SRGGB8,
+		.depth	= 8,
+		.types  = MEM2MEM_CAPTURE,
 	},
 };
 
@@ -208,7 +231,7 @@ static struct vim2m_q_data *get_q_data(struct vim2m_ctx *ctx,
 	(u8)(((__color) > 0xff) ? 0xff : (((__color) < 0) ? 0 : (__color)))
 
 static void copy_two_pixels(struct vim2m_fmt *in, struct vim2m_fmt *out,
-			    u8 **src, u8 **dst, bool reverse)
+			    u8 **src, u8 **dst, int ypos, bool reverse)
 {
 	u8 _r[2], _g[2], _b[2], *r, *g, *b;
 	int i, step;
@@ -379,7 +402,8 @@ static void copy_two_pixels(struct vim2m_fmt *in, struct vim2m_fmt *out,
 			*(*dst)++ = *r++;
 		}
 		return;
-	default: /* V4L2_PIX_FMT_YUYV */
+	case V4L2_PIX_FMT_YUYV:
+	default:
 	{
 		u8 y, y1, u, v;
 
@@ -399,6 +423,42 @@ static void copy_two_pixels(struct vim2m_fmt *in, struct vim2m_fmt *out,
 		*(*dst)++ = v;
 		return;
 	}
+	case V4L2_PIX_FMT_SBGGR8:
+		if (!(ypos & 1)) {
+			*(*dst)++ = *b;
+			*(*dst)++ = *++g;
+		} else {
+			*(*dst)++ = *g;
+			*(*dst)++ = *++r;
+		}
+		return;
+	case V4L2_PIX_FMT_SGBRG8:
+		if (!(ypos & 1)) {
+			*(*dst)++ = *g;
+			*(*dst)++ = *++b;
+		} else {
+			*(*dst)++ = *r;
+			*(*dst)++ = *++g;
+		}
+		return;
+	case V4L2_PIX_FMT_SGRBG8:
+		if (!(ypos & 1)) {
+			*(*dst)++ = *g;
+			*(*dst)++ = *++r;
+		} else {
+			*(*dst)++ = *b;
+			*(*dst)++ = *++g;
+		}
+		return;
+	case V4L2_PIX_FMT_SRGGB8:
+		if (!(ypos & 1)) {
+			*(*dst)++ = *r;
+			*(*dst)++ = *++g;
+		} else {
+			*(*dst)++ = *g;
+			*(*dst)++ = *++b;
+		}
+		return;
 	}
 }
 
@@ -409,7 +469,7 @@ static int device_process(struct vim2m_ctx *ctx,
 	struct vim2m_dev *dev = ctx->dev;
 	struct vim2m_q_data *q_data_in, *q_data_out;
 	u8 *p_in, *p, *p_out;
-	int width, height, bytesperline, x, y, start, end, step;
+	int width, height, bytesperline, x, y, y_out, start, end, step;
 	struct vim2m_fmt *in, *out;
 
 	q_data_in = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_OUTPUT);
@@ -443,13 +503,14 @@ static int device_process(struct vim2m_ctx *ctx,
 		end = height;
 		step = 1;
 	}
-	for (y = start; y != end; y += step) {
+	y_out = 0;
+	for (y = start; y != end; y += step, y_out++) {
 		p = p_in + (y * bytesperline);
 		if (ctx->mode & MEM2MEM_HFLIP)
 			p += bytesperline - (q_data_in->fmt->depth >> 3);
 
 		for (x = 0; x < width >> 1; x++)
-			copy_two_pixels(in, out, &p, &p_out,
+			copy_two_pixels(in, out, &p, &p_out, y_out,
 					ctx->mode & MEM2MEM_HFLIP);
 	}
 
@@ -563,11 +624,27 @@ static int vidioc_querycap(struct file *file, void *priv,
 
 static int enum_fmt(struct v4l2_fmtdesc *f, u32 type)
 {
+	int i, num;
 	struct vim2m_fmt *fmt;
 
-	if (f->index < NUM_FORMATS) {
+	num = 0;
+
+	for (i = 0; i < NUM_FORMATS; ++i) {
+		if (formats[i].types & type) {
+			/* index-th format of type type found ? */
+			if (num == f->index)
+				break;
+			/*
+			 * Correct type but haven't reached our index yet,
+			 * just increment per-type index
+			 */
+			++num;
+		}
+	}
+
+	if (i < NUM_FORMATS) {
 		/* Format found */
-		fmt = &formats[f->index];
+		fmt = &formats[i];
 		f->pixelformat = fmt->fourcc;
 		return 0;
 	}
@@ -658,6 +735,12 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 		f->fmt.pix.pixelformat = formats[0].fourcc;
 		fmt = find_format(f);
 	}
+	if (!(fmt->types & MEM2MEM_CAPTURE)) {
+		v4l2_err(&ctx->dev->v4l2_dev,
+			 "Fourcc format (0x%08x) invalid.\n",
+			 f->fmt.pix.pixelformat);
+		return -EINVAL;
+	}
 	f->fmt.pix.colorspace = ctx->colorspace;
 	f->fmt.pix.xfer_func = ctx->xfer_func;
 	f->fmt.pix.ycbcr_enc = ctx->ycbcr_enc;
@@ -670,11 +753,18 @@ static int vidioc_try_fmt_vid_out(struct file *file, void *priv,
 				  struct v4l2_format *f)
 {
 	struct vim2m_fmt *fmt;
+	struct vim2m_ctx *ctx = file2ctx(file);
 
 	fmt = find_format(f);
 	if (!fmt) {
 		f->fmt.pix.pixelformat = formats[0].fourcc;
 		fmt = find_format(f);
+	}
+	if (!(fmt->types & MEM2MEM_OUTPUT)) {
+		v4l2_err(&ctx->dev->v4l2_dev,
+			 "Fourcc format (0x%08x) invalid.\n",
+			 f->fmt.pix.pixelformat);
+		return -EINVAL;
 	}
 	if (!f->fmt.pix.colorspace)
 		f->fmt.pix.colorspace = V4L2_COLORSPACE_REC709;
