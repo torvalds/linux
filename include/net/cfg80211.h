@@ -836,6 +836,17 @@ struct cfg80211_bitrate_mask {
 };
 
 /**
+ * enum cfg80211_ap_settings_flags - AP settings flags
+ *
+ * Used by cfg80211_ap_settings
+ *
+ * @AP_SETTINGS_EXTERNAL_AUTH_SUPPORT: AP supports external authentication
+ */
+enum cfg80211_ap_settings_flags {
+	AP_SETTINGS_EXTERNAL_AUTH_SUPPORT = BIT(0),
+};
+
+/**
  * struct cfg80211_ap_settings - AP configuration
  *
  * Used to configure an AP interface.
@@ -865,6 +876,7 @@ struct cfg80211_bitrate_mask {
  * @he_cap: HE capabilities (or %NULL if HE isn't enabled)
  * @ht_required: stations must support HT
  * @vht_required: stations must support VHT
+ * @flags: flags, as defined in enum cfg80211_ap_settings_flags
  */
 struct cfg80211_ap_settings {
 	struct cfg80211_chan_def chandef;
@@ -890,6 +902,7 @@ struct cfg80211_ap_settings {
 	const struct ieee80211_vht_cap *vht_cap;
 	const struct ieee80211_he_cap_elem *he_cap;
 	bool ht_required, vht_required;
+	u32 flags;
 };
 
 /**
@@ -1003,6 +1016,7 @@ enum station_parameters_apply_mask {
  * @support_p2p_ps: information if station supports P2P PS mechanism
  * @he_capa: HE capabilities of station
  * @he_capa_len: the length of the HE capabilities
+ * @airtime_weight: airtime scheduler weight for this station
  */
 struct station_parameters {
 	const u8 *supported_rates;
@@ -1032,6 +1046,7 @@ struct station_parameters {
 	int support_p2p_ps;
 	const struct ieee80211_he_cap_elem *he_capa;
 	u8 he_capa_len;
+	u16 airtime_weight;
 };
 
 /**
@@ -1300,6 +1315,8 @@ struct cfg80211_tid_stats {
  *	from this peer
  * @connected_to_gate: true if mesh STA has a path to mesh gate
  * @rx_duration: aggregate PPDU duration(usecs) for all the frames from a peer
+ * @tx_duration: aggregate PPDU duration(usecs) for all the frames to a peer
+ * @airtime_weight: current airtime scheduling weight
  * @pertid: per-TID statistics, see &struct cfg80211_tid_stats, using the last
  *	(IEEE80211_NUM_TIDS) index for MSDUs not encapsulated in QoS-MPDUs.
  *	Note that this doesn't use the @filled bit, but is used if non-NULL.
@@ -1350,14 +1367,17 @@ struct station_info {
 
 	u32 expected_throughput;
 
-	u64 rx_beacon;
+	u64 tx_duration;
 	u64 rx_duration;
+	u64 rx_beacon;
 	u8 rx_beacon_signal_avg;
 	u8 connected_to_gate;
 
 	struct cfg80211_tid_stats *pertid;
 	s8 ack_signal;
 	s8 avg_ack_signal;
+
+	u16 airtime_weight;
 
 	u32 rx_mpdu_count;
 	u32 fcs_err_count;
@@ -1422,6 +1442,8 @@ enum monitor_flags {
  * @MPATH_INFO_DISCOVERY_TIMEOUT: @discovery_timeout filled
  * @MPATH_INFO_DISCOVERY_RETRIES: @discovery_retries filled
  * @MPATH_INFO_FLAGS: @flags filled
+ * @MPATH_INFO_HOP_COUNT: @hop_count filled
+ * @MPATH_INFO_PATH_CHANGE: @path_change_count filled
  */
 enum mpath_info_flags {
 	MPATH_INFO_FRAME_QLEN		= BIT(0),
@@ -1431,6 +1453,8 @@ enum mpath_info_flags {
 	MPATH_INFO_DISCOVERY_TIMEOUT	= BIT(4),
 	MPATH_INFO_DISCOVERY_RETRIES	= BIT(5),
 	MPATH_INFO_FLAGS		= BIT(6),
+	MPATH_INFO_HOP_COUNT		= BIT(7),
+	MPATH_INFO_PATH_CHANGE		= BIT(8),
 };
 
 /**
@@ -1450,6 +1474,8 @@ enum mpath_info_flags {
  *	This number should increase every time the list of mesh paths
  *	changes, i.e. when a station is added or removed, so that
  *	userspace can tell whether it got a consistent snapshot.
+ * @hop_count: hops to destination
+ * @path_change_count: total number of path changes to destination
  */
 struct mpath_info {
 	u32 filled;
@@ -1460,6 +1486,8 @@ struct mpath_info {
 	u32 discovery_timeout;
 	u8 discovery_retries;
 	u8 flags;
+	u8 hop_count;
+	u32 path_change_count;
 
 	int generation;
 };
@@ -2391,6 +2419,8 @@ enum wiphy_params_flags {
 	WIPHY_PARAM_TXQ_QUANTUM		= 1 << 8,
 };
 
+#define IEEE80211_DEFAULT_AIRTIME_WEIGHT	256
+
 /**
  * struct cfg80211_pmksa - PMK Security Association
  *
@@ -2815,6 +2845,7 @@ struct cfg80211_pmk_conf {
  *	use %WLAN_STATUS_UNSPECIFIED_FAILURE if user space cannot give you
  *	the real status code for failures. Used only for the authentication
  *	response command interface (user space to driver).
+ * @pmkid: The identifier to refer a PMKSA.
  */
 struct cfg80211_external_auth_params {
 	enum nl80211_external_auth_action action;
@@ -2822,6 +2853,7 @@ struct cfg80211_external_auth_params {
 	struct cfg80211_ssid ssid;
 	unsigned int key_mgmt_suite;
 	u16 status;
+	const u8 *pmkid;
 };
 
 /**
@@ -4112,6 +4144,8 @@ struct cfg80211_pmsr_capabilities {
  * @signal_type: signal type reported in &struct cfg80211_bss.
  * @cipher_suites: supported cipher suites
  * @n_cipher_suites: number of supported cipher suites
+ * @akm_suites: supported AKM suites
+ * @n_akm_suites: number of supported AKM suites
  * @retry_short: Retry limit for short frames (dot11ShortRetryLimit)
  * @retry_long: Retry limit for long frames (dot11LongRetryLimit)
  * @frag_threshold: Fragmentation threshold (dot11FragmentationThreshold);
@@ -4309,6 +4343,9 @@ struct wiphy {
 
 	int n_cipher_suites;
 	const u32 *cipher_suites;
+
+	int n_akm_suites;
+	const u32 *akm_suites;
 
 	u8 retry_short;
 	u8 retry_long;
@@ -4573,6 +4610,17 @@ struct cfg80211_cqm_config;
  * @mesh_id_len: (private) Used by the internal configuration code
  * @mesh_id_up_len: (private) Used by the internal configuration code
  * @wext: (private) Used by the internal wireless extensions compat code
+ * @wext.ibss: (private) IBSS data part of wext handling
+ * @wext.connect: (private) connection handling data
+ * @wext.keys: (private) (WEP) key data
+ * @wext.ie: (private) extra elements for association
+ * @wext.ie_len: (private) length of extra elements
+ * @wext.bssid: (private) selected network BSSID
+ * @wext.ssid: (private) selected network SSID
+ * @wext.default_key: (private) selected default key index
+ * @wext.default_mgmt_key: (private) selected default management key index
+ * @wext.prev_bssid: (private) previous BSSID for reassociation
+ * @wext.prev_bssid_valid: (private) previous BSSID validity
  * @use_4addr: indicates 4addr mode is used on this interface, must be
  *	set by driver (if supported) on add_interface BEFORE registering the
  *	netdev and may otherwise be used by driver read-only, will be update
@@ -4672,7 +4720,8 @@ struct wireless_dev {
 		struct cfg80211_cached_keys *keys;
 		const u8 *ie;
 		size_t ie_len;
-		u8 bssid[ETH_ALEN], prev_bssid[ETH_ALEN];
+		u8 bssid[ETH_ALEN];
+		u8 prev_bssid[ETH_ALEN];
 		u8 ssid[IEEE80211_MAX_SSID_LEN];
 		s8 default_key, default_mgmt_key;
 		bool prev_bssid_valid;
@@ -5568,7 +5617,7 @@ void cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid,
  * @dev: network device
  * @macaddr: the MAC address of the new candidate
  * @ie: information elements advertised by the peer candidate
- * @ie_len: lenght of the information elements buffer
+ * @ie_len: length of the information elements buffer
  * @gfp: allocation flags
  *
  * This function notifies cfg80211 that the mesh peer candidate has been

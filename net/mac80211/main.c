@@ -478,6 +478,8 @@ static const struct ieee80211_ht_cap mac80211_ht_capa_mod_mask = {
 				IEEE80211_HT_CAP_MAX_AMSDU |
 				IEEE80211_HT_CAP_SGI_20 |
 				IEEE80211_HT_CAP_SGI_40 |
+				IEEE80211_HT_CAP_TX_STBC |
+				IEEE80211_HT_CAP_RX_STBC |
 				IEEE80211_HT_CAP_LDPC_CODING |
 				IEEE80211_HT_CAP_40MHZ_INTOLERANT),
 	.mcs = {
@@ -662,6 +664,12 @@ struct ieee80211_hw *ieee80211_alloc_hw_nm(size_t priv_data_len,
 	spin_lock_init(&local->filter_lock);
 	spin_lock_init(&local->rx_path_lock);
 	spin_lock_init(&local->queue_stop_reason_lock);
+
+	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
+		INIT_LIST_HEAD(&local->active_txqs[i]);
+		spin_lock_init(&local->active_txq_lock[i]);
+	}
+	local->airtime_flags = AIRTIME_USE_TX | AIRTIME_USE_RX;
 
 	INIT_LIST_HEAD(&local->chanctx_list);
 	mutex_init(&local->chanctx_mtx);
@@ -1147,6 +1155,9 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 
 	if (!local->hw.max_nan_de_entries)
 		local->hw.max_nan_de_entries = IEEE80211_MAX_NAN_INSTANCE_ID;
+
+	if (!local->hw.weight_multiplier)
+		local->hw.weight_multiplier = 1;
 
 	result = ieee80211_wep_init(local);
 	if (result < 0)

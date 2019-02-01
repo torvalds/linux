@@ -300,6 +300,7 @@ void ieee80211s_update_metric(struct ieee80211_local *local,
 {
 	struct ieee80211_tx_info *txinfo = st->info;
 	int failed;
+	struct rate_info rinfo;
 
 	failed = !(txinfo->flags & IEEE80211_TX_STAT_ACK);
 
@@ -310,12 +311,15 @@ void ieee80211s_update_metric(struct ieee80211_local *local,
 	if (ewma_mesh_fail_avg_read(&sta->mesh->fail_avg) >
 			LINK_FAIL_THRESH)
 		mesh_plink_broken(sta);
+
+	sta_set_rate_info_tx(sta, &sta->tx_stats.last_rate, &rinfo);
+	ewma_mesh_tx_rate_avg_add(&sta->mesh->tx_rate_avg,
+				  cfg80211_calculate_bitrate(&rinfo));
 }
 
 static u32 airtime_link_metric_get(struct ieee80211_local *local,
 				   struct sta_info *sta)
 {
-	struct rate_info rinfo;
 	/* This should be adjusted for each device */
 	int device_constant = 1 << ARITH_SHIFT;
 	int test_frame_len = TEST_FRAME_LEN << ARITH_SHIFT;
@@ -339,8 +343,7 @@ static u32 airtime_link_metric_get(struct ieee80211_local *local,
 		if (fail_avg > LINK_FAIL_THRESH)
 			return MAX_METRIC;
 
-		sta_set_rate_info_tx(sta, &sta->tx_stats.last_rate, &rinfo);
-		rate = cfg80211_calculate_bitrate(&rinfo);
+		rate = ewma_mesh_tx_rate_avg_read(&sta->mesh->tx_rate_avg);
 		if (WARN_ON(!rate))
 			return MAX_METRIC;
 
@@ -386,6 +389,7 @@ static u32 hwmp_route_info_get(struct ieee80211_sub_if_data *sdata,
 	unsigned long orig_lifetime, exp_time;
 	u32 last_hop_metric, new_metric;
 	bool process = true;
+	u8 hopcount;
 
 	rcu_read_lock();
 	sta = sta_info_get(sdata, mgmt->sa);
@@ -404,6 +408,7 @@ static u32 hwmp_route_info_get(struct ieee80211_sub_if_data *sdata,
 		orig_sn = PREQ_IE_ORIG_SN(hwmp_ie);
 		orig_lifetime = PREQ_IE_LIFETIME(hwmp_ie);
 		orig_metric = PREQ_IE_METRIC(hwmp_ie);
+		hopcount = PREQ_IE_HOPCOUNT(hwmp_ie) + 1;
 		break;
 	case MPATH_PREP:
 		/* Originator here refers to the MP that was the target in the
@@ -415,6 +420,7 @@ static u32 hwmp_route_info_get(struct ieee80211_sub_if_data *sdata,
 		orig_sn = PREP_IE_TARGET_SN(hwmp_ie);
 		orig_lifetime = PREP_IE_LIFETIME(hwmp_ie);
 		orig_metric = PREP_IE_METRIC(hwmp_ie);
+		hopcount = PREP_IE_HOPCOUNT(hwmp_ie) + 1;
 		break;
 	default:
 		rcu_read_unlock();
@@ -441,7 +447,10 @@ static u32 hwmp_route_info_get(struct ieee80211_sub_if_data *sdata,
 			    (mpath->flags & MESH_PATH_SN_VALID)) {
 				if (SN_GT(mpath->sn, orig_sn) ||
 				    (mpath->sn == orig_sn &&
-				     new_metric >= mpath->metric)) {
+				     (rcu_access_pointer(mpath->next_hop) !=
+						      sta ?
+					      mult_frac(new_metric, 10, 9) :
+					      new_metric) >= mpath->metric)) {
 					process = false;
 					fresh_info = false;
 				}
@@ -476,12 +485,15 @@ static u32 hwmp_route_info_get(struct ieee80211_sub_if_data *sdata,
 		}
 
 		if (fresh_info) {
+			if (rcu_access_pointer(mpath->next_hop) != sta)
+				mpath->path_change_count++;
 			mesh_path_assign_nexthop(mpath, sta);
 			mpath->flags |= MESH_PATH_SN_VALID;
 			mpath->metric = new_metric;
 			mpath->sn = orig_sn;
 			mpath->exp_time = time_after(mpath->exp_time, exp_time)
 					  ?  mpath->exp_time : exp_time;
+			mpath->hop_count = hopcount;
 			mesh_path_activate(mpath);
 			spin_unlock_bh(&mpath->state_lock);
 			ewma_mesh_fail_avg_init(&sta->mesh->fail_avg);
@@ -506,8 +518,10 @@ static u32 hwmp_route_info_get(struct ieee80211_sub_if_data *sdata,
 		if (mpath) {
 			spin_lock_bh(&mpath->state_lock);
 			if ((mpath->flags & MESH_PATH_FIXED) ||
-				((mpath->flags & MESH_PATH_ACTIVE) &&
-					(last_hop_metric > mpath->metric)))
+			    ((mpath->flags & MESH_PATH_ACTIVE) &&
+			     ((rcu_access_pointer(mpath->next_hop) != sta ?
+				       mult_frac(last_hop_metric, 10, 9) :
+				       last_hop_metric) > mpath->metric)))
 				fresh_info = false;
 		} else {
 			mpath = mesh_path_add(sdata, ta);
@@ -519,10 +533,13 @@ static u32 hwmp_route_info_get(struct ieee80211_sub_if_data *sdata,
 		}
 
 		if (fresh_info) {
+			if (rcu_access_pointer(mpath->next_hop) != sta)
+				mpath->path_change_count++;
 			mesh_path_assign_nexthop(mpath, sta);
 			mpath->metric = last_hop_metric;
 			mpath->exp_time = time_after(mpath->exp_time, exp_time)
 					  ?  mpath->exp_time : exp_time;
+			mpath->hop_count = 1;
 			mesh_path_activate(mpath);
 			spin_unlock_bh(&mpath->state_lock);
 			ewma_mesh_fail_avg_init(&sta->mesh->fail_avg);

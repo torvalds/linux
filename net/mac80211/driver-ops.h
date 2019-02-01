@@ -1173,6 +1173,13 @@ static inline void drv_wake_tx_queue(struct ieee80211_local *local,
 	local->ops->wake_tx_queue(&local->hw, &txq->txq);
 }
 
+static inline void schedule_and_wake_txq(struct ieee80211_local *local,
+					 struct txq_info *txqi)
+{
+	ieee80211_schedule_txq(&local->hw, &txqi->txq);
+	drv_wake_tx_queue(local, txqi);
+}
+
 static inline int drv_can_aggregate_in_amsdu(struct ieee80211_local *local,
 					     struct sk_buff *head,
 					     struct sk_buff *skb)
