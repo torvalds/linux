@@ -188,5 +188,6 @@ bool xfs_internal_inum(struct xfs_mount *mp, xfs_ino_t ino);
 bool xfs_verify_dir_ino(struct xfs_mount *mp, xfs_ino_t ino);
 bool xfs_verify_rtbno(struct xfs_mount *mp, xfs_rtblock_t rtbno);
 bool xfs_verify_icount(struct xfs_mount *mp, unsigned long long icount);
+bool xfs_verify_dablk(struct xfs_mount *mp, xfs_fileoff_t off);
 
 #endif	/* __XFS_TYPES_H__ */
