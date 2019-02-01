@@ -71,6 +71,15 @@
 
 #define TEMP_SPARE0		0x0f0
 
+#define TEMP_ADCPNP0_1          0x148
+#define TEMP_ADCPNP1_1          0x14c
+#define TEMP_ADCPNP2_1          0x150
+#define TEMP_MSR0_1             0x190
+#define TEMP_MSR1_1             0x194
+#define TEMP_MSR2_1             0x198
+#define TEMP_ADCPNP3_1          0x1b4
+#define TEMP_MSR3_1             0x1B8
+
 #define PTPCORESEL		0x400
 
 #define TEMP_MONCTL1_PERIOD_UNIT(x)	((x) & 0x3ff)
@@ -113,7 +122,8 @@
 
 /*
  * Layout of the fuses providing the calibration data
- * These macros could be used for MT8173, MT2701, and MT2712.
+ * These macros could be used for MT8183, MT8173, MT2701, and MT2712.
+ * MT8183 has 6 sensors and needs 6 VTS calibration data.
  * MT8173 has 5 sensors and needs 5 VTS calibration data.
  * MT2701 has 3 sensors and needs 3 VTS calibration data.
  * MT2712 has 4 sensors and needs 4 VTS calibration data.
@@ -124,6 +134,7 @@
 #define CALIB_BUF0_VTS_TS2(x)		(((x) >> 8) & 0x1ff)
 #define CALIB_BUF1_VTS_TS3(x)		(((x) >> 0) & 0x1ff)
 #define CALIB_BUF2_VTS_TS4(x)		(((x) >> 23) & 0x1ff)
+#define CALIB_BUF2_VTS_TS5(x)		(((x) >> 5) & 0x1ff)
 #define CALIB_BUF2_VTS_TSABB(x)		(((x) >> 14) & 0x1ff)
 #define CALIB_BUF0_DEGC_CALI(x)		(((x) >> 1) & 0x3f)
 #define CALIB_BUF0_O_SLOPE(x)		(((x) >> 26) & 0x3f)
@@ -135,6 +146,7 @@ enum {
 	VTS2,
 	VTS3,
 	VTS4,
+	VTS5,
 	VTSABB,
 	MAX_NUM_VTS,
 };
@@ -190,6 +202,29 @@ enum {
 /* The calibration coefficient of sensor  */
 #define MT7622_CALIBRATION	165
 
+/* MT8183 thermal sensors */
+#define MT8183_TS1	0
+#define MT8183_TS2	1
+#define MT8183_TS3	2
+#define MT8183_TS4	3
+#define MT8183_TS5	4
+#define MT8183_TSABB	5
+
+/* AUXADC channel  is used for the temperature sensors */
+#define MT8183_TEMP_AUXADC_CHANNEL	11
+
+/* The total number of temperature sensors in the MT8183 */
+#define MT8183_NUM_SENSORS	6
+
+/* The number of sensing points per bank */
+#define MT8183_NUM_SENSORS_PER_ZONE	 6
+
+/* The number of controller in the MT8183 */
+#define MT8183_NUM_CONTROLLER		2
+
+/* The calibration coefficient of sensor  */
+#define MT8183_CALIBRATION	153
+
 struct mtk_thermal;
 
 struct thermal_bank_cfg {
@@ -234,6 +269,27 @@ struct mtk_thermal {
 
 	const struct mtk_thermal_data *conf;
 	struct mtk_thermal_bank banks[];
+};
+
+/* MT8183 thermal sensor data */
+static const int mt8183_bank_data[MT8183_NUM_SENSORS] = {
+	MT8183_TS1, MT8183_TS2, MT8183_TS3, MT8183_TS4, MT8183_TS5, MT8183_TSABB
+};
+
+static const int mt8183_msr[MT8183_NUM_SENSORS_PER_ZONE] = {
+	TEMP_MSR0_1, TEMP_MSR1_1, TEMP_MSR2_1, TEMP_MSR1, TEMP_MSR0, TEMP_MSR3_1
+};
+
+static const int mt8183_adcpnp[MT8183_NUM_SENSORS_PER_ZONE] = {
+	TEMP_ADCPNP0_1, TEMP_ADCPNP1_1, TEMP_ADCPNP2_1,
+	TEMP_ADCPNP1, TEMP_ADCPNP0, TEMP_ADCPNP3_1
+};
+
+static const int mt8183_mux_values[MT8183_NUM_SENSORS] = { 0, 1, 2, 3, 4, 0 };
+static const int mt8183_tc_offset[MT8183_NUM_CONTROLLER] = {0x0, 0x100};
+
+static const int mt8183_vts_index[MT8183_NUM_SENSORS] = {
+	VTS1, VTS2, VTS3, VTS4, VTS5, VTSABB
 };
 
 /* MT8173 thermal sensor data */
@@ -431,6 +487,39 @@ static const struct mtk_thermal_data mt7622_thermal_data = {
 	.msr = mt7622_msr,
 	.adcpnp = mt7622_adcpnp,
 	.sensor_mux_values = mt7622_mux_values,
+};
+
+/**
+ * The MT8183 thermal controller has one bank for the current SW framework.
+ * The MT8183 has a total of 6 temperature sensors.
+ * There are two thermal controller to control the six sensor.
+ * The first one bind 2 sensor, and the other bind 4 sensors.
+ * The thermal core only gets the maximum temperature of all sensor, so
+ * the bank concept wouldn't be necessary here. However, the SVS (Smart
+ * Voltage Scaling) unit makes its decisions based on the same bank
+ * data, and this indeed needs the temperatures of the individual banks
+ * for making better decisions.
+ */
+
+static const struct mtk_thermal_data mt8183_thermal_data = {
+	.auxadc_channel = MT8183_TEMP_AUXADC_CHANNEL,
+	.num_banks = MT8183_NUM_SENSORS_PER_ZONE,
+	.num_sensors = MT8183_NUM_SENSORS,
+	.vts_index = mt8183_vts_index,
+	.cali_val = MT8183_CALIBRATION,
+	.num_controller = MT8183_NUM_CONTROLLER,
+	.controller_offset = mt8183_tc_offset,
+	.need_switch_bank = false,
+	.bank_data = {
+		{
+			.num_sensors = 6,
+			.sensors = mt8183_bank_data,
+		},
+	},
+
+	.msr = mt8183_msr,
+	.adcpnp = mt8183_adcpnp,
+	.sensor_mux_values = mt8183_mux_values,
 };
 
 /**
@@ -726,6 +815,9 @@ static int mtk_thermal_get_calibration_data(struct device *dev,
 			case VTS4:
 				mt->vts[VTS4] = CALIB_BUF2_VTS_TS4(buf[2]);
 				break;
+			case VTS5:
+				mt->vts[VTS5] = CALIB_BUF2_VTS_TS5(buf[2]);
+				break;
 			case VTSABB:
 				mt->vts[VTSABB] = CALIB_BUF2_VTS_TSABB(buf[2]);
 				break;
@@ -766,6 +858,10 @@ static const struct of_device_id mtk_thermal_of_match[] = {
 	{
 		.compatible = "mediatek,mt7622-thermal",
 		.data = (void *)&mt7622_thermal_data,
+	},
+	{
+		.compatible = "mediatek,mt8183-thermal",
+		.data = (void *)&mt8183_thermal_data,
 	}, {
 	},
 };
@@ -898,6 +994,7 @@ static struct platform_driver mtk_thermal_driver = {
 
 module_platform_driver(mtk_thermal_driver);
 
+MODULE_AUTHOR("Michael Kao <michael.kao@mediatek.com>");
 MODULE_AUTHOR("Louis Yu <louis.yu@mediatek.com>");
 MODULE_AUTHOR("Dawei Chien <dawei.chien@mediatek.com>");
 MODULE_AUTHOR("Sascha Hauer <s.hauer@pengutronix.de>");
