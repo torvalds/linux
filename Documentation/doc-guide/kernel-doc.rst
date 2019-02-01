@@ -517,4 +517,17 @@ How to use kernel-doc to generate man pages
 If you just want to use kernel-doc to generate man pages you can do this
 from the kernel git tree::
 
-  $ scripts/kernel-doc -man $(git grep -l '/\*\*' -- :^Documentation :^tools) | scripts/split-man.pl /tmp/man
+  $ scripts/kernel-doc -man \
+    $(git grep -l '/\*\*' -- :^Documentation :^tools) \
+    | scripts/split-man.pl /tmp/man
+
+Some older versions of git do not support some of the variants of syntax for
+path exclusion.  One of the following commands may work for those versions::
+
+  $ scripts/kernel-doc -man \
+    $(git grep -l '/\*\*' -- . ':!Documentation' ':!tools') \
+    | scripts/split-man.pl /tmp/man
+
+  $ scripts/kernel-doc -man \
+    $(git grep -l '/\*\*' -- . ":(exclude)Documentation" ":(exclude)tools") \
+    | scripts/split-man.pl /tmp/man
