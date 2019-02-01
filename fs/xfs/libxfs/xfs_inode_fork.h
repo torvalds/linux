@@ -14,7 +14,7 @@ struct xfs_dinode;
  */
 struct xfs_ifork {
 	int			if_bytes;	/* bytes in if_u1 */
-	unsigned int		if_seq;		/* cow fork mod counter */
+	unsigned int		if_seq;		/* fork mod counter */
 	struct xfs_btree_block	*if_broot;	/* file's incore btree root */
 	short			if_broot_bytes;	/* bytes allocated for root */
 	unsigned char		if_flags;	/* per-fork flags */
