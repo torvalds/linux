@@ -16,7 +16,7 @@
 ##
 ##
 ifeq ($(ARCH),x86)
-#obj-y                         += vbox/
+obj-y                         += vbox/
 endif
 ##
 ##
