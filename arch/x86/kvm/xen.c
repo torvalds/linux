@@ -135,10 +135,11 @@ int kvm_xen_vcpu_set_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 					      &vcpu->arch.xen.vcpu_info_cache,
 					      data->u.gpa,
 					      sizeof(struct vcpu_info));
-		if (!r)
+		if (!r) {
 			vcpu->arch.xen.vcpu_info_set = true;
+			kvm_make_request(KVM_REQ_CLOCK_UPDATE, vcpu);
+		}
 		break;
-
 
 	default:
 		break;
