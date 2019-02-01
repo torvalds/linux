@@ -2297,11 +2297,14 @@ static bool fill_plane_dcc_attributes(struct amdgpu_device *adev,
 				      uint64_t info)
 {
 	struct dc *dc = adev->dm.dc;
-	struct dc_dcc_surface_param input = {0};
-	struct dc_surface_dcc_cap output = {0};
+	struct dc_dcc_surface_param input;
+	struct dc_surface_dcc_cap output;
 	uint32_t offset = AMDGPU_TILING_GET(info, DCC_OFFSET_256B);
 	uint32_t i64b = AMDGPU_TILING_GET(info, DCC_INDEPENDENT_64B) != 0;
 	uint64_t dcc_address;
+
+	memset(&input, 0, sizeof(input));
+	memset(&output, 0, sizeof(output));
 
 	if (!offset)
 		return false;
