@@ -357,7 +357,8 @@ xfs_buf_verifier_error(
 	fa = failaddr ? failaddr : __return_address;
 	__xfs_buf_ioerror(bp, error, fa);
 
-	xfs_alert(mp, "Metadata %s detected at %pS, %s block 0x%llx %s",
+	xfs_alert_tag(mp, XFS_PTAG_VERIFIER_ERROR,
+		  "Metadata %s detected at %pS, %s block 0x%llx %s",
 		  bp->b_error == -EFSBADCRC ? "CRC error" : "corruption",
 		  fa, bp->b_ops->name, bp->b_bn, name);
 
