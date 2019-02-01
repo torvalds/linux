@@ -291,7 +291,7 @@ static int tqmx86_gpio_probe(struct platform_device *pdev)
 					   IRQ_TYPE_EDGE_BOTH);
 		if (ret) {
 			dev_err(dev, "Could not add irq chip\n");
-			goto out_remove;
+			goto out_pm_dis;
 		}
 
 		gpiochip_set_chained_irqchip(chip, irq_chip,
@@ -309,8 +309,6 @@ static int tqmx86_gpio_probe(struct platform_device *pdev)
 
 	return 0;
 
-out_remove:
-	gpiochip_remove(&gpio->chip);
 out_pm_dis:
 	pm_runtime_disable(&pdev->dev);
 
