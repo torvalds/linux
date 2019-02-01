@@ -26,6 +26,7 @@
 struct vic_config {
 	const char *firmware;
 	unsigned int version;
+	bool supports_sid;
 };
 
 struct vic {
@@ -104,6 +105,22 @@ static int vic_boot(struct vic *vic)
 
 	if (vic->booted)
 		return 0;
+
+	if (vic->config->supports_sid) {
+		struct iommu_fwspec *spec = dev_iommu_fwspec_get(vic->dev);
+		u32 value;
+
+		value = TRANSCFG_ATT(1, TRANSCFG_SID_FALCON) |
+			TRANSCFG_ATT(0, TRANSCFG_SID_HW);
+		vic_writel(vic, value, VIC_TFBIF_TRANSCFG);
+
+		if (spec && spec->num_ids > 0) {
+			value = spec->ids[0] & 0xffff;
+
+			vic_writel(vic, value, VIC_THI_STREAMID0);
+			vic_writel(vic, value, VIC_THI_STREAMID1);
+		}
+	}
 
 	/* setup clockgating registers */
 	vic_writel(vic, CG_IDLE_CG_DLY_CNT(4) |
@@ -314,6 +331,7 @@ static const struct tegra_drm_client_ops vic_ops = {
 static const struct vic_config vic_t124_config = {
 	.firmware = NVIDIA_TEGRA_124_VIC_FIRMWARE,
 	.version = 0x40,
+	.supports_sid = false,
 };
 
 #define NVIDIA_TEGRA_210_VIC_FIRMWARE "nvidia/tegra210/vic04_ucode.bin"
@@ -321,6 +339,7 @@ static const struct vic_config vic_t124_config = {
 static const struct vic_config vic_t210_config = {
 	.firmware = NVIDIA_TEGRA_210_VIC_FIRMWARE,
 	.version = 0x21,
+	.supports_sid = false,
 };
 
 #define NVIDIA_TEGRA_186_VIC_FIRMWARE "nvidia/tegra186/vic04_ucode.bin"
@@ -328,6 +347,7 @@ static const struct vic_config vic_t210_config = {
 static const struct vic_config vic_t186_config = {
 	.firmware = NVIDIA_TEGRA_186_VIC_FIRMWARE,
 	.version = 0x18,
+	.supports_sid = true,
 };
 
 #define NVIDIA_TEGRA_194_VIC_FIRMWARE "nvidia/tegra194/vic.bin"
@@ -335,6 +355,7 @@ static const struct vic_config vic_t186_config = {
 static const struct vic_config vic_t194_config = {
 	.firmware = NVIDIA_TEGRA_194_VIC_FIRMWARE,
 	.version = 0x19,
+	.supports_sid = true,
 };
 
 static const struct of_device_id vic_match[] = {
