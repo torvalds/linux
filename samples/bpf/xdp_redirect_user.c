@@ -22,15 +22,16 @@
 #include <libgen.h>
 #include <sys/resource.h>
 
-#include "bpf_load.h"
 #include "bpf_util.h"
 #include <bpf/bpf.h>
+#include "bpf/libbpf.h"
 
 static int ifindex_in;
 static int ifindex_out;
 static bool ifindex_out_xdp_dummy_attached = true;
 
 static __u32 xdp_flags;
+static int rxcnt_map_fd;
 
 static void int_exit(int sig)
 {
@@ -53,7 +54,7 @@ static void poll_stats(int interval, int ifindex)
 		int i;
 
 		sleep(interval);
-		assert(bpf_map_lookup_elem(map_fd[1], &key, values) == 0);
+		assert(bpf_map_lookup_elem(rxcnt_map_fd, &key, values) == 0);
 		for (i = 0; i < nr_cpus; i++)
 			sum += (values[i] - prev[i]);
 		if (sum)
@@ -77,9 +78,16 @@ static void usage(const char *prog)
 int main(int argc, char **argv)
 {
 	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
+	struct bpf_prog_load_attr prog_load_attr = {
+		.prog_type	= BPF_PROG_TYPE_XDP,
+	};
+	struct bpf_program *prog, *dummy_prog;
+	int prog_fd, tx_port_map_fd, opt;
 	const char *optstr = "SN";
+	struct bpf_object *obj;
 	char filename[256];
-	int ret, opt, key = 0;
+	int dummy_prog_fd;
+	int ret, key = 0;
 
 	while ((opt = getopt(argc, argv, optstr)) != -1) {
 		switch (opt) {
@@ -110,24 +118,40 @@ int main(int argc, char **argv)
 	printf("input: %d output: %d\n", ifindex_in, ifindex_out);
 
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
+	prog_load_attr.file = filename;
 
-	if (load_bpf_file(filename)) {
-		printf("%s", bpf_log_buf);
+	if (bpf_prog_load_xattr(&prog_load_attr, &obj, &prog_fd))
+		return 1;
+
+	prog = bpf_program__next(NULL, obj);
+	dummy_prog = bpf_program__next(prog, obj);
+	if (!prog || !dummy_prog) {
+		printf("finding a prog in obj file failed\n");
+		return 1;
+	}
+	/* bpf_prog_load_xattr gives us the pointer to first prog's fd,
+	 * so we're missing only the fd for dummy prog
+	 */
+	dummy_prog_fd = bpf_program__fd(dummy_prog);
+	if (prog_fd < 0 || dummy_prog_fd < 0) {
+		printf("bpf_prog_load_xattr: %s\n", strerror(errno));
 		return 1;
 	}
 
-	if (!prog_fd[0]) {
-		printf("load_bpf_file: %s\n", strerror(errno));
+	tx_port_map_fd = bpf_object__find_map_fd_by_name(obj, "tx_port");
+	rxcnt_map_fd = bpf_object__find_map_fd_by_name(obj, "rxcnt");
+	if (tx_port_map_fd < 0 || rxcnt_map_fd < 0) {
+		printf("bpf_object__find_map_fd_by_name failed\n");
 		return 1;
 	}
 
-	if (bpf_set_link_xdp_fd(ifindex_in, prog_fd[0], xdp_flags) < 0) {
+	if (bpf_set_link_xdp_fd(ifindex_in, prog_fd, xdp_flags) < 0) {
 		printf("ERROR: link set xdp fd failed on %d\n", ifindex_in);
 		return 1;
 	}
 
 	/* Loading dummy XDP prog on out-device */
-	if (bpf_set_link_xdp_fd(ifindex_out, prog_fd[1],
+	if (bpf_set_link_xdp_fd(ifindex_out, dummy_prog_fd,
 			    (xdp_flags | XDP_FLAGS_UPDATE_IF_NOEXIST)) < 0) {
 		printf("WARN: link set xdp fd failed on %d\n", ifindex_out);
 		ifindex_out_xdp_dummy_attached = false;
@@ -137,7 +161,7 @@ int main(int argc, char **argv)
 	signal(SIGTERM, int_exit);
 
 	/* bpf redirect port */
-	ret = bpf_map_update_elem(map_fd[0], &key, &ifindex_out, 0);
+	ret = bpf_map_update_elem(tx_port_map_fd, &key, &ifindex_out, 0);
 	if (ret) {
 		perror("bpf_update_elem");
 		goto out;

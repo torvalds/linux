@@ -17,7 +17,7 @@
 #include <netinet/ether.h>
 #include <unistd.h>
 #include <time.h>
-#include "bpf_load.h"
+#include "bpf/libbpf.h"
 #include <bpf/bpf.h>
 #include "bpf_util.h"
 #include "xdp_tx_iptunnel_common.h"
@@ -26,6 +26,7 @@
 
 static int ifindex = -1;
 static __u32 xdp_flags = 0;
+static int rxcnt_map_fd;
 
 static void int_exit(int sig)
 {
@@ -53,7 +54,8 @@ static void poll_stats(unsigned int kill_after_s)
 		for (proto = 0; proto < nr_protos; proto++) {
 			__u64 sum = 0;
 
-			assert(bpf_map_lookup_elem(map_fd[0], &proto, values) == 0);
+			assert(bpf_map_lookup_elem(rxcnt_map_fd, &proto,
+						   values) == 0);
 			for (i = 0; i < nr_cpus; i++)
 				sum += (values[i] - prev[proto][i]);
 
@@ -138,15 +140,19 @@ static int parse_ports(const char *port_str, int *min_port, int *max_port)
 
 int main(int argc, char **argv)
 {
+	struct bpf_prog_load_attr prog_load_attr = {
+		.prog_type	= BPF_PROG_TYPE_XDP,
+	};
+	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
+	int min_port = 0, max_port = 0, vip2tnl_map_fd;
+	const char *optstr = "i:a:p:s:d:m:T:P:SNh";
 	unsigned char opt_flags[256] = {};
 	unsigned int kill_after_s = 0;
-	const char *optstr = "i:a:p:s:d:m:T:P:SNh";
-	int min_port = 0, max_port = 0;
 	struct iptnl_info tnl = {};
-	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
+	struct bpf_object *obj;
 	struct vip vip = {};
 	char filename[256];
-	int opt;
+	int opt, prog_fd;
 	int i;
 
 	tnl.family = AF_UNSPEC;
@@ -232,14 +238,20 @@ int main(int argc, char **argv)
 	}
 
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
+	prog_load_attr.file = filename;
 
-	if (load_bpf_file(filename)) {
-		printf("%s", bpf_log_buf);
+	if (bpf_prog_load_xattr(&prog_load_attr, &obj, &prog_fd))
+		return 1;
+
+	if (!prog_fd) {
+		printf("load_bpf_file: %s\n", strerror(errno));
 		return 1;
 	}
 
-	if (!prog_fd[0]) {
-		printf("load_bpf_file: %s\n", strerror(errno));
+	rxcnt_map_fd = bpf_object__find_map_fd_by_name(obj, "rxcnt");
+	vip2tnl_map_fd = bpf_object__find_map_fd_by_name(obj, "vip2tnl");
+	if (vip2tnl_map_fd < 0 || rxcnt_map_fd < 0) {
+		printf("bpf_object__find_map_fd_by_name failed\n");
 		return 1;
 	}
 
@@ -248,13 +260,14 @@ int main(int argc, char **argv)
 
 	while (min_port <= max_port) {
 		vip.dport = htons(min_port++);
-		if (bpf_map_update_elem(map_fd[1], &vip, &tnl, BPF_NOEXIST)) {
+		if (bpf_map_update_elem(vip2tnl_map_fd, &vip, &tnl,
+					BPF_NOEXIST)) {
 			perror("bpf_map_update_elem(&vip2tnl)");
 			return 1;
 		}
 	}
 
-	if (bpf_set_link_xdp_fd(ifindex, prog_fd[0], xdp_flags) < 0) {
+	if (bpf_set_link_xdp_fd(ifindex, prog_fd, xdp_flags) < 0) {
 		printf("link set xdp fd failed\n");
 		return 1;
 	}

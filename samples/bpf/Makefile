@@ -87,18 +87,18 @@ test_cgrp2_sock2-objs := bpf_load.o test_cgrp2_sock2.o
 xdp1-objs := xdp1_user.o
 # reuse xdp1 source intentionally
 xdp2-objs := xdp1_user.o
-xdp_router_ipv4-objs := bpf_load.o xdp_router_ipv4_user.o
+xdp_router_ipv4-objs := xdp_router_ipv4_user.o
 test_current_task_under_cgroup-objs := bpf_load.o $(CGROUP_HELPERS) \
 				       test_current_task_under_cgroup_user.o
 trace_event-objs := bpf_load.o trace_event_user.o $(TRACE_HELPERS)
 sampleip-objs := bpf_load.o sampleip_user.o $(TRACE_HELPERS)
 tc_l2_redirect-objs := bpf_load.o tc_l2_redirect_user.o
 lwt_len_hist-objs := bpf_load.o lwt_len_hist_user.o
-xdp_tx_iptunnel-objs := bpf_load.o xdp_tx_iptunnel_user.o
+xdp_tx_iptunnel-objs := xdp_tx_iptunnel_user.o
 test_map_in_map-objs := bpf_load.o test_map_in_map_user.o
 per_socket_stats_example-objs := cookie_uid_helper_example.o
-xdp_redirect-objs := bpf_load.o xdp_redirect_user.o
-xdp_redirect_map-objs := bpf_load.o xdp_redirect_map_user.o
+xdp_redirect-objs := xdp_redirect_user.o
+xdp_redirect_map-objs := xdp_redirect_map_user.o
 xdp_redirect_cpu-objs := bpf_load.o xdp_redirect_cpu_user.o
 xdp_monitor-objs := bpf_load.o xdp_monitor_user.o
 xdp_rxq_info-objs := xdp_rxq_info_user.o
