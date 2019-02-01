@@ -1372,6 +1372,7 @@
 			clock-names = "cpu_g", "pll_x", "pll_p", "dfll";
 			clock-latency = <300000>;
 			cpu-idle-states = <&CPU_SLEEP>;
+			next-level-cache = <&L2>;
 		};
 
 		cpu@1 {
@@ -1379,6 +1380,7 @@
 			compatible = "arm,cortex-a57";
 			reg = <1>;
 			cpu-idle-states = <&CPU_SLEEP>;
+			next-level-cache = <&L2>;
 		};
 
 		cpu@2 {
@@ -1386,6 +1388,7 @@
 			compatible = "arm,cortex-a57";
 			reg = <2>;
 			cpu-idle-states = <&CPU_SLEEP>;
+			next-level-cache = <&L2>;
 		};
 
 		cpu@3 {
@@ -1393,6 +1396,7 @@
 			compatible = "arm,cortex-a57";
 			reg = <3>;
 			cpu-idle-states = <&CPU_SLEEP>;
+			next-level-cache = <&L2>;
 		};
 
 		idle-states {
@@ -1408,6 +1412,10 @@
 				idle-state-name = "cpu-sleep";
 				status = "disabled";
 			};
+		};
+
+		L2: l2-cache {
+			compatible = "cache";
 		};
 	};
 
