@@ -7983,8 +7983,10 @@ int dev_change_xdp_fd(struct net_device *dev, struct netlink_ext_ack *extack,
 	query = flags & XDP_FLAGS_HW_MODE ? XDP_QUERY_PROG_HW : XDP_QUERY_PROG;
 
 	bpf_op = bpf_chk = ops->ndo_bpf;
-	if (!bpf_op && (flags & (XDP_FLAGS_DRV_MODE | XDP_FLAGS_HW_MODE)))
+	if (!bpf_op && (flags & (XDP_FLAGS_DRV_MODE | XDP_FLAGS_HW_MODE))) {
+		NL_SET_ERR_MSG(extack, "underlying driver does not support XDP in native mode");
 		return -EOPNOTSUPP;
+	}
 	if (!bpf_op || (flags & XDP_FLAGS_SKB_MODE))
 		bpf_op = generic_xdp_install;
 	if (bpf_op == bpf_chk)
@@ -7992,11 +7994,15 @@ int dev_change_xdp_fd(struct net_device *dev, struct netlink_ext_ack *extack,
 
 	if (fd >= 0) {
 		if (__dev_xdp_query(dev, bpf_chk, XDP_QUERY_PROG) ||
-		    __dev_xdp_query(dev, bpf_chk, XDP_QUERY_PROG_HW))
+		    __dev_xdp_query(dev, bpf_chk, XDP_QUERY_PROG_HW)) {
+			NL_SET_ERR_MSG(extack, "native and generic XDP can't be active at the same time");
 			return -EEXIST;
+		}
 		if ((flags & XDP_FLAGS_UPDATE_IF_NOEXIST) &&
-		    __dev_xdp_query(dev, bpf_op, query))
+		    __dev_xdp_query(dev, bpf_op, query)) {
+			NL_SET_ERR_MSG(extack, "XDP program already attached");
 			return -EBUSY;
+		}
 
 		prog = bpf_prog_get_type_dev(fd, BPF_PROG_TYPE_XDP,
 					     bpf_op == ops->ndo_bpf);
