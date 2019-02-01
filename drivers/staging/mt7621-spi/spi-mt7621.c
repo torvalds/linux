@@ -19,8 +19,6 @@
 #include <linux/reset.h>
 #include <linux/spi/spi.h>
 
-#define SPI_BPW_MASK(bits) BIT((bits) - 1)
-
 #define DRIVER_NAME			"spi-mt7621"
 /* in usec */
 #define RALINK_SPI_WAIT_MAX_LOOP	2000
