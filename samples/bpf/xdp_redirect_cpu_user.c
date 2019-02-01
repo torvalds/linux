@@ -51,7 +51,6 @@ static const struct option long_options[] = {
 	{"help",	no_argument,		NULL, 'h' },
 	{"dev",		required_argument,	NULL, 'd' },
 	{"skb-mode",	no_argument,		NULL, 'S' },
-	{"debug",	no_argument,		NULL, 'D' },
 	{"sec",		required_argument,	NULL, 's' },
 	{"prognum",	required_argument,	NULL, 'p' },
 	{"qsize",	required_argument,	NULL, 'q' },
@@ -563,7 +562,6 @@ int main(int argc, char **argv)
 	bool use_separators = true;
 	bool stress_mode = false;
 	char filename[256];
-	bool debug = false;
 	int added_cpus = 0;
 	int longindex = 0;
 	int interval = 2;
@@ -624,9 +622,6 @@ int main(int argc, char **argv)
 		case 'S':
 			xdp_flags |= XDP_FLAGS_SKB_MODE;
 			break;
-		case 'D':
-			debug = true;
-			break;
 		case 'x':
 			stress_mode = true;
 			break;
@@ -686,11 +681,6 @@ int main(int argc, char **argv)
 	if (bpf_set_link_xdp_fd(ifindex, prog_fd[prog_num], xdp_flags) < 0) {
 		fprintf(stderr, "link set xdp fd failed\n");
 		return EXIT_FAIL_XDP;
-	}
-
-	if (debug) {
-		printf("Debug-mode reading trace pipe (fix #define DEBUG)\n");
-		read_trace_pipe();
 	}
 
 	stats_poll(interval, use_separators, prog_num, stress_mode);
