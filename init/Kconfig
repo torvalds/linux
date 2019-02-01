@@ -825,7 +825,7 @@ config CGROUP_PIDS
 	  PIDs controller is designed to stop this from happening.
 
 	  It should be noted that organisational operations (such as attaching
-	  to a cgroup hierarchy will *not* be blocked by the PIDs controller),
+	  to a cgroup hierarchy) will *not* be blocked by the PIDs controller,
 	  since the PIDs limit only affects a process's ability to fork, not to
 	  attach to a cgroup.
 
