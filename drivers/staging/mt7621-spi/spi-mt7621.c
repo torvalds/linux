@@ -19,12 +19,13 @@
 #include <linux/reset.h>
 #include <linux/spi/spi.h>
 
-#define DRIVER_NAME			"spi-mt7621"
+#define DRIVER_NAME		"spi-mt7621"
+
 /* in usec */
-#define RALINK_SPI_WAIT_MAX_LOOP	2000
+#define RALINK_SPI_WAIT_MAX_LOOP 2000
 
 /* SPISTAT register bit field */
-#define SPISTAT_BUSY			BIT(0)
+#define SPISTAT_BUSY		BIT(0)
 
 #define MT7621_SPI_TRANS	0x00
 #define SPITRANS_BUSY		BIT(16)
@@ -186,6 +187,7 @@ static void mt7621_spi_read_half_duplex(struct mt7621_spi *rs,
 			*buf++ = val & 0xff;
 			val >>= 8;
 		}
+
 		rx_len -= i;
 	}
 }
@@ -279,6 +281,7 @@ static int mt7621_spi_transfer_one_message(struct spi_master *master,
 	mt7621_spi_flush(rs);
 
 	mt7621_spi_set_cs(spi, 0);
+
 msg_done:
 	m->status = status;
 	spi_finalize_current_message(master);
