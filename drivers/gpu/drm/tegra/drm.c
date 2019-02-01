@@ -136,11 +136,12 @@ static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 
 	if (tegra->domain) {
 		u64 carveout_start, carveout_end, gem_start, gem_end;
+		u64 dma_mask = dma_get_mask(&device->dev);
 		dma_addr_t start, end;
 		unsigned long order;
 
-		start = tegra->domain->geometry.aperture_start;
-		end = tegra->domain->geometry.aperture_end;
+		start = tegra->domain->geometry.aperture_start & dma_mask;
+		end = tegra->domain->geometry.aperture_end & dma_mask;
 
 		gem_start = start;
 		gem_end = end - CARVEOUT_SZ;
