@@ -145,24 +145,19 @@ xchk_iallocbt_freecount(
  * cluster buffer itself); and the index of the inode within the cluster.
  *
  * @irec is the inobt record.
- * @cluster_base is the inode offset of the cluster within the @irec.
- * @cluster_bp is the cluster buffer.
- * @cluster_index is the inode offset within the inode cluster.
+ * @irec_ino is the inode offset from the start of the record.
+ * @dip is the on-disk inode.
  */
 STATIC int
 xchk_iallocbt_check_cluster_ifree(
 	struct xchk_btree		*bs,
 	struct xfs_inobt_rec_incore	*irec,
-	unsigned int			cluster_base,
-	struct xfs_buf			*cluster_bp,
-	unsigned int			cluster_index)
+	unsigned int			irec_ino,
+	struct xfs_dinode		*dip)
 {
 	struct xfs_mount		*mp = bs->cur->bc_mp;
-	struct xfs_dinode		*dip;
 	xfs_ino_t			fsino;
 	xfs_agino_t			agino;
-	unsigned int			offset;
-	unsigned int			cluster_buf_base;
 	bool				irec_free;
 	bool				ino_inuse;
 	bool				freemask_ok;
@@ -172,27 +167,12 @@ xchk_iallocbt_check_cluster_ifree(
 		return error;
 
 	/*
-	 * Given an inobt record, an offset of a cluster within the record, and
-	 * an offset of an inode within a cluster, compute which fs inode we're
-	 * talking about and the offset of that inode within the buffer.
-	 *
-	 * Be careful about inobt records that don't align with the start of
-	 * the inode buffer when block sizes are large enough to hold multiple
-	 * inode chunks.  When this happens, cluster_base will be zero but
-	 * ir_startino can be large enough to make cluster_buf_base nonzero.
+	 * Given an inobt record and the offset of an inode from the start of
+	 * the record, compute which fs inode we're talking about.
 	 */
-	agino = irec->ir_startino + cluster_base + cluster_index;
+	agino = irec->ir_startino + irec_ino;
 	fsino = XFS_AGINO_TO_INO(mp, bs->cur->bc_private.a.agno, agino);
-	cluster_buf_base = XFS_INO_TO_OFFSET(mp, irec->ir_startino);
-	ASSERT(cluster_buf_base == 0 || cluster_base == 0);
-	offset = (cluster_buf_base + cluster_index) * mp->m_sb.sb_inodesize;
-	if (offset >= BBTOB(cluster_bp->b_length)) {
-		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
-		goto out;
-	}
-	dip = xfs_buf_offset(cluster_bp, offset);
-	irec_free = (irec->ir_free & XFS_INOBT_MASK(cluster_base +
-						    cluster_index));
+	irec_free = (irec->ir_free & XFS_INOBT_MASK(irec_ino));
 
 	if (be16_to_cpu(dip->di_magic) != XFS_DINODE_MAGIC ||
 	    (dip->di_version >= 3 && be64_to_cpu(dip->di_ino) != fsino)) {
@@ -262,10 +242,23 @@ xchk_iallocbt_check_cluster(
 		cluster_mask |= XFS_INOBT_MASK((cluster_base + cluster_index) /
 				XFS_INODES_PER_HOLEMASK_BIT);
 
+	/*
+	 * Map the first inode of this cluster to a buffer and offset.
+	 * Be careful about inobt records that don't align with the start of
+	 * the inode buffer when block sizes are large enough to hold multiple
+	 * inode chunks.  When this happens, cluster_base will be zero but
+	 * ir_startino can be large enough to make im_boffset nonzero.
+	 */
 	ir_holemask = (irec->ir_holemask & cluster_mask);
 	imap.im_blkno = XFS_AGB_TO_DADDR(mp, agno, agbno);
 	imap.im_len = XFS_FSB_TO_BB(mp, mp->m_blocks_per_cluster);
-	imap.im_boffset = 0;
+	imap.im_boffset = XFS_INO_TO_OFFSET(mp, irec->ir_startino);
+
+	if (imap.im_boffset != 0 && cluster_base != 0) {
+		ASSERT(imap.im_boffset == 0 || cluster_base == 0);
+		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
+		return 0;
+	}
 
 	trace_xchk_iallocbt_check_cluster(mp, agno, irec->ir_startino,
 			imap.im_blkno, imap.im_len, cluster_base, nr_inodes,
@@ -298,10 +291,19 @@ xchk_iallocbt_check_cluster(
 
 	/* Check free status of each inode within this cluster. */
 	for (cluster_index = 0; cluster_index < nr_inodes; cluster_index++) {
+		struct xfs_dinode	*dip;
+
+		if (imap.im_boffset >= BBTOB(cluster_bp->b_length)) {
+			xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
+			break;
+		}
+
+		dip = xfs_buf_offset(cluster_bp, imap.im_boffset);
 		error = xchk_iallocbt_check_cluster_ifree(bs, irec,
-				cluster_base, cluster_bp, cluster_index);
+				cluster_base + cluster_index, dip);
 		if (error)
 			break;
+		imap.im_boffset += mp->m_sb.sb_inodesize;
 	}
 
 	xfs_trans_brelse(bs->cur->bc_tp, cluster_bp);
