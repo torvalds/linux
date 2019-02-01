@@ -93,6 +93,9 @@ static struct smca_bank_name smca_names[] = {
 	[SMCA_PB]	= { "param_block",	"Parameter Block" },
 	[SMCA_PSP]	= { "psp",		"Platform Security Processor" },
 	[SMCA_SMU]	= { "smu",		"System Management Unit" },
+	[SMCA_MP5]	= { "mp5",		"Microprocessor 5 Unit" },
+	[SMCA_NBIO]	= { "nbio",		"Northbridge IO Unit" },
+	[SMCA_PCIE]	= { "pcie",		"PCI Express Unit" },
 };
 
 static u32 smca_bank_addrs[MAX_NR_BANKS][NR_BLOCKS] __ro_after_init =
@@ -162,6 +165,15 @@ static struct smca_hwid smca_hwid_mcatypes[] = {
 
 	/* System Management Unit MCA type */
 	{ SMCA_SMU,	 HWID_MCATYPE(0x01, 0x0), 0x1 },
+
+	/* Microprocessor 5 Unit MCA type */
+	{ SMCA_MP5,	 HWID_MCATYPE(0x01, 0x2), 0x3FF },
+
+	/* Northbridge IO Unit MCA type */
+	{ SMCA_NBIO,	 HWID_MCATYPE(0x18, 0x0), 0x1F },
+
+	/* PCI Express Unit MCA type */
+	{ SMCA_PCIE,	 HWID_MCATYPE(0x46, 0x0), 0x1F },
 };
 
 struct smca_bank smca_banks[MAX_NR_BANKS];

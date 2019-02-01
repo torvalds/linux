@@ -312,6 +312,9 @@ enum smca_bank_types {
 	SMCA_PB,	/* Parameter Block */
 	SMCA_PSP,	/* Platform Security Processor */
 	SMCA_SMU,	/* System Management Unit */
+	SMCA_MP5,	/* Microprocessor 5 Unit */
+	SMCA_NBIO,	/* Northbridge IO Unit */
+	SMCA_PCIE,	/* PCI Express Unit */
 	N_SMCA_BANK_TYPES
 };
 
