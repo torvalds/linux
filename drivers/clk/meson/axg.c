@@ -9,21 +9,17 @@
  * Author: Qiufang Dai <qiufang.dai@amlogic.com>
  */
 
-#include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/init.h>
 #include <linux/of_device.h>
-#include <linux/mfd/syscon.h>
 #include <linux/platform_device.h>
-#include <linux/regmap.h>
 
 #include "clk-input.h"
 #include "clk-regmap.h"
 #include "clk-pll.h"
 #include "clk-mpll.h"
 #include "axg.h"
-
-#define IN_PREFIX "ee-in-"
+#include "meson-eeclk.h"
 
 static DEFINE_SPINLOCK(meson_clk_lock);
 
@@ -1260,55 +1256,20 @@ static struct clk_regmap *const axg_clk_regmaps[] = {
 	&axg_pcie_pll_od,
 };
 
+static const struct meson_eeclkc_data axg_clkc_data = {
+	.regmap_clks = axg_clk_regmaps,
+	.regmap_clk_num = ARRAY_SIZE(axg_clk_regmaps),
+	.hw_onecell_data = &axg_hw_onecell_data,
+};
+
+
 static const struct of_device_id clkc_match_table[] = {
-	{ .compatible = "amlogic,axg-clkc" },
+	{ .compatible = "amlogic,axg-clkc", .data = &axg_clkc_data },
 	{}
 };
 
-static int axg_clkc_probe(struct platform_device *pdev)
-{
-	struct device *dev = &pdev->dev;
-	struct clk_hw *input;
-	struct regmap *map;
-	int ret, i;
-
-	/* Get the hhi system controller node if available */
-	map = syscon_node_to_regmap(of_get_parent(dev->of_node));
-	if (IS_ERR(map)) {
-		dev_err(dev, "failed to get HHI regmap\n");
-		return PTR_ERR(map);
-	}
-
-	input = meson_clk_hw_register_input(dev, "xtal", IN_PREFIX "xtal", 0);
-	if (IS_ERR(input)) {
-		ret = PTR_ERR(input);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "failed to get input clock");
-		return ret;
-	}
-
-	/* Populate regmap for the regmap backed clocks */
-	for (i = 0; i < ARRAY_SIZE(axg_clk_regmaps); i++)
-		axg_clk_regmaps[i]->map = map;
-
-	for (i = 0; i < axg_hw_onecell_data.num; i++) {
-		/* array might be sparse */
-		if (!axg_hw_onecell_data.hws[i])
-			continue;
-
-		ret = devm_clk_hw_register(dev, axg_hw_onecell_data.hws[i]);
-		if (ret) {
-			dev_err(dev, "Clock registration failed\n");
-			return ret;
-		}
-	}
-
-	return devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get,
-					   &axg_hw_onecell_data);
-}
-
 static struct platform_driver axg_driver = {
-	.probe		= axg_clkc_probe,
+	.probe		= meson_eeclkc_probe,
 	.driver		= {
 		.name	= "axg-clkc",
 		.of_match_table = clkc_match_table,

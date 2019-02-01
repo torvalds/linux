@@ -13,18 +13,15 @@
 #include <linux/clk-provider.h>
 #include <linux/init.h>
 #include <linux/of_device.h>
-#include <linux/mfd/syscon.h>
 #include <linux/platform_device.h>
-#include <linux/regmap.h>
 
 #include "clk-input.h"
 #include "clk-mpll.h"
 #include "clk-pll.h"
 #include "clk-regmap.h"
 #include "vid-pll-div.h"
+#include "meson-eeclk.h"
 #include "g12a.h"
-
-#define IN_PREFIX "ee-in-"
 
 static DEFINE_SPINLOCK(meson_clk_lock);
 
@@ -2340,56 +2337,19 @@ static struct clk_regmap *const g12a_clk_regmaps[] = {
 	&g12a_mpll_50m,
 };
 
+static const struct meson_eeclkc_data g12a_clkc_data = {
+	.regmap_clks = g12a_clk_regmaps,
+	.regmap_clk_num = ARRAY_SIZE(g12a_clk_regmaps),
+	.hw_onecell_data = &g12a_hw_onecell_data
+};
+
 static const struct of_device_id clkc_match_table[] = {
-	{ .compatible = "amlogic,g12a-clkc" },
+	{ .compatible = "amlogic,g12a-clkc", .data = &g12a_clkc_data },
 	{}
 };
 
-static int g12a_clkc_probe(struct platform_device *pdev)
-{
-	struct device *dev = &pdev->dev;
-	struct clk_hw *input;
-	struct regmap *map;
-	int ret, i;
-
-	/* Get the hhi system controller node */
-	map = syscon_node_to_regmap(of_get_parent(dev->of_node));
-	if (IS_ERR(map)) {
-		dev_err(dev,
-			"failed to get HHI regmap\n");
-		return PTR_ERR(map);
-	}
-
-	input = meson_clk_hw_register_input(dev, "xtal", IN_PREFIX "xtal", 0);
-	if (IS_ERR(input)) {
-		ret = PTR_ERR(input);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "failed to get input clock");
-		return ret;
-	}
-
-	/* Populate regmap for the regmap backed clocks */
-	for (i = 0; i < ARRAY_SIZE(g12a_clk_regmaps); i++)
-		g12a_clk_regmaps[i]->map = map;
-
-	for (i = 0; i < g12a_hw_onecell_data.num; i++) {
-		/* array might be sparse */
-		if (!g12a_hw_onecell_data.hws[i])
-			continue;
-
-		ret = devm_clk_hw_register(dev, g12a_hw_onecell_data.hws[i]);
-		if (ret) {
-			dev_err(dev, "Clock registration failed\n");
-			return ret;
-		}
-	}
-
-	return devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get,
-					   &g12a_hw_onecell_data);
-}
-
 static struct platform_driver g12a_driver = {
-	.probe		= g12a_clkc_probe,
+	.probe		= meson_eeclkc_probe,
 	.driver		= {
 		.name	= "g12a-clkc",
 		.of_match_table = clkc_match_table,
