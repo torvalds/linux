@@ -102,6 +102,7 @@ config MFD_AAT2870_CORE
 config MFD_AT91_USART
 	tristate "AT91 USART Driver"
 	select MFD_CORE
+	depends on ARCH_AT91 || COMPILE_TEST
 	help
 	  Select this to get support for AT91 USART IP. This is a wrapper
 	  over at91-usart-serial driver and usart-spi-driver. Only one function
@@ -214,7 +215,6 @@ config MFD_CROS_EC
 config MFD_CROS_EC_CHARDEV
         tristate "Chrome OS Embedded Controller userspace device interface"
         depends on MFD_CROS_EC
-        select CROS_EC_CTL
         ---help---
           This driver adds support to talk with the ChromeOS EC from userspace.
 
@@ -1871,6 +1871,22 @@ config MFD_STM32_TIMERS
 	  Select this option to enable STM32 timers driver used
 	  for PWM and IIO Timer. This driver allow to share the
 	  registers between the others drivers.
+
+config MFD_STPMIC1
+	tristate "Support for STPMIC1 PMIC"
+	depends on (I2C=y && OF)
+	select REGMAP_I2C
+	select REGMAP_IRQ
+	select MFD_CORE
+	help
+	  Support for ST Microelectronics STPMIC1 PMIC. STPMIC1 has power on
+	  key, watchdog and regulator functionalities which are supported via
+	  the relevant subsystems. This driver provides core support for the
+	  STPMIC1. In order to use the actual functionaltiy of the device other
+	  drivers must be enabled.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called stpmic1.
 
 menu "Multimedia Capabilities Port drivers"
 	depends on ARCH_SA1100

@@ -327,16 +327,12 @@ static int cros_ec_lpc_probe(struct platform_device *pdev)
 
 static int cros_ec_lpc_remove(struct platform_device *pdev)
 {
-	struct cros_ec_device *ec_dev;
 	struct acpi_device *adev;
 
 	adev = ACPI_COMPANION(&pdev->dev);
 	if (adev)
 		acpi_remove_notify_handler(adev->handle, ACPI_ALL_NOTIFY,
 					   cros_ec_lpc_acpi_notify);
-
-	ec_dev = platform_get_drvdata(pdev);
-	cros_ec_remove(ec_dev);
 
 	return 0;
 }

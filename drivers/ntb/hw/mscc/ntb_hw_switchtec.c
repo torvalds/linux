@@ -1339,10 +1339,10 @@ static int switchtec_ntb_init_shared_mw(struct switchtec_ntb *sndev)
 	int rc;
 
 	sndev->nr_rsvd_luts++;
-	sndev->self_shared = dma_zalloc_coherent(&sndev->stdev->pdev->dev,
-						 LUT_SIZE,
-						 &sndev->self_shared_dma,
-						 GFP_KERNEL);
+	sndev->self_shared = dma_alloc_coherent(&sndev->stdev->pdev->dev,
+						LUT_SIZE,
+						&sndev->self_shared_dma,
+						GFP_KERNEL);
 	if (!sndev->self_shared) {
 		dev_err(&sndev->stdev->dev,
 			"unable to allocate memory for shared mw\n");

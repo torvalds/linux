@@ -1494,10 +1494,7 @@ static vm_fault_t ceph_filemap_fault(struct vm_fault *vmf)
 		if (err < 0 || off >= i_size_read(inode)) {
 			unlock_page(page);
 			put_page(page);
-			if (err == -ENOMEM)
-				ret = VM_FAULT_OOM;
-			else
-				ret = VM_FAULT_SIGBUS;
+			ret = vmf_error(err);
 			goto out_inline;
 		}
 		if (err < PAGE_SIZE)

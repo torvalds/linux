@@ -94,7 +94,7 @@ TRACE_EVENT(vfio_pci_npu2_mmap,
 #endif /* _TRACE_VFIO_PCI_H */
 
 #undef TRACE_INCLUDE_PATH
-#define TRACE_INCLUDE_PATH .
+#define TRACE_INCLUDE_PATH ../../drivers/vfio/pci
 #undef TRACE_INCLUDE_FILE
 #define TRACE_INCLUDE_FILE trace
 

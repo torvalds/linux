@@ -745,8 +745,8 @@ enum i40iw_status_code i40iw_allocate_dma_mem(struct i40iw_hw *hw,
 	if (!mem)
 		return I40IW_ERR_PARAM;
 	mem->size = ALIGN(size, alignment);
-	mem->va = dma_zalloc_coherent(&pcidev->dev, mem->size,
-				      (dma_addr_t *)&mem->pa, GFP_KERNEL);
+	mem->va = dma_alloc_coherent(&pcidev->dev, mem->size,
+				     (dma_addr_t *)&mem->pa, GFP_KERNEL);
 	if (!mem->va)
 		return I40IW_ERR_NO_MEMORY;
 	return 0;

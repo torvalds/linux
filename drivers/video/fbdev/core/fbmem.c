@@ -53,6 +53,9 @@ EXPORT_SYMBOL(registered_fb);
 int num_registered_fb __read_mostly;
 EXPORT_SYMBOL(num_registered_fb);
 
+bool fb_center_logo __read_mostly;
+EXPORT_SYMBOL(fb_center_logo);
+
 static struct fb_info *get_fb_info(unsigned int idx)
 {
 	struct fb_info *fb_info;
@@ -506,8 +509,7 @@ static int fb_show_logo_line(struct fb_info *info, int rotate,
 		fb_set_logo(info, logo, logo_new, fb_logo.depth);
 	}
 
-#ifdef CONFIG_FB_LOGO_CENTER
-	{
+	if (fb_center_logo) {
 		int xres = info->var.xres;
 		int yres = info->var.yres;
 
@@ -520,11 +522,11 @@ static int fb_show_logo_line(struct fb_info *info, int rotate,
 			--n;
 		image.dx = (xres - n * (logo->width + 8) - 8) / 2;
 		image.dy = y ?: (yres - logo->height) / 2;
+	} else {
+		image.dx = 0;
+		image.dy = y;
 	}
-#else
-	image.dx = 0;
-	image.dy = y;
-#endif
+
 	image.width = logo->width;
 	image.height = logo->height;
 
@@ -684,9 +686,8 @@ int fb_prepare_logo(struct fb_info *info, int rotate)
  	}
 
 	height = fb_logo.logo->height;
-#ifdef CONFIG_FB_LOGO_CENTER
-	height += (yres - fb_logo.logo->height) / 2;
-#endif
+	if (fb_center_logo)
+		height += (yres - fb_logo.logo->height) / 2;
 
 	return fb_prepare_extra_logos(info, height, yres);
 }

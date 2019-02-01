@@ -13,7 +13,7 @@ static unsigned int arm_pertask_ssp_rtl_execute(void)
 	for (insn = get_insns(); insn; insn = NEXT_INSN(insn)) {
 		const char *sym;
 		rtx body;
-		rtx masked_sp;
+		rtx mask, masked_sp;
 
 		/*
 		 * Find a SET insn involving a SYMBOL_REF to __stack_chk_guard
@@ -33,12 +33,13 @@ static unsigned int arm_pertask_ssp_rtl_execute(void)
 		 * produces the address of the copy of the stack canary value
 		 * stored in struct thread_info
 		 */
+		mask = GEN_INT(sext_hwi(sp_mask, GET_MODE_PRECISION(Pmode)));
 		masked_sp = gen_reg_rtx(Pmode);
 
 		emit_insn_before(gen_rtx_SET(masked_sp,
 					     gen_rtx_AND(Pmode,
 							 stack_pointer_rtx,
-							 GEN_INT(sp_mask))),
+							 mask)),
 				 insn);
 
 		SET_SRC(body) = gen_rtx_PLUS(Pmode, masked_sp,
@@ -51,6 +52,19 @@ static unsigned int arm_pertask_ssp_rtl_execute(void)
 
 #define NO_GATE
 #include "gcc-generate-rtl-pass.h"
+
+#if BUILDING_GCC_VERSION >= 9000
+static bool no(void)
+{
+	return false;
+}
+
+static void arm_pertask_ssp_start_unit(void *gcc_data, void *user_data)
+{
+	targetm.have_stack_protect_combined_set = no;
+	targetm.have_stack_protect_combined_test = no;
+}
+#endif
 
 __visible int plugin_init(struct plugin_name_args *plugin_info,
 			  struct plugin_gcc_version *version)
@@ -98,6 +112,11 @@ __visible int plugin_init(struct plugin_name_args *plugin_info,
 
 	register_callback(plugin_info->base_name, PLUGIN_PASS_MANAGER_SETUP,
 			  NULL, &arm_pertask_ssp_rtl_pass_info);
+
+#if BUILDING_GCC_VERSION >= 9000
+	register_callback(plugin_info->base_name, PLUGIN_START_UNIT,
+			  arm_pertask_ssp_start_unit, NULL);
+#endif
 
 	return 0;
 }

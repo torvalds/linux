@@ -5154,7 +5154,7 @@ put_tgt_net:
 	if (fillargs.netnsid >= 0)
 		put_net(tgt_net);
 
-	return err < 0 ? err : skb->len;
+	return skb->len ? : err;
 }
 
 static int inet6_dump_ifaddr(struct sk_buff *skb, struct netlink_callback *cb)

@@ -128,24 +128,31 @@ static int __cifs_reconnect_tcon(const struct nls_table *nlsc,
 	int rc;
 	struct dfs_cache_tgt_list tl;
 	struct dfs_cache_tgt_iterator *it = NULL;
-	char tree[MAX_TREE_SIZE + 1];
+	char *tree;
 	const char *tcp_host;
 	size_t tcp_host_len;
 	const char *dfs_host;
 	size_t dfs_host_len;
 
+	tree = kzalloc(MAX_TREE_SIZE, GFP_KERNEL);
+	if (!tree)
+		return -ENOMEM;
+
 	if (tcon->ipc) {
-		snprintf(tree, sizeof(tree), "\\\\%s\\IPC$",
+		snprintf(tree, MAX_TREE_SIZE, "\\\\%s\\IPC$",
 			 tcon->ses->server->hostname);
-		return CIFSTCon(0, tcon->ses, tree, tcon, nlsc);
+		rc = CIFSTCon(0, tcon->ses, tree, tcon, nlsc);
+		goto out;
 	}
 
-	if (!tcon->dfs_path)
-		return CIFSTCon(0, tcon->ses, tcon->treeName, tcon, nlsc);
+	if (!tcon->dfs_path) {
+		rc = CIFSTCon(0, tcon->ses, tcon->treeName, tcon, nlsc);
+		goto out;
+	}
 
 	rc = dfs_cache_noreq_find(tcon->dfs_path + 1, NULL, &tl);
 	if (rc)
-		return rc;
+		goto out;
 
 	extract_unc_hostname(tcon->ses->server->hostname, &tcp_host,
 			     &tcp_host_len);
@@ -165,7 +172,7 @@ static int __cifs_reconnect_tcon(const struct nls_table *nlsc,
 			continue;
 		}
 
-		snprintf(tree, sizeof(tree), "\\%s", tgt);
+		snprintf(tree, MAX_TREE_SIZE, "\\%s", tgt);
 
 		rc = CIFSTCon(0, tcon->ses, tree, tcon, nlsc);
 		if (!rc)
@@ -182,6 +189,8 @@ static int __cifs_reconnect_tcon(const struct nls_table *nlsc,
 			rc = -ENOENT;
 	}
 	dfs_cache_free_tgts(&tl);
+out:
+	kfree(tree);
 	return rc;
 }
 #else
@@ -2114,7 +2123,7 @@ cifs_writev_requeue(struct cifs_writedata *wdata)
 
 		for (j = 0; j < nr_pages; j++) {
 			unlock_page(wdata2->pages[j]);
-			if (rc != 0 && rc != -EAGAIN) {
+			if (rc != 0 && !is_retryable_error(rc)) {
 				SetPageError(wdata2->pages[j]);
 				end_page_writeback(wdata2->pages[j]);
 				put_page(wdata2->pages[j]);
@@ -2123,7 +2132,7 @@ cifs_writev_requeue(struct cifs_writedata *wdata)
 
 		if (rc) {
 			kref_put(&wdata2->refcount, cifs_writedata_release);
-			if (rc == -EAGAIN)
+			if (is_retryable_error(rc))
 				continue;
 			break;
 		}
@@ -2132,7 +2141,8 @@ cifs_writev_requeue(struct cifs_writedata *wdata)
 		i += nr_pages;
 	} while (i < wdata->nr_pages);
 
-	mapping_set_error(inode->i_mapping, rc);
+	if (rc != 0 && !is_retryable_error(rc))
+		mapping_set_error(inode->i_mapping, rc);
 	kref_put(&wdata->refcount, cifs_writedata_release);
 }
 

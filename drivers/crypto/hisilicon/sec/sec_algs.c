@@ -241,8 +241,8 @@ static int sec_alg_skcipher_setkey(struct crypto_skcipher *tfm,
 		memset(ctx->key, 0, SEC_MAX_CIPHER_KEY);
 	} else {
 		/* new key */
-		ctx->key = dma_zalloc_coherent(dev, SEC_MAX_CIPHER_KEY,
-					       &ctx->pkey, GFP_KERNEL);
+		ctx->key = dma_alloc_coherent(dev, SEC_MAX_CIPHER_KEY,
+					      &ctx->pkey, GFP_KERNEL);
 		if (!ctx->key) {
 			mutex_unlock(&ctx->lock);
 			return -ENOMEM;

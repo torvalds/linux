@@ -641,9 +641,9 @@ static const struct mfd_cell axp221_cells[] = {
 
 static const struct mfd_cell axp223_cells[] = {
 	{
-		.name			= "axp221-pek",
-		.num_resources		= ARRAY_SIZE(axp22x_pek_resources),
-		.resources		= axp22x_pek_resources,
+		.name		= "axp221-pek",
+		.num_resources	= ARRAY_SIZE(axp22x_pek_resources),
+		.resources	= axp22x_pek_resources,
 	}, {
 		.name		= "axp22x-adc",
 		.of_compatible	= "x-powers,axp221-adc",
@@ -651,7 +651,7 @@ static const struct mfd_cell axp223_cells[] = {
 		.name		= "axp20x-battery-power-supply",
 		.of_compatible	= "x-powers,axp221-battery-power-supply",
 	}, {
-		.name			= "axp20x-regulator",
+		.name		= "axp20x-regulator",
 	}, {
 		.name		= "axp20x-ac-power-supply",
 		.of_compatible	= "x-powers,axp221-ac-power-supply",
@@ -667,9 +667,9 @@ static const struct mfd_cell axp223_cells[] = {
 
 static const struct mfd_cell axp152_cells[] = {
 	{
-		.name			= "axp20x-pek",
-		.num_resources		= ARRAY_SIZE(axp152_pek_resources),
-		.resources		= axp152_pek_resources,
+		.name		= "axp20x-pek",
+		.num_resources	= ARRAY_SIZE(axp152_pek_resources),
+		.resources	= axp152_pek_resources,
 	},
 };
 
@@ -698,87 +698,101 @@ static const struct resource axp288_charger_resources[] = {
 
 static const struct mfd_cell axp288_cells[] = {
 	{
-		.name = "axp288_adc",
-		.num_resources = ARRAY_SIZE(axp288_adc_resources),
-		.resources = axp288_adc_resources,
-	},
-	{
-		.name = "axp288_extcon",
-		.num_resources = ARRAY_SIZE(axp288_extcon_resources),
-		.resources = axp288_extcon_resources,
-	},
-	{
-		.name = "axp288_charger",
-		.num_resources = ARRAY_SIZE(axp288_charger_resources),
-		.resources = axp288_charger_resources,
-	},
-	{
-		.name = "axp288_fuel_gauge",
-		.num_resources = ARRAY_SIZE(axp288_fuel_gauge_resources),
-		.resources = axp288_fuel_gauge_resources,
-	},
-	{
-		.name = "axp221-pek",
-		.num_resources = ARRAY_SIZE(axp288_power_button_resources),
-		.resources = axp288_power_button_resources,
-	},
-	{
-		.name = "axp288_pmic_acpi",
+		.name		= "axp288_adc",
+		.num_resources	= ARRAY_SIZE(axp288_adc_resources),
+		.resources	= axp288_adc_resources,
+	}, {
+		.name		= "axp288_extcon",
+		.num_resources	= ARRAY_SIZE(axp288_extcon_resources),
+		.resources	= axp288_extcon_resources,
+	}, {
+		.name		= "axp288_charger",
+		.num_resources	= ARRAY_SIZE(axp288_charger_resources),
+		.resources	= axp288_charger_resources,
+	}, {
+		.name		= "axp288_fuel_gauge",
+		.num_resources	= ARRAY_SIZE(axp288_fuel_gauge_resources),
+		.resources	= axp288_fuel_gauge_resources,
+	}, {
+		.name		= "axp221-pek",
+		.num_resources	= ARRAY_SIZE(axp288_power_button_resources),
+		.resources	= axp288_power_button_resources,
+	}, {
+		.name		= "axp288_pmic_acpi",
 	},
 };
 
 static const struct mfd_cell axp803_cells[] = {
 	{
-		.name			= "axp221-pek",
-		.num_resources		= ARRAY_SIZE(axp803_pek_resources),
-		.resources		= axp803_pek_resources,
+		.name		= "axp221-pek",
+		.num_resources	= ARRAY_SIZE(axp803_pek_resources),
+		.resources	= axp803_pek_resources,
+	}, {
+		.name		= "axp20x-gpio",
+		.of_compatible	= "x-powers,axp813-gpio",
+	}, {
+		.name		= "axp813-adc",
+		.of_compatible	= "x-powers,axp813-adc",
+	}, {
+		.name		= "axp20x-battery-power-supply",
+		.of_compatible	= "x-powers,axp813-battery-power-supply",
+	}, {
+		.name		= "axp20x-ac-power-supply",
+		.of_compatible	= "x-powers,axp813-ac-power-supply",
+		.num_resources	= ARRAY_SIZE(axp20x_ac_power_supply_resources),
+		.resources	= axp20x_ac_power_supply_resources,
 	},
-	{	.name			= "axp20x-regulator" },
+	{	.name		= "axp20x-regulator" },
 };
 
 static const struct mfd_cell axp806_self_working_cells[] = {
 	{
-		.name			= "axp221-pek",
-		.num_resources		= ARRAY_SIZE(axp806_pek_resources),
-		.resources		= axp806_pek_resources,
+		.name		= "axp221-pek",
+		.num_resources	= ARRAY_SIZE(axp806_pek_resources),
+		.resources	= axp806_pek_resources,
 	},
-	{	.name			= "axp20x-regulator" },
+	{	.name		= "axp20x-regulator" },
 };
 
 static const struct mfd_cell axp806_cells[] = {
 	{
-		.id			= 2,
-		.name			= "axp20x-regulator",
+		.id		= 2,
+		.name		= "axp20x-regulator",
 	},
 };
 
 static const struct mfd_cell axp809_cells[] = {
 	{
-		.name			= "axp221-pek",
-		.num_resources		= ARRAY_SIZE(axp809_pek_resources),
-		.resources		= axp809_pek_resources,
+		.name		= "axp221-pek",
+		.num_resources	= ARRAY_SIZE(axp809_pek_resources),
+		.resources	= axp809_pek_resources,
 	}, {
-		.id			= 1,
-		.name			= "axp20x-regulator",
+		.id		= 1,
+		.name		= "axp20x-regulator",
 	},
 };
 
 static const struct mfd_cell axp813_cells[] = {
 	{
-		.name			= "axp221-pek",
-		.num_resources		= ARRAY_SIZE(axp803_pek_resources),
-		.resources		= axp803_pek_resources,
+		.name		= "axp221-pek",
+		.num_resources	= ARRAY_SIZE(axp803_pek_resources),
+		.resources	= axp803_pek_resources,
 	}, {
-		.name			= "axp20x-regulator",
+		.name		= "axp20x-regulator",
 	}, {
-		.name			= "axp20x-gpio",
-		.of_compatible		= "x-powers,axp813-gpio",
+		.name		= "axp20x-gpio",
+		.of_compatible	= "x-powers,axp813-gpio",
 	}, {
-		.name			= "axp813-adc",
-		.of_compatible		= "x-powers,axp813-adc",
+		.name		= "axp813-adc",
+		.of_compatible	= "x-powers,axp813-adc",
 	}, {
 		.name		= "axp20x-battery-power-supply",
 		.of_compatible	= "x-powers,axp813-battery-power-supply",
+	}, {
+		.name		= "axp20x-ac-power-supply",
+		.of_compatible	= "x-powers,axp813-ac-power-supply",
+		.num_resources	= ARRAY_SIZE(axp20x_ac_power_supply_resources),
+		.resources	= axp20x_ac_power_supply_resources,
 	},
 };
 

@@ -282,16 +282,6 @@ int cros_ec_cmd_xfer_status(struct cros_ec_device *ec_dev,
 			    struct cros_ec_command *msg);
 
 /**
- * cros_ec_remove() - Remove a ChromeOS EC.
- * @ec_dev: Device to register.
- *
- * Call this to deregister a ChromeOS EC, then clean up any private data.
- *
- * Return: 0 on success or negative error code.
- */
-int cros_ec_remove(struct cros_ec_device *ec_dev);
-
-/**
  * cros_ec_register() - Register a new ChromeOS EC, using the provided info.
  * @ec_dev: Device to register.
  *
@@ -334,16 +324,5 @@ int cros_ec_get_next_event(struct cros_ec_device *ec_dev, bool *wake_event);
  * Return: 0 on error or non-zero bitmask of one or more EC_HOST_EVENT_*.
  */
 u32 cros_ec_get_host_event(struct cros_ec_device *ec_dev);
-
-/* sysfs stuff */
-extern struct attribute_group cros_ec_attr_group;
-extern struct attribute_group cros_ec_lightbar_attr_group;
-extern struct attribute_group cros_ec_vbc_attr_group;
-
-/* debugfs stuff */
-int cros_ec_debugfs_init(struct cros_ec_dev *ec);
-void cros_ec_debugfs_remove(struct cros_ec_dev *ec);
-void cros_ec_debugfs_suspend(struct cros_ec_dev *ec);
-void cros_ec_debugfs_resume(struct cros_ec_dev *ec);
 
 #endif /* __LINUX_MFD_CROS_EC_H */
