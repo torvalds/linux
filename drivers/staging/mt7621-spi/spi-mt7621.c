@@ -123,10 +123,10 @@ static int mt7621_spi_prepare(struct spi_device *spi, unsigned int speed)
 	if (spi->mode & SPI_LSB_FIRST)
 		reg |= MT7621_LSB_FIRST;
 
-	/* This SPI controller seems to be tested on SPI flash only
-	 * and some bits are swizzled under other SPI modes probably
-	 * due to incorrect wiring inside the silicon. Only mode 0
-	 * works correctly.
+	/*
+	 * This SPI controller seems to be tested on SPI flash only and some
+	 * bits are swizzled under other SPI modes probably due to incorrect
+	 * wiring inside the silicon. Only mode 0 works correctly.
 	 */
 	reg &= ~(MT7621_CPHA | MT7621_CPOL);
 
@@ -155,9 +155,10 @@ static inline int mt7621_spi_wait_till_ready(struct mt7621_spi *rs)
 static void mt7621_spi_read_half_duplex(struct mt7621_spi *rs,
 					int rx_len, u8 *buf)
 {
-	/* Combine with any pending write, and perform one or
-	 * more half-duplex transactions reading 'len' bytes.
-	 * Data to be written is already in MT7621_SPI_DATA*
+	/*
+	 * Combine with any pending write, and perform one or more half-duplex
+	 * transactions reading 'len' bytes. Data to be written is already in
+	 * MT7621_SPI_DATA.
 	 */
 	int tx_len = rs->pending_write;
 
