@@ -152,10 +152,10 @@ struct sof_ipc_dai_dmic_params {
 	uint32_t pdmclk_min;	/**< Minimum microphone clock in Hz (100000..N) */
 	uint32_t pdmclk_max;	/**< Maximum microphone clock in Hz (min...N) */
 
-	uint32_t fifo_fs_a;	/**< FIFO A sample rate in Hz (8000..96000) */
-	uint32_t fifo_fs_b;	/**< FIFO B sample rate in Hz (8000..96000) */
-	uint16_t fifo_bits_a;	/**< FIFO A word length (16 or 32) */
-	uint16_t fifo_bits_b;	/**< FIFO B word length (16 or 32) */
+	uint32_t fifo_fs;	/**< FIFO sample rate in Hz (8000..96000) */
+	uint32_t reserved_1;	/**< Reserved */
+	uint16_t fifo_bits;	/**< FIFO word length (16 or 32) */
+	uint16_t reserved_2;	/**< Reserved */
 
 	uint16_t duty_min;	/**< Min. mic clock duty cycle in % (20..80) */
 	uint16_t duty_max;	/**< Max. mic clock duty cycle in % (min..80) */

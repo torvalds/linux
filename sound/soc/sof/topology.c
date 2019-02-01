@@ -538,7 +538,7 @@ static const struct sof_topology_token dmic_tokens[] = {
 		offsetof(struct sof_ipc_dai_dmic_params, pdmclk_max), 0},
 	{SOF_TKN_INTEL_DMIC_SAMPLE_RATE,
 		SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
-		offsetof(struct sof_ipc_dai_dmic_params, fifo_fs_a), 0},
+		offsetof(struct sof_ipc_dai_dmic_params, fifo_fs), 0},
 	{SOF_TKN_INTEL_DMIC_DUTY_MIN,
 		SND_SOC_TPLG_TUPLE_TYPE_SHORT, get_token_u16,
 		offsetof(struct sof_ipc_dai_dmic_params, duty_min), 0},
@@ -551,7 +551,7 @@ static const struct sof_topology_token dmic_tokens[] = {
 			 num_pdm_active), 0},
 	{SOF_TKN_INTEL_DMIC_FIFO_WORD_LENGTH,
 		SND_SOC_TPLG_TUPLE_TYPE_SHORT, get_token_u16,
-		offsetof(struct sof_ipc_dai_dmic_params, fifo_bits_a), 0},
+		offsetof(struct sof_ipc_dai_dmic_params, fifo_bits), 0},
 };
 
 /*
@@ -2168,10 +2168,10 @@ static int sof_link_dmic_load(struct snd_soc_component *scomp, int index,
 		ipc_config->dmic.pdmclk_min, ipc_config->dmic.pdmclk_max,
 		ipc_config->dmic.duty_min);
 	dev_dbg(sdev->dev, "duty_max %hd fifo_fs %d num_pdms active %d\n",
-		ipc_config->dmic.duty_max, ipc_config->dmic.fifo_fs_a,
+		ipc_config->dmic.duty_max, ipc_config->dmic.fifo_fs,
 		ipc_config->dmic.num_pdm_active);
 	dev_dbg(sdev->dev, "fifo word length %hd\n",
-		ipc_config->dmic.fifo_bits_a);
+		ipc_config->dmic.fifo_bits);
 
 	for (j = 0; j < ipc_config->dmic.num_pdm_active; j++) {
 		dev_dbg(sdev->dev, "pdm %hd mic a %hd mic b %hd\n",
@@ -2188,16 +2188,14 @@ static int sof_link_dmic_load(struct snd_soc_component *scomp, int index,
 			ipc_config->dmic.pdm[j].skew);
 	}
 
-	/* TODO: check if fifo_b word length is needed */
-	ipc_config->dmic.fifo_bits_b = ipc_config->dmic.fifo_bits_a;
-
 	/* send message to DSP */
 	ret = sof_ipc_tx_message(sdev->ipc,
 				 ipc_config->hdr.cmd, ipc_config, size, &reply,
 				 sizeof(reply));
 
 	if (ret < 0) {
-		dev_err(sdev->dev, "error: failed to set DAI config for DMIC%d\n",
+		dev_err(sdev->dev,
+			"error: failed to set DAI config for DMIC%d\n",
 			config->dai_index);
 		goto err;
 	}
@@ -2801,4 +2799,3 @@ int snd_sof_load_topology(struct snd_sof_dev *sdev, const char *file)
 	return ret;
 }
 EXPORT_SYMBOL(snd_sof_load_topology);
-
