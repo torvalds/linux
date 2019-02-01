@@ -1214,6 +1214,9 @@ bool dc_add_plane_to_context(
 		free_pipe->clock_source = tail_pipe->clock_source;
 		free_pipe->top_pipe = tail_pipe;
 		tail_pipe->bottom_pipe = free_pipe;
+	} else if (free_pipe->bottom_pipe && free_pipe->bottom_pipe->plane_state == NULL) {
+		ASSERT(free_pipe->bottom_pipe->stream_res.opp != free_pipe->stream_res.opp);
+		free_pipe->bottom_pipe->plane_state = plane_state;
 	}
 
 	/* assign new surfaces*/

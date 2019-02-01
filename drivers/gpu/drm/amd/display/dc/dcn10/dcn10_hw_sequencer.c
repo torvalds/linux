@@ -732,7 +732,7 @@ static enum dc_status dcn10_enable_stream_timing(
 	return DC_OK;
 }
 
-static void reset_back_end_for_pipe(
+static void dcn10_reset_back_end_for_pipe(
 		struct dc *dc,
 		struct pipe_ctx *pipe_ctx,
 		struct dc_state *context)
@@ -1173,7 +1173,7 @@ static void dcn10_init_hw(struct dc *dc)
 	memset(&dc->res_pool->clk_mgr->clks, 0, sizeof(dc->res_pool->clk_mgr->clks));
 }
 
-static void reset_hw_ctx_wrap(
+static void dcn10_reset_hw_ctx_wrap(
 		struct dc *dc,
 		struct dc_state *context)
 {
@@ -1195,10 +1195,9 @@ static void reset_hw_ctx_wrap(
 				pipe_need_reprogram(pipe_ctx_old, pipe_ctx)) {
 			struct clock_source *old_clk = pipe_ctx_old->clock_source;
 
-			reset_back_end_for_pipe(dc, pipe_ctx_old, dc->current_state);
-			if (dc->hwss.enable_stream_gating) {
+			dcn10_reset_back_end_for_pipe(dc, pipe_ctx_old, dc->current_state);
+			if (dc->hwss.enable_stream_gating)
 				dc->hwss.enable_stream_gating(dc, pipe_ctx);
-			}
 			if (old_clk)
 				old_clk->funcs->cs_power_down(old_clk);
 		}
@@ -2944,7 +2943,7 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.pipe_control_lock = dcn10_pipe_control_lock,
 	.prepare_bandwidth = dcn10_prepare_bandwidth,
 	.optimize_bandwidth = dcn10_optimize_bandwidth,
-	.reset_hw_ctx_wrap = reset_hw_ctx_wrap,
+	.reset_hw_ctx_wrap = dcn10_reset_hw_ctx_wrap,
 	.enable_stream_timing = dcn10_enable_stream_timing,
 	.set_drr = set_drr,
 	.get_position = get_position,
