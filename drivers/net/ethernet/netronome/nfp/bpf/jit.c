@@ -1967,6 +1967,9 @@ static int neg_reg64(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
  */
 static int __shl_imm64(struct nfp_prog *nfp_prog, u8 dst, u8 shift_amt)
 {
+	if (!shift_amt)
+		return 0;
+
 	if (shift_amt < 32) {
 		emit_shf(nfp_prog, reg_both(dst + 1), reg_a(dst + 1),
 			 SHF_OP_NONE, reg_b(dst), SHF_SC_R_DSHF,
@@ -2079,6 +2082,9 @@ static int shl_reg64(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
  */
 static int __shr_imm64(struct nfp_prog *nfp_prog, u8 dst, u8 shift_amt)
 {
+	if (!shift_amt)
+		return 0;
+
 	if (shift_amt < 32) {
 		emit_shf(nfp_prog, reg_both(dst), reg_a(dst + 1), SHF_OP_NONE,
 			 reg_b(dst), SHF_SC_R_DSHF, shift_amt);
@@ -2180,6 +2186,9 @@ static int shr_reg64(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
  */
 static int __ashr_imm64(struct nfp_prog *nfp_prog, u8 dst, u8 shift_amt)
 {
+	if (!shift_amt)
+		return 0;
+
 	if (shift_amt < 32) {
 		emit_shf(nfp_prog, reg_both(dst), reg_a(dst + 1), SHF_OP_NONE,
 			 reg_b(dst), SHF_SC_R_DSHF, shift_amt);
@@ -2388,10 +2397,13 @@ static int neg_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 
 static int __ashr_imm(struct nfp_prog *nfp_prog, u8 dst, u8 shift_amt)
 {
-	/* Set signedness bit (MSB of result). */
-	emit_alu(nfp_prog, reg_none(), reg_a(dst), ALU_OP_OR, reg_imm(0));
-	emit_shf(nfp_prog, reg_both(dst), reg_none(), SHF_OP_ASHR, reg_b(dst),
-		 SHF_SC_R_SHF, shift_amt);
+	if (shift_amt) {
+		/* Set signedness bit (MSB of result). */
+		emit_alu(nfp_prog, reg_none(), reg_a(dst), ALU_OP_OR,
+			 reg_imm(0));
+		emit_shf(nfp_prog, reg_both(dst), reg_none(), SHF_OP_ASHR,
+			 reg_b(dst), SHF_SC_R_SHF, shift_amt);
+	}
 	wrp_immed(nfp_prog, reg_both(dst + 1), 0);
 
 	return 0;
@@ -2433,12 +2445,10 @@ static int shl_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	const struct bpf_insn *insn = &meta->insn;
 
-	if (!insn->imm)
-		return 1; /* TODO: zero shift means indirect */
-
-	emit_shf(nfp_prog, reg_both(insn->dst_reg * 2),
-		 reg_none(), SHF_OP_NONE, reg_b(insn->dst_reg * 2),
-		 SHF_SC_L_SHF, insn->imm);
+	if (insn->imm)
+		emit_shf(nfp_prog, reg_both(insn->dst_reg * 2),
+			 reg_none(), SHF_OP_NONE, reg_b(insn->dst_reg * 2),
+			 SHF_SC_L_SHF, insn->imm);
 	wrp_immed(nfp_prog, reg_both(insn->dst_reg * 2 + 1), 0);
 
 	return 0;
