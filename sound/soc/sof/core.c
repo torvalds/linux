@@ -255,46 +255,13 @@ static int sof_machine_check(struct snd_sof_dev *sdev)
 	return 0;
 }
 
-int snd_sof_device_probe(struct device *dev, struct snd_sof_pdata *plat_data)
+static int sof_probe_continue(struct snd_sof_dev *sdev)
 {
-	struct snd_sof_dev *sdev;
+	struct snd_sof_pdata *plat_data = sdev->pdata;
 	const char *drv_name;
 	const void *mach;
 	int size;
 	int ret;
-
-	sdev = devm_kzalloc(dev, sizeof(*sdev), GFP_KERNEL);
-	if (!sdev)
-		return -ENOMEM;
-
-	dev_dbg(dev, "probing SOF DSP device....\n");
-
-	/* initialize sof device */
-	sdev->dev = dev;
-	if dev_is_pci(plat_data->dev)
-		sdev->pci = to_pci_dev(plat_data->dev);
-
-	sdev->pdata = plat_data;
-	sdev->first_boot = true;
-	dev_set_drvdata(dev, sdev);
-
-	INIT_LIST_HEAD(&sdev->pcm_list);
-	INIT_LIST_HEAD(&sdev->kcontrol_list);
-	INIT_LIST_HEAD(&sdev->widget_list);
-	INIT_LIST_HEAD(&sdev->dai_list);
-	INIT_LIST_HEAD(&sdev->route_list);
-	spin_lock_init(&sdev->ipc_lock);
-	spin_lock_init(&sdev->hw_lock);
-
-	/* set default timeouts if none provided */
-	if (plat_data->desc->ipc_timeout == 0)
-		sdev->ipc_timeout = TIMEOUT_DEFAULT_IPC_MS;
-	else
-		sdev->ipc_timeout = plat_data->desc->ipc_timeout;
-	if (plat_data->desc->boot_timeout == 0)
-		sdev->boot_timeout = TIMEOUT_DEFAULT_BOOT_MS;
-	else
-		sdev->boot_timeout = plat_data->desc->boot_timeout;
 
 	/* probe the DSP hardware */
 	ret = snd_sof_probe(sdev);
@@ -402,6 +369,46 @@ dbg_err:
 	snd_sof_remove(sdev);
 
 	return ret;
+}
+
+int snd_sof_device_probe(struct device *dev, struct snd_sof_pdata *plat_data)
+{
+	struct snd_sof_dev *sdev;
+
+	sdev = devm_kzalloc(dev, sizeof(*sdev), GFP_KERNEL);
+	if (!sdev)
+		return -ENOMEM;
+
+	dev_dbg(dev, "probing SOF DSP device....\n");
+
+	/* initialize sof device */
+	sdev->dev = dev;
+	if dev_is_pci(plat_data->dev)
+		sdev->pci = to_pci_dev(plat_data->dev);
+
+	sdev->pdata = plat_data;
+	sdev->first_boot = true;
+	dev_set_drvdata(dev, sdev);
+
+	INIT_LIST_HEAD(&sdev->pcm_list);
+	INIT_LIST_HEAD(&sdev->kcontrol_list);
+	INIT_LIST_HEAD(&sdev->widget_list);
+	INIT_LIST_HEAD(&sdev->dai_list);
+	INIT_LIST_HEAD(&sdev->route_list);
+	spin_lock_init(&sdev->ipc_lock);
+	spin_lock_init(&sdev->hw_lock);
+
+	/* set default timeouts if none provided */
+	if (plat_data->desc->ipc_timeout == 0)
+		sdev->ipc_timeout = TIMEOUT_DEFAULT_IPC_MS;
+	else
+		sdev->ipc_timeout = plat_data->desc->ipc_timeout;
+	if (plat_data->desc->boot_timeout == 0)
+		sdev->boot_timeout = TIMEOUT_DEFAULT_BOOT_MS;
+	else
+		sdev->boot_timeout = plat_data->desc->boot_timeout;
+
+	return sof_probe_continue(sdev);
 }
 EXPORT_SYMBOL(snd_sof_device_probe);
 
