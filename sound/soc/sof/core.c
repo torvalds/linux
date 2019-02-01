@@ -362,7 +362,7 @@ int snd_sof_device_probe(struct device *dev, struct snd_sof_pdata *plat_data)
 	sdev->first_boot = false;
 
 	/* now register audio DSP platform driver and dai */
-	ret = snd_soc_register_component(dev, &sdev->plat_drv,
+	ret = snd_soc_register_component(sdev->dev, &sdev->plat_drv,
 					 sof_ops(sdev)->drv,
 					 sof_ops(sdev)->num_drv);
 	if (ret < 0) {
@@ -391,7 +391,7 @@ int snd_sof_device_probe(struct device *dev, struct snd_sof_pdata *plat_data)
 	return 0;
 
 comp_err:
-	snd_soc_unregister_component(dev);
+	snd_soc_unregister_component(sdev->dev);
 fw_run_err:
 	snd_sof_fw_unload(sdev);
 fw_load_err:
