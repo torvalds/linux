@@ -4286,10 +4286,6 @@ xfs_bmapi_write(
 			goto error0;
 	}
 
-	n = 0;
-	end = bno + len;
-	obno = bno;
-
 	if (!xfs_iext_lookup_extent(ip, ifp, bno, &bma.icur, &bma.got))
 		eof = true;
 	if (!xfs_iext_peek_prev_extent(ifp, &bma.icur, &bma.prev))
@@ -4299,6 +4295,26 @@ xfs_bmapi_write(
 	bma.total = total;
 	bma.datatype = 0;
 
+	/*
+	 * The reval flag means the caller wants to allocate the entire delalloc
+	 * extent backing bno where bno may not necessarily match the startoff.
+	 * Now that we've looked up the extent, reset the range to map based on
+	 * the extent in the file. If we're in a hole, this may be an error so
+	 * don't adjust anything.
+	 */
+	if ((flags & XFS_BMAPI_REVALRANGE) &&
+	    !eof && bno >= bma.got.br_startoff) {
+		ASSERT(flags & XFS_BMAPI_DELALLOC);
+		bno = bma.got.br_startoff;
+		len = bma.got.br_blockcount;
+#ifdef DEBUG
+		orig_bno = bno;
+		orig_len = len;
+#endif
+	}
+	n = 0;
+	end = bno + len;
+	obno = bno;
 	while (bno < end && n < *nmap) {
 		bool			need_alloc = false, wasdelay = false;
 
@@ -4452,6 +4468,41 @@ error0:
 	if (!error)
 		xfs_bmap_validate_ret(orig_bno, orig_len, orig_flags, orig_mval,
 			orig_nmap, *nmap);
+	return error;
+}
+
+/*
+ * Convert an existing delalloc extent to real blocks based on file offset. This
+ * attempts to allocate the entire delalloc extent and may require multiple
+ * invocations to allocate the target offset if a large enough physical extent
+ * is not available.
+ */
+int
+xfs_bmapi_convert_delalloc(
+	struct xfs_trans	*tp,
+	struct xfs_inode	*ip,
+	xfs_fileoff_t		offset_fsb,
+	int			whichfork,
+	struct xfs_bmbt_irec	*imap)
+{
+	int			flags = XFS_BMAPI_DELALLOC;
+	int			nimaps = 1;
+	int			error;
+	int			total = XFS_EXTENTADD_SPACE_RES(ip->i_mount,
+								XFS_DATA_FORK);
+
+	if (whichfork == XFS_COW_FORK)
+		flags |= XFS_BMAPI_COWFORK | XFS_BMAPI_PREALLOC;
+
+	/*
+	 * The reval flag means to allocate the entire extent; pass a dummy
+	 * length of 1.
+	 */
+	flags |= XFS_BMAPI_REVALRANGE;
+	error = xfs_bmapi_write(tp, ip, offset_fsb, 1, flags, total, imap,
+				&nimaps);
+	if (!error && !nimaps)
+		error = -EFSCORRUPTED;
 	return error;
 }
 

@@ -107,6 +107,8 @@ struct xfs_extent_free_item
 /* Do not update the rmap btree.  Used for reconstructing bmbt from rmapbt. */
 #define XFS_BMAPI_NORMAP	0x2000
 
+#define XFS_BMAPI_REVALRANGE	0x4000
+
 #define XFS_BMAPI_FLAGS \
 	{ XFS_BMAPI_ENTIRE,	"ENTIRE" }, \
 	{ XFS_BMAPI_METADATA,	"METADATA" }, \
@@ -227,6 +229,8 @@ int	xfs_bmapi_reserve_delalloc(struct xfs_inode *ip, int whichfork,
 		xfs_fileoff_t off, xfs_filblks_t len, xfs_filblks_t prealloc,
 		struct xfs_bmbt_irec *got, struct xfs_iext_cursor *cur,
 		int eof);
+int	xfs_bmapi_convert_delalloc(struct xfs_trans *, struct xfs_inode *,
+		xfs_fileoff_t, int, struct xfs_bmbt_irec *);
 
 static inline void
 xfs_bmap_add_free(
