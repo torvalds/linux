@@ -47,7 +47,8 @@
  * @dc: Virtio device control
  * @vpdev: VOP device which is the parent for this virtio device
  * @vr: Buffer for accessing the VRING
- * @used: Buffer for used
+ * @used_virt: Virtual address of used ring
+ * @used: DMA address of used ring
  * @used_size: Size of the used buffer
  * @reset_done: Track whether VOP reset is complete
  * @virtio_cookie: Cookie returned upon requesting a interrupt
@@ -61,6 +62,7 @@ struct _vop_vdev {
 	struct mic_device_ctrl __iomem *dc;
 	struct vop_device *vpdev;
 	void __iomem *vr[VOP_MAX_VRINGS];
+	void *used_virt[VOP_MAX_VRINGS];
 	dma_addr_t used[VOP_MAX_VRINGS];
 	int used_size[VOP_MAX_VRINGS];
 	struct completion reset_done;
@@ -260,12 +262,12 @@ static bool vop_notify(struct virtqueue *vq)
 static void vop_del_vq(struct virtqueue *vq, int n)
 {
 	struct _vop_vdev *vdev = to_vopvdev(vq->vdev);
-	struct vring *vr = (struct vring *)(vq + 1);
 	struct vop_device *vpdev = vdev->vpdev;
 
 	dma_unmap_single(&vpdev->dev, vdev->used[n],
 			 vdev->used_size[n], DMA_BIDIRECTIONAL);
-	free_pages((unsigned long)vr->used, get_order(vdev->used_size[n]));
+	free_pages((unsigned long)vdev->used_virt[n],
+		   get_order(vdev->used_size[n]));
 	vring_del_virtqueue(vq);
 	vpdev->hw_ops->iounmap(vpdev, vdev->vr[n]);
 	vdev->vr[n] = NULL;
@@ -355,6 +357,7 @@ static struct virtqueue *vop_find_vq(struct virtio_device *dev,
 					     le16_to_cpu(config.num));
 	used = (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
 					get_order(vdev->used_size[index]));
+	vdev->used_virt[index] = used;
 	if (!used) {
 		err = -ENOMEM;
 		dev_err(_vop_dev(vdev), "%s %d err %d\n",
