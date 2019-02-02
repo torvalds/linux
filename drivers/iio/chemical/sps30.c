@@ -7,8 +7,6 @@
  * I2C slave address: 0x69
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <asm/unaligned.h>
 #include <linux/crc8.h>
 #include <linux/delay.h>
