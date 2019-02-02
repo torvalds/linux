@@ -329,6 +329,15 @@ struct drm_atomic_state {
 	bool allow_modeset : 1;
 	bool legacy_cursor_update : 1;
 	bool async_update : 1;
+	/**
+	 * @duplicated:
+	 *
+	 * Indicates whether or not this atomic state was duplicated using
+	 * drm_atomic_helper_duplicate_state(). Drivers and atomic helpers
+	 * should use this to fixup normal  inconsistencies in duplicated
+	 * states.
+	 */
+	bool duplicated : 1;
 	struct __drm_planes_state *planes;
 	struct __drm_crtcs_state *crtcs;
 	int num_connector;

@@ -332,8 +332,15 @@ update_connector_routing(struct drm_atomic_state *state,
 	 * about is ensuring that userspace can't do anything but shut off the
 	 * display on a connector that was destroyed after it's been notified,
 	 * not before.
+	 *
+	 * Additionally, we also want to ignore connector registration when
+	 * we're trying to restore an atomic state during system resume since
+	 * there's a chance the connector may have been destroyed during the
+	 * process, but it's better to ignore that then cause
+	 * drm_atomic_helper_resume() to fail.
 	 */
-	if (drm_connector_is_unregistered(connector) && crtc_state->active) {
+	if (!state->duplicated && drm_connector_is_unregistered(connector) &&
+	    crtc_state->active) {
 		DRM_DEBUG_ATOMIC("[CONNECTOR:%d:%s] is not registered\n",
 				 connector->base.id, connector->name);
 		return -EINVAL;
@@ -3180,6 +3187,7 @@ drm_atomic_helper_duplicate_state(struct drm_device *dev,
 		return ERR_PTR(-ENOMEM);
 
 	state->acquire_ctx = ctx;
+	state->duplicated = true;
 
 	drm_for_each_crtc(crtc, dev) {
 		struct drm_crtc_state *crtc_state;
