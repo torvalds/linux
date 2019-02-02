@@ -67,18 +67,6 @@ void local_flush_tlb_all(void)
 	local_irq_restore(flags);
 }
 
-void local_flush_tlb_mm(struct mm_struct *mm)
-{
-#ifdef DEBUG_TLB
-	int cpu = smp_processor_id();
-
-	if (cpu_context(cpu, mm) != 0)
-		printk("[tlbmm<%lu>]", (unsigned long)cpu_context(cpu, mm));
-#endif
-
-	drop_mmu_context(mm);
-}
-
 void local_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 			   unsigned long end)
 {

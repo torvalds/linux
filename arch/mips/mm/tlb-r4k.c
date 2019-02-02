@@ -104,13 +104,6 @@ void local_flush_tlb_all(void)
 }
 EXPORT_SYMBOL(local_flush_tlb_all);
 
-/* All entries common to a mm share an asid.  To effectively flush
-   these entries, we just bump the asid. */
-void local_flush_tlb_mm(struct mm_struct *mm)
-{
-	drop_mmu_context(mm);
-}
-
 void local_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 	unsigned long end)
 {

@@ -487,7 +487,7 @@ void flush_tlb_all(void)
 
 static void flush_tlb_mm_ipi(void *mm)
 {
-	local_flush_tlb_mm((struct mm_struct *)mm);
+	drop_mmu_context((struct mm_struct *)mm);
 }
 
 /*
@@ -540,7 +540,7 @@ void flush_tlb_mm(struct mm_struct *mm)
 				cpu_context(cpu, mm) = 0;
 		}
 	}
-	local_flush_tlb_mm(mm);
+	drop_mmu_context(mm);
 
 	preempt_enable();
 }

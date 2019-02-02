@@ -50,11 +50,6 @@ void local_flush_tlb_all(void)
 	local_irq_restore(flags);
 }
 
-void local_flush_tlb_mm(struct mm_struct *mm)
-{
-	drop_mmu_context(mm);
-}
-
 void local_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 	unsigned long end)
 {
