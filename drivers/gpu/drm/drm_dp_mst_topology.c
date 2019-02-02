@@ -3311,15 +3311,16 @@ EXPORT_SYMBOL(drm_dp_mst_reset_vcpi_slots);
 /**
  * drm_dp_mst_deallocate_vcpi() - deallocate a VCPI
  * @mgr: manager for this port
- * @port: unverified port to deallocate vcpi for
+ * @port: port to deallocate vcpi for
+ *
+ * This can be called unconditionally, regardless of whether
+ * drm_dp_mst_allocate_vcpi() succeeded or not.
  */
 void drm_dp_mst_deallocate_vcpi(struct drm_dp_mst_topology_mgr *mgr,
 				struct drm_dp_mst_port *port)
 {
-	/*
-	 * A port with VCPI will remain allocated until its VCPI is
-	 * released, no verified ref needed
-	 */
+	if (!port->vcpi.vcpi)
+		return;
 
 	drm_dp_mst_put_payload_id(mgr, port->vcpi.vcpi);
 	port->vcpi.num_slots = 0;
