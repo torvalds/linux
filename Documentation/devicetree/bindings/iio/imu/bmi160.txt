@@ -12,6 +12,8 @@ Optional properties:
  - interrupts : interrupt mapping for IRQ
  - interrupt-names : set to "INT1" if INT1 pin should be used as interrupt
    input, set to "INT2" if INT2 pin should be used instead
+ - drive-open-drain : set if the specified interrupt pin should be configured as
+   open drain. If not set, defaults to push-pull.
 
 Examples:
 
