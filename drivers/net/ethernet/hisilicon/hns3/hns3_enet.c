@@ -2880,7 +2880,7 @@ static void hns3_update_new_int_gl(struct hns3_enet_tqp_vector *tqp_vector)
 	}
 
 	if (tx_group->coal.gl_adapt_enable) {
-		tx_update = hns3_get_new_int_gl(&tqp_vector->tx_group);
+		tx_update = hns3_get_new_int_gl(tx_group);
 		if (tx_update)
 			hns3_set_vector_coalesce_tx_gl(tqp_vector,
 						       tx_group->coal.int_gl);
