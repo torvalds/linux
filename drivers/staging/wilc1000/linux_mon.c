@@ -21,9 +21,6 @@ struct wilc_wfi_radiotap_cb_hdr {
 static u8 srcadd[6];
 static u8 bssid[6];
 
-#define IEEE80211_RADIOTAP_F_TX_RTS	0x0004  /* used rts/cts handshake */
-#define IEEE80211_RADIOTAP_F_TX_FAIL	0x0001  /* failed due to excessive*/
-
 #define TX_RADIOTAP_PRESENT ((1 << IEEE80211_RADIOTAP_RATE) |	\
 			     (1 << IEEE80211_RADIOTAP_TX_FLAGS))
 
