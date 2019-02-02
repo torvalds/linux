@@ -108,9 +108,7 @@ EXPORT_SYMBOL(local_flush_tlb_all);
    these entries, we just bump the asid. */
 void local_flush_tlb_mm(struct mm_struct *mm)
 {
-	preempt_disable();
 	drop_mmu_context(mm);
-	preempt_enable();
 }
 
 void local_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
