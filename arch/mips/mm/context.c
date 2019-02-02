@@ -17,3 +17,21 @@ void get_new_mmu_context(struct mm_struct *mm)
 
 	cpu_context(cpu, mm) = asid_cache(cpu) = asid;
 }
+
+void check_mmu_context(struct mm_struct *mm)
+{
+	unsigned int cpu = smp_processor_id();
+
+	/* Check if our ASID is of an older version and thus invalid */
+	if ((cpu_context(cpu, mm) ^ asid_cache(cpu)) & asid_version_mask(cpu))
+		get_new_mmu_context(mm);
+}
+
+void check_switch_mmu_context(struct mm_struct *mm)
+{
+	unsigned int cpu = smp_processor_id();
+
+	check_mmu_context(mm);
+	write_c0_entryhi(cpu_asid(cpu, mm));
+	TLBMISS_HANDLER_SETUP_PGD(mm->pgd);
+}

@@ -98,6 +98,8 @@ static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
 }
 
 extern void get_new_mmu_context(struct mm_struct *mm);
+extern void check_mmu_context(struct mm_struct *mm);
+extern void check_switch_mmu_context(struct mm_struct *mm);
 
 /*
  * Initialize the context related info for a new mm_struct
@@ -126,11 +128,7 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	local_irq_save(flags);
 
 	htw_stop();
-	/* Check if our ASID is of an older version and thus invalid */
-	if ((cpu_context(cpu, next) ^ asid_cache(cpu)) & asid_version_mask(cpu))
-		get_new_mmu_context(next);
-	write_c0_entryhi(cpu_asid(cpu, next));
-	TLBMISS_HANDLER_SETUP_PGD(next->pgd);
+	check_switch_mmu_context(next);
 
 	/*
 	 * Mark current->active_mm as not "active" anymore.
