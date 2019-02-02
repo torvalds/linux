@@ -24,6 +24,23 @@
 
 static atomic_t v6_worker_count;
 
+static int
+nat_ipv6_dev_get_saddr(struct net *net, const struct net_device *dev,
+		       const struct in6_addr *daddr, unsigned int srcprefs,
+		       struct in6_addr *saddr)
+{
+#ifdef CONFIG_IPV6_MODULE
+	const struct nf_ipv6_ops *v6_ops = nf_get_ipv6_ops();
+
+	if (!v6_ops)
+		return -EHOSTUNREACH;
+
+	return v6_ops->dev_get_saddr(net, dev, daddr, srcprefs, saddr);
+#else
+	return ipv6_dev_get_saddr(net, dev, daddr, srcprefs, saddr);
+#endif
+}
+
 unsigned int
 nf_nat_masquerade_ipv6(struct sk_buff *skb, const struct nf_nat_range2 *range,
 		       const struct net_device *out)
@@ -38,8 +55,8 @@ nf_nat_masquerade_ipv6(struct sk_buff *skb, const struct nf_nat_range2 *range,
 	WARN_ON(!(ct && (ctinfo == IP_CT_NEW || ctinfo == IP_CT_RELATED ||
 			 ctinfo == IP_CT_RELATED_REPLY)));
 
-	if (ipv6_dev_get_saddr(nf_ct_net(ct), out,
-			       &ipv6_hdr(skb)->daddr, 0, &src) < 0)
+	if (nat_ipv6_dev_get_saddr(nf_ct_net(ct), out,
+				   &ipv6_hdr(skb)->daddr, 0, &src) < 0)
 		return NF_DROP;
 
 	nat = nf_ct_nat_ext_add(ct);

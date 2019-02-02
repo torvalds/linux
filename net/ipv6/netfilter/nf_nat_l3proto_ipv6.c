@@ -17,6 +17,7 @@
 #include <net/checksum.h>
 #include <net/ip6_checksum.h>
 #include <net/ip6_route.h>
+#include <net/xfrm.h>
 #include <net/ipv6.h>
 
 #include <net/netfilter/nf_conntrack_core.h>
@@ -317,6 +318,20 @@ nf_nat_ipv6_out(void *priv, struct sk_buff *skb,
 	return ret;
 }
 
+static int nat_route_me_harder(struct net *net, struct sk_buff *skb)
+{
+#ifdef CONFIG_IPV6_MODULE
+	const struct nf_ipv6_ops *v6_ops = nf_get_ipv6_ops();
+
+	if (!v6_ops)
+		return -EHOSTUNREACH;
+
+	return v6_ops->route_me_harder(net, skb);
+#else
+	return ip6_route_me_harder(net, skb);
+#endif
+}
+
 static unsigned int
 nf_nat_ipv6_local_fn(void *priv, struct sk_buff *skb,
 		     const struct nf_hook_state *state)
@@ -333,7 +348,7 @@ nf_nat_ipv6_local_fn(void *priv, struct sk_buff *skb,
 
 		if (!nf_inet_addr_cmp(&ct->tuplehash[dir].tuple.dst.u3,
 				      &ct->tuplehash[!dir].tuple.src.u3)) {
-			err = ip6_route_me_harder(state->net, skb);
+			err = nat_route_me_harder(state->net, skb);
 			if (err < 0)
 				ret = NF_DROP_ERR(err);
 		}

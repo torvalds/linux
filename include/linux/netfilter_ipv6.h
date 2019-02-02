@@ -33,6 +33,12 @@ struct nf_ipv6_ops {
 	int (*route)(struct net *net, struct dst_entry **dst, struct flowi *fl,
 		     bool strict);
 	int (*reroute)(struct sk_buff *skb, const struct nf_queue_entry *entry);
+#if IS_MODULE(CONFIG_IPV6)
+	int (*route_me_harder)(struct net *net, struct sk_buff *skb);
+	int (*dev_get_saddr)(struct net *net, const struct net_device *dev,
+		       const struct in6_addr *daddr, unsigned int srcprefs,
+		       struct in6_addr *saddr);
+#endif
 };
 
 #ifdef CONFIG_NETFILTER
