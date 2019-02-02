@@ -213,15 +213,6 @@ extern bool audit_ever_enabled;
 
 extern void audit_log_session_info(struct audit_buffer *ab);
 
-extern void audit_copy_inode(struct audit_names *name,
-			     const struct dentry *dentry,
-			     struct inode *inode, unsigned int flags);
-extern void audit_log_cap(struct audit_buffer *ab, char *prefix,
-			  kernel_cap_t *cap);
-extern void audit_log_name(struct audit_context *context,
-			   struct audit_names *n, const struct path *path,
-			   int record_num, int *call_panic);
-
 extern int auditd_test_task(struct task_struct *task);
 
 #define AUDIT_INODE_BUCKETS	32
