@@ -171,6 +171,10 @@ void drm_gem_private_object_init(struct drm_device *dev,
 	kref_init(&obj->refcount);
 	obj->handle_count = 0;
 	obj->size = size;
+	reservation_object_init(&obj->_resv);
+	if (!obj->resv)
+		obj->resv = &obj->_resv;
+
 	drm_vma_node_reset(&obj->vma_node);
 }
 EXPORT_SYMBOL(drm_gem_private_object_init);
@@ -688,6 +692,44 @@ drm_gem_object_lookup(struct drm_file *filp, u32 handle)
 EXPORT_SYMBOL(drm_gem_object_lookup);
 
 /**
+ * drm_gem_reservation_object_wait - Wait on GEM object's reservation's objects
+ * shared and/or exclusive fences.
+ * @filep: DRM file private date
+ * @handle: userspace handle
+ * @wait_all: if true, wait on all fences, else wait on just exclusive fence
+ * @timeout: timeout value in jiffies or zero to return immediately
+ *
+ * Returns:
+ *
+ * Returns -ERESTARTSYS if interrupted, 0 if the wait timed out, or
+ * greater than 0 on success.
+ */
+long drm_gem_reservation_object_wait(struct drm_file *filep, u32 handle,
+				    bool wait_all, unsigned long timeout)
+{
+	long ret;
+	struct drm_gem_object *obj;
+
+	obj = drm_gem_object_lookup(filep, handle);
+	if (!obj) {
+		DRM_DEBUG("Failed to look up GEM BO %d\n", handle);
+		return -EINVAL;
+	}
+
+	ret = reservation_object_wait_timeout_rcu(obj->resv, wait_all,
+						  true, timeout);
+	if (ret == 0)
+		ret = -ETIME;
+	else if (ret > 0)
+		ret = 0;
+
+	drm_gem_object_put_unlocked(obj);
+
+	return ret;
+}
+EXPORT_SYMBOL(drm_gem_reservation_object_wait);
+
+/**
  * drm_gem_close_ioctl - implementation of the GEM_CLOSE ioctl
  * @dev: drm_device
  * @data: ioctl data
@@ -851,6 +893,7 @@ drm_gem_object_release(struct drm_gem_object *obj)
 	if (obj->filp)
 		fput(obj->filp);
 
+	reservation_object_fini(&obj->_resv);
 	drm_gem_free_mmap_offset(obj);
 }
 EXPORT_SYMBOL(drm_gem_object_release);
