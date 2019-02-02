@@ -148,6 +148,7 @@ struct bpf_verifier_state {
 	/* call stack tracking */
 	struct bpf_func_state *frame[MAX_CALL_FRAMES];
 	u32 curframe;
+	u32 active_spin_lock;
 	bool speculative;
 };
 

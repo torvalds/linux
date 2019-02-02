@@ -2884,6 +2884,12 @@ bpf_object__find_map_by_name(struct bpf_object *obj, const char *name)
 	return NULL;
 }
 
+int
+bpf_object__find_map_fd_by_name(struct bpf_object *obj, const char *name)
+{
+	return bpf_map__fd(bpf_object__find_map_by_name(obj, name));
+}
+
 struct bpf_map *
 bpf_object__find_map_by_offset(struct bpf_object *obj, size_t offset)
 {

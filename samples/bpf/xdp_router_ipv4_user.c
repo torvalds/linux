@@ -15,7 +15,6 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
-#include "bpf_load.h"
 #include <bpf/bpf.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
@@ -25,32 +24,52 @@
 #include <sys/ioctl.h>
 #include <sys/syscall.h>
 #include "bpf_util.h"
+#include "bpf/libbpf.h"
+#include <sys/resource.h>
+#include <libgen.h>
 
-int sock, sock_arp, flags = 0;
+int sock, sock_arp, flags = XDP_FLAGS_UPDATE_IF_NOEXIST;
 static int total_ifindex;
-int *ifindex_list;
+static int *ifindex_list;
+static __u32 *prog_id_list;
 char buf[8192];
+static int lpm_map_fd;
+static int rxcnt_map_fd;
+static int arp_table_map_fd;
+static int exact_match_map_fd;
+static int tx_port_map_fd;
 
 static int get_route_table(int rtm_family);
 static void int_exit(int sig)
 {
+	__u32 prog_id = 0;
 	int i = 0;
 
-	for (i = 0; i < total_ifindex; i++)
-		bpf_set_link_xdp_fd(ifindex_list[i], -1, flags);
+	for (i = 0; i < total_ifindex; i++) {
+		if (bpf_get_link_xdp_id(ifindex_list[i], &prog_id, flags)) {
+			printf("bpf_get_link_xdp_id on iface %d failed\n",
+			       ifindex_list[i]);
+			exit(1);
+		}
+		if (prog_id_list[i] == prog_id)
+			bpf_set_link_xdp_fd(ifindex_list[i], -1, flags);
+		else if (!prog_id)
+			printf("couldn't find a prog id on iface %d\n",
+			       ifindex_list[i]);
+		else
+			printf("program on iface %d changed, not removing\n",
+			       ifindex_list[i]);
+		prog_id = 0;
+	}
 	exit(0);
 }
 
 static void close_and_exit(int sig)
 {
-	int i = 0;
-
 	close(sock);
 	close(sock_arp);
 
-	for (i = 0; i < total_ifindex; i++)
-		bpf_set_link_xdp_fd(ifindex_list[i], -1, flags);
-	exit(0);
+	int_exit(0);
 }
 
 /* Get the mac address of the interface given interface name */
@@ -179,14 +198,10 @@ static void read_route(struct nlmsghdr *nh, int nll)
 		route.iface_name = alloca(sizeof(char *) * IFNAMSIZ);
 		route.iface_name = if_indextoname(route.iface, route.iface_name);
 		route.mac = getmac(route.iface_name);
-		if (route.mac == -1) {
-			int i = 0;
-
-			for (i = 0; i < total_ifindex; i++)
-				bpf_set_link_xdp_fd(ifindex_list[i], -1, flags);
-			exit(0);
-		}
-		assert(bpf_map_update_elem(map_fd[4], &route.iface, &route.iface, 0) == 0);
+		if (route.mac == -1)
+			int_exit(0);
+		assert(bpf_map_update_elem(tx_port_map_fd,
+					   &route.iface, &route.iface, 0) == 0);
 		if (rtm_family == AF_INET) {
 			struct trie_value {
 				__u8 prefix[4];
@@ -207,11 +222,16 @@ static void read_route(struct nlmsghdr *nh, int nll)
 			direct_entry.arp.dst = 0;
 			if (route.dst_len == 32) {
 				if (nh->nlmsg_type == RTM_DELROUTE) {
-					assert(bpf_map_delete_elem(map_fd[3], &route.dst) == 0);
+					assert(bpf_map_delete_elem(exact_match_map_fd,
+								   &route.dst) == 0);
 				} else {
-					if (bpf_map_lookup_elem(map_fd[2], &route.dst, &direct_entry.arp.mac) == 0)
+					if (bpf_map_lookup_elem(arp_table_map_fd,
+								&route.dst,
+								&direct_entry.arp.mac) == 0)
 						direct_entry.arp.dst = route.dst;
-					assert(bpf_map_update_elem(map_fd[3], &route.dst, &direct_entry, 0) == 0);
+					assert(bpf_map_update_elem(exact_match_map_fd,
+								   &route.dst,
+								   &direct_entry, 0) == 0);
 				}
 			}
 			for (i = 0; i < 4; i++)
@@ -225,7 +245,7 @@ static void read_route(struct nlmsghdr *nh, int nll)
 			       route.gw, route.dst_len,
 			       route.metric,
 			       route.iface_name);
-			if (bpf_map_lookup_elem(map_fd[0], prefix_key,
+			if (bpf_map_lookup_elem(lpm_map_fd, prefix_key,
 						prefix_value) < 0) {
 				for (i = 0; i < 4; i++)
 					prefix_value->prefix[i] = prefix_key->data[i];
@@ -234,7 +254,7 @@ static void read_route(struct nlmsghdr *nh, int nll)
 				prefix_value->gw = route.gw;
 				prefix_value->metric = route.metric;
 
-				assert(bpf_map_update_elem(map_fd[0],
+				assert(bpf_map_update_elem(lpm_map_fd,
 							   prefix_key,
 							   prefix_value, 0
 							   ) == 0);
@@ -247,7 +267,7 @@ static void read_route(struct nlmsghdr *nh, int nll)
 					       prefix_key->data[2],
 					       prefix_key->data[3],
 					       prefix_key->prefixlen);
-					assert(bpf_map_delete_elem(map_fd[0],
+					assert(bpf_map_delete_elem(lpm_map_fd,
 								   prefix_key
 								   ) == 0);
 					/* Rereading the route table to check if
@@ -275,8 +295,7 @@ static void read_route(struct nlmsghdr *nh, int nll)
 					prefix_value->ifindex = route.iface;
 					prefix_value->gw = route.gw;
 					prefix_value->metric = route.metric;
-					assert(bpf_map_update_elem(
-								   map_fd[0],
+					assert(bpf_map_update_elem(lpm_map_fd,
 								   prefix_key,
 								   prefix_value,
 								   0) == 0);
@@ -401,7 +420,8 @@ static void read_arp(struct nlmsghdr *nh, int nll)
 		arp_entry.mac = atol(mac);
 		printf("%x\t\t%llx\n", arp_entry.dst, arp_entry.mac);
 		if (ndm_family == AF_INET) {
-			if (bpf_map_lookup_elem(map_fd[3], &arp_entry.dst,
+			if (bpf_map_lookup_elem(exact_match_map_fd,
+						&arp_entry.dst,
 						&direct_entry) == 0) {
 				if (nh->nlmsg_type == RTM_DELNEIGH) {
 					direct_entry.arp.dst = 0;
@@ -410,16 +430,17 @@ static void read_arp(struct nlmsghdr *nh, int nll)
 					direct_entry.arp.dst = arp_entry.dst;
 					direct_entry.arp.mac = arp_entry.mac;
 				}
-				assert(bpf_map_update_elem(map_fd[3],
+				assert(bpf_map_update_elem(exact_match_map_fd,
 							   &arp_entry.dst,
 							   &direct_entry, 0
 							   ) == 0);
 				memset(&direct_entry, 0, sizeof(direct_entry));
 			}
 			if (nh->nlmsg_type == RTM_DELNEIGH) {
-				assert(bpf_map_delete_elem(map_fd[2], &arp_entry.dst) == 0);
+				assert(bpf_map_delete_elem(arp_table_map_fd,
+							   &arp_entry.dst) == 0);
 			} else if (nh->nlmsg_type == RTM_NEWNEIGH) {
-				assert(bpf_map_update_elem(map_fd[2],
+				assert(bpf_map_update_elem(arp_table_map_fd,
 							   &arp_entry.dst,
 							   &arp_entry.mac, 0
 							   ) == 0);
@@ -553,7 +574,8 @@ static int monitor_route(void)
 		for (key = 0; key < nr_keys; key++) {
 			__u64 sum = 0;
 
-			assert(bpf_map_lookup_elem(map_fd[1], &key, values) == 0);
+			assert(bpf_map_lookup_elem(rxcnt_map_fd,
+						   &key, values) == 0);
 			for (i = 0; i < nr_cpus; i++)
 				sum += (values[i] - prev[key][i]);
 			if (sum)
@@ -594,36 +616,87 @@ cleanup:
 	return ret;
 }
 
+static void usage(const char *prog)
+{
+	fprintf(stderr,
+		"%s: %s [OPTS] interface name list\n\n"
+		"OPTS:\n"
+		"    -S    use skb-mode\n"
+		"    -F    force loading prog\n",
+		__func__, prog);
+}
+
 int main(int ac, char **argv)
 {
+	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
+	struct bpf_prog_load_attr prog_load_attr = {
+		.prog_type	= BPF_PROG_TYPE_XDP,
+	};
+	struct bpf_prog_info info = {};
+	__u32 info_len = sizeof(info);
+	const char *optstr = "SF";
+	struct bpf_object *obj;
 	char filename[256];
 	char **ifname_list;
-	int i = 1;
+	int prog_fd, opt;
+	int err, i = 1;
 
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
-	if (ac < 2) {
-		printf("usage: %s [-S] Interface name list\n", argv[0]);
+	prog_load_attr.file = filename;
+
+	total_ifindex = ac - 1;
+	ifname_list = (argv + 1);
+
+	while ((opt = getopt(ac, argv, optstr)) != -1) {
+		switch (opt) {
+		case 'S':
+			flags |= XDP_FLAGS_SKB_MODE;
+			total_ifindex--;
+			ifname_list++;
+			break;
+		case 'F':
+			flags &= ~XDP_FLAGS_UPDATE_IF_NOEXIST;
+			total_ifindex--;
+			ifname_list++;
+			break;
+		default:
+			usage(basename(argv[0]));
+			return 1;
+		}
+	}
+
+	if (optind == ac) {
+		usage(basename(argv[0]));
 		return 1;
 	}
-	if (!strcmp(argv[1], "-S")) {
-		flags = XDP_FLAGS_SKB_MODE;
-		total_ifindex = ac - 2;
-		ifname_list = (argv + 2);
-	} else {
-		flags = 0;
-		total_ifindex = ac - 1;
-		ifname_list = (argv + 1);
-	}
-	if (load_bpf_file(filename)) {
-		printf("%s", bpf_log_buf);
+
+	if (setrlimit(RLIMIT_MEMLOCK, &r)) {
+		perror("setrlimit(RLIMIT_MEMLOCK)");
 		return 1;
 	}
+
+	if (bpf_prog_load_xattr(&prog_load_attr, &obj, &prog_fd))
+		return 1;
+
 	printf("\n**************loading bpf file*********************\n\n\n");
-	if (!prog_fd[0]) {
-		printf("load_bpf_file: %s\n", strerror(errno));
+	if (!prog_fd) {
+		printf("bpf_prog_load_xattr: %s\n", strerror(errno));
 		return 1;
 	}
-	ifindex_list = (int *)malloc(total_ifindex * sizeof(int *));
+
+	lpm_map_fd = bpf_object__find_map_fd_by_name(obj, "lpm_map");
+	rxcnt_map_fd = bpf_object__find_map_fd_by_name(obj, "rxcnt");
+	arp_table_map_fd = bpf_object__find_map_fd_by_name(obj, "arp_table");
+	exact_match_map_fd = bpf_object__find_map_fd_by_name(obj,
+							     "exact_match");
+	tx_port_map_fd = bpf_object__find_map_fd_by_name(obj, "tx_port");
+	if (lpm_map_fd < 0 || rxcnt_map_fd < 0 || arp_table_map_fd < 0 ||
+	    exact_match_map_fd < 0 || tx_port_map_fd < 0) {
+		printf("bpf_object__find_map_fd_by_name failed\n");
+		return 1;
+	}
+
+	ifindex_list = (int *)calloc(total_ifindex, sizeof(int *));
 	for (i = 0; i < total_ifindex; i++) {
 		ifindex_list[i] = if_nametoindex(ifname_list[i]);
 		if (!ifindex_list[i]) {
@@ -632,8 +705,9 @@ int main(int ac, char **argv)
 			return 1;
 		}
 	}
+	prog_id_list = (__u32 *)calloc(total_ifindex, sizeof(__u32 *));
 	for (i = 0; i < total_ifindex; i++) {
-		if (bpf_set_link_xdp_fd(ifindex_list[i], prog_fd[0], flags) < 0) {
+		if (bpf_set_link_xdp_fd(ifindex_list[i], prog_fd, flags) < 0) {
 			printf("link set xdp fd failed\n");
 			int recovery_index = i;
 
@@ -642,6 +716,13 @@ int main(int ac, char **argv)
 
 			return 1;
 		}
+		err = bpf_obj_get_info_by_fd(prog_fd, &info, &info_len);
+		if (err) {
+			printf("can't get prog info - %s\n", strerror(errno));
+			return err;
+		}
+		prog_id_list[i] = info.id;
+		memset(&info, 0, sizeof(info));
 		printf("Attached to %d\n", ifindex_list[i]);
 	}
 	signal(SIGINT, int_exit);

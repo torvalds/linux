@@ -355,6 +355,11 @@ static bool btf_type_is_struct(const struct btf_type *t)
 	return kind == BTF_KIND_STRUCT || kind == BTF_KIND_UNION;
 }
 
+static bool __btf_type_is_struct(const struct btf_type *t)
+{
+	return BTF_INFO_KIND(t->info) == BTF_KIND_STRUCT;
+}
+
 static bool btf_type_is_array(const struct btf_type *t)
 {
 	return BTF_INFO_KIND(t->info) == BTF_KIND_ARRAY;
@@ -2043,6 +2048,43 @@ static void btf_struct_log(struct btf_verifier_env *env,
 			   const struct btf_type *t)
 {
 	btf_verifier_log(env, "size=%u vlen=%u", t->size, btf_type_vlen(t));
+}
+
+/* find 'struct bpf_spin_lock' in map value.
+ * return >= 0 offset if found
+ * and < 0 in case of error
+ */
+int btf_find_spin_lock(const struct btf *btf, const struct btf_type *t)
+{
+	const struct btf_member *member;
+	u32 i, off = -ENOENT;
+
+	if (!__btf_type_is_struct(t))
+		return -EINVAL;
+
+	for_each_member(i, t, member) {
+		const struct btf_type *member_type = btf_type_by_id(btf,
+								    member->type);
+		if (!__btf_type_is_struct(member_type))
+			continue;
+		if (member_type->size != sizeof(struct bpf_spin_lock))
+			continue;
+		if (strcmp(__btf_name_by_offset(btf, member_type->name_off),
+			   "bpf_spin_lock"))
+			continue;
+		if (off != -ENOENT)
+			/* only one 'struct bpf_spin_lock' is allowed */
+			return -E2BIG;
+		off = btf_member_bit_offset(t, member);
+		if (off % 8)
+			/* valid C code cannot generate such BTF */
+			return -EINVAL;
+		off /= 8;
+		if (off % __alignof__(struct bpf_spin_lock))
+			/* valid struct bpf_spin_lock will be 4 byte aligned */
+			return -EINVAL;
+	}
+	return off;
 }
 
 static void btf_struct_seq_show(const struct btf *btf, const struct btf_type *t,

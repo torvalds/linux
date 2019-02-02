@@ -32,8 +32,10 @@
 #include <linux/bpf_perf_event.h>
 #include <linux/bpf.h>
 #include <linux/if_ether.h>
+#include <linux/btf.h>
 
 #include <bpf/bpf.h>
+#include <bpf/libbpf.h>
 
 #ifdef HAVE_GENHDR
 # include "autoconf.h"
@@ -49,7 +51,7 @@
 
 #define MAX_INSNS	BPF_MAXINSNS
 #define MAX_FIXUPS	8
-#define MAX_NR_MAPS	13
+#define MAX_NR_MAPS	14
 #define MAX_TEST_RUNS	8
 #define POINTER_VALUE	0xcafe4all
 #define TEST_DATA_LEN	64
@@ -59,6 +61,7 @@
 
 #define UNPRIV_SYSCTL "kernel/unprivileged_bpf_disabled"
 static bool unpriv_disabled = false;
+static int skips;
 
 struct bpf_test {
 	const char *descr;
@@ -76,6 +79,7 @@ struct bpf_test {
 	int fixup_map_in_map[MAX_FIXUPS];
 	int fixup_cgroup_storage[MAX_FIXUPS];
 	int fixup_percpu_cgroup_storage[MAX_FIXUPS];
+	int fixup_map_spin_lock[MAX_FIXUPS];
 	const char *errstr;
 	const char *errstr_unpriv;
 	uint32_t retval, retval_unpriv, insn_processed;
@@ -263,6 +267,16 @@ static int probe_filter_length(const struct bpf_insn *fp)
 	return len + 1;
 }
 
+static bool skip_unsupported_map(enum bpf_map_type map_type)
+{
+	if (!bpf_probe_map_type(map_type, 0)) {
+		printf("SKIP (unsupported map type %d)\n", map_type);
+		skips++;
+		return true;
+	}
+	return false;
+}
+
 static int create_map(uint32_t type, uint32_t size_key,
 		      uint32_t size_value, uint32_t max_elem)
 {
@@ -270,8 +284,11 @@ static int create_map(uint32_t type, uint32_t size_key,
 
 	fd = bpf_create_map(type, size_key, size_value, max_elem,
 			    type == BPF_MAP_TYPE_HASH ? BPF_F_NO_PREALLOC : 0);
-	if (fd < 0)
+	if (fd < 0) {
+		if (skip_unsupported_map(type))
+			return -1;
 		printf("Failed to create hash map '%s'!\n", strerror(errno));
+	}
 
 	return fd;
 }
@@ -321,6 +338,8 @@ static int create_prog_array(enum bpf_prog_type prog_type, uint32_t max_elem,
 	mfd = bpf_create_map(BPF_MAP_TYPE_PROG_ARRAY, sizeof(int),
 			     sizeof(int), max_elem, 0);
 	if (mfd < 0) {
+		if (skip_unsupported_map(BPF_MAP_TYPE_PROG_ARRAY))
+			return -1;
 		printf("Failed to create prog array '%s'!\n", strerror(errno));
 		return -1;
 	}
@@ -351,15 +370,20 @@ static int create_map_in_map(void)
 	inner_map_fd = bpf_create_map(BPF_MAP_TYPE_ARRAY, sizeof(int),
 				      sizeof(int), 1, 0);
 	if (inner_map_fd < 0) {
+		if (skip_unsupported_map(BPF_MAP_TYPE_ARRAY))
+			return -1;
 		printf("Failed to create array '%s'!\n", strerror(errno));
 		return inner_map_fd;
 	}
 
 	outer_map_fd = bpf_create_map_in_map(BPF_MAP_TYPE_ARRAY_OF_MAPS, NULL,
 					     sizeof(int), inner_map_fd, 1, 0);
-	if (outer_map_fd < 0)
+	if (outer_map_fd < 0) {
+		if (skip_unsupported_map(BPF_MAP_TYPE_ARRAY_OF_MAPS))
+			return -1;
 		printf("Failed to create array of maps '%s'!\n",
 		       strerror(errno));
+	}
 
 	close(inner_map_fd);
 
@@ -374,10 +398,105 @@ static int create_cgroup_storage(bool percpu)
 
 	fd = bpf_create_map(type, sizeof(struct bpf_cgroup_storage_key),
 			    TEST_DATA_LEN, 0, 0);
-	if (fd < 0)
+	if (fd < 0) {
+		if (skip_unsupported_map(type))
+			return -1;
 		printf("Failed to create cgroup storage '%s'!\n",
 		       strerror(errno));
+	}
 
+	return fd;
+}
+
+#define BTF_INFO_ENC(kind, kind_flag, vlen) \
+	((!!(kind_flag) << 31) | ((kind) << 24) | ((vlen) & BTF_MAX_VLEN))
+#define BTF_TYPE_ENC(name, info, size_or_type) \
+	(name), (info), (size_or_type)
+#define BTF_INT_ENC(encoding, bits_offset, nr_bits) \
+	((encoding) << 24 | (bits_offset) << 16 | (nr_bits))
+#define BTF_TYPE_INT_ENC(name, encoding, bits_offset, bits, sz) \
+	BTF_TYPE_ENC(name, BTF_INFO_ENC(BTF_KIND_INT, 0, 0), sz), \
+	BTF_INT_ENC(encoding, bits_offset, bits)
+#define BTF_MEMBER_ENC(name, type, bits_offset) \
+	(name), (type), (bits_offset)
+
+struct btf_raw_data {
+	__u32 raw_types[64];
+	const char *str_sec;
+	__u32 str_sec_size;
+};
+
+/* struct bpf_spin_lock {
+ *   int val;
+ * };
+ * struct val {
+ *   int cnt;
+ *   struct bpf_spin_lock l;
+ * };
+ */
+static const char btf_str_sec[] = "\0bpf_spin_lock\0val\0cnt\0l";
+static __u32 btf_raw_types[] = {
+	/* int */
+	BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),  /* [1] */
+	/* struct bpf_spin_lock */                      /* [2] */
+	BTF_TYPE_ENC(1, BTF_INFO_ENC(BTF_KIND_STRUCT, 0, 1), 4),
+	BTF_MEMBER_ENC(15, 1, 0), /* int val; */
+	/* struct val */                                /* [3] */
+	BTF_TYPE_ENC(15, BTF_INFO_ENC(BTF_KIND_STRUCT, 0, 2), 8),
+	BTF_MEMBER_ENC(19, 1, 0), /* int cnt; */
+	BTF_MEMBER_ENC(23, 2, 32),/* struct bpf_spin_lock l; */
+};
+
+static int load_btf(void)
+{
+	struct btf_header hdr = {
+		.magic = BTF_MAGIC,
+		.version = BTF_VERSION,
+		.hdr_len = sizeof(struct btf_header),
+		.type_len = sizeof(btf_raw_types),
+		.str_off = sizeof(btf_raw_types),
+		.str_len = sizeof(btf_str_sec),
+	};
+	void *ptr, *raw_btf;
+	int btf_fd;
+
+	ptr = raw_btf = malloc(sizeof(hdr) + sizeof(btf_raw_types) +
+			       sizeof(btf_str_sec));
+
+	memcpy(ptr, &hdr, sizeof(hdr));
+	ptr += sizeof(hdr);
+	memcpy(ptr, btf_raw_types, hdr.type_len);
+	ptr += hdr.type_len;
+	memcpy(ptr, btf_str_sec, hdr.str_len);
+	ptr += hdr.str_len;
+
+	btf_fd = bpf_load_btf(raw_btf, ptr - raw_btf, 0, 0, 0);
+	free(raw_btf);
+	if (btf_fd < 0)
+		return -1;
+	return btf_fd;
+}
+
+static int create_map_spin_lock(void)
+{
+	struct bpf_create_map_attr attr = {
+		.name = "test_map",
+		.map_type = BPF_MAP_TYPE_ARRAY,
+		.key_size = 4,
+		.value_size = 8,
+		.max_entries = 1,
+		.btf_key_type_id = 1,
+		.btf_value_type_id = 3,
+	};
+	int fd, btf_fd;
+
+	btf_fd = load_btf();
+	if (btf_fd < 0)
+		return -1;
+	attr.btf_fd = btf_fd;
+	fd = bpf_create_map_xattr(&attr);
+	if (fd < 0)
+		printf("Failed to create map with spin_lock\n");
 	return fd;
 }
 
@@ -399,6 +518,7 @@ static void do_test_fixup(struct bpf_test *test, enum bpf_prog_type prog_type,
 	int *fixup_map_in_map = test->fixup_map_in_map;
 	int *fixup_cgroup_storage = test->fixup_cgroup_storage;
 	int *fixup_percpu_cgroup_storage = test->fixup_percpu_cgroup_storage;
+	int *fixup_map_spin_lock = test->fixup_map_spin_lock;
 
 	if (test->fill_helper)
 		test->fill_helper(test);
@@ -515,6 +635,13 @@ static void do_test_fixup(struct bpf_test *test, enum bpf_prog_type prog_type,
 			fixup_map_stacktrace++;
 		} while (*fixup_map_stacktrace);
 	}
+	if (*fixup_map_spin_lock) {
+		map_fds[13] = create_map_spin_lock();
+		do {
+			prog[*fixup_map_spin_lock].imm = map_fds[13];
+			fixup_map_spin_lock++;
+		} while (*fixup_map_spin_lock);
+	}
 }
 
 static int set_admin(bool admin)
@@ -580,6 +707,7 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 	int run_errs, run_successes;
 	int map_fds[MAX_NR_MAPS];
 	const char *expected_err;
+	int fixup_skips;
 	__u32 pflags;
 	int i, err;
 
@@ -588,7 +716,13 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 
 	if (!prog_type)
 		prog_type = BPF_PROG_TYPE_SOCKET_FILTER;
+	fixup_skips = skips;
 	do_test_fixup(test, prog_type, prog, map_fds);
+	/* If there were some map skips during fixup due to missing bpf
+	 * features, skip this test.
+	 */
+	if (fixup_skips != skips)
+		return;
 	prog_len = probe_filter_length(prog);
 
 	pflags = 0;
@@ -598,6 +732,11 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 		pflags |= BPF_F_ANY_ALIGNMENT;
 	fd_prog = bpf_verify_program(prog_type, prog, prog_len, pflags,
 				     "GPL", 0, bpf_vlog, sizeof(bpf_vlog), 1);
+	if (fd_prog < 0 && !bpf_probe_prog_type(prog_type, 0)) {
+		printf("SKIP (unsupported program type %d)\n", prog_type);
+		skips++;
+		goto close_fds;
+	}
 
 	expected_ret = unpriv && test->result_unpriv != UNDEF ?
 		       test->result_unpriv : test->result;
@@ -751,7 +890,7 @@ static bool test_as_unpriv(struct bpf_test *test)
 
 static int do_test(bool unpriv, unsigned int from, unsigned int to)
 {
-	int i, passes = 0, errors = 0, skips = 0;
+	int i, passes = 0, errors = 0;
 
 	for (i = from; i < to; i++) {
 		struct bpf_test *test = &tests[i];

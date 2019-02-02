@@ -1263,8 +1263,9 @@ bool bpf_opcode_in_insntable(u8 code)
 #ifndef CONFIG_BPF_JIT_ALWAYS_ON
 /**
  *	__bpf_prog_run - run eBPF program on a given context
- *	@ctx: is the data we are operating on
+ *	@regs: is the array of MAX_BPF_EXT_REG eBPF pseudo-registers
  *	@insn: is the array of eBPF instructions
+ *	@stack: is the eBPF storage stack
  *
  * Decode and execute eBPF instructions.
  */
@@ -2001,6 +2002,8 @@ const struct bpf_func_proto bpf_map_delete_elem_proto __weak;
 const struct bpf_func_proto bpf_map_push_elem_proto __weak;
 const struct bpf_func_proto bpf_map_pop_elem_proto __weak;
 const struct bpf_func_proto bpf_map_peek_elem_proto __weak;
+const struct bpf_func_proto bpf_spin_lock_proto __weak;
+const struct bpf_func_proto bpf_spin_unlock_proto __weak;
 
 const struct bpf_func_proto bpf_get_prandom_u32_proto __weak;
 const struct bpf_func_proto bpf_get_smp_processor_id_proto __weak;
