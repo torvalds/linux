@@ -5830,9 +5830,12 @@ static void hclge_update_umv_space(struct hclge_vport *vport, bool is_free)
 	if (is_free) {
 		if (vport->used_umv_num > hdev->priv_umv_size)
 			hdev->share_umv_size++;
-		vport->used_umv_num--;
+
+		if (vport->used_umv_num > 0)
+			vport->used_umv_num--;
 	} else {
-		if (vport->used_umv_num >= hdev->priv_umv_size)
+		if (vport->used_umv_num >= hdev->priv_umv_size &&
+		    hdev->share_umv_size > 0)
 			hdev->share_umv_size--;
 		vport->used_umv_num++;
 	}
