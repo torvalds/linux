@@ -72,7 +72,7 @@ static u8 curr_channel;
 static u8 p2p_oui[] = {0x50, 0x6f, 0x9A, 0x09};
 static u8 p2p_vendor_spec[] = {0xdd, 0x05, 0x00, 0x08, 0x40, 0x03};
 
-#define DURING_IP_TIME_OUT	15000
+#define WILC_IP_TIMEOUT_MS		15000
 
 static void clear_during_ip(struct timer_list *t)
 {
@@ -1489,7 +1489,7 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 	case NL80211_IFTYPE_P2P_GO:
 		vif->obtaining_ip = true;
 		mod_timer(&vif->during_ip_timer,
-			  jiffies + msecs_to_jiffies(DURING_IP_TIME_OUT));
+			  jiffies + msecs_to_jiffies(WILC_IP_TIMEOUT_MS));
 		wilc_set_operation_mode(vif, WILC_AP_MODE);
 		dev->ieee80211_ptr->iftype = type;
 		priv->wdev->iftype = type;

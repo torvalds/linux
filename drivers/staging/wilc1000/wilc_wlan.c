@@ -1141,7 +1141,7 @@ int wilc_wlan_cfg_set(struct wilc_vif *vif, int start, u16 wid, u8 *buffer,
 		ret_size = 0;
 
 	if (!wait_for_completion_timeout(&wilc->cfg_event,
-					 msecs_to_jiffies(CFG_PKTS_TIMEOUT))) {
+					 WILC_CFG_PKTS_TIMEOUT)) {
 		netdev_dbg(vif->ndev, "%s: Timed Out\n", __func__);
 		ret_size = 0;
 	}
@@ -1179,7 +1179,7 @@ int wilc_wlan_cfg_get(struct wilc_vif *vif, int start, u16 wid, int commit,
 		ret_size = 0;
 
 	if (!wait_for_completion_timeout(&wilc->cfg_event,
-					 msecs_to_jiffies(CFG_PKTS_TIMEOUT))) {
+					 WILC_CFG_PKTS_TIMEOUT)) {
 		netdev_dbg(vif->ndev, "%s: Timed Out\n", __func__);
 		ret_size = 0;
 	}

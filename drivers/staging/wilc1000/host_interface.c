@@ -6,8 +6,8 @@
 
 #include "wilc_wfi_netdevice.h"
 
-#define HOST_IF_SCAN_TIMEOUT                    4000
-#define HOST_IF_CONNECT_TIMEOUT                 9500
+#define WILC_HIF_SCAN_TIMEOUT_MS                4000
+#define WILC_HIF_CONNECT_TIMEOUT_MS             9500
 
 #define FALSE_FRMWR_CHANNEL			100
 
@@ -327,7 +327,7 @@ int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
 	hif_drv->usr_scan_req.arg = user_arg;
 	hif_drv->scan_timer_vif = vif;
 	mod_timer(&hif_drv->scan_timer,
-		  jiffies + msecs_to_jiffies(HOST_IF_SCAN_TIMEOUT));
+		  jiffies + msecs_to_jiffies(WILC_HIF_SCAN_TIMEOUT_MS));
 
 error:
 	if (search) {
@@ -1442,7 +1442,7 @@ int wilc_set_join_req(struct wilc_vif *vif, u8 *bssid, const u8 *ies,
 
 	hif_drv->connect_timer_vif = vif;
 	mod_timer(&hif_drv->connect_timer,
-		  jiffies + msecs_to_jiffies(HOST_IF_CONNECT_TIMEOUT));
+		  jiffies + msecs_to_jiffies(WILC_HIF_CONNECT_TIMEOUT_MS));
 
 	return 0;
 
