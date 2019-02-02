@@ -616,12 +616,12 @@ struct ib_mad_agent {
 	void			*context;
 	u32			hi_tid;
 	u32			flags;
+	void			*security;
+	struct notifier_block   lsm_nb;
 	u8			port_num;
 	u8			rmpp_version;
-	void			*security;
 	bool			smp_allowed;
 	bool			lsm_nb_reg;
-	struct notifier_block   lsm_nb;
 };
 
 /**
