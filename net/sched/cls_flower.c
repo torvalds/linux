@@ -391,7 +391,6 @@ static int fl_hw_replace_filter(struct tcf_proto *tp,
 	cls_flower.rule->match.dissector = &f->mask->dissector;
 	cls_flower.rule->match.mask = &f->mask->key;
 	cls_flower.rule->match.key = &f->mkey;
-	cls_flower.exts = &f->exts;
 	cls_flower.classid = f->res.classid;
 
 	err = tc_setup_flow_action(&cls_flower.rule->action, &f->exts);
@@ -425,7 +424,6 @@ static void fl_hw_update_stats(struct tcf_proto *tp, struct cls_fl_filter *f)
 	tc_cls_common_offload_init(&cls_flower.common, tp, f->flags, NULL);
 	cls_flower.command = TC_CLSFLOWER_STATS;
 	cls_flower.cookie = (unsigned long) f;
-	cls_flower.exts = &f->exts;
 	cls_flower.classid = f->res.classid;
 
 	tc_setup_cb_call(block, TC_SETUP_CLSFLOWER, &cls_flower, false);
@@ -1492,7 +1490,6 @@ static int fl_reoffload(struct tcf_proto *tp, bool add, tc_setup_cb_t *cb,
 			cls_flower.rule->match.dissector = &mask->dissector;
 			cls_flower.rule->match.mask = &mask->key;
 			cls_flower.rule->match.key = &f->mkey;
-			cls_flower.exts = &f->exts;
 
 			err = tc_setup_flow_action(&cls_flower.rule->action,
 						   &f->exts);
@@ -1525,7 +1522,6 @@ static int fl_hw_create_tmplt(struct tcf_chain *chain,
 {
 	struct tc_cls_flower_offload cls_flower = {};
 	struct tcf_block *block = chain->block;
-	struct tcf_exts dummy_exts = { 0, };
 
 	cls_flower.rule = flow_rule_alloc(0);
 	if (!cls_flower.rule)
@@ -1537,7 +1533,6 @@ static int fl_hw_create_tmplt(struct tcf_chain *chain,
 	cls_flower.rule->match.dissector = &tmplt->dissector;
 	cls_flower.rule->match.mask = &tmplt->mask;
 	cls_flower.rule->match.key = &tmplt->dummy_key;
-	cls_flower.exts = &dummy_exts;
 
 	/* We don't care if driver (any of them) fails to handle this
 	 * call. It serves just as a hint for it.
