@@ -852,8 +852,7 @@ static u8 aac_eh_tmf_hard_reset_fib(struct aac_hba_map_info *info,
 
 	address = (u64)fib->hw_error_pa;
 	rst->error_ptr_hi = cpu_to_le32((u32)(address >> 32));
-	rst->error_ptr_lo = cpu_to_le32
-		((u32)(address & 0xffffffff));
+	rst->error_ptr_lo = cpu_to_le32((u32)(address & 0xffffffff));
 	rst->error_length = cpu_to_le32(FW_ERROR_BUFFER_SIZE);
 	fib->hbacmd_size = sizeof(*rst);
 
