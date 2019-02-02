@@ -711,16 +711,20 @@ int ib_mad_agent_security_setup(struct ib_mad_agent *agent,
 						agent->device->name,
 						agent->port_num);
 	if (ret)
-		return ret;
+		goto free_security;
 
 	agent->lsm_nb.notifier_call = ib_mad_agent_security_change;
 	ret = register_lsm_notifier(&agent->lsm_nb);
 	if (ret)
-		return ret;
+		goto free_security;
 
 	agent->smp_allowed = true;
 	agent->lsm_nb_reg = true;
 	return 0;
+
+free_security:
+	security_ib_free_security(agent->security);
+	return ret;
 }
 
 void ib_mad_agent_security_cleanup(struct ib_mad_agent *agent)
