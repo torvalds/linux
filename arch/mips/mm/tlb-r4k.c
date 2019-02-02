@@ -108,16 +108,8 @@ EXPORT_SYMBOL(local_flush_tlb_all);
    these entries, we just bump the asid. */
 void local_flush_tlb_mm(struct mm_struct *mm)
 {
-	int cpu;
-
 	preempt_disable();
-
-	cpu = smp_processor_id();
-
-	if (cpu_context(cpu, mm) != 0) {
-		drop_mmu_context(mm);
-	}
-
+	drop_mmu_context(mm);
 	preempt_enable();
 }
 

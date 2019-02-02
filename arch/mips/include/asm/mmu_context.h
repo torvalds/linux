@@ -186,7 +186,9 @@ drop_mmu_context(struct mm_struct *mm)
 	local_irq_save(flags);
 
 	cpu = smp_processor_id();
-	if (cpumask_test_cpu(cpu, mm_cpumask(mm)))  {
+	if (!cpu_context(cpu, mm)) {
+		/* no-op */
+	} else if (cpumask_test_cpu(cpu, mm_cpumask(mm)))  {
 		htw_stop();
 		get_new_mmu_context(mm);
 		write_c0_entryhi(cpu_asid(cpu, mm));
