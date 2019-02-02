@@ -139,10 +139,3 @@ fail:
 
 	return ERR_PTR(ret);
 }
-
-struct reservation_object *etnaviv_gem_prime_res_obj(struct drm_gem_object *obj)
-{
-	struct etnaviv_gem_object *etnaviv_obj = to_etnaviv_bo(obj);
-
-	return etnaviv_obj->resv;
-}
