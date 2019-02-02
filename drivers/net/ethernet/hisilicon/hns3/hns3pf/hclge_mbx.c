@@ -355,21 +355,47 @@ static int hclge_get_link_info(struct hclge_vport *vport,
 {
 	struct hclge_dev *hdev = vport->back;
 	u16 link_status;
-	u8 msg_data[8];
+	u8 msg_data[10];
+	u16 media_type;
 	u8 dest_vfid;
 	u16 duplex;
 
 	/* mac.link can only be 0 or 1 */
 	link_status = (u16)hdev->hw.mac.link;
 	duplex = hdev->hw.mac.duplex;
+	media_type = hdev->hw.mac.media_type;
 	memcpy(&msg_data[0], &link_status, sizeof(u16));
 	memcpy(&msg_data[2], &hdev->hw.mac.speed, sizeof(u32));
 	memcpy(&msg_data[6], &duplex, sizeof(u16));
+	memcpy(&msg_data[8], &media_type, sizeof(u16));
 	dest_vfid = mbx_req->mbx_src_vfid;
 
 	/* send this requested info to VF */
 	return hclge_send_mbx_msg(vport, msg_data, sizeof(msg_data),
 				  HCLGE_MBX_LINK_STAT_CHANGE, dest_vfid);
+}
+
+static void hclge_get_link_mode(struct hclge_vport *vport,
+				struct hclge_mbx_vf_to_pf_cmd *mbx_req)
+{
+#define HCLGE_SUPPORTED   1
+	struct hclge_dev *hdev = vport->back;
+	unsigned long advertising;
+	unsigned long supported;
+	unsigned long send_data;
+	u8 msg_data[10];
+	u8 dest_vfid;
+
+	advertising = hdev->hw.mac.advertising[0];
+	supported = hdev->hw.mac.supported[0];
+	dest_vfid = mbx_req->mbx_src_vfid;
+	msg_data[0] = mbx_req->msg[2];
+
+	send_data = msg_data[0] == HCLGE_SUPPORTED ? supported : advertising;
+
+	memcpy(&msg_data[2], &send_data, sizeof(unsigned long));
+	hclge_send_mbx_msg(vport, msg_data, sizeof(msg_data),
+			   HCLGE_MBX_LINK_STAT_MODE, dest_vfid);
 }
 
 static void hclge_mbx_reset_vf_queue(struct hclge_vport *vport,
@@ -555,6 +581,9 @@ void hclge_mbx_handler(struct hclge_dev *hdev)
 				dev_err(&hdev->pdev->dev,
 					"PF failed(%d) to get qid for VF\n",
 					ret);
+			break;
+		case HCLGE_MBX_GET_LINK_MODE:
+			hclge_get_link_mode(vport, req);
 			break;
 		default:
 			dev_err(&hdev->pdev->dev,
