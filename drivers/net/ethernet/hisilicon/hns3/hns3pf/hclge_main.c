@@ -7989,7 +7989,7 @@ static void hclge_get_link_mode(struct hnae3_handle *handle,
 	}
 }
 
-static int hclge_gro_en(struct hnae3_handle *handle, int enable)
+static int hclge_gro_en(struct hnae3_handle *handle, bool enable)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
