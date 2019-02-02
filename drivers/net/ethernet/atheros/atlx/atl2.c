@@ -2946,7 +2946,7 @@ static int atl2_validate_option(int *value, struct atl2_option *opt)
 			if (*value == ent->i) {
 				if (ent->str[0] != '\0')
 					printk(KERN_INFO "%s\n", ent->str);
-			return 0;
+				return 0;
 			}
 		}
 		break;
