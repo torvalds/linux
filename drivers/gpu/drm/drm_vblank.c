@@ -48,7 +48,7 @@
  * Drivers must initialize the vertical blanking handling core with a call to
  * drm_vblank_init(). Minimally, a driver needs to implement
  * &drm_crtc_funcs.enable_vblank and &drm_crtc_funcs.disable_vblank plus call
- * drm_crtc_handle_vblank() in it's vblank interrupt handler for working vblank
+ * drm_crtc_handle_vblank() in its vblank interrupt handler for working vblank
  * support.
  *
  * Vertical blanking interrupts can be enabled by the DRM core or by drivers

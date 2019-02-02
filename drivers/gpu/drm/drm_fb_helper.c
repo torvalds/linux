@@ -2483,7 +2483,7 @@ static int drm_pick_crtcs(struct drm_fb_helper *fb_helper,
 /*
  * This function checks if rotation is necessary because of panel orientation
  * and if it is, if it is supported.
- * If rotation is necessary and supported, its gets set in fb_crtc.rotation.
+ * If rotation is necessary and supported, it gets set in fb_crtc.rotation.
  * If rotation is necessary but not supported, a DRM_MODE_ROTATE_* flag gets
  * or-ed into fb_helper->sw_rotations. In drm_setup_crtcs_fb() we check if only
  * one bit is set and then we set fb_info.fbcon_rotate_hint to make fbcon do

@@ -701,7 +701,7 @@ int drm_event_reserve_init(struct drm_device *dev,
 EXPORT_SYMBOL(drm_event_reserve_init);
 
 /**
- * drm_event_cancel_free - free a DRM event and release it's space
+ * drm_event_cancel_free - free a DRM event and release its space
  * @dev: DRM device
  * @p: tracking structure for the pending event
  *

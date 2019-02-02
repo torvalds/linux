@@ -192,7 +192,7 @@ struct drm_private_state;
  * private objects. The structure itself is used as a vtable to identify the
  * associated private object type. Each private object type that needs to be
  * added to the atomic states is expected to have an implementation of these
- * hooks and pass a pointer to it's drm_private_state_funcs struct to
+ * hooks and pass a pointer to its drm_private_state_funcs struct to
  * drm_atomic_get_private_obj_state().
  */
 struct drm_private_state_funcs {

@@ -1272,7 +1272,7 @@ const char *drm_get_mode_status_name(enum drm_mode_status status)
  * @verbose: be verbose about it
  *
  * This helper function can be used to prune a display mode list after
- * validation has been completed. All modes who's status is not MODE_OK will be
+ * validation has been completed. All modes whose status is not MODE_OK will be
  * removed from the list, and if @verbose the status code and mode name is also
  * printed to dmesg.
  */

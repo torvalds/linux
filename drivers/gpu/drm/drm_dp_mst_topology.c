@@ -941,7 +941,7 @@ static void drm_dp_free_mst_branch_device(struct kref *kref)
  * in-memory topology state from being changed in the middle of critical
  * operations like changing the internal state of payload allocations. This
  * means each branch and port will be considered to be connected to the rest
- * of the topology until it's topology refcount reaches zero. Additionally,
+ * of the topology until its topology refcount reaches zero. Additionally,
  * for ports this means that their associated &struct drm_connector will stay
  * registered with userspace until the port's refcount reaches 0.
  *
@@ -979,8 +979,8 @@ static void drm_dp_free_mst_branch_device(struct kref *kref)
  *    same way as the C pointers used to reference a structure.
  *
  * As you can see in the above figure, every branch increments the topology
- * refcount of it's children, and increments the malloc refcount of it's
- * parent. Additionally, every payload increments the malloc refcount of it's
+ * refcount of its children, and increments the malloc refcount of its
+ * parent. Additionally, every payload increments the malloc refcount of its
  * assigned port by 1.
  *
  * So, what would happen if MSTB #3 from the above figure was unplugged from
@@ -997,9 +997,9 @@ static void drm_dp_free_mst_branch_device(struct kref *kref)
  * of its parent, and finally its own malloc refcount. For MSTB #4 and port
  * #4, this means they both have been disconnected from the topology and freed
  * from memory. But, because payload #2 is still holding a reference to port
- * #3, port #3 is removed from the topology but it's &struct drm_dp_mst_port
+ * #3, port #3 is removed from the topology but its &struct drm_dp_mst_port
  * is still accessible from memory. This also means port #3 has not yet
- * decremented the malloc refcount of MSTB #3, so it's &struct
+ * decremented the malloc refcount of MSTB #3, so its &struct
  * drm_dp_mst_branch will also stay allocated in memory until port #3's
  * malloc refcount reaches 0.
  *
@@ -1139,7 +1139,7 @@ static void drm_dp_destroy_mst_branch_device(struct kref *kref)
 
 /**
  * drm_dp_mst_topology_try_get_mstb() - Increment the topology refcount of a
- * branch device unless its zero
+ * branch device unless it's zero
  * @mstb: &struct drm_dp_mst_branch to increment the topology refcount of
  *
  * Attempts to grab a topology reference to @mstb, if it hasn't yet been
@@ -1265,7 +1265,7 @@ static void drm_dp_destroy_port(struct kref *kref)
 
 /**
  * drm_dp_mst_topology_try_get_port() - Increment the topology refcount of a
- * port unless its zero
+ * port unless it's zero
  * @port: &struct drm_dp_mst_port to increment the topology refcount of
  *
  * Attempts to grab a topology reference to @port, if it hasn't yet been
@@ -1471,7 +1471,7 @@ static bool drm_dp_port_setup_pdt(struct drm_dp_mst_port *port)
 			port->mstb->port_parent = port;
 			/*
 			 * Make sure this port's memory allocation stays
-			 * around until it's child MSTB releases it
+			 * around until its child MSTB releases it
 			 */
 			drm_dp_mst_get_port_malloc(port);
 
@@ -2271,7 +2271,7 @@ static int drm_dp_destroy_payload_step1(struct drm_dp_mst_topology_mgr *mgr,
 					struct drm_dp_payload *payload)
 {
 	DRM_DEBUG_KMS("\n");
-	/* its okay for these to fail */
+	/* it's okay for these to fail */
 	if (port) {
 		drm_dp_payload_send_msg(mgr, port, id, 0);
 	}
@@ -2947,7 +2947,7 @@ enum drm_connector_status drm_dp_mst_detect_port(struct drm_connector *connector
 {
 	enum drm_connector_status status = connector_status_disconnected;
 
-	/* we need to search for the port in the mgr in case its gone */
+	/* we need to search for the port in the mgr in case it's gone */
 	port = drm_dp_mst_topology_get_port_validated(mgr, port);
 	if (!port)
 		return connector_status_disconnected;
@@ -3013,7 +3013,7 @@ struct edid *drm_dp_mst_get_edid(struct drm_connector *connector, struct drm_dp_
 {
 	struct edid *edid = NULL;
 
-	/* we need to search for the port in the mgr in case its gone */
+	/* we need to search for the port in the mgr in case it's gone */
 	port = drm_dp_mst_topology_get_port_validated(mgr, port);
 	if (!port)
 		return NULL;
@@ -3180,7 +3180,7 @@ EXPORT_SYMBOL(drm_dp_atomic_find_vcpi_slots);
  * Releases any VCPI slots that have been allocated to a port in the atomic
  * state. Any atomic drivers which support MST must call this function in
  * their &drm_connector_helper_funcs.atomic_check() callback when the
- * connector will no longer have VCPI allocated (e.g. because it's CRTC was
+ * connector will no longer have VCPI allocated (e.g. because its CRTC was
  * removed) when it had VCPI allocated in the previous atomic state.
  *
  * It is OK to call this even if @port has been removed from the system.
@@ -3268,7 +3268,7 @@ bool drm_dp_mst_allocate_vcpi(struct drm_dp_mst_topology_mgr *mgr,
 	DRM_DEBUG_KMS("initing vcpi for pbn=%d slots=%d\n",
 		      pbn, port->vcpi.num_slots);
 
-	/* Keep port allocated until it's payload has been removed */
+	/* Keep port allocated until its payload has been removed */
 	drm_dp_mst_get_port_malloc(port);
 	drm_dp_mst_topology_put_port(port);
 	return true;
@@ -3300,7 +3300,7 @@ EXPORT_SYMBOL(drm_dp_mst_get_vcpi_slots);
 void drm_dp_mst_reset_vcpi_slots(struct drm_dp_mst_topology_mgr *mgr, struct drm_dp_mst_port *port)
 {
 	/*
-	 * A port with VCPI will remain allocated until it's VCPI is
+	 * A port with VCPI will remain allocated until its VCPI is
 	 * released, no verified ref needed
 	 */
 
@@ -3317,7 +3317,7 @@ void drm_dp_mst_deallocate_vcpi(struct drm_dp_mst_topology_mgr *mgr,
 				struct drm_dp_mst_port *port)
 {
 	/*
-	 * A port with VCPI will remain allocated until it's VCPI is
+	 * A port with VCPI will remain allocated until its VCPI is
 	 * released, no verified ref needed
 	 */
 
