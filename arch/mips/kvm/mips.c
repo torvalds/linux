@@ -1723,6 +1723,11 @@ static int __init kvm_mips_init(void)
 {
 	int ret;
 
+	if (cpu_has_mmid) {
+		pr_warn("KVM does not yet support MMIDs. KVM Disabled\n");
+		return -EOPNOTSUPP;
+	}
+
 	ret = kvm_mips_entry_setup();
 	if (ret)
 		return ret;

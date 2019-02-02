@@ -540,6 +540,9 @@ static inline int has_valid_asid(const struct mm_struct *mm, unsigned int type)
 	unsigned int i;
 	const cpumask_t *mask = cpu_present_mask;
 
+	if (cpu_has_mmid)
+		return cpu_context(0, mm) != 0;
+
 	/* cpu_sibling_map[] undeclared when !CONFIG_SMP */
 #ifdef CONFIG_SMP
 	/*

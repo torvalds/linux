@@ -17,8 +17,10 @@
 #include <linux/smp.h>
 #include <linux/slab.h>
 
+#include <asm/barrier.h>
 #include <asm/cacheflush.h>
 #include <asm/dsemul.h>
+#include <asm/ginvt.h>
 #include <asm/hazards.h>
 #include <asm/tlbflush.h>
 #include <asm-generic/mm_hooks.h>
@@ -73,6 +75,19 @@ extern unsigned long pgd_current[];
 #endif /* CONFIG_MIPS_PGD_C0_CONTEXT*/
 
 /*
+ * The ginvt instruction will invalidate wired entries when its type field
+ * targets anything other than the entire TLB. That means that if we were to
+ * allow the kernel to create wired entries with the MMID of current->active_mm
+ * then those wired entries could be invalidated when we later use ginvt to
+ * invalidate TLB entries with that MMID.
+ *
+ * In order to prevent ginvt from trashing wired entries, we reserve one MMID
+ * for use by the kernel when creating wired entries. This MMID will never be
+ * assigned to a struct mm, and we'll never target it with a ginvt instruction.
+ */
+#define MMID_KERNEL_WIRED	0
+
+/*
  *  All unused by hardware upper bits will be considered
  *  as a software asid extension.
  */
@@ -90,13 +105,19 @@ static inline u64 asid_first_version(unsigned int cpu)
 
 static inline u64 cpu_context(unsigned int cpu, const struct mm_struct *mm)
 {
+	if (cpu_has_mmid)
+		return atomic64_read(&mm->context.mmid);
+
 	return mm->context.asid[cpu];
 }
 
 static inline void set_cpu_context(unsigned int cpu,
 				   struct mm_struct *mm, u64 ctx)
 {
-	mm->context.asid[cpu] = ctx;
+	if (cpu_has_mmid)
+		atomic64_set(&mm->context.mmid, ctx);
+	else
+		mm->context.asid[cpu] = ctx;
 }
 
 #define asid_cache(cpu)		(cpu_data[cpu].asid_cache)
@@ -120,8 +141,12 @@ init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 {
 	int i;
 
-	for_each_possible_cpu(i)
-		set_cpu_context(i, mm, 0);
+	if (cpu_has_mmid) {
+		set_cpu_context(0, mm, 0);
+	} else {
+		for_each_possible_cpu(i)
+			set_cpu_context(i, mm, 0);
+	}
 
 	mm->context.bd_emupage_allocmap = NULL;
 	spin_lock_init(&mm->context.bd_emupage_lock);
@@ -168,12 +193,33 @@ drop_mmu_context(struct mm_struct *mm)
 {
 	unsigned long flags;
 	unsigned int cpu;
+	u32 old_mmid;
+	u64 ctx;
 
 	local_irq_save(flags);
 
 	cpu = smp_processor_id();
-	if (!cpu_context(cpu, mm)) {
+	ctx = cpu_context(cpu, mm);
+
+	if (!ctx) {
 		/* no-op */
+	} else if (cpu_has_mmid) {
+		/*
+		 * Globally invalidating TLB entries associated with the MMID
+		 * is pretty cheap using the GINVT instruction, so we'll do
+		 * that rather than incur the overhead of allocating a new
+		 * MMID. The latter would be especially difficult since MMIDs
+		 * are global & other CPUs may be actively using ctx.
+		 */
+		htw_stop();
+		old_mmid = read_c0_memorymapid();
+		write_c0_memorymapid(ctx & cpu_asid_mask(&cpu_data[cpu]));
+		mtc0_tlbw_hazard();
+		ginvt_mmid();
+		sync_ginv();
+		write_c0_memorymapid(old_mmid);
+		instruction_hazard();
+		htw_start();
 	} else if (cpumask_test_cpu(cpu, mm_cpumask(mm))) {
 		/*
 		 * mm is currently active, so we can't really drop it.

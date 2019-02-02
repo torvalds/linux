@@ -2223,7 +2223,9 @@ void per_cpu_trap_init(bool is_boot_cpu)
 		cp0_fdc_irq = -1;
 	}
 
-	if (!cpu_data[cpu].asid_cache)
+	if (cpu_has_mmid)
+		cpu_data[cpu].asid_cache = 0;
+	else if (!cpu_data[cpu].asid_cache)
 		cpu_data[cpu].asid_cache = asid_first_version(cpu);
 
 	mmgrab(&init_mm);
