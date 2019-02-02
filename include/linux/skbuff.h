@@ -3498,10 +3498,28 @@ static inline void skb_get_timestamp(const struct sk_buff *skb,
 	*stamp = ns_to_kernel_old_timeval(skb->tstamp);
 }
 
+static inline void skb_get_new_timestamp(const struct sk_buff *skb,
+					 struct __kernel_sock_timeval *stamp)
+{
+	struct timespec64 ts = ktime_to_timespec64(skb->tstamp);
+
+	stamp->tv_sec = ts.tv_sec;
+	stamp->tv_usec = ts.tv_nsec / 1000;
+}
+
 static inline void skb_get_timestampns(const struct sk_buff *skb,
 				       struct timespec *stamp)
 {
 	*stamp = ktime_to_timespec(skb->tstamp);
+}
+
+static inline void skb_get_new_timestampns(const struct sk_buff *skb,
+					   struct __kernel_timespec *stamp)
+{
+	struct timespec64 ts = ktime_to_timespec64(skb->tstamp);
+
+	stamp->tv_sec = ts.tv_sec;
+	stamp->tv_nsec = ts.tv_nsec;
 }
 
 static inline void __net_timestamp(struct sk_buff *skb)

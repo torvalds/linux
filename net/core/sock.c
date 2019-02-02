@@ -868,9 +868,16 @@ set_rcvbuf:
 		break;
 
 	case SO_TIMESTAMP_OLD:
+	case SO_TIMESTAMP_NEW:
 	case SO_TIMESTAMPNS_OLD:
+	case SO_TIMESTAMPNS_NEW:
 		if (valbool)  {
-			if (optname == SO_TIMESTAMP_OLD)
+			if (optname == SO_TIMESTAMP_NEW || optname == SO_TIMESTAMPNS_NEW)
+				sock_set_flag(sk, SOCK_TSTAMP_NEW);
+			else
+				sock_reset_flag(sk, SOCK_TSTAMP_NEW);
+
+			if (optname == SO_TIMESTAMP_OLD || optname == SO_TIMESTAMP_NEW)
 				sock_reset_flag(sk, SOCK_RCVTSTAMPNS);
 			else
 				sock_set_flag(sk, SOCK_RCVTSTAMPNS);
@@ -879,6 +886,7 @@ set_rcvbuf:
 		} else {
 			sock_reset_flag(sk, SOCK_RCVTSTAMP);
 			sock_reset_flag(sk, SOCK_RCVTSTAMPNS);
+			sock_reset_flag(sk, SOCK_TSTAMP_NEW);
 		}
 		break;
 
@@ -1245,11 +1253,20 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 
 	case SO_TIMESTAMP_OLD:
 		v.val = sock_flag(sk, SOCK_RCVTSTAMP) &&
+				!sock_flag(sk, SOCK_TSTAMP_NEW) &&
 				!sock_flag(sk, SOCK_RCVTSTAMPNS);
 		break;
 
 	case SO_TIMESTAMPNS_OLD:
-		v.val = sock_flag(sk, SOCK_RCVTSTAMPNS);
+		v.val = sock_flag(sk, SOCK_RCVTSTAMPNS) && !sock_flag(sk, SOCK_TSTAMP_NEW);
+		break;
+
+	case SO_TIMESTAMP_NEW:
+		v.val = sock_flag(sk, SOCK_RCVTSTAMP) && sock_flag(sk, SOCK_TSTAMP_NEW);
+		break;
+
+	case SO_TIMESTAMPNS_NEW:
+		v.val = sock_flag(sk, SOCK_RCVTSTAMPNS) && sock_flag(sk, SOCK_TSTAMP_NEW);
 		break;
 
 	case SO_TIMESTAMPING_OLD:

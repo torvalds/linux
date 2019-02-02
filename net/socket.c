@@ -705,6 +705,7 @@ void __sock_recv_timestamp(struct msghdr *msg, struct sock *sk,
 	struct sk_buff *skb)
 {
 	int need_software_tstamp = sock_flag(sk, SOCK_RCVTSTAMP);
+	int new_tstamp = sock_flag(sk, SOCK_TSTAMP_NEW);
 	struct scm_timestamping tss;
 	int empty = 1, false_tstamp = 0;
 	struct skb_shared_hwtstamps *shhwtstamps =
@@ -719,15 +720,33 @@ void __sock_recv_timestamp(struct msghdr *msg, struct sock *sk,
 
 	if (need_software_tstamp) {
 		if (!sock_flag(sk, SOCK_RCVTSTAMPNS)) {
-			struct __kernel_old_timeval tv;
-			skb_get_timestamp(skb, &tv);
-			put_cmsg(msg, SOL_SOCKET, SO_TIMESTAMP_OLD,
-				 sizeof(tv), &tv);
+			if (new_tstamp) {
+				struct __kernel_sock_timeval tv;
+
+				skb_get_new_timestamp(skb, &tv);
+				put_cmsg(msg, SOL_SOCKET, SO_TIMESTAMP_NEW,
+					 sizeof(tv), &tv);
+			} else {
+				struct __kernel_old_timeval tv;
+
+				skb_get_timestamp(skb, &tv);
+				put_cmsg(msg, SOL_SOCKET, SO_TIMESTAMP_OLD,
+					 sizeof(tv), &tv);
+			}
 		} else {
-			struct timespec ts;
-			skb_get_timestampns(skb, &ts);
-			put_cmsg(msg, SOL_SOCKET, SO_TIMESTAMPNS_OLD,
-				 sizeof(ts), &ts);
+			if (new_tstamp) {
+				struct __kernel_timespec ts;
+
+				skb_get_new_timestampns(skb, &ts);
+				put_cmsg(msg, SOL_SOCKET, SO_TIMESTAMPNS_NEW,
+					 sizeof(ts), &ts);
+			} else {
+				struct timespec ts;
+
+				skb_get_timestampns(skb, &ts);
+				put_cmsg(msg, SOL_SOCKET, SO_TIMESTAMPNS_OLD,
+					 sizeof(ts), &ts);
+			}
 		}
 	}
 

@@ -3,6 +3,7 @@
 #define __ASM_GENERIC_SOCKET_H
 
 #include <asm/sockios.h>
+#include <asm/bitsperlong.h>
 
 /* For setsockopt(2) */
 #define SOL_SOCKET	1
@@ -109,10 +110,20 @@
 #define SO_TIMESTAMPNS_OLD      35
 #define SO_TIMESTAMPING_OLD     37
 
+#define SO_TIMESTAMP_NEW        63
+#define SO_TIMESTAMPNS_NEW      64
+
 #if !defined(__KERNEL__)
 
-#define SO_TIMESTAMP            SO_TIMESTAMP_OLD
-#define SO_TIMESTAMPNS          SO_TIMESTAMPNS_OLD
+#if __BITS_PER_LONG == 64 || (defined(__x86_64__) && defined(__ILP32__))
+/* on 64-bit and x32, avoid the ?: operator */
+#define SO_TIMESTAMP		SO_TIMESTAMP_OLD
+#define SO_TIMESTAMPNS		SO_TIMESTAMPNS_OLD
+#else
+#define SO_TIMESTAMP (sizeof(time_t) == sizeof(__kernel_long_t) ? SO_TIMESTAMP_OLD : SO_TIMESTAMP_NEW)
+#define SO_TIMESTAMPNS (sizeof(time_t) == sizeof(__kernel_long_t) ? SO_TIMESTAMPNS_OLD : SO_TIMESTAMPNS_NEW)
+#endif
+
 #define SO_TIMESTAMPING         SO_TIMESTAMPING_OLD
 
 #define SCM_TIMESTAMP           SO_TIMESTAMP
