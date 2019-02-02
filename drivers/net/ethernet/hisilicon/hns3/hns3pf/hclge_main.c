@@ -1506,13 +1506,14 @@ static int hclge_tx_buffer_calc(struct hclge_dev *hdev,
 	for (i = 0; i < HCLGE_MAX_TC_NUM; i++) {
 		struct hclge_priv_buf *priv = &buf_alloc->priv_buf[i];
 
-		if (total_size < hdev->tx_buf_size)
-			return -ENOMEM;
+		if (hdev->hw_tc_map & BIT(i)) {
+			if (total_size < hdev->tx_buf_size)
+				return -ENOMEM;
 
-		if (hdev->hw_tc_map & BIT(i))
 			priv->tx_buf_size = hdev->tx_buf_size;
-		else
+		} else {
 			priv->tx_buf_size = 0;
+		}
 
 		total_size -= priv->tx_buf_size;
 	}
