@@ -51,13 +51,9 @@
 #define SO_GET_FILTER		SO_ATTACH_FILTER
 
 #define SO_PEERNAME		28
-#define SO_TIMESTAMP		29
-#define SCM_TIMESTAMP		SO_TIMESTAMP
 
 #define SO_PEERSEC		30
 #define SO_PASSSEC		34
-#define SO_TIMESTAMPNS		35
-#define SCM_TIMESTAMPNS		SO_TIMESTAMPNS
 
 /* Security levels - as per NRL IPv6 - don't actually do anything */
 #define SO_SECURITY_AUTHENTICATION		19
@@ -65,9 +61,6 @@
 #define SO_SECURITY_ENCRYPTION_NETWORK		21
 
 #define SO_MARK			36
-
-#define SO_TIMESTAMPING		37
-#define SCM_TIMESTAMPING	SO_TIMESTAMPING
 
 #define SO_RXQ_OVFL             40
 
@@ -116,5 +109,21 @@
 #define SCM_TXTIME		SO_TXTIME
 
 #define SO_BINDTOIFINDEX	62
+
+#define SO_TIMESTAMP_OLD        29
+#define SO_TIMESTAMPNS_OLD      35
+#define SO_TIMESTAMPING_OLD     37
+
+#if !defined(__KERNEL__)
+
+#define SO_TIMESTAMP            SO_TIMESTAMP_OLD
+#define SO_TIMESTAMPNS          SO_TIMESTAMPNS_OLD
+#define SO_TIMESTAMPING         SO_TIMESTAMPING_OLD
+
+#define SCM_TIMESTAMP           SO_TIMESTAMP
+#define SCM_TIMESTAMPNS         SO_TIMESTAMPNS
+#define SCM_TIMESTAMPING        SO_TIMESTAMPING
+
+#endif
 
 #endif /* _UAPI_ASM_SOCKET_H */

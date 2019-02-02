@@ -1867,13 +1867,13 @@ static void tcp_recv_timestamp(struct msghdr *msg, const struct sock *sk,
 	if (tss->ts[0].tv_sec || tss->ts[0].tv_nsec) {
 		if (sock_flag(sk, SOCK_RCVTSTAMP)) {
 			if (sock_flag(sk, SOCK_RCVTSTAMPNS)) {
-				put_cmsg(msg, SOL_SOCKET, SCM_TIMESTAMPNS,
+				put_cmsg(msg, SOL_SOCKET, SO_TIMESTAMPNS_OLD,
 					 sizeof(tss->ts[0]), &tss->ts[0]);
 			} else {
 				tv.tv_sec = tss->ts[0].tv_sec;
 				tv.tv_usec = tss->ts[0].tv_nsec / 1000;
 
-				put_cmsg(msg, SOL_SOCKET, SCM_TIMESTAMP,
+				put_cmsg(msg, SOL_SOCKET, SO_TIMESTAMP_OLD,
 					 sizeof(tv), &tv);
 			}
 		}
@@ -1893,7 +1893,7 @@ static void tcp_recv_timestamp(struct msghdr *msg, const struct sock *sk,
 
 	if (has_timestamping) {
 		tss->ts[1] = (struct timespec) {0};
-		put_cmsg(msg, SOL_SOCKET, SCM_TIMESTAMPING,
+		put_cmsg(msg, SOL_SOCKET, SO_TIMESTAMPING_OLD,
 			 sizeof(*tss), tss);
 	}
 }

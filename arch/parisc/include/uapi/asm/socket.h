@@ -34,10 +34,6 @@
 #define SO_BSDCOMPAT	0x400e
 #define SO_PASSCRED	0x4010
 #define SO_PEERCRED	0x4011
-#define SO_TIMESTAMP	0x4012
-#define SCM_TIMESTAMP	SO_TIMESTAMP
-#define SO_TIMESTAMPNS	0x4013
-#define SCM_TIMESTAMPNS	SO_TIMESTAMPNS
 
 /* Security levels - as per NRL IPv6 - don't actually do anything */
 #define SO_SECURITY_AUTHENTICATION		0x4016
@@ -57,9 +53,6 @@
 #define SO_PASSSEC		0x401e
 
 #define SO_MARK			0x401f
-
-#define SO_TIMESTAMPING		0x4020
-#define SCM_TIMESTAMPING	SO_TIMESTAMPING
 
 #define SO_RXQ_OVFL             0x4021
 
@@ -108,5 +101,21 @@
 #define SCM_TXTIME		SO_TXTIME
 
 #define SO_BINDTOIFINDEX	0x4037
+
+#define SO_TIMESTAMP_OLD        0x4012
+#define SO_TIMESTAMPNS_OLD      0x4013
+#define SO_TIMESTAMPING_OLD     0x4020
+
+#if !defined(__KERNEL__)
+
+#define SO_TIMESTAMP            SO_TIMESTAMP_OLD
+#define SO_TIMESTAMPNS          SO_TIMESTAMPNS_OLD
+#define SO_TIMESTAMPING         SO_TIMESTAMPING_OLD
+
+#define SCM_TIMESTAMP           SO_TIMESTAMP
+#define SCM_TIMESTAMPNS         SO_TIMESTAMPNS
+#define SCM_TIMESTAMPING        SO_TIMESTAMPING
+
+#endif
 
 #endif /* _UAPI_ASM_SOCKET_H */
