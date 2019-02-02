@@ -587,9 +587,13 @@ static void nft_compat_activate_tg(const struct nft_ctx *ctx,
 }
 
 static void nft_compat_deactivate(const struct nft_ctx *ctx,
-				  const struct nft_expr *expr)
+				  const struct nft_expr *expr,
+				  enum nft_trans_phase phase)
 {
 	struct nft_xt *xt = container_of(expr->ops, struct nft_xt, ops);
+
+	if (phase == NFT_TRANS_COMMIT)
+		return;
 
 	if (--xt->listcnt == 0)
 		list_del_init(&xt->head);
