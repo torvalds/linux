@@ -335,9 +335,10 @@ int __sk_backlog_rcv(struct sock *sk, struct sk_buff *skb)
 }
 EXPORT_SYMBOL(__sk_backlog_rcv);
 
-static int sock_get_timeout(long timeo, void *optval)
+static int sock_get_timeout(long timeo, void *optval, bool old_timeval)
 {
-	struct __kernel_old_timeval tv;
+	struct __kernel_sock_timeval tv;
+	int size;
 
 	if (timeo == MAX_SCHEDULE_TIMEOUT) {
 		tv.tv_sec = 0;
@@ -353,13 +354,23 @@ static int sock_get_timeout(long timeo, void *optval)
 		return sizeof(tv32);
 	}
 
-	*(struct __kernel_old_timeval *)optval = tv;
-	return sizeof(tv);
+	if (old_timeval) {
+		struct __kernel_old_timeval old_tv;
+		old_tv.tv_sec = tv.tv_sec;
+		old_tv.tv_usec = tv.tv_usec;
+		*(struct __kernel_old_timeval *)optval = old_tv;
+		size = sizeof(old_tv);
+	} else {
+		*(struct __kernel_sock_timeval *)optval = tv;
+		size = sizeof(tv);
+	}
+
+	return size;
 }
 
-static int sock_set_timeout(long *timeo_p, char __user *optval, int optlen)
+static int sock_set_timeout(long *timeo_p, char __user *optval, int optlen, bool old_timeval)
 {
-	struct __kernel_old_timeval tv;
+	struct __kernel_sock_timeval tv;
 
 	if (in_compat_syscall() && !COMPAT_USE_64BIT_TIME) {
 		struct old_timeval32 tv32;
@@ -371,6 +382,15 @@ static int sock_set_timeout(long *timeo_p, char __user *optval, int optlen)
 			return -EFAULT;
 		tv.tv_sec = tv32.tv_sec;
 		tv.tv_usec = tv32.tv_usec;
+	} else if (old_timeval) {
+		struct __kernel_old_timeval old_tv;
+
+		if (optlen < sizeof(old_tv))
+			return -EINVAL;
+		if (copy_from_user(&old_tv, optval, sizeof(old_tv)))
+			return -EFAULT;
+		tv.tv_sec = old_tv.tv_sec;
+		tv.tv_usec = old_tv.tv_usec;
 	} else {
 		if (optlen < sizeof(tv))
 			return -EINVAL;
@@ -394,8 +414,8 @@ static int sock_set_timeout(long *timeo_p, char __user *optval, int optlen)
 	*timeo_p = MAX_SCHEDULE_TIMEOUT;
 	if (tv.tv_sec == 0 && tv.tv_usec == 0)
 		return 0;
-	if (tv.tv_sec < (MAX_SCHEDULE_TIMEOUT/HZ - 1))
-		*timeo_p = tv.tv_sec * HZ + DIV_ROUND_UP(tv.tv_usec, USEC_PER_SEC / HZ);
+	if (tv.tv_sec < (MAX_SCHEDULE_TIMEOUT / HZ - 1))
+		*timeo_p = tv.tv_sec * HZ + DIV_ROUND_UP((unsigned long)tv.tv_usec, USEC_PER_SEC / HZ);
 	return 0;
 }
 
@@ -942,11 +962,13 @@ set_rcvbuf:
 		break;
 
 	case SO_RCVTIMEO_OLD:
-		ret = sock_set_timeout(&sk->sk_rcvtimeo, optval, optlen);
+	case SO_RCVTIMEO_NEW:
+		ret = sock_set_timeout(&sk->sk_rcvtimeo, optval, optlen, optname == SO_RCVTIMEO_OLD);
 		break;
 
 	case SO_SNDTIMEO_OLD:
-		ret = sock_set_timeout(&sk->sk_sndtimeo, optval, optlen);
+	case SO_SNDTIMEO_NEW:
+		ret = sock_set_timeout(&sk->sk_sndtimeo, optval, optlen, optname == SO_SNDTIMEO_OLD);
 		break;
 
 	case SO_ATTACH_FILTER:
@@ -1171,6 +1193,7 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 		struct linger ling;
 		struct old_timeval32 tm32;
 		struct __kernel_old_timeval tm;
+		struct  __kernel_sock_timeval stm;
 		struct sock_txtime txtime;
 	} v;
 
@@ -1279,12 +1302,14 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 		v.val = sk->sk_tsflags;
 		break;
 
-	case SO_RCVTIMEO:
-		lv = sock_get_timeout(sk->sk_rcvtimeo, &v);
+	case SO_RCVTIMEO_OLD:
+	case SO_RCVTIMEO_NEW:
+		lv = sock_get_timeout(sk->sk_rcvtimeo, &v, SO_RCVTIMEO_OLD == optname);
 		break;
 
-	case SO_SNDTIMEO:
-		lv = sock_get_timeout(sk->sk_sndtimeo, &v);
+	case SO_SNDTIMEO_OLD:
+	case SO_SNDTIMEO_NEW:
+		lv = sock_get_timeout(sk->sk_sndtimeo, &v, SO_SNDTIMEO_OLD == optname);
 		break;
 
 	case SO_RCVLOWAT:
