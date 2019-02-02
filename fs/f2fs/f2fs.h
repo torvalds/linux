@@ -2843,8 +2843,7 @@ static inline bool is_valid_data_blkaddr(struct f2fs_sb_info *sbi,
  */
 int f2fs_sync_file(struct file *file, loff_t start, loff_t end, int datasync);
 void f2fs_truncate_data_blocks(struct dnode_of_data *dn);
-int f2fs_truncate_blocks(struct inode *inode, u64 from, bool lock,
-							bool buf_write);
+int f2fs_truncate_blocks(struct inode *inode, u64 from, bool lock);
 int f2fs_truncate(struct inode *inode);
 int f2fs_getattr(const struct path *path, struct kstat *stat,
 			u32 request_mask, unsigned int flags);
