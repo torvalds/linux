@@ -17,13 +17,13 @@
 static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 					 struct mlxsw_sp_acl_block *block,
 					 struct mlxsw_sp_acl_rule_info *rulei,
-					 struct tcf_exts *exts,
+					 struct flow_action *flow_action,
 					 struct netlink_ext_ack *extack)
 {
-	const struct tc_action *a;
+	const struct flow_action_entry *act;
 	int err, i;
 
-	if (!tcf_exts_has_actions(exts))
+	if (!flow_action_has_entries(flow_action))
 		return 0;
 
 	/* Count action is inserted first */
@@ -31,27 +31,31 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		return err;
 
-	tcf_exts_for_each_action(i, a, exts) {
-		if (is_tcf_gact_ok(a)) {
+	flow_action_for_each(i, act, flow_action) {
+		switch (act->id) {
+		case FLOW_ACTION_ACCEPT:
 			err = mlxsw_sp_acl_rulei_act_terminate(rulei);
 			if (err) {
 				NL_SET_ERR_MSG_MOD(extack, "Cannot append terminate action");
 				return err;
 			}
-		} else if (is_tcf_gact_shot(a)) {
+			break;
+		case FLOW_ACTION_DROP:
 			err = mlxsw_sp_acl_rulei_act_drop(rulei);
 			if (err) {
 				NL_SET_ERR_MSG_MOD(extack, "Cannot append drop action");
 				return err;
 			}
-		} else if (is_tcf_gact_trap(a)) {
+			break;
+		case FLOW_ACTION_TRAP:
 			err = mlxsw_sp_acl_rulei_act_trap(rulei);
 			if (err) {
 				NL_SET_ERR_MSG_MOD(extack, "Cannot append trap action");
 				return err;
 			}
-		} else if (is_tcf_gact_goto_chain(a)) {
-			u32 chain_index = tcf_gact_goto_chain_index(a);
+			break;
+		case FLOW_ACTION_GOTO: {
+			u32 chain_index = act->chain_index;
 			struct mlxsw_sp_acl_ruleset *ruleset;
 			u16 group_id;
 
@@ -67,7 +71,9 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 				NL_SET_ERR_MSG_MOD(extack, "Cannot append jump action");
 				return err;
 			}
-		} else if (is_tcf_mirred_egress_redirect(a)) {
+			}
+			break;
+		case FLOW_ACTION_REDIRECT: {
 			struct net_device *out_dev;
 			struct mlxsw_sp_fid *fid;
 			u16 fid_index;
@@ -79,29 +85,34 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 			if (err)
 				return err;
 
-			out_dev = tcf_mirred_dev(a);
+			out_dev = act->dev;
 			err = mlxsw_sp_acl_rulei_act_fwd(mlxsw_sp, rulei,
 							 out_dev, extack);
 			if (err)
 				return err;
-		} else if (is_tcf_mirred_egress_mirror(a)) {
-			struct net_device *out_dev = tcf_mirred_dev(a);
+			}
+			break;
+		case FLOW_ACTION_MIRRED: {
+			struct net_device *out_dev = act->dev;
 
 			err = mlxsw_sp_acl_rulei_act_mirror(mlxsw_sp, rulei,
 							    block, out_dev,
 							    extack);
 			if (err)
 				return err;
-		} else if (is_tcf_vlan(a)) {
-			u16 proto = be16_to_cpu(tcf_vlan_push_proto(a));
-			u32 action = tcf_vlan_action(a);
-			u8 prio = tcf_vlan_push_prio(a);
-			u16 vid = tcf_vlan_push_vid(a);
+			}
+			break;
+		case FLOW_ACTION_VLAN_PUSH:
+		case FLOW_ACTION_VLAN_POP: {
+			u16 proto = be16_to_cpu(act->vlan.proto);
+			u8 prio = act->vlan.prio;
+			u16 vid = act->vlan.vid;
 
 			return mlxsw_sp_acl_rulei_act_vlan(mlxsw_sp, rulei,
-							   action, vid,
+							   act->id, vid,
 							   proto, prio, extack);
-		} else {
+			}
+		default:
 			NL_SET_ERR_MSG_MOD(extack, "Unsupported action");
 			dev_err(mlxsw_sp->bus_info->dev, "Unsupported action\n");
 			return -EOPNOTSUPP;
@@ -361,7 +372,8 @@ static int mlxsw_sp_flower_parse(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		return err;
 
-	return mlxsw_sp_flower_parse_actions(mlxsw_sp, block, rulei, f->exts,
+	return mlxsw_sp_flower_parse_actions(mlxsw_sp, block, rulei,
+					     &f->rule->action,
 					     f->common.extack);
 }
 

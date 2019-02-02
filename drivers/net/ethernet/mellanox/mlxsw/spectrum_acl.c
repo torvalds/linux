@@ -588,7 +588,7 @@ int mlxsw_sp_acl_rulei_act_vlan(struct mlxsw_sp *mlxsw_sp,
 {
 	u8 ethertype;
 
-	if (action == TCA_VLAN_ACT_MODIFY) {
+	if (action == FLOW_ACTION_VLAN_MANGLE) {
 		switch (proto) {
 		case ETH_P_8021Q:
 			ethertype = 0;

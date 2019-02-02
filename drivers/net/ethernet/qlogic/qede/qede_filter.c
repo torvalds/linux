@@ -2004,21 +2004,21 @@ unlock:
 }
 
 static int qede_parse_actions(struct qede_dev *edev,
-			      struct tcf_exts *exts)
+			      struct flow_action *flow_action)
 {
+	const struct flow_action_entry *act;
 	int rc = -EINVAL, num_act = 0, i;
-	const struct tc_action *a;
 	bool is_drop = false;
 
-	if (!tcf_exts_has_actions(exts)) {
+	if (!flow_action_has_entries(flow_action)) {
 		DP_NOTICE(edev, "No tc actions received\n");
 		return rc;
 	}
 
-	tcf_exts_for_each_action(i, a, exts) {
+	flow_action_for_each(i, act, flow_action) {
 		num_act++;
 
-		if (is_tcf_gact_shot(a))
+		if (act->id == FLOW_ACTION_DROP)
 			is_drop = true;
 	}
 
@@ -2235,7 +2235,7 @@ int qede_add_tc_flower_fltr(struct qede_dev *edev, __be16 proto,
 	}
 
 	/* parse tc actions and get the vf_id */
-	if (qede_parse_actions(edev, f->exts))
+	if (qede_parse_actions(edev, &f->rule->action))
 		goto unlock;
 
 	if (qede_flow_find_fltr(edev, &t)) {

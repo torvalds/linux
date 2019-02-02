@@ -61,9 +61,9 @@ static u16 bnxt_flow_get_dst_fid(struct bnxt *pf_bp, struct net_device *dev)
 
 static int bnxt_tc_parse_redir(struct bnxt *bp,
 			       struct bnxt_tc_actions *actions,
-			       const struct tc_action *tc_act)
+			       const struct flow_action_entry *act)
 {
-	struct net_device *dev = tcf_mirred_dev(tc_act);
+	struct net_device *dev = act->dev;
 
 	if (!dev) {
 		netdev_info(bp->dev, "no dev in mirred action");
@@ -77,16 +77,16 @@ static int bnxt_tc_parse_redir(struct bnxt *bp,
 
 static int bnxt_tc_parse_vlan(struct bnxt *bp,
 			      struct bnxt_tc_actions *actions,
-			      const struct tc_action *tc_act)
+			      const struct flow_action_entry *act)
 {
-	switch (tcf_vlan_action(tc_act)) {
-	case TCA_VLAN_ACT_POP:
+	switch (act->id) {
+	case FLOW_ACTION_VLAN_POP:
 		actions->flags |= BNXT_TC_ACTION_FLAG_POP_VLAN;
 		break;
-	case TCA_VLAN_ACT_PUSH:
+	case FLOW_ACTION_VLAN_PUSH:
 		actions->flags |= BNXT_TC_ACTION_FLAG_PUSH_VLAN;
-		actions->push_vlan_tci = htons(tcf_vlan_push_vid(tc_act));
-		actions->push_vlan_tpid = tcf_vlan_push_proto(tc_act);
+		actions->push_vlan_tci = htons(act->vlan.vid);
+		actions->push_vlan_tpid = act->vlan.proto;
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -96,10 +96,10 @@ static int bnxt_tc_parse_vlan(struct bnxt *bp,
 
 static int bnxt_tc_parse_tunnel_set(struct bnxt *bp,
 				    struct bnxt_tc_actions *actions,
-				    const struct tc_action *tc_act)
+				    const struct flow_action_entry *act)
 {
-	struct ip_tunnel_info *tun_info = tcf_tunnel_info(tc_act);
-	struct ip_tunnel_key *tun_key = &tun_info->key;
+	const struct ip_tunnel_info *tun_info = act->tunnel;
+	const struct ip_tunnel_key *tun_key = &tun_info->key;
 
 	if (ip_tunnel_info_af(tun_info) != AF_INET) {
 		netdev_info(bp->dev, "only IPv4 tunnel-encap is supported");
@@ -113,51 +113,43 @@ static int bnxt_tc_parse_tunnel_set(struct bnxt *bp,
 
 static int bnxt_tc_parse_actions(struct bnxt *bp,
 				 struct bnxt_tc_actions *actions,
-				 struct tcf_exts *tc_exts)
+				 struct flow_action *flow_action)
 {
-	const struct tc_action *tc_act;
+	struct flow_action_entry *act;
 	int i, rc;
 
-	if (!tcf_exts_has_actions(tc_exts)) {
+	if (!flow_action_has_entries(flow_action)) {
 		netdev_info(bp->dev, "no actions");
 		return -EINVAL;
 	}
 
-	tcf_exts_for_each_action(i, tc_act, tc_exts) {
-		/* Drop action */
-		if (is_tcf_gact_shot(tc_act)) {
+	flow_action_for_each(i, act, flow_action) {
+		switch (act->id) {
+		case FLOW_ACTION_DROP:
 			actions->flags |= BNXT_TC_ACTION_FLAG_DROP;
 			return 0; /* don't bother with other actions */
-		}
-
-		/* Redirect action */
-		if (is_tcf_mirred_egress_redirect(tc_act)) {
-			rc = bnxt_tc_parse_redir(bp, actions, tc_act);
+		case FLOW_ACTION_REDIRECT:
+			rc = bnxt_tc_parse_redir(bp, actions, act);
 			if (rc)
 				return rc;
-			continue;
-		}
-
-		/* Push/pop VLAN */
-		if (is_tcf_vlan(tc_act)) {
-			rc = bnxt_tc_parse_vlan(bp, actions, tc_act);
+			break;
+		case FLOW_ACTION_VLAN_POP:
+		case FLOW_ACTION_VLAN_PUSH:
+		case FLOW_ACTION_VLAN_MANGLE:
+			rc = bnxt_tc_parse_vlan(bp, actions, act);
 			if (rc)
 				return rc;
-			continue;
-		}
-
-		/* Tunnel encap */
-		if (is_tcf_tunnel_set(tc_act)) {
-			rc = bnxt_tc_parse_tunnel_set(bp, actions, tc_act);
+			break;
+		case FLOW_ACTION_TUNNEL_ENCAP:
+			rc = bnxt_tc_parse_tunnel_set(bp, actions, act);
 			if (rc)
 				return rc;
-			continue;
-		}
-
-		/* Tunnel decap */
-		if (is_tcf_tunnel_release(tc_act)) {
+			break;
+		case FLOW_ACTION_TUNNEL_DECAP:
 			actions->flags |= BNXT_TC_ACTION_FLAG_TUNNEL_DECAP;
-			continue;
+			break;
+		default:
+			break;
 		}
 	}
 
@@ -308,7 +300,7 @@ static int bnxt_tc_parse_flow(struct bnxt *bp,
 		flow->tun_mask.tp_src = match.mask->src;
 	}
 
-	return bnxt_tc_parse_actions(bp, &flow->actions, tc_flow_cmd->exts);
+	return bnxt_tc_parse_actions(bp, &flow->actions, &rule->action);
 }
 
 static int bnxt_hwrm_cfa_flow_free(struct bnxt *bp,

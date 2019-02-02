@@ -292,7 +292,7 @@ static void process_pedit_field(struct ch_filter_specification *fs, u32 val,
 				u32 mask, u32 offset, u8 htype)
 {
 	switch (htype) {
-	case TCA_PEDIT_KEY_EX_HDR_TYPE_ETH:
+	case FLOW_ACT_MANGLE_HDR_TYPE_ETH:
 		switch (offset) {
 		case PEDIT_ETH_DMAC_31_0:
 			fs->newdmac = 1;
@@ -310,7 +310,7 @@ static void process_pedit_field(struct ch_filter_specification *fs, u32 val,
 			offload_pedit(fs, val, mask, ETH_SMAC_47_16);
 		}
 		break;
-	case TCA_PEDIT_KEY_EX_HDR_TYPE_IP4:
+	case FLOW_ACT_MANGLE_HDR_TYPE_IP4:
 		switch (offset) {
 		case PEDIT_IP4_SRC:
 			offload_pedit(fs, val, mask, IP4_SRC);
@@ -320,7 +320,7 @@ static void process_pedit_field(struct ch_filter_specification *fs, u32 val,
 		}
 		fs->nat_mode = NAT_MODE_ALL;
 		break;
-	case TCA_PEDIT_KEY_EX_HDR_TYPE_IP6:
+	case FLOW_ACT_MANGLE_HDR_TYPE_IP6:
 		switch (offset) {
 		case PEDIT_IP6_SRC_31_0:
 			offload_pedit(fs, val, mask, IP6_SRC_31_0);
@@ -348,7 +348,7 @@ static void process_pedit_field(struct ch_filter_specification *fs, u32 val,
 		}
 		fs->nat_mode = NAT_MODE_ALL;
 		break;
-	case TCA_PEDIT_KEY_EX_HDR_TYPE_TCP:
+	case FLOW_ACT_MANGLE_HDR_TYPE_TCP:
 		switch (offset) {
 		case PEDIT_TCP_SPORT_DPORT:
 			if (~mask & PEDIT_TCP_UDP_SPORT_MASK)
@@ -361,7 +361,7 @@ static void process_pedit_field(struct ch_filter_specification *fs, u32 val,
 		}
 		fs->nat_mode = NAT_MODE_ALL;
 		break;
-	case TCA_PEDIT_KEY_EX_HDR_TYPE_UDP:
+	case FLOW_ACT_MANGLE_HDR_TYPE_UDP:
 		switch (offset) {
 		case PEDIT_UDP_SPORT_DPORT:
 			if (~mask & PEDIT_TCP_UDP_SPORT_MASK)
@@ -380,56 +380,63 @@ static void cxgb4_process_flow_actions(struct net_device *in,
 				       struct tc_cls_flower_offload *cls,
 				       struct ch_filter_specification *fs)
 {
-	const struct tc_action *a;
+	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(cls);
+	struct flow_action_entry *act;
 	int i;
 
-	tcf_exts_for_each_action(i, a, cls->exts) {
-		if (is_tcf_gact_ok(a)) {
+	flow_action_for_each(i, act, &rule->action) {
+		switch (act->id) {
+		case FLOW_ACTION_ACCEPT:
 			fs->action = FILTER_PASS;
-		} else if (is_tcf_gact_shot(a)) {
+			break;
+		case FLOW_ACTION_DROP:
 			fs->action = FILTER_DROP;
-		} else if (is_tcf_mirred_egress_redirect(a)) {
-			struct net_device *out = tcf_mirred_dev(a);
+			break;
+		case FLOW_ACTION_REDIRECT: {
+			struct net_device *out = act->dev;
 			struct port_info *pi = netdev_priv(out);
 
 			fs->action = FILTER_SWITCH;
 			fs->eport = pi->port_id;
-		} else if (is_tcf_vlan(a)) {
-			u32 vlan_action = tcf_vlan_action(a);
-			u8 prio = tcf_vlan_push_prio(a);
-			u16 vid = tcf_vlan_push_vid(a);
+			}
+			break;
+		case FLOW_ACTION_VLAN_POP:
+		case FLOW_ACTION_VLAN_PUSH:
+		case FLOW_ACTION_VLAN_MANGLE: {
+			u8 prio = act->vlan.prio;
+			u16 vid = act->vlan.vid;
 			u16 vlan_tci = (prio << VLAN_PRIO_SHIFT) | vid;
-
-			switch (vlan_action) {
-			case TCA_VLAN_ACT_POP:
+			switch (act->id) {
+			case FLOW_ACTION_VLAN_POP:
 				fs->newvlan |= VLAN_REMOVE;
 				break;
-			case TCA_VLAN_ACT_PUSH:
+			case FLOW_ACTION_VLAN_PUSH:
 				fs->newvlan |= VLAN_INSERT;
 				fs->vlan = vlan_tci;
 				break;
-			case TCA_VLAN_ACT_MODIFY:
+			case FLOW_ACTION_VLAN_MANGLE:
 				fs->newvlan |= VLAN_REWRITE;
 				fs->vlan = vlan_tci;
 				break;
 			default:
 				break;
 			}
-		} else if (is_tcf_pedit(a)) {
+			}
+			break;
+		case FLOW_ACTION_MANGLE: {
 			u32 mask, val, offset;
-			int nkeys, i;
 			u8 htype;
 
-			nkeys = tcf_pedit_nkeys(a);
-			for (i = 0; i < nkeys; i++) {
-				htype = tcf_pedit_htype(a, i);
-				mask = tcf_pedit_mask(a, i);
-				val = tcf_pedit_val(a, i);
-				offset = tcf_pedit_offset(a, i);
+			htype = act->mangle.htype;
+			mask = act->mangle.mask;
+			val = act->mangle.val;
+			offset = act->mangle.offset;
 
-				process_pedit_field(fs, val, mask, offset,
-						    htype);
+			process_pedit_field(fs, val, mask, offset, htype);
 			}
+			break;
+		default:
+			break;
 		}
 	}
 }
@@ -448,101 +455,89 @@ static bool valid_l4_mask(u32 mask)
 }
 
 static bool valid_pedit_action(struct net_device *dev,
-			       const struct tc_action *a)
+			       const struct flow_action_entry *act)
 {
 	u32 mask, offset;
-	u8 cmd, htype;
-	int nkeys, i;
+	u8 htype;
 
-	nkeys = tcf_pedit_nkeys(a);
-	for (i = 0; i < nkeys; i++) {
-		htype = tcf_pedit_htype(a, i);
-		cmd = tcf_pedit_cmd(a, i);
-		mask = tcf_pedit_mask(a, i);
-		offset = tcf_pedit_offset(a, i);
+	htype = act->mangle.htype;
+	mask = act->mangle.mask;
+	offset = act->mangle.offset;
 
-		if (cmd != TCA_PEDIT_KEY_EX_CMD_SET) {
-			netdev_err(dev, "%s: Unsupported pedit cmd\n",
+	switch (htype) {
+	case FLOW_ACT_MANGLE_HDR_TYPE_ETH:
+		switch (offset) {
+		case PEDIT_ETH_DMAC_31_0:
+		case PEDIT_ETH_DMAC_47_32_SMAC_15_0:
+		case PEDIT_ETH_SMAC_47_16:
+			break;
+		default:
+			netdev_err(dev, "%s: Unsupported pedit field\n",
 				   __func__);
 			return false;
 		}
-
-		switch (htype) {
-		case TCA_PEDIT_KEY_EX_HDR_TYPE_ETH:
-			switch (offset) {
-			case PEDIT_ETH_DMAC_31_0:
-			case PEDIT_ETH_DMAC_47_32_SMAC_15_0:
-			case PEDIT_ETH_SMAC_47_16:
-				break;
-			default:
-				netdev_err(dev, "%s: Unsupported pedit field\n",
-					   __func__);
-				return false;
-			}
+		break;
+	case FLOW_ACT_MANGLE_HDR_TYPE_IP4:
+		switch (offset) {
+		case PEDIT_IP4_SRC:
+		case PEDIT_IP4_DST:
 			break;
-		case TCA_PEDIT_KEY_EX_HDR_TYPE_IP4:
-			switch (offset) {
-			case PEDIT_IP4_SRC:
-			case PEDIT_IP4_DST:
-				break;
-			default:
-				netdev_err(dev, "%s: Unsupported pedit field\n",
-					   __func__);
-				return false;
-			}
+		default:
+			netdev_err(dev, "%s: Unsupported pedit field\n",
+				   __func__);
+			return false;
+		}
+		break;
+	case FLOW_ACT_MANGLE_HDR_TYPE_IP6:
+		switch (offset) {
+		case PEDIT_IP6_SRC_31_0:
+		case PEDIT_IP6_SRC_63_32:
+		case PEDIT_IP6_SRC_95_64:
+		case PEDIT_IP6_SRC_127_96:
+		case PEDIT_IP6_DST_31_0:
+		case PEDIT_IP6_DST_63_32:
+		case PEDIT_IP6_DST_95_64:
+		case PEDIT_IP6_DST_127_96:
 			break;
-		case TCA_PEDIT_KEY_EX_HDR_TYPE_IP6:
-			switch (offset) {
-			case PEDIT_IP6_SRC_31_0:
-			case PEDIT_IP6_SRC_63_32:
-			case PEDIT_IP6_SRC_95_64:
-			case PEDIT_IP6_SRC_127_96:
-			case PEDIT_IP6_DST_31_0:
-			case PEDIT_IP6_DST_63_32:
-			case PEDIT_IP6_DST_95_64:
-			case PEDIT_IP6_DST_127_96:
-				break;
-			default:
-				netdev_err(dev, "%s: Unsupported pedit field\n",
-					   __func__);
-				return false;
-			}
-			break;
-		case TCA_PEDIT_KEY_EX_HDR_TYPE_TCP:
-			switch (offset) {
-			case PEDIT_TCP_SPORT_DPORT:
-				if (!valid_l4_mask(~mask)) {
-					netdev_err(dev, "%s: Unsupported mask for TCP L4 ports\n",
-						   __func__);
-					return false;
-				}
-				break;
-			default:
-				netdev_err(dev, "%s: Unsupported pedit field\n",
-					   __func__);
-				return false;
-			}
-			break;
-		case TCA_PEDIT_KEY_EX_HDR_TYPE_UDP:
-			switch (offset) {
-			case PEDIT_UDP_SPORT_DPORT:
-				if (!valid_l4_mask(~mask)) {
-					netdev_err(dev, "%s: Unsupported mask for UDP L4 ports\n",
-						   __func__);
-					return false;
-				}
-				break;
-			default:
-				netdev_err(dev, "%s: Unsupported pedit field\n",
+		default:
+			netdev_err(dev, "%s: Unsupported pedit field\n",
+				   __func__);
+			return false;
+		}
+		break;
+	case FLOW_ACT_MANGLE_HDR_TYPE_TCP:
+		switch (offset) {
+		case PEDIT_TCP_SPORT_DPORT:
+			if (!valid_l4_mask(~mask)) {
+				netdev_err(dev, "%s: Unsupported mask for TCP L4 ports\n",
 					   __func__);
 				return false;
 			}
 			break;
 		default:
-			netdev_err(dev, "%s: Unsupported pedit type\n",
+			netdev_err(dev, "%s: Unsupported pedit field\n",
 				   __func__);
 			return false;
 		}
+		break;
+	case FLOW_ACT_MANGLE_HDR_TYPE_UDP:
+		switch (offset) {
+		case PEDIT_UDP_SPORT_DPORT:
+			if (!valid_l4_mask(~mask)) {
+				netdev_err(dev, "%s: Unsupported mask for UDP L4 ports\n",
+					   __func__);
+				return false;
+			}
+			break;
+		default:
+			netdev_err(dev, "%s: Unsupported pedit field\n",
+				   __func__);
+			return false;
+		}
+		break;
+	default:
+		netdev_err(dev, "%s: Unsupported pedit type\n", __func__);
+		return false;
 	}
 	return true;
 }
@@ -550,24 +545,26 @@ static bool valid_pedit_action(struct net_device *dev,
 static int cxgb4_validate_flow_actions(struct net_device *dev,
 				       struct tc_cls_flower_offload *cls)
 {
-	const struct tc_action *a;
+	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(cls);
+	struct flow_action_entry *act;
 	bool act_redir = false;
 	bool act_pedit = false;
 	bool act_vlan = false;
 	int i;
 
-	tcf_exts_for_each_action(i, a, cls->exts) {
-		if (is_tcf_gact_ok(a)) {
+	flow_action_for_each(i, act, &rule->action) {
+		switch (act->id) {
+		case FLOW_ACTION_ACCEPT:
+		case FLOW_ACTION_DROP:
 			/* Do nothing */
-		} else if (is_tcf_gact_shot(a)) {
-			/* Do nothing */
-		} else if (is_tcf_mirred_egress_redirect(a)) {
+			break;
+		case FLOW_ACTION_REDIRECT: {
 			struct adapter *adap = netdev2adap(dev);
 			struct net_device *n_dev, *target_dev;
 			unsigned int i;
 			bool found = false;
 
-			target_dev = tcf_mirred_dev(a);
+			target_dev = act->dev;
 			for_each_port(adap, i) {
 				n_dev = adap->port[i];
 				if (target_dev == n_dev) {
@@ -585,15 +582,18 @@ static int cxgb4_validate_flow_actions(struct net_device *dev,
 				return -EINVAL;
 			}
 			act_redir = true;
-		} else if (is_tcf_vlan(a)) {
-			u16 proto = be16_to_cpu(tcf_vlan_push_proto(a));
-			u32 vlan_action = tcf_vlan_action(a);
+			}
+			break;
+		case FLOW_ACTION_VLAN_POP:
+		case FLOW_ACTION_VLAN_PUSH:
+		case FLOW_ACTION_VLAN_MANGLE: {
+			u16 proto = be16_to_cpu(act->vlan.proto);
 
-			switch (vlan_action) {
-			case TCA_VLAN_ACT_POP:
+			switch (act->id) {
+			case FLOW_ACTION_VLAN_POP:
 				break;
-			case TCA_VLAN_ACT_PUSH:
-			case TCA_VLAN_ACT_MODIFY:
+			case FLOW_ACTION_VLAN_PUSH:
+			case FLOW_ACTION_VLAN_MANGLE:
 				if (proto != ETH_P_8021Q) {
 					netdev_err(dev, "%s: Unsupported vlan proto\n",
 						   __func__);
@@ -606,13 +606,17 @@ static int cxgb4_validate_flow_actions(struct net_device *dev,
 				return -EOPNOTSUPP;
 			}
 			act_vlan = true;
-		} else if (is_tcf_pedit(a)) {
-			bool pedit_valid = valid_pedit_action(dev, a);
+			}
+			break;
+		case FLOW_ACTION_MANGLE: {
+			bool pedit_valid = valid_pedit_action(dev, act);
 
 			if (!pedit_valid)
 				return -EOPNOTSUPP;
 			act_pedit = true;
-		} else {
+			}
+			break;
+		default:
 			netdev_err(dev, "%s: Unsupported action\n", __func__);
 			return -EOPNOTSUPP;
 		}
