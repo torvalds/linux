@@ -452,6 +452,7 @@ static int ib_security_change(struct notifier_block *nb, unsigned long event,
 		return NOTIFY_DONE;
 
 	schedule_work(&ib_policy_change_work);
+	ib_mad_agent_security_change();
 
 	return NOTIFY_OK;
 }
