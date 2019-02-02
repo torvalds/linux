@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Helper functions used by the EFI stub on multiple
  * architectures. This should be #included by the EFI stub
  * implementation files.
  *
  * Copyright 2011 Intel Corporation; author Matt Fleming
- *
- * This file is part of the Linux kernel, and is made available
- * under the terms of the GNU General Public License version 2.
- *
  */
 
 #include <linux/efi.h>
