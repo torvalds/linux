@@ -300,6 +300,8 @@ enum devlink_attr {
 	DEVLINK_ATTR_INFO_VERSION_NAME,		/* string */
 	DEVLINK_ATTR_INFO_VERSION_VALUE,	/* string */
 
+	DEVLINK_ATTR_SB_POOL_CELL_SIZE,		/* u32 */
+
 	/* add new attributes above here, update the policy in devlink.c */
 
 	__DEVLINK_ATTR_MAX,

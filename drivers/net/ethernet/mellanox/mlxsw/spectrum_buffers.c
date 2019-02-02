@@ -713,6 +713,7 @@ int mlxsw_sp_sb_pool_get(struct mlxsw_core *mlxsw_core,
 	pool_info->pool_type = (enum devlink_sb_pool_type) dir;
 	pool_info->size = mlxsw_sp_cells_bytes(mlxsw_sp, pr->size);
 	pool_info->threshold_type = (enum devlink_sb_threshold_type) pr->mode;
+	pool_info->cell_size = mlxsw_sp->sb->cell_size;
 	return 0;
 }
 

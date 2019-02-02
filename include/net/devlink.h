@@ -62,6 +62,7 @@ struct devlink_sb_pool_info {
 	enum devlink_sb_pool_type pool_type;
 	u32 size;
 	enum devlink_sb_threshold_type threshold_type;
+	u32 cell_size;
 };
 
 /**

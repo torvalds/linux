@@ -932,6 +932,9 @@ static int devlink_nl_sb_pool_fill(struct sk_buff *msg, struct devlink *devlink,
 	if (nla_put_u8(msg, DEVLINK_ATTR_SB_POOL_THRESHOLD_TYPE,
 		       pool_info.threshold_type))
 		goto nla_put_failure;
+	if (nla_put_u32(msg, DEVLINK_ATTR_SB_POOL_CELL_SIZE,
+			pool_info.cell_size))
+		goto nla_put_failure;
 
 	genlmsg_end(msg, hdr);
 	return 0;
