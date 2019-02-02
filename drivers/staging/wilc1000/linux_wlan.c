@@ -920,7 +920,7 @@ static int wilc_mac_close(struct net_device *ndev)
 		netdev_dbg(ndev, "Deinitializing wilc1000\n");
 		wl->close = 1;
 		wilc_wlan_deinitialize(ndev);
-		wilc_wfi_deinit_mon_interface();
+		wilc_wfi_deinit_mon_interface(wl);
 	}
 
 	vif->mac_opened = 0;
@@ -976,7 +976,7 @@ void wilc_wfi_mgmt_rx(struct wilc *wilc, u8 *buff, u32 size)
 	for (i = 0; i < wilc->vif_num; i++) {
 		vif = netdev_priv(wilc->vif[i]->ndev);
 		if (vif->monitor_flag) {
-			wilc_wfi_monitor_rx(buff, size);
+			wilc_wfi_monitor_rx(wilc->monitor_dev, buff, size);
 			return;
 		}
 	}
