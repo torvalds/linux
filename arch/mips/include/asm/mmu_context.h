@@ -173,10 +173,6 @@ static inline void destroy_context(struct mm_struct *mm)
 #define activate_mm(prev, next)	switch_mm(prev, next, current)
 #define deactivate_mm(tsk, mm)	do { } while (0)
 
-/*
- * If mm is currently active_mm, we can't really drop it.  Instead,
- * we will get a new one for it.
- */
 static inline void
 drop_mmu_context(struct mm_struct *mm)
 {
@@ -188,7 +184,11 @@ drop_mmu_context(struct mm_struct *mm)
 	cpu = smp_processor_id();
 	if (!cpu_context(cpu, mm)) {
 		/* no-op */
-	} else if (cpumask_test_cpu(cpu, mm_cpumask(mm)))  {
+	} else if (cpumask_test_cpu(cpu, mm_cpumask(mm))) {
+		/*
+		 * mm is currently active, so we can't really drop it.
+		 * Instead we bump the ASID.
+		 */
 		htw_stop();
 		get_new_mmu_context(mm);
 		write_c0_entryhi(cpu_asid(cpu, mm));
