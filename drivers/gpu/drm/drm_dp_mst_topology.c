@@ -3117,10 +3117,6 @@ int drm_dp_atomic_find_vcpi_slots(struct drm_atomic_state *state,
 	if (IS_ERR(topology_state))
 		return PTR_ERR(topology_state);
 
-	port = drm_dp_mst_topology_get_port_validated(mgr, port);
-	if (port == NULL)
-		return -EINVAL;
-
 	/* Find the current allocation for this port, if any */
 	list_for_each_entry(pos, &topology_state->vcpis, next) {
 		if (pos->port == port) {
@@ -3153,10 +3149,8 @@ int drm_dp_atomic_find_vcpi_slots(struct drm_atomic_state *state,
 	/* Add the new allocation to the state */
 	if (!vcpi) {
 		vcpi = kzalloc(sizeof(*vcpi), GFP_KERNEL);
-		if (!vcpi) {
-			ret = -ENOMEM;
-			goto out;
-		}
+		if (!vcpi)
+			return -ENOMEM;
 
 		drm_dp_mst_get_port_malloc(port);
 		vcpi->port = port;
@@ -3165,8 +3159,6 @@ int drm_dp_atomic_find_vcpi_slots(struct drm_atomic_state *state,
 	vcpi->vcpi = req_slots;
 
 	ret = req_slots;
-out:
-	drm_dp_mst_topology_put_port(port);
 	return ret;
 }
 EXPORT_SYMBOL(drm_dp_atomic_find_vcpi_slots);
