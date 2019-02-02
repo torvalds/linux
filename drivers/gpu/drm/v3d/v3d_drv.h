@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /* Copyright (C) 2015-2018 Broadcom */
 
-#include <linux/reservation.h>
 #include <linux/mm_types.h>
 #include <drm/drmP.h>
 #include <drm/drm_encoder.h>
@@ -133,10 +132,6 @@ struct v3d_bo {
 	 * v3d_exec_info->unref_list
 	 */
 	struct list_head unref_head;
-
-	/* normally (resv == &_resv) except for imported bo's */
-	struct reservation_object *resv;
-	struct reservation_object _resv;
 };
 
 static inline struct v3d_bo *
@@ -281,7 +276,6 @@ int v3d_get_bo_offset_ioctl(struct drm_device *dev, void *data,
 			    struct drm_file *file_priv);
 vm_fault_t v3d_gem_fault(struct vm_fault *vmf);
 int v3d_mmap(struct file *filp, struct vm_area_struct *vma);
-struct reservation_object *v3d_prime_res_obj(struct drm_gem_object *obj);
 int v3d_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma);
 struct sg_table *v3d_prime_get_sg_table(struct drm_gem_object *obj);
 struct drm_gem_object *v3d_prime_import_sg_table(struct drm_device *dev,

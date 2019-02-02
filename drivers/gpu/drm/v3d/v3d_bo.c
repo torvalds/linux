@@ -155,9 +155,6 @@ struct v3d_bo *v3d_bo_create(struct drm_device *dev, struct drm_file *file_priv,
 		return bo;
 	obj = &bo->base;
 
-	bo->resv = &bo->_resv;
-	reservation_object_init(bo->resv);
-
 	ret = v3d_bo_get_pages(bo);
 	if (ret)
 		goto free_mm;
@@ -194,8 +191,6 @@ void v3d_free_object(struct drm_gem_object *obj)
 	v3d->bo_stats.pages_allocated -= obj->size >> PAGE_SHIFT;
 	mutex_unlock(&v3d->bo_lock);
 
-	reservation_object_fini(&bo->_resv);
-
 	v3d_bo_put_pages(bo);
 
 	if (obj->import_attach)
@@ -210,13 +205,6 @@ void v3d_free_object(struct drm_gem_object *obj)
 
 	drm_gem_object_release(obj);
 	kfree(bo);
-}
-
-struct reservation_object *v3d_prime_res_obj(struct drm_gem_object *obj)
-{
-	struct v3d_bo *bo = to_v3d_bo(obj);
-
-	return bo->resv;
 }
 
 static void
@@ -291,7 +279,7 @@ v3d_prime_import_sg_table(struct drm_device *dev,
 		return ERR_CAST(bo);
 	obj = &bo->base;
 
-	bo->resv = attach->dmabuf->resv;
+	obj->resv = attach->dmabuf->resv;
 
 	bo->sgt = sgt;
 	obj->import_attach = attach;

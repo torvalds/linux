@@ -214,7 +214,6 @@ static struct drm_driver v3d_drm_driver = {
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_import = drm_gem_prime_import,
 	.gem_prime_export = drm_gem_prime_export,
-	.gem_prime_res_obj = v3d_prime_res_obj,
 	.gem_prime_get_sg_table	= v3d_prime_get_sg_table,
 	.gem_prime_import_sg_table = v3d_prime_import_sg_table,
 	.gem_prime_mmap = v3d_prime_mmap,
