@@ -53,17 +53,11 @@ enum libbpf_print_level {
         LIBBPF_DEBUG,
 };
 
-/*
- * __printf is defined in include/linux/compiler-gcc.h. However,
- * it would be better if libbpf.h didn't depend on Linux header files.
- * So instead of __printf, here we use gcc attribute directly.
- */
-typedef int (*libbpf_print_fn_t)(const char *, ...)
-	__attribute__((format(printf, 1, 2)));
+typedef int (*libbpf_print_fn_t)(enum libbpf_print_level level,
+				 const char *, ...)
+	__attribute__((format(printf, 2, 3)));
 
-LIBBPF_API void libbpf_set_print(libbpf_print_fn_t warn,
-				 libbpf_print_fn_t info,
-				 libbpf_print_fn_t debug);
+LIBBPF_API void libbpf_set_print(libbpf_print_fn_t fn);
 
 /* Hide internal to user */
 struct bpf_object;

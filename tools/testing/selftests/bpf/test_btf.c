@@ -54,8 +54,9 @@ static int count_result(int err)
 
 #define __printf(a, b)	__attribute__((format(printf, a, b)))
 
-__printf(1, 2)
-static int __base_pr(const char *format, ...)
+__printf(2, 3)
+static int __base_pr(enum libbpf_print_level level __attribute__((unused)),
+		     const char *format, ...)
 {
 	va_list args;
 	int err;
@@ -5650,7 +5651,7 @@ int main(int argc, char **argv)
 		return err;
 
 	if (args.always_log)
-		libbpf_set_print(__base_pr, __base_pr, __base_pr);
+		libbpf_set_print(__base_pr);
 
 	if (args.raw_test)
 		err |= test_raw();
