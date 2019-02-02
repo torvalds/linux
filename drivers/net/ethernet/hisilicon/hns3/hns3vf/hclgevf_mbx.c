@@ -197,6 +197,7 @@ void hclgevf_mbx_handler(struct hclgevf_dev *hdev)
 			break;
 		case HCLGE_MBX_LINK_STAT_CHANGE:
 		case HCLGE_MBX_ASSERTING_RESET:
+		case HCLGE_MBX_LINK_STAT_MODE:
 			/* set this mbx event as pending. This is required as we
 			 * might loose interrupt event when mbx task is busy
 			 * handling. This shall be cleared when mbx task just
@@ -247,6 +248,7 @@ void hclgevf_mbx_async_handler(struct hclgevf_dev *hdev)
 	u8 duplex;
 	u32 speed;
 	u32 tail;
+	u8 idx;
 
 	/* we can safely clear it now as we are at start of the async message
 	 * processing
@@ -270,11 +272,21 @@ void hclgevf_mbx_async_handler(struct hclgevf_dev *hdev)
 			link_status = le16_to_cpu(msg_q[1]);
 			memcpy(&speed, &msg_q[2], sizeof(speed));
 			duplex = (u8)le16_to_cpu(msg_q[4]);
+			hdev->hw.mac.media_type = (u8)le16_to_cpu(msg_q[5]);
 
 			/* update upper layer with new link link status */
 			hclgevf_update_link_status(hdev, link_status);
 			hclgevf_update_speed_duplex(hdev, speed, duplex);
 
+			break;
+		case HCLGE_MBX_LINK_STAT_MODE:
+			idx = (u8)le16_to_cpu(msg_q[1]);
+			if (idx)
+				memcpy(&hdev->hw.mac.supported, &msg_q[2],
+				       sizeof(unsigned long));
+			else
+				memcpy(&hdev->hw.mac.advertising, &msg_q[2],
+				       sizeof(unsigned long));
 			break;
 		case HCLGE_MBX_ASSERTING_RESET:
 			/* PF has asserted reset hence VF should go in pending

@@ -145,6 +145,8 @@ struct hclgevf_mac {
 	int link;
 	u8 duplex;
 	u32 speed;
+	u64 supported;
+	u64 advertising;
 };
 
 struct hclgevf_hw {

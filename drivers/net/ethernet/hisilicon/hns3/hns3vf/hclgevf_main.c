@@ -381,6 +381,21 @@ void hclgevf_update_link_status(struct hclgevf_dev *hdev, int link_state)
 	}
 }
 
+void hclgevf_update_link_mode(struct hclgevf_dev *hdev)
+{
+#define HCLGEVF_ADVERTISING 0
+#define HCLGEVF_SUPPORTED   1
+	u8 send_msg;
+	u8 resp_msg;
+
+	send_msg = HCLGEVF_ADVERTISING;
+	hclgevf_send_mbx_msg(hdev, HCLGE_MBX_GET_LINK_MODE, 0, &send_msg,
+			     sizeof(u8), false, &resp_msg, sizeof(u8));
+	send_msg = HCLGEVF_SUPPORTED;
+	hclgevf_send_mbx_msg(hdev, HCLGE_MBX_GET_LINK_MODE, 0, &send_msg,
+			     sizeof(u8), false, &resp_msg, sizeof(u8));
+}
+
 static int hclgevf_set_handle_info(struct hclgevf_dev *hdev)
 {
 	struct hnae3_handle *nic = &hdev->nic;
@@ -1646,6 +1661,8 @@ static void hclgevf_service_task(struct work_struct *work)
 	 */
 	hclgevf_request_link_info(hdev);
 
+	hclgevf_update_link_mode(hdev);
+
 	hclgevf_deferred_task_schedule(hdev);
 
 	clear_bit(HCLGEVF_STATE_SERVICE_SCHED, &hdev->state);
@@ -1725,8 +1742,6 @@ static irqreturn_t hclgevf_misc_irq_handle(int irq, void *data)
 static int hclgevf_configure(struct hclgevf_dev *hdev)
 {
 	int ret;
-
-	hdev->hw.mac.media_type = HNAE3_MEDIA_TYPE_NONE;
 
 	/* get queue configuration from PF */
 	ret = hclgevf_get_queue_info(hdev);
@@ -1879,6 +1894,8 @@ static int hclgevf_ae_start(struct hnae3_handle *handle)
 	hclgevf_reset_tqp_stats(handle);
 
 	hclgevf_request_link_info(hdev);
+
+	hclgevf_update_link_mode(hdev);
 
 	clear_bit(HCLGEVF_STATE_DOWN, &hdev->state);
 
@@ -2550,7 +2567,7 @@ void hclgevf_update_speed_duplex(struct hclgevf_dev *hdev, u32 speed,
 	hdev->hw.mac.duplex = duplex;
 }
 
-static int hclgevf_gro_en(struct hnae3_handle *handle, int enable)
+static int hclgevf_gro_en(struct hnae3_handle *handle, bool enable)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
 
@@ -2584,6 +2601,16 @@ static unsigned long hclgevf_ae_dev_reset_cnt(struct hnae3_handle *handle)
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
 
 	return hdev->reset_count;
+}
+
+static void hclgevf_get_link_mode(struct hnae3_handle *handle,
+				  unsigned long *supported,
+				  unsigned long *advertising)
+{
+	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
+
+	*supported = hdev->hw.mac.supported;
+	*advertising = hdev->hw.mac.advertising;
 }
 
 #define MAX_SEPARATE_NUM	4
@@ -2704,6 +2731,7 @@ static const struct hnae3_ae_ops hclgevf_ops = {
 	.set_mtu = hclgevf_set_mtu,
 	.get_global_queue_id = hclgevf_get_qid_global,
 	.set_timer_task = hclgevf_set_timer_task,
+	.get_link_mode = hclgevf_get_link_mode,
 };
 
 static struct hnae3_ae_algo ae_algovf = {

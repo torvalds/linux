@@ -1349,6 +1349,7 @@ static int hns3_nic_set_features(struct net_device *netdev,
 	netdev_features_t changed = netdev->features ^ features;
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	struct hnae3_handle *h = priv->ae_handle;
+	bool enable;
 	int ret;
 
 	if (changed & (NETIF_F_TSO | NETIF_F_TSO6)) {
@@ -1359,38 +1360,29 @@ static int hns3_nic_set_features(struct net_device *netdev,
 	}
 
 	if (changed & (NETIF_F_GRO_HW) && h->ae_algo->ops->set_gro_en) {
-		if (features & NETIF_F_GRO_HW)
-			ret = h->ae_algo->ops->set_gro_en(h, true);
-		else
-			ret = h->ae_algo->ops->set_gro_en(h, false);
+		enable = !!(features & NETIF_F_GRO_HW);
+		ret = h->ae_algo->ops->set_gro_en(h, enable);
 		if (ret)
 			return ret;
 	}
 
 	if ((changed & NETIF_F_HW_VLAN_CTAG_FILTER) &&
 	    h->ae_algo->ops->enable_vlan_filter) {
-		if (features & NETIF_F_HW_VLAN_CTAG_FILTER)
-			h->ae_algo->ops->enable_vlan_filter(h, true);
-		else
-			h->ae_algo->ops->enable_vlan_filter(h, false);
+		enable = !!(features & NETIF_F_HW_VLAN_CTAG_FILTER);
+		h->ae_algo->ops->enable_vlan_filter(h, enable);
 	}
 
 	if ((changed & NETIF_F_HW_VLAN_CTAG_RX) &&
 	    h->ae_algo->ops->enable_hw_strip_rxvtag) {
-		if (features & NETIF_F_HW_VLAN_CTAG_RX)
-			ret = h->ae_algo->ops->enable_hw_strip_rxvtag(h, true);
-		else
-			ret = h->ae_algo->ops->enable_hw_strip_rxvtag(h, false);
-
+		enable = !!(features & NETIF_F_HW_VLAN_CTAG_RX);
+		ret = h->ae_algo->ops->enable_hw_strip_rxvtag(h, enable);
 		if (ret)
 			return ret;
 	}
 
 	if ((changed & NETIF_F_NTUPLE) && h->ae_algo->ops->enable_fd) {
-		if (features & NETIF_F_NTUPLE)
-			h->ae_algo->ops->enable_fd(h, true);
-		else
-			h->ae_algo->ops->enable_fd(h, false);
+		enable = !!(features & NETIF_F_NTUPLE);
+		h->ae_algo->ops->enable_fd(h, enable);
 	}
 
 	netdev->features = features;
@@ -1937,8 +1929,7 @@ static void hns3_set_default_feature(struct net_device *netdev)
 		NETIF_F_GSO_UDP_TUNNEL_CSUM | NETIF_F_SCTP_CRC;
 
 	if (pdev->revision >= 0x21) {
-		netdev->hw_features |= NETIF_F_HW_VLAN_CTAG_FILTER |
-			NETIF_F_GRO_HW;
+		netdev->hw_features |= NETIF_F_GRO_HW;
 		netdev->features |= NETIF_F_GRO_HW;
 
 		if (!(h->flags & HNAE3_SUPPORT_VF)) {
@@ -2777,7 +2768,7 @@ static bool hns3_get_new_int_gl(struct hns3_enet_ring_group *ring_group)
 	u32 time_passed_ms;
 	u16 new_int_gl;
 
-	if (!ring_group->coal.int_gl || !tqp_vector->last_jiffies)
+	if (!tqp_vector->last_jiffies)
 		return false;
 
 	if (ring_group->total_packets == 0) {
@@ -2880,7 +2871,7 @@ static void hns3_update_new_int_gl(struct hns3_enet_tqp_vector *tqp_vector)
 	}
 
 	if (tx_group->coal.gl_adapt_enable) {
-		tx_update = hns3_get_new_int_gl(&tqp_vector->tx_group);
+		tx_update = hns3_get_new_int_gl(tx_group);
 		if (tx_update)
 			hns3_set_vector_coalesce_tx_gl(tqp_vector,
 						       tx_group->coal.int_gl);
