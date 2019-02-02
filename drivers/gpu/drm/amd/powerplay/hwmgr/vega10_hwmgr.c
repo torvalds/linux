@@ -3579,6 +3579,10 @@ static int vega10_generate_dpm_level_enable_mask(
 			vega10_find_lowest_dpm_level(&(data->dpm_table.mem_table));
 	data->smc_state_table.mem_max_level =
 			vega10_find_highest_dpm_level(&(data->dpm_table.mem_table));
+	data->smc_state_table.soc_boot_level =
+			vega10_find_lowest_dpm_level(&(data->dpm_table.soc_table));
+	data->smc_state_table.soc_max_level =
+			vega10_find_highest_dpm_level(&(data->dpm_table.soc_table));
 
 	PP_ASSERT_WITH_CODE(!vega10_upload_dpm_bootup_level(hwmgr),
 			"Attempt to upload DPM Bootup Levels Failed!",
@@ -3592,6 +3596,9 @@ static int vega10_generate_dpm_level_enable_mask(
 
 	for(i = data->smc_state_table.mem_boot_level; i < data->smc_state_table.mem_max_level; i++)
 		data->dpm_table.mem_table.dpm_levels[i].enabled = true;
+
+	for (i = data->smc_state_table.soc_boot_level; i < data->smc_state_table.soc_max_level; i++)
+		data->dpm_table.soc_table.dpm_levels[i].enabled = true;
 
 	return 0;
 }
