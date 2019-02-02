@@ -18,7 +18,7 @@ enum {
 };
 
 #define WILC_MAX_NUM_STA			9
-#define MAX_NUM_SCANNED_NETWORKS		100
+#define WILC_MAX_NUM_SCANNED_CH			14
 #define WILC_MAX_NUM_PROBED_SSID		10
 
 #define TX_MIC_KEY_LEN				8

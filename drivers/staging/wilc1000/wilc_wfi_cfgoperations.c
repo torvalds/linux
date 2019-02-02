@@ -266,42 +266,41 @@ static int scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
 	struct wilc_vif *vif = netdev_priv(priv->dev);
 	u32 i;
 	int ret = 0;
-	u8 scan_ch_list[MAX_NUM_SCANNED_NETWORKS];
+	u8 scan_ch_list[WILC_MAX_NUM_SCANNED_CH];
 	struct wilc_probe_ssid probe_ssid;
 
-	priv->scan_req = request;
-
-	priv->cfg_scanning = true;
-	if (request->n_channels <= MAX_NUM_SCANNED_NETWORKS) {
-		for (i = 0; i < request->n_channels; i++) {
-			u16 freq = request->channels[i]->center_freq;
-
-			scan_ch_list[i] = ieee80211_frequency_to_channel(freq);
-		}
-
-		if (request->n_ssids >= 1) {
-			if (wilc_wfi_cfg_alloc_fill_ssid(request,
-							 &probe_ssid)) {
-				ret = -ENOMEM;
-				goto out;
-			}
-
-			ret = wilc_scan(vif, WILC_FW_USER_SCAN,
-					WILC_FW_ACTIVE_SCAN, scan_ch_list,
-					request->n_channels,
-					(const u8 *)request->ie,
-					request->ie_len, cfg_scan_result,
-					(void *)priv, &probe_ssid);
-		} else {
-			ret = wilc_scan(vif, WILC_FW_USER_SCAN,
-					WILC_FW_ACTIVE_SCAN, scan_ch_list,
-					request->n_channels,
-					(const u8 *)request->ie,
-					request->ie_len, cfg_scan_result,
-					(void *)priv, NULL);
-		}
-	} else {
+	if (request->n_channels > WILC_MAX_NUM_SCANNED_CH) {
 		netdev_err(priv->dev, "Requested scanned channels over\n");
+		return -EINVAL;
+	}
+
+	priv->scan_req = request;
+	priv->cfg_scanning = true;
+	for (i = 0; i < request->n_channels; i++) {
+		u16 freq = request->channels[i]->center_freq;
+
+		scan_ch_list[i] = ieee80211_frequency_to_channel(freq);
+	}
+
+	if (request->n_ssids >= 1) {
+		if (wilc_wfi_cfg_alloc_fill_ssid(request, &probe_ssid)) {
+			ret = -ENOMEM;
+			goto out;
+		}
+
+		ret = wilc_scan(vif, WILC_FW_USER_SCAN,
+				WILC_FW_ACTIVE_SCAN, scan_ch_list,
+				request->n_channels,
+				(const u8 *)request->ie,
+				request->ie_len, cfg_scan_result,
+				(void *)priv, &probe_ssid);
+	} else {
+		ret = wilc_scan(vif, WILC_FW_USER_SCAN,
+				WILC_FW_ACTIVE_SCAN, scan_ch_list,
+				request->n_channels,
+				(const u8 *)request->ie,
+				request->ie_len, cfg_scan_result,
+				(void *)priv, NULL);
 	}
 
 out:
