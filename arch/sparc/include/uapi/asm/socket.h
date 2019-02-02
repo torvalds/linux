@@ -21,8 +21,8 @@
 #define SO_BSDCOMPAT    0x0400
 #define SO_RCVLOWAT     0x0800
 #define SO_SNDLOWAT     0x1000
-#define SO_RCVTIMEO     0x2000
-#define SO_SNDTIMEO     0x4000
+#define SO_RCVTIMEO_OLD     0x2000
+#define SO_SNDTIMEO_OLD     0x4000
 #define SO_ACCEPTCONN	0x8000
 
 #define SO_SNDBUF	0x1001
@@ -113,6 +113,9 @@
 #define SO_TIMESTAMPING_NEW      0x0043
 
 #if !defined(__KERNEL__)
+
+#define SO_RCVTIMEO              SO_RCVTIMEO_OLD
+#define SO_SNDTIMEO              SO_SNDTIMEO_OLD
 
 #if __BITS_PER_LONG == 64
 #define SO_TIMESTAMP		SO_TIMESTAMP_OLD
