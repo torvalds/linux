@@ -1331,7 +1331,7 @@ static int  hclge_cmd_alloc_tx_buff(struct hclge_dev *hdev,
 	req = (struct hclge_tx_buff_alloc_cmd *)desc.data;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_TX_BUFF_ALLOC, 0);
-	for (i = 0; i < HCLGE_TC_NUM; i++) {
+	for (i = 0; i < HCLGE_MAX_TC_NUM; i++) {
 		u32 buf_size = buf_alloc->priv_buf[i].tx_buf_size;
 
 		req->tx_pkt_buff[i] =

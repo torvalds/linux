@@ -312,16 +312,16 @@ struct hclge_ctrl_vector_chain_cmd {
 	u8 rsv;
 };
 
-#define HCLGE_TC_NUM		8
+#define HCLGE_MAX_TC_NUM		8
 #define HCLGE_TC0_PRI_BUF_EN_B	15 /* Bit 15 indicate enable or not */
 #define HCLGE_BUF_UNIT_S	7  /* Buf size is united by 128 bytes */
 struct hclge_tx_buff_alloc_cmd {
-	__le16 tx_pkt_buff[HCLGE_TC_NUM];
+	__le16 tx_pkt_buff[HCLGE_MAX_TC_NUM];
 	u8 tx_buff_rsv[8];
 };
 
 struct hclge_rx_priv_buff_cmd {
-	__le16 buf_num[HCLGE_TC_NUM];
+	__le16 buf_num[HCLGE_MAX_TC_NUM];
 	__le16 shared_buf;
 	u8 rsv[6];
 };
@@ -367,7 +367,6 @@ struct hclge_priv_buf {
 	u32 enable;	/* Enable TC private buffer or not */
 };
 
-#define HCLGE_MAX_TC_NUM	8
 struct hclge_shared_buf {
 	struct hclge_waterline self;
 	struct hclge_tc_thrd tc_thrd[HCLGE_MAX_TC_NUM];
