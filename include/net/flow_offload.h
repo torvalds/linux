@@ -179,4 +179,18 @@ static inline bool flow_rule_match_key(const struct flow_rule *rule,
 	return dissector_uses_key(rule->match.dissector, key);
 }
 
+struct flow_stats {
+	u64	pkts;
+	u64	bytes;
+	u64	lastused;
+};
+
+static inline void flow_stats_update(struct flow_stats *flow_stats,
+				     u64 bytes, u64 pkts, u64 lastused)
+{
+	flow_stats->pkts	= pkts;
+	flow_stats->bytes	= bytes;
+	flow_stats->lastused	= lastused;
+}
+
 #endif /* _NET_FLOW_OFFLOAD_H */

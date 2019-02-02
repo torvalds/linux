@@ -429,6 +429,10 @@ static void fl_hw_update_stats(struct tcf_proto *tp, struct cls_fl_filter *f)
 	cls_flower.classid = f->res.classid;
 
 	tc_setup_cb_call(block, TC_SETUP_CLSFLOWER, &cls_flower, false);
+
+	tcf_exts_stats_update(&f->exts, cls_flower.stats.bytes,
+			      cls_flower.stats.pkts,
+			      cls_flower.stats.lastused);
 }
 
 static bool __fl_delete(struct tcf_proto *tp, struct cls_fl_filter *f,

@@ -554,9 +554,8 @@ nfp_flower_get_stats(struct nfp_app *app, struct net_device *netdev,
 	ctx_id = be32_to_cpu(nfp_flow->meta.host_ctx_id);
 
 	spin_lock_bh(&priv->stats_lock);
-	tcf_exts_stats_update(flow->exts, priv->stats[ctx_id].bytes,
-			      priv->stats[ctx_id].pkts,
-			      priv->stats[ctx_id].used);
+	flow_stats_update(&flow->stats, priv->stats[ctx_id].bytes,
+			  priv->stats[ctx_id].pkts, priv->stats[ctx_id].used);
 
 	priv->stats[ctx_id].pkts = 0;
 	priv->stats[ctx_id].bytes = 0;

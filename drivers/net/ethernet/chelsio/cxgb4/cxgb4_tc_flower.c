@@ -807,9 +807,9 @@ int cxgb4_tc_flower_stats(struct net_device *dev,
 	if (ofld_stats->packet_count != packets) {
 		if (ofld_stats->prev_packet_count != packets)
 			ofld_stats->last_used = jiffies;
-		tcf_exts_stats_update(cls->exts, bytes - ofld_stats->byte_count,
-				      packets - ofld_stats->packet_count,
-				      ofld_stats->last_used);
+		flow_stats_update(&cls->stats, bytes - ofld_stats->byte_count,
+				  packets - ofld_stats->packet_count,
+				  ofld_stats->last_used);
 
 		ofld_stats->packet_count = packets;
 		ofld_stats->byte_count = bytes;

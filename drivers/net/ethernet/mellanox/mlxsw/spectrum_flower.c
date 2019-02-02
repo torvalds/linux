@@ -460,7 +460,7 @@ int mlxsw_sp_flower_stats(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_rule_get_stats;
 
-	tcf_exts_stats_update(f->exts, bytes, packets, lastuse);
+	flow_stats_update(&f->stats, bytes, packets, lastuse);
 
 	mlxsw_sp_acl_ruleset_put(mlxsw_sp, ruleset);
 	return 0;

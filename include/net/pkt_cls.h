@@ -765,6 +765,7 @@ struct tc_cls_flower_offload {
 	enum tc_fl_command command;
 	unsigned long cookie;
 	struct flow_rule *rule;
+	struct flow_stats stats;
 	struct tcf_exts *exts;
 	u32 classid;
 };

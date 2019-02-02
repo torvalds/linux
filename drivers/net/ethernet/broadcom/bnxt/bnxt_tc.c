@@ -1396,8 +1396,8 @@ static int bnxt_tc_get_flow_stats(struct bnxt *bp,
 	lastused = flow->lastused;
 	spin_unlock(&flow->stats_lock);
 
-	tcf_exts_stats_update(tc_flow_cmd->exts, stats.bytes, stats.packets,
-			      lastused);
+	flow_stats_update(&tc_flow_cmd->stats, stats.bytes, stats.packets,
+			  lastused);
 	return 0;
 }
 
