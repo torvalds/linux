@@ -700,7 +700,7 @@ static inline void local_r4k_flush_cache_page(void *args)
 			int cpu = smp_processor_id();
 
 			if (cpu_context(cpu, mm) != 0)
-				drop_mmu_context(mm, cpu);
+				drop_mmu_context(mm);
 		} else
 			vaddr ? r4k_blast_icache_page(addr) :
 				r4k_blast_icache_user_page(addr);

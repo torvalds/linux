@@ -75,7 +75,7 @@ void local_flush_tlb_mm(struct mm_struct *mm)
 #ifdef DEBUG_TLB
 		printk("[tlbmm<%lu>]", (unsigned long)cpu_context(cpu, mm));
 #endif
-		drop_mmu_context(mm, cpu);
+		drop_mmu_context(mm);
 	}
 }
 
@@ -117,7 +117,7 @@ void local_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 			}
 			write_c0_entryhi(oldpid);
 		} else {
-			drop_mmu_context(mm, cpu);
+			drop_mmu_context(mm);
 		}
 		local_irq_restore(flags);
 	}

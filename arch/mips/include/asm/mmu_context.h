@@ -174,13 +174,15 @@ static inline void destroy_context(struct mm_struct *mm)
  * we will get a new one for it.
  */
 static inline void
-drop_mmu_context(struct mm_struct *mm, unsigned cpu)
+drop_mmu_context(struct mm_struct *mm)
 {
 	unsigned long flags;
+	unsigned int cpu;
 
 	local_irq_save(flags);
 	htw_stop();
 
+	cpu = smp_processor_id();
 	if (cpumask_test_cpu(cpu, mm_cpumask(mm)))  {
 		get_new_mmu_context(mm, cpu);
 		write_c0_entryhi(cpu_asid(cpu, mm));
