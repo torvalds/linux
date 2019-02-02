@@ -1082,7 +1082,7 @@ static int vc4_prepare_fb(struct drm_plane *plane,
 
 	bo = to_vc4_bo(&drm_fb_cma_get_gem_obj(state->fb, 0)->base);
 
-	fence = reservation_object_get_excl_rcu(bo->resv);
+	fence = reservation_object_get_excl_rcu(bo->base.base.resv);
 	drm_atomic_set_fence_for_plane(state, fence);
 
 	if (plane->state->fb == state->fb)

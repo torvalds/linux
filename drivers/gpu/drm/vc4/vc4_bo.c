@@ -201,8 +201,6 @@ static void vc4_bo_destroy(struct vc4_bo *bo)
 		bo->validated_shader = NULL;
 	}
 
-	reservation_object_fini(&bo->_resv);
-
 	drm_gem_cma_free_object(obj);
 }
 
@@ -427,8 +425,6 @@ struct drm_gem_object *vc4_create_object(struct drm_device *dev, size_t size)
 	vc4->bo_labels[VC4_BO_TYPE_KERNEL].num_allocated++;
 	vc4->bo_labels[VC4_BO_TYPE_KERNEL].size_allocated += size;
 	mutex_unlock(&vc4->bo_lock);
-	bo->resv = &bo->_resv;
-	reservation_object_init(bo->resv);
 
 	return &bo->base.base;
 }
@@ -684,13 +680,6 @@ static void vc4_bo_cache_time_timer(struct timer_list *t)
 	schedule_work(&vc4->bo_cache.time_work);
 }
 
-struct reservation_object *vc4_prime_res_obj(struct drm_gem_object *obj)
-{
-	struct vc4_bo *bo = to_vc4_bo(obj);
-
-	return bo->resv;
-}
-
 struct dma_buf *
 vc4_prime_export(struct drm_device *dev, struct drm_gem_object *obj, int flags)
 {
@@ -822,14 +811,12 @@ vc4_prime_import_sg_table(struct drm_device *dev,
 			  struct sg_table *sgt)
 {
 	struct drm_gem_object *obj;
-	struct vc4_bo *bo;
 
 	obj = drm_gem_cma_prime_import_sg_table(dev, attach, sgt);
 	if (IS_ERR(obj))
 		return obj;
 
-	bo = to_vc4_bo(obj);
-	bo->resv = attach->dmabuf->resv;
+	obj->resv = attach->dmabuf->resv;
 
 	return obj;
 }
