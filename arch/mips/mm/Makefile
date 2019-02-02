@@ -4,6 +4,7 @@
 #
 
 obj-y				+= cache.o
+obj-y				+= context.o
 obj-y				+= extable.o
 obj-y				+= fault.o
 obj-y				+= gup.o

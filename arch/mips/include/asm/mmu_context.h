@@ -97,25 +97,7 @@ static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
 {
 }
 
-
-/* Normal, classic MIPS get_new_mmu_context */
-static inline void
-get_new_mmu_context(struct mm_struct *mm)
-{
-	unsigned int cpu;
-	u64 asid;
-
-	cpu = smp_processor_id();
-	asid = asid_cache(cpu);
-
-	if (!((asid += cpu_asid_inc()) & cpu_asid_mask(&cpu_data[cpu]))) {
-		if (cpu_has_vtag_icache)
-			flush_icache_all();
-		local_flush_tlb_all();	/* start new asid cycle */
-	}
-
-	cpu_context(cpu, mm) = asid_cache(cpu) = asid;
-}
+extern void get_new_mmu_context(struct mm_struct *mm);
 
 /*
  * Initialize the context related info for a new mm_struct
