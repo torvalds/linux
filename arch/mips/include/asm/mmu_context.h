@@ -166,34 +166,8 @@ static inline void destroy_context(struct mm_struct *mm)
 	dsemul_mm_cleanup(mm);
 }
 
+#define activate_mm(prev, next)	switch_mm(prev, next, current)
 #define deactivate_mm(tsk, mm)	do { } while (0)
-
-/*
- * After we have set current->mm to a new value, this activates
- * the context for the new mm so we see the new mappings.
- */
-static inline void
-activate_mm(struct mm_struct *prev, struct mm_struct *next)
-{
-	unsigned long flags;
-	unsigned int cpu = smp_processor_id();
-
-	local_irq_save(flags);
-
-	htw_stop();
-	/* Unconditionally get a new ASID.  */
-	get_new_mmu_context(next, cpu);
-
-	write_c0_entryhi(cpu_asid(cpu, next));
-	TLBMISS_HANDLER_SETUP_PGD(next->pgd);
-
-	/* mark mmu ownership change */
-	cpumask_clear_cpu(cpu, mm_cpumask(prev));
-	cpumask_set_cpu(cpu, mm_cpumask(next));
-	htw_start();
-
-	local_irq_restore(flags);
-}
 
 /*
  * If mm is currently active_mm, we can't really drop it.  Instead,
