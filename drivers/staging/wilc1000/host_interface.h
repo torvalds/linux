@@ -153,7 +153,6 @@ struct host_if_drv {
 	struct remain_ch remain_on_ch;
 	u8 remain_on_ch_pending;
 	u64 p2p_timeout;
-	u8 p2p_connect;
 
 	enum host_if_state hif_state;
 

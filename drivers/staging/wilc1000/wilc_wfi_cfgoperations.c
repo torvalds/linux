@@ -159,7 +159,7 @@ static void cfg_connect_result(enum conn_event conn_disconn_evt, u8 mac_status,
 			connect_status = WLAN_STATUS_UNSPECIFIED_FAILURE;
 			wilc_wlan_set_bssid(priv->dev, NULL, WILC_STATION_MODE);
 
-			if (!wfi_drv->p2p_connect)
+			if (vif->iftype != WILC_CLIENT_MODE)
 				wlan_channel = INVALID_CHANNEL;
 
 			netdev_err(dev, "Unspecified failure\n");
@@ -185,7 +185,7 @@ static void cfg_connect_result(enum conn_event conn_disconn_evt, u8 mac_status,
 		eth_zero_addr(priv->associated_bss);
 		wilc_wlan_set_bssid(priv->dev, NULL, WILC_STATION_MODE);
 
-		if (!wfi_drv->p2p_connect)
+		if (vif->iftype != WILC_CLIENT_MODE)
 			wlan_channel = INVALID_CHANNEL;
 
 		if (wfi_drv->ifc_up && dev == wl->vif[1]->ndev)
@@ -329,11 +329,6 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 
 	vif->connecting = true;
 
-	if (!(strncmp(sme->ssid, "DIRECT-", 7)))
-		wfi_drv->p2p_connect = 1;
-	else
-		wfi_drv->p2p_connect = 0;
-
 	memset(priv->wep_key, 0, sizeof(priv->wep_key));
 	memset(priv->wep_key_len, 0, sizeof(priv->wep_key_len));
 
@@ -436,7 +431,7 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 
 	curr_channel = ieee80211_frequency_to_channel(bss->channel->center_freq);
 
-	if (!wfi_drv->p2p_connect)
+	if (vif->iftype != WILC_CLIENT_MODE)
 		wlan_channel = curr_channel;
 
 	wilc_wlan_set_bssid(dev, bss->bssid, WILC_STATION_MODE);
@@ -452,7 +447,7 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 	if (ret) {
 		netdev_err(dev, "wilc_set_join_req(): Error\n");
 		ret = -ENOENT;
-		if (!wfi_drv->p2p_connect)
+		if (vif->iftype != WILC_CLIENT_MODE)
 			wlan_channel = INVALID_CHANNEL;
 		wilc_wlan_set_bssid(dev, NULL, WILC_STATION_MODE);
 		wfi_drv->conn_info.conn_result = NULL;
@@ -477,7 +472,6 @@ static int disconnect(struct wiphy *wiphy, struct net_device *dev,
 	struct wilc_priv *priv = wiphy_priv(wiphy);
 	struct wilc_vif *vif = netdev_priv(priv->dev);
 	struct wilc *wilc = vif->wilc;
-	struct host_if_drv *wfi_drv;
 	int ret;
 
 	vif->connecting = false;
@@ -491,15 +485,14 @@ static int disconnect(struct wiphy *wiphy, struct net_device *dev,
 		return 0;
 	}
 
-	wfi_drv = (struct host_if_drv *)priv->hif_drv;
-	if (!wfi_drv->p2p_connect)
+	if (vif->iftype != WILC_CLIENT_MODE)
 		wlan_channel = INVALID_CHANNEL;
 	wilc_wlan_set_bssid(priv->dev, NULL, WILC_STATION_MODE);
 
 	priv->p2p.local_random = 0x01;
 	priv->p2p.recv_random = 0x00;
 	priv->p2p.is_wilc_ie = false;
-	wfi_drv->p2p_timeout = 0;
+	priv->hif_drv->p2p_timeout = 0;
 
 	ret = wilc_disconnect(vif);
 	if (ret != 0) {
