@@ -100,9 +100,13 @@ static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
 
 /* Normal, classic MIPS get_new_mmu_context */
 static inline void
-get_new_mmu_context(struct mm_struct *mm, unsigned long cpu)
+get_new_mmu_context(struct mm_struct *mm)
 {
-	u64 asid = asid_cache(cpu);
+	unsigned int cpu;
+	u64 asid;
+
+	cpu = smp_processor_id();
+	asid = asid_cache(cpu);
 
 	if (!((asid += cpu_asid_inc()) & cpu_asid_mask(&cpu_data[cpu]))) {
 		if (cpu_has_vtag_icache)
@@ -142,7 +146,7 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	htw_stop();
 	/* Check if our ASID is of an older version and thus invalid */
 	if ((cpu_context(cpu, next) ^ asid_cache(cpu)) & asid_version_mask(cpu))
-		get_new_mmu_context(next, cpu);
+		get_new_mmu_context(next);
 	write_c0_entryhi(cpu_asid(cpu, next));
 	TLBMISS_HANDLER_SETUP_PGD(next->pgd);
 
@@ -184,7 +188,7 @@ drop_mmu_context(struct mm_struct *mm)
 
 	cpu = smp_processor_id();
 	if (cpumask_test_cpu(cpu, mm_cpumask(mm)))  {
-		get_new_mmu_context(mm, cpu);
+		get_new_mmu_context(mm);
 		write_c0_entryhi(cpu_asid(cpu, mm));
 	} else {
 		/* will get a new context next time */
