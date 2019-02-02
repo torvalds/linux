@@ -1929,8 +1929,7 @@ static void hns3_set_default_feature(struct net_device *netdev)
 		NETIF_F_GSO_UDP_TUNNEL_CSUM | NETIF_F_SCTP_CRC;
 
 	if (pdev->revision >= 0x21) {
-		netdev->hw_features |= NETIF_F_HW_VLAN_CTAG_FILTER |
-			NETIF_F_GRO_HW;
+		netdev->hw_features |= NETIF_F_GRO_HW;
 		netdev->features |= NETIF_F_GRO_HW;
 
 		if (!(h->flags & HNAE3_SUPPORT_VF)) {
