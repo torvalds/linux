@@ -47,6 +47,12 @@ enum libbpf_errno {
 
 LIBBPF_API int libbpf_strerror(int err, char *buf, size_t size);
 
+enum libbpf_print_level {
+        LIBBPF_WARN,
+        LIBBPF_INFO,
+        LIBBPF_DEBUG,
+};
+
 /*
  * __printf is defined in include/linux/compiler-gcc.h. However,
  * it would be better if libbpf.h didn't depend on Linux header files.
