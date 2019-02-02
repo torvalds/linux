@@ -537,7 +537,7 @@ void flush_tlb_mm(struct mm_struct *mm)
 
 		for_each_online_cpu(cpu) {
 			if (cpu != smp_processor_id() && cpu_context(cpu, mm))
-				cpu_context(cpu, mm) = 0;
+				set_cpu_context(cpu, mm, 0);
 		}
 	}
 	drop_mmu_context(mm);
@@ -583,7 +583,7 @@ void flush_tlb_range(struct vm_area_struct *vma, unsigned long start, unsigned l
 			 * mm has been completely unused by that CPU.
 			 */
 			if (cpu != smp_processor_id() && cpu_context(cpu, mm))
-				cpu_context(cpu, mm) = !exec;
+				set_cpu_context(cpu, mm, !exec);
 		}
 	}
 	local_flush_tlb_range(vma, start, end);
@@ -635,7 +635,7 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
 			 * by that CPU.
 			 */
 			if (cpu != smp_processor_id() && cpu_context(cpu, vma->vm_mm))
-				cpu_context(cpu, vma->vm_mm) = 1;
+				set_cpu_context(cpu, vma->vm_mm, 1);
 		}
 	}
 	local_flush_tlb_page(vma, page);

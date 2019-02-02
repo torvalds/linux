@@ -88,7 +88,17 @@ static inline u64 asid_first_version(unsigned int cpu)
 	return ~asid_version_mask(cpu) + 1;
 }
 
-#define cpu_context(cpu, mm)	((mm)->context.asid[cpu])
+static inline u64 cpu_context(unsigned int cpu, const struct mm_struct *mm)
+{
+	return mm->context.asid[cpu];
+}
+
+static inline void set_cpu_context(unsigned int cpu,
+				   struct mm_struct *mm, u64 ctx)
+{
+	mm->context.asid[cpu] = ctx;
+}
+
 #define asid_cache(cpu)		(cpu_data[cpu].asid_cache)
 #define cpu_asid(cpu, mm) \
 	(cpu_context((cpu), (mm)) & cpu_asid_mask(&cpu_data[cpu]))
@@ -111,7 +121,7 @@ init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 	int i;
 
 	for_each_possible_cpu(i)
-		cpu_context(i, mm) = 0;
+		set_cpu_context(i, mm, 0);
 
 	mm->context.bd_emupage_allocmap = NULL;
 	spin_lock_init(&mm->context.bd_emupage_lock);
@@ -175,7 +185,7 @@ drop_mmu_context(struct mm_struct *mm)
 		htw_start();
 	} else {
 		/* will get a new context next time */
-		cpu_context(cpu, mm) = 0;
+		set_cpu_context(cpu, mm, 0);
 	}
 
 	local_irq_restore(flags);

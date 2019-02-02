@@ -15,7 +15,8 @@ void get_new_mmu_context(struct mm_struct *mm)
 		local_flush_tlb_all();	/* start new asid cycle */
 	}
 
-	cpu_context(cpu, mm) = asid_cache(cpu) = asid;
+	set_cpu_context(cpu, mm, asid);
+	asid_cache(cpu) = asid;
 }
 
 void check_mmu_context(struct mm_struct *mm)

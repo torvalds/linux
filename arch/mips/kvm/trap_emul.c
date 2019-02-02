@@ -1098,8 +1098,8 @@ static void kvm_trap_emul_check_requests(struct kvm_vcpu *vcpu, int cpu,
 		kvm_mips_flush_gva_pt(kern_mm->pgd, KMF_GPA | KMF_KERN);
 		kvm_mips_flush_gva_pt(user_mm->pgd, KMF_GPA | KMF_USER);
 		for_each_possible_cpu(i) {
-			cpu_context(i, kern_mm) = 0;
-			cpu_context(i, user_mm) = 0;
+			set_cpu_context(i, kern_mm, 0);
+			set_cpu_context(i, user_mm, 0);
 		}
 
 		/* Generate new ASID for current mode */
@@ -1211,7 +1211,7 @@ static void kvm_trap_emul_vcpu_reenter(struct kvm_run *run,
 		if (gasid != vcpu->arch.last_user_gasid) {
 			kvm_mips_flush_gva_pt(user_mm->pgd, KMF_USER);
 			for_each_possible_cpu(i)
-				cpu_context(i, user_mm) = 0;
+				set_cpu_context(i, user_mm, 0);
 			vcpu->arch.last_user_gasid = gasid;
 		}
 	}
