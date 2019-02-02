@@ -253,19 +253,10 @@ struct net_device *wilc_wfi_init_mon_interface(struct wilc *wl,
 
 void wilc_wfi_deinit_mon_interface(struct wilc *wl)
 {
-	bool rollback_lock = false;
+	if (!wl->monitor_dev)
+		return;
 
-	if (wl->monitor_dev) {
-		if (rtnl_is_locked()) {
-			rtnl_unlock();
-			rollback_lock = true;
-		}
-		unregister_netdev(wl->monitor_dev);
-
-		if (rollback_lock) {
-			rtnl_lock();
-			rollback_lock = false;
-		}
-		wl->monitor_dev = NULL;
-	}
+	unregister_netdev(wl->monitor_dev);
+	free_netdev(wl->monitor_dev);
+	wl->monitor_dev = NULL;
 }
