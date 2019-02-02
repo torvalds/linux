@@ -197,7 +197,7 @@ static int hclge_cmd_check_retval(struct hclge_hw *hw, struct hclge_desc *desc,
 	for (handle = 0; handle < num; handle++) {
 		desc[handle] = hw->cmq.csq.desc[ntc];
 		ntc++;
-		if (ntc == hw->cmq.csq.desc_num)
+		if (ntc >= hw->cmq.csq.desc_num)
 			ntc = 0;
 	}
 	if (likely(!hclge_is_special_opcode(opcode)))
@@ -254,7 +254,7 @@ int hclge_cmd_send(struct hclge_hw *hw, struct hclge_desc *desc, int num)
 		desc_to_use = &hw->cmq.csq.desc[hw->cmq.csq.next_to_use];
 		*desc_to_use = desc[handle];
 		(hw->cmq.csq.next_to_use)++;
-		if (hw->cmq.csq.next_to_use == hw->cmq.csq.desc_num)
+		if (hw->cmq.csq.next_to_use >= hw->cmq.csq.desc_num)
 			hw->cmq.csq.next_to_use = 0;
 		handle++;
 	}
