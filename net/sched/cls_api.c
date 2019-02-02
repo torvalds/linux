@@ -31,6 +31,7 @@
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
 #include <net/pkt_cls.h>
+#include <net/tc_act/tc_pedit.h>
 
 extern const struct nla_policy rtm_tca_policy[TCA_MAX + 1];
 
@@ -2514,6 +2515,22 @@ int tc_setup_cb_call(struct tcf_block *block, enum tc_setup_type type,
 	return ok_count;
 }
 EXPORT_SYMBOL(tc_setup_cb_call);
+
+unsigned int tcf_exts_num_actions(struct tcf_exts *exts)
+{
+	unsigned int num_acts = 0;
+	struct tc_action *act;
+	int i;
+
+	tcf_exts_for_each_action(i, act, exts) {
+		if (is_tcf_pedit(act))
+			num_acts += tcf_pedit_nkeys(act);
+		else
+			num_acts++;
+	}
+	return num_acts;
+}
+EXPORT_SYMBOL(tcf_exts_num_actions);
 
 static __net_init int tcf_net_init(struct net *net)
 {

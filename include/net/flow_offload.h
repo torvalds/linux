@@ -100,11 +100,78 @@ void flow_rule_match_enc_keyid(const struct flow_rule *rule,
 void flow_rule_match_enc_opts(const struct flow_rule *rule,
 			      struct flow_match_enc_opts *out);
 
-struct flow_rule {
-	struct flow_match	match;
+enum flow_action_id {
+	FLOW_ACTION_ACCEPT		= 0,
+	FLOW_ACTION_DROP,
+	FLOW_ACTION_TRAP,
+	FLOW_ACTION_GOTO,
+	FLOW_ACTION_REDIRECT,
+	FLOW_ACTION_MIRRED,
+	FLOW_ACTION_VLAN_PUSH,
+	FLOW_ACTION_VLAN_POP,
+	FLOW_ACTION_VLAN_MANGLE,
+	FLOW_ACTION_TUNNEL_ENCAP,
+	FLOW_ACTION_TUNNEL_DECAP,
+	FLOW_ACTION_MANGLE,
+	FLOW_ACTION_ADD,
+	FLOW_ACTION_CSUM,
+	FLOW_ACTION_MARK,
 };
 
-struct flow_rule *flow_rule_alloc(void);
+/* This is mirroring enum pedit_header_type definition for easy mapping between
+ * tc pedit action. Legacy TCA_PEDIT_KEY_EX_HDR_TYPE_NETWORK is mapped to
+ * FLOW_ACT_MANGLE_UNSPEC, which is supported by no driver.
+ */
+enum flow_action_mangle_base {
+	FLOW_ACT_MANGLE_UNSPEC		= 0,
+	FLOW_ACT_MANGLE_HDR_TYPE_ETH,
+	FLOW_ACT_MANGLE_HDR_TYPE_IP4,
+	FLOW_ACT_MANGLE_HDR_TYPE_IP6,
+	FLOW_ACT_MANGLE_HDR_TYPE_TCP,
+	FLOW_ACT_MANGLE_HDR_TYPE_UDP,
+};
+
+struct flow_action_entry {
+	enum flow_action_id		id;
+	union {
+		u32			chain_index;	/* FLOW_ACTION_GOTO */
+		struct net_device	*dev;		/* FLOW_ACTION_REDIRECT */
+		struct {				/* FLOW_ACTION_VLAN */
+			u16		vid;
+			__be16		proto;
+			u8		prio;
+		} vlan;
+		struct {				/* FLOW_ACTION_PACKET_EDIT */
+			enum flow_action_mangle_base htype;
+			u32		offset;
+			u32		mask;
+			u32		val;
+		} mangle;
+		const struct ip_tunnel_info *tunnel;	/* FLOW_ACTION_TUNNEL_ENCAP */
+		u32			csum_flags;	/* FLOW_ACTION_CSUM */
+		u32			mark;		/* FLOW_ACTION_MARK */
+	};
+};
+
+struct flow_action {
+	unsigned int			num_entries;
+	struct flow_action_entry 	entries[0];
+};
+
+static inline bool flow_action_has_entries(const struct flow_action *action)
+{
+	return action->num_entries;
+}
+
+#define flow_action_for_each(__i, __act, __actions)			\
+        for (__i = 0, __act = &(__actions)->entries[0]; __i < (__actions)->num_entries; __act = &(__actions)->entries[__i++])
+
+struct flow_rule {
+	struct flow_match	match;
+	struct flow_action	action;
+};
+
+struct flow_rule *flow_rule_alloc(unsigned int num_actions);
 
 static inline bool flow_rule_match_key(const struct flow_rule *rule,
 				       enum flow_dissector_key_id key)

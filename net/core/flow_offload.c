@@ -3,9 +3,19 @@
 #include <linux/slab.h>
 #include <net/flow_offload.h>
 
-struct flow_rule *flow_rule_alloc(void)
+struct flow_rule *flow_rule_alloc(unsigned int num_actions)
 {
-	return kzalloc(sizeof(struct flow_rule), GFP_KERNEL);
+	struct flow_rule *rule;
+
+	rule = kzalloc(sizeof(struct flow_rule) +
+		       sizeof(struct flow_action_entry) * num_actions,
+		       GFP_KERNEL);
+	if (!rule)
+		return NULL;
+
+	rule->action.num_entries = num_actions;
+
+	return rule;
 }
 EXPORT_SYMBOL(flow_rule_alloc);
 

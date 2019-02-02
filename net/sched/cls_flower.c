@@ -381,7 +381,7 @@ static int fl_hw_replace_filter(struct tcf_proto *tp,
 	bool skip_sw = tc_skip_sw(f->flags);
 	int err;
 
-	cls_flower.rule = flow_rule_alloc();
+	cls_flower.rule = flow_rule_alloc(tcf_exts_num_actions(&f->exts));
 	if (!cls_flower.rule)
 		return -ENOMEM;
 
@@ -1469,7 +1469,8 @@ static int fl_reoffload(struct tcf_proto *tp, bool add, tc_setup_cb_t *cb,
 			if (tc_skip_hw(f->flags))
 				continue;
 
-			cls_flower.rule = flow_rule_alloc();
+			cls_flower.rule =
+				flow_rule_alloc(tcf_exts_num_actions(&f->exts));
 			if (!cls_flower.rule)
 				return -ENOMEM;
 
@@ -1508,7 +1509,7 @@ static int fl_hw_create_tmplt(struct tcf_chain *chain,
 	struct tcf_block *block = chain->block;
 	struct tcf_exts dummy_exts = { 0, };
 
-	cls_flower.rule = flow_rule_alloc();
+	cls_flower.rule = flow_rule_alloc(0);
 	if (!cls_flower.rule)
 		return -ENOMEM;
 
