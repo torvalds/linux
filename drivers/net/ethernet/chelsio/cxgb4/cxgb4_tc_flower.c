@@ -83,28 +83,23 @@ static void cxgb4_process_flow_match(struct net_device *dev,
 				     struct tc_cls_flower_offload *cls,
 				     struct ch_filter_specification *fs)
 {
+	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(cls);
 	u16 addr_type = 0;
 
-	if (dissector_uses_key(cls->dissector, FLOW_DISSECTOR_KEY_CONTROL)) {
-		struct flow_dissector_key_control *key =
-			skb_flow_dissector_target(cls->dissector,
-						  FLOW_DISSECTOR_KEY_CONTROL,
-						  cls->key);
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_CONTROL)) {
+		struct flow_match_control match;
 
-		addr_type = key->addr_type;
+		flow_rule_match_control(rule, &match);
+		addr_type = match.key->addr_type;
 	}
 
-	if (dissector_uses_key(cls->dissector, FLOW_DISSECTOR_KEY_BASIC)) {
-		struct flow_dissector_key_basic *key =
-			skb_flow_dissector_target(cls->dissector,
-						  FLOW_DISSECTOR_KEY_BASIC,
-						  cls->key);
-		struct flow_dissector_key_basic *mask =
-			skb_flow_dissector_target(cls->dissector,
-						  FLOW_DISSECTOR_KEY_BASIC,
-						  cls->mask);
-		u16 ethtype_key = ntohs(key->n_proto);
-		u16 ethtype_mask = ntohs(mask->n_proto);
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_BASIC)) {
+		struct flow_match_basic match;
+		u16 ethtype_key, ethtype_mask;
+
+		flow_rule_match_basic(rule, &match);
+		ethtype_key = ntohs(match.key->n_proto);
+		ethtype_mask = ntohs(match.mask->n_proto);
 
 		if (ethtype_key == ETH_P_ALL) {
 			ethtype_key = 0;
@@ -116,115 +111,89 @@ static void cxgb4_process_flow_match(struct net_device *dev,
 
 		fs->val.ethtype = ethtype_key;
 		fs->mask.ethtype = ethtype_mask;
-		fs->val.proto = key->ip_proto;
-		fs->mask.proto = mask->ip_proto;
+		fs->val.proto = match.key->ip_proto;
+		fs->mask.proto = match.mask->ip_proto;
 	}
 
 	if (addr_type == FLOW_DISSECTOR_KEY_IPV4_ADDRS) {
-		struct flow_dissector_key_ipv4_addrs *key =
-			skb_flow_dissector_target(cls->dissector,
-						  FLOW_DISSECTOR_KEY_IPV4_ADDRS,
-						  cls->key);
-		struct flow_dissector_key_ipv4_addrs *mask =
-			skb_flow_dissector_target(cls->dissector,
-						  FLOW_DISSECTOR_KEY_IPV4_ADDRS,
-						  cls->mask);
+		struct flow_match_ipv4_addrs match;
+
+		flow_rule_match_ipv4_addrs(rule, &match);
 		fs->type = 0;
-		memcpy(&fs->val.lip[0], &key->dst, sizeof(key->dst));
-		memcpy(&fs->val.fip[0], &key->src, sizeof(key->src));
-		memcpy(&fs->mask.lip[0], &mask->dst, sizeof(mask->dst));
-		memcpy(&fs->mask.fip[0], &mask->src, sizeof(mask->src));
+		memcpy(&fs->val.lip[0], &match.key->dst, sizeof(match.key->dst));
+		memcpy(&fs->val.fip[0], &match.key->src, sizeof(match.key->src));
+		memcpy(&fs->mask.lip[0], &match.mask->dst, sizeof(match.mask->dst));
+		memcpy(&fs->mask.fip[0], &match.mask->src, sizeof(match.mask->src));
 
 		/* also initialize nat_lip/fip to same values */
-		memcpy(&fs->nat_lip[0], &key->dst, sizeof(key->dst));
-		memcpy(&fs->nat_fip[0], &key->src, sizeof(key->src));
-
+		memcpy(&fs->nat_lip[0], &match.key->dst, sizeof(match.key->dst));
+		memcpy(&fs->nat_fip[0], &match.key->src, sizeof(match.key->src));
 	}
 
 	if (addr_type == FLOW_DISSECTOR_KEY_IPV6_ADDRS) {
-		struct flow_dissector_key_ipv6_addrs *key =
-			skb_flow_dissector_target(cls->dissector,
-						  FLOW_DISSECTOR_KEY_IPV6_ADDRS,
-						  cls->key);
-		struct flow_dissector_key_ipv6_addrs *mask =
-			skb_flow_dissector_target(cls->dissector,
-						  FLOW_DISSECTOR_KEY_IPV6_ADDRS,
-						  cls->mask);
+		struct flow_match_ipv6_addrs match;
 
+		flow_rule_match_ipv6_addrs(rule, &match);
 		fs->type = 1;
-		memcpy(&fs->val.lip[0], key->dst.s6_addr, sizeof(key->dst));
-		memcpy(&fs->val.fip[0], key->src.s6_addr, sizeof(key->src));
-		memcpy(&fs->mask.lip[0], mask->dst.s6_addr, sizeof(mask->dst));
-		memcpy(&fs->mask.fip[0], mask->src.s6_addr, sizeof(mask->src));
+		memcpy(&fs->val.lip[0], match.key->dst.s6_addr,
+		       sizeof(match.key->dst));
+		memcpy(&fs->val.fip[0], match.key->src.s6_addr,
+		       sizeof(match.key->src));
+		memcpy(&fs->mask.lip[0], match.mask->dst.s6_addr,
+		       sizeof(match.mask->dst));
+		memcpy(&fs->mask.fip[0], match.mask->src.s6_addr,
+		       sizeof(match.mask->src));
 
 		/* also initialize nat_lip/fip to same values */
-		memcpy(&fs->nat_lip[0], key->dst.s6_addr, sizeof(key->dst));
-		memcpy(&fs->nat_fip[0], key->src.s6_addr, sizeof(key->src));
+		memcpy(&fs->nat_lip[0], match.key->dst.s6_addr,
+		       sizeof(match.key->dst));
+		memcpy(&fs->nat_fip[0], match.key->src.s6_addr,
+		       sizeof(match.key->src));
 	}
 
-	if (dissector_uses_key(cls->dissector, FLOW_DISSECTOR_KEY_PORTS)) {
-		struct flow_dissector_key_ports *key, *mask;
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_PORTS)) {
+		struct flow_match_ports match;
 
-		key = skb_flow_dissector_target(cls->dissector,
-						FLOW_DISSECTOR_KEY_PORTS,
-						cls->key);
-		mask = skb_flow_dissector_target(cls->dissector,
-						 FLOW_DISSECTOR_KEY_PORTS,
-						 cls->mask);
-		fs->val.lport = cpu_to_be16(key->dst);
-		fs->mask.lport = cpu_to_be16(mask->dst);
-		fs->val.fport = cpu_to_be16(key->src);
-		fs->mask.fport = cpu_to_be16(mask->src);
+		flow_rule_match_ports(rule, &match);
+		fs->val.lport = cpu_to_be16(match.key->dst);
+		fs->mask.lport = cpu_to_be16(match.mask->dst);
+		fs->val.fport = cpu_to_be16(match.key->src);
+		fs->mask.fport = cpu_to_be16(match.mask->src);
 
 		/* also initialize nat_lport/fport to same values */
-		fs->nat_lport = cpu_to_be16(key->dst);
-		fs->nat_fport = cpu_to_be16(key->src);
+		fs->nat_lport = cpu_to_be16(match.key->dst);
+		fs->nat_fport = cpu_to_be16(match.key->src);
 	}
 
-	if (dissector_uses_key(cls->dissector, FLOW_DISSECTOR_KEY_IP)) {
-		struct flow_dissector_key_ip *key, *mask;
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_IP)) {
+		struct flow_match_ip match;
 
-		key = skb_flow_dissector_target(cls->dissector,
-						FLOW_DISSECTOR_KEY_IP,
-						cls->key);
-		mask = skb_flow_dissector_target(cls->dissector,
-						 FLOW_DISSECTOR_KEY_IP,
-						 cls->mask);
-		fs->val.tos = key->tos;
-		fs->mask.tos = mask->tos;
+		flow_rule_match_ip(rule, &match);
+		fs->val.tos = match.key->tos;
+		fs->mask.tos = match.mask->tos;
 	}
 
-	if (dissector_uses_key(cls->dissector, FLOW_DISSECTOR_KEY_ENC_KEYID)) {
-		struct flow_dissector_key_keyid *key, *mask;
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_KEYID)) {
+		struct flow_match_enc_keyid match;
 
-		key = skb_flow_dissector_target(cls->dissector,
-						FLOW_DISSECTOR_KEY_ENC_KEYID,
-						cls->key);
-		mask = skb_flow_dissector_target(cls->dissector,
-						 FLOW_DISSECTOR_KEY_ENC_KEYID,
-						 cls->mask);
-		fs->val.vni = be32_to_cpu(key->keyid);
-		fs->mask.vni = be32_to_cpu(mask->keyid);
+		flow_rule_match_enc_keyid(rule, &match);
+		fs->val.vni = be32_to_cpu(match.key->keyid);
+		fs->mask.vni = be32_to_cpu(match.mask->keyid);
 		if (fs->mask.vni) {
 			fs->val.encap_vld = 1;
 			fs->mask.encap_vld = 1;
 		}
 	}
 
-	if (dissector_uses_key(cls->dissector, FLOW_DISSECTOR_KEY_VLAN)) {
-		struct flow_dissector_key_vlan *key, *mask;
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_VLAN)) {
+		struct flow_match_vlan match;
 		u16 vlan_tci, vlan_tci_mask;
 
-		key = skb_flow_dissector_target(cls->dissector,
-						FLOW_DISSECTOR_KEY_VLAN,
-						cls->key);
-		mask = skb_flow_dissector_target(cls->dissector,
-						 FLOW_DISSECTOR_KEY_VLAN,
-						 cls->mask);
-		vlan_tci = key->vlan_id | (key->vlan_priority <<
-					   VLAN_PRIO_SHIFT);
-		vlan_tci_mask = mask->vlan_id | (mask->vlan_priority <<
-						 VLAN_PRIO_SHIFT);
+		flow_rule_match_vlan(rule, &match);
+		vlan_tci = match.key->vlan_id | (match.key->vlan_priority <<
+					       VLAN_PRIO_SHIFT);
+		vlan_tci_mask = match.mask->vlan_id | (match.mask->vlan_priority <<
+						     VLAN_PRIO_SHIFT);
 		fs->val.ivlan = vlan_tci;
 		fs->mask.ivlan = vlan_tci_mask;
 
@@ -255,10 +224,12 @@ static void cxgb4_process_flow_match(struct net_device *dev,
 static int cxgb4_validate_flow_match(struct net_device *dev,
 				     struct tc_cls_flower_offload *cls)
 {
+	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(cls);
+	struct flow_dissector *dissector = rule->match.dissector;
 	u16 ethtype_mask = 0;
 	u16 ethtype_key = 0;
 
-	if (cls->dissector->used_keys &
+	if (dissector->used_keys &
 	    ~(BIT(FLOW_DISSECTOR_KEY_CONTROL) |
 	      BIT(FLOW_DISSECTOR_KEY_BASIC) |
 	      BIT(FLOW_DISSECTOR_KEY_IPV4_ADDRS) |
@@ -268,36 +239,29 @@ static int cxgb4_validate_flow_match(struct net_device *dev,
 	      BIT(FLOW_DISSECTOR_KEY_VLAN) |
 	      BIT(FLOW_DISSECTOR_KEY_IP))) {
 		netdev_warn(dev, "Unsupported key used: 0x%x\n",
-			    cls->dissector->used_keys);
+			    dissector->used_keys);
 		return -EOPNOTSUPP;
 	}
 
-	if (dissector_uses_key(cls->dissector, FLOW_DISSECTOR_KEY_BASIC)) {
-		struct flow_dissector_key_basic *key =
-			skb_flow_dissector_target(cls->dissector,
-						  FLOW_DISSECTOR_KEY_BASIC,
-						  cls->key);
-		struct flow_dissector_key_basic *mask =
-			skb_flow_dissector_target(cls->dissector,
-						  FLOW_DISSECTOR_KEY_BASIC,
-						  cls->mask);
-		ethtype_key = ntohs(key->n_proto);
-		ethtype_mask = ntohs(mask->n_proto);
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_BASIC)) {
+		struct flow_match_basic match;
+
+		flow_rule_match_basic(rule, &match);
+		ethtype_key = ntohs(match.key->n_proto);
+		ethtype_mask = ntohs(match.mask->n_proto);
 	}
 
-	if (dissector_uses_key(cls->dissector, FLOW_DISSECTOR_KEY_IP)) {
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_IP)) {
 		u16 eth_ip_type = ethtype_key & ethtype_mask;
-		struct flow_dissector_key_ip *mask;
+		struct flow_match_ip match;
 
 		if (eth_ip_type != ETH_P_IP && eth_ip_type != ETH_P_IPV6) {
 			netdev_err(dev, "IP Key supported only with IPv4/v6");
 			return -EINVAL;
 		}
 
-		mask = skb_flow_dissector_target(cls->dissector,
-						 FLOW_DISSECTOR_KEY_IP,
-						 cls->mask);
-		if (mask->ttl) {
+		flow_rule_match_ip(rule, &match);
+		if (match.mask->ttl) {
 			netdev_warn(dev, "ttl match unsupported for offload");
 			return -EOPNOTSUPP;
 		}

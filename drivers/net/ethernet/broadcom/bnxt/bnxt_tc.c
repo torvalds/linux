@@ -177,18 +177,12 @@ static int bnxt_tc_parse_actions(struct bnxt *bp,
 	return 0;
 }
 
-#define GET_KEY(flow_cmd, key_type)					\
-		skb_flow_dissector_target((flow_cmd)->dissector, key_type,\
-					  (flow_cmd)->key)
-#define GET_MASK(flow_cmd, key_type)					\
-		skb_flow_dissector_target((flow_cmd)->dissector, key_type,\
-					  (flow_cmd)->mask)
-
 static int bnxt_tc_parse_flow(struct bnxt *bp,
 			      struct tc_cls_flower_offload *tc_flow_cmd,
 			      struct bnxt_tc_flow *flow)
 {
-	struct flow_dissector *dissector = tc_flow_cmd->dissector;
+	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(tc_flow_cmd);
+	struct flow_dissector *dissector = rule->match.dissector;
 
 	/* KEY_CONTROL and KEY_BASIC are needed for forming a meaningful key */
 	if ((dissector->used_keys & BIT(FLOW_DISSECTOR_KEY_CONTROL)) == 0 ||
@@ -198,140 +192,120 @@ static int bnxt_tc_parse_flow(struct bnxt *bp,
 		return -EOPNOTSUPP;
 	}
 
-	if (dissector_uses_key(dissector, FLOW_DISSECTOR_KEY_BASIC)) {
-		struct flow_dissector_key_basic *key =
-			GET_KEY(tc_flow_cmd, FLOW_DISSECTOR_KEY_BASIC);
-		struct flow_dissector_key_basic *mask =
-			GET_MASK(tc_flow_cmd, FLOW_DISSECTOR_KEY_BASIC);
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_BASIC)) {
+		struct flow_match_basic match;
 
-		flow->l2_key.ether_type = key->n_proto;
-		flow->l2_mask.ether_type = mask->n_proto;
+		flow_rule_match_basic(rule, &match);
+		flow->l2_key.ether_type = match.key->n_proto;
+		flow->l2_mask.ether_type = match.mask->n_proto;
 
-		if (key->n_proto == htons(ETH_P_IP) ||
-		    key->n_proto == htons(ETH_P_IPV6)) {
-			flow->l4_key.ip_proto = key->ip_proto;
-			flow->l4_mask.ip_proto = mask->ip_proto;
+		if (match.key->n_proto == htons(ETH_P_IP) ||
+		    match.key->n_proto == htons(ETH_P_IPV6)) {
+			flow->l4_key.ip_proto = match.key->ip_proto;
+			flow->l4_mask.ip_proto = match.mask->ip_proto;
 		}
 	}
 
-	if (dissector_uses_key(dissector, FLOW_DISSECTOR_KEY_ETH_ADDRS)) {
-		struct flow_dissector_key_eth_addrs *key =
-			GET_KEY(tc_flow_cmd, FLOW_DISSECTOR_KEY_ETH_ADDRS);
-		struct flow_dissector_key_eth_addrs *mask =
-			GET_MASK(tc_flow_cmd, FLOW_DISSECTOR_KEY_ETH_ADDRS);
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ETH_ADDRS)) {
+		struct flow_match_eth_addrs match;
 
+		flow_rule_match_eth_addrs(rule, &match);
 		flow->flags |= BNXT_TC_FLOW_FLAGS_ETH_ADDRS;
-		ether_addr_copy(flow->l2_key.dmac, key->dst);
-		ether_addr_copy(flow->l2_mask.dmac, mask->dst);
-		ether_addr_copy(flow->l2_key.smac, key->src);
-		ether_addr_copy(flow->l2_mask.smac, mask->src);
+		ether_addr_copy(flow->l2_key.dmac, match.key->dst);
+		ether_addr_copy(flow->l2_mask.dmac, match.mask->dst);
+		ether_addr_copy(flow->l2_key.smac, match.key->src);
+		ether_addr_copy(flow->l2_mask.smac, match.mask->src);
 	}
 
-	if (dissector_uses_key(dissector, FLOW_DISSECTOR_KEY_VLAN)) {
-		struct flow_dissector_key_vlan *key =
-			GET_KEY(tc_flow_cmd, FLOW_DISSECTOR_KEY_VLAN);
-		struct flow_dissector_key_vlan *mask =
-			GET_MASK(tc_flow_cmd, FLOW_DISSECTOR_KEY_VLAN);
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_VLAN)) {
+		struct flow_match_vlan match;
 
+		flow_rule_match_vlan(rule, &match);
 		flow->l2_key.inner_vlan_tci =
-		   cpu_to_be16(VLAN_TCI(key->vlan_id, key->vlan_priority));
+			cpu_to_be16(VLAN_TCI(match.key->vlan_id,
+					     match.key->vlan_priority));
 		flow->l2_mask.inner_vlan_tci =
-		   cpu_to_be16((VLAN_TCI(mask->vlan_id, mask->vlan_priority)));
+			cpu_to_be16((VLAN_TCI(match.mask->vlan_id,
+					      match.mask->vlan_priority)));
 		flow->l2_key.inner_vlan_tpid = htons(ETH_P_8021Q);
 		flow->l2_mask.inner_vlan_tpid = htons(0xffff);
 		flow->l2_key.num_vlans = 1;
 	}
 
-	if (dissector_uses_key(dissector, FLOW_DISSECTOR_KEY_IPV4_ADDRS)) {
-		struct flow_dissector_key_ipv4_addrs *key =
-			GET_KEY(tc_flow_cmd, FLOW_DISSECTOR_KEY_IPV4_ADDRS);
-		struct flow_dissector_key_ipv4_addrs *mask =
-			GET_MASK(tc_flow_cmd, FLOW_DISSECTOR_KEY_IPV4_ADDRS);
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_IPV4_ADDRS)) {
+		struct flow_match_ipv4_addrs match;
 
+		flow_rule_match_ipv4_addrs(rule, &match);
 		flow->flags |= BNXT_TC_FLOW_FLAGS_IPV4_ADDRS;
-		flow->l3_key.ipv4.daddr.s_addr = key->dst;
-		flow->l3_mask.ipv4.daddr.s_addr = mask->dst;
-		flow->l3_key.ipv4.saddr.s_addr = key->src;
-		flow->l3_mask.ipv4.saddr.s_addr = mask->src;
-	} else if (dissector_uses_key(dissector,
-				      FLOW_DISSECTOR_KEY_IPV6_ADDRS)) {
-		struct flow_dissector_key_ipv6_addrs *key =
-			GET_KEY(tc_flow_cmd, FLOW_DISSECTOR_KEY_IPV6_ADDRS);
-		struct flow_dissector_key_ipv6_addrs *mask =
-			GET_MASK(tc_flow_cmd, FLOW_DISSECTOR_KEY_IPV6_ADDRS);
+		flow->l3_key.ipv4.daddr.s_addr = match.key->dst;
+		flow->l3_mask.ipv4.daddr.s_addr = match.mask->dst;
+		flow->l3_key.ipv4.saddr.s_addr = match.key->src;
+		flow->l3_mask.ipv4.saddr.s_addr = match.mask->src;
+	} else if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_IPV6_ADDRS)) {
+		struct flow_match_ipv6_addrs match;
 
+		flow_rule_match_ipv6_addrs(rule, &match);
 		flow->flags |= BNXT_TC_FLOW_FLAGS_IPV6_ADDRS;
-		flow->l3_key.ipv6.daddr = key->dst;
-		flow->l3_mask.ipv6.daddr = mask->dst;
-		flow->l3_key.ipv6.saddr = key->src;
-		flow->l3_mask.ipv6.saddr = mask->src;
+		flow->l3_key.ipv6.daddr = match.key->dst;
+		flow->l3_mask.ipv6.daddr = match.mask->dst;
+		flow->l3_key.ipv6.saddr = match.key->src;
+		flow->l3_mask.ipv6.saddr = match.mask->src;
 	}
 
-	if (dissector_uses_key(dissector, FLOW_DISSECTOR_KEY_PORTS)) {
-		struct flow_dissector_key_ports *key =
-			GET_KEY(tc_flow_cmd, FLOW_DISSECTOR_KEY_PORTS);
-		struct flow_dissector_key_ports *mask =
-			GET_MASK(tc_flow_cmd, FLOW_DISSECTOR_KEY_PORTS);
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_PORTS)) {
+		struct flow_match_ports match;
 
+		flow_rule_match_ports(rule, &match);
 		flow->flags |= BNXT_TC_FLOW_FLAGS_PORTS;
-		flow->l4_key.ports.dport = key->dst;
-		flow->l4_mask.ports.dport = mask->dst;
-		flow->l4_key.ports.sport = key->src;
-		flow->l4_mask.ports.sport = mask->src;
+		flow->l4_key.ports.dport = match.key->dst;
+		flow->l4_mask.ports.dport = match.mask->dst;
+		flow->l4_key.ports.sport = match.key->src;
+		flow->l4_mask.ports.sport = match.mask->src;
 	}
 
-	if (dissector_uses_key(dissector, FLOW_DISSECTOR_KEY_ICMP)) {
-		struct flow_dissector_key_icmp *key =
-			GET_KEY(tc_flow_cmd, FLOW_DISSECTOR_KEY_ICMP);
-		struct flow_dissector_key_icmp *mask =
-			GET_MASK(tc_flow_cmd, FLOW_DISSECTOR_KEY_ICMP);
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ICMP)) {
+		struct flow_match_icmp match;
 
+		flow_rule_match_icmp(rule, &match);
 		flow->flags |= BNXT_TC_FLOW_FLAGS_ICMP;
-		flow->l4_key.icmp.type = key->type;
-		flow->l4_key.icmp.code = key->code;
-		flow->l4_mask.icmp.type = mask->type;
-		flow->l4_mask.icmp.code = mask->code;
+		flow->l4_key.icmp.type = match.key->type;
+		flow->l4_key.icmp.code = match.key->code;
+		flow->l4_mask.icmp.type = match.mask->type;
+		flow->l4_mask.icmp.code = match.mask->code;
 	}
 
-	if (dissector_uses_key(dissector, FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS)) {
-		struct flow_dissector_key_ipv4_addrs *key =
-			GET_KEY(tc_flow_cmd, FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS);
-		struct flow_dissector_key_ipv4_addrs *mask =
-				GET_MASK(tc_flow_cmd,
-					 FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS);
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS)) {
+		struct flow_match_ipv4_addrs match;
 
+		flow_rule_match_enc_ipv4_addrs(rule, &match);
 		flow->flags |= BNXT_TC_FLOW_FLAGS_TUNL_IPV4_ADDRS;
-		flow->tun_key.u.ipv4.dst = key->dst;
-		flow->tun_mask.u.ipv4.dst = mask->dst;
-		flow->tun_key.u.ipv4.src = key->src;
-		flow->tun_mask.u.ipv4.src = mask->src;
-	} else if (dissector_uses_key(dissector,
+		flow->tun_key.u.ipv4.dst = match.key->dst;
+		flow->tun_mask.u.ipv4.dst = match.mask->dst;
+		flow->tun_key.u.ipv4.src = match.key->src;
+		flow->tun_mask.u.ipv4.src = match.mask->src;
+	} else if (flow_rule_match_key(rule,
 				      FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS)) {
 		return -EOPNOTSUPP;
 	}
 
-	if (dissector_uses_key(dissector, FLOW_DISSECTOR_KEY_ENC_KEYID)) {
-		struct flow_dissector_key_keyid *key =
-			GET_KEY(tc_flow_cmd, FLOW_DISSECTOR_KEY_ENC_KEYID);
-		struct flow_dissector_key_keyid *mask =
-			GET_MASK(tc_flow_cmd, FLOW_DISSECTOR_KEY_ENC_KEYID);
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_KEYID)) {
+		struct flow_match_enc_keyid match;
 
+		flow_rule_match_enc_keyid(rule, &match);
 		flow->flags |= BNXT_TC_FLOW_FLAGS_TUNL_ID;
-		flow->tun_key.tun_id = key32_to_tunnel_id(key->keyid);
-		flow->tun_mask.tun_id = key32_to_tunnel_id(mask->keyid);
+		flow->tun_key.tun_id = key32_to_tunnel_id(match.key->keyid);
+		flow->tun_mask.tun_id = key32_to_tunnel_id(match.mask->keyid);
 	}
 
-	if (dissector_uses_key(dissector, FLOW_DISSECTOR_KEY_ENC_PORTS)) {
-		struct flow_dissector_key_ports *key =
-			GET_KEY(tc_flow_cmd, FLOW_DISSECTOR_KEY_ENC_PORTS);
-		struct flow_dissector_key_ports *mask =
-			GET_MASK(tc_flow_cmd, FLOW_DISSECTOR_KEY_ENC_PORTS);
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_PORTS)) {
+		struct flow_match_ports match;
 
+		flow_rule_match_enc_ports(rule, &match);
 		flow->flags |= BNXT_TC_FLOW_FLAGS_TUNL_PORTS;
-		flow->tun_key.tp_dst = key->dst;
-		flow->tun_mask.tp_dst = mask->dst;
-		flow->tun_key.tp_src = key->src;
-		flow->tun_mask.tp_src = mask->src;
+		flow->tun_key.tp_dst = match.key->dst;
+		flow->tun_mask.tp_dst = match.mask->dst;
+		flow->tun_key.tp_src = match.key->src;
+		flow->tun_mask.tp_src = match.mask->src;
 	}
 
 	return bnxt_tc_parse_actions(bp, &flow->actions, tc_flow_cmd->exts);

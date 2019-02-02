@@ -2033,24 +2033,20 @@ qede_tc_parse_ports(struct qede_dev *edev,
 		    struct tc_cls_flower_offload *f,
 		    struct qede_arfs_tuple *t)
 {
-	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_PORTS)) {
-		struct flow_dissector_key_ports *key, *mask;
+	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(f);
 
-		key = skb_flow_dissector_target(f->dissector,
-						FLOW_DISSECTOR_KEY_PORTS,
-						f->key);
-		mask = skb_flow_dissector_target(f->dissector,
-						 FLOW_DISSECTOR_KEY_PORTS,
-						 f->mask);
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_PORTS)) {
+		struct flow_match_ports match;
 
-		if ((key->src && mask->src != U16_MAX) ||
-		    (key->dst && mask->dst != U16_MAX)) {
+		flow_rule_match_ports(rule, &match);
+		if ((match.key->src && match.mask->src != U16_MAX) ||
+		    (match.key->dst && match.mask->dst != U16_MAX)) {
 			DP_NOTICE(edev, "Do not support ports masks\n");
 			return -EINVAL;
 		}
 
-		t->src_port = key->src;
-		t->dst_port = key->dst;
+		t->src_port = match.key->src;
+		t->dst_port = match.key->dst;
 	}
 
 	return 0;
@@ -2061,32 +2057,27 @@ qede_tc_parse_v6_common(struct qede_dev *edev,
 			struct tc_cls_flower_offload *f,
 			struct qede_arfs_tuple *t)
 {
+	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(f);
 	struct in6_addr zero_addr, addr;
 
 	memset(&zero_addr, 0, sizeof(addr));
 	memset(&addr, 0xff, sizeof(addr));
 
-	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_IPV6_ADDRS)) {
-		struct flow_dissector_key_ipv6_addrs *key, *mask;
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_IPV6_ADDRS)) {
+		struct flow_match_ipv6_addrs match;
 
-		key = skb_flow_dissector_target(f->dissector,
-						FLOW_DISSECTOR_KEY_IPV6_ADDRS,
-						f->key);
-		mask = skb_flow_dissector_target(f->dissector,
-						 FLOW_DISSECTOR_KEY_IPV6_ADDRS,
-						 f->mask);
-
-		if ((memcmp(&key->src, &zero_addr, sizeof(addr)) &&
-		     memcmp(&mask->src, &addr, sizeof(addr))) ||
-		    (memcmp(&key->dst, &zero_addr, sizeof(addr)) &&
-		     memcmp(&mask->dst, &addr, sizeof(addr)))) {
+		flow_rule_match_ipv6_addrs(rule, &match);
+		if ((memcmp(&match.key->src, &zero_addr, sizeof(addr)) &&
+		     memcmp(&match.mask->src, &addr, sizeof(addr))) ||
+		    (memcmp(&match.key->dst, &zero_addr, sizeof(addr)) &&
+		     memcmp(&match.mask->dst, &addr, sizeof(addr)))) {
 			DP_NOTICE(edev,
 				  "Do not support IPv6 address prefix/mask\n");
 			return -EINVAL;
 		}
 
-		memcpy(&t->src_ipv6, &key->src, sizeof(addr));
-		memcpy(&t->dst_ipv6, &key->dst, sizeof(addr));
+		memcpy(&t->src_ipv6, &match.key->src, sizeof(addr));
+		memcpy(&t->dst_ipv6, &match.key->dst, sizeof(addr));
 	}
 
 	if (qede_tc_parse_ports(edev, f, t))
@@ -2100,24 +2091,20 @@ qede_tc_parse_v4_common(struct qede_dev *edev,
 			struct tc_cls_flower_offload *f,
 			struct qede_arfs_tuple *t)
 {
-	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_IPV4_ADDRS)) {
-		struct flow_dissector_key_ipv4_addrs *key, *mask;
+	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(f);
 
-		key = skb_flow_dissector_target(f->dissector,
-						FLOW_DISSECTOR_KEY_IPV4_ADDRS,
-						f->key);
-		mask = skb_flow_dissector_target(f->dissector,
-						 FLOW_DISSECTOR_KEY_IPV4_ADDRS,
-						 f->mask);
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_IPV4_ADDRS)) {
+		struct flow_match_ipv4_addrs match;
 
-		if ((key->src && mask->src != U32_MAX) ||
-		    (key->dst && mask->dst != U32_MAX)) {
+		flow_rule_match_ipv4_addrs(rule, &match);
+		if ((match.key->src && match.mask->src != U32_MAX) ||
+		    (match.key->dst && match.mask->dst != U32_MAX)) {
 			DP_NOTICE(edev, "Do not support ipv4 prefix/masks\n");
 			return -EINVAL;
 		}
 
-		t->src_ipv4 = key->src;
-		t->dst_ipv4 = key->dst;
+		t->src_ipv4 = match.key->src;
+		t->dst_ipv4 = match.key->dst;
 	}
 
 	if (qede_tc_parse_ports(edev, f, t))
@@ -2175,19 +2162,21 @@ qede_parse_flower_attr(struct qede_dev *edev, __be16 proto,
 		       struct tc_cls_flower_offload *f,
 		       struct qede_arfs_tuple *tuple)
 {
+	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(f);
+	struct flow_dissector *dissector = rule->match.dissector;
 	int rc = -EINVAL;
 	u8 ip_proto = 0;
 
 	memset(tuple, 0, sizeof(*tuple));
 
-	if (f->dissector->used_keys &
+	if (dissector->used_keys &
 	    ~(BIT(FLOW_DISSECTOR_KEY_CONTROL) |
 	      BIT(FLOW_DISSECTOR_KEY_IPV4_ADDRS) |
 	      BIT(FLOW_DISSECTOR_KEY_BASIC) |
 	      BIT(FLOW_DISSECTOR_KEY_IPV6_ADDRS) |
 	      BIT(FLOW_DISSECTOR_KEY_PORTS))) {
 		DP_NOTICE(edev, "Unsupported key set:0x%x\n",
-			  f->dissector->used_keys);
+			  dissector->used_keys);
 		return -EOPNOTSUPP;
 	}
 
@@ -2197,13 +2186,11 @@ qede_parse_flower_attr(struct qede_dev *edev, __be16 proto,
 		return -EPROTONOSUPPORT;
 	}
 
-	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_BASIC)) {
-		struct flow_dissector_key_basic *key;
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_BASIC)) {
+		struct flow_match_basic match;
 
-		key = skb_flow_dissector_target(f->dissector,
-						FLOW_DISSECTOR_KEY_BASIC,
-						f->key);
-		ip_proto = key->ip_proto;
+		flow_rule_match_basic(rule, &match);
+		ip_proto = match.key->ip_proto;
 	}
 
 	if (ip_proto == IPPROTO_TCP && proto == htons(ETH_P_IP))

@@ -1309,12 +1309,9 @@ static int parse_tunnel_attr(struct mlx5e_priv *priv,
 				       outer_headers);
 	void *headers_v = MLX5_ADDR_OF(fte_match_param, spec->match_value,
 				       outer_headers);
-
-	struct flow_dissector_key_control *enc_control =
-		skb_flow_dissector_target(f->dissector,
-					  FLOW_DISSECTOR_KEY_ENC_CONTROL,
-					  f->key);
-	int err = 0;
+	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(f);
+	struct flow_match_control enc_control;
+	int err;
 
 	err = mlx5e_tc_tun_parse(filter_dev, priv, spec, f,
 				 headers_c, headers_v);
@@ -1324,79 +1321,70 @@ static int parse_tunnel_attr(struct mlx5e_priv *priv,
 		return err;
 	}
 
-	if (enc_control->addr_type == FLOW_DISSECTOR_KEY_IPV4_ADDRS) {
-		struct flow_dissector_key_ipv4_addrs *key =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS,
-						  f->key);
-		struct flow_dissector_key_ipv4_addrs *mask =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS,
-						  f->mask);
+	flow_rule_match_enc_control(rule, &enc_control);
+
+	if (enc_control.key->addr_type == FLOW_DISSECTOR_KEY_IPV4_ADDRS) {
+		struct flow_match_ipv4_addrs match;
+
+		flow_rule_match_enc_ipv4_addrs(rule, &match);
 		MLX5_SET(fte_match_set_lyr_2_4, headers_c,
 			 src_ipv4_src_ipv6.ipv4_layout.ipv4,
-			 ntohl(mask->src));
+			 ntohl(match.mask->src));
 		MLX5_SET(fte_match_set_lyr_2_4, headers_v,
 			 src_ipv4_src_ipv6.ipv4_layout.ipv4,
-			 ntohl(key->src));
+			 ntohl(match.key->src));
 
 		MLX5_SET(fte_match_set_lyr_2_4, headers_c,
 			 dst_ipv4_dst_ipv6.ipv4_layout.ipv4,
-			 ntohl(mask->dst));
+			 ntohl(match.mask->dst));
 		MLX5_SET(fte_match_set_lyr_2_4, headers_v,
 			 dst_ipv4_dst_ipv6.ipv4_layout.ipv4,
-			 ntohl(key->dst));
+			 ntohl(match.key->dst));
 
 		MLX5_SET_TO_ONES(fte_match_set_lyr_2_4, headers_c, ethertype);
 		MLX5_SET(fte_match_set_lyr_2_4, headers_v, ethertype, ETH_P_IP);
-	} else if (enc_control->addr_type == FLOW_DISSECTOR_KEY_IPV6_ADDRS) {
-		struct flow_dissector_key_ipv6_addrs *key =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS,
-						  f->key);
-		struct flow_dissector_key_ipv6_addrs *mask =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS,
-						  f->mask);
+	} else if (enc_control.key->addr_type == FLOW_DISSECTOR_KEY_IPV6_ADDRS) {
+		struct flow_match_ipv6_addrs match;
 
+		flow_rule_match_enc_ipv6_addrs(rule, &match);
 		memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_c,
 				    src_ipv4_src_ipv6.ipv6_layout.ipv6),
-		       &mask->src, MLX5_FLD_SZ_BYTES(ipv6_layout, ipv6));
+		       &match.mask->src, MLX5_FLD_SZ_BYTES(ipv6_layout, ipv6));
 		memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_v,
 				    src_ipv4_src_ipv6.ipv6_layout.ipv6),
-		       &key->src, MLX5_FLD_SZ_BYTES(ipv6_layout, ipv6));
+		       &match.key->src, MLX5_FLD_SZ_BYTES(ipv6_layout, ipv6));
 
 		memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_c,
 				    dst_ipv4_dst_ipv6.ipv6_layout.ipv6),
-		       &mask->dst, MLX5_FLD_SZ_BYTES(ipv6_layout, ipv6));
+		       &match.mask->dst, MLX5_FLD_SZ_BYTES(ipv6_layout, ipv6));
 		memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_v,
 				    dst_ipv4_dst_ipv6.ipv6_layout.ipv6),
-		       &key->dst, MLX5_FLD_SZ_BYTES(ipv6_layout, ipv6));
+		       &match.key->dst, MLX5_FLD_SZ_BYTES(ipv6_layout, ipv6));
 
 		MLX5_SET_TO_ONES(fte_match_set_lyr_2_4, headers_c, ethertype);
 		MLX5_SET(fte_match_set_lyr_2_4, headers_v, ethertype, ETH_P_IPV6);
 	}
 
-	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_ENC_IP)) {
-		struct flow_dissector_key_ip *key =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_ENC_IP,
-						  f->key);
-		struct flow_dissector_key_ip *mask =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_ENC_IP,
-						  f->mask);
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_IP)) {
+		struct flow_match_ip match;
 
-		MLX5_SET(fte_match_set_lyr_2_4, headers_c, ip_ecn, mask->tos & 0x3);
-		MLX5_SET(fte_match_set_lyr_2_4, headers_v, ip_ecn, key->tos & 0x3);
+		flow_rule_match_enc_ip(rule, &match);
+		MLX5_SET(fte_match_set_lyr_2_4, headers_c, ip_ecn,
+			 match.mask->tos & 0x3);
+		MLX5_SET(fte_match_set_lyr_2_4, headers_v, ip_ecn,
+			 match.key->tos & 0x3);
 
-		MLX5_SET(fte_match_set_lyr_2_4, headers_c, ip_dscp, mask->tos >> 2);
-		MLX5_SET(fte_match_set_lyr_2_4, headers_v, ip_dscp, key->tos  >> 2);
+		MLX5_SET(fte_match_set_lyr_2_4, headers_c, ip_dscp,
+			 match.mask->tos >> 2);
+		MLX5_SET(fte_match_set_lyr_2_4, headers_v, ip_dscp,
+			 match.key->tos  >> 2);
 
-		MLX5_SET(fte_match_set_lyr_2_4, headers_c, ttl_hoplimit, mask->ttl);
-		MLX5_SET(fte_match_set_lyr_2_4, headers_v, ttl_hoplimit, key->ttl);
+		MLX5_SET(fte_match_set_lyr_2_4, headers_c, ttl_hoplimit,
+			 match.mask->ttl);
+		MLX5_SET(fte_match_set_lyr_2_4, headers_v, ttl_hoplimit,
+			 match.key->ttl);
 
-		if (mask->ttl &&
+		if (match.mask->ttl &&
 		    !MLX5_CAP_ESW_FLOWTABLE_FDB
 			(priv->mdev,
 			 ft_field_support.outer_ipv4_ttl)) {
@@ -1437,12 +1425,14 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 				    misc_parameters);
 	void *misc_v = MLX5_ADDR_OF(fte_match_param, spec->match_value,
 				    misc_parameters);
+	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(f);
+	struct flow_dissector *dissector = rule->match.dissector;
 	u16 addr_type = 0;
 	u8 ip_proto = 0;
 
 	*match_level = MLX5_MATCH_NONE;
 
-	if (f->dissector->used_keys &
+	if (dissector->used_keys &
 	    ~(BIT(FLOW_DISSECTOR_KEY_CONTROL) |
 	      BIT(FLOW_DISSECTOR_KEY_BASIC) |
 	      BIT(FLOW_DISSECTOR_KEY_ETH_ADDRS) |
@@ -1461,20 +1451,18 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 	      BIT(FLOW_DISSECTOR_KEY_ENC_IP))) {
 		NL_SET_ERR_MSG_MOD(extack, "Unsupported key");
 		netdev_warn(priv->netdev, "Unsupported key used: 0x%x\n",
-			    f->dissector->used_keys);
+			    dissector->used_keys);
 		return -EOPNOTSUPP;
 	}
 
-	if ((dissector_uses_key(f->dissector,
-				FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS) ||
-	     dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_ENC_KEYID) ||
-	     dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_ENC_PORTS)) &&
-	    dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_ENC_CONTROL)) {
-		struct flow_dissector_key_control *key =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_ENC_CONTROL,
-						  f->key);
-		switch (key->addr_type) {
+	if ((flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS) ||
+	     flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_KEYID) ||
+	     flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_PORTS)) &&
+	    flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_CONTROL)) {
+		struct flow_match_control match;
+
+		flow_rule_match_enc_control(rule, &match);
+		switch (match.key->addr_type) {
 		case FLOW_DISSECTOR_KEY_IPV4_ADDRS:
 		case FLOW_DISSECTOR_KEY_IPV6_ADDRS:
 			if (parse_tunnel_attr(priv, spec, f, filter_dev))
@@ -1493,35 +1481,27 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 					 inner_headers);
 	}
 
-	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_BASIC)) {
-		struct flow_dissector_key_basic *key =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_BASIC,
-						  f->key);
-		struct flow_dissector_key_basic *mask =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_BASIC,
-						  f->mask);
-		MLX5_SET(fte_match_set_lyr_2_4, headers_c, ethertype,
-			 ntohs(mask->n_proto));
-		MLX5_SET(fte_match_set_lyr_2_4, headers_v, ethertype,
-			 ntohs(key->n_proto));
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_BASIC)) {
+		struct flow_match_basic match;
 
-		if (mask->n_proto)
+		flow_rule_match_basic(rule, &match);
+		MLX5_SET(fte_match_set_lyr_2_4, headers_c, ethertype,
+			 ntohs(match.mask->n_proto));
+		MLX5_SET(fte_match_set_lyr_2_4, headers_v, ethertype,
+			 ntohs(match.key->n_proto));
+
+		if (match.mask->n_proto)
 			*match_level = MLX5_MATCH_L2;
 	}
 
-	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_VLAN)) {
-		struct flow_dissector_key_vlan *key =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_VLAN,
-						  f->key);
-		struct flow_dissector_key_vlan *mask =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_VLAN,
-						  f->mask);
-		if (mask->vlan_id || mask->vlan_priority || mask->vlan_tpid) {
-			if (key->vlan_tpid == htons(ETH_P_8021AD)) {
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_VLAN)) {
+		struct flow_match_vlan match;
+
+		flow_rule_match_vlan(rule, &match);
+		if (match.mask->vlan_id ||
+		    match.mask->vlan_priority ||
+		    match.mask->vlan_tpid) {
+			if (match.key->vlan_tpid == htons(ETH_P_8021AD)) {
 				MLX5_SET(fte_match_set_lyr_2_4, headers_c,
 					 svlan_tag, 1);
 				MLX5_SET(fte_match_set_lyr_2_4, headers_v,
@@ -1533,11 +1513,15 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 					 cvlan_tag, 1);
 			}
 
-			MLX5_SET(fte_match_set_lyr_2_4, headers_c, first_vid, mask->vlan_id);
-			MLX5_SET(fte_match_set_lyr_2_4, headers_v, first_vid, key->vlan_id);
+			MLX5_SET(fte_match_set_lyr_2_4, headers_c, first_vid,
+				 match.mask->vlan_id);
+			MLX5_SET(fte_match_set_lyr_2_4, headers_v, first_vid,
+				 match.key->vlan_id);
 
-			MLX5_SET(fte_match_set_lyr_2_4, headers_c, first_prio, mask->vlan_priority);
-			MLX5_SET(fte_match_set_lyr_2_4, headers_v, first_prio, key->vlan_priority);
+			MLX5_SET(fte_match_set_lyr_2_4, headers_c, first_prio,
+				 match.mask->vlan_priority);
+			MLX5_SET(fte_match_set_lyr_2_4, headers_v, first_prio,
+				 match.key->vlan_priority);
 
 			*match_level = MLX5_MATCH_L2;
 		}
@@ -1547,17 +1531,14 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 		*match_level = MLX5_MATCH_L2;
 	}
 
-	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_CVLAN)) {
-		struct flow_dissector_key_vlan *key =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_CVLAN,
-						  f->key);
-		struct flow_dissector_key_vlan *mask =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_CVLAN,
-						  f->mask);
-		if (mask->vlan_id || mask->vlan_priority || mask->vlan_tpid) {
-			if (key->vlan_tpid == htons(ETH_P_8021AD)) {
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_CVLAN)) {
+		struct flow_match_vlan match;
+
+		flow_rule_match_vlan(rule, &match);
+		if (match.mask->vlan_id ||
+		    match.mask->vlan_priority ||
+		    match.mask->vlan_tpid) {
+			if (match.key->vlan_tpid == htons(ETH_P_8021AD)) {
 				MLX5_SET(fte_match_set_misc, misc_c,
 					 outer_second_svlan_tag, 1);
 				MLX5_SET(fte_match_set_misc, misc_v,
@@ -1570,69 +1551,58 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 			}
 
 			MLX5_SET(fte_match_set_misc, misc_c, outer_second_vid,
-				 mask->vlan_id);
+				 match.mask->vlan_id);
 			MLX5_SET(fte_match_set_misc, misc_v, outer_second_vid,
-				 key->vlan_id);
+				 match.key->vlan_id);
 			MLX5_SET(fte_match_set_misc, misc_c, outer_second_prio,
-				 mask->vlan_priority);
+				 match.mask->vlan_priority);
 			MLX5_SET(fte_match_set_misc, misc_v, outer_second_prio,
-				 key->vlan_priority);
+				 match.key->vlan_priority);
 
 			*match_level = MLX5_MATCH_L2;
 		}
 	}
 
-	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_ETH_ADDRS)) {
-		struct flow_dissector_key_eth_addrs *key =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_ETH_ADDRS,
-						  f->key);
-		struct flow_dissector_key_eth_addrs *mask =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_ETH_ADDRS,
-						  f->mask);
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ETH_ADDRS)) {
+		struct flow_match_eth_addrs match;
 
+		flow_rule_match_eth_addrs(rule, &match);
 		ether_addr_copy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_c,
 					     dmac_47_16),
-				mask->dst);
+				match.mask->dst);
 		ether_addr_copy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_v,
 					     dmac_47_16),
-				key->dst);
+				match.key->dst);
 
 		ether_addr_copy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_c,
 					     smac_47_16),
-				mask->src);
+				match.mask->src);
 		ether_addr_copy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_v,
 					     smac_47_16),
-				key->src);
+				match.key->src);
 
-		if (!is_zero_ether_addr(mask->src) || !is_zero_ether_addr(mask->dst))
+		if (!is_zero_ether_addr(match.mask->src) ||
+		    !is_zero_ether_addr(match.mask->dst))
 			*match_level = MLX5_MATCH_L2;
 	}
 
-	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_CONTROL)) {
-		struct flow_dissector_key_control *key =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_CONTROL,
-						  f->key);
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_CONTROL)) {
+		struct flow_match_control match;
 
-		struct flow_dissector_key_control *mask =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_CONTROL,
-						  f->mask);
-		addr_type = key->addr_type;
+		flow_rule_match_control(rule, &match);
+		addr_type = match.key->addr_type;
 
 		/* the HW doesn't support frag first/later */
-		if (mask->flags & FLOW_DIS_FIRST_FRAG)
+		if (match.mask->flags & FLOW_DIS_FIRST_FRAG)
 			return -EOPNOTSUPP;
 
-		if (mask->flags & FLOW_DIS_IS_FRAGMENT) {
+		if (match.mask->flags & FLOW_DIS_IS_FRAGMENT) {
 			MLX5_SET(fte_match_set_lyr_2_4, headers_c, frag, 1);
 			MLX5_SET(fte_match_set_lyr_2_4, headers_v, frag,
-				 key->flags & FLOW_DIS_IS_FRAGMENT);
+				 match.key->flags & FLOW_DIS_IS_FRAGMENT);
 
 			/* the HW doesn't need L3 inline to match on frag=no */
-			if (!(key->flags & FLOW_DIS_IS_FRAGMENT))
+			if (!(match.key->flags & FLOW_DIS_IS_FRAGMENT))
 				*match_level = MLX5_MATCH_L2;
 	/* ***  L2 attributes parsing up to here *** */
 			else
@@ -1640,102 +1610,85 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 		}
 	}
 
-	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_BASIC)) {
-		struct flow_dissector_key_basic *key =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_BASIC,
-						  f->key);
-		struct flow_dissector_key_basic *mask =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_BASIC,
-						  f->mask);
-		ip_proto = key->ip_proto;
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_BASIC)) {
+		struct flow_match_basic match;
+
+		flow_rule_match_basic(rule, &match);
+		ip_proto = match.key->ip_proto;
 
 		MLX5_SET(fte_match_set_lyr_2_4, headers_c, ip_protocol,
-			 mask->ip_proto);
+			 match.mask->ip_proto);
 		MLX5_SET(fte_match_set_lyr_2_4, headers_v, ip_protocol,
-			 key->ip_proto);
+			 match.key->ip_proto);
 
-		if (mask->ip_proto)
+		if (match.mask->ip_proto)
 			*match_level = MLX5_MATCH_L3;
 	}
 
 	if (addr_type == FLOW_DISSECTOR_KEY_IPV4_ADDRS) {
-		struct flow_dissector_key_ipv4_addrs *key =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_IPV4_ADDRS,
-						  f->key);
-		struct flow_dissector_key_ipv4_addrs *mask =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_IPV4_ADDRS,
-						  f->mask);
+		struct flow_match_ipv4_addrs match;
 
+		flow_rule_match_ipv4_addrs(rule, &match);
 		memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_c,
 				    src_ipv4_src_ipv6.ipv4_layout.ipv4),
-		       &mask->src, sizeof(mask->src));
+		       &match.mask->src, sizeof(match.mask->src));
 		memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_v,
 				    src_ipv4_src_ipv6.ipv4_layout.ipv4),
-		       &key->src, sizeof(key->src));
+		       &match.key->src, sizeof(match.key->src));
 		memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_c,
 				    dst_ipv4_dst_ipv6.ipv4_layout.ipv4),
-		       &mask->dst, sizeof(mask->dst));
+		       &match.mask->dst, sizeof(match.mask->dst));
 		memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_v,
 				    dst_ipv4_dst_ipv6.ipv4_layout.ipv4),
-		       &key->dst, sizeof(key->dst));
+		       &match.key->dst, sizeof(match.key->dst));
 
-		if (mask->src || mask->dst)
+		if (match.mask->src || match.mask->dst)
 			*match_level = MLX5_MATCH_L3;
 	}
 
 	if (addr_type == FLOW_DISSECTOR_KEY_IPV6_ADDRS) {
-		struct flow_dissector_key_ipv6_addrs *key =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_IPV6_ADDRS,
-						  f->key);
-		struct flow_dissector_key_ipv6_addrs *mask =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_IPV6_ADDRS,
-						  f->mask);
+		struct flow_match_ipv6_addrs match;
 
+		flow_rule_match_ipv6_addrs(rule, &match);
 		memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_c,
 				    src_ipv4_src_ipv6.ipv6_layout.ipv6),
-		       &mask->src, sizeof(mask->src));
+		       &match.mask->src, sizeof(match.mask->src));
 		memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_v,
 				    src_ipv4_src_ipv6.ipv6_layout.ipv6),
-		       &key->src, sizeof(key->src));
+		       &match.key->src, sizeof(match.key->src));
 
 		memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_c,
 				    dst_ipv4_dst_ipv6.ipv6_layout.ipv6),
-		       &mask->dst, sizeof(mask->dst));
+		       &match.mask->dst, sizeof(match.mask->dst));
 		memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_v,
 				    dst_ipv4_dst_ipv6.ipv6_layout.ipv6),
-		       &key->dst, sizeof(key->dst));
+		       &match.key->dst, sizeof(match.key->dst));
 
-		if (ipv6_addr_type(&mask->src) != IPV6_ADDR_ANY ||
-		    ipv6_addr_type(&mask->dst) != IPV6_ADDR_ANY)
+		if (ipv6_addr_type(&match.mask->src) != IPV6_ADDR_ANY ||
+		    ipv6_addr_type(&match.mask->dst) != IPV6_ADDR_ANY)
 			*match_level = MLX5_MATCH_L3;
 	}
 
-	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_IP)) {
-		struct flow_dissector_key_ip *key =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_IP,
-						  f->key);
-		struct flow_dissector_key_ip *mask =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_IP,
-						  f->mask);
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_IP)) {
+		struct flow_match_ip match;
 
-		MLX5_SET(fte_match_set_lyr_2_4, headers_c, ip_ecn, mask->tos & 0x3);
-		MLX5_SET(fte_match_set_lyr_2_4, headers_v, ip_ecn, key->tos & 0x3);
+		flow_rule_match_ip(rule, &match);
+		MLX5_SET(fte_match_set_lyr_2_4, headers_c, ip_ecn,
+			 match.mask->tos & 0x3);
+		MLX5_SET(fte_match_set_lyr_2_4, headers_v, ip_ecn,
+			 match.key->tos & 0x3);
 
-		MLX5_SET(fte_match_set_lyr_2_4, headers_c, ip_dscp, mask->tos >> 2);
-		MLX5_SET(fte_match_set_lyr_2_4, headers_v, ip_dscp, key->tos  >> 2);
+		MLX5_SET(fte_match_set_lyr_2_4, headers_c, ip_dscp,
+			 match.mask->tos >> 2);
+		MLX5_SET(fte_match_set_lyr_2_4, headers_v, ip_dscp,
+			 match.key->tos  >> 2);
 
-		MLX5_SET(fte_match_set_lyr_2_4, headers_c, ttl_hoplimit, mask->ttl);
-		MLX5_SET(fte_match_set_lyr_2_4, headers_v, ttl_hoplimit, key->ttl);
+		MLX5_SET(fte_match_set_lyr_2_4, headers_c, ttl_hoplimit,
+			 match.mask->ttl);
+		MLX5_SET(fte_match_set_lyr_2_4, headers_v, ttl_hoplimit,
+			 match.key->ttl);
 
-		if (mask->ttl &&
+		if (match.mask->ttl &&
 		    !MLX5_CAP_ESW_FLOWTABLE_FDB(priv->mdev,
 						ft_field_support.outer_ipv4_ttl)) {
 			NL_SET_ERR_MSG_MOD(extack,
@@ -1743,44 +1696,39 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 			return -EOPNOTSUPP;
 		}
 
-		if (mask->tos || mask->ttl)
+		if (match.mask->tos || match.mask->ttl)
 			*match_level = MLX5_MATCH_L3;
 	}
 
 	/* ***  L3 attributes parsing up to here *** */
 
-	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_PORTS)) {
-		struct flow_dissector_key_ports *key =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_PORTS,
-						  f->key);
-		struct flow_dissector_key_ports *mask =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_PORTS,
-						  f->mask);
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_PORTS)) {
+		struct flow_match_ports match;
+
+		flow_rule_match_ports(rule, &match);
 		switch (ip_proto) {
 		case IPPROTO_TCP:
 			MLX5_SET(fte_match_set_lyr_2_4, headers_c,
-				 tcp_sport, ntohs(mask->src));
+				 tcp_sport, ntohs(match.mask->src));
 			MLX5_SET(fte_match_set_lyr_2_4, headers_v,
-				 tcp_sport, ntohs(key->src));
+				 tcp_sport, ntohs(match.key->src));
 
 			MLX5_SET(fte_match_set_lyr_2_4, headers_c,
-				 tcp_dport, ntohs(mask->dst));
+				 tcp_dport, ntohs(match.mask->dst));
 			MLX5_SET(fte_match_set_lyr_2_4, headers_v,
-				 tcp_dport, ntohs(key->dst));
+				 tcp_dport, ntohs(match.key->dst));
 			break;
 
 		case IPPROTO_UDP:
 			MLX5_SET(fte_match_set_lyr_2_4, headers_c,
-				 udp_sport, ntohs(mask->src));
+				 udp_sport, ntohs(match.mask->src));
 			MLX5_SET(fte_match_set_lyr_2_4, headers_v,
-				 udp_sport, ntohs(key->src));
+				 udp_sport, ntohs(match.key->src));
 
 			MLX5_SET(fte_match_set_lyr_2_4, headers_c,
-				 udp_dport, ntohs(mask->dst));
+				 udp_dport, ntohs(match.mask->dst));
 			MLX5_SET(fte_match_set_lyr_2_4, headers_v,
-				 udp_dport, ntohs(key->dst));
+				 udp_dport, ntohs(match.key->dst));
 			break;
 		default:
 			NL_SET_ERR_MSG_MOD(extack,
@@ -1790,26 +1738,20 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 			return -EINVAL;
 		}
 
-		if (mask->src || mask->dst)
+		if (match.mask->src || match.mask->dst)
 			*match_level = MLX5_MATCH_L4;
 	}
 
-	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_TCP)) {
-		struct flow_dissector_key_tcp *key =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_TCP,
-						  f->key);
-		struct flow_dissector_key_tcp *mask =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_TCP,
-						  f->mask);
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_TCP)) {
+		struct flow_match_tcp match;
 
+		flow_rule_match_tcp(rule, &match);
 		MLX5_SET(fte_match_set_lyr_2_4, headers_c, tcp_flags,
-			 ntohs(mask->flags));
+			 ntohs(match.mask->flags));
 		MLX5_SET(fte_match_set_lyr_2_4, headers_v, tcp_flags,
-			 ntohs(key->flags));
+			 ntohs(match.key->flags));
 
-		if (mask->flags)
+		if (match.mask->flags)
 			*match_level = MLX5_MATCH_L4;
 	}
 

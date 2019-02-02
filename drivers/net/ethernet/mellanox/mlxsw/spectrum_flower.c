@@ -113,59 +113,49 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 static void mlxsw_sp_flower_parse_ipv4(struct mlxsw_sp_acl_rule_info *rulei,
 				       struct tc_cls_flower_offload *f)
 {
-	struct flow_dissector_key_ipv4_addrs *key =
-		skb_flow_dissector_target(f->dissector,
-					  FLOW_DISSECTOR_KEY_IPV4_ADDRS,
-					  f->key);
-	struct flow_dissector_key_ipv4_addrs *mask =
-		skb_flow_dissector_target(f->dissector,
-					  FLOW_DISSECTOR_KEY_IPV4_ADDRS,
-					  f->mask);
+	struct flow_match_ipv4_addrs match;
+
+	flow_rule_match_ipv4_addrs(f->rule, &match);
 
 	mlxsw_sp_acl_rulei_keymask_buf(rulei, MLXSW_AFK_ELEMENT_SRC_IP_0_31,
-				       (char *) &key->src,
-				       (char *) &mask->src, 4);
+				       (char *) &match.key->src,
+				       (char *) &match.mask->src, 4);
 	mlxsw_sp_acl_rulei_keymask_buf(rulei, MLXSW_AFK_ELEMENT_DST_IP_0_31,
-				       (char *) &key->dst,
-				       (char *) &mask->dst, 4);
+				       (char *) &match.key->dst,
+				       (char *) &match.mask->dst, 4);
 }
 
 static void mlxsw_sp_flower_parse_ipv6(struct mlxsw_sp_acl_rule_info *rulei,
 				       struct tc_cls_flower_offload *f)
 {
-	struct flow_dissector_key_ipv6_addrs *key =
-		skb_flow_dissector_target(f->dissector,
-					  FLOW_DISSECTOR_KEY_IPV6_ADDRS,
-					  f->key);
-	struct flow_dissector_key_ipv6_addrs *mask =
-		skb_flow_dissector_target(f->dissector,
-					  FLOW_DISSECTOR_KEY_IPV6_ADDRS,
-					  f->mask);
+	struct flow_match_ipv6_addrs match;
+
+	flow_rule_match_ipv6_addrs(f->rule, &match);
 
 	mlxsw_sp_acl_rulei_keymask_buf(rulei, MLXSW_AFK_ELEMENT_SRC_IP_96_127,
-				       &key->src.s6_addr[0x0],
-				       &mask->src.s6_addr[0x0], 4);
+				       &match.key->src.s6_addr[0x0],
+				       &match.mask->src.s6_addr[0x0], 4);
 	mlxsw_sp_acl_rulei_keymask_buf(rulei, MLXSW_AFK_ELEMENT_SRC_IP_64_95,
-				       &key->src.s6_addr[0x4],
-				       &mask->src.s6_addr[0x4], 4);
+				       &match.key->src.s6_addr[0x4],
+				       &match.mask->src.s6_addr[0x4], 4);
 	mlxsw_sp_acl_rulei_keymask_buf(rulei, MLXSW_AFK_ELEMENT_SRC_IP_32_63,
-				       &key->src.s6_addr[0x8],
-				       &mask->src.s6_addr[0x8], 4);
+				       &match.key->src.s6_addr[0x8],
+				       &match.mask->src.s6_addr[0x8], 4);
 	mlxsw_sp_acl_rulei_keymask_buf(rulei, MLXSW_AFK_ELEMENT_SRC_IP_0_31,
-				       &key->src.s6_addr[0xC],
-				       &mask->src.s6_addr[0xC], 4);
+				       &match.key->src.s6_addr[0xC],
+				       &match.mask->src.s6_addr[0xC], 4);
 	mlxsw_sp_acl_rulei_keymask_buf(rulei, MLXSW_AFK_ELEMENT_DST_IP_96_127,
-				       &key->dst.s6_addr[0x0],
-				       &mask->dst.s6_addr[0x0], 4);
+				       &match.key->dst.s6_addr[0x0],
+				       &match.mask->dst.s6_addr[0x0], 4);
 	mlxsw_sp_acl_rulei_keymask_buf(rulei, MLXSW_AFK_ELEMENT_DST_IP_64_95,
-				       &key->dst.s6_addr[0x4],
-				       &mask->dst.s6_addr[0x4], 4);
+				       &match.key->dst.s6_addr[0x4],
+				       &match.mask->dst.s6_addr[0x4], 4);
 	mlxsw_sp_acl_rulei_keymask_buf(rulei, MLXSW_AFK_ELEMENT_DST_IP_32_63,
-				       &key->dst.s6_addr[0x8],
-				       &mask->dst.s6_addr[0x8], 4);
+				       &match.key->dst.s6_addr[0x8],
+				       &match.mask->dst.s6_addr[0x8], 4);
 	mlxsw_sp_acl_rulei_keymask_buf(rulei, MLXSW_AFK_ELEMENT_DST_IP_0_31,
-				       &key->dst.s6_addr[0xC],
-				       &mask->dst.s6_addr[0xC], 4);
+				       &match.key->dst.s6_addr[0xC],
+				       &match.mask->dst.s6_addr[0xC], 4);
 }
 
 static int mlxsw_sp_flower_parse_ports(struct mlxsw_sp *mlxsw_sp,
@@ -173,9 +163,10 @@ static int mlxsw_sp_flower_parse_ports(struct mlxsw_sp *mlxsw_sp,
 				       struct tc_cls_flower_offload *f,
 				       u8 ip_proto)
 {
-	struct flow_dissector_key_ports *key, *mask;
+	const struct flow_rule *rule = tc_cls_flower_offload_flow_rule(f);
+	struct flow_match_ports match;
 
-	if (!dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_PORTS))
+	if (!flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_PORTS))
 		return 0;
 
 	if (ip_proto != IPPROTO_TCP && ip_proto != IPPROTO_UDP) {
@@ -184,16 +175,13 @@ static int mlxsw_sp_flower_parse_ports(struct mlxsw_sp *mlxsw_sp,
 		return -EINVAL;
 	}
 
-	key = skb_flow_dissector_target(f->dissector,
-					FLOW_DISSECTOR_KEY_PORTS,
-					f->key);
-	mask = skb_flow_dissector_target(f->dissector,
-					 FLOW_DISSECTOR_KEY_PORTS,
-					 f->mask);
+	flow_rule_match_ports(rule, &match);
 	mlxsw_sp_acl_rulei_keymask_u32(rulei, MLXSW_AFK_ELEMENT_DST_L4_PORT,
-				       ntohs(key->dst), ntohs(mask->dst));
+				       ntohs(match.key->dst),
+				       ntohs(match.mask->dst));
 	mlxsw_sp_acl_rulei_keymask_u32(rulei, MLXSW_AFK_ELEMENT_SRC_L4_PORT,
-				       ntohs(key->src), ntohs(mask->src));
+				       ntohs(match.key->src),
+				       ntohs(match.mask->src));
 	return 0;
 }
 
@@ -202,9 +190,10 @@ static int mlxsw_sp_flower_parse_tcp(struct mlxsw_sp *mlxsw_sp,
 				     struct tc_cls_flower_offload *f,
 				     u8 ip_proto)
 {
-	struct flow_dissector_key_tcp *key, *mask;
+	const struct flow_rule *rule = tc_cls_flower_offload_flow_rule(f);
+	struct flow_match_tcp match;
 
-	if (!dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_TCP))
+	if (!flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_TCP))
 		return 0;
 
 	if (ip_proto != IPPROTO_TCP) {
@@ -213,14 +202,11 @@ static int mlxsw_sp_flower_parse_tcp(struct mlxsw_sp *mlxsw_sp,
 		return -EINVAL;
 	}
 
-	key = skb_flow_dissector_target(f->dissector,
-					FLOW_DISSECTOR_KEY_TCP,
-					f->key);
-	mask = skb_flow_dissector_target(f->dissector,
-					 FLOW_DISSECTOR_KEY_TCP,
-					 f->mask);
+	flow_rule_match_tcp(rule, &match);
+
 	mlxsw_sp_acl_rulei_keymask_u32(rulei, MLXSW_AFK_ELEMENT_TCP_FLAGS,
-				       ntohs(key->flags), ntohs(mask->flags));
+				       ntohs(match.key->flags),
+				       ntohs(match.mask->flags));
 	return 0;
 }
 
@@ -229,9 +215,10 @@ static int mlxsw_sp_flower_parse_ip(struct mlxsw_sp *mlxsw_sp,
 				    struct tc_cls_flower_offload *f,
 				    u16 n_proto)
 {
-	struct flow_dissector_key_ip *key, *mask;
+	const struct flow_rule *rule = tc_cls_flower_offload_flow_rule(f);
+	struct flow_match_ip match;
 
-	if (!dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_IP))
+	if (!flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_IP))
 		return 0;
 
 	if (n_proto != ETH_P_IP && n_proto != ETH_P_IPV6) {
@@ -240,20 +227,18 @@ static int mlxsw_sp_flower_parse_ip(struct mlxsw_sp *mlxsw_sp,
 		return -EINVAL;
 	}
 
-	key = skb_flow_dissector_target(f->dissector,
-					FLOW_DISSECTOR_KEY_IP,
-					f->key);
-	mask = skb_flow_dissector_target(f->dissector,
-					 FLOW_DISSECTOR_KEY_IP,
-					 f->mask);
+	flow_rule_match_ip(rule, &match);
+
 	mlxsw_sp_acl_rulei_keymask_u32(rulei, MLXSW_AFK_ELEMENT_IP_TTL_,
-				       key->ttl, mask->ttl);
+				       match.key->ttl, match.mask->ttl);
 
 	mlxsw_sp_acl_rulei_keymask_u32(rulei, MLXSW_AFK_ELEMENT_IP_ECN,
-				       key->tos & 0x3, mask->tos & 0x3);
+				       match.key->tos & 0x3,
+				       match.mask->tos & 0x3);
 
 	mlxsw_sp_acl_rulei_keymask_u32(rulei, MLXSW_AFK_ELEMENT_IP_DSCP,
-				       key->tos >> 6, mask->tos >> 6);
+				       match.key->tos >> 6,
+				       match.mask->tos >> 6);
 
 	return 0;
 }
@@ -263,13 +248,15 @@ static int mlxsw_sp_flower_parse(struct mlxsw_sp *mlxsw_sp,
 				 struct mlxsw_sp_acl_rule_info *rulei,
 				 struct tc_cls_flower_offload *f)
 {
+	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(f);
+	struct flow_dissector *dissector = rule->match.dissector;
 	u16 n_proto_mask = 0;
 	u16 n_proto_key = 0;
 	u16 addr_type = 0;
 	u8 ip_proto = 0;
 	int err;
 
-	if (f->dissector->used_keys &
+	if (dissector->used_keys &
 	    ~(BIT(FLOW_DISSECTOR_KEY_CONTROL) |
 	      BIT(FLOW_DISSECTOR_KEY_BASIC) |
 	      BIT(FLOW_DISSECTOR_KEY_ETH_ADDRS) |
@@ -286,25 +273,19 @@ static int mlxsw_sp_flower_parse(struct mlxsw_sp *mlxsw_sp,
 
 	mlxsw_sp_acl_rulei_priority(rulei, f->common.prio);
 
-	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_CONTROL)) {
-		struct flow_dissector_key_control *key =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_CONTROL,
-						  f->key);
-		addr_type = key->addr_type;
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_CONTROL)) {
+		struct flow_match_control match;
+
+		flow_rule_match_control(rule, &match);
+		addr_type = match.key->addr_type;
 	}
 
-	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_BASIC)) {
-		struct flow_dissector_key_basic *key =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_BASIC,
-						  f->key);
-		struct flow_dissector_key_basic *mask =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_BASIC,
-						  f->mask);
-		n_proto_key = ntohs(key->n_proto);
-		n_proto_mask = ntohs(mask->n_proto);
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_BASIC)) {
+		struct flow_match_basic match;
+
+		flow_rule_match_basic(rule, &match);
+		n_proto_key = ntohs(match.key->n_proto);
+		n_proto_mask = ntohs(match.mask->n_proto);
 
 		if (n_proto_key == ETH_P_ALL) {
 			n_proto_key = 0;
@@ -314,60 +295,53 @@ static int mlxsw_sp_flower_parse(struct mlxsw_sp *mlxsw_sp,
 					       MLXSW_AFK_ELEMENT_ETHERTYPE,
 					       n_proto_key, n_proto_mask);
 
-		ip_proto = key->ip_proto;
+		ip_proto = match.key->ip_proto;
 		mlxsw_sp_acl_rulei_keymask_u32(rulei,
 					       MLXSW_AFK_ELEMENT_IP_PROTO,
-					       key->ip_proto, mask->ip_proto);
+					       match.key->ip_proto,
+					       match.mask->ip_proto);
 	}
 
-	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_ETH_ADDRS)) {
-		struct flow_dissector_key_eth_addrs *key =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_ETH_ADDRS,
-						  f->key);
-		struct flow_dissector_key_eth_addrs *mask =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_ETH_ADDRS,
-						  f->mask);
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ETH_ADDRS)) {
+		struct flow_match_eth_addrs match;
 
+		flow_rule_match_eth_addrs(rule, &match);
 		mlxsw_sp_acl_rulei_keymask_buf(rulei,
 					       MLXSW_AFK_ELEMENT_DMAC_32_47,
-					       key->dst, mask->dst, 2);
+					       match.key->dst,
+					       match.mask->dst, 2);
 		mlxsw_sp_acl_rulei_keymask_buf(rulei,
 					       MLXSW_AFK_ELEMENT_DMAC_0_31,
-					       key->dst + 2, mask->dst + 2, 4);
+					       match.key->dst + 2,
+					       match.mask->dst + 2, 4);
 		mlxsw_sp_acl_rulei_keymask_buf(rulei,
 					       MLXSW_AFK_ELEMENT_SMAC_32_47,
-					       key->src, mask->src, 2);
+					       match.key->src,
+					       match.mask->src, 2);
 		mlxsw_sp_acl_rulei_keymask_buf(rulei,
 					       MLXSW_AFK_ELEMENT_SMAC_0_31,
-					       key->src + 2, mask->src + 2, 4);
+					       match.key->src + 2,
+					       match.mask->src + 2, 4);
 	}
 
-	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_VLAN)) {
-		struct flow_dissector_key_vlan *key =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_VLAN,
-						  f->key);
-		struct flow_dissector_key_vlan *mask =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_VLAN,
-						  f->mask);
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_VLAN)) {
+		struct flow_match_vlan match;
 
+		flow_rule_match_vlan(rule, &match);
 		if (mlxsw_sp_acl_block_is_egress_bound(block)) {
 			NL_SET_ERR_MSG_MOD(f->common.extack, "vlan_id key is not supported on egress");
 			return -EOPNOTSUPP;
 		}
-		if (mask->vlan_id != 0)
+		if (match.mask->vlan_id != 0)
 			mlxsw_sp_acl_rulei_keymask_u32(rulei,
 						       MLXSW_AFK_ELEMENT_VID,
-						       key->vlan_id,
-						       mask->vlan_id);
-		if (mask->vlan_priority != 0)
+						       match.key->vlan_id,
+						       match.mask->vlan_id);
+		if (match.mask->vlan_priority != 0)
 			mlxsw_sp_acl_rulei_keymask_u32(rulei,
 						       MLXSW_AFK_ELEMENT_PCP,
-						       key->vlan_priority,
-						       mask->vlan_priority);
+						       match.key->vlan_priority,
+						       match.mask->vlan_priority);
 	}
 
 	if (addr_type == FLOW_DISSECTOR_KEY_IPV4_ADDRS)

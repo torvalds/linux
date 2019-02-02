@@ -587,6 +587,7 @@ static int
 nfp_fl_pedit(const struct tc_action *action, struct tc_cls_flower_offload *flow,
 	     char *nfp_action, int *a_len, u32 *csum_updated)
 {
+	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(flow);
 	struct nfp_fl_set_ipv6_addr set_ip6_dst, set_ip6_src;
 	struct nfp_fl_set_ipv6_tc_hl_fl set_ip6_tc_hl_fl;
 	struct nfp_fl_set_ip4_ttl_tos set_ip_ttl_tos;
@@ -643,13 +644,11 @@ nfp_fl_pedit(const struct tc_action *action, struct tc_cls_flower_offload *flow,
 			return err;
 	}
 
-	if (dissector_uses_key(flow->dissector, FLOW_DISSECTOR_KEY_BASIC)) {
-		struct flow_dissector_key_basic *basic;
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_BASIC)) {
+		struct flow_match_basic match;
 
-		basic = skb_flow_dissector_target(flow->dissector,
-						  FLOW_DISSECTOR_KEY_BASIC,
-						  flow->key);
-		ip_proto = basic->ip_proto;
+		flow_rule_match_basic(rule, &match);
+		ip_proto = match.key->ip_proto;
 	}
 
 	if (set_eth.head.len_lw) {
