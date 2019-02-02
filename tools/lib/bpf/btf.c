@@ -377,15 +377,14 @@ struct btf *btf__new(__u8 *data, __u32 size)
 
 	btf->fd = -1;
 
-	if (libbpf_print_level_available(LIBBPF_DEBUG)) {
-		log_buf = malloc(BPF_LOG_BUF_SIZE);
-		if (!log_buf) {
-			err = -ENOMEM;
-			goto done;
-		}
-		*log_buf = 0;
-		log_buf_size = BPF_LOG_BUF_SIZE;
+	log_buf = malloc(BPF_LOG_BUF_SIZE);
+	if (!log_buf) {
+		err = -ENOMEM;
+		goto done;
 	}
+
+	*log_buf = 0;
+	log_buf_size = BPF_LOG_BUF_SIZE;
 
 	btf->data = malloc(size);
 	if (!btf->data) {
@@ -401,9 +400,9 @@ struct btf *btf__new(__u8 *data, __u32 size)
 
 	if (btf->fd == -1) {
 		err = -errno;
-		pr_debug("Error loading BTF: %s(%d)\n", strerror(errno), errno);
+		pr_warning("Error loading BTF: %s(%d)\n", strerror(errno), errno);
 		if (log_buf && *log_buf)
-			pr_debug("%s\n", log_buf);
+			pr_warning("%s\n", log_buf);
 		goto done;
 	}
 

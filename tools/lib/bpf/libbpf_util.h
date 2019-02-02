@@ -14,8 +14,6 @@ extern void libbpf_print(enum libbpf_print_level level,
 			 const char *format, ...)
 	__attribute__((format(printf, 2, 3)));
 
-extern bool libbpf_print_level_available(enum libbpf_print_level level);
-
 #define __pr(level, fmt, ...)	\
 do {				\
 	libbpf_print(level, "libbpf: " fmt, ##__VA_ARGS__);	\

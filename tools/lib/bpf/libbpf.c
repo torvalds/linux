@@ -98,16 +98,6 @@ void libbpf_print(enum libbpf_print_level level, const char *format, ...)
 	va_end(args);
 }
 
-bool libbpf_print_level_available(enum libbpf_print_level level)
-{
-	if (level == LIBBPF_WARN)
-		return !!__pr_warning;
-	else if (level == LIBBPF_INFO)
-		return !!__pr_info;
-	else
-		return !!__pr_debug;
-}
-
 #define STRERR_BUFSIZE  128
 
 #define CHECK_ERR(action, err, out) do {	\
