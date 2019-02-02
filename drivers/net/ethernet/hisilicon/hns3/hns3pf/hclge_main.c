@@ -5586,12 +5586,18 @@ static bool hclge_is_all_function_id_zero(struct hclge_desc *desc)
 }
 
 static void hclge_prepare_mac_addr(struct hclge_mac_vlan_tbl_entry_cmd *new_req,
-				   const u8 *addr)
+				   const u8 *addr, bool is_mc)
 {
 	const unsigned char *mac_addr = addr;
 	u32 high_val = mac_addr[2] << 16 | (mac_addr[3] << 24) |
 		       (mac_addr[0]) | (mac_addr[1] << 8);
 	u32 low_val  = mac_addr[4] | (mac_addr[5] << 8);
+
+	hnae3_set_bit(new_req->flags, HCLGE_MAC_VLAN_BIT0_EN_B, 1);
+	if (is_mc) {
+		hnae3_set_bit(new_req->entry_type, HCLGE_MAC_VLAN_BIT1_EN_B, 1);
+		hnae3_set_bit(new_req->mc_mac_en, HCLGE_MAC_VLAN_BIT0_EN_B, 1);
+	}
 
 	new_req->mac_addr_hi32 = cpu_to_le32(high_val);
 	new_req->mac_addr_lo16 = cpu_to_le16(low_val & 0xffff);
@@ -5863,14 +5869,13 @@ int hclge_add_uc_addr_common(struct hclge_vport *vport,
 	}
 
 	memset(&req, 0, sizeof(req));
-	hnae3_set_bit(req.flags, HCLGE_MAC_VLAN_BIT0_EN_B, 1);
 
 	hnae3_set_field(egress_port, HCLGE_MAC_EPORT_VFID_M,
 			HCLGE_MAC_EPORT_VFID_S, vport->vport_id);
 
 	req.egress_port = cpu_to_le16(egress_port);
 
-	hclge_prepare_mac_addr(&req, addr);
+	hclge_prepare_mac_addr(&req, addr, false);
 
 	/* Lookup the mac address in the mac_vlan table, and add
 	 * it if the entry is inexistent. Repeated unicast entry
@@ -5928,9 +5933,8 @@ int hclge_rm_uc_addr_common(struct hclge_vport *vport,
 	}
 
 	memset(&req, 0, sizeof(req));
-	hnae3_set_bit(req.flags, HCLGE_MAC_VLAN_BIT0_EN_B, 1);
 	hnae3_set_bit(req.entry_type, HCLGE_MAC_VLAN_BIT0_EN_B, 0);
-	hclge_prepare_mac_addr(&req, addr);
+	hclge_prepare_mac_addr(&req, addr, false);
 	ret = hclge_remove_mac_vlan_tbl(vport, &req);
 	if (!ret)
 		hclge_update_umv_space(vport, true);
@@ -5962,11 +5966,8 @@ int hclge_add_mc_addr_common(struct hclge_vport *vport,
 		return -EINVAL;
 	}
 	memset(&req, 0, sizeof(req));
-	hnae3_set_bit(req.flags, HCLGE_MAC_VLAN_BIT0_EN_B, 1);
 	hnae3_set_bit(req.entry_type, HCLGE_MAC_VLAN_BIT0_EN_B, 0);
-	hnae3_set_bit(req.entry_type, HCLGE_MAC_VLAN_BIT1_EN_B, 1);
-	hnae3_set_bit(req.mc_mac_en, HCLGE_MAC_VLAN_BIT0_EN_B, 1);
-	hclge_prepare_mac_addr(&req, addr);
+	hclge_prepare_mac_addr(&req, addr, true);
 	status = hclge_lookup_mac_vlan_tbl(vport, &req, desc, true);
 	if (!status) {
 		/* This mac addr exist, update VFID for it */
@@ -6012,11 +6013,8 @@ int hclge_rm_mc_addr_common(struct hclge_vport *vport,
 	}
 
 	memset(&req, 0, sizeof(req));
-	hnae3_set_bit(req.flags, HCLGE_MAC_VLAN_BIT0_EN_B, 1);
 	hnae3_set_bit(req.entry_type, HCLGE_MAC_VLAN_BIT0_EN_B, 0);
-	hnae3_set_bit(req.entry_type, HCLGE_MAC_VLAN_BIT1_EN_B, 1);
-	hnae3_set_bit(req.mc_mac_en, HCLGE_MAC_VLAN_BIT0_EN_B, 1);
-	hclge_prepare_mac_addr(&req, addr);
+	hclge_prepare_mac_addr(&req, addr, true);
 	status = hclge_lookup_mac_vlan_tbl(vport, &req, desc, true);
 	if (!status) {
 		/* This mac addr exist, remove this handle's VFID for it */
