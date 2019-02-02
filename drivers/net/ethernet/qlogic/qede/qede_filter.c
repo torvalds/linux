@@ -1791,72 +1791,6 @@ static int qede_flow_spec_to_tuple_udpv6(struct qede_dev *edev,
 	return 0;
 }
 
-static int qede_flow_spec_to_tuple(struct qede_dev *edev,
-				   struct qede_arfs_tuple *t,
-				   struct ethtool_rx_flow_spec *fs)
-{
-	memset(t, 0, sizeof(*t));
-
-	if (qede_flow_spec_validate_unused(edev, fs))
-		return -EOPNOTSUPP;
-
-	switch ((fs->flow_type & ~FLOW_EXT)) {
-	case TCP_V4_FLOW:
-		return qede_flow_spec_to_tuple_tcpv4(edev, t, fs);
-	case UDP_V4_FLOW:
-		return qede_flow_spec_to_tuple_udpv4(edev, t, fs);
-	case TCP_V6_FLOW:
-		return qede_flow_spec_to_tuple_tcpv6(edev, t, fs);
-	case UDP_V6_FLOW:
-		return qede_flow_spec_to_tuple_udpv6(edev, t, fs);
-	default:
-		DP_VERBOSE(edev, NETIF_MSG_IFUP,
-			   "Can't support flow of type %08x\n", fs->flow_type);
-		return -EOPNOTSUPP;
-	}
-
-	return 0;
-}
-
-static int qede_flow_spec_validate(struct qede_dev *edev,
-				   struct ethtool_rx_flow_spec *fs,
-				   struct qede_arfs_tuple *t)
-{
-	if (fs->location >= QEDE_RFS_MAX_FLTR) {
-		DP_INFO(edev, "Location out-of-bounds\n");
-		return -EINVAL;
-	}
-
-	/* Check location isn't already in use */
-	if (test_bit(fs->location, edev->arfs->arfs_fltr_bmap)) {
-		DP_INFO(edev, "Location already in use\n");
-		return -EINVAL;
-	}
-
-	/* Check if the filtering-mode could support the filter */
-	if (edev->arfs->filter_count &&
-	    edev->arfs->mode != t->mode) {
-		DP_INFO(edev,
-			"flow_spec would require filtering mode %08x, but %08x is configured\n",
-			t->mode, edev->arfs->filter_count);
-		return -EINVAL;
-	}
-
-	/* If drop requested then no need to validate other data */
-	if (fs->ring_cookie == RX_CLS_FLOW_DISC)
-		return 0;
-
-	if (ethtool_get_flow_spec_ring_vf(fs->ring_cookie))
-		return 0;
-
-	if (fs->ring_cookie >= QEDE_RSS_COUNT(edev)) {
-		DP_INFO(edev, "Queue out-of-bounds\n");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 /* Must be called while qede lock is held */
 static struct qede_arfs_fltr_node *
 qede_flow_find_fltr(struct qede_dev *edev, struct qede_arfs_tuple *t)
@@ -1894,72 +1828,6 @@ static void qede_flow_set_destination(struct qede_dev *edev,
 	if (n->vfid)
 		DP_VERBOSE(edev, QED_MSG_SP,
 			   "Configuring N-tuple for VF 0x%02x\n", n->vfid - 1);
-}
-
-int qede_add_cls_rule(struct qede_dev *edev, struct ethtool_rxnfc *info)
-{
-	struct ethtool_rx_flow_spec *fsp = &info->fs;
-	struct qede_arfs_fltr_node *n;
-	struct qede_arfs_tuple t;
-	int min_hlen, rc;
-
-	__qede_lock(edev);
-
-	if (!edev->arfs) {
-		rc = -EPERM;
-		goto unlock;
-	}
-
-	/* Translate the flow specification into something fittign our DB */
-	rc = qede_flow_spec_to_tuple(edev, &t, fsp);
-	if (rc)
-		goto unlock;
-
-	/* Make sure location is valid and filter isn't already set */
-	rc = qede_flow_spec_validate(edev, fsp, &t);
-	if (rc)
-		goto unlock;
-
-	if (qede_flow_find_fltr(edev, &t)) {
-		rc = -EINVAL;
-		goto unlock;
-	}
-
-	n = kzalloc(sizeof(*n), GFP_KERNEL);
-	if (!n) {
-		rc = -ENOMEM;
-		goto unlock;
-	}
-
-	min_hlen = qede_flow_get_min_header_size(&t);
-	n->data = kzalloc(min_hlen, GFP_KERNEL);
-	if (!n->data) {
-		kfree(n);
-		rc = -ENOMEM;
-		goto unlock;
-	}
-
-	n->sw_id = fsp->location;
-	set_bit(n->sw_id, edev->arfs->arfs_fltr_bmap);
-	n->buf_len = min_hlen;
-
-	memcpy(&n->tuple, &t, sizeof(n->tuple));
-
-	qede_flow_set_destination(edev, n, fsp);
-
-	/* Build a minimal header according to the flow */
-	n->tuple.build_hdr(&n->tuple, n->data);
-
-	rc = qede_enqueue_fltr_and_config_searcher(edev, n, 0);
-	if (rc)
-		goto unlock;
-
-	qede_configure_arfs_fltr(edev, n, n->rxq_id, true);
-	rc = qede_poll_arfs_filter_config(edev, n);
-unlock:
-	__qede_unlock(edev);
-
-	return rc;
 }
 
 int qede_delete_flow_filter(struct qede_dev *edev, u64 cookie)
@@ -2275,5 +2143,137 @@ int qede_add_tc_flower_fltr(struct qede_dev *edev, __be16 proto,
 
 unlock:
 	__qede_unlock(edev);
+	return rc;
+}
+
+static int qede_flow_spec_validate(struct qede_dev *edev,
+				   struct ethtool_rx_flow_spec *fs,
+				   struct qede_arfs_tuple *t)
+{
+	if (fs->location >= QEDE_RFS_MAX_FLTR) {
+		DP_INFO(edev, "Location out-of-bounds\n");
+		return -EINVAL;
+	}
+
+	/* Check location isn't already in use */
+	if (test_bit(fs->location, edev->arfs->arfs_fltr_bmap)) {
+		DP_INFO(edev, "Location already in use\n");
+		return -EINVAL;
+	}
+
+	/* Check if the filtering-mode could support the filter */
+	if (edev->arfs->filter_count &&
+	    edev->arfs->mode != t->mode) {
+		DP_INFO(edev,
+			"flow_spec would require filtering mode %08x, but %08x is configured\n",
+			t->mode, edev->arfs->filter_count);
+		return -EINVAL;
+	}
+
+	/* If drop requested then no need to validate other data */
+	if (fs->ring_cookie == RX_CLS_FLOW_DISC)
+		return 0;
+
+	if (ethtool_get_flow_spec_ring_vf(fs->ring_cookie))
+		return 0;
+
+	if (fs->ring_cookie >= QEDE_RSS_COUNT(edev)) {
+		DP_INFO(edev, "Queue out-of-bounds\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int qede_flow_spec_to_tuple(struct qede_dev *edev,
+				   struct qede_arfs_tuple *t,
+				   struct ethtool_rx_flow_spec *fs)
+{
+	memset(t, 0, sizeof(*t));
+
+	if (qede_flow_spec_validate_unused(edev, fs))
+		return -EOPNOTSUPP;
+
+	switch ((fs->flow_type & ~FLOW_EXT)) {
+	case TCP_V4_FLOW:
+		return qede_flow_spec_to_tuple_tcpv4(edev, t, fs);
+	case UDP_V4_FLOW:
+		return qede_flow_spec_to_tuple_udpv4(edev, t, fs);
+	case TCP_V6_FLOW:
+		return qede_flow_spec_to_tuple_tcpv6(edev, t, fs);
+	case UDP_V6_FLOW:
+		return qede_flow_spec_to_tuple_udpv6(edev, t, fs);
+	default:
+		DP_VERBOSE(edev, NETIF_MSG_IFUP,
+			   "Can't support flow of type %08x\n", fs->flow_type);
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+int qede_add_cls_rule(struct qede_dev *edev, struct ethtool_rxnfc *info)
+{
+	struct ethtool_rx_flow_spec *fsp = &info->fs;
+	struct qede_arfs_fltr_node *n;
+	struct qede_arfs_tuple t;
+	int min_hlen, rc;
+
+	__qede_lock(edev);
+
+	if (!edev->arfs) {
+		rc = -EPERM;
+		goto unlock;
+	}
+
+	/* Translate the flow specification into something fittign our DB */
+	rc = qede_flow_spec_to_tuple(edev, &t, fsp);
+	if (rc)
+		goto unlock;
+
+	/* Make sure location is valid and filter isn't already set */
+	rc = qede_flow_spec_validate(edev, fsp, &t);
+	if (rc)
+		goto unlock;
+
+	if (qede_flow_find_fltr(edev, &t)) {
+		rc = -EINVAL;
+		goto unlock;
+	}
+
+	n = kzalloc(sizeof(*n), GFP_KERNEL);
+	if (!n) {
+		rc = -ENOMEM;
+		goto unlock;
+	}
+
+	min_hlen = qede_flow_get_min_header_size(&t);
+	n->data = kzalloc(min_hlen, GFP_KERNEL);
+	if (!n->data) {
+		kfree(n);
+		rc = -ENOMEM;
+		goto unlock;
+	}
+
+	n->sw_id = fsp->location;
+	set_bit(n->sw_id, edev->arfs->arfs_fltr_bmap);
+	n->buf_len = min_hlen;
+
+	memcpy(&n->tuple, &t, sizeof(n->tuple));
+
+	qede_flow_set_destination(edev, n, fsp);
+
+	/* Build a minimal header according to the flow */
+	n->tuple.build_hdr(&n->tuple, n->data);
+
+	rc = qede_enqueue_fltr_and_config_searcher(edev, n, 0);
+	if (rc)
+		goto unlock;
+
+	qede_configure_arfs_fltr(edev, n, n->rxq_id, true);
+	rc = qede_poll_arfs_filter_config(edev, n);
+unlock:
+	__qede_unlock(edev);
+
 	return rc;
 }
