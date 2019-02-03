@@ -764,10 +764,10 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 			goto err_mtt;
 		}
 
-		hr_qp->sq.wrid = kmalloc_array(hr_qp->sq.wqe_cnt, sizeof(u64),
-					       GFP_KERNEL);
-		hr_qp->rq.wrid = kmalloc_array(hr_qp->rq.wqe_cnt, sizeof(u64),
-					       GFP_KERNEL);
+		hr_qp->sq.wrid = kcalloc(hr_qp->sq.wqe_cnt, sizeof(u64),
+					 GFP_KERNEL);
+		hr_qp->rq.wrid = kcalloc(hr_qp->rq.wqe_cnt, sizeof(u64),
+					 GFP_KERNEL);
 		if (!hr_qp->sq.wrid || !hr_qp->rq.wrid) {
 			ret = -ENOMEM;
 			goto err_wrid;
