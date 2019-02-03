@@ -1384,28 +1384,28 @@ void device_link_remove(void *consumer, struct device *supplier);
 
 #ifdef CONFIG_PRINTK
 
-__printf(3, 0)
+__printf(3, 0) __cold
 int dev_vprintk_emit(int level, const struct device *dev,
 		     const char *fmt, va_list args);
-__printf(3, 4)
+__printf(3, 4) __cold
 int dev_printk_emit(int level, const struct device *dev, const char *fmt, ...);
 
-__printf(3, 4)
+__printf(3, 4) __cold
 void dev_printk(const char *level, const struct device *dev,
 		const char *fmt, ...);
-__printf(2, 3)
+__printf(2, 3) __cold
 void _dev_emerg(const struct device *dev, const char *fmt, ...);
-__printf(2, 3)
+__printf(2, 3) __cold
 void _dev_alert(const struct device *dev, const char *fmt, ...);
-__printf(2, 3)
+__printf(2, 3) __cold
 void _dev_crit(const struct device *dev, const char *fmt, ...);
-__printf(2, 3)
+__printf(2, 3) __cold
 void _dev_err(const struct device *dev, const char *fmt, ...);
-__printf(2, 3)
+__printf(2, 3) __cold
 void _dev_warn(const struct device *dev, const char *fmt, ...);
-__printf(2, 3)
+__printf(2, 3) __cold
 void _dev_notice(const struct device *dev, const char *fmt, ...);
-__printf(2, 3)
+__printf(2, 3) __cold
 void _dev_info(const struct device *dev, const char *fmt, ...);
 
 #else
