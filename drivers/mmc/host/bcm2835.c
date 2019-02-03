@@ -1455,7 +1455,6 @@ static int bcm2835_remove(struct platform_device *pdev)
 		dma_release_channel(host->dma_chan_rxtx);
 
 	mmc_free_host(mmc);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
