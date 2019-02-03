@@ -19,6 +19,48 @@
 #define PHY_ID_AQR107	0x03a1b4e0
 #define PHY_ID_AQR405	0x03a1b4b0
 
+#define MDIO_AN_TX_VEND_STATUS1			0xc800
+#define MDIO_AN_TX_VEND_STATUS1_10BASET		(0x0 << 1)
+#define MDIO_AN_TX_VEND_STATUS1_100BASETX	(0x1 << 1)
+#define MDIO_AN_TX_VEND_STATUS1_1000BASET	(0x2 << 1)
+#define MDIO_AN_TX_VEND_STATUS1_10GBASET	(0x3 << 1)
+#define MDIO_AN_TX_VEND_STATUS1_2500BASET	(0x4 << 1)
+#define MDIO_AN_TX_VEND_STATUS1_5000BASET	(0x5 << 1)
+#define MDIO_AN_TX_VEND_STATUS1_RATE_MASK	(0x7 << 1)
+#define MDIO_AN_TX_VEND_STATUS1_FULL_DUPLEX	BIT(0)
+
+#define MDIO_AN_TX_VEND_INT_STATUS2		0xcc01
+
+#define MDIO_AN_TX_VEND_INT_MASK2		0xd401
+#define MDIO_AN_TX_VEND_INT_MASK2_LINK		BIT(0)
+
+/* Vendor specific 1, MDIO_MMD_VEND1 */
+#define VEND1_GLOBAL_INT_STD_STATUS		0xfc00
+#define VEND1_GLOBAL_INT_VEND_STATUS		0xfc01
+
+#define VEND1_GLOBAL_INT_STD_MASK		0xff00
+#define VEND1_GLOBAL_INT_STD_MASK_PMA1		BIT(15)
+#define VEND1_GLOBAL_INT_STD_MASK_PMA2		BIT(14)
+#define VEND1_GLOBAL_INT_STD_MASK_PCS1		BIT(13)
+#define VEND1_GLOBAL_INT_STD_MASK_PCS2		BIT(12)
+#define VEND1_GLOBAL_INT_STD_MASK_PCS3		BIT(11)
+#define VEND1_GLOBAL_INT_STD_MASK_PHY_XS1	BIT(10)
+#define VEND1_GLOBAL_INT_STD_MASK_PHY_XS2	BIT(9)
+#define VEND1_GLOBAL_INT_STD_MASK_AN1		BIT(8)
+#define VEND1_GLOBAL_INT_STD_MASK_AN2		BIT(7)
+#define VEND1_GLOBAL_INT_STD_MASK_GBE		BIT(6)
+#define VEND1_GLOBAL_INT_STD_MASK_ALL		BIT(0)
+
+#define VEND1_GLOBAL_INT_VEND_MASK		0xff01
+#define VEND1_GLOBAL_INT_VEND_MASK_PMA		BIT(15)
+#define VEND1_GLOBAL_INT_VEND_MASK_PCS		BIT(14)
+#define VEND1_GLOBAL_INT_VEND_MASK_PHY_XS	BIT(13)
+#define VEND1_GLOBAL_INT_VEND_MASK_AN		BIT(12)
+#define VEND1_GLOBAL_INT_VEND_MASK_GBE		BIT(11)
+#define VEND1_GLOBAL_INT_VEND_MASK_GLOBAL1	BIT(2)
+#define VEND1_GLOBAL_INT_VEND_MASK_GLOBAL2	BIT(1)
+#define VEND1_GLOBAL_INT_VEND_MASK_GLOBAL3	BIT(0)
+
 static int aqr_config_aneg(struct phy_device *phydev)
 {
 	linkmode_copy(phydev->supported, phy_10gbit_features);
@@ -32,25 +74,35 @@ static int aqr_config_intr(struct phy_device *phydev)
 	int err;
 
 	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
-		err = phy_write_mmd(phydev, MDIO_MMD_AN, 0xd401, 1);
+		err = phy_write_mmd(phydev, MDIO_MMD_AN,
+				    MDIO_AN_TX_VEND_INT_MASK2,
+				    MDIO_AN_TX_VEND_INT_MASK2_LINK);
 		if (err < 0)
 			return err;
 
-		err = phy_write_mmd(phydev, MDIO_MMD_VEND1, 0xff00, 1);
+		err = phy_write_mmd(phydev, MDIO_MMD_VEND1,
+				    VEND1_GLOBAL_INT_STD_MASK,
+				    VEND1_GLOBAL_INT_STD_MASK_ALL);
 		if (err < 0)
 			return err;
 
-		err = phy_write_mmd(phydev, MDIO_MMD_VEND1, 0xff01, 0x1001);
+		err = phy_write_mmd(phydev, MDIO_MMD_VEND1,
+				    VEND1_GLOBAL_INT_VEND_MASK,
+				    VEND1_GLOBAL_INT_VEND_MASK_GLOBAL3 |
+				    VEND1_GLOBAL_INT_VEND_MASK_AN);
 	} else {
-		err = phy_write_mmd(phydev, MDIO_MMD_AN, 0xd401, 0);
+		err = phy_write_mmd(phydev, MDIO_MMD_AN,
+				    MDIO_AN_TX_VEND_INT_MASK2, 0);
 		if (err < 0)
 			return err;
 
-		err = phy_write_mmd(phydev, MDIO_MMD_VEND1, 0xff00, 0);
+		err = phy_write_mmd(phydev, MDIO_MMD_VEND1,
+				    VEND1_GLOBAL_INT_STD_MASK, 0);
 		if (err < 0)
 			return err;
 
-		err = phy_write_mmd(phydev, MDIO_MMD_VEND1, 0xff01, 0);
+		err = phy_write_mmd(phydev, MDIO_MMD_VEND1,
+				    VEND1_GLOBAL_INT_VEND_MASK, 0);
 	}
 
 	return err;
@@ -60,7 +112,8 @@ static int aqr_ack_interrupt(struct phy_device *phydev)
 {
 	int reg;
 
-	reg = phy_read_mmd(phydev, MDIO_MMD_AN, 0xcc01);
+	reg = phy_read_mmd(phydev, MDIO_MMD_AN,
+			   MDIO_AN_TX_VEND_INT_STATUS2);
 	return (reg < 0) ? reg : 0;
 }
 
@@ -75,21 +128,20 @@ static int aqr_read_status(struct phy_device *phydev)
 	else
 		phydev->link = 0;
 
-	reg = phy_read_mmd(phydev, MDIO_MMD_AN, 0xc800);
+	reg = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_TX_VEND_STATUS1);
 	mdelay(10);
-	reg = phy_read_mmd(phydev, MDIO_MMD_AN, 0xc800);
+	reg = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_TX_VEND_STATUS1);
 
-	switch (reg) {
-	case 0x9:
+	switch (reg & MDIO_AN_TX_VEND_STATUS1_RATE_MASK) {
+	case MDIO_AN_TX_VEND_STATUS1_2500BASET:
 		phydev->speed = SPEED_2500;
 		break;
-	case 0x5:
+	case MDIO_AN_TX_VEND_STATUS1_1000BASET:
 		phydev->speed = SPEED_1000;
 		break;
-	case 0x3:
+	case MDIO_AN_TX_VEND_STATUS1_100BASETX:
 		phydev->speed = SPEED_100;
 		break;
-	case 0x7:
 	default:
 		phydev->speed = SPEED_10000;
 		break;
