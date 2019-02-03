@@ -10,10 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/mii.h>
-#include <linux/ethtool.h>
 #include <linux/phy.h>
-#include <linux/mdio.h>
 
 #define PHY_ID_AQ1202	0x03a1b445
 #define PHY_ID_AQ2104	0x03a1b460
