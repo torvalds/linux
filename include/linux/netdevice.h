@@ -4663,22 +4663,22 @@ static inline const char *netdev_reg_state(const struct net_device *dev)
 	return " (unknown)";
 }
 
-__printf(3, 4)
+__printf(3, 4) __cold
 void netdev_printk(const char *level, const struct net_device *dev,
 		   const char *format, ...);
-__printf(2, 3)
+__printf(2, 3) __cold
 void netdev_emerg(const struct net_device *dev, const char *format, ...);
-__printf(2, 3)
+__printf(2, 3) __cold
 void netdev_alert(const struct net_device *dev, const char *format, ...);
-__printf(2, 3)
+__printf(2, 3) __cold
 void netdev_crit(const struct net_device *dev, const char *format, ...);
-__printf(2, 3)
+__printf(2, 3) __cold
 void netdev_err(const struct net_device *dev, const char *format, ...);
-__printf(2, 3)
+__printf(2, 3) __cold
 void netdev_warn(const struct net_device *dev, const char *format, ...);
-__printf(2, 3)
+__printf(2, 3) __cold
 void netdev_notice(const struct net_device *dev, const char *format, ...);
-__printf(2, 3)
+__printf(2, 3) __cold
 void netdev_info(const struct net_device *dev, const char *format, ...);
 
 #define netdev_level_once(level, dev, fmt, ...)			\
