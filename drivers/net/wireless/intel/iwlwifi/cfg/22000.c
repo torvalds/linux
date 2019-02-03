@@ -223,8 +223,8 @@ const struct iwl_cfg iwl22000_2ac_cfg_jf = {
 	IWL_DEVICE_22500,
 };
 
-const struct iwl_cfg iwl22560_2ax_cfg_hr = {
-	.name = "Intel(R) Wireless-AX 22560",
+const struct iwl_cfg iwl_ax101_cfg_qu_hr = {
+	.name = "Intel(R) Wi-Fi 6 AX101",
 	.fw_name_pre = IWL_22000_QU_B_HR_B_FW_PRE,
 	IWL_DEVICE_22500,
 	/*
@@ -249,7 +249,7 @@ const struct iwl_cfg iwl22260_2ax_cfg = {
 };
 
 const struct iwl_cfg killer1650x_2ax_cfg = {
-	.name = "Killer(R) Wireless-AX 1650x Wireless Network Adapter (22260NGW)",
+	.name = "Killer(R) Wireless-AX 1650x Wireless Network Adapter (200NGW)",
 	.fw_name_pre = IWL_CC_A_FW_PRE,
 	IWL_DEVICE_22500,
 	/*
@@ -262,7 +262,7 @@ const struct iwl_cfg killer1650x_2ax_cfg = {
 };
 
 const struct iwl_cfg killer1650w_2ax_cfg = {
-	.name = "Killer(R) Wireless-AX 1650w Wireless Network Adapter (22260D2W)",
+	.name = "Killer(R) Wireless-AX 1650w Wireless Network Adapter (200D2W)",
 	.fw_name_pre = IWL_CC_A_FW_PRE,
 	IWL_DEVICE_22500,
 	/*
