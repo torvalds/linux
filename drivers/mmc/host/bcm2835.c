@@ -1286,7 +1286,7 @@ static int bcm2835_add_host(struct bcm2835_host *host)
 	spin_lock_init(&host->lock);
 	mutex_init(&host->mutex);
 
-	if (IS_ERR_OR_NULL(host->dma_chan_rxtx)) {
+	if (!host->dma_chan_rxtx) {
 		dev_warn(dev, "unable to initialise DMA channel. Falling back to PIO\n");
 		host->use_dma = false;
 	} else {
