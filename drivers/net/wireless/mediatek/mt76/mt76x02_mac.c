@@ -926,7 +926,7 @@ void mt76x02_edcca_init(struct mt76x02_dev *dev, bool enable)
 }
 EXPORT_SYMBOL_GPL(mt76x02_edcca_init);
 
-#define MT_EDCCA_TH		90
+#define MT_EDCCA_TH		92
 #define MT_EDCCA_BLOCK_TH	2
 static void mt76x02_edcca_check(struct mt76x02_dev *dev)
 {
