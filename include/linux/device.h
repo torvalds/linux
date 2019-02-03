@@ -1017,7 +1017,7 @@ struct device {
 
 	struct list_head	dma_pools;	/* dma pools (if dma'ble) */
 
-#ifdef CONFIG_HAVE_GENERIC_DMA_COHERENT
+#ifdef CONFIG_DMA_DECLARE_COHERENT
 	struct dma_coherent_mem	*dma_mem; /* internal for coherent mem
 					     override */
 #endif

@@ -153,7 +153,7 @@ static inline int is_device_dma_capable(struct device *dev)
 	return dev->dma_mask != NULL && *dev->dma_mask != DMA_MASK_NONE;
 }
 
-#ifdef CONFIG_HAVE_GENERIC_DMA_COHERENT
+#ifdef CONFIG_DMA_DECLARE_COHERENT
 /*
  * These three functions are only for dma allocator.
  * Don't use them in device drivers.
@@ -192,7 +192,7 @@ static inline int dma_mmap_from_global_coherent(struct vm_area_struct *vma,
 {
 	return 0;
 }
-#endif /* CONFIG_HAVE_GENERIC_DMA_COHERENT */
+#endif /* CONFIG_DMA_DECLARE_COHERENT */
 
 static inline bool dma_is_direct(const struct dma_map_ops *ops)
 {
@@ -739,7 +739,7 @@ static inline int dma_get_cache_alignment(void)
 /* flags for the coherent memory api */
 #define DMA_MEMORY_EXCLUSIVE		0x01
 
-#ifdef CONFIG_HAVE_GENERIC_DMA_COHERENT
+#ifdef CONFIG_DMA_DECLARE_COHERENT
 int dma_declare_coherent_memory(struct device *dev, phys_addr_t phys_addr,
 				dma_addr_t device_addr, size_t size, int flags);
 void dma_release_declared_memory(struct device *dev);
@@ -764,7 +764,7 @@ dma_mark_declared_memory_occupied(struct device *dev,
 {
 	return ERR_PTR(-EBUSY);
 }
-#endif /* CONFIG_HAVE_GENERIC_DMA_COHERENT */
+#endif /* CONFIG_DMA_DECLARE_COHERENT */
 
 static inline void *dmam_alloc_coherent(struct device *dev, size_t size,
 		dma_addr_t *dma_handle, gfp_t gfp)
