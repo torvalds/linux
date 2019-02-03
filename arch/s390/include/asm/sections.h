@@ -23,4 +23,7 @@
  */
 #define __bootdata_preserved(var) __section(.boot.preserved.data.var) var
 
+extern unsigned long __sdma, __edma;
+extern unsigned long __stext_dma, __etext_dma;
+
 #endif

@@ -127,7 +127,6 @@ enum diag308_rc {
 };
 
 extern int diag308(unsigned long subcode, void *addr);
-extern void diag308_reset(void);
 extern void store_status(void (*fn)(void *), void *data);
 extern void lgr_info_log(void);
 

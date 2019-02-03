@@ -573,7 +573,7 @@ static int kprobe_trap_handler(struct pt_regs *regs, int trapnr)
 		 * In case the user-specified fault handler returned
 		 * zero, try to fix up.
 		 */
-		entry = search_exception_tables(regs->psw.addr);
+		entry = s390_search_extables(regs->psw.addr);
 		if (entry) {
 			regs->psw.addr = extable_fixup(entry);
 			return 1;

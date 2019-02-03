@@ -16,26 +16,12 @@
 #define DBFS_D0C_HDR_VERSION 0
 
 /*
- * Execute diagnose 0c in 31 bit mode
- */
-static void diag0c(struct hypfs_diag0c_entry *entry)
-{
-	diag_stat_inc(DIAG_STAT_X00C);
-	asm volatile (
-		"	sam31\n"
-		"	diag	%0,%0,0x0c\n"
-		"	sam64\n"
-		: /* no output register */
-		: "a" (entry)
-		: "memory");
-}
-
-/*
  * Get hypfs_diag0c_entry from CPU vector and store diag0c data
  */
 static void diag0c_fn(void *data)
 {
-	diag0c(((void **) data)[smp_processor_id()]);
+	diag_stat_inc(DIAG_STAT_X00C);
+	diag_dma_ops.diag0c(((void **) data)[smp_processor_id()]);
 }
 
 /*

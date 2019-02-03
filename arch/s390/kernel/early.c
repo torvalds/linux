@@ -139,7 +139,7 @@ static void early_pgm_check_handler(void)
 	unsigned long addr;
 
 	addr = S390_lowcore.program_old_psw.addr;
-	fixup = search_exception_tables(addr);
+	fixup = s390_search_extables(addr);
 	if (!fixup)
 		disabled_wait(0);
 	/* Disable low address protection before storing into lowcore. */

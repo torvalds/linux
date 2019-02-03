@@ -247,12 +247,24 @@ static noinline void do_sigsegv(struct pt_regs *regs, int si_code)
 			current);
 }
 
+const struct exception_table_entry *s390_search_extables(unsigned long addr)
+{
+	const struct exception_table_entry *fixup;
+
+	fixup = search_extable(__start_dma_ex_table,
+			       __stop_dma_ex_table - __start_dma_ex_table,
+			       addr);
+	if (!fixup)
+		fixup = search_exception_tables(addr);
+	return fixup;
+}
+
 static noinline void do_no_context(struct pt_regs *regs)
 {
 	const struct exception_table_entry *fixup;
 
 	/* Are we prepared to handle this kernel fault?  */
-	fixup = search_exception_tables(regs->psw.addr);
+	fixup = s390_search_extables(regs->psw.addr);
 	if (fixup) {
 		regs->psw.addr = extable_fixup(fixup);
 		return;

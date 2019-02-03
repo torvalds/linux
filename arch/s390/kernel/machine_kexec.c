@@ -253,6 +253,8 @@ void arch_crash_save_vmcoreinfo(void)
 	VMCOREINFO_SYMBOL(high_memory);
 	VMCOREINFO_LENGTH(lowcore_ptr, NR_CPUS);
 	mem_assign_absolute(S390_lowcore.vmcore_info, paddr_vmcoreinfo_note());
+	vmcoreinfo_append_str("SDMA=%lx\n", __sdma);
+	vmcoreinfo_append_str("EDMA=%lx\n", __edma);
 }
 
 void machine_shutdown(void)
