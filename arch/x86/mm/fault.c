@@ -595,7 +595,7 @@ static void show_ldttss(const struct desc_ptr *gdt, const char *name, u16 index)
 		return;
 	}
 
-	addr = desc.base0 | (desc.base1 << 16) | (desc.base2 << 24);
+	addr = desc.base0 | (desc.base1 << 16) | ((unsigned long)desc.base2 << 24);
 #ifdef CONFIG_X86_64
 	addr |= ((u64)desc.base3 << 32);
 #endif
