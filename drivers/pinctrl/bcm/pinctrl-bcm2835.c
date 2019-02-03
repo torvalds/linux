@@ -969,6 +969,7 @@ static int bcm2835_pinconf_set(struct pinctrl_dev *pctldev,
 }
 
 static const struct pinconf_ops bcm2835_pinconf_ops = {
+	.is_generic = true,
 	.pin_config_get = bcm2835_pinconf_get,
 	.pin_config_set = bcm2835_pinconf_set,
 };
