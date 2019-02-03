@@ -117,6 +117,7 @@ struct mt76x02_dev {
 	bool ed_monitor;
 	u8 ed_trigger;
 	u8 ed_silent;
+	ktime_t ed_time;
 };
 
 extern struct ieee80211_rate mt76x02_rates[12];

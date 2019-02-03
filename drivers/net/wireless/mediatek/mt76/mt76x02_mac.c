@@ -922,6 +922,7 @@ void mt76x02_edcca_init(struct mt76x02_dev *dev, bool enable)
 
 	/* clear previous CCA timer value */
 	mt76_rr(dev, MT_ED_CCA_TIMER);
+	dev->ed_time = ktime_get_boottime();
 }
 EXPORT_SYMBOL_GPL(mt76x02_edcca_init);
 
@@ -929,10 +930,16 @@ EXPORT_SYMBOL_GPL(mt76x02_edcca_init);
 #define MT_EDCCA_BLOCK_TH	2
 static void mt76x02_edcca_check(struct mt76x02_dev *dev)
 {
-	u32 val, busy;
+	ktime_t cur_time;
+	u32 active, val, busy;
 
+	cur_time = ktime_get_boottime();
 	val = mt76_rr(dev, MT_ED_CCA_TIMER);
-	busy = (val * 100) / jiffies_to_usecs(MT_MAC_WORK_INTERVAL);
+
+	active = ktime_to_us(ktime_sub(cur_time, dev->ed_time));
+	dev->ed_time = cur_time;
+
+	busy = (val * 100) / active;
 	busy = min_t(u32, busy, 100);
 
 	if (busy > MT_EDCCA_TH) {
