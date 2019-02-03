@@ -450,11 +450,12 @@ int qedr_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 				  vma->vm_page_prot);
 }
 
-struct ib_pd *qedr_alloc_pd(struct ib_device *ibdev,
-			    struct ib_ucontext *context, struct ib_udata *udata)
+int qedr_alloc_pd(struct ib_pd *ibpd, struct ib_ucontext *context,
+		  struct ib_udata *udata)
 {
+	struct ib_device *ibdev = ibpd->device;
 	struct qedr_dev *dev = get_qedr_dev(ibdev);
-	struct qedr_pd *pd;
+	struct qedr_pd *pd = get_qedr_pd(ibpd);
 	u16 pd_id;
 	int rc;
 
@@ -463,16 +464,12 @@ struct ib_pd *qedr_alloc_pd(struct ib_device *ibdev,
 
 	if (!dev->rdma_ctx) {
 		DP_ERR(dev, "invalid RDMA context\n");
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 	}
-
-	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
-	if (!pd)
-		return ERR_PTR(-ENOMEM);
 
 	rc = dev->ops->rdma_alloc_pd(dev->rdma_ctx, &pd_id);
 	if (rc)
-		goto err;
+		return rc;
 
 	pd->pd_id = pd_id;
 
@@ -485,36 +482,23 @@ struct ib_pd *qedr_alloc_pd(struct ib_device *ibdev,
 		if (rc) {
 			DP_ERR(dev, "copy error pd_id=0x%x.\n", pd_id);
 			dev->ops->rdma_dealloc_pd(dev->rdma_ctx, pd_id);
-			goto err;
+			return rc;
 		}
 
 		pd->uctx = get_qedr_ucontext(context);
 		pd->uctx->pd = pd;
 	}
 
-	return &pd->ibpd;
-
-err:
-	kfree(pd);
-	return ERR_PTR(rc);
+	return 0;
 }
 
-int qedr_dealloc_pd(struct ib_pd *ibpd)
+void qedr_dealloc_pd(struct ib_pd *ibpd)
 {
 	struct qedr_dev *dev = get_qedr_dev(ibpd->device);
 	struct qedr_pd *pd = get_qedr_pd(ibpd);
 
-	if (!pd) {
-		pr_err("Invalid PD received in dealloc_pd\n");
-		return -EINVAL;
-	}
-
 	DP_DEBUG(dev, QEDR_MSG_INIT, "Deallocating PD %d\n", pd->pd_id);
 	dev->ops->rdma_dealloc_pd(dev->rdma_ctx, pd->pd_id);
-
-	kfree(pd);
-
-	return 0;
 }
 
 static void qedr_free_pbl(struct qedr_dev *dev,

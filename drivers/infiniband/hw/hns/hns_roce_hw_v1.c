@@ -711,13 +711,14 @@ static int hns_roce_v1_rsv_lp_qp(struct hns_roce_dev *hr_dev)
 	struct ib_qp_attr attr = { 0 };
 	struct hns_roce_v1_priv *priv;
 	struct hns_roce_qp *hr_qp;
+	struct ib_device *ibdev;
 	struct ib_cq *cq;
 	struct ib_pd *pd;
 	union ib_gid dgid;
 	u64 subnet_prefix;
 	int attr_mask = 0;
+	int ret = -ENOMEM;
 	int i, j;
-	int ret;
 	u8 queue_en[HNS_ROCE_V1_RESV_QP] = { 0 };
 	u8 phy_port;
 	u8 port = 0;
@@ -742,12 +743,16 @@ static int hns_roce_v1_rsv_lp_qp(struct hns_roce_dev *hr_dev)
 	free_mr->mr_free_cq->ib_cq.cq_context		= NULL;
 	atomic_set(&free_mr->mr_free_cq->ib_cq.usecnt, 0);
 
-	pd = hns_roce_alloc_pd(&hr_dev->ib_dev, NULL, NULL);
-	if (IS_ERR(pd)) {
-		dev_err(dev, "Create pd for reserved loop qp failed!");
-		ret = -ENOMEM;
+	ibdev = &hr_dev->ib_dev;
+	pd = rdma_zalloc_drv_obj(ibdev, ib_pd);
+	if (pd)
+		goto alloc_mem_failed;
+
+	pd->device  = ibdev;
+	ret = hns_roce_alloc_pd(pd, NULL, NULL);
+	if (ret)
 		goto alloc_pd_failed;
-	}
+
 	free_mr->mr_free_pd = to_hr_pd(pd);
 	free_mr->mr_free_pd->ibpd.device  = &hr_dev->ib_dev;
 	free_mr->mr_free_pd->ibpd.uobject = NULL;
@@ -854,10 +859,12 @@ create_lp_qp_failed:
 			dev_err(dev, "Destroy qp %d for mr free failed!\n", i);
 	}
 
-	if (hns_roce_dealloc_pd(pd))
-		dev_err(dev, "Destroy pd for create_lp_qp failed!\n");
+	hns_roce_dealloc_pd(pd);
 
 alloc_pd_failed:
+	kfree(pd);
+
+alloc_mem_failed:
 	if (hns_roce_ib_destroy_cq(cq))
 		dev_err(dev, "Destroy cq for create_lp_qp failed!\n");
 
@@ -891,9 +898,7 @@ static void hns_roce_v1_release_lp_qp(struct hns_roce_dev *hr_dev)
 	if (ret)
 		dev_err(dev, "Destroy cq for mr_free failed(%d)!\n", ret);
 
-	ret = hns_roce_dealloc_pd(&free_mr->mr_free_pd->ibpd);
-	if (ret)
-		dev_err(dev, "Destroy pd for mr_free failed(%d)!\n", ret);
+	hns_roce_dealloc_pd(&free_mr->mr_free_pd->ibpd);
 }
 
 static int hns_roce_db_init(struct hns_roce_dev *hr_dev)

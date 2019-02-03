@@ -254,16 +254,27 @@ struct ib_pd *__ib_alloc_pd(struct ib_device *device, unsigned int flags,
 {
 	struct ib_pd *pd;
 	int mr_access_flags = 0;
+	int ret;
 
-	pd = device->ops.alloc_pd(device, NULL, NULL);
-	if (IS_ERR(pd))
-		return pd;
+	pd = rdma_zalloc_drv_obj(device, ib_pd);
+	if (!pd)
+		return ERR_PTR(-ENOMEM);
 
 	pd->device = device;
 	pd->uobject = NULL;
 	pd->__internal_mr = NULL;
 	atomic_set(&pd->usecnt, 0);
 	pd->flags = flags;
+
+	pd->res.type = RDMA_RESTRACK_PD;
+	rdma_restrack_set_task(&pd->res, caller);
+
+	ret = device->ops.alloc_pd(pd, NULL, NULL);
+	if (ret) {
+		kfree(pd);
+		return ERR_PTR(ret);
+	}
+	rdma_restrack_kadd(&pd->res);
 
 	if (device->attrs.device_cap_flags & IB_DEVICE_LOCAL_DMA_LKEY)
 		pd->local_dma_lkey = device->local_dma_lkey;
@@ -274,10 +285,6 @@ struct ib_pd *__ib_alloc_pd(struct ib_device *device, unsigned int flags,
 		pr_warn("%s: enabling unsafe global rkey\n", caller);
 		mr_access_flags |= IB_ACCESS_REMOTE_READ | IB_ACCESS_REMOTE_WRITE;
 	}
-
-	pd->res.type = RDMA_RESTRACK_PD;
-	rdma_restrack_set_task(&pd->res, caller);
-	rdma_restrack_kadd(&pd->res);
 
 	if (mr_access_flags) {
 		struct ib_mr *mr;
@@ -329,10 +336,8 @@ void ib_dealloc_pd(struct ib_pd *pd)
 	WARN_ON(atomic_read(&pd->usecnt));
 
 	rdma_restrack_del(&pd->res);
-	/* Making delalloc_pd a void return is a WIP, no driver should return
-	   an error here. */
-	ret = pd->device->ops.dealloc_pd(pd);
-	WARN_ONCE(ret, "Infiniband HW driver failed dealloc_pd");
+	pd->device->ops.dealloc_pd(pd);
+	kfree(pd);
 }
 EXPORT_SYMBOL(ib_dealloc_pd);
 

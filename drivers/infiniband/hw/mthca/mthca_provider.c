@@ -374,40 +374,30 @@ static int mthca_mmap_uar(struct ib_ucontext *context,
 	return 0;
 }
 
-static struct ib_pd *mthca_alloc_pd(struct ib_device *ibdev,
-				    struct ib_ucontext *context,
-				    struct ib_udata *udata)
+static int mthca_alloc_pd(struct ib_pd *ibpd, struct ib_ucontext *context,
+			  struct ib_udata *udata)
 {
-	struct mthca_pd *pd;
+	struct ib_device *ibdev = ibpd->device;
+	struct mthca_pd *pd = to_mpd(ibpd);
 	int err;
 
-	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
-	if (!pd)
-		return ERR_PTR(-ENOMEM);
-
 	err = mthca_pd_alloc(to_mdev(ibdev), !context, pd);
-	if (err) {
-		kfree(pd);
-		return ERR_PTR(err);
-	}
+	if (err)
+		return err;
 
 	if (context) {
 		if (ib_copy_to_udata(udata, &pd->pd_num, sizeof (__u32))) {
 			mthca_pd_free(to_mdev(ibdev), pd);
-			kfree(pd);
-			return ERR_PTR(-EFAULT);
+			return -EFAULT;
 		}
 	}
 
-	return &pd->ibpd;
+	return 0;
 }
 
-static int mthca_dealloc_pd(struct ib_pd *pd)
+static void mthca_dealloc_pd(struct ib_pd *pd)
 {
 	mthca_pd_free(to_mdev(pd->device), to_mpd(pd));
-	kfree(pd);
-
-	return 0;
 }
 
 static struct ib_ah *mthca_ah_create(struct ib_pd *pd,
@@ -1228,6 +1218,7 @@ static const struct ib_device_ops mthca_dev_ops = {
 	.query_qp = mthca_query_qp,
 	.reg_user_mr = mthca_reg_user_mr,
 	.resize_cq = mthca_resize_cq,
+	INIT_RDMA_OBJ_SIZE(ib_pd, mthca_pd, ibpd),
 };
 
 static const struct ib_device_ops mthca_dev_arbel_srq_ops = {

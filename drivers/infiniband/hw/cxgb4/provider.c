@@ -209,7 +209,7 @@ static int c4iw_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 	return ret;
 }
 
-static int c4iw_deallocate_pd(struct ib_pd *pd)
+static void c4iw_deallocate_pd(struct ib_pd *pd)
 {
 	struct c4iw_dev *rhp;
 	struct c4iw_pd *php;
@@ -221,15 +221,13 @@ static int c4iw_deallocate_pd(struct ib_pd *pd)
 	mutex_lock(&rhp->rdev.stats.lock);
 	rhp->rdev.stats.pd.cur--;
 	mutex_unlock(&rhp->rdev.stats.lock);
-	kfree(php);
-	return 0;
 }
 
-static struct ib_pd *c4iw_allocate_pd(struct ib_device *ibdev,
-				      struct ib_ucontext *context,
-				      struct ib_udata *udata)
+static int c4iw_allocate_pd(struct ib_pd *pd, struct ib_ucontext *context,
+			    struct ib_udata *udata)
 {
-	struct c4iw_pd *php;
+	struct c4iw_pd *php = to_c4iw_pd(pd);
+	struct ib_device *ibdev = pd->device;
 	u32 pdid;
 	struct c4iw_dev *rhp;
 
@@ -237,12 +235,8 @@ static struct ib_pd *c4iw_allocate_pd(struct ib_device *ibdev,
 	rhp = (struct c4iw_dev *) ibdev;
 	pdid =  c4iw_get_resource(&rhp->rdev.resource.pdid_table);
 	if (!pdid)
-		return ERR_PTR(-EINVAL);
-	php = kzalloc(sizeof(*php), GFP_KERNEL);
-	if (!php) {
-		c4iw_put_resource(&rhp->rdev.resource.pdid_table, pdid);
-		return ERR_PTR(-ENOMEM);
-	}
+		return -EINVAL;
+
 	php->pdid = pdid;
 	php->rhp = rhp;
 	if (context) {
@@ -250,7 +244,7 @@ static struct ib_pd *c4iw_allocate_pd(struct ib_device *ibdev,
 
 		if (ib_copy_to_udata(udata, &uresp, sizeof(uresp))) {
 			c4iw_deallocate_pd(&php->ibpd);
-			return ERR_PTR(-EFAULT);
+			return -EFAULT;
 		}
 	}
 	mutex_lock(&rhp->rdev.stats.lock);
@@ -259,7 +253,7 @@ static struct ib_pd *c4iw_allocate_pd(struct ib_device *ibdev,
 		rhp->rdev.stats.pd.max = rhp->rdev.stats.pd.cur;
 	mutex_unlock(&rhp->rdev.stats.lock);
 	pr_debug("pdid 0x%0x ptr 0x%p\n", pdid, php);
-	return &php->ibpd;
+	return 0;
 }
 
 static int c4iw_query_pkey(struct ib_device *ibdev, u8 port, u16 index,
@@ -570,6 +564,7 @@ static const struct ib_device_ops c4iw_dev_ops = {
 	.query_qp = c4iw_ib_query_qp,
 	.reg_user_mr = c4iw_reg_user_mr,
 	.req_notify_cq = c4iw_arm_cq,
+	INIT_RDMA_OBJ_SIZE(ib_pd, c4iw_pd, ibpd),
 };
 
 void c4iw_register_device(struct work_struct *work)

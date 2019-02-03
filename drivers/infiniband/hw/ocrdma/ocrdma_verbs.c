@@ -367,16 +367,11 @@ static int ocrdma_get_pd_num(struct ocrdma_dev *dev, struct ocrdma_pd *pd)
 	return status;
 }
 
-static struct ocrdma_pd *_ocrdma_alloc_pd(struct ocrdma_dev *dev,
-					  struct ocrdma_ucontext *uctx,
-					  struct ib_udata *udata)
+static int _ocrdma_alloc_pd(struct ocrdma_dev *dev, struct ocrdma_pd *pd,
+			    struct ocrdma_ucontext *uctx,
+			    struct ib_udata *udata)
 {
-	struct ocrdma_pd *pd = NULL;
 	int status;
-
-	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
-	if (!pd)
-		return ERR_PTR(-ENOMEM);
 
 	if (udata && uctx && dev->attr.max_dpp_pds) {
 		pd->dpp_enabled =
@@ -386,15 +381,8 @@ static struct ocrdma_pd *_ocrdma_alloc_pd(struct ocrdma_dev *dev,
 					   dev->attr.wqe_size) : 0;
 	}
 
-	if (dev->pd_mgr->pd_prealloc_valid) {
-		status = ocrdma_get_pd_num(dev, pd);
-		if (status == 0) {
-			return pd;
-		} else {
-			kfree(pd);
-			return ERR_PTR(status);
-		}
-	}
+	if (dev->pd_mgr->pd_prealloc_valid)
+		return ocrdma_get_pd_num(dev, pd);
 
 retry:
 	status = ocrdma_mbx_alloc_pd(dev, pd);
@@ -403,13 +391,11 @@ retry:
 			pd->dpp_enabled = false;
 			pd->num_dpp_qp = 0;
 			goto retry;
-		} else {
-			kfree(pd);
-			return ERR_PTR(status);
 		}
+		return status;
 	}
 
-	return pd;
+	return 0;
 }
 
 static inline int is_ucontext_pd(struct ocrdma_ucontext *uctx,
@@ -418,30 +404,33 @@ static inline int is_ucontext_pd(struct ocrdma_ucontext *uctx,
 	return (uctx->cntxt_pd == pd);
 }
 
-static int _ocrdma_dealloc_pd(struct ocrdma_dev *dev,
+static void _ocrdma_dealloc_pd(struct ocrdma_dev *dev,
 			      struct ocrdma_pd *pd)
 {
-	int status;
-
 	if (dev->pd_mgr->pd_prealloc_valid)
-		status = ocrdma_put_pd_num(dev, pd->id, pd->dpp_enabled);
+		ocrdma_put_pd_num(dev, pd->id, pd->dpp_enabled);
 	else
-		status = ocrdma_mbx_dealloc_pd(dev, pd);
-
-	kfree(pd);
-	return status;
+		ocrdma_mbx_dealloc_pd(dev, pd);
 }
 
 static int ocrdma_alloc_ucontext_pd(struct ocrdma_dev *dev,
 				    struct ocrdma_ucontext *uctx,
 				    struct ib_udata *udata)
 {
-	int status = 0;
+	struct ib_device *ibdev = &dev->ibdev;
+	struct ib_pd *pd;
+	int status;
 
-	uctx->cntxt_pd = _ocrdma_alloc_pd(dev, uctx, udata);
-	if (IS_ERR(uctx->cntxt_pd)) {
-		status = PTR_ERR(uctx->cntxt_pd);
-		uctx->cntxt_pd = NULL;
+	pd = rdma_zalloc_drv_obj(ibdev, ib_pd);
+	if (!pd)
+		return -ENOMEM;
+
+	pd->device  = ibdev;
+	uctx->cntxt_pd = get_ocrdma_pd(pd);
+
+	status = _ocrdma_alloc_pd(dev, uctx->cntxt_pd, uctx, udata);
+	if (status) {
+		kfree(uctx->cntxt_pd);
 		goto err;
 	}
 
@@ -460,6 +449,7 @@ static int ocrdma_dealloc_ucontext_pd(struct ocrdma_ucontext *uctx)
 		pr_err("%s(%d) Freeing in use pdid=0x%x.\n",
 		       __func__, dev->id, pd->id);
 	}
+	kfree(uctx->cntxt_pd);
 	uctx->cntxt_pd = NULL;
 	(void)_ocrdma_dealloc_pd(dev, pd);
 	return 0;
@@ -537,6 +527,7 @@ struct ib_ucontext *ocrdma_alloc_ucontext(struct ib_device *ibdev,
 	return &ctx->ibucontext;
 
 cpy_err:
+	ocrdma_dealloc_ucontext_pd(ctx);
 pd_err:
 	ocrdma_del_mmap(ctx, ctx->ah_tbl.pa, ctx->ah_tbl.len);
 map_err:
@@ -658,10 +649,10 @@ dpp_map_err:
 	return status;
 }
 
-struct ib_pd *ocrdma_alloc_pd(struct ib_device *ibdev,
-			      struct ib_ucontext *context,
-			      struct ib_udata *udata)
+int ocrdma_alloc_pd(struct ib_pd *ibpd, struct ib_ucontext *context,
+		    struct ib_udata *udata)
 {
+	struct ib_device *ibdev = ibpd->device;
 	struct ocrdma_dev *dev = get_ocrdma_dev(ibdev);
 	struct ocrdma_pd *pd;
 	struct ocrdma_ucontext *uctx = NULL;
@@ -677,11 +668,10 @@ struct ib_pd *ocrdma_alloc_pd(struct ib_device *ibdev,
 		}
 	}
 
-	pd = _ocrdma_alloc_pd(dev, uctx, udata);
-	if (IS_ERR(pd)) {
-		status = PTR_ERR(pd);
+	pd = get_ocrdma_pd(ibpd);
+	status = _ocrdma_alloc_pd(dev, pd, uctx, udata);
+	if (status)
 		goto exit;
-	}
 
 pd_mapping:
 	if (udata && context) {
@@ -689,25 +679,22 @@ pd_mapping:
 		if (status)
 			goto err;
 	}
-	return &pd->ibpd;
+	return 0;
 
 err:
-	if (is_uctx_pd) {
+	if (is_uctx_pd)
 		ocrdma_release_ucontext_pd(uctx);
-	} else {
-		if (_ocrdma_dealloc_pd(dev, pd))
-			pr_err("%s: _ocrdma_dealloc_pd() failed\n", __func__);
-	}
+	else
+		_ocrdma_dealloc_pd(dev, pd);
 exit:
-	return ERR_PTR(status);
+	return status;
 }
 
-int ocrdma_dealloc_pd(struct ib_pd *ibpd)
+void ocrdma_dealloc_pd(struct ib_pd *ibpd)
 {
 	struct ocrdma_pd *pd = get_ocrdma_pd(ibpd);
 	struct ocrdma_dev *dev = get_ocrdma_dev(ibpd->device);
 	struct ocrdma_ucontext *uctx = NULL;
-	int status = 0;
 	u64 usr_db;
 
 	uctx = pd->uctx;
@@ -721,11 +708,10 @@ int ocrdma_dealloc_pd(struct ib_pd *ibpd)
 
 		if (is_ucontext_pd(uctx, pd)) {
 			ocrdma_release_ucontext_pd(uctx);
-			return status;
+			return;
 		}
 	}
-	status = _ocrdma_dealloc_pd(dev, pd);
-	return status;
+	_ocrdma_dealloc_pd(dev, pd);
 }
 
 static int ocrdma_alloc_lkey(struct ocrdma_dev *dev, struct ocrdma_mr *mr,

@@ -56,8 +56,8 @@ struct bnxt_re_fence_data {
 };
 
 struct bnxt_re_pd {
+	struct ib_pd            ib_pd;
 	struct bnxt_re_dev	*rdev;
-	struct ib_pd		ib_pd;
 	struct bnxt_qplib_pd	qplib_pd;
 	struct bnxt_re_fence_data fence;
 };
@@ -163,10 +163,9 @@ int bnxt_re_query_gid(struct ib_device *ibdev, u8 port_num,
 		      int index, union ib_gid *gid);
 enum rdma_link_layer bnxt_re_get_link_layer(struct ib_device *ibdev,
 					    u8 port_num);
-struct ib_pd *bnxt_re_alloc_pd(struct ib_device *ibdev,
-			       struct ib_ucontext *context,
-			       struct ib_udata *udata);
-int bnxt_re_dealloc_pd(struct ib_pd *pd);
+int bnxt_re_alloc_pd(struct ib_pd *pd, struct ib_ucontext *context,
+		     struct ib_udata *udata);
+void bnxt_re_dealloc_pd(struct ib_pd *pd);
 struct ib_ah *bnxt_re_create_ah(struct ib_pd *pd,
 				struct rdma_ah_attr *ah_attr,
 				u32 flags,

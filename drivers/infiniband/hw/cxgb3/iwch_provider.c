@@ -370,7 +370,7 @@ static int iwch_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 	return ret;
 }
 
-static int iwch_deallocate_pd(struct ib_pd *pd)
+static void iwch_deallocate_pd(struct ib_pd *pd)
 {
 	struct iwch_dev *rhp;
 	struct iwch_pd *php;
@@ -379,15 +379,13 @@ static int iwch_deallocate_pd(struct ib_pd *pd)
 	rhp = php->rhp;
 	pr_debug("%s ibpd %p pdid 0x%x\n", __func__, pd, php->pdid);
 	cxio_hal_put_pdid(rhp->rdev.rscp, php->pdid);
-	kfree(php);
-	return 0;
 }
 
-static struct ib_pd *iwch_allocate_pd(struct ib_device *ibdev,
-			       struct ib_ucontext *context,
-			       struct ib_udata *udata)
+static int iwch_allocate_pd(struct ib_pd *pd, struct ib_ucontext *context,
+			    struct ib_udata *udata)
 {
-	struct iwch_pd *php;
+	struct iwch_pd *php = to_iwch_pd(pd);
+	struct ib_device *ibdev = pd->device;
 	u32 pdid;
 	struct iwch_dev *rhp;
 
@@ -395,12 +393,8 @@ static struct ib_pd *iwch_allocate_pd(struct ib_device *ibdev,
 	rhp = (struct iwch_dev *) ibdev;
 	pdid = cxio_hal_get_pdid(rhp->rdev.rscp);
 	if (!pdid)
-		return ERR_PTR(-EINVAL);
-	php = kzalloc(sizeof(*php), GFP_KERNEL);
-	if (!php) {
-		cxio_hal_put_pdid(rhp->rdev.rscp, pdid);
-		return ERR_PTR(-ENOMEM);
-	}
+		return -EINVAL;
+
 	php->pdid = pdid;
 	php->rhp = rhp;
 	if (context) {
@@ -408,11 +402,11 @@ static struct ib_pd *iwch_allocate_pd(struct ib_device *ibdev,
 
 		if (ib_copy_to_udata(udata, &resp, sizeof(resp))) {
 			iwch_deallocate_pd(&php->ibpd);
-			return ERR_PTR(-EFAULT);
+			return -EFAULT;
 		}
 	}
 	pr_debug("%s pdid 0x%0x ptr 0x%p\n", __func__, pdid, php);
-	return &php->ibpd;
+	return 0;
 }
 
 static int iwch_dereg_mr(struct ib_mr *ib_mr)
@@ -1350,6 +1344,7 @@ static const struct ib_device_ops iwch_dev_ops = {
 	.reg_user_mr = iwch_reg_user_mr,
 	.req_notify_cq = iwch_arm_cq,
 	.resize_cq = iwch_resize_cq,
+	INIT_RDMA_OBJ_SIZE(ib_pd, iwch_pd, ibpd),
 };
 
 int iwch_register_device(struct iwch_dev *dev)

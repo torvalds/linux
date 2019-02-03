@@ -312,16 +312,15 @@ static void i40iw_dealloc_push_page(struct i40iw_device *iwdev, struct i40iw_sc_
 
 /**
  * i40iw_alloc_pd - allocate protection domain
- * @ibdev: device pointer from stack
+ * @pd: PD pointer
  * @context: user context created during alloc
  * @udata: user data
  */
-static struct ib_pd *i40iw_alloc_pd(struct ib_device *ibdev,
-				    struct ib_ucontext *context,
-				    struct ib_udata *udata)
+static int i40iw_alloc_pd(struct ib_pd *pd, struct ib_ucontext *context,
+			  struct ib_udata *udata)
 {
-	struct i40iw_pd *iwpd;
-	struct i40iw_device *iwdev = to_iwdev(ibdev);
+	struct i40iw_pd *iwpd = to_iwpd(pd);
+	struct i40iw_device *iwdev = to_iwdev(pd->device);
 	struct i40iw_sc_dev *dev = &iwdev->sc_dev;
 	struct i40iw_alloc_pd_resp uresp;
 	struct i40iw_sc_pd *sc_pd;
@@ -330,19 +329,13 @@ static struct ib_pd *i40iw_alloc_pd(struct ib_device *ibdev,
 	int err;
 
 	if (iwdev->closing)
-		return ERR_PTR(-ENODEV);
+		return -ENODEV;
 
 	err = i40iw_alloc_resource(iwdev, iwdev->allocated_pds,
 				   iwdev->max_pd, &pd_id, &iwdev->next_pd);
 	if (err) {
 		i40iw_pr_err("alloc resource failed\n");
-		return ERR_PTR(err);
-	}
-
-	iwpd = kzalloc(sizeof(*iwpd), GFP_KERNEL);
-	if (!iwpd) {
-		err = -ENOMEM;
-		goto free_res;
+		return err;
 	}
 
 	sc_pd = &iwpd->sc_pd;
@@ -361,25 +354,23 @@ static struct ib_pd *i40iw_alloc_pd(struct ib_device *ibdev,
 	}
 
 	i40iw_add_pdusecount(iwpd);
-	return &iwpd->ibpd;
+	return 0;
+
 error:
-	kfree(iwpd);
-free_res:
 	i40iw_free_resource(iwdev, iwdev->allocated_pds, pd_id);
-	return ERR_PTR(err);
+	return err;
 }
 
 /**
  * i40iw_dealloc_pd - deallocate pd
  * @ibpd: ptr of pd to be deallocated
  */
-static int i40iw_dealloc_pd(struct ib_pd *ibpd)
+static void i40iw_dealloc_pd(struct ib_pd *ibpd)
 {
 	struct i40iw_pd *iwpd = to_iwpd(ibpd);
 	struct i40iw_device *iwdev = to_iwdev(ibpd->device);
 
 	i40iw_rem_pdusecount(iwpd, iwdev);
-	return 0;
 }
 
 /**
@@ -2750,6 +2741,7 @@ static const struct ib_device_ops i40iw_dev_ops = {
 	.query_qp = i40iw_query_qp,
 	.reg_user_mr = i40iw_reg_user_mr,
 	.req_notify_cq = i40iw_req_notify_cq,
+	INIT_RDMA_OBJ_SIZE(ib_pd, i40iw_pd, ibpd),
 };
 
 /**

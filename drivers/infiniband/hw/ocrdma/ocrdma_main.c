@@ -179,6 +179,7 @@ static const struct ib_device_ops ocrdma_dev_ops = {
 	.reg_user_mr = ocrdma_reg_user_mr,
 	.req_notify_cq = ocrdma_arm_cq,
 	.resize_cq = ocrdma_resize_cq,
+	INIT_RDMA_OBJ_SIZE(ib_pd, ocrdma_pd, ibpd),
 };
 
 static const struct ib_device_ops ocrdma_dev_srq_ops = {

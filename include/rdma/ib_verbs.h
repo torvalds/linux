@@ -2385,10 +2385,9 @@ struct ib_device_ops {
 	int (*dealloc_ucontext)(struct ib_ucontext *context);
 	int (*mmap)(struct ib_ucontext *context, struct vm_area_struct *vma);
 	void (*disassociate_ucontext)(struct ib_ucontext *ibcontext);
-	struct ib_pd *(*alloc_pd)(struct ib_device *device,
-				  struct ib_ucontext *context,
-				  struct ib_udata *udata);
-	int (*dealloc_pd)(struct ib_pd *pd);
+	int (*alloc_pd)(struct ib_pd *pd, struct ib_ucontext *context,
+			struct ib_udata *udata);
+	void (*dealloc_pd)(struct ib_pd *pd);
 	struct ib_ah *(*create_ah)(struct ib_pd *pd,
 				   struct rdma_ah_attr *ah_attr, u32 flags,
 				   struct ib_udata *udata);
@@ -2530,6 +2529,8 @@ struct ib_device_ops {
 	 */
 	int (*fill_res_entry)(struct sk_buff *msg,
 			      struct rdma_restrack_entry *entry);
+
+	DECLARE_RDMA_OBJ_SIZE(ib_pd);
 };
 
 struct ib_device {

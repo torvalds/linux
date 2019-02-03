@@ -352,6 +352,7 @@ static const struct ib_device_ops usnic_dev_ops = {
 	.query_port = usnic_ib_query_port,
 	.query_qp = usnic_ib_query_qp,
 	.reg_user_mr = usnic_ib_reg_mr,
+	INIT_RDMA_OBJ_SIZE(ib_pd, usnic_ib_pd, ibpd),
 };
 
 /* Start of PF discovery section */

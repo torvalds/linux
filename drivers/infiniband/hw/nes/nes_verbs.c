@@ -658,10 +658,11 @@ static int nes_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 /**
  * nes_alloc_pd
  */
-static struct ib_pd *nes_alloc_pd(struct ib_device *ibdev,
-		struct ib_ucontext *context, struct ib_udata *udata)
+static int nes_alloc_pd(struct ib_pd *pd, struct ib_ucontext *context,
+			struct ib_udata *udata)
 {
-	struct nes_pd *nespd;
+	struct ib_device *ibdev = pd->device;
+	struct nes_pd *nespd = to_nespd(pd);
 	struct nes_vnic *nesvnic = to_nesvnic(ibdev);
 	struct nes_device *nesdev = nesvnic->nesdev;
 	struct nes_adapter *nesadapter = nesdev->nesadapter;
@@ -676,15 +677,8 @@ static struct ib_pd *nes_alloc_pd(struct ib_device *ibdev,
 
 	err = nes_alloc_resource(nesadapter, nesadapter->allocated_pds,
 			nesadapter->max_pd, &pd_num, &nesadapter->next_pd, NES_RESOURCE_PD);
-	if (err) {
-		return ERR_PTR(err);
-	}
-
-	nespd = kzalloc(sizeof (struct nes_pd), GFP_KERNEL);
-	if (!nespd) {
-		nes_free_resource(nesadapter, nesadapter->allocated_pds, pd_num);
-		return ERR_PTR(-ENOMEM);
-	}
+	if (err)
+		return err;
 
 	nes_debug(NES_DBG_PD, "Allocating PD (%p) for ib device %s\n",
 			nespd, dev_name(&nesvnic->nesibdev->ibdev.dev));
@@ -700,16 +694,14 @@ static struct ib_pd *nes_alloc_pd(struct ib_device *ibdev,
 		if (nespd->mmap_db_index >= NES_MAX_USER_DB_REGIONS) {
 			nes_debug(NES_DBG_PD, "mmap_db_index > MAX\n");
 			nes_free_resource(nesadapter, nesadapter->allocated_pds, pd_num);
-			kfree(nespd);
-			return ERR_PTR(-ENOMEM);
+			return -ENOMEM;
 		}
 
 		uresp.pd_id = nespd->pd_id;
 		uresp.mmap_db_index = nespd->mmap_db_index;
 		if (ib_copy_to_udata(udata, &uresp, sizeof (struct nes_alloc_pd_resp))) {
 			nes_free_resource(nesadapter, nesadapter->allocated_pds, pd_num);
-			kfree(nespd);
-			return ERR_PTR(-EFAULT);
+			return -EFAULT;
 		}
 
 		set_bit(nespd->mmap_db_index, nesucontext->allocated_doorbells);
@@ -718,14 +710,14 @@ static struct ib_pd *nes_alloc_pd(struct ib_device *ibdev,
 	}
 
 	nes_debug(NES_DBG_PD, "PD%u structure located @%p.\n", nespd->pd_id, nespd);
-	return &nespd->ibpd;
+	return 0;
 }
 
 
 /**
  * nes_dealloc_pd
  */
-static int nes_dealloc_pd(struct ib_pd *ibpd)
+static void nes_dealloc_pd(struct ib_pd *ibpd)
 {
 	struct nes_ucontext *nesucontext;
 	struct nes_pd *nespd = to_nespd(ibpd);
@@ -748,9 +740,6 @@ static int nes_dealloc_pd(struct ib_pd *ibpd)
 			nespd->pd_id, nespd);
 	nes_free_resource(nesadapter, nesadapter->allocated_pds,
 			(nespd->pd_id-nesadapter->base_pd)>>(PAGE_SHIFT-12));
-	kfree(nespd);
-
-	return 0;
 }
 
 
@@ -3658,6 +3647,7 @@ static const struct ib_device_ops nes_dev_ops = {
 	.query_qp = nes_query_qp,
 	.reg_user_mr = nes_reg_user_mr,
 	.req_notify_cq = nes_req_notify_cq,
+	INIT_RDMA_OBJ_SIZE(ib_pd, nes_pd, ibpd),
 };
 
 /**

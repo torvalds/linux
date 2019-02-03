@@ -46,6 +46,7 @@ struct rxe_type_info rxe_type_info[RXE_NUM_TYPES] = {
 	[RXE_TYPE_PD] = {
 		.name		= "rxe-pd",
 		.size		= sizeof(struct rxe_pd),
+		.flags		= RXE_POOL_NO_ALLOC,
 	},
 	[RXE_TYPE_AH] = {
 		.name		= "rxe-ah",
@@ -119,8 +120,10 @@ static void rxe_cache_clean(size_t cnt)
 
 	for (i = 0; i < cnt; i++) {
 		type = &rxe_type_info[i];
-		kmem_cache_destroy(type->cache);
-		type->cache = NULL;
+		if (!(type->flags & RXE_POOL_NO_ALLOC)) {
+			kmem_cache_destroy(type->cache);
+			type->cache = NULL;
+		}
 	}
 }
 
@@ -134,14 +137,17 @@ int rxe_cache_init(void)
 	for (i = 0; i < RXE_NUM_TYPES; i++) {
 		type = &rxe_type_info[i];
 		size = ALIGN(type->size, RXE_POOL_ALIGN);
-		type->cache = kmem_cache_create(type->name, size,
-				RXE_POOL_ALIGN,
-				RXE_POOL_CACHE_FLAGS, NULL);
-		if (!type->cache) {
-			pr_err("Unable to init kmem cache for %s\n",
-			       type->name);
-			err = -ENOMEM;
-			goto err1;
+		if (!(type->flags & RXE_POOL_NO_ALLOC)) {
+			type->cache =
+				kmem_cache_create(type->name, size,
+						  RXE_POOL_ALIGN,
+						  RXE_POOL_CACHE_FLAGS, NULL);
+			if (!type->cache) {
+				pr_err("Unable to init kmem cache for %s\n",
+				       type->name);
+				err = -ENOMEM;
+				goto err1;
+			}
 		}
 	}
 
@@ -415,6 +421,37 @@ out_put_pool:
 	return NULL;
 }
 
+int rxe_add_to_pool(struct rxe_pool *pool, struct rxe_pool_entry *elem)
+{
+	unsigned long flags;
+
+	might_sleep_if(!(pool->flags & RXE_POOL_ATOMIC));
+
+	read_lock_irqsave(&pool->pool_lock, flags);
+	if (pool->state != RXE_POOL_STATE_VALID) {
+		read_unlock_irqrestore(&pool->pool_lock, flags);
+		return -EINVAL;
+	}
+	kref_get(&pool->ref_cnt);
+	read_unlock_irqrestore(&pool->pool_lock, flags);
+
+	kref_get(&pool->rxe->ref_cnt);
+
+	if (atomic_inc_return(&pool->num_elem) > pool->max_elem)
+		goto out_put_pool;
+
+	elem->pool = pool;
+	kref_init(&elem->ref_cnt);
+
+	return 0;
+
+out_put_pool:
+	atomic_dec(&pool->num_elem);
+	rxe_dev_put(pool->rxe);
+	rxe_pool_put(pool);
+	return -EINVAL;
+}
+
 void rxe_elem_release(struct kref *kref)
 {
 	struct rxe_pool_entry *elem =
@@ -424,7 +461,8 @@ void rxe_elem_release(struct kref *kref)
 	if (pool->cleanup)
 		pool->cleanup(elem);
 
-	kmem_cache_free(pool_cache(pool), elem);
+	if (!(pool->flags & RXE_POOL_NO_ALLOC))
+		kmem_cache_free(pool_cache(pool), elem);
 	atomic_dec(&pool->num_elem);
 	rxe_dev_put(pool->rxe);
 	rxe_pool_put(pool);

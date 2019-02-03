@@ -563,40 +563,28 @@ fail:
 }
 
 /* Protection Domains */
-int bnxt_re_dealloc_pd(struct ib_pd *ib_pd)
+void bnxt_re_dealloc_pd(struct ib_pd *ib_pd)
 {
 	struct bnxt_re_pd *pd = container_of(ib_pd, struct bnxt_re_pd, ib_pd);
 	struct bnxt_re_dev *rdev = pd->rdev;
-	int rc;
 
 	bnxt_re_destroy_fence_mr(pd);
 
-	if (pd->qplib_pd.id) {
-		rc = bnxt_qplib_dealloc_pd(&rdev->qplib_res,
-					   &rdev->qplib_res.pd_tbl,
-					   &pd->qplib_pd);
-		if (rc)
-			dev_err(rdev_to_dev(rdev), "Failed to deallocate HW PD");
-	}
-
-	kfree(pd);
-	return 0;
+	if (pd->qplib_pd.id)
+		bnxt_qplib_dealloc_pd(&rdev->qplib_res, &rdev->qplib_res.pd_tbl,
+				      &pd->qplib_pd);
 }
 
-struct ib_pd *bnxt_re_alloc_pd(struct ib_device *ibdev,
-			       struct ib_ucontext *ucontext,
-			       struct ib_udata *udata)
+int bnxt_re_alloc_pd(struct ib_pd *ibpd, struct ib_ucontext *ucontext,
+		     struct ib_udata *udata)
 {
+	struct ib_device *ibdev = ibpd->device;
 	struct bnxt_re_dev *rdev = to_bnxt_re_dev(ibdev, ibdev);
 	struct bnxt_re_ucontext *ucntx = container_of(ucontext,
 						      struct bnxt_re_ucontext,
 						      ib_uctx);
-	struct bnxt_re_pd *pd;
+	struct bnxt_re_pd *pd = container_of(ibpd, struct bnxt_re_pd, ib_pd);
 	int rc;
-
-	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
-	if (!pd)
-		return ERR_PTR(-ENOMEM);
 
 	pd->rdev = rdev;
 	if (bnxt_qplib_alloc_pd(&rdev->qplib_res.pd_tbl, &pd->qplib_pd)) {
@@ -637,13 +625,12 @@ struct ib_pd *bnxt_re_alloc_pd(struct ib_device *ibdev,
 		if (bnxt_re_create_fence_mr(pd))
 			dev_warn(rdev_to_dev(rdev),
 				 "Failed to create Fence-MR\n");
-	return &pd->ib_pd;
+	return 0;
 dbfail:
-	(void)bnxt_qplib_dealloc_pd(&rdev->qplib_res, &rdev->qplib_res.pd_tbl,
-				    &pd->qplib_pd);
+	bnxt_qplib_dealloc_pd(&rdev->qplib_res, &rdev->qplib_res.pd_tbl,
+			      &pd->qplib_pd);
 fail:
-	kfree(pd);
-	return ERR_PTR(rc);
+	return rc;
 }
 
 /* Address Handles */

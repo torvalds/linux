@@ -472,6 +472,7 @@ static const struct ib_device_ops hns_roce_dev_ops = {
 	.query_pkey = hns_roce_query_pkey,
 	.query_port = hns_roce_query_port,
 	.reg_user_mr = hns_roce_reg_user_mr,
+	INIT_RDMA_OBJ_SIZE(ib_pd, hns_roce_pd, ibpd),
 };
 
 static const struct ib_device_ops hns_roce_dev_mr_ops = {
