@@ -355,7 +355,7 @@ static int mt7621_spi_probe(struct platform_device *pdev)
 		return status;
 
 	master = spi_alloc_master(&pdev->dev, sizeof(*rs));
-	if (master == NULL) {
+	if (!master) {
 		dev_info(&pdev->dev, "master allocation failed\n");
 		return -ENOMEM;
 	}
