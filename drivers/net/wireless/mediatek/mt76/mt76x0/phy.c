@@ -1006,14 +1006,16 @@ int mt76x0_phy_set_channel(struct mt76x02_dev *dev,
 
 	/* enable vco */
 	mt76x0_rf_set(dev, MT_RF(0, 4), BIT(7));
-	if (scan)
+	if (scan) {
+		mt76x02_edcca_init(dev, false);
 		return 0;
+	}
 
 	mt76x02_init_agc_gain(dev);
 	mt76x0_phy_calibrate(dev, false);
 	mt76x0_phy_set_txpower(dev);
 
-	mt76x02_edcca_init(dev);
+	mt76x02_edcca_init(dev, true);
 
 	ieee80211_queue_delayed_work(dev->mt76.hw, &dev->cal_work,
 				     MT_CALIBRATE_INTERVAL);
