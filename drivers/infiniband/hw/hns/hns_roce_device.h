@@ -217,6 +217,26 @@ enum {
 	HNS_ROCE_DB_PER_PAGE = PAGE_SIZE / 4
 };
 
+enum hns_roce_reset_stage {
+	HNS_ROCE_STATE_NON_RST,
+	HNS_ROCE_STATE_RST_BEF_DOWN,
+	HNS_ROCE_STATE_RST_DOWN,
+	HNS_ROCE_STATE_RST_UNINIT,
+	HNS_ROCE_STATE_RST_INIT,
+	HNS_ROCE_STATE_RST_INITED,
+};
+
+enum hns_roce_instance_state {
+	HNS_ROCE_STATE_NON_INIT,
+	HNS_ROCE_STATE_INIT,
+	HNS_ROCE_STATE_INITED,
+	HNS_ROCE_STATE_UNINIT,
+};
+
+enum {
+	HNS_ROCE_RST_DIRECT_RETURN		= 0,
+};
+
 #define HNS_ROCE_CMD_SUCCESS			1
 
 #define HNS_ROCE_PORT_DOWN			0
@@ -920,6 +940,7 @@ struct hns_roce_dev {
 	spinlock_t		bt_cmd_lock;
 	bool			active;
 	bool			is_reset;
+	unsigned long		reset_cnt;
 	struct hns_roce_ib_iboe iboe;
 
 	struct list_head        pgdir_list;

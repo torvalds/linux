@@ -6020,6 +6020,7 @@ MODULE_DEVICE_TABLE(pci, hns_roce_hw_v2_pci_tbl);
 static int hns_roce_hw_v2_get_cfg(struct hns_roce_dev *hr_dev,
 				  struct hnae3_handle *handle)
 {
+	struct hns_roce_v2_priv *priv = hr_dev->priv;
 	const struct pci_device_id *id;
 	int i;
 
@@ -6050,10 +6051,13 @@ static int hns_roce_hw_v2_get_cfg(struct hns_roce_dev *hr_dev,
 	hr_dev->cmd_mod = 1;
 	hr_dev->loop_idc = 0;
 
+	hr_dev->reset_cnt = handle->ae_algo->ops->ae_dev_reset_cnt(handle);
+	priv->handle = handle;
+
 	return 0;
 }
 
-static int hns_roce_hw_v2_init_instance(struct hnae3_handle *handle)
+static int __hns_roce_hw_v2_init_instance(struct hnae3_handle *handle)
 {
 	struct hns_roce_dev *hr_dev;
 	int ret;
@@ -6070,7 +6074,6 @@ static int hns_roce_hw_v2_init_instance(struct hnae3_handle *handle)
 
 	hr_dev->pci_dev = handle->pdev;
 	hr_dev->dev = &handle->pdev->dev;
-	handle->priv = hr_dev;
 
 	ret = hns_roce_hw_v2_get_cfg(hr_dev, handle);
 	if (ret) {
@@ -6084,6 +6087,8 @@ static int hns_roce_hw_v2_init_instance(struct hnae3_handle *handle)
 		goto error_failed_get_cfg;
 	}
 
+	handle->priv = hr_dev;
+
 	return 0;
 
 error_failed_get_cfg:
@@ -6095,7 +6100,7 @@ error_failed_kzalloc:
 	return ret;
 }
 
-static void hns_roce_hw_v2_uninit_instance(struct hnae3_handle *handle,
+static void __hns_roce_hw_v2_uninit_instance(struct hnae3_handle *handle,
 					   bool reset)
 {
 	struct hns_roce_dev *hr_dev = (struct hns_roce_dev *)handle->priv;
@@ -6103,24 +6108,78 @@ static void hns_roce_hw_v2_uninit_instance(struct hnae3_handle *handle,
 	if (!hr_dev)
 		return;
 
+	handle->priv = NULL;
 	hns_roce_exit(hr_dev);
 	kfree(hr_dev->priv);
 	ib_dealloc_device(&hr_dev->ib_dev);
 }
 
-static int hns_roce_hw_v2_reset_notify_down(struct hnae3_handle *handle)
+static int hns_roce_hw_v2_init_instance(struct hnae3_handle *handle)
 {
-	struct hns_roce_dev *hr_dev = (struct hns_roce_dev *)handle->priv;
-	struct ib_event event;
+	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
+	struct device *dev = &handle->pdev->dev;
+	int ret;
 
-	if (!hr_dev) {
-		dev_err(&handle->pdev->dev,
-			"Input parameter handle->priv is NULL!\n");
-		return -EINVAL;
+	handle->rinfo.instance_state = HNS_ROCE_STATE_INIT;
+
+	if (ops->ae_dev_resetting(handle) || ops->get_hw_reset_stat(handle)) {
+		handle->rinfo.instance_state = HNS_ROCE_STATE_NON_INIT;
+		goto reset_chk_err;
 	}
 
+	ret = __hns_roce_hw_v2_init_instance(handle);
+	if (ret) {
+		handle->rinfo.instance_state = HNS_ROCE_STATE_NON_INIT;
+		dev_err(dev, "RoCE instance init failed! ret = %d\n", ret);
+		if (ops->ae_dev_resetting(handle) ||
+		    ops->get_hw_reset_stat(handle))
+			goto reset_chk_err;
+		else
+			return ret;
+	}
+
+	handle->rinfo.instance_state = HNS_ROCE_STATE_INITED;
+
+
+	return 0;
+
+reset_chk_err:
+	dev_err(dev, "Device is busy in resetting state.\n"
+		     "please retry later.\n");
+
+	return -EBUSY;
+}
+
+static void hns_roce_hw_v2_uninit_instance(struct hnae3_handle *handle,
+					   bool reset)
+{
+	if (handle->rinfo.instance_state != HNS_ROCE_STATE_INITED)
+		return;
+
+	handle->rinfo.instance_state = HNS_ROCE_STATE_UNINIT;
+
+	__hns_roce_hw_v2_uninit_instance(handle, reset);
+
+	handle->rinfo.instance_state = HNS_ROCE_STATE_NON_INIT;
+}
+static int hns_roce_hw_v2_reset_notify_down(struct hnae3_handle *handle)
+{
+	struct hns_roce_dev *hr_dev;
+	struct ib_event event;
+
+	if (handle->rinfo.instance_state != HNS_ROCE_STATE_INITED) {
+		set_bit(HNS_ROCE_RST_DIRECT_RETURN, &handle->rinfo.state);
+		return 0;
+	}
+
+	handle->rinfo.reset_state = HNS_ROCE_STATE_RST_DOWN;
+	clear_bit(HNS_ROCE_RST_DIRECT_RETURN, &handle->rinfo.state);
+
+	hr_dev = (struct hns_roce_dev *)handle->priv;
+	if (!hr_dev)
+		return 0;
+
 	hr_dev->active = false;
-	hr_dev->is_reset = true;
 
 	event.event = IB_EVENT_DEVICE_FATAL;
 	event.device = &hr_dev->ib_dev;
@@ -6132,17 +6191,29 @@ static int hns_roce_hw_v2_reset_notify_down(struct hnae3_handle *handle)
 
 static int hns_roce_hw_v2_reset_notify_init(struct hnae3_handle *handle)
 {
+	struct device *dev = &handle->pdev->dev;
 	int ret;
 
-	ret = hns_roce_hw_v2_init_instance(handle);
+	if (test_and_clear_bit(HNS_ROCE_RST_DIRECT_RETURN,
+			       &handle->rinfo.state)) {
+		handle->rinfo.reset_state = HNS_ROCE_STATE_RST_INITED;
+		return 0;
+	}
+
+	handle->rinfo.reset_state = HNS_ROCE_STATE_RST_INIT;
+
+	dev_info(&handle->pdev->dev, "In reset process RoCE client reinit.\n");
+	ret = __hns_roce_hw_v2_init_instance(handle);
 	if (ret) {
 		/* when reset notify type is HNAE3_INIT_CLIENT In reset notify
 		 * callback function, RoCE Engine reinitialize. If RoCE reinit
 		 * failed, we should inform NIC driver.
 		 */
 		handle->priv = NULL;
-		dev_err(&handle->pdev->dev,
-			"In reset process RoCE reinit failed %d.\n", ret);
+		dev_err(dev, "In reset process RoCE reinit failed %d.\n", ret);
+	} else {
+		handle->rinfo.reset_state = HNS_ROCE_STATE_RST_INITED;
+		dev_info(dev, "Reset done, RoCE client reinit finished.\n");
 	}
 
 	return ret;
@@ -6150,8 +6221,14 @@ static int hns_roce_hw_v2_reset_notify_init(struct hnae3_handle *handle)
 
 static int hns_roce_hw_v2_reset_notify_uninit(struct hnae3_handle *handle)
 {
+	if (test_bit(HNS_ROCE_RST_DIRECT_RETURN, &handle->rinfo.state))
+		return 0;
+
+	handle->rinfo.reset_state = HNS_ROCE_STATE_RST_UNINIT;
+	dev_info(&handle->pdev->dev, "In reset process RoCE client uninit.\n");
 	msleep(100);
-	hns_roce_hw_v2_uninit_instance(handle, false);
+	__hns_roce_hw_v2_uninit_instance(handle, false);
+
 	return 0;
 }
 
