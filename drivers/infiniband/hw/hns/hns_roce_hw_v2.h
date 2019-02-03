@@ -96,6 +96,8 @@
 #define HNS_ROCE_V2_UC_RC_SGE_NUM_IN_WQE	2
 #define HNS_ROCE_V2_RSV_QPS			8
 
+#define HNS_ROCE_V2_HW_RST_TIMEOUT             1000
+
 #define HNS_ROCE_CONTEXT_HOP_NUM		1
 #define HNS_ROCE_SCCC_HOP_NUM			1
 #define HNS_ROCE_MTT_HOP_NUM			1

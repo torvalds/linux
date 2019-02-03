@@ -237,6 +237,12 @@ enum {
 	HNS_ROCE_RST_DIRECT_RETURN		= 0,
 };
 
+enum {
+	CMD_RST_PRC_OTHERS,
+	CMD_RST_PRC_SUCCESS,
+	CMD_RST_PRC_EBUSY,
+};
+
 #define HNS_ROCE_CMD_SUCCESS			1
 
 #define HNS_ROCE_PORT_DOWN			0
@@ -874,6 +880,7 @@ struct hns_roce_hw {
 			 u64 out_param, u32 in_modifier, u8 op_modifier, u16 op,
 			 u16 token, int event);
 	int (*chk_mbox)(struct hns_roce_dev *hr_dev, unsigned long timeout);
+	int (*rst_prc_mbox)(struct hns_roce_dev *hr_dev);
 	int (*set_gid)(struct hns_roce_dev *hr_dev, u8 port, int gid_index,
 		       const union ib_gid *gid, const struct ib_gid_attr *attr);
 	int (*set_mac)(struct hns_roce_dev *hr_dev, u8 phy_port, u8 *addr);

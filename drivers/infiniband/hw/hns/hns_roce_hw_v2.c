@@ -712,6 +712,110 @@ out:
 	return ret;
 }
 
+static int hns_roce_v2_cmd_hw_reseted(struct hns_roce_dev *hr_dev,
+				      unsigned long instance_stage,
+				      unsigned long reset_stage)
+{
+	/* When hardware reset has been completed once or more, we should stop
+	 * sending mailbox&cmq to hardware. If now in .init_instance()
+	 * function, we should exit with error. If now at HNAE3_INIT_CLIENT
+	 * stage of soft reset process, we should exit with error, and then
+	 * HNAE3_INIT_CLIENT related process can rollback the operation like
+	 * notifing hardware to free resources, HNAE3_INIT_CLIENT related
+	 * process will exit with error to notify NIC driver to reschedule soft
+	 * reset process once again.
+	 */
+	hr_dev->is_reset = true;
+
+	if (reset_stage == HNS_ROCE_STATE_RST_INIT ||
+	    instance_stage == HNS_ROCE_STATE_INIT)
+		return CMD_RST_PRC_EBUSY;
+
+	return CMD_RST_PRC_SUCCESS;
+}
+
+static int hns_roce_v2_cmd_hw_resetting(struct hns_roce_dev *hr_dev,
+					unsigned long instance_stage,
+					unsigned long reset_stage)
+{
+	struct hns_roce_v2_priv *priv = (struct hns_roce_v2_priv *)hr_dev->priv;
+	struct hnae3_handle *handle = priv->handle;
+	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
+
+	/* When hardware reset is detected, we should stop sending mailbox&cmq
+	 * to hardware. If now in .init_instance() function, we should
+	 * exit with error. If now at HNAE3_INIT_CLIENT stage of soft reset
+	 * process, we should exit with error, and then HNAE3_INIT_CLIENT
+	 * related process can rollback the operation like notifing hardware to
+	 * free resources, HNAE3_INIT_CLIENT related process will exit with
+	 * error to notify NIC driver to reschedule soft reset process once
+	 * again.
+	 */
+	if (!ops->get_hw_reset_stat(handle))
+		hr_dev->is_reset = true;
+
+	if (!hr_dev->is_reset || reset_stage == HNS_ROCE_STATE_RST_INIT ||
+	    instance_stage == HNS_ROCE_STATE_INIT)
+		return CMD_RST_PRC_EBUSY;
+
+	return CMD_RST_PRC_SUCCESS;
+}
+
+static int hns_roce_v2_cmd_sw_resetting(struct hns_roce_dev *hr_dev)
+{
+	struct hns_roce_v2_priv *priv = (struct hns_roce_v2_priv *)hr_dev->priv;
+	struct hnae3_handle *handle = priv->handle;
+	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
+
+	/* When software reset is detected at .init_instance() function, we
+	 * should stop sending mailbox&cmq to hardware, and exit with
+	 * error.
+	 */
+	if (ops->ae_dev_reset_cnt(handle) != hr_dev->reset_cnt)
+		hr_dev->is_reset = true;
+
+	return CMD_RST_PRC_EBUSY;
+}
+
+static int hns_roce_v2_rst_process_cmd(struct hns_roce_dev *hr_dev)
+{
+	struct hns_roce_v2_priv *priv = (struct hns_roce_v2_priv *)hr_dev->priv;
+	struct hnae3_handle *handle = priv->handle;
+	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
+	unsigned long instance_stage;	/* the current instance stage */
+	unsigned long reset_stage;	/* the current reset stage */
+	unsigned long reset_cnt;
+	bool sw_resetting;
+	bool hw_resetting;
+
+	if (hr_dev->is_reset)
+		return CMD_RST_PRC_SUCCESS;
+
+	/* Get information about reset from NIC driver or RoCE driver itself,
+	 * the meaning of the following variables from NIC driver are described
+	 * as below:
+	 * reset_cnt -- The count value of completed hardware reset.
+	 * hw_resetting -- Whether hardware device is resetting now.
+	 * sw_resetting -- Whether NIC's software reset process is running now.
+	 */
+	instance_stage = handle->rinfo.instance_state;
+	reset_stage = handle->rinfo.reset_state;
+	reset_cnt = ops->ae_dev_reset_cnt(handle);
+	hw_resetting = ops->get_hw_reset_stat(handle);
+	sw_resetting = ops->ae_dev_resetting(handle);
+
+	if (reset_cnt != hr_dev->reset_cnt)
+		return hns_roce_v2_cmd_hw_reseted(hr_dev, instance_stage,
+						  reset_stage);
+	else if (hw_resetting)
+		return hns_roce_v2_cmd_hw_resetting(hr_dev, instance_stage,
+						    reset_stage);
+	else if (sw_resetting && instance_stage == HNS_ROCE_STATE_INIT)
+		return hns_roce_v2_cmd_sw_resetting(hr_dev);
+
+	return 0;
+}
+
 static int hns_roce_cmq_space(struct hns_roce_v2_cmq_ring *ring)
 {
 	int ntu = ring->next_to_use;
@@ -892,8 +996,8 @@ static int hns_roce_cmq_csq_clean(struct hns_roce_dev *hr_dev)
 	return clean;
 }
 
-static int hns_roce_cmq_send(struct hns_roce_dev *hr_dev,
-			     struct hns_roce_cmq_desc *desc, int num)
+static int __hns_roce_cmq_send(struct hns_roce_dev *hr_dev,
+			       struct hns_roce_cmq_desc *desc, int num)
 {
 	struct hns_roce_v2_priv *priv = (struct hns_roce_v2_priv *)hr_dev->priv;
 	struct hns_roce_v2_cmq_ring *csq = &priv->cmq.csq;
@@ -904,9 +1008,6 @@ static int hns_roce_cmq_send(struct hns_roce_dev *hr_dev,
 	u16 desc_ret;
 	int ret = 0;
 	int ntc;
-
-	if (hr_dev->is_reset)
-		return 0;
 
 	spin_lock_bh(&csq->lock);
 
@@ -978,6 +1079,30 @@ static int hns_roce_cmq_send(struct hns_roce_dev *hr_dev,
 			 handle, num);
 
 	spin_unlock_bh(&csq->lock);
+
+	return ret;
+}
+
+int hns_roce_cmq_send(struct hns_roce_dev *hr_dev,
+			     struct hns_roce_cmq_desc *desc, int num)
+{
+	int retval;
+	int ret;
+
+	ret = hns_roce_v2_rst_process_cmd(hr_dev);
+	if (ret == CMD_RST_PRC_SUCCESS)
+		return 0;
+	if (ret == CMD_RST_PRC_EBUSY)
+		return ret;
+
+	ret = __hns_roce_cmq_send(hr_dev, desc, num);
+	if (ret) {
+		retval = hns_roce_v2_rst_process_cmd(hr_dev);
+		if (retval == CMD_RST_PRC_SUCCESS)
+			return 0;
+		else if (retval == CMD_RST_PRC_EBUSY)
+			return retval;
+	}
 
 	return ret;
 }
@@ -1857,6 +1982,9 @@ static int hns_roce_v2_chk_mbox(struct hns_roce_dev *hr_dev,
 
 	status = hns_roce_v2_cmd_complete(hr_dev);
 	if (status != 0x1) {
+		if (status == CMD_RST_PRC_EBUSY)
+			return status;
+
 		dev_err(dev, "mailbox status 0x%x!\n", status);
 		return -EBUSY;
 	}
@@ -5977,6 +6105,7 @@ static const struct hns_roce_hw hns_roce_hw_v2 = {
 	.hw_exit = hns_roce_v2_exit,
 	.post_mbox = hns_roce_v2_post_mbox,
 	.chk_mbox = hns_roce_v2_chk_mbox,
+	.rst_prc_mbox = hns_roce_v2_rst_process_cmd,
 	.set_gid = hns_roce_v2_set_gid,
 	.set_mac = hns_roce_v2_set_mac,
 	.write_mtpt = hns_roce_v2_write_mtpt,
