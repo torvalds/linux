@@ -358,19 +358,19 @@ ENTRY(system_call)
 	# load address of system call table
 	lg	%r10,__THREAD_sysc_table(%r13,%r12)
 	llgh	%r8,__PT_INT_CODE+2(%r11)
-	slag	%r8,%r8,2			# shift and test for svc 0
+	slag	%r8,%r8,3			# shift and test for svc 0
 	jnz	.Lsysc_nr_ok
 	# svc 0: system call number in %r1
 	llgfr	%r1,%r1				# clear high word in r1
 	cghi	%r1,NR_syscalls
 	jnl	.Lsysc_nr_ok
 	sth	%r1,__PT_INT_CODE+2(%r11)
-	slag	%r8,%r1,2
+	slag	%r8,%r1,3
 .Lsysc_nr_ok:
 	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
 	stg	%r2,__PT_ORIG_GPR2(%r11)
 	stg	%r7,STACK_FRAME_OVERHEAD(%r15)
-	lgf	%r9,0(%r8,%r10)			# get system call add.
+	lg	%r9,0(%r8,%r10)			# get system call add.
 	TSTMSK	__TI_flags(%r12),_TIF_TRACE
 	jnz	.Lsysc_tracesys
 	BASR_EX	%r14,%r9			# call sys_xxxx
@@ -556,8 +556,8 @@ ENTRY(system_call)
 	lghi	%r0,NR_syscalls
 	clgr	%r0,%r2
 	jnh	.Lsysc_tracenogo
-	sllg	%r8,%r2,2
-	lgf	%r9,0(%r8,%r10)
+	sllg	%r8,%r2,3
+	lg	%r9,0(%r8,%r10)
 .Lsysc_tracego:
 	lmg	%r3,%r7,__PT_R3(%r11)
 	stg	%r7,STACK_FRAME_OVERHEAD(%r15)
@@ -665,9 +665,9 @@ ENTRY(pgm_check_handler)
 	larl	%r1,pgm_check_table
 	llgh	%r10,__PT_INT_CODE+2(%r11)
 	nill	%r10,0x007f
-	sll	%r10,2
+	sll	%r10,3
 	je	.Lpgm_return
-	lgf	%r9,0(%r10,%r1)		# load address of handler routine
+	lg	%r9,0(%r10,%r1)		# load address of handler routine
 	lgr	%r2,%r11		# pass pointer to pt_regs
 	BASR_EX	%r14,%r9		# branch to interrupt-handler
 .Lpgm_return:
@@ -1512,7 +1512,7 @@ cleanup_critical:
 	.quad   .Lsie_skip - .Lsie_entry
 #endif
 	.section .rodata, "a"
-#define SYSCALL(esame,emu)	.long __s390x_ ## esame
+#define SYSCALL(esame,emu)	.quad __s390x_ ## esame
 	.globl	sys_call_table
 sys_call_table:
 #include "asm/syscall_table.h"
@@ -1520,7 +1520,7 @@ sys_call_table:
 
 #ifdef CONFIG_COMPAT
 
-#define SYSCALL(esame,emu)	.long __s390_ ## emu
+#define SYSCALL(esame,emu)	.quad __s390_ ## emu
 	.globl	sys_call_table_emu
 sys_call_table_emu:
 #include "asm/syscall_table.h"
