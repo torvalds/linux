@@ -108,6 +108,7 @@ unsigned long __bootdata_preserved(__stext_dma);
 unsigned long __bootdata_preserved(__etext_dma);
 unsigned long __bootdata_preserved(__sdma);
 unsigned long __bootdata_preserved(__edma);
+unsigned long __bootdata_preserved(__kaslr_offset);
 
 unsigned long VMALLOC_START;
 EXPORT_SYMBOL(VMALLOC_START);

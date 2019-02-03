@@ -12,6 +12,7 @@
 
 extern char __boot_data_start[], __boot_data_end[];
 extern char __boot_data_preserved_start[], __boot_data_preserved_end[];
+unsigned long __bootdata_preserved(__kaslr_offset);
 
 /*
  * Some code and data needs to stay below 2 GB, even when the kernel would be
@@ -113,6 +114,7 @@ static void handle_relocs(unsigned long offset)
 
 void startup_kernel(void)
 {
+	unsigned long random_lma;
 	unsigned long safe_addr;
 	void *img;
 
@@ -126,12 +128,37 @@ void startup_kernel(void)
 	parse_boot_command_line();
 	setup_memory_end();
 	detect_memory();
+
+	random_lma = __kaslr_offset = 0;
+	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE) && kaslr_enabled) {
+		random_lma = get_random_base(safe_addr);
+		if (random_lma) {
+			__kaslr_offset = random_lma - vmlinux.default_lma;
+			img = (void *)vmlinux.default_lma;
+			vmlinux.default_lma += __kaslr_offset;
+			vmlinux.entry += __kaslr_offset;
+			vmlinux.bootdata_off += __kaslr_offset;
+			vmlinux.bootdata_preserved_off += __kaslr_offset;
+			vmlinux.rela_dyn_start += __kaslr_offset;
+			vmlinux.rela_dyn_end += __kaslr_offset;
+			vmlinux.dynsym_start += __kaslr_offset;
+		}
+	}
+
 	if (!IS_ENABLED(CONFIG_KERNEL_UNCOMPRESSED)) {
 		img = decompress_kernel();
 		memmove((void *)vmlinux.default_lma, img, vmlinux.image_size);
-	}
+	} else if (__kaslr_offset)
+		memcpy((void *)vmlinux.default_lma, img, vmlinux.image_size);
+
 	copy_bootdata();
 	if (IS_ENABLED(CONFIG_RELOCATABLE))
-		handle_relocs(0);
+		handle_relocs(__kaslr_offset);
+
+	if (__kaslr_offset) {
+		/* Clear non-relocated kernel */
+		if (IS_ENABLED(CONFIG_KERNEL_UNCOMPRESSED))
+			memset(img, 0, vmlinux.image_size);
+	}
 	vmlinux.entry();
 }

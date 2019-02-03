@@ -637,6 +637,16 @@ config RELOCATABLE
 	  The relocations make the kernel image about 15% larger (compressed
 	  10%), but are discarded at runtime.
 
+config RANDOMIZE_BASE
+	bool "Randomize the address of the kernel image (KASLR)"
+	depends on RELOCATABLE
+	default y
+	help
+	  In support of Kernel Address Space Layout Randomization (KASLR),
+	  this randomizes the address at which the kernel image is loaded,
+	  as a security feature that deters exploit attempts relying on
+	  knowledge of the location of kernel internals.
+
 endmenu
 
 menu "Memory setup"

@@ -33,6 +33,7 @@ obj-y	+= string.o ebcdic.o sclp_early_core.o mem.o ipl_vmparm.o cmdline.o
 obj-y	+= ctype.o text_dma.o
 obj-$(CONFIG_PROTECTED_VIRTUALIZATION_GUEST)	+= uv.o
 obj-$(CONFIG_RELOCATABLE)	+= machine_kexec_reloc.o
+obj-$(CONFIG_RANDOMIZE_BASE)	+= kaslr.o
 targets	:= bzImage startup.a section_cmp.boot.data section_cmp.boot.preserved.data $(obj-y)
 subdir-	:= compressed
 

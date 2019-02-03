@@ -147,6 +147,12 @@ extern void (*_machine_restart)(char *command);
 extern void (*_machine_halt)(void);
 extern void (*_machine_power_off)(void);
 
+extern unsigned long __kaslr_offset;
+static inline unsigned long kaslr_offset(void)
+{
+	return __kaslr_offset;
+}
+
 #else /* __ASSEMBLY__ */
 
 #define IPL_DEVICE	(IPL_DEVICE_OFFSET)
