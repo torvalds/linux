@@ -1602,6 +1602,7 @@ struct hns_roce_link_table_entry {
 #define HNS_ROCE_LINK_TABLE_NXT_PTR_M GENMASK(31, 20)
 
 struct hns_roce_v2_priv {
+	struct hnae3_handle *handle;
 	struct hns_roce_v2_cmq cmq;
 	struct hns_roce_link_table tsq;
 	struct hns_roce_link_table tpq;
