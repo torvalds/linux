@@ -4663,64 +4663,19 @@ static void hns_roce_irq_work_handle(struct work_struct *work)
 		dev_warn(dev, "Send queue drained.\n");
 		break;
 	case HNS_ROCE_EVENT_TYPE_WQ_CATAS_ERROR:
-		dev_err(dev, "Local work queue catastrophic error.\n");
+		dev_err(dev, "Local work queue 0x%x catas error, sub_type:%d\n",
+			qpn, irq_work->sub_type);
 		hns_roce_set_qps_to_err(irq_work->hr_dev, qpn);
-		switch (irq_work->sub_type) {
-		case HNS_ROCE_LWQCE_QPC_ERROR:
-			dev_err(dev, "QP %d, QPC error.\n", qpn);
-			break;
-		case HNS_ROCE_LWQCE_MTU_ERROR:
-			dev_err(dev, "QP %d, MTU error.\n", qpn);
-			break;
-		case HNS_ROCE_LWQCE_WQE_BA_ADDR_ERROR:
-			dev_err(dev, "QP %d, WQE BA addr error.\n", qpn);
-			break;
-		case HNS_ROCE_LWQCE_WQE_ADDR_ERROR:
-			dev_err(dev, "QP %d, WQE addr error.\n", qpn);
-			break;
-		case HNS_ROCE_LWQCE_SQ_WQE_SHIFT_ERROR:
-			dev_err(dev, "QP %d, WQE shift error.\n", qpn);
-			break;
-		default:
-			dev_err(dev, "Unhandled sub_event type %d.\n",
-				irq_work->sub_type);
-			break;
-		}
 		break;
 	case HNS_ROCE_EVENT_TYPE_INV_REQ_LOCAL_WQ_ERROR:
-		dev_err(dev, "Invalid request local work queue error.\n");
+		dev_err(dev, "Invalid request local work queue 0x%x error.\n",
+			qpn);
 		hns_roce_set_qps_to_err(irq_work->hr_dev, qpn);
 		break;
 	case HNS_ROCE_EVENT_TYPE_LOCAL_WQ_ACCESS_ERROR:
-		dev_err(dev, "Local access violation work queue error.\n");
+		dev_err(dev, "Local access violation work queue 0x%x error, sub_type:%d\n",
+			qpn, irq_work->sub_type);
 		hns_roce_set_qps_to_err(irq_work->hr_dev, qpn);
-		switch (irq_work->sub_type) {
-		case HNS_ROCE_LAVWQE_R_KEY_VIOLATION:
-			dev_err(dev, "QP %d, R_key violation.\n", qpn);
-			break;
-		case HNS_ROCE_LAVWQE_LENGTH_ERROR:
-			dev_err(dev, "QP %d, length error.\n", qpn);
-			break;
-		case HNS_ROCE_LAVWQE_VA_ERROR:
-			dev_err(dev, "QP %d, VA error.\n", qpn);
-			break;
-		case HNS_ROCE_LAVWQE_PD_ERROR:
-			dev_err(dev, "QP %d, PD error.\n", qpn);
-			break;
-		case HNS_ROCE_LAVWQE_RW_ACC_ERROR:
-			dev_err(dev, "QP %d, rw acc error.\n", qpn);
-			break;
-		case HNS_ROCE_LAVWQE_KEY_STATE_ERROR:
-			dev_err(dev, "QP %d, key state error.\n", qpn);
-			break;
-		case HNS_ROCE_LAVWQE_MR_OPERATION_ERROR:
-			dev_err(dev, "QP %d, MR operation error.\n", qpn);
-			break;
-		default:
-			dev_err(dev, "Unhandled sub_event type %d.\n",
-				irq_work->sub_type);
-			break;
-		}
 		break;
 	case HNS_ROCE_EVENT_TYPE_SRQ_LIMIT_REACH:
 		dev_warn(dev, "SRQ limit reach.\n");
