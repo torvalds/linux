@@ -202,7 +202,7 @@ static int rxrpc_open_socket(struct rxrpc_local *local, struct net *net)
 
 		/* We want receive timestamps. */
 		opt = 1;
-		ret = kernel_setsockopt(local->socket, SOL_SOCKET, SO_TIMESTAMPNS,
+		ret = kernel_setsockopt(local->socket, SOL_SOCKET, SO_TIMESTAMPNS_OLD,
 					(char *)&opt, sizeof(opt));
 		if (ret < 0) {
 			_debug("setsockopt failed");

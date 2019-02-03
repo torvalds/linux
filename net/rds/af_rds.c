@@ -348,7 +348,7 @@ static int rds_set_transport(struct rds_sock *rs, char __user *optval,
 }
 
 static int rds_enable_recvtstamp(struct sock *sk, char __user *optval,
-				 int optlen)
+				 int optlen, int optname)
 {
 	int val, valbool;
 
@@ -359,6 +359,9 @@ static int rds_enable_recvtstamp(struct sock *sk, char __user *optval,
 		return -EFAULT;
 
 	valbool = val ? 1 : 0;
+
+	if (optname == SO_TIMESTAMP_NEW)
+		sock_set_flag(sk, SOCK_TSTAMP_NEW);
 
 	if (valbool)
 		sock_set_flag(sk, SOCK_RCVTSTAMP);
@@ -430,9 +433,10 @@ static int rds_setsockopt(struct socket *sock, int level, int optname,
 		ret = rds_set_transport(rs, optval, optlen);
 		release_sock(sock->sk);
 		break;
-	case SO_TIMESTAMP:
+	case SO_TIMESTAMP_OLD:
+	case SO_TIMESTAMP_NEW:
 		lock_sock(sock->sk);
-		ret = rds_enable_recvtstamp(sock->sk, optval, optlen);
+		ret = rds_enable_recvtstamp(sock->sk, optval, optlen, optname);
 		release_sock(sock->sk);
 		break;
 	case SO_RDS_MSG_RXPATH_LATENCY:

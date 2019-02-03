@@ -669,7 +669,7 @@ static bool skb_is_err_queue(const struct sk_buff *skb)
  * before the software timestamp is received, a hardware TX timestamp may be
  * returned only if there is no software TX timestamp. Ignore false software
  * timestamps, which may be made in the __sock_recv_timestamp() call when the
- * option SO_TIMESTAMP(NS) is enabled on the socket, even when the skb has a
+ * option SO_TIMESTAMP_OLD(NS) is enabled on the socket, even when the skb has a
  * hardware timestamp.
  */
 static bool skb_is_swtx_tstamp(const struct sk_buff *skb, int false_tstamp)
@@ -705,7 +705,9 @@ void __sock_recv_timestamp(struct msghdr *msg, struct sock *sk,
 	struct sk_buff *skb)
 {
 	int need_software_tstamp = sock_flag(sk, SOCK_RCVTSTAMP);
-	struct scm_timestamping tss;
+	int new_tstamp = sock_flag(sk, SOCK_TSTAMP_NEW);
+	struct scm_timestamping_internal tss;
+
 	int empty = 1, false_tstamp = 0;
 	struct skb_shared_hwtstamps *shhwtstamps =
 		skb_hwtstamps(skb);
@@ -719,34 +721,54 @@ void __sock_recv_timestamp(struct msghdr *msg, struct sock *sk,
 
 	if (need_software_tstamp) {
 		if (!sock_flag(sk, SOCK_RCVTSTAMPNS)) {
-			struct timeval tv;
-			skb_get_timestamp(skb, &tv);
-			put_cmsg(msg, SOL_SOCKET, SCM_TIMESTAMP,
-				 sizeof(tv), &tv);
+			if (new_tstamp) {
+				struct __kernel_sock_timeval tv;
+
+				skb_get_new_timestamp(skb, &tv);
+				put_cmsg(msg, SOL_SOCKET, SO_TIMESTAMP_NEW,
+					 sizeof(tv), &tv);
+			} else {
+				struct __kernel_old_timeval tv;
+
+				skb_get_timestamp(skb, &tv);
+				put_cmsg(msg, SOL_SOCKET, SO_TIMESTAMP_OLD,
+					 sizeof(tv), &tv);
+			}
 		} else {
-			struct timespec ts;
-			skb_get_timestampns(skb, &ts);
-			put_cmsg(msg, SOL_SOCKET, SCM_TIMESTAMPNS,
-				 sizeof(ts), &ts);
+			if (new_tstamp) {
+				struct __kernel_timespec ts;
+
+				skb_get_new_timestampns(skb, &ts);
+				put_cmsg(msg, SOL_SOCKET, SO_TIMESTAMPNS_NEW,
+					 sizeof(ts), &ts);
+			} else {
+				struct timespec ts;
+
+				skb_get_timestampns(skb, &ts);
+				put_cmsg(msg, SOL_SOCKET, SO_TIMESTAMPNS_OLD,
+					 sizeof(ts), &ts);
+			}
 		}
 	}
 
 	memset(&tss, 0, sizeof(tss));
 	if ((sk->sk_tsflags & SOF_TIMESTAMPING_SOFTWARE) &&
-	    ktime_to_timespec_cond(skb->tstamp, tss.ts + 0))
+	    ktime_to_timespec64_cond(skb->tstamp, tss.ts + 0))
 		empty = 0;
 	if (shhwtstamps &&
 	    (sk->sk_tsflags & SOF_TIMESTAMPING_RAW_HARDWARE) &&
 	    !skb_is_swtx_tstamp(skb, false_tstamp) &&
-	    ktime_to_timespec_cond(shhwtstamps->hwtstamp, tss.ts + 2)) {
+	    ktime_to_timespec64_cond(shhwtstamps->hwtstamp, tss.ts + 2)) {
 		empty = 0;
 		if ((sk->sk_tsflags & SOF_TIMESTAMPING_OPT_PKTINFO) &&
 		    !skb_is_err_queue(skb))
 			put_ts_pktinfo(msg, skb);
 	}
 	if (!empty) {
-		put_cmsg(msg, SOL_SOCKET,
-			 SCM_TIMESTAMPING, sizeof(tss), &tss);
+		if (sock_flag(sk, SOCK_TSTAMP_NEW))
+			put_cmsg_scm_timestamping64(msg, &tss);
+		else
+			put_cmsg_scm_timestamping(msg, &tss);
 
 		if (skb_is_err_queue(skb) && skb->len &&
 		    SKB_EXT_ERR(skb)->opt_stats)

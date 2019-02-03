@@ -63,9 +63,16 @@ struct __kernel_itimerspec {
  * here, this is probably because it is not y2038 safe and needs to
  * be changed to use another interface.
  */
+#ifndef __kernel_old_timeval
 struct __kernel_old_timeval {
 	__kernel_long_t tv_sec;
 	__kernel_long_t tv_usec;
+};
+#endif
+
+struct __kernel_sock_timeval {
+	__s64 tv_sec;
+	__s64 tv_usec;
 };
 
 /*
