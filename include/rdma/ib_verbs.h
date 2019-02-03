@@ -2264,6 +2264,19 @@ struct ib_counters_read_attr {
 
 struct uverbs_attr_bundle;
 
+#define INIT_RDMA_OBJ_SIZE(ib_struct, drv_struct, member)                      \
+	.size_##ib_struct =                                                    \
+		(sizeof(struct drv_struct) +                                   \
+		 BUILD_BUG_ON_ZERO(offsetof(struct drv_struct, member)) +      \
+		 BUILD_BUG_ON_ZERO(                                            \
+			 !__same_type(((struct drv_struct *)NULL)->member,     \
+				      struct ib_struct)))
+
+#define rdma_zalloc_drv_obj(ib_dev, ib_type)                                   \
+	((struct ib_type *)kzalloc(ib_dev->ops.size_##ib_type, GFP_KERNEL))
+
+#define DECLARE_RDMA_OBJ_SIZE(ib_struct) size_t size_##ib_struct
+
 /**
  * struct ib_device_ops - InfiniBand device operations
  * This structure defines all the InfiniBand device operations, providers will

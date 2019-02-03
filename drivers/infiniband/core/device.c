@@ -1228,6 +1228,8 @@ void ib_set_device_ops(struct ib_device *dev, const struct ib_device_ops *ops)
 				(ptr)->name = ops->name;                       \
 	} while (0)
 
+#define SET_OBJ_SIZE(ptr, name) SET_DEVICE_OP(ptr, size_##name)
+
 	SET_DEVICE_OP(dev_ops, add_gid);
 	SET_DEVICE_OP(dev_ops, advise_mr);
 	SET_DEVICE_OP(dev_ops, alloc_dm);
