@@ -929,7 +929,7 @@ static void mt76x02_edcca_check(struct mt76x02_dev *dev)
 	u32 val, busy;
 
 	val = mt76_rr(dev, MT_ED_CCA_TIMER);
-	busy = (val * 100) / jiffies_to_usecs(MT_CALIBRATE_INTERVAL);
+	busy = (val * 100) / jiffies_to_usecs(MT_MAC_WORK_INTERVAL);
 	busy = min_t(u32, busy, 100);
 
 	if (busy > MT_EDCCA_TH) {
@@ -975,7 +975,7 @@ void mt76x02_mac_work(struct work_struct *work)
 	mt76_tx_status_check(&dev->mt76, NULL, false);
 
 	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->mac_work,
-				     MT_CALIBRATE_INTERVAL);
+				     MT_MAC_WORK_INTERVAL);
 }
 
 void mt76x02_mac_set_bssid(struct mt76x02_dev *dev, u8 idx, const u8 *addr)
