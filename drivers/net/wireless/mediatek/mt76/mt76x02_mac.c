@@ -919,6 +919,9 @@ void mt76x02_edcca_init(struct mt76x02_dev *dev, bool enable)
 		}
 	}
 	mt76x02_edcca_tx_enable(dev, true);
+
+	/* clear previous CCA timer value */
+	mt76_rr(dev, MT_ED_CCA_TIMER);
 }
 EXPORT_SYMBOL_GPL(mt76x02_edcca_init);
 
