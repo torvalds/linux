@@ -776,10 +776,26 @@ _xfs_buf_read(
 }
 
 /*
+ * Set buffer ops on an unchecked buffer and validate it, if possible.
+ *
  * If the caller passed in an ops structure and the buffer doesn't have ops
  * assigned, set the ops and use them to verify the contents.  If the contents
  * cannot be verified, we'll clear XBF_DONE.  We assume the buffer has no
  * recorded errors and is already in XBF_DONE state.
+ *
+ * Under normal operations, every in-core buffer must have buffer ops assigned
+ * to them when the buffer is read in from disk so that we can validate the
+ * metadata.
+ *
+ * However, there are two scenarios where one can encounter in-core buffers
+ * that don't have buffer ops.  The first is during log recovery of buffers on
+ * a V4 filesystem, though these buffers are purged at the end of recovery.
+ *
+ * The other is online repair, which tries to match arbitrary metadata blocks
+ * with btree types in order to find the root.  If online repair doesn't match
+ * the buffer with /any/ btree type, the buffer remains in memory in DONE state
+ * with no ops, and a subsequent read_buf call from elsewhere will not set the
+ * ops.  This function helps us fix this situation.
  */
 int
 xfs_buf_ensure_ops(
