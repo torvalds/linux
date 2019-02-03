@@ -19,6 +19,9 @@ struct vmlinux_info {
 	unsigned long bootdata_size;
 	unsigned long bootdata_preserved_off;
 	unsigned long bootdata_preserved_size;
+	unsigned long dynsym_start;
+	unsigned long rela_dyn_start;
+	unsigned long rela_dyn_end;
 };
 
 extern char _vmlinux_info[];

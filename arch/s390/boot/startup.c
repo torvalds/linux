@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/string.h>
+#include <linux/elf.h>
 #include <asm/setup.h>
+#include <asm/kexec.h>
 #include <asm/sclp.h>
 #include <asm/uv.h>
 #include "compressed/decompressor.h"
@@ -47,6 +49,29 @@ static void copy_bootdata(void)
 	memcpy((void *)vmlinux.bootdata_preserved_off, __boot_data_preserved_start, vmlinux.bootdata_preserved_size);
 }
 
+static void handle_relocs(unsigned long offset)
+{
+	Elf64_Rela *rela_start, *rela_end, *rela;
+	int r_type, r_sym, rc;
+	Elf64_Addr loc, val;
+	Elf64_Sym *dynsym;
+
+	rela_start = (Elf64_Rela *) vmlinux.rela_dyn_start;
+	rela_end = (Elf64_Rela *) vmlinux.rela_dyn_end;
+	dynsym = (Elf64_Sym *) vmlinux.dynsym_start;
+	for (rela = rela_start; rela < rela_end; rela++) {
+		loc = rela->r_offset + offset;
+		val = rela->r_addend + offset;
+		r_sym = ELF64_R_SYM(rela->r_info);
+		if (r_sym)
+			val += dynsym[r_sym].st_value;
+		r_type = ELF64_R_TYPE(rela->r_info);
+		rc = arch_kexec_do_relocs(r_type, (void *) loc, val, 0);
+		if (rc)
+			error("Unknown relocation type");
+	}
+}
+
 void startup_kernel(void)
 {
 	unsigned long safe_addr;
@@ -67,5 +92,7 @@ void startup_kernel(void)
 		memmove((void *)vmlinux.default_lma, img, vmlinux.image_size);
 	}
 	copy_bootdata();
+	if (IS_ENABLED(CONFIG_RELOCATABLE))
+		handle_relocs(0);
 	vmlinux.entry();
 }

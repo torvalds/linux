@@ -624,6 +624,19 @@ config EXPOLINE_FULL
 
 endchoice
 
+config RELOCATABLE
+	bool "Build a relocatable kernel"
+	select MODULE_REL_CRCS if MODVERSIONS
+	default y
+	help
+	  This builds a kernel image that retains relocation information
+	  so it can be loaded at an arbitrary address.
+	  The kernel is linked as a position-independent executable (PIE)
+	  and contains dynamic relocations which are processed early in the
+	  bootup process.
+	  The relocations make the kernel image about 15% larger (compressed
+	  10%), but are discarded at runtime.
+
 endmenu
 
 menu "Memory setup"
