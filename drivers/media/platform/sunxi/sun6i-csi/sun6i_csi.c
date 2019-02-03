@@ -144,6 +144,12 @@ bool sun6i_csi_is_format_supported(struct sun6i_csi *csi,
 			break;
 		}
 		break;
+
+	case V4L2_PIX_FMT_RGB565:
+		return (mbus_code == MEDIA_BUS_FMT_RGB565_2X8_LE);
+	case V4L2_PIX_FMT_RGB565X:
+		return (mbus_code == MEDIA_BUS_FMT_RGB565_2X8_BE);
+
 	default:
 		dev_dbg(sdev->dev, "Unsupported pixformat: 0x%x\n", pixformat);
 		break;
@@ -208,8 +214,8 @@ clk_mod_disable:
 static enum csi_input_fmt get_csi_input_format(struct sun6i_csi_dev *sdev,
 					       u32 mbus_code, u32 pixformat)
 {
-	/* bayer */
-	if ((mbus_code & 0xF000) == 0x3000)
+	/* non-YUV */
+	if ((mbus_code & 0xF000) != 0x2000)
 		return CSI_INPUT_FORMAT_RAW;
 
 	switch (pixformat) {
@@ -278,6 +284,11 @@ static enum csi_output_fmt get_csi_output_format(struct sun6i_csi_dev *sdev,
 	case V4L2_PIX_FMT_YUV422P:
 		return buf_interlaced ? CSI_FRAME_PLANAR_YUV422 :
 					CSI_FIELD_PLANAR_YUV422;
+
+	case V4L2_PIX_FMT_RGB565:
+	case V4L2_PIX_FMT_RGB565X:
+		return buf_interlaced ? CSI_FRAME_RGB565 : CSI_FIELD_RGB565;
+
 	default:
 		dev_warn(sdev->dev, "Unsupported pixformat: 0x%x\n", pixformat);
 		break;
@@ -289,6 +300,10 @@ static enum csi_output_fmt get_csi_output_format(struct sun6i_csi_dev *sdev,
 static enum csi_input_seq get_csi_input_seq(struct sun6i_csi_dev *sdev,
 					    u32 mbus_code, u32 pixformat)
 {
+	/* Input sequence does not apply to non-YUV formats */
+	if ((mbus_code & 0xF000) != 0x2000)
+		return 0;
+
 	switch (pixformat) {
 	case V4L2_PIX_FMT_HM12:
 	case V4L2_PIX_FMT_NV12:
