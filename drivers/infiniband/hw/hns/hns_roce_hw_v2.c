@@ -587,7 +587,7 @@ out:
 		roce_set_field(sq_db.parameter, V2_DB_PARAMETER_SL_M,
 			       V2_DB_PARAMETER_SL_S, qp->sl);
 
-		hns_roce_write64_k((__le32 *)&sq_db, qp->sq.db_reg_l);
+		hns_roce_write64(hr_dev, (__le32 *)&sq_db, qp->sq.db_reg_l);
 
 		qp->sq_next_wqe = ind;
 		qp->next_sge = sge_ind;
@@ -717,7 +717,7 @@ static int hns_roce_v2_cmd_hw_reseted(struct hns_roce_dev *hr_dev,
 				      unsigned long reset_stage)
 {
 	/* When hardware reset has been completed once or more, we should stop
-	 * sending mailbox&cmq to hardware. If now in .init_instance()
+	 * sending mailbox&cmq&doorbell to hardware. If now in .init_instance()
 	 * function, we should exit with error. If now at HNAE3_INIT_CLIENT
 	 * stage of soft reset process, we should exit with error, and then
 	 * HNAE3_INIT_CLIENT related process can rollback the operation like
@@ -726,6 +726,7 @@ static int hns_roce_v2_cmd_hw_reseted(struct hns_roce_dev *hr_dev,
 	 * reset process once again.
 	 */
 	hr_dev->is_reset = true;
+	hr_dev->dis_db = true;
 
 	if (reset_stage == HNS_ROCE_STATE_RST_INIT ||
 	    instance_stage == HNS_ROCE_STATE_INIT)
@@ -742,8 +743,8 @@ static int hns_roce_v2_cmd_hw_resetting(struct hns_roce_dev *hr_dev,
 	struct hnae3_handle *handle = priv->handle;
 	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
 
-	/* When hardware reset is detected, we should stop sending mailbox&cmq
-	 * to hardware. If now in .init_instance() function, we should
+	/* When hardware reset is detected, we should stop sending mailbox&cmq&
+	 * doorbell to hardware. If now in .init_instance() function, we should
 	 * exit with error. If now at HNAE3_INIT_CLIENT stage of soft reset
 	 * process, we should exit with error, and then HNAE3_INIT_CLIENT
 	 * related process can rollback the operation like notifing hardware to
@@ -751,6 +752,7 @@ static int hns_roce_v2_cmd_hw_resetting(struct hns_roce_dev *hr_dev,
 	 * error to notify NIC driver to reschedule soft reset process once
 	 * again.
 	 */
+	hr_dev->dis_db = true;
 	if (!ops->get_hw_reset_stat(handle))
 		hr_dev->is_reset = true;
 
@@ -768,9 +770,10 @@ static int hns_roce_v2_cmd_sw_resetting(struct hns_roce_dev *hr_dev)
 	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
 
 	/* When software reset is detected at .init_instance() function, we
-	 * should stop sending mailbox&cmq to hardware, and exit with
-	 * error.
+	 * should stop sending mailbox&cmq&doorbell to hardware, and exit
+	 * with error.
 	 */
+	hr_dev->dis_db = true;
 	if (ops->ae_dev_reset_cnt(handle) != hr_dev->reset_cnt)
 		hr_dev->is_reset = true;
 
@@ -2495,6 +2498,7 @@ static void hns_roce_v2_write_cqc(struct hns_roce_dev *hr_dev,
 static int hns_roce_v2_req_notify_cq(struct ib_cq *ibcq,
 				     enum ib_cq_notify_flags flags)
 {
+	struct hns_roce_dev *hr_dev = to_hr_dev(ibcq->device);
 	struct hns_roce_cq *hr_cq = to_hr_cq(ibcq);
 	u32 notification_flag;
 	u32 doorbell[2];
@@ -2520,7 +2524,7 @@ static int hns_roce_v2_req_notify_cq(struct ib_cq *ibcq,
 	roce_set_bit(doorbell[1], V2_CQ_DB_PARAMETER_NOTIFY_S,
 		     notification_flag);
 
-	hns_roce_write64_k(doorbell, hr_cq->cq_db_l);
+	hns_roce_write64(hr_dev, doorbell, hr_cq->cq_db_l);
 
 	return 0;
 }
@@ -4763,6 +4767,7 @@ static void hns_roce_v2_init_irq_work(struct hns_roce_dev *hr_dev,
 
 static void set_eq_cons_index_v2(struct hns_roce_eq *eq)
 {
+	struct hns_roce_dev *hr_dev = eq->hr_dev;
 	u32 doorbell[2];
 
 	doorbell[0] = 0;
@@ -4789,7 +4794,7 @@ static void set_eq_cons_index_v2(struct hns_roce_eq *eq)
 		       HNS_ROCE_V2_EQ_DB_PARA_S,
 		       (eq->cons_index & HNS_ROCE_V2_CONS_IDX_M));
 
-	hns_roce_write64_k(doorbell, eq->doorbell);
+	hns_roce_write64(hr_dev, doorbell, eq->doorbell);
 }
 
 static struct hns_roce_aeqe *get_aeqe_v2(struct hns_roce_eq *eq, u32 entry)
@@ -6011,6 +6016,7 @@ static int hns_roce_v2_post_srq_recv(struct ib_srq *ibsrq,
 				     const struct ib_recv_wr *wr,
 				     const struct ib_recv_wr **bad_wr)
 {
+	struct hns_roce_dev *hr_dev = to_hr_dev(ibsrq->device);
 	struct hns_roce_srq *srq = to_hr_srq(ibsrq);
 	struct hns_roce_v2_wqe_data_seg *dseg;
 	struct hns_roce_v2_db srq_db;
@@ -6072,7 +6078,7 @@ static int hns_roce_v2_post_srq_recv(struct ib_srq *ibsrq,
 		srq_db.byte_4 = HNS_ROCE_V2_SRQ_DB << 24 | srq->srqn;
 		srq_db.parameter = srq->head;
 
-		hns_roce_write64_k((__le32 *)&srq_db, srq->db_reg_l);
+		hns_roce_write64(hr_dev, (__le32 *)&srq_db, srq->db_reg_l);
 
 	}
 
@@ -6309,6 +6315,7 @@ static int hns_roce_hw_v2_reset_notify_down(struct hnae3_handle *handle)
 		return 0;
 
 	hr_dev->active = false;
+	hr_dev->dis_db = true;
 
 	event.event = IB_EVENT_DEVICE_FATAL;
 	event.device = &hr_dev->ib_dev;
