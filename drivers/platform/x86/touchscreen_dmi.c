@@ -41,6 +41,20 @@ static const struct ts_dmi_data chuwi_hi8_data = {
 	.properties     = chuwi_hi8_props,
 };
 
+static const struct property_entry chuwi_hi8_air_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 1728),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 1148),
+	PROPERTY_ENTRY_BOOL("touchscreen-swapped-x-y"),
+	PROPERTY_ENTRY_STRING("firmware-name", "gsl3676-chuwi-hi8-air.fw"),
+	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
+	{ }
+};
+
+static const struct ts_dmi_data chuwi_hi8_air_data = {
+	.acpi_name	= "MSSL1680:00",
+	.properties	= chuwi_hi8_air_props,
+};
+
 static const struct property_entry chuwi_hi8_pro_props[] = {
 	PROPERTY_ENTRY_U32("touchscreen-min-x", 6),
 	PROPERTY_ENTRY_U32("touchscreen-min-y", 3),
@@ -513,6 +527,15 @@ static const struct dmi_system_id touchscreen_dmi_table[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Insyde"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "BayTrail"),
 			DMI_MATCH(DMI_BIOS_VERSION, "H1D_S806_206"),
+		},
+	},
+	{
+		/* Chuwi Hi8 Air (CWI543) */
+		.driver_data = (void *)&chuwi_hi8_air_data,
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "Default string"),
+			DMI_MATCH(DMI_BOARD_NAME, "Cherry Trail CR"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Hi8 Air"),
 		},
 	},
 	{
