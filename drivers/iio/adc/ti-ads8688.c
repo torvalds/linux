@@ -41,6 +41,7 @@
 
 #define ADS8688_VREF_MV			4096
 #define ADS8688_REALBITS		16
+#define ADS8688_MAX_CHANNELS		8
 
 /*
  * enum ads8688_range - ADS8688 reference voltage range
@@ -385,7 +386,7 @@ static irqreturn_t ads8688_trigger_handler(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
-	u16 buffer[8];
+	u16 buffer[ADS8688_MAX_CHANNELS + sizeof(s64)/sizeof(u16)];
 	int i, j = 0;
 
 	for (i = 0; i < indio_dev->masklength; i++) {
