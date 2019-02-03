@@ -1182,9 +1182,10 @@
 			arch/x86/kernel/cpu/cpufreq/elanfreq.c.
 
 	elevator=	[IOSCHED]
-			Format: {"cfq" | "deadline" | "noop"}
-			See Documentation/block/cfq-iosched.txt and
-			Documentation/block/deadline-iosched.txt for details.
+			Format: { "mq-deadline" | "kyber" | "bfq" }
+			See Documentation/block/deadline-iosched.txt,
+			Documentation/block/kyber-iosched.txt and
+			Documentation/block/bfq-iosched.txt for details.
 
 	elfcorehdr=[size[KMG]@]offset[KMG] [IA64,PPC,SH,X86,S390]
 			Specifies physical address of start of kernel core
