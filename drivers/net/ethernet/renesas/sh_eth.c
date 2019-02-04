@@ -796,6 +796,7 @@ static struct sh_eth_cpu_data r8a77980_data = {
 	.no_ade		= 1,
 	.xdfar_rw	= 1,
 	.csmr		= 1,
+	.rx_csum	= 1,
 	.select_mii	= 1,
 	.magic		= 1,
 	.cexcr		= 1,
