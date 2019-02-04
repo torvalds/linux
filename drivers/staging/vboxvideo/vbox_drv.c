@@ -222,7 +222,6 @@ static void vbox_master_drop(struct drm_device *dev, struct drm_file *file_priv)
 static struct drm_driver driver = {
 	.driver_features =
 	    DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME | DRIVER_ATOMIC,
-	.dev_priv_size = 0,
 
 	.lastclose = drm_fb_helper_lastclose,
 	.master_set = vbox_master_set,
