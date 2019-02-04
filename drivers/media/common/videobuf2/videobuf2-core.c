@@ -1041,6 +1041,7 @@ static int __prepare_userptr(struct vb2_buffer *vb)
 		if (vb->planes[plane].mem_priv) {
 			if (!reacquired) {
 				reacquired = true;
+				vb->copied_timestamp = 0;
 				call_void_vb_qop(vb, buf_cleanup, vb);
 			}
 			call_void_memop(vb, put_userptr, vb->planes[plane].mem_priv);
@@ -1165,6 +1166,7 @@ static int __prepare_dmabuf(struct vb2_buffer *vb)
 
 		if (!reacquired) {
 			reacquired = true;
+			vb->copied_timestamp = 0;
 			call_void_vb_qop(vb, buf_cleanup, vb);
 		}
 
@@ -1942,6 +1944,7 @@ static void __vb2_queue_cancel(struct vb2_queue *q)
 		if (vb->request)
 			media_request_put(vb->request);
 		vb->request = NULL;
+		vb->copied_timestamp = 0;
 	}
 }
 

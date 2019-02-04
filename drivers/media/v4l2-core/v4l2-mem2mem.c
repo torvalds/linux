@@ -992,6 +992,7 @@ void v4l2_m2m_buf_copy_metadata(const struct vb2_v4l2_buffer *out_vb,
 	cap_vb->field = out_vb->field;
 	cap_vb->flags &= ~mask;
 	cap_vb->flags |= out_vb->flags & mask;
+	cap_vb->vb2_buf.copied_timestamp = 1;
 }
 EXPORT_SYMBOL_GPL(v4l2_m2m_buf_copy_metadata);
 

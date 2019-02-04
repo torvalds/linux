@@ -262,6 +262,8 @@ struct vb2_buffer {
 	 * prepared:		this buffer has been prepared, i.e. the
 	 *			buf_prepare op was called. It is cleared again
 	 *			after the 'buf_finish' op is called.
+	 * copied_timestamp:	the timestamp of this capture buffer was copied
+	 *			from an output buffer.
 	 * queued_entry:	entry on the queued buffers list, which holds
 	 *			all buffers queued from userspace
 	 * done_entry:		entry on the list that stores all buffers ready
@@ -271,6 +273,7 @@ struct vb2_buffer {
 	enum vb2_buffer_state	state;
 	unsigned int		synced:1;
 	unsigned int		prepared:1;
+	unsigned int		copied_timestamp:1;
 
 	struct vb2_plane	planes[VB2_MAX_PLANES];
 	struct list_head	queued_entry;
