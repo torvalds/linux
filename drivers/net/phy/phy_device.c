@@ -61,6 +61,9 @@ EXPORT_SYMBOL_GPL(phy_gbit_all_ports_features);
 __ETHTOOL_DECLARE_LINK_MODE_MASK(phy_10gbit_features) __ro_after_init;
 EXPORT_SYMBOL_GPL(phy_10gbit_features);
 
+__ETHTOOL_DECLARE_LINK_MODE_MASK(phy_10gbit_fec_features) __ro_after_init;
+EXPORT_SYMBOL_GPL(phy_10gbit_fec_features);
+
 static const int phy_basic_ports_array[] = {
 	ETHTOOL_LINK_MODE_Autoneg_BIT,
 	ETHTOOL_LINK_MODE_TP_BIT,
@@ -108,6 +111,11 @@ const int phy_10gbit_features_array[1] = {
 	ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
 };
 EXPORT_SYMBOL_GPL(phy_10gbit_features_array);
+
+const int phy_10gbit_fec_features_array[1] = {
+	ETHTOOL_LINK_MODE_10000baseR_FEC_BIT,
+};
+EXPORT_SYMBOL_GPL(phy_10gbit_fec_features_array);
 
 __ETHTOOL_DECLARE_LINK_MODE_MASK(phy_10gbit_full_features) __ro_after_init;
 EXPORT_SYMBOL_GPL(phy_10gbit_full_features);
@@ -191,6 +199,10 @@ static void features_init(void)
 	linkmode_set_bit_array(phy_10gbit_full_features_array,
 			       ARRAY_SIZE(phy_10gbit_full_features_array),
 			       phy_10gbit_full_features);
+	/* 10G FEC only */
+	linkmode_set_bit_array(phy_10gbit_fec_features_array,
+			       ARRAY_SIZE(phy_10gbit_fec_features_array),
+			       phy_10gbit_fec_features);
 }
 
 void phy_device_free(struct phy_device *phydev)
@@ -2242,6 +2254,11 @@ static int phy_remove(struct device *dev)
 int phy_driver_register(struct phy_driver *new_driver, struct module *owner)
 {
 	int retval;
+
+	if (WARN_ON(!new_driver->features)) {
+		pr_err("%s: Driver features are missing\n", new_driver->name);
+		return -EINVAL;
+	}
 
 	new_driver->mdiodrv.flags |= MDIO_DEVICE_IS_PHY;
 	new_driver->mdiodrv.driver.name = new_driver->name;

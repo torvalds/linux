@@ -36,7 +36,7 @@ struct wilc_op_mode {
 struct wilc_reg_frame {
 	bool reg;
 	u8 reg_id;
-	__le32 frame_type;
+	__le16 frame_type;
 } __packed;
 
 struct wilc_drv_handler {
@@ -1744,7 +1744,6 @@ int wilc_add_rx_gtk(struct wilc_vif *vif, const u8 *rx_gtk, u8 gtk_key_len,
 		result = wilc_send_config_pkt(vif, WILC_SET_CFG, wid_list,
 					      ARRAY_SIZE(wid_list),
 					      wilc_get_vif_idx(vif));
-		kfree(gtk_key);
 	} else if (mode == WILC_STATION_MODE) {
 		struct wid wid;
 
@@ -1754,9 +1753,9 @@ int wilc_add_rx_gtk(struct wilc_vif *vif, const u8 *rx_gtk, u8 gtk_key_len,
 		wid.val = (u8 *)gtk_key;
 		result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
 					      wilc_get_vif_idx(vif));
-		kfree(gtk_key);
 	}
 
+	kfree(gtk_key);
 	return result;
 }
 

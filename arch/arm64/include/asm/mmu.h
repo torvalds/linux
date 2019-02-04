@@ -60,8 +60,11 @@ static inline bool arm64_kernel_use_ng_mappings(void)
 	 * later determine that kpti is required, then
 	 * kpti_install_ng_mappings() will make them non-global.
 	 */
+	if (arm64_kernel_unmapped_at_el0())
+		return true;
+
 	if (!IS_ENABLED(CONFIG_RANDOMIZE_BASE))
-		return arm64_kernel_unmapped_at_el0();
+		return false;
 
 	/*
 	 * KASLR is enabled so we're going to be enabling kpti on non-broken
