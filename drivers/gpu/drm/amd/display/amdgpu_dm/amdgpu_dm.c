@@ -5180,9 +5180,11 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 
 		manage_dm_interrupts(adev, acrtc, true);
 
+#ifdef CONFIG_DEBUG_FS
 		/* The stream has changed so CRC capture needs to re-enabled. */
 		if (dm_new_crtc_state->crc_enabled)
 			amdgpu_dm_crtc_set_crc_source(crtc, "auto");
+#endif
 	}
 
 	/* update planes when needed per crtc*/
