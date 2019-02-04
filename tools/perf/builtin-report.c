@@ -616,6 +616,21 @@ static int report__collapse_hists(struct report *rep)
 	return ret;
 }
 
+static int hists__resort_cb(struct hist_entry *he, void *arg)
+{
+	struct report *rep = arg;
+	struct symbol *sym = he->ms.sym;
+
+	if (rep->symbol_ipc && sym && !sym->annotate2) {
+		struct perf_evsel *evsel = hists_to_evsel(he->hists);
+
+		symbol__annotate2(sym, he->ms.map, evsel,
+				  &annotation__default_options, NULL);
+	}
+
+	return 0;
+}
+
 static void report__output_resort(struct report *rep)
 {
 	struct ui_progress prog;
@@ -623,8 +638,10 @@ static void report__output_resort(struct report *rep)
 
 	ui_progress__init(&prog, rep->nr_entries, "Sorting events for output...");
 
-	evlist__for_each_entry(rep->session->evlist, pos)
-		perf_evsel__output_resort(pos, &prog);
+	evlist__for_each_entry(rep->session->evlist, pos) {
+		perf_evsel__output_resort_cb(pos, &prog,
+					     hists__resort_cb, rep);
+	}
 
 	ui_progress__finish();
 }
