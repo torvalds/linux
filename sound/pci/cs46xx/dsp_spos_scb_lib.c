@@ -271,12 +271,6 @@ void cs46xx_dsp_proc_register_scb_desc (struct snd_cs46xx *chip,
 			entry->mode = S_IFREG | 0644;
       
 			entry->c.text.read = cs46xx_dsp_proc_scb_info_read;
-      
-			if (snd_info_register(entry) < 0) {
-				snd_info_free_entry(entry);
-				kfree (scb_info);
-				entry = NULL;
-			}
 		}
 out:
 		scb->proc_info = entry;
