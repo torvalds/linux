@@ -542,7 +542,7 @@ static int siu_pcm_new(struct snd_soc_pcm_runtime *rtd)
 			return ret;
 
 		ret = snd_pcm_lib_preallocate_pages_for_all(pcm,
-				SNDRV_DMA_TYPE_DEV, NULL,
+				SNDRV_DMA_TYPE_DEV, card->dev,
 				SIU_BUFFER_BYTES_MAX, SIU_BUFFER_BYTES_MAX);
 		if (ret < 0) {
 			dev_err(card->dev,
