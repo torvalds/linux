@@ -2003,6 +2003,35 @@ int rsi_mgmt_pkt_recv(struct rsi_common *common, u8 *msg)
 			return -1;
 		rsi_send_beacon(common);
 		break;
+	case WOWLAN_WAKEUP_REASON:
+		rsi_dbg(ERR_ZONE, "\n\nWakeup Type: %x\n", msg[15]);
+		switch (msg[15]) {
+		case RSI_UNICAST_MAGIC_PKT:
+			rsi_dbg(ERR_ZONE,
+				"*** Wakeup for Unicast magic packet ***\n");
+			break;
+		case RSI_BROADCAST_MAGICPKT:
+			rsi_dbg(ERR_ZONE,
+				"*** Wakeup for Broadcast magic packet ***\n");
+			break;
+		case RSI_EAPOL_PKT:
+			rsi_dbg(ERR_ZONE,
+				"*** Wakeup for GTK renewal ***\n");
+			break;
+		case RSI_DISCONNECT_PKT:
+			rsi_dbg(ERR_ZONE,
+				"*** Wakeup for Disconnect ***\n");
+			break;
+		case RSI_HW_BMISS_PKT:
+			rsi_dbg(ERR_ZONE,
+				"*** Wakeup for HW Beacon miss ***\n");
+			break;
+		default:
+			rsi_dbg(ERR_ZONE,
+				"##### Un-intentional Wakeup #####\n");
+			break;
+	}
+	break;
 	case RX_DOT11_MGMT:
 		return rsi_mgmt_pkt_to_core(common, msg, msg_len);
 	default:
