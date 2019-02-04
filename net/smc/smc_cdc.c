@@ -21,13 +21,6 @@
 
 /********************************** send *************************************/
 
-struct smc_cdc_tx_pend {
-	struct smc_connection	*conn;		/* socket connection */
-	union smc_host_cursor	cursor;	/* tx sndbuf cursor sent */
-	union smc_host_cursor	p_cursor;	/* rx RMBE cursor produced */
-	u16			ctrl_seq;	/* conn. tx sequence # */
-};
-
 /* handler for send/transmission completion of a CDC msg */
 static void smc_cdc_tx_handler(struct smc_wr_tx_pend_priv *pnd_snd,
 			       struct smc_link *link,
@@ -61,12 +54,14 @@ static void smc_cdc_tx_handler(struct smc_wr_tx_pend_priv *pnd_snd,
 
 int smc_cdc_get_free_slot(struct smc_connection *conn,
 			  struct smc_wr_buf **wr_buf,
+			  struct smc_rdma_wr **wr_rdma_buf,
 			  struct smc_cdc_tx_pend **pend)
 {
 	struct smc_link *link = &conn->lgr->lnk[SMC_SINGLE_LINK];
 	int rc;
 
 	rc = smc_wr_tx_get_free_slot(link, smc_cdc_tx_handler, wr_buf,
+				     wr_rdma_buf,
 				     (struct smc_wr_tx_pend_priv **)pend);
 	if (!conn->alert_token_local)
 		/* abnormal termination */
@@ -121,7 +116,7 @@ static int smcr_cdc_get_slot_and_msg_send(struct smc_connection *conn)
 	struct smc_wr_buf *wr_buf;
 	int rc;
 
-	rc = smc_cdc_get_free_slot(conn, &wr_buf, &pend);
+	rc = smc_cdc_get_free_slot(conn, &wr_buf, NULL, &pend);
 	if (rc)
 		return rc;
 

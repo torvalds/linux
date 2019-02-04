@@ -270,10 +270,16 @@ static inline void smc_cdc_msg_to_host(struct smc_host_cdc_msg *local,
 		smcr_cdc_msg_to_host(local, peer, conn);
 }
 
-struct smc_cdc_tx_pend;
+struct smc_cdc_tx_pend {
+	struct smc_connection	*conn;		/* socket connection */
+	union smc_host_cursor	cursor;		/* tx sndbuf cursor sent */
+	union smc_host_cursor	p_cursor;	/* rx RMBE cursor produced */
+	u16			ctrl_seq;	/* conn. tx sequence # */
+};
 
 int smc_cdc_get_free_slot(struct smc_connection *conn,
 			  struct smc_wr_buf **wr_buf,
+			  struct smc_rdma_wr **wr_rdma_buf,
 			  struct smc_cdc_tx_pend **pend);
 void smc_cdc_tx_dismiss_slots(struct smc_connection *conn);
 int smc_cdc_msg_send(struct smc_connection *conn, struct smc_wr_buf *wr_buf,

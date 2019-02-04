@@ -266,27 +266,23 @@ int smcd_tx_ism_write(struct smc_connection *conn, void *data, size_t len,
 
 /* sndbuf consumer: actual data transfer of one target chunk with RDMA write */
 static int smc_tx_rdma_write(struct smc_connection *conn, int peer_rmbe_offset,
-			     int num_sges, struct ib_sge sges[])
+			     int num_sges, struct ib_rdma_wr *rdma_wr)
 {
 	struct smc_link_group *lgr = conn->lgr;
-	struct ib_rdma_wr rdma_wr;
 	struct smc_link *link;
 	int rc;
 
-	memset(&rdma_wr, 0, sizeof(rdma_wr));
 	link = &lgr->lnk[SMC_SINGLE_LINK];
-	rdma_wr.wr.wr_id = smc_wr_tx_get_next_wr_id(link);
-	rdma_wr.wr.sg_list = sges;
-	rdma_wr.wr.num_sge = num_sges;
-	rdma_wr.wr.opcode = IB_WR_RDMA_WRITE;
-	rdma_wr.remote_addr =
+	rdma_wr->wr.wr_id = smc_wr_tx_get_next_wr_id(link);
+	rdma_wr->wr.num_sge = num_sges;
+	rdma_wr->remote_addr =
 		lgr->rtokens[conn->rtoken_idx][SMC_SINGLE_LINK].dma_addr +
 		/* RMBE within RMB */
 		conn->tx_off +
 		/* offset within RMBE */
 		peer_rmbe_offset;
-	rdma_wr.rkey = lgr->rtokens[conn->rtoken_idx][SMC_SINGLE_LINK].rkey;
-	rc = ib_post_send(link->roce_qp, &rdma_wr.wr, NULL);
+	rdma_wr->rkey = lgr->rtokens[conn->rtoken_idx][SMC_SINGLE_LINK].rkey;
+	rc = ib_post_send(link->roce_qp, &rdma_wr->wr, NULL);
 	if (rc) {
 		conn->local_tx_ctrl.conn_state_flags.peer_conn_abort = 1;
 		smc_lgr_terminate(lgr);
@@ -313,24 +309,25 @@ static inline void smc_tx_advance_cursors(struct smc_connection *conn,
 /* SMC-R helper for smc_tx_rdma_writes() */
 static int smcr_tx_rdma_writes(struct smc_connection *conn, size_t len,
 			       size_t src_off, size_t src_len,
-			       size_t dst_off, size_t dst_len)
+			       size_t dst_off, size_t dst_len,
+			       struct smc_rdma_wr *wr_rdma_buf)
 {
 	dma_addr_t dma_addr =
 		sg_dma_address(conn->sndbuf_desc->sgt[SMC_SINGLE_LINK].sgl);
-	struct smc_link *link = &conn->lgr->lnk[SMC_SINGLE_LINK];
 	int src_len_sum = src_len, dst_len_sum = dst_len;
-	struct ib_sge sges[SMC_IB_MAX_SEND_SGE];
 	int sent_count = src_off;
 	int srcchunk, dstchunk;
 	int num_sges;
 	int rc;
 
 	for (dstchunk = 0; dstchunk < 2; dstchunk++) {
+		struct ib_sge *sge =
+			wr_rdma_buf->wr_tx_rdma[dstchunk].wr.sg_list;
+
 		num_sges = 0;
 		for (srcchunk = 0; srcchunk < 2; srcchunk++) {
-			sges[srcchunk].addr = dma_addr + src_off;
-			sges[srcchunk].length = src_len;
-			sges[srcchunk].lkey = link->roce_pd->local_dma_lkey;
+			sge[srcchunk].addr = dma_addr + src_off;
+			sge[srcchunk].length = src_len;
 			num_sges++;
 
 			src_off += src_len;
@@ -343,7 +340,8 @@ static int smcr_tx_rdma_writes(struct smc_connection *conn, size_t len,
 			src_len = dst_len - src_len; /* remainder */
 			src_len_sum += src_len;
 		}
-		rc = smc_tx_rdma_write(conn, dst_off, num_sges, sges);
+		rc = smc_tx_rdma_write(conn, dst_off, num_sges,
+				       &wr_rdma_buf->wr_tx_rdma[dstchunk]);
 		if (rc)
 			return rc;
 		if (dst_len_sum == len)
@@ -402,7 +400,8 @@ static int smcd_tx_rdma_writes(struct smc_connection *conn, size_t len,
 /* sndbuf consumer: prepare all necessary (src&dst) chunks of data transmit;
  * usable snd_wnd as max transmit
  */
-static int smc_tx_rdma_writes(struct smc_connection *conn)
+static int smc_tx_rdma_writes(struct smc_connection *conn,
+			      struct smc_rdma_wr *wr_rdma_buf)
 {
 	size_t len, src_len, dst_off, dst_len; /* current chunk values */
 	union smc_host_cursor sent, prep, prod, cons;
@@ -463,7 +462,7 @@ static int smc_tx_rdma_writes(struct smc_connection *conn)
 					 dst_off, dst_len);
 	else
 		rc = smcr_tx_rdma_writes(conn, len, sent.count, src_len,
-					 dst_off, dst_len);
+					 dst_off, dst_len, wr_rdma_buf);
 	if (rc)
 		return rc;
 
@@ -484,11 +483,12 @@ static int smc_tx_rdma_writes(struct smc_connection *conn)
 static int smcr_tx_sndbuf_nonempty(struct smc_connection *conn)
 {
 	struct smc_cdc_producer_flags *pflags;
+	struct smc_rdma_wr *wr_rdma_buf;
 	struct smc_cdc_tx_pend *pend;
 	struct smc_wr_buf *wr_buf;
 	int rc;
 
-	rc = smc_cdc_get_free_slot(conn, &wr_buf, &pend);
+	rc = smc_cdc_get_free_slot(conn, &wr_buf, &wr_rdma_buf, &pend);
 	if (rc < 0) {
 		if (rc == -EBUSY) {
 			struct smc_sock *smc =
@@ -506,7 +506,7 @@ static int smcr_tx_sndbuf_nonempty(struct smc_connection *conn)
 
 	spin_lock_bh(&conn->send_lock);
 	if (!conn->local_tx_ctrl.prod_flags.urg_data_present) {
-		rc = smc_tx_rdma_writes(conn);
+		rc = smc_tx_rdma_writes(conn, wr_rdma_buf);
 		if (rc) {
 			smc_wr_tx_put_slot(&conn->lgr->lnk[SMC_SINGLE_LINK],
 					   (struct smc_wr_tx_pend_priv *)pend);
@@ -533,7 +533,7 @@ static int smcd_tx_sndbuf_nonempty(struct smc_connection *conn)
 
 	spin_lock_bh(&conn->send_lock);
 	if (!pflags->urg_data_present)
-		rc = smc_tx_rdma_writes(conn);
+		rc = smc_tx_rdma_writes(conn, NULL);
 	if (!rc)
 		rc = smcd_cdc_msg_send(conn);
 
