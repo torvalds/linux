@@ -1316,8 +1316,8 @@ static int synth_event_create(int argc, const char **argv)
 
 	/* This interface accepts group name prefix */
 	if (strchr(name, '/')) {
-		len = sizeof(SYNTH_SYSTEM "/") - 1;
-		if (strncmp(name, SYNTH_SYSTEM "/", len))
+		len = str_has_prefix(name, SYNTH_SYSTEM "/");
+		if (len == 0)
 			return -EINVAL;
 		name += len;
 	}
