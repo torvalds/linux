@@ -62,11 +62,11 @@ static int all_symbols = 0;
 static int absolute_percpu = 0;
 static int base_relative = 0;
 
-int token_profit[0x10000];
+static int token_profit[0x10000];
 
 /* the table that holds the result of the compression */
-unsigned char best_table[256][2];
-unsigned char best_table_len[256];
+static unsigned char best_table[256][2];
+static unsigned char best_table_len[256];
 
 
 static void usage(void)
@@ -80,7 +80,7 @@ static void usage(void)
  * This ignores the intensely annoying "mapping symbols" found
  * in ARM ELF files: $a, $t and $d.
  */
-static inline int is_arm_mapping_symbol(const char *str)
+static int is_arm_mapping_symbol(const char *str)
 {
 	return str[0] == '$' && strchr("axtd", str[1])
 	       && (str[2] == '\0' || str[2] == '.');
