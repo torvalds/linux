@@ -1714,6 +1714,15 @@ static int geni_i2c_resume_early(struct device *device)
 	return 0;
 }
 
+static int geni_i2c_hib_resume_noirq(struct device *device)
+{
+	struct geni_i2c_dev *gi2c = dev_get_drvdata(device);
+
+	I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev, "%s\n", __func__);
+	gi2c->se_mode = UNINITIALIZED;
+	return 0;
+}
+
 /*
  * get sync/put sync in LA-VM -> do resources on/off
  * get sync/put sync in LE-VM -> do lock/unlock gpii
@@ -1898,6 +1907,8 @@ static const struct dev_pm_ops geni_i2c_pm_ops = {
 	.resume_early		= geni_i2c_resume_early,
 	.runtime_suspend	= geni_i2c_runtime_suspend,
 	.runtime_resume		= geni_i2c_runtime_resume,
+	.freeze                 = geni_i2c_suspend_late,
+	.restore                = geni_i2c_hib_resume_noirq,
 };
 
 static const struct of_device_id geni_i2c_dt_match[] = {
