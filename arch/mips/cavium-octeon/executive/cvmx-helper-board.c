@@ -31,6 +31,7 @@
  * network ports from the rest of the cvmx-helper files.
  */
 
+#include <linux/bug.h>
 #include <asm/octeon/octeon.h>
 #include <asm/octeon/cvmx-bootinfo.h>
 
@@ -209,6 +210,9 @@ int cvmx_helper_board_get_mii_address(int ipd_port)
 cvmx_helper_link_info_t __cvmx_helper_board_link_get(int ipd_port)
 {
 	cvmx_helper_link_info_t result;
+
+	WARN(!octeon_is_simulation(),
+	     "Using deprecated link status - please update your DT");
 
 	/* Unless we fix it later, all links are defaulted to down */
 	result.u64 = 0;
