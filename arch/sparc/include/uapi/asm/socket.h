@@ -108,7 +108,7 @@
 #define SO_TIMESTAMPNS_OLD       0x0021
 #define SO_TIMESTAMPING_OLD      0x0023
 
-#define SO_TIMESTAMP_NEW         0x0041
+#define SO_TIMESTAMP_NEW         0x0046
 #define SO_TIMESTAMPNS_NEW       0x0042
 #define SO_TIMESTAMPING_NEW      0x0043
 
