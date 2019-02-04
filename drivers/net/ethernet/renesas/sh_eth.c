@@ -1532,8 +1532,9 @@ static int sh_eth_dev_init(struct net_device *ndev)
 	mdp->irq_enabled = true;
 	sh_eth_write(ndev, mdp->cd->eesipr_value, EESIPR);
 
-	/* PAUSE Prohibition */
+	/* EMAC Mode: PAUSE prohibition; Duplex; RX Checksum; TX; RX */
 	sh_eth_write(ndev, ECMR_ZPF | (mdp->duplex ? ECMR_DM : 0) |
+		     (ndev->features & NETIF_F_RXCSUM ? ECMR_RCSC : 0) |
 		     ECMR_TE | ECMR_RE, ECMR);
 
 	if (mdp->cd->set_rate)
@@ -1590,6 +1591,19 @@ static void sh_eth_dev_exit(struct net_device *ndev)
 
 	/* Set MAC address again */
 	update_mac_address(ndev);
+}
+
+static void sh_eth_rx_csum(struct sk_buff *skb)
+{
+	u8 *hw_csum;
+
+	/* The hardware checksum is 2 bytes appended to packet data */
+	if (unlikely(skb->len < sizeof(__sum16)))
+		return;
+	hw_csum = skb_tail_pointer(skb) - sizeof(__sum16);
+	skb->csum = csum_unfold((__force __sum16)get_unaligned_le16(hw_csum));
+	skb->ip_summed = CHECKSUM_COMPLETE;
+	skb_trim(skb, skb->len - sizeof(__sum16));
 }
 
 /* Packet receive function */
@@ -1666,6 +1680,8 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 					 DMA_FROM_DEVICE);
 			skb_put(skb, pkt_len);
 			skb->protocol = eth_type_trans(skb, ndev);
+			if (ndev->features & NETIF_F_RXCSUM)
+				sh_eth_rx_csum(skb);
 			netif_receive_skb(skb);
 			ndev->stats.rx_packets++;
 			ndev->stats.rx_bytes += pkt_len;
@@ -2921,6 +2937,39 @@ static void sh_eth_set_rx_mode(struct net_device *ndev)
 	spin_unlock_irqrestore(&mdp->lock, flags);
 }
 
+static void sh_eth_set_rx_csum(struct net_device *ndev, bool enable)
+{
+	struct sh_eth_private *mdp = netdev_priv(ndev);
+	unsigned long flags;
+
+	spin_lock_irqsave(&mdp->lock, flags);
+
+	/* Disable TX and RX */
+	sh_eth_rcv_snd_disable(ndev);
+
+	/* Modify RX Checksum setting */
+	sh_eth_modify(ndev, ECMR, ECMR_RCSC, enable ? ECMR_RCSC : 0);
+
+	/* Enable TX and RX */
+	sh_eth_rcv_snd_enable(ndev);
+
+	spin_unlock_irqrestore(&mdp->lock, flags);
+}
+
+static int sh_eth_set_features(struct net_device *ndev,
+			       netdev_features_t features)
+{
+	netdev_features_t changed = ndev->features ^ features;
+	struct sh_eth_private *mdp = netdev_priv(ndev);
+
+	if (changed & NETIF_F_RXCSUM && mdp->cd->rx_csum)
+		sh_eth_set_rx_csum(ndev, features & NETIF_F_RXCSUM);
+
+	ndev->features = features;
+
+	return 0;
+}
+
 static int sh_eth_get_vtag_index(struct sh_eth_private *mdp)
 {
 	if (!mdp->port)
@@ -3102,6 +3151,7 @@ static const struct net_device_ops sh_eth_netdev_ops = {
 	.ndo_change_mtu		= sh_eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr,
+	.ndo_set_features	= sh_eth_set_features,
 };
 
 static const struct net_device_ops sh_eth_netdev_ops_tsu = {
@@ -3117,6 +3167,7 @@ static const struct net_device_ops sh_eth_netdev_ops_tsu = {
 	.ndo_change_mtu		= sh_eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr,
+	.ndo_set_features	= sh_eth_set_features,
 };
 
 #ifdef CONFIG_OF
@@ -3245,6 +3296,11 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 	ndev->max_mtu = 2000 - (ETH_HLEN + VLAN_HLEN + ETH_FCS_LEN);
 	ndev->min_mtu = ETH_MIN_MTU;
 
+	if (mdp->cd->rx_csum) {
+		ndev->features = NETIF_F_RXCSUM;
+		ndev->hw_features = NETIF_F_RXCSUM;
+	}
+
 	/* set function */
 	if (mdp->cd->tsu)
 		ndev->netdev_ops = &sh_eth_netdev_ops_tsu;
@@ -3294,7 +3350,7 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 			goto out_release;
 		}
 		mdp->port = port;
-		ndev->features = NETIF_F_HW_VLAN_CTAG_FILTER;
+		ndev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
 
 		/* Need to init only the first port of the two sharing a TSU */
 		if (port == 0) {
