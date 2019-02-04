@@ -180,10 +180,18 @@
 				ethernet@0 {
 					phy-handle = <&phy2>;
 					cavium,alt-phy-handle = <&phy100>;
+					fixed-link {
+						speed = <1000>;
+						full-duplex;
+					};
 				};
 				ethernet@1 {
 					phy-handle = <&phy3>;
 					cavium,alt-phy-handle = <&phy101>;
+					fixed-link {
+						speed = <1000>;
+						full-duplex;
+					};
 				};
 				ethernet@2 {
 					phy-handle = <&phy4>;
