@@ -353,8 +353,12 @@ CONFIG_X509_CERTIFICATE_PARSER                  note<module signing>
 CONFIG_MODULE_SIG_KEY                           policy<{'amd64': '"certs/signing_key.pem"', 'arm64': '"certs/signing_key.pem"', 'armhf': '"certs/signing_key.pem"', 'i386': '"certs/signing_key.pem"', 'ppc64el': '"certs/signing_key.pem"', 's390x': '"certs/signing_key.pem"'}>
 CONFIG_SYSTEM_BLACKLIST_KEYRING                 policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y', 's390x': 'y'}>
 CONFIG_SYSTEM_BLACKLIST_HASH_LIST               policy<{'amd64': '""', 'arm64': '""', 'armhf': '""', 'i386': '""', 'ppc64el': '""', 's390x': '""'}>
+CONFIG_EFI_SIGNATURE_LIST_PARSER                policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y'}>
+CONFIG_LOAD_UEFI_KEYS                           policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y'}>
 #
 CONFIG_SYSTEM_BLACKLIST_KEYRING                 mark<ENFORCED>
+CONFIG_EFI_SIGNATURE_LIST_PARSER                mark<ENFORCED>
+CONFIG_LOAD_UEFI_KEYS                           mark<ENFORCED>
 
 # Menu: Cryptographic API >> Certificates for signature checking >> Provide system-wide ring of trusted keys
 CONFIG_SYSTEM_TRUSTED_KEYRING                   policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y', 's390x': 'y'}>
@@ -12707,10 +12711,6 @@ CONFIG_APPLDATA_NET_SUM                         policy<{'s390x': 'm'}>
 
 
 # Menu: FOOTER
-
-# temporarily disabled lockdown options
-#CONFIG_EFI_SIGNATURE_LIST_PARSER                mark<ENFORCED>
-#CONFIG_LOAD_UEFI_KEYS                           mark<ENFORCED>
 
 # temporarily disabled options -- build failures.
 
