@@ -52,8 +52,6 @@ struct a6xx_gmu {
 	int hfi_irq;
 	int gmu_irq;
 
-	struct regulator *gx;
-
 	struct iommu_domain *domain;
 	u64 uncached_iova_base;
 

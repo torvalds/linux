@@ -681,9 +681,6 @@ int a6xx_gmu_reset(struct a6xx_gpu *a6xx_gpu)
 	gmu_poll_timeout(gmu, REG_A6XX_RSCC_TCS3_DRV0_STATUS, val,
 		(val & 1), 100, 1000);
 
-	/* Force off the GX GSDC */
-	regulator_force_disable(gmu->gx);
-
 	/* Disable the resources */
 	clk_bulk_disable_unprepare(gmu->nr_clocks, gmu->clocks);
 	pm_runtime_put_sync(gmu->dev);
@@ -1218,7 +1215,6 @@ int a6xx_gmu_probe(struct a6xx_gpu *a6xx_gpu, struct device_node *node)
 	gmu->idle_level = GMU_IDLE_STATE_ACTIVE;
 
 	pm_runtime_enable(gmu->dev);
-	gmu->gx = devm_regulator_get(gmu->dev, "vdd");
 
 	/* Get the list of clocks */
 	ret = a6xx_gmu_clocks_probe(gmu);
