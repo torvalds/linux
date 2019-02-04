@@ -3958,6 +3958,9 @@ static void intel_update_pipe_config(const struct intel_crtc_state *old_crtc_sta
 		I915_WRITE(SKL_BOTTOM_COLOR(crtc->pipe),
 			   SKL_BOTTOM_COLOR_GAMMA_ENABLE |
 			   SKL_BOTTOM_COLOR_CSC_ENABLE);
+
+	if (INTEL_GEN(dev_priv) >= 11)
+		icl_set_pipe_chicken(crtc);
 }
 
 static void intel_fdi_normal_train(struct intel_crtc *crtc)
