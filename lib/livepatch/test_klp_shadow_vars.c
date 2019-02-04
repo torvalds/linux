@@ -44,7 +44,7 @@ static int ptr_id(void *ptr)
 
 	sp = kmalloc(sizeof(*sp), GFP_ATOMIC);
 	if (!sp)
-		return -1;
+		return -ENOMEM;
 	sp->ptr = ptr;
 	sp->id = count++;
 
