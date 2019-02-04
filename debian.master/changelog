@@ -4,6 +4,10 @@ linux (5.0.0-3.4) UNRELEASED; urgency=medium
   CHANGELOG: Use the printchanges target to see the curent changes.
   CHANGELOG: Use the insertchanges target to create the final log.
 
+  [ Upstream Kernel Changes ]
+
+  * Rebase to v5.0-rc5
+
  -- Seth Forshee <seth.forshee@canonical.com>  Thu, 31 Jan 2019 11:46:26 -0600
 
 linux (5.0.0-2.3) disco; urgency=medium

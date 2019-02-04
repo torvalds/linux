@@ -11849,7 +11849,7 @@ CONFIG_X86_FEATURE_NAMES                        policy<{'amd64': 'y', 'i386': 'y
 CONFIG_X86_X2APIC                               policy<{'amd64': 'y'}>
 CONFIG_X86_MPPARSE                              policy<{'amd64': 'y', 'i386': 'y'}>
 CONFIG_RETPOLINE                                policy<{'amd64': 'y', 'i386': 'y'}>
-CONFIG_X86_RESCTRL                              policy<{'amd64': 'y', 'i386': 'y'}>
+CONFIG_X86_CPU_RESCTRL                          policy<{'amd64': 'y', 'i386': 'y'}>
 CONFIG_X86_EXTENDED_PLATFORM                    policy<{'amd64': 'y', 'i386': 'y'}>
 CONFIG_X86_INTEL_LPSS                           policy<{'amd64': 'y', 'i386': 'y'}>
 CONFIG_X86_AMD_PLATFORM_DEVICE                  policy<{'amd64': 'y', 'i386': 'y'}>
