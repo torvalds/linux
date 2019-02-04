@@ -217,53 +217,12 @@ cvmx_helper_link_info_t __cvmx_helper_board_link_get(int ipd_port)
 	/* Unless we fix it later, all links are defaulted to down */
 	result.u64 = 0;
 
-	/*
-	 * This switch statement should handle all ports that either don't use
-	 * Marvell PHYS, or don't support in-band status.
-	 */
-	switch (cvmx_sysinfo_get()->board_type) {
-	case CVMX_BOARD_TYPE_SIM:
+	if (octeon_is_simulation()) {
 		/* The simulator gives you a simulated 1Gbps full duplex link */
 		result.s.link_up = 1;
 		result.s.full_duplex = 1;
 		result.s.speed = 1000;
 		return result;
-	case CVMX_BOARD_TYPE_EBH3100:
-	case CVMX_BOARD_TYPE_CN3010_EVB_HS5:
-	case CVMX_BOARD_TYPE_CN3005_EVB_HS5:
-	case CVMX_BOARD_TYPE_CN3020_EVB_HS5:
-		/* Port 1 on these boards is always Gigabit */
-		if (ipd_port == 1) {
-			result.s.link_up = 1;
-			result.s.full_duplex = 1;
-			result.s.speed = 1000;
-			return result;
-		}
-		/* Fall through to the generic code below */
-		break;
-	case CVMX_BOARD_TYPE_CUST_NB5:
-		/* Port 1 on these boards is always Gigabit */
-		if (ipd_port == 1) {
-			result.s.link_up = 1;
-			result.s.full_duplex = 1;
-			result.s.speed = 1000;
-			return result;
-		}
-		break;
-	case CVMX_BOARD_TYPE_BBGW_REF:
-		/* Port 1 on these boards is always Gigabit */
-		if (ipd_port == 2) {
-			/* Port 2 is not hooked up */
-			result.u64 = 0;
-			return result;
-		} else {
-			/* Ports 0 and 1 connect to the switch */
-			result.s.link_up = 1;
-			result.s.full_duplex = 1;
-			result.s.speed = 1000;
-			return result;
-		}
-		break;
 	}
 
 	if (OCTEON_IS_MODEL(OCTEON_CN3XXX)
