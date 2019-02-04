@@ -121,4 +121,7 @@ struct aa_loaddata;
 void __aa_fs_remove_rawdata(struct aa_loaddata *rawdata);
 int __aa_fs_create_rawdata(struct aa_ns *ns, struct aa_loaddata *rawdata);
 
+int apparmor_getprocattr(struct task_struct *task, char *name, char **value);
+int apparmor_setprocattr(const char *name, void *value, size_t size);
+
 #endif /* __AA_APPARMORFS_H */

@@ -2193,6 +2193,63 @@ static const struct file_operations aa_sfs_profiles_fops = {
 	.release = profiles_release,
 };
 
+static ssize_t attr_read(struct file * file, char __user * buf, size_t count,
+			 loff_t *ppos)
+{
+	char *p = NULL;
+	ssize_t length;
+
+	length = apparmor_getprocattr(current,
+				      (char*)file->f_path.dentry->d_name.name,
+				      &p);
+	if (length > 0)
+		length = simple_read_from_buffer(buf, count, ppos, p, length);
+	kfree(p);
+
+	return length;
+}
+
+static ssize_t attr_write(struct file * file, const char __user * buf,
+			  size_t count, loff_t *ppos)
+{
+	void *page;
+	ssize_t length;
+
+	length = -ESRCH;
+
+	if (count > PAGE_SIZE)
+		count = PAGE_SIZE;
+
+	/* No partial writes. */
+	length = -EINVAL;
+	if (*ppos != 0)
+		goto out;
+
+	page = memdup_user(buf, count);
+	if (IS_ERR(page)) {
+		length = PTR_ERR(page);
+		goto out;
+	}
+
+	/* Guard against adverse ptrace interaction */
+	length = mutex_lock_interruptible(&current->signal->cred_guard_mutex);
+	if (length < 0)
+		goto out_free;
+
+	length = apparmor_setprocattr(file->f_path.dentry->d_name.name, page,
+				      count);
+	mutex_unlock(&current->signal->cred_guard_mutex);
+out_free:
+	kfree(page);
+out:
+	return length;
+}
+
+static const struct file_operations attr_fops = {
+	.read = attr_read,
+	.write = attr_write,
+};
+
 
 /** Base file system setup **/
 static struct aa_sfs_entry aa_sfs_entry_file[] = {
@@ -2270,6 +2327,7 @@ static struct aa_sfs_entry aa_sfs_entry_query[] = {
 	AA_SFS_DIR("label",			aa_sfs_entry_query_label),
 	{ }
 };
+
 static struct aa_sfs_entry aa_sfs_entry_features[] = {
 	AA_SFS_DIR("policy",			aa_sfs_entry_policy),
 	AA_SFS_DIR("domain",			aa_sfs_entry_domain),
@@ -2288,6 +2346,13 @@ static struct aa_sfs_entry aa_sfs_entry_features[] = {
 	{ }
 };
 
+static struct aa_sfs_entry aa_sfs_entry_attr[] = {
+	AA_SFS_FILE_FOPS("current", 0666, &attr_fops),
+	AA_SFS_FILE_FOPS("prev", 0444, &attr_fops),
+	AA_SFS_FILE_FOPS("exec", 0666, &attr_fops),
+	{ }
+};
+
 static struct aa_sfs_entry aa_sfs_entry_apparmor[] = {
 	AA_SFS_FILE_FOPS(".access", 0666, &aa_sfs_access),
 	AA_SFS_FILE_FOPS(".stacked", 0444, &seq_ns_stacked_fops),
@@ -2296,6 +2361,7 @@ static struct aa_sfs_entry aa_sfs_entry_apparmor[] = {
 	AA_SFS_FILE_FOPS(".ns_name", 0444, &seq_ns_name_fops),
 	AA_SFS_FILE_FOPS("profiles", 0444, &aa_sfs_profiles_fops),
 	AA_SFS_DIR("features", aa_sfs_entry_features),
+	AA_SFS_DIR("attr", aa_sfs_entry_attr),
 	{ }
 };
 
