@@ -67,9 +67,6 @@ static inline struct sk_buff *h4_recv_buf(struct hci_dev *hdev,
 	while (count) {
 		int i, len;
 
-		if (!count)
-			break;
-
 		if (!skb) {
 			for (i = 0; i < pkts_count; i++) {
 				if (buffer[0] != (&pkts[i])->type)
