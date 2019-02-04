@@ -1133,7 +1133,8 @@ static void mvpp22_gop_setup_irq(struct mvpp2_port *port)
 {
 	u32 val;
 
-	if (phy_interface_mode_is_rgmii(port->phy_interface) ||
+	if (port->phylink ||
+	    phy_interface_mode_is_rgmii(port->phy_interface) ||
 	    phy_interface_mode_is_8023z(port->phy_interface) ||
 	    port->phy_interface == PHY_INTERFACE_MODE_SGMII) {
 		val = readl(port->base + MVPP22_GMAC_INT_MASK);
@@ -4620,6 +4621,7 @@ static void mvpp2_mac_config(struct net_device *dev, unsigned int mode,
 			     const struct phylink_link_state *state)
 {
 	struct mvpp2_port *port = netdev_priv(dev);
+	bool change_interface = port->phy_interface != state->interface;
 
 	/* Check for invalid configuration */
 	if (state->interface == PHY_INTERFACE_MODE_10GKR && port->gop_id != 0) {
@@ -4629,14 +4631,16 @@ static void mvpp2_mac_config(struct net_device *dev, unsigned int mode,
 
 	/* Make sure the port is disabled when reconfiguring the mode */
 	mvpp2_port_disable(port);
+	if (change_interface) {
+		mvpp22_gop_mask_irq(port);
 
-	if (port->priv->hw_version == MVPP22 &&
-	    port->phy_interface != state->interface) {
-		port->phy_interface = state->interface;
+		if (port->priv->hw_version == MVPP22) {
+			port->phy_interface = state->interface;
 
-		/* Reconfigure the serdes lanes */
-		phy_power_off(port->comphy);
-		mvpp22_mode_reconfigure(port);
+			/* Reconfigure the serdes lanes */
+			phy_power_off(port->comphy);
+			mvpp22_mode_reconfigure(port);
+		}
 	}
 
 	/* mac (re)configuration */
@@ -4649,6 +4653,9 @@ static void mvpp2_mac_config(struct net_device *dev, unsigned int mode,
 
 	if (port->priv->hw_version == MVPP21 && port->flags & MVPP2_F_LOOPBACK)
 		mvpp2_port_loopback_set(port, state);
+
+	if (change_interface)
+		mvpp22_gop_unmask_irq(port);
 
 	mvpp2_port_enable(port);
 }
