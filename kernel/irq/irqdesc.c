@@ -457,7 +457,7 @@ static int alloc_descs(unsigned int start, unsigned int cnt, int node,
 
 	/* Validate affinity mask(s) */
 	if (affinity) {
-		for (i = 0; i < cnt; i++, i++) {
+		for (i = 0; i < cnt; i++) {
 			if (cpumask_empty(&affinity[i].mask))
 				return -EINVAL;
 		}

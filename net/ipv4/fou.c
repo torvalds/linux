@@ -1020,10 +1020,11 @@ static int gue_err(struct sk_buff *skb, u32 info)
 {
 	int transport_offset = skb_transport_offset(skb);
 	struct guehdr *guehdr;
-	size_t optlen;
+	size_t len, optlen;
 	int ret;
 
-	if (skb->len < sizeof(struct udphdr) + sizeof(struct guehdr))
+	len = sizeof(struct udphdr) + sizeof(struct guehdr);
+	if (!pskb_may_pull(skb, len))
 		return -EINVAL;
 
 	guehdr = (struct guehdr *)&udp_hdr(skb)[1];
@@ -1058,6 +1059,10 @@ static int gue_err(struct sk_buff *skb, u32 info)
 
 	optlen = guehdr->hlen << 2;
 
+	if (!pskb_may_pull(skb, len + optlen))
+		return -EINVAL;
+
+	guehdr = (struct guehdr *)&udp_hdr(skb)[1];
 	if (validate_gue_flags(guehdr, optlen))
 		return -EINVAL;
 

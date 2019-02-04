@@ -1187,9 +1187,15 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 		dma_setup_res = (struct hbm_dma_setup_response *)mei_msg;
 
 		if (dma_setup_res->status) {
-			dev_info(dev->dev, "hbm: dma setup response: failure = %d %s\n",
-				 dma_setup_res->status,
-				 mei_hbm_status_str(dma_setup_res->status));
+			u8 status = dma_setup_res->status;
+
+			if (status == MEI_HBMS_NOT_ALLOWED) {
+				dev_dbg(dev->dev, "hbm: dma setup not allowed\n");
+			} else {
+				dev_info(dev->dev, "hbm: dma setup response: failure = %d %s\n",
+					 status,
+					 mei_hbm_status_str(status));
+			}
 			dev->hbm_f_dr_supported = 0;
 			mei_dmam_ring_free(dev);
 		}

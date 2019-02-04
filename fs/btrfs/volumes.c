@@ -957,10 +957,10 @@ static noinline struct btrfs_device *device_list_add(const char *path,
 		else
 			fs_devices = alloc_fs_devices(disk_super->fsid, NULL);
 
-		fs_devices->fsid_change = fsid_change_in_progress;
-
 		if (IS_ERR(fs_devices))
 			return ERR_CAST(fs_devices);
+
+		fs_devices->fsid_change = fsid_change_in_progress;
 
 		mutex_lock(&fs_devices->device_list_mutex);
 		list_add(&fs_devices->fs_list, &fs_uuids);
