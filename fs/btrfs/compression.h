@@ -97,7 +97,7 @@ blk_status_t btrfs_submit_compressed_write(struct inode *inode, u64 start,
 blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 				 int mirror_num, unsigned long bio_flags);
 
-unsigned btrfs_compress_str2level(const char *str);
+unsigned int btrfs_compress_str2level(unsigned int type, const char *str);
 
 enum btrfs_compression_type {
 	BTRFS_COMPRESS_NONE  = 0,
@@ -156,7 +156,12 @@ struct btrfs_compress_op {
 			  unsigned long start_byte,
 			  size_t srclen, size_t destlen);
 
-	void (*set_level)(struct list_head *ws, unsigned int type);
+	/*
+	 * This bounds the level set by the user to be within range of a
+	 * particular compression type.  It returns the level that will be used
+	 * if the level is out of bounds or the default if 0 is passed in.
+	 */
+	unsigned int (*set_level)(unsigned int level);
 };
 
 /* The heuristic workspaces are managed via the 0th workspace manager */

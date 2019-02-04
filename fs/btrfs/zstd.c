@@ -441,8 +441,9 @@ finish:
 	return ret;
 }
 
-static void zstd_set_level(struct list_head *ws, unsigned int type)
+static unsigned int zstd_set_level(unsigned int level)
 {
+	return ZSTD_BTRFS_DEFAULT_LEVEL;
 }
 
 const struct btrfs_compress_op btrfs_zstd_compress = {

@@ -41,7 +41,12 @@ static void zlib_cleanup_workspace_manager(void)
 
 static struct list_head *zlib_get_workspace(unsigned int level)
 {
-	return btrfs_get_workspace(&wsm, level);
+	struct list_head *ws = btrfs_get_workspace(&wsm, level);
+	struct workspace *workspace = list_entry(ws, struct workspace, list);
+
+	workspace->level = level;
+
+	return ws;
 }
 
 static void zlib_put_workspace(struct list_head *ws)
@@ -413,15 +418,12 @@ next:
 	return ret;
 }
 
-static void zlib_set_level(struct list_head *ws, unsigned int type)
+static unsigned int zlib_set_level(unsigned int level)
 {
-	struct workspace *workspace = list_entry(ws, struct workspace, list);
-	unsigned int level = btrfs_compress_level(type);
+	if (!level)
+		return BTRFS_ZLIB_DEFAULT_LEVEL;
 
-	if (level > 9)
-		level = 9;
-
-	workspace->level = level > 0 ? level : 3;
+	return min_t(unsigned int, level, 9);
 }
 
 const struct btrfs_compress_op btrfs_zlib_compress = {
