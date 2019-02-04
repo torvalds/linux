@@ -884,17 +884,15 @@ static const struct snd_pcm_ops digital_capture_ops = {
 static int snd_echo_preallocate_pages(struct snd_pcm *pcm, struct device *dev)
 {
 	struct snd_pcm_substream *ss;
-	int stream, err;
+	int stream;
 
 	for (stream = 0; stream < 2; stream++)
-		for (ss = pcm->streams[stream].substream; ss; ss = ss->next) {
-			err = snd_pcm_lib_preallocate_pages(ss, SNDRV_DMA_TYPE_DEV_SG,
-							    dev,
-							    ss->number ? 0 : 128<<10,
-							    256<<10);
-			if (err < 0)
-				return err;
-		}
+		for (ss = pcm->streams[stream].substream; ss; ss = ss->next)
+			snd_pcm_lib_preallocate_pages(ss, SNDRV_DMA_TYPE_DEV_SG,
+						      dev,
+						      ss->number ? 0 : 128<<10,
+						      256<<10);
+
 	return 0;
 }
 

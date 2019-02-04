@@ -6411,7 +6411,6 @@ static int snd_hdspm_create_hwdep(struct snd_card *card,
  ------------------------------------------------------------*/
 static int snd_hdspm_preallocate_memory(struct hdspm *hdspm)
 {
-	int err;
 	struct snd_pcm *pcm;
 	size_t wanted;
 
@@ -6419,21 +6418,10 @@ static int snd_hdspm_preallocate_memory(struct hdspm *hdspm)
 
 	wanted = HDSPM_DMA_AREA_BYTES;
 
-	err =
-	     snd_pcm_lib_preallocate_pages_for_all(pcm,
-						   SNDRV_DMA_TYPE_DEV_SG,
-						   snd_dma_pci_data(hdspm->pci),
-						   wanted,
-						   wanted);
-	if (err < 0) {
-		dev_dbg(hdspm->card->dev,
-			"Could not preallocate %zd Bytes\n", wanted);
-
-		return err;
-	} else
-		dev_dbg(hdspm->card->dev,
-			" Preallocated %zd Bytes\n", wanted);
-
+	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV_SG,
+					      snd_dma_pci_data(hdspm->pci),
+					      wanted, wanted);
+	dev_dbg(hdspm->card->dev, " Preallocated %zd Bytes\n", wanted);
 	return 0;
 }
 
