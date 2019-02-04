@@ -595,7 +595,8 @@ void smc_tx_consumer_update(struct smc_connection *conn, bool force)
 	if (to_confirm > conn->rmbe_update_limit) {
 		smc_curs_copy(&prod, &conn->local_rx_ctrl.prod, conn);
 		sender_free = conn->rmb_desc->len -
-			      smc_curs_diff(conn->rmb_desc->len, &prod, &cfed);
+			      smc_curs_diff_large(conn->rmb_desc->len,
+						  &cfed, &prod);
 	}
 
 	if (conn->local_rx_ctrl.prod_flags.cons_curs_upd_req ||
