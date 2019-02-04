@@ -25,6 +25,17 @@
 #include "i915_drv.h"
 #include "i915_reset.h"
 
+struct hangcheck {
+	u64 acthd;
+	u32 seqno;
+	enum intel_engine_hangcheck_action action;
+	unsigned long action_timestamp;
+	int deadlock;
+	struct intel_instdone instdone;
+	bool wedged:1;
+	bool stalled:1;
+};
+
 static bool instdone_unchanged(u32 current_instdone, u32 *old_instdone)
 {
 	u32 tmp = current_instdone | *old_instdone;
@@ -119,25 +130,22 @@ engine_stuck(struct intel_engine_cs *engine, u64 acthd)
 }
 
 static void hangcheck_load_sample(struct intel_engine_cs *engine,
-				  struct intel_engine_hangcheck *hc)
+				  struct hangcheck *hc)
 {
 	hc->acthd = intel_engine_get_active_head(engine);
 	hc->seqno = intel_engine_get_seqno(engine);
 }
 
 static void hangcheck_store_sample(struct intel_engine_cs *engine,
-				   const struct intel_engine_hangcheck *hc)
+				   const struct hangcheck *hc)
 {
 	engine->hangcheck.acthd = hc->acthd;
 	engine->hangcheck.seqno = hc->seqno;
-	engine->hangcheck.action = hc->action;
-	engine->hangcheck.stalled = hc->stalled;
-	engine->hangcheck.wedged = hc->wedged;
 }
 
 static enum intel_engine_hangcheck_action
 hangcheck_get_action(struct intel_engine_cs *engine,
-		     const struct intel_engine_hangcheck *hc)
+		     const struct hangcheck *hc)
 {
 	if (engine->hangcheck.seqno != hc->seqno)
 		return ENGINE_ACTIVE_SEQNO;
@@ -149,7 +157,7 @@ hangcheck_get_action(struct intel_engine_cs *engine,
 }
 
 static void hangcheck_accumulate_sample(struct intel_engine_cs *engine,
-					struct intel_engine_hangcheck *hc)
+					struct hangcheck *hc)
 {
 	unsigned long timeout = I915_ENGINE_DEAD_TIMEOUT;
 
@@ -265,19 +273,21 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 	intel_uncore_arm_unclaimed_mmio_detection(dev_priv);
 
 	for_each_engine(engine, dev_priv, id) {
-		struct intel_engine_hangcheck hc;
+		struct hangcheck hc;
+
+		intel_engine_signal_breadcrumbs(engine);
 
 		hangcheck_load_sample(engine, &hc);
 		hangcheck_accumulate_sample(engine, &hc);
 		hangcheck_store_sample(engine, &hc);
 
-		if (engine->hangcheck.stalled) {
+		if (hc.stalled) {
 			hung |= intel_engine_flag(engine);
 			if (hc.action != ENGINE_DEAD)
 				stuck |= intel_engine_flag(engine);
 		}
 
-		if (engine->hangcheck.wedged)
+		if (hc.wedged)
 			wedged |= intel_engine_flag(engine);
 	}
 

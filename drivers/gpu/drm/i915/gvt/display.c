@@ -342,6 +342,7 @@ static int setup_virtual_dp_monitor(struct intel_vgpu *vgpu, int port_num,
 	port->dpcd->data_valid = true;
 	port->dpcd->data[DPCD_SINK_COUNT] = 0x1;
 	port->type = type;
+	port->id = resolution;
 
 	emulate_monitor_status_change(vgpu);
 
@@ -442,6 +443,36 @@ void intel_gvt_emulate_vblank(struct intel_gvt *gvt)
 	for_each_active_vgpu(gvt, vgpu, id)
 		emulate_vblank(vgpu);
 	mutex_unlock(&gvt->lock);
+}
+
+/**
+ * intel_vgpu_emulate_hotplug - trigger hotplug event for vGPU
+ * @vgpu: a vGPU
+ * @conncted: link state
+ *
+ * This function is used to trigger hotplug interrupt for vGPU
+ *
+ */
+void intel_vgpu_emulate_hotplug(struct intel_vgpu *vgpu, bool connected)
+{
+	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
+
+	/* TODO: add more platforms support */
+	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
+		if (connected) {
+			vgpu_vreg_t(vgpu, SFUSE_STRAP) |=
+				SFUSE_STRAP_DDID_DETECTED;
+			vgpu_vreg_t(vgpu, SDEISR) |= SDE_PORTD_HOTPLUG_CPT;
+		} else {
+			vgpu_vreg_t(vgpu, SFUSE_STRAP) &=
+				~SFUSE_STRAP_DDID_DETECTED;
+			vgpu_vreg_t(vgpu, SDEISR) &= ~SDE_PORTD_HOTPLUG_CPT;
+		}
+		vgpu_vreg_t(vgpu, SDEIIR) |= SDE_PORTD_HOTPLUG_CPT;
+		vgpu_vreg_t(vgpu, PCH_PORT_HOTPLUG) |=
+				PORTD_HOTPLUG_STATUS_MASK;
+		intel_vgpu_trigger_virtual_event(vgpu, DP_D_HOTPLUG);
+	}
 }
 
 /**

@@ -1758,6 +1758,35 @@ enum pipe intel_crtc_pch_transcoder(struct intel_crtc *crtc)
 		return crtc->pipe;
 }
 
+static u32 intel_crtc_max_vblank_count(const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
+
+	/*
+	 * On i965gm the hardware frame counter reads
+	 * zero when the TV encoder is enabled :(
+	 */
+	if (IS_I965GM(dev_priv) &&
+	    (crtc_state->output_types & BIT(INTEL_OUTPUT_TVOUT)))
+		return 0;
+
+	if (INTEL_GEN(dev_priv) >= 5 || IS_G4X(dev_priv))
+		return 0xffffffff; /* full 32 bit counter */
+	else if (INTEL_GEN(dev_priv) >= 3)
+		return 0xffffff; /* only 24 bits of frame count */
+	else
+		return 0; /* Gen2 doesn't have a hardware frame counter */
+}
+
+static void intel_crtc_vblank_on(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+
+	drm_crtc_set_max_vblank_count(&crtc->base,
+				      intel_crtc_max_vblank_count(crtc_state));
+	drm_crtc_vblank_on(&crtc->base);
+}
+
 static void intel_enable_pipe(const struct intel_crtc_state *new_crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->base.crtc);
@@ -1810,7 +1839,7 @@ static void intel_enable_pipe(const struct intel_crtc_state *new_crtc_state)
 	 * when it's derived from the timestamps. So let's wait for the
 	 * pipe to start properly before we call drm_crtc_vblank_on()
 	 */
-	if (dev_priv->drm.max_vblank_count == 0)
+	if (intel_crtc_max_vblank_count(new_crtc_state) == 0)
 		intel_wait_for_pipe_scanline_moving(crtc);
 }
 
@@ -3901,6 +3930,16 @@ static void intel_update_pipe_config(const struct intel_crtc_state *old_crtc_sta
 		else if (old_crtc_state->pch_pfit.enabled)
 			ironlake_pfit_disable(old_crtc_state);
 	}
+
+	/*
+	 * We don't (yet) allow userspace to control the pipe background color,
+	 * so force it to black, but apply pipe gamma and CSC so that its
+	 * handling will match how we program our planes.
+	 */
+	if (INTEL_GEN(dev_priv) >= 9)
+		I915_WRITE(SKL_BOTTOM_COLOR(crtc->pipe),
+			   SKL_BOTTOM_COLOR_GAMMA_ENABLE |
+			   SKL_BOTTOM_COLOR_CSC_ENABLE);
 }
 
 static void intel_fdi_normal_train(struct intel_crtc *crtc)
@@ -5678,7 +5717,7 @@ static void ironlake_crtc_enable(struct intel_crtc_state *pipe_config,
 		ironlake_pch_enable(old_intel_state, pipe_config);
 
 	assert_vblank_disabled(crtc);
-	drm_crtc_vblank_on(crtc);
+	intel_crtc_vblank_on(pipe_config);
 
 	intel_encoders_enable(crtc, pipe_config, old_state);
 
@@ -5832,7 +5871,7 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 		intel_ddi_set_vc_payload_alloc(pipe_config, true);
 
 	assert_vblank_disabled(crtc);
-	drm_crtc_vblank_on(crtc);
+	intel_crtc_vblank_on(pipe_config);
 
 	intel_encoders_enable(crtc, pipe_config, old_state);
 
@@ -6171,7 +6210,7 @@ static void valleyview_crtc_enable(struct intel_crtc_state *pipe_config,
 	intel_enable_pipe(pipe_config);
 
 	assert_vblank_disabled(crtc);
-	drm_crtc_vblank_on(crtc);
+	intel_crtc_vblank_on(pipe_config);
 
 	intel_encoders_enable(crtc, pipe_config, old_state);
 }
@@ -6230,7 +6269,7 @@ static void i9xx_crtc_enable(struct intel_crtc_state *pipe_config,
 	intel_enable_pipe(pipe_config);
 
 	assert_vblank_disabled(crtc);
-	drm_crtc_vblank_on(crtc);
+	intel_crtc_vblank_on(pipe_config);
 
 	intel_encoders_enable(crtc, pipe_config, old_state);
 }
@@ -9416,7 +9455,7 @@ static void icelake_get_ddi_pll(struct drm_i915_private *dev_priv,
 		if (WARN_ON(!intel_dpll_is_combophy(id)))
 			return;
 	} else if (intel_port_is_tc(dev_priv, port)) {
-		id = icl_port_to_mg_pll_id(port);
+		id = icl_tc_port_to_pll_id(intel_port_to_tc(dev_priv, port));
 	} else {
 		WARN(1, "Invalid port %x\n", port);
 		return;
@@ -11690,6 +11729,23 @@ pipe_config_err(bool adjust, const char *name, const char *format, ...)
 	va_end(args);
 }
 
+static bool fastboot_enabled(struct drm_i915_private *dev_priv)
+{
+	if (i915_modparams.fastboot != -1)
+		return i915_modparams.fastboot;
+
+	/* Enable fastboot by default on Skylake and newer */
+	if (INTEL_GEN(dev_priv) >= 9)
+		return true;
+
+	/* Enable fastboot by default on VLV and CHV */
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
+		return true;
+
+	/* Disabled by default on all others */
+	return false;
+}
+
 static bool
 intel_pipe_config_compare(struct drm_i915_private *dev_priv,
 			  struct intel_crtc_state *current_config,
@@ -11701,7 +11757,7 @@ intel_pipe_config_compare(struct drm_i915_private *dev_priv,
 		(current_config->base.mode.private_flags & I915_MODE_FLAG_INHERITED) &&
 		!(pipe_config->base.mode.private_flags & I915_MODE_FLAG_INHERITED);
 
-	if (fixup_inherited && !i915_modparams.fastboot) {
+	if (fixup_inherited && !fastboot_enabled(dev_priv)) {
 		DRM_DEBUG_KMS("initial modeset and fastboot not set\n");
 		ret = false;
 	}
@@ -12778,8 +12834,9 @@ static int intel_atomic_prepare_commit(struct drm_device *dev,
 u32 intel_crtc_get_vblank_counter(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
+	struct drm_vblank_crtc *vblank = &dev->vblank[drm_crtc_index(&crtc->base)];
 
-	if (!dev->max_vblank_count)
+	if (!vblank->max_vblank_count)
 		return (u32)drm_crtc_accurate_vblank_count(&crtc->base);
 
 	return dev->driver->get_vblank_counter(dev, crtc->pipe);
@@ -14327,8 +14384,10 @@ static void intel_setup_outputs(struct drm_i915_private *dev_priv)
 		/*
 		 * On some ICL SKUs port F is not present. No strap bits for
 		 * this, so rely on VBT.
+		 * Work around broken VBTs on SKUs known to have no port F.
 		 */
-		if (intel_bios_is_port_present(dev_priv, PORT_F))
+		if (IS_ICL_WITH_PORT_F(dev_priv) &&
+		    intel_bios_is_port_present(dev_priv, PORT_F))
 			intel_ddi_init(dev_priv, PORT_F);
 
 		icl_dsi_init(dev_priv);
@@ -14679,14 +14738,6 @@ static int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 		goto err;
 
 	drm_helper_mode_fill_fb_struct(&dev_priv->drm, fb, mode_cmd);
-
-	if (fb->format->format == DRM_FORMAT_NV12 &&
-	    (fb->width < SKL_MIN_YUV_420_SRC_W ||
-	     fb->height < SKL_MIN_YUV_420_SRC_H ||
-	     (fb->width % 4) != 0 || (fb->height % 4) != 0)) {
-		DRM_DEBUG_KMS("src dimensions not correct for NV12\n");
-		goto err;
-	}
 
 	for (i = 0; i < fb->format->num_planes; i++) {
 		u32 stride_alignment;
@@ -15457,6 +15508,15 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc,
 			    plane->base.type != DRM_PLANE_TYPE_PRIMARY)
 				intel_plane_disable_noatomic(crtc, plane);
 		}
+
+		/*
+		 * Disable any background color set by the BIOS, but enable the
+		 * gamma and CSC to match how we program our planes.
+		 */
+		if (INTEL_GEN(dev_priv) >= 9)
+			I915_WRITE(SKL_BOTTOM_COLOR(crtc->pipe),
+				   SKL_BOTTOM_COLOR_GAMMA_ENABLE |
+				   SKL_BOTTOM_COLOR_CSC_ENABLE);
 	}
 
 	/* Adjust the state of the output pipe according to whether we
@@ -15493,16 +15553,45 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc,
 	}
 }
 
+static bool has_bogus_dpll_config(const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
+
+	/*
+	 * Some SNB BIOSen (eg. ASUS K53SV) are known to misprogram
+	 * the hardware when a high res displays plugged in. DPLL P
+	 * divider is zero, and the pipe timings are bonkers. We'll
+	 * try to disable everything in that case.
+	 *
+	 * FIXME would be nice to be able to sanitize this state
+	 * without several WARNs, but for now let's take the easy
+	 * road.
+	 */
+	return IS_GEN(dev_priv, 6) &&
+		crtc_state->base.active &&
+		crtc_state->shared_dpll &&
+		crtc_state->port_clock == 0;
+}
+
 static void intel_sanitize_encoder(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_connector *connector;
+	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
+	struct intel_crtc_state *crtc_state = crtc ?
+		to_intel_crtc_state(crtc->base.state) : NULL;
 
 	/* We need to check both for a crtc link (meaning that the
 	 * encoder is active and trying to read from a pipe) and the
 	 * pipe itself being active. */
-	bool has_active_crtc = encoder->base.crtc &&
-		to_intel_crtc(encoder->base.crtc)->active;
+	bool has_active_crtc = crtc_state &&
+		crtc_state->base.active;
+
+	if (crtc_state && has_bogus_dpll_config(crtc_state)) {
+		DRM_DEBUG_KMS("BIOS has misprogrammed the hardware. Disabling pipe %c\n",
+			      pipe_name(crtc->pipe));
+		has_active_crtc = false;
+	}
 
 	connector = intel_encoder_find_connector(encoder);
 	if (connector && !has_active_crtc) {
@@ -15513,16 +15602,25 @@ static void intel_sanitize_encoder(struct intel_encoder *encoder)
 		/* Connector is active, but has no active pipe. This is
 		 * fallout from our resume register restoring. Disable
 		 * the encoder manually again. */
-		if (encoder->base.crtc) {
-			struct drm_crtc_state *crtc_state = encoder->base.crtc->state;
+		if (crtc_state) {
+			struct drm_encoder *best_encoder;
 
 			DRM_DEBUG_KMS("[ENCODER:%d:%s] manually disabled\n",
 				      encoder->base.base.id,
 				      encoder->base.name);
+
+			/* avoid oopsing in case the hooks consult best_encoder */
+			best_encoder = connector->base.state->best_encoder;
+			connector->base.state->best_encoder = &encoder->base;
+
 			if (encoder->disable)
-				encoder->disable(encoder, to_intel_crtc_state(crtc_state), connector->base.state);
+				encoder->disable(encoder, crtc_state,
+						 connector->base.state);
 			if (encoder->post_disable)
-				encoder->post_disable(encoder, to_intel_crtc_state(crtc_state), connector->base.state);
+				encoder->post_disable(encoder, crtc_state,
+						      connector->base.state);
+
+			connector->base.state->best_encoder = best_encoder;
 		}
 		encoder->base.crtc = NULL;
 
@@ -15894,10 +15992,12 @@ intel_modeset_setup_hw_state(struct drm_device *dev,
 	 * waits, so we need vblank interrupts restored beforehand.
 	 */
 	for_each_intel_crtc(&dev_priv->drm, crtc) {
+		crtc_state = to_intel_crtc_state(crtc->base.state);
+
 		drm_crtc_vblank_reset(&crtc->base);
 
-		if (crtc->base.state->active)
-			drm_crtc_vblank_on(&crtc->base);
+		if (crtc_state->base.active)
+			intel_crtc_vblank_on(crtc_state);
 	}
 
 	intel_sanitize_plane_mapping(dev_priv);

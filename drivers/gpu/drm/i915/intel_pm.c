@@ -3631,14 +3631,9 @@ static u8 intel_enabled_dbuf_slices_num(struct drm_i915_private *dev_priv)
  * FIXME: We still don't have the proper code detect if we need to apply the WA,
  * so assume we'll always need it in order to avoid underruns.
  */
-static bool skl_needs_memory_bw_wa(struct intel_atomic_state *state)
+static bool skl_needs_memory_bw_wa(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-
-	if (IS_GEN9_BC(dev_priv) || IS_BROXTON(dev_priv))
-		return true;
-
-	return false;
+	return IS_GEN9_BC(dev_priv) || IS_BROXTON(dev_priv);
 }
 
 static bool
@@ -3670,25 +3665,25 @@ intel_enable_sagv(struct drm_i915_private *dev_priv)
 	if (dev_priv->sagv_status == I915_SAGV_ENABLED)
 		return 0;
 
-	DRM_DEBUG_KMS("Enabling the SAGV\n");
+	DRM_DEBUG_KMS("Enabling SAGV\n");
 	mutex_lock(&dev_priv->pcu_lock);
 
 	ret = sandybridge_pcode_write(dev_priv, GEN9_PCODE_SAGV_CONTROL,
 				      GEN9_SAGV_ENABLE);
 
-	/* We don't need to wait for the SAGV when enabling */
+	/* We don't need to wait for SAGV when enabling */
 	mutex_unlock(&dev_priv->pcu_lock);
 
 	/*
 	 * Some skl systems, pre-release machines in particular,
-	 * don't actually have an SAGV.
+	 * don't actually have SAGV.
 	 */
 	if (IS_SKYLAKE(dev_priv) && ret == -ENXIO) {
 		DRM_DEBUG_DRIVER("No SAGV found on system, ignoring\n");
 		dev_priv->sagv_status = I915_SAGV_NOT_CONTROLLED;
 		return 0;
 	} else if (ret < 0) {
-		DRM_ERROR("Failed to enable the SAGV\n");
+		DRM_ERROR("Failed to enable SAGV\n");
 		return ret;
 	}
 
@@ -3707,7 +3702,7 @@ intel_disable_sagv(struct drm_i915_private *dev_priv)
 	if (dev_priv->sagv_status == I915_SAGV_DISABLED)
 		return 0;
 
-	DRM_DEBUG_KMS("Disabling the SAGV\n");
+	DRM_DEBUG_KMS("Disabling SAGV\n");
 	mutex_lock(&dev_priv->pcu_lock);
 
 	/* bspec says to keep retrying for at least 1 ms */
@@ -3719,14 +3714,14 @@ intel_disable_sagv(struct drm_i915_private *dev_priv)
 
 	/*
 	 * Some skl systems, pre-release machines in particular,
-	 * don't actually have an SAGV.
+	 * don't actually have SAGV.
 	 */
 	if (IS_SKYLAKE(dev_priv) && ret == -ENXIO) {
 		DRM_DEBUG_DRIVER("No SAGV found on system, ignoring\n");
 		dev_priv->sagv_status = I915_SAGV_NOT_CONTROLLED;
 		return 0;
 	} else if (ret < 0) {
-		DRM_ERROR("Failed to disable the SAGV (%d)\n", ret);
+		DRM_ERROR("Failed to disable SAGV (%d)\n", ret);
 		return ret;
 	}
 
@@ -3757,7 +3752,7 @@ bool intel_can_enable_sagv(struct drm_atomic_state *state)
 		sagv_block_time_us = 10;
 
 	/*
-	 * SKL+ workaround: bspec recommends we disable the SAGV when we have
+	 * SKL+ workaround: bspec recommends we disable SAGV when we have
 	 * more then one pipe enabled
 	 *
 	 * If there are no active CRTCs, no additional checks need be performed
@@ -3790,7 +3785,7 @@ bool intel_can_enable_sagv(struct drm_atomic_state *state)
 
 		latency = dev_priv->wm.skl_latency[level];
 
-		if (skl_needs_memory_bw_wa(intel_state) &&
+		if (skl_needs_memory_bw_wa(dev_priv) &&
 		    plane->base.state->fb->modifier ==
 		    I915_FORMAT_MOD_X_TILED)
 			latency += 15;
@@ -3798,7 +3793,7 @@ bool intel_can_enable_sagv(struct drm_atomic_state *state)
 		/*
 		 * If any of the planes on this pipe don't enable wm levels that
 		 * incur memory latencies higher than sagv_block_time_us we
-		 * can't enable the SAGV.
+		 * can't enable SAGV.
 		 */
 		if (latency < sagv_block_time_us)
 			return false;
@@ -3827,8 +3822,13 @@ static u16 intel_get_ddb_size(struct drm_i915_private *dev_priv,
 
 	/*
 	 * 12GB/s is maximum BW supported by single DBuf slice.
+	 *
+	 * FIXME dbuf slice code is broken:
+	 * - must wait for planes to stop using the slice before powering it off
+	 * - plane straddling both slices is illegal in multi-pipe scenarios
+	 * - should validate we stay within the hw bandwidth limits
 	 */
-	if (num_active > 1 || total_data_bw >= GBps(12)) {
+	if (0 && (num_active > 1 || total_data_bw >= GBps(12))) {
 		ddb->enabled_slices = 2;
 	} else {
 		ddb->enabled_slices = 1;
@@ -4371,8 +4371,8 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 				continue;
 
 			wm = &cstate->wm.skl.optimal.planes[plane_id];
-			blocks += wm->wm[level].plane_res_b;
-			blocks += wm->uv_wm[level].plane_res_b;
+			blocks += wm->wm[level].min_ddb_alloc;
+			blocks += wm->uv_wm[level].min_ddb_alloc;
 		}
 
 		if (blocks < alloc_size) {
@@ -4413,7 +4413,7 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 		extra = min_t(u16, alloc_size,
 			      DIV64_U64_ROUND_UP(alloc_size * rate,
 						 total_data_rate));
-		total[plane_id] = wm->wm[level].plane_res_b + extra;
+		total[plane_id] = wm->wm[level].min_ddb_alloc + extra;
 		alloc_size -= extra;
 		total_data_rate -= rate;
 
@@ -4424,7 +4424,7 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 		extra = min_t(u16, alloc_size,
 			      DIV64_U64_ROUND_UP(alloc_size * rate,
 						 total_data_rate));
-		uv_total[plane_id] = wm->uv_wm[level].plane_res_b + extra;
+		uv_total[plane_id] = wm->uv_wm[level].min_ddb_alloc + extra;
 		alloc_size -= extra;
 		total_data_rate -= rate;
 	}
@@ -4477,7 +4477,7 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 	 */
 	for_each_plane_id_on_crtc(intel_crtc, plane_id) {
 		wm = &cstate->wm.skl.optimal.planes[plane_id];
-		if (wm->trans_wm.plane_res_b > total[plane_id])
+		if (wm->trans_wm.plane_res_b >= total[plane_id])
 			memset(&wm->trans_wm, 0, sizeof(wm->trans_wm));
 	}
 
@@ -4579,9 +4579,6 @@ skl_compute_plane_wm_params(const struct intel_crtc_state *cstate,
 	const struct drm_plane_state *pstate = &intel_pstate->base;
 	const struct drm_framebuffer *fb = pstate->fb;
 	u32 interm_pbpl;
-	struct intel_atomic_state *state =
-		to_intel_atomic_state(cstate->base.state);
-	bool apply_memory_bw_wa = skl_needs_memory_bw_wa(state);
 
 	/* only NV12 format has two planes */
 	if (color_plane == 1 && fb->format->format != DRM_FORMAT_NV12) {
@@ -4617,7 +4614,7 @@ skl_compute_plane_wm_params(const struct intel_crtc_state *cstate,
 							     intel_pstate);
 
 	if (INTEL_GEN(dev_priv) >= 11 &&
-	    fb->modifier == I915_FORMAT_MOD_Yf_TILED && wp->cpp == 8)
+	    fb->modifier == I915_FORMAT_MOD_Yf_TILED && wp->cpp == 1)
 		wp->dbuf_block_size = 256;
 	else
 		wp->dbuf_block_size = 512;
@@ -4642,7 +4639,7 @@ skl_compute_plane_wm_params(const struct intel_crtc_state *cstate,
 		wp->y_min_scanlines = 4;
 	}
 
-	if (apply_memory_bw_wa)
+	if (skl_needs_memory_bw_wa(dev_priv))
 		wp->y_min_scanlines *= 2;
 
 	wp->plane_bytes_per_line = wp->width * wp->cpp;
@@ -4674,6 +4671,15 @@ skl_compute_plane_wm_params(const struct intel_crtc_state *cstate,
 	return 0;
 }
 
+static bool skl_wm_has_lines(struct drm_i915_private *dev_priv, int level)
+{
+	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+		return true;
+
+	/* The number of lines are ignored for the level 0 watermark. */
+	return level > 0;
+}
+
 static void skl_compute_plane_wm(const struct intel_crtc_state *cstate,
 				 const struct intel_plane_state *intel_pstate,
 				 int level,
@@ -4686,10 +4692,10 @@ static void skl_compute_plane_wm(const struct intel_crtc_state *cstate,
 	u32 latency = dev_priv->wm.skl_latency[level];
 	uint_fixed_16_16_t method1, method2;
 	uint_fixed_16_16_t selected_result;
-	u32 res_blocks, res_lines;
-	struct intel_atomic_state *state =
-		to_intel_atomic_state(cstate->base.state);
-	bool apply_memory_bw_wa = skl_needs_memory_bw_wa(state);
+	u32 res_blocks, res_lines, min_ddb_alloc = 0;
+
+	if (latency == 0)
+		return;
 
 	/* Display WA #1141: kbl,cfl */
 	if ((IS_KABYLAKE(dev_priv) || IS_COFFEELAKE(dev_priv) ||
@@ -4697,7 +4703,7 @@ static void skl_compute_plane_wm(const struct intel_crtc_state *cstate,
 	    dev_priv->ipc_enabled)
 		latency += 4;
 
-	if (apply_memory_bw_wa && wp->x_tiled)
+	if (skl_needs_memory_bw_wa(dev_priv) && wp->x_tiled)
 		latency += 15;
 
 	method1 = skl_wm_method1(dev_priv, wp->plane_pixel_rate,
@@ -4756,8 +4762,28 @@ static void skl_compute_plane_wm(const struct intel_crtc_state *cstate,
 		}
 	}
 
-	/* The number of lines are ignored for the level 0 watermark. */
-	if (level > 0 && res_lines > 31)
+	if (INTEL_GEN(dev_priv) >= 11) {
+		if (wp->y_tiled) {
+			int extra_lines;
+
+			if (res_lines % wp->y_min_scanlines == 0)
+				extra_lines = wp->y_min_scanlines;
+			else
+				extra_lines = wp->y_min_scanlines * 2 -
+					res_lines % wp->y_min_scanlines;
+
+			min_ddb_alloc = mul_round_up_u32_fixed16(res_lines + extra_lines,
+								 wp->plane_blocks_per_line);
+		} else {
+			min_ddb_alloc = res_blocks +
+				DIV_ROUND_UP(res_blocks, 10);
+		}
+	}
+
+	if (!skl_wm_has_lines(dev_priv, level))
+		res_lines = 0;
+
+	if (res_lines > 31)
 		return;
 
 	/*
@@ -4768,6 +4794,8 @@ static void skl_compute_plane_wm(const struct intel_crtc_state *cstate,
 	 */
 	result->plane_res_b = res_blocks;
 	result->plane_res_l = res_lines;
+	/* Bspec says: value >= plane ddb allocation -> invalid, hence the +1 here */
+	result->min_ddb_alloc = max(min_ddb_alloc, res_blocks) + 1;
 	result->plane_en = true;
 }
 
@@ -4801,15 +4829,10 @@ skl_compute_linetime_wm(const struct intel_crtc_state *cstate)
 	u32 linetime_wm;
 
 	linetime_us = intel_get_linetime_us(cstate);
-
-	if (is_fixed16_zero(linetime_us))
-		return 0;
-
 	linetime_wm = fixed16_to_u32_round_up(mul_u32_fixed16(8, linetime_us));
 
-	/* Display WA #1135: bxt:ALL GLK:ALL */
-	if ((IS_BROXTON(dev_priv) || IS_GEMINILAKE(dev_priv)) &&
-	    dev_priv->ipc_enabled)
+	/* Display WA #1135: BXT:ALL GLK:ALL */
+	if (IS_GEN9_LP(dev_priv) && dev_priv->ipc_enabled)
 		linetime_wm /= 2;
 
 	return linetime_wm;
@@ -5118,6 +5141,23 @@ static bool skl_plane_wm_equals(struct drm_i915_private *dev_priv,
 	return skl_wm_level_equals(&wm1->trans_wm, &wm2->trans_wm);
 }
 
+static bool skl_pipe_wm_equals(struct intel_crtc *crtc,
+			       const struct skl_pipe_wm *wm1,
+			       const struct skl_pipe_wm *wm2)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum plane_id plane_id;
+
+	for_each_plane_id_on_crtc(crtc, plane_id) {
+		if (!skl_plane_wm_equals(dev_priv,
+					 &wm1->planes[plane_id],
+					 &wm2->planes[plane_id]))
+			return false;
+	}
+
+	return wm1->linetime == wm2->linetime;
+}
+
 static inline bool skl_ddb_entries_overlap(const struct skl_ddb_entry *a,
 					   const struct skl_ddb_entry *b)
 {
@@ -5144,16 +5184,14 @@ static int skl_update_pipe_wm(struct intel_crtc_state *cstate,
 			      struct skl_pipe_wm *pipe_wm, /* out */
 			      bool *changed /* out */)
 {
+	struct intel_crtc *crtc = to_intel_crtc(cstate->base.crtc);
 	int ret;
 
 	ret = skl_build_pipe_wm(cstate, pipe_wm);
 	if (ret)
 		return ret;
 
-	if (!memcmp(old_pipe_wm, pipe_wm, sizeof(*pipe_wm)))
-		*changed = false;
-	else
-		*changed = true;
+	*changed = !skl_pipe_wm_equals(crtc, old_pipe_wm, pipe_wm);
 
 	return 0;
 }

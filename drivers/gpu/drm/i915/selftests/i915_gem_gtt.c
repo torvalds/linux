@@ -1237,7 +1237,10 @@ static void track_vma_bind(struct i915_vma *vma)
 	__i915_gem_object_pin_pages(obj);
 
 	vma->pages = obj->mm.pages;
-	list_move_tail(&vma->vm_link, &vma->vm->inactive_list);
+
+	mutex_lock(&vma->vm->mutex);
+	list_move_tail(&vma->vm_link, &vma->vm->bound_list);
+	mutex_unlock(&vma->vm->mutex);
 }
 
 static int exercise_mock(struct drm_i915_private *i915,

@@ -185,6 +185,7 @@ static const struct intel_gvt_ops intel_gvt_ops = {
 	.vgpu_query_plane = intel_vgpu_query_plane,
 	.vgpu_get_dmabuf = intel_vgpu_get_dmabuf,
 	.write_protect_handler = intel_vgpu_page_track_handler,
+	.emulate_hotplug = intel_vgpu_emulate_hotplug,
 };
 
 static void init_device_info(struct intel_gvt *gvt)

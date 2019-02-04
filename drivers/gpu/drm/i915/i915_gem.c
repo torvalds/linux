@@ -247,21 +247,19 @@ int
 i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
 			    struct drm_file *file)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct i915_ggtt *ggtt = &dev_priv->ggtt;
+	struct i915_ggtt *ggtt = &to_i915(dev)->ggtt;
 	struct drm_i915_gem_get_aperture *args = data;
 	struct i915_vma *vma;
 	u64 pinned;
 
+	mutex_lock(&ggtt->vm.mutex);
+
 	pinned = ggtt->vm.reserved;
-	mutex_lock(&dev->struct_mutex);
-	list_for_each_entry(vma, &ggtt->vm.active_list, vm_link)
+	list_for_each_entry(vma, &ggtt->vm.bound_list, vm_link)
 		if (i915_vma_is_pinned(vma))
 			pinned += vma->node.size;
-	list_for_each_entry(vma, &ggtt->vm.inactive_list, vm_link)
-		if (i915_vma_is_pinned(vma))
-			pinned += vma->node.size;
-	mutex_unlock(&dev->struct_mutex);
+
+	mutex_unlock(&ggtt->vm.mutex);
 
 	args->aper_size = ggtt->vm.total;
 	args->aper_available_size = args->aper_size - pinned;
@@ -441,15 +439,19 @@ int i915_gem_object_unbind(struct drm_i915_gem_object *obj)
 	if (ret)
 		return ret;
 
-	while ((vma = list_first_entry_or_null(&obj->vma_list,
-					       struct i915_vma,
-					       obj_link))) {
+	spin_lock(&obj->vma.lock);
+	while (!ret && (vma = list_first_entry_or_null(&obj->vma.list,
+						       struct i915_vma,
+						       obj_link))) {
 		list_move_tail(&vma->obj_link, &still_in_list);
+		spin_unlock(&obj->vma.lock);
+
 		ret = i915_vma_unbind(vma);
-		if (ret)
-			break;
+
+		spin_lock(&obj->vma.lock);
 	}
-	list_splice(&still_in_list, &obj->vma_list);
+	list_splice(&still_in_list, &obj->vma.list);
+	spin_unlock(&obj->vma.lock);
 
 	return ret;
 }
@@ -659,11 +661,6 @@ i915_gem_object_wait(struct drm_i915_gem_object *obj,
 		     struct intel_rps_client *rps_client)
 {
 	might_sleep();
-#if IS_ENABLED(CONFIG_LOCKDEP)
-	GEM_BUG_ON(debug_locks &&
-		   !!lockdep_is_held(&obj->base.dev->struct_mutex) !=
-		   !!(flags & I915_WAIT_LOCKED));
-#endif
 	GEM_BUG_ON(timeout < 0);
 
 	timeout = i915_gem_object_wait_reservation(obj->resv,
@@ -1539,23 +1536,21 @@ err:
 
 static void i915_gem_object_bump_inactive_ggtt(struct drm_i915_gem_object *obj)
 {
-	struct drm_i915_private *i915;
+	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 	struct list_head *list;
 	struct i915_vma *vma;
 
 	GEM_BUG_ON(!i915_gem_object_has_pinned_pages(obj));
 
+	mutex_lock(&i915->ggtt.vm.mutex);
 	for_each_ggtt_vma(vma, obj) {
-		if (i915_vma_is_active(vma))
-			continue;
-
 		if (!drm_mm_node_allocated(&vma->node))
 			continue;
 
-		list_move_tail(&vma->vm_link, &vma->vm->inactive_list);
+		list_move_tail(&vma->vm_link, &vma->vm->bound_list);
 	}
+	mutex_unlock(&i915->ggtt.vm.mutex);
 
-	i915 = to_i915(obj->base.dev);
 	spin_lock(&i915->mm.obj_lock);
 	list = obj->bind_count ? &i915->mm.bound_list : &i915->mm.unbound_list;
 	list_move_tail(&obj->mm.link, list);
@@ -2878,6 +2873,14 @@ i915_gem_object_pwrite_gtt(struct drm_i915_gem_object *obj,
 	return 0;
 }
 
+static bool match_ring(struct i915_request *rq)
+{
+	struct drm_i915_private *dev_priv = rq->i915;
+	u32 ring = I915_READ(RING_START(rq->engine->mmio_base));
+
+	return ring == i915_ggtt_offset(rq->ring->vma);
+}
+
 struct i915_request *
 i915_gem_find_active_request(struct intel_engine_cs *engine)
 {
@@ -2897,8 +2900,15 @@ i915_gem_find_active_request(struct intel_engine_cs *engine)
 	 */
 	spin_lock_irqsave(&engine->timeline.lock, flags);
 	list_for_each_entry(request, &engine->timeline.requests, link) {
-		if (__i915_request_completed(request, request->global_seqno))
+		if (i915_request_completed(request))
 			continue;
+
+		if (!i915_request_started(request))
+			break;
+
+		/* More than one preemptible request may match! */
+		if (!match_ring(request))
+			break;
 
 		active = request;
 		break;
@@ -3229,33 +3239,6 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	return ret;
 }
 
-static long wait_for_timeline(struct i915_timeline *tl,
-			      unsigned int flags, long timeout)
-{
-	struct i915_request *rq;
-
-	rq = i915_gem_active_get_unlocked(&tl->last_request);
-	if (!rq)
-		return timeout;
-
-	/*
-	 * "Race-to-idle".
-	 *
-	 * Switching to the kernel context is often used a synchronous
-	 * step prior to idling, e.g. in suspend for flushing all
-	 * current operations to memory before sleeping. These we
-	 * want to complete as quickly as possible to avoid prolonged
-	 * stalls, so allow the gpu to boost to maximum clocks.
-	 */
-	if (flags & I915_WAIT_FOR_IDLE_BOOST)
-		gen6_rps_boost(rq, NULL);
-
-	timeout = i915_request_wait(rq, flags, timeout);
-	i915_request_put(rq);
-
-	return timeout;
-}
-
 static int wait_for_engines(struct drm_i915_private *i915)
 {
 	if (wait_for(intel_engines_are_idle(i915), I915_IDLE_ENGINES_TIMEOUT)) {
@@ -3269,6 +3252,52 @@ static int wait_for_engines(struct drm_i915_private *i915)
 	return 0;
 }
 
+static long
+wait_for_timelines(struct drm_i915_private *i915,
+		   unsigned int flags, long timeout)
+{
+	struct i915_gt_timelines *gt = &i915->gt.timelines;
+	struct i915_timeline *tl;
+
+	if (!READ_ONCE(i915->gt.active_requests))
+		return timeout;
+
+	mutex_lock(&gt->mutex);
+	list_for_each_entry(tl, &gt->active_list, link) {
+		struct i915_request *rq;
+
+		rq = i915_gem_active_get_unlocked(&tl->last_request);
+		if (!rq)
+			continue;
+
+		mutex_unlock(&gt->mutex);
+
+		/*
+		 * "Race-to-idle".
+		 *
+		 * Switching to the kernel context is often used a synchronous
+		 * step prior to idling, e.g. in suspend for flushing all
+		 * current operations to memory before sleeping. These we
+		 * want to complete as quickly as possible to avoid prolonged
+		 * stalls, so allow the gpu to boost to maximum clocks.
+		 */
+		if (flags & I915_WAIT_FOR_IDLE_BOOST)
+			gen6_rps_boost(rq, NULL);
+
+		timeout = i915_request_wait(rq, flags, timeout);
+		i915_request_put(rq);
+		if (timeout < 0)
+			return timeout;
+
+		/* restart after reacquiring the lock */
+		mutex_lock(&gt->mutex);
+		tl = list_entry(&gt->active_list, typeof(*tl), link);
+	}
+	mutex_unlock(&gt->mutex);
+
+	return timeout;
+}
+
 int i915_gem_wait_for_idle(struct drm_i915_private *i915,
 			   unsigned int flags, long timeout)
 {
@@ -3280,17 +3309,15 @@ int i915_gem_wait_for_idle(struct drm_i915_private *i915,
 	if (!READ_ONCE(i915->gt.awake))
 		return 0;
 
+	timeout = wait_for_timelines(i915, flags, timeout);
+	if (timeout < 0)
+		return timeout;
+
 	if (flags & I915_WAIT_LOCKED) {
-		struct i915_timeline *tl;
 		int err;
 
 		lockdep_assert_held(&i915->drm.struct_mutex);
 
-		list_for_each_entry(tl, &i915->gt.timelines, link) {
-			timeout = wait_for_timeline(tl, flags, timeout);
-			if (timeout < 0)
-				return timeout;
-		}
 		if (GEM_SHOW_DEBUG() && !timeout) {
 			/* Presume that timeout was non-zero to begin with! */
 			dev_warn(&i915->drm.pdev->dev,
@@ -3304,17 +3331,6 @@ int i915_gem_wait_for_idle(struct drm_i915_private *i915,
 
 		i915_retire_requests(i915);
 		GEM_BUG_ON(i915->gt.active_requests);
-	} else {
-		struct intel_engine_cs *engine;
-		enum intel_engine_id id;
-
-		for_each_engine(engine, i915, id) {
-			struct i915_timeline *tl = &engine->timeline;
-
-			timeout = wait_for_timeline(tl, flags, timeout);
-			if (timeout < 0)
-				return timeout;
-		}
 	}
 
 	return 0;
@@ -3500,7 +3516,7 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 	 * reading an invalid PTE on older architectures.
 	 */
 restart:
-	list_for_each_entry(vma, &obj->vma_list, obj_link) {
+	list_for_each_entry(vma, &obj->vma.list, obj_link) {
 		if (!drm_mm_node_allocated(&vma->node))
 			continue;
 
@@ -3578,7 +3594,7 @@ restart:
 			 */
 		}
 
-		list_for_each_entry(vma, &obj->vma_list, obj_link) {
+		list_for_each_entry(vma, &obj->vma.list, obj_link) {
 			if (!drm_mm_node_allocated(&vma->node))
 				continue;
 
@@ -3588,7 +3604,7 @@ restart:
 		}
 	}
 
-	list_for_each_entry(vma, &obj->vma_list, obj_link)
+	list_for_each_entry(vma, &obj->vma.list, obj_link)
 		vma->node.color = cache_level;
 	i915_gem_object_set_cache_coherency(obj, cache_level);
 	obj->cache_dirty = true; /* Always invalidate stale cachelines */
@@ -4164,7 +4180,9 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 {
 	mutex_init(&obj->mm.lock);
 
-	INIT_LIST_HEAD(&obj->vma_list);
+	spin_lock_init(&obj->vma.lock);
+	INIT_LIST_HEAD(&obj->vma.list);
+
 	INIT_LIST_HEAD(&obj->lut_list);
 	INIT_LIST_HEAD(&obj->batch_pool_link);
 
@@ -4330,14 +4348,13 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 		mutex_lock(&i915->drm.struct_mutex);
 
 		GEM_BUG_ON(i915_gem_object_is_active(obj));
-		list_for_each_entry_safe(vma, vn,
-					 &obj->vma_list, obj_link) {
+		list_for_each_entry_safe(vma, vn, &obj->vma.list, obj_link) {
 			GEM_BUG_ON(i915_vma_is_active(vma));
 			vma->flags &= ~I915_VMA_PIN_MASK;
 			i915_vma_destroy(vma);
 		}
-		GEM_BUG_ON(!list_empty(&obj->vma_list));
-		GEM_BUG_ON(!RB_EMPTY_ROOT(&obj->vma_tree));
+		GEM_BUG_ON(!list_empty(&obj->vma.list));
+		GEM_BUG_ON(!RB_EMPTY_ROOT(&obj->vma.tree));
 
 		/* This serializes freeing with the shrinker. Since the free
 		 * is delayed, first by RCU then by the workqueue, we want the
@@ -4495,8 +4512,6 @@ void i915_gem_sanitize(struct drm_i915_private *i915)
 
 	GEM_TRACE("\n");
 
-	mutex_lock(&i915->drm.struct_mutex);
-
 	wakeref = intel_runtime_pm_get(i915);
 	intel_uncore_forcewake_get(i915, FORCEWAKE_ALL);
 
@@ -4522,6 +4537,7 @@ void i915_gem_sanitize(struct drm_i915_private *i915)
 	intel_uncore_forcewake_put(i915, FORCEWAKE_ALL);
 	intel_runtime_pm_put(i915, wakeref);
 
+	mutex_lock(&i915->drm.struct_mutex);
 	i915_gem_contexts_lost(i915);
 	mutex_unlock(&i915->drm.struct_mutex);
 }
@@ -4535,6 +4551,8 @@ int i915_gem_suspend(struct drm_i915_private *i915)
 
 	wakeref = intel_runtime_pm_get(i915);
 	intel_suspend_gt_powersave(i915);
+
+	flush_workqueue(i915->wq);
 
 	mutex_lock(&i915->drm.struct_mutex);
 
@@ -4565,17 +4583,17 @@ int i915_gem_suspend(struct drm_i915_private *i915)
 	i915_retire_requests(i915); /* ensure we flush after wedging */
 
 	mutex_unlock(&i915->drm.struct_mutex);
+	i915_reset_flush(i915);
 
-	intel_uc_suspend(i915);
-
-	cancel_delayed_work_sync(&i915->gpu_error.hangcheck_work);
-	cancel_delayed_work_sync(&i915->gt.retire_work);
+	drain_delayed_work(&i915->gt.retire_work);
 
 	/*
 	 * As the idle_work is rearming if it detects a race, play safe and
 	 * repeat the flush until it is definitely idle.
 	 */
 	drain_delayed_work(&i915->gt.idle_work);
+
+	intel_uc_suspend(i915);
 
 	/*
 	 * Assert that we successfully flushed all the work and
@@ -5013,6 +5031,8 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 		dev_priv->gt.cleanup_engine = intel_engine_cleanup;
 	}
 
+	i915_timelines_init(dev_priv);
+
 	ret = i915_gem_init_userptr(dev_priv);
 	if (ret)
 		return ret;
@@ -5135,8 +5155,10 @@ err_unlock:
 err_uc_misc:
 	intel_uc_fini_misc(dev_priv);
 
-	if (ret != -EIO)
+	if (ret != -EIO) {
 		i915_gem_cleanup_userptr(dev_priv);
+		i915_timelines_fini(dev_priv);
+	}
 
 	if (ret == -EIO) {
 		mutex_lock(&dev_priv->drm.struct_mutex);
@@ -5187,6 +5209,7 @@ void i915_gem_fini(struct drm_i915_private *dev_priv)
 
 	intel_uc_fini_misc(dev_priv);
 	i915_gem_cleanup_userptr(dev_priv);
+	i915_timelines_fini(dev_priv);
 
 	i915_gem_drain_freed_objects(dev_priv);
 
@@ -5289,7 +5312,6 @@ int i915_gem_init_early(struct drm_i915_private *dev_priv)
 	if (!dev_priv->priorities)
 		goto err_dependencies;
 
-	INIT_LIST_HEAD(&dev_priv->gt.timelines);
 	INIT_LIST_HEAD(&dev_priv->gt.active_rings);
 	INIT_LIST_HEAD(&dev_priv->gt.closed_vma);
 
@@ -5333,7 +5355,6 @@ void i915_gem_cleanup_early(struct drm_i915_private *dev_priv)
 	GEM_BUG_ON(!llist_empty(&dev_priv->mm.free_list));
 	GEM_BUG_ON(atomic_read(&dev_priv->mm.free_count));
 	WARN_ON(dev_priv->mm.object_count);
-	WARN_ON(!list_empty(&dev_priv->gt.timelines));
 
 	kmem_cache_destroy(dev_priv->priorities);
 	kmem_cache_destroy(dev_priv->dependencies);

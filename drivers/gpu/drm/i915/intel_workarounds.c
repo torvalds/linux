@@ -142,7 +142,8 @@ static void _wa_add(struct i915_wa_list *wal, const struct i915_wa *wa)
 }
 
 static void
-__wa_add(struct i915_wa_list *wal, i915_reg_t reg, u32 mask, u32 val)
+wa_write_masked_or(struct i915_wa_list *wal, i915_reg_t reg, u32 mask,
+		   u32 val)
 {
 	struct i915_wa wa = {
 		.reg = reg,
@@ -153,16 +154,32 @@ __wa_add(struct i915_wa_list *wal, i915_reg_t reg, u32 mask, u32 val)
 	_wa_add(wal, &wa);
 }
 
-#define WA_REG(addr, mask, val) __wa_add(wal, (addr), (mask), (val))
+static void
+wa_masked_en(struct i915_wa_list *wal, i915_reg_t reg, u32 val)
+{
+	wa_write_masked_or(wal, reg, val, _MASKED_BIT_ENABLE(val));
+}
+
+static void
+wa_write(struct i915_wa_list *wal, i915_reg_t reg, u32 val)
+{
+	wa_write_masked_or(wal, reg, ~0, val);
+}
+
+static void
+wa_write_or(struct i915_wa_list *wal, i915_reg_t reg, u32 val)
+{
+	wa_write_masked_or(wal, reg, val, val);
+}
 
 #define WA_SET_BIT_MASKED(addr, mask) \
-	WA_REG(addr, (mask), _MASKED_BIT_ENABLE(mask))
+	wa_write_masked_or(wal, (addr), (mask), _MASKED_BIT_ENABLE(mask))
 
 #define WA_CLR_BIT_MASKED(addr, mask) \
-	WA_REG(addr, (mask), _MASKED_BIT_DISABLE(mask))
+	wa_write_masked_or(wal, (addr), (mask), _MASKED_BIT_DISABLE(mask))
 
 #define WA_SET_FIELD_MASKED(addr, mask, value) \
-	WA_REG(addr, (mask), _MASKED_FIELD(mask, value))
+	wa_write_masked_or(wal, (addr), (mask), _MASKED_FIELD((mask), (value)))
 
 static void gen8_ctx_workarounds_init(struct intel_engine_cs *engine)
 {
@@ -532,6 +549,12 @@ static void icl_ctx_workarounds_init(struct intel_engine_cs *engine)
 	if (IS_ICL_REVID(i915, ICL_REVID_A0, ICL_REVID_A0))
 		WA_SET_BIT_MASKED(GEN11_COMMON_SLICE_CHICKEN3,
 				  GEN11_BLEND_EMB_FIX_DISABLE_IN_RCC);
+
+	/* WaEnableFloatBlendOptimization:icl */
+	wa_write_masked_or(wal,
+			   GEN10_CACHE_MODE_SS,
+			   0, /* write-only, so skip validation */
+			   _MASKED_BIT_ENABLE(FLOAT_BLEND_OPTIMIZATION_ENABLE));
 }
 
 void intel_engine_init_ctx_wa(struct intel_engine_cs *engine)
@@ -600,43 +623,6 @@ int intel_engine_emit_ctx_wa(struct i915_request *rq)
 		return ret;
 
 	return 0;
-}
-
-static void
-wa_masked_en(struct i915_wa_list *wal, i915_reg_t reg, u32 val)
-{
-	struct i915_wa wa = {
-		.reg = reg,
-		.mask = val,
-		.val = _MASKED_BIT_ENABLE(val)
-	};
-
-	_wa_add(wal, &wa);
-}
-
-static void
-wa_write_masked_or(struct i915_wa_list *wal, i915_reg_t reg, u32 mask,
-		   u32 val)
-{
-	struct i915_wa wa = {
-		.reg = reg,
-		.mask = mask,
-		.val = val
-	};
-
-	_wa_add(wal, &wa);
-}
-
-static void
-wa_write(struct i915_wa_list *wal, i915_reg_t reg, u32 val)
-{
-	wa_write_masked_or(wal, reg, ~0, val);
-}
-
-static void
-wa_write_or(struct i915_wa_list *wal, i915_reg_t reg, u32 val)
-{
-	wa_write_masked_or(wal, reg, val, val);
 }
 
 static void

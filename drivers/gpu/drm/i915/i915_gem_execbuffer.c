@@ -1976,6 +1976,18 @@ static int eb_submit(struct i915_execbuffer *eb)
 			return err;
 	}
 
+	/*
+	 * After we completed waiting for other engines (using HW semaphores)
+	 * then we can signal that this request/batch is ready to run. This
+	 * allows us to determine if the batch is still waiting on the GPU
+	 * or actually running by checking the breadcrumb.
+	 */
+	if (eb->engine->emit_init_breadcrumb) {
+		err = eb->engine->emit_init_breadcrumb(eb->request);
+		if (err)
+			return err;
+	}
+
 	err = eb->engine->emit_bb_start(eb->request,
 					eb->batch->node.start +
 					eb->batch_start_offset,

@@ -57,6 +57,8 @@ static const struct intel_gvt_ops *intel_gvt_ops;
 #define VFIO_PCI_INDEX_TO_OFFSET(index) ((u64)(index) << VFIO_PCI_OFFSET_SHIFT)
 #define VFIO_PCI_OFFSET_MASK    (((u64)(1) << VFIO_PCI_OFFSET_SHIFT) - 1)
 
+#define EDID_BLOB_OFFSET (PAGE_SIZE/2)
+
 #define OPREGION_SIGNATURE "IntelGraphicsMem"
 
 struct vfio_region;
@@ -74,6 +76,11 @@ struct vfio_region {
 	u32				flags;
 	const struct intel_vgpu_regops	*ops;
 	void				*data;
+};
+
+struct vfio_edid_region {
+	struct vfio_region_gfx_edid vfio_edid_regs;
+	void *edid_blob;
 };
 
 struct kvmgt_pgfn {
@@ -427,6 +434,111 @@ static const struct intel_vgpu_regops intel_vgpu_regops_opregion = {
 	.release = intel_vgpu_reg_release_opregion,
 };
 
+static int handle_edid_regs(struct intel_vgpu *vgpu,
+			struct vfio_edid_region *region, char *buf,
+			size_t count, u16 offset, bool is_write)
+{
+	struct vfio_region_gfx_edid *regs = &region->vfio_edid_regs;
+	unsigned int data;
+
+	if (offset + count > sizeof(*regs))
+		return -EINVAL;
+
+	if (count != 4)
+		return -EINVAL;
+
+	if (is_write) {
+		data = *((unsigned int *)buf);
+		switch (offset) {
+		case offsetof(struct vfio_region_gfx_edid, link_state):
+			if (data == VFIO_DEVICE_GFX_LINK_STATE_UP) {
+				if (!drm_edid_block_valid(
+					(u8 *)region->edid_blob,
+					0,
+					true,
+					NULL)) {
+					gvt_vgpu_err("invalid EDID blob\n");
+					return -EINVAL;
+				}
+				intel_gvt_ops->emulate_hotplug(vgpu, true);
+			} else if (data == VFIO_DEVICE_GFX_LINK_STATE_DOWN)
+				intel_gvt_ops->emulate_hotplug(vgpu, false);
+			else {
+				gvt_vgpu_err("invalid EDID link state %d\n",
+					regs->link_state);
+				return -EINVAL;
+			}
+			regs->link_state = data;
+			break;
+		case offsetof(struct vfio_region_gfx_edid, edid_size):
+			if (data > regs->edid_max_size) {
+				gvt_vgpu_err("EDID size is bigger than %d!\n",
+					regs->edid_max_size);
+				return -EINVAL;
+			}
+			regs->edid_size = data;
+			break;
+		default:
+			/* read-only regs */
+			gvt_vgpu_err("write read-only EDID region at offset %d\n",
+				offset);
+			return -EPERM;
+		}
+	} else {
+		memcpy(buf, (char *)regs + offset, count);
+	}
+
+	return count;
+}
+
+static int handle_edid_blob(struct vfio_edid_region *region, char *buf,
+			size_t count, u16 offset, bool is_write)
+{
+	if (offset + count > region->vfio_edid_regs.edid_size)
+		return -EINVAL;
+
+	if (is_write)
+		memcpy(region->edid_blob + offset, buf, count);
+	else
+		memcpy(buf, region->edid_blob + offset, count);
+
+	return count;
+}
+
+static size_t intel_vgpu_reg_rw_edid(struct intel_vgpu *vgpu, char *buf,
+		size_t count, loff_t *ppos, bool iswrite)
+{
+	int ret;
+	unsigned int i = VFIO_PCI_OFFSET_TO_INDEX(*ppos) -
+			VFIO_PCI_NUM_REGIONS;
+	struct vfio_edid_region *region =
+		(struct vfio_edid_region *)vgpu->vdev.region[i].data;
+	loff_t pos = *ppos & VFIO_PCI_OFFSET_MASK;
+
+	if (pos < region->vfio_edid_regs.edid_offset) {
+		ret = handle_edid_regs(vgpu, region, buf, count, pos, iswrite);
+	} else {
+		pos -= EDID_BLOB_OFFSET;
+		ret = handle_edid_blob(region, buf, count, pos, iswrite);
+	}
+
+	if (ret < 0)
+		gvt_vgpu_err("failed to access EDID region\n");
+
+	return ret;
+}
+
+static void intel_vgpu_reg_release_edid(struct intel_vgpu *vgpu,
+					struct vfio_region *region)
+{
+	kfree(region->data);
+}
+
+static const struct intel_vgpu_regops intel_vgpu_regops_edid = {
+	.rw = intel_vgpu_reg_rw_edid,
+	.release = intel_vgpu_reg_release_edid,
+};
+
 static int intel_vgpu_register_reg(struct intel_vgpu *vgpu,
 		unsigned int type, unsigned int subtype,
 		const struct intel_vgpu_regops *ops,
@@ -489,6 +601,36 @@ static int kvmgt_set_opregion(void *p_vgpu)
 			VFIO_REGION_SUBTYPE_INTEL_IGD_OPREGION,
 			&intel_vgpu_regops_opregion, OPREGION_SIZE,
 			VFIO_REGION_INFO_FLAG_READ, base);
+
+	return ret;
+}
+
+static int kvmgt_set_edid(void *p_vgpu, int port_num)
+{
+	struct intel_vgpu *vgpu = (struct intel_vgpu *)p_vgpu;
+	struct intel_vgpu_port *port = intel_vgpu_port(vgpu, port_num);
+	struct vfio_edid_region *base;
+	int ret;
+
+	base = kzalloc(sizeof(*base), GFP_KERNEL);
+	if (!base)
+		return -ENOMEM;
+
+	/* TODO: Add multi-port and EDID extension block support */
+	base->vfio_edid_regs.edid_offset = EDID_BLOB_OFFSET;
+	base->vfio_edid_regs.edid_max_size = EDID_SIZE;
+	base->vfio_edid_regs.edid_size = EDID_SIZE;
+	base->vfio_edid_regs.max_xres = vgpu_edid_xres(port->id);
+	base->vfio_edid_regs.max_yres = vgpu_edid_yres(port->id);
+	base->edid_blob = port->edid->edid_block;
+
+	ret = intel_vgpu_register_reg(vgpu,
+			VFIO_REGION_TYPE_GFX,
+			VFIO_REGION_SUBTYPE_GFX_EDID,
+			&intel_vgpu_regops_edid, EDID_SIZE,
+			VFIO_REGION_INFO_FLAG_READ |
+			VFIO_REGION_INFO_FLAG_WRITE |
+			VFIO_REGION_INFO_FLAG_CAPS, base);
 
 	return ret;
 }
@@ -1874,6 +2016,7 @@ static struct intel_gvt_mpt kvmgt_mpt = {
 	.dma_map_guest_page = kvmgt_dma_map_guest_page,
 	.dma_unmap_guest_page = kvmgt_dma_unmap_guest_page,
 	.set_opregion = kvmgt_set_opregion,
+	.set_edid = kvmgt_set_edid,
 	.get_vfio_device = kvmgt_get_vfio_device,
 	.put_vfio_device = kvmgt_put_vfio_device,
 	.is_valid_gfn = kvmgt_is_valid_gfn,

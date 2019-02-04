@@ -87,24 +87,33 @@ struct drm_i915_gem_object {
 
 	const struct drm_i915_gem_object_ops *ops;
 
-	/**
-	 * @vma_list: List of VMAs backed by this object
-	 *
-	 * The VMA on this list are ordered by type, all GGTT vma are placed
-	 * at the head and all ppGTT vma are placed at the tail. The different
-	 * types of GGTT vma are unordered between themselves, use the
-	 * @vma_tree (which has a defined order between all VMA) to find an
-	 * exact match.
-	 */
-	struct list_head vma_list;
-	/**
-	 * @vma_tree: Ordered tree of VMAs backed by this object
-	 *
-	 * All VMA created for this object are placed in the @vma_tree for
-	 * fast retrieval via a binary search in i915_vma_instance().
-	 * They are also added to @vma_list for easy iteration.
-	 */
-	struct rb_root vma_tree;
+	struct {
+		/**
+		 * @vma.lock: protect the list/tree of vmas
+		 */
+		spinlock_t lock;
+
+		/**
+		 * @vma.list: List of VMAs backed by this object
+		 *
+		 * The VMA on this list are ordered by type, all GGTT vma are
+		 * placed at the head and all ppGTT vma are placed at the tail.
+		 * The different types of GGTT vma are unordered between
+		 * themselves, use the @vma.tree (which has a defined order
+		 * between all VMA) to quickly find an exact match.
+		 */
+		struct list_head list;
+
+		/**
+		 * @vma.tree: Ordered tree of VMAs backed by this object
+		 *
+		 * All VMA created for this object are placed in the @vma.tree
+		 * for fast retrieval via a binary search in
+		 * i915_vma_instance(). They are also added to @vma.list for
+		 * easy iteration.
+		 */
+		struct rb_root tree;
+	} vma;
 
 	/**
 	 * @lut_list: List of vma lookup entries in use for this object.

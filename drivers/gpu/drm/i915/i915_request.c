@@ -60,7 +60,7 @@ static bool i915_fence_signaled(struct dma_fence *fence)
 
 static bool i915_fence_enable_signaling(struct dma_fence *fence)
 {
-	return intel_engine_enable_signaling(to_request(fence), true);
+	return i915_request_enable_breadcrumb(to_request(fence));
 }
 
 static signed long i915_fence_wait(struct dma_fence *fence,
@@ -182,10 +182,11 @@ static void free_capture_list(struct i915_request *request)
 static void __retire_engine_request(struct intel_engine_cs *engine,
 				    struct i915_request *rq)
 {
-	GEM_TRACE("%s(%s) fence %llx:%lld, global=%d, current %d\n",
+	GEM_TRACE("%s(%s) fence %llx:%lld, global=%d, current %d:%d\n",
 		  __func__, engine->name,
 		  rq->fence.context, rq->fence.seqno,
 		  rq->global_seqno,
+		  hwsp_seqno(rq),
 		  intel_engine_get_seqno(engine));
 
 	GEM_BUG_ON(!i915_request_completed(rq));
@@ -198,10 +199,11 @@ static void __retire_engine_request(struct intel_engine_cs *engine,
 	spin_unlock(&engine->timeline.lock);
 
 	spin_lock(&rq->lock);
+	i915_request_mark_complete(rq);
 	if (!i915_request_signaled(rq))
 		dma_fence_signal_locked(&rq->fence);
 	if (test_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT, &rq->fence.flags))
-		intel_engine_cancel_signaling(rq);
+		i915_request_cancel_breadcrumb(rq);
 	if (rq->waitboost) {
 		GEM_BUG_ON(!atomic_read(&rq->i915->gt_pm.rps.num_waiters));
 		atomic_dec(&rq->i915->gt_pm.rps.num_waiters);
@@ -244,10 +246,11 @@ static void i915_request_retire(struct i915_request *request)
 {
 	struct i915_gem_active *active, *next;
 
-	GEM_TRACE("%s fence %llx:%lld, global=%d, current %d\n",
+	GEM_TRACE("%s fence %llx:%lld, global=%d, current %d:%d\n",
 		  request->engine->name,
 		  request->fence.context, request->fence.seqno,
 		  request->global_seqno,
+		  hwsp_seqno(request),
 		  intel_engine_get_seqno(request->engine));
 
 	lockdep_assert_held(&request->i915->drm.struct_mutex);
@@ -307,10 +310,11 @@ void i915_request_retire_upto(struct i915_request *rq)
 	struct intel_ring *ring = rq->ring;
 	struct i915_request *tmp;
 
-	GEM_TRACE("%s fence %llx:%lld, global=%d, current %d\n",
+	GEM_TRACE("%s fence %llx:%lld, global=%d, current %d:%d\n",
 		  rq->engine->name,
 		  rq->fence.context, rq->fence.seqno,
 		  rq->global_seqno,
+		  hwsp_seqno(rq),
 		  intel_engine_get_seqno(rq->engine));
 
 	lockdep_assert_held(&rq->i915->drm.struct_mutex);
@@ -329,7 +333,7 @@ void i915_request_retire_upto(struct i915_request *rq)
 
 static u32 timeline_get_seqno(struct i915_timeline *tl)
 {
-	return ++tl->seqno;
+	return tl->seqno += 1 + tl->has_initial_breadcrumb;
 }
 
 static void move_to_timeline(struct i915_request *request,
@@ -355,10 +359,11 @@ void __i915_request_submit(struct i915_request *request)
 	struct intel_engine_cs *engine = request->engine;
 	u32 seqno;
 
-	GEM_TRACE("%s fence %llx:%lld -> global=%d, current %d\n",
+	GEM_TRACE("%s fence %llx:%lld -> global=%d, current %d:%d\n",
 		  engine->name,
 		  request->fence.context, request->fence.seqno,
 		  engine->timeline.seqno + 1,
+		  hwsp_seqno(request),
 		  intel_engine_get_seqno(engine));
 
 	GEM_BUG_ON(!irqs_disabled());
@@ -372,20 +377,21 @@ void __i915_request_submit(struct i915_request *request)
 
 	/* We may be recursing from the signal callback of another i915 fence */
 	spin_lock_nested(&request->lock, SINGLE_DEPTH_NESTING);
+	GEM_BUG_ON(test_bit(I915_FENCE_FLAG_ACTIVE, &request->fence.flags));
+	set_bit(I915_FENCE_FLAG_ACTIVE, &request->fence.flags);
 	request->global_seqno = seqno;
-	if (test_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT, &request->fence.flags))
-		intel_engine_enable_signaling(request, false);
+	if (test_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT, &request->fence.flags) &&
+	    !i915_request_enable_breadcrumb(request))
+		intel_engine_queue_breadcrumbs(engine);
 	spin_unlock(&request->lock);
 
-	engine->emit_breadcrumb(request,
-				request->ring->vaddr + request->postfix);
+	engine->emit_fini_breadcrumb(request,
+				     request->ring->vaddr + request->postfix);
 
 	/* Transfer from per-context onto the global per-engine timeline */
 	move_to_timeline(request, &engine->timeline);
 
 	trace_i915_request_execute(request);
-
-	wake_up_all(&request->execute);
 }
 
 void i915_request_submit(struct i915_request *request)
@@ -405,10 +411,11 @@ void __i915_request_unsubmit(struct i915_request *request)
 {
 	struct intel_engine_cs *engine = request->engine;
 
-	GEM_TRACE("%s fence %llx:%lld <- global=%d, current %d\n",
+	GEM_TRACE("%s fence %llx:%lld <- global=%d, current %d:%d\n",
 		  engine->name,
 		  request->fence.context, request->fence.seqno,
 		  request->global_seqno,
+		  hwsp_seqno(request),
 		  intel_engine_get_seqno(engine));
 
 	GEM_BUG_ON(!irqs_disabled());
@@ -427,7 +434,9 @@ void __i915_request_unsubmit(struct i915_request *request)
 	spin_lock_nested(&request->lock, SINGLE_DEPTH_NESTING);
 	request->global_seqno = 0;
 	if (test_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT, &request->fence.flags))
-		intel_engine_cancel_signaling(request);
+		i915_request_cancel_breadcrumb(request);
+	GEM_BUG_ON(!test_bit(I915_FENCE_FLAG_ACTIVE, &request->fence.flags));
+	clear_bit(I915_FENCE_FLAG_ACTIVE, &request->fence.flags);
 	spin_unlock(&request->lock);
 
 	/* Transfer back from the global per-engine timeline to per-context */
@@ -616,6 +625,7 @@ i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 	rq->ring = ce->ring;
 	rq->timeline = ce->ring->timeline;
 	GEM_BUG_ON(rq->timeline == &engine->timeline);
+	rq->hwsp_seqno = rq->timeline->hwsp_seqno;
 
 	spin_lock_init(&rq->lock);
 	dma_fence_init(&rq->fence,
@@ -626,13 +636,11 @@ i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 
 	/* We bump the ref for the fence chain */
 	i915_sw_fence_init(&i915_request_get(rq)->submit, submit_notify);
-	init_waitqueue_head(&rq->execute);
 
 	i915_sched_node_init(&rq->sched);
 
 	/* No zalloc, must clear what we need by hand */
 	rq->global_seqno = 0;
-	rq->signaling.wait.seqno = 0;
 	rq->file_priv = NULL;
 	rq->batch = NULL;
 	rq->capture_list = NULL;
@@ -650,7 +658,7 @@ i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 	 * around inside i915_request_add() there is sufficient space at
 	 * the beginning of the ring as well.
 	 */
-	rq->reserved_space = 2 * engine->emit_breadcrumb_sz * sizeof(u32);
+	rq->reserved_space = 2 * engine->emit_fini_breadcrumb_dw * sizeof(u32);
 
 	/*
 	 * Record the position of the start of the request so that
@@ -901,7 +909,7 @@ void i915_request_add(struct i915_request *request)
 	 * GPU processing the request, we never over-estimate the
 	 * position of the ring's HEAD.
 	 */
-	cs = intel_ring_begin(request, engine->emit_breadcrumb_sz);
+	cs = intel_ring_begin(request, engine->emit_fini_breadcrumb_dw);
 	GEM_BUG_ON(IS_ERR(cs));
 	request->postfix = intel_ring_offset(request, cs);
 
@@ -1023,13 +1031,10 @@ static bool busywait_stop(unsigned long timeout, unsigned int cpu)
 	return this_cpu != cpu;
 }
 
-static bool __i915_spin_request(const struct i915_request *rq,
-				u32 seqno, int state, unsigned long timeout_us)
+static bool __i915_spin_request(const struct i915_request * const rq,
+				int state, unsigned long timeout_us)
 {
-	struct intel_engine_cs *engine = rq->engine;
-	unsigned int irq, cpu;
-
-	GEM_BUG_ON(!seqno);
+	unsigned int cpu;
 
 	/*
 	 * Only wait for the request if we know it is likely to complete.
@@ -1037,12 +1042,12 @@ static bool __i915_spin_request(const struct i915_request *rq,
 	 * We don't track the timestamps around requests, nor the average
 	 * request length, so we do not have a good indicator that this
 	 * request will complete within the timeout. What we do know is the
-	 * order in which requests are executed by the engine and so we can
-	 * tell if the request has started. If the request hasn't started yet,
-	 * it is a fair assumption that it will not complete within our
-	 * relatively short timeout.
+	 * order in which requests are executed by the context and so we can
+	 * tell if the request has been started. If the request is not even
+	 * running yet, it is a fair assumption that it will not complete
+	 * within our relatively short timeout.
 	 */
-	if (!intel_engine_has_started(engine, seqno))
+	if (!i915_request_is_running(rq))
 		return false;
 
 	/*
@@ -1056,20 +1061,10 @@ static bool __i915_spin_request(const struct i915_request *rq,
 	 * takes to sleep on a request, on the order of a microsecond.
 	 */
 
-	irq = READ_ONCE(engine->breadcrumbs.irq_count);
 	timeout_us += local_clock_us(&cpu);
 	do {
-		if (intel_engine_has_completed(engine, seqno))
-			return seqno == i915_request_global_seqno(rq);
-
-		/*
-		 * Seqno are meant to be ordered *before* the interrupt. If
-		 * we see an interrupt without a corresponding seqno advance,
-		 * assume we won't see one in the near future but require
-		 * the engine->seqno_barrier() to fixup coherency.
-		 */
-		if (READ_ONCE(engine->breadcrumbs.irq_count) != irq)
-			break;
+		if (i915_request_completed(rq))
+			return true;
 
 		if (signal_pending_state(state, current))
 			break;
@@ -1083,16 +1078,16 @@ static bool __i915_spin_request(const struct i915_request *rq,
 	return false;
 }
 
-static bool __i915_wait_request_check_and_reset(struct i915_request *request)
+struct request_wait {
+	struct dma_fence_cb cb;
+	struct task_struct *tsk;
+};
+
+static void request_wait_wake(struct dma_fence *fence, struct dma_fence_cb *cb)
 {
-	struct i915_gpu_error *error = &request->i915->gpu_error;
+	struct request_wait *wait = container_of(cb, typeof(*wait), cb);
 
-	if (likely(!i915_reset_handoff(error)))
-		return false;
-
-	__set_current_state(TASK_RUNNING);
-	i915_reset(request->i915, error->stalled_mask, error->reason);
-	return true;
+	wake_up_process(wait->tsk);
 }
 
 /**
@@ -1120,17 +1115,9 @@ long i915_request_wait(struct i915_request *rq,
 {
 	const int state = flags & I915_WAIT_INTERRUPTIBLE ?
 		TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE;
-	wait_queue_head_t *errq = &rq->i915->gpu_error.wait_queue;
-	DEFINE_WAIT_FUNC(reset, default_wake_function);
-	DEFINE_WAIT_FUNC(exec, default_wake_function);
-	struct intel_wait wait;
+	struct request_wait wait;
 
 	might_sleep();
-#if IS_ENABLED(CONFIG_LOCKDEP)
-	GEM_BUG_ON(debug_locks &&
-		   !!lockdep_is_held(&rq->i915->drm.struct_mutex) !=
-		   !!(flags & I915_WAIT_LOCKED));
-#endif
 	GEM_BUG_ON(timeout < 0);
 
 	if (i915_request_completed(rq))
@@ -1141,112 +1128,41 @@ long i915_request_wait(struct i915_request *rq,
 
 	trace_i915_request_wait_begin(rq, flags);
 
-	add_wait_queue(&rq->execute, &exec);
-	if (flags & I915_WAIT_LOCKED)
-		add_wait_queue(errq, &reset);
+	/* Optimistic short spin before touching IRQs */
+	if (__i915_spin_request(rq, state, 5))
+		goto out;
 
-	intel_wait_init(&wait);
 	if (flags & I915_WAIT_PRIORITY)
 		i915_schedule_bump_priority(rq, I915_PRIORITY_WAIT);
 
-restart:
-	do {
-		set_current_state(state);
-		if (intel_wait_update_request(&wait, rq))
-			break;
-
-		if (flags & I915_WAIT_LOCKED &&
-		    __i915_wait_request_check_and_reset(rq))
-			continue;
-
-		if (signal_pending_state(state, current)) {
-			timeout = -ERESTARTSYS;
-			goto complete;
-		}
-
-		if (!timeout) {
-			timeout = -ETIME;
-			goto complete;
-		}
-
-		timeout = io_schedule_timeout(timeout);
-	} while (1);
-
-	GEM_BUG_ON(!intel_wait_has_seqno(&wait));
-	GEM_BUG_ON(!i915_sw_fence_signaled(&rq->submit));
-
-	/* Optimistic short spin before touching IRQs */
-	if (__i915_spin_request(rq, wait.seqno, state, 5))
-		goto complete;
-
-	set_current_state(state);
-	if (intel_engine_add_wait(rq->engine, &wait))
-		/*
-		 * In order to check that we haven't missed the interrupt
-		 * as we enabled it, we need to kick ourselves to do a
-		 * coherent check on the seqno before we sleep.
-		 */
-		goto wakeup;
-
-	if (flags & I915_WAIT_LOCKED)
-		__i915_wait_request_check_and_reset(rq);
+	wait.tsk = current;
+	if (dma_fence_add_callback(&rq->fence, &wait.cb, request_wait_wake))
+		goto out;
 
 	for (;;) {
-		if (signal_pending_state(state, current)) {
-			timeout = -ERESTARTSYS;
-			break;
-		}
-
-		if (!timeout) {
-			timeout = -ETIME;
-			break;
-		}
-
-		timeout = io_schedule_timeout(timeout);
-
-		if (intel_wait_complete(&wait) &&
-		    intel_wait_check_request(&wait, rq))
-			break;
-
 		set_current_state(state);
 
-wakeup:
 		if (i915_request_completed(rq))
 			break;
 
-		/*
-		 * If the GPU is hung, and we hold the lock, reset the GPU
-		 * and then check for completion. On a full reset, the engine's
-		 * HW seqno will be advanced passed us and we are complete.
-		 * If we do a partial reset, we have to wait for the GPU to
-		 * resume and update the breadcrumb.
-		 *
-		 * If we don't hold the mutex, we can just wait for the worker
-		 * to come along and update the breadcrumb (either directly
-		 * itself, or indirectly by recovering the GPU).
-		 */
-		if (flags & I915_WAIT_LOCKED &&
-		    __i915_wait_request_check_and_reset(rq))
-			continue;
-
-		/* Only spin if we know the GPU is processing this request */
-		if (__i915_spin_request(rq, wait.seqno, state, 2))
+		if (signal_pending_state(state, current)) {
+			timeout = -ERESTARTSYS;
 			break;
-
-		if (!intel_wait_check_request(&wait, rq)) {
-			intel_engine_remove_wait(rq->engine, &wait);
-			goto restart;
 		}
+
+		if (!timeout) {
+			timeout = -ETIME;
+			break;
+		}
+
+		timeout = io_schedule_timeout(timeout);
 	}
-
-	intel_engine_remove_wait(rq->engine, &wait);
-complete:
 	__set_current_state(TASK_RUNNING);
-	if (flags & I915_WAIT_LOCKED)
-		remove_wait_queue(errq, &reset);
-	remove_wait_queue(&rq->execute, &exec);
-	trace_i915_request_wait_end(rq);
 
+	dma_fence_remove_callback(&rq->fence, &wait.cb);
+
+out:
+	trace_i915_request_wait_end(rq);
 	return timeout;
 }
 

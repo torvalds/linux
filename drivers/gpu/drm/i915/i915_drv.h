@@ -91,8 +91,8 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20190124"
-#define DRIVER_TIMESTAMP	1548370857
+#define DRIVER_DATE		"20190202"
+#define DRIVER_TIMESTAMP	1549095268
 
 /* Use I915_STATE_WARN(x) and I915_STATE_WARN_ON() (rather than WARN() and
  * WARN_ON()) for hw state sanity checks to check for unexpected conditions
@@ -1114,6 +1114,7 @@ struct skl_ddb_values {
 };
 
 struct skl_wm_level {
+	u16 min_ddb_alloc;
 	u16 plane_res_b;
 	u8 plane_res_l;
 	bool plane_en;
@@ -1975,7 +1976,14 @@ struct drm_i915_private {
 		void (*resume)(struct drm_i915_private *);
 		void (*cleanup_engine)(struct intel_engine_cs *engine);
 
-		struct list_head timelines;
+		struct i915_gt_timelines {
+			struct mutex mutex; /* protects list, tainted by GPU */
+			struct list_head active_list;
+
+			/* Pack multiple timelines' seqnos into the same page */
+			spinlock_t hwsp_lock;
+			struct list_head hwsp_free_list;
+		} timelines;
 
 		struct list_head active_rings;
 		struct list_head closed_vma;
@@ -2345,6 +2353,8 @@ static inline unsigned int i915_sg_segment_size(void)
 				 INTEL_INFO(dev_priv)->gt == 3)
 #define IS_CNL_WITH_PORT_F(dev_priv)   (IS_CANNONLAKE(dev_priv) && \
 					(INTEL_DEVID(dev_priv) & 0x0004) == 0x0004)
+#define IS_ICL_WITH_PORT_F(dev_priv)   (IS_ICELAKE(dev_priv) && \
+					INTEL_DEVID(dev_priv) != 0x8A51)
 
 #define IS_ALPHA_SUPPORT(intel_info) ((intel_info)->is_alpha_support)
 
@@ -2999,11 +3009,6 @@ i915_gem_find_active_request(struct intel_engine_cs *engine);
 static inline bool i915_reset_backoff(struct i915_gpu_error *error)
 {
 	return unlikely(test_bit(I915_RESET_BACKOFF, &error->flags));
-}
-
-static inline bool i915_reset_handoff(struct i915_gpu_error *error)
-{
-	return unlikely(test_bit(I915_RESET_HANDOFF, &error->flags));
 }
 
 static inline bool i915_terminally_wedged(struct i915_gpu_error *error)

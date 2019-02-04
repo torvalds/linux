@@ -823,10 +823,25 @@ static void i915_enable_asle_pipestat(struct drm_i915_private *dev_priv)
 static u32 i915_get_vblank_counter(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
+	const struct drm_display_mode *mode = &vblank->hwmode;
 	i915_reg_t high_frame, low_frame;
 	u32 high1, high2, low, pixel, vbl_start, hsync_start, htotal;
-	const struct drm_display_mode *mode = &dev->vblank[pipe].hwmode;
 	unsigned long irqflags;
+
+	/*
+	 * On i965gm TV output the frame counter only works up to
+	 * the point when we enable the TV encoder. After that the
+	 * frame counter ceases to work and reads zero. We need a
+	 * vblank wait before enabling the TV encoder and so we
+	 * have to enable vblank interrupts while the frame counter
+	 * is still in a working state. However the core vblank code
+	 * does not like us returning non-zero frame counter values
+	 * when we've told it that we don't have a working frame
+	 * counter. Thus we must stop non-zero values leaking out.
+	 */
+	if (!vblank->max_vblank_count)
+		return 0;
 
 	htotal = mode->crtc_htotal;
 	hsync_start = mode->crtc_hsync_start;
@@ -999,6 +1014,9 @@ static bool i915_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
 	int position;
 	int vbl_start, vbl_end, hsync_start, htotal, vtotal;
 	unsigned long irqflags;
+	bool use_scanline_counter = INTEL_GEN(dev_priv) >= 5 ||
+		IS_G4X(dev_priv) || IS_GEN(dev_priv, 2) ||
+		mode->private_flags & I915_MODE_FLAG_USE_SCANLINE_COUNTER;
 
 	if (WARN_ON(!mode->crtc_clock)) {
 		DRM_DEBUG_DRIVER("trying to get scanoutpos for disabled "
@@ -1031,7 +1049,7 @@ static bool i915_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
 	if (stime)
 		*stime = ktime_get();
 
-	if (IS_GEN(dev_priv, 2) || IS_G4X(dev_priv) || INTEL_GEN(dev_priv) >= 5) {
+	if (use_scanline_counter) {
 		/* No obvious pixelcount register. Only query vertical
 		 * scanout position from Display scan line register.
 		 */
@@ -1091,7 +1109,7 @@ static bool i915_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
 	else
 		position += vtotal - vbl_end;
 
-	if (IS_GEN(dev_priv, 2) || IS_G4X(dev_priv) || INTEL_GEN(dev_priv) >= 5) {
+	if (use_scanline_counter) {
 		*vpos = position;
 		*hpos = 0;
 	} else {
@@ -1151,68 +1169,6 @@ static void ironlake_rps_change_irq_handler(struct drm_i915_private *dev_priv)
 	spin_unlock(&mchdev_lock);
 
 	return;
-}
-
-static void notify_ring(struct intel_engine_cs *engine)
-{
-	const u32 seqno = intel_engine_get_seqno(engine);
-	struct i915_request *rq = NULL;
-	struct task_struct *tsk = NULL;
-	struct intel_wait *wait;
-
-	if (unlikely(!engine->breadcrumbs.irq_armed))
-		return;
-
-	rcu_read_lock();
-
-	spin_lock(&engine->breadcrumbs.irq_lock);
-	wait = engine->breadcrumbs.irq_wait;
-	if (wait) {
-		/*
-		 * We use a callback from the dma-fence to submit
-		 * requests after waiting on our own requests. To
-		 * ensure minimum delay in queuing the next request to
-		 * hardware, signal the fence now rather than wait for
-		 * the signaler to be woken up. We still wake up the
-		 * waiter in order to handle the irq-seqno coherency
-		 * issues (we may receive the interrupt before the
-		 * seqno is written, see __i915_request_irq_complete())
-		 * and to handle coalescing of multiple seqno updates
-		 * and many waiters.
-		 */
-		if (i915_seqno_passed(seqno, wait->seqno)) {
-			struct i915_request *waiter = wait->request;
-
-			if (waiter &&
-			    !i915_request_signaled(waiter) &&
-			    intel_wait_check_request(wait, waiter))
-				rq = i915_request_get(waiter);
-
-			tsk = wait->tsk;
-		}
-
-		engine->breadcrumbs.irq_count++;
-	} else {
-		if (engine->breadcrumbs.irq_armed)
-			__intel_engine_disarm_breadcrumbs(engine);
-	}
-	spin_unlock(&engine->breadcrumbs.irq_lock);
-
-	if (rq) {
-		spin_lock(&rq->lock);
-		dma_fence_signal_locked(&rq->fence);
-		GEM_BUG_ON(!i915_request_completed(rq));
-		spin_unlock(&rq->lock);
-
-		i915_request_put(rq);
-	}
-
-	if (tsk && tsk->state & TASK_NORMAL)
-		wake_up_process(tsk);
-
-	rcu_read_unlock();
-
-	trace_intel_engine_notify(engine, wait);
 }
 
 static void vlv_c0_read(struct drm_i915_private *dev_priv,
@@ -1459,20 +1415,20 @@ static void ilk_gt_irq_handler(struct drm_i915_private *dev_priv,
 			       u32 gt_iir)
 {
 	if (gt_iir & GT_RENDER_USER_INTERRUPT)
-		notify_ring(dev_priv->engine[RCS]);
+		intel_engine_breadcrumbs_irq(dev_priv->engine[RCS]);
 	if (gt_iir & ILK_BSD_USER_INTERRUPT)
-		notify_ring(dev_priv->engine[VCS]);
+		intel_engine_breadcrumbs_irq(dev_priv->engine[VCS]);
 }
 
 static void snb_gt_irq_handler(struct drm_i915_private *dev_priv,
 			       u32 gt_iir)
 {
 	if (gt_iir & GT_RENDER_USER_INTERRUPT)
-		notify_ring(dev_priv->engine[RCS]);
+		intel_engine_breadcrumbs_irq(dev_priv->engine[RCS]);
 	if (gt_iir & GT_BSD_USER_INTERRUPT)
-		notify_ring(dev_priv->engine[VCS]);
+		intel_engine_breadcrumbs_irq(dev_priv->engine[VCS]);
 	if (gt_iir & GT_BLT_USER_INTERRUPT)
-		notify_ring(dev_priv->engine[BCS]);
+		intel_engine_breadcrumbs_irq(dev_priv->engine[BCS]);
 
 	if (gt_iir & (GT_BLT_CS_ERROR_INTERRUPT |
 		      GT_BSD_CS_ERROR_INTERRUPT |
@@ -1492,7 +1448,7 @@ gen8_cs_irq_handler(struct intel_engine_cs *engine, u32 iir)
 		tasklet = true;
 
 	if (iir & GT_RENDER_USER_INTERRUPT) {
-		notify_ring(engine);
+		intel_engine_breadcrumbs_irq(engine);
 		tasklet |= USES_GUC_SUBMISSION(engine->i915);
 	}
 
@@ -1838,7 +1794,7 @@ static void gen6_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir)
 
 	if (HAS_VEBOX(dev_priv)) {
 		if (pm_iir & PM_VEBOX_USER_INTERRUPT)
-			notify_ring(dev_priv->engine[VECS]);
+			intel_engine_breadcrumbs_irq(dev_priv->engine[VECS]);
 
 		if (pm_iir & PM_VEBOX_CS_ERROR_INTERRUPT)
 			DRM_DEBUG("Command parser error, pm_iir 0x%08x\n", pm_iir);
@@ -4262,7 +4218,7 @@ static irqreturn_t i8xx_irq_handler(int irq, void *arg)
 		I915_WRITE16(IIR, iir);
 
 		if (iir & I915_USER_INTERRUPT)
-			notify_ring(dev_priv->engine[RCS]);
+			intel_engine_breadcrumbs_irq(dev_priv->engine[RCS]);
 
 		if (iir & I915_MASTER_ERROR_INTERRUPT)
 			i8xx_error_irq_handler(dev_priv, eir, eir_stuck);
@@ -4370,7 +4326,7 @@ static irqreturn_t i915_irq_handler(int irq, void *arg)
 		I915_WRITE(IIR, iir);
 
 		if (iir & I915_USER_INTERRUPT)
-			notify_ring(dev_priv->engine[RCS]);
+			intel_engine_breadcrumbs_irq(dev_priv->engine[RCS]);
 
 		if (iir & I915_MASTER_ERROR_INTERRUPT)
 			i9xx_error_irq_handler(dev_priv, eir, eir_stuck);
@@ -4515,10 +4471,10 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 		I915_WRITE(IIR, iir);
 
 		if (iir & I915_USER_INTERRUPT)
-			notify_ring(dev_priv->engine[RCS]);
+			intel_engine_breadcrumbs_irq(dev_priv->engine[RCS]);
 
 		if (iir & I915_BSD_USER_INTERRUPT)
-			notify_ring(dev_priv->engine[VCS]);
+			intel_engine_breadcrumbs_irq(dev_priv->engine[VCS]);
 
 		if (iir & I915_MASTER_ERROR_INTERRUPT)
 			i9xx_error_irq_handler(dev_priv, eir, eir_stuck);
@@ -4581,16 +4537,10 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 	if (INTEL_GEN(dev_priv) >= 8)
 		rps->pm_intrmsk_mbz |= GEN8_PMINTR_DISABLE_REDIRECT_TO_GUC;
 
-	if (IS_GEN(dev_priv, 2)) {
-		/* Gen2 doesn't have a hardware frame counter */
-		dev->max_vblank_count = 0;
-	} else if (IS_G4X(dev_priv) || INTEL_GEN(dev_priv) >= 5) {
-		dev->max_vblank_count = 0xffffffff; /* full 32 bit counter */
+	if (INTEL_GEN(dev_priv) >= 5 || IS_G4X(dev_priv))
 		dev->driver->get_vblank_counter = g4x_get_vblank_counter;
-	} else {
+	else if (INTEL_GEN(dev_priv) >= 3)
 		dev->driver->get_vblank_counter = i915_get_vblank_counter;
-		dev->max_vblank_count = 0xffffff; /* only 24 bits of frame count */
-	}
 
 	/*
 	 * Opt out of the vblank disable timer on everything except gen2.

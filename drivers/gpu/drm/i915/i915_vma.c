@@ -79,9 +79,6 @@ __i915_vma_retire(struct i915_vma *vma, struct i915_request *rq)
 	if (--vma->active_count)
 		return;
 
-	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
-	list_move_tail(&vma->vm_link, &vma->vm->inactive_list);
-
 	GEM_BUG_ON(!i915_gem_object_is_active(obj));
 	if (--obj->active_count)
 		return;
@@ -190,33 +187,56 @@ vma_create(struct drm_i915_gem_object *obj,
 								i915_gem_object_get_stride(obj));
 		GEM_BUG_ON(!is_power_of_2(vma->fence_alignment));
 
+		vma->flags |= I915_VMA_GGTT;
+	}
+
+	spin_lock(&obj->vma.lock);
+
+	rb = NULL;
+	p = &obj->vma.tree.rb_node;
+	while (*p) {
+		struct i915_vma *pos;
+		long cmp;
+
+		rb = *p;
+		pos = rb_entry(rb, struct i915_vma, obj_node);
+
+		/*
+		 * If the view already exists in the tree, another thread
+		 * already created a matching vma, so return the older instance
+		 * and dispose of ours.
+		 */
+		cmp = i915_vma_compare(pos, vm, view);
+		if (cmp == 0) {
+			spin_unlock(&obj->vma.lock);
+			kmem_cache_free(vm->i915->vmas, vma);
+			return pos;
+		}
+
+		if (cmp < 0)
+			p = &rb->rb_right;
+		else
+			p = &rb->rb_left;
+	}
+	rb_link_node(&vma->obj_node, rb, p);
+	rb_insert_color(&vma->obj_node, &obj->vma.tree);
+
+	if (i915_vma_is_ggtt(vma))
 		/*
 		 * We put the GGTT vma at the start of the vma-list, followed
 		 * by the ppGGTT vma. This allows us to break early when
 		 * iterating over only the GGTT vma for an object, see
 		 * for_each_ggtt_vma()
 		 */
-		vma->flags |= I915_VMA_GGTT;
-		list_add(&vma->obj_link, &obj->vma_list);
-	} else {
-		list_add_tail(&vma->obj_link, &obj->vma_list);
-	}
+		list_add(&vma->obj_link, &obj->vma.list);
+	else
+		list_add_tail(&vma->obj_link, &obj->vma.list);
 
-	rb = NULL;
-	p = &obj->vma_tree.rb_node;
-	while (*p) {
-		struct i915_vma *pos;
+	spin_unlock(&obj->vma.lock);
 
-		rb = *p;
-		pos = rb_entry(rb, struct i915_vma, obj_node);
-		if (i915_vma_compare(pos, vm, view) < 0)
-			p = &rb->rb_right;
-		else
-			p = &rb->rb_left;
-	}
-	rb_link_node(&vma->obj_node, rb, p);
-	rb_insert_color(&vma->obj_node, &obj->vma_tree);
+	mutex_lock(&vm->mutex);
 	list_add(&vma->vm_link, &vm->unbound_list);
+	mutex_unlock(&vm->mutex);
 
 	return vma;
 
@@ -232,7 +252,7 @@ vma_lookup(struct drm_i915_gem_object *obj,
 {
 	struct rb_node *rb;
 
-	rb = obj->vma_tree.rb_node;
+	rb = obj->vma.tree.rb_node;
 	while (rb) {
 		struct i915_vma *vma = rb_entry(rb, struct i915_vma, obj_node);
 		long cmp;
@@ -272,16 +292,18 @@ i915_vma_instance(struct drm_i915_gem_object *obj,
 {
 	struct i915_vma *vma;
 
-	lockdep_assert_held(&obj->base.dev->struct_mutex);
 	GEM_BUG_ON(view && !i915_is_ggtt(vm));
 	GEM_BUG_ON(vm->closed);
 
+	spin_lock(&obj->vma.lock);
 	vma = vma_lookup(obj, vm, view);
-	if (!vma)
+	spin_unlock(&obj->vma.lock);
+
+	/* vma_create() will resolve the race if another creates the vma */
+	if (unlikely(!vma))
 		vma = vma_create(obj, vm, view);
 
 	GEM_BUG_ON(!IS_ERR(vma) && i915_vma_compare(vma, vm, view));
-	GEM_BUG_ON(!IS_ERR(vma) && vma_lookup(obj, vm, view) != vma);
 	return vma;
 }
 
@@ -659,7 +681,9 @@ i915_vma_insert(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
 	GEM_BUG_ON(!i915_gem_valid_gtt_space(vma, cache_level));
 
-	list_move_tail(&vma->vm_link, &vma->vm->inactive_list);
+	mutex_lock(&vma->vm->mutex);
+	list_move_tail(&vma->vm_link, &vma->vm->bound_list);
+	mutex_unlock(&vma->vm->mutex);
 
 	if (vma->obj) {
 		struct drm_i915_gem_object *obj = vma->obj;
@@ -692,8 +716,10 @@ i915_vma_remove(struct i915_vma *vma)
 
 	vma->ops->clear_pages(vma);
 
+	mutex_lock(&vma->vm->mutex);
 	drm_mm_remove_node(&vma->node);
 	list_move_tail(&vma->vm_link, &vma->vm->unbound_list);
+	mutex_unlock(&vma->vm->mutex);
 
 	/*
 	 * Since the unbound list is global, only move to that list if
@@ -804,10 +830,18 @@ static void __i915_vma_destroy(struct i915_vma *vma)
 
 	GEM_BUG_ON(i915_gem_active_isset(&vma->last_fence));
 
-	list_del(&vma->obj_link);
+	mutex_lock(&vma->vm->mutex);
 	list_del(&vma->vm_link);
-	if (vma->obj)
-		rb_erase(&vma->obj_node, &vma->obj->vma_tree);
+	mutex_unlock(&vma->vm->mutex);
+
+	if (vma->obj) {
+		struct drm_i915_gem_object *obj = vma->obj;
+
+		spin_lock(&obj->vma.lock);
+		list_del(&vma->obj_link);
+		rb_erase(&vma->obj_node, &vma->obj->vma.tree);
+		spin_unlock(&obj->vma.lock);
+	}
 
 	rbtree_postorder_for_each_entry_safe(iter, n, &vma->active, node) {
 		GEM_BUG_ON(i915_gem_active_isset(&iter->base));
@@ -1003,10 +1037,8 @@ int i915_vma_move_to_active(struct i915_vma *vma,
 	 * add the active reference first and queue for it to be dropped
 	 * *last*.
 	 */
-	if (!i915_gem_active_isset(active) && !vma->active_count++) {
-		list_move_tail(&vma->vm_link, &vma->vm->active_list);
+	if (!i915_gem_active_isset(active) && !vma->active_count++)
 		obj->active_count++;
-	}
 	i915_gem_active_set(active, rq);
 	GEM_BUG_ON(!i915_vma_is_active(vma));
 	GEM_BUG_ON(!obj->active_count);

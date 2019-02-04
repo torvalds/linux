@@ -474,10 +474,9 @@ EXPORT_SYMBOL(drm_plane_create_color_properties);
  *
  * Returns 0 on success, -EINVAL on failure.
  */
-int drm_color_lut_check(struct drm_property_blob *lut,
-			uint32_t tests)
+int drm_color_lut_check(const struct drm_property_blob *lut, u32 tests)
 {
-	struct drm_color_lut *entry;
+	const struct drm_color_lut *entry;
 	int i;
 
 	if (!lut || !tests)

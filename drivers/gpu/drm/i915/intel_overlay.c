@@ -480,8 +480,6 @@ void intel_overlay_reset(struct drm_i915_private *dev_priv)
 	if (!overlay)
 		return;
 
-	intel_overlay_release_old_vid(overlay);
-
 	overlay->old_xscale = 0;
 	overlay->old_yscale = 0;
 	overlay->crtc = NULL;

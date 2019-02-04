@@ -96,6 +96,5 @@ enum drm_color_lut_tests {
 	DRM_COLOR_LUT_NON_DECREASING = BIT(1),
 };
 
-int drm_color_lut_check(struct drm_property_blob *lut,
-			uint32_t tests);
+int drm_color_lut_check(const struct drm_property_blob *lut, u32 tests);
 #endif

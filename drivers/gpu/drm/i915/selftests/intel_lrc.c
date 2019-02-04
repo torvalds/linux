@@ -268,6 +268,143 @@ err_wedged:
 	goto err_ctx_lo;
 }
 
+struct preempt_client {
+	struct igt_spinner spin;
+	struct i915_gem_context *ctx;
+};
+
+static int preempt_client_init(struct drm_i915_private *i915,
+			       struct preempt_client *c)
+{
+	c->ctx = kernel_context(i915);
+	if (!c->ctx)
+		return -ENOMEM;
+
+	if (igt_spinner_init(&c->spin, i915))
+		goto err_ctx;
+
+	return 0;
+
+err_ctx:
+	kernel_context_close(c->ctx);
+	return -ENOMEM;
+}
+
+static void preempt_client_fini(struct preempt_client *c)
+{
+	igt_spinner_fini(&c->spin);
+	kernel_context_close(c->ctx);
+}
+
+static int live_suppress_self_preempt(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	struct intel_engine_cs *engine;
+	struct i915_sched_attr attr = {
+		.priority = I915_USER_PRIORITY(I915_PRIORITY_MAX)
+	};
+	struct preempt_client a, b;
+	enum intel_engine_id id;
+	intel_wakeref_t wakeref;
+	int err = -ENOMEM;
+
+	/*
+	 * Verify that if a preemption request does not cause a change in
+	 * the current execution order, the preempt-to-idle injection is
+	 * skipped and that we do not accidentally apply it after the CS
+	 * completion event.
+	 */
+
+	if (!HAS_LOGICAL_RING_PREEMPTION(i915))
+		return 0;
+
+	if (USES_GUC_SUBMISSION(i915))
+		return 0; /* presume black blox */
+
+	mutex_lock(&i915->drm.struct_mutex);
+	wakeref = intel_runtime_pm_get(i915);
+
+	if (preempt_client_init(i915, &a))
+		goto err_unlock;
+	if (preempt_client_init(i915, &b))
+		goto err_client_a;
+
+	for_each_engine(engine, i915, id) {
+		struct i915_request *rq_a, *rq_b;
+		int depth;
+
+		engine->execlists.preempt_hang.count = 0;
+
+		rq_a = igt_spinner_create_request(&a.spin,
+						  a.ctx, engine,
+						  MI_NOOP);
+		if (IS_ERR(rq_a)) {
+			err = PTR_ERR(rq_a);
+			goto err_client_b;
+		}
+
+		i915_request_add(rq_a);
+		if (!igt_wait_for_spinner(&a.spin, rq_a)) {
+			pr_err("First client failed to start\n");
+			goto err_wedged;
+		}
+
+		for (depth = 0; depth < 8; depth++) {
+			rq_b = igt_spinner_create_request(&b.spin,
+							  b.ctx, engine,
+							  MI_NOOP);
+			if (IS_ERR(rq_b)) {
+				err = PTR_ERR(rq_b);
+				goto err_client_b;
+			}
+			i915_request_add(rq_b);
+
+			GEM_BUG_ON(i915_request_completed(rq_a));
+			engine->schedule(rq_a, &attr);
+			igt_spinner_end(&a.spin);
+
+			if (!igt_wait_for_spinner(&b.spin, rq_b)) {
+				pr_err("Second client failed to start\n");
+				goto err_wedged;
+			}
+
+			swap(a, b);
+			rq_a = rq_b;
+		}
+		igt_spinner_end(&a.spin);
+
+		if (engine->execlists.preempt_hang.count) {
+			pr_err("Preemption recorded x%d, depth %d; should have been suppressed!\n",
+			       engine->execlists.preempt_hang.count,
+			       depth);
+			err = -EINVAL;
+			goto err_client_b;
+		}
+
+		if (igt_flush_test(i915, I915_WAIT_LOCKED))
+			goto err_wedged;
+	}
+
+	err = 0;
+err_client_b:
+	preempt_client_fini(&b);
+err_client_a:
+	preempt_client_fini(&a);
+err_unlock:
+	if (igt_flush_test(i915, I915_WAIT_LOCKED))
+		err = -EIO;
+	intel_runtime_pm_put(i915, wakeref);
+	mutex_unlock(&i915->drm.struct_mutex);
+	return err;
+
+err_wedged:
+	igt_spinner_end(&b.spin);
+	igt_spinner_end(&a.spin);
+	i915_gem_set_wedged(i915);
+	err = -EIO;
+	goto err_client_b;
+}
+
 static int live_preempt_hang(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
@@ -647,6 +784,7 @@ int intel_execlists_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(live_sanitycheck),
 		SUBTEST(live_preempt),
 		SUBTEST(live_late_preempt),
+		SUBTEST(live_suppress_self_preempt),
 		SUBTEST(live_preempt_hang),
 		SUBTEST(live_preempt_smoke),
 	};

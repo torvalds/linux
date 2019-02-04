@@ -160,14 +160,14 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 		   obj->mm.madv == I915_MADV_DONTNEED ? " purgeable" : "");
 	if (obj->base.name)
 		seq_printf(m, " (name: %d)", obj->base.name);
-	list_for_each_entry(vma, &obj->vma_list, obj_link) {
+	list_for_each_entry(vma, &obj->vma.list, obj_link) {
 		if (i915_vma_is_pinned(vma))
 			pin_count++;
 	}
 	seq_printf(m, " (pinned x %d)", pin_count);
 	if (obj->pin_global)
 		seq_printf(m, " (global)");
-	list_for_each_entry(vma, &obj->vma_list, obj_link) {
+	list_for_each_entry(vma, &obj->vma.list, obj_link) {
 		if (!drm_mm_node_allocated(&vma->node))
 			continue;
 
@@ -323,7 +323,7 @@ static int per_file_stats(int id, void *ptr, void *data)
 	if (obj->base.name || obj->base.dma_buf)
 		stats->shared += obj->base.size;
 
-	list_for_each_entry(vma, &obj->vma_list, obj_link) {
+	list_for_each_entry(vma, &obj->vma.list, obj_link) {
 		if (!drm_mm_node_allocated(&vma->node))
 			continue;
 
@@ -1285,8 +1285,6 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 		seq_puts(m, "Wedged\n");
 	if (test_bit(I915_RESET_BACKOFF, &dev_priv->gpu_error.flags))
 		seq_puts(m, "Reset in progress: struct_mutex backoff\n");
-	if (test_bit(I915_RESET_HANDOFF, &dev_priv->gpu_error.flags))
-		seq_puts(m, "Reset in progress: reset handoff to waiter\n");
 	if (waitqueue_active(&dev_priv->gpu_error.wait_queue))
 		seq_puts(m, "Waiter holding struct mutex\n");
 	if (waitqueue_active(&dev_priv->gpu_error.reset_queue))
@@ -1318,37 +1316,16 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 	seq_printf(m, "GT active? %s\n", yesno(dev_priv->gt.awake));
 
 	for_each_engine(engine, dev_priv, id) {
-		struct intel_breadcrumbs *b = &engine->breadcrumbs;
-		struct rb_node *rb;
-
 		seq_printf(m, "%s:\n", engine->name);
-		seq_printf(m, "\tseqno = %x [current %x, last %x]\n",
+		seq_printf(m, "\tseqno = %x [current %x, last %x], %dms ago\n",
 			   engine->hangcheck.seqno, seqno[id],
-			   intel_engine_last_submit(engine));
-		seq_printf(m, "\twaiters? %s, fake irq active? %s, stalled? %s, wedged? %s\n",
-			   yesno(intel_engine_has_waiter(engine)),
-			   yesno(test_bit(engine->id,
-					  &dev_priv->gpu_error.missed_irq_rings)),
-			   yesno(engine->hangcheck.stalled),
-			   yesno(engine->hangcheck.wedged));
-
-		spin_lock_irq(&b->rb_lock);
-		for (rb = rb_first(&b->waiters); rb; rb = rb_next(rb)) {
-			struct intel_wait *w = rb_entry(rb, typeof(*w), node);
-
-			seq_printf(m, "\t%s [%d] waiting for %x\n",
-				   w->tsk->comm, w->tsk->pid, w->seqno);
-		}
-		spin_unlock_irq(&b->rb_lock);
+			   intel_engine_last_submit(engine),
+			   jiffies_to_msecs(jiffies -
+					    engine->hangcheck.action_timestamp));
 
 		seq_printf(m, "\tACTHD = 0x%08llx [current 0x%08llx]\n",
 			   (long long)engine->hangcheck.acthd,
 			   (long long)acthd[id]);
-		seq_printf(m, "\taction = %s(%d) %d ms ago\n",
-			   hangcheck_action_to_str(engine->hangcheck.action),
-			   engine->hangcheck.action,
-			   jiffies_to_msecs(jiffies -
-					    engine->hangcheck.action_timestamp));
 
 		if (engine->id == RCS) {
 			seq_puts(m, "\tinstdone read =\n");
@@ -2029,18 +2006,6 @@ static int i915_swizzle_info(struct seq_file *m, void *data)
 	return 0;
 }
 
-static int count_irq_waiters(struct drm_i915_private *i915)
-{
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-	int count = 0;
-
-	for_each_engine(engine, i915, id)
-		count += intel_engine_has_waiter(engine);
-
-	return count;
-}
-
 static const char *rps_power_to_str(unsigned int power)
 {
 	static const char * const strings[] = {
@@ -2080,7 +2045,6 @@ static int i915_rps_boost_info(struct seq_file *m, void *data)
 	seq_printf(m, "RPS enabled? %d\n", rps->enabled);
 	seq_printf(m, "GPU busy? %s [%d requests]\n",
 		   yesno(dev_priv->gt.awake), dev_priv->gt.active_requests);
-	seq_printf(m, "CPU waiting? %d\n", count_irq_waiters(dev_priv));
 	seq_printf(m, "Boosts outstanding? %d\n",
 		   atomic_read(&rps->num_waiters));
 	seq_printf(m, "Interactive? %d\n", READ_ONCE(rps->power.interactive));
@@ -3912,8 +3876,6 @@ static int
 i915_wedged_set(void *data, u64 val)
 {
 	struct drm_i915_private *i915 = data;
-	struct intel_engine_cs *engine;
-	unsigned int tmp;
 
 	/*
 	 * There is no safeguard against this debugfs entry colliding
@@ -3926,112 +3888,14 @@ i915_wedged_set(void *data, u64 val)
 	if (i915_reset_backoff(&i915->gpu_error))
 		return -EAGAIN;
 
-	for_each_engine_masked(engine, i915, val, tmp) {
-		engine->hangcheck.seqno = intel_engine_get_seqno(engine);
-		engine->hangcheck.stalled = true;
-	}
-
 	i915_handle_error(i915, val, I915_ERROR_CAPTURE,
 			  "Manually set wedged engine mask = %llx", val);
-
-	wait_on_bit(&i915->gpu_error.flags,
-		    I915_RESET_HANDOFF,
-		    TASK_UNINTERRUPTIBLE);
-
 	return 0;
 }
 
 DEFINE_SIMPLE_ATTRIBUTE(i915_wedged_fops,
 			i915_wedged_get, i915_wedged_set,
 			"%llu\n");
-
-static int
-fault_irq_set(struct drm_i915_private *i915,
-	      unsigned long *irq,
-	      unsigned long val)
-{
-	int err;
-
-	err = mutex_lock_interruptible(&i915->drm.struct_mutex);
-	if (err)
-		return err;
-
-	err = i915_gem_wait_for_idle(i915,
-				     I915_WAIT_LOCKED |
-				     I915_WAIT_INTERRUPTIBLE,
-				     MAX_SCHEDULE_TIMEOUT);
-	if (err)
-		goto err_unlock;
-
-	*irq = val;
-	mutex_unlock(&i915->drm.struct_mutex);
-
-	/* Flush idle worker to disarm irq */
-	drain_delayed_work(&i915->gt.idle_work);
-
-	return 0;
-
-err_unlock:
-	mutex_unlock(&i915->drm.struct_mutex);
-	return err;
-}
-
-static int
-i915_ring_missed_irq_get(void *data, u64 *val)
-{
-	struct drm_i915_private *dev_priv = data;
-
-	*val = dev_priv->gpu_error.missed_irq_rings;
-	return 0;
-}
-
-static int
-i915_ring_missed_irq_set(void *data, u64 val)
-{
-	struct drm_i915_private *i915 = data;
-
-	return fault_irq_set(i915, &i915->gpu_error.missed_irq_rings, val);
-}
-
-DEFINE_SIMPLE_ATTRIBUTE(i915_ring_missed_irq_fops,
-			i915_ring_missed_irq_get, i915_ring_missed_irq_set,
-			"0x%08llx\n");
-
-static int
-i915_ring_test_irq_get(void *data, u64 *val)
-{
-	struct drm_i915_private *dev_priv = data;
-
-	*val = dev_priv->gpu_error.test_irq_rings;
-
-	return 0;
-}
-
-static int
-i915_ring_test_irq_set(void *data, u64 val)
-{
-	struct drm_i915_private *i915 = data;
-
-	/* GuC keeps the user interrupt permanently enabled for submission */
-	if (USES_GUC_SUBMISSION(i915))
-		return -ENODEV;
-
-	/*
-	 * From icl, we can no longer individually mask interrupt generation
-	 * from each engine.
-	 */
-	if (INTEL_GEN(i915) >= 11)
-		return -ENODEV;
-
-	val &= INTEL_INFO(i915)->ring_mask;
-	DRM_DEBUG_DRIVER("Masking interrupts on rings 0x%08llx\n", val);
-
-	return fault_irq_set(i915, &i915->gpu_error.test_irq_rings, val);
-}
-
-DEFINE_SIMPLE_ATTRIBUTE(i915_ring_test_irq_fops,
-			i915_ring_test_irq_get, i915_ring_test_irq_set,
-			"0x%08llx\n");
 
 #define DROP_UNBOUND	BIT(0)
 #define DROP_BOUND	BIT(1)
@@ -4070,7 +3934,8 @@ i915_drop_caches_set(void *data, u64 val)
 		  val, val & DROP_ALL);
 	wakeref = intel_runtime_pm_get(i915);
 
-	if (val & DROP_RESET_ACTIVE && !intel_engines_are_idle(i915))
+	if (val & DROP_RESET_ACTIVE &&
+	    wait_for(intel_engines_are_idle(i915), I915_IDLE_ENGINES_TIMEOUT))
 		i915_gem_set_wedged(i915);
 
 	/* No need to check and wait for gpu resets, only libdrm auto-restarts
@@ -4092,13 +3957,8 @@ i915_drop_caches_set(void *data, u64 val)
 		mutex_unlock(&i915->drm.struct_mutex);
 	}
 
-	if (val & DROP_RESET_ACTIVE &&
-	    i915_terminally_wedged(&i915->gpu_error)) {
+	if (val & DROP_RESET_ACTIVE && i915_terminally_wedged(&i915->gpu_error))
 		i915_handle_error(i915, ALL_ENGINES, 0, NULL);
-		wait_on_bit(&i915->gpu_error.flags,
-			    I915_RESET_HANDOFF,
-			    TASK_UNINTERRUPTIBLE);
-	}
 
 	fs_reclaim_acquire(GFP_KERNEL);
 	if (val & DROP_BOUND)
@@ -4800,8 +4660,6 @@ static const struct i915_debugfs_files {
 } i915_debugfs_files[] = {
 	{"i915_wedged", &i915_wedged_fops},
 	{"i915_cache_sharing", &i915_cache_sharing_fops},
-	{"i915_ring_missed_irq", &i915_ring_missed_irq_fops},
-	{"i915_ring_test_irq", &i915_ring_test_irq_fops},
 	{"i915_gem_drop_caches", &i915_drop_caches_fops},
 #if IS_ENABLED(CONFIG_DRM_I915_CAPTURE_ERROR)
 	{"i915_error_state", &i915_error_state_fops},

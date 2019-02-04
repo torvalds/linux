@@ -54,4 +54,7 @@ void i915_random_reorder(unsigned int *order,
 			 unsigned int count,
 			 struct rnd_state *state);
 
+void i915_prandom_shuffle(void *arr, size_t elsz, size_t count,
+			  struct rnd_state *state);
+
 #endif /* !__I915_SELFTESTS_RANDOM_H__ */
