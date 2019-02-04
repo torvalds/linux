@@ -796,31 +796,42 @@ static const struct btrfs_compress_op * const btrfs_compress_op[] = {
 	&btrfs_zstd_compress,
 };
 
-void __init btrfs_init_compress(void)
+static void btrfs_init_workspace_manager(int type)
 {
+	struct workspace_manager *wsman = &wsm[type];
 	struct list_head *workspace;
-	int i;
 
-	for (i = 0; i < BTRFS_NR_WORKSPACE_MANAGERS; i++) {
-		wsm[i].ops = btrfs_compress_op[i];
+	wsman->ops = btrfs_compress_op[type];
 
-		INIT_LIST_HEAD(&wsm[i].idle_ws);
-		spin_lock_init(&wsm[i].ws_lock);
-		atomic_set(&wsm[i].total_ws, 0);
-		init_waitqueue_head(&wsm[i].ws_wait);
+	INIT_LIST_HEAD(&wsman->idle_ws);
+	spin_lock_init(&wsman->ws_lock);
+	atomic_set(&wsman->total_ws, 0);
+	init_waitqueue_head(&wsman->ws_wait);
 
-		/*
-		 * Preallocate one workspace for each compression type so
-		 * we can guarantee forward progress in the worst case
-		 */
-		workspace = wsm[i].ops->alloc_workspace();
-		if (IS_ERR(workspace)) {
-			pr_warn("BTRFS: cannot preallocate compression workspace, will try later\n");
-		} else {
-			atomic_set(&wsm[i].total_ws, 1);
-			wsm[i].free_ws = 1;
-			list_add(workspace, &wsm[i].idle_ws);
-		}
+	/*
+	 * Preallocate one workspace for each compression type so we can
+	 * guarantee forward progress in the worst case
+	 */
+	workspace = wsman->ops->alloc_workspace();
+	if (IS_ERR(workspace)) {
+		pr_warn(
+	"BTRFS: cannot preallocate compression workspace, will try later\n");
+	} else {
+		atomic_set(&wsman->total_ws, 1);
+		wsman->free_ws = 1;
+		list_add(workspace, &wsman->idle_ws);
+	}
+}
+
+static void btrfs_cleanup_workspace_manager(struct workspace_manager *wsman)
+{
+	struct list_head *ws;
+
+	while (!list_empty(&wsman->idle_ws)) {
+		ws = wsman->idle_ws.next;
+		list_del(ws);
+		wsman->ops->free_workspace(ws);
+		atomic_dec(&wsman->total_ws);
 	}
 }
 
@@ -941,24 +952,6 @@ wake:
 }
 
 /*
- * cleanup function for module exit
- */
-static void free_workspaces(void)
-{
-	struct list_head *workspace;
-	int i;
-
-	for (i = 0; i < BTRFS_NR_WORKSPACE_MANAGERS; i++) {
-		while (!list_empty(&wsm[i].idle_ws)) {
-			workspace = wsm[i].idle_ws.next;
-			list_del(workspace);
-			wsm[i].ops->free_workspace(workspace);
-			atomic_dec(&wsm[i].total_ws);
-		}
-	}
-}
-
-/*
  * Given an address space and start and length, compress the bytes into @pages
  * that are allocated on demand.
  *
@@ -1050,9 +1043,20 @@ int btrfs_decompress(int type, unsigned char *data_in, struct page *dest_page,
 	return ret;
 }
 
+void __init btrfs_init_compress(void)
+{
+	int i;
+
+	for (i = 0; i < BTRFS_NR_WORKSPACE_MANAGERS; i++)
+		btrfs_init_workspace_manager(i);
+}
+
 void __cold btrfs_exit_compress(void)
 {
-	free_workspaces();
+	int i;
+
+	for (i = 0; i < BTRFS_NR_WORKSPACE_MANAGERS; i++)
+		btrfs_cleanup_workspace_manager(&wsm[i]);
 }
 
 /*
