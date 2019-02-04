@@ -12873,6 +12873,13 @@ F:	Documentation/devicetree/bindings/net/dsa/realtek-smi.txt
 F:	drivers/net/dsa/realtek-smi*
 F:	drivers/net/dsa/rtl83*
 
+REDPINE WIRELESS DRIVER
+M:	Amitkumar Karwar <amitkarwar@gmail.com>
+M:	Siva Rebbagondla <siva8118@gmail.com>
+L:	linux-wireless@vger.kernel.org
+S:	Maintained
+F:	drivers/net/wireless/rsi/
+
 REGISTER MAP ABSTRACTION
 M:	Mark Brown <broonie@kernel.org>
 L:	linux-kernel@vger.kernel.org
