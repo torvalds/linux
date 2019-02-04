@@ -212,7 +212,7 @@ static void read_arc_build_cfg_regs(void)
 	READ_BCR(ARC_REG_AP_BCR, ap);
 	if (ap.ver) {
 		cpu->extn.ap_num = 2 << ap.num;
-		cpu->extn.ap_full = !!ap.min;
+		cpu->extn.ap_full = !ap.min;
 	}
 
 	READ_BCR(ARC_REG_SMART_BCR, bcr);
