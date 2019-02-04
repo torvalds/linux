@@ -442,5 +442,6 @@ int bochs_gem_prime_mmap(struct drm_gem_object *obj,
 {
 	struct bochs_bo *bo = gem_to_bochs_bo(obj);
 
-	return ttm_fbdev_mmap(vma, &bo->bo);
+	bo->gem.vma_node.vm_node.start = bo->bo.vma_node.vm_node.start;
+	return drm_gem_prime_mmap(obj, vma);
 }
