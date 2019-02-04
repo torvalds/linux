@@ -1289,7 +1289,6 @@ static int skl_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	struct hdac_bus *bus = dev_get_drvdata(dai->dev);
 	struct snd_pcm *pcm = rtd->pcm;
 	unsigned int size;
-	int retval = 0;
 	struct skl *skl = bus_to_skl(bus);
 
 	if (dai->driver->playback.channels_min ||
@@ -1298,17 +1297,13 @@ static int skl_pcm_new(struct snd_soc_pcm_runtime *rtd)
 		size = CONFIG_SND_HDA_PREALLOC_SIZE * 1024;
 		if (size > MAX_PREALLOC_SIZE)
 			size = MAX_PREALLOC_SIZE;
-		retval = snd_pcm_lib_preallocate_pages_for_all(pcm,
+		snd_pcm_lib_preallocate_pages_for_all(pcm,
 						SNDRV_DMA_TYPE_DEV_SG,
 						snd_dma_pci_data(skl->pci),
 						size, MAX_PREALLOC_SIZE);
-		if (retval) {
-			dev_err(dai->dev, "dma buffer allocation fail\n");
-			return retval;
-		}
 	}
 
-	return retval;
+	return 0;
 }
 
 static int skl_get_module_info(struct skl *skl, struct skl_module_cfg *mconfig)
