@@ -459,6 +459,53 @@ static int handle_hca_cap_atomic(struct mlx5_core_dev *dev)
 	return err;
 }
 
+static int handle_hca_cap_odp(struct mlx5_core_dev *dev)
+{
+	void *set_ctx;
+	void *set_hca_cap;
+	int set_sz = MLX5_ST_SZ_BYTES(set_hca_cap_in);
+	int err;
+
+	if (!MLX5_CAP_GEN(dev, pg))
+		return 0;
+
+	err = mlx5_core_get_caps(dev, MLX5_CAP_ODP);
+	if (err)
+		return err;
+
+	/**
+	 * If all bits are cleared we shouldn't try to set it
+	 * or we might fail while trying to access a reserved bit.
+	 */
+	if (!(MLX5_CAP_ODP_MAX(dev, ud_odp_caps.srq_receive) ||
+	      MLX5_CAP_ODP_MAX(dev, rc_odp_caps.srq_receive) ||
+	      MLX5_CAP_ODP_MAX(dev, xrc_odp_caps.srq_receive)))
+		return 0;
+
+	set_ctx = kzalloc(set_sz, GFP_KERNEL);
+	if (!set_ctx)
+		return -ENOMEM;
+
+	set_hca_cap = MLX5_ADDR_OF(set_hca_cap_in, set_ctx, capability);
+	memcpy(set_hca_cap, dev->caps.hca_cur[MLX5_CAP_ODP],
+	       MLX5_ST_SZ_BYTES(odp_cap));
+
+	/* set ODP SRQ support for RC/UD and XRC transports */
+	MLX5_SET(odp_cap, set_hca_cap, ud_odp_caps.srq_receive,
+		 (MLX5_CAP_ODP_MAX(dev, ud_odp_caps.srq_receive)));
+
+	MLX5_SET(odp_cap, set_hca_cap, rc_odp_caps.srq_receive,
+		 (MLX5_CAP_ODP_MAX(dev, rc_odp_caps.srq_receive)));
+
+	MLX5_SET(odp_cap, set_hca_cap, xrc_odp_caps.srq_receive,
+		 (MLX5_CAP_ODP_MAX(dev, xrc_odp_caps.srq_receive)));
+
+	err = set_caps(dev, set_ctx, set_sz, MLX5_SET_HCA_CAP_OP_MOD_ODP);
+
+	kfree(set_ctx);
+	return err;
+}
+
 static int handle_hca_cap(struct mlx5_core_dev *dev)
 {
 	void *set_ctx = NULL;
@@ -928,6 +975,12 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 	err = handle_hca_cap_atomic(dev);
 	if (err) {
 		dev_err(&pdev->dev, "handle_hca_cap_atomic failed\n");
+		goto reclaim_boot_pages;
+	}
+
+	err = handle_hca_cap_odp(dev);
+	if (err) {
+		dev_err(&pdev->dev, "handle_hca_cap_odp failed\n");
 		goto reclaim_boot_pages;
 	}
 

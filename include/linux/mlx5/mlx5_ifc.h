@@ -72,6 +72,7 @@ enum {
 
 enum {
 	MLX5_SET_HCA_CAP_OP_MOD_GENERAL_DEVICE        = 0x0,
+	MLX5_SET_HCA_CAP_OP_MOD_ODP                   = 0x2,
 	MLX5_SET_HCA_CAP_OP_MOD_ATOMIC                = 0x3,
 };
 
@@ -831,7 +832,9 @@ struct mlx5_ifc_odp_cap_bits {
 
 	struct mlx5_ifc_odp_per_transport_service_cap_bits ud_odp_caps;
 
-	u8         reserved_at_e0[0x720];
+	struct mlx5_ifc_odp_per_transport_service_cap_bits xrc_odp_caps;
+
+	u8         reserved_at_100[0x700];
 };
 
 struct mlx5_ifc_calc_op {
