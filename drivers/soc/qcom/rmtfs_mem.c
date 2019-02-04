@@ -137,6 +137,26 @@ static struct class rmtfs_class = {
 	.name           = "rmtfs",
 };
 
+static int qcom_rmtfs_mem_mmap(struct file *filep, struct vm_area_struct *vma)
+{
+	struct qcom_rmtfs_mem *rmtfs_mem = filep->private_data;
+
+	if (vma->vm_end - vma->vm_start > rmtfs_mem->size) {
+		dev_dbg(&rmtfs_mem->dev,
+			"vm_end[%lu] - vm_start[%lu] [%lu] > mem->size[%pa]\n",
+			vma->vm_end, vma->vm_start,
+			(vma->vm_end - vma->vm_start), &rmtfs_mem->size);
+		return -EINVAL;
+	}
+
+	vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
+	return remap_pfn_range(vma,
+			       vma->vm_start,
+			       rmtfs_mem->addr >> PAGE_SHIFT,
+			       vma->vm_end - vma->vm_start,
+			       vma->vm_page_prot);
+}
+
 static const struct file_operations qcom_rmtfs_mem_fops = {
 	.owner = THIS_MODULE,
 	.open = qcom_rmtfs_mem_open,
@@ -144,6 +164,7 @@ static const struct file_operations qcom_rmtfs_mem_fops = {
 	.write = qcom_rmtfs_mem_write,
 	.release = qcom_rmtfs_mem_release,
 	.llseek = default_llseek,
+	.mmap = qcom_rmtfs_mem_mmap,
 };
 
 static void qcom_rmtfs_mem_release_device(struct device *dev)
