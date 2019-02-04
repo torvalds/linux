@@ -276,6 +276,7 @@ struct dpaa2_eth_priv;
 struct dpaa2_eth_fq {
 	u32 fqid;
 	u32 tx_qdbin;
+	u32 tx_fqid;
 	u16 flowid;
 	int target_cpu;
 	u32 dq_frames;
@@ -328,6 +329,9 @@ struct dpaa2_eth_priv {
 
 	u8 num_fqs;
 	struct dpaa2_eth_fq fq[DPAA2_ETH_MAX_QUEUES];
+	int (*enqueue)(struct dpaa2_eth_priv *priv,
+		       struct dpaa2_eth_fq *fq,
+		       struct dpaa2_fd *fd, u8 prio);
 
 	u8 num_channels;
 	struct dpaa2_eth_channel *channel[DPAA2_ETH_MAX_DPCONS];

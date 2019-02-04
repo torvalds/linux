@@ -264,9 +264,7 @@ static int xdp_enqueue(struct dpaa2_eth_priv *priv, struct dpaa2_fd *fd,
 
 	fq = &priv->fq[queue_id];
 	for (i = 0; i < DPAA2_ETH_ENQUEUE_RETRIES; i++) {
-		err = dpaa2_io_service_enqueue_qd(fq->channel->dpio,
-						  priv->tx_qdid, 0,
-						  fq->tx_qdbin, fd);
+		err = priv->enqueue(priv, fq, fd, 0);
 		if (err != -EBUSY)
 			break;
 	}
@@ -785,9 +783,7 @@ static netdev_tx_t dpaa2_eth_tx(struct sk_buff *skb, struct net_device *net_dev)
 	queue_mapping = skb_get_queue_mapping(skb);
 	fq = &priv->fq[queue_mapping];
 	for (i = 0; i < DPAA2_ETH_ENQUEUE_RETRIES; i++) {
-		err = dpaa2_io_service_enqueue_qd(fq->channel->dpio,
-						  priv->tx_qdid, 0,
-						  fq->tx_qdbin, &fd);
+		err = priv->enqueue(priv, fq, &fd, 0);
 		if (err != -EBUSY)
 			break;
 	}
@@ -2205,6 +2201,36 @@ static int set_buffer_layout(struct dpaa2_eth_priv *priv)
 	return 0;
 }
 
+#define DPNI_ENQUEUE_FQID_VER_MAJOR	7
+#define DPNI_ENQUEUE_FQID_VER_MINOR	9
+
+static inline int dpaa2_eth_enqueue_qd(struct dpaa2_eth_priv *priv,
+				       struct dpaa2_eth_fq *fq,
+				       struct dpaa2_fd *fd, u8 prio)
+{
+	return dpaa2_io_service_enqueue_qd(fq->channel->dpio,
+					   priv->tx_qdid, prio,
+					   fq->tx_qdbin, fd);
+}
+
+static inline int dpaa2_eth_enqueue_fq(struct dpaa2_eth_priv *priv,
+				       struct dpaa2_eth_fq *fq,
+				       struct dpaa2_fd *fd,
+				       u8 prio __always_unused)
+{
+	return dpaa2_io_service_enqueue_fq(fq->channel->dpio,
+					   fq->tx_fqid, fd);
+}
+
+static void set_enqueue_mode(struct dpaa2_eth_priv *priv)
+{
+	if (dpaa2_eth_cmp_dpni_ver(priv, DPNI_ENQUEUE_FQID_VER_MAJOR,
+				   DPNI_ENQUEUE_FQID_VER_MINOR) < 0)
+		priv->enqueue = dpaa2_eth_enqueue_qd;
+	else
+		priv->enqueue = dpaa2_eth_enqueue_fq;
+}
+
 /* Configure the DPNI object this interface is associated with */
 static int setup_dpni(struct fsl_mc_device *ls_dev)
 {
@@ -2257,6 +2283,8 @@ static int setup_dpni(struct fsl_mc_device *ls_dev)
 	err = set_buffer_layout(priv);
 	if (err)
 		goto close;
+
+	set_enqueue_mode(priv);
 
 	priv->cls_rules = devm_kzalloc(dev, sizeof(struct dpaa2_eth_cls_rule) *
 				       dpaa2_eth_fs_count(priv), GFP_KERNEL);
@@ -2342,6 +2370,7 @@ static int setup_tx_flow(struct dpaa2_eth_priv *priv,
 	}
 
 	fq->tx_qdbin = qid.qdbin;
+	fq->tx_fqid = qid.fqid;
 
 	err = dpni_get_queue(priv->mc_io, 0, priv->mc_token,
 			     DPNI_QUEUE_TX_CONFIRM, 0, fq->flowid,
