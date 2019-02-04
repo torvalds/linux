@@ -1141,21 +1141,14 @@ static void klp_cleanup_module_patches_limited(struct module *mod,
 			if (!klp_is_module(obj) || strcmp(obj->name, mod->name))
 				continue;
 
-			/*
-			 * Only unpatch the module if the patch is enabled or
-			 * is in transition.
-			 */
-			if (patch->enabled || patch == klp_transition_patch) {
+			if (patch != klp_transition_patch)
+				klp_pre_unpatch_callback(obj);
 
-				if (patch != klp_transition_patch)
-					klp_pre_unpatch_callback(obj);
+			pr_notice("reverting patch '%s' on unloading module '%s'\n",
+				  patch->mod->name, obj->mod->name);
+			klp_unpatch_object(obj);
 
-				pr_notice("reverting patch '%s' on unloading module '%s'\n",
-					  patch->mod->name, obj->mod->name);
-				klp_unpatch_object(obj);
-
-				klp_post_unpatch_callback(obj);
-			}
+			klp_post_unpatch_callback(obj);
 
 			klp_free_object_loaded(obj);
 			break;
@@ -1193,13 +1186,6 @@ int klp_module_coming(struct module *mod)
 					patch->mod->name, obj->mod->name, ret);
 				goto err;
 			}
-
-			/*
-			 * Only patch the module if the patch is enabled or is
-			 * in transition.
-			 */
-			if (!patch->enabled && patch != klp_transition_patch)
-				break;
 
 			pr_notice("applying patch '%s' to loading module '%s'\n",
 				  patch->mod->name, obj->mod->name);
