@@ -192,20 +192,19 @@ static inline void preallocate_info_init(struct snd_pcm_substream *substream)
 {
 	struct snd_info_entry *entry;
 
-	if ((entry = snd_info_create_card_entry(substream->pcm->card, "prealloc", substream->proc_root)) != NULL) {
-		entry->c.text.read = snd_pcm_lib_preallocate_proc_read;
+	entry = snd_info_create_card_entry(substream->pcm->card, "prealloc",
+					   substream->proc_root);
+	if (entry) {
+		snd_info_set_text_ops(entry, substream,
+				      snd_pcm_lib_preallocate_proc_read);
 		entry->c.text.write = snd_pcm_lib_preallocate_proc_write;
 		entry->mode |= 0200;
-		entry->private_data = substream;
-		if (snd_info_register(entry) < 0)
-			snd_info_free_entry(entry);
 	}
-	if ((entry = snd_info_create_card_entry(substream->pcm->card, "prealloc_max", substream->proc_root)) != NULL) {
-		entry->c.text.read = snd_pcm_lib_preallocate_max_proc_read;
-		entry->private_data = substream;
-		if (snd_info_register(entry) < 0)
-			snd_info_free_entry(entry);
-	}
+	entry = snd_info_create_card_entry(substream->pcm->card, "prealloc_max",
+					   substream->proc_root);
+	if (entry)
+		snd_info_set_text_ops(entry, substream,
+				      snd_pcm_lib_preallocate_max_proc_read);
 }
 
 #else /* !CONFIG_SND_VERBOSE_PROCFS */
