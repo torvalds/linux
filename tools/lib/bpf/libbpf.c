@@ -1056,72 +1056,18 @@ bpf_program__collect_reloc(struct bpf_program *prog, GElf_Shdr *shdr,
 
 static int bpf_map_find_btf_info(struct bpf_map *map, const struct btf *btf)
 {
-	const struct btf_type *container_type;
-	const struct btf_member *key, *value;
 	struct bpf_map_def *def = &map->def;
-	const size_t max_name = 256;
-	char container_name[max_name];
-	__s64 key_size, value_size;
-	__s32 container_id;
+	__u32 key_type_id, value_type_id;
+	int ret;
 
-	if (snprintf(container_name, max_name, "____btf_map_%s", map->name) ==
-	    max_name) {
-		pr_warning("map:%s length of '____btf_map_%s' is too long\n",
-			   map->name, map->name);
-		return -EINVAL;
-	}
+	ret = btf__get_map_kv_tids(btf, map->name, def->key_size,
+				   def->value_size, &key_type_id,
+				   &value_type_id);
+	if (ret)
+		return ret;
 
-	container_id = btf__find_by_name(btf, container_name);
-	if (container_id < 0) {
-		pr_debug("map:%s container_name:%s cannot be found in BTF. Missing BPF_ANNOTATE_KV_PAIR?\n",
-			 map->name, container_name);
-		return container_id;
-	}
-
-	container_type = btf__type_by_id(btf, container_id);
-	if (!container_type) {
-		pr_warning("map:%s cannot find BTF type for container_id:%u\n",
-			   map->name, container_id);
-		return -EINVAL;
-	}
-
-	if (BTF_INFO_KIND(container_type->info) != BTF_KIND_STRUCT ||
-	    BTF_INFO_VLEN(container_type->info) < 2) {
-		pr_warning("map:%s container_name:%s is an invalid container struct\n",
-			   map->name, container_name);
-		return -EINVAL;
-	}
-
-	key = (struct btf_member *)(container_type + 1);
-	value = key + 1;
-
-	key_size = btf__resolve_size(btf, key->type);
-	if (key_size < 0) {
-		pr_warning("map:%s invalid BTF key_type_size\n",
-			   map->name);
-		return key_size;
-	}
-
-	if (def->key_size != key_size) {
-		pr_warning("map:%s btf_key_type_size:%u != map_def_key_size:%u\n",
-			   map->name, (__u32)key_size, def->key_size);
-		return -EINVAL;
-	}
-
-	value_size = btf__resolve_size(btf, value->type);
-	if (value_size < 0) {
-		pr_warning("map:%s invalid BTF value_type_size\n", map->name);
-		return value_size;
-	}
-
-	if (def->value_size != value_size) {
-		pr_warning("map:%s btf_value_type_size:%u != map_def_value_size:%u\n",
-			   map->name, (__u32)value_size, def->value_size);
-		return -EINVAL;
-	}
-
-	map->btf_key_type_id = key->type;
-	map->btf_value_type_id = value->type;
+	map->btf_key_type_id = key_type_id;
+	map->btf_value_type_id = value_type_id;
 
 	return 0;
 }

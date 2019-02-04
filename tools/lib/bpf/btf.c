@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
 /* Copyright (c) 2018 Facebook */
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -502,6 +503,78 @@ exit_free:
 	free(ptr);
 
 	return err;
+}
+
+int btf__get_map_kv_tids(const struct btf *btf, char *map_name,
+			 __u32 expected_key_size, __u32 expected_value_size,
+			 __u32 *key_type_id, __u32 *value_type_id)
+{
+	const struct btf_type *container_type;
+	const struct btf_member *key, *value;
+	const size_t max_name = 256;
+	char container_name[max_name];
+	__s64 key_size, value_size;
+	__s32 container_id;
+
+	if (snprintf(container_name, max_name, "____btf_map_%s", map_name) ==
+	    max_name) {
+		pr_warning("map:%s length of '____btf_map_%s' is too long\n",
+			   map_name, map_name);
+		return -EINVAL;
+	}
+
+	container_id = btf__find_by_name(btf, container_name);
+	if (container_id < 0) {
+		pr_warning("map:%s container_name:%s cannot be found in BTF. Missing BPF_ANNOTATE_KV_PAIR?\n",
+			   map_name, container_name);
+		return container_id;
+	}
+
+	container_type = btf__type_by_id(btf, container_id);
+	if (!container_type) {
+		pr_warning("map:%s cannot find BTF type for container_id:%u\n",
+			   map_name, container_id);
+		return -EINVAL;
+	}
+
+	if (BTF_INFO_KIND(container_type->info) != BTF_KIND_STRUCT ||
+	    BTF_INFO_VLEN(container_type->info) < 2) {
+		pr_warning("map:%s container_name:%s is an invalid container struct\n",
+			   map_name, container_name);
+		return -EINVAL;
+	}
+
+	key = (struct btf_member *)(container_type + 1);
+	value = key + 1;
+
+	key_size = btf__resolve_size(btf, key->type);
+	if (key_size < 0) {
+		pr_warning("map:%s invalid BTF key_type_size\n", map_name);
+		return key_size;
+	}
+
+	if (expected_key_size != key_size) {
+		pr_warning("map:%s btf_key_type_size:%u != map_def_key_size:%u\n",
+			   map_name, (__u32)key_size, expected_key_size);
+		return -EINVAL;
+	}
+
+	value_size = btf__resolve_size(btf, value->type);
+	if (value_size < 0) {
+		pr_warning("map:%s invalid BTF value_type_size\n", map_name);
+		return value_size;
+	}
+
+	if (expected_value_size != value_size) {
+		pr_warning("map:%s btf_value_type_size:%u != map_def_value_size:%u\n",
+			   map_name, (__u32)value_size, expected_value_size);
+		return -EINVAL;
+	}
+
+	*key_type_id = key->type;
+	*value_type_id = value->type;
+
+	return 0;
 }
 
 struct btf_ext_sec_copy_param {
