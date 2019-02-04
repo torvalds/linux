@@ -51,6 +51,7 @@ struct meson_canvas *meson_canvas_get(struct device *dev)
 {
 	struct device_node *canvas_node;
 	struct platform_device *canvas_pdev;
+	struct meson_canvas *canvas;
 
 	canvas_node = of_parse_phandle(dev->of_node, "amlogic,canvas", 0);
 	if (!canvas_node)
@@ -63,7 +64,17 @@ struct meson_canvas *meson_canvas_get(struct device *dev)
 	}
 
 	of_node_put(canvas_node);
-	return dev_get_drvdata(&canvas_pdev->dev);
+
+	/*
+	 * If priv is NULL, it's probably because the canvas hasn't
+	 * properly initialized. Bail out with -EINVAL because, in the
+	 * current state, this driver probe cannot return -EPROBE_DEFER
+	 */
+	canvas = dev_get_drvdata(&canvas_pdev->dev);
+	if (!canvas)
+		return ERR_PTR(-EINVAL);
+
+	return canvas;
 }
 EXPORT_SYMBOL_GPL(meson_canvas_get);
 
