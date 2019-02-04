@@ -66,10 +66,14 @@ static int rpm_suspend(struct device *dev, int rpmflags);
  */
 void update_pm_runtime_accounting(struct device *dev)
 {
-	u64 now = ktime_get_mono_fast_ns();
-	u64 last = dev->power.accounting_timestamp;
-	u64 delta;
+	u64 now, last, delta;
 
+	if (dev->power.disable_depth > 0)
+		return;
+
+	last = dev->power.accounting_timestamp;
+
+	now = ktime_get_mono_fast_ns();
 	dev->power.accounting_timestamp = now;
 
 	/*
@@ -81,9 +85,6 @@ void update_pm_runtime_accounting(struct device *dev)
 		return;
 
 	delta = now - last;
-
-	if (dev->power.disable_depth > 0)
-		return;
 
 	if (dev->power.runtime_status == RPM_SUSPENDED)
 		dev->power.suspended_time += delta;
@@ -1298,6 +1299,9 @@ void __pm_runtime_disable(struct device *dev, bool check_resume)
 		pm_runtime_put_noidle(dev);
 	}
 
+	/* Update time accounting before disabling PM-runtime. */
+	update_pm_runtime_accounting(dev);
+
 	if (!dev->power.disable_depth++)
 		__pm_runtime_barrier(dev);
 
@@ -1521,7 +1525,6 @@ void pm_runtime_init(struct device *dev)
 	dev->power.request_pending = false;
 	dev->power.request = RPM_REQ_NONE;
 	dev->power.deferred_resume = false;
-	dev->power.accounting_timestamp = 0;
 	INIT_WORK(&dev->power.work, pm_runtime_work);
 
 	dev->power.timer_expires = 0;
