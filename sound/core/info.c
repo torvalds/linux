@@ -866,6 +866,38 @@ int snd_info_register(struct snd_info_entry *entry)
 }
 EXPORT_SYMBOL(snd_info_register);
 
+/**
+ * snd_card_rw_proc_new - Create a read/write text proc file entry for the card
+ * @card: the card instance
+ * @name: the file name
+ * @private_data: the arbitrary private data
+ * @read: the read callback
+ * @write: the write callback, NULL for read-only
+ *
+ * This proc file entry will be registered via snd_card_register() call, and
+ * it will be removed automatically at the card removal, too.
+ */
+int snd_card_rw_proc_new(struct snd_card *card, const char *name,
+			 void *private_data,
+			 void (*read)(struct snd_info_entry *,
+				      struct snd_info_buffer *),
+			 void (*write)(struct snd_info_entry *entry,
+				       struct snd_info_buffer *buffer))
+{
+	struct snd_info_entry *entry;
+
+	entry = snd_info_create_card_entry(card, name, card->proc_root);
+	if (!entry)
+		return -ENOMEM;
+	snd_info_set_text_ops(entry, private_data, read);
+	if (write) {
+		entry->mode |= 0200;
+		entry->c.text.write = write;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_card_rw_proc_new);
+
 /*
 
  */
