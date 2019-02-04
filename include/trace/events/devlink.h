@@ -46,6 +46,35 @@ TRACE_EVENT(devlink_hwmsg,
 		  (int) __entry->len, __get_dynamic_array(buf), __entry->len)
 );
 
+/*
+ * Tracepoint for devlink hardware error:
+ */
+TRACE_EVENT(devlink_hwerr,
+	TP_PROTO(const struct devlink *devlink, int err, const char *msg),
+
+	TP_ARGS(devlink, err, msg),
+
+	TP_STRUCT__entry(
+		__string(bus_name, devlink->dev->bus->name)
+		__string(dev_name, dev_name(devlink->dev))
+		__string(driver_name, devlink->dev->driver->name)
+		__field(int, err)
+		__string(msg, msg)
+		),
+
+	TP_fast_assign(
+		__assign_str(bus_name, devlink->dev->bus->name);
+		__assign_str(dev_name, dev_name(devlink->dev));
+		__assign_str(driver_name, devlink->dev->driver->name);
+		__entry->err = err;
+		__assign_str(msg, msg);
+		),
+
+	TP_printk("bus_name=%s dev_name=%s driver_name=%s err=%d %s",
+			__get_str(bus_name), __get_str(dev_name),
+			__get_str(driver_name), __entry->err, __get_str(msg))
+);
+
 #endif /* _TRACE_DEVLINK_H */
 
 /* This part must be outside protection */
@@ -64,6 +93,10 @@ static inline void trace_devlink_hwmsg(const struct devlink *devlink,
 {
 }
 
+static inline void trace_devlink_hwerr(const struct devlink *devlink,
+				       int err, const char *msg)
+{
+}
 #endif /* _TRACE_DEVLINK_H */
 
 #endif
