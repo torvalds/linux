@@ -379,7 +379,8 @@ int hda_dsp_ipc_fw_ready(struct snd_sof_dev *sdev, u32 msg_id)
 		return ret;
 
 	/* now check for extended data */
-	snd_sof_fw_parse_ext_data(sdev, HDA_DSP_MBOX_UPLINK_OFFSET +
+	snd_sof_fw_parse_ext_data(sdev, sdev->mmio_bar,
+				  HDA_DSP_MBOX_UPLINK_OFFSET +
 				  sizeof(struct sof_ipc_fw_ready));
 
 	ipc_get_windows(sdev);

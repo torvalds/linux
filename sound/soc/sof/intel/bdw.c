@@ -437,7 +437,7 @@ static int bdw_fw_ready(struct snd_sof_dev *sdev, u32 msg_id)
 		return ret;
 
 	/* now check for extended data */
-	snd_sof_fw_parse_ext_data(sdev, MBOX_OFFSET +
+	snd_sof_fw_parse_ext_data(sdev, sdev->mmio_bar, MBOX_OFFSET +
 				  sizeof(struct sof_ipc_fw_ready));
 
 	bdw_get_windows(sdev);
