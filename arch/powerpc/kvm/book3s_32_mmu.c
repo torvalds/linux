@@ -425,6 +425,7 @@ void kvmppc_mmu_book3s_32_init(struct kvm_vcpu *vcpu)
 	mmu->slbmte = NULL;
 	mmu->slbmfee = NULL;
 	mmu->slbmfev = NULL;
+	mmu->slbfee = NULL;
 	mmu->slbie = NULL;
 	mmu->slbia = NULL;
 }

@@ -377,6 +377,7 @@ struct kvmppc_mmu {
 	void (*slbmte)(struct kvm_vcpu *vcpu, u64 rb, u64 rs);
 	u64  (*slbmfee)(struct kvm_vcpu *vcpu, u64 slb_nr);
 	u64  (*slbmfev)(struct kvm_vcpu *vcpu, u64 slb_nr);
+	int  (*slbfee)(struct kvm_vcpu *vcpu, gva_t eaddr, ulong *ret_slb);
 	void (*slbie)(struct kvm_vcpu *vcpu, u64 slb_nr);
 	void (*slbia)(struct kvm_vcpu *vcpu);
 	/* book3s */
