@@ -321,7 +321,7 @@ static void i9xx_load_luts_internal(struct intel_crtc_state *crtc_state,
 	enum pipe pipe = crtc->pipe;
 	int i;
 
-	if (HAS_GMCH_DISPLAY(dev_priv)) {
+	if (HAS_GMCH(dev_priv)) {
 		if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DSI))
 			assert_dsi_pll_enabled(dev_priv);
 		else
@@ -336,7 +336,7 @@ static void i9xx_load_luts_internal(struct intel_crtc_state *crtc_state,
 				(drm_color_lut_extract(lut[i].green, 8) << 8) |
 				drm_color_lut_extract(lut[i].blue, 8);
 
-			if (HAS_GMCH_DISPLAY(dev_priv))
+			if (HAS_GMCH(dev_priv))
 				I915_WRITE(PALETTE(pipe, i), word);
 			else
 				I915_WRITE(LGC_PALETTE(pipe, i), word);
@@ -345,7 +345,7 @@ static void i9xx_load_luts_internal(struct intel_crtc_state *crtc_state,
 		for (i = 0; i < 256; i++) {
 			u32 word = (i << 16) | (i << 8) | i;
 
-			if (HAS_GMCH_DISPLAY(dev_priv))
+			if (HAS_GMCH(dev_priv))
 				I915_WRITE(PALETTE(pipe, i), word);
 			else
 				I915_WRITE(LGC_PALETTE(pipe, i), word);

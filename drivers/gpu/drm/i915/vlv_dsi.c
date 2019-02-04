@@ -275,7 +275,7 @@ static int intel_dsi_compute_config(struct intel_encoder *encoder,
 	if (fixed_mode) {
 		intel_fixed_panel_mode(fixed_mode, adjusted_mode);
 
-		if (HAS_GMCH_DISPLAY(dev_priv))
+		if (HAS_GMCH(dev_priv))
 			intel_gmch_panel_fitting(crtc, pipe_config,
 						 conn_state->scaling_mode);
 		else
@@ -1633,7 +1633,7 @@ static void intel_dsi_add_properties(struct intel_connector *connector)
 		u32 allowed_scalers;
 
 		allowed_scalers = BIT(DRM_MODE_SCALE_ASPECT) | BIT(DRM_MODE_SCALE_FULLSCREEN);
-		if (!HAS_GMCH_DISPLAY(dev_priv))
+		if (!HAS_GMCH(dev_priv))
 			allowed_scalers |= BIT(DRM_MODE_SCALE_CENTER);
 
 		drm_connector_attach_scaling_mode_property(&connector->base,
