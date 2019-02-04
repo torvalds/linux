@@ -2535,7 +2535,7 @@ static void dce110_apply_ctx_for_surface(
 	}
 
 	if (dc->fbc_compressor)
-		enable_fbc(dc, dc->current_state);
+		enable_fbc(dc, context);
 }
 
 static void dce110_power_down_fe(struct dc *dc, struct pipe_ctx *pipe_ctx)
