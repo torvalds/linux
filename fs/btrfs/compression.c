@@ -841,7 +841,7 @@ static void btrfs_cleanup_workspace_manager(struct workspace_manager *wsman)
  * Preallocation makes a forward progress guarantees and we do not return
  * errors.
  */
-static struct list_head *find_workspace(int type)
+static struct list_head *btrfs_get_workspace(struct workspace_manager *wsman)
 {
 	struct list_head *workspace;
 	int cpus = num_online_cpus();
@@ -852,11 +852,11 @@ static struct list_head *find_workspace(int type)
 	wait_queue_head_t *ws_wait;
 	int *free_ws;
 
-	idle_ws	 = &wsm[type].idle_ws;
-	ws_lock	 = &wsm[type].ws_lock;
-	total_ws = &wsm[type].total_ws;
-	ws_wait	 = &wsm[type].ws_wait;
-	free_ws	 = &wsm[type].free_ws;
+	idle_ws	 = &wsman->idle_ws;
+	ws_lock	 = &wsman->ws_lock;
+	total_ws = &wsman->total_ws;
+	ws_wait	 = &wsman->ws_wait;
+	free_ws	 = &wsman->free_ws;
 
 again:
 	spin_lock(ws_lock);
@@ -887,7 +887,7 @@ again:
 	 * context of btrfs_compress_bio/btrfs_compress_pages
 	 */
 	nofs_flag = memalloc_nofs_save();
-	workspace = wsm[type].ops->alloc_workspace();
+	workspace = wsman->ops->alloc_workspace();
 	memalloc_nofs_restore(nofs_flag);
 
 	if (IS_ERR(workspace)) {
@@ -918,11 +918,17 @@ again:
 	return workspace;
 }
 
+static struct list_head *get_workspace(int type)
+{
+	return btrfs_get_workspace(&wsm[type]);
+}
+
 /*
  * put a workspace struct back on the list or free it if we have enough
  * idle ones sitting around
  */
-static void free_workspace(int type, struct list_head *workspace)
+static void btrfs_put_workspace(struct workspace_manager *wsman,
+				struct list_head *ws)
 {
 	struct list_head *idle_ws;
 	spinlock_t *ws_lock;
@@ -930,25 +936,30 @@ static void free_workspace(int type, struct list_head *workspace)
 	wait_queue_head_t *ws_wait;
 	int *free_ws;
 
-	idle_ws	 = &wsm[type].idle_ws;
-	ws_lock	 = &wsm[type].ws_lock;
-	total_ws = &wsm[type].total_ws;
-	ws_wait	 = &wsm[type].ws_wait;
-	free_ws	 = &wsm[type].free_ws;
+	idle_ws	 = &wsman->idle_ws;
+	ws_lock	 = &wsman->ws_lock;
+	total_ws = &wsman->total_ws;
+	ws_wait	 = &wsman->ws_wait;
+	free_ws	 = &wsman->free_ws;
 
 	spin_lock(ws_lock);
 	if (*free_ws <= num_online_cpus()) {
-		list_add(workspace, idle_ws);
+		list_add(ws, idle_ws);
 		(*free_ws)++;
 		spin_unlock(ws_lock);
 		goto wake;
 	}
 	spin_unlock(ws_lock);
 
-	wsm[type].ops->free_workspace(workspace);
+	wsman->ops->free_workspace(ws);
 	atomic_dec(total_ws);
 wake:
 	cond_wake_up(ws_wait);
+}
+
+static void put_workspace(int type, struct list_head *ws)
+{
+	return btrfs_put_workspace(&wsm[type], ws);
 }
 
 /*
@@ -984,14 +995,14 @@ int btrfs_compress_pages(unsigned int type_level, struct address_space *mapping,
 	struct list_head *workspace;
 	int ret;
 
-	workspace = find_workspace(type);
+	workspace = get_workspace(type);
 
 	btrfs_compress_op[type]->set_level(workspace, type_level);
 	ret = btrfs_compress_op[type]->compress_pages(workspace, mapping,
 						      start, pages,
 						      out_pages,
 						      total_in, total_out);
-	free_workspace(type, workspace);
+	put_workspace(type, workspace);
 	return ret;
 }
 
@@ -1015,9 +1026,9 @@ static int btrfs_decompress_bio(struct compressed_bio *cb)
 	int ret;
 	int type = cb->compress_type;
 
-	workspace = find_workspace(type);
+	workspace = get_workspace(type);
 	ret = btrfs_compress_op[type]->decompress_bio(workspace, cb);
-	free_workspace(type, workspace);
+	put_workspace(type, workspace);
 
 	return ret;
 }
@@ -1033,13 +1044,13 @@ int btrfs_decompress(int type, unsigned char *data_in, struct page *dest_page,
 	struct list_head *workspace;
 	int ret;
 
-	workspace = find_workspace(type);
+	workspace = get_workspace(type);
 
 	ret = btrfs_compress_op[type]->decompress(workspace, data_in,
 						  dest_page, start_byte,
 						  srclen, destlen);
 
-	free_workspace(type, workspace);
+	put_workspace(type, workspace);
 	return ret;
 }
 
@@ -1467,7 +1478,7 @@ static void heuristic_collect_sample(struct inode *inode, u64 start, u64 end,
  */
 int btrfs_compress_heuristic(struct inode *inode, u64 start, u64 end)
 {
-	struct list_head *ws_list = find_workspace(0);
+	struct list_head *ws_list = get_workspace(0);
 	struct heuristic_ws *ws;
 	u32 i;
 	u8 byte;
@@ -1536,7 +1547,7 @@ int btrfs_compress_heuristic(struct inode *inode, u64 start, u64 end)
 	}
 
 out:
-	free_workspace(0, ws_list);
+	put_workspace(0, ws_list);
 	return ret;
 }
 
