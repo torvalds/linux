@@ -635,7 +635,7 @@ int kvmppc_get_one_reg(struct kvm_vcpu *vcpu, u64 id,
 				r = -ENXIO;
 				break;
 			}
-			if (xive_enabled())
+			if (xics_on_xive())
 				*val = get_reg_val(id, kvmppc_xive_get_icp(vcpu));
 			else
 				*val = get_reg_val(id, kvmppc_xics_get_icp(vcpu));
@@ -708,7 +708,7 @@ int kvmppc_set_one_reg(struct kvm_vcpu *vcpu, u64 id,
 				r = -ENXIO;
 				break;
 			}
-			if (xive_enabled())
+			if (xics_on_xive())
 				r = kvmppc_xive_set_icp(vcpu, set_reg_val(id, *val));
 			else
 				r = kvmppc_xics_set_icp(vcpu, set_reg_val(id, *val));
@@ -984,7 +984,7 @@ int kvmppc_book3s_hcall_implemented(struct kvm *kvm, unsigned long hcall)
 int kvm_set_irq(struct kvm *kvm, int irq_source_id, u32 irq, int level,
 		bool line_status)
 {
-	if (xive_enabled())
+	if (xics_on_xive())
 		return kvmppc_xive_set_irq(kvm, irq_source_id, irq, level,
 					   line_status);
 	else
@@ -1037,7 +1037,7 @@ static int kvmppc_book3s_init(void)
 
 #ifdef CONFIG_KVM_XICS
 #ifdef CONFIG_KVM_XIVE
-	if (xive_enabled()) {
+	if (xics_on_xive()) {
 		kvmppc_xive_init_module();
 		kvm_register_device_ops(&kvm_xive_ops, KVM_DEV_TYPE_XICS);
 	} else
@@ -1050,7 +1050,7 @@ static int kvmppc_book3s_init(void)
 static void kvmppc_book3s_exit(void)
 {
 #ifdef CONFIG_KVM_XICS
-	if (xive_enabled())
+	if (xics_on_xive())
 		kvmppc_xive_exit_module();
 #endif
 #ifdef CONFIG_KVM_BOOK3S_32_HANDLER
