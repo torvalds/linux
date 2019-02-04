@@ -220,12 +220,12 @@ static int dpaa2_dpio_remove(struct fsl_mc_device *dpio_dev)
 
 	dev = &dpio_dev->dev;
 	priv = dev_get_drvdata(dev);
+	cpu = dpaa2_io_get_cpu(priv->io);
 
 	dpaa2_io_down(priv->io);
 
 	dpio_teardown_irqs(dpio_dev);
 
-	cpu = dpaa2_io_get_cpu(priv->io);
 	cpumask_set_cpu(cpu, cpus_unused_mask);
 
 	err = dpio_open(dpio_dev->mc_io, 0, dpio_dev->obj_desc.id,
