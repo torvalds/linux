@@ -3792,36 +3792,21 @@ static __init void intel_pebs_isolation_quirk(void)
 	intel_check_pebs_isolation();
 }
 
-static int intel_snb_pebs_broken(int cpu)
+static const struct x86_cpu_desc pebs_ucodes[] = {
+	INTEL_CPU_DESC(INTEL_FAM6_SANDYBRIDGE,		7, 0x00000028),
+	INTEL_CPU_DESC(INTEL_FAM6_SANDYBRIDGE_X,	6, 0x00000618),
+	INTEL_CPU_DESC(INTEL_FAM6_SANDYBRIDGE_X,	7, 0x0000070c),
+	{}
+};
+
+static bool intel_snb_pebs_broken(void)
 {
-	u32 rev = UINT_MAX; /* default to broken for unknown models */
-
-	switch (cpu_data(cpu).x86_model) {
-	case INTEL_FAM6_SANDYBRIDGE:
-		rev = 0x28;
-		break;
-
-	case INTEL_FAM6_SANDYBRIDGE_X:
-		switch (cpu_data(cpu).x86_stepping) {
-		case 6: rev = 0x618; break;
-		case 7: rev = 0x70c; break;
-		}
-	}
-
-	return (cpu_data(cpu).microcode < rev);
+	return !x86_cpu_has_min_microcode_rev(pebs_ucodes);
 }
 
 static void intel_snb_check_microcode(void)
 {
-	int pebs_broken = 0;
-	int cpu;
-
-	for_each_online_cpu(cpu) {
-		if ((pebs_broken = intel_snb_pebs_broken(cpu)))
-			break;
-	}
-
-	if (pebs_broken == x86_pmu.pebs_broken)
+	if (intel_snb_pebs_broken() == x86_pmu.pebs_broken)
 		return;
 
 	/*
