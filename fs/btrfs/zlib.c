@@ -393,7 +393,7 @@ next:
 static void zlib_set_level(struct list_head *ws, unsigned int type)
 {
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
-	unsigned level = (type & 0xF0) >> 4;
+	unsigned int level = btrfs_compress_level(type);
 
 	if (level > 9)
 		level = 9;

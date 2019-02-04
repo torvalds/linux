@@ -64,6 +64,16 @@ struct compressed_bio {
 	u32 sums;
 };
 
+static inline unsigned int btrfs_compress_type(unsigned int type_level)
+{
+	return (type_level & 0xF);
+}
+
+static inline unsigned int btrfs_compress_level(unsigned int type_level)
+{
+	return ((type_level & 0xF0) >> 4);
+}
+
 void __init btrfs_init_compress(void);
 void __cold btrfs_exit_compress(void);
 
