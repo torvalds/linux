@@ -331,7 +331,7 @@ static void write_src(void)
 	unsigned int *markers;
 	char buf[KSYM_NAME_LEN];
 
-	printf("#include <asm/types.h>\n");
+	printf("#include <asm/bitsperlong.h>\n");
 	printf("#if BITS_PER_LONG == 64\n");
 	printf("#define PTR .quad\n");
 	printf("#define ALGN .balign 8\n");
