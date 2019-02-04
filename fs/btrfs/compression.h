@@ -107,7 +107,33 @@ enum btrfs_compression_type {
 	BTRFS_COMPRESS_TYPES = 3,
 };
 
+struct workspace_manager {
+	const struct btrfs_compress_op *ops;
+	struct list_head idle_ws;
+	spinlock_t ws_lock;
+	/* Number of free workspaces */
+	int free_ws;
+	/* Total number of allocated workspaces */
+	atomic_t total_ws;
+	/* Waiters for a free workspace */
+	wait_queue_head_t ws_wait;
+};
+
+void btrfs_init_workspace_manager(struct workspace_manager *wsm,
+				  const struct btrfs_compress_op *ops);
+struct list_head *btrfs_get_workspace(struct workspace_manager *wsm);
+void btrfs_put_workspace(struct workspace_manager *wsm, struct list_head *ws);
+void btrfs_cleanup_workspace_manager(struct workspace_manager *wsm);
+
 struct btrfs_compress_op {
+	void (*init_workspace_manager)(void);
+
+	void (*cleanup_workspace_manager)(void);
+
+	struct list_head *(*get_workspace)(void);
+
+	void (*put_workspace)(struct list_head *ws);
+
 	struct list_head *(*alloc_workspace)(void);
 
 	void (*free_workspace)(struct list_head *workspace);

@@ -27,6 +27,28 @@ struct workspace {
 	int level;
 };
 
+static struct workspace_manager wsm;
+
+static void zlib_init_workspace_manager(void)
+{
+	btrfs_init_workspace_manager(&wsm, &btrfs_zlib_compress);
+}
+
+static void zlib_cleanup_workspace_manager(void)
+{
+	btrfs_cleanup_workspace_manager(&wsm);
+}
+
+static struct list_head *zlib_get_workspace(void)
+{
+	return btrfs_get_workspace(&wsm);
+}
+
+static void zlib_put_workspace(struct list_head *ws)
+{
+	btrfs_put_workspace(&wsm, ws);
+}
+
 static void zlib_free_workspace(struct list_head *ws)
 {
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
@@ -402,6 +424,10 @@ static void zlib_set_level(struct list_head *ws, unsigned int type)
 }
 
 const struct btrfs_compress_op btrfs_zlib_compress = {
+	.init_workspace_manager	= zlib_init_workspace_manager,
+	.cleanup_workspace_manager = zlib_cleanup_workspace_manager,
+	.get_workspace		= zlib_get_workspace,
+	.put_workspace		= zlib_put_workspace,
 	.alloc_workspace	= zlib_alloc_workspace,
 	.free_workspace		= zlib_free_workspace,
 	.compress_pages		= zlib_compress_pages,
