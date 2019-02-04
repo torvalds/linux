@@ -355,7 +355,7 @@ static int amdgpu_amdkfd_bo_validate(struct amdgpu_bo *bo, uint32_t domain,
 		if (ret)
 			goto validate_fail;
 
-		ttm_bo_wait(&bo->tbo, false, false);
+		amdgpu_bo_sync_wait(bo, AMDGPU_FENCE_OWNER_KFD, false);
 		amdgpu_amdkfd_add_eviction_fence(bo, ef_list, ef_count);
 	}
 
@@ -1002,7 +1002,7 @@ static int init_kfd_vm(struct amdgpu_vm *vm, void **process_info,
 		pr_err("validate_pt_pd_bos() failed\n");
 		goto validate_pd_fail;
 	}
-	ret = ttm_bo_wait(&vm->root.base.bo->tbo, false, false);
+	amdgpu_bo_sync_wait(vm->root.base.bo, AMDGPU_FENCE_OWNER_KFD, false);
 	if (ret)
 		goto wait_pd_fail;
 	amdgpu_bo_fence(vm->root.base.bo,
