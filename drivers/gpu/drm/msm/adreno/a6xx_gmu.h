@@ -55,6 +55,8 @@ struct a6xx_gmu {
 	struct iommu_domain *domain;
 	u64 uncached_iova_base;
 
+	struct device *gxpd;
+
 	int idle_level;
 
 	struct a6xx_gmu_bo *hfi;
