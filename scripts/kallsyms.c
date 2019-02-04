@@ -596,9 +596,6 @@ static void insert_real_symbols_in_table(void)
 {
 	unsigned int i, j, c;
 
-	memset(best_table, 0, sizeof(best_table));
-	memset(best_table_len, 0, sizeof(best_table_len));
-
 	for (i = 0; i < table_cnt; i++) {
 		for (j = 0; j < table[i].len; j++) {
 			c = table[i].sym[j];
