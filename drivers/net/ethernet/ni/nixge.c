@@ -1284,6 +1284,7 @@ static int nixge_probe(struct platform_device *pdev)
 {
 	struct nixge_priv *priv;
 	struct net_device *ndev;
+	struct device_node *mn;
 	const u8 *mac_addr;
 	int err;
 
@@ -1335,10 +1336,14 @@ static int nixge_probe(struct platform_device *pdev)
 	priv->coalesce_count_rx = XAXIDMA_DFT_RX_THRESHOLD;
 	priv->coalesce_count_tx = XAXIDMA_DFT_TX_THRESHOLD;
 
-	err = nixge_mdio_setup(priv, pdev->dev.of_node);
-	if (err) {
-		netdev_err(ndev, "error registering mdio bus");
-		goto free_netdev;
+	mn = of_get_child_by_name(pdev->dev.of_node, "mdio");
+	if (mn) {
+		err = nixge_mdio_setup(priv, mn);
+		of_node_put(mn);
+		if (err) {
+			netdev_err(ndev, "error registering mdio bus");
+			goto free_netdev;
+		}
 	}
 
 	priv->phy_mode = of_get_phy_mode(pdev->dev.of_node);
@@ -1364,7 +1369,8 @@ static int nixge_probe(struct platform_device *pdev)
 	return 0;
 
 unregister_mdio:
-	mdiobus_unregister(priv->mii_bus);
+	if (priv->mii_bus)
+		mdiobus_unregister(priv->mii_bus);
 
 free_netdev:
 	free_netdev(ndev);
@@ -1379,7 +1385,8 @@ static int nixge_remove(struct platform_device *pdev)
 
 	unregister_netdev(ndev);
 
-	mdiobus_unregister(priv->mii_bus);
+	if (priv->mii_bus)
+		mdiobus_unregister(priv->mii_bus);
 
 	free_netdev(ndev);
 
