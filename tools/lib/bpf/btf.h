@@ -67,18 +67,18 @@ LIBBPF_API int btf__fd(const struct btf *btf);
 LIBBPF_API const char *btf__name_by_offset(const struct btf *btf, __u32 offset);
 LIBBPF_API int btf__get_from_id(__u32 id, struct btf **btf);
 
-struct btf_ext *btf_ext__new(__u8 *data, __u32 size);
-void btf_ext__free(struct btf_ext *btf_ext);
-int btf_ext__reloc_func_info(const struct btf *btf,
-			     const struct btf_ext *btf_ext,
-			     const char *sec_name, __u32 insns_cnt,
-			     void **func_info, __u32 *func_info_len);
-int btf_ext__reloc_line_info(const struct btf *btf,
-			     const struct btf_ext *btf_ext,
-			     const char *sec_name, __u32 insns_cnt,
-			     void **line_info, __u32 *cnt);
-__u32 btf_ext__func_info_rec_size(const struct btf_ext *btf_ext);
-__u32 btf_ext__line_info_rec_size(const struct btf_ext *btf_ext);
+LIBBPF_API struct btf_ext *btf_ext__new(__u8 *data, __u32 size);
+LIBBPF_API void btf_ext__free(struct btf_ext *btf_ext);
+LIBBPF_API int btf_ext__reloc_func_info(const struct btf *btf,
+					const struct btf_ext *btf_ext,
+					const char *sec_name, __u32 insns_cnt,
+					void **func_info, __u32 *cnt);
+LIBBPF_API int btf_ext__reloc_line_info(const struct btf *btf,
+					const struct btf_ext *btf_ext,
+					const char *sec_name, __u32 insns_cnt,
+					void **line_info, __u32 *cnt);
+LIBBPF_API __u32 btf_ext__func_info_rec_size(const struct btf_ext *btf_ext);
+LIBBPF_API __u32 btf_ext__line_info_rec_size(const struct btf_ext *btf_ext);
 
 #ifdef __cplusplus
 } /* extern "C" */
