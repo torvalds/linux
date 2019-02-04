@@ -17,7 +17,6 @@
 #include <linux/seq_file.h>
 
 #include "sysfs.h"
-#include "../kernfs/kernfs-internal.h"
 
 /*
  * Determine ktype->sysfs_ops for the given kernfs_node.  This function
