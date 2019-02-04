@@ -317,22 +317,6 @@ cvmx_helper_interface_mode_t cvmx_helper_interface_get_mode(int interface)
 			return CVMX_HELPER_INTERFACE_MODE_DISABLED;
 	}
 
-	if (interface == 0
-	    && cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_CN3005_EVB_HS5
-	    && cvmx_sysinfo_get()->board_rev_major == 1) {
-		/*
-		 * Lie about interface type of CN3005 board.  This
-		 * board has a switch on port 1 like the other
-		 * evaluation boards, but it is connected over RGMII
-		 * instead of GMII.  Report GMII mode so that the
-		 * speed is forced to 1 Gbit full duplex.  Other than
-		 * some initial configuration (which does not use the
-		 * output of this function) there is no difference in
-		 * setup between GMII and RGMII modes.
-		 */
-		return CVMX_HELPER_INTERFACE_MODE_GMII;
-	}
-
 	/* Interface 1 is always disabled on CN31XX and CN30XX */
 	if ((interface == 1)
 	    && (OCTEON_IS_MODEL(OCTEON_CN31XX) || OCTEON_IS_MODEL(OCTEON_CN30XX)
