@@ -620,6 +620,7 @@ static struct sh_eth_cpu_data r7s72100_data = {
 	.no_ade		= 1,
 	.xdfar_rw	= 1,
 	.csmr		= 1,
+	.rx_csum	= 1,
 	.tsu		= 1,
 	.no_tx_cntrs	= 1,
 };
