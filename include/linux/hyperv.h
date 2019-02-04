@@ -751,6 +751,19 @@ struct vmbus_channel {
 	u64	interrupts;	/* Host to Guest interrupts */
 	u64	sig_events;	/* Guest to Host events */
 
+	/*
+	 * Guest to host interrupts caused by the outbound ring buffer changing
+	 * from empty to not empty.
+	 */
+	u64 intr_out_empty;
+
+	/*
+	 * Indicates that a full outbound ring buffer was encountered. The flag
+	 * is set to true when a full outbound ring buffer is encountered and
+	 * set to false when a write to the outbound ring buffer is completed.
+	 */
+	bool out_full_flag;
+
 	/* Channel callback's invoked in softirq context */
 	struct tasklet_struct callback_event;
 	void (*onchannel_callback)(void *context);
@@ -903,6 +916,24 @@ struct vmbus_channel {
 	 * vmbus_connection.work_queue and hang: see vmbus_process_offer().
 	 */
 	struct work_struct add_channel_work;
+
+	/*
+	 * Guest to host interrupts caused by the inbound ring buffer changing
+	 * from full to not full while a packet is waiting.
+	 */
+	u64 intr_in_full;
+
+	/*
+	 * The total number of write operations that encountered a full
+	 * outbound ring buffer.
+	 */
+	u64 out_full_total;
+
+	/*
+	 * The number of write operations that were the first to encounter a
+	 * full outbound ring buffer.
+	 */
+	u64 out_full_first;
 };
 
 static inline bool is_hvsock_channel(const struct vmbus_channel *c)
@@ -936,6 +967,21 @@ static inline void *get_per_channel_state(struct vmbus_channel *c)
 static inline void set_channel_pending_send_size(struct vmbus_channel *c,
 						 u32 size)
 {
+	unsigned long flags;
+
+	if (size) {
+		spin_lock_irqsave(&c->outbound.ring_lock, flags);
+		++c->out_full_total;
+
+		if (!c->out_full_flag) {
+			++c->out_full_first;
+			c->out_full_flag = true;
+		}
+		spin_unlock_irqrestore(&c->outbound.ring_lock, flags);
+	} else {
+		c->out_full_flag = false;
+	}
+
 	c->outbound.ring_buffer->pending_send_sz = size;
 }
 

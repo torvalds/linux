@@ -146,3 +146,36 @@ KernelVersion:	4.16
 Contact:	Stephen Hemminger <sthemmin@microsoft.com>
 Description:	Binary file created by uio_hv_generic for ring buffer
 Users:		Userspace drivers
+
+What:           /sys/bus/vmbus/devices/<UUID>/channels/<N>/intr_in_full
+Date:           February 2019
+KernelVersion:  5.0
+Contact:        Michael Kelley <mikelley@microsoft.com>
+Description:    Number of guest to host interrupts caused by the inbound ring
+		buffer transitioning from full to not full while a packet is
+		waiting for buffer space to become available
+Users:          Debugging tools
+
+What:           /sys/bus/vmbus/devices/<UUID>/channels/<N>/intr_out_empty
+Date:           February 2019
+KernelVersion:  5.0
+Contact:        Michael Kelley <mikelley@microsoft.com>
+Description:    Number of guest to host interrupts caused by the outbound ring
+		buffer transitioning from empty to not empty
+Users:          Debugging tools
+
+What:           /sys/bus/vmbus/devices/<UUID>/channels/<N>/out_full_first
+Date:           February 2019
+KernelVersion:  5.0
+Contact:        Michael Kelley <mikelley@microsoft.com>
+Description:    Number of write operations that were the first to encounter an
+		outbound ring buffer full condition
+Users:          Debugging tools
+
+What:           /sys/bus/vmbus/devices/<UUID>/channels/<N>/out_full_total
+Date:           February 2019
+KernelVersion:  5.0
+Contact:        Michael Kelley <mikelley@microsoft.com>
+Description:    Total number of write operations that encountered an outbound
+		ring buffer full condition
+Users:          Debugging tools
