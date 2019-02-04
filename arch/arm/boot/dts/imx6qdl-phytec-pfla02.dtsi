@@ -117,6 +117,7 @@
 		reg = <0x58>;
 		interrupt-parent = <&gpio2>;
 		interrupts = <9 IRQ_TYPE_LEVEL_LOW>; /* active-low GPIO2_9 */
+		interrupt-controller;
 
 		regulators {
 			vddcore_reg: bcore1 {
