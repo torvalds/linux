@@ -1332,31 +1332,6 @@ static void amdgpu_vm_cpu_set_ptes(struct amdgpu_pte_update_params *params,
 	}
 }
 
-
-/**
- * amdgpu_vm_wait_pd - Wait for PT BOs to be free.
- *
- * @adev: amdgpu_device pointer
- * @vm: related vm
- * @owner: fence owner
- *
- * Returns:
- * 0 on success, errno otherwise.
- */
-static int amdgpu_vm_wait_pd(struct amdgpu_device *adev, struct amdgpu_vm *vm,
-			     void *owner)
-{
-	struct amdgpu_sync sync;
-	int r;
-
-	amdgpu_sync_create(&sync);
-	amdgpu_sync_resv(adev, &sync, vm->root.base.bo->tbo.resv, owner, false);
-	r = amdgpu_sync_wait(&sync, true);
-	amdgpu_sync_free(&sync);
-
-	return r;
-}
-
 /**
  * amdgpu_vm_update_func - helper to call update function
  *
@@ -1451,7 +1426,8 @@ restart:
 	params.adev = adev;
 
 	if (vm->use_cpu_for_update) {
-		r = amdgpu_vm_wait_pd(adev, vm, AMDGPU_FENCE_OWNER_VM);
+		r = amdgpu_bo_sync_wait(vm->root.base.bo,
+					AMDGPU_FENCE_OWNER_VM, true);
 		if (unlikely(r))
 			return r;
 
@@ -1784,7 +1760,7 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 		/* Wait for PT BOs to be idle. PTs share the same resv. object
 		 * as the root PD BO
 		 */
-		r = amdgpu_vm_wait_pd(adev, vm, owner);
+		r = amdgpu_bo_sync_wait(vm->root.base.bo, owner, true);
 		if (unlikely(r))
 			return r;
 
