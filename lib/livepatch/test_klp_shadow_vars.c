@@ -154,22 +154,37 @@ static int test_klp_shadow_vars_init(void)
 	 * Allocate a few shadow variables with different <obj> and <id>.
 	 */
 	sv1 = shadow_alloc(obj, id, size, gfp_flags, shadow_ctor, &var1);
+	if (!sv1)
+		return -ENOMEM;
+
 	sv2 = shadow_alloc(obj + 1, id, size, gfp_flags, shadow_ctor, &var2);
+	if (!sv2)
+		return -ENOMEM;
+
 	sv3 = shadow_alloc(obj, id + 1, size, gfp_flags, shadow_ctor, &var3);
+	if (!sv3)
+		return -ENOMEM;
 
 	/*
 	 * Verify we can find our new shadow variables and that they point
 	 * to expected data.
 	 */
 	ret = shadow_get(obj, id);
+	if (!ret)
+		return -EINVAL;
 	if (ret == sv1 && *sv1 == &var1)
 		pr_info("  got expected PTR%d -> PTR%d result\n",
 			ptr_id(sv1), ptr_id(*sv1));
+
 	ret = shadow_get(obj + 1, id);
+	if (!ret)
+		return -EINVAL;
 	if (ret == sv2 && *sv2 == &var2)
 		pr_info("  got expected PTR%d -> PTR%d result\n",
 			ptr_id(sv2), ptr_id(*sv2));
 	ret = shadow_get(obj, id + 1);
+	if (!ret)
+		return -EINVAL;
 	if (ret == sv3 && *sv3 == &var3)
 		pr_info("  got expected PTR%d -> PTR%d result\n",
 			ptr_id(sv3), ptr_id(*sv3));
@@ -179,7 +194,12 @@ static int test_klp_shadow_vars_init(void)
 	 * The second invocation should return the same shadow var.
 	 */
 	sv4 = shadow_get_or_alloc(obj + 2, id, size, gfp_flags, shadow_ctor, &var4);
+	if (!sv4)
+		return -ENOMEM;
+
 	ret = shadow_get_or_alloc(obj + 2, id, size, gfp_flags, shadow_ctor, &var4);
+	if (!ret)
+		return -EINVAL;
 	if (ret == sv4 && *sv4 == &var4)
 		pr_info("  got expected PTR%d -> PTR%d result\n",
 			ptr_id(sv4), ptr_id(*sv4));
@@ -207,6 +227,8 @@ static int test_klp_shadow_vars_init(void)
 	 * We should still find an <id+1> variable.
 	 */
 	ret = shadow_get(obj, id + 1);
+	if (!ret)
+		return -EINVAL;
 	if (ret == sv3 && *sv3 == &var3)
 		pr_info("  got expected PTR%d -> PTR%d result\n",
 			ptr_id(sv3), ptr_id(*sv3));
