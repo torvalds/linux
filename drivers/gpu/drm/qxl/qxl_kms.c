@@ -26,7 +26,7 @@
 #include "qxl_drv.h"
 #include "qxl_object.h"
 
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_probe_helper.h>
 #include <linux/io-mapping.h>
 
 int qxl_log_level;
@@ -53,40 +53,47 @@ static bool qxl_check_device(struct qxl_device *qdev)
 	return true;
 }
 
-static void setup_hw_slot(struct qxl_device *qdev, int slot_index,
-			  struct qxl_memslot *slot)
+static void setup_hw_slot(struct qxl_device *qdev, struct qxl_memslot *slot)
 {
 	qdev->ram_header->mem_slot.mem_start = slot->start_phys_addr;
-	qdev->ram_header->mem_slot.mem_end = slot->end_phys_addr;
-	qxl_io_memslot_add(qdev, slot_index);
+	qdev->ram_header->mem_slot.mem_end = slot->start_phys_addr + slot->size;
+	qxl_io_memslot_add(qdev, qdev->rom->slots_start + slot->index);
 }
 
-static uint8_t setup_slot(struct qxl_device *qdev, uint8_t slot_index_offset,
-	unsigned long start_phys_addr, unsigned long end_phys_addr)
+static void setup_slot(struct qxl_device *qdev,
+		       struct qxl_memslot *slot,
+		       unsigned int slot_index,
+		       const char *slot_name,
+		       unsigned long start_phys_addr,
+		       unsigned long size)
 {
 	uint64_t high_bits;
-	struct qxl_memslot *slot;
-	uint8_t slot_index;
 
-	slot_index = qdev->rom->slots_start + slot_index_offset;
-	slot = &qdev->mem_slots[slot_index];
+	slot->index = slot_index;
+	slot->name = slot_name;
 	slot->start_phys_addr = start_phys_addr;
-	slot->end_phys_addr = end_phys_addr;
+	slot->size = size;
 
-	setup_hw_slot(qdev, slot_index, slot);
+	setup_hw_slot(qdev, slot);
 
 	slot->generation = qdev->rom->slot_generation;
-	high_bits = slot_index << qdev->slot_gen_bits;
+	high_bits = (qdev->rom->slots_start + slot->index)
+		<< qdev->rom->slot_gen_bits;
 	high_bits |= slot->generation;
-	high_bits <<= (64 - (qdev->slot_gen_bits + qdev->slot_id_bits));
+	high_bits <<= (64 - (qdev->rom->slot_gen_bits + qdev->rom->slot_id_bits));
 	slot->high_bits = high_bits;
-	return slot_index;
+
+	DRM_INFO("slot %d (%s): base 0x%08lx, size 0x%08lx, gpu_offset 0x%lx\n",
+		 slot->index, slot->name,
+		 (unsigned long)slot->start_phys_addr,
+		 (unsigned long)slot->size,
+		 (unsigned long)slot->gpu_offset);
 }
 
 void qxl_reinit_memslots(struct qxl_device *qdev)
 {
-	setup_hw_slot(qdev, qdev->main_mem_slot, &qdev->mem_slots[qdev->main_mem_slot]);
-	setup_hw_slot(qdev, qdev->surfaces_mem_slot, &qdev->mem_slots[qdev->surfaces_mem_slot]);
+	setup_hw_slot(qdev, &qdev->main_slot);
+	setup_hw_slot(qdev, &qdev->surfaces_slot);
 }
 
 static void qxl_gc_work(struct work_struct *work)
@@ -229,23 +236,6 @@ int qxl_device_init(struct qxl_device *qdev,
 		r = -ENOMEM;
 		goto cursor_ring_free;
 	}
-	/* TODO - slot initialization should happen on reset. where is our
-	 * reset handler? */
-	qdev->n_mem_slots = qdev->rom->slots_end;
-	qdev->slot_gen_bits = qdev->rom->slot_gen_bits;
-	qdev->slot_id_bits = qdev->rom->slot_id_bits;
-	qdev->va_slot_mask =
-		(~(uint64_t)0) >> (qdev->slot_id_bits + qdev->slot_gen_bits);
-
-	qdev->mem_slots =
-		kmalloc_array(qdev->n_mem_slots, sizeof(struct qxl_memslot),
-			      GFP_KERNEL);
-
-	if (!qdev->mem_slots) {
-		DRM_ERROR("Unable to alloc mem slots\n");
-		r = -ENOMEM;
-		goto release_ring_free;
-	}
 
 	idr_init(&qdev->release_idr);
 	spin_lock_init(&qdev->release_idr_lock);
@@ -264,33 +254,24 @@ int qxl_device_init(struct qxl_device *qdev,
 	r = qxl_irq_init(qdev);
 	if (r) {
 		DRM_ERROR("Unable to init qxl irq\n");
-		goto mem_slots_free;
+		goto release_ring_free;
 	}
 
 	/*
 	 * Note that virtual is surface0. We rely on the single ioremap done
 	 * before.
 	 */
-	qdev->main_mem_slot = setup_slot(qdev, 0,
-		(unsigned long)qdev->vram_base,
-		(unsigned long)qdev->vram_base + qdev->rom->ram_header_offset);
-	qdev->surfaces_mem_slot = setup_slot(qdev, 1,
-		(unsigned long)qdev->surfaceram_base,
-		(unsigned long)qdev->surfaceram_base + qdev->surfaceram_size);
-	DRM_INFO("main mem slot %d [%lx,%x]\n",
-		 qdev->main_mem_slot,
-		 (unsigned long)qdev->vram_base, qdev->rom->ram_header_offset);
-	DRM_INFO("surface mem slot %d [%lx,%lx]\n",
-		 qdev->surfaces_mem_slot,
-		 (unsigned long)qdev->surfaceram_base,
-		 (unsigned long)qdev->surfaceram_size);
+	setup_slot(qdev, &qdev->main_slot, 0, "main",
+		   (unsigned long)qdev->vram_base,
+		   (unsigned long)qdev->rom->ram_header_offset);
+	setup_slot(qdev, &qdev->surfaces_slot, 1, "surfaces",
+		   (unsigned long)qdev->surfaceram_base,
+		   (unsigned long)qdev->surfaceram_size);
 
 	INIT_WORK(&qdev->gc_work, qxl_gc_work);
 
 	return 0;
 
-mem_slots_free:
-	kfree(qdev->mem_slots);
 release_ring_free:
 	qxl_ring_free(qdev->release_ring);
 cursor_ring_free:

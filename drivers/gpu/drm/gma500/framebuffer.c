@@ -405,7 +405,6 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->format->depth);
 	strcpy(info->fix.id, "psbdrmfb");
 
-	info->flags = FBINFO_DEFAULT;
 	if (dev_priv->ops->accel_2d && pitch_lines > 8)	/* 2D engine */
 		info->fbops = &psbfb_ops;
 	else if (gtt_roll) {	/* GTT rolling seems best */

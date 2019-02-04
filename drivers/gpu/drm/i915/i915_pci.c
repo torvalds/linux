@@ -26,6 +26,8 @@
 #include <linux/vgaarb.h>
 #include <linux/vga_switcheroo.h>
 
+#include <drm/drm_drv.h>
+
 #include "i915_drv.h"
 #include "i915_selftest.h"
 

@@ -262,6 +262,44 @@ As a reference, take a look at the conversions already completed in drm core.
 
 Contact: Sean Paul, respective driver maintainers
 
+Rename CMA helpers to DMA helpers
+---------------------------------
+
+CMA (standing for contiguous memory allocator) is really a bit an accident of
+what these were used for first, a much better name would be DMA helpers. In the
+text these should even be called coherent DMA memory helpers (so maybe CDM, but
+no one knows what that means) since underneath they just use dma_alloc_coherent.
+
+Contact: Laurent Pinchart, Daniel Vetter
+
+Convert direct mode.vrefresh accesses to use drm_mode_vrefresh()
+----------------------------------------------------------------
+
+drm_display_mode.vrefresh isn't guaranteed to be populated. As such, using it
+is risky and has been known to cause div-by-zero bugs. Fortunately, drm core
+has helper which will use mode.vrefresh if it's !0 and will calculate it from
+the timings when it's 0.
+
+Use simple search/replace, or (more fun) cocci to replace instances of direct
+vrefresh access with a call to the helper. Check out
+https://lists.freedesktop.org/archives/dri-devel/2019-January/205186.html for
+inspiration.
+
+Once all instances of vrefresh have been converted, remove vrefresh from
+drm_display_mode to avoid future use.
+
+Contact: Sean Paul
+
+Remove drm_display_mode.hsync
+-----------------------------
+
+We have drm_mode_hsync() to calculate this from hsync_start/end, since drivers
+shouldn't/don't use this, remove this member to avoid any temptations to use it
+in the future. If there is any debug code using drm_display_mode.hsync, convert
+it to use drm_mode_hsync() instead.
+
+Contact: Sean Paul
+
 Core refactorings
 =================
 

@@ -36,8 +36,8 @@
 #include <linux/of.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/drmP.h>
 
 #define EDID_EXT_BLOCK_CNT 0x7E

@@ -296,18 +296,6 @@ SCDC Helper Functions Reference
 .. kernel-doc:: drivers/gpu/drm/drm_scdc_helper.c
    :export:
 
-Rectangle Utilities Reference
-=============================
-
-.. kernel-doc:: include/drm/drm_rect.h
-   :doc: rect utils
-
-.. kernel-doc:: include/drm/drm_rect.h
-   :internal:
-
-.. kernel-doc:: drivers/gpu/drm/drm_rect.c
-   :export:
-
 HDMI Infoframes Helper Reference
 ================================
 
@@ -320,6 +308,18 @@ libraries and hence is also included here.
    :internal:
 
 .. kernel-doc:: drivers/video/hdmi.c
+   :export:
+
+Rectangle Utilities Reference
+=============================
+
+.. kernel-doc:: include/drm/drm_rect.h
+   :doc: rect utils
+
+.. kernel-doc:: include/drm/drm_rect.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_rect.c
    :export:
 
 Flip-work Helper Reference

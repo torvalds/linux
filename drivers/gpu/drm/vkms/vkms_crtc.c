@@ -8,7 +8,7 @@
 
 #include "vkms_drv.h"
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_probe_helper.h>
 
 static void _vblank_handle(struct vkms_output *output)
 {
@@ -104,6 +104,7 @@ static void vkms_atomic_crtc_reset(struct drm_crtc *crtc)
 	vkms_state = kzalloc(sizeof(*vkms_state), GFP_KERNEL);
 	if (!vkms_state)
 		return;
+	INIT_WORK(&vkms_state->crc_work, vkms_crc_work_handle);
 
 	crtc->state = &vkms_state->base;
 	crtc->state->crtc = crtc;

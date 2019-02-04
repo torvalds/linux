@@ -9,6 +9,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_probe_helper.h>
 
 #include "bochs.h"
 
