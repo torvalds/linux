@@ -148,10 +148,7 @@ static void pdacf_proc_read(struct snd_info_entry * entry,
 
 static void pdacf_proc_init(struct snd_pdacf *chip)
 {
-	struct snd_info_entry *entry;
-
-	if (! snd_card_proc_new(chip->card, "pdaudiocf", &entry))
-		snd_info_set_text_ops(entry, chip, pdacf_proc_read);
+	snd_card_ro_proc_new(chip->card, "pdaudiocf", chip, pdacf_proc_read);
 }
 
 struct snd_pdacf *snd_pdacf_create(struct snd_card *card)
