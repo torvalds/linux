@@ -2806,6 +2806,15 @@ static void set_vsc_info_packet(
 
 	*info_packet = stream->vsc_infopacket;
 }
+static void set_hfvs_info_packet(
+		struct dc_info_packet *info_packet,
+		struct dc_stream_state *stream)
+{
+	if (!stream->hfvsif_infopacket.valid)
+		return;
+
+	*info_packet = stream->hfvsif_infopacket;
+}
 
 void dc_resource_state_destruct(struct dc_state *context)
 {
@@ -2886,6 +2895,7 @@ void resource_build_info_frame(struct pipe_ctx *pipe_ctx)
 	info->spd.valid = false;
 	info->hdrsmd.valid = false;
 	info->vsc.valid = false;
+	info->hfvsif.valid = false;
 
 	signal = pipe_ctx->stream->signal;
 
@@ -2894,6 +2904,7 @@ void resource_build_info_frame(struct pipe_ctx *pipe_ctx)
 		set_avi_info_frame(&info->avi, pipe_ctx);
 
 		set_vendor_info_packet(&info->vendor, pipe_ctx->stream);
+		set_hfvs_info_packet(&info->hfvsif, pipe_ctx->stream);
 
 		set_spd_info_packet(&info->spd, pipe_ctx->stream);
 

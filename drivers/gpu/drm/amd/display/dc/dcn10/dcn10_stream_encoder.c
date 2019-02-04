@@ -675,11 +675,13 @@ static void enc1_stream_encoder_update_hdmi_info_packets(
 	/* for bring up, disable dp double  TODO */
 	REG_UPDATE(HDMI_DB_CONTROL, HDMI_DB_DISABLE, 1);
 
+	/*Always add mandatory packets first followed by optional ones*/
 	enc1_update_hdmi_info_packet(enc1, 0, &info_frame->avi);
-	enc1_update_hdmi_info_packet(enc1, 1, &info_frame->vendor);
+	enc1_update_hdmi_info_packet(enc1, 1, &info_frame->hfvsif);
 	enc1_update_hdmi_info_packet(enc1, 2, &info_frame->gamut);
-	enc1_update_hdmi_info_packet(enc1, 3, &info_frame->spd);
-	enc1_update_hdmi_info_packet(enc1, 4, &info_frame->hdrsmd);
+	enc1_update_hdmi_info_packet(enc1, 3, &info_frame->vendor);
+	enc1_update_hdmi_info_packet(enc1, 4, &info_frame->spd);
+	enc1_update_hdmi_info_packet(enc1, 5, &info_frame->hdrsmd);
 }
 
 static void enc1_stream_encoder_stop_hdmi_info_packets(
