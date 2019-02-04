@@ -762,7 +762,6 @@ static int __cvmx_helper_packet_hardware_enable(int interface)
 		result = __cvmx_helper_loop_enable(interface);
 		break;
 	}
-	result |= __cvmx_helper_board_hardware_enable(interface);
 	return result;
 }
 

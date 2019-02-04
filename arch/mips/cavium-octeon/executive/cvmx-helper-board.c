@@ -321,45 +321,6 @@ int __cvmx_helper_board_interface_probe(int interface, int supported_ports)
 }
 
 /**
- * Enable packet input/output from the hardware. This function is
- * called after by cvmx_helper_packet_hardware_enable() to
- * perform board specific initialization. For most boards
- * nothing is needed.
- *
- * @interface: Interface to enable
- *
- * Returns Zero on success, negative on failure
- */
-int __cvmx_helper_board_hardware_enable(int interface)
-{
-	if (cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_CN3005_EVB_HS5) {
-		if (interface == 0) {
-			/* Different config for switch port */
-			cvmx_write_csr(CVMX_ASXX_TX_CLK_SETX(1, interface), 0);
-			cvmx_write_csr(CVMX_ASXX_RX_CLK_SETX(1, interface), 0);
-			/*
-			 * Boards with gigabit WAN ports need a
-			 * different setting that is compatible with
-			 * 100 Mbit settings
-			 */
-			cvmx_write_csr(CVMX_ASXX_TX_CLK_SETX(0, interface),
-				       0xc);
-			cvmx_write_csr(CVMX_ASXX_RX_CLK_SETX(0, interface),
-				       0xc);
-		}
-	} else if (cvmx_sysinfo_get()->board_type ==
-			CVMX_BOARD_TYPE_UBNT_E100) {
-		cvmx_write_csr(CVMX_ASXX_RX_CLK_SETX(0, interface), 0);
-		cvmx_write_csr(CVMX_ASXX_TX_CLK_SETX(0, interface), 0x10);
-		cvmx_write_csr(CVMX_ASXX_RX_CLK_SETX(1, interface), 0);
-		cvmx_write_csr(CVMX_ASXX_TX_CLK_SETX(1, interface), 0x10);
-		cvmx_write_csr(CVMX_ASXX_RX_CLK_SETX(2, interface), 0);
-		cvmx_write_csr(CVMX_ASXX_TX_CLK_SETX(2, interface), 0x10);
-	}
-	return 0;
-}
-
-/**
  * Get the clock type used for the USB block based on board type.
  * Used by the USB code for auto configuration of clock type.
  *

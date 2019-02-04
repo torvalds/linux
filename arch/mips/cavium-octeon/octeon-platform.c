@@ -603,6 +603,45 @@ static void __init octeon_fdt_rm_ethernet(int node)
 	fdt_nop_node(initial_boot_params, node);
 }
 
+static void __init _octeon_rx_tx_delay(int eth, int rx_delay, int tx_delay)
+{
+	fdt_setprop_inplace_cell(initial_boot_params, eth, "rx-delay",
+				 rx_delay);
+	fdt_setprop_inplace_cell(initial_boot_params, eth, "tx-delay",
+				 tx_delay);
+}
+
+static void __init octeon_rx_tx_delay(int eth, int iface, int port)
+{
+	switch (cvmx_sysinfo_get()->board_type) {
+	case CVMX_BOARD_TYPE_CN3005_EVB_HS5:
+		if (iface == 0) {
+			if (port == 0) {
+				/*
+				 * Boards with gigabit WAN ports need a
+				 * different setting that is compatible with
+				 * 100 Mbit settings
+				 */
+				_octeon_rx_tx_delay(eth, 0xc, 0x0c);
+				return;
+			} else if (port == 1) {
+				/* Different config for switch port. */
+				_octeon_rx_tx_delay(eth, 0x0, 0x0);
+				return;
+			}
+		}
+		break;
+	case CVMX_BOARD_TYPE_UBNT_E100:
+		if (iface == 0 && port <= 2) {
+			_octeon_rx_tx_delay(eth, 0x0, 0x10);
+			return;
+		}
+		break;
+	}
+	fdt_nop_property(initial_boot_params, eth, "rx-delay");
+	fdt_nop_property(initial_boot_params, eth, "tx-delay");
+}
+
 static void __init octeon_fdt_pip_port(int iface, int i, int p, int max)
 {
 	char name_buffer[20];
@@ -633,6 +672,7 @@ static void __init octeon_fdt_pip_port(int iface, int i, int p, int max)
 		WARN_ON(octeon_has_fixed_link(ipd_port));
 	else if (!octeon_has_fixed_link(ipd_port))
 		fdt_nop_node(initial_boot_params, fixed_link);
+	octeon_rx_tx_delay(eth, i, p);
 }
 
 static void __init octeon_fdt_pip_iface(int pip, int idx)
