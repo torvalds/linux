@@ -133,6 +133,7 @@ LIBBPF_0.0.2 {
 		bpf_map_lookup_elem_flags;
 		bpf_object__find_map_fd_by_name;
 		bpf_get_link_xdp_id;
+		btf__get_map_kv_tids;
 		btf_ext__free;
 		btf_ext__func_info_rec_size;
 		btf_ext__line_info_rec_size;
