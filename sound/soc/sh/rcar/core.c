@@ -1575,7 +1575,6 @@ static int rsnd_preallocate_pages(struct snd_soc_pcm_runtime *rtd,
 	struct rsnd_priv *priv = rsnd_io_to_priv(io);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct snd_pcm_substream *substream;
-	int err;
 
 	/*
 	 * use Audio-DMAC dev if we can use IPMMU
@@ -1588,12 +1587,10 @@ static int rsnd_preallocate_pages(struct snd_soc_pcm_runtime *rtd,
 	for (substream = rtd->pcm->streams[stream].substream;
 	     substream;
 	     substream = substream->next) {
-		err = snd_pcm_lib_preallocate_pages(substream,
+		snd_pcm_lib_preallocate_pages(substream,
 					SNDRV_DMA_TYPE_DEV,
 					dev,
 					PREALLOC_BUFFER, PREALLOC_BUFFER_MAX);
-		if (err < 0)
-			return err;
 	}
 
 	return 0;
