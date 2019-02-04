@@ -27,9 +27,6 @@ struct a6xx_gmu_bo {
 /* the GMU is coming up for the first time or back from a power collapse */
 #define GMU_COLD_BOOT 1
 
-/* The GMU is being soft reset after a fault */
-#define GMU_RESET 2
-
 /*
  * These define the level of control that the GMU has - the higher the number
  * the more things that the GMU hardware controls on its own.
@@ -79,6 +76,7 @@ struct a6xx_gmu {
 	struct a6xx_hfi_queue queues[2];
 
 	struct tasklet_struct hfi_tasklet;
+	bool hung;
 };
 
 static inline u32 gmu_read(struct a6xx_gmu *gmu, u32 offset)

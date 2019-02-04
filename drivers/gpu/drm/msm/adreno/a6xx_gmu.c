@@ -10,6 +10,24 @@
 #include "a6xx_gpu.h"
 #include "a6xx_gmu.xml.h"
 
+static void a6xx_gmu_fault(struct a6xx_gmu *gmu)
+{
+	struct a6xx_gpu *a6xx_gpu = container_of(gmu, struct a6xx_gpu, gmu);
+	struct adreno_gpu *adreno_gpu = &a6xx_gpu->base;
+	struct msm_gpu *gpu = &adreno_gpu->base;
+	struct drm_device *dev = gpu->dev;
+	struct msm_drm_private *priv = dev->dev_private;
+
+	/* FIXME: add a banner here */
+	gmu->hung = true;
+
+	/* Turn off the hangcheck timer while we are resetting */
+	del_timer(&gpu->hangcheck_timer);
+
+	/* Queue the GPU handler because we need to treat this as a recovery */
+	queue_work(priv->wq, &gpu->recover_work);
+}
+
 static irqreturn_t a6xx_gmu_irq(int irq, void *data)
 {
 	struct a6xx_gmu *gmu = data;
@@ -21,8 +39,7 @@ static irqreturn_t a6xx_gmu_irq(int irq, void *data)
 	if (status & A6XX_GMU_AO_HOST_INTERRUPT_STATUS_WDOG_BITE) {
 		dev_err_ratelimited(gmu->dev, "GMU watchdog expired\n");
 
-		/* Temporary until we can recover safely */
-		BUG();
+		a6xx_gmu_fault(gmu);
 	}
 
 	if (status &  A6XX_GMU_AO_HOST_INTERRUPT_STATUS_HOST_AHB_BUS_ERROR)
@@ -46,8 +63,7 @@ static irqreturn_t a6xx_hfi_irq(int irq, void *data)
 	if (status & A6XX_GMU_GMU2HOST_INTR_INFO_CM3_FAULT) {
 		dev_err_ratelimited(gmu->dev, "GMU firmware fault\n");
 
-		/* Temporary until we can recover safely */
-		BUG();
+		a6xx_gmu_fault(gmu);
 	}
 
 	return IRQ_HANDLED;
@@ -166,10 +182,8 @@ static bool a6xx_gmu_check_idle_level(struct a6xx_gmu *gmu)
 }
 
 /* Wait for the GMU to get to its most idle state */
-int a6xx_gmu_wait_for_idle(struct a6xx_gpu *a6xx_gpu)
+int a6xx_gmu_wait_for_idle(struct a6xx_gmu *gmu)
 {
-	struct a6xx_gmu *gmu = &a6xx_gpu->gmu;
-
 	return spin_until(a6xx_gmu_check_idle_level(gmu));
 }
 
@@ -568,7 +582,7 @@ static int a6xx_gmu_fw_start(struct a6xx_gmu *gmu, unsigned int state)
 		if (!rpmh_init) {
 			a6xx_gmu_rpmh_init(gmu);
 			rpmh_init = true;
-		} else if (state != GMU_RESET) {
+		} else {
 			ret = a6xx_rpmh_start(gmu);
 			if (ret)
 				return ret;
@@ -657,10 +671,9 @@ static void a6xx_gmu_irq_disable(struct a6xx_gmu *gmu)
 	gmu_write(gmu, REG_A6XX_GMU_GMU2HOST_INTR_MASK, ~0);
 }
 
-int a6xx_gmu_reset(struct a6xx_gpu *a6xx_gpu)
+/* Force the GMU off in case it isn't responsive */
+static void a6xx_gmu_force_off(struct a6xx_gmu *gmu)
 {
-	struct a6xx_gmu *gmu = &a6xx_gpu->gmu;
-	int ret;
 	u32 val;
 
 	/* Flush all the queues */
@@ -681,44 +694,6 @@ int a6xx_gmu_reset(struct a6xx_gpu *a6xx_gpu)
 		(val & 1), 100, 10000);
 	gmu_poll_timeout(gmu, REG_A6XX_RSCC_TCS3_DRV0_STATUS, val,
 		(val & 1), 100, 1000);
-
-	/*
-	 * Depending on the state of the GMU at this point the GX domain might
-	 * have been left on. Hardware sequencing rules state that the GX has to
-	 * be turned off before the CX domain so this is that one time that
-	 * that calling pm_runtime_put_sync() is expected to do something useful
-	 * (turn off the headswitch)
-	 */
-	if (!IS_ERR(gmu->gxpd))
-		pm_runtime_put_sync(gmu->gxpd);
-
-	/* Disable the resources */
-	clk_bulk_disable_unprepare(gmu->nr_clocks, gmu->clocks);
-	pm_runtime_put_sync(gmu->dev);
-
-	/* Re-enable the resources */
-	pm_runtime_get_sync(gmu->dev);
-
-	/* Use a known rate to bring up the GMU */
-	clk_set_rate(gmu->core_clk, 200000000);
-	ret = clk_bulk_prepare_enable(gmu->nr_clocks, gmu->clocks);
-	if (ret)
-		goto out;
-
-	a6xx_gmu_irq_enable(gmu);
-
-	ret = a6xx_gmu_fw_start(gmu, GMU_RESET);
-	if (!ret)
-		ret = a6xx_hfi_start(gmu, GMU_COLD_BOOT);
-
-	/* Set the GPU back to the highest power frequency */
-	__a6xx_gmu_set_freq(gmu, gmu->nr_gpu_freqs - 1);
-
-out:
-	if (ret)
-		a6xx_gmu_clear_oob(gmu, GMU_OOB_BOOT_SLUMBER);
-
-	return ret;
 }
 
 int a6xx_gmu_resume(struct a6xx_gpu *a6xx_gpu)
@@ -730,6 +705,8 @@ int a6xx_gmu_resume(struct a6xx_gpu *a6xx_gpu)
 
 	if (WARN(!gmu->mmio, "The GMU is not set up yet\n"))
 		return 0;
+
+	gmu->hung = false;
 
 	/* Turn on the resources */
 	pm_runtime_get_sync(gmu->dev);
@@ -789,11 +766,9 @@ bool a6xx_gmu_isidle(struct a6xx_gmu *gmu)
 	return true;
 }
 
-int a6xx_gmu_stop(struct a6xx_gpu *a6xx_gpu)
+/* Gracefully try to shut down the GMU and by extension the GPU */
+static void a6xx_gmu_shutdown(struct a6xx_gmu *gmu)
 {
-	struct adreno_gpu *adreno_gpu = &a6xx_gpu->base;
-	struct msm_gpu *gpu = &adreno_gpu->base;
-	struct a6xx_gmu *gmu = &a6xx_gpu->gmu;
 	u32 val;
 
 	/*
@@ -803,10 +778,13 @@ int a6xx_gmu_stop(struct a6xx_gpu *a6xx_gpu)
 	val = gmu_read(gmu, REG_A6XX_GPU_GMU_CX_GMU_RPMH_POWER_STATE);
 
 	if (val != 0xf) {
-		int ret = a6xx_gmu_wait_for_idle(a6xx_gpu);
+		int ret = a6xx_gmu_wait_for_idle(gmu);
 
-		/* Temporary until we can recover safely */
-		BUG_ON(ret);
+		/* If the GMU isn't responding assume it is hung */
+		if (ret) {
+			a6xx_gmu_force_off(gmu);
+			return;
+		}
 
 		/* tell the GMU we want to slumber */
 		a6xx_gmu_notify_slumber(gmu);
@@ -838,14 +816,30 @@ int a6xx_gmu_stop(struct a6xx_gpu *a6xx_gpu)
 
 	/* Tell RPMh to power off the GPU */
 	a6xx_rpmh_stop(gmu);
+}
+
+
+int a6xx_gmu_stop(struct a6xx_gpu *a6xx_gpu)
+{
+	struct a6xx_gmu *gmu = &a6xx_gpu->gmu;
+	struct msm_gpu *gpu = &a6xx_gpu->base.base;
+
+	/*
+	 * Force the GMU off if we detected a hang, otherwise try to shut it
+	 * down gracefully
+	 */
+	if (gmu->hung)
+		a6xx_gmu_force_off(gmu);
+	else
+		a6xx_gmu_shutdown(gmu);
 
 	/* Remove the bus vote */
 	icc_set_bw(gpu->icc_path, 0, 0);
 
 	/*
-	 * Mark the GPU power domain as off. During the shutdown process the GMU
-	 * should actually turn off the power so this is really just a
-	 * houskeeping step
+	 * Make sure the GX domain is off before turning off the GMU (CX)
+	 * domain. Usually the GMU does this but only if the shutdown sequence
+	 * was successful
 	 */
 	if (!IS_ERR(gmu->gxpd))
 		pm_runtime_put_sync(gmu->gxpd);

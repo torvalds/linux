@@ -698,7 +698,7 @@ static int a6xx_pm_suspend(struct msm_gpu *gpu)
 	 * Make sure the GMU is idle before continuing (because some transitions
 	 * may use VBIF
 	 */
-	a6xx_gmu_wait_for_idle(a6xx_gpu);
+	a6xx_gmu_wait_for_idle(&a6xx_gpu->gmu);
 
 	/* Clear the VBIF pipe before shutting down */
 	/* FIXME: This accesses the GPU - do we need to make sure it is on? */
