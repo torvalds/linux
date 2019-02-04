@@ -419,12 +419,9 @@ static void dw_i3c_master_enqueue_xfer(struct dw_i3c_master *master,
 	spin_unlock_irqrestore(&master->xferqueue.lock, flags);
 }
 
-static void dw_i3c_master_dequeue_xfer(struct dw_i3c_master *master,
-				       struct dw_i3c_xfer *xfer)
+static void dw_i3c_master_dequeue_xfer_locked(struct dw_i3c_master *master,
+					      struct dw_i3c_xfer *xfer)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&master->xferqueue.lock, flags);
 	if (master->xferqueue.cur == xfer) {
 		u32 status;
 
@@ -439,6 +436,15 @@ static void dw_i3c_master_dequeue_xfer(struct dw_i3c_master *master,
 	} else {
 		list_del_init(&xfer->node);
 	}
+}
+
+static void dw_i3c_master_dequeue_xfer(struct dw_i3c_master *master,
+				       struct dw_i3c_xfer *xfer)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&master->xferqueue.lock, flags);
+	dw_i3c_master_dequeue_xfer_locked(master, xfer);
 	spin_unlock_irqrestore(&master->xferqueue.lock, flags);
 }
 
@@ -494,7 +500,7 @@ static void dw_i3c_master_end_xfer_locked(struct dw_i3c_master *master, u32 isr)
 	complete(&xfer->comp);
 
 	if (ret < 0) {
-		dw_i3c_master_dequeue_xfer(master, xfer);
+		dw_i3c_master_dequeue_xfer_locked(master, xfer);
 		writel(readl(master->regs + DEVICE_CTRL) | DEV_CTRL_RESUME,
 		       master->regs + DEVICE_CTRL);
 	}
@@ -901,9 +907,6 @@ static int dw_i3c_master_reattach_i3c_dev(struct i3c_dev_desc *dev,
 	       master->regs +
 	       DEV_ADDR_TABLE_LOC(master->datstartaddr, data->index));
 
-	if (!old_dyn_addr)
-		return 0;
-
 	master->addrs[data->index] = dev->info.dyn_addr;
 
 	return 0;
@@ -925,11 +928,11 @@ static int dw_i3c_master_attach_i3c_dev(struct i3c_dev_desc *dev)
 		return -ENOMEM;
 
 	data->index = pos;
-	master->addrs[pos] = dev->info.dyn_addr;
+	master->addrs[pos] = dev->info.dyn_addr ? : dev->info.static_addr;
 	master->free_pos &= ~BIT(pos);
 	i3c_dev_set_master_data(dev, data);
 
-	writel(DEV_ADDR_TABLE_DYNAMIC_ADDR(dev->info.dyn_addr),
+	writel(DEV_ADDR_TABLE_DYNAMIC_ADDR(master->addrs[pos]),
 	       master->regs +
 	       DEV_ADDR_TABLE_LOC(master->datstartaddr, data->index));
 

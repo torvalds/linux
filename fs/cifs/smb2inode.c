@@ -293,6 +293,8 @@ smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 	int rc;
 	struct smb2_file_all_info *smb2_data;
 	__u32 create_options = 0;
+	struct cifs_fid fid;
+	bool no_cached_open = tcon->nohandlecache;
 
 	*adjust_tz = false;
 	*symlink = false;
@@ -301,6 +303,21 @@ smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 			    GFP_KERNEL);
 	if (smb2_data == NULL)
 		return -ENOMEM;
+
+	/* If it is a root and its handle is cached then use it */
+	if (!strlen(full_path) && !no_cached_open) {
+		rc = open_shroot(xid, tcon, &fid);
+		if (rc)
+			goto out;
+		rc = SMB2_query_info(xid, tcon, fid.persistent_fid,
+				     fid.volatile_fid, smb2_data);
+		close_shroot(&tcon->crfid);
+		if (rc)
+			goto out;
+		move_smb2_info_to_cifs(data, smb2_data);
+		goto out;
+	}
+
 	if (backup_cred(cifs_sb))
 		create_options |= CREATE_OPEN_BACKUP_INTENT;
 
