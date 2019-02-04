@@ -965,7 +965,11 @@ static int gmc_v9_0_sw_init(void *handle)
 		 * vm size is 256TB (48bit), maximum size of Vega10,
 		 * block size 512 (9bit)
 		 */
-		amdgpu_vm_adjust_size(adev, 256 * 1024, 9, 3, 48);
+		/* sriov restrict max_pfn below AMDGPU_GMC_HOLE */
+		if (amdgpu_sriov_vf(adev))
+			amdgpu_vm_adjust_size(adev, 256 * 1024, 9, 3, 47);
+		else
+			amdgpu_vm_adjust_size(adev, 256 * 1024, 9, 3, 48);
 		break;
 	default:
 		break;

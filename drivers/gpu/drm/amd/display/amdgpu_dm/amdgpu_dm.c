@@ -4658,8 +4658,10 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 	flip = kzalloc(sizeof(*flip), GFP_KERNEL);
 	full = kzalloc(sizeof(*full), GFP_KERNEL);
 
-	if (!flip || !full)
+	if (!flip || !full) {
 		dm_error("Failed to allocate update bundles\n");
+		goto cleanup;
+	}
 
 	/* update planes when needed */
 	for_each_oldnew_plane_in_state(state, plane, old_plane_state, new_plane_state, i) {
@@ -4883,6 +4885,10 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 						     dc_state);
 		mutex_unlock(&dm->dc_lock);
 	}
+
+cleanup:
+	kfree(flip);
+	kfree(full);
 }
 
 /*
@@ -4917,10 +4923,25 @@ static int amdgpu_dm_atomic_commit(struct drm_device *dev,
 	 */
 	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
 		struct dm_crtc_state *dm_old_crtc_state = to_dm_crtc_state(old_crtc_state);
+		struct dm_crtc_state *dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
 		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 
-		if (drm_atomic_crtc_needs_modeset(new_crtc_state) && dm_old_crtc_state->stream)
+		if (drm_atomic_crtc_needs_modeset(new_crtc_state)
+		    && dm_old_crtc_state->stream) {
+			/*
+			 * If the stream is removed and CRC capture was
+			 * enabled on the CRTC the extra vblank reference
+			 * needs to be dropped since CRC capture will be
+			 * disabled.
+			 */
+			if (!dm_new_crtc_state->stream
+			    && dm_new_crtc_state->crc_enabled) {
+				drm_crtc_vblank_put(crtc);
+				dm_new_crtc_state->crc_enabled = false;
+			}
+
 			manage_dm_interrupts(adev, acrtc, false);
+		}
 	}
 	/*
 	 * Add check here for SoC's that support hardware cursor plane, to
@@ -5152,6 +5173,10 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 			continue;
 
 		manage_dm_interrupts(adev, acrtc, true);
+
+		/* The stream has changed so CRC capture needs to re-enabled. */
+		if (dm_new_crtc_state->crc_enabled)
+			amdgpu_dm_crtc_set_crc_source(crtc, "auto");
 	}
 
 	/* update planes when needed per crtc*/

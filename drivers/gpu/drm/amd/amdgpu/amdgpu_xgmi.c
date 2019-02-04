@@ -91,10 +91,6 @@ int amdgpu_xgmi_update_topology(struct amdgpu_hive_info *hive, struct amdgpu_dev
 			"XGMI: Set topology failure on device %llx, hive %llx, ret %d",
 			adev->gmc.xgmi.node_id,
 			adev->gmc.xgmi.hive_id, ret);
-	else
-		dev_info(adev->dev, "XGMI: Set topology for node %d, hive 0x%llx.\n",
-			 adev->gmc.xgmi.physical_node_id,
-				 adev->gmc.xgmi.hive_id);
 
 	return ret;
 }
@@ -159,6 +155,9 @@ int amdgpu_xgmi_add_device(struct amdgpu_device *adev)
 		if (ret)
 			break;
 	}
+
+	dev_info(adev->dev, "XGMI: Add node %d, hive 0x%llx.\n",
+		 adev->gmc.xgmi.physical_node_id, adev->gmc.xgmi.hive_id);
 
 	mutex_unlock(&hive->hive_lock);
 exit:

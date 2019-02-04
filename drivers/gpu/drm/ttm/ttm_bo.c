@@ -679,15 +679,6 @@ void ttm_bo_put(struct ttm_buffer_object *bo)
 }
 EXPORT_SYMBOL(ttm_bo_put);
 
-void ttm_bo_unref(struct ttm_buffer_object **p_bo)
-{
-	struct ttm_buffer_object *bo = *p_bo;
-
-	*p_bo = NULL;
-	ttm_bo_put(bo);
-}
-EXPORT_SYMBOL(ttm_bo_unref);
-
 int ttm_bo_lock_delayed_workqueue(struct ttm_bo_device *bdev)
 {
 	return cancel_delayed_work_sync(&bdev->wq);
