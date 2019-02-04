@@ -648,20 +648,6 @@ static int a6xx_gmu_fw_start(struct a6xx_gmu *gmu, unsigned int state)
 	 A6XX_GMU_AO_HOST_INTERRUPT_STATUS_HOST_AHB_BUS_ERROR | \
 	 A6XX_GMU_AO_HOST_INTERRUPT_STATUS_FENCE_ERR)
 
-static void a6xx_gmu_irq_enable(struct a6xx_gmu *gmu)
-{
-	gmu_write(gmu, REG_A6XX_GMU_AO_HOST_INTERRUPT_CLR, ~0);
-	gmu_write(gmu, REG_A6XX_GMU_GMU2HOST_INTR_CLR, ~0);
-
-	gmu_write(gmu, REG_A6XX_GMU_AO_HOST_INTERRUPT_MASK,
-		~A6XX_GMU_IRQ_MASK);
-	gmu_write(gmu, REG_A6XX_GMU_GMU2HOST_INTR_MASK,
-		~A6XX_HFI_IRQ_MASK);
-
-	enable_irq(gmu->gmu_irq);
-	enable_irq(gmu->hfi_irq);
-}
-
 static void a6xx_gmu_irq_disable(struct a6xx_gmu *gmu)
 {
 	disable_irq(gmu->gmu_irq);
@@ -671,19 +657,9 @@ static void a6xx_gmu_irq_disable(struct a6xx_gmu *gmu)
 	gmu_write(gmu, REG_A6XX_GMU_GMU2HOST_INTR_MASK, ~0);
 }
 
-/* Force the GMU off in case it isn't responsive */
-static void a6xx_gmu_force_off(struct a6xx_gmu *gmu)
+static void a6xx_gmu_rpmh_off(struct a6xx_gmu *gmu)
 {
 	u32 val;
-
-	/* Flush all the queues */
-	a6xx_hfi_stop(gmu);
-
-	/* Stop the interrupts */
-	a6xx_gmu_irq_disable(gmu);
-
-	/* Force off SPTP in case the GMU is managing it */
-	a6xx_sptprac_disable(gmu);
 
 	/* Make sure there are no outstanding RPMh votes */
 	gmu_poll_timeout(gmu, REG_A6XX_RSCC_TCS0_DRV0_STATUS, val,
@@ -694,6 +670,22 @@ static void a6xx_gmu_force_off(struct a6xx_gmu *gmu)
 		(val & 1), 100, 10000);
 	gmu_poll_timeout(gmu, REG_A6XX_RSCC_TCS3_DRV0_STATUS, val,
 		(val & 1), 100, 1000);
+}
+
+/* Force the GMU off in case it isn't responsive */
+static void a6xx_gmu_force_off(struct a6xx_gmu *gmu)
+{
+	/* Flush all the queues */
+	a6xx_hfi_stop(gmu);
+
+	/* Stop the interrupts */
+	a6xx_gmu_irq_disable(gmu);
+
+	/* Force off SPTP in case the GMU is managing it */
+	a6xx_sptprac_disable(gmu);
+
+	/* Make sure there are no outstanding RPMh votes */
+	a6xx_gmu_rpmh_off(gmu);
 }
 
 int a6xx_gmu_resume(struct a6xx_gpu *a6xx_gpu)
@@ -714,13 +706,18 @@ int a6xx_gmu_resume(struct a6xx_gpu *a6xx_gpu)
 	/* Use a known rate to bring up the GMU */
 	clk_set_rate(gmu->core_clk, 200000000);
 	ret = clk_bulk_prepare_enable(gmu->nr_clocks, gmu->clocks);
-	if (ret)
-		goto out;
+	if (ret) {
+		pm_runtime_put(gmu->dev);
+		return ret;
+	}
 
 	/* Set the bus quota to a reasonable value for boot */
 	icc_set_bw(gpu->icc_path, 0, MBps_to_icc(3072));
 
-	a6xx_gmu_irq_enable(gmu);
+	/* Enable the GMU interrupt */
+	gmu_write(gmu, REG_A6XX_GMU_AO_HOST_INTERRUPT_CLR, ~0);
+	gmu_write(gmu, REG_A6XX_GMU_AO_HOST_INTERRUPT_MASK, ~A6XX_GMU_IRQ_MASK);
+	enable_irq(gmu->gmu_irq);
 
 	/* Check to see if we are doing a cold or warm boot */
 	status = gmu_read(gmu, REG_A6XX_GMU_GENERAL_7) == 1 ?
@@ -731,6 +728,16 @@ int a6xx_gmu_resume(struct a6xx_gpu *a6xx_gpu)
 		goto out;
 
 	ret = a6xx_hfi_start(gmu, status);
+	if (ret)
+		goto out;
+
+	/*
+	 * Turn on the GMU firmware fault interrupt after we know the boot
+	 * sequence is successful
+	 */
+	gmu_write(gmu, REG_A6XX_GMU_GMU2HOST_INTR_CLR, ~0);
+	gmu_write(gmu, REG_A6XX_GMU_GMU2HOST_INTR_MASK, ~A6XX_HFI_IRQ_MASK);
+	enable_irq(gmu->hfi_irq);
 
 	/* Set the GPU to the highest power frequency */
 	__a6xx_gmu_set_freq(gmu, gmu->nr_gpu_freqs - 1);
@@ -744,9 +751,12 @@ int a6xx_gmu_resume(struct a6xx_gpu *a6xx_gpu)
 		pm_runtime_get(gmu->gxpd);
 
 out:
-	/* Make sure to turn off the boot OOB request on error */
-	if (ret)
-		a6xx_gmu_clear_oob(gmu, GMU_OOB_BOOT_SLUMBER);
+	/* On failure, shut down the GMU to leave it in a good state */
+	if (ret) {
+		disable_irq(gmu->gmu_irq);
+		a6xx_rpmh_stop(gmu);
+		pm_runtime_put(gmu->dev);
+	}
 
 	return ret;
 }
@@ -769,6 +779,9 @@ bool a6xx_gmu_isidle(struct a6xx_gmu *gmu)
 /* Gracefully try to shut down the GMU and by extension the GPU */
 static void a6xx_gmu_shutdown(struct a6xx_gmu *gmu)
 {
+	struct a6xx_gpu *a6xx_gpu = container_of(gmu, struct a6xx_gpu, gmu);
+	struct adreno_gpu *adreno_gpu = &a6xx_gpu->base;
+	struct msm_gpu *gpu = &adreno_gpu->base;
 	u32 val;
 
 	/*
@@ -785,6 +798,12 @@ static void a6xx_gmu_shutdown(struct a6xx_gmu *gmu)
 			a6xx_gmu_force_off(gmu);
 			return;
 		}
+
+		/* Clear the VBIF pipe before shutting down */
+		gpu_write(gpu, REG_A6XX_VBIF_XIN_HALT_CTRL0, 0xf);
+		spin_until((gpu_read(gpu, REG_A6XX_VBIF_XIN_HALT_CTRL1) & 0xf)
+			== 0xf);
+		gpu_write(gpu, REG_A6XX_VBIF_XIN_HALT_CTRL0, 0);
 
 		/* tell the GMU we want to slumber */
 		a6xx_gmu_notify_slumber(gmu);
@@ -823,6 +842,9 @@ int a6xx_gmu_stop(struct a6xx_gpu *a6xx_gpu)
 {
 	struct a6xx_gmu *gmu = &a6xx_gpu->gmu;
 	struct msm_gpu *gpu = &a6xx_gpu->base.base;
+
+	if (!pm_runtime_active(gmu->dev))
+		return 0;
 
 	/*
 	 * Force the GMU off if we detected a hang, otherwise try to shut it

@@ -678,13 +678,15 @@ static int a6xx_pm_resume(struct msm_gpu *gpu)
 	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
 	int ret;
 
-	ret = a6xx_gmu_resume(a6xx_gpu);
-
 	gpu->needs_hw_init = true;
+
+	ret = a6xx_gmu_resume(a6xx_gpu);
+	if (ret)
+		return ret;
 
 	msm_gpu_resume_devfreq(gpu);
 
-	return ret;
+	return 0;
 }
 
 static int a6xx_pm_suspend(struct msm_gpu *gpu)
@@ -693,18 +695,6 @@ static int a6xx_pm_suspend(struct msm_gpu *gpu)
 	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
 
 	devfreq_suspend_device(gpu->devfreq.devfreq);
-
-	/*
-	 * Make sure the GMU is idle before continuing (because some transitions
-	 * may use VBIF
-	 */
-	a6xx_gmu_wait_for_idle(&a6xx_gpu->gmu);
-
-	/* Clear the VBIF pipe before shutting down */
-	/* FIXME: This accesses the GPU - do we need to make sure it is on? */
-	gpu_write(gpu, REG_A6XX_VBIF_XIN_HALT_CTRL0, 0xf);
-	spin_until((gpu_read(gpu, REG_A6XX_VBIF_XIN_HALT_CTRL1) & 0xf) == 0xf);
-	gpu_write(gpu, REG_A6XX_VBIF_XIN_HALT_CTRL0, 0);
 
 	return a6xx_gmu_stop(a6xx_gpu);
 }
