@@ -657,7 +657,7 @@ static int build_single_fd(struct dpaa2_eth_priv *priv,
  * dpaa2_eth_tx().
  */
 static void free_tx_fd(const struct dpaa2_eth_priv *priv,
-		       const struct dpaa2_fd *fd)
+		       const struct dpaa2_fd *fd, bool in_napi)
 {
 	struct device *dev = priv->net_dev->dev.parent;
 	dma_addr_t fd_addr;
@@ -712,7 +712,7 @@ static void free_tx_fd(const struct dpaa2_eth_priv *priv,
 		skb_free_frag(skbh);
 
 	/* Move on with skb release */
-	dev_kfree_skb(skb);
+	napi_consume_skb(skb, in_napi);
 }
 
 static netdev_tx_t dpaa2_eth_tx(struct sk_buff *skb, struct net_device *net_dev)
@@ -795,7 +795,7 @@ static netdev_tx_t dpaa2_eth_tx(struct sk_buff *skb, struct net_device *net_dev)
 	if (unlikely(err < 0)) {
 		percpu_stats->tx_errors++;
 		/* Clean up everything, including freeing the skb */
-		free_tx_fd(priv, &fd);
+		free_tx_fd(priv, &fd, false);
 	} else {
 		fd_len = dpaa2_fd_get_len(&fd);
 		percpu_stats->tx_packets++;
@@ -837,7 +837,7 @@ static void dpaa2_eth_tx_conf(struct dpaa2_eth_priv *priv,
 
 	/* Check frame errors in the FD field */
 	fd_errors = dpaa2_fd_get_ctrl(fd) & DPAA2_FD_TX_ERR_MASK;
-	free_tx_fd(priv, fd);
+	free_tx_fd(priv, fd, true);
 
 	if (likely(!fd_errors))
 		return;
