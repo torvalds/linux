@@ -20,6 +20,7 @@
 #define ZSTD_BTRFS_MAX_WINDOWLOG 17
 #define ZSTD_BTRFS_MAX_INPUT (1 << ZSTD_BTRFS_MAX_WINDOWLOG)
 #define ZSTD_BTRFS_DEFAULT_LEVEL 3
+#define ZSTD_BTRFS_MAX_LEVEL 15
 
 static ZSTD_parameters zstd_get_btrfs_parameters(unsigned int level,
 						 size_t src_len)
@@ -44,8 +45,39 @@ struct workspace {
 
 static struct workspace_manager wsm;
 
+static size_t zstd_ws_mem_sizes[ZSTD_BTRFS_MAX_LEVEL];
+
+/*
+ * zstd_calc_ws_mem_sizes - calculate monotonic memory bounds
+ *
+ * It is possible based on the level configurations that a higher level
+ * workspace uses less memory than a lower level workspace.  In order to reuse
+ * workspaces, this must be made a monotonic relationship.  This precomputes
+ * the required memory for each level and enforces the monotonicity between
+ * level and memory required.
+ */
+static void zstd_calc_ws_mem_sizes(void)
+{
+	size_t max_size = 0;
+	unsigned int level;
+
+	for (level = 1; level <= ZSTD_BTRFS_MAX_LEVEL; level++) {
+		ZSTD_parameters params =
+			zstd_get_btrfs_parameters(level, ZSTD_BTRFS_MAX_INPUT);
+		size_t level_size =
+			max_t(size_t,
+			      ZSTD_CStreamWorkspaceBound(params.cParams),
+			      ZSTD_DStreamWorkspaceBound(ZSTD_BTRFS_MAX_INPUT));
+
+		max_size = max_t(size_t, max_size, level_size);
+		zstd_ws_mem_sizes[level - 1] = max_size;
+	}
+}
+
 static void zstd_init_workspace_manager(void)
 {
+	zstd_calc_ws_mem_sizes();
+
 	btrfs_init_workspace_manager(&wsm, &btrfs_zstd_compress);
 }
 
@@ -80,17 +112,13 @@ static void zstd_free_workspace(struct list_head *ws)
 
 static struct list_head *zstd_alloc_workspace(unsigned int level)
 {
-	ZSTD_parameters params =
-			zstd_get_btrfs_parameters(level, ZSTD_BTRFS_MAX_INPUT);
 	struct workspace *workspace;
 
 	workspace = kzalloc(sizeof(*workspace), GFP_KERNEL);
 	if (!workspace)
 		return ERR_PTR(-ENOMEM);
 
-	workspace->size = max_t(size_t,
-			ZSTD_CStreamWorkspaceBound(params.cParams),
-			ZSTD_DStreamWorkspaceBound(ZSTD_BTRFS_MAX_INPUT));
+	workspace->size = zstd_ws_mem_sizes[level - 1];
 	workspace->mem = kvmalloc(workspace->size, GFP_KERNEL);
 	workspace->buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!workspace->mem || !workspace->buf)
