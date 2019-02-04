@@ -132,6 +132,10 @@ struct btrfs_compress_op {
 	void (*set_level)(struct list_head *ws, unsigned int type);
 };
 
+/* The heuristic workspaces are managed via the 0th workspace manager */
+#define BTRFS_NR_WORKSPACE_MANAGERS	(BTRFS_COMPRESS_TYPES + 1)
+
+extern const struct btrfs_compress_op btrfs_heuristic_compress;
 extern const struct btrfs_compress_op btrfs_zlib_compress;
 extern const struct btrfs_compress_op btrfs_lzo_compress;
 extern const struct btrfs_compress_op btrfs_zstd_compress;
