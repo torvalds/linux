@@ -311,6 +311,7 @@ struct rsi_common {
 	struct cfg80211_scan_request *hwscan;
 	struct rsi_bgscan_params bgscan;
 	u8 bgscan_en;
+	u8 mac_ops_resumed;
 };
 
 struct eepromrw_info {
