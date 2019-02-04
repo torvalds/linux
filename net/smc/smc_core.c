@@ -302,13 +302,13 @@ static void smc_buf_unuse(struct smc_connection *conn,
 		conn->sndbuf_desc->used = 0;
 	if (conn->rmb_desc) {
 		if (!conn->rmb_desc->regerr) {
-			conn->rmb_desc->used = 0;
 			if (!lgr->is_smcd) {
 				/* unregister rmb with peer */
 				smc_llc_do_delete_rkey(
 						&lgr->lnk[SMC_SINGLE_LINK],
 						conn->rmb_desc);
 			}
+			conn->rmb_desc->used = 0;
 		} else {
 			/* buf registration failed, reuse not possible */
 			write_lock_bh(&lgr->rmbs_lock);
