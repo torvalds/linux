@@ -41,7 +41,7 @@
 static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
 
 enum chips {
-	lm85,
+	lm85, lm96000,
 	adm1027, adt7463, adt7468,
 	emc6d100, emc6d102, emc6d103, emc6d103s
 };
@@ -1499,7 +1499,7 @@ static int lm85_detect(struct i2c_client *client, struct i2c_board_info *info)
 					"Found Winbond WPCD377I, ignoring\n");
 				return -ENODEV;
 			}
-			type_name = "lm85";
+			type_name = "lm96000";
 			break;
 		}
 	} else if (company == LM85_COMPANY_ANALOG_DEV) {
@@ -1623,6 +1623,7 @@ static const struct i2c_device_id lm85_id[] = {
 	{ "lm85", lm85 },
 	{ "lm85b", lm85 },
 	{ "lm85c", lm85 },
+	{ "lm96000", lm96000 },
 	{ "emc6d100", emc6d100 },
 	{ "emc6d101", emc6d100 },
 	{ "emc6d102", emc6d102 },
@@ -1656,6 +1657,10 @@ static const struct of_device_id lm85_of_match[] = {
 	{
 		.compatible = "national,lm85c",
 		.data = (void *)lm85
+	},
+	{
+		.compatible = "ti,lm96000",
+		.data = (void *)lm96000
 	},
 	{
 		.compatible = "smsc,emc6d100",
