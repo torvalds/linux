@@ -43,7 +43,7 @@ static int adt7316_i2c_read(void *client, u8 reg, u8 *data)
 static int adt7316_i2c_write(void *client, u8 reg, u8 data)
 {
 	struct i2c_client *cl = client;
-	int ret = 0;
+	int ret;
 
 	ret = i2c_smbus_write_byte_data(cl, reg, data);
 	if (ret < 0)
@@ -55,7 +55,7 @@ static int adt7316_i2c_write(void *client, u8 reg, u8 data)
 static int adt7316_i2c_multi_read(void *client, u8 reg, u8 count, u8 *data)
 {
 	struct i2c_client *cl = client;
-	int i, ret = 0;
+	int i, ret;
 
 	if (count > ADT7316_REG_MAX_ADDR)
 		count = ADT7316_REG_MAX_ADDR;
@@ -74,7 +74,7 @@ static int adt7316_i2c_multi_read(void *client, u8 reg, u8 count, u8 *data)
 static int adt7316_i2c_multi_write(void *client, u8 reg, u8 count, u8 *data)
 {
 	struct i2c_client *cl = client;
-	int i, ret = 0;
+	int i, ret;
 
 	if (count > ADT7316_REG_MAX_ADDR)
 		count = ADT7316_REG_MAX_ADDR;
