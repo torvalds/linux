@@ -741,10 +741,8 @@ snd_ad1889_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffe
 static void
 snd_ad1889_proc_init(struct snd_ad1889 *chip)
 {
-	struct snd_info_entry *entry;
-
-	if (!snd_card_proc_new(chip->card, chip->card->driver, &entry))
-		snd_info_set_text_ops(entry, chip, snd_ad1889_proc_read);
+	snd_card_ro_proc_new(chip->card, chip->card->driver,
+			     chip, snd_ad1889_proc_read);
 }
 
 static const struct ac97_quirk ac97_quirks[] = {

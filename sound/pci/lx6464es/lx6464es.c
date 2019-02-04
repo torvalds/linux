@@ -948,13 +948,7 @@ static void lx_proc_levels_read(struct snd_info_entry *entry,
 
 static int lx_proc_create(struct snd_card *card, struct lx6464es *chip)
 {
-	struct snd_info_entry *entry;
-	int err = snd_card_proc_new(card, "levels", &entry);
-	if (err < 0)
-		return err;
-
-	snd_info_set_text_ops(entry, chip, lx_proc_levels_read);
-	return 0;
+	return snd_card_ro_proc_new(card, "levels", chip, lx_proc_levels_read);
 }
 
 

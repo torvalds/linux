@@ -1084,10 +1084,8 @@ static void snd_intel8x0m_proc_read(struct snd_info_entry * entry,
 
 static void snd_intel8x0m_proc_init(struct intel8x0m *chip)
 {
-	struct snd_info_entry *entry;
-
-	if (! snd_card_proc_new(chip->card, "intel8x0m", &entry))
-		snd_info_set_text_ops(entry, chip, snd_intel8x0m_proc_read);
+	snd_card_ro_proc_new(chip->card, "intel8x0m", chip,
+			     snd_intel8x0m_proc_read);
 }
 
 static int snd_intel8x0m_dev_free(struct snd_device *device)

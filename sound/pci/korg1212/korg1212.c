@@ -2090,10 +2090,8 @@ static void snd_korg1212_proc_read(struct snd_info_entry *entry,
 
 static void snd_korg1212_proc_init(struct snd_korg1212 *korg1212)
 {
-	struct snd_info_entry *entry;
-
-	if (! snd_card_proc_new(korg1212->card, "korg1212", &entry))
-		snd_info_set_text_ops(entry, korg1212, snd_korg1212_proc_read);
+	snd_card_ro_proc_new(korg1212->card, "korg1212", korg1212,
+			     snd_korg1212_proc_read);
 }
 
 static int

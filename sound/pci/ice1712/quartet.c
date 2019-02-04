@@ -502,9 +502,7 @@ static void proc_regs_read(struct snd_info_entry *entry,
 
 static void proc_init(struct snd_ice1712 *ice)
 {
-	struct snd_info_entry *entry;
-	if (!snd_card_proc_new(ice->card, "quartet", &entry))
-		snd_info_set_text_ops(entry, ice, proc_regs_read);
+	snd_card_ro_proc_new(ice->card, "quartet", ice, proc_regs_read);
 }
 
 static int qtet_mute_get(struct snd_kcontrol *kcontrol,

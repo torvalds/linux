@@ -5287,44 +5287,35 @@ static void snd_hdspm_proc_ports_out(struct snd_info_entry *entry,
 
 static void snd_hdspm_proc_init(struct hdspm *hdspm)
 {
-	struct snd_info_entry *entry;
+	void (*read)(struct snd_info_entry *, struct snd_info_buffer *) = NULL;
 
-	if (!snd_card_proc_new(hdspm->card, "hdspm", &entry)) {
-		switch (hdspm->io_type) {
-		case AES32:
-			snd_info_set_text_ops(entry, hdspm,
-					snd_hdspm_proc_read_aes32);
-			break;
-		case MADI:
-			snd_info_set_text_ops(entry, hdspm,
-					snd_hdspm_proc_read_madi);
-			break;
-		case MADIface:
-			/* snd_info_set_text_ops(entry, hdspm,
-			 snd_hdspm_proc_read_madiface); */
-			break;
-		case RayDAT:
-			snd_info_set_text_ops(entry, hdspm,
-					snd_hdspm_proc_read_raydat);
-			break;
-		case AIO:
-			break;
-		}
+	switch (hdspm->io_type) {
+	case AES32:
+		read = snd_hdspm_proc_read_aes32;
+		break;
+	case MADI:
+		read = snd_hdspm_proc_read_madi;
+		break;
+	case MADIface:
+		/* read = snd_hdspm_proc_read_madiface; */
+		break;
+	case RayDAT:
+		read = snd_hdspm_proc_read_raydat;
+		break;
+	case AIO:
+		break;
 	}
 
-	if (!snd_card_proc_new(hdspm->card, "ports.in", &entry)) {
-		snd_info_set_text_ops(entry, hdspm, snd_hdspm_proc_ports_in);
-	}
-
-	if (!snd_card_proc_new(hdspm->card, "ports.out", &entry)) {
-		snd_info_set_text_ops(entry, hdspm, snd_hdspm_proc_ports_out);
-	}
+	snd_card_ro_proc_new(hdspm->card, "hdspm", hdspm, read);
+	snd_card_ro_proc_new(hdspm->card, "ports.in", hdspm,
+			     snd_hdspm_proc_ports_in);
+	snd_card_ro_proc_new(hdspm->card, "ports.out", hdspm,
+			     snd_hdspm_proc_ports_out);
 
 #ifdef CONFIG_SND_DEBUG
 	/* debug file to read all hdspm registers */
-	if (!snd_card_proc_new(hdspm->card, "debug", &entry))
-		snd_info_set_text_ops(entry, hdspm,
-				snd_hdspm_proc_read_debug);
+	snd_card_ro_proc_new(hdspm->card, "debug", hdspm,
+			     snd_hdspm_proc_read_debug);
 #endif
 }
 
