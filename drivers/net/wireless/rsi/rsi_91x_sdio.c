@@ -1396,7 +1396,6 @@ static int rsi_restore(struct device *dev)
 	common->iface_down = true;
 
 	adapter->sc_nvifs = 0;
-	ieee80211_restart_hw(adapter->hw);
 
 	common->wow_flags = 0;
 	common->iface_down = false;
