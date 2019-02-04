@@ -86,16 +86,16 @@ static void free_rx_fd(struct dpaa2_eth_priv *priv,
 	for (i = 1; i < DPAA2_ETH_MAX_SG_ENTRIES; i++) {
 		addr = dpaa2_sg_get_addr(&sgt[i]);
 		sg_vaddr = dpaa2_iova_to_virt(priv->iommu_domain, addr);
-		dma_unmap_single(dev, addr, DPAA2_ETH_RX_BUF_SIZE,
-				 DMA_BIDIRECTIONAL);
+		dma_unmap_page(dev, addr, DPAA2_ETH_RX_BUF_SIZE,
+			       DMA_BIDIRECTIONAL);
 
-		skb_free_frag(sg_vaddr);
+		free_pages((unsigned long)sg_vaddr, 0);
 		if (dpaa2_sg_is_final(&sgt[i]))
 			break;
 	}
 
 free_buf:
-	skb_free_frag(vaddr);
+	free_pages((unsigned long)vaddr, 0);
 }
 
 /* Build a linear skb based on a single-buffer frame descriptor */
@@ -109,7 +109,7 @@ static struct sk_buff *build_linear_skb(struct dpaa2_eth_channel *ch,
 
 	ch->buf_count--;
 
-	skb = build_skb(fd_vaddr, DPAA2_ETH_SKB_SIZE);
+	skb = build_skb(fd_vaddr, DPAA2_ETH_RX_BUF_RAW_SIZE);
 	if (unlikely(!skb))
 		return NULL;
 
@@ -144,19 +144,19 @@ static struct sk_buff *build_frag_skb(struct dpaa2_eth_priv *priv,
 		/* Get the address and length from the S/G entry */
 		sg_addr = dpaa2_sg_get_addr(sge);
 		sg_vaddr = dpaa2_iova_to_virt(priv->iommu_domain, sg_addr);
-		dma_unmap_single(dev, sg_addr, DPAA2_ETH_RX_BUF_SIZE,
-				 DMA_BIDIRECTIONAL);
+		dma_unmap_page(dev, sg_addr, DPAA2_ETH_RX_BUF_SIZE,
+			       DMA_BIDIRECTIONAL);
 
 		sg_length = dpaa2_sg_get_len(sge);
 
 		if (i == 0) {
 			/* We build the skb around the first data buffer */
-			skb = build_skb(sg_vaddr, DPAA2_ETH_SKB_SIZE);
+			skb = build_skb(sg_vaddr, DPAA2_ETH_RX_BUF_RAW_SIZE);
 			if (unlikely(!skb)) {
 				/* Free the first SG entry now, since we already
 				 * unmapped it and obtained the virtual address
 				 */
-				skb_free_frag(sg_vaddr);
+				free_pages((unsigned long)sg_vaddr, 0);
 
 				/* We still need to subtract the buffers used
 				 * by this FD from our software counter
@@ -211,9 +211,9 @@ static void free_bufs(struct dpaa2_eth_priv *priv, u64 *buf_array, int count)
 
 	for (i = 0; i < count; i++) {
 		vaddr = dpaa2_iova_to_virt(priv->iommu_domain, buf_array[i]);
-		dma_unmap_single(dev, buf_array[i], DPAA2_ETH_RX_BUF_SIZE,
-				 DMA_BIDIRECTIONAL);
-		skb_free_frag(vaddr);
+		dma_unmap_page(dev, buf_array[i], DPAA2_ETH_RX_BUF_SIZE,
+			       DMA_BIDIRECTIONAL);
+		free_pages((unsigned long)vaddr, 0);
 	}
 }
 
@@ -378,16 +378,16 @@ static void dpaa2_eth_rx(struct dpaa2_eth_priv *priv,
 			return;
 		}
 
-		dma_unmap_single(dev, addr, DPAA2_ETH_RX_BUF_SIZE,
-				 DMA_BIDIRECTIONAL);
+		dma_unmap_page(dev, addr, DPAA2_ETH_RX_BUF_SIZE,
+			       DMA_BIDIRECTIONAL);
 		skb = build_linear_skb(ch, fd, vaddr);
 	} else if (fd_format == dpaa2_fd_sg) {
 		WARN_ON(priv->xdp_prog);
 
-		dma_unmap_single(dev, addr, DPAA2_ETH_RX_BUF_SIZE,
-				 DMA_BIDIRECTIONAL);
+		dma_unmap_page(dev, addr, DPAA2_ETH_RX_BUF_SIZE,
+			       DMA_BIDIRECTIONAL);
 		skb = build_frag_skb(priv, ch, buf_data);
-		skb_free_frag(vaddr);
+		free_pages((unsigned long)vaddr, 0);
 		percpu_extras->rx_sg_frames++;
 		percpu_extras->rx_sg_bytes += dpaa2_fd_get_len(fd);
 	} else {
@@ -903,7 +903,7 @@ static int add_bufs(struct dpaa2_eth_priv *priv,
 {
 	struct device *dev = priv->net_dev->dev.parent;
 	u64 buf_array[DPAA2_ETH_BUFS_PER_CMD];
-	void *buf;
+	struct page *page;
 	dma_addr_t addr;
 	int i, err;
 
@@ -911,14 +911,16 @@ static int add_bufs(struct dpaa2_eth_priv *priv,
 		/* Allocate buffer visible to WRIOP + skb shared info +
 		 * alignment padding
 		 */
-		buf = napi_alloc_frag(dpaa2_eth_buf_raw_size(priv));
-		if (unlikely(!buf))
+		/* allocate one page for each Rx buffer. WRIOP sees
+		 * the entire page except for a tailroom reserved for
+		 * skb shared info
+		 */
+		page = dev_alloc_pages(0);
+		if (!page)
 			goto err_alloc;
 
-		buf = PTR_ALIGN(buf, priv->rx_buf_align);
-
-		addr = dma_map_single(dev, buf, DPAA2_ETH_RX_BUF_SIZE,
-				      DMA_BIDIRECTIONAL);
+		addr = dma_map_page(dev, page, 0, DPAA2_ETH_RX_BUF_SIZE,
+				    DMA_BIDIRECTIONAL);
 		if (unlikely(dma_mapping_error(dev, addr)))
 			goto err_map;
 
@@ -926,7 +928,7 @@ static int add_bufs(struct dpaa2_eth_priv *priv,
 
 		/* tracing point */
 		trace_dpaa2_eth_buf_seed(priv->net_dev,
-					 buf, dpaa2_eth_buf_raw_size(priv),
+					 page, DPAA2_ETH_RX_BUF_RAW_SIZE,
 					 addr, DPAA2_ETH_RX_BUF_SIZE,
 					 bpid);
 	}
@@ -948,7 +950,7 @@ release_bufs:
 	return i;
 
 err_map:
-	skb_free_frag(buf);
+	__free_pages(page, 0);
 err_alloc:
 	/* If we managed to allocate at least some buffers,
 	 * release them to hardware
@@ -2134,6 +2136,7 @@ static int set_buffer_layout(struct dpaa2_eth_priv *priv)
 {
 	struct device *dev = priv->net_dev->dev.parent;
 	struct dpni_buffer_layout buf_layout = {0};
+	u16 rx_buf_align;
 	int err;
 
 	/* We need to check for WRIOP version 1.0.0, but depending on the MC
@@ -2142,9 +2145,9 @@ static int set_buffer_layout(struct dpaa2_eth_priv *priv)
 	 */
 	if (priv->dpni_attrs.wriop_version == DPAA2_WRIOP_VERSION(0, 0, 0) ||
 	    priv->dpni_attrs.wriop_version == DPAA2_WRIOP_VERSION(1, 0, 0))
-		priv->rx_buf_align = DPAA2_ETH_RX_BUF_ALIGN_REV1;
+		rx_buf_align = DPAA2_ETH_RX_BUF_ALIGN_REV1;
 	else
-		priv->rx_buf_align = DPAA2_ETH_RX_BUF_ALIGN;
+		rx_buf_align = DPAA2_ETH_RX_BUF_ALIGN;
 
 	/* tx buffer */
 	buf_layout.private_data_size = DPAA2_ETH_SWA_SIZE;
@@ -2184,7 +2187,7 @@ static int set_buffer_layout(struct dpaa2_eth_priv *priv)
 	/* rx buffer */
 	buf_layout.pass_frame_status = true;
 	buf_layout.pass_parser_result = true;
-	buf_layout.data_align = priv->rx_buf_align;
+	buf_layout.data_align = rx_buf_align;
 	buf_layout.data_head_room = dpaa2_eth_rx_head_room(priv);
 	buf_layout.private_data_size = 0;
 	buf_layout.options = DPNI_BUF_LAYOUT_OPT_PARSER_RESULT |
