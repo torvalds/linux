@@ -21,21 +21,6 @@
 
 #include "mt76x02_mcu.h"
 
-static struct sk_buff *
-mt76x02_mcu_get_response(struct mt76x02_dev *dev, unsigned long expires)
-{
-	unsigned long timeout;
-
-	if (!time_is_after_jiffies(expires))
-		return NULL;
-
-	timeout = expires - jiffies;
-	wait_event_timeout(dev->mt76.mmio.mcu.wait,
-			   !skb_queue_empty(&dev->mt76.mmio.mcu.res_q),
-			   timeout);
-	return skb_dequeue(&dev->mt76.mmio.mcu.res_q);
-}
-
 static int
 mt76x02_tx_queue_mcu(struct mt76x02_dev *dev, enum mt76_txq_id qid,
 		     struct sk_buff *skb, int cmd, int seq)
@@ -94,7 +79,7 @@ int mt76x02_mcu_msg_send(struct mt76_dev *mdev, int cmd, const void *data,
 		u32 *rxfce;
 		bool check_seq = false;
 
-		skb = mt76x02_mcu_get_response(dev, expires);
+		skb = mt76_mcu_get_response(&dev->mt76, expires);
 		if (!skb) {
 			dev_err(mdev->dev,
 				"MCU message %d (seq %d) timed out\n", cmd,
