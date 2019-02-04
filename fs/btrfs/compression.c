@@ -769,7 +769,7 @@ fail:
 	return ERR_PTR(-ENOMEM);
 }
 
-struct workspaces_list {
+struct workspace_manager {
 	struct list_head idle_ws;
 	spinlock_t ws_lock;
 	/* Number of free workspaces */
@@ -780,9 +780,9 @@ struct workspaces_list {
 	wait_queue_head_t ws_wait;
 };
 
-static struct workspaces_list btrfs_comp_ws[BTRFS_COMPRESS_TYPES];
+static struct workspace_manager wsm[BTRFS_COMPRESS_TYPES];
 
-static struct workspaces_list btrfs_heuristic_ws;
+static struct workspace_manager btrfs_heuristic_ws;
 
 static const struct btrfs_compress_op * const btrfs_compress_op[] = {
 	&btrfs_zlib_compress,
@@ -811,10 +811,10 @@ void __init btrfs_init_compress(void)
 	}
 
 	for (i = 0; i < BTRFS_COMPRESS_TYPES; i++) {
-		INIT_LIST_HEAD(&btrfs_comp_ws[i].idle_ws);
-		spin_lock_init(&btrfs_comp_ws[i].ws_lock);
-		atomic_set(&btrfs_comp_ws[i].total_ws, 0);
-		init_waitqueue_head(&btrfs_comp_ws[i].ws_wait);
+		INIT_LIST_HEAD(&wsm[i].idle_ws);
+		spin_lock_init(&wsm[i].ws_lock);
+		atomic_set(&wsm[i].total_ws, 0);
+		init_waitqueue_head(&wsm[i].ws_wait);
 
 		/*
 		 * Preallocate one workspace for each compression type so
@@ -824,9 +824,9 @@ void __init btrfs_init_compress(void)
 		if (IS_ERR(workspace)) {
 			pr_warn("BTRFS: cannot preallocate compression workspace, will try later\n");
 		} else {
-			atomic_set(&btrfs_comp_ws[i].total_ws, 1);
-			btrfs_comp_ws[i].free_ws = 1;
-			list_add(workspace, &btrfs_comp_ws[i].idle_ws);
+			atomic_set(&wsm[i].total_ws, 1);
+			wsm[i].free_ws = 1;
+			list_add(workspace, &wsm[i].idle_ws);
 		}
 	}
 }
@@ -856,11 +856,11 @@ static struct list_head *__find_workspace(int type, bool heuristic)
 		ws_wait	 = &btrfs_heuristic_ws.ws_wait;
 		free_ws	 = &btrfs_heuristic_ws.free_ws;
 	} else {
-		idle_ws	 = &btrfs_comp_ws[idx].idle_ws;
-		ws_lock	 = &btrfs_comp_ws[idx].ws_lock;
-		total_ws = &btrfs_comp_ws[idx].total_ws;
-		ws_wait	 = &btrfs_comp_ws[idx].ws_wait;
-		free_ws	 = &btrfs_comp_ws[idx].free_ws;
+		idle_ws	 = &wsm[idx].idle_ws;
+		ws_lock	 = &wsm[idx].ws_lock;
+		total_ws = &wsm[idx].total_ws;
+		ws_wait	 = &wsm[idx].ws_wait;
+		free_ws	 = &wsm[idx].free_ws;
 	}
 
 again:
@@ -952,11 +952,11 @@ static void __free_workspace(int type, struct list_head *workspace,
 		ws_wait	 = &btrfs_heuristic_ws.ws_wait;
 		free_ws	 = &btrfs_heuristic_ws.free_ws;
 	} else {
-		idle_ws	 = &btrfs_comp_ws[idx].idle_ws;
-		ws_lock	 = &btrfs_comp_ws[idx].ws_lock;
-		total_ws = &btrfs_comp_ws[idx].total_ws;
-		ws_wait	 = &btrfs_comp_ws[idx].ws_wait;
-		free_ws	 = &btrfs_comp_ws[idx].free_ws;
+		idle_ws	 = &wsm[idx].idle_ws;
+		ws_lock	 = &wsm[idx].ws_lock;
+		total_ws = &wsm[idx].total_ws;
+		ws_wait	 = &wsm[idx].ws_wait;
+		free_ws	 = &wsm[idx].free_ws;
 	}
 
 	spin_lock(ws_lock);
@@ -998,11 +998,11 @@ static void free_workspaces(void)
 	}
 
 	for (i = 0; i < BTRFS_COMPRESS_TYPES; i++) {
-		while (!list_empty(&btrfs_comp_ws[i].idle_ws)) {
-			workspace = btrfs_comp_ws[i].idle_ws.next;
+		while (!list_empty(&wsm[i].idle_ws)) {
+			workspace = wsm[i].idle_ws.next;
 			list_del(workspace);
 			btrfs_compress_op[i]->free_workspace(workspace);
-			atomic_dec(&btrfs_comp_ws[i].total_ws);
+			atomic_dec(&wsm[i].total_ws);
 		}
 	}
 }
