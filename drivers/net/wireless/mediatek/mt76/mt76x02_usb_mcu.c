@@ -28,21 +28,6 @@
 
 #define MT_TX_CPU_FROM_FCE_CPU_DESC_IDX	0x09a8
 
-static struct sk_buff *
-mt76x02u_mcu_msg_alloc(const void *data, int len)
-{
-	struct sk_buff *skb;
-
-	skb = alloc_skb(MT_CMD_HDR_LEN + len + 8, GFP_KERNEL);
-	if (!skb)
-		return NULL;
-
-	skb_reserve(skb, MT_CMD_HDR_LEN);
-	skb_put_data(skb, data, len);
-
-	return skb;
-}
-
 static void
 mt76x02u_multiple_mcu_reads(struct mt76_dev *dev, u8 *data, int len)
 {
@@ -166,7 +151,7 @@ mt76x02u_mcu_send_msg(struct mt76_dev *dev, int cmd, const void *data,
 	struct sk_buff *skb;
 	int err;
 
-	skb = mt76x02u_mcu_msg_alloc(data, len);
+	skb = mt76_mcu_msg_alloc(data, MT_CMD_HDR_LEN, len, 8);
 	if (!skb)
 		return -ENOMEM;
 

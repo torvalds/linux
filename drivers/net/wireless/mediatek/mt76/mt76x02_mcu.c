@@ -21,18 +21,6 @@
 
 #include "mt76x02_mcu.h"
 
-static struct sk_buff *mt76x02_mcu_msg_alloc(const void *data, int len)
-{
-	struct sk_buff *skb;
-
-	skb = alloc_skb(len, GFP_KERNEL);
-	if (!skb)
-		return NULL;
-	memcpy(skb_put(skb, len), data, len);
-
-	return skb;
-}
-
 static struct sk_buff *
 mt76x02_mcu_get_response(struct mt76x02_dev *dev, unsigned long expires)
 {
