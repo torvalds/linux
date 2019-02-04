@@ -1061,6 +1061,10 @@ intel_dp_aux_wait_done(struct intel_dp *intel_dp)
 #define C (((status = I915_READ_NOTRACE(ch_ctl)) & DP_AUX_CH_CTL_SEND_BUSY) == 0)
 	done = wait_event_timeout(dev_priv->gmbus_wait_queue, C,
 				  msecs_to_jiffies_timeout(10));
+
+	/* just trace the final value */
+	trace_i915_reg_rw(false, ch_ctl, status, sizeof(status), true);
+
 	if (!done)
 		DRM_ERROR("dp aux hw did not signal timeout!\n");
 #undef C
@@ -1227,6 +1231,8 @@ intel_dp_aux_xfer(struct intel_dp *intel_dp,
 			break;
 		msleep(1);
 	}
+	/* just trace the final value */
+	trace_i915_reg_rw(false, ch_ctl, status, sizeof(status), true);
 
 	if (try == 3) {
 		static u32 last_status = -1;

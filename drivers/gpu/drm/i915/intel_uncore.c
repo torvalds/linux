@@ -1819,6 +1819,9 @@ int __intel_wait_for_register(struct drm_i915_private *dev_priv,
 				 (reg_value & mask) == value,
 				 slow_timeout_ms * 1000, 10, 1000);
 
+	/* just trace the final value */
+	trace_i915_reg_rw(false, reg, reg_value, sizeof(reg_value), true);
+
 	if (out_value)
 		*out_value = reg_value;
 
