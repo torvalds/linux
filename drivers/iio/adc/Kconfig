@@ -407,6 +407,15 @@ config INA2XX_ADC
 	  Say yes here to build support for TI INA2xx family of Power Monitors.
 	  This driver is mutually exclusive with the HWMON version.
 
+config INGENIC_ADC
+	tristate "Ingenic JZ47xx SoCs ADC driver"
+	depends on MIPS || COMPILE_TEST
+	help
+	  Say yes here to build support for the Ingenic JZ47xx SoCs ADC unit.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called ingenic_adc.
+
 config IMX7D_ADC
 	tristate "Freescale IMX7D ADC driver"
 	depends on ARCH_MXC || COMPILE_TEST
