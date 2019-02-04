@@ -160,7 +160,9 @@ static inline void smcd_curs_copy(union smcd_cdc_cursor *tgt,
 #endif
 }
 
-/* calculate cursor difference between old and new, where old <= new */
+/* calculate cursor difference between old and new, where old <= new and
+ * difference cannot exceed size
+ */
 static inline int smc_curs_diff(unsigned int size,
 				union smc_host_cursor *old,
 				union smc_host_cursor *new)
@@ -183,6 +185,28 @@ static inline int smc_curs_comp(unsigned int size,
 	    (old->wrap == new->wrap && old->count > new->count))
 		return -smc_curs_diff(size, new, old);
 	return smc_curs_diff(size, old, new);
+}
+
+/* calculate cursor difference between old and new, where old <= new and
+ * difference may exceed size
+ */
+static inline int smc_curs_diff_large(unsigned int size,
+				      union smc_host_cursor *old,
+				      union smc_host_cursor *new)
+{
+	if (old->wrap < new->wrap)
+		return min_t(int,
+			     (size - old->count) + new->count +
+			     (new->wrap - old->wrap - 1) * size,
+			     size);
+
+	if (old->wrap > new->wrap) /* wrap has switched from 0xffff to 0x0000 */
+		return min_t(int,
+			     (size - old->count) + new->count +
+			     (new->wrap + 0xffff - old->wrap) * size,
+			     size);
+
+	return max_t(int, 0, (new->count - old->count));
 }
 
 static inline void smc_host_cursor_to_cdc(union smc_cdc_cursor *peer,
