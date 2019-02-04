@@ -554,7 +554,7 @@ static int klp_add_nops(struct klp_patch *patch)
 	struct klp_patch *old_patch;
 	struct klp_object *old_obj;
 
-	list_for_each_entry(old_patch, &klp_patches, list) {
+	klp_for_each_patch(old_patch) {
 		klp_for_each_object(old_patch, old_obj) {
 			int err;
 
@@ -1089,7 +1089,7 @@ void klp_discard_replaced_patches(struct klp_patch *new_patch)
 {
 	struct klp_patch *old_patch, *tmp_patch;
 
-	list_for_each_entry_safe(old_patch, tmp_patch, &klp_patches, list) {
+	klp_for_each_patch_safe(old_patch, tmp_patch) {
 		if (old_patch == new_patch)
 			return;
 
@@ -1133,7 +1133,7 @@ static void klp_cleanup_module_patches_limited(struct module *mod,
 	struct klp_patch *patch;
 	struct klp_object *obj;
 
-	list_for_each_entry(patch, &klp_patches, list) {
+	klp_for_each_patch(patch) {
 		if (patch == limit)
 			break;
 
@@ -1180,7 +1180,7 @@ int klp_module_coming(struct module *mod)
 	 */
 	mod->klp_alive = true;
 
-	list_for_each_entry(patch, &klp_patches, list) {
+	klp_for_each_patch(patch) {
 		klp_for_each_object(patch, obj) {
 			if (!klp_is_module(obj) || strcmp(obj->name, mod->name))
 				continue;
