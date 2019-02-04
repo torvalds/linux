@@ -75,7 +75,6 @@ struct a6xx_gmu {
 
 	struct a6xx_hfi_queue queues[2];
 
-	struct tasklet_struct hfi_tasklet;
 	bool hung;
 };
 
