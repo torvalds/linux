@@ -1636,7 +1636,8 @@ static int amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 
 		shift = amdgpu_vm_level_shift(adev, cursor.level);
 		parent_shift = amdgpu_vm_level_shift(adev, cursor.level - 1);
-		if (adev->asic_type < CHIP_VEGA10) {
+		if (adev->asic_type < CHIP_VEGA10 &&
+		    (flags & AMDGPU_PTE_VALID)) {
 			/* No huge page support before GMC v9 */
 			if (cursor.level != AMDGPU_VM_PTB) {
 				if (!amdgpu_vm_pt_descendant(adev, &cursor))
