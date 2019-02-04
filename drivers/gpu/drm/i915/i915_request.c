@@ -968,7 +968,7 @@ void i915_request_add(struct i915_request *request)
 		 * Allow interactive/synchronous clients to jump ahead of
 		 * the bulk clients. (FQ_CODEL)
 		 */
-		if (!prev || i915_request_completed(prev))
+		if (list_empty(&request->sched.signalers_list))
 			attr.priority |= I915_PRIORITY_NEWCLIENT;
 
 		engine->schedule(request, &attr);
