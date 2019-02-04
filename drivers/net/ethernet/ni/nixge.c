@@ -1282,9 +1282,9 @@ static int nixge_of_get_resources(struct platform_device *pdev)
 
 static int nixge_probe(struct platform_device *pdev)
 {
+	struct device_node *mn, *phy_node;
 	struct nixge_priv *priv;
 	struct net_device *ndev;
-	struct device_node *mn;
 	const u8 *mac_addr;
 	int err;
 
@@ -1353,20 +1353,29 @@ static int nixge_probe(struct platform_device *pdev)
 		goto unregister_mdio;
 	}
 
-	priv->phy_node = of_parse_phandle(pdev->dev.of_node, "phy-handle", 0);
-	if (!priv->phy_node) {
-		netdev_err(ndev, "not find \"phy-handle\" property\n");
-		err = -EINVAL;
-		goto unregister_mdio;
+	phy_node = of_parse_phandle(pdev->dev.of_node, "phy-handle", 0);
+	if (!phy_node && of_phy_is_fixed_link(pdev->dev.of_node)) {
+		err = of_phy_register_fixed_link(pdev->dev.of_node);
+		if (err < 0) {
+			netdev_err(ndev, "broken fixed-link specification\n");
+			goto unregister_mdio;
+		}
+		phy_node = of_node_get(pdev->dev.of_node);
 	}
+	priv->phy_node = phy_node;
 
 	err = register_netdev(priv->ndev);
 	if (err) {
 		netdev_err(ndev, "register_netdev() error (%i)\n", err);
-		goto unregister_mdio;
+		goto free_phy;
 	}
 
 	return 0;
+
+free_phy:
+	if (of_phy_is_fixed_link(pdev->dev.of_node))
+		of_phy_deregister_fixed_link(pdev->dev.of_node);
+	of_node_put(phy_node);
 
 unregister_mdio:
 	if (priv->mii_bus)
@@ -1384,6 +1393,10 @@ static int nixge_remove(struct platform_device *pdev)
 	struct nixge_priv *priv = netdev_priv(ndev);
 
 	unregister_netdev(ndev);
+
+	if (of_phy_is_fixed_link(pdev->dev.of_node))
+		of_phy_deregister_fixed_link(pdev->dev.of_node);
+	of_node_put(priv->phy_node);
 
 	if (priv->mii_bus)
 		mdiobus_unregister(priv->mii_bus);
