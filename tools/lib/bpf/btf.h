@@ -55,11 +55,8 @@ struct btf_ext_header {
 	__u32	line_info_len;
 };
 
-typedef int (*btf_print_fn_t)(const char *, ...)
-	__attribute__((format(printf, 1, 2)));
-
 LIBBPF_API void btf__free(struct btf *btf);
-LIBBPF_API struct btf *btf__new(__u8 *data, __u32 size, btf_print_fn_t err_log);
+LIBBPF_API struct btf *btf__new(__u8 *data, __u32 size);
 LIBBPF_API __s32 btf__find_by_name(const struct btf *btf,
 				   const char *type_name);
 LIBBPF_API const struct btf_type *btf__type_by_id(const struct btf *btf,
@@ -70,7 +67,7 @@ LIBBPF_API int btf__fd(const struct btf *btf);
 LIBBPF_API const char *btf__name_by_offset(const struct btf *btf, __u32 offset);
 LIBBPF_API int btf__get_from_id(__u32 id, struct btf **btf);
 
-struct btf_ext *btf_ext__new(__u8 *data, __u32 size, btf_print_fn_t err_log);
+struct btf_ext *btf_ext__new(__u8 *data, __u32 size);
 void btf_ext__free(struct btf_ext *btf_ext);
 int btf_ext__reloc_func_info(const struct btf *btf,
 			     const struct btf_ext *btf_ext,

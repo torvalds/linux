@@ -42,6 +42,7 @@
 #include "bpf.h"
 #include "btf.h"
 #include "str_error.h"
+#include "libbpf_util.h"
 
 #ifndef EM_BPF
 #define EM_BPF 247
@@ -53,11 +54,14 @@
 
 #define __printf(a, b)	__attribute__((format(printf, a, b)))
 
-__printf(1, 2)
-static int __base_pr(const char *format, ...)
+__printf(2, 3)
+static int __base_pr(enum libbpf_print_level level, const char *format, ...)
 {
 	va_list args;
 	int err;
+
+	if (level == LIBBPF_DEBUG)
+		return 0;
 
 	va_start(args, format);
 	err = vfprintf(stderr, format, args);
@@ -65,27 +69,24 @@ static int __base_pr(const char *format, ...)
 	return err;
 }
 
-static __printf(1, 2) libbpf_print_fn_t __pr_warning = __base_pr;
-static __printf(1, 2) libbpf_print_fn_t __pr_info = __base_pr;
-static __printf(1, 2) libbpf_print_fn_t __pr_debug;
+static __printf(2, 3) libbpf_print_fn_t __libbpf_pr = __base_pr;
 
-#define __pr(func, fmt, ...)	\
-do {				\
-	if ((func))		\
-		(func)("libbpf: " fmt, ##__VA_ARGS__); \
-} while (0)
-
-#define pr_warning(fmt, ...)	__pr(__pr_warning, fmt, ##__VA_ARGS__)
-#define pr_info(fmt, ...)	__pr(__pr_info, fmt, ##__VA_ARGS__)
-#define pr_debug(fmt, ...)	__pr(__pr_debug, fmt, ##__VA_ARGS__)
-
-void libbpf_set_print(libbpf_print_fn_t warn,
-		      libbpf_print_fn_t info,
-		      libbpf_print_fn_t debug)
+void libbpf_set_print(libbpf_print_fn_t fn)
 {
-	__pr_warning = warn;
-	__pr_info = info;
-	__pr_debug = debug;
+	__libbpf_pr = fn;
+}
+
+__printf(2, 3)
+void libbpf_print(enum libbpf_print_level level, const char *format, ...)
+{
+	va_list args;
+
+	if (!__libbpf_pr)
+		return;
+
+	va_start(args, format);
+	__libbpf_pr(level, format, args);
+	va_end(args);
 }
 
 #define STRERR_BUFSIZE  128
@@ -839,8 +840,7 @@ static int bpf_object__elf_collect(struct bpf_object *obj, int flags)
 		else if (strcmp(name, "maps") == 0)
 			obj->efile.maps_shndx = idx;
 		else if (strcmp(name, BTF_ELF_SEC) == 0) {
-			obj->btf = btf__new(data->d_buf, data->d_size,
-					    __pr_debug);
+			obj->btf = btf__new(data->d_buf, data->d_size);
 			if (IS_ERR(obj->btf)) {
 				pr_warning("Error loading ELF section %s: %ld. Ignored and continue.\n",
 					   BTF_ELF_SEC, PTR_ERR(obj->btf));
@@ -915,8 +915,7 @@ static int bpf_object__elf_collect(struct bpf_object *obj, int flags)
 				 BTF_EXT_ELF_SEC, BTF_ELF_SEC);
 		} else {
 			obj->btf_ext = btf_ext__new(btf_ext_data->d_buf,
-						    btf_ext_data->d_size,
-						    __pr_debug);
+						    btf_ext_data->d_size);
 			if (IS_ERR(obj->btf_ext)) {
 				pr_warning("Error loading ELF section %s: %ld. Ignored and continue.\n",
 					   BTF_EXT_ELF_SEC,
