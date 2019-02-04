@@ -61,11 +61,10 @@ static void proc_audio_usbid_read(struct snd_info_entry *entry, struct snd_info_
 
 void snd_usb_audio_create_proc(struct snd_usb_audio *chip)
 {
-	struct snd_info_entry *entry;
-	if (!snd_card_proc_new(chip->card, "usbbus", &entry))
-		snd_info_set_text_ops(entry, chip, proc_audio_usbbus_read);
-	if (!snd_card_proc_new(chip->card, "usbid", &entry))
-		snd_info_set_text_ops(entry, chip, proc_audio_usbid_read);
+	snd_card_ro_proc_new(chip->card, "usbbus", chip,
+			     proc_audio_usbbus_read);
+	snd_card_ro_proc_new(chip->card, "usbid", chip,
+			     proc_audio_usbid_read);
 }
 
 /*
@@ -167,12 +166,10 @@ static void proc_pcm_format_read(struct snd_info_entry *entry, struct snd_info_b
 
 void snd_usb_proc_pcm_format_add(struct snd_usb_stream *stream)
 {
-	struct snd_info_entry *entry;
 	char name[32];
 	struct snd_card *card = stream->chip->card;
 
 	sprintf(name, "stream%d", stream->pcm_index);
-	if (!snd_card_proc_new(card, name, &entry))
-		snd_info_set_text_ops(entry, stream, proc_pcm_format_read);
+	snd_card_ro_proc_new(card, name, stream, proc_pcm_format_read);
 }
 
