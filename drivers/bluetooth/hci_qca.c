@@ -771,15 +771,16 @@ static int qca_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 	/* Prepend skb with frame type */
 	memcpy(skb_push(skb, 1), &hci_skb_pkt_type(skb), 1);
 
+	spin_lock_irqsave(&qca->hci_ibs_lock, flags);
+
 	/* Don't go to sleep in middle of patch download or
 	 * Out-Of-Band(GPIOs control) sleep is selected.
 	 */
 	if (!test_bit(STATE_IN_BAND_SLEEP_ENABLED, &qca->flags)) {
 		skb_queue_tail(&qca->txq, skb);
+		spin_unlock_irqrestore(&qca->hci_ibs_lock, flags);
 		return 0;
 	}
-
-	spin_lock_irqsave(&qca->hci_ibs_lock, flags);
 
 	/* Act according to current state */
 	switch (qca->tx_ibs_state) {
@@ -1275,6 +1276,18 @@ static const struct qca_vreg_data qca_soc_data = {
 
 static void qca_power_shutdown(struct hci_uart *hu)
 {
+	struct qca_data *qca = hu->priv;
+	unsigned long flags;
+
+	/* From this point we go into power off state. But serial port is
+	 * still open, stop queueing the IBS data and flush all the buffered
+	 * data in skb's.
+	 */
+	spin_lock_irqsave(&qca->hci_ibs_lock, flags);
+	clear_bit(STATE_IN_BAND_SLEEP_ENABLED, &qca->flags);
+	qca_flush(hu);
+	spin_unlock_irqrestore(&qca->hci_ibs_lock, flags);
+
 	host_set_baudrate(hu, 2400);
 	qca_send_power_pulse(hu, QCA_WCN3990_POWEROFF_PULSE);
 	qca_power_setup(hu, false);
