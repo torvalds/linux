@@ -121,7 +121,8 @@ struct workspace_manager {
 
 void btrfs_init_workspace_manager(struct workspace_manager *wsm,
 				  const struct btrfs_compress_op *ops);
-struct list_head *btrfs_get_workspace(struct workspace_manager *wsm);
+struct list_head *btrfs_get_workspace(struct workspace_manager *wsm,
+				      unsigned int level);
 void btrfs_put_workspace(struct workspace_manager *wsm, struct list_head *ws);
 void btrfs_cleanup_workspace_manager(struct workspace_manager *wsm);
 
@@ -130,11 +131,11 @@ struct btrfs_compress_op {
 
 	void (*cleanup_workspace_manager)(void);
 
-	struct list_head *(*get_workspace)(void);
+	struct list_head *(*get_workspace)(unsigned int level);
 
 	void (*put_workspace)(struct list_head *ws);
 
-	struct list_head *(*alloc_workspace)(void);
+	struct list_head *(*alloc_workspace)(unsigned int level);
 
 	void (*free_workspace)(struct list_head *workspace);
 

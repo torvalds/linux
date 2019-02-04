@@ -73,9 +73,9 @@ static void lzo_cleanup_workspace_manager(void)
 	btrfs_cleanup_workspace_manager(&wsm);
 }
 
-static struct list_head *lzo_get_workspace(void)
+static struct list_head *lzo_get_workspace(unsigned int level)
 {
-	return btrfs_get_workspace(&wsm);
+	return btrfs_get_workspace(&wsm, level);
 }
 
 static void lzo_put_workspace(struct list_head *ws)
@@ -93,7 +93,7 @@ static void lzo_free_workspace(struct list_head *ws)
 	kfree(workspace);
 }
 
-static struct list_head *lzo_alloc_workspace(void)
+static struct list_head *lzo_alloc_workspace(unsigned int level)
 {
 	struct workspace *workspace;
 

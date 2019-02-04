@@ -53,9 +53,9 @@ static void zstd_cleanup_workspace_manager(void)
 	btrfs_cleanup_workspace_manager(&wsm);
 }
 
-static struct list_head *zstd_get_workspace(void)
+static struct list_head *zstd_get_workspace(unsigned int level)
 {
-	return btrfs_get_workspace(&wsm);
+	return btrfs_get_workspace(&wsm, level);
 }
 
 static void zstd_put_workspace(struct list_head *ws)
@@ -72,7 +72,7 @@ static void zstd_free_workspace(struct list_head *ws)
 	kfree(workspace);
 }
 
-static struct list_head *zstd_alloc_workspace(void)
+static struct list_head *zstd_alloc_workspace(unsigned int level)
 {
 	ZSTD_parameters params =
 			zstd_get_btrfs_parameters(ZSTD_BTRFS_MAX_INPUT);

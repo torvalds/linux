@@ -742,9 +742,9 @@ static void heuristic_cleanup_workspace_manager(void)
 	btrfs_cleanup_workspace_manager(&heuristic_wsm);
 }
 
-static struct list_head *heuristic_get_workspace(void)
+static struct list_head *heuristic_get_workspace(unsigned int level)
 {
-	return btrfs_get_workspace(&heuristic_wsm);
+	return btrfs_get_workspace(&heuristic_wsm, level);
 }
 
 static void heuristic_put_workspace(struct list_head *ws)
@@ -764,7 +764,7 @@ static void free_heuristic_ws(struct list_head *ws)
 	kfree(workspace);
 }
 
-static struct list_head *alloc_heuristic_ws(void)
+static struct list_head *alloc_heuristic_ws(unsigned int level)
 {
 	struct heuristic_ws *ws;
 
@@ -824,7 +824,7 @@ void btrfs_init_workspace_manager(struct workspace_manager *wsm,
 	 * Preallocate one workspace for each compression type so we can
 	 * guarantee forward progress in the worst case
 	 */
-	workspace = wsm->ops->alloc_workspace();
+	workspace = wsm->ops->alloc_workspace(0);
 	if (IS_ERR(workspace)) {
 		pr_warn(
 	"BTRFS: cannot preallocate compression workspace, will try later\n");
@@ -853,7 +853,8 @@ void btrfs_cleanup_workspace_manager(struct workspace_manager *wsman)
  * Preallocation makes a forward progress guarantees and we do not return
  * errors.
  */
-struct list_head *btrfs_get_workspace(struct workspace_manager *wsm)
+struct list_head *btrfs_get_workspace(struct workspace_manager *wsm,
+				      unsigned int level)
 {
 	struct list_head *workspace;
 	int cpus = num_online_cpus();
@@ -899,7 +900,7 @@ again:
 	 * context of btrfs_compress_bio/btrfs_compress_pages
 	 */
 	nofs_flag = memalloc_nofs_save();
-	workspace = wsm->ops->alloc_workspace();
+	workspace = wsm->ops->alloc_workspace(level);
 	memalloc_nofs_restore(nofs_flag);
 
 	if (IS_ERR(workspace)) {
@@ -930,9 +931,9 @@ again:
 	return workspace;
 }
 
-static struct list_head *get_workspace(int type)
+static struct list_head *get_workspace(int type, int level)
 {
-	return btrfs_compress_op[type]->get_workspace();
+	return btrfs_compress_op[type]->get_workspace(level);
 }
 
 /*
@@ -1003,12 +1004,13 @@ int btrfs_compress_pages(unsigned int type_level, struct address_space *mapping,
 			 unsigned long *total_out)
 {
 	int type = btrfs_compress_type(type_level);
+	int level = btrfs_compress_level(type_level);
 	struct list_head *workspace;
 	int ret;
 
-	workspace = get_workspace(type);
+	workspace = get_workspace(type, level);
 
-	btrfs_compress_op[type]->set_level(workspace, type_level);
+	btrfs_compress_op[type]->set_level(workspace, level);
 	ret = btrfs_compress_op[type]->compress_pages(workspace, mapping,
 						      start, pages,
 						      out_pages,
@@ -1037,7 +1039,7 @@ static int btrfs_decompress_bio(struct compressed_bio *cb)
 	int ret;
 	int type = cb->compress_type;
 
-	workspace = get_workspace(type);
+	workspace = get_workspace(type, 0);
 	ret = btrfs_compress_op[type]->decompress_bio(workspace, cb);
 	put_workspace(type, workspace);
 
@@ -1055,13 +1057,12 @@ int btrfs_decompress(int type, unsigned char *data_in, struct page *dest_page,
 	struct list_head *workspace;
 	int ret;
 
-	workspace = get_workspace(type);
-
+	workspace = get_workspace(type, 0);
 	ret = btrfs_compress_op[type]->decompress(workspace, data_in,
 						  dest_page, start_byte,
 						  srclen, destlen);
-
 	put_workspace(type, workspace);
+
 	return ret;
 }
 
@@ -1489,7 +1490,7 @@ static void heuristic_collect_sample(struct inode *inode, u64 start, u64 end,
  */
 int btrfs_compress_heuristic(struct inode *inode, u64 start, u64 end)
 {
-	struct list_head *ws_list = get_workspace(0);
+	struct list_head *ws_list = get_workspace(0, 0);
 	struct heuristic_ws *ws;
 	u32 i;
 	u8 byte;
