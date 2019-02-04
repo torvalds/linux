@@ -56,6 +56,7 @@ config INTEGRITY_PLATFORM_KEYRING
         depends on INTEGRITY_ASYMMETRIC_KEYS
         depends on SYSTEM_BLACKLIST_KEYRING
         depends on EFI
+        select EFI_SIGNATURE_LIST_PARSER
         help
          Provide a separate, distinct keyring for platform trusted keys, which
          the kernel automatically populates during initialization from values

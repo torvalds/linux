@@ -10,6 +10,7 @@ obj-$(CONFIG_SYSTEM_BLACKLIST_KEYRING) += blacklist_hashes.o
 else
 obj-$(CONFIG_SYSTEM_BLACKLIST_KEYRING) += blacklist_nohashes.o
 endif
+obj-$(CONFIG_EFI_SIGNATURE_LIST_PARSER) += efi_parser.o
 
 ifeq ($(CONFIG_SYSTEM_TRUSTED_KEYRING),y)
 
