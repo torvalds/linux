@@ -1036,7 +1036,7 @@ int klp_enable_patch(struct klp_patch *patch)
 
 	if (!klp_have_reliable_stack()) {
 		pr_err("This architecture doesn't have support for the livepatch consistency model.\n");
-		return -ENOSYS;
+		return -EOPNOTSUPP;
 	}
 
 
