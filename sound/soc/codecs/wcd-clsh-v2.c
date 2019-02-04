@@ -208,7 +208,7 @@ static void wcd_clsh_set_gain_path(struct wcd_clsh_ctrl *ctrl, int mode)
 	case CLS_H_LP:
 		val = WCD9XXX_HPH_CONST_SEL_LP_PATH;
 		break;
-	};
+	}
 
 	snd_soc_component_update_bits(comp, WCD9XXX_HPH_L_EN,
 					WCD9XXX_HPH_CONST_SEL_L_MASK,
@@ -247,7 +247,7 @@ static void wcd_clsh_set_hph_mode(struct snd_soc_component *comp,
 		val = WCD9XXX_A_ANA_HPH_PWR_LEVEL_LP;
 		ipeak = WCD9XXX_CLASSH_CTRL_CCL_1_DELTA_IPEAK_30MA;
 		break;
-	};
+	}
 
 	snd_soc_component_update_bits(comp, WCD9XXX_A_ANA_HPH,
 					WCD9XXX_A_ANA_HPH_PWR_LEVEL_MASK, val);
@@ -542,7 +542,7 @@ int wcd_clsh_ctrl_set_state(struct wcd_clsh_ctrl *ctrl,
 	case WCD_CLSH_EVENT_POST_PA:
 		_wcd_clsh_ctrl_set_state(ctrl, nstate, CLSH_REQ_DISABLE, mode);
 		break;
-	};
+	}
 
 	ctrl->state = nstate;
 	ctrl->mode = mode;
