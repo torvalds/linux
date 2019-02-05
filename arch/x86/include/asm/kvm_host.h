@@ -319,6 +319,7 @@ struct kvm_mmu_page {
 	struct list_head link;
 	struct hlist_node hash_link;
 	bool unsync;
+	bool mmio_cached;
 
 	/*
 	 * The following two entries are used to key the shadow page in the
