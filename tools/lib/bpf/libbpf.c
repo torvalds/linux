@@ -54,22 +54,16 @@
 
 #define __printf(a, b)	__attribute__((format(printf, a, b)))
 
-__printf(2, 3)
-static int __base_pr(enum libbpf_print_level level, const char *format, ...)
+static int __base_pr(enum libbpf_print_level level, const char *format,
+		     va_list args)
 {
-	va_list args;
-	int err;
-
 	if (level == LIBBPF_DEBUG)
 		return 0;
 
-	va_start(args, format);
-	err = vfprintf(stderr, format, args);
-	va_end(args);
-	return err;
+	return vfprintf(stderr, format, args);
 }
 
-static __printf(2, 3) libbpf_print_fn_t __libbpf_pr = __base_pr;
+static libbpf_print_fn_t __libbpf_pr = __base_pr;
 
 void libbpf_set_print(libbpf_print_fn_t fn)
 {

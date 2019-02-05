@@ -25,15 +25,9 @@
 #include "c++/clang-c.h"
 
 static int libbpf_perf_print(enum libbpf_print_level level __attribute__((unused)),
-			      const char *fmt, ...)
+			      const char *fmt, va_list args)
 {
-	va_list args;
-	int ret;
-
-	va_start(args, fmt);
-	ret = veprintf(1, verbose, pr_fmt(fmt), args);
-	va_end(args);
-	return ret;
+	return veprintf(1, verbose, pr_fmt(fmt), args);
 }
 
 struct bpf_prog_priv {

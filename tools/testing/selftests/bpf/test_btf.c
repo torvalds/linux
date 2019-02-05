@@ -52,19 +52,10 @@ static int count_result(int err)
 	return err;
 }
 
-#define __printf(a, b)	__attribute__((format(printf, a, b)))
-
-__printf(2, 3)
 static int __base_pr(enum libbpf_print_level level __attribute__((unused)),
-		     const char *format, ...)
+		     const char *format, va_list args)
 {
-	va_list args;
-	int err;
-
-	va_start(args, format);
-	err = vfprintf(stderr, format, args);
-	va_end(args);
-	return err;
+	return vfprintf(stderr, format, args);
 }
 
 #define BTF_INFO_ENC(kind, kind_flag, vlen)			\

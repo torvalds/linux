@@ -54,8 +54,7 @@ enum libbpf_print_level {
 };
 
 typedef int (*libbpf_print_fn_t)(enum libbpf_print_level level,
-				 const char *, ...)
-	__attribute__((format(printf, 2, 3)));
+				 const char *, va_list ap);
 
 LIBBPF_API void libbpf_set_print(libbpf_print_fn_t fn);
 

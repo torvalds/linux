@@ -36,19 +36,13 @@ static void usage(char *argv[])
 
 static bool debug = 0;
 static int libbpf_debug_print(enum libbpf_print_level level,
-			      const char *fmt, ...)
+			      const char *fmt, va_list args)
 {
-	va_list args;
-	int ret;
-
 	if (level == LIBBPF_DEBUG && !debug)
 		return 0;
 
-	va_start(args, fmt);
 	fprintf(stderr, "[%d] ", level);
-	ret = vfprintf(stderr, fmt, args);
-	va_end(args);
-	return ret;
+	return vfprintf(stderr, fmt, args);
 }
 
 #define EXIT_FAIL_LIBBPF EXIT_FAILURE

@@ -1785,18 +1785,12 @@ static void test_task_fd_query_tp(void)
 }
 
 static int libbpf_debug_print(enum libbpf_print_level level,
-			      const char *format, ...)
+			      const char *format, va_list args)
 {
-	va_list args;
-	int ret;
-
 	if (level == LIBBPF_DEBUG)
 		return 0;
 
-	va_start(args, format);
-	ret = vfprintf(stderr, format, args);
-	va_end(args);
-	return ret;
+	return vfprintf(stderr, format, args);
 }
 
 static void test_reference_tracking()
