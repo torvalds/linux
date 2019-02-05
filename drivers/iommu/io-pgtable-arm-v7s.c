@@ -35,6 +35,7 @@
 #include <linux/atomic.h>
 #include <linux/dma-mapping.h>
 #include <linux/gfp.h>
+#include <linux/io-pgtable.h>
 #include <linux/iommu.h>
 #include <linux/kernel.h>
 #include <linux/kmemleak.h>
@@ -44,8 +45,6 @@
 #include <linux/types.h>
 
 #include <asm/barrier.h>
-
-#include "io-pgtable.h"
 
 /* Struct accessors */
 #define io_pgtable_to_data(x)						\
