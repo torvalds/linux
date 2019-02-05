@@ -40,6 +40,12 @@ struct snd_sof_pdata {
 	/* descriptor */
 	const struct sof_dev_desc *desc;
 
+	/* firmware and topology filenames */
+	const char *fw_filename_prefix;
+	const char *fw_filename;
+	const char *tplg_filename_prefix;
+	const char *tplg_filename;
+
 	/* machine */
 	struct platform_device *pdev_mach;
 	const struct snd_soc_acpi_mach *machine;
@@ -77,6 +83,10 @@ struct sof_dev_desc {
 	/* defaults for no codec mode */
 	const char *nocodec_fw_filename;
 	const char *nocodec_tplg_filename;
+
+	/* defaults paths for firmware and topology files */
+	const char *default_fw_path;
+	const char *default_tplg_path;
 
 	const struct snd_sof_dsp_ops *ops;
 	const struct sof_arch_ops *arch_ops;
