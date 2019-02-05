@@ -286,11 +286,11 @@ static int i2c_gpio_probe(struct platform_device *pdev)
 
 	/*
 	 * First get the GPIO pins; if it fails, we'll defer the probe.
-	 * If the SDA line is marked from platform data or device tree as
-	 * "open drain" it means something outside of our control is making
-	 * this line being handled as open drain, and we should just handle
-	 * it as any other output. Else we enforce open drain as this is
-	 * required for an I2C bus.
+	 * If the SCL/SDA lines are marked "open drain" by platform data or
+	 * device tree then this means that something outside of our control is
+	 * marking these lines to be handled as open drain, and we should just
+	 * handle them as we handle any other output. Else we enforce open
+	 * drain as this is required for an I2C bus.
 	 */
 	if (pdata->sda_is_open_drain)
 		gflags = GPIOD_OUT_HIGH;
@@ -300,13 +300,6 @@ static int i2c_gpio_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->sda))
 		return PTR_ERR(priv->sda);
 
-	/*
-	 * If the SCL line is marked from platform data or device tree as
-	 * "open drain" it means something outside of our control is making
-	 * this line being handled as open drain, and we should just handle
-	 * it as any other output. Else we enforce open drain as this is
-	 * required for an I2C bus.
-	 */
 	if (pdata->scl_is_open_drain)
 		gflags = GPIOD_OUT_HIGH;
 	else
