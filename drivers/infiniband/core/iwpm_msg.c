@@ -38,14 +38,21 @@ u16 iwpm_ulib_version = IWPM_UABI_VERSION_MIN;
 static int iwpm_user_pid = IWPM_PID_UNDEFINED;
 static atomic_t echo_nlmsg_seq;
 
+/**
+ * iwpm_valid_pid - Check if the userspace iwarp port mapper pid is valid
+ *
+ * Returns true if the pid is greater than zero, otherwise returns false
+ */
 int iwpm_valid_pid(void)
 {
 	return iwpm_user_pid > 0;
 }
 
-/*
- * iwpm_register_pid - Send a netlink query to user space
- *                     for the iwarp port mapper pid
+/**
+ * iwpm_register_pid - Send a netlink query to userspace
+ *                     to get the iwarp port mapper pid
+ * @pm_msg: Contains driver info to send to the userspace port mapper
+ * @nl_client: The index of the netlink client
  *
  * nlmsg attributes:
  *	[IWPM_NLA_REG_PID_SEQ]
@@ -124,13 +131,19 @@ pid_query_error:
 	return ret;
 }
 
-/*
- * iwpm_add_mapping - Send a netlink add mapping message
- *                    to the port mapper
+/**
+ * iwpm_add_mapping - Send a netlink add mapping request to
+ *                    the userspace port mapper
+ * @pm_msg: Contains the local ip/tcp address info to send
+ * @nl_client: The index of the netlink client
+ *
  * nlmsg attributes:
  *	[IWPM_NLA_MANAGE_MAPPING_SEQ]
  *	[IWPM_NLA_MANAGE_ADDR]
  *	[IWPM_NLA_MANAGE_FLAGS]
+ *
+ * If the request is successful, the pm_msg stores
+ * the port mapper response (mapped address info)
  */
 int iwpm_add_mapping(struct iwpm_sa_data *pm_msg, u8 nl_client)
 {
@@ -208,9 +221,12 @@ add_mapping_error_nowarn:
 	return ret;
 }
 
-/*
- * iwpm_add_and_query_mapping - Send a netlink add and query
- *                              mapping message to the port mapper
+/**
+ * iwpm_add_and_query_mapping - Process the port mapper response to
+ *                              iwpm_add_and_query_mapping request
+ * @pm_msg: Contains the local ip/tcp address info to send
+ * @nl_client: The index of the netlink client
+ *
  * nlmsg attributes:
  *	[IWPM_NLA_QUERY_MAPPING_SEQ]
  *	[IWPM_NLA_QUERY_LOCAL_ADDR]
@@ -299,9 +315,13 @@ query_mapping_error_nowarn:
 	return ret;
 }
 
-/*
- * iwpm_remove_mapping - Send a netlink remove mapping message
- *                       to the port mapper
+/**
+ * iwpm_remove_mapping - Send a netlink remove mapping request
+ *                       to the userspace port mapper
+ *
+ * @local_addr: Local ip/tcp address to remove
+ * @nl_client: The index of the netlink client
+ *
  * nlmsg attributes:
  *	[IWPM_NLA_MANAGE_MAPPING_SEQ]
  *	[IWPM_NLA_MANAGE_ADDR]
@@ -372,9 +392,14 @@ static const struct nla_policy resp_reg_policy[IWPM_NLA_RREG_PID_MAX] = {
 	[IWPM_NLA_RREG_PID_ERR]     = { .type = NLA_U16 }
 };
 
-/*
- * iwpm_register_pid_cb - Process a port mapper response to
- *                        iwpm_register_pid()
+/**
+ * iwpm_register_pid_cb - Process the port mapper response to
+ *                        iwpm_register_pid query
+ * @skb:
+ * @cb: Contains the received message (payload and netlink header)
+ *
+ * If successful, the function receives the userspace port mapper pid
+ * which is used in future communication with the port mapper
  */
 int iwpm_register_pid_cb(struct sk_buff *skb, struct netlink_callback *cb)
 {
@@ -443,9 +468,11 @@ static const struct nla_policy resp_add_policy[IWPM_NLA_RMANAGE_MAPPING_MAX] = {
 	[IWPM_NLA_RMANAGE_MAPPING_ERR]	   = { .type = NLA_U16 }
 };
 
-/*
- * iwpm_add_mapping_cb - Process a port mapper response to
- *                       iwpm_add_mapping()
+/**
+ * iwpm_add_mapping_cb - Process the port mapper response to
+ *                       iwpm_add_mapping request
+ * @skb:
+ * @cb: Contains the received message (payload and netlink header)
  */
 int iwpm_add_mapping_cb(struct sk_buff *skb, struct netlink_callback *cb)
 {
@@ -518,9 +545,11 @@ static const struct nla_policy resp_query_policy[IWPM_NLA_RQUERY_MAPPING_MAX] = 
 	[IWPM_NLA_RQUERY_MAPPING_ERR]	  = { .type = NLA_U16 }
 };
 
-/*
- * iwpm_add_and_query_mapping_cb - Process a port mapper response to
- *                                 iwpm_add_and_query_mapping()
+/**
+ * iwpm_add_and_query_mapping_cb - Process the port mapper response to
+ *                                 iwpm_add_and_query_mapping request
+ * @skb:
+ * @cb: Contains the received message (payload and netlink header)
  */
 int iwpm_add_and_query_mapping_cb(struct sk_buff *skb,
 				struct netlink_callback *cb)
@@ -598,9 +627,13 @@ query_mapping_response_exit:
 	return 0;
 }
 
-/*
- * iwpm_remote_info_cb - Process a port mapper message, containing
- *			  the remote connecting peer address info
+/**
+ * iwpm_remote_info_cb - Process remote connecting peer address info, which
+ *                       the port mapper has received from the connecting peer
+ * @skb:
+ * @cb: Contains the received message (payload and netlink header)
+ *
+ * Stores the IPv4/IPv6 address info in a hash table
  */
 int iwpm_remote_info_cb(struct sk_buff *skb, struct netlink_callback *cb)
 {
@@ -673,8 +706,14 @@ static const struct nla_policy resp_mapinfo_policy[IWPM_NLA_MAPINFO_REQ_MAX] = {
 	[IWPM_NLA_MAPINFO_ULIB_VER]  = { .type = NLA_U16 }
 };
 
-/*
- * iwpm_mapping_info_cb - Process a port mapper request for mapping info
+/**
+ * iwpm_mapping_info_cb - Process a notification that the userspace
+ *                        port mapper daemon is started
+ * @skb:
+ * @cb: Contains the received message (payload and netlink header)
+ *
+ * Using the received port mapper pid, send all the local mapping
+ * info records to the userspace port mapper
  */
 int iwpm_mapping_info_cb(struct sk_buff *skb, struct netlink_callback *cb)
 {
@@ -727,9 +766,11 @@ static const struct nla_policy ack_mapinfo_policy[IWPM_NLA_MAPINFO_NUM_MAX] = {
 	[IWPM_NLA_MAPINFO_ACK_NUM] =  { .type = NLA_U32 }
 };
 
-/*
- * iwpm_ack_mapping_info_cb - Process a port mapper ack for
- *                            the provided mapping info records
+/**
+ * iwpm_ack_mapping_info_cb - Process the port mapper ack for
+ *                            the provided local mapping info records
+ * @skb:
+ * @cb: Contains the received message (payload and netlink header)
  */
 int iwpm_ack_mapping_info_cb(struct sk_buff *skb, struct netlink_callback *cb)
 {
@@ -755,8 +796,11 @@ static const struct nla_policy map_error_policy[IWPM_NLA_ERR_MAX] = {
 	[IWPM_NLA_ERR_CODE]       = { .type = NLA_U16 },
 };
 
-/*
- * iwpm_mapping_error_cb - Process a port mapper error message
+/**
+ * iwpm_mapping_error_cb - Process port mapper notification for error
+ *
+ * @skb:
+ * @cb: Contains the received message (payload and netlink header)
  */
 int iwpm_mapping_error_cb(struct sk_buff *skb, struct netlink_callback *cb)
 {
@@ -797,8 +841,14 @@ static const struct nla_policy hello_policy[IWPM_NLA_HELLO_MAX] = {
 	[IWPM_NLA_HELLO_ABI_VERSION]     = { .type = NLA_U16 }
 };
 
-/*
- * iwpm_hello_cb - Process a port mapper hello request
+/**
+ * iwpm_hello_cb - Process a hello message from iwpmd
+ *
+ * @skb:
+ * @cb: Contains the received message (payload and netlink header)
+ *
+ * Using the received port mapper pid, send the kernel's abi_version
+ * after adjusting it to support the iwpmd version.
  */
 int iwpm_hello_cb(struct sk_buff *skb, struct netlink_callback *cb)
 {
