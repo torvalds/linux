@@ -2200,8 +2200,8 @@ static void kvm_unlink_unsync_page(struct kvm *kvm, struct kvm_mmu_page *sp)
 	--kvm->stat.mmu_unsync;
 }
 
-static int kvm_mmu_prepare_zap_page(struct kvm *kvm, struct kvm_mmu_page *sp,
-				    struct list_head *invalid_list);
+static bool kvm_mmu_prepare_zap_page(struct kvm *kvm, struct kvm_mmu_page *sp,
+				     struct list_head *invalid_list);
 static void kvm_mmu_commit_zap_page(struct kvm *kvm,
 				    struct list_head *invalid_list);
 
@@ -2669,16 +2669,21 @@ static int mmu_zap_unsync_children(struct kvm *kvm,
 	return zapped;
 }
 
-static int kvm_mmu_prepare_zap_page(struct kvm *kvm, struct kvm_mmu_page *sp,
-				    struct list_head *invalid_list)
+static bool __kvm_mmu_prepare_zap_page(struct kvm *kvm,
+				       struct kvm_mmu_page *sp,
+				       struct list_head *invalid_list,
+				       int *nr_zapped)
 {
-	int ret;
+	bool list_unstable;
 
 	trace_kvm_mmu_prepare_zap_page(sp);
 	++kvm->stat.mmu_shadow_zapped;
-	ret = mmu_zap_unsync_children(kvm, sp, invalid_list);
+	*nr_zapped = mmu_zap_unsync_children(kvm, sp, invalid_list);
 	kvm_mmu_page_unlink_children(kvm, sp);
 	kvm_mmu_unlink_parents(kvm, sp);
+
+	/* Zapping children means active_mmu_pages has become unstable. */
+	list_unstable = *nr_zapped;
 
 	if (!sp->role.invalid && !sp->role.direct)
 		unaccount_shadowed(kvm, sp);
@@ -2687,7 +2692,7 @@ static int kvm_mmu_prepare_zap_page(struct kvm *kvm, struct kvm_mmu_page *sp,
 		kvm_unlink_unsync_page(kvm, sp);
 	if (!sp->root_count) {
 		/* Count self */
-		ret++;
+		(*nr_zapped)++;
 		list_move(&sp->link, invalid_list);
 		kvm_mod_used_mmu_pages(kvm, -1);
 	} else {
@@ -2698,7 +2703,16 @@ static int kvm_mmu_prepare_zap_page(struct kvm *kvm, struct kvm_mmu_page *sp,
 	}
 
 	sp->role.invalid = 1;
-	return ret;
+	return list_unstable;
+}
+
+static bool kvm_mmu_prepare_zap_page(struct kvm *kvm, struct kvm_mmu_page *sp,
+				     struct list_head *invalid_list)
+{
+	int nr_zapped;
+
+	__kvm_mmu_prepare_zap_page(kvm, sp, invalid_list, &nr_zapped);
+	return nr_zapped;
 }
 
 static void kvm_mmu_commit_zap_page(struct kvm *kvm,
@@ -5830,13 +5844,14 @@ void kvm_mmu_zap_all(struct kvm *kvm)
 {
 	struct kvm_mmu_page *sp, *node;
 	LIST_HEAD(invalid_list);
+	int ign;
 
 	spin_lock(&kvm->mmu_lock);
 restart:
 	list_for_each_entry_safe(sp, node, &kvm->arch.active_mmu_pages, link) {
 		if (sp->role.invalid && sp->root_count)
 			continue;
-		if (kvm_mmu_prepare_zap_page(kvm, sp, &invalid_list) ||
+		if (__kvm_mmu_prepare_zap_page(kvm, sp, &invalid_list, &ign) ||
 		    cond_resched_lock(&kvm->mmu_lock))
 			goto restart;
 	}
@@ -5849,13 +5864,14 @@ static void kvm_mmu_zap_mmio_sptes(struct kvm *kvm)
 {
 	struct kvm_mmu_page *sp, *node;
 	LIST_HEAD(invalid_list);
+	int ign;
 
 	spin_lock(&kvm->mmu_lock);
 restart:
 	list_for_each_entry_safe(sp, node, &kvm->arch.active_mmu_pages, link) {
 		if (!sp->mmio_cached)
 			continue;
-		if (kvm_mmu_prepare_zap_page(kvm, sp, &invalid_list) ||
+		if (__kvm_mmu_prepare_zap_page(kvm, sp, &invalid_list, &ign) ||
 		    cond_resched_lock(&kvm->mmu_lock))
 			goto restart;
 	}
