@@ -361,29 +361,6 @@ static void hsw_color_commit(const struct intel_crtc_state *crtc_state)
 	ilk_load_csc_matrix(crtc_state);
 }
 
-/* Loads the legacy palette/gamma unit for the CRTC on Haswell. */
-static void haswell_load_luts(const struct intel_crtc_state *crtc_state)
-{
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	bool reenable_ips = false;
-
-	/*
-	 * Workaround : Do not read or write the pipe palette/gamma data while
-	 * GAMMA_MODE is configured for split gamma and IPS_CTL has IPS enabled.
-	 */
-	if (IS_HASWELL(dev_priv) && crtc_state->ips_enabled &&
-	    (crtc_state->gamma_mode == GAMMA_MODE_MODE_SPLIT)) {
-		hsw_disable_ips(crtc_state);
-		reenable_ips = true;
-	}
-
-	i9xx_load_luts(crtc_state);
-
-	if (reenable_ips)
-		hsw_enable_ips(crtc_state);
-}
-
 static void bdw_load_degamma_lut(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
@@ -675,7 +652,7 @@ void intel_color_init(struct intel_crtc *crtc)
 	if (IS_CHERRYVIEW(dev_priv)) {
 		dev_priv->display.load_luts = cherryview_load_luts;
 	} else if (IS_HASWELL(dev_priv)) {
-		dev_priv->display.load_luts = haswell_load_luts;
+		dev_priv->display.load_luts = i9xx_load_luts;
 		dev_priv->display.color_commit = hsw_color_commit;
 	} else if (IS_BROADWELL(dev_priv) || IS_GEN9_BC(dev_priv) ||
 		   IS_BROXTON(dev_priv)) {
