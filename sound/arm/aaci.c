@@ -941,7 +941,8 @@ static int aaci_init_pcm(struct aaci *aaci)
 		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &aaci_playback_ops);
 		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &aaci_capture_ops);
 		snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-						      NULL, 0, 64 * 1024);
+						      aaci->card->dev,
+						      0, 64 * 1024);
 	}
 
 	return ret;

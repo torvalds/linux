@@ -369,7 +369,8 @@ static int acp3x_dma_new(struct snd_soc_pcm_runtime *rtd)
 {
 	return snd_pcm_lib_preallocate_pages_for_all(rtd->pcm,
 						     SNDRV_DMA_TYPE_DEV,
-						     NULL, MIN_BUFFER,
+						     rtd->pcm->card->dev,
+						     MIN_BUFFER,
 						     MAX_BUFFER);
 }
 
