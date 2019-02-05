@@ -170,17 +170,6 @@ struct host_if_drv {
 	u8 assoc_resp[WILC_MAX_ASSOC_RESP_FRAME_SIZE];
 };
 
-struct add_sta_param {
-	u8 bssid[ETH_ALEN];
-	u16 aid;
-	u8 rates_len;
-	const u8 *rates;
-	bool ht_supported;
-	struct ieee80211_ht_cap ht_capa;
-	u16 flags_mask;
-	u16 flags_set;
-};
-
 struct wilc_vif;
 int wilc_remove_wep_key(struct wilc_vif *vif, u8 index);
 int wilc_set_wep_default_keyid(struct wilc_vif *vif, u8 index);
