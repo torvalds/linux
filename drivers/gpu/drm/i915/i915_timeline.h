@@ -28,6 +28,7 @@
 #include <linux/list.h>
 #include <linux/kref.h>
 
+#include "i915_active.h"
 #include "i915_request.h"
 #include "i915_syncmap.h"
 #include "i915_utils.h"
@@ -58,10 +59,10 @@ struct i915_timeline {
 
 	/* Contains an RCU guarded pointer to the last request. No reference is
 	 * held to the request, users must carefully acquire a reference to
-	 * the request using i915_gem_active_get_request_rcu(), or hold the
+	 * the request using i915_active_request_get_request_rcu(), or hold the
 	 * struct_mutex.
 	 */
-	struct i915_gem_active last_request;
+	struct i915_active_request last_request;
 
 	/**
 	 * We track the most recent seqno that we wait on in every context so
@@ -82,7 +83,7 @@ struct i915_timeline {
 	 * subsequent submissions to this timeline be executed only after the
 	 * barrier has been completed.
 	 */
-	struct i915_gem_active barrier;
+	struct i915_active_request barrier;
 
 	struct list_head link;
 	const char *name;
@@ -174,7 +175,10 @@ void i915_timelines_fini(struct drm_i915_private *i915);
  * submissions on @timeline. Subsequent requests will not be submitted to GPU
  * until the barrier has been completed.
  */
-int i915_timeline_set_barrier(struct i915_timeline *timeline,
-			      struct i915_request *rq);
+static inline int
+i915_timeline_set_barrier(struct i915_timeline *tl, struct i915_request *rq)
+{
+	return i915_active_request_set(&tl->barrier, rq);
+}
 
 #endif

@@ -3018,7 +3018,7 @@ static void assert_kernel_context_is_current(struct drm_i915_private *i915)
 
 	GEM_BUG_ON(i915->gt.active_requests);
 	for_each_engine(engine, i915, id) {
-		GEM_BUG_ON(__i915_gem_active_peek(&engine->timeline.last_request));
+		GEM_BUG_ON(__i915_active_request_peek(&engine->timeline.last_request));
 		GEM_BUG_ON(engine->last_retired_context !=
 			   to_intel_context(i915->kernel_context, engine));
 	}
@@ -3264,7 +3264,7 @@ wait_for_timelines(struct drm_i915_private *i915,
 	list_for_each_entry(tl, &gt->active_list, link) {
 		struct i915_request *rq;
 
-		rq = i915_gem_active_get_unlocked(&tl->last_request);
+		rq = i915_active_request_get_unlocked(&tl->last_request);
 		if (!rq)
 			continue;
 
@@ -4165,7 +4165,8 @@ out:
 }
 
 static void
-frontbuffer_retire(struct i915_gem_active *active, struct i915_request *request)
+frontbuffer_retire(struct i915_active_request *active,
+		   struct i915_request *request)
 {
 	struct drm_i915_gem_object *obj =
 		container_of(active, typeof(*obj), frontbuffer_write);
@@ -4192,7 +4193,8 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 	obj->resv = &obj->__builtin_resv;
 
 	obj->frontbuffer_ggtt_origin = ORIGIN_GTT;
-	init_request_active(&obj->frontbuffer_write, frontbuffer_retire);
+	i915_active_request_init(&obj->frontbuffer_write,
+				 NULL, frontbuffer_retire);
 
 	obj->mm.madv = I915_MADV_WILLNEED;
 	INIT_RADIX_TREE(&obj->mm.get_page.radix, GFP_KERNEL | __GFP_NOWARN);

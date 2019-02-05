@@ -1086,7 +1086,7 @@ bool intel_engine_has_kernel_context(const struct intel_engine_cs *engine)
 	 * the last request that remains in the timeline. When idle, it is
 	 * the last executed context as tracked by retirement.
 	 */
-	rq = __i915_gem_active_peek(&engine->timeline.last_request);
+	rq = __i915_active_request_peek(&engine->timeline.last_request);
 	if (rq)
 		return rq->hw_context == kernel_context;
 	else

@@ -120,7 +120,7 @@ vma_create(struct drm_i915_gem_object *obj,
 		return ERR_PTR(-ENOMEM);
 
 	i915_active_init(vm->i915, &vma->active, __i915_vma_retire);
-	init_request_active(&vma->last_fence, NULL);
+	INIT_ACTIVE_REQUEST(&vma->last_fence);
 
 	vma->vm = vm;
 	vma->ops = &vm->vma_ops;
@@ -808,7 +808,7 @@ static void __i915_vma_destroy(struct i915_vma *vma)
 	GEM_BUG_ON(vma->node.allocated);
 	GEM_BUG_ON(vma->fence);
 
-	GEM_BUG_ON(i915_gem_active_isset(&vma->last_fence));
+	GEM_BUG_ON(i915_active_request_isset(&vma->last_fence));
 
 	mutex_lock(&vma->vm->mutex);
 	list_del(&vma->vm_link);
@@ -942,14 +942,14 @@ int i915_vma_move_to_active(struct i915_vma *vma,
 		obj->write_domain = I915_GEM_DOMAIN_RENDER;
 
 		if (intel_fb_obj_invalidate(obj, ORIGIN_CS))
-			i915_gem_active_set(&obj->frontbuffer_write, rq);
+			__i915_active_request_set(&obj->frontbuffer_write, rq);
 
 		obj->read_domains = 0;
 	}
 	obj->read_domains |= I915_GEM_GPU_DOMAINS;
 
 	if (flags & EXEC_OBJECT_NEEDS_FENCE)
-		i915_gem_active_set(&vma->last_fence, rq);
+		__i915_active_request_set(&vma->last_fence, rq);
 
 	export_fence(vma, rq, flags);
 	return 0;
@@ -986,8 +986,8 @@ int i915_vma_unbind(struct i915_vma *vma)
 		if (ret)
 			goto unpin;
 
-		ret = i915_gem_active_retire(&vma->last_fence,
-					     &vma->vm->i915->drm.struct_mutex);
+		ret = i915_active_request_retire(&vma->last_fence,
+					      &vma->vm->i915->drm.struct_mutex);
 unpin:
 		__i915_vma_unpin(vma);
 		if (ret)

@@ -322,7 +322,7 @@ static u32 default_desc_template(const struct drm_i915_private *i915,
 	return desc;
 }
 
-static void intel_context_retire(struct i915_gem_active *active,
+static void intel_context_retire(struct i915_active_request *active,
 				 struct i915_request *rq)
 {
 	struct intel_context *ce =
@@ -344,7 +344,8 @@ intel_context_init(struct intel_context *ce,
 	/* Use the whole device by default */
 	ce->sseu = intel_device_default_sseu(ctx->i915);
 
-	init_request_active(&ce->active_tracker, intel_context_retire);
+	i915_active_request_init(&ce->active_tracker,
+				 NULL, intel_context_retire);
 }
 
 static struct i915_gem_context *
@@ -668,8 +669,8 @@ last_request_on_engine(struct i915_timeline *timeline,
 
 	GEM_BUG_ON(timeline == &engine->timeline);
 
-	rq = i915_gem_active_raw(&timeline->last_request,
-				 &engine->i915->drm.struct_mutex);
+	rq = i915_active_request_raw(&timeline->last_request,
+				     &engine->i915->drm.struct_mutex);
 	if (rq && rq->engine == engine) {
 		GEM_TRACE("last request for %s on engine %s: %llx:%llu\n",
 			  timeline->name, engine->name,
@@ -1015,8 +1016,8 @@ gen8_modify_rpcs_gpu(struct intel_context *ce,
 	}
 
 	/* Queue this switch after all other activity by this context. */
-	prev = i915_gem_active_raw(&ce->ring->timeline->last_request,
-				   &i915->drm.struct_mutex);
+	prev = i915_active_request_raw(&ce->ring->timeline->last_request,
+				       &i915->drm.struct_mutex);
 	if (prev && !i915_request_completed(prev)) {
 		ret = i915_request_await_dma_fence(rq, &prev->fence);
 		if (ret < 0)
@@ -1039,9 +1040,9 @@ gen8_modify_rpcs_gpu(struct intel_context *ce,
 	 * But we only need to take one pin on the account of it. Or in other
 	 * words transfer the pinned ce object to tracked active request.
 	 */
-	if (!i915_gem_active_isset(&ce->active_tracker))
+	if (!i915_active_request_isset(&ce->active_tracker))
 		__intel_context_pin(ce);
-	i915_gem_active_set(&ce->active_tracker, rq);
+	__i915_active_request_set(&ce->active_tracker, rq);
 
 out_add:
 	i915_request_add(rq);

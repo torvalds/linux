@@ -1062,23 +1062,23 @@ i915_error_object_create(struct drm_i915_private *i915,
 }
 
 /* The error capture is special as tries to run underneath the normal
- * locking rules - so we use the raw version of the i915_gem_active lookup.
+ * locking rules - so we use the raw version of the i915_active_request lookup.
  */
 static inline u32
-__active_get_seqno(struct i915_gem_active *active)
+__active_get_seqno(struct i915_active_request *active)
 {
 	struct i915_request *request;
 
-	request = __i915_gem_active_peek(active);
+	request = __i915_active_request_peek(active);
 	return request ? request->global_seqno : 0;
 }
 
 static inline int
-__active_get_engine_id(struct i915_gem_active *active)
+__active_get_engine_id(struct i915_active_request *active)
 {
 	struct i915_request *request;
 
-	request = __i915_gem_active_peek(active);
+	request = __i915_active_request_peek(active);
 	return request ? request->engine->id : -1;
 }
 

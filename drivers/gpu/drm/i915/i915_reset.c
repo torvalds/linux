@@ -862,7 +862,7 @@ bool i915_gem_unset_wedged(struct drm_i915_private *i915)
 		struct i915_request *rq;
 		long timeout;
 
-		rq = i915_gem_active_get_unlocked(&tl->last_request);
+		rq = i915_active_request_get_unlocked(&tl->last_request);
 		if (!rq)
 			continue;
 
