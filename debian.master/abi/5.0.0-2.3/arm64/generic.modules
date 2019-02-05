@@ -1,5 +1,3 @@
-3c574_cs
-3c589_cs
 3c59x
 3w-9xxx
 3w-sas
@@ -253,7 +251,6 @@ affs
 afs
 ah4
 ah6
-aha152x_cs
 ahci
 ahci_brcm
 ahci_ceva
@@ -269,8 +266,6 @@ aio_aio12_8
 aio_iiro_16
 aiptek
 aircable
-airo
-airo_cs
 airspy
 ak8974
 ak8975
@@ -416,7 +411,6 @@ atmel
 atmel-flexcom
 atmel-hlcdc
 atmel_captouch
-atmel_cs
 atmel_mxt_ts
 atmel_pci
 atmtcp
@@ -434,13 +428,10 @@ auth_rpcgss
 authenc
 authencesn
 autofs4
-avm_cs
-avma1_cs
 avmfritz
 ax25
 ax88179_178a
 axis-fifo
-axnet_cs
 axp20x
 axp20x-i2c
 axp20x-pek
@@ -455,7 +446,6 @@ axp288_fuel_gauge
 b1
 b1dma
 b1pci
-b1pcmcia
 b2c2-flexcop
 b2c2-flexcop-pci
 b2c2-flexcop-usb
@@ -527,7 +517,6 @@ block2mtd
 blocklayoutdriver
 blowfish_common
 blowfish_generic
-bluecard_cs
 bluetooth
 bluetooth_6lowpan
 bma150
@@ -585,7 +574,6 @@ brd
 bridge
 broadcom
 bsd_comp
-bt3c_cs
 bt878
 btbcm
 btcoexist
@@ -660,7 +648,6 @@ cavium-rng-vf
 cavium_ptp
 cb710
 cb710-mmc
-cb_das16_cs
 cb_pcidas
 cb_pcidas64
 cb_pcidda
@@ -771,8 +758,6 @@ cm3232
 cm3323
 cm3605
 cm36651
-cm4000_cs
-cm4040_cs
 cma3000_d0x
 cma3000_d0x_i2c
 cmac
@@ -785,7 +770,6 @@ coda
 colibri-vf50-ts
 com20020
 com20020-pci
-com20020_cs
 com90io
 com90xx
 comedi
@@ -794,7 +778,6 @@ comedi_8255
 comedi_bond
 comedi_parport
 comedi_pci
-comedi_pcmcia
 comedi_test
 comedi_usb
 contec_pci_dio
@@ -936,7 +919,6 @@ da9211-regulator
 dac02
 daqboard2000
 das08
-das08_cs
 das08_isa
 das08_pci
 das16
@@ -1076,7 +1058,6 @@ dt282x
 dt3000
 dt3155
 dt9812
-dtl1_cs
 dumb-vga-dac
 dummy
 dummy-irq
@@ -1213,7 +1194,6 @@ ektf2127
 elan_i2c
 elants_i2c
 elo
-elsa_cs
 em28xx
 em28xx-alsa
 em28xx-dvb
@@ -1234,7 +1214,6 @@ emi26
 emi62
 empeg
 ems_pci
-ems_pcmcia
 ems_usb
 emu10k1-gp
 emxx_udc
@@ -1357,7 +1336,6 @@ fmc-chardev
 fmc-fakedev
 fmc-trivial
 fmc-write-eeprom
-fmvj18x_cs
 forcedeth
 fore_200e
 fotg210-hcd
@@ -1825,7 +1803,6 @@ hns_mdio
 hopper
 horus3a
 hostap
-hostap_cs
 hostap_pci
 hostap_plx
 hp03
@@ -1939,7 +1916,6 @@ i40iw
 i5k_amb
 i6300esb
 i740fb
-i82092
 iavf
 ib_cm
 ib_core
@@ -2148,7 +2124,6 @@ ipvtap
 ipw
 ipw2100
 ipw2200
-ipwireless
 ir-hix5hd2
 ir-imon-decoder
 ir-jvc-decoder
@@ -2372,7 +2347,6 @@ libcrc32c
 libcxgb
 libcxgbi
 libertas
-libertas_cs
 libertas_sdio
 libertas_spi
 libertas_tf
@@ -3064,13 +3038,9 @@ ni_at_a2150
 ni_at_ao
 ni_atmio
 ni_atmio16d
-ni_daq_700
-ni_daq_dio24
 ni_labpc
 ni_labpc_common
-ni_labpc_cs
 ni_labpc_pci
-ni_mio_cs
 ni_pcidio
 ni_pcimio
 ni_routing
@@ -3123,7 +3093,6 @@ nls_koi8-r
 nls_koi8-ru
 nls_koi8-u
 nls_utf8
-nmclan_cs
 nosy
 notifier-error-inject
 nouveau
@@ -3204,7 +3173,6 @@ or51132
 or51211
 orangefs
 orinoco
-orinoco_cs
 orinoco_nortel
 orinoco_plx
 orinoco_tmd
@@ -3287,7 +3255,6 @@ pata_of_platform
 pata_oldpiix
 pata_opti
 pata_optidma
-pata_pcmcia
 pata_pdc2027x
 pata_pdc202xx_old
 pata_piccolo
@@ -3336,24 +3303,19 @@ pcl816
 pcl818
 pcm3724
 pcmad
-pcmcia
 pcmcia_core
 pcmcia_rsrc
-pcmciamtd
 pcmda12
 pcmmio
 pcmuio
 pcnet32
-pcnet_cs
 pcrypt
 pcwd_pci
 pcwd_usb
-pd6729
 pda_power
 pdc_adma
 peak_pci
 peak_pciefd
-peak_pcmcia
 peak_usb
 pegasus
 pegasus_notetaker
@@ -3601,8 +3563,6 @@ qla3xxx
 qla4xxx
 qlcnic
 qlge
-qlogic_cs
-qlogicfas408
 qm1d1b0004
 qm1d1c0042
 qmi_helpers
@@ -3621,7 +3581,6 @@ qt2160
 qtnfmac
 qtnfmac_pcie
 quatech2
-quatech_daqp_cs
 quota_tree
 quota_v1
 quota_v2
@@ -3674,7 +3633,6 @@ rave-sp-pwrbutton
 rave-sp-wdt
 raw
 raw_diag
-ray_cs
 raydium_i2c_ts
 rbd
 rc-adstech-dvb-t-pci
@@ -4163,7 +4121,6 @@ scmi_pm_domain
 scpi-cpufreq
 scpi-hwmon
 scpi_pm_domain
-scr24x_cs
 scsi_debug
 scsi_dh_alua
 scsi_dh_emc
@@ -4197,12 +4154,9 @@ sdhci-xenon-driver
 sdhci_am654
 sdhci_f_sdh30
 sdio_uart
-sdricoh_cs
-sedlbauer_cs
 seed
 sensorhub
 ser_gigaset
-serial_cs
 serial_ir
 serio_raw
 sermouse
@@ -4269,7 +4223,6 @@ sky81452
 sky81452-backlight
 sky81452-regulator
 sl811-hcd
-sl811_cs
 slcan
 slic_ds26522
 slicoss
@@ -4291,7 +4244,6 @@ sm_ftl
 smartpqi
 smb347-charger
 smc
-smc91c92_cs
 smc_diag
 smd-rpm
 smem
@@ -4317,7 +4269,6 @@ snd-ac97-codec
 snd-ad1889
 snd-ak4113
 snd-ak4114
-snd-ak4117
 snd-ak4xxx-adda
 snd-aloop
 snd-atiixp
@@ -4404,7 +4355,6 @@ snd-oxygen-lib
 snd-pcm
 snd-pcm-dmaengine
 snd-pcxhr
-snd-pdaudiocf
 snd-portman2x4
 snd-pt2258
 snd-rawmidi
@@ -4621,7 +4571,6 @@ snd-virmidi
 snd-virtuoso
 snd-vx-lib
 snd-vx222
-snd-vxpocket
 snd-ymfpci
 snd_xen_front
 snic
@@ -4642,7 +4591,6 @@ soc_rj54n1cb0c
 soc_tw9910
 softdog
 softing
-softing_cs
 solo6x10
 solos-pci
 sony-btf-mpx
@@ -4667,7 +4615,6 @@ speakup_ltlk
 speakup_soft
 speakup_spkout
 speakup_txprt
-spectrum_cs
 speedfax
 speedtch
 spi-altera
@@ -4852,12 +4799,10 @@ sx8
 sx8654
 sx9500
 sy8106a-regulator
-sym53c500_cs
 sym53c8xx
 symbolserial
 synaptics_i2c
 synaptics_usb
-synclink_cs
 synclink_gt
 synclinkmp
 synopsys_edac
@@ -4950,7 +4895,6 @@ team_mode_roundrobin
 tee
 tef6862
 tehuti
-teles_cs
 teranetics
 test_power
 tg3
@@ -5420,7 +5364,6 @@ wl1251_spi
 wl1273-core
 wl12xx
 wl18xx
-wl3501_cs
 wlcore
 wlcore_sdio
 wlcore_spi
@@ -5506,7 +5449,6 @@ xilinxfb
 xillybus_core
 xillybus_of
 xillybus_pcie
-xirc2ps_cs
 xircom_cb
 xlnx_vcu
 xor
