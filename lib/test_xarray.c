@@ -107,8 +107,11 @@ static noinline void check_xas_retry(struct xarray *xa)
 	XA_BUG_ON(xa, xas.xa_node != XAS_RESTART);
 	XA_BUG_ON(xa, xas_next_entry(&xas, ULONG_MAX) != xa_mk_value(0));
 	XA_BUG_ON(xa, xas.xa_node != NULL);
+	rcu_read_unlock();
 
 	XA_BUG_ON(xa, xa_store_index(xa, 1, GFP_KERNEL) != NULL);
+
+	rcu_read_lock();
 	XA_BUG_ON(xa, !xa_is_internal(xas_reload(&xas)));
 	xas.xa_node = XAS_RESTART;
 	XA_BUG_ON(xa, xas_next_entry(&xas, ULONG_MAX) != xa_mk_value(0));
