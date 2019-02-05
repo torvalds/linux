@@ -1252,7 +1252,7 @@ static int mgmt_tx(struct wiphy *wiphy,
 	u32 buf_len = len + sizeof(p2p_vendor_spec) + sizeof(priv->p2p.local_random);
 	int ret = 0;
 
-	*cookie = (unsigned long)buf;
+	*cookie = prandom_u32();
 	priv->tx_cookie = *cookie;
 	mgmt = (const struct ieee80211_mgmt *)buf;
 
