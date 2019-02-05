@@ -771,40 +771,47 @@ static int vega20_init_smc_table(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
+/*
+ * Override PCIe link speed and link width for DPM Level 1. PPTable entries
+ * reflect the ASIC capabilities and not the system capabilities. For e.g.
+ * Vega20 board in a PCI Gen3 system. In this case, when SMU's tries to switch
+ * to DPM1, it fails as system doesn't support Gen4.
+ */
 static int vega20_override_pcie_parameters(struct pp_hwmgr *hwmgr)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)(hwmgr->adev);
-	uint32_t pcie_speed = 0, pcie_width = 0, pcie_arg;
+	uint32_t pcie_gen = 0, pcie_width = 0, smu_pcie_arg;
 	int ret;
 
 	if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN4)
-		pcie_speed = 16;
+		pcie_gen = 3;
 	else if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN3)
-		pcie_speed = 8;
+		pcie_gen = 2;
 	else if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN2)
-		pcie_speed = 5;
+		pcie_gen = 1;
 	else if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN1)
-		pcie_speed = 2;
+		pcie_gen = 0;
 
-	if (adev->pm.pcie_mlw_mask & CAIL_PCIE_LINK_WIDTH_SUPPORT_X32)
-		pcie_width = 32;
-	else if (adev->pm.pcie_mlw_mask & CAIL_PCIE_LINK_WIDTH_SUPPORT_X16)
-		pcie_width = 16;
+	if (adev->pm.pcie_mlw_mask & CAIL_PCIE_LINK_WIDTH_SUPPORT_X16)
+		pcie_width = 6;
 	else if (adev->pm.pcie_mlw_mask & CAIL_PCIE_LINK_WIDTH_SUPPORT_X12)
-		pcie_width = 12;
+		pcie_width = 5;
 	else if (adev->pm.pcie_mlw_mask & CAIL_PCIE_LINK_WIDTH_SUPPORT_X8)
-		pcie_width = 8;
-	else if (adev->pm.pcie_mlw_mask & CAIL_PCIE_LINK_WIDTH_SUPPORT_X4)
 		pcie_width = 4;
+	else if (adev->pm.pcie_mlw_mask & CAIL_PCIE_LINK_WIDTH_SUPPORT_X4)
+		pcie_width = 3;
 	else if (adev->pm.pcie_mlw_mask & CAIL_PCIE_LINK_WIDTH_SUPPORT_X2)
 		pcie_width = 2;
 	else if (adev->pm.pcie_mlw_mask & CAIL_PCIE_LINK_WIDTH_SUPPORT_X1)
 		pcie_width = 1;
 
-	pcie_arg = pcie_width | (pcie_speed << 8);
-
+	/* Bit 31:16: LCLK DPM level. 0 is DPM0, and 1 is DPM1
+	 * Bit 15:8:  PCIE GEN, 0 to 3 corresponds to GEN1 to GEN4
+	 * Bit 7:0:   PCIE lane width, 1 to 7 corresponds is x1 to x32
+	 */
+	smu_pcie_arg = (1 << 16) | (pcie_gen << 8) | pcie_width;
 	ret = smum_send_msg_to_smc_with_parameter(hwmgr,
-			PPSMC_MSG_OverridePcieParameters, pcie_arg);
+			PPSMC_MSG_OverridePcieParameters, smu_pcie_arg);
 	PP_ASSERT_WITH_CODE(!ret,
 		"[OverridePcieParameters] Attempt to override pcie params failed!",
 		return ret);
@@ -1611,11 +1618,6 @@ static int vega20_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 			"[EnableDPMTasks] Failed to initialize SMC table!",
 			return result);
 
-	result = vega20_override_pcie_parameters(hwmgr);
-	PP_ASSERT_WITH_CODE(!result,
-			"[EnableDPMTasks] Failed to override pcie parameters!",
-			return result);
-
 	result = vega20_run_btc(hwmgr);
 	PP_ASSERT_WITH_CODE(!result,
 			"[EnableDPMTasks] Failed to run btc!",
@@ -1629,6 +1631,11 @@ static int vega20_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 	result = vega20_enable_all_smu_features(hwmgr);
 	PP_ASSERT_WITH_CODE(!result,
 			"[EnableDPMTasks] Failed to enable all smu features!",
+			return result);
+
+	result = vega20_override_pcie_parameters(hwmgr);
+	PP_ASSERT_WITH_CODE(!result,
+			"[EnableDPMTasks] Failed to override pcie parameters!",
 			return result);
 
 	result = vega20_notify_smc_display_change(hwmgr);
