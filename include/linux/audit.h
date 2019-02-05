@@ -348,10 +348,6 @@ static inline void audit_ptrace(struct task_struct *t)
 }
 
 				/* Private API (for audit.c only) */
-extern unsigned int audit_serial(void);
-extern int auditsc_get_stamp(struct audit_context *ctx,
-			      struct timespec64 *t, unsigned int *serial);
-
 extern void __audit_ipc_obj(struct kern_ipc_perm *ipcp);
 extern void __audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid, umode_t mode);
 extern void __audit_bprm(struct linux_binprm *bprm);
@@ -531,11 +527,6 @@ static inline void audit_seccomp(unsigned long syscall, long signr, int code)
 static inline void audit_seccomp_actions_logged(const char *names,
 						const char *old_names, int res)
 { }
-static inline int auditsc_get_stamp(struct audit_context *ctx,
-			      struct timespec64 *t, unsigned int *serial)
-{
-	return 0;
-}
 static inline void audit_ipc_obj(struct kern_ipc_perm *ipcp)
 { }
 static inline void audit_ipc_set_perm(unsigned long qbytes, uid_t uid,

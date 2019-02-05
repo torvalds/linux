@@ -261,6 +261,10 @@ extern void audit_put_tty(struct tty_struct *tty);
 
 /* audit watch/mark/tree functions */
 #ifdef CONFIG_AUDITSYSCALL
+extern unsigned int audit_serial(void);
+extern int auditsc_get_stamp(struct audit_context *ctx,
+			      struct timespec64 *t, unsigned int *serial);
+
 extern void audit_put_watch(struct audit_watch *watch);
 extern void audit_get_watch(struct audit_watch *watch);
 extern int audit_to_watch(struct audit_krule *krule, char *path, int len,
@@ -300,6 +304,7 @@ extern void audit_filter_inodes(struct task_struct *tsk,
 				struct audit_context *ctx);
 extern struct list_head *audit_killed_trees(void);
 #else /* CONFIG_AUDITSYSCALL */
+#define auditsc_get_stamp(c, t, s) 0
 #define audit_put_watch(w) {}
 #define audit_get_watch(w) {}
 #define audit_to_watch(k, p, l, o) (-EINVAL)
