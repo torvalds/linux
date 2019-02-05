@@ -345,7 +345,8 @@ struct vb2_buffer {
  *			waiting for a new buffer to arrive.
  * @buf_out_validate:	called when the output buffer is prepared or queued
  *			to a request; drivers can use this to validate
- *			userspace-provided information; optional.
+ *			userspace-provided information; this is required only
+ *			for OUTPUT queues.
  * @buf_init:		called once after allocating a buffer (in MMAP case)
  *			or after acquiring a new USERPTR buffer; drivers may
  *			perform additional buffer-related initialization;
