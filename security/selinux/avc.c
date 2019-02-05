@@ -674,13 +674,13 @@ static void avc_audit_pre_callback(struct audit_buffer *ab, void *a)
 	audit_log_format(ab, "avc:  %s ", sad->denied ? "denied" : "granted");
 
 	if (av == 0) {
-		audit_log_string(ab, " null");
+		audit_log_format(ab, " null");
 		return;
 	}
 
 	perms = secclass_map[sad->tclass-1].perms;
 
-	audit_log_string(ab, " {");
+	audit_log_format(ab, " {");
 	i = 0;
 	perm = 1;
 	while (i < (sizeof(av) * 8)) {
@@ -695,7 +695,7 @@ static void avc_audit_pre_callback(struct audit_buffer *ab, void *a)
 	if (av)
 		audit_log_format(ab, " 0x%x", av);
 
-	audit_log_string(ab, " } for ");
+	audit_log_format(ab, " } for ");
 }
 
 /**
