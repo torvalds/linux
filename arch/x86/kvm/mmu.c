@@ -2240,18 +2240,28 @@ static bool __kvm_sync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 	return true;
 }
 
+static bool kvm_mmu_remote_flush_or_zap(struct kvm *kvm,
+					struct list_head *invalid_list,
+					bool remote_flush)
+{
+	if (!remote_flush && !list_empty(invalid_list))
+		return false;
+
+	if (!list_empty(invalid_list))
+		kvm_mmu_commit_zap_page(kvm, invalid_list);
+	else
+		kvm_flush_remote_tlbs(kvm);
+	return true;
+}
+
 static void kvm_mmu_flush_or_zap(struct kvm_vcpu *vcpu,
 				 struct list_head *invalid_list,
 				 bool remote_flush, bool local_flush)
 {
-	if (!list_empty(invalid_list)) {
-		kvm_mmu_commit_zap_page(vcpu->kvm, invalid_list);
+	if (kvm_mmu_remote_flush_or_zap(vcpu->kvm, invalid_list, remote_flush))
 		return;
-	}
 
-	if (remote_flush)
-		kvm_flush_remote_tlbs(vcpu->kvm);
-	else if (local_flush)
+	if (local_flush)
 		kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
 }
 
