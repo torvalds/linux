@@ -975,9 +975,9 @@ void v4l2_m2m_buf_queue(struct v4l2_m2m_ctx *m2m_ctx,
 }
 EXPORT_SYMBOL_GPL(v4l2_m2m_buf_queue);
 
-void v4l2_m2m_buf_copy_data(const struct vb2_v4l2_buffer *out_vb,
-			    struct vb2_v4l2_buffer *cap_vb,
-			    bool copy_frame_flags)
+void v4l2_m2m_buf_copy_metadata(const struct vb2_v4l2_buffer *out_vb,
+				struct vb2_v4l2_buffer *cap_vb,
+				bool copy_frame_flags)
 {
 	u32 mask = V4L2_BUF_FLAG_TIMECODE | V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
 
@@ -993,7 +993,7 @@ void v4l2_m2m_buf_copy_data(const struct vb2_v4l2_buffer *out_vb,
 	cap_vb->flags &= ~mask;
 	cap_vb->flags |= out_vb->flags & mask;
 }
-EXPORT_SYMBOL_GPL(v4l2_m2m_buf_copy_data);
+EXPORT_SYMBOL_GPL(v4l2_m2m_buf_copy_metadata);
 
 void v4l2_m2m_request_queue(struct media_request *req)
 {

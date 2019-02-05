@@ -199,7 +199,7 @@ static int device_process(struct vicodec_ctx *ctx,
 
 	dst_vb->sequence = q_dst->sequence++;
 	dst_vb->flags &= ~V4L2_BUF_FLAG_LAST;
-	v4l2_m2m_buf_copy_data(src_vb, dst_vb, !ctx->is_enc);
+	v4l2_m2m_buf_copy_metadata(src_vb, dst_vb, !ctx->is_enc);
 
 	return 0;
 }
@@ -414,7 +414,7 @@ static void set_last_buffer(struct vb2_v4l2_buffer *dst_buf,
 	vb2_set_plane_payload(&dst_buf->vb2_buf, 0, 0);
 	dst_buf->sequence = q_dst->sequence++;
 
-	v4l2_m2m_buf_copy_data(src_buf, dst_buf, !ctx->is_enc);
+	v4l2_m2m_buf_copy_metadata(src_buf, dst_buf, !ctx->is_enc);
 	dst_buf->flags |= V4L2_BUF_FLAG_LAST;
 	v4l2_m2m_buf_done(dst_buf, VB2_BUF_STATE_DONE);
 }

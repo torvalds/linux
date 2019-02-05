@@ -50,7 +50,7 @@ void cedrus_device_run(void *priv)
 		break;
 	}
 
-	v4l2_m2m_buf_copy_data(run.src, run.dst, true);
+	v4l2_m2m_buf_copy_metadata(run.src, run.dst, true);
 
 	dev->dec_ops[ctx->current_codec]->setup(ctx, &run);
 
