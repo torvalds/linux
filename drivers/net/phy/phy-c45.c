@@ -121,7 +121,7 @@ EXPORT_SYMBOL_GPL(genphy_c45_aneg_done);
  * @mmd_mask: MMDs to read status from
  *
  * Read the link status from the specified MMDs, and if they all indicate
- * that the link is up, return positive.  If an error is encountered,
+ * that the link is up, set phydev->link to 1.  If an error is encountered,
  * a negative errno will be returned, otherwise zero.
  */
 int genphy_c45_read_link(struct phy_device *phydev, u32 mmd_mask)
@@ -129,7 +129,7 @@ int genphy_c45_read_link(struct phy_device *phydev, u32 mmd_mask)
 	int val, devad;
 	bool link = true;
 
-	while (mmd_mask) {
+	while (mmd_mask && link) {
 		devad = __ffs(mmd_mask);
 		mmd_mask &= ~BIT(devad);
 
@@ -145,7 +145,9 @@ int genphy_c45_read_link(struct phy_device *phydev, u32 mmd_mask)
 			link = false;
 	}
 
-	return link;
+	phydev->link = link;
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(genphy_c45_read_link);
 
@@ -265,7 +267,6 @@ EXPORT_SYMBOL_GPL(gen10g_config_aneg);
 int gen10g_read_status(struct phy_device *phydev)
 {
 	u32 mmd_mask = phydev->c45_ids.devices_in_package;
-	int ret;
 
 	/* For now just lie and say it's 10G all the time */
 	phydev->speed = SPEED_10000;
@@ -274,11 +275,7 @@ int gen10g_read_status(struct phy_device *phydev)
 	/* Avoid reading the vendor MMDs */
 	mmd_mask &= ~(BIT(MDIO_MMD_VEND1) | BIT(MDIO_MMD_VEND2));
 
-	ret = genphy_c45_read_link(phydev, mmd_mask);
-
-	phydev->link = ret > 0 ? 1 : 0;
-
-	return 0;
+	return genphy_c45_read_link(phydev, mmd_mask);
 }
 EXPORT_SYMBOL_GPL(gen10g_read_status);
 

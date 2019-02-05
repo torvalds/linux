@@ -457,8 +457,6 @@ static int mv3310_read_status(struct phy_device *phydev)
 	if (val < 0)
 		return val;
 
-	phydev->link = val > 0 ? 1 : 0;
-
 	val = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_STAT1);
 	if (val < 0)
 		return val;
