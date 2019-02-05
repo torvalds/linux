@@ -5858,6 +5858,7 @@ EXPORT_SYMBOL_GPL(kvm_mmu_slot_set_dirty);
 static void kvm_zap_obsolete_pages(struct kvm *kvm)
 {
 	struct kvm_mmu_page *sp, *node;
+	LIST_HEAD(invalid_list);
 	int batch = 0;
 
 restart:
@@ -5890,8 +5891,7 @@ restart:
 			goto restart;
 		}
 
-		ret = kvm_mmu_prepare_zap_page(kvm, sp,
-				&kvm->arch.zapped_obsolete_pages);
+		ret = kvm_mmu_prepare_zap_page(kvm, sp, &invalid_list);
 		batch += ret;
 
 		if (ret)
@@ -5902,7 +5902,7 @@ restart:
 	 * Should flush tlb before free page tables since lockless-walking
 	 * may use the pages.
 	 */
-	kvm_mmu_commit_zap_page(kvm, &kvm->arch.zapped_obsolete_pages);
+	kvm_mmu_commit_zap_page(kvm, &invalid_list);
 }
 
 /*
@@ -5933,11 +5933,6 @@ void kvm_mmu_invalidate_zap_all_pages(struct kvm *kvm)
 
 	kvm_zap_obsolete_pages(kvm);
 	spin_unlock(&kvm->mmu_lock);
-}
-
-static bool kvm_has_zapped_obsolete_pages(struct kvm *kvm)
-{
-	return unlikely(!list_empty_careful(&kvm->arch.zapped_obsolete_pages));
 }
 
 static void kvm_mmu_zap_mmio_sptes(struct kvm *kvm)
@@ -6011,24 +6006,16 @@ mmu_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
 		 * want to shrink a VM that only started to populate its MMU
 		 * anyway.
 		 */
-		if (!kvm->arch.n_used_mmu_pages &&
-		      !kvm_has_zapped_obsolete_pages(kvm))
+		if (!kvm->arch.n_used_mmu_pages)
 			continue;
 
 		idx = srcu_read_lock(&kvm->srcu);
 		spin_lock(&kvm->mmu_lock);
 
-		if (kvm_has_zapped_obsolete_pages(kvm)) {
-			kvm_mmu_commit_zap_page(kvm,
-			      &kvm->arch.zapped_obsolete_pages);
-			goto unlock;
-		}
-
 		if (prepare_zap_oldest_mmu_page(kvm, &invalid_list))
 			freed++;
 		kvm_mmu_commit_zap_page(kvm, &invalid_list);
 
-unlock:
 		spin_unlock(&kvm->mmu_lock);
 		srcu_read_unlock(&kvm->srcu, idx);
 
