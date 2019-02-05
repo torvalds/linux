@@ -276,6 +276,9 @@ typedef unsigned int __bitwise iwl_ucode_tlv_api_t;
  *	REGULATORY_NVM_GET_INFO_RSP_API_S.
  * @IWL_UCODE_TLV_API_FTM_NEW_RANGE_REQ: This ucode supports v7 of
  *	LOCATION_RANGE_REQ_CMD_API_S and v6 of LOCATION_RANGE_RESP_NTFY_API_S.
+ * @IWL_UCODE_TLV_API_SCAN_OFFLOAD_CHANS: This ucode supports v2 of
+ *	SCAN_OFFLOAD_PROFILE_MATCH_RESULTS_S and v3 of
+ *	SCAN_OFFLOAD_PROFILES_QUERY_RSP_S.
  *
  * @NUM_IWL_UCODE_TLV_API: number of bits used
  */
@@ -304,6 +307,7 @@ enum iwl_ucode_tlv_api {
 	IWL_UCODE_TLV_API_BEACON_FILTER_V4      = (__force iwl_ucode_tlv_api_t)47,
 	IWL_UCODE_TLV_API_REGULATORY_NVM_INFO   = (__force iwl_ucode_tlv_api_t)48,
 	IWL_UCODE_TLV_API_FTM_NEW_RANGE_REQ     = (__force iwl_ucode_tlv_api_t)49,
+	IWL_UCODE_TLV_API_SCAN_OFFLOAD_CHANS    = (__force iwl_ucode_tlv_api_t)50,
 
 	NUM_IWL_UCODE_TLV_API
 #ifdef __CHECKER__
