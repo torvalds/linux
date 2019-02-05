@@ -849,6 +849,28 @@ static const struct drm_prop_enum_list hdmi_colorspaces[] = {
 	{ DRM_MODE_COLORIMETRY_DCI_P3_RGB_THEATER, "DCI-P3_RGB_Theater" },
 };
 
+static const struct drm_prop_enum_list dp_colorspaces[] = {
+	/* For Default case, driver will set the colorspace */
+	{ DRM_MODE_COLORIMETRY_DEFAULT, "Default" },
+	/* Standard Definition Colorimetry based on IEC 61966-2-4 */
+	{ DRM_MODE_COLORIMETRY_XVYCC_601, "XVYCC_601" },
+	/* High Definition Colorimetry based on IEC 61966-2-4 */
+	{ DRM_MODE_COLORIMETRY_XVYCC_709, "XVYCC_709" },
+	/* Colorimetry based on IEC 61966-2-5 */
+	{ DRM_MODE_COLORIMETRY_OPRGB, "opRGB" },
+	{ DRM_MODE_COLORIMETRY_DCI_P3_RGB_D65, "DCI-P3_RGB_D65" },
+	/* DP MSA Colorimetry */
+	{ DRM_MODE_DP_COLORIMETRY_BT601_YCC, "YCBCR_ITU_601" },
+	{ DRM_MODE_DP_COLORIMETRY_BT709_YCC, "YCBCR_ITU_709" },
+	{ DRM_MODE_DP_COLORIMETRY_SRGB, "sRGB" },
+	{ DRM_MODE_DP_COLORIMETRY_RGB_WIDE_GAMUT, "RGB Wide Gamut" },
+	{ DRM_MODE_DP_COLORIMETRY_SCRGB, "scRGB" },
+	/* Colorimetry based on ITU-R BT.2020 */
+	{ DRM_MODE_COLORIMETRY_BT2020_RGB, "BT2020_RGB" },
+	/* Colorimetry based on ITU-R BT.2020 */
+	{ DRM_MODE_COLORIMETRY_BT2020_YCC, "BT2020_YCC" },
+};
+
 /**
  * DOC: standard connector properties
  *
@@ -1461,6 +1483,14 @@ int drm_mode_create_colorspace_property(struct drm_connector *connector)
 						"Colorspace",
 						hdmi_colorspaces,
 						ARRAY_SIZE(hdmi_colorspaces));
+		if (!prop)
+			return -ENOMEM;
+	} else if (connector->connector_type == DRM_MODE_CONNECTOR_eDP ||
+		   connector->connector_type == DRM_MODE_CONNECTOR_DisplayPort) {
+		prop = drm_property_create_enum(dev, DRM_MODE_PROP_ENUM,
+						"Colorspace", dp_colorspaces,
+						ARRAY_SIZE(dp_colorspaces));
+
 		if (!prop)
 			return -ENOMEM;
 	} else {
