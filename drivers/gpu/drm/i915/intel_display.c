@@ -3215,27 +3215,37 @@ i9xx_plane_max_stride(struct intel_plane *plane,
 	}
 }
 
-static u32 i9xx_plane_ctl(const struct intel_crtc_state *crtc_state,
-			  const struct intel_plane_state *plane_state)
+static u32 i9xx_plane_ctl_crtc(const struct intel_crtc_state *crtc_state)
 {
-	struct drm_i915_private *dev_priv =
-		to_i915(plane_state->base.plane->dev);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
-	const struct drm_framebuffer *fb = plane_state->base.fb;
-	unsigned int rotation = plane_state->base.rotation;
-	u32 dspcntr;
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	u32 dspcntr = 0;
 
-	dspcntr = DISPLAY_PLANE_ENABLE | DISPPLANE_GAMMA_ENABLE;
-
-	if (IS_G4X(dev_priv) || IS_GEN(dev_priv, 5) ||
-	    IS_GEN(dev_priv, 6) || IS_IVYBRIDGE(dev_priv))
-		dspcntr |= DISPPLANE_TRICKLE_FEED_DISABLE;
+	dspcntr |= DISPPLANE_GAMMA_ENABLE;
 
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		dspcntr |= DISPPLANE_PIPE_CSC_ENABLE;
 
 	if (INTEL_GEN(dev_priv) < 5)
 		dspcntr |= DISPPLANE_SEL_PIPE(crtc->pipe);
+
+	return dspcntr;
+}
+
+static u32 i9xx_plane_ctl(const struct intel_crtc_state *crtc_state,
+			  const struct intel_plane_state *plane_state)
+{
+	struct drm_i915_private *dev_priv =
+		to_i915(plane_state->base.plane->dev);
+	const struct drm_framebuffer *fb = plane_state->base.fb;
+	unsigned int rotation = plane_state->base.rotation;
+	u32 dspcntr;
+
+	dspcntr = DISPLAY_PLANE_ENABLE;
+
+	if (IS_G4X(dev_priv) || IS_GEN(dev_priv, 5) ||
+	    IS_GEN(dev_priv, 6) || IS_IVYBRIDGE(dev_priv))
+		dspcntr |= DISPPLANE_TRICKLE_FEED_DISABLE;
 
 	switch (fb->format->format) {
 	case DRM_FORMAT_C8:
@@ -3364,11 +3374,13 @@ static void i9xx_update_plane(struct intel_plane *plane,
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
 	u32 linear_offset;
-	u32 dspcntr = plane_state->ctl;
 	int x = plane_state->color_plane[0].x;
 	int y = plane_state->color_plane[0].y;
 	unsigned long irqflags;
 	u32 dspaddr_offset;
+	u32 dspcntr;
+
+	dspcntr = plane_state->ctl | i9xx_plane_ctl_crtc(crtc_state);
 
 	linear_offset = intel_fb_xy_to_linear(x, y, plane_state, 0);
 
@@ -3428,10 +3440,23 @@ static void i9xx_disable_plane(struct intel_plane *plane,
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
 	unsigned long irqflags;
+	u32 dspcntr;
+
+	/*
+	 * DSPCNTR pipe gamma enable on g4x+ and pipe csc
+	 * enable on ilk+ affect the pipe bottom color as
+	 * well, so we must configure them even if the plane
+	 * is disabled.
+	 *
+	 * On pre-g4x there is no way to gamma correct the
+	 * pipe bottom color but we'll keep on doing this
+	 * anyway.
+	 */
+	dspcntr = i9xx_plane_ctl_crtc(crtc_state);
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
-	I915_WRITE_FW(DSPCNTR(i9xx_plane), 0);
+	I915_WRITE_FW(DSPCNTR(i9xx_plane), dspcntr);
 	if (INTEL_GEN(dev_priv) >= 4)
 		I915_WRITE_FW(DSPSURF(i9xx_plane), 0);
 	else
@@ -3668,6 +3693,20 @@ static u32 cnl_plane_ctl_flip(unsigned int reflect)
 	return 0;
 }
 
+u32 skl_plane_ctl_crtc(const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
+	u32 plane_ctl = 0;
+
+	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+		return plane_ctl;
+
+	plane_ctl |= PLANE_CTL_PIPE_GAMMA_ENABLE;
+	plane_ctl |= PLANE_CTL_PIPE_CSC_ENABLE;
+
+	return plane_ctl;
+}
+
 u32 skl_plane_ctl(const struct intel_crtc_state *crtc_state,
 		  const struct intel_plane_state *plane_state)
 {
@@ -3682,10 +3721,7 @@ u32 skl_plane_ctl(const struct intel_crtc_state *crtc_state,
 
 	if (INTEL_GEN(dev_priv) < 10 && !IS_GEMINILAKE(dev_priv)) {
 		plane_ctl |= skl_plane_ctl_alpha(plane_state);
-		plane_ctl |=
-			PLANE_CTL_PIPE_GAMMA_ENABLE |
-			PLANE_CTL_PIPE_CSC_ENABLE |
-			PLANE_CTL_PLANE_GAMMA_DISABLE;
+		plane_ctl |= PLANE_CTL_PLANE_GAMMA_DISABLE;
 
 		if (plane_state->base.color_encoding == DRM_COLOR_YCBCR_BT709)
 			plane_ctl |= PLANE_CTL_YUV_TO_RGB_CSC_FORMAT_BT709;
@@ -3710,19 +3746,27 @@ u32 skl_plane_ctl(const struct intel_crtc_state *crtc_state,
 	return plane_ctl;
 }
 
+u32 glk_plane_color_ctl_crtc(const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
+	u32 plane_color_ctl = 0;
+
+	if (INTEL_GEN(dev_priv) >= 11)
+		return plane_color_ctl;
+
+	plane_color_ctl |= PLANE_COLOR_PIPE_GAMMA_ENABLE;
+	plane_color_ctl |= PLANE_COLOR_PIPE_CSC_ENABLE;
+
+	return plane_color_ctl;
+}
+
 u32 glk_plane_color_ctl(const struct intel_crtc_state *crtc_state,
 			const struct intel_plane_state *plane_state)
 {
-	struct drm_i915_private *dev_priv =
-		to_i915(plane_state->base.plane->dev);
 	const struct drm_framebuffer *fb = plane_state->base.fb;
 	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
 	u32 plane_color_ctl = 0;
 
-	if (INTEL_GEN(dev_priv) < 11) {
-		plane_color_ctl |= PLANE_COLOR_PIPE_GAMMA_ENABLE;
-		plane_color_ctl |= PLANE_COLOR_PIPE_CSC_ENABLE;
-	}
 	plane_color_ctl |= PLANE_COLOR_PLANE_GAMMA_DISABLE;
 	plane_color_ctl |= glk_plane_color_ctl_alpha(plane_state);
 
@@ -9945,11 +9989,15 @@ i845_cursor_max_stride(struct intel_plane *plane,
 	return 2048;
 }
 
+static u32 i845_cursor_ctl_crtc(const struct intel_crtc_state *crtc_state)
+{
+	return CURSOR_GAMMA_ENABLE;
+}
+
 static u32 i845_cursor_ctl(const struct intel_crtc_state *crtc_state,
 			   const struct intel_plane_state *plane_state)
 {
 	return CURSOR_ENABLE |
-		CURSOR_GAMMA_ENABLE |
 		CURSOR_FORMAT_ARGB |
 		CURSOR_STRIDE(plane_state->color_plane[0].stride);
 }
@@ -10019,7 +10067,9 @@ static void i845_update_cursor(struct intel_plane *plane,
 		unsigned int width = plane_state->base.crtc_w;
 		unsigned int height = plane_state->base.crtc_h;
 
-		cntl = plane_state->ctl;
+		cntl = plane_state->ctl |
+			i845_cursor_ctl_crtc(crtc_state);
+
 		size = (height << 12) | width;
 
 		base = intel_cursor_base(plane_state);
@@ -10086,26 +10136,35 @@ i9xx_cursor_max_stride(struct intel_plane *plane,
 	return plane->base.dev->mode_config.cursor_width * 4;
 }
 
+static u32 i9xx_cursor_ctl_crtc(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	u32 cntl = 0;
+
+	if (INTEL_GEN(dev_priv) >= 11)
+		return cntl;
+
+	cntl |= MCURSOR_GAMMA_ENABLE;
+
+	if (HAS_DDI(dev_priv))
+		cntl |= MCURSOR_PIPE_CSC_ENABLE;
+
+	if (INTEL_GEN(dev_priv) < 5 && !IS_G4X(dev_priv))
+		cntl |= MCURSOR_PIPE_SELECT(crtc->pipe);
+
+	return cntl;
+}
+
 static u32 i9xx_cursor_ctl(const struct intel_crtc_state *crtc_state,
 			   const struct intel_plane_state *plane_state)
 {
 	struct drm_i915_private *dev_priv =
 		to_i915(plane_state->base.plane->dev);
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	u32 cntl = 0;
 
 	if (IS_GEN(dev_priv, 6) || IS_IVYBRIDGE(dev_priv))
 		cntl |= MCURSOR_TRICKLE_FEED_DISABLE;
-
-	if (INTEL_GEN(dev_priv) <= 10) {
-		cntl |= MCURSOR_GAMMA_ENABLE;
-
-		if (HAS_DDI(dev_priv))
-			cntl |= MCURSOR_PIPE_CSC_ENABLE;
-	}
-
-	if (INTEL_GEN(dev_priv) < 5 && !IS_G4X(dev_priv))
-		cntl |= MCURSOR_PIPE_SELECT(crtc->pipe);
 
 	switch (plane_state->base.crtc_w) {
 	case 64:
@@ -10231,7 +10290,8 @@ static void i9xx_update_cursor(struct intel_plane *plane,
 	unsigned long irqflags;
 
 	if (plane_state && plane_state->base.visible) {
-		cntl = plane_state->ctl;
+		cntl = plane_state->ctl |
+			i9xx_cursor_ctl_crtc(crtc_state);
 
 		if (plane_state->base.crtc_h != plane_state->base.crtc_w)
 			fbc_ctl = CUR_FBC_CTL_EN | (plane_state->base.crtc_h - 1);

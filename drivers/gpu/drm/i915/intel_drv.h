@@ -1765,9 +1765,10 @@ static inline u32 intel_plane_ggtt_offset(const struct intel_plane_state *state)
 
 u32 glk_plane_color_ctl(const struct intel_crtc_state *crtc_state,
 			const struct intel_plane_state *plane_state);
+u32 glk_plane_color_ctl_crtc(const struct intel_crtc_state *crtc_state);
 u32 skl_plane_ctl(const struct intel_crtc_state *crtc_state,
 		  const struct intel_plane_state *plane_state);
-u32 glk_color_ctl(const struct intel_plane_state *plane_state);
+u32 skl_plane_ctl_crtc(const struct intel_crtc_state *crtc_state);
 u32 skl_plane_stride(const struct intel_plane_state *plane_state,
 		     int plane);
 int skl_check_plane_surface(struct intel_plane_state *plane_state);
