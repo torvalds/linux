@@ -183,7 +183,7 @@ static inline void vcpu_cache_mmio_info(struct kvm_vcpu *vcpu,
 {
 	u64 gen = kvm_memslots(vcpu->kvm)->generation;
 
-	if (unlikely(gen & 1))
+	if (unlikely(gen & KVM_MEMSLOT_GEN_UPDATE_IN_PROGRESS))
 		return;
 
 	/*

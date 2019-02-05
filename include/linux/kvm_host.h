@@ -48,6 +48,27 @@
  */
 #define KVM_MEMSLOT_INVALID	(1UL << 16)
 
+/*
+ * Bit 0 of the memslot generation number is an "update in-progress flag",
+ * e.g. is temporarily set for the duration of install_new_memslots().
+ * This flag effectively creates a unique generation number that is used to
+ * mark cached memslot data, e.g. MMIO accesses, as potentially being stale,
+ * i.e. may (or may not) have come from the previous memslots generation.
+ *
+ * This is necessary because the actual memslots update is not atomic with
+ * respect to the generation number update.  Updating the generation number
+ * first would allow a vCPU to cache a spte from the old memslots using the
+ * new generation number, and updating the generation number after switching
+ * to the new memslots would allow cache hits using the old generation number
+ * to reference the defunct memslots.
+ *
+ * This mechanism is used to prevent getting hits in KVM's caches while a
+ * memslot update is in-progress, and to prevent cache hits *after* updating
+ * the actual generation number against accesses that were inserted into the
+ * cache *before* the memslots were updated.
+ */
+#define KVM_MEMSLOT_GEN_UPDATE_IN_PROGRESS	BIT_ULL(0)
+
 /* Two fragments for cross MMIO pages. */
 #define KVM_MAX_MMIO_FRAGMENTS	2
 
