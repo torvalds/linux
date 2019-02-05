@@ -2713,11 +2713,7 @@ static int kvm_mmu_prepare_zap_page(struct kvm *kvm, struct kvm_mmu_page *sp,
 	} else {
 		list_move(&sp->link, &kvm->arch.active_mmu_pages);
 
-		/*
-		 * The obsolete pages can not be used on any vcpus.
-		 * See the comments in kvm_mmu_invalidate_zap_all_pages().
-		 */
-		if (!sp->role.invalid && !is_obsolete_sp(kvm, sp))
+		if (!sp->role.invalid)
 			kvm_reload_remote_mmus(kvm);
 	}
 
