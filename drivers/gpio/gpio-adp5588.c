@@ -36,12 +36,11 @@ struct adp5588_gpio {
 	struct mutex irq_lock;
 	uint8_t dat_out[3];
 	uint8_t dir[3];
-	uint8_t int_lvl[3];
+	uint8_t int_lvl_low[3];
+	uint8_t int_lvl_high[3];
 	uint8_t int_en[3];
 	uint8_t irq_mask[3];
-	uint8_t irq_stat[3];
 	uint8_t int_input_en[3];
-	uint8_t int_lvl_cached[3];
 };
 
 static int adp5588_gpio_read(struct i2c_client *client, u8 reg)
@@ -180,15 +179,9 @@ static void adp5588_irq_bus_sync_unlock(struct irq_data *d)
 			mutex_unlock(&dev->lock);
 		}
 
-		if (dev->int_lvl_cached[i] != dev->int_lvl[i]) {
-			dev->int_lvl_cached[i] = dev->int_lvl[i];
-			adp5588_gpio_write(dev->client, GPIO_INT_LVL1 + i,
-					   dev->int_lvl[i]);
-		}
-
 		if (dev->int_en[i] ^ dev->irq_mask[i]) {
 			dev->int_en[i] = dev->irq_mask[i];
-			adp5588_gpio_write(dev->client, GPIO_INT_EN1 + i,
+			adp5588_gpio_write(dev->client, GPI_EM1 + i,
 					   dev->int_en[i]);
 		}
 	}
@@ -219,21 +212,17 @@ static int adp5588_irq_set_type(struct irq_data *d, unsigned int type)
 	uint16_t gpio = d->hwirq;
 	unsigned bank, bit;
 
-	if ((type & IRQ_TYPE_EDGE_BOTH)) {
-		dev_err(&dev->client->dev, "irq %d: unsupported type %d\n",
-			d->irq, type);
-		return -EINVAL;
-	}
-
 	bank = ADP5588_BANK(gpio);
 	bit = ADP5588_BIT(gpio);
 
-	if (type & IRQ_TYPE_LEVEL_HIGH)
-		dev->int_lvl[bank] |= bit;
-	else if (type & IRQ_TYPE_LEVEL_LOW)
-		dev->int_lvl[bank] &= ~bit;
-	else
-		return -EINVAL;
+	dev->int_lvl_low[bank] &= ~bit;
+	dev->int_lvl_high[bank] &= ~bit;
+
+	if (type & IRQ_TYPE_EDGE_BOTH || type & IRQ_TYPE_LEVEL_HIGH)
+		dev->int_lvl_high[bank] |= bit;
+
+	if (type & IRQ_TYPE_EDGE_BOTH || type & IRQ_TYPE_LEVEL_LOW)
+		dev->int_lvl_low[bank] |= bit;
 
 	dev->int_input_en[bank] |= bit;
 
@@ -249,41 +238,32 @@ static struct irq_chip adp5588_irq_chip = {
 	.irq_set_type		= adp5588_irq_set_type,
 };
 
-static int adp5588_gpio_read_intstat(struct i2c_client *client, u8 *buf)
-{
-	int ret = i2c_smbus_read_i2c_block_data(client, GPIO_INT_STAT1, 3, buf);
-
-	if (ret < 0)
-		dev_err(&client->dev, "Read INT_STAT Error\n");
-
-	return ret;
-}
-
 static irqreturn_t adp5588_irq_handler(int irq, void *devid)
 {
 	struct adp5588_gpio *dev = devid;
-	unsigned status, bank, bit, pending;
-	int ret;
-	status = adp5588_gpio_read(dev->client, INT_STAT);
+	int status = adp5588_gpio_read(dev->client, INT_STAT);
 
-	if (status & ADP5588_GPI_INT) {
-		ret = adp5588_gpio_read_intstat(dev->client, dev->irq_stat);
-		if (ret < 0)
-			memset(dev->irq_stat, 0, ARRAY_SIZE(dev->irq_stat));
+	if (status & ADP5588_KE_INT) {
+		int ev_cnt = adp5588_gpio_read(dev->client, KEY_LCK_EC_STAT);
 
-		for (bank = 0, bit = 0; bank <= ADP5588_BANK(ADP5588_MAXGPIO);
-			bank++, bit = 0) {
-			pending = dev->irq_stat[bank] & dev->irq_mask[bank];
+		if (ev_cnt > 0) {
+			int i;
 
-			while (pending) {
-				if (pending & (1 << bit)) {
-					handle_nested_irq(
-						irq_find_mapping(
-						   dev->gpio_chip.irq.domain,
-						   (bank << 3) + bit));
-					pending &= ~(1 << bit);
-				}
-				bit++;
+			for (i = 0; i < (ev_cnt & ADP5588_KEC); i++) {
+				int key = adp5588_gpio_read(dev->client,
+							    Key_EVENTA + i);
+				/* GPIN events begin at 97,
+				 * bit 7 indicates logic level
+				 */
+				int gpio = (key & 0x7f) - 97;
+				int lvl = key & (1 << 7);
+				int bank = ADP5588_BANK(gpio);
+				int bit = ADP5588_BIT(gpio);
+
+				if ((lvl && dev->int_lvl_high[bank] & bit) ||
+				    (!lvl && dev->int_lvl_low[bank] & bit))
+					handle_nested_irq(irq_find_mapping(
+					      dev->gpio_chip.irq.domain, gpio));
 			}
 		}
 	}
@@ -303,7 +283,6 @@ static int adp5588_irq_setup(struct adp5588_gpio *dev)
 
 	adp5588_gpio_write(client, CFG, ADP5588_AUTO_INC);
 	adp5588_gpio_write(client, INT_STAT, -1); /* status is W1C */
-	adp5588_gpio_read_intstat(client, dev->irq_stat); /* read to clear */
 
 	mutex_init(&dev->irq_lock);
 
@@ -330,7 +309,7 @@ static int adp5588_irq_setup(struct adp5588_gpio *dev)
 				    client->irq);
 
 	adp5588_gpio_write(client, CFG,
-		ADP5588_AUTO_INC | ADP5588_INT_CFG | ADP5588_GPI_INT);
+		ADP5588_AUTO_INC | ADP5588_INT_CFG | ADP5588_KE_IEN);
 
 	return 0;
 }
