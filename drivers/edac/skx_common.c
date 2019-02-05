@@ -494,9 +494,11 @@ static void skx_mce_output_error(struct mem_ctl_info *mci,
 	}
 
 	/*
-	 * According with Table 15-9 of the Intel Architecture spec vol 3A,
-	 * memory errors should fit in this mask:
+	 * According to Intel Architecture spec vol 3B,
+	 * Table 15-10 "IA32_MCi_Status [15:0] Compound Error Code Encoding"
+	 * memory errors should fit one of these masks:
 	 *	000f 0000 1mmm cccc (binary)
+	 *	000f 0010 1mmm cccc (binary)	[RAM used as cache]
 	 * where:
 	 *	f = Correction Report Filtering Bit. If 1, subsequent errors
 	 *	    won't be shown
@@ -504,7 +506,7 @@ static void skx_mce_output_error(struct mem_ctl_info *mci,
 	 *	cccc = channel
 	 * If the mask doesn't match, report an error to the parsing logic
 	 */
-	if (!((errcode & 0xef80) == 0x80)) {
+	if (!((errcode & 0xef80) == 0x80 || (errcode & 0xef80) == 0x280)) {
 		optype = "Can't parse: it is not a mem";
 	} else {
 		switch (optypenum) {
