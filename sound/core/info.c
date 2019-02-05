@@ -750,10 +750,8 @@ struct snd_info_entry *snd_info_create_card_entry(struct snd_card *card,
 	if (!parent)
 		parent = card->proc_root;
 	entry = snd_info_create_entry(name, parent);
-	if (entry) {
+	if (entry)
 		entry->module = card->module;
-		entry->card = card;
-	}
 	return entry;
 }
 EXPORT_SYMBOL(snd_info_create_card_entry);
