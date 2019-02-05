@@ -104,7 +104,9 @@ EXPORT_SYMBOL(snd_mixer_oss_notify_callback);
 static void snd_card_id_read(struct snd_info_entry *entry,
 			     struct snd_info_buffer *buffer)
 {
-	snd_iprintf(buffer, "%s\n", entry->card->id);
+	struct snd_card *card = entry->private_data;
+
+	snd_iprintf(buffer, "%s\n", card->id);
 }
 
 static int init_info_for_card(struct snd_card *card)
@@ -116,7 +118,7 @@ static int init_info_for_card(struct snd_card *card)
 		dev_dbg(card->dev, "unable to create card entry\n");
 		return -ENOMEM;
 	}
-	entry->c.text.read = snd_card_id_read;
+	snd_info_set_text_ops(entry, card, snd_card_id_read);
 	card->proc_id = entry;
 
 	return snd_info_card_register(card);

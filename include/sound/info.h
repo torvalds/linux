@@ -82,7 +82,6 @@ struct snd_info_entry {
 		struct snd_info_entry_ops *ops;
 	} c;
 	struct snd_info_entry *parent;
-	struct snd_card *card;
 	struct module *module;
 	void *private_data;
 	void (*private_free)(struct snd_info_entry *entry);
