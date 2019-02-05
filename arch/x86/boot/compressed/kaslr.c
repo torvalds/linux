@@ -670,7 +670,7 @@ static bool process_mem_region(struct mem_vector *region,
 		return 0;
 	}
 
-#ifdef CONFIG_MEMORY_HOTREMOVE
+#if defined(CONFIG_MEMORY_HOTREMOVE) && defined(CONFIG_ACPI)
 	/*
 	 * If immovable memory found, filter the intersection between
 	 * immovable memory and @region.

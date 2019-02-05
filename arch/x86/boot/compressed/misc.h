@@ -129,7 +129,7 @@ acpi_physical_address get_rsdp_addr(void);
 static inline acpi_physical_address get_rsdp_addr(void) { return 0; }
 #endif
 
-#if defined(CONFIG_RANDOMIZE_BASE) && defined(CONFIG_MEMORY_HOTREMOVE)
+#if defined(CONFIG_RANDOMIZE_BASE) && defined(CONFIG_MEMORY_HOTREMOVE) && defined(CONFIG_ACPI)
 extern struct mem_vector immovable_mem[MAX_NUMNODES*2];
 int count_immovable_mem_regions(void);
 #else
