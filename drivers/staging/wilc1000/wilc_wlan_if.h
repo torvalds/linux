@@ -686,7 +686,6 @@ enum {
 	WID_TX_POWER_LEVEL_11N		= 0x00B1,
 
 	/* Custom Character WID list */
-	WID_PC_TEST_MODE		= 0x00C8,
 	/* SCAN Complete notification WID*/
 	WID_SCAN_COMPLETE		= 0x00C9,
 
