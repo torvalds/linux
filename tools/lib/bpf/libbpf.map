@@ -135,6 +135,8 @@ LIBBPF_0.0.2 {
 		bpf_get_link_xdp_id;
 		btf__dedup;
 		btf__get_map_kv_tids;
+		btf__get_nr_types;
+		btf__get_strings;
 		btf_ext__free;
 		btf_ext__func_info_rec_size;
 		btf_ext__line_info_rec_size;

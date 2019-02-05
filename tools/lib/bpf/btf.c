@@ -237,6 +237,11 @@ static int btf_parse_type_sec(struct btf *btf)
 	return 0;
 }
 
+__u32 btf__get_nr_types(const struct btf *btf)
+{
+	return btf->nr_types;
+}
+
 const struct btf_type *btf__type_by_id(const struct btf *btf, __u32 type_id)
 {
 	if (type_id > btf->nr_types)
@@ -425,6 +430,13 @@ done:
 int btf__fd(const struct btf *btf)
 {
 	return btf->fd;
+}
+
+void btf__get_strings(const struct btf *btf, const char **strings,
+		      __u32 *str_len)
+{
+	*strings = btf->strings;
+	*str_len = btf->hdr->str_len;
 }
 
 const char *btf__name_by_offset(const struct btf *btf, __u32 offset)
