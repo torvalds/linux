@@ -183,6 +183,12 @@ struct i915_gem_context {
 		u64 lrc_desc;
 		int pin_count;
 
+		/**
+		 * active_tracker: Active tracker for the external rq activity
+		 * on this intel_context object.
+		 */
+		struct i915_gem_active active_tracker;
+
 		const struct intel_context_ops *ops;
 
 		/** sseu: Control eu/slice partitioning */

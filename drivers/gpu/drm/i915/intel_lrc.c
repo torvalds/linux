@@ -2498,7 +2498,9 @@ u32 gen8_make_rpcs(struct drm_i915_private *i915, struct intel_sseu *req_sseu)
 	 * subslices are enabled, or a count between one and four on the first
 	 * slice.
 	 */
-	if (IS_GEN(i915, 11) && slices == 1 && subslices >= 4) {
+	if (IS_GEN(i915, 11) &&
+	    slices == 1 &&
+	    subslices > min_t(u8, 4, hweight8(sseu->subslice_mask[0]) / 2)) {
 		GEM_BUG_ON(subslices & 1);
 
 		subslice_pg = false;
