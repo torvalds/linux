@@ -523,6 +523,9 @@ enum snd_soc_dapm_type {
 	snd_soc_dapm_asrc,		/* DSP/CODEC ASRC component */
 	snd_soc_dapm_encoder,		/* FW/SW audio encoder component */
 	snd_soc_dapm_decoder,		/* FW/SW audio decoder component */
+
+	/* Don't edit below this line */
+	SND_SOC_DAPM_TYPE_COUNT
 };
 
 enum snd_soc_dapm_subclass {
