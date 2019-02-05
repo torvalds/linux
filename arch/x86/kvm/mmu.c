@@ -5856,7 +5856,8 @@ restart:
 	list_for_each_entry_safe(sp, node, &kvm->arch.active_mmu_pages, link) {
 		if (sp->role.invalid && sp->root_count)
 			continue;
-		if (kvm_mmu_prepare_zap_page(kvm, sp, &invalid_list))
+		if (kvm_mmu_prepare_zap_page(kvm, sp, &invalid_list) ||
+		    cond_resched_lock(&kvm->mmu_lock))
 			goto restart;
 	}
 
