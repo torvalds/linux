@@ -90,6 +90,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_INNO_RK3036
 	select SND_SOC_ISABELLE if I2C
 	select SND_SOC_JZ4740_CODEC
+	select SND_SOC_JZ4725B_CODEC
 	select SND_SOC_LM4857 if I2C
 	select SND_SOC_LM49453 if I2C
 	select SND_SOC_MAX98088 if I2C
@@ -580,6 +581,17 @@ config SND_SOC_CX20442
 config SND_SOC_JZ4740_CODEC
 	select REGMAP_MMIO
 	tristate
+
+config SND_SOC_JZ4725B_CODEC
+	depends on MIPS || COMPILE_TEST
+	select REGMAP
+	tristate "Ingenic JZ4725B internal CODEC"
+	help
+	  Enable support for the internal CODEC found in the JZ4725B SoC
+	  from Ingenic.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called snd-soc-jz4725b-codec.
 
 config SND_SOC_L3
        tristate
