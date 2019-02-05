@@ -348,20 +348,20 @@ static inline bool is_access_track_spte(u64 spte)
 #define MMIO_GEN_LOW_MASK		((1 << MMIO_GEN_LOW_SHIFT) - 2)
 #define MMIO_GEN_MASK			((1 << MMIO_GEN_SHIFT) - 1)
 
-static u64 generation_mmio_spte_mask(unsigned int gen)
+static u64 generation_mmio_spte_mask(u64 gen)
 {
 	u64 mask;
 
 	WARN_ON(gen & ~MMIO_GEN_MASK);
 
 	mask = (gen & MMIO_GEN_LOW_MASK) << MMIO_SPTE_GEN_LOW_SHIFT;
-	mask |= ((u64)gen >> MMIO_GEN_LOW_SHIFT) << MMIO_SPTE_GEN_HIGH_SHIFT;
+	mask |= (gen >> MMIO_GEN_LOW_SHIFT) << MMIO_SPTE_GEN_HIGH_SHIFT;
 	return mask;
 }
 
-static unsigned int get_mmio_spte_generation(u64 spte)
+static u64 get_mmio_spte_generation(u64 spte)
 {
-	unsigned int gen;
+	u64 gen;
 
 	spte &= ~shadow_mmio_mask;
 
@@ -370,7 +370,7 @@ static unsigned int get_mmio_spte_generation(u64 spte)
 	return gen;
 }
 
-static unsigned int kvm_current_mmio_generation(struct kvm_vcpu *vcpu)
+static u64 kvm_current_mmio_generation(struct kvm_vcpu *vcpu)
 {
 	return kvm_vcpu_memslots(vcpu)->generation & MMIO_GEN_MASK;
 }
@@ -378,7 +378,7 @@ static unsigned int kvm_current_mmio_generation(struct kvm_vcpu *vcpu)
 static void mark_mmio_spte(struct kvm_vcpu *vcpu, u64 *sptep, u64 gfn,
 			   unsigned access)
 {
-	unsigned int gen = kvm_current_mmio_generation(vcpu);
+	u64 gen = kvm_current_mmio_generation(vcpu);
 	u64 mask = generation_mmio_spte_mask(gen);
 	u64 gpa = gfn << PAGE_SHIFT;
 
@@ -426,7 +426,7 @@ static bool set_mmio_spte(struct kvm_vcpu *vcpu, u64 *sptep, gfn_t gfn,
 
 static bool check_mmio_spte(struct kvm_vcpu *vcpu, u64 spte)
 {
-	unsigned int kvm_gen, spte_gen;
+	u64 kvm_gen, spte_gen;
 
 	kvm_gen = kvm_current_mmio_generation(vcpu);
 	spte_gen = get_mmio_spte_generation(spte);
