@@ -1978,7 +1978,7 @@ static struct btf_raw_test raw_tests[] = {
 		/* void (*)(int a, unsigned int <bad_name_off>) */
 		BTF_FUNC_PROTO_ENC(0, 2),			/* [3] */
 			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 1),
-			BTF_FUNC_PROTO_ARG_ENC(0xffffffff, 2),
+			BTF_FUNC_PROTO_ARG_ENC(0x0fffffff, 2),
 		BTF_END_RAW,
 	},
 	.str_sec = "\0a",
