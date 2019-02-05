@@ -130,7 +130,6 @@ struct wilc_join_bss_param {
 	};
 } __packed;
 
-static struct host_if_drv *terminated_handle;
 static struct mutex hif_deinit_lock;
 
 /* 'msg' should be free by the caller for syc */
@@ -1478,6 +1477,9 @@ int wilc_set_wfi_drv_handler(struct wilc_vif *vif, int index, u8 mode,
 	int result;
 	struct wilc_drv_handler drv;
 
+	if (!hif_drv)
+		return -EFAULT;
+
 	wid.id = WID_SET_DRV_HANDLER;
 	wid.type = WID_STR;
 	wid.size = sizeof(drv);
@@ -1699,8 +1701,6 @@ int wilc_deinit(struct wilc_vif *vif)
 
 	mutex_lock(&hif_deinit_lock);
 
-	terminated_handle = hif_drv;
-
 	del_timer_sync(&hif_drv->scan_timer);
 	del_timer_sync(&hif_drv->connect_timer);
 	del_timer_sync(&vif->periodic_rssi);
@@ -1717,9 +1717,8 @@ int wilc_deinit(struct wilc_vif *vif)
 	hif_drv->hif_state = HOST_IF_IDLE;
 
 	kfree(hif_drv);
-
+	vif->hif_drv = NULL;
 	vif->wilc->clients_count--;
-	terminated_handle = NULL;
 	mutex_unlock(&hif_deinit_lock);
 	return result;
 }
@@ -1738,7 +1737,7 @@ void wilc_network_info_received(struct wilc *wilc, u8 *buffer, u32 length)
 		return;
 	hif_drv = vif->hif_drv;
 
-	if (!hif_drv || hif_drv == terminated_handle) {
+	if (!hif_drv) {
 		netdev_err(vif->ndev, "driver not init[%p]\n", hif_drv);
 		return;
 	}
@@ -1784,7 +1783,7 @@ void wilc_gnrl_async_info_received(struct wilc *wilc, u8 *buffer, u32 length)
 
 	hif_drv = vif->hif_drv;
 
-	if (!hif_drv || hif_drv == terminated_handle) {
+	if (!hif_drv) {
 		mutex_unlock(&hif_deinit_lock);
 		return;
 	}
@@ -1824,7 +1823,7 @@ void wilc_scan_complete_received(struct wilc *wilc, u8 *buffer, u32 length)
 		return;
 	hif_drv = vif->hif_drv;
 
-	if (!hif_drv || hif_drv == terminated_handle)
+	if (!hif_drv)
 		return;
 
 	if (hif_drv->usr_scan_req.scan_result) {
