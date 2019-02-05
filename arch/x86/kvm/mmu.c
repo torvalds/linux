@@ -5871,8 +5871,11 @@ restart:
 	list_for_each_entry_safe(sp, node, &kvm->arch.active_mmu_pages, link) {
 		if (!sp->mmio_cached)
 			continue;
-		if (__kvm_mmu_prepare_zap_page(kvm, sp, &invalid_list, &ign) ||
-		    cond_resched_lock(&kvm->mmu_lock))
+		if (__kvm_mmu_prepare_zap_page(kvm, sp, &invalid_list, &ign)) {
+			WARN_ON_ONCE(1);
+			goto restart;
+		}
+		if (cond_resched_lock(&kvm->mmu_lock))
 			goto restart;
 	}
 
