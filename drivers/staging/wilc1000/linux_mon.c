@@ -18,9 +18,6 @@ struct wilc_wfi_radiotap_cb_hdr {
 	u16 tx_flags;
 } __packed;
 
-static u8 srcadd[6];
-static u8 bssid[6];
-
 #define TX_RADIOTAP_PRESENT ((1 << IEEE80211_RADIOTAP_RATE) |	\
 			     (1 << IEEE80211_RADIOTAP_TX_FLAGS))
 
@@ -150,6 +147,8 @@ static netdev_tx_t wilc_wfi_mon_xmit(struct sk_buff *skb,
 	struct wilc_wfi_mon_priv  *mon_priv;
 	struct sk_buff *skb2;
 	struct wilc_wfi_radiotap_cb_hdr *cb_hdr;
+	u8 srcadd[ETH_ALEN];
+	u8 bssid[ETH_ALEN];
 
 	mon_priv = netdev_priv(dev);
 	if (!mon_priv)
@@ -193,8 +192,8 @@ static netdev_tx_t wilc_wfi_mon_xmit(struct sk_buff *skb,
 	}
 	skb->dev = mon_priv->real_ndev;
 
-	memcpy(srcadd, &skb->data[10], 6);
-	memcpy(bssid, &skb->data[16], 6);
+	ether_addr_copy(srcadd, &skb->data[10]);
+	ether_addr_copy(bssid, &skb->data[16]);
 	/*
 	 * Identify if data or mgmt packet, if source address and bssid
 	 * fields are equal send it to mgmt frames handler
