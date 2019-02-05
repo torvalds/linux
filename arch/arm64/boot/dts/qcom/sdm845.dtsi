@@ -1515,6 +1515,7 @@
 			clocks = <&gcc GCC_SDCC2_AHB_CLK>,
 				 <&gcc GCC_SDCC2_APPS_CLK>;
 			clock-names = "iface", "core";
+			iommus = <&apps_smmu 0xa0 0xf>;
 
 			status = "disabled";
 		};
