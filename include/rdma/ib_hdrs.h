@@ -123,6 +123,11 @@ union ib_ehdrs {
 	union {
 		struct tid_rdma_read_req r_req;
 		struct tid_rdma_read_resp r_rsp;
+		struct tid_rdma_write_req w_req;
+		struct tid_rdma_write_resp w_rsp;
+		struct tid_rdma_write_data w_data;
+		struct tid_rdma_resync resync;
+		struct tid_rdma_ack ack;
 	} tid_rdma;
 }  __packed;
 

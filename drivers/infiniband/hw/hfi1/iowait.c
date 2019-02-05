@@ -6,6 +6,9 @@
 #include "iowait.h"
 #include "trace_iowait.h"
 
+/* 1 priority == 16 starve_cnt */
+#define IOWAIT_PRIORITY_STARVE_SHIFT 4
+
 void iowait_set_flag(struct iowait *wait, u32 flag)
 {
 	trace_hfi1_iowait_set(wait, flag);
@@ -44,7 +47,8 @@ void iowait_init(struct iowait *wait, u32 tx_limit,
 			      uint seq,
 			      bool pkts_sent),
 		 void (*wakeup)(struct iowait *wait, int reason),
-		 void (*sdma_drained)(struct iowait *wait))
+		 void (*sdma_drained)(struct iowait *wait),
+		 void (*init_priority)(struct iowait *wait))
 {
 	int i;
 
@@ -58,6 +62,7 @@ void iowait_init(struct iowait *wait, u32 tx_limit,
 	wait->sleep = sleep;
 	wait->wakeup = wakeup;
 	wait->sdma_drained = sdma_drained;
+	wait->init_priority = init_priority;
 	wait->flags = 0;
 	for (i = 0; i < IOWAIT_SES; i++) {
 		wait->wait[i].iow = wait;
@@ -91,4 +96,31 @@ int iowait_set_work_flag(struct iowait_work *w)
 	}
 	iowait_set_flag(w->iow, IOWAIT_PENDING_TID);
 	return IOWAIT_TID_SE;
+}
+
+/**
+ * iowait_priority_update_top - update the top priority entry
+ * @w: the iowait struct
+ * @top: a pointer to the top priority entry
+ * @idx: the index of the current iowait in an array
+ * @top_idx: the array index for the iowait entry that has the top priority
+ *
+ * This function is called to compare the priority of a given
+ * iowait with the given top priority entry. The top index will
+ * be returned.
+ */
+uint iowait_priority_update_top(struct iowait *w,
+				struct iowait *top,
+				uint idx, uint top_idx)
+{
+	u8 cnt, tcnt;
+
+	/* Convert priority into starve_cnt and compare the total.*/
+	cnt = (w->priority << IOWAIT_PRIORITY_STARVE_SHIFT) + w->starved_cnt;
+	tcnt = (top->priority << IOWAIT_PRIORITY_STARVE_SHIFT) +
+		top->starved_cnt;
+	if (cnt > tcnt)
+		return idx;
+	else
+		return top_idx;
 }

@@ -138,6 +138,12 @@ const struct rvt_operation_params hfi1_post_parms[RVT_OPERATION_MAX] = {
 	.flags = RVT_OPERATION_USE_RESERVE,
 },
 
+[IB_WR_TID_RDMA_WRITE] = {
+	.length = sizeof(struct ib_rdma_wr),
+	.qpt_support = BIT(IB_QPT_RC),
+	.flags = RVT_OPERATION_IGN_RNR_CNT,
+},
+
 };
 
 static void flush_list_head(struct list_head *l)
@@ -431,6 +437,11 @@ static void hfi1_qp_schedule(struct rvt_qp *qp)
 		if (ret)
 			iowait_clear_flag(&priv->s_iowait, IOWAIT_PENDING_IB);
 	}
+	if (iowait_flag_set(&priv->s_iowait, IOWAIT_PENDING_TID)) {
+		ret = hfi1_schedule_tid_send(qp);
+		if (ret)
+			iowait_clear_flag(&priv->s_iowait, IOWAIT_PENDING_TID);
+	}
 }
 
 void hfi1_qp_wakeup(struct rvt_qp *qp, u32 flag)
@@ -450,8 +461,27 @@ void hfi1_qp_wakeup(struct rvt_qp *qp, u32 flag)
 
 void hfi1_qp_unbusy(struct rvt_qp *qp, struct iowait_work *wait)
 {
-	if (iowait_set_work_flag(wait) == IOWAIT_IB_SE)
+	struct hfi1_qp_priv *priv = qp->priv;
+
+	if (iowait_set_work_flag(wait) == IOWAIT_IB_SE) {
 		qp->s_flags &= ~RVT_S_BUSY;
+		/*
+		 * If we are sending a first-leg packet from the second leg,
+		 * we need to clear the busy flag from priv->s_flags to
+		 * avoid a race condition when the qp wakes up before
+		 * the call to hfi1_verbs_send() returns to the second
+		 * leg. In that case, the second leg will terminate without
+		 * being re-scheduled, resulting in failure to send TID RDMA
+		 * WRITE DATA and TID RDMA ACK packets.
+		 */
+		if (priv->s_flags & HFI1_S_TID_BUSY_SET) {
+			priv->s_flags &= ~(HFI1_S_TID_BUSY_SET |
+					   RVT_S_BUSY);
+			iowait_set_flag(&priv->s_iowait, IOWAIT_PENDING_TID);
+		}
+	} else {
+		priv->s_flags &= ~RVT_S_BUSY;
+	}
 }
 
 static int iowait_sleep(
@@ -488,6 +518,7 @@ static int iowait_sleep(
 
 			ibp->rvp.n_dmawait++;
 			qp->s_flags |= RVT_S_WAIT_DMA_DESC;
+			iowait_get_priority(&priv->s_iowait);
 			iowait_queue(pkts_sent, &priv->s_iowait,
 				     &sde->dmawait);
 			priv->s_iowait.lock = &sde->waitlock;
@@ -535,6 +566,17 @@ static void iowait_sdma_drained(struct iowait *wait)
 		hfi1_schedule_send(qp);
 	}
 	spin_unlock_irqrestore(&qp->s_lock, flags);
+}
+
+static void hfi1_init_priority(struct iowait *w)
+{
+	struct rvt_qp *qp = iowait_to_qp(w);
+	struct hfi1_qp_priv *priv = qp->priv;
+
+	if (qp->s_flags & RVT_S_ACK_PENDING)
+		w->priority++;
+	if (priv->s_flags & RVT_S_ACK_PENDING)
+		w->priority++;
 }
 
 /**
@@ -694,10 +736,11 @@ void *qp_priv_alloc(struct rvt_dev_info *rdi, struct rvt_qp *qp)
 		&priv->s_iowait,
 		1,
 		_hfi1_do_send,
-		NULL,
+		_hfi1_do_tid_send,
 		iowait_sleep,
 		iowait_wakeup,
-		iowait_sdma_drained);
+		iowait_sdma_drained,
+		hfi1_init_priority);
 	return priv;
 }
 
@@ -755,6 +798,8 @@ void quiesce_qp(struct rvt_qp *qp)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
 
+	hfi1_del_tid_reap_timer(qp);
+	hfi1_del_tid_retry_timer(qp);
 	iowait_sdma_drain(&priv->s_iowait);
 	qp_pio_drain(qp);
 	flush_tx_list(qp);
@@ -850,7 +895,8 @@ void notify_error_qp(struct rvt_qp *qp)
 	if (lock) {
 		write_seqlock(lock);
 		if (!list_empty(&priv->s_iowait.list) &&
-		    !(qp->s_flags & RVT_S_BUSY)) {
+		    !(qp->s_flags & RVT_S_BUSY) &&
+		    !(priv->s_flags & RVT_S_BUSY)) {
 			qp->s_flags &= ~RVT_S_ANY_WAIT_IO;
 			list_del_init(&priv->s_iowait.list);
 			priv->s_iowait.lock = NULL;
@@ -859,7 +905,8 @@ void notify_error_qp(struct rvt_qp *qp)
 		write_sequnlock(lock);
 	}
 
-	if (!(qp->s_flags & RVT_S_BUSY)) {
+	if (!(qp->s_flags & RVT_S_BUSY) && !(priv->s_flags & RVT_S_BUSY)) {
+		qp->s_hdrwords = 0;
 		if (qp->s_rdma_mr) {
 			rvt_put_mr(qp->s_rdma_mr);
 			qp->s_rdma_mr = NULL;

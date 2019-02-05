@@ -25,8 +25,34 @@
  * s_flags, there are no collisions.
  *
  * HFI1_S_TID_WAIT_INTERLCK - QP is waiting for requester interlock
+ * HFI1_R_TID_WAIT_INTERLCK - QP is waiting for responder interlock
  */
+#define HFI1_S_TID_BUSY_SET       BIT(0)
+/* BIT(1) reserved for RVT_S_BUSY. */
+#define HFI1_R_TID_RSC_TIMER      BIT(2)
+/* BIT(3) reserved for RVT_S_RESP_PENDING. */
+/* BIT(4) reserved for RVT_S_ACK_PENDING. */
 #define HFI1_S_TID_WAIT_INTERLCK  BIT(5)
+#define HFI1_R_TID_WAIT_INTERLCK  BIT(6)
+/* BIT(7) - BIT(15) reserved for RVT_S_WAIT_*. */
+/* BIT(16) reserved for RVT_S_SEND_ONE */
+#define HFI1_S_TID_RETRY_TIMER    BIT(17)
+/* BIT(18) reserved for RVT_S_ECN. */
+#define HFI1_R_TID_SW_PSN         BIT(19)
+/* BIT(26) reserved for HFI1_S_WAIT_HALT */
+/* BIT(27) reserved for HFI1_S_WAIT_TID_RESP */
+/* BIT(28) reserved for HFI1_S_WAIT_TID_SPACE */
+
+/*
+ * Unlike regular IB RDMA VERBS, which do not require an entry
+ * in the s_ack_queue, TID RDMA WRITE requests do because they
+ * generate responses.
+ * Therefore, the s_ack_queue needs to be extended by a certain
+ * amount. The key point is that the queue needs to be extended
+ * without letting the "user" know so they user doesn't end up
+ * using these extra entries.
+ */
+#define HFI1_TID_RDMA_WRITE_CNT 8
 
 struct tid_rdma_params {
 	struct rcu_head rcu_head;
@@ -78,20 +104,25 @@ struct tid_rdma_request {
 	} e;
 
 	struct tid_rdma_flow *flows;	/* array of tid flows */
+	struct rvt_sge_state ss; /* SGE state for TID RDMA requests */
 	u16 n_flows;		/* size of the flow buffer window */
 	u16 setup_head;		/* flow index we are setting up */
 	u16 clear_tail;		/* flow index we are clearing */
 	u16 flow_idx;		/* flow index most recently set up */
+	u16 acked_tail;
 
 	u32 seg_len;
 	u32 total_len;
+	u32 r_ack_psn;          /* next expected ack PSN */
 	u32 r_flow_psn;         /* IB PSN of next segment start */
+	u32 r_last_acked;       /* IB PSN of last ACK'ed packet */
 	u32 s_next_psn;		/* IB PSN of next segment start for read */
 
 	u32 total_segs;		/* segments required to complete a request */
 	u32 cur_seg;		/* index of current segment */
 	u32 comp_seg;           /* index of last completed segment */
 	u32 ack_seg;            /* index of last ack'ed segment */
+	u32 alloc_seg;          /* index of next segment to be allocated */
 	u32 isge;		/* index of "current" sge */
 	u32 ack_pending;        /* num acks pending for this request */
 
@@ -158,9 +189,16 @@ struct tid_rdma_flow {
 	u8 npagesets;
 	u8 npkts;
 	u8 pkt;
+	u8 resync_npkts;
 	struct kern_tid_node tnode[TID_RDMA_MAX_PAGES];
 	struct tid_rdma_pageset pagesets[TID_RDMA_MAX_PAGES];
 	u32 tid_entry[TID_RDMA_MAX_PAGES];
+};
+
+enum tid_rnr_nak_state {
+	TID_RNR_NAK_INIT = 0,
+	TID_RNR_NAK_SEND,
+	TID_RNR_NAK_SENT,
 };
 
 bool tid_rdma_conn_req(struct rvt_qp *qp, u64 *data);
@@ -228,9 +266,57 @@ static inline void hfi1_setup_tid_rdma_wqe(struct rvt_qp *qp,
 					   struct rvt_swqe *wqe)
 {
 	if (wqe->priv &&
-	    wqe->wr.opcode == IB_WR_RDMA_READ &&
+	    (wqe->wr.opcode == IB_WR_RDMA_READ ||
+	     wqe->wr.opcode == IB_WR_RDMA_WRITE) &&
 	    wqe->length >= TID_RDMA_MIN_SEGMENT_SIZE)
 		setup_tid_rdma_wqe(qp, wqe);
 }
+
+u32 hfi1_build_tid_rdma_write_req(struct rvt_qp *qp, struct rvt_swqe *wqe,
+				  struct ib_other_headers *ohdr,
+				  u32 *bth1, u32 *bth2, u32 *len);
+
+void hfi1_compute_tid_rdma_flow_wt(void);
+
+void hfi1_rc_rcv_tid_rdma_write_req(struct hfi1_packet *packet);
+
+u32 hfi1_build_tid_rdma_write_resp(struct rvt_qp *qp, struct rvt_ack_entry *e,
+				   struct ib_other_headers *ohdr, u32 *bth1,
+				   u32 bth2, u32 *len,
+				   struct rvt_sge_state **ss);
+
+void hfi1_del_tid_reap_timer(struct rvt_qp *qp);
+
+void hfi1_rc_rcv_tid_rdma_write_resp(struct hfi1_packet *packet);
+
+bool hfi1_build_tid_rdma_packet(struct rvt_swqe *wqe,
+				struct ib_other_headers *ohdr,
+				u32 *bth1, u32 *bth2, u32 *len);
+
+void hfi1_rc_rcv_tid_rdma_write_data(struct hfi1_packet *packet);
+
+u32 hfi1_build_tid_rdma_write_ack(struct rvt_qp *qp, struct rvt_ack_entry *e,
+				  struct ib_other_headers *ohdr, u16 iflow,
+				  u32 *bth1, u32 *bth2);
+
+void hfi1_rc_rcv_tid_rdma_ack(struct hfi1_packet *packet);
+
+void hfi1_add_tid_retry_timer(struct rvt_qp *qp);
+void hfi1_del_tid_retry_timer(struct rvt_qp *qp);
+
+u32 hfi1_build_tid_rdma_resync(struct rvt_qp *qp, struct rvt_swqe *wqe,
+			       struct ib_other_headers *ohdr, u32 *bth1,
+			       u32 *bth2, u16 fidx);
+
+void hfi1_rc_rcv_tid_rdma_resync(struct hfi1_packet *packet);
+
+struct hfi1_pkt_state;
+int hfi1_make_tid_rdma_pkt(struct rvt_qp *qp, struct hfi1_pkt_state *ps);
+
+void _hfi1_do_tid_send(struct work_struct *work);
+
+bool hfi1_schedule_tid_send(struct rvt_qp *qp);
+
+bool hfi1_tid_rdma_ack_interlock(struct rvt_qp *qp, struct rvt_ack_entry *e);
 
 #endif /* HFI1_TID_RDMA_H */

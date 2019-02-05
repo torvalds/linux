@@ -163,16 +163,39 @@ struct hfi1_qp_priv {
 	u32 tid_enqueue;                          /* saved when tid waited */
 	u8 s_sc;		                  /* SC[0..4] for next packet */
 	struct iowait s_iowait;
+	struct timer_list s_tid_timer;            /* for timing tid wait */
+	struct timer_list s_tid_retry_timer;      /* for timing tid ack */
 	struct list_head tid_wait;                /* for queueing tid space */
 	struct hfi1_opfn_data opfn;
 	struct tid_flow_state flow_state;
 	struct tid_rdma_qp_params tid_rdma;
 	struct rvt_qp *owner;
 	u8 hdr_type; /* 9B or 16B */
+	struct rvt_sge_state tid_ss;       /* SGE state pointer for 2nd leg */
+	atomic_t n_requests;               /* # of TID RDMA requests in the */
+					   /* queue */
+	atomic_t n_tid_requests;            /* # of sent TID RDMA requests */
 	unsigned long tid_timer_timeout_jiffies;
+	unsigned long tid_retry_timeout_jiffies;
 
 	/* variables for the TID RDMA SE state machine */
+	u8 s_state;
+	u8 s_retry;
+	u8 rnr_nak_state;       /* RNR NAK state */
+	u8 s_nak_state;
+	u32 s_nak_psn;
 	u32 s_flags;
+	u32 s_tid_cur;
+	u32 s_tid_head;
+	u32 s_tid_tail;
+	u32 r_tid_head;     /* Most recently added TID RDMA request */
+	u32 r_tid_tail;     /* the last completed TID RDMA request */
+	u32 r_tid_ack;      /* the TID RDMA request to be ACK'ed */
+	u32 r_tid_alloc;    /* Request for which we are allocating resources */
+	u32 pending_tid_w_segs; /* Num of pending tid write segments */
+	u32 pending_tid_w_resp; /* Num of pending tid write responses */
+	u32 alloc_w_segs;       /* Number of segments for which write */
+			       /* resources have been allocated for this QP */
 
 	/* For TID RDMA READ */
 	u32 tid_r_reqs;         /* Num of tid reads requested */
@@ -180,7 +203,15 @@ struct hfi1_qp_priv {
 	u32 pending_tid_r_segs; /* Num of pending tid read segments */
 	u16 pkts_ps;            /* packets per segment */
 	u8 timeout_shift;       /* account for number of packets per segment */
+
+	u32 r_next_psn_kdeth;
+	u32 r_next_psn_kdeth_save;
+	u32 s_resync_psn;
+	u8 sync_pt;           /* Set when QP reaches sync point */
+	u8 resync;
 };
+
+#define HFI1_QP_WQE_INVALID   ((u32)-1)
 
 struct hfi1_swqe_priv {
 	struct tid_rdma_request tid_req;
@@ -188,6 +219,7 @@ struct hfi1_swqe_priv {
 };
 
 struct hfi1_ack_priv {
+	struct rvt_sge_state ss;               /* used for TID WRITE RESP */
 	struct tid_rdma_request tid_req;
 };
 
@@ -411,6 +443,9 @@ u32 hfi1_make_grh(struct hfi1_ibport *ibp, struct ib_grh *hdr,
 void hfi1_make_ruc_header(struct rvt_qp *qp, struct ib_other_headers *ohdr,
 			  u32 bth0, u32 bth1, u32 bth2, int middle,
 			  struct hfi1_pkt_state *ps);
+
+bool hfi1_schedule_send_yield(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
+			      bool tid);
 
 void _hfi1_do_send(struct work_struct *work);
 

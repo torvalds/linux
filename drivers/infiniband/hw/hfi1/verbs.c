@@ -161,6 +161,7 @@ MODULE_PARM_DESC(wss_clean_period, "Count of verbs copies before an entry in the
  */
 const enum ib_wc_opcode ib_hfi1_wc_opcode[] = {
 	[IB_WR_RDMA_WRITE] = IB_WC_RDMA_WRITE,
+	[IB_WR_TID_RDMA_WRITE] = IB_WC_RDMA_WRITE,
 	[IB_WR_RDMA_WRITE_WITH_IMM] = IB_WC_RDMA_WRITE,
 	[IB_WR_SEND] = IB_WC_SEND,
 	[IB_WR_SEND_WITH_IMM] = IB_WC_SEND,
@@ -203,6 +204,12 @@ const u8 hdr_len_by_opcode[256] = {
 	[IB_OPCODE_RC_SEND_ONLY_WITH_INVALIDATE]      = 12 + 8 + 4,
 	[IB_OPCODE_TID_RDMA_READ_REQ]                 = 12 + 8 + 36,
 	[IB_OPCODE_TID_RDMA_READ_RESP]                = 12 + 8 + 36,
+	[IB_OPCODE_TID_RDMA_WRITE_REQ]                = 12 + 8 + 36,
+	[IB_OPCODE_TID_RDMA_WRITE_RESP]               = 12 + 8 + 36,
+	[IB_OPCODE_TID_RDMA_WRITE_DATA]               = 12 + 8 + 36,
+	[IB_OPCODE_TID_RDMA_WRITE_DATA_LAST]          = 12 + 8 + 36,
+	[IB_OPCODE_TID_RDMA_ACK]                      = 12 + 8 + 36,
+	[IB_OPCODE_TID_RDMA_RESYNC]                   = 12 + 8 + 36,
 	/* UC */
 	[IB_OPCODE_UC_SEND_FIRST]                     = 12 + 8,
 	[IB_OPCODE_UC_SEND_MIDDLE]                    = 12 + 8,
@@ -248,8 +255,14 @@ static const opcode_handler opcode_handler_tbl[256] = {
 	[IB_OPCODE_RC_SEND_ONLY_WITH_INVALIDATE]      = &hfi1_rc_rcv,
 
 	/* TID RDMA has separate handlers for different opcodes.*/
+	[IB_OPCODE_TID_RDMA_WRITE_REQ]       = &hfi1_rc_rcv_tid_rdma_write_req,
+	[IB_OPCODE_TID_RDMA_WRITE_RESP]      = &hfi1_rc_rcv_tid_rdma_write_resp,
+	[IB_OPCODE_TID_RDMA_WRITE_DATA]      = &hfi1_rc_rcv_tid_rdma_write_data,
+	[IB_OPCODE_TID_RDMA_WRITE_DATA_LAST] = &hfi1_rc_rcv_tid_rdma_write_data,
 	[IB_OPCODE_TID_RDMA_READ_REQ]        = &hfi1_rc_rcv_tid_rdma_read_req,
 	[IB_OPCODE_TID_RDMA_READ_RESP]       = &hfi1_rc_rcv_tid_rdma_read_resp,
+	[IB_OPCODE_TID_RDMA_RESYNC]          = &hfi1_rc_rcv_tid_rdma_resync,
+	[IB_OPCODE_TID_RDMA_ACK]             = &hfi1_rc_rcv_tid_rdma_ack,
 
 	/* UC */
 	[IB_OPCODE_UC_SEND_FIRST]                     = &hfi1_uc_rcv,
@@ -932,6 +945,7 @@ static int pio_wait(struct rvt_qp *qp,
 			dev->n_piodrain += !!(flag & HFI1_S_WAIT_PIO_DRAIN);
 			qp->s_flags |= flag;
 			was_empty = list_empty(&sc->piowait);
+			iowait_get_priority(&priv->s_iowait);
 			iowait_queue(ps->pkts_sent, &priv->s_iowait,
 				     &sc->piowait);
 			priv->s_iowait.lock = &sc->waitlock;
@@ -1332,7 +1346,9 @@ static void hfi1_fill_device_attr(struct hfi1_devdata *dd)
 	rdi->dparms.props.max_mr_size = U64_MAX;
 	rdi->dparms.props.max_fast_reg_page_list_len = UINT_MAX;
 	rdi->dparms.props.max_qp = hfi1_max_qps;
-	rdi->dparms.props.max_qp_wr = hfi1_max_qp_wrs;
+	rdi->dparms.props.max_qp_wr =
+		(hfi1_max_qp_wrs >= HFI1_QP_WQE_INVALID ?
+		 HFI1_QP_WQE_INVALID - 1 : hfi1_max_qp_wrs);
 	rdi->dparms.props.max_send_sge = hfi1_max_sges;
 	rdi->dparms.props.max_recv_sge = hfi1_max_sges;
 	rdi->dparms.props.max_sge_rd = hfi1_max_sges;
@@ -1888,7 +1904,7 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	dd->verbs_dev.rdi.dparms.wss_threshold = wss_threshold;
 	dd->verbs_dev.rdi.dparms.wss_clean_period = wss_clean_period;
 	dd->verbs_dev.rdi.dparms.reserved_operations = 1;
-	dd->verbs_dev.rdi.dparms.extra_rdma_atomic = 1;
+	dd->verbs_dev.rdi.dparms.extra_rdma_atomic = HFI1_TID_RDMA_WRITE_CNT;
 
 	/* post send table */
 	dd->verbs_dev.rdi.post_parms = hfi1_post_parms;

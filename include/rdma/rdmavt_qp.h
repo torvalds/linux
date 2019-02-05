@@ -246,6 +246,7 @@ struct rvt_ack_entry {
 #define RVT_OPERATION_ATOMIC_SGE  0x00000004
 #define RVT_OPERATION_LOCAL       0x00000008
 #define RVT_OPERATION_USE_RESERVE 0x00000010
+#define RVT_OPERATION_IGN_RNR_CNT 0x00000020
 
 #define RVT_OPERATION_MAX (IB_WR_RESERVED10 + 1)
 
@@ -375,6 +376,7 @@ struct rvt_qp {
 	u8 s_rnr_retry;         /* requester RNR retry counter */
 	u8 s_num_rd_atomic;     /* number of RDMA read/atomic pending */
 	u8 s_tail_ack_queue;    /* index into s_ack_queue[] */
+	u8 s_acked_ack_queue;   /* index into s_ack_queue[] */
 
 	struct rvt_sge_state s_ack_rdma_sge;
 	struct timer_list s_timer;
