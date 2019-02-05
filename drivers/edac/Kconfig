@@ -243,10 +243,10 @@ config EDAC_SKX
 
 config EDAC_I10NM
 	tristate "Intel 10nm server Integrated MC"
-	depends on PCI && X86_64 && X86_MCE_INTEL && PCI_MMCONFIG
+	depends on PCI && X86_64 && X86_MCE_INTEL && PCI_MMCONFIG && ACPI
 	depends on ACPI_NFIT || !ACPI_NFIT # if ACPI_NFIT=m, EDAC_I10NM can't be y
 	select DMI
-	select ACPI_ADXL if ACPI
+	select ACPI_ADXL
 	help
 	  Support for error detection and correction the Intel
 	  10nm server Integrated Memory Controllers. If your
