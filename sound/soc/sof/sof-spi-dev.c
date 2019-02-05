@@ -23,21 +23,31 @@
 #include "hw-spi.h"
 #include "ops.h"
 
+static char *fw_path;
+module_param(fw_path, charp, 0444);
+MODULE_PARM_DESC(fw_path, "alternate path for SOF firmware.");
+
+static char *tplg_path;
+module_param(tplg_path, charp, 0444);
+MODULE_PARM_DESC(tplg_path, "alternate path for SOF topology.");
+
 /* FIXME: replace with some meaningful values */
 static struct snd_soc_acpi_mach spi_machines[] = {
 	{
 		.id = "INT343A",
 		.drv_name = "bxt_alc298s_i2s",
-		.sof_fw_filename = "intel/sof-spi.ri",
-		.sof_tplg_filename = "intel/sof-spi.tplg",
+		.sof_fw_filename = "sof-spi.ri",
+		.sof_tplg_filename = "sof-spi.tplg",
 		.asoc_plat_name = "0000:00:0e.0",
 	},
 };
 
 static const struct sof_dev_desc spi_desc = {
 	.machines		= spi_machines,
-	.nocodec_fw_filename	= "intel/sof-spi.ri",
-	.nocodec_tplg_filename	= "intel/sof-spi.tplg",
+	.default_fw_path = "intel/sof",
+	.default_tplg_path = "intel/sof-tplg",
+	.nocodec_fw_filename	= "sof-spi.ri",
+	.nocodec_tplg_filename	= "sof-spi.tplg",
 	.resindex_lpe_base = -1,
 	.resindex_pcicfg_base = -1,
 	.resindex_imr_base = -1,
@@ -121,6 +131,22 @@ static int sof_spi_probe(struct spi_device *spi)
 	sof_pdata->machine = mach;
 	sof_pdata->desc = desc;
 	sof_pdata->dev = dev;
+
+	/* alternate fw and tplg filenames ? */
+	if (fw_path)
+		sof_pdata->fw_filename_prefix = fw_path;
+	else
+		sof_pdata->fw_filename_prefix =
+			sof_pdata->desc->default_fw_path;
+
+	if (tplg_path)
+		sof_pdata->tplg_filename_prefix = tplg_path;
+	else
+		sof_pdata->tplg_filename_prefix =
+			sof_pdata->desc->default_tplg_path;
+
+	sof_pdata->fw_filename = mach->sof_fw_filename;
+	sof_pdata->tplg_filename = mach->sof_tplg_filename;
 
 	/* call sof helper for DSP hardware probe */
 	ret = snd_sof_device_probe(dev, sof_pdata);

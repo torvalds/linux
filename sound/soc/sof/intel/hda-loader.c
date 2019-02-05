@@ -252,7 +252,13 @@ int hda_dsp_cl_load_fw(struct snd_sof_dev *sdev)
 
 	/* set code loading condition to true */
 	sdev->code_loading = 1;
-	fw_filename = plat_data->machine->sof_fw_filename;
+
+	fw_filename = devm_kasprintf(sdev->dev, GFP_KERNEL,
+				     "%s/%s",
+				     plat_data->fw_filename_prefix,
+				     plat_data->fw_filename);
+	if (!fw_filename)
+		return -ENOMEM;
 
 	return request_firmware(&plat_data->fw, fw_filename, sdev->dev);
 }

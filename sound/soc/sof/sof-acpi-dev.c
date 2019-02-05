@@ -24,6 +24,14 @@
 /* platform specific devices */
 #include "intel/shim.h"
 
+static char *fw_path;
+module_param(fw_path, charp, 0444);
+MODULE_PARM_DESC(fw_path, "alternate path for SOF firmware.");
+
+static char *tplg_path;
+module_param(tplg_path, charp, 0444);
+MODULE_PARM_DESC(tplg_path, "alternate path for SOF topology.");
+
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HASWELL)
 static const struct sof_dev_desc sof_acpi_haswell_desc = {
 	.machines = snd_soc_acpi_intel_haswell_machines,
@@ -32,8 +40,10 @@ static const struct sof_dev_desc sof_acpi_haswell_desc = {
 	.resindex_imr_base = -1,
 	.irqindex_host_ipc = 0,
 	.chip_info = &hsw_chip_info,
-	.nocodec_fw_filename = "intel/sof-hsw.ri",
-	.nocodec_tplg_filename = "intel/sof-hsw-nocodec.tplg",
+	.default_fw_path = "intel/sof",
+	.default_tplg_path = "intel/sof-tplg",
+	.nocodec_fw_filename = "sof-hsw.ri",
+	.nocodec_tplg_filename = "sof-hsw-nocodec.tplg",
 	.ops = &sof_hsw_ops,
 	.arch_ops = &sof_xtensa_arch_ops
 };
@@ -47,8 +57,10 @@ static const struct sof_dev_desc sof_acpi_broadwell_desc = {
 	.resindex_imr_base = -1,
 	.irqindex_host_ipc = 0,
 	.chip_info = &bdw_chip_info,
-	.nocodec_fw_filename = "intel/sof-bdw.ri",
-	.nocodec_tplg_filename = "intel/sof-bdw-nocodec.tplg",
+	.default_fw_path = "intel/sof",
+	.default_tplg_path = "intel/sof-tplg",
+	.nocodec_fw_filename = "sof-bdw.ri",
+	.nocodec_tplg_filename = "sof-bdw-nocodec.tplg",
 	.ops = &sof_bdw_ops,
 	.arch_ops = &sof_xtensa_arch_ops
 };
@@ -64,8 +76,10 @@ static const struct sof_dev_desc sof_acpi_baytrailcr_desc = {
 	.resindex_imr_base = 2,
 	.irqindex_host_ipc = 0,
 	.chip_info = &byt_chip_info,
-	.nocodec_fw_filename = "intel/sof-byt.ri",
-	.nocodec_tplg_filename = "intel/sof-byt-nocodec.tplg",
+	.default_fw_path = "intel/sof",
+	.default_tplg_path = "intel/sof-tplg",
+	.nocodec_fw_filename = "sof-byt.ri",
+	.nocodec_tplg_filename = "sof-byt-nocodec.tplg",
 	.ops = &sof_byt_ops,
 	.arch_ops = &sof_xtensa_arch_ops
 };
@@ -77,8 +91,10 @@ static const struct sof_dev_desc sof_acpi_baytrail_desc = {
 	.resindex_imr_base = 2,
 	.irqindex_host_ipc = 5,
 	.chip_info = &byt_chip_info,
-	.nocodec_fw_filename = "intel/sof-byt.ri",
-	.nocodec_tplg_filename = "intel/sof-byt-nocodec.tplg",
+	.default_fw_path = "intel/sof",
+	.default_tplg_path = "intel/sof-tplg",
+	.nocodec_fw_filename = "sof-byt.ri",
+	.nocodec_tplg_filename = "sof-byt-nocodec.tplg",
 	.ops = &sof_byt_ops,
 	.arch_ops = &sof_xtensa_arch_ops
 };
@@ -140,8 +156,10 @@ static const struct sof_dev_desc sof_acpi_cherrytrail_desc = {
 	.resindex_imr_base = 2,
 	.irqindex_host_ipc = 5,
 	.chip_info = &cht_chip_info,
-	.nocodec_fw_filename = "intel/sof-cht.ri",
-	.nocodec_tplg_filename = "intel/sof-cht-nocodec.tplg",
+	.default_fw_path = "intel/sof",
+	.default_tplg_path = "intel/sof-tplg",
+	.nocodec_fw_filename = "sof-cht.ri",
+	.nocodec_tplg_filename = "sof-cht-nocodec.tplg",
 	.ops = &sof_cht_ops,
 	.arch_ops = &sof_xtensa_arch_ops
 };
@@ -228,11 +246,26 @@ static int sof_acpi_probe(struct platform_device *pdev)
 	sof_pdata->dev = &pdev->dev;
 	sof_pdata->platform = dev_name(dev);
 
+	/* alternate fw and tplg filenames ? */
+	if (fw_path)
+		sof_pdata->fw_filename_prefix = fw_path;
+	else
+		sof_pdata->fw_filename_prefix =
+			sof_pdata->desc->default_fw_path;
+
+	if (tplg_path)
+		sof_pdata->tplg_filename_prefix = tplg_path;
+	else
+		sof_pdata->tplg_filename_prefix =
+			sof_pdata->desc->default_tplg_path;
+
+	sof_pdata->fw_filename = mach->sof_fw_filename;
+	sof_pdata->tplg_filename = mach->sof_tplg_filename;
+
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_PROBE_WORK_QUEUE)
 	/* set callback to enable runtime_pm */
 	sof_pdata->sof_probe_complete = sof_acpi_probe_complete;
 #endif
-
 	/* call sof helper for DSP hardware probe */
 	ret = snd_sof_device_probe(dev, sof_pdata);
 	if (ret) {

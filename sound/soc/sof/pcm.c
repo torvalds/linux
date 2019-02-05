@@ -647,7 +647,13 @@ static int sof_pcm_probe(struct snd_soc_component *component)
 
 	/* load the default topology */
 	sdev->component = component;
-	tplg_filename = plat_data->machine->sof_tplg_filename;
+
+	tplg_filename = devm_kasprintf(sdev->dev, GFP_KERNEL,
+				       "%s/%s",
+				       plat_data->tplg_filename_prefix,
+				       plat_data->tplg_filename);
+	if (!tplg_filename)
+		return -ENOMEM;
 
 	ret = snd_sof_load_topology(sdev, tplg_filename);
 	if (ret < 0) {
