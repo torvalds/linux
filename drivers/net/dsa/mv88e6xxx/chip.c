@@ -4764,6 +4764,21 @@ static const void *pdata_device_get_match_data(struct device *dev)
 	return NULL;
 }
 
+/* There is no suspend to RAM support at DSA level yet, the switch configuration
+ * would be lost after a power cycle so prevent it to be suspended.
+ */
+static int __maybe_unused mv88e6xxx_suspend(struct device *dev)
+{
+	return -EOPNOTSUPP;
+}
+
+static int __maybe_unused mv88e6xxx_resume(struct device *dev)
+{
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(mv88e6xxx_pm_ops, mv88e6xxx_suspend, mv88e6xxx_resume);
+
 static int mv88e6xxx_probe(struct mdio_device *mdiodev)
 {
 	struct dsa_mv88e6xxx_pdata *pdata = mdiodev->dev.platform_data;
@@ -4948,6 +4963,7 @@ static struct mdio_driver mv88e6xxx_driver = {
 	.mdiodrv.driver = {
 		.name = "mv88e6085",
 		.of_match_table = mv88e6xxx_of_match,
+		.pm = &mv88e6xxx_pm_ops,
 	},
 };
 
