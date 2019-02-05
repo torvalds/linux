@@ -57,9 +57,12 @@ struct meson_canvas *meson_canvas_get(struct device *dev)
 		return ERR_PTR(-ENODEV);
 
 	canvas_pdev = of_find_device_by_node(canvas_node);
-	if (!canvas_pdev)
+	if (!canvas_pdev) {
+		of_node_put(canvas_node);
 		return ERR_PTR(-EPROBE_DEFER);
+	}
 
+	of_node_put(canvas_node);
 	return dev_get_drvdata(&canvas_pdev->dev);
 }
 EXPORT_SYMBOL_GPL(meson_canvas_get);
