@@ -159,9 +159,11 @@ static int linux_wlan_txq_task(void *vp)
 		do {
 			ret = wilc_wlan_handle_txq(dev, &txq_count);
 			if (txq_count < FLOW_CONTROL_LOWER_THRESHOLD) {
-				if (netif_queue_stopped(wl->vif[0]->ndev))
+				if (wl->vif[0]->mac_opened &&
+				    netif_queue_stopped(wl->vif[0]->ndev))
 					netif_wake_queue(wl->vif[0]->ndev);
-				if (netif_queue_stopped(wl->vif[1]->ndev))
+				if (wl->vif[1]->mac_opened &&
+				    netif_queue_stopped(wl->vif[1]->ndev))
 					netif_wake_queue(wl->vif[1]->ndev);
 			}
 		} while (ret == -ENOBUFS && !wl->close);
@@ -761,8 +763,10 @@ netdev_tx_t wilc_mac_xmit(struct sk_buff *skb, struct net_device *ndev)
 						linux_wlan_tx_complete);
 
 	if (queue_count > FLOW_CONTROL_UPPER_THRESHOLD) {
-		netif_stop_queue(wilc->vif[0]->ndev);
-		netif_stop_queue(wilc->vif[1]->ndev);
+		if (wilc->vif[0]->mac_opened)
+			netif_stop_queue(wilc->vif[0]->ndev);
+		if (wilc->vif[1]->mac_opened)
+			netif_stop_queue(wilc->vif[1]->ndev);
 	}
 
 	return 0;
