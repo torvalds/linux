@@ -1266,7 +1266,8 @@ static int __context_pin(struct i915_gem_context *ctx, struct i915_vma *vma)
 	return i915_vma_pin(vma, 0, 0, flags);
 }
 
-static u32 make_rpcs(struct drm_i915_private *dev_priv);
+static u32
+make_rpcs(struct drm_i915_private *i915, struct intel_sseu *ctx_sseu);
 
 static void
 __execlists_update_reg_state(struct intel_engine_cs *engine,
@@ -1281,7 +1282,8 @@ __execlists_update_reg_state(struct intel_engine_cs *engine,
 
 	/* RPCS */
 	if (engine->class == RENDER_CLASS)
-		regs[CTX_R_PWR_CLK_STATE + 1] = make_rpcs(engine->i915);
+		regs[CTX_R_PWR_CLK_STATE + 1] = make_rpcs(engine->i915,
+							  &ce->sseu);
 }
 
 static struct intel_context *
@@ -2432,18 +2434,19 @@ int logical_xcs_ring_init(struct intel_engine_cs *engine)
 }
 
 static u32
-make_rpcs(struct drm_i915_private *dev_priv)
+make_rpcs(struct drm_i915_private *i915, struct intel_sseu *ctx_sseu)
 {
-	bool subslice_pg = RUNTIME_INFO(dev_priv)->sseu.has_subslice_pg;
-	u8 slices = hweight8(RUNTIME_INFO(dev_priv)->sseu.slice_mask);
-	u8 subslices = hweight8(RUNTIME_INFO(dev_priv)->sseu.subslice_mask[0]);
+	const struct sseu_dev_info *sseu = &RUNTIME_INFO(i915)->sseu;
+	bool subslice_pg = sseu->has_subslice_pg;
+	u8 slices = hweight8(ctx_sseu->slice_mask);
+	u8 subslices = hweight8(ctx_sseu->subslice_mask);
 	u32 rpcs = 0;
 
 	/*
 	 * No explicit RPCS request is needed to ensure full
 	 * slice/subslice/EU enablement prior to Gen9.
 	*/
-	if (INTEL_GEN(dev_priv) < 9)
+	if (INTEL_GEN(i915) < 9)
 		return 0;
 
 	/*
@@ -2471,7 +2474,7 @@ make_rpcs(struct drm_i915_private *dev_priv)
 	 * subslices are enabled, or a count between one and four on the first
 	 * slice.
 	 */
-	if (IS_GEN(dev_priv, 11) && slices == 1 && subslices >= 4) {
+	if (IS_GEN(i915, 11) && slices == 1 && subslices >= 4) {
 		GEM_BUG_ON(subslices & 1);
 
 		subslice_pg = false;
@@ -2484,10 +2487,10 @@ make_rpcs(struct drm_i915_private *dev_priv)
 	 * must make an explicit request through RPCS for full
 	 * enablement.
 	*/
-	if (RUNTIME_INFO(dev_priv)->sseu.has_slice_pg) {
+	if (sseu->has_slice_pg) {
 		u32 mask, val = slices;
 
-		if (INTEL_GEN(dev_priv) >= 11) {
+		if (INTEL_GEN(i915) >= 11) {
 			mask = GEN11_RPCS_S_CNT_MASK;
 			val <<= GEN11_RPCS_S_CNT_SHIFT;
 		} else {
@@ -2512,18 +2515,16 @@ make_rpcs(struct drm_i915_private *dev_priv)
 		rpcs |= GEN8_RPCS_ENABLE | GEN8_RPCS_SS_CNT_ENABLE | val;
 	}
 
-	if (RUNTIME_INFO(dev_priv)->sseu.has_eu_pg) {
+	if (sseu->has_eu_pg) {
 		u32 val;
 
-		val = RUNTIME_INFO(dev_priv)->sseu.eu_per_subslice <<
-		      GEN8_RPCS_EU_MIN_SHIFT;
+		val = ctx_sseu->min_eus_per_subslice << GEN8_RPCS_EU_MIN_SHIFT;
 		GEM_BUG_ON(val & ~GEN8_RPCS_EU_MIN_MASK);
 		val &= GEN8_RPCS_EU_MIN_MASK;
 
 		rpcs |= val;
 
-		val = RUNTIME_INFO(dev_priv)->sseu.eu_per_subslice <<
-		      GEN8_RPCS_EU_MAX_SHIFT;
+		val = ctx_sseu->max_eus_per_subslice << GEN8_RPCS_EU_MAX_SHIFT;
 		GEM_BUG_ON(val & ~GEN8_RPCS_EU_MAX_MASK);
 		val &= GEN8_RPCS_EU_MAX_MASK;
 
