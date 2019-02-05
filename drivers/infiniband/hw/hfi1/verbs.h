@@ -172,6 +172,8 @@ struct hfi1_qp_priv {
 	unsigned long tid_timer_timeout_jiffies;
 
 	/* For TID RDMA READ */
+	u32 tid_r_reqs;         /* Num of tid reads requested */
+	u32 tid_r_comp;         /* Num of tid reads completed */
 	u32 pending_tid_r_segs; /* Num of pending tid read segments */
 	u16 pkts_ps;            /* packets per segment */
 	u8 timeout_shift;       /* account for number of packets per segment */
