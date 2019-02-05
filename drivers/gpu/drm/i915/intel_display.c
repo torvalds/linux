@@ -11468,44 +11468,38 @@ static bool check_digital_port_conflicts(struct drm_atomic_state *state)
 	return ret;
 }
 
-static void
+static int
 clear_intel_crtc_state(struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv =
 		to_i915(crtc_state->base.crtc->dev);
-	struct intel_crtc_scaler_state scaler_state;
-	struct intel_dpll_hw_state dpll_hw_state;
-	struct intel_shared_dpll *shared_dpll;
-	struct intel_crtc_wm_state wm_state;
-	bool force_thru, ips_force_disable;
+	struct intel_crtc_state *saved_state;
+
+	saved_state = kzalloc(sizeof(*saved_state), GFP_KERNEL);
+	if (!saved_state)
+		return -ENOMEM;
 
 	/* FIXME: before the switch to atomic started, a new pipe_config was
 	 * kzalloc'd. Code that depends on any field being zero should be
 	 * fixed, so that the crtc_state can be safely duplicated. For now,
 	 * only fields that are know to not cause problems are preserved. */
 
-	scaler_state = crtc_state->scaler_state;
-	shared_dpll = crtc_state->shared_dpll;
-	dpll_hw_state = crtc_state->dpll_hw_state;
-	force_thru = crtc_state->pch_pfit.force_thru;
-	ips_force_disable = crtc_state->ips_force_disable;
+	saved_state->scaler_state = crtc_state->scaler_state;
+	saved_state->shared_dpll = crtc_state->shared_dpll;
+	saved_state->dpll_hw_state = crtc_state->dpll_hw_state;
+	saved_state->pch_pfit.force_thru = crtc_state->pch_pfit.force_thru;
+	saved_state->ips_force_disable = crtc_state->ips_force_disable;
 	if (IS_G4X(dev_priv) ||
 	    IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-		wm_state = crtc_state->wm;
+		saved_state->wm = crtc_state->wm;
 
 	/* Keep base drm_crtc_state intact, only clear our extended struct */
 	BUILD_BUG_ON(offsetof(struct intel_crtc_state, base));
-	memset(&crtc_state->base + 1, 0,
+	memcpy(&crtc_state->base + 1, &saved_state->base + 1,
 	       sizeof(*crtc_state) - sizeof(crtc_state->base));
 
-	crtc_state->scaler_state = scaler_state;
-	crtc_state->shared_dpll = shared_dpll;
-	crtc_state->dpll_hw_state = dpll_hw_state;
-	crtc_state->pch_pfit.force_thru = force_thru;
-	crtc_state->ips_force_disable = ips_force_disable;
-	if (IS_G4X(dev_priv) ||
-	    IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-		crtc_state->wm = wm_state;
+	kfree(saved_state);
+	return 0;
 }
 
 static int
@@ -11520,7 +11514,9 @@ intel_modeset_pipe_config(struct drm_crtc *crtc,
 	int i;
 	bool retry = true;
 
-	clear_intel_crtc_state(pipe_config);
+	ret = clear_intel_crtc_state(pipe_config);
+	if (ret)
+		return ret;
 
 	pipe_config->cpu_transcoder =
 		(enum transcoder) to_intel_crtc(crtc)->pipe;
