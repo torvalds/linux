@@ -1038,6 +1038,17 @@ static const short da850_evm_rmii_pins[] = {
 	-1
 };
 
+static struct gpiod_hog da850_evm_emac_gpio_hogs[] = {
+	{
+		.chip_label	= "davinci_gpio",
+		.chip_hwnum	= DA850_MII_MDIO_CLKEN_PIN,
+		.line_name	= "mdio_clk_en",
+		.lflags		= 0,
+		/* dflags set in da850_evm_config_emac() */
+	},
+	{ }
+};
+
 static int __init da850_evm_config_emac(void)
 {
 	void __iomem *cfg_chip3_base;
@@ -1076,14 +1087,9 @@ static int __init da850_evm_config_emac(void)
 	if (ret)
 		pr_warn("%s:GPIO(2,6) mux setup failed\n", __func__);
 
-	ret = gpio_request(DA850_MII_MDIO_CLKEN_PIN, "mdio_clk_en");
-	if (ret) {
-		pr_warn("Cannot open GPIO %d\n", DA850_MII_MDIO_CLKEN_PIN);
-		return ret;
-	}
-
-	/* Enable/Disable MII MDIO clock */
-	gpio_direction_output(DA850_MII_MDIO_CLKEN_PIN, rmii_en);
+	da850_evm_emac_gpio_hogs[0].dflags = rmii_en ? GPIOD_OUT_HIGH
+						     : GPIOD_OUT_LOW;
+	gpiod_add_hogs(da850_evm_emac_gpio_hogs);
 
 	soc_info->emac_pdata->phy_id = DA850_EVM_PHY_ID;
 
