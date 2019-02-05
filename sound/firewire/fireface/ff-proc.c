@@ -41,12 +41,8 @@ static void add_node(struct snd_ff *ff, struct snd_info_entry *root,
 	struct snd_info_entry *entry;
 
 	entry = snd_info_create_card_entry(ff->card, name, root);
-	if (entry == NULL)
-		return;
-
-	snd_info_set_text_ops(entry, ff, op);
-	if (snd_info_register(entry) < 0)
-		snd_info_free_entry(entry);
+	if (entry)
+		snd_info_set_text_ops(entry, ff, op);
 }
 
 void snd_ff_proc_init(struct snd_ff *ff)
@@ -62,10 +58,6 @@ void snd_ff_proc_init(struct snd_ff *ff)
 	if (root == NULL)
 		return;
 	root->mode = S_IFDIR | 0555;
-	if (snd_info_register(root) < 0) {
-		snd_info_free_entry(root);
-		return;
-	}
 
 	add_node(ff, root, "status", proc_dump_status);
 }
