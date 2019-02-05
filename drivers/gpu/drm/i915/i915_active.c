@@ -17,11 +17,28 @@ struct active_node {
 };
 
 static void
+__active_park(struct i915_active *ref)
+{
+	struct active_node *it, *n;
+
+	rbtree_postorder_for_each_entry_safe(it, n, &ref->tree, node) {
+		GEM_BUG_ON(i915_gem_active_isset(&it->base));
+		kfree(it);
+	}
+	ref->tree = RB_ROOT;
+}
+
+static void
 __active_retire(struct i915_active *ref)
 {
 	GEM_BUG_ON(!ref->count);
-	if (!--ref->count)
-		ref->retire(ref);
+	if (--ref->count)
+		return;
+
+	/* return the unused nodes to our slabcache */
+	__active_park(ref);
+
+	ref->retire(ref);
 }
 
 static void
@@ -210,18 +227,14 @@ int i915_request_await_active(struct i915_request *rq, struct i915_active *ref)
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)
 void i915_active_fini(struct i915_active *ref)
 {
-	struct active_node *it, *n;
-
 	GEM_BUG_ON(i915_gem_active_isset(&ref->last));
-
-	rbtree_postorder_for_each_entry_safe(it, n, &ref->tree, node) {
-		GEM_BUG_ON(i915_gem_active_isset(&it->base));
-		kfree(it);
-	}
-	ref->tree = RB_ROOT;
+	GEM_BUG_ON(!RB_EMPTY_ROOT(&ref->tree));
+	GEM_BUG_ON(ref->count);
 }
+#endif
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
 #include "selftests/i915_active.c"

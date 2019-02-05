@@ -64,6 +64,10 @@ i915_active_is_idle(const struct i915_active *ref)
 	return !ref->count;
 }
 
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)
 void i915_active_fini(struct i915_active *ref);
+#else
+static inline void i915_active_fini(struct i915_active *ref) { }
+#endif
 
 #endif /* _I915_ACTIVE_H_ */
