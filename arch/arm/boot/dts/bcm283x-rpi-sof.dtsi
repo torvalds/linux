@@ -7,8 +7,8 @@
 		compatible = "sof,spi-sue-creek";
 		// FIXME: frequency value
 		spi-max-frequency = <54000000>;
-		fw_filename = "intel/sof-spi.ri";
-		tplg_filename = "intel/sof-spi.tplg";
+		fw_filename = "sof-spi.ri";
+		tplg_filename = "sof-spi.tplg";
 		// FIXME: GPIO controller and IRQ number and sense
 		interrupt-parent = <&gpio1>;
 		interrupts = <9 IRQ_TYPE_EDGE_FALLING>;
