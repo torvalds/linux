@@ -6000,7 +6000,7 @@ enum {
 #define   PLANE_WM_EN		(1 << 31)
 #define   PLANE_WM_LINES_SHIFT	14
 #define   PLANE_WM_LINES_MASK	0x1f
-#define   PLANE_WM_BLOCKS_MASK	0x3ff
+#define   PLANE_WM_BLOCKS_MASK	0x7ff /* skl+: 10 bits, icl+ 11 bits */
 
 #define _CUR_WM_0(pipe) _PIPE(pipe, _CUR_WM_A_0, _CUR_WM_B_0)
 #define CUR_WM(pipe, level) _MMIO(_CUR_WM_0(pipe) + ((4) * (level)))
