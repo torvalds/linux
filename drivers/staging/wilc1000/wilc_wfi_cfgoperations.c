@@ -67,7 +67,6 @@ struct p2p_mgmt_data {
 	u8 *buff;
 };
 
-static u8 curr_channel;
 static u8 p2p_oui[] = {0x50, 0x6f, 0x9A, 0x09};
 static u8 p2p_vendor_spec[] = {0xdd, 0x05, 0x00, 0x08, 0x40, 0x03};
 
@@ -206,7 +205,7 @@ static int set_channel(struct wiphy *wiphy,
 
 	channelnum = ieee80211_frequency_to_channel(chandef->chan->center_freq);
 
-	curr_channel = channelnum;
+	vif->wilc->op_ch = channelnum;
 	result = wilc_set_mac_chnl_num(vif, channelnum);
 
 	if (result != 0)
@@ -324,6 +323,7 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 	u32 cipher_group;
 	struct cfg80211_bss *bss;
 	void *join_params;
+	u8 ch;
 
 	vif->connecting = true;
 
@@ -427,16 +427,16 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 		goto out_put_bss;
 	}
 
-	curr_channel = ieee80211_frequency_to_channel(bss->channel->center_freq);
-
+	ch = ieee80211_frequency_to_channel(bss->channel->center_freq);
+	vif->wilc->op_ch = ch;
 	if (vif->iftype != WILC_CLIENT_MODE)
-		vif->wilc->sta_ch = curr_channel;
+		vif->wilc->sta_ch = ch;
 
 	wilc_wlan_set_bssid(dev, bss->bssid, WILC_STATION_MODE);
 
 	wfi_drv->conn_info.security = security;
 	wfi_drv->conn_info.auth_type = auth_type;
-	wfi_drv->conn_info.ch = curr_channel;
+	wfi_drv->conn_info.ch = ch;
 	wfi_drv->conn_info.conn_result = cfg_connect_result;
 	wfi_drv->conn_info.arg = priv;
 	wfi_drv->conn_info.param = join_params;
@@ -1048,6 +1048,8 @@ void wilc_wfi_p2p_rx(struct net_device *dev, u8 *buff, u32 size)
 {
 	struct wilc_priv *priv = wiphy_priv(dev->ieee80211_ptr->wiphy);
 	struct host_if_drv *wfi_drv = priv->hif_drv;
+	struct wilc_vif *vif = netdev_priv(dev);
+	struct wilc *wl = vif->wilc;
 	u32 header, pkt_offset;
 	s32 freq;
 	__le16 fc;
@@ -1068,7 +1070,7 @@ void wilc_wfi_p2p_rx(struct net_device *dev, u8 *buff, u32 size)
 		return;
 	}
 
-	freq = ieee80211_channel_to_frequency(curr_channel, NL80211_BAND_2GHZ);
+	freq = ieee80211_channel_to_frequency(wl->op_ch, NL80211_BAND_2GHZ);
 
 	fc = ((struct ieee80211_hdr *)buff)->frame_control;
 	if (!ieee80211_is_action(fc)) {
@@ -1158,7 +1160,7 @@ static int remain_on_channel(struct wiphy *wiphy,
 	if (ret)
 		return ret;
 
-	curr_channel = chan->hw_value;
+	vif->wilc->op_ch = chan->hw_value;
 
 	priv->remain_on_ch_params.listen_ch = chan;
 	priv->remain_on_ch_params.listen_cookie = id;
@@ -1279,7 +1281,7 @@ static int mgmt_tx(struct wiphy *wiphy,
 
 	if (ieee80211_is_probe_resp(mgmt->frame_control)) {
 		wilc_set_mac_chnl_num(vif, chan->hw_value);
-		curr_channel = chan->hw_value;
+		vif->wilc->op_ch = chan->hw_value;
 		goto out_txq_add_pkt;
 	}
 
@@ -1290,7 +1292,7 @@ static int mgmt_tx(struct wiphy *wiphy,
 		if (buf[ACTION_SUBTYPE_ID] != PUBLIC_ACT_VENDORSPEC ||
 		    buf[P2P_PUB_ACTION_SUBTYPE] != GO_NEG_CONF) {
 			wilc_set_mac_chnl_num(vif, chan->hw_value);
-			curr_channel = chan->hw_value;
+			vif->wilc->op_ch = chan->hw_value;
 		}
 		switch (buf[ACTION_SUBTYPE_ID]) {
 		case GAS_INITIAL_REQ:

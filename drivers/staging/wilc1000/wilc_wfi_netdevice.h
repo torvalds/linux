@@ -274,6 +274,7 @@ struct wilc {
 	/* deinit lock */
 	struct mutex deinit_lock;
 	u8 sta_ch;
+	u8 op_ch;
 };
 
 struct wilc_wfi_mon_priv {
