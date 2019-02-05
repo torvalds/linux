@@ -140,10 +140,9 @@ struct wilc_conn_info {
 struct remain_ch {
 	u16 ch;
 	u32 duration;
-	void (*expired)(void *priv, u32 session_id);
-	void (*ready)(void *priv);
+	void (*expired)(void *priv, u64 cookie);
 	void *arg;
-	u32 id;
+	u32 cookie;
 };
 
 struct wilc;
@@ -151,7 +150,6 @@ struct host_if_drv {
 	struct user_scan_req usr_scan_req;
 	struct wilc_conn_info conn_info;
 	struct remain_ch remain_on_ch;
-	u8 remain_on_ch_pending;
 	u64 p2p_timeout;
 
 	enum host_if_state hif_state;
@@ -227,12 +225,11 @@ int wilc_edit_station(struct wilc_vif *vif, const u8 *mac,
 int wilc_set_power_mgmt(struct wilc_vif *vif, bool enabled, u32 timeout);
 int wilc_setup_multicast_filter(struct wilc_vif *vif, u32 enabled, u32 count,
 				u8 *mc_list);
-int wilc_remain_on_channel(struct wilc_vif *vif, u32 session_id,
+int wilc_remain_on_channel(struct wilc_vif *vif, u64 cookie,
 			   u32 duration, u16 chan,
-			   void (*expired)(void *, u32),
-			   void (*ready)(void *),
+			   void (*expired)(void *, u64),
 			   void *user_arg);
-int wilc_listen_state_expired(struct wilc_vif *vif, u32 session_id);
+int wilc_listen_state_expired(struct wilc_vif *vif, u64 cookie);
 void wilc_frame_register(struct wilc_vif *vif, u16 frame_type, bool reg);
 int wilc_set_wfi_drv_handler(struct wilc_vif *vif, int index, u8 mode,
 			     u8 ifc_id);

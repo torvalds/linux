@@ -1119,27 +1119,12 @@ static void wilc_wfi_mgmt_tx_complete(void *priv, int status)
 	kfree(pv_data);
 }
 
-static void wilc_wfi_remain_on_channel_ready(void *priv_data)
-{
-	struct wilc_priv *priv;
-
-	priv = priv_data;
-
-	priv->p2p_listen_state = true;
-
-	cfg80211_ready_on_channel(priv->wdev,
-				  priv->remain_on_ch_params.listen_cookie,
-				  priv->remain_on_ch_params.listen_ch,
-				  priv->remain_on_ch_params.listen_duration,
-				  GFP_KERNEL);
-}
-
-static void wilc_wfi_remain_on_channel_expired(void *data, u32 session_id)
+static void wilc_wfi_remain_on_channel_expired(void *data, u64 cookie)
 {
 	struct wilc_priv *priv = data;
 	struct wilc_wfi_p2p_listen_params *params = &priv->remain_on_ch_params;
 
-	if (session_id != params->listen_session_id)
+	if (cookie != params->listen_cookie)
 		return;
 
 	priv->p2p_listen_state = false;
@@ -1156,24 +1141,36 @@ static int remain_on_channel(struct wiphy *wiphy,
 	int ret = 0;
 	struct wilc_priv *priv = wiphy_priv(wiphy);
 	struct wilc_vif *vif = netdev_priv(priv->dev);
+	u64 id;
 
 	if (wdev->iftype == NL80211_IFTYPE_AP) {
 		netdev_dbg(vif->ndev, "Required while in AP mode\n");
 		return ret;
 	}
 
+	id = ++priv->inc_roc_cookie;
+	if (id == 0)
+		id = ++priv->inc_roc_cookie;
+
+	ret = wilc_remain_on_channel(vif, id, duration, chan->hw_value,
+				     wilc_wfi_remain_on_channel_expired,
+				     (void *)priv);
+	if (ret)
+		return ret;
+
 	curr_channel = chan->hw_value;
 
 	priv->remain_on_ch_params.listen_ch = chan;
-	priv->remain_on_ch_params.listen_cookie = *cookie;
+	priv->remain_on_ch_params.listen_cookie = id;
+	*cookie = id;
+	priv->p2p_listen_state = true;
 	priv->remain_on_ch_params.listen_duration = duration;
-	priv->remain_on_ch_params.listen_session_id++;
 
-	return wilc_remain_on_channel(vif,
-				priv->remain_on_ch_params.listen_session_id,
-				duration, chan->hw_value,
-				wilc_wfi_remain_on_channel_expired,
-				wilc_wfi_remain_on_channel_ready, (void *)priv);
+	cfg80211_ready_on_channel(wdev, *cookie, chan, duration, GFP_KERNEL);
+	mod_timer(&vif->hif_drv->remain_on_ch_timer,
+		  jiffies + msecs_to_jiffies(duration));
+
+	return ret;
 }
 
 static int cancel_remain_on_channel(struct wiphy *wiphy,
@@ -1183,8 +1180,10 @@ static int cancel_remain_on_channel(struct wiphy *wiphy,
 	struct wilc_priv *priv = wiphy_priv(wiphy);
 	struct wilc_vif *vif = netdev_priv(priv->dev);
 
-	return wilc_listen_state_expired(vif,
-			priv->remain_on_ch_params.listen_session_id);
+	if (cookie != priv->remain_on_ch_params.listen_cookie)
+		return -ENOENT;
+
+	return wilc_listen_state_expired(vif, cookie);
 }
 
 static void wilc_wfi_cfg_tx_vendor_spec(struct wilc_priv *priv,

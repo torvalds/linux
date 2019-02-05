@@ -920,40 +920,22 @@ static int handle_remain_on_chan(struct wilc_vif *vif,
 	struct wid wid;
 	struct host_if_drv *hif_drv = vif->hif_drv;
 
-	if (!hif_drv->remain_on_ch_pending) {
-		hif_drv->remain_on_ch.arg = hif_remain_ch->arg;
-		hif_drv->remain_on_ch.expired = hif_remain_ch->expired;
-		hif_drv->remain_on_ch.ready = hif_remain_ch->ready;
-		hif_drv->remain_on_ch.ch = hif_remain_ch->ch;
-		hif_drv->remain_on_ch.id = hif_remain_ch->id;
-	} else {
-		hif_remain_ch->ch = hif_drv->remain_on_ch.ch;
-	}
+	if (hif_drv->usr_scan_req.scan_result)
+		return -EBUSY;
 
-	if (hif_drv->usr_scan_req.scan_result) {
-		hif_drv->remain_on_ch_pending = 1;
-		result = -EBUSY;
-		goto error;
-	}
-	if (hif_drv->hif_state == HOST_IF_WAITING_CONN_RESP) {
-		result = -EBUSY;
-		goto error;
-	}
+	if (hif_drv->hif_state == HOST_IF_WAITING_CONN_RESP)
+		return -EBUSY;
 
-	if (vif->obtaining_ip || vif->connecting) {
-		result = -EBUSY;
-		goto error;
-	}
+	if (vif->obtaining_ip || vif->connecting)
+		return -EBUSY;
 
 	remain_on_chan_flag = true;
 	wid.id = WID_REMAIN_ON_CHAN;
 	wid.type = WID_STR;
 	wid.size = 2;
 	wid.val = kmalloc(wid.size, GFP_KERNEL);
-	if (!wid.val) {
-		result = -ENOMEM;
-		goto error;
-	}
+	if (!wid.val)
+		return -ENOMEM;
 
 	wid.val[0] = remain_on_chan_flag;
 	wid.val[1] = (s8)hif_remain_ch->ch;
@@ -961,21 +943,16 @@ static int handle_remain_on_chan(struct wilc_vif *vif,
 	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
 	kfree(wid.val);
-	if (result != 0)
-		netdev_err(vif->ndev, "Failed to set remain on channel\n");
+	if (result)
+		return -EBUSY;
 
-error:
+	hif_drv->remain_on_ch.arg = hif_remain_ch->arg;
+	hif_drv->remain_on_ch.expired = hif_remain_ch->expired;
+	hif_drv->remain_on_ch.ch = hif_remain_ch->ch;
+	hif_drv->remain_on_ch.cookie = hif_remain_ch->cookie;
 	hif_drv->remain_on_ch_timer_vif = vif;
-	mod_timer(&hif_drv->remain_on_ch_timer,
-		  jiffies + msecs_to_jiffies(hif_remain_ch->duration));
 
-	if (hif_drv->remain_on_ch.ready)
-		hif_drv->remain_on_ch.ready(hif_drv->remain_on_ch.arg);
-
-	if (hif_drv->remain_on_ch_pending)
-		hif_drv->remain_on_ch_pending = 0;
-
-	return result;
+	return 0;
 }
 
 static void handle_listen_state_expired(struct work_struct *work)
@@ -1012,7 +989,7 @@ static void handle_listen_state_expired(struct work_struct *work)
 
 		if (hif_drv->remain_on_ch.expired) {
 			hif_drv->remain_on_ch.expired(hif_drv->remain_on_ch.arg,
-						      hif_remain_ch->id);
+						      hif_remain_ch->cookie);
 		}
 	} else {
 		netdev_dbg(vif->ndev, "Not in listen state\n");
@@ -1036,7 +1013,7 @@ static void listen_timer_cb(struct timer_list *t)
 	if (IS_ERR(msg))
 		return;
 
-	msg->body.remain_on_ch.id = vif->hif_drv->remain_on_ch.id;
+	msg->body.remain_on_ch.cookie = vif->hif_drv->remain_on_ch.cookie;
 
 	result = wilc_enqueue_work(msg);
 	if (result) {
@@ -1102,9 +1079,6 @@ static void handle_scan_complete(struct work_struct *work)
 
 	handle_scan_done(msg->vif, SCAN_EVENT_DONE);
 
-	if (msg->vif->hif_drv->remain_on_ch_pending)
-		handle_remain_on_chan(msg->vif,
-				      &msg->vif->hif_drv->remain_on_ch);
 	kfree(msg);
 }
 
@@ -1842,10 +1816,9 @@ void wilc_scan_complete_received(struct wilc *wilc, u8 *buffer, u32 length)
 	}
 }
 
-int wilc_remain_on_channel(struct wilc_vif *vif, u32 session_id,
+int wilc_remain_on_channel(struct wilc_vif *vif, u64 cookie,
 			   u32 duration, u16 chan,
-			   void (*expired)(void *, u32),
-			   void (*ready)(void *),
+			   void (*expired)(void *, u64),
 			   void *user_arg)
 {
 	struct remain_ch roc;
@@ -1853,10 +1826,9 @@ int wilc_remain_on_channel(struct wilc_vif *vif, u32 session_id,
 
 	roc.ch = chan;
 	roc.expired = expired;
-	roc.ready = ready;
 	roc.arg = user_arg;
 	roc.duration = duration;
-	roc.id = session_id;
+	roc.cookie = cookie;
 	result = handle_remain_on_chan(vif, &roc);
 	if (result)
 		netdev_err(vif->ndev, "%s: failed to set remain on channel\n",
@@ -1865,7 +1837,7 @@ int wilc_remain_on_channel(struct wilc_vif *vif, u32 session_id,
 	return result;
 }
 
-int wilc_listen_state_expired(struct wilc_vif *vif, u32 session_id)
+int wilc_listen_state_expired(struct wilc_vif *vif, u64 cookie)
 {
 	int result;
 	struct host_if_msg *msg;
@@ -1882,7 +1854,7 @@ int wilc_listen_state_expired(struct wilc_vif *vif, u32 session_id)
 	if (IS_ERR(msg))
 		return PTR_ERR(msg);
 
-	msg->body.remain_on_ch.id = session_id;
+	msg->body.remain_on_ch.cookie = cookie;
 
 	result = wilc_enqueue_work(msg);
 	if (result) {
