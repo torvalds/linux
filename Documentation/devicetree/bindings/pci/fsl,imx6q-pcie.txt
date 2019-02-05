@@ -54,6 +54,7 @@ Additional required properties for imx7d-pcie and imx8mq-pcie:
 	       - "pciephy"
 	       - "apps"
 	       - "turnoff"
+- fsl,imx7d-pcie-phy: A phandle to an fsl,imx7d-pcie-phy node.
 
 Example:
 
@@ -80,3 +81,13 @@ Example:
 		clocks = <&clks 144>, <&clks 206>, <&clks 189>;
 		clock-names = "pcie", "pcie_bus", "pcie_phy";
 	};
+
+* Freescale i.MX7d PCIe PHY
+
+This is the PHY associated with the IMX7d PCIe controller.  It's used by the
+PCI-e controller via the fsl,imx7d-pcie-phy phandle.
+
+Required properties:
+- compatible:
+	- "fsl,imx7d-pcie-phy"
+- reg: base address and length of the PCIe PHY controller
