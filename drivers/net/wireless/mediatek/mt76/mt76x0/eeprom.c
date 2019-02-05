@@ -189,7 +189,7 @@ void mt76x0_get_tx_power_per_rate(struct mt76x02_dev *dev)
 	addr = is_2ghz ? MT_EE_TX_POWER_BYRATE_BASE + 8 : 0x126;
 	val = mt76x02_eeprom_get(dev, addr);
 	t->ht[4] = t->ht[5] = t->vht[4] = t->vht[5] = s6_to_s8(val);
-	t->ht[6] = t->vht[6] = s6_to_s8(val >> 8);
+	t->ht[6] = t->ht[7] = t->vht[6] = t->vht[7] = s6_to_s8(val >> 8);
 
 	/* ht-vht mcs 1ss 0, 1, 2, 3 stbc */
 	addr = is_2ghz ? MT_EE_TX_POWER_BYRATE_BASE + 14 : 0xec;
@@ -205,8 +205,8 @@ void mt76x0_get_tx_power_per_rate(struct mt76x02_dev *dev)
 
 	/* vht mcs 8, 9 5GHz */
 	val = mt76x02_eeprom_get(dev, 0x132);
-	t->vht[7] = s6_to_s8(val);
-	t->vht[8] = s6_to_s8(val >> 8);
+	t->vht[8] = s6_to_s8(val);
+	t->vht[9] = s6_to_s8(val >> 8);
 
 	delta = mt76x0_tssi_enabled(dev) ? 0 : mt76x0_get_delta(dev);
 	mt76x02_add_rate_power_offset(t, delta);
