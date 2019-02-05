@@ -426,13 +426,9 @@ $(modorder-target): $(subdir-ym) FORCE
 # Rule to compile a set of .o files into one .a file (with symbol table)
 #
 ifdef lib-target
-quiet_cmd_link_l_target = AR      $@
-
-# lib target archives do get a symbol table and index
-cmd_link_l_target = rm -f $@; $(AR) rcsTP$(KBUILD_ARFLAGS) $@ $(real-prereqs)
 
 $(lib-target): $(lib-y) FORCE
-	$(call if_changed,link_l_target)
+	$(call if_changed,ar)
 
 targets += $(lib-target)
 
