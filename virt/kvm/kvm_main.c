@@ -656,12 +656,8 @@ static struct kvm *kvm_create_vm(unsigned long type)
 		struct kvm_memslots *slots = kvm_alloc_memslots();
 		if (!slots)
 			goto out_err_no_srcu;
-		/*
-		 * Generations must be different for each address space.
-		 * Init kvm generation close to the maximum to easily test the
-		 * code of handling generation number wrap-around.
-		 */
-		slots->generation = i * 2 - 150;
+		/* Generations must be different for each address space. */
+		slots->generation = i * 2;
 		rcu_assign_pointer(kvm->memslots[i], slots);
 	}
 
