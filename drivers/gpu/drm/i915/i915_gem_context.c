@@ -1052,23 +1052,19 @@ out_put:
 }
 
 static int
-i915_gem_context_reconfigure_sseu(struct i915_gem_context *ctx,
-				  struct intel_engine_cs *engine,
-				  struct intel_sseu sseu)
+__i915_gem_context_reconfigure_sseu(struct i915_gem_context *ctx,
+				    struct intel_engine_cs *engine,
+				    struct intel_sseu sseu)
 {
 	struct intel_context *ce = to_intel_context(ctx, engine);
-	int ret;
+	int ret = 0;
 
 	GEM_BUG_ON(INTEL_GEN(ctx->i915) < 8);
 	GEM_BUG_ON(engine->id != RCS);
 
-	ret = mutex_lock_interruptible(&ctx->i915->drm.struct_mutex);
-	if (ret)
-		return ret;
-
 	/* Nothing to do if unmodified. */
 	if (!memcmp(&ce->sseu, &sseu, sizeof(sseu)))
-		goto out;
+		return 0;
 
 	/*
 	 * If context is not idle we have to submit an ordered request to modify
@@ -1081,7 +1077,22 @@ i915_gem_context_reconfigure_sseu(struct i915_gem_context *ctx,
 	if (!ret)
 		ce->sseu = sseu;
 
-out:
+	return ret;
+}
+
+static int
+i915_gem_context_reconfigure_sseu(struct i915_gem_context *ctx,
+				  struct intel_engine_cs *engine,
+				  struct intel_sseu sseu)
+{
+	int ret;
+
+	ret = mutex_lock_interruptible(&ctx->i915->drm.struct_mutex);
+	if (ret)
+		return ret;
+
+	ret = __i915_gem_context_reconfigure_sseu(ctx, engine, sseu);
+
 	mutex_unlock(&ctx->i915->drm.struct_mutex);
 
 	return ret;
