@@ -641,11 +641,14 @@ static int at24_probe(struct i2c_client *client)
 	if (!is_power_of_2(page_size))
 		dev_warn(dev, "page_size looks suspicious (no power of 2)!\n");
 
-	if (flags & AT24_FLAG_TAKE8ADDR)
-		num_addresses = 8;
-	else
-		num_addresses =	DIV_ROUND_UP(byte_len,
-			(flags & AT24_FLAG_ADDR16) ? 65536 : 256);
+	err = device_property_read_u32(dev, "num-addresses", &num_addresses);
+	if (err) {
+		if (flags & AT24_FLAG_TAKE8ADDR)
+			num_addresses = 8;
+		else
+			num_addresses =	DIV_ROUND_UP(byte_len,
+				(flags & AT24_FLAG_ADDR16) ? 65536 : 256);
+	}
 
 	if ((flags & AT24_FLAG_SERIAL) && (flags & AT24_FLAG_MAC)) {
 		dev_err(dev,
