@@ -715,6 +715,12 @@ gf100_gr_pack_mmio[] = {
  * PGRAPH engine/subdev functions
  ******************************************************************************/
 
+static u32
+gf100_gr_ctxsw_inst(struct nvkm_gr *gr)
+{
+	return nvkm_rd32(gr->engine.subdev.device, 0x409b00);
+}
+
 static int
 gf100_gr_fecs_ctrl_ctxsw(struct gf100_gr *gr, u32 mthd)
 {
@@ -2058,6 +2064,7 @@ gf100_gr_ = {
 	.chsw_load = gf100_gr_chsw_load,
 	.ctxsw.pause = gf100_gr_fecs_stop_ctxsw,
 	.ctxsw.resume = gf100_gr_fecs_start_ctxsw,
+	.ctxsw.inst = gf100_gr_ctxsw_inst,
 };
 
 int

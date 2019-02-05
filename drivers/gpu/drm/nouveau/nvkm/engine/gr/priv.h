@@ -30,6 +30,7 @@ struct nvkm_gr_func {
 	struct {
 		int (*pause)(struct nvkm_gr *);
 		int (*resume)(struct nvkm_gr *);
+		u32 (*inst)(struct nvkm_gr *);
 	} ctxsw;
 	struct nvkm_sclass sclass[];
 };
