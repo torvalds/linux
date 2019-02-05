@@ -574,6 +574,43 @@ static int qtnf_event_handle_radar(struct qtnf_vif *vif,
 	return 0;
 }
 
+static int
+qtnf_event_handle_external_auth(struct qtnf_vif *vif,
+				const struct qlink_event_external_auth *ev,
+				u16 len)
+{
+	struct cfg80211_external_auth_params auth = {0};
+	struct wiphy *wiphy = priv_to_wiphy(vif->mac);
+	int ret;
+
+	if (len < sizeof(*ev)) {
+		pr_err("MAC%u: payload is too short\n", vif->mac->macid);
+		return -EINVAL;
+	}
+
+	if (!wiphy->registered || !vif->netdev)
+		return 0;
+
+	if (ev->ssid_len) {
+		memcpy(auth.ssid.ssid, ev->ssid, ev->ssid_len);
+		auth.ssid.ssid_len = ev->ssid_len;
+	}
+
+	auth.key_mgmt_suite = le32_to_cpu(ev->akm_suite);
+	ether_addr_copy(auth.bssid, ev->bssid);
+	auth.action = ev->action;
+
+	pr_info("%s: external auth bss=%pM action=%u akm=%u\n",
+		vif->netdev->name, auth.bssid, auth.action,
+		auth.key_mgmt_suite);
+
+	ret = cfg80211_external_auth_request(vif->netdev, &auth, GFP_KERNEL);
+	if (ret)
+		pr_warn("failed to offload external auth request\n");
+
+	return ret;
+}
+
 static int qtnf_event_parse(struct qtnf_wmac *mac,
 			    const struct sk_buff *event_skb)
 {
@@ -631,6 +668,10 @@ static int qtnf_event_parse(struct qtnf_wmac *mac,
 	case QLINK_EVENT_RADAR:
 		ret = qtnf_event_handle_radar(vif, (const void *)event,
 					      event_len);
+		break;
+	case QLINK_EVENT_EXTERNAL_AUTH:
+		ret = qtnf_event_handle_external_auth(vif, (const void *)event,
+						      event_len);
 		break;
 	default:
 		pr_warn("unknown event type: %x\n", event_id);

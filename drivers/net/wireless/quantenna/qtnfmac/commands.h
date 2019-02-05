@@ -51,6 +51,8 @@ int qtnf_cmd_send_del_sta(struct qtnf_vif *vif,
 int qtnf_cmd_send_scan(struct qtnf_wmac *mac);
 int qtnf_cmd_send_connect(struct qtnf_vif *vif,
 			  struct cfg80211_connect_params *sme);
+int qtnf_cmd_send_external_auth(struct qtnf_vif *vif,
+				struct cfg80211_external_auth_params *auth);
 int qtnf_cmd_send_disconnect(struct qtnf_vif *vif,
 			     u16 reason_code);
 int qtnf_cmd_send_updown_intf(struct qtnf_vif *vif,
