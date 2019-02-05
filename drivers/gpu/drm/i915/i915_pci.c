@@ -26,6 +26,7 @@
 #include <linux/vgaarb.h>
 #include <linux/vga_switcheroo.h>
 
+#include "i915_active.h"
 #include "i915_drv.h"
 #include "i915_selftest.h"
 
@@ -798,6 +799,8 @@ static int __init i915_init(void)
 	bool use_kms = true;
 	int err;
 
+	i915_global_active_init();
+
 	err = i915_mock_selftests();
 	if (err)
 		return err > 0 ? 0 : err;
@@ -829,6 +832,7 @@ static void __exit i915_exit(void)
 		return;
 
 	pci_unregister_driver(&i915_pci_driver);
+	i915_global_active_exit();
 }
 
 module_init(i915_init);

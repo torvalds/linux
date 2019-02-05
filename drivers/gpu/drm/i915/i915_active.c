@@ -9,6 +9,17 @@
 
 #define BKL(ref) (&(ref)->i915->drm.struct_mutex)
 
+/*
+ * Active refs memory management
+ *
+ * To be more economical with memory, we reap all the i915_active trees as
+ * they idle (when we know the active requests are inactive) and allocate the
+ * nodes from a local slab cache to hopefully reduce the fragmentation.
+ */
+static struct i915_global_active {
+	struct kmem_cache *slab_cache;
+} global;
+
 struct active_node {
 	struct i915_gem_active base;
 	struct i915_active *ref;
@@ -23,7 +34,7 @@ __active_park(struct i915_active *ref)
 
 	rbtree_postorder_for_each_entry_safe(it, n, &ref->tree, node) {
 		GEM_BUG_ON(i915_gem_active_isset(&it->base));
-		kfree(it);
+		kmem_cache_free(global.slab_cache, it);
 	}
 	ref->tree = RB_ROOT;
 }
@@ -96,11 +107,11 @@ active_instance(struct i915_active *ref, u64 idx)
 			p = &parent->rb_left;
 	}
 
-	node = kmalloc(sizeof(*node), GFP_KERNEL);
+	node = kmem_cache_alloc(global.slab_cache, GFP_KERNEL);
 
 	/* kmalloc may retire the ref->last (thanks shrinker)! */
 	if (unlikely(!i915_gem_active_raw(&ref->last, BKL(ref)))) {
-		kfree(node);
+		kmem_cache_free(global.slab_cache, node);
 		goto out;
 	}
 
@@ -239,3 +250,17 @@ void i915_active_fini(struct i915_active *ref)
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
 #include "selftests/i915_active.c"
 #endif
+
+int __init i915_global_active_init(void)
+{
+	global.slab_cache = KMEM_CACHE(active_node, SLAB_HWCACHE_ALIGN);
+	if (!global.slab_cache)
+		return -ENOMEM;
+
+	return 0;
+}
+
+void __exit i915_global_active_exit(void)
+{
+	kmem_cache_destroy(global.slab_cache);
+}
