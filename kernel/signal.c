@@ -1057,10 +1057,9 @@ static int __send_signal(int sig, struct kernel_siginfo *info, struct task_struc
 
 	result = TRACE_SIGNAL_DELIVERED;
 	/*
-	 * Skip useless siginfo allocation for SIGKILL SIGSTOP,
-	 * and kernel threads.
+	 * Skip useless siginfo allocation for SIGKILL and kernel threads.
 	 */
-	if (sig_kernel_only(sig) || (t->flags & PF_KTHREAD))
+	if ((sig == SIGKILL) || (t->flags & PF_KTHREAD))
 		goto out_set;
 
 	/*
