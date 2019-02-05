@@ -35,6 +35,8 @@ struct panel_drv_data {
 
 	struct videomode vm;
 
+	struct backlight_device *backlight;
+
 	struct spi_device *spi_dev;
 };
 
@@ -258,11 +260,15 @@ static void td028ttec1_panel_enable(struct omap_dss_device *dssdev)
 
 	if (r)
 		dev_err(dssdev->dev, "%s: write error\n", __func__);
+
+	backlight_enable(ddata->backlight);
 }
 
 static void td028ttec1_panel_disable(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
+
+	backlight_disable(ddata->backlight);
 
 	dev_dbg(dssdev->dev, "td028ttec1_panel_disable()\n");
 
@@ -310,6 +316,10 @@ static int td028ttec1_panel_probe(struct spi_device *spi)
 	ddata = devm_kzalloc(&spi->dev, sizeof(*ddata), GFP_KERNEL);
 	if (ddata == NULL)
 		return -ENOMEM;
+
+	ddata->backlight = devm_of_find_backlight(&spi->dev);
+	if (IS_ERR(ddata->backlight))
+		return PTR_ERR(ddata->backlight);
 
 	dev_set_drvdata(&spi->dev, ddata);
 
