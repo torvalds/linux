@@ -375,8 +375,7 @@ static void haswell_load_luts(struct intel_crtc_state *crtc_state)
 		reenable_ips = true;
 	}
 
-	crtc_state->gamma_mode = GAMMA_MODE_MODE_8BIT;
-	I915_WRITE(GAMMA_MODE(crtc->pipe), GAMMA_MODE_MODE_8BIT);
+	I915_WRITE(GAMMA_MODE(crtc->pipe), crtc_state->gamma_mode);
 
 	i9xx_load_luts(crtc_state);
 
@@ -476,9 +475,7 @@ static void broadwell_load_luts(struct intel_crtc_state *crtc_state)
 	bdw_load_gamma_lut(crtc_state,
 			   INTEL_INFO(dev_priv)->color.degamma_lut_size);
 
-	crtc_state->gamma_mode = GAMMA_MODE_MODE_SPLIT;
-	I915_WRITE(GAMMA_MODE(pipe), GAMMA_MODE_MODE_SPLIT);
-	POSTING_READ(GAMMA_MODE(pipe));
+	I915_WRITE(GAMMA_MODE(pipe), crtc_state->gamma_mode);
 
 	/*
 	 * Reset the index, otherwise it prevents the legacy palette to be
@@ -532,9 +529,7 @@ static void glk_load_luts(struct intel_crtc_state *crtc_state)
 
 	bdw_load_gamma_lut(crtc_state, 0);
 
-	crtc_state->gamma_mode = GAMMA_MODE_MODE_10BIT;
-	I915_WRITE(GAMMA_MODE(pipe), GAMMA_MODE_MODE_10BIT);
-	POSTING_READ(GAMMA_MODE(pipe));
+	I915_WRITE(GAMMA_MODE(pipe), crtc_state->gamma_mode);
 }
 
 /* Loads the palette/gamma unit for the CRTC on CherryView. */
@@ -634,8 +629,10 @@ int intel_color_check(struct intel_crtc_state *crtc_state)
 	gamma_tests = INTEL_INFO(dev_priv)->color.gamma_lut_tests;
 
 	/* Always allow legacy gamma LUT with no further checking. */
-	if (crtc_state_is_legacy_gamma(crtc_state))
+	if (crtc_state_is_legacy_gamma(crtc_state)) {
+		crtc_state->gamma_mode = GAMMA_MODE_MODE_8BIT;
 		return 0;
+	}
 
 	if (check_lut_size(crtc_state->base.degamma_lut, degamma_length) ||
 	    check_lut_size(crtc_state->base.gamma_lut, gamma_length))
@@ -645,6 +642,12 @@ int intel_color_check(struct intel_crtc_state *crtc_state)
 	    drm_color_lut_check(crtc_state->base.gamma_lut, gamma_tests))
 		return -EINVAL;
 
+	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+		crtc_state->gamma_mode = GAMMA_MODE_MODE_10BIT;
+	else if (INTEL_GEN(dev_priv) >= 9 || IS_BROADWELL(dev_priv))
+		crtc_state->gamma_mode = GAMMA_MODE_MODE_SPLIT;
+	else
+		crtc_state->gamma_mode = GAMMA_MODE_MODE_8BIT;
 
 	return 0;
 }
