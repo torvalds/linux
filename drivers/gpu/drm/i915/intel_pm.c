@@ -3927,14 +3927,9 @@ static unsigned int skl_cursor_allocation(int num_active)
 static void skl_ddb_entry_init_from_hw(struct drm_i915_private *dev_priv,
 				       struct skl_ddb_entry *entry, u32 reg)
 {
-	u16 mask;
 
-	if (INTEL_GEN(dev_priv) >= 11)
-		mask = ICL_DDB_ENTRY_MASK;
-	else
-		mask = SKL_DDB_ENTRY_MASK;
-	entry->start = reg & mask;
-	entry->end = (reg >> DDB_ENTRY_END_SHIFT) & mask;
+	entry->start = reg & DDB_ENTRY_MASK;
+	entry->end = (reg >> DDB_ENTRY_END_SHIFT) & DDB_ENTRY_MASK;
 
 	if (entry->end)
 		entry->end += 1;
