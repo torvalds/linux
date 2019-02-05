@@ -454,6 +454,11 @@ static const struct resource_caps res_cap = {
 		.num_ddc = 6,
 };
 
+static const struct dc_plane_cap plane_cap = {
+	.type = DC_PLANE_TYPE_DCE_RGB,
+	.supports_argb8888 = true,
+};
+
 static const struct dc_debug_options debug_defaults = {
 		.disable_clock_gate = true,
 };
@@ -1170,6 +1175,9 @@ static bool construct(
 		goto controller_create_fail;
 
 	dc->caps.max_planes =  pool->base.pipe_count;
+
+	for (i = 0; i < dc->caps.max_planes; ++i)
+		dc->caps.planes[i] = plane_cap;
 
 	bw_calcs_init(dc->bw_dceip, dc->bw_vbios, dc->ctx->asic_id);
 

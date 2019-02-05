@@ -397,6 +397,11 @@ static const struct resource_caps polaris_11_resource_cap = {
 		.num_ddc = 5,
 };
 
+static const struct dc_plane_cap plane_cap = {
+	.type = DC_PLANE_TYPE_DCE_RGB,
+	.supports_argb8888 = true,
+};
+
 #define CTX  ctx
 #define REG(reg) mm ## reg
 
@@ -1309,6 +1314,9 @@ static bool construct(
 		goto res_create_fail;
 
 	dc->caps.max_planes =  pool->base.pipe_count;
+
+	for (i = 0; i < dc->caps.max_planes; ++i)
+		dc->caps.planes[i] = plane_cap;
 
 	/* Create hardware sequencer */
 	dce112_hw_sequencer_construct(dc);

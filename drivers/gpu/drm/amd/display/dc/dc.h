@@ -42,6 +42,7 @@
 #define DC_VER "3.2.19"
 
 #define MAX_SURFACES 3
+#define MAX_PLANES 6
 #define MAX_STREAMS 6
 #define MAX_SINKS_PER_LINK 4
 
@@ -51,6 +52,22 @@
 struct dc_versions {
 	const char *dc_ver;
 	struct dmcu_version dmcu_version;
+};
+
+enum dc_plane_type {
+	DC_PLANE_TYPE_INVALID,
+	DC_PLANE_TYPE_DCE_RGB,
+	DC_PLANE_TYPE_DCE_UNDERLAY,
+	DC_PLANE_TYPE_DCN_UNIVERSAL,
+};
+
+struct dc_plane_cap {
+	enum dc_plane_type type;
+	uint32_t blends_with_above : 1;
+	uint32_t blends_with_below : 1;
+	uint32_t per_pixel_alpha : 1;
+	uint32_t supports_argb8888 : 1;
+	uint32_t supports_nv12 : 1;
 };
 
 struct dc_caps {
@@ -73,6 +90,7 @@ struct dc_caps {
 	bool force_dp_tps4_for_cp2520;
 	bool disable_dp_clk_share;
 	bool psp_setup_panel_mode;
+	struct dc_plane_cap planes[MAX_PLANES];
 };
 
 struct dc_dcc_surface_param {

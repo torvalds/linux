@@ -516,6 +516,15 @@ static const struct resource_caps rv2_res_cap = {
 };
 #endif
 
+static const struct dc_plane_cap plane_cap = {
+	.type = DC_PLANE_TYPE_DCN_UNIVERSAL,
+	.blends_with_above = true,
+	.blends_with_below = true,
+	.per_pixel_alpha = true,
+	.supports_argb8888 = true,
+	.supports_nv12 = true
+};
+
 static const struct dc_debug_options debug_defaults_drv = {
 		.sanity_checks = true,
 		.disable_dmcu = true,
@@ -1509,6 +1518,9 @@ static bool construct(
 
 	dcn10_hw_sequencer_construct(dc);
 	dc->caps.max_planes =  pool->base.pipe_count;
+
+	for (i = 0; i < dc->caps.max_planes; ++i)
+		dc->caps.planes[i] = plane_cap;
 
 	dc->cap_funcs = cap_funcs;
 
