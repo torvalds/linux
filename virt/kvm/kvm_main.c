@@ -657,7 +657,7 @@ static struct kvm *kvm_create_vm(unsigned long type)
 		if (!slots)
 			goto out_err_no_srcu;
 		/* Generations must be different for each address space. */
-		slots->generation = i * 2;
+		slots->generation = i;
 		rcu_assign_pointer(kvm->memslots[i], slots);
 	}
 
@@ -890,10 +890,10 @@ static struct kvm_memslots *install_new_memslots(struct kvm *kvm,
 	 * Generations must be unique even across address spaces.  We do not need
 	 * a global counter for that, instead the generation space is evenly split
 	 * across address spaces.  For example, with two address spaces, address
-	 * space 0 will use generations 0, 4, 8, ... while address space 1 will
-	 * use generations 2, 6, 10, 14, ...
+	 * space 0 will use generations 0, 2, 4, ... while address space 1 will
+	 * use generations 1, 3, 5, ...
 	 */
-	gen += KVM_ADDRESS_SPACE_NUM * 2;
+	gen += KVM_ADDRESS_SPACE_NUM;
 
 	kvm_arch_memslots_updated(kvm, gen);
 

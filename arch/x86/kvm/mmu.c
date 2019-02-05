@@ -335,18 +335,17 @@ static inline bool is_access_track_spte(u64 spte)
  * Due to limited space in PTEs, the MMIO generation is a 19 bit subset of
  * the memslots generation and is derived as follows:
  *
- * Bits 1-9 of the memslot generation are propagated to spte bits 3-11
- * Bits 10-19 of the memslot generation are propagated to spte bits 52-61
+ * Bits 0-8 of the MMIO generation are propagated to spte bits 3-11
+ * Bits 9-18 of the MMIO generation are propagated to spte bits 52-61
  *
- * The MMIO generation starts at bit 1 of the memslots generation in order to
- * skip over bit 0, the KVM_MEMSLOT_GEN_UPDATE_IN_PROGRESS flag.  Including
- * the flag would require stealing a bit from the "real" generation number and
- * thus effectively halve the maximum number of MMIO generations that can be
- * handled before encountering a wrap (which requires a full MMU zap).  The
- * flag is instead explicitly queried when checking for MMIO spte cache hits.
+ * The KVM_MEMSLOT_GEN_UPDATE_IN_PROGRESS flag is intentionally not included in
+ * the MMIO generation number, as doing so would require stealing a bit from
+ * the "real" generation number and thus effectively halve the maximum number
+ * of MMIO generations that can be handled before encountering a wrap (which
+ * requires a full MMU zap).  The flag is instead explicitly queried when
+ * checking for MMIO spte cache hits.
  */
-#define MMIO_SPTE_GEN_MASK		GENMASK_ULL(19, 1)
-#define MMIO_SPTE_GEN_SHIFT		1
+#define MMIO_SPTE_GEN_MASK		GENMASK_ULL(18, 0)
 
 #define MMIO_SPTE_GEN_LOW_START		3
 #define MMIO_SPTE_GEN_LOW_END		11
@@ -363,8 +362,6 @@ static u64 generation_mmio_spte_mask(u64 gen)
 
 	WARN_ON(gen & ~MMIO_SPTE_GEN_MASK);
 
-	gen >>= MMIO_SPTE_GEN_SHIFT;
-
 	mask = (gen << MMIO_SPTE_GEN_LOW_START) & MMIO_SPTE_GEN_LOW_MASK;
 	mask |= (gen << MMIO_SPTE_GEN_HIGH_START) & MMIO_SPTE_GEN_HIGH_MASK;
 	return mask;
@@ -378,7 +375,7 @@ static u64 get_mmio_spte_generation(u64 spte)
 
 	gen = (spte & MMIO_SPTE_GEN_LOW_MASK) >> MMIO_SPTE_GEN_LOW_START;
 	gen |= (spte & MMIO_SPTE_GEN_HIGH_MASK) >> MMIO_SPTE_GEN_HIGH_START;
-	return gen << MMIO_SPTE_GEN_SHIFT;
+	return gen;
 }
 
 static void mark_mmio_spte(struct kvm_vcpu *vcpu, u64 *sptep, u64 gfn,
@@ -5905,13 +5902,9 @@ static bool kvm_has_zapped_obsolete_pages(struct kvm *kvm)
 
 void kvm_mmu_invalidate_mmio_sptes(struct kvm *kvm, u64 gen)
 {
-	gen &= MMIO_SPTE_GEN_MASK;
+	WARN_ON(gen & KVM_MEMSLOT_GEN_UPDATE_IN_PROGRESS);
 
-	/*
-	 * Shift to adjust for the "update in-progress" flag, which isn't
-	 * included in the MMIO generation number.
-	 */
-	gen >>= MMIO_SPTE_GEN_SHIFT;
+	gen &= MMIO_SPTE_GEN_MASK;
 
 	/*
 	 * Generation numbers are incremented in multiples of the number of
