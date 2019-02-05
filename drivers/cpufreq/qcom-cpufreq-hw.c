@@ -231,6 +231,8 @@ static int qcom_cpufreq_hw_cpu_init(struct cpufreq_policy *policy)
 		goto error;
 	}
 
+	dev_pm_opp_of_register_em(policy->cpus);
+
 	policy->fast_switch_possible = true;
 
 	return 0;
