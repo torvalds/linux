@@ -39,8 +39,8 @@
 #define ICSAR	0x1C	/* slave address */
 #define ICMAR	0x20	/* master address */
 #define ICRXTX	0x24	/* data port */
-#define ICDMAER	0x3c	/* DMA enable */
-#define ICFBSCR	0x38	/* first bit setup cycle */
+#define ICFBSCR	0x38	/* first bit setup cycle (Gen3) */
+#define ICDMAER	0x3c	/* DMA enable (Gen3) */
 
 /* ICSCR */
 #define SDBS	(1 << 3)	/* slave data buffer select */
@@ -83,7 +83,6 @@
 #define TMDMAE	(1 << 0)	/* DMA Master Transmitted Enable */
 
 /* ICFBSCR */
-#define TCYC06	0x04		/*  6*Tcyc delay 1st bit between SDA and SCL */
 #define TCYC17	0x0f		/* 17*Tcyc delay 1st bit between SDA and SCL */
 
 
@@ -212,6 +211,10 @@ static void rcar_i2c_init(struct rcar_i2c_priv *priv)
 	rcar_i2c_write(priv, ICMSR, 0);
 	/* start clock */
 	rcar_i2c_write(priv, ICCCR, priv->icccr);
+
+	if (priv->devtype == I2C_RCAR_GEN3)
+		rcar_i2c_write(priv, ICFBSCR, TCYC17);
+
 }
 
 static int rcar_i2c_bus_barrier(struct rcar_i2c_priv *priv)
@@ -363,9 +366,6 @@ static void rcar_i2c_dma_unmap(struct rcar_i2c_priv *priv)
 	/* Disable DMA Master Received/Transmitted */
 	rcar_i2c_write(priv, ICDMAER, 0);
 
-	/* Reset default delay */
-	rcar_i2c_write(priv, ICFBSCR, TCYC06);
-
 	dma_unmap_single(chan->device->dev, sg_dma_address(&priv->sg),
 			 sg_dma_len(&priv->sg), priv->dma_direction);
 
@@ -460,9 +460,6 @@ static void rcar_i2c_dma(struct rcar_i2c_priv *priv)
 		rcar_i2c_cleanup_dma(priv);
 		return;
 	}
-
-	/* Set delay for DMA operations */
-	rcar_i2c_write(priv, ICFBSCR, TCYC17);
 
 	/* Enable DMA Master Received/Transmitted */
 	if (read)
