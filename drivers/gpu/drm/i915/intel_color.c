@@ -304,14 +304,6 @@ static void cherryview_load_csc_matrix(const struct intel_crtc_state *crtc_state
 	I915_WRITE(CGM_PIPE_MODE(pipe), mode);
 }
 
-void intel_color_set_csc(const struct intel_crtc_state *crtc_state)
-{
-	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
-
-	if (dev_priv->display.load_csc_matrix)
-		dev_priv->display.load_csc_matrix(crtc_state);
-}
-
 /* Loads the legacy palette/gamma unit for the CRTC. */
 static void i9xx_load_luts_internal(const struct intel_crtc_state *crtc_state,
 				    const struct drm_property_blob *blob)
@@ -359,6 +351,16 @@ static void i9xx_load_luts(const struct intel_crtc_state *crtc_state)
 	i9xx_load_luts_internal(crtc_state, crtc_state->base.gamma_lut);
 }
 
+static void hsw_color_commit(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+
+	I915_WRITE(GAMMA_MODE(crtc->pipe), crtc_state->gamma_mode);
+
+	ilk_load_csc_matrix(crtc_state);
+}
+
 /* Loads the legacy palette/gamma unit for the CRTC on Haswell. */
 static void haswell_load_luts(const struct intel_crtc_state *crtc_state)
 {
@@ -375,8 +377,6 @@ static void haswell_load_luts(const struct intel_crtc_state *crtc_state)
 		hsw_disable_ips(crtc_state);
 		reenable_ips = true;
 	}
-
-	I915_WRITE(GAMMA_MODE(crtc->pipe), crtc_state->gamma_mode);
 
 	i9xx_load_luts(crtc_state);
 
@@ -485,8 +485,6 @@ static void broadwell_load_luts(const struct intel_crtc_state *crtc_state)
 		 */
 		I915_WRITE(PREC_PAL_INDEX(pipe), 0);
 	}
-
-	I915_WRITE(GAMMA_MODE(pipe), crtc_state->gamma_mode);
 }
 
 static void glk_load_degamma_lut(const struct intel_crtc_state *crtc_state)
@@ -539,8 +537,6 @@ static void glk_load_luts(const struct intel_crtc_state *crtc_state)
 		 */
 		I915_WRITE(PREC_PAL_INDEX(pipe), 0);
 	}
-
-	I915_WRITE(GAMMA_MODE(pipe), crtc_state->gamma_mode);
 }
 
 static void cherryview_load_luts(const struct intel_crtc_state *crtc_state)
@@ -551,10 +547,9 @@ static void cherryview_load_luts(const struct intel_crtc_state *crtc_state)
 	const struct drm_property_blob *degamma_lut = crtc_state->base.degamma_lut;
 	enum pipe pipe = crtc->pipe;
 
+	cherryview_load_csc_matrix(crtc_state);
+
 	if (crtc_state_is_legacy_gamma(crtc_state)) {
-		/* Turn off degamma/gamma on CGM block. */
-		I915_WRITE(CGM_PIPE_MODE(pipe),
-			   (crtc_state->base.ctm ? CGM_PIPE_MODE_CSC : 0));
 		i9xx_load_luts_internal(crtc_state, gamma_lut);
 		return;
 	}
@@ -595,11 +590,6 @@ static void cherryview_load_luts(const struct intel_crtc_state *crtc_state)
 		}
 	}
 
-	I915_WRITE(CGM_PIPE_MODE(pipe),
-		   (crtc_state->base.ctm ? CGM_PIPE_MODE_CSC : 0) |
-		   (degamma_lut ? CGM_PIPE_MODE_DEGAMMA : 0) |
-		   (gamma_lut ? CGM_PIPE_MODE_GAMMA : 0));
-
 	/*
 	 * Also program a linear LUT in the legacy block (behind the
 	 * CGM block).
@@ -612,6 +602,14 @@ void intel_color_load_luts(const struct intel_crtc_state *crtc_state)
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
 
 	dev_priv->display.load_luts(crtc_state);
+}
+
+void intel_color_commit(const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
+
+	if (dev_priv->display.color_commit)
+		dev_priv->display.color_commit(crtc_state);
 }
 
 static int check_lut_size(const struct drm_property_blob *lut, int expected)
@@ -675,18 +673,17 @@ void intel_color_init(struct intel_crtc *crtc)
 	drm_mode_crtc_set_gamma_size(&crtc->base, 256);
 
 	if (IS_CHERRYVIEW(dev_priv)) {
-		dev_priv->display.load_csc_matrix = cherryview_load_csc_matrix;
 		dev_priv->display.load_luts = cherryview_load_luts;
 	} else if (IS_HASWELL(dev_priv)) {
-		dev_priv->display.load_csc_matrix = ilk_load_csc_matrix;
 		dev_priv->display.load_luts = haswell_load_luts;
+		dev_priv->display.color_commit = hsw_color_commit;
 	} else if (IS_BROADWELL(dev_priv) || IS_GEN9_BC(dev_priv) ||
 		   IS_BROXTON(dev_priv)) {
-		dev_priv->display.load_csc_matrix = ilk_load_csc_matrix;
 		dev_priv->display.load_luts = broadwell_load_luts;
+		dev_priv->display.color_commit = hsw_color_commit;
 	} else if (IS_GEMINILAKE(dev_priv) || IS_CANNONLAKE(dev_priv)) {
-		dev_priv->display.load_csc_matrix = ilk_load_csc_matrix;
 		dev_priv->display.load_luts = glk_load_luts;
+		dev_priv->display.color_commit = hsw_color_commit;
 	} else {
 		dev_priv->display.load_luts = i9xx_load_luts;
 	}

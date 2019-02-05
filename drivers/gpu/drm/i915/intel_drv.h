@@ -2389,7 +2389,7 @@ int intel_plane_atomic_check_with_state(const struct intel_crtc_state *old_crtc_
 /* intel_color.c */
 void intel_color_init(struct intel_crtc *crtc);
 int intel_color_check(struct intel_crtc_state *crtc_state);
-void intel_color_set_csc(const struct intel_crtc_state *crtc_state);
+void intel_color_commit(const struct intel_crtc_state *crtc_state);
 void intel_color_load_luts(const struct intel_crtc_state *crtc_state);
 
 /* intel_lspcon.c */
