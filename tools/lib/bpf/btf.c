@@ -511,7 +511,7 @@ exit_free:
 	return err;
 }
 
-int btf__get_map_kv_tids(const struct btf *btf, char *map_name,
+int btf__get_map_kv_tids(const struct btf *btf, const char *map_name,
 			 __u32 expected_key_size, __u32 expected_value_size,
 			 __u32 *key_type_id, __u32 *value_type_id)
 {
