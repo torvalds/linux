@@ -2011,7 +2011,7 @@ static int mmci_probe(struct amba_device *dev,
 		if (ret == -EPROBE_DEFER)
 			goto clk_disable;
 
-		ret = mmc_gpiod_request_ro(mmc, "wp", 0, false, 0, NULL);
+		ret = mmc_gpiod_request_ro(mmc, "wp", 0, 0, NULL);
 		if (ret == -EPROBE_DEFER)
 			goto clk_disable;
 	}

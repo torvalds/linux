@@ -260,7 +260,7 @@ int mmc_of_parse(struct mmc_host *host)
 	/* Parse Write Protection */
 	ro_cap_invert = device_property_read_bool(dev, "wp-inverted");
 
-	ret = mmc_gpiod_request_ro(host, "wp", 0, false, 0, &ro_gpio_invert);
+	ret = mmc_gpiod_request_ro(host, "wp", 0, 0, &ro_gpio_invert);
 	if (!ret)
 		dev_info(host->parent, "Got WP GPIO\n");
 	else if (ret != -ENOENT && ret != -ENOSYS)
