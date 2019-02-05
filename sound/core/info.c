@@ -504,6 +504,14 @@ int __exit snd_info_done(void)
 	return 0;
 }
 
+static void snd_card_id_read(struct snd_info_entry *entry,
+			     struct snd_info_buffer *buffer)
+{
+	struct snd_card *card = entry->private_data;
+
+	snd_iprintf(buffer, "%s\n", card->id);
+}
+
 /*
  * create a card proc file
  * called from init.c
@@ -521,7 +529,8 @@ int snd_info_card_create(struct snd_card *card)
 	if (!entry)
 		return -ENOMEM;
 	card->proc_root = entry;
-	return 0;
+
+	return snd_card_ro_proc_new(card, "id", card, snd_card_id_read);
 }
 
 /*
