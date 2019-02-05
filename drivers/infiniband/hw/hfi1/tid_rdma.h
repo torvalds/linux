@@ -21,8 +21,19 @@ struct tid_rdma_params {
 };
 
 struct tid_rdma_qp_params {
+	struct work_struct trigger_work;
 	struct tid_rdma_params local;
 	struct tid_rdma_params __rcu *remote;
+};
+
+/* Track state for each hardware flow */
+struct tid_flow_state {
+	u32 generation;
+	u32 psn;
+	u32 r_next_psn;      /* next PSN to be received (in TID space) */
+	u8 index;
+	u8 last_index;
+	u8 flags;
 };
 
 bool tid_rdma_conn_req(struct rvt_qp *qp, u64 *data);
@@ -36,5 +47,11 @@ int hfi1_kern_exp_rcv_init(struct hfi1_ctxtdata *rcd, int reinit);
 int hfi1_qp_priv_init(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 		      struct ib_qp_init_attr *init_attr);
 void hfi1_qp_priv_tid_free(struct rvt_dev_info *rdi, struct rvt_qp *qp);
+
+void hfi1_tid_rdma_flush_wait(struct rvt_qp *qp);
+
+int hfi1_kern_setup_hw_flow(struct hfi1_ctxtdata *rcd, struct rvt_qp *qp);
+void hfi1_kern_clear_hw_flow(struct hfi1_ctxtdata *rcd, struct rvt_qp *qp);
+void hfi1_kern_init_ctxt_generations(struct hfi1_ctxtdata *rcd);
 
 #endif /* HFI1_TID_RDMA_H */

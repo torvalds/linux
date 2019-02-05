@@ -63,11 +63,13 @@ extern const struct rvt_operation_params hfi1_post_parms[];
  * HFI1_S_AHG_VALID - ahg header valid on chip
  * HFI1_S_AHG_CLEAR - have send engine clear ahg state
  * HFI1_S_WAIT_PIO_DRAIN - qp waiting for PIOs to drain
+ * HFI1_S_WAIT_TID_SPACE - a QP is waiting for TID resource
  * HFI1_S_MIN_BIT_MASK - the lowest bit that can be used by hfi1
  */
 #define HFI1_S_AHG_VALID         0x80000000
 #define HFI1_S_AHG_CLEAR         0x40000000
 #define HFI1_S_WAIT_PIO_DRAIN    0x20000000
+#define HFI1_S_WAIT_TID_SPACE    0x10000000
 #define HFI1_S_MIN_BIT_MASK      0x01000000
 
 /*

@@ -159,9 +159,12 @@ struct hfi1_qp_priv {
 	struct sdma_engine *s_sde;                /* current sde */
 	struct send_context *s_sendcontext;       /* current sendcontext */
 	struct hfi1_ctxtdata *rcd;                /* QP's receive context */
+	u32 tid_enqueue;                          /* saved when tid waited */
 	u8 s_sc;		                  /* SC[0..4] for next packet */
 	struct iowait s_iowait;
+	struct list_head tid_wait;                /* for queueing tid space */
 	struct hfi1_opfn_data opfn;
+	struct tid_flow_state flow_state;
 	struct tid_rdma_qp_params tid_rdma;
 	struct rvt_qp *owner;
 	u8 hdr_type; /* 9B or 16B */

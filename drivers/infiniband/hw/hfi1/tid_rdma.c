@@ -5,9 +5,27 @@
  */
 
 #include "hfi.h"
+#include "qp.h"
 #include "verbs.h"
 #include "tid_rdma.h"
 #include "trace.h"
+
+#define RCV_TID_FLOW_TABLE_CTRL_FLOW_VALID_SMASK BIT_ULL(32)
+#define RCV_TID_FLOW_TABLE_CTRL_HDR_SUPP_EN_SMASK BIT_ULL(33)
+#define RCV_TID_FLOW_TABLE_CTRL_KEEP_AFTER_SEQ_ERR_SMASK BIT_ULL(34)
+#define RCV_TID_FLOW_TABLE_CTRL_KEEP_ON_GEN_ERR_SMASK BIT_ULL(35)
+#define RCV_TID_FLOW_TABLE_STATUS_SEQ_MISMATCH_SMASK BIT_ULL(37)
+#define RCV_TID_FLOW_TABLE_STATUS_GEN_MISMATCH_SMASK BIT_ULL(38)
+
+#define GENERATION_MASK 0xFFFFF
+
+static u32 mask_generation(u32 a)
+{
+	return a & GENERATION_MASK;
+}
+
+/* Reserved generation value to set to unused flows for kernel contexts */
+#define KERN_GENERATION_RESERVED mask_generation(U32_MAX)
 
 /*
  * J_KEY for kernel contexts when TID RDMA is used.
@@ -59,6 +77,8 @@
  * W - max_Write
  * C - Capcode
  */
+
+static void tid_rdma_trigger_resume(struct work_struct *work);
 
 static u64 tid_rdma_opfn_encode(struct tid_rdma_params *p)
 {
@@ -251,6 +271,12 @@ int hfi1_qp_priv_init(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 
 	spin_lock_init(&qpriv->opfn.lock);
 	INIT_WORK(&qpriv->opfn.opfn_work, opfn_send_conn_request);
+	INIT_WORK(&qpriv->tid_rdma.trigger_work, tid_rdma_trigger_resume);
+	qpriv->flow_state.psn = 0;
+	qpriv->flow_state.index = RXE_NUM_TID_FLOWS;
+	qpriv->flow_state.last_index = RXE_NUM_TID_FLOWS;
+	qpriv->flow_state.generation = KERN_GENERATION_RESERVED;
+	INIT_LIST_HEAD(&qpriv->tid_wait);
 
 	return 0;
 }
@@ -261,4 +287,418 @@ void hfi1_qp_priv_tid_free(struct rvt_dev_info *rdi, struct rvt_qp *qp)
 
 	if (qp->ibqp.qp_type == IB_QPT_RC && HFI1_CAP_IS_KSET(TID_RDMA))
 		cancel_work_sync(&priv->opfn.opfn_work);
+}
+
+/* Flow and tid waiter functions */
+/**
+ * DOC: lock ordering
+ *
+ * There are two locks involved with the queuing
+ * routines: the qp s_lock and the exp_lock.
+ *
+ * Since the tid space allocation is called from
+ * the send engine, the qp s_lock is already held.
+ *
+ * The allocation routines will get the exp_lock.
+ *
+ * The first_qp() call is provided to allow the head of
+ * the rcd wait queue to be fetched under the exp_lock and
+ * followed by a drop of the exp_lock.
+ *
+ * Any qp in the wait list will have the qp reference count held
+ * to hold the qp in memory.
+ */
+
+/*
+ * return head of rcd wait list
+ *
+ * Must hold the exp_lock.
+ *
+ * Get a reference to the QP to hold the QP in memory.
+ *
+ * The caller must release the reference when the local
+ * is no longer being used.
+ */
+static struct rvt_qp *first_qp(struct hfi1_ctxtdata *rcd,
+			       struct tid_queue *queue)
+	__must_hold(&rcd->exp_lock)
+{
+	struct hfi1_qp_priv *priv;
+
+	lockdep_assert_held(&rcd->exp_lock);
+	priv = list_first_entry_or_null(&queue->queue_head,
+					struct hfi1_qp_priv,
+					tid_wait);
+	if (!priv)
+		return NULL;
+	rvt_get_qp(priv->owner);
+	return priv->owner;
+}
+
+/**
+ * kernel_tid_waiters - determine rcd wait
+ * @rcd: the receive context
+ * @qp: the head of the qp being processed
+ *
+ * This routine will return false IFF
+ * the list is NULL or the head of the
+ * list is the indicated qp.
+ *
+ * Must hold the qp s_lock and the exp_lock.
+ *
+ * Return:
+ * false if either of the conditions below are statisfied:
+ * 1. The list is empty or
+ * 2. The indicated qp is at the head of the list and the
+ *    HFI1_S_WAIT_TID_SPACE bit is set in qp->s_flags.
+ * true is returned otherwise.
+ */
+static bool kernel_tid_waiters(struct hfi1_ctxtdata *rcd,
+			       struct tid_queue *queue, struct rvt_qp *qp)
+	__must_hold(&rcd->exp_lock) __must_hold(&qp->s_lock)
+{
+	struct rvt_qp *fqp;
+	bool ret = true;
+
+	lockdep_assert_held(&qp->s_lock);
+	lockdep_assert_held(&rcd->exp_lock);
+	fqp = first_qp(rcd, queue);
+	if (!fqp || (fqp == qp && (qp->s_flags & HFI1_S_WAIT_TID_SPACE)))
+		ret = false;
+	rvt_put_qp(fqp);
+	return ret;
+}
+
+/**
+ * dequeue_tid_waiter - dequeue the qp from the list
+ * @qp - the qp to remove the wait list
+ *
+ * This routine removes the indicated qp from the
+ * wait list if it is there.
+ *
+ * This should be done after the hardware flow and
+ * tid array resources have been allocated.
+ *
+ * Must hold the qp s_lock and the rcd exp_lock.
+ *
+ * It assumes the s_lock to protect the s_flags
+ * field and to reliably test the HFI1_S_WAIT_TID_SPACE flag.
+ */
+static void dequeue_tid_waiter(struct hfi1_ctxtdata *rcd,
+			       struct tid_queue *queue, struct rvt_qp *qp)
+	__must_hold(&rcd->exp_lock) __must_hold(&qp->s_lock)
+{
+	struct hfi1_qp_priv *priv = qp->priv;
+
+	lockdep_assert_held(&qp->s_lock);
+	lockdep_assert_held(&rcd->exp_lock);
+	if (list_empty(&priv->tid_wait))
+		return;
+	list_del_init(&priv->tid_wait);
+	qp->s_flags &= ~HFI1_S_WAIT_TID_SPACE;
+	queue->dequeue++;
+	rvt_put_qp(qp);
+}
+
+/**
+ * queue_qp_for_tid_wait - suspend QP on tid space
+ * @rcd: the receive context
+ * @qp: the qp
+ *
+ * The qp is inserted at the tail of the rcd
+ * wait queue and the HFI1_S_WAIT_TID_SPACE s_flag is set.
+ *
+ * Must hold the qp s_lock and the exp_lock.
+ */
+static void queue_qp_for_tid_wait(struct hfi1_ctxtdata *rcd,
+				  struct tid_queue *queue, struct rvt_qp *qp)
+	__must_hold(&rcd->exp_lock) __must_hold(&qp->s_lock)
+{
+	struct hfi1_qp_priv *priv = qp->priv;
+
+	lockdep_assert_held(&qp->s_lock);
+	lockdep_assert_held(&rcd->exp_lock);
+	if (list_empty(&priv->tid_wait)) {
+		qp->s_flags |= HFI1_S_WAIT_TID_SPACE;
+		list_add_tail(&priv->tid_wait, &queue->queue_head);
+		priv->tid_enqueue = ++queue->enqueue;
+		trace_hfi1_qpsleep(qp, HFI1_S_WAIT_TID_SPACE);
+		rvt_get_qp(qp);
+	}
+}
+
+/**
+ * __trigger_tid_waiter - trigger tid waiter
+ * @qp: the qp
+ *
+ * This is a private entrance to schedule the qp
+ * assuming the caller is holding the qp->s_lock.
+ */
+static void __trigger_tid_waiter(struct rvt_qp *qp)
+	__must_hold(&qp->s_lock)
+{
+	lockdep_assert_held(&qp->s_lock);
+	if (!(qp->s_flags & HFI1_S_WAIT_TID_SPACE))
+		return;
+	trace_hfi1_qpwakeup(qp, HFI1_S_WAIT_TID_SPACE);
+	hfi1_schedule_send(qp);
+}
+
+/**
+ * tid_rdma_schedule_tid_wakeup - schedule wakeup for a qp
+ * @qp - the qp
+ *
+ * trigger a schedule or a waiting qp in a deadlock
+ * safe manner.  The qp reference is held prior
+ * to this call via first_qp().
+ *
+ * If the qp trigger was already scheduled (!rval)
+ * the the reference is dropped, otherwise the resume
+ * or the destroy cancel will dispatch the reference.
+ */
+static void tid_rdma_schedule_tid_wakeup(struct rvt_qp *qp)
+{
+	struct hfi1_qp_priv *priv;
+	struct hfi1_ibport *ibp;
+	struct hfi1_pportdata *ppd;
+	struct hfi1_devdata *dd;
+	bool rval;
+
+	if (!qp)
+		return;
+
+	priv = qp->priv;
+	ibp = to_iport(qp->ibqp.device, qp->port_num);
+	ppd = ppd_from_ibp(ibp);
+	dd = dd_from_ibdev(qp->ibqp.device);
+
+	rval = queue_work_on(priv->s_sde ?
+			     priv->s_sde->cpu :
+			     cpumask_first(cpumask_of_node(dd->node)),
+			     ppd->hfi1_wq,
+			     &priv->tid_rdma.trigger_work);
+	if (!rval)
+		rvt_put_qp(qp);
+}
+
+/**
+ * tid_rdma_trigger_resume - field a trigger work request
+ * @work - the work item
+ *
+ * Complete the off qp trigger processing by directly
+ * calling the progress routine.
+ */
+static void tid_rdma_trigger_resume(struct work_struct *work)
+{
+	struct tid_rdma_qp_params *tr;
+	struct hfi1_qp_priv *priv;
+	struct rvt_qp *qp;
+
+	tr = container_of(work, struct tid_rdma_qp_params, trigger_work);
+	priv = container_of(tr, struct hfi1_qp_priv, tid_rdma);
+	qp = priv->owner;
+	spin_lock_irq(&qp->s_lock);
+	if (qp->s_flags & HFI1_S_WAIT_TID_SPACE) {
+		spin_unlock_irq(&qp->s_lock);
+		hfi1_do_send(priv->owner, true);
+	} else {
+		spin_unlock_irq(&qp->s_lock);
+	}
+	rvt_put_qp(qp);
+}
+
+/**
+ * tid_rdma_flush_wait - unwind any tid space wait
+ *
+ * This is called when resetting a qp to
+ * allow a destroy or reset to get rid
+ * of any tid space linkage and reference counts.
+ */
+static void _tid_rdma_flush_wait(struct rvt_qp *qp, struct tid_queue *queue)
+	__must_hold(&qp->s_lock)
+{
+	struct hfi1_qp_priv *priv;
+
+	if (!qp)
+		return;
+	lockdep_assert_held(&qp->s_lock);
+	priv = qp->priv;
+	qp->s_flags &= ~HFI1_S_WAIT_TID_SPACE;
+	spin_lock(&priv->rcd->exp_lock);
+	if (!list_empty(&priv->tid_wait)) {
+		list_del_init(&priv->tid_wait);
+		qp->s_flags &= ~HFI1_S_WAIT_TID_SPACE;
+		queue->dequeue++;
+		rvt_put_qp(qp);
+	}
+	spin_unlock(&priv->rcd->exp_lock);
+}
+
+void hfi1_tid_rdma_flush_wait(struct rvt_qp *qp)
+	__must_hold(&qp->s_lock)
+{
+	struct hfi1_qp_priv *priv = qp->priv;
+
+	_tid_rdma_flush_wait(qp, &priv->rcd->flow_queue);
+}
+
+/* Flow functions */
+/**
+ * kern_reserve_flow - allocate a hardware flow
+ * @rcd - the context to use for allocation
+ * @last - the index of the preferred flow. Use RXE_NUM_TID_FLOWS to
+ *         signify "don't care".
+ *
+ * Use a bit mask based allocation to reserve a hardware
+ * flow for use in receiving KDETH data packets. If a preferred flow is
+ * specified the function will attempt to reserve that flow again, if
+ * available.
+ *
+ * The exp_lock must be held.
+ *
+ * Return:
+ * On success: a value postive value between 0 and RXE_NUM_TID_FLOWS - 1
+ * On failure: -EAGAIN
+ */
+static int kern_reserve_flow(struct hfi1_ctxtdata *rcd, int last)
+	__must_hold(&rcd->exp_lock)
+{
+	int nr;
+
+	/* Attempt to reserve the preferred flow index */
+	if (last >= 0 && last < RXE_NUM_TID_FLOWS &&
+	    !test_and_set_bit(last, &rcd->flow_mask))
+		return last;
+
+	nr = ffz(rcd->flow_mask);
+	BUILD_BUG_ON(RXE_NUM_TID_FLOWS >=
+		     (sizeof(rcd->flow_mask) * BITS_PER_BYTE));
+	if (nr > (RXE_NUM_TID_FLOWS - 1))
+		return -EAGAIN;
+	set_bit(nr, &rcd->flow_mask);
+	return nr;
+}
+
+static void kern_set_hw_flow(struct hfi1_ctxtdata *rcd, u32 generation,
+			     u32 flow_idx)
+{
+	u64 reg;
+
+	reg = ((u64)generation << HFI1_KDETH_BTH_SEQ_SHIFT) |
+		RCV_TID_FLOW_TABLE_CTRL_FLOW_VALID_SMASK |
+		RCV_TID_FLOW_TABLE_CTRL_KEEP_AFTER_SEQ_ERR_SMASK |
+		RCV_TID_FLOW_TABLE_CTRL_KEEP_ON_GEN_ERR_SMASK |
+		RCV_TID_FLOW_TABLE_STATUS_SEQ_MISMATCH_SMASK |
+		RCV_TID_FLOW_TABLE_STATUS_GEN_MISMATCH_SMASK;
+
+	if (generation != KERN_GENERATION_RESERVED)
+		reg |= RCV_TID_FLOW_TABLE_CTRL_HDR_SUPP_EN_SMASK;
+
+	write_uctxt_csr(rcd->dd, rcd->ctxt,
+			RCV_TID_FLOW_TABLE + 8 * flow_idx, reg);
+}
+
+static u32 kern_setup_hw_flow(struct hfi1_ctxtdata *rcd, u32 flow_idx)
+	__must_hold(&rcd->exp_lock)
+{
+	u32 generation = rcd->flows[flow_idx].generation;
+
+	kern_set_hw_flow(rcd, generation, flow_idx);
+	return generation;
+}
+
+static u32 kern_flow_generation_next(u32 gen)
+{
+	u32 generation = mask_generation(gen + 1);
+
+	if (generation == KERN_GENERATION_RESERVED)
+		generation = mask_generation(generation + 1);
+	return generation;
+}
+
+static void kern_clear_hw_flow(struct hfi1_ctxtdata *rcd, u32 flow_idx)
+	__must_hold(&rcd->exp_lock)
+{
+	rcd->flows[flow_idx].generation =
+		kern_flow_generation_next(rcd->flows[flow_idx].generation);
+	kern_set_hw_flow(rcd, KERN_GENERATION_RESERVED, flow_idx);
+}
+
+int hfi1_kern_setup_hw_flow(struct hfi1_ctxtdata *rcd, struct rvt_qp *qp)
+{
+	struct hfi1_qp_priv *qpriv = (struct hfi1_qp_priv *)qp->priv;
+	struct tid_flow_state *fs = &qpriv->flow_state;
+	struct rvt_qp *fqp;
+	unsigned long flags;
+	int ret = 0;
+
+	/* The QP already has an allocated flow */
+	if (fs->index != RXE_NUM_TID_FLOWS)
+		return ret;
+
+	spin_lock_irqsave(&rcd->exp_lock, flags);
+	if (kernel_tid_waiters(rcd, &rcd->flow_queue, qp))
+		goto queue;
+
+	ret = kern_reserve_flow(rcd, fs->last_index);
+	if (ret < 0)
+		goto queue;
+	fs->index = ret;
+	fs->last_index = fs->index;
+
+	/* Generation received in a RESYNC overrides default flow generation */
+	if (fs->generation != KERN_GENERATION_RESERVED)
+		rcd->flows[fs->index].generation = fs->generation;
+	fs->generation = kern_setup_hw_flow(rcd, fs->index);
+	fs->psn = 0;
+	fs->flags = 0;
+	dequeue_tid_waiter(rcd, &rcd->flow_queue, qp);
+	/* get head before dropping lock */
+	fqp = first_qp(rcd, &rcd->flow_queue);
+	spin_unlock_irqrestore(&rcd->exp_lock, flags);
+
+	tid_rdma_schedule_tid_wakeup(fqp);
+	return 0;
+queue:
+	queue_qp_for_tid_wait(rcd, &rcd->flow_queue, qp);
+	spin_unlock_irqrestore(&rcd->exp_lock, flags);
+	return -EAGAIN;
+}
+
+void hfi1_kern_clear_hw_flow(struct hfi1_ctxtdata *rcd, struct rvt_qp *qp)
+{
+	struct hfi1_qp_priv *qpriv = (struct hfi1_qp_priv *)qp->priv;
+	struct tid_flow_state *fs = &qpriv->flow_state;
+	struct rvt_qp *fqp;
+	unsigned long flags;
+
+	if (fs->index >= RXE_NUM_TID_FLOWS)
+		return;
+	spin_lock_irqsave(&rcd->exp_lock, flags);
+	kern_clear_hw_flow(rcd, fs->index);
+	clear_bit(fs->index, &rcd->flow_mask);
+	fs->index = RXE_NUM_TID_FLOWS;
+	fs->psn = 0;
+	fs->generation = KERN_GENERATION_RESERVED;
+
+	/* get head before dropping lock */
+	fqp = first_qp(rcd, &rcd->flow_queue);
+	spin_unlock_irqrestore(&rcd->exp_lock, flags);
+
+	if (fqp == qp) {
+		__trigger_tid_waiter(fqp);
+		rvt_put_qp(fqp);
+	} else {
+		tid_rdma_schedule_tid_wakeup(fqp);
+	}
+}
+
+void hfi1_kern_init_ctxt_generations(struct hfi1_ctxtdata *rcd)
+{
+	int i;
+
+	for (i = 0; i < RXE_NUM_TID_FLOWS; i++) {
+		rcd->flows[i].generation = mask_generation(prandom_u32());
+		kern_set_hw_flow(rcd, KERN_GENERATION_RESERVED, i);
+	}
 }

@@ -738,6 +738,7 @@ void flush_qp_waiters(struct rvt_qp *qp)
 {
 	lockdep_assert_held(&qp->s_lock);
 	flush_iowait(qp);
+	hfi1_tid_rdma_flush_wait(qp);
 }
 
 void stop_send_queue(struct rvt_qp *qp)
@@ -745,6 +746,8 @@ void stop_send_queue(struct rvt_qp *qp)
 	struct hfi1_qp_priv *priv = qp->priv;
 
 	iowait_cancel_work(&priv->s_iowait);
+	if (cancel_work_sync(&priv->tid_rdma.trigger_work))
+		rvt_put_qp(qp);
 }
 
 void quiesce_qp(struct rvt_qp *qp)
