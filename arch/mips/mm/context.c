@@ -42,6 +42,7 @@ void get_new_mmu_context(struct mm_struct *mm)
 	set_cpu_context(cpu, mm, asid);
 	asid_cache(cpu) = asid;
 }
+EXPORT_SYMBOL_GPL(get_new_mmu_context);
 
 void check_mmu_context(struct mm_struct *mm)
 {
@@ -58,6 +59,7 @@ void check_mmu_context(struct mm_struct *mm)
 	if (!asid_versions_eq(cpu, cpu_context(cpu, mm), asid_cache(cpu)))
 		get_new_mmu_context(mm);
 }
+EXPORT_SYMBOL_GPL(check_mmu_context);
 
 static void flush_context(void)
 {
@@ -260,6 +262,7 @@ void check_switch_mmu_context(struct mm_struct *mm)
 setup_pgd:
 	TLBMISS_HANDLER_SETUP_PGD(mm->pgd);
 }
+EXPORT_SYMBOL_GPL(check_switch_mmu_context);
 
 static int mmid_init(void)
 {
