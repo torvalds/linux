@@ -137,7 +137,7 @@
 struct atmel_qspi {
 	void __iomem		*regs;
 	void __iomem		*mem;
-	struct clk		*clk;
+	struct clk		*pclk;
 	struct platform_device	*pdev;
 	u32			pending;
 	u32			mr;
@@ -341,7 +341,7 @@ static int atmel_qspi_setup(struct spi_device *spi)
 	if (!spi->max_speed_hz)
 		return -EINVAL;
 
-	src_rate = clk_get_rate(aq->clk);
+	src_rate = clk_get_rate(aq->pclk);
 	if (!src_rate)
 		return -EINVAL;
 
@@ -433,15 +433,18 @@ static int atmel_qspi_probe(struct platform_device *pdev)
 	}
 
 	/* Get the peripheral clock */
-	aq->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(aq->clk)) {
+	aq->pclk = devm_clk_get(&pdev->dev, "pclk");
+	if (IS_ERR(aq->pclk))
+		aq->pclk = devm_clk_get(&pdev->dev, NULL);
+
+	if (IS_ERR(aq->pclk)) {
 		dev_err(&pdev->dev, "missing peripheral clock\n");
-		err = PTR_ERR(aq->clk);
+		err = PTR_ERR(aq->pclk);
 		goto exit;
 	}
 
 	/* Enable the peripheral clock */
-	err = clk_prepare_enable(aq->clk);
+	err = clk_prepare_enable(aq->pclk);
 	if (err) {
 		dev_err(&pdev->dev, "failed to enable the peripheral clock\n");
 		goto exit;
@@ -452,25 +455,25 @@ static int atmel_qspi_probe(struct platform_device *pdev)
 	if (irq < 0) {
 		dev_err(&pdev->dev, "missing IRQ\n");
 		err = irq;
-		goto disable_clk;
+		goto disable_pclk;
 	}
 	err = devm_request_irq(&pdev->dev, irq, atmel_qspi_interrupt,
 			       0, dev_name(&pdev->dev), aq);
 	if (err)
-		goto disable_clk;
+		goto disable_pclk;
 
 	err = atmel_qspi_init(aq);
 	if (err)
-		goto disable_clk;
+		goto disable_pclk;
 
 	err = spi_register_controller(ctrl);
 	if (err)
-		goto disable_clk;
+		goto disable_pclk;
 
 	return 0;
 
-disable_clk:
-	clk_disable_unprepare(aq->clk);
+disable_pclk:
+	clk_disable_unprepare(aq->pclk);
 exit:
 	spi_controller_put(ctrl);
 
@@ -484,7 +487,7 @@ static int atmel_qspi_remove(struct platform_device *pdev)
 
 	spi_unregister_controller(ctrl);
 	writel_relaxed(QSPI_CR_QSPIDIS, aq->regs + QSPI_CR);
-	clk_disable_unprepare(aq->clk);
+	clk_disable_unprepare(aq->pclk);
 	return 0;
 }
 
@@ -492,7 +495,7 @@ static int __maybe_unused atmel_qspi_suspend(struct device *dev)
 {
 	struct atmel_qspi *aq = dev_get_drvdata(dev);
 
-	clk_disable_unprepare(aq->clk);
+	clk_disable_unprepare(aq->pclk);
 
 	return 0;
 }
@@ -501,7 +504,7 @@ static int __maybe_unused atmel_qspi_resume(struct device *dev)
 {
 	struct atmel_qspi *aq = dev_get_drvdata(dev);
 
-	clk_prepare_enable(aq->clk);
+	clk_prepare_enable(aq->pclk);
 
 	return atmel_qspi_init(aq);
 }
