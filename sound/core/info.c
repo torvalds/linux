@@ -463,11 +463,12 @@ static struct snd_info_entry *create_subdir(struct module *mod,
 }
 
 static struct snd_info_entry *
-snd_info_create_entry(const char *name, struct snd_info_entry *parent);
+snd_info_create_entry(const char *name, struct snd_info_entry *parent,
+		      struct module *module);
 
 int __init snd_info_init(void)
 {
-	snd_proc_root = snd_info_create_entry("asound", NULL);
+	snd_proc_root = snd_info_create_entry("asound", NULL, THIS_MODULE);
 	if (!snd_proc_root)
 		return -ENOMEM;
 	snd_proc_root->mode = S_IFDIR | 0555;
@@ -684,7 +685,8 @@ EXPORT_SYMBOL(snd_info_get_str);
  * Return: The pointer of the new instance, or %NULL on failure.
  */
 static struct snd_info_entry *
-snd_info_create_entry(const char *name, struct snd_info_entry *parent)
+snd_info_create_entry(const char *name, struct snd_info_entry *parent,
+		      struct module *module)
 {
 	struct snd_info_entry *entry;
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
@@ -701,6 +703,7 @@ snd_info_create_entry(const char *name, struct snd_info_entry *parent)
 	INIT_LIST_HEAD(&entry->children);
 	INIT_LIST_HEAD(&entry->list);
 	entry->parent = parent;
+	entry->module = module;
 	if (parent)
 		list_add_tail(&entry->list, &parent->children);
 	return entry;
@@ -720,14 +723,9 @@ struct snd_info_entry *snd_info_create_module_entry(struct module * module,
 					       const char *name,
 					       struct snd_info_entry *parent)
 {
-	struct snd_info_entry *entry;
-
 	if (!parent)
 		parent = snd_proc_root;
-	entry = snd_info_create_entry(name, parent);
-	if (entry)
-		entry->module = module;
-	return entry;
+	return snd_info_create_entry(name, parent, module);
 }
 EXPORT_SYMBOL(snd_info_create_module_entry);
 
@@ -745,14 +743,9 @@ struct snd_info_entry *snd_info_create_card_entry(struct snd_card *card,
 					     const char *name,
 					     struct snd_info_entry * parent)
 {
-	struct snd_info_entry *entry;
-
 	if (!parent)
 		parent = card->proc_root;
-	entry = snd_info_create_entry(name, parent);
-	if (entry)
-		entry->module = card->module;
-	return entry;
+	return snd_info_create_entry(name, parent, card->module);
 }
 EXPORT_SYMBOL(snd_info_create_card_entry);
 
