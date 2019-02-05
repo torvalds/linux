@@ -4319,7 +4319,7 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 	int num_active;
 	u64 plane_data_rate[I915_MAX_PLANES] = {};
 	u64 uv_plane_data_rate[I915_MAX_PLANES] = {};
-	u16 blocks = 0;
+	u32 blocks;
 	int level;
 
 	/* Clear the partitioning for disabled planes. */
@@ -4694,8 +4694,11 @@ static void skl_compute_plane_wm(const struct intel_crtc_state *cstate,
 	uint_fixed_16_16_t selected_result;
 	u32 res_blocks, res_lines, min_ddb_alloc = 0;
 
-	if (latency == 0)
+	if (latency == 0) {
+		/* reject it */
+		result->min_ddb_alloc = U16_MAX;
 		return;
+	}
 
 	/* Display WA #1141: kbl,cfl */
 	if ((IS_KABYLAKE(dev_priv) || IS_COFFEELAKE(dev_priv) ||
@@ -4783,8 +4786,11 @@ static void skl_compute_plane_wm(const struct intel_crtc_state *cstate,
 	if (!skl_wm_has_lines(dev_priv, level))
 		res_lines = 0;
 
-	if (res_lines > 31)
+	if (res_lines > 31) {
+		/* reject it */
+		result->min_ddb_alloc = U16_MAX;
 		return;
+	}
 
 	/*
 	 * If res_lines is valid, assume we can use this watermark level
