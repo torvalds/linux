@@ -66,11 +66,9 @@ static inline void debug_puthex(const char *s)
 
 #endif
 
-#if CONFIG_EARLY_PRINTK || CONFIG_RANDOMIZE_BASE
 /* cmdline.c */
 int cmdline_find_option(const char *option, char *buffer, int bufsize);
 int cmdline_find_option_bool(const char *option);
-#endif
 
 struct mem_vector {
 	unsigned long long start;
