@@ -7,6 +7,7 @@
 #include <string.h>
 #include <linux/coresight-pmu.h>
 #include <linux/perf_event.h>
+#include <linux/string.h>
 
 #include "cs-etm.h"
 #include "arm-spe.h"
