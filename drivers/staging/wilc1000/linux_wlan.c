@@ -12,71 +12,6 @@
 
 #include "wilc_wfi_cfgoperations.h"
 
-static int dev_state_ev_handler(struct notifier_block *this,
-				unsigned long event, void *ptr)
-{
-	struct in_ifaddr *dev_iface = ptr;
-	struct wilc_priv *priv;
-	struct host_if_drv *hif_drv;
-	struct net_device *dev;
-	struct wilc_vif *vif;
-	char wlan_dev_name[5] = "wlan0";
-
-	if (!dev_iface || !dev_iface->ifa_dev || !dev_iface->ifa_dev->dev)
-		return NOTIFY_DONE;
-
-	if (memcmp(dev_iface->ifa_label, "wlan0", 5) &&
-	    memcmp(dev_iface->ifa_label, "p2p0", 4))
-		return NOTIFY_DONE;
-
-	dev  = (struct net_device *)dev_iface->ifa_dev->dev;
-	if (!dev->ieee80211_ptr || !dev->ieee80211_ptr->wiphy)
-		return NOTIFY_DONE;
-
-	priv = wiphy_priv(dev->ieee80211_ptr->wiphy);
-	if (!priv)
-		return NOTIFY_DONE;
-
-	hif_drv = (struct host_if_drv *)priv->hif_drv;
-	vif = netdev_priv(dev);
-	if (!vif || !hif_drv)
-		return NOTIFY_DONE;
-
-	switch (event) {
-	case NETDEV_UP:
-		if (vif->iftype == WILC_STATION_MODE ||
-		    vif->iftype == WILC_CLIENT_MODE) {
-			hif_drv->ifc_up = 1;
-			vif->obtaining_ip = false;
-			del_timer(&vif->during_ip_timer);
-		}
-
-		if (vif->wilc->enable_ps)
-			wilc_set_power_mgmt(vif, 1, 0);
-
-		break;
-
-	case NETDEV_DOWN:
-		if (vif->iftype == WILC_STATION_MODE ||
-		    vif->iftype == WILC_CLIENT_MODE) {
-			hif_drv->ifc_up = 0;
-			vif->obtaining_ip = false;
-		}
-
-		if (memcmp(dev_iface->ifa_label, wlan_dev_name, 5) == 0)
-			wilc_set_power_mgmt(vif, 0, 0);
-
-		wilc_resolve_disconnect_aberration(vif);
-
-		break;
-
-	default:
-		break;
-	}
-
-	return NOTIFY_DONE;
-}
-
 static irqreturn_t isr_uh_routine(int irq, void *user_data)
 {
 	struct net_device *dev = user_data;
@@ -921,6 +856,76 @@ void wilc_wfi_mgmt_rx(struct wilc *wilc, u8 *buff, u32 size)
 		wilc_wfi_p2p_rx(wilc->vif[1]->ndev, buff, size);
 }
 
+static const struct net_device_ops wilc_netdev_ops = {
+	.ndo_init = mac_init_fn,
+	.ndo_open = wilc_mac_open,
+	.ndo_stop = wilc_mac_close,
+	.ndo_start_xmit = wilc_mac_xmit,
+	.ndo_get_stats = mac_stats,
+	.ndo_set_rx_mode  = wilc_set_multicast_list,
+};
+
+static int dev_state_ev_handler(struct notifier_block *this,
+				unsigned long event, void *ptr)
+{
+	struct in_ifaddr *dev_iface = ptr;
+	struct wilc_priv *priv;
+	struct host_if_drv *hif_drv;
+	struct net_device *dev;
+	struct wilc_vif *vif;
+
+	if (!dev_iface || !dev_iface->ifa_dev || !dev_iface->ifa_dev->dev)
+		return NOTIFY_DONE;
+
+	dev  = (struct net_device *)dev_iface->ifa_dev->dev;
+	if (dev->netdev_ops != &wilc_netdev_ops)
+		return NOTIFY_DONE;
+
+	if (!dev->ieee80211_ptr || !dev->ieee80211_ptr->wiphy)
+		return NOTIFY_DONE;
+
+	priv = wiphy_priv(dev->ieee80211_ptr->wiphy);
+	if (!priv)
+		return NOTIFY_DONE;
+
+	hif_drv = (struct host_if_drv *)priv->hif_drv;
+	vif = netdev_priv(dev);
+	if (!vif || !hif_drv)
+		return NOTIFY_DONE;
+
+	switch (event) {
+	case NETDEV_UP:
+		if (vif->iftype == WILC_STATION_MODE ||
+		    vif->iftype == WILC_CLIENT_MODE) {
+			hif_drv->ifc_up = 1;
+			vif->obtaining_ip = false;
+			del_timer(&vif->during_ip_timer);
+		}
+
+		if (vif->wilc->enable_ps)
+			wilc_set_power_mgmt(vif, 1, 0);
+
+		break;
+
+	case NETDEV_DOWN:
+		if (vif->iftype == WILC_STATION_MODE ||
+		    vif->iftype == WILC_CLIENT_MODE) {
+			hif_drv->ifc_up = 0;
+			vif->obtaining_ip = false;
+			wilc_set_power_mgmt(vif, 0, 0);
+		}
+
+		wilc_resolve_disconnect_aberration(vif);
+
+		break;
+
+	default:
+		break;
+	}
+
+	return NOTIFY_DONE;
+}
+
 static struct notifier_block g_dev_notifier = {
 	.notifier_call = dev_state_ev_handler
 };
@@ -956,15 +961,6 @@ void wilc_netdev_cleanup(struct wilc *wilc)
 	kfree(wilc);
 }
 EXPORT_SYMBOL_GPL(wilc_netdev_cleanup);
-
-static const struct net_device_ops wilc_netdev_ops = {
-	.ndo_init = mac_init_fn,
-	.ndo_open = wilc_mac_open,
-	.ndo_stop = wilc_mac_close,
-	.ndo_start_xmit = wilc_mac_xmit,
-	.ndo_get_stats = mac_stats,
-	.ndo_set_rx_mode  = wilc_set_multicast_list,
-};
 
 int wilc_netdev_init(struct wilc **wilc, struct device *dev, int io_type,
 		     const struct wilc_hif_func *ops)
