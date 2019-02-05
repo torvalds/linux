@@ -612,16 +612,18 @@ int mlx5e_tc_tun_parse(struct net_device *filter_dev,
 		       struct mlx5_flow_spec *spec,
 		       struct tc_cls_flower_offload *f,
 		       void *headers_c,
-		       void *headers_v)
+		       void *headers_v, u8 *match_level)
 {
 	int tunnel_type;
 	int err = 0;
 
 	tunnel_type = mlx5e_tc_tun_get_type(filter_dev);
 	if (tunnel_type == MLX5E_TC_TUNNEL_TYPE_VXLAN) {
+		*match_level = MLX5_MATCH_L4;
 		err = mlx5e_tc_tun_parse_vxlan(priv, spec, f,
 					       headers_c, headers_v);
 	} else if (tunnel_type == MLX5E_TC_TUNNEL_TYPE_GRETAP) {
+		*match_level = MLX5_MATCH_L3;
 		err = mlx5e_tc_tun_parse_gretap(priv, spec, f,
 						headers_c, headers_v);
 	} else {
