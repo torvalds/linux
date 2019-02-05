@@ -699,7 +699,7 @@ static void end_io_acct(struct dm_io *io)
 				    true, duration, &io->stats_aux);
 
 	/* nudge anyone waiting on suspend queue */
-	if (unlikely(waitqueue_active(&md->wait)))
+	if (unlikely(wq_has_sleeper(&md->wait)))
 		wake_up(&md->wait);
 }
 

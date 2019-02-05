@@ -131,7 +131,7 @@ static void rq_end_stats(struct mapped_device *md, struct request *orig)
 static void rq_completed(struct mapped_device *md)
 {
 	/* nudge anyone waiting on suspend queue */
-	if (unlikely(waitqueue_active(&md->wait)))
+	if (unlikely(wq_has_sleeper(&md->wait)))
 		wake_up(&md->wait);
 
 	/*
