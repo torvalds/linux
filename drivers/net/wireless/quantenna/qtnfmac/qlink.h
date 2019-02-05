@@ -984,6 +984,7 @@ struct qlink_event_bss_join {
 	struct qlink_chandef chan;
 	u8 bssid[ETH_ALEN];
 	__le16 status;
+	u8 ies[0];
 } __packed;
 
 /**
