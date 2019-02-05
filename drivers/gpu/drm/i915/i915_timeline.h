@@ -74,6 +74,16 @@ struct i915_timeline {
 	 */
 	struct i915_syncmap *sync;
 
+	/**
+	 * Barrier provides the ability to serialize ordering between different
+	 * timelines.
+	 *
+	 * Users can call i915_timeline_set_barrier which will make all
+	 * subsequent submissions to this timeline be executed only after the
+	 * barrier has been completed.
+	 */
+	struct i915_gem_active barrier;
+
 	struct list_head link;
 	const char *name;
 	struct drm_i915_private *i915;
@@ -154,5 +164,17 @@ void i915_timeline_unpin(struct i915_timeline *tl);
 void i915_timelines_init(struct drm_i915_private *i915);
 void i915_timelines_park(struct drm_i915_private *i915);
 void i915_timelines_fini(struct drm_i915_private *i915);
+
+/**
+ * i915_timeline_set_barrier - orders submission between different timelines
+ * @timeline: timeline to set the barrier on
+ * @rq: request after which new submissions can proceed
+ *
+ * Sets the passed in request as the serialization point for all subsequent
+ * submissions on @timeline. Subsequent requests will not be submitted to GPU
+ * until the barrier has been completed.
+ */
+int i915_timeline_set_barrier(struct i915_timeline *timeline,
+			      struct i915_request *rq);
 
 #endif
