@@ -523,27 +523,6 @@ int snd_info_card_create(struct snd_card *card)
 	return 0;
 }
 
-/* register all pending info entries */
-static int snd_info_register_recursive(struct snd_info_entry *entry)
-{
-	struct snd_info_entry *p;
-	int err;
-
-	if (!entry->p) {
-		err = snd_info_register(entry);
-		if (err < 0)
-			return err;
-	}
-
-	list_for_each_entry(p, &entry->children, list) {
-		err = snd_info_register_recursive(p);
-		if (err < 0)
-			return err;
-	}
-
-	return 0;
-}
-
 /*
  * register the card proc file
  * called from init.c
@@ -557,7 +536,7 @@ int snd_info_card_register(struct snd_card *card)
 	if (snd_BUG_ON(!card))
 		return -ENXIO;
 
-	err = snd_info_register_recursive(card->proc_root);
+	err = snd_info_register(card->proc_root);
 	if (err < 0)
 		return err;
 
@@ -821,15 +800,7 @@ void snd_info_free_entry(struct snd_info_entry * entry)
 }
 EXPORT_SYMBOL(snd_info_free_entry);
 
-/**
- * snd_info_register - register the info entry
- * @entry: the info entry
- *
- * Registers the proc info entry.
- *
- * Return: Zero if successful, or a negative error code on failure.
- */
-int snd_info_register(struct snd_info_entry * entry)
+static int __snd_info_register(struct snd_info_entry *entry)
 {
 	struct proc_dir_entry *root, *p = NULL;
 
@@ -837,6 +808,8 @@ int snd_info_register(struct snd_info_entry * entry)
 		return -ENXIO;
 	root = entry->parent == NULL ? snd_proc_root->p : entry->parent->p;
 	mutex_lock(&info_mutex);
+	if (entry->p || !root)
+		goto unlock;
 	if (S_ISDIR(entry->mode)) {
 		p = proc_mkdir_mode(entry->name, entry->mode, root);
 		if (!p) {
@@ -858,7 +831,37 @@ int snd_info_register(struct snd_info_entry * entry)
 		proc_set_size(p, entry->size);
 	}
 	entry->p = p;
+ unlock:
 	mutex_unlock(&info_mutex);
+	return 0;
+}
+
+/**
+ * snd_info_register - register the info entry
+ * @entry: the info entry
+ *
+ * Registers the proc info entry.
+ * The all children entries are registered recursively.
+ *
+ * Return: Zero if successful, or a negative error code on failure.
+ */
+int snd_info_register(struct snd_info_entry *entry)
+{
+	struct snd_info_entry *p;
+	int err;
+
+	if (!entry->p) {
+		err = __snd_info_register(entry);
+		if (err < 0)
+			return err;
+	}
+
+	list_for_each_entry(p, &entry->children, list) {
+		err = snd_info_register(p);
+		if (err < 0)
+			return err;
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL(snd_info_register);
