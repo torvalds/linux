@@ -159,15 +159,36 @@ struct hfi1_qp_priv {
 	struct sdma_engine *s_sde;                /* current sde */
 	struct send_context *s_sendcontext;       /* current sendcontext */
 	struct hfi1_ctxtdata *rcd;                /* QP's receive context */
+	struct page **pages;                      /* for TID page scan */
+	u32 tid_enqueue;                          /* saved when tid waited */
 	u8 s_sc;		                  /* SC[0..4] for next packet */
 	struct iowait s_iowait;
+	struct list_head tid_wait;                /* for queueing tid space */
 	struct hfi1_opfn_data opfn;
+	struct tid_flow_state flow_state;
 	struct tid_rdma_qp_params tid_rdma;
 	struct rvt_qp *owner;
 	u8 hdr_type; /* 9B or 16B */
 	unsigned long tid_timer_timeout_jiffies;
+
+	/* variables for the TID RDMA SE state machine */
+	u32 s_flags;
+
+	/* For TID RDMA READ */
+	u32 tid_r_reqs;         /* Num of tid reads requested */
+	u32 tid_r_comp;         /* Num of tid reads completed */
+	u32 pending_tid_r_segs; /* Num of pending tid read segments */
 	u16 pkts_ps;            /* packets per segment */
 	u8 timeout_shift;       /* account for number of packets per segment */
+};
+
+struct hfi1_swqe_priv {
+	struct tid_rdma_request tid_req;
+	struct rvt_sge_state ss;  /* Used for TID RDMA READ Request */
+};
+
+struct hfi1_ack_priv {
+	struct tid_rdma_request tid_req;
 };
 
 /*
@@ -231,6 +252,7 @@ struct hfi1_ibdev {
 	struct kmem_cache *verbs_txreq_cache;
 	u64 n_txwait;
 	u64 n_kmem_wait;
+	u64 n_tidwait;
 
 	/* protect iowait lists */
 	seqlock_t iowait_lock ____cacheline_aligned_in_smp;
@@ -318,6 +340,31 @@ static inline u32 delta_psn(u32 a, u32 b)
 	return (((int)a - (int)b) << PSN_SHIFT) >> PSN_SHIFT;
 }
 
+static inline struct tid_rdma_request *wqe_to_tid_req(struct rvt_swqe *wqe)
+{
+	return &((struct hfi1_swqe_priv *)wqe->priv)->tid_req;
+}
+
+static inline struct tid_rdma_request *ack_to_tid_req(struct rvt_ack_entry *e)
+{
+	return &((struct hfi1_ack_priv *)e->priv)->tid_req;
+}
+
+/*
+ * Look through all the active flows for a TID RDMA request and find
+ * the one (if it exists) that contains the specified PSN.
+ */
+static inline u32 __full_flow_psn(struct flow_state *state, u32 psn)
+{
+	return mask_psn((state->generation << HFI1_KDETH_BTH_SEQ_SHIFT) |
+			(psn & HFI1_KDETH_BTH_SEQ_MASK));
+}
+
+static inline u32 full_flow_psn(struct tid_rdma_flow *flow, u32 psn)
+{
+	return __full_flow_psn(&flow->flow_state, psn);
+}
+
 struct verbs_txreq;
 void hfi1_put_txreq(struct verbs_txreq *tx);
 
@@ -383,6 +430,10 @@ int hfi1_register_ib_device(struct hfi1_devdata *);
 
 void hfi1_unregister_ib_device(struct hfi1_devdata *);
 
+void hfi1_kdeth_eager_rcv(struct hfi1_packet *packet);
+
+void hfi1_kdeth_expected_rcv(struct hfi1_packet *packet);
+
 void hfi1_ib_rcv(struct hfi1_packet *packet);
 
 void hfi1_16B_rcv(struct hfi1_packet *packet);
@@ -398,6 +449,16 @@ int hfi1_verbs_send_pio(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 static inline bool opa_bth_is_migration(struct ib_other_headers *ohdr)
 {
 	return ohdr->bth[1] & cpu_to_be32(OPA_BTH_MIG_REQ);
+}
+
+void hfi1_wait_kmem(struct rvt_qp *qp);
+
+static inline void hfi1_trdma_send_complete(struct rvt_qp *qp,
+					    struct rvt_swqe *wqe,
+					    enum ib_wc_status status)
+{
+	trdma_clean_swqe(qp, wqe);
+	rvt_send_complete(qp, wqe, status);
 }
 
 extern const enum ib_wc_opcode ib_hfi1_wc_opcode[];

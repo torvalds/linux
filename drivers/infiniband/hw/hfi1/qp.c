@@ -319,6 +319,7 @@ int hfi1_setup_wqe(struct rvt_qp *qp, struct rvt_swqe *wqe, bool *call_send)
 
 	switch (qp->ibqp.qp_type) {
 	case IB_QPT_RC:
+		hfi1_setup_tid_rdma_wqe(qp, wqe);
 	case IB_QPT_UC:
 		if (wqe->length > 0x80000000U)
 			return -EINVAL;
@@ -738,6 +739,7 @@ void flush_qp_waiters(struct rvt_qp *qp)
 {
 	lockdep_assert_held(&qp->s_lock);
 	flush_iowait(qp);
+	hfi1_tid_rdma_flush_wait(qp);
 }
 
 void stop_send_queue(struct rvt_qp *qp)
@@ -745,6 +747,8 @@ void stop_send_queue(struct rvt_qp *qp)
 	struct hfi1_qp_priv *priv = qp->priv;
 
 	iowait_cancel_work(&priv->s_iowait);
+	if (cancel_work_sync(&priv->tid_rdma.trigger_work))
+		rvt_put_qp(qp);
 }
 
 void quiesce_qp(struct rvt_qp *qp)
@@ -758,6 +762,7 @@ void quiesce_qp(struct rvt_qp *qp)
 
 void notify_qp_reset(struct rvt_qp *qp)
 {
+	hfi1_qp_kern_exp_rcv_clear_all(qp);
 	qp->r_adefered = 0;
 	clear_ahg(qp);
 

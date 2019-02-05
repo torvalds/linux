@@ -574,9 +574,10 @@ static inline struct rvt_qp *rvt_lookup_qpn(struct rvt_dev_info *rdi,
 /**
  * rvt_mod_retry_timer - mod a retry timer
  * @qp - the QP
+ * @shift - timeout shift to wait for multiple packets
  * Modify a potentially already running retry timer
  */
-static inline void rvt_mod_retry_timer(struct rvt_qp *qp)
+static inline void rvt_mod_retry_timer_ext(struct rvt_qp *qp, u8 shift)
 {
 	struct ib_qp *ibqp = &qp->ibqp;
 	struct rvt_dev_info *rdi = ib_to_rvt(ibqp->device);
@@ -584,8 +585,13 @@ static inline void rvt_mod_retry_timer(struct rvt_qp *qp)
 	lockdep_assert_held(&qp->s_lock);
 	qp->s_flags |= RVT_S_TIMER;
 	/* 4.096 usec. * (1 << qp->timeout) */
-	mod_timer(&qp->s_timer, jiffies + qp->timeout_jiffies +
-		  rdi->busy_jiffies);
+	mod_timer(&qp->s_timer, jiffies + rdi->busy_jiffies +
+		  (qp->timeout_jiffies << shift));
+}
+
+static inline void rvt_mod_retry_timer(struct rvt_qp *qp)
+{
+	return rvt_mod_retry_timer_ext(qp, 0);
 }
 
 struct rvt_dev_info *rvt_alloc_device(size_t size, int nports);

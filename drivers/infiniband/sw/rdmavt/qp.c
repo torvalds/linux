@@ -1642,11 +1642,11 @@ int rvt_destroy_qp(struct ib_qp *ibqp)
 		kref_put(&qp->ip->ref, rvt_release_mmap_info);
 	else
 		vfree(qp->r_rq.wq);
-	vfree(qp->s_wq);
 	rdi->driver_f.qp_priv_free(rdi, qp);
 	kfree(qp->s_ack_queue);
 	rdma_destroy_ah_attr(&qp->remote_ah_attr);
 	rdma_destroy_ah_attr(&qp->alt_ah_attr);
+	vfree(qp->s_wq);
 	kfree(qp);
 	return 0;
 }
@@ -2393,11 +2393,12 @@ static inline unsigned long rvt_aeth_to_usec(u32 aeth)
 }
 
 /*
- *  rvt_add_retry_timer - add/start a retry timer
+ *  rvt_add_retry_timer_ext - add/start a retry timer
  *  @qp - the QP
+ *  @shift - timeout shift to wait for multiple packets
  *  add a retry timer on the QP
  */
-void rvt_add_retry_timer(struct rvt_qp *qp)
+void rvt_add_retry_timer_ext(struct rvt_qp *qp, u8 shift)
 {
 	struct ib_qp *ibqp = &qp->ibqp;
 	struct rvt_dev_info *rdi = ib_to_rvt(ibqp->device);
@@ -2405,11 +2406,11 @@ void rvt_add_retry_timer(struct rvt_qp *qp)
 	lockdep_assert_held(&qp->s_lock);
 	qp->s_flags |= RVT_S_TIMER;
        /* 4.096 usec. * (1 << qp->timeout) */
-	qp->s_timer.expires = jiffies + qp->timeout_jiffies +
-			     rdi->busy_jiffies;
+	qp->s_timer.expires = jiffies + rdi->busy_jiffies +
+			      (qp->timeout_jiffies << shift);
 	add_timer(&qp->s_timer);
 }
-EXPORT_SYMBOL(rvt_add_retry_timer);
+EXPORT_SYMBOL(rvt_add_retry_timer_ext);
 
 /**
  * rvt_add_rnr_timer - add/start an rnr timer
