@@ -14,8 +14,7 @@ static int br_switchdev_mark_get(struct net_bridge *br, struct net_device *dev)
 
 	/* dev is yet to be added to the port list. */
 	list_for_each_entry(p, &br->port_list, list) {
-		if (netdev_port_same_parent_id(dev, p->dev) ||
-		    switchdev_port_same_parent_id(dev, p->dev))
+		if (netdev_port_same_parent_id(dev, p->dev))
 			return p->offload_fwd_mark;
 	}
 
@@ -24,19 +23,12 @@ static int br_switchdev_mark_get(struct net_bridge *br, struct net_device *dev)
 
 int nbp_switchdev_mark_set(struct net_bridge_port *p)
 {
-	const struct net_device_ops *ops = p->dev->netdev_ops;
-	struct switchdev_attr attr = {
-		.orig_dev = p->dev,
-		.id = SWITCHDEV_ATTR_ID_PORT_PARENT_ID,
-	};
+	struct netdev_phys_item_id ppid = { };
 	int err;
 
 	ASSERT_RTNL();
 
-	if (ops->ndo_get_port_parent_id)
-		err = dev_get_port_parent_id(p->dev, &attr.u.ppid, true);
-	else
-		err = switchdev_port_attr_get(p->dev, &attr);
+	err = dev_get_port_parent_id(p->dev, &ppid, true);
 	if (err) {
 		if (err == -EOPNOTSUPP)
 			return 0;
