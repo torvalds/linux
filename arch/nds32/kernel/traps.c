@@ -255,9 +255,10 @@ void __init early_trap_init(void)
 	cpu_cache_wbinval_page(base, true);
 }
 
-void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs,
-		  int error_code, int si_code)
+static void send_sigtrap(struct pt_regs *regs, int error_code, int si_code)
 {
+	struct task_struct *tsk = current;
+
 	tsk->thread.trap_no = ENTRY_DEBUG_RELATED;
 	tsk->thread.error_code = error_code;
 
@@ -274,7 +275,7 @@ void do_debug_trap(unsigned long entry, unsigned long addr,
 
 	if (user_mode(regs)) {
 		/* trap_signal */
-		send_sigtrap(current, regs, 0, TRAP_BRKPT);
+		send_sigtrap(regs, 0, TRAP_BRKPT);
 	} else {
 		/* kernel_trap */
 		if (!fixup_exception(regs))
