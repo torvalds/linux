@@ -842,7 +842,9 @@ try:
     ret, _, err = sim.set_xdp(obj, "generic", force=True,
                               fail=False, include_stderr=True)
     fail(ret == 0, "Replaced XDP program with a program in different mode")
-    fail(err.count("File exists") != 1, "Replaced driver XDP with generic")
+    check_extack(err,
+                 "native and generic XDP can't be active at the same time.",
+                 args)
     ret, _, err = sim.set_xdp(obj, "", force=True,
                               fail=False, include_stderr=True)
     fail(ret == 0, "Replaced XDP program with a program in different mode")
@@ -957,7 +959,8 @@ try:
 
     start_test("Test multi-attachment XDP - replace...")
     ret, _, err = sim.set_xdp(obj, "offload", fail=False, include_stderr=True)
-    fail(err.count("busy") != 1, "Replaced one of programs without -force")
+    fail(ret == 0, "Replaced one of programs without -force")
+    check_extack(err, "XDP program already attached.", args)
 
     start_test("Test multi-attachment XDP - detach...")
     ret, _, err = sim.unset_xdp("drv", force=True,
