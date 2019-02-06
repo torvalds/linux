@@ -533,9 +533,9 @@ static int set_user_buf_size(struct mlx5_ib_dev *dev,
 		return -EINVAL;
 	}
 
-	if (ucmd->sq_wqe_count && ((1 << ilog2(ucmd->sq_wqe_count)) != ucmd->sq_wqe_count)) {
-		mlx5_ib_warn(dev, "sq_wqe_count %d, sq_wqe_count %d\n",
-			     ucmd->sq_wqe_count, ucmd->sq_wqe_count);
+	if (ucmd->sq_wqe_count && !is_power_of_2(ucmd->sq_wqe_count)) {
+		mlx5_ib_warn(dev, "sq_wqe_count %d is not a power of two\n",
+			     ucmd->sq_wqe_count);
 		return -EINVAL;
 	}
 
