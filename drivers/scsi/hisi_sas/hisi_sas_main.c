@@ -2981,6 +2981,36 @@ static void hisi_sas_debugfs_snapshot_regs(struct hisi_hba *hisi_hba)
 	hisi_hba->hw->snapshot_restore(hisi_hba);
 }
 
+static ssize_t hisi_sas_debugfs_trigger_dump_write(struct file *file,
+						   const char __user *user_buf,
+						   size_t count, loff_t *ppos)
+{
+	struct hisi_hba *hisi_hba = file->f_inode->i_private;
+	char buf[8];
+
+	/* A bit racy, but don't care too much since it's only debugfs */
+	if (hisi_hba->debugfs_snapshot)
+		return -EFAULT;
+
+	if (count > 8)
+		return -EFAULT;
+
+	if (copy_from_user(buf, user_buf, count))
+		return -EFAULT;
+
+	if (buf[0] != '1')
+		return -EFAULT;
+
+	queue_work(hisi_hba->wq, &hisi_hba->debugfs_work);
+
+	return count;
+}
+
+static const struct file_operations hisi_sas_debugfs_trigger_dump_fops = {
+	.write = &hisi_sas_debugfs_trigger_dump_write,
+	.owner = THIS_MODULE,
+};
+
 void hisi_sas_debugfs_work_handler(struct work_struct *work)
 {
 	struct hisi_hba *hisi_hba =
@@ -3003,6 +3033,10 @@ void hisi_sas_debugfs_init(struct hisi_hba *hisi_hba)
 
 	hisi_hba->debugfs_dir = debugfs_create_dir(dev_name(dev),
 						   hisi_sas_debugfs_dir);
+	debugfs_create_file("trigger_dump", 0600,
+			    hisi_hba->debugfs_dir,
+			    hisi_hba,
+			    &hisi_sas_debugfs_trigger_dump_fops);
 
 	/* Alloc buffer for global */
 	sz = hisi_hba->hw->debugfs_reg_global->count * 4;
