@@ -844,73 +844,17 @@ static const struct x86_cpu_id cherrytrail_cpu_ids[] = {
 	{}
 };
 
-static const struct acpi_gpio_params first_gpio = { 0, 0, false };
-static const struct acpi_gpio_params second_gpio = { 1, 0, false };
+static const struct acpi_gpio_params ext_amp_enable_gpios = { 0, 0, false };
 
-static const struct acpi_gpio_mapping byt_rt5651_amp_en_first[] = {
-	{ "ext-amp-enable-gpios", &first_gpio, 1 },
+static const struct acpi_gpio_mapping cht_rt5651_gpios[] = {
+	/*
+	 * Some boards have I2cSerialBusV2, GpioIo, GpioInt as ACPI resources,
+	 * other boards may  have I2cSerialBusV2, GpioInt, GpioIo instead.
+	 * We want the GpioIo one for the ext-amp-enable-gpio.
+	 */
+	{ "ext-amp-enable-gpios", &ext_amp_enable_gpios, 1, ACPI_GPIO_QUIRK_ONLY_GPIOIO },
 	{ },
 };
-
-static const struct acpi_gpio_mapping byt_rt5651_amp_en_second[] = {
-	{ "ext-amp-enable-gpios", &second_gpio, 1 },
-	{ },
-};
-
-/*
- * Some boards have I2cSerialBusV2, GpioIo, GpioInt as ACPI resources, other
- * boards may  have I2cSerialBusV2, GpioInt, GpioIo instead. We want the
- * GpioIo one for the ext-amp-enable-gpio and both count for the index in
- * acpi_gpio_params index.  So we have 2 different mappings and the code
- * below figures out which one to use.
- */
-struct byt_rt5651_acpi_resource_data {
-	int gpio_count;
-	int gpio_int_idx;
-};
-
-static int snd_byt_rt5651_acpi_resource(struct acpi_resource *ares, void *arg)
-{
-	struct byt_rt5651_acpi_resource_data *data = arg;
-
-	if (ares->type != ACPI_RESOURCE_TYPE_GPIO)
-		return 0;
-
-	if (ares->data.gpio.connection_type == ACPI_RESOURCE_GPIO_TYPE_INT)
-		data->gpio_int_idx = data->gpio_count;
-
-	data->gpio_count++;
-	return 0;
-}
-
-static void snd_byt_rt5651_mc_pick_amp_en_gpio_mapping(struct device *codec)
-{
-	struct byt_rt5651_acpi_resource_data data = { 0, -1 };
-	LIST_HEAD(resources);
-	int ret;
-
-	ret = acpi_dev_get_resources(ACPI_COMPANION(codec), &resources,
-				     snd_byt_rt5651_acpi_resource, &data);
-	if (ret < 0) {
-		dev_warn(codec, "Failed to get ACPI resources, not adding external amplifier GPIO mapping\n");
-		return;
-	}
-
-	/* All info we need is gathered during the walk */
-	acpi_dev_free_resource_list(&resources);
-
-	switch (data.gpio_int_idx) {
-	case 0:
-		byt_rt5651_gpios = byt_rt5651_amp_en_second;
-		break;
-	case 1:
-		byt_rt5651_gpios = byt_rt5651_amp_en_first;
-		break;
-	default:
-		dev_warn(codec, "Unknown GpioInt index %d, not adding external amplifier GPIO mapping\n",
-			 data.gpio_int_idx);
-	}
-}
 
 struct acpi_chan_package {   /* ACPICA seems to require 64 bit integers */
 	u64 aif_value;       /* 1: AIF1, 2: AIF2 */
@@ -1038,7 +982,7 @@ static int snd_byt_rt5651_mc_probe(struct platform_device *pdev)
 
 	/* Cherry Trail devices use an external amplifier enable gpio */
 	if (x86_match_cpu(cherrytrail_cpu_ids) && !byt_rt5651_gpios)
-		snd_byt_rt5651_mc_pick_amp_en_gpio_mapping(codec_dev);
+		byt_rt5651_gpios = cht_rt5651_gpios;
 
 	if (byt_rt5651_gpios) {
 		devm_acpi_dev_add_driver_gpios(codec_dev, byt_rt5651_gpios);
