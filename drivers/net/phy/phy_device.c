@@ -1683,10 +1683,15 @@ int genphy_update_link(struct phy_device *phydev)
 {
 	int status;
 
-	/* Do a fake read */
-	status = phy_read(phydev, MII_BMSR);
-	if (status < 0)
-		return status;
+	/* The link state is latched low so that momentary link
+	 * drops can be detected. Do not double-read the status
+	 * in polling mode to detect such short link drops.
+	 */
+	if (!phy_polling_mode(phydev)) {
+		status = phy_read(phydev, MII_BMSR);
+		if (status < 0)
+			return status;
+	}
 
 	/* Read link and autonegotiation status */
 	status = phy_read(phydev, MII_BMSR);
