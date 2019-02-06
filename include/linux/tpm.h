@@ -171,7 +171,8 @@ struct tpm_chip {
 extern int tpm_is_tpm2(struct tpm_chip *chip);
 extern int tpm_pcr_read(struct tpm_chip *chip, u32 pcr_idx,
 			struct tpm_digest *digest);
-extern int tpm_pcr_extend(struct tpm_chip *chip, u32 pcr_idx, const u8 *hash);
+extern int tpm_pcr_extend(struct tpm_chip *chip, u32 pcr_idx,
+			  struct tpm_digest *digests);
 extern int tpm_send(struct tpm_chip *chip, void *cmd, size_t buflen);
 extern int tpm_get_random(struct tpm_chip *chip, u8 *data, size_t max);
 extern int tpm_seal_trusted(struct tpm_chip *chip,
@@ -194,7 +195,7 @@ static inline int tpm_pcr_read(struct tpm_chip *chip, int pcr_idx,
 }
 
 static inline int tpm_pcr_extend(struct tpm_chip *chip, u32 pcr_idx,
-				 const u8 *hash)
+				 struct tpm_digest *digests)
 {
 	return -ENODEV;
 }
