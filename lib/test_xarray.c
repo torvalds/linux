@@ -346,7 +346,7 @@ static noinline void check_cmpxchg(struct xarray *xa)
 
 	XA_BUG_ON(xa, !xa_empty(xa));
 	XA_BUG_ON(xa, xa_store_index(xa, 12345678, GFP_KERNEL) != NULL);
-	XA_BUG_ON(xa, xa_insert(xa, 12345678, xa, GFP_KERNEL) != -EEXIST);
+	XA_BUG_ON(xa, xa_insert(xa, 12345678, xa, GFP_KERNEL) != -EBUSY);
 	XA_BUG_ON(xa, xa_cmpxchg(xa, 12345678, SIX, FIVE, GFP_KERNEL) != LOTS);
 	XA_BUG_ON(xa, xa_cmpxchg(xa, 12345678, LOTS, FIVE, GFP_KERNEL) != LOTS);
 	XA_BUG_ON(xa, xa_cmpxchg(xa, 12345678, FIVE, LOTS, GFP_KERNEL) != FIVE);
@@ -388,7 +388,7 @@ static noinline void check_reserve(struct xarray *xa)
 	/* But xa_insert does not */
 	xa_reserve(xa, 12345678, GFP_KERNEL);
 	XA_BUG_ON(xa, xa_insert(xa, 12345678, xa_mk_value(12345678), 0) !=
-			-EEXIST);
+			-EBUSY);
 	XA_BUG_ON(xa, xa_empty(xa));
 	XA_BUG_ON(xa, xa_erase(xa, 12345678) != NULL);
 	XA_BUG_ON(xa, !xa_empty(xa));

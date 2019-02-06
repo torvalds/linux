@@ -1451,7 +1451,7 @@ EXPORT_SYMBOL(__xa_cmpxchg);
  *
  * Context: Any context.  Expects xa_lock to be held on entry.  May
  * release and reacquire xa_lock if @gfp flags permit.
- * Return: 0 if the store succeeded.  -EEXIST if another entry was present.
+ * Return: 0 if the store succeeded.  -EBUSY if another entry was present.
  * -ENOMEM if memory could not be allocated.
  */
 int __xa_insert(struct xarray *xa, unsigned long index, void *entry, gfp_t gfp)
@@ -1471,7 +1471,7 @@ int __xa_insert(struct xarray *xa, unsigned long index, void *entry, gfp_t gfp)
 			if (xa_track_free(xa))
 				xas_clear_mark(&xas, XA_FREE_MARK);
 		} else {
-			xas_set_err(&xas, -EEXIST);
+			xas_set_err(&xas, -EBUSY);
 		}
 	} while (__xas_nomem(&xas, gfp));
 

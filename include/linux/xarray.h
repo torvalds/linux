@@ -664,7 +664,7 @@ static inline void *xa_cmpxchg_irq(struct xarray *xa, unsigned long index,
  *
  * Context: Any context.  Takes and releases the xa_lock.  May sleep if
  * the @gfp flags permit.
- * Return: 0 if the store succeeded.  -EEXIST if another entry was present.
+ * Return: 0 if the store succeeded.  -EBUSY if another entry was present.
  * -ENOMEM if memory could not be allocated.
  */
 static inline int xa_insert(struct xarray *xa, unsigned long index,
@@ -693,7 +693,7 @@ static inline int xa_insert(struct xarray *xa, unsigned long index,
  *
  * Context: Any context.  Takes and releases the xa_lock while
  * disabling softirqs.  May sleep if the @gfp flags permit.
- * Return: 0 if the store succeeded.  -EEXIST if another entry was present.
+ * Return: 0 if the store succeeded.  -EBUSY if another entry was present.
  * -ENOMEM if memory could not be allocated.
  */
 static inline int xa_insert_bh(struct xarray *xa, unsigned long index,
@@ -722,7 +722,7 @@ static inline int xa_insert_bh(struct xarray *xa, unsigned long index,
  *
  * Context: Process context.  Takes and releases the xa_lock while
  * disabling interrupts.  May sleep if the @gfp flags permit.
- * Return: 0 if the store succeeded.  -EEXIST if another entry was present.
+ * Return: 0 if the store succeeded.  -EBUSY if another entry was present.
  * -ENOMEM if memory could not be allocated.
  */
 static inline int xa_insert_irq(struct xarray *xa, unsigned long index,

@@ -85,7 +85,7 @@ which was at that index; if it returns the same entry which was passed as
 
 If you want to only store a new entry to an index if the current entry
 at that index is ``NULL``, you can use :c:func:`xa_insert` which
-returns ``-EEXIST`` if the entry is not empty.
+returns ``-EBUSY`` if the entry is not empty.
 
 You can enquire whether a mark is set on an entry by using
 :c:func:`xa_get_mark`.  If the entry is not ``NULL``, you can set a mark
