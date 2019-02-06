@@ -209,6 +209,11 @@ static int mmc_decode_scr(struct mmc_card *card)
 		/* Check if Physical Layer Spec v3.0 is supported */
 		scr->sda_spec3 = UNSTUFF_BITS(resp, 47, 1);
 
+	if (scr->sda_spec3) {
+		scr->sda_spec4 = UNSTUFF_BITS(resp, 42, 1);
+		scr->sda_specx = UNSTUFF_BITS(resp, 38, 4);
+	}
+
 	if (UNSTUFF_BITS(resp, 55, 1))
 		card->erased_byte = 0xFF;
 	else
