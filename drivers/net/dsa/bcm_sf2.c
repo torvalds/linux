@@ -897,19 +897,33 @@ static const struct b53_io_ops bcm_sf2_io_ops = {
 static void bcm_sf2_sw_get_strings(struct dsa_switch *ds, int port,
 				   u32 stringset, uint8_t *data)
 {
+	int cnt = b53_get_sset_count(ds, port, stringset);
+
 	b53_get_strings(ds, port, stringset, data);
+	bcm_sf2_cfp_get_strings(ds, port, stringset,
+				data + cnt * ETH_GSTRING_LEN);
 }
 
 static void bcm_sf2_sw_get_ethtool_stats(struct dsa_switch *ds, int port,
 					 uint64_t *data)
 {
+	int cnt = b53_get_sset_count(ds, port, ETH_SS_STATS);
+
 	b53_get_ethtool_stats(ds, port, data);
+	bcm_sf2_cfp_get_ethtool_stats(ds, port, data + cnt);
 }
 
 static int bcm_sf2_sw_get_sset_count(struct dsa_switch *ds, int port,
 				     int sset)
 {
-	return b53_get_sset_count(ds, port, sset);
+	int cnt = b53_get_sset_count(ds, port, sset);
+
+	if (cnt < 0)
+		return cnt;
+
+	cnt += bcm_sf2_cfp_get_sset_count(ds, port, sset);
+
+	return cnt;
 }
 
 static const struct dsa_switch_ops bcm_sf2_ops = {

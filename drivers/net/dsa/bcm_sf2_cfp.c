@@ -1201,3 +1201,91 @@ int bcm_sf2_cfp_resume(struct dsa_switch *ds)
 
 	return ret;
 }
+
+static const struct bcm_sf2_cfp_stat {
+	unsigned int offset;
+	unsigned int ram_loc;
+	const char *name;
+} bcm_sf2_cfp_stats[] = {
+	{
+		.offset = CORE_STAT_GREEN_CNTR,
+		.ram_loc = GREEN_STAT_RAM,
+		.name = "Green"
+	},
+	{
+		.offset = CORE_STAT_YELLOW_CNTR,
+		.ram_loc = YELLOW_STAT_RAM,
+		.name = "Yellow"
+	},
+	{
+		.offset = CORE_STAT_RED_CNTR,
+		.ram_loc = RED_STAT_RAM,
+		.name = "Red"
+	},
+};
+
+void bcm_sf2_cfp_get_strings(struct dsa_switch *ds, int port,
+			     u32 stringset, uint8_t *data)
+{
+	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
+	unsigned int s = ARRAY_SIZE(bcm_sf2_cfp_stats);
+	char buf[ETH_GSTRING_LEN];
+	unsigned int i, j, iter;
+
+	if (stringset != ETH_SS_STATS)
+		return;
+
+	for (i = 1; i < priv->num_cfp_rules; i++) {
+		for (j = 0; j < s; j++) {
+			snprintf(buf, sizeof(buf),
+				 "CFP%03d_%sCntr",
+				 i, bcm_sf2_cfp_stats[j].name);
+			iter = (i - 1) * s + j;
+			strlcpy(data + iter * ETH_GSTRING_LEN,
+				buf, ETH_GSTRING_LEN);
+		}
+	}
+}
+
+void bcm_sf2_cfp_get_ethtool_stats(struct dsa_switch *ds, int port,
+				   uint64_t *data)
+{
+	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
+	unsigned int s = ARRAY_SIZE(bcm_sf2_cfp_stats);
+	const struct bcm_sf2_cfp_stat *stat;
+	unsigned int i, j, iter;
+	struct cfp_rule *rule;
+	int ret;
+
+	mutex_lock(&priv->cfp.lock);
+	for (i = 1; i < priv->num_cfp_rules; i++) {
+		rule = bcm_sf2_cfp_rule_find(priv, port, i);
+		if (!rule)
+			continue;
+
+		for (j = 0; j < s; j++) {
+			stat = &bcm_sf2_cfp_stats[j];
+
+			bcm_sf2_cfp_rule_addr_set(priv, i);
+			ret = bcm_sf2_cfp_op(priv, stat->ram_loc | OP_SEL_READ);
+			if (ret)
+				continue;
+
+			iter = (i - 1) * s + j;
+			data[iter] = core_readl(priv, stat->offset);
+		}
+
+	}
+	mutex_unlock(&priv->cfp.lock);
+}
+
+int bcm_sf2_cfp_get_sset_count(struct dsa_switch *ds, int port, int sset)
+{
+	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
+
+	if (sset != ETH_SS_STATS)
+		return 0;
+
+	/* 3 counters per CFP rules */
+	return (priv->num_cfp_rules - 1) * ARRAY_SIZE(bcm_sf2_cfp_stats);
+}
