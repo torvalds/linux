@@ -4597,6 +4597,18 @@ static bool xen_biovec_phys_mergeable_fixed(const struct bio_vec *vec1,
 
 #endif
 
+/*
+ * BIOVEC_PHYS_MERGEABLE not available from 4.20 onward, and it seems likely
+ * that all the merging that can be done has been done by the block core
+ * already. Just stub it out.
+ */
+#if (LINUX_VERSION_CODE > KERNEL_VERSION(4,20,0))
+# ifdef BIOVEC_PHYS_MERGEABLE
+#  undef BIOVEC_PHYS_MERGEABLE
+# endif
+# define BIOVEC_PHYS_MERGEABLE(vec1, vec2) (0)
+#endif
+
 static inline int ssd_bio_map_sg(struct ssd_device *dev, struct bio *bio, struct scatterlist *sgl)
 {
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(3,14,0))
