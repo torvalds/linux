@@ -1353,7 +1353,8 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if (cfg80211_chandef_identical(&csa_ie.chandef,
-				       &sdata->vif.bss_conf.chandef)) {
+				       &sdata->vif.bss_conf.chandef) &&
+	    (!csa_ie.mode || !beacon)) {
 		if (ifmgd->csa_ignored_same_chan)
 			return;
 		sdata_info(sdata,
