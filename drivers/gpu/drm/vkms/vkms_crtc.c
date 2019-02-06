@@ -16,7 +16,7 @@ static enum hrtimer_restart vkms_vblank_simulate(struct hrtimer *timer)
 						  vblank_hrtimer);
 	struct drm_crtc *crtc = &output->crtc;
 	struct vkms_crtc_state *state = to_vkms_crtc_state(crtc->state);
-	int ret_overrun;
+	u64 ret_overrun;
 	bool ret;
 
 	spin_lock(&output->lock);
@@ -43,6 +43,8 @@ static enum hrtimer_restart vkms_vblank_simulate(struct hrtimer *timer)
 
 	ret_overrun = hrtimer_forward_now(&output->vblank_hrtimer,
 					  output->period_ns);
+	WARN_ON(ret_overrun != 1);
+
 	spin_unlock(&output->lock);
 
 	return HRTIMER_RESTART;
