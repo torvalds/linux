@@ -1026,8 +1026,13 @@ static void dcn10_init_pipes(struct dc *dc, struct dc_state *context)
 		 * to non-preferred front end. If pipe_ctx->stream is not NULL,
 		 * we will use the pipe, so don't disable
 		 */
-		if (pipe_ctx->stream != NULL)
+		if (pipe_ctx->stream != NULL &&
+		    pipe_ctx->stream_res.tg->funcs->is_tg_enabled(
+			    pipe_ctx->stream_res.tg))
 			continue;
+
+		/* Disable on the current state so the new one isn't cleared. */
+		pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
 
 		dpp->funcs->dpp_reset(dpp);
 
