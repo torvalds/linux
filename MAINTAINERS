@@ -13708,6 +13708,15 @@ L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/ethernet/sfc/
 
+SFF/SFP/SFP+ MODULE SUPPORT
+M:	Russell King <linux@armlinux.org.uk>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/net/phy/phylink.c
+F:	drivers/net/phy/sfp*
+F:	include/linux/phylink.h
+F:	include/linux/sfp.h
+
 SGI GRU DRIVER
 M:	Dimitri Sivanich <sivanich@sgi.com>
 S:	Maintained
