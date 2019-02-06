@@ -256,8 +256,7 @@ int nl80211_pmsr_start(struct sk_buff *skb, struct genl_info *info)
 		if (err)
 			goto out_err;
 	} else {
-		memcpy(req->mac_addr, nla_data(info->attrs[NL80211_ATTR_MAC]),
-		       ETH_ALEN);
+		memcpy(req->mac_addr, wdev_address(wdev), ETH_ALEN);
 		memset(req->mac_addr_mask, 0xff, ETH_ALEN);
 	}
 
