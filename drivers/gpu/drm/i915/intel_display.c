@@ -11063,7 +11063,8 @@ static int intel_crtc_atomic_check(struct drm_crtc *crtc,
 	int ret;
 	bool mode_changed = needs_modeset(crtc_state);
 
-	if (mode_changed && !crtc_state->active)
+	if (INTEL_GEN(dev_priv) < 5 && !IS_G4X(dev_priv) &&
+	    mode_changed && !crtc_state->active)
 		pipe_config->update_wm_post = true;
 
 	if (mode_changed && crtc_state->enable &&
