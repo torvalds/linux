@@ -220,7 +220,6 @@ static int sof_pci_probe(struct pci_dev *pci,
 		mach->mach_params.platform = dev_name(dev);
 #endif /* CONFIG_SND_SOC_SOF_FORCE_NOCODEC_MODE */
 
-	sof_pdata->id = pci_id->device;
 	sof_pdata->name = pci_name(pci);
 	sof_pdata->machine = mach;
 	sof_pdata->desc = (struct sof_dev_desc *)pci_id->driver_data;

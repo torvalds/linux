@@ -21,22 +21,19 @@ struct snd_sof_dsp_ops;
  * SOF Platform data.
  */
 struct snd_sof_pdata {
-	u32 id;		/* PCI/ACPI ID */
 	const struct firmware *fw;
 	const char *drv_name;
 	const char *name;
 	const char *platform;
 
-	/* parent device */
 	struct device *dev;
 
 	/*
 	 * notification callback used if the hardware initialization
 	 * can take time or is handled in a workqueue. This callback
-	 * can be used by the parent device to e.g. enable runtime_pm
+	 * can be used by the caller to e.g. enable runtime_pm
 	 * or limit functionality until all low-level inits are
-	 * complete. The device argument refers to the parent, not the
-	 * "sof-audio" device.
+	 * complete.
 	 */
 	void (*sof_probe_complete)(struct device *dev);
 
@@ -90,8 +87,4 @@ int sof_nocodec_setup(struct device *dev,
 		      struct snd_soc_acpi_mach *mach,
 		      const struct sof_dev_desc *desc,
 		      const struct snd_sof_dsp_ops *ops);
-
-int sof_bes_setup(struct device *dev, const struct snd_sof_dsp_ops *ops,
-		  struct snd_soc_dai_link *links, int link_num,
-		  struct snd_soc_card *card);
 #endif

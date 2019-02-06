@@ -117,7 +117,6 @@ static int sof_spi_probe(struct spi_device *spi)
 	mach->asoc_plat_name = "sof-platform";
 	mach->mach_params.platform = dev_name(dev);
 
-	sof_pdata->id = -1;
 	sof_pdata->name = dev_name(&spi->dev);
 	sof_pdata->machine = mach;
 	sof_pdata->desc = desc;
