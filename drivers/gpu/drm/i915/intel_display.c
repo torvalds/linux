@@ -2820,8 +2820,7 @@ static void intel_plane_disable_noatomic(struct intel_crtc *crtc,
 	if (plane->id == PLANE_PRIMARY)
 		intel_pre_disable_primary_noatomic(&crtc->base);
 
-	trace_intel_disable_plane(&plane->base, crtc);
-	plane->disable_plane(plane, crtc_state);
+	intel_disable_plane(plane, crtc_state);
 }
 
 static void
@@ -5589,8 +5588,7 @@ static void intel_crtc_disable_planes(struct intel_atomic_state *state,
 		    !(update_mask & BIT(plane->id)))
 			continue;
 
-		trace_intel_disable_plane(&plane->base, crtc);
-		plane->disable_plane(plane, new_crtc_state);
+		intel_disable_plane(plane, new_crtc_state);
 
 		if (old_plane_state->base.visible)
 			fb_bits |= plane->frontbuffer_bit;
@@ -14091,14 +14089,11 @@ intel_legacy_cursor_update(struct drm_plane *plane,
 	 */
 	crtc_state->active_planes = new_crtc_state->active_planes;
 
-	if (plane->state->visible) {
-		trace_intel_update_plane(plane, to_intel_crtc(crtc));
-		intel_plane->update_plane(intel_plane, crtc_state,
-					  to_intel_plane_state(plane->state));
-	} else {
-		trace_intel_disable_plane(plane, to_intel_crtc(crtc));
-		intel_plane->disable_plane(intel_plane, crtc_state);
-	}
+	if (plane->state->visible)
+		intel_update_plane(intel_plane, crtc_state,
+				   to_intel_plane_state(plane->state));
+	else
+		intel_disable_plane(intel_plane, crtc_state);
 
 	intel_plane_unpin_fb(to_intel_plane_state(old_plane_state));
 
