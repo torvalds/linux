@@ -603,6 +603,45 @@ static const struct pinconf_ops sunxi_pconf_ops = {
 	.pin_config_group_set	= sunxi_pconf_group_set,
 };
 
+static int sunxi_pinctrl_set_io_bias_cfg(struct sunxi_pinctrl *pctl,
+					 unsigned pin,
+					 struct regulator *supply)
+{
+	u32 val, reg;
+	int uV;
+
+	if (!pctl->desc->has_io_bias_cfg)
+		return 0;
+
+	uV = regulator_get_voltage(supply);
+	if (uV < 0)
+		return uV;
+
+	/* Might be dummy regulator with no voltage set */
+	if (uV == 0)
+		return 0;
+
+	/* Configured value must be equal or greater to actual voltage */
+	if (uV <= 1800000)
+		val = 0x0; /* 1.8V */
+	else if (uV <= 2500000)
+		val = 0x6; /* 2.5V */
+	else if (uV <= 2800000)
+		val = 0x9; /* 2.8V */
+	else if (uV <= 3000000)
+		val = 0xA; /* 3.0V */
+	else
+		val = 0xD; /* 3.3V */
+
+	pin -= pctl->desc->pin_base;
+
+	reg = readl(pctl->membase + sunxi_grp_config_reg(pin));
+	reg &= ~IO_BIAS_MASK;
+	writel(reg | val, pctl->membase + sunxi_grp_config_reg(pin));
+
+	return 0;
+}
+
 static int sunxi_pmx_get_funcs_cnt(struct pinctrl_dev *pctldev)
 {
 	struct sunxi_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
@@ -724,6 +763,8 @@ static int sunxi_pmx_request(struct pinctrl_dev *pctldev, unsigned offset)
 			"Couldn't enable bank P%c regulator\n", 'A' + bank);
 		goto out;
 	}
+
+	sunxi_pinctrl_set_io_bias_cfg(pctl, offset, reg);
 
 	s_reg->regulator = reg;
 	refcount_set(&s_reg->refcount, 1);
