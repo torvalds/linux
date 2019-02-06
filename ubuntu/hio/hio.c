@@ -10474,7 +10474,9 @@ static int ssd_init_blkdev(struct ssd_device *dev)
 
 	set_capacity(dev->gd, dev->hw_info.size >> 9);
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,20,0))
+	device_add_disk(&dev->pdev->dev, dev->gd, NULL);
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0))
 	device_add_disk(&dev->pdev->dev, dev->gd);
 #else
 	dev->gd->driverfs_dev = &dev->pdev->dev;
