@@ -213,6 +213,10 @@
 				regulator-name = "vdd-cpus-09-usbh";
 			};
 
+			dc1sw {
+				/* unused */
+			};
+
 			reg_dcdc1: dcdc1 {
 				regulator-always-on;
 				regulator-min-microvolt = <3000000>;
