@@ -364,6 +364,7 @@ enum mlxsw_sp_fib_entry_type {
 	MLXSW_SP_FIB_ENTRY_TYPE_REMOTE,
 	MLXSW_SP_FIB_ENTRY_TYPE_LOCAL,
 	MLXSW_SP_FIB_ENTRY_TYPE_TRAP,
+	MLXSW_SP_FIB_ENTRY_TYPE_BLACKHOLE,
 
 	/* This is a special case of local delivery, where a packet should be
 	 * decapsulated on reception. Note that there is no corresponding ENCAP,
@@ -3928,6 +3929,7 @@ mlxsw_sp_fib_entry_should_offload(const struct mlxsw_sp_fib_entry *fib_entry)
 		return !!nh_group->adj_index_valid;
 	case MLXSW_SP_FIB_ENTRY_TYPE_LOCAL:
 		return !!nh_group->nh_rif;
+	case MLXSW_SP_FIB_ENTRY_TYPE_BLACKHOLE:
 	case MLXSW_SP_FIB_ENTRY_TYPE_IPIP_DECAP:
 	case MLXSW_SP_FIB_ENTRY_TYPE_NVE_DECAP:
 		return true;
@@ -3963,6 +3965,7 @@ mlxsw_sp_fib4_entry_offload_set(struct mlxsw_sp_fib_entry *fib_entry)
 	int i;
 
 	if (fib_entry->type == MLXSW_SP_FIB_ENTRY_TYPE_LOCAL ||
+	    fib_entry->type == MLXSW_SP_FIB_ENTRY_TYPE_BLACKHOLE ||
 	    fib_entry->type == MLXSW_SP_FIB_ENTRY_TYPE_IPIP_DECAP ||
 	    fib_entry->type == MLXSW_SP_FIB_ENTRY_TYPE_NVE_DECAP) {
 		nh_grp->nexthops->key.fib_nh->nh_flags |= RTNH_F_OFFLOAD;
@@ -4004,7 +4007,8 @@ mlxsw_sp_fib6_entry_offload_set(struct mlxsw_sp_fib_entry *fib_entry)
 	fib6_entry = container_of(fib_entry, struct mlxsw_sp_fib6_entry,
 				  common);
 
-	if (fib_entry->type == MLXSW_SP_FIB_ENTRY_TYPE_LOCAL) {
+	if (fib_entry->type == MLXSW_SP_FIB_ENTRY_TYPE_LOCAL ||
+	    fib_entry->type == MLXSW_SP_FIB_ENTRY_TYPE_BLACKHOLE) {
 		list_first_entry(&fib6_entry->rt6_list, struct mlxsw_sp_rt6,
 				 list)->rt->fib6_nh.nh_flags |= RTNH_F_OFFLOAD;
 		return;
@@ -4172,6 +4176,19 @@ static int mlxsw_sp_fib_entry_op_trap(struct mlxsw_sp *mlxsw_sp,
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ralue), ralue_pl);
 }
 
+static int mlxsw_sp_fib_entry_op_blackhole(struct mlxsw_sp *mlxsw_sp,
+					   struct mlxsw_sp_fib_entry *fib_entry,
+					   enum mlxsw_reg_ralue_op op)
+{
+	enum mlxsw_reg_ralue_trap_action trap_action;
+	char ralue_pl[MLXSW_REG_RALUE_LEN];
+
+	trap_action = MLXSW_REG_RALUE_TRAP_ACTION_DISCARD_ERROR;
+	mlxsw_sp_fib_entry_ralue_pack(ralue_pl, fib_entry, op);
+	mlxsw_reg_ralue_act_local_pack(ralue_pl, trap_action, 0, 0);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ralue), ralue_pl);
+}
+
 static int
 mlxsw_sp_fib_entry_op_ipip_decap(struct mlxsw_sp *mlxsw_sp,
 				 struct mlxsw_sp_fib_entry *fib_entry,
@@ -4211,6 +4228,8 @@ static int __mlxsw_sp_fib_entry_op(struct mlxsw_sp *mlxsw_sp,
 		return mlxsw_sp_fib_entry_op_local(mlxsw_sp, fib_entry, op);
 	case MLXSW_SP_FIB_ENTRY_TYPE_TRAP:
 		return mlxsw_sp_fib_entry_op_trap(mlxsw_sp, fib_entry, op);
+	case MLXSW_SP_FIB_ENTRY_TYPE_BLACKHOLE:
+		return mlxsw_sp_fib_entry_op_blackhole(mlxsw_sp, fib_entry, op);
 	case MLXSW_SP_FIB_ENTRY_TYPE_IPIP_DECAP:
 		return mlxsw_sp_fib_entry_op_ipip_decap(mlxsw_sp,
 							fib_entry, op);
@@ -4279,8 +4298,10 @@ mlxsw_sp_fib4_entry_type_set(struct mlxsw_sp *mlxsw_sp,
 	case RTN_BROADCAST:
 		fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_TRAP;
 		return 0;
+	case RTN_BLACKHOLE:
+		fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_BLACKHOLE;
+		return 0;
 	case RTN_UNREACHABLE: /* fall through */
-	case RTN_BLACKHOLE: /* fall through */
 	case RTN_PROHIBIT:
 		/* Packets hitting these routes need to be trapped, but
 		 * can do so with a lower priority than packets directed
@@ -5229,6 +5250,8 @@ static void mlxsw_sp_fib6_entry_type_set(struct mlxsw_sp *mlxsw_sp,
 	 */
 	if (rt->fib6_flags & (RTF_LOCAL | RTF_ANYCAST))
 		fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_TRAP;
+	else if (rt->fib6_type == RTN_BLACKHOLE)
+		fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_BLACKHOLE;
 	else if (rt->fib6_flags & RTF_REJECT)
 		fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_LOCAL;
 	else if (mlxsw_sp_rt6_is_gateway(mlxsw_sp, rt))
