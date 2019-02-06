@@ -209,8 +209,6 @@ enum iwl_rx_phy_flags {
  * @RX_MPDU_RES_STATUS_CSUM_OK: checksum found no errors
  * @RX_MPDU_RES_STATUS_STA_ID_MSK: station ID mask
  * @RX_MDPU_RES_STATUS_STA_ID_SHIFT: station ID bit shift
- * @RX_MPDU_RES_STATUS_FILTERING_MSK: filter status
- * @RX_MPDU_RES_STATUS2_FILTERING_MSK: filter status 2
  */
 enum iwl_mvm_rx_status {
 	RX_MPDU_RES_STATUS_CRC_OK			= BIT(0),
@@ -238,8 +236,6 @@ enum iwl_mvm_rx_status {
 	RX_MPDU_RES_STATUS_CSUM_OK			= BIT(17),
 	RX_MDPU_RES_STATUS_STA_ID_SHIFT			= 24,
 	RX_MPDU_RES_STATUS_STA_ID_MSK			= 0x1f << RX_MDPU_RES_STATUS_STA_ID_SHIFT,
-	RX_MPDU_RES_STATUS_FILTERING_MSK		= (0xc00000),
-	RX_MPDU_RES_STATUS2_FILTERING_MSK		= (0xc0000000),
 };
 
 /* 9000 series API */
@@ -337,6 +333,8 @@ enum iwl_rx_mpdu_phy_info {
 	IWL_RX_MPDU_PHY_AMPDU		= BIT(5),
 	IWL_RX_MPDU_PHY_AMPDU_TOGGLE	= BIT(6),
 	IWL_RX_MPDU_PHY_SHORT_PREAMBLE	= BIT(7),
+	/* short preamble is only for CCK, for non-CCK overridden by this */
+	IWL_RX_MPDU_PHY_NCCK_ADDTL_NTFY	= BIT(7),
 	IWL_RX_MPDU_PHY_TSF_OVERLOAD	= BIT(8),
 };
 
@@ -723,6 +721,9 @@ struct iwl_rx_mpdu_desc {
 #define RX_NO_DATA_FRAME_TIME_POS	0
 #define RX_NO_DATA_FRAME_TIME_MSK	(0xfffff << RX_NO_DATA_FRAME_TIME_POS)
 
+#define RX_NO_DATA_RX_VEC0_HE_NSTS_MSK	0x03800000
+#define RX_NO_DATA_RX_VEC0_VHT_NSTS_MSK	0x38000000
+
 /**
  * struct iwl_rx_no_data - RX no data descriptor
  * @info: 7:0 frame type, 15:8 RX error type
@@ -743,7 +744,7 @@ struct iwl_rx_no_data {
 	__le32 fr_time;
 	__le32 rate;
 	__le32 phy_info[2];
-	__le32 rx_vec[3];
+	__le32 rx_vec[2];
 } __packed; /* RX_NO_DATA_NTFY_API_S_VER_1 */
 
 /**

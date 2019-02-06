@@ -1,18 +1,5 @@
-/*
- * Copyright (c) 2015-2016 Quantenna Communications, Inc.
- * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- */
+// SPDX-License-Identifier: GPL-2.0+
+/* Copyright (c) 2015-2016 Quantenna Communications. All rights reserved. */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -158,6 +145,12 @@ qtnf_event_handle_bss_join(struct qtnf_vif *vif,
 			   const struct qlink_event_bss_join *join_info,
 			   u16 len)
 {
+	struct wiphy *wiphy = priv_to_wiphy(vif->mac);
+	enum ieee80211_statuscode status = le16_to_cpu(join_info->status);
+	struct cfg80211_chan_def chandef;
+	struct cfg80211_bss *bss = NULL;
+	u8 *ie = NULL;
+
 	if (unlikely(len < sizeof(*join_info))) {
 		pr_err("VIF%u.%u: payload is too short (%u < %zu)\n",
 		       vif->mac->macid, vif->vifid, len,
@@ -171,15 +164,80 @@ qtnf_event_handle_bss_join(struct qtnf_vif *vif,
 		return -EPROTO;
 	}
 
-	pr_debug("VIF%u.%u: BSSID:%pM\n", vif->mac->macid, vif->vifid,
-		 join_info->bssid);
+	pr_debug("VIF%u.%u: BSSID:%pM status:%u\n",
+		 vif->mac->macid, vif->vifid, join_info->bssid, status);
 
+	if (status == WLAN_STATUS_SUCCESS) {
+		qlink_chandef_q2cfg(wiphy, &join_info->chan, &chandef);
+		if (!cfg80211_chandef_valid(&chandef)) {
+			pr_warn("MAC%u.%u: bad channel freq=%u cf1=%u cf2=%u bw=%u\n",
+				vif->mac->macid, vif->vifid,
+				chandef.chan->center_freq,
+				chandef.center_freq1,
+				chandef.center_freq2,
+				chandef.width);
+			status = WLAN_STATUS_UNSPECIFIED_FAILURE;
+			goto done;
+		}
+
+		bss = cfg80211_get_bss(wiphy, chandef.chan, join_info->bssid,
+				       NULL, 0, IEEE80211_BSS_TYPE_ESS,
+				       IEEE80211_PRIVACY_ANY);
+		if (!bss) {
+			pr_warn("VIF%u.%u: add missing BSS:%pM chan:%u\n",
+				vif->mac->macid, vif->vifid,
+				join_info->bssid, chandef.chan->hw_value);
+
+			if (!vif->wdev.ssid_len) {
+				pr_warn("VIF%u.%u: SSID unknown for BSS:%pM\n",
+					vif->mac->macid, vif->vifid,
+					join_info->bssid);
+				status = WLAN_STATUS_UNSPECIFIED_FAILURE;
+				goto done;
+			}
+
+			ie = kzalloc(2 + vif->wdev.ssid_len, GFP_KERNEL);
+			if (!ie) {
+				pr_warn("VIF%u.%u: IE alloc failed for BSS:%pM\n",
+					vif->mac->macid, vif->vifid,
+					join_info->bssid);
+				status = WLAN_STATUS_UNSPECIFIED_FAILURE;
+				goto done;
+			}
+
+			ie[0] = WLAN_EID_SSID;
+			ie[1] = vif->wdev.ssid_len;
+			memcpy(ie + 2, vif->wdev.ssid, vif->wdev.ssid_len);
+
+			bss = cfg80211_inform_bss(wiphy, chandef.chan,
+						  CFG80211_BSS_FTYPE_UNKNOWN,
+						  join_info->bssid, 0,
+						  WLAN_CAPABILITY_ESS, 100,
+						  ie, 2 + vif->wdev.ssid_len,
+						  0, GFP_KERNEL);
+			if (!bss) {
+				pr_warn("VIF%u.%u: can't connect to unknown BSS: %pM\n",
+					vif->mac->macid, vif->vifid,
+					join_info->bssid);
+				status = WLAN_STATUS_UNSPECIFIED_FAILURE;
+				goto done;
+			}
+		}
+	}
+
+done:
 	cfg80211_connect_result(vif->netdev, join_info->bssid, NULL, 0, NULL,
-				0, le16_to_cpu(join_info->status), GFP_KERNEL);
+				0, status, GFP_KERNEL);
+	if (bss) {
+		if (!ether_addr_equal(vif->bssid, join_info->bssid))
+			ether_addr_copy(vif->bssid, join_info->bssid);
+		cfg80211_put_bss(wiphy, bss);
+	}
 
-	if (le16_to_cpu(join_info->status) == WLAN_STATUS_SUCCESS)
+	if (status == WLAN_STATUS_SUCCESS)
 		netif_carrier_on(vif->netdev);
 
+	kfree(ie);
 	return 0;
 }
 

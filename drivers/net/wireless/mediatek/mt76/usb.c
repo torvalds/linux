@@ -407,17 +407,15 @@ mt76u_process_rx_entry(struct mt76_dev *dev, struct urb *urb)
 	if (len < 0)
 		return 0;
 
+	data_len = min_t(int, len, urb->sg[0].length - MT_DMA_HDR_LEN);
+	if (MT_DMA_HDR_LEN + data_len > SKB_WITH_OVERHEAD(q->buf_size))
+		return 0;
+
 	skb = build_skb(data, q->buf_size);
 	if (!skb)
 		return 0;
 
-	data_len = min_t(int, len, urb->sg[0].length - MT_DMA_HDR_LEN);
 	skb_reserve(skb, MT_DMA_HDR_LEN);
-	if (skb->tail + data_len > skb->end) {
-		dev_kfree_skb(skb);
-		return 1;
-	}
-
 	__skb_put(skb, data_len);
 	len -= data_len;
 
@@ -585,6 +583,7 @@ static void mt76u_stop_rx(struct mt76_dev *dev)
 static void mt76u_tx_tasklet(unsigned long data)
 {
 	struct mt76_dev *dev = (struct mt76_dev *)data;
+	struct mt76_queue_entry entry;
 	struct mt76u_buf *buf;
 	struct mt76_queue *q;
 	bool wake;
@@ -599,17 +598,18 @@ static void mt76u_tx_tasklet(unsigned long data)
 			if (!buf->done || !q->queued)
 				break;
 
-			dev->drv->tx_complete_skb(dev, q,
-						  &q->entry[q->head],
-						  false);
-
 			if (q->entry[q->head].schedule) {
 				q->entry[q->head].schedule = false;
 				q->swq_queued--;
 			}
 
+			entry = q->entry[q->head];
 			q->head = (q->head + 1) % q->ndesc;
 			q->queued--;
+
+			spin_unlock_bh(&q->lock);
+			dev->drv->tx_complete_skb(dev, q, &entry, false);
+			spin_lock_bh(&q->lock);
 		}
 		mt76_txq_schedule(dev, q);
 		wake = i < IEEE80211_NUM_ACS && q->queued < q->ndesc - 8;

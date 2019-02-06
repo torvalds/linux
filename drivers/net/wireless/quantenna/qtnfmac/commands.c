@@ -1,17 +1,5 @@
-/*
- * Copyright (c) 2015-2016 Quantenna Communications, Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- */
+// SPDX-License-Identifier: GPL-2.0+
+/* Copyright (c) 2015-2016 Quantenna Communications. All rights reserved. */
 
 #include <linux/types.h>
 #include <linux/skbuff.h>
@@ -72,6 +60,8 @@ static int qtnf_cmd_resp_result_decode(enum qlink_cmd_result qcode)
 		return -EADDRINUSE;
 	case QLINK_CMD_RESULT_EADDRNOTAVAIL:
 		return -EADDRNOTAVAIL;
+	case QLINK_CMD_RESULT_EBUSY:
+		return -EBUSY;
 	default:
 		return -EFAULT;
 	}
@@ -97,14 +87,12 @@ static int qtnf_cmd_send_with_reply(struct qtnf_bus *bus,
 	vif_id = cmd->vifid;
 	cmd->mhdr.len = cpu_to_le16(cmd_skb->len);
 
-	pr_debug("VIF%u.%u cmd=0x%.4X\n", mac_id, vif_id,
-		 le16_to_cpu(cmd->cmd_id));
+	pr_debug("VIF%u.%u cmd=0x%.4X\n", mac_id, vif_id, cmd_id);
 
 	if (bus->fw_state != QTNF_FW_STATE_ACTIVE &&
-	    le16_to_cpu(cmd->cmd_id) != QLINK_CMD_FW_INIT) {
+	    cmd_id != QLINK_CMD_FW_INIT) {
 		pr_warn("VIF%u.%u: drop cmd 0x%.4X in fw state %d\n",
-			mac_id, vif_id, le16_to_cpu(cmd->cmd_id),
-			bus->fw_state);
+			mac_id, vif_id, cmd_id, bus->fw_state);
 		dev_kfree_skb(cmd_skb);
 		return -ENODEV;
 	}
@@ -138,7 +126,7 @@ out:
 		return qtnf_cmd_resp_result_decode(le16_to_cpu(resp->result));
 
 	pr_warn("VIF%u.%u: cmd 0x%.4X failed: %d\n",
-		mac_id, vif_id, le16_to_cpu(cmd->cmd_id), ret);
+		mac_id, vif_id, cmd_id, ret);
 
 	return ret;
 }
@@ -732,6 +720,7 @@ out:
 
 static int qtnf_cmd_send_add_change_intf(struct qtnf_vif *vif,
 					 enum nl80211_iftype iftype,
+					 int use4addr,
 					 u8 *mac_addr,
 					 enum qlink_cmd_type cmd_type)
 {
@@ -749,6 +738,7 @@ static int qtnf_cmd_send_add_change_intf(struct qtnf_vif *vif,
 	qtnf_bus_lock(vif->mac->bus);
 
 	cmd = (struct qlink_cmd_manage_intf *)cmd_skb->data;
+	cmd->intf_info.use4addr = use4addr;
 
 	switch (iftype) {
 	case NL80211_IFTYPE_AP:
@@ -784,17 +774,19 @@ out:
 	return ret;
 }
 
-int qtnf_cmd_send_add_intf(struct qtnf_vif *vif,
-			   enum nl80211_iftype iftype, u8 *mac_addr)
+int qtnf_cmd_send_add_intf(struct qtnf_vif *vif, enum nl80211_iftype iftype,
+			   int use4addr, u8 *mac_addr)
 {
-	return qtnf_cmd_send_add_change_intf(vif, iftype, mac_addr,
+	return qtnf_cmd_send_add_change_intf(vif, iftype, use4addr, mac_addr,
 			QLINK_CMD_ADD_INTF);
 }
 
 int qtnf_cmd_send_change_intf_type(struct qtnf_vif *vif,
-				   enum nl80211_iftype iftype, u8 *mac_addr)
+				   enum nl80211_iftype iftype,
+				   int use4addr,
+				   u8 *mac_addr)
 {
-	return qtnf_cmd_send_add_change_intf(vif, iftype, mac_addr,
+	return qtnf_cmd_send_add_change_intf(vif, iftype, use4addr, mac_addr,
 					     QLINK_CMD_CHANGE_INTF);
 }
 
@@ -914,9 +906,8 @@ qtnf_cmd_resp_proc_hw_info(struct qtnf_bus *bus,
 	if (WARN_ON(resp->n_reg_rules > NL80211_MAX_SUPP_REG_RULES))
 		return -E2BIG;
 
-	hwinfo->rd = kzalloc(sizeof(*hwinfo->rd)
-			     + sizeof(struct ieee80211_reg_rule)
-			     * resp->n_reg_rules, GFP_KERNEL);
+	hwinfo->rd = kzalloc(struct_size(hwinfo->rd, reg_rules,
+					 resp->n_reg_rules), GFP_KERNEL);
 
 	if (!hwinfo->rd)
 		return -ENOMEM;
@@ -1558,11 +1549,11 @@ static int qtnf_cmd_resp_proc_phy_params(struct qtnf_wmac *mac,
 		switch (tlv_type) {
 		case QTN_TLV_ID_FRAG_THRESH:
 			phy_thr = (void *)tlv;
-			mac_info->frag_thr = (u32)le16_to_cpu(phy_thr->thr);
+			mac_info->frag_thr = le32_to_cpu(phy_thr->thr);
 			break;
 		case QTN_TLV_ID_RTS_THRESH:
 			phy_thr = (void *)tlv;
-			mac_info->rts_thr = (u32)le16_to_cpu(phy_thr->thr);
+			mac_info->rts_thr = le32_to_cpu(phy_thr->thr);
 			break;
 		case QTN_TLV_ID_SRETRY_LIMIT:
 			limit = (void *)tlv;
@@ -1810,14 +1801,22 @@ int qtnf_cmd_send_update_phy_params(struct qtnf_wmac *mac, u32 changed)
 	qtnf_bus_lock(mac->bus);
 
 	if (changed & WIPHY_PARAM_FRAG_THRESHOLD)
-		qtnf_cmd_skb_put_tlv_u16(cmd_skb, QTN_TLV_ID_FRAG_THRESH,
+		qtnf_cmd_skb_put_tlv_u32(cmd_skb, QTN_TLV_ID_FRAG_THRESH,
 					 wiphy->frag_threshold);
 	if (changed & WIPHY_PARAM_RTS_THRESHOLD)
-		qtnf_cmd_skb_put_tlv_u16(cmd_skb, QTN_TLV_ID_RTS_THRESH,
+		qtnf_cmd_skb_put_tlv_u32(cmd_skb, QTN_TLV_ID_RTS_THRESH,
 					 wiphy->rts_threshold);
 	if (changed & WIPHY_PARAM_COVERAGE_CLASS)
 		qtnf_cmd_skb_put_tlv_u8(cmd_skb, QTN_TLV_ID_COVERAGE_CLASS,
 					wiphy->coverage_class);
+
+	if (changed & WIPHY_PARAM_RETRY_LONG)
+		qtnf_cmd_skb_put_tlv_u8(cmd_skb, QTN_TLV_ID_LRETRY_LIMIT,
+					wiphy->retry_long);
+
+	if (changed & WIPHY_PARAM_RETRY_SHORT)
+		qtnf_cmd_skb_put_tlv_u8(cmd_skb, QTN_TLV_ID_SRETRY_LIMIT,
+					wiphy->retry_short);
 
 	ret = qtnf_cmd_send(mac->bus, cmd_skb);
 	if (ret)
