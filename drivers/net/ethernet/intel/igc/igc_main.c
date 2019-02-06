@@ -620,6 +620,55 @@ static void igc_configure_tx(struct igc_adapter *adapter)
  */
 static void igc_setup_mrqc(struct igc_adapter *adapter)
 {
+	struct igc_hw *hw = &adapter->hw;
+	u32 j, num_rx_queues;
+	u32 mrqc, rxcsum;
+	u32 rss_key[10];
+
+	netdev_rss_key_fill(rss_key, sizeof(rss_key));
+	for (j = 0; j < 10; j++)
+		wr32(IGC_RSSRK(j), rss_key[j]);
+
+	num_rx_queues = adapter->rss_queues;
+
+	if (adapter->rss_indir_tbl_init != num_rx_queues) {
+		for (j = 0; j < IGC_RETA_SIZE; j++)
+			adapter->rss_indir_tbl[j] =
+			(j * num_rx_queues) / IGC_RETA_SIZE;
+		adapter->rss_indir_tbl_init = num_rx_queues;
+	}
+	igc_write_rss_indir_tbl(adapter);
+
+	/* Disable raw packet checksumming so that RSS hash is placed in
+	 * descriptor on writeback.  No need to enable TCP/UDP/IP checksum
+	 * offloads as they are enabled by default
+	 */
+	rxcsum = rd32(IGC_RXCSUM);
+	rxcsum |= IGC_RXCSUM_PCSD;
+
+	/* Enable Receive Checksum Offload for SCTP */
+	rxcsum |= IGC_RXCSUM_CRCOFL;
+
+	/* Don't need to set TUOFL or IPOFL, they default to 1 */
+	wr32(IGC_RXCSUM, rxcsum);
+
+	/* Generate RSS hash based on packet types, TCP/UDP
+	 * port numbers and/or IPv4/v6 src and dst addresses
+	 */
+	mrqc = IGC_MRQC_RSS_FIELD_IPV4 |
+	       IGC_MRQC_RSS_FIELD_IPV4_TCP |
+	       IGC_MRQC_RSS_FIELD_IPV6 |
+	       IGC_MRQC_RSS_FIELD_IPV6_TCP |
+	       IGC_MRQC_RSS_FIELD_IPV6_TCP_EX;
+
+	if (adapter->flags & IGC_FLAG_RSS_FIELD_IPV4_UDP)
+		mrqc |= IGC_MRQC_RSS_FIELD_IPV4_UDP;
+	if (adapter->flags & IGC_FLAG_RSS_FIELD_IPV6_UDP)
+		mrqc |= IGC_MRQC_RSS_FIELD_IPV6_UDP;
+
+	mrqc |= IGC_MRQC_ENABLE_RSS_MQ;
+
+	wr32(IGC_MRQC, mrqc);
 }
 
 /**

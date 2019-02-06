@@ -29,6 +29,7 @@ unsigned int igc_get_max_rss_queues(struct igc_adapter *adapter);
 void igc_set_flag_queue_pairs(struct igc_adapter *adapter,
 			      const u32 max_rss_queues);
 int igc_reinit_queues(struct igc_adapter *adapter);
+void igc_write_rss_indir_tbl(struct igc_adapter *adapter);
 bool igc_has_link(struct igc_adapter *adapter);
 void igc_reset(struct igc_adapter *adapter);
 int igc_set_spd_dplx(struct igc_adapter *adapter, u32 spd, u8 dplx);
@@ -50,6 +51,13 @@ extern char igc_driver_version[];
 #define IGC_FLAG_HAS_MSIX		BIT(13)
 #define IGC_FLAG_VLAN_PROMISC		BIT(15)
 #define IGC_FLAG_RX_LEGACY		BIT(16)
+
+#define IGC_FLAG_RSS_FIELD_IPV4_UDP	BIT(6)
+#define IGC_FLAG_RSS_FIELD_IPV6_UDP	BIT(7)
+
+#define IGC_MRQC_ENABLE_RSS_MQ		0x00000002
+#define IGC_MRQC_RSS_FIELD_IPV4_UDP	0x00400000
+#define IGC_MRQC_RSS_FIELD_IPV6_UDP	0x00800000
 
 #define IGC_START_ITR			648 /* ~6000 ints/sec */
 #define IGC_4K_ITR			980
@@ -359,6 +367,7 @@ struct igc_adapter {
 	u32 *shadow_vfta;
 
 	u32 rss_queues;
+	u32 rss_indir_tbl_init;
 
 	/* lock for RX network flow classification filter */
 	spinlock_t nfc_lock;

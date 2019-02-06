@@ -80,8 +80,13 @@
 /* MSI-X Table Register Descriptions */
 #define IGC_PBACL		0x05B68  /* MSIx PBA Clear - R/W 1 to clear */
 
+/* RSS registers */
+#define IGC_MRQC		0x05818 /* Multiple Receive Control - RW */
+
 /* Redirection Table - RW Array */
 #define IGC_RETA(_i)		(0x05C00 + ((_i) * 4))
+/* RSS Random Key - RW Array */
+#define IGC_RSSRK(_i)		(0x05C80 + ((_i) * 4))
 
 /* Receive Register Descriptions */
 #define IGC_RCTL		0x00100  /* Rx Control - RW */
