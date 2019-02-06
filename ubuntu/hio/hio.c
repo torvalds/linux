@@ -6121,6 +6121,7 @@ static int ssd_update_smart(struct ssd_device *dev, struct ssd_smart *smart)
 	smart->io_stat.run_time += run_time;
 
 #if (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,27))
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5,0,0))
 	cpu = part_stat_lock();
 	part = &dev->gd->part0;
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,14,0))
@@ -6129,6 +6130,7 @@ static int ssd_update_smart(struct ssd_device *dev, struct ssd_smart *smart)
 	part_round_stats(cpu, part);
 #endif
 	part_stat_unlock();
+#endif
 
 	smart->io_stat.nr_read += part_stat_read(part, ios[READ]);
 	smart->io_stat.nr_write += part_stat_read(part, ios[WRITE]);
