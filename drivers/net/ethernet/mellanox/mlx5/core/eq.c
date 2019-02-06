@@ -114,11 +114,11 @@ static struct mlx5_core_cq *mlx5_eq_cq_get(struct mlx5_eq *eq, u32 cqn)
 	struct mlx5_cq_table *table = &eq->cq_table;
 	struct mlx5_core_cq *cq = NULL;
 
-	spin_lock(&table->lock);
+	rcu_read_lock();
 	cq = radix_tree_lookup(&table->tree, cqn);
 	if (likely(cq))
 		mlx5_cq_hold(cq);
-	spin_unlock(&table->lock);
+	rcu_read_unlock();
 
 	return cq;
 }
@@ -371,9 +371,9 @@ int mlx5_eq_add_cq(struct mlx5_eq *eq, struct mlx5_core_cq *cq)
 	struct mlx5_cq_table *table = &eq->cq_table;
 	int err;
 
-	spin_lock_irq(&table->lock);
+	spin_lock(&table->lock);
 	err = radix_tree_insert(&table->tree, cq->cqn, cq);
-	spin_unlock_irq(&table->lock);
+	spin_unlock(&table->lock);
 
 	return err;
 }
@@ -383,9 +383,9 @@ int mlx5_eq_del_cq(struct mlx5_eq *eq, struct mlx5_core_cq *cq)
 	struct mlx5_cq_table *table = &eq->cq_table;
 	struct mlx5_core_cq *tmp;
 
-	spin_lock_irq(&table->lock);
+	spin_lock(&table->lock);
 	tmp = radix_tree_delete(&table->tree, cq->cqn);
-	spin_unlock_irq(&table->lock);
+	spin_unlock(&table->lock);
 
 	if (!tmp) {
 		mlx5_core_warn(eq->dev, "cq 0x%x not found in eq 0x%x tree\n", eq->eqn, cq->cqn);
