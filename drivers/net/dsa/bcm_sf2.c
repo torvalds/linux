@@ -894,12 +894,30 @@ static const struct b53_io_ops bcm_sf2_io_ops = {
 	.write64 = bcm_sf2_core_write64,
 };
 
+static void bcm_sf2_sw_get_strings(struct dsa_switch *ds, int port,
+				   u32 stringset, uint8_t *data)
+{
+	b53_get_strings(ds, port, stringset, data);
+}
+
+static void bcm_sf2_sw_get_ethtool_stats(struct dsa_switch *ds, int port,
+					 uint64_t *data)
+{
+	b53_get_ethtool_stats(ds, port, data);
+}
+
+static int bcm_sf2_sw_get_sset_count(struct dsa_switch *ds, int port,
+				     int sset)
+{
+	return b53_get_sset_count(ds, port, sset);
+}
+
 static const struct dsa_switch_ops bcm_sf2_ops = {
 	.get_tag_protocol	= b53_get_tag_protocol,
 	.setup			= bcm_sf2_sw_setup,
-	.get_strings		= b53_get_strings,
-	.get_ethtool_stats	= b53_get_ethtool_stats,
-	.get_sset_count		= b53_get_sset_count,
+	.get_strings		= bcm_sf2_sw_get_strings,
+	.get_ethtool_stats	= bcm_sf2_sw_get_ethtool_stats,
+	.get_sset_count		= bcm_sf2_sw_get_sset_count,
 	.get_ethtool_phy_stats	= b53_get_ethtool_phy_stats,
 	.get_phy_flags		= bcm_sf2_sw_get_phy_flags,
 	.phylink_validate	= bcm_sf2_sw_validate,
