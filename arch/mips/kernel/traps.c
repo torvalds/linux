@@ -733,7 +733,7 @@ void force_fcr31_sig(unsigned long fcr31, void __user *fault_addr,
 	else if (fcr31 & FPU_CSR_INE_X)
 		si_code = FPE_FLTRES;
 
-	force_sig_fault(SIGFPE, si_code, fault_addr, tsk);
+	force_sig_fault_to_task(SIGFPE, si_code, fault_addr, tsk);
 }
 
 int process_fpemu_return(int sig, void __user *fault_addr, unsigned long fcr31)
