@@ -8,7 +8,7 @@
  * Copyright(c) 2012 - 2015 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,7 +31,7 @@
  * Copyright(c) 2012 - 2015 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -2333,21 +2333,6 @@ int iwl_mvm_add_mcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 		iwl_mvm_enable_txq(mvm, NULL, mvmvif->cab_queue, 0, &cfg,
 				   timeout);
 
-	if (mvmvif->ap_wep_key) {
-		u8 key_offset = iwl_mvm_set_fw_key_idx(mvm);
-
-		__set_bit(key_offset, mvm->fw_key_table);
-
-		if (key_offset == STA_KEY_IDX_INVALID)
-			return -ENOSPC;
-
-		ret = iwl_mvm_send_sta_key(mvm, mvmvif->mcast_sta.sta_id,
-					   mvmvif->ap_wep_key, true, 0, NULL, 0,
-					   key_offset, 0);
-		if (ret)
-			return ret;
-	}
-
 	return 0;
 }
 
@@ -2418,28 +2403,6 @@ int iwl_mvm_rm_mcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	iwl_mvm_flush_sta(mvm, &mvmvif->mcast_sta, true, 0);
 
 	iwl_mvm_disable_txq(mvm, NULL, mvmvif->cab_queue, 0, 0);
-
-	if (mvmvif->ap_wep_key) {
-		int i;
-
-		if (!__test_and_clear_bit(mvmvif->ap_wep_key->hw_key_idx,
-					  mvm->fw_key_table)) {
-			IWL_ERR(mvm, "offset %d not used in fw key table.\n",
-				mvmvif->ap_wep_key->hw_key_idx);
-			return -ENOENT;
-		}
-
-		/* track which key was deleted last */
-		for (i = 0; i < STA_KEY_MAX_NUM; i++) {
-			if (mvm->fw_key_deleted[i] < U8_MAX)
-				mvm->fw_key_deleted[i]++;
-		}
-		mvm->fw_key_deleted[mvmvif->ap_wep_key->hw_key_idx] = 0;
-		ret = __iwl_mvm_remove_sta_key(mvm, mvmvif->mcast_sta.sta_id,
-					       mvmvif->ap_wep_key, true);
-		if (ret)
-			return ret;
-	}
 
 	ret = iwl_mvm_rm_sta_common(mvm, mvmvif->mcast_sta.sta_id);
 	if (ret)
