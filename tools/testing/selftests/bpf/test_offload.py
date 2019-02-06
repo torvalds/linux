@@ -23,6 +23,7 @@ import string
 import struct
 import subprocess
 import time
+import traceback
 
 logfile = None
 log_level = 1
@@ -78,7 +79,9 @@ def fail(cond, msg):
     if not cond:
         return
     print("FAIL: " + msg)
-    log("FAIL: " + msg, "", level=1)
+    tb = "".join(traceback.extract_stack().format())
+    print(tb)
+    log("FAIL: " + msg, tb, level=1)
     os.sys.exit(1)
 
 def start_test(msg):
