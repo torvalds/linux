@@ -5643,7 +5643,6 @@ static unsigned short crc16(unsigned short crc, unsigned char const *buffer, int
 static int ssd_save_swlog(struct ssd_device *dev, uint16_t event, uint32_t data)
 {
 	struct ssd_log log;
-	struct timeval tv;
 	int level;
 	int ret = 0;
 
@@ -5652,9 +5651,8 @@ static int ssd_save_swlog(struct ssd_device *dev, uint16_t event, uint32_t data)
 
 	memset(&log, 0, sizeof(struct ssd_log));
 
-	do_gettimeofday(&tv);
 	log.ctrl_idx = SSD_LOG_SW_IDX;
-	log.time = tv.tv_sec;
+	log.time = ktime_get_real_seconds();
 	log.le.event = event;
 	log.le.data.val = data;
 
@@ -5772,7 +5770,6 @@ static int ssd_do_log(struct ssd_device *dev, int ctrl_idx, void *buf)
 {
 	struct ssd_log_entry *le;
 	struct ssd_log log;
-	struct timeval tv;
 	int nr_log = 0;
 	int level;
 	int ret = 0;
@@ -5782,9 +5779,7 @@ static int ssd_do_log(struct ssd_device *dev, int ctrl_idx, void *buf)
 		return ret;
 	}
 
-	do_gettimeofday(&tv);
-
-	log.time = tv.tv_sec;
+	log.time = ktime_get_real_seconds();
 	log.ctrl_idx = ctrl_idx;
 
 	le = (ssd_log_entry_t *)buf;
@@ -6098,8 +6093,7 @@ static int ssd_init_rom_info(struct ssd_device *dev)
 /* smart */
 static int ssd_update_smart(struct ssd_device *dev, struct ssd_smart *smart)
 {
-	struct timeval tv;
-	uint64_t run_time;
+	uint64_t cur_time, run_time;
 #if (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,27))
 	struct hd_struct *part;
 	int cpu;
@@ -6111,11 +6105,11 @@ static int ssd_update_smart(struct ssd_device *dev, struct ssd_smart *smart)
 		return 0;
 	}
 
-	do_gettimeofday(&tv);
-	if ((uint64_t)tv.tv_sec < dev->uptime) {
+	cur_time = (uint64_t)ktime_get_real_seconds();
+	if (cur_time < dev->uptime) {
 		run_time = 0;
 	} else {
-		run_time = tv.tv_sec - dev->uptime;
+		run_time = cur_time - dev->uptime;
 	}
 
 	/* avoid frequently update */
@@ -6180,7 +6174,6 @@ static int ssd_update_smart(struct ssd_device *dev, struct ssd_smart *smart)
 
 static int __ssd_clear_smart(struct ssd_device *dev)
 {
-	struct timeval tv;
 	uint64_t sversion;
 	uint32_t off, length;
 	int i;
@@ -6217,8 +6210,7 @@ static int __ssd_clear_smart(struct ssd_device *dev)
 	/* clear tmp log info */
 	memset(&dev->log_info, 0, sizeof(struct ssd_log_info));
 
-	do_gettimeofday(&tv);
-	dev->uptime = tv.tv_sec;
+	dev->uptime = (uint64_t)ktime_get_real_seconds();
 
 	/* clear alarm ? */
 	//ssd_clear_alarm(dev);
@@ -6360,14 +6352,12 @@ out:
 static int ssd_init_smart(struct ssd_device *dev)
 {
 	struct ssd_smart *smart;
-	struct timeval tv;
 	uint32_t off, size, val;
 	int i;
 	int ret = 0;
 	int update_smart = 0;
 
-	do_gettimeofday(&tv);
-	dev->uptime = tv.tv_sec;
+	dev->uptime = (uint64_t)ktime_get_real_seconds();
 
 	if (dev->protocol_info.ver <= SSD_PROTOCOL_V3) {
 		return 0;
@@ -8009,7 +7999,6 @@ static void ssd_reset_resp_ptr(struct ssd_device *dev);
 /* reset flash controller etc */
 static int __ssd_reset(struct ssd_device *dev, int type)
 {
-	struct timeval tv;
 	if (type < SSD_RST_NOINIT || type > SSD_RST_FULL) {
 		return -EINVAL;
 	}
@@ -8043,8 +8032,7 @@ static int __ssd_reset(struct ssd_device *dev, int type)
 
 	mutex_unlock(&dev->fw_mutex);
 	ssd_gen_swlog(dev, SSD_LOG_RESET, (uint32_t)type);
-	do_gettimeofday(&tv);
-	dev->reset_time = tv.tv_sec;
+	dev->reset_time = (uint64_t)ktime_get_real_seconds();
 
 	return __ssd_check_init_state(dev);
 }
@@ -12196,7 +12184,6 @@ ssd_init_one(struct pci_dev *pdev,
 	const struct pci_device_id *ent)
 {
 	struct ssd_device *dev;
-	struct timeval tv;
 	int ret = 0;
 
 	if (!pdev || !ent) {
@@ -12236,8 +12223,7 @@ ssd_init_one(struct pci_dev *pdev,
 		dev->cmajor = 0;
 	}
 
-	do_gettimeofday(&tv);
-	dev->reset_time = tv.tv_sec;
+	dev->reset_time = (uint64_t)ktime_get_real_seconds();
 
 	atomic_set(&(dev->refcnt), 0);
 	atomic_set(&(dev->tocnt), 0);
@@ -13188,7 +13174,6 @@ static void __exit ssd_cleanup_module(void)
 int ssd_register_event_notifier(struct block_device *bdev, ssd_event_call event_call)
 {
 	struct ssd_device *dev;
-	struct timeval tv;
 	struct ssd_log *le, *temp_le = NULL;
 	uint64_t cur;
 	int temp = 0;
@@ -13201,8 +13186,7 @@ int ssd_register_event_notifier(struct block_device *bdev, ssd_event_call event_
 	dev = bdev->bd_disk->private_data;
 	dev->event_call = event_call;
 
-	do_gettimeofday(&tv);
-	cur = tv.tv_sec;
+	cur = (uint64_t)ktime_get_real_seconds();
 
 	le = (struct ssd_log *)(dev->internal_log.log);
 	log_nr = dev->internal_log.nr_log;
