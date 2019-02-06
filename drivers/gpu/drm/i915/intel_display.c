@@ -5589,6 +5589,7 @@ static void intel_crtc_disable_planes(struct intel_atomic_state *state,
 		    !(update_mask & BIT(plane->id)))
 			continue;
 
+		trace_intel_disable_plane(&plane->base, crtc);
 		plane->disable_plane(plane, new_crtc_state);
 
 		if (old_plane_state->base.visible)
