@@ -93,12 +93,10 @@ static void dpcd_set_link_settings(
 	struct dc_link *link,
 	const struct link_training_settings *lt_settings)
 {
-	uint8_t rate = (uint8_t)
-	(lt_settings->link_settings.link_rate);
+	uint8_t rate;
 
 	union down_spread_ctrl downspread = { {0} };
 	union lane_count_set lane_count_set = { {0} };
-	uint8_t link_set_buffer[2];
 
 	downspread.raw = (uint8_t)
 	(lt_settings->link_settings.link_spread);
@@ -111,29 +109,42 @@ static void dpcd_set_link_settings(
 	lane_count_set.bits.POST_LT_ADJ_REQ_GRANTED =
 		link->dpcd_caps.max_ln_count.bits.POST_LT_ADJ_REQ_SUPPORTED;
 
-	link_set_buffer[0] = rate;
-	link_set_buffer[1] = lane_count_set.raw;
-
-	core_link_write_dpcd(link, DP_LINK_BW_SET,
-	link_set_buffer, 2);
 	core_link_write_dpcd(link, DP_DOWNSPREAD_CTRL,
 	&downspread.raw, sizeof(downspread));
 
+	core_link_write_dpcd(link, DP_LANE_COUNT_SET,
+	&lane_count_set.raw, 1);
+
 	if (link->dpcd_caps.dpcd_rev.raw >= DPCD_REV_14 &&
-		(link->dpcd_caps.link_rate_set >= 1 &&
-		link->dpcd_caps.link_rate_set <= 8)) {
+			lt_settings->link_settings.use_link_rate_set == true) {
+		rate = 0;
+		core_link_write_dpcd(link, DP_LINK_BW_SET, &rate, 1);
 		core_link_write_dpcd(link, DP_LINK_RATE_SET,
-		&link->dpcd_caps.link_rate_set, 1);
+				&lt_settings->link_settings.link_rate_set, 1);
+	} else {
+		rate = (uint8_t) (lt_settings->link_settings.link_rate);
+		core_link_write_dpcd(link, DP_LINK_BW_SET, &rate, 1);
 	}
 
-	DC_LOG_HW_LINK_TRAINING("%s\n %x rate = %x\n %x lane = %x\n %x spread = %x\n",
-		__func__,
-		DP_LINK_BW_SET,
-		lt_settings->link_settings.link_rate,
-		DP_LANE_COUNT_SET,
-		lt_settings->link_settings.lane_count,
-		DP_DOWNSPREAD_CTRL,
-		lt_settings->link_settings.link_spread);
+	if (rate) {
+		DC_LOG_HW_LINK_TRAINING("%s\n %x rate = %x\n %x lane = %x\n %x spread = %x\n",
+			__func__,
+			DP_LINK_BW_SET,
+			lt_settings->link_settings.link_rate,
+			DP_LANE_COUNT_SET,
+			lt_settings->link_settings.lane_count,
+			DP_DOWNSPREAD_CTRL,
+			lt_settings->link_settings.link_spread);
+	} else {
+		DC_LOG_HW_LINK_TRAINING("%s\n %x rate set = %x\n %x lane = %x\n %x spread = %x\n",
+			__func__,
+			DP_LINK_RATE_SET,
+			lt_settings->link_settings.link_rate_set,
+			DP_LANE_COUNT_SET,
+			lt_settings->link_settings.lane_count,
+			DP_DOWNSPREAD_CTRL,
+			lt_settings->link_settings.link_spread);
+	}
 
 }
 
@@ -952,6 +963,8 @@ enum link_training_result dc_link_dp_perform_link_training(
 
 	lt_settings.link_settings.link_rate = link_setting->link_rate;
 	lt_settings.link_settings.lane_count = link_setting->lane_count;
+	lt_settings.link_settings.use_link_rate_set = link_setting->use_link_rate_set;
+	lt_settings.link_settings.link_rate_set = link_setting->link_rate_set;
 
 	/*@todo[vdevulap] move SS to LS, should not be handled by displaypath*/
 
@@ -1075,7 +1088,7 @@ static struct dc_link_settings get_max_link_cap(struct dc_link *link)
 {
 	/* Set Default link settings */
 	struct dc_link_settings max_link_cap = {LANE_COUNT_FOUR, LINK_RATE_HIGH,
-			LINK_SPREAD_05_DOWNSPREAD_30KHZ};
+			LINK_SPREAD_05_DOWNSPREAD_30KHZ, false, 0};
 
 	/* Higher link settings based on feature supported */
 	if (link->link_enc->features.flags.bits.IS_HBR2_CAPABLE)
@@ -1629,17 +1642,102 @@ bool dp_validate_mode_timing(
 		return false;
 }
 
+static bool decide_dp_link_settings(struct dc_link *link, struct dc_link_settings *link_setting, uint32_t req_bw)
+{
+	struct dc_link_settings initial_link_setting = {
+		LANE_COUNT_ONE, LINK_RATE_LOW, LINK_SPREAD_DISABLED, false, 0};
+	struct dc_link_settings current_link_setting =
+			initial_link_setting;
+	uint32_t link_bw;
+
+	/* search for the minimum link setting that:
+	 * 1. is supported according to the link training result
+	 * 2. could support the b/w requested by the timing
+	 */
+	while (current_link_setting.link_rate <=
+			link->verified_link_cap.link_rate) {
+		link_bw = bandwidth_in_kbps_from_link_settings(
+				&current_link_setting);
+		if (req_bw <= link_bw) {
+			*link_setting = current_link_setting;
+			return true;
+		}
+
+		if (current_link_setting.lane_count <
+				link->verified_link_cap.lane_count) {
+			current_link_setting.lane_count =
+					increase_lane_count(
+							current_link_setting.lane_count);
+		} else {
+			current_link_setting.link_rate =
+					increase_link_rate(
+							current_link_setting.link_rate);
+			current_link_setting.lane_count =
+					initial_link_setting.lane_count;
+		}
+	}
+
+	return false;
+}
+
+static bool decide_edp_link_settings(struct dc_link *link, struct dc_link_settings *link_setting, uint32_t req_bw)
+{
+	struct dc_link_settings initial_link_setting;
+	struct dc_link_settings current_link_setting;
+	uint32_t link_bw;
+
+	if (link->dpcd_caps.dpcd_rev.raw < DPCD_REV_14 ||
+			link->dpcd_caps.edp_supported_link_rates_count == 0 ||
+			link->dc->config.optimize_edp_link_rate == false) {
+		*link_setting = link->verified_link_cap;
+		return true;
+	}
+
+	memset(&initial_link_setting, 0, sizeof(initial_link_setting));
+	initial_link_setting.lane_count = LANE_COUNT_ONE;
+	initial_link_setting.link_rate = link->dpcd_caps.edp_supported_link_rates[0];
+	initial_link_setting.link_spread = LINK_SPREAD_DISABLED;
+	initial_link_setting.use_link_rate_set = true;
+	initial_link_setting.link_rate_set = 0;
+	current_link_setting = initial_link_setting;
+
+	/* search for the minimum link setting that:
+	 * 1. is supported according to the link training result
+	 * 2. could support the b/w requested by the timing
+	 */
+	while (current_link_setting.link_rate <=
+			link->verified_link_cap.link_rate) {
+		link_bw = bandwidth_in_kbps_from_link_settings(
+				&current_link_setting);
+		if (req_bw <= link_bw) {
+			*link_setting = current_link_setting;
+			return true;
+		}
+
+		if (current_link_setting.lane_count <
+				link->verified_link_cap.lane_count) {
+			current_link_setting.lane_count =
+					increase_lane_count(
+							current_link_setting.lane_count);
+		} else {
+			if (current_link_setting.link_rate_set < link->dpcd_caps.edp_supported_link_rates_count) {
+				current_link_setting.link_rate_set++;
+				current_link_setting.link_rate =
+					link->dpcd_caps.edp_supported_link_rates[current_link_setting.link_rate_set];
+				current_link_setting.lane_count =
+									initial_link_setting.lane_count;
+			} else
+				break;
+		}
+	}
+	return false;
+}
+
 void decide_link_settings(struct dc_stream_state *stream,
 	struct dc_link_settings *link_setting)
 {
-
-	struct dc_link_settings initial_link_setting = {
-		LANE_COUNT_ONE, LINK_RATE_LOW, LINK_SPREAD_DISABLED};
-	struct dc_link_settings current_link_setting =
-			initial_link_setting;
 	struct dc_link *link;
 	uint32_t req_bw;
-	uint32_t link_bw;
 
 	req_bw = bandwidth_in_kbps_from_timing(&stream->timing);
 
@@ -1664,38 +1762,11 @@ void decide_link_settings(struct dc_stream_state *stream,
 		return;
 	}
 
-	/* EDP use the link cap setting */
 	if (link->connector_signal == SIGNAL_TYPE_EDP) {
-		*link_setting = link->verified_link_cap;
-		return;
-	}
-
-	/* search for the minimum link setting that:
-	 * 1. is supported according to the link training result
-	 * 2. could support the b/w requested by the timing
-	 */
-	while (current_link_setting.link_rate <=
-			link->verified_link_cap.link_rate) {
-		link_bw = bandwidth_in_kbps_from_link_settings(
-				&current_link_setting);
-		if (req_bw <= link_bw) {
-			*link_setting = current_link_setting;
+		if (decide_edp_link_settings(link, link_setting, req_bw))
 			return;
-		}
-
-		if (current_link_setting.lane_count <
-				link->verified_link_cap.lane_count) {
-			current_link_setting.lane_count =
-					increase_lane_count(
-							current_link_setting.lane_count);
-		} else {
-			current_link_setting.link_rate =
-					increase_link_rate(
-							current_link_setting.link_rate);
-			current_link_setting.lane_count =
-					initial_link_setting.lane_count;
-		}
-	}
+	} else if (decide_dp_link_settings(link, link_setting, req_bw))
+		return;
 
 	BREAK_TO_DEBUGGER();
 	ASSERT(link->verified_link_cap.lane_count != LANE_COUNT_UNKNOWN);
@@ -2536,31 +2607,31 @@ enum dc_link_rate linkRateInKHzToLinkRateMultiplier(uint32_t link_rate_in_khz)
 
 void detect_edp_sink_caps(struct dc_link *link)
 {
-	uint8_t supported_link_rates[16] = {0};
+	uint8_t supported_link_rates[16];
 	uint32_t entry;
 	uint32_t link_rate_in_khz;
 	enum dc_link_rate link_rate = LINK_RATE_UNKNOWN;
 
 	retrieve_link_cap(link);
+	link->dpcd_caps.edp_supported_link_rates_count = 0;
+	memset(supported_link_rates, 0, sizeof(supported_link_rates));
 
-	if (link->dpcd_caps.dpcd_rev.raw >= DPCD_REV_14) {
+	if (link->dpcd_caps.dpcd_rev.raw >= DPCD_REV_14 &&
+			link->dc->config.optimize_edp_link_rate) {
 		// Read DPCD 00010h - 0001Fh 16 bytes at one shot
 		core_link_read_dpcd(link, DP_SUPPORTED_LINK_RATES,
 							supported_link_rates, sizeof(supported_link_rates));
 
-		link->dpcd_caps.link_rate_set = 0;
 		for (entry = 0; entry < 16; entry += 2) {
 			// DPCD register reports per-lane link rate = 16-bit link rate capability
-			// value X 200 kHz. Need multipler to find link rate in kHz.
+			// value X 200 kHz. Need multiplier to find link rate in kHz.
 			link_rate_in_khz = (supported_link_rates[entry+1] * 0x100 +
 										supported_link_rates[entry]) * 200;
 
 			if (link_rate_in_khz != 0) {
 				link_rate = linkRateInKHzToLinkRateMultiplier(link_rate_in_khz);
-				if (link->reported_link_cap.link_rate < link_rate) {
-					link->reported_link_cap.link_rate = link_rate;
-					link->dpcd_caps.link_rate_set = entry;
-				}
+				link->dpcd_caps.edp_supported_link_rates[link->dpcd_caps.edp_supported_link_rates_count] = link_rate;
+				link->dpcd_caps.edp_supported_link_rates_count++;
 			}
 		}
 	}

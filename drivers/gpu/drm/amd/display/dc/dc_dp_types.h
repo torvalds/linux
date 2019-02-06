@@ -94,6 +94,8 @@ struct dc_link_settings {
 	enum dc_lane_count lane_count;
 	enum dc_link_rate link_rate;
 	enum dc_link_spread link_spread;
+	bool use_link_rate_set;
+	uint8_t link_rate_set;
 };
 
 struct dc_lane_settings {

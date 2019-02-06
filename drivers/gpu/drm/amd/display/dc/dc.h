@@ -164,6 +164,7 @@ struct dc_config {
 	bool gpu_vm_support;
 	bool disable_disp_pll_sharing;
 	bool fbc_support;
+	bool optimize_edp_link_rate;
 };
 
 enum visual_confirm {
@@ -648,6 +649,10 @@ struct dpcd_caps {
 	union max_lane_count max_ln_count;
 	union max_down_spread max_down_spread;
 
+	/* valid only for eDP v1.4 or higher*/
+	uint8_t edp_supported_link_rates_count;
+	enum dc_link_rate edp_supported_link_rates[8];
+
 	/* dongle type (DP converter, CV smart dongle) */
 	enum display_dongle_type dongle_type;
 	/* Dongle's downstream count. */
@@ -665,7 +670,6 @@ struct dpcd_caps {
 	int8_t branch_dev_name[6];
 	int8_t branch_hw_revision;
 	int8_t branch_fw_revision[2];
-	uint8_t link_rate_set;
 
 	bool allow_invalid_MSA_timing_param;
 	bool panel_mode_edp;
