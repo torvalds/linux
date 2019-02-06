@@ -205,7 +205,11 @@ static inline void set_pte(pte_t *ptep, pte_t pteval)
 		 * Make sure the buddy is global too (if it's !none,
 		 * it better already be global)
 		 */
+# if defined(CONFIG_PHYS_ADDR_T_64BIT) && !defined(CONFIG_CPU_MIPS32)
+		cmpxchg64(&buddy->pte, 0, _PAGE_GLOBAL);
+# else
 		cmpxchg(&buddy->pte, 0, _PAGE_GLOBAL);
+# endif
 	}
 #endif
 }
