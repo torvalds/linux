@@ -25,7 +25,7 @@
 #include "intel/shim.h"
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HASWELL)
-static struct sof_dev_desc sof_acpi_haswell_desc = {
+static const struct sof_dev_desc sof_acpi_haswell_desc = {
 	.machines = snd_soc_acpi_intel_haswell_machines,
 	.resindex_lpe_base = 0,
 	.resindex_pcicfg_base = 1,
@@ -40,7 +40,7 @@ static struct sof_dev_desc sof_acpi_haswell_desc = {
 #endif
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_BROADWELL)
-static struct sof_dev_desc sof_acpi_broadwell_desc = {
+static const struct sof_dev_desc sof_acpi_broadwell_desc = {
 	.machines = snd_soc_acpi_intel_broadwell_machines,
 	.resindex_lpe_base = 0,
 	.resindex_pcicfg_base = 1,
@@ -57,7 +57,7 @@ static struct sof_dev_desc sof_acpi_broadwell_desc = {
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_BAYTRAIL)
 
 /* BYTCR uses different IRQ index */
-static struct sof_dev_desc sof_acpi_baytrailcr_desc = {
+static const struct sof_dev_desc sof_acpi_baytrailcr_desc = {
 	.machines = snd_soc_acpi_intel_baytrail_machines,
 	.resindex_lpe_base = 0,
 	.resindex_pcicfg_base = 1,
@@ -70,7 +70,7 @@ static struct sof_dev_desc sof_acpi_baytrailcr_desc = {
 	.arch_ops = &sof_xtensa_arch_ops
 };
 
-static struct sof_dev_desc sof_acpi_baytrail_desc = {
+static const struct sof_dev_desc sof_acpi_baytrail_desc = {
 	.machines = snd_soc_acpi_intel_baytrail_machines,
 	.resindex_lpe_base = 0,
 	.resindex_pcicfg_base = 1,
@@ -133,7 +133,7 @@ static int is_byt_cr(struct platform_device *pdev)
 }
 #endif
 
-static struct sof_dev_desc sof_acpi_cherrytrail_desc = {
+static const struct sof_dev_desc sof_acpi_cherrytrail_desc = {
 	.machines = snd_soc_acpi_intel_cherrytrail_machines,
 	.resindex_lpe_base = 0,
 	.resindex_pcicfg_base = 1,
