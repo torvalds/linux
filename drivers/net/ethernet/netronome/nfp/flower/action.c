@@ -3,7 +3,6 @@
 
 #include <linux/bitfield.h>
 #include <net/pkt_cls.h>
-#include <net/switchdev.h>
 #include <net/tc_act/tc_csum.h>
 #include <net/tc_act/tc_gact.h>
 #include <net/tc_act/tc_mirred.h>
@@ -138,7 +137,7 @@ nfp_fl_output(struct nfp_app *app, struct nfp_fl_output *output,
 
 		if (nfp_netdev_is_nfp_repr(in_dev)) {
 			/* Confirm ingress and egress are on same device. */
-			if (!switchdev_port_same_parent_id(in_dev, out_dev))
+			if (!netdev_port_same_parent_id(in_dev, out_dev))
 				return -EOPNOTSUPP;
 		}
 
