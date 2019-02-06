@@ -22,6 +22,10 @@
 #ifndef __LINUX_TPM_H__
 #define __LINUX_TPM_H__
 
+#include <linux/hw_random.h>
+#include <linux/acpi.h>
+#include <linux/cdev.h>
+#include <linux/fs.h>
 #include <crypto/hash_info.h>
 
 #define TPM_DIGEST_SIZE 20	/* Max TPM v1.2 PCR size */
@@ -73,6 +77,93 @@ struct tpm_class_ops {
 	int (*request_locality)(struct tpm_chip *chip, int loc);
 	int (*relinquish_locality)(struct tpm_chip *chip, int loc);
 	void (*clk_enable)(struct tpm_chip *chip, bool value);
+};
+
+#define TPM_NUM_EVENT_LOG_FILES		3
+
+/* Indexes the duration array */
+enum tpm_duration {
+	TPM_SHORT = 0,
+	TPM_MEDIUM = 1,
+	TPM_LONG = 2,
+	TPM_LONG_LONG = 3,
+	TPM_UNDEFINED,
+	TPM_NUM_DURATIONS = TPM_UNDEFINED,
+};
+
+#define TPM_PPI_VERSION_LEN		3
+
+struct tpm_space {
+	u32 context_tbl[3];
+	u8 *context_buf;
+	u32 session_tbl[3];
+	u8 *session_buf;
+};
+
+struct tpm_bios_log {
+	void *bios_event_log;
+	void *bios_event_log_end;
+};
+
+struct tpm_chip_seqops {
+	struct tpm_chip *chip;
+	const struct seq_operations *seqops;
+};
+
+struct tpm_chip {
+	struct device dev;
+	struct device devs;
+	struct cdev cdev;
+	struct cdev cdevs;
+
+	/* A driver callback under ops cannot be run unless ops_sem is held
+	 * (sometimes implicitly, eg for the sysfs code). ops becomes null
+	 * when the driver is unregistered, see tpm_try_get_ops.
+	 */
+	struct rw_semaphore ops_sem;
+	const struct tpm_class_ops *ops;
+
+	struct tpm_bios_log log;
+	struct tpm_chip_seqops bin_log_seqops;
+	struct tpm_chip_seqops ascii_log_seqops;
+
+	unsigned int flags;
+
+	int dev_num;		/* /dev/tpm# */
+	unsigned long is_open;	/* only one allowed */
+
+	char hwrng_name[64];
+	struct hwrng hwrng;
+
+	struct mutex tpm_mutex;	/* tpm is processing */
+
+	unsigned long timeout_a; /* jiffies */
+	unsigned long timeout_b; /* jiffies */
+	unsigned long timeout_c; /* jiffies */
+	unsigned long timeout_d; /* jiffies */
+	bool timeout_adjusted;
+	unsigned long duration[TPM_NUM_DURATIONS]; /* jiffies */
+	bool duration_adjusted;
+
+	struct dentry *bios_dir[TPM_NUM_EVENT_LOG_FILES];
+
+	const struct attribute_group *groups[3];
+	unsigned int groups_cnt;
+
+	u32 nr_allocated_banks;
+	struct tpm_bank_info *allocated_banks;
+#ifdef CONFIG_ACPI
+	acpi_handle acpi_dev_handle;
+	char ppi_version[TPM_PPI_VERSION_LEN + 1];
+#endif /* CONFIG_ACPI */
+
+	struct tpm_space work_space;
+	u32 last_cc;
+	u32 nr_commands;
+	u32 *cc_attrs_tbl;
+
+	/* active locality */
+	int locality;
 };
 
 #if defined(CONFIG_TCG_TPM) || defined(CONFIG_TCG_TPM_MODULE)
