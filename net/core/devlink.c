@@ -81,6 +81,7 @@ struct devlink_dpipe_header devlink_dpipe_header_ipv6 = {
 EXPORT_SYMBOL(devlink_dpipe_header_ipv6);
 
 EXPORT_TRACEPOINT_SYMBOL_GPL(devlink_hwmsg);
+EXPORT_TRACEPOINT_SYMBOL_GPL(devlink_hwerr);
 
 static LIST_HEAD(devlink_list);
 
