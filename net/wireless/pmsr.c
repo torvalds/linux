@@ -529,13 +529,13 @@ free:
 }
 EXPORT_SYMBOL_GPL(cfg80211_pmsr_report);
 
-void cfg80211_pmsr_free_wk(struct work_struct *work)
+static void cfg80211_pmsr_process_abort(struct wireless_dev *wdev)
 {
-	struct wireless_dev *wdev = container_of(work, struct wireless_dev,
-						 pmsr_free_wk);
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
 	struct cfg80211_pmsr_request *req, *tmp;
 	LIST_HEAD(free_list);
+
+	lockdep_assert_held(&wdev->mtx);
 
 	spin_lock_bh(&wdev->pmsr_lock);
 	list_for_each_entry_safe(req, tmp, &wdev->pmsr_list, list) {
@@ -546,12 +546,20 @@ void cfg80211_pmsr_free_wk(struct work_struct *work)
 	spin_unlock_bh(&wdev->pmsr_lock);
 
 	list_for_each_entry_safe(req, tmp, &free_list, list) {
-		wdev_lock(wdev);
 		rdev_abort_pmsr(rdev, wdev, req);
-		wdev_unlock(wdev);
 
 		kfree(req);
 	}
+}
+
+void cfg80211_pmsr_free_wk(struct work_struct *work)
+{
+	struct wireless_dev *wdev = container_of(work, struct wireless_dev,
+						 pmsr_free_wk);
+
+	wdev_lock(wdev);
+	cfg80211_pmsr_process_abort(wdev);
+	wdev_unlock(wdev);
 }
 
 void cfg80211_pmsr_wdev_down(struct wireless_dev *wdev)
@@ -567,8 +575,8 @@ void cfg80211_pmsr_wdev_down(struct wireless_dev *wdev)
 	spin_unlock_bh(&wdev->pmsr_lock);
 
 	if (found)
-		schedule_work(&wdev->pmsr_free_wk);
-	flush_work(&wdev->pmsr_free_wk);
+		cfg80211_pmsr_process_abort(wdev);
+
 	WARN_ON(!list_empty(&wdev->pmsr_list));
 }
 
