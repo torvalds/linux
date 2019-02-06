@@ -414,15 +414,15 @@ static void mmd_phy_indirect(struct mii_bus *bus, int phy_addr, int devad,
 }
 
 /**
- * phy_read_mmd - Convenience function for reading a register
+ * __phy_read_mmd - Convenience function for reading a register
  * from an MMD on a given PHY.
  * @phydev: The phy_device struct
  * @devad: The MMD to read from (0..31)
  * @regnum: The register on the MMD to read (0..65535)
  *
- * Same rules as for phy_read();
+ * Same rules as for __phy_read();
  */
-int phy_read_mmd(struct phy_device *phydev, int devad, u32 regnum)
+int __phy_read_mmd(struct phy_device *phydev, int devad, u32 regnum)
 {
 	int val;
 
@@ -434,21 +434,79 @@ int phy_read_mmd(struct phy_device *phydev, int devad, u32 regnum)
 	} else if (phydev->is_c45) {
 		u32 addr = MII_ADDR_C45 | (devad << 16) | (regnum & 0xffff);
 
-		val = mdiobus_read(phydev->mdio.bus, phydev->mdio.addr, addr);
+		val = __mdiobus_read(phydev->mdio.bus, phydev->mdio.addr, addr);
 	} else {
 		struct mii_bus *bus = phydev->mdio.bus;
 		int phy_addr = phydev->mdio.addr;
 
-		mutex_lock(&bus->mdio_lock);
 		mmd_phy_indirect(bus, phy_addr, devad, regnum);
 
 		/* Read the content of the MMD's selected register */
 		val = __mdiobus_read(bus, phy_addr, MII_MMD_DATA);
-		mutex_unlock(&bus->mdio_lock);
 	}
 	return val;
 }
+EXPORT_SYMBOL(__phy_read_mmd);
+
+/**
+ * phy_read_mmd - Convenience function for reading a register
+ * from an MMD on a given PHY.
+ * @phydev: The phy_device struct
+ * @devad: The MMD to read from
+ * @regnum: The register on the MMD to read
+ *
+ * Same rules as for phy_read();
+ */
+int phy_read_mmd(struct phy_device *phydev, int devad, u32 regnum)
+{
+	int ret;
+
+	mutex_lock(&phydev->mdio.bus->mdio_lock);
+	ret = __phy_read_mmd(phydev, devad, regnum);
+	mutex_unlock(&phydev->mdio.bus->mdio_lock);
+
+	return ret;
+}
 EXPORT_SYMBOL(phy_read_mmd);
+
+/**
+ * __phy_write_mmd - Convenience function for writing a register
+ * on an MMD on a given PHY.
+ * @phydev: The phy_device struct
+ * @devad: The MMD to read from
+ * @regnum: The register on the MMD to read
+ * @val: value to write to @regnum
+ *
+ * Same rules as for __phy_write();
+ */
+int __phy_write_mmd(struct phy_device *phydev, int devad, u32 regnum, u16 val)
+{
+	int ret;
+
+	if (regnum > (u16)~0 || devad > 32)
+		return -EINVAL;
+
+	if (phydev->drv->write_mmd) {
+		ret = phydev->drv->write_mmd(phydev, devad, regnum, val);
+	} else if (phydev->is_c45) {
+		u32 addr = MII_ADDR_C45 | (devad << 16) | (regnum & 0xffff);
+
+		ret = __mdiobus_write(phydev->mdio.bus, phydev->mdio.addr,
+				      addr, val);
+	} else {
+		struct mii_bus *bus = phydev->mdio.bus;
+		int phy_addr = phydev->mdio.addr;
+
+		mmd_phy_indirect(bus, phy_addr, devad, regnum);
+
+		/* Write the data into MMD's selected register */
+		__mdiobus_write(bus, phy_addr, MII_MMD_DATA, val);
+
+		ret = 0;
+	}
+	return ret;
+}
+EXPORT_SYMBOL(__phy_write_mmd);
 
 /**
  * phy_write_mmd - Convenience function for writing a register
@@ -464,29 +522,10 @@ int phy_write_mmd(struct phy_device *phydev, int devad, u32 regnum, u16 val)
 {
 	int ret;
 
-	if (regnum > (u16)~0 || devad > 32)
-		return -EINVAL;
+	mutex_lock(&phydev->mdio.bus->mdio_lock);
+	ret = __phy_write_mmd(phydev, devad, regnum, val);
+	mutex_unlock(&phydev->mdio.bus->mdio_lock);
 
-	if (phydev->drv->write_mmd) {
-		ret = phydev->drv->write_mmd(phydev, devad, regnum, val);
-	} else if (phydev->is_c45) {
-		u32 addr = MII_ADDR_C45 | (devad << 16) | (regnum & 0xffff);
-
-		ret = mdiobus_write(phydev->mdio.bus, phydev->mdio.addr,
-				    addr, val);
-	} else {
-		struct mii_bus *bus = phydev->mdio.bus;
-		int phy_addr = phydev->mdio.addr;
-
-		mutex_lock(&bus->mdio_lock);
-		mmd_phy_indirect(bus, phy_addr, devad, regnum);
-
-		/* Write the data into MMD's selected register */
-		__mdiobus_write(bus, phy_addr, MII_MMD_DATA, val);
-		mutex_unlock(&bus->mdio_lock);
-
-		ret = 0;
-	}
 	return ret;
 }
 EXPORT_SYMBOL(phy_write_mmd);
@@ -537,6 +576,57 @@ int phy_modify(struct phy_device *phydev, u32 regnum, u16 mask, u16 set)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(phy_modify);
+
+/**
+ * __phy_modify_mmd - Convenience function for modifying a register on MMD
+ * @phydev: the phy_device struct
+ * @devad: the MMD containing register to modify
+ * @regnum: register number to modify
+ * @mask: bit mask of bits to clear
+ * @set: new value of bits set in mask to write to @regnum
+ *
+ * Unlocked helper function which allows a MMD register to be modified as
+ * new register value = (old register value & ~mask) | set
+ */
+int __phy_modify_mmd(struct phy_device *phydev, int devad, u32 regnum,
+		     u16 mask, u16 set)
+{
+	int ret;
+
+	ret = __phy_read_mmd(phydev, devad, regnum);
+	if (ret < 0)
+		return ret;
+
+	ret = __phy_write_mmd(phydev, devad, regnum, (ret & ~mask) | set);
+
+	return ret < 0 ? ret : 0;
+}
+EXPORT_SYMBOL_GPL(__phy_modify_mmd);
+
+/**
+ * phy_modify_mmd - Convenience function for modifying a register on MMD
+ * @phydev: the phy_device struct
+ * @devad: the MMD containing register to modify
+ * @regnum: register number to modify
+ * @mask: bit mask of bits to clear
+ * @set: new value of bits set in mask to write to @regnum
+ *
+ * NOTE: MUST NOT be called from interrupt context,
+ * because the bus read/write functions may wait for an interrupt
+ * to conclude the operation.
+ */
+int phy_modify_mmd(struct phy_device *phydev, int devad, u32 regnum,
+		   u16 mask, u16 set)
+{
+	int ret;
+
+	mutex_lock(&phydev->mdio.bus->mdio_lock);
+	ret = __phy_modify_mmd(phydev, devad, regnum, mask, set);
+	mutex_unlock(&phydev->mdio.bus->mdio_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(phy_modify_mmd);
 
 static int __phy_read_page(struct phy_device *phydev)
 {
