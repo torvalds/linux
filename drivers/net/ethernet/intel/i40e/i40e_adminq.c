@@ -749,7 +749,7 @@ i40e_status i40e_asq_send_command(struct i40e_hw *hw,
 	if (val >= hw->aq.num_asq_entries) {
 		i40e_debug(hw, I40E_DEBUG_AQ_MESSAGE,
 			   "AQTX: head overrun at %d\n", val);
-		status = I40E_ERR_QUEUE_EMPTY;
+		status = I40E_ERR_ADMIN_QUEUE_FULL;
 		goto asq_send_command_error;
 	}
 
