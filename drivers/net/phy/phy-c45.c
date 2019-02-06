@@ -75,15 +75,9 @@ EXPORT_SYMBOL_GPL(genphy_c45_pma_setup_forced);
  */
 int genphy_c45_an_disable_aneg(struct phy_device *phydev)
 {
-	int val;
 
-	val = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_CTRL1);
-	if (val < 0)
-		return val;
-
-	val &= ~(MDIO_AN_CTRL1_ENABLE | MDIO_AN_CTRL1_RESTART);
-
-	return phy_write_mmd(phydev, MDIO_MMD_AN, MDIO_CTRL1, val);
+	return phy_clear_bits_mmd(phydev, MDIO_MMD_AN, MDIO_CTRL1,
+				  MDIO_AN_CTRL1_ENABLE | MDIO_AN_CTRL1_RESTART);
 }
 EXPORT_SYMBOL_GPL(genphy_c45_an_disable_aneg);
 
@@ -97,15 +91,8 @@ EXPORT_SYMBOL_GPL(genphy_c45_an_disable_aneg);
  */
 int genphy_c45_restart_aneg(struct phy_device *phydev)
 {
-	int val;
-
-	val = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_CTRL1);
-	if (val < 0)
-		return val;
-
-	val |= MDIO_AN_CTRL1_ENABLE | MDIO_AN_CTRL1_RESTART;
-
-	return phy_write_mmd(phydev, MDIO_MMD_AN, MDIO_CTRL1, val);
+	return phy_set_bits_mmd(phydev, MDIO_MMD_AN, MDIO_CTRL1,
+				MDIO_AN_CTRL1_ENABLE | MDIO_AN_CTRL1_RESTART);
 }
 EXPORT_SYMBOL_GPL(genphy_c45_restart_aneg);
 

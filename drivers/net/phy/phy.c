@@ -1060,17 +1060,12 @@ int phy_init_eee(struct phy_device *phydev, bool clk_stop_enable)
 		if (!phy_check_valid(phydev->speed, phydev->duplex, common))
 			goto eee_exit_err;
 
-		if (clk_stop_enable) {
+		if (clk_stop_enable)
 			/* Configure the PHY to stop receiving xMII
 			 * clock while it is signaling LPI.
 			 */
-			int val = phy_read_mmd(phydev, MDIO_MMD_PCS, MDIO_CTRL1);
-			if (val < 0)
-				return val;
-
-			val |= MDIO_PCS_CTRL1_CLKSTOP_EN;
-			phy_write_mmd(phydev, MDIO_MMD_PCS, MDIO_CTRL1, val);
-		}
+			phy_set_bits_mmd(phydev, MDIO_MMD_PCS, MDIO_CTRL1,
+					 MDIO_PCS_CTRL1_CLKSTOP_EN);
 
 		return 0; /* EEE supported */
 	}
