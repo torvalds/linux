@@ -6411,7 +6411,7 @@ static int i40e_init_pf_dcb(struct i40e_pf *pf)
 		goto out;
 
 	/* Get the initial DCB configuration */
-	err = i40e_init_dcb(hw);
+	err = i40e_init_dcb(hw, true);
 	if (!err) {
 		/* Device/Function is not DCBX capable */
 		if ((!hw->func_caps.dcb) ||
