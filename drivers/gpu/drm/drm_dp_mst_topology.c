@@ -3097,10 +3097,6 @@ static int drm_dp_init_vcpi(struct drm_dp_mst_topology_mgr *mgr,
  * @port as needed. It is not OK however, to call this function and
  * drm_dp_atomic_release_vcpi_slots() in the same atomic check phase.
  *
- * When &drm_atomic_state.duplicated is set to %true%, this function will not
- * perform any error checking and will instead simply return the previously
- * recorded VCPI allocations.
- *
  * See also:
  * drm_dp_atomic_release_vcpi_slots()
  * drm_dp_mst_atomic_check()
@@ -3184,11 +3180,6 @@ EXPORT_SYMBOL(drm_dp_atomic_find_vcpi_slots);
  * @port as needed. It is not OK however, to call this function and
  * drm_dp_atomic_find_vcpi_slots() on the same @port in a single atomic check
  * phase.
- *
- * When &drm_atomic_state.duplicated is set, this function will not
- * modify the VCPI allocations in &drm_dp_mst_topology_state.vcpis, so that
- * those VCPI allocations may be restored as-is from the duplicated state. In
- * this scenario, this function will always return 0.
  *
  * See also:
  * drm_dp_atomic_find_vcpi_slots()
