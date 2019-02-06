@@ -592,6 +592,15 @@ def check_verifier_log(output, reference):
             return
     fail(True, "Missing or incorrect message from netdevsim in verifier log")
 
+def check_multi_basic(two_xdps):
+    fail(two_xdps["mode"] != 4, "Bad mode reported with multiple programs")
+    fail("prog" in two_xdps, "Base program reported in multi program mode")
+    fail(len(two_xdps["attached"]) != 2,
+         "Wrong attached program count with two programs")
+    fail(two_xdps["attached"][0]["prog"]["id"] ==
+         two_xdps["attached"][1]["prog"]["id"],
+         "Offloaded and other programs have the same id")
+
 def test_spurios_extack(sim, obj, skip_hw, needle):
     res = sim.cls_bpf_add_filter(obj, prio=1, handle=1, skip_hw=skip_hw,
                                  include_stderr=True)
@@ -615,17 +624,12 @@ def test_multi_prog(sim, obj, modename, modeid):
 
     sim.set_xdp(obj, modename)
     two_xdps = sim.ip_link_show(xdp=True)["xdp"]
-    offloaded2 = sim.dfs_read("bpf_offloaded_id")
 
-    fail(two_xdps["mode"] != 4, "Bad mode reported with multiple programs")
-    fail("prog" in two_xdps, "Base program reported in multi program mode")
     fail(xdp["attached"][0] not in two_xdps["attached"],
          "Offload program not reported after other activated")
-    fail(len(two_xdps["attached"]) != 2,
-         "Wrong attached program count with two programs")
-    fail(two_xdps["attached"][0]["prog"]["id"] ==
-         two_xdps["attached"][1]["prog"]["id"],
-         "Offloaded and other programs have the same id")
+    check_multi_basic(two_xdps)
+
+    offloaded2 = sim.dfs_read("bpf_offloaded_id")
     fail(offloaded != offloaded2,
          "Offload ID changed after loading other program")
 
@@ -655,8 +659,15 @@ def test_multi_prog(sim, obj, modename, modeid):
          "Wrong attached program count with remaining programs")
     fail(offloaded != "0", "Offload ID reported with only other program left")
 
-    start_test("Test multi-attachment XDP - device remove...")
+    start_test("Test multi-attachment XDP - reattach...")
     sim.set_xdp(obj, "offload")
+    two_xdps = sim.ip_link_show(xdp=True)["xdp"]
+
+    fail(xdp["attached"][0] not in two_xdps["attached"],
+         "Other program not reported after offload activated")
+    check_multi_basic(two_xdps)
+
+    start_test("Test multi-attachment XDP - device remove...")
     sim.remove()
 
     sim = NetdevSim()
