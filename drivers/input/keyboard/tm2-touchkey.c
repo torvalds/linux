@@ -78,7 +78,7 @@ static struct touchkey_variant aries_touchkey_variant = {
 	.cmd_led_off = ARIES_TOUCHKEY_CMD_LED_OFF,
 };
 
-static void tm2_touchkey_led_brightness_set(struct led_classdev *led_dev,
+static int tm2_touchkey_led_brightness_set(struct led_classdev *led_dev,
 					    enum led_brightness brightness)
 {
 	struct tm2_touchkey_data *touchkey =
@@ -97,9 +97,8 @@ static void tm2_touchkey_led_brightness_set(struct led_classdev *led_dev,
 	if (!touchkey->variant->fixed_regulator)
 		regulator_set_voltage(touchkey->vdd, volt, volt);
 
-	if (touchkey->variant->no_reg)
-		i2c_smbus_write_byte(touchkey->client, data);
-	else
+	return touchkey->variant->no_reg ?
+		i2c_smbus_write_byte(touchkey->client, data) :
 		i2c_smbus_write_byte_data(touchkey->client,
 					  touchkey->variant->base_reg, data);
 }
@@ -270,7 +269,8 @@ static int tm2_touchkey_probe(struct i2c_client *client,
 	touchkey->led_dev.name = TM2_TOUCHKEY_DEV_NAME;
 	touchkey->led_dev.brightness = LED_ON;
 	touchkey->led_dev.max_brightness = LED_ON;
-	touchkey->led_dev.brightness_set = tm2_touchkey_led_brightness_set;
+	touchkey->led_dev.brightness_set_blocking =
+					tm2_touchkey_led_brightness_set;
 
 	error = devm_led_classdev_register(&client->dev, &touchkey->led_dev);
 	if (error) {
