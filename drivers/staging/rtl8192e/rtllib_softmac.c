@@ -2627,7 +2627,7 @@ static void rtllib_start_ibss_wq(void *data)
 	/* the network definitively is not here.. create a new cell */
 	if (ieee->state == RTLLIB_NOLINK) {
 		netdev_info(ieee->dev, "creating new IBSS cell\n");
-		ieee->current_network.channel = ieee->IbssStartChnl;
+		ieee->current_network.channel = ieee->bss_start_channel;
 		if (!ieee->wap_set)
 			eth_random_addr(ieee->current_network.bssid);
 
@@ -2719,7 +2719,7 @@ static void rtllib_start_bss(struct rtllib_device *ieee)
 	unsigned long flags;
 
 	if (IS_DOT11D_ENABLE(ieee) && !IS_COUNTRY_IE_VALID(ieee)) {
-		if (!ieee->bGlobalDomain)
+		if (!ieee->global_domain)
 			return;
 	}
 	/* check if we have already found the net we
@@ -2974,8 +2974,8 @@ void rtllib_softmac_init(struct rtllib_device *ieee)
 	ieee->state = RTLLIB_NOLINK;
 	for (i = 0; i < 5; i++)
 		ieee->seq_ctrl[i] = 0;
-	ieee->pDot11dInfo = kzalloc(sizeof(struct rt_dot11d_info), GFP_ATOMIC);
-	if (!ieee->pDot11dInfo)
+	ieee->dot11d_info = kzalloc(sizeof(struct rt_dot11d_info), GFP_ATOMIC);
+	if (!ieee->dot11d_info)
 		netdev_err(ieee->dev, "Can't alloc memory for DOT11D\n");
 	ieee->LinkDetectInfo.SlotIndex = 0;
 	ieee->LinkDetectInfo.SlotNum = 2;
@@ -3049,8 +3049,8 @@ void rtllib_softmac_init(struct rtllib_device *ieee)
 void rtllib_softmac_free(struct rtllib_device *ieee)
 {
 	mutex_lock(&ieee->wx_mutex);
-	kfree(ieee->pDot11dInfo);
-	ieee->pDot11dInfo = NULL;
+	kfree(ieee->dot11d_info);
+	ieee->dot11d_info = NULL;
 	del_timer_sync(&ieee->associate_timer);
 
 	cancel_delayed_work_sync(&ieee->associate_retry_wq);

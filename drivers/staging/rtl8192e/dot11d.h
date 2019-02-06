@@ -59,7 +59,7 @@ static inline void cpMacAddr(unsigned char *des, unsigned char *src)
 }
 
 #define GET_DOT11D_INFO(__pIeeeDev)			\
-	 ((struct rt_dot11d_info *)((__pIeeeDev)->pDot11dInfo))
+	 ((struct rt_dot11d_info *)((__pIeeeDev)->dot11d_info))
 
 #define IS_DOT11D_ENABLE(__pIeeeDev)			\
 	 (GET_DOT11D_INFO(__pIeeeDev)->enabled)

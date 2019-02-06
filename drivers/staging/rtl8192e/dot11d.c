@@ -44,14 +44,14 @@ static struct channel_list channel_array[] = {
 
 void dot11d_init(struct rtllib_device *ieee)
 {
-	struct rt_dot11d_info *pDot11dInfo = GET_DOT11D_INFO(ieee);
+	struct rt_dot11d_info *dot11d_info = GET_DOT11D_INFO(ieee);
 
-	pDot11dInfo->enabled = false;
+	dot11d_info->enabled = false;
 
-	pDot11dInfo->state = DOT11D_STATE_NONE;
-	pDot11dInfo->country_len = 0;
-	memset(pDot11dInfo->channel_map, 0, MAX_CHANNEL_NUMBER + 1);
-	memset(pDot11dInfo->max_tx_power_list, 0xFF, MAX_CHANNEL_NUMBER + 1);
+	dot11d_info->state = DOT11D_STATE_NONE;
+	dot11d_info->country_len = 0;
+	memset(dot11d_info->channel_map, 0, MAX_CHANNEL_NUMBER + 1);
+	memset(dot11d_info->max_tx_power_list, 0xFF, MAX_CHANNEL_NUMBER + 1);
 	RESET_CIE_WATCHDOG(ieee);
 }
 EXPORT_SYMBOL(dot11d_init);
@@ -60,7 +60,7 @@ void Dot11d_Channelmap(u8 channel_plan, struct rtllib_device *ieee)
 {
 	int i, max_chan = 14, min_chan = 1;
 
-	ieee->bGlobalDomain = false;
+	ieee->global_domain = false;
 
 	if (channel_array[channel_plan].len != 0) {
 		memset(GET_DOT11D_INFO(ieee)->channel_map, 0,
@@ -76,22 +76,22 @@ void Dot11d_Channelmap(u8 channel_plan, struct rtllib_device *ieee)
 
 	switch (channel_plan) {
 	case COUNTRY_CODE_GLOBAL_DOMAIN:
-		ieee->bGlobalDomain = true;
+		ieee->global_domain = true;
 		for (i = 12; i <= 14; i++)
 			GET_DOT11D_INFO(ieee)->channel_map[i] = 2;
-		ieee->IbssStartChnl = 10;
+		ieee->bss_start_channel = 10;
 		ieee->ibss_maxjoin_chal = 11;
 		break;
 
 	case COUNTRY_CODE_WORLD_WIDE_13:
 		for (i = 12; i <= 13; i++)
 			GET_DOT11D_INFO(ieee)->channel_map[i] = 2;
-		ieee->IbssStartChnl = 10;
+		ieee->bss_start_channel = 10;
 		ieee->ibss_maxjoin_chal = 11;
 		break;
 
 	default:
-		ieee->IbssStartChnl = 1;
+		ieee->bss_start_channel = 1;
 		ieee->ibss_maxjoin_chal = 14;
 		break;
 	}
@@ -100,29 +100,29 @@ EXPORT_SYMBOL(Dot11d_Channelmap);
 
 void Dot11d_Reset(struct rtllib_device *ieee)
 {
-	struct rt_dot11d_info *pDot11dInfo = GET_DOT11D_INFO(ieee);
+	struct rt_dot11d_info *dot11d_info = GET_DOT11D_INFO(ieee);
 	u32 i;
 
-	memset(pDot11dInfo->channel_map, 0, MAX_CHANNEL_NUMBER + 1);
-	memset(pDot11dInfo->max_tx_power_list, 0xFF, MAX_CHANNEL_NUMBER + 1);
+	memset(dot11d_info->channel_map, 0, MAX_CHANNEL_NUMBER + 1);
+	memset(dot11d_info->max_tx_power_list, 0xFF, MAX_CHANNEL_NUMBER + 1);
 	for (i = 1; i <= 11; i++)
-		(pDot11dInfo->channel_map)[i] = 1;
+		(dot11d_info->channel_map)[i] = 1;
 	for (i = 12; i <= 14; i++)
-		(pDot11dInfo->channel_map)[i] = 2;
-	pDot11dInfo->state = DOT11D_STATE_NONE;
-	pDot11dInfo->country_len = 0;
+		(dot11d_info->channel_map)[i] = 2;
+	dot11d_info->state = DOT11D_STATE_NONE;
+	dot11d_info->country_len = 0;
 	RESET_CIE_WATCHDOG(ieee);
 }
 
 void Dot11d_UpdateCountryIe(struct rtllib_device *dev, u8 *pTaddr,
 			    u16 CoutryIeLen, u8 *pCoutryIe)
 {
-	struct rt_dot11d_info *pDot11dInfo = GET_DOT11D_INFO(dev);
+	struct rt_dot11d_info *dot11d_info = GET_DOT11D_INFO(dev);
 	u8 i, j, NumTriples, MaxChnlNum;
 	struct chnl_txpow_triple *pTriple;
 
-	memset(pDot11dInfo->channel_map, 0, MAX_CHANNEL_NUMBER + 1);
-	memset(pDot11dInfo->max_tx_power_list, 0xFF, MAX_CHANNEL_NUMBER + 1);
+	memset(dot11d_info->channel_map, 0, MAX_CHANNEL_NUMBER + 1);
+	memset(dot11d_info->max_tx_power_list, 0xFF, MAX_CHANNEL_NUMBER + 1);
 	MaxChnlNum = 0;
 	NumTriples = (CoutryIeLen - 3) / 3;
 	pTriple = (struct chnl_txpow_triple *)(pCoutryIe + 3);
@@ -142,8 +142,8 @@ void Dot11d_UpdateCountryIe(struct rtllib_device *dev, u8 *pTaddr,
 		}
 
 		for (j = 0; j < pTriple->num_channels; j++) {
-			pDot11dInfo->channel_map[pTriple->first_channel + j] = 1;
-			pDot11dInfo->max_tx_power_list[pTriple->first_channel + j] =
+			dot11d_info->channel_map[pTriple->first_channel + j] = 1;
+			dot11d_info->max_tx_power_list[pTriple->first_channel + j] =
 						 pTriple->max_tx_power;
 			MaxChnlNum = pTriple->first_channel + j;
 		}
@@ -153,18 +153,18 @@ void Dot11d_UpdateCountryIe(struct rtllib_device *dev, u8 *pTaddr,
 
 	UPDATE_CIE_SRC(dev, pTaddr);
 
-	pDot11dInfo->country_len = CoutryIeLen;
-	memcpy(pDot11dInfo->country_buffer, pCoutryIe, CoutryIeLen);
-	pDot11dInfo->state = DOT11D_STATE_LEARNED;
+	dot11d_info->country_len = CoutryIeLen;
+	memcpy(dot11d_info->country_buffer, pCoutryIe, CoutryIeLen);
+	dot11d_info->state = DOT11D_STATE_LEARNED;
 }
 
 void DOT11D_ScanComplete(struct rtllib_device *dev)
 {
-	struct rt_dot11d_info *pDot11dInfo = GET_DOT11D_INFO(dev);
+	struct rt_dot11d_info *dot11d_info = GET_DOT11D_INFO(dev);
 
-	switch (pDot11dInfo->state) {
+	switch (dot11d_info->state) {
 	case DOT11D_STATE_LEARNED:
-		pDot11dInfo->state = DOT11D_STATE_DONE;
+		dot11d_info->state = DOT11D_STATE_DONE;
 		break;
 	case DOT11D_STATE_DONE:
 		Dot11d_Reset(dev);
