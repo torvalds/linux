@@ -182,8 +182,7 @@ static int do_sigbus(struct pt_regs *regs, unsigned long address,
 		if (fault & VM_FAULT_HWPOISON)
 			lsb = PAGE_SHIFT;
 
-		force_sig_mceerr(BUS_MCEERR_AR, (void __user *)address, lsb,
-				 current);
+		force_sig_mceerr(BUS_MCEERR_AR, (void __user *)address, lsb);
 		return 0;
 	}
 

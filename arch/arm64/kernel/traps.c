@@ -266,7 +266,7 @@ void arm64_force_sig_mceerr(int code, void __user *addr, short lsb,
 			    const char *str)
 {
 	arm64_show_signal(SIGBUS, str);
-	force_sig_mceerr(code, addr, lsb, current);
+	force_sig_mceerr(code, addr, lsb);
 }
 
 void arm64_force_sig_ptrace_errno_trap(int errno, void __user *addr,

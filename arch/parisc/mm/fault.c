@@ -403,7 +403,7 @@ bad_area:
 				lsb = PAGE_SHIFT;
 
 			force_sig_mceerr(BUS_MCEERR_AR, (void __user *) address,
-					 lsb, current);
+					 lsb);
 			return;
 		}
 #endif

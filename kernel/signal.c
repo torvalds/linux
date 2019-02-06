@@ -1666,7 +1666,7 @@ int send_sig_fault(int sig, int code, void __user *addr
 	return send_sig_info(info.si_signo, &info, t);
 }
 
-int force_sig_mceerr(int code, void __user *addr, short lsb, struct task_struct *t)
+int force_sig_mceerr(int code, void __user *addr, short lsb)
 {
 	struct kernel_siginfo info;
 
@@ -1677,7 +1677,7 @@ int force_sig_mceerr(int code, void __user *addr, short lsb, struct task_struct 
 	info.si_code = code;
 	info.si_addr = addr;
 	info.si_addr_lsb = lsb;
-	return force_sig_info(info.si_signo, &info, t);
+	return force_sig_info(info.si_signo, &info, current);
 }
 
 int send_sig_mceerr(int code, void __user *addr, short lsb, struct task_struct *t)
