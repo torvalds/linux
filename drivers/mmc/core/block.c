@@ -1124,7 +1124,7 @@ static void mmc_blk_issue_discard_rq(struct mmc_queue *mq, struct request *req)
 {
 	struct mmc_blk_data *md = mq->blkdata;
 	struct mmc_card *card = md->queue.card;
-	unsigned int from, nr, arg;
+	unsigned int from, nr;
 	int err = 0, type = MMC_BLK_DISCARD;
 	blk_status_t status = BLK_STS_OK;
 
@@ -1136,24 +1136,18 @@ static void mmc_blk_issue_discard_rq(struct mmc_queue *mq, struct request *req)
 	from = blk_rq_pos(req);
 	nr = blk_rq_sectors(req);
 
-	if (mmc_can_discard(card))
-		arg = MMC_DISCARD_ARG;
-	else if (mmc_can_trim(card))
-		arg = MMC_TRIM_ARG;
-	else
-		arg = MMC_ERASE_ARG;
 	do {
 		err = 0;
 		if (card->quirks & MMC_QUIRK_INAND_CMD38) {
 			err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
 					 INAND_CMD38_ARG_EXT_CSD,
-					 arg == MMC_TRIM_ARG ?
+					 card->erase_arg == MMC_TRIM_ARG ?
 					 INAND_CMD38_ARG_TRIM :
 					 INAND_CMD38_ARG_ERASE,
 					 0);
 		}
 		if (!err)
-			err = mmc_erase(card, from, nr, arg);
+			err = mmc_erase(card, from, nr, card->erase_arg);
 	} while (err == -EIO && !mmc_blk_reset(md, card->host, type));
 	if (err)
 		status = BLK_STS_IOERR;

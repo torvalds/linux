@@ -91,4 +91,9 @@
 #define SD_SWITCH_ACCESS_DEF	0
 #define SD_SWITCH_ACCESS_HS	1
 
+/*
+ * Erase/discard
+ */
+#define SD_ERASE_ARG			0x00000000
+
 #endif /* LINUX_MMC_SD_H */

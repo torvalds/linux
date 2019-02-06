@@ -271,6 +271,8 @@ static int mmc_read_ssr(struct mmc_card *card)
 		}
 	}
 
+	card->erase_arg = SD_ERASE_ARG;
+
 	return 0;
 }
 

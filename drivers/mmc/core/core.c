@@ -2164,7 +2164,7 @@ static unsigned int mmc_align_erase_size(struct mmc_card *card,
  * @card: card to erase
  * @from: first sector to erase
  * @nr: number of sectors to erase
- * @arg: erase command argument (SD supports only %MMC_ERASE_ARG)
+ * @arg: erase command argument (SD supports only %SD_ERASE_ARG)
  *
  * Caller must claim host before calling this function.
  */
@@ -2181,7 +2181,7 @@ int mmc_erase(struct mmc_card *card, unsigned int from, unsigned int nr,
 	if (!card->erase_size)
 		return -EOPNOTSUPP;
 
-	if (mmc_card_sd(card) && arg != MMC_ERASE_ARG)
+	if (mmc_card_sd(card) && arg != SD_ERASE_ARG)
 		return -EOPNOTSUPP;
 
 	if ((arg & MMC_SECURE_ARGS) &&
