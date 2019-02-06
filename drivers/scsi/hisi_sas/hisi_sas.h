@@ -173,6 +173,7 @@ struct hisi_sas_port {
 
 struct hisi_sas_cq {
 	struct hisi_hba *hisi_hba;
+	const struct cpumask *pci_irq_mask;
 	struct tasklet_struct tasklet;
 	int	rd_point;
 	int	id;
@@ -195,6 +196,7 @@ struct hisi_sas_device {
 	enum sas_device_type	dev_type;
 	int device_id;
 	int sata_idx;
+	spinlock_t lock; /* For protecting slots */
 };
 
 struct hisi_sas_tmf_task {
@@ -217,6 +219,7 @@ struct hisi_sas_slot {
 	int	cmplt_queue_slot;
 	int	abort;
 	int	ready;
+	int	device_id;
 	void	*cmd_hdr;
 	dma_addr_t cmd_hdr_dma;
 	struct timer_list internal_abort_timer;
@@ -366,6 +369,7 @@ struct hisi_hba {
 	u32 intr_coal_count;	/* Interrupt count to coalesce */
 
 	int cq_nvecs;
+	unsigned int *reply_map;
 
 	/* debugfs memories */
 	u32 *debugfs_global_reg;

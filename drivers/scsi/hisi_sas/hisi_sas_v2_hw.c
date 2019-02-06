@@ -873,6 +873,7 @@ hisi_sas_device *alloc_dev_quirk_v2_hw(struct domain_device *device)
 			sas_dev->sas_device = device;
 			sas_dev->sata_idx = sata_idx;
 			sas_dev->dq = dq;
+			spin_lock_init(&sas_dev->lock);
 			INIT_LIST_HEAD(&hisi_hba->devices[i].list);
 			break;
 		}
