@@ -5171,6 +5171,7 @@ static const struct ethtool_ops i40e_ethtool_ops = {
 	.set_link_ksettings	= i40e_set_link_ksettings,
 	.get_fecparam = i40e_get_fec_param,
 	.set_fecparam = i40e_set_fec_param,
+	.flash_device = i40e_ddp_flash,
 };
 
 void i40e_set_ethtool_ops(struct net_device *netdev)

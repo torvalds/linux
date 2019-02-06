@@ -321,6 +321,29 @@ struct i40e_udp_port_config {
 	u8 filter_index;
 };
 
+#define I40_DDP_FLASH_REGION 100
+#define I40E_PROFILE_INFO_SIZE 48
+#define I40E_MAX_PROFILE_NUM 16
+#define I40E_PROFILE_LIST_SIZE \
+	(I40E_PROFILE_INFO_SIZE * I40E_MAX_PROFILE_NUM + 4)
+#define I40E_DDP_PROFILE_PATH "intel/i40e/ddp/"
+#define I40E_DDP_PROFILE_NAME_MAX 64
+
+int i40e_ddp_load(struct net_device *netdev, const u8 *data, size_t size,
+		  bool is_add);
+int i40e_ddp_flash(struct net_device *netdev, struct ethtool_flash *flash);
+
+struct i40e_ddp_profile_list {
+	u32 p_count;
+	struct i40e_profile_info p_info[0];
+};
+
+struct i40e_ddp_old_profile_list {
+	struct list_head list;
+	size_t old_ddp_size;
+	u8 old_ddp_buf[0];
+};
+
 /* macros related to FLX_PIT */
 #define I40E_FLEX_SET_FSIZE(fsize) (((fsize) << \
 				    I40E_PRTQF_FLX_PIT_FSIZE_SHIFT) & \
@@ -610,6 +633,8 @@ struct i40e_pf {
 	u16 override_q_count;
 	u16 last_sw_conf_flags;
 	u16 last_sw_conf_valid_flags;
+	/* List to keep previous DDP profiles to be rolled back in the future */
+	struct list_head ddp_old_prof;
 };
 
 /**

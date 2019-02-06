@@ -13987,6 +13987,7 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	INIT_LIST_HEAD(&pf->l3_flex_pit_list);
 	INIT_LIST_HEAD(&pf->l4_flex_pit_list);
+	INIT_LIST_HEAD(&pf->ddp_old_prof);
 
 	/* set up the locks for the AQ, do this only once in probe
 	 * and destroy them only once in remove

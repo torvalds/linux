@@ -5448,6 +5448,163 @@ i40e_find_segment_in_package(u32 segment_type,
 	return NULL;
 }
 
+/* Get section table in profile */
+#define I40E_SECTION_TABLE(profile, sec_tbl)				\
+	do {								\
+		struct i40e_profile_segment *p = (profile);		\
+		u32 count;						\
+		u32 *nvm;						\
+		count = p->device_table_count;				\
+		nvm = (u32 *)&p->device_table[count];			\
+		sec_tbl = (struct i40e_section_table *)&nvm[nvm[0] + 1]; \
+	} while (0)
+
+/* Get section header in profile */
+#define I40E_SECTION_HEADER(profile, offset)				\
+	(struct i40e_profile_section_header *)((u8 *)(profile) + (offset))
+
+/**
+ * i40e_find_section_in_profile
+ * @section_type: the section type to search for (i.e., SECTION_TYPE_NOTE)
+ * @profile: pointer to the i40e segment header to be searched
+ *
+ * This function searches i40e segment for a particular section type. On
+ * success it returns a pointer to the section header, otherwise it will
+ * return NULL.
+ **/
+struct i40e_profile_section_header *
+i40e_find_section_in_profile(u32 section_type,
+			     struct i40e_profile_segment *profile)
+{
+	struct i40e_profile_section_header *sec;
+	struct i40e_section_table *sec_tbl;
+	u32 sec_off;
+	u32 i;
+
+	if (profile->header.type != SEGMENT_TYPE_I40E)
+		return NULL;
+
+	I40E_SECTION_TABLE(profile, sec_tbl);
+
+	for (i = 0; i < sec_tbl->section_count; i++) {
+		sec_off = sec_tbl->section_offset[i];
+		sec = I40E_SECTION_HEADER(profile, sec_off);
+		if (sec->section.type == section_type)
+			return sec;
+	}
+
+	return NULL;
+}
+
+/**
+ * i40e_ddp_exec_aq_section - Execute generic AQ for DDP
+ * @hw: pointer to the hw struct
+ * @aq: command buffer containing all data to execute AQ
+ **/
+static enum
+i40e_status_code i40e_ddp_exec_aq_section(struct i40e_hw *hw,
+					  struct i40e_profile_aq_section *aq)
+{
+	i40e_status status;
+	struct i40e_aq_desc desc;
+	u8 *msg = NULL;
+	u16 msglen;
+
+	i40e_fill_default_direct_cmd_desc(&desc, aq->opcode);
+	desc.flags |= cpu_to_le16(aq->flags);
+	memcpy(desc.params.raw, aq->param, sizeof(desc.params.raw));
+
+	msglen = aq->datalen;
+	if (msglen) {
+		desc.flags |= cpu_to_le16((u16)(I40E_AQ_FLAG_BUF |
+						I40E_AQ_FLAG_RD));
+		if (msglen > I40E_AQ_LARGE_BUF)
+			desc.flags |= cpu_to_le16((u16)I40E_AQ_FLAG_LB);
+		desc.datalen = cpu_to_le16(msglen);
+		msg = &aq->data[0];
+	}
+
+	status = i40e_asq_send_command(hw, &desc, msg, msglen, NULL);
+
+	if (status) {
+		i40e_debug(hw, I40E_DEBUG_PACKAGE,
+			   "unable to exec DDP AQ opcode %u, error %d\n",
+			   aq->opcode, status);
+		return status;
+	}
+
+	/* copy returned desc to aq_buf */
+	memcpy(aq->param, desc.params.raw, sizeof(desc.params.raw));
+
+	return 0;
+}
+
+/**
+ * i40e_validate_profile
+ * @hw: pointer to the hardware structure
+ * @profile: pointer to the profile segment of the package to be validated
+ * @track_id: package tracking id
+ * @rollback: flag if the profile is for rollback.
+ *
+ * Validates supported devices and profile's sections.
+ */
+static enum i40e_status_code
+i40e_validate_profile(struct i40e_hw *hw, struct i40e_profile_segment *profile,
+		      u32 track_id, bool rollback)
+{
+	struct i40e_profile_section_header *sec = NULL;
+	i40e_status status = 0;
+	struct i40e_section_table *sec_tbl;
+	u32 vendor_dev_id;
+	u32 dev_cnt;
+	u32 sec_off;
+	u32 i;
+
+	if (track_id == I40E_DDP_TRACKID_INVALID) {
+		i40e_debug(hw, I40E_DEBUG_PACKAGE, "Invalid track_id\n");
+		return I40E_NOT_SUPPORTED;
+	}
+
+	dev_cnt = profile->device_table_count;
+	for (i = 0; i < dev_cnt; i++) {
+		vendor_dev_id = profile->device_table[i].vendor_dev_id;
+		if ((vendor_dev_id >> 16) == PCI_VENDOR_ID_INTEL &&
+		    hw->device_id == (vendor_dev_id & 0xFFFF))
+			break;
+	}
+	if (dev_cnt && i == dev_cnt) {
+		i40e_debug(hw, I40E_DEBUG_PACKAGE,
+			   "Device doesn't support DDP\n");
+		return I40E_ERR_DEVICE_NOT_SUPPORTED;
+	}
+
+	I40E_SECTION_TABLE(profile, sec_tbl);
+
+	/* Validate sections types */
+	for (i = 0; i < sec_tbl->section_count; i++) {
+		sec_off = sec_tbl->section_offset[i];
+		sec = I40E_SECTION_HEADER(profile, sec_off);
+		if (rollback) {
+			if (sec->section.type == SECTION_TYPE_MMIO ||
+			    sec->section.type == SECTION_TYPE_AQ ||
+			    sec->section.type == SECTION_TYPE_RB_AQ) {
+				i40e_debug(hw, I40E_DEBUG_PACKAGE,
+					   "Not a roll-back package\n");
+				return I40E_NOT_SUPPORTED;
+			}
+		} else {
+			if (sec->section.type == SECTION_TYPE_RB_AQ ||
+			    sec->section.type == SECTION_TYPE_RB_MMIO) {
+				i40e_debug(hw, I40E_DEBUG_PACKAGE,
+					   "Not an original package\n");
+				return I40E_NOT_SUPPORTED;
+			}
+		}
+	}
+
+	return status;
+}
+
 /**
  * i40e_write_profile
  * @hw: pointer to the hardware structure
@@ -5463,47 +5620,99 @@ i40e_write_profile(struct i40e_hw *hw, struct i40e_profile_segment *profile,
 	i40e_status status = 0;
 	struct i40e_section_table *sec_tbl;
 	struct i40e_profile_section_header *sec = NULL;
-	u32 dev_cnt;
-	u32 vendor_dev_id;
-	u32 *nvm;
+	struct i40e_profile_aq_section *ddp_aq;
 	u32 section_size = 0;
 	u32 offset = 0, info = 0;
+	u32 sec_off;
 	u32 i;
 
-	dev_cnt = profile->device_table_count;
+	status = i40e_validate_profile(hw, profile, track_id, false);
+	if (status)
+		return status;
 
-	for (i = 0; i < dev_cnt; i++) {
-		vendor_dev_id = profile->device_table[i].vendor_dev_id;
-		if ((vendor_dev_id >> 16) == PCI_VENDOR_ID_INTEL)
-			if (hw->device_id == (vendor_dev_id & 0xFFFF))
-				break;
-	}
-	if (i == dev_cnt) {
-		i40e_debug(hw, I40E_DEBUG_PACKAGE, "Device doesn't support DDP");
-		return I40E_ERR_DEVICE_NOT_SUPPORTED;
-	}
-
-	nvm = (u32 *)&profile->device_table[dev_cnt];
-	sec_tbl = (struct i40e_section_table *)&nvm[nvm[0] + 1];
+	I40E_SECTION_TABLE(profile, sec_tbl);
 
 	for (i = 0; i < sec_tbl->section_count; i++) {
-		sec = (struct i40e_profile_section_header *)((u8 *)profile +
-					     sec_tbl->section_offset[i]);
+		sec_off = sec_tbl->section_offset[i];
+		sec = I40E_SECTION_HEADER(profile, sec_off);
+		/* Process generic admin command */
+		if (sec->section.type == SECTION_TYPE_AQ) {
+			ddp_aq = (struct i40e_profile_aq_section *)&sec[1];
+			status = i40e_ddp_exec_aq_section(hw, ddp_aq);
+			if (status) {
+				i40e_debug(hw, I40E_DEBUG_PACKAGE,
+					   "Failed to execute aq: section %d, opcode %u\n",
+					   i, ddp_aq->opcode);
+				break;
+			}
+			sec->section.type = SECTION_TYPE_RB_AQ;
+		}
 
-		/* Skip 'AQ', 'note' and 'name' sections */
+		/* Skip any non-mmio sections */
 		if (sec->section.type != SECTION_TYPE_MMIO)
 			continue;
 
 		section_size = sec->section.size +
 			sizeof(struct i40e_profile_section_header);
 
-		/* Write profile */
+		/* Write MMIO section */
 		status = i40e_aq_write_ddp(hw, (void *)sec, (u16)section_size,
 					   track_id, &offset, &info, NULL);
 		if (status) {
 			i40e_debug(hw, I40E_DEBUG_PACKAGE,
-				   "Failed to write profile: offset %d, info %d",
-				   offset, info);
+				   "Failed to write profile: section %d, offset %d, info %d\n",
+				   i, offset, info);
+			break;
+		}
+	}
+	return status;
+}
+
+/**
+ * i40e_rollback_profile
+ * @hw: pointer to the hardware structure
+ * @profile: pointer to the profile segment of the package to be removed
+ * @track_id: package tracking id
+ *
+ * Rolls back previously loaded package.
+ */
+enum i40e_status_code
+i40e_rollback_profile(struct i40e_hw *hw, struct i40e_profile_segment *profile,
+		      u32 track_id)
+{
+	struct i40e_profile_section_header *sec = NULL;
+	i40e_status status = 0;
+	struct i40e_section_table *sec_tbl;
+	u32 offset = 0, info = 0;
+	u32 section_size = 0;
+	u32 sec_off;
+	int i;
+
+	status = i40e_validate_profile(hw, profile, track_id, true);
+	if (status)
+		return status;
+
+	I40E_SECTION_TABLE(profile, sec_tbl);
+
+	/* For rollback write sections in reverse */
+	for (i = sec_tbl->section_count - 1; i >= 0; i--) {
+		sec_off = sec_tbl->section_offset[i];
+		sec = I40E_SECTION_HEADER(profile, sec_off);
+
+		/* Skip any non-rollback sections */
+		if (sec->section.type != SECTION_TYPE_RB_MMIO)
+			continue;
+
+		section_size = sec->section.size +
+			sizeof(struct i40e_profile_section_header);
+
+		/* Write roll-back MMIO section */
+		status = i40e_aq_write_ddp(hw, (void *)sec, (u16)section_size,
+					   track_id, &offset, &info, NULL);
+		if (status) {
+			i40e_debug(hw, I40E_DEBUG_PACKAGE,
+				   "Failed to write profile: section %d, offset %d, info %d\n",
+				   i, offset, info);
 			break;
 		}
 	}
