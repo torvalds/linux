@@ -319,7 +319,10 @@ struct snd_sof_dev {
 	spinlock_t ipc_lock;	/* lock for IPC users */
 	spinlock_t hw_lock;	/* lock for HW IO access */
 
-	/* ASoC components */
+	/*
+	 * ASoC components. plat_drv fields are set dynamically so
+	 * can't use const
+	 */
 	struct snd_soc_component_driver plat_drv;
 
 	/* DSP firmware boot */
