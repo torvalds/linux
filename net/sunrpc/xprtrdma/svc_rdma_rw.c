@@ -212,13 +212,8 @@ static void svc_rdma_write_done(struct ib_cq *cq, struct ib_wc *wc)
 	atomic_add(cc->cc_sqecount, &rdma->sc_sq_avail);
 	wake_up(&rdma->sc_send_wait);
 
-	if (unlikely(wc->status != IB_WC_SUCCESS)) {
+	if (unlikely(wc->status != IB_WC_SUCCESS))
 		set_bit(XPT_CLOSE, &rdma->sc_xprt.xpt_flags);
-		if (wc->status != IB_WC_WR_FLUSH_ERR)
-			pr_err("svcrdma: write ctx: %s (%u/0x%x)\n",
-			       ib_wc_status_msg(wc->status),
-			       wc->status, wc->vendor_err);
-	}
 
 	svc_rdma_write_info_free(info);
 }
@@ -277,10 +272,6 @@ static void svc_rdma_wc_read_done(struct ib_cq *cq, struct ib_wc *wc)
 
 	if (unlikely(wc->status != IB_WC_SUCCESS)) {
 		set_bit(XPT_CLOSE, &rdma->sc_xprt.xpt_flags);
-		if (wc->status != IB_WC_WR_FLUSH_ERR)
-			pr_err("svcrdma: read ctx: %s (%u/0x%x)\n",
-			       ib_wc_status_msg(wc->status),
-			       wc->status, wc->vendor_err);
 		svc_rdma_recv_ctxt_put(rdma, info->ri_readctxt);
 	} else {
 		spin_lock(&rdma->sc_rq_dto_lock);

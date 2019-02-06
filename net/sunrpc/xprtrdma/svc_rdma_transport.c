@@ -590,11 +590,6 @@ static void __svc_rdma_free(struct work_struct *work)
 	if (rdma->sc_qp && !IS_ERR(rdma->sc_qp))
 		ib_drain_qp(rdma->sc_qp);
 
-	/* We should only be called from kref_put */
-	if (kref_read(&xprt->xpt_ref) != 0)
-		pr_err("svcrdma: sc_xprt still in use? (%d)\n",
-		       kref_read(&xprt->xpt_ref));
-
 	svc_rdma_flush_recv_queues(rdma);
 
 	/* Final put of backchannel client transport */
