@@ -271,6 +271,7 @@ int nl80211_pmsr_start(struct sk_buff *skb, struct genl_info *info)
 
 	req->n_peers = count;
 	req->cookie = cfg80211_assign_cookie(rdev);
+	req->nl_portid = info->snd_portid;
 
 	err = rdev_start_pmsr(rdev, wdev, req);
 	if (err)
