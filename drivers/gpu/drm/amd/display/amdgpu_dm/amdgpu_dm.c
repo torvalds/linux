@@ -4695,7 +4695,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 		struct drm_crtc_state *new_crtc_state;
 		struct drm_framebuffer *fb = new_plane_state->fb;
 		struct amdgpu_framebuffer *afb = to_amdgpu_framebuffer(fb);
-		bool framebuffer_changed;
+		bool plane_needs_flip;
 		struct dc_plane_state *dc_plane;
 		struct dm_plane_state *dm_new_plane_state = to_dm_plane_state(new_plane_state);
 
@@ -4712,12 +4712,11 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 
 		dc_plane = dm_new_plane_state->dc_state;
 
-		framebuffer_changed = old_plane_state->fb &&
-			old_plane_state->fb != new_plane_state->fb;
+		plane_needs_flip = old_plane_state->fb && new_plane_state->fb;
 
-		pflip_present = pflip_present || framebuffer_changed;
+		pflip_present = pflip_present || plane_needs_flip;
 
-		if (framebuffer_changed) {
+		if (plane_needs_flip) {
 			/*
 			 * TODO This might fail and hence better not used, wait
 			 * explicitly on fences instead
