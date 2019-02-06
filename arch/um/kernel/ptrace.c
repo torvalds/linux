@@ -112,13 +112,13 @@ long arch_ptrace(struct task_struct *child, long request,
 	return ret;
 }
 
-static void send_sigtrap(struct task_struct *tsk, struct uml_pt_regs *regs,
-		  int error_code)
+static void send_sigtrap(struct uml_pt_regs *regs, int error_code)
 {
 	/* Send us the fake SIGTRAP */
 	force_sig_fault(SIGTRAP, TRAP_BRKPT,
 			/* User-mode eip? */
-			UPT_IS_USER(regs) ? (void __user *) UPT_IP(regs) : NULL, tsk);
+			UPT_IS_USER(regs) ? (void __user *) UPT_IP(regs) : NULL,
+			current);
 }
 
 /*
@@ -147,7 +147,7 @@ void syscall_trace_leave(struct pt_regs *regs)
 
 	/* Fake a debug trap */
 	if (ptraced & PT_DTRACE)
-		send_sigtrap(current, &regs->regs, 0);
+		send_sigtrap(&regs->regs, 0);
 
 	if (!test_thread_flag(TIF_SYSCALL_TRACE))
 		return;
