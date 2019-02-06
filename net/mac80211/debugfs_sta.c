@@ -4,7 +4,7 @@
  * Copyright 2007	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright(c) 2016 Intel Deutschland GmbH
- * Copyright (C) 2018 Intel Corporation
+ * Copyright (C) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -685,6 +685,9 @@ static ssize_t sta_he_capa_read(struct file *file, char __user *userbuf,
 	      "SUBCHAN-SELECVITE-TRANSMISSION");
 	PFLAG(MAC, 5, UL_2x996_TONE_RU, "UL-2x996-TONE-RU");
 	PFLAG(MAC, 5, OM_CTRL_UL_MU_DATA_DIS_RX, "OM-CTRL-UL-MU-DATA-DIS-RX");
+	PFLAG(MAC, 5, HE_DYNAMIC_SM_PS, "HE-DYNAMIC-SM-PS");
+	PFLAG(MAC, 5, PUNCTURED_SOUNDING, "PUNCTURED-SOUNDING");
+	PFLAG(MAC, 5, HT_VHT_TRIG_FRAME_RX, "HT-VHT-TRIG-FRAME-RX");
 
 	cap = hec->he_cap_elem.phy_cap_info;
 	p += scnprintf(p, buf_sz + buf - p,
@@ -819,18 +822,18 @@ static ssize_t sta_he_capa_read(struct file *file, char __user *userbuf,
 	PFLAG(PHY, 8, MIDAMBLE_RX_TX_2X_AND_1XLTF,
 	      "MIDAMBLE-RX-TX-2X-AND-1XLTF");
 
-	switch (cap[8] & IEEE80211_HE_PHY_CAP8_DCM_MAX_BW_MASK) {
-	case IEEE80211_HE_PHY_CAP8_DCM_MAX_BW_20MHZ:
-		PRINT("DDCM-MAX-BW-20MHZ");
+	switch (cap[8] & IEEE80211_HE_PHY_CAP8_DCM_MAX_RU_MASK) {
+	case IEEE80211_HE_PHY_CAP8_DCM_MAX_RU_242:
+		PRINT("DCM-MAX-RU-242");
 		break;
-	case IEEE80211_HE_PHY_CAP8_DCM_MAX_BW_40MHZ:
-		PRINT("DCM-MAX-BW-40MHZ");
+	case IEEE80211_HE_PHY_CAP8_DCM_MAX_RU_484:
+		PRINT("DCM-MAX-RU-484");
 		break;
-	case IEEE80211_HE_PHY_CAP8_DCM_MAX_BW_80MHZ:
-		PRINT("DCM-MAX-BW-80MHZ");
+	case IEEE80211_HE_PHY_CAP8_DCM_MAX_RU_996:
+		PRINT("DCM-MAX-RU-996");
 		break;
-	case IEEE80211_HE_PHY_CAP8_DCM_MAX_BW_160_OR_80P80_MHZ:
-		PRINT("DCM-MAX-BW-160-OR-80P80-MHZ");
+	case IEEE80211_HE_PHY_CAP8_DCM_MAX_RU_2x996:
+		PRINT("DCM-MAX-RU-2x996");
 		break;
 	}
 
@@ -846,6 +849,18 @@ static ssize_t sta_he_capa_read(struct file *file, char __user *userbuf,
 	      "RX-FULL-BW-SU-USING-MU-WITH-COMP-SIGB");
 	PFLAG(PHY, 9, RX_FULL_BW_SU_USING_MU_WITH_NON_COMP_SIGB,
 	      "RX-FULL-BW-SU-USING-MU-WITH-NON-COMP-SIGB");
+
+	switch (cap[9] & IEEE80211_HE_PHY_CAP9_NOMIMAL_PKT_PADDING_MASK) {
+	case IEEE80211_HE_PHY_CAP9_NOMIMAL_PKT_PADDING_0US:
+		PRINT("NOMINAL-PACKET-PADDING-0US");
+		break;
+	case IEEE80211_HE_PHY_CAP9_NOMIMAL_PKT_PADDING_8US:
+		PRINT("NOMINAL-PACKET-PADDING-8US");
+		break;
+	case IEEE80211_HE_PHY_CAP9_NOMIMAL_PKT_PADDING_16US:
+		PRINT("NOMINAL-PACKET-PADDING-16US");
+		break;
+	}
 
 #undef PFLAG_RANGE_DEFAULT
 #undef PFLAG_RANGE
