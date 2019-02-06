@@ -8771,6 +8771,7 @@ struct walk_control {
 	int keep_locks;
 	int reada_slot;
 	int reada_count;
+	int restarted;
 };
 
 #define DROP_REFERENCE	1
@@ -8934,6 +8935,33 @@ static noinline int walk_down_proc(struct btrfs_trans_handle *trans,
 }
 
 /*
+ * This is used to verify a ref exists for this root to deal with a bug where we
+ * would have a drop_progress key that hadn't been updated properly.
+ */
+static int check_ref_exists(struct btrfs_trans_handle *trans,
+			    struct btrfs_root *root, u64 bytenr, u64 parent,
+			    int level)
+{
+	struct btrfs_path *path;
+	struct btrfs_extent_inline_ref *iref;
+	int ret;
+
+	path = btrfs_alloc_path();
+	if (!path)
+		return -ENOMEM;
+
+	ret = lookup_extent_backref(trans, path, &iref, bytenr,
+				    root->fs_info->nodesize, parent,
+				    root->root_key.objectid, level, 0);
+	btrfs_free_path(path);
+	if (ret == -ENOENT)
+		return 0;
+	if (ret < 0)
+		return ret;
+	return 1;
+}
+
+/*
  * helper to process tree block pointer.
  *
  * when wc->stage == DROP_REFERENCE, this function checks
@@ -9088,6 +9116,23 @@ skip:
 		}
 
 		/*
+		 * If we had a drop_progress we need to verify the refs are set
+		 * as expected.  If we find our ref then we know that from here
+		 * on out everything should be correct, and we can clear the
+		 * ->restarted flag.
+		 */
+		if (wc->restarted) {
+			ret = check_ref_exists(trans, root, bytenr, parent,
+					       level - 1);
+			if (ret < 0)
+				goto out_unlock;
+			if (ret == 0)
+				goto no_delete;
+			ret = 0;
+			wc->restarted = 0;
+		}
+
+		/*
 		 * Reloc tree doesn't contribute to qgroup numbers, and we have
 		 * already accounted them at merge time (replace_path),
 		 * thus we could skip expensive subtree trace here.
@@ -9108,7 +9153,7 @@ skip:
 		if (ret)
 			goto out_unlock;
 	}
-
+no_delete:
 	*lookup_info = 1;
 	ret = 1;
 
@@ -9425,6 +9470,7 @@ int btrfs_drop_snapshot(struct btrfs_root *root,
 		}
 	}
 
+	wc->restarted = test_bit(BTRFS_ROOT_DEAD_TREE, &root->state);
 	wc->level = level;
 	wc->shared_level = -1;
 	wc->stage = DROP_REFERENCE;

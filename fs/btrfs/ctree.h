@@ -1210,6 +1210,8 @@ enum {
 	 * Set for the subvolume tree owning the reloc tree.
 	 */
 	BTRFS_ROOT_DEAD_RELOC_TREE,
+	/* Mark dead root stored on device whose cleanup needs to be resumed */
+	BTRFS_ROOT_DEAD_TREE,
 };
 
 /*
