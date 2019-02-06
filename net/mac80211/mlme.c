@@ -7,7 +7,7 @@
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright (C) 2015 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018        Intel Corporation
+ * Copyright (C) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -1312,15 +1312,27 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	res = ieee80211_parse_ch_switch_ie(sdata, elems, current_band,
 					   ifmgd->flags,
 					   ifmgd->associated->bssid, &csa_ie);
+
+	if (!res) {
+		ch_switch.timestamp = timestamp;
+		ch_switch.device_timestamp = device_timestamp;
+		ch_switch.block_tx = csa_ie.mode;
+		ch_switch.chandef = csa_ie.chandef;
+		ch_switch.count = csa_ie.count;
+		ch_switch.delay = csa_ie.max_switch_time;
+	}
+
 	if (res < 0) {
 		ieee80211_queue_work(&local->hw,
 				     &ifmgd->csa_connection_drop_work);
 		return;
 	}
 
-	if (res && beacon && sdata->vif.csa_active &&
-	    !ifmgd->csa_waiting_bcn) {
-		ieee80211_sta_abort_chanswitch(sdata);
+	if (beacon && sdata->vif.csa_active && !ifmgd->csa_waiting_bcn) {
+		if (res)
+			ieee80211_sta_abort_chanswitch(sdata);
+		else
+			drv_channel_switch_rx_beacon(sdata, &ch_switch);
 		return;
 	} else if (sdata->vif.csa_active || res) {
 		/* disregard subsequent announcements if already processing */
@@ -1377,13 +1389,6 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 			   "driver doesn't support chan-switch with channel contexts\n");
 		goto drop_connection;
 	}
-
-	ch_switch.timestamp = timestamp;
-	ch_switch.device_timestamp = device_timestamp;
-	ch_switch.block_tx = csa_ie.mode;
-	ch_switch.chandef = csa_ie.chandef;
-	ch_switch.count = csa_ie.count;
-	ch_switch.delay = csa_ie.max_switch_time;
 
 	if (drv_pre_channel_switch(sdata, &ch_switch)) {
 		sdata_info(sdata,

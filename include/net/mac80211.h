@@ -6,7 +6,7 @@
  * Copyright 2007-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright (C) 2015 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018        Intel Corporation
+ * Copyright (C) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -3646,7 +3646,9 @@ enum ieee80211_reconfig_type {
  * @abort_channel_switch: This is an optional callback that is called
  *	when channel switch procedure was completed, allowing the
  *	driver to go back to a normal configuration.
- *
+ * @channel_switch_rx_beacon: This is an optional callback that is called
+ *	when channel switch procedure is in progress and additional beacon with
+ *	CSA IE was received, allowing driver to track changes in count.
  * @join_ibss: Join an IBSS (on an IBSS interface); this is called after all
  *	information in bss_conf is set up and the beacon can be retrieved. A
  *	channel context is bound before this is called.
@@ -3951,6 +3953,9 @@ struct ieee80211_ops {
 				   struct ieee80211_vif *vif);
 	void (*abort_channel_switch)(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif);
+	void (*channel_switch_rx_beacon)(struct ieee80211_hw *hw,
+					 struct ieee80211_vif *vif,
+					 struct ieee80211_channel_switch *ch_switch);
 
 	int (*join_ibss)(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
 	void (*leave_ibss)(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
