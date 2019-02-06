@@ -252,11 +252,19 @@ void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba, struct sas_task *task,
 
 		task->lldd_task = NULL;
 
-		if (!sas_protocol_ata(task->task_proto))
+		if (!sas_protocol_ata(task->task_proto)) {
+			struct sas_ssp_task *ssp_task = &task->ssp_task;
+			struct scsi_cmnd *scsi_cmnd = ssp_task->cmd;
+
 			if (slot->n_elem)
 				dma_unmap_sg(dev, task->scatter,
 					     task->num_scatter,
 					     task->data_dir);
+			if (slot->n_elem_dif)
+				dma_unmap_sg(dev, scsi_prot_sglist(scsi_cmnd),
+					     scsi_prot_sg_count(scsi_cmnd),
+					     task->data_dir);
+		}
 	}
 
 
@@ -380,6 +388,59 @@ prep_out:
 	return rc;
 }
 
+static void hisi_sas_dif_dma_unmap(struct hisi_hba *hisi_hba,
+				   struct sas_task *task, int n_elem_dif)
+{
+	struct device *dev = hisi_hba->dev;
+
+	if (n_elem_dif) {
+		struct sas_ssp_task *ssp_task = &task->ssp_task;
+		struct scsi_cmnd *scsi_cmnd = ssp_task->cmd;
+
+		dma_unmap_sg(dev, scsi_prot_sglist(scsi_cmnd),
+			     scsi_prot_sg_count(scsi_cmnd),
+			     task->data_dir);
+	}
+}
+
+static int hisi_sas_dif_dma_map(struct hisi_hba *hisi_hba,
+				int *n_elem_dif, struct sas_task *task)
+{
+	struct device *dev = hisi_hba->dev;
+	struct sas_ssp_task *ssp_task;
+	struct scsi_cmnd *scsi_cmnd;
+	int rc;
+
+	if (task->num_scatter) {
+		ssp_task = &task->ssp_task;
+		scsi_cmnd = ssp_task->cmd;
+
+		if (scsi_prot_sg_count(scsi_cmnd)) {
+			*n_elem_dif = dma_map_sg(dev,
+						 scsi_prot_sglist(scsi_cmnd),
+						 scsi_prot_sg_count(scsi_cmnd),
+						 task->data_dir);
+
+			if (!*n_elem_dif)
+				return -ENOMEM;
+
+			if (*n_elem_dif > HISI_SAS_SGE_DIF_PAGE_CNT) {
+				dev_err(dev, "task prep: n_elem_dif(%d) too large\n",
+					*n_elem_dif);
+				rc = -EINVAL;
+				goto err_out_dif_dma_unmap;
+			}
+		}
+	}
+
+	return 0;
+
+err_out_dif_dma_unmap:
+	dma_unmap_sg(dev, scsi_prot_sglist(scsi_cmnd),
+		     scsi_prot_sg_count(scsi_cmnd), task->data_dir);
+	return rc;
+}
+
 static int hisi_sas_task_prep(struct sas_task *task,
 			      struct hisi_sas_dq **dq_pointer,
 			      bool is_tmf, struct hisi_sas_tmf_task *tmf,
@@ -394,7 +455,7 @@ static int hisi_sas_task_prep(struct sas_task *task,
 	struct asd_sas_port *sas_port = device->port;
 	struct device *dev = hisi_hba->dev;
 	int dlvry_queue_slot, dlvry_queue, rc, slot_idx;
-	int n_elem = 0, n_elem_req = 0, n_elem_resp = 0;
+	int n_elem = 0, n_elem_dif = 0, n_elem_req = 0, n_elem_resp = 0;
 	struct hisi_sas_dq *dq;
 	unsigned long flags;
 	int wr_q_index;
@@ -427,6 +488,12 @@ static int hisi_sas_task_prep(struct sas_task *task,
 	if (rc < 0)
 		goto prep_out;
 
+	if (!sas_protocol_ata(task->task_proto)) {
+		rc = hisi_sas_dif_dma_map(hisi_hba, &n_elem_dif, task);
+		if (rc < 0)
+			goto err_out_dma_unmap;
+	}
+
 	if (hisi_hba->hw->slot_index_alloc)
 		rc = hisi_hba->hw->slot_index_alloc(hisi_hba, device);
 	else {
@@ -445,7 +512,7 @@ static int hisi_sas_task_prep(struct sas_task *task,
 		rc  = hisi_sas_slot_index_alloc(hisi_hba, scsi_cmnd);
 	}
 	if (rc < 0)
-		goto err_out_dma_unmap;
+		goto err_out_dif_dma_unmap;
 
 	slot_idx = rc;
 	slot = &hisi_hba->slot_info[slot_idx];
@@ -466,6 +533,7 @@ static int hisi_sas_task_prep(struct sas_task *task,
 	dlvry_queue_slot = wr_q_index;
 
 	slot->n_elem = n_elem;
+	slot->n_elem_dif = n_elem_dif;
 	slot->dlvry_queue = dlvry_queue;
 	slot->dlvry_queue_slot = dlvry_queue_slot;
 	cmd_hdr_base = hisi_hba->cmd_hdr[dlvry_queue];
@@ -509,6 +577,9 @@ static int hisi_sas_task_prep(struct sas_task *task,
 
 err_out_tag:
 	hisi_sas_slot_index_free(hisi_hba, slot_idx);
+err_out_dif_dma_unmap:
+	if (!sas_protocol_ata(task->task_proto))
+		hisi_sas_dif_dma_unmap(hisi_hba, task, n_elem_dif);
 err_out_dma_unmap:
 	hisi_sas_dma_unmap(hisi_hba, task, n_elem,
 			   n_elem_req, n_elem_resp);
@@ -2174,19 +2245,24 @@ int hisi_sas_alloc(struct hisi_hba *hisi_hba)
 
 	/* roundup to avoid overly large block size */
 	max_command_entries_ru = roundup(max_command_entries, 64);
-	sz_slot_buf_ru = roundup(sizeof(struct hisi_sas_slot_buf_table), 64);
+	if (hisi_hba->prot_mask & HISI_SAS_DIX_PROT_MASK)
+		sz_slot_buf_ru = sizeof(struct hisi_sas_slot_dif_buf_table);
+	else
+		sz_slot_buf_ru = sizeof(struct hisi_sas_slot_buf_table);
+	sz_slot_buf_ru = roundup(sz_slot_buf_ru, 64);
 	s = lcm(max_command_entries_ru, sz_slot_buf_ru);
 	blk_cnt = (max_command_entries_ru * sz_slot_buf_ru) / s;
 	slots_per_blk = s / sz_slot_buf_ru;
-	for (i = 0; i < blk_cnt; i++) {
-		struct hisi_sas_slot_buf_table *buf;
-		dma_addr_t buf_dma;
-		int slot_index = i * slots_per_blk;
 
-		buf = dmam_alloc_coherent(dev, s, &buf_dma, GFP_KERNEL);
+	for (i = 0; i < blk_cnt; i++) {
+		int slot_index = i * slots_per_blk;
+		dma_addr_t buf_dma;
+		void *buf;
+
+		buf = dmam_alloc_coherent(dev, s, &buf_dma,
+					  GFP_KERNEL | __GFP_ZERO);
 		if (!buf)
 			goto err_out;
-		memset(buf, 0, s);
 
 		for (j = 0; j < slots_per_blk; j++, slot_index++) {
 			struct hisi_sas_slot *slot;
@@ -2196,8 +2272,8 @@ int hisi_sas_alloc(struct hisi_hba *hisi_hba)
 			slot->buf_dma = buf_dma;
 			slot->idx = slot_index;
 
-			buf++;
-			buf_dma += sizeof(*buf);
+			buf += sz_slot_buf_ru;
+			buf_dma += sz_slot_buf_ru;
 		}
 	}
 
