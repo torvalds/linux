@@ -4,6 +4,10 @@
 #ifndef _IGC_DEFINES_H_
 #define _IGC_DEFINES_H_
 
+/* Number of Transmit and Receive Descriptors must be a multiple of 8 */
+#define REQ_TX_DESCRIPTOR_MULTIPLE  8
+#define REQ_RX_DESCRIPTOR_MULTIPLE  8
+
 #define IGC_CTRL_EXT_DRV_LOAD	0x10000000 /* Drv loaded bit for FW */
 
 /* PCI Bus Info */
