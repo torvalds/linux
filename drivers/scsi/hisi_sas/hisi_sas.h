@@ -365,6 +365,8 @@ struct hisi_hba {
 	u32 intr_coal_ticks;	/* Time of interrupt coalesce in us */
 	u32 intr_coal_count;	/* Interrupt count to coalesce */
 
+	int cq_nvecs;
+
 	/* debugfs memories */
 	u32 *debugfs_global_reg;
 	u32 *debugfs_port_reg[HISI_SAS_MAX_PHYS];
