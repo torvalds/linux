@@ -52,6 +52,7 @@ void __brcmf_err(struct brcmf_bus *bus, const char *func, const char *fmt, ...);
 /* Macro for error messages. When debugging / tracing the driver all error
  * messages are important to us.
  */
+#ifndef brcmf_err
 #define brcmf_err(fmt, ...)						\
 	do {								\
 		if (IS_ENABLED(CONFIG_BRCMDBG) ||			\
@@ -59,6 +60,7 @@ void __brcmf_err(struct brcmf_bus *bus, const char *func, const char *fmt, ...);
 		    net_ratelimit())					\
 			__brcmf_err(NULL, __func__, fmt, ##__VA_ARGS__);\
 	} while (0)
+#endif
 
 #if defined(DEBUG) || defined(CONFIG_BRCM_TRACING)
 
