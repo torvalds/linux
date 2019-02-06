@@ -245,6 +245,7 @@ struct cp210x_serial_private {
 	u8			gpio_input;
 #endif
 	u8			partnum;
+	speed_t			min_speed;
 	speed_t			max_speed;
 	bool			use_actual_rate;
 };
@@ -1072,13 +1073,10 @@ static speed_t cp210x_get_an205_rate(speed_t baud)
 	return cp210x_an205_table1[i].rate;
 }
 
-static speed_t cp210x_get_actual_rate(struct usb_serial *serial, speed_t baud)
+static speed_t cp210x_get_actual_rate(speed_t baud)
 {
-	struct cp210x_serial_private *priv = usb_get_serial_data(serial);
 	unsigned int prescale = 1;
 	unsigned int div;
-
-	baud = clamp(baud, 300u, priv->max_speed);
 
 	if (baud <= 365)
 		prescale = 4;
@@ -1122,20 +1120,18 @@ static void cp210x_change_speed(struct tty_struct *tty,
 	struct cp210x_serial_private *priv = usb_get_serial_data(serial);
 	u32 baud;
 
-	baud = tty->termios.c_ospeed;
-
 	/*
 	 * This maps the requested rate to the actual rate, a valid rate on
 	 * cp2102 or cp2103, or to an arbitrary rate in [1M, max_speed].
 	 *
 	 * NOTE: B0 is not implemented.
 	 */
+	baud = clamp(tty->termios.c_ospeed, priv->min_speed, priv->max_speed);
+
 	if (priv->use_actual_rate)
-		baud = cp210x_get_actual_rate(serial, baud);
+		baud = cp210x_get_actual_rate(baud);
 	else if (baud < 1000000)
 		baud = cp210x_get_an205_rate(baud);
-	else if (baud > priv->max_speed)
-		baud = priv->max_speed;
 
 	dev_dbg(&port->dev, "%s - setting baud rate to %u\n", __func__, baud);
 	if (cp210x_write_u32_reg(port, CP210X_SET_BAUDRATE, baud)) {
@@ -1797,6 +1793,7 @@ static void cp210x_init_max_speed(struct usb_serial *serial)
 {
 	struct cp210x_serial_private *priv = usb_get_serial_data(serial);
 	bool use_actual_rate = false;
+	speed_t min = 300;
 	speed_t max;
 
 	switch (priv->partnum) {
@@ -1819,6 +1816,7 @@ static void cp210x_init_max_speed(struct usb_serial *serial)
 			use_actual_rate = true;
 			max = 2000000;	/* ECI */
 		} else {
+			min = 2400;
 			max = 921600;	/* SCI */
 		}
 		break;
@@ -1833,6 +1831,7 @@ static void cp210x_init_max_speed(struct usb_serial *serial)
 		break;
 	}
 
+	priv->min_speed = min;
 	priv->max_speed = max;
 	priv->use_actual_rate = use_actual_rate;
 }
