@@ -1749,6 +1749,8 @@ static int interrupt_init_v1_hw(struct hisi_hba *hisi_hba)
 		}
 	}
 
+	hisi_hba->cq_nvecs = hisi_hba->queue_count;
+
 	return 0;
 }
 

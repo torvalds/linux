@@ -402,6 +402,8 @@ struct hisi_sas_err_record_v3 {
 #define T10_CHK_REF_TAG_MSK (0xf0 << T10_CHK_MSK_OFF)
 #define T10_CHK_APP_TAG_MSK (0xc << T10_CHK_MSK_OFF)
 
+#define BASE_VECTORS_V3_HW  16
+
 static bool hisi_sas_intr_conv;
 MODULE_PARM_DESC(intr_conv, "interrupt converge enable (0-1)");
 
@@ -2050,6 +2052,8 @@ static int interrupt_init_v3_hw(struct hisi_hba *hisi_hba)
 		return -ENOENT;
 	}
 
+	hisi_hba->cq_nvecs = vectors - BASE_VECTORS_V3_HW;
+
 	rc = devm_request_irq(dev, pci_irq_vector(pdev, 1),
 			      int_phy_up_down_bcast_v3_hw, 0,
 			      DRV_NAME " phy", hisi_hba);
@@ -2078,7 +2082,7 @@ static int interrupt_init_v3_hw(struct hisi_hba *hisi_hba)
 	}
 
 	/* Init tasklets for cq only */
-	for (i = 0; i < hisi_hba->queue_count; i++) {
+	for (i = 0; i < hisi_hba->cq_nvecs; i++) {
 		struct hisi_sas_cq *cq = &hisi_hba->cq[i];
 		struct tasklet_struct *t = &cq->tasklet;
 		int nr = hisi_sas_intr_conv ? 16 : 16 + i;
@@ -2797,7 +2801,7 @@ hisi_sas_v3_destroy_irqs(struct pci_dev *pdev, struct hisi_hba *hisi_hba)
 	free_irq(pci_irq_vector(pdev, 1), hisi_hba);
 	free_irq(pci_irq_vector(pdev, 2), hisi_hba);
 	free_irq(pci_irq_vector(pdev, 11), hisi_hba);
-	for (i = 0; i < hisi_hba->queue_count; i++) {
+	for (i = 0; i < hisi_hba->cq_nvecs; i++) {
 		struct hisi_sas_cq *cq = &hisi_hba->cq[i];
 		int nr = hisi_sas_intr_conv ? 16 : 16 + i;
 
