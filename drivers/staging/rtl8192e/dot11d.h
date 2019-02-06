@@ -18,9 +18,9 @@
 #include "rtllib.h"
 
 struct chnl_txpow_triple {
-	u8 FirstChnl;
-	u8  NumChnls;
-	u8  MaxTxPowerInDbm;
+	u8 first_channel;
+	u8  num_channels;
+	u8  max_tx_power;
 };
 
 enum dot11d_state {
