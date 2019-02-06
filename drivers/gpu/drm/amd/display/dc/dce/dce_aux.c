@@ -374,7 +374,6 @@ static bool acquire(
 	struct dce_aux *engine,
 	struct ddc *ddc)
 {
-
 	enum gpio_result result;
 
 	if (!is_engine_available(engine))
@@ -455,7 +454,8 @@ int dce_aux_transfer(struct ddc_service *ddc,
 	memset(&aux_rep, 0, sizeof(aux_rep));
 
 	aux_engine = ddc->ctx->dc->res_pool->engines[ddc_pin->pin_data->en];
-	acquire(aux_engine, ddc_pin);
+	if (!acquire(aux_engine, ddc_pin))
+		return -1;
 
 	if (payload->i2c_over_aux)
 		aux_req.type = AUX_TRANSACTION_TYPE_I2C;
