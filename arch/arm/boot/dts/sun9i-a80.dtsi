@@ -56,6 +56,10 @@
 	#size-cells = <2>;
 	interrupt-parent = <&gic>;
 
+	aliases {
+		ethernet0 = &gmac;
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -312,6 +316,23 @@
 				compatible = "allwinner,sun9i-a80-smp-sram";
 				reg = <0x1000 0x8>;
 			};
+		};
+
+		gmac: ethernet@830000 {
+			compatible = "allwinner,sun7i-a20-gmac";
+			reg = <0x00830000 0x1054>;
+			interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "macirq";
+			clocks = <&ccu CLK_BUS_GMAC>, <&gmac_tx_clk>;
+			clock-names = "stmmaceth", "allwinner_gmac_tx";
+			resets = <&ccu RST_BUS_GMAC>;
+			reset-names = "stmmaceth";
+			snps,pbl = <2>;
+			snps,fixed-burst;
+			snps,force_sf_dma_mode;
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 
 		ehci0: usb@a00000 {
