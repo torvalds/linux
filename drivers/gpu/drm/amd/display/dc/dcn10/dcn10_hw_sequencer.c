@@ -2689,7 +2689,7 @@ static void dcn10_update_pending_status(struct pipe_ctx *pipe_ctx)
 	flip_pending = pipe_ctx->plane_res.hubp->funcs->hubp_is_flip_pending(
 					pipe_ctx->plane_res.hubp);
 
-	plane_state->status.is_flip_pending = flip_pending;
+	plane_state->status.is_flip_pending = plane_state->status.is_flip_pending || flip_pending;
 
 	if (!flip_pending)
 		plane_state->status.current_address = plane_state->status.requested_address;
