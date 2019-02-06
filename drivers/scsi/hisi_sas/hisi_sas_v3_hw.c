@@ -11,7 +11,7 @@
 #include "hisi_sas.h"
 #define DRV_NAME "hisi_sas_v3_hw"
 
-/* global registers need init*/
+/* global registers need init */
 #define DLVRY_QUEUE_ENABLE		0x0
 #define IOST_BASE_ADDR_LO		0x8
 #define IOST_BASE_ADDR_HI		0xc
@@ -728,7 +728,7 @@ static void clear_itct_v3_hw(struct hisi_hba *hisi_hba,
 		hisi_sas_write32(hisi_hba, ENT_INT_SRC3,
 				 ENT_INT_SRC3_ITC_INT_MSK);
 
-	/* clear the itct table*/
+	/* clear the itct table */
 	reg_val = ITCT_CLR_EN_MSK | (dev_id & ITCT_DEV_MSK);
 	hisi_sas_write32(hisi_hba, ITCT_CLR, reg_val);
 
