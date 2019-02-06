@@ -224,7 +224,7 @@ static long ec_device_ioctl_readmem(struct cros_ec_dev *ec, void __user *arg)
 	if (copy_to_user((void __user *)arg, &s_mem, sizeof(s_mem)))
 		return -EFAULT;
 
-	return 0;
+	return num;
 }
 
 static long ec_device_ioctl(struct file *filp, unsigned int cmd,
