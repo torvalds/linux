@@ -63,9 +63,10 @@ void die(struct pt_regs *regs, const char *str)
 		do_exit(SIGSEGV);
 }
 
-void do_trap(struct pt_regs *regs, int signo, int code,
-	unsigned long addr, struct task_struct *tsk)
+void do_trap(struct pt_regs *regs, int signo, int code, unsigned long addr)
 {
+	struct task_struct *tsk = current;
+
 	if (show_unhandled_signals && unhandled_signal(tsk, signo)
 	    && printk_ratelimit()) {
 		pr_info("%s[%d]: unhandled signal %d code 0x%x at 0x" REG_FMT,
@@ -82,7 +83,7 @@ static void do_trap_error(struct pt_regs *regs, int signo, int code,
 	unsigned long addr, const char *str)
 {
 	if (user_mode(regs)) {
-		do_trap(regs, signo, code, addr, current);
+		do_trap(regs, signo, code, addr);
 	} else {
 		if (!fixup_exception(regs))
 			die(regs, str);
