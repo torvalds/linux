@@ -87,9 +87,6 @@ struct bcm_sf2_priv {
 	/* Backing b53_device */
 	struct b53_device		*dev;
 
-	/* Mutex protecting access to the MIB counters */
-	struct mutex			stats_mutex;
-
 	struct bcm_sf2_hw_params	hw_params;
 
 	struct bcm_sf2_port_status	port_sts[DSA_MAX_PORTS];
