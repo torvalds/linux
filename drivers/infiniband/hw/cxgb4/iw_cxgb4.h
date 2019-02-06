@@ -982,6 +982,9 @@ struct c4iw_ep {
 	int rcv_win;
 	u32 snd_wscale;
 	struct c4iw_ep_stats stats;
+	u32 srqe_idx;
+	u32 rx_pdu_out_cnt;
+	struct sk_buff *peer_abort_skb;
 };
 
 static inline struct c4iw_ep *to_ep(struct iw_cm_id *cm_id)
