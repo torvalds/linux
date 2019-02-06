@@ -1203,7 +1203,6 @@ struct iwl_mvm {
  * @IWL_MVM_STATUS_IN_HW_RESTART: HW restart is active
  * @IWL_MVM_STATUS_IN_D0I3: NIC is in D0i3
  * @IWL_MVM_STATUS_ROC_AUX_RUNNING: AUX remain-on-channel is running
- * @IWL_MVM_STATUS_D3_RECONFIG: D3 reconfiguration is being done
  * @IWL_MVM_STATUS_FIRMWARE_RUNNING: firmware is running
  * @IWL_MVM_STATUS_NEED_FLUSH_P2P: need to flush P2P bcast STA
  */
@@ -1215,7 +1214,6 @@ enum iwl_mvm_status {
 	IWL_MVM_STATUS_IN_HW_RESTART,
 	IWL_MVM_STATUS_IN_D0I3,
 	IWL_MVM_STATUS_ROC_AUX_RUNNING,
-	IWL_MVM_STATUS_D3_RECONFIG,
 	IWL_MVM_STATUS_FIRMWARE_RUNNING,
 	IWL_MVM_STATUS_NEED_FLUSH_P2P,
 };
@@ -2027,17 +2025,6 @@ static inline u32 iwl_mvm_flushable_queues(struct iwl_mvm *mvm)
 static inline void iwl_mvm_stop_device(struct iwl_mvm *mvm)
 {
 	lockdep_assert_held(&mvm->mutex);
-	/* If IWL_MVM_STATUS_HW_RESTART_REQUESTED bit is set then we received
-	 * an assert. Since we failed to bring the interface up, mac80211
-	 * will not attempt to reconfig the device,
-	 * which handles the dump collection in assert flow,
-	 * so trigger dump collection here.
-	 */
-	if (test_and_clear_bit(IWL_MVM_STATUS_HW_RESTART_REQUESTED,
-			       &mvm->status))
-		iwl_fw_dbg_collect_desc(&mvm->fwrt, &iwl_dump_desc_assert,
-					false, 0);
-
 	iwl_fw_cancel_timestamp(&mvm->fwrt);
 	clear_bit(IWL_MVM_STATUS_FIRMWARE_RUNNING, &mvm->status);
 	iwl_fwrt_stop_device(&mvm->fwrt);

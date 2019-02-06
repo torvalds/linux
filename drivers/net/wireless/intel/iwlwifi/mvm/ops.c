@@ -1340,6 +1340,8 @@ void iwl_mvm_nic_restart(struct iwl_mvm *mvm, bool fw_error)
 			}
 		}
 
+		iwl_fw_dbg_collect_desc(&mvm->fwrt, &iwl_dump_desc_assert,
+					false, 0);
 		if (fw_error && mvm->fw_restart > 0)
 			mvm->fw_restart--;
 		set_bit(IWL_MVM_STATUS_HW_RESTART_REQUESTED, &mvm->status);
