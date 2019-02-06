@@ -696,6 +696,16 @@ int tpm1_auto_startup(struct tpm_chip *chip)
 		goto out;
 	}
 
+	chip->allocated_banks = kcalloc(1, sizeof(*chip->allocated_banks),
+					GFP_KERNEL);
+	if (!chip->allocated_banks) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	chip->allocated_banks[0] = TPM2_ALG_SHA1;
+	chip->nr_allocated_banks = 1;
+
 	return rc;
 out:
 	if (rc > 0)

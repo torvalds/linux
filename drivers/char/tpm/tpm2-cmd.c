@@ -234,7 +234,7 @@ int tpm2_pcr_extend(struct tpm_chip *chip, u32 pcr_idx, u32 count,
 	int i;
 	int j;
 
-	if (count > ARRAY_SIZE(chip->active_banks))
+	if (count > chip->nr_allocated_banks)
 		return -EINVAL;
 
 	rc = tpm_buf_init(&buf, TPM2_ST_SESSIONS, TPM2_CC_PCR_EXTEND);
@@ -808,8 +808,10 @@ static ssize_t tpm2_get_pcr_allocation(struct tpm_chip *chip)
 	void *marker;
 	void *end;
 	void *pcr_select_offset;
-	unsigned int count;
 	u32 sizeof_pcr_selection;
+	u32 nr_possible_banks;
+	u32 nr_alloc_banks = 0;
+	u16 hash_alg;
 	u32 rsp_len;
 	int rc;
 	int i = 0;
@@ -826,11 +828,14 @@ static ssize_t tpm2_get_pcr_allocation(struct tpm_chip *chip)
 	if (rc)
 		goto out;
 
-	count = be32_to_cpup(
+	nr_possible_banks = be32_to_cpup(
 		(__be32 *)&buf.data[TPM_HEADER_SIZE + 5]);
 
-	if (count > ARRAY_SIZE(chip->active_banks)) {
-		rc = -ENODEV;
+	chip->allocated_banks = kcalloc(nr_possible_banks,
+					sizeof(*chip->allocated_banks),
+					GFP_KERNEL);
+	if (!chip->allocated_banks) {
+		rc = -ENOMEM;
 		goto out;
 	}
 
@@ -839,7 +844,7 @@ static ssize_t tpm2_get_pcr_allocation(struct tpm_chip *chip)
 	rsp_len = be32_to_cpup((__be32 *)&buf.data[2]);
 	end = &buf.data[rsp_len];
 
-	for (i = 0; i < count; i++) {
+	for (i = 0; i < nr_possible_banks; i++) {
 		pcr_select_offset = marker +
 			offsetof(struct tpm2_pcr_selection, size_of_select);
 		if (pcr_select_offset >= end) {
@@ -848,17 +853,23 @@ static ssize_t tpm2_get_pcr_allocation(struct tpm_chip *chip)
 		}
 
 		memcpy(&pcr_selection, marker, sizeof(pcr_selection));
-		chip->active_banks[i] = be16_to_cpu(pcr_selection.hash_alg);
+		hash_alg = be16_to_cpu(pcr_selection.hash_alg);
+
+		pcr_select_offset = memchr_inv(pcr_selection.pcr_select, 0,
+					       pcr_selection.size_of_select);
+		if (pcr_select_offset) {
+			chip->allocated_banks[nr_alloc_banks] = hash_alg;
+			nr_alloc_banks++;
+		}
+
 		sizeof_pcr_selection = sizeof(pcr_selection.hash_alg) +
 			sizeof(pcr_selection.size_of_select) +
 			pcr_selection.size_of_select;
 		marker = marker + sizeof_pcr_selection;
 	}
 
+	chip->nr_allocated_banks = nr_alloc_banks;
 out:
-	if (i < ARRAY_SIZE(chip->active_banks))
-		chip->active_banks[i] = TPM2_ALG_ERROR;
-
 	tpm_buf_destroy(&buf);
 
 	return rc;
