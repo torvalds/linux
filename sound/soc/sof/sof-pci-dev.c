@@ -22,7 +22,7 @@
 #include "intel/hda.h"
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_APOLLOLAKE)
-static struct sof_dev_desc bxt_desc = {
+static const struct sof_dev_desc bxt_desc = {
 	.machines		= snd_soc_acpi_intel_bxt_machines,
 	.resindex_lpe_base	= 0,
 	.resindex_pcicfg_base	= -1,
@@ -38,7 +38,7 @@ static struct sof_dev_desc bxt_desc = {
 #endif
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_GEMINILAKE)
-static struct sof_dev_desc glk_desc = {
+static const struct sof_dev_desc glk_desc = {
 	.machines		= snd_soc_acpi_intel_glk_machines,
 	.resindex_lpe_base	= 0,
 	.resindex_pcicfg_base	= -1,
@@ -113,7 +113,7 @@ static const struct sof_dev_desc icl_desc = {
 #endif
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_SKYLAKE)
-static struct sof_dev_desc skl_desc = {
+static const struct sof_dev_desc skl_desc = {
 	.machines		= snd_soc_acpi_intel_skl_machines,
 	.resindex_lpe_base	= 0,
 	.resindex_pcicfg_base	= -1,
@@ -129,7 +129,7 @@ static struct sof_dev_desc skl_desc = {
 #endif
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_KABYLAKE)
-static struct sof_dev_desc kbl_desc = {
+static const struct sof_dev_desc kbl_desc = {
 	.machines		= snd_soc_acpi_intel_kbl_machines,
 	.resindex_lpe_base	= 0,
 	.resindex_pcicfg_base	= -1,
