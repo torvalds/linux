@@ -1146,6 +1146,7 @@ static int rtnl_phys_port_name_fill(struct sk_buff *skb, struct net_device *dev)
 
 static int rtnl_phys_switch_id_fill(struct sk_buff *skb, struct net_device *dev)
 {
+	const struct net_device_ops *ops = dev->netdev_ops;
 	int err;
 	struct switchdev_attr attr = {
 		.orig_dev = dev,
@@ -1153,7 +1154,10 @@ static int rtnl_phys_switch_id_fill(struct sk_buff *skb, struct net_device *dev)
 		.flags = SWITCHDEV_F_NO_RECURSE,
 	};
 
-	err = switchdev_port_attr_get(dev, &attr);
+	if (ops->ndo_get_port_parent_id)
+		err = dev_get_port_parent_id(dev, &attr.u.ppid, false);
+	else
+		err = switchdev_port_attr_get(dev, &attr);
 	if (err) {
 		if (err == -EOPNOTSUPP)
 			return 0;

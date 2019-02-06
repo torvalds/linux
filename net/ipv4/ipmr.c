@@ -837,6 +837,7 @@ static void ipmr_update_thresholds(struct mr_table *mrt, struct mr_mfc *cache,
 static int vif_add(struct net *net, struct mr_table *mrt,
 		   struct vifctl *vifc, int mrtsock)
 {
+	const struct net_device_ops *ops;
 	int vifi = vifc->vifc_vifi;
 	struct switchdev_attr attr = {
 		.id = SWITCHDEV_ATTR_ID_PORT_PARENT_ID,
@@ -920,7 +921,12 @@ static int vif_add(struct net *net, struct mr_table *mrt,
 			(VIFF_TUNNEL | VIFF_REGISTER));
 
 	attr.orig_dev = dev;
-	if (!switchdev_port_attr_get(dev, &attr)) {
+	ops = dev->netdev_ops;
+	if (ops->ndo_get_port_parent_id &&
+	    !dev_get_port_parent_id(dev, &attr.u.ppid, true)) {
+		memcpy(v->dev_parent_id.id, attr.u.ppid.id, attr.u.ppid.id_len);
+		v->dev_parent_id.id_len = attr.u.ppid.id_len;
+	} else if (!switchdev_port_attr_get(dev, &attr)) {
 		memcpy(v->dev_parent_id.id, attr.u.ppid.id, attr.u.ppid.id_len);
 		v->dev_parent_id.id_len = attr.u.ppid.id_len;
 	} else {

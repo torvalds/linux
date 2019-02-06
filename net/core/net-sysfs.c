@@ -495,6 +495,7 @@ static ssize_t phys_switch_id_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
 	struct net_device *netdev = to_net_dev(dev);
+	const struct net_device_ops *ops = netdev->netdev_ops;
 	ssize_t ret = -EINVAL;
 
 	if (!rtnl_trylock())
@@ -507,7 +508,11 @@ static ssize_t phys_switch_id_show(struct device *dev,
 			.flags = SWITCHDEV_F_NO_RECURSE,
 		};
 
-		ret = switchdev_port_attr_get(netdev, &attr);
+		if (ops->ndo_get_port_parent_id)
+			ret = dev_get_port_parent_id(netdev, &attr.u.ppid,
+						     false);
+		else
+			ret = switchdev_port_attr_get(netdev, &attr);
 		if (!ret)
 			ret = sprintf(buf, "%*phN\n", attr.u.ppid.id_len,
 				      attr.u.ppid.id);
