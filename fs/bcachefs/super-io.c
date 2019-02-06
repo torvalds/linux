@@ -371,6 +371,7 @@ static void bch2_sb_update(struct bch_fs *c)
 	c->sb.time_base_hi	= le32_to_cpu(src->time_base_hi);
 	c->sb.time_precision	= le32_to_cpu(src->time_precision);
 	c->sb.features		= le64_to_cpu(src->features[0]);
+	c->sb.compat		= le64_to_cpu(src->compat[0]);
 
 	for_each_member_device(ca, c, i)
 		ca->mi = bch2_mi_to_cpu(mi->members + i);
@@ -888,8 +889,10 @@ void bch2_sb_clean_renumber(struct bch_sb_field_clean *clean, int write)
 static void bch2_fs_mark_dirty(struct bch_fs *c)
 {
 	mutex_lock(&c->sb_lock);
-	if (BCH_SB_CLEAN(c->disk_sb.sb)) {
+	if (BCH_SB_CLEAN(c->disk_sb.sb) ||
+	    (c->disk_sb.sb->compat[0] & (1ULL << BCH_COMPAT_FEAT_ALLOC_INFO))) {
 		SET_BCH_SB_CLEAN(c->disk_sb.sb, false);
+		c->disk_sb.sb->compat[0] &= ~(1ULL << BCH_COMPAT_FEAT_ALLOC_INFO);
 		bch2_write_super(c);
 	}
 	mutex_unlock(&c->sb_lock);
@@ -1010,6 +1013,8 @@ void bch2_fs_mark_clean(struct bch_fs *c, bool clean)
 		goto out;
 
 	SET_BCH_SB_CLEAN(c->disk_sb.sb, true);
+
+	c->disk_sb.sb->compat[0] |= 1ULL << BCH_COMPAT_FEAT_ALLOC_INFO;
 
 	u64s = sizeof(*sb_clean) / sizeof(u64) + c->journal.entry_u64s_reserved;
 

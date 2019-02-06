@@ -300,14 +300,18 @@ int bch2_fs_recovery(struct bch_fs *c)
 
 	set_bit(BCH_FS_ALLOC_READ_DONE, &c->flags);
 
-	bch_verbose(c, "starting mark and sweep:");
-	err = "error in recovery";
-	ret = bch2_gc(c, &journal, true);
-	if (ret)
-		goto err;
-	bch_verbose(c, "mark and sweep done");
+	if (!(c->sb.compat & (1ULL << BCH_COMPAT_FEAT_ALLOC_INFO)) ||
+	    c->opts.fsck) {
+		bch_verbose(c, "starting mark and sweep:");
+		err = "error in recovery";
+		ret = bch2_gc(c, &journal, true);
+		if (ret)
+			goto err;
+		bch_verbose(c, "mark and sweep done");
+	}
 
 	clear_bit(BCH_FS_REBUILD_REPLICAS, &c->flags);
+	set_bit(BCH_FS_INITIAL_GC_DONE, &c->flags);
 
 	/*
 	 * Skip past versions that might have possibly been used (as nonces),
@@ -410,6 +414,8 @@ int bch2_fs_initialize(struct bch_fs *c)
 	ret = bch2_gc(c, &journal, true);
 	if (ret)
 		goto err;
+
+	set_bit(BCH_FS_INITIAL_GC_DONE, &c->flags);
 
 	err = "unable to allocate journal buckets";
 	for_each_online_member(ca, c, i)

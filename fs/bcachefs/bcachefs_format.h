@@ -1279,6 +1279,10 @@ enum bch_sb_features {
 	BCH_FEATURE_NR,
 };
 
+enum bch_sb_compat {
+	BCH_COMPAT_FEAT_ALLOC_INFO	= 0,
+};
+
 /* options: */
 
 #define BCH_REPLICAS_MAX		4U

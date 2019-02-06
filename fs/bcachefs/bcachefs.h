@@ -568,6 +568,7 @@ struct bch_fs {
 		u32		time_base_hi;
 		u32		time_precision;
 		u64		features;
+		u64		compat;
 	}			sb;
 
 	struct bch_sb_handle	disk_sb;
