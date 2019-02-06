@@ -1005,10 +1005,7 @@ void bch2_mark_update(struct btree_insert *trans,
 
 static u64 bch2_recalc_sectors_available(struct bch_fs *c)
 {
-	int cpu;
-
-	for_each_possible_cpu(cpu)
-		per_cpu_ptr(c->pcpu, cpu)->sectors_available = 0;
+	percpu_u64_set(&c->pcpu->sectors_available, 0);
 
 	return avail_factor(bch2_fs_sectors_free(c));
 }

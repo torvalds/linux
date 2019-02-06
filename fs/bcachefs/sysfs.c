@@ -893,20 +893,15 @@ static const char * const bch2_rw[] = {
 static ssize_t show_dev_iodone(struct bch_dev *ca, char *buf)
 {
 	struct printbuf out = _PBUF(buf, PAGE_SIZE);
-	int rw, i, cpu;
+	int rw, i;
 
 	for (rw = 0; rw < 2; rw++) {
 		pr_buf(&out, "%s:\n", bch2_rw[rw]);
 
-		for (i = 1; i < BCH_DATA_NR; i++) {
-			u64 n = 0;
-
-			for_each_possible_cpu(cpu)
-				n += per_cpu_ptr(ca->io_done, cpu)->sectors[rw][i];
-
+		for (i = 1; i < BCH_DATA_NR; i++)
 			pr_buf(&out, "%-12s:%12llu\n",
-			       bch2_data_types[i], n << 9);
-		}
+			       bch2_data_types[i],
+			       percpu_u64_get(&ca->io_done->sectors[rw][i]) << 9);
 	}
 
 	return out.pos - buf;

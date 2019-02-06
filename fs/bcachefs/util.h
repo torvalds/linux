@@ -12,6 +12,7 @@
 #include <linux/llist.h>
 #include <linux/log2.h>
 #include <linux/percpu.h>
+#include <linux/preempt.h>
 #include <linux/ratelimit.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
@@ -700,6 +701,28 @@ do {									\
 			}						\
 	}								\
 } while (0)
+
+static inline u64 percpu_u64_get(u64 __percpu *src)
+{
+	u64 ret = 0;
+	int cpu;
+
+	for_each_possible_cpu(cpu)
+		ret += *per_cpu_ptr(src, cpu);
+	return ret;
+}
+
+static inline void percpu_u64_set(u64 __percpu *dst, u64 src)
+{
+	int cpu;
+
+	for_each_possible_cpu(cpu)
+		*per_cpu_ptr(dst, cpu) = 0;
+
+	preempt_disable();
+	*this_cpu_ptr(dst) = src;
+	preempt_enable();
+}
 
 static inline void acc_u64s(u64 *acc, const u64 *src, unsigned nr)
 {

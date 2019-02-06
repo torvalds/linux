@@ -426,14 +426,12 @@ int bch2_replicas_gc_end(struct bch_fs *c, int ret)
 		struct bch_replicas_entry *e =
 			cpu_replicas_entry(&c->replicas, i);
 		struct bch_replicas_cpu n;
-		u64 v = 0;
-		int cpu;
+		u64 v;
 
 		if (__replicas_has_entry(&c->replicas_gc, e))
 			continue;
 
-		for_each_possible_cpu(cpu)
-			v += *per_cpu_ptr(&c->usage[0]->data[i], cpu);
+		v = percpu_u64_get(&c->usage[0]->data[i]);
 		if (!v)
 			continue;
 
