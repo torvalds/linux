@@ -1821,6 +1821,8 @@ static void intel_enable_pipe(const struct intel_crtc_state *new_crtc_state)
 		/* FIXME: assert CPU port conditions for SNB+ */
 	}
 
+	trace_intel_pipe_enable(dev_priv, pipe);
+
 	reg = PIPECONF(cpu_transcoder);
 	val = I915_READ(reg);
 	if (val & PIPECONF_ENABLE) {
@@ -1859,6 +1861,8 @@ static void intel_disable_pipe(const struct intel_crtc_state *old_crtc_state)
 	 * or we might hang the display.
 	 */
 	assert_planes_disabled(crtc);
+
+	trace_intel_pipe_disable(dev_priv, pipe);
 
 	reg = PIPECONF(cpu_transcoder);
 	val = I915_READ(reg);
