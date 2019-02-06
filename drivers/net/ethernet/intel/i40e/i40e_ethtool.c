@@ -535,9 +535,12 @@ static void i40e_phy_type_to_ethtool(struct i40e_pf *pf,
 			ethtool_link_ksettings_add_link_mode(ks, advertising,
 							     1000baseT_Full);
 	}
-	if (phy_types & I40E_CAP_PHY_TYPE_40GBASE_SR4)
+	if (phy_types & I40E_CAP_PHY_TYPE_40GBASE_SR4) {
 		ethtool_link_ksettings_add_link_mode(ks, supported,
 						     40000baseSR4_Full);
+		ethtool_link_ksettings_add_link_mode(ks, advertising,
+						     40000baseSR4_Full);
+	}
 	if (phy_types & I40E_CAP_PHY_TYPE_40GBASE_LR4)
 		ethtool_link_ksettings_add_link_mode(ks, supported,
 						     40000baseLR4_Full);
@@ -723,6 +726,8 @@ static void i40e_get_settings_link_up(struct i40e_hw *hw,
 		break;
 	case I40E_PHY_TYPE_40GBASE_SR4:
 		ethtool_link_ksettings_add_link_mode(ks, supported,
+						     40000baseSR4_Full);
+		ethtool_link_ksettings_add_link_mode(ks, advertising,
 						     40000baseSR4_Full);
 		break;
 	case I40E_PHY_TYPE_40GBASE_LR4:
