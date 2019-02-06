@@ -92,7 +92,7 @@ bool hfi1_can_pin_pages(struct hfi1_devdata *dd, struct mm_struct *mm,
 	size = DIV_ROUND_UP(size, PAGE_SIZE);
 
 	down_read(&mm->mmap_sem);
-	pinned = mm->pinned_vm;
+	pinned = atomic64_read(&mm->pinned_vm);
 	up_read(&mm->mmap_sem);
 
 	/* First, check the absolute limit against all pinned pages. */
@@ -112,7 +112,7 @@ int hfi1_acquire_user_pages(struct mm_struct *mm, unsigned long vaddr, size_t np
 		return ret;
 
 	down_write(&mm->mmap_sem);
-	mm->pinned_vm += ret;
+	atomic64_add(ret, &mm->pinned_vm);
 	up_write(&mm->mmap_sem);
 
 	return ret;
@@ -131,7 +131,7 @@ void hfi1_release_user_pages(struct mm_struct *mm, struct page **p,
 
 	if (mm) { /* during close after signal, mm can be NULL */
 		down_write(&mm->mmap_sem);
-		mm->pinned_vm -= npages;
+		atomic64_sub(npages, &mm->pinned_vm);
 		up_write(&mm->mmap_sem);
 	}
 }

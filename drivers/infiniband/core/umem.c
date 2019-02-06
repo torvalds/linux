@@ -166,13 +166,13 @@ struct ib_umem *ib_umem_get(struct ib_udata *udata, unsigned long addr,
 	lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
 
 	down_write(&mm->mmap_sem);
-	if (check_add_overflow(mm->pinned_vm, npages, &new_pinned) ||
-	    (new_pinned > lock_limit && !capable(CAP_IPC_LOCK))) {
+	new_pinned = atomic64_read(&mm->pinned_vm) + npages;
+	if (new_pinned > lock_limit && !capable(CAP_IPC_LOCK)) {
 		up_write(&mm->mmap_sem);
 		ret = -ENOMEM;
 		goto out;
 	}
-	mm->pinned_vm = new_pinned;
+	atomic64_set(&mm->pinned_vm, new_pinned);
 	up_write(&mm->mmap_sem);
 
 	cur_base = addr & PAGE_MASK;
@@ -234,7 +234,7 @@ umem_release:
 	__ib_umem_release(context->device, umem, 0);
 vma:
 	down_write(&mm->mmap_sem);
-	mm->pinned_vm -= ib_umem_num_pages(umem);
+	atomic64_sub(ib_umem_num_pages(umem), &mm->pinned_vm);
 	up_write(&mm->mmap_sem);
 out:
 	if (vma_list)
@@ -263,7 +263,7 @@ static void ib_umem_release_defer(struct work_struct *work)
 	struct ib_umem *umem = container_of(work, struct ib_umem, work);
 
 	down_write(&umem->owning_mm->mmap_sem);
-	umem->owning_mm->pinned_vm -= ib_umem_num_pages(umem);
+	atomic64_sub(ib_umem_num_pages(umem), &umem->owning_mm->pinned_vm);
 	up_write(&umem->owning_mm->mmap_sem);
 
 	__ib_umem_release_tail(umem);
@@ -302,7 +302,7 @@ void ib_umem_release(struct ib_umem *umem)
 	} else {
 		down_write(&umem->owning_mm->mmap_sem);
 	}
-	umem->owning_mm->pinned_vm -= ib_umem_num_pages(umem);
+	atomic64_sub(ib_umem_num_pages(umem), &umem->owning_mm->pinned_vm);
 	up_write(&umem->owning_mm->mmap_sem);
 
 	__ib_umem_release_tail(umem);

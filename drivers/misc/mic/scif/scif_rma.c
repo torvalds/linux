@@ -285,7 +285,7 @@ __scif_dec_pinned_vm_lock(struct mm_struct *mm,
 	} else {
 		down_write(&mm->mmap_sem);
 	}
-	mm->pinned_vm -= nr_pages;
+	atomic64_sub(nr_pages, &mm->pinned_vm);
 	up_write(&mm->mmap_sem);
 	return 0;
 }
@@ -299,7 +299,7 @@ static inline int __scif_check_inc_pinned_vm(struct mm_struct *mm,
 		return 0;
 
 	locked = nr_pages;
-	locked += mm->pinned_vm;
+	locked += atomic64_read(&mm->pinned_vm);
 	lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
 	if ((locked > lock_limit) && !capable(CAP_IPC_LOCK)) {
 		dev_err(scif_info.mdev.this_device,
@@ -307,7 +307,7 @@ static inline int __scif_check_inc_pinned_vm(struct mm_struct *mm,
 			locked, lock_limit);
 		return -ENOMEM;
 	}
-	mm->pinned_vm = locked;
+	atomic64_set(&mm->pinned_vm, locked);
 	return 0;
 }
 
