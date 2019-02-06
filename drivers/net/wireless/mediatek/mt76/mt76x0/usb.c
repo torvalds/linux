@@ -158,6 +158,32 @@ static const struct ieee80211_ops mt76x0u_ops = {
 	.get_txpower = mt76x02_get_txpower,
 };
 
+static int mt76x0u_init_hardware(struct mt76x02_dev *dev)
+{
+	int err;
+
+	mt76x0_chip_onoff(dev, true, true);
+
+	if (!mt76x02_wait_for_mac(&dev->mt76))
+		return -ETIMEDOUT;
+
+	err = mt76x0u_mcu_init(dev);
+	if (err < 0)
+		return err;
+
+	mt76x0_init_usb_dma(dev);
+	err = mt76x0_init_hardware(dev);
+	if (err < 0)
+		return err;
+
+	mt76_rmw(dev, MT_US_CYC_CFG, MT_US_CYC_CNT, 0x1e);
+	mt76_wr(dev, MT_TXOP_CTRL_CFG,
+		FIELD_PREP(MT_TXOP_TRUN_EN, 0x3f) |
+		FIELD_PREP(MT_TXOP_EXT_CCA_DLY, 0x58));
+
+	return 0;
+}
+
 static int mt76x0u_register_device(struct mt76x02_dev *dev)
 {
 	struct ieee80211_hw *hw = dev->mt76.hw;
@@ -171,25 +197,9 @@ static int mt76x0u_register_device(struct mt76x02_dev *dev)
 	if (err < 0)
 		goto out_err;
 
-	mt76x0_chip_onoff(dev, true, true);
-	if (!mt76x02_wait_for_mac(&dev->mt76)) {
-		err = -ETIMEDOUT;
-		goto out_err;
-	}
-
-	err = mt76x0u_mcu_init(dev);
+	err = mt76x0u_init_hardware(dev);
 	if (err < 0)
 		goto out_err;
-
-	mt76x0_init_usb_dma(dev);
-	err = mt76x0_init_hardware(dev);
-	if (err < 0)
-		goto out_err;
-
-	mt76_rmw(dev, MT_US_CYC_CFG, MT_US_CYC_CNT, 0x1e);
-	mt76_wr(dev, MT_TXOP_CTRL_CFG,
-		FIELD_PREP(MT_TXOP_TRUN_EN, 0x3f) |
-		FIELD_PREP(MT_TXOP_EXT_CCA_DLY, 0x58));
 
 	err = mt76x0_register_device(dev);
 	if (err < 0)
@@ -301,6 +311,8 @@ static int __maybe_unused mt76x0_suspend(struct usb_interface *usb_intf,
 
 	mt76u_stop_queues(&dev->mt76);
 	mt76x0u_mac_stop(dev);
+	clear_bit(MT76_STATE_MCU_RUNNING, &dev->mt76.state);
+	mt76x0_chip_onoff(dev, false, false);
 	usb_kill_urb(usb->mcu.res.urb);
 
 	return 0;
@@ -328,7 +340,7 @@ static int __maybe_unused mt76x0_resume(struct usb_interface *usb_intf)
 	tasklet_enable(&usb->rx_tasklet);
 	tasklet_enable(&usb->tx_tasklet);
 
-	ret = mt76x0_init_hardware(dev);
+	ret = mt76x0u_init_hardware(dev);
 	if (ret)
 		goto err;
 
