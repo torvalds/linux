@@ -192,7 +192,7 @@ error_0:
 EXPORT_SYMBOL_GPL(nfs_alloc_client);
 
 #if IS_ENABLED(CONFIG_NFS_V4)
-void nfs_cleanup_cb_ident_idr(struct net *net)
+static void nfs_cleanup_cb_ident_idr(struct net *net)
 {
 	struct nfs_net *nn = net_generic(net, nfs_net_id);
 
@@ -214,7 +214,7 @@ static void pnfs_init_server(struct nfs_server *server)
 }
 
 #else
-void nfs_cleanup_cb_ident_idr(struct net *net)
+static void nfs_cleanup_cb_ident_idr(struct net *net)
 {
 }
 
@@ -1072,6 +1072,15 @@ void nfs_clients_init(struct net *net)
 #endif
 	spin_lock_init(&nn->nfs_client_lock);
 	nn->boot_time = ktime_get_real();
+}
+
+void nfs_clients_exit(struct net *net)
+{
+	struct nfs_net *nn = net_generic(net, nfs_net_id);
+
+	nfs_cleanup_cb_ident_idr(net);
+	WARN_ON_ONCE(!list_empty(&nn->nfs_client_list));
+	WARN_ON_ONCE(!list_empty(&nn->nfs_volume_list));
 }
 
 #ifdef CONFIG_PROC_FS
