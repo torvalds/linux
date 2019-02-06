@@ -213,6 +213,7 @@ static inline unsigned int bcm_sf2_cfp_rule_size(struct bcm_sf2_priv *priv)
 
 static int bcm_sf2_cfp_act_pol_set(struct bcm_sf2_priv *priv,
 				   unsigned int rule_index,
+				   int src_port,
 				   unsigned int port_num,
 				   unsigned int queue_num,
 				   bool fwd_map_change)
@@ -229,6 +230,10 @@ static int bcm_sf2_cfp_act_pol_set(struct bcm_sf2_priv *priv,
 		      CHANGE_TC | queue_num << NEW_TC_SHIFT;
 	else
 		reg = 0;
+
+	/* Enable looping back to the original port */
+	if (src_port == port_num)
+		reg |= LOOP_BK_EN;
 
 	core_writel(priv, reg, CORE_ACT_POL_DATA0);
 
@@ -443,7 +448,7 @@ static int bcm_sf2_cfp_ipv4_rule_set(struct bcm_sf2_priv *priv, int port,
 	}
 
 	/* Insert into Action and policer RAMs now */
-	ret = bcm_sf2_cfp_act_pol_set(priv, rule_index, port_num,
+	ret = bcm_sf2_cfp_act_pol_set(priv, rule_index, port, port_num,
 				      queue_num, true);
 	if (ret)
 		goto out_err_flow_rule;
@@ -733,7 +738,7 @@ static int bcm_sf2_cfp_ipv6_rule_set(struct bcm_sf2_priv *priv, int port,
 	}
 
 	/* Insert into Action and policer RAMs now */
-	ret = bcm_sf2_cfp_act_pol_set(priv, rule_index[0], port_num,
+	ret = bcm_sf2_cfp_act_pol_set(priv, rule_index[0], port, port_num,
 				      queue_num, false);
 	if (ret)
 		goto out_err_flow_rule;
@@ -795,7 +800,7 @@ static int bcm_sf2_cfp_ipv6_rule_set(struct bcm_sf2_priv *priv, int port,
 	/* Insert into Action and policer RAMs now, set chain ID to
 	 * the one we are chained to
 	 */
-	ret = bcm_sf2_cfp_act_pol_set(priv, rule_index[1], port_num,
+	ret = bcm_sf2_cfp_act_pol_set(priv, rule_index[1], port, port_num,
 				      queue_num, true);
 	if (ret)
 		goto out_err_flow_rule;
