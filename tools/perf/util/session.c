@@ -703,7 +703,10 @@ static void perf_event__auxtrace_error_swap(union perf_event *event,
 	event->auxtrace_error.cpu  = bswap_32(event->auxtrace_error.cpu);
 	event->auxtrace_error.pid  = bswap_32(event->auxtrace_error.pid);
 	event->auxtrace_error.tid  = bswap_32(event->auxtrace_error.tid);
+	event->auxtrace_error.fmt  = bswap_32(event->auxtrace_error.fmt);
 	event->auxtrace_error.ip   = bswap_64(event->auxtrace_error.ip);
+	if (event->auxtrace_error.fmt)
+		event->auxtrace_error.time = bswap_64(event->auxtrace_error.time);
 }
 
 static void perf_event__thread_map_swap(union perf_event *event,

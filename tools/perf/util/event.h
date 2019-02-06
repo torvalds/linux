@@ -532,8 +532,9 @@ struct auxtrace_error_event {
 	u32 cpu;
 	u32 pid;
 	u32 tid;
-	u32 reserved__; /* For alignment */
+	u32 fmt;
 	u64 ip;
+	u64 time;
 	char msg[MAX_AUXTRACE_ERROR_MSG];
 };
 
