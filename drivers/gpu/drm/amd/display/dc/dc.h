@@ -203,6 +203,7 @@ struct dc_clocks {
 	int fclk_khz;
 	int phyclk_khz;
 	int dramclk_khz;
+	bool p_state_change_support;
 };
 
 struct dc_debug_options {
