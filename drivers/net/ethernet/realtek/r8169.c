@@ -7113,12 +7113,21 @@ static int rtl_alloc_irq(struct rtl8169_private *tp)
 static void rtl_read_mac_address(struct rtl8169_private *tp,
 				 u8 mac_addr[ETH_ALEN])
 {
+	u32 value;
+
 	/* Get MAC address */
 	switch (tp->mac_version) {
 	case RTL_GIGA_MAC_VER_35 ... RTL_GIGA_MAC_VER_38:
 	case RTL_GIGA_MAC_VER_40 ... RTL_GIGA_MAC_VER_51:
-		*(u32 *)&mac_addr[0] = rtl_eri_read(tp, 0xe0, ERIAR_EXGMAC);
-		*(u16 *)&mac_addr[4] = rtl_eri_read(tp, 0xe4, ERIAR_EXGMAC);
+		value = rtl_eri_read(tp, 0xe0, ERIAR_EXGMAC);
+		mac_addr[0] = (value >>  0) & 0xff;
+		mac_addr[1] = (value >>  8) & 0xff;
+		mac_addr[2] = (value >> 16) & 0xff;
+		mac_addr[3] = (value >> 24) & 0xff;
+
+		value = rtl_eri_read(tp, 0xe4, ERIAR_EXGMAC);
+		mac_addr[4] = (value >>  0) & 0xff;
+		mac_addr[5] = (value >>  8) & 0xff;
 		break;
 	default:
 		break;
@@ -7316,7 +7325,8 @@ static int rtl_get_ether_clk(struct rtl8169_private *tp)
 static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	const struct rtl_cfg_info *cfg = rtl_cfg_infos + ent->driver_data;
-	u8 mac_addr[ETH_ALEN] __aligned(4) = {};
+	/* align to u16 for is_valid_ether_addr() */
+	u8 mac_addr[ETH_ALEN] __aligned(2) = {};
 	struct rtl8169_private *tp;
 	struct net_device *dev;
 	int chipset, region, i;
