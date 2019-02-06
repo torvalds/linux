@@ -47,6 +47,12 @@ struct tpm_digest {
 	u8 digest[TPM_MAX_DIGEST_SIZE];
 } __packed;
 
+struct tpm_bank_info {
+	u16 alg_id;
+	u16 digest_size;
+	u16 crypto_id;
+};
+
 enum TPM_OPS_FLAGS {
 	TPM_OPS_AUTO_STARTUP = BIT(0),
 };
@@ -72,7 +78,8 @@ struct tpm_class_ops {
 #if defined(CONFIG_TCG_TPM) || defined(CONFIG_TCG_TPM_MODULE)
 
 extern int tpm_is_tpm2(struct tpm_chip *chip);
-extern int tpm_pcr_read(struct tpm_chip *chip, u32 pcr_idx, u8 *res_buf);
+extern int tpm_pcr_read(struct tpm_chip *chip, u32 pcr_idx,
+			struct tpm_digest *digest);
 extern int tpm_pcr_extend(struct tpm_chip *chip, u32 pcr_idx, const u8 *hash);
 extern int tpm_send(struct tpm_chip *chip, void *cmd, size_t buflen);
 extern int tpm_get_random(struct tpm_chip *chip, u8 *data, size_t max);
@@ -89,7 +96,8 @@ static inline int tpm_is_tpm2(struct tpm_chip *chip)
 	return -ENODEV;
 }
 
-static inline int tpm_pcr_read(struct tpm_chip *chip, u32 pcr_idx, u8 *res_buf)
+static inline int tpm_pcr_read(struct tpm_chip *chip, int pcr_idx,
+			       struct tpm_digest *digest)
 {
 	return -ENODEV;
 }

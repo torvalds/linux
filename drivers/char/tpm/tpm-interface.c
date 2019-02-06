@@ -281,11 +281,12 @@ EXPORT_SYMBOL_GPL(tpm_is_tpm2);
  * tpm_pcr_read - read a PCR value from SHA1 bank
  * @chip:	a &struct tpm_chip instance, %NULL for the default chip
  * @pcr_idx:	the PCR to be retrieved
- * @res_buf:	the value of the PCR
+ * @digest:	the PCR bank and buffer current PCR value is written to
  *
  * Return: same as with tpm_transmit_cmd()
  */
-int tpm_pcr_read(struct tpm_chip *chip, u32 pcr_idx, u8 *res_buf)
+int tpm_pcr_read(struct tpm_chip *chip, u32 pcr_idx,
+		 struct tpm_digest *digest)
 {
 	int rc;
 
@@ -294,9 +295,9 @@ int tpm_pcr_read(struct tpm_chip *chip, u32 pcr_idx, u8 *res_buf)
 		return -ENODEV;
 
 	if (chip->flags & TPM_CHIP_FLAG_TPM2)
-		rc = tpm2_pcr_read(chip, pcr_idx, res_buf);
+		rc = tpm2_pcr_read(chip, pcr_idx, digest, NULL);
 	else
-		rc = tpm1_pcr_read(chip, pcr_idx, res_buf);
+		rc = tpm1_pcr_read(chip, pcr_idx, digest->digest);
 
 	tpm_put_ops(chip);
 	return rc;
@@ -309,9 +310,8 @@ EXPORT_SYMBOL_GPL(tpm_pcr_read);
  * @pcr_idx:	the PCR to be retrieved
  * @hash:	the hash value used to extend the PCR value
  *
- * Note: with TPM 2.0 extends also those banks with a known digest size to the
- * cryto subsystem in order to prevent malicious use of those PCR banks. In the
- * future we should dynamically determine digest sizes.
+ * Note: with TPM 2.0 extends also those banks for which no digest was
+ * specified in order to prevent malicious use of those PCR banks.
  *
  * Return: same as with tpm_transmit_cmd()
  */
@@ -332,7 +332,7 @@ int tpm_pcr_extend(struct tpm_chip *chip, u32 pcr_idx, const u8 *hash)
 			return -ENOMEM;
 
 		for (i = 0; i < chip->nr_allocated_banks; i++) {
-			digest_list[i].alg_id = chip->allocated_banks[i];
+			digest_list[i].alg_id = chip->allocated_banks[i].alg_id;
 			memcpy(digest_list[i].digest, hash, TPM_DIGEST_SIZE);
 		}
 
