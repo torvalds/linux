@@ -22,14 +22,9 @@ menuconfig MTD_NAND
 
 if MTD_NAND
 
-config MTD_NAND_BCH
-	tristate
+config MTD_NAND_ECC_SW_BCH
+	tristate "Support software BCH ECC"
 	select BCH
-	depends on MTD_NAND_ECC_BCH
-	default MTD_NAND
-
-config MTD_NAND_ECC_BCH
-	bool "Support software BCH ECC"
 	default n
 	help
 	  This enables support for software BCH error correction. Binary BCH
