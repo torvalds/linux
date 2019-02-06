@@ -21,7 +21,7 @@
  * or detected.
  */
 
-#if IS_ENABLED(CONFIG_MTD_NAND)
+#if IS_ENABLED(CONFIG_MTD_RAW_NAND)
 
 struct nand_ecc_test {
 	const char *name;

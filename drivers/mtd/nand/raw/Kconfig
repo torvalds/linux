@@ -9,7 +9,7 @@ config MTD_NAND_ECC_SW_HAMMING_SMC
 	  Software ECC according to the Smart Media Specification.
 	  The original Linux implementation had byte 0 and 1 swapped.
 
-menuconfig MTD_NAND
+menuconfig MTD_RAW_NAND
 	tristate "Raw/Parallel NAND Device Support"
 	depends on MTD
 	select MTD_NAND_CORE
@@ -19,7 +19,7 @@ menuconfig MTD_NAND
 	  NAND flash devices. For further information see
 	  <http://www.linux-mtd.infradead.org/doc/nand.html>.
 
-if MTD_NAND
+if MTD_RAW_NAND
 
 config MTD_NAND_ECC_SW_BCH
 	tristate "Support software BCH ECC"
@@ -545,4 +545,4 @@ config MTD_NAND_DISKONCHIP_BBTWRITE
 	  load time (assuming you build diskonchip as a module) with the module
 	  parameter "inftl_bbt_write=1".
 
-endif # MTD_NAND
+endif # MTD_RAW_NAND
