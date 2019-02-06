@@ -2580,6 +2580,9 @@ static int dapm_update_dai_unlocked(struct snd_pcm_substream *substream,
 	else
 		w = dai->capture_widget;
 
+	if (!w)
+		return 0;
+
 	dev_dbg(dai->dev, "Update DAI routes for %s %s\n", dai->name,
 		dir == SNDRV_PCM_STREAM_PLAYBACK ? "playback" : "capture");
 
