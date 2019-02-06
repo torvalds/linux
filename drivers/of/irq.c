@@ -274,6 +274,131 @@ int of_irq_parse_raw(const __be32 *addr, struct of_phandle_args *out_irq)
 }
 EXPORT_SYMBOL_GPL(of_irq_parse_raw);
 
+int of_irq_domain_map(const struct irq_fwspec *in, struct irq_fwspec *out)
+{
+	char *stem_name;
+	char *cells_name, *map_name = NULL, *mask_name = NULL;
+	char *pass_name = NULL;
+	struct device_node *cur, *new = NULL;
+	const __be32 *map, *mask, *pass;
+	static const __be32 dummy_mask[] = { [0 ... MAX_PHANDLE_ARGS] = ~0 };
+	static const __be32 dummy_pass[] = { [0 ... MAX_PHANDLE_ARGS] = 0 };
+	__be32 initial_match_array[MAX_PHANDLE_ARGS];
+	const __be32 *match_array = initial_match_array;
+	int i, ret, map_len, match;
+	u32 in_size, out_size;
+
+	stem_name = "";
+	cells_name = "#interrupt-cells";
+
+	ret = -ENOMEM;
+	map_name = kasprintf(GFP_KERNEL, "irqdomain%s-map", stem_name);
+	if (!map_name)
+		goto free;
+
+	mask_name = kasprintf(GFP_KERNEL, "irqdomain%s-map-mask", stem_name);
+	if (!mask_name)
+		goto free;
+
+	pass_name = kasprintf(GFP_KERNEL, "irqdomain%s-map-pass-thru", stem_name);
+	if (!pass_name)
+		goto free;
+
+	/* Get the #interrupt-cells property */
+	cur = to_of_node(in->fwnode);
+	ret = of_property_read_u32(cur, cells_name, &in_size);
+	if (ret < 0)
+		goto put;
+
+	/* Precalculate the match array - this simplifies match loop */
+	for (i = 0; i < in_size; i++)
+		initial_match_array[i] = cpu_to_be32(in->param[i]);
+
+	ret = -EINVAL;
+	/* Get the irqdomain-map property */
+	map = of_get_property(cur, map_name, &map_len);
+	if (!map) {
+		ret = 0;
+		goto free;
+	}
+	map_len /= sizeof(u32);
+
+	/* Get the irqdomain-map-mask property (optional) */
+	mask = of_get_property(cur, mask_name, NULL);
+	if (!mask)
+		mask = dummy_mask;
+	/* Iterate through irqdomain-map property */
+	match = 0;
+	while (map_len > (in_size + 1) && !match) {
+		/* Compare specifiers */
+		match = 1;
+		for (i = 0; i < in_size; i++, map_len--)
+			match &= !((match_array[i] ^ *map++) & mask[i]);
+
+		of_node_put(new);
+		new = of_find_node_by_phandle(be32_to_cpup(map));
+		map++;
+		map_len--;
+
+		/* Check if not found */
+		if (!new)
+			goto put;
+
+		if (!of_device_is_available(new))
+			match = 0;
+
+		ret = of_property_read_u32(new, cells_name, &out_size);
+		if (ret)
+			goto put;
+
+		/* Check for malformed properties */
+		if (WARN_ON(out_size > MAX_PHANDLE_ARGS))
+			goto put;
+		if (map_len < out_size)
+			goto put;
+
+		/* Move forward by new node's #interrupt-cells amount */
+		map += out_size;
+		map_len -= out_size;
+	}
+	if (match) {
+		/* Get the irqdomain-map-pass-thru property (optional) */
+		pass = of_get_property(cur, pass_name, NULL);
+		if (!pass)
+			pass = dummy_pass;
+
+		/*
+		 * Successfully parsed a irqdomain-map translation; copy new
+		 * specifier into the out structure, keeping the
+		 * bits specified in irqdomain-map-pass-thru.
+		 */
+		match_array = map - out_size;
+		for (i = 0; i < out_size; i++) {
+			__be32 val = *(map - out_size + i);
+
+			out->param[i] = in->param[i];
+			if (i < in_size) {
+				val &= ~pass[i];
+				val |= cpu_to_be32(out->param[i]) & pass[i];
+			}
+
+			out->param[i] = be32_to_cpu(val);
+		}
+		out->param_count = in_size = out_size;
+		out->fwnode = of_node_to_fwnode(new);
+	}
+put:
+	of_node_put(cur);
+	of_node_put(new);
+free:
+	kfree(mask_name);
+	kfree(map_name);
+	kfree(pass_name);
+
+	return ret;
+}
+EXPORT_SYMBOL(of_irq_domain_map);
+
 /**
  * of_irq_parse_one - Resolve an interrupt for a device
  * @device: the device whose interrupt is to be resolved
