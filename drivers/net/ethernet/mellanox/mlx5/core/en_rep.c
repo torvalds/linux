@@ -1573,6 +1573,8 @@ static int mlx5e_init_rep_tx(struct mlx5e_priv *priv)
 	if (rpriv->rep->vport == MLX5_VPORT_UPLINK) {
 		uplink_priv = &rpriv->uplink_priv;
 
+		INIT_LIST_HEAD(&uplink_priv->unready_flows);
+
 		/* init shared tc flow table */
 		err = mlx5e_tc_esw_init(&uplink_priv->tc_ht);
 		if (err)
@@ -1632,33 +1634,47 @@ static void mlx5e_vf_rep_enable(struct mlx5e_priv *priv)
 static int uplink_rep_async_event(struct notifier_block *nb, unsigned long event, void *data)
 {
 	struct mlx5e_priv *priv = container_of(nb, struct mlx5e_priv, events_nb);
-	struct mlx5_eqe   *eqe = data;
 
-	if (event != MLX5_EVENT_TYPE_PORT_CHANGE)
-		return NOTIFY_DONE;
+	if (event == MLX5_EVENT_TYPE_PORT_CHANGE) {
+		struct mlx5_eqe *eqe = data;
 
-	switch (eqe->sub_type) {
-	case MLX5_PORT_CHANGE_SUBTYPE_DOWN:
-	case MLX5_PORT_CHANGE_SUBTYPE_ACTIVE:
-		queue_work(priv->wq, &priv->update_carrier_work);
-		break;
-	default:
-		return NOTIFY_DONE;
+		switch (eqe->sub_type) {
+		case MLX5_PORT_CHANGE_SUBTYPE_DOWN:
+		case MLX5_PORT_CHANGE_SUBTYPE_ACTIVE:
+			queue_work(priv->wq, &priv->update_carrier_work);
+			break;
+		default:
+			return NOTIFY_DONE;
+		}
+
+		return NOTIFY_OK;
 	}
 
-	return NOTIFY_OK;
+	if (event == MLX5_DEV_EVENT_PORT_AFFINITY) {
+		struct mlx5e_rep_priv *rpriv = priv->ppriv;
+
+		queue_work(priv->wq, &rpriv->uplink_priv.reoffload_flows_work);
+
+		return NOTIFY_OK;
+	}
+
+	return NOTIFY_DONE;
 }
 
 static void mlx5e_uplink_rep_enable(struct mlx5e_priv *priv)
 {
 	struct net_device *netdev = priv->netdev;
 	struct mlx5_core_dev *mdev = priv->mdev;
+	struct mlx5e_rep_priv *rpriv = priv->ppriv;
 	u16 max_mtu;
 
 	netdev->min_mtu = ETH_MIN_MTU;
 	mlx5_query_port_max_mtu(priv->mdev, &max_mtu, 1);
 	netdev->max_mtu = MLX5E_HW2SW_MTU(&priv->channels.params, max_mtu);
 	mlx5e_set_dev_port_mtu(priv);
+
+	INIT_WORK(&rpriv->uplink_priv.reoffload_flows_work,
+		  mlx5e_tc_reoffload_flows_work);
 
 	mlx5_lag_add(mdev, netdev);
 	priv->events_nb.notifier_call = uplink_rep_async_event;
@@ -1672,11 +1688,13 @@ static void mlx5e_uplink_rep_enable(struct mlx5e_priv *priv)
 static void mlx5e_uplink_rep_disable(struct mlx5e_priv *priv)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
+	struct mlx5e_rep_priv *rpriv = priv->ppriv;
 
 #ifdef CONFIG_MLX5_CORE_EN_DCB
 	mlx5e_dcbnl_delete_app(priv);
 #endif
 	mlx5_notifier_unregister(mdev, &priv->events_nb);
+	cancel_work_sync(&rpriv->uplink_priv.reoffload_flows_work);
 	mlx5_lag_remove(mdev);
 }
 

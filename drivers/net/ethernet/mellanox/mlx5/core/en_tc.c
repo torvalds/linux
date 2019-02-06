@@ -117,6 +117,7 @@ struct mlx5e_tc_flow {
 	struct list_head	mod_hdr; /* flows sharing the same mod hdr ID */
 	struct list_head	hairpin; /* flows sharing the same hairpin */
 	struct list_head	peer;    /* flows with peer flow */
+	struct list_head	unready; /* flows not ready to be offloaded (e.g due to missing route) */
 	union {
 		struct mlx5_esw_flow_attr esw_attr[0];
 		struct mlx5_nic_flow_attr nic_attr[0];
@@ -928,6 +929,26 @@ mlx5e_tc_unoffload_from_slow_path(struct mlx5_eswitch *esw,
 	flow->flags &= ~MLX5E_TC_FLOW_SLOW;
 }
 
+static void add_unready_flow(struct mlx5e_tc_flow *flow)
+{
+	struct mlx5_rep_uplink_priv *uplink_priv;
+	struct mlx5e_rep_priv *rpriv;
+	struct mlx5_eswitch *esw;
+
+	esw = flow->priv->mdev->priv.eswitch;
+	rpriv = mlx5_eswitch_get_uplink_priv(esw, REP_ETH);
+	uplink_priv = &rpriv->uplink_priv;
+
+	flow->flags |= MLX5E_TC_FLOW_NOT_READY;
+	list_add_tail(&flow->unready, &uplink_priv->unready_flows);
+}
+
+static void remove_unready_flow(struct mlx5e_tc_flow *flow)
+{
+	list_del(&flow->unready);
+	flow->flags &= ~MLX5E_TC_FLOW_NOT_READY;
+}
+
 static int
 mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 		      struct mlx5e_tc_flow *flow,
@@ -1049,6 +1070,7 @@ static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 	int out_index;
 
 	if (flow->flags & MLX5E_TC_FLOW_NOT_READY) {
+		remove_unready_flow(flow);
 		kvfree(attr->parse_attr);
 		return;
 	}
@@ -2810,7 +2832,7 @@ __mlx5e_add_fdb_flow(struct mlx5e_priv *priv,
 		if (!(err == -ENETUNREACH && mlx5_lag_is_multipath(in_mdev)))
 			goto err_free;
 
-		flow->flags |= MLX5E_TC_FLOW_NOT_READY;
+		add_unready_flow(flow);
 	}
 
 	return flow;
@@ -3213,4 +3235,19 @@ void mlx5e_tc_clean_fdb_peer_flows(struct mlx5_eswitch *esw)
 
 	list_for_each_entry_safe(flow, tmp, &esw->offloads.peer_flows, peer)
 		__mlx5e_tc_del_fdb_peer_flow(flow);
+}
+
+void mlx5e_tc_reoffload_flows_work(struct work_struct *work)
+{
+	struct mlx5_rep_uplink_priv *rpriv =
+		container_of(work, struct mlx5_rep_uplink_priv,
+			     reoffload_flows_work);
+	struct mlx5e_tc_flow *flow, *tmp;
+
+	rtnl_lock();
+	list_for_each_entry_safe(flow, tmp, &rpriv->unready_flows, unready) {
+		if (!mlx5e_tc_add_fdb_flow(flow->priv, flow, NULL))
+			remove_unready_flow(flow);
+	}
+	rtnl_unlock();
 }
