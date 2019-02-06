@@ -29,7 +29,7 @@ static int cl_stream_prepare(struct snd_sof_dev *sdev, unsigned int format,
 {
 	struct hdac_ext_stream *dsp_stream = NULL;
 	struct hdac_stream *hstream;
-	struct pci_dev *pci = sdev->pci;
+	struct pci_dev *pci = to_pci_dev(sdev->dev);
 	int ret;
 
 	if (direction == SNDRV_PCM_STREAM_PLAYBACK) {

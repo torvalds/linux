@@ -402,8 +402,6 @@ int snd_sof_device_probe(struct device *dev, struct snd_sof_pdata *plat_data)
 
 	/* initialize sof device */
 	sdev->dev = dev;
-	if dev_is_pci(plat_data->dev)
-		sdev->pci = to_pci_dev(plat_data->dev);
 
 	sdev->pdata = plat_data;
 	sdev->first_boot = true;

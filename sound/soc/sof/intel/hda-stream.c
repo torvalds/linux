@@ -481,7 +481,7 @@ int hda_dsp_stream_init(struct snd_sof_dev *sdev)
 	struct hdac_bus *bus = sof_to_bus(sdev);
 	struct hdac_ext_stream *stream;
 	struct hdac_stream *hstream;
-	struct pci_dev *pci = sdev->pci;
+	struct pci_dev *pci = to_pci_dev(sdev->dev);
 	int sd_offset;
 	int i, num_playback, num_capture, num_total, ret;
 	u32 gcap;

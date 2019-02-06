@@ -318,7 +318,6 @@ struct snd_sof_dev {
 	struct device *dev;
 	spinlock_t ipc_lock;	/* lock for IPC users */
 	spinlock_t hw_lock;	/* lock for HW IO access */
-	struct pci_dev *pci;
 
 	/* ASoC components */
 	struct snd_soc_component_driver plat_drv;

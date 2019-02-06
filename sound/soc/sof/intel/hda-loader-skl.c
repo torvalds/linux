@@ -270,7 +270,7 @@ static void cl_skl_cldma_setup_controller(struct snd_sof_dev *sdev,
 
 static int cl_stream_prepare_skl(struct snd_sof_dev *sdev)
 {
-	struct pci_dev *pci = sdev->pci;
+	struct pci_dev *pci = to_pci_dev(sdev->dev);
 	int frags = 0;
 	int ret = 0;
 	__le32 *bdl;

@@ -14,10 +14,11 @@
 int snd_sof_pci_update_bits_unlocked(struct snd_sof_dev *sdev, u32 offset,
 				     u32 mask, u32 value)
 {
+	struct pci_dev *pci = to_pci_dev(sdev->dev);
 	unsigned int old, new;
 	u32 ret = ~0; /* explicit init to remove uninitialized use warnings */
 
-	pci_read_config_dword(sdev->pci, offset, &ret);
+	pci_read_config_dword(pci, offset, &ret);
 	old = ret;
 	dev_dbg(sdev->dev, "Debug PCIR: %8.8x at  %8.8x\n", old & mask, offset);
 
@@ -26,7 +27,7 @@ int snd_sof_pci_update_bits_unlocked(struct snd_sof_dev *sdev, u32 offset,
 	if (old == new)
 		return false;
 
-	pci_write_config_dword(sdev->pci, offset, new);
+	pci_write_config_dword(pci, offset, new);
 	dev_dbg(sdev->dev, "Debug PCIW: %8.8x at  %8.8x\n", value,
 		offset);
 

@@ -184,7 +184,7 @@ static int hda_init(struct snd_sof_dev *sdev)
 	struct hda_bus *hbus;
 	struct hdac_bus *bus;
 	struct hdac_ext_bus_ops *ext_ops = NULL;
-	struct pci_dev *pci = sdev->pci;
+	struct pci_dev *pci = to_pci_dev(sdev->dev);
 	int ret;
 
 	hbus = sof_to_hbus(sdev);
@@ -217,7 +217,7 @@ static int hda_init(struct snd_sof_dev *sdev)
 	/* get controller capabilities */
 	ret = hda_dsp_ctrl_get_caps(sdev);
 	if (ret < 0)
-		dev_err(&pci->dev, "error: get caps error\n");
+		dev_err(sdev->dev, "error: get caps error\n");
 
 	return ret;
 }
@@ -227,7 +227,6 @@ static int hda_init(struct snd_sof_dev *sdev)
 static int hda_init_caps(struct snd_sof_dev *sdev)
 {
 	struct hdac_bus *bus = sof_to_bus(sdev);
-	struct pci_dev *pci = sdev->pci;
 	struct hdac_ext_link *hlink = NULL;
 	struct snd_soc_acpi_mach_params *mach_params;
 	struct snd_soc_acpi_mach *hda_mach = NULL;
@@ -241,7 +240,7 @@ static int hda_init_caps(struct snd_sof_dev *sdev)
 
 	/* check if dsp is there */
 	if (bus->ppcap)
-		dev_dbg(&pci->dev, "PP capability, will probe DSP later.\n");
+		dev_dbg(sdev->dev, "PP capability, will probe DSP later.\n");
 
 	if (bus->mlcap)
 		snd_hdac_ext_bus_get_ml_capabilities(bus);
@@ -249,7 +248,7 @@ static int hda_init_caps(struct snd_sof_dev *sdev)
 	/* init i915 and HDMI codecs */
 	ret = hda_codec_i915_init(sdev);
 	if (ret < 0) {
-		dev_err(&pci->dev, "error: no HDMI audio devices found\n");
+		dev_err(sdev->dev, "error: no HDMI audio devices found\n");
 		return ret;
 	}
 
@@ -355,7 +354,7 @@ static const struct sof_intel_dsp_desc
 
 int hda_dsp_probe(struct snd_sof_dev *sdev)
 {
-	struct pci_dev *pci = sdev->pci;
+	struct pci_dev *pci = to_pci_dev(sdev->dev);
 	struct sof_intel_hda_dev *hdev;
 	struct hdac_bus *bus;
 	struct hdac_stream *stream;
@@ -386,17 +385,17 @@ int hda_dsp_probe(struct snd_sof_dev *sdev)
 		goto err;
 	}
 
-	hdev = devm_kzalloc(&pci->dev, sizeof(*hdev), GFP_KERNEL);
+	hdev = devm_kzalloc(sdev->dev, sizeof(*hdev), GFP_KERNEL);
 	if (!hdev)
 		return -ENOMEM;
 	sdev->pdata->hw_pdata = hdev;
 	hdev->desc = chip;
 
-	hdev->dmic_dev = platform_device_register_data(&pci->dev, "dmic-codec",
+	hdev->dmic_dev = platform_device_register_data(sdev->dev, "dmic-codec",
 						       PLATFORM_DEVID_NONE,
 						       NULL, 0);
 	if (IS_ERR(hdev->dmic_dev)) {
-		dev_err(&pci->dev, "error: failed to create DMIC device\n");
+		dev_err(sdev->dev, "error: failed to create DMIC device\n");
 		return PTR_ERR(hdev->dmic_dev);
 	}
 
@@ -419,7 +418,7 @@ int hda_dsp_probe(struct snd_sof_dev *sdev)
 	/* DSP base */
 	sdev->bar[HDA_DSP_BAR] = pci_ioremap_bar(pci, HDA_DSP_BAR);
 	if (!sdev->bar[HDA_DSP_BAR]) {
-		dev_err(&pci->dev, "error: ioremap error\n");
+		dev_err(sdev->dev, "error: ioremap error\n");
 		ret = -ENXIO;
 		goto hdac_bus_unmap;
 	}
@@ -429,10 +428,10 @@ int hda_dsp_probe(struct snd_sof_dev *sdev)
 
 	/* allow 64bit DMA address if supported by H/W */
 	if (!dma_set_mask(&pci->dev, DMA_BIT_MASK(64))) {
-		dev_dbg(&pci->dev, "DMA mask is 64 bit\n");
+		dev_dbg(sdev->dev, "DMA mask is 64 bit\n");
 		dma_set_coherent_mask(&pci->dev, DMA_BIT_MASK(64));
 	} else {
-		dev_dbg(&pci->dev, "DMA mask is 32 bit\n");
+		dev_dbg(sdev->dev, "DMA mask is 32 bit\n");
 		dma_set_mask(&pci->dev, DMA_BIT_MASK(32));
 		dma_set_coherent_mask(&pci->dev, DMA_BIT_MASK(32));
 	}
@@ -440,7 +439,7 @@ int hda_dsp_probe(struct snd_sof_dev *sdev)
 	/* init streams */
 	ret = hda_dsp_stream_init(sdev);
 	if (ret < 0) {
-		dev_err(&pci->dev, "error: failed to init streams\n");
+		dev_err(sdev->dev, "error: failed to init streams\n");
 		/*
 		 * not all errors are due to memory issues, but trying
 		 * to free everything does not harm
@@ -510,14 +509,14 @@ int hda_dsp_probe(struct snd_sof_dev *sdev)
 	/* reset HDA controller */
 	ret = hda_dsp_ctrl_link_reset(sdev, true);
 	if (ret < 0) {
-		dev_err(&pci->dev, "error: failed to reset HDA controller\n");
+		dev_err(sdev->dev, "error: failed to reset HDA controller\n");
 		goto free_ipc_irq;
 	}
 
 	/* exit HDA controller reset */
 	ret = hda_dsp_ctrl_link_reset(sdev, false);
 	if (ret < 0) {
-		dev_err(&pci->dev, "error: failed to exit HDA controller reset\n");
+		dev_err(sdev->dev, "error: failed to exit HDA controller reset\n");
 		goto free_ipc_irq;
 	}
 
@@ -588,7 +587,7 @@ int hda_dsp_remove(struct snd_sof_dev *sdev)
 	struct sof_intel_hda_dev *hda =
 		(struct sof_intel_hda_dev *)sdev->pdata->hw_pdata;
 	struct hdac_bus *bus = sof_to_bus(sdev);
-	struct pci_dev *pci = sdev->pci;
+	struct pci_dev *pci = to_pci_dev(sdev->dev);
 	const struct sof_intel_dsp_desc *chip = hda->desc;
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
