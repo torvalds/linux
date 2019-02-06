@@ -224,6 +224,29 @@ static int hda_init(struct snd_sof_dev *sdev)
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 
+static const char *fixup_tplg_name(struct snd_sof_dev *sdev,
+				   const char *sof_tplg_filename)
+{
+	char *filename;
+	const char *tplg_filename = NULL;
+	int length;
+
+	filename = devm_kstrdup(sdev->dev, sof_tplg_filename, GFP_KERNEL);
+	if (!filename)
+		return NULL;
+
+	/* this assumes a .tplg extension */
+	length = strlen(filename);
+	if (length >= 6) {
+		filename[length - 5] = '\0';
+		tplg_filename = devm_kasprintf(sdev->dev, GFP_KERNEL,
+					       "%s-idisp.tplg", filename);
+		if (!tplg_filename)
+			return NULL;
+	}
+	return tplg_filename;
+}
+
 static int hda_init_caps(struct snd_sof_dev *sdev)
 {
 	struct hdac_bus *bus = sof_to_bus(sdev);
@@ -232,6 +255,7 @@ static int hda_init_caps(struct snd_sof_dev *sdev)
 	struct snd_soc_acpi_mach *hda_mach = NULL;
 	struct snd_sof_pdata *pdata = sdev->pdata;
 	struct snd_soc_acpi_mach *mach;
+	char *tplg_filename;
 	int codec_num = 0;
 	int ret = 0;
 	int i;
@@ -255,8 +279,7 @@ static int hda_init_caps(struct snd_sof_dev *sdev)
 	ret = hda_dsp_ctrl_init_chip(sdev, true);
 	if (ret < 0) {
 		dev_err(bus->dev, "error: init chip failed with ret: %d\n", ret);
-		hda_codec_i915_exit(sdev);
-		return ret;
+		goto out;
 	}
 
 	/* codec detection */
@@ -295,6 +318,17 @@ static int hda_init_caps(struct snd_sof_dev *sdev)
 				dev_info(bus->dev, "using HDA machine driver %s now\n",
 					 hda_mach->drv_name);
 			}
+
+			/* fixup topology file for HDMI only platforms */
+			if (codec_num == 1 &&
+			    !IS_ENABLED(CONFIG_SND_SOC_SOF_NOCODEC)) {
+				/* use local variable for readability */
+				tplg_filename = hda_mach->sof_tplg_filename;
+				tplg_filename = fixup_tplg_name(sdev, tplg_filename);
+				if (!tplg_filename)
+					goto out;
+				hda_mach->sof_tplg_filename = tplg_filename;
+			}
 		}
 	}
 
@@ -318,6 +352,10 @@ static int hda_init_caps(struct snd_sof_dev *sdev)
 		snd_hdac_ext_bus_link_put(bus, hlink);
 
 	return 0;
+
+out:
+	hda_codec_i915_exit(sdev);
+	return ret;
 }
 
 #else
