@@ -8690,6 +8690,8 @@ struct walk_control {
 	u64 refs[BTRFS_MAX_LEVEL];
 	u64 flags[BTRFS_MAX_LEVEL];
 	struct btrfs_key update_progress;
+	struct btrfs_key drop_progress;
+	int drop_level;
 	int stage;
 	int level;
 	int shared_level;
@@ -9028,6 +9030,16 @@ skip:
 					     ret);
 			}
 		}
+
+		/*
+		 * We need to update the next key in our walk control so we can
+		 * update the drop_progress key accordingly.  We don't care if
+		 * find_next_key doesn't find a key because that means we're at
+		 * the end and are going to clean up now.
+		 */
+		wc->drop_level = level;
+		find_next_key(path, level, &wc->drop_progress);
+
 		ret = btrfs_free_extent(trans, root, bytenr, fs_info->nodesize,
 					parent, root->root_key.objectid,
 					level - 1, 0);
@@ -9378,12 +9390,14 @@ int btrfs_drop_snapshot(struct btrfs_root *root,
 		}
 
 		if (wc->stage == DROP_REFERENCE) {
-			level = wc->level;
-			btrfs_node_key(path->nodes[level],
-				       &root_item->drop_progress,
-				       path->slots[level]);
-			root_item->drop_level = level;
+			wc->drop_level = wc->level;
+			btrfs_node_key_to_cpu(path->nodes[wc->drop_level],
+					      &wc->drop_progress,
+					      path->slots[wc->drop_level]);
 		}
+		btrfs_cpu_key_to_disk(&root_item->drop_progress,
+				      &wc->drop_progress);
+		root_item->drop_level = wc->drop_level;
 
 		BUG_ON(wc->level == 0);
 		if (btrfs_should_end_transaction(trans) ||
