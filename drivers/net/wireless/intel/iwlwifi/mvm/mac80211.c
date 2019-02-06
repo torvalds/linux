@@ -598,6 +598,9 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 		BIT(NL80211_IFTYPE_ADHOC);
 
 	hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
+	wiphy_ext_feature_set(hw->wiphy, NL80211_EXT_FEATURE_VHT_IBSS);
+	hw->wiphy->features |= NL80211_FEATURE_HT_IBSS;
+
 	hw->wiphy->regulatory_flags |= REGULATORY_ENABLE_RELAX_NO_IR;
 	if (iwl_mvm_is_lar_supported(mvm))
 		hw->wiphy->regulatory_flags |= REGULATORY_WIPHY_SELF_MANAGED;
