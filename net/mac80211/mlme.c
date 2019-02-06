@@ -1352,6 +1352,7 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	ch_switch.block_tx = csa_ie.mode;
 	ch_switch.chandef = csa_ie.chandef;
 	ch_switch.count = csa_ie.count;
+	ch_switch.delay = csa_ie.max_switch_time;
 
 	if (drv_pre_channel_switch(sdata, &ch_switch)) {
 		sdata_info(sdata,
