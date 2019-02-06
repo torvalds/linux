@@ -12,3 +12,5 @@ obj-$(CONFIG_VIDEO_IMX_MEDIA) += imx-media-ic.o
 
 obj-$(CONFIG_VIDEO_IMX_CSI) += imx-media-csi.o
 obj-$(CONFIG_VIDEO_IMX_CSI) += imx6-mipi-csi2.o
+
+obj-$(CONFIG_VIDEO_IMX7_CSI) += imx7-media-csi.o
