@@ -2871,7 +2871,8 @@ static int qed_get_coalesce(struct qed_dev *cdev, u16 *coal, void *handle)
 	p_hwfn = p_cid->p_owner;
 	rc = qed_get_queue_coalesce(p_hwfn, coal, handle);
 	if (rc)
-		DP_NOTICE(p_hwfn, "Unable to read queue coalescing\n");
+		DP_VERBOSE(cdev, QED_MSG_DEBUG,
+			   "Unable to read queue coalescing\n");
 
 	return rc;
 }
