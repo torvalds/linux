@@ -56,6 +56,15 @@
 	clock-frequency = <48000000>;
 };
 
+&pcie_bus_clk {
+	clock-frequency = <100000000>;
+};
+
+&pciec0 {
+	/* Map all possible DDR as inbound ranges */
+	dma-ranges = <0x42000000 0 0x40000000 0 0x40000000 0 0x80000000>;
+};
+
 &pfc {
 	scif2_pins: scif2 {
 		groups = "scif2_data_a";
