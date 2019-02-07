@@ -77,6 +77,7 @@ bool swiotlb_map(struct device *dev, phys_addr_t *phys, dma_addr_t *dma_addr,
 void __init swiotlb_exit(void);
 unsigned int swiotlb_max_segment(void);
 size_t swiotlb_max_mapping_size(struct device *dev);
+bool is_swiotlb_active(void);
 #else
 #define swiotlb_force SWIOTLB_NO_FORCE
 static inline bool is_swiotlb_buffer(phys_addr_t paddr)
@@ -99,6 +100,11 @@ static inline unsigned int swiotlb_max_segment(void)
 static inline size_t swiotlb_max_mapping_size(struct device *dev)
 {
 	return SIZE_MAX;
+}
+
+static inline bool is_swiotlb_active(void)
+{
+	return false;
 }
 #endif /* CONFIG_SWIOTLB */
 
