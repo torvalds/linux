@@ -17,6 +17,7 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/rt5682.h>
+#include <sound/soc-acpi.h>
 #include "../../codecs/rt5682.h"
 #include "../../codecs/hdac_hdmi.h"
 
@@ -189,7 +190,8 @@ static struct snd_soc_ops sof_rt5682_ops = {
 
 static struct snd_soc_dai_link_component platform_component[] = {
 	{
-		.name = "sof-audio"
+		/* name might be overridden during probe */
+		.name = "0000:00:1f.3"
 	}
 };
 
@@ -346,8 +348,10 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 static int sof_audio_probe(struct platform_device *pdev)
 {
 	struct snd_soc_dai_link *dai_links;
+	struct snd_soc_acpi_mach *mach;
 	struct sof_card_private *ctx;
 	int dmic_num, hdmi_num;
+	int ret;
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_ATOMIC);
 	if (!ctx)
@@ -378,6 +382,14 @@ static int sof_audio_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&ctx->hdmi_pcm_list);
 
 	sof_audio_card_rt5682.dev = &pdev->dev;
+	mach = (&pdev->dev)->platform_data;
+
+	/* set platform name for each dailink */
+	ret = snd_soc_fixup_dai_links_platform_name(&sof_audio_card_rt5682,
+						    mach->mach_params.platform);
+	if (ret)
+		return ret;
+
 	snd_soc_card_set_drvdata(&sof_audio_card_rt5682, ctx);
 
 	return devm_snd_soc_register_card(&pdev->dev,
