@@ -51,10 +51,6 @@ struct sdio_cmd53 {
 
 static const struct wilc_hif_func wilc_hif_sdio;
 
-static int sdio_write_reg(struct wilc *wilc, u32 addr, u32 data);
-static int sdio_read_reg(struct wilc *wilc, u32 addr, u32 *data);
-static int sdio_init(struct wilc *wilc, bool resume);
-
 static void wilc_sdio_interrupt(struct sdio_func *func)
 {
 	sdio_release_host(func);
@@ -214,50 +210,6 @@ static int wilc_sdio_suspend(struct device *dev)
 
 	return 0;
 }
-
-static int wilc_sdio_resume(struct device *dev)
-{
-	struct sdio_func *func = dev_to_sdio_func(dev);
-	struct wilc *wilc = sdio_get_drvdata(func);
-
-	dev_info(dev, "sdio resume\n");
-	sdio_release_host(func);
-	chip_wakeup(wilc);
-	sdio_init(wilc, true);
-
-	if (wilc->suspend_event)
-		host_wakeup_notify(wilc);
-
-	chip_allow_sleep(wilc);
-
-	return 0;
-}
-
-static const struct of_device_id wilc_of_match[] = {
-	{ .compatible = "microchip,wilc1000-sdio", },
-	{ /* sentinel */ }
-};
-MODULE_DEVICE_TABLE(of, wilc_of_match);
-
-static const struct dev_pm_ops wilc_sdio_pm_ops = {
-	.suspend = wilc_sdio_suspend,
-	.resume = wilc_sdio_resume,
-};
-
-static struct sdio_driver wilc_sdio_driver = {
-	.name		= SDIO_MODALIAS,
-	.id_table	= wilc_sdio_ids,
-	.probe		= linux_sdio_probe,
-	.remove		= linux_sdio_remove,
-	.drv = {
-		.pm = &wilc_sdio_pm_ops,
-		.of_match_table = wilc_of_match,
-	}
-};
-module_driver(wilc_sdio_driver,
-	      sdio_register_driver,
-	      sdio_unregister_driver);
-MODULE_LICENSE("GPL");
 
 static int wilc_sdio_enable_interrupt(struct wilc *dev)
 {
@@ -1143,3 +1095,46 @@ static const struct wilc_hif_func wilc_hif_sdio = {
 	.disable_interrupt = wilc_sdio_disable_interrupt,
 };
 
+static int wilc_sdio_resume(struct device *dev)
+{
+	struct sdio_func *func = dev_to_sdio_func(dev);
+	struct wilc *wilc = sdio_get_drvdata(func);
+
+	dev_info(dev, "sdio resume\n");
+	sdio_release_host(func);
+	chip_wakeup(wilc);
+	sdio_init(wilc, true);
+
+	if (wilc->suspend_event)
+		host_wakeup_notify(wilc);
+
+	chip_allow_sleep(wilc);
+
+	return 0;
+}
+
+static const struct of_device_id wilc_of_match[] = {
+	{ .compatible = "microchip,wilc1000-sdio", },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, wilc_of_match);
+
+static const struct dev_pm_ops wilc_sdio_pm_ops = {
+	.suspend = wilc_sdio_suspend,
+	.resume = wilc_sdio_resume,
+};
+
+static struct sdio_driver wilc_sdio_driver = {
+	.name		= SDIO_MODALIAS,
+	.id_table	= wilc_sdio_ids,
+	.probe		= linux_sdio_probe,
+	.remove		= linux_sdio_remove,
+	.drv = {
+		.pm = &wilc_sdio_pm_ops,
+		.of_match_table = wilc_of_match,
+	}
+};
+module_driver(wilc_sdio_driver,
+	      sdio_register_driver,
+	      sdio_unregister_driver);
+MODULE_LICENSE("GPL");
