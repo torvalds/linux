@@ -195,6 +195,14 @@ Requesting the required mask does not alter the current mask.  If you
 wish to take advantage of it, you should issue a dma_set_mask()
 call to set the mask to the value returned.
 
+::
+
+	size_t
+	dma_direct_max_mapping_size(struct device *dev);
+
+Returns the maximum size of a mapping for the device. The size parameter
+of the mapping functions like dma_map_single(), dma_map_page() and
+others should not be larger than the returned value.
 
 Part Id - Streaming DMA mappings
 --------------------------------
