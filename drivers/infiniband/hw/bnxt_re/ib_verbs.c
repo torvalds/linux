@@ -3299,10 +3299,10 @@ int bnxt_re_req_notify_cq(struct ib_cq *ib_cq,
 	spin_lock_irqsave(&cq->cq_lock, flags);
 	/* Trigger on the very next completion */
 	if (ib_cqn_flags & IB_CQ_NEXT_COMP)
-		type = DBR_DBR_TYPE_CQ_ARMALL;
+		type = DBC_DBC_TYPE_CQ_ARMALL;
 	/* Trigger on the next solicited completion */
 	else if (ib_cqn_flags & IB_CQ_SOLICITED)
-		type = DBR_DBR_TYPE_CQ_ARMSE;
+		type = DBC_DBC_TYPE_CQ_ARMSE;
 
 	/* Poll to see if there are missed events */
 	if ((ib_cqn_flags & IB_CQ_REPORT_MISSED_EVENTS) &&

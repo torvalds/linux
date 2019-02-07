@@ -49,11 +49,11 @@ struct cmpl_doorbell {
 	#define CMPL_DOORBELL_IDX_SFT				    0
 	#define CMPL_DOORBELL_RESERVED_MASK			    0x3000000UL
 	#define CMPL_DOORBELL_RESERVED_SFT			    24
-	#define CMPL_DOORBELL_IDX_VALID			    0x4000000UL
+	#define CMPL_DOORBELL_IDX_VALID				    0x4000000UL
 	#define CMPL_DOORBELL_MASK				    0x8000000UL
 	#define CMPL_DOORBELL_KEY_MASK				    0xf0000000UL
 	#define CMPL_DOORBELL_KEY_SFT				    28
-	#define CMPL_DOORBELL_KEY_CMPL				   (0x2UL << 28)
+	#define CMPL_DOORBELL_KEY_CMPL				(0x2UL << 28)
 };
 
 /* Status Door Bell Format (4 bytes) */
@@ -71,46 +71,56 @@ struct status_doorbell {
 /* RoCE Host Structures */
 
 /* Doorbell Structures */
-/* 64b Doorbell Format (8 bytes) */
-struct dbr_dbr {
-	__le32 index;
-	#define DBR_DBR_INDEX_MASK				    0xfffffUL
-	#define DBR_DBR_INDEX_SFT				    0
-	#define DBR_DBR_RESERVED12_MASK			    0xfff00000UL
-	#define DBR_DBR_RESERVED12_SFT				    20
-	__le32 type_xid;
-	#define DBR_DBR_XID_MASK				    0xfffffUL
-	#define DBR_DBR_XID_SFT				    0
-	#define DBR_DBR_RESERVED8_MASK				    0xff00000UL
-	#define DBR_DBR_RESERVED8_SFT				    20
-	#define DBR_DBR_TYPE_MASK				    0xf0000000UL
-	#define DBR_DBR_TYPE_SFT				    28
-	#define DBR_DBR_TYPE_SQ				   (0x0UL << 28)
-	#define DBR_DBR_TYPE_RQ				   (0x1UL << 28)
-	#define DBR_DBR_TYPE_SRQ				   (0x2UL << 28)
-	#define DBR_DBR_TYPE_SRQ_ARM				   (0x3UL << 28)
-	#define DBR_DBR_TYPE_CQ				   (0x4UL << 28)
-	#define DBR_DBR_TYPE_CQ_ARMSE				   (0x5UL << 28)
-	#define DBR_DBR_TYPE_CQ_ARMALL				   (0x6UL << 28)
-	#define DBR_DBR_TYPE_CQ_ARMENA				   (0x7UL << 28)
-	#define DBR_DBR_TYPE_SRQ_ARMENA			   (0x8UL << 28)
-	#define DBR_DBR_TYPE_CQ_CUTOFF_ACK			   (0x9UL << 28)
-	#define DBR_DBR_TYPE_NULL				   (0xfUL << 28)
+/* dbc_dbc (size:64b/8B) */
+struct dbc_dbc {
+	__le32  index;
+	#define DBC_DBC_INDEX_MASK		0xffffffUL
+	#define DBC_DBC_INDEX_SFT		0
+	__le32  type_path_xid;
+	#define DBC_DBC_XID_MASK		0xfffffUL
+	#define DBC_DBC_XID_SFT			0
+	#define DBC_DBC_PATH_MASK		0x3000000UL
+	#define DBC_DBC_PATH_SFT		24
+	#define DBC_DBC_PATH_ROCE		(0x0UL << 24)
+	#define DBC_DBC_PATH_L2			(0x1UL << 24)
+	#define DBC_DBC_PATH_ENGINE		(0x2UL << 24)
+	#define DBC_DBC_PATH_LAST		DBC_DBC_PATH_ENGINE
+	#define DBC_DBC_DEBUG_TRACE		0x8000000UL
+	#define DBC_DBC_TYPE_MASK		0xf0000000UL
+	#define DBC_DBC_TYPE_SFT		28
+	#define DBC_DBC_TYPE_SQ			(0x0UL << 28)
+	#define DBC_DBC_TYPE_RQ			(0x1UL << 28)
+	#define DBC_DBC_TYPE_SRQ		(0x2UL << 28)
+	#define DBC_DBC_TYPE_SRQ_ARM		(0x3UL << 28)
+	#define DBC_DBC_TYPE_CQ			(0x4UL << 28)
+	#define DBC_DBC_TYPE_CQ_ARMSE		(0x5UL << 28)
+	#define DBC_DBC_TYPE_CQ_ARMALL		(0x6UL << 28)
+	#define DBC_DBC_TYPE_CQ_ARMENA		(0x7UL << 28)
+	#define DBC_DBC_TYPE_SRQ_ARMENA		(0x8UL << 28)
+	#define DBC_DBC_TYPE_CQ_CUTOFF_ACK	(0x9UL << 28)
+	#define DBC_DBC_TYPE_NQ			(0xaUL << 28)
+	#define DBC_DBC_TYPE_NQ_ARM		(0xbUL << 28)
+	#define DBC_DBC_TYPE_NULL		(0xfUL << 28)
+	#define DBC_DBC_TYPE_LAST		DBC_DBC_TYPE_NULL
 };
 
-/* 32b Doorbell Format (4 bytes) */
-struct dbr_dbr32 {
-	__le32 type_abs_incr_xid;
-	#define DBR_DBR32_XID_MASK				    0xfffffUL
-	#define DBR_DBR32_XID_SFT				    0
-	#define DBR_DBR32_RESERVED4_MASK			    0xf00000UL
-	#define DBR_DBR32_RESERVED4_SFT			    20
-	#define DBR_DBR32_INCR_MASK				    0xf000000UL
-	#define DBR_DBR32_INCR_SFT				    24
-	#define DBR_DBR32_ABS					    0x10000000UL
-	#define DBR_DBR32_TYPE_MASK				    0xe0000000UL
-	#define DBR_DBR32_TYPE_SFT				    29
-	#define DBR_DBR32_TYPE_SQ				   (0x0UL << 29)
+/* dbc_dbc32 (size:32b/4B) */
+struct dbc_dbc32 {
+	__le32  type_abs_incr_xid;
+	#define DBC_DBC32_XID_MASK		0xfffffUL
+	#define DBC_DBC32_XID_SFT		0
+	#define DBC_DBC32_PATH_MASK		0xc00000UL
+	#define DBC_DBC32_PATH_SFT		22
+	#define DBC_DBC32_PATH_ROCE		(0x0UL << 22)
+	#define DBC_DBC32_PATH_L2		(0x1UL << 22)
+	#define DBC_DBC32_PATH_LAST		DBC_DBC32_PATH_L2
+	#define DBC_DBC32_INCR_MASK		0xf000000UL
+	#define DBC_DBC32_INCR_SFT		24
+	#define DBC_DBC32_ABS			0x10000000UL
+	#define DBC_DBC32_TYPE_MASK		0xe0000000UL
+	#define DBC_DBC32_TYPE_SFT		29
+	#define DBC_DBC32_TYPE_SQ		(0x0UL << 29)
+	#define DBC_DBC32_TYPE_LAST		DBC_DBC32_TYPE_SQ
 };
 
 /* SQ WQE Structures */
@@ -2719,6 +2729,8 @@ struct creq_query_func_resp_sb {
 	__le16 max_srq;
 	__le32 max_gid;
 	__le32 tqm_alloc_reqs[12];
+	__le32 max_dpi;
+	__le32 reserved_32;
 };
 
 /* Set resources command response (16 bytes) */
