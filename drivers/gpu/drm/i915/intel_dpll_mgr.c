@@ -2525,10 +2525,9 @@ static bool icl_calc_tbt_pll(struct intel_crtc_state *crtc_state,
 }
 
 static bool icl_calc_dpll_state(struct intel_crtc_state *crtc_state,
-				struct intel_encoder *encoder, int clock,
-				struct intel_dpll_hw_state *pll_state)
+				struct intel_encoder *encoder)
 {
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
 	u32 cfgcr0, cfgcr1;
 	struct skl_wrpll_params pll_params = { 0 };
 	bool ret;
@@ -2553,8 +2552,12 @@ static bool icl_calc_dpll_state(struct intel_crtc_state *crtc_state,
 		 DPLL_CFGCR1_PDIV(pll_params.pdiv) |
 		 DPLL_CFGCR1_CENTRAL_FREQ_8400;
 
-	pll_state->cfgcr0 = cfgcr0;
-	pll_state->cfgcr1 = cfgcr1;
+	memset(&crtc_state->dpll_hw_state, 0,
+	       sizeof(crtc_state->dpll_hw_state));
+
+	crtc_state->dpll_hw_state.cfgcr0 = cfgcr0;
+	crtc_state->dpll_hw_state.cfgcr1 = cfgcr1;
+
 	return true;
 }
 
@@ -2713,12 +2716,12 @@ static bool icl_mg_pll_find_divisors(int clock_khz, bool is_dp, bool use_ssc,
  * The specification for this function uses real numbers, so the math had to be
  * adapted to integer-only calculation, that's why it looks so different.
  */
-static bool icl_calc_mg_pll_state(struct intel_crtc_state *crtc_state,
-				  struct intel_encoder *encoder, int clock,
-				  struct intel_dpll_hw_state *pll_state)
+static bool icl_calc_mg_pll_state(struct intel_crtc_state *crtc_state)
 {
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
+	struct intel_dpll_hw_state *pll_state = &crtc_state->dpll_hw_state;
 	int refclk_khz = dev_priv->cdclk.hw.ref;
+	int clock = crtc_state->port_clock;
 	u32 dco_khz, m1div, m2div_int, m2div_rem, m2div_frac;
 	u32 iref_ndiv, iref_trim, iref_pulse_w;
 	u32 prop_coeff, int_coeff;
@@ -2727,6 +2730,8 @@ static bool icl_calc_mg_pll_state(struct intel_crtc_state *crtc_state,
 	u64 tmp;
 	bool use_ssc = false;
 	bool is_dp = !intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI);
+
+	memset(pll_state, 0, sizeof(*pll_state));
 
 	if (!icl_mg_pll_find_divisors(clock, is_dp, use_ssc, &dco_khz,
 				      pll_state)) {
@@ -2883,17 +2888,14 @@ icl_get_dpll(struct intel_crtc_state *crtc_state,
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
 	struct intel_digital_port *intel_dig_port;
 	struct intel_shared_dpll *pll;
-	struct intel_dpll_hw_state pll_state = {};
 	enum port port = encoder->port;
 	enum intel_dpll_id min, max;
-	int clock = crtc_state->port_clock;
 	bool ret;
 
 	if (intel_port_is_combophy(dev_priv, port)) {
 		min = DPLL_ID_ICL_DPLL0;
 		max = DPLL_ID_ICL_DPLL1;
-		ret = icl_calc_dpll_state(crtc_state, encoder, clock,
-					  &pll_state);
+		ret = icl_calc_dpll_state(crtc_state, encoder);
 	} else if (intel_port_is_tc(dev_priv, port)) {
 		if (encoder->type == INTEL_OUTPUT_DP_MST) {
 			struct intel_dp_mst_encoder *mst_encoder;
@@ -2907,16 +2909,14 @@ icl_get_dpll(struct intel_crtc_state *crtc_state,
 		if (intel_dig_port->tc_type == TC_PORT_TBT) {
 			min = DPLL_ID_ICL_TBTPLL;
 			max = min;
-			ret = icl_calc_dpll_state(crtc_state, encoder, clock,
-						  &pll_state);
+			ret = icl_calc_dpll_state(crtc_state, encoder);
 		} else {
 			enum tc_port tc_port;
 
 			tc_port = intel_port_to_tc(dev_priv, port);
 			min = icl_tc_port_to_pll_id(tc_port);
 			max = min;
-			ret = icl_calc_mg_pll_state(crtc_state, encoder, clock,
-						    &pll_state);
+			ret = icl_calc_mg_pll_state(crtc_state);
 		}
 	} else {
 		MISSING_CASE(port);
@@ -2928,7 +2928,6 @@ icl_get_dpll(struct intel_crtc_state *crtc_state,
 		return NULL;
 	}
 
-	crtc_state->dpll_hw_state = pll_state;
 
 	pll = intel_find_shared_dpll(crtc_state, min, max);
 	if (!pll) {
