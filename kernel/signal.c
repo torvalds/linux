@@ -1294,12 +1294,13 @@ int do_send_sig_info(int sig, struct kernel_siginfo *info, struct task_struct *p
  * We don't want to have recursive SIGSEGV's etc, for example,
  * that is why we also clear SIGNAL_UNKILLABLE.
  */
-int
-force_sig_info(int sig, struct kernel_siginfo *info, struct task_struct *t)
+static int
+force_sig_info_to_task(struct kernel_siginfo *info, struct task_struct *t)
 {
 	unsigned long int flags;
 	int ret, blocked, ignored;
 	struct k_sigaction *action;
+	int sig = info->si_signo;
 
 	spin_lock_irqsave(&t->sighand->siglock, flags);
 	action = &t->sighand->action[sig-1];
@@ -1322,6 +1323,11 @@ force_sig_info(int sig, struct kernel_siginfo *info, struct task_struct *t)
 	spin_unlock_irqrestore(&t->sighand->siglock, flags);
 
 	return ret;
+}
+
+int force_sig_info(int sig, struct kernel_siginfo *info, struct task_struct *t)
+{
+	return force_sig_info_to_task(info, t);
 }
 
 /*
@@ -1656,7 +1662,7 @@ int force_sig_fault_to_task(int sig, int code, void __user *addr
 	info.si_flags = flags;
 	info.si_isr = isr;
 #endif
-	return force_sig_info(info.si_signo, &info, t);
+	return force_sig_info_to_task(&info, t);
 }
 
 int force_sig_fault(int sig, int code, void __user *addr
