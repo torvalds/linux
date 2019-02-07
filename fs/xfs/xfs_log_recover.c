@@ -2445,10 +2445,12 @@ xlog_recover_validate_buf_type(
 			bp->b_ops = &xfs_allocbt_buf_ops;
 			break;
 		case XFS_IBT_CRC_MAGIC:
-		case XFS_FIBT_CRC_MAGIC:
 		case XFS_IBT_MAGIC:
-		case XFS_FIBT_MAGIC:
 			bp->b_ops = &xfs_inobt_buf_ops;
+			break;
+		case XFS_FIBT_CRC_MAGIC:
+		case XFS_FIBT_MAGIC:
+			bp->b_ops = &xfs_finobt_buf_ops;
 			break;
 		case XFS_BMAP_CRC_MAGIC:
 		case XFS_BMAP_MAGIC:

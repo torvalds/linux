@@ -333,6 +333,13 @@ const struct xfs_buf_ops xfs_inobt_buf_ops = {
 	.verify_struct = xfs_inobt_verify,
 };
 
+const struct xfs_buf_ops xfs_finobt_buf_ops = {
+	.name = "xfs_finobt",
+	.verify_read = xfs_inobt_read_verify,
+	.verify_write = xfs_inobt_write_verify,
+	.verify_struct = xfs_inobt_verify,
+};
+
 STATIC int
 xfs_inobt_keys_inorder(
 	struct xfs_btree_cur	*cur,
@@ -389,7 +396,7 @@ static const struct xfs_btree_ops xfs_finobt_ops = {
 	.init_rec_from_cur	= xfs_inobt_init_rec_from_cur,
 	.init_ptr_from_cur	= xfs_finobt_init_ptr_from_cur,
 	.key_diff		= xfs_inobt_key_diff,
-	.buf_ops		= &xfs_inobt_buf_ops,
+	.buf_ops		= &xfs_finobt_buf_ops,
 	.diff_two_keys		= xfs_inobt_diff_two_keys,
 	.keys_inorder		= xfs_inobt_keys_inorder,
 	.recs_inorder		= xfs_inobt_recs_inorder,

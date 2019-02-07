@@ -361,7 +361,7 @@ xfs_ag_init_headers(
 	{ /* FINO root block */
 		.daddr = XFS_AGB_TO_DADDR(mp, id->agno, XFS_FIBT_BLOCK(mp)),
 		.numblks = BTOBB(mp->m_sb.sb_blocksize),
-		.ops = &xfs_inobt_buf_ops,
+		.ops = &xfs_finobt_buf_ops,
 		.work = &xfs_btroot_init,
 		.type = XFS_BTNUM_FINO,
 		.need_init =  xfs_sb_version_hasfinobt(&mp->m_sb)

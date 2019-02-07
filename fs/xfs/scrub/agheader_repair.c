@@ -879,7 +879,7 @@ xrep_agi(
 		},
 		[XREP_AGI_FINOBT] = {
 			.rmap_owner = XFS_RMAP_OWN_INOBT,
-			.buf_ops = &xfs_inobt_buf_ops,
+			.buf_ops = &xfs_finobt_buf_ops,
 			.magic = XFS_FIBT_CRC_MAGIC,
 		},
 		[XREP_AGI_END] = {
