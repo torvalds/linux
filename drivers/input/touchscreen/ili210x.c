@@ -177,6 +177,13 @@ static void ili210x_power_down(void *data)
 	gpiod_set_value_cansleep(reset_gpio, 1);
 }
 
+static void ili210x_cancel_work(void *data)
+{
+	struct ili210x *priv = data;
+
+	cancel_delayed_work_sync(&priv->dwork);
+}
+
 static int ili210x_i2c_probe(struct i2c_client *client,
 				       const struct i2c_device_id *id)
 {
@@ -266,19 +273,23 @@ static int ili210x_i2c_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, priv);
 
-	error = request_irq(client->irq, ili210x_irq, 0,
-			    client->name, priv);
+	error = devm_add_action(dev, ili210x_cancel_work, priv);
+	if (error)
+		return error;
+
+	error = devm_request_irq(dev, client->irq, ili210x_irq, 0,
+				 client->name, priv);
 	if (error) {
 		dev_err(dev, "Unable to request touchscreen IRQ, err: %d\n",
 			error);
-		goto err_free_mem;
+		return error;
 	}
 
 	error = sysfs_create_group(&dev->kobj, &ili210x_attr_group);
 	if (error) {
 		dev_err(dev, "Unable to create sysfs attributes, err: %d\n",
 			error);
-		goto err_free_irq;
+		return error;
 	}
 
 	error = input_register_device(priv->input);
@@ -297,19 +308,12 @@ static int ili210x_i2c_probe(struct i2c_client *client,
 
 err_remove_sysfs:
 	sysfs_remove_group(&dev->kobj, &ili210x_attr_group);
-err_free_irq:
-	free_irq(client->irq, priv);
-err_free_mem:
 	return error;
 }
 
 static int ili210x_i2c_remove(struct i2c_client *client)
 {
-	struct ili210x *priv = i2c_get_clientdata(client);
-
 	sysfs_remove_group(&client->dev.kobj, &ili210x_attr_group);
-	free_irq(priv->client->irq, priv);
-	cancel_delayed_work_sync(&priv->dwork);
 
 	return 0;
 }
