@@ -3066,11 +3066,15 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 	} else if (old_state == IEEE80211_STA_AUTH &&
 		   new_state == IEEE80211_STA_ASSOC) {
 		if (vif->type == NL80211_IFTYPE_AP) {
+			vif->bss_conf.he_support = sta->he_cap.has_he;
 			mvmvif->ap_assoc_sta_count++;
 			iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
 			if (vif->bss_conf.he_support &&
 			    !iwlwifi_mod_params.disable_11ax)
 				iwl_mvm_cfg_he_sta(mvm, vif, mvm_sta->sta_id);
+		} else if (vif->type == NL80211_IFTYPE_STATION) {
+			vif->bss_conf.he_support = sta->he_cap.has_he;
+			iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
 		}
 
 		iwl_mvm_rs_rate_init(mvm, sta, mvmvif->phy_ctxt->channel->band,
@@ -3078,6 +3082,24 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 		ret = iwl_mvm_update_sta(mvm, vif, sta);
 	} else if (old_state == IEEE80211_STA_ASSOC &&
 		   new_state == IEEE80211_STA_AUTHORIZED) {
+		/* if wep is used, need to set the key for the station now */
+		if (vif->type == NL80211_IFTYPE_AP && mvmvif->ap_wep_key) {
+			mvm_sta->wep_key =
+				kmemdup(mvmvif->ap_wep_key,
+					sizeof(*mvmvif->ap_wep_key) +
+					mvmvif->ap_wep_key->keylen,
+					GFP_KERNEL);
+			if (!mvm_sta->wep_key) {
+				ret = -ENOMEM;
+				goto out_unlock;
+			}
+
+			ret = iwl_mvm_set_sta_key(mvm, vif, sta,
+						  mvm_sta->wep_key,
+						  STA_KEY_IDX_INVALID);
+		} else {
+			ret = 0;
+		}
 
 		/* we don't support TDLS during DCM */
 		if (iwl_mvm_phy_ctx_count(mvm) > 1)
@@ -3092,14 +3114,6 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 
 		iwl_mvm_rs_rate_init(mvm, sta, mvmvif->phy_ctxt->channel->band,
 				     true);
-
-		/* if wep is used, need to set the key for the station now */
-		if (vif->type == NL80211_IFTYPE_AP && mvmvif->ap_wep_key)
-			ret = iwl_mvm_set_sta_key(mvm, vif, sta,
-						  mvmvif->ap_wep_key,
-						  STA_KEY_IDX_INVALID);
-		else
-			ret = 0;
 	} else if (old_state == IEEE80211_STA_AUTHORIZED &&
 		   new_state == IEEE80211_STA_ASSOC) {
 		/* disable beacon filtering */
@@ -3127,10 +3141,12 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 		/* Remove STA key if this is an AP using WEP */
 		if (vif->type == NL80211_IFTYPE_AP && mvmvif->ap_wep_key) {
 			int rm_ret = iwl_mvm_remove_sta_key(mvm, vif, sta,
-							    mvmvif->ap_wep_key);
+							    mvm_sta->wep_key);
 
 			if (!ret)
 				ret = rm_ret;
+			kfree(mvm_sta->wep_key);
+			mvm_sta->wep_key = NULL;
 		}
 
 	} else {
@@ -3901,6 +3917,7 @@ static int __iwl_mvm_assign_vif_chanctx(struct iwl_mvm *mvm,
 			mvmvif->ap_ibss_active = true;
 			break;
 		}
+		/* fall through */
 	case NL80211_IFTYPE_ADHOC:
 		/*
 		 * The AP binding flow is handled as part of the start_ap flow
@@ -3953,25 +3970,30 @@ static int __iwl_mvm_assign_vif_chanctx(struct iwl_mvm *mvm,
 	}
 
 	if (switching_chanctx && vif->type == NL80211_IFTYPE_STATION) {
-		u32 duration = 3 * vif->bss_conf.beacon_int;
-
-		/* iwl_mvm_protect_session() reads directly from the
-		 * device (the system time), so make sure it is
-		 * available.
-		 */
-		ret = iwl_mvm_ref_sync(mvm, IWL_MVM_REF_PROTECT_CSA);
-		if (ret)
-			goto out_remove_binding;
-
-		/* Protect the session to make sure we hear the first
-		 * beacon on the new channel.
-		 */
 		mvmvif->csa_bcn_pending = true;
-		iwl_mvm_protect_session(mvm, vif, duration, duration,
-					vif->bss_conf.beacon_int / 2,
-					true);
 
-		iwl_mvm_unref(mvm, IWL_MVM_REF_PROTECT_CSA);
+		if (!fw_has_capa(&mvm->fw->ucode_capa,
+				 IWL_UCODE_TLV_CAPA_CHANNEL_SWITCH_CMD)) {
+			u32 duration = 3 * vif->bss_conf.beacon_int;
+
+
+			/* iwl_mvm_protect_session() reads directly from the
+			 * device (the system time), so make sure it is
+			 * available.
+			 */
+			ret = iwl_mvm_ref_sync(mvm, IWL_MVM_REF_PROTECT_CSA);
+			if (ret)
+				goto out_remove_binding;
+
+			/* Protect the session to make sure we hear the first
+			 * beacon on the new channel.
+			 */
+			iwl_mvm_protect_session(mvm, vif, duration, duration,
+						vif->bss_conf.beacon_int / 2,
+						true);
+
+			iwl_mvm_unref(mvm, IWL_MVM_REF_PROTECT_CSA);
+		}
 
 		iwl_mvm_update_quotas(mvm, false, NULL);
 	}
@@ -4041,7 +4063,9 @@ static void __iwl_mvm_unassign_vif_chanctx(struct iwl_mvm *mvm,
 
 		disabled_vif = vif;
 
-		iwl_mvm_mac_ctxt_changed(mvm, vif, true, NULL);
+		if (!fw_has_capa(&mvm->fw->ucode_capa,
+				 IWL_UCODE_TLV_CAPA_CHANNEL_SWITCH_CMD))
+			iwl_mvm_mac_ctxt_changed(mvm, vif, true, NULL);
 		break;
 	default:
 		break;
@@ -4292,6 +4316,27 @@ static void iwl_mvm_channel_switch(struct ieee80211_hw *hw,
 			   "dummy channel switch op\n");
 }
 
+static int iwl_mvm_schedule_client_csa(struct iwl_mvm *mvm,
+				       struct ieee80211_vif *vif,
+				       struct ieee80211_channel_switch *chsw)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_chan_switch_te_cmd cmd = {
+		.mac_id = cpu_to_le32(FW_CMD_ID_AND_COLOR(mvmvif->id,
+							  mvmvif->color)),
+		.action = cpu_to_le32(FW_CTXT_ACTION_ADD),
+		.tsf = cpu_to_le32(chsw->timestamp),
+		.cs_count = chsw->count,
+	};
+
+	lockdep_assert_held(&mvm->mutex);
+
+	return iwl_mvm_send_cmd_pdu(mvm,
+				    WIDE_ID(MAC_CONF_GROUP,
+					    CHANNEL_SWITCH_TIME_EVENT_CMD),
+				    0, sizeof(cmd), &cmd);
+}
+
 static int iwl_mvm_pre_channel_switch(struct ieee80211_hw *hw,
 				      struct ieee80211_vif *vif,
 				      struct ieee80211_channel_switch *chsw)
@@ -4359,14 +4404,19 @@ static int iwl_mvm_pre_channel_switch(struct ieee80211_hw *hw,
 		if (chsw->block_tx)
 			iwl_mvm_csa_client_absent(mvm, vif);
 
-		iwl_mvm_schedule_csa_period(mvm, vif, vif->bss_conf.beacon_int,
-					    apply_time);
 		if (mvmvif->bf_data.bf_enabled) {
 			ret = iwl_mvm_disable_beacon_filter(mvm, vif, 0);
 			if (ret)
 				goto out_unlock;
 		}
 
+		if (fw_has_capa(&mvm->fw->ucode_capa,
+				IWL_UCODE_TLV_CAPA_CHANNEL_SWITCH_CMD))
+			iwl_mvm_schedule_client_csa(mvm, vif, chsw);
+		else
+			iwl_mvm_schedule_csa_period(mvm, vif,
+						    vif->bss_conf.beacon_int,
+						    apply_time);
 		break;
 	default:
 		break;

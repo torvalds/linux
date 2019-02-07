@@ -1311,6 +1311,12 @@ static inline bool iwl_mvm_is_frag_ebs_supported(struct iwl_mvm *mvm)
 	return fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_FRAG_EBS);
 }
 
+static inline bool iwl_mvm_is_short_beacon_notif_supported(struct iwl_mvm *mvm)
+{
+	return fw_has_api(&mvm->fw->ucode_capa,
+			  IWL_UCODE_TLV_API_SHORT_BEACON_NOTIF);
+}
+
 static inline bool iwl_mvm_enter_d0i3_on_suspend(struct iwl_mvm *mvm)
 {
 	/* For now we only use this mode to differentiate between
@@ -2007,15 +2013,12 @@ static inline void iwl_mvm_stop_device(struct iwl_mvm *mvm)
 			       &mvm->status))
 		iwl_fw_dbg_collect_desc(&mvm->fwrt, &iwl_dump_desc_assert,
 					false, 0);
-	/* calling this function without using dump_start/end since at this
-	 * point we already hold the op mode mutex
-	 */
-	iwl_fw_dbg_collect_sync(&mvm->fwrt);
+
 	iwl_fw_cancel_timestamp(&mvm->fwrt);
-	iwl_free_fw_paging(&mvm->fwrt);
 	clear_bit(IWL_MVM_STATUS_FIRMWARE_RUNNING, &mvm->status);
+	iwl_fwrt_stop_device(&mvm->fwrt);
+	iwl_free_fw_paging(&mvm->fwrt);
 	iwl_fw_dump_conf_clear(&mvm->fwrt);
-	iwl_trans_stop_device(mvm->trans);
 }
 
 /* Re-configure the SCD for a queue that has already been configured */

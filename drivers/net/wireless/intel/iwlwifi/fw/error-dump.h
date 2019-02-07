@@ -275,20 +275,38 @@ struct iwl_fw_error_dump_mem {
 };
 
 /**
- * struct iwl_fw_error_dump_named_mem - chunk of memory
- * @type: &enum iwl_fw_error_dump_mem_type
- * @offset: the offset from which the memory was read
- * @name_len: name length
- * @name: file name
- * @data: the content of the memory
+ * struct iwl_fw_ini_error_dump_range - range of memory
+ * @start_addr: the start address of this range
+ * @range_data_size: the size of this range, in bytes
+ * @data: the actual memory
  */
-struct iwl_fw_error_dump_named_mem {
-	__le32 type;
-	__le32 offset;
-	u8 name_len;
-	u8 name[32];
-	u8 data[];
+struct iwl_fw_ini_error_dump_range {
+	__le32 start_addr;
+	__le32 range_data_size;
+	__le32 data[];
+} __packed;
+
+/**
+ * struct iwl_fw_ini_error_dump_header - ini region dump header
+ * @num_of_ranges: number of ranges in this region
+ * @name_len: number of bytes allocated to the name string of this region
+ * @name: name of the region
+ */
+struct iwl_fw_ini_error_dump_header {
+	__le32 num_of_ranges;
+	__le32 name_len;
+	u8 name[IWL_FW_INI_MAX_NAME];
 };
+
+/**
+ * struct iwl_fw_ini_error_dump - ini region dump
+ * @header: the header of this region
+ * @ranges: the memory ranges of this this region
+ */
+struct iwl_fw_ini_error_dump {
+	struct iwl_fw_ini_error_dump_header header;
+	struct iwl_fw_ini_error_dump_range ranges[];
+} __packed;
 
 /**
  * struct iwl_fw_error_dump_rb - content of an Receive Buffer
@@ -355,7 +373,9 @@ iwl_fw_error_next_data(struct iwl_fw_error_dump_data *data)
  * @FW_DBG_TDLS: trigger log collection upon TDLS related events.
  * @FW_DBG_TRIGGER_TX_STATUS: trigger log collection upon tx status when
  *  the firmware sends a tx reply.
- * @FW_DBG_TRIGGER_NO_ALIVE: trigger log collection if alive flow fails
+ * @FW_DBG_TRIGGER_ALIVE_TIMEOUT: trigger log collection if alive flow timeouts
+ * @FW_DBG_TRIGGER_DRIVER: trigger log collection upon a flow failure
+ *	in the driver.
  */
 enum iwl_fw_dbg_trigger {
 	FW_DBG_TRIGGER_INVALID = 0,
@@ -373,7 +393,8 @@ enum iwl_fw_dbg_trigger {
 	FW_DBG_TRIGGER_TX_LATENCY,
 	FW_DBG_TRIGGER_TDLS,
 	FW_DBG_TRIGGER_TX_STATUS,
-	FW_DBG_TRIGGER_NO_ALIVE,
+	FW_DBG_TRIGGER_ALIVE_TIMEOUT,
+	FW_DBG_TRIGGER_DRIVER,
 
 	/* must be last */
 	FW_DBG_TRIGGER_MAX,
