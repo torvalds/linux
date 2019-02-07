@@ -8,6 +8,7 @@
 #include <linux/list.h>
 #include <linux/rhashtable.h>
 #include <linux/netdevice.h>
+#include <trace/events/mlxsw.h>
 
 #include "reg.h"
 #include "core.h"
@@ -1175,6 +1176,8 @@ mlxsw_sp_acl_tcam_vregion_migrate(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_acl_tcam_region *region2, *unused_region;
 	int err;
 
+	trace_mlxsw_sp_acl_tcam_vregion_migrate(mlxsw_sp, vregion);
+
 	region2 = mlxsw_sp_acl_tcam_region_create(mlxsw_sp, vregion->tcam,
 						  vregion, hints_priv);
 	if (IS_ERR(region2))
@@ -1219,6 +1222,7 @@ mlxsw_sp_acl_tcam_vregion_rehash(struct mlxsw_sp *mlxsw_sp,
 	void *hints_priv;
 	int err;
 
+	trace_mlxsw_sp_acl_tcam_vregion_rehash(mlxsw_sp, vregion);
 	if (vregion->failed_rollback)
 		return -EBUSY;
 
@@ -1233,8 +1237,11 @@ mlxsw_sp_acl_tcam_vregion_rehash(struct mlxsw_sp *mlxsw_sp,
 	err = mlxsw_sp_acl_tcam_vregion_migrate(mlxsw_sp, vregion, hints_priv);
 	if (err) {
 		dev_err(mlxsw_sp->bus_info->dev, "Failed to migrate vregion\n");
-		if (vregion->failed_rollback)
+		if (vregion->failed_rollback) {
+			trace_mlxsw_sp_acl_tcam_vregion_rehash_dis(mlxsw_sp,
+								   vregion);
 			dev_err(mlxsw_sp->bus_info->dev, "Failed to rollback during vregion migration fail\n");
+		}
 	}
 
 	ops->region_rehash_hints_put(hints_priv);
