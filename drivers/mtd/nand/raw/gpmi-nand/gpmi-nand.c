@@ -171,7 +171,7 @@ static inline bool gpmi_check_ecc(struct gpmi_nand_data *this)
 	struct bch_geometry *geo = &this->bch_geometry;
 
 	/* Do the sanity check. */
-	if (GPMI_IS_MX23(this) || GPMI_IS_MX28(this)) {
+	if (GPMI_IS_MXS(this)) {
 		/* The mx23/mx28 only support the GF13. */
 		if (geo->gf_len == 14)
 			return false;
