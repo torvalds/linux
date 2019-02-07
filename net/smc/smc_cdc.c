@@ -106,9 +106,7 @@ int smc_cdc_msg_send(struct smc_connection *conn,
 
 	conn->tx_cdc_seq++;
 	conn->local_tx_ctrl.seqno = conn->tx_cdc_seq;
-	smc_host_msg_to_cdc((struct smc_cdc_msg *)wr_buf,
-			    &conn->local_tx_ctrl, conn);
-	smc_curs_copy(&cfed, &((struct smc_host_cdc_msg *)wr_buf)->cons, conn);
+	smc_host_msg_to_cdc((struct smc_cdc_msg *)wr_buf, conn, &cfed);
 	rc = smc_wr_tx_send(link, (struct smc_wr_tx_pend_priv *)pend);
 	if (!rc)
 		smc_curs_copy(&conn->rx_curs_confirmed, &cfed, conn);
