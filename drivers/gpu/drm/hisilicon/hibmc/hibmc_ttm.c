@@ -189,7 +189,6 @@ int hibmc_mm_init(struct hibmc_drm_private *hibmc)
 	ret = ttm_bo_device_init(&hibmc->bdev,
 				 &hibmc_bo_driver,
 				 dev->anon_inode->i_mapping,
-				 DRM_FILE_PAGE_OFFSET,
 				 true);
 	if (ret) {
 		DRM_ERROR("error initializing bo driver: %d\n", ret);

@@ -156,7 +156,7 @@ int vbox_mm_init(struct vbox_private *vbox)
 	ret = ttm_bo_device_init(&vbox->ttm.bdev,
 				 &vbox_bo_driver,
 				 dev->anon_inode->i_mapping,
-				 DRM_FILE_PAGE_OFFSET, true);
+				 true);
 	if (ret) {
 		DRM_ERROR("Error initialising bo driver; %d\n", ret);
 		return ret;
