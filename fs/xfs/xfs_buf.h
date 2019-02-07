@@ -125,6 +125,7 @@ struct xfs_buf_map {
 
 struct xfs_buf_ops {
 	char *name;
+	uint32_t magic[2];		/* v4 and v5 on disk magic values */
 	void (*verify_read)(struct xfs_buf *);
 	void (*verify_write)(struct xfs_buf *);
 	xfs_failaddr_t (*verify_struct)(struct xfs_buf *bp);
@@ -386,5 +387,6 @@ extern int xfs_setsize_buftarg(xfs_buftarg_t *, unsigned int);
 #define xfs_readonly_buftarg(buftarg)	bdev_read_only((buftarg)->bt_bdev)
 
 int xfs_buf_reverify(struct xfs_buf *bp, const struct xfs_buf_ops *ops);
+bool xfs_verify_magic(struct xfs_buf *bp, uint32_t dmagic);
 
 #endif	/* __XFS_BUF_H__ */

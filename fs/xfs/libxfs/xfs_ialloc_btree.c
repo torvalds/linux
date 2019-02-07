@@ -260,6 +260,9 @@ xfs_inobt_verify(
 	xfs_failaddr_t		fa;
 	unsigned int		level;
 
+	if (!xfs_verify_magic(bp, block->bb_magic))
+		return __this_address;
+
 	/*
 	 * During growfs operations, we can't verify the exact owner as the
 	 * perag is not fully initialised and hence not attached to the buffer.
@@ -270,18 +273,10 @@ xfs_inobt_verify(
 	 * but beware of the landmine (i.e. need to check pag->pagi_init) if we
 	 * ever do.
 	 */
-	switch (block->bb_magic) {
-	case cpu_to_be32(XFS_IBT_CRC_MAGIC):
-	case cpu_to_be32(XFS_FIBT_CRC_MAGIC):
+	if (xfs_sb_version_hascrc(&mp->m_sb)) {
 		fa = xfs_btree_sblock_v5hdr_verify(bp);
 		if (fa)
 			return fa;
-		/* fall through */
-	case cpu_to_be32(XFS_IBT_MAGIC):
-	case cpu_to_be32(XFS_FIBT_MAGIC):
-		break;
-	default:
-		return __this_address;
 	}
 
 	/* level verification */
@@ -328,6 +323,7 @@ xfs_inobt_write_verify(
 
 const struct xfs_buf_ops xfs_inobt_buf_ops = {
 	.name = "xfs_inobt",
+	.magic = { cpu_to_be32(XFS_IBT_MAGIC), cpu_to_be32(XFS_IBT_CRC_MAGIC) },
 	.verify_read = xfs_inobt_read_verify,
 	.verify_write = xfs_inobt_write_verify,
 	.verify_struct = xfs_inobt_verify,
@@ -335,6 +331,8 @@ const struct xfs_buf_ops xfs_inobt_buf_ops = {
 
 const struct xfs_buf_ops xfs_finobt_buf_ops = {
 	.name = "xfs_finobt",
+	.magic = { cpu_to_be32(XFS_FIBT_MAGIC),
+		   cpu_to_be32(XFS_FIBT_CRC_MAGIC) },
 	.verify_read = xfs_inobt_read_verify,
 	.verify_write = xfs_inobt_write_verify,
 	.verify_struct = xfs_inobt_verify,
