@@ -33,6 +33,7 @@
 
 #include <linux/dma-mapping.h>
 #include <net/addrconf.h>
+#include <rdma/uverbs_ioctl.h>
 #include "rxe.h"
 #include "rxe_loc.h"
 #include "rxe_queue.h"
@@ -320,8 +321,9 @@ static struct ib_srq *rxe_create_srq(struct ib_pd *ibpd,
 	int err;
 	struct rxe_dev *rxe = to_rdev(ibpd->device);
 	struct rxe_pd *pd = to_rpd(ibpd);
+	struct rxe_ucontext *ucontext =
+		rdma_udata_to_drv_context(udata, struct rxe_ucontext, ibuc);
 	struct rxe_srq *srq;
-	struct ib_ucontext *context = udata ? ibpd->uobject->context : NULL;
 	struct rxe_create_srq_resp __user *uresp = NULL;
 
 	if (udata) {
@@ -344,7 +346,7 @@ static struct ib_srq *rxe_create_srq(struct ib_pd *ibpd,
 	rxe_add_ref(pd);
 	srq->pd = pd;
 
-	err = rxe_srq_from_init(rxe, srq, init, context, uresp);
+	err = rxe_srq_from_init(rxe, srq, init, &ucontext->ibuc, uresp);
 	if (err)
 		goto err2;
 

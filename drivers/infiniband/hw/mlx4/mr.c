@@ -367,8 +367,7 @@ end:
 	return block_shift;
 }
 
-static struct ib_umem *mlx4_get_umem_mr(struct ib_ucontext *context,
-					struct ib_udata *udata, u64 start,
+static struct ib_umem *mlx4_get_umem_mr(struct ib_udata *udata, u64 start,
 					u64 length, u64 virt_addr,
 					int access_flags)
 {
@@ -416,8 +415,8 @@ struct ib_mr *mlx4_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 
-	mr->umem = mlx4_get_umem_mr(pd->uobject->context, udata, start, length,
-				    virt_addr, access_flags);
+	mr->umem =
+		mlx4_get_umem_mr(udata, start, length, virt_addr, access_flags);
 	if (IS_ERR(mr->umem)) {
 		err = PTR_ERR(mr->umem);
 		goto err_free;
@@ -506,9 +505,8 @@ int mlx4_ib_rereg_user_mr(struct ib_mr *mr, int flags,
 
 		mlx4_mr_rereg_mem_cleanup(dev->dev, &mmr->mmr);
 		ib_umem_release(mmr->umem);
-		mmr->umem =
-			mlx4_get_umem_mr(mr->uobject->context, udata, start,
-					 length, virt_addr, mr_access_flags);
+		mmr->umem = mlx4_get_umem_mr(udata, start, length, virt_addr,
+					     mr_access_flags);
 		if (IS_ERR(mmr->umem)) {
 			err = PTR_ERR(mmr->umem);
 			/* Prevent mlx4_ib_dereg_mr from free'ing invalid pointer */

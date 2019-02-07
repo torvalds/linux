@@ -45,6 +45,7 @@
 #include <rdma/iw_cm.h>
 #include <rdma/ib_user_verbs.h>
 #include <rdma/ib_umem.h>
+#include <rdma/uverbs_ioctl.h>
 #include "i40iw.h"
 
 /**
@@ -556,7 +557,8 @@ static struct ib_qp *i40iw_create_qp(struct ib_pd *ibpd,
 	struct i40iw_device *iwdev = to_iwdev(ibpd->device);
 	struct i40iw_cqp *iwcqp = &iwdev->cqp;
 	struct i40iw_qp *iwqp;
-	struct i40iw_ucontext *ucontext;
+	struct i40iw_ucontext *ucontext = rdma_udata_to_drv_context(
+		udata, struct i40iw_ucontext, ibucontext);
 	struct i40iw_create_qp_req req;
 	struct i40iw_create_qp_resp uresp;
 	u32 qp_num = 0;
@@ -665,7 +667,6 @@ static struct ib_qp *i40iw_create_qp(struct ib_pd *ibpd,
 		}
 		iwqp->ctx_info.qp_compl_ctx = req.user_compl_ctx;
 		iwqp->user_mode = 1;
-		ucontext = to_ucontext(ibpd->uobject->context);
 
 		if (req.user_wqe_buffers) {
 			struct i40iw_pbl *iwpbl;
@@ -1819,7 +1820,8 @@ static struct ib_mr *i40iw_reg_user_mr(struct ib_pd *pd,
 {
 	struct i40iw_pd *iwpd = to_iwpd(pd);
 	struct i40iw_device *iwdev = to_iwdev(pd->device);
-	struct i40iw_ucontext *ucontext;
+	struct i40iw_ucontext *ucontext = rdma_udata_to_drv_context(
+		udata, struct i40iw_ucontext, ibucontext);
 	struct i40iw_pble_alloc *palloc;
 	struct i40iw_pbl *iwpbl;
 	struct i40iw_mr *iwmr;
@@ -1860,7 +1862,6 @@ static struct ib_mr *i40iw_reg_user_mr(struct ib_pd *pd,
 	iwmr->region = region;
 	iwmr->ibmr.pd = pd;
 	iwmr->ibmr.device = pd->device;
-	ucontext = to_ucontext(pd->uobject->context);
 
 	iwmr->page_size = PAGE_SIZE;
 	iwmr->page_msk = PAGE_MASK;

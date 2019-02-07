@@ -48,6 +48,7 @@
 #include <rdma/ib_addr.h>
 #include <rdma/ib_mad.h>
 #include <rdma/ib_cache.h>
+#include <rdma/uverbs_ioctl.h>
 
 #include "bnxt_ulp.h"
 
@@ -722,12 +723,11 @@ struct ib_ah *bnxt_re_create_ah(struct ib_pd *ib_pd,
 
 	/* Write AVID to shared page. */
 	if (udata) {
-		struct ib_ucontext *ib_uctx = ib_pd->uobject->context;
-		struct bnxt_re_ucontext *uctx;
+		struct bnxt_re_ucontext *uctx = rdma_udata_to_drv_context(
+			udata, struct bnxt_re_ucontext, ib_uctx);
 		unsigned long flag;
 		u32 *wrptr;
 
-		uctx = container_of(ib_uctx, struct bnxt_re_ucontext, ib_uctx);
 		spin_lock_irqsave(&uctx->sh_lock, flag);
 		wrptr = (u32 *)(uctx->shpg + BNXT_RE_AVID_OFFT);
 		*wrptr = ah->qplib_ah.id;
@@ -872,10 +872,9 @@ static int bnxt_re_init_user_qp(struct bnxt_re_dev *rdev, struct bnxt_re_pd *pd,
 	struct bnxt_qplib_qp *qplib_qp = &qp->qplib_qp;
 	struct ib_umem *umem;
 	int bytes = 0, psn_sz;
-	struct ib_ucontext *context = pd->ib_pd.uobject->context;
-	struct bnxt_re_ucontext *cntx = container_of(context,
-						     struct bnxt_re_ucontext,
-						     ib_uctx);
+	struct bnxt_re_ucontext *cntx = rdma_udata_to_drv_context(
+		udata, struct bnxt_re_ucontext, ib_uctx);
+
 	if (ib_copy_from_udata(&ureq, udata, sizeof(ureq)))
 		return -EFAULT;
 
@@ -1359,10 +1358,9 @@ static int bnxt_re_init_user_srq(struct bnxt_re_dev *rdev,
 	struct bnxt_qplib_srq *qplib_srq = &srq->qplib_srq;
 	struct ib_umem *umem;
 	int bytes = 0;
-	struct ib_ucontext *context = pd->ib_pd.uobject->context;
-	struct bnxt_re_ucontext *cntx = container_of(context,
-						     struct bnxt_re_ucontext,
-						     ib_uctx);
+	struct bnxt_re_ucontext *cntx = rdma_udata_to_drv_context(
+		udata, struct bnxt_re_ucontext, ib_uctx);
+
 	if (ib_copy_from_udata(&ureq, udata, sizeof(ureq)))
 		return -EFAULT;
 

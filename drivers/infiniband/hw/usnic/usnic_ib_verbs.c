@@ -37,6 +37,7 @@
 
 #include <rdma/ib_user_verbs.h>
 #include <rdma/ib_addr.h>
+#include <rdma/uverbs_ioctl.h>
 
 #include "usnic_abi.h"
 #include "usnic_ib.h"
@@ -482,7 +483,8 @@ struct ib_qp *usnic_ib_create_qp(struct ib_pd *pd,
 	int err;
 	struct usnic_ib_dev *us_ibdev;
 	struct usnic_ib_qp_grp *qp_grp;
-	struct usnic_ib_ucontext *ucontext;
+	struct usnic_ib_ucontext *ucontext = rdma_udata_to_drv_context(
+		udata, struct usnic_ib_ucontext, ibucontext);
 	int cq_cnt;
 	struct usnic_vnic_res_spec res_spec;
 	struct usnic_ib_create_qp_cmd cmd;
@@ -490,7 +492,6 @@ struct ib_qp *usnic_ib_create_qp(struct ib_pd *pd,
 
 	usnic_dbg("\n");
 
-	ucontext = to_uucontext(pd->uobject->context);
 	us_ibdev = to_usdev(pd->device);
 
 	if (init_attr->create_flags)

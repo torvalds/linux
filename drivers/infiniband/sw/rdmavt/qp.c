@@ -53,6 +53,7 @@
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_hdrs.h>
 #include <rdma/opa_addr.h>
+#include <rdma/uverbs_ioctl.h>
 #include "qp.h"
 #include "vt.h"
 #include "trace.h"
@@ -956,6 +957,8 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 	size_t sg_list_sz;
 	struct ib_qp *ret = ERR_PTR(-ENOMEM);
 	struct rvt_dev_info *rdi = ib_to_rvt(ibpd->device);
+	struct rvt_ucontext *ucontext = rdma_udata_to_drv_context(
+		udata, struct rvt_ucontext, ibucontext);
 	void *priv = NULL;
 	size_t sqsize;
 
@@ -1129,7 +1132,7 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 			u32 s = sizeof(struct rvt_rwq) + qp->r_rq.size * sz;
 
 			qp->ip = rvt_create_mmap_info(rdi, s,
-						      ibpd->uobject->context,
+						      &ucontext->ibucontext,
 						      qp->r_rq.wq);
 			if (!qp->ip) {
 				ret = ERR_PTR(-ENOMEM);

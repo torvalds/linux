@@ -37,6 +37,7 @@
 
 #include "mlx4_ib.h"
 #include <rdma/mlx4-abi.h>
+#include <rdma/uverbs_ioctl.h>
 
 static void *get_wqe(struct mlx4_ib_srq *srq, int n)
 {
@@ -73,6 +74,8 @@ struct ib_srq *mlx4_ib_create_srq(struct ib_pd *pd,
 				  struct ib_udata *udata)
 {
 	struct mlx4_ib_dev *dev = to_mdev(pd->device);
+	struct mlx4_ib_ucontext *ucontext = rdma_udata_to_drv_context(
+		udata, struct mlx4_ib_ucontext, ibucontext);
 	struct mlx4_ib_srq *srq;
 	struct mlx4_wqe_srq_next_seg *next;
 	struct mlx4_wqe_data_seg *scatter;
@@ -128,8 +131,8 @@ struct ib_srq *mlx4_ib_create_srq(struct ib_pd *pd,
 		if (err)
 			goto err_mtt;
 
-		err = mlx4_ib_db_map_user(to_mucontext(pd->uobject->context),
-					  udata, ucmd.db_addr, &srq->db);
+		err = mlx4_ib_db_map_user(ucontext, udata, ucmd.db_addr,
+					  &srq->db);
 		if (err)
 			goto err_mtt;
 	} else {
@@ -202,7 +205,7 @@ struct ib_srq *mlx4_ib_create_srq(struct ib_pd *pd,
 
 err_wrid:
 	if (udata)
-		mlx4_ib_db_unmap_user(to_mucontext(pd->uobject->context), &srq->db);
+		mlx4_ib_db_unmap_user(ucontext, &srq->db);
 	else
 		kvfree(srq->wrid);
 

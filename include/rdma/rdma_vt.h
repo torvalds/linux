@@ -186,6 +186,11 @@ struct rvt_driver_params {
 	u8 reserved_operations;
 };
 
+/* User context */
+struct rvt_ucontext {
+	struct ib_ucontext ibucontext;
+};
+
 /* Protection domain */
 struct rvt_pd {
 	struct ib_pd ibpd;

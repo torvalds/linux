@@ -284,10 +284,6 @@ static int rvt_query_gid(struct ib_device *ibdev, u8 port_num,
 					 &gid->global.interface_id);
 }
 
-struct rvt_ucontext {
-	struct ib_ucontext ibucontext;
-};
-
 static inline struct rvt_ucontext *to_iucontext(struct ib_ucontext
 						*ibucontext)
 {

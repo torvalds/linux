@@ -41,6 +41,7 @@
 #include <rdma/ib_verbs.h>
 #include <rdma/iw_cm.h>
 #include <rdma/ib_user_verbs.h>
+#include <rdma/uverbs_ioctl.h>
 
 #include "nes.h"
 
@@ -974,7 +975,8 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 	struct nes_adapter *nesadapter = nesdev->nesadapter;
 	struct nes_qp *nesqp;
 	struct nes_cq *nescq;
-	struct nes_ucontext *nes_ucontext;
+	struct nes_ucontext *nes_ucontext = rdma_udata_to_drv_context(
+		udata, struct nes_ucontext, ibucontext);
 	struct nes_hw_cqp_wqe *cqp_wqe;
 	struct nes_cqp_request *cqp_request;
 	struct nes_create_qp_req req;
@@ -1055,9 +1057,8 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 				}
 				if (req.user_qp_buffer)
 					nesqp->nesuqp_addr = req.user_qp_buffer;
-				if (udata && (ibpd->uobject->context)) {
+				if (udata) {
 					nesqp->user_mode = 1;
-					nes_ucontext = to_nesucontext(ibpd->uobject->context);
 					if (virt_wqs) {
 						err = 1;
 						list_for_each_entry(nespbl, &nes_ucontext->qp_reg_mem_list, list) {
@@ -1078,7 +1079,6 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 						}
 					}
 
-					nes_ucontext = to_nesucontext(ibpd->uobject->context);
 					nesqp->mmap_sq_db_index =
 						find_next_zero_bit(nes_ucontext->allocated_wqs,
 								   NES_MAX_USER_WQ_REGIONS, nes_ucontext->first_free_wq);
@@ -2099,7 +2099,8 @@ static struct ib_mr *nes_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	struct nes_adapter *nesadapter = nesdev->nesadapter;
 	struct ib_mr *ibmr = ERR_PTR(-EINVAL);
 	struct sg_dma_page_iter dma_iter;
-	struct nes_ucontext *nes_ucontext;
+	struct nes_ucontext *nes_ucontext = rdma_udata_to_drv_context(
+		udata, struct nes_ucontext, ibucontext);
 	struct nes_pbl *nespbl;
 	struct nes_mr *nesmr;
 	struct ib_umem *region;
@@ -2342,7 +2343,6 @@ reg_user_mr_err:
 				return ERR_PTR(-ENOMEM);
 			}
 			nesmr->region = region;
-			nes_ucontext = to_nesucontext(pd->uobject->context);
 			pbl_depth = region->length >> 12;
 			pbl_depth += (region->length & (4096-1)) ? 1 : 0;
 			nespbl->pbl_size = pbl_depth*sizeof(u64);
