@@ -442,6 +442,24 @@ int kvmppc_hv_emulate_mmio(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	u32 last_inst;
 
 	/*
+	 * Fast path - check if the guest physical address corresponds to a
+	 * device on the FAST_MMIO_BUS, if so we can avoid loading the
+	 * instruction all together, then we can just handle it and return.
+	 */
+	if (is_store) {
+		int idx, ret;
+
+		idx = srcu_read_lock(&vcpu->kvm->srcu);
+		ret = kvm_io_bus_write(vcpu, KVM_FAST_MMIO_BUS, (gpa_t) gpa, 0,
+				       NULL);
+		srcu_read_unlock(&vcpu->kvm->srcu, idx);
+		if (!ret) {
+			kvmppc_set_pc(vcpu, kvmppc_get_pc(vcpu) + 4);
+			return RESUME_GUEST;
+		}
+	}
+
+	/*
 	 * If we fail, we just return to the guest and try executing it again.
 	 */
 	if (kvmppc_get_last_inst(vcpu, INST_GENERIC, &last_inst) !=
