@@ -485,7 +485,7 @@ const struct objagg_stats *objagg_stats_get(struct objagg *objagg)
 EXPORT_SYMBOL(objagg_stats_get);
 
 /**
- * objagg_stats_puts - puts stats of the objagg instance
+ * objagg_stats_put - puts stats of the objagg instance
  * @objagg_stats:	objagg instance stats
  *
  * Note: all locking must be provided by the caller.
