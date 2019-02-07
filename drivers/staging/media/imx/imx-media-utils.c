@@ -577,7 +577,8 @@ void imx_media_fill_default_mbus_fields(struct v4l2_mbus_framefmt *tryfmt,
 EXPORT_SYMBOL_GPL(imx_media_fill_default_mbus_fields);
 
 int imx_media_mbus_fmt_to_pix_fmt(struct v4l2_pix_format *pix,
-				  struct v4l2_mbus_framefmt *mbus,
+				  struct v4l2_rect *compose,
+				  const struct v4l2_mbus_framefmt *mbus,
 				  const struct imx_media_pixfmt *cc)
 {
 	u32 width;
@@ -624,6 +625,17 @@ int imx_media_mbus_fmt_to_pix_fmt(struct v4l2_pix_format *pix,
 	pix->sizeimage = cc->planar ? ((stride * pix->height * cc->bpp) >> 3) :
 			 stride * pix->height;
 
+	/*
+	 * set capture compose rectangle, which is fixed to the
+	 * source subdevice mbus format.
+	 */
+	if (compose) {
+		compose->left = 0;
+		compose->top = 0;
+		compose->width = mbus->width;
+		compose->height = mbus->height;
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(imx_media_mbus_fmt_to_pix_fmt);
@@ -635,12 +647,10 @@ int imx_media_mbus_fmt_to_ipu_image(struct ipu_image *image,
 
 	memset(image, 0, sizeof(*image));
 
-	ret = imx_media_mbus_fmt_to_pix_fmt(&image->pix, mbus, NULL);
+	ret = imx_media_mbus_fmt_to_pix_fmt(&image->pix, &image->rect,
+					    mbus, NULL);
 	if (ret)
 		return ret;
-
-	image->rect.width = mbus->width;
-	image->rect.height = mbus->height;
 
 	return 0;
 }
