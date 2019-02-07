@@ -307,12 +307,12 @@ int snd_sof_run_firmware(struct snd_sof_dev *sdev)
 
 	/* create fw_version debugfs to store boot version info */
 	if (sdev->first_boot) {
-		ret = snd_sof_debugfs_buf_create_item(sdev, &sdev->fw_version,
-						      sizeof(sdev->fw_version),
-						      "fw_version");
+		ret = snd_sof_debugfs_buf_item(sdev, &sdev->fw_version,
+					       sizeof(sdev->fw_version),
+					       "fw_version");
 		/* errors are only due to memory allocation, not debugfs */
 		if (ret < 0) {
-			dev_err(sdev->dev, "error: snd_sof_debugfs_buf_create_item failed\n");
+			dev_err(sdev->dev, "error: snd_sof_debugfs_buf_item failed\n");
 			return ret;
 		}
 	}

@@ -51,13 +51,20 @@
 #define BDW_PANIC_OFFSET(x)	((x) & 0xFFFF)
 
 static const struct snd_sof_debugfs_map bdw_debugfs[] = {
-	{"dmac0", BDW_DSP_BAR, DMAC0_OFFSET, DMAC_SIZE},
-	{"dmac1", BDW_DSP_BAR, DMAC1_OFFSET, DMAC_SIZE},
-	{"ssp0", BDW_DSP_BAR, SSP0_OFFSET, SSP_SIZE},
-	{"ssp1", BDW_DSP_BAR, SSP1_OFFSET, SSP_SIZE},
-	{"iram", BDW_DSP_BAR, IRAM_OFFSET, BDW_IRAM_SIZE},
-	{"dram", BDW_DSP_BAR, DRAM_OFFSET, BDW_DRAM_SIZE},
-	{"shim", BDW_DSP_BAR, SHIM_OFFSET, SHIM_SIZE},
+	{"dmac0", BDW_DSP_BAR, DMAC0_OFFSET, DMAC_SIZE,
+	 SOF_DEBUGFS_ACCESS_ALWAYS},
+	{"dmac1", BDW_DSP_BAR, DMAC1_OFFSET, DMAC_SIZE,
+	 SOF_DEBUGFS_ACCESS_ALWAYS},
+	{"ssp0", BDW_DSP_BAR, SSP0_OFFSET, SSP_SIZE,
+	 SOF_DEBUGFS_ACCESS_ALWAYS},
+	{"ssp1", BDW_DSP_BAR, SSP1_OFFSET, SSP_SIZE,
+	 SOF_DEBUGFS_ACCESS_ALWAYS},
+	{"iram", BDW_DSP_BAR, IRAM_OFFSET, BDW_IRAM_SIZE,
+	 SOF_DEBUGFS_ACCESS_D0_ONLY},
+	{"dram", BDW_DSP_BAR, DRAM_OFFSET, BDW_DRAM_SIZE,
+	 SOF_DEBUGFS_ACCESS_D0_ONLY},
+	{"shim", BDW_DSP_BAR, SHIM_OFFSET, SHIM_SIZE,
+	 SOF_DEBUGFS_ACCESS_ALWAYS},
 };
 
 static int bdw_cmd_done(struct snd_sof_dev *sdev, int dir);
@@ -332,55 +339,62 @@ static void bdw_get_windows(struct snd_sof_dev *sdev)
 		case SOF_IPC_REGION_UPBOX:
 			inbox_offset = elem->offset + MBOX_OFFSET;
 			inbox_size = elem->size;
-			snd_sof_debugfs_io_create_item(sdev,
-						       sdev->bar[BDW_DSP_BAR] +
-						       inbox_offset,
-						       elem->size, "inbox");
+			snd_sof_debugfs_io_item(sdev,
+						sdev->bar[BDW_DSP_BAR] +
+						inbox_offset,
+						elem->size, "inbox",
+						SOF_DEBUGFS_ACCESS_D0_ONLY);
 			break;
 		case SOF_IPC_REGION_DOWNBOX:
 			outbox_offset = elem->offset + MBOX_OFFSET;
 			outbox_size = elem->size;
-			snd_sof_debugfs_io_create_item(sdev,
-						       sdev->bar[BDW_DSP_BAR] +
-						       outbox_offset,
-						       elem->size, "outbox");
+			snd_sof_debugfs_io_item(sdev,
+						sdev->bar[BDW_DSP_BAR] +
+						outbox_offset,
+						elem->size, "outbox",
+						SOF_DEBUGFS_ACCESS_D0_ONLY);
 			break;
 		case SOF_IPC_REGION_TRACE:
-			snd_sof_debugfs_io_create_item(sdev,
-						       sdev->bar[BDW_DSP_BAR] +
-						       elem->offset +
-						       MBOX_OFFSET,
-						       elem->size, "etrace");
+			snd_sof_debugfs_io_item(sdev,
+						sdev->bar[BDW_DSP_BAR] +
+						elem->offset +
+						MBOX_OFFSET,
+						elem->size, "etrace",
+						SOF_DEBUGFS_ACCESS_D0_ONLY);
 			break;
 		case SOF_IPC_REGION_DEBUG:
-			snd_sof_debugfs_io_create_item(sdev,
-						       sdev->bar[BDW_DSP_BAR] +
-						       elem->offset +
-						       MBOX_OFFSET,
-						       elem->size, "debug");
+			snd_sof_debugfs_io_item(sdev,
+						sdev->bar[BDW_DSP_BAR] +
+						elem->offset +
+						MBOX_OFFSET,
+						elem->size, "debug",
+						SOF_DEBUGFS_ACCESS_D0_ONLY);
 			break;
 		case SOF_IPC_REGION_STREAM:
 			stream_offset = elem->offset + MBOX_OFFSET;
 			stream_size = elem->size;
-			snd_sof_debugfs_io_create_item(sdev,
-						       sdev->bar[BDW_DSP_BAR] +
-						       stream_offset,
-						       elem->size, "stream");
+			snd_sof_debugfs_io_item(sdev,
+						sdev->bar[BDW_DSP_BAR] +
+						stream_offset,
+						elem->size, "stream",
+						SOF_DEBUGFS_ACCESS_D0_ONLY);
 			break;
 		case SOF_IPC_REGION_REGS:
-			snd_sof_debugfs_io_create_item(sdev,
-						       sdev->bar[BDW_DSP_BAR] +
-						       elem->offset +
-						       MBOX_OFFSET,
-						       elem->size, "regs");
+			snd_sof_debugfs_io_item(sdev,
+						sdev->bar[BDW_DSP_BAR] +
+						elem->offset +
+						MBOX_OFFSET,
+						elem->size, "regs",
+						SOF_DEBUGFS_ACCESS_D0_ONLY);
 			break;
 		case SOF_IPC_REGION_EXCEPTION:
 			sdev->dsp_oops_offset = elem->offset + MBOX_OFFSET;
-			snd_sof_debugfs_io_create_item(sdev,
-						       sdev->bar[BDW_DSP_BAR] +
-						       elem->offset +
-						       MBOX_OFFSET,
-						       elem->size, "exception");
+			snd_sof_debugfs_io_item(sdev,
+						sdev->bar[BDW_DSP_BAR] +
+						elem->offset +
+						MBOX_OFFSET,
+						elem->size, "exception",
+						SOF_DEBUGFS_ACCESS_D0_ONLY);
 			break;
 		default:
 			dev_err(sdev->dev, "error: get illegal window info\n");

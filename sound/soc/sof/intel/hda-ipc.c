@@ -276,64 +276,71 @@ static void ipc_get_windows(struct snd_sof_dev *sdev)
 			inbox_offset =
 				elem->offset + SRAM_WINDOW_OFFSET(elem->id);
 			inbox_size = elem->size;
-			snd_sof_debugfs_io_create_item(sdev,
-						       sdev->bar[HDA_DSP_BAR] +
-						       inbox_offset,
-						       elem->size, "inbox");
+			snd_sof_debugfs_io_item(sdev,
+						sdev->bar[HDA_DSP_BAR] +
+						inbox_offset,
+						elem->size, "inbox",
+						SOF_DEBUGFS_ACCESS_D0_ONLY);
 			break;
 		case SOF_IPC_REGION_DOWNBOX:
 			outbox_offset =
 				elem->offset + SRAM_WINDOW_OFFSET(elem->id);
 			outbox_size = elem->size;
-			snd_sof_debugfs_io_create_item(sdev,
-						       sdev->bar[HDA_DSP_BAR] +
-						       outbox_offset,
-						       elem->size, "outbox");
+			snd_sof_debugfs_io_item(sdev,
+						sdev->bar[HDA_DSP_BAR] +
+						outbox_offset,
+						elem->size, "outbox",
+						SOF_DEBUGFS_ACCESS_D0_ONLY);
 			break;
 		case SOF_IPC_REGION_TRACE:
-			snd_sof_debugfs_io_create_item(sdev,
-						       sdev->bar[HDA_DSP_BAR] +
-						       elem->offset +
-						       SRAM_WINDOW_OFFSET
-						       (elem->id),
-						       elem->size, "etrace");
+			snd_sof_debugfs_io_item(sdev,
+						sdev->bar[HDA_DSP_BAR] +
+						elem->offset +
+						SRAM_WINDOW_OFFSET
+						(elem->id),
+						elem->size, "etrace",
+						SOF_DEBUGFS_ACCESS_D0_ONLY);
 			break;
 		case SOF_IPC_REGION_DEBUG:
-			snd_sof_debugfs_io_create_item(sdev,
-						       sdev->bar[HDA_DSP_BAR] +
-						       elem->offset +
-						       SRAM_WINDOW_OFFSET
-						       (elem->id),
-						       elem->size, "debug");
+			snd_sof_debugfs_io_item(sdev,
+						sdev->bar[HDA_DSP_BAR] +
+						elem->offset +
+						SRAM_WINDOW_OFFSET
+						(elem->id),
+						elem->size, "debug",
+						SOF_DEBUGFS_ACCESS_D0_ONLY);
 			break;
 		case SOF_IPC_REGION_STREAM:
 			stream_offset =
 				elem->offset + SRAM_WINDOW_OFFSET(elem->id);
 			stream_size = elem->size;
-			snd_sof_debugfs_io_create_item(sdev,
-						       sdev->bar[HDA_DSP_BAR] +
-						       elem->offset +
-						       SRAM_WINDOW_OFFSET
-						       (elem->id),
-						       elem->size, "stream");
+			snd_sof_debugfs_io_item(sdev,
+						sdev->bar[HDA_DSP_BAR] +
+						elem->offset +
+						SRAM_WINDOW_OFFSET
+						(elem->id),
+						elem->size, "stream",
+						SOF_DEBUGFS_ACCESS_D0_ONLY);
 			break;
 		case SOF_IPC_REGION_REGS:
-			snd_sof_debugfs_io_create_item(sdev,
-						       sdev->bar[HDA_DSP_BAR] +
-						       elem->offset +
-						       SRAM_WINDOW_OFFSET
-						       (elem->id),
-						       elem->size, "regs");
+			snd_sof_debugfs_io_item(sdev,
+						sdev->bar[HDA_DSP_BAR] +
+						elem->offset +
+						SRAM_WINDOW_OFFSET
+						(elem->id),
+						elem->size, "regs",
+						SOF_DEBUGFS_ACCESS_D0_ONLY);
 			break;
 		case SOF_IPC_REGION_EXCEPTION:
 			sdev->dsp_oops_offset = elem->offset +
 						SRAM_WINDOW_OFFSET(elem->id);
-			snd_sof_debugfs_io_create_item(sdev,
-						       sdev->bar[HDA_DSP_BAR] +
-						       elem->offset +
-						       SRAM_WINDOW_OFFSET
-						       (elem->id),
-						       elem->size, "exception");
+			snd_sof_debugfs_io_item(sdev,
+						sdev->bar[HDA_DSP_BAR] +
+						elem->offset +
+						SRAM_WINDOW_OFFSET
+						(elem->id),
+						elem->size, "exception",
+						SOF_DEBUGFS_ACCESS_D0_ONLY);
 			break;
 		default:
 			dev_err(sdev->dev, "error: get illegal window info\n");

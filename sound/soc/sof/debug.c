@@ -45,12 +45,23 @@ static ssize_t sof_dfsentry_read(struct file *file, char __user *buffer,
 	if (!buf)
 		return -ENOMEM;
 
-	/* copy from DSP MMIO */
-	pm_runtime_get_noresume(sdev->dev);
+	if (dfse->type == SOF_DFSENTRY_TYPE_IOMEM) {
 
-	if (dfse->type == SOF_DFSENTRY_TYPE_IOMEM)
-		memcpy_fromio(buf, dfse->io_mem + pos, size);
-	else
+		/*
+		 * If the DSP is active: copy from IO.
+		 * If the DSP is suspended:
+		 *	- Copy from IO if the memory is always accessible.
+		 *	- Otherwise, copy from cached buffer.
+		 */
+		if (pm_runtime_active(sdev->dev) ||
+		    dfse->access_type == SOF_DEBUGFS_ACCESS_ALWAYS) {
+			memcpy_fromio(buf, dfse->io_mem + pos, size);
+		} else {
+			dev_info(sdev->dev,
+				 "Copying cached debugfs data\n");
+			memcpy(buf, dfse->cache_buf + pos, size);
+		}
+	} else {
 		memcpy(buf, dfse->buf + pos, size);
 
 	/*
@@ -82,9 +93,10 @@ static const struct file_operations sof_dfs_fops = {
 };
 
 /* create FS entry for debug files that can expose DSP memories, registers */
-int snd_sof_debugfs_io_create_item(struct snd_sof_dev *sdev,
-				   void __iomem *base, size_t size,
-				   const char *name)
+int snd_sof_debugfs_io_item(struct snd_sof_dev *sdev,
+			    void __iomem *base, size_t size,
+			    const char *name,
+			    enum sof_debugfs_access_type access_type)
 {
 	struct snd_sof_dfsentry *dfse;
 
@@ -99,6 +111,17 @@ int snd_sof_debugfs_io_create_item(struct snd_sof_dev *sdev,
 	dfse->io_mem = base;
 	dfse->size = size;
 	dfse->sdev = sdev;
+	dfse->access_type = access_type;
+
+	/*
+	 * allocate cache buffer that will be used to save the mem window
+	 * contents prior to suspend
+	 */
+	if (access_type == SOF_DEBUGFS_ACCESS_D0_ONLY) {
+		dfse->cache_buf = devm_kzalloc(sdev->dev, size, GFP_KERNEL);
+		if (!dfse->cache_buf)
+			return -ENOMEM;
+	}
 
 	dfse->dfsentry = debugfs_create_file(name, 0444, sdev->debugfs_root,
 					     dfse, &sof_dfs_fops);
@@ -110,12 +133,12 @@ int snd_sof_debugfs_io_create_item(struct snd_sof_dev *sdev,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(snd_sof_debugfs_io_create_item);
+EXPORT_SYMBOL_GPL(snd_sof_debugfs_io_item);
 
 /* create FS entry for debug files to expose kernel memory */
-int snd_sof_debugfs_buf_create_item(struct snd_sof_dev *sdev,
-				    void *base, size_t size,
-				    const char *name)
+int snd_sof_debugfs_buf_item(struct snd_sof_dev *sdev,
+			     void *base, size_t size,
+			     const char *name)
 {
 	struct snd_sof_dfsentry *dfse;
 
@@ -141,7 +164,7 @@ int snd_sof_debugfs_buf_create_item(struct snd_sof_dev *sdev,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(snd_sof_debugfs_buf_create_item);
+EXPORT_SYMBOL_GPL(snd_sof_debugfs_buf_item);
 
 int snd_sof_dbg_init(struct snd_sof_dev *sdev)
 {
@@ -161,9 +184,9 @@ int snd_sof_dbg_init(struct snd_sof_dev *sdev)
 	for (i = 0; i < ops->debug_map_count; i++) {
 		map = &ops->debug_map[i];
 
-		err = snd_sof_debugfs_io_create_item(sdev, sdev->bar[map->bar] +
-						  map->offset, map->size,
-						  map->name);
+		err = snd_sof_debugfs_io_item(sdev, sdev->bar[map->bar] +
+					      map->offset, map->size,
+					      map->name, map->access_type);
 		/* errors are only due to memory allocation, not debugfs */
 		if (err < 0)
 			return err;

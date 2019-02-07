@@ -19,9 +19,9 @@
 #include "hda.h"
 
 static const struct snd_sof_debugfs_map cnl_dsp_debugfs[] = {
-	{"hda", HDA_DSP_HDA_BAR, 0, 0x4000},
-	{"pp", HDA_DSP_PP_BAR,  0, 0x1000},
-	{"dsp", HDA_DSP_BAR,  0, 0x10000},
+	{"hda", HDA_DSP_HDA_BAR, 0, 0x4000, SOF_DEBUGFS_ACCESS_ALWAYS},
+	{"pp", HDA_DSP_PP_BAR,  0, 0x1000, SOF_DEBUGFS_ACCESS_ALWAYS},
+	{"dsp", HDA_DSP_BAR,  0, 0x10000, SOF_DEBUGFS_ACCESS_ALWAYS},
 };
 
 static int cnl_ipc_cmd_done(struct snd_sof_dev *sdev, int dir);

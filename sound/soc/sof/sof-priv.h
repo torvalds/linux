@@ -202,11 +202,23 @@ enum sof_dfsentry_type {
 	SOF_DFSENTRY_TYPE_BUF,
 };
 
+enum sof_debugfs_access_type {
+	SOF_DEBUGFS_ACCESS_ALWAYS = 0,
+	SOF_DEBUGFS_ACCESS_D0_ONLY,
+};
+
 /* FS entry for debug files that can expose DSP memories, registers */
 struct snd_sof_dfsentry {
 	struct dentry *dfsentry;
 	size_t size;
 	enum sof_dfsentry_type type;
+	/*
+	 * access_type specifies if the
+	 * memory -> DSP resource (memory, register etc) is always accessible
+	 * or if it is accessible only when the DSP is in D0.
+	 */
+	enum sof_debugfs_access_type access_type;
+	char *cache_buf; /* buffer to cache the contents of memory windows */
 	struct snd_sof_dev *sdev;
 	union {
 		void __iomem *io_mem;
@@ -220,6 +232,11 @@ struct snd_sof_debugfs_map {
 	u32 bar;
 	u32 offset;
 	u32 size;
+	/*
+	 * access_type specifies if the memory is always accessible
+	 * or if it is accessible only when the DSP is in D0.
+	 */
+	enum sof_debugfs_access_type access_type;
 };
 
 /* mailbox descriptor, used for host <-> DSP IPC */
@@ -501,12 +518,13 @@ void snd_sof_release_trace(struct snd_sof_dev *sdev);
 void snd_sof_free_trace(struct snd_sof_dev *sdev);
 int snd_sof_dbg_init(struct snd_sof_dev *sdev);
 void snd_sof_free_debug(struct snd_sof_dev *sdev);
-int snd_sof_debugfs_io_create_item(struct snd_sof_dev *sdev,
-				   void __iomem *base, size_t size,
-				   const char *name);
-int snd_sof_debugfs_buf_create_item(struct snd_sof_dev *sdev,
-				    void *base, size_t size,
-				    const char *name);
+int snd_sof_debugfs_io_item(struct snd_sof_dev *sdev,
+			    void __iomem *base, size_t size,
+			    const char *name,
+			    enum sof_debugfs_access_type access_type);
+int snd_sof_debugfs_buf_item(struct snd_sof_dev *sdev,
+			     void *base, size_t size,
+			     const char *name);
 int snd_sof_trace_update_pos(struct snd_sof_dev *sdev,
 			     struct sof_ipc_dma_trace_posn *posn);
 void snd_sof_trace_notify_for_error(struct snd_sof_dev *sdev);
