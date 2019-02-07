@@ -17,6 +17,8 @@ struct mlxsw_sp_acl_tcam {
 	unsigned long *used_groups;  /* bit array */
 	unsigned int max_groups;
 	unsigned int max_group_size;
+	struct list_head vregion_list;
+	u32 vregion_rehash_intrvl;   /* ms */
 	unsigned long priv[0];
 	/* priv has to be always the last item */
 };
