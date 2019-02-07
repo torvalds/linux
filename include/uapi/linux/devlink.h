@@ -302,6 +302,14 @@ enum devlink_attr {
 
 	DEVLINK_ATTR_SB_POOL_CELL_SIZE,		/* u32 */
 
+	DEVLINK_ATTR_FMSG,			/* nested */
+	DEVLINK_ATTR_FMSG_OBJ_NEST_START,	/* flag */
+	DEVLINK_ATTR_FMSG_PAIR_NEST_START,	/* flag */
+	DEVLINK_ATTR_FMSG_ARR_NEST_START,	/* flag */
+	DEVLINK_ATTR_FMSG_NEST_END,		/* flag */
+	DEVLINK_ATTR_FMSG_OBJ_NAME,		/* string */
+	DEVLINK_ATTR_FMSG_OBJ_VALUE_TYPE,	/* u8 */
+	DEVLINK_ATTR_FMSG_OBJ_VALUE_DATA,	/* dynamic */
 	/* add new attributes above here, update the policy in devlink.c */
 
 	__DEVLINK_ATTR_MAX,

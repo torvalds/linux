@@ -448,6 +448,8 @@ struct devlink_info_req;
 
 typedef void devlink_snapshot_data_dest_t(const void *data);
 
+struct devlink_fmsg;
+
 struct devlink_ops {
 	int (*reload)(struct devlink *devlink, struct netlink_ext_ack *extack);
 	int (*port_type_set)(struct devlink_port *devlink_port,
@@ -638,6 +640,37 @@ int devlink_info_version_stored_put(struct devlink_info_req *req,
 int devlink_info_version_running_put(struct devlink_info_req *req,
 				     const char *version_name,
 				     const char *version_value);
+
+int devlink_fmsg_obj_nest_start(struct devlink_fmsg *fmsg);
+int devlink_fmsg_obj_nest_end(struct devlink_fmsg *fmsg);
+
+int devlink_fmsg_pair_nest_start(struct devlink_fmsg *fmsg, const char *name);
+int devlink_fmsg_pair_nest_end(struct devlink_fmsg *fmsg);
+
+int devlink_fmsg_arr_pair_nest_start(struct devlink_fmsg *fmsg,
+				     const char *name);
+int devlink_fmsg_arr_pair_nest_end(struct devlink_fmsg *fmsg);
+
+int devlink_fmsg_bool_put(struct devlink_fmsg *fmsg, bool value);
+int devlink_fmsg_u8_put(struct devlink_fmsg *fmsg, u8 value);
+int devlink_fmsg_u32_put(struct devlink_fmsg *fmsg, u32 value);
+int devlink_fmsg_u64_put(struct devlink_fmsg *fmsg, u64 value);
+int devlink_fmsg_string_put(struct devlink_fmsg *fmsg, const char *value);
+int devlink_fmsg_binary_put(struct devlink_fmsg *fmsg, const void *value,
+			    u16 value_len);
+
+int devlink_fmsg_bool_pair_put(struct devlink_fmsg *fmsg, const char *name,
+			       bool value);
+int devlink_fmsg_u8_pair_put(struct devlink_fmsg *fmsg, const char *name,
+			     u8 value);
+int devlink_fmsg_u32_pair_put(struct devlink_fmsg *fmsg, const char *name,
+			      u32 value);
+int devlink_fmsg_u64_pair_put(struct devlink_fmsg *fmsg, const char *name,
+			      u64 value);
+int devlink_fmsg_string_pair_put(struct devlink_fmsg *fmsg, const char *name,
+				 const char *value);
+int devlink_fmsg_binary_pair_put(struct devlink_fmsg *fmsg, const char *name,
+				 const void *value, u16 value_len);
 
 #else
 
@@ -968,6 +1001,122 @@ static inline int
 devlink_info_version_running_put(struct devlink_info_req *req,
 				 const char *version_name,
 				 const char *version_value)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_obj_nest_start(struct devlink_fmsg *fmsg)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_obj_nest_end(struct devlink_fmsg *fmsg)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_pair_nest_start(struct devlink_fmsg *fmsg, const char *name)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_pair_nest_end(struct devlink_fmsg *fmsg)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_arr_pair_nest_start(struct devlink_fmsg *fmsg,
+				 const char *name)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_arr_pair_nest_end(struct devlink_fmsg *fmsg)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_bool_put(struct devlink_fmsg *fmsg, bool value)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_u8_put(struct devlink_fmsg *fmsg, u8 value)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_u32_put(struct devlink_fmsg *fmsg, u32 value)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_u64_put(struct devlink_fmsg *fmsg, u64 value)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_string_put(struct devlink_fmsg *fmsg, const char *value)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_binary_put(struct devlink_fmsg *fmsg, const void *value,
+			u16 value_len)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_bool_pair_put(struct devlink_fmsg *fmsg, const char *name,
+			   bool value)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_u8_pair_put(struct devlink_fmsg *fmsg, const char *name,
+			 u8 value)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_u32_pair_put(struct devlink_fmsg *fmsg, const char *name,
+			  u32 value)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_u64_pair_put(struct devlink_fmsg *fmsg, const char *name,
+			  u64 value)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_string_pair_put(struct devlink_fmsg *fmsg, const char *name,
+			     const char *value)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_binary_pair_put(struct devlink_fmsg *fmsg, const char *name,
+			     const void *value, u16 value_len)
 {
 	return 0;
 }
