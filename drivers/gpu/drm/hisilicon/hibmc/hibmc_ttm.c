@@ -21,8 +21,6 @@
 
 #include "hibmc_drm_drv.h"
 
-#define DRM_FILE_PAGE_OFFSET (0x100000000ULL >> PAGE_SHIFT)
-
 static inline struct hibmc_drm_private *
 hibmc_bdev(struct ttm_bo_device *bd)
 {

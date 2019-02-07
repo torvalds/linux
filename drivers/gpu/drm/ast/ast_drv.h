@@ -353,8 +353,6 @@ extern int ast_dumb_mmap_offset(struct drm_file *file,
 				uint32_t handle,
 				uint64_t *offset);
 
-#define DRM_FILE_PAGE_OFFSET (0x100000000ULL >> PAGE_SHIFT)
-
 int ast_mm_init(struct ast_private *ast);
 void ast_mm_fini(struct ast_private *ast);
 

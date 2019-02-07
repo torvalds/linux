@@ -169,7 +169,6 @@ cirrus_bo(struct ttm_buffer_object *bo)
 
 
 #define to_cirrus_obj(x) container_of(x, struct cirrus_gem_object, base)
-#define DRM_FILE_PAGE_OFFSET (0x100000000ULL >> PAGE_SHIFT)
 
 				/* cirrus_main.c */
 int cirrus_device_init(struct cirrus_device *cdev,
