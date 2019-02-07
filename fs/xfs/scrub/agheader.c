@@ -864,19 +864,17 @@ xchk_agi(
 
 	/* Check inode pointers */
 	agino = be32_to_cpu(agi->agi_newino);
-	if (agino != NULLAGINO && !xfs_verify_agino(mp, agno, agino))
+	if (!xfs_verify_agino_or_null(mp, agno, agino))
 		xchk_block_set_corrupt(sc, sc->sa.agi_bp);
 
 	agino = be32_to_cpu(agi->agi_dirino);
-	if (agino != NULLAGINO && !xfs_verify_agino(mp, agno, agino))
+	if (!xfs_verify_agino_or_null(mp, agno, agino))
 		xchk_block_set_corrupt(sc, sc->sa.agi_bp);
 
 	/* Check unlinked inode buckets */
 	for (i = 0; i < XFS_AGI_UNLINKED_BUCKETS; i++) {
 		agino = be32_to_cpu(agi->agi_unlinked[i]);
-		if (agino == NULLAGINO)
-			continue;
-		if (!xfs_verify_agino(mp, agno, agino))
+		if (!xfs_verify_agino_or_null(mp, agno, agino))
 			xchk_block_set_corrupt(sc, sc->sa.agi_bp);
 	}
 

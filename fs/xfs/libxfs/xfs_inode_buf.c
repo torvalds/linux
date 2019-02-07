@@ -99,8 +99,7 @@ xfs_inode_buf_verify(
 		unlinked_ino = be32_to_cpu(dip->di_next_unlinked);
 		di_ok = dip->di_magic == cpu_to_be16(XFS_DINODE_MAGIC) &&
 			xfs_dinode_good_version(mp, dip->di_version) &&
-			(unlinked_ino == NULLAGINO ||
-			 xfs_verify_agino(mp, agno, unlinked_ino));
+			xfs_verify_agino_or_null(mp, agno, unlinked_ino);
 		if (unlikely(XFS_TEST_ERROR(!di_ok, mp,
 						XFS_ERRTAG_ITOBP_INOTOBP))) {
 			if (readahead) {
