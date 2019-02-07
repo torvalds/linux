@@ -449,6 +449,7 @@
 		pinctrl-0 = <&pinctrl_i2c3_isl29023_int>;
 		interrupt-parent = <&gpio3>;
 		interrupts = <9 IRQ_TYPE_EDGE_FALLING>;
+		vcc-supply = <&reg_sensors>;
 	};
 };
 
