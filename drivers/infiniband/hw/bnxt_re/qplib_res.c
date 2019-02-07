@@ -330,13 +330,13 @@ void bnxt_qplib_free_ctx(struct pci_dev *pdev,
  */
 int bnxt_qplib_alloc_ctx(struct pci_dev *pdev,
 			 struct bnxt_qplib_ctx *ctx,
-			 bool virt_fn)
+			 bool virt_fn, bool is_p5)
 {
 	int i, j, k, rc = 0;
 	int fnz_idx = -1;
 	__le64 **pbl_ptr;
 
-	if (virt_fn)
+	if (virt_fn || is_p5)
 		goto stats_alloc;
 
 	/* QPC Tables */
@@ -762,7 +762,11 @@ static int bnxt_qplib_alloc_stats_ctx(struct pci_dev *pdev,
 {
 	memset(stats, 0, sizeof(*stats));
 	stats->fw_id = -1;
-	stats->size = sizeof(struct ctx_hw_stats);
+	/* 128 byte aligned context memory is required only for 57500.
+	 * However making this unconditional, it does not harm previous
+	 * generation.
+	 */
+	stats->size = ALIGN(sizeof(struct ctx_hw_stats), 128);
 	stats->dma = dma_alloc_coherent(&pdev->dev, stats->size,
 					&stats->dma_map, GFP_KERNEL);
 	if (!stats->dma) {

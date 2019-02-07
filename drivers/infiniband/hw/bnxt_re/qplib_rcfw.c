@@ -482,11 +482,13 @@ int bnxt_qplib_init_rcfw(struct bnxt_qplib_rcfw *rcfw,
 	req.log2_dbr_pg_size = cpu_to_le16(PAGE_SHIFT -
 					   RCFW_DBR_BASE_PAGE_SHIFT);
 	/*
-	 * VFs need not setup the HW context area, PF
+	 * Gen P5 devices doesn't require this allocation
+	 * as the L2 driver does the same for RoCE also.
+	 * Also, VFs need not setup the HW context area, PF
 	 * shall setup this area for VF. Skipping the
 	 * HW programming
 	 */
-	if (is_virtfn)
+	if (is_virtfn || bnxt_qplib_is_chip_gen_p5(rcfw->res->cctx))
 		goto skip_ctx_setup;
 
 	level = ctx->qpc_tbl.level;

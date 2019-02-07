@@ -252,5 +252,5 @@ void bnxt_qplib_free_ctx(struct pci_dev *pdev,
 			 struct bnxt_qplib_ctx *ctx);
 int bnxt_qplib_alloc_ctx(struct pci_dev *pdev,
 			 struct bnxt_qplib_ctx *ctx,
-			 bool virt_fn);
+			 bool virt_fn, bool is_p5);
 #endif /* __BNXT_QPLIB_RES_H__ */
