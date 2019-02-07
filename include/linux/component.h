@@ -34,6 +34,8 @@ struct component_ops {
 };
 
 int component_add(struct device *, const struct component_ops *);
+int component_add_typed(struct device *dev, const struct component_ops *ops,
+	int subcomponent);
 void component_del(struct device *, const struct component_ops *);
 
 int component_bind_all(struct device *master, void *master_data);
@@ -91,6 +93,9 @@ void component_match_add_release(struct device *master,
 	struct component_match **matchptr,
 	void (*release)(struct device *, void *),
 	int (*compare)(struct device *, void *), void *compare_data);
+void component_match_add_typed(struct device *master,
+	struct component_match **matchptr,
+	int (*compare_typed)(struct device *, int, void *), void *compare_data);
 
 /**
  * component_match_add - add a compent match
@@ -101,12 +106,13 @@ void component_match_add_release(struct device *master,
  *
  * Adds a new component match to the list stored in @matchptr, which the @master
  * aggregate driver needs to function. The list of component matches pointed to
- * by @matchptr must be initialized to NULL before adding the first match.
+ * by @matchptr must be initialized to NULL before adding the first match. This
+ * only matches against components added with component_add().
  *
  * The allocated match list in @matchptr is automatically released using devm
  * actions.
  *
- * See also component_match_add_release().
+ * See also component_match_add_release() and component_match_add_typed().
  */
 static inline void component_match_add(struct device *master,
 	struct component_match **matchptr,
