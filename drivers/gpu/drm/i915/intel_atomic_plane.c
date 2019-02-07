@@ -119,6 +119,7 @@ int intel_plane_atomic_check_with_state(const struct intel_crtc_state *old_crtc_
 
 	new_crtc_state->active_planes &= ~BIT(plane->id);
 	new_crtc_state->nv12_planes &= ~BIT(plane->id);
+	new_crtc_state->c8_planes &= ~BIT(plane->id);
 	new_plane_state->base.visible = false;
 
 	if (!new_plane_state->base.crtc && !old_plane_state->base.crtc)
@@ -135,6 +136,10 @@ int intel_plane_atomic_check_with_state(const struct intel_crtc_state *old_crtc_
 	if (new_plane_state->base.visible &&
 	    new_plane_state->base.fb->format->format == DRM_FORMAT_NV12)
 		new_crtc_state->nv12_planes |= BIT(plane->id);
+
+	if (new_plane_state->base.visible &&
+	    new_plane_state->base.fb->format->format == DRM_FORMAT_C8)
+		new_crtc_state->c8_planes |= BIT(plane->id);
 
 	if (new_plane_state->base.visible || old_plane_state->base.visible)
 		new_crtc_state->update_planes |= BIT(plane->id);
