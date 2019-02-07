@@ -376,7 +376,7 @@ static int ili210x_i2c_probe(struct i2c_client *client,
 		return error;
 	}
 
-	error = sysfs_create_group(&dev->kobj, &ili210x_attr_group);
+	error = devm_device_add_group(dev, &ili210x_attr_group);
 	if (error) {
 		dev_err(dev, "Unable to create sysfs attributes, err: %d\n",
 			error);
@@ -386,7 +386,7 @@ static int ili210x_i2c_probe(struct i2c_client *client,
 	error = input_register_device(priv->input);
 	if (error) {
 		dev_err(dev, "Cannot register input device, err: %d\n", error);
-		goto err_remove_sysfs;
+		return error;
 	}
 
 	device_init_wakeup(dev, 1);
@@ -394,17 +394,6 @@ static int ili210x_i2c_probe(struct i2c_client *client,
 	dev_dbg(dev,
 		"ILI210x initialized (IRQ: %d), firmware version %d.%d.%d",
 		client->irq, firmware.id, firmware.major, firmware.minor);
-
-	return 0;
-
-err_remove_sysfs:
-	sysfs_remove_group(&dev->kobj, &ili210x_attr_group);
-	return error;
-}
-
-static int ili210x_i2c_remove(struct i2c_client *client)
-{
-	sysfs_remove_group(&client->dev.kobj, &ili210x_attr_group);
 
 	return 0;
 }
@@ -454,7 +443,6 @@ static struct i2c_driver ili210x_ts_driver = {
 	},
 	.id_table = ili210x_i2c_id,
 	.probe = ili210x_i2c_probe,
-	.remove = ili210x_i2c_remove,
 };
 
 module_i2c_driver(ili210x_ts_driver);
