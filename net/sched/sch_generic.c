@@ -500,7 +500,7 @@ static void dev_watchdog_down(struct net_device *dev)
  *	netif_carrier_on - set carrier
  *	@dev: network device
  *
- * Device has detected that carrier.
+ * Device has detected acquisition of carrier.
  */
 void netif_carrier_on(struct net_device *dev)
 {
