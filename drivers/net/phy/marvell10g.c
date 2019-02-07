@@ -428,15 +428,7 @@ static int mv3310_read_10gbr_status(struct phy_device *phydev)
 
 static int mv3310_read_status(struct phy_device *phydev)
 {
-	u32 mmd_mask = phydev->c45_ids.devices_in_package;
 	int val;
-
-	/* The vendor devads do not report link status.  Avoid the PHYXS
-	 * instance as there are three, and its status depends on the MAC
-	 * being appropriately configured for the negotiated speed.
-	 */
-	mmd_mask &= ~(BIT(MDIO_MMD_VEND1) | BIT(MDIO_MMD_VEND2) |
-		      BIT(MDIO_MMD_PHYXS));
 
 	phydev->speed = SPEED_UNKNOWN;
 	phydev->duplex = DUPLEX_UNKNOWN;
@@ -453,7 +445,7 @@ static int mv3310_read_status(struct phy_device *phydev)
 	if (val & MDIO_STAT1_LSTATUS)
 		return mv3310_read_10gbr_status(phydev);
 
-	val = genphy_c45_read_link(phydev, mmd_mask);
+	val = genphy_c45_read_link(phydev);
 	if (val < 0)
 		return val;
 
