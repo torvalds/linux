@@ -46,6 +46,7 @@
 	.errstr_unpriv = "attempt to corrupt spilled",
 	.errstr = "R0 invalid mem access 'inv",
 	.result = REJECT,
+	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
 	"check corrupted spill/fill, LSB",

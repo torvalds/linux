@@ -42,6 +42,7 @@
 #include "bpf.h"
 #include "btf.h"
 #include "str_error.h"
+#include "libbpf_util.h"
 
 #ifndef EM_BPF
 #define EM_BPF 247
@@ -53,39 +54,33 @@
 
 #define __printf(a, b)	__attribute__((format(printf, a, b)))
 
-__printf(1, 2)
-static int __base_pr(const char *format, ...)
+static int __base_pr(enum libbpf_print_level level, const char *format,
+		     va_list args)
 {
-	va_list args;
-	int err;
+	if (level == LIBBPF_DEBUG)
+		return 0;
 
-	va_start(args, format);
-	err = vfprintf(stderr, format, args);
-	va_end(args);
-	return err;
+	return vfprintf(stderr, format, args);
 }
 
-static __printf(1, 2) libbpf_print_fn_t __pr_warning = __base_pr;
-static __printf(1, 2) libbpf_print_fn_t __pr_info = __base_pr;
-static __printf(1, 2) libbpf_print_fn_t __pr_debug;
+static libbpf_print_fn_t __libbpf_pr = __base_pr;
 
-#define __pr(func, fmt, ...)	\
-do {				\
-	if ((func))		\
-		(func)("libbpf: " fmt, ##__VA_ARGS__); \
-} while (0)
-
-#define pr_warning(fmt, ...)	__pr(__pr_warning, fmt, ##__VA_ARGS__)
-#define pr_info(fmt, ...)	__pr(__pr_info, fmt, ##__VA_ARGS__)
-#define pr_debug(fmt, ...)	__pr(__pr_debug, fmt, ##__VA_ARGS__)
-
-void libbpf_set_print(libbpf_print_fn_t warn,
-		      libbpf_print_fn_t info,
-		      libbpf_print_fn_t debug)
+void libbpf_set_print(libbpf_print_fn_t fn)
 {
-	__pr_warning = warn;
-	__pr_info = info;
-	__pr_debug = debug;
+	__libbpf_pr = fn;
+}
+
+__printf(2, 3)
+void libbpf_print(enum libbpf_print_level level, const char *format, ...)
+{
+	va_list args;
+
+	if (!__libbpf_pr)
+		return;
+
+	va_start(args, format);
+	__libbpf_pr(level, format, args);
+	va_end(args);
 }
 
 #define STRERR_BUFSIZE  128
@@ -839,8 +834,7 @@ static int bpf_object__elf_collect(struct bpf_object *obj, int flags)
 		else if (strcmp(name, "maps") == 0)
 			obj->efile.maps_shndx = idx;
 		else if (strcmp(name, BTF_ELF_SEC) == 0) {
-			obj->btf = btf__new(data->d_buf, data->d_size,
-					    __pr_debug);
+			obj->btf = btf__new(data->d_buf, data->d_size);
 			if (IS_ERR(obj->btf)) {
 				pr_warning("Error loading ELF section %s: %ld. Ignored and continue.\n",
 					   BTF_ELF_SEC, PTR_ERR(obj->btf));
@@ -915,8 +909,7 @@ static int bpf_object__elf_collect(struct bpf_object *obj, int flags)
 				 BTF_EXT_ELF_SEC, BTF_ELF_SEC);
 		} else {
 			obj->btf_ext = btf_ext__new(btf_ext_data->d_buf,
-						    btf_ext_data->d_size,
-						    __pr_debug);
+						    btf_ext_data->d_size);
 			if (IS_ERR(obj->btf_ext)) {
 				pr_warning("Error loading ELF section %s: %ld. Ignored and continue.\n",
 					   BTF_EXT_ELF_SEC,
@@ -1057,72 +1050,18 @@ bpf_program__collect_reloc(struct bpf_program *prog, GElf_Shdr *shdr,
 
 static int bpf_map_find_btf_info(struct bpf_map *map, const struct btf *btf)
 {
-	const struct btf_type *container_type;
-	const struct btf_member *key, *value;
 	struct bpf_map_def *def = &map->def;
-	const size_t max_name = 256;
-	char container_name[max_name];
-	__s64 key_size, value_size;
-	__s32 container_id;
+	__u32 key_type_id, value_type_id;
+	int ret;
 
-	if (snprintf(container_name, max_name, "____btf_map_%s", map->name) ==
-	    max_name) {
-		pr_warning("map:%s length of '____btf_map_%s' is too long\n",
-			   map->name, map->name);
-		return -EINVAL;
-	}
+	ret = btf__get_map_kv_tids(btf, map->name, def->key_size,
+				   def->value_size, &key_type_id,
+				   &value_type_id);
+	if (ret)
+		return ret;
 
-	container_id = btf__find_by_name(btf, container_name);
-	if (container_id < 0) {
-		pr_debug("map:%s container_name:%s cannot be found in BTF. Missing BPF_ANNOTATE_KV_PAIR?\n",
-			 map->name, container_name);
-		return container_id;
-	}
-
-	container_type = btf__type_by_id(btf, container_id);
-	if (!container_type) {
-		pr_warning("map:%s cannot find BTF type for container_id:%u\n",
-			   map->name, container_id);
-		return -EINVAL;
-	}
-
-	if (BTF_INFO_KIND(container_type->info) != BTF_KIND_STRUCT ||
-	    BTF_INFO_VLEN(container_type->info) < 2) {
-		pr_warning("map:%s container_name:%s is an invalid container struct\n",
-			   map->name, container_name);
-		return -EINVAL;
-	}
-
-	key = (struct btf_member *)(container_type + 1);
-	value = key + 1;
-
-	key_size = btf__resolve_size(btf, key->type);
-	if (key_size < 0) {
-		pr_warning("map:%s invalid BTF key_type_size\n",
-			   map->name);
-		return key_size;
-	}
-
-	if (def->key_size != key_size) {
-		pr_warning("map:%s btf_key_type_size:%u != map_def_key_size:%u\n",
-			   map->name, (__u32)key_size, def->key_size);
-		return -EINVAL;
-	}
-
-	value_size = btf__resolve_size(btf, value->type);
-	if (value_size < 0) {
-		pr_warning("map:%s invalid BTF value_type_size\n", map->name);
-		return value_size;
-	}
-
-	if (def->value_size != value_size) {
-		pr_warning("map:%s btf_value_type_size:%u != map_def_value_size:%u\n",
-			   map->name, (__u32)value_size, def->value_size);
-		return -EINVAL;
-	}
-
-	map->btf_key_type_id = key->type;
-	map->btf_value_type_id = value->type;
+	map->btf_key_type_id = key_type_id;
+	map->btf_value_type_id = value_type_id;
 
 	return 0;
 }
