@@ -68,7 +68,8 @@
 #define SWAP_BUF2_SIZE	0x800
 #define SCALELUT_SIZE	0x8000
 #define DBLK_PARA_SIZE	0x20000
-#define DBLK_DATA_SIZE	0x40000
+#define DBLK_DATA_SIZE	0x80000
+#define DBLK_DATA2_SIZE	0x80000
 #define MMU_VBH_SIZE	0x5000
 #define MPRED_ABV_SIZE	0x8000
 #define MPRED_MV_SIZE	(MPRED_MV_BUF_SIZE * MAX_REF_PIC_NUM)
@@ -88,7 +89,8 @@
 #define SCALELUT_OFFSET  (SWAP_BUF2_OFFSET + SWAP_BUF2_SIZE)
 #define DBLK_PARA_OFFSET (SCALELUT_OFFSET + SCALELUT_SIZE)
 #define DBLK_DATA_OFFSET (DBLK_PARA_OFFSET + DBLK_PARA_SIZE)
-#define MMU_VBH_OFFSET   (DBLK_DATA_OFFSET + DBLK_DATA_SIZE)
+#define DBLK_DATA2_OFFSET (DBLK_DATA_OFFSET + DBLK_DATA_SIZE)
+#define MMU_VBH_OFFSET   (DBLK_DATA2_OFFSET + DBLK_DATA2_SIZE)
 #define MPRED_ABV_OFFSET (MMU_VBH_OFFSET + MMU_VBH_SIZE)
 #define MPRED_MV_OFFSET  (MPRED_ABV_OFFSET + MPRED_ABV_SIZE)
 #define RPM_OFFSET       (MPRED_MV_OFFSET + MPRED_MV_SIZE)
@@ -523,6 +525,7 @@ codec_hevc_setup_workspace(struct amvdec_core *core, struct codec_hevc *hevc)
 	amvdec_write_dos(core, HEVC_SCALELUT, wkaddr + SCALELUT_OFFSET);
 	amvdec_write_dos(core, HEVC_DBLK_CFG4, wkaddr + DBLK_PARA_OFFSET);
 	amvdec_write_dos(core, HEVC_DBLK_CFG5, wkaddr + DBLK_DATA_OFFSET);
+	amvdec_write_dos(core, HEVC_DBLK_CFGE, wkaddr + DBLK_DATA2_OFFSET);
 
 	return 0;
 }
@@ -547,6 +550,8 @@ static int codec_hevc_start(struct amvdec_session *sess)
 		goto free_hevc;
 
 	amvdec_write_dos_bits(core, HEVC_STREAM_CONTROL, BIT(0));
+	if (core->platform->revision == VDEC_REVISION_G12A)
+		amvdec_write_dos_bits(core, HEVC_STREAM_CONTROL, (0xf << 25));
 
 	val = amvdec_read_dos(core, HEVC_PARSER_INT_CONTROL) & 0x03ffffff;
 	val |= (3 << 29) | BIT(27) | BIT(24) | BIT(22) | BIT(7) | BIT(4) |
@@ -755,6 +760,25 @@ codec_hevc_set_sao(struct amvdec_session *sess, struct hevc_frame *frame)
 			 (amvdec_get_output_size(sess) / 2));
 
 	if (frame->cur_slice_idx == 0) {
+		if (core->platform->revision >= VDEC_REVISION_G12A) {
+			val = 0x54 << 8;
+
+			/* enable first, compressed write */
+			if (codec_hevc_use_fbc(sess->pixfmt_cap, hevc->is_10bit))
+				val |= BIT(8);
+
+			/* enable second, uncompressed write */
+			if (sess->pixfmt_cap == V4L2_PIX_FMT_NV12M)
+				val |= BIT(9);
+
+			/* dblk pipeline mode=1 for performance */
+			if (hevc->width >= 1280)
+				val |= BIT(4);
+
+			amvdec_write_dos(core, HEVC_DBLK_CFGB, val);
+			amvdec_write_dos(core, HEVC_DBLK_STS1 + 4, BIT(28));
+		}
+
 		amvdec_write_dos(core, HEVC_DBLK_CFG2,
 				 hevc->width | (hevc->height << 16));
 
@@ -770,10 +794,12 @@ codec_hevc_set_sao(struct amvdec_session *sess, struct hevc_frame *frame)
 
 	val = amvdec_read_dos(core, HEVC_SAO_CTRL1) & ~0x3ff3;
 	val |= 0xff0; /* Set endianness for 2-bytes swaps (nv12) */
-	if (!codec_hevc_use_fbc(sess->pixfmt_cap, hevc->is_10bit))
-		val |= BIT(0); /* disable cm compression */
-	else if (sess->pixfmt_cap == V4L2_PIX_FMT_AM21C)
-		val |= BIT(1); /* Disable double write */
+	if (core->platform->revision < VDEC_REVISION_G12A) {
+		if (!codec_hevc_use_fbc(sess->pixfmt_cap, hevc->is_10bit))
+			val |= BIT(0); /* disable cm compression */
+		else if (sess->pixfmt_cap == V4L2_PIX_FMT_AM21C)
+			val |= BIT(1); /* Disable double write */
+	}
 
 	amvdec_write_dos(core, HEVC_SAO_CTRL1, val);
 

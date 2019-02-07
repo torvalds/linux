@@ -170,6 +170,7 @@
 #define HEVC_DBLK_STS0 0xd42c
 #define HEVC_DBLK_CFGB 0xd42c
 #define HEVC_DBLK_STS1 0xd430
+#define HEVC_DBLK_CFGE 0xd438
 
 #define HEVC_SAO_VERSION 0xd800
 #define HEVC_SAO_CTRL0 0xd804

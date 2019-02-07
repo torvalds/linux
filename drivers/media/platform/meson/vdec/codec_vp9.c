@@ -90,8 +90,8 @@ enum FRAME_TYPE {
 #define DBLK_PARA_OFFSET (SCALELUT_OFFSET + SCALELUT_SIZE)
 #define DBLK_DATA_OFFSET (DBLK_PARA_OFFSET + DBLK_PARA_SIZE)
 #define SEG_MAP_OFFSET   (DBLK_DATA_OFFSET + DBLK_DATA_SIZE)
-#define PROB_OFFSET	(SEG_MAP_OFFSET + SEG_MAP_SIZE)
-#define COUNT_OFFSET	(PROB_OFFSET + PROB_SIZE)
+#define PROB_OFFSET	 (SEG_MAP_OFFSET + SEG_MAP_SIZE)
+#define COUNT_OFFSET	 (PROB_OFFSET + PROB_SIZE)
 #define MMU_VBH_OFFSET   (COUNT_OFFSET + COUNT_SIZE)
 #define MPRED_ABV_OFFSET (MMU_VBH_OFFSET + MMU_VBH_SIZE)
 #define MPRED_MV_OFFSET  (MPRED_ABV_OFFSET + MPRED_ABV_SIZE)
@@ -326,7 +326,11 @@ vp9_loop_filter_init(struct amvdec_core *core, struct codec_vp9 *vp9)
 		amvdec_write_dos(core, HEVC_DBLK_CFG9, thr);
 	}
 
-	amvdec_write_dos(core, HEVC_DBLK_CFGB, 0x40400001);
+	if (core->platform->revision == VDEC_REVISION_G12A)
+		/* VP9 video format */
+		amvdec_write_dos(core, HEVC_DBLK_CFGB, (0x54 << 8) | BIT(0));
+	else
+		amvdec_write_dos(core, HEVC_DBLK_CFGB, 0x40400001);
 }
 
 static void
@@ -447,6 +451,13 @@ codec_vp9_setup_workspace(struct amvdec_core *core, struct codec_vp9 *vp9)
 		return -ENOMEM;
 	}
 
+	memset(vp9->workspace_vaddr + DBLK_PARA_OFFSET, 0, DBLK_PARA_SIZE);
+	memset(vp9->workspace_vaddr + COUNT_OFFSET, 0, COUNT_SIZE);
+	memset(vp9->workspace_vaddr + PROB_OFFSET, 0, PROB_SIZE);
+
+	printk("Workspace: %08X-%08X\n", wkaddr, wkaddr + SIZE_WORKSPACE);
+	printk("DBLK_PARA: %08X\n", wkaddr + DBLK_PARA_OFFSET);
+
 	vp9->workspace_paddr = wkaddr;
 
 	amvdec_write_dos(core, HEVCD_IPP_LINEBUFF_BASE, wkaddr + IPP_OFFSET);
@@ -461,11 +472,17 @@ codec_vp9_setup_workspace(struct amvdec_core *core, struct codec_vp9 *vp9)
 	amvdec_write_dos(core, VP9_STREAM_SWAP_BUFFER2,
 			 wkaddr + SWAP_BUF2_OFFSET);
 	amvdec_write_dos(core, VP9_SCALELUT, wkaddr + SCALELUT_OFFSET);
+
+	if (core->platform->revision == VDEC_REVISION_G12A)
+		amvdec_write_dos(core, HEVC_DBLK_CFGE,
+				 wkaddr + DBLK_PARA_OFFSET);
+
 	amvdec_write_dos(core, HEVC_DBLK_CFG4, wkaddr + DBLK_PARA_OFFSET);
 	amvdec_write_dos(core, HEVC_DBLK_CFG5, wkaddr + DBLK_DATA_OFFSET);
 	amvdec_write_dos(core, VP9_SEG_MAP_BUFFER, wkaddr + SEG_MAP_OFFSET);
 	amvdec_write_dos(core, VP9_PROB_SWAP_BUFFER, wkaddr + PROB_OFFSET);
 	amvdec_write_dos(core, VP9_COUNT_SWAP_BUFFER, wkaddr + COUNT_OFFSET);
+	amvdec_write_dos(core, LMEM_DUMP_ADR, wkaddr + LMEM_OFFSET);
 
 	return 0;
 }
@@ -487,6 +504,9 @@ static int codec_vp9_start(struct amvdec_session *sess)
 		goto free_vp9;
 
 	amvdec_write_dos_bits(core, HEVC_STREAM_CONTROL, BIT(0));
+	// stream_fifo_hole
+	if (core->platform->revision == VDEC_REVISION_G12A)
+		amvdec_write_dos_bits(core, HEVC_STREAM_FIFO_CTL, BIT(29));
 
 	val = amvdec_read_dos(core, HEVC_PARSER_INT_CONTROL) & 0x7fffffff;
 	val |= (3 << 29) | BIT(24) | BIT(22) | BIT(7) | BIT(4) | BIT(0);
@@ -597,14 +617,34 @@ static void codec_vp9_set_sao(struct amvdec_session *sess, struct vb2_buffer *vb
 	amvdec_write_dos(core, HEVC_SAO_C_LENGTH,
 			 (amvdec_get_output_size(sess) / 2));
 
+	if (core->platform->revision >= VDEC_REVISION_G12A) {
+		amvdec_clear_dos_bits(core, HEVC_DBLK_CFGB, BIT(4) | BIT(5) | BIT(8) | BIT(9));
+		/* enable first, compressed write */
+		if (codec_hevc_use_fbc(sess->pixfmt_cap, vp9->is_10bit))
+			amvdec_write_dos_bits(core, HEVC_DBLK_CFGB, BIT(8));
+
+		/* enable second, uncompressed write */
+		if (sess->pixfmt_cap == V4L2_PIX_FMT_NV12M)
+			amvdec_write_dos_bits(core, HEVC_DBLK_CFGB, BIT(9));
+
+		/* dblk pipeline mode=1 for performance */
+		if (sess->width >= 1280)
+			amvdec_write_dos_bits(core, HEVC_DBLK_CFGB, BIT(4));
+
+		printk("HEVC_DBLK_CFGB: %08X\n", amvdec_read_dos(core, HEVC_DBLK_CFGB));
+	}
+
 	val = amvdec_read_dos(core, HEVC_SAO_CTRL1) & ~0x3ff3;
 	val |= 0xff0; /* Set endianness for 2-bytes swaps (nv12) */
-	if (!codec_hevc_use_fbc(sess->pixfmt_cap, vp9->is_10bit))
-		val |= BIT(0); /* disable cm compression */
-	else if (sess->pixfmt_cap == V4L2_PIX_FMT_AM21C)
-		val |= BIT(1); /* Disable double write */
+	if (core->platform->revision < VDEC_REVISION_G12A) {
+		if (!codec_hevc_use_fbc(sess->pixfmt_cap, vp9->is_10bit))
+			val |= BIT(0); /* disable cm compression */
+		else if (sess->pixfmt_cap == V4L2_PIX_FMT_AM21C)
+			val |= BIT(1); /* Disable double write */
+	}
 
 	amvdec_write_dos(core, HEVC_SAO_CTRL1, val);
+	printk("HEVC_SAO_CTRL1: %08X\n", val);
 
 	if (!codec_hevc_use_fbc(sess->pixfmt_cap, vp9->is_10bit)) {
 		/* no downscale for NV12 */

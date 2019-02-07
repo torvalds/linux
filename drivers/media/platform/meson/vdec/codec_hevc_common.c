@@ -111,15 +111,6 @@ codec_hevc_setup_buffers_gxl(struct amvdec_session *sess, int is_10bit)
 		}
 	}
 
-	/* Fill the remaining unused slots with the last buffer's Y addr */
-	for (i = buf_num; i < MAX_REF_PIC_NUM; ++i) {
-		amvdec_write_dos(core, HEVCD_MPP_ANC2AXI_TBL_DATA,
-				 buf_y_paddr >> 5);
-		if (!codec_hevc_use_fbc(sess->pixfmt_cap, is_10bit))
-			amvdec_write_dos(core, HEVCD_MPP_ANC2AXI_TBL_DATA,
-					 buf_uv_paddr >> 5);
-	}
-
 	amvdec_write_dos(core, HEVCD_MPP_ANC2AXI_TBL_CONF_ADDR, 1);
 	amvdec_write_dos(core, HEVCD_MPP_ANC_CANVAS_ACCCONFIG_ADDR, 1);
 	for (i = 0; i < 32; ++i)
