@@ -1823,14 +1823,9 @@ void amdgpu_ttm_set_buffer_funcs_status(struct amdgpu_device *adev, bool enable)
 
 int amdgpu_mmap(struct file *filp, struct vm_area_struct *vma)
 {
-	struct drm_file *file_priv;
-	struct amdgpu_device *adev;
+	struct drm_file *file_priv = filp->private_data;
+	struct amdgpu_device *adev = file_priv->minor->dev->dev_private;
 
-	if (unlikely(vma->vm_pgoff < DRM_FILE_PAGE_OFFSET))
-		return -EINVAL;
-
-	file_priv = filp->private_data;
-	adev = file_priv->minor->dev->dev_private;
 	if (adev == NULL)
 		return -EINVAL;
 

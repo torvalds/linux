@@ -330,13 +330,8 @@ int cirrus_bo_push_sysram(struct cirrus_bo *bo)
 
 int cirrus_mmap(struct file *filp, struct vm_area_struct *vma)
 {
-	struct drm_file *file_priv;
-	struct cirrus_device *cirrus;
+	struct drm_file *file_priv = filp->private_data;
+	struct cirrus_device *cirrus = file_priv->minor->dev->dev_private;
 
-	if (unlikely(vma->vm_pgoff < DRM_FILE_PAGE_OFFSET))
-		return -EINVAL;
-
-	file_priv = filp->private_data;
-	cirrus = file_priv->minor->dev->dev_private;
 	return ttm_bo_mmap(filp, vma, &cirrus->ttm.bdev);
 }

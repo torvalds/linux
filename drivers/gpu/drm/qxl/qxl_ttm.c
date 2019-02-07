@@ -63,15 +63,10 @@ static vm_fault_t qxl_ttm_fault(struct vm_fault *vmf)
 
 int qxl_mmap(struct file *filp, struct vm_area_struct *vma)
 {
-	struct drm_file *file_priv;
-	struct qxl_device *qdev;
 	int r;
+	struct drm_file *file_priv = filp->private_data;
+	struct qxl_device *qdev = file_priv->minor->dev->dev_private;
 
-	if (unlikely(vma->vm_pgoff < DRM_FILE_PAGE_OFFSET))
-		return -EINVAL;
-
-	file_priv = filp->private_data;
-	qdev = file_priv->minor->dev->dev_private;
 	if (qdev == NULL) {
 		DRM_ERROR(
 		 "filp->private_data->minor->dev->dev_private == NULL\n");
