@@ -282,6 +282,7 @@ v3d_prime_import_sg_table(struct drm_device *dev,
 			  struct dma_buf_attachment *attach,
 			  struct sg_table *sgt)
 {
+	struct v3d_dev *v3d = to_v3d_dev(dev);
 	struct drm_gem_object *obj;
 	struct v3d_bo *bo;
 
@@ -295,6 +296,11 @@ v3d_prime_import_sg_table(struct drm_device *dev,
 	bo->sgt = sgt;
 	obj->import_attach = attach;
 	v3d_bo_get_pages(bo);
+
+	mutex_lock(&v3d->bo_lock);
+	v3d->bo_stats.num_allocated++;
+	v3d->bo_stats.pages_allocated += obj->size >> PAGE_SHIFT;
+	mutex_unlock(&v3d->bo_lock);
 
 	v3d_mmu_insert_ptes(bo);
 
