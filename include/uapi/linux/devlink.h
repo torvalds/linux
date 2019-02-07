@@ -97,6 +97,7 @@ enum devlink_command {
 	DEVLINK_CMD_INFO_GET,		/* can dump */
 
 	DEVLINK_CMD_HEALTH_REPORTER_GET,
+	DEVLINK_CMD_HEALTH_REPORTER_SET,
 
 	/* add new commands above here */
 	__DEVLINK_CMD_MAX,
