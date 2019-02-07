@@ -42,6 +42,7 @@ struct objagg_obj_stats_info {
 };
 
 struct objagg_stats {
+	unsigned int root_count;
 	unsigned int stats_info_count;
 	struct objagg_obj_stats_info stats_info[];
 };

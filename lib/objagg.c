@@ -621,6 +621,8 @@ const struct objagg_stats *objagg_stats_get(struct objagg *objagg)
 		objagg_stats->stats_info[i].objagg_obj = objagg_obj;
 		objagg_stats->stats_info[i].is_root =
 					objagg_obj_is_root(objagg_obj);
+		if (objagg_stats->stats_info[i].is_root)
+			objagg_stats->root_count++;
 		i++;
 	}
 	objagg_stats->stats_info_count = i;
@@ -1031,6 +1033,8 @@ objagg_hints_stats_get(struct objagg_hints *objagg_hints)
 	list_for_each_entry(hnode, &objagg_hints->node_list, list) {
 		memcpy(&objagg_stats->stats_info[i], &hnode->stats_info,
 		       sizeof(objagg_stats->stats_info[0]));
+		if (objagg_stats->stats_info[i].is_root)
+			objagg_stats->root_count++;
 		i++;
 	}
 	objagg_stats->stats_info_count = i;
