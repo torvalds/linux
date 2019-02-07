@@ -523,7 +523,7 @@ int wilc_wlan_handle_txq(struct net_device *dev, u32 *txq_count)
 			if (vmm_sz & 0x3)
 				vmm_sz = (vmm_sz + 4) & ~0x3;
 
-			if ((sum + vmm_sz) > LINUX_TX_SIZE)
+			if ((sum + vmm_sz) > WILC_TX_BUFF_SIZE)
 				break;
 
 			vmm_table[i] = vmm_sz / 4;
@@ -811,7 +811,7 @@ static void wilc_wlan_handle_isr_ext(struct wilc *wilc, u32 int_status)
 	if (size <= 0)
 		return;
 
-	if (LINUX_RX_SIZE - offset < size)
+	if (WILC_RX_BUFF_SIZE - offset < size)
 		offset = 0;
 
 	buffer = &wilc->rx_buffer[offset];
@@ -1314,7 +1314,7 @@ int wilc_wlan_init(struct net_device *dev)
 	}
 
 	if (!wilc->tx_buffer)
-		wilc->tx_buffer = kmalloc(LINUX_TX_SIZE, GFP_KERNEL);
+		wilc->tx_buffer = kmalloc(WILC_TX_BUFF_SIZE, GFP_KERNEL);
 
 	if (!wilc->tx_buffer) {
 		ret = -ENOBUFS;
@@ -1322,7 +1322,7 @@ int wilc_wlan_init(struct net_device *dev)
 	}
 
 	if (!wilc->rx_buffer)
-		wilc->rx_buffer = kmalloc(LINUX_RX_SIZE, GFP_KERNEL);
+		wilc->rx_buffer = kmalloc(WILC_RX_BUFF_SIZE, GFP_KERNEL);
 
 	if (!wilc->rx_buffer) {
 		ret = -ENOBUFS;

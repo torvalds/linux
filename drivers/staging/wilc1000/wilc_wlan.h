@@ -131,8 +131,8 @@
 #define WILC_PLL_TO_SPI		2
 #define ABORT_INT		BIT(31)
 
-#define LINUX_RX_SIZE		(96 * 1024)
-#define LINUX_TX_SIZE		(64 * 1024)
+#define WILC_RX_BUFF_SIZE	(96 * 1024)
+#define WILC_TX_BUFF_SIZE	(64 * 1024)
 
 #define MODALIAS		"WILC_SPI"
 #define GPIO_NUM		0x44
@@ -248,7 +248,7 @@ struct wilc_hif_func {
 	void (*disable_interrupt)(struct wilc *nic);
 };
 
-#define MAX_CFG_FRAME_SIZE	1468
+#define WILC_MAX_CFG_FRAME_SIZE		1468
 
 struct wilc_cfg_cmd_hdr {
 	u8 cmd_type;
@@ -259,7 +259,7 @@ struct wilc_cfg_cmd_hdr {
 
 struct wilc_cfg_frame {
 	struct wilc_cfg_cmd_hdr hdr;
-	u8 frame[MAX_CFG_FRAME_SIZE];
+	u8 frame[WILC_MAX_CFG_FRAME_SIZE];
 };
 
 struct wilc_cfg_rsp {

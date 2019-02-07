@@ -9,7 +9,7 @@
 #define WILC_HIF_SCAN_TIMEOUT_MS                4000
 #define WILC_HIF_CONNECT_TIMEOUT_MS             9500
 
-#define FALSE_FRMWR_CHANNEL			100
+#define WILC_FALSE_FRMWR_CHANNEL		100
 
 struct wilc_rcvd_mac_info {
 	u8 status;
@@ -21,7 +21,7 @@ struct wilc_set_multicast {
 	u8 *mc_list;
 };
 
-struct del_all_sta {
+struct wilc_del_all_sta {
 	u8 assoc_sta;
 	u8 mac[WILC_MAX_NUM_STA][ETH_ALEN];
 };
@@ -68,16 +68,16 @@ struct wilc_gtk_key {
 	u8 key[0];
 } __packed;
 
-union message_body {
+union wilc_message_body {
 	struct wilc_rcvd_net_info net_info;
 	struct wilc_rcvd_mac_info mac_info;
 	struct wilc_set_multicast mc_info;
-	struct remain_ch remain_on_ch;
+	struct wilc_remain_ch remain_on_ch;
 	char *data;
 };
 
 struct host_if_msg {
-	union message_body body;
+	union wilc_message_body body;
 	struct wilc_vif *vif;
 	struct work_struct work;
 	void (*fn)(struct work_struct *ws);
@@ -110,7 +110,7 @@ struct wilc_join_bss_param {
 	u8 bssid[ETH_ALEN];
 	__le16 beacon_period;
 	u8 dtim_period;
-	u8 supp_rates[MAX_RATES_SUPPORTED + 1];
+	u8 supp_rates[WILC_MAX_RATES_SUPPORTED + 1];
 	u8 wmm_cap;
 	u8 uapsd_cap;
 	u8 ht_capable;
@@ -195,7 +195,7 @@ static int handle_scan_done(struct wilc_vif *vif, enum scan_event evt)
 	u8 abort_running_scan;
 	struct wid wid;
 	struct host_if_drv *hif_drv = vif->hif_drv;
-	struct user_scan_req *scan_req;
+	struct wilc_user_scan_req *scan_req;
 
 	if (evt == SCAN_EVENT_ABORTED) {
 		abort_running_scan = 1;
@@ -475,8 +475,8 @@ void *wilc_parse_join_bss_param(struct cfg80211_bss *bss,
 	supp_rates_ie = cfg80211_find_ie(WLAN_EID_EXT_SUPP_RATES, ies->data,
 					 ies->len);
 	if (supp_rates_ie) {
-		if (supp_rates_ie[1] > (MAX_RATES_SUPPORTED - rates_len))
-			param->supp_rates[0] = MAX_RATES_SUPPORTED;
+		if (supp_rates_ie[1] > (WILC_MAX_RATES_SUPPORTED - rates_len))
+			param->supp_rates[0] = WILC_MAX_RATES_SUPPORTED;
 		else
 			param->supp_rates[0] += supp_rates_ie[1];
 
@@ -563,7 +563,7 @@ static void handle_rcvd_ntwrk_info(struct work_struct *work)
 {
 	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
 	struct wilc_rcvd_net_info *rcvd_info = &msg->body.net_info;
-	struct user_scan_req *scan_req = &msg->vif->hif_drv->usr_scan_req;
+	struct wilc_user_scan_req *scan_req = &msg->vif->hif_drv->usr_scan_req;
 	const u8 *ch_elm;
 	u8 *ies;
 	int ies_len;
@@ -758,7 +758,7 @@ int wilc_disconnect(struct wilc_vif *vif)
 {
 	struct wid wid;
 	struct host_if_drv *hif_drv = vif->hif_drv;
-	struct user_scan_req *scan_req;
+	struct wilc_user_scan_req *scan_req;
 	struct wilc_conn_info *conn_info;
 	int result;
 	u16 dummy_reason_code = 0;
@@ -911,7 +911,7 @@ static void wilc_hif_pack_sta_param(u8 *cur_byte, const u8 *mac,
 }
 
 static int handle_remain_on_chan(struct wilc_vif *vif,
-				 struct remain_ch *hif_remain_ch)
+				 struct wilc_remain_ch *hif_remain_ch)
 {
 	int result;
 	u8 remain_on_chan_flag;
@@ -957,7 +957,7 @@ static void handle_listen_state_expired(struct work_struct *work)
 {
 	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
 	struct wilc_vif *vif = msg->vif;
-	struct remain_ch *hif_remain_ch = &msg->body.remain_on_ch;
+	struct wilc_remain_ch *hif_remain_ch = &msg->body.remain_on_ch;
 	u8 remain_on_chan_flag;
 	struct wid wid;
 	int result;
@@ -975,7 +975,7 @@ static void handle_listen_state_expired(struct work_struct *work)
 			goto free_msg;
 
 		wid.val[0] = remain_on_chan_flag;
-		wid.val[1] = FALSE_FRMWR_CHANNEL;
+		wid.val[1] = WILC_FALSE_FRMWR_CHANNEL;
 
 		result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
 					      wilc_get_vif_idx(vif));
@@ -1224,7 +1224,7 @@ int wilc_add_ptk(struct wilc_vif *vif, const u8 *ptk, u8 ptk_key_len,
 		 u8 mode, u8 cipher_mode, u8 index)
 {
 	int result = 0;
-	u8 t_key_len  = ptk_key_len + RX_MIC_KEY_LEN + TX_MIC_KEY_LEN;
+	u8 t_key_len  = ptk_key_len + WILC_RX_MIC_KEY_LEN + WILC_TX_MIC_KEY_LEN;
 
 	if (mode == WILC_AP_MODE) {
 		struct wid wid_list[2];
@@ -1246,11 +1246,11 @@ int wilc_add_ptk(struct wilc_vif *vif, const u8 *ptk, u8 ptk_key_len,
 
 		if (rx_mic)
 			memcpy(&key_buf->key[ptk_key_len], rx_mic,
-			       RX_MIC_KEY_LEN);
+			       WILC_RX_MIC_KEY_LEN);
 
 		if (tx_mic)
-			memcpy(&key_buf->key[ptk_key_len + RX_MIC_KEY_LEN],
-			       tx_mic, TX_MIC_KEY_LEN);
+			memcpy(&key_buf->key[ptk_key_len + WILC_RX_MIC_KEY_LEN],
+			       tx_mic, WILC_TX_MIC_KEY_LEN);
 
 		wid_list[1].id = WID_ADD_PTK;
 		wid_list[1].type = WID_STR;
@@ -1274,11 +1274,11 @@ int wilc_add_ptk(struct wilc_vif *vif, const u8 *ptk, u8 ptk_key_len,
 
 		if (rx_mic)
 			memcpy(&key_buf->key[ptk_key_len], rx_mic,
-			       RX_MIC_KEY_LEN);
+			       WILC_RX_MIC_KEY_LEN);
 
 		if (tx_mic)
-			memcpy(&key_buf->key[ptk_key_len + RX_MIC_KEY_LEN],
-			       tx_mic, TX_MIC_KEY_LEN);
+			memcpy(&key_buf->key[ptk_key_len + WILC_RX_MIC_KEY_LEN],
+			       tx_mic, WILC_TX_MIC_KEY_LEN);
 
 		wid.id = WID_ADD_PTK;
 		wid.type = WID_STR;
@@ -1299,7 +1299,7 @@ int wilc_add_rx_gtk(struct wilc_vif *vif, const u8 *rx_gtk, u8 gtk_key_len,
 {
 	int result = 0;
 	struct wilc_gtk_key *gtk_key;
-	int t_key_len = gtk_key_len + RX_MIC_KEY_LEN + TX_MIC_KEY_LEN;
+	int t_key_len = gtk_key_len + WILC_RX_MIC_KEY_LEN + WILC_TX_MIC_KEY_LEN;
 
 	gtk_key = kzalloc(sizeof(*gtk_key) + t_key_len, GFP_KERNEL);
 	if (!gtk_key)
@@ -1317,11 +1317,11 @@ int wilc_add_rx_gtk(struct wilc_vif *vif, const u8 *rx_gtk, u8 gtk_key_len,
 	memcpy(&gtk_key->key[0], rx_gtk, gtk_key_len);
 
 	if (rx_mic)
-		memcpy(&gtk_key->key[gtk_key_len], rx_mic, RX_MIC_KEY_LEN);
+		memcpy(&gtk_key->key[gtk_key_len], rx_mic, WILC_RX_MIC_KEY_LEN);
 
 	if (tx_mic)
-		memcpy(&gtk_key->key[gtk_key_len + RX_MIC_KEY_LEN],
-		       tx_mic, TX_MIC_KEY_LEN);
+		memcpy(&gtk_key->key[gtk_key_len + WILC_RX_MIC_KEY_LEN],
+		       tx_mic, WILC_TX_MIC_KEY_LEN);
 
 	if (mode == WILC_AP_MODE) {
 		struct wid wid_list[2];
@@ -1819,7 +1819,7 @@ int wilc_remain_on_channel(struct wilc_vif *vif, u64 cookie,
 			   void (*expired)(void *, u64),
 			   void *user_arg)
 {
-	struct remain_ch roc;
+	struct wilc_remain_ch roc;
 	int result;
 
 	roc.ch = chan;
@@ -2017,7 +2017,7 @@ int wilc_del_allstation(struct wilc_vif *vif, u8 mac_addr[][ETH_ALEN])
 	int result;
 	int i;
 	u8 assoc_sta = 0;
-	struct del_all_sta del_sta;
+	struct wilc_del_all_sta del_sta;
 
 	memset(&del_sta, 0x0, sizeof(del_sta));
 	for (i = 0; i < WILC_MAX_NUM_STA; i++) {

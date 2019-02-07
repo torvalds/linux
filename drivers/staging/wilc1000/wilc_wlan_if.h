@@ -45,7 +45,7 @@ struct tx_complete_data {
  *
  ********************************************/
 #define WILC_MULTICAST_TABLE_SIZE	8
-#define MAX_RATES_SUPPORTED     12
+#define WILC_MAX_RATES_SUPPORTED     12
 
 enum bss_types {
 	WILC_FW_BSS_TYPE_INFRA = 0,
