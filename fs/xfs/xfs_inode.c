@@ -2047,6 +2047,7 @@ xfs_iunlink(
 	int			error;
 
 	ASSERT(VFS_I(ip)->i_mode != 0);
+	trace_xfs_iunlink(ip);
 
 	/* Get the agi buffer first.  It ensures lock ordering on the list. */
 	error = xfs_read_agi(mp, tp, agno, &agibp);
@@ -2192,6 +2193,8 @@ xfs_iunlink_remove(
 	xfs_agino_t		head_agino;
 	short			bucket_index = agino % XFS_AGI_UNLINKED_BUCKETS;
 	int			error;
+
+	trace_xfs_iunlink_remove(ip);
 
 	/* Get the agi buffer first.  It ensures lock ordering on the list. */
 	error = xfs_read_agi(mp, tp, agno, &agibp);
