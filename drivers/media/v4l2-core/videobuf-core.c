@@ -1119,13 +1119,14 @@ done:
 EXPORT_SYMBOL_GPL(videobuf_read_stream);
 
 __poll_t videobuf_poll_stream(struct file *file,
-				  struct videobuf_queue *q,
-				  poll_table *wait)
+			      struct videobuf_queue *q,
+			      poll_table *wait)
 {
 	__poll_t req_events = poll_requested_events(wait);
 	struct videobuf_buffer *buf = NULL;
 	__poll_t rc = 0;
 
+	poll_wait(file, &buf->done, wait);
 	videobuf_queue_lock(q);
 	if (q->streaming) {
 		if (!list_empty(&q->stream))
@@ -1149,7 +1150,6 @@ __poll_t videobuf_poll_stream(struct file *file,
 		rc = EPOLLERR;
 
 	if (0 == rc) {
-		poll_wait(file, &buf->done, wait);
 		if (buf->state == VIDEOBUF_DONE ||
 		    buf->state == VIDEOBUF_ERROR) {
 			switch (q->type) {
