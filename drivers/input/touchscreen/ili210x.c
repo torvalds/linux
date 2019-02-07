@@ -206,12 +206,13 @@ static int ili210x_i2c_probe(struct i2c_client *client,
 	xmax = panel.finger_max.x_low | (panel.finger_max.x_high << 8);
 	ymax = panel.finger_max.y_low | (panel.finger_max.y_high << 8);
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
-	input = input_allocate_device();
-	if (!priv || !input) {
-		error = -ENOMEM;
-		goto err_free_mem;
-	}
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	input = devm_input_allocate_device(dev);
+	if (!input)
+		return -ENOMEM;
 
 	priv->client = client;
 	priv->input = input;
@@ -273,8 +274,6 @@ err_remove_sysfs:
 err_free_irq:
 	free_irq(client->irq, priv);
 err_free_mem:
-	input_free_device(input);
-	kfree(priv);
 	return error;
 }
 
@@ -285,8 +284,6 @@ static int ili210x_i2c_remove(struct i2c_client *client)
 	sysfs_remove_group(&client->dev.kobj, &ili210x_attr_group);
 	free_irq(priv->client->irq, priv);
 	cancel_delayed_work_sync(&priv->dwork);
-	input_unregister_device(priv->input);
-	kfree(priv);
 
 	return 0;
 }
