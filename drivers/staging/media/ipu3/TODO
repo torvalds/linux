@@ -8,9 +8,6 @@ staging directory.
 - Using ENABLED and IMMUTABLE link flags for the links where those are
   relevant. (Sakari)
 
-- Prefix imgu for all public APIs, i.e. change ipu3_v4l2_register() to
-  imgu_v4l2_register(). (Sakari)
-
 - IPU3 driver documentation (Laurent)
   Add diagram in driver rst to describe output capability.
   Comments on configuring v4l2 subdevs for CIO2 and ImgU.
