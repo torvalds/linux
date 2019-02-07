@@ -1789,9 +1789,11 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 			return r;
 
 		/* Wait for any BO move to be completed */
-		r = dma_fence_wait(exclusive, true);
-		if (unlikely(r))
-			return r;
+		if (exclusive) {
+			r = dma_fence_wait(exclusive, true);
+			if (unlikely(r))
+				return r;
+		}
 
 		params.func = amdgpu_vm_cpu_set_ptes;
 		params.pages_addr = pages_addr;
