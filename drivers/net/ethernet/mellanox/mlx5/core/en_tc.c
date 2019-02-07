@@ -2731,8 +2731,15 @@ static bool is_peer_flow_needed(struct mlx5e_tc_flow *flow)
 	bool esw_paired = mlx5_devcom_is_paired(attr->in_mdev->priv.devcom,
 						MLX5_DEVCOM_ESW_OFFLOADS);
 
-	return esw_paired && mlx5_lag_is_sriov(attr->in_mdev) &&
-	       (is_rep_ingress || act_is_encap);
+	if (!esw_paired)
+		return false;
+
+	if ((mlx5_lag_is_sriov(attr->in_mdev) ||
+	     mlx5_lag_is_multipath(attr->in_mdev)) &&
+	    (is_rep_ingress || act_is_encap))
+		return true;
+
+	return false;
 }
 
 static int
