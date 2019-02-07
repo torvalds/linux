@@ -116,6 +116,34 @@ xfs_da_state_free(xfs_da_state_t *state)
 	kmem_zone_free(xfs_da_state_zone, state);
 }
 
+/*
+ * Verify an xfs_da3_blkinfo structure. Note that the da3 fields are only
+ * accessible on v5 filesystems. This header format is common across da node,
+ * attr leaf and dir leaf blocks.
+ */
+xfs_failaddr_t
+xfs_da3_blkinfo_verify(
+	struct xfs_buf		*bp,
+	struct xfs_da3_blkinfo	*hdr3)
+{
+	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	struct xfs_da_blkinfo	*hdr = &hdr3->hdr;
+
+	if (!xfs_verify_magic(bp, hdr->magic))
+		return __this_address;
+
+	if (xfs_sb_version_hascrc(&mp->m_sb)) {
+		if (!uuid_equal(&hdr3->uuid, &mp->m_sb.sb_meta_uuid))
+			return __this_address;
+		if (be64_to_cpu(hdr3->blkno) != bp->b_bn)
+			return __this_address;
+		if (!xfs_log_check_lsn(mp, be64_to_cpu(hdr3->lsn)))
+			return __this_address;
+	}
+
+	return 0;
+}
+
 static xfs_failaddr_t
 xfs_da3_node_verify(
 	struct xfs_buf		*bp)
@@ -124,24 +152,16 @@ xfs_da3_node_verify(
 	struct xfs_da_intnode	*hdr = bp->b_addr;
 	struct xfs_da3_icnode_hdr ichdr;
 	const struct xfs_dir_ops *ops;
+	xfs_failaddr_t		fa;
 
 	ops = xfs_dir_get_ops(mp, NULL);
 
 	ops->node_hdr_from_disk(&ichdr, hdr);
 
-	if (!xfs_verify_magic(bp, hdr->hdr.info.magic))
-		return __this_address;
+	fa = xfs_da3_blkinfo_verify(bp, bp->b_addr);
+	if (fa)
+		return fa;
 
-	if (xfs_sb_version_hascrc(&mp->m_sb)) {
-		struct xfs_da3_node_hdr *hdr3 = bp->b_addr;
-
-		if (!uuid_equal(&hdr3->info.uuid, &mp->m_sb.sb_meta_uuid))
-			return __this_address;
-		if (be64_to_cpu(hdr3->info.blkno) != bp->b_bn)
-			return __this_address;
-		if (!xfs_log_check_lsn(mp, be64_to_cpu(hdr3->info.lsn)))
-			return __this_address;
-	}
 	if (ichdr.level == 0)
 		return __this_address;
 	if (ichdr.level > XFS_DA_NODE_MAXDEPTH)

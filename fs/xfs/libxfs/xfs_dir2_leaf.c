@@ -146,20 +146,11 @@ xfs_dir3_leaf_verify(
 {
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
 	struct xfs_dir2_leaf	*leaf = bp->b_addr;
+	xfs_failaddr_t		fa;
 
-	if (!xfs_verify_magic(bp, leaf->hdr.info.magic))
-		return __this_address;
-
-	if (xfs_sb_version_hascrc(&mp->m_sb)) {
-		struct xfs_dir3_leaf_hdr *leaf3 = bp->b_addr;
-
-		if (!uuid_equal(&leaf3->info.uuid, &mp->m_sb.sb_meta_uuid))
-			return __this_address;
-		if (be64_to_cpu(leaf3->info.blkno) != bp->b_bn)
-			return __this_address;
-		if (!xfs_log_check_lsn(mp, be64_to_cpu(leaf3->info.lsn)))
-			return __this_address;
-	}
+	fa = xfs_da3_blkinfo_verify(bp, bp->b_addr);
+	if (fa)
+		return fa;
 
 	return xfs_dir3_leaf_check_int(mp, NULL, NULL, leaf);
 }
