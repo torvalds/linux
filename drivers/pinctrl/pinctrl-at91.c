@@ -574,6 +574,17 @@ static unsigned at91_mux_sam9x5_get_drivestrength(void __iomem *pio,
 	return tmp;
 }
 
+static unsigned at91_mux_sam9x60_get_drivestrength(void __iomem *pio,
+						   unsigned pin)
+{
+	unsigned tmp = readl_relaxed(pio + SAM9X60_PIO_DRIVER1);
+
+	if (tmp & BIT(pin))
+		return DRIVE_STRENGTH_BIT_HI;
+
+	return DRIVE_STRENGTH_BIT_LOW;
+}
+
 static void set_drive_strength(void __iomem *reg, unsigned pin, u32 strength)
 {
 	unsigned tmp = readl_relaxed(reg);
@@ -611,6 +622,27 @@ static void at91_mux_sam9x5_set_drivestrength(void __iomem *pio, unsigned pin,
 				setting);
 }
 
+static void at91_mux_sam9x60_set_drivestrength(void __iomem *pio, unsigned pin,
+					       u32 setting)
+{
+	unsigned int tmp;
+
+	if (setting <= DRIVE_STRENGTH_BIT_DEF ||
+	    setting == DRIVE_STRENGTH_BIT_MED ||
+	    setting > DRIVE_STRENGTH_BIT_HI)
+		return;
+
+	tmp = readl_relaxed(pio + SAM9X60_PIO_DRIVER1);
+
+	/* Strength is 0: low, 1: hi */
+	if (setting == DRIVE_STRENGTH_BIT_LOW)
+		tmp &= ~BIT(pin);
+	else
+		tmp |= BIT(pin);
+
+	writel_relaxed(tmp, pio + SAM9X60_PIO_DRIVER1);
+}
+
 static struct at91_pinctrl_mux_ops at91rm9200_ops = {
 	.get_periph	= at91_mux_get_periph,
 	.mux_A_periph	= at91_mux_set_A_periph,
@@ -637,6 +669,26 @@ static struct at91_pinctrl_mux_ops at91sam9x5_ops = {
 	.get_drivestrength = at91_mux_sam9x5_get_drivestrength,
 	.set_drivestrength = at91_mux_sam9x5_set_drivestrength,
 	.irq_type	= alt_gpio_irq_type,
+};
+
+static const struct at91_pinctrl_mux_ops sam9x60_ops = {
+	.get_periph	= at91_mux_pio3_get_periph,
+	.mux_A_periph	= at91_mux_pio3_set_A_periph,
+	.mux_B_periph	= at91_mux_pio3_set_B_periph,
+	.mux_C_periph	= at91_mux_pio3_set_C_periph,
+	.mux_D_periph	= at91_mux_pio3_set_D_periph,
+	.get_deglitch	= at91_mux_pio3_get_deglitch,
+	.set_deglitch	= at91_mux_pio3_set_deglitch,
+	.get_debounce	= at91_mux_pio3_get_debounce,
+	.set_debounce	= at91_mux_pio3_set_debounce,
+	.get_pulldown	= at91_mux_pio3_get_pulldown,
+	.set_pulldown	= at91_mux_pio3_set_pulldown,
+	.get_schmitt_trig = at91_mux_pio3_get_schmitt_trig,
+	.disable_schmitt_trig = at91_mux_pio3_disable_schmitt_trig,
+	.get_drivestrength = at91_mux_sam9x60_get_drivestrength,
+	.set_drivestrength = at91_mux_sam9x60_set_drivestrength,
+	.irq_type	= alt_gpio_irq_type,
+
 };
 
 static struct at91_pinctrl_mux_ops sama5d3_ops = {
