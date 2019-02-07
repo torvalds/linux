@@ -1924,7 +1924,7 @@ out:
  *
  * Return: A string identifying the decoded ioctl.
  */
-static char *decode_ioctl(int cmd)
+static char *decode_ioctl(unsigned int cmd)
 {
 	switch (cmd) {
 	case DK_CXLFLASH_ATTACH:
@@ -2051,7 +2051,7 @@ err1:
  *
  * Return: 0 on success, -errno on failure
  */
-static int ioctl_common(struct scsi_device *sdev, int cmd)
+static int ioctl_common(struct scsi_device *sdev, unsigned int cmd)
 {
 	struct cxlflash_cfg *cfg = shost_priv(sdev->host);
 	struct device *dev = &cfg->dev->dev;
@@ -2096,7 +2096,7 @@ out:
  *
  * Return: 0 on success, -errno on failure
  */
-int cxlflash_ioctl(struct scsi_device *sdev, int cmd, void __user *arg)
+int cxlflash_ioctl(struct scsi_device *sdev, unsigned int cmd, void __user *arg)
 {
 	typedef int (*sioctl) (struct scsi_device *, void *);
 
@@ -2179,8 +2179,7 @@ int cxlflash_ioctl(struct scsi_device *sdev, int cmd, void __user *arg)
 	}
 
 	if (unlikely(copy_from_user(&buf, arg, size))) {
-		dev_err(dev, "%s: copy_from_user() fail "
-			"size=%lu cmd=%d (%s) arg=%p\n",
+		dev_err(dev, "%s: copy_from_user() fail size=%lu cmd=%u (%s) arg=%p\n",
 			__func__, size, cmd, decode_ioctl(cmd), arg);
 		rc = -EFAULT;
 		goto cxlflash_ioctl_exit;
@@ -2203,8 +2202,7 @@ int cxlflash_ioctl(struct scsi_device *sdev, int cmd, void __user *arg)
 	rc = do_ioctl(sdev, (void *)&buf);
 	if (likely(!rc))
 		if (unlikely(copy_to_user(arg, &buf, size))) {
-			dev_err(dev, "%s: copy_to_user() fail "
-				"size=%lu cmd=%d (%s) arg=%p\n",
+			dev_err(dev, "%s: copy_to_user() fail size=%lu cmd=%u (%s) arg=%p\n",
 				__func__, size, cmd, decode_ioctl(cmd), arg);
 			rc = -EFAULT;
 		}

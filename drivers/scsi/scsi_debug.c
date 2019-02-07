@@ -832,7 +832,8 @@ static void mk_sense_invalid_opcode(struct scsi_cmnd *scp)
 	mk_sense_buffer(scp, ILLEGAL_REQUEST, INVALID_OPCODE, 0);
 }
 
-static int scsi_debug_ioctl(struct scsi_device *dev, int cmd, void __user *arg)
+static int scsi_debug_ioctl(struct scsi_device *dev, unsigned int cmd,
+			    void __user *arg)
 {
 	if (sdebug_verbose) {
 		if (0x1261 == cmd)

@@ -778,7 +778,7 @@ static int ata_ioc32(struct ata_port *ap)
 }
 
 int ata_sas_scsi_ioctl(struct ata_port *ap, struct scsi_device *scsidev,
-		     int cmd, void __user *arg)
+		     unsigned int cmd, void __user *arg)
 {
 	unsigned long val;
 	int rc = -EINVAL;
@@ -829,7 +829,8 @@ int ata_sas_scsi_ioctl(struct ata_port *ap, struct scsi_device *scsidev,
 }
 EXPORT_SYMBOL_GPL(ata_sas_scsi_ioctl);
 
-int ata_scsi_ioctl(struct scsi_device *scsidev, int cmd, void __user *arg)
+int ata_scsi_ioctl(struct scsi_device *scsidev, unsigned int cmd,
+		   void __user *arg)
 {
 	return ata_sas_scsi_ioctl(ata_shost_to_port(scsidev->host),
 				scsidev, cmd, arg);

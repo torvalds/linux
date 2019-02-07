@@ -707,7 +707,8 @@ int sas_eh_target_reset_handler(struct scsi_cmnd *cmd);
 
 extern void sas_target_destroy(struct scsi_target *);
 extern int sas_slave_alloc(struct scsi_device *);
-extern int sas_ioctl(struct scsi_device *sdev, int cmd, void __user *arg);
+extern int sas_ioctl(struct scsi_device *sdev, unsigned int cmd,
+		     void __user *arg);
 extern int sas_drain_work(struct sas_ha_struct *ha);
 
 extern void sas_ssp_task_response(struct device *dev, struct sas_task *task,
