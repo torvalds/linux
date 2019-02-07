@@ -832,6 +832,18 @@ intel_ring_set_tail(struct intel_ring *ring, unsigned int tail)
 	return tail;
 }
 
+static inline unsigned int
+__intel_ring_space(unsigned int head, unsigned int tail, unsigned int size)
+{
+	/*
+	 * "If the Ring Buffer Head Pointer and the Tail Pointer are on the
+	 * same cacheline, the Head Pointer must not be greater than the Tail
+	 * Pointer."
+	 */
+	GEM_BUG_ON(!is_power_of_2(size));
+	return (head - tail - CACHELINE_BYTES) & (size - 1);
+}
+
 void intel_engine_write_global_seqno(struct intel_engine_cs *engine, u32 seqno);
 
 int intel_engine_setup_common(struct intel_engine_cs *engine);

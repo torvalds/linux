@@ -753,6 +753,68 @@ static int eb_select_context(struct i915_execbuffer *eb)
 	return 0;
 }
 
+static struct i915_request *__eb_wait_for_ring(struct intel_ring *ring)
+{
+	struct i915_request *rq;
+
+	/*
+	 * Completely unscientific finger-in-the-air estimates for suitable
+	 * maximum user request size (to avoid blocking) and then backoff.
+	 */
+	if (intel_ring_update_space(ring) >= PAGE_SIZE)
+		return NULL;
+
+	/*
+	 * Find a request that after waiting upon, there will be at least half
+	 * the ring available. The hysteresis allows us to compete for the
+	 * shared ring and should mean that we sleep less often prior to
+	 * claiming our resources, but not so long that the ring completely
+	 * drains before we can submit our next request.
+	 */
+	list_for_each_entry(rq, &ring->request_list, ring_link) {
+		if (__intel_ring_space(rq->postfix,
+				       ring->emit, ring->size) > ring->size / 2)
+			break;
+	}
+	if (&rq->ring_link == &ring->request_list)
+		return NULL; /* weird, we will check again later for real */
+
+	return i915_request_get(rq);
+}
+
+static int eb_wait_for_ring(const struct i915_execbuffer *eb)
+{
+	const struct intel_context *ce;
+	struct i915_request *rq;
+	int ret = 0;
+
+	/*
+	 * Apply a light amount of backpressure to prevent excessive hogs
+	 * from blocking waiting for space whilst holding struct_mutex and
+	 * keeping all of their resources pinned.
+	 */
+
+	ce = to_intel_context(eb->ctx, eb->engine);
+	if (!ce->ring) /* first use, assume empty! */
+		return 0;
+
+	rq = __eb_wait_for_ring(ce->ring);
+	if (rq) {
+		mutex_unlock(&eb->i915->drm.struct_mutex);
+
+		if (i915_request_wait(rq,
+				      I915_WAIT_INTERRUPTIBLE,
+				      MAX_SCHEDULE_TIMEOUT) < 0)
+			ret = -EINTR;
+
+		i915_request_put(rq);
+
+		mutex_lock(&eb->i915->drm.struct_mutex);
+	}
+
+	return ret;
+}
+
 static int eb_lookup_vmas(struct i915_execbuffer *eb)
 {
 	struct radix_tree_root *handles_vma = &eb->ctx->handles_vma;
@@ -2291,6 +2353,10 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 	if (err)
 		goto err_rpm;
 
+	err = eb_wait_for_ring(&eb); /* may temporarily drop struct_mutex */
+	if (unlikely(err))
+		goto err_unlock;
+
 	err = eb_relocate(&eb);
 	if (err) {
 		/*
@@ -2435,6 +2501,7 @@ err_batch_unpin:
 err_vma:
 	if (eb.exec)
 		eb_release_vmas(&eb);
+err_unlock:
 	mutex_unlock(&dev->struct_mutex);
 err_rpm:
 	intel_runtime_pm_put(eb.i915, wakeref);
