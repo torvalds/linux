@@ -203,29 +203,17 @@ cfg80211_get_dev_from_info(struct net *netns, struct genl_info *info)
 static int validate_ie_attr(const struct nlattr *attr,
 			    struct netlink_ext_ack *extack)
 {
-	const u8 *pos;
-	int len;
+	const u8 *data = nla_data(attr);
+	unsigned int len = nla_len(attr);
+	struct element *elem;
 
-	pos = nla_data(attr);
-	len = nla_len(attr);
-
-	while (len) {
-		u8 elemlen;
-
-		if (len < 2)
-			goto error;
-		len -= 2;
-
-		elemlen = pos[1];
-		if (elemlen > len)
-			goto error;
-
-		len -= elemlen;
-		pos += 2 + elemlen;
+	for_each_element(elem, data, len) {
+		/* nothing */
 	}
 
-	return 0;
-error:
+	if (for_each_element_completed(elem, data, len))
+		return 0;
+
 	NL_SET_ERR_MSG_ATTR(extack, attr, "malformed information elements");
 	return -EINVAL;
 }
