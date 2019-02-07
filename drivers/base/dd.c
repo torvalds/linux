@@ -1058,9 +1058,9 @@ static void __device_release_driver(struct device *dev, struct device *parent)
 			drv->remove(dev);
 
 		device_links_driver_cleanup(dev);
-		arch_teardown_dma_ops(dev);
 
 		devres_release_all(dev);
+		arch_teardown_dma_ops(dev);
 		dev->driver = NULL;
 		dev_set_drvdata(dev, NULL);
 		if (dev->pm_domain && dev->pm_domain->dismiss)
