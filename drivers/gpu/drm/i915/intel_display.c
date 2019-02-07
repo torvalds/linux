@@ -3224,7 +3224,7 @@ static u32 i9xx_plane_ctl_crtc(const struct intel_crtc_state *crtc_state)
 	if (crtc_state->gamma_enable)
 		dspcntr |= DISPPLANE_GAMMA_ENABLE;
 
-	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
+	if (crtc_state->csc_enable)
 		dspcntr |= DISPPLANE_PIPE_CSC_ENABLE;
 
 	if (INTEL_GEN(dev_priv) < 5)
@@ -3705,7 +3705,8 @@ u32 skl_plane_ctl_crtc(const struct intel_crtc_state *crtc_state)
 	if (crtc_state->gamma_enable)
 		plane_ctl |= PLANE_CTL_PIPE_GAMMA_ENABLE;
 
-	plane_ctl |= PLANE_CTL_PIPE_CSC_ENABLE;
+	if (crtc_state->csc_enable)
+		plane_ctl |= PLANE_CTL_PIPE_CSC_ENABLE;
 
 	return plane_ctl;
 }
@@ -3760,7 +3761,8 @@ u32 glk_plane_color_ctl_crtc(const struct intel_crtc_state *crtc_state)
 	if (crtc_state->gamma_enable)
 		plane_color_ctl |= PLANE_COLOR_PIPE_GAMMA_ENABLE;
 
-	plane_color_ctl |= PLANE_COLOR_PIPE_CSC_ENABLE;
+	if (crtc_state->csc_enable)
+		plane_color_ctl |= PLANE_COLOR_PIPE_CSC_ENABLE;
 
 	return plane_color_ctl;
 }
@@ -8108,6 +8110,10 @@ static void i9xx_get_pipe_color_config(struct intel_crtc_state *crtc_state)
 
 	if (tmp & DISPPLANE_GAMMA_ENABLE)
 		crtc_state->gamma_enable = true;
+
+	if (!HAS_GMCH(dev_priv) &&
+	    tmp & DISPPLANE_PIPE_CSC_ENABLE)
+		crtc_state->csc_enable = true;
 }
 
 static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
@@ -9879,6 +9885,9 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 
 		if (tmp & SKL_BOTTOM_COLOR_GAMMA_ENABLE)
 			pipe_config->gamma_enable = true;
+
+		if (tmp & SKL_BOTTOM_COLOR_CSC_ENABLE)
+			pipe_config->csc_enable = true;
 	} else {
 		i9xx_get_pipe_color_config(pipe_config);
 	}
@@ -10215,7 +10224,7 @@ static u32 i9xx_cursor_ctl_crtc(const struct intel_crtc_state *crtc_state)
 	if (crtc_state->gamma_enable)
 		cntl = MCURSOR_GAMMA_ENABLE;
 
-	if (HAS_DDI(dev_priv))
+	if (crtc_state->csc_enable)
 		cntl |= MCURSOR_PIPE_CSC_ENABLE;
 
 	if (INTEL_GEN(dev_priv) < 5 && !IS_G4X(dev_priv))
@@ -12115,6 +12124,7 @@ intel_pipe_config_compare(struct drm_i915_private *dev_priv,
 
 		PIPE_CONF_CHECK_X(gamma_mode);
 		PIPE_CONF_CHECK_BOOL(gamma_enable);
+		PIPE_CONF_CHECK_BOOL(csc_enable);
 	}
 
 	PIPE_CONF_CHECK_BOOL(double_wide);

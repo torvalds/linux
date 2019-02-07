@@ -963,6 +963,9 @@ struct intel_crtc_state {
 	/* enable pipe gamma? */
 	bool gamma_enable;
 
+	/* enable pipe csc? */
+	bool csc_enable;
+
 	/* Display Stream compression state */
 	struct {
 		bool compression_enable;

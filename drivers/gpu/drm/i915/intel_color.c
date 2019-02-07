@@ -401,7 +401,8 @@ static void skl_color_commit(const struct intel_crtc_state *crtc_state)
 	 */
 	if (crtc_state->gamma_enable)
 		val |= SKL_BOTTOM_COLOR_GAMMA_ENABLE;
-	val |= SKL_BOTTOM_COLOR_CSC_ENABLE;
+	if (crtc_state->csc_enable)
+		val |= SKL_BOTTOM_COLOR_CSC_ENABLE;
 	I915_WRITE(SKL_BOTTOM_COLOR(pipe), val);
 
 	I915_WRITE(GAMMA_MODE(crtc->pipe), crtc_state->gamma_mode);
@@ -667,6 +668,10 @@ int intel_color_check(struct intel_crtc_state *crtc_state)
 	gamma_tests = INTEL_INFO(dev_priv)->color.gamma_lut_tests;
 
 	crtc_state->gamma_enable = true;
+
+	if (INTEL_GEN(dev_priv) >= 9 ||
+	    IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv))
+		crtc_state->csc_enable = true;
 
 	/* Always allow legacy gamma LUT with no further checking. */
 	if (crtc_state_is_legacy_gamma(crtc_state)) {

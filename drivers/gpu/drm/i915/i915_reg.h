@@ -6130,7 +6130,7 @@ enum {
 #define   MCURSOR_PIPE_SELECT_SHIFT	28
 #define   MCURSOR_PIPE_SELECT(pipe)	((pipe) << 28)
 #define   MCURSOR_GAMMA_ENABLE  (1 << 26)
-#define   MCURSOR_PIPE_CSC_ENABLE (1 << 24)
+#define   MCURSOR_PIPE_CSC_ENABLE (1 << 24) /* ilk+ */
 #define   MCURSOR_ROTATE_180	(1 << 15)
 #define   MCURSOR_TRICKLE_FEED_DISABLE	(1 << 14)
 #define _CURABASE		0x70084
@@ -6185,7 +6185,7 @@ enum {
 #define   DISPPLANE_RGBA888			(0xf << 26)
 #define   DISPPLANE_STEREO_ENABLE		(1 << 25)
 #define   DISPPLANE_STEREO_DISABLE		0
-#define   DISPPLANE_PIPE_CSC_ENABLE		(1 << 24)
+#define   DISPPLANE_PIPE_CSC_ENABLE		(1 << 24) /* ilk+ */
 #define   DISPPLANE_SEL_PIPE_SHIFT		24
 #define   DISPPLANE_SEL_PIPE_MASK		(3 << DISPPLANE_SEL_PIPE_SHIFT)
 #define   DISPPLANE_SEL_PIPE(pipe)		((pipe) << DISPPLANE_SEL_PIPE_SHIFT)
