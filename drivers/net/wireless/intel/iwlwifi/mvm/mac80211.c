@@ -2212,6 +2212,10 @@ static void iwl_mvm_cfg_he_sta(struct iwl_mvm *mvm,
 		.frame_time_rts_th =
 			cpu_to_le16(vif->bss_conf.frame_time_rts_th),
 	};
+	int size = fw_has_api(&mvm->fw->ucode_capa,
+			      IWL_UCODE_TLV_API_MBSSID_HE) ?
+		   sizeof(sta_ctxt_cmd) :
+		   sizeof(struct iwl_he_sta_context_cmd_v1);
 	struct ieee80211_sta *sta;
 	u32 flags;
 	int i;
@@ -2399,13 +2403,19 @@ static void iwl_mvm_cfg_he_sta(struct iwl_mvm *mvm,
 		flags |= STA_CTXT_HE_REF_BSSID_VALID;
 		ether_addr_copy(sta_ctxt_cmd.ref_bssid_addr,
 				vif->bss_conf.transmitter_bssid);
+		sta_ctxt_cmd.max_bssid_indicator =
+			vif->bss_conf.bssid_indicator;
+		sta_ctxt_cmd.bssid_index = vif->bss_conf.bssid_index;
+		sta_ctxt_cmd.ema_ap = vif->bss_conf.ema_ap;
+		sta_ctxt_cmd.profile_periodicity =
+			vif->bss_conf.profile_periodicity;
 	}
 
 	sta_ctxt_cmd.flags = cpu_to_le32(flags);
 
 	if (iwl_mvm_send_cmd_pdu(mvm, iwl_cmd_id(STA_HE_CTXT_CMD,
 						 DATA_PATH_GROUP, 0),
-				 0, sizeof(sta_ctxt_cmd), &sta_ctxt_cmd))
+				 0, size, &sta_ctxt_cmd))
 		IWL_ERR(mvm, "Failed to config FW to work HE!\n");
 }
 
