@@ -813,6 +813,7 @@ static int __maybe_unused tegra_bpmp_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(tegra_bpmp_pm_ops, NULL, tegra_bpmp_resume);
 
+#if IS_ENABLED(CONFIG_ARCH_TEGRA_186_SOC)
 static const struct tegra_bpmp_soc tegra186_soc = {
 	.channels = {
 		.cpu_tx = {
@@ -832,7 +833,9 @@ static const struct tegra_bpmp_soc tegra186_soc = {
 	.ops = &tegra186_bpmp_ops,
 	.num_resets = 193,
 };
+#endif
 
+#if IS_ENABLED(CONFIG_ARCH_TEGRA_210_SOC)
 static const struct tegra_bpmp_soc tegra210_soc = {
 	.channels = {
 		.cpu_tx = {
@@ -853,10 +856,15 @@ static const struct tegra_bpmp_soc tegra210_soc = {
 	},
 	.ops = &tegra210_bpmp_ops,
 };
+#endif
 
 static const struct of_device_id tegra_bpmp_match[] = {
+#if IS_ENABLED(CONFIG_ARCH_TEGRA_186_SOC)
 	{ .compatible = "nvidia,tegra186-bpmp", .data = &tegra186_soc },
+#endif
+#if IS_ENABLED(CONFIG_ARCH_TEGRA_210_SOC)
 	{ .compatible = "nvidia,tegra210-bpmp", .data = &tegra210_soc },
+#endif
 	{ }
 };
 

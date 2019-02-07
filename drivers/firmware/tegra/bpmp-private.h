@@ -23,7 +23,11 @@ struct tegra_bpmp_ops {
 	int (*resume)(struct tegra_bpmp *bpmp);
 };
 
+#if IS_ENABLED(CONFIG_ARCH_TEGRA_186_SOC)
 extern const struct tegra_bpmp_ops tegra186_bpmp_ops;
+#endif
+#if IS_ENABLED(CONFIG_ARCH_TEGRA_210_SOC)
 extern const struct tegra_bpmp_ops tegra210_bpmp_ops;
+#endif
 
 #endif
