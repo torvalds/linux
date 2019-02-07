@@ -244,17 +244,10 @@ static void ib_device_release(struct device *device)
 	struct ib_device *dev = container_of(device, struct ib_device, dev);
 
 	WARN_ON(dev->reg_state == IB_DEV_REGISTERED);
-	if (dev->reg_state == IB_DEV_UNREGISTERED) {
-		/*
-		 * In IB_DEV_UNINITIALIZED state, cache or port table
-		 * is not even created. Free cache and port table only when
-		 * device reaches UNREGISTERED state.
-		 */
-		ib_cache_release_one(dev);
-		kfree(dev->port_immutable);
-	}
+	ib_cache_release_one(dev);
 	ib_security_release_port_pkey_list(dev);
 	kfree(dev->port_pkey_list);
+	kfree(dev->port_immutable);
 	kfree(dev);
 }
 
@@ -520,13 +513,6 @@ static void setup_dma_device(struct ib_device *device)
 	}
 }
 
-static void cleanup_device(struct ib_device *device)
-{
-	ib_cache_cleanup_one(device);
-	ib_cache_release_one(device);
-	kfree(device->port_immutable);
-}
-
 static int setup_device(struct ib_device *device)
 {
 	struct ib_udata uhw = {.outlen = 0, .inlen = 0};
@@ -548,26 +534,16 @@ static int setup_device(struct ib_device *device)
 	if (ret) {
 		dev_warn(&device->dev,
 			 "Couldn't query the device attributes\n");
-		goto port_cleanup;
+		return ret;
 	}
 
 	ret = setup_port_pkey_list(device);
 	if (ret) {
 		dev_warn(&device->dev, "Couldn't create per port_pkey_list\n");
-		goto port_cleanup;
-	}
-
-	ret = ib_cache_setup_one(device);
-	if (ret) {
-		dev_warn(&device->dev,
-			 "Couldn't set up InfiniBand P_Key/GID cache\n");
 		return ret;
 	}
-	return 0;
 
-port_cleanup:
-	kfree(device->port_immutable);
-	return ret;
+	return 0;
 }
 
 /**
@@ -607,6 +583,13 @@ int ib_register_device(struct ib_device *device, const char *name)
 	if (ret)
 		goto out;
 
+	ret = ib_cache_setup_one(device);
+	if (ret) {
+		dev_warn(&device->dev,
+			 "Couldn't set up InfiniBand P_Key/GID cache\n");
+		goto out;
+	}
+
 	device->index = __dev_new_index();
 
 	ib_device_register_rdmacg(device);
@@ -633,7 +616,7 @@ int ib_register_device(struct ib_device *device, const char *name)
 
 cg_cleanup:
 	ib_device_unregister_rdmacg(device);
-	cleanup_device(device);
+	ib_cache_cleanup_one(device);
 out:
 	mutex_unlock(&device_mutex);
 	return ret;
