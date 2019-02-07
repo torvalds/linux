@@ -52,7 +52,7 @@ static DECLARE_DELAYED_WORK(klp_transition_work, klp_transition_work_fn);
 
 /*
  * This function is just a stub to implement a hard force
- * of synchronize_sched(). This requires synchronizing
+ * of synchronize_rcu(). This requires synchronizing
  * tasks even in userspace and idle.
  */
 static void klp_sync(struct work_struct *work)
@@ -175,7 +175,7 @@ void klp_cancel_transition(void)
 void klp_update_patch_state(struct task_struct *task)
 {
 	/*
-	 * A variant of synchronize_sched() is used to allow patching functions
+	 * A variant of synchronize_rcu() is used to allow patching functions
 	 * where RCU is not watching, see klp_synchronize_transition().
 	 */
 	preempt_disable_notrace();

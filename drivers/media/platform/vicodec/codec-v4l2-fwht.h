@@ -13,11 +13,12 @@ struct v4l2_fwht_pixfmt_info {
 	unsigned int bytesperline_mult;
 	unsigned int sizeimage_mult;
 	unsigned int sizeimage_div;
-	unsigned int luma_step;
+	unsigned int luma_alpha_step;
 	unsigned int chroma_step;
 	/* Chroma plane subsampling */
 	unsigned int width_div;
 	unsigned int height_div;
+	unsigned int components_num;
 };
 
 struct v4l2_fwht_state {

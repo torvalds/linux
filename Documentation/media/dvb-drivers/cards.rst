@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: GPL-2.0
+
 Hardware supported by the linuxtv.org DVB drivers
 =================================================
 

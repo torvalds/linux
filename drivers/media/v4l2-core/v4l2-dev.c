@@ -597,7 +597,8 @@ static void determine_valid_ioctls(struct video_device *vdev)
 			       ops->vidioc_enum_fmt_vid_overlay ||
 			       ops->vidioc_enum_fmt_meta_cap)) ||
 		    (is_tx && (ops->vidioc_enum_fmt_vid_out ||
-			       ops->vidioc_enum_fmt_vid_out_mplane)))
+			       ops->vidioc_enum_fmt_vid_out_mplane ||
+			       ops->vidioc_enum_fmt_meta_out)))
 			set_bit(_IOC_NR(VIDIOC_ENUM_FMT), valid_ioctls);
 		if ((is_rx && (ops->vidioc_g_fmt_vid_cap ||
 			       ops->vidioc_g_fmt_vid_cap_mplane ||
@@ -605,7 +606,8 @@ static void determine_valid_ioctls(struct video_device *vdev)
 			       ops->vidioc_g_fmt_meta_cap)) ||
 		    (is_tx && (ops->vidioc_g_fmt_vid_out ||
 			       ops->vidioc_g_fmt_vid_out_mplane ||
-			       ops->vidioc_g_fmt_vid_out_overlay)))
+			       ops->vidioc_g_fmt_vid_out_overlay ||
+			       ops->vidioc_g_fmt_meta_out)))
 			 set_bit(_IOC_NR(VIDIOC_G_FMT), valid_ioctls);
 		if ((is_rx && (ops->vidioc_s_fmt_vid_cap ||
 			       ops->vidioc_s_fmt_vid_cap_mplane ||
@@ -613,7 +615,8 @@ static void determine_valid_ioctls(struct video_device *vdev)
 			       ops->vidioc_s_fmt_meta_cap)) ||
 		    (is_tx && (ops->vidioc_s_fmt_vid_out ||
 			       ops->vidioc_s_fmt_vid_out_mplane ||
-			       ops->vidioc_s_fmt_vid_out_overlay)))
+			       ops->vidioc_s_fmt_vid_out_overlay ||
+			       ops->vidioc_s_fmt_meta_out)))
 			 set_bit(_IOC_NR(VIDIOC_S_FMT), valid_ioctls);
 		if ((is_rx && (ops->vidioc_try_fmt_vid_cap ||
 			       ops->vidioc_try_fmt_vid_cap_mplane ||
@@ -621,7 +624,8 @@ static void determine_valid_ioctls(struct video_device *vdev)
 			       ops->vidioc_try_fmt_meta_cap)) ||
 		    (is_tx && (ops->vidioc_try_fmt_vid_out ||
 			       ops->vidioc_try_fmt_vid_out_mplane ||
-			       ops->vidioc_try_fmt_vid_out_overlay)))
+			       ops->vidioc_try_fmt_vid_out_overlay ||
+			       ops->vidioc_try_fmt_meta_out)))
 			 set_bit(_IOC_NR(VIDIOC_TRY_FMT), valid_ioctls);
 		SET_VALID_IOCTL(ops, VIDIOC_OVERLAY, vidioc_overlay);
 		SET_VALID_IOCTL(ops, VIDIOC_G_FBUF, vidioc_g_fbuf);
@@ -635,14 +639,14 @@ static void determine_valid_ioctls(struct video_device *vdev)
 		SET_VALID_IOCTL(ops, VIDIOC_TRY_DECODER_CMD, vidioc_try_decoder_cmd);
 		SET_VALID_IOCTL(ops, VIDIOC_ENUM_FRAMESIZES, vidioc_enum_framesizes);
 		SET_VALID_IOCTL(ops, VIDIOC_ENUM_FRAMEINTERVALS, vidioc_enum_frameintervals);
-		if (ops->vidioc_g_crop || ops->vidioc_g_selection)
+		if (ops->vidioc_g_selection) {
 			set_bit(_IOC_NR(VIDIOC_G_CROP), valid_ioctls);
-		if (ops->vidioc_s_crop || ops->vidioc_s_selection)
+			set_bit(_IOC_NR(VIDIOC_CROPCAP), valid_ioctls);
+		}
+		if (ops->vidioc_s_selection)
 			set_bit(_IOC_NR(VIDIOC_S_CROP), valid_ioctls);
 		SET_VALID_IOCTL(ops, VIDIOC_G_SELECTION, vidioc_g_selection);
 		SET_VALID_IOCTL(ops, VIDIOC_S_SELECTION, vidioc_s_selection);
-		if (ops->vidioc_cropcap || ops->vidioc_g_selection)
-			set_bit(_IOC_NR(VIDIOC_CROPCAP), valid_ioctls);
 	} else if (is_vbi) {
 		/* vbi specific ioctls */
 		if ((is_rx && (ops->vidioc_g_fmt_vbi_cap ||

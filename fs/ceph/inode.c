@@ -1098,8 +1098,9 @@ out_unlock:
  * splice a dentry to an inode.
  * caller must hold directory i_mutex for this to be safe.
  */
-static struct dentry *splice_dentry(struct dentry *dn, struct inode *in)
+static int splice_dentry(struct dentry **pdn, struct inode *in)
 {
+	struct dentry *dn = *pdn;
 	struct dentry *realdn;
 
 	BUG_ON(d_inode(dn));
@@ -1132,28 +1133,23 @@ static struct dentry *splice_dentry(struct dentry *dn, struct inode *in)
 	if (IS_ERR(realdn)) {
 		pr_err("splice_dentry error %ld %p inode %p ino %llx.%llx\n",
 		       PTR_ERR(realdn), dn, in, ceph_vinop(in));
-		dn = realdn;
-		/*
-		 * Caller should release 'dn' in the case of error.
-		 * If 'req->r_dentry' is passed to this function,
-		 * caller should leave 'req->r_dentry' untouched.
-		 */
-		goto out;
-	} else if (realdn) {
+		return PTR_ERR(realdn);
+	}
+
+	if (realdn) {
 		dout("dn %p (%d) spliced with %p (%d) "
 		     "inode %p ino %llx.%llx\n",
 		     dn, d_count(dn),
 		     realdn, d_count(realdn),
 		     d_inode(realdn), ceph_vinop(d_inode(realdn)));
 		dput(dn);
-		dn = realdn;
+		*pdn = realdn;
 	} else {
 		BUG_ON(!ceph_dentry(dn));
 		dout("dn %p attached to %p ino %llx.%llx\n",
 		     dn, d_inode(dn), ceph_vinop(d_inode(dn)));
 	}
-out:
-	return dn;
+	return 0;
 }
 
 /*
@@ -1340,7 +1336,12 @@ retry_lookup:
 			dout("dn %p gets new offset %lld\n", req->r_old_dentry,
 			     ceph_dentry(req->r_old_dentry)->offset);
 
-			dn = req->r_old_dentry;  /* use old_dentry */
+			/* swap r_dentry and r_old_dentry in case that
+			 * splice_dentry() gets called later. This is safe
+			 * because no other place will use them */
+			req->r_dentry = req->r_old_dentry;
+			req->r_old_dentry = dn;
+			dn = req->r_dentry;
 		}
 
 		/* null dentry? */
@@ -1365,12 +1366,10 @@ retry_lookup:
 		if (d_really_is_negative(dn)) {
 			ceph_dir_clear_ordered(dir);
 			ihold(in);
-			dn = splice_dentry(dn, in);
-			if (IS_ERR(dn)) {
-				err = PTR_ERR(dn);
+			err = splice_dentry(&req->r_dentry, in);
+			if (err < 0)
 				goto done;
-			}
-			req->r_dentry = dn;  /* may have spliced */
+			dn = req->r_dentry;  /* may have spliced */
 		} else if (d_really_is_positive(dn) && d_inode(dn) != in) {
 			dout(" %p links to %p %llx.%llx, not %llx.%llx\n",
 			     dn, d_inode(dn), ceph_vinop(d_inode(dn)),
@@ -1390,22 +1389,18 @@ retry_lookup:
 	} else if ((req->r_op == CEPH_MDS_OP_LOOKUPSNAP ||
 		    req->r_op == CEPH_MDS_OP_MKSNAP) &&
 		   !test_bit(CEPH_MDS_R_ABORTED, &req->r_req_flags)) {
-		struct dentry *dn = req->r_dentry;
 		struct inode *dir = req->r_parent;
 
 		/* fill out a snapdir LOOKUPSNAP dentry */
-		BUG_ON(!dn);
 		BUG_ON(!dir);
 		BUG_ON(ceph_snap(dir) != CEPH_SNAPDIR);
-		dout(" linking snapped dir %p to dn %p\n", in, dn);
+		BUG_ON(!req->r_dentry);
+		dout(" linking snapped dir %p to dn %p\n", in, req->r_dentry);
 		ceph_dir_clear_ordered(dir);
 		ihold(in);
-		dn = splice_dentry(dn, in);
-		if (IS_ERR(dn)) {
-			err = PTR_ERR(dn);
+		err = splice_dentry(&req->r_dentry, in);
+		if (err < 0)
 			goto done;
-		}
-		req->r_dentry = dn;  /* may have spliced */
 	} else if (rinfo->head->is_dentry) {
 		struct ceph_vino *ptvino = NULL;
 
@@ -1669,8 +1664,6 @@ retry_lookup:
 		}
 
 		if (d_really_is_negative(dn)) {
-			struct dentry *realdn;
-
 			if (ceph_security_xattr_deadlock(in)) {
 				dout(" skip splicing dn %p to inode %p"
 				     " (security xattr deadlock)\n", dn, in);
@@ -1679,13 +1672,9 @@ retry_lookup:
 				goto next_item;
 			}
 
-			realdn = splice_dentry(dn, in);
-			if (IS_ERR(realdn)) {
-				err = PTR_ERR(realdn);
-				d_drop(dn);
+			err = splice_dentry(&dn, in);
+			if (err < 0)
 				goto next_item;
-			}
-			dn = realdn;
 		}
 
 		ceph_dentry(dn)->offset = rde->offset;
@@ -1701,8 +1690,7 @@ retry_lookup:
 				err = ret;
 		}
 next_item:
-		if (dn)
-			dput(dn);
+		dput(dn);
 	}
 out:
 	if (err == 0 && skipped == 0) {

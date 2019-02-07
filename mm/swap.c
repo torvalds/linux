@@ -126,7 +126,7 @@ void put_pages_list(struct list_head *pages)
 	while (!list_empty(pages)) {
 		struct page *victim;
 
-		victim = list_entry(pages->prev, struct page, lru);
+		victim = lru_to_page(pages);
 		list_del(&victim->lru);
 		put_page(victim);
 	}
@@ -823,8 +823,7 @@ void lru_add_page_tail(struct page *page, struct page *page_tail,
 	VM_BUG_ON_PAGE(!PageHead(page), page);
 	VM_BUG_ON_PAGE(PageCompound(page_tail), page);
 	VM_BUG_ON_PAGE(PageLRU(page_tail), page);
-	VM_BUG_ON(NR_CPUS != 1 &&
-		  !spin_is_locked(&lruvec_pgdat(lruvec)->lru_lock));
+	lockdep_assert_held(&lruvec_pgdat(lruvec)->lru_lock);
 
 	if (!list)
 		SetPageLRU(page_tail);
@@ -1023,7 +1022,7 @@ EXPORT_SYMBOL(pagevec_lookup_range_nr_tag);
  */
 void __init swap_setup(void)
 {
-	unsigned long megs = totalram_pages >> (20 - PAGE_SHIFT);
+	unsigned long megs = totalram_pages() >> (20 - PAGE_SHIFT);
 
 	/* Use a smaller cluster for small-memory machines */
 	if (megs < 16)

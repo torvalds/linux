@@ -176,10 +176,10 @@ __after_mmu_off:
 	bl	reloc_offset
 	li	r24,0			/* cpu# */
 	bl	call_setup_cpu		/* Call setup_cpu for this CPU */
-#ifdef CONFIG_6xx
+#ifdef CONFIG_PPC_BOOK3S_32
 	bl	reloc_offset
 	bl	init_idle_6xx
-#endif /* CONFIG_6xx */
+#endif /* CONFIG_PPC_BOOK3S_32 */
 
 
 /*
@@ -393,7 +393,9 @@ DataAccess:
 	bne	1f			/* if not, try to put a PTE */
 	mfspr	r4,SPRN_DAR		/* into the hash table */
 	rlwinm	r3,r10,32-15,21,21	/* DSISR_STORE -> _PAGE_RW */
+BEGIN_MMU_FTR_SECTION
 	bl	hash_page
+END_MMU_FTR_SECTION_IFSET(MMU_FTR_HPTE_TABLE)
 1:	lwz	r5,_DSISR(r11)		/* get DSISR value */
 	mfspr	r4,SPRN_DAR
 	EXC_XFER_LITE(0x300, handle_page_fault)
@@ -408,7 +410,9 @@ InstructionAccess:
 	beq	1f			/* if so, try to put a PTE */
 	li	r3,0			/* into the hash table */
 	mr	r4,r12			/* SRR0 is fault address */
+BEGIN_MMU_FTR_SECTION
 	bl	hash_page
+END_MMU_FTR_SECTION_IFSET(MMU_FTR_HPTE_TABLE)
 1:	mr	r4,r12
 	andis.	r5,r9,DSISR_SRR1_MATCH_32S@h /* Filter relevant SRR1 bits */
 	EXC_XFER_LITE(0x400, handle_page_fault)
@@ -499,7 +503,7 @@ InstructionTLBMiss:
 	lis	r1,PAGE_OFFSET@h		/* check if kernel address */
 	cmplw	0,r1,r3
 	mfspr	r2,SPRN_SPRG_THREAD
-	li	r1,_PAGE_USER|_PAGE_PRESENT /* low addresses tested as user */
+	li	r1,_PAGE_USER|_PAGE_PRESENT|_PAGE_EXEC /* low addresses tested as user */
 	lwz	r2,PGDIR(r2)
 	bge-	112f
 	mfspr	r2,SPRN_SRR1		/* and MSR_PR bit from SRR1 */
@@ -836,10 +840,10 @@ __secondary_start:
 	lis	r3,-KERNELBASE@h
 	mr	r4,r24
 	bl	call_setup_cpu		/* Call setup_cpu for this CPU */
-#ifdef CONFIG_6xx
+#ifdef CONFIG_PPC_BOOK3S_32
 	lis	r3,-KERNELBASE@h
 	bl	init_idle_6xx
-#endif /* CONFIG_6xx */
+#endif /* CONFIG_PPC_BOOK3S_32 */
 
 	/* get current_thread_info and current */
 	lis	r1,secondary_ti@ha
@@ -880,14 +884,14 @@ __secondary_start:
 
 /*
  * Those generic dummy functions are kept for CPUs not
- * included in CONFIG_6xx
+ * included in CONFIG_PPC_BOOK3S_32
  */
-#if !defined(CONFIG_6xx)
+#if !defined(CONFIG_PPC_BOOK3S_32)
 _ENTRY(__save_cpu_setup)
 	blr
 _ENTRY(__restore_cpu_setup)
 	blr
-#endif /* !defined(CONFIG_6xx) */
+#endif /* !defined(CONFIG_PPC_BOOK3S_32) */
 
 
 /*

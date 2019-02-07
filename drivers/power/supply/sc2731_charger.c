@@ -57,9 +57,11 @@ struct sc2731_charger_info {
 	struct usb_phy *usb_phy;
 	struct notifier_block usb_notify;
 	struct power_supply *psy_usb;
+	struct work_struct work;
 	struct mutex lock;
 	bool charging;
 	u32 base;
+	u32 limit;
 };
 
 static void sc2731_charger_stop_charge(struct sc2731_charger_info *info)
@@ -318,22 +320,21 @@ static const struct power_supply_desc sc2731_charger_desc = {
 	.property_is_writeable	= sc2731_charger_property_is_writeable,
 };
 
-static int sc2731_charger_usb_change(struct notifier_block *nb,
-				     unsigned long limit, void *data)
+static void sc2731_charger_work(struct work_struct *data)
 {
 	struct sc2731_charger_info *info =
-		container_of(nb, struct sc2731_charger_info, usb_notify);
-	int ret = 0;
+		container_of(data, struct sc2731_charger_info, work);
+	int ret;
 
 	mutex_lock(&info->lock);
 
-	if (limit > 0) {
+	if (info->limit > 0 && !info->charging) {
 		/* set current limitation and start to charge */
-		ret = sc2731_charger_set_current_limit(info, limit);
+		ret = sc2731_charger_set_current_limit(info, info->limit);
 		if (ret)
 			goto out;
 
-		ret = sc2731_charger_set_current(info, limit);
+		ret = sc2731_charger_set_current(info, info->limit);
 		if (ret)
 			goto out;
 
@@ -342,7 +343,7 @@ static int sc2731_charger_usb_change(struct notifier_block *nb,
 			goto out;
 
 		info->charging = true;
-	} else {
+	} else if (!info->limit && info->charging) {
 		/* Stop charging */
 		info->charging = false;
 		sc2731_charger_stop_charge(info);
@@ -350,7 +351,19 @@ static int sc2731_charger_usb_change(struct notifier_block *nb,
 
 out:
 	mutex_unlock(&info->lock);
-	return ret;
+}
+
+static int sc2731_charger_usb_change(struct notifier_block *nb,
+				     unsigned long limit, void *data)
+{
+	struct sc2731_charger_info *info =
+		container_of(nb, struct sc2731_charger_info, usb_notify);
+
+	info->limit = limit;
+
+	schedule_work(&info->work);
+
+	return NOTIFY_OK;
 }
 
 static int sc2731_charger_hw_init(struct sc2731_charger_info *info)
@@ -395,6 +408,8 @@ static int sc2731_charger_hw_init(struct sc2731_charger_info *info)
 			vol_val = (term_voltage - 4200) / 100;
 		else
 			vol_val = 0;
+
+		power_supply_put_battery_info(info->psy_usb, &bat_info);
 	}
 
 	/* Set charge termination current */
@@ -419,6 +434,24 @@ error:
 	return ret;
 }
 
+static void sc2731_charger_detect_status(struct sc2731_charger_info *info)
+{
+	unsigned int min, max;
+
+	/*
+	 * If the USB charger status has been USB_CHARGER_PRESENT before
+	 * registering the notifier, we should start to charge with getting
+	 * the charge current.
+	 */
+	if (info->usb_phy->chg_state != USB_CHARGER_PRESENT)
+		return;
+
+	usb_phy_get_charger_current(info->usb_phy, &min, &max);
+	info->limit = min;
+
+	schedule_work(&info->work);
+}
+
 static int sc2731_charger_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -432,6 +465,7 @@ static int sc2731_charger_probe(struct platform_device *pdev)
 
 	mutex_init(&info->lock);
 	info->dev = &pdev->dev;
+	INIT_WORK(&info->work, sc2731_charger_work);
 
 	info->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!info->regmap) {
@@ -471,6 +505,8 @@ static int sc2731_charger_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to register notifier: %d\n", ret);
 		return ret;
 	}
+
+	sc2731_charger_detect_status(info);
 
 	return 0;
 }

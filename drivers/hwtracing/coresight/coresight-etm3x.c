@@ -363,15 +363,16 @@ static int etm_enable_hw(struct etm_drvdata *drvdata)
 
 	CS_UNLOCK(drvdata->base);
 
+	rc = coresight_claim_device_unlocked(drvdata->base);
+	if (rc)
+		goto done;
+
 	/* Turn engine on */
 	etm_clr_pwrdwn(drvdata);
 	/* Apply power to trace registers */
 	etm_set_pwrup(drvdata);
 	/* Make sure all registers are accessible */
 	etm_os_unlock(drvdata);
-	rc = coresight_claim_device_unlocked(drvdata->base);
-	if (rc)
-		goto done;
 
 	etm_set_prog(drvdata);
 
@@ -422,8 +423,6 @@ static int etm_enable_hw(struct etm_drvdata *drvdata)
 	etm_clr_prog(drvdata);
 
 done:
-	if (rc)
-		etm_set_pwrdwn(drvdata);
 	CS_LOCK(drvdata->base);
 
 	dev_dbg(drvdata->dev, "cpu: %d enable smp call done: %d\n",
@@ -577,9 +576,9 @@ static void etm_disable_hw(void *info)
 	for (i = 0; i < drvdata->nr_cntr; i++)
 		config->cntr_val[i] = etm_readl(drvdata, ETMCNTVRn(i));
 
+	etm_set_pwrdwn(drvdata);
 	coresight_disclaim_device_unlocked(drvdata->base);
 
-	etm_set_pwrdwn(drvdata);
 	CS_LOCK(drvdata->base);
 
 	dev_dbg(drvdata->dev, "cpu: %d disable smp call done\n", drvdata->cpu);
@@ -602,6 +601,7 @@ static void etm_disable_perf(struct coresight_device *csdev)
 	 * power down the tracer.
 	 */
 	etm_set_pwrdwn(drvdata);
+	coresight_disclaim_device_unlocked(drvdata->base);
 
 	CS_LOCK(drvdata->base);
 }

@@ -44,6 +44,11 @@ xchk_setup_ag_iallocbt(
 
 /* Inode btree scrubber. */
 
+struct xchk_iallocbt {
+	/* Number of inodes we see while scanning inobt. */
+	unsigned long long	inodes;
+};
+
 /*
  * If we're checking the finobt, cross-reference with the inobt.
  * Otherwise we're checking the inobt; if there is an finobt, make sure
@@ -82,15 +87,12 @@ xchk_iallocbt_chunk_xref(
 	xfs_agblock_t			agbno,
 	xfs_extlen_t			len)
 {
-	struct xfs_owner_info		oinfo;
-
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return;
 
 	xchk_xref_is_used_space(sc, agbno, len);
 	xchk_iallocbt_chunk_xref_other(sc, irec, agino);
-	xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_INODES);
-	xchk_xref_is_owned_by(sc, agbno, len, &oinfo);
+	xchk_xref_is_owned_by(sc, agbno, len, &XFS_RMAP_OINFO_INODES);
 	xchk_xref_is_not_shared(sc, agbno, len);
 }
 
@@ -186,7 +188,6 @@ xchk_iallocbt_check_freemask(
 	struct xchk_btree		*bs,
 	struct xfs_inobt_rec_incore	*irec)
 {
-	struct xfs_owner_info		oinfo;
 	struct xfs_imap			imap;
 	struct xfs_mount		*mp = bs->cur->bc_mp;
 	struct xfs_dinode		*dip;
@@ -197,19 +198,16 @@ xchk_iallocbt_check_freemask(
 	xfs_agino_t			chunkino;
 	xfs_agino_t			clusterino;
 	xfs_agblock_t			agbno;
-	int				blks_per_cluster;
 	uint16_t			holemask;
 	uint16_t			ir_holemask;
 	int				error = 0;
 
 	/* Make sure the freemask matches the inode records. */
-	blks_per_cluster = xfs_icluster_size_fsb(mp);
-	nr_inodes = XFS_OFFBNO_TO_AGINO(mp, blks_per_cluster, 0);
-	xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_INODES);
+	nr_inodes = mp->m_inodes_per_cluster;
 
 	for (agino = irec->ir_startino;
 	     agino < irec->ir_startino + XFS_INODES_PER_CHUNK;
-	     agino += blks_per_cluster * mp->m_sb.sb_inopblock) {
+	     agino += mp->m_inodes_per_cluster) {
 		fsino = XFS_AGINO_TO_INO(mp, bs->cur->bc_private.a.agno, agino);
 		chunkino = agino - irec->ir_startino;
 		agbno = XFS_AGINO_TO_AGBNO(mp, agino);
@@ -230,17 +228,18 @@ xchk_iallocbt_check_freemask(
 		/* If any part of this is a hole, skip it. */
 		if (ir_holemask) {
 			xchk_xref_is_not_owned_by(bs->sc, agbno,
-					blks_per_cluster, &oinfo);
+					mp->m_blocks_per_cluster,
+					&XFS_RMAP_OINFO_INODES);
 			continue;
 		}
 
-		xchk_xref_is_owned_by(bs->sc, agbno, blks_per_cluster,
-				&oinfo);
+		xchk_xref_is_owned_by(bs->sc, agbno, mp->m_blocks_per_cluster,
+				&XFS_RMAP_OINFO_INODES);
 
 		/* Grab the inode cluster buffer. */
 		imap.im_blkno = XFS_AGB_TO_DADDR(mp, bs->cur->bc_private.a.agno,
 				agbno);
-		imap.im_len = XFS_FSB_TO_BB(mp, blks_per_cluster);
+		imap.im_len = XFS_FSB_TO_BB(mp, mp->m_blocks_per_cluster);
 		imap.im_boffset = 0;
 
 		error = xfs_imap_to_bp(mp, bs->cur->bc_tp, &imap,
@@ -272,7 +271,7 @@ xchk_iallocbt_rec(
 	union xfs_btree_rec		*rec)
 {
 	struct xfs_mount		*mp = bs->cur->bc_mp;
-	xfs_filblks_t			*inode_blocks = bs->private;
+	struct xchk_iallocbt		*iabt = bs->private;
 	struct xfs_inobt_rec_incore	irec;
 	uint64_t			holes;
 	xfs_agnumber_t			agno = bs->cur->bc_private.a.agno;
@@ -306,12 +305,11 @@ xchk_iallocbt_rec(
 
 	/* Make sure this record is aligned to cluster and inoalignmnt size. */
 	agbno = XFS_AGINO_TO_AGBNO(mp, irec.ir_startino);
-	if ((agbno & (xfs_ialloc_cluster_alignment(mp) - 1)) ||
-	    (agbno & (xfs_icluster_size_fsb(mp) - 1)))
+	if ((agbno & (mp->m_cluster_align - 1)) ||
+	    (agbno & (mp->m_blocks_per_cluster - 1)))
 		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
 
-	*inode_blocks += XFS_B_TO_FSB(mp,
-			irec.ir_count * mp->m_sb.sb_inodesize);
+	iabt->inodes += irec.ir_count;
 
 	/* Handle non-sparse inodes */
 	if (!xfs_inobt_issparse(irec.ir_holemask)) {
@@ -366,7 +364,6 @@ xchk_iallocbt_xref_rmap_btreeblks(
 	struct xfs_scrub	*sc,
 	int			which)
 {
-	struct xfs_owner_info	oinfo;
 	xfs_filblks_t		blocks;
 	xfs_extlen_t		inobt_blocks = 0;
 	xfs_extlen_t		finobt_blocks = 0;
@@ -388,9 +385,8 @@ xchk_iallocbt_xref_rmap_btreeblks(
 			return;
 	}
 
-	xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_INOBT);
-	error = xchk_count_rmap_ownedby_ag(sc, sc->sa.rmap_cur, &oinfo,
-			&blocks);
+	error = xchk_count_rmap_ownedby_ag(sc, sc->sa.rmap_cur,
+			&XFS_RMAP_OINFO_INOBT, &blocks);
 	if (!xchk_should_check_xref(sc, &error, &sc->sa.rmap_cur))
 		return;
 	if (blocks != inobt_blocks + finobt_blocks)
@@ -405,21 +401,21 @@ STATIC void
 xchk_iallocbt_xref_rmap_inodes(
 	struct xfs_scrub	*sc,
 	int			which,
-	xfs_filblks_t		inode_blocks)
+	unsigned long long	inodes)
 {
-	struct xfs_owner_info	oinfo;
 	xfs_filblks_t		blocks;
+	xfs_filblks_t		inode_blocks;
 	int			error;
 
 	if (!sc->sa.rmap_cur || xchk_skip_xref(sc->sm))
 		return;
 
 	/* Check that we saw as many inode blocks as the rmap knows about. */
-	xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_INODES);
-	error = xchk_count_rmap_ownedby_ag(sc, sc->sa.rmap_cur, &oinfo,
-			&blocks);
+	error = xchk_count_rmap_ownedby_ag(sc, sc->sa.rmap_cur,
+			&XFS_RMAP_OINFO_INODES, &blocks);
 	if (!xchk_should_check_xref(sc, &error, &sc->sa.rmap_cur))
 		return;
+	inode_blocks = XFS_B_TO_FSB(sc->mp, inodes * sc->mp->m_sb.sb_inodesize);
 	if (blocks != inode_blocks)
 		xchk_btree_xref_set_corrupt(sc, sc->sa.rmap_cur, 0);
 }
@@ -431,14 +427,14 @@ xchk_iallocbt(
 	xfs_btnum_t		which)
 {
 	struct xfs_btree_cur	*cur;
-	struct xfs_owner_info	oinfo;
-	xfs_filblks_t		inode_blocks = 0;
+	struct xchk_iallocbt	iabt = {
+		.inodes		= 0,
+	};
 	int			error;
 
-	xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_INOBT);
 	cur = which == XFS_BTNUM_INO ? sc->sa.ino_cur : sc->sa.fino_cur;
-	error = xchk_btree(sc, cur, xchk_iallocbt_rec, &oinfo,
-			&inode_blocks);
+	error = xchk_btree(sc, cur, xchk_iallocbt_rec, &XFS_RMAP_OINFO_INOBT,
+			&iabt);
 	if (error)
 		return error;
 
@@ -452,7 +448,7 @@ xchk_iallocbt(
 	 * to inode chunks with free inodes.
 	 */
 	if (which == XFS_BTNUM_INO)
-		xchk_iallocbt_xref_rmap_inodes(sc, which, inode_blocks);
+		xchk_iallocbt_xref_rmap_inodes(sc, which, iabt.inodes);
 
 	return error;
 }

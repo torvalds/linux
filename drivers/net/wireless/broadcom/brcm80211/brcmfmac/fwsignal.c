@@ -511,6 +511,7 @@ struct brcmf_fws_info {
 	struct work_struct fws_dequeue_work;
 	u32 fifo_enqpkt[BRCMF_FWS_FIFO_COUNT];
 	int fifo_credit[BRCMF_FWS_FIFO_COUNT];
+	int init_fifo_credit[BRCMF_FWS_FIFO_COUNT];
 	int credits_borrowed[BRCMF_FWS_FIFO_AC_VO + 1];
 	int deq_node_pos[BRCMF_FWS_FIFO_COUNT];
 	u32 fifo_credit_map;
@@ -1237,6 +1238,9 @@ static void brcmf_fws_return_credits(struct brcmf_fws_info *fws,
 	}
 
 	fws->fifo_credit[fifo] += credits;
+	if (fws->fifo_credit[fifo] > fws->init_fifo_credit[fifo])
+		fws->fifo_credit[fifo] = fws->init_fifo_credit[fifo];
+
 }
 
 static void brcmf_fws_schedule_deq(struct brcmf_fws_info *fws)
@@ -1451,9 +1455,10 @@ static int brcmf_fws_txstatus_suppressed(struct brcmf_fws_info *fws, int fifo,
 
 static int
 brcmf_fws_txs_process(struct brcmf_fws_info *fws, u8 flags, u32 hslot,
-		      u32 genbit, u16 seq)
+		      u32 genbit, u16 seq, u8 compcnt)
 {
 	u32 fifo;
+	u8 cnt = 0;
 	int ret;
 	bool remove_from_hanger = true;
 	struct sk_buff *skb;
@@ -1464,60 +1469,71 @@ brcmf_fws_txs_process(struct brcmf_fws_info *fws, u8 flags, u32 hslot,
 	brcmf_dbg(DATA, "flags %d\n", flags);
 
 	if (flags == BRCMF_FWS_TXSTATUS_DISCARD)
-		fws->stats.txs_discard++;
+		fws->stats.txs_discard += compcnt;
 	else if (flags == BRCMF_FWS_TXSTATUS_CORE_SUPPRESS) {
-		fws->stats.txs_supp_core++;
+		fws->stats.txs_supp_core += compcnt;
 		remove_from_hanger = false;
 	} else if (flags == BRCMF_FWS_TXSTATUS_FW_PS_SUPPRESS) {
-		fws->stats.txs_supp_ps++;
+		fws->stats.txs_supp_ps += compcnt;
 		remove_from_hanger = false;
 	} else if (flags == BRCMF_FWS_TXSTATUS_FW_TOSSED)
-		fws->stats.txs_tossed++;
+		fws->stats.txs_tossed += compcnt;
 	else if (flags == BRCMF_FWS_TXSTATUS_HOST_TOSSED)
-		fws->stats.txs_host_tossed++;
+		fws->stats.txs_host_tossed += compcnt;
 	else
 		brcmf_err("unexpected txstatus\n");
 
-	ret = brcmf_fws_hanger_poppkt(&fws->hanger, hslot, &skb,
-				      remove_from_hanger);
-	if (ret != 0) {
-		brcmf_err("no packet in hanger slot: hslot=%d\n", hslot);
-		return ret;
-	}
+	while (cnt < compcnt) {
+		ret = brcmf_fws_hanger_poppkt(&fws->hanger, hslot, &skb,
+					      remove_from_hanger);
+		if (ret != 0) {
+			brcmf_err("no packet in hanger slot: hslot=%d\n",
+				  hslot);
+			goto cont;
+		}
 
-	skcb = brcmf_skbcb(skb);
-	entry = skcb->mac;
-	if (WARN_ON(!entry)) {
-		brcmu_pkt_buf_free_skb(skb);
-		return -EINVAL;
-	}
-	entry->transit_count--;
-	if (entry->suppressed && entry->suppr_transit_count)
-		entry->suppr_transit_count--;
+		skcb = brcmf_skbcb(skb);
+		entry = skcb->mac;
+		if (WARN_ON(!entry)) {
+			brcmu_pkt_buf_free_skb(skb);
+			goto cont;
+		}
+		entry->transit_count--;
+		if (entry->suppressed && entry->suppr_transit_count)
+			entry->suppr_transit_count--;
 
-	brcmf_dbg(DATA, "%s flags %d htod %X seq %X\n", entry->name, flags,
-		  skcb->htod, seq);
+		brcmf_dbg(DATA, "%s flags %d htod %X seq %X\n", entry->name,
+			  flags, skcb->htod, seq);
 
-	/* pick up the implicit credit from this packet */
-	fifo = brcmf_skb_htod_tag_get_field(skb, FIFO);
-	if ((fws->fcmode == BRCMF_FWS_FCMODE_IMPLIED_CREDIT) ||
-	    (brcmf_skb_if_flags_get_field(skb, REQ_CREDIT)) ||
-	    (flags == BRCMF_FWS_TXSTATUS_HOST_TOSSED)) {
-		brcmf_fws_return_credits(fws, fifo, 1);
-		brcmf_fws_schedule_deq(fws);
-	}
-	brcmf_fws_macdesc_return_req_credit(skb);
+		/* pick up the implicit credit from this packet */
+		fifo = brcmf_skb_htod_tag_get_field(skb, FIFO);
+		if (fws->fcmode == BRCMF_FWS_FCMODE_IMPLIED_CREDIT ||
+		    (brcmf_skb_if_flags_get_field(skb, REQ_CREDIT)) ||
+		    flags == BRCMF_FWS_TXSTATUS_HOST_TOSSED) {
+			brcmf_fws_return_credits(fws, fifo, 1);
+			brcmf_fws_schedule_deq(fws);
+		}
+		brcmf_fws_macdesc_return_req_credit(skb);
 
-	ret = brcmf_proto_hdrpull(fws->drvr, false, skb, &ifp);
-	if (ret) {
-		brcmu_pkt_buf_free_skb(skb);
-		return -EINVAL;
+		ret = brcmf_proto_hdrpull(fws->drvr, false, skb, &ifp);
+		if (ret) {
+			brcmu_pkt_buf_free_skb(skb);
+			goto cont;
+		}
+		if (!remove_from_hanger)
+			ret = brcmf_fws_txstatus_suppressed(fws, fifo, skb,
+							    genbit, seq);
+		if (remove_from_hanger || ret)
+			brcmf_txfinalize(ifp, skb, true);
+
+cont:
+		hslot = (hslot + 1) & (BRCMF_FWS_TXSTAT_HSLOT_MASK >>
+				       BRCMF_FWS_TXSTAT_HSLOT_SHIFT);
+		if (BRCMF_FWS_MODE_GET_REUSESEQ(fws->mode))
+			seq = (seq + 1) & BRCMF_SKB_HTOD_SEQ_NR_MASK;
+
+		cnt++;
 	}
-	if (!remove_from_hanger)
-		ret = brcmf_fws_txstatus_suppressed(fws, fifo, skb,
-						    genbit, seq);
-	if (remove_from_hanger || ret)
-		brcmf_txfinalize(ifp, skb, true);
 
 	return 0;
 }
@@ -1543,7 +1559,8 @@ static int brcmf_fws_fifocreditback_indicate(struct brcmf_fws_info *fws,
 	return BRCMF_FWS_RET_OK_SCHEDULE;
 }
 
-static int brcmf_fws_txstatus_indicate(struct brcmf_fws_info *fws, u8 *data)
+static int brcmf_fws_txstatus_indicate(struct brcmf_fws_info *fws, u8 type,
+				       u8 *data)
 {
 	__le32 status_le;
 	__le16 seq_le;
@@ -1552,23 +1569,31 @@ static int brcmf_fws_txstatus_indicate(struct brcmf_fws_info *fws, u8 *data)
 	u32 genbit;
 	u8 flags;
 	u16 seq;
+	u8 compcnt;
+	u8 compcnt_offset = BRCMF_FWS_TYPE_TXSTATUS_LEN;
 
-	fws->stats.txs_indicate++;
 	memcpy(&status_le, data, sizeof(status_le));
 	status = le32_to_cpu(status_le);
 	flags = brcmf_txstatus_get_field(status, FLAGS);
 	hslot = brcmf_txstatus_get_field(status, HSLOT);
 	genbit = brcmf_txstatus_get_field(status, GENERATION);
 	if (BRCMF_FWS_MODE_GET_REUSESEQ(fws->mode)) {
-		memcpy(&seq_le, &data[BRCMF_FWS_TYPE_PKTTAG_LEN],
+		memcpy(&seq_le, &data[BRCMF_FWS_TYPE_TXSTATUS_LEN],
 		       sizeof(seq_le));
 		seq = le16_to_cpu(seq_le);
+		compcnt_offset += BRCMF_FWS_TYPE_SEQ_LEN;
 	} else {
 		seq = 0;
 	}
 
+	if (type == BRCMF_FWS_TYPE_COMP_TXSTATUS)
+		compcnt = data[compcnt_offset];
+	else
+		compcnt = 1;
+	fws->stats.txs_indicate += compcnt;
+
 	brcmf_fws_lock(fws);
-	brcmf_fws_txs_process(fws, flags, hslot, genbit, seq);
+	brcmf_fws_txs_process(fws, flags, hslot, genbit, seq, compcnt);
 	brcmf_fws_unlock(fws);
 	return BRCMF_FWS_RET_OK_NOSCHEDULE;
 }
@@ -1595,19 +1620,21 @@ static int brcmf_fws_notify_credit_map(struct brcmf_if *ifp,
 		brcmf_err("event payload too small (%d)\n", e->datalen);
 		return -EINVAL;
 	}
-	if (fws->creditmap_received)
-		return 0;
 
 	fws->creditmap_received = true;
 
 	brcmf_dbg(TRACE, "enter: credits %pM\n", credits);
 	brcmf_fws_lock(fws);
 	for (i = 0; i < ARRAY_SIZE(fws->fifo_credit); i++) {
-		if (*credits)
+		fws->fifo_credit[i] += credits[i] - fws->init_fifo_credit[i];
+		fws->init_fifo_credit[i] = credits[i];
+		if (fws->fifo_credit[i] > 0)
 			fws->fifo_credit_map |= 1 << i;
 		else
 			fws->fifo_credit_map &= ~(1 << i);
-		fws->fifo_credit[i] = *credits++;
+		WARN_ONCE(fws->fifo_credit[i] < 0,
+			  "fifo_credit[%d] is negative(%d)\n", i,
+			  fws->fifo_credit[i]);
 	}
 	brcmf_fws_schedule_deq(fws);
 	brcmf_fws_unlock(fws);
@@ -1882,8 +1909,6 @@ void brcmf_fws_hdrpull(struct brcmf_if *ifp, s16 siglen, struct sk_buff *skb)
 
 		err = BRCMF_FWS_RET_OK_NOSCHEDULE;
 		switch (type) {
-		case BRCMF_FWS_TYPE_COMP_TXSTATUS:
-			break;
 		case BRCMF_FWS_TYPE_HOST_REORDER_RXPKTS:
 			rd = (struct brcmf_skb_reorder_data *)skb->cb;
 			rd->reorder = data;
@@ -1906,7 +1931,8 @@ void brcmf_fws_hdrpull(struct brcmf_if *ifp, s16 siglen, struct sk_buff *skb)
 			err = brcmf_fws_request_indicate(fws, type, data);
 			break;
 		case BRCMF_FWS_TYPE_TXSTATUS:
-			brcmf_fws_txstatus_indicate(fws, data);
+		case BRCMF_FWS_TYPE_COMP_TXSTATUS:
+			brcmf_fws_txstatus_indicate(fws, type, data);
 			break;
 		case BRCMF_FWS_TYPE_FIFO_CREDITBACK:
 			err = brcmf_fws_fifocreditback_indicate(fws, data);
@@ -1995,7 +2021,7 @@ static void brcmf_fws_rollback_toq(struct brcmf_fws_info *fws,
 		fws->stats.rollback_failed++;
 		hslot = brcmf_skb_htod_tag_get_field(skb, HSLOT);
 		brcmf_fws_txs_process(fws, BRCMF_FWS_TXSTATUS_HOST_TOSSED,
-				      hslot, 0, 0);
+				      hslot, 0, 0, 1);
 	} else {
 		fws->stats.rollback_success++;
 		brcmf_fws_return_credits(fws, fifo, 1);
@@ -2013,7 +2039,7 @@ static int brcmf_fws_borrow_credit(struct brcmf_fws_info *fws)
 	}
 
 	for (lender_ac = 0; lender_ac <= BRCMF_FWS_FIFO_AC_VO; lender_ac++) {
-		if (fws->fifo_credit[lender_ac]) {
+		if (fws->fifo_credit[lender_ac] > 0) {
 			fws->credits_borrowed[lender_ac]++;
 			fws->fifo_credit[lender_ac]--;
 			if (fws->fifo_credit[lender_ac] == 0)
@@ -2210,8 +2236,9 @@ static void brcmf_fws_dequeue_worker(struct work_struct *worker)
 			}
 			continue;
 		}
-		while ((fws->fifo_credit[fifo]) || ((!fws->bcmc_credit_check) &&
-		       (fifo == BRCMF_FWS_FIFO_BCMC))) {
+		while ((fws->fifo_credit[fifo] > 0) ||
+		       ((!fws->bcmc_credit_check) &&
+			(fifo == BRCMF_FWS_FIFO_BCMC))) {
 			skb = brcmf_fws_deq(fws, fifo);
 			if (!skb)
 				break;
@@ -2222,7 +2249,7 @@ static void brcmf_fws_dequeue_worker(struct work_struct *worker)
 				break;
 		}
 		if ((fifo == BRCMF_FWS_FIFO_AC_BE) &&
-		    (fws->fifo_credit[fifo] == 0) &&
+		    (fws->fifo_credit[fifo] <= 0) &&
 		    (!fws->bus_flow_blocked)) {
 			while (brcmf_fws_borrow_credit(fws) == 0) {
 				skb = brcmf_fws_deq(fws, fifo);
@@ -2455,7 +2482,8 @@ void brcmf_fws_bustxfail(struct brcmf_fws_info *fws, struct sk_buff *skb)
 	}
 	brcmf_fws_lock(fws);
 	hslot = brcmf_skb_htod_tag_get_field(skb, HSLOT);
-	brcmf_fws_txs_process(fws, BRCMF_FWS_TXSTATUS_HOST_TOSSED, hslot, 0, 0);
+	brcmf_fws_txs_process(fws, BRCMF_FWS_TXSTATUS_HOST_TOSSED, hslot, 0, 0,
+			      1);
 	brcmf_fws_unlock(fws);
 }
 

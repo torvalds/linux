@@ -127,7 +127,6 @@ static struct scsi_host_template snic_host_template = {
 	.this_id = -1,
 	.cmd_per_lun = SNIC_DFLT_QUEUE_DEPTH,
 	.can_queue = SNIC_MAX_IO_REQ,
-	.use_clustering = ENABLE_CLUSTERING,
 	.sg_tablesize = SNIC_MAX_SG_DESC_CNT,
 	.max_sectors = 0x800,
 	.shost_attrs = snic_attrs,

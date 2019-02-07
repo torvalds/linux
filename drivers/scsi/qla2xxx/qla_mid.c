@@ -507,6 +507,7 @@ qla24xx_create_vhost(struct fc_vport *fc_vport)
 	qla2x00_start_timer(vha, WATCH_INTERVAL);
 
 	vha->req = base_vha->req;
+	vha->flags.nvme_enabled = base_vha->flags.nvme_enabled;
 	host->can_queue = base_vha->req->length + 128;
 	host->cmd_per_lun = 3;
 	if (IS_T10_PI_CAPABLE(ha) && ql2xenabledif)

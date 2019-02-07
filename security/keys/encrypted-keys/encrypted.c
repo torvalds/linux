@@ -45,6 +45,7 @@ static const char hmac_alg[] = "hmac(sha256)";
 static const char blkcipher_alg[] = "cbc(aes)";
 static const char key_format_default[] = "default";
 static const char key_format_ecryptfs[] = "ecryptfs";
+static const char key_format_enc32[] = "enc32";
 static unsigned int ivsize;
 static int blksize;
 
@@ -54,6 +55,7 @@ static int blksize;
 #define HASH_SIZE SHA256_DIGEST_SIZE
 #define MAX_DATA_SIZE 4096
 #define MIN_DATA_SIZE  20
+#define KEY_ENC32_PAYLOAD_LEN 32
 
 static struct crypto_shash *hash_tfm;
 
@@ -62,12 +64,13 @@ enum {
 };
 
 enum {
-	Opt_error = -1, Opt_default, Opt_ecryptfs
+	Opt_error = -1, Opt_default, Opt_ecryptfs, Opt_enc32
 };
 
 static const match_table_t key_format_tokens = {
 	{Opt_default, "default"},
 	{Opt_ecryptfs, "ecryptfs"},
+	{Opt_enc32, "enc32"},
 	{Opt_error, NULL}
 };
 
@@ -195,6 +198,7 @@ static int datablob_parse(char *datablob, const char **format,
 	key_format = match_token(p, key_format_tokens, args);
 	switch (key_format) {
 	case Opt_ecryptfs:
+	case Opt_enc32:
 	case Opt_default:
 		*format = p;
 		*master_desc = strsep(&datablob, " \t");
@@ -342,7 +346,7 @@ static int calc_hmac(u8 *digest, const u8 *key, unsigned int keylen,
 	struct crypto_shash *tfm;
 	int err;
 
-	tfm = crypto_alloc_shash(hmac_alg, 0, CRYPTO_ALG_ASYNC);
+	tfm = crypto_alloc_shash(hmac_alg, 0, 0);
 	if (IS_ERR(tfm)) {
 		pr_err("encrypted_key: can't alloc %s transform: %ld\n",
 		       hmac_alg, PTR_ERR(tfm));
@@ -625,15 +629,22 @@ static struct encrypted_key_payload *encrypted_key_alloc(struct key *key,
 	format_len = (!format) ? strlen(key_format_default) : strlen(format);
 	decrypted_datalen = dlen;
 	payload_datalen = decrypted_datalen;
-	if (format && !strcmp(format, key_format_ecryptfs)) {
-		if (dlen != ECRYPTFS_MAX_KEY_BYTES) {
-			pr_err("encrypted_key: keylen for the ecryptfs format "
-			       "must be equal to %d bytes\n",
-			       ECRYPTFS_MAX_KEY_BYTES);
-			return ERR_PTR(-EINVAL);
+	if (format) {
+		if (!strcmp(format, key_format_ecryptfs)) {
+			if (dlen != ECRYPTFS_MAX_KEY_BYTES) {
+				pr_err("encrypted_key: keylen for the ecryptfs format must be equal to %d bytes\n",
+					ECRYPTFS_MAX_KEY_BYTES);
+				return ERR_PTR(-EINVAL);
+			}
+			decrypted_datalen = ECRYPTFS_MAX_KEY_BYTES;
+			payload_datalen = sizeof(struct ecryptfs_auth_tok);
+		} else if (!strcmp(format, key_format_enc32)) {
+			if (decrypted_datalen != KEY_ENC32_PAYLOAD_LEN) {
+				pr_err("encrypted_key: enc32 key payload incorrect length: %d\n",
+						decrypted_datalen);
+				return ERR_PTR(-EINVAL);
+			}
 		}
-		decrypted_datalen = ECRYPTFS_MAX_KEY_BYTES;
-		payload_datalen = sizeof(struct ecryptfs_auth_tok);
 	}
 
 	encrypted_datalen = roundup(decrypted_datalen, blksize);
@@ -984,7 +995,7 @@ static int __init init_encrypted(void)
 {
 	int ret;
 
-	hash_tfm = crypto_alloc_shash(hash_alg, 0, CRYPTO_ALG_ASYNC);
+	hash_tfm = crypto_alloc_shash(hash_alg, 0, 0);
 	if (IS_ERR(hash_tfm)) {
 		pr_err("encrypted_key: can't allocate %s transform: %ld\n",
 		       hash_alg, PTR_ERR(hash_tfm));

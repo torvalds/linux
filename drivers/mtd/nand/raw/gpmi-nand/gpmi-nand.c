@@ -1549,7 +1549,7 @@ static int gpmi_block_markbad(struct nand_chip *chip, loff_t ofs)
 	int column, page, chipnr;
 
 	chipnr = (int)(ofs >> chip->chip_shift);
-	chip->select_chip(chip, chipnr);
+	nand_select_target(chip, chipnr);
 
 	column = !GPMI_IS_MX23(this) ? mtd->writesize : 0;
 
@@ -1562,7 +1562,7 @@ static int gpmi_block_markbad(struct nand_chip *chip, loff_t ofs)
 
 	ret = nand_prog_page_op(chip, page, column, block_mark, 1);
 
-	chip->select_chip(chip, -1);
+	nand_deselect_target(chip);
 
 	return ret;
 }
@@ -1610,7 +1610,7 @@ static int mx23_check_transcription_stamp(struct gpmi_nand_data *this)
 	search_area_size_in_strides = 1 << rom_geo->search_area_stride_exponent;
 
 	saved_chip_number = this->current_chip;
-	chip->select_chip(chip, 0);
+	nand_select_target(chip, 0);
 
 	/*
 	 * Loop through the first search area, looking for the NCB fingerprint.
@@ -1638,7 +1638,10 @@ static int mx23_check_transcription_stamp(struct gpmi_nand_data *this)
 
 	}
 
-	chip->select_chip(chip, saved_chip_number);
+	if (saved_chip_number >= 0)
+		nand_select_target(chip, saved_chip_number);
+	else
+		nand_deselect_target(chip);
 
 	if (found_an_ncb_fingerprint)
 		dev_dbg(dev, "\tFound a fingerprint\n");
@@ -1681,7 +1684,7 @@ static int mx23_write_transcription_stamp(struct gpmi_nand_data *this)
 
 	/* Select chip 0. */
 	saved_chip_number = this->current_chip;
-	chip->select_chip(chip, 0);
+	nand_select_target(chip, 0);
 
 	/* Loop over blocks in the first search area, erasing them. */
 	dev_dbg(dev, "Erasing the search area...\n");
@@ -1713,7 +1716,11 @@ static int mx23_write_transcription_stamp(struct gpmi_nand_data *this)
 	}
 
 	/* Deselect chip 0. */
-	chip->select_chip(chip, saved_chip_number);
+	if (saved_chip_number >= 0)
+		nand_select_target(chip, saved_chip_number);
+	else
+		nand_deselect_target(chip);
+
 	return 0;
 }
 
@@ -1762,10 +1769,10 @@ static int mx23_boot_init(struct gpmi_nand_data  *this)
 		byte = block <<  chip->phys_erase_shift;
 
 		/* Send the command to read the conventional block mark. */
-		chip->select_chip(chip, chipnr);
+		nand_select_target(chip, chipnr);
 		nand_read_page_op(chip, page, mtd->writesize, NULL, 0);
 		block_mark = chip->legacy.read_byte(chip);
-		chip->select_chip(chip, -1);
+		nand_deselect_target(chip);
 
 		/*
 		 * Check if the block is marked bad. If so, we need to mark it
@@ -1882,6 +1889,7 @@ static int gpmi_nand_attach_chip(struct nand_chip *chip)
 
 static const struct nand_controller_ops gpmi_nand_controller_ops = {
 	.attach_chip = gpmi_nand_attach_chip,
+	.setup_data_interface = gpmi_setup_data_interface,
 };
 
 static int gpmi_nand_init(struct gpmi_nand_data *this)
@@ -1900,8 +1908,7 @@ static int gpmi_nand_init(struct gpmi_nand_data *this)
 	/* init the nand_chip{}, we don't support a 16-bit NAND Flash bus. */
 	nand_set_controller_data(chip, this);
 	nand_set_flash_node(chip, this->pdev->dev.of_node);
-	chip->select_chip	= gpmi_select_chip;
-	chip->setup_data_interface = gpmi_setup_data_interface;
+	chip->legacy.select_chip	= gpmi_select_chip;
 	chip->legacy.cmd_ctrl	= gpmi_cmd_ctrl;
 	chip->legacy.dev_ready	= gpmi_dev_ready;
 	chip->legacy.read_byte	= gpmi_read_byte;
@@ -1924,7 +1931,7 @@ static int gpmi_nand_init(struct gpmi_nand_data *this)
 	if (ret)
 		goto err_out;
 
-	chip->dummy_controller.ops = &gpmi_nand_controller_ops;
+	chip->legacy.dummy_controller.ops = &gpmi_nand_controller_ops;
 	ret = nand_scan(chip, GPMI_IS_MX6(this) ? 2 : 1);
 	if (ret)
 		goto err_out;

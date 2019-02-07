@@ -86,7 +86,7 @@ static int max6916_set_time(struct device *dev, struct rtc_time *dt)
 	if (dt->tm_year < 100 || dt->tm_year > 199) {
 		dev_err(&spi->dev, "Year must be between 2000 and 2099. It's %d.\n",
 			dt->tm_year + 1900);
-	return -EINVAL;
+		return -EINVAL;
 	}
 
 	buf[0] = MAX6916_CLOCK_BURST & 0x7F;

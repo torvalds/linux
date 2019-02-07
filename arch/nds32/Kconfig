@@ -11,7 +11,6 @@ config NDS32
 	select CLKSRC_MMIO
 	select CLONE_BACKWARDS
 	select COMMON_CLK
-	select DMA_DIRECT_OPS
 	select GENERIC_ATOMIC64
 	select GENERIC_CPU_DEVICES
 	select GENERIC_CLOCKEVENTS
@@ -29,7 +28,9 @@ config NDS32
 	select HANDLE_DOMAIN_IRQ
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_DEBUG_KMEMLEAK
+	select HAVE_EXIT_THREAD
 	select HAVE_REGS_AND_STACK_ACCESS_API
+	select HAVE_PERF_EVENTS
 	select IRQ_DOMAIN
 	select LOCKDEP_SUPPORT
 	select MODULES_USE_ELF_RELA
@@ -91,4 +92,14 @@ endmenu
 
 menu "Kernel Features"
 source "kernel/Kconfig.hz"
+endmenu
+
+menu "Power management options"
+config SYS_SUPPORTS_APM_EMULATION
+	bool
+
+config ARCH_SUSPEND_POSSIBLE
+	def_bool y
+
+source "kernel/power/Kconfig"
 endmenu

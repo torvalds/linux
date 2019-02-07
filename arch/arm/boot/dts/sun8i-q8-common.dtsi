@@ -70,7 +70,7 @@
 
 &mmc1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&mmc1_pins_a>;
+	pinctrl-0 = <&mmc1_pg_pins>;
 	vmmc-supply = <&reg_dldo1>;
 	mmc-pwrseq = <&wifi_pwrseq>;
 	bus-width = <4>;
@@ -82,12 +82,8 @@
 	};
 };
 
-&mmc1_pins_a {
-	bias-pull-up;
-};
-
 &r_pio {
-	wifi_pwrseq_pin_q8: wifi_pwrseq_pin@0 {
+	wifi_pwrseq_pin_q8: wifi-pwrseq-pins {
 		pins = "PL6", "PL7", "PL11";
 		function = "gpio_in";
 		bias-pull-up;

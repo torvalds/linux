@@ -367,7 +367,6 @@ store_shost_eh_deadline(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR(eh_deadline, S_IRUGO | S_IWUSR, show_shost_eh_deadline, store_shost_eh_deadline);
 
-shost_rd_attr(use_blk_mq, "%d\n");
 shost_rd_attr(unique_id, "%u\n");
 shost_rd_attr(cmd_per_lun, "%hd\n");
 shost_rd_attr(can_queue, "%hd\n");
@@ -385,6 +384,13 @@ show_host_busy(struct device *dev, struct device_attribute *attr, char *buf)
 	return snprintf(buf, 20, "%d\n", scsi_host_busy(shost));
 }
 static DEVICE_ATTR(host_busy, S_IRUGO, show_host_busy, NULL);
+
+static ssize_t
+show_use_blk_mq(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "1\n");
+}
+static DEVICE_ATTR(use_blk_mq, S_IRUGO, show_use_blk_mq, NULL);
 
 static struct attribute *scsi_sysfs_shost_attrs[] = {
 	&dev_attr_use_blk_mq.attr,

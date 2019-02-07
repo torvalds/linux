@@ -34,7 +34,6 @@ ACPI_MODULE_NAME("exutils")
 /* Local prototypes */
 static u32 acpi_ex_digits_needed(u64 value, u32 base);
 
-#ifndef ACPI_NO_METHOD_EXECUTION
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ex_enter_interpreter
@@ -409,5 +408,3 @@ u8 acpi_is_valid_space_id(u8 space_id)
 
 	return (TRUE);
 }
-
-#endif

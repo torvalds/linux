@@ -634,8 +634,6 @@ int i40e_clean_rx_irq_zc(struct i40e_ring *rx_ring, int budget)
 		struct i40e_rx_buffer *bi;
 		union i40e_rx_desc *rx_desc;
 		unsigned int size;
-		u16 vlan_tag;
-		u8 rx_ptype;
 		u64 qword;
 
 		if (cleaned_count >= I40E_RX_BUFFER_WRITE) {
@@ -713,14 +711,8 @@ int i40e_clean_rx_irq_zc(struct i40e_ring *rx_ring, int budget)
 		total_rx_bytes += skb->len;
 		total_rx_packets++;
 
-		qword = le64_to_cpu(rx_desc->wb.qword1.status_error_len);
-		rx_ptype = (qword & I40E_RXD_QW1_PTYPE_MASK) >>
-			   I40E_RXD_QW1_PTYPE_SHIFT;
-		i40e_process_skb_fields(rx_ring, rx_desc, skb, rx_ptype);
-
-		vlan_tag = (qword & BIT(I40E_RX_DESC_STATUS_L2TAG1P_SHIFT)) ?
-			   le16_to_cpu(rx_desc->wb.qword0.lo_dword.l2tag1) : 0;
-		i40e_receive_skb(rx_ring, skb, vlan_tag);
+		i40e_process_skb_fields(rx_ring, rx_desc, skb);
+		napi_gro_receive(&rx_ring->q_vector->napi, skb);
 	}
 
 	i40e_finalize_xdp_rx(rx_ring, xdp_xmit);

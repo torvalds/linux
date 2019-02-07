@@ -311,13 +311,9 @@
 			compatible = "fsl,ucc-mdio";
 
 			phy00:ethernet-phy@0 {
-				interrupt-parent = <&ipic>;
-				interrupts = <0>;
 				reg = <0x0>;
 			};
 			phy04:ethernet-phy@4 {
-				interrupt-parent = <&ipic>;
-				interrupts = <0>;
 				reg = <0x4>;
 			};
 		};

@@ -1499,23 +1499,16 @@ mv643xx_eth_get_link_ksettings_phy(struct mv643xx_eth_private *mp,
 				   struct ethtool_link_ksettings *cmd)
 {
 	struct net_device *dev = mp->dev;
-	u32 supported, advertising;
 
 	phy_ethtool_ksettings_get(dev->phydev, cmd);
 
 	/*
 	 * The MAC does not support 1000baseT_Half.
 	 */
-	ethtool_convert_link_mode_to_legacy_u32(&supported,
-						cmd->link_modes.supported);
-	ethtool_convert_link_mode_to_legacy_u32(&advertising,
-						cmd->link_modes.advertising);
-	supported &= ~SUPPORTED_1000baseT_Half;
-	advertising &= ~ADVERTISED_1000baseT_Half;
-	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.supported,
-						supported);
-	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.advertising,
-						advertising);
+	linkmode_clear_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
+			   cmd->link_modes.supported);
+	linkmode_clear_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
+			   cmd->link_modes.advertising);
 
 	return 0;
 }
@@ -3031,10 +3024,12 @@ static void phy_init(struct mv643xx_eth_private *mp, int speed, int duplex)
 		phy->autoneg = AUTONEG_ENABLE;
 		phy->speed = 0;
 		phy->duplex = 0;
-		phy->advertising = phy->supported | ADVERTISED_Autoneg;
+		linkmode_copy(phy->advertising, phy->supported);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
+				 phy->advertising);
 	} else {
 		phy->autoneg = AUTONEG_DISABLE;
-		phy->advertising = 0;
+		linkmode_zero(phy->advertising);
 		phy->speed = speed;
 		phy->duplex = duplex;
 	}

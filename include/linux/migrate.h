@@ -29,7 +29,7 @@ enum migrate_reason {
 };
 
 /* In mm/debug.c; also keep sync with include/trace/events/migrate.h */
-extern char *migrate_reason_names[MR_TYPES];
+extern const char *migrate_reason_names[MR_TYPES];
 
 static inline struct page *new_page_nodemask(struct page *page,
 				int preferred_nid, nodemask_t *nodemask)
@@ -77,8 +77,7 @@ extern void migrate_page_copy(struct page *newpage, struct page *page);
 extern int migrate_huge_page_move_mapping(struct address_space *mapping,
 				  struct page *newpage, struct page *page);
 extern int migrate_page_move_mapping(struct address_space *mapping,
-		struct page *newpage, struct page *page,
-		struct buffer_head *head, enum migrate_mode mode,
+		struct page *newpage, struct page *page, enum migrate_mode mode,
 		int extra_count);
 #else
 

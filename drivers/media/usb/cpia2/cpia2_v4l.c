@@ -479,24 +479,25 @@ static int cpia2_g_fmt_vid_cap(struct file *file, void *fh,
  *
  *****************************************************************************/
 
-static int cpia2_cropcap(struct file *file, void *fh, struct v4l2_cropcap *c)
+static int cpia2_g_selection(struct file *file, void *fh,
+			     struct v4l2_selection *s)
 {
 	struct camera_data *cam = video_drvdata(file);
 
-	if (c->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-	       return -EINVAL;
+	if (s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
 
-	c->bounds.left = 0;
-	c->bounds.top = 0;
-	c->bounds.width = cam->width;
-	c->bounds.height = cam->height;
-	c->defrect.left = 0;
-	c->defrect.top = 0;
-	c->defrect.width = cam->width;
-	c->defrect.height = cam->height;
-	c->pixelaspect.numerator = 1;
-	c->pixelaspect.denominator = 1;
-
+	switch (s->target) {
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+	case V4L2_SEL_TGT_CROP_DEFAULT:
+		s->r.left = 0;
+		s->r.top = 0;
+		s->r.width = cam->width;
+		s->r.height = cam->height;
+		break;
+	default:
+		return -EINVAL;
+	}
 	return 0;
 }
 
@@ -1047,7 +1048,7 @@ static const struct v4l2_ioctl_ops cpia2_ioctl_ops = {
 	.vidioc_try_fmt_vid_cap		    = cpia2_try_fmt_vid_cap,
 	.vidioc_g_jpegcomp		    = cpia2_g_jpegcomp,
 	.vidioc_s_jpegcomp		    = cpia2_s_jpegcomp,
-	.vidioc_cropcap			    = cpia2_cropcap,
+	.vidioc_g_selection		    = cpia2_g_selection,
 	.vidioc_reqbufs			    = cpia2_reqbufs,
 	.vidioc_querybuf		    = cpia2_querybuf,
 	.vidioc_qbuf			    = cpia2_qbuf,

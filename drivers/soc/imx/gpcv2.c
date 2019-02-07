@@ -14,23 +14,54 @@
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <dt-bindings/power/imx7-power.h>
+#include <dt-bindings/power/imx8mq-power.h>
 
 #define GPC_LPCR_A_CORE_BSC			0x000
 
 #define GPC_PGC_CPU_MAPPING		0x0ec
-#define USB_HSIC_PHY_A_CORE_DOMAIN		BIT(6)
-#define USB_OTG2_PHY_A_CORE_DOMAIN		BIT(5)
-#define USB_OTG1_PHY_A_CORE_DOMAIN		BIT(4)
-#define PCIE_PHY_A_CORE_DOMAIN		BIT(3)
-#define MIPI_PHY_A_CORE_DOMAIN		BIT(2)
+
+#define IMX7_USB_HSIC_PHY_A_CORE_DOMAIN		BIT(6)
+#define IMX7_USB_OTG2_PHY_A_CORE_DOMAIN		BIT(5)
+#define IMX7_USB_OTG1_PHY_A_CORE_DOMAIN		BIT(4)
+#define IMX7_PCIE_PHY_A_CORE_DOMAIN		BIT(3)
+#define IMX7_MIPI_PHY_A_CORE_DOMAIN		BIT(2)
+
+#define IMX8M_PCIE2_A53_DOMAIN			BIT(15)
+#define IMX8M_MIPI_CSI2_A53_DOMAIN		BIT(14)
+#define IMX8M_MIPI_CSI1_A53_DOMAIN		BIT(13)
+#define IMX8M_DISP_A53_DOMAIN			BIT(12)
+#define IMX8M_HDMI_A53_DOMAIN			BIT(11)
+#define IMX8M_VPU_A53_DOMAIN			BIT(10)
+#define IMX8M_GPU_A53_DOMAIN			BIT(9)
+#define IMX8M_DDR2_A53_DOMAIN			BIT(8)
+#define IMX8M_DDR1_A53_DOMAIN			BIT(7)
+#define IMX8M_OTG2_A53_DOMAIN			BIT(5)
+#define IMX8M_OTG1_A53_DOMAIN			BIT(4)
+#define IMX8M_PCIE1_A53_DOMAIN			BIT(3)
+#define IMX8M_MIPI_A53_DOMAIN			BIT(2)
 
 #define GPC_PU_PGC_SW_PUP_REQ		0x0f8
 #define GPC_PU_PGC_SW_PDN_REQ		0x104
-#define USB_HSIC_PHY_SW_Pxx_REQ		BIT(4)
-#define USB_OTG2_PHY_SW_Pxx_REQ		BIT(3)
-#define USB_OTG1_PHY_SW_Pxx_REQ		BIT(2)
-#define PCIE_PHY_SW_Pxx_REQ		BIT(1)
-#define MIPI_PHY_SW_Pxx_REQ		BIT(0)
+
+#define IMX7_USB_HSIC_PHY_SW_Pxx_REQ		BIT(4)
+#define IMX7_USB_OTG2_PHY_SW_Pxx_REQ		BIT(3)
+#define IMX7_USB_OTG1_PHY_SW_Pxx_REQ		BIT(2)
+#define IMX7_PCIE_PHY_SW_Pxx_REQ		BIT(1)
+#define IMX7_MIPI_PHY_SW_Pxx_REQ		BIT(0)
+
+#define IMX8M_PCIE2_SW_Pxx_REQ			BIT(13)
+#define IMX8M_MIPI_CSI2_SW_Pxx_REQ		BIT(12)
+#define IMX8M_MIPI_CSI1_SW_Pxx_REQ		BIT(11)
+#define IMX8M_DISP_SW_Pxx_REQ			BIT(10)
+#define IMX8M_HDMI_SW_Pxx_REQ			BIT(9)
+#define IMX8M_VPU_SW_Pxx_REQ			BIT(8)
+#define IMX8M_GPU_SW_Pxx_REQ			BIT(7)
+#define IMX8M_DDR2_SW_Pxx_REQ			BIT(6)
+#define IMX8M_DDR1_SW_Pxx_REQ			BIT(5)
+#define IMX8M_OTG2_SW_Pxx_REQ			BIT(3)
+#define IMX8M_OTG1_SW_Pxx_REQ			BIT(2)
+#define IMX8M_PCIE1_SW_Pxx_REQ			BIT(1)
+#define IMX8M_MIPI_SW_Pxx_REQ			BIT(0)
 
 #define GPC_M4_PU_PDN_FLG		0x1bc
 
@@ -40,9 +71,22 @@
  * GPC_PGC memory map are incorrect, below offset
  * values are from design RTL.
  */
-#define PGC_MIPI			16
-#define PGC_PCIE			17
-#define PGC_USB_HSIC			20
+#define IMX7_PGC_MIPI			16
+#define IMX7_PGC_PCIE			17
+#define IMX7_PGC_USB_HSIC		20
+
+#define IMX8M_PGC_MIPI			16
+#define IMX8M_PGC_PCIE1			17
+#define IMX8M_PGC_OTG1			18
+#define IMX8M_PGC_OTG2			19
+#define IMX8M_PGC_DDR1			21
+#define IMX8M_PGC_GPU			23
+#define IMX8M_PGC_VPU			24
+#define IMX8M_PGC_DISP			26
+#define IMX8M_PGC_MIPI_CSI1		27
+#define IMX8M_PGC_MIPI_CSI2		28
+#define IMX8M_PGC_PCIE2			29
+
 #define GPC_PGC_CTRL(n)			(0x800 + (n) * 0x40)
 #define GPC_PGC_SR(n)			(GPC_PGC_CTRL(n) + 0xc)
 
@@ -67,6 +111,7 @@ struct imx_pgc_domain {
 struct imx_pgc_domain_data {
 	const struct imx_pgc_domain *domains;
 	size_t domains_num;
+	const struct regmap_access_table *reg_access_table;
 };
 
 static int imx_gpc_pu_pgc_sw_pxx_req(struct generic_pm_domain *genpd,
@@ -166,11 +211,11 @@ static const struct imx_pgc_domain imx7_pgc_domains[] = {
 			.name      = "mipi-phy",
 		},
 		.bits  = {
-			.pxx = MIPI_PHY_SW_Pxx_REQ,
-			.map = MIPI_PHY_A_CORE_DOMAIN,
+			.pxx = IMX7_MIPI_PHY_SW_Pxx_REQ,
+			.map = IMX7_MIPI_PHY_A_CORE_DOMAIN,
 		},
 		.voltage   = 1000000,
-		.pgc	   = PGC_MIPI,
+		.pgc	   = IMX7_PGC_MIPI,
 	},
 
 	[IMX7_POWER_DOMAIN_PCIE_PHY] = {
@@ -178,11 +223,11 @@ static const struct imx_pgc_domain imx7_pgc_domains[] = {
 			.name      = "pcie-phy",
 		},
 		.bits  = {
-			.pxx = PCIE_PHY_SW_Pxx_REQ,
-			.map = PCIE_PHY_A_CORE_DOMAIN,
+			.pxx = IMX7_PCIE_PHY_SW_Pxx_REQ,
+			.map = IMX7_PCIE_PHY_A_CORE_DOMAIN,
 		},
 		.voltage   = 1000000,
-		.pgc	   = PGC_PCIE,
+		.pgc	   = IMX7_PGC_PCIE,
 	},
 
 	[IMX7_POWER_DOMAIN_USB_HSIC_PHY] = {
@@ -190,17 +235,195 @@ static const struct imx_pgc_domain imx7_pgc_domains[] = {
 			.name      = "usb-hsic-phy",
 		},
 		.bits  = {
-			.pxx = USB_HSIC_PHY_SW_Pxx_REQ,
-			.map = USB_HSIC_PHY_A_CORE_DOMAIN,
+			.pxx = IMX7_USB_HSIC_PHY_SW_Pxx_REQ,
+			.map = IMX7_USB_HSIC_PHY_A_CORE_DOMAIN,
 		},
 		.voltage   = 1200000,
-		.pgc	   = PGC_USB_HSIC,
+		.pgc	   = IMX7_PGC_USB_HSIC,
 	},
+};
+
+static const struct regmap_range imx7_yes_ranges[] = {
+		regmap_reg_range(GPC_LPCR_A_CORE_BSC,
+				 GPC_M4_PU_PDN_FLG),
+		regmap_reg_range(GPC_PGC_CTRL(IMX7_PGC_MIPI),
+				 GPC_PGC_SR(IMX7_PGC_MIPI)),
+		regmap_reg_range(GPC_PGC_CTRL(IMX7_PGC_PCIE),
+				 GPC_PGC_SR(IMX7_PGC_PCIE)),
+		regmap_reg_range(GPC_PGC_CTRL(IMX7_PGC_USB_HSIC),
+				 GPC_PGC_SR(IMX7_PGC_USB_HSIC)),
+};
+
+static const struct regmap_access_table imx7_access_table = {
+	.yes_ranges	= imx7_yes_ranges,
+	.n_yes_ranges	= ARRAY_SIZE(imx7_yes_ranges),
 };
 
 static const struct imx_pgc_domain_data imx7_pgc_domain_data = {
 	.domains = imx7_pgc_domains,
 	.domains_num = ARRAY_SIZE(imx7_pgc_domains),
+	.reg_access_table = &imx7_access_table,
+};
+
+static const struct imx_pgc_domain imx8m_pgc_domains[] = {
+	[IMX8M_POWER_DOMAIN_MIPI] = {
+		.genpd = {
+			.name      = "mipi",
+		},
+		.bits  = {
+			.pxx = IMX8M_MIPI_SW_Pxx_REQ,
+			.map = IMX8M_MIPI_A53_DOMAIN,
+		},
+		.pgc	   = IMX8M_PGC_MIPI,
+	},
+
+	[IMX8M_POWER_DOMAIN_PCIE1] = {
+		.genpd = {
+			.name = "pcie1",
+		},
+		.bits  = {
+			.pxx = IMX8M_PCIE1_SW_Pxx_REQ,
+			.map = IMX8M_PCIE1_A53_DOMAIN,
+		},
+		.pgc   = IMX8M_PGC_PCIE1,
+	},
+
+	[IMX8M_POWER_DOMAIN_USB_OTG1] = {
+		.genpd = {
+			.name = "usb-otg1",
+		},
+		.bits  = {
+			.pxx = IMX8M_OTG1_SW_Pxx_REQ,
+			.map = IMX8M_OTG1_A53_DOMAIN,
+		},
+		.pgc   = IMX8M_PGC_OTG1,
+	},
+
+	[IMX8M_POWER_DOMAIN_USB_OTG2] = {
+		.genpd = {
+			.name = "usb-otg2",
+		},
+		.bits  = {
+			.pxx = IMX8M_OTG2_SW_Pxx_REQ,
+			.map = IMX8M_OTG2_A53_DOMAIN,
+		},
+		.pgc   = IMX8M_PGC_OTG2,
+	},
+
+	[IMX8M_POWER_DOMAIN_DDR1] = {
+		.genpd = {
+			.name = "ddr1",
+		},
+		.bits  = {
+			.pxx = IMX8M_DDR1_SW_Pxx_REQ,
+			.map = IMX8M_DDR2_A53_DOMAIN,
+		},
+		.pgc   = IMX8M_PGC_DDR1,
+	},
+
+	[IMX8M_POWER_DOMAIN_GPU] = {
+		.genpd = {
+			.name = "gpu",
+		},
+		.bits  = {
+			.pxx = IMX8M_GPU_SW_Pxx_REQ,
+			.map = IMX8M_GPU_A53_DOMAIN,
+		},
+		.pgc   = IMX8M_PGC_GPU,
+	},
+
+	[IMX8M_POWER_DOMAIN_VPU] = {
+		.genpd = {
+			.name = "vpu",
+		},
+		.bits  = {
+			.pxx = IMX8M_VPU_SW_Pxx_REQ,
+			.map = IMX8M_VPU_A53_DOMAIN,
+		},
+		.pgc   = IMX8M_PGC_VPU,
+	},
+
+	[IMX8M_POWER_DOMAIN_DISP] = {
+		.genpd = {
+			.name = "disp",
+		},
+		.bits  = {
+			.pxx = IMX8M_DISP_SW_Pxx_REQ,
+			.map = IMX8M_DISP_A53_DOMAIN,
+		},
+		.pgc   = IMX8M_PGC_DISP,
+	},
+
+	[IMX8M_POWER_DOMAIN_MIPI_CSI1] = {
+		.genpd = {
+			.name = "mipi-csi1",
+		},
+		.bits  = {
+			.pxx = IMX8M_MIPI_CSI1_SW_Pxx_REQ,
+			.map = IMX8M_MIPI_CSI1_A53_DOMAIN,
+		},
+		.pgc   = IMX8M_PGC_MIPI_CSI1,
+	},
+
+	[IMX8M_POWER_DOMAIN_MIPI_CSI2] = {
+		.genpd = {
+			.name = "mipi-csi2",
+		},
+		.bits  = {
+			.pxx = IMX8M_MIPI_CSI2_SW_Pxx_REQ,
+			.map = IMX8M_MIPI_CSI2_A53_DOMAIN,
+		},
+		.pgc   = IMX8M_PGC_MIPI_CSI2,
+	},
+
+	[IMX8M_POWER_DOMAIN_PCIE2] = {
+		.genpd = {
+			.name = "pcie2",
+		},
+		.bits  = {
+			.pxx = IMX8M_PCIE2_SW_Pxx_REQ,
+			.map = IMX8M_PCIE2_A53_DOMAIN,
+		},
+		.pgc   = IMX8M_PGC_PCIE2,
+	},
+};
+
+static const struct regmap_range imx8m_yes_ranges[] = {
+		regmap_reg_range(GPC_LPCR_A_CORE_BSC,
+				 GPC_M4_PU_PDN_FLG),
+		regmap_reg_range(GPC_PGC_CTRL(IMX8M_PGC_MIPI),
+				 GPC_PGC_SR(IMX8M_PGC_MIPI)),
+		regmap_reg_range(GPC_PGC_CTRL(IMX8M_PGC_PCIE1),
+				 GPC_PGC_SR(IMX8M_PGC_PCIE1)),
+		regmap_reg_range(GPC_PGC_CTRL(IMX8M_PGC_OTG1),
+				 GPC_PGC_SR(IMX8M_PGC_OTG1)),
+		regmap_reg_range(GPC_PGC_CTRL(IMX8M_PGC_OTG2),
+				 GPC_PGC_SR(IMX8M_PGC_OTG2)),
+		regmap_reg_range(GPC_PGC_CTRL(IMX8M_PGC_DDR1),
+				 GPC_PGC_SR(IMX8M_PGC_DDR1)),
+		regmap_reg_range(GPC_PGC_CTRL(IMX8M_PGC_GPU),
+				 GPC_PGC_SR(IMX8M_PGC_GPU)),
+		regmap_reg_range(GPC_PGC_CTRL(IMX8M_PGC_VPU),
+				 GPC_PGC_SR(IMX8M_PGC_VPU)),
+		regmap_reg_range(GPC_PGC_CTRL(IMX8M_PGC_DISP),
+				 GPC_PGC_SR(IMX8M_PGC_DISP)),
+		regmap_reg_range(GPC_PGC_CTRL(IMX8M_PGC_MIPI_CSI1),
+				 GPC_PGC_SR(IMX8M_PGC_MIPI_CSI1)),
+		regmap_reg_range(GPC_PGC_CTRL(IMX8M_PGC_MIPI_CSI2),
+				 GPC_PGC_SR(IMX8M_PGC_MIPI_CSI2)),
+		regmap_reg_range(GPC_PGC_CTRL(IMX8M_PGC_PCIE2),
+				 GPC_PGC_SR(IMX8M_PGC_PCIE2)),
+};
+
+static const struct regmap_access_table imx8m_access_table = {
+	.yes_ranges	= imx8m_yes_ranges,
+	.n_yes_ranges	= ARRAY_SIZE(imx8m_yes_ranges),
+};
+
+static const struct imx_pgc_domain_data imx8m_pgc_domain_data = {
+	.domains = imx8m_pgc_domains,
+	.domains_num = ARRAY_SIZE(imx8m_pgc_domains),
+	.reg_access_table = &imx8m_access_table,
 };
 
 static int imx_pgc_domain_probe(struct platform_device *pdev)
@@ -217,7 +440,7 @@ static int imx_pgc_domain_probe(struct platform_device *pdev)
 				dev_err(domain->dev, "Failed to get domain's regulator\n");
 			return PTR_ERR(domain->regulator);
 		}
-	} else {
+	} else if (domain->voltage) {
 		regulator_set_voltage(domain->regulator,
 				      domain->voltage, domain->voltage);
 	}
@@ -265,27 +488,15 @@ builtin_platform_driver(imx_pgc_domain_driver)
 
 static int imx_gpcv2_probe(struct platform_device *pdev)
 {
-	static const struct imx_pgc_domain_data *domain_data;
-	static const struct regmap_range yes_ranges[] = {
-		regmap_reg_range(GPC_LPCR_A_CORE_BSC,
-				 GPC_M4_PU_PDN_FLG),
-		regmap_reg_range(GPC_PGC_CTRL(PGC_MIPI),
-				 GPC_PGC_SR(PGC_MIPI)),
-		regmap_reg_range(GPC_PGC_CTRL(PGC_PCIE),
-				 GPC_PGC_SR(PGC_PCIE)),
-		regmap_reg_range(GPC_PGC_CTRL(PGC_USB_HSIC),
-				 GPC_PGC_SR(PGC_USB_HSIC)),
-	};
-	static const struct regmap_access_table access_table = {
-		.yes_ranges	= yes_ranges,
-		.n_yes_ranges	= ARRAY_SIZE(yes_ranges),
-	};
-	static const struct regmap_config regmap_config = {
+	const struct imx_pgc_domain_data *domain_data =
+			of_device_get_match_data(&pdev->dev);
+
+	struct regmap_config regmap_config = {
 		.reg_bits	= 32,
 		.val_bits	= 32,
 		.reg_stride	= 4,
-		.rd_table	= &access_table,
-		.wr_table	= &access_table,
+		.rd_table	= domain_data->reg_access_table,
+		.wr_table	= domain_data->reg_access_table,
 		.max_register   = SZ_4K,
 	};
 	struct device *dev = &pdev->dev;
@@ -312,8 +523,6 @@ static int imx_gpcv2_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to init regmap (%d)\n", ret);
 		return ret;
 	}
-
-	domain_data = of_device_get_match_data(&pdev->dev);
 
 	for_each_child_of_node(pgc_np, np) {
 		struct platform_device *pd_pdev;
@@ -372,6 +581,7 @@ static int imx_gpcv2_probe(struct platform_device *pdev)
 
 static const struct of_device_id imx_gpcv2_dt_ids[] = {
 	{ .compatible = "fsl,imx7d-gpc", .data = &imx7_pgc_domain_data, },
+	{ .compatible = "fsl,imx8mq-gpc", .data = &imx8m_pgc_domain_data, },
 	{ }
 };
 

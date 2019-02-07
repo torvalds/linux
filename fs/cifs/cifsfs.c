@@ -52,6 +52,9 @@
 #include "cifs_spnego.h"
 #include "fscache.h"
 #include "smb2pdu.h"
+#ifdef CONFIG_CIFS_DFS_UPCALL
+#include "dfs_cache.h"
+#endif
 
 int cifsFYI = 0;
 bool traceSMB;
@@ -1494,10 +1497,15 @@ init_cifs(void)
 	if (rc)
 		goto out_destroy_mids;
 
+#ifdef CONFIG_CIFS_DFS_UPCALL
+	rc = dfs_cache_init();
+	if (rc)
+		goto out_destroy_request_bufs;
+#endif /* CONFIG_CIFS_DFS_UPCALL */
 #ifdef CONFIG_CIFS_UPCALL
 	rc = init_cifs_spnego();
 	if (rc)
-		goto out_destroy_request_bufs;
+		goto out_destroy_dfs_cache;
 #endif /* CONFIG_CIFS_UPCALL */
 
 #ifdef CONFIG_CIFS_ACL
@@ -1525,6 +1533,10 @@ out_register_key_type:
 #endif
 #ifdef CONFIG_CIFS_UPCALL
 	exit_cifs_spnego();
+out_destroy_dfs_cache:
+#endif
+#ifdef CONFIG_CIFS_DFS_UPCALL
+	dfs_cache_destroy();
 out_destroy_request_bufs:
 #endif
 	cifs_destroy_request_bufs();
@@ -1555,6 +1567,9 @@ exit_cifs(void)
 #endif
 #ifdef CONFIG_CIFS_UPCALL
 	exit_cifs_spnego();
+#endif
+#ifdef CONFIG_CIFS_DFS_UPCALL
+	dfs_cache_destroy();
 #endif
 	cifs_destroy_request_bufs();
 	cifs_destroy_mids();

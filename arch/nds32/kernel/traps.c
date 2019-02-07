@@ -12,6 +12,7 @@
 
 #include <asm/proc-fns.h>
 #include <asm/unistd.h>
+#include <asm/fpu.h>
 
 #include <linux/ptrace.h>
 #include <nds32_intrinsic.h>
@@ -357,6 +358,21 @@ void do_dispatch_general(unsigned long entry, unsigned long addr,
 	} else if (type == ETYPE_RESERVED_INSTRUCTION) {
 		/* Reserved instruction */
 		do_revinsn(regs);
+	} else if (type == ETYPE_COPROCESSOR) {
+		/* Coprocessor */
+#if IS_ENABLED(CONFIG_FPU)
+		unsigned int fucop_exist = __nds32__mfsr(NDS32_SR_FUCOP_EXIST);
+		unsigned int cpid = ((itype & ITYPE_mskCPID) >> ITYPE_offCPID);
+
+		if ((cpid == FPU_CPID) &&
+		    (fucop_exist & FUCOP_EXIST_mskCP0ISFPU)) {
+			unsigned int subtype = (itype & ITYPE_mskSTYPE);
+
+			if (true == do_fpu_exception(subtype, regs))
+				return;
+		}
+#endif
+		unhandled_exceptions(entry, addr, type, regs);
 	} else if (type == ETYPE_TRAP && swid == SWID_RAISE_INTERRUPT_LEVEL) {
 		/* trap, used on v3 EDM target debugging workaround */
 		/*

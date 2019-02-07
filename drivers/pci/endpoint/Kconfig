@@ -7,7 +7,7 @@ menu "PCI Endpoint"
 
 config PCI_ENDPOINT
 	bool "PCI Endpoint Support"
-	depends on HAS_DMA
+	depends on HAVE_PCI
 	help
 	   Enable this configuration option to support configurable PCI
 	   endpoint. This should be enabled if the platform has a PCI

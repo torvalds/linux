@@ -37,7 +37,6 @@
 #include "gca/gfx_8_0_d.h"
 #include "smu/smu_7_1_2_d.h"
 #include "smu/smu_7_1_2_sh_mask.h"
-#include "gca/gfx_8_0_d.h"
 #include "gca/gfx_8_0_sh_mask.h"
 #include "ivsrcid/ivsrcid_vislands30.h"
 
@@ -474,15 +473,10 @@ static int vce_v3_0_hw_init(void *handle)
 
 	amdgpu_asic_set_vce_clocks(adev, 10000, 10000);
 
-	for (i = 0; i < adev->vce.num_rings; i++)
-		adev->vce.ring[i].ready = false;
-
 	for (i = 0; i < adev->vce.num_rings; i++) {
-		r = amdgpu_ring_test_ring(&adev->vce.ring[i]);
+		r = amdgpu_ring_test_helper(&adev->vce.ring[i]);
 		if (r)
 			return r;
-		else
-			adev->vce.ring[i].ready = true;
 	}
 
 	DRM_INFO("VCE initialized successfully.\n");
@@ -838,8 +832,12 @@ out:
 }
 
 static void vce_v3_0_ring_emit_ib(struct amdgpu_ring *ring,
-		struct amdgpu_ib *ib, unsigned int vmid, bool ctx_switch)
+				  struct amdgpu_job *job,
+				  struct amdgpu_ib *ib,
+				  bool ctx_switch)
 {
+	unsigned vmid = AMDGPU_JOB_GET_VMID(job);
+
 	amdgpu_ring_write(ring, VCE_CMD_IB_VM);
 	amdgpu_ring_write(ring, vmid);
 	amdgpu_ring_write(ring, lower_32_bits(ib->gpu_addr));

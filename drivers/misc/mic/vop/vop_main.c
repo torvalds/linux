@@ -129,6 +129,16 @@ static u64 vop_get_features(struct virtio_device *vdev)
 	return features;
 }
 
+static void vop_transport_features(struct virtio_device *vdev)
+{
+	/*
+	 * Packed ring isn't enabled on virtio_vop for now,
+	 * because virtio_vop uses vring_new_virtqueue() which
+	 * creates virtio rings on preallocated memory.
+	 */
+	__virtio_clear_bit(vdev, VIRTIO_F_RING_PACKED);
+}
+
 static int vop_finalize_features(struct virtio_device *vdev)
 {
 	unsigned int i, bits;
@@ -140,6 +150,9 @@ static int vop_finalize_features(struct virtio_device *vdev)
 
 	/* Give virtio_ring a chance to accept features. */
 	vring_transport_features(vdev);
+
+	/* Give virtio_vop a chance to accept features. */
+	vop_transport_features(vdev);
 
 	memset_io(out_features, 0, feature_len);
 	bits = min_t(unsigned, feature_len,
@@ -381,16 +394,21 @@ static int vop_find_vqs(struct virtio_device *dev, unsigned nvqs,
 	struct _vop_vdev *vdev = to_vopvdev(dev);
 	struct vop_device *vpdev = vdev->vpdev;
 	struct mic_device_ctrl __iomem *dc = vdev->dc;
-	int i, err, retry;
+	int i, err, retry, queue_idx = 0;
 
 	/* We must have this many virtqueues. */
 	if (nvqs > ioread8(&vdev->desc->num_vq))
 		return -ENOENT;
 
 	for (i = 0; i < nvqs; ++i) {
+		if (!names[i]) {
+			vqs[i] = NULL;
+			continue;
+		}
+
 		dev_dbg(_vop_dev(vdev), "%s: %d: %s\n",
 			__func__, i, names[i]);
-		vqs[i] = vop_find_vq(dev, i, callbacks[i], names[i],
+		vqs[i] = vop_find_vq(dev, queue_idx++, callbacks[i], names[i],
 				     ctx ? ctx[i] : false);
 		if (IS_ERR(vqs[i])) {
 			err = PTR_ERR(vqs[i]);

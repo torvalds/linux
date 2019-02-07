@@ -532,6 +532,9 @@ acpi_ds_call_control_method(struct acpi_thread_state *thread,
 		goto cleanup;
 	}
 
+	next_walk_state->method_nesting_depth =
+	    this_walk_state->method_nesting_depth + 1;
+
 	/*
 	 * Delete the operands on the previous walkstate operand stack
 	 * (they were copied to new objects)
@@ -548,6 +551,17 @@ acpi_ds_call_control_method(struct acpi_thread_state *thread,
 	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
 			  "**** Begin nested execution of [%4.4s] **** WalkState=%p\n",
 			  method_node->name.ascii, next_walk_state));
+
+	this_walk_state->method_pathname =
+	    acpi_ns_get_normalized_pathname(method_node, TRUE);
+	this_walk_state->method_is_nested = TRUE;
+
+	/* Optional object evaluation log */
+
+	ACPI_DEBUG_PRINT_RAW((ACPI_DB_EVALUATION,
+			      "%-26s:  %*s%s\n", "   Nested method call",
+			      next_walk_state->method_nesting_depth * 3, " ",
+			      &this_walk_state->method_pathname[1]));
 
 	/* Invoke an internal method if necessary */
 

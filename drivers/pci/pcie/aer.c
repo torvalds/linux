@@ -1064,7 +1064,7 @@ void aer_recover_queue(int domain, unsigned int bus, unsigned int devfn,
 		.regs		= aer_regs,
 	};
 
-	if (kfifo_in_spinlocked(&aer_recover_ring, &entry, sizeof(entry),
+	if (kfifo_in_spinlocked(&aer_recover_ring, &entry, 1,
 				 &aer_recover_ring_lock))
 		schedule_work(&aer_recover_work);
 	else

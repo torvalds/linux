@@ -145,6 +145,16 @@ static void snd_ff_remove(struct fw_unit *unit)
 	fw_unit_put(ff->unit);
 }
 
+static const struct snd_ff_spec spec_ff800 = {
+	.name = "Fireface800",
+	.pcm_capture_channels = {28, 20, 12},
+	.pcm_playback_channels = {28, 20, 12},
+	.midi_in_ports = 1,
+	.midi_out_ports = 1,
+	.protocol = &snd_ff_protocol_ff800,
+	.midi_high_addr = 0x000200000320ull,
+};
+
 static const struct snd_ff_spec spec_ff400 = {
 	.name = "Fireface400",
 	.pcm_capture_channels = {18, 14, 10},
@@ -152,9 +162,22 @@ static const struct snd_ff_spec spec_ff400 = {
 	.midi_in_ports = 2,
 	.midi_out_ports = 2,
 	.protocol = &snd_ff_protocol_ff400,
+	.midi_high_addr = 0x0000801003f4ull,
 };
 
 static const struct ieee1394_device_id snd_ff_id_table[] = {
+	/* Fireface 800 */
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
+				  IEEE1394_MATCH_SPECIFIER_ID |
+				  IEEE1394_MATCH_VERSION |
+				  IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_RME,
+		.specifier_id	= OUI_RME,
+		.version	= 0x000001,
+		.model_id	= 0x101800,
+		.driver_data	= (kernel_ulong_t)&spec_ff800,
+	},
 	/* Fireface 400 */
 	{
 		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
@@ -162,7 +185,7 @@ static const struct ieee1394_device_id snd_ff_id_table[] = {
 				  IEEE1394_MATCH_VERSION |
 				  IEEE1394_MATCH_MODEL_ID,
 		.vendor_id	= OUI_RME,
-		.specifier_id	= 0x000a35,
+		.specifier_id	= OUI_RME,
 		.version	= 0x000002,
 		.model_id	= 0x101800,
 		.driver_data	= (kernel_ulong_t)&spec_ff400,

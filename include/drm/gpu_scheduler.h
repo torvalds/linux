@@ -264,6 +264,7 @@ struct drm_sched_backend_ops {
  * @hang_limit: once the hangs by a job crosses this limit then it is marked
  *              guilty and it will be considered for scheduling further.
  * @num_jobs: the number of jobs in queue in the scheduler
+ * @ready: marks if the underlying HW is ready to work
  *
  * One scheduler is implemented for each hardware ring.
  */
@@ -283,22 +284,26 @@ struct drm_gpu_scheduler {
 	spinlock_t			job_list_lock;
 	int				hang_limit;
 	atomic_t                        num_jobs;
+	bool			ready;
 };
 
 int drm_sched_init(struct drm_gpu_scheduler *sched,
 		   const struct drm_sched_backend_ops *ops,
 		   uint32_t hw_submission, unsigned hang_limit, long timeout,
 		   const char *name);
+
 void drm_sched_fini(struct drm_gpu_scheduler *sched);
 int drm_sched_job_init(struct drm_sched_job *job,
 		       struct drm_sched_entity *entity,
 		       void *owner);
+void drm_sched_job_cleanup(struct drm_sched_job *job);
 void drm_sched_wakeup(struct drm_gpu_scheduler *sched);
 void drm_sched_hw_job_reset(struct drm_gpu_scheduler *sched,
 			    struct drm_sched_job *job);
 void drm_sched_job_recovery(struct drm_gpu_scheduler *sched);
 bool drm_sched_dependency_optimized(struct dma_fence* fence,
 				    struct drm_sched_entity *entity);
+void drm_sched_fault(struct drm_gpu_scheduler *sched);
 void drm_sched_job_kickout(struct drm_sched_job *s_job);
 
 void drm_sched_rq_add_entity(struct drm_sched_rq *rq,
@@ -325,5 +330,9 @@ struct drm_sched_fence *drm_sched_fence_create(
 	struct drm_sched_entity *s_entity, void *owner);
 void drm_sched_fence_scheduled(struct drm_sched_fence *fence);
 void drm_sched_fence_finished(struct drm_sched_fence *fence);
+
+unsigned long drm_sched_suspend_timeout(struct drm_gpu_scheduler *sched);
+void drm_sched_resume_timeout(struct drm_gpu_scheduler *sched,
+		                unsigned long remaining);
 
 #endif

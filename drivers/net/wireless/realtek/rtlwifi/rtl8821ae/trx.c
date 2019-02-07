@@ -29,7 +29,6 @@
 #include "../stats.h"
 #include "reg.h"
 #include "def.h"
-#include "phy.h"
 #include "trx.h"
 #include "led.h"
 #include "dm.h"
@@ -307,14 +306,12 @@ static void translate_rx_signal_stuff(struct ieee80211_hw *hw,
 	u8 *praddr;
 	u8 *psaddr;
 	__le16 fc;
-	u16 type;
 	bool packet_matchbssid, packet_toself, packet_beacon;
 
 	tmp_buf = skb->data + pstatus->rx_drvinfo_size + pstatus->rx_bufshift;
 
 	hdr = (struct ieee80211_hdr *)tmp_buf;
 	fc = hdr->frame_control;
-	type = WLAN_FC_GET_TYPE(hdr->frame_control);
 	praddr = hdr->addr1;
 	psaddr = ieee80211_get_SA(hdr);
 	ether_addr_copy(pstatus->psaddr, psaddr);

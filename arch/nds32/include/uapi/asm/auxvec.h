@@ -4,6 +4,13 @@
 #ifndef __ASM_AUXVEC_H
 #define __ASM_AUXVEC_H
 
+/*
+ * This entry gives some information about the FPU initialization
+ * performed by the kernel.
+ */
+#define AT_FPUCW	18	/* Used FPU control word.  */
+
+
 /* VDSO location */
 #define AT_SYSINFO_EHDR	33
 

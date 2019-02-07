@@ -168,6 +168,12 @@ struct mipi_dsi_device_info {
  * @format: pixel format for video mode
  * @lanes: number of active data lanes
  * @mode_flags: DSI operation mode related flags
+ * @hs_rate: maximum lane frequency for high speed mode in hertz, this should
+ * be set to the real limits of the hardware, zero is only accepted for
+ * legacy drivers
+ * @lp_rate: maximum lane frequency for low power mode in hertz, this should
+ * be set to the real limits of the hardware, zero is only accepted for
+ * legacy drivers
  */
 struct mipi_dsi_device {
 	struct mipi_dsi_host *host;
@@ -178,6 +184,8 @@ struct mipi_dsi_device {
 	unsigned int lanes;
 	enum mipi_dsi_pixel_format format;
 	unsigned long mode_flags;
+	unsigned long hs_rate;
+	unsigned long lp_rate;
 };
 
 #define MIPI_DSI_MODULE_PREFIX "mipi-dsi:"

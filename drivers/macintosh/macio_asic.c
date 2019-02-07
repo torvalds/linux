@@ -190,11 +190,11 @@ static int macio_resource_quirks(struct device_node *np, struct resource *res,
 		return 0;
 
 	/* Grand Central has too large resource 0 on some machines */
-	if (index == 0 && !strcmp(np->name, "gc"))
+	if (index == 0 && of_node_name_eq(np, "gc"))
 		res->end = res->start + 0x1ffff;
 
 	/* Airport has bogus resource 2 */
-	if (index >= 2 && !strcmp(np->name, "radio"))
+	if (index >= 2 && of_node_name_eq(np, "radio"))
 		return 1;
 
 #ifndef CONFIG_PPC64
@@ -207,21 +207,21 @@ static int macio_resource_quirks(struct device_node *np, struct resource *res,
 	 * level of hierarchy, but I don't really feel the need
 	 * for it
 	 */
-	if (!strcmp(np->name, "escc"))
+	if (of_node_name_eq(np, "escc"))
 		return 1;
 
 	/* ESCC has bogus resources >= 3 */
-	if (index >= 3 && !(strcmp(np->name, "ch-a") &&
-			    strcmp(np->name, "ch-b")))
+	if (index >= 3 && (of_node_name_eq(np, "ch-a") ||
+			   of_node_name_eq(np, "ch-b")))
 		return 1;
 
 	/* Media bay has too many resources, keep only first one */
-	if (index > 0 && !strcmp(np->name, "media-bay"))
+	if (index > 0 && of_node_name_eq(np, "media-bay"))
 		return 1;
 
 	/* Some older IDE resources have bogus sizes */
-	if (!(strcmp(np->name, "IDE") && strcmp(np->name, "ATA") &&
-	      strcmp(np->type, "ide") && strcmp(np->type, "ata"))) {
+	if (of_node_name_eq(np, "IDE") || of_node_name_eq(np, "ATA") ||
+	    of_node_is_type(np, "ide") || of_node_is_type(np, "ata")) {
 		if (index == 0 && (res->end - res->start) > 0xfff)
 			res->end = res->start + 0xfff;
 		if (index == 1 && (res->end - res->start) > 0xff)
@@ -260,7 +260,7 @@ static void macio_add_missing_resources(struct macio_dev *dev)
 	irq_base = 64;
 
 	/* Fix SCC */
-	if (strcmp(np->name, "ch-a") == 0) {
+	if (of_node_name_eq(np, "ch-a")) {
 		macio_create_fixup_irq(dev, 0, 15 + irq_base);
 		macio_create_fixup_irq(dev, 1,  4 + irq_base);
 		macio_create_fixup_irq(dev, 2,  5 + irq_base);
@@ -268,18 +268,18 @@ static void macio_add_missing_resources(struct macio_dev *dev)
 	}
 
 	/* Fix media-bay */
-	if (strcmp(np->name, "media-bay") == 0) {
+	if (of_node_name_eq(np, "media-bay")) {
 		macio_create_fixup_irq(dev, 0, 29 + irq_base);
 		printk(KERN_INFO "macio: fixed media-bay irq on gatwick\n");
 	}
 
 	/* Fix left media bay childs */
-	if (dev->media_bay != NULL && strcmp(np->name, "floppy") == 0) {
+	if (dev->media_bay != NULL && of_node_name_eq(np, "floppy")) {
 		macio_create_fixup_irq(dev, 0, 19 + irq_base);
 		macio_create_fixup_irq(dev, 1,  1 + irq_base);
 		printk(KERN_INFO "macio: fixed left floppy irqs\n");
 	}
-	if (dev->media_bay != NULL && strcasecmp(np->name, "ata4") == 0) {
+	if (dev->media_bay != NULL && of_node_name_eq(np, "ata4")) {
 		macio_create_fixup_irq(dev, 0, 14 + irq_base);
 		macio_create_fixup_irq(dev, 0,  3 + irq_base);
 		printk(KERN_INFO "macio: fixed left ide irqs\n");
@@ -438,11 +438,8 @@ static struct macio_dev * macio_add_one_device(struct macio_chip *chip,
 
 static int macio_skip_device(struct device_node *np)
 {
-	if (strncmp(np->name, "battery", 7) == 0)
-		return 1;
-	if (strncmp(np->name, "escc-legacy", 11) == 0)
-		return 1;
-	return 0;
+	return of_node_name_prefix(np, "battery") ||
+	       of_node_name_prefix(np, "escc-legacy");
 }
 
 /**
@@ -489,9 +486,9 @@ static void macio_pci_add_devices(struct macio_chip *chip)
 					    root_res);
 		if (mdev == NULL)
 			of_node_put(np);
-		else if (strncmp(np->name, "media-bay", 9) == 0)
+		else if (of_node_name_prefix(np, "media-bay"))
 			mbdev = mdev;
-		else if (strncmp(np->name, "escc", 4) == 0)
+		else if (of_node_name_prefix(np, "escc"))
 			sdev = mdev;
 	}
 

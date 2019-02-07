@@ -11,7 +11,6 @@
 #include <linux/string.h>
 #include "michael_mic.h"
 
-
 // Reset the state to the empty message.
 static inline void michael_clear(struct michael_mic *mic)
 {

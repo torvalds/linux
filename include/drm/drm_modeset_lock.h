@@ -130,4 +130,63 @@ void drm_warn_on_modeset_not_all_locked(struct drm_device *dev);
 int drm_modeset_lock_all_ctx(struct drm_device *dev,
 			     struct drm_modeset_acquire_ctx *ctx);
 
+/**
+ * DRM_MODESET_LOCK_ALL_BEGIN - Helper to acquire modeset locks
+ * @dev: drm device
+ * @ctx: local modeset acquire context, will be dereferenced
+ * @flags: DRM_MODESET_ACQUIRE_* flags to pass to drm_modeset_acquire_init()
+ * @ret: local ret/err/etc variable to track error status
+ *
+ * Use these macros to simplify grabbing all modeset locks using a local
+ * context. This has the advantage of reducing boilerplate, but also properly
+ * checking return values where appropriate.
+ *
+ * Any code run between BEGIN and END will be holding the modeset locks.
+ *
+ * This must be paired with DRM_MODESET_LOCK_ALL_END(). We will jump back and
+ * forth between the labels on deadlock and error conditions.
+ *
+ * Drivers can acquire additional modeset locks. If any lock acquisition
+ * fails, the control flow needs to jump to DRM_MODESET_LOCK_ALL_END() with
+ * the @ret parameter containing the return value of drm_modeset_lock().
+ *
+ * Returns:
+ * The only possible value of ret immediately after DRM_MODESET_LOCK_ALL_BEGIN()
+ * is 0, so no error checking is necessary
+ */
+#define DRM_MODESET_LOCK_ALL_BEGIN(dev, ctx, flags, ret)		\
+	drm_modeset_acquire_init(&ctx, flags);				\
+modeset_lock_retry:							\
+	ret = drm_modeset_lock_all_ctx(dev, &ctx);			\
+	if (ret)							\
+		goto modeset_lock_fail;
+
+/**
+ * DRM_MODESET_LOCK_ALL_END - Helper to release and cleanup modeset locks
+ * @ctx: local modeset acquire context, will be dereferenced
+ * @ret: local ret/err/etc variable to track error status
+ *
+ * The other side of DRM_MODESET_LOCK_ALL_BEGIN(). It will bounce back to BEGIN
+ * if ret is -EDEADLK.
+ *
+ * It's important that you use the same ret variable for begin and end so
+ * deadlock conditions are properly handled.
+ *
+ * Returns:
+ * ret will be untouched unless it is -EDEADLK on entry. That means that if you
+ * successfully acquire the locks, ret will be whatever your code sets it to. If
+ * there is a deadlock or other failure with acquire or backoff, ret will be set
+ * to that failure. In both of these cases the code between BEGIN/END will not
+ * be run, so the failure will reflect the inability to grab the locks.
+ */
+#define DRM_MODESET_LOCK_ALL_END(ctx, ret)				\
+modeset_lock_fail:							\
+	if (ret == -EDEADLK) {						\
+		ret = drm_modeset_backoff(&ctx);			\
+		if (!ret)						\
+			goto modeset_lock_retry;			\
+	}								\
+	drm_modeset_drop_locks(&ctx);					\
+	drm_modeset_acquire_fini(&ctx);
+
 #endif /* DRM_MODESET_LOCK_H_ */

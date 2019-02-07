@@ -1211,14 +1211,16 @@ static void flush_multipath_work(struct multipath *m)
 		set_bit(MPATHF_PG_INIT_DISABLED, &m->flags);
 		smp_mb__after_atomic();
 
-		flush_workqueue(kmpath_handlerd);
+		if (atomic_read(&m->pg_init_in_progress))
+			flush_workqueue(kmpath_handlerd);
 		multipath_wait_for_pg_init_completion(m);
 
 		clear_bit(MPATHF_PG_INIT_DISABLED, &m->flags);
 		smp_mb__after_atomic();
 	}
 
-	flush_workqueue(kmultipathd);
+	if (m->queue_mode == DM_TYPE_BIO_BASED)
+		flush_work(&m->process_queued_bios);
 	flush_work(&m->trigger_event);
 }
 

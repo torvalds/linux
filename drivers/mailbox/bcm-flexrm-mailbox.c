@@ -1665,7 +1665,7 @@ skip_debugfs:
 		mbox->controller.chans[index].con_priv = &mbox->rings[index];
 
 	/* Register mailbox controller */
-	ret = mbox_controller_register(&mbox->controller);
+	ret = devm_mbox_controller_register(dev, &mbox->controller);
 	if (ret)
 		goto fail_free_debugfs_root;
 
@@ -1690,8 +1690,6 @@ static int flexrm_mbox_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct flexrm_mbox *mbox = platform_get_drvdata(pdev);
-
-	mbox_controller_unregister(&mbox->controller);
 
 	debugfs_remove_recursive(mbox->root);
 

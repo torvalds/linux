@@ -10,7 +10,12 @@
 
 / {
 	memory@10000000 {
+		device_type = "memory";
 		reg = <0x10000000 0x80000000>;
+	};
+
+	chosen {
+		stdout-path = &uart4;
 	};
 
 	backlight_lvds: backlight-lvds {

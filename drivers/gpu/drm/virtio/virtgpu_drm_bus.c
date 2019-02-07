@@ -53,6 +53,37 @@ int drm_virtio_init(struct drm_driver *driver, struct virtio_device *vdev)
 									  0,
 									  "virtiodrmfb");
 
+		/*
+		 * Normally the drm_dev_set_unique() call is done by core DRM.
+		 * The following comment covers, why virtio cannot rely on it.
+		 *
+		 * Unlike the other virtual GPU drivers, virtio abstracts the
+		 * underlying bus type by using struct virtio_device.
+		 *
+		 * Hence the dev_is_pci() check, used in core DRM, will fail
+		 * and the unique returned will be the virtio_device "virtio0",
+		 * while a "pci:..." one is required.
+		 *
+		 * A few other ideas were considered:
+		 * - Extend the dev_is_pci() check [in drm_set_busid] to
+		 *   consider virtio.
+		 *   Seems like a bigger hack than what we have already.
+		 *
+		 * - Point drm_device::dev to the parent of the virtio_device
+		 *   Semantic changes:
+		 *   * Using the wrong device for i2c, framebuffer_alloc and
+		 *     prime import.
+		 *   Visual changes:
+		 *   * Helpers such as DRM_DEV_ERROR, dev_info, drm_printer,
+		 *     will print the wrong information.
+		 *
+		 * We could address the latter issues, by introducing
+		 * drm_device::bus_dev, ... which would be used solely for this.
+		 *
+		 * So for the moment keep things as-is, with a bulky comment
+		 * for the next person who feels like removing this
+		 * drm_dev_set_unique() quirk.
+		 */
 		snprintf(unique, sizeof(unique), "pci:%s", pname);
 		ret = drm_dev_set_unique(dev, unique);
 		if (ret)

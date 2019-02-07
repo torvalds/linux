@@ -4,11 +4,15 @@
 
 #ifndef __ASSEMBLY__
 
-#ifdef CONFIG_KASAN
-
 #include <linux/linkage.h>
 #include <asm/memory.h>
 #include <asm/pgtable-types.h>
+
+#define arch_kasan_set_tag(addr, tag)	__tag_set(addr, tag)
+#define arch_kasan_reset_tag(addr)	__tag_reset(addr)
+#define arch_kasan_get_tag(addr)	__tag_get(addr)
+
+#ifdef CONFIG_KASAN
 
 /*
  * KASAN_SHADOW_START: beginning of the kernel virtual addresses.

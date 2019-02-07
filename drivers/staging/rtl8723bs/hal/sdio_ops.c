@@ -1023,7 +1023,7 @@ void sd_int_dpc(struct adapter *adapter)
 		u8 freepage[4];
 
 		_sdio_local_read(adapter, SDIO_REG_FREE_TXPG, 4, freepage);
-		up(&(adapter->xmitpriv.xmit_sema));
+		complete(&(adapter->xmitpriv.xmit_comp));
 	}
 
 	if (hal->sdio_hisr & SDIO_HISR_CPWM1) {

@@ -22,7 +22,6 @@
 
 #define MCU_FW_URB_MAX_PAYLOAD		0x38f8
 #define MCU_FW_URB_SIZE			(MCU_FW_URB_MAX_PAYLOAD + 12)
-#define MT7610U_FIRMWARE		"mediatek/mt7610u.bin"
 
 static int
 mt76x0u_upload_firmware(struct mt76x02_dev *dev,
@@ -75,6 +74,24 @@ out:
 	return err;
 }
 
+static int mt76x0_get_firmware(struct mt76x02_dev *dev,
+			       const struct firmware **fw)
+{
+	int err;
+
+	/* try to load mt7610e fw if available
+	 * otherwise fall back to mt7610u one
+	 */
+	err = firmware_request_nowarn(fw, MT7610E_FIRMWARE, dev->mt76.dev);
+	if (err) {
+		dev_info(dev->mt76.dev, "%s not found, switching to %s",
+			 MT7610E_FIRMWARE, MT7610U_FIRMWARE);
+		return request_firmware(fw, MT7610U_FIRMWARE,
+					dev->mt76.dev);
+	}
+	return 0;
+}
+
 static int mt76x0u_load_firmware(struct mt76x02_dev *dev)
 {
 	const struct firmware *fw;
@@ -88,7 +105,7 @@ static int mt76x0u_load_firmware(struct mt76x02_dev *dev)
 	if (mt76x0_firmware_running(dev))
 		return 0;
 
-	ret = request_firmware(&fw, MT7610U_FIRMWARE, dev->mt76.dev);
+	ret = mt76x0_get_firmware(dev, &fw);
 	if (ret)
 		return ret;
 
@@ -171,5 +188,3 @@ int mt76x0u_mcu_init(struct mt76x02_dev *dev)
 
 	return 0;
 }
-
-MODULE_FIRMWARE(MT7610U_FIRMWARE);

@@ -28,7 +28,7 @@
 #include <core/gpuobj.h>
 #include <subdev/timer.h>
 
-static int
+int
 gv100_disp_wndw_cnt(struct nvkm_disp *disp, unsigned long *pmask)
 {
 	struct nvkm_device *device = disp->engine.subdev.device;
@@ -36,7 +36,7 @@ gv100_disp_wndw_cnt(struct nvkm_disp *disp, unsigned long *pmask)
 	return (nvkm_rd32(device, 0x610074) & 0x03f00000) >> 20;
 }
 
-static void
+void
 gv100_disp_super(struct work_struct *work)
 {
 	struct nv50_disp *disp =
@@ -257,7 +257,7 @@ gv100_disp_intr_head_timing(struct nv50_disp *disp, int head)
 	}
 }
 
-static void
+void
 gv100_disp_intr(struct nv50_disp *disp)
 {
 	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
@@ -297,7 +297,7 @@ gv100_disp_intr(struct nv50_disp *disp)
 		nvkm_warn(subdev, "intr %08x\n", stat);
 }
 
-static void
+void
 gv100_disp_fini(struct nv50_disp *disp)
 {
 	struct nvkm_device *device = disp->base.engine.subdev.device;

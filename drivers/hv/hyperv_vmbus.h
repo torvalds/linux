@@ -44,74 +44,6 @@
  */
 #define HV_UTIL_NEGO_TIMEOUT 55
 
-/* Define synthetic interrupt controller flag constants. */
-#define HV_EVENT_FLAGS_COUNT		(256 * 8)
-#define HV_EVENT_FLAGS_LONG_COUNT	(256 / sizeof(unsigned long))
-
-/*
- * Timer configuration register.
- */
-union hv_timer_config {
-	u64 as_uint64;
-	struct {
-		u64 enable:1;
-		u64 periodic:1;
-		u64 lazy:1;
-		u64 auto_enable:1;
-		u64 apic_vector:8;
-		u64 direct_mode:1;
-		u64 reserved_z0:3;
-		u64 sintx:4;
-		u64 reserved_z1:44;
-	};
-};
-
-
-/* Define the synthetic interrupt controller event flags format. */
-union hv_synic_event_flags {
-	unsigned long flags[HV_EVENT_FLAGS_LONG_COUNT];
-};
-
-/* Define SynIC control register. */
-union hv_synic_scontrol {
-	u64 as_uint64;
-	struct {
-		u64 enable:1;
-		u64 reserved:63;
-	};
-};
-
-/* Define synthetic interrupt source. */
-union hv_synic_sint {
-	u64 as_uint64;
-	struct {
-		u64 vector:8;
-		u64 reserved1:8;
-		u64 masked:1;
-		u64 auto_eoi:1;
-		u64 reserved2:46;
-	};
-};
-
-/* Define the format of the SIMP register */
-union hv_synic_simp {
-	u64 as_uint64;
-	struct {
-		u64 simp_enabled:1;
-		u64 preserved:11;
-		u64 base_simp_gpa:52;
-	};
-};
-
-/* Define the format of the SIEFP register */
-union hv_synic_siefp {
-	u64 as_uint64;
-	struct {
-		u64 siefp_enabled:1;
-		u64 preserved:11;
-		u64 base_siefp_gpa:52;
-	};
-};
 
 /* Definitions for the monitored notification facility */
 union hv_monitor_trigger_group {
@@ -229,8 +161,6 @@ struct hv_context {
 	u64 guestid;
 
 	void *tsc_page;
-
-	bool synic_initialized;
 
 	struct hv_per_cpu_context __percpu *cpu_context;
 

@@ -37,7 +37,6 @@
 # define __GCC4_has_attribute___designated_init__     0
 # define __GCC4_has_attribute___externally_visible__  1
 # define __GCC4_has_attribute___noclone__             1
-# define __GCC4_has_attribute___optimize__            1
 # define __GCC4_has_attribute___nonstring__           0
 # define __GCC4_has_attribute___no_sanitize_address__ (__GNUC_MINOR__ >= 8)
 #endif
@@ -163,17 +162,11 @@
 
 /*
  * Optional: not supported by clang
- * Note: icc does not recognize gcc's no-tracer
  *
  *  gcc: https://gcc.gnu.org/onlinedocs/gcc/Common-Function-Attributes.html#index-noclone-function-attribute
- *  gcc: https://gcc.gnu.org/onlinedocs/gcc/Common-Function-Attributes.html#index-optimize-function-attribute
  */
 #if __has_attribute(__noclone__)
-# if __has_attribute(__optimize__)
-#  define __noclone                     __attribute__((__noclone__, __optimize__("no-tracer")))
-# else
-#  define __noclone                     __attribute__((__noclone__))
-# endif
+# define __noclone                      __attribute__((__noclone__))
 #else
 # define __noclone
 #endif
@@ -205,19 +198,6 @@
  * clang: https://clang.llvm.org/docs/AttributeReference.html#id1
  */
 #define __noreturn                      __attribute__((__noreturn__))
-
-/*
- * Optional: only supported since gcc >= 4.8
- * Optional: not supported by icc
- *
- *   gcc: https://gcc.gnu.org/onlinedocs/gcc/Common-Function-Attributes.html#index-no_005fsanitize_005faddress-function-attribute
- * clang: https://clang.llvm.org/docs/AttributeReference.html#no-sanitize-address-no-address-safety-analysis
- */
-#if __has_attribute(__no_sanitize_address__)
-# define __no_sanitize_address          __attribute__((__no_sanitize_address__))
-#else
-# define __no_sanitize_address
-#endif
 
 /*
  *   gcc: https://gcc.gnu.org/onlinedocs/gcc/Common-Type-Attributes.html#index-packed-type-attribute

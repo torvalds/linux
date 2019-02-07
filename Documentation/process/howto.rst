@@ -1,3 +1,5 @@
+.. _process_howto:
+
 HOWTO do Linux kernel development
 =================================
 
@@ -296,9 +298,9 @@ two weeks, but it can be longer if there are no pressing problems.  A
 security-related problem, instead, can cause a release to happen almost
 instantly.
 
-The file Documentation/process/stable-kernel-rules.rst in the kernel tree
-documents what kinds of changes are acceptable for the -stable tree, and
-how the release process works.
+The file :ref:`Documentation/process/stable-kernel-rules.rst <stable_kernel_rules>`
+in the kernel tree documents what kinds of changes are acceptable for
+the -stable tree, and how the release process works.
 
 4.x -git patches
 ~~~~~~~~~~~~~~~~
@@ -358,7 +360,8 @@ tool.  For details on how to use the kernel bugzilla, please see:
 
 	https://bugzilla.kernel.org/page.cgi?id=faq.html
 
-The file admin-guide/reporting-bugs.rst in the main kernel source directory has a good
+The file :ref:`admin-guide/reporting-bugs.rst <reportingbugs>`
+in the main kernel source directory has a good
 template for how to report a possible kernel bug, and details what kind
 of information is needed by the kernel developers to help track down the
 problem.
@@ -424,7 +427,7 @@ add your statements between the individual quoted sections instead of
 writing at the top of the mail.
 
 If you add patches to your mail, make sure they are plain readable text
-as stated in Documentation/process/submitting-patches.rst.
+as stated in :ref:`Documentation/process/submitting-patches.rst <submittingpatches>`.
 Kernel developers don't want to deal with
 attachments or compressed patches; they may want to comment on
 individual lines of your patch, which works only that way. Make sure you

@@ -712,7 +712,15 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 				map_abs_clear(usage->hid & 0xf);
 			break;
 
-		case HID_GD_SLIDER: case HID_GD_DIAL: case HID_GD_WHEEL:
+		case HID_GD_WHEEL:
+			if (field->flags & HID_MAIN_ITEM_RELATIVE) {
+				set_bit(REL_WHEEL, input->relbit);
+				map_rel(REL_WHEEL_HI_RES);
+			} else {
+				map_abs(usage->hid & 0xf);
+			}
+			break;
+		case HID_GD_SLIDER: case HID_GD_DIAL:
 			if (field->flags & HID_MAIN_ITEM_RELATIVE)
 				map_rel(usage->hid & 0xf);
 			else
@@ -1012,7 +1020,10 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 		case 0x22f: map_key_clear(KEY_ZOOMRESET);	break;
 		case 0x233: map_key_clear(KEY_SCROLLUP);	break;
 		case 0x234: map_key_clear(KEY_SCROLLDOWN);	break;
-		case 0x238: map_rel(REL_HWHEEL);		break;
+		case 0x238: /* AC Pan */
+			set_bit(REL_HWHEEL, input->relbit);
+			map_rel(REL_HWHEEL_HI_RES);
+			break;
 		case 0x23d: map_key_clear(KEY_EDIT);		break;
 		case 0x25f: map_key_clear(KEY_CANCEL);		break;
 		case 0x269: map_key_clear(KEY_INSERT);		break;
@@ -1200,6 +1211,38 @@ ignore:
 
 }
 
+static void hidinput_handle_scroll(struct hid_usage *usage,
+				   struct input_dev *input,
+				   __s32 value)
+{
+	int code;
+	int hi_res, lo_res;
+
+	if (value == 0)
+		return;
+
+	if (usage->code == REL_WHEEL_HI_RES)
+		code = REL_WHEEL;
+	else
+		code = REL_HWHEEL;
+
+	/*
+	 * Windows reports one wheel click as value 120. Where a high-res
+	 * scroll wheel is present, a fraction of 120 is reported instead.
+	 * Our REL_WHEEL_HI_RES axis does the same because all HW must
+	 * adhere to the 120 expectation.
+	 */
+	hi_res = value * 120/usage->resolution_multiplier;
+
+	usage->wheel_accumulated += hi_res;
+	lo_res = usage->wheel_accumulated/120;
+	if (lo_res)
+		usage->wheel_accumulated -= lo_res * 120;
+
+	input_event(input, EV_REL, code, lo_res);
+	input_event(input, EV_REL, usage->code, hi_res);
+}
+
 void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct hid_usage *usage, __s32 value)
 {
 	struct input_dev *input;
@@ -1261,6 +1304,12 @@ void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct 
 
 	if ((usage->type == EV_KEY) && (usage->code == 0)) /* Key 0 is "unassigned", not KEY_UNKNOWN */
 		return;
+
+	if ((usage->type == EV_REL) && (usage->code == REL_WHEEL_HI_RES ||
+					usage->code == REL_HWHEEL_HI_RES)) {
+		hidinput_handle_scroll(usage, input, value);
+		return;
+	}
 
 	if ((usage->type == EV_ABS) && (field->flags & HID_MAIN_ITEM_RELATIVE) &&
 			(usage->code == ABS_VOLUME)) {
@@ -1487,6 +1536,58 @@ static void hidinput_close(struct input_dev *dev)
 	struct hid_device *hid = input_get_drvdata(dev);
 
 	hid_hw_close(hid);
+}
+
+static void hidinput_change_resolution_multipliers(struct hid_device *hid)
+{
+	struct hid_report_enum *rep_enum;
+	struct hid_report *rep;
+	struct hid_usage *usage;
+	int i, j;
+
+	rep_enum = &hid->report_enum[HID_FEATURE_REPORT];
+	list_for_each_entry(rep, &rep_enum->report_list, list) {
+		bool update_needed = false;
+
+		if (rep->maxfield == 0)
+			continue;
+
+		/*
+		 * If we have more than one feature within this report we
+		 * need to fill in the bits from the others before we can
+		 * overwrite the ones for the Resolution Multiplier.
+		 */
+		if (rep->maxfield > 1) {
+			hid_hw_request(hid, rep, HID_REQ_GET_REPORT);
+			hid_hw_wait(hid);
+		}
+
+		for (i = 0; i < rep->maxfield; i++) {
+			__s32 logical_max = rep->field[i]->logical_maximum;
+
+			/* There is no good reason for a Resolution
+			 * Multiplier to have a count other than 1.
+			 * Ignore that case.
+			 */
+			if (rep->field[i]->report_count != 1)
+				continue;
+
+			for (j = 0; j < rep->field[i]->maxusage; j++) {
+				usage = &rep->field[i]->usage[j];
+
+				if (usage->hid != HID_GD_RESOLUTION_MULTIPLIER)
+					continue;
+
+				*rep->field[i]->value = logical_max;
+				update_needed = true;
+			}
+		}
+		if (update_needed)
+			hid_hw_request(hid, rep, HID_REQ_SET_REPORT);
+	}
+
+	/* refresh our structs */
+	hid_setup_resolution_multiplier(hid);
 }
 
 static void report_features(struct hid_device *hid)
@@ -1782,6 +1883,8 @@ int hidinput_connect(struct hid_device *hid, unsigned int force)
 		}
 	}
 
+	hidinput_change_resolution_multipliers(hid);
+
 	list_for_each_entry_safe(hidinput, next, &hid->inputs, list) {
 		if (drv->input_configured &&
 		    drv->input_configured(hid, hidinput))
@@ -1840,4 +1943,3 @@ void hidinput_disconnect(struct hid_device *hid)
 	cancel_work_sync(&hid->led_work);
 }
 EXPORT_SYMBOL_GPL(hidinput_disconnect);
-

@@ -1,8 +1,8 @@
 config SCSI_CXGB4_ISCSI
 	tristate "Chelsio T4 iSCSI support"
 	depends on PCI && INET && (IPV6 || IPV6=n)
-	select NETDEVICES
-	select ETHERNET
+	depends on THERMAL || !THERMAL
+	depends on ETHERNET
 	select NET_VENDOR_CHELSIO
 	select CHELSIO_T4
 	select CHELSIO_LIB

@@ -231,9 +231,13 @@ static int max8952_pmic_probe(struct i2c_client *client,
 	else
 		gflags = GPIOD_OUT_LOW;
 	gflags |= GPIOD_FLAGS_BIT_NONEXCLUSIVE;
-	gpiod = devm_gpiod_get_optional(&client->dev,
-					"max8952,en",
-					gflags);
+	/*
+	 * Do not use devm* here: the regulator core takes over the
+	 * lifecycle management of the GPIO descriptor.
+	 */
+	gpiod = gpiod_get_optional(&client->dev,
+				   "max8952,en",
+				   gflags);
 	if (IS_ERR(gpiod))
 		return PTR_ERR(gpiod);
 	if (gpiod)

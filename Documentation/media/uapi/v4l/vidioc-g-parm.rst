@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _VIDIOC_G_PARM:
 
@@ -41,6 +48,9 @@ applications can request frame skipping or duplicating on the driver
 side. This is especially useful when using the :ref:`read() <func-read>` or
 :ref:`write() <func-write>`, which are not augmented by timestamps or sequence
 counters, and to avoid unnecessary data copying.
+
+Changing the frame interval shall never change the format. Changing the
+format, on the other hand, may change the frame interval.
 
 Further these ioctls can be used to determine the number of buffers used
 internally by a driver in read/write mode. For implications see the

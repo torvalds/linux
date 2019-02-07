@@ -111,11 +111,8 @@ static const struct seq_operations tape_proc_seq = {
 void
 tape_proc_init(void)
 {
-	tape_proc_devices = proc_create_seq("tapedevices",
-			S_IFREG | S_IRUGO | S_IWUSR, NULL,  &tape_proc_seq);
-	if (tape_proc_devices == NULL) {
-		return;
-	}
+	tape_proc_devices = proc_create_seq("tapedevices", 0444, NULL,
+					    &tape_proc_seq);
 }
 
 /*

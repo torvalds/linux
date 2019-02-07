@@ -108,24 +108,6 @@ union cvmx_ipd_1st_mbuff_skip {
 		uint64_t reserved_6_63:58;
 #endif
 	} s;
-	struct cvmx_ipd_1st_mbuff_skip_s cn30xx;
-	struct cvmx_ipd_1st_mbuff_skip_s cn31xx;
-	struct cvmx_ipd_1st_mbuff_skip_s cn38xx;
-	struct cvmx_ipd_1st_mbuff_skip_s cn38xxp2;
-	struct cvmx_ipd_1st_mbuff_skip_s cn50xx;
-	struct cvmx_ipd_1st_mbuff_skip_s cn52xx;
-	struct cvmx_ipd_1st_mbuff_skip_s cn52xxp1;
-	struct cvmx_ipd_1st_mbuff_skip_s cn56xx;
-	struct cvmx_ipd_1st_mbuff_skip_s cn56xxp1;
-	struct cvmx_ipd_1st_mbuff_skip_s cn58xx;
-	struct cvmx_ipd_1st_mbuff_skip_s cn58xxp1;
-	struct cvmx_ipd_1st_mbuff_skip_s cn61xx;
-	struct cvmx_ipd_1st_mbuff_skip_s cn63xx;
-	struct cvmx_ipd_1st_mbuff_skip_s cn63xxp1;
-	struct cvmx_ipd_1st_mbuff_skip_s cn66xx;
-	struct cvmx_ipd_1st_mbuff_skip_s cn68xx;
-	struct cvmx_ipd_1st_mbuff_skip_s cn68xxp1;
-	struct cvmx_ipd_1st_mbuff_skip_s cnf71xx;
 };
 
 union cvmx_ipd_1st_next_ptr_back {
@@ -139,24 +121,6 @@ union cvmx_ipd_1st_next_ptr_back {
 		uint64_t reserved_4_63:60;
 #endif
 	} s;
-	struct cvmx_ipd_1st_next_ptr_back_s cn30xx;
-	struct cvmx_ipd_1st_next_ptr_back_s cn31xx;
-	struct cvmx_ipd_1st_next_ptr_back_s cn38xx;
-	struct cvmx_ipd_1st_next_ptr_back_s cn38xxp2;
-	struct cvmx_ipd_1st_next_ptr_back_s cn50xx;
-	struct cvmx_ipd_1st_next_ptr_back_s cn52xx;
-	struct cvmx_ipd_1st_next_ptr_back_s cn52xxp1;
-	struct cvmx_ipd_1st_next_ptr_back_s cn56xx;
-	struct cvmx_ipd_1st_next_ptr_back_s cn56xxp1;
-	struct cvmx_ipd_1st_next_ptr_back_s cn58xx;
-	struct cvmx_ipd_1st_next_ptr_back_s cn58xxp1;
-	struct cvmx_ipd_1st_next_ptr_back_s cn61xx;
-	struct cvmx_ipd_1st_next_ptr_back_s cn63xx;
-	struct cvmx_ipd_1st_next_ptr_back_s cn63xxp1;
-	struct cvmx_ipd_1st_next_ptr_back_s cn66xx;
-	struct cvmx_ipd_1st_next_ptr_back_s cn68xx;
-	struct cvmx_ipd_1st_next_ptr_back_s cn68xxp1;
-	struct cvmx_ipd_1st_next_ptr_back_s cnf71xx;
 };
 
 union cvmx_ipd_2nd_next_ptr_back {
@@ -170,24 +134,6 @@ union cvmx_ipd_2nd_next_ptr_back {
 		uint64_t reserved_4_63:60;
 #endif
 	} s;
-	struct cvmx_ipd_2nd_next_ptr_back_s cn30xx;
-	struct cvmx_ipd_2nd_next_ptr_back_s cn31xx;
-	struct cvmx_ipd_2nd_next_ptr_back_s cn38xx;
-	struct cvmx_ipd_2nd_next_ptr_back_s cn38xxp2;
-	struct cvmx_ipd_2nd_next_ptr_back_s cn50xx;
-	struct cvmx_ipd_2nd_next_ptr_back_s cn52xx;
-	struct cvmx_ipd_2nd_next_ptr_back_s cn52xxp1;
-	struct cvmx_ipd_2nd_next_ptr_back_s cn56xx;
-	struct cvmx_ipd_2nd_next_ptr_back_s cn56xxp1;
-	struct cvmx_ipd_2nd_next_ptr_back_s cn58xx;
-	struct cvmx_ipd_2nd_next_ptr_back_s cn58xxp1;
-	struct cvmx_ipd_2nd_next_ptr_back_s cn61xx;
-	struct cvmx_ipd_2nd_next_ptr_back_s cn63xx;
-	struct cvmx_ipd_2nd_next_ptr_back_s cn63xxp1;
-	struct cvmx_ipd_2nd_next_ptr_back_s cn66xx;
-	struct cvmx_ipd_2nd_next_ptr_back_s cn68xx;
-	struct cvmx_ipd_2nd_next_ptr_back_s cn68xxp1;
-	struct cvmx_ipd_2nd_next_ptr_back_s cnf71xx;
 };
 
 union cvmx_ipd_bist_status {
@@ -284,10 +230,6 @@ union cvmx_ipd_bist_status {
 		uint64_t reserved_16_63:48;
 #endif
 	} cn30xx;
-	struct cvmx_ipd_bist_status_cn30xx cn31xx;
-	struct cvmx_ipd_bist_status_cn30xx cn38xx;
-	struct cvmx_ipd_bist_status_cn30xx cn38xxp2;
-	struct cvmx_ipd_bist_status_cn30xx cn50xx;
 	struct cvmx_ipd_bist_status_cn52xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_18_63:46;
@@ -331,18 +273,6 @@ union cvmx_ipd_bist_status {
 		uint64_t reserved_18_63:46;
 #endif
 	} cn52xx;
-	struct cvmx_ipd_bist_status_cn52xx cn52xxp1;
-	struct cvmx_ipd_bist_status_cn52xx cn56xx;
-	struct cvmx_ipd_bist_status_cn52xx cn56xxp1;
-	struct cvmx_ipd_bist_status_cn30xx cn58xx;
-	struct cvmx_ipd_bist_status_cn30xx cn58xxp1;
-	struct cvmx_ipd_bist_status_cn52xx cn61xx;
-	struct cvmx_ipd_bist_status_cn52xx cn63xx;
-	struct cvmx_ipd_bist_status_cn52xx cn63xxp1;
-	struct cvmx_ipd_bist_status_cn52xx cn66xx;
-	struct cvmx_ipd_bist_status_s cn68xx;
-	struct cvmx_ipd_bist_status_s cn68xxp1;
-	struct cvmx_ipd_bist_status_cn52xx cnf71xx;
 };
 
 union cvmx_ipd_bp_prt_red_end {
@@ -365,10 +295,6 @@ union cvmx_ipd_bp_prt_red_end {
 		uint64_t reserved_36_63:28;
 #endif
 	} cn30xx;
-	struct cvmx_ipd_bp_prt_red_end_cn30xx cn31xx;
-	struct cvmx_ipd_bp_prt_red_end_cn30xx cn38xx;
-	struct cvmx_ipd_bp_prt_red_end_cn30xx cn38xxp2;
-	struct cvmx_ipd_bp_prt_red_end_cn30xx cn50xx;
 	struct cvmx_ipd_bp_prt_red_end_cn52xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_40_63:24;
@@ -378,12 +304,6 @@ union cvmx_ipd_bp_prt_red_end {
 		uint64_t reserved_40_63:24;
 #endif
 	} cn52xx;
-	struct cvmx_ipd_bp_prt_red_end_cn52xx cn52xxp1;
-	struct cvmx_ipd_bp_prt_red_end_cn52xx cn56xx;
-	struct cvmx_ipd_bp_prt_red_end_cn52xx cn56xxp1;
-	struct cvmx_ipd_bp_prt_red_end_cn30xx cn58xx;
-	struct cvmx_ipd_bp_prt_red_end_cn30xx cn58xxp1;
-	struct cvmx_ipd_bp_prt_red_end_s cn61xx;
 	struct cvmx_ipd_bp_prt_red_end_cn63xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_44_63:20;
@@ -393,9 +313,6 @@ union cvmx_ipd_bp_prt_red_end {
 		uint64_t reserved_44_63:20;
 #endif
 	} cn63xx;
-	struct cvmx_ipd_bp_prt_red_end_cn63xx cn63xxp1;
-	struct cvmx_ipd_bp_prt_red_end_s cn66xx;
-	struct cvmx_ipd_bp_prt_red_end_s cnf71xx;
 };
 
 union cvmx_ipd_bpidx_mbuf_th {
@@ -411,8 +328,6 @@ union cvmx_ipd_bpidx_mbuf_th {
 		uint64_t reserved_18_63:46;
 #endif
 	} s;
-	struct cvmx_ipd_bpidx_mbuf_th_s cn68xx;
-	struct cvmx_ipd_bpidx_mbuf_th_s cn68xxp1;
 };
 
 union cvmx_ipd_bpid_bp_counterx {
@@ -426,8 +341,6 @@ union cvmx_ipd_bpid_bp_counterx {
 		uint64_t reserved_25_63:39;
 #endif
 	} s;
-	struct cvmx_ipd_bpid_bp_counterx_s cn68xx;
-	struct cvmx_ipd_bpid_bp_counterx_s cn68xxp1;
 };
 
 union cvmx_ipd_clk_count {
@@ -439,24 +352,6 @@ union cvmx_ipd_clk_count {
 		uint64_t clk_cnt:64;
 #endif
 	} s;
-	struct cvmx_ipd_clk_count_s cn30xx;
-	struct cvmx_ipd_clk_count_s cn31xx;
-	struct cvmx_ipd_clk_count_s cn38xx;
-	struct cvmx_ipd_clk_count_s cn38xxp2;
-	struct cvmx_ipd_clk_count_s cn50xx;
-	struct cvmx_ipd_clk_count_s cn52xx;
-	struct cvmx_ipd_clk_count_s cn52xxp1;
-	struct cvmx_ipd_clk_count_s cn56xx;
-	struct cvmx_ipd_clk_count_s cn56xxp1;
-	struct cvmx_ipd_clk_count_s cn58xx;
-	struct cvmx_ipd_clk_count_s cn58xxp1;
-	struct cvmx_ipd_clk_count_s cn61xx;
-	struct cvmx_ipd_clk_count_s cn63xx;
-	struct cvmx_ipd_clk_count_s cn63xxp1;
-	struct cvmx_ipd_clk_count_s cn66xx;
-	struct cvmx_ipd_clk_count_s cn68xx;
-	struct cvmx_ipd_clk_count_s cn68xxp1;
-	struct cvmx_ipd_clk_count_s cnf71xx;
 };
 
 union cvmx_ipd_credits {
@@ -472,8 +367,6 @@ union cvmx_ipd_credits {
 		uint64_t reserved_16_63:48;
 #endif
 	} s;
-	struct cvmx_ipd_credits_s cn68xx;
-	struct cvmx_ipd_credits_s cn68xxp1;
 };
 
 union cvmx_ipd_ctl_status {
@@ -544,8 +437,6 @@ union cvmx_ipd_ctl_status {
 		uint64_t reserved_10_63:54;
 #endif
 	} cn30xx;
-	struct cvmx_ipd_ctl_status_cn30xx cn31xx;
-	struct cvmx_ipd_ctl_status_cn30xx cn38xx;
 	struct cvmx_ipd_ctl_status_cn38xxp2 {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_9_63:55;
@@ -604,10 +495,6 @@ union cvmx_ipd_ctl_status {
 		uint64_t reserved_15_63:49;
 #endif
 	} cn50xx;
-	struct cvmx_ipd_ctl_status_cn50xx cn52xx;
-	struct cvmx_ipd_ctl_status_cn50xx cn52xxp1;
-	struct cvmx_ipd_ctl_status_cn50xx cn56xx;
-	struct cvmx_ipd_ctl_status_cn50xx cn56xxp1;
 	struct cvmx_ipd_ctl_status_cn58xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_12_63:52;
@@ -637,9 +524,6 @@ union cvmx_ipd_ctl_status {
 		uint64_t reserved_12_63:52;
 #endif
 	} cn58xx;
-	struct cvmx_ipd_ctl_status_cn58xx cn58xxp1;
-	struct cvmx_ipd_ctl_status_s cn61xx;
-	struct cvmx_ipd_ctl_status_s cn63xx;
 	struct cvmx_ipd_ctl_status_cn63xxp1 {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_16_63:48;
@@ -677,10 +561,6 @@ union cvmx_ipd_ctl_status {
 		uint64_t reserved_16_63:48;
 #endif
 	} cn63xxp1;
-	struct cvmx_ipd_ctl_status_s cn66xx;
-	struct cvmx_ipd_ctl_status_s cn68xx;
-	struct cvmx_ipd_ctl_status_s cn68xxp1;
-	struct cvmx_ipd_ctl_status_s cnf71xx;
 };
 
 union cvmx_ipd_ecc_ctl {
@@ -700,8 +580,6 @@ union cvmx_ipd_ecc_ctl {
 		uint64_t reserved_8_63:56;
 #endif
 	} s;
-	struct cvmx_ipd_ecc_ctl_s cn68xx;
-	struct cvmx_ipd_ecc_ctl_s cn68xxp1;
 };
 
 union cvmx_ipd_free_ptr_fifo_ctl {
@@ -723,8 +601,6 @@ union cvmx_ipd_free_ptr_fifo_ctl {
 		uint64_t reserved_32_63:32;
 #endif
 	} s;
-	struct cvmx_ipd_free_ptr_fifo_ctl_s cn68xx;
-	struct cvmx_ipd_free_ptr_fifo_ctl_s cn68xxp1;
 };
 
 union cvmx_ipd_free_ptr_value {
@@ -738,8 +614,6 @@ union cvmx_ipd_free_ptr_value {
 		uint64_t reserved_33_63:31;
 #endif
 	} s;
-	struct cvmx_ipd_free_ptr_value_s cn68xx;
-	struct cvmx_ipd_free_ptr_value_s cn68xxp1;
 };
 
 union cvmx_ipd_hold_ptr_fifo_ctl {
@@ -761,8 +635,6 @@ union cvmx_ipd_hold_ptr_fifo_ctl {
 		uint64_t reserved_43_63:21;
 #endif
 	} s;
-	struct cvmx_ipd_hold_ptr_fifo_ctl_s cn68xx;
-	struct cvmx_ipd_hold_ptr_fifo_ctl_s cn68xxp1;
 };
 
 union cvmx_ipd_int_enb {
@@ -837,7 +709,6 @@ union cvmx_ipd_int_enb {
 		uint64_t reserved_5_63:59;
 #endif
 	} cn30xx;
-	struct cvmx_ipd_int_enb_cn30xx cn31xx;
 	struct cvmx_ipd_int_enb_cn38xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_10_63:54;
@@ -865,8 +736,6 @@ union cvmx_ipd_int_enb {
 		uint64_t reserved_10_63:54;
 #endif
 	} cn38xx;
-	struct cvmx_ipd_int_enb_cn30xx cn38xxp2;
-	struct cvmx_ipd_int_enb_cn38xx cn50xx;
 	struct cvmx_ipd_int_enb_cn52xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_12_63:52;
@@ -898,18 +767,6 @@ union cvmx_ipd_int_enb {
 		uint64_t reserved_12_63:52;
 #endif
 	} cn52xx;
-	struct cvmx_ipd_int_enb_cn52xx cn52xxp1;
-	struct cvmx_ipd_int_enb_cn52xx cn56xx;
-	struct cvmx_ipd_int_enb_cn52xx cn56xxp1;
-	struct cvmx_ipd_int_enb_cn38xx cn58xx;
-	struct cvmx_ipd_int_enb_cn38xx cn58xxp1;
-	struct cvmx_ipd_int_enb_cn52xx cn61xx;
-	struct cvmx_ipd_int_enb_cn52xx cn63xx;
-	struct cvmx_ipd_int_enb_cn52xx cn63xxp1;
-	struct cvmx_ipd_int_enb_cn52xx cn66xx;
-	struct cvmx_ipd_int_enb_s cn68xx;
-	struct cvmx_ipd_int_enb_s cn68xxp1;
-	struct cvmx_ipd_int_enb_cn52xx cnf71xx;
 };
 
 union cvmx_ipd_int_sum {
@@ -984,7 +841,6 @@ union cvmx_ipd_int_sum {
 		uint64_t reserved_5_63:59;
 #endif
 	} cn30xx;
-	struct cvmx_ipd_int_sum_cn30xx cn31xx;
 	struct cvmx_ipd_int_sum_cn38xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_10_63:54;
@@ -1012,8 +868,6 @@ union cvmx_ipd_int_sum {
 		uint64_t reserved_10_63:54;
 #endif
 	} cn38xx;
-	struct cvmx_ipd_int_sum_cn30xx cn38xxp2;
-	struct cvmx_ipd_int_sum_cn38xx cn50xx;
 	struct cvmx_ipd_int_sum_cn52xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_12_63:52;
@@ -1045,18 +899,6 @@ union cvmx_ipd_int_sum {
 		uint64_t reserved_12_63:52;
 #endif
 	} cn52xx;
-	struct cvmx_ipd_int_sum_cn52xx cn52xxp1;
-	struct cvmx_ipd_int_sum_cn52xx cn56xx;
-	struct cvmx_ipd_int_sum_cn52xx cn56xxp1;
-	struct cvmx_ipd_int_sum_cn38xx cn58xx;
-	struct cvmx_ipd_int_sum_cn38xx cn58xxp1;
-	struct cvmx_ipd_int_sum_cn52xx cn61xx;
-	struct cvmx_ipd_int_sum_cn52xx cn63xx;
-	struct cvmx_ipd_int_sum_cn52xx cn63xxp1;
-	struct cvmx_ipd_int_sum_cn52xx cn66xx;
-	struct cvmx_ipd_int_sum_s cn68xx;
-	struct cvmx_ipd_int_sum_s cn68xxp1;
-	struct cvmx_ipd_int_sum_cn52xx cnf71xx;
 };
 
 union cvmx_ipd_next_pkt_ptr {
@@ -1070,8 +912,6 @@ union cvmx_ipd_next_pkt_ptr {
 		uint64_t reserved_33_63:31;
 #endif
 	} s;
-	struct cvmx_ipd_next_pkt_ptr_s cn68xx;
-	struct cvmx_ipd_next_pkt_ptr_s cn68xxp1;
 };
 
 union cvmx_ipd_next_wqe_ptr {
@@ -1085,8 +925,6 @@ union cvmx_ipd_next_wqe_ptr {
 		uint64_t reserved_33_63:31;
 #endif
 	} s;
-	struct cvmx_ipd_next_wqe_ptr_s cn68xx;
-	struct cvmx_ipd_next_wqe_ptr_s cn68xxp1;
 };
 
 union cvmx_ipd_not_1st_mbuff_skip {
@@ -1100,24 +938,6 @@ union cvmx_ipd_not_1st_mbuff_skip {
 		uint64_t reserved_6_63:58;
 #endif
 	} s;
-	struct cvmx_ipd_not_1st_mbuff_skip_s cn30xx;
-	struct cvmx_ipd_not_1st_mbuff_skip_s cn31xx;
-	struct cvmx_ipd_not_1st_mbuff_skip_s cn38xx;
-	struct cvmx_ipd_not_1st_mbuff_skip_s cn38xxp2;
-	struct cvmx_ipd_not_1st_mbuff_skip_s cn50xx;
-	struct cvmx_ipd_not_1st_mbuff_skip_s cn52xx;
-	struct cvmx_ipd_not_1st_mbuff_skip_s cn52xxp1;
-	struct cvmx_ipd_not_1st_mbuff_skip_s cn56xx;
-	struct cvmx_ipd_not_1st_mbuff_skip_s cn56xxp1;
-	struct cvmx_ipd_not_1st_mbuff_skip_s cn58xx;
-	struct cvmx_ipd_not_1st_mbuff_skip_s cn58xxp1;
-	struct cvmx_ipd_not_1st_mbuff_skip_s cn61xx;
-	struct cvmx_ipd_not_1st_mbuff_skip_s cn63xx;
-	struct cvmx_ipd_not_1st_mbuff_skip_s cn63xxp1;
-	struct cvmx_ipd_not_1st_mbuff_skip_s cn66xx;
-	struct cvmx_ipd_not_1st_mbuff_skip_s cn68xx;
-	struct cvmx_ipd_not_1st_mbuff_skip_s cn68xxp1;
-	struct cvmx_ipd_not_1st_mbuff_skip_s cnf71xx;
 };
 
 union cvmx_ipd_on_bp_drop_pktx {
@@ -1129,8 +949,6 @@ union cvmx_ipd_on_bp_drop_pktx {
 		uint64_t prt_enb:64;
 #endif
 	} s;
-	struct cvmx_ipd_on_bp_drop_pktx_s cn68xx;
-	struct cvmx_ipd_on_bp_drop_pktx_s cn68xxp1;
 };
 
 union cvmx_ipd_packet_mbuff_size {
@@ -1144,24 +962,6 @@ union cvmx_ipd_packet_mbuff_size {
 		uint64_t reserved_12_63:52;
 #endif
 	} s;
-	struct cvmx_ipd_packet_mbuff_size_s cn30xx;
-	struct cvmx_ipd_packet_mbuff_size_s cn31xx;
-	struct cvmx_ipd_packet_mbuff_size_s cn38xx;
-	struct cvmx_ipd_packet_mbuff_size_s cn38xxp2;
-	struct cvmx_ipd_packet_mbuff_size_s cn50xx;
-	struct cvmx_ipd_packet_mbuff_size_s cn52xx;
-	struct cvmx_ipd_packet_mbuff_size_s cn52xxp1;
-	struct cvmx_ipd_packet_mbuff_size_s cn56xx;
-	struct cvmx_ipd_packet_mbuff_size_s cn56xxp1;
-	struct cvmx_ipd_packet_mbuff_size_s cn58xx;
-	struct cvmx_ipd_packet_mbuff_size_s cn58xxp1;
-	struct cvmx_ipd_packet_mbuff_size_s cn61xx;
-	struct cvmx_ipd_packet_mbuff_size_s cn63xx;
-	struct cvmx_ipd_packet_mbuff_size_s cn63xxp1;
-	struct cvmx_ipd_packet_mbuff_size_s cn66xx;
-	struct cvmx_ipd_packet_mbuff_size_s cn68xx;
-	struct cvmx_ipd_packet_mbuff_size_s cn68xxp1;
-	struct cvmx_ipd_packet_mbuff_size_s cnf71xx;
 };
 
 union cvmx_ipd_pkt_err {
@@ -1175,8 +975,6 @@ union cvmx_ipd_pkt_err {
 		uint64_t reserved_6_63:58;
 #endif
 	} s;
-	struct cvmx_ipd_pkt_err_s cn68xx;
-	struct cvmx_ipd_pkt_err_s cn68xxp1;
 };
 
 union cvmx_ipd_pkt_ptr_valid {
@@ -1190,21 +988,6 @@ union cvmx_ipd_pkt_ptr_valid {
 		uint64_t reserved_29_63:35;
 #endif
 	} s;
-	struct cvmx_ipd_pkt_ptr_valid_s cn30xx;
-	struct cvmx_ipd_pkt_ptr_valid_s cn31xx;
-	struct cvmx_ipd_pkt_ptr_valid_s cn38xx;
-	struct cvmx_ipd_pkt_ptr_valid_s cn50xx;
-	struct cvmx_ipd_pkt_ptr_valid_s cn52xx;
-	struct cvmx_ipd_pkt_ptr_valid_s cn52xxp1;
-	struct cvmx_ipd_pkt_ptr_valid_s cn56xx;
-	struct cvmx_ipd_pkt_ptr_valid_s cn56xxp1;
-	struct cvmx_ipd_pkt_ptr_valid_s cn58xx;
-	struct cvmx_ipd_pkt_ptr_valid_s cn58xxp1;
-	struct cvmx_ipd_pkt_ptr_valid_s cn61xx;
-	struct cvmx_ipd_pkt_ptr_valid_s cn63xx;
-	struct cvmx_ipd_pkt_ptr_valid_s cn63xxp1;
-	struct cvmx_ipd_pkt_ptr_valid_s cn66xx;
-	struct cvmx_ipd_pkt_ptr_valid_s cnf71xx;
 };
 
 union cvmx_ipd_portx_bp_page_cnt {
@@ -1220,22 +1003,6 @@ union cvmx_ipd_portx_bp_page_cnt {
 		uint64_t reserved_18_63:46;
 #endif
 	} s;
-	struct cvmx_ipd_portx_bp_page_cnt_s cn30xx;
-	struct cvmx_ipd_portx_bp_page_cnt_s cn31xx;
-	struct cvmx_ipd_portx_bp_page_cnt_s cn38xx;
-	struct cvmx_ipd_portx_bp_page_cnt_s cn38xxp2;
-	struct cvmx_ipd_portx_bp_page_cnt_s cn50xx;
-	struct cvmx_ipd_portx_bp_page_cnt_s cn52xx;
-	struct cvmx_ipd_portx_bp_page_cnt_s cn52xxp1;
-	struct cvmx_ipd_portx_bp_page_cnt_s cn56xx;
-	struct cvmx_ipd_portx_bp_page_cnt_s cn56xxp1;
-	struct cvmx_ipd_portx_bp_page_cnt_s cn58xx;
-	struct cvmx_ipd_portx_bp_page_cnt_s cn58xxp1;
-	struct cvmx_ipd_portx_bp_page_cnt_s cn61xx;
-	struct cvmx_ipd_portx_bp_page_cnt_s cn63xx;
-	struct cvmx_ipd_portx_bp_page_cnt_s cn63xxp1;
-	struct cvmx_ipd_portx_bp_page_cnt_s cn66xx;
-	struct cvmx_ipd_portx_bp_page_cnt_s cnf71xx;
 };
 
 union cvmx_ipd_portx_bp_page_cnt2 {
@@ -1251,15 +1018,6 @@ union cvmx_ipd_portx_bp_page_cnt2 {
 		uint64_t reserved_18_63:46;
 #endif
 	} s;
-	struct cvmx_ipd_portx_bp_page_cnt2_s cn52xx;
-	struct cvmx_ipd_portx_bp_page_cnt2_s cn52xxp1;
-	struct cvmx_ipd_portx_bp_page_cnt2_s cn56xx;
-	struct cvmx_ipd_portx_bp_page_cnt2_s cn56xxp1;
-	struct cvmx_ipd_portx_bp_page_cnt2_s cn61xx;
-	struct cvmx_ipd_portx_bp_page_cnt2_s cn63xx;
-	struct cvmx_ipd_portx_bp_page_cnt2_s cn63xxp1;
-	struct cvmx_ipd_portx_bp_page_cnt2_s cn66xx;
-	struct cvmx_ipd_portx_bp_page_cnt2_s cnf71xx;
 };
 
 union cvmx_ipd_portx_bp_page_cnt3 {
@@ -1275,11 +1033,6 @@ union cvmx_ipd_portx_bp_page_cnt3 {
 		uint64_t reserved_18_63:46;
 #endif
 	} s;
-	struct cvmx_ipd_portx_bp_page_cnt3_s cn61xx;
-	struct cvmx_ipd_portx_bp_page_cnt3_s cn63xx;
-	struct cvmx_ipd_portx_bp_page_cnt3_s cn63xxp1;
-	struct cvmx_ipd_portx_bp_page_cnt3_s cn66xx;
-	struct cvmx_ipd_portx_bp_page_cnt3_s cnf71xx;
 };
 
 union cvmx_ipd_port_bp_counters2_pairx {
@@ -1293,15 +1046,6 @@ union cvmx_ipd_port_bp_counters2_pairx {
 		uint64_t reserved_25_63:39;
 #endif
 	} s;
-	struct cvmx_ipd_port_bp_counters2_pairx_s cn52xx;
-	struct cvmx_ipd_port_bp_counters2_pairx_s cn52xxp1;
-	struct cvmx_ipd_port_bp_counters2_pairx_s cn56xx;
-	struct cvmx_ipd_port_bp_counters2_pairx_s cn56xxp1;
-	struct cvmx_ipd_port_bp_counters2_pairx_s cn61xx;
-	struct cvmx_ipd_port_bp_counters2_pairx_s cn63xx;
-	struct cvmx_ipd_port_bp_counters2_pairx_s cn63xxp1;
-	struct cvmx_ipd_port_bp_counters2_pairx_s cn66xx;
-	struct cvmx_ipd_port_bp_counters2_pairx_s cnf71xx;
 };
 
 union cvmx_ipd_port_bp_counters3_pairx {
@@ -1315,11 +1059,6 @@ union cvmx_ipd_port_bp_counters3_pairx {
 		uint64_t reserved_25_63:39;
 #endif
 	} s;
-	struct cvmx_ipd_port_bp_counters3_pairx_s cn61xx;
-	struct cvmx_ipd_port_bp_counters3_pairx_s cn63xx;
-	struct cvmx_ipd_port_bp_counters3_pairx_s cn63xxp1;
-	struct cvmx_ipd_port_bp_counters3_pairx_s cn66xx;
-	struct cvmx_ipd_port_bp_counters3_pairx_s cnf71xx;
 };
 
 union cvmx_ipd_port_bp_counters4_pairx {
@@ -1333,9 +1072,6 @@ union cvmx_ipd_port_bp_counters4_pairx {
 		uint64_t reserved_25_63:39;
 #endif
 	} s;
-	struct cvmx_ipd_port_bp_counters4_pairx_s cn61xx;
-	struct cvmx_ipd_port_bp_counters4_pairx_s cn66xx;
-	struct cvmx_ipd_port_bp_counters4_pairx_s cnf71xx;
 };
 
 union cvmx_ipd_port_bp_counters_pairx {
@@ -1349,22 +1085,6 @@ union cvmx_ipd_port_bp_counters_pairx {
 		uint64_t reserved_25_63:39;
 #endif
 	} s;
-	struct cvmx_ipd_port_bp_counters_pairx_s cn30xx;
-	struct cvmx_ipd_port_bp_counters_pairx_s cn31xx;
-	struct cvmx_ipd_port_bp_counters_pairx_s cn38xx;
-	struct cvmx_ipd_port_bp_counters_pairx_s cn38xxp2;
-	struct cvmx_ipd_port_bp_counters_pairx_s cn50xx;
-	struct cvmx_ipd_port_bp_counters_pairx_s cn52xx;
-	struct cvmx_ipd_port_bp_counters_pairx_s cn52xxp1;
-	struct cvmx_ipd_port_bp_counters_pairx_s cn56xx;
-	struct cvmx_ipd_port_bp_counters_pairx_s cn56xxp1;
-	struct cvmx_ipd_port_bp_counters_pairx_s cn58xx;
-	struct cvmx_ipd_port_bp_counters_pairx_s cn58xxp1;
-	struct cvmx_ipd_port_bp_counters_pairx_s cn61xx;
-	struct cvmx_ipd_port_bp_counters_pairx_s cn63xx;
-	struct cvmx_ipd_port_bp_counters_pairx_s cn63xxp1;
-	struct cvmx_ipd_port_bp_counters_pairx_s cn66xx;
-	struct cvmx_ipd_port_bp_counters_pairx_s cnf71xx;
 };
 
 union cvmx_ipd_port_ptr_fifo_ctl {
@@ -1384,8 +1104,6 @@ union cvmx_ipd_port_ptr_fifo_ctl {
 		uint64_t reserved_48_63:16;
 #endif
 	} s;
-	struct cvmx_ipd_port_ptr_fifo_ctl_s cn68xx;
-	struct cvmx_ipd_port_ptr_fifo_ctl_s cn68xxp1;
 };
 
 union cvmx_ipd_port_qos_x_cnt {
@@ -1399,17 +1117,6 @@ union cvmx_ipd_port_qos_x_cnt {
 		uint64_t wmark:32;
 #endif
 	} s;
-	struct cvmx_ipd_port_qos_x_cnt_s cn52xx;
-	struct cvmx_ipd_port_qos_x_cnt_s cn52xxp1;
-	struct cvmx_ipd_port_qos_x_cnt_s cn56xx;
-	struct cvmx_ipd_port_qos_x_cnt_s cn56xxp1;
-	struct cvmx_ipd_port_qos_x_cnt_s cn61xx;
-	struct cvmx_ipd_port_qos_x_cnt_s cn63xx;
-	struct cvmx_ipd_port_qos_x_cnt_s cn63xxp1;
-	struct cvmx_ipd_port_qos_x_cnt_s cn66xx;
-	struct cvmx_ipd_port_qos_x_cnt_s cn68xx;
-	struct cvmx_ipd_port_qos_x_cnt_s cn68xxp1;
-	struct cvmx_ipd_port_qos_x_cnt_s cnf71xx;
 };
 
 union cvmx_ipd_port_qos_intx {
@@ -1421,17 +1128,6 @@ union cvmx_ipd_port_qos_intx {
 		uint64_t intr:64;
 #endif
 	} s;
-	struct cvmx_ipd_port_qos_intx_s cn52xx;
-	struct cvmx_ipd_port_qos_intx_s cn52xxp1;
-	struct cvmx_ipd_port_qos_intx_s cn56xx;
-	struct cvmx_ipd_port_qos_intx_s cn56xxp1;
-	struct cvmx_ipd_port_qos_intx_s cn61xx;
-	struct cvmx_ipd_port_qos_intx_s cn63xx;
-	struct cvmx_ipd_port_qos_intx_s cn63xxp1;
-	struct cvmx_ipd_port_qos_intx_s cn66xx;
-	struct cvmx_ipd_port_qos_intx_s cn68xx;
-	struct cvmx_ipd_port_qos_intx_s cn68xxp1;
-	struct cvmx_ipd_port_qos_intx_s cnf71xx;
 };
 
 union cvmx_ipd_port_qos_int_enbx {
@@ -1443,17 +1139,6 @@ union cvmx_ipd_port_qos_int_enbx {
 		uint64_t enb:64;
 #endif
 	} s;
-	struct cvmx_ipd_port_qos_int_enbx_s cn52xx;
-	struct cvmx_ipd_port_qos_int_enbx_s cn52xxp1;
-	struct cvmx_ipd_port_qos_int_enbx_s cn56xx;
-	struct cvmx_ipd_port_qos_int_enbx_s cn56xxp1;
-	struct cvmx_ipd_port_qos_int_enbx_s cn61xx;
-	struct cvmx_ipd_port_qos_int_enbx_s cn63xx;
-	struct cvmx_ipd_port_qos_int_enbx_s cn63xxp1;
-	struct cvmx_ipd_port_qos_int_enbx_s cn66xx;
-	struct cvmx_ipd_port_qos_int_enbx_s cn68xx;
-	struct cvmx_ipd_port_qos_int_enbx_s cn68xxp1;
-	struct cvmx_ipd_port_qos_int_enbx_s cnf71xx;
 };
 
 union cvmx_ipd_port_sopx {
@@ -1465,8 +1150,6 @@ union cvmx_ipd_port_sopx {
 		uint64_t sop:64;
 #endif
 	} s;
-	struct cvmx_ipd_port_sopx_s cn68xx;
-	struct cvmx_ipd_port_sopx_s cn68xxp1;
 };
 
 union cvmx_ipd_prc_hold_ptr_fifo_ctl {
@@ -1488,21 +1171,6 @@ union cvmx_ipd_prc_hold_ptr_fifo_ctl {
 		uint64_t reserved_39_63:25;
 #endif
 	} s;
-	struct cvmx_ipd_prc_hold_ptr_fifo_ctl_s cn30xx;
-	struct cvmx_ipd_prc_hold_ptr_fifo_ctl_s cn31xx;
-	struct cvmx_ipd_prc_hold_ptr_fifo_ctl_s cn38xx;
-	struct cvmx_ipd_prc_hold_ptr_fifo_ctl_s cn50xx;
-	struct cvmx_ipd_prc_hold_ptr_fifo_ctl_s cn52xx;
-	struct cvmx_ipd_prc_hold_ptr_fifo_ctl_s cn52xxp1;
-	struct cvmx_ipd_prc_hold_ptr_fifo_ctl_s cn56xx;
-	struct cvmx_ipd_prc_hold_ptr_fifo_ctl_s cn56xxp1;
-	struct cvmx_ipd_prc_hold_ptr_fifo_ctl_s cn58xx;
-	struct cvmx_ipd_prc_hold_ptr_fifo_ctl_s cn58xxp1;
-	struct cvmx_ipd_prc_hold_ptr_fifo_ctl_s cn61xx;
-	struct cvmx_ipd_prc_hold_ptr_fifo_ctl_s cn63xx;
-	struct cvmx_ipd_prc_hold_ptr_fifo_ctl_s cn63xxp1;
-	struct cvmx_ipd_prc_hold_ptr_fifo_ctl_s cn66xx;
-	struct cvmx_ipd_prc_hold_ptr_fifo_ctl_s cnf71xx;
 };
 
 union cvmx_ipd_prc_port_ptr_fifo_ctl {
@@ -1522,21 +1190,6 @@ union cvmx_ipd_prc_port_ptr_fifo_ctl {
 		uint64_t reserved_44_63:20;
 #endif
 	} s;
-	struct cvmx_ipd_prc_port_ptr_fifo_ctl_s cn30xx;
-	struct cvmx_ipd_prc_port_ptr_fifo_ctl_s cn31xx;
-	struct cvmx_ipd_prc_port_ptr_fifo_ctl_s cn38xx;
-	struct cvmx_ipd_prc_port_ptr_fifo_ctl_s cn50xx;
-	struct cvmx_ipd_prc_port_ptr_fifo_ctl_s cn52xx;
-	struct cvmx_ipd_prc_port_ptr_fifo_ctl_s cn52xxp1;
-	struct cvmx_ipd_prc_port_ptr_fifo_ctl_s cn56xx;
-	struct cvmx_ipd_prc_port_ptr_fifo_ctl_s cn56xxp1;
-	struct cvmx_ipd_prc_port_ptr_fifo_ctl_s cn58xx;
-	struct cvmx_ipd_prc_port_ptr_fifo_ctl_s cn58xxp1;
-	struct cvmx_ipd_prc_port_ptr_fifo_ctl_s cn61xx;
-	struct cvmx_ipd_prc_port_ptr_fifo_ctl_s cn63xx;
-	struct cvmx_ipd_prc_port_ptr_fifo_ctl_s cn63xxp1;
-	struct cvmx_ipd_prc_port_ptr_fifo_ctl_s cn66xx;
-	struct cvmx_ipd_prc_port_ptr_fifo_ctl_s cnf71xx;
 };
 
 union cvmx_ipd_ptr_count {
@@ -1558,24 +1211,6 @@ union cvmx_ipd_ptr_count {
 		uint64_t reserved_19_63:45;
 #endif
 	} s;
-	struct cvmx_ipd_ptr_count_s cn30xx;
-	struct cvmx_ipd_ptr_count_s cn31xx;
-	struct cvmx_ipd_ptr_count_s cn38xx;
-	struct cvmx_ipd_ptr_count_s cn38xxp2;
-	struct cvmx_ipd_ptr_count_s cn50xx;
-	struct cvmx_ipd_ptr_count_s cn52xx;
-	struct cvmx_ipd_ptr_count_s cn52xxp1;
-	struct cvmx_ipd_ptr_count_s cn56xx;
-	struct cvmx_ipd_ptr_count_s cn56xxp1;
-	struct cvmx_ipd_ptr_count_s cn58xx;
-	struct cvmx_ipd_ptr_count_s cn58xxp1;
-	struct cvmx_ipd_ptr_count_s cn61xx;
-	struct cvmx_ipd_ptr_count_s cn63xx;
-	struct cvmx_ipd_ptr_count_s cn63xxp1;
-	struct cvmx_ipd_ptr_count_s cn66xx;
-	struct cvmx_ipd_ptr_count_s cn68xx;
-	struct cvmx_ipd_ptr_count_s cn68xxp1;
-	struct cvmx_ipd_ptr_count_s cnf71xx;
 };
 
 union cvmx_ipd_pwp_ptr_fifo_ctl {
@@ -1599,21 +1234,6 @@ union cvmx_ipd_pwp_ptr_fifo_ctl {
 		uint64_t reserved_61_63:3;
 #endif
 	} s;
-	struct cvmx_ipd_pwp_ptr_fifo_ctl_s cn30xx;
-	struct cvmx_ipd_pwp_ptr_fifo_ctl_s cn31xx;
-	struct cvmx_ipd_pwp_ptr_fifo_ctl_s cn38xx;
-	struct cvmx_ipd_pwp_ptr_fifo_ctl_s cn50xx;
-	struct cvmx_ipd_pwp_ptr_fifo_ctl_s cn52xx;
-	struct cvmx_ipd_pwp_ptr_fifo_ctl_s cn52xxp1;
-	struct cvmx_ipd_pwp_ptr_fifo_ctl_s cn56xx;
-	struct cvmx_ipd_pwp_ptr_fifo_ctl_s cn56xxp1;
-	struct cvmx_ipd_pwp_ptr_fifo_ctl_s cn58xx;
-	struct cvmx_ipd_pwp_ptr_fifo_ctl_s cn58xxp1;
-	struct cvmx_ipd_pwp_ptr_fifo_ctl_s cn61xx;
-	struct cvmx_ipd_pwp_ptr_fifo_ctl_s cn63xx;
-	struct cvmx_ipd_pwp_ptr_fifo_ctl_s cn63xxp1;
-	struct cvmx_ipd_pwp_ptr_fifo_ctl_s cn66xx;
-	struct cvmx_ipd_pwp_ptr_fifo_ctl_s cnf71xx;
 };
 
 union cvmx_ipd_qosx_red_marks {
@@ -1627,24 +1247,6 @@ union cvmx_ipd_qosx_red_marks {
 		uint64_t drop:32;
 #endif
 	} s;
-	struct cvmx_ipd_qosx_red_marks_s cn30xx;
-	struct cvmx_ipd_qosx_red_marks_s cn31xx;
-	struct cvmx_ipd_qosx_red_marks_s cn38xx;
-	struct cvmx_ipd_qosx_red_marks_s cn38xxp2;
-	struct cvmx_ipd_qosx_red_marks_s cn50xx;
-	struct cvmx_ipd_qosx_red_marks_s cn52xx;
-	struct cvmx_ipd_qosx_red_marks_s cn52xxp1;
-	struct cvmx_ipd_qosx_red_marks_s cn56xx;
-	struct cvmx_ipd_qosx_red_marks_s cn56xxp1;
-	struct cvmx_ipd_qosx_red_marks_s cn58xx;
-	struct cvmx_ipd_qosx_red_marks_s cn58xxp1;
-	struct cvmx_ipd_qosx_red_marks_s cn61xx;
-	struct cvmx_ipd_qosx_red_marks_s cn63xx;
-	struct cvmx_ipd_qosx_red_marks_s cn63xxp1;
-	struct cvmx_ipd_qosx_red_marks_s cn66xx;
-	struct cvmx_ipd_qosx_red_marks_s cn68xx;
-	struct cvmx_ipd_qosx_red_marks_s cn68xxp1;
-	struct cvmx_ipd_qosx_red_marks_s cnf71xx;
 };
 
 union cvmx_ipd_que0_free_page_cnt {
@@ -1658,24 +1260,6 @@ union cvmx_ipd_que0_free_page_cnt {
 		uint64_t reserved_32_63:32;
 #endif
 	} s;
-	struct cvmx_ipd_que0_free_page_cnt_s cn30xx;
-	struct cvmx_ipd_que0_free_page_cnt_s cn31xx;
-	struct cvmx_ipd_que0_free_page_cnt_s cn38xx;
-	struct cvmx_ipd_que0_free_page_cnt_s cn38xxp2;
-	struct cvmx_ipd_que0_free_page_cnt_s cn50xx;
-	struct cvmx_ipd_que0_free_page_cnt_s cn52xx;
-	struct cvmx_ipd_que0_free_page_cnt_s cn52xxp1;
-	struct cvmx_ipd_que0_free_page_cnt_s cn56xx;
-	struct cvmx_ipd_que0_free_page_cnt_s cn56xxp1;
-	struct cvmx_ipd_que0_free_page_cnt_s cn58xx;
-	struct cvmx_ipd_que0_free_page_cnt_s cn58xxp1;
-	struct cvmx_ipd_que0_free_page_cnt_s cn61xx;
-	struct cvmx_ipd_que0_free_page_cnt_s cn63xx;
-	struct cvmx_ipd_que0_free_page_cnt_s cn63xxp1;
-	struct cvmx_ipd_que0_free_page_cnt_s cn66xx;
-	struct cvmx_ipd_que0_free_page_cnt_s cn68xx;
-	struct cvmx_ipd_que0_free_page_cnt_s cn68xxp1;
-	struct cvmx_ipd_que0_free_page_cnt_s cnf71xx;
 };
 
 union cvmx_ipd_red_bpid_enablex {
@@ -1687,8 +1271,6 @@ union cvmx_ipd_red_bpid_enablex {
 		uint64_t prt_enb:64;
 #endif
 	} s;
-	struct cvmx_ipd_red_bpid_enablex_s cn68xx;
-	struct cvmx_ipd_red_bpid_enablex_s cn68xxp1;
 };
 
 union cvmx_ipd_red_delay {
@@ -1704,8 +1286,6 @@ union cvmx_ipd_red_delay {
 		uint64_t reserved_28_63:36;
 #endif
 	} s;
-	struct cvmx_ipd_red_delay_s cn68xx;
-	struct cvmx_ipd_red_delay_s cn68xxp1;
 };
 
 union cvmx_ipd_red_port_enable {
@@ -1721,22 +1301,6 @@ union cvmx_ipd_red_port_enable {
 		uint64_t prb_dly:14;
 #endif
 	} s;
-	struct cvmx_ipd_red_port_enable_s cn30xx;
-	struct cvmx_ipd_red_port_enable_s cn31xx;
-	struct cvmx_ipd_red_port_enable_s cn38xx;
-	struct cvmx_ipd_red_port_enable_s cn38xxp2;
-	struct cvmx_ipd_red_port_enable_s cn50xx;
-	struct cvmx_ipd_red_port_enable_s cn52xx;
-	struct cvmx_ipd_red_port_enable_s cn52xxp1;
-	struct cvmx_ipd_red_port_enable_s cn56xx;
-	struct cvmx_ipd_red_port_enable_s cn56xxp1;
-	struct cvmx_ipd_red_port_enable_s cn58xx;
-	struct cvmx_ipd_red_port_enable_s cn58xxp1;
-	struct cvmx_ipd_red_port_enable_s cn61xx;
-	struct cvmx_ipd_red_port_enable_s cn63xx;
-	struct cvmx_ipd_red_port_enable_s cn63xxp1;
-	struct cvmx_ipd_red_port_enable_s cn66xx;
-	struct cvmx_ipd_red_port_enable_s cnf71xx;
 };
 
 union cvmx_ipd_red_port_enable2 {
@@ -1759,10 +1323,6 @@ union cvmx_ipd_red_port_enable2 {
 		uint64_t reserved_4_63:60;
 #endif
 	} cn52xx;
-	struct cvmx_ipd_red_port_enable2_cn52xx cn52xxp1;
-	struct cvmx_ipd_red_port_enable2_cn52xx cn56xx;
-	struct cvmx_ipd_red_port_enable2_cn52xx cn56xxp1;
-	struct cvmx_ipd_red_port_enable2_s cn61xx;
 	struct cvmx_ipd_red_port_enable2_cn63xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_8_63:56;
@@ -1772,9 +1332,6 @@ union cvmx_ipd_red_port_enable2 {
 		uint64_t reserved_8_63:56;
 #endif
 	} cn63xx;
-	struct cvmx_ipd_red_port_enable2_cn63xx cn63xxp1;
-	struct cvmx_ipd_red_port_enable2_s cn66xx;
-	struct cvmx_ipd_red_port_enable2_s cnf71xx;
 };
 
 union cvmx_ipd_red_quex_param {
@@ -1794,24 +1351,6 @@ union cvmx_ipd_red_quex_param {
 		uint64_t reserved_49_63:15;
 #endif
 	} s;
-	struct cvmx_ipd_red_quex_param_s cn30xx;
-	struct cvmx_ipd_red_quex_param_s cn31xx;
-	struct cvmx_ipd_red_quex_param_s cn38xx;
-	struct cvmx_ipd_red_quex_param_s cn38xxp2;
-	struct cvmx_ipd_red_quex_param_s cn50xx;
-	struct cvmx_ipd_red_quex_param_s cn52xx;
-	struct cvmx_ipd_red_quex_param_s cn52xxp1;
-	struct cvmx_ipd_red_quex_param_s cn56xx;
-	struct cvmx_ipd_red_quex_param_s cn56xxp1;
-	struct cvmx_ipd_red_quex_param_s cn58xx;
-	struct cvmx_ipd_red_quex_param_s cn58xxp1;
-	struct cvmx_ipd_red_quex_param_s cn61xx;
-	struct cvmx_ipd_red_quex_param_s cn63xx;
-	struct cvmx_ipd_red_quex_param_s cn63xxp1;
-	struct cvmx_ipd_red_quex_param_s cn66xx;
-	struct cvmx_ipd_red_quex_param_s cn68xx;
-	struct cvmx_ipd_red_quex_param_s cn68xxp1;
-	struct cvmx_ipd_red_quex_param_s cnf71xx;
 };
 
 union cvmx_ipd_req_wgt {
@@ -1837,7 +1376,6 @@ union cvmx_ipd_req_wgt {
 		uint64_t wgt7:8;
 #endif
 	} s;
-	struct cvmx_ipd_req_wgt_s cn68xx;
 };
 
 union cvmx_ipd_sub_port_bp_page_cnt {
@@ -1853,24 +1391,6 @@ union cvmx_ipd_sub_port_bp_page_cnt {
 		uint64_t reserved_31_63:33;
 #endif
 	} s;
-	struct cvmx_ipd_sub_port_bp_page_cnt_s cn30xx;
-	struct cvmx_ipd_sub_port_bp_page_cnt_s cn31xx;
-	struct cvmx_ipd_sub_port_bp_page_cnt_s cn38xx;
-	struct cvmx_ipd_sub_port_bp_page_cnt_s cn38xxp2;
-	struct cvmx_ipd_sub_port_bp_page_cnt_s cn50xx;
-	struct cvmx_ipd_sub_port_bp_page_cnt_s cn52xx;
-	struct cvmx_ipd_sub_port_bp_page_cnt_s cn52xxp1;
-	struct cvmx_ipd_sub_port_bp_page_cnt_s cn56xx;
-	struct cvmx_ipd_sub_port_bp_page_cnt_s cn56xxp1;
-	struct cvmx_ipd_sub_port_bp_page_cnt_s cn58xx;
-	struct cvmx_ipd_sub_port_bp_page_cnt_s cn58xxp1;
-	struct cvmx_ipd_sub_port_bp_page_cnt_s cn61xx;
-	struct cvmx_ipd_sub_port_bp_page_cnt_s cn63xx;
-	struct cvmx_ipd_sub_port_bp_page_cnt_s cn63xxp1;
-	struct cvmx_ipd_sub_port_bp_page_cnt_s cn66xx;
-	struct cvmx_ipd_sub_port_bp_page_cnt_s cn68xx;
-	struct cvmx_ipd_sub_port_bp_page_cnt_s cn68xxp1;
-	struct cvmx_ipd_sub_port_bp_page_cnt_s cnf71xx;
 };
 
 union cvmx_ipd_sub_port_fcs {
@@ -1897,7 +1417,6 @@ union cvmx_ipd_sub_port_fcs {
 		uint64_t reserved_3_63:61;
 #endif
 	} cn30xx;
-	struct cvmx_ipd_sub_port_fcs_cn30xx cn31xx;
 	struct cvmx_ipd_sub_port_fcs_cn38xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_32_63:32;
@@ -1907,19 +1426,6 @@ union cvmx_ipd_sub_port_fcs {
 		uint64_t reserved_32_63:32;
 #endif
 	} cn38xx;
-	struct cvmx_ipd_sub_port_fcs_cn38xx cn38xxp2;
-	struct cvmx_ipd_sub_port_fcs_cn30xx cn50xx;
-	struct cvmx_ipd_sub_port_fcs_s cn52xx;
-	struct cvmx_ipd_sub_port_fcs_s cn52xxp1;
-	struct cvmx_ipd_sub_port_fcs_s cn56xx;
-	struct cvmx_ipd_sub_port_fcs_s cn56xxp1;
-	struct cvmx_ipd_sub_port_fcs_cn38xx cn58xx;
-	struct cvmx_ipd_sub_port_fcs_cn38xx cn58xxp1;
-	struct cvmx_ipd_sub_port_fcs_s cn61xx;
-	struct cvmx_ipd_sub_port_fcs_s cn63xx;
-	struct cvmx_ipd_sub_port_fcs_s cn63xxp1;
-	struct cvmx_ipd_sub_port_fcs_s cn66xx;
-	struct cvmx_ipd_sub_port_fcs_s cnf71xx;
 };
 
 union cvmx_ipd_sub_port_qos_cnt {
@@ -1935,17 +1441,6 @@ union cvmx_ipd_sub_port_qos_cnt {
 		uint64_t reserved_41_63:23;
 #endif
 	} s;
-	struct cvmx_ipd_sub_port_qos_cnt_s cn52xx;
-	struct cvmx_ipd_sub_port_qos_cnt_s cn52xxp1;
-	struct cvmx_ipd_sub_port_qos_cnt_s cn56xx;
-	struct cvmx_ipd_sub_port_qos_cnt_s cn56xxp1;
-	struct cvmx_ipd_sub_port_qos_cnt_s cn61xx;
-	struct cvmx_ipd_sub_port_qos_cnt_s cn63xx;
-	struct cvmx_ipd_sub_port_qos_cnt_s cn63xxp1;
-	struct cvmx_ipd_sub_port_qos_cnt_s cn66xx;
-	struct cvmx_ipd_sub_port_qos_cnt_s cn68xx;
-	struct cvmx_ipd_sub_port_qos_cnt_s cn68xxp1;
-	struct cvmx_ipd_sub_port_qos_cnt_s cnf71xx;
 };
 
 union cvmx_ipd_wqe_fpa_queue {
@@ -1959,24 +1454,6 @@ union cvmx_ipd_wqe_fpa_queue {
 		uint64_t reserved_3_63:61;
 #endif
 	} s;
-	struct cvmx_ipd_wqe_fpa_queue_s cn30xx;
-	struct cvmx_ipd_wqe_fpa_queue_s cn31xx;
-	struct cvmx_ipd_wqe_fpa_queue_s cn38xx;
-	struct cvmx_ipd_wqe_fpa_queue_s cn38xxp2;
-	struct cvmx_ipd_wqe_fpa_queue_s cn50xx;
-	struct cvmx_ipd_wqe_fpa_queue_s cn52xx;
-	struct cvmx_ipd_wqe_fpa_queue_s cn52xxp1;
-	struct cvmx_ipd_wqe_fpa_queue_s cn56xx;
-	struct cvmx_ipd_wqe_fpa_queue_s cn56xxp1;
-	struct cvmx_ipd_wqe_fpa_queue_s cn58xx;
-	struct cvmx_ipd_wqe_fpa_queue_s cn58xxp1;
-	struct cvmx_ipd_wqe_fpa_queue_s cn61xx;
-	struct cvmx_ipd_wqe_fpa_queue_s cn63xx;
-	struct cvmx_ipd_wqe_fpa_queue_s cn63xxp1;
-	struct cvmx_ipd_wqe_fpa_queue_s cn66xx;
-	struct cvmx_ipd_wqe_fpa_queue_s cn68xx;
-	struct cvmx_ipd_wqe_fpa_queue_s cn68xxp1;
-	struct cvmx_ipd_wqe_fpa_queue_s cnf71xx;
 };
 
 union cvmx_ipd_wqe_ptr_valid {
@@ -1990,21 +1467,6 @@ union cvmx_ipd_wqe_ptr_valid {
 		uint64_t reserved_29_63:35;
 #endif
 	} s;
-	struct cvmx_ipd_wqe_ptr_valid_s cn30xx;
-	struct cvmx_ipd_wqe_ptr_valid_s cn31xx;
-	struct cvmx_ipd_wqe_ptr_valid_s cn38xx;
-	struct cvmx_ipd_wqe_ptr_valid_s cn50xx;
-	struct cvmx_ipd_wqe_ptr_valid_s cn52xx;
-	struct cvmx_ipd_wqe_ptr_valid_s cn52xxp1;
-	struct cvmx_ipd_wqe_ptr_valid_s cn56xx;
-	struct cvmx_ipd_wqe_ptr_valid_s cn56xxp1;
-	struct cvmx_ipd_wqe_ptr_valid_s cn58xx;
-	struct cvmx_ipd_wqe_ptr_valid_s cn58xxp1;
-	struct cvmx_ipd_wqe_ptr_valid_s cn61xx;
-	struct cvmx_ipd_wqe_ptr_valid_s cn63xx;
-	struct cvmx_ipd_wqe_ptr_valid_s cn63xxp1;
-	struct cvmx_ipd_wqe_ptr_valid_s cn66xx;
-	struct cvmx_ipd_wqe_ptr_valid_s cnf71xx;
 };
 
 #endif

@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _open:
 
@@ -53,7 +60,7 @@ ranges. These ranges are listed in :ref:`devices`.
 
 The creation of character special files (with mknod) is a privileged
 operation and devices cannot be opened by major and minor number. That
-means applications cannot *reliable* scan for loaded or installed
+means applications cannot *reliably* scan for loaded or installed
 drivers. The user must enter a device name, or the application can try
 the conventional device names.
 

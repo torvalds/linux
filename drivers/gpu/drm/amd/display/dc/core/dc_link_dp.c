@@ -1089,6 +1089,121 @@ static struct dc_link_settings get_max_link_cap(struct dc_link *link)
 	return max_link_cap;
 }
 
+static enum dc_status read_hpd_rx_irq_data(
+	struct dc_link *link,
+	union hpd_irq_data *irq_data)
+{
+	static enum dc_status retval;
+
+	/* The HW reads 16 bytes from 200h on HPD,
+	 * but if we get an AUX_DEFER, the HW cannot retry
+	 * and this causes the CTS tests 4.3.2.1 - 3.2.4 to
+	 * fail, so we now explicitly read 6 bytes which is
+	 * the req from the above mentioned test cases.
+	 *
+	 * For DP 1.4 we need to read those from 2002h range.
+	 */
+	if (link->dpcd_caps.dpcd_rev.raw < DPCD_REV_14)
+		retval = core_link_read_dpcd(
+			link,
+			DP_SINK_COUNT,
+			irq_data->raw,
+			sizeof(union hpd_irq_data));
+	else {
+		/* Read 14 bytes in a single read and then copy only the required fields.
+		 * This is more efficient than doing it in two separate AUX reads. */
+
+		uint8_t tmp[DP_SINK_STATUS_ESI - DP_SINK_COUNT_ESI + 1];
+
+		retval = core_link_read_dpcd(
+			link,
+			DP_SINK_COUNT_ESI,
+			tmp,
+			sizeof(tmp));
+
+		if (retval != DC_OK)
+			return retval;
+
+		irq_data->bytes.sink_cnt.raw = tmp[DP_SINK_COUNT_ESI - DP_SINK_COUNT_ESI];
+		irq_data->bytes.device_service_irq.raw = tmp[DP_DEVICE_SERVICE_IRQ_VECTOR_ESI0 - DP_SINK_COUNT_ESI];
+		irq_data->bytes.lane01_status.raw = tmp[DP_LANE0_1_STATUS_ESI - DP_SINK_COUNT_ESI];
+		irq_data->bytes.lane23_status.raw = tmp[DP_LANE2_3_STATUS_ESI - DP_SINK_COUNT_ESI];
+		irq_data->bytes.lane_status_updated.raw = tmp[DP_LANE_ALIGN_STATUS_UPDATED_ESI - DP_SINK_COUNT_ESI];
+		irq_data->bytes.sink_status.raw = tmp[DP_SINK_STATUS_ESI - DP_SINK_COUNT_ESI];
+	}
+
+	return retval;
+}
+
+static bool hpd_rx_irq_check_link_loss_status(
+	struct dc_link *link,
+	union hpd_irq_data *hpd_irq_dpcd_data)
+{
+	uint8_t irq_reg_rx_power_state = 0;
+	enum dc_status dpcd_result = DC_ERROR_UNEXPECTED;
+	union lane_status lane_status;
+	uint32_t lane;
+	bool sink_status_changed;
+	bool return_code;
+
+	sink_status_changed = false;
+	return_code = false;
+
+	if (link->cur_link_settings.lane_count == 0)
+		return return_code;
+
+	/*1. Check that Link Status changed, before re-training.*/
+
+	/*parse lane status*/
+	for (lane = 0; lane < link->cur_link_settings.lane_count; lane++) {
+		/* check status of lanes 0,1
+		 * changed DpcdAddress_Lane01Status (0x202)
+		 */
+		lane_status.raw = get_nibble_at_index(
+			&hpd_irq_dpcd_data->bytes.lane01_status.raw,
+			lane);
+
+		if (!lane_status.bits.CHANNEL_EQ_DONE_0 ||
+			!lane_status.bits.CR_DONE_0 ||
+			!lane_status.bits.SYMBOL_LOCKED_0) {
+			/* if one of the channel equalization, clock
+			 * recovery or symbol lock is dropped
+			 * consider it as (link has been
+			 * dropped) dp sink status has changed
+			 */
+			sink_status_changed = true;
+			break;
+		}
+	}
+
+	/* Check interlane align.*/
+	if (sink_status_changed ||
+		!hpd_irq_dpcd_data->bytes.lane_status_updated.bits.INTERLANE_ALIGN_DONE) {
+
+		DC_LOG_HW_HPD_IRQ("%s: Link Status changed.\n", __func__);
+
+		return_code = true;
+
+		/*2. Check that we can handle interrupt: Not in FS DOS,
+		 *  Not in "Display Timeout" state, Link is trained.
+		 */
+		dpcd_result = core_link_read_dpcd(link,
+			DP_SET_POWER,
+			&irq_reg_rx_power_state,
+			sizeof(irq_reg_rx_power_state));
+
+		if (dpcd_result != DC_OK) {
+			DC_LOG_HW_HPD_IRQ("%s: DPCD read failed to obtain power state.\n",
+				__func__);
+		} else {
+			if (irq_reg_rx_power_state != DP_SET_POWER_D0)
+				return_code = false;
+		}
+	}
+
+	return return_code;
+}
+
 bool dp_verify_link_cap(
 	struct dc_link *link,
 	struct dc_link_settings *known_limit_link_setting,
@@ -1104,12 +1219,14 @@ bool dp_verify_link_cap(
 	struct clock_source *dp_cs;
 	enum clock_source_id dp_cs_id = CLOCK_SOURCE_ID_EXTERNAL;
 	enum link_training_result status;
+	union hpd_irq_data irq_data;
 
 	if (link->dc->debug.skip_detection_link_training) {
 		link->verified_link_cap = *known_limit_link_setting;
 		return true;
 	}
 
+	memset(&irq_data, 0, sizeof(irq_data));
 	success = false;
 	skip_link_training = false;
 
@@ -1168,9 +1285,15 @@ bool dp_verify_link_cap(
 				(*fail_count)++;
 		}
 
-		if (success)
+		if (success) {
 			link->verified_link_cap = *cur;
-
+			udelay(1000);
+			if (read_hpd_rx_irq_data(link, &irq_data) == DC_OK)
+				if (hpd_rx_irq_check_link_loss_status(
+						link,
+						&irq_data))
+					(*fail_count)++;
+		}
 		/* always disable the link before trying another
 		 * setting or before returning we'll enable it later
 		 * based on the actual mode we're driving
@@ -1572,122 +1695,6 @@ void decide_link_settings(struct dc_stream_state *stream,
 }
 
 /*************************Short Pulse IRQ***************************/
-
-static bool hpd_rx_irq_check_link_loss_status(
-	struct dc_link *link,
-	union hpd_irq_data *hpd_irq_dpcd_data)
-{
-	uint8_t irq_reg_rx_power_state = 0;
-	enum dc_status dpcd_result = DC_ERROR_UNEXPECTED;
-	union lane_status lane_status;
-	uint32_t lane;
-	bool sink_status_changed;
-	bool return_code;
-
-	sink_status_changed = false;
-	return_code = false;
-
-	if (link->cur_link_settings.lane_count == 0)
-		return return_code;
-
-	/*1. Check that Link Status changed, before re-training.*/
-
-	/*parse lane status*/
-	for (lane = 0; lane < link->cur_link_settings.lane_count; lane++) {
-		/* check status of lanes 0,1
-		 * changed DpcdAddress_Lane01Status (0x202)
-		 */
-		lane_status.raw = get_nibble_at_index(
-			&hpd_irq_dpcd_data->bytes.lane01_status.raw,
-			lane);
-
-		if (!lane_status.bits.CHANNEL_EQ_DONE_0 ||
-			!lane_status.bits.CR_DONE_0 ||
-			!lane_status.bits.SYMBOL_LOCKED_0) {
-			/* if one of the channel equalization, clock
-			 * recovery or symbol lock is dropped
-			 * consider it as (link has been
-			 * dropped) dp sink status has changed
-			 */
-			sink_status_changed = true;
-			break;
-		}
-	}
-
-	/* Check interlane align.*/
-	if (sink_status_changed ||
-		!hpd_irq_dpcd_data->bytes.lane_status_updated.bits.INTERLANE_ALIGN_DONE) {
-
-		DC_LOG_HW_HPD_IRQ("%s: Link Status changed.\n", __func__);
-
-		return_code = true;
-
-		/*2. Check that we can handle interrupt: Not in FS DOS,
-		 *  Not in "Display Timeout" state, Link is trained.
-		 */
-		dpcd_result = core_link_read_dpcd(link,
-			DP_SET_POWER,
-			&irq_reg_rx_power_state,
-			sizeof(irq_reg_rx_power_state));
-
-		if (dpcd_result != DC_OK) {
-			DC_LOG_HW_HPD_IRQ("%s: DPCD read failed to obtain power state.\n",
-				__func__);
-		} else {
-			if (irq_reg_rx_power_state != DP_SET_POWER_D0)
-				return_code = false;
-		}
-	}
-
-	return return_code;
-}
-
-static enum dc_status read_hpd_rx_irq_data(
-	struct dc_link *link,
-	union hpd_irq_data *irq_data)
-{
-	static enum dc_status retval;
-
-	/* The HW reads 16 bytes from 200h on HPD,
-	 * but if we get an AUX_DEFER, the HW cannot retry
-	 * and this causes the CTS tests 4.3.2.1 - 3.2.4 to
-	 * fail, so we now explicitly read 6 bytes which is
-	 * the req from the above mentioned test cases.
-	 *
-	 * For DP 1.4 we need to read those from 2002h range.
-	 */
-	if (link->dpcd_caps.dpcd_rev.raw < DPCD_REV_14)
-		retval = core_link_read_dpcd(
-			link,
-			DP_SINK_COUNT,
-			irq_data->raw,
-			sizeof(union hpd_irq_data));
-	else {
-		/* Read 14 bytes in a single read and then copy only the required fields.
-		 * This is more efficient than doing it in two separate AUX reads. */
-
-		uint8_t tmp[DP_SINK_STATUS_ESI - DP_SINK_COUNT_ESI + 1];
-
-		retval = core_link_read_dpcd(
-			link,
-			DP_SINK_COUNT_ESI,
-			tmp,
-			sizeof(tmp));
-
-		if (retval != DC_OK)
-			return retval;
-
-		irq_data->bytes.sink_cnt.raw = tmp[DP_SINK_COUNT_ESI - DP_SINK_COUNT_ESI];
-		irq_data->bytes.device_service_irq.raw = tmp[DP_DEVICE_SERVICE_IRQ_VECTOR_ESI0 - DP_SINK_COUNT_ESI];
-		irq_data->bytes.lane01_status.raw = tmp[DP_LANE0_1_STATUS_ESI - DP_SINK_COUNT_ESI];
-		irq_data->bytes.lane23_status.raw = tmp[DP_LANE2_3_STATUS_ESI - DP_SINK_COUNT_ESI];
-		irq_data->bytes.lane_status_updated.raw = tmp[DP_LANE_ALIGN_STATUS_UPDATED_ESI - DP_SINK_COUNT_ESI];
-		irq_data->bytes.sink_status.raw = tmp[DP_SINK_STATUS_ESI - DP_SINK_COUNT_ESI];
-	}
-
-	return retval;
-}
-
 static bool allow_hpd_rx_irq(const struct dc_link *link)
 {
 	/*
@@ -2196,7 +2203,7 @@ static void get_active_converter_info(
 	}
 
 	if (link->dpcd_caps.dpcd_rev.raw >= DPCD_REV_11) {
-		uint8_t det_caps[4];
+		uint8_t det_caps[16]; /* CTS 4.2.2.7 expects source to read Detailed Capabilities Info : 00080h-0008F.*/
 		union dwnstream_port_caps_byte0 *port_caps =
 			(union dwnstream_port_caps_byte0 *)det_caps;
 		core_link_read_dpcd(link, DP_DOWNSTREAM_PORT_0,
@@ -2240,7 +2247,8 @@ static void get_active_converter_info(
 					translate_dpcd_max_bpc(
 						hdmi_color_caps.bits.MAX_BITS_PER_COLOR_COMPONENT);
 
-				link->dpcd_caps.dongle_caps.extendedCapValid = true;
+				if (link->dpcd_caps.dongle_caps.dp_hdmi_max_pixel_clk != 0)
+					link->dpcd_caps.dongle_caps.extendedCapValid = true;
 			}
 
 			break;
@@ -2371,11 +2379,22 @@ static bool retrieve_link_cap(struct dc_link *link)
 			dpcd_data[DP_TRAINING_AUX_RD_INTERVAL];
 
 		if (aux_rd_interval.bits.EXT_RECIEVER_CAP_FIELD_PRESENT == 1) {
-			core_link_read_dpcd(
+			uint8_t ext_cap_data[16];
+
+			memset(ext_cap_data, '\0', sizeof(ext_cap_data));
+			for (i = 0; i < read_dpcd_retry_cnt; i++) {
+				status = core_link_read_dpcd(
 				link,
 				DP_DP13_DPCD_REV,
-				dpcd_data,
-				sizeof(dpcd_data));
+				ext_cap_data,
+				sizeof(ext_cap_data));
+				if (status == DC_OK) {
+					memcpy(dpcd_data, ext_cap_data, sizeof(dpcd_data));
+					break;
+				}
+			}
+			if (status != DC_OK)
+				dm_error("%s: Read extend caps data failed, use cap from dpcd 0.\n", __func__);
 		}
 	}
 

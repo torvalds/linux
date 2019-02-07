@@ -309,7 +309,7 @@ int i1480_usb_cmd(struct i1480 *i1480, const char *cmd_name, size_t cmd_size)
 	if (result < 0) {
 		dev_err(dev, "%s: cannot submit NEEP read: %d\n",
 			cmd_name, result);
-			goto error_submit_ep1;
+		goto error_submit_ep1;
 	}
 	/* Now post the command on EP0 */
 	result = usb_control_msg(

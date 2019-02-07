@@ -90,6 +90,18 @@ config DRM_PANEL_LG_LG4573
 	  Say Y here if you want to enable support for LG4573 RGB panel.
 	  To compile this driver as a module, choose M here.
 
+config DRM_PANEL_OLIMEX_LCD_OLINUXINO
+	tristate "Olimex LCD-OLinuXino panel"
+	depends on OF
+	depends on I2C
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  The panel is used with different sizes LCDs, from 480x272 to
+	  1280x800, and 24 bit per pixel.
+
+	  Say Y here if you want to enable support for Olimex Ltd.
+	  LCD-OLinuXino panel.
+
 config DRM_PANEL_ORISETECH_OTM8009A
 	tristate "Orise Technology otm8009a 480x800 dsi 2dl panel"
 	depends on OF
@@ -125,6 +137,12 @@ config DRM_PANEL_RAYDIUM_RM68200
 	help
 	  Say Y here if you want to enable support for Raydium RM68200
 	  720x1280 DSI video mode panel.
+
+config DRM_PANEL_SAMSUNG_S6D16D0
+	tristate "Samsung S6D16D0 DSI video mode panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	select VIDEOMODE_HELPERS
 
 config DRM_PANEL_SAMSUNG_S6E3HA2
 	tristate "Samsung S6E3HA2 DSI video mode panel"
@@ -186,4 +204,11 @@ config DRM_PANEL_SITRONIX_ST7789V
 	  Say Y here if you want to enable support for the Sitronix
 	  ST7789V controller for 240x320 LCD panels
 
+config DRM_PANEL_TRULY_NT35597_WQXGA
+	tristate "Truly WQXGA"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	help
+	  Say Y here if you want to enable support for Truly NT35597 WQXGA Dual DSI
+	  Video Mode panel
 endmenu

@@ -368,6 +368,7 @@ static int sun8i_mixer_bind(struct device *dev, struct device *master,
 	struct sun8i_mixer *mixer;
 	struct resource *res;
 	void __iomem *regs;
+	unsigned int base;
 	int plane_cnt;
 	int i, ret;
 
@@ -456,33 +457,60 @@ static int sun8i_mixer_bind(struct device *dev, struct device *master,
 
 	list_add_tail(&mixer->engine.list, &drv->engine_list);
 
-	/* Reset the registers */
-	for (i = 0x0; i < 0x20000; i += 4)
-		regmap_write(mixer->engine.regs, i, 0);
+	base = sun8i_blender_base(mixer);
+
+	/* Reset registers and disable unused sub-engines */
+	if (mixer->cfg->is_de3) {
+		for (i = 0; i < DE3_MIXER_UNIT_SIZE; i += 4)
+			regmap_write(mixer->engine.regs, i, 0);
+
+		regmap_write(mixer->engine.regs, SUN50I_MIXER_FCE_EN, 0);
+		regmap_write(mixer->engine.regs, SUN50I_MIXER_PEAK_EN, 0);
+		regmap_write(mixer->engine.regs, SUN50I_MIXER_LCTI_EN, 0);
+		regmap_write(mixer->engine.regs, SUN50I_MIXER_BLS_EN, 0);
+		regmap_write(mixer->engine.regs, SUN50I_MIXER_FCC_EN, 0);
+		regmap_write(mixer->engine.regs, SUN50I_MIXER_DNS_EN, 0);
+		regmap_write(mixer->engine.regs, SUN50I_MIXER_DRC_EN, 0);
+		regmap_write(mixer->engine.regs, SUN50I_MIXER_FMT_EN, 0);
+		regmap_write(mixer->engine.regs, SUN50I_MIXER_CDC0_EN, 0);
+		regmap_write(mixer->engine.regs, SUN50I_MIXER_CDC1_EN, 0);
+	} else {
+		for (i = 0; i < DE2_MIXER_UNIT_SIZE; i += 4)
+			regmap_write(mixer->engine.regs, i, 0);
+
+		regmap_write(mixer->engine.regs, SUN8I_MIXER_FCE_EN, 0);
+		regmap_write(mixer->engine.regs, SUN8I_MIXER_BWS_EN, 0);
+		regmap_write(mixer->engine.regs, SUN8I_MIXER_LTI_EN, 0);
+		regmap_write(mixer->engine.regs, SUN8I_MIXER_PEAK_EN, 0);
+		regmap_write(mixer->engine.regs, SUN8I_MIXER_ASE_EN, 0);
+		regmap_write(mixer->engine.regs, SUN8I_MIXER_FCC_EN, 0);
+		regmap_write(mixer->engine.regs, SUN8I_MIXER_DCSC_EN, 0);
+	}
 
 	/* Enable the mixer */
 	regmap_write(mixer->engine.regs, SUN8I_MIXER_GLOBAL_CTL,
 		     SUN8I_MIXER_GLOBAL_CTL_RT_EN);
 
 	/* Set background color to black */
-	regmap_write(mixer->engine.regs, SUN8I_MIXER_BLEND_BKCOLOR,
+	regmap_write(mixer->engine.regs, SUN8I_MIXER_BLEND_BKCOLOR(base),
 		     SUN8I_MIXER_BLEND_COLOR_BLACK);
 
 	/*
 	 * Set fill color of bottom plane to black. Generally not needed
 	 * except when VI plane is at bottom (zpos = 0) and enabled.
 	 */
-	regmap_write(mixer->engine.regs, SUN8I_MIXER_BLEND_PIPE_CTL,
+	regmap_write(mixer->engine.regs, SUN8I_MIXER_BLEND_PIPE_CTL(base),
 		     SUN8I_MIXER_BLEND_PIPE_CTL_FC_EN(0));
-	regmap_write(mixer->engine.regs, SUN8I_MIXER_BLEND_ATTR_FCOLOR(0),
+	regmap_write(mixer->engine.regs, SUN8I_MIXER_BLEND_ATTR_FCOLOR(base, 0),
 		     SUN8I_MIXER_BLEND_COLOR_BLACK);
 
 	plane_cnt = mixer->cfg->vi_num + mixer->cfg->ui_num;
 	for (i = 0; i < plane_cnt; i++)
-		regmap_write(mixer->engine.regs, SUN8I_MIXER_BLEND_MODE(i),
+		regmap_write(mixer->engine.regs,
+			     SUN8I_MIXER_BLEND_MODE(base, i),
 			     SUN8I_MIXER_BLEND_MODE_DEF);
 
-	regmap_update_bits(mixer->engine.regs, SUN8I_MIXER_BLEND_PIPE_CTL,
+	regmap_update_bits(mixer->engine.regs, SUN8I_MIXER_BLEND_PIPE_CTL(base),
 			   SUN8I_MIXER_BLEND_PIPE_CTL_EN_MSK, 0);
 
 	return 0;
@@ -585,6 +613,15 @@ static const struct sun8i_mixer_cfg sun50i_a64_mixer1_cfg = {
 	.vi_num		= 1,
 };
 
+static const struct sun8i_mixer_cfg sun50i_h6_mixer0_cfg = {
+	.ccsc		= 0,
+	.is_de3		= true,
+	.mod_rate	= 600000000,
+	.scaler_mask	= 0xf,
+	.ui_num		= 3,
+	.vi_num		= 1,
+};
+
 static const struct of_device_id sun8i_mixer_of_table[] = {
 	{
 		.compatible = "allwinner,sun8i-a83t-de2-mixer-0",
@@ -617,6 +654,10 @@ static const struct of_device_id sun8i_mixer_of_table[] = {
 	{
 		.compatible = "allwinner,sun50i-a64-de2-mixer-1",
 		.data = &sun50i_a64_mixer1_cfg,
+	},
+	{
+		.compatible = "allwinner,sun50i-h6-de3-mixer-0",
+		.data = &sun50i_h6_mixer0_cfg,
 	},
 	{ }
 };

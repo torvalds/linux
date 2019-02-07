@@ -17,7 +17,6 @@
 
 #include "mt76x0.h"
 #include "mcu.h"
-#include "trace.h"
 #include "../mt76x02_usb.h"
 
 static struct usb_device_id mt76x0_device_table[] = {
@@ -117,6 +116,7 @@ static int mt76x0u_start(struct ieee80211_hw *hw)
 	if (ret)
 		goto out;
 
+	mt76x0_phy_calibrate(dev, true);
 	ieee80211_queue_delayed_work(dev->mt76.hw, &dev->mac_work,
 				     MT_CALIBRATE_INTERVAL);
 	ieee80211_queue_delayed_work(dev->mt76.hw, &dev->cal_work,
@@ -145,17 +145,17 @@ static const struct ieee80211_ops mt76x0u_ops = {
 	.remove_interface = mt76x02_remove_interface,
 	.config = mt76x0_config,
 	.configure_filter = mt76x02_configure_filter,
-	.bss_info_changed = mt76x0_bss_info_changed,
-	.sta_add = mt76x02_sta_add,
-	.sta_remove = mt76x02_sta_remove,
+	.bss_info_changed = mt76x02_bss_info_changed,
+	.sta_state = mt76_sta_state,
 	.set_key = mt76x02_set_key,
 	.conf_tx = mt76x02_conf_tx,
-	.sw_scan_start = mt76x0_sw_scan,
-	.sw_scan_complete = mt76x0_sw_scan_complete,
+	.sw_scan_start = mt76x02_sw_scan,
+	.sw_scan_complete = mt76x02_sw_scan_complete,
 	.ampdu_action = mt76x02_ampdu_action,
 	.sta_rate_tbl_update = mt76x02_sta_rate_tbl_update,
-	.set_rts_threshold = mt76x0_set_rts_threshold,
+	.set_rts_threshold = mt76x02_set_rts_threshold,
 	.wake_tx_queue = mt76_wake_tx_queue,
+	.get_txpower = mt76x02_get_txpower,
 };
 
 static int mt76x0u_register_device(struct mt76x02_dev *dev)
@@ -218,6 +218,8 @@ static int mt76x0u_probe(struct usb_interface *usb_intf,
 		.tx_complete_skb = mt76x02u_tx_complete_skb,
 		.tx_status_data = mt76x02_tx_status_data,
 		.rx_skb = mt76x02_queue_rx_skb,
+		.sta_add = mt76x02_sta_add,
+		.sta_remove = mt76x02_sta_remove,
 	};
 	struct usb_device *usb_dev = interface_to_usbdev(usb_intf);
 	struct mt76x02_dev *dev;
@@ -337,6 +339,8 @@ err:
 }
 
 MODULE_DEVICE_TABLE(usb, mt76x0_device_table);
+MODULE_FIRMWARE(MT7610E_FIRMWARE);
+MODULE_FIRMWARE(MT7610U_FIRMWARE);
 MODULE_LICENSE("GPL");
 
 static struct usb_driver mt76x0_driver = {

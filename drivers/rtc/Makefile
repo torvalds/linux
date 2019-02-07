@@ -5,7 +5,7 @@
 
 ccflags-$(CONFIG_RTC_DEBUG)	:= -DDEBUG
 
-obj-$(CONFIG_RTC_LIB)		+= rtc-lib.o
+obj-$(CONFIG_RTC_LIB)		+= lib.o
 obj-$(CONFIG_RTC_HCTOSYS)	+= hctosys.o
 obj-$(CONFIG_RTC_SYSTOHC)	+= systohc.o
 obj-$(CONFIG_RTC_CLASS)		+= rtc-core.o
@@ -17,9 +17,9 @@ rtc-core-y			+= rtc-efi-platform.o
 endif
 
 rtc-core-$(CONFIG_RTC_NVMEM)		+= nvmem.o
-rtc-core-$(CONFIG_RTC_INTF_DEV)		+= rtc-dev.o
-rtc-core-$(CONFIG_RTC_INTF_PROC)	+= rtc-proc.o
-rtc-core-$(CONFIG_RTC_INTF_SYSFS)	+= rtc-sysfs.o
+rtc-core-$(CONFIG_RTC_INTF_DEV)		+= dev.o
+rtc-core-$(CONFIG_RTC_INTF_PROC)	+= proc.o
+rtc-core-$(CONFIG_RTC_INTF_SYSFS)	+= sysfs.o
 
 # Keep the list ordered.
 
@@ -75,6 +75,7 @@ obj-$(CONFIG_RTC_DRV_GOLDFISH)	+= rtc-goldfish.o
 obj-$(CONFIG_RTC_DRV_HID_SENSOR_TIME) += rtc-hid-sensor-time.o
 obj-$(CONFIG_RTC_DRV_HYM8563)	+= rtc-hym8563.o
 obj-$(CONFIG_RTC_DRV_IMXDI)	+= rtc-imxdi.o
+obj-$(CONFIG_RTC_DRV_IMX_SC)	+= rtc-imx-sc.o
 obj-$(CONFIG_RTC_DRV_ISL12022)	+= rtc-isl12022.o
 obj-$(CONFIG_RTC_DRV_ISL12026)	+= rtc-isl12026.o
 obj-$(CONFIG_RTC_DRV_ISL1208)	+= rtc-isl1208.o

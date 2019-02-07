@@ -238,7 +238,7 @@ static int iwl_pcie_gen2_build_amsdu(struct iwl_trans *trans,
 {
 #ifdef CONFIG_INET
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_tx_cmd *tx_cmd = (void *)dev_cmd->payload;
+	struct iwl_tx_cmd_gen2 *tx_cmd = (void *)dev_cmd->payload;
 	struct ieee80211_hdr *hdr = (void *)skb->data;
 	unsigned int snap_ip_tcp_hdrlen, ip_hdrlen, total_len, hdr_room;
 	unsigned int mss = skb_shinfo(skb)->gso_size;
@@ -583,18 +583,6 @@ int iwl_trans_pcie_gen2_tx(struct iwl_trans *trans, struct sk_buff *skb,
 
 	spin_lock(&txq->lock);
 
-	if (trans->cfg->device_family >= IWL_DEVICE_FAMILY_22560) {
-		struct iwl_tx_cmd_gen3 *tx_cmd_gen3 =
-			(void *)dev_cmd->payload;
-
-		cmd_len = le16_to_cpu(tx_cmd_gen3->len);
-	} else {
-		struct iwl_tx_cmd_gen2 *tx_cmd_gen2 =
-			(void *)dev_cmd->payload;
-
-		cmd_len = le16_to_cpu(tx_cmd_gen2->len);
-	}
-
 	if (iwl_queue_space(trans, txq) < txq->high_mark) {
 		iwl_stop_queue(trans, txq);
 
@@ -630,6 +618,18 @@ int iwl_trans_pcie_gen2_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	if (!tfd) {
 		spin_unlock(&txq->lock);
 		return -1;
+	}
+
+	if (trans->cfg->device_family >= IWL_DEVICE_FAMILY_22560) {
+		struct iwl_tx_cmd_gen3 *tx_cmd_gen3 =
+			(void *)dev_cmd->payload;
+
+		cmd_len = le16_to_cpu(tx_cmd_gen3->len);
+	} else {
+		struct iwl_tx_cmd_gen2 *tx_cmd_gen2 =
+			(void *)dev_cmd->payload;
+
+		cmd_len = le16_to_cpu(tx_cmd_gen2->len);
 	}
 
 	/* Set up entry for this TFD in Tx byte-count array */
@@ -1228,8 +1228,7 @@ int iwl_trans_pcie_txq_alloc_response(struct iwl_trans *trans,
 	/* Place first TFD at index corresponding to start sequence number */
 	txq->read_ptr = wr_ptr;
 	txq->write_ptr = wr_ptr;
-	iwl_write_direct32(trans, HBUS_TARG_WRPTR,
-			   (txq->write_ptr) | (qid << 16));
+
 	IWL_DEBUG_TX_QUEUES(trans, "Activate queue %d\n", qid);
 
 	iwl_free_resp(hcmd);

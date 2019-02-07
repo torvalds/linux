@@ -2578,8 +2578,9 @@ int ath10k_debug_register(struct ath10k *ar)
 	debugfs_create_file("pktlog_filter", 0644, ar->debug.debugfs_phy, ar,
 			    &fops_pktlog_filter);
 
-	debugfs_create_file("quiet_period", 0644, ar->debug.debugfs_phy, ar,
-			    &fops_quiet_period);
+	if (test_bit(WMI_SERVICE_THERM_THROT, ar->wmi.svc_map))
+		debugfs_create_file("quiet_period", 0644, ar->debug.debugfs_phy, ar,
+				    &fops_quiet_period);
 
 	debugfs_create_file("tpc_stats", 0400, ar->debug.debugfs_phy, ar,
 			    &fops_tpc_stats);

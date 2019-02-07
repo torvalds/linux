@@ -146,7 +146,7 @@ static int idio_16_gpio_get_multiple(struct gpio_chip *chip,
 		port_state = ioread8(ports[i]);
 
 		/* store acquired bits at respective bits array offset */
-		bits[word_index] |= port_state << word_offset;
+		bits[word_index] |= (port_state << word_offset) & word_mask;
 	}
 
 	return 0;

@@ -195,6 +195,17 @@ config PINCTRL_RZA1
 	help
 	  This selects pinctrl driver for Renesas RZ/A1 platforms.
 
+config PINCTRL_RZA2
+	bool "Renesas RZ/A2 gpio and pinctrl driver"
+	depends on OF
+	depends on ARCH_R7S9210 || COMPILE_TEST
+	select GPIOLIB
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
+	select GENERIC_PINCONF
+	help
+	  This selects GPIO and pinctrl driver for Renesas RZ/A2 platforms.
+
 config PINCTRL_RZN1
 	bool "Renesas RZ/N1 pinctrl driver"
 	depends on OF
@@ -339,15 +350,15 @@ config PINCTRL_RK805
 	  This selects the pinctrl driver for RK805.
 
 config PINCTRL_OCELOT
-	bool "Pinctrl driver for the Microsemi Ocelot SoCs"
-	default y
+	bool "Pinctrl driver for the Microsemi Ocelot and Jaguar2 SoCs"
 	depends on OF
-	depends on MSCC_OCELOT || COMPILE_TEST
+	depends on HAS_IOMEM
 	select GPIOLIB
 	select GPIOLIB_IRQCHIP
 	select GENERIC_PINCONF
 	select GENERIC_PINCTRL_GROUPS
 	select GENERIC_PINMUX_FUNCTIONS
+	select OF_GPIO
 	select REGMAP_MMIO
 
 source "drivers/pinctrl/actions/Kconfig"

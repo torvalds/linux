@@ -157,7 +157,7 @@ static inline int set_av_attr(struct ocrdma_dev *dev, struct ocrdma_ah *ah,
 }
 
 struct ib_ah *ocrdma_create_ah(struct ib_pd *ibpd, struct rdma_ah_attr *attr,
-			       struct ib_udata *udata)
+			       u32 flags, struct ib_udata *udata)
 {
 	u32 *ahid_addr;
 	int status;
@@ -219,7 +219,7 @@ av_err:
 	return ERR_PTR(status);
 }
 
-int ocrdma_destroy_ah(struct ib_ah *ibah)
+int ocrdma_destroy_ah(struct ib_ah *ibah, u32 flags)
 {
 	struct ocrdma_ah *ah = get_ocrdma_ah(ibah);
 	struct ocrdma_dev *dev = get_ocrdma_dev(ibah->device);

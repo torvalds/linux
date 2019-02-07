@@ -273,7 +273,8 @@ int mesh_gate_num(struct ieee80211_sub_if_data *sdata);
 
 /* Mesh plinks */
 void mesh_neighbour_update(struct ieee80211_sub_if_data *sdata,
-			   u8 *hw_addr, struct ieee802_11_elems *ie);
+			   u8 *hw_addr, struct ieee802_11_elems *ie,
+			   struct ieee80211_rx_status *rx_status);
 bool mesh_peer_accepts_plinks(struct ieee802_11_elems *ie);
 u32 mesh_accept_plinks_update(struct ieee80211_sub_if_data *sdata);
 void mesh_plink_timer(struct timer_list *t);

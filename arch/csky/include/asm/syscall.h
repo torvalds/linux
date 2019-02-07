@@ -6,6 +6,7 @@
 #include <linux/sched.h>
 #include <linux/err.h>
 #include <abi/regdef.h>
+#include <uapi/linux/audit.h>
 
 static inline int
 syscall_get_nr(struct task_struct *task, struct pt_regs *regs)
@@ -66,6 +67,12 @@ syscall_set_arguments(struct task_struct *task, struct pt_regs *regs,
 		n--;
 	}
 	memcpy(&regs->a1 + i * sizeof(regs->a1), args, n * sizeof(regs->a0));
+}
+
+static inline int
+syscall_get_arch(void)
+{
+	return AUDIT_ARCH_CSKY;
 }
 
 #endif	/* __ASM_SYSCALL_H */

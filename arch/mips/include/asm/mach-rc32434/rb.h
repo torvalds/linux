@@ -71,12 +71,6 @@ struct korina_device {
 	struct net_device *dev;
 };
 
-struct cf_device {
-	int gpio_pin;
-	void *dev;
-	struct gendisk *gd;
-};
-
 struct mpmc_device {
 	unsigned char	state;
 	spinlock_t	lock;

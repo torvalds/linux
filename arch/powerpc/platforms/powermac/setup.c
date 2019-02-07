@@ -560,15 +560,9 @@ static int __init check_pmac_serial_console(void)
 	}
 	pr_debug("stdout is %pOF\n", prom_stdout);
 
-	name = of_get_property(prom_stdout, "name", NULL);
-	if (!name) {
-		pr_debug(" stdout package has no name !\n");
-		goto not_found;
-	}
-
-	if (strcmp(name, "ch-a") == 0)
+	if (of_node_name_eq(prom_stdout, "ch-a"))
 		offset = 0;
-	else if (strcmp(name, "ch-b") == 0)
+	else if (of_node_name_eq(prom_stdout, "ch-b"))
 		offset = 1;
 	else
 		goto not_found;

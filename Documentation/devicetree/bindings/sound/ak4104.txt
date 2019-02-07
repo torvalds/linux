@@ -12,8 +12,8 @@ Required properties:
 
 Optional properties:
 
-  - reset-gpio : a GPIO spec for the reset pin. If specified, it will be
-		 deasserted before communication to the device starts.
+  - reset-gpios : a GPIO spec for the reset pin. If specified, it will be
+		  deasserted before communication to the device starts.
 
 Example:
 

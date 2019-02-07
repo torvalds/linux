@@ -9,7 +9,7 @@ config ARCH_CATS
 	select FOOTBRIDGE_HOST
 	select ISA
 	select ISA_DMA
-	select PCI
+	select FORCE_PCI
 	help
 	  Say Y here if you intend to run this kernel on the CATS.
 
@@ -20,7 +20,7 @@ config ARCH_PERSONAL_SERVER
 	select FOOTBRIDGE_HOST
 	select ISA
 	select ISA_DMA
-	select PCI
+	select FORCE_PCI
 	---help---
 	  Say Y here if you intend to run this kernel on the Compaq
 	  Personal Server.
@@ -53,7 +53,7 @@ config ARCH_EBSA285_HOST
 	select ISA
 	select ISA_DMA
 	select ARCH_MAY_HAVE_PC_FDC
-	select PCI
+	select FORCE_PCI
 	help
 	  Say Y here if you intend to run this kernel on the EBSA285 card
 	  in host ("central function") mode.
@@ -67,7 +67,7 @@ config ARCH_NETWINDER
 	select FOOTBRIDGE_HOST
 	select ISA
 	select ISA_DMA
-	select PCI
+	select FORCE_PCI
 	help
 	  Say Y here if you intend to run this kernel on the Rebel.COM
 	  NetWinder.  Information about this machine can be found at:

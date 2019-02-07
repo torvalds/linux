@@ -81,7 +81,7 @@ struct vm_area_struct;
  *
  * %__GFP_HARDWALL enforces the cpuset memory allocation policy.
  *
- * %__GFP_THISNODE forces the allocation to be satisified from the requested
+ * %__GFP_THISNODE forces the allocation to be satisfied from the requested
  * node with no fallbacks or placement policy enforcements.
  *
  * %__GFP_ACCOUNT causes the allocation to be accounted to kmemcg.

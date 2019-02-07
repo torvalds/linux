@@ -163,6 +163,11 @@ enum devlink_param_cmode {
 	DEVLINK_PARAM_CMODE_MAX = __DEVLINK_PARAM_CMODE_MAX - 1
 };
 
+enum devlink_param_fw_load_policy_value {
+	DEVLINK_PARAM_FW_LOAD_POLICY_VALUE_DRIVER,
+	DEVLINK_PARAM_FW_LOAD_POLICY_VALUE_FLASH,
+};
+
 enum devlink_attr {
 	/* don't change the order or add anything between, this is ABI! */
 	DEVLINK_ATTR_UNSPEC,

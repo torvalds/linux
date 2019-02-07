@@ -76,8 +76,8 @@ int qedr_destroy_srq(struct ib_srq *ibsrq);
 int qedr_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
 		       const struct ib_recv_wr **bad_recv_wr);
 struct ib_ah *qedr_create_ah(struct ib_pd *ibpd, struct rdma_ah_attr *attr,
-			     struct ib_udata *udata);
-int qedr_destroy_ah(struct ib_ah *ibah);
+			     u32 flags, struct ib_udata *udata);
+int qedr_destroy_ah(struct ib_ah *ibah, u32 flags);
 
 int qedr_dereg_mr(struct ib_mr *);
 struct ib_mr *qedr_get_dma_mr(struct ib_pd *, int acc);

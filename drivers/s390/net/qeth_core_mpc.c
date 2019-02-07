@@ -144,7 +144,6 @@ unsigned char IPA_PDU_HEADER[] = {
 		sizeof(struct qeth_ipa_cmd) % 256,
 	0x00, 0x00, 0x00, 0x40,
 };
-EXPORT_SYMBOL_GPL(IPA_PDU_HEADER);
 
 struct ipa_rc_msg {
 	enum qeth_ipa_return_codes rc;

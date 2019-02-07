@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _VIDIOC_SUBDEV_G_FRAME_INTERVAL:
 
@@ -62,6 +69,9 @@ Drivers must not return an error solely because the requested interval
 doesn't match the device capabilities. They must instead modify the
 interval to match what the hardware can provide. The modified interval
 should be as close as possible to the original request.
+
+Changing the frame interval shall never change the format. Changing the
+format, on the other hand, may change the frame interval.
 
 Sub-devices that support the frame interval ioctls should implement them
 on a single pad only. Their behaviour when supported on multiple pads of

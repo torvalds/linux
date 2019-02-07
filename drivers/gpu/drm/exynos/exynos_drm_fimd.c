@@ -32,7 +32,6 @@
 #include "exynos_drm_fb.h"
 #include "exynos_drm_crtc.h"
 #include "exynos_drm_plane.h"
-#include "exynos_drm_iommu.h"
 
 /*
  * FIMD stands for Fully Interactive Mobile Display and
@@ -228,6 +227,21 @@ static const uint32_t fimd_formats[] = {
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_ARGB8888,
 };
+
+static const unsigned int capabilities[WINDOWS_NR] = {
+	0,
+	EXYNOS_DRM_PLANE_CAP_WIN_BLEND | EXYNOS_DRM_PLANE_CAP_PIX_BLEND,
+	EXYNOS_DRM_PLANE_CAP_WIN_BLEND | EXYNOS_DRM_PLANE_CAP_PIX_BLEND,
+	EXYNOS_DRM_PLANE_CAP_WIN_BLEND | EXYNOS_DRM_PLANE_CAP_PIX_BLEND,
+	EXYNOS_DRM_PLANE_CAP_WIN_BLEND | EXYNOS_DRM_PLANE_CAP_PIX_BLEND,
+};
+
+static inline void fimd_set_bits(struct fimd_context *ctx, u32 reg, u32 mask,
+				 u32 val)
+{
+	val = (val & mask) | (readl(ctx->regs + reg) & ~mask);
+	writel(val, ctx->regs + reg);
+}
 
 static int fimd_enable_vblank(struct exynos_drm_crtc *crtc)
 {
@@ -552,13 +566,88 @@ static void fimd_commit(struct exynos_drm_crtc *crtc)
 	writel(val, ctx->regs + VIDCON0);
 }
 
+static void fimd_win_set_bldeq(struct fimd_context *ctx, unsigned int win,
+			       unsigned int alpha, unsigned int pixel_alpha)
+{
+	u32 mask = BLENDEQ_A_FUNC_F(0xf) | BLENDEQ_B_FUNC_F(0xf);
+	u32 val = 0;
+
+	switch (pixel_alpha) {
+	case DRM_MODE_BLEND_PIXEL_NONE:
+	case DRM_MODE_BLEND_COVERAGE:
+		val |= BLENDEQ_A_FUNC_F(BLENDEQ_ALPHA_A);
+		val |= BLENDEQ_B_FUNC_F(BLENDEQ_ONE_MINUS_ALPHA_A);
+		break;
+	case DRM_MODE_BLEND_PREMULTI:
+	default:
+		if (alpha != DRM_BLEND_ALPHA_OPAQUE) {
+			val |= BLENDEQ_A_FUNC_F(BLENDEQ_ALPHA0);
+			val |= BLENDEQ_B_FUNC_F(BLENDEQ_ONE_MINUS_ALPHA_A);
+		} else {
+			val |= BLENDEQ_A_FUNC_F(BLENDEQ_ONE);
+			val |= BLENDEQ_B_FUNC_F(BLENDEQ_ONE_MINUS_ALPHA_A);
+		}
+		break;
+	}
+	fimd_set_bits(ctx, BLENDEQx(win), mask, val);
+}
+
+static void fimd_win_set_bldmod(struct fimd_context *ctx, unsigned int win,
+				unsigned int alpha, unsigned int pixel_alpha)
+{
+	u32 win_alpha_l = (alpha >> 8) & 0xf;
+	u32 win_alpha_h = alpha >> 12;
+	u32 val = 0;
+
+	switch (pixel_alpha) {
+	case DRM_MODE_BLEND_PIXEL_NONE:
+		break;
+	case DRM_MODE_BLEND_COVERAGE:
+	case DRM_MODE_BLEND_PREMULTI:
+	default:
+		val |= WINCON1_ALPHA_SEL;
+		val |= WINCON1_BLD_PIX;
+		val |= WINCON1_ALPHA_MUL;
+		break;
+	}
+	fimd_set_bits(ctx, WINCON(win), WINCONx_BLEND_MODE_MASK, val);
+
+	/* OSD alpha */
+	val = VIDISD14C_ALPHA0_R(win_alpha_h) |
+		VIDISD14C_ALPHA0_G(win_alpha_h) |
+		VIDISD14C_ALPHA0_B(win_alpha_h) |
+		VIDISD14C_ALPHA1_R(0x0) |
+		VIDISD14C_ALPHA1_G(0x0) |
+		VIDISD14C_ALPHA1_B(0x0);
+	writel(val, ctx->regs + VIDOSD_C(win));
+
+	val = VIDW_ALPHA_R(win_alpha_l) | VIDW_ALPHA_G(win_alpha_l) |
+		VIDW_ALPHA_B(win_alpha_l);
+	writel(val, ctx->regs + VIDWnALPHA0(win));
+
+	val = VIDW_ALPHA_R(0x0) | VIDW_ALPHA_G(0x0) |
+		VIDW_ALPHA_B(0x0);
+	writel(val, ctx->regs + VIDWnALPHA1(win));
+
+	fimd_set_bits(ctx, BLENDCON, BLENDCON_NEW_MASK,
+			BLENDCON_NEW_8BIT_ALPHA_VALUE);
+}
 
 static void fimd_win_set_pixfmt(struct fimd_context *ctx, unsigned int win,
-				uint32_t pixel_format, int width)
+				struct drm_framebuffer *fb, int width)
 {
-	unsigned long val;
+	struct exynos_drm_plane plane = ctx->planes[win];
+	struct exynos_drm_plane_state *state =
+		to_exynos_plane_state(plane.base.state);
+	uint32_t pixel_format = fb->format->format;
+	unsigned int alpha = state->base.alpha;
+	u32 val = WINCONx_ENWIN;
+	unsigned int pixel_alpha;
 
-	val = WINCONx_ENWIN;
+	if (fb->format->has_alpha)
+		pixel_alpha = state->base.pixel_blend_mode;
+	else
+		pixel_alpha = DRM_MODE_BLEND_PIXEL_NONE;
 
 	/*
 	 * In case of s3c64xx, window 0 doesn't support alpha channel.
@@ -592,8 +681,7 @@ static void fimd_win_set_pixfmt(struct fimd_context *ctx, unsigned int win,
 		break;
 	case DRM_FORMAT_ARGB8888:
 	default:
-		val |= WINCON1_BPPMODE_25BPP_A1888
-			| WINCON1_BLD_PIX | WINCON1_ALPHA_SEL;
+		val |= WINCON1_BPPMODE_25BPP_A1888;
 		val |= WINCONx_WSWP;
 		val |= WINCONx_BURSTLEN_16WORD;
 		break;
@@ -611,25 +699,12 @@ static void fimd_win_set_pixfmt(struct fimd_context *ctx, unsigned int win,
 		val &= ~WINCONx_BURSTLEN_MASK;
 		val |= WINCONx_BURSTLEN_4WORD;
 	}
-
-	writel(val, ctx->regs + WINCON(win));
+	fimd_set_bits(ctx, WINCON(win), ~WINCONx_BLEND_MODE_MASK, val);
 
 	/* hardware window 0 doesn't support alpha channel. */
 	if (win != 0) {
-		/* OSD alpha */
-		val = VIDISD14C_ALPHA0_R(0xf) |
-			VIDISD14C_ALPHA0_G(0xf) |
-			VIDISD14C_ALPHA0_B(0xf) |
-			VIDISD14C_ALPHA1_R(0xf) |
-			VIDISD14C_ALPHA1_G(0xf) |
-			VIDISD14C_ALPHA1_B(0xf);
-
-		writel(val, ctx->regs + VIDOSD_C(win));
-
-		val = VIDW_ALPHA_R(0xf) | VIDW_ALPHA_G(0xf) |
-			VIDW_ALPHA_G(0xf);
-		writel(val, ctx->regs + VIDWnALPHA0(win));
-		writel(val, ctx->regs + VIDWnALPHA1(win));
+		fimd_win_set_bldmod(ctx, win, alpha, pixel_alpha);
+		fimd_win_set_bldeq(ctx, win, alpha, pixel_alpha);
 	}
 }
 
@@ -786,7 +861,7 @@ static void fimd_update_plane(struct exynos_drm_crtc *crtc,
 		DRM_DEBUG_KMS("osd size = 0x%x\n", (unsigned int)val);
 	}
 
-	fimd_win_set_pixfmt(ctx, win, fb->format->format, state->src.w);
+	fimd_win_set_pixfmt(ctx, win, fb, state->src.w);
 
 	/* hardware window 0 doesn't support color key. */
 	if (win != 0)
@@ -988,6 +1063,7 @@ static int fimd_bind(struct device *dev, struct device *master, void *data)
 		ctx->configs[i].num_pixel_formats = ARRAY_SIZE(fimd_formats);
 		ctx->configs[i].zpos = i;
 		ctx->configs[i].type = fimd_win_types[i];
+		ctx->configs[i].capabilities = capabilities[i];
 		ret = exynos_plane_init(drm_dev, &ctx->planes[i], i,
 					&ctx->configs[i]);
 		if (ret)
@@ -1011,7 +1087,7 @@ static int fimd_bind(struct device *dev, struct device *master, void *data)
 	if (is_drm_iommu_supported(drm_dev))
 		fimd_clear_channels(ctx->crtc);
 
-	return drm_iommu_attach_device(drm_dev, dev);
+	return exynos_drm_register_dma(drm_dev, dev);
 }
 
 static void fimd_unbind(struct device *dev, struct device *master,
@@ -1021,7 +1097,7 @@ static void fimd_unbind(struct device *dev, struct device *master,
 
 	fimd_disable(ctx->crtc);
 
-	drm_iommu_detach_device(ctx->drm_dev, ctx->dev);
+	exynos_drm_unregister_dma(ctx->drm_dev, ctx->dev);
 
 	if (ctx->encoder)
 		exynos_dpi_remove(ctx->encoder);

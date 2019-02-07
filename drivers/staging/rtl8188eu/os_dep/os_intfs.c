@@ -131,7 +131,7 @@ MODULE_PARM_DESC(debug, "Set debug level (1-9) (default 1)");
 
 static bool rtw_monitor_enable;
 module_param_named(monitor_enable, rtw_monitor_enable, bool, 0444);
-MODULE_PARM_DESC(monitor_enable, "Enable monitor inferface (default: false)");
+MODULE_PARM_DESC(monitor_enable, "Enable monitor interface (default: false)");
 
 static int netdev_close(struct net_device *pnetdev);
 
@@ -578,7 +578,7 @@ static int _netdev_open(struct net_device *pnetdev)
 		}
 		rtw_hal_inirp_init(padapter);
 
-		LedControl8188eu(padapter, LED_CTL_NO_LINK);
+		led_control_8188eu(padapter, LED_CTL_NO_LINK);
 
 		padapter->bup = true;
 	}
@@ -661,7 +661,7 @@ int rtw_ips_pwr_up(struct adapter *padapter)
 
 	result = ips_netdrv_open(padapter);
 
-	LedControl8188eu(padapter, LED_CTL_NO_LINK);
+	led_control_8188eu(padapter, LED_CTL_NO_LINK);
 
 	DBG_88E("<===  rtw_ips_pwr_up.............. in %dms\n",
 		jiffies_to_msecs(jiffies - start_time));
@@ -676,7 +676,7 @@ void rtw_ips_pwr_down(struct adapter *padapter)
 
 	padapter->net_closed = true;
 
-	LedControl8188eu(padapter, LED_CTL_POWER_OFF);
+	led_control_8188eu(padapter, LED_CTL_POWER_OFF);
 
 	rtw_ips_dev_unload(padapter);
 	DBG_88E("<=== rtw_ips_pwr_down..................... in %dms\n",
@@ -728,7 +728,7 @@ static int netdev_close(struct net_device *pnetdev)
 		/* s2-4. */
 		rtw_free_network_queue(padapter, true);
 		/*  Close LED */
-		LedControl8188eu(padapter, LED_CTL_POWER_OFF);
+		led_control_8188eu(padapter, LED_CTL_POWER_OFF);
 	}
 
 	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("-88eu_drv - drv_close\n"));

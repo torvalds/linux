@@ -227,18 +227,19 @@ static const struct xfrmdev_ops nsim_xfrmdev_ops = {
 
 bool nsim_ipsec_tx(struct netdevsim *ns, struct sk_buff *skb)
 {
+	struct sec_path *sp = skb_sec_path(skb);
 	struct nsim_ipsec *ipsec = &ns->ipsec;
 	struct xfrm_state *xs;
 	struct nsim_sa *tsa;
 	u32 sa_idx;
 
 	/* do we even need to check this packet? */
-	if (!skb->sp)
+	if (!sp)
 		return true;
 
-	if (unlikely(!skb->sp->len)) {
+	if (unlikely(!sp->len)) {
 		netdev_err(ns->netdev, "no xfrm state len = %d\n",
-			   skb->sp->len);
+			   sp->len);
 		return false;
 	}
 

@@ -461,7 +461,7 @@ EXPORT_SYMBOL_GPL(nfs_wait_on_request);
  * @prev: previous request in desc, or NULL
  * @req: this request
  *
- * Returns zero if @req can be coalesced into @desc, otherwise it returns
+ * Returns zero if @req cannot be coalesced into @desc, otherwise it returns
  * the size of the request.
  */
 size_t nfs_generic_pg_test(struct nfs_pageio_descriptor *desc,
@@ -587,7 +587,7 @@ static void nfs_pgio_prepare(struct rpc_task *task, void *calldata)
 }
 
 int nfs_initiate_pgio(struct rpc_clnt *clnt, struct nfs_pgio_header *hdr,
-		      struct rpc_cred *cred, const struct nfs_rpc_ops *rpc_ops,
+		      const struct cred *cred, const struct nfs_rpc_ops *rpc_ops,
 		      const struct rpc_call_ops *call_ops, int how, int flags)
 {
 	struct rpc_task *task;

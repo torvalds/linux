@@ -71,6 +71,7 @@
 /* Port IDs */
 #define AFE_API_VERSION_HDMI_CONFIG	0x1
 #define AFE_PORT_ID_MULTICHAN_HDMI_RX	0x100E
+#define AFE_PORT_ID_HDMI_OVER_DP_RX	0x6020
 
 #define AFE_API_VERSION_SLIMBUS_CONFIG 0x1
 /* Clock set API version */
@@ -704,6 +705,8 @@ static struct afe_port_map port_maps[AFE_PORT_MAX] = {
 				QUINARY_TDM_RX_7, 1, 1},
 	[QUINARY_TDM_TX_7] =  { AFE_PORT_ID_QUINARY_TDM_TX_7,
 				QUINARY_TDM_TX_7, 0, 1},
+	[DISPLAY_PORT_RX] = { AFE_PORT_ID_HDMI_OVER_DP_RX,
+				DISPLAY_PORT_RX, 1, 1},
 };
 
 static void q6afe_port_free(struct kref *ref)
@@ -1384,6 +1387,7 @@ struct q6afe_port *q6afe_port_get_from_id(struct device *dev, int id)
 
 	switch (port_id) {
 	case AFE_PORT_ID_MULTICHAN_HDMI_RX:
+	case AFE_PORT_ID_HDMI_OVER_DP_RX:
 		cfg_type = AFE_PARAM_ID_HDMI_CONFIG;
 		break;
 	case AFE_PORT_ID_SLIMBUS_MULTI_CHAN_0_TX:

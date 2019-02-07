@@ -1,10 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2001 David J. Mckay (david.mckay@st.com)
  * Copyright (C) 2003, 2004 Paul Mundt
  * Copyright (C) 2004 Richard Curnow
- *
- * May be copied or modified under the terms of the GNU General Public
- * License.  See linux/COPYING for more information.
  *
  * Support functions for the SH5 PCI hardware.
  */

@@ -147,7 +147,7 @@ int pblk_rb_init(struct pblk_rb *rb, unsigned int size, unsigned int threshold,
 
 	/*
 	 * Initialize rate-limiter, which controls access to the write buffer
-	 * but user and GC I/O
+	 * by user and GC I/O
 	 */
 	pblk_rl_init(&pblk->rl, rb->nr_entries);
 
@@ -551,6 +551,9 @@ unsigned int pblk_rb_read_to_bio(struct pblk_rb *rb, struct nvm_rq *rqd,
 		pad = nr_entries - count;
 		to_read = count;
 	}
+
+	/* Add space for packed metadata if in use*/
+	pad += (pblk->min_write_pgs - pblk->min_write_pgs_data);
 
 	c_ctx->sentry = pos;
 	c_ctx->nr_valid = to_read;

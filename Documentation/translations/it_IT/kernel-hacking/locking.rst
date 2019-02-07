@@ -593,8 +593,8 @@ l'opzione ``GFP_KERNEL`` che è permessa solo in contesto utente. Ho supposto
 che :c:func:`cache_add()` venga chiamata dal contesto utente, altrimenti
 questa opzione deve diventare un parametro di :c:func:`cache_add()`.
 
-Exposing Objects Outside This File
-----------------------------------
+Esporre gli oggetti al di fuori del file
+----------------------------------------
 
 Se i vostri oggetti contengono più informazioni, potrebbe non essere
 sufficiente copiare i dati avanti e indietro: per esempio, altre parti del

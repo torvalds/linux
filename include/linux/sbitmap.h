@@ -30,14 +30,24 @@ struct seq_file;
  */
 struct sbitmap_word {
 	/**
-	 * @word: The bitmap word itself.
-	 */
-	unsigned long word;
-
-	/**
-	 * @depth: Number of bits being used in @word.
+	 * @depth: Number of bits being used in @word/@cleared
 	 */
 	unsigned long depth;
+
+	/**
+	 * @word: word holding free bits
+	 */
+	unsigned long word ____cacheline_aligned_in_smp;
+
+	/**
+	 * @cleared: word holding cleared bits
+	 */
+	unsigned long cleared ____cacheline_aligned_in_smp;
+
+	/**
+	 * @swap_lock: Held while swapping word <-> cleared
+	 */
+	spinlock_t swap_lock;
 } ____cacheline_aligned_in_smp;
 
 /**
@@ -124,6 +134,11 @@ struct sbitmap_queue {
 	 * @ws: Wait queues.
 	 */
 	struct sbq_wait_state *ws;
+
+	/*
+	 * @ws_active: count of currently active ws waitqueues
+	 */
+	atomic_t ws_active;
 
 	/**
 	 * @round_robin: Allocate bits in strict round-robin order.
@@ -250,12 +265,14 @@ static inline void __sbitmap_for_each_set(struct sbitmap *sb,
 	nr = SB_NR_TO_BIT(sb, start);
 
 	while (scanned < sb->depth) {
-		struct sbitmap_word *word = &sb->map[index];
-		unsigned int depth = min_t(unsigned int, word->depth - nr,
+		unsigned long word;
+		unsigned int depth = min_t(unsigned int,
+					   sb->map[index].depth - nr,
 					   sb->depth - scanned);
 
 		scanned += depth;
-		if (!word->word)
+		word = sb->map[index].word & ~sb->map[index].cleared;
+		if (!word)
 			goto next;
 
 		/*
@@ -265,7 +282,7 @@ static inline void __sbitmap_for_each_set(struct sbitmap *sb,
 		 */
 		depth += nr;
 		while (1) {
-			nr = find_next_bit(&word->word, depth, nr);
+			nr = find_next_bit(&word, depth, nr);
 			if (nr >= depth)
 				break;
 			if (!fn(sb, (index << sb->shift) + nr, data))
@@ -310,6 +327,19 @@ static inline void sbitmap_clear_bit(struct sbitmap *sb, unsigned int bitnr)
 	clear_bit(SB_NR_TO_BIT(sb, bitnr), __sbitmap_word(sb, bitnr));
 }
 
+/*
+ * This one is special, since it doesn't actually clear the bit, rather it
+ * sets the corresponding bit in the ->cleared mask instead. Paired with
+ * the caller doing sbitmap_batch_clear() if a given index is full, which
+ * will clear the previously freed entries in the corresponding ->word.
+ */
+static inline void sbitmap_deferred_clear_bit(struct sbitmap *sb, unsigned int bitnr)
+{
+	unsigned long *addr = &sb->map[SB_NR_TO_INDEX(sb, bitnr)].cleared;
+
+	set_bit(SB_NR_TO_BIT(sb, bitnr), addr);
+}
+
 static inline void sbitmap_clear_bit_unlock(struct sbitmap *sb,
 					    unsigned int bitnr)
 {
@@ -320,8 +350,6 @@ static inline int sbitmap_test_bit(struct sbitmap *sb, unsigned int bitnr)
 {
 	return test_bit(SB_NR_TO_BIT(sb, bitnr), __sbitmap_word(sb, bitnr));
 }
-
-unsigned int sbitmap_weight(const struct sbitmap *sb);
 
 /**
  * sbitmap_show() - Dump &struct sbitmap information to a &struct seq_file.
@@ -530,5 +558,46 @@ void sbitmap_queue_wake_up(struct sbitmap_queue *sbq);
  * This is intended for debugging. The format may change at any time.
  */
 void sbitmap_queue_show(struct sbitmap_queue *sbq, struct seq_file *m);
+
+struct sbq_wait {
+	struct sbitmap_queue *sbq;	/* if set, sbq_wait is accounted */
+	struct wait_queue_entry wait;
+};
+
+#define DEFINE_SBQ_WAIT(name)							\
+	struct sbq_wait name = {						\
+		.sbq = NULL,							\
+		.wait = {							\
+			.private	= current,				\
+			.func		= autoremove_wake_function,		\
+			.entry		= LIST_HEAD_INIT((name).wait.entry),	\
+		}								\
+	}
+
+/*
+ * Wrapper around prepare_to_wait_exclusive(), which maintains some extra
+ * internal state.
+ */
+void sbitmap_prepare_to_wait(struct sbitmap_queue *sbq,
+				struct sbq_wait_state *ws,
+				struct sbq_wait *sbq_wait, int state);
+
+/*
+ * Must be paired with sbitmap_prepare_to_wait().
+ */
+void sbitmap_finish_wait(struct sbitmap_queue *sbq, struct sbq_wait_state *ws,
+				struct sbq_wait *sbq_wait);
+
+/*
+ * Wrapper around add_wait_queue(), which maintains some extra internal state
+ */
+void sbitmap_add_wait_queue(struct sbitmap_queue *sbq,
+			    struct sbq_wait_state *ws,
+			    struct sbq_wait *sbq_wait);
+
+/*
+ * Must be paired with sbitmap_add_wait_queue()
+ */
+void sbitmap_del_wait_queue(struct sbq_wait *sbq_wait);
 
 #endif /* __LINUX_SCALE_BITMAP_H */

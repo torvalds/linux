@@ -152,8 +152,8 @@ int main(int argc, char *argv[])
 	for (stage = 1;; stage++) {
 		_vcpu_run(vm, VCPU_ID);
 		TEST_ASSERT(run->exit_reason == KVM_EXIT_IO,
-			    "Unexpected exit reason: %u (%s),\n",
-			    run->exit_reason,
+			    "Stage %d: unexpected exit reason: %u (%s),\n",
+			    stage, run->exit_reason,
 			    exit_reason_str(run->exit_reason));
 
 		memset(&regs1, 0, sizeof(regs1));

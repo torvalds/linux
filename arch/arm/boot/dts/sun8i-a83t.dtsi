@@ -187,11 +187,6 @@
 		status = "disabled";
 	};
 
-	memory {
-		reg = <0x40000000 0x80000000>;
-		device_type = "memory";
-	};
-
 	cpu0_opp_table: opp_table0 {
 		compatible = "operating-points-v2";
 		opp-shared;

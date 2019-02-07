@@ -250,7 +250,7 @@ static int recover_inode(struct inode *inode, struct page *page)
 	i_gid_write(inode, le32_to_cpu(raw->i_gid));
 
 	if (raw->i_inline & F2FS_EXTRA_ATTR) {
-		if (f2fs_sb_has_project_quota(F2FS_I_SB(inode)->sb) &&
+		if (f2fs_sb_has_project_quota(F2FS_I_SB(inode)) &&
 			F2FS_FITS_IN_INODE(raw, le16_to_cpu(raw->i_extra_isize),
 								i_projid)) {
 			projid_t i_projid;
@@ -539,7 +539,7 @@ retry_dn:
 		goto out;
 	}
 
-	f2fs_wait_on_page_writeback(dn.node_page, NODE, true);
+	f2fs_wait_on_page_writeback(dn.node_page, NODE, true, true);
 
 	err = f2fs_get_node_info(sbi, dn.nid, &ni);
 	if (err)

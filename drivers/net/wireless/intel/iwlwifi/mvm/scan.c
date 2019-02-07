@@ -205,9 +205,7 @@ iwl_mvm_scan_rate_n_flags(struct iwl_mvm *mvm, enum nl80211_band band,
 {
 	u32 tx_ant;
 
-	mvm->scan_last_antenna_idx =
-		iwl_mvm_next_antenna(mvm, iwl_mvm_get_valid_tx_ant(mvm),
-				     mvm->scan_last_antenna_idx);
+	iwl_mvm_toggle_tx_ant(mvm, &mvm->scan_last_antenna_idx);
 	tx_ant = BIT(mvm->scan_last_antenna_idx) << RATE_MCS_ANT_POS;
 
 	if (band == NL80211_BAND_2GHZ && !no_cck)
@@ -1895,6 +1893,8 @@ void iwl_mvm_rx_umac_scan_complete_notif(struct iwl_mvm *mvm,
 		mvm->last_ebs_successful = false;
 
 	mvm->scan_uid_status[uid] = 0;
+
+	iwl_fw_dbg_apply_point(&mvm->fwrt, IWL_FW_INI_APPLY_SCAN_COMPLETE);
 }
 
 void iwl_mvm_rx_umac_scan_iter_complete_notif(struct iwl_mvm *mvm,

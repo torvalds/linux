@@ -35,11 +35,16 @@
 
 #ifdef CONFIG_MLX5_FPGA
 
+#include <linux/mlx5/eq.h>
+
+#include "lib/eq.h"
 #include "fpga/cmd.h"
 
 /* Represents an Innova device */
 struct mlx5_fpga_device {
 	struct mlx5_core_dev *mdev;
+	struct mlx5_nb fpga_err_nb;
+	struct mlx5_nb fpga_qp_err_nb;
 	spinlock_t state_lock; /* Protects state transitions */
 	enum mlx5_fpga_status state;
 	enum mlx5_fpga_image last_admin_image;
@@ -82,7 +87,6 @@ int mlx5_fpga_init(struct mlx5_core_dev *mdev);
 void mlx5_fpga_cleanup(struct mlx5_core_dev *mdev);
 int mlx5_fpga_device_start(struct mlx5_core_dev *mdev);
 void mlx5_fpga_device_stop(struct mlx5_core_dev *mdev);
-void mlx5_fpga_event(struct mlx5_core_dev *mdev, u8 event, void *data);
 
 #else
 
@@ -101,11 +105,6 @@ static inline int mlx5_fpga_device_start(struct mlx5_core_dev *mdev)
 }
 
 static inline void mlx5_fpga_device_stop(struct mlx5_core_dev *mdev)
-{
-}
-
-static inline void mlx5_fpga_event(struct mlx5_core_dev *mdev, u8 event,
-				   void *data)
 {
 }
 

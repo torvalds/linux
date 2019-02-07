@@ -28,13 +28,22 @@
 #include "sun4i_tcon.h"
 #include "sun8i_tcon_top.h"
 
+static int drm_sun4i_gem_dumb_create(struct drm_file *file_priv,
+				     struct drm_device *drm,
+				     struct drm_mode_create_dumb *args)
+{
+	/* The hardware only allows even pitches for YUV buffers. */
+	args->pitch = ALIGN(DIV_ROUND_UP(args->width * args->bpp, 8), 2);
+
+	return drm_gem_cma_dumb_create_internal(file_priv, drm, args);
+}
+
 DEFINE_DRM_GEM_CMA_FOPS(sun4i_drv_fops);
 
 static struct drm_driver sun4i_drv_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME | DRIVER_ATOMIC,
 
 	/* Generic Operations */
-	.lastclose		= drm_fb_helper_lastclose,
 	.fops			= &sun4i_drv_fops,
 	.name			= "sun4i-drm",
 	.desc			= "Allwinner sun4i Display Engine",
@@ -43,7 +52,7 @@ static struct drm_driver sun4i_drv_driver = {
 	.minor			= 0,
 
 	/* GEM Operations */
-	.dumb_create		= drm_gem_cma_dumb_create,
+	.dumb_create		= drm_sun4i_gem_dumb_create,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops		= &drm_gem_cma_vm_ops,
 
@@ -105,12 +114,7 @@ static int sun4i_drv_bind(struct device *dev)
 	/* Remove early framebuffers (ie. simplefb) */
 	drm_fb_helper_remove_conflicting_framebuffers(NULL, "sun4i-drm-fb", false);
 
-	/* Create our framebuffer */
-	ret = sun4i_framebuffer_init(drm);
-	if (ret) {
-		dev_err(drm->dev, "Couldn't create our framebuffer\n");
-		goto cleanup_mode_config;
-	}
+	sun4i_framebuffer_init(drm);
 
 	/* Enable connectors polling */
 	drm_kms_helper_poll_init(drm);
@@ -119,11 +123,12 @@ static int sun4i_drv_bind(struct device *dev)
 	if (ret)
 		goto finish_poll;
 
+	drm_fbdev_generic_setup(drm, 32);
+
 	return 0;
 
 finish_poll:
 	drm_kms_helper_poll_fini(drm);
-	sun4i_framebuffer_free(drm);
 cleanup_mode_config:
 	drm_mode_config_cleanup(drm);
 	of_reserved_mem_device_release(dev);
@@ -138,7 +143,6 @@ static void sun4i_drv_unbind(struct device *dev)
 
 	drm_dev_unregister(drm);
 	drm_kms_helper_poll_fini(drm);
-	sun4i_framebuffer_free(drm);
 	drm_mode_config_cleanup(drm);
 	of_reserved_mem_device_release(dev);
 	drm_dev_put(drm);
@@ -406,6 +410,7 @@ static const struct of_device_id sun4i_drv_of_table[] = {
 	{ .compatible = "allwinner,sun8i-v3s-display-engine" },
 	{ .compatible = "allwinner,sun9i-a80-display-engine" },
 	{ .compatible = "allwinner,sun50i-a64-display-engine" },
+	{ .compatible = "allwinner,sun50i-h6-display-engine" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, sun4i_drv_of_table);

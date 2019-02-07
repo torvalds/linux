@@ -47,8 +47,8 @@ static int alloc_dbdma_descriptor_ring(struct i2sbus_dev *i2sdev,
 	/* We use the PCI APIs for now until the generic one gets fixed
 	 * enough or until we get some macio-specific versions
 	 */
-	r->space = dma_zalloc_coherent(&macio_get_pci_dev(i2sdev->macio)->dev,
-				       r->size, &r->bus_addr, GFP_KERNEL);
+	r->space = dma_alloc_coherent(&macio_get_pci_dev(i2sdev->macio)->dev,
+				      r->size, &r->bus_addr, GFP_KERNEL);
 	if (!r->space)
 		return -ENOMEM;
 
@@ -154,7 +154,7 @@ static int i2sbus_add_dev(struct macio_dev *macio,
 			  struct device_node *np)
 {
 	struct i2sbus_dev *dev;
-	struct device_node *child = NULL, *sound = NULL;
+	struct device_node *child, *sound = NULL;
 	struct resource *r;
 	int i, layout = 0, rlen, ok = force;
 	char node_name[6];
@@ -177,8 +177,8 @@ static int i2sbus_add_dev(struct macio_dev *macio,
 		return 0;
 
 	i = 0;
-	while ((child = of_get_next_child(np, child))) {
-		if (strcmp(child->name, "sound") == 0) {
+	for_each_child_of_node(np, child) {
+		if (of_node_name_eq(child, "sound")) {
 			i++;
 			sound = child;
 		}

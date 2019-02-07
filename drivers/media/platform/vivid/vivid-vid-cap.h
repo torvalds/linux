@@ -28,7 +28,7 @@ int vidioc_try_fmt_vid_cap(struct file *file, void *priv, struct v4l2_format *f)
 int vidioc_s_fmt_vid_cap(struct file *file, void *priv, struct v4l2_format *f);
 int vivid_vid_cap_g_selection(struct file *file, void *priv, struct v4l2_selection *sel);
 int vivid_vid_cap_s_selection(struct file *file, void *fh, struct v4l2_selection *s);
-int vivid_vid_cap_cropcap(struct file *file, void *priv, struct v4l2_cropcap *cap);
+int vivid_vid_cap_g_pixelaspect(struct file *file, void *priv, int type, struct v4l2_fract *f);
 int vidioc_enum_fmt_vid_overlay(struct file *file, void  *priv, struct v4l2_fmtdesc *f);
 int vidioc_g_fmt_vid_overlay(struct file *file, void *priv, struct v4l2_format *f);
 int vidioc_try_fmt_vid_overlay(struct file *file, void *priv, struct v4l2_format *f);

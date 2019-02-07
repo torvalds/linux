@@ -58,7 +58,7 @@ Protocol 2.11:	(Kernel 3.6) Added a field for offset of EFI handover
 		protocol entry point.
 
 Protocol 2.12:	(Kernel 3.8) Added the xloadflags field and extension fields
-	 	to struct boot_params for loading bzImage and ramdisk
+		to struct boot_params for loading bzImage and ramdisk
 		above 4G in 64bit.
 
 **** MEMORY LAYOUT

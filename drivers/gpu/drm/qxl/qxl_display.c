@@ -253,12 +253,13 @@ static struct mode_size {
 };
 
 static int qxl_add_common_modes(struct drm_connector *connector,
-                                unsigned pwidth,
-                                unsigned pheight)
+                                unsigned int pwidth,
+                                unsigned int pheight)
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_display_mode *mode = NULL;
 	int i;
+
 	for (i = 0; i < ARRAY_SIZE(common_modes); i++) {
 		mode = drm_cvt_mode(dev, common_modes[i].w, common_modes[i].h,
 				    60, false, false, false);
@@ -315,6 +316,7 @@ static void qxl_crtc_update_monitors_config(struct drm_crtc *crtc,
 	oldcount = qdev->monitors_config->count;
 	if (crtc->state->active) {
 		struct drm_display_mode *mode = &crtc->mode;
+
 		head.width = mode->hdisplay;
 		head.height = mode->vdisplay;
 		head.x = crtc->x;
@@ -391,9 +393,9 @@ static const struct drm_crtc_funcs qxl_crtc_funcs = {
 
 static int qxl_framebuffer_surface_dirty(struct drm_framebuffer *fb,
 					 struct drm_file *file_priv,
-					 unsigned flags, unsigned color,
+					 unsigned int flags, unsigned int color,
 					 struct drm_clip_rect *clips,
-					 unsigned num_clips)
+					 unsigned int num_clips)
 {
 	/* TODO: vmwgfx where this was cribbed from had locking. Why? */
 	struct qxl_device *qdev = fb->dev->dev_private;
@@ -620,9 +622,13 @@ static void qxl_cursor_atomic_update(struct drm_plane *plane,
 		if (ret)
 			goto out_kunmap;
 
-		ret = qxl_release_reserve_list(release, true);
+		ret = qxl_bo_pin(cursor_bo);
 		if (ret)
 			goto out_free_bo;
+
+		ret = qxl_release_reserve_list(release, true);
+		if (ret)
+			goto out_unpin;
 
 		ret = qxl_bo_kmap(cursor_bo, (void **)&cursor);
 		if (ret)
@@ -668,15 +674,17 @@ static void qxl_cursor_atomic_update(struct drm_plane *plane,
 	qxl_push_cursor_ring_release(qdev, release, QXL_CMD_CURSOR, false);
 	qxl_release_fence_buffer_objects(release);
 
-	if (old_cursor_bo)
-		qxl_bo_unref(&old_cursor_bo);
-
+	if (old_cursor_bo != NULL)
+		qxl_bo_unpin(old_cursor_bo);
+	qxl_bo_unref(&old_cursor_bo);
 	qxl_bo_unref(&cursor_bo);
 
 	return;
 
 out_backoff:
 	qxl_release_backoff_reserve_list(release);
+out_unpin:
+	qxl_bo_unpin(cursor_bo);
 out_free_bo:
 	qxl_bo_unref(&cursor_bo);
 out_kunmap:
@@ -755,7 +763,7 @@ static int qxl_plane_prepare_fb(struct drm_plane *plane,
 		}
 	}
 
-	ret = qxl_bo_pin(user_bo, QXL_GEM_DOMAIN_CPU, NULL);
+	ret = qxl_bo_pin(user_bo);
 	if (ret)
 		return ret;
 
@@ -917,8 +925,8 @@ free_mem:
 
 static int qxl_conn_get_modes(struct drm_connector *connector)
 {
-	unsigned pwidth = 1024;
-	unsigned pheight = 768;
+	unsigned int pwidth = 1024;
+	unsigned int pheight = 768;
 	int ret = 0;
 
 	ret = qxl_add_monitors_config_modes(connector, &pwidth, &pheight);
@@ -938,8 +946,8 @@ static enum drm_mode_status qxl_conn_mode_valid(struct drm_connector *connector,
 	/* TODO: is this called for user defined modes? (xrandr --add-mode)
 	 * TODO: check that the mode fits in the framebuffer */
 
-	if(qdev->monitors_config_width == mode->hdisplay &&
-	   qdev->monitors_config_height == mode->vdisplay)
+	if (qdev->monitors_config_width == mode->hdisplay &&
+	    qdev->monitors_config_height == mode->vdisplay)
 		return MODE_OK;
 
 	for (i = 0; i < ARRAY_SIZE(common_modes); i++) {
@@ -957,7 +965,6 @@ static struct drm_encoder *qxl_best_encoder(struct drm_connector *connector)
 	DRM_DEBUG("\n");
 	return &qxl_output->enc;
 }
-
 
 static const struct drm_encoder_helper_funcs qxl_enc_helper_funcs = {
 };
@@ -1103,7 +1110,7 @@ int qxl_create_monitors_object(struct qxl_device *qdev)
 	}
 	qdev->monitors_config_bo = gem_to_qxl_bo(gobj);
 
-	ret = qxl_bo_pin(qdev->monitors_config_bo, QXL_GEM_DOMAIN_VRAM, NULL);
+	ret = qxl_bo_pin(qdev->monitors_config_bo);
 	if (ret)
 		return ret;
 

@@ -299,17 +299,25 @@ functions is used.
 The header file linux/hwmon-sysfs.h provides a number of useful macros to
 declare and use hardware monitoring sysfs attributes.
 
-In many cases, you can use the exsting define DEVICE_ATTR to declare such
-attributes. This is feasible if an attribute has no additional context. However,
-in many cases there will be additional information such as a sensor index which
-will need to be passed to the sysfs attribute handling function.
+In many cases, you can use the exsting define DEVICE_ATTR or its variants
+DEVICE_ATTR_{RW,RO,WO} to declare such attributes. This is feasible if an
+attribute has no additional context. However, in many cases there will be
+additional information such as a sensor index which will need to be passed
+to the sysfs attribute handling function.
 
 SENSOR_DEVICE_ATTR and SENSOR_DEVICE_ATTR_2 can be used to define attributes
 which need such additional context information. SENSOR_DEVICE_ATTR requires
 one additional argument, SENSOR_DEVICE_ATTR_2 requires two.
 
-SENSOR_DEVICE_ATTR defines a struct sensor_device_attribute variable.
-This structure has the following fields.
+Simplified variants of SENSOR_DEVICE_ATTR and SENSOR_DEVICE_ATTR_2 are available
+and should be used if standard attribute permissions and function names are
+feasible. Standard permissions are 0644 for SENSOR_DEVICE_ATTR[_2]_RW,
+0444 for SENSOR_DEVICE_ATTR[_2]_RO, and 0200 for SENSOR_DEVICE_ATTR[_2]_WO.
+Standard functions, similar to DEVICE_ATTR_{RW,RO,WO}, have _show and _store
+appended to the provided function name.
+
+SENSOR_DEVICE_ATTR and its variants define a struct sensor_device_attribute
+variable. This structure has the following fields.
 
 struct sensor_device_attribute {
 	struct device_attribute dev_attr;
@@ -320,8 +328,8 @@ You can use to_sensor_dev_attr to get the pointer to this structure from the
 attribute read or write function. Its parameter is the device to which the
 attribute is attached.
 
-SENSOR_DEVICE_ATTR_2 defines a struct sensor_device_attribute_2 variable,
-which is defined as follows.
+SENSOR_DEVICE_ATTR_2 and its variants define a struct sensor_device_attribute_2
+variable, which is defined as follows.
 
 struct sensor_device_attribute_2 {
 	struct device_attribute dev_attr;

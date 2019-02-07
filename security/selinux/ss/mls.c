@@ -440,16 +440,17 @@ int mls_setup_user_range(struct policydb *p,
 
 /*
  * Convert the MLS fields in the security context
- * structure `c' from the values specified in the
- * policy `oldp' to the values specified in the policy `newp'.
+ * structure `oldc' from the values specified in the
+ * policy `oldp' to the values specified in the policy `newp',
+ * storing the resulting context in `newc'.
  */
 int mls_convert_context(struct policydb *oldp,
 			struct policydb *newp,
-			struct context *c)
+			struct context *oldc,
+			struct context *newc)
 {
 	struct level_datum *levdatum;
 	struct cat_datum *catdatum;
-	struct ebitmap bitmap;
 	struct ebitmap_node *node;
 	int l, i;
 
@@ -459,28 +460,25 @@ int mls_convert_context(struct policydb *oldp,
 	for (l = 0; l < 2; l++) {
 		levdatum = hashtab_search(newp->p_levels.table,
 					  sym_name(oldp, SYM_LEVELS,
-						   c->range.level[l].sens - 1));
+						   oldc->range.level[l].sens - 1));
 
 		if (!levdatum)
 			return -EINVAL;
-		c->range.level[l].sens = levdatum->level->sens;
+		newc->range.level[l].sens = levdatum->level->sens;
 
-		ebitmap_init(&bitmap);
-		ebitmap_for_each_positive_bit(&c->range.level[l].cat, node, i) {
+		ebitmap_for_each_positive_bit(&oldc->range.level[l].cat,
+					      node, i) {
 			int rc;
 
 			catdatum = hashtab_search(newp->p_cats.table,
 						  sym_name(oldp, SYM_CATS, i));
 			if (!catdatum)
 				return -EINVAL;
-			rc = ebitmap_set_bit(&bitmap, catdatum->value - 1, 1);
+			rc = ebitmap_set_bit(&newc->range.level[l].cat,
+					     catdatum->value - 1, 1);
 			if (rc)
 				return rc;
-
-			cond_resched();
 		}
-		ebitmap_destroy(&c->range.level[l].cat);
-		c->range.level[l].cat = bitmap;
 	}
 
 	return 0;

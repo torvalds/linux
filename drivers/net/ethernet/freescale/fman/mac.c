@@ -393,7 +393,7 @@ void fman_get_pause_cfg(struct mac_device *mac_dev, bool *rx_pause,
 	 */
 
 	/* get local capabilities */
-	lcl_adv = ethtool_adv_to_lcl_adv_t(phy_dev->advertising);
+	lcl_adv = linkmode_adv_to_lcl_adv_t(phy_dev->advertising);
 
 	/* get link partner capabilities */
 	rmt_adv = 0;

@@ -345,12 +345,17 @@ int ocfs2_load_local_alloc(struct ocfs2_super *osb)
 	if (num_used
 	    || alloc->id1.bitmap1.i_used
 	    || alloc->id1.bitmap1.i_total
-	    || la->la_bm_off)
-		mlog(ML_ERROR, "Local alloc hasn't been recovered!\n"
+	    || la->la_bm_off) {
+		mlog(ML_ERROR, "inconsistent detected, clean journal with"
+		     " unrecovered local alloc, please run fsck.ocfs2!\n"
 		     "found = %u, set = %u, taken = %u, off = %u\n",
 		     num_used, le32_to_cpu(alloc->id1.bitmap1.i_used),
 		     le32_to_cpu(alloc->id1.bitmap1.i_total),
 		     OCFS2_LOCAL_ALLOC(alloc)->la_bm_off);
+
+		status = -EINVAL;
+		goto bail;
+	}
 
 	osb->local_alloc_bh = alloc_bh;
 	osb->local_alloc_state = OCFS2_LA_ENABLED;
@@ -835,7 +840,7 @@ static int ocfs2_local_alloc_find_clear_bits(struct ocfs2_super *osb,
 				     u32 *numbits,
 				     struct ocfs2_alloc_reservation *resv)
 {
-	int numfound = 0, bitoff, left, startoff, lastzero;
+	int numfound = 0, bitoff, left, startoff;
 	int local_resv = 0;
 	struct ocfs2_alloc_reservation r;
 	void *bitmap = NULL;
@@ -873,7 +878,6 @@ static int ocfs2_local_alloc_find_clear_bits(struct ocfs2_super *osb,
 	bitmap = OCFS2_LOCAL_ALLOC(alloc)->la_bitmap;
 
 	numfound = bitoff = startoff = 0;
-	lastzero = -1;
 	left = le32_to_cpu(alloc->id1.bitmap1.i_total);
 	while ((bitoff = ocfs2_find_next_zero_bit(bitmap, left, startoff)) != -1) {
 		if (bitoff == left) {

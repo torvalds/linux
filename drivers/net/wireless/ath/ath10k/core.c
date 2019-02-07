@@ -561,6 +561,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.hw_ops = &wcn3990_ops,
 		.decap_align_bytes = 1,
 		.num_peers = TARGET_HL_10_TLV_NUM_PEERS,
+		.n_cipher_suites = 8,
 		.ast_skid_limit = TARGET_HL_10_TLV_AST_SKID_LIMIT,
 		.num_wds_entries = TARGET_HL_10_TLV_NUM_WDS_ENTRIES,
 		.target_64bit = true,
@@ -594,6 +595,7 @@ static const char *const ath10k_core_fw_feature_str[] = {
 	[ATH10K_FW_FEATURE_NO_PS] = "no-ps",
 	[ATH10K_FW_FEATURE_MGMT_TX_BY_REF] = "mgmt-tx-by-reference",
 	[ATH10K_FW_FEATURE_NON_BMI] = "non-bmi",
+	[ATH10K_FW_FEATURE_SINGLE_CHAN_INFO_PER_CHANNEL] = "single-chan-info-per-channel",
 };
 
 static unsigned int ath10k_core_get_fw_feature_str(char *buf,
@@ -2183,6 +2185,8 @@ static void ath10k_core_restart(struct work_struct *work)
 	if (ret)
 		ath10k_warn(ar, "failed to send firmware crash dump via devcoredump: %d",
 			    ret);
+
+	complete(&ar->driver_recovery);
 }
 
 static void ath10k_core_set_coverage_class_work(struct work_struct *work)
@@ -2418,6 +2422,28 @@ static int ath10k_core_reset_rx_filter(struct ath10k *ar)
 	return 0;
 }
 
+static int ath10k_core_compat_services(struct ath10k *ar)
+{
+	struct ath10k_fw_file *fw_file = &ar->normal_mode_fw.fw_file;
+
+	/* all 10.x firmware versions support thermal throttling but don't
+	 * advertise the support via service flags so we have to hardcode
+	 * it here
+	 */
+	switch (fw_file->wmi_op_version) {
+	case ATH10K_FW_WMI_OP_VERSION_10_1:
+	case ATH10K_FW_WMI_OP_VERSION_10_2:
+	case ATH10K_FW_WMI_OP_VERSION_10_2_4:
+	case ATH10K_FW_WMI_OP_VERSION_10_4:
+		set_bit(WMI_SERVICE_THERM_THROT, ar->wmi.svc_map);
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode,
 		      const struct ath10k_fw_components *fw)
 {
@@ -2614,6 +2640,12 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode,
 	status = ath10k_wmi_wait_for_unified_ready(ar);
 	if (status) {
 		ath10k_err(ar, "wmi unified ready event not received\n");
+		goto err_hif_stop;
+	}
+
+	status = ath10k_core_compat_services(ar);
+	if (status) {
+		ath10k_err(ar, "compat services failed: %d\n", status);
 		goto err_hif_stop;
 	}
 
@@ -3046,6 +3078,7 @@ struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 	init_completion(&ar->scan.completed);
 	init_completion(&ar->scan.on_channel);
 	init_completion(&ar->target_suspend);
+	init_completion(&ar->driver_recovery);
 	init_completion(&ar->wow.wakeup_completed);
 
 	init_completion(&ar->install_key_done);

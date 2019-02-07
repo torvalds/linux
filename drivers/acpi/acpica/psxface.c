@@ -147,6 +147,9 @@ acpi_status acpi_ps_execute_method(struct acpi_evaluate_info *info)
 		goto cleanup;
 	}
 
+	walk_state->method_pathname = info->full_pathname;
+	walk_state->method_is_nested = FALSE;
+
 	if (info->obj_desc->method.info_flags & ACPI_METHOD_MODULE_LEVEL) {
 		walk_state->parse_flags |= ACPI_PARSE_MODULE_LEVEL;
 	}
@@ -266,6 +269,9 @@ acpi_status acpi_ps_execute_table(struct acpi_evaluate_info *info)
 	if (ACPI_FAILURE(status)) {
 		goto cleanup;
 	}
+
+	walk_state->method_pathname = info->full_pathname;
+	walk_state->method_is_nested = FALSE;
 
 	if (info->obj_desc->method.info_flags & ACPI_METHOD_MODULE_LEVEL) {
 		walk_state->parse_flags |= ACPI_PARSE_MODULE_LEVEL;

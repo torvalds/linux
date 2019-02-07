@@ -25,6 +25,10 @@
 				       0x003fffff 0x003f8000 0x00000000  /* pioD */
 				      >;
 			};
+
+			pmc: pmc@fffffc00 {
+				compatible = "atmel,at91sam9g35-pmc", "atmel,at91sam9x5-pmc", "syscon";
+			};
 		};
 	};
 };

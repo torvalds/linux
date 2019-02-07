@@ -6,3 +6,10 @@ obj-y += process.o cpu-probe.o ptrace.o dumpstack.o
 
 obj-$(CONFIG_MODULES)			+= module.o
 obj-$(CONFIG_SMP)			+= smp.o
+obj-$(CONFIG_FUNCTION_TRACER)		+= ftrace.o
+obj-$(CONFIG_STACKTRACE)		+= stacktrace.o
+obj-$(CONFIG_CSKY_PMU_V1)		+= perf_event.o
+
+ifdef CONFIG_FUNCTION_TRACER
+CFLAGS_REMOVE_ftrace.o = $(CC_FLAGS_FTRACE)
+endif

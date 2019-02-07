@@ -28,6 +28,7 @@ enum {
 	NDA_MASTER,
 	NDA_LINK_NETNSID,
 	NDA_SRC_VNI,
+	NDA_PROTOCOL,  /* Originator of entry */
 	__NDA_MAX
 };
 

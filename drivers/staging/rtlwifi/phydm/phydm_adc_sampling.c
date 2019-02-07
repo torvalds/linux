@@ -551,11 +551,10 @@ void phydm_lamode_trigger_setting(void *dm_void, char input[][16], u32 *_used,
 		/*dbg_print("echo cmd input_num = %d\n", input_num);*/
 
 		if ((strcmp(input[1], help) == 0)) {
-			PHYDM_SNPRINTF(
-				output + used, out_len - used,
-				"{En} {0:BB,1:BB_MAC,2:RF0,3:RF1,4:MAC}\n {BB:dbg_port[bit],BB_MAC:0-ok/1-fail/2-cca,MAC:ref} {DMA type} {TrigTime}\n {polling_time/ref_mask} {dbg_port} {0:P_Edge, 1:N_Edge} {SpRate:0-80M,1-40M,2-20M} {Capture num}\n");
-			/**/
-		} else if (is_enable_la_mode == 1) {
+			PHYDM_SNPRINTF(output + used,
+				       out_len - used,
+				       "{En} {0:BB,1:BB_MAC,2:RF0,3:RF1,4:MAC}\n {BB:dbg_port[bit],BB_MAC:0-ok/1-fail/2-cca,MAC:ref} {DMA type} {TrigTime}\n {polling_time/ref_mask} {dbg_port} {0:P_Edge, 1:N_Edge} {SpRate:0-80M,1-40M,2-20M} {Capture num}\n");
+		} else if (is_enable_la_mode) {
 			PHYDM_SSCANF(input[2], DCMD_DECIMAL, &var1[1]);
 
 			trig_mode = (u8)var1[1];
@@ -575,7 +574,7 @@ void phydm_lamode_trigger_setting(void *dm_void, char input[][16], u32 *_used,
 			PHYDM_SSCANF(input[10], DCMD_DECIMAL, &var1[9]);
 
 			dma_data_sig_sel = (u8)var1[3];
-			trigger_time_mu_sec = var1[4]; /*unit: us*/
+			trigger_time_mu_sec = var1[4]; /* unit: us */
 
 			adc_smp->la_mac_ref_mask = var1[5];
 			adc_smp->la_dbg_port = var1[6];

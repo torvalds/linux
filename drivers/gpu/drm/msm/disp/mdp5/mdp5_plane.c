@@ -46,7 +46,6 @@ static void mdp5_plane_destroy(struct drm_plane *plane)
 {
 	struct mdp5_plane *mdp5_plane = to_mdp5_plane(plane);
 
-	drm_plane_helper_disable(plane, NULL);
 	drm_plane_cleanup(plane);
 
 	kfree(mdp5_plane);
@@ -126,7 +125,7 @@ static int mdp5_plane_atomic_set_property(struct drm_plane *plane,
 
 	SET_PROPERTY(zpos, ZPOS, uint8_t);
 
-	dev_err(dev->dev, "Invalid property\n");
+	DRM_DEV_ERROR(dev->dev, "Invalid property\n");
 	ret = -EINVAL;
 done:
 	return ret;
@@ -154,7 +153,7 @@ static int mdp5_plane_atomic_get_property(struct drm_plane *plane,
 
 	GET_PROPERTY(zpos, ZPOS, uint8_t);
 
-	dev_err(dev->dev, "Invalid property\n");
+	DRM_DEV_ERROR(dev->dev, "Invalid property\n");
 	ret = -EINVAL;
 done:
 	return ret;
@@ -659,7 +658,7 @@ static int calc_scalex_steps(struct drm_plane *plane,
 
 	ret = calc_phase_step(src, dest, &phasex_step);
 	if (ret) {
-		dev_err(dev, "X scaling (%d->%d) failed: %d\n", src, dest, ret);
+		DRM_DEV_ERROR(dev, "X scaling (%d->%d) failed: %d\n", src, dest, ret);
 		return ret;
 	}
 
@@ -684,7 +683,7 @@ static int calc_scaley_steps(struct drm_plane *plane,
 
 	ret = calc_phase_step(src, dest, &phasey_step);
 	if (ret) {
-		dev_err(dev, "Y scaling (%d->%d) failed: %d\n", src, dest, ret);
+		DRM_DEV_ERROR(dev, "Y scaling (%d->%d) failed: %d\n", src, dest, ret);
 		return ret;
 	}
 

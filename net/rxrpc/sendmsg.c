@@ -169,10 +169,8 @@ static void rxrpc_queue_packet(struct rxrpc_sock *rx, struct rxrpc_call *call,
 
 	ASSERTCMP(seq, ==, call->tx_top + 1);
 
-	if (last) {
+	if (last)
 		annotation |= RXRPC_TX_ANNO_LAST;
-		set_bit(RXRPC_CALL_TX_LASTQ, &call->flags);
-	}
 
 	/* We have to set the timestamp before queueing as the retransmit
 	 * algorithm can see the packet as soon as we queue it.
@@ -386,6 +384,11 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 				call->tx_total_len -= copy;
 		}
 
+		/* check for the far side aborting the call or a network error
+		 * occurring */
+		if (call->state == RXRPC_CALL_COMPLETE)
+			goto call_terminated;
+
 		/* add the packet to the send queue if it's now full */
 		if (sp->remain <= 0 ||
 		    (msg_data_left(msg) == 0 && !more)) {
@@ -425,16 +428,6 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 					   notify_end_tx);
 			skb = NULL;
 		}
-
-		/* Check for the far side aborting the call or a network error
-		 * occurring.  If this happens, save any packet that was under
-		 * construction so that in the case of a network error, the
-		 * call can be retried or redirected.
-		 */
-		if (call->state == RXRPC_CALL_COMPLETE) {
-			ret = call->error;
-			goto out;
-		}
 	} while (msg_data_left(msg) > 0);
 
 success:
@@ -443,6 +436,11 @@ out:
 	call->tx_pending = skb;
 	_leave(" = %d", ret);
 	return ret;
+
+call_terminated:
+	rxrpc_free_skb(skb, rxrpc_skb_tx_freed);
+	_leave(" = %d", call->error);
+	return call->error;
 
 maybe_error:
 	if (copied)

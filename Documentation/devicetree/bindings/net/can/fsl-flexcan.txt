@@ -24,6 +24,14 @@ Optional properties:
               if this property is present then controller is assumed to be big
               endian.
 
+- fsl,stop-mode: register bits of stop mode control, the format is
+		 <&gpr req_gpr req_bit ack_gpr ack_bit>.
+		 gpr is the phandle to general purpose register node.
+		 req_gpr is the gpr register offset of CAN stop request.
+		 req_bit is the bit offset of CAN stop request.
+		 ack_gpr is the gpr register offset of CAN stop acknowledge.
+		 ack_bit is the bit offset of CAN stop acknowledge.
+
 Example:
 
 	can@1c000 {

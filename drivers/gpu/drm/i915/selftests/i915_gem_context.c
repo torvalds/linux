@@ -39,7 +39,8 @@ struct live_test {
 	const char *func;
 	const char *name;
 
-	unsigned int reset_count;
+	unsigned int reset_global;
+	unsigned int reset_engine[I915_NUM_ENGINES];
 };
 
 static int begin_live_test(struct live_test *t,
@@ -47,6 +48,8 @@ static int begin_live_test(struct live_test *t,
 			   const char *func,
 			   const char *name)
 {
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
 	int err;
 
 	t->i915 = i915;
@@ -63,7 +66,11 @@ static int begin_live_test(struct live_test *t,
 	}
 
 	i915->gpu_error.missed_irq_rings = 0;
-	t->reset_count = i915_reset_count(&i915->gpu_error);
+	t->reset_global = i915_reset_count(&i915->gpu_error);
+
+	for_each_engine(engine, i915, id)
+		t->reset_engine[id] =
+			i915_reset_engine_count(&i915->gpu_error, engine);
 
 	return 0;
 }
@@ -71,14 +78,28 @@ static int begin_live_test(struct live_test *t,
 static int end_live_test(struct live_test *t)
 {
 	struct drm_i915_private *i915 = t->i915;
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
 
 	if (igt_flush_test(i915, I915_WAIT_LOCKED))
 		return -EIO;
 
-	if (t->reset_count != i915_reset_count(&i915->gpu_error)) {
+	if (t->reset_global != i915_reset_count(&i915->gpu_error)) {
 		pr_err("%s(%s): GPU was reset %d times!\n",
 		       t->func, t->name,
-		       i915_reset_count(&i915->gpu_error) - t->reset_count);
+		       i915_reset_count(&i915->gpu_error) - t->reset_global);
+		return -EIO;
+	}
+
+	for_each_engine(engine, i915, id) {
+		if (t->reset_engine[id] ==
+		    i915_reset_engine_count(&i915->gpu_error, engine))
+			continue;
+
+		pr_err("%s(%s): engine '%s' was reset %d times!\n",
+		       t->func, t->name, engine->name,
+		       i915_reset_engine_count(&i915->gpu_error, engine) -
+		       t->reset_engine[id]);
 		return -EIO;
 	}
 
@@ -531,11 +552,11 @@ static int igt_ctx_exec(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
 	struct drm_i915_gem_object *obj = NULL;
+	unsigned long ncontexts, ndwords, dw;
 	struct drm_file *file;
 	IGT_TIMEOUT(end_time);
 	LIST_HEAD(objects);
-	unsigned long ncontexts, ndwords, dw;
-	bool first_shared_gtt = true;
+	struct live_test t;
 	int err = -ENODEV;
 
 	/*
@@ -553,6 +574,10 @@ static int igt_ctx_exec(void *arg)
 
 	mutex_lock(&i915->drm.struct_mutex);
 
+	err = begin_live_test(&t, i915, __func__, "");
+	if (err)
+		goto out_unlock;
+
 	ncontexts = 0;
 	ndwords = 0;
 	dw = 0;
@@ -561,12 +586,7 @@ static int igt_ctx_exec(void *arg)
 		struct i915_gem_context *ctx;
 		unsigned int id;
 
-		if (first_shared_gtt) {
-			ctx = __create_hw_context(i915, file->driver_priv);
-			first_shared_gtt = false;
-		} else {
-			ctx = i915_gem_create_context(i915, file->driver_priv);
-		}
+		ctx = i915_gem_create_context(i915, file->driver_priv);
 		if (IS_ERR(ctx)) {
 			err = PTR_ERR(ctx);
 			goto out_unlock;
@@ -622,7 +642,7 @@ static int igt_ctx_exec(void *arg)
 	}
 
 out_unlock:
-	if (igt_flush_test(i915, I915_WAIT_LOCKED))
+	if (end_live_test(&t))
 		err = -EIO;
 	mutex_unlock(&i915->drm.struct_mutex);
 
@@ -634,13 +654,14 @@ static int igt_ctx_readonly(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
 	struct drm_i915_gem_object *obj = NULL;
+	struct i915_gem_context *ctx;
+	struct i915_hw_ppgtt *ppgtt;
+	unsigned long ndwords, dw;
 	struct drm_file *file;
 	I915_RND_STATE(prng);
 	IGT_TIMEOUT(end_time);
 	LIST_HEAD(objects);
-	struct i915_gem_context *ctx;
-	struct i915_hw_ppgtt *ppgtt;
-	unsigned long ndwords, dw;
+	struct live_test t;
 	int err = -ENODEV;
 
 	/*
@@ -654,6 +675,10 @@ static int igt_ctx_readonly(void *arg)
 		return PTR_ERR(file);
 
 	mutex_lock(&i915->drm.struct_mutex);
+
+	err = begin_live_test(&t, i915, __func__, "");
+	if (err)
+		goto out_unlock;
 
 	ctx = i915_gem_create_context(i915, file->driver_priv);
 	if (IS_ERR(ctx)) {
@@ -727,7 +752,324 @@ static int igt_ctx_readonly(void *arg)
 	}
 
 out_unlock:
-	if (igt_flush_test(i915, I915_WAIT_LOCKED))
+	if (end_live_test(&t))
+		err = -EIO;
+	mutex_unlock(&i915->drm.struct_mutex);
+
+	mock_file_free(i915, file);
+	return err;
+}
+
+static int check_scratch(struct i915_gem_context *ctx, u64 offset)
+{
+	struct drm_mm_node *node =
+		__drm_mm_interval_first(&ctx->ppgtt->vm.mm,
+					offset, offset + sizeof(u32) - 1);
+	if (!node || node->start > offset)
+		return 0;
+
+	GEM_BUG_ON(offset >= node->start + node->size);
+
+	pr_err("Target offset 0x%08x_%08x overlaps with a node in the mm!\n",
+	       upper_32_bits(offset), lower_32_bits(offset));
+	return -EINVAL;
+}
+
+static int write_to_scratch(struct i915_gem_context *ctx,
+			    struct intel_engine_cs *engine,
+			    u64 offset, u32 value)
+{
+	struct drm_i915_private *i915 = ctx->i915;
+	struct drm_i915_gem_object *obj;
+	struct i915_request *rq;
+	struct i915_vma *vma;
+	u32 *cmd;
+	int err;
+
+	GEM_BUG_ON(offset < I915_GTT_PAGE_SIZE);
+
+	obj = i915_gem_object_create_internal(i915, PAGE_SIZE);
+	if (IS_ERR(obj))
+		return PTR_ERR(obj);
+
+	cmd = i915_gem_object_pin_map(obj, I915_MAP_WB);
+	if (IS_ERR(cmd)) {
+		err = PTR_ERR(cmd);
+		goto err;
+	}
+
+	*cmd++ = MI_STORE_DWORD_IMM_GEN4;
+	if (INTEL_GEN(i915) >= 8) {
+		*cmd++ = lower_32_bits(offset);
+		*cmd++ = upper_32_bits(offset);
+	} else {
+		*cmd++ = 0;
+		*cmd++ = offset;
+	}
+	*cmd++ = value;
+	*cmd = MI_BATCH_BUFFER_END;
+	i915_gem_object_unpin_map(obj);
+
+	err = i915_gem_object_set_to_gtt_domain(obj, false);
+	if (err)
+		goto err;
+
+	vma = i915_vma_instance(obj, &ctx->ppgtt->vm, NULL);
+	if (IS_ERR(vma)) {
+		err = PTR_ERR(vma);
+		goto err;
+	}
+
+	err = i915_vma_pin(vma, 0, 0, PIN_USER | PIN_OFFSET_FIXED);
+	if (err)
+		goto err;
+
+	err = check_scratch(ctx, offset);
+	if (err)
+		goto err_unpin;
+
+	rq = i915_request_alloc(engine, ctx);
+	if (IS_ERR(rq)) {
+		err = PTR_ERR(rq);
+		goto err_unpin;
+	}
+
+	err = engine->emit_bb_start(rq, vma->node.start, vma->node.size, 0);
+	if (err)
+		goto err_request;
+
+	err = i915_vma_move_to_active(vma, rq, 0);
+	if (err)
+		goto skip_request;
+
+	i915_gem_object_set_active_reference(obj);
+	i915_vma_unpin(vma);
+	i915_vma_close(vma);
+
+	i915_request_add(rq);
+
+	return 0;
+
+skip_request:
+	i915_request_skip(rq, err);
+err_request:
+	i915_request_add(rq);
+err_unpin:
+	i915_vma_unpin(vma);
+err:
+	i915_gem_object_put(obj);
+	return err;
+}
+
+static int read_from_scratch(struct i915_gem_context *ctx,
+			     struct intel_engine_cs *engine,
+			     u64 offset, u32 *value)
+{
+	struct drm_i915_private *i915 = ctx->i915;
+	struct drm_i915_gem_object *obj;
+	const u32 RCS_GPR0 = 0x2600; /* not all engines have their own GPR! */
+	const u32 result = 0x100;
+	struct i915_request *rq;
+	struct i915_vma *vma;
+	u32 *cmd;
+	int err;
+
+	GEM_BUG_ON(offset < I915_GTT_PAGE_SIZE);
+
+	obj = i915_gem_object_create_internal(i915, PAGE_SIZE);
+	if (IS_ERR(obj))
+		return PTR_ERR(obj);
+
+	cmd = i915_gem_object_pin_map(obj, I915_MAP_WB);
+	if (IS_ERR(cmd)) {
+		err = PTR_ERR(cmd);
+		goto err;
+	}
+
+	memset(cmd, POISON_INUSE, PAGE_SIZE);
+	if (INTEL_GEN(i915) >= 8) {
+		*cmd++ = MI_LOAD_REGISTER_MEM_GEN8;
+		*cmd++ = RCS_GPR0;
+		*cmd++ = lower_32_bits(offset);
+		*cmd++ = upper_32_bits(offset);
+		*cmd++ = MI_STORE_REGISTER_MEM_GEN8;
+		*cmd++ = RCS_GPR0;
+		*cmd++ = result;
+		*cmd++ = 0;
+	} else {
+		*cmd++ = MI_LOAD_REGISTER_MEM;
+		*cmd++ = RCS_GPR0;
+		*cmd++ = offset;
+		*cmd++ = MI_STORE_REGISTER_MEM;
+		*cmd++ = RCS_GPR0;
+		*cmd++ = result;
+	}
+	*cmd = MI_BATCH_BUFFER_END;
+	i915_gem_object_unpin_map(obj);
+
+	err = i915_gem_object_set_to_gtt_domain(obj, false);
+	if (err)
+		goto err;
+
+	vma = i915_vma_instance(obj, &ctx->ppgtt->vm, NULL);
+	if (IS_ERR(vma)) {
+		err = PTR_ERR(vma);
+		goto err;
+	}
+
+	err = i915_vma_pin(vma, 0, 0, PIN_USER | PIN_OFFSET_FIXED);
+	if (err)
+		goto err;
+
+	err = check_scratch(ctx, offset);
+	if (err)
+		goto err_unpin;
+
+	rq = i915_request_alloc(engine, ctx);
+	if (IS_ERR(rq)) {
+		err = PTR_ERR(rq);
+		goto err_unpin;
+	}
+
+	err = engine->emit_bb_start(rq, vma->node.start, vma->node.size, 0);
+	if (err)
+		goto err_request;
+
+	err = i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
+	if (err)
+		goto skip_request;
+
+	i915_vma_unpin(vma);
+	i915_vma_close(vma);
+
+	i915_request_add(rq);
+
+	err = i915_gem_object_set_to_cpu_domain(obj, false);
+	if (err)
+		goto err;
+
+	cmd = i915_gem_object_pin_map(obj, I915_MAP_WB);
+	if (IS_ERR(cmd)) {
+		err = PTR_ERR(cmd);
+		goto err;
+	}
+
+	*value = cmd[result / sizeof(*cmd)];
+	i915_gem_object_unpin_map(obj);
+	i915_gem_object_put(obj);
+
+	return 0;
+
+skip_request:
+	i915_request_skip(rq, err);
+err_request:
+	i915_request_add(rq);
+err_unpin:
+	i915_vma_unpin(vma);
+err:
+	i915_gem_object_put(obj);
+	return err;
+}
+
+static int igt_vm_isolation(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	struct i915_gem_context *ctx_a, *ctx_b;
+	struct intel_engine_cs *engine;
+	struct drm_file *file;
+	I915_RND_STATE(prng);
+	unsigned long count;
+	struct live_test t;
+	unsigned int id;
+	u64 vm_total;
+	int err;
+
+	if (INTEL_GEN(i915) < 7)
+		return 0;
+
+	/*
+	 * The simple goal here is that a write into one context is not
+	 * observed in a second (separate page tables and scratch).
+	 */
+
+	file = mock_file(i915);
+	if (IS_ERR(file))
+		return PTR_ERR(file);
+
+	mutex_lock(&i915->drm.struct_mutex);
+
+	err = begin_live_test(&t, i915, __func__, "");
+	if (err)
+		goto out_unlock;
+
+	ctx_a = i915_gem_create_context(i915, file->driver_priv);
+	if (IS_ERR(ctx_a)) {
+		err = PTR_ERR(ctx_a);
+		goto out_unlock;
+	}
+
+	ctx_b = i915_gem_create_context(i915, file->driver_priv);
+	if (IS_ERR(ctx_b)) {
+		err = PTR_ERR(ctx_b);
+		goto out_unlock;
+	}
+
+	/* We can only test vm isolation, if the vm are distinct */
+	if (ctx_a->ppgtt == ctx_b->ppgtt)
+		goto out_unlock;
+
+	vm_total = ctx_a->ppgtt->vm.total;
+	GEM_BUG_ON(ctx_b->ppgtt->vm.total != vm_total);
+	vm_total -= I915_GTT_PAGE_SIZE;
+
+	intel_runtime_pm_get(i915);
+
+	count = 0;
+	for_each_engine(engine, i915, id) {
+		IGT_TIMEOUT(end_time);
+		unsigned long this = 0;
+
+		if (!intel_engine_can_store_dword(engine))
+			continue;
+
+		while (!__igt_timeout(end_time, NULL)) {
+			u32 value = 0xc5c5c5c5;
+			u64 offset;
+
+			div64_u64_rem(i915_prandom_u64_state(&prng),
+				      vm_total, &offset);
+			offset &= ~sizeof(u32);
+			offset += I915_GTT_PAGE_SIZE;
+
+			err = write_to_scratch(ctx_a, engine,
+					       offset, 0xdeadbeef);
+			if (err == 0)
+				err = read_from_scratch(ctx_b, engine,
+							offset, &value);
+			if (err)
+				goto out_rpm;
+
+			if (value) {
+				pr_err("%s: Read %08x from scratch (offset 0x%08x_%08x), after %lu reads!\n",
+				       engine->name, value,
+				       upper_32_bits(offset),
+				       lower_32_bits(offset),
+				       this);
+				err = -EINVAL;
+				goto out_rpm;
+			}
+
+			this++;
+		}
+		count += this;
+	}
+	pr_info("Checked %lu scratch offsets across %d engines\n",
+		count, INTEL_INFO(i915)->num_rings);
+
+out_rpm:
+	intel_runtime_pm_put(i915);
+out_unlock:
+	if (end_live_test(&t))
 		err = -EIO;
 	mutex_unlock(&i915->drm.struct_mutex);
 
@@ -865,33 +1207,6 @@ out_unlock:
 	return err;
 }
 
-static int fake_aliasing_ppgtt_enable(struct drm_i915_private *i915)
-{
-	struct drm_i915_gem_object *obj;
-	int err;
-
-	err = i915_gem_init_aliasing_ppgtt(i915);
-	if (err)
-		return err;
-
-	list_for_each_entry(obj, &i915->mm.bound_list, mm.link) {
-		struct i915_vma *vma;
-
-		vma = i915_vma_instance(obj, &i915->ggtt.vm, NULL);
-		if (IS_ERR(vma))
-			continue;
-
-		vma->flags &= ~I915_VMA_LOCAL_BIND;
-	}
-
-	return 0;
-}
-
-static void fake_aliasing_ppgtt_disable(struct drm_i915_private *i915)
-{
-	i915_gem_fini_aliasing_ppgtt(i915);
-}
-
 int i915_gem_context_mock_selftests(void)
 {
 	static const struct i915_subtest tests[] = {
@@ -917,32 +1232,11 @@ int i915_gem_context_live_selftests(struct drm_i915_private *dev_priv)
 		SUBTEST(live_nop_switch),
 		SUBTEST(igt_ctx_exec),
 		SUBTEST(igt_ctx_readonly),
+		SUBTEST(igt_vm_isolation),
 	};
-	bool fake_alias = false;
-	int err;
 
 	if (i915_terminally_wedged(&dev_priv->gpu_error))
 		return 0;
 
-	/* Install a fake aliasing gtt for exercise */
-	if (USES_PPGTT(dev_priv) && !dev_priv->mm.aliasing_ppgtt) {
-		mutex_lock(&dev_priv->drm.struct_mutex);
-		err = fake_aliasing_ppgtt_enable(dev_priv);
-		mutex_unlock(&dev_priv->drm.struct_mutex);
-		if (err)
-			return err;
-
-		GEM_BUG_ON(!dev_priv->mm.aliasing_ppgtt);
-		fake_alias = true;
-	}
-
-	err = i915_subtests(tests, dev_priv);
-
-	if (fake_alias) {
-		mutex_lock(&dev_priv->drm.struct_mutex);
-		fake_aliasing_ppgtt_disable(dev_priv);
-		mutex_unlock(&dev_priv->drm.struct_mutex);
-	}
-
-	return err;
+	return i915_subtests(tests, dev_priv);
 }

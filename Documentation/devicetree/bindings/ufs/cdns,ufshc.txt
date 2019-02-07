@@ -1,0 +1,31 @@
+* Cadence Universal Flash Storage (UFS) Controller
+
+UFS nodes are defined to describe on-chip UFS host controllers.
+Each UFS controller instance should have its own node.
+Please see the ufshcd-pltfrm.txt for a list of all available properties.
+
+Required properties:
+- compatible	: Compatible list, contains the following controller:
+			"cdns,ufshc"
+		  complemented with the JEDEC version:
+			"jedec,ufs-2.0"
+
+- reg		: Address and length of the UFS register set.
+- interrupts	: One interrupt mapping.
+- freq-table-hz	: Clock frequency table.
+		  See the ufshcd-pltfrm.txt for details.
+- clocks	: List of phandle and clock specifier pairs.
+- clock-names	: List of clock input name strings sorted in the same
+		  order as the clocks property. "core_clk" is mandatory.
+		  Depending on a type of a PHY,
+		  the "phy_clk" clock can also be added, if needed.
+
+Example:
+	ufs@fd030000 {
+		compatible = "cdns,ufshc", "jedec,ufs-2.0";
+		reg = <0xfd030000 0x10000>;
+		interrupts = <0 1 IRQ_TYPE_LEVEL_HIGH>;
+		freq-table-hz = <0 0>, <0 0>;
+		clocks = <&ufs_core_clk>, <&ufs_phy_clk>;
+		clock-names = "core_clk", "phy_clk";
+	};

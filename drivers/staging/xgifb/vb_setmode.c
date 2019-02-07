@@ -654,10 +654,11 @@ static void XGI_UpdateXG21CRTC(unsigned short ModeNo,
 	xgifb_reg_and(pVBInfo->P3d4, 0x11, 0x7F); /* Unlock CR0~7 */
 	if (ModeNo == 0x2E &&
 	    (XGI330_RefIndex[RefreshRateTableIndex].Ext_CRT1CRTC ==
-						      RES640x480x60))
+								RES640x480x60))
 		index = 12;
-	else if (ModeNo == 0x2E && (XGI330_RefIndex[RefreshRateTableIndex].
-				Ext_CRT1CRTC == RES640x480x72))
+	else if (ModeNo == 0x2E &&
+		 (XGI330_RefIndex[RefreshRateTableIndex].Ext_CRT1CRTC ==
+								RES640x480x72))
 		index = 13;
 	else if (ModeNo == 0x2F)
 		index = 14;

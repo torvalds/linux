@@ -529,7 +529,6 @@ SYSCALL_DEFINE4(osf_mount, unsigned long, typenr, const char __user *, path,
 
 SYSCALL_DEFINE1(osf_utsname, char __user *, name)
 {
-	int error;
 	char tmp[5 * 32];
 
 	down_read(&uts_sem);
@@ -560,7 +559,7 @@ SYSCALL_DEFINE0(getdtablesize)
  */
 SYSCALL_DEFINE2(osf_getdomainname, char __user *, name, int, namelen)
 {
-	int len, err = 0;
+	int len;
 	char *kname;
 	char tmp[32];
 
@@ -1343,7 +1342,6 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
 }
 
 #ifdef CONFIG_OSF4_COMPAT
-
 /* Clear top 32 bits of iov_len in the user's buffer for
    compatibility with old versions of OSF/1 where iov_len
    was defined as int. */
@@ -1360,26 +1358,30 @@ osf_fix_iov_len(const struct iovec __user *iov, unsigned long count)
 	}
 	return 0;
 }
+#endif
 
 SYSCALL_DEFINE3(osf_readv, unsigned long, fd,
 		const struct iovec __user *, vector, unsigned long, count)
 {
+#ifdef CONFIG_OSF4_COMPAT
 	if (unlikely(personality(current->personality) == PER_OSF4))
 		if (osf_fix_iov_len(vector, count))
 			return -EFAULT;
+#endif
+
 	return sys_readv(fd, vector, count);
 }
 
 SYSCALL_DEFINE3(osf_writev, unsigned long, fd,
 		const struct iovec __user *, vector, unsigned long, count)
 {
+#ifdef CONFIG_OSF4_COMPAT
 	if (unlikely(personality(current->personality) == PER_OSF4))
 		if (osf_fix_iov_len(vector, count))
 			return -EFAULT;
+#endif
 	return sys_writev(fd, vector, count);
 }
-
-#endif
 
 SYSCALL_DEFINE2(osf_getpriority, int, which, int, who)
 {

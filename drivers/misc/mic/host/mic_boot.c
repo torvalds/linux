@@ -149,7 +149,7 @@ static void *__mic_dma_alloc(struct device *dev, size_t size,
 	struct scif_hw_dev *scdev = dev_get_drvdata(dev);
 	struct mic_device *mdev = scdev_to_mdev(scdev);
 	dma_addr_t tmp;
-	void *va = kmalloc(size, gfp);
+	void *va = kmalloc(size, gfp | __GFP_ZERO);
 
 	if (va) {
 		tmp = mic_map_single(mdev, va, size);

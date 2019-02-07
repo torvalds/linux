@@ -1632,9 +1632,6 @@ rocker_world_port_obj_vlan_add(struct rocker_port *rocker_port,
 {
 	struct rocker_world_ops *wops = rocker_port->rocker->wops;
 
-	if (netif_is_bridge_master(vlan->obj.orig_dev))
-		return -EOPNOTSUPP;
-
 	if (!wops->port_obj_vlan_add)
 		return -EOPNOTSUPP;
 
@@ -2145,8 +2142,6 @@ static int rocker_port_obj_del(struct net_device *dev,
 static const struct switchdev_ops rocker_port_switchdev_ops = {
 	.switchdev_port_attr_get	= rocker_port_attr_get,
 	.switchdev_port_attr_set	= rocker_port_attr_set,
-	.switchdev_port_obj_add		= rocker_port_obj_add,
-	.switchdev_port_obj_del		= rocker_port_obj_del,
 };
 
 struct rocker_fib_event_work {
@@ -2812,12 +2807,54 @@ static int rocker_switchdev_event(struct notifier_block *unused,
 	return NOTIFY_DONE;
 }
 
+static int
+rocker_switchdev_port_obj_event(unsigned long event, struct net_device *netdev,
+			struct switchdev_notifier_port_obj_info *port_obj_info)
+{
+	int err = -EOPNOTSUPP;
+
+	switch (event) {
+	case SWITCHDEV_PORT_OBJ_ADD:
+		err = rocker_port_obj_add(netdev, port_obj_info->obj,
+					  port_obj_info->trans);
+		break;
+	case SWITCHDEV_PORT_OBJ_DEL:
+		err = rocker_port_obj_del(netdev, port_obj_info->obj);
+		break;
+	}
+
+	port_obj_info->handled = true;
+	return notifier_from_errno(err);
+}
+
+static int rocker_switchdev_blocking_event(struct notifier_block *unused,
+					   unsigned long event, void *ptr)
+{
+	struct net_device *dev = switchdev_notifier_info_to_dev(ptr);
+
+	if (!rocker_port_dev_check(dev))
+		return NOTIFY_DONE;
+
+	switch (event) {
+	case SWITCHDEV_PORT_OBJ_ADD:
+	case SWITCHDEV_PORT_OBJ_DEL:
+		return rocker_switchdev_port_obj_event(event, dev, ptr);
+	}
+
+	return NOTIFY_DONE;
+}
+
 static struct notifier_block rocker_switchdev_notifier = {
 	.notifier_call = rocker_switchdev_event,
 };
 
+static struct notifier_block rocker_switchdev_blocking_notifier = {
+	.notifier_call = rocker_switchdev_blocking_event,
+};
+
 static int rocker_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
+	struct notifier_block *nb;
 	struct rocker *rocker;
 	int err;
 
@@ -2933,6 +2970,13 @@ static int rocker_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_register_switchdev_notifier;
 	}
 
+	nb = &rocker_switchdev_blocking_notifier;
+	err = register_switchdev_blocking_notifier(nb);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to register switchdev blocking notifier\n");
+		goto err_register_switchdev_blocking_notifier;
+	}
+
 	rocker->hw.id = rocker_read64(rocker, SWITCH_ID);
 
 	dev_info(&pdev->dev, "Rocker switch with id %*phN\n",
@@ -2940,6 +2984,8 @@ static int rocker_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	return 0;
 
+err_register_switchdev_blocking_notifier:
+	unregister_switchdev_notifier(&rocker_switchdev_notifier);
 err_register_switchdev_notifier:
 	unregister_fib_notifier(&rocker->fib_nb);
 err_register_fib_notifier:
@@ -2971,6 +3017,10 @@ err_pci_enable_device:
 static void rocker_remove(struct pci_dev *pdev)
 {
 	struct rocker *rocker = pci_get_drvdata(pdev);
+	struct notifier_block *nb;
+
+	nb = &rocker_switchdev_blocking_notifier;
+	unregister_switchdev_blocking_notifier(nb);
 
 	unregister_switchdev_notifier(&rocker_switchdev_notifier);
 	unregister_fib_notifier(&rocker->fib_nb);

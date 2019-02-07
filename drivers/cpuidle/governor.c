@@ -11,9 +11,12 @@
 #include <linux/cpu.h>
 #include <linux/cpuidle.h>
 #include <linux/mutex.h>
+#include <linux/module.h>
 #include <linux/pm_qos.h>
 
 #include "cpuidle.h"
+
+char param_governor[CPUIDLE_NAME_LEN];
 
 LIST_HEAD(cpuidle_governors);
 struct cpuidle_governor *cpuidle_curr_governor;
@@ -86,9 +89,11 @@ int cpuidle_register_governor(struct cpuidle_governor *gov)
 	mutex_lock(&cpuidle_lock);
 	if (__cpuidle_find_governor(gov->name) == NULL) {
 		ret = 0;
-		list_add_tail(&gov->governor_list, &cpuidle_governors);
 		if (!cpuidle_curr_governor ||
-		    cpuidle_curr_governor->rating < gov->rating)
+		    !strncasecmp(param_governor, gov->name, CPUIDLE_NAME_LEN) ||
+		    (cpuidle_curr_governor->rating < gov->rating &&
+		     strncasecmp(param_governor, cpuidle_curr_governor->name,
+				 CPUIDLE_NAME_LEN)))
 			cpuidle_switch_governor(gov);
 	}
 	mutex_unlock(&cpuidle_lock);

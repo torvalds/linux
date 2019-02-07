@@ -1066,7 +1066,7 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 				}
 				if (req.user_qp_buffer)
 					nesqp->nesuqp_addr = req.user_qp_buffer;
-				if ((ibpd->uobject) && (ibpd->uobject->context)) {
+				if (udata && (ibpd->uobject->context)) {
 					nesqp->user_mode = 1;
 					nes_ucontext = to_nesucontext(ibpd->uobject->context);
 					if (virt_wqs) {
@@ -1257,7 +1257,7 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 
 			nes_put_cqp_request(nesdev, cqp_request);
 
-			if (ibpd->uobject) {
+			if (udata) {
 				uresp.mmap_sq_db_index = nesqp->mmap_sq_db_index;
 				uresp.mmap_rq_db_index = 0;
 				uresp.actual_sq_size = sq_size;
@@ -3627,6 +3627,39 @@ static void get_dev_fw_str(struct ib_device *dev, char *str)
 		 (nesvnic->nesdev->nesadapter->firmware_version & 0x000000ff));
 }
 
+static const struct ib_device_ops nes_dev_ops = {
+	.alloc_mr = nes_alloc_mr,
+	.alloc_mw = nes_alloc_mw,
+	.alloc_pd = nes_alloc_pd,
+	.alloc_ucontext = nes_alloc_ucontext,
+	.create_cq = nes_create_cq,
+	.create_qp = nes_create_qp,
+	.dealloc_mw = nes_dealloc_mw,
+	.dealloc_pd = nes_dealloc_pd,
+	.dealloc_ucontext = nes_dealloc_ucontext,
+	.dereg_mr = nes_dereg_mr,
+	.destroy_cq = nes_destroy_cq,
+	.destroy_qp = nes_destroy_qp,
+	.drain_rq = nes_drain_rq,
+	.drain_sq = nes_drain_sq,
+	.get_dev_fw_str = get_dev_fw_str,
+	.get_dma_mr = nes_get_dma_mr,
+	.get_port_immutable = nes_port_immutable,
+	.map_mr_sg = nes_map_mr_sg,
+	.mmap = nes_mmap,
+	.modify_qp = nes_modify_qp,
+	.poll_cq = nes_poll_cq,
+	.post_recv = nes_post_recv,
+	.post_send = nes_post_send,
+	.query_device = nes_query_device,
+	.query_gid = nes_query_gid,
+	.query_pkey = nes_query_pkey,
+	.query_port = nes_query_port,
+	.query_qp = nes_query_qp,
+	.reg_user_mr = nes_reg_user_mr,
+	.req_notify_cq = nes_req_notify_cq,
+};
+
 /**
  * nes_init_ofa_device
  */
@@ -3673,36 +3706,6 @@ struct nes_ib_device *nes_init_ofa_device(struct net_device *netdev)
 	nesibdev->ibdev.phys_port_cnt = 1;
 	nesibdev->ibdev.num_comp_vectors = 1;
 	nesibdev->ibdev.dev.parent = &nesdev->pcidev->dev;
-	nesibdev->ibdev.query_device = nes_query_device;
-	nesibdev->ibdev.query_port = nes_query_port;
-	nesibdev->ibdev.query_pkey = nes_query_pkey;
-	nesibdev->ibdev.query_gid = nes_query_gid;
-	nesibdev->ibdev.alloc_ucontext = nes_alloc_ucontext;
-	nesibdev->ibdev.dealloc_ucontext = nes_dealloc_ucontext;
-	nesibdev->ibdev.mmap = nes_mmap;
-	nesibdev->ibdev.alloc_pd = nes_alloc_pd;
-	nesibdev->ibdev.dealloc_pd = nes_dealloc_pd;
-	nesibdev->ibdev.create_qp = nes_create_qp;
-	nesibdev->ibdev.modify_qp = nes_modify_qp;
-	nesibdev->ibdev.query_qp = nes_query_qp;
-	nesibdev->ibdev.destroy_qp = nes_destroy_qp;
-	nesibdev->ibdev.create_cq = nes_create_cq;
-	nesibdev->ibdev.destroy_cq = nes_destroy_cq;
-	nesibdev->ibdev.poll_cq = nes_poll_cq;
-	nesibdev->ibdev.get_dma_mr = nes_get_dma_mr;
-	nesibdev->ibdev.reg_user_mr = nes_reg_user_mr;
-	nesibdev->ibdev.dereg_mr = nes_dereg_mr;
-	nesibdev->ibdev.alloc_mw = nes_alloc_mw;
-	nesibdev->ibdev.dealloc_mw = nes_dealloc_mw;
-
-	nesibdev->ibdev.alloc_mr = nes_alloc_mr;
-	nesibdev->ibdev.map_mr_sg = nes_map_mr_sg;
-
-	nesibdev->ibdev.req_notify_cq = nes_req_notify_cq;
-	nesibdev->ibdev.post_send = nes_post_send;
-	nesibdev->ibdev.post_recv = nes_post_recv;
-	nesibdev->ibdev.drain_sq = nes_drain_sq;
-	nesibdev->ibdev.drain_rq = nes_drain_rq;
 
 	nesibdev->ibdev.iwcm = kzalloc(sizeof(*nesibdev->ibdev.iwcm), GFP_KERNEL);
 	if (nesibdev->ibdev.iwcm == NULL) {
@@ -3717,8 +3720,8 @@ struct nes_ib_device *nes_init_ofa_device(struct net_device *netdev)
 	nesibdev->ibdev.iwcm->reject = nes_reject;
 	nesibdev->ibdev.iwcm->create_listen = nes_create_listen;
 	nesibdev->ibdev.iwcm->destroy_listen = nes_destroy_listen;
-	nesibdev->ibdev.get_port_immutable   = nes_port_immutable;
-	nesibdev->ibdev.get_dev_fw_str   = get_dev_fw_str;
+
+	ib_set_device_ops(&nesibdev->ibdev, &nes_dev_ops);
 	memcpy(nesibdev->ibdev.iwcm->ifname, netdev->name,
 	       sizeof(nesibdev->ibdev.iwcm->ifname));
 

@@ -367,7 +367,7 @@ int setup_signal_stack_sc(unsigned long stack_top, struct ksignal *ksig,
 	/* This is the same calculation as i386 - ((sp + 4) & 15) == 0 */
 	stack_top = ((stack_top + 4) & -16UL) - 4;
 	frame = (struct sigframe __user *) stack_top - 1;
-	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
+	if (!access_ok(frame, sizeof(*frame)))
 		return 1;
 
 	restorer = frame->retcode;
@@ -412,7 +412,7 @@ int setup_signal_stack_si(unsigned long stack_top, struct ksignal *ksig,
 
 	stack_top &= -8UL;
 	frame = (struct rt_sigframe __user *) stack_top - 1;
-	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
+	if (!access_ok(frame, sizeof(*frame)))
 		return 1;
 
 	restorer = frame->retcode;
@@ -497,7 +497,7 @@ int setup_signal_stack_si(unsigned long stack_top, struct ksignal *ksig,
 	/* Subtract 128 for a red zone and 8 for proper alignment */
 	frame = (struct rt_sigframe __user *) ((unsigned long) frame - 128 - 8);
 
-	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
+	if (!access_ok(frame, sizeof(*frame)))
 		goto out;
 
 	if (ksig->ka.sa.sa_flags & SA_SIGINFO) {

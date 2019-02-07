@@ -235,11 +235,6 @@ static inline struct usb_hcd *bus_to_hcd(struct usb_bus *bus)
 	return container_of(bus, struct usb_hcd, self);
 }
 
-struct hcd_timeout {	/* timeouts we allocate */
-	struct list_head	timeout_list;
-	struct timer_list	timer;
-};
-
 /*-------------------------------------------------------------------------*/
 
 

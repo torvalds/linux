@@ -686,7 +686,7 @@ static int _nfs4_pnfs_v4_ds_connect(struct nfs_server *mds_srv,
 					  rpc_clnt_setup_test_and_add_xprt,
 					  &rpcdata);
 			if (xprtdata.cred)
-				put_rpccred(xprtdata.cred);
+				put_cred(xprtdata.cred);
 		} else {
 			clp = nfs4_set_ds_client(mds_srv,
 						(struct sockaddr *)&da->da_addr,

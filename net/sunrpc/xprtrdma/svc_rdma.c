@@ -235,9 +235,6 @@ void svc_rdma_cleanup(void)
 		unregister_sysctl_table(svcrdma_table_header);
 		svcrdma_table_header = NULL;
 	}
-#if defined(CONFIG_SUNRPC_BACKCHANNEL)
-	svc_unreg_xprt_class(&svc_rdma_bc_class);
-#endif
 	svc_unreg_xprt_class(&svc_rdma_class);
 }
 
@@ -259,8 +256,5 @@ int svc_rdma_init(void)
 
 	/* Register RDMA with the SVC transport switch */
 	svc_reg_xprt_class(&svc_rdma_class);
-#if defined(CONFIG_SUNRPC_BACKCHANNEL)
-	svc_reg_xprt_class(&svc_rdma_bc_class);
-#endif
 	return 0;
 }

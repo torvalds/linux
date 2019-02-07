@@ -3819,7 +3819,7 @@ bfa_sfp_scn(struct bfa_sfp_s *sfp, struct bfi_mbmsg_s *msg)
 		sfp->state = BFA_SFP_STATE_REMOVED;
 		sfp->data_valid = 0;
 		bfa_sfp_scn_aen_post(sfp, rsp);
-		 break;
+		break;
 	case BFA_SFP_SCN_FAILED:
 		sfp->state = BFA_SFP_STATE_FAILED;
 		sfp->data_valid = 0;
@@ -5763,7 +5763,7 @@ bfa_phy_intr(void *phyarg, struct bfi_mbmsg_s *msg)
 				(struct bfa_phy_stats_s *) phy->ubuf;
 			bfa_phy_ntoh32((u32 *)stats, (u32 *)phy->dbuf_kva,
 				sizeof(struct bfa_phy_stats_s));
-				bfa_trc(phy, stats->status);
+			bfa_trc(phy, stats->status);
 		}
 
 		phy->status = status;

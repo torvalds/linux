@@ -460,6 +460,19 @@ config VCNL4000
 	 To compile this driver as a module, choose M here: the
 	 module will be called vcnl4000.
 
+config VCNL4035
+	tristate "VCNL4035 combined ALS and proximity sensor"
+	select IIO_TRIGGERED_BUFFER
+	select REGMAP_I2C
+	depends on I2C
+	help
+	 Say Y here if you want to build a driver for the Vishay VCNL4035,
+	 combined ambient light (ALS) and proximity sensor. Currently only ALS
+	 function is available.
+
+	 To compile this driver as a module, choose M here: the
+	 module will be called vcnl4035.
+
 config VEML6070
 	tristate "VEML6070 UV A light sensor"
 	depends on I2C

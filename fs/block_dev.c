@@ -104,6 +104,20 @@ void invalidate_bdev(struct block_device *bdev)
 }
 EXPORT_SYMBOL(invalidate_bdev);
 
+static void set_init_blocksize(struct block_device *bdev)
+{
+	unsigned bsize = bdev_logical_block_size(bdev);
+	loff_t size = i_size_read(bdev->bd_inode);
+
+	while (bsize < PAGE_SIZE) {
+		if (size & bsize)
+			break;
+		bsize <<= 1;
+	}
+	bdev->bd_block_size = bsize;
+	bdev->bd_inode->i_blkbits = blksize_bits(bsize);
+}
+
 int set_blocksize(struct block_device *bdev, int size)
 {
 	/* Size must be a power of two, and between 512 and PAGE_SIZE */
@@ -181,7 +195,7 @@ static void blkdev_bio_end_io_simple(struct bio *bio)
 	struct task_struct *waiter = bio->bi_private;
 
 	WRITE_ONCE(bio->bi_private, NULL);
-	wake_up_process(waiter);
+	blk_wake_io_task(waiter);
 }
 
 static ssize_t
@@ -232,6 +246,8 @@ __blkdev_direct_IO_simple(struct kiocb *iocb, struct iov_iter *iter,
 		bio.bi_opf = dio_bio_write_op(iocb);
 		task_io_account_write(ret);
 	}
+	if (iocb->ki_flags & IOCB_HIPRI)
+		bio.bi_opf |= REQ_HIPRI;
 
 	qc = submit_bio(&bio);
 	for (;;) {
@@ -239,7 +255,7 @@ __blkdev_direct_IO_simple(struct kiocb *iocb, struct iov_iter *iter,
 		if (!READ_ONCE(bio.bi_private))
 			break;
 		if (!(iocb->ki_flags & IOCB_HIPRI) ||
-		    !blk_poll(bdev_get_queue(bdev), qc))
+		    !blk_poll(bdev_get_queue(bdev), qc, true))
 			io_schedule();
 	}
 	__set_current_state(TASK_RUNNING);
@@ -298,12 +314,13 @@ static void blkdev_bio_end_io(struct bio *bio)
 			}
 
 			dio->iocb->ki_complete(iocb, ret, 0);
-			bio_put(&dio->bio);
+			if (dio->multi_bio)
+				bio_put(&dio->bio);
 		} else {
 			struct task_struct *waiter = dio->waiter;
 
 			WRITE_ONCE(dio->waiter, NULL);
-			wake_up_process(waiter);
+			blk_wake_io_task(waiter);
 		}
 	}
 
@@ -328,6 +345,7 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 	struct blk_plug plug;
 	struct blkdev_dio *dio;
 	struct bio *bio;
+	bool is_poll = (iocb->ki_flags & IOCB_HIPRI) != 0;
 	bool is_read = (iov_iter_rw(iter) == READ), is_sync;
 	loff_t pos = iocb->ki_pos;
 	blk_qc_t qc = BLK_QC_T_NONE;
@@ -338,20 +356,27 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 		return -EINVAL;
 
 	bio = bio_alloc_bioset(GFP_KERNEL, nr_pages, &blkdev_dio_pool);
-	bio_get(bio); /* extra ref for the completion handler */
 
 	dio = container_of(bio, struct blkdev_dio, bio);
 	dio->is_sync = is_sync = is_sync_kiocb(iocb);
-	if (dio->is_sync)
+	if (dio->is_sync) {
 		dio->waiter = current;
-	else
+		bio_get(bio);
+	} else {
 		dio->iocb = iocb;
+	}
 
 	dio->size = 0;
 	dio->multi_bio = false;
 	dio->should_dirty = is_read && iter_is_iovec(iter);
 
-	blk_start_plug(&plug);
+	/*
+	 * Don't plug for HIPRI/polled IO, as those should go straight
+	 * to issue
+	 */
+	if (!is_poll)
+		blk_start_plug(&plug);
+
 	for (;;) {
 		bio_set_dev(bio, bdev);
 		bio->bi_iter.bi_sector = pos >> 9;
@@ -381,11 +406,21 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 
 		nr_pages = iov_iter_npages(iter, BIO_MAX_PAGES);
 		if (!nr_pages) {
+			if (iocb->ki_flags & IOCB_HIPRI)
+				bio->bi_opf |= REQ_HIPRI;
+
 			qc = submit_bio(bio);
 			break;
 		}
 
 		if (!dio->multi_bio) {
+			/*
+			 * AIO needs an extra reference to ensure the dio
+			 * structure which is embedded into the first bio
+			 * stays around.
+			 */
+			if (!is_sync)
+				bio_get(bio);
 			dio->multi_bio = true;
 			atomic_set(&dio->ref, 2);
 		} else {
@@ -395,7 +430,9 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 		submit_bio(bio);
 		bio = bio_alloc(GFP_KERNEL, nr_pages);
 	}
-	blk_finish_plug(&plug);
+
+	if (!is_poll)
+		blk_finish_plug(&plug);
 
 	if (!is_sync)
 		return -EIOCBQUEUED;
@@ -406,7 +443,7 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 			break;
 
 		if (!(iocb->ki_flags & IOCB_HIPRI) ||
-		    !blk_poll(bdev_get_queue(bdev), qc))
+		    !blk_poll(bdev_get_queue(bdev), qc, true))
 			io_schedule();
 	}
 	__set_current_state(TASK_RUNNING);
@@ -1408,18 +1445,9 @@ EXPORT_SYMBOL(check_disk_change);
 
 void bd_set_size(struct block_device *bdev, loff_t size)
 {
-	unsigned bsize = bdev_logical_block_size(bdev);
-
 	inode_lock(bdev->bd_inode);
 	i_size_write(bdev->bd_inode, size);
 	inode_unlock(bdev->bd_inode);
-	while (bsize < PAGE_SIZE) {
-		if (size & bsize)
-			break;
-		bsize <<= 1;
-	}
-	bdev->bd_block_size = bsize;
-	bdev->bd_inode->i_blkbits = blksize_bits(bsize);
 }
 EXPORT_SYMBOL(bd_set_size);
 
@@ -1496,8 +1524,10 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 				}
 			}
 
-			if (!ret)
+			if (!ret) {
 				bd_set_size(bdev,(loff_t)get_capacity(disk)<<9);
+				set_init_blocksize(bdev);
+			}
 
 			/*
 			 * If the device is invalidated, rescan partition
@@ -1532,6 +1562,7 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 				goto out_clear;
 			}
 			bd_set_size(bdev, (loff_t)bdev->bd_part->nr_sects << 9);
+			set_init_blocksize(bdev);
 		}
 
 		if (bdev->bd_bdi == &noop_backing_dev_info)
@@ -1966,6 +1997,7 @@ static const struct address_space_operations def_blk_aops = {
 	.writepages	= blkdev_writepages,
 	.releasepage	= blkdev_releasepage,
 	.direct_IO	= blkdev_direct_IO,
+	.migratepage	= buffer_migrate_page_norefs,
 	.is_dirty_writeback = buffer_check_dirty_writeback,
 };
 

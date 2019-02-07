@@ -27,14 +27,14 @@ enum {
 };
 
 /* Used to track all the vhost_vsock instances on the system. */
-static DEFINE_SPINLOCK(vhost_vsock_lock);
+static DEFINE_MUTEX(vhost_vsock_mutex);
 static DEFINE_READ_MOSTLY_HASHTABLE(vhost_vsock_hash, 8);
 
 struct vhost_vsock {
 	struct vhost_dev dev;
 	struct vhost_virtqueue vqs[2];
 
-	/* Link to global vhost_vsock_hash, writes use vhost_vsock_lock */
+	/* Link to global vhost_vsock_hash, writes use vhost_vsock_mutex */
 	struct hlist_node hash;
 
 	struct vhost_work send_pkt_work;
@@ -51,7 +51,7 @@ static u32 vhost_transport_get_local_cid(void)
 	return VHOST_VSOCK_DEFAULT_HOST_CID;
 }
 
-/* Callers that dereference the return value must hold vhost_vsock_lock or the
+/* Callers that dereference the return value must hold vhost_vsock_mutex or the
  * RCU read lock.
  */
 static struct vhost_vsock *vhost_vsock_get(u32 guest_cid)
@@ -531,7 +531,7 @@ static int vhost_vsock_dev_open(struct inode *inode, struct file *file)
 	vsock->vqs[VSOCK_VQ_TX].handle_kick = vhost_vsock_handle_tx_kick;
 	vsock->vqs[VSOCK_VQ_RX].handle_kick = vhost_vsock_handle_rx_kick;
 
-	vhost_dev_init(&vsock->dev, vqs, ARRAY_SIZE(vsock->vqs));
+	vhost_dev_init(&vsock->dev, vqs, ARRAY_SIZE(vsock->vqs), UIO_MAXIOV);
 
 	file->private_data = vsock;
 	spin_lock_init(&vsock->send_pkt_list_lock);
@@ -584,10 +584,10 @@ static int vhost_vsock_dev_release(struct inode *inode, struct file *file)
 {
 	struct vhost_vsock *vsock = file->private_data;
 
-	spin_lock_bh(&vhost_vsock_lock);
+	mutex_lock(&vhost_vsock_mutex);
 	if (vsock->guest_cid)
 		hash_del_rcu(&vsock->hash);
-	spin_unlock_bh(&vhost_vsock_lock);
+	mutex_unlock(&vhost_vsock_mutex);
 
 	/* Wait for other CPUs to finish using vsock */
 	synchronize_rcu();
@@ -631,10 +631,10 @@ static int vhost_vsock_set_cid(struct vhost_vsock *vsock, u64 guest_cid)
 		return -EINVAL;
 
 	/* Refuse if CID is already in use */
-	spin_lock_bh(&vhost_vsock_lock);
+	mutex_lock(&vhost_vsock_mutex);
 	other = vhost_vsock_get(guest_cid);
 	if (other && other != vsock) {
-		spin_unlock_bh(&vhost_vsock_lock);
+		mutex_unlock(&vhost_vsock_mutex);
 		return -EADDRINUSE;
 	}
 
@@ -642,8 +642,8 @@ static int vhost_vsock_set_cid(struct vhost_vsock *vsock, u64 guest_cid)
 		hash_del_rcu(&vsock->hash);
 
 	vsock->guest_cid = guest_cid;
-	hash_add_rcu(vhost_vsock_hash, &vsock->hash, guest_cid);
-	spin_unlock_bh(&vhost_vsock_lock);
+	hash_add_rcu(vhost_vsock_hash, &vsock->hash, vsock->guest_cid);
+	mutex_unlock(&vhost_vsock_mutex);
 
 	return 0;
 }

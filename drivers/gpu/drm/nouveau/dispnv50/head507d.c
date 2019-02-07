@@ -254,6 +254,23 @@ head507d_olut_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 	}
 }
 
+static void
+head507d_olut_load(struct drm_color_lut *in, int size, void __iomem *mem)
+{
+	for (; size--; in++, mem += 8) {
+		writew(drm_color_lut_extract(in->  red, 11) << 3, mem + 0);
+		writew(drm_color_lut_extract(in->green, 11) << 3, mem + 2);
+		writew(drm_color_lut_extract(in-> blue, 11) << 3, mem + 4);
+	}
+
+	/* INTERPOLATE modes require a "next" entry to interpolate with,
+	 * so we replicate the last entry to deal with this for now.
+	 */
+	writew(readw(mem - 8), mem + 0);
+	writew(readw(mem - 6), mem + 2);
+	writew(readw(mem - 4), mem + 4);
+}
+
 void
 head507d_olut(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
@@ -261,6 +278,8 @@ head507d_olut(struct nv50_head *head, struct nv50_head_atom *asyh)
 		asyh->olut.mode = 0;
 	else
 		asyh->olut.mode = 1;
+
+	asyh->olut.load = head507d_olut_load;
 }
 
 void

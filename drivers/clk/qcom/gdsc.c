@@ -350,8 +350,10 @@ static int gdsc_init(struct gdsc *sc)
 	else
 		gdsc_clear_mem_on(sc);
 
-	sc->pd.power_off = gdsc_disable;
-	sc->pd.power_on = gdsc_enable;
+	if (!sc->pd.power_off)
+		sc->pd.power_off = gdsc_disable;
+	if (!sc->pd.power_on)
+		sc->pd.power_on = gdsc_enable;
 	pm_genpd_init(&sc->pd, NULL, !on);
 
 	return 0;

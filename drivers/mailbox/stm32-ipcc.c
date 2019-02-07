@@ -299,7 +299,7 @@ static int stm32_ipcc_probe(struct platform_device *pdev)
 	for (i = 0; i < ipcc->controller.num_chans; i++)
 		ipcc->controller.chans[i].con_priv = (void *)i;
 
-	ret = mbox_controller_register(&ipcc->controller);
+	ret = devm_mbox_controller_register(dev, &ipcc->controller);
 	if (ret)
 		goto err_irq_wkp;
 
@@ -328,8 +328,6 @@ err_clk:
 static int stm32_ipcc_remove(struct platform_device *pdev)
 {
 	struct stm32_ipcc *ipcc = platform_get_drvdata(pdev);
-
-	mbox_controller_unregister(&ipcc->controller);
 
 	if (ipcc->wkp)
 		dev_pm_clear_wake_irq(&pdev->dev);

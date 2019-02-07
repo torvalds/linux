@@ -164,20 +164,9 @@ static void get_rx_power_val_by_reg(struct adapter *adapt, u8 channel,
 			/*  increase power diff defined by Realtek for regulatory */
 			if (hal_data->pwrGroupCnt == 1)
 				chnlGroup = 0;
-			if (hal_data->pwrGroupCnt >= hal_data->PGMaxGroup) {
-				if (channel < 3)
-					chnlGroup = 0;
-				else if (channel < 6)
-					chnlGroup = 1;
-				else if (channel < 9)
-					chnlGroup = 2;
-				else if (channel < 12)
-					chnlGroup = 3;
-				else if (channel < 14)
-					chnlGroup = 4;
-				else if (channel == 14)
-					chnlGroup = 5;
-			}
+			if (hal_data->pwrGroupCnt >= hal_data->PGMaxGroup)
+				Hal_GetChnlGroup88E(channel, &chnlGroup);
+
 			write_val = hal_data->MCSTxPowerLevelOriginalOffset[chnlGroup][index+(rf ? 8 : 0)] +
 					((index < 2) ? powerbase0[rf] : powerbase1[rf]);
 			break;

@@ -64,8 +64,15 @@ guess, the kernel will put the process issuing IO to sleep for an amount
 of time, before entering a classic poll loop. This mode might be a
 little slower than pure classic polling, but it will be more efficient.
 If set to a value larger than 0, the kernel will put the process issuing
-IO to sleep for this amont of microseconds before entering classic
+IO to sleep for this amount of microseconds before entering classic
 polling.
+
+io_timeout (RW)
+---------------
+io_timeout is the request timeout in milliseconds. If a request does not
+complete in this time then the block driver timeout handler is invoked.
+That timeout handler can decide to retry the request, to fail it or to start
+a device recovery strategy.
 
 iostats (RW)
 -------------
@@ -193,5 +200,32 @@ This is the time window that blk-throttle samples data, in millisecond.
 blk-throttle makes decision based on the samplings. Lower time means cgroups
 have more smooth throughput, but higher CPU overhead. This exists only when
 CONFIG_BLK_DEV_THROTTLING_LOW is enabled.
+
+zoned (RO)
+----------
+This indicates if the device is a zoned block device and the zone model of the
+device if it is indeed zoned. The possible values indicated by zoned are
+"none" for regular block devices and "host-aware" or "host-managed" for zoned
+block devices. The characteristics of host-aware and host-managed zoned block
+devices are described in the ZBC (Zoned Block Commands) and ZAC
+(Zoned Device ATA Command Set) standards. These standards also define the
+"drive-managed" zone model. However, since drive-managed zoned block devices
+do not support zone commands, they will be treated as regular block devices
+and zoned will report "none".
+
+nr_zones (RO)
+-------------
+For zoned block devices (zoned attribute indicating "host-managed" or
+"host-aware"), this indicates the total number of zones of the device.
+This is always 0 for regular block devices.
+
+chunk_sectors (RO)
+------------------
+This has different meaning depending on the type of the block device.
+For a RAID device (dm-raid), chunk_sectors indicates the size in 512B sectors
+of the RAID volume stripe segment. For a zoned block device, either host-aware
+or host-managed, chunk_sectors indicates the size in 512B sectors of the zones
+of the device, with the eventual exception of the last zone of the device which
+may be smaller.
 
 Jens Axboe <jens.axboe@oracle.com>, February 2009

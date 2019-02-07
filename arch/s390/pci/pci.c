@@ -382,9 +382,7 @@ static void zpci_irq_handler(struct airq_struct *airq)
 			if (ai == -1UL)
 				break;
 			inc_irq_stat(IRQIO_MSI);
-			airq_iv_lock(aibv, ai);
 			generic_handle_irq(airq_iv_get_data(aibv, ai));
-			airq_iv_unlock(aibv, ai);
 		}
 	}
 }
@@ -410,7 +408,7 @@ int arch_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 	zdev->aisb = aisb;
 
 	/* Create adapter interrupt vector */
-	zdev->aibv = airq_iv_create(msi_vecs, AIRQ_IV_DATA | AIRQ_IV_BITLOCK);
+	zdev->aibv = airq_iv_create(msi_vecs, AIRQ_IV_DATA);
 	if (!zdev->aibv)
 		return -ENOMEM;
 
@@ -650,6 +648,9 @@ int pcibios_add_device(struct pci_dev *pdev)
 {
 	struct resource *res;
 	int i;
+
+	if (pdev->is_physfn)
+		pdev->no_vf_scan = 1;
 
 	pdev->dev.groups = zpci_attr_groups;
 	pdev->dev.dma_ops = &s390_pci_dma_ops;

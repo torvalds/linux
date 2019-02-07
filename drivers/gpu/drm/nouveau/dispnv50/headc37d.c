@@ -65,7 +65,7 @@ headc37d_procamp(struct nv50_head *head, struct nv50_head_atom *asyh)
 	}
 }
 
-static void
+void
 headc37d_dither(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
 	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
@@ -79,7 +79,7 @@ headc37d_dither(struct nv50_head *head, struct nv50_head_atom *asyh)
 	}
 }
 
-static void
+void
 headc37d_curs_clr(struct nv50_head *head)
 {
 	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
@@ -93,7 +93,7 @@ headc37d_curs_clr(struct nv50_head *head)
 	}
 }
 
-static void
+void
 headc37d_curs_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
 	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
@@ -112,7 +112,7 @@ headc37d_curs_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 	}
 }
 
-static int
+int
 headc37d_curs_format(struct nv50_head *head, struct nv50_wndw_atom *asyw,
 		     struct nv50_head_atom *asyh)
 {
@@ -155,6 +155,7 @@ headc37d_olut(struct nv50_head *head, struct nv50_head_atom *asyh)
 	asyh->olut.size = 0;
 	asyh->olut.range = 0;
 	asyh->olut.output_mode = 1;
+	asyh->olut.load = head907d_olut_load;
 }
 
 static void
@@ -181,7 +182,7 @@ headc37d_mode(struct nv50_head *head, struct nv50_head_atom *asyh)
 	}
 }
 
-static void
+void
 headc37d_view(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
 	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;

@@ -646,8 +646,9 @@ static int twl_allocate_memory(TW_Device_Extension *tw_dev, int size, int which)
 	unsigned long *cpu_addr;
 	int retval = 1;
 
-	cpu_addr = dma_zalloc_coherent(&tw_dev->tw_pci_dev->dev,
-			size * TW_Q_LENGTH, &dma_handle, GFP_KERNEL);
+	cpu_addr = dma_alloc_coherent(&tw_dev->tw_pci_dev->dev,
+				      size * TW_Q_LENGTH, &dma_handle,
+				      GFP_KERNEL);
 	if (!cpu_addr) {
 		TW_PRINTK(tw_dev->host, TW_DRIVER, 0x5, "Memory allocation failed");
 		goto out;
@@ -1550,7 +1551,6 @@ static struct scsi_host_template driver_template = {
 	.sg_tablesize		= TW_LIBERATOR_MAX_SGL_LENGTH,
 	.max_sectors		= TW_MAX_SECTORS,
 	.cmd_per_lun		= TW_MAX_CMDS_PER_LUN,
-	.use_clustering		= ENABLE_CLUSTERING,
 	.shost_attrs		= twl_host_attrs,
 	.emulated		= 1,
 	.no_write_same		= 1,

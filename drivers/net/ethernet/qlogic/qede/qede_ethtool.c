@@ -73,6 +73,7 @@ static const struct {
 } qede_tqstats_arr[] = {
 	QEDE_TQSTAT(xmit_pkts),
 	QEDE_TQSTAT(stopped_cnt),
+	QEDE_TQSTAT(tx_mem_alloc_err),
 };
 
 #define QEDE_STAT_OFFSET(stat_name, type, base) \

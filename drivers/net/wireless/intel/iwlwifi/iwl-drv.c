@@ -72,6 +72,7 @@
 #include "iwl-op-mode.h"
 #include "iwl-agn-hw.h"
 #include "fw/img.h"
+#include "iwl-dbg-tlv.h"
 #include "iwl-config.h"
 #include "iwl-modparams.h"
 
@@ -645,6 +646,9 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 
 	len -= sizeof(*ucode);
 
+	if (iwlwifi_mod_params.enable_ini)
+		iwl_alloc_dbg_tlv(drv->trans, len, data, false);
+
 	while (len >= sizeof(*tlv)) {
 		len -= sizeof(*tlv);
 		tlv = (void *)data;
@@ -1086,6 +1090,14 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 				return -ENOMEM;
 			break;
 			}
+		case IWL_UCODE_TLV_TYPE_BUFFER_ALLOCATION:
+		case IWL_UCODE_TLV_TYPE_HCMD:
+		case IWL_UCODE_TLV_TYPE_REGIONS:
+		case IWL_UCODE_TLV_TYPE_TRIGGERS:
+		case IWL_UCODE_TLV_TYPE_DEBUG_FLOW:
+			if (iwlwifi_mod_params.enable_ini)
+				iwl_fw_dbg_copy_tlv(drv->trans, tlv, false);
+			break;
 		default:
 			IWL_DEBUG_INFO(drv, "unknown TLV: %d\n", tlv_type);
 			break;
@@ -1565,7 +1577,7 @@ struct iwl_drv *iwl_drv_start(struct iwl_trans *trans)
 	if (!drv->dbgfs_drv) {
 		IWL_ERR(drv, "failed to create debugfs directory\n");
 		ret = -ENOMEM;
-		goto err_free_drv;
+		goto err_free_tlv;
 	}
 
 	/* Create transport layer debugfs dir */
@@ -1590,7 +1602,8 @@ err_fw:
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 err_free_dbgfs:
 	debugfs_remove_recursive(drv->dbgfs_drv);
-err_free_drv:
+err_free_tlv:
+	iwl_fw_dbg_free(drv->trans);
 #endif
 	kfree(drv);
 err:
@@ -1616,8 +1629,12 @@ void iwl_drv_stop(struct iwl_drv *drv)
 	mutex_unlock(&iwlwifi_opmode_table_mtx);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
+	drv->trans->ops->debugfs_cleanup(drv->trans);
+
 	debugfs_remove_recursive(drv->dbgfs_drv);
 #endif
+
+	iwl_fw_dbg_free(drv->trans);
 
 	kfree(drv);
 }
@@ -1749,6 +1766,10 @@ MODULE_PARM_DESC(lar_disable, "disable LAR functionality (default: N)");
 module_param_named(uapsd_disable, iwlwifi_mod_params.uapsd_disable, uint, 0644);
 MODULE_PARM_DESC(uapsd_disable,
 		 "disable U-APSD functionality bitmap 1: BSS 2: P2P Client (default: 3)");
+module_param_named(enable_ini, iwlwifi_mod_params.enable_ini,
+		   bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(enable_ini,
+		 "Enable debug INI TLV FW debug infrastructure (default: 0");
 
 /*
  * set bt_coex_active to true, uCode will do kill/defer

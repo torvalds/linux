@@ -25,10 +25,7 @@
 extern void __bad_pte(pmd_t *pmd);
 
 extern struct kmem_cache *pgtable_cache[];
-#define PGT_CACHE(shift) ({				\
-			BUG_ON(!(shift));		\
-			pgtable_cache[(shift) - 1];	\
-		})
+#define PGT_CACHE(shift) pgtable_cache[shift]
 
 static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 {
@@ -50,8 +47,6 @@ static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 #define __pmd_free_tlb(tlb,x,a)		do { } while (0)
 /* #define pgd_populate(mm, pmd, pte)      BUG() */
 
-#ifndef CONFIG_BOOKE
-
 static inline void pmd_populate_kernel(struct mm_struct *mm, pmd_t *pmdp,
 				       pte_t *pte)
 {
@@ -61,46 +56,31 @@ static inline void pmd_populate_kernel(struct mm_struct *mm, pmd_t *pmdp,
 static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmdp,
 				pgtable_t pte_page)
 {
-	*pmdp = __pmd((page_to_pfn(pte_page) << PAGE_SHIFT) | _PMD_PRESENT);
+	*pmdp = __pmd(__pa(pte_page) | _PMD_PRESENT);
 }
 
-#define pmd_pgtable(pmd) pmd_page(pmd)
-#else
+#define pmd_pgtable(pmd) ((pgtable_t)pmd_page_vaddr(pmd))
 
-static inline void pmd_populate_kernel(struct mm_struct *mm, pmd_t *pmdp,
-				       pte_t *pte)
-{
-	*pmdp = __pmd((unsigned long)pte | _PMD_PRESENT);
-}
-
-static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmdp,
-				pgtable_t pte_page)
-{
-	*pmdp = __pmd((unsigned long)lowmem_page_address(pte_page) | _PMD_PRESENT);
-}
-
-#define pmd_pgtable(pmd) pmd_page(pmd)
-#endif
-
-extern pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long addr);
-extern pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long addr);
+extern pte_t *pte_alloc_one_kernel(struct mm_struct *mm);
+extern pgtable_t pte_alloc_one(struct mm_struct *mm);
+void pte_frag_destroy(void *pte_frag);
+pte_t *pte_fragment_alloc(struct mm_struct *mm, int kernel);
+void pte_fragment_free(unsigned long *table, int kernel);
 
 static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
 {
-	free_page((unsigned long)pte);
+	pte_fragment_free((unsigned long *)pte, 1);
 }
 
 static inline void pte_free(struct mm_struct *mm, pgtable_t ptepage)
 {
-	pgtable_page_dtor(ptepage);
-	__free_page(ptepage);
+	pte_fragment_free((unsigned long *)ptepage, 0);
 }
 
 static inline void pgtable_free(void *table, unsigned index_size)
 {
 	if (!index_size) {
-		pgtable_page_dtor(virt_to_page(table));
-		free_page((unsigned long)table);
+		pte_fragment_free((unsigned long *)table, 0);
 	} else {
 		BUG_ON(index_size > MAX_PGTABLE_INDEX_SIZE);
 		kmem_cache_free(PGT_CACHE(index_size), table);
@@ -138,6 +118,6 @@ static inline void pgtable_free_tlb(struct mmu_gather *tlb,
 static inline void __pte_free_tlb(struct mmu_gather *tlb, pgtable_t table,
 				  unsigned long address)
 {
-	pgtable_free_tlb(tlb, page_address(table), 0);
+	pgtable_free_tlb(tlb, table, 0);
 }
 #endif /* _ASM_POWERPC_BOOK3S_32_PGALLOC_H */

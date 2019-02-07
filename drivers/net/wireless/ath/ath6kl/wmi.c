@@ -1849,9 +1849,9 @@ int ath6kl_wmi_connect_cmd(struct wmi *wmi, u8 if_idx,
 			   enum network_type nw_type,
 			   enum dot11_auth_mode dot11_auth_mode,
 			   enum auth_mode auth_mode,
-			   enum crypto_type pairwise_crypto,
+			   enum ath6kl_crypto_type pairwise_crypto,
 			   u8 pairwise_crypto_len,
-			   enum crypto_type group_crypto,
+			   enum ath6kl_crypto_type group_crypto,
 			   u8 group_crypto_len, int ssid_len, u8 *ssid,
 			   u8 *bssid, u16 channel, u32 ctrl_flags,
 			   u8 nw_subtype)
@@ -2301,7 +2301,7 @@ int ath6kl_wmi_disctimeout_cmd(struct wmi *wmi, u8 if_idx, u8 timeout)
 }
 
 int ath6kl_wmi_addkey_cmd(struct wmi *wmi, u8 if_idx, u8 key_index,
-			  enum crypto_type key_type,
+			  enum ath6kl_crypto_type key_type,
 			  u8 key_usage, u8 key_len,
 			  u8 *key_rsc, unsigned int key_rsc_len,
 			  u8 *key_material,

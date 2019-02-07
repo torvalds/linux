@@ -178,7 +178,6 @@ static void qib_ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 			len = length;
 		if (len > sge->sge_length)
 			len = sge->sge_length;
-		BUG_ON(len == 0);
 		rvt_copy_sge(qp, &qp->r_sge, sge->vaddr, len, true, false);
 		sge->vaddr += len;
 		sge->length -= len;
@@ -513,7 +512,6 @@ void qib_ud_rcv(struct qib_ibport *ibp, struct ib_header *hdr,
 	    opcode == IB_OPCODE_UD_SEND_ONLY_WITH_IMMEDIATE) {
 		wc.ex.imm_data = ohdr->u.ud.imm_data;
 		wc.wc_flags = IB_WC_WITH_IMM;
-		tlen -= sizeof(u32);
 	} else if (opcode == IB_OPCODE_UD_SEND_ONLY) {
 		wc.ex.imm_data = 0;
 		wc.wc_flags = 0;

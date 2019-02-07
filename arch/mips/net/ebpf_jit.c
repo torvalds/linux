@@ -854,6 +854,7 @@ static int build_one_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 	case BPF_ALU | BPF_MOD | BPF_X: /* ALU_REG */
 	case BPF_ALU | BPF_LSH | BPF_X: /* ALU_REG */
 	case BPF_ALU | BPF_RSH | BPF_X: /* ALU_REG */
+	case BPF_ALU | BPF_ARSH | BPF_X: /* ALU_REG */
 		src = ebpf_to_mips_reg(ctx, insn, src_reg_no_fp);
 		dst = ebpf_to_mips_reg(ctx, insn, dst_reg);
 		if (src < 0 || dst < 0)
@@ -912,6 +913,9 @@ static int build_one_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 			break;
 		case BPF_RSH:
 			emit_instr(ctx, srlv, dst, dst, src);
+			break;
+		case BPF_ARSH:
+			emit_instr(ctx, srav, dst, dst, src);
 			break;
 		default:
 			pr_err("ALU_REG NOT HANDLED\n");

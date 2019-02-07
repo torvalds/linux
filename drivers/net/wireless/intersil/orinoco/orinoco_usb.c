@@ -908,6 +908,7 @@ static int ezusb_access_ltv(struct ezusb_priv *upriv,
 	case EZUSB_CTX_REQ_SUBMITTED:
 		if (!ctx->in_rid)
 			break;
+		/* fall through */
 	default:
 		err("%s: Unexpected context state %d", __func__,
 		    state);

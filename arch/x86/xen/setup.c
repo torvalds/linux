@@ -493,7 +493,7 @@ static unsigned long __init xen_foreach_remap_area(unsigned long nr_pages,
  * The remap information (which mfn remap to which pfn) is contained in the
  * to be remapped memory itself in a linked list anchored at xen_remap_mfn.
  * This scheme allows to remap the different chunks in arbitrary order while
- * the resulting mapping will be independant from the order.
+ * the resulting mapping will be independent from the order.
  */
 void __init xen_remap_memory(void)
 {

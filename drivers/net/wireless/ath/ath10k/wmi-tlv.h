@@ -1564,6 +1564,9 @@ wmi_tlv_svc_map_ext(const __le32 *in, unsigned long *out, size_t len)
 	SVCMAP(WMI_TLV_SERVICE_SPOOF_MAC_SUPPORT,
 	       WMI_SERVICE_SPOOF_MAC_SUPPORT,
 	       WMI_TLV_MAX_SERVICE);
+	SVCMAP(WMI_TLV_SERVICE_THERM_THROT,
+	       WMI_SERVICE_THERM_THROT,
+	       WMI_TLV_MAX_SERVICE);
 }
 
 #undef SVCMAP
@@ -1577,6 +1580,16 @@ struct wmi_tlv {
 struct ath10k_mgmt_tx_pkt_addr {
 	void *vaddr;
 	dma_addr_t paddr;
+};
+
+struct chan_info_params {
+	u32 err_code;
+	u32 freq;
+	u32 cmd_flags;
+	u32 noise_floor;
+	u32 rx_clear_count;
+	u32 cycle_count;
+	u32 mac_clk_mhz;
 };
 
 struct wmi_tlv_mgmt_tx_compl_ev {

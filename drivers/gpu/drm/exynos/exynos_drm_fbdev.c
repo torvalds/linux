@@ -23,7 +23,6 @@
 #include "exynos_drm_drv.h"
 #include "exynos_drm_fb.h"
 #include "exynos_drm_fbdev.h"
-#include "exynos_drm_iommu.h"
 
 #define MAX_CONNECTOR		4
 #define PREFERRED_BPP		32

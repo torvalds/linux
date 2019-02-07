@@ -45,7 +45,7 @@ filesystems are very specific in nature.
 
 CacheFiles creates a misc character device - "/dev/cachefiles" - that is used
 to communication with the daemon.  Only one thing may have this open at once,
-and whilst it is open, a cache is at least partially in existence.  The daemon
+and while it is open, a cache is at least partially in existence.  The daemon
 opens this and sends commands down it to control the cache.
 
 CacheFiles is currently limited to a single cache.
@@ -163,7 +163,7 @@ Do not mount other things within the cache as this will cause problems.  The
 kernel module contains its own very cut-down path walking facility that ignores
 mountpoints, but the daemon can't avoid them.
 
-Do not create, rename or unlink files and directories in the cache whilst the
+Do not create, rename or unlink files and directories in the cache while the
 cache is active, as this may cause the state to become uncertain.
 
 Renaming files in the cache might make objects appear to be other objects (the

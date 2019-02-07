@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Based on m25p80.c, by Mike Lavender (mike@steroidmicros.com), with
  * influence from lart.c (Abraham Van Der Merwe) and mtd_dataflash.c
  *
  * Copyright (C) 2005, Intec Automation Inc.
  * Copyright (C) 2014, Freescale Semiconductor, Inc.
- *
- * This code is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/err.h>
@@ -41,6 +38,197 @@
 
 #define SPI_NOR_MAX_ID_LEN	6
 #define SPI_NOR_MAX_ADDR_WIDTH	4
+
+struct spi_nor_read_command {
+	u8			num_mode_clocks;
+	u8			num_wait_states;
+	u8			opcode;
+	enum spi_nor_protocol	proto;
+};
+
+struct spi_nor_pp_command {
+	u8			opcode;
+	enum spi_nor_protocol	proto;
+};
+
+enum spi_nor_read_command_index {
+	SNOR_CMD_READ,
+	SNOR_CMD_READ_FAST,
+	SNOR_CMD_READ_1_1_1_DTR,
+
+	/* Dual SPI */
+	SNOR_CMD_READ_1_1_2,
+	SNOR_CMD_READ_1_2_2,
+	SNOR_CMD_READ_2_2_2,
+	SNOR_CMD_READ_1_2_2_DTR,
+
+	/* Quad SPI */
+	SNOR_CMD_READ_1_1_4,
+	SNOR_CMD_READ_1_4_4,
+	SNOR_CMD_READ_4_4_4,
+	SNOR_CMD_READ_1_4_4_DTR,
+
+	/* Octo SPI */
+	SNOR_CMD_READ_1_1_8,
+	SNOR_CMD_READ_1_8_8,
+	SNOR_CMD_READ_8_8_8,
+	SNOR_CMD_READ_1_8_8_DTR,
+
+	SNOR_CMD_READ_MAX
+};
+
+enum spi_nor_pp_command_index {
+	SNOR_CMD_PP,
+
+	/* Quad SPI */
+	SNOR_CMD_PP_1_1_4,
+	SNOR_CMD_PP_1_4_4,
+	SNOR_CMD_PP_4_4_4,
+
+	/* Octo SPI */
+	SNOR_CMD_PP_1_1_8,
+	SNOR_CMD_PP_1_8_8,
+	SNOR_CMD_PP_8_8_8,
+
+	SNOR_CMD_PP_MAX
+};
+
+struct spi_nor_flash_parameter {
+	u64				size;
+	u32				page_size;
+
+	struct spi_nor_hwcaps		hwcaps;
+	struct spi_nor_read_command	reads[SNOR_CMD_READ_MAX];
+	struct spi_nor_pp_command	page_programs[SNOR_CMD_PP_MAX];
+
+	int (*quad_enable)(struct spi_nor *nor);
+};
+
+struct sfdp_parameter_header {
+	u8		id_lsb;
+	u8		minor;
+	u8		major;
+	u8		length; /* in double words */
+	u8		parameter_table_pointer[3]; /* byte address */
+	u8		id_msb;
+};
+
+#define SFDP_PARAM_HEADER_ID(p)	(((p)->id_msb << 8) | (p)->id_lsb)
+#define SFDP_PARAM_HEADER_PTP(p) \
+	(((p)->parameter_table_pointer[2] << 16) | \
+	 ((p)->parameter_table_pointer[1] <<  8) | \
+	 ((p)->parameter_table_pointer[0] <<  0))
+
+#define SFDP_BFPT_ID		0xff00	/* Basic Flash Parameter Table */
+#define SFDP_SECTOR_MAP_ID	0xff81	/* Sector Map Table */
+#define SFDP_4BAIT_ID		0xff84  /* 4-byte Address Instruction Table */
+
+#define SFDP_SIGNATURE		0x50444653U
+#define SFDP_JESD216_MAJOR	1
+#define SFDP_JESD216_MINOR	0
+#define SFDP_JESD216A_MINOR	5
+#define SFDP_JESD216B_MINOR	6
+
+struct sfdp_header {
+	u32		signature; /* Ox50444653U <=> "SFDP" */
+	u8		minor;
+	u8		major;
+	u8		nph; /* 0-base number of parameter headers */
+	u8		unused;
+
+	/* Basic Flash Parameter Table. */
+	struct sfdp_parameter_header	bfpt_header;
+};
+
+/* Basic Flash Parameter Table */
+
+/*
+ * JESD216 rev B defines a Basic Flash Parameter Table of 16 DWORDs.
+ * They are indexed from 1 but C arrays are indexed from 0.
+ */
+#define BFPT_DWORD(i)		((i) - 1)
+#define BFPT_DWORD_MAX		16
+
+/* The first version of JESB216 defined only 9 DWORDs. */
+#define BFPT_DWORD_MAX_JESD216			9
+
+/* 1st DWORD. */
+#define BFPT_DWORD1_FAST_READ_1_1_2		BIT(16)
+#define BFPT_DWORD1_ADDRESS_BYTES_MASK		GENMASK(18, 17)
+#define BFPT_DWORD1_ADDRESS_BYTES_3_ONLY	(0x0UL << 17)
+#define BFPT_DWORD1_ADDRESS_BYTES_3_OR_4	(0x1UL << 17)
+#define BFPT_DWORD1_ADDRESS_BYTES_4_ONLY	(0x2UL << 17)
+#define BFPT_DWORD1_DTR				BIT(19)
+#define BFPT_DWORD1_FAST_READ_1_2_2		BIT(20)
+#define BFPT_DWORD1_FAST_READ_1_4_4		BIT(21)
+#define BFPT_DWORD1_FAST_READ_1_1_4		BIT(22)
+
+/* 5th DWORD. */
+#define BFPT_DWORD5_FAST_READ_2_2_2		BIT(0)
+#define BFPT_DWORD5_FAST_READ_4_4_4		BIT(4)
+
+/* 11th DWORD. */
+#define BFPT_DWORD11_PAGE_SIZE_SHIFT		4
+#define BFPT_DWORD11_PAGE_SIZE_MASK		GENMASK(7, 4)
+
+/* 15th DWORD. */
+
+/*
+ * (from JESD216 rev B)
+ * Quad Enable Requirements (QER):
+ * - 000b: Device does not have a QE bit. Device detects 1-1-4 and 1-4-4
+ *         reads based on instruction. DQ3/HOLD# functions are hold during
+ *         instruction phase.
+ * - 001b: QE is bit 1 of status register 2. It is set via Write Status with
+ *         two data bytes where bit 1 of the second byte is one.
+ *         [...]
+ *         Writing only one byte to the status register has the side-effect of
+ *         clearing status register 2, including the QE bit. The 100b code is
+ *         used if writing one byte to the status register does not modify
+ *         status register 2.
+ * - 010b: QE is bit 6 of status register 1. It is set via Write Status with
+ *         one data byte where bit 6 is one.
+ *         [...]
+ * - 011b: QE is bit 7 of status register 2. It is set via Write status
+ *         register 2 instruction 3Eh with one data byte where bit 7 is one.
+ *         [...]
+ *         The status register 2 is read using instruction 3Fh.
+ * - 100b: QE is bit 1 of status register 2. It is set via Write Status with
+ *         two data bytes where bit 1 of the second byte is one.
+ *         [...]
+ *         In contrast to the 001b code, writing one byte to the status
+ *         register does not modify status register 2.
+ * - 101b: QE is bit 1 of status register 2. Status register 1 is read using
+ *         Read Status instruction 05h. Status register2 is read using
+ *         instruction 35h. QE is set via Writ Status instruction 01h with
+ *         two data bytes where bit 1 of the second byte is one.
+ *         [...]
+ */
+#define BFPT_DWORD15_QER_MASK			GENMASK(22, 20)
+#define BFPT_DWORD15_QER_NONE			(0x0UL << 20) /* Micron */
+#define BFPT_DWORD15_QER_SR2_BIT1_BUGGY		(0x1UL << 20)
+#define BFPT_DWORD15_QER_SR1_BIT6		(0x2UL << 20) /* Macronix */
+#define BFPT_DWORD15_QER_SR2_BIT7		(0x3UL << 20)
+#define BFPT_DWORD15_QER_SR2_BIT1_NO_RD		(0x4UL << 20)
+#define BFPT_DWORD15_QER_SR2_BIT1		(0x5UL << 20) /* Spansion */
+
+struct sfdp_bfpt {
+	u32	dwords[BFPT_DWORD_MAX];
+};
+
+/**
+ * struct spi_nor_fixups - SPI NOR fixup hooks
+ * @post_bfpt: called after the BFPT table has been parsed
+ *
+ * Those hooks can be used to tweak the SPI NOR configuration when the SFDP
+ * table is broken or not available.
+ */
+struct spi_nor_fixups {
+	int (*post_bfpt)(struct spi_nor *nor,
+			 const struct sfdp_parameter_header *bfpt_header,
+			 const struct sfdp_bfpt *bfpt,
+			 struct spi_nor_flash_parameter *params);
+};
 
 struct flash_info {
 	char		*name;
@@ -91,12 +279,13 @@ struct flash_info {
 #define SPI_NOR_SKIP_SFDP	BIT(13)	/* Skip parsing of SFDP tables */
 #define USE_CLSR		BIT(14)	/* use CLSR command */
 
+	/* Part specific fixup hooks. */
+	const struct spi_nor_fixups *fixups;
+
 	int	(*quad_enable)(struct spi_nor *nor);
 };
 
 #define JEDEC_MFR(info)	((info)->id[0])
-
-static const struct flash_info *spi_nor_match_id(const char *name);
 
 /*
  * Read the status register, returning its value in the location
@@ -159,7 +348,7 @@ static int read_cr(struct spi_nor *nor)
  * Write status register 1 byte
  * Returns negative if error occurred.
  */
-static inline int write_sr(struct spi_nor *nor, u8 val)
+static int write_sr(struct spi_nor *nor, u8 val)
 {
 	nor->cmd_buf[0] = val;
 	return nor->write_reg(nor, SPINOR_OP_WRSR, nor->cmd_buf, 1);
@@ -169,7 +358,7 @@ static inline int write_sr(struct spi_nor *nor, u8 val)
  * Set write enable latch with Write Enable command.
  * Returns negative if error occurred.
  */
-static inline int write_enable(struct spi_nor *nor)
+static int write_enable(struct spi_nor *nor)
 {
 	return nor->write_reg(nor, SPINOR_OP_WREN, NULL, 0);
 }
@@ -177,12 +366,12 @@ static inline int write_enable(struct spi_nor *nor)
 /*
  * Send write disable instruction to the chip.
  */
-static inline int write_disable(struct spi_nor *nor)
+static int write_disable(struct spi_nor *nor)
 {
 	return nor->write_reg(nor, SPINOR_OP_WRDI, NULL, 0);
 }
 
-static inline struct spi_nor *mtd_to_spi_nor(struct mtd_info *mtd)
+static struct spi_nor *mtd_to_spi_nor(struct mtd_info *mtd)
 {
 	return mtd->priv;
 }
@@ -200,7 +389,7 @@ static u8 spi_nor_convert_opcode(u8 opcode, const u8 table[][2], size_t size)
 	return opcode;
 }
 
-static inline u8 spi_nor_convert_3to4_read(u8 opcode)
+static u8 spi_nor_convert_3to4_read(u8 opcode)
 {
 	static const u8 spi_nor_3to4_read[][2] = {
 		{ SPINOR_OP_READ,	SPINOR_OP_READ_4B },
@@ -219,7 +408,7 @@ static inline u8 spi_nor_convert_3to4_read(u8 opcode)
 				      ARRAY_SIZE(spi_nor_3to4_read));
 }
 
-static inline u8 spi_nor_convert_3to4_program(u8 opcode)
+static u8 spi_nor_convert_3to4_program(u8 opcode)
 {
 	static const u8 spi_nor_3to4_program[][2] = {
 		{ SPINOR_OP_PP,		SPINOR_OP_PP_4B },
@@ -231,7 +420,7 @@ static inline u8 spi_nor_convert_3to4_program(u8 opcode)
 				      ARRAY_SIZE(spi_nor_3to4_program));
 }
 
-static inline u8 spi_nor_convert_3to4_erase(u8 opcode)
+static u8 spi_nor_convert_3to4_erase(u8 opcode)
 {
 	static const u8 spi_nor_3to4_erase[][2] = {
 		{ SPINOR_OP_BE_4K,	SPINOR_OP_BE_4K_4B },
@@ -243,15 +432,14 @@ static inline u8 spi_nor_convert_3to4_erase(u8 opcode)
 				      ARRAY_SIZE(spi_nor_3to4_erase));
 }
 
-static void spi_nor_set_4byte_opcodes(struct spi_nor *nor,
-				      const struct flash_info *info)
+static void spi_nor_set_4byte_opcodes(struct spi_nor *nor)
 {
 	/* Do some manufacturer fixups first */
-	switch (JEDEC_MFR(info)) {
+	switch (JEDEC_MFR(nor->info)) {
 	case SNOR_MFR_SPANSION:
 		/* No small sector erase for 4-byte command set */
 		nor->erase_opcode = SPINOR_OP_SE;
-		nor->mtd.erasesize = info->sector_size;
+		nor->mtd.erasesize = nor->info->sector_size;
 		break;
 
 	default:
@@ -276,17 +464,18 @@ static void spi_nor_set_4byte_opcodes(struct spi_nor *nor,
 }
 
 /* Enable/disable 4-byte addressing mode. */
-static inline int set_4byte(struct spi_nor *nor, const struct flash_info *info,
-			    int enable)
+static int set_4byte(struct spi_nor *nor, bool enable)
 {
 	int status;
 	bool need_wren = false;
 	u8 cmd;
 
-	switch (JEDEC_MFR(info)) {
+	switch (JEDEC_MFR(nor->info)) {
+	case SNOR_MFR_ST:
 	case SNOR_MFR_MICRON:
 		/* Some Micron need WREN command; all will accept it */
 		need_wren = true;
+		/* fall through */
 	case SNOR_MFR_MACRONIX:
 	case SNOR_MFR_WINBOND:
 		if (need_wren)
@@ -298,7 +487,7 @@ static inline int set_4byte(struct spi_nor *nor, const struct flash_info *info,
 			write_disable(nor);
 
 		if (!status && !enable &&
-		    JEDEC_MFR(info) == SNOR_MFR_WINBOND) {
+		    JEDEC_MFR(nor->info) == SNOR_MFR_WINBOND) {
 			/*
 			 * On Winbond W25Q256FV, leaving 4byte mode causes
 			 * the Extended Address Register to be set to 1, so all
@@ -333,7 +522,7 @@ static int s3an_sr_ready(struct spi_nor *nor)
 	return !!(val & XSR_RDY);
 }
 
-static inline int spi_nor_sr_ready(struct spi_nor *nor)
+static int spi_nor_sr_ready(struct spi_nor *nor)
 {
 	int sr = read_sr(nor);
 	if (sr < 0)
@@ -352,7 +541,7 @@ static inline int spi_nor_sr_ready(struct spi_nor *nor)
 	return !(sr & SR_WIP);
 }
 
-static inline int spi_nor_fsr_ready(struct spi_nor *nor)
+static int spi_nor_fsr_ready(struct spi_nor *nor)
 {
 	int fsr = read_fsr(nor);
 	if (fsr < 0)
@@ -1200,7 +1389,247 @@ static int spi_nor_is_locked(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 	return ret;
 }
 
-static int macronix_quad_enable(struct spi_nor *nor);
+/*
+ * Write status Register and configuration register with 2 bytes
+ * The first byte will be written to the status register, while the
+ * second byte will be written to the configuration register.
+ * Return negative if error occurred.
+ */
+static int write_sr_cr(struct spi_nor *nor, u8 *sr_cr)
+{
+	int ret;
+
+	write_enable(nor);
+
+	ret = nor->write_reg(nor, SPINOR_OP_WRSR, sr_cr, 2);
+	if (ret < 0) {
+		dev_err(nor->dev,
+			"error while writing configuration register\n");
+		return -EINVAL;
+	}
+
+	ret = spi_nor_wait_till_ready(nor);
+	if (ret) {
+		dev_err(nor->dev,
+			"timeout while writing configuration register\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+/**
+ * macronix_quad_enable() - set QE bit in Status Register.
+ * @nor:	pointer to a 'struct spi_nor'
+ *
+ * Set the Quad Enable (QE) bit in the Status Register.
+ *
+ * bit 6 of the Status Register is the QE bit for Macronix like QSPI memories.
+ *
+ * Return: 0 on success, -errno otherwise.
+ */
+static int macronix_quad_enable(struct spi_nor *nor)
+{
+	int ret, val;
+
+	val = read_sr(nor);
+	if (val < 0)
+		return val;
+	if (val & SR_QUAD_EN_MX)
+		return 0;
+
+	write_enable(nor);
+
+	write_sr(nor, val | SR_QUAD_EN_MX);
+
+	ret = spi_nor_wait_till_ready(nor);
+	if (ret)
+		return ret;
+
+	ret = read_sr(nor);
+	if (!(ret > 0 && (ret & SR_QUAD_EN_MX))) {
+		dev_err(nor->dev, "Macronix Quad bit not set\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/**
+ * spansion_quad_enable() - set QE bit in Configuraiton Register.
+ * @nor:	pointer to a 'struct spi_nor'
+ *
+ * Set the Quad Enable (QE) bit in the Configuration Register.
+ * This function is kept for legacy purpose because it has been used for a
+ * long time without anybody complaining but it should be considered as
+ * deprecated and maybe buggy.
+ * First, this function doesn't care about the previous values of the Status
+ * and Configuration Registers when it sets the QE bit (bit 1) in the
+ * Configuration Register: all other bits are cleared, which may have unwanted
+ * side effects like removing some block protections.
+ * Secondly, it uses the Read Configuration Register (35h) instruction though
+ * some very old and few memories don't support this instruction. If a pull-up
+ * resistor is present on the MISO/IO1 line, we might still be able to pass the
+ * "read back" test because the QSPI memory doesn't recognize the command,
+ * so leaves the MISO/IO1 line state unchanged, hence read_cr() returns 0xFF.
+ *
+ * bit 1 of the Configuration Register is the QE bit for Spansion like QSPI
+ * memories.
+ *
+ * Return: 0 on success, -errno otherwise.
+ */
+static int spansion_quad_enable(struct spi_nor *nor)
+{
+	u8 sr_cr[2] = {0, CR_QUAD_EN_SPAN};
+	int ret;
+
+	ret = write_sr_cr(nor, sr_cr);
+	if (ret)
+		return ret;
+
+	/* read back and check it */
+	ret = read_cr(nor);
+	if (!(ret > 0 && (ret & CR_QUAD_EN_SPAN))) {
+		dev_err(nor->dev, "Spansion Quad bit not set\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/**
+ * spansion_no_read_cr_quad_enable() - set QE bit in Configuration Register.
+ * @nor:	pointer to a 'struct spi_nor'
+ *
+ * Set the Quad Enable (QE) bit in the Configuration Register.
+ * This function should be used with QSPI memories not supporting the Read
+ * Configuration Register (35h) instruction.
+ *
+ * bit 1 of the Configuration Register is the QE bit for Spansion like QSPI
+ * memories.
+ *
+ * Return: 0 on success, -errno otherwise.
+ */
+static int spansion_no_read_cr_quad_enable(struct spi_nor *nor)
+{
+	u8 sr_cr[2];
+	int ret;
+
+	/* Keep the current value of the Status Register. */
+	ret = read_sr(nor);
+	if (ret < 0) {
+		dev_err(nor->dev, "error while reading status register\n");
+		return -EINVAL;
+	}
+	sr_cr[0] = ret;
+	sr_cr[1] = CR_QUAD_EN_SPAN;
+
+	return write_sr_cr(nor, sr_cr);
+}
+
+/**
+ * spansion_read_cr_quad_enable() - set QE bit in Configuration Register.
+ * @nor:	pointer to a 'struct spi_nor'
+ *
+ * Set the Quad Enable (QE) bit in the Configuration Register.
+ * This function should be used with QSPI memories supporting the Read
+ * Configuration Register (35h) instruction.
+ *
+ * bit 1 of the Configuration Register is the QE bit for Spansion like QSPI
+ * memories.
+ *
+ * Return: 0 on success, -errno otherwise.
+ */
+static int spansion_read_cr_quad_enable(struct spi_nor *nor)
+{
+	struct device *dev = nor->dev;
+	u8 sr_cr[2];
+	int ret;
+
+	/* Check current Quad Enable bit value. */
+	ret = read_cr(nor);
+	if (ret < 0) {
+		dev_err(dev, "error while reading configuration register\n");
+		return -EINVAL;
+	}
+
+	if (ret & CR_QUAD_EN_SPAN)
+		return 0;
+
+	sr_cr[1] = ret | CR_QUAD_EN_SPAN;
+
+	/* Keep the current value of the Status Register. */
+	ret = read_sr(nor);
+	if (ret < 0) {
+		dev_err(dev, "error while reading status register\n");
+		return -EINVAL;
+	}
+	sr_cr[0] = ret;
+
+	ret = write_sr_cr(nor, sr_cr);
+	if (ret)
+		return ret;
+
+	/* Read back and check it. */
+	ret = read_cr(nor);
+	if (!(ret > 0 && (ret & CR_QUAD_EN_SPAN))) {
+		dev_err(nor->dev, "Spansion Quad bit not set\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/**
+ * sr2_bit7_quad_enable() - set QE bit in Status Register 2.
+ * @nor:	pointer to a 'struct spi_nor'
+ *
+ * Set the Quad Enable (QE) bit in the Status Register 2.
+ *
+ * This is one of the procedures to set the QE bit described in the SFDP
+ * (JESD216 rev B) specification but no manufacturer using this procedure has
+ * been identified yet, hence the name of the function.
+ *
+ * Return: 0 on success, -errno otherwise.
+ */
+static int sr2_bit7_quad_enable(struct spi_nor *nor)
+{
+	u8 sr2;
+	int ret;
+
+	/* Check current Quad Enable bit value. */
+	ret = nor->read_reg(nor, SPINOR_OP_RDSR2, &sr2, 1);
+	if (ret)
+		return ret;
+	if (sr2 & SR2_QUAD_EN_BIT7)
+		return 0;
+
+	/* Update the Quad Enable bit. */
+	sr2 |= SR2_QUAD_EN_BIT7;
+
+	write_enable(nor);
+
+	ret = nor->write_reg(nor, SPINOR_OP_WRSR2, &sr2, 1);
+	if (ret < 0) {
+		dev_err(nor->dev, "error while writing status register 2\n");
+		return -EINVAL;
+	}
+
+	ret = spi_nor_wait_till_ready(nor);
+	if (ret < 0) {
+		dev_err(nor->dev, "timeout while writing status register 2\n");
+		return ret;
+	}
+
+	/* Read back and check it. */
+	ret = nor->read_reg(nor, SPINOR_OP_RDSR2, &sr2, 1);
+	if (!(ret > 0 && (sr2 & SR2_QUAD_EN_BIT7))) {
+		dev_err(nor->dev, "SR2 Quad bit not set\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
 
 /* Used when the "_ext_id" is two bytes at most */
 #define INFO(_jedec_id, _ext_id, _sector_size, _n_sectors, _flags)	\
@@ -1251,6 +1680,31 @@ static int macronix_quad_enable(struct spi_nor *nor);
 		.page_size = _page_size,				\
 		.addr_width = 3,					\
 		.flags = SPI_NOR_NO_FR | SPI_S3AN,
+
+static int
+mx25l25635_post_bfpt_fixups(struct spi_nor *nor,
+			    const struct sfdp_parameter_header *bfpt_header,
+			    const struct sfdp_bfpt *bfpt,
+			    struct spi_nor_flash_parameter *params)
+{
+	/*
+	 * MX25L25635F supports 4B opcodes but MX25L25635E does not.
+	 * Unfortunately, Macronix has re-used the same JEDEC ID for both
+	 * variants which prevents us from defining a new entry in the parts
+	 * table.
+	 * We need a way to differentiate MX25L25635E and MX25L25635F, and it
+	 * seems that the F version advertises support for Fast Read 4-4-4 in
+	 * its BFPT table.
+	 */
+	if (bfpt->dwords[BFPT_DWORD(5)] & BFPT_DWORD5_FAST_READ_4_4_4)
+		nor->flags |= SNOR_F_4B_OPCODES;
+
+	return 0;
+}
+
+static struct spi_nor_fixups mx25l25635_fixups = {
+	.post_bfpt = mx25l25635_post_bfpt_fixups,
+};
 
 /* NOTE: double check command sets and memory organization when you add
  * more nor chips.  This current list focusses on newer chips, which
@@ -1352,12 +1806,19 @@ static const struct flash_info spi_nor_ids[] = {
 	{ "is25cd512",  INFO(0x7f9d20, 0, 32 * 1024,   2, SECT_4K) },
 	{ "is25lq040b", INFO(0x9d4013, 0, 64 * 1024,   8,
 			SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
+	{ "is25lp016d", INFO(0x9d6015, 0, 64 * 1024,  32,
+			SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
 	{ "is25lp080d", INFO(0x9d6014, 0, 64 * 1024,  16,
 			SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
+	{ "is25lp032",  INFO(0x9d6016, 0, 64 * 1024,  64,
+			SECT_4K | SPI_NOR_DUAL_READ) },
+	{ "is25lp064",  INFO(0x9d6017, 0, 64 * 1024, 128,
+			SECT_4K | SPI_NOR_DUAL_READ) },
 	{ "is25lp128",  INFO(0x9d6018, 0, 64 * 1024, 256,
 			SECT_4K | SPI_NOR_DUAL_READ) },
 	{ "is25lp256",  INFO(0x9d6019, 0, 64 * 1024, 512,
-			SECT_4K | SPI_NOR_DUAL_READ) },
+			SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
+			SPI_NOR_4B_OPCODES) },
 	{ "is25wp032",  INFO(0x9d7016, 0, 64 * 1024,  64,
 			SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
 	{ "is25wp064",  INFO(0x9d7017, 0, 64 * 1024, 128,
@@ -1380,7 +1841,11 @@ static const struct flash_info spi_nor_ids[] = {
 	{ "mx25u6435f",  INFO(0xc22537, 0, 64 * 1024, 128, SECT_4K) },
 	{ "mx25l12805d", INFO(0xc22018, 0, 64 * 1024, 256, 0) },
 	{ "mx25l12855e", INFO(0xc22618, 0, 64 * 1024, 256, 0) },
-	{ "mx25l25635e", INFO(0xc22019, 0, 64 * 1024, 512, SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
+	{ "mx25u12835f", INFO(0xc22538, 0, 64 * 1024, 256,
+			 SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
+	{ "mx25l25635e", INFO(0xc22019, 0, 64 * 1024, 512,
+			 SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ)
+			 .fixups = &mx25l25635_fixups },
 	{ "mx25u25635f", INFO(0xc22539, 0, 64 * 1024, 512, SECT_4K | SPI_NOR_4B_OPCODES) },
 	{ "mx25l25655e", INFO(0xc22619, 0, 64 * 1024, 512, 0) },
 	{ "mx66l51235l", INFO(0xc2201a, 0, 64 * 1024, 1024, SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | SPI_NOR_4B_OPCODES) },
@@ -1388,7 +1853,7 @@ static const struct flash_info spi_nor_ids[] = {
 	{ "mx66l1g45g",  INFO(0xc2201b, 0, 64 * 1024, 2048, SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
 	{ "mx66l1g55g",  INFO(0xc2261b, 0, 64 * 1024, 2048, SPI_NOR_QUAD_READ) },
 
-	/* Micron */
+	/* Micron <--> ST Micro */
 	{ "n25q016a",	 INFO(0x20bb15, 0, 64 * 1024,   32, SECT_4K | SPI_NOR_QUAD_READ) },
 	{ "n25q032",	 INFO(0x20ba16, 0, 64 * 1024,   64, SPI_NOR_QUAD_READ) },
 	{ "n25q032a",	 INFO(0x20bb16, 0, 64 * 1024,   64, SPI_NOR_QUAD_READ) },
@@ -1403,6 +1868,12 @@ static const struct flash_info spi_nor_ids[] = {
 	{ "n25q00",      INFO(0x20ba21, 0, 64 * 1024, 2048, SECT_4K | USE_FSR | SPI_NOR_QUAD_READ | NO_CHIP_ERASE) },
 	{ "n25q00a",     INFO(0x20bb21, 0, 64 * 1024, 2048, SECT_4K | USE_FSR | SPI_NOR_QUAD_READ | NO_CHIP_ERASE) },
 	{ "mt25qu02g",   INFO(0x20bb22, 0, 64 * 1024, 4096, SECT_4K | USE_FSR | SPI_NOR_QUAD_READ | NO_CHIP_ERASE) },
+
+	/* Micron */
+	{
+		"mt35xu512aba", INFO(0x2c5b1a, 0, 128 * 1024, 512,
+			SECT_4K | USE_FSR | SPI_NOR_4B_OPCODES)
+	},
 
 	/* PMC */
 	{ "pm25lv512",   INFO(0,        0, 32 * 1024,    2, SECT_4K_PMC) },
@@ -1528,6 +1999,11 @@ static const struct flash_info spi_nor_ids[] = {
 	},
 	{
 		"w25q128fw", INFO(0xef6018, 0, 64 * 1024, 256,
+			SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
+			SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB)
+	},
+	{
+		"w25q128jv", INFO(0xef7018, 0, 64 * 1024, 256,
 			SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
 			SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB)
 	},
@@ -1763,248 +2239,6 @@ write_err:
 	return ret;
 }
 
-/**
- * macronix_quad_enable() - set QE bit in Status Register.
- * @nor:	pointer to a 'struct spi_nor'
- *
- * Set the Quad Enable (QE) bit in the Status Register.
- *
- * bit 6 of the Status Register is the QE bit for Macronix like QSPI memories.
- *
- * Return: 0 on success, -errno otherwise.
- */
-static int macronix_quad_enable(struct spi_nor *nor)
-{
-	int ret, val;
-
-	val = read_sr(nor);
-	if (val < 0)
-		return val;
-	if (val & SR_QUAD_EN_MX)
-		return 0;
-
-	write_enable(nor);
-
-	write_sr(nor, val | SR_QUAD_EN_MX);
-
-	ret = spi_nor_wait_till_ready(nor);
-	if (ret)
-		return ret;
-
-	ret = read_sr(nor);
-	if (!(ret > 0 && (ret & SR_QUAD_EN_MX))) {
-		dev_err(nor->dev, "Macronix Quad bit not set\n");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-/*
- * Write status Register and configuration register with 2 bytes
- * The first byte will be written to the status register, while the
- * second byte will be written to the configuration register.
- * Return negative if error occurred.
- */
-static int write_sr_cr(struct spi_nor *nor, u8 *sr_cr)
-{
-	int ret;
-
-	write_enable(nor);
-
-	ret = nor->write_reg(nor, SPINOR_OP_WRSR, sr_cr, 2);
-	if (ret < 0) {
-		dev_err(nor->dev,
-			"error while writing configuration register\n");
-		return -EINVAL;
-	}
-
-	ret = spi_nor_wait_till_ready(nor);
-	if (ret) {
-		dev_err(nor->dev,
-			"timeout while writing configuration register\n");
-		return ret;
-	}
-
-	return 0;
-}
-
-/**
- * spansion_quad_enable() - set QE bit in Configuraiton Register.
- * @nor:	pointer to a 'struct spi_nor'
- *
- * Set the Quad Enable (QE) bit in the Configuration Register.
- * This function is kept for legacy purpose because it has been used for a
- * long time without anybody complaining but it should be considered as
- * deprecated and maybe buggy.
- * First, this function doesn't care about the previous values of the Status
- * and Configuration Registers when it sets the QE bit (bit 1) in the
- * Configuration Register: all other bits are cleared, which may have unwanted
- * side effects like removing some block protections.
- * Secondly, it uses the Read Configuration Register (35h) instruction though
- * some very old and few memories don't support this instruction. If a pull-up
- * resistor is present on the MISO/IO1 line, we might still be able to pass the
- * "read back" test because the QSPI memory doesn't recognize the command,
- * so leaves the MISO/IO1 line state unchanged, hence read_cr() returns 0xFF.
- *
- * bit 1 of the Configuration Register is the QE bit for Spansion like QSPI
- * memories.
- *
- * Return: 0 on success, -errno otherwise.
- */
-static int spansion_quad_enable(struct spi_nor *nor)
-{
-	u8 sr_cr[2] = {0, CR_QUAD_EN_SPAN};
-	int ret;
-
-	ret = write_sr_cr(nor, sr_cr);
-	if (ret)
-		return ret;
-
-	/* read back and check it */
-	ret = read_cr(nor);
-	if (!(ret > 0 && (ret & CR_QUAD_EN_SPAN))) {
-		dev_err(nor->dev, "Spansion Quad bit not set\n");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-/**
- * spansion_no_read_cr_quad_enable() - set QE bit in Configuration Register.
- * @nor:	pointer to a 'struct spi_nor'
- *
- * Set the Quad Enable (QE) bit in the Configuration Register.
- * This function should be used with QSPI memories not supporting the Read
- * Configuration Register (35h) instruction.
- *
- * bit 1 of the Configuration Register is the QE bit for Spansion like QSPI
- * memories.
- *
- * Return: 0 on success, -errno otherwise.
- */
-static int spansion_no_read_cr_quad_enable(struct spi_nor *nor)
-{
-	u8 sr_cr[2];
-	int ret;
-
-	/* Keep the current value of the Status Register. */
-	ret = read_sr(nor);
-	if (ret < 0) {
-		dev_err(nor->dev, "error while reading status register\n");
-		return -EINVAL;
-	}
-	sr_cr[0] = ret;
-	sr_cr[1] = CR_QUAD_EN_SPAN;
-
-	return write_sr_cr(nor, sr_cr);
-}
-
-/**
- * spansion_read_cr_quad_enable() - set QE bit in Configuration Register.
- * @nor:	pointer to a 'struct spi_nor'
- *
- * Set the Quad Enable (QE) bit in the Configuration Register.
- * This function should be used with QSPI memories supporting the Read
- * Configuration Register (35h) instruction.
- *
- * bit 1 of the Configuration Register is the QE bit for Spansion like QSPI
- * memories.
- *
- * Return: 0 on success, -errno otherwise.
- */
-static int spansion_read_cr_quad_enable(struct spi_nor *nor)
-{
-	struct device *dev = nor->dev;
-	u8 sr_cr[2];
-	int ret;
-
-	/* Check current Quad Enable bit value. */
-	ret = read_cr(nor);
-	if (ret < 0) {
-		dev_err(dev, "error while reading configuration register\n");
-		return -EINVAL;
-	}
-
-	if (ret & CR_QUAD_EN_SPAN)
-		return 0;
-
-	sr_cr[1] = ret | CR_QUAD_EN_SPAN;
-
-	/* Keep the current value of the Status Register. */
-	ret = read_sr(nor);
-	if (ret < 0) {
-		dev_err(dev, "error while reading status register\n");
-		return -EINVAL;
-	}
-	sr_cr[0] = ret;
-
-	ret = write_sr_cr(nor, sr_cr);
-	if (ret)
-		return ret;
-
-	/* Read back and check it. */
-	ret = read_cr(nor);
-	if (!(ret > 0 && (ret & CR_QUAD_EN_SPAN))) {
-		dev_err(nor->dev, "Spansion Quad bit not set\n");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-/**
- * sr2_bit7_quad_enable() - set QE bit in Status Register 2.
- * @nor:	pointer to a 'struct spi_nor'
- *
- * Set the Quad Enable (QE) bit in the Status Register 2.
- *
- * This is one of the procedures to set the QE bit described in the SFDP
- * (JESD216 rev B) specification but no manufacturer using this procedure has
- * been identified yet, hence the name of the function.
- *
- * Return: 0 on success, -errno otherwise.
- */
-static int sr2_bit7_quad_enable(struct spi_nor *nor)
-{
-	u8 sr2;
-	int ret;
-
-	/* Check current Quad Enable bit value. */
-	ret = nor->read_reg(nor, SPINOR_OP_RDSR2, &sr2, 1);
-	if (ret)
-		return ret;
-	if (sr2 & SR2_QUAD_EN_BIT7)
-		return 0;
-
-	/* Update the Quad Enable bit. */
-	sr2 |= SR2_QUAD_EN_BIT7;
-
-	write_enable(nor);
-
-	ret = nor->write_reg(nor, SPINOR_OP_WRSR2, &sr2, 1);
-	if (ret < 0) {
-		dev_err(nor->dev, "error while writing status register 2\n");
-		return -EINVAL;
-	}
-
-	ret = spi_nor_wait_till_ready(nor);
-	if (ret < 0) {
-		dev_err(nor->dev, "timeout while writing status register 2\n");
-		return ret;
-	}
-
-	/* Read back and check it. */
-	ret = nor->read_reg(nor, SPINOR_OP_RDSR2, &sr2, 1);
-	if (!(ret > 0 && (sr2 & SR2_QUAD_EN_BIT7))) {
-		dev_err(nor->dev, "SR2 Quad bit not set\n");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 static int spi_nor_check(struct spi_nor *nor)
 {
 	if (!nor->dev || !nor->read || !nor->write ||
@@ -2016,7 +2250,7 @@ static int spi_nor_check(struct spi_nor *nor)
 	return 0;
 }
 
-static int s3an_nor_scan(const struct flash_info *info, struct spi_nor *nor)
+static int s3an_nor_scan(struct spi_nor *nor)
 {
 	int ret;
 	u8 val;
@@ -2047,7 +2281,7 @@ static int s3an_nor_scan(const struct flash_info *info, struct spi_nor *nor)
 		/* Flash in Power of 2 mode */
 		nor->page_size = (nor->page_size == 264) ? 256 : 512;
 		nor->mtd.writebufsize = nor->page_size;
-		nor->mtd.size = 8 * nor->page_size * info->n_sectors;
+		nor->mtd.size = 8 * nor->page_size * nor->info->n_sectors;
 		nor->mtd.erasesize = 8 * nor->page_size;
 	} else {
 		/* Flash in Default addressing mode */
@@ -2056,71 +2290,6 @@ static int s3an_nor_scan(const struct flash_info *info, struct spi_nor *nor)
 
 	return 0;
 }
-
-struct spi_nor_read_command {
-	u8			num_mode_clocks;
-	u8			num_wait_states;
-	u8			opcode;
-	enum spi_nor_protocol	proto;
-};
-
-struct spi_nor_pp_command {
-	u8			opcode;
-	enum spi_nor_protocol	proto;
-};
-
-enum spi_nor_read_command_index {
-	SNOR_CMD_READ,
-	SNOR_CMD_READ_FAST,
-	SNOR_CMD_READ_1_1_1_DTR,
-
-	/* Dual SPI */
-	SNOR_CMD_READ_1_1_2,
-	SNOR_CMD_READ_1_2_2,
-	SNOR_CMD_READ_2_2_2,
-	SNOR_CMD_READ_1_2_2_DTR,
-
-	/* Quad SPI */
-	SNOR_CMD_READ_1_1_4,
-	SNOR_CMD_READ_1_4_4,
-	SNOR_CMD_READ_4_4_4,
-	SNOR_CMD_READ_1_4_4_DTR,
-
-	/* Octo SPI */
-	SNOR_CMD_READ_1_1_8,
-	SNOR_CMD_READ_1_8_8,
-	SNOR_CMD_READ_8_8_8,
-	SNOR_CMD_READ_1_8_8_DTR,
-
-	SNOR_CMD_READ_MAX
-};
-
-enum spi_nor_pp_command_index {
-	SNOR_CMD_PP,
-
-	/* Quad SPI */
-	SNOR_CMD_PP_1_1_4,
-	SNOR_CMD_PP_1_4_4,
-	SNOR_CMD_PP_4_4_4,
-
-	/* Octo SPI */
-	SNOR_CMD_PP_1_1_8,
-	SNOR_CMD_PP_1_8_8,
-	SNOR_CMD_PP_8_8_8,
-
-	SNOR_CMD_PP_MAX
-};
-
-struct spi_nor_flash_parameter {
-	u64				size;
-	u32				page_size;
-
-	struct spi_nor_hwcaps		hwcaps;
-	struct spi_nor_read_command	reads[SNOR_CMD_READ_MAX];
-	struct spi_nor_pp_command	page_programs[SNOR_CMD_PP_MAX];
-
-	int (*quad_enable)(struct spi_nor *nor);
-};
 
 static void
 spi_nor_set_read_settings(struct spi_nor_read_command *read,
@@ -2142,6 +2311,57 @@ spi_nor_set_pp_settings(struct spi_nor_pp_command *pp,
 {
 	pp->opcode = opcode;
 	pp->proto = proto;
+}
+
+static int spi_nor_hwcaps2cmd(u32 hwcaps, const int table[][2], size_t size)
+{
+	size_t i;
+
+	for (i = 0; i < size; i++)
+		if (table[i][0] == (int)hwcaps)
+			return table[i][1];
+
+	return -EINVAL;
+}
+
+static int spi_nor_hwcaps_read2cmd(u32 hwcaps)
+{
+	static const int hwcaps_read2cmd[][2] = {
+		{ SNOR_HWCAPS_READ,		SNOR_CMD_READ },
+		{ SNOR_HWCAPS_READ_FAST,	SNOR_CMD_READ_FAST },
+		{ SNOR_HWCAPS_READ_1_1_1_DTR,	SNOR_CMD_READ_1_1_1_DTR },
+		{ SNOR_HWCAPS_READ_1_1_2,	SNOR_CMD_READ_1_1_2 },
+		{ SNOR_HWCAPS_READ_1_2_2,	SNOR_CMD_READ_1_2_2 },
+		{ SNOR_HWCAPS_READ_2_2_2,	SNOR_CMD_READ_2_2_2 },
+		{ SNOR_HWCAPS_READ_1_2_2_DTR,	SNOR_CMD_READ_1_2_2_DTR },
+		{ SNOR_HWCAPS_READ_1_1_4,	SNOR_CMD_READ_1_1_4 },
+		{ SNOR_HWCAPS_READ_1_4_4,	SNOR_CMD_READ_1_4_4 },
+		{ SNOR_HWCAPS_READ_4_4_4,	SNOR_CMD_READ_4_4_4 },
+		{ SNOR_HWCAPS_READ_1_4_4_DTR,	SNOR_CMD_READ_1_4_4_DTR },
+		{ SNOR_HWCAPS_READ_1_1_8,	SNOR_CMD_READ_1_1_8 },
+		{ SNOR_HWCAPS_READ_1_8_8,	SNOR_CMD_READ_1_8_8 },
+		{ SNOR_HWCAPS_READ_8_8_8,	SNOR_CMD_READ_8_8_8 },
+		{ SNOR_HWCAPS_READ_1_8_8_DTR,	SNOR_CMD_READ_1_8_8_DTR },
+	};
+
+	return spi_nor_hwcaps2cmd(hwcaps, hwcaps_read2cmd,
+				  ARRAY_SIZE(hwcaps_read2cmd));
+}
+
+static int spi_nor_hwcaps_pp2cmd(u32 hwcaps)
+{
+	static const int hwcaps_pp2cmd[][2] = {
+		{ SNOR_HWCAPS_PP,		SNOR_CMD_PP },
+		{ SNOR_HWCAPS_PP_1_1_4,		SNOR_CMD_PP_1_1_4 },
+		{ SNOR_HWCAPS_PP_1_4_4,		SNOR_CMD_PP_1_4_4 },
+		{ SNOR_HWCAPS_PP_4_4_4,		SNOR_CMD_PP_4_4_4 },
+		{ SNOR_HWCAPS_PP_1_1_8,		SNOR_CMD_PP_1_1_8 },
+		{ SNOR_HWCAPS_PP_1_8_8,		SNOR_CMD_PP_1_8_8 },
+		{ SNOR_HWCAPS_PP_8_8_8,		SNOR_CMD_PP_8_8_8 },
+	};
+
+	return spi_nor_hwcaps2cmd(hwcaps, hwcaps_pp2cmd,
+				  ARRAY_SIZE(hwcaps_pp2cmd));
 }
 
 /*
@@ -2244,120 +2464,9 @@ static int spi_nor_read_sfdp_dma_unsafe(struct spi_nor *nor, u32 addr,
 	return ret;
 }
 
-struct sfdp_parameter_header {
-	u8		id_lsb;
-	u8		minor;
-	u8		major;
-	u8		length; /* in double words */
-	u8		parameter_table_pointer[3]; /* byte address */
-	u8		id_msb;
-};
-
-#define SFDP_PARAM_HEADER_ID(p)	(((p)->id_msb << 8) | (p)->id_lsb)
-#define SFDP_PARAM_HEADER_PTP(p) \
-	(((p)->parameter_table_pointer[2] << 16) | \
-	 ((p)->parameter_table_pointer[1] <<  8) | \
-	 ((p)->parameter_table_pointer[0] <<  0))
-
-#define SFDP_BFPT_ID		0xff00	/* Basic Flash Parameter Table */
-#define SFDP_SECTOR_MAP_ID	0xff81	/* Sector Map Table */
-
-#define SFDP_SIGNATURE		0x50444653U
-#define SFDP_JESD216_MAJOR	1
-#define SFDP_JESD216_MINOR	0
-#define SFDP_JESD216A_MINOR	5
-#define SFDP_JESD216B_MINOR	6
-
-struct sfdp_header {
-	u32		signature; /* Ox50444653U <=> "SFDP" */
-	u8		minor;
-	u8		major;
-	u8		nph; /* 0-base number of parameter headers */
-	u8		unused;
-
-	/* Basic Flash Parameter Table. */
-	struct sfdp_parameter_header	bfpt_header;
-};
-
-/* Basic Flash Parameter Table */
-
-/*
- * JESD216 rev B defines a Basic Flash Parameter Table of 16 DWORDs.
- * They are indexed from 1 but C arrays are indexed from 0.
- */
-#define BFPT_DWORD(i)		((i) - 1)
-#define BFPT_DWORD_MAX		16
-
-/* The first version of JESB216 defined only 9 DWORDs. */
-#define BFPT_DWORD_MAX_JESD216			9
-
-/* 1st DWORD. */
-#define BFPT_DWORD1_FAST_READ_1_1_2		BIT(16)
-#define BFPT_DWORD1_ADDRESS_BYTES_MASK		GENMASK(18, 17)
-#define BFPT_DWORD1_ADDRESS_BYTES_3_ONLY	(0x0UL << 17)
-#define BFPT_DWORD1_ADDRESS_BYTES_3_OR_4	(0x1UL << 17)
-#define BFPT_DWORD1_ADDRESS_BYTES_4_ONLY	(0x2UL << 17)
-#define BFPT_DWORD1_DTR				BIT(19)
-#define BFPT_DWORD1_FAST_READ_1_2_2		BIT(20)
-#define BFPT_DWORD1_FAST_READ_1_4_4		BIT(21)
-#define BFPT_DWORD1_FAST_READ_1_1_4		BIT(22)
-
-/* 5th DWORD. */
-#define BFPT_DWORD5_FAST_READ_2_2_2		BIT(0)
-#define BFPT_DWORD5_FAST_READ_4_4_4		BIT(4)
-
-/* 11th DWORD. */
-#define BFPT_DWORD11_PAGE_SIZE_SHIFT		4
-#define BFPT_DWORD11_PAGE_SIZE_MASK		GENMASK(7, 4)
-
-/* 15th DWORD. */
-
-/*
- * (from JESD216 rev B)
- * Quad Enable Requirements (QER):
- * - 000b: Device does not have a QE bit. Device detects 1-1-4 and 1-4-4
- *         reads based on instruction. DQ3/HOLD# functions are hold during
- *         instruction phase.
- * - 001b: QE is bit 1 of status register 2. It is set via Write Status with
- *         two data bytes where bit 1 of the second byte is one.
- *         [...]
- *         Writing only one byte to the status register has the side-effect of
- *         clearing status register 2, including the QE bit. The 100b code is
- *         used if writing one byte to the status register does not modify
- *         status register 2.
- * - 010b: QE is bit 6 of status register 1. It is set via Write Status with
- *         one data byte where bit 6 is one.
- *         [...]
- * - 011b: QE is bit 7 of status register 2. It is set via Write status
- *         register 2 instruction 3Eh with one data byte where bit 7 is one.
- *         [...]
- *         The status register 2 is read using instruction 3Fh.
- * - 100b: QE is bit 1 of status register 2. It is set via Write Status with
- *         two data bytes where bit 1 of the second byte is one.
- *         [...]
- *         In contrast to the 001b code, writing one byte to the status
- *         register does not modify status register 2.
- * - 101b: QE is bit 1 of status register 2. Status register 1 is read using
- *         Read Status instruction 05h. Status register2 is read using
- *         instruction 35h. QE is set via Writ Status instruction 01h with
- *         two data bytes where bit 1 of the second byte is one.
- *         [...]
- */
-#define BFPT_DWORD15_QER_MASK			GENMASK(22, 20)
-#define BFPT_DWORD15_QER_NONE			(0x0UL << 20) /* Micron */
-#define BFPT_DWORD15_QER_SR2_BIT1_BUGGY		(0x1UL << 20)
-#define BFPT_DWORD15_QER_SR1_BIT6		(0x2UL << 20) /* Macronix */
-#define BFPT_DWORD15_QER_SR2_BIT7		(0x3UL << 20)
-#define BFPT_DWORD15_QER_SR2_BIT1_NO_RD		(0x4UL << 20)
-#define BFPT_DWORD15_QER_SR2_BIT1		(0x5UL << 20) /* Spansion */
-
-struct sfdp_bfpt {
-	u32	dwords[BFPT_DWORD_MAX];
-};
-
 /* Fast Read settings. */
 
-static inline void
+static void
 spi_nor_set_read_settings_from_bfpt(struct spi_nor_read_command *read,
 				    u16 half,
 				    enum spi_nor_protocol proto)
@@ -2463,8 +2572,6 @@ static const struct sfdp_bfpt_erase sfdp_bfpt_erases[] = {
 	/* Erase Type 4 in DWORD9 bits[31:16] */
 	{BFPT_DWORD(9), 16},
 };
-
-static int spi_nor_hwcaps_read2cmd(u32 hwcaps);
 
 /**
  * spi_nor_set_erase_type() - set a SPI NOR erase type
@@ -2596,6 +2703,19 @@ static void spi_nor_init_uniform_erase_map(struct spi_nor_erase_map *map,
 	map->uniform_region.size = flash_size;
 	map->regions = &map->uniform_region;
 	map->uniform_erase_type = erase_mask;
+}
+
+static int
+spi_nor_post_bfpt_fixups(struct spi_nor *nor,
+			 const struct sfdp_parameter_header *bfpt_header,
+			 const struct sfdp_bfpt *bfpt,
+			 struct spi_nor_flash_parameter *params)
+{
+	if (nor->info->fixups && nor->info->fixups->post_bfpt)
+		return nor->info->fixups->post_bfpt(nor, bfpt_header, bfpt,
+						    params);
+
+	return 0;
 }
 
 /**
@@ -2750,7 +2870,8 @@ static int spi_nor_parse_bfpt(struct spi_nor *nor,
 
 	/* Stop here if not JESD216 rev A or later. */
 	if (bfpt_header->length < BFPT_DWORD_MAX)
-		return 0;
+		return spi_nor_post_bfpt_fixups(nor, bfpt_header, &bfpt,
+						params);
 
 	/* Page size: this field specifies 'N' so the page size = 2^N bytes. */
 	params->page_size = bfpt.dwords[BFPT_DWORD(11)];
@@ -2785,7 +2906,7 @@ static int spi_nor_parse_bfpt(struct spi_nor *nor,
 		return -EINVAL;
 	}
 
-	return 0;
+	return spi_nor_post_bfpt_fixups(nor, bfpt_header, &bfpt, params);
 }
 
 #define SMPT_CMD_ADDRESS_LEN_MASK		GENMASK(23, 22)
@@ -3091,7 +3212,7 @@ static int spi_nor_parse_smpt(struct spi_nor *nor,
 
 	/* Read the Sector Map Parameter Table. */
 	len = smpt_header->length * sizeof(*smpt);
-	smpt = kzalloc(len, GFP_KERNEL);
+	smpt = kmalloc(len, GFP_KERNEL);
 	if (!smpt)
 		return -ENOMEM;
 
@@ -3118,6 +3239,191 @@ static int spi_nor_parse_smpt(struct spi_nor *nor,
 	/* fall through */
 out:
 	kfree(smpt);
+	return ret;
+}
+
+#define SFDP_4BAIT_DWORD_MAX	2
+
+struct sfdp_4bait {
+	/* The hardware capability. */
+	u32		hwcaps;
+
+	/*
+	 * The <supported_bit> bit in DWORD1 of the 4BAIT tells us whether
+	 * the associated 4-byte address op code is supported.
+	 */
+	u32		supported_bit;
+};
+
+/**
+ * spi_nor_parse_4bait() - parse the 4-Byte Address Instruction Table
+ * @nor:		pointer to a 'struct spi_nor'.
+ * @param_header:	pointer to the 'struct sfdp_parameter_header' describing
+ *			the 4-Byte Address Instruction Table length and version.
+ * @params:		pointer to the 'struct spi_nor_flash_parameter' to be.
+ *
+ * Return: 0 on success, -errno otherwise.
+ */
+static int spi_nor_parse_4bait(struct spi_nor *nor,
+			       const struct sfdp_parameter_header *param_header,
+			       struct spi_nor_flash_parameter *params)
+{
+	static const struct sfdp_4bait reads[] = {
+		{ SNOR_HWCAPS_READ,		BIT(0) },
+		{ SNOR_HWCAPS_READ_FAST,	BIT(1) },
+		{ SNOR_HWCAPS_READ_1_1_2,	BIT(2) },
+		{ SNOR_HWCAPS_READ_1_2_2,	BIT(3) },
+		{ SNOR_HWCAPS_READ_1_1_4,	BIT(4) },
+		{ SNOR_HWCAPS_READ_1_4_4,	BIT(5) },
+		{ SNOR_HWCAPS_READ_1_1_1_DTR,	BIT(13) },
+		{ SNOR_HWCAPS_READ_1_2_2_DTR,	BIT(14) },
+		{ SNOR_HWCAPS_READ_1_4_4_DTR,	BIT(15) },
+	};
+	static const struct sfdp_4bait programs[] = {
+		{ SNOR_HWCAPS_PP,		BIT(6) },
+		{ SNOR_HWCAPS_PP_1_1_4,		BIT(7) },
+		{ SNOR_HWCAPS_PP_1_4_4,		BIT(8) },
+	};
+	static const struct sfdp_4bait erases[SNOR_ERASE_TYPE_MAX] = {
+		{ 0u /* not used */,		BIT(9) },
+		{ 0u /* not used */,		BIT(10) },
+		{ 0u /* not used */,		BIT(11) },
+		{ 0u /* not used */,		BIT(12) },
+	};
+	struct spi_nor_pp_command *params_pp = params->page_programs;
+	struct spi_nor_erase_map *map = &nor->erase_map;
+	struct spi_nor_erase_type *erase_type = map->erase_type;
+	u32 *dwords;
+	size_t len;
+	u32 addr, discard_hwcaps, read_hwcaps, pp_hwcaps, erase_mask;
+	int i, ret;
+
+	if (param_header->major != SFDP_JESD216_MAJOR ||
+	    param_header->length < SFDP_4BAIT_DWORD_MAX)
+		return -EINVAL;
+
+	/* Read the 4-byte Address Instruction Table. */
+	len = sizeof(*dwords) * SFDP_4BAIT_DWORD_MAX;
+
+	/* Use a kmalloc'ed bounce buffer to guarantee it is DMA-able. */
+	dwords = kmalloc(len, GFP_KERNEL);
+	if (!dwords)
+		return -ENOMEM;
+
+	addr = SFDP_PARAM_HEADER_PTP(param_header);
+	ret = spi_nor_read_sfdp(nor, addr, len, dwords);
+	if (ret)
+		return ret;
+
+	/* Fix endianness of the 4BAIT DWORDs. */
+	for (i = 0; i < SFDP_4BAIT_DWORD_MAX; i++)
+		dwords[i] = le32_to_cpu(dwords[i]);
+
+	/*
+	 * Compute the subset of (Fast) Read commands for which the 4-byte
+	 * version is supported.
+	 */
+	discard_hwcaps = 0;
+	read_hwcaps = 0;
+	for (i = 0; i < ARRAY_SIZE(reads); i++) {
+		const struct sfdp_4bait *read = &reads[i];
+
+		discard_hwcaps |= read->hwcaps;
+		if ((params->hwcaps.mask & read->hwcaps) &&
+		    (dwords[0] & read->supported_bit))
+			read_hwcaps |= read->hwcaps;
+	}
+
+	/*
+	 * Compute the subset of Page Program commands for which the 4-byte
+	 * version is supported.
+	 */
+	pp_hwcaps = 0;
+	for (i = 0; i < ARRAY_SIZE(programs); i++) {
+		const struct sfdp_4bait *program = &programs[i];
+
+		/*
+		 * The 4 Byte Address Instruction (Optional) Table is the only
+		 * SFDP table that indicates support for Page Program Commands.
+		 * Bypass the params->hwcaps.mask and consider 4BAIT the biggest
+		 * authority for specifying Page Program support.
+		 */
+		discard_hwcaps |= program->hwcaps;
+		if (dwords[0] & program->supported_bit)
+			pp_hwcaps |= program->hwcaps;
+	}
+
+	/*
+	 * Compute the subset of Sector Erase commands for which the 4-byte
+	 * version is supported.
+	 */
+	erase_mask = 0;
+	for (i = 0; i < SNOR_ERASE_TYPE_MAX; i++) {
+		const struct sfdp_4bait *erase = &erases[i];
+
+		if (dwords[0] & erase->supported_bit)
+			erase_mask |= BIT(i);
+	}
+
+	/* Replicate the sort done for the map's erase types in BFPT. */
+	erase_mask = spi_nor_sort_erase_mask(map, erase_mask);
+
+	/*
+	 * We need at least one 4-byte op code per read, program and erase
+	 * operation; the .read(), .write() and .erase() hooks share the
+	 * nor->addr_width value.
+	 */
+	if (!read_hwcaps || !pp_hwcaps || !erase_mask)
+		goto out;
+
+	/*
+	 * Discard all operations from the 4-byte instruction set which are
+	 * not supported by this memory.
+	 */
+	params->hwcaps.mask &= ~discard_hwcaps;
+	params->hwcaps.mask |= (read_hwcaps | pp_hwcaps);
+
+	/* Use the 4-byte address instruction set. */
+	for (i = 0; i < SNOR_CMD_READ_MAX; i++) {
+		struct spi_nor_read_command *read_cmd = &params->reads[i];
+
+		read_cmd->opcode = spi_nor_convert_3to4_read(read_cmd->opcode);
+	}
+
+	/* 4BAIT is the only SFDP table that indicates page program support. */
+	if (pp_hwcaps & SNOR_HWCAPS_PP)
+		spi_nor_set_pp_settings(&params_pp[SNOR_CMD_PP],
+					SPINOR_OP_PP_4B, SNOR_PROTO_1_1_1);
+	if (pp_hwcaps & SNOR_HWCAPS_PP_1_1_4)
+		spi_nor_set_pp_settings(&params_pp[SNOR_CMD_PP_1_1_4],
+					SPINOR_OP_PP_1_1_4_4B,
+					SNOR_PROTO_1_1_4);
+	if (pp_hwcaps & SNOR_HWCAPS_PP_1_4_4)
+		spi_nor_set_pp_settings(&params_pp[SNOR_CMD_PP_1_4_4],
+					SPINOR_OP_PP_1_4_4_4B,
+					SNOR_PROTO_1_4_4);
+
+	for (i = 0; i < SNOR_ERASE_TYPE_MAX; i++) {
+		if (erase_mask & BIT(i))
+			erase_type[i].opcode = (dwords[1] >>
+						erase_type[i].idx * 8) & 0xFF;
+		else
+			spi_nor_set_erase_type(&erase_type[i], 0u, 0xFF);
+	}
+
+	/*
+	 * We set SNOR_F_HAS_4BAIT in order to skip spi_nor_set_4byte_opcodes()
+	 * later because we already did the conversion to 4byte opcodes. Also,
+	 * this latest function implements a legacy quirk for the erase size of
+	 * Spansion memory. However this quirk is no longer needed with new
+	 * SFDP compliant memories.
+	 */
+	nor->addr_width = 4;
+	nor->flags |= SNOR_F_4B_OPCODES | SNOR_F_HAS_4BAIT;
+
+	/* fall through */
+out:
+	kfree(dwords);
 	return ret;
 }
 
@@ -3218,6 +3524,10 @@ static int spi_nor_parse_sfdp(struct spi_nor *nor,
 			err = spi_nor_parse_smpt(nor, param_header);
 			break;
 
+		case SFDP_4BAIT_ID:
+			err = spi_nor_parse_4bait(nor, param_header, params);
+			break;
+
 		default:
 			break;
 		}
@@ -3241,17 +3551,17 @@ exit:
 }
 
 static int spi_nor_init_params(struct spi_nor *nor,
-			       const struct flash_info *info,
 			       struct spi_nor_flash_parameter *params)
 {
 	struct spi_nor_erase_map *map = &nor->erase_map;
+	const struct flash_info *info = nor->info;
 	u8 i, erase_mask;
 
 	/* Set legacy flash parameters as default. */
 	memset(params, 0, sizeof(*params));
 
 	/* Set SPI NOR sizes. */
-	params->size = info->sector_size * info->n_sectors;
+	params->size = (u64)info->sector_size * info->n_sectors;
 	params->page_size = info->page_size;
 
 	/* (Fast) Read settings. */
@@ -3316,6 +3626,7 @@ static int spi_nor_init_params(struct spi_nor *nor,
 			params->quad_enable = macronix_quad_enable;
 			break;
 
+		case SNOR_MFR_ST:
 		case SNOR_MFR_MICRON:
 			break;
 
@@ -3345,6 +3656,7 @@ static int spi_nor_init_params(struct spi_nor *nor,
 
 		if (spi_nor_parse_sfdp(nor, &sfdp_params)) {
 			nor->addr_width = 0;
+			nor->flags &= ~SNOR_F_4B_OPCODES;
 			/* restore previous erase map */
 			memcpy(&nor->erase_map, &prev_map,
 			       sizeof(nor->erase_map));
@@ -3354,57 +3666,6 @@ static int spi_nor_init_params(struct spi_nor *nor,
 	}
 
 	return 0;
-}
-
-static int spi_nor_hwcaps2cmd(u32 hwcaps, const int table[][2], size_t size)
-{
-	size_t i;
-
-	for (i = 0; i < size; i++)
-		if (table[i][0] == (int)hwcaps)
-			return table[i][1];
-
-	return -EINVAL;
-}
-
-static int spi_nor_hwcaps_read2cmd(u32 hwcaps)
-{
-	static const int hwcaps_read2cmd[][2] = {
-		{ SNOR_HWCAPS_READ,		SNOR_CMD_READ },
-		{ SNOR_HWCAPS_READ_FAST,	SNOR_CMD_READ_FAST },
-		{ SNOR_HWCAPS_READ_1_1_1_DTR,	SNOR_CMD_READ_1_1_1_DTR },
-		{ SNOR_HWCAPS_READ_1_1_2,	SNOR_CMD_READ_1_1_2 },
-		{ SNOR_HWCAPS_READ_1_2_2,	SNOR_CMD_READ_1_2_2 },
-		{ SNOR_HWCAPS_READ_2_2_2,	SNOR_CMD_READ_2_2_2 },
-		{ SNOR_HWCAPS_READ_1_2_2_DTR,	SNOR_CMD_READ_1_2_2_DTR },
-		{ SNOR_HWCAPS_READ_1_1_4,	SNOR_CMD_READ_1_1_4 },
-		{ SNOR_HWCAPS_READ_1_4_4,	SNOR_CMD_READ_1_4_4 },
-		{ SNOR_HWCAPS_READ_4_4_4,	SNOR_CMD_READ_4_4_4 },
-		{ SNOR_HWCAPS_READ_1_4_4_DTR,	SNOR_CMD_READ_1_4_4_DTR },
-		{ SNOR_HWCAPS_READ_1_1_8,	SNOR_CMD_READ_1_1_8 },
-		{ SNOR_HWCAPS_READ_1_8_8,	SNOR_CMD_READ_1_8_8 },
-		{ SNOR_HWCAPS_READ_8_8_8,	SNOR_CMD_READ_8_8_8 },
-		{ SNOR_HWCAPS_READ_1_8_8_DTR,	SNOR_CMD_READ_1_8_8_DTR },
-	};
-
-	return spi_nor_hwcaps2cmd(hwcaps, hwcaps_read2cmd,
-				  ARRAY_SIZE(hwcaps_read2cmd));
-}
-
-static int spi_nor_hwcaps_pp2cmd(u32 hwcaps)
-{
-	static const int hwcaps_pp2cmd[][2] = {
-		{ SNOR_HWCAPS_PP,		SNOR_CMD_PP },
-		{ SNOR_HWCAPS_PP_1_1_4,		SNOR_CMD_PP_1_1_4 },
-		{ SNOR_HWCAPS_PP_1_4_4,		SNOR_CMD_PP_1_4_4 },
-		{ SNOR_HWCAPS_PP_4_4_4,		SNOR_CMD_PP_4_4_4 },
-		{ SNOR_HWCAPS_PP_1_1_8,		SNOR_CMD_PP_1_1_8 },
-		{ SNOR_HWCAPS_PP_1_8_8,		SNOR_CMD_PP_1_8_8 },
-		{ SNOR_HWCAPS_PP_8_8_8,		SNOR_CMD_PP_8_8_8 },
-	};
-
-	return spi_nor_hwcaps2cmd(hwcaps, hwcaps_pp2cmd,
-				  ARRAY_SIZE(hwcaps_pp2cmd));
 }
 
 static int spi_nor_select_read(struct spi_nor *nor,
@@ -3559,7 +3820,7 @@ static int spi_nor_select_erase(struct spi_nor *nor, u32 wanted_size)
 	return 0;
 }
 
-static int spi_nor_setup(struct spi_nor *nor, const struct flash_info *info,
+static int spi_nor_setup(struct spi_nor *nor,
 			 const struct spi_nor_flash_parameter *params,
 			 const struct spi_nor_hwcaps *hwcaps)
 {
@@ -3602,7 +3863,7 @@ static int spi_nor_setup(struct spi_nor *nor, const struct flash_info *info,
 	}
 
 	/* Select the Sector Erase command. */
-	err = spi_nor_select_erase(nor, info->sector_size);
+	err = spi_nor_select_erase(nor, nor->info->sector_size);
 	if (err) {
 		dev_err(nor->dev,
 			"can't select erase settings supported by both the SPI controller and memory.\n");
@@ -3645,9 +3906,7 @@ static int spi_nor_init(struct spi_nor *nor)
 		}
 	}
 
-	if ((nor->addr_width == 4) &&
-	    (JEDEC_MFR(nor->info) != SNOR_MFR_SPANSION) &&
-	    !(nor->info->flags & SPI_NOR_4B_OPCODES)) {
+	if (nor->addr_width == 4 && !(nor->flags & SNOR_F_4B_OPCODES)) {
 		/*
 		 * If the RESET# pin isn't hooked up properly, or the system
 		 * otherwise doesn't perform a reset command in the boot
@@ -3657,7 +3916,7 @@ static int spi_nor_init(struct spi_nor *nor)
 		 */
 		WARN_ONCE(nor->flags & SNOR_F_BROKEN_RESET,
 			  "enabling reset hack; may not recover from unexpected reboots\n");
-		set_4byte(nor, nor->info, 1);
+		set_4byte(nor, true);
 	}
 
 	return 0;
@@ -3679,13 +3938,23 @@ static void spi_nor_resume(struct mtd_info *mtd)
 void spi_nor_restore(struct spi_nor *nor)
 {
 	/* restore the addressing mode */
-	if ((nor->addr_width == 4) &&
-	    (JEDEC_MFR(nor->info) != SNOR_MFR_SPANSION) &&
-	    !(nor->info->flags & SPI_NOR_4B_OPCODES) &&
-	    (nor->flags & SNOR_F_BROKEN_RESET))
-		set_4byte(nor, nor->info, 0);
+	if (nor->addr_width == 4 && !(nor->flags & SNOR_F_4B_OPCODES) &&
+	    nor->flags & SNOR_F_BROKEN_RESET)
+		set_4byte(nor, false);
 }
 EXPORT_SYMBOL_GPL(spi_nor_restore);
+
+static const struct flash_info *spi_nor_match_id(const char *name)
+{
+	const struct flash_info *id = spi_nor_ids;
+
+	while (id->name) {
+		if (!strcmp(name, id->name))
+			return id;
+		id++;
+	}
+	return NULL;
+}
 
 int spi_nor_scan(struct spi_nor *nor, const char *name,
 		 const struct spi_nor_hwcaps *hwcaps)
@@ -3739,6 +4008,8 @@ int spi_nor_scan(struct spi_nor *nor, const char *name,
 		}
 	}
 
+	nor->info = info;
+
 	mutex_init(&nor->lock);
 
 	/*
@@ -3750,7 +4021,7 @@ int spi_nor_scan(struct spi_nor *nor, const char *name,
 		nor->flags |=  SNOR_F_READY_XSR_RDY;
 
 	/* Parse the Serial Flash Discoverable Parameters table. */
-	ret = spi_nor_init_params(nor, info, &params);
+	ret = spi_nor_init_params(nor, &params);
 	if (ret)
 		return ret;
 
@@ -3766,8 +4037,9 @@ int spi_nor_scan(struct spi_nor *nor, const char *name,
 	mtd->_resume = spi_nor_resume;
 
 	/* NOR protection support for STmicro/Micron chips and similar */
-	if (JEDEC_MFR(info) == SNOR_MFR_MICRON ||
-			info->flags & SPI_NOR_HAS_LOCK) {
+	if (JEDEC_MFR(info) == SNOR_MFR_ST ||
+	    JEDEC_MFR(info) == SNOR_MFR_MICRON ||
+	    info->flags & SPI_NOR_HAS_LOCK) {
 		nor->flash_lock = stm_lock;
 		nor->flash_unlock = stm_unlock;
 		nor->flash_is_locked = stm_is_locked;
@@ -3826,7 +4098,7 @@ int spi_nor_scan(struct spi_nor *nor, const char *name,
 	 * - set the SPI protocols for register and memory accesses.
 	 * - set the Quad Enable bit if needed (required by SPI x-y-4 protos).
 	 */
-	ret = spi_nor_setup(nor, info, &params, hwcaps);
+	ret = spi_nor_setup(nor, &params, hwcaps);
 	if (ret)
 		return ret;
 
@@ -3837,12 +4109,17 @@ int spi_nor_scan(struct spi_nor *nor, const char *name,
 	} else if (mtd->size > 0x1000000) {
 		/* enable 4-byte addressing if the device exceeds 16MiB */
 		nor->addr_width = 4;
-		if (JEDEC_MFR(info) == SNOR_MFR_SPANSION ||
-		    info->flags & SPI_NOR_4B_OPCODES)
-			spi_nor_set_4byte_opcodes(nor, info);
 	} else {
 		nor->addr_width = 3;
 	}
+
+	if (info->flags & SPI_NOR_4B_OPCODES ||
+	    (JEDEC_MFR(info) == SNOR_MFR_SPANSION && mtd->size > SZ_16M))
+		nor->flags |= SNOR_F_4B_OPCODES;
+
+	if (nor->addr_width == 4 && nor->flags & SNOR_F_4B_OPCODES &&
+	    !(nor->flags & SNOR_F_HAS_4BAIT))
+		spi_nor_set_4byte_opcodes(nor);
 
 	if (nor->addr_width > SPI_NOR_MAX_ADDR_WIDTH) {
 		dev_err(dev, "address width is too large: %u\n",
@@ -3851,13 +4128,12 @@ int spi_nor_scan(struct spi_nor *nor, const char *name,
 	}
 
 	if (info->flags & SPI_S3AN) {
-		ret = s3an_nor_scan(info, nor);
+		ret = s3an_nor_scan(nor);
 		if (ret)
 			return ret;
 	}
 
 	/* Send all the required SPI flash commands to initialize device */
-	nor->info = info;
 	ret = spi_nor_init(nor);
 	if (ret)
 		return ret;
@@ -3885,19 +4161,7 @@ int spi_nor_scan(struct spi_nor *nor, const char *name,
 }
 EXPORT_SYMBOL_GPL(spi_nor_scan);
 
-static const struct flash_info *spi_nor_match_id(const char *name)
-{
-	const struct flash_info *id = spi_nor_ids;
-
-	while (id->name) {
-		if (!strcmp(name, id->name))
-			return id;
-		id++;
-	}
-	return NULL;
-}
-
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Huang Shijie <shijie8@gmail.com>");
 MODULE_AUTHOR("Mike Lavender");
 MODULE_DESCRIPTION("framework for SPI NOR");

@@ -18,6 +18,17 @@
 #include "aq_rss.h"
 #include "hw_atl/hw_atl_utils.h"
 
+#define AQ_RX_FIRST_LOC_FVLANID     0U
+#define AQ_RX_LAST_LOC_FVLANID	   15U
+#define AQ_RX_FIRST_LOC_FETHERT    16U
+#define AQ_RX_LAST_LOC_FETHERT	   31U
+#define AQ_RX_FIRST_LOC_FL3L4	   32U
+#define AQ_RX_LAST_LOC_FL3L4	   39U
+#define AQ_RX_MAX_RXNFC_LOC	   AQ_RX_LAST_LOC_FL3L4
+#define AQ_VLAN_MAX_FILTERS   \
+			(AQ_RX_LAST_LOC_FVLANID - AQ_RX_FIRST_LOC_FVLANID + 1U)
+#define AQ_RX_QUEUE_NOT_ASSIGNED   0xFFU
+
 /* NIC H/W capabilities */
 struct aq_hw_caps_s {
 	u64 hw_features;
@@ -130,6 +141,7 @@ struct aq_hw_s {
 struct aq_ring_s;
 struct aq_ring_param_s;
 struct sk_buff;
+struct aq_rx_filter_l3l4;
 
 struct aq_hw_ops {
 
@@ -182,6 +194,23 @@ struct aq_hw_ops {
 
 	int (*hw_packet_filter_set)(struct aq_hw_s *self,
 				    unsigned int packet_filter);
+
+	int (*hw_filter_l3l4_set)(struct aq_hw_s *self,
+				  struct aq_rx_filter_l3l4 *data);
+
+	int (*hw_filter_l3l4_clear)(struct aq_hw_s *self,
+				    struct aq_rx_filter_l3l4 *data);
+
+	int (*hw_filter_l2_set)(struct aq_hw_s *self,
+				struct aq_rx_filter_l2 *data);
+
+	int (*hw_filter_l2_clear)(struct aq_hw_s *self,
+				  struct aq_rx_filter_l2 *data);
+
+	int (*hw_filter_vlan_set)(struct aq_hw_s *self,
+				  struct aq_rx_filter_vlan *aq_vlans);
+
+	int (*hw_filter_vlan_ctrl)(struct aq_hw_s *self, bool enable);
 
 	int (*hw_multicast_list_set)(struct aq_hw_s *self,
 				     u8 ar_mac[AQ_HW_MULTICAST_ADDRESS_MAX]

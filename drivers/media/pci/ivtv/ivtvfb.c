@@ -356,7 +356,7 @@ static int ivtvfb_prep_frame(struct ivtv *itv, int cmd, void __user *source,
 		IVTVFB_WARN("ivtvfb_prep_frame: Count not a multiple of 4 (%d)\n", count);
 
 	/* Check Source */
-	if (!access_ok(VERIFY_READ, source + dest_offset, count)) {
+	if (!access_ok(source + dest_offset, count)) {
 		IVTVFB_WARN("Invalid userspace pointer %p\n", source);
 
 		IVTVFB_DEBUG_WARN("access_ok() failed for offset 0x%08lx source %p count %d\n",

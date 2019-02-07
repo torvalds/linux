@@ -889,8 +889,10 @@ static int ray_hw_xmit(unsigned char *data, int len, struct net_device *dev,
 	switch (ccsindex = get_free_tx_ccs(local)) {
 	case ECCSBUSY:
 		pr_debug("ray_hw_xmit tx_ccs table busy\n");
+		/* fall through */
 	case ECCSFULL:
 		pr_debug("ray_hw_xmit No free tx ccs\n");
+		/* fall through */
 	case ECARDGONE:
 		netif_stop_queue(dev);
 		return XMIT_NO_CCS;

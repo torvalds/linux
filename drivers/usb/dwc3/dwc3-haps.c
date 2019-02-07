@@ -15,10 +15,6 @@
 #include <linux/platform_device.h>
 #include <linux/property.h>
 
-#define PCI_DEVICE_ID_SYNOPSYS_HAPSUSB3		0xabcd
-#define PCI_DEVICE_ID_SYNOPSYS_HAPSUSB3_AXI	0xabce
-#define PCI_DEVICE_ID_SYNOPSYS_HAPSUSB31	0xabcf
-
 /**
  * struct dwc3_haps - Driver private structure
  * @dwc3: child dwc3 platform_device

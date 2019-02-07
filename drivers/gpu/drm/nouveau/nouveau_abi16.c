@@ -306,7 +306,7 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 
 	/* create channel object and initialise dma and fence management */
 	ret = nouveau_channel_new(drm, device, init->fb_ctxdma_handle,
-				  init->tt_ctxdma_handle, &chan->chan);
+				  init->tt_ctxdma_handle, false, &chan->chan);
 	if (ret)
 		goto done;
 

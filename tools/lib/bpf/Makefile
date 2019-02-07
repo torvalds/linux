@@ -66,7 +66,7 @@ ifndef VERBOSE
 endif
 
 FEATURE_USER = .libbpf
-FEATURE_TESTS = libelf libelf-mmap bpf reallocarray
+FEATURE_TESTS = libelf libelf-mmap bpf reallocarray cxx
 FEATURE_DISPLAY = libelf bpf
 
 INCLUDES = -I. -I$(srctree)/tools/include -I$(srctree)/tools/arch/$(ARCH)/include/uapi -I$(srctree)/tools/include/uapi
@@ -145,14 +145,26 @@ include $(srctree)/tools/build/Makefile.include
 
 BPF_IN    := $(OUTPUT)libbpf-in.o
 LIB_FILE := $(addprefix $(OUTPUT),$(LIB_FILE))
+VERSION_SCRIPT := libbpf.map
+
+GLOBAL_SYM_COUNT = $(shell readelf -s $(BPF_IN) | \
+			   awk '/GLOBAL/ && /DEFAULT/ && !/UND/ {s++} END{print s}')
+VERSIONED_SYM_COUNT = $(shell readelf -s $(OUTPUT)libbpf.so | \
+			      grep -Eo '[^ ]+@LIBBPF_' | cut -d@ -f1 | sort -u | wc -l)
 
 CMD_TARGETS = $(LIB_FILE)
+
+CXX_TEST_TARGET = $(OUTPUT)test_libbpf
+
+ifeq ($(feature-cxx), 1)
+	CMD_TARGETS += $(CXX_TEST_TARGET)
+endif
 
 TARGETS = $(CMD_TARGETS)
 
 all: fixdep all_cmd
 
-all_cmd: $(CMD_TARGETS)
+all_cmd: $(CMD_TARGETS) check
 
 $(BPF_IN): force elfdep bpfdep
 	@(test -f ../../include/uapi/linux/bpf.h -a -f ../../../include/uapi/linux/bpf.h && ( \
@@ -170,10 +182,26 @@ $(BPF_IN): force elfdep bpfdep
 	$(Q)$(MAKE) $(build)=libbpf
 
 $(OUTPUT)libbpf.so: $(BPF_IN)
-	$(QUIET_LINK)$(CC) --shared $^ -o $@
+	$(QUIET_LINK)$(CC) --shared -Wl,--version-script=$(VERSION_SCRIPT) \
+		$^ -o $@
 
 $(OUTPUT)libbpf.a: $(BPF_IN)
 	$(QUIET_LINK)$(RM) $@; $(AR) rcs $@ $^
+
+$(OUTPUT)test_libbpf: test_libbpf.cpp $(OUTPUT)libbpf.a
+	$(QUIET_LINK)$(CXX) $^ -lelf -o $@
+
+check: check_abi
+
+check_abi: $(OUTPUT)libbpf.so
+	@if [ "$(GLOBAL_SYM_COUNT)" != "$(VERSIONED_SYM_COUNT)" ]; then	 \
+		echo "Warning: Num of global symbols in $(BPF_IN)"	 \
+		     "($(GLOBAL_SYM_COUNT)) does NOT match with num of"	 \
+		     "versioned symbols in $^ ($(VERSIONED_SYM_COUNT))." \
+		     "Please make sure all LIBBPF_API symbols are"	 \
+		     "versioned in $(VERSION_SCRIPT)." >&2;		 \
+		exit 1;							 \
+	fi
 
 define do_install
 	if [ ! -d '$(DESTDIR_SQ)$2' ]; then		\
@@ -201,8 +229,8 @@ config-clean:
 	$(Q)$(MAKE) -C $(srctree)/tools/build/feature/ clean >/dev/null
 
 clean:
-	$(call QUIET_CLEAN, libbpf) $(RM) *.o *~ $(TARGETS) *.a *.so .*.d .*.cmd \
-		$(RM) LIBBPF-CFLAGS
+	$(call QUIET_CLEAN, libbpf) $(RM) $(TARGETS) $(CXX_TEST_TARGET) \
+		*.o *~ *.a *.so .*.d .*.cmd LIBBPF-CFLAGS
 	$(call QUIET_CLEAN, core-gen) $(RM) $(OUTPUT)FEATURE-DUMP.libbpf
 
 

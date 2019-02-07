@@ -154,10 +154,6 @@ union cvmx_npei_bar1_indexx {
 		uint32_t reserved_18_31:14;
 #endif
 	} s;
-	struct cvmx_npei_bar1_indexx_s cn52xx;
-	struct cvmx_npei_bar1_indexx_s cn52xxp1;
-	struct cvmx_npei_bar1_indexx_s cn56xx;
-	struct cvmx_npei_bar1_indexx_s cn56xxp1;
 };
 
 union cvmx_npei_bist_status {
@@ -485,7 +481,6 @@ union cvmx_npei_bist_status {
 		uint64_t reserved_46_63:18;
 #endif
 	} cn52xxp1;
-	struct cvmx_npei_bist_status_cn52xx cn56xx;
 	struct cvmx_npei_bist_status_cn56xxp1 {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_58_63:6;
@@ -648,8 +643,6 @@ union cvmx_npei_bist_status2 {
 		uint64_t reserved_14_63:50;
 #endif
 	} s;
-	struct cvmx_npei_bist_status2_s cn52xx;
-	struct cvmx_npei_bist_status2_s cn56xx;
 };
 
 union cvmx_npei_ctl_port0 {
@@ -693,10 +686,6 @@ union cvmx_npei_ctl_port0 {
 		uint64_t reserved_21_63:43;
 #endif
 	} s;
-	struct cvmx_npei_ctl_port0_s cn52xx;
-	struct cvmx_npei_ctl_port0_s cn52xxp1;
-	struct cvmx_npei_ctl_port0_s cn56xx;
-	struct cvmx_npei_ctl_port0_s cn56xxp1;
 };
 
 union cvmx_npei_ctl_port1 {
@@ -740,10 +729,6 @@ union cvmx_npei_ctl_port1 {
 		uint64_t reserved_21_63:43;
 #endif
 	} s;
-	struct cvmx_npei_ctl_port1_s cn52xx;
-	struct cvmx_npei_ctl_port1_s cn52xxp1;
-	struct cvmx_npei_ctl_port1_s cn56xx;
-	struct cvmx_npei_ctl_port1_s cn56xxp1;
 };
 
 union cvmx_npei_ctl_status {
@@ -773,7 +758,6 @@ union cvmx_npei_ctl_status {
 		uint64_t reserved_44_63:20;
 #endif
 	} s;
-	struct cvmx_npei_ctl_status_s cn52xx;
 	struct cvmx_npei_ctl_status_cn52xxp1 {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_44_63:20;
@@ -799,7 +783,6 @@ union cvmx_npei_ctl_status {
 		uint64_t reserved_44_63:20;
 #endif
 	} cn52xxp1;
-	struct cvmx_npei_ctl_status_s cn56xx;
 	struct cvmx_npei_ctl_status_cn56xxp1 {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_15_63:49;
@@ -848,10 +831,6 @@ union cvmx_npei_ctl_status2 {
 		uint64_t reserved_16_63:48;
 #endif
 	} s;
-	struct cvmx_npei_ctl_status2_s cn52xx;
-	struct cvmx_npei_ctl_status2_s cn52xxp1;
-	struct cvmx_npei_ctl_status2_s cn56xx;
-	struct cvmx_npei_ctl_status2_s cn56xxp1;
 };
 
 union cvmx_npei_data_out_cnt {
@@ -871,10 +850,6 @@ union cvmx_npei_data_out_cnt {
 		uint64_t reserved_44_63:20;
 #endif
 	} s;
-	struct cvmx_npei_data_out_cnt_s cn52xx;
-	struct cvmx_npei_data_out_cnt_s cn52xxp1;
-	struct cvmx_npei_data_out_cnt_s cn56xx;
-	struct cvmx_npei_data_out_cnt_s cn56xxp1;
 };
 
 union cvmx_npei_dbg_data {
@@ -919,7 +894,6 @@ union cvmx_npei_dbg_data {
 		uint64_t reserved_29_63:35;
 #endif
 	} cn52xx;
-	struct cvmx_npei_dbg_data_cn52xx cn52xxp1;
 	struct cvmx_npei_dbg_data_cn56xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_29_63:35;
@@ -941,7 +915,6 @@ union cvmx_npei_dbg_data {
 		uint64_t reserved_29_63:35;
 #endif
 	} cn56xx;
-	struct cvmx_npei_dbg_data_cn56xx cn56xxp1;
 };
 
 union cvmx_npei_dbg_select {
@@ -955,10 +928,6 @@ union cvmx_npei_dbg_select {
 		uint64_t reserved_16_63:48;
 #endif
 	} s;
-	struct cvmx_npei_dbg_select_s cn52xx;
-	struct cvmx_npei_dbg_select_s cn52xxp1;
-	struct cvmx_npei_dbg_select_s cn56xx;
-	struct cvmx_npei_dbg_select_s cn56xxp1;
 };
 
 union cvmx_npei_dmax_counts {
@@ -974,10 +943,6 @@ union cvmx_npei_dmax_counts {
 		uint64_t reserved_39_63:25;
 #endif
 	} s;
-	struct cvmx_npei_dmax_counts_s cn52xx;
-	struct cvmx_npei_dmax_counts_s cn52xxp1;
-	struct cvmx_npei_dmax_counts_s cn56xx;
-	struct cvmx_npei_dmax_counts_s cn56xxp1;
 };
 
 union cvmx_npei_dmax_dbell {
@@ -991,10 +956,6 @@ union cvmx_npei_dmax_dbell {
 		uint32_t reserved_16_31:16;
 #endif
 	} s;
-	struct cvmx_npei_dmax_dbell_s cn52xx;
-	struct cvmx_npei_dmax_dbell_s cn52xxp1;
-	struct cvmx_npei_dmax_dbell_s cn56xx;
-	struct cvmx_npei_dmax_dbell_s cn56xxp1;
 };
 
 union cvmx_npei_dmax_ibuff_saddr {
@@ -1012,7 +973,6 @@ union cvmx_npei_dmax_ibuff_saddr {
 		uint64_t reserved_37_63:27;
 #endif
 	} s;
-	struct cvmx_npei_dmax_ibuff_saddr_s cn52xx;
 	struct cvmx_npei_dmax_ibuff_saddr_cn52xxp1 {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_36_63:28;
@@ -1024,8 +984,6 @@ union cvmx_npei_dmax_ibuff_saddr {
 		uint64_t reserved_36_63:28;
 #endif
 	} cn52xxp1;
-	struct cvmx_npei_dmax_ibuff_saddr_s cn56xx;
-	struct cvmx_npei_dmax_ibuff_saddr_cn52xxp1 cn56xxp1;
 };
 
 union cvmx_npei_dmax_naddr {
@@ -1039,10 +997,6 @@ union cvmx_npei_dmax_naddr {
 		uint64_t reserved_36_63:28;
 #endif
 	} s;
-	struct cvmx_npei_dmax_naddr_s cn52xx;
-	struct cvmx_npei_dmax_naddr_s cn52xxp1;
-	struct cvmx_npei_dmax_naddr_s cn56xx;
-	struct cvmx_npei_dmax_naddr_s cn56xxp1;
 };
 
 union cvmx_npei_dma0_int_level {
@@ -1056,10 +1010,6 @@ union cvmx_npei_dma0_int_level {
 		uint64_t time:32;
 #endif
 	} s;
-	struct cvmx_npei_dma0_int_level_s cn52xx;
-	struct cvmx_npei_dma0_int_level_s cn52xxp1;
-	struct cvmx_npei_dma0_int_level_s cn56xx;
-	struct cvmx_npei_dma0_int_level_s cn56xxp1;
 };
 
 union cvmx_npei_dma1_int_level {
@@ -1073,10 +1023,6 @@ union cvmx_npei_dma1_int_level {
 		uint64_t time:32;
 #endif
 	} s;
-	struct cvmx_npei_dma1_int_level_s cn52xx;
-	struct cvmx_npei_dma1_int_level_s cn52xxp1;
-	struct cvmx_npei_dma1_int_level_s cn56xx;
-	struct cvmx_npei_dma1_int_level_s cn56xxp1;
 };
 
 union cvmx_npei_dma_cnts {
@@ -1090,10 +1036,6 @@ union cvmx_npei_dma_cnts {
 		uint64_t dma1:32;
 #endif
 	} s;
-	struct cvmx_npei_dma_cnts_s cn52xx;
-	struct cvmx_npei_dma_cnts_s cn52xxp1;
-	struct cvmx_npei_dma_cnts_s cn56xx;
-	struct cvmx_npei_dma_cnts_s cn56xxp1;
 };
 
 union cvmx_npei_dma_control {
@@ -1137,7 +1079,6 @@ union cvmx_npei_dma_control {
 		uint64_t reserved_40_63:24;
 #endif
 	} s;
-	struct cvmx_npei_dma_control_s cn52xx;
 	struct cvmx_npei_dma_control_cn52xxp1 {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_38_63:26;
@@ -1173,7 +1114,6 @@ union cvmx_npei_dma_control {
 		uint64_t reserved_38_63:26;
 #endif
 	} cn52xxp1;
-	struct cvmx_npei_dma_control_s cn56xx;
 	struct cvmx_npei_dma_control_cn56xxp1 {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_39_63:25;
@@ -1250,8 +1190,6 @@ union cvmx_npei_dma_pcie_req_num {
 		uint64_t dma_arb:1;
 #endif
 	} s;
-	struct cvmx_npei_dma_pcie_req_num_s cn52xx;
-	struct cvmx_npei_dma_pcie_req_num_s cn56xx;
 };
 
 union cvmx_npei_dma_state1 {
@@ -1273,7 +1211,6 @@ union cvmx_npei_dma_state1 {
 		uint64_t reserved_40_63:24;
 #endif
 	} s;
-	struct cvmx_npei_dma_state1_s cn52xx;
 };
 
 union cvmx_npei_dma_state1_p1 {
@@ -1332,7 +1269,6 @@ union cvmx_npei_dma_state1_p1 {
 		uint64_t reserved_60_63:4;
 #endif
 	} cn52xxp1;
-	struct cvmx_npei_dma_state1_p1_s cn56xxp1;
 };
 
 union cvmx_npei_dma_state2 {
@@ -1354,7 +1290,6 @@ union cvmx_npei_dma_state2 {
 		uint64_t reserved_28_63:36;
 #endif
 	} s;
-	struct cvmx_npei_dma_state2_s cn52xx;
 };
 
 union cvmx_npei_dma_state2_p1 {
@@ -1393,7 +1328,6 @@ union cvmx_npei_dma_state2_p1 {
 		uint64_t reserved_45_63:19;
 #endif
 	} cn52xxp1;
-	struct cvmx_npei_dma_state2_p1_s cn56xxp1;
 };
 
 union cvmx_npei_dma_state3_p1 {
@@ -1413,8 +1347,6 @@ union cvmx_npei_dma_state3_p1 {
 		uint64_t reserved_60_63:4;
 #endif
 	} s;
-	struct cvmx_npei_dma_state3_p1_s cn52xxp1;
-	struct cvmx_npei_dma_state3_p1_s cn56xxp1;
 };
 
 union cvmx_npei_dma_state4_p1 {
@@ -1434,8 +1366,6 @@ union cvmx_npei_dma_state4_p1 {
 		uint64_t reserved_52_63:12;
 #endif
 	} s;
-	struct cvmx_npei_dma_state4_p1_s cn52xxp1;
-	struct cvmx_npei_dma_state4_p1_s cn56xxp1;
 };
 
 union cvmx_npei_dma_state5_p1 {
@@ -1451,7 +1381,6 @@ union cvmx_npei_dma_state5_p1 {
 		uint64_t reserved_28_63:36;
 #endif
 	} s;
-	struct cvmx_npei_dma_state5_p1_s cn56xxp1;
 };
 
 union cvmx_npei_int_a_enb {
@@ -1483,7 +1412,6 @@ union cvmx_npei_int_a_enb {
 		uint64_t reserved_10_63:54;
 #endif
 	} s;
-	struct cvmx_npei_int_a_enb_s cn52xx;
 	struct cvmx_npei_int_a_enb_cn52xxp1 {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_2_63:62;
@@ -1495,7 +1423,6 @@ union cvmx_npei_int_a_enb {
 		uint64_t reserved_2_63:62;
 #endif
 	} cn52xxp1;
-	struct cvmx_npei_int_a_enb_s cn56xx;
 };
 
 union cvmx_npei_int_a_enb2 {
@@ -1527,7 +1454,6 @@ union cvmx_npei_int_a_enb2 {
 		uint64_t reserved_10_63:54;
 #endif
 	} s;
-	struct cvmx_npei_int_a_enb2_s cn52xx;
 	struct cvmx_npei_int_a_enb2_cn52xxp1 {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_2_63:62;
@@ -1539,7 +1465,6 @@ union cvmx_npei_int_a_enb2 {
 		uint64_t reserved_2_63:62;
 #endif
 	} cn52xxp1;
-	struct cvmx_npei_int_a_enb2_s cn56xx;
 };
 
 union cvmx_npei_int_a_sum {
@@ -1571,7 +1496,6 @@ union cvmx_npei_int_a_sum {
 		uint64_t reserved_10_63:54;
 #endif
 	} s;
-	struct cvmx_npei_int_a_sum_s cn52xx;
 	struct cvmx_npei_int_a_sum_cn52xxp1 {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_2_63:62;
@@ -1583,7 +1507,6 @@ union cvmx_npei_int_a_sum {
 		uint64_t reserved_2_63:62;
 #endif
 	} cn52xxp1;
-	struct cvmx_npei_int_a_sum_s cn56xx;
 };
 
 union cvmx_npei_int_enb {
@@ -1721,7 +1644,6 @@ union cvmx_npei_int_enb {
 		uint64_t mio_inta:1;
 #endif
 	} s;
-	struct cvmx_npei_int_enb_s cn52xx;
 	struct cvmx_npei_int_enb_cn52xxp1 {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t mio_inta:1;
@@ -1855,7 +1777,6 @@ union cvmx_npei_int_enb {
 		uint64_t mio_inta:1;
 #endif
 	} cn52xxp1;
-	struct cvmx_npei_int_enb_s cn56xx;
 	struct cvmx_npei_int_enb_cn56xxp1 {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t mio_inta:1;
@@ -2122,7 +2043,6 @@ union cvmx_npei_int_enb2 {
 		uint64_t reserved_62_63:2;
 #endif
 	} s;
-	struct cvmx_npei_int_enb2_s cn52xx;
 	struct cvmx_npei_int_enb2_cn52xxp1 {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_62_63:2;
@@ -2254,7 +2174,6 @@ union cvmx_npei_int_enb2 {
 		uint64_t reserved_62_63:2;
 #endif
 	} cn52xxp1;
-	struct cvmx_npei_int_enb2_s cn56xx;
 	struct cvmx_npei_int_enb2_cn56xxp1 {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_61_63:3;
@@ -2399,9 +2318,6 @@ union cvmx_npei_int_info {
 		uint64_t reserved_12_63:52;
 #endif
 	} s;
-	struct cvmx_npei_int_info_s cn52xx;
-	struct cvmx_npei_int_info_s cn56xx;
-	struct cvmx_npei_int_info_s cn56xxp1;
 };
 
 union cvmx_npei_int_sum {
@@ -2539,7 +2455,6 @@ union cvmx_npei_int_sum {
 		uint64_t mio_inta:1;
 #endif
 	} s;
-	struct cvmx_npei_int_sum_s cn52xx;
 	struct cvmx_npei_int_sum_cn52xxp1 {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t mio_inta:1;
@@ -2667,7 +2582,6 @@ union cvmx_npei_int_sum {
 		uint64_t mio_inta:1;
 #endif
 	} cn52xxp1;
-	struct cvmx_npei_int_sum_s cn56xx;
 	struct cvmx_npei_int_sum_cn56xxp1 {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t mio_inta:1;
@@ -2924,9 +2838,6 @@ union cvmx_npei_int_sum2 {
 		uint64_t mio_inta:1;
 #endif
 	} s;
-	struct cvmx_npei_int_sum2_s cn52xx;
-	struct cvmx_npei_int_sum2_s cn52xxp1;
-	struct cvmx_npei_int_sum2_s cn56xx;
 };
 
 union cvmx_npei_last_win_rdata0 {
@@ -2938,10 +2849,6 @@ union cvmx_npei_last_win_rdata0 {
 		uint64_t data:64;
 #endif
 	} s;
-	struct cvmx_npei_last_win_rdata0_s cn52xx;
-	struct cvmx_npei_last_win_rdata0_s cn52xxp1;
-	struct cvmx_npei_last_win_rdata0_s cn56xx;
-	struct cvmx_npei_last_win_rdata0_s cn56xxp1;
 };
 
 union cvmx_npei_last_win_rdata1 {
@@ -2953,10 +2860,6 @@ union cvmx_npei_last_win_rdata1 {
 		uint64_t data:64;
 #endif
 	} s;
-	struct cvmx_npei_last_win_rdata1_s cn52xx;
-	struct cvmx_npei_last_win_rdata1_s cn52xxp1;
-	struct cvmx_npei_last_win_rdata1_s cn56xx;
-	struct cvmx_npei_last_win_rdata1_s cn56xxp1;
 };
 
 union cvmx_npei_mem_access_ctl {
@@ -2972,10 +2875,6 @@ union cvmx_npei_mem_access_ctl {
 		uint64_t reserved_14_63:50;
 #endif
 	} s;
-	struct cvmx_npei_mem_access_ctl_s cn52xx;
-	struct cvmx_npei_mem_access_ctl_s cn52xxp1;
-	struct cvmx_npei_mem_access_ctl_s cn56xx;
-	struct cvmx_npei_mem_access_ctl_s cn56xxp1;
 };
 
 union cvmx_npei_mem_access_subidx {
@@ -3007,10 +2906,6 @@ union cvmx_npei_mem_access_subidx {
 		uint64_t reserved_42_63:22;
 #endif
 	} s;
-	struct cvmx_npei_mem_access_subidx_s cn52xx;
-	struct cvmx_npei_mem_access_subidx_s cn52xxp1;
-	struct cvmx_npei_mem_access_subidx_s cn56xx;
-	struct cvmx_npei_mem_access_subidx_s cn56xxp1;
 };
 
 union cvmx_npei_msi_enb0 {
@@ -3022,10 +2917,6 @@ union cvmx_npei_msi_enb0 {
 		uint64_t enb:64;
 #endif
 	} s;
-	struct cvmx_npei_msi_enb0_s cn52xx;
-	struct cvmx_npei_msi_enb0_s cn52xxp1;
-	struct cvmx_npei_msi_enb0_s cn56xx;
-	struct cvmx_npei_msi_enb0_s cn56xxp1;
 };
 
 union cvmx_npei_msi_enb1 {
@@ -3037,10 +2928,6 @@ union cvmx_npei_msi_enb1 {
 		uint64_t enb:64;
 #endif
 	} s;
-	struct cvmx_npei_msi_enb1_s cn52xx;
-	struct cvmx_npei_msi_enb1_s cn52xxp1;
-	struct cvmx_npei_msi_enb1_s cn56xx;
-	struct cvmx_npei_msi_enb1_s cn56xxp1;
 };
 
 union cvmx_npei_msi_enb2 {
@@ -3052,10 +2939,6 @@ union cvmx_npei_msi_enb2 {
 		uint64_t enb:64;
 #endif
 	} s;
-	struct cvmx_npei_msi_enb2_s cn52xx;
-	struct cvmx_npei_msi_enb2_s cn52xxp1;
-	struct cvmx_npei_msi_enb2_s cn56xx;
-	struct cvmx_npei_msi_enb2_s cn56xxp1;
 };
 
 union cvmx_npei_msi_enb3 {
@@ -3067,10 +2950,6 @@ union cvmx_npei_msi_enb3 {
 		uint64_t enb:64;
 #endif
 	} s;
-	struct cvmx_npei_msi_enb3_s cn52xx;
-	struct cvmx_npei_msi_enb3_s cn52xxp1;
-	struct cvmx_npei_msi_enb3_s cn56xx;
-	struct cvmx_npei_msi_enb3_s cn56xxp1;
 };
 
 union cvmx_npei_msi_rcv0 {
@@ -3082,10 +2961,6 @@ union cvmx_npei_msi_rcv0 {
 		uint64_t intr:64;
 #endif
 	} s;
-	struct cvmx_npei_msi_rcv0_s cn52xx;
-	struct cvmx_npei_msi_rcv0_s cn52xxp1;
-	struct cvmx_npei_msi_rcv0_s cn56xx;
-	struct cvmx_npei_msi_rcv0_s cn56xxp1;
 };
 
 union cvmx_npei_msi_rcv1 {
@@ -3097,10 +2972,6 @@ union cvmx_npei_msi_rcv1 {
 		uint64_t intr:64;
 #endif
 	} s;
-	struct cvmx_npei_msi_rcv1_s cn52xx;
-	struct cvmx_npei_msi_rcv1_s cn52xxp1;
-	struct cvmx_npei_msi_rcv1_s cn56xx;
-	struct cvmx_npei_msi_rcv1_s cn56xxp1;
 };
 
 union cvmx_npei_msi_rcv2 {
@@ -3112,10 +2983,6 @@ union cvmx_npei_msi_rcv2 {
 		uint64_t intr:64;
 #endif
 	} s;
-	struct cvmx_npei_msi_rcv2_s cn52xx;
-	struct cvmx_npei_msi_rcv2_s cn52xxp1;
-	struct cvmx_npei_msi_rcv2_s cn56xx;
-	struct cvmx_npei_msi_rcv2_s cn56xxp1;
 };
 
 union cvmx_npei_msi_rcv3 {
@@ -3127,10 +2994,6 @@ union cvmx_npei_msi_rcv3 {
 		uint64_t intr:64;
 #endif
 	} s;
-	struct cvmx_npei_msi_rcv3_s cn52xx;
-	struct cvmx_npei_msi_rcv3_s cn52xxp1;
-	struct cvmx_npei_msi_rcv3_s cn56xx;
-	struct cvmx_npei_msi_rcv3_s cn56xxp1;
 };
 
 union cvmx_npei_msi_rd_map {
@@ -3146,10 +3009,6 @@ union cvmx_npei_msi_rd_map {
 		uint64_t reserved_16_63:48;
 #endif
 	} s;
-	struct cvmx_npei_msi_rd_map_s cn52xx;
-	struct cvmx_npei_msi_rd_map_s cn52xxp1;
-	struct cvmx_npei_msi_rd_map_s cn56xx;
-	struct cvmx_npei_msi_rd_map_s cn56xxp1;
 };
 
 union cvmx_npei_msi_w1c_enb0 {
@@ -3161,8 +3020,6 @@ union cvmx_npei_msi_w1c_enb0 {
 		uint64_t clr:64;
 #endif
 	} s;
-	struct cvmx_npei_msi_w1c_enb0_s cn52xx;
-	struct cvmx_npei_msi_w1c_enb0_s cn56xx;
 };
 
 union cvmx_npei_msi_w1c_enb1 {
@@ -3174,8 +3031,6 @@ union cvmx_npei_msi_w1c_enb1 {
 		uint64_t clr:64;
 #endif
 	} s;
-	struct cvmx_npei_msi_w1c_enb1_s cn52xx;
-	struct cvmx_npei_msi_w1c_enb1_s cn56xx;
 };
 
 union cvmx_npei_msi_w1c_enb2 {
@@ -3187,8 +3042,6 @@ union cvmx_npei_msi_w1c_enb2 {
 		uint64_t clr:64;
 #endif
 	} s;
-	struct cvmx_npei_msi_w1c_enb2_s cn52xx;
-	struct cvmx_npei_msi_w1c_enb2_s cn56xx;
 };
 
 union cvmx_npei_msi_w1c_enb3 {
@@ -3200,8 +3053,6 @@ union cvmx_npei_msi_w1c_enb3 {
 		uint64_t clr:64;
 #endif
 	} s;
-	struct cvmx_npei_msi_w1c_enb3_s cn52xx;
-	struct cvmx_npei_msi_w1c_enb3_s cn56xx;
 };
 
 union cvmx_npei_msi_w1s_enb0 {
@@ -3213,8 +3064,6 @@ union cvmx_npei_msi_w1s_enb0 {
 		uint64_t set:64;
 #endif
 	} s;
-	struct cvmx_npei_msi_w1s_enb0_s cn52xx;
-	struct cvmx_npei_msi_w1s_enb0_s cn56xx;
 };
 
 union cvmx_npei_msi_w1s_enb1 {
@@ -3226,8 +3075,6 @@ union cvmx_npei_msi_w1s_enb1 {
 		uint64_t set:64;
 #endif
 	} s;
-	struct cvmx_npei_msi_w1s_enb1_s cn52xx;
-	struct cvmx_npei_msi_w1s_enb1_s cn56xx;
 };
 
 union cvmx_npei_msi_w1s_enb2 {
@@ -3239,8 +3086,6 @@ union cvmx_npei_msi_w1s_enb2 {
 		uint64_t set:64;
 #endif
 	} s;
-	struct cvmx_npei_msi_w1s_enb2_s cn52xx;
-	struct cvmx_npei_msi_w1s_enb2_s cn56xx;
 };
 
 union cvmx_npei_msi_w1s_enb3 {
@@ -3252,8 +3097,6 @@ union cvmx_npei_msi_w1s_enb3 {
 		uint64_t set:64;
 #endif
 	} s;
-	struct cvmx_npei_msi_w1s_enb3_s cn52xx;
-	struct cvmx_npei_msi_w1s_enb3_s cn56xx;
 };
 
 union cvmx_npei_msi_wr_map {
@@ -3269,10 +3112,6 @@ union cvmx_npei_msi_wr_map {
 		uint64_t reserved_16_63:48;
 #endif
 	} s;
-	struct cvmx_npei_msi_wr_map_s cn52xx;
-	struct cvmx_npei_msi_wr_map_s cn52xxp1;
-	struct cvmx_npei_msi_wr_map_s cn56xx;
-	struct cvmx_npei_msi_wr_map_s cn56xxp1;
 };
 
 union cvmx_npei_pcie_credit_cnt {
@@ -3296,8 +3135,6 @@ union cvmx_npei_pcie_credit_cnt {
 		uint64_t reserved_48_63:16;
 #endif
 	} s;
-	struct cvmx_npei_pcie_credit_cnt_s cn52xx;
-	struct cvmx_npei_pcie_credit_cnt_s cn56xx;
 };
 
 union cvmx_npei_pcie_msi_rcv {
@@ -3311,10 +3148,6 @@ union cvmx_npei_pcie_msi_rcv {
 		uint64_t reserved_8_63:56;
 #endif
 	} s;
-	struct cvmx_npei_pcie_msi_rcv_s cn52xx;
-	struct cvmx_npei_pcie_msi_rcv_s cn52xxp1;
-	struct cvmx_npei_pcie_msi_rcv_s cn56xx;
-	struct cvmx_npei_pcie_msi_rcv_s cn56xxp1;
 };
 
 union cvmx_npei_pcie_msi_rcv_b1 {
@@ -3330,10 +3163,6 @@ union cvmx_npei_pcie_msi_rcv_b1 {
 		uint64_t reserved_16_63:48;
 #endif
 	} s;
-	struct cvmx_npei_pcie_msi_rcv_b1_s cn52xx;
-	struct cvmx_npei_pcie_msi_rcv_b1_s cn52xxp1;
-	struct cvmx_npei_pcie_msi_rcv_b1_s cn56xx;
-	struct cvmx_npei_pcie_msi_rcv_b1_s cn56xxp1;
 };
 
 union cvmx_npei_pcie_msi_rcv_b2 {
@@ -3349,10 +3178,6 @@ union cvmx_npei_pcie_msi_rcv_b2 {
 		uint64_t reserved_24_63:40;
 #endif
 	} s;
-	struct cvmx_npei_pcie_msi_rcv_b2_s cn52xx;
-	struct cvmx_npei_pcie_msi_rcv_b2_s cn52xxp1;
-	struct cvmx_npei_pcie_msi_rcv_b2_s cn56xx;
-	struct cvmx_npei_pcie_msi_rcv_b2_s cn56xxp1;
 };
 
 union cvmx_npei_pcie_msi_rcv_b3 {
@@ -3368,10 +3193,6 @@ union cvmx_npei_pcie_msi_rcv_b3 {
 		uint64_t reserved_32_63:32;
 #endif
 	} s;
-	struct cvmx_npei_pcie_msi_rcv_b3_s cn52xx;
-	struct cvmx_npei_pcie_msi_rcv_b3_s cn52xxp1;
-	struct cvmx_npei_pcie_msi_rcv_b3_s cn56xx;
-	struct cvmx_npei_pcie_msi_rcv_b3_s cn56xxp1;
 };
 
 union cvmx_npei_pktx_cnts {
@@ -3387,8 +3208,6 @@ union cvmx_npei_pktx_cnts {
 		uint64_t reserved_54_63:10;
 #endif
 	} s;
-	struct cvmx_npei_pktx_cnts_s cn52xx;
-	struct cvmx_npei_pktx_cnts_s cn56xx;
 };
 
 union cvmx_npei_pktx_in_bp {
@@ -3402,8 +3221,6 @@ union cvmx_npei_pktx_in_bp {
 		uint64_t wmark:32;
 #endif
 	} s;
-	struct cvmx_npei_pktx_in_bp_s cn52xx;
-	struct cvmx_npei_pktx_in_bp_s cn56xx;
 };
 
 union cvmx_npei_pktx_instr_baddr {
@@ -3417,8 +3234,6 @@ union cvmx_npei_pktx_instr_baddr {
 		uint64_t addr:61;
 #endif
 	} s;
-	struct cvmx_npei_pktx_instr_baddr_s cn52xx;
-	struct cvmx_npei_pktx_instr_baddr_s cn56xx;
 };
 
 union cvmx_npei_pktx_instr_baoff_dbell {
@@ -3432,8 +3247,6 @@ union cvmx_npei_pktx_instr_baoff_dbell {
 		uint64_t aoff:32;
 #endif
 	} s;
-	struct cvmx_npei_pktx_instr_baoff_dbell_s cn52xx;
-	struct cvmx_npei_pktx_instr_baoff_dbell_s cn56xx;
 };
 
 union cvmx_npei_pktx_instr_fifo_rsize {
@@ -3453,8 +3266,6 @@ union cvmx_npei_pktx_instr_fifo_rsize {
 		uint64_t max:9;
 #endif
 	} s;
-	struct cvmx_npei_pktx_instr_fifo_rsize_s cn52xx;
-	struct cvmx_npei_pktx_instr_fifo_rsize_s cn56xx;
 };
 
 union cvmx_npei_pktx_instr_header {
@@ -3490,8 +3301,6 @@ union cvmx_npei_pktx_instr_header {
 		uint64_t reserved_44_63:20;
 #endif
 	} s;
-	struct cvmx_npei_pktx_instr_header_s cn52xx;
-	struct cvmx_npei_pktx_instr_header_s cn56xx;
 };
 
 union cvmx_npei_pktx_slist_baddr {
@@ -3505,8 +3314,6 @@ union cvmx_npei_pktx_slist_baddr {
 		uint64_t addr:60;
 #endif
 	} s;
-	struct cvmx_npei_pktx_slist_baddr_s cn52xx;
-	struct cvmx_npei_pktx_slist_baddr_s cn56xx;
 };
 
 union cvmx_npei_pktx_slist_baoff_dbell {
@@ -3520,8 +3327,6 @@ union cvmx_npei_pktx_slist_baoff_dbell {
 		uint64_t aoff:32;
 #endif
 	} s;
-	struct cvmx_npei_pktx_slist_baoff_dbell_s cn52xx;
-	struct cvmx_npei_pktx_slist_baoff_dbell_s cn56xx;
 };
 
 union cvmx_npei_pktx_slist_fifo_rsize {
@@ -3535,8 +3340,6 @@ union cvmx_npei_pktx_slist_fifo_rsize {
 		uint64_t reserved_32_63:32;
 #endif
 	} s;
-	struct cvmx_npei_pktx_slist_fifo_rsize_s cn52xx;
-	struct cvmx_npei_pktx_slist_fifo_rsize_s cn56xx;
 };
 
 union cvmx_npei_pkt_cnt_int {
@@ -3550,8 +3353,6 @@ union cvmx_npei_pkt_cnt_int {
 		uint64_t reserved_32_63:32;
 #endif
 	} s;
-	struct cvmx_npei_pkt_cnt_int_s cn52xx;
-	struct cvmx_npei_pkt_cnt_int_s cn56xx;
 };
 
 union cvmx_npei_pkt_cnt_int_enb {
@@ -3565,8 +3366,6 @@ union cvmx_npei_pkt_cnt_int_enb {
 		uint64_t reserved_32_63:32;
 #endif
 	} s;
-	struct cvmx_npei_pkt_cnt_int_enb_s cn52xx;
-	struct cvmx_npei_pkt_cnt_int_enb_s cn56xx;
 };
 
 union cvmx_npei_pkt_data_out_es {
@@ -3578,8 +3377,6 @@ union cvmx_npei_pkt_data_out_es {
 		uint64_t es:64;
 #endif
 	} s;
-	struct cvmx_npei_pkt_data_out_es_s cn52xx;
-	struct cvmx_npei_pkt_data_out_es_s cn56xx;
 };
 
 union cvmx_npei_pkt_data_out_ns {
@@ -3593,8 +3390,6 @@ union cvmx_npei_pkt_data_out_ns {
 		uint64_t reserved_32_63:32;
 #endif
 	} s;
-	struct cvmx_npei_pkt_data_out_ns_s cn52xx;
-	struct cvmx_npei_pkt_data_out_ns_s cn56xx;
 };
 
 union cvmx_npei_pkt_data_out_ror {
@@ -3608,8 +3403,6 @@ union cvmx_npei_pkt_data_out_ror {
 		uint64_t reserved_32_63:32;
 #endif
 	} s;
-	struct cvmx_npei_pkt_data_out_ror_s cn52xx;
-	struct cvmx_npei_pkt_data_out_ror_s cn56xx;
 };
 
 union cvmx_npei_pkt_dpaddr {
@@ -3623,8 +3416,6 @@ union cvmx_npei_pkt_dpaddr {
 		uint64_t reserved_32_63:32;
 #endif
 	} s;
-	struct cvmx_npei_pkt_dpaddr_s cn52xx;
-	struct cvmx_npei_pkt_dpaddr_s cn56xx;
 };
 
 union cvmx_npei_pkt_in_bp {
@@ -3638,8 +3429,6 @@ union cvmx_npei_pkt_in_bp {
 		uint64_t reserved_32_63:32;
 #endif
 	} s;
-	struct cvmx_npei_pkt_in_bp_s cn52xx;
-	struct cvmx_npei_pkt_in_bp_s cn56xx;
 };
 
 union cvmx_npei_pkt_in_donex_cnts {
@@ -3653,8 +3442,6 @@ union cvmx_npei_pkt_in_donex_cnts {
 		uint64_t reserved_32_63:32;
 #endif
 	} s;
-	struct cvmx_npei_pkt_in_donex_cnts_s cn52xx;
-	struct cvmx_npei_pkt_in_donex_cnts_s cn56xx;
 };
 
 union cvmx_npei_pkt_in_instr_counts {
@@ -3668,8 +3455,6 @@ union cvmx_npei_pkt_in_instr_counts {
 		uint64_t wr_cnt:32;
 #endif
 	} s;
-	struct cvmx_npei_pkt_in_instr_counts_s cn52xx;
-	struct cvmx_npei_pkt_in_instr_counts_s cn56xx;
 };
 
 union cvmx_npei_pkt_in_pcie_port {
@@ -3681,8 +3466,6 @@ union cvmx_npei_pkt_in_pcie_port {
 		uint64_t pp:64;
 #endif
 	} s;
-	struct cvmx_npei_pkt_in_pcie_port_s cn52xx;
-	struct cvmx_npei_pkt_in_pcie_port_s cn56xx;
 };
 
 union cvmx_npei_pkt_input_control {
@@ -3712,8 +3495,6 @@ union cvmx_npei_pkt_input_control {
 		uint64_t reserved_23_63:41;
 #endif
 	} s;
-	struct cvmx_npei_pkt_input_control_s cn52xx;
-	struct cvmx_npei_pkt_input_control_s cn56xx;
 };
 
 union cvmx_npei_pkt_instr_enb {
@@ -3727,8 +3508,6 @@ union cvmx_npei_pkt_instr_enb {
 		uint64_t reserved_32_63:32;
 #endif
 	} s;
-	struct cvmx_npei_pkt_instr_enb_s cn52xx;
-	struct cvmx_npei_pkt_instr_enb_s cn56xx;
 };
 
 union cvmx_npei_pkt_instr_rd_size {
@@ -3740,8 +3519,6 @@ union cvmx_npei_pkt_instr_rd_size {
 		uint64_t rdsize:64;
 #endif
 	} s;
-	struct cvmx_npei_pkt_instr_rd_size_s cn52xx;
-	struct cvmx_npei_pkt_instr_rd_size_s cn56xx;
 };
 
 union cvmx_npei_pkt_instr_size {
@@ -3755,8 +3532,6 @@ union cvmx_npei_pkt_instr_size {
 		uint64_t reserved_32_63:32;
 #endif
 	} s;
-	struct cvmx_npei_pkt_instr_size_s cn52xx;
-	struct cvmx_npei_pkt_instr_size_s cn56xx;
 };
 
 union cvmx_npei_pkt_int_levels {
@@ -3772,8 +3547,6 @@ union cvmx_npei_pkt_int_levels {
 		uint64_t reserved_54_63:10;
 #endif
 	} s;
-	struct cvmx_npei_pkt_int_levels_s cn52xx;
-	struct cvmx_npei_pkt_int_levels_s cn56xx;
 };
 
 union cvmx_npei_pkt_iptr {
@@ -3787,8 +3560,6 @@ union cvmx_npei_pkt_iptr {
 		uint64_t reserved_32_63:32;
 #endif
 	} s;
-	struct cvmx_npei_pkt_iptr_s cn52xx;
-	struct cvmx_npei_pkt_iptr_s cn56xx;
 };
 
 union cvmx_npei_pkt_out_bmode {
@@ -3802,8 +3573,6 @@ union cvmx_npei_pkt_out_bmode {
 		uint64_t reserved_32_63:32;
 #endif
 	} s;
-	struct cvmx_npei_pkt_out_bmode_s cn52xx;
-	struct cvmx_npei_pkt_out_bmode_s cn56xx;
 };
 
 union cvmx_npei_pkt_out_enb {
@@ -3817,8 +3586,6 @@ union cvmx_npei_pkt_out_enb {
 		uint64_t reserved_32_63:32;
 #endif
 	} s;
-	struct cvmx_npei_pkt_out_enb_s cn52xx;
-	struct cvmx_npei_pkt_out_enb_s cn56xx;
 };
 
 union cvmx_npei_pkt_output_wmark {
@@ -3832,8 +3599,6 @@ union cvmx_npei_pkt_output_wmark {
 		uint64_t reserved_32_63:32;
 #endif
 	} s;
-	struct cvmx_npei_pkt_output_wmark_s cn52xx;
-	struct cvmx_npei_pkt_output_wmark_s cn56xx;
 };
 
 union cvmx_npei_pkt_pcie_port {
@@ -3845,8 +3610,6 @@ union cvmx_npei_pkt_pcie_port {
 		uint64_t pp:64;
 #endif
 	} s;
-	struct cvmx_npei_pkt_pcie_port_s cn52xx;
-	struct cvmx_npei_pkt_pcie_port_s cn56xx;
 };
 
 union cvmx_npei_pkt_port_in_rst {
@@ -3860,8 +3623,6 @@ union cvmx_npei_pkt_port_in_rst {
 		uint64_t in_rst:32;
 #endif
 	} s;
-	struct cvmx_npei_pkt_port_in_rst_s cn52xx;
-	struct cvmx_npei_pkt_port_in_rst_s cn56xx;
 };
 
 union cvmx_npei_pkt_slist_es {
@@ -3873,8 +3634,6 @@ union cvmx_npei_pkt_slist_es {
 		uint64_t es:64;
 #endif
 	} s;
-	struct cvmx_npei_pkt_slist_es_s cn52xx;
-	struct cvmx_npei_pkt_slist_es_s cn56xx;
 };
 
 union cvmx_npei_pkt_slist_id_size {
@@ -3890,8 +3649,6 @@ union cvmx_npei_pkt_slist_id_size {
 		uint64_t reserved_23_63:41;
 #endif
 	} s;
-	struct cvmx_npei_pkt_slist_id_size_s cn52xx;
-	struct cvmx_npei_pkt_slist_id_size_s cn56xx;
 };
 
 union cvmx_npei_pkt_slist_ns {
@@ -3905,8 +3662,6 @@ union cvmx_npei_pkt_slist_ns {
 		uint64_t reserved_32_63:32;
 #endif
 	} s;
-	struct cvmx_npei_pkt_slist_ns_s cn52xx;
-	struct cvmx_npei_pkt_slist_ns_s cn56xx;
 };
 
 union cvmx_npei_pkt_slist_ror {
@@ -3920,8 +3675,6 @@ union cvmx_npei_pkt_slist_ror {
 		uint64_t reserved_32_63:32;
 #endif
 	} s;
-	struct cvmx_npei_pkt_slist_ror_s cn52xx;
-	struct cvmx_npei_pkt_slist_ror_s cn56xx;
 };
 
 union cvmx_npei_pkt_time_int {
@@ -3935,8 +3688,6 @@ union cvmx_npei_pkt_time_int {
 		uint64_t reserved_32_63:32;
 #endif
 	} s;
-	struct cvmx_npei_pkt_time_int_s cn52xx;
-	struct cvmx_npei_pkt_time_int_s cn56xx;
 };
 
 union cvmx_npei_pkt_time_int_enb {
@@ -3950,8 +3701,6 @@ union cvmx_npei_pkt_time_int_enb {
 		uint64_t reserved_32_63:32;
 #endif
 	} s;
-	struct cvmx_npei_pkt_time_int_enb_s cn52xx;
-	struct cvmx_npei_pkt_time_int_enb_s cn56xx;
 };
 
 union cvmx_npei_rsl_int_blocks {
@@ -4019,10 +3768,6 @@ union cvmx_npei_rsl_int_blocks {
 		uint64_t reserved_31_63:33;
 #endif
 	} s;
-	struct cvmx_npei_rsl_int_blocks_s cn52xx;
-	struct cvmx_npei_rsl_int_blocks_s cn52xxp1;
-	struct cvmx_npei_rsl_int_blocks_s cn56xx;
-	struct cvmx_npei_rsl_int_blocks_s cn56xxp1;
 };
 
 union cvmx_npei_scratch_1 {
@@ -4034,10 +3779,6 @@ union cvmx_npei_scratch_1 {
 		uint64_t data:64;
 #endif
 	} s;
-	struct cvmx_npei_scratch_1_s cn52xx;
-	struct cvmx_npei_scratch_1_s cn52xxp1;
-	struct cvmx_npei_scratch_1_s cn56xx;
-	struct cvmx_npei_scratch_1_s cn56xxp1;
 };
 
 union cvmx_npei_state1 {
@@ -4055,10 +3796,6 @@ union cvmx_npei_state1 {
 		uint64_t cpl1:12;
 #endif
 	} s;
-	struct cvmx_npei_state1_s cn52xx;
-	struct cvmx_npei_state1_s cn52xxp1;
-	struct cvmx_npei_state1_s cn56xx;
-	struct cvmx_npei_state1_s cn56xxp1;
 };
 
 union cvmx_npei_state2 {
@@ -4082,10 +3819,6 @@ union cvmx_npei_state2 {
 		uint64_t reserved_48_63:16;
 #endif
 	} s;
-	struct cvmx_npei_state2_s cn52xx;
-	struct cvmx_npei_state2_s cn52xxp1;
-	struct cvmx_npei_state2_s cn56xx;
-	struct cvmx_npei_state2_s cn56xxp1;
 };
 
 union cvmx_npei_state3 {
@@ -4105,10 +3838,6 @@ union cvmx_npei_state3 {
 		uint64_t reserved_56_63:8;
 #endif
 	} s;
-	struct cvmx_npei_state3_s cn52xx;
-	struct cvmx_npei_state3_s cn52xxp1;
-	struct cvmx_npei_state3_s cn56xx;
-	struct cvmx_npei_state3_s cn56xxp1;
 };
 
 union cvmx_npei_win_rd_addr {
@@ -4126,10 +3855,6 @@ union cvmx_npei_win_rd_addr {
 		uint64_t reserved_51_63:13;
 #endif
 	} s;
-	struct cvmx_npei_win_rd_addr_s cn52xx;
-	struct cvmx_npei_win_rd_addr_s cn52xxp1;
-	struct cvmx_npei_win_rd_addr_s cn56xx;
-	struct cvmx_npei_win_rd_addr_s cn56xxp1;
 };
 
 union cvmx_npei_win_rd_data {
@@ -4141,10 +3866,6 @@ union cvmx_npei_win_rd_data {
 		uint64_t rd_data:64;
 #endif
 	} s;
-	struct cvmx_npei_win_rd_data_s cn52xx;
-	struct cvmx_npei_win_rd_data_s cn52xxp1;
-	struct cvmx_npei_win_rd_data_s cn56xx;
-	struct cvmx_npei_win_rd_data_s cn56xxp1;
 };
 
 union cvmx_npei_win_wr_addr {
@@ -4162,10 +3883,6 @@ union cvmx_npei_win_wr_addr {
 		uint64_t reserved_49_63:15;
 #endif
 	} s;
-	struct cvmx_npei_win_wr_addr_s cn52xx;
-	struct cvmx_npei_win_wr_addr_s cn52xxp1;
-	struct cvmx_npei_win_wr_addr_s cn56xx;
-	struct cvmx_npei_win_wr_addr_s cn56xxp1;
 };
 
 union cvmx_npei_win_wr_data {
@@ -4177,10 +3894,6 @@ union cvmx_npei_win_wr_data {
 		uint64_t wr_data:64;
 #endif
 	} s;
-	struct cvmx_npei_win_wr_data_s cn52xx;
-	struct cvmx_npei_win_wr_data_s cn52xxp1;
-	struct cvmx_npei_win_wr_data_s cn56xx;
-	struct cvmx_npei_win_wr_data_s cn56xxp1;
 };
 
 union cvmx_npei_win_wr_mask {
@@ -4194,10 +3907,6 @@ union cvmx_npei_win_wr_mask {
 		uint64_t reserved_8_63:56;
 #endif
 	} s;
-	struct cvmx_npei_win_wr_mask_s cn52xx;
-	struct cvmx_npei_win_wr_mask_s cn52xxp1;
-	struct cvmx_npei_win_wr_mask_s cn56xx;
-	struct cvmx_npei_win_wr_mask_s cn56xxp1;
 };
 
 union cvmx_npei_window_ctl {
@@ -4211,10 +3920,6 @@ union cvmx_npei_window_ctl {
 		uint64_t reserved_32_63:32;
 #endif
 	} s;
-	struct cvmx_npei_window_ctl_s cn52xx;
-	struct cvmx_npei_window_ctl_s cn52xxp1;
-	struct cvmx_npei_window_ctl_s cn56xx;
-	struct cvmx_npei_window_ctl_s cn56xxp1;
 };
 
 #endif

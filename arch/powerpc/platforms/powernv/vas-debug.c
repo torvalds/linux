@@ -30,7 +30,7 @@ static char *cop_to_str(int cop)
 	}
 }
 
-static int info_dbg_show(struct seq_file *s, void *private)
+static int info_show(struct seq_file *s, void *private)
 {
 	struct vas_window *window = s->private;
 
@@ -49,17 +49,7 @@ unlock:
 	return 0;
 }
 
-static int info_dbg_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, info_dbg_show, inode->i_private);
-}
-
-static const struct file_operations info_fops = {
-	.open		= info_dbg_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(info);
 
 static inline void print_reg(struct seq_file *s, struct vas_window *win,
 			char *name, u32 reg)
@@ -67,7 +57,7 @@ static inline void print_reg(struct seq_file *s, struct vas_window *win,
 	seq_printf(s, "0x%016llx %s\n", read_hvwc_reg(win, name, reg), name);
 }
 
-static int hvwc_dbg_show(struct seq_file *s, void *private)
+static int hvwc_show(struct seq_file *s, void *private)
 {
 	struct vas_window *window = s->private;
 
@@ -115,17 +105,7 @@ unlock:
 	return 0;
 }
 
-static int hvwc_dbg_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, hvwc_dbg_show, inode->i_private);
-}
-
-static const struct file_operations hvwc_fops = {
-	.open		= hvwc_dbg_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(hvwc);
 
 void vas_window_free_dbgdir(struct vas_window *window)
 {

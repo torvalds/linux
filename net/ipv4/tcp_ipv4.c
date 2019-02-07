@@ -423,7 +423,7 @@ EXPORT_SYMBOL(tcp_req_err);
  *
  */
 
-void tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
+int tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
 {
 	const struct iphdr *iph = (const struct iphdr *)icmp_skb->data;
 	struct tcphdr *th = (struct tcphdr *)(icmp_skb->data + (iph->ihl << 2));
@@ -446,20 +446,21 @@ void tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
 				       inet_iif(icmp_skb), 0);
 	if (!sk) {
 		__ICMP_INC_STATS(net, ICMP_MIB_INERRORS);
-		return;
+		return -ENOENT;
 	}
 	if (sk->sk_state == TCP_TIME_WAIT) {
 		inet_twsk_put(inet_twsk(sk));
-		return;
+		return 0;
 	}
 	seq = ntohl(th->seq);
-	if (sk->sk_state == TCP_NEW_SYN_RECV)
-		return tcp_req_err(sk, seq,
-				  type == ICMP_PARAMETERPROB ||
-				  type == ICMP_TIME_EXCEEDED ||
-				  (type == ICMP_DEST_UNREACH &&
-				   (code == ICMP_NET_UNREACH ||
-				    code == ICMP_HOST_UNREACH)));
+	if (sk->sk_state == TCP_NEW_SYN_RECV) {
+		tcp_req_err(sk, seq, type == ICMP_PARAMETERPROB ||
+				     type == ICMP_TIME_EXCEEDED ||
+				     (type == ICMP_DEST_UNREACH &&
+				      (code == ICMP_NET_UNREACH ||
+				       code == ICMP_HOST_UNREACH)));
+		return 0;
+	}
 
 	bh_lock_sock(sk);
 	/* If too many ICMPs get dropped on busy
@@ -541,7 +542,6 @@ void tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
 		icsk->icsk_rto = inet_csk_rto_backoff(icsk, TCP_RTO_MAX);
 
 		skb = tcp_rtx_queue_head(sk);
-		BUG_ON(!skb);
 
 		tcp_mstamp_refresh(tp);
 		delta_us = (u32)(tp->tcp_mstamp - tcp_skb_timestamp_us(skb));
@@ -613,6 +613,7 @@ void tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
 out:
 	bh_unlock_sock(sk);
 	sock_put(sk);
+	return 0;
 }
 
 void __tcp_v4_send_check(struct sk_buff *skb, __be32 saddr, __be32 daddr)
@@ -969,10 +970,13 @@ static void tcp_v4_reqsk_destructor(struct request_sock *req)
  * We need to maintain these in the sk structure.
  */
 
+struct static_key tcp_md5_needed __read_mostly;
+EXPORT_SYMBOL(tcp_md5_needed);
+
 /* Find the Key structure for an address.  */
-struct tcp_md5sig_key *tcp_md5_do_lookup(const struct sock *sk,
-					 const union tcp_md5_addr *addr,
-					 int family)
+struct tcp_md5sig_key *__tcp_md5_do_lookup(const struct sock *sk,
+					   const union tcp_md5_addr *addr,
+					   int family)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
 	struct tcp_md5sig_key *key;
@@ -1010,7 +1014,7 @@ struct tcp_md5sig_key *tcp_md5_do_lookup(const struct sock *sk,
 	}
 	return best_match;
 }
-EXPORT_SYMBOL(tcp_md5_do_lookup);
+EXPORT_SYMBOL(__tcp_md5_do_lookup);
 
 static struct tcp_md5sig_key *tcp_md5_do_lookup_exact(const struct sock *sk,
 						      const union tcp_md5_addr *addr,
@@ -1618,12 +1622,14 @@ int tcp_v4_early_demux(struct sk_buff *skb)
 bool tcp_add_backlog(struct sock *sk, struct sk_buff *skb)
 {
 	u32 limit = sk->sk_rcvbuf + sk->sk_sndbuf;
-
-	/* Only socket owner can try to collapse/prune rx queues
-	 * to reduce memory overhead, so add a little headroom here.
-	 * Few sockets backlog are possibly concurrently non empty.
-	 */
-	limit += 64*1024;
+	struct skb_shared_info *shinfo;
+	const struct tcphdr *th;
+	struct tcphdr *thtail;
+	struct sk_buff *tail;
+	unsigned int hdrlen;
+	bool fragstolen;
+	u32 gso_segs;
+	int delta;
 
 	/* In case all data was pulled from skb frags (in __pskb_pull_tail()),
 	 * we can fix skb->truesize to its real value to avoid future drops.
@@ -1632,6 +1638,86 @@ bool tcp_add_backlog(struct sock *sk, struct sk_buff *skb)
 	 * (if cooked by drivers without copybreak feature).
 	 */
 	skb_condense(skb);
+
+	skb_dst_drop(skb);
+
+	if (unlikely(tcp_checksum_complete(skb))) {
+		bh_unlock_sock(sk);
+		__TCP_INC_STATS(sock_net(sk), TCP_MIB_CSUMERRORS);
+		__TCP_INC_STATS(sock_net(sk), TCP_MIB_INERRS);
+		return true;
+	}
+
+	/* Attempt coalescing to last skb in backlog, even if we are
+	 * above the limits.
+	 * This is okay because skb capacity is limited to MAX_SKB_FRAGS.
+	 */
+	th = (const struct tcphdr *)skb->data;
+	hdrlen = th->doff * 4;
+	shinfo = skb_shinfo(skb);
+
+	if (!shinfo->gso_size)
+		shinfo->gso_size = skb->len - hdrlen;
+
+	if (!shinfo->gso_segs)
+		shinfo->gso_segs = 1;
+
+	tail = sk->sk_backlog.tail;
+	if (!tail)
+		goto no_coalesce;
+	thtail = (struct tcphdr *)tail->data;
+
+	if (TCP_SKB_CB(tail)->end_seq != TCP_SKB_CB(skb)->seq ||
+	    TCP_SKB_CB(tail)->ip_dsfield != TCP_SKB_CB(skb)->ip_dsfield ||
+	    ((TCP_SKB_CB(tail)->tcp_flags |
+	      TCP_SKB_CB(skb)->tcp_flags) & TCPHDR_URG) ||
+	    ((TCP_SKB_CB(tail)->tcp_flags ^
+	      TCP_SKB_CB(skb)->tcp_flags) & (TCPHDR_ECE | TCPHDR_CWR)) ||
+#ifdef CONFIG_TLS_DEVICE
+	    tail->decrypted != skb->decrypted ||
+#endif
+	    thtail->doff != th->doff ||
+	    memcmp(thtail + 1, th + 1, hdrlen - sizeof(*th)))
+		goto no_coalesce;
+
+	__skb_pull(skb, hdrlen);
+	if (skb_try_coalesce(tail, skb, &fragstolen, &delta)) {
+		thtail->window = th->window;
+
+		TCP_SKB_CB(tail)->end_seq = TCP_SKB_CB(skb)->end_seq;
+
+		if (after(TCP_SKB_CB(skb)->ack_seq, TCP_SKB_CB(tail)->ack_seq))
+			TCP_SKB_CB(tail)->ack_seq = TCP_SKB_CB(skb)->ack_seq;
+
+		TCP_SKB_CB(tail)->tcp_flags |= TCP_SKB_CB(skb)->tcp_flags;
+
+		if (TCP_SKB_CB(skb)->has_rxtstamp) {
+			TCP_SKB_CB(tail)->has_rxtstamp = true;
+			tail->tstamp = skb->tstamp;
+			skb_hwtstamps(tail)->hwtstamp = skb_hwtstamps(skb)->hwtstamp;
+		}
+
+		/* Not as strict as GRO. We only need to carry mss max value */
+		skb_shinfo(tail)->gso_size = max(shinfo->gso_size,
+						 skb_shinfo(tail)->gso_size);
+
+		gso_segs = skb_shinfo(tail)->gso_segs + shinfo->gso_segs;
+		skb_shinfo(tail)->gso_segs = min_t(u32, gso_segs, 0xFFFF);
+
+		sk->sk_backlog.len += delta;
+		__NET_INC_STATS(sock_net(sk),
+				LINUX_MIB_TCPBACKLOGCOALESCE);
+		kfree_skb_partial(skb, fragstolen);
+		return false;
+	}
+	__skb_push(skb, hdrlen);
+
+no_coalesce:
+	/* Only socket owner can try to collapse/prune rx queues
+	 * to reduce memory overhead, so add a little headroom here.
+	 * Few sockets backlog are possibly concurrently non empty.
+	 */
+	limit += 64*1024;
 
 	if (unlikely(sk_add_backlog(sk, skb, limit))) {
 		bh_unlock_sock(sk);
@@ -2573,8 +2659,8 @@ static int __net_init tcp_sk_init(struct net *net)
 	 * which are too large can cause TCP streams to be bursty.
 	 */
 	net->ipv4.sysctl_tcp_tso_win_divisor = 3;
-	/* Default TSQ limit of four TSO segments */
-	net->ipv4.sysctl_tcp_limit_output_bytes = 262144;
+	/* Default TSQ limit of 16 TSO segments */
+	net->ipv4.sysctl_tcp_limit_output_bytes = 16 * 65536;
 	/* rfc5961 challenge ack rate limiting */
 	net->ipv4.sysctl_tcp_challenge_ack_limit = 1000;
 	net->ipv4.sysctl_tcp_min_tso_segs = 2;

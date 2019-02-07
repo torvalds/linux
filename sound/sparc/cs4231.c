@@ -2071,12 +2071,12 @@ static int cs4231_ebus_probe(struct platform_device *op)
 static int cs4231_probe(struct platform_device *op)
 {
 #ifdef EBUS_SUPPORT
-	if (!strcmp(op->dev.of_node->parent->name, "ebus"))
+	if (of_node_name_eq(op->dev.of_node->parent, "ebus"))
 		return cs4231_ebus_probe(op);
 #endif
 #ifdef SBUS_SUPPORT
-	if (!strcmp(op->dev.of_node->parent->name, "sbus") ||
-	    !strcmp(op->dev.of_node->parent->name, "sbi"))
+	if (of_node_name_eq(op->dev.of_node->parent, "sbus") ||
+	    of_node_name_eq(op->dev.of_node->parent, "sbi"))
 		return cs4231_sbus_probe(op);
 #endif
 	return -ENODEV;

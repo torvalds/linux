@@ -1342,6 +1342,7 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 	vfd->lock	= &dev->mfc_mutex;
 	vfd->v4l2_dev	= &dev->v4l2_dev;
 	vfd->vfl_dir	= VFL_DIR_M2M;
+	set_bit(V4L2_FL_QUIRK_INVERTED_CROP, &vfd->flags);
 	snprintf(vfd->name, sizeof(vfd->name), "%s", S5P_MFC_DEC_NAME);
 	dev->vfd_dec	= vfd;
 	video_set_drvdata(vfd, dev);

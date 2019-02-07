@@ -22,6 +22,7 @@
 void mt76x02_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 		struct sk_buff *skb)
 {
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct mt76x02_dev *dev = hw->priv;
 	struct ieee80211_vif *vif = info->control.vif;
@@ -33,7 +34,8 @@ void mt76x02_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 		msta = (struct mt76x02_sta *)control->sta->drv_priv;
 		wcid = &msta->wcid;
 		/* sw encrypted frames */
-		if (!info->control.hw_key && wcid->hw_key_idx != 0xff)
+		if (!info->control.hw_key && wcid->hw_key_idx != 0xff &&
+		    ieee80211_has_protected(hdr->frame_control))
 			control->sta = NULL;
 	}
 
@@ -110,7 +112,6 @@ s8 mt76x02_tx_get_max_txpwr_adj(struct mt76x02_dev *dev,
 
 	return max_txpwr;
 }
-EXPORT_SYMBOL_GPL(mt76x02_tx_get_max_txpwr_adj);
 
 s8 mt76x02_tx_get_txpwr_adj(struct mt76x02_dev *dev, s8 txpwr, s8 max_txpwr_adj)
 {
@@ -125,7 +126,6 @@ s8 mt76x02_tx_get_txpwr_adj(struct mt76x02_dev *dev, s8 txpwr, s8 max_txpwr_adj)
 	else
 		return (txpwr < -16) ? 8 : (txpwr + 32) / 2;
 }
-EXPORT_SYMBOL_GPL(mt76x02_tx_get_txpwr_adj);
 
 void mt76x02_tx_set_txpwr_auto(struct mt76x02_dev *dev, s8 txpwr)
 {
@@ -139,21 +139,6 @@ void mt76x02_tx_set_txpwr_auto(struct mt76x02_dev *dev, s8 txpwr)
 		       MT_PROT_AUTO_TX_CFG_AUTO_PADJ, txpwr_adj);
 }
 EXPORT_SYMBOL_GPL(mt76x02_tx_set_txpwr_auto);
-
-void mt76x02_tx_complete(struct mt76_dev *dev, struct sk_buff *skb)
-{
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-
-	if (info->flags & IEEE80211_TX_CTL_AMPDU) {
-		ieee80211_free_txskb(dev->hw, skb);
-	} else {
-		ieee80211_tx_info_clear_status(info);
-		info->status.rates[0].idx = -1;
-		info->flags |= IEEE80211_TX_STAT_ACK;
-		ieee80211_tx_status(dev->hw, skb);
-	}
-}
-EXPORT_SYMBOL_GPL(mt76x02_tx_complete);
 
 bool mt76x02_tx_status_data(struct mt76_dev *mdev, u8 *update)
 {
@@ -169,14 +154,15 @@ bool mt76x02_tx_status_data(struct mt76_dev *mdev, u8 *update)
 }
 EXPORT_SYMBOL_GPL(mt76x02_tx_status_data);
 
-int mt76x02_tx_prepare_skb(struct mt76_dev *mdev, void *txwi,
+int mt76x02_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 			   struct sk_buff *skb, struct mt76_queue *q,
 			   struct mt76_wcid *wcid, struct ieee80211_sta *sta,
 			   u32 *tx_info)
 {
 	struct mt76x02_dev *dev = container_of(mdev, struct mt76x02_dev, mt76);
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct mt76x02_txwi *txwi = txwi_ptr;
 	int qsel = MT_QSEL_EDCA;
+	int pid;
 	int ret;
 
 	if (q == &dev->mt76.q_tx[MT_TXQ_PSD] && wcid && wcid->idx < 128)
@@ -184,11 +170,14 @@ int mt76x02_tx_prepare_skb(struct mt76_dev *mdev, void *txwi,
 
 	mt76x02_mac_write_txwi(dev, txwi, skb, wcid, sta, skb->len);
 
+	pid = mt76_tx_status_skb_add(mdev, wcid, skb);
+	txwi->pktid = pid;
+
 	ret = mt76x02_insert_hdr_pad(skb);
 	if (ret < 0)
 		return ret;
 
-	if (info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE)
+	if (pid && pid != MT_PACKET_ID_NO_ACK)
 		qsel = MT_QSEL_MGMT;
 
 	*tx_info = FIELD_PREP(MT_TXD_INFO_QSEL, qsel) |

@@ -204,9 +204,11 @@ hv_uio_open(struct uio_info *info, struct inode *inode)
 	if (atomic_inc_return(&pdata->refcnt) != 1)
 		return 0;
 
+	vmbus_set_chn_rescind_callback(dev->channel, hv_uio_rescind);
+	vmbus_set_sc_create_callback(dev->channel, hv_uio_new_channel);
+
 	ret = vmbus_connect_ring(dev->channel,
 				 hv_uio_channel_cb, dev->channel);
-
 	if (ret == 0)
 		dev->channel->inbound.ring_buffer->interrupt_mask = 1;
 	else
@@ -333,9 +335,6 @@ hv_uio_probe(struct hv_device *dev,
 		dev_err(&dev->device, "hv_uio register failed\n");
 		goto fail_close;
 	}
-
-	vmbus_set_chn_rescind_callback(channel, hv_uio_rescind);
-	vmbus_set_sc_create_callback(channel, hv_uio_new_channel);
 
 	ret = sysfs_create_bin_file(&channel->kobj, &ring_buffer_bin_attr);
 	if (ret)

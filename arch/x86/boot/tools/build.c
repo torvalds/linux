@@ -132,6 +132,7 @@ static void die(const char * str, ...)
 	va_list args;
 	va_start(args, str);
 	vfprintf(stderr, str, args);
+	va_end(args);
 	fputc('\n', stderr);
 	exit(1);
 }

@@ -829,19 +829,14 @@ static const struct intel_pinctrl_soc_data cnllp_soc_data = {
 static const struct acpi_device_id cnl_pinctrl_acpi_match[] = {
 	{ "INT3450", (kernel_ulong_t)&cnlh_soc_data },
 	{ "INT34BB", (kernel_ulong_t)&cnllp_soc_data },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, cnl_pinctrl_acpi_match);
-
-static int cnl_pinctrl_probe(struct platform_device *pdev)
-{
-	return intel_pinctrl_probe_by_hid(pdev);
-}
 
 static INTEL_PINCTRL_PM_OPS(cnl_pinctrl_pm_ops);
 
 static struct platform_driver cnl_pinctrl_driver = {
-	.probe = cnl_pinctrl_probe,
+	.probe = intel_pinctrl_probe_by_hid,
 	.driver = {
 		.name = "cannonlake-pinctrl",
 		.acpi_match_table = cnl_pinctrl_acpi_match,

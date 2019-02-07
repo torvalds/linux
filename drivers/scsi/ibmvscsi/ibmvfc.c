@@ -3100,7 +3100,6 @@ static struct scsi_host_template driver_template = {
 	.this_id = -1,
 	.sg_tablesize = SG_ALL,
 	.max_sectors = IBMVFC_MAX_SECTORS,
-	.use_clustering = ENABLE_CLUSTERING,
 	.shost_attrs = ibmvfc_attrs,
 	.track_queue_depth = 1,
 };

@@ -211,7 +211,7 @@ static void kim_int_recv(struct kim_data_s *kim_gdata,
 static long read_local_version(struct kim_data_s *kim_gdata, char *bts_scr_name)
 {
 	unsigned short version = 0, chip = 0, min_ver = 0, maj_ver = 0;
-	const char read_ver_cmd[] = { 0x01, 0x01, 0x10, 0x00 };
+	static const char read_ver_cmd[] = { 0x01, 0x01, 0x10, 0x00 };
 	long timeout;
 
 	pr_debug("%s", __func__);
@@ -564,7 +564,7 @@ long st_kim_stop(void *kim_data)
 /* functions called from subsystems */
 /* called when debugfs entry is read from */
 
-static int show_version(struct seq_file *s, void *unused)
+static int version_show(struct seq_file *s, void *unused)
 {
 	struct kim_data_s *kim_gdata = (struct kim_data_s *)s->private;
 	seq_printf(s, "%04X %d.%d.%d\n", kim_gdata->version.full,
@@ -573,7 +573,7 @@ static int show_version(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int show_list(struct seq_file *s, void *unused)
+static int list_show(struct seq_file *s, void *unused)
 {
 	struct kim_data_s *kim_gdata = (struct kim_data_s *)s->private;
 	kim_st_list_protocols(kim_gdata->core_data, s);
@@ -688,30 +688,8 @@ err:
 	*core_data = NULL;
 }
 
-static int kim_version_open(struct inode *i, struct file *f)
-{
-	return single_open(f, show_version, i->i_private);
-}
-
-static int kim_list_open(struct inode *i, struct file *f)
-{
-	return single_open(f, show_list, i->i_private);
-}
-
-static const struct file_operations version_debugfs_fops = {
-	/* version info */
-	.open = kim_version_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
-static const struct file_operations list_debugfs_fops = {
-	/* protocols info */
-	.open = kim_list_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(version);
+DEFINE_SHOW_ATTRIBUTE(list);
 
 /**********************************************************************/
 /* functions called from platform device driver subsystem
@@ -789,9 +767,9 @@ static int kim_probe(struct platform_device *pdev)
 	}
 
 	debugfs_create_file("version", S_IRUGO, kim_debugfs_dir,
-				kim_gdata, &version_debugfs_fops);
+				kim_gdata, &version_fops);
 	debugfs_create_file("protocols", S_IRUGO, kim_debugfs_dir,
-				kim_gdata, &list_debugfs_fops);
+				kim_gdata, &list_fops);
 	return 0;
 
 err_sysfs_group:

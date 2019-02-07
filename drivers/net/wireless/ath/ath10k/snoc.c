@@ -46,14 +46,14 @@ static char *const ce_name[] = {
 	"WLAN_CE_11",
 };
 
-static struct ath10k_wcn3990_vreg_info vreg_cfg[] = {
-	{NULL, "vdd-0.8-cx-mx", 800000, 800000, 0, 0, false},
-	{NULL, "vdd-1.8-xo", 1800000, 1800000, 0, 0, false},
-	{NULL, "vdd-1.3-rfa", 1304000, 1304000, 0, 0, false},
-	{NULL, "vdd-3.3-ch0", 3312000, 3312000, 0, 0, false},
+static struct ath10k_vreg_info vreg_cfg[] = {
+	{NULL, "vdd-0.8-cx-mx", 800000, 850000, 0, 0, false},
+	{NULL, "vdd-1.8-xo", 1800000, 1850000, 0, 0, false},
+	{NULL, "vdd-1.3-rfa", 1300000, 1350000, 0, 0, false},
+	{NULL, "vdd-3.3-ch0", 3300000, 3350000, 0, 0, false},
 };
 
-static struct ath10k_wcn3990_clk_info clk_cfg[] = {
+static struct ath10k_clk_info clk_cfg[] = {
 	{NULL, "cxo_ref_clk_pin", 0, false},
 };
 
@@ -474,14 +474,14 @@ static struct service_to_pipe target_service_to_ce_map_wlan[] = {
 	},
 };
 
-void ath10k_snoc_write32(struct ath10k *ar, u32 offset, u32 value)
+static void ath10k_snoc_write32(struct ath10k *ar, u32 offset, u32 value)
 {
 	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
 
 	iowrite32(value, ar_snoc->mem + offset);
 }
 
-u32 ath10k_snoc_read32(struct ath10k *ar, u32 offset)
+static u32 ath10k_snoc_read32(struct ath10k *ar, u32 offset)
 {
 	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
 	u32 val;
@@ -918,7 +918,9 @@ static void ath10k_snoc_buffer_cleanup(struct ath10k *ar)
 
 static void ath10k_snoc_hif_stop(struct ath10k *ar)
 {
-	ath10k_snoc_irq_disable(ar);
+	if (!test_bit(ATH10K_FLAG_CRASH_FLUSH, &ar->dev_flags))
+		ath10k_snoc_irq_disable(ar);
+
 	napi_synchronize(&ar->napi);
 	napi_disable(&ar->napi);
 	ath10k_snoc_buffer_cleanup(ar);
@@ -927,9 +929,13 @@ static void ath10k_snoc_hif_stop(struct ath10k *ar)
 
 static int ath10k_snoc_hif_start(struct ath10k *ar)
 {
+	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
+
 	napi_enable(&ar->napi);
 	ath10k_snoc_irq_enable(ar);
 	ath10k_snoc_rx_post(ar);
+
+	clear_bit(ATH10K_SNOC_FLAG_RECOVERY, &ar_snoc->flags);
 
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot hif start\n");
 
@@ -994,7 +1000,8 @@ static int ath10k_snoc_wlan_enable(struct ath10k *ar)
 
 static void ath10k_snoc_wlan_disable(struct ath10k *ar)
 {
-	ath10k_qmi_wlan_disable(ar);
+	if (!test_bit(ATH10K_FLAG_CRASH_FLUSH, &ar->dev_flags))
+		ath10k_qmi_wlan_disable(ar);
 }
 
 static void ath10k_snoc_hif_power_down(struct ath10k *ar)
@@ -1090,6 +1097,11 @@ static int ath10k_snoc_napi_poll(struct napi_struct *ctx, int budget)
 {
 	struct ath10k *ar = container_of(ctx, struct ath10k, napi);
 	int done = 0;
+
+	if (test_bit(ATH10K_FLAG_CRASH_FLUSH, &ar->dev_flags)) {
+		napi_complete(ctx);
+		return done;
+	}
 
 	ath10k_ce_per_engine_service_any(ar);
 	done = ath10k_htt_txrx_compl_task(ar, budget);
@@ -1187,17 +1199,29 @@ int ath10k_snoc_fw_indication(struct ath10k *ar, u64 type)
 	struct ath10k_bus_params bus_params;
 	int ret;
 
+	if (test_bit(ATH10K_SNOC_FLAG_UNREGISTERING, &ar_snoc->flags))
+		return 0;
+
 	switch (type) {
 	case ATH10K_QMI_EVENT_FW_READY_IND:
+		if (test_bit(ATH10K_SNOC_FLAG_REGISTERED, &ar_snoc->flags)) {
+			queue_work(ar->workqueue, &ar->restart_work);
+			break;
+		}
+
 		bus_params.dev_type = ATH10K_DEV_TYPE_LL;
 		bus_params.chip_id = ar_snoc->target_info.soc_version;
 		ret = ath10k_core_register(ar, &bus_params);
 		if (ret) {
-			ath10k_err(ar, "failed to register driver core: %d\n",
+			ath10k_err(ar, "Failed to register driver core: %d\n",
 				   ret);
+			return ret;
 		}
+		set_bit(ATH10K_SNOC_FLAG_REGISTERED, &ar_snoc->flags);
 		break;
 	case ATH10K_QMI_EVENT_FW_DOWN_IND:
+		set_bit(ATH10K_SNOC_FLAG_RECOVERY, &ar_snoc->flags);
+		set_bit(ATH10K_FLAG_CRASH_FLUSH, &ar->dev_flags);
 		break;
 	default:
 		ath10k_err(ar, "invalid fw indication: %llx\n", type);
@@ -1246,7 +1270,7 @@ static void ath10k_snoc_release_resource(struct ath10k *ar)
 }
 
 static int ath10k_get_vreg_info(struct ath10k *ar, struct device *dev,
-				struct ath10k_wcn3990_vreg_info *vreg_info)
+				struct ath10k_vreg_info *vreg_info)
 {
 	struct regulator *reg;
 	int ret = 0;
@@ -1284,7 +1308,7 @@ done:
 }
 
 static int ath10k_get_clk_info(struct ath10k *ar, struct device *dev,
-			       struct ath10k_wcn3990_clk_info *clk_info)
+			       struct ath10k_clk_info *clk_info)
 {
 	struct clk *handle;
 	int ret = 0;
@@ -1311,10 +1335,80 @@ static int ath10k_get_clk_info(struct ath10k *ar, struct device *dev,
 	return ret;
 }
 
-static int ath10k_wcn3990_vreg_on(struct ath10k *ar)
+static int __ath10k_snoc_vreg_on(struct ath10k *ar,
+				 struct ath10k_vreg_info *vreg_info)
+{
+	int ret;
+
+	ath10k_dbg(ar, ATH10K_DBG_SNOC, "snoc regulator %s being enabled\n",
+		   vreg_info->name);
+
+	ret = regulator_set_voltage(vreg_info->reg, vreg_info->min_v,
+				    vreg_info->max_v);
+	if (ret) {
+		ath10k_err(ar,
+			   "failed to set regulator %s voltage-min: %d voltage-max: %d\n",
+			   vreg_info->name, vreg_info->min_v, vreg_info->max_v);
+		return ret;
+	}
+
+	if (vreg_info->load_ua) {
+		ret = regulator_set_load(vreg_info->reg, vreg_info->load_ua);
+		if (ret < 0) {
+			ath10k_err(ar, "failed to set regulator %s load: %d\n",
+				   vreg_info->name, vreg_info->load_ua);
+			goto err_set_load;
+		}
+	}
+
+	ret = regulator_enable(vreg_info->reg);
+	if (ret) {
+		ath10k_err(ar, "failed to enable regulator %s\n",
+			   vreg_info->name);
+		goto err_enable;
+	}
+
+	if (vreg_info->settle_delay)
+		udelay(vreg_info->settle_delay);
+
+	return 0;
+
+err_enable:
+	regulator_set_load(vreg_info->reg, 0);
+err_set_load:
+	regulator_set_voltage(vreg_info->reg, 0, vreg_info->max_v);
+
+	return ret;
+}
+
+static int __ath10k_snoc_vreg_off(struct ath10k *ar,
+				  struct ath10k_vreg_info *vreg_info)
+{
+	int ret;
+
+	ath10k_dbg(ar, ATH10K_DBG_SNOC, "snoc regulator %s being disabled\n",
+		   vreg_info->name);
+
+	ret = regulator_disable(vreg_info->reg);
+	if (ret)
+		ath10k_err(ar, "failed to disable regulator %s\n",
+			   vreg_info->name);
+
+	ret = regulator_set_load(vreg_info->reg, 0);
+	if (ret < 0)
+		ath10k_err(ar, "failed to set load %s\n", vreg_info->name);
+
+	ret = regulator_set_voltage(vreg_info->reg, 0, vreg_info->max_v);
+	if (ret)
+		ath10k_err(ar, "failed to set voltage %s\n", vreg_info->name);
+
+	return ret;
+}
+
+static int ath10k_snoc_vreg_on(struct ath10k *ar)
 {
 	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
-	struct ath10k_wcn3990_vreg_info *vreg_info;
+	struct ath10k_vreg_info *vreg_info;
 	int ret = 0;
 	int i;
 
@@ -1324,62 +1418,30 @@ static int ath10k_wcn3990_vreg_on(struct ath10k *ar)
 		if (!vreg_info->reg)
 			continue;
 
-		ath10k_dbg(ar, ATH10K_DBG_SNOC, "snoc regulator %s being enabled\n",
-			   vreg_info->name);
-
-		ret = regulator_set_voltage(vreg_info->reg, vreg_info->min_v,
-					    vreg_info->max_v);
-		if (ret) {
-			ath10k_err(ar,
-				   "failed to set regulator %s voltage-min: %d voltage-max: %d\n",
-				   vreg_info->name, vreg_info->min_v, vreg_info->max_v);
+		ret = __ath10k_snoc_vreg_on(ar, vreg_info);
+		if (ret)
 			goto err_reg_config;
-		}
-
-		if (vreg_info->load_ua) {
-			ret = regulator_set_load(vreg_info->reg,
-						 vreg_info->load_ua);
-			if (ret < 0) {
-				ath10k_err(ar,
-					   "failed to set regulator %s load: %d\n",
-					   vreg_info->name,
-					   vreg_info->load_ua);
-				goto err_reg_config;
-			}
-		}
-
-		ret = regulator_enable(vreg_info->reg);
-		if (ret) {
-			ath10k_err(ar, "failed to enable regulator %s\n",
-				   vreg_info->name);
-			goto err_reg_config;
-		}
-
-		if (vreg_info->settle_delay)
-			udelay(vreg_info->settle_delay);
 	}
 
 	return 0;
 
 err_reg_config:
-	for (; i >= 0; i--) {
+	for (i = i - 1; i >= 0; i--) {
 		vreg_info = &ar_snoc->vreg[i];
 
 		if (!vreg_info->reg)
 			continue;
 
-		regulator_disable(vreg_info->reg);
-		regulator_set_load(vreg_info->reg, 0);
-		regulator_set_voltage(vreg_info->reg, 0, vreg_info->max_v);
+		__ath10k_snoc_vreg_off(ar, vreg_info);
 	}
 
 	return ret;
 }
 
-static int ath10k_wcn3990_vreg_off(struct ath10k *ar)
+static int ath10k_snoc_vreg_off(struct ath10k *ar)
 {
 	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
-	struct ath10k_wcn3990_vreg_info *vreg_info;
+	struct ath10k_vreg_info *vreg_info;
 	int ret = 0;
 	int i;
 
@@ -1389,33 +1451,16 @@ static int ath10k_wcn3990_vreg_off(struct ath10k *ar)
 		if (!vreg_info->reg)
 			continue;
 
-		ath10k_dbg(ar, ATH10K_DBG_SNOC, "snoc regulator %s being disabled\n",
-			   vreg_info->name);
-
-		ret = regulator_disable(vreg_info->reg);
-		if (ret)
-			ath10k_err(ar, "failed to disable regulator %s\n",
-				   vreg_info->name);
-
-		ret = regulator_set_load(vreg_info->reg, 0);
-		if (ret < 0)
-			ath10k_err(ar, "failed to set load %s\n",
-				   vreg_info->name);
-
-		ret = regulator_set_voltage(vreg_info->reg, 0,
-					    vreg_info->max_v);
-		if (ret)
-			ath10k_err(ar, "failed to set voltage %s\n",
-				   vreg_info->name);
+		ret = __ath10k_snoc_vreg_off(ar, vreg_info);
 	}
 
 	return ret;
 }
 
-static int ath10k_wcn3990_clk_init(struct ath10k *ar)
+static int ath10k_snoc_clk_init(struct ath10k *ar)
 {
 	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
-	struct ath10k_wcn3990_clk_info *clk_info;
+	struct ath10k_clk_info *clk_info;
 	int ret = 0;
 	int i;
 
@@ -1449,7 +1494,7 @@ static int ath10k_wcn3990_clk_init(struct ath10k *ar)
 	return 0;
 
 err_clock_config:
-	for (; i >= 0; i--) {
+	for (i = i - 1; i >= 0; i--) {
 		clk_info = &ar_snoc->clk[i];
 
 		if (!clk_info->handle)
@@ -1461,10 +1506,10 @@ err_clock_config:
 	return ret;
 }
 
-static int ath10k_wcn3990_clk_deinit(struct ath10k *ar)
+static int ath10k_snoc_clk_deinit(struct ath10k *ar)
 {
 	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
-	struct ath10k_wcn3990_clk_info *clk_info;
+	struct ath10k_clk_info *clk_info;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(clk_cfg); i++) {
@@ -1488,18 +1533,18 @@ static int ath10k_hw_power_on(struct ath10k *ar)
 
 	ath10k_dbg(ar, ATH10K_DBG_SNOC, "soc power on\n");
 
-	ret = ath10k_wcn3990_vreg_on(ar);
+	ret = ath10k_snoc_vreg_on(ar);
 	if (ret)
 		return ret;
 
-	ret = ath10k_wcn3990_clk_init(ar);
+	ret = ath10k_snoc_clk_init(ar);
 	if (ret)
 		goto vreg_off;
 
 	return ret;
 
 vreg_off:
-	ath10k_wcn3990_vreg_off(ar);
+	ath10k_snoc_vreg_off(ar);
 	return ret;
 }
 
@@ -1509,9 +1554,9 @@ static int ath10k_hw_power_off(struct ath10k *ar)
 
 	ath10k_dbg(ar, ATH10K_DBG_SNOC, "soc power off\n");
 
-	ath10k_wcn3990_clk_deinit(ar);
+	ath10k_snoc_clk_deinit(ar);
 
-	ret = ath10k_wcn3990_vreg_off(ar);
+	ret = ath10k_snoc_vreg_off(ar);
 
 	return ret;
 }
@@ -1609,7 +1654,6 @@ static int ath10k_snoc_probe(struct platform_device *pdev)
 	}
 
 	ath10k_dbg(ar, ATH10K_DBG_SNOC, "snoc probe\n");
-	ath10k_warn(ar, "Warning: SNOC support is still work-in-progress, it will not work properly!");
 
 	return 0;
 
@@ -1628,8 +1672,17 @@ err_core_destroy:
 static int ath10k_snoc_remove(struct platform_device *pdev)
 {
 	struct ath10k *ar = platform_get_drvdata(pdev);
+	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
 
 	ath10k_dbg(ar, ATH10K_DBG_SNOC, "snoc remove\n");
+
+	reinit_completion(&ar->driver_recovery);
+
+	if (test_bit(ATH10K_SNOC_FLAG_RECOVERY, &ar_snoc->flags))
+		wait_for_completion_timeout(&ar->driver_recovery, 3 * HZ);
+
+	set_bit(ATH10K_SNOC_FLAG_UNREGISTERING, &ar_snoc->flags);
+
 	ath10k_core_unregister(ar);
 	ath10k_hw_power_off(ar);
 	ath10k_snoc_free_irq(ar);
@@ -1641,12 +1694,12 @@ static int ath10k_snoc_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver ath10k_snoc_driver = {
-		.probe  = ath10k_snoc_probe,
-		.remove = ath10k_snoc_remove,
-		.driver = {
-			.name   = "ath10k_snoc",
-			.of_match_table = ath10k_snoc_dt_match,
-		},
+	.probe  = ath10k_snoc_probe,
+	.remove = ath10k_snoc_remove,
+	.driver = {
+		.name   = "ath10k_snoc",
+		.of_match_table = ath10k_snoc_dt_match,
+	},
 };
 module_platform_driver(ath10k_snoc_driver);
 

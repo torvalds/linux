@@ -153,32 +153,6 @@ int vkms_dumb_create(struct drm_file *file, struct drm_device *dev,
 	return 0;
 }
 
-int vkms_dumb_map(struct drm_file *file, struct drm_device *dev,
-		  u32 handle, u64 *offset)
-{
-	struct drm_gem_object *obj;
-	int ret;
-
-	obj = drm_gem_object_lookup(file, handle);
-	if (!obj)
-		return -ENOENT;
-
-	if (!obj->filp) {
-		ret = -EINVAL;
-		goto unref;
-	}
-
-	ret = drm_gem_create_mmap_offset(obj);
-	if (ret)
-		goto unref;
-
-	*offset = drm_vma_node_offset_addr(&obj->vma_node);
-unref:
-	drm_gem_object_put_unlocked(obj);
-
-	return ret;
-}
-
 static struct page **_get_pages(struct vkms_gem_object *vkms_obj)
 {
 	struct drm_gem_object *gem_obj = &vkms_obj->gem;

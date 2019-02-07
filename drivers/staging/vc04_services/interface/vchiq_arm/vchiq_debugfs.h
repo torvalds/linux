@@ -36,9 +36,9 @@
 
 #include "vchiq_core.h"
 
-typedef struct vchiq_debugfs_node_struct {
+struct vchiq_debugfs_node {
     struct dentry *dentry;
-} VCHIQ_DEBUGFS_NODE_T;
+};
 
 void vchiq_debugfs_init(void);
 

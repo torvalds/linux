@@ -802,14 +802,8 @@ static int lan743x_mac_init(struct lan743x_adapter *adapter)
 	u32 mac_addr_hi = 0;
 	u32 mac_addr_lo = 0;
 	u32 data;
-	int ret;
 
 	netdev = adapter->netdev;
-	lan743x_csr_write(adapter, MAC_CR, MAC_CR_RST_);
-	ret = lan743x_csr_wait_for_bit(adapter, MAC_CR, MAC_CR_RST_,
-				       0, 1000, 20000, 100);
-	if (ret)
-		return ret;
 
 	/* setup auto duplex, and speed detection */
 	data = lan743x_csr_read(adapter, MAC_CR);
@@ -968,13 +962,10 @@ static void lan743x_phy_link_status_change(struct net_device *netdev)
 
 		memset(&ksettings, 0, sizeof(ksettings));
 		phy_ethtool_get_link_ksettings(netdev, &ksettings);
-		local_advertisement = phy_read(phydev, MII_ADVERTISE);
-		if (local_advertisement < 0)
-			return;
-
-		remote_advertisement = phy_read(phydev, MII_LPA);
-		if (remote_advertisement < 0)
-			return;
+		local_advertisement =
+			linkmode_adv_to_mii_adv_t(phydev->advertising);
+		remote_advertisement =
+			linkmode_adv_to_mii_adv_t(phydev->lp_advertising);
 
 		lan743x_phy_update_flowcontrol(adapter,
 					       ksettings.base.duplex,
@@ -2719,8 +2710,9 @@ static int lan743x_mdiobus_init(struct lan743x_adapter *adapter)
 	snprintf(adapter->mdiobus->id, MII_BUS_ID_SIZE,
 		 "pci-%s", pci_name(adapter->pdev));
 
-	/* set to internal PHY id */
-	adapter->mdiobus->phy_mask = ~(u32)BIT(1);
+	if ((adapter->csr.id_rev & ID_REV_ID_MASK_) == ID_REV_ID_LAN7430_)
+		/* LAN7430 uses internal phy at address 1 */
+		adapter->mdiobus->phy_mask = ~(u32)BIT(1);
 
 	/* register mdiobus */
 	ret = mdiobus_register(adapter->mdiobus);

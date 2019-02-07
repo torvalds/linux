@@ -153,8 +153,158 @@ void __weak auxtrace_mmap_params__set_idx(struct auxtrace_mmap_params *mp __mayb
 {
 }
 
+#ifdef HAVE_AIO_SUPPORT
+static int perf_mmap__aio_mmap(struct perf_mmap *map, struct mmap_params *mp)
+{
+	int delta_max, i, prio;
+
+	map->aio.nr_cblocks = mp->nr_cblocks;
+	if (map->aio.nr_cblocks) {
+		map->aio.aiocb = calloc(map->aio.nr_cblocks, sizeof(struct aiocb *));
+		if (!map->aio.aiocb) {
+			pr_debug2("failed to allocate aiocb for data buffer, error %m\n");
+			return -1;
+		}
+		map->aio.cblocks = calloc(map->aio.nr_cblocks, sizeof(struct aiocb));
+		if (!map->aio.cblocks) {
+			pr_debug2("failed to allocate cblocks for data buffer, error %m\n");
+			return -1;
+		}
+		map->aio.data = calloc(map->aio.nr_cblocks, sizeof(void *));
+		if (!map->aio.data) {
+			pr_debug2("failed to allocate data buffer, error %m\n");
+			return -1;
+		}
+		delta_max = sysconf(_SC_AIO_PRIO_DELTA_MAX);
+		for (i = 0; i < map->aio.nr_cblocks; ++i) {
+			map->aio.data[i] = malloc(perf_mmap__mmap_len(map));
+			if (!map->aio.data[i]) {
+				pr_debug2("failed to allocate data buffer area, error %m");
+				return -1;
+			}
+			/*
+			 * Use cblock.aio_fildes value different from -1
+			 * to denote started aio write operation on the
+			 * cblock so it requires explicit record__aio_sync()
+			 * call prior the cblock may be reused again.
+			 */
+			map->aio.cblocks[i].aio_fildes = -1;
+			/*
+			 * Allocate cblocks with priority delta to have
+			 * faster aio write system calls because queued requests
+			 * are kept in separate per-prio queues and adding
+			 * a new request will iterate thru shorter per-prio
+			 * list. Blocks with numbers higher than
+			 *  _SC_AIO_PRIO_DELTA_MAX go with priority 0.
+			 */
+			prio = delta_max - i;
+			map->aio.cblocks[i].aio_reqprio = prio >= 0 ? prio : 0;
+		}
+	}
+
+	return 0;
+}
+
+static void perf_mmap__aio_munmap(struct perf_mmap *map)
+{
+	int i;
+
+	for (i = 0; i < map->aio.nr_cblocks; ++i)
+		zfree(&map->aio.data[i]);
+	if (map->aio.data)
+		zfree(&map->aio.data);
+	zfree(&map->aio.cblocks);
+	zfree(&map->aio.aiocb);
+}
+
+int perf_mmap__aio_push(struct perf_mmap *md, void *to, int idx,
+			int push(void *to, struct aiocb *cblock, void *buf, size_t size, off_t off),
+			off_t *off)
+{
+	u64 head = perf_mmap__read_head(md);
+	unsigned char *data = md->base + page_size;
+	unsigned long size, size0 = 0;
+	void *buf;
+	int rc = 0;
+
+	rc = perf_mmap__read_init(md);
+	if (rc < 0)
+		return (rc == -EAGAIN) ? 0 : -1;
+
+	/*
+	 * md->base data is copied into md->data[idx] buffer to
+	 * release space in the kernel buffer as fast as possible,
+	 * thru perf_mmap__consume() below.
+	 *
+	 * That lets the kernel to proceed with storing more
+	 * profiling data into the kernel buffer earlier than other
+	 * per-cpu kernel buffers are handled.
+	 *
+	 * Coping can be done in two steps in case the chunk of
+	 * profiling data crosses the upper bound of the kernel buffer.
+	 * In this case we first move part of data from md->start
+	 * till the upper bound and then the reminder from the
+	 * beginning of the kernel buffer till the end of
+	 * the data chunk.
+	 */
+
+	size = md->end - md->start;
+
+	if ((md->start & md->mask) + size != (md->end & md->mask)) {
+		buf = &data[md->start & md->mask];
+		size = md->mask + 1 - (md->start & md->mask);
+		md->start += size;
+		memcpy(md->aio.data[idx], buf, size);
+		size0 = size;
+	}
+
+	buf = &data[md->start & md->mask];
+	size = md->end - md->start;
+	md->start += size;
+	memcpy(md->aio.data[idx] + size0, buf, size);
+
+	/*
+	 * Increment md->refcount to guard md->data[idx] buffer
+	 * from premature deallocation because md object can be
+	 * released earlier than aio write request started
+	 * on mmap->data[idx] is complete.
+	 *
+	 * perf_mmap__put() is done at record__aio_complete()
+	 * after started request completion.
+	 */
+	perf_mmap__get(md);
+
+	md->prev = head;
+	perf_mmap__consume(md);
+
+	rc = push(to, &md->aio.cblocks[idx], md->aio.data[idx], size0 + size, *off);
+	if (!rc) {
+		*off += size0 + size;
+	} else {
+		/*
+		 * Decrement md->refcount back if aio write
+		 * operation failed to start.
+		 */
+		perf_mmap__put(md);
+	}
+
+	return rc;
+}
+#else
+static int perf_mmap__aio_mmap(struct perf_mmap *map __maybe_unused,
+			       struct mmap_params *mp __maybe_unused)
+{
+	return 0;
+}
+
+static void perf_mmap__aio_munmap(struct perf_mmap *map __maybe_unused)
+{
+}
+#endif
+
 void perf_mmap__munmap(struct perf_mmap *map)
 {
+	perf_mmap__aio_munmap(map);
 	if (map->base != NULL) {
 		munmap(map->base, perf_mmap__mmap_len(map));
 		map->base = NULL;
@@ -197,7 +347,7 @@ int perf_mmap__mmap(struct perf_mmap *map, struct mmap_params *mp, int fd, int c
 				&mp->auxtrace_mp, map->base, fd))
 		return -1;
 
-	return 0;
+	return perf_mmap__aio_mmap(map, mp);
 }
 
 static int overwrite_rb_find_range(void *buf, int mask, u64 *start, u64 *end)

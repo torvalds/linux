@@ -2263,7 +2263,6 @@ static struct scsi_host_template bnx2i_host_template = {
 	.max_sectors		= 127,
 	.cmd_per_lun		= 128,
 	.this_id		= -1,
-	.use_clustering		= ENABLE_CLUSTERING,
 	.sg_tablesize		= ISCSI_MAX_BDS_PER_CMD,
 	.shost_attrs		= bnx2i_dev_attributes,
 	.track_queue_depth	= 1,

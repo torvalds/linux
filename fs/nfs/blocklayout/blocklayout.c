@@ -584,7 +584,7 @@ static int decode_sector_number(__be32 **rp, sector_t *sp)
 
 static struct nfs4_deviceid_node *
 bl_find_get_deviceid(struct nfs_server *server,
-		const struct nfs4_deviceid *id, struct rpc_cred *cred,
+		const struct nfs4_deviceid *id, const struct cred *cred,
 		gfp_t gfp_mask)
 {
 	struct nfs4_deviceid_node *node;

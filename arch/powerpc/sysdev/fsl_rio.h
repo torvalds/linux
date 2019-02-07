@@ -41,7 +41,7 @@
 #define DOORBELL_ROWAR_PCI	0x02000000 /* PCI window */
 #define DOORBELL_ROWAR_NREAD	0x00040000 /* NREAD */
 #define DOORBELL_ROWAR_MAINTRD	0x00070000  /* maintenance read */
-#define DOORBELL_ROWAR_RES	0x00002000 /* wrtpy: reserverd */
+#define DOORBELL_ROWAR_RES	0x00002000 /* wrtpy: reserved */
 #define DOORBELL_ROWAR_MAINTWD	0x00007000
 #define DOORBELL_ROWAR_SIZE	0x0000000b /* window size is 4k */
 

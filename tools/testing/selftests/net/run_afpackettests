@@ -25,3 +25,13 @@ if [ $? -ne 0 ]; then
 else
 	echo "[PASS]"
 fi
+
+echo "--------------------"
+echo "running txring_overwrite test"
+echo "--------------------"
+./in_netns.sh ./txring_overwrite
+if [ $? -ne 0 ]; then
+	echo "[FAIL]"
+else
+	echo "[PASS]"
+fi

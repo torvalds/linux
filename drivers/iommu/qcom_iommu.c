@@ -29,7 +29,7 @@
 #include <linux/iommu.h>
 #include <linux/iopoll.h>
 #include <linux/kconfig.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -354,7 +354,8 @@ static void qcom_iommu_domain_free(struct iommu_domain *domain)
 
 static int qcom_iommu_attach_dev(struct iommu_domain *domain, struct device *dev)
 {
-	struct qcom_iommu_dev *qcom_iommu = to_iommu(dev->iommu_fwspec);
+	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
+	struct qcom_iommu_dev *qcom_iommu = to_iommu(fwspec);
 	struct qcom_iommu_domain *qcom_domain = to_qcom_iommu_domain(domain);
 	int ret;
 
@@ -365,7 +366,7 @@ static int qcom_iommu_attach_dev(struct iommu_domain *domain, struct device *dev
 
 	/* Ensure that the domain is finalized */
 	pm_runtime_get_sync(qcom_iommu->dev);
-	ret = qcom_iommu_init_domain(domain, qcom_iommu, dev->iommu_fwspec);
+	ret = qcom_iommu_init_domain(domain, qcom_iommu, fwspec);
 	pm_runtime_put_sync(qcom_iommu->dev);
 	if (ret < 0)
 		return ret;
@@ -387,7 +388,7 @@ static int qcom_iommu_attach_dev(struct iommu_domain *domain, struct device *dev
 
 static void qcom_iommu_detach_dev(struct iommu_domain *domain, struct device *dev)
 {
-	struct iommu_fwspec *fwspec = dev->iommu_fwspec;
+	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
 	struct qcom_iommu_dev *qcom_iommu = to_iommu(fwspec);
 	struct qcom_iommu_domain *qcom_domain = to_qcom_iommu_domain(domain);
 	unsigned i;
@@ -500,7 +501,7 @@ static bool qcom_iommu_capable(enum iommu_cap cap)
 
 static int qcom_iommu_add_device(struct device *dev)
 {
-	struct qcom_iommu_dev *qcom_iommu = to_iommu(dev->iommu_fwspec);
+	struct qcom_iommu_dev *qcom_iommu = to_iommu(dev_iommu_fwspec_get(dev));
 	struct iommu_group *group;
 	struct device_link *link;
 
@@ -531,7 +532,7 @@ static int qcom_iommu_add_device(struct device *dev)
 
 static void qcom_iommu_remove_device(struct device *dev)
 {
-	struct qcom_iommu_dev *qcom_iommu = to_iommu(dev->iommu_fwspec);
+	struct qcom_iommu_dev *qcom_iommu = to_iommu(dev_iommu_fwspec_get(dev));
 
 	if (!qcom_iommu)
 		return;
@@ -543,6 +544,7 @@ static void qcom_iommu_remove_device(struct device *dev)
 
 static int qcom_iommu_of_xlate(struct device *dev, struct of_phandle_args *args)
 {
+	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
 	struct qcom_iommu_dev *qcom_iommu;
 	struct platform_device *iommu_pdev;
 	unsigned asid = args->args[0];
@@ -568,14 +570,14 @@ static int qcom_iommu_of_xlate(struct device *dev, struct of_phandle_args *args)
 	    WARN_ON(asid > qcom_iommu->num_ctxs))
 		return -EINVAL;
 
-	if (!dev->iommu_fwspec->iommu_priv) {
-		dev->iommu_fwspec->iommu_priv = qcom_iommu;
+	if (!fwspec->iommu_priv) {
+		fwspec->iommu_priv = qcom_iommu;
 	} else {
 		/* make sure devices iommus dt node isn't referring to
 		 * multiple different iommu devices.  Multiple context
 		 * banks are ok, but multiple devices are not:
 		 */
-		if (WARN_ON(qcom_iommu != dev->iommu_fwspec->iommu_priv))
+		if (WARN_ON(qcom_iommu != fwspec->iommu_priv))
 			return -EINVAL;
 	}
 
@@ -908,7 +910,6 @@ static const struct of_device_id qcom_iommu_of_match[] = {
 	{ .compatible = "qcom,msm-iommu-v1" },
 	{ /* sentinel */ }
 };
-MODULE_DEVICE_TABLE(of, qcom_iommu_of_match);
 
 static struct platform_driver qcom_iommu_driver = {
 	.driver	= {
@@ -934,15 +935,4 @@ static int __init qcom_iommu_init(void)
 
 	return ret;
 }
-
-static void __exit qcom_iommu_exit(void)
-{
-	platform_driver_unregister(&qcom_iommu_driver);
-	platform_driver_unregister(&qcom_iommu_ctx_driver);
-}
-
-module_init(qcom_iommu_init);
-module_exit(qcom_iommu_exit);
-
-MODULE_DESCRIPTION("IOMMU API for QCOM IOMMU v1 implementations");
-MODULE_LICENSE("GPL v2");
+device_initcall(qcom_iommu_init);

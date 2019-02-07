@@ -7,6 +7,7 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/rockchip.h>
 #include <dt-bindings/clock/rk3066a-cru.h>
+#include <dt-bindings/power/rk3066-power.h>
 #include "rk3xxx.dtsi"
 
 / {
@@ -70,6 +71,7 @@
 		clocks = <&cru HCLK_I2S0>, <&cru SCLK_I2S0>;
 		rockchip,playback-channels = <8>;
 		rockchip,capture-channels = <2>;
+		#sound-dai-cells = <0>;
 		status = "disabled";
 	};
 
@@ -87,6 +89,7 @@
 		clocks = <&cru HCLK_I2S1>, <&cru SCLK_I2S1>;
 		rockchip,playback-channels = <2>;
 		rockchip,capture-channels = <2>;
+		#sound-dai-cells = <0>;
 		status = "disabled";
 	};
 
@@ -104,6 +107,7 @@
 		clocks = <&cru HCLK_I2S2>, <&cru SCLK_I2S2>;
 		rockchip,playback-channels = <2>;
 		rockchip,capture-channels = <2>;
+		#sound-dai-cells = <0>;
 		status = "disabled";
 	};
 
@@ -595,6 +599,7 @@
 			  "ppmmu2",
 			  "pp3",
 			  "ppmmu3";
+	power-domains = <&power RK3066_PD_GPU>;
 };
 
 &i2c0 {
@@ -641,6 +646,56 @@
 &emmc {
 	dmas = <&dmac2 4>;
 	dma-names = "rx-tx";
+};
+
+&pmu {
+	power: power-controller {
+		compatible = "rockchip,rk3066-power-controller";
+		#power-domain-cells = <1>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		pd_vio@RK3066_PD_VIO {
+			reg = <RK3066_PD_VIO>;
+			clocks = <&cru ACLK_LCDC0>,
+				 <&cru ACLK_LCDC1>,
+				 <&cru DCLK_LCDC0>,
+				 <&cru DCLK_LCDC1>,
+				 <&cru HCLK_LCDC0>,
+				 <&cru HCLK_LCDC1>,
+				 <&cru SCLK_CIF1>,
+				 <&cru ACLK_CIF1>,
+				 <&cru HCLK_CIF1>,
+				 <&cru SCLK_CIF0>,
+				 <&cru ACLK_CIF0>,
+				 <&cru HCLK_CIF0>,
+				 <&cru ACLK_IPP>,
+				 <&cru HCLK_IPP>,
+				 <&cru ACLK_RGA>,
+				 <&cru HCLK_RGA>;
+			pm_qos = <&qos_lcdc0>,
+				 <&qos_lcdc1>,
+				 <&qos_cif0>,
+				 <&qos_cif1>,
+				 <&qos_ipp>,
+				 <&qos_rga>;
+		};
+
+		pd_video@RK3066_PD_VIDEO {
+			reg = <RK3066_PD_VIDEO>;
+			clocks = <&cru ACLK_VDPU>,
+				 <&cru ACLK_VEPU>,
+				 <&cru HCLK_VDPU>,
+				 <&cru HCLK_VEPU>;
+			pm_qos = <&qos_vpu>;
+		};
+
+		pd_gpu@RK3066_PD_GPU {
+			reg = <RK3066_PD_GPU>;
+			clocks = <&cru ACLK_GPU>;
+			pm_qos = <&qos_gpu>;
+		};
+	};
 };
 
 &pwm0 {

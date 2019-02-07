@@ -234,14 +234,14 @@ uint32_t generic_reg_wait(const struct dc_context *ctx,
 		if (field_value == condition_value) {
 			if (i * delay_between_poll_us > 1000 &&
 					!IS_FPGA_MAXIMUS_DC(ctx->dce_environment))
-				dm_output_to_console("REG_WAIT taking a while: %dms in %s line:%d\n",
+				DC_LOG_DC("REG_WAIT taking a while: %dms in %s line:%d\n",
 						delay_between_poll_us * i / 1000,
 						func_name, line);
 			return reg_val;
 		}
 	}
 
-	dm_error("REG_WAIT timeout %dus * %d tries - %s line:%d\n",
+	DC_LOG_WARNING("REG_WAIT timeout %dus * %d tries - %s line:%d\n",
 			delay_between_poll_us, time_out_num_tries,
 			func_name, line);
 

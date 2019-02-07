@@ -589,7 +589,7 @@ static __init int bts_init(void)
 		 * the AUX buffer.
 		 *
 		 * However, since this driver supports per-CPU and per-task inherit
-		 * we cannot use the user mapping since it will not be availble
+		 * we cannot use the user mapping since it will not be available
 		 * if we're not running the owning process.
 		 *
 		 * With PTI we can't use the kernal map either, because its not

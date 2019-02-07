@@ -33,6 +33,7 @@ available subsections can be seen below.
    pci/index
    spi
    i2c
+   i3c/index
    hsi
    edac
    scsi

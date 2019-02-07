@@ -11,13 +11,20 @@
 #define EXTENT_MAP_INLINE ((u64)-2)
 #define EXTENT_MAP_DELALLOC ((u64)-1)
 
-/* bits for the flags field */
-#define EXTENT_FLAG_PINNED 0 /* this entry not yet on disk, don't free it */
-#define EXTENT_FLAG_COMPRESSED 1
-#define EXTENT_FLAG_PREALLOC 3 /* pre-allocated extent */
-#define EXTENT_FLAG_LOGGING 4 /* Logging this extent */
-#define EXTENT_FLAG_FILLING 5 /* Filling in a preallocated extent */
-#define EXTENT_FLAG_FS_MAPPING 6 /* filesystem extent mapping type */
+/* bits for the extent_map::flags field */
+enum {
+	/* this entry not yet on disk, don't free it */
+	EXTENT_FLAG_PINNED,
+	EXTENT_FLAG_COMPRESSED,
+	/* pre-allocated extent */
+	EXTENT_FLAG_PREALLOC,
+	/* Logging this extent */
+	EXTENT_FLAG_LOGGING,
+	/* Filling in a preallocated extent */
+	EXTENT_FLAG_FILLING,
+	/* filesystem extent mapping type */
+	EXTENT_FLAG_FS_MAPPING,
+};
 
 struct extent_map {
 	struct rb_node rb_node;

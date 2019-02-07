@@ -113,7 +113,15 @@ header, is usually reserved at an offset greater than boot memory
 size (see Fig. 1). This area is *not* released: this region will
 be kept permanently reserved, so that it can act as a receptacle
 for a copy of the boot memory content in addition to CPU state
-and HPTE region, in the case a crash does occur.
+and HPTE region, in the case a crash does occur. Since this reserved
+memory area is used only after the system crash, there is no point in
+blocking this significant chunk of memory from production kernel.
+Hence, the implementation uses the Linux kernel's Contiguous Memory
+Allocator (CMA) for memory reservation if CMA is configured for kernel.
+With CMA reservation this memory will be available for applications to
+use it, while kernel is prevented from using it. With this fadump will
+still be able to capture all of the kernel memory and most of the user
+space memory except the user pages that were present in CMA region.
 
   o Memory Reservation during first kernel
 
@@ -162,6 +170,9 @@ How to enable firmware-assisted dump (fadump):
 
 1. Set config option CONFIG_FA_DUMP=y and build kernel.
 2. Boot into linux kernel with 'fadump=on' kernel cmdline option.
+   By default, fadump reserved memory will be initialized as CMA area.
+   Alternatively, user can boot linux kernel with 'fadump=nocma' to
+   prevent fadump to use CMA.
 3. Optionally, user can also set 'crashkernel=' kernel cmdline
    to specify size of the memory to reserve for boot memory dump
    preservation.
@@ -172,6 +183,10 @@ NOTE: 1. 'fadump_reserve_mem=' parameter has been deprecated. Instead
       2. If firmware-assisted dump fails to reserve memory then it
          will fallback to existing kdump mechanism if 'crashkernel='
          option is set at kernel cmdline.
+      3. if user wants to capture all of user space memory and ok with
+         reserved memory not available to production system, then
+         'fadump=nocma' kernel parameter can be used to fallback to
+         old behaviour.
 
 Sysfs/debugfs files:
 ------------

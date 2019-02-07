@@ -246,6 +246,9 @@ struct ipu_image {
 	struct v4l2_rect rect;
 	dma_addr_t phys0;
 	dma_addr_t phys1;
+	/* chroma plane offset overrides */
+	u32 u_offset;
+	u32 v_offset;
 };
 
 void ipu_cpmem_zero(struct ipuv3_channel *ch);
@@ -387,6 +390,12 @@ int ipu_ic_task_init(struct ipu_ic *ic,
 		     int out_width, int out_height,
 		     enum ipu_color_space in_cs,
 		     enum ipu_color_space out_cs);
+int ipu_ic_task_init_rsc(struct ipu_ic *ic,
+			 int in_width, int in_height,
+			 int out_width, int out_height,
+			 enum ipu_color_space in_cs,
+			 enum ipu_color_space out_cs,
+			 u32 rsc);
 int ipu_ic_task_graphics_init(struct ipu_ic *ic,
 			      enum ipu_color_space in_g_cs,
 			      bool galpha_en, u32 galpha,

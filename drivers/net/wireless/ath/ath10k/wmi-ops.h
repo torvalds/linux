@@ -219,6 +219,9 @@ struct wmi_ops {
 	struct sk_buff *(*gen_echo)(struct ath10k *ar, u32 value);
 	struct sk_buff *(*gen_pdev_get_tpc_table_cmdid)(struct ath10k *ar,
 							u32 param);
+	struct sk_buff *(*gen_bb_timing)
+			(struct ath10k *ar,
+			 const struct wmi_bb_timing_cfg_arg *arg);
 
 };
 
@@ -1576,4 +1579,21 @@ ath10k_wmi_report_radar_found(struct ath10k *ar,
 				   ar->wmi.cmd->radar_found_cmdid);
 }
 
+static inline int
+ath10k_wmi_pdev_bb_timing(struct ath10k *ar,
+			  const struct wmi_bb_timing_cfg_arg *arg)
+{
+	struct sk_buff *skb;
+
+	if (!ar->wmi.ops->gen_bb_timing)
+		return -EOPNOTSUPP;
+
+	skb = ar->wmi.ops->gen_bb_timing(ar, arg);
+
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	return ath10k_wmi_cmd_send(ar, skb,
+				   ar->wmi.cmd->set_bb_timing_cmdid);
+}
 #endif

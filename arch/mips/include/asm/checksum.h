@@ -63,7 +63,7 @@ static inline
 __wsum csum_and_copy_from_user(const void __user *src, void *dst,
 			       int len, __wsum sum, int *err_ptr)
 {
-	if (access_ok(VERIFY_READ, src, len))
+	if (access_ok(src, len))
 		return csum_partial_copy_from_user(src, dst, len, sum,
 						   err_ptr);
 	if (len)
@@ -81,7 +81,7 @@ __wsum csum_and_copy_to_user(const void *src, void __user *dst, int len,
 			     __wsum sum, int *err_ptr)
 {
 	might_fault();
-	if (access_ok(VERIFY_WRITE, dst, len)) {
+	if (access_ok(dst, len)) {
 		if (uaccess_kernel())
 			return __csum_partial_copy_kernel(src,
 							  (__force void *)dst,

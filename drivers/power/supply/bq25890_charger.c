@@ -183,7 +183,7 @@ static const struct reg_field bq25890_reg_fields[] = {
 	[F_CHG_TMR]		= REG_FIELD(0x07, 1, 2),
 	[F_JEITA_ISET]		= REG_FIELD(0x07, 0, 0),
 	/* REG08 */
-	[F_BATCMP]		= REG_FIELD(0x08, 6, 7), // 5-7 on BQ25896
+	[F_BATCMP]		= REG_FIELD(0x08, 5, 7),
 	[F_VCLAMP]		= REG_FIELD(0x08, 2, 4),
 	[F_TREG]		= REG_FIELD(0x08, 0, 1),
 	/* REG09 */

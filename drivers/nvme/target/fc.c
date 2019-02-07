@@ -86,8 +86,6 @@ struct nvmet_fc_fcp_iod {
 	spinlock_t			flock;
 
 	struct nvmet_req		req;
-	struct work_struct		work;
-	struct work_struct		done_work;
 	struct work_struct		defer_work;
 
 	struct nvmet_fc_tgtport		*tgtport;
@@ -134,7 +132,6 @@ struct nvmet_fc_tgt_queue {
 	u16				sqsize;
 	u16				ersp_ratio;
 	__le16				sqhd;
-	int				cpu;
 	atomic_t			connected;
 	atomic_t			sqtail;
 	atomic_t			zrspcnt;
@@ -232,8 +229,6 @@ static LIST_HEAD(nvmet_fc_portentry_list);
 
 
 static void nvmet_fc_handle_ls_rqst_work(struct work_struct *work);
-static void nvmet_fc_handle_fcp_rqst_work(struct work_struct *work);
-static void nvmet_fc_fcp_rqst_op_done_work(struct work_struct *work);
 static void nvmet_fc_fcp_rqst_op_defer_work(struct work_struct *work);
 static void nvmet_fc_tgt_a_put(struct nvmet_fc_tgt_assoc *assoc);
 static int nvmet_fc_tgt_a_get(struct nvmet_fc_tgt_assoc *assoc);
@@ -438,8 +433,6 @@ nvmet_fc_prep_fcp_iodlist(struct nvmet_fc_tgtport *tgtport,
 	int i;
 
 	for (i = 0; i < queue->sqsize; fod++, i++) {
-		INIT_WORK(&fod->work, nvmet_fc_handle_fcp_rqst_work);
-		INIT_WORK(&fod->done_work, nvmet_fc_fcp_rqst_op_done_work);
 		INIT_WORK(&fod->defer_work, nvmet_fc_fcp_rqst_op_defer_work);
 		fod->tgtport = tgtport;
 		fod->queue = queue;
@@ -517,10 +510,7 @@ nvmet_fc_queue_fcp_req(struct nvmet_fc_tgtport *tgtport,
 	fcpreq->hwqid = queue->qid ?
 			((queue->qid - 1) % tgtport->ops->max_hw_queues) : 0;
 
-	if (tgtport->ops->target_features & NVMET_FCTGTFEAT_CMD_IN_ISR)
-		queue_work_on(queue->cpu, queue->work_q, &fod->work);
-	else
-		nvmet_fc_handle_fcp_rqst(tgtport, fod);
+	nvmet_fc_handle_fcp_rqst(tgtport, fod);
 }
 
 static void
@@ -599,30 +589,6 @@ nvmet_fc_free_fcp_iod(struct nvmet_fc_tgt_queue *queue,
 	queue_work(queue->work_q, &fod->defer_work);
 }
 
-static int
-nvmet_fc_queue_to_cpu(struct nvmet_fc_tgtport *tgtport, int qid)
-{
-	int cpu, idx, cnt;
-
-	if (tgtport->ops->max_hw_queues == 1)
-		return WORK_CPU_UNBOUND;
-
-	/* Simple cpu selection based on qid modulo active cpu count */
-	idx = !qid ? 0 : (qid - 1) % num_active_cpus();
-
-	/* find the n'th active cpu */
-	for (cpu = 0, cnt = 0; ; ) {
-		if (cpu_active(cpu)) {
-			if (cnt == idx)
-				break;
-			cnt++;
-		}
-		cpu = (cpu + 1) % num_possible_cpus();
-	}
-
-	return cpu;
-}
-
 static struct nvmet_fc_tgt_queue *
 nvmet_fc_alloc_target_queue(struct nvmet_fc_tgt_assoc *assoc,
 			u16 qid, u16 sqsize)
@@ -653,7 +619,6 @@ nvmet_fc_alloc_target_queue(struct nvmet_fc_tgt_assoc *assoc,
 	queue->qid = qid;
 	queue->sqsize = sqsize;
 	queue->assoc = assoc;
-	queue->cpu = nvmet_fc_queue_to_cpu(assoc->tgtport, qid);
 	INIT_LIST_HEAD(&queue->fod_list);
 	INIT_LIST_HEAD(&queue->avail_defer_list);
 	INIT_LIST_HEAD(&queue->pending_cmd_list);
@@ -2146,25 +2111,11 @@ nvmet_fc_fod_op_done(struct nvmet_fc_fcp_iod *fod)
 }
 
 static void
-nvmet_fc_fcp_rqst_op_done_work(struct work_struct *work)
-{
-	struct nvmet_fc_fcp_iod *fod =
-		container_of(work, struct nvmet_fc_fcp_iod, done_work);
-
-	nvmet_fc_fod_op_done(fod);
-}
-
-static void
 nvmet_fc_xmt_fcp_op_done(struct nvmefc_tgt_fcp_req *fcpreq)
 {
 	struct nvmet_fc_fcp_iod *fod = fcpreq->nvmet_fc_private;
-	struct nvmet_fc_tgt_queue *queue = fod->queue;
 
-	if (fod->tgtport->ops->target_features & NVMET_FCTGTFEAT_OPDONE_IN_ISR)
-		/* context switch so completion is not in ISR context */
-		queue_work_on(queue->cpu, queue->work_q, &fod->done_work);
-	else
-		nvmet_fc_fod_op_done(fod);
+	nvmet_fc_fod_op_done(fod);
 }
 
 /*
@@ -2330,19 +2281,6 @@ nvmet_fc_handle_fcp_rqst(struct nvmet_fc_tgtport *tgtport,
 
 transport_error:
 	nvmet_fc_abort_op(tgtport, fod);
-}
-
-/*
- * Actual processing routine for received FC-NVME LS Requests from the LLD
- */
-static void
-nvmet_fc_handle_fcp_rqst_work(struct work_struct *work)
-{
-	struct nvmet_fc_fcp_iod *fod =
-		container_of(work, struct nvmet_fc_fcp_iod, work);
-	struct nvmet_fc_tgtport *tgtport = fod->tgtport;
-
-	nvmet_fc_handle_fcp_rqst(tgtport, fod);
 }
 
 /**

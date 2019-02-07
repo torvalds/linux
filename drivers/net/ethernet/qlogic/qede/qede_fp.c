@@ -1466,8 +1466,8 @@ netdev_tx_t qede_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 #if ((MAX_SKB_FRAGS + 2) > ETH_TX_MAX_BDS_PER_NON_LSO_PACKET)
 	if (qede_pkt_req_lin(skb, xmit_type)) {
 		if (skb_linearize(skb)) {
-			DP_NOTICE(edev,
-				  "SKB linearization failed - silently dropping this SKB\n");
+			txq->tx_mem_alloc_err++;
+
 			dev_kfree_skb_any(skb);
 			return NETDEV_TX_OK;
 		}

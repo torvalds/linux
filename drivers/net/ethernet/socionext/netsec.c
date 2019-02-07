@@ -234,6 +234,9 @@
 
 #define DESC_NUM	256
 
+#define NETSEC_SKB_PAD (NET_SKB_PAD + NET_IP_ALIGN)
+#define NETSEC_RX_BUF_SZ 1536
+
 #define DESC_SZ	sizeof(struct netsec_de)
 
 #define NETSEC_F_NETSEC_VER_MAJOR_NUM(x)	((x) & 0xffff0000)
@@ -254,7 +257,6 @@ struct netsec_desc_ring {
 	dma_addr_t desc_dma;
 	struct netsec_desc *desc;
 	void *vaddr;
-	u16 pkt_cnt;
 	u16 head, tail;
 };
 
@@ -571,34 +573,10 @@ static const struct ethtool_ops netsec_ethtool_ops = {
 
 /************* NETDEV_OPS FOLLOW *************/
 
-static struct sk_buff *netsec_alloc_skb(struct netsec_priv *priv,
-					struct netsec_desc *desc)
-{
-	struct sk_buff *skb;
-
-	if (device_get_dma_attr(priv->dev) == DEV_DMA_COHERENT) {
-		skb = netdev_alloc_skb_ip_align(priv->ndev, desc->len);
-	} else {
-		desc->len = L1_CACHE_ALIGN(desc->len);
-		skb = netdev_alloc_skb(priv->ndev, desc->len);
-	}
-	if (!skb)
-		return NULL;
-
-	desc->addr = skb->data;
-	desc->dma_addr = dma_map_single(priv->dev, desc->addr, desc->len,
-					DMA_FROM_DEVICE);
-	if (dma_mapping_error(priv->dev, desc->dma_addr)) {
-		dev_kfree_skb_any(skb);
-		return NULL;
-	}
-	return skb;
-}
 
 static void netsec_set_rx_de(struct netsec_priv *priv,
 			     struct netsec_desc_ring *dring, u16 idx,
-			     const struct netsec_desc *desc,
-			     struct sk_buff *skb)
+			     const struct netsec_desc *desc)
 {
 	struct netsec_de *de = dring->vaddr + DESC_SZ * idx;
 	u32 attr = (1 << NETSEC_RX_PKT_OWN_FIELD) |
@@ -617,88 +595,28 @@ static void netsec_set_rx_de(struct netsec_priv *priv,
 	dring->desc[idx].dma_addr = desc->dma_addr;
 	dring->desc[idx].addr = desc->addr;
 	dring->desc[idx].len = desc->len;
-	dring->desc[idx].skb = skb;
 }
 
-static struct sk_buff *netsec_get_rx_de(struct netsec_priv *priv,
-					struct netsec_desc_ring *dring,
-					u16 idx,
-					struct netsec_rx_pkt_info *rxpi,
-					struct netsec_desc *desc, u16 *len)
-{
-	struct netsec_de de = {};
-
-	memcpy(&de, dring->vaddr + DESC_SZ * idx, DESC_SZ);
-
-	*len = de.buf_len_info >> 16;
-
-	rxpi->err_flag = (de.attr >> NETSEC_RX_PKT_ER_FIELD) & 1;
-	rxpi->rx_cksum_result = (de.attr >> NETSEC_RX_PKT_CO_FIELD) & 3;
-	rxpi->err_code = (de.attr >> NETSEC_RX_PKT_ERR_FIELD) &
-							NETSEC_RX_PKT_ERR_MASK;
-	*desc = dring->desc[idx];
-	return desc->skb;
-}
-
-static struct sk_buff *netsec_get_rx_pkt_data(struct netsec_priv *priv,
-					      struct netsec_rx_pkt_info *rxpi,
-					      struct netsec_desc *desc,
-					      u16 *len)
-{
-	struct netsec_desc_ring *dring = &priv->desc_ring[NETSEC_RING_RX];
-	struct sk_buff *tmp_skb, *skb = NULL;
-	struct netsec_desc td;
-	int tail;
-
-	*rxpi = (struct netsec_rx_pkt_info){};
-
-	td.len = priv->ndev->mtu + 22;
-
-	tmp_skb = netsec_alloc_skb(priv, &td);
-
-	tail = dring->tail;
-
-	if (!tmp_skb) {
-		netsec_set_rx_de(priv, dring, tail, &dring->desc[tail],
-				 dring->desc[tail].skb);
-	} else {
-		skb = netsec_get_rx_de(priv, dring, tail, rxpi, desc, len);
-		netsec_set_rx_de(priv, dring, tail, &td, tmp_skb);
-	}
-
-	/* move tail ahead */
-	dring->tail = (dring->tail + 1) % DESC_NUM;
-
-	return skb;
-}
-
-static int netsec_clean_tx_dring(struct netsec_priv *priv, int budget)
+static bool netsec_clean_tx_dring(struct netsec_priv *priv)
 {
 	struct netsec_desc_ring *dring = &priv->desc_ring[NETSEC_RING_TX];
 	unsigned int pkts, bytes;
-
-	dring->pkt_cnt += netsec_read(priv, NETSEC_REG_NRM_TX_DONE_PKTCNT);
-
-	if (dring->pkt_cnt < budget)
-		budget = dring->pkt_cnt;
+	struct netsec_de *entry;
+	int tail = dring->tail;
+	int cnt = 0;
 
 	pkts = 0;
 	bytes = 0;
+	entry = dring->vaddr + DESC_SZ * tail;
 
-	while (pkts < budget) {
+	while (!(entry->attr & (1U << NETSEC_TX_SHIFT_OWN_FIELD)) &&
+	       cnt < DESC_NUM) {
 		struct netsec_desc *desc;
-		struct netsec_de *entry;
-		int tail, eop;
-
-		tail = dring->tail;
-
-		/* move tail ahead */
-		dring->tail = (tail + 1) % DESC_NUM;
+		int eop;
 
 		desc = &dring->desc[tail];
-		entry = dring->vaddr + DESC_SZ * tail;
-
 		eop = (entry->attr >> NETSEC_TX_LAST) & 1;
+		dma_rmb();
 
 		dma_unmap_single(priv->dev, desc->dma_addr, desc->len,
 				 DMA_TO_DEVICE);
@@ -707,33 +625,94 @@ static int netsec_clean_tx_dring(struct netsec_priv *priv, int budget)
 			bytes += desc->skb->len;
 			dev_kfree_skb(desc->skb);
 		}
+		/* clean up so netsec_uninit_pkt_dring() won't free the skb
+		 * again
+		 */
 		*desc = (struct netsec_desc){};
-	}
-	dring->pkt_cnt -= budget;
 
-	priv->ndev->stats.tx_packets += budget;
+		/* entry->attr is not going to be accessed by the NIC until
+		 * netsec_set_tx_de() is called. No need for a dma_wmb() here
+		 */
+		entry->attr = 1U << NETSEC_TX_SHIFT_OWN_FIELD;
+		/* move tail ahead */
+		dring->tail = (tail + 1) % DESC_NUM;
+
+		tail = dring->tail;
+		entry = dring->vaddr + DESC_SZ * tail;
+		cnt++;
+	}
+
+	if (!cnt)
+		return false;
+
+	/* reading the register clears the irq */
+	netsec_read(priv, NETSEC_REG_NRM_TX_DONE_PKTCNT);
+
+	priv->ndev->stats.tx_packets += cnt;
 	priv->ndev->stats.tx_bytes += bytes;
 
-	netdev_completed_queue(priv->ndev, budget, bytes);
+	netdev_completed_queue(priv->ndev, cnt, bytes);
 
-	return budget;
+	return true;
 }
 
-static int netsec_process_tx(struct netsec_priv *priv, int budget)
+static void netsec_process_tx(struct netsec_priv *priv)
 {
 	struct net_device *ndev = priv->ndev;
-	int new, done = 0;
+	bool cleaned;
 
-	do {
-		new = netsec_clean_tx_dring(priv, budget);
-		done += new;
-		budget -= new;
-	} while (new);
+	cleaned = netsec_clean_tx_dring(priv);
 
-	if (done && netif_queue_stopped(ndev))
+	if (cleaned && netif_queue_stopped(ndev)) {
+		/* Make sure we update the value, anyone stopping the queue
+		 * after this will read the proper consumer idx
+		 */
+		smp_wmb();
 		netif_wake_queue(ndev);
+	}
+}
 
-	return done;
+static void *netsec_alloc_rx_data(struct netsec_priv *priv,
+				  dma_addr_t *dma_handle, u16 *desc_len)
+{
+	size_t total_len = SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
+	size_t payload_len = NETSEC_RX_BUF_SZ;
+	dma_addr_t mapping;
+	void *buf;
+
+	total_len += SKB_DATA_ALIGN(payload_len + NETSEC_SKB_PAD);
+
+	buf = napi_alloc_frag(total_len);
+	if (!buf)
+		return NULL;
+
+	mapping = dma_map_single(priv->dev, buf + NETSEC_SKB_PAD, payload_len,
+				 DMA_FROM_DEVICE);
+	if (unlikely(dma_mapping_error(priv->dev, mapping)))
+		goto err_out;
+
+	*dma_handle = mapping;
+	*desc_len = payload_len;
+
+	return buf;
+
+err_out:
+	skb_free_frag(buf);
+	return NULL;
+}
+
+static void netsec_rx_fill(struct netsec_priv *priv, u16 from, u16 num)
+{
+	struct netsec_desc_ring *dring = &priv->desc_ring[NETSEC_RING_RX];
+	u16 idx = from;
+
+	while (num) {
+		netsec_set_rx_de(priv, dring, idx, &dring->desc[idx]);
+		idx++;
+		if (idx >= DESC_NUM)
+			idx = 0;
+		num--;
+	}
 }
 
 static int netsec_process_rx(struct netsec_priv *priv, int budget)
@@ -741,14 +720,17 @@ static int netsec_process_rx(struct netsec_priv *priv, int budget)
 	struct netsec_desc_ring *dring = &priv->desc_ring[NETSEC_RING_RX];
 	struct net_device *ndev = priv->ndev;
 	struct netsec_rx_pkt_info rx_info;
-	int done = 0;
-	struct netsec_desc desc;
 	struct sk_buff *skb;
-	u16 len;
+	int done = 0;
 
 	while (done < budget) {
 		u16 idx = dring->tail;
 		struct netsec_de *de = dring->vaddr + (DESC_SZ * idx);
+		struct netsec_desc *desc = &dring->desc[idx];
+		u16 pkt_len, desc_len;
+		dma_addr_t dma_handle;
+		void *buf_addr;
+		u32 truesize;
 
 		if (de->attr & (1U << NETSEC_RX_PKT_OWN_FIELD)) {
 			/* reading the register clears the irq */
@@ -762,18 +744,59 @@ static int netsec_process_rx(struct netsec_priv *priv, int budget)
 		 */
 		dma_rmb();
 		done++;
-		skb = netsec_get_rx_pkt_data(priv, &rx_info, &desc, &len);
-		if (unlikely(!skb) || rx_info.err_flag) {
+
+		pkt_len = de->buf_len_info >> 16;
+		rx_info.err_code = (de->attr >> NETSEC_RX_PKT_ERR_FIELD) &
+			NETSEC_RX_PKT_ERR_MASK;
+		rx_info.err_flag = (de->attr >> NETSEC_RX_PKT_ER_FIELD) & 1;
+		if (rx_info.err_flag) {
 			netif_err(priv, drv, priv->ndev,
-				  "%s: rx fail err(%d)\n",
-				  __func__, rx_info.err_code);
+				  "%s: rx fail err(%d)\n", __func__,
+				  rx_info.err_code);
 			ndev->stats.rx_dropped++;
+			dring->tail = (dring->tail + 1) % DESC_NUM;
+			/* reuse buffer page frag */
+			netsec_rx_fill(priv, idx, 1);
 			continue;
 		}
+		rx_info.rx_cksum_result =
+			(de->attr >> NETSEC_RX_PKT_CO_FIELD) & 3;
 
-		dma_unmap_single(priv->dev, desc.dma_addr, desc.len,
-				 DMA_FROM_DEVICE);
-		skb_put(skb, len);
+		/* allocate a fresh buffer and map it to the hardware.
+		 * This will eventually replace the old buffer in the hardware
+		 */
+		buf_addr = netsec_alloc_rx_data(priv, &dma_handle, &desc_len);
+		if (unlikely(!buf_addr))
+			break;
+
+		dma_sync_single_for_cpu(priv->dev, desc->dma_addr, pkt_len,
+					DMA_FROM_DEVICE);
+		prefetch(desc->addr);
+
+		truesize = SKB_DATA_ALIGN(desc->len + NETSEC_SKB_PAD) +
+			SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
+		skb = build_skb(desc->addr, truesize);
+		if (unlikely(!skb)) {
+			/* free the newly allocated buffer, we are not going to
+			 * use it
+			 */
+			dma_unmap_single(priv->dev, dma_handle, desc_len,
+					 DMA_FROM_DEVICE);
+			skb_free_frag(buf_addr);
+			netif_err(priv, drv, priv->ndev,
+				  "rx failed to build skb\n");
+			break;
+		}
+		dma_unmap_single_attrs(priv->dev, desc->dma_addr, desc->len,
+				       DMA_FROM_DEVICE, DMA_ATTR_SKIP_CPU_SYNC);
+
+		/* Update the descriptor with the new buffer we allocated */
+		desc->len = desc_len;
+		desc->dma_addr = dma_handle;
+		desc->addr = buf_addr;
+
+		skb_reserve(skb, NETSEC_SKB_PAD);
+		skb_put(skb, pkt_len);
 		skb->protocol = eth_type_trans(skb, priv->ndev);
 
 		if (priv->rx_cksum_offload_flag &&
@@ -782,8 +805,11 @@ static int netsec_process_rx(struct netsec_priv *priv, int budget)
 
 		if (napi_gro_receive(&priv->napi, skb) != GRO_DROP) {
 			ndev->stats.rx_packets++;
-			ndev->stats.rx_bytes += len;
+			ndev->stats.rx_bytes += pkt_len;
 		}
+
+		netsec_rx_fill(priv, idx, 1);
+		dring->tail = (dring->tail + 1) % DESC_NUM;
 	}
 
 	return done;
@@ -792,24 +818,17 @@ static int netsec_process_rx(struct netsec_priv *priv, int budget)
 static int netsec_napi_poll(struct napi_struct *napi, int budget)
 {
 	struct netsec_priv *priv;
-	int tx, rx, done, todo;
+	int rx, done, todo;
 
 	priv = container_of(napi, struct netsec_priv, napi);
 
+	netsec_process_tx(priv);
+
 	todo = budget;
 	do {
-		if (!todo)
-			break;
-
-		tx = netsec_process_tx(priv, todo);
-		todo -= tx;
-
-		if (!todo)
-			break;
-
 		rx = netsec_process_rx(priv, todo);
 		todo -= rx;
-	} while (rx || tx);
+	} while (rx);
 
 	done = budget - todo;
 
@@ -861,6 +880,41 @@ static void netsec_set_tx_de(struct netsec_priv *priv,
 	dring->head = (dring->head + 1) % DESC_NUM;
 }
 
+static int netsec_desc_used(struct netsec_desc_ring *dring)
+{
+	int used;
+
+	if (dring->head >= dring->tail)
+		used = dring->head - dring->tail;
+	else
+		used = dring->head + DESC_NUM - dring->tail;
+
+	return used;
+}
+
+static int netsec_check_stop_tx(struct netsec_priv *priv, int used)
+{
+	struct netsec_desc_ring *dring = &priv->desc_ring[NETSEC_RING_TX];
+
+	/* keep tail from touching the queue */
+	if (DESC_NUM - used < 2) {
+		netif_stop_queue(priv->ndev);
+
+		/* Make sure we read the updated value in case
+		 * descriptors got freed
+		 */
+		smp_rmb();
+
+		used = netsec_desc_used(dring);
+		if (DESC_NUM - used < 2)
+			return NETDEV_TX_BUSY;
+
+		netif_wake_queue(priv->ndev);
+	}
+
+	return 0;
+}
+
 static netdev_tx_t netsec_netdev_start_xmit(struct sk_buff *skb,
 					    struct net_device *ndev)
 {
@@ -871,16 +925,10 @@ static netdev_tx_t netsec_netdev_start_xmit(struct sk_buff *skb,
 	u16 tso_seg_len = 0;
 	int filled;
 
-	/* differentiate between full/emtpy ring */
-	if (dring->head >= dring->tail)
-		filled = dring->head - dring->tail;
-	else
-		filled = dring->head + DESC_NUM - dring->tail;
-
-	if (DESC_NUM - filled < 2) { /* if less than 2 available */
-		netif_err(priv, drv, priv->ndev, "%s: TxQFull!\n", __func__);
-		netif_stop_queue(priv->ndev);
-		dma_wmb();
+	filled = netsec_desc_used(dring);
+	if (netsec_check_stop_tx(priv, filled)) {
+		net_warn_ratelimited("%s %s Tx queue full\n",
+				     dev_name(priv->dev), ndev->name);
 		return NETDEV_TX_BUSY;
 	}
 
@@ -946,7 +994,10 @@ static void netsec_uninit_pkt_dring(struct netsec_priv *priv, int id)
 		dma_unmap_single(priv->dev, desc->dma_addr, desc->len,
 				 id == NETSEC_RING_RX ? DMA_FROM_DEVICE :
 							      DMA_TO_DEVICE);
-		dev_kfree_skb(desc->skb);
+		if (id == NETSEC_RING_RX)
+			skb_free_frag(desc->addr);
+		else if (id == NETSEC_RING_TX)
+			dev_kfree_skb(desc->skb);
 	}
 
 	memset(dring->desc, 0, sizeof(struct netsec_desc) * DESC_NUM);
@@ -954,7 +1005,6 @@ static void netsec_uninit_pkt_dring(struct netsec_priv *priv, int id)
 
 	dring->head = 0;
 	dring->tail = 0;
-	dring->pkt_cnt = 0;
 
 	if (id == NETSEC_RING_TX)
 		netdev_reset_queue(priv->ndev);
@@ -977,47 +1027,64 @@ static void netsec_free_dring(struct netsec_priv *priv, int id)
 static int netsec_alloc_dring(struct netsec_priv *priv, enum ring_id id)
 {
 	struct netsec_desc_ring *dring = &priv->desc_ring[id];
-	int ret = 0;
+	int i;
 
-	dring->vaddr = dma_zalloc_coherent(priv->dev, DESC_SZ * DESC_NUM,
-					   &dring->desc_dma, GFP_KERNEL);
-	if (!dring->vaddr) {
-		ret = -ENOMEM;
+	dring->vaddr = dma_alloc_coherent(priv->dev, DESC_SZ * DESC_NUM,
+					  &dring->desc_dma, GFP_KERNEL);
+	if (!dring->vaddr)
 		goto err;
-	}
 
 	dring->desc = kcalloc(DESC_NUM, sizeof(*dring->desc), GFP_KERNEL);
-	if (!dring->desc) {
-		ret = -ENOMEM;
+	if (!dring->desc)
 		goto err;
+
+	if (id == NETSEC_RING_TX) {
+		for (i = 0; i < DESC_NUM; i++) {
+			struct netsec_de *de;
+
+			de = dring->vaddr + (DESC_SZ * i);
+			/* de->attr is not going to be accessed by the NIC
+			 * until netsec_set_tx_de() is called.
+			 * No need for a dma_wmb() here
+			 */
+			de->attr = 1U << NETSEC_TX_SHIFT_OWN_FIELD;
+		}
 	}
 
 	return 0;
 err:
 	netsec_free_dring(priv, id);
 
-	return ret;
+	return -ENOMEM;
 }
 
 static int netsec_setup_rx_dring(struct netsec_priv *priv)
 {
 	struct netsec_desc_ring *dring = &priv->desc_ring[NETSEC_RING_RX];
-	struct netsec_desc desc;
-	struct sk_buff *skb;
-	int n;
+	int i;
 
-	desc.len = priv->ndev->mtu + 22;
+	for (i = 0; i < DESC_NUM; i++) {
+		struct netsec_desc *desc = &dring->desc[i];
+		dma_addr_t dma_handle;
+		void *buf;
+		u16 len;
 
-	for (n = 0; n < DESC_NUM; n++) {
-		skb = netsec_alloc_skb(priv, &desc);
-		if (!skb) {
+		buf = netsec_alloc_rx_data(priv, &dma_handle, &len);
+		if (!buf) {
 			netsec_uninit_pkt_dring(priv, NETSEC_RING_RX);
-			return -ENOMEM;
+			goto err_out;
 		}
-		netsec_set_rx_de(priv, dring, n, &desc, skb);
+		desc->dma_addr = dma_handle;
+		desc->addr = buf;
+		desc->len = len;
 	}
 
+	netsec_rx_fill(priv, 0, DESC_NUM);
+
 	return 0;
+
+err_out:
+	return -ENOMEM;
 }
 
 static int netsec_netdev_load_ucode_region(struct netsec_priv *priv, u32 reg,
@@ -1376,6 +1443,8 @@ static int netsec_netdev_init(struct net_device *ndev)
 	struct netsec_priv *priv = netdev_priv(ndev);
 	int ret;
 	u16 data;
+
+	BUILD_BUG_ON_NOT_POWER_OF_2(DESC_NUM);
 
 	ret = netsec_alloc_dring(priv, NETSEC_RING_TX);
 	if (ret)

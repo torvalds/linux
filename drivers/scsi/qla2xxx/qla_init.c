@@ -237,15 +237,13 @@ qla2x00_async_login(struct scsi_qla_host *vha, fc_port_t *fcport,
 	qla2x00_init_timer(sp, qla2x00_get_async_timeout(vha) + 2);
 
 	sp->done = qla2x00_async_login_sp_done;
-	if (N2N_TOPO(fcport->vha->hw) && fcport_is_bigger(fcport)) {
+	if (N2N_TOPO(fcport->vha->hw) && fcport_is_bigger(fcport))
 		lio->u.logio.flags |= SRB_LOGIN_PRLI_ONLY;
-	} else {
+	else
 		lio->u.logio.flags |= SRB_LOGIN_COND_PLOGI;
 
-		if (fcport->fc4f_nvme)
-			lio->u.logio.flags |= SRB_LOGIN_SKIP_PRLI;
-
-	}
+	if (fcport->fc4f_nvme)
+		lio->u.logio.flags |= SRB_LOGIN_SKIP_PRLI;
 
 	ql_dbg(ql_dbg_disc, vha, 0x2072,
 	    "Async-login - %8phC hdl=%x, loopid=%x portid=%02x%02x%02x "
@@ -3101,8 +3099,8 @@ qla2x00_alloc_offload_mem(scsi_qla_host_t *vha)
 			    FCE_SIZE, ha->fce, ha->fce_dma);
 
 		/* Allocate memory for Fibre Channel Event Buffer. */
-		tc = dma_zalloc_coherent(&ha->pdev->dev, FCE_SIZE, &tc_dma,
-					 GFP_KERNEL);
+		tc = dma_alloc_coherent(&ha->pdev->dev, FCE_SIZE, &tc_dma,
+					GFP_KERNEL);
 		if (!tc) {
 			ql_log(ql_log_warn, vha, 0x00be,
 			    "Unable to allocate (%d KB) for FCE.\n",
@@ -3133,8 +3131,8 @@ try_eft:
 			    EFT_SIZE, ha->eft, ha->eft_dma);
 
 		/* Allocate memory for Extended Trace Buffer. */
-		tc = dma_zalloc_coherent(&ha->pdev->dev, EFT_SIZE, &tc_dma,
-					 GFP_KERNEL);
+		tc = dma_alloc_coherent(&ha->pdev->dev, EFT_SIZE, &tc_dma,
+					GFP_KERNEL);
 		if (!tc) {
 			ql_log(ql_log_warn, vha, 0x00c1,
 			    "Unable to allocate (%d KB) for EFT.\n",

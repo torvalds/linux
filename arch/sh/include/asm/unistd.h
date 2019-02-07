@@ -5,6 +5,8 @@
 #  include <asm/unistd_64.h>
 # endif
 
+#define NR_syscalls	__NR_syscalls
+
 # define __ARCH_WANT_NEW_STAT
 # define __ARCH_WANT_OLD_READDIR
 # define __ARCH_WANT_OLD_STAT

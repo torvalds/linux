@@ -227,7 +227,7 @@ int calculate_normal_threshold(struct zone *zone)
 	 * 125		1024		10	16-32 GB	9
 	 */
 
-	mem = zone->managed_pages >> (27 - PAGE_SHIFT);
+	mem = zone_managed_pages(zone) >> (27 - PAGE_SHIFT);
 
 	threshold = 2 * fls(num_online_cpus()) * (1 + fls(mem));
 
@@ -1569,7 +1569,7 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
 		   high_wmark_pages(zone),
 		   zone->spanned_pages,
 		   zone->present_pages,
-		   zone->managed_pages);
+		   zone_managed_pages(zone));
 
 	seq_printf(m,
 		   "\n        protection: (%ld",

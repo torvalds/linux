@@ -26,6 +26,13 @@ struct ocelot_reset_context {
 
 #define SOFT_CHIP_RST BIT(0)
 
+#define ICPU_CFG_CPU_SYSTEM_CTRL_GENERAL_CTRL	0x24
+#define IF_SI_OWNER_MASK			GENMASK(1, 0)
+#define IF_SI_OWNER_SISL			0
+#define IF_SI_OWNER_SIBM			1
+#define IF_SI_OWNER_SIMC			2
+#define IF_SI_OWNER_OFFSET			4
+
 static int ocelot_restart_handle(struct notifier_block *this,
 				 unsigned long mode, void *cmd)
 {
@@ -36,6 +43,11 @@ static int ocelot_restart_handle(struct notifier_block *this,
 	/* Make sure the core is not protected from reset */
 	regmap_update_bits(ctx->cpu_ctrl, ICPU_CFG_CPU_SYSTEM_CTRL_RESET,
 			   CORE_RST_PROTECT, 0);
+
+	/* Make the SI back to boot mode */
+	regmap_update_bits(ctx->cpu_ctrl, ICPU_CFG_CPU_SYSTEM_CTRL_GENERAL_CTRL,
+			   IF_SI_OWNER_MASK << IF_SI_OWNER_OFFSET,
+			   IF_SI_OWNER_SIBM << IF_SI_OWNER_OFFSET);
 
 	writel(SOFT_CHIP_RST, ctx->base);
 

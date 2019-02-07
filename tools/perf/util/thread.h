@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include "symbol.h"
+#include "map.h"
 #include <strlist.h>
 #include <intlist.h>
 #include "rwsem.h"
@@ -38,6 +39,7 @@ struct thread {
 	void			*priv;
 	struct thread_stack	*ts;
 	struct nsinfo		*nsinfo;
+	struct srccode_state	srccode_state;
 #ifdef HAVE_LIBUNWIND_SUPPORT
 	void				*addr_space;
 	struct unwind_libunwind_ops	*unwind_libunwind_ops;
@@ -96,9 +98,13 @@ struct thread *thread__main_thread(struct machine *machine, struct thread *threa
 
 struct map *thread__find_map(struct thread *thread, u8 cpumode, u64 addr,
 			     struct addr_location *al);
+struct map *thread__find_map_fb(struct thread *thread, u8 cpumode, u64 addr,
+				struct addr_location *al);
 
 struct symbol *thread__find_symbol(struct thread *thread, u8 cpumode,
 				   u64 addr, struct addr_location *al);
+struct symbol *thread__find_symbol_fb(struct thread *thread, u8 cpumode,
+				      u64 addr, struct addr_location *al);
 
 void thread__find_cpumode_addr_location(struct thread *thread, u64 addr,
 					struct addr_location *al);

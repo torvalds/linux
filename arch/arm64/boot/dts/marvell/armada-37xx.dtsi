@@ -234,6 +234,11 @@
 					groups = "uart2";
 					function = "uart";
 				};
+
+				mmc_pins: mmc-pins {
+					groups = "emmc_nb";
+					function = "emmc";
+				};
 			};
 
 			nb_pm: syscon@14000 {
@@ -264,6 +269,11 @@
 				rgmii_pins: mii-pins {
 					groups = "rgmii";
 					function = "mii";
+				};
+
+				sdio_pins: sdio-pins {
+					groups = "sdio_sb";
+					function = "sdio";
 				};
 
 			};

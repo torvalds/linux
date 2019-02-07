@@ -30,6 +30,7 @@
 #include "gc/gc_9_0_offset.h"
 #include "gc/gc_9_0_sh_mask.h"
 #include "sdma0/sdma0_4_0_sh_mask.h"
+#include "amdgpu_amdkfd.h"
 
 static inline struct v9_mqd *get_mqd(void *mqd)
 {
@@ -83,7 +84,7 @@ static int init_mqd(struct mqd_manager *mm, void **mqd,
 		*mqd_mem_obj = kzalloc(sizeof(struct kfd_mem_obj), GFP_KERNEL);
 		if (!*mqd_mem_obj)
 			return -ENOMEM;
-		retval = kfd->kfd2kgd->init_gtt_mem_allocation(kfd->kgd,
+		retval = amdgpu_amdkfd_alloc_gtt_mem(kfd->kgd,
 			ALIGN(q->ctl_stack_size, PAGE_SIZE) +
 				ALIGN(sizeof(struct v9_mqd), PAGE_SIZE),
 			&((*mqd_mem_obj)->gtt_mem),
@@ -250,7 +251,7 @@ static void uninit_mqd(struct mqd_manager *mm, void *mqd,
 	struct kfd_dev *kfd = mm->dev;
 
 	if (mqd_mem_obj->gtt_mem) {
-		kfd->kfd2kgd->free_gtt_mem(kfd->kgd, mqd_mem_obj->gtt_mem);
+		amdgpu_amdkfd_free_gtt_mem(kfd->kgd, mqd_mem_obj->gtt_mem);
 		kfree(mqd_mem_obj);
 	} else {
 		kfd_gtt_sa_free(mm->dev, mqd_mem_obj);

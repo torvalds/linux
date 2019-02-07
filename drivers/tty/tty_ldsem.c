@@ -34,29 +34,6 @@
 #include <linux/sched/task.h>
 
 
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
-# define __acq(l, s, t, r, c, n, i)		\
-				lock_acquire(&(l)->dep_map, s, t, r, c, n, i)
-# define __rel(l, n, i)				\
-				lock_release(&(l)->dep_map, n, i)
-#define lockdep_acquire(l, s, t, i)		__acq(l, s, t, 0, 1, NULL, i)
-#define lockdep_acquire_nest(l, s, t, n, i)	__acq(l, s, t, 0, 1, n, i)
-#define lockdep_acquire_read(l, s, t, i)	__acq(l, s, t, 1, 1, NULL, i)
-#define lockdep_release(l, n, i)		__rel(l, n, i)
-#else
-# define lockdep_acquire(l, s, t, i)		do { } while (0)
-# define lockdep_acquire_nest(l, s, t, n, i)	do { } while (0)
-# define lockdep_acquire_read(l, s, t, i)	do { } while (0)
-# define lockdep_release(l, n, i)		do { } while (0)
-#endif
-
-#ifdef CONFIG_LOCK_STAT
-# define lock_stat(_lock, stat)		lock_##stat(&(_lock)->dep_map, _RET_IP_)
-#else
-# define lock_stat(_lock, stat)		do { } while (0)
-#endif
-
-
 #if BITS_PER_LONG == 64
 # define LDSEM_ACTIVE_MASK	0xffffffffL
 #else
@@ -235,6 +212,7 @@ down_read_failed(struct ld_semaphore *sem, long count, long timeout)
 		raw_spin_lock_irq(&sem->wait_lock);
 		if (waiter.task) {
 			atomic_long_add_return(-LDSEM_WAIT_BIAS, &sem->count);
+			sem->wait_readers--;
 			list_del(&waiter.list);
 			raw_spin_unlock_irq(&sem->wait_lock);
 			put_task_struct(waiter.task);
@@ -293,6 +271,16 @@ down_write_failed(struct ld_semaphore *sem, long count, long timeout)
 	if (!locked)
 		atomic_long_add_return(-LDSEM_WAIT_BIAS, &sem->count);
 	list_del(&waiter.list);
+
+	/*
+	 * In case of timeout, wake up every reader who gave the right of way
+	 * to writer. Prevent separation readers into two groups:
+	 * one that helds semaphore and another that sleeps.
+	 * (in case of no contention with a writer)
+	 */
+	if (!locked && list_empty(&sem->write_wait))
+		__ldsem_wake_readers(sem);
+
 	raw_spin_unlock_irq(&sem->wait_lock);
 
 	__set_current_state(TASK_RUNNING);
@@ -310,17 +298,17 @@ static int __ldsem_down_read_nested(struct ld_semaphore *sem,
 {
 	long count;
 
-	lockdep_acquire_read(sem, subclass, 0, _RET_IP_);
+	rwsem_acquire_read(&sem->dep_map, subclass, 0, _RET_IP_);
 
 	count = atomic_long_add_return(LDSEM_READ_BIAS, &sem->count);
 	if (count <= 0) {
-		lock_stat(sem, contended);
+		lock_contended(&sem->dep_map, _RET_IP_);
 		if (!down_read_failed(sem, count, timeout)) {
-			lockdep_release(sem, 1, _RET_IP_);
+			rwsem_release(&sem->dep_map, 1, _RET_IP_);
 			return 0;
 		}
 	}
-	lock_stat(sem, acquired);
+	lock_acquired(&sem->dep_map, _RET_IP_);
 	return 1;
 }
 
@@ -329,17 +317,17 @@ static int __ldsem_down_write_nested(struct ld_semaphore *sem,
 {
 	long count;
 
-	lockdep_acquire(sem, subclass, 0, _RET_IP_);
+	rwsem_acquire(&sem->dep_map, subclass, 0, _RET_IP_);
 
 	count = atomic_long_add_return(LDSEM_WRITE_BIAS, &sem->count);
 	if ((count & LDSEM_ACTIVE_MASK) != LDSEM_ACTIVE_BIAS) {
-		lock_stat(sem, contended);
+		lock_contended(&sem->dep_map, _RET_IP_);
 		if (!down_write_failed(sem, count, timeout)) {
-			lockdep_release(sem, 1, _RET_IP_);
+			rwsem_release(&sem->dep_map, 1, _RET_IP_);
 			return 0;
 		}
 	}
-	lock_stat(sem, acquired);
+	lock_acquired(&sem->dep_map, _RET_IP_);
 	return 1;
 }
 
@@ -362,8 +350,8 @@ int ldsem_down_read_trylock(struct ld_semaphore *sem)
 
 	while (count >= 0) {
 		if (atomic_long_try_cmpxchg(&sem->count, &count, count + LDSEM_READ_BIAS)) {
-			lockdep_acquire_read(sem, 0, 1, _RET_IP_);
-			lock_stat(sem, acquired);
+			rwsem_acquire_read(&sem->dep_map, 0, 1, _RET_IP_);
+			lock_acquired(&sem->dep_map, _RET_IP_);
 			return 1;
 		}
 	}
@@ -388,8 +376,8 @@ int ldsem_down_write_trylock(struct ld_semaphore *sem)
 
 	while ((count & LDSEM_ACTIVE_MASK) == 0) {
 		if (atomic_long_try_cmpxchg(&sem->count, &count, count + LDSEM_WRITE_BIAS)) {
-			lockdep_acquire(sem, 0, 1, _RET_IP_);
-			lock_stat(sem, acquired);
+			rwsem_acquire(&sem->dep_map, 0, 1, _RET_IP_);
+			lock_acquired(&sem->dep_map, _RET_IP_);
 			return 1;
 		}
 	}
@@ -403,7 +391,7 @@ void ldsem_up_read(struct ld_semaphore *sem)
 {
 	long count;
 
-	lockdep_release(sem, 1, _RET_IP_);
+	rwsem_release(&sem->dep_map, 1, _RET_IP_);
 
 	count = atomic_long_add_return(-LDSEM_READ_BIAS, &sem->count);
 	if (count < 0 && (count & LDSEM_ACTIVE_MASK) == 0)
@@ -417,7 +405,7 @@ void ldsem_up_write(struct ld_semaphore *sem)
 {
 	long count;
 
-	lockdep_release(sem, 1, _RET_IP_);
+	rwsem_release(&sem->dep_map, 1, _RET_IP_);
 
 	count = atomic_long_add_return(-LDSEM_WRITE_BIAS, &sem->count);
 	if (count < 0)

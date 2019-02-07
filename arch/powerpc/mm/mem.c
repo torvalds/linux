@@ -139,7 +139,8 @@ int __meminit arch_add_memory(int nid, u64 start, u64 size, struct vmem_altmap *
 }
 
 #ifdef CONFIG_MEMORY_HOTREMOVE
-int __meminit arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap)
+int __meminit arch_remove_memory(int nid, u64 start, u64 size,
+					struct vmem_altmap *altmap)
 {
 	unsigned long start_pfn = start >> PAGE_SHIFT;
 	unsigned long nr_pages = size >> PAGE_SHIFT;
@@ -246,35 +247,19 @@ static int __init mark_nonram_nosave(void)
 }
 #endif
 
-static bool zone_limits_final;
-
 /*
- * The memory zones past TOP_ZONE are managed by generic mm code.
- * These should be set to zero since that's what every other
- * architecture does.
+ * Zones usage:
+ *
+ * We setup ZONE_DMA to be 31-bits on all platforms and ZONE_NORMAL to be
+ * everything else. GFP_DMA32 page allocations automatically fall back to
+ * ZONE_DMA.
+ *
+ * By using 31-bit unconditionally, we can exploit ARCH_ZONE_DMA_BITS to
+ * inform the generic DMA mapping code.  32-bit only devices (if not handled
+ * by an IOMMU anyway) will take a first dip into ZONE_NORMAL and get
+ * otherwise served by ZONE_DMA.
  */
-static unsigned long max_zone_pfns[MAX_NR_ZONES] = {
-	[0            ... TOP_ZONE        ] = ~0UL,
-	[TOP_ZONE + 1 ... MAX_NR_ZONES - 1] = 0
-};
-
-/*
- * Restrict the specified zone and all more restrictive zones
- * to be below the specified pfn.  May not be called after
- * paging_init().
- */
-void __init limit_zone_pfn(enum zone_type zone, unsigned long pfn_limit)
-{
-	int i;
-
-	if (WARN_ON(zone_limits_final))
-		return;
-
-	for (i = zone; i >= 0; i--) {
-		if (max_zone_pfns[i] > pfn_limit)
-			max_zone_pfns[i] = pfn_limit;
-	}
-}
+static unsigned long max_zone_pfns[MAX_NR_ZONES];
 
 /*
  * Find the least restrictive zone that is entirely below the
@@ -324,11 +309,14 @@ void __init paging_init(void)
 	printk(KERN_DEBUG "Memory hole size: %ldMB\n",
 	       (long int)((top_of_ram - total_ram) >> 20));
 
-#ifdef CONFIG_HIGHMEM
-	limit_zone_pfn(ZONE_NORMAL, lowmem_end_addr >> PAGE_SHIFT);
+#ifdef CONFIG_ZONE_DMA
+	max_zone_pfns[ZONE_DMA]	= min(max_low_pfn, 0x7fffffffUL >> PAGE_SHIFT);
 #endif
-	limit_zone_pfn(TOP_ZONE, top_of_ram >> PAGE_SHIFT);
-	zone_limits_final = true;
+	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
+#ifdef CONFIG_HIGHMEM
+	max_zone_pfns[ZONE_HIGHMEM] = max_pfn;
+#endif
+
 	free_area_init_nodes(max_zone_pfns);
 
 	mark_nonram_nosave();
@@ -503,7 +491,7 @@ EXPORT_SYMBOL(flush_icache_user_range);
 void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
 		      pte_t *ptep)
 {
-#ifdef CONFIG_PPC_STD_MMU
+#ifdef CONFIG_PPC_BOOK3S
 	/*
 	 * We don't need to worry about _PAGE_PRESENT here because we are
 	 * called with either mm->page_table_lock held or ptl lock held
@@ -541,7 +529,7 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
 	}
 
 	hash_preload(vma->vm_mm, address, is_exec, trap);
-#endif /* CONFIG_PPC_STD_MMU */
+#endif /* CONFIG_PPC_BOOK3S */
 #if (defined(CONFIG_PPC_BOOK3E_64) || defined(CONFIG_PPC_FSL_BOOK3E)) \
 	&& defined(CONFIG_HUGETLB_PAGE)
 	if (is_vm_hugetlb_page(vma))

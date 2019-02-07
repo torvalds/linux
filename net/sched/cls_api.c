@@ -25,6 +25,7 @@
 #include <linux/kmod.h>
 #include <linux/slab.h>
 #include <linux/idr.h>
+#include <linux/rhashtable.h>
 #include <net/net_namespace.h>
 #include <net/sock.h>
 #include <net/netlink.h>
@@ -365,6 +366,245 @@ static void tcf_chain_flush(struct tcf_chain *chain)
 	}
 }
 
+static struct tcf_block *tc_dev_ingress_block(struct net_device *dev)
+{
+	const struct Qdisc_class_ops *cops;
+	struct Qdisc *qdisc;
+
+	if (!dev_ingress_queue(dev))
+		return NULL;
+
+	qdisc = dev_ingress_queue(dev)->qdisc_sleeping;
+	if (!qdisc)
+		return NULL;
+
+	cops = qdisc->ops->cl_ops;
+	if (!cops)
+		return NULL;
+
+	if (!cops->tcf_block)
+		return NULL;
+
+	return cops->tcf_block(qdisc, TC_H_MIN_INGRESS, NULL);
+}
+
+static struct rhashtable indr_setup_block_ht;
+
+struct tc_indr_block_dev {
+	struct rhash_head ht_node;
+	struct net_device *dev;
+	unsigned int refcnt;
+	struct list_head cb_list;
+	struct tcf_block *block;
+};
+
+struct tc_indr_block_cb {
+	struct list_head list;
+	void *cb_priv;
+	tc_indr_block_bind_cb_t *cb;
+	void *cb_ident;
+};
+
+static const struct rhashtable_params tc_indr_setup_block_ht_params = {
+	.key_offset	= offsetof(struct tc_indr_block_dev, dev),
+	.head_offset	= offsetof(struct tc_indr_block_dev, ht_node),
+	.key_len	= sizeof(struct net_device *),
+};
+
+static struct tc_indr_block_dev *
+tc_indr_block_dev_lookup(struct net_device *dev)
+{
+	return rhashtable_lookup_fast(&indr_setup_block_ht, &dev,
+				      tc_indr_setup_block_ht_params);
+}
+
+static struct tc_indr_block_dev *tc_indr_block_dev_get(struct net_device *dev)
+{
+	struct tc_indr_block_dev *indr_dev;
+
+	indr_dev = tc_indr_block_dev_lookup(dev);
+	if (indr_dev)
+		goto inc_ref;
+
+	indr_dev = kzalloc(sizeof(*indr_dev), GFP_KERNEL);
+	if (!indr_dev)
+		return NULL;
+
+	INIT_LIST_HEAD(&indr_dev->cb_list);
+	indr_dev->dev = dev;
+	indr_dev->block = tc_dev_ingress_block(dev);
+	if (rhashtable_insert_fast(&indr_setup_block_ht, &indr_dev->ht_node,
+				   tc_indr_setup_block_ht_params)) {
+		kfree(indr_dev);
+		return NULL;
+	}
+
+inc_ref:
+	indr_dev->refcnt++;
+	return indr_dev;
+}
+
+static void tc_indr_block_dev_put(struct tc_indr_block_dev *indr_dev)
+{
+	if (--indr_dev->refcnt)
+		return;
+
+	rhashtable_remove_fast(&indr_setup_block_ht, &indr_dev->ht_node,
+			       tc_indr_setup_block_ht_params);
+	kfree(indr_dev);
+}
+
+static struct tc_indr_block_cb *
+tc_indr_block_cb_lookup(struct tc_indr_block_dev *indr_dev,
+			tc_indr_block_bind_cb_t *cb, void *cb_ident)
+{
+	struct tc_indr_block_cb *indr_block_cb;
+
+	list_for_each_entry(indr_block_cb, &indr_dev->cb_list, list)
+		if (indr_block_cb->cb == cb &&
+		    indr_block_cb->cb_ident == cb_ident)
+			return indr_block_cb;
+	return NULL;
+}
+
+static struct tc_indr_block_cb *
+tc_indr_block_cb_add(struct tc_indr_block_dev *indr_dev, void *cb_priv,
+		     tc_indr_block_bind_cb_t *cb, void *cb_ident)
+{
+	struct tc_indr_block_cb *indr_block_cb;
+
+	indr_block_cb = tc_indr_block_cb_lookup(indr_dev, cb, cb_ident);
+	if (indr_block_cb)
+		return ERR_PTR(-EEXIST);
+
+	indr_block_cb = kzalloc(sizeof(*indr_block_cb), GFP_KERNEL);
+	if (!indr_block_cb)
+		return ERR_PTR(-ENOMEM);
+
+	indr_block_cb->cb_priv = cb_priv;
+	indr_block_cb->cb = cb;
+	indr_block_cb->cb_ident = cb_ident;
+	list_add(&indr_block_cb->list, &indr_dev->cb_list);
+
+	return indr_block_cb;
+}
+
+static void tc_indr_block_cb_del(struct tc_indr_block_cb *indr_block_cb)
+{
+	list_del(&indr_block_cb->list);
+	kfree(indr_block_cb);
+}
+
+static void tc_indr_block_ing_cmd(struct tc_indr_block_dev *indr_dev,
+				  struct tc_indr_block_cb *indr_block_cb,
+				  enum tc_block_command command)
+{
+	struct tc_block_offload bo = {
+		.command	= command,
+		.binder_type	= TCF_BLOCK_BINDER_TYPE_CLSACT_INGRESS,
+		.block		= indr_dev->block,
+	};
+
+	if (!indr_dev->block)
+		return;
+
+	indr_block_cb->cb(indr_dev->dev, indr_block_cb->cb_priv, TC_SETUP_BLOCK,
+			  &bo);
+}
+
+int __tc_indr_block_cb_register(struct net_device *dev, void *cb_priv,
+				tc_indr_block_bind_cb_t *cb, void *cb_ident)
+{
+	struct tc_indr_block_cb *indr_block_cb;
+	struct tc_indr_block_dev *indr_dev;
+	int err;
+
+	indr_dev = tc_indr_block_dev_get(dev);
+	if (!indr_dev)
+		return -ENOMEM;
+
+	indr_block_cb = tc_indr_block_cb_add(indr_dev, cb_priv, cb, cb_ident);
+	err = PTR_ERR_OR_ZERO(indr_block_cb);
+	if (err)
+		goto err_dev_put;
+
+	tc_indr_block_ing_cmd(indr_dev, indr_block_cb, TC_BLOCK_BIND);
+	return 0;
+
+err_dev_put:
+	tc_indr_block_dev_put(indr_dev);
+	return err;
+}
+EXPORT_SYMBOL_GPL(__tc_indr_block_cb_register);
+
+int tc_indr_block_cb_register(struct net_device *dev, void *cb_priv,
+			      tc_indr_block_bind_cb_t *cb, void *cb_ident)
+{
+	int err;
+
+	rtnl_lock();
+	err = __tc_indr_block_cb_register(dev, cb_priv, cb, cb_ident);
+	rtnl_unlock();
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(tc_indr_block_cb_register);
+
+void __tc_indr_block_cb_unregister(struct net_device *dev,
+				   tc_indr_block_bind_cb_t *cb, void *cb_ident)
+{
+	struct tc_indr_block_cb *indr_block_cb;
+	struct tc_indr_block_dev *indr_dev;
+
+	indr_dev = tc_indr_block_dev_lookup(dev);
+	if (!indr_dev)
+		return;
+
+	indr_block_cb = tc_indr_block_cb_lookup(indr_dev, cb, cb_ident);
+	if (!indr_block_cb)
+		return;
+
+	/* Send unbind message if required to free any block cbs. */
+	tc_indr_block_ing_cmd(indr_dev, indr_block_cb, TC_BLOCK_UNBIND);
+	tc_indr_block_cb_del(indr_block_cb);
+	tc_indr_block_dev_put(indr_dev);
+}
+EXPORT_SYMBOL_GPL(__tc_indr_block_cb_unregister);
+
+void tc_indr_block_cb_unregister(struct net_device *dev,
+				 tc_indr_block_bind_cb_t *cb, void *cb_ident)
+{
+	rtnl_lock();
+	__tc_indr_block_cb_unregister(dev, cb, cb_ident);
+	rtnl_unlock();
+}
+EXPORT_SYMBOL_GPL(tc_indr_block_cb_unregister);
+
+static void tc_indr_block_call(struct tcf_block *block, struct net_device *dev,
+			       struct tcf_block_ext_info *ei,
+			       enum tc_block_command command,
+			       struct netlink_ext_ack *extack)
+{
+	struct tc_indr_block_cb *indr_block_cb;
+	struct tc_indr_block_dev *indr_dev;
+	struct tc_block_offload bo = {
+		.command	= command,
+		.binder_type	= ei->binder_type,
+		.block		= block,
+		.extack		= extack,
+	};
+
+	indr_dev = tc_indr_block_dev_lookup(dev);
+	if (!indr_dev)
+		return;
+
+	indr_dev->block = command == TC_BLOCK_BIND ? block : NULL;
+
+	list_for_each_entry(indr_block_cb, &indr_dev->cb_list, list)
+		indr_block_cb->cb(dev, indr_block_cb->cb_priv, TC_SETUP_BLOCK,
+				  &bo);
+}
+
 static bool tcf_block_offload_in_use(struct tcf_block *block)
 {
 	return block->offloadcnt;
@@ -406,12 +646,17 @@ static int tcf_block_offload_bind(struct tcf_block *block, struct Qdisc *q,
 	err = tcf_block_offload_cmd(block, dev, ei, TC_BLOCK_BIND, extack);
 	if (err == -EOPNOTSUPP)
 		goto no_offload_dev_inc;
-	return err;
+	if (err)
+		return err;
+
+	tc_indr_block_call(block, dev, ei, TC_BLOCK_BIND, extack);
+	return 0;
 
 no_offload_dev_inc:
 	if (tcf_block_offload_in_use(block))
 		return -EOPNOTSUPP;
 	block->nooffloaddevcnt++;
+	tc_indr_block_call(block, dev, ei, TC_BLOCK_BIND, extack);
 	return 0;
 }
 
@@ -420,6 +665,8 @@ static void tcf_block_offload_unbind(struct tcf_block *block, struct Qdisc *q,
 {
 	struct net_device *dev = q->dev_queue->dev;
 	int err;
+
+	tc_indr_block_call(block, dev, ei, TC_BLOCK_UNBIND, NULL);
 
 	if (!dev->netdev_ops->ndo_setup_tc)
 		goto no_offload_dev_dec;
@@ -1023,29 +1270,6 @@ void tcf_block_cb_unregister(struct tcf_block *block,
 }
 EXPORT_SYMBOL(tcf_block_cb_unregister);
 
-static int tcf_block_cb_call(struct tcf_block *block, enum tc_setup_type type,
-			     void *type_data, bool err_stop)
-{
-	struct tcf_block_cb *block_cb;
-	int ok_count = 0;
-	int err;
-
-	/* Make sure all netdevs sharing this block are offload-capable. */
-	if (block->nooffloaddevcnt && err_stop)
-		return -EOPNOTSUPP;
-
-	list_for_each_entry(block_cb, &block->cb_list, list) {
-		err = block_cb->cb(type, type_data, block_cb->cb_priv);
-		if (err) {
-			if (err_stop)
-				return err;
-		} else {
-			ok_count++;
-		}
-	}
-	return ok_count;
-}
-
 /* Main classifier routine: scans classifier chain attached
  * to this qdisc, (optionally) tests for protocol and asks
  * specific classifiers.
@@ -1053,7 +1277,6 @@ static int tcf_block_cb_call(struct tcf_block *block, enum tc_setup_type type,
 int tcf_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 		 struct tcf_result *res, bool compat_mode)
 {
-	__be16 protocol = tc_skb_protocol(skb);
 #ifdef CONFIG_NET_CLS_ACT
 	const int max_reclassify_loop = 4;
 	const struct tcf_proto *orig_tp = tp;
@@ -1063,6 +1286,7 @@ int tcf_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 reclassify:
 #endif
 	for (; tp; tp = rcu_dereference_bh(tp->next)) {
+		__be16 protocol = tc_skb_protocol(skb);
 		int err;
 
 		if (tp->protocol != protocol &&
@@ -1095,7 +1319,6 @@ reset:
 	}
 
 	tp = first_tp;
-	protocol = tc_skb_protocol(skb);
 	goto reclassify;
 #endif
 }
@@ -2268,54 +2491,26 @@ int tcf_exts_dump_stats(struct sk_buff *skb, struct tcf_exts *exts)
 }
 EXPORT_SYMBOL(tcf_exts_dump_stats);
 
-static int tc_exts_setup_cb_egdev_call(struct tcf_exts *exts,
-				       enum tc_setup_type type,
-				       void *type_data, bool err_stop)
+int tc_setup_cb_call(struct tcf_block *block, enum tc_setup_type type,
+		     void *type_data, bool err_stop)
 {
+	struct tcf_block_cb *block_cb;
 	int ok_count = 0;
-#ifdef CONFIG_NET_CLS_ACT
-	const struct tc_action *a;
-	struct net_device *dev;
-	int i, ret;
+	int err;
 
-	if (!tcf_exts_has_actions(exts))
-		return 0;
+	/* Make sure all netdevs sharing this block are offload-capable. */
+	if (block->nooffloaddevcnt && err_stop)
+		return -EOPNOTSUPP;
 
-	for (i = 0; i < exts->nr_actions; i++) {
-		a = exts->actions[i];
-		if (!a->ops->get_dev)
-			continue;
-		dev = a->ops->get_dev(a);
-		if (!dev)
-			continue;
-		ret = tc_setup_cb_egdev_call(dev, type, type_data, err_stop);
-		a->ops->put_dev(dev);
-		if (ret < 0)
-			return ret;
-		ok_count += ret;
+	list_for_each_entry(block_cb, &block->cb_list, list) {
+		err = block_cb->cb(type, type_data, block_cb->cb_priv);
+		if (err) {
+			if (err_stop)
+				return err;
+		} else {
+			ok_count++;
+		}
 	}
-#endif
-	return ok_count;
-}
-
-int tc_setup_cb_call(struct tcf_block *block, struct tcf_exts *exts,
-		     enum tc_setup_type type, void *type_data, bool err_stop)
-{
-	int ok_count;
-	int ret;
-
-	ret = tcf_block_cb_call(block, type, type_data, err_stop);
-	if (ret < 0)
-		return ret;
-	ok_count = ret;
-
-	if (!exts || ok_count)
-		return ok_count;
-	ret = tc_exts_setup_cb_egdev_call(exts, type, type_data, err_stop);
-	if (ret < 0)
-		return ret;
-	ok_count += ret;
-
 	return ok_count;
 }
 EXPORT_SYMBOL(tc_setup_cb_call);
@@ -2355,6 +2550,11 @@ static int __init tc_filter_init(void)
 	if (err)
 		goto err_register_pernet_subsys;
 
+	err = rhashtable_init(&indr_setup_block_ht,
+			      &tc_indr_setup_block_ht_params);
+	if (err)
+		goto err_rhash_setup_block_ht;
+
 	rtnl_register(PF_UNSPEC, RTM_NEWTFILTER, tc_new_tfilter, NULL, 0);
 	rtnl_register(PF_UNSPEC, RTM_DELTFILTER, tc_del_tfilter, NULL, 0);
 	rtnl_register(PF_UNSPEC, RTM_GETTFILTER, tc_get_tfilter,
@@ -2366,6 +2566,8 @@ static int __init tc_filter_init(void)
 
 	return 0;
 
+err_rhash_setup_block_ht:
+	unregister_pernet_subsys(&tcf_net_ops);
 err_register_pernet_subsys:
 	destroy_workqueue(tc_filter_wq);
 	return err;

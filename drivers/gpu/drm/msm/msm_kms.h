@@ -67,9 +67,6 @@ struct msm_kms_funcs {
 	void (*set_encoder_mode)(struct msm_kms *kms,
 				 struct drm_encoder *encoder,
 				 bool cmd_mode);
-	/* pm suspend/resume hooks */
-	int (*pm_suspend)(struct device *dev);
-	int (*pm_resume)(struct device *dev);
 	/* cleanup: */
 	void (*destroy)(struct msm_kms *kms);
 #ifdef CONFIG_DEBUG_FS

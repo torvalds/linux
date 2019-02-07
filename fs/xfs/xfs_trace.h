@@ -640,6 +640,16 @@ DEFINE_INODE_EVENT(xfs_inode_set_cowblocks_tag);
 DEFINE_INODE_EVENT(xfs_inode_clear_cowblocks_tag);
 DEFINE_INODE_EVENT(xfs_inode_free_cowblocks_invalid);
 
+/*
+ * ftrace's __print_symbolic requires that all enum values be wrapped in the
+ * TRACE_DEFINE_ENUM macro so that the enum value can be encoded in the ftrace
+ * ring buffer.  Somehow this was only worth mentioning in the ftrace sample
+ * code.
+ */
+TRACE_DEFINE_ENUM(PE_SIZE_PTE);
+TRACE_DEFINE_ENUM(PE_SIZE_PMD);
+TRACE_DEFINE_ENUM(PE_SIZE_PUD);
+
 TRACE_EVENT(xfs_filemap_fault,
 	TP_PROTO(struct xfs_inode *ip, enum page_entry_size pe_size,
 		 bool write_fault),
@@ -1207,6 +1217,12 @@ DEFINE_EVENT(xfs_readpage_class, name,	\
 	TP_ARGS(inode, nr_pages))
 DEFINE_READPAGE_EVENT(xfs_vm_readpage);
 DEFINE_READPAGE_EVENT(xfs_vm_readpages);
+
+TRACE_DEFINE_ENUM(XFS_IO_HOLE);
+TRACE_DEFINE_ENUM(XFS_IO_DELALLOC);
+TRACE_DEFINE_ENUM(XFS_IO_UNWRITTEN);
+TRACE_DEFINE_ENUM(XFS_IO_OVERWRITE);
+TRACE_DEFINE_ENUM(XFS_IO_COW);
 
 DECLARE_EVENT_CLASS(xfs_imap_class,
 	TP_PROTO(struct xfs_inode *ip, xfs_off_t offset, ssize_t count,
@@ -1885,11 +1901,11 @@ TRACE_EVENT(xfs_dir2_leafn_moveents,
 	{ 0,	"target" }, \
 	{ 1,	"temp" }
 
-#define XFS_INODE_FORMAT_STR \
-	{ 0,	"invalid" }, \
-	{ 1,	"local" }, \
-	{ 2,	"extent" }, \
-	{ 3,	"btree" }
+TRACE_DEFINE_ENUM(XFS_DINODE_FMT_DEV);
+TRACE_DEFINE_ENUM(XFS_DINODE_FMT_LOCAL);
+TRACE_DEFINE_ENUM(XFS_DINODE_FMT_EXTENTS);
+TRACE_DEFINE_ENUM(XFS_DINODE_FMT_BTREE);
+TRACE_DEFINE_ENUM(XFS_DINODE_FMT_UUID);
 
 DECLARE_EVENT_CLASS(xfs_swap_extent_class,
 	TP_PROTO(struct xfs_inode *ip, int which),
@@ -2178,6 +2194,14 @@ DEFINE_DISCARD_EVENT(xfs_discard_exclude);
 DEFINE_DISCARD_EVENT(xfs_discard_busy);
 
 /* btree cursor events */
+TRACE_DEFINE_ENUM(XFS_BTNUM_BNOi);
+TRACE_DEFINE_ENUM(XFS_BTNUM_CNTi);
+TRACE_DEFINE_ENUM(XFS_BTNUM_BMAPi);
+TRACE_DEFINE_ENUM(XFS_BTNUM_INOi);
+TRACE_DEFINE_ENUM(XFS_BTNUM_FINOi);
+TRACE_DEFINE_ENUM(XFS_BTNUM_RMAPi);
+TRACE_DEFINE_ENUM(XFS_BTNUM_REFCi);
+
 DECLARE_EVENT_CLASS(xfs_btree_cur_class,
 	TP_PROTO(struct xfs_btree_cur *cur, int level, struct xfs_buf *bp),
 	TP_ARGS(cur, level, bp),
@@ -2197,9 +2221,9 @@ DECLARE_EVENT_CLASS(xfs_btree_cur_class,
 		__entry->ptr = cur->bc_ptrs[level];
 		__entry->daddr = bp ? bp->b_bn : -1;
 	),
-	TP_printk("dev %d:%d btnum %d level %d/%d ptr %d daddr 0x%llx",
+	TP_printk("dev %d:%d btree %s level %d/%d ptr %d daddr 0x%llx",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->btnum,
+		  __print_symbolic(__entry->btnum, XFS_BTNUM_STRINGS),
 		  __entry->level,
 		  __entry->nlevels,
 		  __entry->ptr,
@@ -2276,7 +2300,7 @@ DECLARE_EVENT_CLASS(xfs_defer_pending_class,
 	),
 	TP_fast_assign(
 		__entry->dev = mp ? mp->m_super->s_dev : 0;
-		__entry->type = dfp->dfp_type->type;
+		__entry->type = dfp->dfp_type;
 		__entry->intent = dfp->dfp_intent;
 		__entry->committed = dfp->dfp_done != NULL;
 		__entry->nr = dfp->dfp_count;
@@ -2405,7 +2429,7 @@ DEFINE_BMAP_FREE_DEFERRED_EVENT(xfs_agfl_free_deferred);
 DECLARE_EVENT_CLASS(xfs_rmap_class,
 	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
 		 xfs_agblock_t agbno, xfs_extlen_t len, bool unwritten,
-		 struct xfs_owner_info *oinfo),
+		 const struct xfs_owner_info *oinfo),
 	TP_ARGS(mp, agno, agbno, len, unwritten, oinfo),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
@@ -2440,7 +2464,7 @@ DECLARE_EVENT_CLASS(xfs_rmap_class,
 DEFINE_EVENT(xfs_rmap_class, name, \
 	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno, \
 		 xfs_agblock_t agbno, xfs_extlen_t len, bool unwritten, \
-		 struct xfs_owner_info *oinfo), \
+		 const struct xfs_owner_info *oinfo), \
 	TP_ARGS(mp, agno, agbno, len, unwritten, oinfo))
 
 /* simple AG-based error/%ip tracepoint class */
@@ -2610,10 +2634,9 @@ DEFINE_AG_ERROR_EVENT(xfs_ag_resv_init_error);
 #define DEFINE_AG_EXTENT_EVENT(name) DEFINE_DISCARD_EVENT(name)
 
 /* ag btree lookup tracepoint class */
-#define XFS_AG_BTREE_CMP_FORMAT_STR \
-	{ XFS_LOOKUP_EQ,	"eq" }, \
-	{ XFS_LOOKUP_LE,	"le" }, \
-	{ XFS_LOOKUP_GE,	"ge" }
+TRACE_DEFINE_ENUM(XFS_LOOKUP_EQi);
+TRACE_DEFINE_ENUM(XFS_LOOKUP_LEi);
+TRACE_DEFINE_ENUM(XFS_LOOKUP_GEi);
 DECLARE_EVENT_CLASS(xfs_ag_btree_lookup_class,
 	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
 		 xfs_agblock_t agbno, xfs_lookup_t dir),

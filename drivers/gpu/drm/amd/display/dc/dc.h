@@ -36,9 +36,10 @@
 
 #include "inc/hw_sequencer.h"
 #include "inc/compressor.h"
+#include "inc/hw/dmcu.h"
 #include "dml/display_mode_lib.h"
 
-#define DC_VER "3.1.68"
+#define DC_VER "3.2.08"
 
 #define MAX_SURFACES 3
 #define MAX_STREAMS 6
@@ -47,13 +48,6 @@
 /*******************************************************************************
  * Display Core Interfaces
  ******************************************************************************/
-struct dmcu_version {
-	unsigned int date;
-	unsigned int month;
-	unsigned int year;
-	unsigned int interface_version;
-};
-
 struct dc_versions {
 	const char *dc_ver;
 	struct dmcu_version dmcu_version;
@@ -250,8 +244,6 @@ struct dc_debug_options {
 	bool disable_dmcu;
 	bool disable_psr;
 	bool force_abm_enable;
-	bool disable_hbup_pg;
-	bool disable_dpp_pg;
 	bool disable_stereo_support;
 	bool vsr_support;
 	bool performance_trace;
@@ -304,11 +296,6 @@ struct dc {
 	/* HW functions */
 	struct hw_sequencer_funcs hwss;
 	struct dce_hwseq *hwseq;
-
-	/* temp store of dm_pp_display_configuration
-	 * to compare to see if display config changed
-	 */
-	struct dm_pp_display_configuration prev_display_config;
 
 	bool optimized_required;
 
@@ -755,5 +742,6 @@ void dc_set_power_state(
 		struct dc *dc,
 		enum dc_acpi_cm_power_state power_state);
 void dc_resume(struct dc *dc);
+bool dc_is_dmcu_initialized(struct dc *dc);
 
 #endif /* DC_INTERFACE_H_ */

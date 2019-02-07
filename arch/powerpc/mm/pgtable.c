@@ -74,7 +74,7 @@ static struct page *maybe_pte_to_page(pte_t pte)
  * support falls into the same category.
  */
 
-static pte_t set_pte_filter(pte_t pte)
+static pte_t set_pte_filter_hash(pte_t pte)
 {
 	if (radix_enabled())
 		return pte;
@@ -93,13 +93,11 @@ static pte_t set_pte_filter(pte_t pte)
 	return pte;
 }
 
-static pte_t set_access_flags_filter(pte_t pte, struct vm_area_struct *vma,
-				     int dirty)
-{
-	return pte;
-}
-
 #else /* CONFIG_PPC_BOOK3S */
+
+static pte_t set_pte_filter_hash(pte_t pte) { return pte; }
+
+#endif /* CONFIG_PPC_BOOK3S */
 
 /* Embedded type MMU with HW exec support. This is a bit more complicated
  * as we don't have two bits to spare for _PAGE_EXEC and _PAGE_HWEXEC so
@@ -108,6 +106,9 @@ static pte_t set_access_flags_filter(pte_t pte, struct vm_area_struct *vma,
 static pte_t set_pte_filter(pte_t pte)
 {
 	struct page *pg;
+
+	if (mmu_has_feature(MMU_FTR_HPTE_TABLE))
+		return set_pte_filter_hash(pte);
 
 	/* No exec permission in the first place, move on */
 	if (!pte_exec(pte) || !pte_looks_normal(pte))
@@ -137,6 +138,9 @@ static pte_t set_access_flags_filter(pte_t pte, struct vm_area_struct *vma,
 				     int dirty)
 {
 	struct page *pg;
+
+	if (mmu_has_feature(MMU_FTR_HPTE_TABLE))
+		return pte;
 
 	/* So here, we only care about exec faults, as we use them
 	 * to recover lost _PAGE_EXEC and perform I$/D$ coherency
@@ -171,8 +175,6 @@ static pte_t set_access_flags_filter(pte_t pte, struct vm_area_struct *vma,
  bail:
 	return pte_mkexec(pte);
 }
-
-#endif /* CONFIG_PPC_BOOK3S */
 
 /*
  * set_pte stores a linux PTE into the linux page table.
@@ -221,9 +223,9 @@ int ptep_set_access_flags(struct vm_area_struct *vma, unsigned long address,
 }
 
 #ifdef CONFIG_HUGETLB_PAGE
-extern int huge_ptep_set_access_flags(struct vm_area_struct *vma,
-				      unsigned long addr, pte_t *ptep,
-				      pte_t pte, int dirty)
+int huge_ptep_set_access_flags(struct vm_area_struct *vma,
+			       unsigned long addr, pte_t *ptep,
+			       pte_t pte, int dirty)
 {
 #ifdef HUGETLB_NEED_PRELOAD
 	/*

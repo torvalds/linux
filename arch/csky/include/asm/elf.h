@@ -7,7 +7,8 @@
 #include <asm/ptrace.h>
 #include <abi/regdef.h>
 
-#define ELF_ARCH 252
+#define ELF_ARCH EM_CSKY
+#define EM_CSKY_OLD 39
 
 /* CSKY Relocations */
 #define R_CSKY_NONE               0
@@ -31,14 +32,20 @@ typedef unsigned long elf_greg_t;
 
 typedef struct user_fp elf_fpregset_t;
 
-#define ELF_NGREG (sizeof(struct pt_regs) / sizeof(elf_greg_t))
+/*
+ * In gdb/bfd elf32-csky.c, csky_elf_grok_prstatus() use fixed size of
+ * elf_prstatus. It's 148 for abiv1 and 220 for abiv2, the size is enough
+ * for coredump and no need full sizeof(struct pt_regs).
+ */
+#define ELF_NGREG ((sizeof(struct pt_regs) / sizeof(elf_greg_t)) - 2)
 
 typedef elf_greg_t elf_gregset_t[ELF_NGREG];
 
 /*
  * This is used to ensure we don't load something for the wrong architecture.
  */
-#define elf_check_arch(x) ((x)->e_machine == ELF_ARCH)
+#define elf_check_arch(x) (((x)->e_machine == ELF_ARCH) || \
+			   ((x)->e_machine == EM_CSKY_OLD))
 
 /*
  * These are used to set parameters in the core dumps.

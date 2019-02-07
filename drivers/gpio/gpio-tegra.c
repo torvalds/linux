@@ -404,8 +404,7 @@ static void tegra_gpio_irq_handler(struct irq_desc *desc)
 #ifdef CONFIG_PM_SLEEP
 static int tegra_gpio_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct tegra_gpio_info *tgi = platform_get_drvdata(pdev);
+	struct tegra_gpio_info *tgi = dev_get_drvdata(dev);
 	unsigned long flags;
 	unsigned int b, p;
 
@@ -444,8 +443,7 @@ static int tegra_gpio_resume(struct device *dev)
 
 static int tegra_gpio_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct tegra_gpio_info *tgi = platform_get_drvdata(pdev);
+	struct tegra_gpio_info *tgi = dev_get_drvdata(dev);
 	unsigned long flags;
 	unsigned int b, p;
 

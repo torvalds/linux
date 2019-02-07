@@ -26,25 +26,25 @@ TRACE_EVENT(kvm_entry,
 );
 
 TRACE_EVENT(kvm_exit,
-	TP_PROTO(int idx, unsigned int exit_reason, unsigned long vcpu_pc),
-	TP_ARGS(idx, exit_reason, vcpu_pc),
+	TP_PROTO(int ret, unsigned int esr_ec, unsigned long vcpu_pc),
+	TP_ARGS(ret, esr_ec, vcpu_pc),
 
 	TP_STRUCT__entry(
-		__field(	int,		idx		)
-		__field(	unsigned int,	exit_reason	)
+		__field(	int,		ret		)
+		__field(	unsigned int,	esr_ec		)
 		__field(	unsigned long,	vcpu_pc		)
 	),
 
 	TP_fast_assign(
-		__entry->idx			= idx;
-		__entry->exit_reason		= exit_reason;
+		__entry->ret			= ARM_EXCEPTION_CODE(ret);
+		__entry->esr_ec = ARM_EXCEPTION_IS_TRAP(ret) ? esr_ec : 0;
 		__entry->vcpu_pc		= vcpu_pc;
 	),
 
 	TP_printk("%s: HSR_EC: 0x%04x (%s), PC: 0x%08lx",
-		  __print_symbolic(__entry->idx, kvm_arm_exception_type),
-		  __entry->exit_reason,
-		  __print_symbolic(__entry->exit_reason, kvm_arm_exception_class),
+		  __print_symbolic(__entry->ret, kvm_arm_exception_type),
+		  __entry->esr_ec,
+		  __print_symbolic(__entry->esr_ec, kvm_arm_exception_class),
 		  __entry->vcpu_pc)
 );
 

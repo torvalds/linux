@@ -213,6 +213,38 @@ static int trun_remove_range(struct ubifs_info *c, struct replay_entry *r)
 }
 
 /**
+ * inode_still_linked - check whether inode in question will be re-linked.
+ * @c: UBIFS file-system description object
+ * @rino: replay entry to test
+ *
+ * O_TMPFILE files can be re-linked, this means link count goes from 0 to 1.
+ * This case needs special care, otherwise all references to the inode will
+ * be removed upon the first replay entry of an inode with link count 0
+ * is found.
+ */
+static bool inode_still_linked(struct ubifs_info *c, struct replay_entry *rino)
+{
+	struct replay_entry *r;
+
+	ubifs_assert(c, rino->deletion);
+	ubifs_assert(c, key_type(c, &rino->key) == UBIFS_INO_KEY);
+
+	/*
+	 * Find the most recent entry for the inode behind @rino and check
+	 * whether it is a deletion.
+	 */
+	list_for_each_entry_reverse(r, &c->replay_list, list) {
+		ubifs_assert(c, r->sqnum >= rino->sqnum);
+		if (key_inum(c, &r->key) == key_inum(c, &rino->key))
+			return r->deletion == 0;
+
+	}
+
+	ubifs_assert(c, 0);
+	return false;
+}
+
+/**
  * apply_replay_entry - apply a replay entry to the TNC.
  * @c: UBIFS file-system description object
  * @r: replay entry to apply
@@ -238,6 +270,11 @@ static int apply_replay_entry(struct ubifs_info *c, struct replay_entry *r)
 			case UBIFS_INO_KEY:
 			{
 				ino_t inum = key_inum(c, &r->key);
+
+				if (inode_still_linked(c, r)) {
+					err = 0;
+					break;
+				}
 
 				err = ubifs_tnc_remove_ino(c, inum);
 				break;
@@ -533,6 +570,28 @@ static int is_last_bud(struct ubifs_info *c, struct ubifs_bud *bud)
 	return data == 0xFFFFFFFF;
 }
 
+/* authenticate_sleb_hash and authenticate_sleb_hmac are split out for stack usage */
+static int authenticate_sleb_hash(struct ubifs_info *c, struct shash_desc *log_hash, u8 *hash)
+{
+	SHASH_DESC_ON_STACK(hash_desc, c->hash_tfm);
+
+	hash_desc->tfm = c->hash_tfm;
+	hash_desc->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
+
+	ubifs_shash_copy_state(c, log_hash, hash_desc);
+	return crypto_shash_final(hash_desc, hash);
+}
+
+static int authenticate_sleb_hmac(struct ubifs_info *c, u8 *hash, u8 *hmac)
+{
+	SHASH_DESC_ON_STACK(hmac_desc, c->hmac_tfm);
+
+	hmac_desc->tfm = c->hmac_tfm;
+	hmac_desc->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
+
+	return crypto_shash_digest(hmac_desc, hash, c->hash_len, hmac);
+}
+
 /**
  * authenticate_sleb - authenticate one scan LEB
  * @c: UBIFS file-system description object
@@ -574,21 +633,12 @@ static int authenticate_sleb(struct ubifs_info *c, struct ubifs_scan_leb *sleb,
 
 		if (snod->type == UBIFS_AUTH_NODE) {
 			struct ubifs_auth_node *auth = snod->node;
-			SHASH_DESC_ON_STACK(hash_desc, c->hash_tfm);
-			SHASH_DESC_ON_STACK(hmac_desc, c->hmac_tfm);
 
-			hash_desc->tfm = c->hash_tfm;
-			hash_desc->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
-
-			ubifs_shash_copy_state(c, log_hash, hash_desc);
-			err = crypto_shash_final(hash_desc, hash);
+			err = authenticate_sleb_hash(c, log_hash, hash);
 			if (err)
 				goto out;
 
-			hmac_desc->tfm = c->hmac_tfm;
-			hmac_desc->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
-			err = crypto_shash_digest(hmac_desc, hash, c->hash_len,
-						  hmac);
+			err = authenticate_sleb_hmac(c, hash, hmac);
 			if (err)
 				goto out;
 

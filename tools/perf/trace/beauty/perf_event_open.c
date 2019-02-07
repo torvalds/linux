@@ -18,6 +18,8 @@
 static size_t syscall_arg__scnprintf_perf_flags(char *bf, size_t size,
 						struct syscall_arg *arg)
 {
+	bool show_prefix = arg->show_string_prefix;
+	const char *prefix = "PERF_";
 	int printed = 0, flags = arg->val;
 
 	if (flags == 0)
@@ -25,7 +27,7 @@ static size_t syscall_arg__scnprintf_perf_flags(char *bf, size_t size,
 
 #define	P_FLAG(n) \
 	if (flags & PERF_FLAG_##n) { \
-		printed += scnprintf(bf + printed, size - printed, "%s%s", printed ? "|" : "", #n); \
+		printed += scnprintf(bf + printed, size - printed, "%s%s%s", printed ? "|" : "", show_prefix ? prefix : "", #n); \
 		flags &= ~PERF_FLAG_##n; \
 	}
 

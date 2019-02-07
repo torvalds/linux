@@ -1547,11 +1547,14 @@ static void kmemleak_scan(void)
 		unsigned long pfn;
 
 		for (pfn = start_pfn; pfn < end_pfn; pfn++) {
-			struct page *page;
+			struct page *page = pfn_to_online_page(pfn);
 
-			if (!pfn_valid(pfn))
+			if (!page)
 				continue;
-			page = pfn_to_page(pfn);
+
+			/* only scan pages belonging to this node */
+			if (page_to_nid(page) != i)
+				continue;
 			/* only scan if page is in use */
 			if (page_count(page) == 0)
 				continue;
@@ -1647,7 +1650,7 @@ static void kmemleak_scan(void)
  */
 static int kmemleak_scan_thread(void *arg)
 {
-	static int first_run = 1;
+	static int first_run = IS_ENABLED(CONFIG_DEBUG_KMEMLEAK_AUTO_SCAN);
 
 	pr_info("Automatic memory scanning thread started\n");
 	set_user_nice(current, 10);
@@ -2141,9 +2144,11 @@ static int __init kmemleak_late_init(void)
 		return -ENOMEM;
 	}
 
-	mutex_lock(&scan_mutex);
-	start_scan_thread();
-	mutex_unlock(&scan_mutex);
+	if (IS_ENABLED(CONFIG_DEBUG_KMEMLEAK_AUTO_SCAN)) {
+		mutex_lock(&scan_mutex);
+		start_scan_thread();
+		mutex_unlock(&scan_mutex);
+	}
 
 	pr_info("Kernel memory leak detector initialized\n");
 

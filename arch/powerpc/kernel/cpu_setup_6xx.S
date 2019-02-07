@@ -326,7 +326,7 @@ _GLOBAL(__save_cpu_setup)
 	lis	r5,cpu_state_storage@h
 	ori	r5,r5,cpu_state_storage@l
 
-	/* Save HID0 (common to all CONFIG_6xx cpus) */
+	/* Save HID0 (common to all CONFIG_PPC_BOOK3S_32 cpus) */
 	mfspr	r3,SPRN_HID0
 	stw	r3,CS_HID0(r5)
 

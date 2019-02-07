@@ -14,7 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
-#include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <asm/mach-types.h>
 #include <mach/hardware.h>
 #include <asm/mach/arch.h>
@@ -37,22 +37,44 @@
 #if defined(CONFIG_MMC_PXA) || defined(CONFIG_MMC_PXA_MODULE)
 static struct pxamci_platform_data colibri_mci_platform_data = {
 	.ocr_mask		= MMC_VDD_32_33 | MMC_VDD_33_34,
-	.gpio_power		= -1,
-	.gpio_card_ro		= -1,
 	.detect_delay_ms	= 200,
+};
+
+static struct gpiod_lookup_table colibri_pxa270_mci_gpio_table = {
+	.dev_id = "pxa2xx-mci.0",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa", GPIO0_COLIBRI_PXA270_SD_DETECT,
+			    "cd", GPIO_ACTIVE_LOW),
+		{ },
+	},
+};
+
+static struct gpiod_lookup_table colibri_pxa300_mci_gpio_table = {
+	.dev_id = "pxa2xx-mci.0",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa", GPIO13_COLIBRI_PXA300_SD_DETECT,
+			    "cd", GPIO_ACTIVE_LOW),
+		{ },
+	},
+};
+
+static struct gpiod_lookup_table colibri_pxa320_mci_gpio_table = {
+	.dev_id = "pxa2xx-mci.0",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa", GPIO28_COLIBRI_PXA320_SD_DETECT,
+			    "cd", GPIO_ACTIVE_LOW),
+		{ },
+	},
 };
 
 static void __init colibri_mmc_init(void)
 {
 	if (machine_is_colibri())	/* PXA270 Colibri */
-		colibri_mci_platform_data.gpio_card_detect =
-			GPIO0_COLIBRI_PXA270_SD_DETECT;
+		gpiod_add_lookup_table(&colibri_pxa270_mci_gpio_table);
 	if (machine_is_colibri300())	/* PXA300 Colibri */
-		colibri_mci_platform_data.gpio_card_detect =
-			GPIO13_COLIBRI_PXA300_SD_DETECT;
+		gpiod_add_lookup_table(&colibri_pxa300_mci_gpio_table);
 	else				/* PXA320 Colibri */
-		colibri_mci_platform_data.gpio_card_detect =
-			GPIO28_COLIBRI_PXA320_SD_DETECT;
+		gpiod_add_lookup_table(&colibri_pxa320_mci_gpio_table);
 
 	pxa_set_mci_info(&colibri_mci_platform_data);
 }

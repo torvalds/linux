@@ -16,6 +16,10 @@
 #include <sys/types.h>  // for size_t
 #include <linux/bpf.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef LIBBPF_API
 #define LIBBPF_API __attribute__((visibility("default")))
 #endif
@@ -71,6 +75,13 @@ struct bpf_object *__bpf_object__open_xattr(struct bpf_object_open_attr *attr,
 LIBBPF_API struct bpf_object *bpf_object__open_buffer(void *obj_buf,
 						      size_t obj_buf_sz,
 						      const char *name);
+LIBBPF_API int bpf_object__pin_maps(struct bpf_object *obj, const char *path);
+LIBBPF_API int bpf_object__unpin_maps(struct bpf_object *obj,
+				      const char *path);
+LIBBPF_API int bpf_object__pin_programs(struct bpf_object *obj,
+					const char *path);
+LIBBPF_API int bpf_object__unpin_programs(struct bpf_object *obj,
+					  const char *path);
 LIBBPF_API int bpf_object__pin(struct bpf_object *object, const char *path);
 LIBBPF_API void bpf_object__close(struct bpf_object *object);
 
@@ -112,6 +123,9 @@ LIBBPF_API struct bpf_program *bpf_program__next(struct bpf_program *prog,
 	     (pos) != NULL;				\
 	     (pos) = bpf_program__next((pos), (obj)))
 
+LIBBPF_API struct bpf_program *bpf_program__prev(struct bpf_program *prog,
+						 struct bpf_object *obj);
+
 typedef void (*bpf_program_clear_priv_t)(struct bpf_program *,
 					 void *);
 
@@ -131,7 +145,11 @@ LIBBPF_API int bpf_program__fd(struct bpf_program *prog);
 LIBBPF_API int bpf_program__pin_instance(struct bpf_program *prog,
 					 const char *path,
 					 int instance);
+LIBBPF_API int bpf_program__unpin_instance(struct bpf_program *prog,
+					   const char *path,
+					   int instance);
 LIBBPF_API int bpf_program__pin(struct bpf_program *prog, const char *path);
+LIBBPF_API int bpf_program__unpin(struct bpf_program *prog, const char *path);
 LIBBPF_API void bpf_program__unload(struct bpf_program *prog);
 
 struct bpf_insn;
@@ -260,6 +278,9 @@ bpf_map__next(struct bpf_map *map, struct bpf_object *obj);
 	     (pos) != NULL;				\
 	     (pos) = bpf_map__next((pos), (obj)))
 
+LIBBPF_API struct bpf_map *
+bpf_map__prev(struct bpf_map *map, struct bpf_object *obj);
+
 LIBBPF_API int bpf_map__fd(struct bpf_map *map);
 LIBBPF_API const struct bpf_map_def *bpf_map__def(struct bpf_map *map);
 LIBBPF_API const char *bpf_map__name(struct bpf_map *map);
@@ -274,6 +295,9 @@ LIBBPF_API int bpf_map__reuse_fd(struct bpf_map *map, int fd);
 LIBBPF_API bool bpf_map__is_offload_neutral(struct bpf_map *map);
 LIBBPF_API void bpf_map__set_ifindex(struct bpf_map *map, __u32 ifindex);
 LIBBPF_API int bpf_map__pin(struct bpf_map *map, const char *path);
+LIBBPF_API int bpf_map__unpin(struct bpf_map *map, const char *path);
+
+LIBBPF_API int bpf_map__set_inner_map_fd(struct bpf_map *map, int fd);
 
 LIBBPF_API long libbpf_get_error(const void *ptr);
 
@@ -317,4 +341,22 @@ int libbpf_nl_get_qdisc(int sock, unsigned int nl_pid, int ifindex,
 			libbpf_dump_nlmsg_t dump_qdisc_nlmsg, void *cookie);
 int libbpf_nl_get_filter(int sock, unsigned int nl_pid, int ifindex, int handle,
 			 libbpf_dump_nlmsg_t dump_filter_nlmsg, void *cookie);
+
+struct bpf_prog_linfo;
+struct bpf_prog_info;
+
+LIBBPF_API void bpf_prog_linfo__free(struct bpf_prog_linfo *prog_linfo);
+LIBBPF_API struct bpf_prog_linfo *
+bpf_prog_linfo__new(const struct bpf_prog_info *info);
+LIBBPF_API const struct bpf_line_info *
+bpf_prog_linfo__lfind_addr_func(const struct bpf_prog_linfo *prog_linfo,
+				__u64 addr, __u32 func_idx, __u32 nr_skip);
+LIBBPF_API const struct bpf_line_info *
+bpf_prog_linfo__lfind(const struct bpf_prog_linfo *prog_linfo,
+		      __u32 insn_off, __u32 nr_skip);
+
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
+
 #endif /* __LIBBPF_LIBBPF_H */

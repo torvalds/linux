@@ -42,6 +42,8 @@
 #endif
 #define pr_fmt(fmt) KBUILD_MODNAME ":pid:%d:%s: " fmt, current->pid, __func__
 
+extern struct file_system_type autofs_fs_type;
+
 /*
  * Unified info structure.  This is pointed to by both the dentry and
  * inode structures.  Each file in the filesystem has an instance of this
@@ -101,16 +103,19 @@ struct autofs_wait_queue {
 
 #define AUTOFS_SBI_MAGIC 0x6d4a556d
 
+#define AUTOFS_SBI_CATATONIC	0x0001
+#define AUTOFS_SBI_STRICTEXPIRE 0x0002
+
 struct autofs_sb_info {
 	u32 magic;
 	int pipefd;
 	struct file *pipe;
 	struct pid *oz_pgrp;
-	int catatonic;
 	int version;
 	int sub_version;
 	int min_proto;
 	int max_proto;
+	unsigned int flags;
 	unsigned long exp_timeout;
 	unsigned int type;
 	struct super_block *sb;
@@ -126,8 +131,7 @@ struct autofs_sb_info {
 
 static inline struct autofs_sb_info *autofs_sbi(struct super_block *sb)
 {
-	return sb->s_magic != AUTOFS_SUPER_MAGIC ?
-		NULL : (struct autofs_sb_info *)(sb->s_fs_info);
+	return (struct autofs_sb_info *)(sb->s_fs_info);
 }
 
 static inline struct autofs_info *autofs_dentry_ino(struct dentry *dentry)
@@ -141,7 +145,8 @@ static inline struct autofs_info *autofs_dentry_ino(struct dentry *dentry)
  */
 static inline int autofs_oz_mode(struct autofs_sb_info *sbi)
 {
-	return sbi->catatonic || task_pgrp(current) == sbi->oz_pgrp;
+	return ((sbi->flags & AUTOFS_SBI_CATATONIC) ||
+		 task_pgrp(current) == sbi->oz_pgrp);
 }
 
 struct inode *autofs_get_inode(struct super_block *, umode_t);

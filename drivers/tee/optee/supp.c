@@ -19,7 +19,7 @@
 struct optee_supp_req {
 	struct list_head link;
 
-	bool busy;
+	bool in_queue;
 	u32 func;
 	u32 ret;
 	size_t num_params;
@@ -54,7 +54,6 @@ void optee_supp_release(struct optee_supp *supp)
 
 	/* Abort all request retrieved by supplicant */
 	idr_for_each_entry(&supp->idr, req, id) {
-		req->busy = false;
 		idr_remove(&supp->idr, id);
 		req->ret = TEEC_ERROR_COMMUNICATION;
 		complete(&req->c);
@@ -63,6 +62,7 @@ void optee_supp_release(struct optee_supp *supp)
 	/* Abort all queued requests */
 	list_for_each_entry_safe(req, req_tmp, &supp->reqs, link) {
 		list_del(&req->link);
+		req->in_queue = false;
 		req->ret = TEEC_ERROR_COMMUNICATION;
 		complete(&req->c);
 	}
@@ -103,6 +103,7 @@ u32 optee_supp_thrd_req(struct tee_context *ctx, u32 func, size_t num_params,
 	/* Insert the request in the request list */
 	mutex_lock(&supp->mutex);
 	list_add_tail(&req->link, &supp->reqs);
+	req->in_queue = true;
 	mutex_unlock(&supp->mutex);
 
 	/* Tell an eventual waiter there's a new request */
@@ -130,9 +131,10 @@ u32 optee_supp_thrd_req(struct tee_context *ctx, u32 func, size_t num_params,
 			 * will serve all requests in a timely manner and
 			 * interrupting then wouldn't make sense.
 			 */
-			interruptable = !req->busy;
-			if (!req->busy)
+			if (req->in_queue) {
 				list_del(&req->link);
+				req->in_queue = false;
+			}
 		}
 		mutex_unlock(&supp->mutex);
 
@@ -176,7 +178,7 @@ static struct optee_supp_req  *supp_pop_entry(struct optee_supp *supp,
 		return ERR_PTR(-ENOMEM);
 
 	list_del(&req->link);
-	req->busy = true;
+	req->in_queue = false;
 
 	return req;
 }
@@ -318,7 +320,6 @@ static struct optee_supp_req *supp_pop_req(struct optee_supp *supp,
 	if ((num_params - nm) != req->num_params)
 		return ERR_PTR(-EINVAL);
 
-	req->busy = false;
 	idr_remove(&supp->idr, id);
 	supp->req_id = -1;
 	*num_meta = nm;

@@ -406,7 +406,7 @@ int mlxsw_sp_flower_replace(struct mlxsw_sp *mlxsw_sp,
 	if (IS_ERR(ruleset))
 		return PTR_ERR(ruleset);
 
-	rule = mlxsw_sp_acl_rule_create(mlxsw_sp, ruleset, f->cookie,
+	rule = mlxsw_sp_acl_rule_create(mlxsw_sp, ruleset, f->cookie, NULL,
 					f->common.extack);
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);

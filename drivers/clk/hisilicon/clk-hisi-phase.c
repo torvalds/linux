@@ -103,7 +103,7 @@ struct clk *clk_register_hisi_phase(struct device *dev,
 
 	init.name = clks->name;
 	init.ops = &clk_phase_ops;
-	init.flags = clks->flags | CLK_IS_BASIC;
+	init.flags = clks->flags;
 	init.parent_names = clks->parent_names ? &clks->parent_names : NULL;
 	init.num_parents = clks->parent_names ? 1 : 0;
 

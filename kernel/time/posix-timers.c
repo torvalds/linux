@@ -1,34 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
- * linux/kernel/posix-timers.c
- *
- *
  * 2002-10-15  Posix Clocks & timers
  *                           by George Anzinger george@mvista.com
- *
  *			     Copyright (C) 2002 2003 by MontaVista Software.
  *
  * 2004-06-01  Fix CLOCK_REALTIME clock/timer TIMER_ABSTIME bug.
  *			     Copyright (C) 2004 Boris Hu
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
- * your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
-
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
- * MontaVista Software | 1237 East Arques Avenue | Sunnyvale | CA 94085 | USA
- */
-
-/* These are all the functions necessary to implement
- * POSIX clocks & timers
+ * These are all the functions necessary to implement POSIX clocks & timers
  */
 #include <linux/mm.h>
 #include <linux/interrupt.h>
@@ -289,9 +268,6 @@ static void common_hrtimer_rearm(struct k_itimer *timr)
 {
 	struct hrtimer *timer = &timr->it.real.timer;
 
-	if (!timr->it_interval)
-		return;
-
 	timr->it_overrun += hrtimer_forward(timer, timer->base->get_time(),
 					    timr->it_interval);
 	hrtimer_restart(timer);
@@ -317,7 +293,7 @@ void posixtimer_rearm(struct kernel_siginfo *info)
 	if (!timr)
 		return;
 
-	if (timr->it_requeue_pending == info->si_sys_private) {
+	if (timr->it_interval && timr->it_requeue_pending == info->si_sys_private) {
 		timr->kclock->timer_rearm(timr);
 
 		timr->it_active = 1;

@@ -66,7 +66,6 @@ static struct phy_driver am79c_driver[] = { {
 	.name		= "AM79C874",
 	.phy_id_mask	= 0xfffffff0,
 	.features	= PHY_BASIC_FEATURES,
-	.flags		= PHY_HAS_INTERRUPT,
 	.config_init	= am79c_config_init,
 	.ack_interrupt	= am79c_ack_interrupt,
 	.config_intr	= am79c_config_intr,

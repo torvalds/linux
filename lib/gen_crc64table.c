@@ -16,8 +16,6 @@
 #include <inttypes.h>
 #include <stdio.h>
 
-#include <linux/swab.h>
-
 #define CRC64_ECMA182_POLY 0x42F0E1EBA9EA3693ULL
 
 static uint64_t crc64_table[256] = {0};

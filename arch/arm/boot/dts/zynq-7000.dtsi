@@ -219,7 +219,7 @@
 			#size-cells = <0>;
 		};
 
-		sdhci0: sdhci@e0100000 {
+		sdhci0: mmc@e0100000 {
 			compatible = "arasan,sdhci-8.9a";
 			status = "disabled";
 			clock-names = "clk_xin", "clk_ahb";
@@ -229,7 +229,7 @@
 			reg = <0xe0100000 0x1000>;
 		};
 
-		sdhci1: sdhci@e0101000 {
+		sdhci1: mmc@e0101000 {
 			compatible = "arasan,sdhci-8.9a";
 			status = "disabled";
 			clock-names = "clk_xin", "clk_ahb";

@@ -1755,6 +1755,7 @@ static const struct amdgpu_asic_funcs cik_asic_funcs =
 	.flush_hdp = &cik_flush_hdp,
 	.invalidate_hdp = &cik_invalidate_hdp,
 	.need_full_reset = &cik_need_full_reset,
+	.init_doorbell_index = &legacy_doorbell_index_init,
 };
 
 static int cik_common_early_init(void *handle)

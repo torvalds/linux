@@ -42,8 +42,6 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "skeleton.dtsi"
-
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/thermal/thermal.h>
 #include <dt-bindings/dma/sun4i-a10.h>
@@ -52,6 +50,8 @@
 
 / {
 	interrupt-parent = <&gic>;
+	#address-cells = <1>;
+	#size-cells = <1>;
 
 	aliases {
 		ethernet0 = &gmac;
@@ -62,7 +62,7 @@
 		#size-cells = <1>;
 		ranges;
 
-		framebuffer@0 {
+		framebuffer-lcd0-hdmi {
 			compatible = "allwinner,simple-framebuffer",
 				     "simple-framebuffer";
 			allwinner,pipeline = "de_be0-lcd0-hdmi";
@@ -73,7 +73,7 @@
 			status = "disabled";
 		};
 
-		framebuffer@1 {
+		framebuffer-lcd0 {
 			compatible = "allwinner,simple-framebuffer",
 				     "simple-framebuffer";
 			allwinner,pipeline = "de_be0-lcd0";
@@ -83,7 +83,7 @@
 			status = "disabled";
 		};
 
-		framebuffer@2 {
+		framebuffer-lcd0-tve0 {
 			compatible = "allwinner,simple-framebuffer",
 				     "simple-framebuffer";
 			allwinner,pipeline = "de_be0-lcd0-tve0";
@@ -118,7 +118,7 @@
 			#cooling-cells = <2>;
 		};
 
-		cpu@1 {
+		cpu1: cpu@1 {
 			compatible = "arm,cortex-a7";
 			device_type = "cpu";
 			reg = <1>;
@@ -148,7 +148,8 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu_alert0>;
-					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				};
 			};
 
@@ -170,17 +171,13 @@
 		};
 	};
 
-	memory {
-		reg = <0x40000000 0x80000000>;
-	};
-
 	reserved-memory {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
 
 		/* Address must be kept in the lower 256 MiBs of DRAM for VE. */
-		cma_pool: cma@4a000000 {
+		default-pool {
 			compatible = "shared-dma-pool";
 			size = <0x6000000>;
 			alloc-ranges = <0x4a000000 0x6000000>;
@@ -198,7 +195,7 @@
 	};
 
 	pmu {
-		compatible = "arm,cortex-a7-pmu", "arm,cortex-a15-pmu";
+		compatible = "arm,cortex-a7-pmu";
 		interrupts = <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>;
 	};
@@ -208,14 +205,14 @@
 		#size-cells = <1>;
 		ranges;
 
-		osc24M: clk@1c20050 {
+		osc24M: clk-24M {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
 			clock-frequency = <24000000>;
 			clock-output-names = "osc24M";
 		};
 
-		osc32k: clk@0 {
+		osc32k: clk-32k {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
 			clock-frequency = <32768>;
@@ -231,14 +228,14 @@
 		 * The actual TX clock rate is not controlled by the
 		 * gmac_tx clock.
 		 */
-		mii_phy_tx_clk: clk@1 {
+		mii_phy_tx_clk: clk-mii-phy-tx {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
 			clock-frequency = <25000000>;
 			clock-output-names = "mii_phy_tx";
 		};
 
-		gmac_int_tx_clk: clk@2 {
+		gmac_int_tx_clk: clk-gmac-int-tx {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
 			clock-frequency = <125000000>;
@@ -261,7 +258,7 @@
 		status = "disabled";
 	};
 
-	soc@1c00000 {
+	soc {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -517,6 +514,8 @@
 				      "output",
 				      "sample";
 			interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&mmc0_pins>;
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -551,6 +550,8 @@
 				      "output",
 				      "sample";
 			interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&mmc2_pins>;
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -568,6 +569,8 @@
 				      "output",
 				      "sample";
 			interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&mmc3_pins>;
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -665,8 +668,6 @@
 				};
 
 				hdmi_out: port@1 {
-					#address-cells = <1>;
-					#size-cells = <0>;
 					reg = <1>;
 				};
 			};
@@ -750,22 +751,22 @@
 			#interrupt-cells = <3>;
 			#gpio-cells = <3>;
 
-			can0_pins_a: can0@0 {
+			can_ph_pins: can-ph-pins {
 				pins = "PH20", "PH21";
 				function = "can";
 			};
 
-			clk_out_a_pins_a: clk_out_a@0 {
+			clk_out_a_pin: clk-out-a-pin {
 				pins = "PI12";
 				function = "clk_out_a";
 			};
 
-			clk_out_b_pins_a: clk_out_b@0 {
+			clk_out_b_pin: clk-out-b-pin {
 				pins = "PI13";
 				function = "clk_out_b";
 			};
 
-			emac_pins_a: emac0@0 {
+			emac_pa_pins: emac-pa-pins {
 				pins = "PA0", "PA1", "PA2",
 				       "PA3", "PA4", "PA5", "PA6",
 				       "PA7", "PA8", "PA9", "PA10",
@@ -774,7 +775,7 @@
 				function = "emac";
 			};
 
-			gmac_pins_mii_a: gmac_mii@0 {
+			gmac_mii_pins: gmac-mii-pins {
 				pins = "PA0", "PA1", "PA2",
 				       "PA3", "PA4", "PA5", "PA6",
 				       "PA7", "PA8", "PA9", "PA10",
@@ -783,7 +784,7 @@
 				function = "gmac";
 			};
 
-			gmac_pins_rgmii_a: gmac_rgmii@0 {
+			gmac_rgmii_pins: gmac-rgmii-pins {
 				pins = "PA0", "PA1", "PA2",
 				       "PA3", "PA4", "PA5", "PA6",
 				        "PA7", "PA8", "PA10",
@@ -797,47 +798,47 @@
 				drive-strength = <40>;
 			};
 
-			i2c0_pins_a: i2c0@0 {
+			i2c0_pins: i2c0-pins {
 				pins = "PB0", "PB1";
 				function = "i2c0";
 			};
 
-			i2c1_pins_a: i2c1@0 {
+			i2c1_pins: i2c1-pins {
 				pins = "PB18", "PB19";
 				function = "i2c1";
 			};
 
-			i2c2_pins_a: i2c2@0 {
+			i2c2_pins: i2c2-pins {
 				pins = "PB20", "PB21";
 				function = "i2c2";
 			};
 
-			i2c3_pins_a: i2c3@0 {
+			i2c3_pins: i2c3-pins {
 				pins = "PI0", "PI1";
 				function = "i2c3";
 			};
 
-			ir0_rx_pins_a: ir0@0 {
+			ir0_rx_pin: ir0-rx-pin {
 				pins = "PB4";
 				function = "ir0";
 			};
 
-			ir0_tx_pins_a: ir0@1 {
+			ir0_tx_pin: ir0-tx-pin {
 				pins = "PB3";
 				function = "ir0";
 			};
 
-			ir1_rx_pins_a: ir1@0 {
+			ir1_rx_pin: ir1-rx-pin {
 				pins = "PB23";
 				function = "ir1";
 			};
 
-			ir1_tx_pins_a: ir1@1 {
+			ir1_tx_pin: ir1-tx-pin {
 				pins = "PB22";
 				function = "ir1";
 			};
 
-			mmc0_pins_a: mmc0@0 {
+			mmc0_pins: mmc0-pins {
 				pins = "PF0", "PF1", "PF2",
 				       "PF3", "PF4", "PF5";
 				function = "mmc0";
@@ -845,7 +846,7 @@
 				bias-pull-up;
 			};
 
-			mmc2_pins_a: mmc2@0 {
+			mmc2_pins: mmc2-pins {
 				pins = "PC6", "PC7", "PC8",
 				       "PC9", "PC10", "PC11";
 				function = "mmc2";
@@ -853,7 +854,7 @@
 				bias-pull-up;
 			};
 
-			mmc3_pins_a: mmc3@0 {
+			mmc3_pins: mmc3-pins {
 				pins = "PI4", "PI5", "PI6",
 				       "PI7", "PI8", "PI9";
 				function = "mmc3";
@@ -861,118 +862,128 @@
 				bias-pull-up;
 			};
 
-			ps20_pins_a: ps20@0 {
+			ps2_0_pins: ps2-0-pins {
 				pins = "PI20", "PI21";
 				function = "ps2";
 			};
 
-			ps21_pins_a: ps21@0 {
+			ps2_1_ph_pins: ps2-1-ph-pins {
 				pins = "PH12", "PH13";
 				function = "ps2";
 			};
 
-			pwm0_pins_a: pwm0@0 {
+			pwm0_pin: pwm0-pin {
 				pins = "PB2";
 				function = "pwm";
 			};
 
-			pwm1_pins_a: pwm1@0 {
+			pwm1_pin: pwm1-pin {
 				pins = "PI3";
 				function = "pwm";
 			};
 
-			spdif_tx_pins_a: spdif@0 {
+			spdif_tx_pin: spdif-tx-pin {
 				pins = "PB13";
 				function = "spdif";
 				bias-pull-up;
 			};
 
-			spi0_pins_a: spi0@0 {
+			spi0_pi_pins: spi0-pi-pins {
 				pins = "PI11", "PI12", "PI13";
 				function = "spi0";
 			};
 
-			spi0_cs0_pins_a: spi0_cs0@0 {
+			spi0_cs0_pi_pin: spi0-cs0-pi-pin {
 				pins = "PI10";
 				function = "spi0";
 			};
 
-			spi0_cs1_pins_a: spi0_cs1@0 {
+			spi0_cs1_pi_pin: spi0-cs1-pi-pin {
 				pins = "PI14";
 				function = "spi0";
 			};
 
-			spi1_pins_a: spi1@0 {
+			spi1_pi_pins: spi1-pi-pins {
 				pins = "PI17", "PI18", "PI19";
 				function = "spi1";
 			};
 
-			spi1_cs0_pins_a: spi1_cs0@0 {
+			spi1_cs0_pi_pin: spi1-cs0-pi-pin {
 				pins = "PI16";
 				function = "spi1";
 			};
 
-			spi2_pins_a: spi2@0 {
-				pins = "PC20", "PC21", "PC22";
-				function = "spi2";
-			};
-
-			spi2_pins_b: spi2@1 {
+			spi2_pb_pins: spi2-pb-pins {
 				pins = "PB15", "PB16", "PB17";
 				function = "spi2";
 			};
 
-			spi2_cs0_pins_a: spi2_cs0@0 {
-				pins = "PC19";
-				function = "spi2";
-			};
-
-			spi2_cs0_pins_b: spi2_cs0@1 {
+			spi2_cs0_pb_pin: spi2-cs0-pb-pin {
 				pins = "PB14";
 				function = "spi2";
 			};
 
-			uart0_pins_a: uart0@0 {
+			spi2_pc_pins: spi2-pc-pins {
+				pins = "PC20", "PC21", "PC22";
+				function = "spi2";
+			};
+
+			spi2_cs0_pc_pin: spi2-cs0-pc-pin {
+				pins = "PC19";
+				function = "spi2";
+			};
+
+			uart0_pb_pins: uart0-pb-pins {
 				pins = "PB22", "PB23";
 				function = "uart0";
 			};
 
-			uart2_pins_a: uart2@0 {
-				pins = "PI16", "PI17", "PI18", "PI19";
+			uart2_pi_pins: uart2-pi-pins {
+				pins = "PI18", "PI19";
 				function = "uart2";
 			};
 
-			uart3_pins_a: uart3@0 {
-				pins = "PG6", "PG7", "PG8", "PG9";
+			uart2_cts_rts_pi_pins: uart2-cts-rts-pi-pins {
+				pins = "PI16", "PI17";
+				function = "uart2";
+			};
+
+			uart3_pg_pins: uart3-pg-pins {
+				pins = "PG6", "PG7";
 				function = "uart3";
 			};
 
-			uart3_pins_b: uart3@1 {
+			uart3_cts_rts_pg_pins: uart3-cts-rts-pg-pins {
+				pins = "PG8", "PG9";
+				function = "uart3";
+			};
+
+			uart3_ph_pins: uart3-ph-pins {
 				pins = "PH0", "PH1";
 				function = "uart3";
 			};
 
-			uart4_pins_a: uart4@0 {
+			uart4_pg_pins: uart4-pg-pins {
 				pins = "PG10", "PG11";
 				function = "uart4";
 			};
 
-			uart4_pins_b: uart4@1 {
+			uart4_ph_pins: uart4-ph-pins {
 				pins = "PH4", "PH5";
 				function = "uart4";
 			};
 
-			uart5_pins_a: uart5@0 {
+			uart5_pi_pins: uart5-pi-pins {
 				pins = "PI10", "PI11";
 				function = "uart5";
 			};
 
-			uart6_pins_a: uart6@0 {
+			uart6_pi_pins: uart6-pi-pins {
 				pins = "PI12", "PI13";
 				function = "uart6";
 			};
 
-			uart7_pins_a: uart7@0 {
+			uart7_pi_pins: uart7-pi-pins {
 				pins = "PI20", "PI21";
 				function = "uart7";
 			};
@@ -1213,6 +1224,8 @@
 			reg = <0x01c2ac00 0x400>;
 			interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&ccu CLK_APB1_I2C0>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c0_pins>;
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -1224,6 +1237,8 @@
 			reg = <0x01c2b000 0x400>;
 			interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&ccu CLK_APB1_I2C1>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c1_pins>;
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -1235,6 +1250,8 @@
 			reg = <0x01c2b400 0x400>;
 			interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&ccu CLK_APB1_I2C2>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c2_pins>;
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -1246,6 +1263,8 @@
 			reg = <0x01c2b800 0x400>;
 			interrupts = <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&ccu CLK_APB1_I2C3>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c3_pins>;
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;

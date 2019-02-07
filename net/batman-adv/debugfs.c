@@ -19,6 +19,7 @@
 #include "debugfs.h"
 #include "main.h"
 
+#include <asm/current.h>
 #include <linux/dcache.h>
 #include <linux/debugfs.h>
 #include <linux/err.h>
@@ -27,6 +28,7 @@
 #include <linux/fs.h>
 #include <linux/netdevice.h>
 #include <linux/printk.h>
+#include <linux/sched.h>
 #include <linux/seq_file.h>
 #include <linux/stat.h>
 #include <linux/stddef.h>

@@ -11,7 +11,6 @@
 #include <linux/highmem.h>
 #include <linux/mm.h>
 #include <linux/scatterlist.h>
-#include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include "ion.h"
@@ -110,7 +109,7 @@ static int ion_system_heap_allocate(struct ion_heap *heap,
 	unsigned long size_remaining = PAGE_ALIGN(size);
 	unsigned int max_order = orders[0];
 
-	if (size / PAGE_SIZE > totalram_pages / 2)
+	if (size / PAGE_SIZE > totalram_pages() / 2)
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&pages);

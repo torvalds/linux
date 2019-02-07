@@ -1,4 +1,5 @@
 /*
+ * Copyright (C) 2018 Cambridge Greys Ltd
  * Copyright (C) 2015-2016 Anton Ivanov (aivanov@brocade.com)
  * Copyright (C) 2000 Jeff Dike (jdike@karaya.com)
  * Licensed under the GPL
@@ -43,11 +44,11 @@
 #include <os.h>
 #include "cow.h"
 
-enum ubd_req { UBD_READ, UBD_WRITE, UBD_FLUSH };
+/* Max request size is determined by sector mask - 32K */
+#define UBD_MAX_REQUEST (8 * sizeof(long))
 
 struct io_thread_req {
 	struct request *req;
-	enum ubd_req op;
 	int fds[2];
 	unsigned long offsets[2];
 	unsigned long long offset;
@@ -153,6 +154,7 @@ struct ubd {
 	struct openflags openflags;
 	unsigned shared:1;
 	unsigned no_cow:1;
+	unsigned no_trim:1;
 	struct cow cow;
 	struct platform_device pdev;
 	struct request_queue *queue;
@@ -176,6 +178,7 @@ struct ubd {
 	.boot_openflags =	OPEN_FLAGS, \
 	.openflags =		OPEN_FLAGS, \
 	.no_cow =               0, \
+	.no_trim =		0, \
 	.shared =		0, \
 	.cow =			DEFAULT_COW, \
 	.lock =			__SPIN_LOCK_UNLOCKED(ubd_devs.lock), \
@@ -322,7 +325,7 @@ static int ubd_setup_common(char *str, int *index_out, char **error_out)
 		*index_out = n;
 
 	err = -EINVAL;
-	for (i = 0; i < sizeof("rscd="); i++) {
+	for (i = 0; i < sizeof("rscdt="); i++) {
 		switch (*str) {
 		case 'r':
 			flags.w = 0;
@@ -336,12 +339,15 @@ static int ubd_setup_common(char *str, int *index_out, char **error_out)
 		case 'c':
 			ubd_dev->shared = 1;
 			break;
+		case 't':
+			ubd_dev->no_trim = 1;
+			break;
 		case '=':
 			str++;
 			goto break_loop;
 		default:
 			*error_out = "Expected '=' or flag letter "
-				"(r, s, c, or d)";
+				"(r, s, c, t or d)";
 			goto out;
 		}
 		str++;
@@ -414,6 +420,7 @@ __uml_help(ubd_setup,
 "    'c' will cause the device to be treated as being shared between multiple\n"
 "    UMLs and file locking will be turned off - this is appropriate for a\n"
 "    cluster filesystem and inappropriate at almost all other times.\n\n"
+"    't' will disable trim/discard support on the device (enabled by default).\n\n"
 );
 
 static int udb_setup(char *str)
@@ -511,16 +518,21 @@ static void ubd_handler(void)
 		}
 		for (count = 0; count < n/sizeof(struct io_thread_req *); count++) {
 			struct io_thread_req *io_req = (*irq_req_buffer)[count];
-			int err = io_req->error ? BLK_STS_IOERR : BLK_STS_OK;
 
-			if (!blk_update_request(io_req->req, err, io_req->length))
-				__blk_mq_end_request(io_req->req, err);
-
+			if ((io_req->error == BLK_STS_NOTSUPP) && (req_op(io_req->req) == REQ_OP_DISCARD)) {
+				blk_queue_max_discard_sectors(io_req->req->q, 0);
+				blk_queue_max_write_zeroes_sectors(io_req->req->q, 0);
+				blk_queue_flag_clear(QUEUE_FLAG_DISCARD, io_req->req->q);
+			}
+			if ((io_req->error) || (io_req->buffer == NULL))
+				blk_mq_end_request(io_req->req, io_req->error);
+			else {
+				if (!blk_update_request(io_req->req, io_req->error, io_req->length))
+					__blk_mq_end_request(io_req->req, io_req->error);
+			}
 			kfree(io_req);
 		}
 	}
-
-	reactivate_fd(thread_fd, UBD_IRQ);
 }
 
 static irqreturn_t ubd_intr(int irq, void *dev)
@@ -789,7 +801,7 @@ static int ubd_open_dev(struct ubd *ubd_dev)
 
 	if((fd == -ENOENT) && create_cow){
 		fd = create_cow_file(ubd_dev->file, ubd_dev->cow.file,
-					  ubd_dev->openflags, 1 << 9, PAGE_SIZE,
+					  ubd_dev->openflags, SECTOR_SIZE, PAGE_SIZE,
 					  &ubd_dev->cow.bitmap_offset,
 					  &ubd_dev->cow.bitmap_len,
 					  &ubd_dev->cow.data_offset);
@@ -830,6 +842,14 @@ static int ubd_open_dev(struct ubd *ubd_dev)
 		if(err < 0) goto error;
 		ubd_dev->cow.fd = err;
 	}
+	if (ubd_dev->no_trim == 0) {
+		ubd_dev->queue->limits.discard_granularity = SECTOR_SIZE;
+		ubd_dev->queue->limits.discard_alignment = SECTOR_SIZE;
+		blk_queue_max_discard_sectors(ubd_dev->queue, UBD_MAX_REQUEST);
+		blk_queue_max_write_zeroes_sectors(ubd_dev->queue, UBD_MAX_REQUEST);
+		blk_queue_flag_set(QUEUE_FLAG_DISCARD, ubd_dev->queue);
+	}
+	blk_queue_flag_set(QUEUE_FLAG_NONROT, ubd_dev->queue);
 	return 0;
  error:
 	os_close_file(ubd_dev->fd);
@@ -882,7 +902,7 @@ static int ubd_disk_register(int major, u64 size, int unit,
 	return 0;
 }
 
-#define ROUND_BLOCK(n) ((n + ((1 << 9) - 1)) & (-1 << 9))
+#define ROUND_BLOCK(n) ((n + (SECTOR_SIZE - 1)) & (-SECTOR_SIZE))
 
 static const struct blk_mq_ops ubd_mq_ops = {
 	.queue_rq = ubd_queue_rq,
@@ -1234,10 +1254,10 @@ static void cowify_bitmap(__u64 io_offset, int length, unsigned long *cow_mask,
 			  __u64 bitmap_offset, unsigned long *bitmap_words,
 			  __u64 bitmap_len)
 {
-	__u64 sector = io_offset >> 9;
+	__u64 sector = io_offset >> SECTOR_SHIFT;
 	int i, update_bitmap = 0;
 
-	for(i = 0; i < length >> 9; i++){
+	for (i = 0; i < length >> SECTOR_SHIFT; i++) {
 		if(cow_mask != NULL)
 			ubd_set_bit(i, (unsigned char *) cow_mask);
 		if(ubd_test_bit(sector + i, (unsigned char *) bitmap))
@@ -1271,14 +1291,14 @@ static void cowify_bitmap(__u64 io_offset, int length, unsigned long *cow_mask,
 static void cowify_req(struct io_thread_req *req, unsigned long *bitmap,
 		       __u64 bitmap_offset, __u64 bitmap_len)
 {
-	__u64 sector = req->offset >> 9;
+	__u64 sector = req->offset >> SECTOR_SHIFT;
 	int i;
 
-	if(req->length > (sizeof(req->sector_mask) * 8) << 9)
+	if (req->length > (sizeof(req->sector_mask) * 8) << SECTOR_SHIFT)
 		panic("Operation too long");
 
-	if(req->op == UBD_READ) {
-		for(i = 0; i < req->length >> 9; i++){
+	if (req_op(req->req) == REQ_OP_READ) {
+		for (i = 0; i < req->length >> SECTOR_SHIFT; i++) {
 			if(ubd_test_bit(sector + i, (unsigned char *) bitmap))
 				ubd_set_bit(i, (unsigned char *)
 					    &req->sector_mask);
@@ -1307,25 +1327,25 @@ static int ubd_queue_one_vec(struct blk_mq_hw_ctx *hctx, struct request *req,
 		io_req->fds[0] = dev->fd;
 	io_req->error = 0;
 
-	if (req_op(req) == REQ_OP_FLUSH) {
-		io_req->op = UBD_FLUSH;
-	} else {
-		io_req->fds[1] = dev->fd;
-		io_req->cow_offset = -1;
-		io_req->offset = off;
-		io_req->length = bvec->bv_len;
-		io_req->sector_mask = 0;
-		io_req->op = rq_data_dir(req) == READ ? UBD_READ : UBD_WRITE;
-		io_req->offsets[0] = 0;
-		io_req->offsets[1] = dev->cow.data_offset;
+	if (bvec != NULL) {
 		io_req->buffer = page_address(bvec->bv_page) + bvec->bv_offset;
-		io_req->sectorsize = 1 << 9;
-
-		if (dev->cow.file) {
-			cowify_req(io_req, dev->cow.bitmap,
-				   dev->cow.bitmap_offset, dev->cow.bitmap_len);
-		}
+		io_req->length = bvec->bv_len;
+	} else {
+		io_req->buffer = NULL;
+		io_req->length = blk_rq_bytes(req);
 	}
+
+	io_req->sectorsize = SECTOR_SIZE;
+	io_req->fds[1] = dev->fd;
+	io_req->cow_offset = -1;
+	io_req->offset = off;
+	io_req->sector_mask = 0;
+	io_req->offsets[0] = 0;
+	io_req->offsets[1] = dev->cow.data_offset;
+
+	if (dev->cow.file)
+		cowify_req(io_req, dev->cow.bitmap,
+			   dev->cow.bitmap_offset, dev->cow.bitmap_len);
 
 	ret = os_write_file(thread_fd, &io_req, sizeof(io_req));
 	if (ret != sizeof(io_req)) {
@@ -1333,8 +1353,23 @@ static int ubd_queue_one_vec(struct blk_mq_hw_ctx *hctx, struct request *req,
 			pr_err("write to io thread failed: %d\n", -ret);
 		kfree(io_req);
 	}
-
 	return ret;
+}
+
+static int queue_rw_req(struct blk_mq_hw_ctx *hctx, struct request *req)
+{
+	struct req_iterator iter;
+	struct bio_vec bvec;
+	int ret;
+	u64 off = (u64)blk_rq_pos(req) << SECTOR_SHIFT;
+
+	rq_for_each_segment(bvec, req, iter) {
+		ret = ubd_queue_one_vec(hctx, req, off, &bvec);
+		if (ret < 0)
+			return ret;
+		off += bvec.bv_len;
+	}
+	return 0;
 }
 
 static blk_status_t ubd_queue_rq(struct blk_mq_hw_ctx *hctx,
@@ -1342,33 +1377,36 @@ static blk_status_t ubd_queue_rq(struct blk_mq_hw_ctx *hctx,
 {
 	struct ubd *ubd_dev = hctx->queue->queuedata;
 	struct request *req = bd->rq;
-	int ret = 0;
+	int ret = 0, res = BLK_STS_OK;
 
 	blk_mq_start_request(req);
 
 	spin_lock_irq(&ubd_dev->lock);
 
-	if (req_op(req) == REQ_OP_FLUSH) {
+	switch (req_op(req)) {
+	/* operations with no lentgth/offset arguments */
+	case REQ_OP_FLUSH:
 		ret = ubd_queue_one_vec(hctx, req, 0, NULL);
-	} else {
-		struct req_iterator iter;
-		struct bio_vec bvec;
-		u64 off = (u64)blk_rq_pos(req) << 9;
-
-		rq_for_each_segment(bvec, req, iter) {
-			ret = ubd_queue_one_vec(hctx, req, off, &bvec);
-			if (ret < 0)
-				goto out;
-			off += bvec.bv_len;
-		}
+		break;
+	case REQ_OP_READ:
+	case REQ_OP_WRITE:
+		ret = queue_rw_req(hctx, req);
+		break;
+	case REQ_OP_DISCARD:
+	case REQ_OP_WRITE_ZEROES:
+		ret = ubd_queue_one_vec(hctx, req, (u64)blk_rq_pos(req) << 9, NULL);
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		res = BLK_STS_NOTSUPP;
 	}
-out:
+
 	spin_unlock_irq(&ubd_dev->lock);
 
 	if (ret < 0)
 		blk_mq_requeue_request(req, true);
 
-	return BLK_STS_OK;
+	return res;
 }
 
 static int ubd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
@@ -1413,39 +1451,60 @@ static int ubd_ioctl(struct block_device *bdev, fmode_t mode,
 	return -EINVAL;
 }
 
+static int map_error(int error_code)
+{
+	switch (error_code) {
+	case 0:
+		return BLK_STS_OK;
+	case ENOSYS:
+	case EOPNOTSUPP:
+		return BLK_STS_NOTSUPP;
+	case ENOSPC:
+		return BLK_STS_NOSPC;
+	}
+	return BLK_STS_IOERR;
+}
+
+/*
+ * Everything from here onwards *IS NOT PART OF THE KERNEL*
+ *
+ * The following functions are part of UML hypervisor code.
+ * All functions from here onwards are executed as a helper
+ * thread and are not allowed to execute any kernel functions.
+ *
+ * Any communication must occur strictly via shared memory and IPC.
+ *
+ * Do not add printks, locks, kernel memory operations, etc - it
+ * will result in unpredictable behaviour and/or crashes.
+ */
+
 static int update_bitmap(struct io_thread_req *req)
 {
 	int n;
 
 	if(req->cow_offset == -1)
-		return 0;
+		return map_error(0);
 
 	n = os_pwrite_file(req->fds[1], &req->bitmap_words,
 			  sizeof(req->bitmap_words), req->cow_offset);
-	if(n != sizeof(req->bitmap_words)){
-		printk("do_io - bitmap update failed, err = %d fd = %d\n", -n,
-		       req->fds[1]);
-		return 1;
-	}
+	if (n != sizeof(req->bitmap_words))
+		return map_error(-n);
 
-	return 0;
+	return map_error(0);
 }
 
 static void do_io(struct io_thread_req *req)
 {
-	char *buf;
+	char *buf = NULL;
 	unsigned long len;
 	int n, nsectors, start, end, bit;
 	__u64 off;
 
-	if (req->op == UBD_FLUSH) {
+	/* FLUSH is really a special case, we cannot "case" it with others */
+
+	if (req_op(req->req) == REQ_OP_FLUSH) {
 		/* fds[0] is always either the rw image or our cow file */
-		n = os_sync_file(req->fds[0]);
-		if (n != 0) {
-			printk("do_io - sync failed err = %d "
-			       "fd = %d\n", -n, req->fds[0]);
-			req->error = 1;
-		}
+		req->error = map_error(-os_sync_file(req->fds[0]));
 		return;
 	}
 
@@ -1462,30 +1521,42 @@ static void do_io(struct io_thread_req *req)
 		off = req->offset + req->offsets[bit] +
 			start * req->sectorsize;
 		len = (end - start) * req->sectorsize;
-		buf = &req->buffer[start * req->sectorsize];
+		if (req->buffer != NULL)
+			buf = &req->buffer[start * req->sectorsize];
 
-		if(req->op == UBD_READ){
+		switch (req_op(req->req)) {
+		case REQ_OP_READ:
 			n = 0;
 			do {
 				buf = &buf[n];
 				len -= n;
 				n = os_pread_file(req->fds[bit], buf, len, off);
 				if (n < 0) {
-					printk("do_io - read failed, err = %d "
-					       "fd = %d\n", -n, req->fds[bit]);
-					req->error = 1;
+					req->error = map_error(-n);
 					return;
 				}
 			} while((n < len) && (n != 0));
 			if (n < len) memset(&buf[n], 0, len - n);
-		} else {
+			break;
+		case REQ_OP_WRITE:
 			n = os_pwrite_file(req->fds[bit], buf, len, off);
 			if(n != len){
-				printk("do_io - write failed err = %d "
-				       "fd = %d\n", -n, req->fds[bit]);
-				req->error = 1;
+				req->error = map_error(-n);
 				return;
 			}
+			break;
+		case REQ_OP_DISCARD:
+		case REQ_OP_WRITE_ZEROES:
+			n = os_falloc_punch(req->fds[bit], off, len);
+			if (n) {
+				req->error = map_error(-n);
+				return;
+			}
+			break;
+		default:
+			WARN_ON_ONCE(1);
+			req->error = BLK_STS_NOTSUPP;
+			return;
 		}
 
 		start = end;
@@ -1520,11 +1591,6 @@ int io_thread(void *arg)
 			if (n == -EAGAIN) {
 				ubd_read_poll(-1);
 				continue;
-			} else {
-				printk("io_thread - read failed, fd = %d, "
-				       "err = %d,"
-				       "reminder = %d\n",
-				       kernel_fd, -n, io_remainder_size);
 			}
 		}
 
@@ -1539,11 +1605,6 @@ int io_thread(void *arg)
 			res = os_write_file(kernel_fd, ((char *) io_req_buffer) + written, n);
 			if (res >= 0) {
 				written += res;
-			} else {
-				if (res != -EAGAIN) {
-					printk("io_thread - write failed, fd = %d, "
-					       "err = %d\n", kernel_fd, -n);
-				}
 			}
 			if (written < n) {
 				ubd_write_poll(-1);

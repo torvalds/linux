@@ -50,13 +50,15 @@ static int ncsi_validate_aen_pkt(struct ncsi_aen_pkt_hdr *h,
 static int ncsi_aen_handler_lsc(struct ncsi_dev_priv *ndp,
 				struct ncsi_aen_pkt_hdr *h)
 {
-	struct ncsi_aen_lsc_pkt *lsc;
-	struct ncsi_channel *nc;
+	struct ncsi_channel *nc, *tmp;
 	struct ncsi_channel_mode *ncm;
+	unsigned long old_data, data;
+	struct ncsi_aen_lsc_pkt *lsc;
+	struct ncsi_package *np;
+	bool had_link, has_link;
+	unsigned long flags;
 	bool chained;
 	int state;
-	unsigned long old_data, data;
-	unsigned long flags;
 
 	/* Find the NCSI channel */
 	ncsi_find_package_and_channel(ndp, h->common.channel, NULL, &nc);
@@ -73,6 +75,9 @@ static int ncsi_aen_handler_lsc(struct ncsi_dev_priv *ndp,
 	ncm->data[2] = data;
 	ncm->data[4] = ntohl(lsc->oem_status);
 
+	had_link = !!(old_data & 0x1);
+	has_link = !!(data & 0x1);
+
 	netdev_dbg(ndp->ndev.dev, "NCSI: LSC AEN - channel %u state %s\n",
 		   nc->id, data & 0x1 ? "up" : "down");
 
@@ -80,22 +85,60 @@ static int ncsi_aen_handler_lsc(struct ncsi_dev_priv *ndp,
 	state = nc->state;
 	spin_unlock_irqrestore(&nc->lock, flags);
 
-	if (!((old_data ^ data) & 0x1) || chained)
+	if (state == NCSI_CHANNEL_INACTIVE)
+		netdev_warn(ndp->ndev.dev,
+			    "NCSI: Inactive channel %u received AEN!\n",
+			    nc->id);
+
+	if ((had_link == has_link) || chained)
 		return 0;
-	if (!(state == NCSI_CHANNEL_INACTIVE && (data & 0x1)) &&
-	    !(state == NCSI_CHANNEL_ACTIVE && !(data & 0x1)))
+
+	if (!ndp->multi_package && !nc->package->multi_channel) {
+		if (had_link) {
+			ndp->flags |= NCSI_DEV_RESHUFFLE;
+			ncsi_stop_channel_monitor(nc);
+			spin_lock_irqsave(&ndp->lock, flags);
+			list_add_tail_rcu(&nc->link, &ndp->channel_queue);
+			spin_unlock_irqrestore(&ndp->lock, flags);
+			return ncsi_process_next_channel(ndp);
+		}
+		/* Configured channel came up */
 		return 0;
+	}
 
-	if (!(ndp->flags & NCSI_DEV_HWA) &&
-	    state == NCSI_CHANNEL_ACTIVE)
-		ndp->flags |= NCSI_DEV_RESHUFFLE;
+	if (had_link) {
+		ncm = &nc->modes[NCSI_MODE_TX_ENABLE];
+		if (ncsi_channel_is_last(ndp, nc)) {
+			/* No channels left, reconfigure */
+			return ncsi_reset_dev(&ndp->ndev);
+		} else if (ncm->enable) {
+			/* Need to failover Tx channel */
+			ncsi_update_tx_channel(ndp, nc->package, nc, NULL);
+		}
+	} else if (has_link && nc->package->preferred_channel == nc) {
+		/* Return Tx to preferred channel */
+		ncsi_update_tx_channel(ndp, nc->package, NULL, nc);
+	} else if (has_link) {
+		NCSI_FOR_EACH_PACKAGE(ndp, np) {
+			NCSI_FOR_EACH_CHANNEL(np, tmp) {
+				/* Enable Tx on this channel if the current Tx
+				 * channel is down.
+				 */
+				ncm = &tmp->modes[NCSI_MODE_TX_ENABLE];
+				if (ncm->enable &&
+				    !ncsi_channel_has_link(tmp)) {
+					ncsi_update_tx_channel(ndp, nc->package,
+							       tmp, nc);
+					break;
+				}
+			}
+		}
+	}
 
-	ncsi_stop_channel_monitor(nc);
-	spin_lock_irqsave(&ndp->lock, flags);
-	list_add_tail_rcu(&nc->link, &ndp->channel_queue);
-	spin_unlock_irqrestore(&ndp->lock, flags);
-
-	return ncsi_process_next_channel(ndp);
+	/* Leave configured channels active in a multi-channel scenario so
+	 * AEN events are still received.
+	 */
+	return 0;
 }
 
 static int ncsi_aen_handler_cr(struct ncsi_dev_priv *ndp,

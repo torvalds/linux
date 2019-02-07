@@ -275,7 +275,7 @@ pnfs_free_layout_hdr(struct pnfs_layout_hdr *lo)
 		list_del_init(&lo->plh_layouts);
 		spin_unlock(&clp->cl_lock);
 	}
-	put_rpccred(lo->plh_lc_cred);
+	put_cred(lo->plh_lc_cred);
 	return ld->free_layout_hdr(lo);
 }
 
@@ -1038,7 +1038,7 @@ pnfs_alloc_init_layoutget_args(struct inode *ino,
 	lgp->args.ctx = get_nfs_open_context(ctx);
 	nfs4_stateid_copy(&lgp->args.stateid, stateid);
 	lgp->gfp_flags = gfp_flags;
-	lgp->cred = get_rpccred(ctx->cred);
+	lgp->cred = get_cred(ctx->cred);
 	return lgp;
 }
 
@@ -1049,7 +1049,7 @@ void pnfs_layoutget_free(struct nfs4_layoutget *lgp)
 	nfs4_free_pages(lgp->args.layout.pages, max_pages);
 	if (lgp->args.inode)
 		pnfs_put_layout_hdr(NFS_I(lgp->args.inode)->layout);
-	put_rpccred(lgp->cred);
+	put_cred(lgp->cred);
 	put_nfs_open_context(lgp->args.ctx);
 	kfree(lgp);
 }
@@ -1324,7 +1324,7 @@ pnfs_commit_and_return_layout(struct inode *inode)
 bool pnfs_roc(struct inode *ino,
 		struct nfs4_layoutreturn_args *args,
 		struct nfs4_layoutreturn_res *res,
-		const struct rpc_cred *cred)
+		const struct cred *cred)
 {
 	struct nfs_inode *nfsi = NFS_I(ino);
 	struct nfs_open_context *ctx;
@@ -1583,7 +1583,7 @@ alloc_init_layout_hdr(struct inode *ino,
 	INIT_LIST_HEAD(&lo->plh_return_segs);
 	INIT_LIST_HEAD(&lo->plh_bulk_destroy);
 	lo->plh_inode = ino;
-	lo->plh_lc_cred = get_rpccred(ctx->cred);
+	lo->plh_lc_cred = get_cred(ctx->cred);
 	lo->plh_flags |= 1 << NFS_LAYOUT_INVALID_STID;
 	return lo;
 }
@@ -2928,7 +2928,7 @@ pnfs_layoutcommit_inode(struct inode *inode, bool sync)
 	spin_unlock(&inode->i_lock);
 
 	data->args.inode = inode;
-	data->cred = get_rpccred(nfsi->layout->plh_lc_cred);
+	data->cred = get_cred(nfsi->layout->plh_lc_cred);
 	nfs_fattr_init(&data->fattr);
 	data->args.bitmask = NFS_SERVER(inode)->cache_consistency_bitmask;
 	data->res.fattr = &data->fattr;
@@ -2941,7 +2941,7 @@ pnfs_layoutcommit_inode(struct inode *inode, bool sync)
 	if (ld->prepare_layoutcommit) {
 		status = ld->prepare_layoutcommit(&data->args);
 		if (status) {
-			put_rpccred(data->cred);
+			put_cred(data->cred);
 			spin_lock(&inode->i_lock);
 			set_bit(NFS_INO_LAYOUTCOMMIT, &nfsi->flags);
 			if (end_pos > nfsi->layout->plh_lwb)

@@ -32,6 +32,8 @@ enum {
 
 enum drm_mode_status
 meson_vclk_dmt_supported_freq(struct meson_drm *priv, unsigned int freq);
+enum drm_mode_status
+meson_vclk_vic_supported_freq(unsigned int freq);
 
 void meson_vclk_setup(struct meson_drm *priv, unsigned int target,
 		      unsigned int vclk_freq, unsigned int venc_freq,

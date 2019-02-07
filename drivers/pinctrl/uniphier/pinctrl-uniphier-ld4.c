@@ -1,17 +1,7 @@
-/*
- * Copyright (C) 2015-2017 Socionext Inc.
- *   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// Copyright (C) 2015-2017 Socionext Inc.
+//   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
 
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -723,7 +713,7 @@ static int uniphier_ld4_get_gpio_muxval(unsigned int pin,
 	}
 }
 
-static struct uniphier_pinctrl_socdata uniphier_ld4_pindata = {
+static const struct uniphier_pinctrl_socdata uniphier_ld4_pindata = {
 	.pins = uniphier_ld4_pins,
 	.npins = ARRAY_SIZE(uniphier_ld4_pins),
 	.groups = uniphier_ld4_groups,

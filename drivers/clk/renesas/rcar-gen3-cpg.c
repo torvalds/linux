@@ -232,16 +232,20 @@ struct sd_clock {
  *                     sd_srcfc   sd_fc   div
  * stp_hck   stp_ck    (div)      (div)     = sd_srcfc x sd_fc
  *-------------------------------------------------------------------
- *  0         0         0 (1)      1 (4)      4
- *  0         0         1 (2)      1 (4)      8
- *  1         0         2 (4)      1 (4)     16
- *  1         0         3 (8)      1 (4)     32
+ *  0         0         0 (1)      1 (4)      4 : SDR104 / HS200 / HS400 (8 TAP)
+ *  0         0         1 (2)      1 (4)      8 : SDR50
+ *  1         0         2 (4)      1 (4)     16 : HS / SDR25
+ *  1         0         3 (8)      1 (4)     32 : NS / SDR12
  *  1         0         4 (16)     1 (4)     64
  *  0         0         0 (1)      0 (2)      2
- *  0         0         1 (2)      0 (2)      4
+ *  0         0         1 (2)      0 (2)      4 : SDR104 / HS200 / HS400 (4 TAP)
  *  1         0         2 (4)      0 (2)      8
  *  1         0         3 (8)      0 (2)     16
  *  1         0         4 (16)     0 (2)     32
+ *
+ *  NOTE: There is a quirk option to ignore the first row of the dividers
+ *  table when searching for suitable settings. This is because HS400 on
+ *  early ES versions of H3 and M3-W requires a specific setting to work.
  */
 static const struct sd_div_table cpg_sd_div_table[] = {
 /*	CPG_SD_DIV_TABLE_DATA(stp_hck,  stp_ck,   sd_srcfc,   sd_fc,  sd_div) */
@@ -352,6 +356,12 @@ static const struct clk_ops cpg_sd_clock_ops = {
 	.set_rate = cpg_sd_clock_set_rate,
 };
 
+static u32 cpg_quirks __initdata;
+
+#define PLL_ERRATA	BIT(0)		/* Missing PLL0/2/4 post-divider */
+#define RCKCR_CKSEL	BIT(1)		/* Manual RCLK parent selection */
+#define SD_SKIP_FIRST	BIT(2)		/* Skip first clock in SD table */
+
 static struct clk * __init cpg_sd_clk_register(const struct cpg_core_clk *core,
 	void __iomem *base, const char *parent_name,
 	struct raw_notifier_head *notifiers)
@@ -360,7 +370,7 @@ static struct clk * __init cpg_sd_clk_register(const struct cpg_core_clk *core,
 	struct sd_clock *clock;
 	struct clk *clk;
 	unsigned int i;
-	u32 sd_fc;
+	u32 val;
 
 	clock = kzalloc(sizeof(*clock), GFP_KERNEL);
 	if (!clock)
@@ -368,7 +378,7 @@ static struct clk * __init cpg_sd_clk_register(const struct cpg_core_clk *core,
 
 	init.name = core->name;
 	init.ops = &cpg_sd_clock_ops;
-	init.flags = CLK_IS_BASIC | CLK_SET_RATE_PARENT;
+	init.flags = CLK_SET_RATE_PARENT;
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
 
@@ -377,17 +387,14 @@ static struct clk * __init cpg_sd_clk_register(const struct cpg_core_clk *core,
 	clock->div_table = cpg_sd_div_table;
 	clock->div_num = ARRAY_SIZE(cpg_sd_div_table);
 
-	sd_fc = readl(clock->csn.reg) & CPG_SD_FC_MASK;
-	for (i = 0; i < clock->div_num; i++)
-		if (sd_fc == (clock->div_table[i].val & CPG_SD_FC_MASK))
-			break;
-
-	if (WARN_ON(i >= clock->div_num)) {
-		kfree(clock);
-		return ERR_PTR(-EINVAL);
+	if (cpg_quirks & SD_SKIP_FIRST) {
+		clock->div_table++;
+		clock->div_num--;
 	}
 
-	clock->cur_div_idx = i;
+	val = readl(clock->csn.reg) & ~CPG_SD_FC_MASK;
+	val |= CPG_SD_STP_MASK | (clock->div_table[0].val & CPG_SD_FC_MASK);
+	writel(val, clock->csn.reg);
 
 	clock->div_max = clock->div_table[0].div;
 	clock->div_min = clock->div_max;
@@ -412,23 +419,27 @@ free_clock:
 static const struct rcar_gen3_cpg_pll_config *cpg_pll_config __initdata;
 static unsigned int cpg_clk_extalr __initdata;
 static u32 cpg_mode __initdata;
-static u32 cpg_quirks __initdata;
-
-#define PLL_ERRATA	BIT(0)		/* Missing PLL0/2/4 post-divider */
-#define RCKCR_CKSEL	BIT(1)		/* Manual RCLK parent selection */
 
 static const struct soc_device_attribute cpg_quirks_match[] __initconst = {
 	{
 		.soc_id = "r8a7795", .revision = "ES1.0",
-		.data = (void *)(PLL_ERRATA | RCKCR_CKSEL),
+		.data = (void *)(PLL_ERRATA | RCKCR_CKSEL | SD_SKIP_FIRST),
 	},
 	{
 		.soc_id = "r8a7795", .revision = "ES1.*",
-		.data = (void *)RCKCR_CKSEL,
+		.data = (void *)(RCKCR_CKSEL | SD_SKIP_FIRST),
+	},
+	{
+		.soc_id = "r8a7795", .revision = "ES2.0",
+		.data = (void *)SD_SKIP_FIRST,
 	},
 	{
 		.soc_id = "r8a7796", .revision = "ES1.0",
-		.data = (void *)RCKCR_CKSEL,
+		.data = (void *)(RCKCR_CKSEL | SD_SKIP_FIRST),
+	},
+	{
+		.soc_id = "r8a7796", .revision = "ES1.1",
+		.data = (void *)SD_SKIP_FIRST,
 	},
 	{ /* sentinel */ }
 };

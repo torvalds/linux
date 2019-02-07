@@ -232,9 +232,8 @@ s32 InitLLTTable(struct adapter *padapter, u8 txpktbuf_bndy)
 
 		/*  Let last entry point to the start entry of ring buffer */
 		status = _LLTWrite(padapter, Last_Entry_Of_TxPktBuf, txpktbuf_bndy);
-		if (status != _SUCCESS) {
+		if (status != _SUCCESS)
 			return status;
-		}
 	}
 
 	return status;
@@ -373,7 +372,7 @@ static void Hal_ReadPowerValueFromPROM_8188E(struct txpowerinfo24g *pwrInfo24G, 
 	}
 }
 
-static void Hal_GetChnlGroup88E(u8 chnl, u8 *group)
+void Hal_GetChnlGroup88E(u8 chnl, u8 *group)
 {
 	if (chnl < 3)			/*  Channel 1-2 */
 		*group = 0;

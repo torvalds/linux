@@ -9,7 +9,6 @@
  * the Free Software Foundation, version 2 of the License.
  */
 
-#include <linux/module.h>
 #include <linux/xattr.h>
 #include <linux/evm.h>
 

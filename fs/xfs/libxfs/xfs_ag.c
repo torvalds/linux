@@ -414,7 +414,6 @@ xfs_ag_extend_space(
 	struct aghdr_init_data	*id,
 	xfs_extlen_t		len)
 {
-	struct xfs_owner_info	oinfo;
 	struct xfs_buf		*bp;
 	struct xfs_agi		*agi;
 	struct xfs_agf		*agf;
@@ -448,17 +447,17 @@ xfs_ag_extend_space(
 	/*
 	 * Free the new space.
 	 *
-	 * XFS_RMAP_OWN_NULL is used here to tell the rmap btree that
+	 * XFS_RMAP_OINFO_SKIP_UPDATE is used here to tell the rmap btree that
 	 * this doesn't actually exist in the rmap btree.
 	 */
-	xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_NULL);
 	error = xfs_rmap_free(tp, bp, id->agno,
 				be32_to_cpu(agf->agf_length) - len,
-				len, &oinfo);
+				len, &XFS_RMAP_OINFO_SKIP_UPDATE);
 	if (error)
 		return error;
 
 	return  xfs_free_extent(tp, XFS_AGB_TO_FSB(mp, id->agno,
 					be32_to_cpu(agf->agf_length) - len),
-				len, &oinfo, XFS_AG_RESV_NONE);
+				len, &XFS_RMAP_OINFO_SKIP_UPDATE,
+				XFS_AG_RESV_NONE);
 }

@@ -59,7 +59,6 @@ unsigned long ISA_DMA_THRESHOLD;
 unsigned int DMA_MODE_READ;
 unsigned int DMA_MODE_WRITE;
 
-EXPORT_SYMBOL(ISA_DMA_THRESHOLD);
 EXPORT_SYMBOL(DMA_MODE_READ);
 EXPORT_SYMBOL(DMA_MODE_WRITE);
 
@@ -101,8 +100,7 @@ notrace unsigned long __init early_init(unsigned long dt_ptr)
  */
 notrace void __init machine_init(u64 dt_ptr)
 {
-	unsigned int *addr = (unsigned int *)((unsigned long)&patch__memset_nocache +
-					       patch__memset_nocache);
+	unsigned int *addr = (unsigned int *)patch_site_addr(&patch__memset_nocache);
 	unsigned long insn;
 
 	/* Configure static keys first, now that we're relocated. */
@@ -240,7 +238,7 @@ void __init exc_lvl_early_init(void)
 
 void __init setup_power_save(void)
 {
-#ifdef CONFIG_6xx
+#ifdef CONFIG_PPC_BOOK3S_32
 	if (cpu_has_feature(CPU_FTR_CAN_DOZE) ||
 	    cpu_has_feature(CPU_FTR_CAN_NAP))
 		ppc_md.power_save = ppc6xx_idle;

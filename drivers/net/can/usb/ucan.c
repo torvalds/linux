@@ -715,7 +715,7 @@ static void ucan_read_bulk_callback(struct urb *urb)
 				  up->in_ep_size,
 				  urb->transfer_buffer,
 				  urb->transfer_dma);
-		netdev_dbg(up->netdev, "not resumbmitting urb; status: %d\n",
+		netdev_dbg(up->netdev, "not resubmitting urb; status: %d\n",
 			   urb->status);
 		return;
 	default:

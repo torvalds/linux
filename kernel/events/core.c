@@ -436,17 +436,17 @@ int perf_proc_update_handler(struct ctl_table *table, int write,
 		void __user *buffer, size_t *lenp,
 		loff_t *ppos)
 {
-	int ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
-
-	if (ret || !write)
-		return ret;
-
+	int ret;
+	int perf_cpu = sysctl_perf_cpu_time_max_percent;
 	/*
 	 * If throttling is disabled don't allow the write:
 	 */
-	if (sysctl_perf_cpu_time_max_percent == 100 ||
-	    sysctl_perf_cpu_time_max_percent == 0)
+	if (write && (perf_cpu == 100 || perf_cpu == 0))
 		return -EINVAL;
+
+	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+	if (ret || !write)
+		return ret;
 
 	max_samples_per_tick = DIV_ROUND_UP(sysctl_perf_event_sample_rate, HZ);
 	perf_sample_period_ns = NSEC_PER_SEC / sysctl_perf_event_sample_rate;
@@ -5541,7 +5541,7 @@ out_put:
 
 static const struct vm_operations_struct perf_mmap_vmops = {
 	.open		= perf_mmap_open,
-	.close		= perf_mmap_close, /* non mergable */
+	.close		= perf_mmap_close, /* non mergeable */
 	.fault		= perf_mmap_fault,
 	.page_mkwrite	= perf_mmap_fault,
 };
@@ -9918,7 +9918,7 @@ static void account_event(struct perf_event *event)
 			 * call the perf scheduling hooks before proceeding to
 			 * install events that need them.
 			 */
-			synchronize_sched();
+			synchronize_rcu();
 		}
 		/*
 		 * Now that we have waited for the sync_sched(), allow further
@@ -10135,7 +10135,7 @@ static int perf_copy_attr(struct perf_event_attr __user *uattr,
 	u32 size;
 	int ret;
 
-	if (!access_ok(VERIFY_WRITE, uattr, PERF_ATTR_SIZE_VER0))
+	if (!access_ok(uattr, PERF_ATTR_SIZE_VER0))
 		return -EFAULT;
 
 	/*

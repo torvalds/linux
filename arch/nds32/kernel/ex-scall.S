@@ -19,11 +19,13 @@ ENTRY(__switch_to)
 
 	la	$p0, __entry_task
 	sw	$r1, [$p0]
-	move	$p1, $r0
-	addi	$p1, $p1, #THREAD_CPU_CONTEXT
+	addi	$p1, $r0, #THREAD_CPU_CONTEXT
 	smw.bi 	$r6, [$p1], $r14, #0xb		! push r6~r14, fp, lp, sp
 	move	$r25, $r1
-	addi	$r1, $r1, #THREAD_CPU_CONTEXT
+#if defined(CONFIG_FPU)
+	call	_switch_fpu
+#endif
+	addi	$r1, $r25, #THREAD_CPU_CONTEXT
 	lmw.bi 	$r6, [$r1], $r14, #0xb		! pop r6~r14, fp, lp, sp
 	ret
 

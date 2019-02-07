@@ -186,6 +186,8 @@ void bcmgenet_wol_power_up_cfg(struct bcmgenet_priv *priv,
 	}
 
 	reg = bcmgenet_umac_readl(priv, UMAC_MPD_CTRL);
+	if (!(reg & MPD_EN))
+		return;	/* already powered up so skip the rest */
 	reg &= ~MPD_EN;
 	bcmgenet_umac_writel(priv, reg, UMAC_MPD_CTRL);
 

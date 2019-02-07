@@ -879,6 +879,8 @@
 		resets = <&tegra_car 89>, <&tegra_car 156>,
 			 <&tegra_car 143>;
 		reset-names = "xusb_host", "xusb_ss", "xusb_src";
+		power-domains = <&pd_xusbhost>, <&pd_xusbss>;
+		power-domain-names = "xusb_host", "xusb_ss";
 
 		nvidia,xusb-padctl = <&padctl>;
 

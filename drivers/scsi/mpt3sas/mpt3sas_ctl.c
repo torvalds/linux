@@ -641,7 +641,6 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 	MPI2DefaultReply_t *mpi_reply;
 	Mpi26NVMeEncapsulatedRequest_t *nvme_encap_request = NULL;
 	struct _pcie_device *pcie_device = NULL;
-	u32 ioc_state;
 	u16 smid;
 	u8 timeout;
 	u8 issue_reset;
@@ -654,7 +653,6 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 	dma_addr_t data_in_dma = 0;
 	size_t data_in_sz = 0;
 	long ret;
-	u16 wait_state_count;
 	u16 device_handle = MPT3SAS_INVALID_DEVICE_HANDLE;
 	u8 tr_method = MPI26_SCSITASKMGMT_MSGFLAGS_PROTOCOL_LVL_RST_PCIE;
 
@@ -666,22 +664,9 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 		goto out;
 	}
 
-	wait_state_count = 0;
-	ioc_state = mpt3sas_base_get_iocstate(ioc, 1);
-	while (ioc_state != MPI2_IOC_STATE_OPERATIONAL) {
-		if (wait_state_count++ == 10) {
-			ioc_err(ioc, "%s: failed due to ioc not operational\n",
-				__func__);
-			ret = -EFAULT;
-			goto out;
-		}
-		ssleep(1);
-		ioc_state = mpt3sas_base_get_iocstate(ioc, 1);
-		ioc_info(ioc, "%s: waiting for operational state(count=%d)\n",
-			 __func__, wait_state_count);
-	}
-	if (wait_state_count)
-		ioc_info(ioc, "%s: ioc is operational\n", __func__);
+	ret = mpt3sas_wait_for_ioc(ioc,	IOC_OPERATIONAL_WAIT_COUNT);
+	if (ret)
+		goto out;
 
 	mpi_request = kzalloc(ioc->request_sz, GFP_KERNEL);
 	if (!mpi_request) {

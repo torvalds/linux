@@ -743,19 +743,19 @@ static int ci_enable_didt(struct amdgpu_device *adev, bool enable)
 
 	if (pi->caps_sq_ramping || pi->caps_db_ramping ||
 	    pi->caps_td_ramping || pi->caps_tcp_ramping) {
-		adev->gfx.rlc.funcs->enter_safe_mode(adev);
+		amdgpu_gfx_rlc_enter_safe_mode(adev);
 
 		if (enable) {
 			ret = ci_program_pt_config_registers(adev, didt_config_ci);
 			if (ret) {
-				adev->gfx.rlc.funcs->exit_safe_mode(adev);
+				amdgpu_gfx_rlc_exit_safe_mode(adev);
 				return ret;
 			}
 		}
 
 		ci_do_enable_didt(adev, enable);
 
-		adev->gfx.rlc.funcs->exit_safe_mode(adev);
+		amdgpu_gfx_rlc_exit_safe_mode(adev);
 	}
 
 	return 0;

@@ -30,25 +30,6 @@
 
 #include "mm.h"
 
-static unsigned long phys_initrd_start __initdata = 0x01000000;
-static unsigned long phys_initrd_size __initdata = SZ_8M;
-
-static int __init early_initrd(char *p)
-{
-	unsigned long start, size;
-	char *endp;
-
-	start = memparse(p, &endp);
-	if (*endp == ',') {
-		size = memparse(endp + 1, NULL);
-
-		phys_initrd_start = start;
-		phys_initrd_size = size;
-	}
-	return 0;
-}
-early_param("initrd", early_initrd);
-
 /*
  * This keeps memory configuration data used by a couple memory
  * initialization functions, as well as show_mem() for the skipping
@@ -156,6 +137,11 @@ void __init uc32_memblock_init(struct meminfo *mi)
 	memblock_reserve(__pa(_text), _end - _text);
 
 #ifdef CONFIG_BLK_DEV_INITRD
+	if (!phys_initrd_size) {
+		phys_initrd_start = 0x01000000;
+		phys_initrd_size = SZ_8M;
+	}
+
 	if (phys_initrd_size) {
 		memblock_reserve(phys_initrd_start, phys_initrd_size);
 

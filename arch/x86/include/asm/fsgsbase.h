@@ -16,8 +16,8 @@
  */
 extern unsigned long x86_fsbase_read_task(struct task_struct *task);
 extern unsigned long x86_gsbase_read_task(struct task_struct *task);
-extern int x86_fsbase_write_task(struct task_struct *task, unsigned long fsbase);
-extern int x86_gsbase_write_task(struct task_struct *task, unsigned long gsbase);
+extern void x86_fsbase_write_task(struct task_struct *task, unsigned long fsbase);
+extern void x86_gsbase_write_task(struct task_struct *task, unsigned long gsbase);
 
 /* Helper functions for reading/writing FS/GS base */
 
@@ -39,8 +39,15 @@ static inline unsigned long x86_gsbase_read_cpu_inactive(void)
 	return gsbase;
 }
 
-extern void x86_fsbase_write_cpu(unsigned long fsbase);
-extern void x86_gsbase_write_cpu_inactive(unsigned long gsbase);
+static inline void x86_fsbase_write_cpu(unsigned long fsbase)
+{
+	wrmsrl(MSR_FS_BASE, fsbase);
+}
+
+static inline void x86_gsbase_write_cpu_inactive(unsigned long gsbase)
+{
+	wrmsrl(MSR_KERNEL_GS_BASE, gsbase);
+}
 
 #endif /* CONFIG_X86_64 */
 

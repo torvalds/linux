@@ -84,7 +84,8 @@ do {									\
  * Check FCSR for any unmasked exceptions pending set with `ptrace',
  * clear them and send a signal.
  */
-#define __sanitize_fcr31(next)						\
+#ifdef CONFIG_MIPS_FP_SUPPORT
+# define __sanitize_fcr31(next)						\
 do {									\
 	unsigned long fcr31 = mask_fcr31_x(next->thread.fpu.fcr31);	\
 	void __user *pc;						\
@@ -95,6 +96,9 @@ do {									\
 		force_fcr31_sig(fcr31, pc, next);			\
 	}								\
 } while (0)
+#else
+# define __sanitize_fcr31(next)
+#endif
 
 /*
  * For newly created kernel threads switch_to() will return to

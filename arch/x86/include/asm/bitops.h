@@ -448,7 +448,7 @@ static __always_inline int ffs(int x)
  * set bit if value is nonzero. The last (most significant) bit is
  * at position 32.
  */
-static __always_inline int fls(int x)
+static __always_inline int fls(unsigned int x)
 {
 	int r;
 

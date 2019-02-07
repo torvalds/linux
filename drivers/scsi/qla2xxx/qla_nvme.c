@@ -272,17 +272,6 @@ static void qla_nvme_fcp_abort(struct nvme_fc_local_port *lport,
 	schedule_work(&priv->abort_work);
 }
 
-static void qla_nvme_poll(struct nvme_fc_local_port *lport, void *hw_queue_handle)
-{
-	struct qla_qpair *qpair = hw_queue_handle;
-	unsigned long flags;
-	struct scsi_qla_host *vha = lport->private;
-
-	spin_lock_irqsave(&qpair->qp_lock, flags);
-	qla24xx_process_response_queue(vha, qpair->rsp);
-	spin_unlock_irqrestore(&qpair->qp_lock, flags);
-}
-
 static inline int qla2x00_start_nvme_mq(srb_t *sp)
 {
 	unsigned long   flags;
@@ -474,21 +463,10 @@ static int qla_nvme_post_cmd(struct nvme_fc_local_port *lport,
 	int rval = -ENODEV;
 	srb_t *sp;
 	struct qla_qpair *qpair = hw_queue_handle;
-	struct nvme_private *priv;
+	struct nvme_private *priv = fd->private;
 	struct qla_nvme_rport *qla_rport = rport->private;
 
-	if (!fd || !qpair) {
-		ql_log(ql_log_warn, NULL, 0x2134,
-		    "NO NVMe request or Queue Handle\n");
-		return rval;
-	}
-
-	priv = fd->private;
 	fcport = qla_rport->fcport;
-	if (!fcport) {
-		ql_log(ql_log_warn, NULL, 0x210e, "No fcport ptr\n");
-		return rval;
-	}
 
 	vha = fcport->vha;
 
@@ -517,6 +495,7 @@ static int qla_nvme_post_cmd(struct nvme_fc_local_port *lport,
 	sp->name = "nvme_cmd";
 	sp->done = qla_nvme_sp_done;
 	sp->qpair = qpair;
+	sp->vha = vha;
 	nvme = &sp->u.iocb_cmd;
 	nvme->u.nvme.desc = fd;
 
@@ -564,7 +543,7 @@ static void qla_nvme_remoteport_delete(struct nvme_fc_remote_port *rport)
 		schedule_work(&fcport->free_work);
 	}
 
-	fcport->nvme_flag &= ~(NVME_FLAG_REGISTERED | NVME_FLAG_DELETING);
+	fcport->nvme_flag &= ~NVME_FLAG_DELETING;
 	ql_log(ql_log_info, fcport->vha, 0x2110,
 	    "remoteport_delete of %p completed.\n", fcport);
 }
@@ -578,7 +557,6 @@ static struct nvme_fc_port_template qla_nvme_fc_transport = {
 	.ls_abort	= qla_nvme_ls_abort,
 	.fcp_io		= qla_nvme_post_cmd,
 	.fcp_abort	= qla_nvme_fcp_abort,
-	.poll_queue	= qla_nvme_poll,
 	.max_hw_queues  = 8,
 	.max_sgl_segments = 128,
 	.max_dif_sgl_segments = 64,

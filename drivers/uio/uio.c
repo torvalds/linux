@@ -569,20 +569,20 @@ static ssize_t uio_read(struct file *filep, char __user *buf,
 	ssize_t retval = 0;
 	s32 event_count;
 
-	mutex_lock(&idev->info_lock);
-	if (!idev->info || !idev->info->irq)
-		retval = -EIO;
-	mutex_unlock(&idev->info_lock);
-
-	if (retval)
-		return retval;
-
 	if (count != sizeof(s32))
 		return -EINVAL;
 
 	add_wait_queue(&idev->wait, &wait);
 
 	do {
+		mutex_lock(&idev->info_lock);
+		if (!idev->info || !idev->info->irq) {
+			retval = -EIO;
+			mutex_unlock(&idev->info_lock);
+			break;
+		}
+		mutex_unlock(&idev->info_lock);
+
 		set_current_state(TASK_INTERRUPTIBLE);
 
 		event_count = atomic_read(&idev->event);
@@ -1016,6 +1016,9 @@ void uio_unregister_device(struct uio_info *info)
 
 	idev->info = NULL;
 	mutex_unlock(&idev->info_lock);
+
+	wake_up_interruptible(&idev->wait);
+	kill_fasync(&idev->async_queue, SIGIO, POLL_HUP);
 
 	device_unregister(&idev->dev);
 

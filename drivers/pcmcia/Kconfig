@@ -4,6 +4,7 @@
 
 menuconfig PCCARD
 	tristate "PCCard (PCMCIA/CardBus) support"
+	depends on !UML
 	---help---
 	  Say Y here if you want to attach PCMCIA- or PC-cards to your Linux
 	  computer.  These are credit-card size devices such as network cards,
@@ -62,6 +63,9 @@ config CARDBUS
 	  them are "yenta-compatible", so say Y or M there, too.
 
 	  If unsure, say Y.
+
+config PCMCIA_MAX1600
+	tristate
 
 comment "PC-card bridges"
 
@@ -191,6 +195,8 @@ config PCMCIA_SA1111
 	select PCMCIA_SOC_COMMON
 	select PCMCIA_SA11XX_BASE if ARCH_SA1100
 	select PCMCIA_PXA2XX if ARCH_LUBBOCK && SA1111
+	select PCMCIA_MAX1600 if ASSABET_NEPONSET
+	select PCMCIA_MAX1600 if ARCH_LUBBOCK && SA1111
 	help
 	  Say Y  here to include support for SA1111-based PCMCIA or CF
 	  sockets, found on the Jornada 720, Graphicsmaster and other
@@ -207,6 +213,7 @@ config PCMCIA_PXA2XX
 		    || MACH_VPAC270 || MACH_BALLOON3 || MACH_COLIBRI \
 		    || MACH_COLIBRI320 || MACH_H4700)
 	select PCMCIA_SOC_COMMON
+	select PCMCIA_MAX1600 if MACH_MAINSTONE
 	help
 	  Say Y here to include support for the PXA2xx PCMCIA controller
 

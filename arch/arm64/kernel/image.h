@@ -15,12 +15,14 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef __ASM_IMAGE_H
-#define __ASM_IMAGE_H
+#ifndef __ARM64_KERNEL_IMAGE_H
+#define __ARM64_KERNEL_IMAGE_H
 
 #ifndef LINKER_SCRIPT
 #error This file should only be included in vmlinux.lds.S
 #endif
+
+#include <asm/image.h>
 
 /*
  * There aren't any ELF relocations we can use to endian-swap values known only
@@ -47,19 +49,22 @@
 	sym##_lo32 = DATA_LE32((data) & 0xffffffff);		\
 	sym##_hi32 = DATA_LE32((data) >> 32)
 
+#define __HEAD_FLAG(field)	(__HEAD_FLAG_##field << \
+					ARM64_IMAGE_FLAG_##field##_SHIFT)
+
 #ifdef CONFIG_CPU_BIG_ENDIAN
-#define __HEAD_FLAG_BE		1
+#define __HEAD_FLAG_BE		ARM64_IMAGE_FLAG_BE
 #else
-#define __HEAD_FLAG_BE		0
+#define __HEAD_FLAG_BE		ARM64_IMAGE_FLAG_LE
 #endif
 
 #define __HEAD_FLAG_PAGE_SIZE	((PAGE_SHIFT - 10) / 2)
 
 #define __HEAD_FLAG_PHYS_BASE	1
 
-#define __HEAD_FLAGS		((__HEAD_FLAG_BE << 0) |	\
-				 (__HEAD_FLAG_PAGE_SIZE << 1) |	\
-				 (__HEAD_FLAG_PHYS_BASE << 3))
+#define __HEAD_FLAGS		(__HEAD_FLAG(BE)	| \
+				 __HEAD_FLAG(PAGE_SIZE) | \
+				 __HEAD_FLAG(PHYS_BASE))
 
 /*
  * These will output as part of the Image header, which should be little-endian
@@ -76,16 +81,6 @@
 __efistub_stext_offset = stext - _text;
 
 /*
- * Prevent the symbol aliases below from being emitted into the kallsyms
- * table, by forcing them to be absolute symbols (which are conveniently
- * ignored by scripts/kallsyms) rather than section relative symbols.
- * The distinction is only relevant for partial linking, and only for symbols
- * that are defined within a section declaration (which is not the case for
- * the definitions below) so the resulting values will be identical.
- */
-#define KALLSYMS_HIDE(sym)	ABSOLUTE(sym)
-
-/*
  * The EFI stub has its own symbol namespace prefixed by __efistub_, to
  * isolate it from the kernel proper. The following symbols are legally
  * accessed by the stub, so provide some aliases to make them accessible.
@@ -94,29 +89,29 @@ __efistub_stext_offset = stext - _text;
  * linked at. The routines below are all implemented in assembler in a
  * position independent manner
  */
-__efistub_memcmp		= KALLSYMS_HIDE(__pi_memcmp);
-__efistub_memchr		= KALLSYMS_HIDE(__pi_memchr);
-__efistub_memcpy		= KALLSYMS_HIDE(__pi_memcpy);
-__efistub_memmove		= KALLSYMS_HIDE(__pi_memmove);
-__efistub_memset		= KALLSYMS_HIDE(__pi_memset);
-__efistub_strlen		= KALLSYMS_HIDE(__pi_strlen);
-__efistub_strnlen		= KALLSYMS_HIDE(__pi_strnlen);
-__efistub_strcmp		= KALLSYMS_HIDE(__pi_strcmp);
-__efistub_strncmp		= KALLSYMS_HIDE(__pi_strncmp);
-__efistub_strrchr		= KALLSYMS_HIDE(__pi_strrchr);
-__efistub___flush_dcache_area	= KALLSYMS_HIDE(__pi___flush_dcache_area);
+__efistub_memcmp		= __pi_memcmp;
+__efistub_memchr		= __pi_memchr;
+__efistub_memcpy		= __pi_memcpy;
+__efistub_memmove		= __pi_memmove;
+__efistub_memset		= __pi_memset;
+__efistub_strlen		= __pi_strlen;
+__efistub_strnlen		= __pi_strnlen;
+__efistub_strcmp		= __pi_strcmp;
+__efistub_strncmp		= __pi_strncmp;
+__efistub_strrchr		= __pi_strrchr;
+__efistub___flush_dcache_area	= __pi___flush_dcache_area;
 
 #ifdef CONFIG_KASAN
-__efistub___memcpy		= KALLSYMS_HIDE(__pi_memcpy);
-__efistub___memmove		= KALLSYMS_HIDE(__pi_memmove);
-__efistub___memset		= KALLSYMS_HIDE(__pi_memset);
+__efistub___memcpy		= __pi_memcpy;
+__efistub___memmove		= __pi_memmove;
+__efistub___memset		= __pi_memset;
 #endif
 
-__efistub__text			= KALLSYMS_HIDE(_text);
-__efistub__end			= KALLSYMS_HIDE(_end);
-__efistub__edata		= KALLSYMS_HIDE(_edata);
-__efistub_screen_info		= KALLSYMS_HIDE(screen_info);
+__efistub__text			= _text;
+__efistub__end			= _end;
+__efistub__edata		= _edata;
+__efistub_screen_info		= screen_info;
 
 #endif
 
-#endif /* __ASM_IMAGE_H */
+#endif /* __ARM64_KERNEL_IMAGE_H */

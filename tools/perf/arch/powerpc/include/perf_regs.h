@@ -62,7 +62,9 @@ static const char *reg_names[] = {
 	[PERF_REG_POWERPC_SOFTE] = "softe",
 	[PERF_REG_POWERPC_TRAP] = "trap",
 	[PERF_REG_POWERPC_DAR] = "dar",
-	[PERF_REG_POWERPC_DSISR] = "dsisr"
+	[PERF_REG_POWERPC_DSISR] = "dsisr",
+	[PERF_REG_POWERPC_SIER] = "sier",
+	[PERF_REG_POWERPC_MMCRA] = "mmcra"
 };
 
 static inline const char *perf_reg_name(int id)

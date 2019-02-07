@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2009 Renesas Solutions Corp.
  *
  * Kuninori Morimoto <morimoto.kuninori@renesas.com>
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 #include <asm/clock.h>
 #include <asm/heartbeat.h>
@@ -696,13 +693,20 @@ static struct gpiod_lookup_table sdhi0_power_gpiod_table = {
 	},
 };
 
+static struct gpiod_lookup_table sdhi0_gpio_table = {
+	.dev_id = "sh_mobile_sdhi.0",
+	.table = {
+		/* Card detect */
+		GPIO_LOOKUP("sh7724_pfc", GPIO_PTY7, "cd", GPIO_ACTIVE_LOW),
+		{ },
+	},
+};
+
 static struct tmio_mmc_data sdhi0_info = {
 	.chan_priv_tx	= (void *)SHDMA_SLAVE_SDHI0_TX,
 	.chan_priv_rx	= (void *)SHDMA_SLAVE_SDHI0_RX,
 	.capabilities	= MMC_CAP_SDIO_IRQ | MMC_CAP_POWER_OFF_CARD |
 			  MMC_CAP_NEEDS_POLL,
-	.flags		= TMIO_MMC_USE_GPIO_CD,
-	.cd_gpio	= GPIO_PTY7,
 };
 
 static struct resource sdhi0_resources[] = {
@@ -735,8 +739,15 @@ static struct tmio_mmc_data sdhi1_info = {
 	.chan_priv_rx	= (void *)SHDMA_SLAVE_SDHI1_RX,
 	.capabilities	= MMC_CAP_SDIO_IRQ | MMC_CAP_POWER_OFF_CARD |
 			  MMC_CAP_NEEDS_POLL,
-	.flags		= TMIO_MMC_USE_GPIO_CD,
-	.cd_gpio	= GPIO_PTW7,
+};
+
+static struct gpiod_lookup_table sdhi1_gpio_table = {
+	.dev_id = "sh_mobile_sdhi.1",
+	.table = {
+		/* Card detect */
+		GPIO_LOOKUP("sh7724_pfc", GPIO_PTW7, "cd", GPIO_ACTIVE_LOW),
+		{ },
+	},
 };
 
 static struct resource sdhi1_resources[] = {
@@ -776,9 +787,19 @@ static struct mmc_spi_platform_data mmc_spi_info = {
 	.caps2 = MMC_CAP2_RO_ACTIVE_HIGH,
 	.ocr_mask = MMC_VDD_32_33 | MMC_VDD_33_34, /* 3.3V only */
 	.setpower = mmc_spi_setpower,
-	.flags = MMC_SPI_USE_CD_GPIO | MMC_SPI_USE_RO_GPIO,
-	.cd_gpio = GPIO_PTY7,
-	.ro_gpio = GPIO_PTY6,
+};
+
+static struct gpiod_lookup_table mmc_spi_gpio_table = {
+	.dev_id = "mmc_spi.0", /* device "mmc_spi" @ CS0 */
+	.table = {
+		/* Card detect */
+		GPIO_LOOKUP_IDX("sh7724_pfc", GPIO_PTY7, NULL, 0,
+				GPIO_ACTIVE_LOW),
+		/* Write protect */
+		GPIO_LOOKUP_IDX("sh7724_pfc", GPIO_PTY6, NULL, 1,
+				GPIO_ACTIVE_HIGH),
+		{ },
+	},
 };
 
 static struct spi_board_info spi_bus[] = {
@@ -1282,6 +1303,7 @@ static int __init arch_setup(void)
 	gpio_request(GPIO_PTB6, NULL); /* 3.3V power control */
 	gpio_direction_output(GPIO_PTB6, 0); /* disable power by default */
 
+	gpiod_add_lookup_table(&mmc_spi_gpio_table);
 	spi_register_board_info(spi_bus, ARRAY_SIZE(spi_bus));
 #endif
 
@@ -1434,6 +1456,10 @@ static int __init arch_setup(void)
 	gpiod_add_lookup_table(&cn12_power_gpiod_table);
 #if defined(CONFIG_MMC_SDHI) || defined(CONFIG_MMC_SDHI_MODULE)
 	gpiod_add_lookup_table(&sdhi0_power_gpiod_table);
+	gpiod_add_lookup_table(&sdhi0_gpio_table);
+#if !defined(CONFIG_MMC_SH_MMCIF) && !defined(CONFIG_MMC_SH_MMCIF_MODULE)
+	gpiod_add_lookup_table(&sdhi1_gpio_table);
+#endif
 #endif
 
 	return platform_add_devices(ecovec_devices,

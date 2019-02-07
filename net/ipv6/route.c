@@ -210,7 +210,9 @@ struct neighbour *ip6_neigh_lookup(const struct in6_addr *gw,
 	n = __ipv6_neigh_lookup(dev, daddr);
 	if (n)
 		return n;
-	return neigh_create(&nd_tbl, daddr, dev);
+
+	n = neigh_create(&nd_tbl, daddr, dev);
+	return IS_ERR(n) ? NULL : n;
 }
 
 static struct neighbour *ip6_dst_neigh_lookup(const struct dst_entry *dst,
@@ -2977,7 +2979,8 @@ static struct fib6_info *ip6_route_info_create(struct fib6_config *cfg,
 	if (!rt)
 		goto out;
 
-	rt->fib6_metrics = ip_fib_metrics_init(net, cfg->fc_mx, cfg->fc_mx_len);
+	rt->fib6_metrics = ip_fib_metrics_init(net, cfg->fc_mx, cfg->fc_mx_len,
+					       extack);
 	if (IS_ERR(rt->fib6_metrics)) {
 		err = PTR_ERR(rt->fib6_metrics);
 		/* Do not leave garbage there. */
@@ -3710,7 +3713,7 @@ struct fib6_info *addrconf_f6i_alloc(struct net *net,
 	if (!f6i)
 		return ERR_PTR(-ENOMEM);
 
-	f6i->fib6_metrics = ip_fib_metrics_init(net, NULL, 0);
+	f6i->fib6_metrics = ip_fib_metrics_init(net, NULL, 0, NULL);
 	f6i->dst_nocount = true;
 	f6i->dst_host = true;
 	f6i->fib6_protocol = RTPROT_KERNEL;
@@ -4248,17 +4251,6 @@ struct rt6_nh {
 	struct list_head next;
 };
 
-static void ip6_print_replace_route_err(struct list_head *rt6_nh_list)
-{
-	struct rt6_nh *nh;
-
-	list_for_each_entry(nh, rt6_nh_list, next) {
-		pr_warn("IPV6: multipath route replace failed (check consistency of installed routes): %pI6c nexthop %pI6c ifi %d\n",
-		        &nh->r_cfg.fc_dst, &nh->r_cfg.fc_gateway,
-		        nh->r_cfg.fc_ifindex);
-	}
-}
-
 static int ip6_route_info_append(struct net *net,
 				 struct list_head *rt6_nh_list,
 				 struct fib6_info *rt,
@@ -4404,7 +4396,8 @@ static int ip6_route_multipath_add(struct fib6_config *cfg,
 		nh->fib6_info = NULL;
 		if (err) {
 			if (replace && nhn)
-				ip6_print_replace_route_err(&rt6_nh_list);
+				NL_SET_ERR_MSG_MOD(extack,
+						   "multipath route replace failed (check consistency of installed routes)");
 			err_nh = nh;
 			goto add_errout;
 		}
@@ -5053,12 +5046,16 @@ int ipv6_sysctl_rtcache_flush(struct ctl_table *ctl, int write,
 {
 	struct net *net;
 	int delay;
+	int ret;
 	if (!write)
 		return -EINVAL;
 
 	net = (struct net *)ctl->extra1;
 	delay = net->ipv6.sysctl.flush_delay;
-	proc_dointvec(ctl, write, buffer, lenp, ppos);
+	ret = proc_dointvec(ctl, write, buffer, lenp, ppos);
+	if (ret)
+		return ret;
+
 	fib6_run_gc(delay <= 0 ? 0 : (unsigned long)delay, net, delay > 0);
 	return 0;
 }

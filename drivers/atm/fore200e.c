@@ -754,8 +754,8 @@ static int fore200e_sba_proc_read(struct fore200e *fore200e, char *page)
 
 	regs = of_get_property(op->dev.of_node, "reg", NULL);
 
-	return sprintf(page, "   SBUS slot/device:\t\t%d/'%s'\n",
-		       (regs ? regs->which_io : 0), op->dev.of_node->name);
+	return sprintf(page, "   SBUS slot/device:\t\t%d/'%pOFn'\n",
+		       (regs ? regs->which_io : 0), op->dev.of_node);
 }
 
 static const struct fore200e_bus fore200e_sbus_ops = {

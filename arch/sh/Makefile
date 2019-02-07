@@ -228,6 +228,9 @@ archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
 	$(Q)$(MAKE) $(clean)=arch/sh/kernel/vsyscall
 
+archheaders:
+	$(Q)$(MAKE) $(build)=arch/sh/kernel/syscalls all
+
 define archhelp
 	@echo '  zImage 	           - Compressed kernel image'
 	@echo '  romImage	           - Compressed ROM image, if supported'

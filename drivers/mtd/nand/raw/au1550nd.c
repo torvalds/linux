@@ -430,7 +430,7 @@ static int au1550nd_probe(struct platform_device *pdev)
 	ctx->cs = cs;
 
 	this->legacy.dev_ready = au1550_device_ready;
-	this->select_chip = au1550_select_chip;
+	this->legacy.select_chip = au1550_select_chip;
 	this->legacy.cmdfunc = au1550_command;
 
 	/* 30 us command delay time */

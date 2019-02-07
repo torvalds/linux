@@ -517,7 +517,7 @@ static void sti_gdp_init(struct sti_gdp *gdp)
 	/* Allocate all the nodes within a single memory page */
 	size = sizeof(struct sti_gdp_node) *
 	    GDP_NODE_PER_FIELD * GDP_NODE_NB_BANK;
-	base = dma_alloc_wc(gdp->dev, size, &dma_addr, GFP_KERNEL | GFP_DMA);
+	base = dma_alloc_wc(gdp->dev, size, &dma_addr, GFP_KERNEL);
 
 	if (!base) {
 		DRM_ERROR("Failed to allocate memory for GDP node\n");
@@ -883,7 +883,6 @@ static void sti_gdp_destroy(struct drm_plane *drm_plane)
 {
 	DRM_DEBUG_DRIVER("\n");
 
-	drm_plane_helper_disable(drm_plane, NULL);
 	drm_plane_cleanup(drm_plane);
 }
 

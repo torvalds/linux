@@ -115,8 +115,6 @@ extern int audit_classify_compat_syscall(int abi, unsigned syscall);
 
 struct filename;
 
-extern void audit_log_session_info(struct audit_buffer *ab);
-
 #define AUDIT_OFF	0
 #define AUDIT_ON	1
 #define AUDIT_LOCKED	2
@@ -153,8 +151,7 @@ extern void		    audit_log_link_denied(const char *operation);
 extern void		    audit_log_lost(const char *message);
 
 extern int audit_log_task_context(struct audit_buffer *ab);
-extern void audit_log_task_info(struct audit_buffer *ab,
-				struct task_struct *tsk);
+extern void audit_log_task_info(struct audit_buffer *ab);
 
 extern int		    audit_update_lsm_rules(void);
 
@@ -202,8 +199,7 @@ static inline int audit_log_task_context(struct audit_buffer *ab)
 {
 	return 0;
 }
-static inline void audit_log_task_info(struct audit_buffer *ab,
-				       struct task_struct *tsk)
+static inline void audit_log_task_info(struct audit_buffer *ab)
 { }
 #define audit_enabled AUDIT_OFF
 #endif /* CONFIG_AUDIT */

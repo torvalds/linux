@@ -76,7 +76,7 @@ static bool write_to_read_only(struct kvm_vcpu *vcpu,
 	return false;
 }
 
-u64 vcpu_read_sys_reg(struct kvm_vcpu *vcpu, int reg)
+u64 vcpu_read_sys_reg(const struct kvm_vcpu *vcpu, int reg)
 {
 	if (!vcpu->arch.sysregs_loaded_on_cpu)
 		goto immediate_read;
@@ -1040,6 +1040,14 @@ static u64 read_id_reg(struct sys_reg_desc const *r, bool raz)
 			kvm_debug("SVE unsupported for guests, suppressing\n");
 
 		val &= ~(0xfUL << ID_AA64PFR0_SVE_SHIFT);
+	} else if (id == SYS_ID_AA64ISAR1_EL1) {
+		const u64 ptrauth_mask = (0xfUL << ID_AA64ISAR1_APA_SHIFT) |
+					 (0xfUL << ID_AA64ISAR1_API_SHIFT) |
+					 (0xfUL << ID_AA64ISAR1_GPA_SHIFT) |
+					 (0xfUL << ID_AA64ISAR1_GPI_SHIFT);
+		if (val & ptrauth_mask)
+			kvm_debug("ptrauth unsupported for guests, suppressing\n");
+		val &= ~ptrauth_mask;
 	} else if (id == SYS_ID_AA64MMFR1_EL1) {
 		if (val & (0xfUL << ID_AA64MMFR1_LOR_SHIFT))
 			kvm_debug("LORegions unsupported for guests, suppressing\n");
@@ -1850,6 +1858,8 @@ static void perform_access(struct kvm_vcpu *vcpu,
 			   struct sys_reg_params *params,
 			   const struct sys_reg_desc *r)
 {
+	trace_kvm_sys_access(*vcpu_pc(vcpu), params, r);
+
 	/*
 	 * Not having an accessor means that we have configured a trap
 	 * that we don't know how to handle. This certainly qualifies
@@ -1912,8 +1922,8 @@ static void unhandled_cp_access(struct kvm_vcpu *vcpu,
 		WARN_ON(1);
 	}
 
-	kvm_err("Unsupported guest CP%d access at: %08lx\n",
-		cp, *vcpu_pc(vcpu));
+	kvm_err("Unsupported guest CP%d access at: %08lx [%08lx]\n",
+		cp, *vcpu_pc(vcpu), *vcpu_cpsr(vcpu));
 	print_sys_reg_instr(params);
 	kvm_inject_undefined(vcpu);
 }
@@ -2063,8 +2073,8 @@ static int emulate_sys_reg(struct kvm_vcpu *vcpu,
 	if (likely(r)) {
 		perform_access(vcpu, params, r);
 	} else {
-		kvm_err("Unsupported guest sys_reg access at: %lx\n",
-			*vcpu_pc(vcpu));
+		kvm_err("Unsupported guest sys_reg access at: %lx [%08lx]\n",
+			*vcpu_pc(vcpu), *vcpu_cpsr(vcpu));
 		print_sys_reg_instr(params);
 		kvm_inject_undefined(vcpu);
 	}

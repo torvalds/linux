@@ -139,7 +139,9 @@ struct dpaa2_faead {
 };
 
 #define DPAA2_FAEAD_A2V			0x20000000
+#define DPAA2_FAEAD_A4V			0x08000000
 #define DPAA2_FAEAD_UPDV		0x00001000
+#define DPAA2_FAEAD_EBDDV		0x00002000
 #define DPAA2_FAEAD_UPD			0x00000010
 
 /* Accessors for the hardware annotation fields that we use */
@@ -243,12 +245,14 @@ struct dpaa2_eth_fq_stats {
 struct dpaa2_eth_ch_stats {
 	/* Volatile dequeues retried due to portal busy */
 	__u64 dequeue_portal_busy;
-	/* Number of CDANs; useful to estimate avg NAPI len */
-	__u64 cdan;
-	/* Number of frames received on queues from this channel */
-	__u64 frames;
 	/* Pull errors */
 	__u64 pull_err;
+	/* Number of CDANs; useful to estimate avg NAPI len */
+	__u64 cdan;
+	/* XDP counters */
+	__u64 xdp_drop;
+	__u64 xdp_tx;
+	__u64 xdp_tx_err;
 };
 
 /* Maximum number of queues associated with a DPNI */
@@ -271,15 +275,22 @@ struct dpaa2_eth_fq {
 	u32 tx_qdbin;
 	u16 flowid;
 	int target_cpu;
+	u32 dq_frames;
+	u32 dq_bytes;
 	struct dpaa2_eth_channel *channel;
 	enum dpaa2_eth_fq_type type;
 
 	void (*consume)(struct dpaa2_eth_priv *priv,
 			struct dpaa2_eth_channel *ch,
 			const struct dpaa2_fd *fd,
-			struct napi_struct *napi,
-			u16 queue_id);
+			struct dpaa2_eth_fq *fq);
 	struct dpaa2_eth_fq_stats stats;
+};
+
+struct dpaa2_eth_ch_xdp {
+	struct bpf_prog *prog;
+	u64 drop_bufs[DPAA2_ETH_BUFS_PER_CMD];
+	int drop_cnt;
 };
 
 struct dpaa2_eth_channel {
@@ -293,6 +304,7 @@ struct dpaa2_eth_channel {
 	struct dpaa2_eth_priv *priv;
 	int buf_count;
 	struct dpaa2_eth_ch_stats stats;
+	struct dpaa2_eth_ch_xdp xdp;
 };
 
 struct dpaa2_eth_dist_fields {
@@ -352,6 +364,7 @@ struct dpaa2_eth_priv {
 	u64 rx_hash_fields;
 	struct dpaa2_eth_cls_rule *cls_rules;
 	u8 rx_cls_enabled;
+	struct bpf_prog *xdp_prog;
 };
 
 #define DPAA2_RXH_SUPPORTED	(RXH_L2DA | RXH_VLAN | RXH_L3_PROTO \
@@ -434,9 +447,10 @@ static inline unsigned int dpaa2_eth_rx_head_room(struct dpaa2_eth_priv *priv)
 	       DPAA2_ETH_RX_HWA_SIZE;
 }
 
+/* We have exactly one {Rx, Tx conf} queue per channel */
 static int dpaa2_eth_queue_count(struct dpaa2_eth_priv *priv)
 {
-	return priv->dpni_attrs.num_queues;
+	return priv->num_channels;
 }
 
 int dpaa2_eth_set_hash(struct net_device *net_dev, u64 flags);

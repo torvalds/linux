@@ -68,7 +68,7 @@ copy_ucs2_from_user_len(efi_char16_t **dst, efi_char16_t __user *src,
 		return 0;
 	}
 
-	if (!access_ok(VERIFY_READ, src, 1))
+	if (!access_ok(src, 1))
 		return -EFAULT;
 
 	buf = memdup_user(src, len);
@@ -89,7 +89,7 @@ copy_ucs2_from_user_len(efi_char16_t **dst, efi_char16_t __user *src,
 static inline int
 get_ucs2_strsize_from_user(efi_char16_t __user *src, size_t *len)
 {
-	if (!access_ok(VERIFY_READ, src, 1))
+	if (!access_ok(src, 1))
 		return -EFAULT;
 
 	*len = user_ucs2_strsize(src);
@@ -116,7 +116,7 @@ copy_ucs2_from_user(efi_char16_t **dst, efi_char16_t __user *src)
 {
 	size_t len;
 
-	if (!access_ok(VERIFY_READ, src, 1))
+	if (!access_ok(src, 1))
 		return -EFAULT;
 
 	len = user_ucs2_strsize(src);
@@ -140,7 +140,7 @@ copy_ucs2_to_user_len(efi_char16_t __user *dst, efi_char16_t *src, size_t len)
 	if (!src)
 		return 0;
 
-	if (!access_ok(VERIFY_WRITE, dst, 1))
+	if (!access_ok(dst, 1))
 		return -EFAULT;
 
 	return copy_to_user(dst, src, len);

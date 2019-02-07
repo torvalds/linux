@@ -596,8 +596,8 @@ static int intel_setup(struct hci_uart *hu)
 	 * is in bootloader mode or if it already has operational firmware
 	 * loaded.
 	 */
-	 err = btintel_read_version(hdev, &ver);
-	 if (err)
+	err = btintel_read_version(hdev, &ver);
+	if (err)
 		return err;
 
 	/* The hardware platform number has a fixed value of 0x37 and
@@ -909,10 +909,8 @@ static int intel_recv_event(struct hci_dev *hdev, struct sk_buff *skb)
 			set_bit(STATE_FIRMWARE_FAILED, &intel->flags);
 
 		if (test_and_clear_bit(STATE_DOWNLOADING, &intel->flags) &&
-		    test_bit(STATE_FIRMWARE_LOADED, &intel->flags)) {
-			smp_mb__after_atomic();
+		    test_bit(STATE_FIRMWARE_LOADED, &intel->flags))
 			wake_up_bit(&intel->flags, STATE_DOWNLOADING);
-		}
 
 	/* When switching to the operational firmware the device
 	 * sends a vendor specific event indicating that the bootup
@@ -920,10 +918,8 @@ static int intel_recv_event(struct hci_dev *hdev, struct sk_buff *skb)
 	 */
 	} else if (skb->len == 9 && hdr->evt == 0xff && hdr->plen == 0x07 &&
 		   skb->data[2] == 0x02) {
-		if (test_and_clear_bit(STATE_BOOTING, &intel->flags)) {
-			smp_mb__after_atomic();
+		if (test_and_clear_bit(STATE_BOOTING, &intel->flags))
 			wake_up_bit(&intel->flags, STATE_BOOTING);
-		}
 	}
 recv:
 	return hci_recv_frame(hdev, skb);
@@ -960,17 +956,13 @@ static int intel_recv_lpm(struct hci_dev *hdev, struct sk_buff *skb)
 		break;
 	case LPM_OP_SUSPEND_ACK:
 		set_bit(STATE_SUSPENDED, &intel->flags);
-		if (test_and_clear_bit(STATE_LPM_TRANSACTION, &intel->flags)) {
-			smp_mb__after_atomic();
+		if (test_and_clear_bit(STATE_LPM_TRANSACTION, &intel->flags))
 			wake_up_bit(&intel->flags, STATE_LPM_TRANSACTION);
-		}
 		break;
 	case LPM_OP_RESUME_ACK:
 		clear_bit(STATE_SUSPENDED, &intel->flags);
-		if (test_and_clear_bit(STATE_LPM_TRANSACTION, &intel->flags)) {
-			smp_mb__after_atomic();
+		if (test_and_clear_bit(STATE_LPM_TRANSACTION, &intel->flags))
 			wake_up_bit(&intel->flags, STATE_LPM_TRANSACTION);
-		}
 		break;
 	default:
 		bt_dev_err(hdev, "Unknown LPM opcode (%02x)", lpm->opcode);

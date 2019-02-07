@@ -61,20 +61,19 @@ static void tty_audit_log(const char *description, dev_t dev,
 			  unsigned char *data, size_t size)
 {
 	struct audit_buffer *ab;
-	struct task_struct *tsk = current;
-	pid_t pid = task_pid_nr(tsk);
-	uid_t uid = from_kuid(&init_user_ns, task_uid(tsk));
-	uid_t loginuid = from_kuid(&init_user_ns, audit_get_loginuid(tsk));
-	unsigned int sessionid = audit_get_sessionid(tsk);
+	pid_t pid = task_pid_nr(current);
+	uid_t uid = from_kuid(&init_user_ns, task_uid(current));
+	uid_t loginuid = from_kuid(&init_user_ns, audit_get_loginuid(current));
+	unsigned int sessionid = audit_get_sessionid(current);
 
 	ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_TTY);
 	if (ab) {
-		char name[sizeof(tsk->comm)];
+		char name[sizeof(current->comm)];
 
 		audit_log_format(ab, "%s pid=%u uid=%u auid=%u ses=%u major=%d"
 				 " minor=%d comm=", description, pid, uid,
 				 loginuid, sessionid, MAJOR(dev), MINOR(dev));
-		get_task_comm(name, tsk);
+		get_task_comm(name, current);
 		audit_log_untrustedstring(ab, name);
 		audit_log_format(ab, " data=");
 		audit_log_n_hex(ab, data, size);

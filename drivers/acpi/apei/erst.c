@@ -1035,7 +1035,7 @@ skip:
 			     CPER_SECTION_TYPE_MCE) == 0)
 		record->type = PSTORE_TYPE_MCE;
 	else
-		record->type = PSTORE_TYPE_UNKNOWN;
+		record->type = PSTORE_TYPE_MAX;
 
 	if (rcd->hdr.validation_bits & CPER_VALID_TIMESTAMP)
 		record->time.tv_sec = rcd->hdr.timestamp;
@@ -1176,7 +1176,6 @@ static int __init erst_init(void)
 	"Error Record Serialization Table (ERST) support is initialized.\n");
 
 	buf = kmalloc(erst_erange.size, GFP_KERNEL);
-	spin_lock_init(&erst_info.buf_lock);
 	if (buf) {
 		erst_info.buf = buf + sizeof(struct cper_pstore_record);
 		erst_info.bufsize = erst_erange.size -

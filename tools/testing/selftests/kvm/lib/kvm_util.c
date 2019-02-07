@@ -85,13 +85,13 @@ int vm_enable_cap(struct kvm_vm *vm, struct kvm_enable_cap *cap)
 	return ret;
 }
 
-static void vm_open(struct kvm_vm *vm, int perm)
+static void vm_open(struct kvm_vm *vm, int perm, unsigned long type)
 {
 	vm->kvm_fd = open(KVM_DEV_PATH, perm);
 	if (vm->kvm_fd < 0)
 		exit(KSFT_SKIP);
 
-	vm->fd = ioctl(vm->kvm_fd, KVM_CREATE_VM, NULL);
+	vm->fd = ioctl(vm->kvm_fd, KVM_CREATE_VM, type);
 	TEST_ASSERT(vm->fd >= 0, "KVM_CREATE_VM ioctl failed, "
 		"rc: %i errno: %i", vm->fd, errno);
 }
@@ -99,9 +99,13 @@ static void vm_open(struct kvm_vm *vm, int perm)
 const char * const vm_guest_mode_string[] = {
 	"PA-bits:52, VA-bits:48, 4K pages",
 	"PA-bits:52, VA-bits:48, 64K pages",
+	"PA-bits:48, VA-bits:48, 4K pages",
+	"PA-bits:48, VA-bits:48, 64K pages",
 	"PA-bits:40, VA-bits:48, 4K pages",
 	"PA-bits:40, VA-bits:48, 64K pages",
 };
+_Static_assert(sizeof(vm_guest_mode_string)/sizeof(char *) == NUM_VM_MODES,
+	       "Missing new mode strings?");
 
 /*
  * VM Create
@@ -122,7 +126,8 @@ const char * const vm_guest_mode_string[] = {
  * descriptor to control the created VM is created with the permissions
  * given by perm (e.g. O_RDWR).
  */
-struct kvm_vm *vm_create(enum vm_guest_mode mode, uint64_t phy_pages, int perm)
+struct kvm_vm *_vm_create(enum vm_guest_mode mode, uint64_t phy_pages,
+			  int perm, unsigned long type)
 {
 	struct kvm_vm *vm;
 	int kvm_fd;
@@ -131,22 +136,38 @@ struct kvm_vm *vm_create(enum vm_guest_mode mode, uint64_t phy_pages, int perm)
 	TEST_ASSERT(vm != NULL, "Insufficient Memory");
 
 	vm->mode = mode;
-	vm_open(vm, perm);
+	vm->type = type;
+	vm_open(vm, perm, type);
 
 	/* Setup mode specific traits. */
 	switch (vm->mode) {
 	case VM_MODE_P52V48_4K:
 		vm->pgtable_levels = 4;
+		vm->pa_bits = 52;
+		vm->va_bits = 48;
 		vm->page_size = 0x1000;
 		vm->page_shift = 12;
-		vm->va_bits = 48;
 		break;
 	case VM_MODE_P52V48_64K:
 		vm->pgtable_levels = 3;
 		vm->pa_bits = 52;
+		vm->va_bits = 48;
 		vm->page_size = 0x10000;
 		vm->page_shift = 16;
+		break;
+	case VM_MODE_P48V48_4K:
+		vm->pgtable_levels = 4;
+		vm->pa_bits = 48;
 		vm->va_bits = 48;
+		vm->page_size = 0x1000;
+		vm->page_shift = 12;
+		break;
+	case VM_MODE_P48V48_64K:
+		vm->pgtable_levels = 3;
+		vm->pa_bits = 48;
+		vm->va_bits = 48;
+		vm->page_size = 0x10000;
+		vm->page_shift = 16;
 		break;
 	case VM_MODE_P40V48_4K:
 		vm->pgtable_levels = 4;
@@ -186,6 +207,11 @@ struct kvm_vm *vm_create(enum vm_guest_mode mode, uint64_t phy_pages, int perm)
 	return vm;
 }
 
+struct kvm_vm *vm_create(enum vm_guest_mode mode, uint64_t phy_pages, int perm)
+{
+	return _vm_create(mode, phy_pages, perm, 0);
+}
+
 /*
  * VM Restart
  *
@@ -203,7 +229,7 @@ void kvm_vm_restart(struct kvm_vm *vmp, int perm)
 {
 	struct userspace_mem_region *region;
 
-	vm_open(vmp, perm);
+	vm_open(vmp, perm, vmp->type);
 	if (vmp->has_irqchip)
 		vm_create_irqchip(vmp);
 
@@ -228,6 +254,19 @@ void kvm_vm_get_dirty_log(struct kvm_vm *vm, int slot, void *log)
 
 	ret = ioctl(vm->fd, KVM_GET_DIRTY_LOG, &args);
 	TEST_ASSERT(ret == 0, "%s: KVM_GET_DIRTY_LOG failed: %s",
+		    strerror(-ret));
+}
+
+void kvm_vm_clear_dirty_log(struct kvm_vm *vm, int slot, void *log,
+			    uint64_t first_page, uint32_t num_pages)
+{
+	struct kvm_clear_dirty_log args = { .dirty_bitmap = log, .slot = slot,
+		                            .first_page = first_page,
+	                                    .num_pages = num_pages };
+	int ret;
+
+	ret = ioctl(vm->fd, KVM_CLEAR_DIRTY_LOG, &args);
+	TEST_ASSERT(ret == 0, "%s: KVM_CLEAR_DIRTY_LOG failed: %s",
 		    strerror(-ret));
 }
 
@@ -532,7 +571,7 @@ void vm_userspace_mem_region_add(struct kvm_vm *vm,
 	 * already exist.
 	 */
 	region = (struct userspace_mem_region *) userspace_mem_region_find(
-		vm, guest_paddr, guest_paddr + npages * vm->page_size);
+		vm, guest_paddr, (guest_paddr + npages * vm->page_size) - 1);
 	if (region != NULL)
 		TEST_ASSERT(false, "overlapping userspace_mem_region already "
 			"exists\n"
@@ -548,15 +587,10 @@ void vm_userspace_mem_region_add(struct kvm_vm *vm,
 		region = region->next) {
 		if (region->region.slot == slot)
 			break;
-		if ((guest_paddr <= (region->region.guest_phys_addr
-				+ region->region.memory_size))
-			&& ((guest_paddr + npages * vm->page_size)
-				>= region->region.guest_phys_addr))
-			break;
 	}
 	if (region != NULL)
 		TEST_ASSERT(false, "A mem region with the requested slot "
-			"or overlapping physical memory range already exists.\n"
+			"already exists.\n"
 			"  requested slot: %u paddr: 0x%lx npages: 0x%lx\n"
 			"  existing slot: %u paddr: 0x%lx size: 0x%lx",
 			slot, guest_paddr, npages,
@@ -1270,14 +1304,24 @@ int _vcpu_sregs_set(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_sregs *sregs)
 void vcpu_ioctl(struct kvm_vm *vm, uint32_t vcpuid,
 		unsigned long cmd, void *arg)
 {
+	int ret;
+
+	ret = _vcpu_ioctl(vm, vcpuid, cmd, arg);
+	TEST_ASSERT(ret == 0, "vcpu ioctl %lu failed, rc: %i errno: %i (%s)",
+		cmd, ret, errno, strerror(errno));
+}
+
+int _vcpu_ioctl(struct kvm_vm *vm, uint32_t vcpuid,
+		unsigned long cmd, void *arg)
+{
 	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
 	int ret;
 
 	TEST_ASSERT(vcpu != NULL, "vcpu not found, vcpuid: %u", vcpuid);
 
 	ret = ioctl(vcpu->fd, cmd, arg);
-	TEST_ASSERT(ret == 0, "vcpu ioctl %lu failed, rc: %i errno: %i (%s)",
-		cmd, ret, errno, strerror(errno));
+
+	return ret;
 }
 
 /*
@@ -1422,7 +1466,7 @@ const char *exit_reason_str(unsigned int exit_reason)
  *
  * Within the VM specified by vm, locates a range of available physical
  * pages at or above paddr_min. If found, the pages are marked as in use
- * and thier base address is returned. A TEST_ASSERT failure occurs if
+ * and their base address is returned. A TEST_ASSERT failure occurs if
  * not enough pages are available at or above paddr_min.
  */
 vm_paddr_t vm_phy_pages_alloc(struct kvm_vm *vm, size_t num,

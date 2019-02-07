@@ -176,9 +176,8 @@ causing stalls, and that the stall was affecting RCU-sched.  This message
 will normally be followed by stack dumps for each CPU.  Please note that
 PREEMPT_RCU builds can be stalled by tasks as well as by CPUs, and that
 the tasks will be indicated by PID, for example, "P3421".  It is even
-possible for a rcu_preempt_state stall to be caused by both CPUs -and-
-tasks, in which case the offending CPUs and tasks will all be called
-out in the list.
+possible for an rcu_state stall to be caused by both CPUs -and- tasks,
+in which case the offending CPUs and tasks will all be called out in the list.
 
 CPU 2's "(3 GPs behind)" indicates that this CPU has not interacted with
 the RCU core for the past three grace periods.  In contrast, CPU 16's "(0
@@ -206,7 +205,7 @@ handlers are no longer able to execute on this CPU.  This can happen if
 the stalled CPU is spinning with interrupts are disabled, or, in -rt
 kernels, if a high-priority process is starving RCU's softirq handler.
 
-The "fps=" shows the number of force-quiescent-state idle/offline
+The "fqs=" shows the number of force-quiescent-state idle/offline
 detection passes that the grace-period kthread has made across this
 CPU since the last time that this CPU noted the beginning of a grace
 period.

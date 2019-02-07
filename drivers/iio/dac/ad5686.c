@@ -83,6 +83,10 @@ static ssize_t ad5686_write_dac_powerdown(struct iio_dev *indio_dev,
 		st->pwr_down_mask &= ~(0x3 << (chan->channel * 2));
 
 	switch (st->chip_info->regmap_type) {
+	case AD5310_REGMAP:
+		shift = 9;
+		ref_bit_msk = AD5310_REF_BIT_MSK;
+		break;
 	case AD5683_REGMAP:
 		shift = 13;
 		ref_bit_msk = AD5683_REF_BIT_MSK;
@@ -124,7 +128,8 @@ static int ad5686_read_raw(struct iio_dev *indio_dev,
 		mutex_unlock(&indio_dev->mlock);
 		if (ret < 0)
 			return ret;
-		*val = ret;
+		*val = (ret >> chan->scan_type.shift) &
+			GENMASK(chan->scan_type.realbits - 1, 0);
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
 		*val = st->vref_mv;
@@ -221,6 +226,7 @@ static struct iio_chan_spec name[] = {				\
 		AD5868_CHANNEL(7, 7, bits, _shift),		\
 }
 
+DECLARE_AD5693_CHANNELS(ad5310r_channels, 10, 2);
 DECLARE_AD5693_CHANNELS(ad5311r_channels, 10, 6);
 DECLARE_AD5676_CHANNELS(ad5672_channels, 12, 4);
 DECLARE_AD5676_CHANNELS(ad5676_channels, 16, 0);
@@ -232,6 +238,12 @@ DECLARE_AD5693_CHANNELS(ad5692r_channels, 14, 2);
 DECLARE_AD5693_CHANNELS(ad5691r_channels, 12, 4);
 
 static const struct ad5686_chip_info ad5686_chip_info_tbl[] = {
+	[ID_AD5310R] = {
+		.channels = ad5310r_channels,
+		.int_vref_mv = 2500,
+		.num_channels = 1,
+		.regmap_type = AD5310_REGMAP,
+	},
 	[ID_AD5311R] = {
 		.channels = ad5311r_channels,
 		.int_vref_mv = 2500,
@@ -419,6 +431,11 @@ int ad5686_probe(struct device *dev,
 	indio_dev->num_channels = st->chip_info->num_channels;
 
 	switch (st->chip_info->regmap_type) {
+	case AD5310_REGMAP:
+		cmd = AD5686_CMD_CONTROL_REG;
+		ref_bit_msk = AD5310_REF_BIT_MSK;
+		st->use_internal_vref = !voltage_uv;
+		break;
 	case AD5683_REGMAP:
 		cmd = AD5686_CMD_CONTROL_REG;
 		ref_bit_msk = AD5683_REF_BIT_MSK;

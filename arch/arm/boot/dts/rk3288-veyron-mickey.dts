@@ -81,8 +81,10 @@
 		 */
 		cpu_warm_limit_cpu {
 			trip = <&cpu_alert_warm>;
-			cooling-device =
-				<&cpu0 THERMAL_NO_LIMIT 4>;
+			cooling-device = <&cpu0 THERMAL_NO_LIMIT 4>,
+					 <&cpu1 THERMAL_NO_LIMIT 4>,
+					 <&cpu2 THERMAL_NO_LIMIT 4>,
+					 <&cpu3 THERMAL_NO_LIMIT 4>;
 		};
 
 		/*
@@ -103,23 +105,25 @@
 		 */
 		cpu_almost_hot_limit_cpu {
 			trip = <&cpu_alert_almost_hot>;
-			cooling-device =
-				<&cpu0 5 6>;
+			cooling-device = <&cpu0 5 6>, <&cpu1 5 6>, <&cpu2 5 6>,
+					 <&cpu3 5 6>;
 		};
 		cpu_hot_limit_cpu {
 			trip = <&cpu_alert_hot>;
-			cooling-device =
-				<&cpu0 7 7>;
+			cooling-device = <&cpu0 7 7>, <&cpu1 7 7>, <&cpu2 7 7>,
+					 <&cpu3 7 7>;
 		};
 		cpu_hotter_limit_cpu {
 			trip = <&cpu_alert_hotter>;
-			cooling-device =
-				<&cpu0 7 8>;
+			cooling-device = <&cpu0 7 8>, <&cpu1 7 8>, <&cpu2 7 8>,
+					 <&cpu3 7 8>;
 		};
 		cpu_very_hot_limit_cpu {
 			trip = <&cpu_alert_very_hot>;
-			cooling-device =
-				<&cpu0 8 THERMAL_NO_LIMIT>;
+			cooling-device = <&cpu0 8 THERMAL_NO_LIMIT>,
+					 <&cpu1 8 THERMAL_NO_LIMIT>,
+					 <&cpu2 8 THERMAL_NO_LIMIT>,
+					 <&cpu3 8 THERMAL_NO_LIMIT>;
 		};
 	};
 };

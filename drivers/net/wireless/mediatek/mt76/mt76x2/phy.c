@@ -210,7 +210,7 @@ void mt76x2_configure_tx_delay(struct mt76x02_dev *dev,
 }
 EXPORT_SYMBOL_GPL(mt76x2_configure_tx_delay);
 
-void mt76x2_phy_tssi_compensate(struct mt76x02_dev *dev, bool wait)
+void mt76x2_phy_tssi_compensate(struct mt76x02_dev *dev)
 {
 	struct ieee80211_channel *chan = dev->mt76.chandef.chan;
 	struct mt76x2_tx_power_info txp;
@@ -245,8 +245,99 @@ void mt76x2_phy_tssi_compensate(struct mt76x02_dev *dev, bool wait)
 			return;
 
 		usleep_range(10000, 20000);
-		mt76x02_mcu_calibrate(dev, MCU_CAL_DPD, chan->hw_value, wait);
+		mt76x02_mcu_calibrate(dev, MCU_CAL_DPD, chan->hw_value);
 		dev->cal.dpd_cal_done = true;
 	}
 }
 EXPORT_SYMBOL_GPL(mt76x2_phy_tssi_compensate);
+
+static void
+mt76x2_phy_set_gain_val(struct mt76x02_dev *dev)
+{
+	u32 val;
+	u8 gain_val[2];
+
+	gain_val[0] = dev->cal.agc_gain_cur[0] - dev->cal.agc_gain_adjust;
+	gain_val[1] = dev->cal.agc_gain_cur[1] - dev->cal.agc_gain_adjust;
+
+	if (dev->mt76.chandef.width >= NL80211_CHAN_WIDTH_40)
+		val = 0x1e42 << 16;
+	else
+		val = 0x1836 << 16;
+
+	val |= 0xf8;
+
+	mt76_wr(dev, MT_BBP(AGC, 8),
+		val | FIELD_PREP(MT_BBP_AGC_GAIN, gain_val[0]));
+	mt76_wr(dev, MT_BBP(AGC, 9),
+		val | FIELD_PREP(MT_BBP_AGC_GAIN, gain_val[1]));
+
+	if (dev->mt76.chandef.chan->flags & IEEE80211_CHAN_RADAR)
+		mt76x02_phy_dfs_adjust_agc(dev);
+}
+
+void mt76x2_phy_update_channel_gain(struct mt76x02_dev *dev)
+{
+	u8 *gain = dev->cal.agc_gain_init;
+	u8 low_gain_delta, gain_delta;
+	bool gain_change;
+	int low_gain;
+	u32 val;
+
+	dev->cal.avg_rssi_all = mt76x02_phy_get_min_avg_rssi(dev);
+
+	low_gain = (dev->cal.avg_rssi_all > mt76x02_get_rssi_gain_thresh(dev)) +
+		   (dev->cal.avg_rssi_all > mt76x02_get_low_rssi_gain_thresh(dev));
+
+	gain_change = dev->cal.low_gain < 0 ||
+		      (dev->cal.low_gain & 2) ^ (low_gain & 2);
+	dev->cal.low_gain = low_gain;
+
+	if (!gain_change) {
+		if (mt76x02_phy_adjust_vga_gain(dev))
+			mt76x2_phy_set_gain_val(dev);
+		return;
+	}
+
+	if (dev->mt76.chandef.width == NL80211_CHAN_WIDTH_80) {
+		mt76_wr(dev, MT_BBP(RXO, 14), 0x00560211);
+		val = mt76_rr(dev, MT_BBP(AGC, 26)) & ~0xf;
+		if (low_gain == 2)
+			val |= 0x3;
+		else
+			val |= 0x5;
+		mt76_wr(dev, MT_BBP(AGC, 26), val);
+	} else {
+		mt76_wr(dev, MT_BBP(RXO, 14), 0x00560423);
+	}
+
+	if (mt76x2_has_ext_lna(dev))
+		low_gain_delta = 10;
+	else
+		low_gain_delta = 14;
+
+	if (low_gain == 2) {
+		mt76_wr(dev, MT_BBP(RXO, 18), 0xf000a990);
+		mt76_wr(dev, MT_BBP(AGC, 35), 0x08080808);
+		mt76_wr(dev, MT_BBP(AGC, 37), 0x08080808);
+		gain_delta = low_gain_delta;
+		dev->cal.agc_gain_adjust = 0;
+	} else {
+		mt76_wr(dev, MT_BBP(RXO, 18), 0xf000a991);
+		if (dev->mt76.chandef.width == NL80211_CHAN_WIDTH_80)
+			mt76_wr(dev, MT_BBP(AGC, 35), 0x10101014);
+		else
+			mt76_wr(dev, MT_BBP(AGC, 35), 0x11111116);
+		mt76_wr(dev, MT_BBP(AGC, 37), 0x2121262C);
+		gain_delta = 0;
+		dev->cal.agc_gain_adjust = low_gain_delta;
+	}
+
+	dev->cal.agc_gain_cur[0] = gain[0] - gain_delta;
+	dev->cal.agc_gain_cur[1] = gain[1] - gain_delta;
+	mt76x2_phy_set_gain_val(dev);
+
+	/* clear false CCA counters */
+	mt76_rr(dev, MT_RX_STAT_1);
+}
+EXPORT_SYMBOL_GPL(mt76x2_phy_update_channel_gain);

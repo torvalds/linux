@@ -623,8 +623,8 @@ nfp_bpf_check_alu(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	return 0;
 }
 
-static int
-nfp_verify_insn(struct bpf_verifier_env *env, int insn_idx, int prev_insn_idx)
+int nfp_verify_insn(struct bpf_verifier_env *env, int insn_idx,
+		    int prev_insn_idx)
 {
 	struct nfp_prog *nfp_prog = env->prog->aux->offload->dev_priv;
 	struct nfp_insn_meta *meta = nfp_prog->verifier_meta;
@@ -745,7 +745,7 @@ continue_subprog:
 	goto continue_subprog;
 }
 
-static int nfp_bpf_finalize(struct bpf_verifier_env *env)
+int nfp_bpf_finalize(struct bpf_verifier_env *env)
 {
 	struct bpf_subprog_info *info;
 	struct nfp_prog *nfp_prog;
@@ -788,8 +788,3 @@ static int nfp_bpf_finalize(struct bpf_verifier_env *env)
 
 	return 0;
 }
-
-const struct bpf_prog_offload_ops nfp_bpf_analyzer_ops = {
-	.insn_hook	= nfp_verify_insn,
-	.finalize	= nfp_bpf_finalize,
-};

@@ -216,7 +216,7 @@ be called whenever userspace asks for a write(2) on the attribute.
 
 [struct configfs_bin_attribute]
 
-	struct configfs_attribute {
+	struct configfs_bin_attribute {
 		struct configfs_attribute	cb_attr;
 		void				*cb_private;
 		size_t				cb_max_size;

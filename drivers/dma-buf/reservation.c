@@ -56,9 +56,10 @@ const char reservation_seqcount_string[] = "reservation_seqcount";
 EXPORT_SYMBOL(reservation_seqcount_string);
 
 /**
- * reservation_object_reserve_shared - Reserve space to add a shared
- * fence to a reservation_object.
+ * reservation_object_reserve_shared - Reserve space to add shared fences to
+ * a reservation_object.
  * @obj: reservation object
+ * @num_fences: number of fences we want to add
  *
  * Should be called before reservation_object_add_shared_fence().  Must
  * be called with obj->lock held.
@@ -66,107 +67,27 @@ EXPORT_SYMBOL(reservation_seqcount_string);
  * RETURNS
  * Zero for success, or -errno
  */
-int reservation_object_reserve_shared(struct reservation_object *obj)
+int reservation_object_reserve_shared(struct reservation_object *obj,
+				      unsigned int num_fences)
 {
-	struct reservation_object_list *fobj, *old;
-	u32 max;
+	struct reservation_object_list *old, *new;
+	unsigned int i, j, k, max;
 
 	old = reservation_object_get_list(obj);
 
 	if (old && old->shared_max) {
-		if (old->shared_count < old->shared_max) {
-			/* perform an in-place update */
-			kfree(obj->staged);
-			obj->staged = NULL;
+		if ((old->shared_count + num_fences) <= old->shared_max)
 			return 0;
-		} else
-			max = old->shared_max * 2;
-	} else
-		max = 4;
-
-	/*
-	 * resize obj->staged or allocate if it doesn't exist,
-	 * noop if already correct size
-	 */
-	fobj = krealloc(obj->staged, offsetof(typeof(*fobj), shared[max]),
-			GFP_KERNEL);
-	if (!fobj)
-		return -ENOMEM;
-
-	obj->staged = fobj;
-	fobj->shared_max = max;
-	return 0;
-}
-EXPORT_SYMBOL(reservation_object_reserve_shared);
-
-static void
-reservation_object_add_shared_inplace(struct reservation_object *obj,
-				      struct reservation_object_list *fobj,
-				      struct dma_fence *fence)
-{
-	struct dma_fence *signaled = NULL;
-	u32 i, signaled_idx;
-
-	dma_fence_get(fence);
-
-	preempt_disable();
-	write_seqcount_begin(&obj->seq);
-
-	for (i = 0; i < fobj->shared_count; ++i) {
-		struct dma_fence *old_fence;
-
-		old_fence = rcu_dereference_protected(fobj->shared[i],
-						reservation_object_held(obj));
-
-		if (old_fence->context == fence->context) {
-			/* memory barrier is added by write_seqcount_begin */
-			RCU_INIT_POINTER(fobj->shared[i], fence);
-			write_seqcount_end(&obj->seq);
-			preempt_enable();
-
-			dma_fence_put(old_fence);
-			return;
-		}
-
-		if (!signaled && dma_fence_is_signaled(old_fence)) {
-			signaled = old_fence;
-			signaled_idx = i;
-		}
-	}
-
-	/*
-	 * memory barrier is added by write_seqcount_begin,
-	 * fobj->shared_count is protected by this lock too
-	 */
-	if (signaled) {
-		RCU_INIT_POINTER(fobj->shared[signaled_idx], fence);
+		else
+			max = max(old->shared_count + num_fences,
+				  old->shared_max * 2);
 	} else {
-		BUG_ON(fobj->shared_count >= fobj->shared_max);
-		RCU_INIT_POINTER(fobj->shared[fobj->shared_count], fence);
-		fobj->shared_count++;
+		max = 4;
 	}
 
-	write_seqcount_end(&obj->seq);
-	preempt_enable();
-
-	dma_fence_put(signaled);
-}
-
-static void
-reservation_object_add_shared_replace(struct reservation_object *obj,
-				      struct reservation_object_list *old,
-				      struct reservation_object_list *fobj,
-				      struct dma_fence *fence)
-{
-	unsigned i, j, k;
-
-	dma_fence_get(fence);
-
-	if (!old) {
-		RCU_INIT_POINTER(fobj->shared[0], fence);
-		fobj->shared_count = 1;
-		goto done;
-	}
+	new = kmalloc(offsetof(typeof(*new), shared[max]), GFP_KERNEL);
+	if (!new)
+		return -ENOMEM;
 
 	/*
 	 * no need to bump fence refcounts, rcu_read access
@@ -174,46 +95,45 @@ reservation_object_add_shared_replace(struct reservation_object *obj,
 	 * references from the old struct are carried over to
 	 * the new.
 	 */
-	for (i = 0, j = 0, k = fobj->shared_max; i < old->shared_count; ++i) {
-		struct dma_fence *check;
+	for (i = 0, j = 0, k = max; i < (old ? old->shared_count : 0); ++i) {
+		struct dma_fence *fence;
 
-		check = rcu_dereference_protected(old->shared[i],
-						reservation_object_held(obj));
-
-		if (check->context == fence->context ||
-		    dma_fence_is_signaled(check))
-			RCU_INIT_POINTER(fobj->shared[--k], check);
+		fence = rcu_dereference_protected(old->shared[i],
+						  reservation_object_held(obj));
+		if (dma_fence_is_signaled(fence))
+			RCU_INIT_POINTER(new->shared[--k], fence);
 		else
-			RCU_INIT_POINTER(fobj->shared[j++], check);
+			RCU_INIT_POINTER(new->shared[j++], fence);
 	}
-	fobj->shared_count = j;
-	RCU_INIT_POINTER(fobj->shared[fobj->shared_count], fence);
-	fobj->shared_count++;
+	new->shared_count = j;
+	new->shared_max = max;
 
-done:
 	preempt_disable();
 	write_seqcount_begin(&obj->seq);
 	/*
 	 * RCU_INIT_POINTER can be used here,
 	 * seqcount provides the necessary barriers
 	 */
-	RCU_INIT_POINTER(obj->fence, fobj);
+	RCU_INIT_POINTER(obj->fence, new);
 	write_seqcount_end(&obj->seq);
 	preempt_enable();
 
 	if (!old)
-		return;
+		return 0;
 
 	/* Drop the references to the signaled fences */
-	for (i = k; i < fobj->shared_max; ++i) {
-		struct dma_fence *f;
+	for (i = k; i < new->shared_max; ++i) {
+		struct dma_fence *fence;
 
-		f = rcu_dereference_protected(fobj->shared[i],
-					      reservation_object_held(obj));
-		dma_fence_put(f);
+		fence = rcu_dereference_protected(new->shared[i],
+						  reservation_object_held(obj));
+		dma_fence_put(fence);
 	}
 	kfree_rcu(old, rcu);
+
+	return 0;
 }
+EXPORT_SYMBOL(reservation_object_reserve_shared);
 
 /**
  * reservation_object_add_shared_fence - Add a fence to a shared slot
@@ -226,15 +146,39 @@ done:
 void reservation_object_add_shared_fence(struct reservation_object *obj,
 					 struct dma_fence *fence)
 {
-	struct reservation_object_list *old, *fobj = obj->staged;
+	struct reservation_object_list *fobj;
+	unsigned int i, count;
 
-	old = reservation_object_get_list(obj);
-	obj->staged = NULL;
+	dma_fence_get(fence);
 
-	if (!fobj)
-		reservation_object_add_shared_inplace(obj, old, fence);
-	else
-		reservation_object_add_shared_replace(obj, old, fobj, fence);
+	fobj = reservation_object_get_list(obj);
+	count = fobj->shared_count;
+
+	preempt_disable();
+	write_seqcount_begin(&obj->seq);
+
+	for (i = 0; i < count; ++i) {
+		struct dma_fence *old_fence;
+
+		old_fence = rcu_dereference_protected(fobj->shared[i],
+						      reservation_object_held(obj));
+		if (old_fence->context == fence->context ||
+		    dma_fence_is_signaled(old_fence)) {
+			dma_fence_put(old_fence);
+			goto replace;
+		}
+	}
+
+	BUG_ON(fobj->shared_count >= fobj->shared_max);
+	count++;
+
+replace:
+	RCU_INIT_POINTER(fobj->shared[i], fence);
+	/* pointer update must be visible before we extend the shared_count */
+	smp_store_mb(fobj->shared_count, count);
+
+	write_seqcount_end(&obj->seq);
+	preempt_enable();
 }
 EXPORT_SYMBOL(reservation_object_add_shared_fence);
 
@@ -342,9 +286,6 @@ retry:
 
 	new = dma_fence_get_rcu_safe(&src->fence_excl);
 	rcu_read_unlock();
-
-	kfree(dst->staged);
-	dst->staged = NULL;
 
 	src_list = reservation_object_get_list(dst);
 	old = reservation_object_get_excl(dst);

@@ -19,6 +19,7 @@
 #include "aq_pci_func.h"
 #include "hw_atl/hw_atl_a0.h"
 #include "hw_atl/hw_atl_b0.h"
+#include "aq_filters.h"
 
 static const struct pci_device_id aq_pci_tbl[] = {
 	{ PCI_VDEVICE(AQUANTIA, AQ_DEVICE_ID_0001), },
@@ -309,6 +310,7 @@ static void aq_pci_remove(struct pci_dev *pdev)
 	struct aq_nic_s *self = pci_get_drvdata(pdev);
 
 	if (self->ndev) {
+		aq_clear_rxnfc_all_rules(self);
 		if (self->ndev->reg_state == NETREG_REGISTERED)
 			unregister_netdev(self->ndev);
 		aq_nic_free_vectors(self);

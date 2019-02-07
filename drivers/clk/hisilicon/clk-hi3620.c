@@ -435,7 +435,7 @@ static struct clk *hisi_register_clk_mmc(struct hisi_mmc_clock *mmc_clk,
 
 	init.name = mmc_clk->name;
 	init.ops = &clk_mmc_ops;
-	init.flags = mmc_clk->flags | CLK_IS_BASIC;
+	init.flags = mmc_clk->flags;
 	init.parent_names = (mmc_clk->parent_name ? &mmc_clk->parent_name : NULL);
 	init.num_parents = (mmc_clk->parent_name ? 1 : 0);
 	mclk->hw.init = &init;

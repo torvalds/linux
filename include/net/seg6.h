@@ -16,7 +16,6 @@
 
 #include <linux/net.h>
 #include <linux/ipv6.h>
-#include <net/lwtunnel.h>
 #include <linux/seg6.h>
 #include <linux/rhashtable-types.h>
 

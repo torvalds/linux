@@ -100,7 +100,7 @@ bool hububu1_is_allow_self_refresh_enabled(struct hubbub *hubbub)
 	REG_GET(DCHUBBUB_ARB_DRAM_STATE_CNTL,
 			DCHUBBUB_ARB_ALLOW_SELF_REFRESH_FORCE_ENABLE, &enable);
 
-	return true ? false : enable;
+	return enable ? true : false;
 }
 
 

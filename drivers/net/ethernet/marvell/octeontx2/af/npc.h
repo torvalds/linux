@@ -259,4 +259,28 @@ struct nix_rx_action {
 #endif
 };
 
+/* NIX Receive Vtag Action Structure */
+#define VTAG0_VALID_BIT		BIT_ULL(15)
+#define VTAG0_TYPE_MASK		GENMASK_ULL(14, 12)
+#define VTAG0_LID_MASK		GENMASK_ULL(10, 8)
+#define VTAG0_RELPTR_MASK	GENMASK_ULL(7, 0)
+
+struct npc_mcam_kex {
+	/* MKEX Profle Header */
+	u64 mkex_sign; /* "mcam-kex-profile" (8 bytes/ASCII characters) */
+	u8 name[MKEX_NAME_LEN];   /* MKEX Profile name */
+	u64 cpu_model;   /* Format as profiled by CPU hardware */
+	u64 kpu_version; /* KPU firmware/profile version */
+	u64 reserved; /* Reserved for extension */
+
+	/* MKEX Profle Data */
+	u64 keyx_cfg[NPC_MAX_INTF]; /* NPC_AF_INTF(0..1)_KEX_CFG */
+	/* NPC_AF_KEX_LDATA(0..1)_FLAGS_CFG */
+	u64 kex_ld_flags[NPC_MAX_LD];
+	/* NPC_AF_INTF(0..1)_LID(0..7)_LT(0..15)_LD(0..1)_CFG */
+	u64 intf_lid_lt_ld[NPC_MAX_INTF][NPC_MAX_LID][NPC_MAX_LT][NPC_MAX_LD];
+	/* NPC_AF_INTF(0..1)_LDATA(0..1)_FLAGS(0..15)_CFG */
+	u64 intf_ld_flags[NPC_MAX_INTF][NPC_MAX_LD][NPC_MAX_LFL];
+} __packed;
+
 #endif /* NPC_H */

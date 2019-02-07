@@ -944,8 +944,7 @@ static int __blk_label_update(struct nd_region *nd_region,
 	victims = 0;
 	if (old_num_resources) {
 		/* convert old local-label-map to dimm-slot victim-map */
-		victim_map = kcalloc(BITS_TO_LONGS(nslot), sizeof(long),
-				GFP_KERNEL);
+		victim_map = bitmap_zalloc(nslot, GFP_KERNEL);
 		if (!victim_map)
 			return -ENOMEM;
 
@@ -968,7 +967,7 @@ static int __blk_label_update(struct nd_region *nd_region,
 	/* don't allow updates that consume the last label */
 	if (nfree - alloc < 0 || nfree - alloc + victims < 1) {
 		dev_info(&nsblk->common.dev, "insufficient label space\n");
-		kfree(victim_map);
+		bitmap_free(victim_map);
 		return -ENOSPC;
 	}
 	/* from here on we need to abort on error */
@@ -1140,7 +1139,7 @@ static int __blk_label_update(struct nd_region *nd_region,
 
  out:
 	kfree(old_res_list);
-	kfree(victim_map);
+	bitmap_free(victim_map);
 	return rc;
 
  abort:

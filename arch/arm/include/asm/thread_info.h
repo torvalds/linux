@@ -53,6 +53,9 @@ struct thread_info {
 	struct task_struct	*task;		/* main task structure */
 	__u32			cpu;		/* cpu */
 	__u32			cpu_domain;	/* cpu domain */
+#ifdef CONFIG_STACKPROTECTOR_PER_TASK
+	unsigned long		stack_canary;
+#endif
 	struct cpu_context_save	cpu_context;	/* cpu context */
 	__u32			syscall;	/* syscall number */
 	__u8			used_cp[16];	/* thread used copro */

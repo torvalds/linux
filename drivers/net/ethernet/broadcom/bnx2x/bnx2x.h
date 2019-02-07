@@ -1282,6 +1282,7 @@ enum sp_rtnl_flag {
 	BNX2X_SP_RTNL_TX_STOP,
 	BNX2X_SP_RTNL_GET_DRV_VERSION,
 	BNX2X_SP_RTNL_CHANGE_UDP_PORT,
+	BNX2X_SP_RTNL_UPDATE_SVID,
 };
 
 enum bnx2x_iov_flag {
@@ -2080,7 +2081,7 @@ void bnx2x_igu_clear_sb_gen(struct bnx2x *bp, u8 func, u8 idu_sb_id,
 			    bool is_pf);
 
 #define BNX2X_ILT_ZALLOC(x, y, size)					\
-	x = dma_zalloc_coherent(&bp->pdev->dev, size, y, GFP_KERNEL)
+	x = dma_alloc_coherent(&bp->pdev->dev, size, y, GFP_KERNEL)
 
 #define BNX2X_ILT_FREE(x, y, size) \
 	do { \
@@ -2520,6 +2521,7 @@ void bnx2x_update_mfw_dump(struct bnx2x *bp);
 void bnx2x_init_ptp(struct bnx2x *bp);
 int bnx2x_configure_ptp_filters(struct bnx2x *bp);
 void bnx2x_set_rx_ts(struct bnx2x *bp, struct sk_buff *skb);
+void bnx2x_register_phc(struct bnx2x *bp);
 
 #define BNX2X_MAX_PHC_DRIFT 31000000
 #define BNX2X_PTP_TX_TIMEOUT

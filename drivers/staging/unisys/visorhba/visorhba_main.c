@@ -645,7 +645,6 @@ static struct scsi_host_template visorhba_driver_template = {
 	.this_id = -1,
 	.slave_alloc = visorhba_slave_alloc,
 	.slave_destroy = visorhba_slave_destroy,
-	.use_clustering = ENABLE_CLUSTERING,
 };
 
 /*
@@ -681,19 +680,7 @@ static int info_debugfs_show(struct seq_file *seq, void *v)
 
 	return 0;
 }
-
-static int info_debugfs_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, info_debugfs_show, inode->i_private);
-}
-
-static const struct file_operations info_debugfs_fops = {
-	.owner = THIS_MODULE,
-	.open = info_debugfs_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(info_debugfs);
 
 /*
  * complete_taskmgmt_command - Complete task management

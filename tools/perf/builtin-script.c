@@ -96,6 +96,7 @@ enum perf_output_field {
 	PERF_OUTPUT_UREGS	    = 1U << 27,
 	PERF_OUTPUT_METRIC	    = 1U << 28,
 	PERF_OUTPUT_MISC            = 1U << 29,
+	PERF_OUTPUT_SRCCODE	    = 1U << 30,
 };
 
 struct output_option {
@@ -132,6 +133,7 @@ struct output_option {
 	{.str = "phys_addr", .field = PERF_OUTPUT_PHYS_ADDR},
 	{.str = "metric", .field = PERF_OUTPUT_METRIC},
 	{.str = "misc", .field = PERF_OUTPUT_MISC},
+	{.str = "srccode", .field = PERF_OUTPUT_SRCCODE},
 };
 
 enum {
@@ -424,7 +426,7 @@ static int perf_evsel__check_attr(struct perf_evsel *evsel,
 		pr_err("Display of DSO requested but no address to convert.\n");
 		return -EINVAL;
 	}
-	if (PRINT_FIELD(SRCLINE) && !PRINT_FIELD(IP)) {
+	if ((PRINT_FIELD(SRCLINE) || PRINT_FIELD(SRCCODE)) && !PRINT_FIELD(IP)) {
 		pr_err("Display of source line number requested but sample IP is not\n"
 		       "selected. Hence, no address to lookup the source line number.\n");
 		return -EINVAL;
@@ -566,30 +568,10 @@ out:
 	return 0;
 }
 
-static int perf_sample__fprintf_iregs(struct perf_sample *sample,
-				      struct perf_event_attr *attr, FILE *fp)
+static int perf_sample__fprintf_regs(struct regs_dump *regs, uint64_t mask,
+				     FILE *fp
+)
 {
-	struct regs_dump *regs = &sample->intr_regs;
-	uint64_t mask = attr->sample_regs_intr;
-	unsigned i = 0, r;
-	int printed = 0;
-
-	if (!regs)
-		return 0;
-
-	for_each_set_bit(r, (unsigned long *) &mask, sizeof(mask) * 8) {
-		u64 val = regs->regs[i++];
-		printed += fprintf(fp, "%5s:0x%"PRIx64" ", perf_reg_name(r), val);
-	}
-
-	return printed;
-}
-
-static int perf_sample__fprintf_uregs(struct perf_sample *sample,
-				      struct perf_event_attr *attr, FILE *fp)
-{
-	struct regs_dump *regs = &sample->user_regs;
-	uint64_t mask = attr->sample_regs_user;
 	unsigned i = 0, r;
 	int printed = 0;
 
@@ -603,7 +585,23 @@ static int perf_sample__fprintf_uregs(struct perf_sample *sample,
 		printed += fprintf(fp, "%5s:0x%"PRIx64" ", perf_reg_name(r), val);
 	}
 
+	fprintf(fp, "\n");
+
 	return printed;
+}
+
+static int perf_sample__fprintf_iregs(struct perf_sample *sample,
+				      struct perf_event_attr *attr, FILE *fp)
+{
+	return perf_sample__fprintf_regs(&sample->intr_regs,
+					 attr->sample_regs_intr, fp);
+}
+
+static int perf_sample__fprintf_uregs(struct perf_sample *sample,
+				      struct perf_event_attr *attr, FILE *fp)
+{
+	return perf_sample__fprintf_regs(&sample->user_regs,
+					 attr->sample_regs_user, fp);
 }
 
 static int perf_sample__fprintf_start(struct perf_sample *sample,
@@ -728,8 +726,8 @@ static int perf_sample__fprintf_brstack(struct perf_sample *sample,
 		if (PRINT_FIELD(DSO)) {
 			memset(&alf, 0, sizeof(alf));
 			memset(&alt, 0, sizeof(alt));
-			thread__find_map(thread, sample->cpumode, from, &alf);
-			thread__find_map(thread, sample->cpumode, to, &alt);
+			thread__find_map_fb(thread, sample->cpumode, from, &alf);
+			thread__find_map_fb(thread, sample->cpumode, to, &alt);
 		}
 
 		printed += fprintf(fp, " 0x%"PRIx64, from);
@@ -775,8 +773,8 @@ static int perf_sample__fprintf_brstacksym(struct perf_sample *sample,
 		from = br->entries[i].from;
 		to   = br->entries[i].to;
 
-		thread__find_symbol(thread, sample->cpumode, from, &alf);
-		thread__find_symbol(thread, sample->cpumode, to, &alt);
+		thread__find_symbol_fb(thread, sample->cpumode, from, &alf);
+		thread__find_symbol_fb(thread, sample->cpumode, to, &alt);
 
 		printed += symbol__fprintf_symname_offs(alf.sym, &alf, fp);
 		if (PRINT_FIELD(DSO)) {
@@ -820,11 +818,11 @@ static int perf_sample__fprintf_brstackoff(struct perf_sample *sample,
 		from = br->entries[i].from;
 		to   = br->entries[i].to;
 
-		if (thread__find_map(thread, sample->cpumode, from, &alf) &&
+		if (thread__find_map_fb(thread, sample->cpumode, from, &alf) &&
 		    !alf.map->dso->adjust_symbols)
 			from = map__map_ip(alf.map, from);
 
-		if (thread__find_map(thread, sample->cpumode, to, &alt) &&
+		if (thread__find_map_fb(thread, sample->cpumode, to, &alt) &&
 		    !alt.map->dso->adjust_symbols)
 			to = map__map_ip(alt.map, to);
 
@@ -909,6 +907,22 @@ static int grab_bb(u8 *buffer, u64 start, u64 end,
 		pr_debug("\tcannot fetch code for block at %" PRIx64 "-%" PRIx64 "\n",
 			start, end);
 	return len;
+}
+
+static int print_srccode(struct thread *thread, u8 cpumode, uint64_t addr)
+{
+	struct addr_location al;
+	int ret = 0;
+
+	memset(&al, 0, sizeof(al));
+	thread__find_map(thread, cpumode, addr, &al);
+	if (!al.map)
+		return 0;
+	ret = map__fprintf_srccode(al.map, al.addr, stdout,
+		    &thread->srccode_state);
+	if (ret)
+		ret += printf("\n");
+	return ret;
 }
 
 static int ip__fprintf_jump(uint64_t ip, struct branch_entry *en,
@@ -1002,6 +1016,8 @@ static int perf_sample__fprintf_brstackinsn(struct perf_sample *sample,
 					   x.cpumode, x.cpu, &lastsym, attr, fp);
 		printed += ip__fprintf_jump(br->entries[nr - 1].from, &br->entries[nr - 1],
 					    &x, buffer, len, 0, fp, &total_cycles);
+		if (PRINT_FIELD(SRCCODE))
+			printed += print_srccode(thread, x.cpumode, br->entries[nr - 1].from);
 	}
 
 	/* Print all blocks */
@@ -1031,12 +1047,16 @@ static int perf_sample__fprintf_brstackinsn(struct perf_sample *sample,
 			if (ip == end) {
 				printed += ip__fprintf_jump(ip, &br->entries[i], &x, buffer + off, len - off, insn, fp,
 							    &total_cycles);
+				if (PRINT_FIELD(SRCCODE))
+					printed += print_srccode(thread, x.cpumode, ip);
 				break;
 			} else {
 				printed += fprintf(fp, "\t%016" PRIx64 "\t%s\n", ip,
 						   dump_insn(&x, ip, buffer + off, len - off, &ilen));
 				if (ilen == 0)
 					break;
+				if (PRINT_FIELD(SRCCODE))
+					print_srccode(thread, x.cpumode, ip);
 				insn++;
 			}
 		}
@@ -1053,9 +1073,18 @@ static int perf_sample__fprintf_brstackinsn(struct perf_sample *sample,
 
 	/*
 	 * Print final block upto sample
+	 *
+	 * Due to pipeline delays the LBRs might be missing a branch
+	 * or two, which can result in very large or negative blocks
+	 * between final branch and sample. When this happens just
+	 * continue walking after the last TO until we hit a branch.
 	 */
 	start = br->entries[0].to;
 	end = sample->ip;
+	if (end < start) {
+		/* Missing jump. Scan 128 bytes for the next branch */
+		end = start + 128;
+	}
 	len = grab_bb(buffer, start, end, machine, thread, &x.is64bit, &x.cpumode, true);
 	printed += ip__fprintf_sym(start, thread, x.cpumode, x.cpu, &lastsym, attr, fp);
 	if (len <= 0) {
@@ -1064,9 +1093,10 @@ static int perf_sample__fprintf_brstackinsn(struct perf_sample *sample,
 			      machine, thread, &x.is64bit, &x.cpumode, false);
 		if (len <= 0)
 			goto out;
-
 		printed += fprintf(fp, "\t%016" PRIx64 "\t%s\n", sample->ip,
 			dump_insn(&x, sample->ip, buffer, len, NULL));
+		if (PRINT_FIELD(SRCCODE))
+			print_srccode(thread, x.cpumode, sample->ip);
 		goto out;
 	}
 	for (off = 0; off <= end - start; off += ilen) {
@@ -1074,6 +1104,15 @@ static int perf_sample__fprintf_brstackinsn(struct perf_sample *sample,
 				   dump_insn(&x, start + off, buffer + off, len - off, &ilen));
 		if (ilen == 0)
 			break;
+		if (arch_is_branch(buffer + off, len - off, x.is64bit) && start + off != sample->ip) {
+			/*
+			 * Hit a missing branch. Just stop.
+			 */
+			printed += fprintf(fp, "\t... not reaching sample ...\n");
+			break;
+		}
+		if (PRINT_FIELD(SRCCODE))
+			print_srccode(thread, x.cpumode, start + off);
 	}
 out:
 	return printed;
@@ -1143,7 +1182,7 @@ static int perf_sample__fprintf_callindent(struct perf_sample *sample,
 					   struct addr_location *al, FILE *fp)
 {
 	struct perf_event_attr *attr = &evsel->attr;
-	size_t depth = thread_stack__depth(thread);
+	size_t depth = thread_stack__depth(thread, sample->cpu);
 	const char *name = NULL;
 	static int spacing;
 	int len = 0;
@@ -1256,7 +1295,16 @@ static int perf_sample__fprintf_bts(struct perf_sample *sample,
 		printed += map__fprintf_srcline(al->map, al->addr, "\n  ", fp);
 
 	printed += perf_sample__fprintf_insn(sample, attr, thread, machine, fp);
-	return printed + fprintf(fp, "\n");
+	printed += fprintf(fp, "\n");
+	if (PRINT_FIELD(SRCCODE)) {
+		int ret = map__fprintf_srccode(al->map, al->addr, stdout,
+					 &thread->srccode_state);
+		if (ret) {
+			printed += ret;
+			printed += printf("\n");
+		}
+	}
+	return printed;
 }
 
 static struct {
@@ -1633,13 +1681,8 @@ static void perf_sample__fprint_metric(struct perf_script *script,
 		.force_header = false,
 	};
 	struct perf_evsel *ev2;
-	static bool init;
 	u64 val;
 
-	if (!init) {
-		perf_stat__init_shadow_stats();
-		init = true;
-	}
 	if (!evsel->stats)
 		perf_evlist__alloc_stats(script->session->evlist, false);
 	if (evsel_script(evsel->leader)->gnum++ == 0)
@@ -1668,7 +1711,7 @@ static bool show_event(struct perf_sample *sample,
 		       struct thread *thread,
 		       struct addr_location *al)
 {
-	int depth = thread_stack__depth(thread);
+	int depth = thread_stack__depth(thread, sample->cpu);
 
 	if (!symbol_conf.graph_function)
 		return true;
@@ -1746,7 +1789,7 @@ static void process_event(struct perf_script *script,
 		return;
 	}
 
-	if (PRINT_FIELD(TRACE)) {
+	if (PRINT_FIELD(TRACE) && sample->raw_data) {
 		event_format__fprintf(evsel->tp_format, sample->cpu,
 				      sample->raw_data, sample->raw_size, fp);
 	}
@@ -1795,6 +1838,12 @@ static void process_event(struct perf_script *script,
 	if (PRINT_FIELD(PHYS_ADDR))
 		fprintf(fp, "%16" PRIx64, sample->phys_addr);
 	fprintf(fp, "\n");
+
+	if (PRINT_FIELD(SRCCODE)) {
+		if (map__fprintf_srccode(al->map, al->addr, stdout,
+					 &thread->srccode_state))
+			printf("\n");
+	}
 
 	if (PRINT_FIELD(METRIC))
 		perf_sample__fprint_metric(script, thread, evsel, sample, fp);
@@ -2304,6 +2353,8 @@ static int __cmd_script(struct perf_script *script)
 	int ret;
 
 	signal(SIGINT, sig_handler);
+
+	perf_stat__init_shadow_stats();
 
 	/* override event processing functions */
 	if (script->show_task_events) {

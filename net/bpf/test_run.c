@@ -75,8 +75,18 @@ static int bpf_test_finish(const union bpf_attr *kattr,
 {
 	void __user *data_out = u64_to_user_ptr(kattr->test.data_out);
 	int err = -EFAULT;
+	u32 copy_size = size;
 
-	if (data_out && copy_to_user(data_out, data, size))
+	/* Clamp copy if the user has provided a size hint, but copy the full
+	 * buffer if not to retain old behaviour.
+	 */
+	if (kattr->test.data_size_out &&
+	    copy_size > kattr->test.data_size_out) {
+		copy_size = kattr->test.data_size_out;
+		err = -ENOSPC;
+	}
+
+	if (data_out && copy_to_user(data_out, data, copy_size))
 		goto out;
 	if (copy_to_user(&uattr->test.data_size_out, &size, sizeof(size)))
 		goto out;
@@ -84,7 +94,8 @@ static int bpf_test_finish(const union bpf_attr *kattr,
 		goto out;
 	if (copy_to_user(&uattr->test.duration, &duration, sizeof(duration)))
 		goto out;
-	err = 0;
+	if (err != -ENOSPC)
+		err = 0;
 out:
 	return err;
 }

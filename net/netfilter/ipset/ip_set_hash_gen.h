@@ -67,7 +67,7 @@ tune_ahash_max(u8 curr, u32 multi)
 
 /* A hash bucket */
 struct hbucket {
-	struct rcu_head rcu;	/* for call_rcu_bh */
+	struct rcu_head rcu;	/* for call_rcu */
 	/* Which positions are used in the array */
 	DECLARE_BITMAP(used, AHASH_MAX_TUNED);
 	u8 size;		/* size of the array */
@@ -664,7 +664,7 @@ retry:
 	spin_unlock_bh(&set->lock);
 
 	/* Give time to other readers of the set */
-	synchronize_rcu_bh();
+	synchronize_rcu();
 
 	pr_debug("set %s resized from %u (%p) to %u (%p)\n", set->name,
 		 orig->htable_bits, orig, t->htable_bits, t);

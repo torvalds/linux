@@ -26,12 +26,14 @@
 #define SUN4I_FRONTEND_LINESTRD0_REG		0x040
 
 #define SUN4I_FRONTEND_INPUT_FMT_REG		0x04c
-#define SUN4I_FRONTEND_INPUT_FMT_DATA_MOD(mod)		((mod) << 8)
-#define SUN4I_FRONTEND_INPUT_FMT_DATA_FMT(fmt)		((fmt) << 4)
-#define SUN4I_FRONTEND_INPUT_FMT_PS(ps)			(ps)
+#define SUN4I_FRONTEND_INPUT_FMT_DATA_MOD_PACKED	(1 << 8)
+#define SUN4I_FRONTEND_INPUT_FMT_DATA_FMT_RGB		(5 << 4)
+#define SUN4I_FRONTEND_INPUT_FMT_DATA_PS_BGRX		0
+#define SUN4I_FRONTEND_INPUT_FMT_DATA_PS_XRGB		1
 
 #define SUN4I_FRONTEND_OUTPUT_FMT_REG		0x05c
-#define SUN4I_FRONTEND_OUTPUT_FMT_DATA_FMT(fmt)		(fmt)
+#define SUN4I_FRONTEND_OUTPUT_FMT_DATA_FMT_BGRX8888	1
+#define SUN4I_FRONTEND_OUTPUT_FMT_DATA_FMT_XRGB8888	2
 
 #define SUN4I_FRONTEND_CH0_INSIZE_REG		0x100
 #define SUN4I_FRONTEND_INSIZE(h, w)			((((h) - 1) << 16) | (((w) - 1)))
@@ -95,5 +97,6 @@ void sun4i_frontend_update_coord(struct sun4i_frontend *frontend,
 				 struct drm_plane *plane);
 int sun4i_frontend_update_formats(struct sun4i_frontend *frontend,
 				  struct drm_plane *plane, uint32_t out_fmt);
+bool sun4i_frontend_format_is_supported(uint32_t fmt, uint64_t modifier);
 
 #endif /* _SUN4I_FRONTEND_H_ */

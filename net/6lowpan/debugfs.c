@@ -232,18 +232,7 @@ static int lowpan_context_show(struct seq_file *file, void *offset)
 
 	return 0;
 }
-
-static int lowpan_context_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, lowpan_context_show, inode->i_private);
-}
-
-static const struct file_operations lowpan_context_fops = {
-	.open		= lowpan_context_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(lowpan_context);
 
 static int lowpan_short_addr_get(void *data, u64 *val)
 {

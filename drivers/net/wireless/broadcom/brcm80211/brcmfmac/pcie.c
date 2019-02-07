@@ -1281,10 +1281,10 @@ static int brcmf_pcie_init_scratchbuffers(struct brcmf_pciedev_info *devinfo)
 	u32 addr;
 
 	devinfo->shared.scratch =
-		dma_zalloc_coherent(&devinfo->pdev->dev,
-					BRCMF_DMA_D2H_SCRATCH_BUF_LEN,
-					&devinfo->shared.scratch_dmahandle,
-					GFP_KERNEL);
+		dma_alloc_coherent(&devinfo->pdev->dev,
+				   BRCMF_DMA_D2H_SCRATCH_BUF_LEN,
+				   &devinfo->shared.scratch_dmahandle,
+				   GFP_KERNEL);
 	if (!devinfo->shared.scratch)
 		goto fail;
 
@@ -1298,10 +1298,10 @@ static int brcmf_pcie_init_scratchbuffers(struct brcmf_pciedev_info *devinfo)
 	brcmf_pcie_write_tcm32(devinfo, addr, BRCMF_DMA_D2H_SCRATCH_BUF_LEN);
 
 	devinfo->shared.ringupd =
-		dma_zalloc_coherent(&devinfo->pdev->dev,
-					BRCMF_DMA_D2H_RINGUPD_BUF_LEN,
-					&devinfo->shared.ringupd_dmahandle,
-					GFP_KERNEL);
+		dma_alloc_coherent(&devinfo->pdev->dev,
+				   BRCMF_DMA_D2H_RINGUPD_BUF_LEN,
+				   &devinfo->shared.ringupd_dmahandle,
+				   GFP_KERNEL);
 	if (!devinfo->shared.ringupd)
 		goto fail;
 
@@ -1785,6 +1785,7 @@ brcmf_pcie_prepare_fw_request(struct brcmf_pciedev_info *devinfo)
 	fwreq->items[BRCMF_PCIE_FW_CODE].type = BRCMF_FW_TYPE_BINARY;
 	fwreq->items[BRCMF_PCIE_FW_NVRAM].type = BRCMF_FW_TYPE_NVRAM;
 	fwreq->items[BRCMF_PCIE_FW_NVRAM].flags = BRCMF_FW_REQF_OPTIONAL;
+	fwreq->board_type = devinfo->settings->board_type;
 	/* NVRAM reserves PCI domain 0 for Broadcom's SDK faked bus */
 	fwreq->domain_nr = pci_domain_nr(devinfo->pdev->bus) + 1;
 	fwreq->bus_nr = devinfo->pdev->bus->number;
@@ -2018,6 +2019,7 @@ static const struct dev_pm_ops brcmf_pciedrvr_pm = {
 static const struct pci_device_id brcmf_pcie_devid_table[] = {
 	BRCMF_PCIE_DEVICE(BRCM_PCIE_4350_DEVICE_ID),
 	BRCMF_PCIE_DEVICE_SUB(0x4355, BRCM_PCIE_VENDOR_ID_BROADCOM, 0x4355),
+	BRCMF_PCIE_DEVICE(BRCM_PCIE_4354_RAW_DEVICE_ID),
 	BRCMF_PCIE_DEVICE(BRCM_PCIE_4356_DEVICE_ID),
 	BRCMF_PCIE_DEVICE(BRCM_PCIE_43567_DEVICE_ID),
 	BRCMF_PCIE_DEVICE(BRCM_PCIE_43570_DEVICE_ID),

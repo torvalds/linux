@@ -2,6 +2,8 @@
 #ifndef ASM_KVM_CACHE_REGS_H
 #define ASM_KVM_CACHE_REGS_H
 
+#include <linux/kvm_host.h>
+
 #define KVM_POSSIBLE_CR0_GUEST_BITS X86_CR0_TS
 #define KVM_POSSIBLE_CR4_GUEST_BITS				  \
 	(X86_CR4_PVI | X86_CR4_DE | X86_CR4_PCE | X86_CR4_OSFXSR  \

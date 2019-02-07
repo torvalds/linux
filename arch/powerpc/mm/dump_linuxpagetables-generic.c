@@ -21,13 +21,11 @@ static const struct flag_info flag_array[] = {
 		.set	= "rw",
 		.clear	= "r ",
 	}, {
-#ifndef CONFIG_PPC_BOOK3S_32
 		.mask	= _PAGE_EXEC,
 		.val	= _PAGE_EXEC,
 		.set	= " X ",
 		.clear	= "   ",
 	}, {
-#endif
 		.mask	= _PAGE_PRESENT,
 		.val	= _PAGE_PRESENT,
 		.set	= "present",

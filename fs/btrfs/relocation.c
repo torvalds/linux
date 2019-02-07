@@ -2631,7 +2631,7 @@ static int reserve_metadata_space(struct btrfs_trans_handle *trans,
 		 * only one thread can access block_rsv at this point,
 		 * so we don't need hold lock to protect block_rsv.
 		 * we expand more reservation size here to allow enough
-		 * space for relocation and we will return eailer in
+		 * space for relocation and we will return earlier in
 		 * enospc case.
 		 */
 		rc->block_rsv->size = tmp + fs_info->nodesize *
@@ -4185,37 +4185,13 @@ static struct reloc_control *alloc_reloc_control(void)
 static void describe_relocation(struct btrfs_fs_info *fs_info,
 				struct btrfs_block_group_cache *block_group)
 {
-	char buf[128];		/* prefixed by a '|' that'll be dropped */
-	u64 flags = block_group->flags;
+	char buf[128] = {'\0'};
 
-	/* Shouldn't happen */
-	if (!flags) {
-		strcpy(buf, "|NONE");
-	} else {
-		char *bp = buf;
-
-#define DESCRIBE_FLAG(f, d) \
-		if (flags & BTRFS_BLOCK_GROUP_##f) { \
-			bp += snprintf(bp, buf - bp + sizeof(buf), "|%s", d); \
-			flags &= ~BTRFS_BLOCK_GROUP_##f; \
-		}
-		DESCRIBE_FLAG(DATA,     "data");
-		DESCRIBE_FLAG(SYSTEM,   "system");
-		DESCRIBE_FLAG(METADATA, "metadata");
-		DESCRIBE_FLAG(RAID0,    "raid0");
-		DESCRIBE_FLAG(RAID1,    "raid1");
-		DESCRIBE_FLAG(DUP,      "dup");
-		DESCRIBE_FLAG(RAID10,   "raid10");
-		DESCRIBE_FLAG(RAID5,    "raid5");
-		DESCRIBE_FLAG(RAID6,    "raid6");
-		if (flags)
-			snprintf(bp, buf - bp + sizeof(buf), "|0x%llx", flags);
-#undef DESCRIBE_FLAG
-	}
+	btrfs_describe_block_groups(block_group->flags, buf, sizeof(buf));
 
 	btrfs_info(fs_info,
 		   "relocating block group %llu flags %s",
-		   block_group->key.objectid, buf + 1);
+		   block_group->key.objectid, buf);
 }
 
 /*
@@ -4223,6 +4199,7 @@ static void describe_relocation(struct btrfs_fs_info *fs_info,
  */
 int btrfs_relocate_block_group(struct btrfs_fs_info *fs_info, u64 group_start)
 {
+	struct btrfs_block_group_cache *bg;
 	struct btrfs_root *extent_root = fs_info->extent_root;
 	struct reloc_control *rc;
 	struct inode *inode;
@@ -4231,14 +4208,23 @@ int btrfs_relocate_block_group(struct btrfs_fs_info *fs_info, u64 group_start)
 	int rw = 0;
 	int err = 0;
 
+	bg = btrfs_lookup_block_group(fs_info, group_start);
+	if (!bg)
+		return -ENOENT;
+
+	if (btrfs_pinned_by_swapfile(fs_info, bg)) {
+		btrfs_put_block_group(bg);
+		return -ETXTBSY;
+	}
+
 	rc = alloc_reloc_control();
-	if (!rc)
+	if (!rc) {
+		btrfs_put_block_group(bg);
 		return -ENOMEM;
+	}
 
 	rc->extent_root = extent_root;
-
-	rc->block_group = btrfs_lookup_block_group(fs_info, group_start);
-	BUG_ON(!rc->block_group);
+	rc->block_group = bg;
 
 	ret = btrfs_inc_block_group_ro(rc->block_group);
 	if (ret) {

@@ -443,6 +443,9 @@ In function prototypes, include parameter names with their data types.
 Although this is not required by the C language, it is preferred in Linux
 because it is a simple way to add valuable information for the reader.
 
+Do not use the `extern' keyword with function prototypes as this makes
+lines longer and isn't strictly necessary.
+
 
 7) Centralized exiting of functions
 -----------------------------------
@@ -1075,5 +1078,5 @@ gcc internals and indent, all available from http://www.gnu.org/manual/
 WG14 is the international standardization working group for the programming
 language C, URL: http://www.open-std.org/JTC1/SC22/WG14/
 
-Kernel process/coding-style.rst, by greg@kroah.com at OLS 2002:
+Kernel :ref:`process/coding-style.rst <codingstyle>`, by greg@kroah.com at OLS 2002:
 http://www.kroah.com/linux/talks/ols_2002_kernel_codingstyle_talk/html/

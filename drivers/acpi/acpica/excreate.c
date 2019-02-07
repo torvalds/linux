@@ -15,7 +15,6 @@
 
 #define _COMPONENT          ACPI_EXECUTER
 ACPI_MODULE_NAME("excreate")
-#ifndef ACPI_NO_METHOD_EXECUTION
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ex_create_alias
@@ -390,7 +389,6 @@ acpi_status acpi_ex_create_power_resource(struct acpi_walk_state *walk_state)
 	acpi_ut_remove_reference(obj_desc);
 	return_ACPI_STATUS(status);
 }
-#endif
 
 /*******************************************************************************
  *

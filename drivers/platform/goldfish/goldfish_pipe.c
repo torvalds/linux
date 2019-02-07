@@ -416,8 +416,7 @@ static ssize_t goldfish_pipe_read_write(struct file *filp,
 	if (unlikely(bufflen == 0))
 		return 0;
 	/* Check the buffer range for access */
-	if (unlikely(!access_ok(is_write ? VERIFY_WRITE : VERIFY_READ,
-				buffer, bufflen)))
+	if (unlikely(!access_ok(buffer, bufflen)))
 		return -EFAULT;
 
 	address = (unsigned long)buffer;

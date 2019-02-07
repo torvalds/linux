@@ -382,7 +382,7 @@ MISCELLANEOUS OBJECT REGISTRATION
 An optional step is to request an object of miscellaneous type be created in
 the cache.  This is almost identical to index cookie acquisition.  The only
 difference is that the type in the object definition should be something other
-than index type.  Whilst the parent object could be an index, it's more likely
+than index type.  While the parent object could be an index, it's more likely
 it would be some other type of object such as a data file.
 
 	xattr->cache =

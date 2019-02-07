@@ -56,11 +56,6 @@ void drm_prime_remove_buf_handle_locked(struct drm_prime_file_private *prime_fpr
 struct drm_minor *drm_minor_acquire(unsigned int minor_id);
 void drm_minor_release(struct drm_minor *minor);
 
-/* drm_info.c */
-int drm_name_info(struct seq_file *m, void *data);
-int drm_clients_info(struct seq_file *m, void* data);
-int drm_gem_name_info(struct seq_file *m, void *data);
-
 /* drm_vblank.c */
 void drm_vblank_disable_and_save(struct drm_device *dev, unsigned int pipe);
 void drm_vblank_cleanup(struct drm_device *dev);

@@ -64,6 +64,7 @@ struct thread *thread__new(pid_t pid, pid_t tid)
 		RB_CLEAR_NODE(&thread->rb_node);
 		/* Thread holds first ref to nsdata. */
 		thread->nsinfo = nsinfo__new(pid);
+		srccode_state_init(&thread->srccode_state);
 	}
 
 	return thread;
@@ -103,6 +104,7 @@ void thread__delete(struct thread *thread)
 
 	unwind__finish_access(thread);
 	nsinfo__zput(thread->nsinfo);
+	srccode_state_free(&thread->srccode_state);
 
 	exit_rwsem(&thread->namespaces_lock);
 	exit_rwsem(&thread->comm_lock);

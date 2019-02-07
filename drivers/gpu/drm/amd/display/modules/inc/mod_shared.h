@@ -23,27 +23,26 @@
  *
  */
 
-
 #ifndef MOD_SHARED_H_
 #define MOD_SHARED_H_
 
 enum color_transfer_func {
-	transfer_func_unknown,
-	transfer_func_srgb,
-	transfer_func_bt709,
-	transfer_func_pq2084,
-	transfer_func_pq2084_interim,
-	transfer_func_linear_0_1,
-	transfer_func_linear_0_125,
-	transfer_func_dolbyvision,
-	transfer_func_gamma_22,
-	transfer_func_gamma_26
+	TRANSFER_FUNC_UNKNOWN,
+	TRANSFER_FUNC_SRGB,
+	TRANSFER_FUNC_BT709,
+	TRANSFER_FUNC_PQ2084,
+	TRANSFER_FUNC_PQ2084_INTERIM,
+	TRANSFER_FUNC_LINEAR_0_1,
+	TRANSFER_FUNC_LINEAR_0_125,
+	TRANSFER_FUNC_GAMMA_22,
+	TRANSFER_FUNC_GAMMA_26
 };
 
 enum vrr_packet_type {
-	packet_type_vrr,
-	packet_type_fs1,
-	packet_type_fs2
+	PACKET_TYPE_VRR,
+	PACKET_TYPE_FS1,
+	PACKET_TYPE_FS2
 };
+
 
 #endif /* MOD_SHARED_H_ */

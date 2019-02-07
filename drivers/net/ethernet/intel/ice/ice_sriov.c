@@ -46,7 +46,7 @@ ice_aq_send_msg_to_vf(struct ice_hw *hw, u16 vfid, u32 v_opcode, u32 v_retval,
  * @link_speed: variable containing the link_speed to be converted
  *
  * Convert link speed supported by HW to link speed supported by virtchnl.
- * If adv_link_support is true, then return link speed in Mbps.  Else return
+ * If adv_link_support is true, then return link speed in Mbps. Else return
  * link speed as a VIRTCHNL_LINK_SPEED_* casted to a u32. Note that the caller
  * needs to cast back to an enum virtchnl_link_speed in the case where
  * adv_link_support is false, but when adv_link_support is true the caller can

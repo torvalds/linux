@@ -47,7 +47,7 @@ static int upd60620_read_status(struct phy_device *phydev)
 		return phy_state;
 
 	phydev->link = 0;
-	phydev->lp_advertising = 0;
+	linkmode_zero(phydev->lp_advertising);
 	phydev->pause = 0;
 	phydev->asym_pause = 0;
 
@@ -70,8 +70,8 @@ static int upd60620_read_status(struct phy_device *phydev)
 			if (phy_state < 0)
 				return phy_state;
 
-			phydev->lp_advertising
-				= mii_lpa_to_ethtool_lpa_t(phy_state);
+			mii_lpa_to_linkmode_lpa_t(phydev->lp_advertising,
+						  phy_state);
 
 			if (phydev->duplex == DUPLEX_FULL) {
 				if (phy_state & LPA_PAUSE_CAP)

@@ -501,19 +501,19 @@ static int tps6598x_remove(struct i2c_client *client)
 	return 0;
 }
 
-static const struct acpi_device_id tps6598x_acpi_match[] = {
-	{ "INT3515", 0 },
+static const struct i2c_device_id tps6598x_id[] = {
+	{ "tps6598x" },
 	{ }
 };
-MODULE_DEVICE_TABLE(acpi, tps6598x_acpi_match);
+MODULE_DEVICE_TABLE(i2c, tps6598x_id);
 
 static struct i2c_driver tps6598x_i2c_driver = {
 	.driver = {
 		.name = "tps6598x",
-		.acpi_match_table = tps6598x_acpi_match,
 	},
 	.probe_new = tps6598x_probe,
 	.remove = tps6598x_remove,
+	.id_table = tps6598x_id,
 };
 module_i2c_driver(tps6598x_i2c_driver);
 

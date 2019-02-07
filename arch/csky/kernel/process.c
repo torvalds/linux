@@ -93,26 +93,31 @@ int dump_task_regs(struct task_struct *tsk, elf_gregset_t *pr_regs)
 
 unsigned long get_wchan(struct task_struct *p)
 {
-	unsigned long esp, pc;
-	unsigned long stack_page;
+	unsigned long lr;
+	unsigned long *fp, *stack_start, *stack_end;
 	int count = 0;
 
 	if (!p || p == current || p->state == TASK_RUNNING)
 		return 0;
 
-	stack_page = (unsigned long)p;
-	esp = p->thread.esp0;
+	stack_start = (unsigned long *)end_of_stack(p);
+	stack_end = (unsigned long *)(task_stack_page(p) + THREAD_SIZE);
+
+	fp = (unsigned long *) thread_saved_fp(p);
 	do {
-		if (esp < stack_page+sizeof(struct task_struct) ||
-		    esp >= 8184+stack_page)
+		if (fp < stack_start || fp > stack_end)
 			return 0;
-		/*FIXME: There's may be error here!*/
-		pc = ((unsigned long *)esp)[1];
-		/* FIXME: This depends on the order of these functions. */
-		if (!in_sched_functions(pc))
-			return pc;
-		esp = *(unsigned long *) esp;
+#ifdef CONFIG_STACKTRACE
+		lr = fp[1];
+		fp = (unsigned long *)fp[0];
+#else
+		lr = *fp++;
+#endif
+		if (!in_sched_functions(lr) &&
+		    __kernel_text_address(lr))
+			return lr;
 	} while (count++ < 16);
+
 	return 0;
 }
 EXPORT_SYMBOL(get_wchan);

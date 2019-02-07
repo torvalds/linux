@@ -969,7 +969,7 @@ const struct irq_domain_ops irq_domain_simple_ops = {
 EXPORT_SYMBOL_GPL(irq_domain_simple_ops);
 
 int irq_domain_alloc_descs(int virq, unsigned int cnt, irq_hw_number_t hwirq,
-			   int node, const struct cpumask *affinity)
+			   int node, const struct irq_affinity_desc *affinity)
 {
 	unsigned int hint;
 
@@ -1281,7 +1281,7 @@ int irq_domain_alloc_irqs_hierarchy(struct irq_domain *domain,
  */
 int __irq_domain_alloc_irqs(struct irq_domain *domain, int irq_base,
 			    unsigned int nr_irqs, int node, void *arg,
-			    bool realloc, const struct cpumask *affinity)
+			    bool realloc, const struct irq_affinity_desc *affinity)
 {
 	int i, ret, virq;
 

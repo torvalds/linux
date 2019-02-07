@@ -50,9 +50,9 @@ nv50_head_flush_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 	if (asyh->set.core   ) head->func->core_set(head, asyh);
 	if (asyh->set.olut   ) {
 		asyh->olut.offset = nv50_lut_load(&head->olut,
-						  asyh->olut.mode <= 1,
 						  asyh->olut.buffer,
-						  asyh->state.gamma_lut);
+						  asyh->state.gamma_lut,
+						  asyh->olut.load);
 		head->func->olut_set(head, asyh);
 	}
 	if (asyh->set.curs   ) head->func->curs_set(head, asyh);
@@ -210,7 +210,7 @@ nv50_head_atomic_check_lut(struct nv50_head *head,
 		}
 	}
 
-	if (!olut) {
+	if (!olut && !head->func->olut_identity) {
 		asyh->olut.handle = 0;
 		return 0;
 	}

@@ -169,7 +169,6 @@ static int cirrusfb_create(struct drm_fb_helper *helper,
 	struct drm_mode_fb_cmd2 mode_cmd;
 	void *sysram;
 	struct drm_gem_object *gobj = NULL;
-	struct cirrus_bo *bo = NULL;
 	int size, ret;
 
 	mode_cmd.width = sizes->surface_width;
@@ -184,8 +183,6 @@ static int cirrusfb_create(struct drm_fb_helper *helper,
 		DRM_ERROR("failed to create fbcon backing object %d\n", ret);
 		return ret;
 	}
-
-	bo = gem_to_cirrus_bo(gobj);
 
 	sysram = vmalloc(size);
 	if (!sysram)

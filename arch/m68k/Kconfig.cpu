@@ -299,6 +299,7 @@ config M53xx
 	bool
 
 config M54xx
+	select HAVE_PCI
 	bool
 
 endif # COLDFIRE

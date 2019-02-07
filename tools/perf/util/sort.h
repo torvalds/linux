@@ -229,6 +229,7 @@ enum sort_type {
 	SORT_SYM_SIZE,
 	SORT_DSO_SIZE,
 	SORT_CGROUP_ID,
+	SORT_SYM_IPC_NULL,
 
 	/* branch stack specific sort keys */
 	__SORT_BRANCH_STACK,
@@ -242,6 +243,7 @@ enum sort_type {
 	SORT_CYCLES,
 	SORT_SRCLINE_FROM,
 	SORT_SRCLINE_TO,
+	SORT_SYM_IPC,
 
 	/* memory mode specific sort keys */
 	__SORT_MEMORY_MODE,

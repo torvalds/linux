@@ -78,6 +78,20 @@
 		      <0x00000008 0x80000000 0 0x80000000>;
 	};
 
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		/* Chipselect 2,00000000 is physically at 0x18000000 */
+		vram: vram@18000000 {
+			/* 8 MB of designated video RAM */
+			compatible = "shared-dma-pool";
+			reg = <0x00000000 0x18000000 0 0x00800000>;
+			no-map;
+		};
+	};
+
 	gic: interrupt-controller@2c001000 {
 		compatible = "arm,cortex-a15-gic", "arm,cortex-a9-gic";
 		#interrupt-cells = <3>;
@@ -105,6 +119,15 @@
 			     <0 61 4>,
 			     <0 62 4>,
 			     <0 63 4>;
+	};
+
+	panel {
+		compatible = "arm,rtsm-display";
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&clcd_pads>;
+			};
+		};
 	};
 
 	smb@8000000 {

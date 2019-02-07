@@ -32,7 +32,7 @@ void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
 	size = PAGE_ALIGN(size);
 	order = get_order(size);
 
-	page = alloc_pages(flag, order);
+	page = alloc_pages(flag | __GFP_ZERO, order);
 	if (!page)
 		return NULL;
 

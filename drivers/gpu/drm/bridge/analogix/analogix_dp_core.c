@@ -1219,12 +1219,12 @@ static int analogix_dp_bridge_attach(struct drm_bridge *bridge)
 	 * plat_data->attch return, that's why we record the connector
 	 * point after plat attached.
 	 */
-	 if (dp->plat_data->attach) {
-		 ret = dp->plat_data->attach(dp->plat_data, bridge, connector);
-		 if (ret) {
-			 DRM_ERROR("Failed at platform attch func\n");
-			 return ret;
-		 }
+	if (dp->plat_data->attach) {
+		ret = dp->plat_data->attach(dp->plat_data, bridge, connector);
+		if (ret) {
+			DRM_ERROR("Failed at platform attach func\n");
+			return ret;
+		}
 	}
 
 	if (dp->plat_data->panel) {

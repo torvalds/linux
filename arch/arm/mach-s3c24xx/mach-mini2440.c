@@ -15,6 +15,7 @@
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/input.h>
 #include <linux/io.h>
 #include <linux/serial_core.h>
@@ -234,11 +235,20 @@ static struct s3c2410fb_mach_info mini2440_fb_info __initdata = {
 /* MMC/SD  */
 
 static struct s3c24xx_mci_pdata mini2440_mmc_cfg __initdata = {
-	.gpio_detect		= S3C2410_GPG(8),
-	.gpio_wprotect		= S3C2410_GPH(8),
 	.wprotect_invert	= 1,
 	.set_power		= NULL,
 	.ocr_avail		= MMC_VDD_32_33|MMC_VDD_33_34,
+};
+
+static struct gpiod_lookup_table mini2440_mmc_gpio_table = {
+	.dev_id = "s3c2410-sdi",
+	.table = {
+		/* Card detect S3C2410_GPG(8) */
+		GPIO_LOOKUP("GPG", 8, "cd", GPIO_ACTIVE_LOW),
+		/* Write protect S3C2410_GPH(8) */
+		GPIO_LOOKUP("GPH", 8, "wp", GPIO_ACTIVE_HIGH),
+		{ },
+	},
 };
 
 /* NAND Flash on MINI2440 board */
@@ -696,6 +706,7 @@ static void __init mini2440_init(void)
 	}
 
 	s3c24xx_udc_set_platdata(&mini2440_udc_cfg);
+	gpiod_add_lookup_table(&mini2440_mmc_gpio_table);
 	s3c24xx_mci_set_platdata(&mini2440_mmc_cfg);
 	s3c_nand_set_platdata(&mini2440_nand_info);
 	s3c_i2c0_set_platdata(NULL);

@@ -183,17 +183,7 @@ static int fpuemustats_clear_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int fpuemustats_clear_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, fpuemustats_clear_show, inode->i_private);
-}
-
-static const struct file_operations fpuemustats_clear_fops = {
-	.open                   = fpuemustats_clear_open,
-	.read			= seq_read,
-	.llseek			= seq_lseek,
-	.release		= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(fpuemustats_clear);
 
 static int __init debugfs_fpuemu(void)
 {

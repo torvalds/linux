@@ -6,9 +6,7 @@ conmakehash
 kallsyms
 pnmtologo
 unifdef
-ihex2fw
 recordmcount
-check-lc_ctype
 sortextable
 asn1_compiler
 extract-cert

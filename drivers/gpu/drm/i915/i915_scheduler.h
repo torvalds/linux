@@ -8,8 +8,13 @@
 #define _I915_SCHEDULER_H_
 
 #include <linux/bitops.h>
+#include <linux/kernel.h>
 
 #include <uapi/drm/i915_drm.h>
+
+struct drm_i915_private;
+struct i915_request;
+struct intel_engine_cs;
 
 enum {
 	I915_PRIORITY_MIN = I915_CONTEXT_MIN_USER_PRIORITY - 1,
@@ -18,6 +23,15 @@ enum {
 
 	I915_PRIORITY_INVALID = INT_MIN
 };
+
+#define I915_USER_PRIORITY_SHIFT 2
+#define I915_USER_PRIORITY(x) ((x) << I915_USER_PRIORITY_SHIFT)
+
+#define I915_PRIORITY_COUNT BIT(I915_USER_PRIORITY_SHIFT)
+#define I915_PRIORITY_MASK (I915_PRIORITY_COUNT - 1)
+
+#define I915_PRIORITY_WAIT	((u8)BIT(0))
+#define I915_PRIORITY_NEWCLIENT	((u8)BIT(1))
 
 struct i915_sched_attr {
 	/**
@@ -68,5 +82,27 @@ struct i915_dependency {
 	unsigned long flags;
 #define I915_DEPENDENCY_ALLOC BIT(0)
 };
+
+void i915_sched_node_init(struct i915_sched_node *node);
+
+bool __i915_sched_node_add_dependency(struct i915_sched_node *node,
+				      struct i915_sched_node *signal,
+				      struct i915_dependency *dep,
+				      unsigned long flags);
+
+int i915_sched_node_add_dependency(struct drm_i915_private *i915,
+				   struct i915_sched_node *node,
+				   struct i915_sched_node *signal);
+
+void i915_sched_node_fini(struct drm_i915_private *i915,
+			  struct i915_sched_node *node);
+
+void i915_schedule(struct i915_request *request,
+		   const struct i915_sched_attr *attr);
+
+void i915_schedule_bump_priority(struct i915_request *rq, unsigned int bump);
+
+struct list_head *
+i915_sched_lookup_priolist(struct intel_engine_cs *engine, int prio);
 
 #endif /* _I915_SCHEDULER_H_ */

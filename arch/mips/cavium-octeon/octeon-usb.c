@@ -253,17 +253,17 @@ static int dwc3_octeon_config_power(struct device *dev, u64 base)
 		    && gpio <= 31) {
 			gpio_bit.u64 = cvmx_read_csr(CVMX_GPIO_BIT_CFGX(gpio));
 			gpio_bit.s.tx_oe = 1;
-			gpio_bit.cn73xx.output_sel = (index == 0 ? 0x14 : 0x15);
+			gpio_bit.s.output_sel = (index == 0 ? 0x14 : 0x15);
 			cvmx_write_csr(CVMX_GPIO_BIT_CFGX(gpio), gpio_bit.u64);
 		} else if (gpio <= 15) {
 			gpio_bit.u64 = cvmx_read_csr(CVMX_GPIO_BIT_CFGX(gpio));
 			gpio_bit.s.tx_oe = 1;
-			gpio_bit.cn70xx.output_sel = (index == 0 ? 0x14 : 0x19);
+			gpio_bit.s.output_sel = (index == 0 ? 0x14 : 0x19);
 			cvmx_write_csr(CVMX_GPIO_BIT_CFGX(gpio), gpio_bit.u64);
 		} else {
 			gpio_bit.u64 = cvmx_read_csr(CVMX_GPIO_XBIT_CFGX(gpio));
 			gpio_bit.s.tx_oe = 1;
-			gpio_bit.cn70xx.output_sel = (index == 0 ? 0x14 : 0x19);
+			gpio_bit.s.output_sel = (index == 0 ? 0x14 : 0x19);
 			cvmx_write_csr(CVMX_GPIO_XBIT_CFGX(gpio), gpio_bit.u64);
 		}
 

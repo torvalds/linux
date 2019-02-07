@@ -310,8 +310,8 @@ static int mtk_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 		case PIN_CONFIG_DRIVE_STRENGTH:
 			if (hw->soc->drive_set) {
 				err = hw->soc->drive_set(hw, desc, arg);
-			if (err)
-				return err;
+				if (err)
+					return err;
 			} else {
 				err = -ENOTSUPP;
 			}

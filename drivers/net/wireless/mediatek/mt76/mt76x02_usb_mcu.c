@@ -129,9 +129,6 @@ __mt76x02u_mcu_send_msg(struct mt76_dev *dev, struct sk_buff *skb,
 	u8 seq = 0;
 	u32 info;
 
-	if (!skb)
-		return -EINVAL;
-
 	if (test_bit(MT76_REMOVED, &dev->state))
 		return 0;
 
@@ -162,11 +159,16 @@ __mt76x02u_mcu_send_msg(struct mt76_dev *dev, struct sk_buff *skb,
 }
 
 static int
-mt76x02u_mcu_send_msg(struct mt76_dev *dev, struct sk_buff *skb,
-		      int cmd, bool wait_resp)
+mt76x02u_mcu_send_msg(struct mt76_dev *dev, int cmd, const void *data,
+		      int len, bool wait_resp)
 {
 	struct mt76_usb *usb = &dev->usb;
+	struct sk_buff *skb;
 	int err;
+
+	skb = mt76x02u_mcu_msg_alloc(data, len);
+	if (!skb)
+		return -ENOMEM;
 
 	mutex_lock(&usb->mcu.mutex);
 	err = __mt76x02u_mcu_send_msg(dev, skb, cmd, wait_resp);
@@ -186,6 +188,7 @@ mt76x02u_mcu_wr_rp(struct mt76_dev *dev, u32 base,
 {
 	const int CMD_RANDOM_WRITE = 12;
 	const int max_vals_per_cmd = MT_INBAND_PACKET_MAX_LEN / 8;
+	struct mt76_usb *usb = &dev->usb;
 	struct sk_buff *skb;
 	int cnt, i, ret;
 
@@ -204,7 +207,9 @@ mt76x02u_mcu_wr_rp(struct mt76_dev *dev, u32 base,
 		skb_put_le32(skb, data[i].value);
 	}
 
-	ret = mt76x02u_mcu_send_msg(dev, skb, CMD_RANDOM_WRITE, cnt == n);
+	mutex_lock(&usb->mcu.mutex);
+	ret = __mt76x02u_mcu_send_msg(dev, skb, CMD_RANDOM_WRITE, cnt == n);
+	mutex_unlock(&usb->mcu.mutex);
 	if (ret)
 		return ret;
 
@@ -345,7 +350,6 @@ EXPORT_SYMBOL_GPL(mt76x02u_mcu_fw_send_data);
 void mt76x02u_init_mcu(struct mt76_dev *dev)
 {
 	static const struct mt76_mcu_ops mt76x02u_mcu_ops = {
-		.mcu_msg_alloc = mt76x02u_mcu_msg_alloc,
 		.mcu_send_msg = mt76x02u_mcu_send_msg,
 		.mcu_wr_rp = mt76x02u_mcu_wr_rp,
 		.mcu_rd_rp = mt76x02u_mcu_rd_rp,

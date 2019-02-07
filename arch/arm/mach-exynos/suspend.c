@@ -30,8 +30,6 @@
 #include <asm/smp_scu.h>
 #include <asm/suspend.h>
 
-#include <plat/pm-common.h>
-
 #include "common.h"
 
 #define REG_TABLE_END (-1U)
@@ -92,6 +90,11 @@ static const struct exynos_wkup_irq exynos5250_wkup_irq[] = {
 	{ 44, BIT(2) }, /* RTC tick */
 	{ /* sentinel */ },
 };
+
+static u32 exynos_read_eint_wakeup_mask(void)
+{
+	return pmu_raw_readl(EXYNOS_EINT_WAKEUP_MASK);
+}
 
 static int exynos_irq_set_wake(struct irq_data *data, unsigned int state)
 {
@@ -277,8 +280,10 @@ static int exynos5420_cpu_suspend(unsigned long arg)
 
 static void exynos_pm_set_wakeup_mask(void)
 {
-	/* Set wake-up mask registers */
-	pmu_raw_writel(exynos_get_eint_wake_mask(), EXYNOS_EINT_WAKEUP_MASK);
+	/*
+	 * Set wake-up mask registers
+	 * EXYNOS_EINT_WAKEUP_MASK is set by pinctrl driver in late suspend.
+	 */
 	pmu_raw_writel(exynos_irqwake_intmask & ~(1 << 31), S5P_WAKEUP_MASK);
 }
 
@@ -488,27 +493,24 @@ early_wakeup:
 
 static int exynos_suspend_enter(suspend_state_t state)
 {
+	u32 eint_wakeup_mask = exynos_read_eint_wakeup_mask();
 	int ret;
 
-	s3c_pm_debug_init();
+	pr_debug("%s: suspending the system...\n", __func__);
 
-	S3C_PMDBG("%s: suspending the system...\n", __func__);
-
-	S3C_PMDBG("%s: wakeup masks: %08x,%08x\n", __func__,
-			exynos_irqwake_intmask, exynos_get_eint_wake_mask());
+	pr_debug("%s: wakeup masks: %08x,%08x\n", __func__,
+		  exynos_irqwake_intmask, eint_wakeup_mask);
 
 	if (exynos_irqwake_intmask == -1U
-	    && exynos_get_eint_wake_mask() == -1U) {
+	    && eint_wakeup_mask == EXYNOS_EINT_WAKEUP_MASK_DISABLED) {
 		pr_err("%s: No wake-up sources!\n", __func__);
 		pr_err("%s: Aborting sleep\n", __func__);
 		return -EINVAL;
 	}
 
-	s3c_pm_save_uarts();
 	if (pm_data->pm_prepare)
 		pm_data->pm_prepare();
 	flush_cache_all();
-	s3c_pm_check_store();
 
 	ret = call_firmware_op(suspend);
 	if (ret == -ENOSYS)
@@ -518,14 +520,11 @@ static int exynos_suspend_enter(suspend_state_t state)
 
 	if (pm_data->pm_resume_prepare)
 		pm_data->pm_resume_prepare();
-	s3c_pm_restore_uarts();
 
-	S3C_PMDBG("%s: wakeup stat: %08x\n", __func__,
+	pr_debug("%s: wakeup stat: %08x\n", __func__,
 			pmu_raw_readl(S5P_WAKEUP_STAT));
 
-	s3c_pm_check_restore();
-
-	S3C_PMDBG("%s: resuming the system...\n", __func__);
+	pr_debug("%s: resuming the system...\n", __func__);
 
 	return 0;
 }
@@ -548,16 +547,12 @@ static int exynos_suspend_prepare(void)
 		return ret;
 	}
 
-	s3c_pm_check_prepare();
-
 	return 0;
 }
 
 static void exynos_suspend_finish(void)
 {
 	int ret;
-
-	s3c_pm_check_cleanup();
 
 	ret = regulator_suspend_finish();
 	if (ret)

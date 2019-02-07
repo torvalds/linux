@@ -76,6 +76,8 @@ intel_display_power_domain_str(enum intel_display_power_domain domain)
 		return "TRANSCODER_C";
 	case POWER_DOMAIN_TRANSCODER_EDP:
 		return "TRANSCODER_EDP";
+	case POWER_DOMAIN_TRANSCODER_EDP_VDSC:
+		return "TRANSCODER_EDP_VDSC";
 	case POWER_DOMAIN_TRANSCODER_DSI_A:
 		return "TRANSCODER_DSI_A";
 	case POWER_DOMAIN_TRANSCODER_DSI_C:
@@ -208,7 +210,7 @@ bool __intel_display_power_is_enabled(struct drm_i915_private *dev_priv,
 
 	is_enabled = true;
 
-	for_each_power_domain_well_rev(dev_priv, power_well, BIT_ULL(domain)) {
+	for_each_power_domain_well_reverse(dev_priv, power_well, BIT_ULL(domain)) {
 		if (power_well->desc->always_on)
 			continue;
 
@@ -436,6 +438,15 @@ icl_combo_phy_aux_power_well_enable(struct drm_i915_private *dev_priv,
 	I915_WRITE(ICL_PORT_CL_DW12(port), val | ICL_LANE_ENABLE_AUX);
 
 	hsw_wait_for_power_well_enable(dev_priv, power_well);
+
+	/* Display WA #1178: icl */
+	if (IS_ICELAKE(dev_priv) &&
+	    pw_idx >= ICL_PW_CTL_IDX_AUX_A && pw_idx <= ICL_PW_CTL_IDX_AUX_B &&
+	    !intel_bios_is_port_edp(dev_priv, port)) {
+		val = I915_READ(ICL_AUX_ANAOVRD1(pw_idx));
+		val |= ICL_AUX_ANAOVRD1_ENABLE | ICL_AUX_ANAOVRD1_LDO_BYPASS;
+		I915_WRITE(ICL_AUX_ANAOVRD1(pw_idx), val);
+	}
 }
 
 static void
@@ -456,6 +467,25 @@ icl_combo_phy_aux_power_well_disable(struct drm_i915_private *dev_priv,
 	hsw_wait_for_power_well_disable(dev_priv, power_well);
 }
 
+#define ICL_AUX_PW_TO_CH(pw_idx)	\
+	((pw_idx) - ICL_PW_CTL_IDX_AUX_A + AUX_CH_A)
+
+static void
+icl_tc_phy_aux_power_well_enable(struct drm_i915_private *dev_priv,
+				 struct i915_power_well *power_well)
+{
+	enum aux_ch aux_ch = ICL_AUX_PW_TO_CH(power_well->desc->hsw.idx);
+	u32 val;
+
+	val = I915_READ(DP_AUX_CH_CTL(aux_ch));
+	val &= ~DP_AUX_CH_CTL_TBT_IO;
+	if (power_well->desc->hsw.is_tc_tbt)
+		val |= DP_AUX_CH_CTL_TBT_IO;
+	I915_WRITE(DP_AUX_CH_CTL(aux_ch), val);
+
+	hsw_power_well_enable(dev_priv, power_well);
+}
+
 /*
  * We should only use the power well if we explicitly asked the hardware to
  * enable it, so check if it's enabled and also check if we've requested it to
@@ -465,11 +495,25 @@ static bool hsw_power_well_enabled(struct drm_i915_private *dev_priv,
 				   struct i915_power_well *power_well)
 {
 	const struct i915_power_well_regs *regs = power_well->desc->hsw.regs;
+	enum i915_power_well_id id = power_well->desc->id;
 	int pw_idx = power_well->desc->hsw.idx;
 	u32 mask = HSW_PWR_WELL_CTL_REQ(pw_idx) |
 		   HSW_PWR_WELL_CTL_STATE(pw_idx);
+	u32 val;
 
-	return (I915_READ(regs->driver) & mask) == mask;
+	val = I915_READ(regs->driver);
+
+	/*
+	 * On GEN9 big core due to a DMC bug the driver's request bits for PW1
+	 * and the MISC_IO PW will be not restored, so check instead for the
+	 * BIOS's own request bits, which are forced-on for these power wells
+	 * when exiting DC5/6.
+	 */
+	if (IS_GEN9(dev_priv) && !IS_GEN9_LP(dev_priv) &&
+	    (id == SKL_DISP_PW_1 || id == SKL_DISP_PW_MISC_IO))
+		val |= I915_READ(regs->bios);
+
+	return (val & mask) == mask;
 }
 
 static void assert_can_enable_dc9(struct drm_i915_private *dev_priv)
@@ -551,7 +595,9 @@ static u32 gen9_dc_mask(struct drm_i915_private *dev_priv)
 	u32 mask;
 
 	mask = DC_STATE_EN_UPTO_DC5;
-	if (IS_GEN9_LP(dev_priv))
+	if (INTEL_GEN(dev_priv) >= 11)
+		mask |= DC_STATE_EN_UPTO_DC6 | DC_STATE_EN_DC9;
+	else if (IS_GEN9_LP(dev_priv))
 		mask |= DC_STATE_EN_DC9;
 	else
 		mask |= DC_STATE_EN_UPTO_DC6;
@@ -624,8 +670,13 @@ void bxt_enable_dc9(struct drm_i915_private *dev_priv)
 	assert_can_enable_dc9(dev_priv);
 
 	DRM_DEBUG_KMS("Enabling DC9\n");
-
-	intel_power_sequencer_reset(dev_priv);
+	/*
+	 * Power sequencer reset is not needed on
+	 * platforms with South Display Engine on PCH,
+	 * because PPS registers are always on.
+	 */
+	if (!HAS_PCH_SPLIT(dev_priv))
+		intel_power_sequencer_reset(dev_priv);
 	gen9_set_dc_state(dev_priv, DC_STATE_EN_DC9);
 }
 
@@ -707,7 +758,7 @@ static void assert_can_enable_dc6(struct drm_i915_private *dev_priv)
 	assert_csr_loaded(dev_priv);
 }
 
-static void skl_enable_dc6(struct drm_i915_private *dev_priv)
+void skl_enable_dc6(struct drm_i915_private *dev_priv)
 {
 	assert_can_enable_dc6(dev_priv);
 
@@ -808,6 +859,14 @@ static void gen9_dc_off_power_well_enable(struct drm_i915_private *dev_priv,
 
 	if (IS_GEN9_LP(dev_priv))
 		bxt_verify_ddi_phy_power_wells(dev_priv);
+
+	if (INTEL_GEN(dev_priv) >= 11)
+		/*
+		 * DMC retains HW context only for port A, the other combo
+		 * PHY's HW context for port B is lost after DC transitions,
+		 * so we need to restore it manually.
+		 */
+		icl_combo_phys_init(dev_priv);
 }
 
 static void gen9_dc_off_power_well_disable(struct drm_i915_private *dev_priv,
@@ -1608,7 +1667,7 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 	     intel_display_power_domain_str(domain));
 	power_domains->domain_use_count[domain]--;
 
-	for_each_power_domain_well_rev(dev_priv, power_well, BIT_ULL(domain))
+	for_each_power_domain_well_reverse(dev_priv, power_well, BIT_ULL(domain))
 		intel_power_well_put(dev_priv, power_well);
 
 	mutex_unlock(&power_domains->lock);
@@ -1971,9 +2030,9 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 	 */
 #define ICL_PW_2_POWER_DOMAINS (			\
 	ICL_PW_3_POWER_DOMAINS |			\
+	BIT_ULL(POWER_DOMAIN_TRANSCODER_EDP_VDSC) |		\
 	BIT_ULL(POWER_DOMAIN_INIT))
 	/*
-	 * - eDP/DSI VDSC
 	 * - KVMR (HW control)
 	 */
 #define ICL_DISPLAY_DC_OFF_POWER_DOMAINS (		\
@@ -2041,7 +2100,7 @@ static const struct i915_power_well_ops chv_dpio_cmn_power_well_ops = {
 static const struct i915_power_well_desc i9xx_always_on_power_well[] = {
 	{
 		.name = "always-on",
-		.always_on = 1,
+		.always_on = true,
 		.domains = POWER_DOMAIN_MASK,
 		.ops = &i9xx_always_on_power_well_ops,
 		.id = DISP_PW_ID_NONE,
@@ -2058,7 +2117,7 @@ static const struct i915_power_well_ops i830_pipes_power_well_ops = {
 static const struct i915_power_well_desc i830_power_wells[] = {
 	{
 		.name = "always-on",
-		.always_on = 1,
+		.always_on = true,
 		.domains = POWER_DOMAIN_MASK,
 		.ops = &i9xx_always_on_power_well_ops,
 		.id = DISP_PW_ID_NONE,
@@ -2102,7 +2161,7 @@ static const struct i915_power_well_regs hsw_power_well_regs = {
 static const struct i915_power_well_desc hsw_power_wells[] = {
 	{
 		.name = "always-on",
-		.always_on = 1,
+		.always_on = true,
 		.domains = POWER_DOMAIN_MASK,
 		.ops = &i9xx_always_on_power_well_ops,
 		.id = DISP_PW_ID_NONE,
@@ -2123,7 +2182,7 @@ static const struct i915_power_well_desc hsw_power_wells[] = {
 static const struct i915_power_well_desc bdw_power_wells[] = {
 	{
 		.name = "always-on",
-		.always_on = 1,
+		.always_on = true,
 		.domains = POWER_DOMAIN_MASK,
 		.ops = &i9xx_always_on_power_well_ops,
 		.id = DISP_PW_ID_NONE,
@@ -2166,7 +2225,7 @@ static const struct i915_power_well_ops vlv_dpio_power_well_ops = {
 static const struct i915_power_well_desc vlv_power_wells[] = {
 	{
 		.name = "always-on",
-		.always_on = 1,
+		.always_on = true,
 		.domains = POWER_DOMAIN_MASK,
 		.ops = &i9xx_always_on_power_well_ops,
 		.id = DISP_PW_ID_NONE,
@@ -2242,7 +2301,7 @@ static const struct i915_power_well_desc vlv_power_wells[] = {
 static const struct i915_power_well_desc chv_power_wells[] = {
 	{
 		.name = "always-on",
-		.always_on = 1,
+		.always_on = true,
 		.domains = POWER_DOMAIN_MASK,
 		.ops = &i9xx_always_on_power_well_ops,
 		.id = DISP_PW_ID_NONE,
@@ -2293,7 +2352,7 @@ bool intel_display_power_well_is_enabled(struct drm_i915_private *dev_priv,
 static const struct i915_power_well_desc skl_power_wells[] = {
 	{
 		.name = "always-on",
-		.always_on = 1,
+		.always_on = true,
 		.domains = POWER_DOMAIN_MASK,
 		.ops = &i9xx_always_on_power_well_ops,
 		.id = DISP_PW_ID_NONE,
@@ -2301,6 +2360,7 @@ static const struct i915_power_well_desc skl_power_wells[] = {
 	{
 		.name = "power well 1",
 		/* Handled by the DMC firmware */
+		.always_on = true,
 		.domains = 0,
 		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_1,
@@ -2313,6 +2373,7 @@ static const struct i915_power_well_desc skl_power_wells[] = {
 	{
 		.name = "MISC IO power well",
 		/* Handled by the DMC firmware */
+		.always_on = true,
 		.domains = 0,
 		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_MISC_IO,
@@ -2385,13 +2446,15 @@ static const struct i915_power_well_desc skl_power_wells[] = {
 static const struct i915_power_well_desc bxt_power_wells[] = {
 	{
 		.name = "always-on",
-		.always_on = 1,
+		.always_on = true,
 		.domains = POWER_DOMAIN_MASK,
 		.ops = &i9xx_always_on_power_well_ops,
 		.id = DISP_PW_ID_NONE,
 	},
 	{
 		.name = "power well 1",
+		/* Handled by the DMC firmware */
+		.always_on = true,
 		.domains = 0,
 		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_1,
@@ -2443,7 +2506,7 @@ static const struct i915_power_well_desc bxt_power_wells[] = {
 static const struct i915_power_well_desc glk_power_wells[] = {
 	{
 		.name = "always-on",
-		.always_on = 1,
+		.always_on = true,
 		.domains = POWER_DOMAIN_MASK,
 		.ops = &i9xx_always_on_power_well_ops,
 		.id = DISP_PW_ID_NONE,
@@ -2451,6 +2514,7 @@ static const struct i915_power_well_desc glk_power_wells[] = {
 	{
 		.name = "power well 1",
 		/* Handled by the DMC firmware */
+		.always_on = true,
 		.domains = 0,
 		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_1,
@@ -2571,7 +2635,7 @@ static const struct i915_power_well_desc glk_power_wells[] = {
 static const struct i915_power_well_desc cnl_power_wells[] = {
 	{
 		.name = "always-on",
-		.always_on = 1,
+		.always_on = true,
 		.domains = POWER_DOMAIN_MASK,
 		.ops = &i9xx_always_on_power_well_ops,
 		.id = DISP_PW_ID_NONE,
@@ -2579,6 +2643,7 @@ static const struct i915_power_well_desc cnl_power_wells[] = {
 	{
 		.name = "power well 1",
 		/* Handled by the DMC firmware */
+		.always_on = true,
 		.domains = 0,
 		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_1,
@@ -2716,6 +2781,13 @@ static const struct i915_power_well_ops icl_combo_phy_aux_power_well_ops = {
 	.is_enabled = hsw_power_well_enabled,
 };
 
+static const struct i915_power_well_ops icl_tc_phy_aux_power_well_ops = {
+	.sync_hw = hsw_power_well_sync_hw,
+	.enable = icl_tc_phy_aux_power_well_enable,
+	.disable = hsw_power_well_disable,
+	.is_enabled = hsw_power_well_enabled,
+};
+
 static const struct i915_power_well_regs icl_aux_power_well_regs = {
 	.bios	= ICL_PWR_WELL_CTL_AUX1,
 	.driver	= ICL_PWR_WELL_CTL_AUX2,
@@ -2731,7 +2803,7 @@ static const struct i915_power_well_regs icl_ddi_power_well_regs = {
 static const struct i915_power_well_desc icl_power_wells[] = {
 	{
 		.name = "always-on",
-		.always_on = 1,
+		.always_on = true,
 		.domains = POWER_DOMAIN_MASK,
 		.ops = &i9xx_always_on_power_well_ops,
 		.id = DISP_PW_ID_NONE,
@@ -2739,6 +2811,7 @@ static const struct i915_power_well_desc icl_power_wells[] = {
 	{
 		.name = "power well 1",
 		/* Handled by the DMC firmware */
+		.always_on = true,
 		.domains = 0,
 		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_1,
@@ -2861,81 +2934,89 @@ static const struct i915_power_well_desc icl_power_wells[] = {
 	{
 		.name = "AUX C",
 		.domains = ICL_AUX_C_IO_POWER_DOMAINS,
-		.ops = &hsw_power_well_ops,
+		.ops = &icl_tc_phy_aux_power_well_ops,
 		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &icl_aux_power_well_regs,
 			.hsw.idx = ICL_PW_CTL_IDX_AUX_C,
+			.hsw.is_tc_tbt = false,
 		},
 	},
 	{
 		.name = "AUX D",
 		.domains = ICL_AUX_D_IO_POWER_DOMAINS,
-		.ops = &hsw_power_well_ops,
+		.ops = &icl_tc_phy_aux_power_well_ops,
 		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &icl_aux_power_well_regs,
 			.hsw.idx = ICL_PW_CTL_IDX_AUX_D,
+			.hsw.is_tc_tbt = false,
 		},
 	},
 	{
 		.name = "AUX E",
 		.domains = ICL_AUX_E_IO_POWER_DOMAINS,
-		.ops = &hsw_power_well_ops,
+		.ops = &icl_tc_phy_aux_power_well_ops,
 		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &icl_aux_power_well_regs,
 			.hsw.idx = ICL_PW_CTL_IDX_AUX_E,
+			.hsw.is_tc_tbt = false,
 		},
 	},
 	{
 		.name = "AUX F",
 		.domains = ICL_AUX_F_IO_POWER_DOMAINS,
-		.ops = &hsw_power_well_ops,
+		.ops = &icl_tc_phy_aux_power_well_ops,
 		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &icl_aux_power_well_regs,
 			.hsw.idx = ICL_PW_CTL_IDX_AUX_F,
+			.hsw.is_tc_tbt = false,
 		},
 	},
 	{
 		.name = "AUX TBT1",
 		.domains = ICL_AUX_TBT1_IO_POWER_DOMAINS,
-		.ops = &hsw_power_well_ops,
+		.ops = &icl_tc_phy_aux_power_well_ops,
 		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &icl_aux_power_well_regs,
 			.hsw.idx = ICL_PW_CTL_IDX_AUX_TBT1,
+			.hsw.is_tc_tbt = true,
 		},
 	},
 	{
 		.name = "AUX TBT2",
 		.domains = ICL_AUX_TBT2_IO_POWER_DOMAINS,
-		.ops = &hsw_power_well_ops,
+		.ops = &icl_tc_phy_aux_power_well_ops,
 		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &icl_aux_power_well_regs,
 			.hsw.idx = ICL_PW_CTL_IDX_AUX_TBT2,
+			.hsw.is_tc_tbt = true,
 		},
 	},
 	{
 		.name = "AUX TBT3",
 		.domains = ICL_AUX_TBT3_IO_POWER_DOMAINS,
-		.ops = &hsw_power_well_ops,
+		.ops = &icl_tc_phy_aux_power_well_ops,
 		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &icl_aux_power_well_regs,
 			.hsw.idx = ICL_PW_CTL_IDX_AUX_TBT3,
+			.hsw.is_tc_tbt = true,
 		},
 	},
 	{
 		.name = "AUX TBT4",
 		.domains = ICL_AUX_TBT4_IO_POWER_DOMAINS,
-		.ops = &hsw_power_well_ops,
+		.ops = &icl_tc_phy_aux_power_well_ops,
 		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &icl_aux_power_well_regs,
 			.hsw.idx = ICL_PW_CTL_IDX_AUX_TBT4,
+			.hsw.is_tc_tbt = true,
 		},
 	},
 	{
@@ -2969,16 +3050,19 @@ static uint32_t get_allowed_dc_mask(const struct drm_i915_private *dev_priv,
 	int requested_dc;
 	int max_dc;
 
-	if (IS_GEN9_BC(dev_priv) || INTEL_INFO(dev_priv)->gen >= 10) {
+	if (INTEL_GEN(dev_priv) >= 11) {
 		max_dc = 2;
-		mask = 0;
-	} else if (IS_GEN9_LP(dev_priv)) {
-		max_dc = 1;
 		/*
 		 * DC9 has a separate HW flow from the rest of the DC states,
 		 * not depending on the DMC firmware. It's needed by system
 		 * suspend/resume, so allow it unconditionally.
 		 */
+		mask = DC_STATE_EN_DC9;
+	} else if (IS_GEN10(dev_priv) || IS_GEN9_BC(dev_priv)) {
+		max_dc = 2;
+		mask = 0;
+	} else if (IS_GEN9_LP(dev_priv)) {
+		max_dc = 1;
 		mask = DC_STATE_EN_DC9;
 	} else {
 		max_dc = 0;
@@ -3075,12 +3159,6 @@ int intel_power_domains_init(struct drm_i915_private *dev_priv)
 	 */
 	if (IS_ICELAKE(dev_priv)) {
 		err = set_power_wells(power_domains, icl_power_wells);
-	} else if (IS_HASWELL(dev_priv)) {
-		err = set_power_wells(power_domains, hsw_power_wells);
-	} else if (IS_BROADWELL(dev_priv)) {
-		err = set_power_wells(power_domains, bdw_power_wells);
-	} else if (IS_GEN9_BC(dev_priv)) {
-		err = set_power_wells(power_domains, skl_power_wells);
 	} else if (IS_CANNONLAKE(dev_priv)) {
 		err = set_power_wells(power_domains, cnl_power_wells);
 
@@ -3092,13 +3170,18 @@ int intel_power_domains_init(struct drm_i915_private *dev_priv)
 		 */
 		if (!IS_CNL_WITH_PORT_F(dev_priv))
 			power_domains->power_well_count -= 2;
-
-	} else if (IS_BROXTON(dev_priv)) {
-		err = set_power_wells(power_domains, bxt_power_wells);
 	} else if (IS_GEMINILAKE(dev_priv)) {
 		err = set_power_wells(power_domains, glk_power_wells);
+	} else if (IS_BROXTON(dev_priv)) {
+		err = set_power_wells(power_domains, bxt_power_wells);
+	} else if (IS_GEN9_BC(dev_priv)) {
+		err = set_power_wells(power_domains, skl_power_wells);
 	} else if (IS_CHERRYVIEW(dev_priv)) {
 		err = set_power_wells(power_domains, chv_power_wells);
+	} else if (IS_BROADWELL(dev_priv)) {
+		err = set_power_wells(power_domains, bdw_power_wells);
+	} else if (IS_HASWELL(dev_priv)) {
+		err = set_power_wells(power_domains, hsw_power_wells);
 	} else if (IS_VALLEYVIEW(dev_priv)) {
 		err = set_power_wells(power_domains, vlv_power_wells);
 	} else if (IS_I830(dev_priv)) {
@@ -3238,18 +3321,40 @@ static void icl_mbus_init(struct drm_i915_private *dev_priv)
 	I915_WRITE(MBUS_ABOX_CTL, val);
 }
 
+static void intel_pch_reset_handshake(struct drm_i915_private *dev_priv,
+				      bool enable)
+{
+	i915_reg_t reg;
+	u32 reset_bits, val;
+
+	if (IS_IVYBRIDGE(dev_priv)) {
+		reg = GEN7_MSG_CTL;
+		reset_bits = WAIT_FOR_PCH_FLR_ACK | WAIT_FOR_PCH_RESET_ACK;
+	} else {
+		reg = HSW_NDE_RSTWRN_OPT;
+		reset_bits = RESET_PCH_HANDSHAKE_ENABLE;
+	}
+
+	val = I915_READ(reg);
+
+	if (enable)
+		val |= reset_bits;
+	else
+		val &= ~reset_bits;
+
+	I915_WRITE(reg, val);
+}
+
 static void skl_display_core_init(struct drm_i915_private *dev_priv,
 				   bool resume)
 {
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
 	struct i915_power_well *well;
-	uint32_t val;
 
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
 
 	/* enable PCH reset handshake */
-	val = I915_READ(HSW_NDE_RSTWRN_OPT);
-	I915_WRITE(HSW_NDE_RSTWRN_OPT, val | RESET_PCH_HANDSHAKE_ENABLE);
+	intel_pch_reset_handshake(dev_priv, !HAS_PCH_NOP(dev_priv));
 
 	/* enable PG1 and Misc I/O */
 	mutex_lock(&power_domains->lock);
@@ -3305,7 +3410,6 @@ void bxt_display_core_init(struct drm_i915_private *dev_priv,
 {
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
 	struct i915_power_well *well;
-	uint32_t val;
 
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
 
@@ -3315,9 +3419,7 @@ void bxt_display_core_init(struct drm_i915_private *dev_priv,
 	 * Move the handshake programming to initialization sequence.
 	 * Previously was left up to BIOS.
 	 */
-	val = I915_READ(HSW_NDE_RSTWRN_OPT);
-	val &= ~RESET_PCH_HANDSHAKE_ENABLE;
-	I915_WRITE(HSW_NDE_RSTWRN_OPT, val);
+	intel_pch_reset_handshake(dev_priv, false);
 
 	/* Enable PG1 */
 	mutex_lock(&power_domains->lock);
@@ -3363,101 +3465,18 @@ void bxt_display_core_uninit(struct drm_i915_private *dev_priv)
 	usleep_range(10, 30);		/* 10 us delay per Bspec */
 }
 
-enum {
-	PROCMON_0_85V_DOT_0,
-	PROCMON_0_95V_DOT_0,
-	PROCMON_0_95V_DOT_1,
-	PROCMON_1_05V_DOT_0,
-	PROCMON_1_05V_DOT_1,
-};
-
-static const struct cnl_procmon {
-	u32 dw1, dw9, dw10;
-} cnl_procmon_values[] = {
-	[PROCMON_0_85V_DOT_0] =
-		{ .dw1 = 0x00000000, .dw9 = 0x62AB67BB, .dw10 = 0x51914F96, },
-	[PROCMON_0_95V_DOT_0] =
-		{ .dw1 = 0x00000000, .dw9 = 0x86E172C7, .dw10 = 0x77CA5EAB, },
-	[PROCMON_0_95V_DOT_1] =
-		{ .dw1 = 0x00000000, .dw9 = 0x93F87FE1, .dw10 = 0x8AE871C5, },
-	[PROCMON_1_05V_DOT_0] =
-		{ .dw1 = 0x00000000, .dw9 = 0x98FA82DD, .dw10 = 0x89E46DC1, },
-	[PROCMON_1_05V_DOT_1] =
-		{ .dw1 = 0x00440000, .dw9 = 0x9A00AB25, .dw10 = 0x8AE38FF1, },
-};
-
-/*
- * CNL has just one set of registers, while ICL has two sets: one for port A and
- * the other for port B. The CNL registers are equivalent to the ICL port A
- * registers, that's why we call the ICL macros even though the function has CNL
- * on its name.
- */
-static void cnl_set_procmon_ref_values(struct drm_i915_private *dev_priv,
-				       enum port port)
-{
-	const struct cnl_procmon *procmon;
-	u32 val;
-
-	val = I915_READ(ICL_PORT_COMP_DW3(port));
-	switch (val & (PROCESS_INFO_MASK | VOLTAGE_INFO_MASK)) {
-	default:
-		MISSING_CASE(val);
-		/* fall through */
-	case VOLTAGE_INFO_0_85V | PROCESS_INFO_DOT_0:
-		procmon = &cnl_procmon_values[PROCMON_0_85V_DOT_0];
-		break;
-	case VOLTAGE_INFO_0_95V | PROCESS_INFO_DOT_0:
-		procmon = &cnl_procmon_values[PROCMON_0_95V_DOT_0];
-		break;
-	case VOLTAGE_INFO_0_95V | PROCESS_INFO_DOT_1:
-		procmon = &cnl_procmon_values[PROCMON_0_95V_DOT_1];
-		break;
-	case VOLTAGE_INFO_1_05V | PROCESS_INFO_DOT_0:
-		procmon = &cnl_procmon_values[PROCMON_1_05V_DOT_0];
-		break;
-	case VOLTAGE_INFO_1_05V | PROCESS_INFO_DOT_1:
-		procmon = &cnl_procmon_values[PROCMON_1_05V_DOT_1];
-		break;
-	}
-
-	val = I915_READ(ICL_PORT_COMP_DW1(port));
-	val &= ~((0xff << 16) | 0xff);
-	val |= procmon->dw1;
-	I915_WRITE(ICL_PORT_COMP_DW1(port), val);
-
-	I915_WRITE(ICL_PORT_COMP_DW9(port), procmon->dw9);
-	I915_WRITE(ICL_PORT_COMP_DW10(port), procmon->dw10);
-}
-
 static void cnl_display_core_init(struct drm_i915_private *dev_priv, bool resume)
 {
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
 	struct i915_power_well *well;
-	u32 val;
 
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
 
 	/* 1. Enable PCH Reset Handshake */
-	val = I915_READ(HSW_NDE_RSTWRN_OPT);
-	val |= RESET_PCH_HANDSHAKE_ENABLE;
-	I915_WRITE(HSW_NDE_RSTWRN_OPT, val);
+	intel_pch_reset_handshake(dev_priv, !HAS_PCH_NOP(dev_priv));
 
-	/* 2. Enable Comp */
-	val = I915_READ(CHICKEN_MISC_2);
-	val &= ~CNL_COMP_PWR_DOWN;
-	I915_WRITE(CHICKEN_MISC_2, val);
-
-	/* Dummy PORT_A to get the correct CNL register from the ICL macro */
-	cnl_set_procmon_ref_values(dev_priv, PORT_A);
-
-	val = I915_READ(CNL_PORT_COMP_DW0);
-	val |= COMP_INIT;
-	I915_WRITE(CNL_PORT_COMP_DW0, val);
-
-	/* 3. */
-	val = I915_READ(CNL_PORT_CL1CM_DW5);
-	val |= CL_POWER_DOWN_ENABLE;
-	I915_WRITE(CNL_PORT_CL1CM_DW5, val);
+	/* 2-3. */
+	cnl_combo_phys_init(dev_priv);
 
 	/*
 	 * 4. Enable Power Well 1 (PG1).
@@ -3482,7 +3501,6 @@ static void cnl_display_core_uninit(struct drm_i915_private *dev_priv)
 {
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
 	struct i915_power_well *well;
-	u32 val;
 
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
 
@@ -3506,44 +3524,23 @@ static void cnl_display_core_uninit(struct drm_i915_private *dev_priv)
 
 	usleep_range(10, 30);		/* 10 us delay per Bspec */
 
-	/* 5. Disable Comp */
-	val = I915_READ(CHICKEN_MISC_2);
-	val |= CNL_COMP_PWR_DOWN;
-	I915_WRITE(CHICKEN_MISC_2, val);
+	/* 5. */
+	cnl_combo_phys_uninit(dev_priv);
 }
 
-static void icl_display_core_init(struct drm_i915_private *dev_priv,
-				  bool resume)
+void icl_display_core_init(struct drm_i915_private *dev_priv,
+			   bool resume)
 {
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
 	struct i915_power_well *well;
-	enum port port;
-	u32 val;
 
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
 
 	/* 1. Enable PCH reset handshake. */
-	val = I915_READ(HSW_NDE_RSTWRN_OPT);
-	val |= RESET_PCH_HANDSHAKE_ENABLE;
-	I915_WRITE(HSW_NDE_RSTWRN_OPT, val);
+	intel_pch_reset_handshake(dev_priv, !HAS_PCH_NOP(dev_priv));
 
-	for (port = PORT_A; port <= PORT_B; port++) {
-		/* 2. Enable DDI combo PHY comp. */
-		val = I915_READ(ICL_PHY_MISC(port));
-		val &= ~ICL_PHY_MISC_DE_IO_COMP_PWR_DOWN;
-		I915_WRITE(ICL_PHY_MISC(port), val);
-
-		cnl_set_procmon_ref_values(dev_priv, port);
-
-		val = I915_READ(ICL_PORT_COMP_DW0(port));
-		val |= COMP_INIT;
-		I915_WRITE(ICL_PORT_COMP_DW0(port), val);
-
-		/* 3. Set power down enable. */
-		val = I915_READ(ICL_PORT_CL_DW5(port));
-		val |= CL_POWER_DOWN_ENABLE;
-		I915_WRITE(ICL_PORT_CL_DW5(port), val);
-	}
+	/* 2-3. */
+	icl_combo_phys_init(dev_priv);
 
 	/*
 	 * 4. Enable Power Well 1 (PG1).
@@ -3567,12 +3564,10 @@ static void icl_display_core_init(struct drm_i915_private *dev_priv,
 		intel_csr_load_program(dev_priv);
 }
 
-static void icl_display_core_uninit(struct drm_i915_private *dev_priv)
+void icl_display_core_uninit(struct drm_i915_private *dev_priv)
 {
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
 	struct i915_power_well *well;
-	enum port port;
-	u32 val;
 
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
 
@@ -3594,12 +3589,8 @@ static void icl_display_core_uninit(struct drm_i915_private *dev_priv)
 	intel_power_well_disable(dev_priv, well);
 	mutex_unlock(&power_domains->lock);
 
-	/* 5. Disable Comp */
-	for (port = PORT_A; port <= PORT_B; port++) {
-		val = I915_READ(ICL_PHY_MISC(port));
-		val |= ICL_PHY_MISC_DE_IO_COMP_PWR_DOWN;
-		I915_WRITE(ICL_PHY_MISC(port), val);
-	}
+	/* 5. */
+	icl_combo_phys_uninit(dev_priv);
 }
 
 static void chv_phy_control_init(struct drm_i915_private *dev_priv)
@@ -3757,7 +3748,8 @@ void intel_power_domains_init_hw(struct drm_i915_private *dev_priv, bool resume)
 		mutex_lock(&power_domains->lock);
 		vlv_cmnlane_wa(dev_priv);
 		mutex_unlock(&power_domains->lock);
-	}
+	} else if (IS_IVYBRIDGE(dev_priv) || INTEL_GEN(dev_priv) >= 7)
+		intel_pch_reset_handshake(dev_priv, !HAS_PCH_NOP(dev_priv));
 
 	/*
 	 * Keep all power wells enabled for any dependent HW access during
@@ -3950,14 +3942,6 @@ static void intel_power_domains_verify_state(struct drm_i915_private *dev_priv)
 		enum intel_display_power_domain domain;
 		int domains_count;
 		bool enabled;
-
-		/*
-		 * Power wells not belonging to any domain (like the MISC_IO
-		 * and PW1 power wells) are under FW control, so ignore them,
-		 * since their state can change asynchronously.
-		 */
-		if (!power_well->desc->domains)
-			continue;
 
 		enabled = power_well->desc->ops->is_enabled(dev_priv,
 							    power_well);

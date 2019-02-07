@@ -1174,7 +1174,7 @@ static void intel_pt_prep_sample(struct intel_pt *pt,
 	intel_pt_prep_b_sample(pt, ptq, event, sample);
 
 	if (pt->synth_opts.callchain) {
-		thread_stack__sample(ptq->thread, ptq->chain,
+		thread_stack__sample(ptq->thread, ptq->cpu, ptq->chain,
 				     pt->synth_opts.callchain_sz + 1,
 				     sample->ip, pt->kernel_start);
 		sample->callchain = ptq->chain;
@@ -1526,11 +1526,11 @@ static int intel_pt_sample(struct intel_pt_queue *ptq)
 		return 0;
 
 	if (pt->synth_opts.callchain || pt->synth_opts.thread_stack)
-		thread_stack__event(ptq->thread, ptq->flags, state->from_ip,
+		thread_stack__event(ptq->thread, ptq->cpu, ptq->flags, state->from_ip,
 				    state->to_ip, ptq->insn_len,
 				    state->trace_nr);
 	else
-		thread_stack__set_trace_nr(ptq->thread, state->trace_nr);
+		thread_stack__set_trace_nr(ptq->thread, ptq->cpu, state->trace_nr);
 
 	if (pt->sample_branches) {
 		err = intel_pt_synth_branch_sample(ptq);

@@ -866,7 +866,7 @@ static void s3c2410_nand_init_chip(struct s3c2410_nand_info *info,
 
 	chip->legacy.write_buf    = s3c2410_nand_write_buf;
 	chip->legacy.read_buf     = s3c2410_nand_read_buf;
-	chip->select_chip  = s3c2410_nand_select_chip;
+	chip->legacy.select_chip  = s3c2410_nand_select_chip;
 	chip->legacy.chip_delay   = 50;
 	nand_set_controller_data(chip, nmtd);
 	chip->options	   = set->options;
@@ -876,8 +876,8 @@ static void s3c2410_nand_init_chip(struct s3c2410_nand_info *info,
 	 * let's keep behavior unchanged for legacy boards booting via pdata and
 	 * auto-detect timings only when booting with a device tree.
 	 */
-	if (np)
-		chip->setup_data_interface = s3c2410_nand_setup_data_interface;
+	if (!np)
+		chip->options |= NAND_KEEP_TIMINGS;
 
 	switch (info->cpu_type) {
 	case TYPE_S3C2410:
@@ -1011,6 +1011,7 @@ static int s3c2410_nand_attach_chip(struct nand_chip *chip)
 
 static const struct nand_controller_ops s3c24xx_nand_controller_ops = {
 	.attach_chip = s3c2410_nand_attach_chip,
+	.setup_data_interface = s3c2410_nand_setup_data_interface,
 };
 
 static const struct of_device_id s3c24xx_nand_dt_ids[] = {

@@ -710,73 +710,123 @@
 };
 
 &prcm {
-	l4_wkup_cm: l4_wkup_cm@2800 {
+	wkup_cm: wkup-cm@2800 {
 		compatible = "ti,omap4-cm";
 		reg = <0x2800 0x400>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0 0x2800 0x400>;
 
-		l4_wkup_clkctrl: clk@20 {
+		l3s_tsc_clkctrl: l3s-tsc-clkctrl@120 {
 			compatible = "ti,clkctrl";
-			reg = <0x20 0x34c>;
+			reg = <0x120 0x4>;
 			#clock-cells = <2>;
 		};
+
+		l4_wkup_aon_clkctrl: l4-wkup-aon-clkctrl@228 {
+			compatible = "ti,clkctrl";
+			reg = <0x228 0xc>;
+			#clock-cells = <2>;
+		};
+
+		l4_wkup_clkctrl: l4-wkup-clkctrl@220 {
+			compatible = "ti,clkctrl";
+			reg = <0x220 0x4>, <0x328 0x44>;
+			#clock-cells = <2>;
+		};
+
 	};
 
-	mpu_cm: mpu_cm@8300 {
+	mpu_cm: mpu-cm@8300 {
 		compatible = "ti,omap4-cm";
 		reg = <0x8300 0x100>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0 0x8300 0x100>;
 
-		mpu_clkctrl: clk@20 {
+		mpu_clkctrl: mpu-clkctrl@20 {
 			compatible = "ti,clkctrl";
 			reg = <0x20 0x4>;
 			#clock-cells = <2>;
 		};
 	};
 
-	gfx_l3_cm: gfx_l3_cm@8400 {
+	gfx_l3_cm: gfx-l3-cm@8400 {
 		compatible = "ti,omap4-cm";
 		reg = <0x8400 0x100>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0 0x8400 0x100>;
 
-		gfx_l3_clkctrl: clk@20 {
+		gfx_l3_clkctrl: gfx-l3-clkctrl@20 {
 			compatible = "ti,clkctrl";
 			reg = <0x20 0x4>;
 			#clock-cells = <2>;
 		};
 	};
 
-	l4_rtc_cm: l4_rtc_cm@8500 {
+	l4_rtc_cm: l4-rtc-cm@8500 {
 		compatible = "ti,omap4-cm";
 		reg = <0x8500 0x100>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0 0x8500 0x100>;
 
-		l4_rtc_clkctrl: clk@20 {
+		l4_rtc_clkctrl: l4-rtc-clkctrl@20 {
 			compatible = "ti,clkctrl";
 			reg = <0x20 0x4>;
 			#clock-cells = <2>;
 		};
 	};
 
-	l4_per_cm: l4_per_cm@8800 {
+	per_cm: per-cm@8800 {
 		compatible = "ti,omap4-cm";
 		reg = <0x8800 0xc00>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0 0x8800 0xc00>;
 
-		l4_per_clkctrl: clk@20 {
+		l3_clkctrl: l3-clkctrl@20 {
 			compatible = "ti,clkctrl";
-			reg = <0x20 0xb04>;
+			reg = <0x20 0x3c>, <0x78 0x2c>;
 			#clock-cells = <2>;
 		};
+
+		l3s_clkctrl: l3s-clkctrl@68 {
+			compatible = "ti,clkctrl";
+			reg = <0x68 0xc>, <0x220 0x4c>;
+			#clock-cells = <2>;
+		};
+
+		pruss_ocp_clkctrl: pruss-ocp-clkctrl@320 {
+			compatible = "ti,clkctrl";
+			reg = <0x320 0x4>;
+			#clock-cells = <2>;
+		};
+
+		l4ls_clkctrl: l4ls-clkctrl@420 {
+			compatible = "ti,clkctrl";
+			reg = <0x420 0x1a4>;
+			#clock-cells = <2>;
+		};
+
+		emif_clkctrl: emif-clkctrl@720 {
+			compatible = "ti,clkctrl";
+			reg = <0x720 0x4>;
+			#clock-cells = <2>;
+		};
+
+		dss_clkctrl: dss-clkctrl@a20 {
+			compatible = "ti,clkctrl";
+			reg = <0xa20 0x4>;
+			#clock-cells = <2>;
+		};
+
+		cpsw_125mhz_clkctrl: cpsw-125mhz-clkctrl@b20 {
+			compatible = "ti,clkctrl";
+			reg = <0xb20 0x4>;
+			#clock-cells = <2>;
+		};
+
 	};
 };

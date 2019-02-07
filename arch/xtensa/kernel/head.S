@@ -59,10 +59,6 @@ ENTRY(_start)
 
 	.align	4
 	.literal_position
-.Lstartup:
-	.word	_startup
-
-	.align	4
 _SetupOCD:
 	/*
 	 * Initialize WB, WS, and clear PS.EXCM (to allow loop instructions).
@@ -99,12 +95,12 @@ _SetupMMU:
 1:
 #endif
 #endif
-	.end	no-absolute-literals
 
-	l32r	a0, .Lstartup
+	movi	a0, _startup
 	jx	a0
 
 ENDPROC(_start)
+	.end	no-absolute-literals
 
 	__REF
 	.literal_position
@@ -280,12 +276,13 @@ should_never_return:
 
 	movi	a2, cpu_start_ccount
 1:
+	memw
 	l32i	a3, a2, 0
 	beqi	a3, 0, 1b
 	movi	a3, 0
 	s32i	a3, a2, 0
-	memw
 1:
+	memw
 	l32i	a3, a2, 0
 	beqi	a3, 0, 1b
 	wsr	a3, ccount
@@ -321,11 +318,13 @@ ENTRY(cpu_restart)
 	rsr	a0, prid
 	neg	a2, a0
 	movi	a3, cpu_start_id
+	memw
 	s32i	a2, a3, 0
 #if XCHAL_DCACHE_IS_WRITEBACK
 	dhwbi	a3, 0
 #endif
 1:
+	memw
 	l32i	a2, a3, 0
 	dhi	a3, 0
 	bne	a2, a0, 1b

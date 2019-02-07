@@ -1650,23 +1650,22 @@ int saa7134_querystd(struct file *file, void *priv, v4l2_std_id *std)
 }
 EXPORT_SYMBOL_GPL(saa7134_querystd);
 
-static int saa7134_cropcap(struct file *file, void *priv,
-					struct v4l2_cropcap *cap)
+static int saa7134_g_pixelaspect(struct file *file, void *priv,
+				 int type, struct v4l2_fract *f)
 {
 	struct saa7134_dev *dev = video_drvdata(file);
 
-	if (cap->type != V4L2_BUF_TYPE_VIDEO_CAPTURE &&
-	    cap->type != V4L2_BUF_TYPE_VIDEO_OVERLAY)
+	if (type != V4L2_BUF_TYPE_VIDEO_CAPTURE &&
+	    type != V4L2_BUF_TYPE_VIDEO_OVERLAY)
 		return -EINVAL;
-	cap->pixelaspect.numerator   = 1;
-	cap->pixelaspect.denominator = 1;
+
 	if (dev->tvnorm->id & V4L2_STD_525_60) {
-		cap->pixelaspect.numerator   = 11;
-		cap->pixelaspect.denominator = 10;
+		f->numerator   = 11;
+		f->denominator = 10;
 	}
 	if (dev->tvnorm->id & V4L2_STD_625_50) {
-		cap->pixelaspect.numerator   = 54;
-		cap->pixelaspect.denominator = 59;
+		f->numerator   = 54;
+		f->denominator = 59;
 	}
 	return 0;
 }
@@ -1987,7 +1986,7 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_g_fmt_vbi_cap		= saa7134_try_get_set_fmt_vbi_cap,
 	.vidioc_try_fmt_vbi_cap		= saa7134_try_get_set_fmt_vbi_cap,
 	.vidioc_s_fmt_vbi_cap		= saa7134_try_get_set_fmt_vbi_cap,
-	.vidioc_cropcap			= saa7134_cropcap,
+	.vidioc_g_pixelaspect		= saa7134_g_pixelaspect,
 	.vidioc_reqbufs			= vb2_ioctl_reqbufs,
 	.vidioc_querybuf		= vb2_ioctl_querybuf,
 	.vidioc_qbuf			= vb2_ioctl_qbuf,

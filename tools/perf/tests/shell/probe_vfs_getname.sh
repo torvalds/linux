@@ -1,3 +1,4 @@
+#!/bin/sh
 # Add vfs_getname probe to get syscall args filenames
 #
 # Arnaldo Carvalho de Melo <acme@kernel.org>, 2017

@@ -1168,8 +1168,8 @@ static int rockchip_usb2phy_probe(struct platform_device *pdev)
 		struct phy *phy;
 
 		/* This driver aims to support both otg-port and host-port */
-		if (of_node_cmp(child_np->name, "host-port") &&
-		    of_node_cmp(child_np->name, "otg-port"))
+		if (!of_node_name_eq(child_np, "host-port") &&
+		    !of_node_name_eq(child_np, "otg-port"))
 			goto next_child;
 
 		phy = devm_phy_create(dev, child_np, &rockchip_usb2phy_ops);
@@ -1183,7 +1183,7 @@ static int rockchip_usb2phy_probe(struct platform_device *pdev)
 		phy_set_drvdata(rport->phy, rport);
 
 		/* initialize otg/host port separately */
-		if (!of_node_cmp(child_np->name, "host-port")) {
+		if (of_node_name_eq(child_np, "host-port")) {
 			ret = rockchip_usb2phy_host_port_init(rphy, rport,
 							      child_np);
 			if (ret)

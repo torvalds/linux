@@ -9,14 +9,15 @@
 #include <linux/uaccess.h>
 #include <asm/elf.h>
 #include <asm/proc-fns.h>
+#include <asm/fpu.h>
 #include <linux/ptrace.h>
 #include <linux/reboot.h>
 
-extern void setup_mm_for_reboot(char mode);
-#ifdef CONFIG_PROC_FS
-struct proc_dir_entry *proc_dir_cpu;
-EXPORT_SYMBOL(proc_dir_cpu);
+#if IS_ENABLED(CONFIG_LAZY_FPU)
+struct task_struct *last_task_used_math;
 #endif
+
+extern void setup_mm_for_reboot(char mode);
 
 extern inline void arch_reset(char mode)
 {
@@ -125,15 +126,31 @@ void show_regs(struct pt_regs *regs)
 
 EXPORT_SYMBOL(show_regs);
 
+void exit_thread(struct task_struct *tsk)
+{
+#if defined(CONFIG_FPU) && defined(CONFIG_LAZY_FPU)
+	if (last_task_used_math == tsk)
+		last_task_used_math = NULL;
+#endif
+}
+
 void flush_thread(void)
 {
+#if defined(CONFIG_FPU)
+	clear_fpu(task_pt_regs(current));
+	clear_used_math();
+# ifdef CONFIG_LAZY_FPU
+	if (last_task_used_math == current)
+		last_task_used_math = NULL;
+# endif
+#endif
 }
 
 DEFINE_PER_CPU(struct task_struct *, __entry_task);
 
 asmlinkage void ret_from_fork(void) __asm__("ret_from_fork");
 int copy_thread(unsigned long clone_flags, unsigned long stack_start,
-	    unsigned long stk_sz, struct task_struct *p)
+		unsigned long stk_sz, struct task_struct *p)
 {
 	struct pt_regs *childregs = task_pt_regs(p);
 
@@ -159,6 +176,22 @@ int copy_thread(unsigned long clone_flags, unsigned long stack_start,
 	p->thread.cpu_context.pc = (unsigned long)ret_from_fork;
 	p->thread.cpu_context.sp = (unsigned long)childregs;
 
+#if IS_ENABLED(CONFIG_FPU)
+	if (used_math()) {
+# if !IS_ENABLED(CONFIG_LAZY_FPU)
+		unlazy_fpu(current);
+# else
+		preempt_disable();
+		if (last_task_used_math == current)
+			save_fpu(current);
+		preempt_enable();
+# endif
+		p->thread.fpu = current->thread.fpu;
+		clear_fpu(task_pt_regs(p));
+		set_stopped_child_used_math(p);
+	}
+#endif
+
 #ifdef CONFIG_HWZOL
 	childregs->lb = 0;
 	childregs->le = 0;
@@ -168,12 +201,33 @@ int copy_thread(unsigned long clone_flags, unsigned long stack_start,
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_FPU)
+struct task_struct *_switch_fpu(struct task_struct *prev, struct task_struct *next)
+{
+#if !IS_ENABLED(CONFIG_LAZY_FPU)
+	unlazy_fpu(prev);
+#endif
+	if (!(next->flags & PF_KTHREAD))
+		clear_fpu(task_pt_regs(next));
+	return prev;
+}
+#endif
+
 /*
  * fill in the fpe structure for a core dump...
  */
 int dump_fpu(struct pt_regs *regs, elf_fpregset_t * fpu)
 {
 	int fpvalid = 0;
+#if IS_ENABLED(CONFIG_FPU)
+	struct task_struct *tsk = current;
+
+	fpvalid = tsk_used_math(tsk);
+	if (fpvalid) {
+		lose_fpu();
+		memcpy(fpu, &tsk->thread.fpu, sizeof(*fpu));
+	}
+#endif
 	return fpvalid;
 }
 

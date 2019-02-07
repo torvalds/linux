@@ -63,8 +63,8 @@ struct amdgpu_virt_ops {
  * Firmware Reserve Frame buffer
  */
 struct amdgpu_virt_fw_reserve {
-	struct amdgim_pf2vf_info_header *p_pf2vf;
-	struct amdgim_vf2pf_info_header *p_vf2pf;
+	struct amd_sriov_msg_pf2vf_info_header *p_pf2vf;
+	struct amd_sriov_msg_vf2pf_info_header *p_vf2pf;
 	unsigned int checksum_key;
 };
 /*
@@ -85,15 +85,17 @@ enum AMDGIM_FEATURE_FLAG {
 	AMDGIM_FEATURE_GIM_FLR_VRAMLOST = 0x4,
 };
 
-struct amdgim_pf2vf_info_header {
+struct amd_sriov_msg_pf2vf_info_header {
 	/* the total structure size in byte. */
 	uint32_t size;
 	/* version of this structure, written by the GIM */
 	uint32_t version;
+	/* reserved */
+	uint32_t reserved[2];
 } __aligned(4);
 struct  amdgim_pf2vf_info_v1 {
 	/* header contains size and version */
-	struct amdgim_pf2vf_info_header header;
+	struct amd_sriov_msg_pf2vf_info_header header;
 	/* max_width * max_height */
 	unsigned int uvd_enc_max_pixels_count;
 	/* 16x16 pixels/sec, codec independent */
@@ -112,7 +114,7 @@ struct  amdgim_pf2vf_info_v1 {
 
 struct  amdgim_pf2vf_info_v2 {
 	/* header contains size and version */
-	struct amdgim_pf2vf_info_header header;
+	struct amd_sriov_msg_pf2vf_info_header header;
 	/* use private key from mailbox 2 to create chueksum */
 	uint32_t checksum;
 	/* The features flags of the GIM driver supports. */
@@ -137,20 +139,22 @@ struct  amdgim_pf2vf_info_v2 {
 	uint64_t vcefw_kboffset;
 	/* VCE FW size in KB */
 	uint32_t vcefw_ksize;
-	uint32_t reserved[AMDGIM_GET_STRUCTURE_RESERVED_SIZE(256, 0, 0, (9 + sizeof(struct amdgim_pf2vf_info_header)/sizeof(uint32_t)), 3)];
+	uint32_t reserved[AMDGIM_GET_STRUCTURE_RESERVED_SIZE(256, 0, 0, (9 + sizeof(struct amd_sriov_msg_pf2vf_info_header)/sizeof(uint32_t)), 3)];
 } __aligned(4);
 
 
-struct amdgim_vf2pf_info_header {
+struct amd_sriov_msg_vf2pf_info_header {
 	/* the total structure size in byte. */
 	uint32_t size;
 	/*version of this structure, written by the guest */
 	uint32_t version;
+	/* reserved */
+	uint32_t reserved[2];
 } __aligned(4);
 
 struct amdgim_vf2pf_info_v1 {
 	/* header contains size and version */
-	struct amdgim_vf2pf_info_header header;
+	struct amd_sriov_msg_vf2pf_info_header header;
 	/* driver version */
 	char driver_version[64];
 	/* driver certification, 1=WHQL, 0=None */
@@ -180,7 +184,7 @@ struct amdgim_vf2pf_info_v1 {
 
 struct amdgim_vf2pf_info_v2 {
 	/* header contains size and version */
-	struct amdgim_vf2pf_info_header header;
+	struct amd_sriov_msg_vf2pf_info_header header;
 	uint32_t checksum;
 	/* driver version */
 	uint8_t driver_version[64];
@@ -206,7 +210,7 @@ struct amdgim_vf2pf_info_v2 {
 	uint32_t uvd_enc_usage;
 	/* guest uvd engine usage percentage. 0xffff means N/A. */
 	uint32_t uvd_enc_health;
-	uint32_t reserved[AMDGIM_GET_STRUCTURE_RESERVED_SIZE(256, 64, 0, (12 + sizeof(struct amdgim_vf2pf_info_header)/sizeof(uint32_t)), 0)];
+	uint32_t reserved[AMDGIM_GET_STRUCTURE_RESERVED_SIZE(256, 64, 0, (12 + sizeof(struct amd_sriov_msg_vf2pf_info_header)/sizeof(uint32_t)), 0)];
 } __aligned(4);
 
 #define AMDGPU_FW_VRAM_VF2PF_VER 2
@@ -238,7 +242,6 @@ typedef struct amdgim_vf2pf_info_v2 amdgim_vf2pf_info ;
 struct amdgpu_virt {
 	uint32_t			caps;
 	struct amdgpu_bo		*csa_obj;
-	uint64_t			csa_vmid0_addr;
 	bool chained_ib_support;
 	uint32_t			reg_val_offs;
 	struct amdgpu_irq_src		ack_irq;
@@ -250,8 +253,6 @@ struct amdgpu_virt {
 	struct amdgpu_virt_fw_reserve	fw_reserve;
 	uint32_t gim_feature;
 };
-
-#define AMDGPU_CSA_SIZE		(8 * 1024)
 
 #define amdgpu_sriov_enabled(adev) \
 ((adev)->virt.caps & AMDGPU_SRIOV_CAPS_ENABLE_IOV)
@@ -277,17 +278,13 @@ static inline bool is_virtual_machine(void)
 #endif
 }
 
-struct amdgpu_vm;
-
-uint64_t amdgpu_csa_vaddr(struct amdgpu_device *adev);
 bool amdgpu_virt_mmio_blocked(struct amdgpu_device *adev);
-int amdgpu_allocate_static_csa(struct amdgpu_device *adev);
-int amdgpu_map_static_csa(struct amdgpu_device *adev, struct amdgpu_vm *vm,
-			  struct amdgpu_bo_va **bo_va);
-void amdgpu_free_static_csa(struct amdgpu_device *adev);
 void amdgpu_virt_init_setting(struct amdgpu_device *adev);
 uint32_t amdgpu_virt_kiq_rreg(struct amdgpu_device *adev, uint32_t reg);
 void amdgpu_virt_kiq_wreg(struct amdgpu_device *adev, uint32_t reg, uint32_t v);
+void amdgpu_virt_kiq_reg_write_reg_wait(struct amdgpu_device *adev,
+					uint32_t reg0, uint32_t rreg1,
+					uint32_t ref, uint32_t mask);
 int amdgpu_virt_request_full_gpu(struct amdgpu_device *adev, bool init);
 int amdgpu_virt_release_full_gpu(struct amdgpu_device *adev, bool init);
 int amdgpu_virt_reset_gpu(struct amdgpu_device *adev);

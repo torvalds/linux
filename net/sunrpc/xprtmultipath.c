@@ -383,7 +383,7 @@ void xprt_iter_init_listall(struct rpc_xprt_iter *xpi,
 /**
  * xprt_iter_xchg_switch - Atomically swap out the rpc_xprt_switch
  * @xpi: pointer to rpc_xprt_iter
- * @xps: pointer to a new rpc_xprt_switch or NULL
+ * @newswitch: pointer to a new rpc_xprt_switch or NULL
  *
  * Swaps out the existing xpi->xpi_xpswitch with a new value.
  */
@@ -401,7 +401,7 @@ struct rpc_xprt_switch *xprt_iter_xchg_switch(struct rpc_xprt_iter *xpi,
 
 /**
  * xprt_iter_destroy - Destroys the xprt iterator
- * @xpi pointer to rpc_xprt_iter
+ * @xpi: pointer to rpc_xprt_iter
  */
 void xprt_iter_destroy(struct rpc_xprt_iter *xpi)
 {

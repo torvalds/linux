@@ -1975,7 +1975,7 @@ nvme_fc_connect_io_queues(struct nvme_fc_ctrl *ctrl, u16 qsize)
 					(qsize / 5));
 		if (ret)
 			break;
-		ret = nvmf_connect_io_queue(&ctrl->ctrl, i);
+		ret = nvmf_connect_io_queue(&ctrl->ctrl, i, false);
 		if (ret)
 			break;
 
@@ -2326,38 +2326,6 @@ nvme_fc_queue_rq(struct blk_mq_hw_ctx *hctx,
 	return nvme_fc_start_fcp_op(ctrl, queue, op, data_len, io_dir);
 }
 
-static struct blk_mq_tags *
-nvme_fc_tagset(struct nvme_fc_queue *queue)
-{
-	if (queue->qnum == 0)
-		return queue->ctrl->admin_tag_set.tags[queue->qnum];
-
-	return queue->ctrl->tag_set.tags[queue->qnum - 1];
-}
-
-static int
-nvme_fc_poll(struct blk_mq_hw_ctx *hctx, unsigned int tag)
-
-{
-	struct nvme_fc_queue *queue = hctx->driver_data;
-	struct nvme_fc_ctrl *ctrl = queue->ctrl;
-	struct request *req;
-	struct nvme_fc_fcp_op *op;
-
-	req = blk_mq_tag_to_rq(nvme_fc_tagset(queue), tag);
-	if (!req)
-		return 0;
-
-	op = blk_mq_rq_to_pdu(req);
-
-	if ((atomic_read(&op->state) == FCPOP_STATE_ACTIVE) &&
-		 (ctrl->lport->ops->poll_queue))
-		ctrl->lport->ops->poll_queue(&ctrl->lport->localport,
-						 queue->lldd_handle);
-
-	return ((atomic_read(&op->state) != FCPOP_STATE_ACTIVE));
-}
-
 static void
 nvme_fc_submit_async_event(struct nvme_ctrl *arg)
 {
@@ -2410,7 +2378,7 @@ nvme_fc_complete_rq(struct request *rq)
  * status. The done path will return the io request back to the block
  * layer with an error status.
  */
-static void
+static bool
 nvme_fc_terminate_exchange(struct request *req, void *data, bool reserved)
 {
 	struct nvme_ctrl *nctrl = data;
@@ -2418,6 +2386,7 @@ nvme_fc_terminate_exchange(struct request *req, void *data, bool reserved)
 	struct nvme_fc_fcp_op *op = blk_mq_rq_to_pdu(req);
 
 	__nvme_fc_abort_op(ctrl, op);
+	return true;
 }
 
 
@@ -2427,7 +2396,6 @@ static const struct blk_mq_ops nvme_fc_mq_ops = {
 	.init_request	= nvme_fc_init_request,
 	.exit_request	= nvme_fc_exit_request,
 	.init_hctx	= nvme_fc_init_hctx,
-	.poll		= nvme_fc_poll,
 	.timeout	= nvme_fc_timeout,
 };
 
@@ -2457,7 +2425,7 @@ nvme_fc_create_io_queues(struct nvme_fc_ctrl *ctrl)
 	ctrl->tag_set.ops = &nvme_fc_mq_ops;
 	ctrl->tag_set.queue_depth = ctrl->ctrl.opts->queue_size;
 	ctrl->tag_set.reserved_tags = 1; /* fabric connect */
-	ctrl->tag_set.numa_node = NUMA_NO_NODE;
+	ctrl->tag_set.numa_node = ctrl->ctrl.numa_node;
 	ctrl->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
 	ctrl->tag_set.cmd_size =
 		struct_size((struct nvme_fcp_op_w_sgl *)NULL, priv,
@@ -3050,6 +3018,7 @@ nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 
 	ctrl->ctrl.opts = opts;
 	ctrl->ctrl.nr_reconnects = 0;
+	ctrl->ctrl.numa_node = dev_to_node(lport->dev);
 	INIT_LIST_HEAD(&ctrl->ctrl_list);
 	ctrl->lport = lport;
 	ctrl->rport = rport;
@@ -3090,7 +3059,7 @@ nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 	ctrl->admin_tag_set.ops = &nvme_fc_admin_mq_ops;
 	ctrl->admin_tag_set.queue_depth = NVME_AQ_MQ_TAG_DEPTH;
 	ctrl->admin_tag_set.reserved_tags = 2; /* fabric connect + Keep-Alive */
-	ctrl->admin_tag_set.numa_node = NUMA_NO_NODE;
+	ctrl->admin_tag_set.numa_node = ctrl->ctrl.numa_node;
 	ctrl->admin_tag_set.cmd_size =
 		struct_size((struct nvme_fcp_op_w_sgl *)NULL, priv,
 			    ctrl->lport->ops->fcprqst_priv_sz);

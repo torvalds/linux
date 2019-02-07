@@ -7,6 +7,40 @@ config CPU_LITTLE_ENDIAN
 	bool "Little endian"
 	default y
 
+config FPU
+	bool "FPU support"
+	default n
+	help
+	  If FPU ISA is used in user space, this configuration shall be Y to
+          enable required support in kerenl such as fpu context switch and
+          fpu exception handler.
+
+	  If no FPU ISA is used in user space, say N.
+
+config LAZY_FPU
+	bool "lazy FPU support"
+	depends on FPU
+	default y
+	help
+	  Say Y here to enable the lazy FPU scheme. The lazy FPU scheme can
+          enhance system performance by reducing the context switch
+	  frequency of the FPU register.
+
+	  For nomal case, say Y.
+
+config SUPPORT_DENORMAL_ARITHMETIC
+	bool "Denormal arithmetic support"
+	depends on FPU
+	default n
+	help
+	  Say Y here to enable arithmetic of denormalized number. Enabling
+	  this feature can enhance the precision for tininess number.
+	  However, performance loss in float pointe calculations is
+	  possibly significant due to additional FPU exception.
+
+	  If the calculated tolerance for tininess number is not critical,
+	  say N to prevent performance loss.
+
 config HWZOL
 	bool "hardware zero overhead loop support"
 	depends on CPU_D10 || CPU_D15
@@ -142,6 +176,13 @@ config CACHE_L2
 	help
 	  Say Y here to enable L2 cache if your SoC are integrated with L2CC.
 	  If unsure, say N.
+
+config HW_PRE
+	bool "Enable hardware prefetcher"
+	default y
+	help
+	  Say Y here to enable hardware prefetcher feature.
+	  Only when CPU_VER.REV >= 0x09 can support.
 
 menu "Memory configuration"
 

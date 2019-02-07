@@ -6,5 +6,7 @@
 
 int nitrox_register_interrupts(struct nitrox_device *ndev);
 void nitrox_unregister_interrupts(struct nitrox_device *ndev);
+int nitrox_sriov_register_interupts(struct nitrox_device *ndev);
+void nitrox_sriov_unregister_interrupts(struct nitrox_device *ndev);
 
 #endif /* __NITROX_ISR_H */

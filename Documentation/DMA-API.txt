@@ -60,15 +60,6 @@ the returned memory, like GFP_DMA).
 
 ::
 
-	void *
-	dma_zalloc_coherent(struct device *dev, size_t size,
-			    dma_addr_t *dma_handle, gfp_t flag)
-
-Wraps dma_alloc_coherent() and also zeroes the returned memory if the
-allocation attempt succeeded.
-
-::
-
 	void
 	dma_free_coherent(struct device *dev, size_t size, void *cpu_addr,
 			  dma_addr_t dma_handle)
@@ -717,11 +708,14 @@ dma-api/num_errors		The number in this file shows how many
 dma-api/min_free_entries	This read-only file can be read to get the
 				minimum number of free dma_debug_entries the
 				allocator has ever seen. If this value goes
-				down to zero the code will disable itself
-				because it is not longer reliable.
+				down to zero the code will attempt to increase
+				nr_total_entries to compensate.
 
 dma-api/num_free_entries	The current number of free dma_debug_entries
 				in the allocator.
+
+dma-api/nr_total_entries	The total number of dma_debug_entries in the
+				allocator, both free and used.
 
 dma-api/driver-filter		You can write a name of a driver into this file
 				to limit the debug output to requests from that
@@ -742,10 +736,15 @@ driver filter at boot time. The debug code will only print errors for that
 driver afterwards. This filter can be disabled or changed later using debugfs.
 
 When the code disables itself at runtime this is most likely because it ran
-out of dma_debug_entries. These entries are preallocated at boot. The number
-of preallocated entries is defined per architecture. If it is too low for you
-boot with 'dma_debug_entries=<your_desired_number>' to overwrite the
-architectural default.
+out of dma_debug_entries and was unable to allocate more on-demand. 65536
+entries are preallocated at boot - if this is too low for you boot with
+'dma_debug_entries=<your_desired_number>' to overwrite the default. Note
+that the code allocates entries in batches, so the exact number of
+preallocated entries may be greater than the actual number requested. The
+code will print to the kernel log each time it has dynamically allocated
+as many entries as were initially preallocated. This is to indicate that a
+larger preallocation size may be appropriate, or if it happens continually
+that a driver may be leaking mappings.
 
 ::
 

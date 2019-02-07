@@ -34,6 +34,7 @@
 #include <asm/prom.h>
 #include <asm/iommu.h>
 #include <asm/machdep.h>
+#include <asm/i8259.h>
 #include <asm/mpic.h>
 #include <asm/smp.h>
 #include <asm/time.h>
@@ -71,6 +72,40 @@ static void __noreturn pas_restart(char *cmd)
 	while (1)
 		out_le32(reset_reg, 0x6000000);
 }
+
+#ifdef CONFIG_PPC_PASEMI_NEMO
+void pas_shutdown(void)
+{
+	/* Set the PLD bit that makes the SB600 think the power button is being pressed */
+	void __iomem *pld_map = ioremap(0xf5000000,4096);
+	while (1)
+		out_8(pld_map+7,0x01);
+}
+
+/* RTC platform device structure as is not in device tree */
+static struct resource rtc_resource[] = {{
+	.name = "rtc",
+	.start = 0x70,
+	.end = 0x71,
+	.flags = IORESOURCE_IO,
+}, {
+	.name = "rtc",
+	.start = 8,
+	.end = 8,
+	.flags = IORESOURCE_IRQ,
+}};
+
+static inline void nemo_init_rtc(void)
+{
+	platform_device_register_simple("rtc_cmos", -1, rtc_resource, 2);
+}
+
+#else
+
+static inline void nemo_init_rtc(void)
+{
+}
+#endif
 
 #ifdef CONFIG_SMP
 static arch_spinlock_t timebase_lock;
@@ -183,6 +218,42 @@ static int __init pas_setup_mce_regs(void)
 }
 machine_device_initcall(pasemi, pas_setup_mce_regs);
 
+#ifdef CONFIG_PPC_PASEMI_NEMO
+static void sb600_8259_cascade(struct irq_desc *desc)
+{
+	struct irq_chip *chip = irq_desc_get_chip(desc);
+	unsigned int cascade_irq = i8259_irq();
+
+	if (cascade_irq)
+		generic_handle_irq(cascade_irq);
+
+	chip->irq_eoi(&desc->irq_data);
+}
+
+static void nemo_init_IRQ(struct mpic *mpic)
+{
+	struct device_node *np;
+	int gpio_virq;
+	/* Connect the SB600's legacy i8259 controller */
+	np = of_find_node_by_path("/pxp@0,e0000000");
+	i8259_init(np, 0);
+	of_node_put(np);
+
+	gpio_virq = irq_create_mapping(NULL, 3);
+	irq_set_irq_type(gpio_virq, IRQ_TYPE_LEVEL_HIGH);
+	irq_set_chained_handler(gpio_virq, sb600_8259_cascade);
+	mpic_unmask_irq(irq_get_irq_data(gpio_virq));
+
+	irq_set_default_host(mpic->irqhost);
+}
+
+#else
+
+static inline void nemo_init_IRQ(struct mpic *mpic)
+{
+}
+#endif
+
 static __init void pas_init_IRQ(void)
 {
 	struct device_node *np;
@@ -242,6 +313,8 @@ static __init void pas_init_IRQ(void)
 		irq_set_irq_type(nmi_virq, IRQ_TYPE_EDGE_RISING);
 		mpic_unmask_irq(irq_get_irq_data(nmi_virq));
 	}
+
+	nemo_init_IRQ(mpic);
 
 	of_node_put(mpic_node);
 	of_node_put(root);
@@ -404,6 +477,8 @@ static int __init pasemi_publish_devices(void)
 	/* Publish OF platform devices for SDC and other non-PCI devices */
 	of_platform_bus_probe(NULL, pasemi_bus_ids, NULL);
 
+	nemo_init_rtc();
+
 	return 0;
 }
 machine_device_initcall(pasemi, pasemi_publish_devices);
@@ -417,6 +492,17 @@ static int __init pas_probe(void)
 	if (!of_machine_is_compatible("PA6T-1682M") &&
 	    !of_machine_is_compatible("pasemi,pwrficient"))
 		return 0;
+
+#ifdef CONFIG_PPC_PASEMI_NEMO
+	/*
+	 * Check for the Nemo motherboard here, if we are running on one
+	 * change the machine definition to fit
+	 */
+	if (of_machine_is_compatible("pasemi,nemo")) {
+		pm_power_off		= pas_shutdown;
+		ppc_md.name		= "A-EON Amigaone X1000";
+	}
+#endif
 
 	iommu_init_early_pasemi();
 

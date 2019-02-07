@@ -44,7 +44,6 @@
 #include <linux/delay.h>
 #include <linux/kthread.h>
 #include <linux/interrupt.h>
-#include <linux/semaphore.h>
 #include <linux/bcd.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
@@ -189,7 +188,7 @@ int aac_fib_setup(struct aac_dev * dev)
 		fibptr->hw_fib_va = hw_fib;
 		fibptr->data = (void *) fibptr->hw_fib_va->data;
 		fibptr->next = fibptr+1;	/* Forward chain the fibs */
-		sema_init(&fibptr->event_wait, 0);
+		init_completion(&fibptr->event_wait);
 		spin_lock_init(&fibptr->event_lock);
 		hw_fib->header.XferState = cpu_to_le32(0xffffffff);
 		hw_fib->header.SenderSize =
@@ -623,7 +622,7 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 		}
 		if (wait) {
 			fibptr->flags |= FIB_CONTEXT_FLAG_WAIT;
-			if (down_interruptible(&fibptr->event_wait)) {
+			if (wait_for_completion_interruptible(&fibptr->event_wait)) {
 				fibptr->flags &= ~FIB_CONTEXT_FLAG_WAIT;
 				return -EFAULT;
 			}
@@ -659,7 +658,7 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 			 * hardware failure has occurred.
 			 */
 			unsigned long timeout = jiffies + (180 * HZ); /* 3 minutes */
-			while (down_trylock(&fibptr->event_wait)) {
+			while (!try_wait_for_completion(&fibptr->event_wait)) {
 				int blink;
 				if (time_is_before_eq_jiffies(timeout)) {
 					struct aac_queue * q = &dev->queues->queue[AdapNormCmdQueue];
@@ -689,9 +688,9 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 				 */
 				schedule();
 			}
-		} else if (down_interruptible(&fibptr->event_wait)) {
+		} else if (wait_for_completion_interruptible(&fibptr->event_wait)) {
 			/* Do nothing ... satisfy
-			 * down_interruptible must_check */
+			 * wait_for_completion_interruptible must_check */
 		}
 
 		spin_lock_irqsave(&fibptr->event_lock, flags);
@@ -777,7 +776,7 @@ int aac_hba_send(u8 command, struct fib *fibptr, fib_callback callback,
 			return -EFAULT;
 
 		fibptr->flags |= FIB_CONTEXT_FLAG_WAIT;
-		if (down_interruptible(&fibptr->event_wait))
+		if (wait_for_completion_interruptible(&fibptr->event_wait))
 			fibptr->done = 2;
 		fibptr->flags &= ~(FIB_CONTEXT_FLAG_WAIT);
 
@@ -1538,7 +1537,7 @@ static int _aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
 		  || fib->flags & FIB_CONTEXT_FLAG_WAIT) {
 			unsigned long flagv;
 			spin_lock_irqsave(&fib->event_lock, flagv);
-			up(&fib->event_wait);
+			complete(&fib->event_wait);
 			spin_unlock_irqrestore(&fib->event_lock, flagv);
 			schedule();
 			retval = 0;
@@ -1828,7 +1827,7 @@ int aac_check_health(struct aac_dev * aac)
 			 * Set the event to wake up the
 			 * thread that will waiting.
 			 */
-			up(&fibctx->wait_sem);
+			complete(&fibctx->completion);
 		} else {
 			printk(KERN_WARNING "aifd: didn't allocate NewFib.\n");
 			kfree(fib);
@@ -2165,7 +2164,7 @@ static void wakeup_fibctx_threads(struct aac_dev *dev,
 		 * Set the event to wake up the
 		 * thread that is waiting.
 		 */
-		up(&fibctx->wait_sem);
+		complete(&fibctx->completion);
 
 		entry = entry->next;
 	}

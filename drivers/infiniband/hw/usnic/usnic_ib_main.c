@@ -330,6 +330,37 @@ static void usnic_get_dev_fw_str(struct ib_device *device, char *str)
 	snprintf(str, IB_FW_VERSION_NAME_MAX, "%s", info.fw_version);
 }
 
+static const struct ib_device_ops usnic_dev_ops = {
+	.alloc_pd = usnic_ib_alloc_pd,
+	.alloc_ucontext = usnic_ib_alloc_ucontext,
+	.create_ah = usnic_ib_create_ah,
+	.create_cq = usnic_ib_create_cq,
+	.create_qp = usnic_ib_create_qp,
+	.dealloc_pd = usnic_ib_dealloc_pd,
+	.dealloc_ucontext = usnic_ib_dealloc_ucontext,
+	.dereg_mr = usnic_ib_dereg_mr,
+	.destroy_ah = usnic_ib_destroy_ah,
+	.destroy_cq = usnic_ib_destroy_cq,
+	.destroy_qp = usnic_ib_destroy_qp,
+	.get_dev_fw_str = usnic_get_dev_fw_str,
+	.get_dma_mr = usnic_ib_get_dma_mr,
+	.get_link_layer = usnic_ib_port_link_layer,
+	.get_netdev = usnic_get_netdev,
+	.get_port_immutable = usnic_port_immutable,
+	.mmap = usnic_ib_mmap,
+	.modify_qp = usnic_ib_modify_qp,
+	.poll_cq = usnic_ib_poll_cq,
+	.post_recv = usnic_ib_post_recv,
+	.post_send = usnic_ib_post_send,
+	.query_device = usnic_ib_query_device,
+	.query_gid = usnic_ib_query_gid,
+	.query_pkey = usnic_ib_query_pkey,
+	.query_port = usnic_ib_query_port,
+	.query_qp = usnic_ib_query_qp,
+	.reg_user_mr = usnic_ib_reg_mr,
+	.req_notify_cq = usnic_ib_req_notify_cq,
+};
+
 /* Start of PF discovery section */
 static void *usnic_ib_device_add(struct pci_dev *dev)
 {
@@ -386,35 +417,7 @@ static void *usnic_ib_device_add(struct pci_dev *dev)
 		(1ull << IB_USER_VERBS_CMD_DETACH_MCAST) |
 		(1ull << IB_USER_VERBS_CMD_OPEN_QP);
 
-	us_ibdev->ib_dev.query_device = usnic_ib_query_device;
-	us_ibdev->ib_dev.query_port = usnic_ib_query_port;
-	us_ibdev->ib_dev.query_pkey = usnic_ib_query_pkey;
-	us_ibdev->ib_dev.query_gid = usnic_ib_query_gid;
-	us_ibdev->ib_dev.get_netdev = usnic_get_netdev;
-	us_ibdev->ib_dev.get_link_layer = usnic_ib_port_link_layer;
-	us_ibdev->ib_dev.alloc_pd = usnic_ib_alloc_pd;
-	us_ibdev->ib_dev.dealloc_pd = usnic_ib_dealloc_pd;
-	us_ibdev->ib_dev.create_qp = usnic_ib_create_qp;
-	us_ibdev->ib_dev.modify_qp = usnic_ib_modify_qp;
-	us_ibdev->ib_dev.query_qp = usnic_ib_query_qp;
-	us_ibdev->ib_dev.destroy_qp = usnic_ib_destroy_qp;
-	us_ibdev->ib_dev.create_cq = usnic_ib_create_cq;
-	us_ibdev->ib_dev.destroy_cq = usnic_ib_destroy_cq;
-	us_ibdev->ib_dev.reg_user_mr = usnic_ib_reg_mr;
-	us_ibdev->ib_dev.dereg_mr = usnic_ib_dereg_mr;
-	us_ibdev->ib_dev.alloc_ucontext = usnic_ib_alloc_ucontext;
-	us_ibdev->ib_dev.dealloc_ucontext = usnic_ib_dealloc_ucontext;
-	us_ibdev->ib_dev.mmap = usnic_ib_mmap;
-	us_ibdev->ib_dev.create_ah = usnic_ib_create_ah;
-	us_ibdev->ib_dev.destroy_ah = usnic_ib_destroy_ah;
-	us_ibdev->ib_dev.post_send = usnic_ib_post_send;
-	us_ibdev->ib_dev.post_recv = usnic_ib_post_recv;
-	us_ibdev->ib_dev.poll_cq = usnic_ib_poll_cq;
-	us_ibdev->ib_dev.req_notify_cq = usnic_ib_req_notify_cq;
-	us_ibdev->ib_dev.get_dma_mr = usnic_ib_get_dma_mr;
-	us_ibdev->ib_dev.get_port_immutable = usnic_port_immutable;
-	us_ibdev->ib_dev.get_dev_fw_str     = usnic_get_dev_fw_str;
-
+	ib_set_device_ops(&us_ibdev->ib_dev, &usnic_dev_ops);
 
 	us_ibdev->ib_dev.driver_id = RDMA_DRIVER_USNIC;
 	rdma_set_device_sysfs_group(&us_ibdev->ib_dev, &usnic_attr_group);
@@ -649,7 +652,7 @@ static int __init usnic_ib_init(void)
 
 	err = usnic_uiom_init(DRV_NAME);
 	if (err) {
-		usnic_err("Unable to initalize umem with err %d\n", err);
+		usnic_err("Unable to initialize umem with err %d\n", err);
 		return err;
 	}
 

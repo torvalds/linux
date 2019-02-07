@@ -79,7 +79,6 @@ mt76x2_fixup_xtal(struct mt76x02_dev *dev)
 
 static int mt76x2_mac_reset(struct mt76x02_dev *dev, bool hard)
 {
-	static const u8 null_addr[ETH_ALEN] = {};
 	const u8 *macaddr = dev->mt76.macaddr;
 	u32 val;
 	int i, k;
@@ -123,27 +122,18 @@ static int mt76x2_mac_reset(struct mt76x02_dev *dev, bool hard)
 	mt76_wr(dev, MT_MAC_ADDR_DW0, get_unaligned_le32(macaddr));
 	mt76_wr(dev, MT_MAC_ADDR_DW1, get_unaligned_le16(macaddr + 4));
 
-	mt76_wr(dev, MT_MAC_BSSID_DW0, get_unaligned_le32(macaddr));
-	mt76_wr(dev, MT_MAC_BSSID_DW1, get_unaligned_le16(macaddr + 4) |
-		FIELD_PREP(MT_MAC_BSSID_DW1_MBSS_MODE, 3) | /* 8 beacons */
-		MT_MAC_BSSID_DW1_MBSS_LOCAL_BIT);
-
-	/* Fire a pre-TBTT interrupt 8 ms before TBTT */
-	mt76_rmw_field(dev, MT_INT_TIMER_CFG, MT_INT_TIMER_CFG_PRE_TBTT,
-		       8 << 4);
-	mt76_rmw_field(dev, MT_INT_TIMER_CFG, MT_INT_TIMER_CFG_GP_TIMER,
-		       MT_DFS_GP_INTERVAL);
-	mt76_wr(dev, MT_INT_TIMER_EN, 0);
-
-	mt76_wr(dev, MT_BCN_BYPASS_MASK, 0xffff);
+	mt76x02_init_beacon_config(dev);
 	if (!hard)
 		return 0;
 
 	for (i = 0; i < 256 / 32; i++)
 		mt76_wr(dev, MT_WCID_DROP_BASE + i * 4, 0);
 
-	for (i = 0; i < 256; i++)
+	for (i = 0; i < 256; i++) {
 		mt76x02_mac_wcid_setup(dev, i, 0, NULL);
+		mt76_wr(dev, MT_WCID_TX_RATE(i), 0);
+		mt76_wr(dev, MT_WCID_TX_RATE(i) + 4, 0);
+	}
 
 	for (i = 0; i < MT_MAX_VIFS; i++)
 		mt76x02_mac_wcid_setup(dev, MT_VIF_WCID(i), i, NULL);
@@ -151,11 +141,6 @@ static int mt76x2_mac_reset(struct mt76x02_dev *dev, bool hard)
 	for (i = 0; i < 16; i++)
 		for (k = 0; k < 4; k++)
 			mt76x02_mac_shared_key_setup(dev, i, k, NULL);
-
-	for (i = 0; i < 8; i++) {
-		mt76x2_mac_set_bssid(dev, i, null_addr);
-		mt76x2_mac_set_beacon(dev, i, NULL);
-	}
 
 	for (i = 0; i < 16; i++)
 		mt76_rr(dev, MT_TX_STAT_FIFO);
@@ -168,9 +153,7 @@ static int mt76x2_mac_reset(struct mt76x02_dev *dev, bool hard)
 		MT_CH_TIME_CFG_EIFS_AS_BUSY |
 		FIELD_PREP(MT_CH_TIME_CFG_CH_TIMER_CLR, 1));
 
-	mt76x02_set_beacon_offsets(dev);
-
-	mt76x2_set_tx_ackto(dev);
+	mt76x02_set_tx_ackto(dev);
 
 	return 0;
 }
@@ -277,29 +260,9 @@ mt76x2_power_on(struct mt76x02_dev *dev)
 	mt76x2_power_on_rf(dev, 1);
 }
 
-void mt76x2_set_tx_ackto(struct mt76x02_dev *dev)
-{
-	u8 ackto, sifs, slottime = dev->slottime;
-
-	/* As defined by IEEE 802.11-2007 17.3.8.6 */
-	slottime += 3 * dev->coverage_class;
-	mt76_rmw_field(dev, MT_BKOFF_SLOT_CFG,
-		       MT_BKOFF_SLOT_CFG_SLOTTIME, slottime);
-
-	sifs = mt76_get_field(dev, MT_XIFS_TIME_CFG,
-			      MT_XIFS_TIME_CFG_OFDM_SIFS);
-
-	ackto = slottime + sifs;
-	mt76_rmw_field(dev, MT_TX_TIMEOUT_CFG,
-		       MT_TX_TIMEOUT_CFG_ACKTO, ackto);
-}
-
 int mt76x2_init_hardware(struct mt76x02_dev *dev)
 {
 	int ret;
-
-	tasklet_init(&dev->pre_tbtt_tasklet, mt76x2_pre_tbtt_tasklet,
-		     (unsigned long) dev);
 
 	mt76x02_dma_disable(dev);
 	mt76x2_reset_wlan(dev, true);
@@ -337,7 +300,7 @@ void mt76x2_stop_hardware(struct mt76x02_dev *dev)
 {
 	cancel_delayed_work_sync(&dev->cal_work);
 	cancel_delayed_work_sync(&dev->mac_work);
-	mt76x02_mcu_set_radio_state(dev, false, true);
+	mt76x02_mcu_set_radio_state(dev, false);
 	mt76x2_mac_stop(dev, false);
 }
 
@@ -354,12 +317,14 @@ struct mt76x02_dev *mt76x2_alloc_device(struct device *pdev)
 {
 	static const struct mt76_driver_ops drv_ops = {
 		.txwi_size = sizeof(struct mt76x02_txwi),
-		.update_survey = mt76x2_update_channel,
+		.update_survey = mt76x02_update_channel,
 		.tx_prepare_skb = mt76x02_tx_prepare_skb,
 		.tx_complete_skb = mt76x02_tx_complete_skb,
 		.rx_skb = mt76x02_queue_rx_skb,
 		.rx_poll_complete = mt76x02_rx_poll_complete,
-		.sta_ps = mt76x2_sta_ps,
+		.sta_ps = mt76x02_sta_ps,
+		.sta_add = mt76x02_sta_add,
+		.sta_remove = mt76x02_sta_remove,
 	};
 	struct mt76x02_dev *dev;
 	struct mt76_dev *mdev;
@@ -374,43 +339,6 @@ struct mt76x02_dev *mt76x2_alloc_device(struct device *pdev)
 
 	return dev;
 }
-
-static void mt76x2_regd_notifier(struct wiphy *wiphy,
-				 struct regulatory_request *request)
-{
-	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
-	struct mt76x02_dev *dev = hw->priv;
-
-	mt76x2_dfs_set_domain(dev, request->dfs_region);
-}
-
-static const struct ieee80211_iface_limit if_limits[] = {
-	{
-		.max = 1,
-		.types = BIT(NL80211_IFTYPE_ADHOC)
-	}, {
-		.max = 8,
-		.types = BIT(NL80211_IFTYPE_STATION) |
-#ifdef CONFIG_MAC80211_MESH
-			 BIT(NL80211_IFTYPE_MESH_POINT) |
-#endif
-			 BIT(NL80211_IFTYPE_AP)
-	 },
-};
-
-static const struct ieee80211_iface_combination if_comb[] = {
-	{
-		.limits = if_limits,
-		.n_limits = ARRAY_SIZE(if_limits),
-		.max_interfaces = 8,
-		.num_different_channels = 1,
-		.beacon_int_infra_match = true,
-		.radar_detect_widths = BIT(NL80211_CHAN_WIDTH_20_NOHT) |
-				       BIT(NL80211_CHAN_WIDTH_20) |
-				       BIT(NL80211_CHAN_WIDTH_40) |
-				       BIT(NL80211_CHAN_WIDTH_80),
-	}
-};
 
 static void mt76x2_led_set_config(struct mt76_dev *mt76, u8 delay_on,
 				  u8 delay_off)
@@ -462,49 +390,17 @@ static void mt76x2_led_set_brightness(struct led_classdev *led_cdev,
 
 int mt76x2_register_device(struct mt76x02_dev *dev)
 {
-	struct ieee80211_hw *hw = mt76_hw(dev);
-	struct wiphy *wiphy = hw->wiphy;
-	int i, ret;
+	int ret;
 
 	INIT_DELAYED_WORK(&dev->cal_work, mt76x2_phy_calibrate);
-	INIT_DELAYED_WORK(&dev->mac_work, mt76x2_mac_work);
 
-	mt76x2_init_device(dev);
+	mt76x02_init_device(dev);
 
 	ret = mt76x2_init_hardware(dev);
 	if (ret)
 		return ret;
 
-	for (i = 0; i < ARRAY_SIZE(dev->macaddr_list); i++) {
-		u8 *addr = dev->macaddr_list[i].addr;
-
-		memcpy(addr, dev->mt76.macaddr, ETH_ALEN);
-
-		if (!i)
-			continue;
-
-		addr[0] |= BIT(1);
-		addr[0] ^= ((i - 1) << 2);
-	}
-	wiphy->addresses = dev->macaddr_list;
-	wiphy->n_addresses = ARRAY_SIZE(dev->macaddr_list);
-
-	wiphy->iface_combinations = if_comb;
-	wiphy->n_iface_combinations = ARRAY_SIZE(if_comb);
-
-	wiphy->reg_notifier = mt76x2_regd_notifier;
-
-	wiphy->interface_modes =
-		BIT(NL80211_IFTYPE_STATION) |
-		BIT(NL80211_IFTYPE_AP) |
-#ifdef CONFIG_MAC80211_MESH
-		BIT(NL80211_IFTYPE_MESH_POINT) |
-#endif
-		BIT(NL80211_IFTYPE_ADHOC);
-
-	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_VHT_IBSS);
-
-	mt76x2_dfs_init_detector(dev);
+	mt76x02_config_mac_addr_list(dev);
 
 	/* init led callbacks */
 	if (IS_ENABLED(CONFIG_MT76_LEDS)) {
@@ -517,7 +413,7 @@ int mt76x2_register_device(struct mt76x02_dev *dev)
 	if (ret)
 		goto fail;
 
-	mt76x2_init_debugfs(dev);
+	mt76x02_init_debugfs(dev);
 	mt76x2_init_txpower(dev, &dev->mt76.sband_2g.sband);
 	mt76x2_init_txpower(dev, &dev->mt76.sband_5g.sband);
 

@@ -1777,7 +1777,7 @@ static const char *gflags2str(char *buf, const struct gfs2_glock *gl)
  *
  */
 
-void gfs2_dump_glock(struct seq_file *seq, const struct gfs2_glock *gl)
+void gfs2_dump_glock(struct seq_file *seq, struct gfs2_glock *gl)
 {
 	const struct gfs2_glock_operations *glops = gl->gl_ops;
 	unsigned long long dtime;

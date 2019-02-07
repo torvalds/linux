@@ -163,22 +163,13 @@ static int platform_mhu_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, mhu);
 
-	err = mbox_controller_register(&mhu->mbox);
+	err = devm_mbox_controller_register(dev, &mhu->mbox);
 	if (err) {
 		dev_err(dev, "Failed to register mailboxes %d\n", err);
 		return err;
 	}
 
 	dev_info(dev, "Platform MHU Mailbox registered\n");
-	return 0;
-}
-
-static int platform_mhu_remove(struct platform_device *pdev)
-{
-	struct platform_mhu *mhu = platform_get_drvdata(pdev);
-
-	mbox_controller_unregister(&mhu->mbox);
-
 	return 0;
 }
 
@@ -190,7 +181,6 @@ MODULE_DEVICE_TABLE(of, platform_mhu_dt_ids);
 
 static struct platform_driver platform_mhu_driver = {
 	.probe	= platform_mhu_probe,
-	.remove	= platform_mhu_remove,
 	.driver = {
 		.name = "platform-mhu",
 		.of_match_table	= platform_mhu_dt_ids,

@@ -1204,9 +1204,19 @@ EXPORT_SYMBOL_GPL(mlx5_nic_vport_unaffiliate_multiport);
 
 u64 mlx5_query_nic_system_image_guid(struct mlx5_core_dev *mdev)
 {
-	if (!mdev->sys_image_guid)
-		mlx5_query_nic_vport_system_image_guid(mdev, &mdev->sys_image_guid);
+	int port_type_cap = MLX5_CAP_GEN(mdev, port_type);
+	u64 tmp = 0;
 
-	return mdev->sys_image_guid;
+	if (mdev->sys_image_guid)
+		return mdev->sys_image_guid;
+
+	if (port_type_cap == MLX5_CAP_PORT_TYPE_ETH)
+		mlx5_query_nic_vport_system_image_guid(mdev, &tmp);
+	else
+		mlx5_query_hca_vport_system_image_guid(mdev, &tmp);
+
+	mdev->sys_image_guid = tmp;
+
+	return tmp;
 }
 EXPORT_SYMBOL_GPL(mlx5_query_nic_system_image_guid);

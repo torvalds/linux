@@ -534,13 +534,12 @@ error_attrs:
 static struct msi_desc *
 msi_setup_entry(struct pci_dev *dev, int nvec, const struct irq_affinity *affd)
 {
-	struct cpumask *masks = NULL;
+	struct irq_affinity_desc *masks = NULL;
 	struct msi_desc *entry;
 	u16 control;
 
 	if (affd)
 		masks = irq_create_affinity_masks(nvec, affd);
-
 
 	/* MSI Entry Initialization */
 	entry = alloc_msi_entry(&dev->dev, nvec, masks);
@@ -672,7 +671,7 @@ static int msix_setup_entries(struct pci_dev *dev, void __iomem *base,
 			      struct msix_entry *entries, int nvec,
 			      const struct irq_affinity *affd)
 {
-	struct cpumask *curmsk, *masks = NULL;
+	struct irq_affinity_desc *curmsk, *masks = NULL;
 	struct msi_desc *entry;
 	int ret, i;
 
@@ -1036,6 +1035,13 @@ static int __pci_enable_msi_range(struct pci_dev *dev, int minvec, int maxvec,
 	if (maxvec < minvec)
 		return -ERANGE;
 
+	/*
+	 * If the caller is passing in sets, we can't support a range of
+	 * vectors. The caller needs to handle that.
+	 */
+	if (affd && affd->nr_sets && minvec != maxvec)
+		return -EINVAL;
+
 	if (WARN_ON_ONCE(dev->msi_enabled))
 		return -EINVAL;
 
@@ -1086,6 +1092,13 @@ static int __pci_enable_msix_range(struct pci_dev *dev,
 
 	if (maxvec < minvec)
 		return -ERANGE;
+
+	/*
+	 * If the caller is passing in sets, we can't support a range of
+	 * supported vectors. The caller needs to handle that.
+	 */
+	if (affd && affd->nr_sets && minvec != maxvec)
+		return -EINVAL;
 
 	if (WARN_ON_ONCE(dev->msix_enabled))
 		return -EINVAL;
@@ -1155,7 +1168,8 @@ int pci_alloc_irq_vectors_affinity(struct pci_dev *dev, unsigned int min_vecs,
 				   const struct irq_affinity *affd)
 {
 	static const struct irq_affinity msi_default_affd;
-	int vecs = -ENOSPC;
+	int msix_vecs = -ENOSPC;
+	int msi_vecs = -ENOSPC;
 
 	if (flags & PCI_IRQ_AFFINITY) {
 		if (!affd)
@@ -1166,16 +1180,17 @@ int pci_alloc_irq_vectors_affinity(struct pci_dev *dev, unsigned int min_vecs,
 	}
 
 	if (flags & PCI_IRQ_MSIX) {
-		vecs = __pci_enable_msix_range(dev, NULL, min_vecs, max_vecs,
-				affd);
-		if (vecs > 0)
-			return vecs;
+		msix_vecs = __pci_enable_msix_range(dev, NULL, min_vecs,
+						    max_vecs, affd);
+		if (msix_vecs > 0)
+			return msix_vecs;
 	}
 
 	if (flags & PCI_IRQ_MSI) {
-		vecs = __pci_enable_msi_range(dev, min_vecs, max_vecs, affd);
-		if (vecs > 0)
-			return vecs;
+		msi_vecs = __pci_enable_msi_range(dev, min_vecs, max_vecs,
+						  affd);
+		if (msi_vecs > 0)
+			return msi_vecs;
 	}
 
 	/* use legacy irq if allowed */
@@ -1186,7 +1201,9 @@ int pci_alloc_irq_vectors_affinity(struct pci_dev *dev, unsigned int min_vecs,
 		}
 	}
 
-	return vecs;
+	if (msix_vecs == -ENOSPC)
+		return -ENOSPC;
+	return msi_vecs;
 }
 EXPORT_SYMBOL(pci_alloc_irq_vectors_affinity);
 
@@ -1250,7 +1267,7 @@ const struct cpumask *pci_irq_get_affinity(struct pci_dev *dev, int nr)
 
 		for_each_pci_msi_entry(entry, dev) {
 			if (i == nr)
-				return entry->affinity;
+				return &entry->affinity->mask;
 			i++;
 		}
 		WARN_ON_ONCE(1);
@@ -1262,7 +1279,7 @@ const struct cpumask *pci_irq_get_affinity(struct pci_dev *dev, int nr)
 				 nr >= entry->nvec_used))
 			return NULL;
 
-		return &entry->affinity[nr];
+		return &entry->affinity[nr].mask;
 	} else {
 		return cpu_possible_mask;
 	}

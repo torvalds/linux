@@ -24,6 +24,12 @@ Required properties for GPIO node:
       4 = active high level-sensitive.
       8 = active low level-sensitive.
 
+Optional properties:
+-clocks:	Must contain an entry for each entry in clock-names.
+		See common clock-bindings.txt for details.
+-clock-names:	A list of clock names. For imx7ulp, it must contain
+		"gpio", "port".
+
 Note: Each GPIO port should have an alias correctly numbered in "aliases"
 node.
 

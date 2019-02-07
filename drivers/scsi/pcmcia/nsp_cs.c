@@ -86,7 +86,7 @@ static struct scsi_host_template nsp_driver_template = {
 	.can_queue		 = 1,
 	.this_id		 = NSP_INITIATOR_ID,
 	.sg_tablesize		 = SG_ALL,
-	.use_clustering		 = DISABLE_CLUSTERING,
+	.dma_boundary		 = PAGE_SIZE - 1,
 };
 
 static nsp_hw_data nsp_data_base; /* attach <-> detect glue */

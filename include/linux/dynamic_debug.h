@@ -2,7 +2,7 @@
 #ifndef _DYNAMIC_DEBUG_H
 #define _DYNAMIC_DEBUG_H
 
-#if defined(CC_HAVE_ASM_GOTO) && defined(CONFIG_JUMP_LABEL)
+#if defined(CONFIG_JUMP_LABEL)
 #include <linux/jump_label.h>
 #endif
 
@@ -38,7 +38,7 @@ struct _ddebug {
 #define _DPRINTK_FLAGS_DEFAULT 0
 #endif
 	unsigned int flags:8;
-#ifdef HAVE_JUMP_LABEL
+#ifdef CONFIG_JUMP_LABEL
 	union {
 		struct static_key_true dd_key_true;
 		struct static_key_false dd_key_false;
@@ -83,7 +83,7 @@ void __dynamic_netdev_dbg(struct _ddebug *descriptor,
 		dd_key_init(key, init)				\
 	}
 
-#ifdef HAVE_JUMP_LABEL
+#ifdef CONFIG_JUMP_LABEL
 
 #define dd_key_init(key, init) key = (init)
 

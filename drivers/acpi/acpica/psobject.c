@@ -600,8 +600,7 @@ acpi_ps_complete_op(struct acpi_walk_state *walk_state,
 			 * because there could be correct AML beyond the parts that caused
 			 * the runtime error.
 			 */
-			ACPI_ERROR((AE_INFO,
-				    "Ignore error and continue table load"));
+			ACPI_INFO(("Ignoring error and continuing table load"));
 			return_ACPI_STATUS(AE_OK);
 		}
 		return_ACPI_STATUS(status);

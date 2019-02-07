@@ -593,7 +593,7 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 		 * pipe.  Note we need to use the selected fb's pitch and bpp
 		 * rather than the current pipe's, since they differ.
 		 */
-		cur_size = intel_crtc->config->base.adjusted_mode.crtc_hdisplay;
+		cur_size = crtc->state->adjusted_mode.crtc_hdisplay;
 		cur_size = cur_size * fb->base.format->cpp[0];
 		if (fb->base.pitches[0] < cur_size) {
 			DRM_DEBUG_KMS("fb not wide enough for plane %c (%d vs %d)\n",
@@ -603,13 +603,13 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 			break;
 		}
 
-		cur_size = intel_crtc->config->base.adjusted_mode.crtc_vdisplay;
+		cur_size = crtc->state->adjusted_mode.crtc_vdisplay;
 		cur_size = intel_fb_align_height(&fb->base, 0, cur_size);
 		cur_size *= fb->base.pitches[0];
 		DRM_DEBUG_KMS("pipe %c area: %dx%d, bpp: %d, size: %d\n",
 			      pipe_name(intel_crtc->pipe),
-			      intel_crtc->config->base.adjusted_mode.crtc_hdisplay,
-			      intel_crtc->config->base.adjusted_mode.crtc_vdisplay,
+			      crtc->state->adjusted_mode.crtc_hdisplay,
+			      crtc->state->adjusted_mode.crtc_vdisplay,
 			      fb->base.format->cpp[0] * 8,
 			      cur_size);
 
@@ -672,7 +672,7 @@ int intel_fbdev_init(struct drm_device *dev)
 	struct intel_fbdev *ifbdev;
 	int ret;
 
-	if (WARN_ON(INTEL_INFO(dev_priv)->num_pipes == 0))
+	if (WARN_ON(!HAS_DISPLAY(dev_priv)))
 		return -ENODEV;
 
 	ifbdev = kzalloc(sizeof(struct intel_fbdev), GFP_KERNEL);

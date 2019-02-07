@@ -448,6 +448,23 @@ struct pci_epf_device_id {
 	kernel_ulong_t driver_data;
 };
 
+/* i3c */
+
+#define I3C_MATCH_DCR			0x1
+#define I3C_MATCH_MANUF			0x2
+#define I3C_MATCH_PART			0x4
+#define I3C_MATCH_EXTRA_INFO		0x8
+
+struct i3c_device_id {
+	__u8 match_flags;
+	__u8 dcr;
+	__u16 manuf_id;
+	__u16 part_id;
+	__u16 extra_info;
+
+	const void *data;
+};
+
 /* spi */
 
 #define SPI_NAME_SIZE	32
@@ -565,7 +582,7 @@ struct platform_device_id {
 /**
  * struct mdio_device_id - identifies PHY devices on an MDIO/MII bus
  * @phy_id: The result of
- *     (mdio_read(&MII_PHYSID1) << 16 | mdio_read(&PHYSID2)) & @phy_id_mask
+ *     (mdio_read(&MII_PHYSID1) << 16 | mdio_read(&MII_PHYSID2)) & @phy_id_mask
  *     for this PHY type
  * @phy_id_mask: Defines the significant bits of @phy_id.  A value of 0
  *     is used to terminate an array of struct mdio_device_id.

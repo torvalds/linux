@@ -169,7 +169,7 @@ static int cls_bpf_offload_cmd(struct tcf_proto *tp, struct cls_bpf_prog *prog,
 	if (oldprog)
 		tcf_block_offload_dec(block, &oldprog->gen_flags);
 
-	err = tc_setup_cb_call(block, NULL, TC_SETUP_CLSBPF, &cls_bpf, skip_sw);
+	err = tc_setup_cb_call(block, TC_SETUP_CLSBPF, &cls_bpf, skip_sw);
 	if (prog) {
 		if (err < 0) {
 			cls_bpf_offload_cmd(tp, oldprog, prog, extack);
@@ -234,7 +234,7 @@ static void cls_bpf_offload_update_stats(struct tcf_proto *tp,
 	cls_bpf.name = prog->bpf_name;
 	cls_bpf.exts_integrated = prog->exts_integrated;
 
-	tc_setup_cb_call(block, NULL, TC_SETUP_CLSBPF, &cls_bpf, false);
+	tc_setup_cb_call(block, TC_SETUP_CLSBPF, &cls_bpf, false);
 }
 
 static int cls_bpf_init(struct tcf_proto *tp)

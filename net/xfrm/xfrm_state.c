@@ -426,6 +426,12 @@ static void xfrm_put_mode(struct xfrm_mode *mode)
 	module_put(mode->owner);
 }
 
+void xfrm_state_free(struct xfrm_state *x)
+{
+	kmem_cache_free(xfrm_state_cache, x);
+}
+EXPORT_SYMBOL(xfrm_state_free);
+
 static void xfrm_state_gc_destroy(struct xfrm_state *x)
 {
 	tasklet_hrtimer_cancel(&x->mtimer);
@@ -452,7 +458,7 @@ static void xfrm_state_gc_destroy(struct xfrm_state *x)
 	}
 	xfrm_dev_state_free(x);
 	security_xfrm_state_free(x);
-	kmem_cache_free(xfrm_state_cache, x);
+	xfrm_state_free(x);
 }
 
 static void xfrm_state_gc_task(struct work_struct *work)
@@ -788,7 +794,7 @@ void xfrm_sad_getinfo(struct net *net, struct xfrmk_sadinfo *si)
 {
 	spin_lock_bh(&net->xfrm.xfrm_state_lock);
 	si->sadcnt = net->xfrm.state_num;
-	si->sadhcnt = net->xfrm.state_hmask;
+	si->sadhcnt = net->xfrm.state_hmask + 1;
 	si->sadhmcnt = xfrm_state_hashmax;
 	spin_unlock_bh(&net->xfrm.xfrm_state_lock);
 }

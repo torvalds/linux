@@ -16,6 +16,8 @@
 #include <linux/err.h>
 #include <linux/delay.h>
 
+#include <drm/drm_print.h>
+
 #include "dpu_io_util.h"
 
 void msm_dss_put_clk(struct dss_clk *clk_arry, int num_clk)
@@ -164,7 +166,7 @@ int msm_dss_parse_clock(struct platform_device *pdev,
 						   "clock-names", i,
 						   &clock_name);
 		if (rc) {
-			dev_err(&pdev->dev, "Failed to get clock name for %d\n",
+			DRM_DEV_ERROR(&pdev->dev, "Failed to get clock name for %d\n",
 				i);
 			break;
 		}
@@ -176,13 +178,13 @@ int msm_dss_parse_clock(struct platform_device *pdev,
 
 	rc = msm_dss_get_clk(&pdev->dev, mp->clk_config, num_clk);
 	if (rc) {
-		dev_err(&pdev->dev, "Failed to get clock refs %d\n", rc);
+		DRM_DEV_ERROR(&pdev->dev, "Failed to get clock refs %d\n", rc);
 		goto err;
 	}
 
 	rc = of_clk_set_defaults(pdev->dev.of_node, false);
 	if (rc) {
-		dev_err(&pdev->dev, "Failed to set clock defaults %d\n", rc);
+		DRM_DEV_ERROR(&pdev->dev, "Failed to set clock defaults %d\n", rc);
 		goto err;
 	}
 

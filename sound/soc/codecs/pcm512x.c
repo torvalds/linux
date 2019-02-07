@@ -53,6 +53,8 @@ struct pcm512x_priv {
 	unsigned long overclock_pll;
 	unsigned long overclock_dac;
 	unsigned long overclock_dsp;
+	int mute;
+	struct mutex mutex;
 };
 
 /*
@@ -384,6 +386,61 @@ static const struct soc_enum pcm512x_veds =
 	SOC_ENUM_SINGLE(PCM512x_DIGITAL_MUTE_2, PCM512x_VEDS_SHIFT, 4,
 			pcm512x_ramp_step_text);
 
+static int pcm512x_update_mute(struct pcm512x_priv *pcm512x)
+{
+	return regmap_update_bits(
+		pcm512x->regmap, PCM512x_MUTE, PCM512x_RQML | PCM512x_RQMR,
+		(!!(pcm512x->mute & 0x5) << PCM512x_RQML_SHIFT)
+		| (!!(pcm512x->mute & 0x3) << PCM512x_RQMR_SHIFT));
+}
+
+static int pcm512x_digital_playback_switch_get(struct snd_kcontrol *kcontrol,
+					       struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct pcm512x_priv *pcm512x = snd_soc_component_get_drvdata(component);
+
+	mutex_lock(&pcm512x->mutex);
+	ucontrol->value.integer.value[0] = !(pcm512x->mute & 0x4);
+	ucontrol->value.integer.value[1] = !(pcm512x->mute & 0x2);
+	mutex_unlock(&pcm512x->mutex);
+
+	return 0;
+}
+
+static int pcm512x_digital_playback_switch_put(struct snd_kcontrol *kcontrol,
+					       struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct pcm512x_priv *pcm512x = snd_soc_component_get_drvdata(component);
+	int ret, changed = 0;
+
+	mutex_lock(&pcm512x->mutex);
+
+	if ((pcm512x->mute & 0x4) == (ucontrol->value.integer.value[0] << 2)) {
+		pcm512x->mute ^= 0x4;
+		changed = 1;
+	}
+	if ((pcm512x->mute & 0x2) == (ucontrol->value.integer.value[1] << 1)) {
+		pcm512x->mute ^= 0x2;
+		changed = 1;
+	}
+
+	if (changed) {
+		ret = pcm512x_update_mute(pcm512x);
+		if (ret != 0) {
+			dev_err(component->dev,
+				"Failed to update digital mute: %d\n", ret);
+			mutex_unlock(&pcm512x->mutex);
+			return ret;
+		}
+	}
+
+	mutex_unlock(&pcm512x->mutex);
+
+	return changed;
+}
+
 static const struct snd_kcontrol_new pcm512x_controls[] = {
 SOC_DOUBLE_R_TLV("Digital Playback Volume", PCM512x_DIGITAL_VOLUME_2,
 		 PCM512x_DIGITAL_VOLUME_3, 0, 255, 1, digital_tlv),
@@ -391,8 +448,15 @@ SOC_DOUBLE_TLV("Analogue Playback Volume", PCM512x_ANALOG_GAIN_CTRL,
 	       PCM512x_LAGN_SHIFT, PCM512x_RAGN_SHIFT, 1, 1, analog_tlv),
 SOC_DOUBLE_TLV("Analogue Playback Boost Volume", PCM512x_ANALOG_GAIN_BOOST,
 	       PCM512x_AGBL_SHIFT, PCM512x_AGBR_SHIFT, 1, 0, boost_tlv),
-SOC_DOUBLE("Digital Playback Switch", PCM512x_MUTE, PCM512x_RQML_SHIFT,
-	   PCM512x_RQMR_SHIFT, 1, 1),
+{
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "Digital Playback Switch",
+	.index = 0,
+	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
+	.info = snd_ctl_boolean_stereo_info,
+	.get = pcm512x_digital_playback_switch_get,
+	.put = pcm512x_digital_playback_switch_put
+},
 
 SOC_SINGLE("Deemphasis Switch", PCM512x_DSP, PCM512x_DEMP_SHIFT, 1, 1),
 SOC_ENUM("DSP Program", pcm512x_dsp_program),
@@ -1319,10 +1383,58 @@ static int pcm512x_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	return 0;
 }
 
+static int pcm512x_digital_mute(struct snd_soc_dai *dai, int mute)
+{
+	struct snd_soc_component *component = dai->component;
+	struct pcm512x_priv *pcm512x = snd_soc_component_get_drvdata(component);
+	int ret;
+	unsigned int mute_det;
+
+	mutex_lock(&pcm512x->mutex);
+
+	if (mute) {
+		pcm512x->mute |= 0x1;
+		ret = regmap_update_bits(pcm512x->regmap, PCM512x_MUTE,
+					 PCM512x_RQML | PCM512x_RQMR,
+					 PCM512x_RQML | PCM512x_RQMR);
+		if (ret != 0) {
+			dev_err(component->dev,
+				"Failed to set digital mute: %d\n", ret);
+			goto unlock;
+		}
+
+		regmap_read_poll_timeout(pcm512x->regmap,
+					 PCM512x_ANALOG_MUTE_DET,
+					 mute_det, (mute_det & 0x3) == 0,
+					 200, 10000);
+	} else {
+		pcm512x->mute &= ~0x1;
+		ret = pcm512x_update_mute(pcm512x);
+		if (ret != 0) {
+			dev_err(component->dev,
+				"Failed to update digital mute: %d\n", ret);
+			goto unlock;
+		}
+
+		regmap_read_poll_timeout(pcm512x->regmap,
+					 PCM512x_ANALOG_MUTE_DET,
+					 mute_det,
+					 (mute_det & 0x3)
+					 == ((~pcm512x->mute >> 1) & 0x3),
+					 200, 10000);
+	}
+
+unlock:
+	mutex_unlock(&pcm512x->mutex);
+
+	return ret;
+}
+
 static const struct snd_soc_dai_ops pcm512x_dai_ops = {
 	.startup = pcm512x_dai_startup,
 	.hw_params = pcm512x_hw_params,
 	.set_fmt = pcm512x_set_fmt,
+	.digital_mute = pcm512x_digital_mute,
 };
 
 static struct snd_soc_dai_driver pcm512x_dai = {
@@ -1387,6 +1499,8 @@ int pcm512x_probe(struct device *dev, struct regmap *regmap)
 	pcm512x = devm_kzalloc(dev, sizeof(struct pcm512x_priv), GFP_KERNEL);
 	if (!pcm512x)
 		return -ENOMEM;
+
+	mutex_init(&pcm512x->mutex);
 
 	dev_set_drvdata(dev, pcm512x);
 	pcm512x->regmap = regmap;

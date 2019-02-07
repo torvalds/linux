@@ -61,11 +61,6 @@ struct dpu_hw_lm_ops {
 	void (*setup_border_color)(struct dpu_hw_mixer *ctx,
 		struct dpu_mdss_color *color,
 		u8 border_en);
-	/**
-	 * setup_gc : enable/disable gamma correction feature
-	 */
-	void (*setup_gc)(struct dpu_hw_mixer *mixer,
-			void *cfg);
 };
 
 struct dpu_hw_mixer {

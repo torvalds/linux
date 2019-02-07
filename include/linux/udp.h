@@ -49,7 +49,13 @@ struct udp_sock {
 	unsigned int	 corkflag;	/* Cork is required */
 	__u8		 encap_type;	/* Is this an Encapsulation socket? */
 	unsigned char	 no_check6_tx:1,/* Send zero UDP6 checksums on TX? */
-			 no_check6_rx:1;/* Allow zero UDP6 checksums on RX? */
+			 no_check6_rx:1,/* Allow zero UDP6 checksums on RX? */
+			 encap_enabled:1, /* This socket enabled encap
+					   * processing; UDP tunnels and
+					   * different encapsulation layer set
+					   * this
+					   */
+			 gro_enabled:1;	/* Can accept GRO packets */
 	/*
 	 * Following member retains the information to create a UDP header
 	 * when the socket is uncorked.
@@ -71,6 +77,7 @@ struct udp_sock {
 	 * For encapsulation sockets.
 	 */
 	int (*encap_rcv)(struct sock *sk, struct sk_buff *skb);
+	int (*encap_err_lookup)(struct sock *sk, struct sk_buff *skb);
 	void (*encap_destroy)(struct sock *sk);
 
 	/* GRO functions for UDP socket */
@@ -113,6 +120,23 @@ static inline bool udp_get_no_check6_tx(struct sock *sk)
 static inline bool udp_get_no_check6_rx(struct sock *sk)
 {
 	return udp_sk(sk)->no_check6_rx;
+}
+
+static inline void udp_cmsg_recv(struct msghdr *msg, struct sock *sk,
+				 struct sk_buff *skb)
+{
+	int gso_size;
+
+	if (skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4) {
+		gso_size = skb_shinfo(skb)->gso_size;
+		put_cmsg(msg, SOL_UDP, UDP_GRO, sizeof(gso_size), &gso_size);
+	}
+}
+
+static inline bool udp_unexpected_gso(struct sock *sk, struct sk_buff *skb)
+{
+	return !udp_sk(sk)->gro_enabled && skb_is_gso(skb) &&
+	       skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4;
 }
 
 #define udp_portaddr_for_each_entry(__sk, list) \

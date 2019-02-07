@@ -104,6 +104,60 @@ struct ftrace_likely_data {
 	unsigned long			constant;
 };
 
+#ifdef CONFIG_ENABLE_MUST_CHECK
+#define __must_check		__attribute__((__warn_unused_result__))
+#else
+#define __must_check
+#endif
+
+#if defined(CC_USING_HOTPATCH)
+#define notrace			__attribute__((hotpatch(0, 0)))
+#else
+#define notrace			__attribute__((__no_instrument_function__))
+#endif
+
+/*
+ * it doesn't make sense on ARM (currently the only user of __naked)
+ * to trace naked functions because then mcount is called without
+ * stack and frame pointer being set up and there is no chance to
+ * restore the lr register to the value before mcount was called.
+ */
+#define __naked			__attribute__((__naked__)) notrace
+
+#define __compiler_offsetof(a, b)	__builtin_offsetof(a, b)
+
+/*
+ * Force always-inline if the user requests it so via the .config.
+ * GCC does not warn about unused static inline functions for
+ * -Wunused-function.  This turns out to avoid the need for complex #ifdef
+ * directives.  Suppress the warning in clang as well by using "unused"
+ * function attribute, which is redundant but not harmful for gcc.
+ * Prefer gnu_inline, so that extern inline functions do not emit an
+ * externally visible function. This makes extern inline behave as per gnu89
+ * semantics rather than c99. This prevents multiple symbol definition errors
+ * of extern inline functions at link time.
+ * A lot of inline functions can cause havoc with function tracing.
+ * Do not use __always_inline here, since currently it expands to inline again
+ * (which would break users of __always_inline).
+ */
+#if !defined(CONFIG_ARCH_SUPPORTS_OPTIMIZED_INLINING) || \
+	!defined(CONFIG_OPTIMIZE_INLINING)
+#define inline inline __attribute__((__always_inline__)) __gnu_inline \
+	__maybe_unused notrace
+#else
+#define inline inline                                    __gnu_inline \
+	__maybe_unused notrace
+#endif
+
+#define __inline__ inline
+#define __inline   inline
+
+/*
+ * Rather then using noinline to prevent stack consumption, use
+ * noinline_for_stack instead.  For documentation reasons.
+ */
+#define noinline_for_stack noinline
+
 #endif /* __KERNEL__ */
 
 #endif /* __ASSEMBLY__ */
@@ -160,59 +214,5 @@ struct ftrace_likely_data {
 	__diag_ ## compiler(version, warn, option)
 #define __diag_error(compiler, version, option, comment) \
 	__diag_ ## compiler(version, error, option)
-
-#ifdef CONFIG_ENABLE_MUST_CHECK
-#define __must_check		__attribute__((__warn_unused_result__))
-#else
-#define __must_check
-#endif
-
-#if defined(CC_USING_HOTPATCH)
-#define notrace			__attribute__((hotpatch(0, 0)))
-#else
-#define notrace			__attribute__((__no_instrument_function__))
-#endif
-
-/*
- * it doesn't make sense on ARM (currently the only user of __naked)
- * to trace naked functions because then mcount is called without
- * stack and frame pointer being set up and there is no chance to
- * restore the lr register to the value before mcount was called.
- */
-#define __naked			__attribute__((__naked__)) notrace
-
-#define __compiler_offsetof(a, b)	__builtin_offsetof(a, b)
-
-/*
- * Force always-inline if the user requests it so via the .config.
- * GCC does not warn about unused static inline functions for
- * -Wunused-function.  This turns out to avoid the need for complex #ifdef
- * directives.  Suppress the warning in clang as well by using "unused"
- * function attribute, which is redundant but not harmful for gcc.
- * Prefer gnu_inline, so that extern inline functions do not emit an
- * externally visible function. This makes extern inline behave as per gnu89
- * semantics rather than c99. This prevents multiple symbol definition errors
- * of extern inline functions at link time.
- * A lot of inline functions can cause havoc with function tracing.
- * Do not use __always_inline here, since currently it expands to inline again
- * (which would break users of __always_inline).
- */
-#if !defined(CONFIG_ARCH_SUPPORTS_OPTIMIZED_INLINING) || \
-	!defined(CONFIG_OPTIMIZE_INLINING)
-#define inline inline __attribute__((__always_inline__)) __gnu_inline \
-	__maybe_unused notrace
-#else
-#define inline inline                                    __gnu_inline \
-	__maybe_unused notrace
-#endif
-
-#define __inline__ inline
-#define __inline   inline
-
-/*
- * Rather then using noinline to prevent stack consumption, use
- * noinline_for_stack instead.  For documentation reasons.
- */
-#define noinline_for_stack noinline
 
 #endif /* __LINUX_COMPILER_TYPES_H */

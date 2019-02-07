@@ -624,6 +624,7 @@ struct ath10k_hw_ops {
 	int (*rx_desc_get_l3_pad_bytes)(struct htt_rx_desc *rxd);
 	void (*set_coverage_class)(struct ath10k *ar, s16 value);
 	int (*enable_pll_clk)(struct ath10k *ar);
+	bool (*rx_desc_get_msdu_limit_error)(struct htt_rx_desc *rxd);
 };
 
 extern const struct ath10k_hw_ops qca988x_ops;
@@ -640,6 +641,15 @@ ath10k_rx_desc_get_l3_pad_bytes(struct ath10k_hw_params *hw,
 	if (hw->hw_ops->rx_desc_get_l3_pad_bytes)
 		return hw->hw_ops->rx_desc_get_l3_pad_bytes(rxd);
 	return 0;
+}
+
+static inline bool
+ath10k_rx_desc_msdu_limit_error(struct ath10k_hw_params *hw,
+				struct htt_rx_desc *rxd)
+{
+	if (hw->hw_ops->rx_desc_get_msdu_limit_error)
+		return hw->hw_ops->rx_desc_get_msdu_limit_error(rxd);
+	return false;
 }
 
 /* Target specific defines for MAIN firmware */

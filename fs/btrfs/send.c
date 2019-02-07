@@ -2238,7 +2238,7 @@ out:
  * inodes "orphan" name instead of the real name and stop. Same with new inodes
  * that were not created yet and overwritten inodes/refs.
  *
- * When do we have have orphan inodes:
+ * When do we have orphan inodes:
  * 1. When an inode is freshly created and thus no valid refs are available yet
  * 2. When a directory lost all it's refs (deleted) but still has dir items
  *    inside which were not processed yet (pending for move/delete). If anyone
@@ -3854,7 +3854,7 @@ static int process_recorded_refs(struct send_ctx *sctx, int *pending_move)
 		/*
 		 * We may have refs where the parent directory does not exist
 		 * yet. This happens if the parent directories inum is higher
-		 * the the current inum. To handle this case, we create the
+		 * than the current inum. To handle this case, we create the
 		 * parent directory out of order. But we need to check if this
 		 * did already happen before due to other refs in the same dir.
 		 */
@@ -4775,7 +4775,7 @@ static ssize_t fill_read_buf(struct send_ctx *sctx, u64 offset, u32 len)
 	struct btrfs_key key;
 	pgoff_t index = offset >> PAGE_SHIFT;
 	pgoff_t last_index;
-	unsigned pg_offset = offset & ~PAGE_MASK;
+	unsigned pg_offset = offset_in_page(offset);
 	ssize_t ret = 0;
 
 	key.objectid = sctx->cur_ino;
@@ -6646,7 +6646,7 @@ long btrfs_ioctl_send(struct file *mnt_file, struct btrfs_ioctl_send_args *arg)
 		goto out;
 	}
 
-	if (!access_ok(VERIFY_READ, arg->clone_sources,
+	if (!access_ok(arg->clone_sources,
 			sizeof(*arg->clone_sources) *
 			arg->clone_sources_count)) {
 		ret = -EFAULT;

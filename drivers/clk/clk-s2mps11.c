@@ -71,7 +71,7 @@ static unsigned long s2mps11_clk_recalc_rate(struct clk_hw *hw,
 	return 32768;
 }
 
-static struct clk_ops s2mps11_clk_ops = {
+static const struct clk_ops s2mps11_clk_ops = {
 	.prepare	= s2mps11_clk_prepare,
 	.unprepare	= s2mps11_clk_unprepare,
 	.is_prepared	= s2mps11_clk_is_prepared,
