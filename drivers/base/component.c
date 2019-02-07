@@ -47,6 +47,7 @@ struct component;
 struct component_match_array {
 	void *data;
 	int (*compare)(struct device *, void *);
+	int (*compare_typed)(struct device *, int, void *);
 	void (*release)(struct device *, void *);
 	struct component *component;
 	bool duplicate;
@@ -74,6 +75,7 @@ struct component {
 	bool bound;
 
 	const struct component_ops *ops;
+	int subcomponent;
 	struct device *dev;
 };
 
@@ -158,7 +160,7 @@ static struct master *__master_find(struct device *dev,
 }
 
 static struct component *find_component(struct master *master,
-	int (*compare)(struct device *, void *), void *compare_data)
+	struct component_match_array *mc)
 {
 	struct component *c;
 
@@ -166,7 +168,11 @@ static struct component *find_component(struct master *master,
 		if (c->master && c->master != master)
 			continue;
 
-		if (compare(c->dev, compare_data))
+		if (mc->compare && mc->compare(c->dev, mc->data))
+			return c;
+
+		if (mc->compare_typed &&
+		    mc->compare_typed(c->dev, c->subcomponent, mc->data))
 			return c;
 	}
 
@@ -192,7 +198,7 @@ static int find_components(struct master *master)
 		if (match->compare[i].component)
 			continue;
 
-		c = find_component(master, mc->compare, mc->data);
+		c = find_component(master, mc);
 		if (!c) {
 			ret = -ENXIO;
 			break;
@@ -327,29 +333,12 @@ static int component_match_realloc(struct device *dev,
 	return 0;
 }
 
-/**
- * component_match_add_release - add a component match with release callback
- * @master: device with the aggregate driver
- * @matchptr: pointer to the list of component matches
- * @release: release function for @compare_data
- * @compare: compare function to match against all components
- * @compare_data: opaque pointer passed to the @compare function
- *
- * Adds a new component match to the list stored in @matchptr, which the @master
- * aggregate driver needs to function. The list of component matches pointed to
- * by @matchptr must be initialized to NULL before adding the first match.
- *
- * The allocated match list in @matchptr is automatically released using devm
- * actions, where upon @release will be called to free any references held by
- * @compare_data, e.g. when @compare_data is a &device_node that must be
- * released with of_node_put().
- *
- * See also component_match_add().
- */
-void component_match_add_release(struct device *master,
+static void __component_match_add(struct device *master,
 	struct component_match **matchptr,
 	void (*release)(struct device *, void *),
-	int (*compare)(struct device *, void *), void *compare_data)
+	int (*compare)(struct device *, void *),
+	int (*compare_typed)(struct device *, int, void *),
+	void *compare_data)
 {
 	struct component_match *match = *matchptr;
 
@@ -381,12 +370,68 @@ void component_match_add_release(struct device *master,
 	}
 
 	match->compare[match->num].compare = compare;
+	match->compare[match->num].compare_typed = compare_typed;
 	match->compare[match->num].release = release;
 	match->compare[match->num].data = compare_data;
 	match->compare[match->num].component = NULL;
 	match->num++;
 }
+
+/**
+ * component_match_add_release - add a component match with release callback
+ * @master: device with the aggregate driver
+ * @matchptr: pointer to the list of component matches
+ * @release: release function for @compare_data
+ * @compare: compare function to match against all components
+ * @compare_data: opaque pointer passed to the @compare function
+ *
+ * Adds a new component match to the list stored in @matchptr, which the @master
+ * aggregate driver needs to function. The list of component matches pointed to
+ * by @matchptr must be initialized to NULL before adding the first match. This
+ * only matches against components added with component_add().
+ *
+ * The allocated match list in @matchptr is automatically released using devm
+ * actions, where upon @release will be called to free any references held by
+ * @compare_data, e.g. when @compare_data is a &device_node that must be
+ * released with of_node_put().
+ *
+ * See also component_match_add() and component_match_add_typed().
+ */
+void component_match_add_release(struct device *master,
+	struct component_match **matchptr,
+	void (*release)(struct device *, void *),
+	int (*compare)(struct device *, void *), void *compare_data)
+{
+	__component_match_add(master, matchptr, release, compare, NULL,
+			      compare_data);
+}
 EXPORT_SYMBOL(component_match_add_release);
+
+/**
+ * component_match_add_typed - add a compent match for a typed component
+ * @master: device with the aggregate driver
+ * @matchptr: pointer to the list of component matches
+ * @compare_typed: compare function to match against all typed components
+ * @compare_data: opaque pointer passed to the @compare function
+ *
+ * Adds a new component match to the list stored in @matchptr, which the @master
+ * aggregate driver needs to function. The list of component matches pointed to
+ * by @matchptr must be initialized to NULL before adding the first match. This
+ * only matches against components added with component_add_typed().
+ *
+ * The allocated match list in @matchptr is automatically released using devm
+ * actions.
+ *
+ * See also component_match_add_release() and component_match_add_typed().
+ */
+void component_match_add_typed(struct device *master,
+	struct component_match **matchptr,
+	int (*compare_typed)(struct device *, int, void *), void *compare_data)
+{
+	__component_match_add(master, matchptr, NULL, NULL, compare_typed,
+			      compare_data);
+}
+EXPORT_SYMBOL(component_match_add_typed);
 
 static void free_master(struct master *master)
 {
@@ -616,19 +661,8 @@ int component_bind_all(struct device *master_dev, void *data)
 }
 EXPORT_SYMBOL_GPL(component_bind_all);
 
-/**
- * component_add - register a component
- * @dev: component device
- * @ops: component callbacks
- *
- * Register a new component for @dev. Functions in @ops will be called when the
- * aggregate driver is ready to bind the overall driver by calling
- * component_bind_all(). See also &struct component_ops.
- *
- * The component needs to be unregistered at driver unload/disconnect by calling
- * component_del().
- */
-int component_add(struct device *dev, const struct component_ops *ops)
+static int __component_add(struct device *dev, const struct component_ops *ops,
+	int subcomponent)
 {
 	struct component *component;
 	int ret;
@@ -639,6 +673,7 @@ int component_add(struct device *dev, const struct component_ops *ops)
 
 	component->ops = ops;
 	component->dev = dev;
+	component->subcomponent = subcomponent;
 
 	dev_dbg(dev, "adding component (ops %ps)\n", ops);
 
@@ -656,6 +691,55 @@ int component_add(struct device *dev, const struct component_ops *ops)
 	mutex_unlock(&component_mutex);
 
 	return ret < 0 ? ret : 0;
+}
+
+/**
+ * component_add_typed - register a component
+ * @dev: component device
+ * @ops: component callbacks
+ * @subcomponent: nonzero identifier for subcomponents
+ *
+ * Register a new component for @dev. Functions in @ops will be call when the
+ * aggregate driver is ready to bind the overall driver by calling
+ * component_bind_all(). See also &struct component_ops.
+ *
+ * @subcomponent must be nonzero and is used to differentiate between multiple
+ * components registerd on the same device @dev. These components are match
+ * using component_match_add_typed().
+ *
+ * The component needs to be unregistered at driver unload/disconnect by
+ * calling component_del().
+ *
+ * See also component_add().
+ */
+int component_add_typed(struct device *dev, const struct component_ops *ops,
+	int subcomponent)
+{
+	if (WARN_ON(subcomponent == 0))
+		return -EINVAL;
+
+	return __component_add(dev, ops, subcomponent);
+}
+EXPORT_SYMBOL_GPL(component_add_typed);
+
+/**
+ * component_add - register a component
+ * @dev: component device
+ * @ops: component callbacks
+ *
+ * Register a new component for @dev. Functions in @ops will be called when the
+ * aggregate driver is ready to bind the overall driver by calling
+ * component_bind_all(). See also &struct component_ops.
+ *
+ * The component needs to be unregistered at driver unload/disconnect by
+ * calling component_del().
+ *
+ * See also component_add_typed() for a variant that allows multipled different
+ * components on the same device.
+ */
+int component_add(struct device *dev, const struct component_ops *ops)
+{
+	return __component_add(dev, ops, 0);
 }
 EXPORT_SYMBOL_GPL(component_add);
 
