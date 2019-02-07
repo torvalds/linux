@@ -1287,24 +1287,28 @@ static void smc_listen_work(struct work_struct *work)
 		return;
 	}
 
+	/* SMC-D does not need this lock any more */
+	if (ism_supported)
+		mutex_unlock(&smc_create_lgr_pending);
+
 	/* receive SMC Confirm CLC message */
 	reason_code = smc_clc_wait_msg(new_smc, &cclc, sizeof(cclc),
 				       SMC_CLC_CONFIRM, CLC_WAIT_TIME);
 	if (reason_code) {
-		mutex_unlock(&smc_create_lgr_pending);
+		if (!ism_supported)
+			mutex_unlock(&smc_create_lgr_pending);
 		smc_listen_decline(new_smc, reason_code, local_contact);
 		return;
 	}
 
 	/* finish worker */
 	if (!ism_supported) {
-		if (smc_listen_rdma_finish(new_smc, &cclc, local_contact)) {
-			mutex_unlock(&smc_create_lgr_pending);
+		rc = smc_listen_rdma_finish(new_smc, &cclc, local_contact);
+		mutex_unlock(&smc_create_lgr_pending);
+		if (rc)
 			return;
-		}
 	}
 	smc_conn_save_peer_info(new_smc, &cclc);
-	mutex_unlock(&smc_create_lgr_pending);
 	smc_listen_out_connected(new_smc);
 }
 
