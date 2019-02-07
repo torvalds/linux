@@ -7,9 +7,9 @@
  * This driver supports the Broadcom V3D 3.3 and 4.1 OpenGL ES GPUs.
  * For V3D 2.x support, see the VC4 driver.
  *
- * Currently only single-core rendering using the binner and renderer
- * is supported.  The TFU (texture formatting unit) and V3D 4.x's CSD
- * (compute shader dispatch) are not yet supported.
+ * Currently only single-core rendering using the binner and renderer,
+ * along with TFU (texture formatting unit) rendering is supported.
+ * V3D 4.x's CSD (compute shader dispatch) is not yet supported.
  */
 
 #include <linux/clk.h>
