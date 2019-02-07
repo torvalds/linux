@@ -213,30 +213,36 @@ out:
 
 static int alloc_name(struct ib_device *ibdev, const char *name)
 {
-	unsigned long *inuse;
 	struct ib_device *device;
+	struct ida inuse;
+	int rc;
 	int i;
 
-	inuse = (unsigned long *) get_zeroed_page(GFP_KERNEL);
-	if (!inuse)
-		return -ENOMEM;
-
+	ida_init(&inuse);
 	list_for_each_entry(device, &device_list, core_list) {
 		char buf[IB_DEVICE_NAME_MAX];
 
 		if (sscanf(dev_name(&device->dev), name, &i) != 1)
 			continue;
-		if (i < 0 || i >= PAGE_SIZE * 8)
+		if (i < 0 || i >= INT_MAX)
 			continue;
 		snprintf(buf, sizeof buf, name, i);
-		if (!strcmp(buf, dev_name(&device->dev)))
-			set_bit(i, inuse);
+		if (strcmp(buf, dev_name(&device->dev)) != 0)
+			continue;
+
+		rc = ida_alloc_range(&inuse, i, i, GFP_KERNEL);
+		if (rc < 0)
+			goto out;
 	}
 
-	i = find_first_zero_bit(inuse, PAGE_SIZE * 8);
-	free_page((unsigned long) inuse);
+	rc = ida_alloc(&inuse, GFP_KERNEL);
+	if (rc < 0)
+		goto out;
 
-	return dev_set_name(&ibdev->dev, name, i);
+	rc = dev_set_name(&ibdev->dev, name, rc);
+out:
+	ida_destroy(&inuse);
+	return rc;
 }
 
 static void ib_device_release(struct device *device)
