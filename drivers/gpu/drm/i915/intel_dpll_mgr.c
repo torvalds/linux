@@ -1688,10 +1688,10 @@ static const struct bxt_clk_div bxt_dp_clk_val[] = {
 };
 
 static bool
-bxt_ddi_hdmi_pll_dividers(struct intel_crtc *intel_crtc,
-			  struct intel_crtc_state *crtc_state, int clock,
+bxt_ddi_hdmi_pll_dividers(struct intel_crtc_state *crtc_state,
 			  struct bxt_clk_div *clk_div)
 {
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct dpll best_clock;
 
 	/* Calculate HDMI div */
@@ -1699,9 +1699,10 @@ bxt_ddi_hdmi_pll_dividers(struct intel_crtc *intel_crtc,
 	 * FIXME: tie the following calculation into
 	 * i9xx_crtc_compute_clock
 	 */
-	if (!bxt_find_best_dpll(crtc_state, clock, &best_clock)) {
+	if (!bxt_find_best_dpll(crtc_state, &best_clock)) {
 		DRM_DEBUG_DRIVER("no PLL dividers found for clock %d pipe %c\n",
-				 clock, pipe_name(intel_crtc->pipe));
+				 crtc_state->port_clock,
+				 pipe_name(crtc->pipe));
 		return false;
 	}
 
@@ -1718,8 +1719,10 @@ bxt_ddi_hdmi_pll_dividers(struct intel_crtc *intel_crtc,
 	return true;
 }
 
-static void bxt_ddi_dp_pll_dividers(int clock, struct bxt_clk_div *clk_div)
+static void bxt_ddi_dp_pll_dividers(struct intel_crtc_state *crtc_state,
+				    struct bxt_clk_div *clk_div)
 {
+	int clock = crtc_state->port_clock;
 	int i;
 
 	*clk_div = bxt_dp_clk_val[0];
@@ -1733,10 +1736,11 @@ static void bxt_ddi_dp_pll_dividers(int clock, struct bxt_clk_div *clk_div)
 	clk_div->vco = clock * 10 / 2 * clk_div->p1 * clk_div->p2;
 }
 
-static bool bxt_ddi_set_dpll_hw_state(int clock,
-			  struct bxt_clk_div *clk_div,
-			  struct intel_dpll_hw_state *dpll_hw_state)
+static bool bxt_ddi_set_dpll_hw_state(struct intel_crtc_state *crtc_state,
+				      struct bxt_clk_div *clk_div,
+				      struct intel_dpll_hw_state *dpll_hw_state)
 {
+	int clock = crtc_state->port_clock;
 	int vco = clk_div->vco;
 	u32 prop_coef, int_coef, gain_ctl, targ_cnt;
 	u32 lanestagger;
@@ -1800,26 +1804,25 @@ static bool bxt_ddi_set_dpll_hw_state(int clock,
 }
 
 static bool
-bxt_ddi_dp_set_dpll_hw_state(int clock,
+bxt_ddi_dp_set_dpll_hw_state(struct intel_crtc_state *crtc_state,
 			     struct intel_dpll_hw_state *dpll_hw_state)
 {
-	struct bxt_clk_div clk_div = {0};
+	struct bxt_clk_div clk_div = {};
 
-	bxt_ddi_dp_pll_dividers(clock, &clk_div);
+	bxt_ddi_dp_pll_dividers(crtc_state, &clk_div);
 
-	return bxt_ddi_set_dpll_hw_state(clock, &clk_div, dpll_hw_state);
+	return bxt_ddi_set_dpll_hw_state(crtc_state, &clk_div, dpll_hw_state);
 }
 
 static bool
-bxt_ddi_hdmi_set_dpll_hw_state(struct intel_crtc *intel_crtc,
-			       struct intel_crtc_state *crtc_state, int clock,
+bxt_ddi_hdmi_set_dpll_hw_state(struct intel_crtc_state *crtc_state,
 			       struct intel_dpll_hw_state *dpll_hw_state)
 {
-	struct bxt_clk_div clk_div = { };
+	struct bxt_clk_div clk_div = {};
 
-	bxt_ddi_hdmi_pll_dividers(intel_crtc, crtc_state, clock, &clk_div);
+	bxt_ddi_hdmi_pll_dividers(crtc_state, &clk_div);
 
-	return bxt_ddi_set_dpll_hw_state(clock, &clk_div, dpll_hw_state);
+	return bxt_ddi_set_dpll_hw_state(crtc_state, &clk_div, dpll_hw_state);
 }
 
 static struct intel_shared_dpll *
@@ -1830,15 +1833,14 @@ bxt_get_dpll(struct intel_crtc_state *crtc_state,
 	struct intel_dpll_hw_state dpll_hw_state = { };
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_shared_dpll *pll;
-	int i, clock = crtc_state->port_clock;
+	enum intel_dpll_id id;
 
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI) &&
-	    !bxt_ddi_hdmi_set_dpll_hw_state(crtc, crtc_state, clock,
-					    &dpll_hw_state))
+	    !bxt_ddi_hdmi_set_dpll_hw_state(crtc_state, &dpll_hw_state))
 		return NULL;
 
 	if (intel_crtc_has_dp_encoder(crtc_state) &&
-	    !bxt_ddi_dp_set_dpll_hw_state(clock, &dpll_hw_state))
+	    !bxt_ddi_dp_set_dpll_hw_state(crtc_state, &dpll_hw_state))
 		return NULL;
 
 	memset(&crtc_state->dpll_hw_state, 0,
@@ -1847,8 +1849,8 @@ bxt_get_dpll(struct intel_crtc_state *crtc_state,
 	crtc_state->dpll_hw_state = dpll_hw_state;
 
 	/* 1:1 mapping between ports and PLLs */
-	i = (enum intel_dpll_id) encoder->port;
-	pll = intel_get_shared_dpll_by_id(dev_priv, i);
+	id = (enum intel_dpll_id) encoder->port;
+	pll = intel_get_shared_dpll_by_id(dev_priv, id);
 
 	DRM_DEBUG_KMS("[CRTC:%d:%s] using pre-allocated %s\n",
 		      crtc->base.base.id, crtc->base.name, pll->info->name);

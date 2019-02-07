@@ -951,14 +951,15 @@ chv_find_best_dpll(const struct intel_limit *limit,
 	return found;
 }
 
-bool bxt_find_best_dpll(struct intel_crtc_state *crtc_state, int target_clock,
+bool bxt_find_best_dpll(struct intel_crtc_state *crtc_state,
 			struct dpll *best_clock)
 {
 	int refclk = 100000;
 	const struct intel_limit *limit = &intel_limits_bxt;
 
 	return chv_find_best_dpll(limit, crtc_state,
-				  target_clock, refclk, NULL, best_clock);
+				  crtc_state->port_clock, refclk,
+				  NULL, best_clock);
 }
 
 bool intel_crtc_active(struct intel_crtc *crtc)
