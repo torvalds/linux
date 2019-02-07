@@ -96,9 +96,13 @@ struct ib_umem *ib_umem_get(struct ib_udata *udata, unsigned long addr,
 	struct scatterlist *sg, *sg_list_start;
 	unsigned int gup_flags = FOLL_WRITE;
 
-	context = rdma_get_ucontext(udata);
-	if (IS_ERR(context))
-		return ERR_CAST(context);
+	if (!udata)
+		return ERR_PTR(-EIO);
+
+	context = container_of(udata, struct uverbs_attr_bundle, driver_udata)
+			  ->context;
+	if (!context)
+		return ERR_PTR(-EIO);
 
 	if (dmasync)
 		dma_attrs |= DMA_ATTR_WRITE_BARRIER;

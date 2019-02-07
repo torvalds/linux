@@ -438,6 +438,38 @@ free:
 	uverbs_uobject_put(uobj);
 	return ERR_PTR(ret);
 }
+struct ib_uobject *_uobj_get_read(enum uverbs_default_objects type,
+				  u32 object_id,
+				  struct uverbs_attr_bundle *attrs)
+{
+	struct ib_uobject *uobj;
+
+	uobj = rdma_lookup_get_uobject(uobj_get_type(attrs, type), attrs->ufile,
+				       object_id, UVERBS_LOOKUP_READ);
+	if (IS_ERR(uobj))
+		return uobj;
+
+	attrs->context = uobj->context;
+
+	return uobj;
+}
+
+struct ib_uobject *_uobj_get_write(enum uverbs_default_objects type,
+				   u32 object_id,
+				   struct uverbs_attr_bundle *attrs)
+{
+	struct ib_uobject *uobj;
+
+	uobj = rdma_lookup_get_uobject(uobj_get_type(attrs, type), attrs->ufile,
+				       object_id, UVERBS_LOOKUP_WRITE);
+
+	if (IS_ERR(uobj))
+		return uobj;
+
+	attrs->context = uobj->context;
+
+	return uobj;
+}
 
 static struct ib_uobject *
 alloc_begin_idr_uobject(const struct uverbs_api_object *obj,
