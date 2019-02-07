@@ -248,20 +248,17 @@ xfs_attr3_leaf_verify(
 
 	xfs_attr3_leaf_hdr_from_disk(mp->m_attr_geo, &ichdr, leaf);
 
+	if (!xfs_verify_magic(bp, leaf->hdr.info.magic))
+		return __this_address;
+
 	if (xfs_sb_version_hascrc(&mp->m_sb)) {
 		struct xfs_da3_node_hdr *hdr3 = bp->b_addr;
-
-		if (hdr3->info.hdr.magic != cpu_to_be16(XFS_ATTR3_LEAF_MAGIC))
-			return __this_address;
 
 		if (!uuid_equal(&hdr3->info.uuid, &mp->m_sb.sb_meta_uuid))
 			return __this_address;
 		if (be64_to_cpu(hdr3->info.blkno) != bp->b_bn)
 			return __this_address;
 		if (!xfs_log_check_lsn(mp, be64_to_cpu(hdr3->info.lsn)))
-			return __this_address;
-	} else {
-		if (leaf->hdr.info.magic != cpu_to_be16(XFS_ATTR_LEAF_MAGIC))
 			return __this_address;
 	}
 	/*
@@ -369,6 +366,8 @@ xfs_attr3_leaf_read_verify(
 
 const struct xfs_buf_ops xfs_attr3_leaf_buf_ops = {
 	.name = "xfs_attr3_leaf",
+	.magic = { cpu_to_be16(XFS_ATTR_LEAF_MAGIC),
+		   cpu_to_be16(XFS_ATTR3_LEAF_MAGIC) },
 	.verify_read = xfs_attr3_leaf_read_verify,
 	.verify_write = xfs_attr3_leaf_write_verify,
 	.verify_struct = xfs_attr3_leaf_verify,
