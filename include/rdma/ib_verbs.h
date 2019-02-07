@@ -2610,7 +2610,7 @@ struct ib_device {
 };
 
 struct ib_client {
-	char  *name;
+	const char *name;
 	void (*add)   (struct ib_device *);
 	void (*remove)(struct ib_device *, void *client_data);
 
@@ -2637,6 +2637,7 @@ struct ib_client {
 			const struct sockaddr *addr,
 			void *client_data);
 	struct list_head list;
+	u32 client_id;
 
 	/* kverbs are not required by the client */
 	u8 no_kverbs_req:1;
