@@ -869,6 +869,14 @@ static void vxlan_fdb_destroy(struct vxlan_dev *vxlan, struct vxlan_fdb *f,
 	call_rcu(&f->rcu, vxlan_fdb_free);
 }
 
+static void vxlan_dst_free(struct rcu_head *head)
+{
+	struct vxlan_rdst *rd = container_of(head, struct vxlan_rdst, rcu);
+
+	dst_cache_destroy(&rd->dst_cache);
+	kfree(rd);
+}
+
 static int vxlan_fdb_update_existing(struct vxlan_dev *vxlan,
 				     union vxlan_addr *ip,
 				     __u16 state, __u16 flags,
@@ -941,8 +949,10 @@ static int vxlan_fdb_update_existing(struct vxlan_dev *vxlan,
 err_notify:
 	if ((flags & NLM_F_REPLACE) && rc)
 		*rd = oldrd;
-	else if ((flags & NLM_F_APPEND) && rc)
+	else if ((flags & NLM_F_APPEND) && rc) {
 		list_del_rcu(&rd->list);
+		call_rcu(&rd->rcu, vxlan_dst_free);
+	}
 	return err;
 }
 
@@ -1011,14 +1021,6 @@ static int vxlan_fdb_update(struct vxlan_dev *vxlan,
 					       port, src_vni, vni, ifindex,
 					       ndm_flags, swdev_notify, extack);
 	}
-}
-
-static void vxlan_dst_free(struct rcu_head *head)
-{
-	struct vxlan_rdst *rd = container_of(head, struct vxlan_rdst, rcu);
-
-	dst_cache_destroy(&rd->dst_cache);
-	kfree(rd);
 }
 
 static void vxlan_fdb_dst_destroy(struct vxlan_dev *vxlan, struct vxlan_fdb *f,
