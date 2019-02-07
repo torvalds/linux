@@ -41,4 +41,6 @@ source "drivers/staging/media/zoran/Kconfig"
 
 source "drivers/staging/media/ipu3/Kconfig"
 
+source "drivers/staging/media/soc_camera/Kconfig"
+
 endif

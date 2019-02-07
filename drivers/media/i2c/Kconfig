@@ -1134,12 +1134,4 @@ config VIDEO_I2C
 
 endmenu
 
-menu "Sensors used on soc_camera driver"
-
-if SOC_CAMERA
-	source "drivers/media/i2c/soc_camera/Kconfig"
-endif
-
-endmenu
-
 endif

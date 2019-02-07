@@ -141,7 +141,6 @@ config VIDEO_RENESAS_CEU
 	---help---
 	  This is a v4l2 driver for the Renesas CEU Interface
 
-source "drivers/media/platform/soc_camera/Kconfig"
 source "drivers/media/platform/exynos4-is/Kconfig"
 source "drivers/media/platform/am437x/Kconfig"
 source "drivers/media/platform/xilinx/Kconfig"
