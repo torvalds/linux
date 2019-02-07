@@ -25,8 +25,6 @@ source "drivers/staging/media/davinci_vpfe/Kconfig"
 
 source "drivers/staging/media/imx/Kconfig"
 
-source "drivers/staging/media/imx074/Kconfig"
-
 source "drivers/staging/media/mt9t031/Kconfig"
 
 source "drivers/staging/media/omap4iss/Kconfig"
