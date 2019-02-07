@@ -634,3 +634,14 @@ void mlxsw_sp_acl_atcam_fini(struct mlxsw_sp *mlxsw_sp,
 {
 	mlxsw_sp_acl_erps_fini(mlxsw_sp, atcam);
 }
+
+void *
+mlxsw_sp_acl_atcam_rehash_hints_get(struct mlxsw_sp_acl_atcam_region *aregion)
+{
+	return mlxsw_sp_acl_erp_rehash_hints_get(aregion);
+}
+
+void mlxsw_sp_acl_atcam_rehash_hints_put(void *hints_priv)
+{
+	mlxsw_sp_acl_erp_rehash_hints_put(hints_priv);
+}

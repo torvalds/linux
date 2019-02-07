@@ -708,6 +708,8 @@ struct mlxsw_sp_acl_tcam_ops {
 	void (*region_fini)(struct mlxsw_sp *mlxsw_sp, void *region_priv);
 	int (*region_associate)(struct mlxsw_sp *mlxsw_sp,
 				struct mlxsw_sp_acl_tcam_region *region);
+	void * (*region_rehash_hints_get)(void *region_priv);
+	void (*region_rehash_hints_put)(void *hints_priv);
 	size_t chunk_priv_size;
 	void (*chunk_init)(void *region_priv, void *chunk_priv,
 			   unsigned int priority);

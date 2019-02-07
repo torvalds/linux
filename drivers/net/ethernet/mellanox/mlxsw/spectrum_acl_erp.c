@@ -1370,6 +1370,80 @@ mlxsw_sp_acl_erp_region_param_init(struct mlxsw_sp_acl_atcam_region *aregion)
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(pererp), pererp_pl);
 }
 
+static int
+mlxsw_sp_acl_erp_hints_check(struct mlxsw_sp *mlxsw_sp,
+			     struct mlxsw_sp_acl_atcam_region *aregion,
+			     struct objagg_hints *hints, bool *p_rehash_needed)
+{
+	struct objagg *objagg = aregion->erp_table->objagg;
+	const struct objagg_stats *ostats;
+	const struct objagg_stats *hstats;
+	int err;
+
+	*p_rehash_needed = false;
+
+	ostats = objagg_stats_get(objagg);
+	if (IS_ERR(ostats)) {
+		dev_err_ratelimited(mlxsw_sp->bus_info->dev, "Failed to get ERP stats\n");
+		return PTR_ERR(ostats);
+	}
+
+	hstats = objagg_hints_stats_get(hints);
+	if (IS_ERR(hstats)) {
+		dev_err_ratelimited(mlxsw_sp->bus_info->dev, "Failed to get ERP hints stats\n");
+		err = PTR_ERR(hstats);
+		goto err_hints_stats_get;
+	}
+
+	/* Very basic criterion for now. */
+	if (hstats->root_count < ostats->root_count)
+		*p_rehash_needed = true;
+
+	err = 0;
+
+	objagg_stats_put(hstats);
+err_hints_stats_get:
+	objagg_stats_put(ostats);
+	return err;
+}
+
+void *
+mlxsw_sp_acl_erp_rehash_hints_get(struct mlxsw_sp_acl_atcam_region *aregion)
+{
+	struct mlxsw_sp *mlxsw_sp = aregion->region->mlxsw_sp;
+	struct objagg_hints *hints;
+	bool rehash_needed;
+	int err;
+
+	hints = objagg_hints_get(aregion->erp_table->objagg,
+				 OBJAGG_OPT_ALGO_SIMPLE_GREEDY);
+	if (IS_ERR(hints)) {
+		dev_err_ratelimited(mlxsw_sp->bus_info->dev, "Failed to create ERP hints\n");
+		return ERR_CAST(hints);
+	}
+	err = mlxsw_sp_acl_erp_hints_check(mlxsw_sp, aregion, hints,
+					   &rehash_needed);
+	if (err)
+		goto errout;
+
+	if (!rehash_needed) {
+		err = -EAGAIN;
+		goto errout;
+	}
+	return hints;
+
+errout:
+	objagg_hints_put(hints);
+	return ERR_PTR(err);
+}
+
+void mlxsw_sp_acl_erp_rehash_hints_put(void *hints_priv)
+{
+	struct objagg_hints *hints = hints_priv;
+
+	objagg_hints_put(hints);
+}
+
 int mlxsw_sp_acl_erp_region_init(struct mlxsw_sp_acl_atcam_region *aregion)
 {
 	struct mlxsw_sp_acl_erp_table *erp_table;

@@ -229,6 +229,9 @@ int mlxsw_sp_acl_atcam_init(struct mlxsw_sp *mlxsw_sp,
 			    struct mlxsw_sp_acl_atcam *atcam);
 void mlxsw_sp_acl_atcam_fini(struct mlxsw_sp *mlxsw_sp,
 			     struct mlxsw_sp_acl_atcam *atcam);
+void *
+mlxsw_sp_acl_atcam_rehash_hints_get(struct mlxsw_sp_acl_atcam_region *aregion);
+void mlxsw_sp_acl_atcam_rehash_hints_put(void *hints_priv);
 
 struct mlxsw_sp_acl_erp_delta;
 
@@ -259,6 +262,9 @@ void mlxsw_sp_acl_erp_bf_remove(struct mlxsw_sp *mlxsw_sp,
 				struct mlxsw_sp_acl_atcam_region *aregion,
 				struct mlxsw_sp_acl_erp_mask *erp_mask,
 				struct mlxsw_sp_acl_atcam_entry *aentry);
+void *
+mlxsw_sp_acl_erp_rehash_hints_get(struct mlxsw_sp_acl_atcam_region *aregion);
+void mlxsw_sp_acl_erp_rehash_hints_put(void *hints_priv);
 int mlxsw_sp_acl_erp_region_init(struct mlxsw_sp_acl_atcam_region *aregion);
 void mlxsw_sp_acl_erp_region_fini(struct mlxsw_sp_acl_atcam_region *aregion);
 int mlxsw_sp_acl_erps_init(struct mlxsw_sp *mlxsw_sp,
