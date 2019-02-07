@@ -251,7 +251,7 @@ xfs_attr3_leaf_verify(
 	if (xfs_sb_version_hascrc(&mp->m_sb)) {
 		struct xfs_da3_node_hdr *hdr3 = bp->b_addr;
 
-		if (ichdr.magic != XFS_ATTR3_LEAF_MAGIC)
+		if (hdr3->info.hdr.magic != cpu_to_be16(XFS_ATTR3_LEAF_MAGIC))
 			return __this_address;
 
 		if (!uuid_equal(&hdr3->info.uuid, &mp->m_sb.sb_meta_uuid))
@@ -261,7 +261,7 @@ xfs_attr3_leaf_verify(
 		if (!xfs_log_check_lsn(mp, be64_to_cpu(hdr3->info.lsn)))
 			return __this_address;
 	} else {
-		if (ichdr.magic != XFS_ATTR_LEAF_MAGIC)
+		if (leaf->hdr.info.magic != cpu_to_be16(XFS_ATTR_LEAF_MAGIC))
 			return __this_address;
 	}
 	/*

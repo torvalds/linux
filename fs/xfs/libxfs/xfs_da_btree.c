@@ -132,7 +132,7 @@ xfs_da3_node_verify(
 	if (xfs_sb_version_hascrc(&mp->m_sb)) {
 		struct xfs_da3_node_hdr *hdr3 = bp->b_addr;
 
-		if (ichdr.magic != XFS_DA3_NODE_MAGIC)
+		if (hdr3->info.hdr.magic != cpu_to_be16(XFS_DA3_NODE_MAGIC))
 			return __this_address;
 
 		if (!uuid_equal(&hdr3->info.uuid, &mp->m_sb.sb_meta_uuid))
@@ -142,7 +142,7 @@ xfs_da3_node_verify(
 		if (!xfs_log_check_lsn(mp, be64_to_cpu(hdr3->info.lsn)))
 			return __this_address;
 	} else {
-		if (ichdr.magic != XFS_DA_NODE_MAGIC)
+		if (hdr->hdr.info.magic != cpu_to_be16(XFS_DA_NODE_MAGIC))
 			return __this_address;
 	}
 	if (ichdr.level == 0)

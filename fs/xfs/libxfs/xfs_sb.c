@@ -225,10 +225,11 @@ xfs_validate_sb_common(
 	struct xfs_buf		*bp,
 	struct xfs_sb		*sbp)
 {
+	struct xfs_dsb		*dsb = XFS_BUF_TO_SBP(bp);
 	uint32_t		agcount = 0;
 	uint32_t		rem;
 
-	if (sbp->sb_magicnum != XFS_SB_MAGIC) {
+	if (dsb->sb_magicnum != cpu_to_be32(XFS_SB_MAGIC)) {
 		xfs_warn(mp, "bad magic number");
 		return -EWRONGFS;
 	}

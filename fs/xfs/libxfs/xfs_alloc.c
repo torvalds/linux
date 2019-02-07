@@ -570,7 +570,7 @@ xfs_agfl_verify(
 
 	if (!uuid_equal(&agfl->agfl_uuid, &mp->m_sb.sb_meta_uuid))
 		return __this_address;
-	if (be32_to_cpu(agfl->agfl_magicnum) != XFS_AGFL_MAGIC)
+	if (agfl->agfl_magicnum != cpu_to_be32(XFS_AGFL_MAGIC))
 		return __this_address;
 	/*
 	 * during growfs operations, the perag is not fully initialised,

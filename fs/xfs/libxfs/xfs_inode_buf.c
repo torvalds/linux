@@ -151,7 +151,7 @@ const struct xfs_buf_ops xfs_inode_buf_ops = {
 };
 
 const struct xfs_buf_ops xfs_inode_buf_ra_ops = {
-	.name = "xxfs_inode_ra",
+	.name = "xfs_inode_ra",
 	.verify_read = xfs_inode_buf_readahead_verify,
 	.verify_write = xfs_inode_buf_write_verify,
 };
