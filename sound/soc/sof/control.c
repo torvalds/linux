@@ -109,6 +109,150 @@ int snd_sof_volume_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+int snd_sof_switch_get(struct snd_kcontrol *kcontrol,
+		       struct snd_ctl_elem_value *ucontrol)
+{
+	struct soc_mixer_control *sm =
+		(struct soc_mixer_control *)kcontrol->private_value;
+	struct snd_sof_control *scontrol = sm->dobj.private;
+	struct snd_sof_dev *sdev = scontrol->sdev;
+	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
+	unsigned int i, channels = scontrol->num_channels;
+	int err, ret;
+
+	ret = pm_runtime_get_sync(sdev->dev);
+	if (ret < 0) {
+		dev_err_ratelimited(sdev->dev, "error: switch get failed to resume %d\n",
+				    ret);
+		return ret;
+	}
+
+	/* get all the mixer data from DSP */
+	snd_sof_ipc_get_comp_data(sdev->ipc, scontrol, SOF_IPC_COMP_GET_VALUE,
+				  SOF_CTRL_TYPE_VALUE_CHAN_GET,
+				  SOF_CTRL_CMD_SWITCH);
+
+	/* read back each channel */
+	for (i = 0; i < channels; i++)
+		ucontrol->value.integer.value[i] = cdata->chanv[i].value;
+
+	pm_runtime_mark_last_busy(sdev->dev);
+	err = pm_runtime_put_autosuspend(sdev->dev);
+	if (err < 0)
+		dev_err_ratelimited(sdev->dev, "error: switch get failed to idle %d\n",
+				    err);
+	return 0;
+}
+
+int snd_sof_switch_put(struct snd_kcontrol *kcontrol,
+		       struct snd_ctl_elem_value *ucontrol)
+{
+	struct soc_mixer_control *sm =
+		(struct soc_mixer_control *)kcontrol->private_value;
+	struct snd_sof_control *scontrol = sm->dobj.private;
+	struct snd_sof_dev *sdev = scontrol->sdev;
+	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
+	unsigned int i, channels = scontrol->num_channels;
+	int ret, err;
+
+	ret = pm_runtime_get_sync(sdev->dev);
+	if (ret < 0) {
+		dev_err_ratelimited(sdev->dev, "error: switch put failed to resume %d\n",
+				    ret);
+		return ret;
+	}
+
+	/* update each channel */
+	for (i = 0; i < channels; i++) {
+		cdata->chanv[i].value = ucontrol->value.integer.value[i];
+		cdata->chanv[i].channel = i;
+	}
+
+	/* notify DSP of mixer updates */
+	snd_sof_ipc_set_comp_data(sdev->ipc, scontrol, SOF_IPC_COMP_SET_VALUE,
+				  SOF_CTRL_TYPE_VALUE_CHAN_GET,
+				  SOF_CTRL_CMD_SWITCH);
+
+	pm_runtime_mark_last_busy(sdev->dev);
+	err = pm_runtime_put_autosuspend(sdev->dev);
+	if (err < 0)
+		dev_err_ratelimited(sdev->dev, "error: switch put failed to idle %d\n",
+				    err);
+	return 0;
+}
+
+int snd_sof_enum_get(struct snd_kcontrol *kcontrol,
+		     struct snd_ctl_elem_value *ucontrol)
+{
+	struct soc_enum *se =
+		(struct soc_enum *)kcontrol->private_value;
+	struct snd_sof_control *scontrol = se->dobj.private;
+	struct snd_sof_dev *sdev = scontrol->sdev;
+	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
+	unsigned int i, channels = scontrol->num_channels;
+	int err, ret;
+
+	ret = pm_runtime_get_sync(sdev->dev);
+	if (ret < 0) {
+		dev_err_ratelimited(sdev->dev, "error: enum get failed to resume %d\n",
+				    ret);
+		return ret;
+	}
+
+	/* get all the mixer data from DSP */
+	snd_sof_ipc_get_comp_data(sdev->ipc, scontrol, SOF_IPC_COMP_GET_VALUE,
+				  SOF_CTRL_TYPE_VALUE_CHAN_GET,
+				  SOF_CTRL_CMD_ENUM);
+
+	/* read back each channel */
+	for (i = 0; i < channels; i++)
+		ucontrol->value.enumerated.item[i] = cdata->chanv[i].value;
+
+	pm_runtime_mark_last_busy(sdev->dev);
+	err = pm_runtime_put_autosuspend(sdev->dev);
+	if (err < 0)
+		dev_err_ratelimited(sdev->dev, "error: enum get failed to idle %d\n",
+				    err);
+	return 0;
+}
+
+int snd_sof_enum_put(struct snd_kcontrol *kcontrol,
+		     struct snd_ctl_elem_value *ucontrol)
+{
+	struct soc_enum *se =
+		(struct soc_enum *)kcontrol->private_value;
+	struct snd_sof_control *scontrol = se->dobj.private;
+	struct snd_sof_dev *sdev = scontrol->sdev;
+	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
+	unsigned int i, channels = scontrol->num_channels;
+	int ret, err;
+
+	ret = pm_runtime_get_sync(sdev->dev);
+	if (ret < 0) {
+		dev_err_ratelimited(sdev->dev, "error: enum put failed to resume %d\n",
+				    ret);
+		return ret;
+	}
+
+	/* update each channel */
+	for (i = 0; i < channels; i++) {
+		cdata->chanv[i].value = ucontrol->value.enumerated.item[i];
+		cdata->chanv[i].channel = i;
+	}
+
+	/* notify DSP of mixer updates */
+	snd_sof_ipc_set_comp_data(sdev->ipc, scontrol, SOF_IPC_COMP_SET_VALUE,
+				  SOF_CTRL_TYPE_VALUE_CHAN_GET,
+				  SOF_CTRL_CMD_ENUM);
+
+	pm_runtime_mark_last_busy(sdev->dev);
+	err = pm_runtime_put_autosuspend(sdev->dev);
+	if (err < 0)
+		dev_err_ratelimited(sdev->dev, "error: enum put failed to idle %d\n",
+				    err);
+	return 0;
+}
+
 int snd_sof_bytes_get(struct snd_kcontrol *kcontrol,
 		      struct snd_ctl_elem_value *ucontrol)
 {

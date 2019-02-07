@@ -25,6 +25,10 @@ static int sof_restore_kcontrols(struct snd_sof_dev *sdev)
 		/* notify DSP of kcontrol values */
 		switch (scontrol->cmd) {
 		case SOF_CTRL_CMD_VOLUME:
+			/* fallthrough */
+		case SOF_CTRL_CMD_ENUM:
+			/* fallthrough */
+		case SOF_CTRL_CMD_SWITCH:
 			ipc_cmd = SOF_IPC_COMP_SET_VALUE;
 			ctrl_type = SOF_CTRL_TYPE_VALUE_CHAN_SET;
 			ret = snd_sof_ipc_set_comp_data(sdev->ipc, scontrol,

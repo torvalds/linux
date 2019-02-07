@@ -285,8 +285,46 @@ static int sof_control_load_volume(struct snd_soc_component *scomp,
 	scontrol->comp_id = sdev->next_comp_id;
 	scontrol->num_channels = le32_to_cpu(mc->num_channels);
 
+	/* set cmd for mixer control */
+	if (mc->max > 1)
+		scontrol->cmd = SOF_CTRL_CMD_VOLUME;
+	else
+		scontrol->cmd = SOF_CTRL_CMD_SWITCH;
+
 	dev_dbg(sdev->dev, "tplg: load kcontrol index %d chans %d\n",
 		scontrol->comp_id, scontrol->num_channels);
+
+	return 0;
+}
+
+static int sof_control_load_enum(struct snd_soc_component *scomp,
+				 struct snd_sof_control *scontrol,
+				 struct snd_kcontrol_new *kc,
+				 struct snd_soc_tplg_ctl_hdr *hdr)
+{
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	struct snd_soc_tplg_enum_control *ec =
+		(struct snd_soc_tplg_enum_control *)hdr;
+
+	/* validate topology data */
+	if (le32_to_cpu(ec->num_channels) > SND_SOC_TPLG_MAX_CHAN)
+		return -EINVAL;
+
+	/* init the enum get/put data */
+	scontrol->size = sizeof(struct sof_ipc_ctrl_data) +
+			 sizeof(struct sof_ipc_ctrl_value_chan) *
+			 le32_to_cpu(ec->num_channels);
+	scontrol->control_data = kzalloc(scontrol->size, GFP_KERNEL);
+	if (!scontrol->control_data)
+		return -ENOMEM;
+
+	scontrol->comp_id = sdev->next_comp_id;
+	scontrol->num_channels = le32_to_cpu(ec->num_channels);
+
+	scontrol->cmd = SOF_CTRL_CMD_ENUM;
+
+	dev_dbg(sdev->dev, "tplg: load kcontrol index %d chans %d comp_id %d\n",
+		scontrol->comp_id, scontrol->num_channels, scontrol->comp_id);
 
 	return 0;
 }
@@ -798,7 +836,8 @@ static int sof_control_load(struct snd_soc_component *scomp, int index,
 			    struct snd_soc_tplg_ctl_hdr *hdr)
 {
 	struct soc_mixer_control *sm;
-	struct soc_bytes_ext  *sbe;
+	struct soc_bytes_ext *sbe;
+	struct soc_enum *se;
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct snd_soc_dobj *dobj = NULL;
 	struct snd_sof_control *scontrol;
@@ -829,6 +868,10 @@ static int sof_control_load(struct snd_soc_component *scomp, int index,
 		break;
 	case SND_SOC_TPLG_CTL_ENUM:
 	case SND_SOC_TPLG_CTL_ENUM_VALUE:
+		se = (struct soc_enum *)kc->private_value;
+		dobj = &se->dobj;
+		ret = sof_control_load_enum(scomp, scontrol, kc, hdr);
+		break;
 	case SND_SOC_TPLG_CTL_RANGE:
 	case SND_SOC_TPLG_CTL_STROBE:
 	case SND_SOC_TPLG_DAPM_CTL_VOLSW:
@@ -1279,9 +1322,6 @@ static int sof_widget_load_pga(struct snd_soc_component *scomp, int index,
 
 	/* get volume control */
 	scontrol = sm->dobj.private;
-
-	/* set cmd for pga kcontrol */
-	scontrol->cmd = SOF_CTRL_CMD_VOLUME;
 
 	/* get topology tlv data */
 	p = kc->tlv.p;
@@ -2733,6 +2773,8 @@ static int sof_manifest(struct snd_soc_component *scomp, int index,
 static const struct snd_soc_tplg_kcontrol_ops sof_io_ops[] = {
 	{SOF_TPLG_KCTL_VOL_ID, snd_sof_volume_get, snd_sof_volume_put},
 	{SOF_TPLG_KCTL_BYTES_ID, snd_sof_bytes_get, snd_sof_bytes_put},
+	{SOF_TPLG_KCTL_ENUM_ID, snd_sof_enum_get, snd_sof_enum_put},
+	{SOF_TPLG_KCTL_SWITCH_ID, snd_sof_switch_get, snd_sof_switch_put},
 };
 
 /* vendor specific bytes ext handlers available for binding */
