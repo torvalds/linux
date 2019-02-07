@@ -1307,9 +1307,7 @@ skip_remaining_dividers:
 	return true;
 }
 
-static bool skl_ddi_hdmi_pll_dividers(struct intel_crtc *crtc,
-				      struct intel_crtc_state *crtc_state,
-				      int clock)
+static bool skl_ddi_hdmi_pll_dividers(struct intel_crtc_state *crtc_state)
 {
 	u32 ctrl1, cfgcr1, cfgcr2;
 	struct skl_wrpll_params wrpll_params = { 0, };
@@ -1322,7 +1320,8 @@ static bool skl_ddi_hdmi_pll_dividers(struct intel_crtc *crtc,
 
 	ctrl1 |= DPLL_CTRL1_HDMI_MODE(0);
 
-	if (!skl_ddi_calculate_wrpll(clock * 1000, &wrpll_params))
+	if (!skl_ddi_calculate_wrpll(crtc_state->port_clock * 1000,
+				     &wrpll_params))
 		return false;
 
 	cfgcr1 = DPLL_CFGCR1_FREQ_ENABLE |
@@ -1345,7 +1344,7 @@ static bool skl_ddi_hdmi_pll_dividers(struct intel_crtc *crtc,
 }
 
 static bool
-skl_ddi_dp_set_dpll_hw_state(int clock,
+skl_ddi_dp_set_dpll_hw_state(struct intel_crtc_state *crtc_state,
 			     struct intel_dpll_hw_state *dpll_hw_state)
 {
 	u32 ctrl1;
@@ -1355,7 +1354,7 @@ skl_ddi_dp_set_dpll_hw_state(int clock,
 	 * as the DPLL id in this function.
 	 */
 	ctrl1 = DPLL_CTRL1_OVERRIDE(0);
-	switch (clock / 2) {
+	switch (crtc_state->port_clock / 2) {
 	case 81000:
 		ctrl1 |= DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_810, 0);
 		break;
@@ -1385,22 +1384,20 @@ static struct intel_shared_dpll *
 skl_get_dpll(struct intel_crtc_state *crtc_state,
 	     struct intel_encoder *encoder)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct intel_shared_dpll *pll;
-	int clock = crtc_state->port_clock;
 	bool bret;
 	struct intel_dpll_hw_state dpll_hw_state;
 
 	memset(&dpll_hw_state, 0, sizeof(dpll_hw_state));
 
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI)) {
-		bret = skl_ddi_hdmi_pll_dividers(crtc, crtc_state, clock);
+		bret = skl_ddi_hdmi_pll_dividers(crtc_state);
 		if (!bret) {
 			DRM_DEBUG_KMS("Could not get HDMI pll dividers.\n");
 			return NULL;
 		}
 	} else if (intel_crtc_has_dp_encoder(crtc_state)) {
-		bret = skl_ddi_dp_set_dpll_hw_state(clock, &dpll_hw_state);
+		bret = skl_ddi_dp_set_dpll_hw_state(crtc_state, &dpll_hw_state);
 		if (!bret) {
 			DRM_DEBUG_KMS("Could not set DP dpll HW state.\n");
 			return NULL;
