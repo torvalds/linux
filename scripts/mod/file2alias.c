@@ -50,6 +50,9 @@ struct devtable {
 	int (*do_entry)(const char *filename, void *symval, char *alias);
 };
 
+/* Size of alias provided to do_entry functions */
+#define ALIAS_SIZE 500
+
 /* Define a variable f that holds the value of field f of struct devid
  * based at address m.
  */
@@ -1303,7 +1306,7 @@ static void do_table(void *symval, unsigned long size,
 		     struct module *mod)
 {
 	unsigned int i;
-	char alias[500];
+	char alias[ALIAS_SIZE];
 
 	device_id_check(mod->name, device_id, size, id_size, symval);
 	/* Leave last one: it's the terminator. */
