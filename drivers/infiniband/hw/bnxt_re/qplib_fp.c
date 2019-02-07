@@ -870,10 +870,11 @@ int bnxt_qplib_create_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 	unsigned long int psn_search, poff = 0;
 	struct bnxt_qplib_q *sq = &qp->sq;
 	struct bnxt_qplib_q *rq = &qp->rq;
+	int i, rc, req_size, psn_sz = 0;
 	struct bnxt_qplib_hwq *xrrq;
-	int i, rc, req_size, psn_sz;
 	u16 cmd_flags = 0, max_ssge;
 	u32 sw_prod, qp_flags = 0;
+	u16 max_rsge;
 
 	RCFW_CMD_PREP(req, CREATE_QP, cmd_flags);
 
@@ -883,8 +884,11 @@ int bnxt_qplib_create_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 	req.qp_handle = cpu_to_le64(qp->qp_handle);
 
 	/* SQ */
-	psn_sz = (qp->type == CMDQ_CREATE_QP_TYPE_RC) ?
-		 sizeof(struct sq_psn_search) : 0;
+	if (qp->type == CMDQ_CREATE_QP_TYPE_RC) {
+		psn_sz = bnxt_qplib_is_chip_gen_p5(res->cctx) ?
+			 sizeof(struct sq_psn_search_ext) :
+			 sizeof(struct sq_psn_search);
+	}
 	sq->hwq.max_elements = sq->max_wqe;
 	rc = bnxt_qplib_alloc_init_hwq(res->pdev, &sq->hwq, sq->sglist,
 				       sq->nmap, &sq->hwq.max_elements,
@@ -914,10 +918,16 @@ int bnxt_qplib_create_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 			poff = (psn_search & ~PAGE_MASK) /
 				BNXT_QPLIB_MAX_PSNE_ENTRY_SIZE;
 		}
-		for (i = 0; i < sq->hwq.max_elements; i++)
+		for (i = 0; i < sq->hwq.max_elements; i++) {
 			sq->swq[i].psn_search =
 				&psn_search_ptr[get_psne_pg(i + poff)]
 					       [get_psne_idx(i + poff)];
+			/*psns_ext will be used only for P5 chips. */
+			sq->swq[i].psn_ext =
+				(struct sq_psn_search_ext *)
+				&psn_search_ptr[get_psne_pg(i + poff)]
+					       [get_psne_idx(i + poff)];
+		}
 	}
 	pbl = &sq->hwq.pbl[PBL_LVL_0];
 	req.sq_pbl = cpu_to_le64(pbl->pg_map_arr[0]);
@@ -1016,8 +1026,9 @@ int bnxt_qplib_create_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 	req.sq_fwo_sq_sge = cpu_to_le16(
 				((max_ssge & CMDQ_CREATE_QP_SQ_SGE_MASK)
 				 << CMDQ_CREATE_QP_SQ_SGE_SFT) | 0);
+	max_rsge = bnxt_qplib_is_chip_gen_p5(res->cctx) ? 6 : rq->max_sge;
 	req.rq_fwo_rq_sge = cpu_to_le16(
-				((rq->max_sge & CMDQ_CREATE_QP_RQ_SGE_MASK)
+				((max_rsge & CMDQ_CREATE_QP_RQ_SGE_MASK)
 				 << CMDQ_CREATE_QP_RQ_SGE_SFT) | 0);
 	/* ORRQ and IRRQ */
 	if (psn_sz) {
@@ -1062,6 +1073,7 @@ int bnxt_qplib_create_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 
 	qp->id = le32_to_cpu(resp.xid);
 	qp->cur_qp_state = CMDQ_MODIFY_QP_NEW_STATE_RESET;
+	qp->cctx = res->cctx;
 	INIT_LIST_HEAD(&qp->sq_flush);
 	INIT_LIST_HEAD(&qp->rq_flush);
 	rcfw->qp_tbl[qp->id].qp_id = qp->id;
@@ -1748,14 +1760,26 @@ int bnxt_qplib_post_send(struct bnxt_qplib_qp *qp,
 	}
 	swq->next_psn = sq->psn & BTH_PSN_MASK;
 	if (swq->psn_search) {
-		swq->psn_search->opcode_start_psn = cpu_to_le32(
-			((swq->start_psn << SQ_PSN_SEARCH_START_PSN_SFT) &
-			 SQ_PSN_SEARCH_START_PSN_MASK) |
-			((wqe->type << SQ_PSN_SEARCH_OPCODE_SFT) &
-			 SQ_PSN_SEARCH_OPCODE_MASK));
-		swq->psn_search->flags_next_psn = cpu_to_le32(
-			((swq->next_psn << SQ_PSN_SEARCH_NEXT_PSN_SFT) &
-			 SQ_PSN_SEARCH_NEXT_PSN_MASK));
+		u32 opcd_spsn;
+		u32 flg_npsn;
+
+		opcd_spsn = ((swq->start_psn << SQ_PSN_SEARCH_START_PSN_SFT) &
+			      SQ_PSN_SEARCH_START_PSN_MASK);
+		opcd_spsn |= ((wqe->type << SQ_PSN_SEARCH_OPCODE_SFT) &
+			       SQ_PSN_SEARCH_OPCODE_MASK);
+		flg_npsn = ((swq->next_psn << SQ_PSN_SEARCH_NEXT_PSN_SFT) &
+			     SQ_PSN_SEARCH_NEXT_PSN_MASK);
+		if (bnxt_qplib_is_chip_gen_p5(qp->cctx)) {
+			swq->psn_ext->opcode_start_psn =
+						cpu_to_le32(opcd_spsn);
+			swq->psn_ext->flags_next_psn =
+						cpu_to_le32(flg_npsn);
+		} else {
+			swq->psn_search->opcode_start_psn =
+						cpu_to_le32(opcd_spsn);
+			swq->psn_search->flags_next_psn =
+						cpu_to_le32(flg_npsn);
+		}
 	}
 queue_err:
 	if (sch_handler) {
@@ -2053,6 +2077,7 @@ static int __flush_rq(struct bnxt_qplib_q *rq, struct bnxt_qplib_qp *qp,
 		opcode = CQ_BASE_CQE_TYPE_RES_RC;
 		break;
 	case CMDQ_CREATE_QP_TYPE_UD:
+	case CMDQ_CREATE_QP_TYPE_GSI:
 		opcode = CQ_BASE_CQE_TYPE_RES_UD;
 		break;
 	}

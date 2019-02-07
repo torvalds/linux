@@ -884,7 +884,7 @@ static int bnxt_re_init_user_qp(struct bnxt_re_dev *rdev, struct bnxt_re_pd *pd,
 	struct bnxt_re_qp_req ureq;
 	struct bnxt_qplib_qp *qplib_qp = &qp->qplib_qp;
 	struct ib_umem *umem;
-	int bytes = 0;
+	int bytes = 0, psn_sz;
 	struct ib_ucontext *context = pd->ib_pd.uobject->context;
 	struct bnxt_re_ucontext *cntx = container_of(context,
 						     struct bnxt_re_ucontext,
@@ -894,8 +894,12 @@ static int bnxt_re_init_user_qp(struct bnxt_re_dev *rdev, struct bnxt_re_pd *pd,
 
 	bytes = (qplib_qp->sq.max_wqe * BNXT_QPLIB_MAX_SQE_ENTRY_SIZE);
 	/* Consider mapping PSN search memory only for RC QPs. */
-	if (qplib_qp->type == CMDQ_CREATE_QP_TYPE_RC)
-		bytes += (qplib_qp->sq.max_wqe * sizeof(struct sq_psn_search));
+	if (qplib_qp->type == CMDQ_CREATE_QP_TYPE_RC) {
+		psn_sz = bnxt_qplib_is_chip_gen_p5(&rdev->chip_ctx) ?
+					sizeof(struct sq_psn_search_ext) :
+					sizeof(struct sq_psn_search);
+		bytes += (qplib_qp->sq.max_wqe * psn_sz);
+	}
 	bytes = PAGE_ALIGN(bytes);
 	umem = ib_umem_get(udata, ureq.qpsva, bytes, IB_ACCESS_LOCAL_WRITE, 1);
 	if (IS_ERR(umem))
@@ -1652,6 +1656,9 @@ int bnxt_re_modify_qp(struct ib_qp *ib_qp, struct ib_qp_attr *qp_attr,
 			__from_ib_access_flags(qp_attr->qp_access_flags);
 		/* LOCAL_WRITE access must be set to allow RC receive */
 		qp->qplib_qp.access |= BNXT_QPLIB_ACCESS_LOCAL_WRITE;
+		/* Temp: Set all params on QP as of now */
+		qp->qplib_qp.access |= CMDQ_MODIFY_QP_ACCESS_REMOTE_WRITE;
+		qp->qplib_qp.access |= CMDQ_MODIFY_QP_ACCESS_REMOTE_READ;
 	}
 	if (qp_attr_mask & IB_QP_PKEY_INDEX) {
 		qp->qplib_qp.modify_flags |= CMDQ_MODIFY_QP_MODIFY_MASK_PKEY;

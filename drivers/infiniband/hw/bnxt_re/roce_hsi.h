@@ -159,7 +159,24 @@ struct sq_psn_search {
 	#define SQ_PSN_SEARCH_NEXT_PSN_MASK			    0xffffffUL
 	#define SQ_PSN_SEARCH_NEXT_PSN_SFT			    0
 	#define SQ_PSN_SEARCH_FLAGS_MASK			    0xff000000UL
-	#define SQ_PSN_SEARCH_FLAGS_SFT			    24
+	#define SQ_PSN_SEARCH_FLAGS_SFT				    24
+};
+
+/* sq_psn_search_ext (size:128b/16B) */
+struct sq_psn_search_ext {
+	__le32  opcode_start_psn;
+	#define SQ_PSN_SEARCH_EXT_START_PSN_MASK		    0xffffffUL
+	#define SQ_PSN_SEARCH_EXT_START_PSN_SFT			    0
+	#define SQ_PSN_SEARCH_EXT_OPCODE_MASK			    0xff000000UL
+	#define SQ_PSN_SEARCH_EXT_OPCODE_SFT			    24
+	__le32  flags_next_psn;
+	#define SQ_PSN_SEARCH_EXT_NEXT_PSN_MASK			    0xffffffUL
+	#define SQ_PSN_SEARCH_EXT_NEXT_PSN_SFT			    0
+	#define SQ_PSN_SEARCH_EXT_FLAGS_MASK			    0xff000000UL
+	#define SQ_PSN_SEARCH_EXT_FLAGS_SFT			    24
+	__le16  start_slot_idx;
+	__le16  reserved16;
+	__le32  reserved32;
 };
 
 /* Send SQ WQE (40 bytes) */

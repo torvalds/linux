@@ -106,6 +106,7 @@ struct bnxt_qplib_swq {
 	u32				start_psn;
 	u32				next_psn;
 	struct sq_psn_search		*psn_search;
+	struct sq_psn_search_ext	*psn_ext;
 };
 
 struct bnxt_qplib_swqe {
@@ -254,6 +255,7 @@ struct bnxt_qplib_q {
 struct bnxt_qplib_qp {
 	struct bnxt_qplib_pd		*pd;
 	struct bnxt_qplib_dpi		*dpi;
+	struct bnxt_qplib_chip_ctx	*cctx;
 	u64				qp_handle;
 #define        BNXT_QPLIB_QP_ID_INVALID        0xFFFFFFFF
 	u32				id;
