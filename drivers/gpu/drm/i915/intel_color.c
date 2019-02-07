@@ -663,7 +663,8 @@ intel_color_add_affected_planes(struct intel_crtc_state *new_crtc_state)
 		intel_atomic_get_old_crtc_state(state, crtc);
 	struct intel_plane *plane;
 
-	if (new_crtc_state->gamma_enable == old_crtc_state->gamma_enable)
+	if (new_crtc_state->gamma_enable == old_crtc_state->gamma_enable &&
+	    new_crtc_state->csc_enable == old_crtc_state->csc_enable)
 		return 0;
 
 	for_each_intel_plane_on_crtc(&dev_priv->drm, crtc, plane) {
@@ -704,6 +705,7 @@ int intel_color_check(struct intel_crtc_state *crtc_state)
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
 	const struct drm_property_blob *gamma_lut = crtc_state->base.gamma_lut;
 	const struct drm_property_blob *degamma_lut = crtc_state->base.degamma_lut;
+	bool limited_color_range = false;
 	int gamma_length, degamma_length;
 	u32 gamma_tests, degamma_tests;
 	int ret;
@@ -717,7 +719,11 @@ int intel_color_check(struct intel_crtc_state *crtc_state)
 
 	if (INTEL_GEN(dev_priv) >= 9 ||
 	    IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv))
-		crtc_state->csc_enable = true;
+		limited_color_range = crtc_state->limited_color_range;
+
+	crtc_state->csc_enable =
+		crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB ||
+		crtc_state->base.ctm || limited_color_range;
 
 	ret = intel_color_add_affected_planes(crtc_state);
 	if (ret)
