@@ -189,12 +189,14 @@ static struct ib_device *__ib_device_get_by_name(const char *name)
 
 int ib_device_rename(struct ib_device *ibdev, const char *name)
 {
-	int ret = 0;
-
-	if (!strcmp(name, dev_name(&ibdev->dev)))
-		return ret;
+	int ret;
 
 	mutex_lock(&device_mutex);
+	if (!strcmp(name, dev_name(&ibdev->dev))) {
+		ret = 0;
+		goto out;
+	}
+
 	if (__ib_device_get_by_name(name)) {
 		ret = -EEXIST;
 		goto out;
