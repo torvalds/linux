@@ -2542,6 +2542,7 @@ struct ib_device {
 	struct list_head              event_handler_list;
 	spinlock_t                    event_handler_lock;
 
+	struct rw_semaphore	      client_data_rwsem;
 	struct xarray                 client_data;
 
 	struct ib_cache               cache;
