@@ -960,6 +960,9 @@ struct intel_crtc_state {
 	/* Output down scaling is done in LSPCON device */
 	bool lspcon_downsampling;
 
+	/* enable pipe gamma? */
+	bool gamma_enable;
+
 	/* Display Stream compression state */
 	struct {
 		bool compression_enable;

@@ -387,6 +387,28 @@ static void hsw_color_commit(const struct intel_crtc_state *crtc_state)
 	ilk_load_csc_matrix(crtc_state);
 }
 
+static void skl_color_commit(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
+	u32 val = 0;
+
+	/*
+	 * We don't (yet) allow userspace to control the pipe background color,
+	 * so force it to black, but apply pipe gamma and CSC appropriately
+	 * so that its handling will match how we program our planes.
+	 */
+	if (crtc_state->gamma_enable)
+		val |= SKL_BOTTOM_COLOR_GAMMA_ENABLE;
+	val |= SKL_BOTTOM_COLOR_CSC_ENABLE;
+	I915_WRITE(SKL_BOTTOM_COLOR(pipe), val);
+
+	I915_WRITE(GAMMA_MODE(crtc->pipe), crtc_state->gamma_mode);
+
+	ilk_load_csc_matrix(crtc_state);
+}
+
 static void bdw_load_degamma_lut(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
@@ -644,6 +666,8 @@ int intel_color_check(struct intel_crtc_state *crtc_state)
 	degamma_tests = INTEL_INFO(dev_priv)->color.degamma_lut_tests;
 	gamma_tests = INTEL_INFO(dev_priv)->color.gamma_lut_tests;
 
+	crtc_state->gamma_enable = true;
+
 	/* Always allow legacy gamma LUT with no further checking. */
 	if (crtc_state_is_legacy_gamma(crtc_state)) {
 		crtc_state->gamma_mode = GAMMA_MODE_MODE_8BIT;
@@ -689,7 +713,9 @@ void intel_color_init(struct intel_crtc *crtc)
 		else
 			dev_priv->display.load_luts = i9xx_load_luts;
 
-		if (INTEL_GEN(dev_priv) >= 8 || IS_HASWELL(dev_priv))
+		if (INTEL_GEN(dev_priv) >= 9)
+			dev_priv->display.color_commit = skl_color_commit;
+		else if (IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv))
 			dev_priv->display.color_commit = hsw_color_commit;
 		else
 			dev_priv->display.color_commit = ilk_color_commit;
