@@ -161,7 +161,7 @@ static const struct snd_kcontrol_new jz4725b_codec_controls[] = {
 	SOC_SINGLE("Master Playback Switch", JZ4725B_CODEC_REG_CR1,
 		   REG_CR1_DAC_MUTE_OFFSET, 1, 1),
 
-	SOC_SINGLE("Deemphatize Filter Playback Switch",
+	SOC_SINGLE("Deemphasize Filter Playback Switch",
 		   JZ4725B_CODEC_REG_CR2,
 		   REG_CR2_DAC_DEEMP_OFFSET, 1, 0),
 
