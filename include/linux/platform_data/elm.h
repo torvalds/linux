@@ -60,6 +60,6 @@ static inline int elm_config(struct device *dev, enum bch_ecc bch_type,
 {
 	return -ENOSYS;
 }
-#endif /* CONFIG_MTD_NAND_ECC_BCH */
+#endif /* CONFIG_MTD_NAND_OMAP_BCH */
 
 #endif /* __ELM_H */
