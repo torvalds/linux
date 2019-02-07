@@ -347,6 +347,7 @@ struct bnxt_qplib_cqe {
 	u8				type;
 	u8				opcode;
 	u32				length;
+	u16				cfa_meta;
 	u64				wr_id;
 	union {
 		__be32			immdata;
