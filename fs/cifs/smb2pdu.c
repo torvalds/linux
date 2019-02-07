@@ -3127,8 +3127,17 @@ smb2_readv_callback(struct mid_q_entry *mid)
 		rdata->mr = NULL;
 	}
 #endif
-	if (rdata->result)
+	if (rdata->result && rdata->result != -ENODATA) {
 		cifs_stats_fail_inc(tcon, SMB2_READ_HE);
+		trace_smb3_read_err(0 /* xid */,
+				    rdata->cfile->fid.persistent_fid,
+				    tcon->tid, tcon->ses->Suid, rdata->offset,
+				    rdata->bytes, rdata->result);
+	} else
+		trace_smb3_read_done(0 /* xid */,
+				     rdata->cfile->fid.persistent_fid,
+				     tcon->tid, tcon->ses->Suid,
+				     rdata->offset, rdata->got_bytes);
 
 	queue_work(cifsiod_wq, &rdata->work);
 	DeleteMidQEntry(mid);
@@ -3203,13 +3212,11 @@ smb2_async_readv(struct cifs_readdata *rdata)
 	if (rc) {
 		kref_put(&rdata->refcount, cifs_readdata_release);
 		cifs_stats_fail_inc(io_parms.tcon, SMB2_READ_HE);
-		trace_smb3_read_err(rc, 0 /* xid */, io_parms.persistent_fid,
-				   io_parms.tcon->tid, io_parms.tcon->ses->Suid,
-				   io_parms.offset, io_parms.length);
-	} else
-		trace_smb3_read_done(0 /* xid */, io_parms.persistent_fid,
-				   io_parms.tcon->tid, io_parms.tcon->ses->Suid,
-				   io_parms.offset, io_parms.length);
+		trace_smb3_read_err(0 /* xid */, io_parms.persistent_fid,
+				    io_parms.tcon->tid,
+				    io_parms.tcon->ses->Suid,
+				    io_parms.offset, io_parms.length, rc);
+	}
 
 	cifs_small_buf_release(buf);
 	return rc;
@@ -3253,10 +3260,11 @@ SMB2_read(const unsigned int xid, struct cifs_io_parms *io_parms,
 		if (rc != -ENODATA) {
 			cifs_stats_fail_inc(io_parms->tcon, SMB2_READ_HE);
 			cifs_dbg(VFS, "Send error in read = %d\n", rc);
+			trace_smb3_read_err(xid, req->PersistentFileId,
+					    io_parms->tcon->tid, ses->Suid,
+					    io_parms->offset, io_parms->length,
+					    rc);
 		}
-		trace_smb3_read_err(rc, xid, req->PersistentFileId,
-				    io_parms->tcon->tid, ses->Suid,
-				    io_parms->offset, io_parms->length);
 		free_rsp_buf(resp_buftype, rsp_iov.iov_base);
 		return rc == -ENODATA ? 0 : rc;
 	} else
@@ -3342,8 +3350,17 @@ smb2_writev_callback(struct mid_q_entry *mid)
 		wdata->mr = NULL;
 	}
 #endif
-	if (wdata->result)
+	if (wdata->result) {
 		cifs_stats_fail_inc(tcon, SMB2_WRITE_HE);
+		trace_smb3_write_err(0 /* no xid */,
+				     wdata->cfile->fid.persistent_fid,
+				     tcon->tid, tcon->ses->Suid, wdata->offset,
+				     wdata->bytes, wdata->result);
+	} else
+		trace_smb3_write_done(0 /* no xid */,
+				      wdata->cfile->fid.persistent_fid,
+				      tcon->tid, tcon->ses->Suid,
+				      wdata->offset, wdata->bytes);
 
 	queue_work(cifsiod_wq, &wdata->work);
 	DeleteMidQEntry(mid);
@@ -3485,10 +3502,7 @@ smb2_async_writev(struct cifs_writedata *wdata,
 				     wdata->bytes, rc);
 		kref_put(&wdata->refcount, release);
 		cifs_stats_fail_inc(tcon, SMB2_WRITE_HE);
-	} else
-		trace_smb3_write_done(0 /* no xid */, req->PersistentFileId,
-				     tcon->tid, tcon->ses->Suid, wdata->offset,
-				     wdata->bytes);
+	}
 
 async_writev_out:
 	cifs_small_buf_release(req);
@@ -3714,8 +3728,8 @@ SMB2_query_directory(const unsigned int xid, struct cifs_tcon *tcon,
 		    rsp->sync_hdr.Status == STATUS_NO_MORE_FILES) {
 			srch_inf->endOfSearch = true;
 			rc = 0;
-		}
-		cifs_stats_fail_inc(tcon, SMB2_QUERY_DIRECTORY_HE);
+		} else
+			cifs_stats_fail_inc(tcon, SMB2_QUERY_DIRECTORY_HE);
 		goto qdir_exit;
 	}
 
