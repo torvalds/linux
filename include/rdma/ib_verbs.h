@@ -2542,12 +2542,7 @@ struct ib_device {
 	struct list_head              event_handler_list;
 	spinlock_t                    event_handler_lock;
 
-	rwlock_t			client_data_lock;
-	struct list_head              core_list;
-	/* Access to the client_data_list is protected by the client_data_lock
-	 * rwlock and the lists_rwsem read-write semaphore
-	 */
-	struct list_head              client_data_list;
+	struct xarray                 client_data;
 
 	struct ib_cache               cache;
 	/**
@@ -2660,7 +2655,21 @@ void ib_unregister_device(struct ib_device *device);
 int ib_register_client   (struct ib_client *client);
 void ib_unregister_client(struct ib_client *client);
 
-void *ib_get_client_data(struct ib_device *device, struct ib_client *client);
+/**
+ * ib_get_client_data - Get IB client context
+ * @device:Device to get context for
+ * @client:Client to get context for
+ *
+ * ib_get_client_data() returns the client context data set with
+ * ib_set_client_data(). This can only be called while the client is
+ * registered to the device, once the ib_client remove() callback returns this
+ * cannot be called.
+ */
+static inline void *ib_get_client_data(struct ib_device *device,
+				       struct ib_client *client)
+{
+	return xa_load(&device->client_data, client->client_id);
+}
 void  ib_set_client_data(struct ib_device *device, struct ib_client *client,
 			 void *data);
 void ib_set_device_ops(struct ib_device *device,
