@@ -64,7 +64,6 @@
 		regulator-max-microvolt = <3300000>;
 		gpio = <&gpio2 31 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
-		regulator-always-on;
 	};
 
 	gpio-keys {
