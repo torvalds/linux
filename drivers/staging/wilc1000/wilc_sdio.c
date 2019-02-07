@@ -117,8 +117,8 @@ static int wilc_sdio_cmd53(struct wilc *wilc, struct sdio_cmd53 *cmd)
 	return ret;
 }
 
-static int linux_sdio_probe(struct sdio_func *func,
-			    const struct sdio_device_id *id)
+static int wilc_sdio_probe(struct sdio_func *func,
+			   const struct sdio_device_id *id)
 {
 	struct wilc *wilc;
 	int ret;
@@ -156,7 +156,7 @@ static int linux_sdio_probe(struct sdio_func *func,
 	return 0;
 }
 
-static void linux_sdio_remove(struct sdio_func *func)
+static void wilc_sdio_remove(struct sdio_func *func)
 {
 	struct wilc *wilc = sdio_get_drvdata(func);
 
@@ -1127,8 +1127,8 @@ static const struct dev_pm_ops wilc_sdio_pm_ops = {
 static struct sdio_driver wilc_sdio_driver = {
 	.name		= SDIO_MODALIAS,
 	.id_table	= wilc_sdio_ids,
-	.probe		= linux_sdio_probe,
-	.remove		= linux_sdio_remove,
+	.probe		= wilc_sdio_probe,
+	.remove		= wilc_sdio_remove,
 	.drv = {
 		.pm = &wilc_sdio_pm_ops,
 		.of_match_table = wilc_of_match,

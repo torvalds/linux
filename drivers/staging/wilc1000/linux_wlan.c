@@ -139,7 +139,7 @@ int wilc_wlan_get_num_conn_ifcs(struct wilc *wilc)
 	return ret_val;
 }
 
-static int linux_wlan_txq_task(void *vp)
+static int wilc_txq_task(void *vp)
 {
 	int ret;
 	u32 txq_count;
@@ -202,7 +202,7 @@ fail:
 	return ret;
 }
 
-static int linux_wlan_start_firmware(struct net_device *dev)
+static int wilc_start_firmware(struct net_device *dev)
 {
 	struct wilc_vif *vif = netdev_priv(dev);
 	struct wilc *wilc = vif->wilc;
@@ -243,8 +243,7 @@ static int wilc1000_firmware_download(struct net_device *dev)
 	return 0;
 }
 
-static int linux_wlan_init_fw_config(struct net_device *dev,
-				     struct wilc_vif *vif)
+static int wilc_init_fw_config(struct net_device *dev, struct wilc_vif *vif)
 {
 	struct wilc_priv *priv;
 	struct host_if_drv *hif_drv;
@@ -502,7 +501,7 @@ static int wlan_initialize_threads(struct net_device *dev)
 	struct wilc_vif *vif = netdev_priv(dev);
 	struct wilc *wilc = vif->wilc;
 
-	wilc->txq_thread = kthread_run(linux_wlan_txq_task, (void *)dev,
+	wilc->txq_thread = kthread_run(wilc_txq_task, (void *)dev,
 				       "K_TXQ_TASK");
 	if (IS_ERR(wilc->txq_thread)) {
 		netdev_err(dev, "couldn't create TXQ thread\n");
@@ -560,7 +559,7 @@ static int wilc_wlan_initialize(struct net_device *dev, struct wilc_vif *vif)
 			goto fail_irq_enable;
 		}
 
-		ret = linux_wlan_start_firmware(dev);
+		ret = wilc_start_firmware(dev);
 		if (ret < 0) {
 			ret = -EIO;
 			goto fail_irq_enable;
@@ -576,7 +575,7 @@ static int wilc_wlan_initialize(struct net_device *dev, struct wilc_vif *vif)
 			firmware_ver[size] = '\0';
 			netdev_dbg(dev, "Firmware Ver = %s\n", firmware_ver);
 		}
-		ret = linux_wlan_init_fw_config(dev, vif);
+		ret = wilc_init_fw_config(dev, vif);
 
 		if (ret < 0) {
 			netdev_err(dev, "Failed to configure firmware\n");
@@ -726,7 +725,7 @@ static void wilc_set_multicast_list(struct net_device *dev)
 		kfree(mc_list);
 }
 
-static void linux_wlan_tx_complete(void *priv, int status)
+static void wilc_tx_complete(void *priv, int status)
 {
 	struct tx_complete_data *pv_data = priv;
 
@@ -762,7 +761,7 @@ netdev_tx_t wilc_mac_xmit(struct sk_buff *skb, struct net_device *ndev)
 	tx_data->bssid = wilc->vif[vif->idx]->bssid;
 	queue_count = wilc_wlan_txq_add_net_pkt(ndev, (void *)tx_data,
 						tx_data->buff, tx_data->size,
-						linux_wlan_tx_complete);
+						wilc_tx_complete);
 
 	if (queue_count > FLOW_CONTROL_UPPER_THRESHOLD) {
 		if (wilc->vif[0]->mac_opened)
