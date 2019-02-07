@@ -617,19 +617,21 @@ __poll_t v4l2_m2m_poll(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 	__poll_t rc = 0;
 	unsigned long flags;
 
+	src_q = v4l2_m2m_get_src_vq(m2m_ctx);
+	dst_q = v4l2_m2m_get_dst_vq(m2m_ctx);
+
+	poll_wait(file, &src_q->done_wq, wait);
+	poll_wait(file, &dst_q->done_wq, wait);
+
 	if (test_bit(V4L2_FL_USES_V4L2_FH, &vfd->flags)) {
 		struct v4l2_fh *fh = file->private_data;
 
+		poll_wait(file, &fh->wait, wait);
 		if (v4l2_event_pending(fh))
 			rc = EPOLLPRI;
-		else if (req_events & EPOLLPRI)
-			poll_wait(file, &fh->wait, wait);
 		if (!(req_events & (EPOLLOUT | EPOLLWRNORM | EPOLLIN | EPOLLRDNORM)))
 			return rc;
 	}
-
-	src_q = v4l2_m2m_get_src_vq(m2m_ctx);
-	dst_q = v4l2_m2m_get_dst_vq(m2m_ctx);
 
 	/*
 	 * There has to be at least one buffer queued on each queued_list, which
@@ -642,11 +644,6 @@ __poll_t v4l2_m2m_poll(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 		goto end;
 	}
 
-	spin_lock_irqsave(&src_q->done_lock, flags);
-	if (list_empty(&src_q->done_list))
-		poll_wait(file, &src_q->done_wq, wait);
-	spin_unlock_irqrestore(&src_q->done_lock, flags);
-
 	spin_lock_irqsave(&dst_q->done_lock, flags);
 	if (list_empty(&dst_q->done_list)) {
 		/*
@@ -657,8 +654,6 @@ __poll_t v4l2_m2m_poll(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 			spin_unlock_irqrestore(&dst_q->done_lock, flags);
 			return rc | EPOLLIN | EPOLLRDNORM;
 		}
-
-		poll_wait(file, &dst_q->done_wq, wait);
 	}
 	spin_unlock_irqrestore(&dst_q->done_lock, flags);
 
