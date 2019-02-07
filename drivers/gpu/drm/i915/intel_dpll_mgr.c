@@ -2470,10 +2470,12 @@ static const struct skl_wrpll_params icl_tbt_pll_19_2MHz_values = {
 	.pdiv = 0x4 /* 5 */, .kdiv = 1, .qdiv_mode = 0, .qdiv_ratio = 0,
 };
 
-static bool icl_calc_dp_combo_pll(struct drm_i915_private *dev_priv, int clock,
+static bool icl_calc_dp_combo_pll(struct intel_crtc_state *crtc_state,
 				  struct skl_wrpll_params *pll_params)
 {
+	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
 	const struct skl_wrpll_params *params;
+	int clock = crtc_state->port_clock;
 
 	params = dev_priv->cdclk.hw.ref == 24000 ?
 			icl_dp_combo_pll_24MHz_values :
@@ -2512,9 +2514,11 @@ static bool icl_calc_dp_combo_pll(struct drm_i915_private *dev_priv, int clock,
 	return true;
 }
 
-static bool icl_calc_tbt_pll(struct drm_i915_private *dev_priv, int clock,
+static bool icl_calc_tbt_pll(struct intel_crtc_state *crtc_state,
 			     struct skl_wrpll_params *pll_params)
 {
+	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
+
 	*pll_params = dev_priv->cdclk.hw.ref == 24000 ?
 			icl_tbt_pll_24MHz_values : icl_tbt_pll_19_2MHz_values;
 	return true;
@@ -2530,12 +2534,12 @@ static bool icl_calc_dpll_state(struct intel_crtc_state *crtc_state,
 	bool ret;
 
 	if (intel_port_is_tc(dev_priv, encoder->port))
-		ret = icl_calc_tbt_pll(dev_priv, clock, &pll_params);
+		ret = icl_calc_tbt_pll(crtc_state, &pll_params);
 	else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI) ||
 		 intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DSI))
 		ret = cnl_ddi_calculate_wrpll(crtc_state, &pll_params);
 	else
-		ret = icl_calc_dp_combo_pll(dev_priv, clock, &pll_params);
+		ret = icl_calc_dp_combo_pll(crtc_state, &pll_params);
 
 	if (!ret)
 		return false;
