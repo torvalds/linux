@@ -21,43 +21,13 @@
 
 #include "mt76x02_mcu.h"
 
-static int
-mt76x02_tx_queue_mcu(struct mt76x02_dev *dev, enum mt76_txq_id qid,
-		     struct sk_buff *skb, int cmd, int seq)
-{
-	struct mt76_queue *q = &dev->mt76.q_tx[qid];
-	struct mt76_queue_buf buf;
-	dma_addr_t addr;
-	u32 tx_info;
-
-	tx_info = MT_MCU_MSG_TYPE_CMD |
-		  FIELD_PREP(MT_MCU_MSG_CMD_TYPE, cmd) |
-		  FIELD_PREP(MT_MCU_MSG_CMD_SEQ, seq) |
-		  FIELD_PREP(MT_MCU_MSG_PORT, CPU_TX_PORT) |
-		  FIELD_PREP(MT_MCU_MSG_LEN, skb->len);
-
-	addr = dma_map_single(dev->mt76.dev, skb->data, skb->len,
-			      DMA_TO_DEVICE);
-	if (dma_mapping_error(dev->mt76.dev, addr))
-		return -ENOMEM;
-
-	buf.addr = addr;
-	buf.len = skb->len;
-
-	spin_lock_bh(&q->lock);
-	mt76_queue_add_buf(dev, q, &buf, 1, tx_info, skb, NULL);
-	mt76_queue_kick(dev, q);
-	spin_unlock_bh(&q->lock);
-
-	return 0;
-}
-
 int mt76x02_mcu_msg_send(struct mt76_dev *mdev, int cmd, const void *data,
 			 int len, bool wait_resp)
 {
 	struct mt76x02_dev *dev = container_of(mdev, struct mt76x02_dev, mt76);
 	unsigned long expires = jiffies + HZ;
 	struct sk_buff *skb;
+	u32 tx_info;
 	int ret;
 	u8 seq;
 
@@ -71,7 +41,13 @@ int mt76x02_mcu_msg_send(struct mt76_dev *mdev, int cmd, const void *data,
 	if (!seq)
 		seq = ++mdev->mmio.mcu.msg_seq & 0xf;
 
-	ret = mt76x02_tx_queue_mcu(dev, MT_TXQ_MCU, skb, cmd, seq);
+	tx_info = MT_MCU_MSG_TYPE_CMD |
+		  FIELD_PREP(MT_MCU_MSG_CMD_TYPE, cmd) |
+		  FIELD_PREP(MT_MCU_MSG_CMD_SEQ, seq) |
+		  FIELD_PREP(MT_MCU_MSG_PORT, CPU_TX_PORT) |
+		  FIELD_PREP(MT_MCU_MSG_LEN, skb->len);
+
+	ret = mt76_tx_queue_skb_raw(dev, MT_TXQ_MCU, skb, tx_info);
 	if (ret)
 		goto out;
 
