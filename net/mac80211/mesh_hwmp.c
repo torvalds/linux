@@ -318,8 +318,8 @@ void ieee80211s_update_metric(struct ieee80211_local *local,
 				  cfg80211_calculate_bitrate(&rinfo));
 }
 
-static u32 airtime_link_metric_get(struct ieee80211_local *local,
-				   struct sta_info *sta)
+u32 airtime_link_metric_get(struct ieee80211_local *local,
+			    struct sta_info *sta)
 {
 	/* This should be adjusted for each device */
 	int device_constant = 1 << ARITH_SHIFT;
