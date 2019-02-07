@@ -3165,8 +3165,10 @@ static struct iwl_trans_dump_data
 	len = sizeof(*dump_data);
 
 	/* host commands */
-	len += sizeof(*data) +
-		cmdq->n_window * (sizeof(*txcmd) + TFD_MAX_PAYLOAD_SIZE);
+	if (dump_mask & BIT(IWL_FW_ERROR_DUMP_TXCMD))
+		len += sizeof(*data) +
+			cmdq->n_window * (sizeof(*txcmd) +
+					  TFD_MAX_PAYLOAD_SIZE);
 
 	/* FW monitor */
 	if (dump_mask & BIT(IWL_FW_ERROR_DUMP_FW_MONITOR))
