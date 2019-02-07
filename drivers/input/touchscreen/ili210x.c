@@ -7,6 +7,7 @@
 #include <linux/delay.h>
 #include <linux/workqueue.h>
 #include <linux/gpio/consumer.h>
+#include <asm/unaligned.h>
 
 #define MAX_TOUCHES		2
 #define DEFAULT_POLL_PERIOD	20
@@ -17,20 +18,11 @@
 #define REG_FIRMWARE_VERSION	0x40
 #define REG_CALIBRATE		0xcc
 
-struct finger {
+struct panel_info {
 	u8 x_low;
 	u8 x_high;
 	u8 y_low;
 	u8 y_high;
-} __packed;
-
-struct touchdata {
-	u8 status;
-	struct finger finger[MAX_TOUCHES];
-} __packed;
-
-struct panel_info {
-	struct finger finger_max;
 	u8 xchannel_num;
 	u8 ychannel_num;
 } __packed;
@@ -75,25 +67,35 @@ static int ili210x_read_reg(struct i2c_client *client, u8 reg, void *buf,
 	return 0;
 }
 
-static void ili210x_report_events(struct input_dev *input,
-				  const struct touchdata *touchdata)
+static bool ili210x_touchdata_to_coords(struct ili210x *priv, u8 *touchdata,
+					unsigned int finger,
+					unsigned int *x, unsigned int *y)
 {
+	if (finger >= MAX_TOUCHES)
+		return false;
+
+	if (touchdata[0] & BIT(finger))
+		return false;
+
+	*x = get_unaligned_be16(touchdata + 1 + (finger * 4) + 0);
+	*y = get_unaligned_be16(touchdata + 1 + (finger * 4) + 2);
+
+	return true;
+}
+
+static bool ili210x_report_events(struct ili210x *priv, u8 *touchdata)
+{
+	struct input_dev *input = priv->input;
 	int i;
 	bool touch;
 	unsigned int x, y;
-	const struct finger *finger;
 
 	for (i = 0; i < MAX_TOUCHES; i++) {
 		input_mt_slot(input, i);
 
-		finger = &touchdata->finger[i];
-
-		touch = touchdata->status & (1 << i);
+		touch = ili210x_touchdata_to_coords(priv, touchdata, i, &x, &y);
 		input_mt_report_slot_state(input, MT_TOOL_FINGER, touch);
 		if (touch) {
-			x = finger->x_low | (finger->x_high << 8);
-			y = finger->y_low | (finger->y_high << 8);
-
 			input_report_abs(input, ABS_MT_POSITION_X, x);
 			input_report_abs(input, ABS_MT_POSITION_Y, y);
 		}
@@ -101,6 +103,8 @@ static void ili210x_report_events(struct input_dev *input,
 
 	input_mt_report_pointer_emulation(input, false);
 	input_sync(input);
+
+	return touchdata[0] & 0xf3;
 }
 
 static void ili210x_work(struct work_struct *work)
@@ -108,20 +112,21 @@ static void ili210x_work(struct work_struct *work)
 	struct ili210x *priv = container_of(work, struct ili210x,
 					    dwork.work);
 	struct i2c_client *client = priv->client;
-	struct touchdata touchdata;
+	u8 touchdata[1 + 4 * MAX_TOUCHES];
+	bool touch;
 	int error;
 
 	error = ili210x_read_reg(client, REG_TOUCHDATA,
-				 &touchdata, sizeof(touchdata));
+				 touchdata, sizeof(touchdata));
 	if (error) {
 		dev_err(&client->dev,
 			"Unable to get touchdata, err = %d\n", error);
 		return;
 	}
 
-	ili210x_report_events(priv->input, &touchdata);
+	touch = ili210x_report_events(priv, touchdata);
 
-	if (touchdata.status & 0xf3)
+	if (touch)
 		schedule_delayed_work(&priv->dwork,
 				      msecs_to_jiffies(priv->poll_period));
 }
@@ -235,8 +240,8 @@ static int ili210x_i2c_probe(struct i2c_client *client,
 		return error;
 	}
 
-	xmax = panel.finger_max.x_low | (panel.finger_max.x_high << 8);
-	ymax = panel.finger_max.y_low | (panel.finger_max.y_high << 8);
+	xmax = panel.x_low | (panel.x_high << 8);
+	ymax = panel.y_low | (panel.y_high << 8);
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
