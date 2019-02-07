@@ -3879,6 +3879,965 @@ static int devlink_nl_cmd_info_get_dumpit(struct sk_buff *msg,
 	return msg->len;
 }
 
+struct devlink_fmsg_item {
+	struct list_head list;
+	int attrtype;
+	u8 nla_type;
+	u16 len;
+	int value[0];
+};
+
+struct devlink_fmsg {
+	struct list_head item_list;
+};
+
+static struct devlink_fmsg *devlink_fmsg_alloc(void)
+{
+	struct devlink_fmsg *fmsg;
+
+	fmsg = kzalloc(sizeof(*fmsg), GFP_KERNEL);
+	if (!fmsg)
+		return NULL;
+
+	INIT_LIST_HEAD(&fmsg->item_list);
+
+	return fmsg;
+}
+
+static void devlink_fmsg_free(struct devlink_fmsg *fmsg)
+{
+	struct devlink_fmsg_item *item, *tmp;
+
+	list_for_each_entry_safe(item, tmp, &fmsg->item_list, list) {
+		list_del(&item->list);
+		kfree(item);
+	}
+	kfree(fmsg);
+}
+
+static int devlink_fmsg_nest_common(struct devlink_fmsg *fmsg,
+				    int attrtype)
+{
+	struct devlink_fmsg_item *item;
+
+	item = kzalloc(sizeof(*item), GFP_KERNEL);
+	if (!item)
+		return -ENOMEM;
+
+	item->attrtype = attrtype;
+	list_add_tail(&item->list, &fmsg->item_list);
+
+	return 0;
+}
+
+int devlink_fmsg_obj_nest_start(struct devlink_fmsg *fmsg)
+{
+	return devlink_fmsg_nest_common(fmsg, DEVLINK_ATTR_FMSG_OBJ_NEST_START);
+}
+EXPORT_SYMBOL_GPL(devlink_fmsg_obj_nest_start);
+
+static int devlink_fmsg_nest_end(struct devlink_fmsg *fmsg)
+{
+	return devlink_fmsg_nest_common(fmsg, DEVLINK_ATTR_FMSG_NEST_END);
+}
+
+int devlink_fmsg_obj_nest_end(struct devlink_fmsg *fmsg)
+{
+	return devlink_fmsg_nest_end(fmsg);
+}
+EXPORT_SYMBOL_GPL(devlink_fmsg_obj_nest_end);
+
+#define DEVLINK_FMSG_MAX_SIZE (GENLMSG_DEFAULT_SIZE - GENL_HDRLEN - NLA_HDRLEN)
+
+static int devlink_fmsg_put_name(struct devlink_fmsg *fmsg, const char *name)
+{
+	struct devlink_fmsg_item *item;
+
+	if (strlen(name) + 1 > DEVLINK_FMSG_MAX_SIZE)
+		return -EMSGSIZE;
+
+	item = kzalloc(sizeof(*item) + strlen(name) + 1, GFP_KERNEL);
+	if (!item)
+		return -ENOMEM;
+
+	item->nla_type = NLA_NUL_STRING;
+	item->len = strlen(name) + 1;
+	item->attrtype = DEVLINK_ATTR_FMSG_OBJ_NAME;
+	memcpy(&item->value, name, item->len);
+	list_add_tail(&item->list, &fmsg->item_list);
+
+	return 0;
+}
+
+int devlink_fmsg_pair_nest_start(struct devlink_fmsg *fmsg, const char *name)
+{
+	int err;
+
+	err = devlink_fmsg_nest_common(fmsg, DEVLINK_ATTR_FMSG_PAIR_NEST_START);
+	if (err)
+		return err;
+
+	err = devlink_fmsg_put_name(fmsg, name);
+	if (err)
+		return err;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(devlink_fmsg_pair_nest_start);
+
+int devlink_fmsg_pair_nest_end(struct devlink_fmsg *fmsg)
+{
+	return devlink_fmsg_nest_end(fmsg);
+}
+EXPORT_SYMBOL_GPL(devlink_fmsg_pair_nest_end);
+
+int devlink_fmsg_arr_pair_nest_start(struct devlink_fmsg *fmsg,
+				     const char *name)
+{
+	int err;
+
+	err = devlink_fmsg_pair_nest_start(fmsg, name);
+	if (err)
+		return err;
+
+	err = devlink_fmsg_nest_common(fmsg, DEVLINK_ATTR_FMSG_ARR_NEST_START);
+	if (err)
+		return err;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(devlink_fmsg_arr_pair_nest_start);
+
+int devlink_fmsg_arr_pair_nest_end(struct devlink_fmsg *fmsg)
+{
+	int err;
+
+	err = devlink_fmsg_nest_end(fmsg);
+	if (err)
+		return err;
+
+	err = devlink_fmsg_nest_end(fmsg);
+	if (err)
+		return err;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(devlink_fmsg_arr_pair_nest_end);
+
+static int devlink_fmsg_put_value(struct devlink_fmsg *fmsg,
+				  const void *value, u16 value_len,
+				  u8 value_nla_type)
+{
+	struct devlink_fmsg_item *item;
+
+	if (value_len > DEVLINK_FMSG_MAX_SIZE)
+		return -EMSGSIZE;
+
+	item = kzalloc(sizeof(*item) + value_len, GFP_KERNEL);
+	if (!item)
+		return -ENOMEM;
+
+	item->nla_type = value_nla_type;
+	item->len = value_len;
+	item->attrtype = DEVLINK_ATTR_FMSG_OBJ_VALUE_DATA;
+	memcpy(&item->value, value, item->len);
+	list_add_tail(&item->list, &fmsg->item_list);
+
+	return 0;
+}
+
+int devlink_fmsg_bool_put(struct devlink_fmsg *fmsg, bool value)
+{
+	return devlink_fmsg_put_value(fmsg, &value, sizeof(value), NLA_FLAG);
+}
+EXPORT_SYMBOL_GPL(devlink_fmsg_bool_put);
+
+int devlink_fmsg_u8_put(struct devlink_fmsg *fmsg, u8 value)
+{
+	return devlink_fmsg_put_value(fmsg, &value, sizeof(value), NLA_U8);
+}
+EXPORT_SYMBOL_GPL(devlink_fmsg_u8_put);
+
+int devlink_fmsg_u32_put(struct devlink_fmsg *fmsg, u32 value)
+{
+	return devlink_fmsg_put_value(fmsg, &value, sizeof(value), NLA_U32);
+}
+EXPORT_SYMBOL_GPL(devlink_fmsg_u32_put);
+
+int devlink_fmsg_u64_put(struct devlink_fmsg *fmsg, u64 value)
+{
+	return devlink_fmsg_put_value(fmsg, &value, sizeof(value), NLA_U64);
+}
+EXPORT_SYMBOL_GPL(devlink_fmsg_u64_put);
+
+int devlink_fmsg_string_put(struct devlink_fmsg *fmsg, const char *value)
+{
+	return devlink_fmsg_put_value(fmsg, value, strlen(value) + 1,
+				      NLA_NUL_STRING);
+}
+EXPORT_SYMBOL_GPL(devlink_fmsg_string_put);
+
+int devlink_fmsg_binary_put(struct devlink_fmsg *fmsg, const void *value,
+			    u16 value_len)
+{
+	return devlink_fmsg_put_value(fmsg, value, value_len, NLA_BINARY);
+}
+EXPORT_SYMBOL_GPL(devlink_fmsg_binary_put);
+
+int devlink_fmsg_bool_pair_put(struct devlink_fmsg *fmsg, const char *name,
+			       bool value)
+{
+	int err;
+
+	err = devlink_fmsg_pair_nest_start(fmsg, name);
+	if (err)
+		return err;
+
+	err = devlink_fmsg_bool_put(fmsg, value);
+	if (err)
+		return err;
+
+	err = devlink_fmsg_pair_nest_end(fmsg);
+	if (err)
+		return err;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(devlink_fmsg_bool_pair_put);
+
+int devlink_fmsg_u8_pair_put(struct devlink_fmsg *fmsg, const char *name,
+			     u8 value)
+{
+	int err;
+
+	err = devlink_fmsg_pair_nest_start(fmsg, name);
+	if (err)
+		return err;
+
+	err = devlink_fmsg_u8_put(fmsg, value);
+	if (err)
+		return err;
+
+	err = devlink_fmsg_pair_nest_end(fmsg);
+	if (err)
+		return err;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(devlink_fmsg_u8_pair_put);
+
+int devlink_fmsg_u32_pair_put(struct devlink_fmsg *fmsg, const char *name,
+			      u32 value)
+{
+	int err;
+
+	err = devlink_fmsg_pair_nest_start(fmsg, name);
+	if (err)
+		return err;
+
+	err = devlink_fmsg_u32_put(fmsg, value);
+	if (err)
+		return err;
+
+	err = devlink_fmsg_pair_nest_end(fmsg);
+	if (err)
+		return err;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(devlink_fmsg_u32_pair_put);
+
+int devlink_fmsg_u64_pair_put(struct devlink_fmsg *fmsg, const char *name,
+			      u64 value)
+{
+	int err;
+
+	err = devlink_fmsg_pair_nest_start(fmsg, name);
+	if (err)
+		return err;
+
+	err = devlink_fmsg_u64_put(fmsg, value);
+	if (err)
+		return err;
+
+	err = devlink_fmsg_pair_nest_end(fmsg);
+	if (err)
+		return err;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(devlink_fmsg_u64_pair_put);
+
+int devlink_fmsg_string_pair_put(struct devlink_fmsg *fmsg, const char *name,
+				 const char *value)
+{
+	int err;
+
+	err = devlink_fmsg_pair_nest_start(fmsg, name);
+	if (err)
+		return err;
+
+	err = devlink_fmsg_string_put(fmsg, value);
+	if (err)
+		return err;
+
+	err = devlink_fmsg_pair_nest_end(fmsg);
+	if (err)
+		return err;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(devlink_fmsg_string_pair_put);
+
+int devlink_fmsg_binary_pair_put(struct devlink_fmsg *fmsg, const char *name,
+				 const void *value, u16 value_len)
+{
+	int err;
+
+	err = devlink_fmsg_pair_nest_start(fmsg, name);
+	if (err)
+		return err;
+
+	err = devlink_fmsg_binary_put(fmsg, value, value_len);
+	if (err)
+		return err;
+
+	err = devlink_fmsg_pair_nest_end(fmsg);
+	if (err)
+		return err;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(devlink_fmsg_binary_pair_put);
+
+static int
+devlink_fmsg_item_fill_type(struct devlink_fmsg_item *msg, struct sk_buff *skb)
+{
+	switch (msg->nla_type) {
+	case NLA_FLAG:
+	case NLA_U8:
+	case NLA_U32:
+	case NLA_U64:
+	case NLA_NUL_STRING:
+	case NLA_BINARY:
+		return nla_put_u8(skb, DEVLINK_ATTR_FMSG_OBJ_VALUE_TYPE,
+				  msg->nla_type);
+	default:
+		return -EINVAL;
+	}
+}
+
+static int
+devlink_fmsg_item_fill_data(struct devlink_fmsg_item *msg, struct sk_buff *skb)
+{
+	int attrtype = DEVLINK_ATTR_FMSG_OBJ_VALUE_DATA;
+	u8 tmp;
+
+	switch (msg->nla_type) {
+	case NLA_FLAG:
+		/* Always provide flag data, regardless of its value */
+		tmp = *(bool *) msg->value;
+
+		return nla_put_u8(skb, attrtype, tmp);
+	case NLA_U8:
+		return nla_put_u8(skb, attrtype, *(u8 *) msg->value);
+	case NLA_U32:
+		return nla_put_u32(skb, attrtype, *(u32 *) msg->value);
+	case NLA_U64:
+		return nla_put_u64_64bit(skb, attrtype, *(u64 *) msg->value,
+					 DEVLINK_ATTR_PAD);
+	case NLA_NUL_STRING:
+		return nla_put_string(skb, attrtype, (char *) &msg->value);
+	case NLA_BINARY:
+		return nla_put(skb, attrtype, msg->len, (void *) &msg->value);
+	default:
+		return -EINVAL;
+	}
+}
+
+static int
+devlink_fmsg_prepare_skb(struct devlink_fmsg *fmsg, struct sk_buff *skb,
+			 int *start)
+{
+	struct devlink_fmsg_item *item;
+	struct nlattr *fmsg_nlattr;
+	int i = 0;
+	int err;
+
+	fmsg_nlattr = nla_nest_start(skb, DEVLINK_ATTR_FMSG);
+	if (!fmsg_nlattr)
+		return -EMSGSIZE;
+
+	list_for_each_entry(item, &fmsg->item_list, list) {
+		if (i < *start) {
+			i++;
+			continue;
+		}
+
+		switch (item->attrtype) {
+		case DEVLINK_ATTR_FMSG_OBJ_NEST_START:
+		case DEVLINK_ATTR_FMSG_PAIR_NEST_START:
+		case DEVLINK_ATTR_FMSG_ARR_NEST_START:
+		case DEVLINK_ATTR_FMSG_NEST_END:
+			err = nla_put_flag(skb, item->attrtype);
+			break;
+		case DEVLINK_ATTR_FMSG_OBJ_VALUE_DATA:
+			err = devlink_fmsg_item_fill_type(item, skb);
+			if (err)
+				break;
+			err = devlink_fmsg_item_fill_data(item, skb);
+			break;
+		case DEVLINK_ATTR_FMSG_OBJ_NAME:
+			err = nla_put_string(skb, item->attrtype,
+					     (char *) &item->value);
+			break;
+		default:
+			err = -EINVAL;
+			break;
+		}
+		if (!err)
+			*start = ++i;
+		else
+			break;
+	}
+
+	nla_nest_end(skb, fmsg_nlattr);
+	return err;
+}
+
+static int devlink_fmsg_snd(struct devlink_fmsg *fmsg,
+			    struct genl_info *info,
+			    enum devlink_command cmd, int flags)
+{
+	struct nlmsghdr *nlh;
+	struct sk_buff *skb;
+	bool last = false;
+	int index = 0;
+	void *hdr;
+	int err;
+
+	while (!last) {
+		int tmp_index = index;
+
+		skb = genlmsg_new(GENLMSG_DEFAULT_SIZE, GFP_KERNEL);
+		if (!skb)
+			return -ENOMEM;
+
+		hdr = genlmsg_put(skb, info->snd_portid, info->snd_seq,
+				  &devlink_nl_family, flags | NLM_F_MULTI, cmd);
+		if (!hdr) {
+			err = -EMSGSIZE;
+			goto nla_put_failure;
+		}
+
+		err = devlink_fmsg_prepare_skb(fmsg, skb, &index);
+		if (!err)
+			last = true;
+		else if (err != -EMSGSIZE || tmp_index == index)
+			goto nla_put_failure;
+
+		genlmsg_end(skb, hdr);
+		err = genlmsg_reply(skb, info);
+		if (err)
+			return err;
+	}
+
+	skb = genlmsg_new(GENLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!skb)
+		return -ENOMEM;
+	nlh = nlmsg_put(skb, info->snd_portid, info->snd_seq,
+			NLMSG_DONE, 0, flags | NLM_F_MULTI);
+	if (!nlh) {
+		err = -EMSGSIZE;
+		goto nla_put_failure;
+	}
+	err = genlmsg_reply(skb, info);
+	if (err)
+		return err;
+
+	return 0;
+
+nla_put_failure:
+	nlmsg_free(skb);
+	return err;
+}
+
+struct devlink_health_reporter {
+	struct list_head list;
+	void *priv;
+	const struct devlink_health_reporter_ops *ops;
+	struct devlink *devlink;
+	struct devlink_fmsg *dump_fmsg;
+	struct mutex dump_lock; /* lock parallel read/write from dump buffers */
+	u64 graceful_period;
+	bool auto_recover;
+	u8 health_state;
+	u64 dump_ts;
+	u64 error_count;
+	u64 recovery_count;
+	u64 last_recovery_ts;
+};
+
+enum devlink_health_reporter_state {
+	DEVLINK_HEALTH_REPORTER_STATE_HEALTHY,
+	DEVLINK_HEALTH_REPORTER_STATE_ERROR,
+};
+
+void *
+devlink_health_reporter_priv(struct devlink_health_reporter *reporter)
+{
+	return reporter->priv;
+}
+EXPORT_SYMBOL_GPL(devlink_health_reporter_priv);
+
+static struct devlink_health_reporter *
+devlink_health_reporter_find_by_name(struct devlink *devlink,
+				     const char *reporter_name)
+{
+	struct devlink_health_reporter *reporter;
+
+	list_for_each_entry(reporter, &devlink->reporter_list, list)
+		if (!strcmp(reporter->ops->name, reporter_name))
+			return reporter;
+	return NULL;
+}
+
+/**
+ *	devlink_health_reporter_create - create devlink health reporter
+ *
+ *	@devlink: devlink
+ *	@ops: ops
+ *	@graceful_period: to avoid recovery loops, in msecs
+ *	@auto_recover: auto recover when error occurs
+ *	@priv: priv
+ */
+struct devlink_health_reporter *
+devlink_health_reporter_create(struct devlink *devlink,
+			       const struct devlink_health_reporter_ops *ops,
+			       u64 graceful_period, bool auto_recover,
+			       void *priv)
+{
+	struct devlink_health_reporter *reporter;
+
+	mutex_lock(&devlink->lock);
+	if (devlink_health_reporter_find_by_name(devlink, ops->name)) {
+		reporter = ERR_PTR(-EEXIST);
+		goto unlock;
+	}
+
+	if (WARN_ON(auto_recover && !ops->recover) ||
+	    WARN_ON(graceful_period && !ops->recover)) {
+		reporter = ERR_PTR(-EINVAL);
+		goto unlock;
+	}
+
+	reporter = kzalloc(sizeof(*reporter), GFP_KERNEL);
+	if (!reporter) {
+		reporter = ERR_PTR(-ENOMEM);
+		goto unlock;
+	}
+
+	reporter->priv = priv;
+	reporter->ops = ops;
+	reporter->devlink = devlink;
+	reporter->graceful_period = graceful_period;
+	reporter->auto_recover = auto_recover;
+	mutex_init(&reporter->dump_lock);
+	list_add_tail(&reporter->list, &devlink->reporter_list);
+unlock:
+	mutex_unlock(&devlink->lock);
+	return reporter;
+}
+EXPORT_SYMBOL_GPL(devlink_health_reporter_create);
+
+/**
+ *	devlink_health_reporter_destroy - destroy devlink health reporter
+ *
+ *	@reporter: devlink health reporter to destroy
+ */
+void
+devlink_health_reporter_destroy(struct devlink_health_reporter *reporter)
+{
+	mutex_lock(&reporter->devlink->lock);
+	list_del(&reporter->list);
+	mutex_unlock(&reporter->devlink->lock);
+	if (reporter->dump_fmsg)
+		devlink_fmsg_free(reporter->dump_fmsg);
+	kfree(reporter);
+}
+EXPORT_SYMBOL_GPL(devlink_health_reporter_destroy);
+
+static int
+devlink_health_reporter_recover(struct devlink_health_reporter *reporter,
+				void *priv_ctx)
+{
+	int err;
+
+	if (!reporter->ops->recover)
+		return -EOPNOTSUPP;
+
+	err = reporter->ops->recover(reporter, priv_ctx);
+	if (err)
+		return err;
+
+	reporter->recovery_count++;
+	reporter->health_state = DEVLINK_HEALTH_REPORTER_STATE_HEALTHY;
+	reporter->last_recovery_ts = jiffies;
+
+	return 0;
+}
+
+static void
+devlink_health_dump_clear(struct devlink_health_reporter *reporter)
+{
+	if (!reporter->dump_fmsg)
+		return;
+	devlink_fmsg_free(reporter->dump_fmsg);
+	reporter->dump_fmsg = NULL;
+}
+
+static int devlink_health_do_dump(struct devlink_health_reporter *reporter,
+				  void *priv_ctx)
+{
+	int err;
+
+	if (!reporter->ops->dump)
+		return 0;
+
+	if (reporter->dump_fmsg)
+		return 0;
+
+	reporter->dump_fmsg = devlink_fmsg_alloc();
+	if (!reporter->dump_fmsg) {
+		err = -ENOMEM;
+		return err;
+	}
+
+	err = devlink_fmsg_obj_nest_start(reporter->dump_fmsg);
+	if (err)
+		goto dump_err;
+
+	err = reporter->ops->dump(reporter, reporter->dump_fmsg,
+				  priv_ctx);
+	if (err)
+		goto dump_err;
+
+	err = devlink_fmsg_obj_nest_end(reporter->dump_fmsg);
+	if (err)
+		goto dump_err;
+
+	reporter->dump_ts = jiffies;
+
+	return 0;
+
+dump_err:
+	devlink_health_dump_clear(reporter);
+	return err;
+}
+
+int devlink_health_report(struct devlink_health_reporter *reporter,
+			  const char *msg, void *priv_ctx)
+{
+	struct devlink *devlink = reporter->devlink;
+
+	/* write a log message of the current error */
+	WARN_ON(!msg);
+	trace_devlink_health_report(devlink, reporter->ops->name, msg);
+	reporter->error_count++;
+
+	/* abort if the previous error wasn't recovered */
+	if (reporter->auto_recover &&
+	    (reporter->health_state != DEVLINK_HEALTH_REPORTER_STATE_HEALTHY ||
+	     jiffies - reporter->last_recovery_ts <
+	     msecs_to_jiffies(reporter->graceful_period))) {
+		trace_devlink_health_recover_aborted(devlink,
+						     reporter->ops->name,
+						     reporter->health_state,
+						     jiffies -
+						     reporter->last_recovery_ts);
+		return -ECANCELED;
+	}
+
+	reporter->health_state = DEVLINK_HEALTH_REPORTER_STATE_ERROR;
+
+	mutex_lock(&reporter->dump_lock);
+	/* store current dump of current error, for later analysis */
+	devlink_health_do_dump(reporter, priv_ctx);
+	mutex_unlock(&reporter->dump_lock);
+
+	if (reporter->auto_recover)
+		return devlink_health_reporter_recover(reporter, priv_ctx);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(devlink_health_report);
+
+static struct devlink_health_reporter *
+devlink_health_reporter_get_from_info(struct devlink *devlink,
+				      struct genl_info *info)
+{
+	char *reporter_name;
+
+	if (!info->attrs[DEVLINK_ATTR_HEALTH_REPORTER_NAME])
+		return NULL;
+
+	reporter_name =
+		nla_data(info->attrs[DEVLINK_ATTR_HEALTH_REPORTER_NAME]);
+	return devlink_health_reporter_find_by_name(devlink, reporter_name);
+}
+
+static int
+devlink_nl_health_reporter_fill(struct sk_buff *msg,
+				struct devlink *devlink,
+				struct devlink_health_reporter *reporter,
+				enum devlink_command cmd, u32 portid,
+				u32 seq, int flags)
+{
+	struct nlattr *reporter_attr;
+	void *hdr;
+
+	hdr = genlmsg_put(msg, portid, seq, &devlink_nl_family, flags, cmd);
+	if (!hdr)
+		return -EMSGSIZE;
+
+	if (devlink_nl_put_handle(msg, devlink))
+		goto genlmsg_cancel;
+
+	reporter_attr = nla_nest_start(msg, DEVLINK_ATTR_HEALTH_REPORTER);
+	if (!reporter_attr)
+		goto genlmsg_cancel;
+	if (nla_put_string(msg, DEVLINK_ATTR_HEALTH_REPORTER_NAME,
+			   reporter->ops->name))
+		goto reporter_nest_cancel;
+	if (nla_put_u8(msg, DEVLINK_ATTR_HEALTH_REPORTER_STATE,
+		       reporter->health_state))
+		goto reporter_nest_cancel;
+	if (nla_put_u64_64bit(msg, DEVLINK_ATTR_HEALTH_REPORTER_ERR,
+			      reporter->error_count, DEVLINK_ATTR_PAD))
+		goto reporter_nest_cancel;
+	if (nla_put_u64_64bit(msg, DEVLINK_ATTR_HEALTH_REPORTER_RECOVER,
+			      reporter->recovery_count, DEVLINK_ATTR_PAD))
+		goto reporter_nest_cancel;
+	if (nla_put_u64_64bit(msg, DEVLINK_ATTR_HEALTH_REPORTER_GRACEFUL_PERIOD,
+			      reporter->graceful_period,
+			      DEVLINK_ATTR_PAD))
+		goto reporter_nest_cancel;
+	if (nla_put_u8(msg, DEVLINK_ATTR_HEALTH_REPORTER_AUTO_RECOVER,
+		       reporter->auto_recover))
+		goto reporter_nest_cancel;
+	if (reporter->dump_fmsg &&
+	    nla_put_u64_64bit(msg, DEVLINK_ATTR_HEALTH_REPORTER_DUMP_TS,
+			      jiffies_to_msecs(reporter->dump_ts),
+			      DEVLINK_ATTR_PAD))
+		goto reporter_nest_cancel;
+
+	nla_nest_end(msg, reporter_attr);
+	genlmsg_end(msg, hdr);
+	return 0;
+
+reporter_nest_cancel:
+	nla_nest_end(msg, reporter_attr);
+genlmsg_cancel:
+	genlmsg_cancel(msg, hdr);
+	return -EMSGSIZE;
+}
+
+static int devlink_nl_cmd_health_reporter_get_doit(struct sk_buff *skb,
+						   struct genl_info *info)
+{
+	struct devlink *devlink = info->user_ptr[0];
+	struct devlink_health_reporter *reporter;
+	struct sk_buff *msg;
+	int err;
+
+	reporter = devlink_health_reporter_get_from_info(devlink, info);
+	if (!reporter)
+		return -EINVAL;
+
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!msg)
+		return -ENOMEM;
+
+	err = devlink_nl_health_reporter_fill(msg, devlink, reporter,
+					      DEVLINK_CMD_HEALTH_REPORTER_GET,
+					      info->snd_portid, info->snd_seq,
+					      0);
+	if (err) {
+		nlmsg_free(msg);
+		return err;
+	}
+
+	return genlmsg_reply(msg, info);
+}
+
+static int
+devlink_nl_cmd_health_reporter_get_dumpit(struct sk_buff *msg,
+					  struct netlink_callback *cb)
+{
+	struct devlink_health_reporter *reporter;
+	struct devlink *devlink;
+	int start = cb->args[0];
+	int idx = 0;
+	int err;
+
+	mutex_lock(&devlink_mutex);
+	list_for_each_entry(devlink, &devlink_list, list) {
+		if (!net_eq(devlink_net(devlink), sock_net(msg->sk)))
+			continue;
+		mutex_lock(&devlink->lock);
+		list_for_each_entry(reporter, &devlink->reporter_list,
+				    list) {
+			if (idx < start) {
+				idx++;
+				continue;
+			}
+			err = devlink_nl_health_reporter_fill(msg, devlink,
+							      reporter,
+							      DEVLINK_CMD_HEALTH_REPORTER_GET,
+							      NETLINK_CB(cb->skb).portid,
+							      cb->nlh->nlmsg_seq,
+							      NLM_F_MULTI);
+			if (err) {
+				mutex_unlock(&devlink->lock);
+				goto out;
+			}
+			idx++;
+		}
+		mutex_unlock(&devlink->lock);
+	}
+out:
+	mutex_unlock(&devlink_mutex);
+
+	cb->args[0] = idx;
+	return msg->len;
+}
+
+static int
+devlink_nl_cmd_health_reporter_set_doit(struct sk_buff *skb,
+					struct genl_info *info)
+{
+	struct devlink *devlink = info->user_ptr[0];
+	struct devlink_health_reporter *reporter;
+
+	reporter = devlink_health_reporter_get_from_info(devlink, info);
+	if (!reporter)
+		return -EINVAL;
+
+	if (!reporter->ops->recover &&
+	    (info->attrs[DEVLINK_ATTR_HEALTH_REPORTER_GRACEFUL_PERIOD] ||
+	     info->attrs[DEVLINK_ATTR_HEALTH_REPORTER_AUTO_RECOVER]))
+		return -EOPNOTSUPP;
+
+	if (info->attrs[DEVLINK_ATTR_HEALTH_REPORTER_GRACEFUL_PERIOD])
+		reporter->graceful_period =
+			nla_get_u64(info->attrs[DEVLINK_ATTR_HEALTH_REPORTER_GRACEFUL_PERIOD]);
+
+	if (info->attrs[DEVLINK_ATTR_HEALTH_REPORTER_AUTO_RECOVER])
+		reporter->auto_recover =
+			nla_get_u8(info->attrs[DEVLINK_ATTR_HEALTH_REPORTER_AUTO_RECOVER]);
+
+	return 0;
+}
+
+static int devlink_nl_cmd_health_reporter_recover_doit(struct sk_buff *skb,
+						       struct genl_info *info)
+{
+	struct devlink *devlink = info->user_ptr[0];
+	struct devlink_health_reporter *reporter;
+
+	reporter = devlink_health_reporter_get_from_info(devlink, info);
+	if (!reporter)
+		return -EINVAL;
+
+	return devlink_health_reporter_recover(reporter, NULL);
+}
+
+static int devlink_nl_cmd_health_reporter_diagnose_doit(struct sk_buff *skb,
+							struct genl_info *info)
+{
+	struct devlink *devlink = info->user_ptr[0];
+	struct devlink_health_reporter *reporter;
+	struct devlink_fmsg *fmsg;
+	int err;
+
+	reporter = devlink_health_reporter_get_from_info(devlink, info);
+	if (!reporter)
+		return -EINVAL;
+
+	if (!reporter->ops->diagnose)
+		return -EOPNOTSUPP;
+
+	fmsg = devlink_fmsg_alloc();
+	if (!fmsg)
+		return -ENOMEM;
+
+	err = devlink_fmsg_obj_nest_start(fmsg);
+	if (err)
+		goto out;
+
+	err = reporter->ops->diagnose(reporter, fmsg);
+	if (err)
+		goto out;
+
+	err = devlink_fmsg_obj_nest_end(fmsg);
+	if (err)
+		goto out;
+
+	err = devlink_fmsg_snd(fmsg, info,
+			       DEVLINK_CMD_HEALTH_REPORTER_DIAGNOSE, 0);
+
+out:
+	devlink_fmsg_free(fmsg);
+	return err;
+}
+
+static int devlink_nl_cmd_health_reporter_dump_get_doit(struct sk_buff *skb,
+							struct genl_info *info)
+{
+	struct devlink *devlink = info->user_ptr[0];
+	struct devlink_health_reporter *reporter;
+	int err;
+
+	reporter = devlink_health_reporter_get_from_info(devlink, info);
+	if (!reporter)
+		return -EINVAL;
+
+	if (!reporter->ops->dump)
+		return -EOPNOTSUPP;
+
+	mutex_lock(&reporter->dump_lock);
+	err = devlink_health_do_dump(reporter, NULL);
+	if (err)
+		goto out;
+
+	err = devlink_fmsg_snd(reporter->dump_fmsg, info,
+			       DEVLINK_CMD_HEALTH_REPORTER_DUMP_GET, 0);
+
+out:
+	mutex_unlock(&reporter->dump_lock);
+	return err;
+}
+
+static int
+devlink_nl_cmd_health_reporter_dump_clear_doit(struct sk_buff *skb,
+					       struct genl_info *info)
+{
+	struct devlink *devlink = info->user_ptr[0];
+	struct devlink_health_reporter *reporter;
+
+	reporter = devlink_health_reporter_get_from_info(devlink, info);
+	if (!reporter)
+		return -EINVAL;
+
+	if (!reporter->ops->dump)
+		return -EOPNOTSUPP;
+
+	mutex_lock(&reporter->dump_lock);
+	devlink_health_dump_clear(reporter);
+	mutex_unlock(&reporter->dump_lock);
+	return 0;
+}
+
 static const struct nla_policy devlink_nl_policy[DEVLINK_ATTR_MAX + 1] = {
 	[DEVLINK_ATTR_BUS_NAME] = { .type = NLA_NUL_STRING },
 	[DEVLINK_ATTR_DEV_NAME] = { .type = NLA_NUL_STRING },
@@ -3904,6 +4863,9 @@ static const struct nla_policy devlink_nl_policy[DEVLINK_ATTR_MAX + 1] = {
 	[DEVLINK_ATTR_PARAM_VALUE_CMODE] = { .type = NLA_U8 },
 	[DEVLINK_ATTR_REGION_NAME] = { .type = NLA_NUL_STRING },
 	[DEVLINK_ATTR_REGION_SNAPSHOT_ID] = { .type = NLA_U32 },
+	[DEVLINK_ATTR_HEALTH_REPORTER_NAME] = { .type = NLA_NUL_STRING },
+	[DEVLINK_ATTR_HEALTH_REPORTER_GRACEFUL_PERIOD] = { .type = NLA_U64 },
+	[DEVLINK_ATTR_HEALTH_REPORTER_AUTO_RECOVER] = { .type = NLA_U8 },
 };
 
 static const struct genl_ops devlink_nl_ops[] = {
@@ -4147,6 +5109,51 @@ static const struct genl_ops devlink_nl_ops[] = {
 		.internal_flags = DEVLINK_NL_FLAG_NEED_DEVLINK,
 		/* can be retrieved by unprivileged users */
 	},
+	{
+		.cmd = DEVLINK_CMD_HEALTH_REPORTER_GET,
+		.doit = devlink_nl_cmd_health_reporter_get_doit,
+		.dumpit = devlink_nl_cmd_health_reporter_get_dumpit,
+		.policy = devlink_nl_policy,
+		.internal_flags = DEVLINK_NL_FLAG_NEED_DEVLINK,
+		/* can be retrieved by unprivileged users */
+	},
+	{
+		.cmd = DEVLINK_CMD_HEALTH_REPORTER_SET,
+		.doit = devlink_nl_cmd_health_reporter_set_doit,
+		.policy = devlink_nl_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = DEVLINK_NL_FLAG_NEED_DEVLINK,
+	},
+	{
+		.cmd = DEVLINK_CMD_HEALTH_REPORTER_RECOVER,
+		.doit = devlink_nl_cmd_health_reporter_recover_doit,
+		.policy = devlink_nl_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = DEVLINK_NL_FLAG_NEED_DEVLINK,
+	},
+	{
+		.cmd = DEVLINK_CMD_HEALTH_REPORTER_DIAGNOSE,
+		.doit = devlink_nl_cmd_health_reporter_diagnose_doit,
+		.policy = devlink_nl_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = DEVLINK_NL_FLAG_NEED_DEVLINK,
+	},
+	{
+		.cmd = DEVLINK_CMD_HEALTH_REPORTER_DUMP_GET,
+		.doit = devlink_nl_cmd_health_reporter_dump_get_doit,
+		.policy = devlink_nl_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = DEVLINK_NL_FLAG_NEED_DEVLINK |
+				  DEVLINK_NL_FLAG_NO_LOCK,
+	},
+	{
+		.cmd = DEVLINK_CMD_HEALTH_REPORTER_DUMP_CLEAR,
+		.doit = devlink_nl_cmd_health_reporter_dump_clear_doit,
+		.policy = devlink_nl_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = DEVLINK_NL_FLAG_NEED_DEVLINK |
+				  DEVLINK_NL_FLAG_NO_LOCK,
+	},
 };
 
 static struct genl_family devlink_nl_family __ro_after_init = {
@@ -4187,6 +5194,7 @@ struct devlink *devlink_alloc(const struct devlink_ops *ops, size_t priv_size)
 	INIT_LIST_HEAD(&devlink->resource_list);
 	INIT_LIST_HEAD(&devlink->param_list);
 	INIT_LIST_HEAD(&devlink->region_list);
+	INIT_LIST_HEAD(&devlink->reporter_list);
 	mutex_init(&devlink->lock);
 	return devlink;
 }

@@ -30,6 +30,7 @@ struct devlink {
 	struct list_head param_list;
 	struct list_head region_list;
 	u32 snapshot_id;
+	struct list_head reporter_list;
 	struct devlink_dpipe_headers *dpipe_headers;
 	const struct devlink_ops *ops;
 	struct device *dev;
@@ -448,6 +449,29 @@ struct devlink_info_req;
 
 typedef void devlink_snapshot_data_dest_t(const void *data);
 
+struct devlink_fmsg;
+struct devlink_health_reporter;
+
+/**
+ * struct devlink_health_reporter_ops - Reporter operations
+ * @name: reporter name
+ * @recover: callback to recover from reported error
+ *           if priv_ctx is NULL, run a full recover
+ * @dump: callback to dump an object
+ *        if priv_ctx is NULL, run a full dump
+ * @diagnose: callback to diagnose the current status
+ */
+
+struct devlink_health_reporter_ops {
+	char *name;
+	int (*recover)(struct devlink_health_reporter *reporter,
+		       void *priv_ctx);
+	int (*dump)(struct devlink_health_reporter *reporter,
+		    struct devlink_fmsg *fmsg, void *priv_ctx);
+	int (*diagnose)(struct devlink_health_reporter *reporter,
+			struct devlink_fmsg *fmsg);
+};
+
 struct devlink_ops {
 	int (*reload)(struct devlink *devlink, struct netlink_ext_ack *extack);
 	int (*port_type_set)(struct devlink_port *devlink_port,
@@ -638,6 +662,50 @@ int devlink_info_version_stored_put(struct devlink_info_req *req,
 int devlink_info_version_running_put(struct devlink_info_req *req,
 				     const char *version_name,
 				     const char *version_value);
+
+int devlink_fmsg_obj_nest_start(struct devlink_fmsg *fmsg);
+int devlink_fmsg_obj_nest_end(struct devlink_fmsg *fmsg);
+
+int devlink_fmsg_pair_nest_start(struct devlink_fmsg *fmsg, const char *name);
+int devlink_fmsg_pair_nest_end(struct devlink_fmsg *fmsg);
+
+int devlink_fmsg_arr_pair_nest_start(struct devlink_fmsg *fmsg,
+				     const char *name);
+int devlink_fmsg_arr_pair_nest_end(struct devlink_fmsg *fmsg);
+
+int devlink_fmsg_bool_put(struct devlink_fmsg *fmsg, bool value);
+int devlink_fmsg_u8_put(struct devlink_fmsg *fmsg, u8 value);
+int devlink_fmsg_u32_put(struct devlink_fmsg *fmsg, u32 value);
+int devlink_fmsg_u64_put(struct devlink_fmsg *fmsg, u64 value);
+int devlink_fmsg_string_put(struct devlink_fmsg *fmsg, const char *value);
+int devlink_fmsg_binary_put(struct devlink_fmsg *fmsg, const void *value,
+			    u16 value_len);
+
+int devlink_fmsg_bool_pair_put(struct devlink_fmsg *fmsg, const char *name,
+			       bool value);
+int devlink_fmsg_u8_pair_put(struct devlink_fmsg *fmsg, const char *name,
+			     u8 value);
+int devlink_fmsg_u32_pair_put(struct devlink_fmsg *fmsg, const char *name,
+			      u32 value);
+int devlink_fmsg_u64_pair_put(struct devlink_fmsg *fmsg, const char *name,
+			      u64 value);
+int devlink_fmsg_string_pair_put(struct devlink_fmsg *fmsg, const char *name,
+				 const char *value);
+int devlink_fmsg_binary_pair_put(struct devlink_fmsg *fmsg, const char *name,
+				 const void *value, u16 value_len);
+
+struct devlink_health_reporter *
+devlink_health_reporter_create(struct devlink *devlink,
+			       const struct devlink_health_reporter_ops *ops,
+			       u64 graceful_period, bool auto_recover,
+			       void *priv);
+void
+devlink_health_reporter_destroy(struct devlink_health_reporter *reporter);
+
+void *
+devlink_health_reporter_priv(struct devlink_health_reporter *reporter);
+int devlink_health_report(struct devlink_health_reporter *reporter,
+			  const char *msg, void *priv_ctx);
 
 #else
 
@@ -968,6 +1036,149 @@ static inline int
 devlink_info_version_running_put(struct devlink_info_req *req,
 				 const char *version_name,
 				 const char *version_value)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_obj_nest_start(struct devlink_fmsg *fmsg)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_obj_nest_end(struct devlink_fmsg *fmsg)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_pair_nest_start(struct devlink_fmsg *fmsg, const char *name)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_pair_nest_end(struct devlink_fmsg *fmsg)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_arr_pair_nest_start(struct devlink_fmsg *fmsg,
+				 const char *name)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_arr_pair_nest_end(struct devlink_fmsg *fmsg)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_bool_put(struct devlink_fmsg *fmsg, bool value)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_u8_put(struct devlink_fmsg *fmsg, u8 value)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_u32_put(struct devlink_fmsg *fmsg, u32 value)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_u64_put(struct devlink_fmsg *fmsg, u64 value)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_string_put(struct devlink_fmsg *fmsg, const char *value)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_binary_put(struct devlink_fmsg *fmsg, const void *value,
+			u16 value_len)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_bool_pair_put(struct devlink_fmsg *fmsg, const char *name,
+			   bool value)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_u8_pair_put(struct devlink_fmsg *fmsg, const char *name,
+			 u8 value)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_u32_pair_put(struct devlink_fmsg *fmsg, const char *name,
+			  u32 value)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_u64_pair_put(struct devlink_fmsg *fmsg, const char *name,
+			  u64 value)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_string_pair_put(struct devlink_fmsg *fmsg, const char *name,
+			     const char *value)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_binary_pair_put(struct devlink_fmsg *fmsg, const char *name,
+			     const void *value, u16 value_len)
+{
+	return 0;
+}
+
+static inline struct devlink_health_reporter *
+devlink_health_reporter_create(struct devlink *devlink,
+			       const struct devlink_health_reporter_ops *ops,
+			       u64 graceful_period, bool auto_recover,
+			       void *priv)
+{
+	return NULL;
+}
+
+static inline void
+devlink_health_reporter_destroy(struct devlink_health_reporter *reporter)
+{
+}
+
+static inline void *
+devlink_health_reporter_priv(struct devlink_health_reporter *reporter)
+{
+	return NULL;
+}
+
+static inline int
+devlink_health_report(struct devlink_health_reporter *reporter,
+		      const char *msg, void *priv_ctx)
 {
 	return 0;
 }
