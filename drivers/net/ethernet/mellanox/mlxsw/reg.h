@@ -2199,6 +2199,14 @@ MLXSW_ITEM32(reg, pagt, size, 0x00, 0, 8);
  */
 MLXSW_ITEM32(reg, pagt, acl_group_id, 0x08, 0, 16);
 
+/* reg_pagt_multi
+ * Multi-ACL
+ * 0 - This ACL is the last ACL in the multi-ACL
+ * 1 - This ACL is part of a multi-ACL
+ * Access: RW
+ */
+MLXSW_ITEM32_INDEXED(reg, pagt, multi, 0x30, 31, 1, 0x04, 0x00, false);
+
 /* reg_pagt_acl_id
  * ACL identifier
  * Access: RW
@@ -2212,12 +2220,13 @@ static inline void mlxsw_reg_pagt_pack(char *payload, u16 acl_group_id)
 }
 
 static inline void mlxsw_reg_pagt_acl_id_pack(char *payload, int index,
-					      u16 acl_id)
+					      u16 acl_id, bool multi)
 {
 	u8 size = mlxsw_reg_pagt_size_get(payload);
 
 	if (index >= size)
 		mlxsw_reg_pagt_size_set(payload, index + 1);
+	mlxsw_reg_pagt_multi_set(payload, index, multi);
 	mlxsw_reg_pagt_acl_id_set(payload, index, acl_id);
 }
 

@@ -217,7 +217,7 @@ static int mlxsw_sp_acl_tcam_group_update(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_reg_pagt_pack(pagt_pl, group->id);
 	list_for_each_entry(vregion, &group->vregion_list, list)
 		mlxsw_reg_pagt_acl_id_pack(pagt_pl, acl_index++,
-					   vregion->region->id);
+					   vregion->region->id, false);
 	mlxsw_reg_pagt_size_set(pagt_pl, acl_index);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(pagt), pagt_pl);
 }
