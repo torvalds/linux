@@ -281,6 +281,8 @@ int qed_fill_dev_info(struct qed_dev *cdev,
 		if (hw_info->b_wol_support == QED_WOL_SUPPORT_PME)
 			dev_info->wol_support = true;
 
+		dev_info->smart_an = qed_mcp_is_smart_an_supported(p_hwfn);
+
 		dev_info->abs_pf_id = QED_LEADING_HWFN(cdev)->abs_pf_id;
 	} else {
 		qed_vf_get_fw_version(&cdev->hwfns[0], &dev_info->fw_major,

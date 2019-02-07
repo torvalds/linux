@@ -1148,6 +1148,16 @@ void qed_mcp_resc_lock_default_init(struct qed_resc_lock_params *p_lock,
 				    struct qed_resc_unlock_params *p_unlock,
 				    enum qed_resc_lock
 				    resource, bool b_is_permanent);
+
+/**
+ * @brief - Return whether management firmware support smart AN
+ *
+ * @param p_hwfn
+ *
+ * @return bool - true if feature is supported.
+ */
+bool qed_mcp_is_smart_an_supported(struct qed_hwfn *p_hwfn);
+
 /**
  * @brief Learn of supported MFW features; To be done during early init
  *
