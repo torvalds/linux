@@ -1127,10 +1127,11 @@ static bool construct(
 		link->dc->res_pool->funcs->link_init(link);
 
 	link->hpd_gpio = get_hpd_gpio(link->ctx->dc_bios, link->link_id, link->ctx->gpio_service);
-	dal_gpio_open(link->hpd_gpio, GPIO_MODE_INTERRUPT);
-	dal_gpio_unlock_pin(link->hpd_gpio);
-	if (link->hpd_gpio != NULL)
+	if (link->hpd_gpio != NULL) {
+		dal_gpio_open(link->hpd_gpio, GPIO_MODE_INTERRUPT);
+		dal_gpio_unlock_pin(link->hpd_gpio);
 		link->irq_source_hpd = dal_irq_get_source(link->hpd_gpio);
+	}
 
 	switch (link->link_id.id) {
 	case CONNECTOR_ID_HDMI_TYPE_A:
