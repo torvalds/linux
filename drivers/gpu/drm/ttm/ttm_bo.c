@@ -1646,8 +1646,8 @@ int ttm_bo_device_init(struct ttm_bo_device *bdev,
 		goto out_no_sys;
 
 	drm_vma_offset_manager_init(&bdev->vma_manager,
-				    DRM_FILE_PAGE_OFFSET,
-				    0x10000000);
+				    DRM_FILE_PAGE_OFFSET_START,
+				    DRM_FILE_PAGE_OFFSET_SIZE);
 	INIT_DELAYED_WORK(&bdev->wq, ttm_bo_delayed_workqueue);
 	INIT_LIST_HEAD(&bdev->ddestroy);
 	bdev->dev_mapping = mapping;
