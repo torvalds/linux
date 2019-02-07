@@ -80,6 +80,29 @@ static DEFINE_MUTEX(bnxt_re_dev_lock);
 static struct workqueue_struct *bnxt_re_wq;
 static void bnxt_re_ib_unreg(struct bnxt_re_dev *rdev);
 
+static void bnxt_re_destroy_chip_ctx(struct bnxt_re_dev *rdev)
+{
+	rdev->rcfw.res = NULL;
+	rdev->qplib_res.cctx = NULL;
+}
+
+static int bnxt_re_setup_chip_ctx(struct bnxt_re_dev *rdev)
+{
+	struct bnxt_en_dev *en_dev;
+	struct bnxt *bp;
+
+	en_dev = rdev->en_dev;
+	bp = netdev_priv(en_dev->net);
+
+	rdev->chip_ctx.chip_num = bp->chip_num;
+	/* rest members to follow eventually */
+
+	rdev->qplib_res.cctx = &rdev->chip_ctx;
+	rdev->rcfw.res = &rdev->qplib_res;
+
+	return 0;
+}
+
 /* SR-IOV helper functions */
 
 static void bnxt_re_get_sriov_func_type(struct bnxt_re_dev *rdev)
@@ -278,6 +301,7 @@ static int bnxt_re_register_netdev(struct bnxt_re_dev *rdev)
 
 	rc = en_dev->en_ops->bnxt_register_device(en_dev, BNXT_ROCE_ULP,
 						  &bnxt_re_ulp_ops, rdev);
+	rdev->qplib_res.pdev = rdev->en_dev->pdev;
 	return rc;
 }
 
@@ -905,6 +929,7 @@ static void bnxt_re_free_nq_res(struct bnxt_re_dev *rdev)
 	int i;
 
 	for (i = 0; i < rdev->num_msix - 1; i++) {
+		rdev->nq[i].res = NULL;
 		bnxt_re_net_ring_free(rdev, rdev->nq[i].ring_id);
 		bnxt_qplib_free_nq(&rdev->nq[i]);
 	}
@@ -949,6 +974,7 @@ static int bnxt_re_alloc_res(struct bnxt_re_dev *rdev)
 		goto dealloc_res;
 
 	for (i = 0; i < rdev->num_msix - 1; i++) {
+		rdev->nq[i].res = &rdev->qplib_res;
 		rdev->nq[i].hwq.max_elements = BNXT_RE_MAX_CQ_COUNT +
 			BNXT_RE_MAX_SRQC_COUNT + 2;
 		rc = bnxt_qplib_alloc_nq(rdev->en_dev->pdev, &rdev->nq[i]);
@@ -1262,6 +1288,8 @@ static void bnxt_re_ib_unreg(struct bnxt_re_dev *rdev)
 			dev_warn(rdev_to_dev(rdev),
 				 "Failed to free MSI-X vectors: %#x", rc);
 	}
+
+	bnxt_re_destroy_chip_ctx(rdev);
 	if (test_and_clear_bit(BNXT_RE_FLAG_NETDEV_REGISTERED, &rdev->flags)) {
 		rc = bnxt_re_unregister_netdev(rdev);
 		if (rc)
@@ -1298,6 +1326,12 @@ static int bnxt_re_ib_reg(struct bnxt_re_dev *rdev)
 		return -EINVAL;
 	}
 	set_bit(BNXT_RE_FLAG_NETDEV_REGISTERED, &rdev->flags);
+
+	rc = bnxt_re_setup_chip_ctx(rdev);
+	if (rc) {
+		dev_err(rdev_to_dev(rdev), "Failed to get chip context\n");
+		return -EINVAL;
+	}
 
 	/* Check whether VF or PF */
 	bnxt_re_get_sriov_func_type(rdev);

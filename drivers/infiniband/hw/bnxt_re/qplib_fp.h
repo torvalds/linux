@@ -439,6 +439,7 @@ struct bnxt_qplib_cq {
 
 struct bnxt_qplib_nq {
 	struct pci_dev		*pdev;
+	struct bnxt_qplib_res	*res;
 
 	int			vector;
 	cpumask_t		mask;

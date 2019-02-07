@@ -187,6 +187,7 @@ struct bnxt_qplib_qp_node {
 /* RCFW Communication Channels */
 struct bnxt_qplib_rcfw {
 	struct pci_dev		*pdev;
+	struct bnxt_qplib_res	*res;
 	int			vector;
 	struct tasklet_struct	worker;
 	bool			requested;
