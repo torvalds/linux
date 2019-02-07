@@ -215,10 +215,15 @@ int bpf_load_program_xattr(const struct bpf_load_program_attr *load_attr,
 {
 	void *finfo = NULL, *linfo = NULL;
 	union bpf_attr attr;
+	__u32 log_level;
 	__u32 name_len;
 	int fd;
 
-	if (!load_attr)
+	if (!load_attr || !log_buf != !log_buf_sz)
+		return -EINVAL;
+
+	log_level = load_attr->log_level;
+	if (log_level > 2 || (log_level && !log_buf))
 		return -EINVAL;
 
 	name_len = load_attr->name ? strlen(load_attr->name) : 0;
@@ -229,9 +234,16 @@ int bpf_load_program_xattr(const struct bpf_load_program_attr *load_attr,
 	attr.insn_cnt = (__u32)load_attr->insns_cnt;
 	attr.insns = ptr_to_u64(load_attr->insns);
 	attr.license = ptr_to_u64(load_attr->license);
-	attr.log_buf = ptr_to_u64(NULL);
-	attr.log_size = 0;
-	attr.log_level = 0;
+
+	attr.log_level = log_level;
+	if (log_level) {
+		attr.log_buf = ptr_to_u64(log_buf);
+		attr.log_size = log_buf_sz;
+	} else {
+		attr.log_buf = ptr_to_u64(NULL);
+		attr.log_size = 0;
+	}
+
 	attr.kern_version = load_attr->kern_version;
 	attr.prog_ifindex = load_attr->prog_ifindex;
 	attr.prog_btf_fd = load_attr->prog_btf_fd;
@@ -287,7 +299,7 @@ int bpf_load_program_xattr(const struct bpf_load_program_attr *load_attr,
 			goto done;
 	}
 
-	if (!log_buf || !log_buf_sz)
+	if (log_level || !log_buf)
 		goto done;
 
 	/* Try again with log */
