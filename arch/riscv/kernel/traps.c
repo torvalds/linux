@@ -76,7 +76,7 @@ void do_trap(struct pt_regs *regs, int signo, int code, unsigned long addr)
 		show_regs(regs);
 	}
 
-	force_sig_fault(signo, code, (void __user *)addr, tsk);
+	force_sig_fault(signo, code, (void __user *)addr, current);
 }
 
 static void do_trap_error(struct pt_regs *regs, int signo, int code,

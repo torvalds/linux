@@ -757,7 +757,7 @@ no_context(struct pt_regs *regs, unsigned long error_code,
 
 			/* XXX: hwpoison faults will set the wrong code. */
 			force_sig_fault(signal, si_code, (void __user *)address,
-					tsk);
+					current);
 		}
 
 		/*
@@ -918,7 +918,7 @@ __bad_area_nosemaphore(struct pt_regs *regs, unsigned long error_code,
 		if (si_code == SEGV_PKUERR)
 			force_sig_pkuerr((void __user *)address, pkey);
 
-		force_sig_fault(SIGSEGV, si_code, (void __user *)address, tsk);
+		force_sig_fault(SIGSEGV, si_code, (void __user *)address, current);
 
 		return;
 	}
@@ -1044,7 +1044,7 @@ do_sigbus(struct pt_regs *regs, unsigned long error_code, unsigned long address,
 		return;
 	}
 #endif
-	force_sig_fault(SIGBUS, BUS_ADRERR, (void __user *)address, tsk);
+	force_sig_fault(SIGBUS, BUS_ADRERR, (void __user *)address, current);
 }
 
 static noinline void

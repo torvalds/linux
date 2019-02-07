@@ -124,7 +124,7 @@ static void __do_user_fault(unsigned long addr, unsigned int fsr,
 	tsk->thread.address = addr;
 	tsk->thread.error_code = fsr;
 	tsk->thread.trap_no = 14;
-	force_sig_fault(sig, code, (void __user *)addr, tsk);
+	force_sig_fault(sig, code, (void __user *)addr, current);
 }
 
 void do_bad_area(unsigned long addr, unsigned int fsr, struct pt_regs *regs)

@@ -256,7 +256,7 @@ do_trap(int trapnr, int signr, char *str, struct pt_regs *regs,
 	if (!sicode)
 		force_sig(signr);
 	else
-		force_sig_fault(signr, sicode, addr, tsk);
+		force_sig_fault(signr, sicode, addr, current);
 }
 NOKPROBE_SYMBOL(do_trap);
 
@@ -856,7 +856,7 @@ static void math_error(struct pt_regs *regs, int error_code, int trapnr)
 		return;
 
 	force_sig_fault(SIGFPE, si_code,
-			(void __user *)uprobe_get_trap_addr(regs), task);
+			(void __user *)uprobe_get_trap_addr(regs), current);
 }
 
 dotraplinkage void do_coprocessor_error(struct pt_regs *regs, long error_code)

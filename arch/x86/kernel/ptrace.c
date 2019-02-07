@@ -1369,7 +1369,7 @@ void send_sigtrap(struct pt_regs *regs, int error_code, int si_code)
 
 	/* Send us the fake SIGTRAP */
 	force_sig_fault(SIGTRAP, si_code,
-			user_mode(regs) ? (void __user *)regs->ip : NULL, tsk);
+			user_mode(regs) ? (void __user *)regs->ip : NULL, current);
 }
 
 void user_single_step_report(struct pt_regs *regs)
