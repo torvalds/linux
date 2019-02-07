@@ -250,6 +250,13 @@ struct wilc_hif_func {
 
 #define WILC_MAX_CFG_FRAME_SIZE		1468
 
+struct tx_complete_data {
+	int size;
+	void *buff;
+	u8 *bssid;
+	struct sk_buff *skb;
+};
+
 struct wilc_cfg_cmd_hdr {
 	u8 cmd_type;
 	u8 seq_no;
@@ -301,4 +308,6 @@ void chip_allow_sleep(struct wilc *wilc);
 void chip_wakeup(struct wilc *wilc);
 int wilc_send_config_pkt(struct wilc_vif *vif, u8 mode, struct wid *wids,
 			 u32 count, u32 drv);
+int wilc_wlan_init(struct net_device *dev);
+u32 wilc_get_chipid(struct wilc *wilc, bool update);
 #endif

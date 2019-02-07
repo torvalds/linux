@@ -12,6 +12,8 @@
 
 #include "wilc_wfi_cfgoperations.h"
 
+#define WILC_MULTICAST_TABLE_SIZE	8
+
 static irqreturn_t isr_uh_routine(int irq, void *user_data)
 {
 	struct net_device *dev = user_data;

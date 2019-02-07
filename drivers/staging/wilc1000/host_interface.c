@@ -10,6 +10,7 @@
 #define WILC_HIF_CONNECT_TIMEOUT_MS             9500
 
 #define WILC_FALSE_FRMWR_CHANNEL		100
+#define WILC_MAX_RATES_SUPPORTED		12
 
 struct wilc_rcvd_mac_info {
 	u8 status;

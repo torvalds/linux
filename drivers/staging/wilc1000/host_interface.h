@@ -97,6 +97,17 @@ enum conn_event {
 	CONN_DISCONN_EVENT_FORCE_32BIT		= 0xFFFFFFFF
 };
 
+enum {
+	WILC_HIF_SDIO = 0,
+	WILC_HIF_SPI = BIT(0)
+};
+
+enum {
+	WILC_MAC_STATUS_INIT = -1,
+	WILC_MAC_STATUS_DISCONNECTED = 0,
+	WILC_MAC_STATUS_CONNECTED = 1
+};
+
 struct wilc_rcvd_net_info {
 	s8 rssi;
 	u8 ch;
