@@ -638,8 +638,10 @@ __poll_t v4l2_m2m_poll(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 	 * means either in driver already or waiting for driver to claim it
 	 * and start processing.
 	 */
-	if ((!src_q->streaming || list_empty(&src_q->queued_list))
-		&& (!dst_q->streaming || list_empty(&dst_q->queued_list))) {
+	if ((!src_q->streaming || src_q->error ||
+	     list_empty(&src_q->queued_list)) &&
+	    (!dst_q->streaming || dst_q->error ||
+	     list_empty(&dst_q->queued_list))) {
 		rc |= EPOLLERR;
 		goto end;
 	}
