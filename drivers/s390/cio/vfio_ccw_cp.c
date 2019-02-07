@@ -392,7 +392,7 @@ static int ccwchain_calc_length(u64 iova, struct channel_program *cp)
 			return -EOPNOTSUPP;
 		}
 
-		if ((!ccw_is_chain(ccw)) && (!ccw_is_tic(ccw)))
+		if (!ccw_is_chain(ccw))
 			break;
 
 		ccw++;
