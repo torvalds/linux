@@ -663,6 +663,10 @@ intel_color_add_affected_planes(struct intel_crtc_state *new_crtc_state)
 		intel_atomic_get_old_crtc_state(state, crtc);
 	struct intel_plane *plane;
 
+	if (!new_crtc_state->base.active ||
+	    drm_atomic_crtc_needs_modeset(&new_crtc_state->base))
+		return 0;
+
 	if (new_crtc_state->gamma_enable == old_crtc_state->gamma_enable &&
 	    new_crtc_state->csc_enable == old_crtc_state->csc_enable)
 		return 0;

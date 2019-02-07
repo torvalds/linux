@@ -5742,6 +5742,14 @@ static void intel_encoders_update_pipe(struct drm_crtc *crtc,
 	}
 }
 
+static void intel_disable_primary_plane(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct intel_plane *plane = to_intel_plane(crtc->base.primary);
+
+	plane->disable_plane(plane, crtc_state);
+}
+
 static void ironlake_crtc_enable(struct intel_crtc_state *pipe_config,
 				 struct drm_atomic_state *old_state)
 {
@@ -5807,6 +5815,8 @@ static void ironlake_crtc_enable(struct intel_crtc_state *pipe_config,
 	 */
 	intel_color_load_luts(pipe_config);
 	intel_color_commit(pipe_config);
+	/* update DSPCNTR to configure gamma for pipe bottom color */
+	intel_disable_primary_plane(pipe_config);
 
 	if (dev_priv->display.initial_watermarks != NULL)
 		dev_priv->display.initial_watermarks(old_intel_state, pipe_config);
@@ -5935,6 +5945,9 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 	 */
 	intel_color_load_luts(pipe_config);
 	intel_color_commit(pipe_config);
+	/* update DSPCNTR to configure gamma/csc for pipe bottom color */
+	if (INTEL_GEN(dev_priv) < 9)
+		intel_disable_primary_plane(pipe_config);
 
 	if (INTEL_GEN(dev_priv) >= 11)
 		icl_set_pipe_chicken(intel_crtc);
@@ -6292,6 +6305,8 @@ static void valleyview_crtc_enable(struct intel_crtc_state *pipe_config,
 
 	intel_color_load_luts(pipe_config);
 	intel_color_commit(pipe_config);
+	/* update DSPCNTR to configure gamma for pipe bottom color */
+	intel_disable_primary_plane(pipe_config);
 
 	dev_priv->display.initial_watermarks(old_intel_state,
 					     pipe_config);
@@ -6349,6 +6364,8 @@ static void i9xx_crtc_enable(struct intel_crtc_state *pipe_config,
 
 	intel_color_load_luts(pipe_config);
 	intel_color_commit(pipe_config);
+	/* update DSPCNTR to configure gamma for pipe bottom color */
+	intel_disable_primary_plane(pipe_config);
 
 	if (dev_priv->display.initial_watermarks != NULL)
 		dev_priv->display.initial_watermarks(old_intel_state,
