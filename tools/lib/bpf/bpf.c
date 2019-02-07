@@ -22,6 +22,7 @@
  */
 
 #include <stdlib.h>
+#include <strings.h>
 #include <memory.h>
 #include <unistd.h>
 #include <asm/unistd.h>

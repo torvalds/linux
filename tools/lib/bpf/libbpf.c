@@ -18,6 +18,7 @@
 #include <libgen.h>
 #include <inttypes.h>
 #include <string.h>
+#include <strings.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
