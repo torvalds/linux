@@ -43,7 +43,7 @@ struct mlxsw_sp_acl_profile_ops {
 			       struct mlxsw_sp_port *mlxsw_sp_port,
 			       bool ingress);
 	u16 (*ruleset_group_id)(void *ruleset_priv);
-	size_t (*rule_priv_size)(struct mlxsw_sp *mlxsw_sp);
+	size_t rule_priv_size;
 	int (*rule_add)(struct mlxsw_sp *mlxsw_sp,
 			void *ruleset_priv, void *rule_priv,
 			struct mlxsw_sp_acl_rule_info *rulei);

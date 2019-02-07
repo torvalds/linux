@@ -190,9 +190,14 @@ struct mlxsw_sp_acl_tcam_vchunk {
 };
 
 struct mlxsw_sp_acl_tcam_entry {
-	struct mlxsw_sp_acl_tcam_vchunk *vchunk;
+	struct mlxsw_sp_acl_tcam_ventry *ventry;
 	unsigned long priv[0];
 	/* priv has to be always the last item */
+};
+
+struct mlxsw_sp_acl_tcam_ventry {
+	struct mlxsw_sp_acl_tcam_entry *entry;
+	struct mlxsw_sp_acl_tcam_vchunk *vchunk;
 };
 
 static const struct rhashtable_params mlxsw_sp_acl_tcam_vchunk_ht_params = {
@@ -828,65 +833,52 @@ mlxsw_sp_acl_tcam_vchunk_put(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_sp_acl_tcam_vchunk_destroy(mlxsw_sp, vchunk);
 }
 
-static size_t mlxsw_sp_acl_tcam_entry_priv_size(struct mlxsw_sp *mlxsw_sp)
+static struct mlxsw_sp_acl_tcam_entry *
+mlxsw_sp_acl_tcam_entry_create(struct mlxsw_sp *mlxsw_sp,
+			       struct mlxsw_sp_acl_tcam_ventry *ventry,
+			       struct mlxsw_sp_acl_tcam_region *region,
+			       struct mlxsw_sp_acl_tcam_chunk *chunk,
+			       struct mlxsw_sp_acl_rule_info *rulei)
 {
 	const struct mlxsw_sp_acl_tcam_ops *ops = mlxsw_sp->acl_tcam_ops;
-
-	return ops->entry_priv_size;
-}
-
-static int mlxsw_sp_acl_tcam_entry_add(struct mlxsw_sp *mlxsw_sp,
-				       struct mlxsw_sp_acl_tcam_group *group,
-				       struct mlxsw_sp_acl_tcam_entry *entry,
-				       struct mlxsw_sp_acl_rule_info *rulei)
-{
-	const struct mlxsw_sp_acl_tcam_ops *ops = mlxsw_sp->acl_tcam_ops;
-	struct mlxsw_sp_acl_tcam_vchunk *vchunk;
-	struct mlxsw_sp_acl_tcam_region *region;
-	struct mlxsw_sp_acl_tcam_chunk *chunk;
+	struct mlxsw_sp_acl_tcam_entry *entry;
 	int err;
 
-	vchunk = mlxsw_sp_acl_tcam_vchunk_get(mlxsw_sp, group, rulei->priority,
-					      &rulei->values.elusage);
-	if (IS_ERR(vchunk))
-		return PTR_ERR(vchunk);
-
-	chunk = vchunk->chunk;
-	region = vchunk->vregion->region;
+	entry = kzalloc(sizeof(*entry) + ops->entry_priv_size, GFP_KERNEL);
+	if (!entry)
+		return ERR_PTR(-ENOMEM);
+	entry->ventry = ventry;
 
 	err = ops->entry_add(mlxsw_sp, region->priv, chunk->priv,
 			     entry->priv, rulei);
 	if (err)
 		goto err_entry_add;
-	entry->vchunk = vchunk;
 
-	return 0;
+	return entry;
 
 err_entry_add:
-	mlxsw_sp_acl_tcam_vchunk_put(mlxsw_sp, vchunk);
-	return err;
+	kfree(entry);
+	return ERR_PTR(err);
 }
 
-static void mlxsw_sp_acl_tcam_entry_del(struct mlxsw_sp *mlxsw_sp,
-					struct mlxsw_sp_acl_tcam_entry *entry)
+static void mlxsw_sp_acl_tcam_entry_destroy(struct mlxsw_sp *mlxsw_sp,
+					    struct mlxsw_sp_acl_tcam_region *region,
+					    struct mlxsw_sp_acl_tcam_chunk *chunk,
+					    struct mlxsw_sp_acl_tcam_entry *entry)
 {
 	const struct mlxsw_sp_acl_tcam_ops *ops = mlxsw_sp->acl_tcam_ops;
-	struct mlxsw_sp_acl_tcam_vchunk *vchunk = entry->vchunk;
-	struct mlxsw_sp_acl_tcam_chunk *chunk = vchunk->chunk;
-	struct mlxsw_sp_acl_tcam_region *region = vchunk->vregion->region;
 
 	ops->entry_del(mlxsw_sp, region->priv, chunk->priv, entry->priv);
-	mlxsw_sp_acl_tcam_vchunk_put(mlxsw_sp, vchunk);
+	kfree(entry);
 }
 
 static int
 mlxsw_sp_acl_tcam_entry_action_replace(struct mlxsw_sp *mlxsw_sp,
+				       struct mlxsw_sp_acl_tcam_region *region,
 				       struct mlxsw_sp_acl_tcam_entry *entry,
 				       struct mlxsw_sp_acl_rule_info *rulei)
 {
 	const struct mlxsw_sp_acl_tcam_ops *ops = mlxsw_sp->acl_tcam_ops;
-	struct mlxsw_sp_acl_tcam_vchunk *vchunk = entry->vchunk;
-	struct mlxsw_sp_acl_tcam_region *region = vchunk->vregion->region;
 
 	return ops->entry_action_replace(mlxsw_sp, region->priv,
 					 entry->priv, rulei);
@@ -894,15 +886,77 @@ mlxsw_sp_acl_tcam_entry_action_replace(struct mlxsw_sp *mlxsw_sp,
 
 static int
 mlxsw_sp_acl_tcam_entry_activity_get(struct mlxsw_sp *mlxsw_sp,
+				     struct mlxsw_sp_acl_tcam_region *region,
 				     struct mlxsw_sp_acl_tcam_entry *entry,
 				     bool *activity)
 {
 	const struct mlxsw_sp_acl_tcam_ops *ops = mlxsw_sp->acl_tcam_ops;
-	struct mlxsw_sp_acl_tcam_vchunk *vchunk = entry->vchunk;
-	struct mlxsw_sp_acl_tcam_region *region = vchunk->vregion->region;
 
 	return ops->entry_activity_get(mlxsw_sp, region->priv,
 				       entry->priv, activity);
+}
+
+static int mlxsw_sp_acl_tcam_ventry_add(struct mlxsw_sp *mlxsw_sp,
+					struct mlxsw_sp_acl_tcam_group *group,
+					struct mlxsw_sp_acl_tcam_ventry *ventry,
+					struct mlxsw_sp_acl_rule_info *rulei)
+{
+	struct mlxsw_sp_acl_tcam_vchunk *vchunk;
+	int err;
+
+	vchunk = mlxsw_sp_acl_tcam_vchunk_get(mlxsw_sp, group, rulei->priority,
+					      &rulei->values.elusage);
+	if (IS_ERR(vchunk))
+		return PTR_ERR(vchunk);
+
+	ventry->vchunk = vchunk;
+	ventry->entry = mlxsw_sp_acl_tcam_entry_create(mlxsw_sp, ventry,
+						       vchunk->vregion->region,
+						       vchunk->chunk, rulei);
+	if (IS_ERR(ventry->entry)) {
+		err = PTR_ERR(ventry->entry);
+		goto err_entry_create;
+	}
+
+	return 0;
+
+err_entry_create:
+	mlxsw_sp_acl_tcam_vchunk_put(mlxsw_sp, vchunk);
+	return err;
+}
+
+static void mlxsw_sp_acl_tcam_ventry_del(struct mlxsw_sp *mlxsw_sp,
+					 struct mlxsw_sp_acl_tcam_ventry *ventry)
+{
+	struct mlxsw_sp_acl_tcam_vchunk *vchunk = ventry->vchunk;
+
+	mlxsw_sp_acl_tcam_entry_destroy(mlxsw_sp, vchunk->vregion->region,
+					vchunk->chunk, ventry->entry);
+	mlxsw_sp_acl_tcam_vchunk_put(mlxsw_sp, vchunk);
+}
+
+static int
+mlxsw_sp_acl_tcam_ventry_action_replace(struct mlxsw_sp *mlxsw_sp,
+					struct mlxsw_sp_acl_tcam_ventry *ventry,
+					struct mlxsw_sp_acl_rule_info *rulei)
+{
+	struct mlxsw_sp_acl_tcam_vchunk *vchunk = ventry->vchunk;
+
+	return mlxsw_sp_acl_tcam_entry_action_replace(mlxsw_sp,
+						      vchunk->vregion->region,
+						      ventry->entry, rulei);
+}
+
+static int
+mlxsw_sp_acl_tcam_ventry_activity_get(struct mlxsw_sp *mlxsw_sp,
+				      struct mlxsw_sp_acl_tcam_ventry *ventry,
+				      bool *activity)
+{
+	struct mlxsw_sp_acl_tcam_vchunk *vchunk = ventry->vchunk;
+
+	return mlxsw_sp_acl_tcam_entry_activity_get(mlxsw_sp,
+						    vchunk->vregion->region,
+						    ventry->entry, activity);
 }
 
 static const enum mlxsw_afk_element mlxsw_sp_acl_tcam_pattern_ipv4[] = {
@@ -959,7 +1013,7 @@ struct mlxsw_sp_acl_tcam_flower_ruleset {
 };
 
 struct mlxsw_sp_acl_tcam_flower_rule {
-	struct mlxsw_sp_acl_tcam_entry entry;
+	struct mlxsw_sp_acl_tcam_ventry ventry;
 };
 
 static int
@@ -1017,12 +1071,6 @@ mlxsw_sp_acl_tcam_flower_ruleset_group_id(void *ruleset_priv)
 	return mlxsw_sp_acl_tcam_group_id(&ruleset->group);
 }
 
-static size_t mlxsw_sp_acl_tcam_flower_rule_priv_size(struct mlxsw_sp *mlxsw_sp)
-{
-	return sizeof(struct mlxsw_sp_acl_tcam_flower_rule) +
-	       mlxsw_sp_acl_tcam_entry_priv_size(mlxsw_sp);
-}
-
 static int
 mlxsw_sp_acl_tcam_flower_rule_add(struct mlxsw_sp *mlxsw_sp,
 				  void *ruleset_priv, void *rule_priv,
@@ -1031,8 +1079,8 @@ mlxsw_sp_acl_tcam_flower_rule_add(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_acl_tcam_flower_ruleset *ruleset = ruleset_priv;
 	struct mlxsw_sp_acl_tcam_flower_rule *rule = rule_priv;
 
-	return mlxsw_sp_acl_tcam_entry_add(mlxsw_sp, &ruleset->group,
-					   &rule->entry, rulei);
+	return mlxsw_sp_acl_tcam_ventry_add(mlxsw_sp, &ruleset->group,
+					    &rule->ventry, rulei);
 }
 
 static void
@@ -1040,7 +1088,7 @@ mlxsw_sp_acl_tcam_flower_rule_del(struct mlxsw_sp *mlxsw_sp, void *rule_priv)
 {
 	struct mlxsw_sp_acl_tcam_flower_rule *rule = rule_priv;
 
-	mlxsw_sp_acl_tcam_entry_del(mlxsw_sp, &rule->entry);
+	mlxsw_sp_acl_tcam_ventry_del(mlxsw_sp, &rule->ventry);
 }
 
 static int
@@ -1057,8 +1105,8 @@ mlxsw_sp_acl_tcam_flower_rule_activity_get(struct mlxsw_sp *mlxsw_sp,
 {
 	struct mlxsw_sp_acl_tcam_flower_rule *rule = rule_priv;
 
-	return mlxsw_sp_acl_tcam_entry_activity_get(mlxsw_sp, &rule->entry,
-						    activity);
+	return mlxsw_sp_acl_tcam_ventry_activity_get(mlxsw_sp, &rule->ventry,
+						     activity);
 }
 
 static const struct mlxsw_sp_acl_profile_ops mlxsw_sp_acl_tcam_flower_ops = {
@@ -1068,7 +1116,7 @@ static const struct mlxsw_sp_acl_profile_ops mlxsw_sp_acl_tcam_flower_ops = {
 	.ruleset_bind		= mlxsw_sp_acl_tcam_flower_ruleset_bind,
 	.ruleset_unbind		= mlxsw_sp_acl_tcam_flower_ruleset_unbind,
 	.ruleset_group_id	= mlxsw_sp_acl_tcam_flower_ruleset_group_id,
-	.rule_priv_size		= mlxsw_sp_acl_tcam_flower_rule_priv_size,
+	.rule_priv_size		= sizeof(struct mlxsw_sp_acl_tcam_flower_rule),
 	.rule_add		= mlxsw_sp_acl_tcam_flower_rule_add,
 	.rule_del		= mlxsw_sp_acl_tcam_flower_rule_del,
 	.rule_action_replace	= mlxsw_sp_acl_tcam_flower_rule_action_replace,
@@ -1081,7 +1129,7 @@ struct mlxsw_sp_acl_tcam_mr_ruleset {
 };
 
 struct mlxsw_sp_acl_tcam_mr_rule {
-	struct mlxsw_sp_acl_tcam_entry entry;
+	struct mlxsw_sp_acl_tcam_ventry ventry;
 };
 
 static int
@@ -1155,12 +1203,6 @@ mlxsw_sp_acl_tcam_mr_ruleset_group_id(void *ruleset_priv)
 	return mlxsw_sp_acl_tcam_group_id(&ruleset->group);
 }
 
-static size_t mlxsw_sp_acl_tcam_mr_rule_priv_size(struct mlxsw_sp *mlxsw_sp)
-{
-	return sizeof(struct mlxsw_sp_acl_tcam_mr_rule) +
-	       mlxsw_sp_acl_tcam_entry_priv_size(mlxsw_sp);
-}
-
 static int
 mlxsw_sp_acl_tcam_mr_rule_add(struct mlxsw_sp *mlxsw_sp, void *ruleset_priv,
 			      void *rule_priv,
@@ -1169,8 +1211,8 @@ mlxsw_sp_acl_tcam_mr_rule_add(struct mlxsw_sp *mlxsw_sp, void *ruleset_priv,
 	struct mlxsw_sp_acl_tcam_mr_ruleset *ruleset = ruleset_priv;
 	struct mlxsw_sp_acl_tcam_mr_rule *rule = rule_priv;
 
-	return mlxsw_sp_acl_tcam_entry_add(mlxsw_sp, &ruleset->group,
-					   &rule->entry, rulei);
+	return mlxsw_sp_acl_tcam_ventry_add(mlxsw_sp, &ruleset->group,
+					   &rule->ventry, rulei);
 }
 
 static void
@@ -1178,7 +1220,7 @@ mlxsw_sp_acl_tcam_mr_rule_del(struct mlxsw_sp *mlxsw_sp, void *rule_priv)
 {
 	struct mlxsw_sp_acl_tcam_mr_rule *rule = rule_priv;
 
-	mlxsw_sp_acl_tcam_entry_del(mlxsw_sp, &rule->entry);
+	mlxsw_sp_acl_tcam_ventry_del(mlxsw_sp, &rule->ventry);
 }
 
 static int
@@ -1188,8 +1230,8 @@ mlxsw_sp_acl_tcam_mr_rule_action_replace(struct mlxsw_sp *mlxsw_sp,
 {
 	struct mlxsw_sp_acl_tcam_mr_rule *rule = rule_priv;
 
-	return mlxsw_sp_acl_tcam_entry_action_replace(mlxsw_sp, &rule->entry,
-						      rulei);
+	return mlxsw_sp_acl_tcam_ventry_action_replace(mlxsw_sp, &rule->ventry,
+						       rulei);
 }
 
 static int
@@ -1198,8 +1240,8 @@ mlxsw_sp_acl_tcam_mr_rule_activity_get(struct mlxsw_sp *mlxsw_sp,
 {
 	struct mlxsw_sp_acl_tcam_mr_rule *rule = rule_priv;
 
-	return mlxsw_sp_acl_tcam_entry_activity_get(mlxsw_sp, &rule->entry,
-						    activity);
+	return mlxsw_sp_acl_tcam_ventry_activity_get(mlxsw_sp, &rule->ventry,
+						     activity);
 }
 
 static const struct mlxsw_sp_acl_profile_ops mlxsw_sp_acl_tcam_mr_ops = {
@@ -1209,7 +1251,7 @@ static const struct mlxsw_sp_acl_profile_ops mlxsw_sp_acl_tcam_mr_ops = {
 	.ruleset_bind		= mlxsw_sp_acl_tcam_mr_ruleset_bind,
 	.ruleset_unbind		= mlxsw_sp_acl_tcam_mr_ruleset_unbind,
 	.ruleset_group_id	= mlxsw_sp_acl_tcam_mr_ruleset_group_id,
-	.rule_priv_size		= mlxsw_sp_acl_tcam_mr_rule_priv_size,
+	.rule_priv_size		= sizeof(struct mlxsw_sp_acl_tcam_mr_rule),
 	.rule_add		= mlxsw_sp_acl_tcam_mr_rule_add,
 	.rule_del		= mlxsw_sp_acl_tcam_mr_rule_del,
 	.rule_action_replace	= mlxsw_sp_acl_tcam_mr_rule_action_replace,

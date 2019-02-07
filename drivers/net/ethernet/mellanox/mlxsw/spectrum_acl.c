@@ -640,7 +640,7 @@ mlxsw_sp_acl_rule_create(struct mlxsw_sp *mlxsw_sp,
 	int err;
 
 	mlxsw_sp_acl_ruleset_ref_inc(ruleset);
-	rule = kzalloc(sizeof(*rule) + ops->rule_priv_size(mlxsw_sp),
+	rule = kzalloc(sizeof(*rule) + ops->rule_priv_size,
 		       GFP_KERNEL);
 	if (!rule) {
 		err = -ENOMEM;
