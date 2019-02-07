@@ -1349,8 +1349,8 @@ int cnl_calc_wrpll_link(struct drm_i915_private *dev_priv,
 	case DPLL_CFGCR1_KDIV_2:
 		p2 = 2;
 		break;
-	case DPLL_CFGCR1_KDIV_4:
-		p2 = 4;
+	case DPLL_CFGCR1_KDIV_3:
+		p2 = 3;
 		break;
 	}
 
