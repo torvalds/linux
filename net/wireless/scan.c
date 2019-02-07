@@ -1382,9 +1382,9 @@ static void cfg80211_parse_mbssid_data(struct wiphy *wiphy,
 				       struct cfg80211_bss *trans_bss,
 				       gfp_t gfp)
 {
-	const u8 *pos, *subelement, *mbssid_end_pos;
-	const u8 *tmp, *mbssid_index_ie;
-	size_t subie_len, new_ie_len;
+	const u8 *mbssid_index_ie;
+	const struct element *elem, *sub;
+	size_t new_ie_len;
 	u8 new_bssid[ETH_ALEN];
 	u8 *new_ie;
 	u16 capability;
@@ -1395,34 +1395,21 @@ static void cfg80211_parse_mbssid_data(struct wiphy *wiphy,
 	if (!cfg80211_find_ie(WLAN_EID_MULTIPLE_BSSID, ie, ielen))
 		return;
 
-	pos = ie;
-
 	new_ie = kmalloc(IEEE80211_MAX_DATA_LEN, gfp);
 	if (!new_ie)
 		return;
 
-	while (pos < ie + ielen + 2) {
-		tmp = cfg80211_find_ie(WLAN_EID_MULTIPLE_BSSID, pos,
-				       ielen - (pos - ie));
-		if (!tmp)
-			break;
-
-		mbssid_end_pos = tmp + tmp[1] + 2;
-		/* Skip Element ID, Len, MaxBSSID Indicator */
-		if (tmp[1] < 4)
-			break;
-		for (subelement = tmp + 3; subelement < mbssid_end_pos - 1;
-		     subelement += 2 + subelement[1]) {
-			subie_len = subelement[1];
-			if (mbssid_end_pos - subelement < 2 + subie_len)
-				break;
-			if (subelement[0] != 0 || subelement[1] < 4) {
+	for_each_element_id(elem, WLAN_EID_MULTIPLE_BSSID, ie, ielen) {
+		if (elem->datalen < 4)
+			continue;
+		for_each_element(sub, elem->data + 1, elem->datalen - 1) {
+			if (sub->id != 0 || sub->datalen < 4) {
 				/* not a valid BSS profile */
 				continue;
 			}
 
-			if (subelement[2] != WLAN_EID_NON_TX_BSSID_CAP ||
-			    subelement[3] != 2) {
+			if (sub->data[0] != WLAN_EID_NON_TX_BSSID_CAP ||
+			    sub->data[1] != 2) {
 				/* The first element within the Nontransmitted
 				 * BSSID Profile is not the Nontransmitted
 				 * BSSID Capability element.
@@ -1433,26 +1420,24 @@ static void cfg80211_parse_mbssid_data(struct wiphy *wiphy,
 			/* found a Nontransmitted BSSID Profile */
 			mbssid_index_ie = cfg80211_find_ie
 				(WLAN_EID_MULTI_BSSID_IDX,
-				 subelement + 2, subie_len);
+				 sub->data, sub->datalen);
 			if (!mbssid_index_ie || mbssid_index_ie[1] < 1 ||
 			    mbssid_index_ie[2] == 0) {
 				/* No valid Multiple BSSID-Index element */
 				continue;
 			}
 
-			cfg80211_gen_new_bssid(bssid, tmp[2],
+			cfg80211_gen_new_bssid(bssid, elem->data[0],
 					       mbssid_index_ie[2],
 					       new_bssid);
 			memset(new_ie, 0, IEEE80211_MAX_DATA_LEN);
-			new_ie_len = cfg80211_gen_new_ie(ie, ielen,
-							 subelement + 2,
-							 subie_len, new_ie,
+			new_ie_len = cfg80211_gen_new_ie(ie, ielen, sub->data,
+							 sub->datalen, new_ie,
 							 gfp);
 			if (!new_ie_len)
 				continue;
 
-			capability = le16_to_cpup((const __le16 *)
-						  &subelement[4]);
+			capability = get_unaligned_le16(sub->data + 2);
 			bss = cfg80211_inform_single_bss_data(wiphy, data,
 							      ftype,
 							      new_bssid, tsf,
@@ -1465,8 +1450,6 @@ static void cfg80211_parse_mbssid_data(struct wiphy *wiphy,
 				break;
 			cfg80211_put_bss(wiphy, bss);
 		}
-
-		pos = mbssid_end_pos;
 	}
 
 	kfree(new_ie);
