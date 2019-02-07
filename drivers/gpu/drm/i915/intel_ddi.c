@@ -1477,11 +1477,7 @@ static void icl_ddi_clock_get(struct intel_encoder *encoder,
 
 	pll_id = intel_get_shared_dpll_id(dev_priv, pipe_config->shared_dpll);
 	if (intel_port_is_combophy(dev_priv, port)) {
-		if (intel_crtc_has_type(pipe_config, INTEL_OUTPUT_HDMI))
-			link_clock = cnl_calc_wrpll_link(dev_priv, pll_id);
-		else
-			link_clock = icl_calc_dp_combo_pll_link(dev_priv,
-								pll_id);
+		link_clock = cnl_calc_wrpll_link(dev_priv, pll_id);
 	} else {
 		if (pll_id == DPLL_ID_ICL_TBTPLL)
 			link_clock = icl_calc_tbt_pll_link(dev_priv, port);
