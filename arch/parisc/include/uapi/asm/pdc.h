@@ -167,6 +167,7 @@
 #define PDC_SOFT_POWER_INFO	0	/* return info about the soft power switch */
 #define PDC_SOFT_POWER_ENABLE	1	/* enable/disable soft power switch */
 
+#define PDC_CRASH_PREP 25		/* Prepare system for crash dump */
 
 /* HVERSION dependent */
 
