@@ -1567,6 +1567,7 @@ u64 snd_usb_interface_dsd_format_quirks(struct snd_usb_audio *chip,
 	case 0x20b1:  /* XMOS based devices */
 	case 0x152a:  /* Thesycon devices */
 	case 0x25ce:  /* Mytek devices */
+	case 0x2ab6:  /* T+A devices */
 		if (fp->dsd_raw)
 			return SNDRV_PCM_FMTBIT_DSD_U32_BE;
 		break;
