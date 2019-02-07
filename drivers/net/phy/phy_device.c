@@ -1735,8 +1735,12 @@ int genphy_update_link(struct phy_device *phydev)
 	 */
 	if (!phy_polling_mode(phydev)) {
 		status = phy_read(phydev, MII_BMSR);
-		if (status < 0)
+		if (status < 0) {
 			return status;
+		} else if (status & BMSR_LSTATUS) {
+			phydev->link = 1;
+			return 0;
+		}
 	}
 
 	/* Read link and autonegotiation status */
