@@ -621,6 +621,8 @@ static bool construct(struct dc *dc,
 #endif
 
 	enum dce_version dc_version = DCE_VERSION_UNKNOWN;
+	memcpy(&dc->bb_overrides, &init_params->bb_overrides, sizeof(dc->bb_overrides));
+
 	dc_dceip = kzalloc(sizeof(*dc_dceip), GFP_KERNEL);
 	if (!dc_dceip) {
 		dm_error("%s: failed to create dceip\n", __func__);

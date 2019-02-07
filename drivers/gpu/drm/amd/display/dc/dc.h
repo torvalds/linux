@@ -268,6 +268,14 @@ struct dc_debug_data {
 	uint32_t auxErrorCount;
 };
 
+struct dc_bounding_box_overrides {
+	int sr_exit_time_ns;
+	int sr_enter_plus_exit_time_ns;
+	int urgent_latency_ns;
+	int percent_of_ideal_drambw;
+	int dram_clock_change_latency_ns;
+};
+
 struct dc_state;
 struct resource_pool;
 struct dce_hwseq;
@@ -277,6 +285,7 @@ struct dc {
 	struct dc_cap_funcs cap_funcs;
 	struct dc_config config;
 	struct dc_debug_options debug;
+	struct dc_bounding_box_overrides bb_overrides;
 	struct dc_context *ctx;
 
 	uint8_t link_count;
@@ -330,6 +339,7 @@ struct dc_init_data {
 	struct hw_asic_id asic_id;
 	void *driver; /* ctx */
 	struct cgs_device *cgs_device;
+	struct dc_bounding_box_overrides bb_overrides;
 
 	int num_virtual_links;
 	/*
