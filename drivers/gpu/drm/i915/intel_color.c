@@ -637,6 +637,51 @@ void intel_color_commit(const struct intel_crtc_state *crtc_state)
 	dev_priv->display.color_commit(crtc_state);
 }
 
+static bool need_plane_update(struct intel_plane *plane,
+			      const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+
+	/*
+	 * On pre-SKL the pipe gamma enable and pipe csc enable for
+	 * the pipe bottom color are configured via the primary plane.
+	 * We have to reconfigure that even if the plane is inactive.
+	 */
+	return crtc_state->active_planes & BIT(plane->id) ||
+		(INTEL_GEN(dev_priv) < 9 &&
+		 plane->id == PLANE_PRIMARY);
+}
+
+static int
+intel_color_add_affected_planes(struct intel_crtc_state *new_crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_atomic_state *state =
+		to_intel_atomic_state(new_crtc_state->base.state);
+	const struct intel_crtc_state *old_crtc_state =
+		intel_atomic_get_old_crtc_state(state, crtc);
+	struct intel_plane *plane;
+
+	if (new_crtc_state->gamma_enable == old_crtc_state->gamma_enable)
+		return 0;
+
+	for_each_intel_plane_on_crtc(&dev_priv->drm, crtc, plane) {
+		struct intel_plane_state *plane_state;
+
+		if (!need_plane_update(plane, new_crtc_state))
+			continue;
+
+		plane_state = intel_atomic_get_plane_state(state, plane);
+		if (IS_ERR(plane_state))
+			return PTR_ERR(plane_state);
+
+		new_crtc_state->update_planes |= BIT(plane->id);
+	}
+
+	return 0;
+}
+
 static int check_lut_size(const struct drm_property_blob *lut, int expected)
 {
 	int len;
@@ -661,20 +706,26 @@ int intel_color_check(struct intel_crtc_state *crtc_state)
 	const struct drm_property_blob *degamma_lut = crtc_state->base.degamma_lut;
 	int gamma_length, degamma_length;
 	u32 gamma_tests, degamma_tests;
+	int ret;
 
 	degamma_length = INTEL_INFO(dev_priv)->color.degamma_lut_size;
 	gamma_length = INTEL_INFO(dev_priv)->color.gamma_lut_size;
 	degamma_tests = INTEL_INFO(dev_priv)->color.degamma_lut_tests;
 	gamma_tests = INTEL_INFO(dev_priv)->color.gamma_lut_tests;
 
-	crtc_state->gamma_enable = true;
+	crtc_state->gamma_enable = gamma_lut || degamma_lut;
 
 	if (INTEL_GEN(dev_priv) >= 9 ||
 	    IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv))
 		crtc_state->csc_enable = true;
 
+	ret = intel_color_add_affected_planes(crtc_state);
+	if (ret)
+		return ret;
+
 	/* Always allow legacy gamma LUT with no further checking. */
-	if (crtc_state_is_legacy_gamma(crtc_state)) {
+	if (!crtc_state->gamma_enable ||
+	    crtc_state_is_legacy_gamma(crtc_state)) {
 		crtc_state->gamma_mode = GAMMA_MODE_MODE_8BIT;
 		return 0;
 	}
