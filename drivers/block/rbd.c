@@ -5875,14 +5875,6 @@ static int rbd_dev_image_probe(struct rbd_device *rbd_dev, int depth)
 		ret = rbd_dev_v2_parent_info(rbd_dev);
 		if (ret)
 			goto err_out_probe;
-
-		/*
-		 * Need to warn users if this image is the one being
-		 * mapped and has a parent.
-		 */
-		if (!depth && rbd_dev->parent_spec)
-			rbd_warn(rbd_dev,
-				 "WARNING: kernel layering is EXPERIMENTAL!");
 	}
 
 	ret = rbd_dev_probe_parent(rbd_dev, depth);
