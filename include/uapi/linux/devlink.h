@@ -96,6 +96,8 @@ enum devlink_command {
 
 	DEVLINK_CMD_INFO_GET,		/* can dump */
 
+	DEVLINK_CMD_HEALTH_REPORTER_GET,
+
 	/* add new commands above here */
 	__DEVLINK_CMD_MAX,
 	DEVLINK_CMD_MAX = __DEVLINK_CMD_MAX - 1
@@ -310,6 +312,15 @@ enum devlink_attr {
 	DEVLINK_ATTR_FMSG_OBJ_NAME,		/* string */
 	DEVLINK_ATTR_FMSG_OBJ_VALUE_TYPE,	/* u8 */
 	DEVLINK_ATTR_FMSG_OBJ_VALUE_DATA,	/* dynamic */
+
+	DEVLINK_ATTR_HEALTH_REPORTER,			/* nested */
+	DEVLINK_ATTR_HEALTH_REPORTER_NAME,		/* string */
+	DEVLINK_ATTR_HEALTH_REPORTER_STATE,		/* u8 */
+	DEVLINK_ATTR_HEALTH_REPORTER_ERR,		/* u64 */
+	DEVLINK_ATTR_HEALTH_REPORTER_RECOVER,		/* u64 */
+	DEVLINK_ATTR_HEALTH_REPORTER_DUMP_TS,		/* u64 */
+	DEVLINK_ATTR_HEALTH_REPORTER_GRACEFUL_PERIOD,	/* u64 */
+	DEVLINK_ATTR_HEALTH_REPORTER_AUTO_RECOVER,	/* u8 */
 	/* add new attributes above here, update the policy in devlink.c */
 
 	__DEVLINK_ATTR_MAX,
