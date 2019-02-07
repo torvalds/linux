@@ -206,6 +206,7 @@ mlxsw_sp_acl_atcam_region_init(struct mlxsw_sp *mlxsw_sp,
 			       struct mlxsw_sp_acl_atcam *atcam,
 			       struct mlxsw_sp_acl_atcam_region *aregion,
 			       struct mlxsw_sp_acl_tcam_region *region,
+			       void *hints_priv,
 			       const struct mlxsw_sp_acl_ctcam_region_ops *ops);
 void mlxsw_sp_acl_atcam_region_fini(struct mlxsw_sp_acl_atcam_region *aregion);
 void mlxsw_sp_acl_atcam_chunk_init(struct mlxsw_sp_acl_atcam_region *aregion,
@@ -265,7 +266,8 @@ void mlxsw_sp_acl_erp_bf_remove(struct mlxsw_sp *mlxsw_sp,
 void *
 mlxsw_sp_acl_erp_rehash_hints_get(struct mlxsw_sp_acl_atcam_region *aregion);
 void mlxsw_sp_acl_erp_rehash_hints_put(void *hints_priv);
-int mlxsw_sp_acl_erp_region_init(struct mlxsw_sp_acl_atcam_region *aregion);
+int mlxsw_sp_acl_erp_region_init(struct mlxsw_sp_acl_atcam_region *aregion,
+				 void *hints_priv);
 void mlxsw_sp_acl_erp_region_fini(struct mlxsw_sp_acl_atcam_region *aregion);
 int mlxsw_sp_acl_erps_init(struct mlxsw_sp *mlxsw_sp,
 			   struct mlxsw_sp_acl_atcam *atcam);

@@ -1313,7 +1313,8 @@ static const struct objagg_ops mlxsw_sp_acl_erp_objagg_ops = {
 };
 
 static struct mlxsw_sp_acl_erp_table *
-mlxsw_sp_acl_erp_table_create(struct mlxsw_sp_acl_atcam_region *aregion)
+mlxsw_sp_acl_erp_table_create(struct mlxsw_sp_acl_atcam_region *aregion,
+			      struct objagg_hints *hints)
 {
 	struct mlxsw_sp_acl_erp_table *erp_table;
 	int err;
@@ -1323,7 +1324,7 @@ mlxsw_sp_acl_erp_table_create(struct mlxsw_sp_acl_atcam_region *aregion)
 		return ERR_PTR(-ENOMEM);
 
 	erp_table->objagg = objagg_create(&mlxsw_sp_acl_erp_objagg_ops,
-					  NULL, aregion);
+					  hints, aregion);
 	if (IS_ERR(erp_table->objagg)) {
 		err = PTR_ERR(erp_table->objagg);
 		goto err_objagg_create;
@@ -1444,12 +1445,14 @@ void mlxsw_sp_acl_erp_rehash_hints_put(void *hints_priv)
 	objagg_hints_put(hints);
 }
 
-int mlxsw_sp_acl_erp_region_init(struct mlxsw_sp_acl_atcam_region *aregion)
+int mlxsw_sp_acl_erp_region_init(struct mlxsw_sp_acl_atcam_region *aregion,
+				 void *hints_priv)
 {
 	struct mlxsw_sp_acl_erp_table *erp_table;
+	struct objagg_hints *hints = hints_priv;
 	int err;
 
-	erp_table = mlxsw_sp_acl_erp_table_create(aregion);
+	erp_table = mlxsw_sp_acl_erp_table_create(aregion, hints);
 	if (IS_ERR(erp_table))
 		return PTR_ERR(erp_table);
 	aregion->erp_table = erp_table;

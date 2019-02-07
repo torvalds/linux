@@ -318,6 +318,7 @@ mlxsw_sp_acl_atcam_region_init(struct mlxsw_sp *mlxsw_sp,
 			       struct mlxsw_sp_acl_atcam *atcam,
 			       struct mlxsw_sp_acl_atcam_region *aregion,
 			       struct mlxsw_sp_acl_tcam_region *region,
+			       void *hints_priv,
 			       const struct mlxsw_sp_acl_ctcam_region_ops *ops)
 {
 	int err;
@@ -334,7 +335,7 @@ mlxsw_sp_acl_atcam_region_init(struct mlxsw_sp *mlxsw_sp,
 	err = aregion->ops->init(aregion);
 	if (err)
 		goto err_ops_init;
-	err = mlxsw_sp_acl_erp_region_init(aregion);
+	err = mlxsw_sp_acl_erp_region_init(aregion, hints_priv);
 	if (err)
 		goto err_erp_region_init;
 	err = mlxsw_sp_acl_ctcam_region_init(mlxsw_sp, &aregion->cregion,
