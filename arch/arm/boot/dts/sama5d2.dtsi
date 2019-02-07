@@ -688,13 +688,13 @@
 				ranges = <0 0xf8044000 0x1420>;
 			};
 
-			rstc@f8048000 {
+			reset_controller: rstc@f8048000 {
 				compatible = "atmel,sama5d3-rstc";
 				reg = <0xf8048000 0x10>;
 				clocks = <&clk32k>;
 			};
 
-			shdwc@f8048010 {
+			shutdown_controller: shdwc@f8048010 {
 				compatible = "atmel,sama5d2-shdwc";
 				reg = <0xf8048010 0x10>;
 				clocks = <&clk32k>;
@@ -710,7 +710,7 @@
 				clocks = <&pmc PMC_TYPE_CORE PMC_MCK2>;
 			};
 
-			watchdog@f8048040 {
+			watchdog: watchdog@f8048040 {
 				compatible = "atmel,sama5d4-wdt";
 				reg = <0xf8048040 0x10>;
 				interrupts = <4 IRQ_TYPE_LEVEL_HIGH 7>;
