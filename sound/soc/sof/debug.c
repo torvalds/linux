@@ -129,6 +129,10 @@ int snd_sof_debugfs_io_item(struct snd_sof_dev *sdev,
 		/* can't rely on debugfs, only log error and keep going */
 		dev_err(sdev->dev, "error: cannot create debugfs entry %s\n",
 			name);
+	} else {
+		/* add to dfsentry list */
+		list_add(&dfse->list, &sdev->dfsentry_list);
+
 	}
 
 	return 0;
@@ -160,6 +164,9 @@ int snd_sof_debugfs_buf_item(struct snd_sof_dev *sdev,
 		/* can't rely on debugfs, only log error and keep going */
 		dev_err(sdev->dev, "error: cannot create debugfs entry %s\n",
 			name);
+	} else {
+		/* add to dfsentry list */
+		list_add(&dfse->list, &sdev->dfsentry_list);
 	}
 
 	return 0;
@@ -179,6 +186,9 @@ int snd_sof_dbg_init(struct snd_sof_dev *sdev)
 		dev_err(sdev->dev, "error: failed to create debugfs directory\n");
 		return 0;
 	}
+
+	/* init dfsentry list */
+	INIT_LIST_HEAD(&sdev->dfsentry_list);
 
 	/* create debugFS files for platform specific MMIO/DSP memories */
 	for (i = 0; i < ops->debug_map_count; i++) {

@@ -220,6 +220,7 @@ struct snd_sof_dfsentry {
 	enum sof_debugfs_access_type access_type;
 	char *cache_buf; /* buffer to cache the contents of memory windows */
 	struct snd_sof_dev *sdev;
+	struct list_head list;  /* list in sdev dfsentry list */
 	union {
 		void __iomem *io_mem;
 		void *buf;
@@ -373,6 +374,7 @@ struct snd_sof_dev {
 
 	/* debug */
 	struct dentry *debugfs_root;
+	struct list_head dfsentry_list;
 
 	/* firmware loader */
 	struct snd_dma_buffer dmab;
