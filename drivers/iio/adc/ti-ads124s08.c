@@ -232,7 +232,7 @@ static int ads124s_read_raw(struct iio_dev *indio_dev,
 
 		ret = ads124s_write_cmd(indio_dev, ADS124S08_START_CONV);
 		if (ret) {
-			dev_err(&priv->spi->dev, "Start converions failed\n");
+			dev_err(&priv->spi->dev, "Start conversions failed\n");
 			goto out;
 		}
 
@@ -246,7 +246,7 @@ static int ads124s_read_raw(struct iio_dev *indio_dev,
 
 		ret = ads124s_write_cmd(indio_dev, ADS124S08_STOP_CONV);
 		if (ret) {
-			dev_err(&priv->spi->dev, "Stop converions failed\n");
+			dev_err(&priv->spi->dev, "Stop conversions failed\n");
 			goto out;
 		}
 
@@ -283,12 +283,12 @@ static irqreturn_t ads124s_trigger_handler(int irq, void *p)
 
 		ret = ads124s_write_cmd(indio_dev, ADS124S08_START_CONV);
 		if (ret)
-			dev_err(&priv->spi->dev, "Start ADC converions failed\n");
+			dev_err(&priv->spi->dev, "Start ADC conversions failed\n");
 
 		buffer[j] = ads124s_read(indio_dev, scan_index);
 		ret = ads124s_write_cmd(indio_dev, ADS124S08_STOP_CONV);
 		if (ret)
-			dev_err(&priv->spi->dev, "Stop ADC converions failed\n");
+			dev_err(&priv->spi->dev, "Stop ADC conversions failed\n");
 
 		j++;
 	}
