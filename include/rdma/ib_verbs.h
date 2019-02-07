@@ -2572,12 +2572,6 @@ struct ib_device {
 	struct kobject			*ports_kobj;
 	struct list_head             port_list;
 
-	enum {
-		IB_DEV_UNINITIALIZED,
-		IB_DEV_REGISTERED,
-		IB_DEV_UNREGISTERED
-	}                            reg_state;
-
 	int			     uverbs_abi_ver;
 	u64			     uverbs_cmd_mask;
 	u64			     uverbs_ex_cmd_mask;

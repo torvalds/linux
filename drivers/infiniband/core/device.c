@@ -243,7 +243,7 @@ static void ib_device_release(struct device *device)
 {
 	struct ib_device *dev = container_of(device, struct ib_device, dev);
 
-	WARN_ON(dev->reg_state == IB_DEV_REGISTERED);
+	WARN_ON(refcount_read(&dev->refcount));
 	ib_cache_release_one(dev);
 	ib_security_release_port_pkey_list(dev);
 	kfree(dev->port_pkey_list);
@@ -316,8 +316,7 @@ EXPORT_SYMBOL(_ib_alloc_device);
 void ib_dealloc_device(struct ib_device *device)
 {
 	WARN_ON(!list_empty(&device->client_data_list));
-	WARN_ON(device->reg_state != IB_DEV_UNREGISTERED &&
-		device->reg_state != IB_DEV_UNINITIALIZED);
+	WARN_ON(refcount_read(&device->refcount));
 	rdma_restrack_clean(device);
 	put_device(&device->dev);
 }
@@ -602,7 +601,6 @@ int ib_register_device(struct ib_device *device, const char *name)
 	}
 
 	refcount_set(&device->refcount, 1);
-	device->reg_state = IB_DEV_REGISTERED;
 
 	list_for_each_entry(client, &client_list, list)
 		if (!add_client_context(device, client) && client->add)
@@ -673,8 +671,6 @@ void ib_unregister_device(struct ib_device *device)
 	}
 	write_unlock_irqrestore(&device->client_data_lock, flags);
 	up_write(&lists_rwsem);
-
-	device->reg_state = IB_DEV_UNREGISTERED;
 }
 EXPORT_SYMBOL(ib_unregister_device);
 
