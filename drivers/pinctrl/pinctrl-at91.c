@@ -1215,6 +1215,7 @@ static const struct of_device_id at91_pinctrl_of_match[] = {
 	{ .compatible = "atmel,sama5d3-pinctrl", .data = &sama5d3_ops },
 	{ .compatible = "atmel,at91sam9x5-pinctrl", .data = &at91sam9x5_ops },
 	{ .compatible = "atmel,at91rm9200-pinctrl", .data = &at91rm9200_ops },
+	{ .compatible = "microchip,sam9x60-pinctrl", .data = &sam9x60_ops },
 	{ /* sentinel */ }
 };
 
@@ -1757,6 +1758,7 @@ static const struct gpio_chip at91_gpio_template = {
 static const struct of_device_id at91_gpio_of_match[] = {
 	{ .compatible = "atmel,at91sam9x5-gpio", .data = &at91sam9x5_ops, },
 	{ .compatible = "atmel,at91rm9200-gpio", .data = &at91rm9200_ops },
+	{ .compatible = "microchip,sam9x60-gpio", .data = &sam9x60_ops },
 	{ /* sentinel */ }
 };
 
