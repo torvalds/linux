@@ -4413,6 +4413,71 @@ static void mlxsw_sp_params_unregister(struct mlxsw_core *mlxsw_core)
 				  ARRAY_SIZE(mlxsw_sp_devlink_params));
 }
 
+static int
+mlxsw_sp_params_acl_region_rehash_intrvl_get(struct devlink *devlink, u32 id,
+					     struct devlink_param_gset_ctx *ctx)
+{
+	struct mlxsw_core *mlxsw_core = devlink_priv(devlink);
+	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
+
+	ctx->val.vu32 = mlxsw_sp_acl_region_rehash_intrvl_get(mlxsw_sp);
+	return 0;
+}
+
+static int
+mlxsw_sp_params_acl_region_rehash_intrvl_set(struct devlink *devlink, u32 id,
+					     struct devlink_param_gset_ctx *ctx)
+{
+	struct mlxsw_core *mlxsw_core = devlink_priv(devlink);
+	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
+
+	return mlxsw_sp_acl_region_rehash_intrvl_set(mlxsw_sp, ctx->val.vu32);
+}
+
+static const struct devlink_param mlxsw_sp2_devlink_params[] = {
+	DEVLINK_PARAM_DRIVER(MLXSW_DEVLINK_PARAM_ID_ACL_REGION_REHASH_INTERVAL,
+			     "acl_region_rehash_interval",
+			     DEVLINK_PARAM_TYPE_U32,
+			     BIT(DEVLINK_PARAM_CMODE_RUNTIME),
+			     mlxsw_sp_params_acl_region_rehash_intrvl_get,
+			     mlxsw_sp_params_acl_region_rehash_intrvl_set,
+			     NULL),
+};
+
+static int mlxsw_sp2_params_register(struct mlxsw_core *mlxsw_core)
+{
+	struct devlink *devlink = priv_to_devlink(mlxsw_core);
+	union devlink_param_value value;
+	int err;
+
+	err = mlxsw_sp_params_register(mlxsw_core);
+	if (err)
+		return err;
+
+	err = devlink_params_register(devlink, mlxsw_sp2_devlink_params,
+				      ARRAY_SIZE(mlxsw_sp2_devlink_params));
+	if (err)
+		goto err_devlink_params_register;
+
+	value.vu32 = 0;
+	devlink_param_driverinit_value_set(devlink,
+					   MLXSW_DEVLINK_PARAM_ID_ACL_REGION_REHASH_INTERVAL,
+					   value);
+	return 0;
+
+err_devlink_params_register:
+	mlxsw_sp_params_unregister(mlxsw_core);
+	return err;
+}
+
+static void mlxsw_sp2_params_unregister(struct mlxsw_core *mlxsw_core)
+{
+	devlink_params_unregister(priv_to_devlink(mlxsw_core),
+				  mlxsw_sp2_devlink_params,
+				  ARRAY_SIZE(mlxsw_sp2_devlink_params));
+	mlxsw_sp_params_unregister(mlxsw_core);
+}
+
 static struct mlxsw_driver mlxsw_sp1_driver = {
 	.kind				= mlxsw_sp1_driver_name,
 	.priv_size			= sizeof(struct mlxsw_sp),
@@ -4461,8 +4526,8 @@ static struct mlxsw_driver mlxsw_sp2_driver = {
 	.sb_occ_tc_port_bind_get	= mlxsw_sp_sb_occ_tc_port_bind_get,
 	.txhdr_construct		= mlxsw_sp_txhdr_construct,
 	.resources_register		= mlxsw_sp2_resources_register,
-	.params_register		= mlxsw_sp_params_register,
-	.params_unregister		= mlxsw_sp_params_unregister,
+	.params_register		= mlxsw_sp2_params_register,
+	.params_unregister		= mlxsw_sp2_params_unregister,
 	.txhdr_len			= MLXSW_TXHDR_LEN,
 	.profile			= &mlxsw_sp2_config_profile,
 	.res_query_enabled		= true,

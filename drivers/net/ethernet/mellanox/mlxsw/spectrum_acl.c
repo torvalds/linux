@@ -912,3 +912,19 @@ void mlxsw_sp_acl_fini(struct mlxsw_sp *mlxsw_sp)
 	mlxsw_afk_destroy(acl->afk);
 	kfree(acl);
 }
+
+u32 mlxsw_sp_acl_region_rehash_intrvl_get(struct mlxsw_sp *mlxsw_sp)
+{
+	struct mlxsw_sp_acl *acl = mlxsw_sp->acl;
+
+	return mlxsw_sp_acl_tcam_vregion_rehash_intrvl_get(mlxsw_sp,
+							   &acl->tcam);
+}
+
+int mlxsw_sp_acl_region_rehash_intrvl_set(struct mlxsw_sp *mlxsw_sp, u32 val)
+{
+	struct mlxsw_sp_acl *acl = mlxsw_sp->acl;
+
+	return mlxsw_sp_acl_tcam_vregion_rehash_intrvl_set(mlxsw_sp,
+							   &acl->tcam, val);
+}

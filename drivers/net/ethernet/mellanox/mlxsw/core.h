@@ -394,4 +394,9 @@ static inline void mlxsw_thermal_fini(struct mlxsw_thermal *thermal)
 
 #endif
 
+enum mlxsw_devlink_param_id {
+	MLXSW_DEVLINK_PARAM_ID_BASE = DEVLINK_PARAM_GENERIC_ID_MAX,
+	MLXSW_DEVLINK_PARAM_ID_ACL_REGION_REHASH_INTERVAL,
+};
+
 #endif

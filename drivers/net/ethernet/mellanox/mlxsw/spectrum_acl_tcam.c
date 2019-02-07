@@ -24,6 +24,7 @@ size_t mlxsw_sp_acl_tcam_priv_size(struct mlxsw_sp *mlxsw_sp)
 }
 
 #define MLXSW_SP_ACL_TCAM_VREGION_REHASH_INTRVL_DFLT 5000 /* ms */
+#define MLXSW_SP_ACL_TCAM_VREGION_REHASH_INTRVL_MIN 3000 /* ms */
 
 int mlxsw_sp_acl_tcam_init(struct mlxsw_sp *mlxsw_sp,
 			   struct mlxsw_sp_acl_tcam *tcam)
@@ -723,6 +724,41 @@ mlxsw_sp_acl_tcam_vregion_destroy(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_sp_acl_tcam_region_destroy(mlxsw_sp, vregion->region);
 	mlxsw_afk_key_info_put(vregion->key_info);
 	kfree(vregion);
+}
+
+u32 mlxsw_sp_acl_tcam_vregion_rehash_intrvl_get(struct mlxsw_sp *mlxsw_sp,
+						struct mlxsw_sp_acl_tcam *tcam)
+{
+	const struct mlxsw_sp_acl_tcam_ops *ops = mlxsw_sp->acl_tcam_ops;
+	u32 vregion_rehash_intrvl;
+
+	if (WARN_ON(!ops->region_rehash_hints_get))
+		return 0;
+	vregion_rehash_intrvl = tcam->vregion_rehash_intrvl;
+	return vregion_rehash_intrvl;
+}
+
+int mlxsw_sp_acl_tcam_vregion_rehash_intrvl_set(struct mlxsw_sp *mlxsw_sp,
+						struct mlxsw_sp_acl_tcam *tcam,
+						u32 val)
+{
+	const struct mlxsw_sp_acl_tcam_ops *ops = mlxsw_sp->acl_tcam_ops;
+	struct mlxsw_sp_acl_tcam_vregion *vregion;
+
+	if (val < MLXSW_SP_ACL_TCAM_VREGION_REHASH_INTRVL_MIN && val)
+		return -EINVAL;
+	if (WARN_ON(!ops->region_rehash_hints_get))
+		return -EOPNOTSUPP;
+	tcam->vregion_rehash_intrvl = val;
+	rtnl_lock();
+	list_for_each_entry(vregion, &tcam->vregion_list, tlist) {
+		if (val)
+			mlxsw_core_schedule_dw(&vregion->rehash_dw, 0);
+		else
+			cancel_delayed_work_sync(&vregion->rehash_dw);
+	}
+	rtnl_unlock();
+	return 0;
 }
 
 static int
