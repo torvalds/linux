@@ -440,6 +440,8 @@
 		pinctrl-0 = <&pinctrl_i2c3_mag3110_int>;
 		interrupt-parent = <&gpio3>;
 		interrupts = <16 IRQ_TYPE_EDGE_RISING>;
+		vdd-supply = <&reg_sensors>;
+		vddio-supply = <&reg_sensors>;
 	};
 
 	light-sensor@44 {
