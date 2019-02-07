@@ -828,7 +828,7 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 
 	WARN_ON(job->ibs[0].length_dw > 64);
 	r = amdgpu_sync_resv(adev, &job->sync, bo->tbo.resv,
-			     AMDGPU_FENCE_OWNER_UNDEFINED, false);
+			     AMDGPU_FENCE_OWNER_KFD, false);
 	if (r)
 		goto error_free;
 
@@ -1748,9 +1748,9 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 	params.adev = adev;
 	params.vm = vm;
 
-	/* sync to everything on unmapping */
+	/* sync to everything except eviction fences on unmapping */
 	if (!(flags & AMDGPU_PTE_VALID))
-		owner = AMDGPU_FENCE_OWNER_UNDEFINED;
+		owner = AMDGPU_FENCE_OWNER_KFD;
 
 	if (vm->use_cpu_for_update) {
 		/* params.src is used as flag to indicate system Memory */
