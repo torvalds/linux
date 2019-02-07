@@ -250,6 +250,8 @@
 		pinctrl-0 = <&pinctrl_i2c1_mma8451_int>;
 		interrupt-parent = <&gpio1>;
 		interrupts = <18 IRQ_TYPE_LEVEL_LOW>;
+		vdd-supply = <&reg_sensors>;
+		vddio-supply = <&reg_sensors>;
 	};
 
 	ov5642: camera@3c {
