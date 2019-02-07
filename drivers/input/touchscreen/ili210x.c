@@ -6,6 +6,7 @@
 #include <linux/input/mt.h>
 #include <linux/delay.h>
 #include <linux/workqueue.h>
+#include <linux/gpio/consumer.h>
 
 #define MAX_TOUCHES		2
 #define DEFAULT_POLL_PERIOD	20
@@ -45,6 +46,7 @@ struct ili210x {
 	struct input_dev *input;
 	unsigned int poll_period;
 	struct delayed_work dwork;
+	struct gpio_desc *reset_gpio;
 };
 
 static int ili210x_read_reg(struct i2c_client *client, u8 reg, void *buf,
@@ -168,11 +170,19 @@ static const struct attribute_group ili210x_attr_group = {
 	.attrs = ili210x_attributes,
 };
 
+static void ili210x_power_down(void *data)
+{
+	struct gpio_desc *reset_gpio = data;
+
+	gpiod_set_value_cansleep(reset_gpio, 1);
+}
+
 static int ili210x_i2c_probe(struct i2c_client *client,
 				       const struct i2c_device_id *id)
 {
 	struct device *dev = &client->dev;
 	struct ili210x *priv;
+	struct gpio_desc *reset_gpio;
 	struct input_dev *input;
 	struct panel_info panel;
 	struct firmware_version firmware;
@@ -184,6 +194,21 @@ static int ili210x_i2c_probe(struct i2c_client *client,
 	if (client->irq <= 0) {
 		dev_err(dev, "No IRQ!\n");
 		return -EINVAL;
+	}
+
+	reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(reset_gpio))
+		return PTR_ERR(reset_gpio);
+
+	if (reset_gpio) {
+		error = devm_add_action_or_reset(dev, ili210x_power_down,
+						 reset_gpio);
+		if (error)
+			return error;
+
+		usleep_range(50, 100);
+		gpiod_set_value_cansleep(reset_gpio, 0);
+		msleep(100);
 	}
 
 	/* Get firmware version */
@@ -218,6 +243,7 @@ static int ili210x_i2c_probe(struct i2c_client *client,
 	priv->input = input;
 	priv->poll_period = DEFAULT_POLL_PERIOD;
 	INIT_DELAYED_WORK(&priv->dwork, ili210x_work);
+	priv->reset_gpio = reset_gpio;
 
 	/* Setup input device */
 	input->name = "ILI210x Touchscreen";
