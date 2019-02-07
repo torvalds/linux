@@ -118,7 +118,6 @@ static void __smc_lgr_unregister_conn(struct smc_connection *conn)
 	rb_erase(&conn->alert_node, &lgr->conns_all);
 	lgr->conns_num--;
 	conn->alert_token_local = 0;
-	conn->lgr = NULL;
 	sock_put(&smc->sk); /* sock_hold in smc_lgr_register_conn() */
 }
 
@@ -331,8 +330,9 @@ void smc_conn_free(struct smc_connection *conn)
 	} else {
 		smc_cdc_tx_dismiss_slots(conn);
 	}
-	smc_lgr_unregister_conn(conn);		/* unsets conn->lgr */
+	smc_lgr_unregister_conn(conn);
 	smc_buf_unuse(conn, lgr);		/* allow buffer reuse */
+	conn->lgr = NULL;
 
 	if (!lgr->conns_num)
 		smc_lgr_schedule_free_work(lgr);
@@ -462,6 +462,7 @@ static void __smc_lgr_terminate(struct smc_link_group *lgr)
 		sock_hold(&smc->sk); /* sock_put in close work */
 		conn->local_tx_ctrl.conn_state_flags.peer_conn_abort = 1;
 		__smc_lgr_unregister_conn(conn);
+		conn->lgr = NULL;
 		write_unlock_bh(&lgr->conns_lock);
 		if (!schedule_work(&conn->close_work))
 			sock_put(&smc->sk);
