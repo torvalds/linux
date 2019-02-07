@@ -43,7 +43,6 @@ struct firmware_version {
 struct ili210x {
 	struct i2c_client *client;
 	struct input_dev *input;
-	bool (*get_pendown_state)(void);
 	unsigned int poll_period;
 	struct delayed_work dwork;
 };
@@ -102,16 +101,6 @@ static void ili210x_report_events(struct input_dev *input,
 	input_sync(input);
 }
 
-static bool get_pendown_state(const struct ili210x *priv)
-{
-	bool state = false;
-
-	if (priv->get_pendown_state)
-		state = priv->get_pendown_state();
-
-	return state;
-}
-
 static void ili210x_work(struct work_struct *work)
 {
 	struct ili210x *priv = container_of(work, struct ili210x,
@@ -130,7 +119,7 @@ static void ili210x_work(struct work_struct *work)
 
 	ili210x_report_events(priv->input, &touchdata);
 
-	if ((touchdata.status & 0xf3) || get_pendown_state(priv))
+	if (touchdata.status & 0xf3)
 		schedule_delayed_work(&priv->dwork,
 				      msecs_to_jiffies(priv->poll_period));
 }
