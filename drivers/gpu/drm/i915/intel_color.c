@@ -351,6 +351,32 @@ static void i9xx_load_luts(const struct intel_crtc_state *crtc_state)
 	i9xx_load_luts_internal(crtc_state, crtc_state->base.gamma_lut);
 }
 
+static void i9xx_color_commit(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
+	u32 val;
+
+	val = I915_READ(PIPECONF(pipe));
+	val &= ~PIPECONF_GAMMA_MODE_MASK_I9XX;
+	val |= PIPECONF_GAMMA_MODE(crtc_state->gamma_mode);
+	I915_WRITE(PIPECONF(pipe), val);
+}
+
+static void ilk_color_commit(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
+	u32 val;
+
+	val = I915_READ(PIPECONF(pipe));
+	val &= ~PIPECONF_GAMMA_MODE_MASK_ILK;
+	val |= PIPECONF_GAMMA_MODE(crtc_state->gamma_mode);
+	I915_WRITE(PIPECONF(pipe), val);
+}
+
 static void hsw_color_commit(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
@@ -585,8 +611,7 @@ void intel_color_commit(const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
 
-	if (dev_priv->display.color_commit)
-		dev_priv->display.color_commit(crtc_state);
+	dev_priv->display.color_commit(crtc_state);
 }
 
 static int check_lut_size(const struct drm_property_blob *lut, int expected)
@@ -649,20 +674,25 @@ void intel_color_init(struct intel_crtc *crtc)
 
 	drm_mode_crtc_set_gamma_size(&crtc->base, 256);
 
-	if (IS_CHERRYVIEW(dev_priv)) {
-		dev_priv->display.load_luts = cherryview_load_luts;
-	} else if (IS_HASWELL(dev_priv)) {
-		dev_priv->display.load_luts = i9xx_load_luts;
-		dev_priv->display.color_commit = hsw_color_commit;
-	} else if (IS_BROADWELL(dev_priv) || IS_GEN9_BC(dev_priv) ||
-		   IS_BROXTON(dev_priv)) {
-		dev_priv->display.load_luts = broadwell_load_luts;
-		dev_priv->display.color_commit = hsw_color_commit;
-	} else if (IS_GEMINILAKE(dev_priv) || IS_CANNONLAKE(dev_priv)) {
-		dev_priv->display.load_luts = glk_load_luts;
-		dev_priv->display.color_commit = hsw_color_commit;
+	if (HAS_GMCH(dev_priv)) {
+		if (IS_CHERRYVIEW(dev_priv))
+			dev_priv->display.load_luts = cherryview_load_luts;
+		else
+			dev_priv->display.load_luts = i9xx_load_luts;
+
+		dev_priv->display.color_commit = i9xx_color_commit;
 	} else {
-		dev_priv->display.load_luts = i9xx_load_luts;
+		if (IS_CANNONLAKE(dev_priv) || IS_GEMINILAKE(dev_priv))
+			dev_priv->display.load_luts = glk_load_luts;
+		else if (INTEL_GEN(dev_priv) >= 9 || IS_BROADWELL(dev_priv))
+			dev_priv->display.load_luts = broadwell_load_luts;
+		else
+			dev_priv->display.load_luts = i9xx_load_luts;
+
+		if (INTEL_GEN(dev_priv) >= 8 || IS_HASWELL(dev_priv))
+			dev_priv->display.color_commit = hsw_color_commit;
+		else
+			dev_priv->display.color_commit = ilk_color_commit;
 	}
 
 	/* Enable color management support when we have degamma & gamma LUTs. */
