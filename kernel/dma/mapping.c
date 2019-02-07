@@ -357,3 +357,17 @@ void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 		ops->cache_sync(dev, vaddr, size, dir);
 }
 EXPORT_SYMBOL(dma_cache_sync);
+
+size_t dma_max_mapping_size(struct device *dev)
+{
+	const struct dma_map_ops *ops = get_dma_ops(dev);
+	size_t size = SIZE_MAX;
+
+	if (dma_is_direct(ops))
+		size = dma_direct_max_mapping_size(dev);
+	else if (ops && ops->max_mapping_size)
+		size = ops->max_mapping_size(dev);
+
+	return size;
+}
+EXPORT_SYMBOL_GPL(dma_max_mapping_size);
