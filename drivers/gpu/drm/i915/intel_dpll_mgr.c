@@ -1737,13 +1737,15 @@ static void bxt_ddi_dp_pll_dividers(struct intel_crtc_state *crtc_state,
 }
 
 static bool bxt_ddi_set_dpll_hw_state(struct intel_crtc_state *crtc_state,
-				      struct bxt_clk_div *clk_div,
-				      struct intel_dpll_hw_state *dpll_hw_state)
+				      const struct bxt_clk_div *clk_div)
 {
+	struct intel_dpll_hw_state *dpll_hw_state = &crtc_state->dpll_hw_state;
 	int clock = crtc_state->port_clock;
 	int vco = clk_div->vco;
 	u32 prop_coef, int_coef, gain_ctl, targ_cnt;
 	u32 lanestagger;
+
+	memset(dpll_hw_state, 0, sizeof(*dpll_hw_state));
 
 	if (vco >= 6200000 && vco <= 6700000) {
 		prop_coef = 4;
@@ -1804,25 +1806,23 @@ static bool bxt_ddi_set_dpll_hw_state(struct intel_crtc_state *crtc_state,
 }
 
 static bool
-bxt_ddi_dp_set_dpll_hw_state(struct intel_crtc_state *crtc_state,
-			     struct intel_dpll_hw_state *dpll_hw_state)
+bxt_ddi_dp_set_dpll_hw_state(struct intel_crtc_state *crtc_state)
 {
 	struct bxt_clk_div clk_div = {};
 
 	bxt_ddi_dp_pll_dividers(crtc_state, &clk_div);
 
-	return bxt_ddi_set_dpll_hw_state(crtc_state, &clk_div, dpll_hw_state);
+	return bxt_ddi_set_dpll_hw_state(crtc_state, &clk_div);
 }
 
 static bool
-bxt_ddi_hdmi_set_dpll_hw_state(struct intel_crtc_state *crtc_state,
-			       struct intel_dpll_hw_state *dpll_hw_state)
+bxt_ddi_hdmi_set_dpll_hw_state(struct intel_crtc_state *crtc_state)
 {
 	struct bxt_clk_div clk_div = {};
 
 	bxt_ddi_hdmi_pll_dividers(crtc_state, &clk_div);
 
-	return bxt_ddi_set_dpll_hw_state(crtc_state, &clk_div, dpll_hw_state);
+	return bxt_ddi_set_dpll_hw_state(crtc_state, &clk_div);
 }
 
 static struct intel_shared_dpll *
@@ -1830,23 +1830,17 @@ bxt_get_dpll(struct intel_crtc_state *crtc_state,
 	     struct intel_encoder *encoder)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
-	struct intel_dpll_hw_state dpll_hw_state = { };
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_shared_dpll *pll;
 	enum intel_dpll_id id;
 
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI) &&
-	    !bxt_ddi_hdmi_set_dpll_hw_state(crtc_state, &dpll_hw_state))
+	    !bxt_ddi_hdmi_set_dpll_hw_state(crtc_state))
 		return NULL;
 
 	if (intel_crtc_has_dp_encoder(crtc_state) &&
-	    !bxt_ddi_dp_set_dpll_hw_state(crtc_state, &dpll_hw_state))
+	    !bxt_ddi_dp_set_dpll_hw_state(crtc_state))
 		return NULL;
-
-	memset(&crtc_state->dpll_hw_state, 0,
-	       sizeof(crtc_state->dpll_hw_state));
-
-	crtc_state->dpll_hw_state = dpll_hw_state;
 
 	/* 1:1 mapping between ports and PLLs */
 	id = (enum intel_dpll_id) encoder->port;
