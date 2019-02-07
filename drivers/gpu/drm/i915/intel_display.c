@@ -9007,7 +9007,7 @@ static int ironlake_crtc_compute_clock(struct intel_crtc *crtc,
 
 	ironlake_compute_dpll(crtc, crtc_state, NULL);
 
-	if (!intel_get_shared_dpll(crtc, crtc_state, NULL)) {
+	if (!intel_get_shared_dpll(crtc_state, NULL)) {
 		DRM_DEBUG_KMS("failed to find PLL for pipe %c\n",
 			      pipe_name(crtc->pipe));
 		return -EINVAL;
@@ -9608,7 +9608,7 @@ static int haswell_crtc_compute_clock(struct intel_crtc *crtc,
 		struct intel_encoder *encoder =
 			intel_get_crtc_new_encoder(state, crtc_state);
 
-		if (!intel_get_shared_dpll(crtc, crtc_state, encoder)) {
+		if (!intel_get_shared_dpll(crtc_state, encoder)) {
 			DRM_DEBUG_KMS("failed to find PLL for pipe %c\n",
 				      pipe_name(crtc->pipe));
 			return -EINVAL;
