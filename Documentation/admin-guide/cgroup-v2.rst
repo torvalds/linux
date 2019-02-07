@@ -1503,7 +1503,7 @@ protected workload.
 
 The limits are only applied at the peer level in the hierarchy.  This means that
 in the diagram below, only groups A, B, and C will influence each other, and
-groups D and F will influence each other.  Group G will influence nobody.
+groups D and F will influence each other.  Group G will influence nobody::
 
 			[root]
 		/	   |		\
