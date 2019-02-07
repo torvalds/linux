@@ -2439,10 +2439,12 @@ xlog_recover_validate_buf_type(
 	case XFS_BLFT_BTREE_BUF:
 		switch (magic32) {
 		case XFS_ABTB_CRC_MAGIC:
-		case XFS_ABTC_CRC_MAGIC:
 		case XFS_ABTB_MAGIC:
+			bp->b_ops = &xfs_bnobt_buf_ops;
+			break;
+		case XFS_ABTC_CRC_MAGIC:
 		case XFS_ABTC_MAGIC:
-			bp->b_ops = &xfs_allocbt_buf_ops;
+			bp->b_ops = &xfs_cntbt_buf_ops;
 			break;
 		case XFS_IBT_CRC_MAGIC:
 		case XFS_IBT_MAGIC:

@@ -377,13 +377,19 @@ xfs_allocbt_write_verify(
 
 }
 
-const struct xfs_buf_ops xfs_allocbt_buf_ops = {
-	.name = "xfs_allocbt",
+const struct xfs_buf_ops xfs_bnobt_buf_ops = {
+	.name = "xfs_bnobt",
 	.verify_read = xfs_allocbt_read_verify,
 	.verify_write = xfs_allocbt_write_verify,
 	.verify_struct = xfs_allocbt_verify,
 };
 
+const struct xfs_buf_ops xfs_cntbt_buf_ops = {
+	.name = "xfs_cntbt",
+	.verify_read = xfs_allocbt_read_verify,
+	.verify_write = xfs_allocbt_write_verify,
+	.verify_struct = xfs_allocbt_verify,
+};
 
 STATIC int
 xfs_bnobt_keys_inorder(
@@ -448,7 +454,7 @@ static const struct xfs_btree_ops xfs_bnobt_ops = {
 	.init_rec_from_cur	= xfs_allocbt_init_rec_from_cur,
 	.init_ptr_from_cur	= xfs_allocbt_init_ptr_from_cur,
 	.key_diff		= xfs_bnobt_key_diff,
-	.buf_ops		= &xfs_allocbt_buf_ops,
+	.buf_ops		= &xfs_bnobt_buf_ops,
 	.diff_two_keys		= xfs_bnobt_diff_two_keys,
 	.keys_inorder		= xfs_bnobt_keys_inorder,
 	.recs_inorder		= xfs_bnobt_recs_inorder,
@@ -470,7 +476,7 @@ static const struct xfs_btree_ops xfs_cntbt_ops = {
 	.init_rec_from_cur	= xfs_allocbt_init_rec_from_cur,
 	.init_ptr_from_cur	= xfs_allocbt_init_ptr_from_cur,
 	.key_diff		= xfs_cntbt_key_diff,
-	.buf_ops		= &xfs_allocbt_buf_ops,
+	.buf_ops		= &xfs_cntbt_buf_ops,
 	.diff_two_keys		= xfs_cntbt_diff_two_keys,
 	.keys_inorder		= xfs_cntbt_keys_inorder,
 	.recs_inorder		= xfs_cntbt_recs_inorder,
