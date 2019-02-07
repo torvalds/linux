@@ -2518,6 +2518,14 @@ EXPORT_SYMBOL_GPL(gpiochip_free_own_desc);
  * rely on gpio_request() having been called beforehand.
  */
 
+static int gpio_set_config(struct gpio_chip *gc, unsigned offset,
+			   enum pin_config_param mode)
+{
+	unsigned long config = { PIN_CONF_PACKED(mode, 0) };
+
+	return gc->set_config ? gc->set_config(gc, offset, config) : -ENOTSUPP;
+}
+
 /**
  * gpiod_direction_input - set the GPIO direction to input
  * @desc:	GPIO to set to input
@@ -2570,14 +2578,6 @@ int gpiod_direction_input(struct gpio_desc *desc)
 	return status;
 }
 EXPORT_SYMBOL_GPL(gpiod_direction_input);
-
-static int gpio_set_drive_single_ended(struct gpio_chip *gc, unsigned offset,
-				       enum pin_config_param mode)
-{
-	unsigned long config = { PIN_CONF_PACKED(mode, 0) };
-
-	return gc->set_config ? gc->set_config(gc, offset, config) : -ENOTSUPP;
-}
 
 static int gpiod_direction_output_raw_commit(struct gpio_desc *desc, int value)
 {
@@ -2675,8 +2675,8 @@ int gpiod_direction_output(struct gpio_desc *desc, int value)
 	gc = desc->gdev->chip;
 	if (test_bit(FLAG_OPEN_DRAIN, &desc->flags)) {
 		/* First see if we can enable open drain in hardware */
-		ret = gpio_set_drive_single_ended(gc, gpio_chip_hwgpio(desc),
-						  PIN_CONFIG_DRIVE_OPEN_DRAIN);
+		ret = gpio_set_config(gc, gpio_chip_hwgpio(desc),
+				      PIN_CONFIG_DRIVE_OPEN_DRAIN);
 		if (!ret)
 			goto set_output_value;
 		/* Emulate open drain by not actively driving the line high */
@@ -2684,16 +2684,16 @@ int gpiod_direction_output(struct gpio_desc *desc, int value)
 			return gpiod_direction_input(desc);
 	}
 	else if (test_bit(FLAG_OPEN_SOURCE, &desc->flags)) {
-		ret = gpio_set_drive_single_ended(gc, gpio_chip_hwgpio(desc),
-						  PIN_CONFIG_DRIVE_OPEN_SOURCE);
+		ret = gpio_set_config(gc, gpio_chip_hwgpio(desc),
+				      PIN_CONFIG_DRIVE_OPEN_SOURCE);
 		if (!ret)
 			goto set_output_value;
 		/* Emulate open source by not actively driving the line low */
 		if (!value)
 			return gpiod_direction_input(desc);
 	} else {
-		gpio_set_drive_single_ended(gc, gpio_chip_hwgpio(desc),
-					    PIN_CONFIG_DRIVE_PUSH_PULL);
+		gpio_set_config(gc, gpio_chip_hwgpio(desc),
+				PIN_CONFIG_DRIVE_PUSH_PULL);
 	}
 
 set_output_value:
