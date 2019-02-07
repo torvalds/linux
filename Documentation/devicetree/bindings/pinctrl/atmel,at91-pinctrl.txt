@@ -116,6 +116,18 @@ Some requirements for using atmel,at91rm9200-pinctrl binding:
    configurations by referring to the phandle of that pin configuration node.
 4. The gpio controller must be describe in the pinctrl simple-bus.
 
+For each bank the required properties are:
+- compatible: "atmel,at91sam9x5-gpio" or "atmel,at91rm9200-gpio"
+- reg: physical base address and length of the controller's registers
+- interrupts: interrupt outputs from the controller
+- interrupt-controller: marks the device node as an interrupt controller
+- #interrupt-cells: should be 2; refer to ../interrupt-controller/interrupts.txt
+  for more details.
+- gpio-controller
+- #gpio-cells: should be 2; the first cell is the GPIO number and the second
+  cell specifies GPIO flags as defined in <dt-bindings/gpio/gpio.h>.
+- clocks: bank clock
+
 Examples:
 
 pinctrl@fffff400 {
@@ -124,6 +136,17 @@ pinctrl@fffff400 {
 	ranges;
 	compatible = "atmel,at91rm9200-pinctrl", "simple-bus";
 	reg = <0xfffff400 0x600>;
+
+	pioA: gpio@fffff400 {
+		compatible = "atmel,at91sam9x5-gpio";
+		reg = <0xfffff400 0x200>;
+		interrupts = <2 IRQ_TYPE_LEVEL_HIGH 1>;
+		#gpio-cells = <2>;
+		gpio-controller;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		clocks = <&pmc PMC_TYPE_PERIPHERAL 2>;
+	};
 
 	atmel,mux-mask = <
 	      /*    A         B     */
