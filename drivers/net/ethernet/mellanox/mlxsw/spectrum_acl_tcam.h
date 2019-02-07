@@ -67,11 +67,10 @@ mlxsw_sp_acl_tcam_profile_ops(struct mlxsw_sp *mlxsw_sp,
 	(MLXSW_REG_PTCEX_FLEX_KEY_BLOCKS_LEN * BITS_PER_BYTE)
 
 struct mlxsw_sp_acl_tcam_group;
+struct mlxsw_sp_acl_tcam_vregion;
 
 struct mlxsw_sp_acl_tcam_region {
-	struct list_head list; /* Member of a TCAM group */
-	struct list_head chunk_list; /* List of chunks under this region */
-	struct mlxsw_sp_acl_tcam_group *group;
+	struct mlxsw_sp_acl_tcam_vregion *vregion;
 	enum mlxsw_reg_ptar_key_type key_type;
 	u16 id; /* ACL ID and region ID - they are same */
 	char tcam_region_info[MLXSW_REG_PXXX_TCAM_REGION_INFO_LEN];
