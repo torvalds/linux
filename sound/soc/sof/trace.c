@@ -53,7 +53,7 @@ static size_t sof_wait_trace_avail(struct snd_sof_dev *sdev,
 static ssize_t sof_dfsentry_trace_read(struct file *file, char __user *buffer,
 				       size_t count, loff_t *ppos)
 {
-	struct snd_sof_dfsentry_buf *dfse = file->private_data;
+	struct snd_sof_dfsentry *dfse = file->private_data;
 	struct snd_sof_dev *sdev = dfse->sdev;
 	unsigned long rem;
 	loff_t lpos = *ppos;
@@ -105,7 +105,7 @@ static const struct file_operations sof_dfs_trace_fops = {
 
 static int trace_debugfs_create(struct snd_sof_dev *sdev)
 {
-	struct snd_sof_dfsentry_buf *dfse;
+	struct snd_sof_dfsentry *dfse;
 
 	if (!sdev)
 		return -EINVAL;
@@ -114,6 +114,7 @@ static int trace_debugfs_create(struct snd_sof_dev *sdev)
 	if (!dfse)
 		return -ENOMEM;
 
+	dfse->type = SOF_DFSENTRY_TYPE_BUF;
 	dfse->buf = sdev->dmatb.area;
 	dfse->size = sdev->dmatb.bytes;
 	dfse->sdev = sdev;

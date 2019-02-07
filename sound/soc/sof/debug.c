@@ -20,7 +20,7 @@
 static ssize_t sof_dfsentry_read(struct file *file, char __user *buffer,
 				 size_t count, loff_t *ppos)
 {
-	struct snd_sof_dfsentry_io *dfse = file->private_data;
+	struct snd_sof_dfsentry *dfse = file->private_data;
 	struct snd_sof_dev *sdev = dfse->sdev;
 	int size;
 	u32 *buf;
@@ -48,7 +48,10 @@ static ssize_t sof_dfsentry_read(struct file *file, char __user *buffer,
 	/* copy from DSP MMIO */
 	pm_runtime_get_noresume(sdev->dev);
 
-	memcpy_fromio(buf, dfse->buf + pos, size);
+	if (dfse->type == SOF_DFSENTRY_TYPE_IOMEM)
+		memcpy_fromio(buf, dfse->io_mem + pos, size);
+	else
+		memcpy(buf, dfse->buf + pos, size);
 
 	/*
 	 * TODO: revisit to check if we need mark_last_busy, or if we
@@ -83,7 +86,7 @@ int snd_sof_debugfs_io_create_item(struct snd_sof_dev *sdev,
 				   void __iomem *base, size_t size,
 				   const char *name)
 {
-	struct snd_sof_dfsentry_io *dfse;
+	struct snd_sof_dfsentry *dfse;
 
 	if (!sdev)
 		return -EINVAL;
@@ -92,7 +95,8 @@ int snd_sof_debugfs_io_create_item(struct snd_sof_dev *sdev,
 	if (!dfse)
 		return -ENOMEM;
 
-	dfse->buf = base;
+	dfse->type = SOF_DFSENTRY_TYPE_IOMEM;
+	dfse->io_mem = base;
 	dfse->size = size;
 	dfse->sdev = sdev;
 
@@ -113,7 +117,7 @@ int snd_sof_debugfs_buf_create_item(struct snd_sof_dev *sdev,
 				    void *base, size_t size,
 				    const char *name)
 {
-	struct snd_sof_dfsentry_buf *dfse;
+	struct snd_sof_dfsentry *dfse;
 
 	if (!sdev)
 		return -EINVAL;
@@ -122,6 +126,7 @@ int snd_sof_debugfs_buf_create_item(struct snd_sof_dev *sdev,
 	if (!dfse)
 		return -ENOMEM;
 
+	dfse->type = SOF_DFSENTRY_TYPE_BUF;
 	dfse->buf = base;
 	dfse->size = size;
 	dfse->sdev = sdev;
