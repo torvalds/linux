@@ -213,6 +213,8 @@ static int set_queue_properties_from_user(struct queue_properties *q_properties,
 		q_properties->type = KFD_QUEUE_TYPE_COMPUTE;
 	else if (args->queue_type == KFD_IOC_QUEUE_TYPE_SDMA)
 		q_properties->type = KFD_QUEUE_TYPE_SDMA;
+	else if (args->queue_type == KFD_IOC_QUEUE_TYPE_SDMA_XGMI)
+		q_properties->type = KFD_QUEUE_TYPE_SDMA_XGMI;
 	else
 		return -ENOTSUPP;
 

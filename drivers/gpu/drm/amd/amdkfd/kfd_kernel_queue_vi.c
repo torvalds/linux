@@ -212,6 +212,7 @@ static int pm_map_queues_vi(struct packet_manager *pm, uint32_t *buffer,
 			queue_type__mes_map_queues__debug_interface_queue_vi;
 		break;
 	case KFD_QUEUE_TYPE_SDMA:
+	case KFD_QUEUE_TYPE_SDMA_XGMI:
 		packet->bitfields2.engine_sel = q->properties.sdma_engine_id +
 				engine_sel__mes_map_queues__sdma0_vi;
 		use_static = false; /* no static queues under SDMA */
@@ -258,6 +259,7 @@ static int pm_unmap_queues_vi(struct packet_manager *pm, uint32_t *buffer,
 			engine_sel__mes_unmap_queues__compute;
 		break;
 	case KFD_QUEUE_TYPE_SDMA:
+	case KFD_QUEUE_TYPE_SDMA_XGMI:
 		packet->bitfields2.engine_sel =
 			engine_sel__mes_unmap_queues__sdma0 + sdma_engine;
 		break;

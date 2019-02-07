@@ -48,7 +48,8 @@ static void pm_calc_rlib_size(struct packet_manager *pm,
 
 	process_count = pm->dqm->processes_count;
 	queue_count = pm->dqm->queue_count;
-	compute_queue_count = queue_count - pm->dqm->sdma_queue_count;
+	compute_queue_count = queue_count - pm->dqm->sdma_queue_count -
+				pm->dqm->xgmi_sdma_queue_count;
 
 	/* check if there is over subscription
 	 * Note: the arbitration between the number of VMIDs and

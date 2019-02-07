@@ -181,10 +181,12 @@ struct device_queue_manager {
 	unsigned int		processes_count;
 	unsigned int		queue_count;
 	unsigned int		sdma_queue_count;
+	unsigned int		xgmi_sdma_queue_count;
 	unsigned int		total_queue_count;
 	unsigned int		next_pipe_to_allocate;
 	unsigned int		*allocated_queues;
 	uint64_t		sdma_bitmap;
+	uint64_t		xgmi_sdma_bitmap;
 	unsigned int		vmid_bitmap;
 	uint64_t		pipelines_addr;
 	struct kfd_mem_obj	*pipeline_mem;
@@ -216,6 +218,7 @@ unsigned int get_queues_num(struct device_queue_manager *dqm);
 unsigned int get_queues_per_pipe(struct device_queue_manager *dqm);
 unsigned int get_pipes_per_mec(struct device_queue_manager *dqm);
 unsigned int get_num_sdma_queues(struct device_queue_manager *dqm);
+unsigned int get_num_xgmi_sdma_queues(struct device_queue_manager *dqm);
 
 static inline unsigned int get_sh_mem_bases_32(struct kfd_process_device *pdd)
 {

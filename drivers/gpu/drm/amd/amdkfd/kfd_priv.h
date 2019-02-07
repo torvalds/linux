@@ -188,6 +188,7 @@ struct kfd_device_info {
 	bool needs_iommu_device;
 	bool needs_pci_atomics;
 	unsigned int num_sdma_engines;
+	unsigned int num_xgmi_sdma_engines;
 	unsigned int num_sdma_queues_per_engine;
 };
 
@@ -329,7 +330,8 @@ enum kfd_queue_type  {
 	KFD_QUEUE_TYPE_COMPUTE,
 	KFD_QUEUE_TYPE_SDMA,
 	KFD_QUEUE_TYPE_HIQ,
-	KFD_QUEUE_TYPE_DIQ
+	KFD_QUEUE_TYPE_DIQ,
+	KFD_QUEUE_TYPE_SDMA_XGMI
 };
 
 enum kfd_queue_format {
