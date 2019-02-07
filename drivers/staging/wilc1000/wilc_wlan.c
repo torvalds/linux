@@ -717,9 +717,8 @@ static void wilc_wlan_handle_rx_buff(struct wilc *wilc, u8 *buffer, int size)
 		} else {
 			if (!is_cfg_packet) {
 				if (pkt_len > 0) {
-					wilc_frmw_to_linux(wilc, buff_ptr,
-							   pkt_len,
-							   pkt_offset);
+					wilc_frmw_to_host(wilc, buff_ptr,
+							  pkt_len, pkt_offset);
 				}
 			} else {
 				struct wilc_cfg_rsp rsp;

@@ -803,7 +803,8 @@ static int wilc_mac_close(struct net_device *ndev)
 	return 0;
 }
 
-void wilc_frmw_to_linux(struct wilc *wilc, u8 *buff, u32 size, u32 pkt_offset)
+void wilc_frmw_to_host(struct wilc *wilc, u8 *buff, u32 size,
+		       u32 pkt_offset)
 {
 	unsigned int frame_len = 0;
 	int stats;
