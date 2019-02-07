@@ -22,11 +22,11 @@ static ssize_t sof_dfsentry_read(struct file *file, char __user *buffer,
 {
 	struct snd_sof_dfsentry *dfse = file->private_data;
 	struct snd_sof_dev *sdev = dfse->sdev;
+	struct dentry *dfsentry = dfse->dfsentry;
 	int size;
 	u32 *buf;
 	loff_t pos = *ppos;
 	size_t size_ret;
-	int ret;
 
 	size = dfse->size;
 
@@ -46,7 +46,7 @@ static ssize_t sof_dfsentry_read(struct file *file, char __user *buffer,
 		return -ENOMEM;
 
 	if (dfse->type == SOF_DFSENTRY_TYPE_IOMEM) {
-
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_ENABLE_DEBUGFS_CACHE)
 		/*
 		 * If the DSP is active: copy from IO.
 		 * If the DSP is suspended:
@@ -61,17 +61,21 @@ static ssize_t sof_dfsentry_read(struct file *file, char __user *buffer,
 				 "Copying cached debugfs data\n");
 			memcpy(buf, dfse->cache_buf + pos, size);
 		}
+#else
+		/* if the DSP is in D3 */
+		if (!pm_runtime_active(sdev->dev) &&
+		    dfse->access_type == SOF_DEBUGFS_ACCESS_D0_ONLY) {
+			dev_err(sdev->dev,
+				"error: debugfs entry %s cannot be read in DSP D3\n",
+				dfsentry->d_name.name);
+			return -EINVAL;
+		}
+
+		memcpy_fromio(buf, dfse->io_mem + pos, size);
+#endif
 	} else {
 		memcpy(buf, dfse->buf + pos, size);
-
-	/*
-	 * TODO: revisit to check if we need mark_last_busy, or if we
-	 * should change to use xxx_put_sync[_suspend]().
-	 */
-	ret = pm_runtime_put_sync_autosuspend(sdev->dev);
-	if (ret < 0)
-		dev_warn(sdev->dev, "warn: debugFS failed to autosuspend %d\n",
-			 ret);
+	}
 
 	/* copy to userspace */
 	size_ret = copy_to_user(buffer, buf, count);
@@ -113,6 +117,7 @@ int snd_sof_debugfs_io_item(struct snd_sof_dev *sdev,
 	dfse->sdev = sdev;
 	dfse->access_type = access_type;
 
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_ENABLE_DEBUGFS_CACHE)
 	/*
 	 * allocate cache buffer that will be used to save the mem window
 	 * contents prior to suspend
@@ -122,6 +127,7 @@ int snd_sof_debugfs_io_item(struct snd_sof_dev *sdev,
 		if (!dfse->cache_buf)
 			return -ENOMEM;
 	}
+#endif
 
 	dfse->dfsentry = debugfs_create_file(name, 0444, sdev->debugfs_root,
 					     dfse, &sof_dfs_fops);

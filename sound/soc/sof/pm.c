@@ -215,6 +215,25 @@ static void sof_set_restore_stream(struct snd_sof_dev *sdev)
 	}
 }
 
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_ENABLE_DEBUGFS_CACHE)
+static void sof_cache_debugfs(struct snd_sof_dev *sdev)
+{
+	struct snd_sof_dfsentry *dfse;
+
+	list_for_each_entry(dfse, &sdev->dfsentry_list, list) {
+
+		/* nothing to do if debugfs buffer is not IO mem */
+		if (dfse->type == SOF_DFSENTRY_TYPE_BUF)
+			continue;
+
+		/* cache memory that is only accessible in D0 */
+		if (dfse->access_type == SOF_DEBUGFS_ACCESS_D0_ONLY)
+			memcpy_fromio(dfse->cache_buf, dfse->io_mem,
+				      dfse->size);
+	}
+}
+#endif
+
 static int sof_resume(struct device *dev, bool runtime_resume)
 {
 	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
@@ -300,6 +319,11 @@ static int sof_suspend(struct device *dev, bool runtime_suspend)
 	if (!runtime_suspend)
 		sof_set_restore_stream(sdev);
 
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_ENABLE_DEBUGFS_CACHE)
+	/* cache debugfs contents during runtime suspend */
+	if (runtime_suspend)
+		sof_cache_debugfs(sdev);
+#endif
 	/* notify DSP of upcoming power down */
 	ret = sof_send_pm_ipc(sdev, SOF_IPC_PM_CTX_SAVE);
 	if (ret < 0) {

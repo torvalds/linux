@@ -129,6 +129,16 @@ config SND_SOC_SOF_DEBUG_FORCE_IPC_POSITION
 	  DPIB/posbuf is not ready, select "Y".
           If unsure select "N".
 
+config SND_SOC_SOF_DEBUG_ENABLE_DEBUGFS_CACHE
+	bool "SOF enable debugfs caching"
+	help
+	  This option enables caching of debugfs
+	  memory -> DSP resource (memory, register, etc)
+	  before the audio DSP is suspended. This will increase the suspend
+	  latency and therefore should be used for debug purposes only.
+	  Say Y if you want to enable caching the memory windows.
+	  If unsure, select "N".
+
 endif ## SND_SOC_SOF_DEBUG
 
 endif ## SND_SOC_SOF_OPTIONS
