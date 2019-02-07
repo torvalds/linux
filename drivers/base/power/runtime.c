@@ -1089,20 +1089,43 @@ EXPORT_SYMBOL_GPL(pm_runtime_get_if_in_use);
  * and the device parent's counter of unsuspended children is modified to
  * reflect the new status.  If the new status is RPM_SUSPENDED, an idle
  * notification request for the parent is submitted.
+ *
+ * If @dev has any suppliers (as reflected by device links to them), and @status
+ * is RPM_ACTIVE, they will be activated upfront and if the activation of one
+ * of them fails, the status of @dev will be changed to RPM_SUSPENDED (instead
+ * of the @status value) and the suppliers will be deacticated on exit.  The
+ * error returned by the failing supplier activation will be returned in that
+ * case.
  */
 int __pm_runtime_set_status(struct device *dev, unsigned int status)
 {
 	struct device *parent = dev->parent;
-	unsigned long flags;
 	bool notify_parent = false;
 	int error = 0;
 
 	if (status != RPM_ACTIVE && status != RPM_SUSPENDED)
 		return -EINVAL;
 
-	spin_lock_irqsave(&dev->power.lock, flags);
+	/*
+	 * If the new status is RPM_ACTIVE, the suppliers can be activated
+	 * upfront regardless of the current status, because next time
+	 * rpm_put_suppliers() runs, the rpm_active refcounts of the links
+	 * involved will be dropped down to one anyway.
+	 */
+	if (status == RPM_ACTIVE) {
+		int idx = device_links_read_lock();
+
+		error = rpm_get_suppliers(dev);
+		if (error)
+			status = RPM_SUSPENDED;
+
+		device_links_read_unlock(idx);
+	}
+
+	spin_lock_irq(&dev->power.lock);
 
 	if (!dev->power.runtime_error && !dev->power.disable_depth) {
+		status = dev->power.runtime_status;
 		error = -EAGAIN;
 		goto out;
 	}
@@ -1134,18 +1157,30 @@ int __pm_runtime_set_status(struct device *dev, unsigned int status)
 
 		spin_unlock(&parent->power.lock);
 
-		if (error)
+		if (error) {
+			status = RPM_SUSPENDED;
 			goto out;
+		}
 	}
 
  out_set:
 	__update_runtime_status(dev, status);
-	dev->power.runtime_error = 0;
+	if (!error)
+		dev->power.runtime_error = 0;
+
  out:
-	spin_unlock_irqrestore(&dev->power.lock, flags);
+	spin_unlock_irq(&dev->power.lock);
 
 	if (notify_parent)
 		pm_request_idle(parent);
+
+	if (status == RPM_SUSPENDED) {
+		int idx = device_links_read_lock();
+
+		rpm_put_suppliers(dev);
+
+		device_links_read_unlock(idx);
+	}
 
 	return error;
 }
