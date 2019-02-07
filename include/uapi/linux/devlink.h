@@ -98,6 +98,7 @@ enum devlink_command {
 
 	DEVLINK_CMD_HEALTH_REPORTER_GET,
 	DEVLINK_CMD_HEALTH_REPORTER_SET,
+	DEVLINK_CMD_HEALTH_REPORTER_RECOVER,
 
 	/* add new commands above here */
 	__DEVLINK_CMD_MAX,
