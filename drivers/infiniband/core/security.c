@@ -558,13 +558,12 @@ void ib_security_cache_change(struct ib_device *device,
 	}
 }
 
-void ib_security_destroy_port_pkey_list(struct ib_device *device)
+void ib_security_release_port_pkey_list(struct ib_device *device)
 {
 	struct pkey_index_qp_list *pkey, *tmp_pkey;
 	int i;
 
 	for (i = rdma_start_port(device); i <= rdma_end_port(device); i++) {
-		spin_lock(&device->port_pkey_list[i].list_lock);
 		list_for_each_entry_safe(pkey,
 					 tmp_pkey,
 					 &device->port_pkey_list[i].pkey_list,
@@ -572,7 +571,6 @@ void ib_security_destroy_port_pkey_list(struct ib_device *device)
 			list_del(&pkey->pkey_index_list);
 			kfree(pkey);
 		}
-		spin_unlock(&device->port_pkey_list[i].list_lock);
 	}
 }
 
