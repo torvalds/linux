@@ -288,9 +288,16 @@ static int dmaengine_pcm_new(struct snd_soc_pcm_runtime *rtd)
 		dma_data = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
 
 		if (!pcm->chan[i] &&
-		    (pcm->flags & SND_DMAENGINE_PCM_FLAG_CUSTOM_CHANNEL_NAME))
+		    ((pcm->flags & SND_DMAENGINE_PCM_FLAG_CUSTOM_CHANNEL_NAME) ||
+		     (config && config->chan_names[i]))) {
+			const char *chan_name = dma_data->chan_name;
+
+			if (config && config->chan_names[i])
+				chan_name = config->chan_names[i];
+
 			pcm->chan[i] = dma_request_slave_channel(dev,
-				dma_data->chan_name);
+				chan_name);
+		}
 
 		if (!pcm->chan[i] && (pcm->flags & SND_DMAENGINE_PCM_FLAG_COMPAT)) {
 			pcm->chan[i] = dmaengine_pcm_compat_request_channel(rtd,
