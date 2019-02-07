@@ -2417,47 +2417,69 @@ static const struct intel_dpll_mgr cnl_pll_mgr = {
 	.dump_hw_state = cnl_dump_hw_state,
 };
 
+struct icl_combo_pll_params {
+	int clock;
+	struct skl_wrpll_params wrpll;
+};
+
 /*
  * These values alrea already adjusted: they're the bits we write to the
  * registers, not the logical values.
  */
-static const struct skl_wrpll_params icl_dp_combo_pll_24MHz_values[] = {
-	{ .dco_integer = 0x151, .dco_fraction = 0x4000,		/* [0]: 5.4 */
-	  .pdiv = 0x2 /* 3 */, .kdiv = 1, .qdiv_mode = 0, .qdiv_ratio = 0},
-	{ .dco_integer = 0x151, .dco_fraction = 0x4000,		/* [1]: 2.7 */
-	  .pdiv = 0x2 /* 3 */, .kdiv = 2, .qdiv_mode = 0, .qdiv_ratio = 0},
-	{ .dco_integer = 0x151, .dco_fraction = 0x4000,		/* [2]: 1.62 */
-	  .pdiv = 0x4 /* 5 */, .kdiv = 2, .qdiv_mode = 0, .qdiv_ratio = 0},
-	{ .dco_integer = 0x151, .dco_fraction = 0x4000,		/* [3]: 3.24 */
-	  .pdiv = 0x4 /* 5 */, .kdiv = 1, .qdiv_mode = 0, .qdiv_ratio = 0},
-	{ .dco_integer = 0x168, .dco_fraction = 0x0000,		/* [4]: 2.16 */
-	  .pdiv = 0x1 /* 2 */, .kdiv = 2, .qdiv_mode = 1, .qdiv_ratio = 2},
-	{ .dco_integer = 0x168, .dco_fraction = 0x0000,		/* [5]: 4.32 */
-	  .pdiv = 0x1 /* 2 */, .kdiv = 2, .qdiv_mode = 0, .qdiv_ratio = 0},
-	{ .dco_integer = 0x195, .dco_fraction = 0x0000,		/* [6]: 6.48 */
-	  .pdiv = 0x2 /* 3 */, .kdiv = 1, .qdiv_mode = 0, .qdiv_ratio = 0},
-	{ .dco_integer = 0x151, .dco_fraction = 0x4000,		/* [7]: 8.1 */
-	  .pdiv = 0x1 /* 2 */, .kdiv = 1, .qdiv_mode = 0, .qdiv_ratio = 0},
+static const struct icl_combo_pll_params icl_dp_combo_pll_24MHz_values[] = {
+	{ 540000,
+	  { .dco_integer = 0x151, .dco_fraction = 0x4000,		/* [0]: 5.4 */
+	    .pdiv = 0x2 /* 3 */, .kdiv = 1, .qdiv_mode = 0, .qdiv_ratio = 0, }, },
+	{ 270000,
+	  { .dco_integer = 0x151, .dco_fraction = 0x4000,		/* [1]: 2.7 */
+	    .pdiv = 0x2 /* 3 */, .kdiv = 2, .qdiv_mode = 0, .qdiv_ratio = 0, }, },
+	{ 162000,
+	  { .dco_integer = 0x151, .dco_fraction = 0x4000,		/* [2]: 1.62 */
+	    .pdiv = 0x4 /* 5 */, .kdiv = 2, .qdiv_mode = 0, .qdiv_ratio = 0, }, },
+	{ 324000,
+	  { .dco_integer = 0x151, .dco_fraction = 0x4000,		/* [3]: 3.24 */
+	    .pdiv = 0x4 /* 5 */, .kdiv = 1, .qdiv_mode = 0, .qdiv_ratio = 0, }, },
+	{ 216000,
+	  { .dco_integer = 0x168, .dco_fraction = 0x0000,		/* [4]: 2.16 */
+	    .pdiv = 0x1 /* 2 */, .kdiv = 2, .qdiv_mode = 1, .qdiv_ratio = 2, }, },
+	{ 432000,
+	  { .dco_integer = 0x168, .dco_fraction = 0x0000,		/* [5]: 4.32 */
+	    .pdiv = 0x1 /* 2 */, .kdiv = 2, .qdiv_mode = 0, .qdiv_ratio = 0, }, },
+	{ 648000,
+	  { .dco_integer = 0x195, .dco_fraction = 0x0000,		/* [6]: 6.48 */
+	    .pdiv = 0x2 /* 3 */, .kdiv = 1, .qdiv_mode = 0, .qdiv_ratio = 0, }, },
+	{ 810000,
+	  { .dco_integer = 0x151, .dco_fraction = 0x4000,		/* [7]: 8.1 */
+	    .pdiv = 0x1 /* 2 */, .kdiv = 1, .qdiv_mode = 0, .qdiv_ratio = 0, }, },
 };
 
+
 /* Also used for 38.4 MHz values. */
-static const struct skl_wrpll_params icl_dp_combo_pll_19_2MHz_values[] = {
-	{ .dco_integer = 0x1A5, .dco_fraction = 0x7000,		/* [0]: 5.4 */
-	  .pdiv = 0x2 /* 3 */, .kdiv = 1, .qdiv_mode = 0, .qdiv_ratio = 0},
-	{ .dco_integer = 0x1A5, .dco_fraction = 0x7000,		/* [1]: 2.7 */
-	  .pdiv = 0x2 /* 3 */, .kdiv = 2, .qdiv_mode = 0, .qdiv_ratio = 0},
-	{ .dco_integer = 0x1A5, .dco_fraction = 0x7000,		/* [2]: 1.62 */
-	  .pdiv = 0x4 /* 5 */, .kdiv = 2, .qdiv_mode = 0, .qdiv_ratio = 0},
-	{ .dco_integer = 0x1A5, .dco_fraction = 0x7000,		/* [3]: 3.24 */
-	  .pdiv = 0x4 /* 5 */, .kdiv = 1, .qdiv_mode = 0, .qdiv_ratio = 0},
-	{ .dco_integer = 0x1C2, .dco_fraction = 0x0000,		/* [4]: 2.16 */
-	  .pdiv = 0x1 /* 2 */, .kdiv = 2, .qdiv_mode = 1, .qdiv_ratio = 2},
-	{ .dco_integer = 0x1C2, .dco_fraction = 0x0000,		/* [5]: 4.32 */
-	  .pdiv = 0x1 /* 2 */, .kdiv = 2, .qdiv_mode = 0, .qdiv_ratio = 0},
-	{ .dco_integer = 0x1FA, .dco_fraction = 0x2000,		/* [6]: 6.48 */
-	  .pdiv = 0x2 /* 3 */, .kdiv = 1, .qdiv_mode = 0, .qdiv_ratio = 0},
-	{ .dco_integer = 0x1A5, .dco_fraction = 0x7000,		/* [7]: 8.1 */
-	  .pdiv = 0x1 /* 2 */, .kdiv = 1, .qdiv_mode = 0, .qdiv_ratio = 0},
+static const struct icl_combo_pll_params icl_dp_combo_pll_19_2MHz_values[] = {
+	{ 540000,
+	  { .dco_integer = 0x1A5, .dco_fraction = 0x7000,		/* [0]: 5.4 */
+	    .pdiv = 0x2 /* 3 */, .kdiv = 1, .qdiv_mode = 0, .qdiv_ratio = 0, }, },
+	{ 270000,
+	  { .dco_integer = 0x1A5, .dco_fraction = 0x7000,		/* [1]: 2.7 */
+	    .pdiv = 0x2 /* 3 */, .kdiv = 2, .qdiv_mode = 0, .qdiv_ratio = 0, }, },
+	{ 162000,
+	  { .dco_integer = 0x1A5, .dco_fraction = 0x7000,		/* [2]: 1.62 */
+	    .pdiv = 0x4 /* 5 */, .kdiv = 2, .qdiv_mode = 0, .qdiv_ratio = 0, }, },
+	{ 324000,
+	  { .dco_integer = 0x1A5, .dco_fraction = 0x7000,		/* [3]: 3.24 */
+	    .pdiv = 0x4 /* 5 */, .kdiv = 1, .qdiv_mode = 0, .qdiv_ratio = 0, }, },
+	{ 216000,
+	  { .dco_integer = 0x1C2, .dco_fraction = 0x0000,		/* [4]: 2.16 */
+	    .pdiv = 0x1 /* 2 */, .kdiv = 2, .qdiv_mode = 1, .qdiv_ratio = 2, }, },
+	{ 432000,
+	  { .dco_integer = 0x1C2, .dco_fraction = 0x0000,		/* [5]: 4.32 */
+	    .pdiv = 0x1 /* 2 */, .kdiv = 2, .qdiv_mode = 0, .qdiv_ratio = 0, }, },
+	{ 648000,
+	  { .dco_integer = 0x1FA, .dco_fraction = 0x2000,		/* [6]: 6.48 */
+	    .pdiv = 0x2 /* 3 */, .kdiv = 1, .qdiv_mode = 0, .qdiv_ratio = 0, }, },
+	{ 810000,
+	  { .dco_integer = 0x1A5, .dco_fraction = 0x7000,		/* [7]: 8.1 */
+	    .pdiv = 0x1 /* 2 */, .kdiv = 1, .qdiv_mode = 0, .qdiv_ratio = 0, }, },
 };
 
 static const struct skl_wrpll_params icl_tbt_pll_24MHz_values = {
@@ -2474,44 +2496,22 @@ static bool icl_calc_dp_combo_pll(struct intel_crtc_state *crtc_state,
 				  struct skl_wrpll_params *pll_params)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
-	const struct skl_wrpll_params *params;
+	const struct icl_combo_pll_params *params =
+		dev_priv->cdclk.hw.ref == 24000 ?
+		icl_dp_combo_pll_24MHz_values :
+		icl_dp_combo_pll_19_2MHz_values;
 	int clock = crtc_state->port_clock;
+	int i;
 
-	params = dev_priv->cdclk.hw.ref == 24000 ?
-			icl_dp_combo_pll_24MHz_values :
-			icl_dp_combo_pll_19_2MHz_values;
-
-	switch (clock) {
-	case 540000:
-		*pll_params = params[0];
-		break;
-	case 270000:
-		*pll_params = params[1];
-		break;
-	case 162000:
-		*pll_params = params[2];
-		break;
-	case 324000:
-		*pll_params = params[3];
-		break;
-	case 216000:
-		*pll_params = params[4];
-		break;
-	case 432000:
-		*pll_params = params[5];
-		break;
-	case 648000:
-		*pll_params = params[6];
-		break;
-	case 810000:
-		*pll_params = params[7];
-		break;
-	default:
-		MISSING_CASE(clock);
-		return false;
+	for (i = 0; i < ARRAY_SIZE(icl_dp_combo_pll_24MHz_values); i++) {
+		if (clock == params[i].clock) {
+			*pll_params = params[i].wrpll;
+			return true;
+		}
 	}
 
-	return true;
+	MISSING_CASE(clock);
+	return false;
 }
 
 static bool icl_calc_tbt_pll(struct intel_crtc_state *crtc_state,
