@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
-/*
- * JZ4725B CODEC driver
- *
- * Copyright (C) 2019, Paul Cercueil <paul@crapouillou.net>
- */
+//
+// JZ4725B CODEC driver
+//
+// Copyright (C) 2019, Paul Cercueil <paul@crapouillou.net>
 
 #include <linux/kernel.h>
 #include <linux/module.h>
