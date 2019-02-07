@@ -565,7 +565,7 @@ mptctl_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *pEvReply)
 	 * TODO - this define is not in MPI spec yet,
 	 * but they plan to set it to 0x21
 	 */
-	 if (event == 0x21 ) {
+	if (event == 0x21) {
 		ioc->aen_event_read_flag=1;
 		dctlprintk(ioc, printk(MYIOC_s_DEBUG_FMT "Raised SIGIO to application\n",
 		    ioc->name));
