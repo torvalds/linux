@@ -7,7 +7,7 @@ be rendered in a number of formats, like HTML and PDF. Please read
 In order to build the documentation, use ```make htmldocs``` or ```make pdfdocs```.  
 The formatted documentation can also be read online at:
 
-    [https://www.kernel.org/doc/html/latest/](https://www.kernel.org/doc/html/latest/)
+[https://www.kernel.org/doc/html/latest/](https://www.kernel.org/doc/html/latest/)
 
 There are various text files in the Documentation/ subdirectory,
 several of them using the Restructured Text markup notation.
