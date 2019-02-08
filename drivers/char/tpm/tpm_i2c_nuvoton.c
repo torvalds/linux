@@ -467,7 +467,7 @@ static int i2c_nuvoton_send(struct tpm_chip *chip, u8 *buf, size_t len)
 	}
 
 	dev_dbg(dev, "%s() -> %zd\n", __func__, len);
-	return len;
+	return 0;
 }
 
 static bool i2c_nuvoton_req_canceled(struct tpm_chip *chip, u8 status)
