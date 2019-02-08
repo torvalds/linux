@@ -64,6 +64,7 @@
 #include <linux/kthread.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
+#include <linux/xarray.h>
 #include <rdma/ib_hdrs.h>
 #include <rdma/opa_addr.h>
 #include <linux/rhashtable.h>
@@ -1040,7 +1041,6 @@ struct sdma_vl_map;
 typedef int (*send_routine)(struct rvt_qp *, struct hfi1_pkt_state *, u64);
 struct hfi1_devdata {
 	struct hfi1_ibdev verbs_dev;     /* must be first */
-	struct list_head list;
 	/* pointers to related structs for this device */
 	/* pci access data structure */
 	struct pci_dev *pcidev;
@@ -1425,8 +1425,7 @@ struct hfi1_filedata {
 	struct mm_struct *mm;
 };
 
-extern struct list_head hfi1_dev_list;
-extern spinlock_t hfi1_devs_lock;
+extern struct xarray hfi1_dev_table;
 struct hfi1_devdata *hfi1_lookup(int unit);
 
 static inline unsigned long uctxt_offset(struct hfi1_ctxtdata *uctxt)

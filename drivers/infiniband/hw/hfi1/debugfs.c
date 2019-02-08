@@ -1302,15 +1302,15 @@ static void _driver_stats_seq_stop(struct seq_file *s, void *v)
 
 static u64 hfi1_sps_ints(void)
 {
-	unsigned long flags;
+	unsigned long index, flags;
 	struct hfi1_devdata *dd;
 	u64 sps_ints = 0;
 
-	spin_lock_irqsave(&hfi1_devs_lock, flags);
-	list_for_each_entry(dd, &hfi1_dev_list, list) {
+	xa_lock_irqsave(&hfi1_dev_table, flags);
+	xa_for_each(&hfi1_dev_table, index, dd) {
 		sps_ints += get_all_cpu_total(dd->int_counter);
 	}
-	spin_unlock_irqrestore(&hfi1_devs_lock, flags);
+	xa_unlock_irqrestore(&hfi1_dev_table, flags);
 	return sps_ints;
 }
 

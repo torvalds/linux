@@ -14654,8 +14654,8 @@ void hfi1_start_cleanup(struct hfi1_devdata *dd)
  */
 static int init_asic_data(struct hfi1_devdata *dd)
 {
-	unsigned long flags;
-	struct hfi1_devdata *tmp, *peer = NULL;
+	unsigned long index;
+	struct hfi1_devdata *peer;
 	struct hfi1_asic_data *asic_data;
 	int ret = 0;
 
@@ -14664,14 +14664,12 @@ static int init_asic_data(struct hfi1_devdata *dd)
 	if (!asic_data)
 		return -ENOMEM;
 
-	spin_lock_irqsave(&hfi1_devs_lock, flags);
+	xa_lock_irq(&hfi1_dev_table);
 	/* Find our peer device */
-	list_for_each_entry(tmp, &hfi1_dev_list, list) {
-		if ((HFI_BASE_GUID(dd) == HFI_BASE_GUID(tmp)) &&
-		    dd->unit != tmp->unit) {
-			peer = tmp;
+	xa_for_each(&hfi1_dev_table, index, peer) {
+		if ((HFI_BASE_GUID(dd) == HFI_BASE_GUID(peer)) &&
+		    dd->unit != peer->unit)
 			break;
-		}
 	}
 
 	if (peer) {
@@ -14683,7 +14681,7 @@ static int init_asic_data(struct hfi1_devdata *dd)
 		mutex_init(&dd->asic_data->asic_resource_mutex);
 	}
 	dd->asic_data->dds[dd->hfi1_id] = dd; /* self back-pointer */
-	spin_unlock_irqrestore(&hfi1_devs_lock, flags);
+	xa_unlock_irq(&hfi1_dev_table);
 
 	/* first one through - set up i2c devices */
 	if (!peer)
