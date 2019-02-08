@@ -67,6 +67,8 @@ static struct sk_buff *ksz_common_rcv(struct sk_buff *skb,
 
 	pskb_trim_rcsum(skb, skb->len - len);
 
+	skb->offload_fwd_mark = true;
+
 	return skb;
 }
 
