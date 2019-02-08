@@ -449,13 +449,6 @@ const void *btf__get_raw_data(const struct btf *btf, __u32 *size)
 	return btf->data;
 }
 
-void btf__get_strings(const struct btf *btf, const char **strings,
-		      __u32 *str_len)
-{
-	*strings = btf->strings;
-	*str_len = btf->hdr->str_len;
-}
-
 const char *btf__name_by_offset(const struct btf *btf, __u32 offset)
 {
 	if (offset < btf->hdr->str_len)
