@@ -1018,8 +1018,7 @@ static int br_ip6_multicast_mld2_report(struct net_bridge *br,
 		if (!nsrcs)
 			return -EINVAL;
 
-		grec_len = sizeof(*grec) +
-			   sizeof(struct in6_addr) * ntohs(*nsrcs);
+		grec_len = struct_size(grec, grec_src, ntohs(*nsrcs));
 
 		if (!ipv6_mc_may_pull(skb, len + grec_len))
 			return -EINVAL;
