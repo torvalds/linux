@@ -768,7 +768,7 @@ static int snd_usb_cm6206_boot_quirk(struct usb_device *dev)
 		 * REG1: PLL binary search enable, soft mute enable.
 		 */
 		CM6206_REG1_PLLBIN_EN |
-		CM6206_REG1_SOFT_MUTE_EN |
+		CM6206_REG1_SOFT_MUTE_EN,
 		/*
 		 * REG2: enable output drivers,
 		 * select front channels to the headphone output,

@@ -533,9 +533,10 @@ static void he_init_tx_lbfp(struct he_dev *he_dev)
 
 static int he_init_tpdrq(struct he_dev *he_dev)
 {
-	he_dev->tpdrq_base = dma_zalloc_coherent(&he_dev->pci_dev->dev,
-						 CONFIG_TPDRQ_SIZE * sizeof(struct he_tpdrq),
-						 &he_dev->tpdrq_phys, GFP_KERNEL);
+	he_dev->tpdrq_base = dma_alloc_coherent(&he_dev->pci_dev->dev,
+						CONFIG_TPDRQ_SIZE * sizeof(struct he_tpdrq),
+						&he_dev->tpdrq_phys,
+						GFP_KERNEL);
 	if (he_dev->tpdrq_base == NULL) {
 		hprintk("failed to alloc tpdrq\n");
 		return -ENOMEM;
@@ -805,9 +806,9 @@ static int he_init_group(struct he_dev *he_dev, int group)
 		goto out_free_rbpl_virt;
 	}
 
-	he_dev->rbpl_base = dma_zalloc_coherent(&he_dev->pci_dev->dev,
-						CONFIG_RBPL_SIZE * sizeof(struct he_rbp),
-						&he_dev->rbpl_phys, GFP_KERNEL);
+	he_dev->rbpl_base = dma_alloc_coherent(&he_dev->pci_dev->dev,
+					       CONFIG_RBPL_SIZE * sizeof(struct he_rbp),
+					       &he_dev->rbpl_phys, GFP_KERNEL);
 	if (he_dev->rbpl_base == NULL) {
 		hprintk("failed to alloc rbpl_base\n");
 		goto out_destroy_rbpl_pool;
@@ -844,9 +845,9 @@ static int he_init_group(struct he_dev *he_dev, int group)
 
 	/* rx buffer ready queue */
 
-	he_dev->rbrq_base = dma_zalloc_coherent(&he_dev->pci_dev->dev,
-						CONFIG_RBRQ_SIZE * sizeof(struct he_rbrq),
-						&he_dev->rbrq_phys, GFP_KERNEL);
+	he_dev->rbrq_base = dma_alloc_coherent(&he_dev->pci_dev->dev,
+					       CONFIG_RBRQ_SIZE * sizeof(struct he_rbrq),
+					       &he_dev->rbrq_phys, GFP_KERNEL);
 	if (he_dev->rbrq_base == NULL) {
 		hprintk("failed to allocate rbrq\n");
 		goto out_free_rbpl;
@@ -868,9 +869,9 @@ static int he_init_group(struct he_dev *he_dev, int group)
 
 	/* tx buffer ready queue */
 
-	he_dev->tbrq_base = dma_zalloc_coherent(&he_dev->pci_dev->dev,
-						CONFIG_TBRQ_SIZE * sizeof(struct he_tbrq),
-						&he_dev->tbrq_phys, GFP_KERNEL);
+	he_dev->tbrq_base = dma_alloc_coherent(&he_dev->pci_dev->dev,
+					       CONFIG_TBRQ_SIZE * sizeof(struct he_tbrq),
+					       &he_dev->tbrq_phys, GFP_KERNEL);
 	if (he_dev->tbrq_base == NULL) {
 		hprintk("failed to allocate tbrq\n");
 		goto out_free_rbpq_base;
@@ -913,11 +914,9 @@ static int he_init_irq(struct he_dev *he_dev)
 	/* 2.9.3.5  tail offset for each interrupt queue is located after the
 		    end of the interrupt queue */
 
-	he_dev->irq_base = dma_zalloc_coherent(&he_dev->pci_dev->dev,
-					       (CONFIG_IRQ_SIZE + 1)
-					       * sizeof(struct he_irq),
-					       &he_dev->irq_phys,
-					       GFP_KERNEL);
+	he_dev->irq_base = dma_alloc_coherent(&he_dev->pci_dev->dev,
+					      (CONFIG_IRQ_SIZE + 1) * sizeof(struct he_irq),
+					      &he_dev->irq_phys, GFP_KERNEL);
 	if (he_dev->irq_base == NULL) {
 		hprintk("failed to allocate irq\n");
 		return -ENOMEM;
@@ -1464,9 +1463,9 @@ static int he_start(struct atm_dev *dev)
 
 	/* host status page */
 
-	he_dev->hsp = dma_zalloc_coherent(&he_dev->pci_dev->dev,
-					  sizeof(struct he_hsp),
-					  &he_dev->hsp_phys, GFP_KERNEL);
+	he_dev->hsp = dma_alloc_coherent(&he_dev->pci_dev->dev,
+					 sizeof(struct he_hsp),
+					 &he_dev->hsp_phys, GFP_KERNEL);
 	if (he_dev->hsp == NULL) {
 		hprintk("failed to allocate host status page\n");
 		return -ENOMEM;

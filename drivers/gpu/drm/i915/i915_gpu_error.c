@@ -1907,9 +1907,16 @@ i915_capture_gpu_state(struct drm_i915_private *i915)
 {
 	struct i915_gpu_state *error;
 
+	/* Check if GPU capture has been disabled */
+	error = READ_ONCE(i915->gpu_error.first_error);
+	if (IS_ERR(error))
+		return error;
+
 	error = kzalloc(sizeof(*error), GFP_ATOMIC);
-	if (!error)
-		return NULL;
+	if (!error) {
+		i915_disable_error_state(i915, -ENOMEM);
+		return ERR_PTR(-ENOMEM);
+	}
 
 	kref_init(&error->ref);
 	error->i915 = i915;
@@ -1945,11 +1952,8 @@ void i915_capture_error_state(struct drm_i915_private *i915,
 		return;
 
 	error = i915_capture_gpu_state(i915);
-	if (!error) {
-		DRM_DEBUG_DRIVER("out of memory, not capturing error state\n");
-		i915_disable_error_state(i915, -ENOMEM);
+	if (IS_ERR(error))
 		return;
-	}
 
 	i915_error_capture_msg(i915, error, engine_mask, error_msg);
 	DRM_INFO("%s\n", error->error_msg);
@@ -1987,7 +1991,7 @@ i915_first_error_state(struct drm_i915_private *i915)
 
 	spin_lock_irq(&i915->gpu_error.lock);
 	error = i915->gpu_error.first_error;
-	if (error)
+	if (!IS_ERR_OR_NULL(error))
 		i915_gpu_state_get(error);
 	spin_unlock_irq(&i915->gpu_error.lock);
 
@@ -2000,10 +2004,11 @@ void i915_reset_error_state(struct drm_i915_private *i915)
 
 	spin_lock_irq(&i915->gpu_error.lock);
 	error = i915->gpu_error.first_error;
-	i915->gpu_error.first_error = NULL;
+	if (error != ERR_PTR(-ENODEV)) /* if disabled, always disabled */
+		i915->gpu_error.first_error = NULL;
 	spin_unlock_irq(&i915->gpu_error.lock);
 
-	if (!IS_ERR(error))
+	if (!IS_ERR_OR_NULL(error))
 		i915_gpu_state_put(error);
 }
 
