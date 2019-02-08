@@ -310,6 +310,11 @@ static void ice_trigger_vf_reset(struct ice_vf *vf, bool is_vflr)
 	 */
 	clear_bit(ICE_VF_STATE_INIT, vf->vf_states);
 
+	/* Clear the VF's ARQLEN register. This is how the VF detects reset,
+	 * since the VFGEN_RSTAT register doesn't stick at 0 after reset.
+	 */
+	wr32(hw, VF_MBX_ARQLEN(vf_abs_id), 0);
+
 	/* In the case of a VFLR, the HW has already reset the VF and we
 	 * just need to clean up, so don't hit the VFRTRIG register.
 	 */
