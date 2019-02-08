@@ -532,9 +532,6 @@ typedef int (*reset_func)(struct drm_i915_private *,
 
 static reset_func intel_get_gpu_reset(struct drm_i915_private *i915)
 {
-	if (!i915_modparams.reset)
-		return NULL;
-
 	if (INTEL_GEN(i915) >= 8)
 		return gen8_reset_engines;
 	else if (INTEL_GEN(i915) >= 6)
@@ -598,6 +595,9 @@ bool intel_has_gpu_reset(struct drm_i915_private *i915)
 {
 	if (USES_GUC(i915))
 		return false;
+
+	if (!i915_modparams.reset)
+		return NULL;
 
 	return intel_get_gpu_reset(i915);
 }
@@ -824,7 +824,7 @@ void i915_gem_set_wedged(struct drm_i915_private *i915)
 		reset_prepare_engine(engine);
 
 	/* Even if the GPU reset fails, it should still stop the engines */
-	if (INTEL_GEN(i915) >= 5)
+	if (!INTEL_INFO(i915)->gpu_reset_clobbers_display)
 		intel_gpu_reset(i915, ALL_ENGINES);
 
 	for_each_engine(engine, i915, id) {
