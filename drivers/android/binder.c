@@ -667,6 +667,26 @@ struct binder_transaction {
 };
 
 /**
+ * struct binder_object - union of flat binder object types
+ * @hdr:   generic object header
+ * @fbo:   binder object (nodes and refs)
+ * @fdo:   file descriptor object
+ * @bbo:   binder buffer pointer
+ * @fdao:  file descriptor array
+ *
+ * Used for type-independent object copies
+ */
+struct binder_object {
+	union {
+		struct binder_object_header hdr;
+		struct flat_binder_object fbo;
+		struct binder_fd_object fdo;
+		struct binder_buffer_object bbo;
+		struct binder_fd_array_object fdao;
+	};
+};
+
+/**
  * binder_proc_lock() - Acquire outer lock for given binder_proc
  * @proc:         struct binder_proc to acquire
  *
@@ -2202,26 +2222,33 @@ static void binder_cleanup_transaction(struct binder_transaction *t,
 }
 
 /**
- * binder_validate_object() - checks for a valid metadata object in a buffer.
+ * binder_get_object() - gets object and checks for valid metadata
+ * @proc:	binder_proc owning the buffer
  * @buffer:	binder_buffer that we're parsing.
- * @offset:	offset in the buffer at which to validate an object.
+ * @offset:	offset in the @buffer at which to validate an object.
+ * @object:	struct binder_object to read into
  *
  * Return:	If there's a valid metadata object at @offset in @buffer, the
- *		size of that object. Otherwise, it returns zero.
+ *		size of that object. Otherwise, it returns zero. The object
+ *		is read into the struct binder_object pointed to by @object.
  */
-static size_t binder_validate_object(struct binder_buffer *buffer, u64 offset)
+static size_t binder_get_object(struct binder_proc *proc,
+				struct binder_buffer *buffer,
+				unsigned long offset,
+				struct binder_object *object)
 {
-	/* Check if we can read a header first */
+	size_t read_size;
 	struct binder_object_header *hdr;
 	size_t object_size = 0;
 
-	if (buffer->data_size < sizeof(*hdr) ||
-	    offset > buffer->data_size - sizeof(*hdr) ||
-	    !IS_ALIGNED(offset, sizeof(u32)))
+	read_size = min_t(size_t, sizeof(*object), buffer->data_size - offset);
+	if (read_size < sizeof(*hdr))
 		return 0;
+	binder_alloc_copy_from_buffer(&proc->alloc, object, buffer,
+				      offset, read_size);
 
-	/* Ok, now see if we can read a complete object. */
-	hdr = (struct binder_object_header *)(buffer->data + offset);
+	/* Ok, now see if we read a complete object. */
+	hdr = &object->hdr;
 	switch (hdr->type) {
 	case BINDER_TYPE_BINDER:
 	case BINDER_TYPE_WEAK_BINDER:
@@ -2372,6 +2399,7 @@ static void binder_transaction_buffer_release(struct binder_proc *proc,
 	for (offp = off_start; offp < off_end; offp++) {
 		struct binder_object_header *hdr;
 		size_t object_size;
+		struct binder_object object;
 		binder_size_t object_offset;
 		binder_size_t buffer_offset = (uintptr_t)offp -
 			(uintptr_t)buffer->data;
@@ -2379,14 +2407,14 @@ static void binder_transaction_buffer_release(struct binder_proc *proc,
 		binder_alloc_copy_from_buffer(&proc->alloc, &object_offset,
 					      buffer, buffer_offset,
 					      sizeof(object_offset));
-		object_size = binder_validate_object(buffer, object_offset);
+		object_size = binder_get_object(proc, buffer,
+						object_offset, &object);
 		if (object_size == 0) {
 			pr_err("transaction release %d bad object at offset %lld, size %zd\n",
 			       debug_id, (u64)object_offset, buffer->data_size);
 			continue;
 		}
-		hdr = (struct binder_object_header *)
-			(buffer->data + object_offset);
+		hdr = &object.hdr;
 		switch (hdr->type) {
 		case BINDER_TYPE_BINDER:
 		case BINDER_TYPE_WEAK_BINDER: {
@@ -3272,6 +3300,7 @@ static void binder_transaction(struct binder_proc *proc,
 	for (; offp < off_end; offp++) {
 		struct binder_object_header *hdr;
 		size_t object_size;
+		struct binder_object object;
 		binder_size_t object_offset;
 		binder_size_t buffer_offset =
 			(uintptr_t)offp - (uintptr_t)t->buffer->data;
@@ -3281,7 +3310,8 @@ static void binder_transaction(struct binder_proc *proc,
 					      t->buffer,
 					      buffer_offset,
 					      sizeof(object_offset));
-		object_size = binder_validate_object(t->buffer, object_offset);
+		object_size = binder_get_object(target_proc, t->buffer,
+						object_offset, &object);
 		if (object_size == 0 || object_offset < off_min) {
 			binder_user_error("%d:%d got transaction with invalid offset (%lld, min %lld max %lld) or object.\n",
 					  proc->pid, thread->pid,
@@ -3294,8 +3324,7 @@ static void binder_transaction(struct binder_proc *proc,
 			goto err_bad_offset;
 		}
 
-		hdr = (struct binder_object_header *)
-			(t->buffer->data + object_offset);
+		hdr = &object.hdr;
 		off_min = object_offset + object_size;
 		switch (hdr->type) {
 		case BINDER_TYPE_BINDER:
@@ -3310,6 +3339,9 @@ static void binder_transaction(struct binder_proc *proc,
 				return_error_line = __LINE__;
 				goto err_translate_failed;
 			}
+			binder_alloc_copy_to_buffer(&target_proc->alloc,
+						    t->buffer, object_offset,
+						    fp, sizeof(*fp));
 		} break;
 		case BINDER_TYPE_HANDLE:
 		case BINDER_TYPE_WEAK_HANDLE: {
@@ -3323,6 +3355,9 @@ static void binder_transaction(struct binder_proc *proc,
 				return_error_line = __LINE__;
 				goto err_translate_failed;
 			}
+			binder_alloc_copy_to_buffer(&target_proc->alloc,
+						    t->buffer, object_offset,
+						    fp, sizeof(*fp));
 		} break;
 
 		case BINDER_TYPE_FD: {
@@ -3338,6 +3373,9 @@ static void binder_transaction(struct binder_proc *proc,
 			}
 			fp->pad_binder = 0;
 			fp->fd = target_fd;
+			binder_alloc_copy_to_buffer(&target_proc->alloc,
+						    t->buffer, object_offset,
+						    fp, sizeof(*fp));
 		} break;
 		case BINDER_TYPE_FDA: {
 			struct binder_fd_array_object *fda =
@@ -3422,7 +3460,10 @@ static void binder_transaction(struct binder_proc *proc,
 				return_error_line = __LINE__;
 				goto err_translate_failed;
 			}
-			last_fixup_obj = bp;
+			binder_alloc_copy_to_buffer(&target_proc->alloc,
+						    t->buffer, object_offset,
+						    bp, sizeof(*bp));
+			last_fixup_obj = t->buffer->data + object_offset;
 			last_fixup_min_off = 0;
 		} break;
 		default:
