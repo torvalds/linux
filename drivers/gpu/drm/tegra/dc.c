@@ -2014,9 +2014,8 @@ static int tegra_dc_init(struct host1x_client *client)
 	if (!dc->syncpt)
 		dev_warn(dc->dev, "failed to allocate syncpoint\n");
 
-	dc->group = host1x_client_iommu_attach(client, true);
-	if (IS_ERR(dc->group)) {
-		err = PTR_ERR(dc->group);
+	err = host1x_client_iommu_attach(client, true);
+	if (err < 0) {
 		dev_err(client->dev, "failed to attach to domain: %d\n", err);
 		return err;
 	}
@@ -2089,7 +2088,7 @@ cleanup:
 	if (!IS_ERR(primary))
 		drm_plane_cleanup(primary);
 
-	host1x_client_iommu_detach(client, dc->group);
+	host1x_client_iommu_detach(client);
 	host1x_syncpt_free(dc->syncpt);
 
 	return err;
@@ -2114,7 +2113,7 @@ static int tegra_dc_exit(struct host1x_client *client)
 		return err;
 	}
 
-	host1x_client_iommu_detach(client, dc->group);
+	host1x_client_iommu_detach(client);
 	host1x_syncpt_free(dc->syncpt);
 
 	return 0;

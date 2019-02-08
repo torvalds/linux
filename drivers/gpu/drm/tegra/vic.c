@@ -34,7 +34,6 @@ struct vic {
 	void __iomem *regs;
 	struct tegra_drm_client client;
 	struct host1x_channel *channel;
-	struct iommu_group *group;
 	struct device *dev;
 	struct clk *clk;
 	struct reset_control *rst;
@@ -188,9 +187,8 @@ static int vic_init(struct host1x_client *client)
 	struct vic *vic = to_vic(drm);
 	int err;
 
-	vic->group = host1x_client_iommu_attach(client, false);
-	if (IS_ERR(vic->group)) {
-		err = PTR_ERR(vic->group);
+	err = host1x_client_iommu_attach(client, false);
+	if (err < 0) {
 		dev_err(vic->dev, "failed to attach to domain: %d\n", err);
 		return err;
 	}
@@ -224,7 +222,7 @@ free_syncpt:
 free_channel:
 	host1x_channel_put(vic->channel);
 detach:
-	host1x_client_iommu_detach(client, vic->group);
+	host1x_client_iommu_detach(client);
 
 	return err;
 }
@@ -246,7 +244,7 @@ static int vic_exit(struct host1x_client *client)
 
 	host1x_syncpt_free(client->syncpts[0]);
 	host1x_channel_put(vic->channel);
-	host1x_client_iommu_detach(client, vic->group);
+	host1x_client_iommu_detach(client);
 
 	return 0;
 }

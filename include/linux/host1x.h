@@ -18,6 +18,7 @@ enum host1x_class {
 };
 
 struct host1x_client;
+struct iommu_group;
 
 /**
  * struct host1x_client_ops - host1x client operations
@@ -34,6 +35,7 @@ struct host1x_client_ops {
  * @list: list node for the host1x client
  * @parent: pointer to struct device representing the host1x controller
  * @dev: pointer to struct device backing this host1x client
+ * @group: IOMMU group that this client is a member of
  * @ops: host1x client operations
  * @class: host1x class represented by this client
  * @channel: host1x channel associated with this client
@@ -44,6 +46,7 @@ struct host1x_client {
 	struct list_head list;
 	struct device *parent;
 	struct device *dev;
+	struct iommu_group *group;
 
 	const struct host1x_client_ops *ops;
 
