@@ -51,6 +51,15 @@
 					1 /* opaque devaddr4 length */ + \
 					XDR_QUADLEN(PNFS_LAYOUTSTATS_MAXSIZE))
 #define decode_layoutstats_maxsz	(op_decode_hdr_maxsz)
+#define encode_device_error_maxsz	(XDR_QUADLEN(NFS4_DEVICEID4_SIZE) + \
+					1 /* status */ + 1 /* opnum */)
+#define encode_layouterror_maxsz	(op_decode_hdr_maxsz + \
+					2 /* offset */ + \
+					2 /* length */ + \
+					encode_stateid_maxsz + \
+					1 /* Array size */ + \
+					encode_device_error_maxsz)
+#define decode_layouterror_maxsz	(op_decode_hdr_maxsz)
 #define encode_clone_maxsz		(encode_stateid_maxsz + \
 					encode_stateid_maxsz + \
 					2 /* src offset */ + \
@@ -116,6 +125,16 @@
 					 decode_sequence_maxsz + \
 					 decode_putfh_maxsz + \
 					 PNFS_LAYOUTSTATS_MAXDEV * decode_layoutstats_maxsz)
+#define NFS4_enc_layouterror_sz		(compound_encode_hdr_maxsz + \
+					 encode_sequence_maxsz + \
+					 encode_putfh_maxsz + \
+					 NFS42_LAYOUTERROR_MAX * \
+					 encode_layouterror_maxsz)
+#define NFS4_dec_layouterror_sz		(compound_decode_hdr_maxsz + \
+					 decode_sequence_maxsz + \
+					 decode_putfh_maxsz + \
+					 NFS42_LAYOUTERROR_MAX * \
+					 decode_layouterror_maxsz)
 #define NFS4_enc_clone_sz		(compound_encode_hdr_maxsz + \
 					 encode_sequence_maxsz + \
 					 encode_putfh_maxsz + \
@@ -231,6 +250,34 @@ static void encode_clone(struct xdr_stream *xdr,
 	p = xdr_encode_hyper(p, args->src_offset);
 	p = xdr_encode_hyper(p, args->dst_offset);
 	xdr_encode_hyper(p, args->count);
+}
+
+static void encode_device_error(struct xdr_stream *xdr,
+				const struct nfs42_device_error *error)
+{
+	__be32 *p;
+
+	p = reserve_space(xdr, NFS4_DEVICEID4_SIZE + 2*4);
+	p = xdr_encode_opaque_fixed(p, error->dev_id.data,
+			NFS4_DEVICEID4_SIZE);
+	*p++ = cpu_to_be32(error->status);
+	*p = cpu_to_be32(error->opnum);
+}
+
+static void encode_layouterror(struct xdr_stream *xdr,
+			       const struct nfs42_layout_error *args,
+			       struct compound_hdr *hdr)
+{
+	__be32 *p;
+
+	encode_op_hdr(xdr, OP_LAYOUTERROR, decode_layouterror_maxsz, hdr);
+	p = reserve_space(xdr, 8 + 8);
+	p = xdr_encode_hyper(p, args->offset);
+	p = xdr_encode_hyper(p, args->length);
+	encode_nfs4_stateid(xdr, &args->stateid);
+	p = reserve_space(xdr, 4);
+	*p = cpu_to_be32(1);
+	encode_device_error(xdr, &args->errors[0]);
 }
 
 /*
@@ -391,6 +438,27 @@ static void nfs4_xdr_enc_clone(struct rpc_rqst *req,
 	encode_nops(&hdr);
 }
 
+/*
+ * Encode LAYOUTERROR request
+ */
+static void nfs4_xdr_enc_layouterror(struct rpc_rqst *req,
+				     struct xdr_stream *xdr,
+				     const void *data)
+{
+	const struct nfs42_layouterror_args *args = data;
+	struct compound_hdr hdr = {
+		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
+	};
+	int i;
+
+	encode_compound_hdr(xdr, req, &hdr);
+	encode_sequence(xdr, &args->seq_args, &hdr);
+	encode_putfh(xdr, NFS_FH(args->inode), &hdr);
+	for (i = 0; i < args->num_errors; i++)
+		encode_layouterror(xdr, &args->errors[i], &hdr);
+	encode_nops(&hdr);
+}
+
 static int decode_allocate(struct xdr_stream *xdr, struct nfs42_falloc_res *res)
 {
 	return decode_op_hdr(xdr, OP_ALLOCATE);
@@ -492,6 +560,11 @@ static int decode_layoutstats(struct xdr_stream *xdr)
 static int decode_clone(struct xdr_stream *xdr)
 {
 	return decode_op_hdr(xdr, OP_CLONE);
+}
+
+static int decode_layouterror(struct xdr_stream *xdr)
+{
+	return decode_op_hdr(xdr, OP_LAYOUTERROR);
 }
 
 /*
@@ -698,6 +771,32 @@ static int nfs4_xdr_dec_clone(struct rpc_rqst *rqstp,
 		goto out;
 	status = decode_getfattr(xdr, res->dst_fattr, res->server);
 
+out:
+	res->rpc_status = status;
+	return status;
+}
+
+/*
+ * Decode LAYOUTERROR request
+ */
+static int nfs4_xdr_dec_layouterror(struct rpc_rqst *rqstp,
+				    struct xdr_stream *xdr,
+				    void *data)
+{
+	struct nfs42_layouterror_res *res = data;
+	struct compound_hdr hdr;
+	int status, i;
+
+	status = decode_compound_hdr(xdr, &hdr);
+	if (status)
+		goto out;
+	status = decode_sequence(xdr, &res->seq_res, rqstp);
+	if (status)
+		goto out;
+	status = decode_putfh(xdr);
+
+	for (i = 0; i < res->num_errors && status == 0; i++)
+		status = decode_layouterror(xdr);
 out:
 	res->rpc_status = status;
 	return status;
