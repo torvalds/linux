@@ -97,6 +97,9 @@ static int vic_runtime_suspend(struct device *dev)
 
 static int vic_boot(struct vic *vic)
 {
+#ifdef CONFIG_IOMMU_API
+	struct iommu_fwspec *spec = dev_iommu_fwspec_get(vic->dev);
+#endif
 	u32 fce_ucode_size, fce_bin_data_offset;
 	void *hdr;
 	int err = 0;
@@ -105,15 +108,14 @@ static int vic_boot(struct vic *vic)
 		return 0;
 
 #ifdef CONFIG_IOMMU_API
-	if (vic->config->supports_sid) {
-		struct iommu_fwspec *spec = dev_iommu_fwspec_get(vic->dev);
+	if (vic->config->supports_sid && spec) {
 		u32 value;
 
 		value = TRANSCFG_ATT(1, TRANSCFG_SID_FALCON) |
 			TRANSCFG_ATT(0, TRANSCFG_SID_HW);
 		vic_writel(vic, value, VIC_TFBIF_TRANSCFG);
 
-		if (spec && spec->num_ids > 0) {
+		if (spec->num_ids > 0) {
 			value = spec->ids[0] & 0xffff;
 
 			vic_writel(vic, value, VIC_THI_STREAMID0);
