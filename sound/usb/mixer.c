@@ -3441,7 +3441,6 @@ int snd_usb_create_mixer(struct snd_usb_audio *chip, int ctrlif,
 		.dev_free = snd_usb_mixer_dev_free
 	};
 	struct usb_mixer_interface *mixer;
-	struct snd_info_entry *entry;
 	int err;
 
 	strcpy(chip->card->mixername, "USB Mixer");
@@ -3497,9 +3496,9 @@ int snd_usb_create_mixer(struct snd_usb_audio *chip, int ctrlif,
 	if (err < 0)
 		goto _error;
 
-	if (list_empty(&chip->mixer_list) &&
-	    !snd_card_proc_new(chip->card, "usbmixer", &entry))
-		snd_info_set_text_ops(entry, chip, snd_usb_mixer_proc_read);
+	if (list_empty(&chip->mixer_list))
+		snd_card_ro_proc_new(chip->card, "usbmixer", chip,
+				     snd_usb_mixer_proc_read);
 
 	list_add(&mixer->list, &chip->mixer_list);
 	return 0;

@@ -492,9 +492,8 @@ static void snd_ak4113_proc_regs_read(struct snd_info_entry *entry,
 
 static void snd_ak4113_proc_init(struct ak4113 *ak4113)
 {
-	struct snd_info_entry *entry;
-	if (!snd_card_proc_new(ak4113->card, "ak4113", &entry))
-		snd_info_set_text_ops(entry, ak4113, snd_ak4113_proc_regs_read);
+	snd_card_ro_proc_new(ak4113->card, "ak4113", ak4113,
+			     snd_ak4113_proc_regs_read);
 }
 
 int snd_ak4113_build(struct ak4113 *ak4113,

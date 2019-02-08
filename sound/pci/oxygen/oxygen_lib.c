@@ -244,10 +244,7 @@ static void oxygen_proc_read(struct snd_info_entry *entry,
 
 static void oxygen_proc_init(struct oxygen *chip)
 {
-	struct snd_info_entry *entry;
-
-	if (!snd_card_proc_new(chip->card, "oxygen", &entry))
-		snd_info_set_text_ops(entry, chip, oxygen_proc_read);
+	snd_card_ro_proc_new(chip->card, "oxygen", chip, oxygen_proc_read);
 }
 
 static const struct pci_device_id *

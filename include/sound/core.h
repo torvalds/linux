@@ -120,7 +120,6 @@ struct snd_card {
 	struct list_head ctl_files;	/* active control files */
 
 	struct snd_info_entry *proc_root;	/* root for soundcard specific files */
-	struct snd_info_entry *proc_id;	/* the card id */
 	struct proc_dir_entry *proc_root_link;	/* number link to real id */
 
 	struct list_head files_list;	/* all files associated to this card */

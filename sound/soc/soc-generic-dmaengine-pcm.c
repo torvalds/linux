@@ -270,7 +270,6 @@ static int dmaengine_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	size_t prealloc_buffer_size;
 	size_t max_buffer_size;
 	unsigned int i;
-	int ret;
 
 	if (config && config->prealloc_buffer_size) {
 		prealloc_buffer_size = config->prealloc_buffer_size;
@@ -303,13 +302,11 @@ static int dmaengine_pcm_new(struct snd_soc_pcm_runtime *rtd)
 			return -EINVAL;
 		}
 
-		ret = snd_pcm_lib_preallocate_pages(substream,
+		snd_pcm_lib_preallocate_pages(substream,
 				SNDRV_DMA_TYPE_DEV_IRAM,
 				dmaengine_dma_dev(pcm, substream),
 				prealloc_buffer_size,
 				max_buffer_size);
-		if (ret)
-			return ret;
 
 		if (!dmaengine_pcm_can_report_residue(dev, pcm->chan[i]))
 			pcm->flags |= SND_DMAENGINE_PCM_FLAG_NO_RESIDUE;

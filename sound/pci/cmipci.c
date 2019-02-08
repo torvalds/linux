@@ -2792,10 +2792,7 @@ static void snd_cmipci_proc_read(struct snd_info_entry *entry,
 
 static void snd_cmipci_proc_init(struct cmipci *cm)
 {
-	struct snd_info_entry *entry;
-
-	if (! snd_card_proc_new(cm->card, "cmipci", &entry))
-		snd_info_set_text_ops(entry, cm, snd_cmipci_proc_read);
+	snd_card_ro_proc_new(cm->card, "cmipci", cm, snd_cmipci_proc_read);
 }
 
 static const struct pci_device_id snd_cmipci_ids[] = {
