@@ -25,7 +25,6 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_haswell_machines[] = {
 		.fw_filename = "intel/IntcSST1.bin",
 		.sof_fw_filename = "sof-hsw.ri",
 		.sof_tplg_filename = "sof-hsw.tplg",
-		.asoc_plat_name = "haswell-pcm-audio",
 	},
 	{}
 };
@@ -38,7 +37,6 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_broadwell_machines[] = {
 		.fw_filename =  "intel/IntcSST2.bin",
 		.sof_fw_filename = "sof-bdw.ri",
 		.sof_tplg_filename = "sof-bdw-rt286.tplg",
-		.asoc_plat_name = "haswell-pcm-audio",
 	},
 	{
 		.id = "RT5677CE",
@@ -46,7 +44,6 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_broadwell_machines[] = {
 		.fw_filename =  "intel/IntcSST2.bin",
 		.sof_fw_filename = "sof-bdw.ri",
 		.sof_tplg_filename = "sof-bdw-rt5677.tplg",
-		.asoc_plat_name = "haswell-pcm-audio",
 	},
 	{
 		.id = "INT33CA",
@@ -54,7 +51,6 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_broadwell_machines[] = {
 		.fw_filename = "intel/IntcSST2.bin",
 		.sof_fw_filename = "sof-bdw.ri",
 		.sof_tplg_filename = "sof-bdw-rt5640.tplg",
-		.asoc_plat_name = "haswell-pcm-audio",
 	},
 	{}
 };
