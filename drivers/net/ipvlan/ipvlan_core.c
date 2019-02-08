@@ -138,7 +138,7 @@ bool ipvlan_addr_busy(struct ipvl_port *port, void *iaddr, bool is_v6)
 	return ret;
 }
 
-static void *ipvlan_get_L3_hdr(struct ipvl_port *port, struct sk_buff *skb, int *type)
+void *ipvlan_get_L3_hdr(struct ipvl_port *port, struct sk_buff *skb, int *type)
 {
 	void *lyr3h = NULL;
 
@@ -355,9 +355,8 @@ out:
 	return ret;
 }
 
-static struct ipvl_addr *ipvlan_addr_lookup(struct ipvl_port *port,
-					    void *lyr3h, int addr_type,
-					    bool use_dest)
+struct ipvl_addr *ipvlan_addr_lookup(struct ipvl_port *port, void *lyr3h,
+				     int addr_type, bool use_dest)
 {
 	struct ipvl_addr *addr = NULL;
 
@@ -647,7 +646,9 @@ int ipvlan_queue_xmit(struct sk_buff *skb, struct net_device *dev)
 	case IPVLAN_MODE_L2:
 		return ipvlan_xmit_mode_l2(skb, dev);
 	case IPVLAN_MODE_L3:
+#ifdef CONFIG_IPVLAN_L3S
 	case IPVLAN_MODE_L3S:
+#endif
 		return ipvlan_xmit_mode_l3(skb, dev);
 	}
 
@@ -743,8 +744,10 @@ rx_handler_result_t ipvlan_handle_frame(struct sk_buff **pskb)
 		return ipvlan_handle_mode_l2(pskb, port);
 	case IPVLAN_MODE_L3:
 		return ipvlan_handle_mode_l3(pskb, port);
+#ifdef CONFIG_IPVLAN_L3S
 	case IPVLAN_MODE_L3S:
 		return RX_HANDLER_PASS;
+#endif
 	}
 
 	/* Should not reach here */
@@ -752,98 +755,4 @@ rx_handler_result_t ipvlan_handle_frame(struct sk_buff **pskb)
 			  port->mode);
 	kfree_skb(skb);
 	return RX_HANDLER_CONSUMED;
-}
-
-static struct ipvl_addr *ipvlan_skb_to_addr(struct sk_buff *skb,
-					    struct net_device *dev)
-{
-	struct ipvl_addr *addr = NULL;
-	struct ipvl_port *port;
-	void *lyr3h;
-	int addr_type;
-
-	if (!dev || !netif_is_ipvlan_port(dev))
-		goto out;
-
-	port = ipvlan_port_get_rcu(dev);
-	if (!port || port->mode != IPVLAN_MODE_L3S)
-		goto out;
-
-	lyr3h = ipvlan_get_L3_hdr(port, skb, &addr_type);
-	if (!lyr3h)
-		goto out;
-
-	addr = ipvlan_addr_lookup(port, lyr3h, addr_type, true);
-out:
-	return addr;
-}
-
-struct sk_buff *ipvlan_l3_rcv(struct net_device *dev, struct sk_buff *skb,
-			      u16 proto)
-{
-	struct ipvl_addr *addr;
-	struct net_device *sdev;
-
-	addr = ipvlan_skb_to_addr(skb, dev);
-	if (!addr)
-		goto out;
-
-	sdev = addr->master->dev;
-	switch (proto) {
-	case AF_INET:
-	{
-		int err;
-		struct iphdr *ip4h = ip_hdr(skb);
-
-		err = ip_route_input_noref(skb, ip4h->daddr, ip4h->saddr,
-					   ip4h->tos, sdev);
-		if (unlikely(err))
-			goto out;
-		break;
-	}
-#if IS_ENABLED(CONFIG_IPV6)
-	case AF_INET6:
-	{
-		struct dst_entry *dst;
-		struct ipv6hdr *ip6h = ipv6_hdr(skb);
-		int flags = RT6_LOOKUP_F_HAS_SADDR;
-		struct flowi6 fl6 = {
-			.flowi6_iif   = sdev->ifindex,
-			.daddr        = ip6h->daddr,
-			.saddr        = ip6h->saddr,
-			.flowlabel    = ip6_flowinfo(ip6h),
-			.flowi6_mark  = skb->mark,
-			.flowi6_proto = ip6h->nexthdr,
-		};
-
-		skb_dst_drop(skb);
-		dst = ip6_route_input_lookup(dev_net(sdev), sdev, &fl6,
-					     skb, flags);
-		skb_dst_set(skb, dst);
-		break;
-	}
-#endif
-	default:
-		break;
-	}
-
-out:
-	return skb;
-}
-
-unsigned int ipvlan_nf_input(void *priv, struct sk_buff *skb,
-			     const struct nf_hook_state *state)
-{
-	struct ipvl_addr *addr;
-	unsigned int len;
-
-	addr = ipvlan_skb_to_addr(skb, skb->dev);
-	if (!addr)
-		goto out;
-
-	skb->dev = addr->master->dev;
-	len = skb->len + ETH_HLEN;
-	ipvlan_count_rx(addr->master, len, true, false);
-out:
-	return NF_ACCEPT;
 }
