@@ -15,10 +15,26 @@ MED_ATTRS(socket_kobject) {
 
 int socket_kobj2kern(struct socket_kobject * sock_kobj, struct socket * sock)
 {
+	struct medusa_l1_socket_s *sk_sec = &sock_security(sock->sk);
+
+	COPY_MEDUSA_OBJECT_VARS(sock_kobj, sk_sec);
+
+	return 0;
 }
 
 int socket_kern2kobj(struct socket_kobject * sock_kobj, struct socket * sock)
 {
+	struct inode *inode = SOCK_INODE(sock);
+
+	sock_kobj->dev = inode->i_sb->s_dev;
+	sock_kobj->ino = inode->i_ino;
+
+	sock_kobj->type = sock->type;
+	sock_kobj->family = sock->ops->family;
+	sock_kobj->uid = sock->sk->sk_uid;
+	COPY_MEDUSA_OBJECT_VARS(sock_kobj, sk_sec);
+
+	return MED_YES;
 }
 
 static struct socket_kobject storage;
