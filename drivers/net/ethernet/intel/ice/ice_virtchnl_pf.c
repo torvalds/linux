@@ -1385,7 +1385,7 @@ static struct ice_vsi *ice_find_vsi_from_id(struct ice_pf *pf, u16 id)
 {
 	int i;
 
-	for (i = 0; i < pf->num_alloc_vsi; i++)
+	ice_for_each_vsi(pf, i)
 		if (pf->vsi[i] && pf->vsi[i]->vsi_num == id)
 			return pf->vsi[i];
 

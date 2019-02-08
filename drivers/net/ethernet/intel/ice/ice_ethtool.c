@@ -1400,13 +1400,12 @@ ice_set_link_ksettings(struct net_device *netdev,
 		return -EOPNOTSUPP;
 
 	/* Check if this is lan vsi */
-	for (idx = 0 ; idx <  pf->num_alloc_vsi ; idx++) {
+	ice_for_each_vsi(pf, idx)
 		if (pf->vsi[idx]->type == ICE_VSI_PF) {
 			if (np->vsi != pf->vsi[idx])
 				return -EOPNOTSUPP;
 			break;
 		}
-	}
 
 	if (p->phy.media_type != ICE_MEDIA_BASET &&
 	    p->phy.media_type != ICE_MEDIA_FIBER &&

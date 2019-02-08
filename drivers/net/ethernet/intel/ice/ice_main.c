@@ -322,7 +322,7 @@ static void ice_sync_fltr_subtask(struct ice_pf *pf)
 
 	clear_bit(ICE_FLAG_FLTR_SYNC, pf->flags);
 
-	for (v = 0; v < pf->num_alloc_vsi; v++)
+	ice_for_each_vsi(pf, v)
 		if (pf->vsi[v] && ice_vsi_fltr_changed(pf->vsi[v]) &&
 		    ice_vsi_sync_fltr(pf->vsi[v])) {
 			/* come back and try again later */
@@ -642,7 +642,7 @@ static void ice_watchdog_subtask(struct ice_pf *pf)
 	 * can look at updated numbers whenever it cares to
 	 */
 	ice_update_pf_stats(pf);
-	for (i = 0; i < pf->num_alloc_vsi; i++)
+	ice_for_each_vsi(pf, i)
 		if (pf->vsi[i] && pf->vsi[i]->netdev)
 			ice_update_vsi_stats(pf->vsi[i]);
 }
@@ -3273,7 +3273,7 @@ static void ice_vsi_release_all(struct ice_pf *pf)
 	if (!pf->vsi)
 		return;
 
-	for (i = 0; i < pf->num_alloc_vsi; i++) {
+	ice_for_each_vsi(pf, i) {
 		if (!pf->vsi[i])
 			continue;
 
@@ -3372,7 +3372,7 @@ static int ice_vsi_rebuild_all(struct ice_pf *pf)
 	int i;
 
 	/* loop through pf->vsi array and reinit the VSI if found */
-	for (i = 0; i < pf->num_alloc_vsi; i++) {
+	ice_for_each_vsi(pf, i) {
 		int err;
 
 		if (!pf->vsi[i])
@@ -3409,7 +3409,7 @@ static int ice_vsi_replay_all(struct ice_pf *pf)
 	int i;
 
 	/* loop through pf->vsi array and replay the VSI if found */
-	for (i = 0; i < pf->num_alloc_vsi; i++) {
+	ice_for_each_vsi(pf, i) {
 		if (!pf->vsi[i])
 			continue;
 
@@ -3520,7 +3520,7 @@ static void ice_rebuild(struct ice_pf *pf)
 
 	ice_reset_all_vfs(pf, true);
 
-	for (i = 0; i < pf->num_alloc_vsi; i++) {
+	ice_for_each_vsi(pf, i) {
 		bool link_up;
 
 		if (!pf->vsi[i] || pf->vsi[i]->type != ICE_VSI_PF)
