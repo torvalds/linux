@@ -1615,12 +1615,33 @@ static int ath10k_sdio_hif_diag_write_mem(struct ath10k *ar, u32 address,
 	return 0;
 }
 
+static int ath10k_sdio_hif_swap_mailbox(struct ath10k *ar)
+{
+	struct ath10k_sdio *ar_sdio = ath10k_sdio_priv(ar);
+	u32 addr, val;
+	int ret = 0;
+
+	addr = host_interest_item_address(HI_ITEM(hi_acs_flags));
+
+	ret = ath10k_sdio_hif_diag_read32(ar, addr, &val);
+	if (ret) {
+		ath10k_warn(ar, "unable to read hi_acs_flags : %d\n", ret);
+		return ret;
+	}
+
+	if (val & HI_ACS_FLAGS_SDIO_SWAP_MAILBOX_FW_ACK) {
+		ath10k_dbg(ar, ATH10K_DBG_SDIO,
+			   "sdio mailbox swap service enabled\n");
+		ar_sdio->swap_mbox = true;
+	}
+	return 0;
+}
+
 /* HIF start/stop */
 
 static int ath10k_sdio_hif_start(struct ath10k *ar)
 {
 	struct ath10k_sdio *ar_sdio = ath10k_sdio_priv(ar);
-	u32 addr, val;
 	int ret;
 
 	/* Sleep 20 ms before HIF interrupts are disabled.
@@ -1653,20 +1674,6 @@ static int ath10k_sdio_hif_start(struct ath10k *ar)
 	ret = ath10k_sdio_hif_enable_intrs(ar);
 	if (ret)
 		ath10k_warn(ar, "failed to enable sdio interrupts: %d\n", ret);
-
-	addr = host_interest_item_address(HI_ITEM(hi_acs_flags));
-
-	ret = ath10k_sdio_hif_diag_read32(ar, addr, &val);
-	if (ret) {
-		ath10k_warn(ar, "unable to read hi_acs_flags address: %d\n", ret);
-		return ret;
-	}
-
-	if (val & HI_ACS_FLAGS_SDIO_SWAP_MAILBOX_FW_ACK) {
-		ath10k_dbg(ar, ATH10K_DBG_SDIO,
-			   "sdio mailbox swap service enabled\n");
-		ar_sdio->swap_mbox = true;
-	}
 
 	/* Enable sleep and then disable it again */
 	ret = ath10k_sdio_hif_set_mbox_sleep(ar, true);
@@ -1898,6 +1905,7 @@ static const struct ath10k_hif_ops ath10k_sdio_hif_ops = {
 	.exchange_bmi_msg	= ath10k_sdio_bmi_exchange_msg,
 	.start			= ath10k_sdio_hif_start,
 	.stop			= ath10k_sdio_hif_stop,
+	.swap_mailbox		= ath10k_sdio_hif_swap_mailbox,
 	.map_service_to_pipe	= ath10k_sdio_hif_map_service_to_pipe,
 	.get_default_pipe	= ath10k_sdio_hif_get_default_pipe,
 	.send_complete_check	= ath10k_sdio_hif_send_complete_check,
@@ -2088,7 +2096,10 @@ static struct sdio_driver ath10k_sdio_driver = {
 	.id_table = ath10k_sdio_devices,
 	.probe = ath10k_sdio_probe,
 	.remove = ath10k_sdio_remove,
-	.drv.pm = ATH10K_SDIO_PM_OPS,
+	.drv = {
+		.owner = THIS_MODULE,
+		.pm = ATH10K_SDIO_PM_OPS,
+	},
 };
 
 static int __init ath10k_sdio_init(void)

@@ -228,11 +228,31 @@ ath10k_ce_shadow_dest_ring_write_index_set(struct ath10k *ar,
 }
 
 static inline void ath10k_ce_src_ring_base_addr_set(struct ath10k *ar,
-						    u32 ce_ctrl_addr,
-						    unsigned int addr)
+						    u32 ce_id,
+						    u64 addr)
 {
+	struct ath10k_ce *ce = ath10k_ce_priv(ar);
+	struct ath10k_ce_pipe *ce_state = &ce->ce_states[ce_id];
+	u32 ce_ctrl_addr = ath10k_ce_base_address(ar, ce_id);
+	u32 addr_lo = lower_32_bits(addr);
+
 	ath10k_ce_write32(ar, ce_ctrl_addr +
-			  ar->hw_ce_regs->sr_base_addr, addr);
+			  ar->hw_ce_regs->sr_base_addr_lo, addr_lo);
+
+	if (ce_state->ops->ce_set_src_ring_base_addr_hi) {
+		ce_state->ops->ce_set_src_ring_base_addr_hi(ar, ce_ctrl_addr,
+							    addr);
+	}
+}
+
+static void ath10k_ce_set_src_ring_base_addr_hi(struct ath10k *ar,
+						u32 ce_ctrl_addr,
+						u64 addr)
+{
+	u32 addr_hi = upper_32_bits(addr) & CE_DESC_ADDR_HI_MASK;
+
+	ath10k_ce_write32(ar, ce_ctrl_addr +
+			  ar->hw_ce_regs->sr_base_addr_hi, addr_hi);
 }
 
 static inline void ath10k_ce_src_ring_size_set(struct ath10k *ar,
@@ -313,11 +333,36 @@ static inline u32 ath10k_ce_dest_ring_read_index_get(struct ath10k *ar,
 }
 
 static inline void ath10k_ce_dest_ring_base_addr_set(struct ath10k *ar,
-						     u32 ce_ctrl_addr,
-						     u32 addr)
+						     u32 ce_id,
+						     u64 addr)
 {
+	struct ath10k_ce *ce = ath10k_ce_priv(ar);
+	struct ath10k_ce_pipe *ce_state = &ce->ce_states[ce_id];
+	u32 ce_ctrl_addr = ath10k_ce_base_address(ar, ce_id);
+	u32 addr_lo = lower_32_bits(addr);
+
 	ath10k_ce_write32(ar, ce_ctrl_addr +
-			  ar->hw_ce_regs->dr_base_addr, addr);
+			  ar->hw_ce_regs->dr_base_addr_lo, addr_lo);
+
+	if (ce_state->ops->ce_set_dest_ring_base_addr_hi) {
+		ce_state->ops->ce_set_dest_ring_base_addr_hi(ar, ce_ctrl_addr,
+							     addr);
+	}
+}
+
+static void ath10k_ce_set_dest_ring_base_addr_hi(struct ath10k *ar,
+						 u32 ce_ctrl_addr,
+						 u64 addr)
+{
+	u32 addr_hi = upper_32_bits(addr) & CE_DESC_ADDR_HI_MASK;
+	u32 reg_value;
+
+	reg_value = ath10k_ce_read32(ar, ce_ctrl_addr +
+				     ar->hw_ce_regs->dr_base_addr_hi);
+	reg_value &= ~CE_DESC_ADDR_HI_MASK;
+	reg_value |= addr_hi;
+	ath10k_ce_write32(ar, ce_ctrl_addr +
+			  ar->hw_ce_regs->dr_base_addr_hi, reg_value);
 }
 
 static inline void ath10k_ce_dest_ring_size_set(struct ath10k *ar,
@@ -563,7 +608,7 @@ static int _ath10k_ce_send_nolock_64(struct ath10k_ce_pipe *ce_state,
 
 	addr = (__le32 *)&sdesc.addr;
 
-	flags |= upper_32_bits(buffer) & CE_DESC_FLAGS_GET_MASK;
+	flags |= upper_32_bits(buffer) & CE_DESC_ADDR_HI_MASK;
 	addr[0] = __cpu_to_le32(buffer);
 	addr[1] = __cpu_to_le32(flags);
 	if (flags & CE_SEND_FLAG_GATHER)
@@ -731,7 +776,7 @@ static int __ath10k_ce_rx_post_buf_64(struct ath10k_ce_pipe *pipe,
 		return -ENOSPC;
 
 	desc->addr = __cpu_to_le64(paddr);
-	desc->addr &= __cpu_to_le64(CE_DESC_37BIT_ADDR_MASK);
+	desc->addr &= __cpu_to_le64(CE_DESC_ADDR_MASK);
 
 	desc->nbytes = 0;
 
@@ -1346,7 +1391,7 @@ static int ath10k_ce_init_src_ring(struct ath10k *ar,
 		ath10k_ce_src_ring_write_index_get(ar, ctrl_addr);
 	src_ring->write_index &= src_ring->nentries_mask;
 
-	ath10k_ce_src_ring_base_addr_set(ar, ctrl_addr,
+	ath10k_ce_src_ring_base_addr_set(ar, ce_id,
 					 src_ring->base_addr_ce_space);
 	ath10k_ce_src_ring_size_set(ar, ctrl_addr, nentries);
 	ath10k_ce_src_ring_dmax_set(ar, ctrl_addr, attr->src_sz_max);
@@ -1385,7 +1430,7 @@ static int ath10k_ce_init_dest_ring(struct ath10k *ar,
 		ath10k_ce_dest_ring_write_index_get(ar, ctrl_addr);
 	dest_ring->write_index &= dest_ring->nentries_mask;
 
-	ath10k_ce_dest_ring_base_addr_set(ar, ctrl_addr,
+	ath10k_ce_dest_ring_base_addr_set(ar, ce_id,
 					  dest_ring->base_addr_ce_space);
 	ath10k_ce_dest_ring_size_set(ar, ctrl_addr, nentries);
 	ath10k_ce_dest_ring_byte_swap_set(ar, ctrl_addr, 0);
@@ -1660,7 +1705,7 @@ static void ath10k_ce_deinit_src_ring(struct ath10k *ar, unsigned int ce_id)
 {
 	u32 ctrl_addr = ath10k_ce_base_address(ar, ce_id);
 
-	ath10k_ce_src_ring_base_addr_set(ar, ctrl_addr, 0);
+	ath10k_ce_src_ring_base_addr_set(ar, ce_id, 0);
 	ath10k_ce_src_ring_size_set(ar, ctrl_addr, 0);
 	ath10k_ce_src_ring_dmax_set(ar, ctrl_addr, 0);
 	ath10k_ce_src_ring_highmark_set(ar, ctrl_addr, 0);
@@ -1670,7 +1715,7 @@ static void ath10k_ce_deinit_dest_ring(struct ath10k *ar, unsigned int ce_id)
 {
 	u32 ctrl_addr = ath10k_ce_base_address(ar, ce_id);
 
-	ath10k_ce_dest_ring_base_addr_set(ar, ctrl_addr, 0);
+	ath10k_ce_dest_ring_base_addr_set(ar, ce_id, 0);
 	ath10k_ce_dest_ring_size_set(ar, ctrl_addr, 0);
 	ath10k_ce_dest_ring_highmark_set(ar, ctrl_addr, 0);
 }
@@ -1802,6 +1847,8 @@ static const struct ath10k_ce_ops ce_ops = {
 	.ce_extract_desc_data = ath10k_ce_extract_desc_data,
 	.ce_free_pipe = _ath10k_ce_free_pipe,
 	.ce_send_nolock = _ath10k_ce_send_nolock,
+	.ce_set_src_ring_base_addr_hi = NULL,
+	.ce_set_dest_ring_base_addr_hi = NULL,
 };
 
 static const struct ath10k_ce_ops ce_64_ops = {
@@ -1814,6 +1861,8 @@ static const struct ath10k_ce_ops ce_64_ops = {
 	.ce_extract_desc_data = ath10k_ce_extract_desc_data_64,
 	.ce_free_pipe = _ath10k_ce_free_pipe_64,
 	.ce_send_nolock = _ath10k_ce_send_nolock_64,
+	.ce_set_src_ring_base_addr_hi = ath10k_ce_set_src_ring_base_addr_hi,
+	.ce_set_dest_ring_base_addr_hi = ath10k_ce_set_dest_ring_base_addr_hi,
 };
 
 static void ath10k_ce_set_ops(struct ath10k *ar,
@@ -1909,7 +1958,7 @@ void ath10k_ce_alloc_rri(struct ath10k *ar)
 			  lower_32_bits(ce->paddr_rri));
 	ath10k_ce_write32(ar, ar->hw_ce_regs->ce_rri_high,
 			  (upper_32_bits(ce->paddr_rri) &
-			  CE_DESC_FLAGS_GET_MASK));
+			  CE_DESC_ADDR_HI_MASK));
 
 	for (i = 0; i < CE_COUNT; i++) {
 		ctrl1_regs = ar->hw_ce_regs->ctrl1_regs->addr;

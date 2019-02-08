@@ -318,9 +318,11 @@ static struct ath10k_hw_ce_ctrl1_upd wcn3990_ctrl1_upd = {
 };
 
 const struct ath10k_hw_ce_regs wcn3990_ce_regs = {
-	.sr_base_addr		= 0x00000000,
+	.sr_base_addr_lo	= 0x00000000,
+	.sr_base_addr_hi	= 0x00000004,
 	.sr_size_addr		= 0x00000008,
-	.dr_base_addr		= 0x0000000c,
+	.dr_base_addr_lo	= 0x0000000c,
+	.dr_base_addr_hi	= 0x00000010,
 	.dr_size_addr		= 0x00000014,
 	.misc_ie_addr		= 0x00000034,
 	.sr_wr_index_addr	= 0x0000003c,
@@ -464,9 +466,9 @@ static struct ath10k_hw_ce_dst_src_wm_regs qcax_wm_dst_ring = {
 };
 
 const struct ath10k_hw_ce_regs qcax_ce_regs = {
-	.sr_base_addr		= 0x00000000,
+	.sr_base_addr_lo	= 0x00000000,
 	.sr_size_addr		= 0x00000004,
-	.dr_base_addr		= 0x00000008,
+	.dr_base_addr_lo	= 0x00000008,
 	.dr_size_addr		= 0x0000000c,
 	.ce_cmd_addr		= 0x00000018,
 	.misc_ie_addr		= 0x00000034,

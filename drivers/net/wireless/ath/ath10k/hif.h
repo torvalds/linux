@@ -59,6 +59,8 @@ struct ath10k_hif_ops {
 	 */
 	void (*stop)(struct ath10k *ar);
 
+	int (*swap_mailbox)(struct ath10k *ar);
+
 	int (*map_service_to_pipe)(struct ath10k *ar, u16 service_id,
 				   u8 *ul_pipe, u8 *dl_pipe);
 
@@ -137,6 +139,13 @@ static inline int ath10k_hif_start(struct ath10k *ar)
 static inline void ath10k_hif_stop(struct ath10k *ar)
 {
 	return ar->hif.ops->stop(ar);
+}
+
+static inline int ath10k_hif_swap_mailbox(struct ath10k *ar)
+{
+	if (ar->hif.ops->swap_mailbox)
+		return ar->hif.ops->swap_mailbox(ar);
+	return 0;
 }
 
 static inline int ath10k_hif_map_service_to_pipe(struct ath10k *ar,

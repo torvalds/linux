@@ -39,8 +39,8 @@ struct ath10k_ce_pipe;
 #define CE_DESC_FLAGS_BYTE_SWAP      (1 << 1)
 #define CE_WCN3990_DESC_FLAGS_GATHER BIT(31)
 
-#define CE_DESC_FLAGS_GET_MASK		GENMASK(4, 0)
-#define CE_DESC_37BIT_ADDR_MASK		GENMASK_ULL(37, 0)
+#define CE_DESC_ADDR_MASK		GENMASK_ULL(34, 0)
+#define CE_DESC_ADDR_HI_MASK		GENMASK(4, 0)
 
 /* Following desc flags are used in QCA99X0 */
 #define CE_DESC_FLAGS_HOST_INT_DIS	(1 << 2)
@@ -104,7 +104,7 @@ struct ath10k_ce_ring {
 	/* Host address space */
 	void *base_addr_owner_space_unaligned;
 	/* CE address space */
-	u32 base_addr_ce_space_unaligned;
+	dma_addr_t base_addr_ce_space_unaligned;
 
 	/*
 	 * Actual start of descriptors.
@@ -115,7 +115,7 @@ struct ath10k_ce_ring {
 	void *base_addr_owner_space;
 
 	/* CE address space */
-	u32 base_addr_ce_space;
+	dma_addr_t base_addr_ce_space;
 
 	char *shadow_base_unaligned;
 	struct ce_desc *shadow_base;
@@ -334,6 +334,12 @@ struct ath10k_ce_ops {
 			      void *per_transfer_context,
 			      dma_addr_t buffer, u32 nbytes,
 			      u32 transfer_id, u32 flags);
+	void (*ce_set_src_ring_base_addr_hi)(struct ath10k *ar,
+					     u32 ce_ctrl_addr,
+					     u64 addr);
+	void (*ce_set_dest_ring_base_addr_hi)(struct ath10k *ar,
+					      u32 ce_ctrl_addr,
+					      u64 addr);
 };
 
 static inline u32 ath10k_ce_base_address(struct ath10k *ar, unsigned int ce_id)

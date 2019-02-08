@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
- * Copyright (c) 2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -2346,7 +2346,7 @@ static int wmi_process_mgmt_tx_comp(struct ath10k *ar, u32 desc_id,
 
 	msdu = pkt_addr->vaddr;
 	dma_unmap_single(ar->dev, pkt_addr->paddr,
-			 msdu->len, DMA_FROM_DEVICE);
+			 msdu->len, DMA_TO_DEVICE);
 	info = IEEE80211_SKB_CB(msdu);
 
 	if (status)
@@ -2379,6 +2379,29 @@ int ath10k_wmi_event_mgmt_tx_compl(struct ath10k *ar, struct sk_buff *skb)
 				 __le32_to_cpu(arg.status));
 
 	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi tlv evnt mgmt tx completion\n");
+
+	return 0;
+}
+
+int ath10k_wmi_event_mgmt_tx_bundle_compl(struct ath10k *ar, struct sk_buff *skb)
+{
+	struct wmi_tlv_mgmt_tx_bundle_compl_ev_arg arg;
+	u32 num_reports;
+	int i, ret;
+
+	ret = ath10k_wmi_pull_mgmt_tx_bundle_compl(ar, skb, &arg);
+	if (ret) {
+		ath10k_warn(ar, "failed to parse bundle mgmt compl event: %d\n", ret);
+		return ret;
+	}
+
+	num_reports = __le32_to_cpu(arg.num_reports);
+
+	for (i = 0; i < num_reports; i++)
+		wmi_process_mgmt_tx_comp(ar, __le32_to_cpu(arg.desc_ids[i]),
+					 __le32_to_cpu(arg.status[i]));
+
+	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi tlv event bundle mgmt tx completion\n");
 
 	return 0;
 }

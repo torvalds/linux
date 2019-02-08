@@ -2309,7 +2309,11 @@ static int ath10k_core_init_firmware_features(struct ath10k *ar)
 		ar->max_num_stations = TARGET_TLV_NUM_STATIONS;
 		ar->max_num_vdevs = TARGET_TLV_NUM_VDEVS;
 		ar->max_num_tdls_vdevs = TARGET_TLV_NUM_TDLS_VDEVS;
-		ar->htt.max_num_pending_tx = TARGET_TLV_NUM_MSDU_DESC;
+		if (ar->hif.bus == ATH10K_BUS_SDIO)
+			ar->htt.max_num_pending_tx =
+				TARGET_TLV_NUM_MSDU_DESC_HL;
+		else
+			ar->htt.max_num_pending_tx = TARGET_TLV_NUM_MSDU_DESC;
 		ar->wow.max_num_patterns = TARGET_TLV_NUM_WOW_PATTERNS;
 		ar->fw_stats_req_mask = WMI_STAT_PDEV | WMI_STAT_VDEV |
 			WMI_STAT_PEER;
@@ -2553,6 +2557,12 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode,
 	status = ath10k_htc_wait_target(&ar->htc);
 	if (status) {
 		ath10k_err(ar, "failed to connect to HTC: %d\n", status);
+		goto err_hif_stop;
+	}
+
+	status = ath10k_hif_swap_mailbox(ar);
+	if (status) {
+		ath10k_err(ar, "failed to swap mailbox: %d\n", status);
 		goto err_hif_stop;
 	}
 

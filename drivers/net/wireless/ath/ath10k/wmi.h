@@ -2075,6 +2075,8 @@ enum wmi_channel_change_cause {
 #define WMI_HT_CAP_MPDU_DENSITY           0x0700   /* MPDU Density */
 #define WMI_HT_CAP_MPDU_DENSITY_MASK_SHIFT 8
 #define WMI_HT_CAP_HT40_SGI               0x0800
+#define WMI_HT_CAP_RX_LDPC                0x1000   /* LDPC RX support */
+#define WMI_HT_CAP_TX_LDPC                0x2000   /* LDPC TX support */
 
 #define WMI_HT_CAP_DEFAULT_ALL (WMI_HT_CAP_ENABLED       | \
 				WMI_HT_CAP_HT20_SGI      | \
@@ -6688,6 +6690,12 @@ struct wmi_tlv_mgmt_tx_compl_ev_arg {
 	__le32 pdev_id;
 };
 
+struct wmi_tlv_mgmt_tx_bundle_compl_ev_arg {
+	__le32 num_reports;
+	const __le32 *desc_ids;
+	const __le32 *status;
+};
+
 struct wmi_mgmt_rx_ev_arg {
 	__le32 channel;
 	__le32 snr;
@@ -7244,6 +7252,7 @@ int ath10k_wmi_start_scan_verify(const struct wmi_start_scan_arg *arg);
 int ath10k_wmi_event_scan(struct ath10k *ar, struct sk_buff *skb);
 int ath10k_wmi_event_mgmt_rx(struct ath10k *ar, struct sk_buff *skb);
 int ath10k_wmi_event_mgmt_tx_compl(struct ath10k *ar, struct sk_buff *skb);
+int ath10k_wmi_event_mgmt_tx_bundle_compl(struct ath10k *ar, struct sk_buff *skb);
 void ath10k_wmi_event_chan_info(struct ath10k *ar, struct sk_buff *skb);
 void ath10k_wmi_event_echo(struct ath10k *ar, struct sk_buff *skb);
 int ath10k_wmi_event_debug_mesg(struct ath10k *ar, struct sk_buff *skb);
