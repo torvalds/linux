@@ -4705,7 +4705,7 @@ static int ath10k_start(struct ieee80211_hw *hw)
 		goto err;
 	}
 
-	ret = ath10k_hif_power_up(ar);
+	ret = ath10k_hif_power_up(ar, ATH10K_FIRMWARE_MODE_NORMAL);
 	if (ret) {
 		ath10k_err(ar, "Could not init hif: %d\n", ret);
 		goto err_off;

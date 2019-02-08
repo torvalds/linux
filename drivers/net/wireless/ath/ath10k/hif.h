@@ -83,7 +83,7 @@ struct ath10k_hif_ops {
 	void (*write32)(struct ath10k *ar, u32 address, u32 value);
 
 	/* Power up the device and enter BMI transfer mode for FW download */
-	int (*power_up)(struct ath10k *ar);
+	int (*power_up)(struct ath10k *ar, enum ath10k_firmware_mode fw_mode);
 
 	/* Power down the device and free up resources. stop() must be called
 	 * before this if start() was called earlier
@@ -174,9 +174,10 @@ static inline u16 ath10k_hif_get_free_queue_number(struct ath10k *ar,
 	return ar->hif.ops->get_free_queue_number(ar, pipe_id);
 }
 
-static inline int ath10k_hif_power_up(struct ath10k *ar)
+static inline int ath10k_hif_power_up(struct ath10k *ar,
+				      enum ath10k_firmware_mode fw_mode)
 {
-	return ar->hif.ops->power_up(ar);
+	return ar->hif.ops->power_up(ar, fw_mode);
 }
 
 static inline void ath10k_hif_power_down(struct ath10k *ar)

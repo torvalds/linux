@@ -2780,7 +2780,7 @@ static int ath10k_core_probe_fw(struct ath10k *ar)
 	struct bmi_target_info target_info;
 	int ret = 0;
 
-	ret = ath10k_hif_power_up(ar);
+	ret = ath10k_hif_power_up(ar, ATH10K_FIRMWARE_MODE_NORMAL);
 	if (ret) {
 		ath10k_err(ar, "could not power on hif bus (%d)\n", ret);
 		return ret;

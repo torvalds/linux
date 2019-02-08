@@ -2794,7 +2794,8 @@ static int ath10k_pci_chip_reset(struct ath10k *ar)
 	return ar_pci->pci_hard_reset(ar);
 }
 
-static int ath10k_pci_hif_power_up(struct ath10k *ar)
+static int ath10k_pci_hif_power_up(struct ath10k *ar,
+				   enum ath10k_firmware_mode fw_mode)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	int ret;

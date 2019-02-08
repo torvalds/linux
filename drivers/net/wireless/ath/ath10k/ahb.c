@@ -661,7 +661,8 @@ static void ath10k_ahb_hif_stop(struct ath10k *ar)
 	ath10k_pci_flush(ar);
 }
 
-static int ath10k_ahb_hif_power_up(struct ath10k *ar)
+static int ath10k_ahb_hif_power_up(struct ath10k *ar,
+				   enum ath10k_firmware_mode fw_mode)
 {
 	int ret;
 

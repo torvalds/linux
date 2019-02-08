@@ -957,7 +957,8 @@ static int ath10k_snoc_init_pipes(struct ath10k *ar)
 	return 0;
 }
 
-static int ath10k_snoc_wlan_enable(struct ath10k *ar)
+static int ath10k_snoc_wlan_enable(struct ath10k *ar,
+				   enum ath10k_firmware_mode fw_mode)
 {
 	struct ath10k_tgt_pipe_cfg tgt_cfg[CE_COUNT_MAX];
 	struct ath10k_qmi_wlan_enable_cfg cfg;
@@ -991,7 +992,17 @@ static int ath10k_snoc_wlan_enable(struct ath10k *ar)
 	cfg.shadow_reg_cfg = (struct ath10k_shadow_reg_cfg *)
 		&target_shadow_reg_cfg_map;
 
-	mode = QMI_WLFW_MISSION_V01;
+	switch (fw_mode) {
+	case ATH10K_FIRMWARE_MODE_NORMAL:
+		mode = QMI_WLFW_MISSION_V01;
+		break;
+	case ATH10K_FIRMWARE_MODE_UTF:
+		mode = QMI_WLFW_FTM_V01;
+		break;
+	default:
+		ath10k_err(ar, "invalid firmware mode %d\n", fw_mode);
+		return -EINVAL;
+	}
 
 	return ath10k_qmi_wlan_enable(ar, &cfg, mode,
 				       NULL);
@@ -1020,14 +1031,15 @@ static void ath10k_snoc_hif_power_down(struct ath10k *ar)
 	ath10k_ce_free_rri(ar);
 }
 
-static int ath10k_snoc_hif_power_up(struct ath10k *ar)
+static int ath10k_snoc_hif_power_up(struct ath10k *ar,
+				    enum ath10k_firmware_mode fw_mode)
 {
 	int ret;
 
 	ath10k_dbg(ar, ATH10K_DBG_SNOC, "%s:WCN3990 driver state = %d\n",
 		   __func__, ar->state);
 
-	ret = ath10k_snoc_wlan_enable(ar);
+	ret = ath10k_snoc_wlan_enable(ar, fw_mode);
 	if (ret) {
 		ath10k_err(ar, "failed to enable wcn3990: %d\n", ret);
 		return ret;
