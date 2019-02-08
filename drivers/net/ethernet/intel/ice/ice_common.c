@@ -1929,6 +1929,15 @@ ice_aq_set_phy_cfg(struct ice_hw *hw, u8 lport,
 	if (!cfg)
 		return ICE_ERR_PARAM;
 
+	/* Ensure that only valid bits of cfg->caps can be turned on. */
+	if (cfg->caps & ~ICE_AQ_PHY_ENA_VALID_MASK) {
+		ice_debug(hw, ICE_DBG_PHY,
+			  "Invalid bit is set in ice_aqc_set_phy_cfg_data->caps : 0x%x\n",
+			  cfg->caps);
+
+		cfg->caps &= ICE_AQ_PHY_ENA_VALID_MASK;
+	}
+
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_set_phy_cfg);
 	desc.params.set_phy.lport_num = lport;
 	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
@@ -2027,8 +2036,10 @@ ice_set_fc(struct ice_port_info *pi, u8 *aq_failures, bool ena_auto_link_update)
 	/* clear the old pause settings */
 	cfg.caps = pcaps->caps & ~(ICE_AQC_PHY_EN_TX_LINK_PAUSE |
 				   ICE_AQC_PHY_EN_RX_LINK_PAUSE);
+
 	/* set the new capabilities */
 	cfg.caps |= pause_mask;
+
 	/* If the capabilities have changed, then set the new config */
 	if (cfg.caps != pcaps->caps) {
 		int retry_count, retry_max = 10;
