@@ -173,7 +173,8 @@ static void ice_dis_vf_mappings(struct ice_vf *vf)
 	wr32(hw, VPINT_ALLOC(vf->vf_id), 0);
 	wr32(hw, VPINT_ALLOC_PCI(vf->vf_id), 0);
 
-	first = vf->first_vector_idx;
+	first = vf->first_vector_idx +
+		hw->func_caps.common_cap.msix_vector_first_id;
 	last = first + pf->num_vf_msix - 1;
 	for (v = first; v <= last; v++) {
 		u32 reg;
@@ -523,7 +524,8 @@ static void ice_ena_vf_mappings(struct ice_vf *vf)
 
 	hw = &pf->hw;
 	vsi = pf->vsi[vf->lan_vsi_idx];
-	first = vf->first_vector_idx;
+	first = vf->first_vector_idx +
+		hw->func_caps.common_cap.msix_vector_first_id;
 	last = (first + pf->num_vf_msix) - 1;
 	abs_vf_id = vf->vf_id + hw->func_caps.vf_base_id;
 
