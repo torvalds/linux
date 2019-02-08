@@ -644,16 +644,11 @@ snd_ad1889_pcm_init(struct snd_ad1889 *chip, int device)
 	chip->psubs = NULL;
 	chip->csubs = NULL;
 
-	err = snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
+	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
 						snd_dma_pci_data(chip->pci),
 						BUFFER_BYTES_MAX / 2,
 						BUFFER_BYTES_MAX);
 
-	if (err < 0) {
-		dev_err(chip->card->dev, "buffer allocation error: %d\n", err);
-		return err;
-	}
-	
 	return 0;
 }
 

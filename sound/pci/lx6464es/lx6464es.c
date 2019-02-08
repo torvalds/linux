@@ -854,11 +854,9 @@ static int lx_pcm_create(struct lx6464es *chip)
 	pcm->nonatomic = true;
 	strcpy(pcm->name, card_name);
 
-	err = snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-						    snd_dma_pci_data(chip->pci),
-						    size, size);
-	if (err < 0)
-		return err;
+	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
+					      snd_dma_pci_data(chip->pci),
+					      size, size);
 
 	chip->pcm = pcm;
 	chip->capture_stream.is_capture = 1;
