@@ -139,8 +139,8 @@ static int __cifs_reconnect_tcon(const struct nls_table *nlsc,
 		return -ENOMEM;
 
 	if (tcon->ipc) {
-		snprintf(tree, MAX_TREE_SIZE, "\\\\%s\\IPC$",
-			 tcon->ses->server->hostname);
+		scnprintf(tree, MAX_TREE_SIZE, "\\\\%s\\IPC$",
+			  tcon->ses->server->hostname);
 		rc = CIFSTCon(0, tcon->ses, tree, tcon, nlsc);
 		goto out;
 	}
@@ -172,7 +172,7 @@ static int __cifs_reconnect_tcon(const struct nls_table *nlsc,
 			continue;
 		}
 
-		snprintf(tree, MAX_TREE_SIZE, "\\%s", tgt);
+		scnprintf(tree, MAX_TREE_SIZE, "\\%s", tgt);
 
 		rc = CIFSTCon(0, tcon->ses, tree, tcon, nlsc);
 		if (!rc)

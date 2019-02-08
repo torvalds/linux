@@ -173,8 +173,8 @@ static int __smb2_reconnect(const struct nls_table *nlsc,
 		return -ENOMEM;
 
 	if (tcon->ipc) {
-		snprintf(tree, MAX_TREE_SIZE, "\\\\%s\\IPC$",
-			 tcon->ses->server->hostname);
+		scnprintf(tree, MAX_TREE_SIZE, "\\\\%s\\IPC$",
+			  tcon->ses->server->hostname);
 		rc = SMB2_tcon(0, tcon->ses, tree, tcon, nlsc);
 		goto out;
 	}
@@ -206,7 +206,7 @@ static int __smb2_reconnect(const struct nls_table *nlsc,
 			continue;
 		}
 
-		snprintf(tree, MAX_TREE_SIZE, "\\%s", tgt);
+		scnprintf(tree, MAX_TREE_SIZE, "\\%s", tgt);
 
 		rc = SMB2_tcon(0, tcon->ses, tree, tcon, nlsc);
 		if (!rc)

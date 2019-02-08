@@ -348,7 +348,7 @@ static int reconn_set_ipaddr(struct TCP_Server_Info *server)
 		cifs_dbg(FYI, "%s: failed to create UNC path\n", __func__);
 		return -ENOMEM;
 	}
-	snprintf(unc, len, "\\\\%s", server->hostname);
+	scnprintf(unc, len, "\\\\%s", server->hostname);
 
 	rc = dns_resolve_server_name_to_ip(unc, &ipaddr);
 	kfree(unc);
@@ -2775,7 +2775,7 @@ cifs_setup_ipc(struct cifs_ses *ses, struct smb_vol *volume_info)
 	if (tcon == NULL)
 		return -ENOMEM;
 
-	snprintf(unc, sizeof(unc), "\\\\%s\\IPC$", ses->server->hostname);
+	scnprintf(unc, sizeof(unc), "\\\\%s\\IPC$", ses->server->hostname);
 
 	/* cannot fail */
 	nls_codepage = load_nls_default();
@@ -4203,7 +4203,7 @@ static int update_vol_info(const struct dfs_cache_tgt_iterator *tgt_it,
 	new_unc = kmalloc(len, GFP_KERNEL);
 	if (!new_unc)
 		return -ENOMEM;
-	snprintf(new_unc, len, "\\%s", tgt);
+	scnprintf(new_unc, len, "\\%s", tgt);
 
 	kfree(vol->UNC);
 	vol->UNC = new_unc;
