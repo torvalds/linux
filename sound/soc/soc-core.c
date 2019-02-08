@@ -735,12 +735,17 @@ static struct snd_soc_component *soc_find_component(
 	const struct device_node *of_node, const char *name)
 {
 	struct snd_soc_component *component;
+	struct device_node *component_of_node;
 
 	lockdep_assert_held(&client_mutex);
 
 	for_each_component(component) {
 		if (of_node) {
-			if (component->dev->of_node == of_node)
+			component_of_node = component->dev->of_node;
+			if (!component_of_node && component->dev->parent)
+				component_of_node = component->dev->parent->of_node;
+
+			if (component_of_node == of_node)
 				return component;
 		} else if (name && strcmp(component->name, name) == 0) {
 			return component;
@@ -951,7 +956,7 @@ static void soc_remove_dai(struct snd_soc_dai *dai, int order)
 {
 	int err;
 
-	if (!dai || !dai->probed ||
+	if (!dai || !dai->probed || !dai->driver ||
 	    dai->driver->remove_order != order)
 		return;
 
