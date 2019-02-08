@@ -136,6 +136,7 @@ LIBBPF_0.0.2 {
 		btf__dedup;
 		btf__get_map_kv_tids;
 		btf__get_nr_types;
+		btf__get_raw_data;
 		btf__get_strings;
 		btf__load;
 		btf_ext__free;

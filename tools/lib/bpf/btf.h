@@ -66,6 +66,7 @@ LIBBPF_API const struct btf_type *btf__type_by_id(const struct btf *btf,
 LIBBPF_API __s64 btf__resolve_size(const struct btf *btf, __u32 type_id);
 LIBBPF_API int btf__resolve_type(const struct btf *btf, __u32 type_id);
 LIBBPF_API int btf__fd(const struct btf *btf);
+LIBBPF_API const void *btf__get_raw_data(const struct btf *btf, __u32 *size);
 LIBBPF_API void btf__get_strings(const struct btf *btf, const char **strings,
 				 __u32 *str_len);
 LIBBPF_API const char *btf__name_by_offset(const struct btf *btf, __u32 offset);
