@@ -700,6 +700,7 @@ static int i2s_hw_params(struct snd_pcm_substream *substream,
 {
 	struct i2s_dai *i2s = to_info(dai);
 	u32 mod, mask = 0, val = 0;
+	struct clk *rclksrc;
 	unsigned long flags;
 
 	WARN_ON(!pm_runtime_active(dai->dev));
@@ -781,6 +782,10 @@ static int i2s_hw_params(struct snd_pcm_substream *substream,
 	snd_soc_dai_init_dma_data(dai, &i2s->dma_playback, &i2s->dma_capture);
 
 	i2s->frmclk = params_rate(params);
+
+	rclksrc = i2s->clk_table[CLK_I2S_RCLK_SRC];
+	if (rclksrc && !IS_ERR(rclksrc))
+		i2s->rclk_srcrate = clk_get_rate(rclksrc);
 
 	return 0;
 }
@@ -886,11 +891,6 @@ static int config_setup(struct i2s_dai *i2s)
 		return 0;
 
 	if (!(i2s->quirks & QUIRK_NO_MUXPSR)) {
-		struct clk *rclksrc = i2s->clk_table[CLK_I2S_RCLK_SRC];
-
-		if (rclksrc && !IS_ERR(rclksrc))
-			i2s->rclk_srcrate = clk_get_rate(rclksrc);
-
 		psr = i2s->rclk_srcrate / i2s->frmclk / rfs;
 		writel(((psr - 1) << 8) | PSR_PSREN, i2s->addr + I2SPSR);
 		dev_dbg(&i2s->pdev->dev,
