@@ -47,7 +47,7 @@ static inline void arch_local_irq_enable(void)
 		"dsb	sy",
 		ARM64_HAS_IRQ_PRIO_MASKING)
 		:
-		: "r" (GIC_PRIO_IRQON)
+		: "r" ((unsigned long) GIC_PRIO_IRQON)
 		: "memory");
 }
 
@@ -58,7 +58,7 @@ static inline void arch_local_irq_disable(void)
 		"msr_s  " __stringify(SYS_ICC_PMR_EL1) ", %0",
 		ARM64_HAS_IRQ_PRIO_MASKING)
 		:
-		: "r" (GIC_PRIO_IRQOFF)
+		: "r" ((unsigned long) GIC_PRIO_IRQOFF)
 		: "memory");
 }
 
@@ -91,7 +91,7 @@ static inline unsigned long arch_local_save_flags(void)
 			"csel	%0, %0, %2, eq",
 			ARM64_HAS_IRQ_PRIO_MASKING)
 		: "=&r" (flags), "+r" (daif_bits)
-		: "r" (GIC_PRIO_IRQOFF)
+		: "r" ((unsigned long) GIC_PRIO_IRQOFF)
 		: "memory");
 
 	return flags;
