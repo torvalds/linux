@@ -843,7 +843,6 @@ static blk_status_t sd_setup_unmap_cmnd(struct scsi_cmnd *cmd)
 	cmd->allowed = SD_MAX_RETRIES;
 	cmd->transfersize = data_len;
 	rq->timeout = SD_TIMEOUT;
-	scsi_req(rq)->resid_len = data_len;
 
 	return scsi_init_io(cmd);
 }
@@ -875,7 +874,6 @@ static blk_status_t sd_setup_write_same16_cmnd(struct scsi_cmnd *cmd,
 	cmd->allowed = SD_MAX_RETRIES;
 	cmd->transfersize = data_len;
 	rq->timeout = unmap ? SD_TIMEOUT : SD_WRITE_SAME_TIMEOUT;
-	scsi_req(rq)->resid_len = data_len;
 
 	return scsi_init_io(cmd);
 }
@@ -907,7 +905,6 @@ static blk_status_t sd_setup_write_same10_cmnd(struct scsi_cmnd *cmd,
 	cmd->allowed = SD_MAX_RETRIES;
 	cmd->transfersize = data_len;
 	rq->timeout = unmap ? SD_TIMEOUT : SD_WRITE_SAME_TIMEOUT;
-	scsi_req(rq)->resid_len = data_len;
 
 	return scsi_init_io(cmd);
 }
