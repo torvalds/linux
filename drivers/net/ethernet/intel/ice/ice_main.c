@@ -609,7 +609,8 @@ ice_link_event(struct ice_pf *pf, struct ice_port_info *pi)
 		}
 	}
 
-	ice_vc_notify_link_state(pf);
+	if (!new_link_same_as_old && pf->num_alloc_vfs)
+		ice_vc_notify_link_state(pf);
 
 	return 0;
 }
