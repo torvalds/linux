@@ -802,6 +802,8 @@ static int xts_skcipher_setkey(struct crypto_skcipher *skcipher, const u8 *key,
  * aead_edesc - s/w-extended aead descriptor
  * @src_nents: number of segments in input s/w scatterlist
  * @dst_nents: number of segments in output s/w scatterlist
+ * @mapped_src_nents: number of segments in input h/w link table
+ * @mapped_dst_nents: number of segments in output h/w link table
  * @sec4_sg_bytes: length of dma mapped sec4_sg space
  * @sec4_sg_dma: bus physical mapped address of h/w link table
  * @sec4_sg: pointer to h/w link table
@@ -810,6 +812,8 @@ static int xts_skcipher_setkey(struct crypto_skcipher *skcipher, const u8 *key,
 struct aead_edesc {
 	int src_nents;
 	int dst_nents;
+	int mapped_src_nents;
+	int mapped_dst_nents;
 	int sec4_sg_bytes;
 	dma_addr_t sec4_sg_dma;
 	struct sec4_sg_entry *sec4_sg;
@@ -820,6 +824,8 @@ struct aead_edesc {
  * skcipher_edesc - s/w-extended skcipher descriptor
  * @src_nents: number of segments in input s/w scatterlist
  * @dst_nents: number of segments in output s/w scatterlist
+ * @mapped_src_nents: number of segments in input h/w link table
+ * @mapped_dst_nents: number of segments in output h/w link table
  * @iv_dma: dma address of iv for checking continuity and link table
  * @sec4_sg_bytes: length of dma mapped sec4_sg space
  * @sec4_sg_dma: bus physical mapped address of h/w link table
@@ -830,6 +836,8 @@ struct aead_edesc {
 struct skcipher_edesc {
 	int src_nents;
 	int dst_nents;
+	int mapped_src_nents;
+	int mapped_dst_nents;
 	dma_addr_t iv_dma;
 	int sec4_sg_bytes;
 	dma_addr_t sec4_sg_dma;
@@ -1024,11 +1032,12 @@ static void init_aead_job(struct aead_request *req,
 	init_job_desc_shared(desc, ptr, len, HDR_SHARE_DEFER | HDR_REVERSE);
 
 	if (all_contig) {
-		src_dma = edesc->src_nents ? sg_dma_address(req->src) : 0;
+		src_dma = edesc->mapped_src_nents ? sg_dma_address(req->src) :
+						    0;
 		in_options = 0;
 	} else {
 		src_dma = edesc->sec4_sg_dma;
-		sec4_sg_index += edesc->src_nents;
+		sec4_sg_index += edesc->mapped_src_nents;
 		in_options = LDST_SGF;
 	}
 
@@ -1039,9 +1048,9 @@ static void init_aead_job(struct aead_request *req,
 	out_options = in_options;
 
 	if (unlikely(req->src != req->dst)) {
-		if (!edesc->dst_nents) {
+		if (!edesc->mapped_dst_nents) {
 			dst_dma = 0;
-		} else if (edesc->dst_nents == 1) {
+		} else if (edesc->mapped_dst_nents == 1) {
 			dst_dma = sg_dma_address(req->dst);
 			out_options = 0;
 		} else {
@@ -1214,11 +1223,11 @@ static void init_skcipher_job(struct skcipher_request *req,
 		dst_dma = edesc->sec4_sg_dma + sizeof(struct sec4_sg_entry);
 		out_options = LDST_SGF;
 	} else {
-		if (edesc->dst_nents == 1) {
+		if (edesc->mapped_dst_nents == 1) {
 			dst_dma = sg_dma_address(req->dst);
 		} else {
-			dst_dma = edesc->sec4_sg_dma + (edesc->src_nents + 1) *
-				  sizeof(struct sec4_sg_entry);
+			dst_dma = edesc->sec4_sg_dma + (edesc->mapped_src_nents
+				  + 1) * sizeof(struct sec4_sg_entry);
 			out_options = LDST_SGF;
 		}
 	}
@@ -1324,6 +1333,8 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 
 	edesc->src_nents = src_nents;
 	edesc->dst_nents = dst_nents;
+	edesc->mapped_src_nents = mapped_src_nents;
+	edesc->mapped_dst_nents = mapped_dst_nents;
 	edesc->sec4_sg = (void *)edesc + sizeof(struct aead_edesc) +
 			 desc_bytes;
 	*all_contig_ptr = !(mapped_src_nents > 1);
@@ -1661,6 +1672,8 @@ static struct skcipher_edesc *skcipher_edesc_alloc(struct skcipher_request *req,
 
 	edesc->src_nents = src_nents;
 	edesc->dst_nents = dst_nents;
+	edesc->mapped_src_nents = mapped_src_nents;
+	edesc->mapped_dst_nents = mapped_dst_nents;
 	edesc->sec4_sg_bytes = sec4_sg_bytes;
 	edesc->sec4_sg = (struct sec4_sg_entry *)((u8 *)edesc->hw_desc +
 						  desc_bytes);
