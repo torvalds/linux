@@ -76,6 +76,7 @@ static const char *sdebug_version_date = "20180128";
 #define LBA_OUT_OF_RANGE 0x21
 #define INVALID_FIELD_IN_CDB 0x24
 #define INVALID_FIELD_IN_PARAM_LIST 0x26
+#define WRITE_PROTECTED 0x27
 #define UA_RESET_ASC 0x29
 #define UA_CHANGED_ASC 0x2a
 #define TARGET_CHANGED_ASC 0x3f
@@ -668,6 +669,7 @@ static bool sdebug_verbose;
 static bool have_dif_prot;
 static bool write_since_sync;
 static bool sdebug_statistics = DEF_STATISTICS;
+static bool sdebug_wp;
 
 static unsigned int sdebug_store_sectors;
 static sector_t sdebug_capacity;	/* in sectors */
@@ -2143,9 +2145,11 @@ static int resp_mode_sense(struct scsi_cmnd *scp,
 	target_dev_id = ((devip->sdbg_host->shost->host_no + 1) * 2000) +
 			(devip->target * 1000) - 3;
 	/* for disks set DPOFUA bit and clear write protect (WP) bit */
-	if (is_disk)
+	if (is_disk) {
 		dev_spec = 0x10;	/* =0x90 if WP=1 implies read-only */
-	else
+		if (sdebug_wp)
+			dev_spec |= 0x80;
+	} else
 		dev_spec = 0x0;
 	if (msense_6) {
 		arr[2] = dev_spec;
@@ -2328,6 +2332,10 @@ static int resp_mode_select(struct scsi_cmnd *scp,
 		if (ctrl_m_pg[1] == arr[off + 1]) {
 			memcpy(ctrl_m_pg + 2, arr + off + 2,
 			       sizeof(ctrl_m_pg) - 2);
+			if (ctrl_m_pg[4] & 0x8)
+				sdebug_wp = true;
+			else
+				sdebug_wp = false;
 			sdebug_dsense = !!(ctrl_m_pg[2] & 0x4);
 			goto set_mode_changed_ua;
 		}
@@ -2452,8 +2460,8 @@ static int resp_log_sense(struct scsi_cmnd *scp,
 		    min(len, SDEBUG_MAX_INQ_ARR_SZ));
 }
 
-static int check_device_access_params(struct scsi_cmnd *scp,
-				      unsigned long long lba, unsigned int num)
+static inline int check_device_access_params(struct scsi_cmnd *scp,
+	unsigned long long lba, unsigned int num, bool write)
 {
 	if (lba + num > sdebug_capacity) {
 		mk_sense_buffer(scp, ILLEGAL_REQUEST, LBA_OUT_OF_RANGE, 0);
@@ -2463,6 +2471,10 @@ static int check_device_access_params(struct scsi_cmnd *scp,
 	if (num > sdebug_store_sectors) {
 		/* needs work to find which cdb byte 'num' comes from */
 		mk_sense_buffer(scp, ILLEGAL_REQUEST, INVALID_FIELD_IN_CDB, 0);
+		return check_condition_result;
+	}
+	if (write && unlikely(sdebug_wp)) {
+		mk_sense_buffer(scp, DATA_PROTECT, WRITE_PROTECTED, 0x2);
 		return check_condition_result;
 	}
 	return 0;
@@ -2723,18 +2735,9 @@ static int resp_read_dt0(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 	} else
 		sqcp = NULL;
 
-	/* inline check_device_access_params() */
-	if (unlikely(lba + num > sdebug_capacity)) {
-		mk_sense_buffer(scp, ILLEGAL_REQUEST, LBA_OUT_OF_RANGE, 0);
-		return check_condition_result;
-	}
-	/* transfer length excessive (tie in to block limits VPD page) */
-	if (unlikely(num > sdebug_store_sectors)) {
-		/* needs work to find which cdb byte 'num' comes from */
-		mk_sense_buffer(scp, ILLEGAL_REQUEST, INVALID_FIELD_IN_CDB, 0);
-		return check_condition_result;
-	}
-
+	ret = check_device_access_params(scp, lba, num, false);
+	if (ret)
+		return ret;
 	if (unlikely((SDEBUG_OPT_MEDIUM_ERR & sdebug_opts) &&
 		     (lba <= (sdebug_medium_error_start + sdebug_medium_error_count - 1)) &&
 		     ((lba + num) > sdebug_medium_error_start))) {
@@ -3026,19 +3029,9 @@ static int resp_write_dt0(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 			sdev_printk(KERN_ERR, scp->device, "Unprotected WR "
 				    "to DIF device\n");
 	}
-
-	/* inline check_device_access_params() */
-	if (unlikely(lba + num > sdebug_capacity)) {
-		mk_sense_buffer(scp, ILLEGAL_REQUEST, LBA_OUT_OF_RANGE, 0);
-		return check_condition_result;
-	}
-	/* transfer length excessive (tie in to block limits VPD page) */
-	if (unlikely(num > sdebug_store_sectors)) {
-		/* needs work to find which cdb byte 'num' comes from */
-		mk_sense_buffer(scp, ILLEGAL_REQUEST, INVALID_FIELD_IN_CDB, 0);
-		return check_condition_result;
-	}
-
+	ret = check_device_access_params(scp, lba, num, true);
+	if (ret)
+		return ret;
 	write_lock_irqsave(&atomic_rw, iflags);
 
 	/* DIX + T10 DIF */
@@ -3177,7 +3170,7 @@ static int resp_write_scat(struct scsi_cmnd *scp,
 				my_name, __func__, k, lba, num, sg_off);
 		if (num == 0)
 			continue;
-		ret = check_device_access_params(scp, lba, num);
+		ret = check_device_access_params(scp, lba, num, true);
 		if (ret)
 			goto err_out_unlock;
 		num_by = num * lb_size;
@@ -3261,7 +3254,7 @@ static int resp_write_same(struct scsi_cmnd *scp, u64 lba, u32 num,
 	int ret;
 	u64 lba_off;
 
-	ret = check_device_access_params(scp, lba, num);
+	ret = check_device_access_params(scp, lba, num, true);
 	if (ret)
 		return ret;
 
@@ -3434,18 +3427,9 @@ static int resp_comp_write(struct scsi_cmnd *scp,
 	    (cmd[1] & 0xe0) == 0)
 		sdev_printk(KERN_ERR, scp->device, "Unprotected WR "
 			    "to DIF device\n");
-
-	/* inline check_device_access_params() */
-	if (lba + num > sdebug_capacity) {
-		mk_sense_buffer(scp, ILLEGAL_REQUEST, LBA_OUT_OF_RANGE, 0);
-		return check_condition_result;
-	}
-	/* transfer length excessive (tie in to block limits VPD page) */
-	if (num > sdebug_store_sectors) {
-		/* needs work to find which cdb byte 'num' comes from */
-		mk_sense_buffer(scp, ILLEGAL_REQUEST, INVALID_FIELD_IN_CDB, 0);
-		return check_condition_result;
-	}
+	ret = check_device_access_params(scp, lba, num, false);
+	if (ret)
+		return ret;
 	dnum = 2 * num;
 	arr = kcalloc(lb_size, dnum, GFP_ATOMIC);
 	if (NULL == arr) {
@@ -3528,7 +3512,7 @@ static int resp_unmap(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 		unsigned long long lba = get_unaligned_be64(&desc[i].lba);
 		unsigned int num = get_unaligned_be32(&desc[i].blocks);
 
-		ret = check_device_access_params(scp, lba, num);
+		ret = check_device_access_params(scp, lba, num, true);
 		if (ret)
 			goto out;
 
@@ -3561,7 +3545,7 @@ static int resp_get_lba_status(struct scsi_cmnd *scp,
 	if (alloc_len < 24)
 		return 0;
 
-	ret = check_device_access_params(scp, lba, 1);
+	ret = check_device_access_params(scp, lba, 1, false);
 	if (ret)
 		return ret;
 
@@ -4485,6 +4469,7 @@ module_param_named(virtual_gb, sdebug_virtual_gb, int, S_IRUGO | S_IWUSR);
 module_param_named(uuid_ctl, sdebug_uuid_ctl, int, S_IRUGO);
 module_param_named(vpd_use_hostno, sdebug_vpd_use_hostno, int,
 		   S_IRUGO | S_IWUSR);
+module_param_named(wp, sdebug_wp, bool, S_IRUGO | S_IWUSR);
 module_param_named(write_same_length, sdebug_write_same_length, int,
 		   S_IRUGO | S_IWUSR);
 
@@ -4544,6 +4529,7 @@ MODULE_PARM_DESC(uuid_ctl,
 		 "1->use uuid for lu name, 0->don't, 2->all use same (def=0)");
 MODULE_PARM_DESC(virtual_gb, "virtual gigabyte (GiB) size (def=0 -> use dev_size_mb)");
 MODULE_PARM_DESC(vpd_use_hostno, "0 -> dev ids ignore hostno (def=1 -> unique dev ids)");
+MODULE_PARM_DESC(wp, "Write Protect (def=0)");
 MODULE_PARM_DESC(write_same_length, "Maximum blocks per WRITE SAME cmd (def=0xffff)");
 
 #define SDEBUG_INFO_LEN 256
