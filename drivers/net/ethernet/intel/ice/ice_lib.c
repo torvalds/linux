@@ -1714,6 +1714,37 @@ static u32 ice_intrl_usec_to_reg(u8 intrl, u8 gran)
 }
 
 /**
+ * ice_cfg_itr_gran - set the ITR granularity to 2 usecs if not already set
+ * @hw: board specific structure
+ */
+static void ice_cfg_itr_gran(struct ice_hw *hw)
+{
+	u32 regval = rd32(hw, GLINT_CTL);
+
+	/* no need to update global register if ITR gran is already set */
+	if (!(regval & GLINT_CTL_DIS_AUTOMASK_M) &&
+	    (((regval & GLINT_CTL_ITR_GRAN_200_M) >>
+	     GLINT_CTL_ITR_GRAN_200_S) == ICE_ITR_GRAN_US) &&
+	    (((regval & GLINT_CTL_ITR_GRAN_100_M) >>
+	     GLINT_CTL_ITR_GRAN_100_S) == ICE_ITR_GRAN_US) &&
+	    (((regval & GLINT_CTL_ITR_GRAN_50_M) >>
+	     GLINT_CTL_ITR_GRAN_50_S) == ICE_ITR_GRAN_US) &&
+	    (((regval & GLINT_CTL_ITR_GRAN_25_M) >>
+	      GLINT_CTL_ITR_GRAN_25_S) == ICE_ITR_GRAN_US))
+		return;
+
+	regval = ((ICE_ITR_GRAN_US << GLINT_CTL_ITR_GRAN_200_S) &
+		  GLINT_CTL_ITR_GRAN_200_M) |
+		 ((ICE_ITR_GRAN_US << GLINT_CTL_ITR_GRAN_100_S) &
+		  GLINT_CTL_ITR_GRAN_100_M) |
+		 ((ICE_ITR_GRAN_US << GLINT_CTL_ITR_GRAN_50_S) &
+		  GLINT_CTL_ITR_GRAN_50_M) |
+		 ((ICE_ITR_GRAN_US << GLINT_CTL_ITR_GRAN_25_S) &
+		  GLINT_CTL_ITR_GRAN_25_M);
+	wr32(hw, GLINT_CTL, regval);
+}
+
+/**
  * ice_cfg_itr - configure the initial interrupt throttle values
  * @hw: pointer to the HW structure
  * @q_vector: interrupt vector that's being configured
@@ -1725,6 +1756,8 @@ static u32 ice_intrl_usec_to_reg(u8 intrl, u8 gran)
 static void
 ice_cfg_itr(struct ice_hw *hw, struct ice_q_vector *q_vector, u16 vector)
 {
+	ice_cfg_itr_gran(hw);
+
 	if (q_vector->num_ring_rx) {
 		struct ice_ring_container *rc = &q_vector->rx;
 

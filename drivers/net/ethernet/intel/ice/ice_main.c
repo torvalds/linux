@@ -2033,23 +2033,6 @@ static int ice_init_interrupt_scheme(struct ice_pf *pf)
 }
 
 /**
- * ice_verify_itr_gran - verify driver's assumption of ITR granularity
- * @pf: pointer to the PF structure
- *
- * There is no error returned here because the driver will be able to handle a
- * different ITR granularity, but interrupt moderation will not be accurate if
- * the driver's assumptions are not verified. This assumption is made so we can
- * use constants in the hot path instead of accessing structure members.
- */
-static void ice_verify_itr_gran(struct ice_pf *pf)
-{
-	if (pf->hw.itr_gran != (ICE_ITR_GRAN_S << 1))
-		dev_warn(&pf->pdev->dev,
-			 "%d ITR granularity assumption is invalid, actual ITR granularity is %d. Interrupt moderation will be inaccurate!\n",
-			 (ICE_ITR_GRAN_S << 1), pf->hw.itr_gran);
-}
-
-/**
  * ice_verify_cacheline_size - verify driver's assumption of 64 Byte cache lines
  * @pf: pointer to the PF structure
  *
@@ -2212,7 +2195,6 @@ static int ice_probe(struct pci_dev *pdev,
 	mod_timer(&pf->serv_tmr, round_jiffies(jiffies + pf->serv_tmr_period));
 
 	ice_verify_cacheline_size(pf);
-	ice_verify_itr_gran(pf);
 
 	return 0;
 
