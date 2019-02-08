@@ -74,7 +74,7 @@ void sof_block_write(struct snd_sof_dev *sdev, u32 bar, u32 offset, void *src,
 	void __iomem *dest = sdev->bar[bar] + offset;
 	const u8 *src_byte = src;
 	u32 affected_mask;
-	u32 tmp = 0;
+	u32 tmp;
 	int m, n;
 
 	m = size / 4;
