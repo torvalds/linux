@@ -5266,6 +5266,11 @@ skl_compute_ddb(struct intel_atomic_state *state)
 	return 0;
 }
 
+static char enast(bool enable)
+{
+	return enable ? '*' : ' ';
+}
+
 static void
 skl_print_wm_changes(struct intel_atomic_state *state)
 {
@@ -5276,8 +5281,16 @@ skl_print_wm_changes(struct intel_atomic_state *state)
 	struct intel_crtc *crtc;
 	int i;
 
+	if ((drm_debug & DRM_UT_KMS) == 0)
+		return;
+
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
 					    new_crtc_state, i) {
+		const struct skl_pipe_wm *old_pipe_wm, *new_pipe_wm;
+
+		old_pipe_wm = &old_crtc_state->wm.skl.optimal;
+		new_pipe_wm = &new_crtc_state->wm.skl.optimal;
+
 		for_each_intel_plane_on_crtc(&dev_priv->drm, crtc, plane) {
 			enum plane_id plane_id = plane->id;
 			const struct skl_ddb_entry *old, *new;
@@ -5288,10 +5301,77 @@ skl_print_wm_changes(struct intel_atomic_state *state)
 			if (skl_ddb_entry_equal(old, new))
 				continue;
 
-			DRM_DEBUG_KMS("[PLANE:%d:%s] ddb (%d - %d) -> (%d - %d)\n",
+			DRM_DEBUG_KMS("[PLANE:%d:%s] ddb (%4d - %4d) -> (%4d - %4d), size %4d -> %4d\n",
 				      plane->base.base.id, plane->base.name,
-				      old->start, old->end,
-				      new->start, new->end);
+				      old->start, old->end, new->start, new->end,
+				      skl_ddb_entry_size(old), skl_ddb_entry_size(new));
+		}
+
+		for_each_intel_plane_on_crtc(&dev_priv->drm, crtc, plane) {
+			enum plane_id plane_id = plane->id;
+			const struct skl_plane_wm *old_wm, *new_wm;
+
+			old_wm = &old_pipe_wm->planes[plane_id];
+			new_wm = &new_pipe_wm->planes[plane_id];
+
+			if (skl_plane_wm_equals(dev_priv, old_wm, new_wm))
+				continue;
+
+			DRM_DEBUG_KMS("[PLANE:%d:%s]   level %cwm0,%cwm1,%cwm2,%cwm3,%cwm4,%cwm5,%cwm6,%cwm7,%ctwm"
+				      " -> %cwm0,%cwm1,%cwm2,%cwm3,%cwm4,%cwm5,%cwm6,%cwm7,%ctwm\n",
+				      plane->base.base.id, plane->base.name,
+				      enast(old_wm->wm[0].plane_en), enast(old_wm->wm[1].plane_en),
+				      enast(old_wm->wm[2].plane_en), enast(old_wm->wm[3].plane_en),
+				      enast(old_wm->wm[4].plane_en), enast(old_wm->wm[5].plane_en),
+				      enast(old_wm->wm[6].plane_en), enast(old_wm->wm[7].plane_en),
+				      enast(old_wm->trans_wm.plane_en),
+				      enast(new_wm->wm[0].plane_en), enast(new_wm->wm[1].plane_en),
+				      enast(new_wm->wm[2].plane_en), enast(new_wm->wm[3].plane_en),
+				      enast(new_wm->wm[4].plane_en), enast(new_wm->wm[5].plane_en),
+				      enast(new_wm->wm[6].plane_en), enast(new_wm->wm[7].plane_en),
+				      enast(new_wm->trans_wm.plane_en));
+
+			DRM_DEBUG_KMS("[PLANE:%d:%s]   lines %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d"
+				      " -> %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d\n",
+				      plane->base.base.id, plane->base.name,
+				      old_wm->wm[0].plane_res_l, old_wm->wm[1].plane_res_l,
+				      old_wm->wm[2].plane_res_l, old_wm->wm[3].plane_res_l,
+				      old_wm->wm[4].plane_res_l, old_wm->wm[5].plane_res_l,
+				      old_wm->wm[6].plane_res_l, old_wm->wm[7].plane_res_l,
+				      old_wm->trans_wm.plane_res_l,
+				      new_wm->wm[0].plane_res_l, new_wm->wm[1].plane_res_l,
+				      new_wm->wm[2].plane_res_l, new_wm->wm[3].plane_res_l,
+				      new_wm->wm[4].plane_res_l, new_wm->wm[5].plane_res_l,
+				      new_wm->wm[6].plane_res_l, new_wm->wm[7].plane_res_l,
+				      new_wm->trans_wm.plane_res_l);
+
+			DRM_DEBUG_KMS("[PLANE:%d:%s]  blocks %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d"
+				      " -> %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d\n",
+				      plane->base.base.id, plane->base.name,
+				      old_wm->wm[0].plane_res_b, old_wm->wm[1].plane_res_b,
+				      old_wm->wm[2].plane_res_b, old_wm->wm[3].plane_res_b,
+				      old_wm->wm[4].plane_res_b, old_wm->wm[5].plane_res_b,
+				      old_wm->wm[6].plane_res_b, old_wm->wm[7].plane_res_b,
+				      old_wm->trans_wm.plane_res_b,
+				      new_wm->wm[0].plane_res_b, new_wm->wm[1].plane_res_b,
+				      new_wm->wm[2].plane_res_b, new_wm->wm[3].plane_res_b,
+				      new_wm->wm[4].plane_res_b, new_wm->wm[5].plane_res_b,
+				      new_wm->wm[6].plane_res_b, new_wm->wm[7].plane_res_b,
+				      new_wm->trans_wm.plane_res_b);
+
+			DRM_DEBUG_KMS("[PLANE:%d:%s] min_ddb %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d"
+				      " -> %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d\n",
+				      plane->base.base.id, plane->base.name,
+				      old_wm->wm[0].min_ddb_alloc, old_wm->wm[1].min_ddb_alloc,
+				      old_wm->wm[2].min_ddb_alloc, old_wm->wm[3].min_ddb_alloc,
+				      old_wm->wm[4].min_ddb_alloc, old_wm->wm[5].min_ddb_alloc,
+				      old_wm->wm[6].min_ddb_alloc, old_wm->wm[7].min_ddb_alloc,
+				      old_wm->trans_wm.min_ddb_alloc,
+				      new_wm->wm[0].min_ddb_alloc, new_wm->wm[1].min_ddb_alloc,
+				      new_wm->wm[2].min_ddb_alloc, new_wm->wm[3].min_ddb_alloc,
+				      new_wm->wm[4].min_ddb_alloc, new_wm->wm[5].min_ddb_alloc,
+				      new_wm->wm[6].min_ddb_alloc, new_wm->wm[7].min_ddb_alloc,
+				      new_wm->trans_wm.min_ddb_alloc);
 		}
 	}
 }
