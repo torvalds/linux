@@ -3020,17 +3020,15 @@ ethtool_rx_flow_rule_create(const struct ethtool_rx_flow_spec_input *input)
 		const struct ethtool_flow_ext *ext_h_spec = &fs->h_ext;
 		const struct ethtool_flow_ext *ext_m_spec = &fs->m_ext;
 
-		if (ext_m_spec->h_dest) {
-			memcpy(match->key.eth_addrs.dst, ext_h_spec->h_dest,
-			       ETH_ALEN);
-			memcpy(match->mask.eth_addrs.dst, ext_m_spec->h_dest,
-			       ETH_ALEN);
+		memcpy(match->key.eth_addrs.dst, ext_h_spec->h_dest,
+		       ETH_ALEN);
+		memcpy(match->mask.eth_addrs.dst, ext_m_spec->h_dest,
+		       ETH_ALEN);
 
-			match->dissector.used_keys |=
-				BIT(FLOW_DISSECTOR_KEY_ETH_ADDRS);
-			match->dissector.offset[FLOW_DISSECTOR_KEY_ETH_ADDRS] =
-				offsetof(struct ethtool_rx_flow_key, eth_addrs);
-		}
+		match->dissector.used_keys |=
+			BIT(FLOW_DISSECTOR_KEY_ETH_ADDRS);
+		match->dissector.offset[FLOW_DISSECTOR_KEY_ETH_ADDRS] =
+			offsetof(struct ethtool_rx_flow_key, eth_addrs);
 	}
 
 	act = &flow->rule->action.entries[0];
