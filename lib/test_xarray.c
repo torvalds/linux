@@ -364,21 +364,21 @@ static noinline void check_reserve(struct xarray *xa)
 
 	/* An array with a reserved entry is not empty */
 	XA_BUG_ON(xa, !xa_empty(xa));
-	xa_reserve(xa, 12345678, GFP_KERNEL);
+	XA_BUG_ON(xa, xa_reserve(xa, 12345678, GFP_KERNEL) != 0);
 	XA_BUG_ON(xa, xa_empty(xa));
 	XA_BUG_ON(xa, xa_load(xa, 12345678));
 	xa_release(xa, 12345678);
 	XA_BUG_ON(xa, !xa_empty(xa));
 
 	/* Releasing a used entry does nothing */
-	xa_reserve(xa, 12345678, GFP_KERNEL);
+	XA_BUG_ON(xa, xa_reserve(xa, 12345678, GFP_KERNEL) != 0);
 	XA_BUG_ON(xa, xa_store_index(xa, 12345678, GFP_NOWAIT) != NULL);
 	xa_release(xa, 12345678);
 	xa_erase_index(xa, 12345678);
 	XA_BUG_ON(xa, !xa_empty(xa));
 
 	/* cmpxchg sees a reserved entry as NULL */
-	xa_reserve(xa, 12345678, GFP_KERNEL);
+	XA_BUG_ON(xa, xa_reserve(xa, 12345678, GFP_KERNEL) != 0);
 	XA_BUG_ON(xa, xa_cmpxchg(xa, 12345678, NULL, xa_mk_value(12345678),
 				GFP_NOWAIT) != NULL);
 	xa_release(xa, 12345678);
@@ -386,7 +386,7 @@ static noinline void check_reserve(struct xarray *xa)
 	XA_BUG_ON(xa, !xa_empty(xa));
 
 	/* But xa_insert does not */
-	xa_reserve(xa, 12345678, GFP_KERNEL);
+	XA_BUG_ON(xa, xa_reserve(xa, 12345678, GFP_KERNEL) != 0);
 	XA_BUG_ON(xa, xa_insert(xa, 12345678, xa_mk_value(12345678), 0) !=
 			-EBUSY);
 	XA_BUG_ON(xa, xa_empty(xa));
@@ -395,7 +395,7 @@ static noinline void check_reserve(struct xarray *xa)
 
 	/* Can iterate through a reserved entry */
 	xa_store_index(xa, 5, GFP_KERNEL);
-	xa_reserve(xa, 6, GFP_KERNEL);
+	XA_BUG_ON(xa, xa_reserve(xa, 6, GFP_KERNEL) != 0);
 	xa_store_index(xa, 7, GFP_KERNEL);
 
 	xa_for_each(xa, index, entry) {
