@@ -550,24 +550,17 @@ void cpufreq_task_times_remove_uids(uid_t uid_start, uid_t uid_end)
 	spin_unlock_irqrestore(&uid_lock, flags);
 }
 
-void cpufreq_times_record_transition(struct cpufreq_freqs *freq)
+void cpufreq_times_record_transition(struct cpufreq_policy *policy,
+	unsigned int new_freq)
 {
 	int index;
-	struct cpu_freqs *freqs = all_freqs[freq->cpu];
-	struct cpufreq_policy *policy;
-
+	struct cpu_freqs *freqs = all_freqs[policy->cpu];
 	if (!freqs)
 		return;
 
-	policy = cpufreq_cpu_get(freq->cpu);
-	if (!policy)
-		return;
-
-	index = cpufreq_frequency_table_get_index(policy, freq->new);
+	index = cpufreq_frequency_table_get_index(policy, new_freq);
 	if (index >= 0)
 		WRITE_ONCE(freqs->last_index, index);
-
-	cpufreq_cpu_put(policy);
 }
 
 static const struct seq_operations uid_time_in_state_seq_ops = {
