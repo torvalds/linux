@@ -2958,22 +2958,21 @@ static int igc_alloc_q_vector(struct igc_adapter *adapter,
 {
 	struct igc_q_vector *q_vector;
 	struct igc_ring *ring;
-	int ring_count, size;
+	int ring_count;
 
 	/* igc only supports 1 Tx and/or 1 Rx queue per vector */
 	if (txr_count > 1 || rxr_count > 1)
 		return -ENOMEM;
 
 	ring_count = txr_count + rxr_count;
-	size = sizeof(struct igc_q_vector) +
-		(sizeof(struct igc_ring) * ring_count);
 
 	/* allocate q_vector and rings */
 	q_vector = adapter->q_vector[v_idx];
 	if (!q_vector)
-		q_vector = kzalloc(size, GFP_KERNEL);
+		q_vector = kzalloc(struct_size(q_vector, ring, ring_count),
+				   GFP_KERNEL);
 	else
-		memset(q_vector, 0, size);
+		memset(q_vector, 0, struct_size(q_vector, ring, ring_count));
 	if (!q_vector)
 		return -ENOMEM;
 
