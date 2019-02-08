@@ -3089,6 +3089,9 @@ int blk_mq_update_nr_requests(struct request_queue *q, unsigned int nr)
 	if (!set)
 		return -EINVAL;
 
+	if (q->nr_requests == nr)
+		return 0;
+
 	blk_mq_freeze_queue(q);
 	blk_mq_quiesce_queue(q);
 
