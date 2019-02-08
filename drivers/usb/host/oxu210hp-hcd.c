@@ -1323,7 +1323,7 @@ static struct list_head *qh_urb_transaction(struct oxu_hcd *oxu,
 	}
 
 	/* by default, enable interrupt on urb completion */
-		qtd->hw_token |= cpu_to_le32(QTD_IOC);
+	qtd->hw_token |= cpu_to_le32(QTD_IOC);
 	return head;
 
 cleanup:
