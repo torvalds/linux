@@ -252,6 +252,7 @@ static int bxt_wm8804_probe(struct platform_device *pdev)
 static struct platform_driver bxt_wm8804_driver = {
 	.driver = {
 		.name = "bxt-wm8804",
+		.pm = &snd_soc_pm_ops,
 	},
 	.probe = bxt_wm8804_probe,
 };
