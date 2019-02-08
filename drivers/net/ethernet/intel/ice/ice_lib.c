@@ -2655,6 +2655,7 @@ int ice_vsi_release(struct ice_vsi *vsi)
 int ice_vsi_rebuild(struct ice_vsi *vsi)
 {
 	u16 max_txqs[ICE_MAX_TRAFFIC_CLASS] = { 0 };
+	struct ice_vf *vf = NULL;
 	struct ice_pf *pf;
 	int ret, i;
 
@@ -2662,12 +2663,31 @@ int ice_vsi_rebuild(struct ice_vsi *vsi)
 		return -EINVAL;
 
 	pf = vsi->back;
+	if (vsi->type == ICE_VSI_VF)
+		vf = &pf->vf[vsi->vf_id];
+
 	ice_rm_vsi_lan_cfg(vsi->port_info, vsi->idx);
 	ice_vsi_free_q_vectors(vsi);
-	ice_free_res(vsi->back->sw_irq_tracker, vsi->sw_base_vector, vsi->idx);
-	ice_free_res(vsi->back->hw_irq_tracker, vsi->hw_base_vector, vsi->idx);
-	vsi->sw_base_vector = 0;
+
+	if (vsi->type != ICE_VSI_VF) {
+		/* reclaim SW interrupts back to the common pool */
+		ice_free_res(pf->sw_irq_tracker, vsi->sw_base_vector, vsi->idx);
+		pf->num_avail_sw_msix += vsi->num_q_vectors;
+		vsi->sw_base_vector = 0;
+		/* reclaim HW interrupts back to the common pool */
+		ice_free_res(pf->hw_irq_tracker, vsi->hw_base_vector,
+			     vsi->idx);
+		pf->num_avail_hw_msix += vsi->num_q_vectors;
+	} else {
+		/* Reclaim VF resources back to the common pool for reset and
+		 * and rebuild, with vector reassignment
+		 */
+		ice_free_res(pf->hw_irq_tracker, vf->first_vector_idx,
+			     vsi->idx);
+		pf->num_avail_hw_msix += pf->num_vf_msix;
+	}
 	vsi->hw_base_vector = 0;
+
 	ice_vsi_clear_rings(vsi);
 	ice_vsi_free_arrays(vsi, false);
 	ice_dev_onetime_setup(&vsi->back->hw);
