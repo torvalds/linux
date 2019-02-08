@@ -25,6 +25,7 @@
 #include "machine.h"
 #include "map.h"
 #include "perf.h"
+#include "symbol.h"
 #include "thread.h"
 #include "thread_map.h"
 #include "thread-stack.h"
