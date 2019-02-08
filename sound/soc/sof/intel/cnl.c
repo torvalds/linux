@@ -29,7 +29,13 @@ static int cnl_ipc_cmd_done(struct snd_sof_dev *sdev, int dir);
 static irqreturn_t cnl_ipc_irq_thread(int irq, void *context)
 {
 	struct snd_sof_dev *sdev = (struct snd_sof_dev *)context;
-	u32 hipci, hipcctl, hipcida, hipctdr, hipctdd, msg = 0, msg_ext = 0;
+	u32 hipci;
+	u32 hipcctl;
+	u32 hipcida;
+	u32 hipctdr;
+	u32 hipctdd;
+	u32 msg;
+	u32 msg_ext;
 	irqreturn_t ret = IRQ_NONE;
 
 	/* here we handle IPC interrupts only */
