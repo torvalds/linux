@@ -2075,6 +2075,7 @@ static void ice_verify_cacheline_size(struct ice_pf *pf)
 static int ice_probe(struct pci_dev *pdev,
 		     const struct pci_device_id __always_unused *ent)
 {
+	struct device *dev = &pdev->dev;
 	struct ice_pf *pf;
 	struct ice_hw *hw;
 	int err;
@@ -2086,20 +2087,20 @@ static int ice_probe(struct pci_dev *pdev,
 
 	err = pcim_iomap_regions(pdev, BIT(ICE_BAR0), pci_name(pdev));
 	if (err) {
-		dev_err(&pdev->dev, "BAR0 I/O map error %d\n", err);
+		dev_err(dev, "BAR0 I/O map error %d\n", err);
 		return err;
 	}
 
-	pf = devm_kzalloc(&pdev->dev, sizeof(*pf), GFP_KERNEL);
+	pf = devm_kzalloc(dev, sizeof(*pf), GFP_KERNEL);
 	if (!pf)
 		return -ENOMEM;
 
 	/* set up for high or low dma */
-	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+	err = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
 	if (err)
-		err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+		err = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
 	if (err) {
-		dev_err(&pdev->dev, "DMA configuration failed: 0x%x\n", err);
+		dev_err(dev, "DMA configuration failed: 0x%x\n", err);
 		return err;
 	}
 
@@ -2133,12 +2134,12 @@ static int ice_probe(struct pci_dev *pdev,
 
 	err = ice_init_hw(hw);
 	if (err) {
-		dev_err(&pdev->dev, "ice_init_hw failed: %d\n", err);
+		dev_err(dev, "ice_init_hw failed: %d\n", err);
 		err = -EIO;
 		goto err_exit_unroll;
 	}
 
-	dev_info(&pdev->dev, "firmware %d.%d.%05d api %d.%d\n",
+	dev_info(dev, "firmware %d.%d.%05d api %d.%d\n",
 		 hw->fw_maj_ver, hw->fw_min_ver, hw->fw_build,
 		 hw->api_maj_ver, hw->api_min_ver);
 
@@ -2152,8 +2153,8 @@ static int ice_probe(struct pci_dev *pdev,
 		goto err_init_pf_unroll;
 	}
 
-	pf->vsi = devm_kcalloc(&pdev->dev, pf->num_alloc_vsi,
-			       sizeof(*pf->vsi), GFP_KERNEL);
+	pf->vsi = devm_kcalloc(dev, pf->num_alloc_vsi, sizeof(*pf->vsi),
+			       GFP_KERNEL);
 	if (!pf->vsi) {
 		err = -ENOMEM;
 		goto err_init_pf_unroll;
@@ -2161,8 +2162,7 @@ static int ice_probe(struct pci_dev *pdev,
 
 	err = ice_init_interrupt_scheme(pf);
 	if (err) {
-		dev_err(&pdev->dev,
-			"ice_init_interrupt_scheme failed: %d\n", err);
+		dev_err(dev, "ice_init_interrupt_scheme failed: %d\n", err);
 		err = -EIO;
 		goto err_init_interrupt_unroll;
 	}
@@ -2178,15 +2178,13 @@ static int ice_probe(struct pci_dev *pdev,
 	if (test_bit(ICE_FLAG_MSIX_ENA, pf->flags)) {
 		err = ice_req_irq_msix_misc(pf);
 		if (err) {
-			dev_err(&pdev->dev,
-				"setup of misc vector failed: %d\n", err);
+			dev_err(dev, "setup of misc vector failed: %d\n", err);
 			goto err_init_interrupt_unroll;
 		}
 	}
 
 	/* create switch struct for the switch element created by FW on boot */
-	pf->first_sw = devm_kzalloc(&pdev->dev, sizeof(*pf->first_sw),
-				    GFP_KERNEL);
+	pf->first_sw = devm_kzalloc(dev, sizeof(*pf->first_sw), GFP_KERNEL);
 	if (!pf->first_sw) {
 		err = -ENOMEM;
 		goto err_msix_misc_unroll;
@@ -2204,8 +2202,7 @@ static int ice_probe(struct pci_dev *pdev,
 
 	err = ice_setup_pf_sw(pf);
 	if (err) {
-		dev_err(&pdev->dev,
-			"probe failed due to setup pf switch:%d\n", err);
+		dev_err(dev, "probe failed due to setup pf switch:%d\n", err);
 		goto err_alloc_sw_unroll;
 	}
 
@@ -2227,7 +2224,7 @@ err_msix_misc_unroll:
 	ice_free_irq_msix_misc(pf);
 err_init_interrupt_unroll:
 	ice_clear_interrupt_scheme(pf);
-	devm_kfree(&pdev->dev, pf->vsi);
+	devm_kfree(dev, pf->vsi);
 err_init_pf_unroll:
 	ice_deinit_pf(pf);
 	ice_deinit_hw(hw);
