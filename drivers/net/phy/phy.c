@@ -543,13 +543,6 @@ int phy_start_aneg(struct phy_device *phydev)
 
 	mutex_lock(&phydev->lock);
 
-	if (!__phy_is_started(phydev)) {
-		WARN(1, "called from state %s\n",
-		     phy_state_to_str(phydev->state));
-		err = -EBUSY;
-		goto out_unlock;
-	}
-
 	if (AUTONEG_DISABLE == phydev->autoneg)
 		phy_sanitize_settings(phydev);
 
@@ -560,11 +553,13 @@ int phy_start_aneg(struct phy_device *phydev)
 	if (err < 0)
 		goto out_unlock;
 
-	if (phydev->autoneg == AUTONEG_ENABLE) {
-		err = phy_check_link_status(phydev);
-	} else {
-		phydev->state = PHY_FORCING;
-		phydev->link_timeout = PHY_FORCE_TIMEOUT;
+	if (__phy_is_started(phydev)) {
+		if (phydev->autoneg == AUTONEG_ENABLE) {
+			err = phy_check_link_status(phydev);
+		} else {
+			phydev->state = PHY_FORCING;
+			phydev->link_timeout = PHY_FORCE_TIMEOUT;
+		}
 	}
 
 out_unlock:

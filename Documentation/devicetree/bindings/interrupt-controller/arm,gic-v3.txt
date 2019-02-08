@@ -78,7 +78,7 @@ Sub-nodes:
 PPI affinity can be expressed as a single "ppi-partitions" node,
 containing a set of sub-nodes, each with the following property:
 - affinity: Should be a list of phandles to CPU nodes (as described in
-Documentation/devicetree/bindings/arm/cpus.txt).
+  Documentation/devicetree/bindings/arm/cpus.yaml).
 
 GICv3 has one or more Interrupt Translation Services (ITS) that are
 used to route Message Signalled Interrupts (MSI) to the CPUs.

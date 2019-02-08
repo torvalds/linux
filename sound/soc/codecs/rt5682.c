@@ -43,6 +43,12 @@ static const char *rt5682_supply_names[RT5682_NUM_SUPPLIES] = {
 	"VBAT",
 };
 
+static const struct rt5682_platform_data i2s_default_platform_data = {
+	.dmic1_data_pin = RT5682_DMIC1_DATA_GPIO2,
+	.dmic1_clk_pin = RT5682_DMIC1_CLK_GPIO3,
+	.jd_src = RT5682_JD1,
+};
+
 struct rt5682_priv {
 	struct snd_soc_component *component;
 	struct rt5682_platform_data pdata;
@@ -1778,7 +1784,9 @@ static const struct snd_soc_dapm_route rt5682_dapm_routes[] = {
 	{"ADC Stereo1 Filter", NULL, "ADC STO1 ASRC", is_using_asrc},
 	{"DAC Stereo1 Filter", NULL, "DAC STO1 ASRC", is_using_asrc},
 	{"ADC STO1 ASRC", NULL, "AD ASRC"},
+	{"ADC STO1 ASRC", NULL, "DA ASRC"},
 	{"ADC STO1 ASRC", NULL, "CLKDET"},
+	{"DAC STO1 ASRC", NULL, "AD ASRC"},
 	{"DAC STO1 ASRC", NULL, "DA ASRC"},
 	{"DAC STO1 ASRC", NULL, "CLKDET"},
 
@@ -2533,6 +2541,8 @@ static int rt5682_i2c_probe(struct i2c_client *i2c,
 		return -ENOMEM;
 
 	i2c_set_clientdata(i2c, rt5682);
+
+	rt5682->pdata = i2s_default_platform_data;
 
 	if (pdata)
 		rt5682->pdata = *pdata;

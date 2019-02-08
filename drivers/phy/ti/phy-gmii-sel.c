@@ -204,11 +204,11 @@ static struct phy *phy_gmii_sel_of_xlate(struct device *dev,
 
 	if (args->args_count < 1)
 		return ERR_PTR(-EINVAL);
+	if (!priv || !priv->if_phys)
+		return ERR_PTR(-ENODEV);
 	if (priv->soc_data->features & BIT(PHY_GMII_SEL_RMII_IO_CLK_EN) &&
 	    args->args_count < 2)
 		return ERR_PTR(-EINVAL);
-	if (!priv || !priv->if_phys)
-		return ERR_PTR(-ENODEV);
 	if (phy_id > priv->soc_data->num_ports)
 		return ERR_PTR(-EINVAL);
 	if (phy_id != priv->if_phys[phy_id - 1].id)

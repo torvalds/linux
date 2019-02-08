@@ -1382,9 +1382,9 @@ static int tsi721_doorbell_init(struct tsi721_device *priv)
 	INIT_WORK(&priv->idb_work, tsi721_db_dpc);
 
 	/* Allocate buffer for inbound doorbells queue */
-	priv->idb_base = dma_zalloc_coherent(&priv->pdev->dev,
-				IDB_QSIZE * TSI721_IDB_ENTRY_SIZE,
-				&priv->idb_dma, GFP_KERNEL);
+	priv->idb_base = dma_alloc_coherent(&priv->pdev->dev,
+					    IDB_QSIZE * TSI721_IDB_ENTRY_SIZE,
+					    &priv->idb_dma, GFP_KERNEL);
 	if (!priv->idb_base)
 		return -ENOMEM;
 
@@ -1447,9 +1447,9 @@ static int tsi721_bdma_maint_init(struct tsi721_device *priv)
 	regs = priv->regs + TSI721_DMAC_BASE(TSI721_DMACH_MAINT);
 
 	/* Allocate space for DMA descriptors */
-	bd_ptr = dma_zalloc_coherent(&priv->pdev->dev,
-					bd_num * sizeof(struct tsi721_dma_desc),
-					&bd_phys, GFP_KERNEL);
+	bd_ptr = dma_alloc_coherent(&priv->pdev->dev,
+				    bd_num * sizeof(struct tsi721_dma_desc),
+				    &bd_phys, GFP_KERNEL);
 	if (!bd_ptr)
 		return -ENOMEM;
 
@@ -1464,7 +1464,7 @@ static int tsi721_bdma_maint_init(struct tsi721_device *priv)
 	sts_size = (bd_num >= TSI721_DMA_MINSTSSZ) ?
 					bd_num : TSI721_DMA_MINSTSSZ;
 	sts_size = roundup_pow_of_two(sts_size);
-	sts_ptr = dma_zalloc_coherent(&priv->pdev->dev,
+	sts_ptr = dma_alloc_coherent(&priv->pdev->dev,
 				     sts_size * sizeof(struct tsi721_dma_sts),
 				     &sts_phys, GFP_KERNEL);
 	if (!sts_ptr) {
@@ -1939,10 +1939,10 @@ static int tsi721_open_outb_mbox(struct rio_mport *mport, void *dev_id,
 
 	/* Outbound message descriptor status FIFO allocation */
 	priv->omsg_ring[mbox].sts_size = roundup_pow_of_two(entries + 1);
-	priv->omsg_ring[mbox].sts_base = dma_zalloc_coherent(&priv->pdev->dev,
-			priv->omsg_ring[mbox].sts_size *
-						sizeof(struct tsi721_dma_sts),
-			&priv->omsg_ring[mbox].sts_phys, GFP_KERNEL);
+	priv->omsg_ring[mbox].sts_base = dma_alloc_coherent(&priv->pdev->dev,
+							    priv->omsg_ring[mbox].sts_size * sizeof(struct tsi721_dma_sts),
+							    &priv->omsg_ring[mbox].sts_phys,
+							    GFP_KERNEL);
 	if (priv->omsg_ring[mbox].sts_base == NULL) {
 		tsi_debug(OMSG, &priv->pdev->dev,
 			"ENOMEM for OB_MSG_%d status FIFO", mbox);

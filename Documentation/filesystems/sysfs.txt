@@ -344,7 +344,9 @@ struct bus_attribute {
 
 Declaring:
 
-BUS_ATTR(_name, _mode, _show, _store)
+static BUS_ATTR_RW(name);
+static BUS_ATTR_RO(name);
+static BUS_ATTR_WO(name);
 
 Creation/Removal:
 

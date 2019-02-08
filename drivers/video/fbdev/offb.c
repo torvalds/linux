@@ -318,28 +318,28 @@ static void __iomem *offb_map_reg(struct device_node *np, int index,
 }
 
 static void offb_init_palette_hacks(struct fb_info *info, struct device_node *dp,
-				    const char *name, unsigned long address)
+				    unsigned long address)
 {
 	struct offb_par *par = (struct offb_par *) info->par;
 
-	if (dp && !strncmp(name, "ATY,Rage128", 11)) {
+	if (of_node_name_prefix(dp, "ATY,Rage128")) {
 		par->cmap_adr = offb_map_reg(dp, 2, 0, 0x1fff);
 		if (par->cmap_adr)
 			par->cmap_type = cmap_r128;
-	} else if (dp && (!strncmp(name, "ATY,RageM3pA", 12)
-			  || !strncmp(name, "ATY,RageM3p12A", 14))) {
+	} else if (of_node_name_prefix(dp, "ATY,RageM3pA") ||
+		   of_node_name_prefix(dp, "ATY,RageM3p12A")) {
 		par->cmap_adr = offb_map_reg(dp, 2, 0, 0x1fff);
 		if (par->cmap_adr)
 			par->cmap_type = cmap_M3A;
-	} else if (dp && !strncmp(name, "ATY,RageM3pB", 12)) {
+	} else if (of_node_name_prefix(dp, "ATY,RageM3pB")) {
 		par->cmap_adr = offb_map_reg(dp, 2, 0, 0x1fff);
 		if (par->cmap_adr)
 			par->cmap_type = cmap_M3B;
-	} else if (dp && !strncmp(name, "ATY,Rage6", 9)) {
+	} else if (of_node_name_prefix(dp, "ATY,Rage6")) {
 		par->cmap_adr = offb_map_reg(dp, 1, 0, 0x1fff);
 		if (par->cmap_adr)
 			par->cmap_type = cmap_radeon;
-	} else if (!strncmp(name, "ATY,", 4)) {
+	} else if (of_node_name_prefix(dp, "ATY,")) {
 		unsigned long base = address & 0xff000000UL;
 		par->cmap_adr =
 			ioremap(base + 0x7ff000, 0x1000) + 0xcc0;
@@ -350,7 +350,7 @@ static void offb_init_palette_hacks(struct fb_info *info, struct device_node *dp
 		par->cmap_adr = offb_map_reg(dp, 0, 0x6000, 0x1000);
 		if (par->cmap_adr)
 			par->cmap_type = cmap_gxt2000;
-	} else if (dp && !strncmp(name, "vga,Display-", 12)) {
+	} else if (of_node_name_prefix(dp, "vga,Display-")) {
 		/* Look for AVIVO initialized by SLOF */
 		struct device_node *pciparent = of_get_parent(dp);
 		const u32 *vid, *did;
@@ -438,7 +438,7 @@ static void __init offb_init_fb(const char *name,
 
 	par->cmap_type = cmap_unknown;
 	if (depth == 8)
-		offb_init_palette_hacks(info, dp, name, address);
+		offb_init_palette_hacks(info, dp, address);
 	else
 		fix->visual = FB_VISUAL_TRUECOLOR;
 

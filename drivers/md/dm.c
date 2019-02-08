@@ -1320,7 +1320,7 @@ static int clone_bio(struct dm_target_io *tio, struct bio *bio,
 
 	__bio_clone_fast(clone, bio);
 
-	if (unlikely(bio_integrity(bio) != NULL)) {
+	if (bio_integrity(bio)) {
 		int r;
 
 		if (unlikely(!dm_target_has_integrity(tio->ti->type) &&
@@ -1336,11 +1336,7 @@ static int clone_bio(struct dm_target_io *tio, struct bio *bio,
 			return r;
 	}
 
-	bio_advance(clone, to_bytes(sector - clone->bi_iter.bi_sector));
-	clone->bi_iter.bi_size = to_bytes(len);
-
-	if (unlikely(bio_integrity(bio) != NULL))
-		bio_integrity_trim(clone);
+	bio_trim(clone, sector - clone->bi_iter.bi_sector, len);
 
 	return 0;
 }
@@ -1588,6 +1584,9 @@ static void init_clone_info(struct clone_info *ci, struct mapped_device *md,
 	ci->sector = bio->bi_iter.bi_sector;
 }
 
+#define __dm_part_stat_sub(part, field, subnd)	\
+	(part_stat_get(part, field) -= (subnd))
+
 /*
  * Entry point to split a bio into clones and submit them to the targets.
  */
@@ -1642,7 +1641,21 @@ static blk_qc_t __split_and_process_bio(struct mapped_device *md,
 				struct bio *b = bio_split(bio, bio_sectors(bio) - ci.sector_count,
 							  GFP_NOIO, &md->queue->bio_split);
 				ci.io->orig_bio = b;
+
+				/*
+				 * Adjust IO stats for each split, otherwise upon queue
+				 * reentry there will be redundant IO accounting.
+				 * NOTE: this is a stop-gap fix, a proper fix involves
+				 * significant refactoring of DM core's bio splitting
+				 * (by eliminating DM's splitting and just using bio_split)
+				 */
+				part_stat_lock();
+				__dm_part_stat_sub(&dm_disk(md)->part0,
+						   sectors[op_stat_group(bio_op(bio))], ci.sector_count);
+				part_stat_unlock();
+
 				bio_chain(b, bio);
+				trace_block_split(md->queue, b, bio->bi_iter.bi_sector);
 				ret = generic_make_request(bio);
 				break;
 			}
@@ -1713,6 +1726,15 @@ out:
 	return ret;
 }
 
+static blk_qc_t dm_process_bio(struct mapped_device *md,
+			       struct dm_table *map, struct bio *bio)
+{
+	if (dm_get_md_type(md) == DM_TYPE_NVME_BIO_BASED)
+		return __process_bio(md, map, bio);
+	else
+		return __split_and_process_bio(md, map, bio);
+}
+
 static blk_qc_t dm_make_request(struct request_queue *q, struct bio *bio)
 {
 	struct mapped_device *md = q->queuedata;
@@ -1733,10 +1755,7 @@ static blk_qc_t dm_make_request(struct request_queue *q, struct bio *bio)
 		return ret;
 	}
 
-	if (dm_get_md_type(md) == DM_TYPE_NVME_BIO_BASED)
-		ret = __process_bio(md, map, bio);
-	else
-		ret = __split_and_process_bio(md, map, bio);
+	ret = dm_process_bio(md, map, bio);
 
 	dm_put_live_table(md, srcu_idx);
 	return ret;
@@ -2415,9 +2434,9 @@ static void dm_wq_work(struct work_struct *work)
 			break;
 
 		if (dm_request_based(md))
-			generic_make_request(c);
+			(void) generic_make_request(c);
 		else
-			__split_and_process_bio(md, map, c);
+			(void) dm_process_bio(md, map, c);
 	}
 
 	dm_put_live_table(md, srcu_idx);

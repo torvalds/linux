@@ -143,8 +143,9 @@ static struct mvumi_res *mvumi_alloc_mem_resource(struct mvumi_hba *mhba,
 
 	case RESOURCE_UNCACHED_MEMORY:
 		size = round_up(size, 8);
-		res->virt_addr = dma_zalloc_coherent(&mhba->pdev->dev, size,
-				&res->bus_addr, GFP_KERNEL);
+		res->virt_addr = dma_alloc_coherent(&mhba->pdev->dev, size,
+						    &res->bus_addr,
+						    GFP_KERNEL);
 		if (!res->virt_addr) {
 			dev_err(&mhba->pdev->dev,
 					"unable to allocate consistent mem,"
@@ -246,8 +247,8 @@ static int mvumi_internal_cmd_sgl(struct mvumi_hba *mhba, struct mvumi_cmd *cmd,
 	if (size == 0)
 		return 0;
 
-	virt_addr = dma_zalloc_coherent(&mhba->pdev->dev, size, &phy_addr,
-			GFP_KERNEL);
+	virt_addr = dma_alloc_coherent(&mhba->pdev->dev, size, &phy_addr,
+				       GFP_KERNEL);
 	if (!virt_addr)
 		return -1;
 

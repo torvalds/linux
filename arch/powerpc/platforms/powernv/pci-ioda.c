@@ -2681,7 +2681,8 @@ static void pnv_pci_ioda_setup_iommu_api(void)
 	list_for_each_entry(hose, &hose_list, list_node) {
 		phb = hose->private_data;
 
-		if (phb->type == PNV_PHB_NPU_NVLINK)
+		if (phb->type == PNV_PHB_NPU_NVLINK ||
+		    phb->type == PNV_PHB_NPU_OCAPI)
 			continue;
 
 		list_for_each_entry(pe, &phb->ioda.pe_list, list) {
