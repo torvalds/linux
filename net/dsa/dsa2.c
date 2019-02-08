@@ -767,11 +767,10 @@ static int dsa_switch_probe(struct dsa_switch *ds)
 
 struct dsa_switch *dsa_switch_alloc(struct device *dev, size_t n)
 {
-	size_t size = sizeof(struct dsa_switch) + n * sizeof(struct dsa_port);
 	struct dsa_switch *ds;
 	int i;
 
-	ds = devm_kzalloc(dev, size, GFP_KERNEL);
+	ds = devm_kzalloc(dev, struct_size(ds, ports, n), GFP_KERNEL);
 	if (!ds)
 		return NULL;
 
