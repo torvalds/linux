@@ -236,9 +236,9 @@ int ice_setup_tx_ring(struct ice_ring *tx_ring)
 	if (!tx_ring->tx_buf)
 		return -ENOMEM;
 
-	/* round up to nearest 4K */
+	/* round up to nearest page */
 	tx_ring->size = ALIGN(tx_ring->count * sizeof(struct ice_tx_desc),
-			      4096);
+			      PAGE_SIZE);
 	tx_ring->desc = dmam_alloc_coherent(dev, tx_ring->size, &tx_ring->dma,
 					    GFP_KERNEL);
 	if (!tx_ring->desc) {
@@ -339,9 +339,9 @@ int ice_setup_rx_ring(struct ice_ring *rx_ring)
 	if (!rx_ring->rx_buf)
 		return -ENOMEM;
 
-	/* round up to nearest 4K */
-	rx_ring->size = rx_ring->count * sizeof(union ice_32byte_rx_desc);
-	rx_ring->size = ALIGN(rx_ring->size, 4096);
+	/* round up to nearest page */
+	rx_ring->size = ALIGN(rx_ring->count * sizeof(union ice_32byte_rx_desc),
+			      PAGE_SIZE);
 	rx_ring->desc = dmam_alloc_coherent(dev, rx_ring->size, &rx_ring->dma,
 					    GFP_KERNEL);
 	if (!rx_ring->desc) {
