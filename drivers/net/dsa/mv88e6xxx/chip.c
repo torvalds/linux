@@ -647,8 +647,10 @@ static void mv88e6390_phylink_validate(struct mv88e6xxx_chip *chip, int port,
 				       unsigned long *mask,
 				       struct phylink_link_state *state)
 {
-	if (port >= 9)
+	if (port >= 9) {
 		phylink_set(mask, 2500baseX_Full);
+		phylink_set(mask, 2500baseT_Full);
+	}
 
 	/* No ethtool bits for 200Mbps */
 	phylink_set(mask, 1000baseT_Full);
