@@ -22,7 +22,6 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_icl_machines[] = {
 		.pdata = &icl_pdata,
 		.sof_fw_filename = "sof-icl.ri",
 		.sof_tplg_filename = "sof-icl-rt274.tplg",
-		.asoc_plat_name = "0000:00:1f.3",
 	},
 	{},
 };
