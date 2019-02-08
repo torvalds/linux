@@ -335,6 +335,43 @@
 				#clock-cells = <1>;
 			};
 
+			comphy: phy@18300 {
+				compatible = "marvell,armada-380-comphy";
+				reg = <0x18300 0x100>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				comphy0: phy@0 {
+					reg = <0>;
+					#phy-cells = <1>;
+				};
+
+				comphy1: phy@1 {
+					reg = <1>;
+					#phy-cells = <1>;
+				};
+
+				comphy2: phy@2 {
+					reg = <2>;
+					#phy-cells = <1>;
+				};
+
+				comphy3: phy@3 {
+					reg = <3>;
+					#phy-cells = <1>;
+				};
+
+				comphy4: phy@4 {
+					reg = <4>;
+					#phy-cells = <1>;
+				};
+
+				comphy5: phy@5 {
+					reg = <5>;
+					#phy-cells = <1>;
+				};
+			};
+
 			coreclk: mvebu-sar@18600 {
 				compatible = "marvell,armada-380-core-clock";
 				reg = <0x18600 0x04>;
