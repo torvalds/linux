@@ -52,9 +52,9 @@ required:
 
 examples:
   - |
-    abc: fixedregulator@0 {
+    reg_1v8: regulator-1v8 {
       compatible = "regulator-fixed";
-      regulator-name = "fixed-supply";
+      regulator-name = "1v8";
       regulator-min-microvolt = <1800000>;
       regulator-max-microvolt = <1800000>;
       gpio = <&gpio1 16 0>;
