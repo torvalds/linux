@@ -668,7 +668,7 @@ rename:
 
 	trace_add_device_to_group(group->id, dev);
 
-	pr_info("Adding device %s to group %d\n", dev_name(dev), group->id);
+	dev_info(dev, "Adding to iommu group %d\n", group->id);
 
 	return 0;
 
@@ -684,7 +684,7 @@ err_remove_link:
 	sysfs_remove_link(&dev->kobj, "iommu_group");
 err_free_device:
 	kfree(device);
-	pr_err("Failed to add device %s to group %d: %d\n", dev_name(dev), group->id, ret);
+	dev_err(dev, "Failed to add to iommu group %d: %d\n", group->id, ret);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(iommu_group_add_device);
@@ -701,7 +701,7 @@ void iommu_group_remove_device(struct device *dev)
 	struct iommu_group *group = dev->iommu_group;
 	struct group_device *tmp_device, *device = NULL;
 
-	pr_info("Removing device %s from group %d\n", dev_name(dev), group->id);
+	dev_info(dev, "Removing from iommu group %d\n", group->id);
 
 	/* Pre-notify listeners that a device is being removed. */
 	blocking_notifier_call_chain(&group->notifier,
@@ -1951,7 +1951,7 @@ int iommu_request_dm_for_dev(struct device *dev)
 		iommu_domain_free(group->default_domain);
 	group->default_domain = dm_domain;
 
-	pr_info("Using direct mapping for device %s\n", dev_name(dev));
+	dev_info(dev, "Using iommu direct mapping\n");
 
 	ret = 0;
 out:
