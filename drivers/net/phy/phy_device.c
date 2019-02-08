@@ -684,6 +684,9 @@ static int get_phy_c45_devs_in_pkg(struct mii_bus *bus, int addr, int dev_addr,
 		return -EIO;
 	*devices_in_package |= (phy_reg & 0xffff);
 
+	/* Bit 0 doesn't represent a device, it indicates c22 regs presence */
+	*devices_in_package &= ~BIT(0);
+
 	return 0;
 }
 
