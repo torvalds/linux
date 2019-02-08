@@ -36,6 +36,19 @@
 #define VMW_RES_HT_ORDER 12
 
 /*
+ * Helper macro to get dx_ctx_node if available otherwise print an error
+ * message. This is for use in command verifier function where if dx_ctx_node
+ * is not set then command is invalid.
+ */
+#define VMW_GET_CTX_NODE(__sw_context)                                        \
+({                                                                            \
+	__sw_context->dx_ctx_node ? __sw_context->dx_ctx_node : ({            \
+		DRM_ERROR("SM context is not set at %s\n", __func__);         \
+		__sw_context->dx_ctx_node;                                    \
+	});                                                                   \
+})
+
+/*
  * struct vmw_relocation - Buffer object relocation
  *
  * @head: List head for the command submission context's relocation list
@@ -774,13 +787,11 @@ static int vmw_view_bindings_add(struct vmw_sw_context *sw_context,
 				 uint32 view_ids[], u32 num_views,
 				 u32 first_slot)
 {
-	struct vmw_ctx_validation_info *ctx_node = sw_context->dx_ctx_node;
+	struct vmw_ctx_validation_info *ctx_node = VMW_GET_CTX_NODE(sw_context);
 	u32 i;
 
-	if (!ctx_node) {
-		DRM_ERROR("DX Context not set.\n");
+	if (!ctx_node)
 		return -EINVAL;
-	}
 
 	for (i = 0; i < num_views; ++i) {
 		struct vmw_ctx_bindinfo_view binding;
@@ -1280,14 +1291,11 @@ static int vmw_cmd_dx_define_query(struct vmw_private *dev_priv,
 	} *cmd;
 
 	int    ret;
-	struct vmw_ctx_validation_info *ctx_node = sw_context->dx_ctx_node;
+	struct vmw_ctx_validation_info *ctx_node = VMW_GET_CTX_NODE(sw_context);
 	struct vmw_resource *cotable_res;
 
-
-	if (ctx_node == NULL) {
-		DRM_ERROR("DX Context not set for query.\n");
+	if (!ctx_node)
 		return -EINVAL;
-	}
 
 	cmd = container_of(header, struct vmw_dx_define_query_cmd, header);
 
@@ -2270,14 +2278,12 @@ vmw_cmd_dx_set_single_constant_buffer(struct vmw_private *dev_priv,
 		SVGA3dCmdDXSetSingleConstantBuffer body;
 	} *cmd;
 	struct vmw_resource *res = NULL;
-	struct vmw_ctx_validation_info *ctx_node = sw_context->dx_ctx_node;
+	struct vmw_ctx_validation_info *ctx_node = VMW_GET_CTX_NODE(sw_context);
 	struct vmw_ctx_bindinfo_cb binding;
 	int ret;
 
-	if (unlikely(ctx_node == NULL)) {
-		DRM_ERROR("DX Context not set.\n");
+	if (!ctx_node)
 		return -EINVAL;
-	}
 
 	cmd = container_of(header, typeof(*cmd), header);
 	ret = vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
@@ -2358,14 +2364,12 @@ static int vmw_cmd_dx_set_shader(struct vmw_private *dev_priv,
 		SVGA3dCmdDXSetShader body;
 	} *cmd;
 	struct vmw_resource *res = NULL;
-	struct vmw_ctx_validation_info *ctx_node = sw_context->dx_ctx_node;
+	struct vmw_ctx_validation_info *ctx_node = VMW_GET_CTX_NODE(sw_context);
 	struct vmw_ctx_bindinfo_shader binding;
 	int ret = 0;
 
-	if (unlikely(ctx_node == NULL)) {
-		DRM_ERROR("DX Context not set.\n");
+	if (!ctx_node)
 		return -EINVAL;
-	}
 
 	cmd = container_of(header, typeof(*cmd), header);
 
@@ -2411,7 +2415,7 @@ static int vmw_cmd_dx_set_vertex_buffers(struct vmw_private *dev_priv,
 					 struct vmw_sw_context *sw_context,
 					 SVGA3dCmdHeader *header)
 {
-	struct vmw_ctx_validation_info *ctx_node = sw_context->dx_ctx_node;
+	struct vmw_ctx_validation_info *ctx_node = VMW_GET_CTX_NODE(sw_context);
 	struct vmw_ctx_bindinfo_vb binding;
 	struct vmw_resource *res;
 	struct {
@@ -2421,10 +2425,8 @@ static int vmw_cmd_dx_set_vertex_buffers(struct vmw_private *dev_priv,
 	} *cmd;
 	int i, ret, num;
 
-	if (unlikely(ctx_node == NULL)) {
-		DRM_ERROR("DX Context not set.\n");
+	if (!ctx_node)
 		return -EINVAL;
-	}
 
 	cmd = container_of(header, typeof(*cmd), header);
 	num = (cmd->header.size - sizeof(cmd->body)) /
@@ -2469,7 +2471,7 @@ static int vmw_cmd_dx_set_index_buffer(struct vmw_private *dev_priv,
 				       struct vmw_sw_context *sw_context,
 				       SVGA3dCmdHeader *header)
 {
-	struct vmw_ctx_validation_info *ctx_node = sw_context->dx_ctx_node;
+	struct vmw_ctx_validation_info *ctx_node = VMW_GET_CTX_NODE(sw_context);
 	struct vmw_ctx_bindinfo_ib binding;
 	struct vmw_resource *res;
 	struct {
@@ -2478,10 +2480,8 @@ static int vmw_cmd_dx_set_index_buffer(struct vmw_private *dev_priv,
 	} *cmd;
 	int ret;
 
-	if (unlikely(ctx_node == NULL)) {
-		DRM_ERROR("DX Context not set.\n");
+	if (!ctx_node)
 		return -EINVAL;
-	}
 
 	cmd = container_of(header, typeof(*cmd), header);
 	ret = vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
@@ -2583,7 +2583,7 @@ static int vmw_cmd_dx_view_define(struct vmw_private *dev_priv,
 				  struct vmw_sw_context *sw_context,
 				  SVGA3dCmdHeader *header)
 {
-	struct vmw_ctx_validation_info *ctx_node = sw_context->dx_ctx_node;
+	struct vmw_ctx_validation_info *ctx_node = VMW_GET_CTX_NODE(sw_context);
 	struct vmw_resource *srf;
 	struct vmw_resource *res;
 	enum vmw_view_type view_type;
@@ -2598,10 +2598,8 @@ static int vmw_cmd_dx_view_define(struct vmw_private *dev_priv,
 		uint32 sid;
 	} *cmd;
 
-	if (unlikely(ctx_node == NULL)) {
-		DRM_ERROR("DX Context not set.\n");
+	if (!ctx_node)
 		return -EINVAL;
-	}
 
 	view_type = vmw_view_cmd_to_type(header->id);
 	if (view_type == vmw_view_max)
@@ -2640,7 +2638,7 @@ static int vmw_cmd_dx_set_so_targets(struct vmw_private *dev_priv,
 				     struct vmw_sw_context *sw_context,
 				     SVGA3dCmdHeader *header)
 {
-	struct vmw_ctx_validation_info *ctx_node = sw_context->dx_ctx_node;
+	struct vmw_ctx_validation_info *ctx_node = VMW_GET_CTX_NODE(sw_context);
 	struct vmw_ctx_bindinfo_so binding;
 	struct vmw_resource *res;
 	struct {
@@ -2650,10 +2648,8 @@ static int vmw_cmd_dx_set_so_targets(struct vmw_private *dev_priv,
 	} *cmd;
 	int i, ret, num;
 
-	if (unlikely(ctx_node == NULL)) {
-		DRM_ERROR("DX Context not set.\n");
+	if (!ctx_node)
 		return -EINVAL;
-	}
 
 	cmd = container_of(header, typeof(*cmd), header);
 	num = (cmd->header.size - sizeof(cmd->body)) /
@@ -2690,7 +2686,7 @@ static int vmw_cmd_dx_so_define(struct vmw_private *dev_priv,
 				struct vmw_sw_context *sw_context,
 				SVGA3dCmdHeader *header)
 {
-	struct vmw_ctx_validation_info *ctx_node = sw_context->dx_ctx_node;
+	struct vmw_ctx_validation_info *ctx_node = VMW_GET_CTX_NODE(sw_context);
 	struct vmw_resource *res;
 	/*
 	 * This is based on the fact that all affected define commands have
@@ -2703,10 +2699,8 @@ static int vmw_cmd_dx_so_define(struct vmw_private *dev_priv,
 	enum vmw_so_type so_type;
 	int ret;
 
-	if (unlikely(ctx_node == NULL)) {
-		DRM_ERROR("DX Context not set.\n");
+	if (!ctx_node)
 		return -EINVAL;
-	}
 
 	so_type = vmw_so_cmd_to_type(header->id);
 	res = vmw_context_cotable(ctx_node->ctx, vmw_so_cotables[so_type]);
@@ -2756,12 +2750,10 @@ static int vmw_cmd_dx_cid_check(struct vmw_private *dev_priv,
 				struct vmw_sw_context *sw_context,
 				SVGA3dCmdHeader *header)
 {
-	struct vmw_ctx_validation_info *ctx_node = sw_context->dx_ctx_node;
+	struct vmw_ctx_validation_info *ctx_node = VMW_GET_CTX_NODE(sw_context);
 
-	if (unlikely(ctx_node == NULL)) {
-		DRM_ERROR("DX Context not set.\n");
+	if (!ctx_node)
 		return -EINVAL;
-	}
 
 	return 0;
 }
@@ -2781,7 +2773,7 @@ static int vmw_cmd_dx_view_remove(struct vmw_private *dev_priv,
 				  struct vmw_sw_context *sw_context,
 				  SVGA3dCmdHeader *header)
 {
-	struct vmw_ctx_validation_info *ctx_node = sw_context->dx_ctx_node;
+	struct vmw_ctx_validation_info *ctx_node = VMW_GET_CTX_NODE(sw_context);
 	struct {
 		SVGA3dCmdHeader header;
 		union vmw_view_destroy body;
@@ -2790,10 +2782,8 @@ static int vmw_cmd_dx_view_remove(struct vmw_private *dev_priv,
 	struct vmw_resource *view;
 	int ret;
 
-	if (!ctx_node) {
-		DRM_ERROR("DX Context not set.\n");
+	if (!ctx_node)
 		return -EINVAL;
-	}
 
 	ret = vmw_view_remove(sw_context->man,
 			      cmd->body.view_id, view_type,
@@ -2827,7 +2817,7 @@ static int vmw_cmd_dx_define_shader(struct vmw_private *dev_priv,
 				    struct vmw_sw_context *sw_context,
 				    SVGA3dCmdHeader *header)
 {
-	struct vmw_ctx_validation_info *ctx_node = sw_context->dx_ctx_node;
+	struct vmw_ctx_validation_info *ctx_node = VMW_GET_CTX_NODE(sw_context);
 	struct vmw_resource *res;
 	struct {
 		SVGA3dCmdHeader header;
@@ -2835,10 +2825,8 @@ static int vmw_cmd_dx_define_shader(struct vmw_private *dev_priv,
 	} *cmd = container_of(header, typeof(*cmd), header);
 	int ret;
 
-	if (!ctx_node) {
-		DRM_ERROR("DX Context not set.\n");
+	if (!ctx_node)
 		return -EINVAL;
-	}
 
 	res = vmw_context_cotable(ctx_node->ctx, SVGA_COTABLE_DXSHADER);
 	ret = vmw_cotable_notify(res, cmd->body.shaderId);
@@ -2862,17 +2850,15 @@ static int vmw_cmd_dx_destroy_shader(struct vmw_private *dev_priv,
 				     struct vmw_sw_context *sw_context,
 				     SVGA3dCmdHeader *header)
 {
-	struct vmw_ctx_validation_info *ctx_node = sw_context->dx_ctx_node;
+	struct vmw_ctx_validation_info *ctx_node = VMW_GET_CTX_NODE(sw_context);
 	struct {
 		SVGA3dCmdHeader header;
 		SVGA3dCmdDXDestroyShader body;
 	} *cmd = container_of(header, typeof(*cmd), header);
 	int ret;
 
-	if (!ctx_node) {
-		DRM_ERROR("DX Context not set.\n");
+	if (!ctx_node)
 		return -EINVAL;
-	}
 
 	ret = vmw_shader_remove(sw_context->man, cmd->body.shaderId, 0,
 				&sw_context->staged_cmd_res);
@@ -2910,11 +2896,13 @@ static int vmw_cmd_dx_bind_shader(struct vmw_private *dev_priv,
 		if (ret)
 			return ret;
 	} else {
-		if (!sw_context->dx_ctx_node) {
-			DRM_ERROR("DX Context not set.\n");
+		struct vmw_ctx_validation_info *ctx_node =
+			VMW_GET_CTX_NODE(sw_context);
+
+		if (!ctx_node)
 			return -EINVAL;
-		}
-		ctx = sw_context->dx_ctx_node->ctx;
+
+		ctx = ctx_node->ctx;
 	}
 
 	res = vmw_shader_lookup(vmw_context_res_man(ctx),
