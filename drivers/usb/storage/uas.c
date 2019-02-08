@@ -395,9 +395,9 @@ static void uas_data_cmplt(struct urb *urb)
 		if (status != -ENOENT && status != -ECONNRESET && status != -ESHUTDOWN)
 			uas_log_cmd_state(cmnd, "data cmplt err", status);
 		/* error: no data transfered */
-		sdb->resid = sdb->length;
+		scsi_set_resid(cmnd, sdb->length);
 	} else {
-		sdb->resid = sdb->length - urb->actual_length;
+		scsi_set_resid(cmnd, sdb->length - urb->actual_length);
 	}
 	uas_try_complete(cmnd, __func__);
 out:
