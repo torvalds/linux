@@ -1029,7 +1029,7 @@ static int ice_alloc_vfs(struct ice_pf *pf, u16 num_alloc_vfs)
 	pf->num_alloc_vfs = num_alloc_vfs;
 
 	/* VF resources get allocated during reset */
-	if (!ice_reset_all_vfs(pf, false))
+	if (!ice_reset_all_vfs(pf, true))
 		goto err_unroll_sriov;
 
 	goto err_unroll_intr;
