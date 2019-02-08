@@ -394,6 +394,7 @@ static void ice_do_reset(struct ice_pf *pf, enum ice_reset_req reset_type)
 		ice_rebuild(pf);
 		clear_bit(__ICE_PREPARED_FOR_RESET, pf->state);
 		clear_bit(__ICE_PFR_REQ, pf->state);
+		ice_reset_all_vfs(pf, true);
 	}
 }
 
@@ -436,6 +437,7 @@ static void ice_reset_subtask(struct ice_pf *pf)
 			clear_bit(__ICE_PFR_REQ, pf->state);
 			clear_bit(__ICE_CORER_REQ, pf->state);
 			clear_bit(__ICE_GLOBR_REQ, pf->state);
+			ice_reset_all_vfs(pf, true);
 		}
 
 		return;
@@ -3360,10 +3362,6 @@ static int ice_vsi_rebuild_all(struct ice_pf *pf)
 		if (!pf->vsi[i])
 			continue;
 
-		/* VF VSI rebuild isn't supported yet */
-		if (pf->vsi[i]->type == ICE_VSI_VF)
-			continue;
-
 		err = ice_vsi_rebuild(pf->vsi[i]);
 		if (err) {
 			dev_err(&pf->pdev->dev,
@@ -3499,8 +3497,6 @@ static void ice_rebuild(struct ice_pf *pf)
 		 */
 		goto err_vsi_rebuild;
 	}
-
-	ice_reset_all_vfs(pf, true);
 
 	ice_for_each_vsi(pf, i) {
 		bool link_up;
