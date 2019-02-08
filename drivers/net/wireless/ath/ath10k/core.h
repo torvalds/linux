@@ -1182,6 +1182,7 @@ struct ath10k {
 
 	u32 ampdu_reference;
 
+	const u8 *wmi_key_cipher;
 	void *ce_priv;
 
 	u32 sta_tid_stats_mask;
