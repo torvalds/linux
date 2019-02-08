@@ -142,7 +142,8 @@ int snd_sof_dbg_init(struct snd_sof_dev *sdev)
 {
 	const struct snd_sof_dsp_ops *ops = sof_ops(sdev);
 	const struct snd_sof_debugfs_map *map;
-	int err = 0, i;
+	int i;
+	int err;
 
 	/* use "sof" as top level debugFS dir */
 	sdev->debugfs_root = debugfs_create_dir("sof", NULL);
