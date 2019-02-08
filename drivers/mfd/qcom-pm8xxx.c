@@ -380,6 +380,12 @@ static void pm8xxx_irq_domain_map(struct pm_irq_chip *chip,
 				  struct irq_domain *domain, unsigned int irq,
 				  irq_hw_number_t hwirq, unsigned int type)
 {
+	unsigned int old_virq;
+
+	old_virq = irq_find_mapping(domain, hwirq);
+	if (old_virq)
+		irq_domain_disassociate(domain, old_virq);
+
 	irq_domain_set_info(domain, irq, hwirq, chip->pm_irq_data->irq_chip,
 			    chip, handle_level_irq, NULL, NULL);
 	irq_set_noprobe(irq);
