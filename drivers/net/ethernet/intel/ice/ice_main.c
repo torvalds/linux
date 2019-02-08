@@ -2435,11 +2435,12 @@ static void ice_set_rx_mode(struct net_device *netdev)
  * @addr: the MAC address entry being added
  * @vid: VLAN id
  * @flags: instructions from stack about fdb operation
+ * @extack: netlink extended ack
  */
-static int ice_fdb_add(struct ndmsg *ndm, struct nlattr __always_unused *tb[],
-		       struct net_device *dev, const unsigned char *addr,
-		       u16 vid, u16 flags,
-		       struct netlink_ext_ack *extack)
+static int
+ice_fdb_add(struct ndmsg *ndm, struct nlattr __always_unused *tb[],
+	    struct net_device *dev, const unsigned char *addr, u16 vid,
+	    u16 flags, struct netlink_ext_ack __always_unused *extack)
 {
 	int err;
 
