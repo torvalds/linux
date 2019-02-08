@@ -232,13 +232,17 @@ static int sof_pci_probe(struct pci_dev *pci,
 	ret = sof_nocodec_setup(dev, sof_pdata, mach, desc, ops);
 	if (ret < 0)
 		goto release_regions;
+
 #else
 	/* find machine */
 	mach = snd_soc_acpi_find_machine(desc->machines);
-	if (!mach)
+	if (!mach) {
 		dev_warn(dev, "warning: No matching ASoC machine driver found\n");
-	else
+	} else {
 		mach->mach_params.platform = dev_name(dev);
+		sof_pdata->fw_filename = mach->sof_fw_filename;
+		sof_pdata->tplg_filename = mach->sof_tplg_filename;
+	}
 #endif /* CONFIG_SND_SOC_SOF_FORCE_NOCODEC_MODE */
 
 	sof_pdata->name = pci_name(pci);
@@ -259,11 +263,6 @@ static int sof_pci_probe(struct pci_dev *pci,
 	else
 		sof_pdata->tplg_filename_prefix =
 			sof_pdata->desc->default_tplg_path;
-
-	if (mach) {
-		sof_pdata->fw_filename = mach->sof_fw_filename;
-		sof_pdata->tplg_filename = mach->sof_tplg_filename;
-	}
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_PROBE_WORK_QUEUE)
 	/* set callback to enable runtime_pm */
