@@ -8,6 +8,7 @@
 #include <linux/spinlock.h>
 #include <linux/idr.h>
 #include <linux/slab.h>
+#include <linux/workqueue.h>
 #include <linux/of_device.h>
 #include <linux/soc/qcom/apr.h>
 #include <linux/rpmsg.h>
@@ -17,8 +18,18 @@ struct apr {
 	struct rpmsg_endpoint *ch;
 	struct device *dev;
 	spinlock_t svcs_lock;
+	spinlock_t rx_lock;
 	struct idr svcs_idr;
 	int dest_domain_id;
+	struct workqueue_struct *rxwq;
+	struct work_struct rx_work;
+	struct list_head rx_list;
+};
+
+struct apr_rx_buf {
+	struct list_head node;
+	int len;
+	uint8_t buf[];
 };
 
 /**
@@ -62,11 +73,7 @@ static int apr_callback(struct rpmsg_device *rpdev, void *buf,
 				  int len, void *priv, u32 addr)
 {
 	struct apr *apr = dev_get_drvdata(&rpdev->dev);
-	uint16_t hdr_size, msg_type, ver, svc_id;
-	struct apr_device *svc = NULL;
-	struct apr_driver *adrv = NULL;
-	struct apr_resp_pkt resp;
-	struct apr_hdr *hdr;
+	struct apr_rx_buf *abuf;
 	unsigned long flags;
 
 	if (len <= APR_HDR_SIZE) {
@@ -74,6 +81,34 @@ static int apr_callback(struct rpmsg_device *rpdev, void *buf,
 			buf, len);
 		return -EINVAL;
 	}
+
+	abuf = kzalloc(sizeof(*abuf) + len, GFP_ATOMIC);
+	if (!abuf)
+		return -ENOMEM;
+
+	abuf->len = len;
+	memcpy(abuf->buf, buf, len);
+
+	spin_lock_irqsave(&apr->rx_lock, flags);
+	list_add_tail(&abuf->node, &apr->rx_list);
+	spin_unlock_irqrestore(&apr->rx_lock, flags);
+
+	queue_work(apr->rxwq, &apr->rx_work);
+
+	return 0;
+}
+
+
+static int apr_do_rx_callback(struct apr *apr, struct apr_rx_buf *abuf)
+{
+	uint16_t hdr_size, msg_type, ver, svc_id;
+	struct apr_device *svc = NULL;
+	struct apr_driver *adrv = NULL;
+	struct apr_resp_pkt resp;
+	struct apr_hdr *hdr;
+	unsigned long flags;
+	void *buf = abuf->buf;
+	int len = abuf->len;
 
 	hdr = buf;
 	ver = APR_HDR_FIELD_VER(hdr->hdr_field);
@@ -130,6 +165,23 @@ static int apr_callback(struct rpmsg_device *rpdev, void *buf,
 	adrv->callback(svc, &resp);
 
 	return 0;
+}
+
+static void apr_rxwq(struct work_struct *work)
+{
+	struct apr *apr = container_of(work, struct apr, rx_work);
+	struct apr_rx_buf *abuf, *b;
+	unsigned long flags;
+
+	if (!list_empty(&apr->rx_list)) {
+		list_for_each_entry_safe(abuf, b, &apr->rx_list, node) {
+			apr_do_rx_callback(apr, abuf);
+			spin_lock_irqsave(&apr->rx_lock, flags);
+			list_del(&abuf->node);
+			spin_unlock_irqrestore(&apr->rx_lock, flags);
+			kfree(abuf);
+		}
+	}
 }
 
 static int apr_device_match(struct device *dev, struct device_driver *drv)
@@ -285,6 +337,14 @@ static int apr_probe(struct rpmsg_device *rpdev)
 	dev_set_drvdata(dev, apr);
 	apr->ch = rpdev->ept;
 	apr->dev = dev;
+	apr->rxwq = create_singlethread_workqueue("qcom_apr_rx");
+	if (!apr->rxwq) {
+		dev_err(apr->dev, "Failed to start Rx WQ\n");
+		return -ENOMEM;
+	}
+	INIT_WORK(&apr->rx_work, apr_rxwq);
+	INIT_LIST_HEAD(&apr->rx_list);
+	spin_lock_init(&apr->rx_lock);
 	spin_lock_init(&apr->svcs_lock);
 	idr_init(&apr->svcs_idr);
 	of_register_apr_devices(dev);
@@ -303,7 +363,11 @@ static int apr_remove_device(struct device *dev, void *null)
 
 static void apr_remove(struct rpmsg_device *rpdev)
 {
+	struct apr *apr = dev_get_drvdata(&rpdev->dev);
+
 	device_for_each_child(&rpdev->dev, NULL, apr_remove_device);
+	flush_workqueue(apr->rxwq);
+	destroy_workqueue(apr->rxwq);
 }
 
 /*
