@@ -131,7 +131,7 @@ struct vb2_queue *v4l2_m2m_get_vq(struct v4l2_m2m_ctx *m2m_ctx,
 }
 EXPORT_SYMBOL(v4l2_m2m_get_vq);
 
-void *v4l2_m2m_next_buf(struct v4l2_m2m_queue_ctx *q_ctx)
+struct vb2_v4l2_buffer *v4l2_m2m_next_buf(struct v4l2_m2m_queue_ctx *q_ctx)
 {
 	struct v4l2_m2m_buffer *b;
 	unsigned long flags;
@@ -149,7 +149,7 @@ void *v4l2_m2m_next_buf(struct v4l2_m2m_queue_ctx *q_ctx)
 }
 EXPORT_SYMBOL_GPL(v4l2_m2m_next_buf);
 
-void *v4l2_m2m_last_buf(struct v4l2_m2m_queue_ctx *q_ctx)
+struct vb2_v4l2_buffer *v4l2_m2m_last_buf(struct v4l2_m2m_queue_ctx *q_ctx)
 {
 	struct v4l2_m2m_buffer *b;
 	unsigned long flags;
@@ -167,7 +167,7 @@ void *v4l2_m2m_last_buf(struct v4l2_m2m_queue_ctx *q_ctx)
 }
 EXPORT_SYMBOL_GPL(v4l2_m2m_last_buf);
 
-void *v4l2_m2m_buf_remove(struct v4l2_m2m_queue_ctx *q_ctx)
+struct vb2_v4l2_buffer *v4l2_m2m_buf_remove(struct v4l2_m2m_queue_ctx *q_ctx)
 {
 	struct v4l2_m2m_buffer *b;
 	unsigned long flags;
