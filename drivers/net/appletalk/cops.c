@@ -301,7 +301,7 @@ static int __init cops_probe1(struct net_device *dev, int ioaddr)
 			dev->irq = cops_irq(ioaddr, board);
 			if (dev->irq)
 				break;
-			/* No IRQ found on this port, fallthrough */
+			/* fall through - Once no IRQ found on this port. */
 		case 1:
 			retval = -EINVAL;
 			goto err_out;
