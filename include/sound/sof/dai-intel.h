@@ -23,6 +23,9 @@
 #define SOF_DAI_INTEL_SSP_QUIRK_PSPSTWFDFD	(1 << 4)
  /* ssc2: PSPSRWFDFD */
 #define SOF_DAI_INTEL_SSP_QUIRK_PSPSRWFDFD	(1 << 5)
+/* ssc1: LBM */
+#define SOF_DAI_INTEL_SSP_QUIRK_LBM		(1 << 6)
+
  /* here is the possibility to define others aux macros */
 
 #define SOF_DAI_INTEL_SSP_FRAME_PULSE_WIDTH_MAX		38
