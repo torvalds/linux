@@ -3299,8 +3299,8 @@ struct element {
 	for_each_element(element, data, datalen)			\
 		if (element->id == (_id))
 
-#define for_each_element_extid(element, extid, data, datalen)		\
-	for_each_element(element, data, datalen)			\
+#define for_each_element_extid(element, extid, _data, _datalen)		\
+	for_each_element(element, _data, _datalen)			\
 		if (element->id == WLAN_EID_EXTENSION &&		\
 		    element->datalen > 0 &&				\
 		    element->data[0] == (extid))
