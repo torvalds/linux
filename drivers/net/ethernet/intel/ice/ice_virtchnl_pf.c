@@ -343,11 +343,41 @@ static void ice_trigger_vf_reset(struct ice_vf *vf, bool is_vflr)
 }
 
 /**
- * ice_vsi_set_pvid - Set port VLAN id for the VSI
- * @vsi: the VSI being changed
+ * ice_vsi_set_pvid_fill_ctxt - Set VSI ctxt for add pvid
+ * @ctxt: the vsi ctxt to fill
  * @vid: the VLAN id to set as a PVID
  */
-static int ice_vsi_set_pvid(struct ice_vsi *vsi, u16 vid)
+static void ice_vsi_set_pvid_fill_ctxt(struct ice_vsi_ctx *ctxt, u16 vid)
+{
+	ctxt->info.vlan_flags = (ICE_AQ_VSI_VLAN_MODE_UNTAGGED |
+				 ICE_AQ_VSI_PVLAN_INSERT_PVID |
+				 ICE_AQ_VSI_VLAN_EMOD_STR);
+	ctxt->info.pvid = cpu_to_le16(vid);
+	ctxt->info.sw_flags2 |= ICE_AQ_VSI_SW_FLAG_RX_VLAN_PRUNE_ENA;
+	ctxt->info.valid_sections = cpu_to_le16(ICE_AQ_VSI_PROP_VLAN_VALID |
+						ICE_AQ_VSI_PROP_SW_VALID);
+}
+
+/**
+ * ice_vsi_kill_pvid_fill_ctxt - Set VSI ctx for remove pvid
+ * @ctxt: the VSI ctxt to fill
+ */
+static void ice_vsi_kill_pvid_fill_ctxt(struct ice_vsi_ctx *ctxt)
+{
+	ctxt->info.vlan_flags = ICE_AQ_VSI_VLAN_EMOD_NOTHING;
+	ctxt->info.vlan_flags |= ICE_AQ_VSI_VLAN_MODE_ALL;
+	ctxt->info.sw_flags2 &= ~ICE_AQ_VSI_SW_FLAG_RX_VLAN_PRUNE_ENA;
+	ctxt->info.valid_sections = cpu_to_le16(ICE_AQ_VSI_PROP_VLAN_VALID |
+						ICE_AQ_VSI_PROP_SW_VALID);
+}
+
+/**
+ * ice_vsi_manage_pvid - Enable or disable port VLAN for VSI
+ * @vsi: the VSI to update
+ * @vid: the VLAN id to set as a PVID
+ * @enable: true for enable pvid false for disable
+ */
+static int ice_vsi_manage_pvid(struct ice_vsi *vsi, u16 vid, bool enable)
 {
 	struct device *dev = &vsi->back->pdev->dev;
 	struct ice_hw *hw = &vsi->back->hw;
@@ -359,43 +389,24 @@ static int ice_vsi_set_pvid(struct ice_vsi *vsi, u16 vid)
 	if (!ctxt)
 		return -ENOMEM;
 
-	ctxt->info.vlan_flags = (ICE_AQ_VSI_VLAN_MODE_UNTAGGED |
-				 ICE_AQ_VSI_PVLAN_INSERT_PVID |
-				 ICE_AQ_VSI_VLAN_EMOD_STR);
-	ctxt->info.pvid = cpu_to_le16(vid);
-	ctxt->info.valid_sections = cpu_to_le16(ICE_AQ_VSI_PROP_VLAN_VALID);
+	ctxt->info = vsi->info;
+	if (enable)
+		ice_vsi_set_pvid_fill_ctxt(ctxt, vid);
+	else
+		ice_vsi_kill_pvid_fill_ctxt(ctxt);
 
 	status = ice_update_vsi(hw, vsi->idx, ctxt, NULL);
 	if (status) {
-		dev_info(dev, "update VSI for VLAN insert failed, err %d aq_err %d\n",
+		dev_info(dev, "update VSI for port VLAN failed, err %d aq_err %d\n",
 			 status, hw->adminq.sq_last_status);
 		ret = -EIO;
 		goto out;
 	}
 
-	vsi->info.pvid = ctxt->info.pvid;
-	vsi->info.vlan_flags = ctxt->info.vlan_flags;
+	vsi->info = ctxt->info;
 out:
 	devm_kfree(dev, ctxt);
 	return ret;
-}
-
-/**
- * ice_vsi_kill_pvid - Remove port VLAN id from the VSI
- * @vsi: the VSI being changed
- */
-static int ice_vsi_kill_pvid(struct ice_vsi *vsi)
-{
-	struct ice_pf *pf = vsi->back;
-
-	if (ice_vsi_manage_vlan_stripping(vsi, false)) {
-		dev_err(&pf->pdev->dev, "Error removing Port VLAN on VSI %i\n",
-			vsi->vsi_num);
-		return -ENODEV;
-	}
-
-	vsi->info.pvid = 0;
-	return 0;
 }
 
 /**
@@ -447,7 +458,7 @@ static int ice_alloc_vsi_res(struct ice_vf *vf)
 
 	/* Check if port VLAN exist before, and restore it accordingly */
 	if (vf->port_vlan_id)
-		ice_vsi_set_pvid(vsi, vf->port_vlan_id);
+		ice_vsi_manage_pvid(vsi, vf->port_vlan_id, true);
 
 	eth_broadcast_addr(broadcast);
 
@@ -2093,11 +2104,12 @@ ice_set_vf_port_vlan(struct net_device *netdev, int vf_id, u16 vlan_id, u8 qos,
 				  VLAN_VID_MASK));
 
 	if (vlan_id || qos) {
-		ret = ice_vsi_set_pvid(vsi, vlanprio);
+		ret = ice_vsi_manage_pvid(vsi, vlanprio, true);
 		if (ret)
 			goto error_set_pvid;
 	} else {
-		ice_vsi_kill_pvid(vsi);
+		ice_vsi_manage_pvid(vsi, 0, false);
+		vsi->info.pvid = 0;
 	}
 
 	if (vlan_id) {
