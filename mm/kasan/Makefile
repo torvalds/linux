@@ -5,9 +5,9 @@ UBSAN_SANITIZE_generic.o := n
 UBSAN_SANITIZE_tags.o := n
 KCOV_INSTRUMENT := n
 
-CFLAGS_REMOVE_common.o = -pg
-CFLAGS_REMOVE_generic.o = -pg
-CFLAGS_REMOVE_tags.o = -pg
+CFLAGS_REMOVE_common.o = $(CC_FLAGS_FTRACE)
+CFLAGS_REMOVE_generic.o = $(CC_FLAGS_FTRACE)
+CFLAGS_REMOVE_tags.o = $(CC_FLAGS_FTRACE)
 
 # Function splitter causes unnecessary splits in __asan_load1/__asan_store1
 # see: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=63533
