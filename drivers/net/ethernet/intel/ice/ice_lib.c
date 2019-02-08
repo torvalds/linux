@@ -175,17 +175,14 @@ static int ice_pf_rxq_wait(struct ice_pf *pf, int pf_q, bool ena)
 	int i;
 
 	for (i = 0; i < ICE_Q_WAIT_MAX_RETRY; i++) {
-		u32 rx_reg = rd32(&pf->hw, QRX_CTRL(pf_q));
-
-		if (ena == !!(rx_reg & QRX_CTRL_QENA_STAT_M))
-			break;
+		if (ena == !!(rd32(&pf->hw, QRX_CTRL(pf_q)) &
+			      QRX_CTRL_QENA_STAT_M))
+			return 0;
 
 		usleep_range(20, 40);
 	}
-	if (i >= ICE_Q_WAIT_MAX_RETRY)
-		return -ETIMEDOUT;
 
-	return 0;
+	return -ETIMEDOUT;
 }
 
 /**
