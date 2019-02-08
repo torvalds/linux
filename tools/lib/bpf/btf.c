@@ -367,8 +367,6 @@ void btf__free(struct btf *btf)
 
 struct btf *btf__new(__u8 *data, __u32 size)
 {
-	__u32 log_buf_size = 0;
-	char *log_buf = NULL;
 	struct btf *btf;
 	int err;
 
@@ -378,15 +376,6 @@ struct btf *btf__new(__u8 *data, __u32 size)
 
 	btf->fd = -1;
 
-	log_buf = malloc(BPF_LOG_BUF_SIZE);
-	if (!log_buf) {
-		err = -ENOMEM;
-		goto done;
-	}
-
-	*log_buf = 0;
-	log_buf_size = BPF_LOG_BUF_SIZE;
-
 	btf->data = malloc(size);
 	if (!btf->data) {
 		err = -ENOMEM;
@@ -395,17 +384,6 @@ struct btf *btf__new(__u8 *data, __u32 size)
 
 	memcpy(btf->data, data, size);
 	btf->data_size = size;
-
-	btf->fd = bpf_load_btf(btf->data, btf->data_size,
-			       log_buf, log_buf_size, false);
-
-	if (btf->fd == -1) {
-		err = -errno;
-		pr_warning("Error loading BTF: %s(%d)\n", strerror(errno), errno);
-		if (log_buf && *log_buf)
-			pr_warning("%s\n", log_buf);
-		goto done;
-	}
 
 	err = btf_parse_hdr(btf);
 	if (err)
@@ -418,14 +396,42 @@ struct btf *btf__new(__u8 *data, __u32 size)
 	err = btf_parse_type_sec(btf);
 
 done:
-	free(log_buf);
-
 	if (err) {
 		btf__free(btf);
 		return ERR_PTR(err);
 	}
 
 	return btf;
+}
+
+int btf__load(struct btf *btf)
+{
+	__u32 log_buf_size = BPF_LOG_BUF_SIZE;
+	char *log_buf = NULL;
+	int err = 0;
+
+	if (btf->fd >= 0)
+		return -EEXIST;
+
+	log_buf = malloc(log_buf_size);
+	if (!log_buf)
+		return -ENOMEM;
+
+	*log_buf = 0;
+
+	btf->fd = bpf_load_btf(btf->data, btf->data_size,
+			       log_buf, log_buf_size, false);
+	if (btf->fd < 0) {
+		err = -errno;
+		pr_warning("Error loading BTF: %s(%d)\n", strerror(errno), errno);
+		if (*log_buf)
+			pr_warning("%s\n", log_buf);
+		goto done;
+	}
+
+done:
+	free(log_buf);
+	return err;
 }
 
 int btf__fd(const struct btf *btf)
