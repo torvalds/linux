@@ -254,12 +254,11 @@ static inline bool need_preempt(const struct intel_engine_cs *engine,
 }
 
 __maybe_unused static inline bool
-assert_priority_queue(const struct intel_engine_execlists *execlists,
-		      const struct i915_request *prev,
+assert_priority_queue(const struct i915_request *prev,
 		      const struct i915_request *next)
 {
-	if (!prev)
-		return true;
+	const struct intel_engine_execlists *execlists =
+		&prev->engine->execlists;
 
 	/*
 	 * Without preemption, the prev may refer to the still active element
@@ -564,6 +563,17 @@ static bool can_merge_ctx(const struct intel_context *prev,
 	return true;
 }
 
+static bool can_merge_rq(const struct i915_request *prev,
+			 const struct i915_request *next)
+{
+	GEM_BUG_ON(!assert_priority_queue(prev, next));
+
+	if (!can_merge_ctx(prev->hw_context, next->hw_context))
+		return false;
+
+	return true;
+}
+
 static void port_assign(struct execlist_port *port, struct i915_request *rq)
 {
 	GEM_BUG_ON(rq == port_request(port));
@@ -716,8 +726,6 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 		int i;
 
 		priolist_for_each_request_consume(rq, rn, p, i) {
-			GEM_BUG_ON(!assert_priority_queue(execlists, last, rq));
-
 			/*
 			 * Can we combine this request with the current port?
 			 * It has to be the same context/ringbuffer and not
@@ -729,14 +737,21 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 			 * second request, and so we never need to tell the
 			 * hardware about the first.
 			 */
-			if (last &&
-			    !can_merge_ctx(rq->hw_context, last->hw_context)) {
+			if (last && !can_merge_rq(last, rq)) {
 				/*
 				 * If we are on the second port and cannot
 				 * combine this request with the last, then we
 				 * are done.
 				 */
 				if (port == last_port)
+					goto done;
+
+				/*
+				 * We must not populate both ELSP[] with the
+				 * same LRCA, i.e. we must submit 2 different
+				 * contexts if we submit 2 ELSP.
+				 */
+				if (last->hw_context == rq->hw_context)
 					goto done;
 
 				/*
@@ -750,7 +765,6 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 				    ctx_single_port_submission(rq->hw_context))
 					goto done;
 
-				GEM_BUG_ON(last->hw_context == rq->hw_context);
 
 				if (submit)
 					port_assign(port, last);
@@ -790,8 +804,7 @@ done:
 	 * request triggering preemption on the next dequeue (or subsequent
 	 * interrupt for secondary ports).
 	 */
-	execlists->queue_priority_hint =
-		port != execlists->port ? rq_prio(last) : INT_MIN;
+	execlists->queue_priority_hint = queue_prio(execlists);
 
 	if (submit) {
 		port_assign(port, last);
