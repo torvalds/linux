@@ -13,6 +13,14 @@
 #include <asm/ccwdev.h>
 #include <asm/pnet.h>
 
+#define PNETIDS_LEN		64	/* Total utility string length in bytes
+					 * to cover up to 4 PNETIDs of 16 bytes
+					 * for up to 4 device ports
+					 */
+#define MAX_PNETID_LEN		16	/* Max.length of a single port PNETID */
+#define MAX_PNETID_PORTS	(PNETIDS_LEN / MAX_PNETID_LEN)
+					/* Max. # of ports with a PNETID */
+
 /*
  * Get the PNETIDs from a device.
  * s390 hardware supports the definition of a so-called Physical Network
