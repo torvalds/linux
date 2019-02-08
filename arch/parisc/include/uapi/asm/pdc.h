@@ -60,6 +60,7 @@
 #define  PDC_MODEL_NVA_UNSUPPORTED	(3 << 4)
 #define PDC_MODEL_GET_BOOT__OP	8	/* returns boot test options	*/
 #define PDC_MODEL_SET_BOOT__OP	9	/* set boot test options	*/
+#define PDC_MODEL_GET_PLATFORM_INFO 10	/* returns platform info	*/
 
 #define PA89_INSTRUCTION_SET	0x4	/* capabilities returned	*/
 #define PA90_INSTRUCTION_SET	0x8
@@ -99,7 +100,7 @@
 #define PDC_TOD		9		/* time-of-day clock (TOD)	*/
 #define PDC_TOD_READ		0	/* read TOD			*/
 #define PDC_TOD_WRITE		1	/* write TOD			*/
-
+#define PDC_TOD_CALIBRATE	2	/* calibrate timers		*/
 
 #define PDC_STABLE	10		/* stable storage (sprockets)	*/
 #define PDC_STABLE_READ		0
@@ -261,6 +262,10 @@
 #define PDC_PCI_READ_MON_TYPE		15
 #define PDC_PCI_WRITE_MON_TYPE		16
 
+#define PDC_RELOCATE	149		/* (sprockets)			*/
+#define PDC_RELOCATE_GET_RELOCINFO	0
+#define PDC_RELOCATE_CHECKSUM		1
+#define PDC_RELOCATE_RELOCATE		2
 
 /* Get SCSI Interface Card info:  SDTR, SCSI ID, mode (SE vs LVD) */
 #define PDC_INITIATOR	163
