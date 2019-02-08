@@ -134,6 +134,14 @@ struct msgbuf_completion_hdr {
 	__le16				flow_ring_id;
 };
 
+/* Data struct for the MSGBUF_TYPE_RING_STATUS */
+struct msgbuf_ring_status {
+	struct msgbuf_common_hdr	msg;
+	struct msgbuf_completion_hdr	compl_hdr;
+	__le16				write_idx;
+	__le32				rsvd0[5];
+};
+
 struct msgbuf_rx_event {
 	struct msgbuf_common_hdr	msg;
 	struct msgbuf_completion_hdr	compl_hdr;
@@ -1180,6 +1188,19 @@ brcmf_msgbuf_process_rx_complete(struct brcmf_msgbuf *msgbuf, void *buf)
 	brcmf_netif_rx(ifp, skb);
 }
 
+static void brcmf_msgbuf_process_ring_status(struct brcmf_msgbuf *msgbuf,
+					     void *buf)
+{
+	struct msgbuf_ring_status *ring_status = buf;
+	int err;
+
+	err = le16_to_cpu(ring_status->compl_hdr.status);
+	if (err) {
+		int ring = le16_to_cpu(ring_status->compl_hdr.flow_ring_id);
+
+		brcmf_err("Firmware reported ring %d error: %d\n", ring, err);
+	}
+}
 
 static void
 brcmf_msgbuf_process_flow_ring_create_response(struct brcmf_msgbuf *msgbuf,
@@ -1241,6 +1262,10 @@ static void brcmf_msgbuf_process_msgtype(struct brcmf_msgbuf *msgbuf, void *buf)
 
 	msg = (struct msgbuf_common_hdr *)buf;
 	switch (msg->msgtype) {
+	case MSGBUF_TYPE_RING_STATUS:
+		brcmf_dbg(MSGBUF, "MSGBUF_TYPE_RING_STATUS\n");
+		brcmf_msgbuf_process_ring_status(msgbuf, buf);
+		break;
 	case MSGBUF_TYPE_FLOW_RING_CREATE_CMPLT:
 		brcmf_dbg(MSGBUF, "MSGBUF_TYPE_FLOW_RING_CREATE_CMPLT\n");
 		brcmf_msgbuf_process_flow_ring_create_response(msgbuf, buf);
