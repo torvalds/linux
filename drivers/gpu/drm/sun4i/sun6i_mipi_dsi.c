@@ -1025,6 +1025,7 @@ static int sun6i_dsi_probe(struct platform_device *pdev)
 	dsi->dphy = devm_phy_get(dev, "dphy");
 	if (IS_ERR(dsi->dphy)) {
 		dev_err(dev, "Couldn't get the MIPI D-PHY\n");
+		ret = PTR_ERR(dsi->dphy);
 		goto err_unprotect_clk;
 	}
 
