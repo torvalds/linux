@@ -1415,13 +1415,15 @@ void ice_release_res(struct ice_hw *hw, enum ice_aq_res_ids res)
 }
 
 /**
- * ice_get_guar_num_vsi - determine number of guar VSI for a PF
+ * ice_get_num_per_func - determine number of resources per PF
  * @hw: pointer to the hw structure
+ * @max: value to be evenly split between each PF
  *
  * Determine the number of valid functions by going through the bitmap returned
- * from parsing capabilities and use this to calculate the number of VSI per PF.
+ * from parsing capabilities and use this to calculate the number of resources
+ * per PF based on the max value passed in.
  */
-static u32 ice_get_guar_num_vsi(struct ice_hw *hw)
+static u32 ice_get_num_per_func(struct ice_hw *hw, u32 max)
 {
 	u8 funcs;
 
@@ -1432,7 +1434,7 @@ static u32 ice_get_guar_num_vsi(struct ice_hw *hw)
 	if (!funcs)
 		return 0;
 
-	return ICE_MAX_VSI / funcs;
+	return max / funcs;
 }
 
 /**
@@ -1512,7 +1514,8 @@ ice_parse_caps(struct ice_hw *hw, void *buf, u32 cap_count,
 					  "HW caps: Dev.VSI cnt = %d\n",
 					  dev_p->num_vsi_allocd_to_host);
 			} else if (func_p) {
-				func_p->guar_num_vsi = ice_get_guar_num_vsi(hw);
+				func_p->guar_num_vsi =
+					ice_get_num_per_func(hw, ICE_MAX_VSI);
 				ice_debug(hw, ICE_DBG_INIT,
 					  "HW caps: Func.VSI cnt = %d\n",
 					  number);
