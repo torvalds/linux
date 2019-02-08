@@ -6046,6 +6046,8 @@ static const struct efx_ef10_nvram_type_info efx_ef10_nvram_types[] = {
 	{ NVRAM_PARTITION_TYPE_DYNCONFIG_DEFAULTS, 0,    0, "sfc_dynamic_cfg_dflt" },
 	{ NVRAM_PARTITION_TYPE_ROMCONFIG_DEFAULTS, 0,    0, "sfc_exp_rom_cfg_dflt" },
 	{ NVRAM_PARTITION_TYPE_STATUS,		   0,    0, "sfc_status" },
+	{ NVRAM_PARTITION_TYPE_BUNDLE,		   0,    0, "sfc_bundle" },
+	{ NVRAM_PARTITION_TYPE_BUNDLE_METADATA,	   0,    0, "sfc_bundle_metadata" },
 };
 #define EF10_NVRAM_PARTITION_COUNT	ARRAY_SIZE(efx_ef10_nvram_types)
 
