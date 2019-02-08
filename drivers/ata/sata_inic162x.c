@@ -245,8 +245,15 @@ struct inic_port_priv {
 
 static struct scsi_host_template inic_sht = {
 	ATA_BASE_SHT(DRV_NAME),
-	.sg_tablesize	= LIBATA_MAX_PRD,	/* maybe it can be larger? */
-	.dma_boundary	= INIC_DMA_BOUNDARY,
+	.sg_tablesize		= LIBATA_MAX_PRD, /* maybe it can be larger? */
+
+	/*
+	 * This controller is braindamaged.  dma_boundary is 0xffff like others
+	 * but it will lock up the whole machine HARD if 65536 byte PRD entry
+	 * is fed.  Reduce maximum segment size.
+	 */
+	.dma_boundary		= INIC_DMA_BOUNDARY,
+	.max_segment_size	= 65536 - 512,
 };
 
 static const int scr_map[] = {
@@ -865,17 +872,6 @@ static int inic_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	rc = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
 	if (rc) {
 		dev_err(&pdev->dev, "32-bit consistent DMA enable failed\n");
-		return rc;
-	}
-
-	/*
-	 * This controller is braindamaged.  dma_boundary is 0xffff
-	 * like others but it will lock up the whole machine HARD if
-	 * 65536 byte PRD entry is fed. Reduce maximum segment size.
-	 */
-	rc = dma_set_max_seg_size(&pdev->dev, 65536 - 512);
-	if (rc) {
-		dev_err(&pdev->dev, "failed to set the maximum segment size\n");
 		return rc;
 	}
 

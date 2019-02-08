@@ -206,4 +206,4 @@ filechk_conf_cfg = $(CONFIG_SHELL) $<
 $(obj)/%conf-cfg: $(src)/%conf-cfg.sh FORCE
 	$(call filechk,conf_cfg)
 
-clean-files += conf-cfg
+clean-files += *conf-cfg

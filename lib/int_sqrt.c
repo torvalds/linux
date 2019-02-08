@@ -52,7 +52,7 @@ u32 int_sqrt64(u64 x)
 	if (x <= ULONG_MAX)
 		return int_sqrt((unsigned long) x);
 
-	m = 1ULL << (fls64(x) & ~1ULL);
+	m = 1ULL << ((fls64(x) - 1) & ~1ULL);
 	while (m != 0) {
 		b = y + m;
 		y >>= 1;

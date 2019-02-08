@@ -820,21 +820,24 @@ static int ibmvmc_send_msg(struct crq_server_adapter *adapter,
  *
  * Return:
  *	0 - Success
+ *	Non-zero - Failure
  */
 static int ibmvmc_open(struct inode *inode, struct file *file)
 {
 	struct ibmvmc_file_session *session;
-	int rc = 0;
 
 	pr_debug("%s: inode = 0x%lx, file = 0x%lx, state = 0x%x\n", __func__,
 		 (unsigned long)inode, (unsigned long)file,
 		 ibmvmc.state);
 
 	session = kzalloc(sizeof(*session), GFP_KERNEL);
+	if (!session)
+		return -ENOMEM;
+
 	session->file = file;
 	file->private_data = session;
 
-	return rc;
+	return 0;
 }
 
 /**

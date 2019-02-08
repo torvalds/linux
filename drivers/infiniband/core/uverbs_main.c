@@ -690,6 +690,7 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 
 	buf += sizeof(hdr);
 
+	memset(bundle.attr_present, 0, sizeof(bundle.attr_present));
 	bundle.ufile = file;
 	if (!method_elm->is_ex) {
 		size_t in_len = hdr.in_words * 4 - sizeof(hdr);
