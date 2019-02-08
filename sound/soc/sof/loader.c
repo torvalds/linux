@@ -223,7 +223,7 @@ static int load_modules(struct snd_sof_dev *sdev, const struct firmware *fw)
 	return 0;
 }
 
-int snd_sof_load_firmware_memcpy(struct snd_sof_dev *sdev)
+int snd_sof_load_firmware_raw(struct snd_sof_dev *sdev)
 {
 	struct snd_sof_pdata *plat_data = sdev->pdata;
 	const char *fw_filename;
@@ -244,8 +244,19 @@ int snd_sof_load_firmware_memcpy(struct snd_sof_dev *sdev)
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: request firmware %s failed err: %d\n",
 			fw_filename, ret);
-		return ret;
 	}
+	return ret;
+}
+EXPORT_SYMBOL(snd_sof_load_firmware_raw);
+
+int snd_sof_load_firmware_memcpy(struct snd_sof_dev *sdev)
+{
+	struct snd_sof_pdata *plat_data = sdev->pdata;
+	int ret;
+
+	ret = snd_sof_load_firmware_raw(sdev);
+	if (ret < 0)
+		return ret;
 
 	/* make sure the FW header and file is valid */
 	ret = check_header(sdev, plat_data->fw);

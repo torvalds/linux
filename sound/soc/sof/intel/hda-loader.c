@@ -245,24 +245,6 @@ static int cl_copy_fw(struct snd_sof_dev *sdev, struct hdac_ext_stream *stream)
 	return status;
 }
 
-int hda_dsp_cl_load_fw(struct snd_sof_dev *sdev)
-{
-	struct snd_sof_pdata *plat_data = sdev->pdata;
-	const char *fw_filename;
-
-	/* set code loading condition to true */
-	sdev->code_loading = 1;
-
-	fw_filename = devm_kasprintf(sdev->dev, GFP_KERNEL,
-				     "%s/%s",
-				     plat_data->fw_filename_prefix,
-				     plat_data->fw_filename);
-	if (!fw_filename)
-		return -ENOMEM;
-
-	return request_firmware(&plat_data->fw, fw_filename, sdev->dev);
-}
-
 int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 {
 	struct snd_sof_pdata *plat_data = sdev->pdata;
