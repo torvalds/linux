@@ -345,7 +345,7 @@ static void nfp_fl_set_helper32(u32 value, u32 mask, u8 *p_exact, u8 *p_mask)
 }
 
 static int
-nfp_fl_set_eth(const struct flow_action_entry *act, int idx, u32 off,
+nfp_fl_set_eth(const struct flow_action_entry *act, u32 off,
 	       struct nfp_fl_set_eth *set_eth)
 {
 	u32 exact, mask;
@@ -376,7 +376,7 @@ struct ipv4_ttl_word {
 };
 
 static int
-nfp_fl_set_ip4(const struct flow_action_entry *act, int idx, u32 off,
+nfp_fl_set_ip4(const struct flow_action_entry *act, u32 off,
 	       struct nfp_fl_set_ip4_addrs *set_ip_addr,
 	       struct nfp_fl_set_ip4_ttl_tos *set_ip_ttl_tos)
 {
@@ -505,7 +505,7 @@ nfp_fl_set_ip6_hop_limit_flow_label(u32 off, __be32 exact, __be32 mask,
 }
 
 static int
-nfp_fl_set_ip6(const struct flow_action_entry *act, int idx, u32 off,
+nfp_fl_set_ip6(const struct flow_action_entry *act, u32 off,
 	       struct nfp_fl_set_ipv6_addr *ip_dst,
 	       struct nfp_fl_set_ipv6_addr *ip_src,
 	       struct nfp_fl_set_ipv6_tc_hl_fl *ip_hl_fl)
@@ -541,7 +541,7 @@ nfp_fl_set_ip6(const struct flow_action_entry *act, int idx, u32 off,
 }
 
 static int
-nfp_fl_set_tport(const struct flow_action_entry *act, int idx, u32 off,
+nfp_fl_set_tport(const struct flow_action_entry *act, u32 off,
 		 struct nfp_fl_set_tport *set_tport, int opcode)
 {
 	u32 exact, mask;
@@ -598,8 +598,8 @@ nfp_fl_pedit(const struct flow_action_entry *act,
 	struct nfp_fl_set_eth set_eth;
 	size_t act_size = 0;
 	u8 ip_proto = 0;
-	int idx, err;
 	u32 offset;
+	int err;
 
 	memset(&set_ip6_tc_hl_fl, 0, sizeof(set_ip6_tc_hl_fl));
 	memset(&set_ip_ttl_tos, 0, sizeof(set_ip_ttl_tos));
@@ -614,22 +614,22 @@ nfp_fl_pedit(const struct flow_action_entry *act,
 
 	switch (htype) {
 	case TCA_PEDIT_KEY_EX_HDR_TYPE_ETH:
-		err = nfp_fl_set_eth(act, idx, offset, &set_eth);
+		err = nfp_fl_set_eth(act, offset, &set_eth);
 		break;
 	case TCA_PEDIT_KEY_EX_HDR_TYPE_IP4:
-		err = nfp_fl_set_ip4(act, idx, offset, &set_ip_addr,
+		err = nfp_fl_set_ip4(act, offset, &set_ip_addr,
 				     &set_ip_ttl_tos);
 		break;
 	case TCA_PEDIT_KEY_EX_HDR_TYPE_IP6:
-		err = nfp_fl_set_ip6(act, idx, offset, &set_ip6_dst,
+		err = nfp_fl_set_ip6(act, offset, &set_ip6_dst,
 				     &set_ip6_src, &set_ip6_tc_hl_fl);
 		break;
 	case TCA_PEDIT_KEY_EX_HDR_TYPE_TCP:
-		err = nfp_fl_set_tport(act, idx, offset, &set_tport,
+		err = nfp_fl_set_tport(act, offset, &set_tport,
 				       NFP_FL_ACTION_OPCODE_SET_TCP);
 		break;
 	case TCA_PEDIT_KEY_EX_HDR_TYPE_UDP:
-		err = nfp_fl_set_tport(act, idx, offset, &set_tport,
+		err = nfp_fl_set_tport(act, offset, &set_tport,
 				       NFP_FL_ACTION_OPCODE_SET_UDP);
 		break;
 	default:
