@@ -1169,7 +1169,7 @@ int ice_napi_poll(struct napi_struct *napi, int budget)
 		if (test_bit(ICE_FLAG_MSIX_ENA, pf->flags))
 			ice_update_ena_itr(vsi, q_vector);
 
-	return min(work_done, budget - 1);
+	return min_t(int, work_done, budget - 1);
 }
 
 /* helper function for building cmd/type/offset */
