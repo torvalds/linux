@@ -3861,13 +3861,9 @@ i915_wedged_set(void *data, u64 val)
 {
 	struct drm_i915_private *i915 = data;
 
-	/*
-	 * There is no safeguard against this debugfs entry colliding
-	 * with the hangcheck calling same i915_handle_error() in
-	 * parallel, causing an explosion. For now we assume that the
-	 * test harness is responsible enough not to inject gpu hangs
-	 * while it is writing to 'i915_wedged'
-	 */
+	/* Flush any previous reset before applying for a new one */
+	wait_event(i915->gpu_error.reset_queue,
+		   !test_bit(I915_RESET_BACKOFF, &i915->gpu_error.flags));
 
 	i915_handle_error(i915, val, I915_ERROR_CAPTURE,
 			  "Manually set wedged engine mask = %llx", val);
