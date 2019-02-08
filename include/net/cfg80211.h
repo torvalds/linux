@@ -2035,6 +2035,10 @@ struct cfg80211_bss_ies {
  *	a BSS that hides the SSID in its beacon, this points to the BSS struct
  *	that holds the beacon data. @beacon_ies is still valid, of course, and
  *	points to the same data as hidden_beacon_bss->beacon_ies in that case.
+ * @transmitted_bss: pointer to the transmitted BSS, if this is a
+ *	non-transmitted one (multi-BSSID support)
+ * @nontrans_list: list of non-transmitted BSS, if this is a transmitted one
+ *	(multi-BSSID support)
  * @signal: signal strength value (type depends on the wiphy's signal_type)
  * @chains: bitmask for filled values in @chain_signal.
  * @chain_signal: per-chain signal strength of last received BSS in dBm.
