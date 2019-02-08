@@ -209,7 +209,7 @@ int ipvlan_l3s_register(struct ipvl_port *port)
 	ret = ipvlan_register_nf_hook(read_pnet(&port->pnet));
 	if (!ret) {
 		dev->l3mdev_ops = &ipvl_l3mdev_ops;
-		dev->priv_flags |= IFF_L3MDEV_MASTER;
+		dev->priv_flags |= IFF_L3MDEV_RX_HANDLER;
 	}
 
 	return ret;
@@ -221,7 +221,7 @@ void ipvlan_l3s_unregister(struct ipvl_port *port)
 
 	ASSERT_RTNL();
 
-	dev->priv_flags &= ~IFF_L3MDEV_MASTER;
+	dev->priv_flags &= ~IFF_L3MDEV_RX_HANDLER;
 	ipvlan_unregister_nf_hook(read_pnet(&port->pnet));
 	dev->l3mdev_ops = NULL;
 }

@@ -156,20 +156,17 @@ nla_put_failure:
 	return -1;
 }
 
-static void nft_objref_map_activate(const struct nft_ctx *ctx,
-				    const struct nft_expr *expr)
-{
-	struct nft_objref_map *priv = nft_expr_priv(expr);
-
-	nf_tables_rebind_set(ctx, priv->set, &priv->binding);
-}
-
 static void nft_objref_map_deactivate(const struct nft_ctx *ctx,
-				      const struct nft_expr *expr)
+				      const struct nft_expr *expr,
+				      enum nft_trans_phase phase)
 {
 	struct nft_objref_map *priv = nft_expr_priv(expr);
 
-	nf_tables_unbind_set(ctx, priv->set, &priv->binding);
+	if (phase == NFT_TRANS_PREPARE)
+		return;
+
+	nf_tables_unbind_set(ctx, priv->set, &priv->binding,
+			     phase == NFT_TRANS_COMMIT);
 }
 
 static void nft_objref_map_destroy(const struct nft_ctx *ctx,
@@ -186,7 +183,6 @@ static const struct nft_expr_ops nft_objref_map_ops = {
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_objref_map)),
 	.eval		= nft_objref_map_eval,
 	.init		= nft_objref_map_init,
-	.activate	= nft_objref_map_activate,
 	.deactivate	= nft_objref_map_deactivate,
 	.destroy	= nft_objref_map_destroy,
 	.dump		= nft_objref_map_dump,
