@@ -1029,6 +1029,9 @@ void __init acpi_early_init(void)
 
 	acpi_permanent_mmap = true;
 
+	/* Initialize debug output. Linux does not use ACPICA defaults */
+	acpi_dbg_level = ACPI_LV_INFO | ACPI_LV_REPAIR;
+
 #ifdef CONFIG_X86
 	/*
 	 * If the machine falls into the DMI check table,
