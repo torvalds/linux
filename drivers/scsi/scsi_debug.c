@@ -1015,7 +1015,7 @@ static int fill_from_dev_buffer(struct scsi_cmnd *scp, unsigned char *arr,
 
 	act_len = sg_copy_from_buffer(sdb->table.sgl, sdb->table.nents,
 				      arr, arr_len);
-	sdb->resid = scsi_bufflen(scp) - act_len;
+	scsi_set_resid(scp, scsi_bufflen(scp) - act_len);
 
 	return 0;
 }
@@ -1040,9 +1040,10 @@ static int p_fill_from_dev_buffer(struct scsi_cmnd *scp, const void *arr,
 	act_len = sg_pcopy_from_buffer(sdb->table.sgl, sdb->table.nents,
 				       arr, arr_len, skip);
 	pr_debug("%s: off_dst=%u, scsi_bufflen=%u, act_len=%u, resid=%d\n",
-		 __func__, off_dst, scsi_bufflen(scp), act_len, sdb->resid);
+		 __func__, off_dst, scsi_bufflen(scp), act_len,
+		 scsi_get_resid(scp));
 	n = (int)scsi_bufflen(scp) - ((int)off_dst + act_len);
-	sdb->resid = min(sdb->resid, n);
+	scsi_set_resid(scp, min(scsi_get_resid(scp), n));
 	return 0;
 }
 
@@ -2768,7 +2769,7 @@ static int resp_read_dt0(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 	if (unlikely(ret == -1))
 		return DID_ERROR << 16;
 
-	scp->sdb.resid = scsi_bufflen(scp) - ret;
+	scsi_set_resid(scp, scsi_bufflen(scp) - ret);
 
 	if (unlikely(sqcp)) {
 		if (sqcp->inj_recovered) {
