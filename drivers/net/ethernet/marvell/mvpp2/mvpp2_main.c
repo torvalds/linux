@@ -4534,29 +4534,21 @@ static void mvpp2_xlg_config(struct mvpp2_port *port, unsigned int mode,
 static void mvpp2_gmac_config(struct mvpp2_port *port, unsigned int mode,
 			      const struct phylink_link_state *state)
 {
-	u32 an, ctrl0, ctrl2, ctrl4;
-	u32 old_ctrl2;
+	u32 old_an, an;
+	u32 old_ctrl0, ctrl0;
+	u32 old_ctrl2, ctrl2;
+	u32 old_ctrl4, ctrl4;
 
-	an = readl(port->base + MVPP2_GMAC_AUTONEG_CONFIG);
-	ctrl0 = readl(port->base + MVPP2_GMAC_CTRL_0_REG);
-	ctrl2 = readl(port->base + MVPP2_GMAC_CTRL_2_REG);
-	ctrl4 = readl(port->base + MVPP22_GMAC_CTRL_4_REG);
-
-	old_ctrl2 = ctrl2;
-
-	/* Force link down */
-	an &= ~MVPP2_GMAC_FORCE_LINK_PASS;
-	an |= MVPP2_GMAC_FORCE_LINK_DOWN;
-	writel(an, port->base + MVPP2_GMAC_AUTONEG_CONFIG);
-
-	/* Set the GMAC in a reset state */
-	ctrl2 |= MVPP2_GMAC_PORT_RESET_MASK;
-	writel(ctrl2, port->base + MVPP2_GMAC_CTRL_2_REG);
+	old_an = an = readl(port->base + MVPP2_GMAC_AUTONEG_CONFIG);
+	old_ctrl0 = ctrl0 = readl(port->base + MVPP2_GMAC_CTRL_0_REG);
+	old_ctrl2 = ctrl2 = readl(port->base + MVPP2_GMAC_CTRL_2_REG);
+	old_ctrl4 = ctrl4 = readl(port->base + MVPP22_GMAC_CTRL_4_REG);
 
 	an &= ~(MVPP2_GMAC_CONFIG_MII_SPEED | MVPP2_GMAC_CONFIG_GMII_SPEED |
 		MVPP2_GMAC_AN_SPEED_EN | MVPP2_GMAC_FC_ADV_EN |
 		MVPP2_GMAC_FC_ADV_ASM_EN | MVPP2_GMAC_FLOW_CTRL_AUTONEG |
-		MVPP2_GMAC_CONFIG_FULL_DUPLEX | MVPP2_GMAC_AN_DUPLEX_EN);
+		MVPP2_GMAC_CONFIG_FULL_DUPLEX | MVPP2_GMAC_AN_DUPLEX_EN |
+		MVPP2_GMAC_IN_BAND_AUTONEG | MVPP2_GMAC_IN_BAND_AUTONEG_BYPASS);
 	ctrl0 &= ~MVPP2_GMAC_PORT_TYPE_MASK;
 	ctrl2 &= ~(MVPP2_GMAC_INBAND_AN_MASK | MVPP2_GMAC_PORT_RESET_MASK |
 		   MVPP2_GMAC_PCS_ENABLE_MASK);
@@ -4623,7 +4615,8 @@ static void mvpp2_gmac_config(struct mvpp2_port *port, unsigned int mode,
 		 */
 		ctrl0 |= MVPP2_GMAC_PORT_TYPE_MASK;
 		an &= ~(MVPP2_GMAC_FORCE_LINK_DOWN | MVPP2_GMAC_FORCE_LINK_PASS);
-		an |= MVPP2_GMAC_CONFIG_GMII_SPEED |
+		an |= MVPP2_GMAC_IN_BAND_AUTONEG |
+		      MVPP2_GMAC_CONFIG_GMII_SPEED |
 		      MVPP2_GMAC_CONFIG_FULL_DUPLEX;
 
 		if (state->pause & MLO_PAUSE_AN && state->an_enabled) {
@@ -4636,10 +4629,29 @@ static void mvpp2_gmac_config(struct mvpp2_port *port, unsigned int mode,
 		}
 	}
 
-	writel(ctrl0, port->base + MVPP2_GMAC_CTRL_0_REG);
-	writel(ctrl2, port->base + MVPP2_GMAC_CTRL_2_REG);
-	writel(ctrl4, port->base + MVPP22_GMAC_CTRL_4_REG);
-	writel(an, port->base + MVPP2_GMAC_AUTONEG_CONFIG);
+	if ((old_ctrl0 ^ ctrl0) & MVPP2_GMAC_PORT_TYPE_MASK ||
+	    (old_ctrl2 ^ ctrl2) & MVPP2_GMAC_INBAND_AN_MASK ||
+	    (old_an ^ an) & MVPP2_GMAC_IN_BAND_AUTONEG) {
+		/* Force link down */
+		old_an &= ~MVPP2_GMAC_FORCE_LINK_PASS;
+		old_an |= MVPP2_GMAC_FORCE_LINK_DOWN;
+		writel(old_an, port->base + MVPP2_GMAC_AUTONEG_CONFIG);
+
+		/* Set the GMAC in a reset state - do this in a way that
+		 * ensures we clear it below.
+		 */
+		old_ctrl2 |= MVPP2_GMAC_PORT_RESET_MASK;
+		writel(old_ctrl2, port->base + MVPP2_GMAC_CTRL_2_REG);
+	}
+
+	if (old_ctrl0 != ctrl0)
+		writel(ctrl0, port->base + MVPP2_GMAC_CTRL_0_REG);
+	if (old_ctrl2 != ctrl2)
+		writel(ctrl2, port->base + MVPP2_GMAC_CTRL_2_REG);
+	if (old_ctrl4 != ctrl4)
+		writel(ctrl4, port->base + MVPP22_GMAC_CTRL_4_REG);
+	if (old_an != an)
+		writel(an, port->base + MVPP2_GMAC_AUTONEG_CONFIG);
 
 	if (old_ctrl2 & MVPP2_GMAC_PORT_RESET_MASK) {
 		while (readl(port->base + MVPP2_GMAC_CTRL_2_REG) &
