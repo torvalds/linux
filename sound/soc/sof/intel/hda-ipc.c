@@ -118,7 +118,13 @@ int hda_dsp_ipc_get_reply(struct snd_sof_dev *sdev,
 irqreturn_t hda_dsp_ipc_irq_thread(int irq, void *context)
 {
 	struct snd_sof_dev *sdev = (struct snd_sof_dev *)context;
-	u32 hipci, hipcie, hipct, hipcte, hipcctl, msg = 0, msg_ext = 0;
+	u32 hipci;
+	u32 hipcie;
+	u32 hipct;
+	u32 hipcte;
+	u32 hipcctl;
+	u32 msg;
+	u32 msg_ext;
 	irqreturn_t ret = IRQ_NONE;
 	int reply = -EINVAL;
 
