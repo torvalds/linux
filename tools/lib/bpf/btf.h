@@ -78,6 +78,8 @@ LIBBPF_API int btf__get_map_kv_tids(const struct btf *btf, const char *map_name,
 
 LIBBPF_API struct btf_ext *btf_ext__new(__u8 *data, __u32 size);
 LIBBPF_API void btf_ext__free(struct btf_ext *btf_ext);
+LIBBPF_API const void *btf_ext__get_raw_data(const struct btf_ext* btf_ext,
+					     __u32 *size);
 LIBBPF_API int btf_ext__reloc_func_info(const struct btf *btf,
 					const struct btf_ext *btf_ext,
 					const char *sec_name, __u32 insns_cnt,

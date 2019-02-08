@@ -42,9 +42,8 @@ struct btf {
 
 struct btf_ext_info {
 	/*
-	 * info points to a deep copy of the individual info section
-	 * (e.g. func_info and line_info) from the .BTF.ext.
-	 * It does not include the __u32 rec_size.
+	 * info points to the individual info section (e.g. func_info and
+	 * line_info) from the .BTF.ext. It does not include the __u32 rec_size.
 	 */
 	void *info;
 	__u32 rec_size;
@@ -52,8 +51,13 @@ struct btf_ext_info {
 };
 
 struct btf_ext {
+	union {
+		struct btf_ext_header *hdr;
+		void *data;
+	};
 	struct btf_ext_info func_info;
 	struct btf_ext_info line_info;
+	__u32 data_size;
 };
 
 struct btf_ext_info_sec {
@@ -596,7 +600,7 @@ int btf__get_map_kv_tids(const struct btf *btf, const char *map_name,
 	return 0;
 }
 
-struct btf_ext_sec_copy_param {
+struct btf_ext_sec_setup_param {
 	__u32 off;
 	__u32 len;
 	__u32 min_rec_size;
@@ -604,20 +608,14 @@ struct btf_ext_sec_copy_param {
 	const char *desc;
 };
 
-static int btf_ext_copy_info(struct btf_ext *btf_ext,
-			     __u8 *data, __u32 data_size,
-			     struct btf_ext_sec_copy_param *ext_sec)
+static int btf_ext_setup_info(struct btf_ext *btf_ext,
+			      struct btf_ext_sec_setup_param *ext_sec)
 {
-	const struct btf_ext_header *hdr = (struct btf_ext_header *)data;
 	const struct btf_ext_info_sec *sinfo;
 	struct btf_ext_info *ext_info;
 	__u32 info_left, record_size;
 	/* The start of the info sec (including the __u32 record_size). */
-	const void *info;
-
-	/* data and data_size do not include btf_ext_header from now on */
-	data = data + hdr->hdr_len;
-	data_size -= hdr->hdr_len;
+	void *info;
 
 	if (ext_sec->off & 0x03) {
 		pr_debug(".BTF.ext %s section is not aligned to 4 bytes\n",
@@ -625,15 +623,14 @@ static int btf_ext_copy_info(struct btf_ext *btf_ext,
 		return -EINVAL;
 	}
 
-	if (data_size < ext_sec->off ||
-	    ext_sec->len > data_size - ext_sec->off) {
+	info = btf_ext->data + btf_ext->hdr->hdr_len + ext_sec->off;
+	info_left = ext_sec->len;
+
+	if (btf_ext->data + btf_ext->data_size < info + ext_sec->len) {
 		pr_debug("%s section (off:%u len:%u) is beyond the end of the ELF section .BTF.ext\n",
-		     ext_sec->desc, ext_sec->off, ext_sec->len);
+			 ext_sec->desc, ext_sec->off, ext_sec->len);
 		return -EINVAL;
 	}
-
-	info = data + ext_sec->off;
-	info_left = ext_sec->len;
 
 	/* At least a record size */
 	if (info_left < sizeof(__u32)) {
@@ -646,7 +643,7 @@ static int btf_ext_copy_info(struct btf_ext *btf_ext,
 	if (record_size < ext_sec->min_rec_size ||
 	    record_size & 0x03) {
 		pr_debug("%s section in .BTF.ext has invalid record size %u\n",
-		     ext_sec->desc, record_size);
+			 ext_sec->desc, record_size);
 		return -EINVAL;
 	}
 
@@ -692,42 +689,35 @@ static int btf_ext_copy_info(struct btf_ext *btf_ext,
 	ext_info = ext_sec->ext_info;
 	ext_info->len = ext_sec->len - sizeof(__u32);
 	ext_info->rec_size = record_size;
-	ext_info->info = malloc(ext_info->len);
-	if (!ext_info->info)
-		return -ENOMEM;
-	memcpy(ext_info->info, info + sizeof(__u32), ext_info->len);
+	ext_info->info = info + sizeof(__u32);
 
 	return 0;
 }
 
-static int btf_ext_copy_func_info(struct btf_ext *btf_ext,
-				  __u8 *data, __u32 data_size)
+static int btf_ext_setup_func_info(struct btf_ext *btf_ext)
 {
-	const struct btf_ext_header *hdr = (struct btf_ext_header *)data;
-	struct btf_ext_sec_copy_param param = {
-		.off = hdr->func_info_off,
-		.len = hdr->func_info_len,
+	struct btf_ext_sec_setup_param param = {
+		.off = btf_ext->hdr->func_info_off,
+		.len = btf_ext->hdr->func_info_len,
 		.min_rec_size = sizeof(struct bpf_func_info_min),
 		.ext_info = &btf_ext->func_info,
 		.desc = "func_info"
 	};
 
-	return btf_ext_copy_info(btf_ext, data, data_size, &param);
+	return btf_ext_setup_info(btf_ext, &param);
 }
 
-static int btf_ext_copy_line_info(struct btf_ext *btf_ext,
-				  __u8 *data, __u32 data_size)
+static int btf_ext_setup_line_info(struct btf_ext *btf_ext)
 {
-	const struct btf_ext_header *hdr = (struct btf_ext_header *)data;
-	struct btf_ext_sec_copy_param param = {
-		.off = hdr->line_info_off,
-		.len = hdr->line_info_len,
+	struct btf_ext_sec_setup_param param = {
+		.off = btf_ext->hdr->line_info_off,
+		.len = btf_ext->hdr->line_info_len,
 		.min_rec_size = sizeof(struct bpf_line_info_min),
 		.ext_info = &btf_ext->line_info,
 		.desc = "line_info",
 	};
 
-	return btf_ext_copy_info(btf_ext, data, data_size, &param);
+	return btf_ext_setup_info(btf_ext, &param);
 }
 
 static int btf_ext_parse_hdr(__u8 *data, __u32 data_size)
@@ -767,9 +757,7 @@ void btf_ext__free(struct btf_ext *btf_ext)
 {
 	if (!btf_ext)
 		return;
-
-	free(btf_ext->func_info.info);
-	free(btf_ext->line_info.info);
+	free(btf_ext->data);
 	free(btf_ext);
 }
 
@@ -786,19 +774,35 @@ struct btf_ext *btf_ext__new(__u8 *data, __u32 size)
 	if (!btf_ext)
 		return ERR_PTR(-ENOMEM);
 
-	err = btf_ext_copy_func_info(btf_ext, data, size);
-	if (err) {
-		btf_ext__free(btf_ext);
-		return ERR_PTR(err);
+	btf_ext->data_size = size;
+	btf_ext->data = malloc(size);
+	if (!btf_ext->data) {
+		err = -ENOMEM;
+		goto done;
 	}
+	memcpy(btf_ext->data, data, size);
 
-	err = btf_ext_copy_line_info(btf_ext, data, size);
+	err = btf_ext_setup_func_info(btf_ext);
+	if (err)
+		goto done;
+
+	err = btf_ext_setup_line_info(btf_ext);
+	if (err)
+		goto done;
+
+done:
 	if (err) {
 		btf_ext__free(btf_ext);
 		return ERR_PTR(err);
 	}
 
 	return btf_ext;
+}
+
+const void *btf_ext__get_raw_data(const struct btf_ext *btf_ext, __u32 *size)
+{
+	*size = btf_ext->data_size;
+	return btf_ext->data;
 }
 
 static int btf_ext_reloc_info(const struct btf *btf,
@@ -849,7 +853,8 @@ static int btf_ext_reloc_info(const struct btf *btf,
 	return -ENOENT;
 }
 
-int btf_ext__reloc_func_info(const struct btf *btf, const struct btf_ext *btf_ext,
+int btf_ext__reloc_func_info(const struct btf *btf,
+			     const struct btf_ext *btf_ext,
 			     const char *sec_name, __u32 insns_cnt,
 			     void **func_info, __u32 *cnt)
 {
@@ -857,7 +862,8 @@ int btf_ext__reloc_func_info(const struct btf *btf, const struct btf_ext *btf_ex
 				  insns_cnt, func_info, cnt);
 }
 
-int btf_ext__reloc_line_info(const struct btf *btf, const struct btf_ext *btf_ext,
+int btf_ext__reloc_line_info(const struct btf *btf,
+			     const struct btf_ext *btf_ext,
 			     const char *sec_name, __u32 insns_cnt,
 			     void **line_info, __u32 *cnt)
 {
