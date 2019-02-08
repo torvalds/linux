@@ -242,6 +242,12 @@ hang_create_request(struct hang *h, struct intel_engine_cs *engine)
 	*batch++ = MI_BATCH_BUFFER_END; /* not reached */
 	i915_gem_chipset_flush(h->i915);
 
+	if (rq->engine->emit_init_breadcrumb) {
+		err = rq->engine->emit_init_breadcrumb(rq);
+		if (err)
+			goto cancel_rq;
+	}
+
 	flags = 0;
 	if (INTEL_GEN(vm->i915) <= 5)
 		flags |= I915_DISPATCH_SECURE;

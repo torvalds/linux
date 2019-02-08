@@ -144,6 +144,13 @@ igt_spinner_create_request(struct igt_spinner *spin,
 
 	i915_gem_chipset_flush(spin->i915);
 
+	if (engine->emit_init_breadcrumb &&
+	    rq->timeline->has_initial_breadcrumb) {
+		err = engine->emit_init_breadcrumb(rq);
+		if (err)
+			goto cancel_rq;
+	}
+
 	err = engine->emit_bb_start(rq, vma->node.start, PAGE_SIZE, 0);
 
 cancel_rq:
