@@ -4497,17 +4497,12 @@ static int mvpp2_phylink_mac_link_state(struct net_device *dev,
 static void mvpp2_mac_an_restart(struct net_device *dev)
 {
 	struct mvpp2_port *port = netdev_priv(dev);
-	u32 val;
+	u32 val = readl(port->base + MVPP2_GMAC_AUTONEG_CONFIG);
 
-	if (port->phy_interface != PHY_INTERFACE_MODE_SGMII)
-		return;
-
-	val = readl(port->base + MVPP2_GMAC_AUTONEG_CONFIG);
-	/* The RESTART_AN bit is cleared by the h/w after restarting the AN
-	 * process.
-	 */
-	val |= MVPP2_GMAC_IN_BAND_RESTART_AN | MVPP2_GMAC_IN_BAND_AUTONEG;
-	writel(val, port->base + MVPP2_GMAC_AUTONEG_CONFIG);
+	writel(val | MVPP2_GMAC_IN_BAND_RESTART_AN,
+	       port->base + MVPP2_GMAC_AUTONEG_CONFIG);
+	writel(val & ~MVPP2_GMAC_IN_BAND_RESTART_AN,
+	       port->base + MVPP2_GMAC_AUTONEG_CONFIG);
 }
 
 static void mvpp2_xlg_config(struct mvpp2_port *port, unsigned int mode,
