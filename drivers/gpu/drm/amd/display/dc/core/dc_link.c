@@ -2038,6 +2038,9 @@ static enum dc_status enable_link(
 		break;
 	}
 
+	if (status == DC_OK)
+		pipe_ctx->stream->link->link_status.link_active = true;
+
 	return status;
 }
 
@@ -2061,6 +2064,14 @@ static void disable_link(struct dc_link *link, enum signal_type signal)
 			dp_disable_link_phy_mst(link, signal);
 	} else
 		link->link_enc->funcs->disable_output(link->link_enc, signal);
+
+	if (signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
+		/* MST disable link only when no stream use the link */
+		if (link->mst_stream_alloc_table.stream_count <= 0)
+			link->link_status.link_active = false;
+	} else {
+		link->link_status.link_active = false;
+	}
 }
 
 static bool dp_active_dongle_validate_timing(
@@ -2624,8 +2635,6 @@ void core_link_enable_stream(
 			}
 		}
 
-		stream->link->link_status.link_active = true;
-
 		core_dc->hwss.enable_audio_stream(pipe_ctx);
 
 		/* turn off otg test pattern if enable */
@@ -2660,8 +2669,6 @@ void core_link_disable_stream(struct pipe_ctx *pipe_ctx, int option)
 	core_dc->hwss.disable_stream(pipe_ctx, option);
 
 	disable_link(pipe_ctx->stream->link, pipe_ctx->stream->signal);
-
-	pipe_ctx->stream->link->link_status.link_active = false;
 }
 
 void core_link_set_avmute(struct pipe_ctx *pipe_ctx, bool enable)
