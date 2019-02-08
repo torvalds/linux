@@ -2103,6 +2103,8 @@ static int sof_link_dmic_load(struct snd_soc_component *scomp, int index,
 	struct snd_soc_tplg_private *private = &cfg->priv;
 	struct sof_ipc_dai_config *ipc_config;
 	struct sof_ipc_reply reply;
+	struct sof_ipc_fw_ready *ready = &sdev->fw_ready;
+	struct sof_ipc_fw_version *v = &ready->version;
 	u32 size;
 	int ret, j;
 
@@ -2186,6 +2188,11 @@ static int sof_link_dmic_load(struct snd_soc_component *scomp, int index,
 			ipc_config->dmic.pdm[j].id,
 			ipc_config->dmic.pdm[j].clk_edge,
 			ipc_config->dmic.pdm[j].skew);
+	}
+
+	if (SOF_ABI_VER(v->major, v->minor, v->micro) < SOF_ABI_VER(3, 0, 1)) {
+		/* this takes care of backwards compatible handling of fifo_bits_b */
+		ipc_config->dmic.reserved_2 = ipc_config->dmic.fifo_bits;
 	}
 
 	/* send message to DSP */
