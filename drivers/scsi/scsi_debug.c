@@ -351,12 +351,11 @@ enum sdeb_opcode_index {
 	SDEB_I_ATA_PT = 22,		/* 12, 16 */
 	SDEB_I_SEND_DIAG = 23,
 	SDEB_I_UNMAP = 24,
-	SDEB_I_XDWRITEREAD = 25,	/* 10 only */
-	SDEB_I_WRITE_BUFFER = 26,
-	SDEB_I_WRITE_SAME = 27,		/* 10, 16 */
-	SDEB_I_SYNC_CACHE = 28,		/* 10, 16 */
-	SDEB_I_COMP_WRITE = 29,
-	SDEB_I_LAST_ELEMENT = 30,	/* keep this last (previous + 1) */
+	SDEB_I_WRITE_BUFFER = 25,
+	SDEB_I_WRITE_SAME = 26,		/* 10, 16 */
+	SDEB_I_SYNC_CACHE = 27,		/* 10, 16 */
+	SDEB_I_COMP_WRITE = 28,
+	SDEB_I_LAST_ELEMENT = 29,	/* keep this last (previous + 1) */
 };
 
 
@@ -377,7 +376,7 @@ static const unsigned char opcode_ind_arr[256] = {
 /* 0x40; 0x40->0x5f: 10 byte cdbs */
 	0, SDEB_I_WRITE_SAME, SDEB_I_UNMAP, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, SDEB_I_LOG_SENSE, 0, 0,
-	0, 0, 0, SDEB_I_XDWRITEREAD, 0, SDEB_I_MODE_SELECT, SDEB_I_RESERVE,
+	0, 0, 0, 0, 0, SDEB_I_MODE_SELECT, SDEB_I_RESERVE,
 	    SDEB_I_RELEASE,
 	0, 0, SDEB_I_MODE_SENSE, 0, 0, 0, 0, 0,
 /* 0x60; 0x60->0x7d are reserved, 0x7e is "extended cdb" */
@@ -614,7 +613,7 @@ static const struct opcode_info_t opcode_info_arr[SDEB_I_LAST_ELEMENT + 1] = {
 	    {16,  0xf8, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0, 0,
 	     0, 0xff, 0x3f, 0xc7} },		/* COMPARE AND WRITE */
 
-/* 30 */
+/* 29 */
 	{0xff, 0, 0, 0, NULL, NULL,		/* terminating element */
 	    {0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} },
 };
