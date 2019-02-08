@@ -265,7 +265,7 @@ int ath10k_htt_rx_ring_refill(struct ath10k *ar)
 	struct ath10k_htt *htt = &ar->htt;
 	int ret;
 
-	if (ar->dev_type == ATH10K_DEV_TYPE_HL)
+	if (ar->bus_param.dev_type == ATH10K_DEV_TYPE_HL)
 		return 0;
 
 	spin_lock_bh(&htt->rx_ring.lock);
@@ -282,7 +282,7 @@ int ath10k_htt_rx_ring_refill(struct ath10k *ar)
 
 void ath10k_htt_rx_free(struct ath10k_htt *htt)
 {
-	if (htt->ar->dev_type == ATH10K_DEV_TYPE_HL)
+	if (htt->ar->bus_param.dev_type == ATH10K_DEV_TYPE_HL)
 		return;
 
 	del_timer_sync(&htt->rx_ring.refill_retry_timer);
@@ -760,7 +760,7 @@ int ath10k_htt_rx_alloc(struct ath10k_htt *htt)
 	size_t size;
 	struct timer_list *timer = &htt->rx_ring.refill_retry_timer;
 
-	if (ar->dev_type == ATH10K_DEV_TYPE_HL)
+	if (ar->bus_param.dev_type == ATH10K_DEV_TYPE_HL)
 		return 0;
 
 	htt->rx_confused = false;
@@ -3237,7 +3237,7 @@ bool ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	}
 	case HTT_T2H_MSG_TYPE_RX_IND:
-		if (ar->dev_type == ATH10K_DEV_TYPE_HL)
+		if (ar->bus_param.dev_type == ATH10K_DEV_TYPE_HL)
 			return ath10k_htt_rx_proc_rx_ind_hl(htt,
 							    &resp->rx_ind_hl,
 							    skb);
@@ -3533,7 +3533,7 @@ void ath10k_htt_set_rx_ops(struct ath10k_htt *htt)
 {
 	struct ath10k *ar = htt->ar;
 
-	if (ar->dev_type == ATH10K_DEV_TYPE_HL)
+	if (ar->bus_param.dev_type == ATH10K_DEV_TYPE_HL)
 		htt->rx_ops = &htt_rx_ops_hl;
 	else if (ar->hw_params.target_64bit)
 		htt->rx_ops = &htt_rx_ops_64;

@@ -58,7 +58,7 @@ void ath10k_debug_print_hwfw_info(struct ath10k *ar)
 	ath10k_info(ar, "%s target 0x%08x chip_id 0x%08x sub %04x:%04x",
 		    ar->hw_params.name,
 		    ar->target_version,
-		    ar->chip_id,
+		    ar->bus_param.chip_id,
 		    ar->id.subsystem_vendor, ar->id.subsystem_device);
 
 	ath10k_info(ar, "kconfig debug %d debugfs %d tracing %d dfs %d testmode %d\n",
@@ -625,7 +625,7 @@ static ssize_t ath10k_read_chip_id(struct file *file, char __user *user_buf,
 	size_t len;
 	char buf[50];
 
-	len = scnprintf(buf, sizeof(buf), "0x%08x\n", ar->chip_id);
+	len = scnprintf(buf, sizeof(buf), "0x%08x\n", ar->bus_param.chip_id);
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }

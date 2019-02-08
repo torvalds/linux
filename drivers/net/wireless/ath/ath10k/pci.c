@@ -2283,7 +2283,7 @@ static int ath10k_pci_get_num_banks(struct ath10k *ar)
 		return 1;
 	case QCA6164_2_1_DEVICE_ID:
 	case QCA6174_2_1_DEVICE_ID:
-		switch (MS(ar->chip_id, SOC_CHIP_ID_REV)) {
+		switch (MS(ar->bus_param.chip_id, SOC_CHIP_ID_REV)) {
 		case QCA6174_HW_1_0_CHIP_ID_REV:
 		case QCA6174_HW_1_1_CHIP_ID_REV:
 		case QCA6174_HW_2_1_CHIP_ID_REV:
@@ -3636,6 +3636,7 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 	}
 
 	bus_params.dev_type = ATH10K_DEV_TYPE_LL;
+	bus_params.link_can_suspend = true;
 	bus_params.chip_id = ath10k_pci_soc_read32(ar, SOC_CHIP_ID_ADDRESS);
 	if (bus_params.chip_id == 0xffffffff) {
 		ath10k_err(ar, "failed to get chip id\n");

@@ -1167,7 +1167,7 @@ static struct ath10k_dump_file_data *ath10k_coredump_build(struct ath10k *ar)
 	dump_data->version = cpu_to_le32(ATH10K_FW_CRASH_DUMP_VERSION);
 
 	guid_copy(&dump_data->guid, &crash_data->guid);
-	dump_data->chip_id = cpu_to_le32(ar->chip_id);
+	dump_data->chip_id = cpu_to_le32(ar->bus_param.chip_id);
 	dump_data->bus_type = cpu_to_le32(0);
 	dump_data->target_version = cpu_to_le32(ar->target_version);
 	dump_data->fw_version_major = cpu_to_le32(ar->fw_version_major);
