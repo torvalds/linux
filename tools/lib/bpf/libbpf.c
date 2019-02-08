@@ -836,7 +836,7 @@ static int bpf_object__elf_collect(struct bpf_object *obj, int flags)
 			obj->efile.maps_shndx = idx;
 		else if (strcmp(name, BTF_ELF_SEC) == 0) {
 			obj->btf = btf__new(data->d_buf, data->d_size);
-			if (IS_ERR(obj->btf)) {
+			if (IS_ERR(obj->btf) || btf__load(obj->btf)) {
 				pr_warning("Error loading ELF section %s: %ld. Ignored and continue.\n",
 					   BTF_ELF_SEC, PTR_ERR(obj->btf));
 				obj->btf = NULL;
