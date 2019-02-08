@@ -47,7 +47,7 @@ static int uniphier_clk_cpugear_set_parent(struct clk_hw *hw, u8 index)
 		return ret;
 
 	ret = regmap_write_bits(gear->regmap,
-				gear->regbase + UNIPHIER_CLK_CPUGEAR_SET,
+				gear->regbase + UNIPHIER_CLK_CPUGEAR_UPD,
 				UNIPHIER_CLK_CPUGEAR_UPD_BIT,
 				UNIPHIER_CLK_CPUGEAR_UPD_BIT);
 	if (ret)
