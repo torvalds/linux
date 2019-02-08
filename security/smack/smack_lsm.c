@@ -3293,13 +3293,12 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
 		 */
 		final = &smack_known_star;
 		/*
-		 * Fall through.
-		 *
 		 * If a smack value has been set we want to use it,
 		 * but since tmpfs isn't giving us the opportunity
 		 * to set mount options simulate setting the
 		 * superblock default.
 		 */
+		/* Fall through */
 	default:
 		/*
 		 * This isn't an understood special case.

@@ -938,10 +938,12 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 		case Opt_uid_gt:
 		case Opt_euid_gt:
 			entry->uid_op = &uid_gt;
+			/* fall through */
 		case Opt_uid_lt:
 		case Opt_euid_lt:
 			if ((token == Opt_uid_lt) || (token == Opt_euid_lt))
 				entry->uid_op = &uid_lt;
+			/* fall through */
 		case Opt_uid_eq:
 		case Opt_euid_eq:
 			uid_token = (token == Opt_uid_eq) ||
@@ -970,9 +972,11 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 			break;
 		case Opt_fowner_gt:
 			entry->fowner_op = &uid_gt;
+			/* fall through */
 		case Opt_fowner_lt:
 			if (token == Opt_fowner_lt)
 				entry->fowner_op = &uid_lt;
+			/* fall through */
 		case Opt_fowner_eq:
 			ima_log_string_op(ab, "fowner", args[0].from,
 					  entry->fowner_op);

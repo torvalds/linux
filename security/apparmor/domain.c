@@ -572,7 +572,7 @@ static struct aa_label *x_to_label(struct aa_profile *profile,
 			stack = NULL;
 			break;
 		}
-		/* fall through to X_NAME */
+		/* fall through - to X_NAME */
 	case AA_X_NAME:
 		if (xindex & AA_X_CHILD)
 			/* released by caller */
