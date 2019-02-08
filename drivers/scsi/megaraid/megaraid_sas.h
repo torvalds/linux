@@ -807,13 +807,14 @@ struct MR_HOST_DEVICE_LIST_ENTRY {
 	} flags;
 	u8 scsi_type;
 	__le16 target_id;
-	u8 reserved[2];
+	u8 reserved[4];
 	__le64 sas_addr[2];
 } __packed;
 
 struct MR_HOST_DEVICE_LIST {
 	__le32			size;
 	__le32			count;
+	__le32			reserved[2];
 	struct MR_HOST_DEVICE_LIST_ENTRY	host_device_list[1];
 } __packed;
 
