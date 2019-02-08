@@ -22,7 +22,6 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_cnl_machines[] = {
 		.pdata = &cnl_pdata,
 		.sof_fw_filename = "sof-cnl.ri",
 		.sof_tplg_filename = "sof-cnl-rt274.tplg",
-		.asoc_plat_name = "0000:00:1f.3",
 	},
 	{},
 };
