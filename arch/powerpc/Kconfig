@@ -686,7 +686,7 @@ config PPC_16K_PAGES
 
 config PPC_64K_PAGES
 	bool "64k page size"
-	depends on !PPC_FSL_BOOK3E && (44x || PPC_BOOK3S_64 || PPC_BOOK3E_64)
+	depends on 44x || PPC_BOOK3S_64
 	select HAVE_ARCH_SOFT_DIRTY if PPC_BOOK3S_64
 
 config PPC_256K_PAGES
