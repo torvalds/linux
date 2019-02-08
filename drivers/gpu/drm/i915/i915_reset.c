@@ -639,6 +639,32 @@ static void reset_prepare_engine(struct intel_engine_cs *engine)
 	engine->reset.prepare(engine);
 }
 
+static void revoke_mmaps(struct drm_i915_private *i915)
+{
+	int i;
+
+	for (i = 0; i < i915->num_fence_regs; i++) {
+		struct drm_vma_offset_node *node;
+		struct i915_vma *vma;
+		u64 vma_offset;
+
+		vma = READ_ONCE(i915->fence_regs[i].vma);
+		if (!vma)
+			continue;
+
+		if (!i915_vma_has_userfault(vma))
+			continue;
+
+		GEM_BUG_ON(vma->fence != &i915->fence_regs[i]);
+		node = &vma->obj->base.vma_node;
+		vma_offset = vma->ggtt_view.partial.offset << PAGE_SHIFT;
+		unmap_mapping_range(i915->drm.anon_inode->i_mapping,
+				    drm_vma_node_offset_addr(node) + vma_offset,
+				    vma->size,
+				    1);
+	}
+}
+
 static void reset_prepare(struct drm_i915_private *i915)
 {
 	struct intel_engine_cs *engine;
@@ -648,6 +674,7 @@ static void reset_prepare(struct drm_i915_private *i915)
 		reset_prepare_engine(engine);
 
 	intel_uc_sanitize(i915);
+	revoke_mmaps(i915);
 }
 
 static int gt_reset(struct drm_i915_private *i915, unsigned int stalled_mask)
@@ -911,50 +938,22 @@ unlock:
 	return ret;
 }
 
-struct __i915_reset {
-	struct drm_i915_private *i915;
-	unsigned int stalled_mask;
-};
-
-static int __i915_reset__BKL(void *data)
+static int do_reset(struct drm_i915_private *i915, unsigned int stalled_mask)
 {
-	struct __i915_reset *arg = data;
-	int err;
+	int err, i;
 
-	err = intel_gpu_reset(arg->i915, ALL_ENGINES);
+	/* Flush everyone currently using a resource about to be clobbered */
+	synchronize_srcu(&i915->gpu_error.reset_backoff_srcu);
+
+	err = intel_gpu_reset(i915, ALL_ENGINES);
+	for (i = 0; err && i < RESET_MAX_RETRIES; i++) {
+		msleep(10 * (i + 1));
+		err = intel_gpu_reset(i915, ALL_ENGINES);
+	}
 	if (err)
 		return err;
 
-	return gt_reset(arg->i915, arg->stalled_mask);
-}
-
-#if RESET_UNDER_STOP_MACHINE
-/*
- * XXX An alternative to using stop_machine would be to park only the
- * processes that have a GGTT mmap. By remote parking the threads (SIGSTOP)
- * we should be able to prevent their memmory accesses via the lost fence
- * registers over the course of the reset without the potential recursive
- * of mutexes between the pagefault handler and reset.
- *
- * See igt/gem_mmap_gtt/hang
- */
-#define __do_reset(fn, arg) stop_machine(fn, arg, NULL)
-#else
-#define __do_reset(fn, arg) fn(arg)
-#endif
-
-static int do_reset(struct drm_i915_private *i915, unsigned int stalled_mask)
-{
-	struct __i915_reset arg = { i915, stalled_mask };
-	int err, i;
-
-	err = __do_reset(__i915_reset__BKL, &arg);
-	for (i = 0; err && i < RESET_MAX_RETRIES; i++) {
-		msleep(100);
-		err = __do_reset(__i915_reset__BKL, &arg);
-	}
-
-	return err;
+	return gt_reset(i915, stalled_mask);
 }
 
 /**
@@ -965,8 +964,6 @@ static int do_reset(struct drm_i915_private *i915, unsigned int stalled_mask)
  *
  * Reset the chip.  Useful if a hang is detected. Marks the device as wedged
  * on failure.
- *
- * Caller must hold the struct_mutex.
  *
  * Procedure is fairly simple:
  *   - reset the chip using the reset reg
@@ -1274,8 +1271,11 @@ void i915_handle_error(struct drm_i915_private *i915,
 		wait_event(i915->gpu_error.reset_queue,
 			   !test_bit(I915_RESET_BACKOFF,
 				     &i915->gpu_error.flags));
-		goto out;
+		goto out; /* piggy-back on the other reset */
 	}
+
+	/* Make sure i915_reset_trylock() sees the I915_RESET_BACKOFF */
+	synchronize_rcu_expedited();
 
 	/* Prevent any other reset-engine attempt. */
 	for_each_engine(engine, i915, tmp) {
@@ -1298,6 +1298,36 @@ void i915_handle_error(struct drm_i915_private *i915,
 
 out:
 	intel_runtime_pm_put(i915, wakeref);
+}
+
+int i915_reset_trylock(struct drm_i915_private *i915)
+{
+	struct i915_gpu_error *error = &i915->gpu_error;
+	int srcu;
+
+	rcu_read_lock();
+	while (test_bit(I915_RESET_BACKOFF, &error->flags)) {
+		rcu_read_unlock();
+
+		if (wait_event_interruptible(error->reset_queue,
+					     !test_bit(I915_RESET_BACKOFF,
+						       &error->flags)))
+			return -EINTR;
+
+		rcu_read_lock();
+	}
+	srcu = srcu_read_lock(&error->reset_backoff_srcu);
+	rcu_read_unlock();
+
+	return srcu;
+}
+
+void i915_reset_unlock(struct drm_i915_private *i915, int tag)
+__releases(&i915->gpu_error.reset_backoff_srcu)
+{
+	struct i915_gpu_error *error = &i915->gpu_error;
+
+	srcu_read_unlock(&error->reset_backoff_srcu, tag);
 }
 
 bool i915_reset_flush(struct drm_i915_private *i915)

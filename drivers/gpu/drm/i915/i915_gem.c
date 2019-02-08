@@ -98,47 +98,6 @@ static void i915_gem_info_remove_obj(struct drm_i915_private *dev_priv,
 	spin_unlock(&dev_priv->mm.object_stat_lock);
 }
 
-static int
-i915_gem_wait_for_error(struct i915_gpu_error *error)
-{
-	int ret;
-
-	might_sleep();
-
-	/*
-	 * Only wait 10 seconds for the gpu reset to complete to avoid hanging
-	 * userspace. If it takes that long something really bad is going on and
-	 * we should simply try to bail out and fail as gracefully as possible.
-	 */
-	ret = wait_event_interruptible_timeout(error->reset_queue,
-					       !i915_reset_backoff(error),
-					       I915_RESET_TIMEOUT);
-	if (ret == 0) {
-		DRM_ERROR("Timed out waiting for the gpu reset to complete\n");
-		return -EIO;
-	} else if (ret < 0) {
-		return ret;
-	} else {
-		return 0;
-	}
-}
-
-int i915_mutex_lock_interruptible(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	int ret;
-
-	ret = i915_gem_wait_for_error(&dev_priv->gpu_error);
-	if (ret)
-		return ret;
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
 static u32 __i915_gem_park(struct drm_i915_private *i915)
 {
 	intel_wakeref_t wakeref;
@@ -1885,6 +1844,7 @@ vm_fault_t i915_gem_fault(struct vm_fault *vmf)
 	intel_wakeref_t wakeref;
 	struct i915_vma *vma;
 	pgoff_t page_offset;
+	int srcu;
 	int ret;
 
 	/* Sanity check that we allow writing into this object */
@@ -1924,7 +1884,6 @@ vm_fault_t i915_gem_fault(struct vm_fault *vmf)
 		goto err_unlock;
 	}
 
-
 	/* Now pin it into the GTT as needed */
 	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0,
 				       PIN_MAPPABLE |
@@ -1962,9 +1921,15 @@ vm_fault_t i915_gem_fault(struct vm_fault *vmf)
 	if (ret)
 		goto err_unpin;
 
+	srcu = i915_reset_trylock(dev_priv);
+	if (srcu < 0) {
+		ret = srcu;
+		goto err_unpin;
+	}
+
 	ret = i915_vma_pin_fence(vma);
 	if (ret)
-		goto err_unpin;
+		goto err_reset;
 
 	/* Finally, remap it using the new GTT offset */
 	ret = remap_io_mapping(area,
@@ -1985,6 +1950,8 @@ vm_fault_t i915_gem_fault(struct vm_fault *vmf)
 
 err_fence:
 	i915_vma_unpin_fence(vma);
+err_reset:
+	i915_reset_unlock(dev_priv, srcu);
 err_unpin:
 	__i915_vma_unpin(vma);
 err_unlock:
@@ -5342,6 +5309,7 @@ int i915_gem_init_early(struct drm_i915_private *dev_priv)
 	init_waitqueue_head(&dev_priv->gpu_error.wait_queue);
 	init_waitqueue_head(&dev_priv->gpu_error.reset_queue);
 	mutex_init(&dev_priv->gpu_error.wedge_mutex);
+	init_srcu_struct(&dev_priv->gpu_error.reset_backoff_srcu);
 
 	atomic_set(&dev_priv->mm.bsd_engine_dispatch_index, 0);
 
@@ -5373,6 +5341,8 @@ void i915_gem_cleanup_early(struct drm_i915_private *dev_priv)
 	GEM_BUG_ON(!llist_empty(&dev_priv->mm.free_list));
 	GEM_BUG_ON(atomic_read(&dev_priv->mm.free_count));
 	WARN_ON(dev_priv->mm.object_count);
+
+	cleanup_srcu_struct(&dev_priv->gpu_error.reset_backoff_srcu);
 
 	kmem_cache_destroy(dev_priv->priorities);
 	kmem_cache_destroy(dev_priv->dependencies);

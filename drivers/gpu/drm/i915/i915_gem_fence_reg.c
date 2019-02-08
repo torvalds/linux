@@ -270,6 +270,10 @@ static int fence_update(struct drm_i915_fence_reg *fence,
 		return 0;
 	}
 
+	ret = i915_reset_trylock(fence->i915);
+	if (ret < 0)
+		goto out_rpm;
+
 	fence_write(fence, vma);
 	fence->vma = vma;
 
@@ -278,8 +282,12 @@ static int fence_update(struct drm_i915_fence_reg *fence,
 		list_move_tail(&fence->link, &fence->i915->mm.fence_list);
 	}
 
+	i915_reset_unlock(fence->i915, ret);
+	ret = 0;
+
+out_rpm:
 	intel_runtime_pm_put(fence->i915, wakeref);
-	return 0;
+	return ret;
 }
 
 /**
@@ -440,32 +448,6 @@ void i915_unreserve_fence(struct drm_i915_fence_reg *fence)
 	lockdep_assert_held(&fence->i915->drm.struct_mutex);
 
 	list_add(&fence->link, &fence->i915->mm.fence_list);
-}
-
-/**
- * i915_gem_revoke_fences - revoke fence state
- * @dev_priv: i915 device private
- *
- * Removes all GTT mmappings via the fence registers. This forces any user
- * of the fence to reacquire that fence before continuing with their access.
- * One use is during GPU reset where the fence register is lost and we need to
- * revoke concurrent userspace access via GTT mmaps until the hardware has been
- * reset and the fence registers have been restored.
- */
-void i915_gem_revoke_fences(struct drm_i915_private *dev_priv)
-{
-	int i;
-
-	lockdep_assert_held(&dev_priv->drm.struct_mutex);
-
-	for (i = 0; i < dev_priv->num_fence_regs; i++) {
-		struct drm_i915_fence_reg *fence = &dev_priv->fence_regs[i];
-
-		GEM_BUG_ON(fence->vma && fence->vma->fence != fence);
-
-		if (fence->vma)
-			i915_vma_revoke_mmap(fence->vma);
-	}
 }
 
 /**
