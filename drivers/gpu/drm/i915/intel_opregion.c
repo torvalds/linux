@@ -55,7 +55,12 @@
 struct opregion_header {
 	u8 signature[16];
 	u32 size;
-	u32 opregion_ver;
+	struct {
+		u8 rsvd;
+		u8 revision;
+		u8 minor;
+		u8 major;
+	}  __packed over;
 	u8 bios_ver[32];
 	u8 vbios_ver[16];
 	u8 driver_ver[16];
@@ -925,6 +930,11 @@ int intel_opregion_setup(struct drm_i915_private *dev_priv)
 	opregion->header = base;
 	opregion->lid_state = base + ACPI_CLID;
 
+	DRM_DEBUG_DRIVER("ACPI OpRegion version %u.%u.%u\n",
+			 opregion->header->over.major,
+			 opregion->header->over.minor,
+			 opregion->header->over.revision);
+
 	mboxes = opregion->header->mboxes;
 	if (mboxes & MBOX_ACPI) {
 		DRM_DEBUG_DRIVER("Public ACPI methods supported\n");
@@ -953,7 +963,7 @@ int intel_opregion_setup(struct drm_i915_private *dev_priv)
 	if (dmi_check_system(intel_no_opregion_vbt))
 		goto out;
 
-	if (opregion->header->opregion_ver >= 2 && opregion->asle &&
+	if (opregion->header->over.major >= 2 && opregion->asle &&
 	    opregion->asle->rvda && opregion->asle->rvds) {
 		opregion->rvda = memremap(opregion->asle->rvda,
 					  opregion->asle->rvds,
