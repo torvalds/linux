@@ -665,12 +665,11 @@ static int pm8xxx_pin_populate(struct pm8xxx_gpio *pctrl,
 }
 
 static const struct of_device_id pm8xxx_gpio_of_match[] = {
-	{ .compatible = "qcom,pm8018-gpio" },
-	{ .compatible = "qcom,pm8038-gpio" },
-	{ .compatible = "qcom,pm8058-gpio" },
-	{ .compatible = "qcom,pm8917-gpio" },
-	{ .compatible = "qcom,pm8921-gpio" },
-	{ .compatible = "qcom,ssbi-gpio" },
+	{ .compatible = "qcom,pm8018-gpio", .data = (void *) 6 },
+	{ .compatible = "qcom,pm8038-gpio", .data = (void *) 12 },
+	{ .compatible = "qcom,pm8058-gpio", .data = (void *) 44 },
+	{ .compatible = "qcom,pm8917-gpio", .data = (void *) 38 },
+	{ .compatible = "qcom,pm8921-gpio", .data = (void *) 44 },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, pm8xxx_gpio_of_match);
@@ -680,20 +679,14 @@ static int pm8xxx_gpio_probe(struct platform_device *pdev)
 	struct pm8xxx_pin_data *pin_data;
 	struct pinctrl_pin_desc *pins;
 	struct pm8xxx_gpio *pctrl;
-	int ret;
-	int i, npins;
+	int ret, i;
 
 	pctrl = devm_kzalloc(&pdev->dev, sizeof(*pctrl), GFP_KERNEL);
 	if (!pctrl)
 		return -ENOMEM;
 
 	pctrl->dev = &pdev->dev;
-	npins = platform_irq_count(pdev);
-	if (!npins)
-		return -EINVAL;
-	if (npins < 0)
-		return npins;
-	pctrl->npins = npins;
+	pctrl->npins = (uintptr_t) device_get_match_data(&pdev->dev);
 
 	pctrl->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!pctrl->regmap) {
