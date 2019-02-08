@@ -138,17 +138,17 @@ static struct binder_buffer *binder_alloc_prepare_to_free_locked(
 {
 	struct rb_node *n = alloc->allocated_buffers.rb_node;
 	struct binder_buffer *buffer;
-	void *kern_ptr;
+	void *uptr;
 
-	kern_ptr = (void *)(user_ptr - alloc->user_buffer_offset);
+	uptr = (void *)user_ptr;
 
 	while (n) {
 		buffer = rb_entry(n, struct binder_buffer, rb_node);
 		BUG_ON(buffer->free);
 
-		if (kern_ptr < buffer->data)
+		if (uptr < buffer->data)
 			n = n->rb_left;
-		else if (kern_ptr > buffer->data)
+		else if (uptr > buffer->data)
 			n = n->rb_right;
 		else {
 			/*
@@ -265,8 +265,7 @@ static int binder_update_page_range(struct binder_alloc *alloc, int allocate,
 		page->alloc = alloc;
 		INIT_LIST_HEAD(&page->lru);
 
-		user_page_addr =
-			(uintptr_t)page_addr + alloc->user_buffer_offset;
+		user_page_addr = (uintptr_t)page_addr;
 		ret = vm_insert_page(vma, user_page_addr, page[0].page_ptr);
 		if (ret) {
 			pr_err("%d: binder_alloc_buf failed to map page at %lx in userspace\n",
@@ -694,7 +693,6 @@ int binder_alloc_mmap_handler(struct binder_alloc *alloc,
 	}
 
 	alloc->buffer = (void *)vma->vm_start;
-	alloc->user_buffer_offset = 0;
 	mutex_unlock(&binder_alloc_mmap_lock);
 
 	alloc->pages = kcalloc((vma->vm_end - vma->vm_start) / PAGE_SIZE,
@@ -940,9 +938,7 @@ enum lru_status binder_alloc_free_page(struct list_head *item,
 	if (vma) {
 		trace_binder_unmap_user_start(alloc, index);
 
-		zap_page_range(vma,
-			       page_addr + alloc->user_buffer_offset,
-			       PAGE_SIZE);
+		zap_page_range(vma, page_addr, PAGE_SIZE);
 
 		trace_binder_unmap_user_end(alloc, index);
 
