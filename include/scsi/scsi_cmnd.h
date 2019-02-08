@@ -35,7 +35,6 @@ struct scsi_driver;
 struct scsi_data_buffer {
 	struct sg_table table;
 	unsigned length;
-	int resid;
 };
 
 /* embedded in scsi_cmnd */
@@ -202,12 +201,12 @@ static inline unsigned scsi_bufflen(struct scsi_cmnd *cmd)
 
 static inline void scsi_set_resid(struct scsi_cmnd *cmd, int resid)
 {
-	cmd->sdb.resid = resid;
+	cmd->req.resid_len = resid;
 }
 
 static inline int scsi_get_resid(struct scsi_cmnd *cmd)
 {
-	return cmd->sdb.resid;
+	return cmd->req.resid_len;
 }
 
 #define scsi_for_each_sg(cmd, sg, nseg, __i)			\

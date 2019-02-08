@@ -938,7 +938,6 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 		 * scsi_result_to_blk_status may have reset the host_byte
 		 */
 		scsi_req(req)->result = cmd->result;
-		scsi_req(req)->resid_len = scsi_get_resid(cmd);
 	}
 
 	/*
