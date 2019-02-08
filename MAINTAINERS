@@ -13490,6 +13490,7 @@ M:	"James E.J. Bottomley" <jejb@linux.ibm.com>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jejb/scsi.git
 M:	"Martin K. Petersen" <martin.petersen@oracle.com>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mkp/scsi.git
+Q:	https://patchwork.kernel.org/project/linux-scsi/list/
 L:	linux-scsi@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/scsi/
@@ -13503,6 +13504,18 @@ S:	Maintained
 F:	Documentation/scsi/st.txt
 F:	drivers/scsi/st.*
 F:	drivers/scsi/st_*.h
+
+SCSI TARGET SUBSYSTEM
+M:	"Martin K. Petersen" <martin.petersen@oracle.com>
+L:	linux-scsi@vger.kernel.org
+L:	target-devel@vger.kernel.org
+W:	http://www.linux-iscsi.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mkp/scsi.git
+Q:	https://patchwork.kernel.org/project/target-devel/list/
+S:	Supported
+F:	drivers/target/
+F:	include/target/
+F:	Documentation/target/
 
 SCTP PROTOCOL
 M:	Vlad Yasevich <vyasevich@gmail.com>
@@ -14755,18 +14768,6 @@ S:	Maintained
 F:	Documentation/filesystems/sysv-fs.txt
 F:	fs/sysv/
 F:	include/linux/sysv_fs.h
-
-TARGET SUBSYSTEM
-M:	"Nicholas A. Bellinger" <nab@linux-iscsi.org>
-L:	linux-scsi@vger.kernel.org
-L:	target-devel@vger.kernel.org
-W:	http://www.linux-iscsi.org
-W:	http://groups.google.com/group/linux-iscsi-target-dev
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/nab/target-pending.git master
-S:	Supported
-F:	drivers/target/
-F:	include/target/
-F:	Documentation/target/
 
 TASKSTATS STATISTICS INTERFACE
 M:	Balbir Singh <bsingharora@gmail.com>
