@@ -1698,6 +1698,7 @@ config RTC_DRV_SNVS
 
 config RTC_DRV_IMX_SC
 	depends on IMX_SCU
+	depends on HAVE_ARM_SMCCC
 	tristate "NXP i.MX System Controller RTC support"
 	help
 	   If you say yes here you get support for the NXP i.MX System
