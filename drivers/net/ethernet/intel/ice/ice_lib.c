@@ -2518,13 +2518,15 @@ void ice_vsi_dis_irq(struct ice_vsi *vsi)
  */
 int ice_vsi_release(struct ice_vsi *vsi)
 {
+	struct ice_vf *vf = NULL;
 	struct ice_pf *pf;
-	struct ice_vf *vf;
 
 	if (!vsi->back)
 		return -ENODEV;
 	pf = vsi->back;
-	vf = &pf->vf[vsi->vf_id];
+
+	if (vsi->type == ICE_VSI_VF)
+		vf = &pf->vf[vsi->vf_id];
 	/* do not unregister and free netdevs while driver is in the reset
 	 * recovery pending state. Since reset/rebuild happens through PF
 	 * service task workqueue, its not a good idea to unregister netdev
