@@ -82,7 +82,6 @@ struct binder_lru_page {
  *                      (invariant after init)
  * @vma_vm_mm:          copy of vma->vm_mm (invarient after mmap)
  * @buffer:             base of per-proc address space mapped via mmap
- * @user_buffer_offset: offset between user and kernel VAs for buffer
  * @buffers:            list of all buffers for this proc
  * @free_buffers:       rb tree of buffers available for allocation
  *                      sorted by size
@@ -104,7 +103,6 @@ struct binder_alloc {
 	struct vm_area_struct *vma;
 	struct mm_struct *vma_vm_mm;
 	void *buffer;
-	ptrdiff_t user_buffer_offset;
 	struct list_head buffers;
 	struct rb_root free_buffers;
 	struct rb_root allocated_buffers;
@@ -161,27 +159,6 @@ binder_alloc_get_free_async_space(struct binder_alloc *alloc)
 	free_async_space = alloc->free_async_space;
 	mutex_unlock(&alloc->mutex);
 	return free_async_space;
-}
-
-/**
- * binder_alloc_get_user_buffer_offset() - get offset between kernel/user addrs
- * @alloc:	binder_alloc for this proc
- *
- * Return:	the offset between kernel and user-space addresses to use for
- * virtual address conversion
- */
-static inline ptrdiff_t
-binder_alloc_get_user_buffer_offset(struct binder_alloc *alloc)
-{
-	/*
-	 * user_buffer_offset is constant if vma is set and
-	 * undefined if vma is not set. It is possible to
-	 * get here with !alloc->vma if the target process
-	 * is dying while a transaction is being initiated.
-	 * Returning the old value is ok in this case and
-	 * the transaction will fail.
-	 */
-	return alloc->user_buffer_offset;
 }
 
 unsigned long
