@@ -498,7 +498,6 @@ int adf_init_etr_data(struct adf_accel_dev *accel_dev)
 
 err_bank_all:
 	debugfs_remove(etr_data->debug);
-err_bank_debug:
 	kfree(etr_data->banks);
 err_bank:
 	kfree(etr_data);
