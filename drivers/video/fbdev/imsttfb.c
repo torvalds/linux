@@ -1498,8 +1498,8 @@ static int imsttfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	switch (pdev->device) {
 		case PCI_DEVICE_ID_IMS_TT128: /* IMS,tt128mbA */
 			par->ramdac = IBM;
-			if (dp && ((strcmp(dp->name, "IMS,tt128mb8") == 0) ||
-				   (strcmp(dp->name, "IMS,tt128mb8A") == 0)))
+			if (of_node_name_eq(dp, "IMS,tt128mb8") ||
+			    of_node_name_eq(dp, "IMS,tt128mb8A"))
 				par->ramdac = TVP;
 			break;
 		case PCI_DEVICE_ID_IMS_TT3D:  /* IMS,tt3d */

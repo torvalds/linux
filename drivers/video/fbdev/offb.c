@@ -646,7 +646,7 @@ static void __init offb_init_nodriver(struct device_node *dp, int no_real_node)
 		}
 #endif
 		/* kludge for valkyrie */
-		if (strcmp(dp->name, "valkyrie") == 0)
+		if (of_node_name_eq(dp, "valkyrie"))
 			address += 0x1000;
 		offb_init_fb(no_real_node ? "bootx" : NULL,
 			     width, height, depth, pitch, address,
