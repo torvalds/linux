@@ -940,6 +940,7 @@ static int ice_vsi_init(struct ice_vsi *vsi)
 	if (!ctxt)
 		return -ENOMEM;
 
+	ctxt->info = vsi->info;
 	switch (vsi->type) {
 	case ICE_VSI_PF:
 		ctxt->flags = ICE_AQ_VSI_TYPE_PF;
@@ -964,6 +965,14 @@ static int ice_vsi_init(struct ice_vsi *vsi)
 
 	ctxt->info.sw_id = vsi->port_info->sw_id;
 	ice_vsi_setup_q_map(vsi, ctxt);
+
+	/* Enable MAC Antispoof with new VSI being initialized or updated */
+	if (vsi->type == ICE_VSI_VF && pf->vf[vsi->vf_id].spoofchk) {
+		ctxt->info.valid_sections |=
+			cpu_to_le16(ICE_AQ_VSI_PROP_SECURITY_VALID);
+		ctxt->info.sec_flags |=
+			ICE_AQ_VSI_SEC_FLAG_ENA_MAC_ANTI_SPOOF;
+	}
 
 	ret = ice_add_vsi(hw, vsi->idx, ctxt, NULL);
 	if (ret) {
