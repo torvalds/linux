@@ -1380,13 +1380,9 @@ static void mvpp2_port_reset(struct mvpp2_port *port)
 	for (i = 0; i < ARRAY_SIZE(mvpp2_ethtool_regs); i++)
 		mvpp2_read_count(port, &mvpp2_ethtool_regs[i]);
 
-	val = readl(port->base + MVPP2_GMAC_CTRL_2_REG) &
-		    ~MVPP2_GMAC_PORT_RESET_MASK;
+	val = readl(port->base + MVPP2_GMAC_CTRL_2_REG) |
+	      MVPP2_GMAC_PORT_RESET_MASK;
 	writel(val, port->base + MVPP2_GMAC_CTRL_2_REG);
-
-	while (readl(port->base + MVPP2_GMAC_CTRL_2_REG) &
-	       MVPP2_GMAC_PORT_RESET_MASK)
-		continue;
 }
 
 /* Change maximum receive size of the port */
@@ -4543,11 +4539,14 @@ static void mvpp2_gmac_config(struct mvpp2_port *port, unsigned int mode,
 			      const struct phylink_link_state *state)
 {
 	u32 an, ctrl0, ctrl2, ctrl4;
+	u32 old_ctrl2;
 
 	an = readl(port->base + MVPP2_GMAC_AUTONEG_CONFIG);
 	ctrl0 = readl(port->base + MVPP2_GMAC_CTRL_0_REG);
 	ctrl2 = readl(port->base + MVPP2_GMAC_CTRL_2_REG);
 	ctrl4 = readl(port->base + MVPP22_GMAC_CTRL_4_REG);
+
+	old_ctrl2 = ctrl2;
 
 	/* Force link down */
 	an &= ~MVPP2_GMAC_FORCE_LINK_PASS;
@@ -4621,6 +4620,12 @@ static void mvpp2_gmac_config(struct mvpp2_port *port, unsigned int mode,
 	writel(ctrl2, port->base + MVPP2_GMAC_CTRL_2_REG);
 	writel(ctrl4, port->base + MVPP22_GMAC_CTRL_4_REG);
 	writel(an, port->base + MVPP2_GMAC_AUTONEG_CONFIG);
+
+	if (old_ctrl2 & MVPP2_GMAC_PORT_RESET_MASK) {
+		while (readl(port->base + MVPP2_GMAC_CTRL_2_REG) &
+		       MVPP2_GMAC_PORT_RESET_MASK)
+			continue;
+	}
 }
 
 static void mvpp2_mac_config(struct net_device *dev, unsigned int mode,
