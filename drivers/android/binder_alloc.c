@@ -265,16 +265,6 @@ static int binder_update_page_range(struct binder_alloc *alloc, int allocate,
 		page->alloc = alloc;
 		INIT_LIST_HEAD(&page->lru);
 
-		ret = map_kernel_range_noflush((unsigned long)page_addr,
-					       PAGE_SIZE, PAGE_KERNEL,
-					       &page->page_ptr);
-		flush_cache_vmap((unsigned long)page_addr,
-				(unsigned long)page_addr + PAGE_SIZE);
-		if (ret != 1) {
-			pr_err("%d: binder_alloc_buf failed to map page at %pK in kernel\n",
-			       alloc->pid, page_addr);
-			goto err_map_kernel_failed;
-		}
 		user_page_addr =
 			(uintptr_t)page_addr + alloc->user_buffer_offset;
 		ret = vm_insert_page(vma, user_page_addr, page[0].page_ptr);
@@ -314,8 +304,6 @@ free_range:
 		continue;
 
 err_vm_insert_page_failed:
-		unmap_kernel_range((unsigned long)page_addr, PAGE_SIZE);
-err_map_kernel_failed:
 		__free_page(page->page_ptr);
 		page->page_ptr = NULL;
 err_alloc_page_failed:
@@ -695,7 +683,6 @@ int binder_alloc_mmap_handler(struct binder_alloc *alloc,
 			      struct vm_area_struct *vma)
 {
 	int ret;
-	struct vm_struct *area;
 	const char *failure_string;
 	struct binder_buffer *buffer;
 
@@ -706,28 +693,10 @@ int binder_alloc_mmap_handler(struct binder_alloc *alloc,
 		goto err_already_mapped;
 	}
 
-	area = get_vm_area(vma->vm_end - vma->vm_start, VM_ALLOC);
-	if (area == NULL) {
-		ret = -ENOMEM;
-		failure_string = "get_vm_area";
-		goto err_get_vm_area_failed;
-	}
-	alloc->buffer = area->addr;
-	alloc->user_buffer_offset =
-		vma->vm_start - (uintptr_t)alloc->buffer;
+	alloc->buffer = (void *)vma->vm_start;
+	alloc->user_buffer_offset = 0;
 	mutex_unlock(&binder_alloc_mmap_lock);
 
-#ifdef CONFIG_CPU_CACHE_VIPT
-	if (cache_is_vipt_aliasing()) {
-		while (CACHE_COLOUR(
-				(vma->vm_start ^ (uint32_t)alloc->buffer))) {
-			pr_info("%s: %d %lx-%lx maps %pK bad alignment\n",
-				__func__, alloc->pid, vma->vm_start,
-				vma->vm_end, alloc->buffer);
-			vma->vm_start += PAGE_SIZE;
-		}
-	}
-#endif
 	alloc->pages = kcalloc((vma->vm_end - vma->vm_start) / PAGE_SIZE,
 			       sizeof(alloc->pages[0]),
 			       GFP_KERNEL);
@@ -760,9 +729,7 @@ err_alloc_buf_struct_failed:
 	alloc->pages = NULL;
 err_alloc_pages_failed:
 	mutex_lock(&binder_alloc_mmap_lock);
-	vfree(alloc->buffer);
 	alloc->buffer = NULL;
-err_get_vm_area_failed:
 err_already_mapped:
 	mutex_unlock(&binder_alloc_mmap_lock);
 	binder_alloc_debug(BINDER_DEBUG_USER_ERROR,
@@ -821,12 +788,10 @@ void binder_alloc_deferred_release(struct binder_alloc *alloc)
 				     "%s: %d: page %d at %pK %s\n",
 				     __func__, alloc->pid, i, page_addr,
 				     on_lru ? "on lru" : "active");
-			unmap_kernel_range((unsigned long)page_addr, PAGE_SIZE);
 			__free_page(alloc->pages[i].page_ptr);
 			page_count++;
 		}
 		kfree(alloc->pages);
-		vfree(alloc->buffer);
 	}
 	mutex_unlock(&alloc->mutex);
 	if (alloc->vma_vm_mm)
@@ -987,7 +952,6 @@ enum lru_status binder_alloc_free_page(struct list_head *item,
 
 	trace_binder_unmap_kernel_start(alloc, index);
 
-	unmap_kernel_range(page_addr, PAGE_SIZE);
 	__free_page(page->page_ptr);
 	page->page_ptr = NULL;
 
