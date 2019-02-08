@@ -83,7 +83,7 @@ extern const char ice_drv_ver[];
 #define ICE_DFLT_NETIF_M (NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_LINK)
 
 #define ICE_MAX_MTU	(ICE_AQ_SET_MAC_FRAME_SIZE_MAX - \
-			 ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN)
+			(ETH_HLEN + ETH_FCS_LEN + (VLAN_HLEN * 2)))
 
 #define ICE_UP_TABLE_TRANSLATE(val, i) \
 		(((val) << ICE_AQ_VSI_UP_TABLE_UP##i##_S) & \
