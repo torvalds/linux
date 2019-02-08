@@ -1344,9 +1344,14 @@ ice_sched_calc_vsi_support_nodes(struct ice_hw *hw,
 				node = node->sibling;
 			}
 
+			/* tree has one intermediate node to add this new VSI.
+			 * So no need to calculate supported nodes for below
+			 * layers.
+			 */
+			if (node)
+				break;
 			/* all the nodes are full, allocate a new one */
-			if (!node)
-				num_nodes[i]++;
+			num_nodes[i]++;
 		}
 }
 
