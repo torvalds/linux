@@ -486,21 +486,31 @@ static const Elf_Shdr *find_section(const Elf_Ehdr *hdr,
 	return NULL;
 }
 
+static inline void __init_plt(struct plt_entry *plt, unsigned long addr)
+{
+	*plt = get_plt_entry(addr, plt);
+}
+
 static int module_init_ftrace_plt(const Elf_Ehdr *hdr,
 				  const Elf_Shdr *sechdrs,
 				  struct module *mod)
 {
 #if defined(CONFIG_ARM64_MODULE_PLTS) && defined(CONFIG_DYNAMIC_FTRACE)
 	const Elf_Shdr *s;
-	struct plt_entry *plt;
+	struct plt_entry *plts;
 
 	s = find_section(hdr, sechdrs, ".text.ftrace_trampoline");
 	if (!s)
 		return -ENOEXEC;
 
-	plt = (void *)s->sh_addr;
-	*plt = get_plt_entry(FTRACE_ADDR, plt);
-	mod->arch.ftrace_trampoline = plt;
+	plts = (void *)s->sh_addr;
+
+	__init_plt(&plts[FTRACE_PLT_IDX], FTRACE_ADDR);
+
+	if (IS_ENABLED(CONFIG_DYNAMIC_FTRACE_WITH_REGS))
+		__init_plt(&plts[FTRACE_REGS_PLT_IDX], FTRACE_REGS_ADDR);
+
+	mod->arch.ftrace_trampolines = plts;
 #endif
 	return 0;
 }
