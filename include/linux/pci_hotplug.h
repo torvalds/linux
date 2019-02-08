@@ -124,10 +124,58 @@ struct hpp_type2 {
 	u32 sec_unc_err_mask_or;
 };
 
+/*
+ * _HPX PCI Express Setting Record (Type 3)
+ */
+struct hpx_type3 {
+	u16 device_type;
+	u16 function_type;
+	u16 config_space_location;
+	u16 pci_exp_cap_id;
+	u16 pci_exp_cap_ver;
+	u16 pci_exp_vendor_id;
+	u16 dvsec_id;
+	u16 dvsec_rev;
+	u16 match_offset;
+	u32 match_mask_and;
+	u32 match_value;
+	u16 reg_offset;
+	u32 reg_mask_and;
+	u32 reg_mask_or;
+};
+
 struct hotplug_program_ops {
 	void (*program_type0)(struct pci_dev *dev, struct hpp_type0 *hpp);
 	void (*program_type1)(struct pci_dev *dev, struct hpp_type1 *hpp);
 	void (*program_type2)(struct pci_dev *dev, struct hpp_type2 *hpp);
+	void (*program_type3)(struct pci_dev *dev, struct hpx_type3 *hpp);
+};
+
+enum hpx_type3_dev_type {
+	HPX_TYPE_ENDPOINT	= BIT(0),
+	HPX_TYPE_LEG_END	= BIT(1),
+	HPX_TYPE_RC_END		= BIT(2),
+	HPX_TYPE_RC_EC		= BIT(3),
+	HPX_TYPE_ROOT_PORT	= BIT(4),
+	HPX_TYPE_UPSTREAM	= BIT(5),
+	HPX_TYPE_DOWNSTREAM	= BIT(6),
+	HPX_TYPE_PCI_BRIDGE	= BIT(7),
+	HPX_TYPE_PCIE_BRIDGE	= BIT(8),
+};
+
+enum hpx_type3_fn_type {
+	HPX_FN_NORMAL		= BIT(0),
+	HPX_FN_SRIOV_PHYS	= BIT(1),
+	HPX_FN_SRIOV_VIRT	= BIT(2),
+};
+
+enum hpx_type3_cfg_loc {
+	HPX_CFG_PCICFG		= 0,
+	HPX_CFG_PCIE_CAP	= 1,
+	HPX_CFG_PCIE_CAP_EXT	= 2,
+	HPX_CFG_VEND_CAP	= 3,
+	HPX_CFG_DVSEC		= 4,
+	HPX_CFG_MAX,
 };
 
 #ifdef CONFIG_ACPI

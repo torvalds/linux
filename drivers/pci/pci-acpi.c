@@ -216,6 +216,64 @@ static acpi_status decode_type2_hpx_record(union acpi_object *record,
 	return AE_OK;
 }
 
+static void parse_hpx3_register(struct hpx_type3 *hpx3_reg,
+				union acpi_object *reg_fields)
+{
+	hpx3_reg->device_type            = reg_fields[0].integer.value;
+	hpx3_reg->function_type          = reg_fields[1].integer.value;
+	hpx3_reg->config_space_location  = reg_fields[2].integer.value;
+	hpx3_reg->pci_exp_cap_id         = reg_fields[3].integer.value;
+	hpx3_reg->pci_exp_cap_ver        = reg_fields[4].integer.value;
+	hpx3_reg->pci_exp_vendor_id      = reg_fields[5].integer.value;
+	hpx3_reg->dvsec_id               = reg_fields[6].integer.value;
+	hpx3_reg->dvsec_rev              = reg_fields[7].integer.value;
+	hpx3_reg->match_offset           = reg_fields[8].integer.value;
+	hpx3_reg->match_mask_and         = reg_fields[9].integer.value;
+	hpx3_reg->match_value            = reg_fields[10].integer.value;
+	hpx3_reg->reg_offset             = reg_fields[11].integer.value;
+	hpx3_reg->reg_mask_and           = reg_fields[12].integer.value;
+	hpx3_reg->reg_mask_or            = reg_fields[13].integer.value;
+}
+
+static acpi_status program_type3_hpx_record(struct pci_dev *dev,
+					   union acpi_object *record,
+					   const struct hotplug_program_ops *hp_ops)
+{
+	union acpi_object *fields = record->package.elements;
+	u32 desc_count, expected_length, revision;
+	union acpi_object *reg_fields;
+	struct hpx_type3 hpx3;
+	int i;
+
+	revision = fields[1].integer.value;
+	switch (revision) {
+	case 1:
+		desc_count = fields[2].integer.value;
+		expected_length = 3 + desc_count * 14;
+
+		if (record->package.count != expected_length)
+			return AE_ERROR;
+
+		for (i = 2; i < expected_length; i++)
+			if (fields[i].type != ACPI_TYPE_INTEGER)
+				return AE_ERROR;
+
+		for (i = 0; i < desc_count; i++) {
+			reg_fields = fields + 3 + i * 14;
+			parse_hpx3_register(&hpx3, reg_fields);
+			hp_ops->program_type3(dev, &hpx3);
+		}
+
+		break;
+	default:
+		printk(KERN_WARNING
+			"%s: Type 3 Revision %d record not supported\n",
+			__func__, revision);
+		return AE_ERROR;
+	}
+	return AE_OK;
+}
+
 static acpi_status acpi_run_hpx(struct pci_dev *dev, acpi_handle handle,
 				const struct hotplug_program_ops *hp_ops)
 {
@@ -274,6 +332,11 @@ static acpi_status acpi_run_hpx(struct pci_dev *dev, acpi_handle handle,
 			if (ACPI_FAILURE(status))
 				goto exit;
 			hp_ops->program_type2(dev, &hpx2);
+			break;
+		case 3:
+			status = program_type3_hpx_record(dev, record, hp_ops);
+			if (ACPI_FAILURE(status))
+				goto exit;
 			break;
 		default:
 			printk(KERN_ERR "%s: Type %d record not supported\n",
