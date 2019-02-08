@@ -38,7 +38,6 @@ static struct snd_soc_acpi_mach spi_machines[] = {
 		.drv_name = "bxt_alc298s_i2s",
 		.sof_fw_filename = "sof-spi.ri",
 		.sof_tplg_filename = "sof-spi.tplg",
-		.asoc_plat_name = "0000:00:0e.0",
 	},
 };
 
@@ -124,7 +123,6 @@ static int sof_spi_probe(struct spi_device *spi)
 	 */
 	mach->sof_fw_filename = desc->nocodec_fw_filename;
 	mach->sof_tplg_filename = desc->nocodec_tplg_filename;
-	mach->asoc_plat_name = "sof-platform";
 	mach->mach_params.platform = dev_name(dev);
 
 	sof_pdata->name = dev_name(&spi->dev);
