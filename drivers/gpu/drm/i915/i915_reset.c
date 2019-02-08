@@ -862,7 +862,6 @@ bool i915_gem_unset_wedged(struct drm_i915_private *i915)
 {
 	struct i915_gpu_error *error = &i915->gpu_error;
 	struct i915_timeline *tl;
-	bool ret = false;
 
 	if (!test_bit(I915_WEDGED, &error->flags))
 		return true;
@@ -887,30 +886,20 @@ bool i915_gem_unset_wedged(struct drm_i915_private *i915)
 	mutex_lock(&i915->gt.timelines.mutex);
 	list_for_each_entry(tl, &i915->gt.timelines.active_list, link) {
 		struct i915_request *rq;
-		long timeout;
 
 		rq = i915_active_request_get_unlocked(&tl->last_request);
 		if (!rq)
 			continue;
 
 		/*
-		 * We can't use our normal waiter as we want to
-		 * avoid recursively trying to handle the current
-		 * reset. The basic dma_fence_default_wait() installs
-		 * a callback for dma_fence_signal(), which is
-		 * triggered by our nop handler (indirectly, the
-		 * callback enables the signaler thread which is
-		 * woken by the nop_submit_request() advancing the seqno
-		 * and when the seqno passes the fence, the signaler
-		 * then signals the fence waking us up).
+		 * All internal dependencies (i915_requests) will have
+		 * been flushed by the set-wedge, but we may be stuck waiting
+		 * for external fences. These should all be capped to 10s
+		 * (I915_FENCE_TIMEOUT) so this wait should not be unbounded
+		 * in the worst case.
 		 */
-		timeout = dma_fence_default_wait(&rq->fence, true,
-						 MAX_SCHEDULE_TIMEOUT);
+		dma_fence_default_wait(&rq->fence, false, MAX_SCHEDULE_TIMEOUT);
 		i915_request_put(rq);
-		if (timeout < 0) {
-			mutex_unlock(&i915->gt.timelines.mutex);
-			goto unlock;
-		}
 	}
 	mutex_unlock(&i915->gt.timelines.mutex);
 
@@ -931,11 +920,10 @@ bool i915_gem_unset_wedged(struct drm_i915_private *i915)
 
 	smp_mb__before_atomic(); /* complete takeover before enabling execbuf */
 	clear_bit(I915_WEDGED, &i915->gpu_error.flags);
-	ret = true;
-unlock:
+
 	mutex_unlock(&i915->gpu_error.wedge_mutex);
 
-	return ret;
+	return true;
 }
 
 static int do_reset(struct drm_i915_private *i915, unsigned int stalled_mask)
