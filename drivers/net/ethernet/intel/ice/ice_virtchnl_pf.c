@@ -345,25 +345,33 @@ static int ice_vsi_set_pvid(struct ice_vsi *vsi, u16 vid)
 {
 	struct device *dev = &vsi->back->pdev->dev;
 	struct ice_hw *hw = &vsi->back->hw;
-	struct ice_vsi_ctx ctxt = { 0 };
+	struct ice_vsi_ctx *ctxt;
 	enum ice_status status;
+	int ret = 0;
 
-	ctxt.info.vlan_flags = ICE_AQ_VSI_VLAN_MODE_UNTAGGED |
-			       ICE_AQ_VSI_PVLAN_INSERT_PVID |
-			       ICE_AQ_VSI_VLAN_EMOD_STR;
-	ctxt.info.pvid = cpu_to_le16(vid);
-	ctxt.info.valid_sections = cpu_to_le16(ICE_AQ_VSI_PROP_VLAN_VALID);
+	ctxt = devm_kzalloc(dev, sizeof(*ctxt), GFP_KERNEL);
+	if (!ctxt)
+		return -ENOMEM;
 
-	status = ice_update_vsi(hw, vsi->idx, &ctxt, NULL);
+	ctxt->info.vlan_flags = (ICE_AQ_VSI_VLAN_MODE_UNTAGGED |
+				 ICE_AQ_VSI_PVLAN_INSERT_PVID |
+				 ICE_AQ_VSI_VLAN_EMOD_STR);
+	ctxt->info.pvid = cpu_to_le16(vid);
+	ctxt->info.valid_sections = cpu_to_le16(ICE_AQ_VSI_PROP_VLAN_VALID);
+
+	status = ice_update_vsi(hw, vsi->idx, ctxt, NULL);
 	if (status) {
 		dev_info(dev, "update VSI for VLAN insert failed, err %d aq_err %d\n",
 			 status, hw->adminq.sq_last_status);
-		return -EIO;
+		ret = -EIO;
+		goto out;
 	}
 
-	vsi->info.pvid = ctxt.info.pvid;
-	vsi->info.vlan_flags = ctxt.info.vlan_flags;
-	return 0;
+	vsi->info.pvid = ctxt->info.pvid;
+	vsi->info.vlan_flags = ctxt->info.vlan_flags;
+out:
+	devm_kfree(dev, ctxt);
+	return ret;
 }
 
 /**
@@ -2479,11 +2487,12 @@ int ice_get_vf_cfg(struct net_device *netdev, int vf_id,
 int ice_set_vf_spoofchk(struct net_device *netdev, int vf_id, bool ena)
 {
 	struct ice_netdev_priv *np = netdev_priv(netdev);
-	struct ice_vsi_ctx ctx = { 0 };
 	struct ice_vsi *vsi = np->vsi;
 	struct ice_pf *pf = vsi->back;
+	struct ice_vsi_ctx *ctx;
+	enum ice_status status;
 	struct ice_vf *vf;
-	int status;
+	int ret = 0;
 
 	/* validate the request */
 	if (vf_id >= pf->num_alloc_vfs) {
@@ -2503,25 +2512,31 @@ int ice_set_vf_spoofchk(struct net_device *netdev, int vf_id, bool ena)
 		return 0;
 	}
 
-	ctx.info.valid_sections = cpu_to_le16(ICE_AQ_VSI_PROP_SECURITY_VALID);
+	ctx = devm_kzalloc(&pf->pdev->dev, sizeof(*ctx), GFP_KERNEL);
+	if (!ctx)
+		return -ENOMEM;
+
+	ctx->info.valid_sections = cpu_to_le16(ICE_AQ_VSI_PROP_SECURITY_VALID);
 
 	if (ena) {
-		ctx.info.sec_flags |= ICE_AQ_VSI_SEC_FLAG_ENA_MAC_ANTI_SPOOF;
-		ctx.info.sw_flags2 |= ICE_AQ_VSI_SW_FLAG_RX_PRUNE_EN_M;
+		ctx->info.sec_flags |= ICE_AQ_VSI_SEC_FLAG_ENA_MAC_ANTI_SPOOF;
+		ctx->info.sw_flags2 |= ICE_AQ_VSI_SW_FLAG_RX_PRUNE_EN_M;
 	}
 
-	status = ice_update_vsi(&pf->hw, vsi->idx, &ctx, NULL);
+	status = ice_update_vsi(&pf->hw, vsi->idx, ctx, NULL);
 	if (status) {
 		dev_dbg(&pf->pdev->dev,
 			"Error %d, failed to update VSI* parameters\n", status);
-		return -EIO;
+		ret = -EIO;
+		goto out;
 	}
 
 	vf->spoofchk = ena;
-	vsi->info.sec_flags = ctx.info.sec_flags;
-	vsi->info.sw_flags2 = ctx.info.sw_flags2;
-
-	return status;
+	vsi->info.sec_flags = ctx->info.sec_flags;
+	vsi->info.sw_flags2 = ctx->info.sw_flags2;
+out:
+	devm_kfree(&pf->pdev->dev, ctx);
+	return ret;
 }
 
 /**

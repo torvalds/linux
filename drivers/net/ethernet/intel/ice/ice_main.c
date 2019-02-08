@@ -3707,30 +3707,39 @@ static int ice_vsi_update_bridge_mode(struct ice_vsi *vsi, u16 bmode)
 	struct device *dev = &vsi->back->pdev->dev;
 	struct ice_aqc_vsi_props *vsi_props;
 	struct ice_hw *hw = &vsi->back->hw;
-	struct ice_vsi_ctx ctxt = { 0 };
+	struct ice_vsi_ctx *ctxt;
 	enum ice_status status;
+	int ret = 0;
 
 	vsi_props = &vsi->info;
-	ctxt.info = vsi->info;
+
+	ctxt = devm_kzalloc(dev, sizeof(*ctxt), GFP_KERNEL);
+	if (!ctxt)
+		return -ENOMEM;
+
+	ctxt->info = vsi->info;
 
 	if (bmode == BRIDGE_MODE_VEB)
 		/* change from VEPA to VEB mode */
-		ctxt.info.sw_flags |= ICE_AQ_VSI_SW_FLAG_ALLOW_LB;
+		ctxt->info.sw_flags |= ICE_AQ_VSI_SW_FLAG_ALLOW_LB;
 	else
 		/* change from VEB to VEPA mode */
-		ctxt.info.sw_flags &= ~ICE_AQ_VSI_SW_FLAG_ALLOW_LB;
-	ctxt.info.valid_sections = cpu_to_le16(ICE_AQ_VSI_PROP_SW_VALID);
+		ctxt->info.sw_flags &= ~ICE_AQ_VSI_SW_FLAG_ALLOW_LB;
+	ctxt->info.valid_sections = cpu_to_le16(ICE_AQ_VSI_PROP_SW_VALID);
 
-	status = ice_update_vsi(hw, vsi->idx, &ctxt, NULL);
+	status = ice_update_vsi(hw, vsi->idx, ctxt, NULL);
 	if (status) {
 		dev_err(dev, "update VSI for bridge mode failed, bmode = %d err %d aq_err %d\n",
 			bmode, status, hw->adminq.sq_last_status);
-		return -EIO;
+		ret = -EIO;
+		goto out;
 	}
 	/* Update sw flags for book keeping */
-	vsi_props->sw_flags = ctxt.info.sw_flags;
+	vsi_props->sw_flags = ctxt->info.sw_flags;
 
-	return 0;
+out:
+	devm_kfree(dev, ctxt);
+	return ret;
 }
 
 /**
