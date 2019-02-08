@@ -1084,7 +1084,7 @@ ice_get_settings_link_up(struct ethtool_link_ksettings *ks,
 	 * current PHY type, get what is supported by the NVM and intersect
 	 * them to get what is truly supported
 	 */
-	memset(&cap_ksettings, 0, sizeof(struct ethtool_link_ksettings));
+	memset(&cap_ksettings, 0, sizeof(cap_ksettings));
 	ice_phy_type_to_ethtool(netdev, &cap_ksettings);
 	ethtool_intersect_link_masks(ks, &cap_ksettings);
 
@@ -1416,7 +1416,7 @@ ice_set_link_ksettings(struct net_device *netdev,
 		return -EOPNOTSUPP;
 
 	/* copy the ksettings to copy_ks to avoid modifying the original */
-	memcpy(&copy_ks, ks, sizeof(struct ethtool_link_ksettings));
+	memcpy(&copy_ks, ks, sizeof(copy_ks));
 
 	/* save autoneg out of ksettings */
 	autoneg = copy_ks.base.autoneg;
@@ -1435,7 +1435,7 @@ ice_set_link_ksettings(struct net_device *netdev,
 		return -EINVAL;
 
 	/* get our own copy of the bits to check against */
-	memset(&safe_ks, 0, sizeof(struct ethtool_link_ksettings));
+	memset(&safe_ks, 0, sizeof(safe_ks));
 	safe_ks.base.cmd = copy_ks.base.cmd;
 	safe_ks.base.link_mode_masks_nwords =
 		copy_ks.base.link_mode_masks_nwords;
@@ -1449,8 +1449,7 @@ ice_set_link_ksettings(struct net_device *netdev,
 	/* If copy_ks.base and safe_ks.base are not the same now, then they are
 	 * trying to set something that we do not support.
 	 */
-	if (memcmp(&copy_ks.base, &safe_ks.base,
-		   sizeof(struct ethtool_link_settings)))
+	if (memcmp(&copy_ks.base, &safe_ks.base, sizeof(copy_ks.base)))
 		return -EOPNOTSUPP;
 
 	while (test_and_set_bit(__ICE_CFG_BUSY, pf->state)) {
@@ -1474,7 +1473,7 @@ ice_set_link_ksettings(struct net_device *netdev,
 	}
 
 	/* Copy abilities to config in case autoneg is not set below */
-	memset(&config, 0, sizeof(struct ice_aqc_set_phy_cfg_data));
+	memset(&config, 0, sizeof(config));
 	config.caps = abilities->caps & ~ICE_AQC_PHY_AN_MODE;
 	if (abilities->caps & ICE_AQC_PHY_AN_MODE)
 		config.caps |= ICE_AQ_PHY_ENA_AUTO_LINK_UPDT;
@@ -1668,7 +1667,7 @@ ice_set_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring)
 		    vsi->tx_rings[0]->count, new_tx_cnt);
 
 	tx_rings = devm_kcalloc(&pf->pdev->dev, vsi->alloc_txq,
-				sizeof(struct ice_ring), GFP_KERNEL);
+				sizeof(*tx_rings), GFP_KERNEL);
 	if (!tx_rings) {
 		err = -ENOMEM;
 		goto done;
@@ -1700,7 +1699,7 @@ process_rx:
 		    vsi->rx_rings[0]->count, new_rx_cnt);
 
 	rx_rings = devm_kcalloc(&pf->pdev->dev, vsi->alloc_rxq,
-				sizeof(struct ice_ring), GFP_KERNEL);
+				sizeof(*rx_rings), GFP_KERNEL);
 	if (!rx_rings) {
 		err = -ENOMEM;
 		goto done;

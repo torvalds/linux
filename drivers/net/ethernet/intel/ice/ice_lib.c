@@ -249,12 +249,12 @@ static int ice_vsi_alloc_arrays(struct ice_vsi *vsi, bool alloc_qvectors)
 
 	/* allocate memory for both Tx and Rx ring pointers */
 	vsi->tx_rings = devm_kcalloc(&pf->pdev->dev, vsi->alloc_txq,
-				     sizeof(struct ice_ring *), GFP_KERNEL);
+				     sizeof(*vsi->tx_rings), GFP_KERNEL);
 	if (!vsi->tx_rings)
 		goto err_txrings;
 
 	vsi->rx_rings = devm_kcalloc(&pf->pdev->dev, vsi->alloc_rxq,
-				     sizeof(struct ice_ring *), GFP_KERNEL);
+				     sizeof(*vsi->rx_rings), GFP_KERNEL);
 	if (!vsi->rx_rings)
 		goto err_rxrings;
 
@@ -262,7 +262,7 @@ static int ice_vsi_alloc_arrays(struct ice_vsi *vsi, bool alloc_qvectors)
 		/* allocate memory for q_vector pointers */
 		vsi->q_vectors = devm_kcalloc(&pf->pdev->dev,
 					      vsi->num_q_vectors,
-					      sizeof(struct ice_q_vector *),
+					      sizeof(*vsi->q_vectors),
 					      GFP_KERNEL);
 		if (!vsi->q_vectors)
 			goto err_vectors;
@@ -355,7 +355,7 @@ void ice_vsi_delete(struct ice_vsi *vsi)
 		ctxt.vf_num = vsi->vf_id;
 	ctxt.vsi_num = vsi->vsi_num;
 
-	memcpy(&ctxt.info, &vsi->info, sizeof(struct ice_aqc_vsi_props));
+	memcpy(&ctxt.info, &vsi->info, sizeof(ctxt.info));
 
 	status = ice_free_vsi(&pf->hw, vsi->idx, &ctxt, false, NULL);
 	if (status)
@@ -1620,7 +1620,7 @@ ice_vsi_cfg_txqs(struct ice_vsi *vsi, struct ice_ring **rings, int offset)
 	u16 buf_len, i, pf_q;
 	int err = 0, tc;
 
-	buf_len = sizeof(struct ice_aqc_add_tx_qgrp);
+	buf_len = sizeof(*qg_buf);
 	qg_buf = devm_kzalloc(&pf->pdev->dev, buf_len, GFP_KERNEL);
 	if (!qg_buf)
 		return -ENOMEM;

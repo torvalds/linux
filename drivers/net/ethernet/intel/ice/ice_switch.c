@@ -98,7 +98,7 @@ enum ice_status ice_init_def_sw_recp(struct ice_hw *hw)
 	u8 i;
 
 	recps = devm_kcalloc(ice_hw_to_dev(hw), ICE_MAX_NUM_RECIPES,
-			     sizeof(struct ice_sw_recipe), GFP_KERNEL);
+			     sizeof(*recps), GFP_KERNEL);
 	if (!recps)
 		return ICE_ERR_NO_MEMORY;
 

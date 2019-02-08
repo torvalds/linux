@@ -1066,11 +1066,10 @@ enum ice_status ice_sched_query_res_alloc(struct ice_hw *hw)
 		hw->max_children[i] = le16_to_cpu(max_sibl);
 	}
 
-	hw->layer_info = (struct ice_aqc_layer_props *)
-			  devm_kmemdup(ice_hw_to_dev(hw), buf->layer_props,
-				       (hw->num_tx_sched_layers *
-					sizeof(*hw->layer_info)),
-				       GFP_KERNEL);
+	hw->layer_info = devm_kmemdup(ice_hw_to_dev(hw), buf->layer_props,
+				      (hw->num_tx_sched_layers *
+				       sizeof(*hw->layer_info)),
+				      GFP_KERNEL);
 	if (!hw->layer_info) {
 		status = ICE_ERR_NO_MEMORY;
 		goto sched_query_out;
