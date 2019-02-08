@@ -1189,15 +1189,15 @@ static int igb_alloc_q_vector(struct igb_adapter *adapter,
 {
 	struct igb_q_vector *q_vector;
 	struct igb_ring *ring;
-	int ring_count, size;
+	int ring_count;
+	size_t size;
 
 	/* igb only supports 1 Tx and/or 1 Rx queue per vector */
 	if (txr_count > 1 || rxr_count > 1)
 		return -ENOMEM;
 
 	ring_count = txr_count + rxr_count;
-	size = sizeof(struct igb_q_vector) +
-	       (sizeof(struct igb_ring) * ring_count);
+	size = struct_size(q_vector, ring, ring_count);
 
 	/* allocate q_vector and rings */
 	q_vector = adapter->q_vector[v_idx];
