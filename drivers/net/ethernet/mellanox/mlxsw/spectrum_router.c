@@ -3814,13 +3814,11 @@ mlxsw_sp_nexthop4_group_create(struct mlxsw_sp *mlxsw_sp, struct fib_info *fi)
 	struct mlxsw_sp_nexthop_group *nh_grp;
 	struct mlxsw_sp_nexthop *nh;
 	struct fib_nh *fib_nh;
-	size_t alloc_size;
 	int i;
 	int err;
 
-	alloc_size = sizeof(*nh_grp) +
-		     fi->fib_nhs * sizeof(struct mlxsw_sp_nexthop);
-	nh_grp = kzalloc(alloc_size, GFP_KERNEL);
+	nh_grp = kzalloc(struct_size(nh_grp, nexthops, fi->fib_nhs),
+			 GFP_KERNEL);
 	if (!nh_grp)
 		return ERR_PTR(-ENOMEM);
 	nh_grp->priv = fi;
@@ -5066,13 +5064,11 @@ mlxsw_sp_nexthop6_group_create(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_nexthop_group *nh_grp;
 	struct mlxsw_sp_rt6 *mlxsw_sp_rt6;
 	struct mlxsw_sp_nexthop *nh;
-	size_t alloc_size;
 	int i = 0;
 	int err;
 
-	alloc_size = sizeof(*nh_grp) +
-		     fib6_entry->nrt6 * sizeof(struct mlxsw_sp_nexthop);
-	nh_grp = kzalloc(alloc_size, GFP_KERNEL);
+	nh_grp = kzalloc(struct_size(nh_grp, nexthops, fib6_entry->nrt6),
+			 GFP_KERNEL);
 	if (!nh_grp)
 		return ERR_PTR(-ENOMEM);
 	INIT_LIST_HEAD(&nh_grp->fib_list);
