@@ -1903,10 +1903,6 @@ static void domain_exit(struct dmar_domain *domain)
 {
 	struct page *freelist;
 
-	/* Domain 0 is reserved, so dont process it */
-	if (!domain)
-		return;
-
 	/* Remove associated devices and clear attached or cached domains */
 	rcu_read_lock();
 	domain_remove_dev_info(domain);
