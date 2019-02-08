@@ -4,9 +4,13 @@
  * Author: James.Qian.Wang <james.qian.wang@arm.com>
  *
  */
-#include <linux/platform_device.h>
+#include <linux/io.h>
 #include <linux/of_device.h>
 #include <linux/of_graph.h>
+#include <linux/platform_device.h>
+
+#include <drm/drm_print.h>
+
 #include "komeda_dev.h"
 
 static int komeda_parse_pipe_dt(struct komeda_dev *mdev, struct device_node *np)

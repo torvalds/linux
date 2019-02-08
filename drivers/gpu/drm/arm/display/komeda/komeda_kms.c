@@ -5,15 +5,19 @@
  *
  */
 #include <linux/component.h>
+#include <linux/interrupt.h>
+
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_gem_framebuffer_helper.h>
-#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_fb_helper.h>
-#include <linux/interrupt.h>
+#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_vblank.h>
+
 #include "komeda_dev.h"
-#include "komeda_kms.h"
 #include "komeda_framebuffer.h"
+#include "komeda_kms.h"
 
 DEFINE_DRM_GEM_CMA_FOPS(komeda_cma_fops);
 

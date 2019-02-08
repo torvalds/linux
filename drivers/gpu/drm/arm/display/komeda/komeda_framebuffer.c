@@ -4,10 +4,12 @@
  * Author: James.Qian.Wang <james.qian.wang@arm.com>
  *
  */
-#include <drm/drm_gem.h>
-#include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_device.h>
 #include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_gem.h>
 #include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
+
 #include "komeda_framebuffer.h"
 #include "komeda_dev.h"
 
