@@ -79,7 +79,9 @@ extern u64 __ua_limit;
 static inline int __access_ok(const void __user *p, unsigned long size)
 {
 	unsigned long addr = (unsigned long)p;
-	return (__UA_LIMIT & (addr | (addr + size) | __ua_size(size))) == 0;
+	unsigned long end = addr + size - !!size;
+
+	return (__UA_LIMIT & (addr | end | __ua_size(size))) == 0;
 }
 
 #define access_ok(addr, size)					\
