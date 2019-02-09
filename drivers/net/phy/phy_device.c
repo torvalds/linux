@@ -2220,6 +2220,18 @@ static int phy_probe(struct device *dev)
 
 	mutex_lock(&phydev->lock);
 
+	if (phydev->drv->probe) {
+		/* Deassert the reset signal */
+		phy_device_reset(phydev, 0);
+
+		err = phydev->drv->probe(phydev);
+		if (err) {
+			/* Assert the reset signal */
+			phy_device_reset(phydev, 1);
+			goto out;
+		}
+	}
+
 	/* Start out supporting everything. Eventually,
 	 * a controller will attach, and may modify one
 	 * or both of these values
@@ -2267,17 +2279,7 @@ static int phy_probe(struct device *dev)
 	/* Set the state to READY by default */
 	phydev->state = PHY_READY;
 
-	if (phydev->drv->probe) {
-		/* Deassert the reset signal */
-		phy_device_reset(phydev, 0);
-
-		err = phydev->drv->probe(phydev);
-		if (err) {
-			/* Assert the reset signal */
-			phy_device_reset(phydev, 1);
-		}
-	}
-
+out:
 	mutex_unlock(&phydev->lock);
 
 	return err;
