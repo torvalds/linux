@@ -68,6 +68,7 @@ read_attribute(btree_written);
 read_attribute(metadata_written);
 read_attribute(active_journal_entries);
 read_attribute(backing_dev_name);
+read_attribute(backing_dev_uuid);
 
 sysfs_time_stats_attribute(btree_gc,	sec, ms);
 sysfs_time_stats_attribute(btree_split, sec, us);
@@ -246,6 +247,13 @@ SHOW(__bch_cached_dev)
 
 	if (attr == &sysfs_backing_dev_name) {
 		snprintf(buf, BDEVNAME_SIZE + 1, "%s", dc->backing_dev_name);
+		strcat(buf, "\n");
+		return strlen(buf);
+	}
+
+	if (attr == &sysfs_backing_dev_uuid) {
+		/* convert binary uuid into 36-byte string plus '\0' */
+		snprintf(buf, 36+1, "%pU", dc->sb.uuid);
 		strcat(buf, "\n");
 		return strlen(buf);
 	}
@@ -460,6 +468,7 @@ static struct attribute *bch_cached_dev_files[] = {
 	&sysfs_bypass_torture_test,
 #endif
 	&sysfs_backing_dev_name,
+	&sysfs_backing_dev_uuid,
 	NULL
 };
 KTYPE(bch_cached_dev);
