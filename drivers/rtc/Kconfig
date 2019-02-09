@@ -1294,6 +1294,17 @@ config RTC_DRV_IMXDI
 	   This driver can also be built as a module, if so, the module
 	   will be called "rtc-imxdi".
 
+config RTC_DRV_MESON
+	tristate "Amlogic Meson RTC"
+	depends on (ARM && ARCH_MESON) || COMPILE_TEST
+	select REGMAP_MMIO
+	help
+	   Support for the RTC block on the Amlogic Meson6, Meson8, Meson8b
+	   and Meson8m2 SoCs.
+
+	   This driver can also be built as a module, if so, the module
+	   will be called "rtc-meson".
+
 config RTC_DRV_OMAP
 	tristate "TI OMAP Real Time Clock"
 	depends on ARCH_OMAP || ARCH_DAVINCI || COMPILE_TEST
