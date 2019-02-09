@@ -4,6 +4,7 @@
 #include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/input/mt.h>
+#include <linux/input/touchscreen.h>
 #include <linux/delay.h>
 #include <linux/workqueue.h>
 #include <linux/gpio/consumer.h>
@@ -19,15 +20,6 @@
 #define REG_PANEL_INFO		0x20
 #define REG_FIRMWARE_VERSION	0x40
 #define REG_CALIBRATE		0xcc
-
-struct panel_info {
-	u8 x_low;
-	u8 x_high;
-	u8 y_low;
-	u8 y_high;
-	u8 xchannel_num;
-	u8 ychannel_num;
-} __packed;
 
 struct firmware_version {
 	u8 id;
@@ -46,6 +38,7 @@ struct ili210x {
 	unsigned int poll_period;
 	struct delayed_work dwork;
 	struct gpio_desc *reset_gpio;
+	struct touchscreen_properties prop;
 	enum ili2xxx_model model;
 	unsigned int max_touches;
 };
@@ -149,8 +142,6 @@ static bool ili210x_report_events(struct ili210x *priv, u8 *touchdata)
 	unsigned int x = 0, y = 0;
 
 	for (i = 0; i < priv->max_touches; i++) {
-		input_mt_slot(input, i);
-
 		if (priv->model == MODEL_ILI210X) {
 			touch = ili210x_touchdata_to_coords(priv, touchdata,
 							    i, &x, &y);
@@ -161,11 +152,12 @@ static bool ili210x_report_events(struct ili210x *priv, u8 *touchdata)
 				contact = true;
 		}
 
+		input_mt_slot(input, i);
 		input_mt_report_slot_state(input, MT_TOOL_FINGER, touch);
-		if (touch) {
-			input_report_abs(input, ABS_MT_POSITION_X, x);
-			input_report_abs(input, ABS_MT_POSITION_Y, y);
-		}
+		if (!touch)
+			continue;
+		touchscreen_report_pos(input, &priv->prop, x, y,
+				       true);
 	}
 
 	input_mt_report_pointer_emulation(input, false);
@@ -274,10 +266,8 @@ static int ili210x_i2c_probe(struct i2c_client *client,
 	struct ili210x *priv;
 	struct gpio_desc *reset_gpio;
 	struct input_dev *input;
-	struct panel_info panel;
 	struct firmware_version firmware;
 	enum ili2xxx_model model;
-	int xmax, ymax;
 	int error;
 
 	model = (enum ili2xxx_model)id->driver_data;
@@ -334,35 +324,16 @@ static int ili210x_i2c_probe(struct i2c_client *client,
 		return error;
 	}
 
-	/* get panel info */
-	error = ili210x_read_reg(client, REG_PANEL_INFO, &panel, sizeof(panel));
-	if (error) {
-		dev_err(dev, "Failed to get panel information, err: %d\n",
-			error);
-		return error;
-	}
-
-	xmax = panel.x_low | (panel.x_high << 8);
-	ymax = panel.y_low | (panel.y_high << 8);
-
 	/* Setup input device */
 	input->name = "ILI210x Touchscreen";
 	input->id.bustype = BUS_I2C;
 	input->dev.parent = dev;
 
-	__set_bit(EV_SYN, input->evbit);
-	__set_bit(EV_KEY, input->evbit);
-	__set_bit(EV_ABS, input->evbit);
-	__set_bit(BTN_TOUCH, input->keybit);
-
-	/* Single touch */
-	input_set_abs_params(input, ABS_X, 0, xmax, 0, 0);
-	input_set_abs_params(input, ABS_Y, 0, ymax, 0, 0);
-
 	/* Multi touch */
-	input_mt_init_slots(input, priv->max_touches, 0);
-	input_set_abs_params(input, ABS_MT_POSITION_X, 0, xmax, 0, 0);
-	input_set_abs_params(input, ABS_MT_POSITION_Y, 0, ymax, 0, 0);
+	input_set_abs_params(input, ABS_MT_POSITION_X, 0, 0xffff, 0, 0);
+	input_set_abs_params(input, ABS_MT_POSITION_Y, 0, 0xffff, 0, 0);
+	touchscreen_parse_properties(input, true, &priv->prop);
+	input_mt_init_slots(input, priv->max_touches, INPUT_MT_DIRECT);
 
 	error = devm_add_action(dev, ili210x_cancel_work, priv);
 	if (error)
