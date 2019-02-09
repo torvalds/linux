@@ -118,6 +118,7 @@ static int sps30_do_cmd(struct sps30_state *state, u16 cmd, u8 *data, int size)
 	case SPS30_READ_AUTO_CLEANING_PERIOD:
 		buf[0] = SPS30_AUTO_CLEANING_PERIOD >> 8;
 		buf[1] = (u8)SPS30_AUTO_CLEANING_PERIOD;
+		/* fall through */
 	case SPS30_READ_DATA_READY_FLAG:
 	case SPS30_READ_DATA:
 	case SPS30_READ_SERIAL:
@@ -295,6 +296,8 @@ static int sps30_read_raw(struct iio_dev *indio_dev,
 				*val2 = 10000;
 
 				return IIO_VAL_INT_PLUS_MICRO;
+			default:
+				return -EINVAL;
 			}
 		default:
 			return -EINVAL;
