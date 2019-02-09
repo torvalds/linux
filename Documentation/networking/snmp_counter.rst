@@ -367,16 +367,19 @@ to the accept queue.
 TCP Fast Open
 =============
 * TcpEstabResets
+
 Defined in `RFC1213 tcpEstabResets`_.
 
 .. _RFC1213 tcpEstabResets: https://tools.ietf.org/html/rfc1213#page-48
 
 * TcpAttemptFails
+
 Defined in `RFC1213 tcpAttemptFails`_.
 
 .. _RFC1213 tcpAttemptFails: https://tools.ietf.org/html/rfc1213#page-48
 
 * TcpOutRsts
+
 Defined in `RFC1213 tcpOutRsts`_. The RFC says this counter indicates
 the 'segments sent containing the RST flag', but in linux kernel, this
 couner indicates the segments kerenl tried to send. The sending
@@ -384,6 +387,30 @@ process might be failed due to some errors (e.g. memory alloc failed).
 
 .. _RFC1213 tcpOutRsts: https://tools.ietf.org/html/rfc1213#page-52
 
+* TcpExtTCPSpuriousRtxHostQueues
+
+When the TCP stack wants to retransmit a packet, and finds that packet
+is not lost in the network, but the packet is not sent yet, the TCP
+stack would give up the retransmission and update this counter. It
+might happen if a packet stays too long time in a qdisc or driver
+queue.
+
+* TcpEstabResets
+
+The socket receives a RST packet in Establish or CloseWait state.
+
+* TcpExtTCPKeepAlive
+
+This counter indicates many keepalive packets were sent. The keepalive
+won't be enabled by default. A userspace program could enable it by
+setting the SO_KEEPALIVE socket option.
+
+* TcpExtTCPSpuriousRTOs
+
+The spurious retransmission timeout detected by the `F-RTO`_
+algorithm.
+
+.. _F-RTO: https://tools.ietf.org/html/rfc5682
 
 TCP Fast Path
 ============
@@ -609,6 +636,29 @@ packet yet, the sender would know packet 4 is out of order. The TCP
 stack of kernel will increase TcpExtTCPSACKReorder for both of the
 above scenarios.
 
+* TcpExtTCPSlowStartRetrans
+
+The TCP stack wants to retransmit a packet and the congestion control
+state is 'Loss'.
+
+* TcpExtTCPFastRetrans
+
+The TCP stack wants to retransmit a packet and the congestion control
+state is not 'Loss'.
+
+* TcpExtTCPLostRetransmit
+
+A SACK points out that a retransmission packet is lost again.
+
+* TcpExtTCPRetransFail
+
+The TCP stack tries to deliver a retransmission packet to lower layers
+but the lower layers return an error.
+
+* TcpExtTCPSynRetrans
+
+The TCP stack retransmits a SYN packet.
+
 DSACK
 =====
 The DSACK is defined in `RFC2883`_. The receiver uses DSACK to report
@@ -790,8 +840,9 @@ unacknowledged number (more strict than `RFC 5961 section 5.2`_).
 .. _RFC 5961 section 5.2: https://tools.ietf.org/html/rfc5961#page-11
 
 TCP receive window
-=================
+==================
 * TcpExtTCPWantZeroWindowAdv
+
 Depending on current memory usage, the TCP stack tries to set receive
 window to zero. But the receive window might still be a no-zero
 value. For example, if the previous window size is 10, and the TCP
@@ -799,14 +850,16 @@ stack receives 3 bytes, the current window size would be 7 even if the
 window size calculated by the memory usage is zero.
 
 * TcpExtTCPToZeroWindowAdv
+
 The TCP receive window is set to zero from a no-zero value.
 
 * TcpExtTCPFromZeroWindowAdv
+
 The TCP receive window is set to no-zero value from zero.
 
 
 Delayed ACK
-==========
+===========
 The TCP Delayed ACK is a technique which is used for reducing the
 packet count in the network. For more details, please refer the
 `Delayed ACK wiki`_
@@ -814,10 +867,12 @@ packet count in the network. For more details, please refer the
 .. _Delayed ACK wiki: https://en.wikipedia.org/wiki/TCP_delayed_acknowledgment
 
 * TcpExtDelayedACKs
+
 A delayed ACK timer expires. The TCP stack will send a pure ACK packet
 and exit the delayed ACK mode.
 
 * TcpExtDelayedACKLocked
+
 A delayed ACK timer expires, but the TCP stack can't send an ACK
 immediately due to the socket is locked by a userspace program. The
 TCP stack will send a pure ACK later (after the userspace program
@@ -826,23 +881,146 @@ TCP stack will also update TcpExtDelayedACKs and exit the delayed ACK
 mode.
 
 * TcpExtDelayedACKLost
+
 It will be updated when the TCP stack receives a packet which has been
 ACKed. A Delayed ACK loss might cause this issue, but it would also be
 triggered by other reasons, such as a packet is duplicated in the
 network.
 
 Tail Loss Probe (TLP)
-===================
+=====================
 TLP is an algorithm which is used to detect TCP packet loss. For more
 details, please refer the `TLP paper`_.
 
 .. _TLP paper: https://tools.ietf.org/html/draft-dukkipati-tcpm-tcp-loss-probe-01
 
 * TcpExtTCPLossProbes
+
 A TLP probe packet is sent.
 
 * TcpExtTCPLossProbeRecovery
+
 A packet loss is detected and recovered by TLP.
+
+TCP Fast Open
+=============
+TCP Fast Open is a technology which allows data transfer before the
+3-way handshake complete. Please refer the `TCP Fast Open wiki`_ for a
+general description.
+
+.. _TCP Fast Open wiki: https://en.wikipedia.org/wiki/TCP_Fast_Open
+
+* TcpExtTCPFastOpenActive
+
+When the TCP stack receives an ACK packet in the SYN-SENT status, and
+the ACK packet acknowledges the data in the SYN packet, the TCP stack
+understand the TFO cookie is accepted by the other side, then it
+updates this counter.
+
+* TcpExtTCPFastOpenActiveFail
+
+This counter indicates that the TCP stack initiated a TCP Fast Open,
+but it failed. This counter would be updated in three scenarios: (1)
+the other side doesn't acknowledge the data in the SYN packet. (2) The
+SYN packet which has the TFO cookie is timeout at least once. (3)
+after the 3-way handshake, the retransmission timeout happens
+net.ipv4.tcp_retries1 times, because some middle-boxes may black-hole
+fast open after the handshake.
+
+* TcpExtTCPFastOpenPassive
+
+This counter indicates how many times the TCP stack accepts the fast
+open request.
+
+* TcpExtTCPFastOpenPassiveFail
+
+This counter indicates how many times the TCP stack rejects the fast
+open request. It is caused by either the TFO cookie is invalid or the
+TCP stack finds an error during the socket creating process.
+
+* TcpExtTCPFastOpenListenOverflow
+
+When the pending fast open request number is larger than
+fastopenq->max_qlen, the TCP stack will reject the fast open request
+and update this counter. When this counter is updated, the TCP stack
+won't update TcpExtTCPFastOpenPassive or
+TcpExtTCPFastOpenPassiveFail. The fastopenq->max_qlen is set by the
+TCP_FASTOPEN socket operation and it could not be larger than
+net.core.somaxconn. For example:
+
+setsockopt(sfd, SOL_TCP, TCP_FASTOPEN, &qlen, sizeof(qlen));
+
+* TcpExtTCPFastOpenCookieReqd
+
+This counter indicates how many times a client wants to request a TFO
+cookie.
+
+SYN cookies
+===========
+SYN cookies are used to mitigate SYN flood, for details, please refer
+the `SYN cookies wiki`_.
+
+.. _SYN cookies wiki: https://en.wikipedia.org/wiki/SYN_cookies
+
+* TcpExtSyncookiesSent
+
+It indicates how many SYN cookies are sent.
+
+* TcpExtSyncookiesRecv
+
+How many reply packets of the SYN cookies the TCP stack receives.
+
+* TcpExtSyncookiesFailed
+
+The MSS decoded from the SYN cookie is invalid. When this counter is
+updated, the received packet won't be treated as a SYN cookie and the
+TcpExtSyncookiesRecv counter wont be updated.
+
+Challenge ACK
+=============
+For details of challenge ACK, please refer the explaination of
+TcpExtTCPACKSkippedChallenge.
+
+* TcpExtTCPChallengeACK
+
+The number of challenge acks sent.
+
+* TcpExtTCPSYNChallenge
+
+The number of challenge acks sent in response to SYN packets. After
+updates this counter, the TCP stack might send a challenge ACK and
+update the TcpExtTCPChallengeACK counter, or it might also skip to
+send the challenge and update the TcpExtTCPACKSkippedChallenge.
+
+prune
+=====
+When a socket is under memory pressure, the TCP stack will try to
+reclaim memory from the receiving queue and out of order queue. One of
+the reclaiming method is 'collapse', which means allocate a big sbk,
+copy the contiguous skbs to the single big skb, and free these
+contiguous skbs.
+
+* TcpExtPruneCalled
+
+The TCP stack tries to reclaim memory for a socket. After updates this
+counter, the TCP stack will try to collapse the out of order queue and
+the receiving queue. If the memory is still not enough, the TCP stack
+will try to discard packets from the out of order queue (and update the
+TcpExtOfoPruned counter)
+
+* TcpExtOfoPruned
+
+The TCP stack tries to discard packet on the out of order queue.
+
+* TcpExtRcvPruned
+
+After 'collapse' and discard packets from the out of order queue, if
+the actually used memory is still larger than the max allowed memory,
+this counter will be updated. It means the 'prune' fails.
+
+* TcpExtTCPRcvCollapsed
+
+This counter indicates how many skbs are freed during 'collapse'.
 
 examples
 ========
