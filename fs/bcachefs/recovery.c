@@ -215,10 +215,11 @@ int bch2_fs_recovery(struct bch_fs *c)
 	if (ret)
 		goto err;
 
+	bch_verbose(c, "starting stripes_read");
 	ret = bch2_stripes_read(c, &journal);
 	if (ret)
 		goto err;
-	pr_info("stripes_read done");
+	bch_verbose(c, "stripes_read done");
 
 	set_bit(BCH_FS_ALLOC_READ_DONE, &c->flags);
 
